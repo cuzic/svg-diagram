@@ -3,15 +3,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {wf, collectTextRequests, layoutWireframe} from '../lib/wireframe.ts';
 import {wireframe} from '../lib/dsl.ts';
+import type {LaidOutWireframe, PrimRect, PrimText, WfEvidence, WfInsightOpts, WfRoot, WfState, WireframeOpts} from '../lib/types.ts';
 
 // a stand-in for the browser measurer: every character is 0.6em wide
-const widthOf = (atom, size) => [...atom].length * size * 0.6;
-const layout = (root, opts = {}) => layoutWireframe({type: 'wireframe', root, h: 420, ...opts}, 0, 0, 900, widthOf);
-const texts = (band) => band.prims.filter(p => p.k === 'text').map(p => p.s);
+const widthOf = (atom: string, size: number) => [...atom].length * size * 0.6;
+const layout = (root: WfRoot, opts: Partial<WireframeOpts> = {}) => layoutWireframe({type: 'wireframe', root, h: 420, ...opts}, 0, 0, 900, widthOf);
+const isText = (p: {k: string}): p is PrimText => p.k === 'text';
+const texts = (band: LaidOutWireframe) => band.prims.filter(isText).map(p => p.s);
 
 test('wf.insight refuses to exist without evidence and its acquisition time', () => {
-  assert.throws(() => wf.insight({title: '異常', text: 'x'}), /evidence is required/);
-  assert.throws(() => wf.insight({title: '異常', evidence: [{kind: '赤外線'}]}), /acquisition time/);
+  assert.throws(() => wf.insight({title: '異常', text: 'x'} as unknown as WfInsightOpts), /evidence is required/);
+  assert.throws(() => wf.insight({title: '異常', evidence: [{kind: '赤外線'}] as unknown as WfEvidence[]}), /acquisition time/);
   assert.doesNotThrow(() => wf.insight({title: '異常', evidence: [{kind: '赤外線', at: '10:42'}]}));
 });
 
@@ -22,12 +24,12 @@ test('an insight shows its evidence, its time and that it is a reference (not a 
 });
 
 test('state: missing / disconnected / loading are drawn with words and hatching, and unknown states fail', () => {
-  for (const [state, word] of [['missing', 'データ欠損中'], ['disconnected', '通信断'], ['loading', '読み込み中']]) {
+  for (const [state, word] of [['missing', 'データ欠損中'], ['disconnected', '通信断'], ['loading', '読み込み中']] as [WfState, string][]) {
     const band = layout(wf.col([wf.video({state, h: 160})]));
     assert.ok(texts(band).includes(word), `${state} shows "${word}"`);
     assert.ok(band.prims.filter(p => p.k === 'path' && p.op === 0.3).length > 3, 'hatching lines');
   }
-  assert.throws(() => layout(wf.col([wf.video({state: 'bogus', h: 160})])), /unknown state/);
+  assert.throws(() => layout(wf.col([wf.video({state: 'bogus' as unknown as WfState, h: 160})])), /unknown state/);
 });
 
 test('every string a part may draw by default is measured before layout (no zero-width boxes)', () => {
@@ -37,7 +39,7 @@ test('every string a part may draw by default is measured before layout (no zero
 
 test('fusion wraps its layer toggles instead of overflowing a narrow frame', () => {
   const band = layout(wf.row([wf.fusion({w: 240}), wf.col([wf.text('x')])]));
-  const toggles = band.prims.filter(p => p.k === 'rect' && p.w === 36 && p.h === 20);
+  const toggles = band.prims.filter((p): p is PrimRect => p.k === 'rect' && p.w === 36 && p.h === 20);
   assert.equal(toggles.length, 3);
   assert.ok(new Set(toggles.map(p => p.y)).size >= 2, 'toggles sit on more than one row');
   assert.ok(toggles.every(p => p.x + 44 <= 240 + 6), 'inside the frame');
@@ -70,7 +72,7 @@ test('an insight evidence row that does not fit puts its time on a second line (
   const long = wf.insight({title: '温度が高い', evidence: [{kind: '赤外線 最高 62.4℃（装置の右側）', at: '10/9 10:24:31'}]});
   const narrow = layoutWireframe({type: 'wireframe', root: wf.col([long]), h: 420}, 0, 0, 330, widthOf);
   const wide = layoutWireframe({type: 'wireframe', root: wf.col([long]), h: 420}, 0, 0, 900, widthOf);
-  const y = (b, s) => b.prims.find(p => p.k === 'text' && p.s === s).y;
+  const y = (b: LaidOutWireframe, s: string) => b.prims.find((p): p is PrimText => p.k === 'text' && p.s === s)!.y;
   assert.ok(y(narrow, '10/9 10:24:31') > y(narrow, '赤外線 最高 62.4℃（装置の右側）'), 'narrow: the time sits below');
   assert.equal(y(wide, '10/9 10:24:31'), y(wide, '赤外線 最高 62.4℃（装置の右側）'), 'wide: one line');
 });

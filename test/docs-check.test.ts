@@ -8,6 +8,7 @@ import {spawnSync} from 'node:child_process';
 import {scanMarkdown, parseItem, compareNotes} from '../lib/docs-check.ts';
 import {explainChange} from '../lib/svg-diff.ts';
 import {loadConfig, applyConfig} from '../lib/config.ts';
+import type {DiagramData} from '../lib/types.ts';
 
 const CHECK = new URL('../check-diagram.ts', import.meta.url).pathname;
 
@@ -32,7 +33,7 @@ test('compareNotes: a figure note that is missing, reworded or renamed in the pa
 });
 
 test('explainChange: metadata-only and invisible-backing changes are not visual; moved text and new shapes are', () => {
-  const svg = (meta, body) => `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><metadata id="svg-diagram">${meta}</metadata>${body}</svg>`;
+  const svg = (meta: string, body: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><metadata id="svg-diagram">${meta}</metadata>${body}</svg>`;
   const base = svg('{"v":"0.2.0"}', '<rect x="0" y="0" width="10" height="10" fill="#fff"/><text x="4" y="20" font-size="14">文字</text>');
   assert.equal(explainChange(base, base).identical, true);
   const meta = explainChange(base, svg('{"v":"0.3.0"}', '<rect x="0" y="0" width="10" height="10" fill="#fff"/><text x="4" y="20" font-size="14">文字</text>'));
@@ -51,14 +52,14 @@ test('config: .svg-diagram.json is found from a subdirectory; a diagram own acce
   fs.writeFileSync(path.join(root, '.svg-diagram.json'), JSON.stringify({accept: {density: '一覧のため', 'edge-crossings': '依存が多い'}, maxWidth: 1000}));
   const cfg = loadConfig(path.join(root, 'a', 'b'));
   assert.equal(cfg.maxWidth, 1000);
-  const d = applyConfig({accept: {density: '図ごとの理由'}}, cfg);
+  const d = applyConfig<Pick<DiagramData, 'accept' | 'maxWidth'>>({accept: {density: '図ごとの理由'}}, cfg);
   assert.deepEqual(d.accept, {density: '図ごとの理由', 'edge-crossings': '依存が多い'});
   assert.equal(d.maxWidth, 1000);
   assert.deepEqual(loadConfig(os.tmpdir()), {}, 'no config found');
 });
 
 // ---- the command, end to end (no browser is needed for --docs) ---------------------------------
-function project(mdBody, extra = {}) {
+function project(mdBody: string, extra: {orphan?: boolean} = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-'));
   fs.mkdirSync(path.join(root, 'docs'), {recursive: true}); fs.mkdirSync(path.join(root, 'src')); fs.mkdirSync(path.join(root, 'svg'));
   fs.writeFileSync(path.join(root, 'svg', 'fig.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>');
@@ -68,7 +69,7 @@ export default () => { const d = diagram({theme: 'blue', title: 't'}); d.add(wir
   fs.writeFileSync(path.join(root, 'docs', 'page.md'), mdBody);
   return root;
 }
-const run = (root, ...extra) => spawnSync('node', [CHECK, '--docs', 'docs', '--svg-dir', 'svg', '--src-dir', 'src', ...extra], {cwd: root, encoding: 'utf8'});
+const run = (root: string, ...extra: string[]) => spawnSync('node', [CHECK, '--docs', 'docs', '--svg-dir', 'svg', '--src-dir', 'src', ...extra], {cwd: root, encoding: 'utf8'});
 const GOOD = '# P\n\n![二つのボタンを持つ画面](../svg/fig.svg)\n\n1. **一つ目**：本文一\n2. **二つ目**：本文二\n';
 
 test('check --docs: a page that agrees with its figure passes', () => {

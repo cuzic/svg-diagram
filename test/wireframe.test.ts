@@ -4,16 +4,19 @@ import test, {after} from 'node:test';
 import assert from 'node:assert/strict';
 import {diagram, wireframe, screens, wf, closeMeasurer} from '../lib/dsl.ts';
 import {layoutDiagram} from '../lib/layout.ts';
+import type {Band, LaidOutScreens, LaidOutWireframe, PrimRect, PrimText, Prim, Rect} from '../lib/types.ts';
 
 after(() => closeMeasurer());
 
-const layout = async (...bands) => {
+type Screen = LaidOutWireframe | LaidOutScreens;
+const layout = async (...bands: Band[]) => {
   const d = diagram({theme: 'blue'});
   d.add(...bands);
-  return (await layoutDiagram(d)).laidOut;
+  return (await layoutDiagram(d)).laidOut as Screen[];
 };
-const texts = (band) => band.prims.filter(p => p.k === 'text').map(p => p.s);
-const within = (p, b, slack = 16) => p.k !== 'rect' || (p.x >= b.x - slack && p.y >= b.y - slack && p.x + p.w <= b.x + b.w + slack && p.y + p.h <= b.y + b.h + slack);
+const isText = (p: Prim): p is PrimText => p.k === 'text';
+const texts = (band: Screen) => band.prims.filter(isText).map(p => p.s);
+const within = (p: Prim, b: Rect, slack = 16) => p.k !== 'rect' || (p.x >= b.x - slack && p.y >= b.y - slack && p.x + p.w <= b.x + b.w + slack && p.y + p.h <= b.y + b.h + slack);
 
 test('wireframe: lays out a screen with its notes, every shape stays inside the band', async () => {
   const [band] = await layout(wireframe([wf.appbar('App', {nav: ['A', 'B']}), wf.text('こんにちは')], {title: 'S', h: 200, id: 'a', notes: ['メモ']}));
@@ -47,7 +50,7 @@ test('wireframe: a katakana word is never broken across lines', async () => {
 
 test('wireframe: flex visuals fill the leftover height', async () => {
   const [band] = await layout(wireframe([wf.text('top'), wf.video({label: 'V'})], {h: 300}));
-  const video = band.prims.filter(p => p.k === 'rect' && p.fill === 'code').sort((a, b) => b.h - a.h)[0];
+  const video = band.prims.filter((p): p is PrimRect => p.k === 'rect' && p.fill === 'code').sort((a, b) => b.h - a.h)[0];
   assert.ok(video.h > 200, `video should take the rest, got ${video.h}`);
 });
 
@@ -63,8 +66,8 @@ test('dialog overlay dims the screen, hides what it covers, and puts the callout
 
 test('toast overlay sits at the bottom right of the screen', async () => {
   const [band] = await layout(wireframe([wf.text('x')], {h: 200, overlays: [wf.toast('保存しました')]}));
-  const toast = band.prims.find(p => p.k === 'rect' && p.fill === 'text' && p.r === 6);
-  const frame = band.prims.find(p => p.k === 'rect' && p.stroke === 'text' && p.sw === 2.5);
+  const toast = band.prims.find((p): p is PrimRect => p.k === 'rect' && p.fill === 'text' && p.r === 6)!;
+  const frame = band.prims.find((p): p is PrimRect => p.k === 'rect' && p.stroke === 'text' && p.sw === 2.5)!;
   assert.ok(toast.x + toast.w <= frame.x + frame.w && toast.y + toast.h <= frame.y + frame.h);
   assert.ok(toast.x > frame.x + frame.w / 2 && toast.y > frame.y + frame.h / 2);
 });

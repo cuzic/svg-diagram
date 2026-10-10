@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {wcagRatio} from '../lib/tokens.ts';
 import {usedNotation, legendKeys, applyAutoLegend, edgeStats, lintDiagram, diagramTitle} from '../lib/rules.ts';
+import type {LaidOutConnect, LegendBand, Point} from '../lib/types.ts';
 import {diagram, caption, box, connect, legend, swimlane} from '../lib/dsl.ts';
 
 test('wcagRatio: black on white is 21:1, same colour is 1:1', () => {
@@ -23,11 +24,11 @@ test("legend: 'auto' adds only what is missing, keeping existing entries", () =>
   const keys = legendKeys(d.bands);
   assert.ok(keys.has('line:dashed') && keys.has('tone:new') && keys.has('line:solid'));
   assert.equal(d.bands.filter(b => b.type === 'legend').length, 1);
-  assert.equal(d.bands.find(b => b.type === 'legend').items.find(i => i.tone === 'new').label, '新規');
+  assert.equal((d.bands.find(b => b.type === 'legend') as LegendBand).items.find(i => i.tone === 'new')!.label, '新規');
 });
 
 test('edgeStats: counts a crossing, ignores connectors that merely share an endpoint', () => {
-  const c = (points, fromId, toId) => ({points, fromId, toId});
+  const c = (points: Point[], fromId: string, toId: string) => ({points, fromId, toId}) as unknown as LaidOutConnect;
   const horizontal = c([{x: 0, y: 50}, {x: 100, y: 50}], 'a', 'b');
   const vertical = c([{x: 50, y: 0}, {x: 50, y: 100}], 'c', 'd');
   assert.equal(edgeStats([horizontal, vertical]).crossings, 1);
@@ -43,8 +44,8 @@ test('swimlane: suggests a lane order that shortens hand-offs, never moves a fix
     {flows: [{from: 's1', to: 's2'}, {from: 's2', to: 's3'}, {from: 's3', to: 's4'}]},
   ));
   // connects are resolved at layout time; fake the resolved ones the rule reads
-  d.connects = [{fromId: 's1', toId: 's2', points: []}, {fromId: 's2', toId: 's3', points: []}, {fromId: 's3', toId: 's4', points: []}];
-  const f = lintDiagram({...d, laidOut: [], connects: d.connects}).find(x => x.rule === 'swimlane-lane-order');
+  const connects = [{fromId: 's1', toId: 's2', points: []}, {fromId: 's2', toId: 's3', points: []}, {fromId: 's3', toId: 's4', points: []}] as unknown as LaidOutConnect[];
+  const f = lintDiagram({...d, laidOut: [], connects}).find(x => x.rule === 'swimlane-lane-order');
   assert.ok(f, 'a better order exists: X → Z → Y puts s2 and s3 in adjacent lanes only after reordering');
   assert.ok(f.message.endsWith('に減る') && f.message.includes('END'));
   assert.ok(f.message.indexOf('END') > f.message.indexOf('Y'), 'END stays last');

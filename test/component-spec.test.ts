@@ -4,16 +4,18 @@ import assert from 'node:assert/strict';
 import {wf, layoutWireframe, layoutScreens, collectTextRequests} from '../lib/wireframe.ts';
 import {wireframe, stateMatrix, screens, diagram} from '../lib/dsl.ts';
 import {lintDiagram} from '../lib/rules.ts';
+import type {PrimRect, PrimText, WfCol, WfInsight, WfNote, WfRobotOpts, WfRoot, WfRow, WireframeOpts} from '../lib/types.ts';
 
-const widthOf = (atom, size) => [...atom].length * size * 0.6;
-const wfLayout = (root, opts = {}, w = 900) => layoutWireframe({type: 'wireframe', root, h: 420, ...opts}, 0, 0, w, widthOf);
-const texts = (b) => b.prims.filter(p => p.k === 'text').map(p => p.s);
-const robot = (o = {}) => wf.robot({name: 'A', battery: 0.82, link: 3, last: '1 秒前', ...o});
+const widthOf = (atom: string, size: number) => [...atom].length * size * 0.6;
+const wfLayout = (root: WfRoot, opts: Partial<WireframeOpts> = {}, w = 900) => layoutWireframe({type: 'wireframe', root, h: 420, ...opts}, 0, 0, w, widthOf);
+const isText = (p: {k: string}): p is PrimText => p.k === 'text';
+const texts = (b: {prims: {k: string}[]}) => b.prims.filter(isText).map(p => p.s);
+const robot = (o: Partial<WfRobotOpts> = {}) => wf.robot({name: 'A', battery: 0.82, link: 3, last: '1 秒前', ...o});
 
 test('robot card: the signal never overlaps the battery text, whatever its length', () => {
   const b = wfLayout(wf.col([robot({battery: 0.12, compact: false})]), {}, 400);
-  const bat = b.prims.find(p => p.k === 'text' && p.s.startsWith('12%')), sigBars = b.prims.filter(p => p.k === 'rect' && p.w === 6 && p.h === 6)[0];
-  assert.ok(sigBars.x > bat.x + widthOf(bat.s, 14) - 1, 'the signal starts after the battery text');
+  const bat = b.prims.find((p): p is PrimText => p.k === 'text' && p.s.startsWith('12%')), sigBars = b.prims.filter((p): p is PrimRect => p.k === 'rect' && p.w === 6 && p.h === 6)[0];
+  assert.ok(sigBars.x > bat!.x + widthOf(bat!.s, 14) - 1, 'the signal starts after the battery text');
 });
 
 test('robot card: a narrow frame stacks its rows (nothing sticks out)', () => {
@@ -53,7 +55,7 @@ test('fusion: a layer with a state is shown disabled and the rest keep working',
 
 test('anatomy: numbers on the inner parts of a component', () => {
   const b = wfLayout(wf.col([wf.insight({title: 'T', evidence: [{kind: 'k', at: 't'}], parts: {level: 1, title: 2, evidence: 3, reference: 4}})]));
-  const nums = b.prims.filter(p => p.k === 'text' && p.fill === 'bg' && /^[1-4]$/.test(p.s)).map(p => p.s).sort();
+  const nums = b.prims.filter(isText).filter(p => p.fill === 'bg' && /^[1-4]$/.test(p.s)).map(p => p.s).sort();
   assert.deepEqual(nums, ['1', '2', '3', '4']);
 });
 
@@ -86,7 +88,7 @@ test('check: unfinished state matrices and missing required states are reported'
 });
 
 test('check: callout numbers and notes must match one to one', () => {
-  const run = (root, notes) => { const d = diagram({theme: 'blue', title: 't'}); d.add(wireframe(root, {notes, title: 'S'})); return lintDiagram({...d, laidOut: [], connects: []}).map(x => x.rule); };
+  const run = (root: WfRoot, notes: WfNote[]) => { const d = diagram({theme: 'blue', title: 't'}); d.add(wireframe(root, {notes, title: 'S'})); return lintDiagram({...d, laidOut: [], connects: []}).map(x => x.rule); };
   assert.deepEqual(run(wf.col([wf.btn('a', {n: 1})]), [{title: 'a', text: 'x'}]).filter(r => r.startsWith('wf-')), []);
   assert.ok(run(wf.col([wf.btn('a', {n: 1}), wf.btn('b', {n: 2})]), [{title: 'a', text: 'x'}]).includes('wf-callout-no-note'));
   assert.ok(run(wf.col([wf.btn('a', {n: 1})]), [{title: 'a', text: 'x'}, {title: 'b', text: 'y'}]).includes('wf-note-no-callout'));
@@ -94,11 +96,11 @@ test('check: callout numbers and notes must match one to one', () => {
 });
 
 test('autoNumber: n: true numbers callouts in reading order, after explicit ones', () => {
-  const root = wf.col([wf.row([wf.btn('a', {n: true}), wf.btn('b', {n: 1})]), wf.btn('c', {n: true}), wf.insight({title: 'T', evidence: [{kind: 'k', at: 't'}], parts: {level: true}})]);
+  const root: WfCol = wf.col([wf.row([wf.btn('a', {n: true}), wf.btn('b', {n: 1})]), wf.btn('c', {n: true}), wf.insight({title: 'T', evidence: [{kind: 'k', at: 't'}], parts: {level: true}})]);
   wireframe(root, {});
-  assert.equal(root.children[0].children[0].n, 2);
+  assert.equal((root.children[0] as WfRow).children[0].n, 2);
   assert.equal(root.children[1].n, 3);
-  assert.equal(root.children[2].parts.level, 4);
+  assert.equal((root.children[2] as WfInsight).parts!.level, 4);
 });
 
 test('region: a named block for a coarse screen, with a reading-order number', () => {
@@ -112,13 +114,13 @@ test('stateMatrix: a row shorter than the columns gets "未設計" cells (never 
   assert.equal(texts(b).filter(t => t === '未設計').length, 2);
   const d = diagram({theme: 'blue', title: 't'});
   d.add(stateMatrix(['通常', '空', 'エラー'], [{label: 'A', cells: [wf.text('x')]}]));
-  assert.match(lintDiagram({...d, laidOut: [], connects: []}).find(x => x.rule === 'wf-states-todo').message, /A×空.*A×エラー/);
+  assert.match(lintDiagram({...d, laidOut: [], connects: []}).find(x => x.rule === 'wf-states-todo')!.message, /A×空.*A×エラー/);
   assert.throws(() => layoutScreens(stateMatrix(['通常'], [{label: 'A', cells: ['na', 'na']}]), 0, 0, 900, widthOf), /2 cells for 1 columns/);
 });
 
 test('a state\'s frame name is drawn AFTER the hatching (nothing runs through it)', () => {
   const b = wfLayout(wf.col([wf.video({state: 'disconnected', label: 'Go2-B', h: 120})]));
   const hatch = b.prims.map((p, i) => (p.k === 'path' && p.op === 0.3 ? i : -1)).filter(i => i >= 0);
-  const name = b.prims.findIndex(p => p.k === 'text' && p.s === 'Go2-B');
+  const name = b.prims.findIndex(p => isText(p) && p.s === 'Go2-B');
   assert.ok(hatch.length > 3 && name > Math.max(...hatch), 'name after every hatch line');
 });
