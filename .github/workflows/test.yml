@@ -19,8 +19,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm typecheck
       - run: pnpm test
       - name: examples build and pass the rule check
         run: |
-          for f in examples/*.mjs; do node build-diagram.mjs "$f" --out "/tmp/$(basename "$f" .mjs).svg"; done
-          node check-diagram.mjs --strict examples/*.mjs
+          for f in examples/*.ts; do node build-diagram.ts "$f" --out "/tmp/$(basename "$f" .ts).svg"; done
+          node check-diagram.ts --strict examples/*.ts

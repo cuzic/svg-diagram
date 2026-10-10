@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# svg-diagram build <source.mjs>... [--out file.svg]   (default out: ./svg/<name>.svg)
-# svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] <source.mjs>...
+# svg-diagram build <source.ts>... [--out file.svg]   (default out: ./svg/<name>.svg)
+# svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] <source.ts>...
 # svg-diagram diff old.svg new.svg                       (what changed, in words)
 # svg-diagram contact a.svg b.svg ... --out sheet.png    (a whole set on one picture)
 # svg-diagram lint  [file.svg ...] [--strict]               (default: ./svg/*.svg)
@@ -10,11 +10,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 cmd="${1:-}"; shift || true
 case "$cmd" in
-  build)   exec node "$ROOT/build-diagram.mjs" "$@" ;;
-  diff)    exec node "$ROOT/diff-svg.mjs" "$@" ;;
-  contact) exec node "$ROOT/contact-sheet.mjs" "$@" ;;
-  check)   exec node "$ROOT/check-diagram.mjs" "$@" ;;
-  lint)    exec node "$ROOT/lint-svg.mjs" "$@" ;;
+  build)   exec node "$ROOT/build-diagram.ts" "$@" ;;
+  diff)    exec node "$ROOT/diff-svg.ts" "$@" ;;
+  contact) exec node "$ROOT/contact-sheet.ts" "$@" ;;
+  check)   exec node "$ROOT/check-diagram.ts" "$@" ;;
+  lint)    exec node "$ROOT/lint-svg.ts" "$@" ;;
   preview) exec bash "$ROOT/preview_svg.sh" "$@" ;;
   *) sed -n 2,9p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
 esac

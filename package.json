@@ -11,8 +11,9 @@
     "playwright-chromium": "1.62.1"
   },
   "scripts": {
-    "test": "node --test \"test/*.test.mjs\"",
-    "golden": "node check-diagram.mjs --drift --rebuild --svg-dir examples/out examples/*.mjs"
+    "test": "node --test \"test/*.test.ts\"",
+    "golden": "node check-diagram.ts --drift --rebuild --svg-dir examples/out examples/*.ts",
+    "typecheck": "tsc -p ."
   },
   "license": "MIT",
   "repository": {
@@ -31,6 +32,14 @@
     "documentation"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.18"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2"
+  },
+  "types": "./lib/dsl.ts",
+  "exports": {
+    ".": "./lib/dsl.ts"
   }
 }
