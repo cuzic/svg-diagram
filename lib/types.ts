@@ -237,6 +237,11 @@ export interface GroupOpts {
   /** Inner padding (default 16). */
   pad?: number;
   id?: string;
+  /** Sizing when the group is a child of row(): the same fields as a box (flex / width for justify, span / col for cols). */
+  flex?: number;
+  width?: number;
+  span?: number;
+  col?: number;
 }
 export interface GroupBand {
   type: 'group';
@@ -248,6 +253,20 @@ export interface GroupBand {
   dashed?: boolean;
   pad?: number;
   id?: string;
+  flex?: number;
+  width?: number;
+  span?: number;
+  col?: number;
+}
+
+/** A row() whose children include groups: they sit side by side and their frames are stretched to the tallest one. */
+export interface GroupRowBand {
+  type: 'grouprow';
+  cols?: number;
+  children: (BoxBand | GroupBand)[];
+  gap: number;
+  justify: RowJustify;
+  itemWidth?: number;
 }
 
 /** A legend entry: a line sample ({line, arrow?}) or a tone swatch ({tone, dashed?}). */
@@ -658,7 +677,7 @@ export interface ScreensBand extends ScreensOpts {
 /** Every band the DSL constructors return. */
 export type Band =
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GridBand | ConnectBand | PyramidBand | CurveBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================

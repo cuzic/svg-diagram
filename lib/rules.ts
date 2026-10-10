@@ -59,6 +59,7 @@ export function walkBands(bands: Band[], out: Band[] = []): Band[] {
   for (const b of bands) {
     out.push(b);
     if (b.type === 'group') walkBands(b.children, out);
+    else if (b.type === 'grouprow') walkBands(b.children, out);
     else if (b.type === 'row' || b.type === 'grid') out.push(...b.children);
     else if (b.type === 'swimlane') out.push(...b.steps);
   }

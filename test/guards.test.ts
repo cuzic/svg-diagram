@@ -167,10 +167,14 @@ test('banner() / box() keep unknown extras instead of dropping them (JS callers)
   assert.equal(banner({headline: 'H'}).tone, 'accent');
 });
 
-test('row() and grid() refuse non-box children instead of drawing an empty box', async () => {
-  const {row, grid, group, box} = await import('../lib/dsl.ts');
-  const g = group([box({title: 'x'})], {title: 'g'}) as never;
-  assert.throws(() => row([g]), /row\(\): child 0 is a group\(\)/);
-  assert.throws(() => grid([box({title: 'a'}), g], {cols: 2}), /grid\(\): child 1 is a group\(\)/);
+test('row() takes boxes and groups; grid() takes boxes only; anything else is refused instead of drawing an empty box', async () => {
+  const {row, grid, group, box, banner} = await import('../lib/dsl.ts');
+  const g = group([box({title: 'x'})], {title: 'g'});
+  const ban = banner({headline: 'h'}) as never;
+  assert.throws(() => row([ban]), /row\(\): child 0 is a banner\(\)/);
+  assert.throws(() => row([box({title: 'a'}), g, ban]), /row\(\): child 2 is a banner\(\)/);
+  assert.throws(() => grid([box({title: 'a'}), g as never], {cols: 2}), /grid\(\): child 1 is a group\(\)/);
+  assert.throws(() => row([g], {arrows: 'between'}), /arrows: 'between' cannot be used/);
   assert.doesNotThrow(() => row([box({title: 'a'})]));
+  assert.equal(row([box({title: 'a'}), g]).type, 'grouprow');
 });

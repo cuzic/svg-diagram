@@ -69,3 +69,21 @@ test('a widget whose state replaces its content grows to hold the state box (vid
   const r = await checkDiagram(d);
   assert.ok(r.verdict.ok, r.verdict.problems.join('\n'));
 });
+
+test('row() of groups: side by side, frames stretched to the tallest, nested groups and flex honoured, anchors usable', async () => {
+  const d = diagram({theme: 'blue'});
+  d.add(row([
+    group([box({id: 'p1', title: 'P1'}), box({id: 'p2', title: 'P2'})], {title: 'A', id: 'ga', flex: 3}),
+    group([box({id: 'p3', title: 'P3'})], {title: 'B', id: 'gb'}),
+  ]), box({id: 'db', title: 'DB'}), connect('p3:bottom@0.9', 'db:top@0.9'));
+  const r = await checkDiagram(d);
+  assert.ok(r.verdict.ok, r.verdict.problems.join('\n'));
+  const frames = r.laidOut.laidOut.filter(b => b.type === 'group') as {x: number; y: number; w: number; h: number}[];
+  assert.equal(frames.length, 2);
+  assert.equal(frames[0].h, frames[1].h);
+  assert.equal(frames[0].y, frames[1].y);
+  assert.ok(frames[0].x + frames[0].w < frames[1].x);
+  assert.ok(Math.abs(frames[0].w / frames[1].w - 3) < 0.1 || frames[0].w > 2 * frames[1].w);
+  const c = r.laidOut.connects[0];
+  assert.ok(c.points[0].y <= frames[0].y + frames[0].h);
+});

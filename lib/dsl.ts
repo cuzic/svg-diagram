@@ -25,7 +25,7 @@ import type {
   LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
   Role, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
-  TableCellSpec, TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
+  GroupRowBand, TableCellSpec, TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
 } from './types.ts';
 import type {
   ActorIn, AnchorsOf, BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, FlowCheck, FlowIn, IdsOf, LaneCheck, Ok,
@@ -121,7 +121,7 @@ export function banner(opts: BannerOpts): BannerBand {
 // Types: the ids (and connect() refs) of the children are exposed to add().
 export function group<C extends Band | Band[], const Id extends string = never>(children: C, opts?: GroupOpts & {id?: Id}): GroupBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & HandleOf<Id>;
 export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
-  return withHandle({type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad, id: opts.id}, opts.id);
+  return withHandle({type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col}, opts.id);
 }
 
 // Key for line styles / tones used in the diagram. items:
@@ -292,6 +292,12 @@ export function spacer(h: number): SpacerBand {
   return {type: 'spacer', h};
 }
 
+function assertRowChildren(children: readonly {type?: string}[]): void {
+  children.forEach((c, i) => {
+    if (c?.type !== 'box' && c?.type !== 'group') throw new Error(`row(): child ${i} is ${c?.type === undefined ? 'not a band' : `a ${c.type}()`}, but row() takes box() and group() children only`);
+  });
+}
+
 // row()/grid() lay out boxes only. A group (or anything else) would silently render as an empty
 // little box in plain JS (.mjs), where the types do not stop it, so fail loudly instead.
 function assertBoxChildren(what: 'row' | 'grid', children: readonly {type?: string}[]): void {
@@ -310,10 +316,20 @@ function assertBoxChildren(what: 'row' | 'grid', children: readonly {type?: stri
 // `span` columns, default 1, optionally starting at 1-based `col`). Rows with
 // the same cols/gap have identical column edges, so a box spanning two
 // columns lines up exactly over two single-column boxes in the next row.
+//
+// Groups may sit in a row too (side-by-side frames: Host | Cloud, or two containers next to each other). Their
+// frames are stretched to the tallest one; give a group `flex` / `width` / `span` / `col` like a box. Groups
+// in a row cannot be combined with `arrows: 'between'`.
 export function row<C extends BoxBand>(children: C[], opts?: RowOpts): RowBand & Declares<IdsOf<C>>;
-export function row(children: BoxBand[], opts: RowOpts = {}): RowBand {
-  assertBoxChildren('row', children);
-  return {type: 'row', cols: opts.cols, children, gap: opts.gap ?? 16, arrows: opts.arrows ?? 'none', justify: opts.justify ?? 'stretch', itemWidth: opts.width};
+export function row<C extends BoxBand | GroupBand>(children: C[], opts?: RowOpts): GroupRowBand & Declares<IdsOf<C>> & Refers<RefsOf<C>>;
+export function row(children: (BoxBand | GroupBand)[], opts: RowOpts = {}): RowBand | GroupRowBand {
+  if (children.some(c => c?.type === 'group')) {
+    if (opts.arrows === 'between') throw new Error("row(): arrows: 'between' cannot be used when a child is a group()");
+    assertRowChildren(children);
+    return {type: 'grouprow', cols: opts.cols, children, gap: opts.gap ?? 16, justify: opts.justify ?? 'stretch', itemWidth: opts.width};
+  }
+  assertBoxChildren('row', children as BoxBand[]);
+  return {type: 'row', cols: opts.cols, children: children as BoxBand[], gap: opts.gap ?? 16, arrows: opts.arrows ?? 'none', justify: opts.justify ?? 'stretch', itemWidth: opts.width};
 }
 
 // children: box() descriptors, laid out in `cols` columns (wraps to
