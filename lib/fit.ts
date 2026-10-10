@@ -17,19 +17,21 @@
 // badge/breadcrumb/text. The five day2 prototypes needed 270-300px, so 300
 // is the default; override per diagram when the slide has less body text.
 
+import type {FitReport, LaidOutDiagram} from './types.ts';
+
 export const SLIDE_USABLE_WIDTH = 860; // docs/diagram-tone-and-manner.md section 5
 
-export function analyzeFit(d) {
+export function analyzeFit(d: LaidOutDiagram): FitReport {
   const maxH = d.maxDisplayHeight ?? 300;
   const minEff = d.minEffectiveFont ?? 12;
   const w = d.width, h = d.canvasHeight;
 
   const widthScale = Math.min(1, (d.usableWidth ?? SLIDE_USABLE_WIDTH) / w);
-  const scaleAt = (hh) => Math.min(widthScale, maxH / hh);
+  const scaleAt = (hh: number): number => Math.min(widthScale, maxH / hh);
   const scale = scaleAt(h);
 
   let minSize = Infinity;
-  const note = (band) => { for (const r of band.wrappedRuns ?? []) minSize = Math.min(minSize, r.size); };
+  const note = (band: LaidOutDiagram['laidOut'][number]): void => { for (const r of 'wrappedRuns' in band ? band.wrappedRuns : []) minSize = Math.min(minSize, r.size); };
   let bannerH = 0;
   for (const band of d.laidOut) {
     if (band.type === 'row' || band.type === 'grid') band.children.forEach(note); else note(band);
@@ -40,7 +42,7 @@ export function analyzeFit(d) {
 
   const recommendedMaxHeight = Math.floor(Math.min(maxH, h * widthScale));
   const effectiveFont = Math.round(minSize * scale * 10) / 10;
-  const warnings = [];
+  const warnings: string[] = [];
   if (d.medium === 'doc') return {scale: 1, effectiveFont: minSize, recommendedMaxHeight: h, imgStyle: '', bannerHeight: bannerH, warnings, doc: true};
   if (effectiveFont < minEff) {
     let msg = `on-slide text is ~${effectiveFont}px (< ${minEff}px): the ${w}x${h} canvas must shrink to ${recommendedMaxHeight}px high`;

@@ -16,19 +16,20 @@
 // line start, don't strand opening punctuation at a line end.
 
 import {splitAtoms} from './measure.ts';
+import type {WrapOptions} from './types.ts';
 
 const CANNOT_START_LINE = new Set(
   '、。，．・：；！？」』）〕】〉》ゝゞーぁぃぅぇぉっゃゅょァィゥェォッャュョ'.split(''),
 );
 const CANNOT_END_LINE = new Set('「『（〔【〈《'.split(''));
 
-const isWhitespace = (atom) => /^\s+$/.test(atom);
+const isWhitespace = (atom: string): boolean => /^\s+$/.test(atom);
 
 // wrapAtoms(atoms, {maxWidth, atomWidth}) -> string[] (one per rendered line)
 // atomWidth: (atomText) => number, typically from measureAtoms()'s `width`.
-export function wrapAtoms(atoms, {maxWidth, atomWidth}) {
-  const lines = [];
-  let cur = [];
+export function wrapAtoms(atoms: string[], {maxWidth, atomWidth}: WrapOptions): string[] {
+  const lines: string[][] = [];
+  let cur: string[] = [];
   let curWidth = 0;
 
   for (const atom of atoms) {
@@ -62,10 +63,10 @@ export function wrapAtoms(atoms, {maxWidth, atomWidth}) {
   // forward onto the next line's start instead.
   for (let i = 0; i < lines.length - 1; i++) {
     const line = lines[i];
-    const last = line[line.length - 1];
+    const last = line[line.length - 1]!;
     if (line.length > 1 && CANNOT_END_LINE.has(last)) {
       line.pop();
-      lines[i + 1].unshift(last);
+      lines[i + 1]!.unshift(last);
     }
   }
 
@@ -73,6 +74,6 @@ export function wrapAtoms(atoms, {maxWidth, atomWidth}) {
 }
 
 // Convenience wrapper: wraps a plain string (splitting it into atoms first).
-export function wrapText(text, opts) {
+export function wrapText(text: string, opts: WrapOptions): string[] {
   return wrapAtoms(splitAtoms(text), opts);
 }

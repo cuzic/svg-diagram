@@ -19,10 +19,12 @@
 // something fits.
 
 import {chromium} from 'playwright-chromium';
+import type {Browser} from 'playwright-chromium';
 import {FONT_STACKS} from './tokens.ts';
+import type {FontFamily, MeasureRequest, Measured} from './types.ts';
 
-function isCJK(ch) {
-  const c = ch.codePointAt(0);
+function isCJK(ch: string): boolean {
+  const c = ch.codePointAt(0)!;
   return (c >= 0x3000 && c <= 0x30ff)   // CJK punctuation, hiragana, katakana
     || (c >= 0x3400 && c <= 0x9fff)      // CJK unified ideographs (+ ext A)
     || (c >= 0xf900 && c <= 0xfaff)      // CJK compatibility ideographs
@@ -32,8 +34,8 @@ function isCJK(ch) {
 // Splits text into atoms: each CJK character alone, each run of whitespace
 // alone, and each run of anything else (Latin words, digits, punctuation,
 // emoji) kept together.
-export function splitAtoms(text) {
-  const atoms = [];
+export function splitAtoms(text: string): string[] {
+  const atoms: string[] = [];
   let buf = '';
   const flush = () => { if (buf) { atoms.push(buf); buf = ''; } };
   for (const ch of text) {
@@ -45,12 +47,12 @@ export function splitAtoms(text) {
   return atoms;
 }
 
-function escapeXml(s) {
-  return s.replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
+function escapeXml(s: string): string {
+  return s.replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c as '&' | '<' | '>']));
 }
 
-let browserPromise = null;
-function getBrowser() {
+let browserPromise: Promise<Browser> | null = null;
+function getBrowser(): Promise<Browser> {
   browserPromise ??= chromium.launch({args: ['--no-sandbox']});
   return browserPromise;
 }
@@ -59,7 +61,7 @@ function getBrowser() {
 // process exit naturally — Playwright doesn't need an explicit close if the
 // process is about to end, but build-diagram.ts calls this for a clean exit
 // when building many diagrams in one process).
-export async function closeMeasurer() {
+export async function closeMeasurer(): Promise<void> {
   if (browserPromise) {
     const b = await browserPromise;
     await b.close();
@@ -69,7 +71,7 @@ export async function closeMeasurer() {
 
 // requests: Map<key, {text, size, weight?, font?: 'sans'|'mono'|'emoji'}>
 // returns Map<key, {w, h}>
-export async function measureAll(requests) {
+export async function measureAll(requests: Map<string, MeasureRequest>): Promise<Map<string, Measured>> {
   if (requests.size === 0) return new Map();
   const browser = await getBrowser();
   const page = await browser.newPage();
@@ -84,15 +86,15 @@ export async function measureAll(requests) {
       `<svg xmlns="http://www.w3.org/2000/svg" width="4000" height="200">${nodes}</svg>`,
       {waitUntil: 'load'},
     );
-    const dims = await page.evaluate((n) => {
-      const out = [];
+    const dims = await page.evaluate((n: number) => {
+      const out: [number, number][] = [];
       for (let i = 0; i < n; i++) {
-        const b = document.getElementById('m' + i).getBBox();
+        const b = (document.getElementById('m' + i) as unknown as SVGGraphicsElement).getBBox();
         out.push([b.width, b.height]);
       }
       return out;
     }, entries.length);
-    const result = new Map();
+    const result = new Map<string, Measured>();
     entries.forEach(([key], i) => result.set(key, {w: dims[i][0], h: dims[i][1]}));
     return result;
   } finally {
@@ -105,14 +107,14 @@ export async function measureAll(requests) {
 // Returns a lookup function atomWidth(atomText) -> number, plus the raw map
 // if callers need heights too (atoms are all single-line so height is
 // mostly uniform, but kept per-atom for exactness with mixed scripts).
-export async function measureAtoms(strings, {size, weight, font}) {
-  const atomSet = new Set();
+export async function measureAtoms(strings: Iterable<string>, {size, weight, font}: {size: number; weight?: number; font?: FontFamily}) {
+  const atomSet = new Set<string>();
   for (const s of strings) for (const a of splitAtoms(s)) atomSet.add(a);
   const requests = new Map([...atomSet].map(a => [a, {text: a, size, weight, font}]));
   const measured = await measureAll(requests);
   return {
-    width: (atom) => measured.get(atom)?.w ?? 0,
-    height: (atom) => measured.get(atom)?.h ?? size * 1.2,
+    width: (atom: string) => measured.get(atom)?.w ?? 0,
+    height: (atom: string) => measured.get(atom)?.h ?? size * 1.2,
     raw: measured,
   };
 }
