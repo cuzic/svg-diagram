@@ -136,6 +136,8 @@ export interface DiagramSource {
   sourceSha256: string;
   /** sha256 of the .svg-diagram.json in force, when there was one (build --stale compares it). */
   configSha256?: string;
+  /** sha256 over the local files the source imports (lib/source-deps.ts), when there are any. */
+  depsSha256?: string;
 }
 
 /**

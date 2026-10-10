@@ -7,7 +7,7 @@
 //       or on any warning with --strict.
 //   svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...
 //       Compare each source's SHA-256 with the one embedded in the committed SVG (<metadata id="svg-diagram">),
-//       so an SVG that was not regenerated after its source changed is caught. DIR defaults to ./svg.
+//       so an SVG that was not regenerated after its source — or a local file it imports — changed is caught. DIR defaults to ./svg.
 //       --rebuild also regenerates each SVG in memory and compares the bytes; a difference is explained
 //       (metadata only? text moved? shapes added?), so you can tell whether regenerating is safe.
 //   svg-diagram check --docs DIR [--svg-dir DIR] [--src-dir DIR]
@@ -25,6 +25,7 @@ import {register} from 'node:module';
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
+const {depsSha256} = await import('./lib/source-deps.ts');
 const {RULE_DOCS} = await import('./lib/rules.ts');
 const {scanMarkdown, compareNotes, notesOf} = await import('./lib/docs-check.ts');
 const {explainChange} = await import('./lib/svg-diff.ts');
@@ -108,6 +109,7 @@ try {
       const meta = embedded(svg);
       if (!meta) { add({file: src, rule: 'drift-no-provenance', severity: 'error', message: `${svg} に生成元の情報がない。再生成する`}); complain(`✗ ${src}: ${svg} に生成元の情報（<metadata id="svg-diagram">）がない。再生成する`); continue; }
       if (meta.sourceSha256 !== sha(abs)) { add({file: src, rule: 'drift-stale', severity: 'error', message: `ソースが変わっているのに ${svg} が再生成されていない`}); complain(`✗ ${src}: ソースが変わっているのに ${svg} が再生成されていない`); continue; }
+      if ((meta.depsSha256 ?? '') !== depsSha256(abs)) { add({file: src, rule: 'drift-stale-deps', severity: 'error', message: `ソースが import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`}); complain(`✗ ${src}: import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`); continue; }
       if (rebuild) {
         const mod = await import(abs);
         const d = applyConfig(mod.default(), config);

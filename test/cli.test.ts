@@ -281,6 +281,23 @@ test('build: --no-lint skips the lint pass but still writes the SVG', () => {
   assert.ok(fs.existsSync(path.join(dir, 'out', 'a.svg')));
 });
 
+test('a change in a local file the source imports makes the SVG stale (--stale rebuilds, check --drift complains)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-deps-'));
+  fs.mkdirSync(path.join(dir, 'lib'));
+  fs.writeFileSync(path.join(dir, 'lib', 'common.ts'), "export const T = '入口';\n");
+  fs.writeFileSync(path.join(dir, 'a.ts'), GOOD_TS.replace("import type", "import {T} from './lib/common.ts';\nimport type").replace("title: '入口'", 'title: T'));
+  const b = () => node(dir, BUILD, 'a.ts', '--out-dir', 'out', '--stale', '--no-lint');
+  assert.equal(b().status, 0);
+  assert.match(b().stdout, /スキップ/);
+  assert.equal(node(dir, CHECK, '--drift', '--svg-dir', 'out', 'a.ts').status, 0);
+  fs.writeFileSync(path.join(dir, 'lib', 'common.ts'), "export const T = '玄関';\n");
+  const c = node(dir, CHECK, '--drift', '--svg-dir', 'out', 'a.ts');
+  assert.equal(c.status, 1);
+  assert.match(out(c), /import している/);
+  assert.match(b().stdout, /1 件を生成/);
+  assert.equal(node(dir, CHECK, '--drift', '--svg-dir', 'out', 'a.ts').status, 0);
+});
+
 test('build: --out-dir writes every source into one directory; --stale skips what is current and rebuilds what changed', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-stale-'));
   fs.mkdirSync(path.join(dir, 'src'));

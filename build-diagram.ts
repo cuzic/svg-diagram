@@ -33,6 +33,7 @@ const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {build, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadConfig, applyConfig} = await import('./lib/config.ts');
+const {depsSha256} = await import('./lib/source-deps.ts');
 const config = loadConfig();
 
 // --fit: ソースを書き換えずに、この図を使っているスライドを pages/*.md から探し、
@@ -101,9 +102,10 @@ try {
       continue;
     }
     const outPath = outOverride ?? path.join(outDir ?? 'svg', path.parse(modPath).name + '.svg');
+    const depsSha = depsSha256(abs); // local files the source imports (shared parts): a change there makes the SVG stale too
     if (STALE && !FIT && fs.existsSync(outPath)) {
       const meta = embeddedSource(outPath);
-      if (meta && meta.sourceSha256 === sha(fs.readFileSync(abs)) && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256) {
+      if (meta && meta.sourceSha256 === sha(fs.readFileSync(abs)) && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256 && (meta.depsSha256 ?? '') === depsSha) {
         console.log(`· ${outPath} は最新（スキップ）`);
         skipped++;
         continue;
@@ -112,7 +114,7 @@ try {
     try {
       const d = applyConfig(define(), config); // .svg-diagram.json: project-wide accepted rules and max width
       // provenance for drift checks: which source (and which tool version) produced this SVG
-      d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source: path.relative(process.cwd(), abs), sourceSha256: sha(fs.readFileSync(abs)), ...(configSha256 ? {configSha256} : {})};
+      d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source: path.relative(process.cwd(), abs), sourceSha256: sha(fs.readFileSync(abs)), ...(configSha256 ? {configSha256} : {}), ...(depsSha ? {depsSha256: depsSha} : {})};
       if (FIT) {
         const hits = locateSlide(path.basename(outPath));
         if (hits.length !== 1) throw new Error(`--fit: ${path.basename(outPath)} を使っているスライドが${hits.length}枚です(ちょうど1枚が必要)`);
