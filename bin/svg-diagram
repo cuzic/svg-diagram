@@ -3,6 +3,7 @@
 # svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] <source.ts>...
 # svg-diagram init [dir]                                 (package.json + tsconfig.json for a diagram project)
 # svg-diagram typecheck                                  (the project's tsc over its tsconfig.json)
+# svg-diagram notes <source.ts>                         (the figure's numbered notes as a Markdown list)
 # svg-diagram diff old.svg new.svg                       (what changed, in words)
 # svg-diagram contact a.svg b.svg ... --out sheet.png    (a whole set on one picture)
 # svg-diagram lint  [file.svg ...] [--strict]               (default: ./svg/*.svg)
@@ -17,10 +18,11 @@ case "$cmd" in
   build)   exec node "$B/build-diagram.$X" "$@" ;;
   init)    exec node "$B/init-project.$X" "$@" ;;
   typecheck) exec node "$B/typecheck.$X" "$@" ;;
+  notes)   exec node "$B/notes-diagram.$X" "$@" ;;
   diff)    exec node "$B/diff-svg.$X" "$@" ;;
   contact) exec node "$B/contact-sheet.$X" "$@" ;;
   check)   exec node "$B/check-diagram.$X" "$@" ;;
   lint)    exec node "$B/lint-svg.$X" "$@" ;;
   preview) exec bash "$ROOT/preview_svg.sh" "$@" ;;
-  *) sed -n 2,11p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
+  *) sed -n 2,12p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
 esac

@@ -13,6 +13,7 @@
 //   svg-diagram check --docs DIR [--svg-dir DIR] [--src-dir DIR]
 //       Do the Markdown pages under DIR and the diagrams still agree? Referenced SVGs exist, alt text is short and present,
 //       no SVG is left unreferenced (--svg-dir), and the numbered notes under a figure match the figure's own notes (--src-dir).
+//       --map prints the figure <-> document table (Markdown) on stdout instead; the findings go to stderr.
 //   Any mode:  --format text|json|github   (github = ::warning annotations for a pull request)
 //   Project settings (accepted rules, max width) come from .svg-diagram.json, found by walking up from the current directory.
 
@@ -20,6 +21,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import type {DiagramSource} from './lib/types.ts';
+import type {MapRow} from './lib/docs-check.ts';
 import {register} from 'node:module';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
@@ -27,7 +29,7 @@ register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
 const {depsSha256} = await import('./lib/source-deps.ts');
 const {RULE_DOCS} = await import('./lib/rules.ts');
-const {scanMarkdown, compareNotes, notesOf} = await import('./lib/docs-check.ts');
+const {scanMarkdown, compareNotes, notesOf, formatMap} = await import('./lib/docs-check.ts');
 const {explainChange} = await import('./lib/svg-diff.ts');
 const {loadConfig, applyConfig} = await import('./lib/config.ts');
 
@@ -36,13 +38,14 @@ const flag = (n: string) => args.includes(n);
 const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1]; };
 const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--format'];
 const strict = flag('--strict'), verbose = flag('--verbose'), drift = flag('--drift'), rebuild = flag('--rebuild');
+const mapMode = flag('--map');
 const svgDir = val('--svg-dir'), srcDir = val('--src-dir'), docsDir = val('--docs'), format = val('--format') ?? 'text';
 const sources = args.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1]));
 if (!['text', 'json', 'github'].includes(format)) { console.error(`--format must be text, json or github (got "${format}")`); process.exit(2); }
-if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs DIR [--svg-dir DIR] [--src-dir DIR]] [--format text|json|github] <source.ts>...'); process.exit(2); }
+if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs DIR [--svg-dir DIR] [--src-dir DIR] [--map]] [--format text|json|github] <source.ts>...'); process.exit(2); }
 const config = loadConfig();
 
-const say = (...a: unknown[]) => { if (format === 'text') console.log(...a); };
+const say = (...a: unknown[]) => { if (format === 'text') (mapMode ? console.error : console.log)(...a); };
 const complain = (...a: unknown[]) => { if (format === 'text') console.error(...a); };
 type CheckFinding = {file: string; line?: number; rule: string; severity: 'error' | 'warn' | 'info'; message: string};
 const findings: CheckFinding[] = [];
@@ -68,6 +71,7 @@ try {
   // ---- documents <-> diagrams ----------------------------------------------------------------
   if (docsDir) {
     const referenced = new Set<string>();
+    const mapRows: MapRow[] = [];
     for (const md of walkMd(docsDir).sort()) {
       const rel = path.relative(process.cwd(), md);
       const figs = scanMarkdown(fs.readFileSync(md, 'utf8'));
@@ -81,6 +85,7 @@ try {
         if (!alt) add({file: rel, line: fig.line, rule: 'doc-alt-empty', severity: 'warn', message: `${name}: 代替テキストが空`});
         else if ([...alt].length > 155) add({file: rel, line: fig.line, rule: 'doc-alt-long', severity: 'warn', message: `${name}: 代替テキストが ${[...alt].length} 文字（155 文字以内にして、詳しい説明は本文に）`});
         const srcFile = srcDir && ['.ts', '.mjs'].map(ext => path.join(srcDir, name + ext)).find(f => fs.existsSync(f));
+        mapRows.push({name, svg: path.relative(process.cwd(), abs), doc: where, src: srcFile ? path.relative(process.cwd(), srcFile) : ''});
         if (srcFile) {
           const d = (await import(path.resolve(srcFile))).default();
           const sets = notesOf(d.bands);
@@ -93,9 +98,11 @@ try {
     }
     if (svgDir && fs.existsSync(svgDir)) {
       for (const f of fs.readdirSync(svgDir).filter(x => x.endsWith('.svg')).sort()) {
+        if (!referenced.has(path.resolve(svgDir, f))) mapRows.push({name: path.parse(f).name, svg: path.join(svgDir, f), doc: '', src: ''});
         if (!referenced.has(path.resolve(svgDir, f))) add({file: path.join(svgDir, f), rule: 'doc-orphan-svg', severity: 'warn', message: 'どの文書からも参照されていない'});
       }
     }
+    if (mapMode) console.log(formatMap(mapRows));
     for (const f of findings) say(`   ${f.severity === 'error' ? '✗' : f.severity === 'warn' ? '⚠' : 'ℹ'} ${f.file}${f.line ? `:${f.line}` : ''} [${f.rule}] ${f.message}`);
   }
 

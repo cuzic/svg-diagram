@@ -320,3 +320,21 @@ test('build: --out-dir writes every source into one directory; --stale skips wha
   assert.doesNotMatch(node(dir, BUILD, 'src/a.ts', '--out-dir', 'out').stdout, /スキップ/);
   assert.equal(node(dir, BUILD, 'src/a.ts', '--out', 'x.svg', '--out-dir', 'out').status, 2);
 });
+
+test('notes prints the figure notes as a list that check --docs accepts; check --docs --map prints the table', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-notes-'));
+  const ex = path.join(ROOT, 'examples');
+  const notes = bin(dir, 'notes', path.join(ex, 'inventory-flow.ts'));
+  assert.equal(notes.status, 1); // no wireframe notes in a flow
+  const r = bin(dir, 'notes', path.join(ex, 'inventory-wireframe.ts'));
+  assert.equal(r.status, 0, out(r));
+  assert.match(r.stdout, /^1\. \*\*.+\*\*：/m);
+  fs.mkdirSync(path.join(dir, 'svg'));
+  fs.writeFileSync(path.join(dir, 'svg', 'inventory-wireframe.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  fs.writeFileSync(path.join(dir, 'svg', 'orphan.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  fs.writeFileSync(path.join(dir, 'a.md'), '![在庫画面](svg/inventory-wireframe.svg)\n');
+  const m = bin(dir, 'check', '--docs', '.', '--svg-dir', 'svg', '--map');
+  assert.match(m.stdout, /^\| inventory-wireframe \| — \| `svg\/inventory-wireframe.svg` \| `a.md:1` \|$/m);
+  assert.match(m.stdout, /\| orphan \|.*（参照なし）/);
+  assert.doesNotMatch(m.stdout, /doc-orphan/); // findings stay on stderr
+});
