@@ -74,6 +74,7 @@
   <rect x="396" y="412" width="80" height="20" rx="4" fill="#ffffff" fill-opacity="0.92"/>
   <rect x="468" y="400" width="144" height="36" rx="6" fill="#22201b"/>
   <text x="553" y="422" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">保存しました</text>
+  <rect x="468" y="400" width="32" height="32" fill="#22201b"/>
   <circle cx="44" cy="112" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="43" y="118" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
   <circle cx="44" cy="156" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
