@@ -25,6 +25,7 @@
 import {PALETTE, luminance} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {lintDiagram} from './rules.ts';
+import type {BoxTone, CheckRect, LaidOutBanner, LaidOutBox, LaidOutCaption, LaidOutDiagram, Rect, Verdict} from './types.ts';
 
 const CONTRAST_THRESHOLD = 70; // same threshold lint-svg.ts's own contrast check uses
 
@@ -32,36 +33,38 @@ const CONTRAST_THRESHOLD = 70; // same threshold lint-svg.ts's own contrast chec
 // area in both axes, else null. Rects that merely touch at a shared edge
 // (adjacent row children, a box and the row's own bounding rect) are not
 // overlaps.
-function rectOverlap(a, b, tolerance = 0.5) {
+function rectOverlap(a: Rect, b: Rect, tolerance = 0.5): {dx: number; dy: number} | null {
   const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
   const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
   if (ox <= tolerance || oy <= tolerance) return null;
   return {dx: ox, dy: oy};
 }
 
-function labelOf(band) {
-  return band.title ?? band.headline ?? band.id ?? band.text ?? '(band)';
+function labelOf(band: object): string {
+  // bands name themselves differently (box title, banner headline, caption text, or just an id)
+  const b = band as {title?: string; headline?: string; id?: string; text?: string};
+  return b.title ?? b.headline ?? b.id ?? b.text ?? '(band)';
 }
 
 // Every checkable rect: standalone box/banner, row/grid children, raw()'s
 // self-reported bounds. Captions are skipped (no background, and their
 // width is already wrap-constrained so there's nothing new to check).
-function collectRects(d) {
-  const rects = [];
+function collectRects(d: LaidOutDiagram): CheckRect[] {
+  const rects: CheckRect[] = [];
   for (const band of d.laidOut) {
     if (band.type === 'screens') { // check each screen frame, not the bounding box that holds them all
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h});
     } else if (band.type === 'row' || band.type === 'grid') {
       for (const c of band.children) rects.push({id: c.id ?? null, label: labelOf(c), x: c.x, y: c.y, w: c.w, h: c.h});
     } else if (band.type === 'box' || band.type === 'banner' || band.type === 'raw' || band.type === 'legend' || band.type === 'sequence' || band.type === 'table' || band.type === 'wireframe' || band.type === 'pyramid' || band.type === 'curve') {
-      rects.push({id: band.id ?? null, label: labelOf(band), x: band.x, y: band.y, w: band.w, h: band.h});
+      rects.push({id: ('id' in band ? band.id : undefined) ?? null, label: labelOf(band), x: band.x, y: band.y, w: band.w, h: band.h});
     }
   }
   return rects;
 }
 
-function checkOverlaps(rects) {
-  const problems = [];
+function checkOverlaps(rects: CheckRect[]): string[] {
+  const problems: string[] = [];
   for (let i = 0; i < rects.length; i++) {
     for (let j = i + 1; j < rects.length; j++) {
       const o = rectOverlap(rects[i], rects[j]);
@@ -74,10 +77,10 @@ function checkOverlaps(rects) {
 // A connect()'s path/label are allowed to touch or start from their own
 // endpoint boxes (that's the whole point) — only flag collision with
 // anything ELSE.
-function checkConnects(d, rects) {
-  const problems = [];
+function checkConnects(d: LaidOutDiagram, rects: CheckRect[]): string[] {
+  const problems: string[] = [];
   for (const c of d.connects) {
-    const isOwnEndpoint = (r) => r.id !== null && (r.id === c.fromId || r.id === c.toId);
+    const isOwnEndpoint = (r: CheckRect) => r.id !== null && (r.id === c.fromId || r.id === c.toId);
     for (const r of rects) {
       if (isOwnEndpoint(r)) continue;
       for (const seg of c.pathSegments) {
@@ -93,8 +96,8 @@ function checkConnects(d, rects) {
   return problems;
 }
 
-function checkBounds(d, rects) {
-  const problems = [];
+function checkBounds(d: LaidOutDiagram, rects: CheckRect[]): string[] {
+  const problems: string[] = [];
   const eps = 0.5;
   for (const r of rects) {
     if (r.x < -eps || r.y < -eps || r.x + r.w > d.width + eps || r.y + r.h > d.canvasHeight + eps) {
@@ -107,11 +110,11 @@ function checkBounds(d, rects) {
 // Contrast is computed purely from the known, closed set of (tone, day)
 // color combinations the DSL can ever produce — no rendering needed, this
 // is the same formula lint-svg.ts uses, evaluated on values we already know.
-function checkContrast(d) {
-  const problems = [];
-  const contrastFor = (band, boxTone) => {
+function checkContrast(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  const contrastFor = (band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: BoxTone | null): string[] => {
     const boxFill = boxTone ? resolveBoxStyle(boxTone, d.day).fill : PALETTE.bg;
-    const found = [];
+    const found: string[] = [];
     for (const run of band.wrappedRuns ?? []) {
       const fg = resolveTextColor(run.tone, d.day);
       const delta = Math.abs(luminance(fg) - luminance(boxFill));
@@ -132,7 +135,7 @@ function checkContrast(d) {
 
 // verifyDiagram(laidOutDiagram) -> {ok, problems: string[], warnings: string[]}
 // `problems` fail the build; `warnings` (text volume, ADR 0003) never do.
-export function verifyDiagram(d) {
+export function verifyDiagram(d: LaidOutDiagram): Verdict {
   const rects = collectRects(d);
   const problems = [
     ...checkOverlaps(rects),

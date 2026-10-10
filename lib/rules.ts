@@ -12,6 +12,11 @@
 import {PALETTE, wcagRatio} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {budgetWarnings} from './budget.ts';
+import type {
+  Band, BoxBand, BoxTone, DiagramData, Finding, LaidOutBand, LaidOutBox, LaidOutConnect, LegendBand, LegendItem,
+  LineStyle, Point, SwimlaneBand, WfCallout,
+} from './types.ts';
+import type {LintTarget} from './types.ts';
 
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
@@ -43,14 +48,14 @@ export const RULE_DOCS = {
   'doc-orphan-svg': 'どの文書からも参照されていない SVG',
 };
 
-export const DEFAULT_LEGEND_LABELS = {
+export const DEFAULT_LEGEND_LABELS: Record<string, string> = {
   'line:solid': '実線', 'line:dashed': '破線', 'line:dotted': '点線', 'line:double': '二重線', 'arrow:both': '双方向',
   'tone:new': '新規', 'tone:changed': '変更・改修', 'tone:removed': '対象外', 'tone:danger': '異常・注意',
   'tone:muted': '補助・任意', 'tone:accent': '強調',
 };
 
 // every band, including those nested in groups, rows, grids and swimlanes
-export function walkBands(bands, out = []) {
+export function walkBands(bands: Band[], out: Band[] = []): Band[] {
   for (const b of bands) {
     out.push(b);
     if (b.type === 'group') walkBands(b.children, out);
@@ -61,9 +66,9 @@ export function walkBands(bands, out = []) {
 }
 
 // notation keys a diagram uses: 'line:dashed', 'arrow:both', 'tone:new', ...
-export function usedNotation(bands) {
+export function usedNotation(bands: Band[]): Set<string> {
   const all = walkBands(bands);
-  const used = new Set(), lines = new Set();
+  const used = new Set<string>(), lines = new Set<string>();
   for (const b of all) {
     if (b.type === 'connect') {
       lines.add(b.line ?? 'solid');
@@ -76,8 +81,8 @@ export function usedNotation(bands) {
   return used;
 }
 
-export function legendKeys(bands) {
-  const keys = new Set();
+export function legendKeys(bands: Band[]): Set<string> {
+  const keys = new Set<string>();
   for (const b of walkBands(bands)) {
     if (b.type !== 'legend') continue;
     for (const it of b.items) {
@@ -90,31 +95,32 @@ export function legendKeys(bands) {
 }
 
 // diagram({legend: 'auto'}): add a legend entry for every notation used but not listed.
-export function applyAutoLegend(d) {
+export function applyAutoLegend(d: DiagramData): void {
   if (d.legend !== 'auto') return;
   const used = usedNotation(d.bands), have = legendKeys(d.bands);
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return;
   const labels = {...DEFAULT_LEGEND_LABELS, ...(d.legendLabels ?? {})};
   // a tone whose boxes are ALL dashed gets a dashed swatch
-  const boxes = walkBands(d.bands).filter(b => b.type === 'box');
-  const allDashed = (tone) => { const bs = boxes.filter(b => b.tone === tone); return bs.length > 0 && bs.every(b => b.dashed); };
-  const items = missing.map(k => {
+  const boxes = walkBands(d.bands).filter((b): b is BoxBand => b.type === 'box');
+  const allDashed = (tone: string) => { const bs = boxes.filter(b => b.tone === tone); return bs.length > 0 && bs.every(b => b.dashed); };
+  const items = missing.map((k): LegendItem => {
     const [kind, v] = k.split(':');
-    if (kind === 'tone') return allDashed(v) ? {tone: v, dashed: true, label: labels[k]} : {tone: v, label: labels[k]};
+    // v comes from our own `tone:<tone>` / `line:<style>` keys (usedNotation), so the casts hold
+    if (kind === 'tone') return allDashed(v) ? {tone: v as BoxTone, dashed: true, label: labels[k]} : {tone: v as BoxTone, label: labels[k]};
     if (kind === 'arrow') return {line: 'solid', arrow: 'both', label: labels[k]};
-    return {line: v, label: labels[k]};
+    return {line: v as LineStyle, label: labels[k]};
   });
-  const existing = d.bands.find(b => b.type === 'legend');
+  const existing = d.bands.find((b): b is LegendBand => b.type === 'legend');
   if (existing) existing.items.push(...items);
   else d.bands.push({type: 'legend', items, align: 'center'});
 }
 
-function ratioText(r) { return r.toFixed(1); }
+function ratioText(r: number): string { return r.toFixed(1); }
 
-function textContrast(d, out) {
-  const seen = new Set();
-  const check = (fg, bg, what, size) => {
+function textContrast(d: LintTarget, out: Finding[]): void {
+  const seen = new Set<string>();
+  const check = (fg: string | undefined, bg: string | undefined, what: string): void => {
     if (!fg || !bg) return;
     const need = 4.5, r = wcagRatio(fg, bg), key = `${fg}|${bg}`;
     if (r < need && !seen.has(key)) {
@@ -122,11 +128,11 @@ function textContrast(d, out) {
       out.push({rule: 'a11y-text-contrast', severity: 'warn', message: `${what} の文字 ${fg} と背景 ${bg} のコントラスト比が ${ratioText(r)}:1（4.5:1 以上が目安）`});
     }
   };
-  const boxes = [];
-  for (const b of d.laidOut) { if (b.type === 'row' || b.type === 'grid') boxes.push(...b.children); else boxes.push(b); }
+  const boxes: (LaidOutBand | LaidOutBox)[] = [];
+  for (const b of d.laidOut ?? []) { if (b.type === 'row' || b.type === 'grid') boxes.push(...b.children); else boxes.push(b); }
   for (const b of boxes) {
     if (b.type === 'box' || b.type === 'banner') {
-      const bg = resolveBoxStyle(b.tone ?? (b.type === 'banner' ? 'accent' : 'plain'), d.day).fill;
+      const bg = resolveBoxStyle(b.tone ?? ((b.type as string) === 'banner' ? 'accent' : 'plain'), d.day) /* banner() always sets tone; the fallback is defensive */.fill;
       for (const run of b.wrappedRuns ?? []) check(resolveTextColor(run.tone, d.day), bg, `「${String(run.text).slice(0, 14)}」`);
       if (b.tag) check(PALETTE.bg, b.tagTone === 'danger' ? PALETTE.danger : b.tagTone === 'muted' ? PALETTE.muted : PALETTE[d.day].accent, `タグ「${b.tag}」`);
     } else if (b.type === 'caption') {
@@ -141,8 +147,8 @@ function textContrast(d, out) {
   }
 }
 
-function nonTextContrast(d, out) {
-  const tones = new Set();
+function nonTextContrast(d: LintTarget, out: Finding[]): void {
+  const tones = new Set<BoxTone>();
   for (const b of walkBands(d.bands)) if (b.type === 'box') tones.add(b.tone ?? 'plain');
   for (const t of tones) {
     const st = resolveBoxStyle(t, d.day);
@@ -157,7 +163,7 @@ function nonTextContrast(d, out) {
   }
 }
 
-function legendRules(d, out) {
+function legendRules(d: LintTarget, out: Finding[]): void {
   const used = usedNotation(d.bands), have = legendKeys(d.bands);
   if (!used.size) return;
   const hasLegend = walkBands(d.bands).some(b => b.type === 'legend');
@@ -168,16 +174,17 @@ function legendRules(d, out) {
 }
 
 // segments of every connector, for crossing / overlap counting
-function segsOf(connects) {
-  const out = [];
+interface Seg {i: number; c: LaidOutConnect; a: Point; b: Point}
+function segsOf(connects: LaidOutConnect[]): Seg[] {
+  const out: Seg[] = [];
   connects.forEach((c, i) => { for (let k = 0; k < c.points.length - 1; k++) out.push({i, c, a: c.points[k], b: c.points[k + 1]}); });
   return out;
 }
-const horiz = (s) => Math.abs(s.a.y - s.b.y) < 0.5;
-const vert = (s) => Math.abs(s.a.x - s.b.x) < 0.5;
-const lo = (a, b) => Math.min(a, b), hi = (a, b) => Math.max(a, b);
+const horiz = (s: Seg) => Math.abs(s.a.y - s.b.y) < 0.5;
+const vert = (s: Seg) => Math.abs(s.a.x - s.b.x) < 0.5;
+const lo = (a: number, b: number) => Math.min(a, b), hi = (a: number, b: number) => Math.max(a, b);
 
-export function edgeStats(connects) {
+export function edgeStats(connects: LaidOutConnect[]): {crossings: number; overlaps: number} {
   const segs = segsOf(connects);
   let crossings = 0, overlaps = 0;
   for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
@@ -196,21 +203,21 @@ export function edgeStats(connects) {
   return {crossings, overlaps};
 }
 
-function permutations(a) {
+function permutations<T>(a: T[]): T[][] {
   if (a.length <= 1) return [a];
   return a.flatMap((x, i) => permutations([...a.slice(0, i), ...a.slice(i + 1)]).map(p => [x, ...p]));
 }
 
-function swimlaneRules(d, out) {
-  const lanesBands = d.bands.filter(b => b.type === 'swimlane');
+function swimlaneRules(d: LintTarget, out: Finding[]): void {
+  const lanesBands = d.bands.filter((b): b is SwimlaneBand => b.type === 'swimlane');
   if (lanesBands.length > 1) out.push({rule: 'one-story', severity: 'warn', message: `スイムレーンが ${lanesBands.length} つある。1 図 1 話にして、図を分けることを検討する`});
   for (const sl of lanesBands) {
     const n = sl.lanes.length;
     if (n > 6) out.push({rule: 'swimlane-lanes', severity: 'warn', message: `レーンが ${n} 本ある（6 本までが目安）`});
-    const ids = new Map(sl.steps.filter(s => s.id).map(s => [s.id, sl.lanes.findIndex(l => l.id === s.lane)]));
+    const ids = new Map<string, number>(sl.steps.filter(s => s.id).map((s): [string, number] => [s.id as string, sl.lanes.findIndex(l => l.id === s.lane)]));
     const flows = (d.connects ?? []).filter(c => ids.has(c.fromId) && ids.has(c.toId));
     if (!flows.length) continue;
-    const dist = (order) => { const pos = new Map(order.map((l, i) => [l, i])); return flows.reduce((s, c) => s + Math.abs(pos.get(ids.get(c.fromId)) - pos.get(ids.get(c.toId))), 0); };
+    const dist = (order: number[]) => { const pos = new Map(order.map((l, i) => [l, i])); return flows.reduce((s, c) => s + Math.abs((pos.get(ids.get(c.fromId) as number) as number) - (pos.get(ids.get(c.toId) as number) as number)), 0); };
     const cur = [...Array(n).keys()];
     const curD = dist(cur);
     const handOffs = flows.filter(c => ids.get(c.fromId) !== ids.get(c.toId)).length;
@@ -230,11 +237,13 @@ function swimlaneRules(d, out) {
 }
 
 // ---- wireframes: callout numbers vs notes, and the state matrix --------------------------------
-function calloutsOf(...trees) {
-  const out = [];
-  const walk = (nd) => {
-    if (!nd || typeof nd !== 'object') return;
-    if (Array.isArray(nd)) return nd.forEach(walk);
+function calloutsOf(...trees: unknown[]): number[] {
+  const out: number[] = [];
+  const walk = (x: unknown): void => {
+    if (!x || typeof x !== 'object') return;
+    if (Array.isArray(x)) return x.forEach(walk);
+    // a wf node tree is walked generically (any node kind may carry n / parts / markers / children)
+    const nd = x as {t?: unknown; n?: unknown; parts?: Record<string, unknown>; markers?: {n?: unknown}[]; children?: unknown};
     if (!nd.t) return;
     if (typeof nd.n === 'number') out.push(nd.n);
     for (const v of Object.values(nd.parts ?? {})) if (typeof v === 'number') out.push(v);
@@ -246,21 +255,21 @@ function calloutsOf(...trees) {
 }
 
 // the callout numbers should grow in reading order: top to bottom, left to right
-function calloutOrder(d, out) {
+function calloutOrder(d: LintTarget, out: Finding[]): void {
   for (const b of d.laidOut ?? []) {
     if (b.type !== 'wireframe' || !b.callouts?.length) continue;
-    const first = new Map();
+    const first = new Map<number, WfCallout>();
     for (const c of b.callouts) if (!first.has(c.n)) first.set(c.n, c);
     const nums = [...first.keys()].sort((x, y) => x - y), bad = [];
     for (let i = 0; i + 1 < nums.length; i++) {
-      const a = first.get(nums[i]), c = first.get(nums[i + 1]), ra = Math.round(a.y / 48), rc = Math.round(c.y / 48);
+      const a = first.get(nums[i]) as WfCallout, c = first.get(nums[i + 1]) as WfCallout, ra = Math.round(a.y / 48), rc = Math.round(c.y / 48);
       if (rc < ra || (rc === ra && c.x < a.x - 8)) bad.push(`${nums[i]}→${nums[i + 1]}`);
     }
     if (bad.length) out.push({rule: 'wf-callout-order', severity: 'info', message: `${b.title ? `「${b.title}」` : 'ワイヤーフレーム'}: 番号が読む順でない所: ${bad.join('、')}`});
   }
 }
 
-function wireframeRules(d, out) {
+function wireframeRules(d: LintTarget, out: Finding[]): void {
   calloutOrder(d, out);
   for (const b of walkBands(d.bands)) {
     if (b.type === 'wireframe') {
@@ -280,7 +289,7 @@ function wireframeRules(d, out) {
       const m = b.matrix;
       const miss = (m.required ?? []).filter(c => !m.cols.includes(c));
       if (miss.length) out.push({rule: 'wf-states-required', severity: 'warn', message: `状態の一覧に、必須の状態「${miss.join('」「')}」の列がない`});
-      const todo = [];
+      const todo: string[] = [];
       for (const row of m.rows) {
         if (row.cells.length > m.cols.length) out.push({rule: 'wf-states-ragged', severity: 'warn', message: `行「${row.label}」の欄が ${row.cells.length} 個で、列（${m.cols.length}）より多い`});
         m.cols.forEach((col, i) => { const c = row.cells[i]; if (c == null || c === 'todo') todo.push(`${row.label}×${col}`); }); // a row shorter than the columns leaves "未設計" cells
@@ -290,14 +299,14 @@ function wireframeRules(d, out) {
   }
 }
 
-export function lintDiagram(d) {
+export function lintDiagram(d: LintTarget): Finding[] {
   const out = lintAll(d);
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
-  return out.map(f => (d.accept && d.accept[f.rule] ? {...f, severity: 'info', message: `${f.message}（許容: ${d.accept[f.rule]}）`} : f));
+  return out.map(f => (d.accept && d.accept[f.rule] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule]}）`} : f));
 }
 
-function lintAll(d) {
-  const out = [];
+function lintAll(d: LintTarget): Finding[] {
+  const out: Finding[] = [];
   textContrast(d, out);
   nonTextContrast(d, out);
   legendRules(d, out);
@@ -313,15 +322,15 @@ function lintAll(d) {
   }
   if (d.medium === 'doc' && d.width > (d.maxWidth ?? 940)) out.push({rule: 'doc-width', severity: 'warn', message: `幅 ${d.width}px。本文の表示幅（約 930px）に縮められ、文字が小さくなる（${d.maxWidth ?? 940}px 以下にする）`});
   // doc diagrams are read at length on a page, so their budget is larger than the slide decks' (see budget.ts)
-  for (const w of budgetWarnings(d, d.medium === 'doc' ? {boxBody: 100, total: 700, boxes: 30} : undefined)) out.push({rule: 'density', severity: 'warn', message: w});
+  for (const w of budgetWarnings({laidOut: d.laidOut ?? []}, d.medium === 'doc' ? {boxBody: 100, total: 700, boxes: 30} : undefined)) out.push({rule: 'density', severity: 'warn', message: w});
   if (d.medium === 'doc' && !diagramTitle(d)) out.push({rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する'});
   return out;
 }
 
 // ---- SVG accessible name / description -------------------------------------------------
-const oneLine = (t) => String(t ?? '').replace(/\s*\n\s*/g, ' ').trim();
+const oneLine = (t: unknown): string => String(t ?? '').replace(/\s*\n\s*/g, ' ').trim();
 
-export function diagramTitle(d) {
+export function diagramTitle(d: DiagramData): string {
   if (d.title) return oneLine(d.title);
   for (const b of walkBands(d.bands)) {
     if (b.type === 'caption' && b.text) return oneLine(b.text);
@@ -331,9 +340,9 @@ export function diagramTitle(d) {
   return '';
 }
 
-export function diagramDesc(d) {
+export function diagramDesc(d: DiagramData): string {
   if (d.desc) return oneLine(d.desc);
-  const parts = [];
+  const parts: string[] = [];
   for (const b of walkBands(d.bands)) {
     if (b.type === 'swimlane') {
       parts.push(`レーン: ${b.lanes.map(l => oneLine(l.label)).join('、')}`);
@@ -342,7 +351,7 @@ export function diagramDesc(d) {
     else if (b.type === 'table') parts.push(`表${b.title ? `「${oneLine(b.title)}」` : ''}: 列 ${b.columns.map(c => oneLine(c.label)).join('、')}`);
   }
   if (!parts.length) {
-    const titles = walkBands(d.bands).filter(b => b.type === 'box' && b.title).map(b => oneLine(b.title));
+    const titles = walkBands(d.bands).filter((b): b is BoxBand => b.type === 'box' && !!b.title).map(b => oneLine(b.title));
     if (titles.length) parts.push(`要素: ${titles.slice(0, 16).join('、')}${titles.length > 16 ? ' ほか' : ''}`);
   }
   return parts.join('。');
