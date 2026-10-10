@@ -16,14 +16,18 @@
 // Nodes in a col are full width; widgets in a row take their natural width (btn, chip) or share
 // the rest by flex. map / video / heat / pointcloud / chart / image grow to fill leftover height.
 
-import {splitAtoms} from './measure.ts';
+import {splitAtoms, textWidth} from './measure.ts';
+import {TONE_ALIAS, textKeyOf, toneStyle} from './tokens.ts';
+import type {ToneName} from './tokens.ts';
 import {wrapAtoms} from './wrap.ts';
+import {badgeBox, BADGE_R} from './badge.ts';
+import type {BadgeBox} from './badge.ts';
 import {installParts} from './wireframe-parts.ts';
 import type {
   Wf, WfNode, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark,
   WfChipSpec, WfChildren, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfBtn, WfScreen, WfKvPair,
   WfListItemSpec, WfTableCellSpec, WireframeBand, ScreensBand, StateMatrixCell, LaidOutWireframe, LaidOutScreens,
-  DrawShapeOpts, DrawTextOpts, ColorKey, Anchor, Rect, WfAutoWFn, Prim, TextRequest, WidthOf,
+  BadgeOpts, DrawShapeOpts, DrawTextOpts, ColorKey, Anchor, Rect, WfAutoWFn, Prim, TextRequest, WidthOf,
 } from './types.ts';
 
 const S = 14, T = 15, LHF = 1.4, GAP = 12;
@@ -86,7 +90,7 @@ export function collectTextRequests(band: WireframeBand | ScreensBand): TextRequ
 function mkCtx(widthOf: WidthOf, skeleton?: boolean): WfCtx {
   return {widthOf, skeleton: !!skeleton, prims: [], callouts: [], all: [], used: new Set<WfMark>()};
 }
-const tw = (ctx: WfCtx, s: string | number, size: number, weight: number): number => [...splitAtoms(String(s))].reduce((a, atom) => a + ctx.widthOf(atom, size, weight, 'sans'), 0);
+const tw = (ctx: WfCtx, s: string | number, size: number, weight: number): number => textWidth(ctx.widthOf, String(s), size, weight);
 // Katakana runs stay in one piece (ドラッグ must not break as ドラッ/グ); widths are summed per character.
 const naOf = (c: StateMatrixCell): string | undefined => c && typeof c === 'object' && 'na' in c ? c.na : undefined;
 const KATA = /^[\u30A0-\u30FF]+$/;
@@ -99,35 +103,32 @@ function atomsOf(s: string | number): string[] {
   return out;
 }
 const wrapT = (ctx: WfCtx, s: string | number, size: number, weight: number, maxW: number): string[] =>
-  wrapAtoms(atomsOf(s), {maxWidth: Math.max(24, maxW), atomWidth: (a: string) => [...splitAtoms(a)].reduce((t, c) => t + ctx.widthOf(c, size, weight, 'sans'), 0)});
+  wrapAtoms(atomsOf(s), {maxWidth: Math.max(24, maxW), atomWidth: (a: string) => tw(ctx, a, size, weight)});
 
 const rect = (ctx: WfCtx, x: number, y: number, w: number, h: number, o: DrawShapeOpts = {}): void => { ctx.prims.push({k: 'rect', x, y, w, h, r: o.r ?? 0, fill: o.fill ?? null, stroke: o.stroke ?? null, sw: o.sw ?? 2, dash: o.dash, op: o.op}); };
 const circle = (ctx: WfCtx, cx: number, cy: number, r: number, o: DrawShapeOpts = {}): void => { ctx.prims.push({k: 'circle', cx, cy, r, fill: o.fill ?? null, stroke: o.stroke ?? null, sw: o.sw ?? 2, op: o.op}); };
 const text = (ctx: WfCtx, s: string | number, x: number, base: number, o: DrawTextOpts = {}): void => { ctx.prims.push({k: 'text', s: String(s), x, y: base, size: o.size ?? S, weight: o.weight ?? 400, fill: o.fill ?? 'text', anchor: o.anchor}); };
+// A label in a shape (callout number, note number, robot marker, route point): one primitive, sized to the label.
+const badge = (ctx: WfCtx, cx: number, cy: number, label: string | number, o: BadgeOpts = {}): BadgeBox => {
+  const r = o.r ?? BADGE_R, shape = o.shape ?? 'circle', s = String(label);
+  const box = badgeBox(cx, cy, tw(ctx, s, S, 700), r, shape);
+  ctx.prims.push({k: 'badge', cx, cy, r, w: box.w, shape, label: s, aria: o.aria ?? s, size: S, fill: o.fill ?? 'accent'});
+  return box;
+};
 const pts = (ps: [number, number][]): string => ps.map(([x, y], i) => `${i ? 'L' : 'M'}${Math.round(x)},${Math.round(y)}`).join(' ');
 const path = (ctx: WfCtx, d: string, o: DrawShapeOpts = {}): void => { ctx.prims.push({k: 'path', d, fill: o.fill ?? null, stroke: o.stroke ?? null, sw: o.sw ?? 2, dash: o.dash, op: o.op, cap: o.cap}); };
 const line = (ctx: WfCtx, x1: number, y1: number, x2: number, y2: number, o: DrawShapeOpts = {}): void => path(ctx, pts([[x1, y1], [x2, y2]]), {stroke: o.stroke ?? 'border', ...o});
 const mid = (cy: number, size = S): number => cy + size * 0.36; // baseline that centres text on cy
 
-const TONE_ALIAS: Record<string, string> = {ok: 'accent', warn: 'danger', off: 'muted'};
-const toneOf = (t?: WfTone): string => (t != null ? TONE_ALIAS[t] : undefined) ?? t ?? 'plain';
-const CHIP: Record<string, {fill: ColorKey; stroke: ColorKey | null; text: ColorKey}> = {
-  plain: {fill: 'bg', stroke: 'muted', text: 'text'},
-  accent: {fill: 'soft', stroke: 'accent', text: 'accent'},
-  danger: {fill: 'bg', stroke: 'danger', text: 'danger'},
-  muted: {fill: 'code', stroke: 'border', text: 'muted'},
-  solid: {fill: 'accent', stroke: null, text: 'bg'},
-  'solid-danger': {fill: 'danger', stroke: null, text: 'bg'},
-};
-const TEXT_TONE: Record<string, ColorKey | undefined> = {accent: 'accent', danger: 'danger', muted: 'muted'};
-const toneFill = (t: string | undefined): ColorKey => (t != null ? TEXT_TONE[t] : undefined) ?? 'text';
+// Tone names and their colours live in tokens.ts (TONES); wireframe only picks the part it draws.
+const toneOf = (t?: WfTone): ToneName => (t != null ? TONE_ALIAS[t] : undefined) ?? (t as ToneName | undefined) ?? 'plain';
+const toneFill = textKeyOf;
 
 const chipW = (ctx: WfCtx, label: string): number => tw(ctx, label, S, 700) + 20;
 function drawChip(ctx: WfCtx, label: string, x: number, y: number, tone?: WfTone): number {
-  const st = CHIP[toneOf(tone)] ?? CHIP.plain;
+  const st = toneStyle(tone);
   const w = chipW(ctx, label);
-  rect(ctx, x, y, w, 24, {r: 12, fill: st.fill, stroke: st.stroke});
-  text(ctx, label, x + w / 2, mid(y + 12), {weight: 700, fill: st.text, anchor: 'middle'});
+  ctx.prims.push({k: 'pill', x, y, w, h: 24, label, size: S, base: mid(y + 12), fill: st.fill, stroke: st.chipStroke ?? st.stroke, text: st.text});
   return w;
 }
 const chipSpec = (c: string | WfChipSpec): WfChipSpec => typeof c === 'string' ? {text: c} : c;
@@ -429,13 +430,13 @@ const DRAW: WfDrawTable = {
 
   alert: (n, x, y, w, h, ctx) => {
     const tone = toneOf(n.tone);
-    const ALERT: Record<string, {fill: ColorKey; stroke: ColorKey; text: ColorKey}> = {danger: {fill: 'bg', stroke: 'danger', text: 'danger'}, accent: {fill: 'soft', stroke: 'accent', text: 'text'}};
-    const st = ALERT[tone] ?? {fill: 'code', stroke: 'border', text: 'text'};
+    // an alert is a danger or an accent note (anything else is a neutral grey one); its text is bold, in the tone only when it is danger
+    const t = toneStyle(tone === 'danger' || tone === 'accent' ? tone : undefined);
+    const st = tone === 'danger' || tone === 'accent' ? {fill: t.fill, stroke: t.stroke ?? t.fill, text: tone === 'danger' ? t.text : 'text' as ColorKey} : {fill: 'code' as ColorKey, stroke: 'border' as ColorKey, text: 'text' as ColorKey};
     const lines = wrapT(ctx, n.text, S, 700, w - 44);
     const H = Math.max(36, lines.length * lh(S) + 16);
     rect(ctx, x, y, w, H, {r: 6, fill: st.fill, stroke: st.stroke});
-    circle(ctx, x + 18, y + H / 2, 9, {fill: tone === 'danger' ? 'danger' : 'accent'});
-    text(ctx, '!', x + 18, mid(y + H / 2), {weight: 700, fill: 'bg', anchor: 'middle'});
+    badge(ctx, x + 18, y + H / 2, '!', {r: 9, fill: tone === 'danger' ? 'danger' : 'accent', aria: tone === 'danger' ? '警告' : '注意'});
     lines.forEach((l, k) => text(ctx, l, x + 36, y + (H - lh(S) * lines.length) / 2 + S + k * lh(S), {weight: 700, fill: st.text}));
     return {w, h: H};
   },
@@ -583,8 +584,7 @@ function drawMarker(m: WfMapMarker, [px, py]: [number, number], minX: number, ma
   else if (kind === 'alert') path(ctx, pts([[px, py - 11], [px + 11, py], [px, py + 11], [px - 11, py]]) + ' Z', {fill: 'danger', stroke: 'bg', sw: 2});
   else { rect(ctx, px - 8, py - 8, 16, 16, {r: 3, fill: 'bg', stroke: m.tone === 'danger' ? 'danger' : 'text'}); r = 9; }
   if (m.inside != null) { // a number drawn inside the dot (route points)
-    circle(ctx, px, py, 11, {fill: 'accent', stroke: 'bg', sw: 2});
-    text(ctx, m.inside, px, mid(py), {weight: 700, fill: 'bg', anchor: 'middle'});
+    badge(ctx, px, py, m.inside, {aria: `経路点 ${m.inside}`});
   }
   if (m.label) {
     const lw = tw(ctx, m.label, S, 700) + 8;
@@ -646,6 +646,8 @@ function hideUnder(ctx: WfCtx, X: number, Y: number, W: number, H: number): void
     }
     if (p.k === 'rect') return !inside(p.x, p.y, p.w, p.h);
     if (p.k === 'circle') return !inside(p.cx - p.r, p.cy - p.r, 2 * p.r, 2 * p.r);
+    if (p.k === 'pill') return !inside(p.x, p.y, p.w, p.h);
+    if (p.k === 'badge') return !inside(p.cx - p.w / 2, p.cy - p.r - 3, p.w, 2 * p.r + 3);
     return true;
   });
 }
@@ -661,7 +663,6 @@ function drawOverlay(o: WfOverlay, ctx: WfCtx, x: number, y: number, w: number, 
     rect(ctx, tx, ty, tw_, H, {r: 6, fill: tone === 'danger' ? 'danger' : 'text'});
     text(ctx, o.text, tx + lead + (tw_ - lead) / 2, mid(ty + H / 2), {weight: 700, fill: 'bg', anchor: 'middle'});
     if (o.n != null) {
-      rect(ctx, tx + 2, ty + 2, 32, H - 4, {fill: tone === 'danger' ? 'danger' : 'text'}); // same colour as the toast: keeps the callout's own box the innermost one for overlap checks
       ctx.callouts.push({n: o.n as number, x: tx + 18, y: ty + H / 2}); // wireframe() has replaced `true` by a number
     }
     return;
@@ -690,9 +691,7 @@ function drawOverlay(o: WfOverlay, ctx: WfCtx, x: number, y: number, w: number, 
 function flushCallouts(ctx: WfCtx): void {
   for (const c of ctx.callouts) {
     ctx.all.push({n: c.n, x: c.x, y: c.y}); // kept on the band, so `check` can compare the numbers' order with the reading order
-    rect(ctx, c.x - 12, c.y - 12, 24, 24, {fill: 'bg', op: 0}); // invisible: the number's own "container" (a callout can sit on a frame edge)
-    circle(ctx, c.x, c.y, 11, {fill: 'accent', stroke: 'bg', sw: 2});
-    text(ctx, c.n, c.x, mid(c.y), {weight: 700, fill: 'bg', anchor: 'middle'});
+    badge(ctx, c.x, c.y, c.n, {aria: `注釈 ${c.n}`});
   }
   ctx.callouts = [];
 }
@@ -778,8 +777,7 @@ function drawNotes(ctx: WfCtx, notes: NonNullable<WireframeBand['notes']>, x: nu
     const num = o.n ?? i + 1;
     const tl = o.title ? wrapT(ctx, o.title, S, 700, w - 48) : [];
     const bl = o.text ? wrapT(ctx, o.text, S, 400, w - 48) : [];
-    circle(ctx, x + 12, cy + 12, 11, {fill: 'accent', stroke: 'bg', sw: 2});
-    text(ctx, num, x + 12, mid(cy + 12), {weight: 700, fill: 'bg', anchor: 'middle'});
+    badge(ctx, x + 12, cy + 12, num, {aria: `注釈 ${num}`});
     let ty = cy + 4;
     for (const l of tl) { text(ctx, l, x + 36, ty + S, {weight: 700}); ty += lh(S); }
     for (const l of bl) { text(ctx, l, x + 36, ty + S, {fill: o.title ? 'muted' : 'text'}); ty += lh(S); }
@@ -836,4 +834,4 @@ export function layoutScreens(band: ScreensBand, x: number, y: number, w: number
 
 // ---- parts defined in wireframe-parts.ts (states, fusion, robot status, insight, compare, controls) ----
 const AUTO_W: WfAutoWTable = {}, NAT: WfNatTable = {};
-const PARTS = installParts({wf, DRAW, NAT, AUTO_W, S, T, lh, rect, circle, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder});
+const PARTS = installParts({wf, DRAW, NAT, AUTO_W, S, T, lh, rect, circle, badge, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder});

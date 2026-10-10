@@ -21,7 +21,7 @@
 import {chromium} from 'playwright-chromium';
 import type {Browser} from 'playwright-chromium';
 import {FONT_STACKS} from './tokens.ts';
-import type {FontFamily, MeasureRequest, Measured} from './types.ts';
+import type {FontFamily, MeasureRequest, Measured, WidthOf} from './types.ts';
 
 function isCJK(ch: string): boolean {
   const c = ch.codePointAt(0)!;
@@ -45,6 +45,13 @@ export function splitAtoms(text: string): string[] {
   }
   flush();
   return atoms;
+}
+
+/** Width of single-line text: the sum of its atoms' measured widths. The one place this sum is written. */
+export function textWidth(widthOf: WidthOf, text: string, size: number, weight: number, font: FontFamily = 'sans'): number {
+  let w = 0;
+  for (const atom of splitAtoms(text)) w += widthOf(atom, size, weight, font);
+  return w;
 }
 
 function escapeXml(s: string): string {

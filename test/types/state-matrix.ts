@@ -1,5 +1,5 @@
 // Type-level tests for stateMatrix(): required states and one cell per column. Never executed (see ids.ts).
-import {stateMatrix, wf} from '../../lib/dsl.ts';
+import {stateMatrix, stateRow, wf} from '../../lib/dsl.ts';
 
 export function stateMatrixCases(): void {
   const node = wf.text('x');
@@ -38,4 +38,32 @@ export function stateMatrixCases(): void {
   stateMatrix(['通常'], [{label: 'A', cells: [{na: true}]}]);
   // @ts-expect-error unknown row option
   stateMatrix(['通常'], [{label: 'A', cells: [node], colour: 'red'}]);
+
+  // ---- stateRow(): one part, a diff per state ----
+  const card = (o: {state?: 'loading' | 'empty'; title?: string} = {}) => wf.card([wf.text('x')], o);
+  stateMatrix(['通常', '読み込み中', '空'], [
+    stateRow('カード', card, {通常: {}, 読み込み中: 'loading', 空: {state: 'empty', title: 't'}}),
+    stateRow('カード2', card, {通常: {}, 読み込み中: {na: '無い'}, 空: undefined}, {note: 'n', base: {title: 'base'}}),
+    {label: '素の行', cells: [node, 'na', node]},
+  ]);
+  // a row that covers MORE states than the matrix has columns is fine
+  stateMatrix(['通常'], [stateRow('カード', card, {通常: {}, 空: {}})]);
+  // @ts-expect-error the state '空' is a column but the row has no entry for it
+  stateMatrix(['通常', '空'], [stateRow('カード', card, {通常: {}})]);
+  // @ts-expect-error an option the part does not take
+  stateRow('カード', card, {通常: {colour: 'red'}});
+  // @ts-expect-error a bare string other than a state / 'na' / 'todo'
+  stateRow('カード', card, {通常: 'maybe'});
+
+  // ---- a stateRow() mixed with plain rows is checked row by row, in either order ----
+  const cardOf = (o: {state?: 'loading'} = {}) => wf.card([wf.text('x')], o);
+  stateMatrix(['通常', '空'], [stateRow('A', cardOf, {通常: {}, 空: {}}), {label: '素の行', cells: [node, 'na']}]);
+  // @ts-expect-error stateRow "A" has no entry for 空, although the second row is a plain one
+  stateMatrix(['通常', '空'], [stateRow('A', cardOf, {通常: {}}), {label: '素の行', cells: [node, 'na']}]);
+  // @ts-expect-error the same, with the plain row first
+  stateMatrix(['通常', '空'], [{label: '素の行', cells: [node, 'na']}, stateRow('A', cardOf, {通常: {}})]);
+  // @ts-expect-error the plain row is short, next to a complete stateRow
+  stateMatrix(['通常', '空'], [stateRow('A', cardOf, {通常: {}, 空: {}}), {label: '素の行', cells: [node]}]);
+  // @ts-expect-error a stateRow kept in a variable is checked as well
+  stateMatrix(['通常', '空'], [(() => stateRow('V', cardOf, {空: {}}))(), {label: 'x', cells: [node, node]}]);
 }

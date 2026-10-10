@@ -1,6 +1,6 @@
 // Type-level tests that close gaps found when auditing README's 「コンパイル時に検出されるもの」 table against the other
 // files in this directory: every row has at least one case that compiles and one `@ts-expect-error` case. Never executed.
-import {diagram, box, banner, table, wireframe, sequence, group, grid, row, connect, branch, pyramid, curve, swimlane, screens, stateMatrix, wf} from '../../lib/dsl.ts';
+import {diagram, box, banner, table, wireframe, sequence, group, grid, row, connect, branch, pyramid, curve, plane, swimlane, screens, stateMatrix, wf} from '../../lib/dsl.ts';
 import type {Band} from '../../lib/types.ts';
 
 export function readmeAuditCases(): void {
@@ -151,4 +151,29 @@ export function readmeAuditCases(): void {
   // bands held in a plain array are fine to add
   const some: Band[] = [box({id: 'q'})];
   d.add(some);
+}
+
+// ---- ergonomics: row({cols: [..], id}), d.connect(), connectDefaults, plane() ----
+export function ergonomicsCases(): void {
+  const top = row([box({id: 'a'}), box({id: 'b'})], {cols: [6, 6], id: 'top'});
+  const bottom = row([box({id: 'c'})], {cols: [12], id: 'bottom'});
+  // a column of a row is a handle; the row itself is one too
+  connect(top.col(5).bottom, bottom.col(2).top);
+  connect(top.right, bottom.col(1, 3).left);
+  // @ts-expect-error a row built without an id has no handle
+  row([box({id: 'x'})]).col(1);
+  const d = diagram({theme: 'blue', connectDefaults: {chip: true, route: 'elbow', tone: 'accent'}});
+  d.add(top, bottom).connect('a:right', 'c:left', {label: 'x'});
+  // @ts-expect-error after the ids are known, an unknown one is rejected by d.connect()
+  d.add(top, bottom).connect('a', 'zz');
+  // @ts-expect-error a bad side is rejected
+  d.connect('a:middle', 'b');
+  // @ts-expect-error connectDefaults take connect options only
+  diagram({theme: 'blue', connectDefaults: {colour: 'red'}});
+  diagram({theme: 'blue', wireframeDefaults: {appbar: {title: 'T', nav: ['a']}, h: 'fit', frame: 'light'}});
+  // @ts-expect-error the shell's `active` is a label or an index
+  wireframe(wf.text('x'), {shell: {active: true}});
+  plane({x: {max: 10}, y: {max: 10}, points: [{id: 'p', at: [1, 2]}], dims: [{from: 'p', to: [3, 4], label: 'd'}]});
+  // @ts-expect-error a point is [x, y]
+  plane({x: {max: 10}, y: {max: 10}, points: [{at: [1]}]});
 }

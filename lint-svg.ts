@@ -256,9 +256,9 @@ for (const f of files) {
       }
     }
 
-    const rects = [...svg.querySelectorAll('rect')].map(r => {
+    const rects = [...svg.querySelectorAll('rect,g[data-badge]')].map(r => {
       const cs = getComputedStyle(r);
-      if (cs.fill === 'none' && cs.stroke === 'none') return null;
+      if (r.tagName !== 'g' && cs.fill === 'none' && cs.stroke === 'none') return null; // a badge group is the container of its own label
       const bb = r.getBoundingClientRect();
       if (!bb.width || !bb.height) return null;
       return bb;

@@ -19,7 +19,7 @@
 
 import type {MIN_FONT_SIZE} from './tokens.ts';
 import type {
-  Arrow, Bend, BoxOpts, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SeqDivider, SeqNote, SequenceActor, SeqMessage, SeqSelf,
+  Arrow, Bend, BoxOpts, PartRow, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SeqDivider, SeqNote, SequenceActor, SeqMessage, SeqSelf,
   SlideRef, StateMatrixCell, SwimlaneFlow, SwimlaneStep, TextTone, Theme,
 } from './types.ts';
 
@@ -47,7 +47,8 @@ export type DeclaredIds<B extends readonly unknown[]> = IdsOf<B[number]>;
 type IsPattern<R extends string> = {} extends {[K in R]: 1} ? true : false;
 export type SideName = 'left' | 'right' | 'top' | 'bottom' | 'center';
 type OffsetOk = '0' | '1' | `0.${number}` | `.${number}`;
-type IdOf<R extends string> = R extends `${infer Id}:${string}` ? Id : R;
+/** The id of a ref; a row column ('row#5:top', 'row#5-6') belongs to its row's id. */
+type IdOf<R extends string> = (R extends `${infer Id}:${string}` ? Id : R) extends infer I extends string ? (I extends `${infer Row}#${string}` ? Row : I) : never;
 
 type SideProblem<R extends string, Rest extends string> =
   IsPattern<Rest> extends true ? never
@@ -66,6 +67,10 @@ export type ShapeProblem<R extends string> = R extends string
 
 /** `T` when the ref is well-formed, otherwise the message (as a type no argument can satisfy). */
 export type Ok<T extends string> = [ShapeProblem<T>] extends [never] ? T : ShapeProblem<T>;
+
+/** A ref passed to `d.connect()`: well-formed, and (when earlier add() calls were chained) naming a declared id. */
+export type RefIn<Ids extends string, R extends string> =
+  [Ids] extends [never] ? Ok<R> : [IdProblem<R, Ids>] extends [never] ? Ok<R> : IdProblem<R, Ids>;
 
 type UnknownId<Id extends string, Known extends string> =
   `unknown anchor id "${Id}" — declare it with {id: '${Id}'} (declared ids: ${Join<Known>})`;
@@ -107,6 +112,15 @@ export interface Handle {
   /** `at('bottom', 0.25)` = 'id:bottom@0.25' (t = 0..1 along that side). */
   at(side: SideName, t: number): HandleRef;
 }
+/**
+ * A row({id}) is an anchor itself and also hands out its columns: `r.col(5).top` is the top edge of the 5th column of a
+ * `cols` row (of the 5th child on a row without `cols`); `r.col(5, 6)` spans columns 5..6. Row-height, so a connector
+ * lands exactly above / below that column whatever the boxes in it are.
+ */
+export interface RowHandle extends Handle {
+  col(n: number, to?: number): Handle;
+}
+export type RowHandleOf<Id extends string> = [Id] extends [never] ? unknown : RowHandle;
 /** `Handle` only when the id is known (a band built without an id has nothing to point at). */
 export type HandleOf<Id extends string> = [Id] extends [never] ? unknown : Handle;
 /** screens() / swimlane(): one handle per item / step id, under `.anchors`. */
@@ -233,6 +247,23 @@ type FixedTuple<T, N extends number, Acc extends T[] = []> = Acc['length'] exten
  * marker (rule wf-states-todo); a cell left out (too few) or surplus (too many, rule wf-states-ragged) is
  * a type error. Non-literal columns (`string[]`) accept any length.
  */
+/** A plain stateMatrix() row as the call site hands it over (cells may be a readonly tuple); its length is checked by ValidateStateRows. */
+export type StateRowLoose = {label: string; note?: string; cells: readonly StateMatrixCell[]};
+/**
+ * The rows handed to stateMatrix(), checked one by one (a stateRow() next to a plain row is checked too):
+ *  - a stateRow() that covers fewer states than the matrix has columns names the row and the missing states;
+ *  - a plain row names itself and how many cells it has against the number of columns.
+ * Columns held in a plain `string[]` are not checked.
+ */
+export type ValidateStateRows<Cols extends readonly string[], R extends readonly unknown[]> = number extends Cols['length'] ? unknown : {
+  [I in keyof R]: R[I] extends PartRow<infer K, infer L>
+    ? ([Cols[number]] extends [K] ? unknown : Err<`stateRow("${L}") has no entry for the state(s): ${Join<Exclude<Cols[number], K>>}`>)
+    : R[I] extends {label: infer L2 extends string; cells: infer Cl extends readonly unknown[]}
+      ? ([Exclude<keyof R[I], 'label' | 'note' | 'cells'>] extends [never]
+          ? (number extends Cl['length'] ? unknown : Cl['length'] extends Cols['length'] ? unknown : Err<`row "${L2}" has ${Cl['length']} cells for ${Cols['length']} columns (write undefined for a state not designed yet)`>)
+          : Err<`row "${L2}" has an unknown option: ${Extract<Exclude<keyof R[I], 'label' | 'note' | 'cells'>, string>}`>)
+      : unknown;
+};
 export type StateRowIn<Cols extends readonly string[]> = {
   label: string;
   note?: string;
