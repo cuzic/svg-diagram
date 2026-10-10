@@ -12,7 +12,8 @@
   },
   "scripts": {
     "test": "node --test \"test/*.test.ts\"",
-    "golden": "node check-diagram.ts --drift --rebuild --svg-dir examples/out examples/*.ts"
+    "golden": "node check-diagram.ts --drift --rebuild --svg-dir examples/out examples/*.ts",
+    "typecheck": "tsc -p ."
   },
   "license": "MIT",
   "repository": {
@@ -32,5 +33,9 @@
   ],
   "engines": {
     "node": ">=22.18"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2"
   }
 }
