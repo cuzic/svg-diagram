@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="744" viewBox="0 0 940 744" role="img" aria-labelledby="svg-title">
   <title id="svg-title">在庫管理アプリの画面遷移図</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.3.0","source":"examples/inventory-flow.mjs","sourceSha256":"5288be8242bb7ee4e7b76758e7a5589e2a634d2eb454fe6ad91d0406796f5a0d"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.3.0","source":"examples/inventory-flow.ts","sourceSha256":"0117bed99f4d7d02eef43d14556e7ae15424efdc2dcfefb20a11cdde6421e56d"}</metadata>
   <defs>
     <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
