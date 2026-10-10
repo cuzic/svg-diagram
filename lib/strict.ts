@@ -19,7 +19,7 @@
 
 import type {MIN_FONT_SIZE} from './tokens.ts';
 import type {
-  Arrow, Bend, BoxOpts, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SeqDivider, SeqNote, SequenceActor, SeqMessage, SeqSelf,
+  Arrow, Bend, BoxOpts, PartRow, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SeqDivider, SeqNote, SequenceActor, SeqMessage, SeqSelf,
   SlideRef, StateMatrixCell, SwimlaneFlow, SwimlaneStep, TextTone, Theme,
 } from './types.ts';
 
@@ -247,6 +247,23 @@ type FixedTuple<T, N extends number, Acc extends T[] = []> = Acc['length'] exten
  * marker (rule wf-states-todo); a cell left out (too few) or surplus (too many, rule wf-states-ragged) is
  * a type error. Non-literal columns (`string[]`) accept any length.
  */
+/** A plain stateMatrix() row as the call site hands it over (cells may be a readonly tuple); its length is checked by ValidateStateRows. */
+export type StateRowLoose = {label: string; note?: string; cells: readonly StateMatrixCell[]};
+/**
+ * The rows handed to stateMatrix(), checked one by one (a stateRow() next to a plain row is checked too):
+ *  - a stateRow() that covers fewer states than the matrix has columns names the row and the missing states;
+ *  - a plain row names itself and how many cells it has against the number of columns.
+ * Columns held in a plain `string[]` are not checked.
+ */
+export type ValidateStateRows<Cols extends readonly string[], R extends readonly unknown[]> = number extends Cols['length'] ? unknown : {
+  [I in keyof R]: R[I] extends PartRow<infer K, infer L>
+    ? ([Cols[number]] extends [K] ? unknown : Err<`stateRow("${L}") has no entry for the state(s): ${Join<Exclude<Cols[number], K>>}`>)
+    : R[I] extends {label: infer L2 extends string; cells: infer Cl extends readonly unknown[]}
+      ? ([Exclude<keyof R[I], 'label' | 'note' | 'cells'>] extends [never]
+          ? (number extends Cl['length'] ? unknown : Cl['length'] extends Cols['length'] ? unknown : Err<`row "${L2}" has ${Cl['length']} cells for ${Cols['length']} columns (write undefined for a state not designed yet)`>)
+          : Err<`row "${L2}" has an unknown option: ${Extract<Exclude<keyof R[I], 'label' | 'note' | 'cells'>, string>}`>)
+      : unknown;
+};
 export type StateRowIn<Cols extends readonly string[]> = {
   label: string;
   note?: string;
