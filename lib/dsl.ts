@@ -27,8 +27,20 @@ import type {
   Role, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
   TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
 } from './types.ts';
+import type {
+  ActorIn, AnchorsOf, BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, FlowCheck, FlowIn, IdsOf, LaneCheck, Ok,
+  HandleOf, PyramidLayers, Refers, RefsOf, SeqStepIn, ScreensItemInput, StateRowIn, StepCheck, StepIds, SwimlaneStepIn,
+} from './strict.ts';
 export {wf} from './wireframe.ts';
 
+//
+// Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
+// that is declared neither in the same add() call (before OR after the connect) nor earlier in a chained
+// `.add().add()` is a type error. Forward refs across separate add() calls are therefore rejected by the types
+// although the runtime allows them; and in the statement style `d.add(x); d.add(connect(...))` (the result is not
+// assigned back) the type cannot see the earlier ids, so a call that declares nothing is not checked.
+// diagram({theme | day}) is required; fill: true requires `slide`. The runtime checks below are unchanged.
+export function diagram(opts: DiagramInput): Diagram<never>;
 export function diagram(opts: DiagramOpts = {}): Diagram {
   // `theme` (name from tokens.ts PALETTE) is the general form; `day` (1|2) is the
   // training deck's legacy spelling of the same thing. Stored as d.day internally.
@@ -54,7 +66,28 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     ...d,
     add(this: Diagram, ...bands: BandInput[]) { d.bands.push(...bands.flat()); return this; },
     get bands() { return d.bands; },
+  } as Diagram;
+}
+
+// `const list = box({id: 'list'})`: a band built with an id also works as a handle (`list.right`, `list.at('top', 0.25)`),
+// so connect() can name it without typing the id again. The helpers are NON-enumerable properties: spreading or
+// serialising a band, and every existing consumer of bands, sees exactly what it saw before.
+function handleFor(id: string) {
+  const side = (s: string) => `${id}:${s}`;
+  return {
+    left: {value: side('left')}, right: {value: side('right')}, top: {value: side('top')}, bottom: {value: side('bottom')}, center: {value: side('center')},
+    at: {value: (s: string, t: number) => `${id}:${s}@${t}`},
   };
+}
+function withHandle<T extends object>(band: T, id: string | undefined): T {
+  if (id) Object.defineProperties(band, handleFor(id));
+  return band;
+}
+// screens() / swimlane(): `.anchors.<id>` is the handle of each item / step that has an id.
+function withAnchors<T extends object>(band: T, ids: (string | undefined)[]): T {
+  const anchors: Record<string, object> = {};
+  for (const id of ids) if (id) anchors[id] = Object.defineProperties({id}, handleFor(id));
+  return Object.defineProperty(band, 'anchors', {value: anchors});
 }
 
 export function caption(text: string, opts: CaptionOpts = {}): CaptionBand {
@@ -64,22 +97,29 @@ export function caption(text: string, opts: CaptionOpts = {}): CaptionBand {
 // `step`: a number/string drawn as a solid numbered badge over the title's
 // own baseline (requires `title` — the badge has nothing to align to
 // without it).
+//
+// Types: `step` requires `title`; `size` is one of FontSize (an integer >= 14); unknown keys are rejected; the
+// literal `id` is remembered so connect() refs to it can be checked by add().
+export function box<const Id extends string = never>(opts: BoxInput<Id>): BoxBand & Declares<Id> & HandleOf<Id>;
 export function box(opts: BoxOpts): BoxBand {
   if (opts.size !== undefined) assertFontSize(opts.size);
   if (opts.step != null && !opts.title) throw new Error('box({step}) needs a title — the badge aligns to the title\'s first line');
-  return {type: 'box', ...opts};
+  return withHandle({type: 'box', ...opts}, opts.id);
 }
 
+export function banner<const Id extends string = never>(opts: BannerOpts & {id?: Id}): BannerBand & Declares<Id> & HandleOf<Id>;
 export function banner(opts: BannerOpts): BannerBand {
-  return {type: 'banner', tone: opts.tone ?? 'accent', ...opts};
+  return withHandle({type: 'banner', tone: opts.tone ?? 'accent', ...opts}, opts.id);
 }
 
 // A labelled frame around other bands (a network zone, a service boundary, a
 // release phase). children: any bands (row, grid, box, nested group...).
 // tone: 'muted' (default, grey fill) | 'accent' | 'plain' (white) | 'danger';
 // dashed: draw the boundary dashed (default true for 'plain' = a trust/zone line).
+// Types: the ids (and connect() refs) of the children are exposed to add().
+export function group<C extends Band | Band[], const Id extends string = never>(children: C, opts?: GroupOpts & {id?: Id}): GroupBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & HandleOf<Id>;
 export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
-  return {type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad, id: opts.id};
+  return withHandle({type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad, id: opts.id}, opts.id);
 }
 
 // Key for line styles / tones used in the diagram. items:
@@ -96,8 +136,11 @@ export function legend(items: LegendItem[], opts: LegendOpts = {}): LegendBand {
 //   {divider: text}                        — a phase separator across the whole width
 // Messages are auto-numbered 1, 2, ... (sequence(..., {numbered: false}) to turn off) so
 // the picture lines up with a numbered list in the surrounding text.
+// Types: every `from` / `to` / `self` / `over` must be a declared actor id, and `from` may not equal `to`
+// (runtime: "unknown actor" / "use {self: id}"); an `id` in opts becomes a connect() anchor.
+export function sequence<const A extends string, const Id extends string = never>(actors: ActorIn<A>[], steps: SeqStepIn<NoInfer<A>>[], opts?: SequenceOpts & {id?: Id}): SequenceBand & Declares<Id> & HandleOf<Id>;
 export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: SequenceOpts = {}): SequenceBand {
-  return {type: 'sequence', actors, steps, numbered: opts.numbered, id: opts.id};
+  return withHandle({type: 'sequence', actors, steps, numbered: opts.numbered, id: opts.id}, opts.id);
 }
 
 // Table with a header row. columns: [{label, flex?, mono?, bold?, align?: 'left'|'center'|'right'}].
@@ -105,8 +148,9 @@ export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: S
 // a cell is a string or {text, tone?: 'accent'|'muted'|'danger', bold?, mono?, align?}.
 // title adds an accent bar on top (an ER entity name, a table caption); header: false hides
 // the column-label row; width narrows the table (centered).
+export function table<const Id extends string = never>(columns: TableColumn[], rows: TableRow[], opts?: TableOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
 export function table(columns: TableColumn[], rows: TableRow[], opts: TableOpts = {}): TableBand {
-  return {type: 'table', columns, rows, title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, id: opts.id};
+  return withHandle({type: 'table', columns, rows, title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, id: opts.id}, opts.id);
 }
 
 // Swimlane diagram: who does what, in what order, and where the hand-offs are.
@@ -121,6 +165,12 @@ export function table(columns: TableColumn[], rows: TableRow[], opts: TableOpts 
 //   opts.phases: [{label, from, to}]  — column groups named across the top (a stage, a sprint)
 //   opts.labelW: width of the lane-label column (default 128)
 // Returns an array (the lane block followed by its flows); d.add() accepts it directly.
+//
+// Types: at most 6 lanes (rule swimlane-lanes); every step.lane is a declared lane id; step ids are unique; flows'
+// from / to are step ids (optionally ':side[@t]'); chip / labelAt need a label. The step ids are exposed to add().
+export function swimlane<
+  const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [],
+>(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows'> & {flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S>> | ConnectBand)[] & AnchorsOf<StepIds<S>>;
 export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
   const laneIdx = new Map(lanes.map((l, i) => [l.id, i]));
   let next = 1, cols = 0;
@@ -164,10 +214,10 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
   const flows = specs.map(({f, b, from, to, auto}) => {
     if (auto) { from = spread(from); to = spread(to); }
     const k = slot.get(b.col) ?? 0; slot.set(b.col, k + 1);
-    return connect(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone});
+    return connectBand(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone});
   });
   const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, id: opts.id};
-  return [block, ...flows];
+  return withAnchors([block, ...flows], placed.map(st => st.id));
 }
 
 // Low-fidelity UI wireframe of ONE screen, with an optional column of numbered notes.
@@ -178,9 +228,10 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
 //          noteW, skeleton (text becomes grey bars), marks: {new, changed} legend labels,
 //          overlays: [wf.dialog(...), wf.toast(...)]  — drawn over the screen (a dialog dims it)}
 // id makes the screen frame a connect() anchor.
+export function wireframe<const Id extends string = never>(root: WfRoot, opts?: WireframeOpts & {id?: Id}): WireframeBand & Declares<Id> & HandleOf<Id>;
 export function wireframe(root: WfRoot, opts: WireframeOpts = {}): WireframeBand {
   autoNumber(root, opts.overlays);
-  return {type: 'wireframe', root, ...opts};
+  return withHandle({type: 'wireframe', root, ...opts}, opts.id);
 }
 
 // `n: true` (on a node, on a part in `parts: {...}`, or on a map marker) means "number me": such callouts get consecutive
@@ -208,8 +259,10 @@ function autoNumber(...trees: (WfRoot | WfOverlay | WfOverlay[] | undefined)[]):
 // Several screens as thumbnails in a grid — a screen-transition diagram. Join them with connect().
 //   items: [{id, title, tag?, root, h?, skeleton?, at?: [row, col]}]   opts: {cols (3), gap (64), rowGap (56), h (320), skeleton}
 //   at places an item explicitly; col may be fractional (0.5 = half a column in) to centre a parent over its children.
+// Types: item ids are exposed to add() as connect() anchors; `at` is a [row, col] tuple.
+export function screens<const Id extends string = never>(items: ScreensItemInput<Id>[], opts?: ScreensOpts): ScreensBand & Declares<Id> & AnchorsOf<Id>;
 export function screens(items: ScreensItem[], opts: ScreensOpts = {}): ScreensBand {
-  return {type: 'screens', items, ...opts};
+  return withAnchors({type: 'screens', items, ...opts}, items.map(i => i.id));
 }
 
 // A component's states as a grid: one row per part, one column per state.
@@ -217,6 +270,11 @@ export function screens(items: ScreensItem[], opts: ScreensOpts = {}): ScreensBa
 //   rows: [{label, note?, cells: [node | 'na' | {na: 'reason'} | undefined]}]  — a cell is a wf.* node (drawn in a light frame),
 //         'na' / {na} (not applicable, drawn dashed), or missing (drawn as "未設計": a gap in the spec, which `svg-diagram check` reports).
 //   opts: {required: [...cols that must exist], labelW, cellH (default: fit the content, min 72), cellFrame ('light' (default) | 'none' — 'none' when the parts already have their own border), gap, marks, skeleton}
+//
+// Types: `required` entries must be members of `cols` (rule wf-states-required), and each row's `cells` has EXACTLY
+// cols.length entries: too many is rule wf-states-ragged, too few would silently draw '未設計' (wf-states-todo).
+// An explicit `undefined` entry is still the deliberate TODO marker; 'na' / {na: reason} stay valid.
+export function stateMatrix<const C extends string[]>(cols: C, rows: StateRowIn<C>[], opts?: Omit<StateMatrixOpts, 'required'> & {required?: C[number][]}): ScreensBand;
 export function stateMatrix(cols: string[], rows: StateMatrixRow[], opts: StateMatrixOpts = {}): ScreensBand {
   return {type: 'screens', items: [], matrix: {cols, rows, required: opts.required, labelW: opts.labelW, cellH: opts.cellH, gap: opts.gap, cellFrame: opts.cellFrame}, marks: opts.marks, skeleton: opts.skeleton, id: opts.id};
 }
@@ -235,6 +293,7 @@ export function spacer(h: number): SpacerBand {
 // `span` columns, default 1, optionally starting at 1-based `col`). Rows with
 // the same cols/gap have identical column edges, so a box spanning two
 // columns lines up exactly over two single-column boxes in the next row.
+export function row<C extends BoxBand>(children: C[], opts?: RowOpts): RowBand & Declares<IdsOf<C>>;
 export function row(children: BoxBand[], opts: RowOpts = {}): RowBand {
   return {type: 'row', cols: opts.cols, children, gap: opts.gap ?? 16, arrows: opts.arrows ?? 'none', justify: opts.justify ?? 'stretch', itemWidth: opts.width};
 }
@@ -242,6 +301,7 @@ export function row(children: BoxBand[], opts: RowOpts = {}): RowBand {
 // children: box() descriptors, laid out in `cols` columns (wraps to
 // additional rows automatically). Every cell in the same grid-row shares
 // that row's tallest cell's height, same as row().
+export function grid<C extends BoxBand>(children: C[], opts: GridOpts): GridBand & Declares<IdsOf<C>>;
 export function grid(children: BoxBand[], opts: GridOpts): GridBand {
   if (!opts?.cols) throw new Error('grid(children, {cols}) needs cols');
   return {type: 'grid', children, cols: opts.cols, gap: opts.gap ?? 16};
@@ -258,7 +318,16 @@ export function grid(children: BoxBand[], opts: GridOpts): GridBand {
 // {route: 'loop-under', dip: 32})).
 // Consumes no vertical space — resolved after the whole stack is laid out,
 // so `from`/`to` may reference boxes declared earlier OR later in the stack.
+//
+// Types: `from` / `to` must be well-formed ('id', 'id:side', 'id:side@t'; side = left|right|top|bottom|center; t = 0..1)
+// and add() checks the id exists in the diagram. `dip` only with route 'loop-under'; `bend` / `bendOffset` only with
+// route 'elbow'; `chip` / `labelAt` only with a `label`.
+export function connect<const F extends string, const T extends string>(from: Ok<F>, to: Ok<T>, opts?: ConnectInput): ConnectBand & Refers<F | T>;
 export function connect(from: string, to: string, opts: ConnectOpts = {}): ConnectBand {
+  return connectBand(from, to, opts);
+}
+
+function connectBand(from: string, to: string, opts: ConnectOpts): ConnectBand {
   // arrow: 'end' (default) | 'both' | 'start' | 'none'  (legacy `marker: false` = 'none')
   // line:  'solid' (default) | 'dashed' | 'dotted' | 'double'  (legacy `dashed: true` = 'dashed')
   // labelAt: 0..1 along a straight/loop-under connector where the label/chip sits (default 0.5)
@@ -271,8 +340,9 @@ export function connect(from: string, to: string, opts: ConnectOpts = {}): Conne
 // One box fanning out to several targets (a decision). `targets`:
 // [{to, label?, tone?, dashed?}]; opts as connect() (route defaults to
 // 'elbow'). Returns an array — d.add() flattens it.
+export function branch<const F extends string, const To extends string>(from: Ok<F>, targets: (BranchInput & {to: Ok<To>})[], opts?: BranchInput): (ConnectBand & Refers<F | To>)[];
 export function branch(from: string, targets: BranchTarget[], opts: ConnectOpts = {}): ConnectBand[] {
-  return targets.map(t => connect(from, t.to, {route: 'elbow', ...opts, ...t}));
+  return targets.map(t => connectBand(from, t.to, {route: 'elbow', ...opts, ...t}));
 }
 
 // Stacked trapezoid layers, bottom (widest) to top (narrowest) — a test
@@ -280,6 +350,8 @@ export function branch(from: string, targets: BranchTarget[], opts: ConnectOpts 
 // the bottom". `layers`: strings or {text}, bottom-to-top. Opacity and each
 // layer's text color are derived (see tokens.ts's SHADES/bestTextColor),
 // not chosen per diagram, so contrast is provably fine for any 2-6 layers.
+// Types: a tuple of at least 2 layers.
+export function pyramid(layers: PyramidLayers, opts?: PyramidOpts): PyramidBand;
 export function pyramid(layers: (string | PyramidLayer)[], opts: PyramidOpts = {}): PyramidBand {
   if (!Array.isArray(layers) || layers.length < 2) throw new Error('pyramid(layers) needs at least 2 layers, bottom to top');
   return {
@@ -297,6 +369,8 @@ export function pyramid(layers: (string | PyramidLayer)[], opts: PyramidOpts = {
 // 'muted', dropLine?: true} evenly spaced left-to-right along the x-axis.
 // Bespoke callouts (leader lines to side notes, etc.) are raw()'s job —
 // curve() only draws the reusable skeleton.
+// Types: a tuple of at least 2 points, each with a numeric y.
+export function curve(points: CurvePoints, opts?: CurveOpts): CurveBand;
 export function curve(points: CurveBand['points'], opts: CurveOpts = {}): CurveBand {
   if (!Array.isArray(points) || points.length < 2) throw new Error('curve(points) needs at least 2 points');
   for (const p of points) {

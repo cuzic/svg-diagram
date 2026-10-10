@@ -14,7 +14,7 @@ import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {budgetWarnings} from './budget.ts';
 import type {
   Band, BoxBand, BoxTone, DiagramData, Finding, LaidOutBand, LaidOutBox, LaidOutConnect, LegendBand, LegendItem,
-  LineStyle, Point, SwimlaneBand, WfCallout,
+  LineStyle, Point, RuleId, SwimlaneBand, WfCallout,
 } from './types.ts';
 import type {LintTarget} from './types.ts';
 
@@ -48,11 +48,11 @@ export const RULE_DOCS = {
   'doc-orphan-svg': 'どの文書からも参照されていない SVG',
 };
 
-export const DEFAULT_LEGEND_LABELS: Record<string, string> = {
+export const DEFAULT_LEGEND_LABELS = {
   'line:solid': '実線', 'line:dashed': '破線', 'line:dotted': '点線', 'line:double': '二重線', 'arrow:both': '双方向',
   'tone:new': '新規', 'tone:changed': '変更・改修', 'tone:removed': '対象外', 'tone:danger': '異常・注意',
   'tone:muted': '補助・任意', 'tone:accent': '強調',
-};
+} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `tone:${Exclude<BoxTone, 'plain'>}`, string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
 
 // every band, including those nested in groups, rows, grids and swimlanes
 export function walkBands(bands: Band[], out: Band[] = []): Band[] {
@@ -100,7 +100,7 @@ export function applyAutoLegend(d: DiagramData): void {
   const used = usedNotation(d.bands), have = legendKeys(d.bands);
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return;
-  const labels = {...DEFAULT_LEGEND_LABELS, ...(d.legendLabels ?? {})};
+  const labels: Record<string, string> = {...DEFAULT_LEGEND_LABELS, ...(d.legendLabels ?? {})};
   // a tone whose boxes are ALL dashed gets a dashed swatch
   const boxes = walkBands(d.bands).filter((b): b is BoxBand => b.type === 'box');
   const allDashed = (tone: string) => { const bs = boxes.filter(b => b.tone === tone); return bs.length > 0 && bs.every(b => b.dashed); };
@@ -169,7 +169,7 @@ function legendRules(d: LintTarget, out: Finding[]): void {
   const hasLegend = walkBands(d.bands).some(b => b.type === 'legend');
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return;
-  const names = missing.map(k => `${k}（例: ${DEFAULT_LEGEND_LABELS[k] ?? k}）`).join('、');
+  const names = missing.map(k => `${k}（例: ${(DEFAULT_LEGEND_LABELS as Record<string, string>)[k] ?? k}）`).join('、');
   out.push({rule: hasLegend ? 'legend-incomplete' : 'legend-missing', severity: 'warn', message: `凡例にない記法: ${names}`});
 }
 
@@ -302,7 +302,7 @@ function wireframeRules(d: LintTarget, out: Finding[]): void {
 export function lintDiagram(d: LintTarget): Finding[] {
   const out = lintAll(d);
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
-  return out.map(f => (d.accept && d.accept[f.rule] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule]}）`} : f));
+  return out.map(f => (d.accept && d.accept[f.rule as RuleId] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule as RuleId]}）`} : f));
 }
 
 function lintAll(d: LintTarget): Finding[] {
