@@ -28,8 +28,8 @@ import type {
   TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
 } from './types.ts';
 import type {
-  BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, IdsOf, Ok, PyramidLayers, Refers, RefsOf,
-  ScreensItemInput, StateRowIn,
+  BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, FlowCheck, FlowIn, IdsOf, LaneCheck, Ok,
+  PyramidLayers, Refers, RefsOf, ScreensItemInput, StateRowIn, StepCheck, StepIds, SwimlaneStepIn,
 } from './strict.ts';
 export {wf} from './wireframe.ts';
 
@@ -143,6 +143,12 @@ export function table(columns: TableColumn[], rows: TableRow[], opts: TableOpts 
 //   opts.phases: [{label, from, to}]  — column groups named across the top (a stage, a sprint)
 //   opts.labelW: width of the lane-label column (default 128)
 // Returns an array (the lane block followed by its flows); d.add() accepts it directly.
+//
+// Types: at most 6 lanes (rule swimlane-lanes); every step.lane is a declared lane id; step ids are unique; flows'
+// from / to are step ids (optionally ':side[@t]'); chip / labelAt need a label. The step ids are exposed to add().
+export function swimlane<
+  const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [],
+>(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows'> & {flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S>> | ConnectBand)[];
 export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
   const laneIdx = new Map(lanes.map((l, i) => [l.id, i]));
   let next = 1, cols = 0;

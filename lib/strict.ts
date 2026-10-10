@@ -19,7 +19,7 @@
 
 import type {MIN_FONT_SIZE} from './tokens.ts';
 import type {
-  Arrow, Bend, BoxOpts, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SlideRef, StateMatrixCell, TextTone, Theme,
+  Arrow, Bend, BoxOpts, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SlideRef, StateMatrixCell, SwimlaneFlow, SwimlaneStep, TextTone, Theme,
 } from './types.ts';
 
 // ============================================================================================
@@ -143,6 +143,47 @@ export type CurvePoints = [CurvePoint, CurvePoint, ...CurvePoint[]];
 // ============================================================================================
 
 export type ScreensItemInput<Id extends string = string> = Omit<ScreensItem, 'id'> & {id?: Id};
+
+// ============================================================================================
+// swimlane()
+// ============================================================================================
+
+/** A swimlane step as written: any box() field, its `size` restricted like box({size}). */
+export type SwimlaneStepIn = Omit<SwimlaneStep, 'size'> & {size?: FontSize};
+type UnknownKeys<T, Shape> = Exclude<keyof T, keyof Shape>;
+
+export type LaneIds<L extends readonly {id: string}[]> = L[number]['id'];
+type StepIdOf<S> = S extends {readonly id: infer I extends string} ? I : never;
+export type StepIds<S extends readonly unknown[]> = StepIdOf<S[number]>;
+
+/** swimlane-lanes: more than 6 lanes is a type error. */
+export type LaneCheck<L extends readonly unknown[]> =
+  number extends L['length'] ? unknown
+  : L['length'] extends 1 | 2 | 3 | 4 | 5 | 6 ? unknown
+  : Err<`swimlane(): ${L['length']} lanes -- at most 6 (rule swimlane-lanes). Split the process, or drop the lanes nobody hands off through.`>;
+
+type OtherStepIds<S extends readonly unknown[], K> = {[J in keyof S]: J extends K ? never : StepIdOf<S[J]>}[number];
+type StepProblem<L extends readonly {id: string}[], S extends readonly unknown[], K extends keyof S> =
+  | (S[K] extends {readonly lane: infer Ln extends string}
+      ? (IsPattern<Ln> extends true ? never : Ln extends LaneIds<L> ? never : `swimlane(): step uses unknown lane "${Ln}" — declared lanes: ${Join<LaneIds<L>>}`)
+      : never)
+  | (StepIdOf<S[K]> extends infer Id extends string
+      ? ([Id] extends [never] ? never : IsPattern<Id> extends true ? never : Id extends OtherStepIds<S, K> ? `swimlane(): duplicate step id "${Id}"` : never)
+      : never)
+  | (UnknownKeys<S[K], SwimlaneStep> extends infer U extends string ? (U extends string ? `swimlane(): unknown step option "${U}"` : never) : never);
+
+/** Each step's lane must be a declared lane id; step ids must be unique; no unknown keys. */
+export type StepCheck<L extends readonly {id: string}[], S extends readonly unknown[]> =
+  {[K in keyof S]: [StepProblem<L, S, K>] extends [never] ? unknown : Err<StepProblem<L, S, K>>};
+
+type FlowProblem<Steps extends string, F> =
+  | (F extends {readonly from: infer R extends string} ? ShapeProblem<R> | IdProblem<R, Steps> : never)
+  | (F extends {readonly to: infer R extends string} ? ShapeProblem<R> | IdProblem<R, Steps> : never)
+  | (F extends {readonly label: string} ? never : F extends {readonly chip: boolean} | {readonly labelAt: number} ? 'swimlane(): chip / labelAt need a label' : never);
+/** Flows' from / to must be step ids (optionally ':side[@t]'). */
+export type FlowCheck<Steps extends string, F extends readonly unknown[]> =
+  {[K in keyof F]: [FlowProblem<Steps, F[K]>] extends [never] ? unknown : Err<FlowProblem<Steps, F[K]>>};
+export type FlowIn = Omit<SwimlaneFlow, 'from' | 'to'> & {from: string; to: string};
 
 // ============================================================================================
 // stateMatrix()

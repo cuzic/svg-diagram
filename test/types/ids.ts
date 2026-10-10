@@ -20,6 +20,7 @@ export function idCases(): void {
   d.add(screens([{id: 'list', root: wf.text('x')}, {id: 'detail', root: wf.text('y'), at: [1, 0.5]}]), connect('list:right', 'detail:left'));
   d.add(wireframe(wf.text('x'), {id: 'wire'}), table([{label: 'c'}], [['v']], {id: 'tbl'}), connect('wire:bottom', 'tbl:top'));
   d.add(sequence([{id: 'u', label: 'U'}, {id: 'v', label: 'V'}], [{from: 'u', to: 'v', label: 'x'}], {id: 'seq'}), box({id: 'x'}), connect('x', 'seq'));
+  d.add(swimlane([{id: 'dev', label: 'D'}], [{id: 'step1', lane: 'dev', title: 'T'}, {id: 'step2', lane: 'dev', title: 'T'}]), connect('step1:right', 'step2:left'));
   d.add(box({id: 'a'}), box({id: 'b'}), box({id: 'c'}), branch('a', [{to: 'b', label: 'yes'}, {to: 'c', label: 'no', bend: 'start'}]));
 
   // ---- ids carried by the type when add() calls are chained ----
@@ -52,6 +53,8 @@ export function idCases(): void {
   d.add(box({id: 'a'}), connect('zzz:left', 'a'));
   // @ts-expect-error a typo of a row child id
   d.add(row([box({id: 'r1'}), box({id: 'r2'})]), connect('r1', 'r3'));
+  // @ts-expect-error a typo of a swimlane step id
+  d.add(swimlane([{id: 'dev', label: 'D'}], [{id: 'step1', lane: 'dev', title: 'T'}]), connect('step1', 'step9'));
   // @ts-expect-error a screens item id that does not exist
   d.add(screens([{id: 'list', root: wf.text('x')}]), connect('list', 'detail'));
   // @ts-expect-error ids inside a group are checked too
