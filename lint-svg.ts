@@ -87,7 +87,7 @@ for (const f of files) {
       staticFindings.push({file: f, check: 'undefined-marker', detail: `marker-end/start references #${ref} but no <marker id="${ref}"> is defined in this file`});
     }
   }
-  const smallSizes = new Set();
+  const smallSizes = new Set<number>();
   for (const m of src.matchAll(/font-size="(\d+(?:\.\d+)?)"/g)) if (+m[1] < 14) smallSizes.add(+m[1]);
   for (const m of src.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)) if (+m[1] < 14) smallSizes.add(+m[1]);
   if (smallSizes.size) {
@@ -102,7 +102,7 @@ for (const f of files) {
     }
   }
 
-  const usedColors = new Set();
+  const usedColors = new Set<string>();
   for (const m of src.matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) usedColors.add('#' + m[1].toLowerCase());
   const offToken = [...usedColors].filter(c => !ALLOWED_COLORS.has(c));
   if (offToken.length) {
@@ -167,7 +167,7 @@ for (const f of files) {
 // ---- render-based checks: contrast (composited) + canvas overflow -------
 const browser = await chromium.launch({args: ['--no-sandbox']});
 const page = await browser.newPage();
-const contrastFindings = [];
+const contrastFindings: {file: string; elements: {txt: string; delta: number; fg: string; bg: string}[]}[] = [];
 const overflowFindings = [];
 const textOverlapFindings = [];
 const containerOverflowFindings = [];
@@ -178,37 +178,38 @@ for (const f of files) {
   await page.setContent(`<body style="margin:0">${src}</body>`);
 
   const result = await page.evaluate(() => {
-    const svg = document.querySelector('svg');
+    const svg = document.querySelector('svg') as SVGSVGElement | null;
     if (!svg) return null;
     const vb = svg.viewBox.baseVal;
-    const W = vb.width || +svg.getAttribute('width');
-    const H = vb.height || +svg.getAttribute('height');
+    const W = vb.width || +svg.getAttribute('width')!;
+    const H = vb.height || +svg.getAttribute('height')!;
 
-    const parseColor = c => {
+    type RGBA = {r: number; g: number; b: number; a: number};
+    const parseColor = (c: string): RGBA | null => {
       const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?/.exec(c);
       return m ? {r: +m[1], g: +m[2], b: +m[3], a: m[4] === undefined ? 1 : +m[4]} : null;
     };
-    const luminance = c => 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
-    const compositeOver = (fg, bg) => ({
+    const luminance = (c: RGBA) => 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+    const compositeOver = (fg: RGBA, bg: RGBA): RGBA => ({
       r: fg.r * fg.a + bg.r * (1 - fg.a),
       g: fg.g * fg.a + bg.g * (1 - fg.a),
       b: fg.b * fg.a + bg.b * (1 - fg.a),
       a: 1,
     });
 
-    const shapes = [...svg.querySelectorAll('rect,circle,ellipse,polygon,path')].map(e => {
-      let bb;
+    const shapes = ([...svg.querySelectorAll('rect,circle,ellipse,polygon,path')] as SVGGraphicsElement[]).map(e => {
+      let bb: DOMRect;
       try { bb = e.getBBox(); } catch { return null; }
       const cs = getComputedStyle(e);
       const c = parseColor(cs.fill);
       if (!c || cs.fill === 'none') return null;
       const a = c.a * parseFloat(cs.fillOpacity || '1') * parseFloat(cs.opacity || '1');
       return {bb, c: {...c, a}};
-    }).filter(Boolean);
+    }).filter((x): x is {bb: DOMRect; c: RGBA} => x !== null);
 
-    const contrast = [];
+    const contrast: {txt: string; delta: number; fg: string; bg: string}[] = [];
     for (const t of svg.querySelectorAll('text')) {
-      let bb;
+      let bb: DOMRect;
       try { bb = t.getBBox(); } catch { continue; }
       if (!bb.width) continue;
       const txt = (t.textContent || '').trim();
@@ -227,7 +228,7 @@ for (const f of files) {
       }
     }
 
-    let bbAll;
+    let bbAll: DOMRect | null;
     try { bbAll = svg.getBBox(); } catch { bbAll = null; }
     const overflow = bbAll && (bbAll.y + bbAll.height > H + 2 || bbAll.x + bbAll.width > W + 2)
       ? {dx: +(bbAll.x + bbAll.width - W).toFixed(0), dy: +(bbAll.y + bbAll.height - H).toFixed(0)}
@@ -238,9 +239,9 @@ for (const f of files) {
       const txt = (t.textContent || '').trim();
       if (!txt || !bb.width || !bb.height) return null;
       return {txt: txt.slice(0, 30), bb};
-    }).filter(Boolean);
+    }).filter((x): x is {txt: string; bb: DOMRect} => x !== null);
 
-    const textOverlap = [];
+    const textOverlap: {a: string; b: string; ratio: number}[] = [];
     for (let i = 0; i < texts.length; i++) {
       for (let j = i + 1; j < texts.length; j++) {
         const a = texts[i].bb, b = texts[j].bb;
@@ -261,14 +262,14 @@ for (const f of files) {
       const bb = r.getBoundingClientRect();
       if (!bb.width || !bb.height) return null;
       return bb;
-    }).filter(Boolean);
+    }).filter((x): x is DOMRect => x !== null);
 
-    const containerOverflow = [];
+    const containerOverflow: {txt: string; over: number}[] = [];
     const PAD = 4;
     for (const t of texts) {
       const bb = t.bb;
       const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
-      let best = null;
+      let best: DOMRect | null = null;
       for (const r of rects) {
         if (cx < r.x || cx > r.x + r.width || cy < r.y || cy > r.y + r.height) continue;
         const area = r.width * r.height;
@@ -287,9 +288,9 @@ for (const f of files) {
 
     // A shape painted AFTER a text (so on top of it) must not cover the text, and a line must not run through it.
     // (A background drawn before the text is fine, and so is a shape marked data-allow-cover on itself or an ancestor.)
-    const covered = [];
+    const covered: {txt: string; by: string; how: 'covers' | 'crosses'}[] = [];
     {
-      const items = [...svg.querySelectorAll('rect,circle,ellipse,path,line,polygon,polyline,text')].filter(e => !e.closest('defs,marker'));
+      const items = ([...svg.querySelectorAll('rect,circle,ellipse,path,line,polygon,polyline,text')] as SVGGeometryElement[]).filter(e => !e.closest('defs,marker'));
       const info = items.map(e => {
         const cs = getComputedStyle(e);
         return {e, tag: e.tagName.toLowerCase(), bb: e.getBoundingClientRect(),
@@ -297,7 +298,7 @@ for (const f of files) {
           op: parseFloat(cs.opacity) * parseFloat(cs.fillOpacity || '1')};
       });
       info.forEach((t, i) => {
-        if (t.tag !== 'text' || !t.bb.width || !t.e.textContent.trim()) return;
+        if (t.tag !== 'text' || !t.bb.width || !t.e.textContent!.trim()) return;
         for (let j = i + 1; j < info.length; j++) {
           const sh = info[j];
           if (sh.tag === 'text' || !sh.bb.width && !sh.bb.height || sh.e.closest('[data-allow-cover]')) continue;
@@ -306,7 +307,7 @@ for (const f of files) {
           if (ow < 0 || oh < 0) continue; // (a vertical or horizontal line has a zero-width box: it can still run through the text)
           if (sh.fill && sh.op >= 0.5 && ow >= 3 && oh >= 3 && ow * oh >= 30) { covered.push({txt: t.e.textContent.trim(), by: sh.tag, how: 'covers'}); break; }
           if (sh.stroke && !sh.fill && sh.tag !== 'rect' && sh.e.getTotalLength) { // a stroke-only line/path: does it run through the text box?
-            const len = sh.e.getTotalLength(), m = sh.e.getScreenCTM();
+            const len = sh.e.getTotalLength(), m = sh.e.getScreenCTM()!;
             let hit = false;
             for (let l = 0; l <= len && !hit; l += 3) {
               const pt = sh.e.getPointAtLength(l);
@@ -352,7 +353,7 @@ if (fixedFiles.length) {
 
 if (staticFindings.length) {
   console.log(`── Static pattern findings: ${staticFindings.length} ──`);
-  const byCheck = {};
+  const byCheck: Record<string, typeof staticFindings> = {};
   for (const x of staticFindings) (byCheck[x.check] ??= []).push(x);
   for (const [check, items] of Object.entries(byCheck)) {
     console.log(`  [${check}] ${items.length}`);
@@ -405,7 +406,7 @@ if (coveredFindings.length) {
 
 if (advisoryFindings.length) {
   console.log(`── Advisory (style-consistency, does not fail without --strict): ${totalAdvisory} ──`);
-  const byCheck = {};
+  const byCheck: Record<string, typeof advisoryFindings> = {};
   for (const x of advisoryFindings) (byCheck[x.check] ??= []).push(x);
   for (const [check, items] of Object.entries(byCheck)) {
     console.log(`  [${check}] ${items.length}`);
