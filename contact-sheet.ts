@@ -7,8 +7,8 @@ import path from 'node:path';
 import {chromium} from 'playwright-chromium';
 
 const args = process.argv.slice(2);
-const val = (n, d) => { const i = args.indexOf(n); return i === -1 ? d : args[i + 1]; };
-const out = val('--out', 'contact-sheet.png'), cols = +val('--cols', 2), width = +val('--width', 1400);
+const val = (n: string, d: string) => { const i = args.indexOf(n); return i === -1 ? d : args[i + 1]; };
+const out = val('--out', 'contact-sheet.png'), cols = +val('--cols', '2'), width = +val('--width', '1400');
 const files = args.filter((a, i) => a.endsWith('.svg') && !['--out', '--cols', '--width'].includes(args[i - 1]));
 if (!files.length) { console.error('Usage: svg-diagram contact a.svg b.svg ... --out sheet.png [--cols 2] [--width 1400]'); process.exit(2); }
 

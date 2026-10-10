@@ -19,6 +19,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import type {DiagramSource} from './lib/types.ts';
 import {register} from 'node:module';
 register('./lib/resolve-hook.ts', import.meta.url);
 const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
@@ -28,8 +29,8 @@ const {explainChange} = await import('./lib/svg-diff.ts');
 const {loadConfig, applyConfig} = await import('./lib/config.ts');
 
 const args = process.argv.slice(2);
-const flag = (n) => args.includes(n);
-const val = (n) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1]; };
+const flag = (n: string) => args.includes(n);
+const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1]; };
 const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--format'];
 const strict = flag('--strict'), verbose = flag('--verbose'), drift = flag('--drift'), rebuild = flag('--rebuild');
 const svgDir = val('--svg-dir'), srcDir = val('--src-dir'), docsDir = val('--docs'), format = val('--format') ?? 'text';
@@ -38,19 +39,20 @@ if (!['text', 'json', 'github'].includes(format)) { console.error(`--format must
 if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs DIR [--svg-dir DIR] [--src-dir DIR]] [--format text|json|github] <source.ts>...'); process.exit(2); }
 const config = loadConfig();
 
-const say = (...a) => { if (format === 'text') console.log(...a); };
-const complain = (...a) => { if (format === 'text') console.error(...a); };
-const findings = []; // {file, line?, rule, severity: 'error' | 'warn' | 'info', message}
+const say = (...a: unknown[]) => { if (format === 'text') console.log(...a); };
+const complain = (...a: unknown[]) => { if (format === 'text') console.error(...a); };
+type CheckFinding = {file: string; line?: number; rule: string; severity: 'error' | 'warn' | 'info'; message: string};
+const findings: CheckFinding[] = [];
 let bad = 0, warned = 0;
-const add = (f) => { findings.push(f); if (f.severity === 'error') bad++; else if (f.severity === 'warn') warned++; };
+const add = (f: CheckFinding) => { findings.push(f); if (f.severity === 'error') bad++; else if (f.severity === 'warn') warned++; };
 
-const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
-function embedded(svgPath) {
+const sha = (f: string) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+function embedded(svgPath: string): DiagramSource | null {
   const m = fs.readFileSync(svgPath, 'utf8').match(/<metadata id="svg-diagram">([^<]*)<\/metadata>/);
   if (!m) return null;
   try { return JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')); } catch { return null; }
 }
-function walkMd(dir, out = []) {
+function walkMd(dir: string, out: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, {withFileTypes: true})) {
     if (['html', 'node_modules', '.git'].includes(e.name)) continue;
     const f = path.join(dir, e.name);
@@ -62,7 +64,7 @@ function walkMd(dir, out = []) {
 try {
   // ---- documents <-> diagrams ----------------------------------------------------------------
   if (docsDir) {
-    const referenced = new Set();
+    const referenced = new Set<string>();
     for (const md of walkMd(docsDir).sort()) {
       const rel = path.relative(process.cwd(), md);
       const figs = scanMarkdown(fs.readFileSync(md, 'utf8'));
@@ -112,7 +114,7 @@ try {
         try { await build(d, tmp); }
         catch (e) { // the regenerated picture fails its own checks: report it and go on with the rest
           fs.rmSync(tmp, {force: true});
-          const why = String(e.message).split('\n').filter(l => l.trim() && !/^Scanned|^─/.test(l)).slice(0, 3).join(' / ');
+          const why = String((e as Error).message).split('\n').filter(l => l.trim() && !/^Scanned|^─/.test(l)).slice(0, 3).join(' / ');
           add({file: src, rule: 'drift-rebuild-failed', severity: 'error', message: `再生成した SVG が自分の検査に通らない: ${why}`});
           complain(`✗ ${src}: 再生成した SVG が自分の検査に通らない: ${why}`);
           continue;

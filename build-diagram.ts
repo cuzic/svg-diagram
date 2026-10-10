@@ -34,11 +34,11 @@ const config = loadConfig();
 // --fit: ソースを書き換えずに、この図を使っているスライドを pages/*.md から探し、
 // そのスライドの空き幅・空き高さ(実測)に合わせて作り直す(diagram({fill, slide}) と同じ)。
 // 図は <img class="fill"> で、使用スライドがちょうど1枚のときだけ使える。
-function locateSlide(svgName) {
-  const hits = [];
+function locateSlide(svgName: string) {
+  const hits: {page: string; heading: string | null; isFill: boolean}[] = [];
   for (const f of fs.readdirSync('pages').filter(f => f.endsWith('.md'))) {
     const lines = fs.readFileSync(path.join('pages', f), 'utf8').split('\n');
-    let fence = false, heading = null;
+    let fence = false, heading: string | null = null;
     for (const l of lines) {
       if (/^```/.test(l)) fence = !fence;
       if (fence) continue;
@@ -86,7 +86,7 @@ try {
         if (hits.length !== 1) throw new Error(`--fit: ${path.basename(outPath)} を使っているスライドが${hits.length}枚です(ちょうど1枚が必要)`);
         if (!hits[0].isFill) throw new Error(`--fit: ${hits[0].page} の「${hits[0].heading}」の <img> に class="fill"(と frontmatter の fit-figure)がありません`);
         d.fill = true;
-        d.slide = {page: hits[0].page, heading: hits[0].heading};
+        d.slide = {page: hits[0].page, heading: hits[0].heading as string};
       }
       const result = await build(d, outPath);
       if (result.fit.doc) console.log(`✓ ${outPath} (${result.width}x${result.height})`);
@@ -97,7 +97,7 @@ try {
       if (result.budget) console.log(`  budget: ${result.budget.maxHeight}px high x ${result.budget.contentWidth}px wide (slide ${result.budget.index}, ${result.budget.cached ? 'cached' : 'measured'})`);
       for (const w of [...result.fit.warnings, ...result.warnings]) console.warn(`  ⚠ ${w}`);
     } catch (err) {
-      console.error(`✗ ${modPath}: ${err.message}`);
+      console.error(`✗ ${modPath}: ${(err as Error).message}`);
       failed = true;
     }
   }
