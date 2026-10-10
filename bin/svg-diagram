@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# svg-diagram build <source.ts>... [--out file.svg]   (default out: ./svg/<name>.svg)
+# svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint]   (default out: ./svg/<name>.svg)
 # svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] <source.ts>...
 # svg-diagram init [dir]                                 (package.json + tsconfig.json for a diagram project)
 # svg-diagram typecheck                                  (the project's tsc over its tsconfig.json)

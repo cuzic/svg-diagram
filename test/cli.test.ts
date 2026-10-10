@@ -263,9 +263,22 @@ test('init makes a project that typechecks its type setting, and never overwrite
   const fresh = fs.mkdtempSync(path.join(os.tmpdir(), 'svgd-init-'));
   assert.equal(spawnSync(BIN, ['init'], {cwd: fresh, encoding: 'utf8'}).status, 0);
   assert.ok(JSON.parse(fs.readFileSync(path.join(fresh, 'tsconfig.json'), 'utf8')).compilerOptions.noEmit);
+  // pnpm 10+ refuses playwright-chromium's install script unless the workspace allows it
+  assert.match(fs.readFileSync(path.join(fresh, 'pnpm-workspace.yaml'), 'utf8'), /allowBuilds:\n {2}playwright-chromium: true/);
+  fs.writeFileSync(path.join(dir, 'pnpm-workspace.yaml'), 'packages: []\n');
+  assert.match(out(spawnSync(BIN, ['init'], {cwd: dir, encoding: 'utf8'})), /playwright-chromium/); // warns, leaves the file alone
+  assert.equal(fs.readFileSync(path.join(dir, 'pnpm-workspace.yaml'), 'utf8'), 'packages: []\n');
   const t = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8'});
   assert.equal(t.status, 2); // no typescript in a bare temp project: says how to install it
   assert.match(out(t), /typescript/);
+});
+
+test('build: --no-lint skips the lint pass but still writes the SVG', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-nolint-'));
+  fs.writeFileSync(path.join(dir, 'a.ts'), GOOD_TS);
+  const r = node(dir, BUILD, 'a.ts', '--no-lint', '--out-dir', 'out');
+  assert.equal(r.status, 0, out(r));
+  assert.ok(fs.existsSync(path.join(dir, 'out', 'a.svg')));
 });
 
 test('build: --out-dir writes every source into one directory; --stale skips what is current and rebuilds what changed', () => {

@@ -59,11 +59,12 @@ const valueOf = (flag: string) => { const i = args.indexOf(flag); return i === -
 const outOverride = valueOf('--out');
 const outDir = valueOf('--out-dir');
 const FIT = args.includes('--fit');
+const NO_LINT = args.includes('--no-lint'); // iteration: skip the lint pass (check/CI or a final build runs it)
 const STALE = args.includes('--stale'); // skip diagrams whose SVG already matches this source, tool version and project config
-const modules = args.filter((a, i) => !['--out', '--out-dir', '--fit', '--stale'].includes(a) && !['--out', '--out-dir'].includes(args[i - 1]));
+const modules = args.filter((a, i) => !['--out', '--out-dir', '--fit', '--stale', '--no-lint'].includes(a) && !['--out', '--out-dir'].includes(args[i - 1]));
 
 if (modules.length === 0) {
-  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--stale] [--fit]');
+  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--stale] [--no-lint] [--fit]');
   process.exit(2);
 }
 if (outOverride && modules.length > 1) {
@@ -136,7 +137,7 @@ try {
 } finally {
   await closeMeasurer();
 }
-if (written.length) { // lint-svg.ts renders every file in a single Chromium (it used to start one per diagram)
+if (written.length && !NO_LINT) { // lint-svg.ts renders every file in a single Chromium (it used to start one per diagram)
   const lintScript = fileURLToPath(new URL(`./lint-svg.${EXT}`, import.meta.url));
   const r = spawnSync(process.execPath, [lintScript, ...written, '--strict'], {encoding: 'utf8'});
   if (r.status !== 0) {

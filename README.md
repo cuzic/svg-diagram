@@ -14,12 +14,12 @@ Node.js 22.18 以上と pnpm が必要。
 リリースタグには、コンパイル済みの `dist/`（JS と型定義）が入っている。`node_modules` の中の `.ts` は Node が型を消せないので、タグ指定でそのまま入れられる。
 
     pnpm add -D typescript @types/node github:cuzic/svg-diagram#v0.4.0
-    pnpm exec svg-diagram init          # package.json に "type": "module"、tsconfig.json を用意
+    pnpm exec svg-diagram init          # package.json に "type": "module"、tsconfig.json、pnpm-workspace.yaml を用意
     pnpm exec svg-diagram typecheck     # 図のソースを型検査（案件側の tsc を使う）
     pnpm exec svg-diagram build diagrams/*.ts
 
-pnpm 10 以降は、`playwright-chromium`（文字幅の測定に使う）のビルドスクリプトを許可する必要がある（`pnpm-workspace.yaml` の `allowBuilds`）。
-CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagrams/*.ts`。ソースのハッシュと SVG の埋め込み情報を比べるだけで、ブラウザは起動しない（`--rebuild` を付けたときだけ起動する）。
+pnpm 10 以降は、`playwright-chromium`（文字幅の測定に使う）のビルドスクリプトを許可する必要がある。`svg-diagram init` が `pnpm-workspace.yaml`（`allowBuilds:` の下に `playwright-chromium: true`）を作る。先に `pnpm add` していて `ERR_PNPM_IGNORED_BUILDS` で止まったときは、この 2 行を書くか `pnpm approve-builds` を実行する。
+CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagrams/*.ts`。ソースのハッシュと SVG の埋め込み情報を比べるだけで、ブラウザは起動しない（`--rebuild` を付けたときだけ起動する）。この用途の CI では Chromium の取得を省ける: `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install`（`build`・`lint`・`check --rebuild` を使う job では省かない）。
 
 ### 開発（このリポジトリ）
 
@@ -31,6 +31,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 リリース: `package.json` の version を上げてから `pnpm release`（`dist/` を含むコミットにタグ `vX.Y.Z` を付ける。push は手動。そのコミットは main に入れない）。
 
 **たくさんの図を作るとき**は、ソースを 1 回の呼び出しにまとめる（`svg-diagram build diagrams/*.ts --out-dir public/svg`）。文字幅の測定と lint の描画を、1 つのブラウザで済ませる（ソースごとに呼ぶと、そのたびにブラウザを起動して遅い）。
+反復の作業中は `--no-lint` で lint の描画を省ける（仕上げの build や `svg-diagram check` で通す）。
 `--stale` を付けると、SVG が今のソース・ツールの版・`.svg-diagram.json` から作られたものならスキップする。判定に使うのは SVG に埋め込んだ生成元の情報で、**ソースが import している別ファイル（共通の部品など）の変更は見ない**。共通部品を直したときは `--stale` なしで作り直す。
 
 `svg-diagram preview` は PNG 化に Chrome / Chromium を使う（`CHROME=/path/to/chrome` で指定できる）。
@@ -40,7 +41,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
     svg-diagram init [dir]                               # 案件の初期設定（package.json の type、tsconfig.json）
     svg-diagram typecheck                                # 図のソースの型検査
-    svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale]   # 既定の出力: ./svg/<name>.svg
+    svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint]   # 既定の出力: ./svg/<name>.svg
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
     svg-diagram check --docs DIR [--svg-dir DIR] [--src-dir DIR]   # 文書（Markdown）と図が食い違っていないか
