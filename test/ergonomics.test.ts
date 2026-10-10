@@ -304,4 +304,10 @@ test('plane(): points, guide lines and the axis name keep their space', async ()
 test('plane(): the wide head of a guide-line arrow is ink too', async () => {
   const p = await planeProblems(plane({...axes, lines: [{from: [10, 40], to: [60, 40], arrow: true}], labels: [{at: [60, 38], text: '先', anchor: 'middle'}]}));
   assert.ok(p.some(m => /label "先" overlaps a guide line arrow/.test(m)), p.join('\n'));
+  // the box is the head's own bounding box (10 long, 10 wide), not a larger square
+  const lines = [{from: [10, 40] as [number, number], to: [60, 40] as [number, number], arrow: true}];
+  const tip = await checkDiagram(diagram({theme: 'blue'}).add(plane({...axes, lines})));
+  const pl = tip.laidOut.laidOut.find((b): b is LaidOutPlane => b.type === 'plane')!;
+  const head = pl.obstacles.find(o => o.what === 'a guide line arrow')!;
+  assert.deepEqual([Math.round(head.w), Math.round(head.h)], [10, 10]);
 });

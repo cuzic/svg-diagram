@@ -122,7 +122,11 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   const lines: LaidOutPlane['lines'] = (band.lines ?? []).map(l => {
     const a = pt(l.from), b = pt(l.to);
     inkSeg('a guide line', {x1: a.x, y1: a.y, x2: b.x, y2: b.y});
-    if (l.arrow) ink('a guide line arrow', {x: b.x - 8, y: b.y - 8, w: 16, h: 16}); // the head is wider than the line
+    if (l.arrow) { // the head emit.ts draws: 10 long, 5 each side of the line, tip on `b`; its bounding box is the ink
+      const len = Math.hypot(b.x - a.x, b.y - a.y) || 1, ux = (b.x - a.x) / len, uy = (b.y - a.y) / len;
+      const xs = [b.x, b.x - ux * 10 - uy * 5, b.x - ux * 10 + uy * 5], ys = [b.y, b.y - uy * 10 + ux * 5, b.y - uy * 10 - ux * 5];
+      ink('a guide line arrow', {x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)});
+    }
     return {x1: a.x, y1: a.y, x2: b.x, y2: b.y, tone: l.tone ?? 'muted', dashed: l.dashed ?? true, arrow: !!l.arrow};
   });
 
