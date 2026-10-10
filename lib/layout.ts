@@ -231,6 +231,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
   const laidOut: LaidOutBand[] = [];
   const anchors = new Map<string, Rect>(); // id -> {x,y,w,h}
   const connects: LaidOutConnect[] = [];
+  const deferred: ConnectBand[] = []; // connect()s that came before the boxes they name
 
   const placeBoxLike = <B extends CaptionBand | BoxBand | BannerBand>(band: B, x: number, y: number, w: number, isBoxLike: boolean): Placed<B> => {
     const chrome = band as BoxChrome; // caption has no padX / padY / tag / id: they read as undefined (its `tone` is a TextTone, unused here)
@@ -367,8 +368,10 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       // the return path silently collide with whatever comes next (this
       // was caught by lint-svg.ts's container-overflow check on the first
       // real test: a loop-under label overlapped the following banner).
-      // Requires both anchors to already exist, i.e. connect() must be
-      // declared after both referenced boxes.
+      // When an anchor is not laid out yet (connect() declared before a box it
+      // names) resolution waits until the whole stack is placed; such a
+      // connector reserves no loop-under space.
+      if (!anchors.has(parseRef(band.from).id) || !anchors.has(parseRef(band.to).id)) { deferred.push(band); continue; }
       const resolved = resolveConnect(band, anchors, widthOf);
       connects.push(resolved);
       if (band.route === 'loop-under') {
@@ -500,6 +503,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
   }
   };
   stack(d.bands, d.pad, contentWidth);
+  for (const band of deferred) connects.push(resolveConnect(band, anchors, widthOf)); // throws "unknown anchor id" if it never appears
 
   const canvasHeight = Math.round(cursorY - d.gap + d.pad);
 
