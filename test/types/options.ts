@@ -84,6 +84,8 @@ export function optionCases(): void {
   branch('a', [{to: 'b', dip: 10}]);
   // @ts-expect-error chip needs a label
   branch('a', [{to: 'b', chip: true}]);
+  // @ts-expect-error malformed ref in a target
+  branch('a', [{to: 'b:sideways'}]);
 
   // ---- grid(children, {cols}): cols is required ----
   grid([box({title: 'a'}), box({title: 'b'})], {cols: 2});
