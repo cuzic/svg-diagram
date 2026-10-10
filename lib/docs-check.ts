@@ -63,7 +63,7 @@ export function notesOf(bands: Band[]): WfNote[][] {
 export function formatNotes(notes: WfNote[]): string {
   return notes.map((nt, i) => {
     const w = typeof nt === 'string' ? {n: i + 1, title: '', text: nt} : {n: nt.n ?? i + 1, title: nt.title ?? '', text: nt.text ?? ''};
-    return `${w.n}. ${w.title ? `**${w.title}**：` : ''}${w.text}`;
+    return `${w.n}. ${w.title ? `**${w.title}**：` : ''}${w.text.replace(/\s*\n\s*/g, ' ').trim()}`; // one line per item: a line break would end the list item
   }).join('\n');
 }
 
@@ -72,8 +72,8 @@ export interface MapRow {name: string; svg: string; doc: string; src: string}
 export function formatMap(rows: MapRow[]): string {
   const cell = (s: string) => (s ? `\`${s}\`` : '—');
   const lines = ['| 図 | 図のソース | SVG | 使っている文書 |', '|---|---|---|---|'];
-  for (const name of [...new Set(rows.map(r => r.name))].sort()) {
-    const rs = rows.filter(r => r.name === name);
+  for (const svg of [...new Set(rows.map(r => r.svg))].sort()) { // by path: two figures with the same file name in different folders stay apart
+    const rs = rows.filter(r => r.svg === svg), name = rs[0].name;
     const docs = rs.map(r => r.doc).filter(Boolean);
     lines.push(`| ${name} | ${cell(rs[0].src)} | ${cell(rs[0].svg)} | ${docs.length ? docs.map(d => `\`${d}\``).join('<br>') : '（参照なし）'} |`);
   }

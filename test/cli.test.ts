@@ -338,3 +338,13 @@ test('notes prints the figure notes as a list that check --docs accepts; check -
   assert.match(m.stdout, /\| orphan \|.*（参照なし）/);
   assert.doesNotMatch(m.stdout, /doc-orphan/); // findings stay on stderr
 });
+
+test('init leaves the workspace file to an enclosing pnpm workspace; --map needs --docs and text format', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-ws-'));
+  fs.writeFileSync(path.join(root, 'pnpm-workspace.yaml'), 'packages: ["docs/*"]\n');
+  const sub = path.join(root, 'docs', 'diagrams');
+  assert.equal(bin(root, 'init', sub).status, 0);
+  assert.ok(!fs.existsSync(path.join(sub, 'pnpm-workspace.yaml')));
+  assert.equal(bin(root, 'check', '--map', 'x.ts').status, 2);
+  assert.equal(bin(root, 'check', '--docs', '.', '--map', '--format', 'json').status, 2);
+});

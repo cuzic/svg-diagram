@@ -235,8 +235,9 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
   collectConnects(d.bands);
   const idsIn = (b: Band, out = new Set<string>()): Set<string> => { const x = b as {id?: string; children?: unknown}; if (x.id) out.add(x.id); if (Array.isArray(x.children)) for (const c of x.children) idsIn(c as Band, out); return out; };
   const LABEL_MARGIN = 6; // clear space between a label and the boxes / frame lines on either side
-  const gapForLabels = (band: {gap: number; cols?: number; children: Band[]}): number => {
-    if (band.cols || !labelled.length) return band.gap;
+  const MIN_CHILD_W = 80;
+  const gapForLabels = (band: {gap: number; cols?: number; justify?: string; children: Band[]}, cw: number): number => {
+    if (band.cols || band.justify !== 'stretch' || !labelled.length) return band.gap; // fixed-width rows would overflow the canvas
     const kids = band.children.map(c => idsIn(c));
     let gap = band.gap;
     for (const c of labelled) {
@@ -246,7 +247,8 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       const w = [...splitAtoms(c.label as string)].reduce((acc, a) => acc + widthOf(a, LABEL_SIZE, 400, 'sans'), 0) + (c.chip ? 16 : 0);
       gap = Math.max(gap, Math.ceil(w + 2 * LABEL_MARGIN));
     }
-    return gap;
+    const maxGap = band.children.length > 1 ? (cw - band.children.length * MIN_CHILD_W) / (band.children.length - 1) : band.gap;
+    return gap <= maxGap ? gap : band.gap; // would squeeze the children: keep the gap (verify reports the label that does not fit)
   };
 
   // ---- pass 2: layout top-to-bottom ----
@@ -418,7 +420,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     if (band.type === 'grouprow') {
       // Each child is laid out as if stacked alone at its own x / width, all starting at the row's top; afterwards every
       // frame / box is stretched to the tallest one (a group's inner content keeps its natural height).
-      const {widths, xOffsets} = rowChildGeometry({...band, gap: gapForLabels(band)}, cw);
+      const {widths, xOffsets} = rowChildGeometry({...band, gap: gapForLabels(band, cw)}, cw);
       const rowTop = cursorY;
       const stretch: ((h: number) => void)[] = [];
       let rowHeight = 0;
@@ -445,7 +447,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     }
 
     if (band.type === 'row') {
-      const {widths, xOffsets} = rowChildGeometry({...band, gap: gapForLabels(band)}, cw);
+      const {widths, xOffsets} = rowChildGeometry({...band, gap: gapForLabels(band, cw)}, cw);
       const placedChildren = band.children.map((child, i) =>
         placeBoxLike(child, padX + xOffsets[i], cursorY, widths[i], true));
       const rowHeight = Math.max(...placedChildren.map(c => c.h));

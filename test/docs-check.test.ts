@@ -114,3 +114,9 @@ test('formatMap lists each figure once with its documents, and marks the unrefer
   assert.match(rows[2], /^\| a \| — \| `svg\/a.svg` \| （参照なし） \|$/);
   assert.match(rows[3], /`d\/1.md:3`<br>`d\/2.md:9`/);
 });
+
+test('formatNotes keeps an item on one line; formatMap keeps same-named figures in different folders apart', () => {
+  assert.equal(formatNotes([{title: 'T', text: '一行目\n  二行目'}]), '1. **T**：一行目 二行目');
+  const t = formatMap([{name: 'f', svg: 'a/f.svg', doc: 'd.md:1', src: ''}, {name: 'f', svg: 'b/f.svg', doc: '', src: ''}]);
+  assert.equal(t.split('\n').length, 4);
+});

@@ -8,6 +8,17 @@ import crypto from 'node:crypto';
 const SPEC = /(?:\bfrom\s*|\bimport\s*\(?\s*|\bimport\s+)(['"])(\.{1,2}\/[^'"\n]*|\.{1,2})\1/g;
 const EXTS = ['', '.ts', '.mts', '.js', '.mjs', '.tsx', '.json'];
 
+// per process: a build of many sources that share parts reads each file once
+const fileCache = new Map<string, {src: string; imports: string[]; dynamic: boolean} | null>();
+function read(f: string) {
+  if (!fileCache.has(f)) {
+    let src: string | null = null;
+    try { src = fs.readFileSync(f, 'utf8'); } catch { /* unreadable */ }
+    fileCache.set(f, src === null ? null : {src, imports: /\.json$/.test(f) ? [] : [...src.matchAll(SPEC)].map(m => m[2]), dynamic: /\bimport\s*\(\s*[^'"\s)]/.test(src)});
+  }
+  return fileCache.get(f) ?? null;
+}
+
 function resolveLocal(from: string, spec: string): string | null {
   const base = path.resolve(path.dirname(from), spec);
   const bases = [base];
@@ -21,20 +32,23 @@ function resolveLocal(from: string, spec: string): string | null {
 }
 
 /** Absolute paths of the local files `entry` imports, directly or not (not including `entry`), sorted. */
-export function localDeps(entry: string): string[] {
-  const seen = new Set<string>();
+export function localDeps(entry: string): string[] { return depsOf(entry).files; }
+
+/** The imported local files, and the files whose imports this scan cannot follow (an import() built from a variable). */
+export function depsOf(entry: string): {files: string[]; unfollowable: string[]} {
+  const seen = new Set<string>(), unfollowable: string[] = [];
   const todo = [path.resolve(entry)];
   while (todo.length) {
     const f = todo.pop() as string;
-    let src: string;
-    try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
-    if (/\.json$/.test(f)) continue;
-    for (const m of src.matchAll(SPEC)) {
-      const r = resolveLocal(f, m[2]);
+    const info = read(f);
+    if (!info) continue;
+    if (info.dynamic) unfollowable.push(f);
+    for (const spec of info.imports) {
+      const r = resolveLocal(f, spec);
       if (r && !r.includes(`${path.sep}node_modules${path.sep}`) && r !== path.resolve(entry) && !seen.has(r)) { seen.add(r); todo.push(r); }
     }
   }
-  return [...seen].sort();
+  return {files: [...seen].sort(), unfollowable: unfollowable.sort()};
 }
 
 /** sha256 over the imported files' contents (named relative to the source, so moving the project keeps it); '' when there are none. */
@@ -42,6 +56,6 @@ export function depsSha256(entry: string): string {
   const deps = localDeps(entry);
   if (!deps.length) return '';
   const h = crypto.createHash('sha256');
-  for (const d of deps) h.update(`${path.relative(path.dirname(path.resolve(entry)), d)}\0`).update(fs.readFileSync(d)).update('\0');
+  for (const d of deps) h.update(`${path.relative(path.dirname(path.resolve(entry)), d)}\0`).update(read(d)?.src ?? '').update('\0');
   return h.digest('hex');
 }

@@ -106,3 +106,10 @@ test('a row widens its gap for a straight labelled connector between neighbours 
   d.add(row([box({id: 'a', title: '左'}), box({id: 'b', title: '右'})], {gap: 24}), connect('a:right', 'b:left', {label: '長めのラベルです', chip: true}));
   assert.deepEqual((await checkDiagram(d)).verdict.problems, []);
 });
+
+test('a fixed-width row keeps its gap (growing it would overflow the canvas)', async () => {
+  const d = diagram({theme: 'blue'});
+  d.add(row([box({id: 'a', title: '左'}), box({id: 'b', title: '右'})], {justify: 'start', gap: 8}), connect('a:right', 'b:left', {label: '長めのラベルです', chip: true}));
+  const r = (await checkDiagram(d)).laidOut.laidOut.find(b => b.type === 'row') as unknown as {children: {x: number; w: number}[]};
+  assert.equal(r.children[1].x - (r.children[0].x + r.children[0].w), 8);
+});
