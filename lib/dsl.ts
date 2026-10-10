@@ -28,8 +28,8 @@ import type {
   TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
 } from './types.ts';
 import type {
-  BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, FlowCheck, FlowIn, IdsOf, LaneCheck, Ok,
-  PyramidLayers, Refers, RefsOf, ScreensItemInput, StateRowIn, StepCheck, StepIds, SwimlaneStepIn,
+  AnchorsOf, BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, FlowCheck, FlowIn, HandleOf, IdsOf,
+  LaneCheck, Ok, PyramidLayers, Refers, RefsOf, ScreensItemInput, StateRowIn, StepCheck, StepIds, SwimlaneStepIn,
 } from './strict.ts';
 export {wf} from './wireframe.ts';
 
@@ -69,6 +69,27 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   } as Diagram;
 }
 
+// `const list = box({id: 'list'})`: a band built with an id also works as a handle (`list.right`, `list.at('top', 0.25)`),
+// so connect() can name it without typing the id again. The helpers are NON-enumerable properties: spreading or
+// serialising a band, and every existing consumer of bands, sees exactly what it saw before.
+function handleFor(id: string) {
+  const side = (s: string) => `${id}:${s}`;
+  return {
+    left: {value: side('left')}, right: {value: side('right')}, top: {value: side('top')}, bottom: {value: side('bottom')}, center: {value: side('center')},
+    at: {value: (s: string, t: number) => `${id}:${s}@${t}`},
+  };
+}
+function withHandle<T extends object>(band: T, id: string | undefined): T {
+  if (id) Object.defineProperties(band, handleFor(id));
+  return band;
+}
+// screens() / swimlane(): `.anchors.<id>` is the handle of each item / step that has an id.
+function withAnchors<T extends object>(band: T, ids: (string | undefined)[]): T {
+  const anchors: Record<string, object> = {};
+  for (const id of ids) if (id) anchors[id] = Object.defineProperties({id}, handleFor(id));
+  return Object.defineProperty(band, 'anchors', {value: anchors});
+}
+
 export function caption(text: string, opts: CaptionOpts = {}): CaptionBand {
   return {type: 'caption', text, align: opts.align ?? 'center', role: opts.role ?? 'label', tone: opts.tone ?? 'muted', bold: !!opts.bold, mono: !!opts.mono};
 }
@@ -79,16 +100,16 @@ export function caption(text: string, opts: CaptionOpts = {}): CaptionBand {
 //
 // Types: `step` requires `title`; `size` is one of FontSize (an integer >= 14); unknown keys are rejected; the
 // literal `id` is remembered so connect() refs to it can be checked by add().
-export function box<const Id extends string = never>(opts: BoxInput<Id>): BoxBand & Declares<Id>;
+export function box<const Id extends string = never>(opts: BoxInput<Id>): BoxBand & Declares<Id> & HandleOf<Id>;
 export function box(opts: BoxOpts): BoxBand {
   if (opts.size !== undefined) assertFontSize(opts.size);
   if (opts.step != null && !opts.title) throw new Error('box({step}) needs a title — the badge aligns to the title\'s first line');
-  return {type: 'box', ...opts};
+  return withHandle({type: 'box', ...opts}, opts.id);
 }
 
-export function banner<const Id extends string = never>(opts: BannerOpts & {id?: Id}): BannerBand & Declares<Id>;
+export function banner<const Id extends string = never>(opts: BannerOpts & {id?: Id}): BannerBand & Declares<Id> & HandleOf<Id>;
 export function banner(opts: BannerOpts): BannerBand {
-  return {type: 'banner', tone: opts.tone ?? 'accent', ...opts};
+  return withHandle({type: 'banner', tone: opts.tone ?? 'accent', ...opts}, opts.id);
 }
 
 // A labelled frame around other bands (a network zone, a service boundary, a
@@ -96,9 +117,9 @@ export function banner(opts: BannerOpts): BannerBand {
 // tone: 'muted' (default, grey fill) | 'accent' | 'plain' (white) | 'danger';
 // dashed: draw the boundary dashed (default true for 'plain' = a trust/zone line).
 // Types: the ids (and connect() refs) of the children are exposed to add().
-export function group<C extends Band | Band[], const Id extends string = never>(children: C, opts?: GroupOpts & {id?: Id}): GroupBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>>;
+export function group<C extends Band | Band[], const Id extends string = never>(children: C, opts?: GroupOpts & {id?: Id}): GroupBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & HandleOf<Id>;
 export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
-  return {type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad, id: opts.id};
+  return withHandle({type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad, id: opts.id}, opts.id);
 }
 
 // Key for line styles / tones used in the diagram. items:
@@ -116,9 +137,9 @@ export function legend(items: LegendItem[], opts: LegendOpts = {}): LegendBand {
 // Messages are auto-numbered 1, 2, ... (sequence(..., {numbered: false}) to turn off) so
 // the picture lines up with a numbered list in the surrounding text.
 // Types: an `id` in opts becomes a connect() anchor.
-export function sequence<const Id extends string = never>(actors: SequenceActor[], steps: SequenceStep[], opts?: SequenceOpts & {id?: Id}): SequenceBand & Declares<Id>;
+export function sequence<const Id extends string = never>(actors: SequenceActor[], steps: SequenceStep[], opts?: SequenceOpts & {id?: Id}): SequenceBand & Declares<Id> & HandleOf<Id>;
 export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: SequenceOpts = {}): SequenceBand {
-  return {type: 'sequence', actors, steps, numbered: opts.numbered, id: opts.id};
+  return withHandle({type: 'sequence', actors, steps, numbered: opts.numbered, id: opts.id}, opts.id);
 }
 
 // Table with a header row. columns: [{label, flex?, mono?, bold?, align?: 'left'|'center'|'right'}].
@@ -126,9 +147,9 @@ export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: S
 // a cell is a string or {text, tone?: 'accent'|'muted'|'danger', bold?, mono?, align?}.
 // title adds an accent bar on top (an ER entity name, a table caption); header: false hides
 // the column-label row; width narrows the table (centered).
-export function table<const Id extends string = never>(columns: TableColumn[], rows: TableRow[], opts?: TableOpts & {id?: Id}): TableBand & Declares<Id>;
+export function table<const Id extends string = never>(columns: TableColumn[], rows: TableRow[], opts?: TableOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
 export function table(columns: TableColumn[], rows: TableRow[], opts: TableOpts = {}): TableBand {
-  return {type: 'table', columns, rows, title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, id: opts.id};
+  return withHandle({type: 'table', columns, rows, title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, id: opts.id}, opts.id);
 }
 
 // Swimlane diagram: who does what, in what order, and where the hand-offs are.
@@ -148,7 +169,7 @@ export function table(columns: TableColumn[], rows: TableRow[], opts: TableOpts 
 // from / to are step ids (optionally ':side[@t]'); chip / labelAt need a label. The step ids are exposed to add().
 export function swimlane<
   const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [],
->(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows'> & {flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S>> | ConnectBand)[];
+>(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows'> & {flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S>> | ConnectBand)[] & AnchorsOf<StepIds<S>>;
 export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
   const laneIdx = new Map(lanes.map((l, i) => [l.id, i]));
   let next = 1, cols = 0;
@@ -196,7 +217,7 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
     return connectBand(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone});
   });
   const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, id: opts.id};
-  return [block, ...flows];
+  return withAnchors([block, ...flows], placed.map(st => st.id));
 }
 
 // Low-fidelity UI wireframe of ONE screen, with an optional column of numbered notes.
@@ -207,10 +228,10 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
 //          noteW, skeleton (text becomes grey bars), marks: {new, changed} legend labels,
 //          overlays: [wf.dialog(...), wf.toast(...)]  — drawn over the screen (a dialog dims it)}
 // id makes the screen frame a connect() anchor.
-export function wireframe<const Id extends string = never>(root: WfRoot, opts?: WireframeOpts & {id?: Id}): WireframeBand & Declares<Id>;
+export function wireframe<const Id extends string = never>(root: WfRoot, opts?: WireframeOpts & {id?: Id}): WireframeBand & Declares<Id> & HandleOf<Id>;
 export function wireframe(root: WfRoot, opts: WireframeOpts = {}): WireframeBand {
   autoNumber(root, opts.overlays);
-  return {type: 'wireframe', root, ...opts};
+  return withHandle({type: 'wireframe', root, ...opts}, opts.id);
 }
 
 // `n: true` (on a node, on a part in `parts: {...}`, or on a map marker) means "number me": such callouts get consecutive
@@ -239,9 +260,9 @@ function autoNumber(...trees: (WfRoot | WfOverlay | WfOverlay[] | undefined)[]):
 //   items: [{id, title, tag?, root, h?, skeleton?, at?: [row, col]}]   opts: {cols (3), gap (64), rowGap (56), h (320), skeleton}
 //   at places an item explicitly; col may be fractional (0.5 = half a column in) to centre a parent over its children.
 // Types: item ids are exposed to add() as connect() anchors; `at` is a [row, col] tuple.
-export function screens<const Id extends string = never>(items: ScreensItemInput<Id>[], opts?: ScreensOpts): ScreensBand & Declares<Id>;
+export function screens<const Id extends string = never>(items: ScreensItemInput<Id>[], opts?: ScreensOpts): ScreensBand & Declares<Id> & AnchorsOf<Id>;
 export function screens(items: ScreensItem[], opts: ScreensOpts = {}): ScreensBand {
-  return {type: 'screens', items, ...opts};
+  return withAnchors({type: 'screens', items, ...opts}, items.map(i => i.id));
 }
 
 // A component's states as a grid: one row per part, one column per state.

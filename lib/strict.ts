@@ -60,7 +60,7 @@ type BadSide<R extends string, S extends string> = `connect(): unknown side "${S
 
 /** What is wrong with the SHAPE of a ref (side / offset), as a message; `never` when fine. Needs no id list. */
 export type ShapeProblem<R extends string> = R extends string
-  ? (IsPattern<R> extends true ? never : R extends `${string}:${infer Rest}` ? SideProblem<R, Rest> : never)
+  ? (R extends HandleRef ? never : IsPattern<R> extends true ? never : R extends `${string}:${infer Rest}` ? SideProblem<R, Rest> : never)
   : never;
 
 /** `T` when the ref is well-formed, otherwise the message (as a type no argument can satisfy). */
@@ -70,7 +70,7 @@ type UnknownId<Id extends string, Known extends string> =
   `unknown anchor id "${Id}" — declare it with {id: '${Id}'} (declared ids: ${Join<Known>})`;
 /** Refs among R whose id is not in Known (messages); never for non-literal refs. */
 type IdProblem<R extends string, Known extends string> = R extends string
-  ? (IsPattern<IdOf<R>> extends true ? never : IdOf<R> extends Known ? never : UnknownId<IdOf<R>, Known>)
+  ? (R extends HandleRef ? never : IsPattern<IdOf<R>> extends true ? never : IdOf<R> extends Known ? never : UnknownId<IdOf<R>, Known>)
   : never;
 
 type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
@@ -85,6 +85,31 @@ export type Err<M extends string> = {readonly [K in M]: never};
 
 /** The anchor ref format: 'id', 'id:side', 'id:side@t'. For documentation and signatures; connect() validates the real literal. */
 export type AnchorRef<Id extends string = string> = Id | `${Id}:${SideName}` | `${Id}:${SideName}@${number}`;
+
+// ============================================================================================
+// Handles: `const list = box({id: 'list'})` doubles as a typed anchor, `connect(list.right, detail.at('top', 0.25))`
+// ============================================================================================
+
+/**
+ * A ref string produced by a handle. It is a plain string at run time; the brand means it can only come from a
+ * constructor that declared the id, so it needs no id lookup (the handle's own band declares the id).
+ */
+export type HandleRef = string & {readonly '~anchor': true};
+/** Added (as non-enumerable properties) to a band built with a literal `id`. */
+export interface Handle {
+  readonly id: string;
+  readonly left: HandleRef;
+  readonly right: HandleRef;
+  readonly top: HandleRef;
+  readonly bottom: HandleRef;
+  readonly center: HandleRef;
+  /** `at('bottom', 0.25)` = 'id:bottom@0.25' (t = 0..1 along that side). */
+  at(side: SideName, t: number): HandleRef;
+}
+/** `Handle` only when the id is known (a band built without an id has nothing to point at). */
+export type HandleOf<Id extends string> = [Id] extends [never] ? unknown : Handle;
+/** screens() / swimlane(): one handle per item / step id, under `.anchors`. */
+export type AnchorsOf<Id extends string> = {readonly anchors: {readonly [K in Id]: Handle}};
 
 // ============================================================================================
 // diagram().add()
