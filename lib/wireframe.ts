@@ -804,7 +804,7 @@ export function layoutScreens(band: ScreensBand, x: number, y: number, w: number
   }
   const gap = band.gap ?? 64, rowGap = band.rowGap ?? 56;
   const explicit = band.items.some(it => it.at);
-  const cols = band.cols ?? (explicit ? Math.max(...band.items.map(it => Math.ceil(it.at![1] + 1))) : 3);
+  const cols = band.cols ?? (explicit ? Math.max(...band.items.map(it => it.at ? Math.ceil(it.at[1] + 1) : 0)) : 3);
   const cw = (w - (cols - 1) * gap) / cols;
   // each item gets [row, col]; col may be fractional (0.5 = half a column in) — explicit via `at`, else row-major
   const cells = band.items.map((it, i) => ({it, row: it.at ? it.at[0] : Math.floor(i / cols), col: it.at ? it.at[1] : i % cols}));
