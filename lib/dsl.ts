@@ -434,7 +434,9 @@ function assertFontSize(size: number): void {
 //      actually drew (verifyDiagram only checks raw()'s self-reported
 //      x/y/w/h against its neighbors) and catches real-font-rendering
 //      discrepancies verifyDiagram's measured-atom approximation can't.
-export async function build(d: Diagram, outPath: string): Promise<BuildResult> {
+// opts.lint: false skips the per-file lint-svg.ts run (it starts its own Chromium), for callers that lint many
+// files in one go afterwards (build-diagram.ts). Default true.
+export async function build(d: Diagram, outPath: string, opts: {lint?: boolean} = {}): Promise<BuildResult> {
   applyAutoLegend(d);
   // A diagram that names its slide gets a measured height budget and width
   // (cached) instead of fit.ts's defaults.
@@ -468,7 +470,7 @@ export async function build(d: Diagram, outPath: string): Promise<BuildResult> {
     }
     laidOut = await layoutAt(fontScale);
     laidOut.fontScale = fontScale;
-    return await finishBuild(d, laidOut, outPath, budget);
+    return await finishBuild(d, laidOut, outPath, budget, opts.lint ?? true);
   } finally {
     applyScale(1);
   }
@@ -481,7 +483,7 @@ export async function checkDiagram(d: DiagramData): Promise<CheckResult> {
   return {laidOut, verdict: verifyDiagram(laidOut)};
 }
 
-async function finishBuild(d: DiagramData, laidOut: LaidOutDiagram, outPath: string, budget: SlideBudget | null): Promise<BuildResult> {
+async function finishBuild(d: DiagramData, laidOut: LaidOutDiagram, outPath: string, budget: SlideBudget | null, lint: boolean): Promise<BuildResult> {
   const verdict = verifyDiagram(laidOut);
   if (!verdict.ok) {
     throw new Error(`build(${outPath}): layout verification failed before any SVG was written:\n  ${verdict.problems.join('\n  ')}`);
@@ -492,7 +494,7 @@ async function finishBuild(d: DiagramData, laidOut: LaidOutDiagram, outPath: str
   fs.writeFileSync(outPath, svg);
 
   const lintScript = path.resolve(import.meta.dirname, '..', import.meta.url.endsWith('.ts') ? 'lint-svg.ts' : 'lint-svg.js');
-  try {
+  if (lint) try {
     execFileSync('node', [lintScript, outPath, '--strict'], {encoding: 'utf8'});
   } catch (err) {
     const e = err as {stdout?: string; stderr?: string};

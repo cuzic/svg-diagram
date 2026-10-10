@@ -25,6 +25,8 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {register} from 'node:module';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
@@ -53,21 +55,40 @@ function locateSlide(svgName: string) {
 
 const TOOL_VERSION = JSON.parse(fs.readFileSync(new URL(EXT === 'ts' ? './package.json' : '../package.json', import.meta.url), 'utf8')).version;
 const args = process.argv.slice(2);
-const outIdx = args.indexOf('--out');
-const outOverride = outIdx === -1 ? null : args[outIdx + 1];
-const modules = args.filter((a, i) => a !== '--out' && a !== '--fit' && args[i - 1] !== '--out')
-const FIT = args.includes('--fit');;
+const valueOf = (flag: string) => { const i = args.indexOf(flag); return i === -1 ? null : args[i + 1]; };
+const outOverride = valueOf('--out');
+const outDir = valueOf('--out-dir');
+const FIT = args.includes('--fit');
+const STALE = args.includes('--stale'); // skip diagrams whose SVG already matches this source, tool version and project config
+const modules = args.filter((a, i) => !['--out', '--out-dir', '--fit', '--stale'].includes(a) && !['--out', '--out-dir'].includes(args[i - 1]));
 
 if (modules.length === 0) {
-  console.error('Usage: node scripts/svg-diagram/build-diagram.ts <diagram-source.ts> [<more...>] [--out <path>]');
+  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--stale] [--fit]');
   process.exit(2);
 }
 if (outOverride && modules.length > 1) {
-  console.error('--out only makes sense with exactly one input module');
+  console.error('--out only makes sense with exactly one input module (use --out-dir for several)');
+  process.exit(2);
+}
+if (outOverride && outDir) {
+  console.error('use either --out or --out-dir, not both');
   process.exit(2);
 }
 
+// provenance of an existing SVG (the <metadata id="svg-diagram"> that build() embeds)
+function embeddedSource(svgPath: string): Record<string, string> | null {
+  try {
+    const m = fs.readFileSync(svgPath, 'utf8').match(/<metadata id="svg-diagram">([^<]*)<\/metadata>/);
+    return m ? JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')) : null;
+  } catch { return null; }
+}
+const sha = (s: string | Buffer) => crypto.createHash('sha256').update(s).digest('hex');
+// the project config changes what a build produces, so it takes part in "is this SVG current?"
+const configSha256 = config._file ? sha(fs.readFileSync(config._file)) : '';
+
 let failed = false;
+const written: string[] = [];
+let skipped = 0;
 try {
   for (const modPath of modules) {
     const abs = path.resolve(modPath);
@@ -78,11 +99,19 @@ try {
       failed = true;
       continue;
     }
-    const outPath = outOverride ?? path.join('svg', path.parse(modPath).name + '.svg');
+    const outPath = outOverride ?? path.join(outDir ?? 'svg', path.parse(modPath).name + '.svg');
+    if (STALE && !FIT && fs.existsSync(outPath)) {
+      const meta = embeddedSource(outPath);
+      if (meta && meta.sourceSha256 === sha(fs.readFileSync(abs)) && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256) {
+        console.log(`· ${outPath} は最新（スキップ）`);
+        skipped++;
+        continue;
+      }
+    }
     try {
       const d = applyConfig(define(), config); // .svg-diagram.json: project-wide accepted rules and max width
       // provenance for drift checks: which source (and which tool version) produced this SVG
-      d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source: path.relative(process.cwd(), abs), sourceSha256: crypto.createHash('sha256').update(fs.readFileSync(abs)).digest('hex')};
+      d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source: path.relative(process.cwd(), abs), sourceSha256: sha(fs.readFileSync(abs)), ...(configSha256 ? {configSha256} : {})};
       if (FIT) {
         const hits = locateSlide(path.basename(outPath));
         if (hits.length !== 1) throw new Error(`--fit: ${path.basename(outPath)} を使っているスライドが${hits.length}枚です(ちょうど1枚が必要)`);
@@ -90,7 +119,8 @@ try {
         d.fill = true;
         d.slide = {page: hits[0].page, heading: hits[0].heading as string};
       }
-      const result = await build(d, outPath);
+      const result = await build(d, outPath, {lint: false}); // linted together below: one Chromium for all files
+      written.push(outPath);
       if (result.fit.doc) console.log(`✓ ${outPath} (${result.width}x${result.height})`);
       else {
         const imgTag = d.fill ? '<img class="fill">' : `<img style="${result.fit.imgStyle}">`;
@@ -106,4 +136,13 @@ try {
 } finally {
   await closeMeasurer();
 }
+if (written.length) { // lint-svg.ts renders every file in a single Chromium (it used to start one per diagram)
+  const lintScript = fileURLToPath(new URL(`./lint-svg.${EXT}`, import.meta.url));
+  const r = spawnSync(process.execPath, [lintScript, ...written, '--strict'], {encoding: 'utf8'});
+  if (r.status !== 0) {
+    console.error(`✗ lint-svg.ts --strict が通らない:\n${(r.stdout || '') + (r.stderr || '')}`);
+    failed = true;
+  }
+}
+if (STALE) console.log(`${written.length} 件を生成、${skipped} 件は最新でスキップ`);
 process.exit(failed ? 1 : 0);

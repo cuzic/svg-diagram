@@ -134,6 +134,8 @@ export interface DiagramSource {
   toolVersion?: string;
   source?: string;
   sourceSha256: string;
+  /** sha256 of the .svg-diagram.json in force, when there was one (build --stale compares it). */
+  configSha256?: string;
 }
 
 /**

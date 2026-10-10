@@ -30,6 +30,9 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 リリース: `package.json` の version を上げてから `pnpm release`（`dist/` を含むコミットにタグ `vX.Y.Z` を付ける。push は手動。そのコミットは main に入れない）。
 
+**たくさんの図を作るとき**は、ソースを 1 回の呼び出しにまとめる（`svg-diagram build diagrams/*.ts --out-dir public/svg`）。文字幅の測定と lint の描画を、1 つのブラウザで済ませる（ソースごとに呼ぶと、そのたびにブラウザを起動して遅い）。
+`--stale` を付けると、SVG が今のソース・ツールの版・`.svg-diagram.json` から作られたものならスキップする。判定に使うのは SVG に埋め込んだ生成元の情報で、**ソースが import している別ファイル（共通の部品など）の変更は見ない**。共通部品を直したときは `--stale` なしで作り直す。
+
 `svg-diagram preview` は PNG 化に Chrome / Chromium を使う（`CHROME=/path/to/chrome` で指定できる）。
 動作確認: `pnpm test`、`svg-diagram build examples/inventory-wireframe.ts --out /tmp/x.svg`。
 
@@ -37,7 +40,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
     svg-diagram init [dir]                               # 案件の初期設定（package.json の type、tsconfig.json）
     svg-diagram typecheck                                # 図のソースの型検査
-    svg-diagram build <source.ts>... [--out file.svg]   # 既定の出力: ./svg/<name>.svg
+    svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale]   # 既定の出力: ./svg/<name>.svg
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
     svg-diagram check --docs DIR [--svg-dir DIR] [--src-dir DIR]   # 文書（Markdown）と図が食い違っていないか

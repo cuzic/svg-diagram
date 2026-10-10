@@ -71,12 +71,23 @@ export async function closeMeasurer(): Promise<void> {
 
 // requests: Map<key, {text, size, weight?, font?: 'sans'|'mono'|'emoji'}>
 // returns Map<key, {w, h}>
+// Widths measured earlier in this process, so building many diagrams in one run measures each atom once.
+const memo = new Map<string, Measured>();
+const memoKey = (r: MeasureRequest) => JSON.stringify([r.text, r.size, r.weight ?? 400, r.font ?? 'sans']);
+
 export async function measureAll(requests: Map<string, MeasureRequest>): Promise<Map<string, Measured>> {
   if (requests.size === 0) return new Map();
+  const result = new Map<string, Measured>();
+  const todo = new Map<string, MeasureRequest>();
+  for (const [key, r] of requests) {
+    const hit = memo.get(memoKey(r));
+    if (hit) result.set(key, hit); else todo.set(key, r);
+  }
+  if (todo.size === 0) return result;
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
-    const entries = [...requests.entries()];
+    const entries = [...todo.entries()];
     const nodes = entries.map(([, r], i) => {
       const stack = FONT_STACKS[r.font ?? 'sans'];
       const weight = r.weight ?? 400;
@@ -94,8 +105,11 @@ export async function measureAll(requests: Map<string, MeasureRequest>): Promise
       }
       return out;
     }, entries.length);
-    const result = new Map<string, Measured>();
-    entries.forEach(([key], i) => result.set(key, {w: dims[i][0], h: dims[i][1]}));
+    entries.forEach(([key, r], i) => {
+      const m = {w: dims[i][0], h: dims[i][1]};
+      memo.set(memoKey(r), m);
+      result.set(key, m);
+    });
     return result;
   } finally {
     await page.close();

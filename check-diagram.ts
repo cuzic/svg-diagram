@@ -113,7 +113,7 @@ try {
         const d = applyConfig(mod.default(), config);
         d.source = meta; // same provenance → byte-comparable
         const tmp = path.join(path.dirname(svg), `.${name}.rebuild.svg`);
-        try { await build(d, tmp); }
+        try { await build(d, tmp, {lint: false}); } // the committed SVG was linted when it was built; an identical rebuild needs no second render
         catch (e) { // the regenerated picture fails its own checks: report it and go on with the rest
           fs.rmSync(tmp, {force: true});
           const why = String((e as Error).message).split('\n').filter(l => l.trim() && !/^Scanned|^─/.test(l)).slice(0, 3).join(' / ');
