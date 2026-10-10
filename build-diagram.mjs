@@ -28,6 +28,8 @@ import crypto from 'crypto';
 import {register} from 'node:module';
 register('./lib/resolve-hook.mjs', import.meta.url);
 const {build, closeMeasurer} = await import('./lib/dsl.mjs');
+const {loadConfig, applyConfig} = await import('./lib/config.mjs');
+const config = loadConfig();
 
 // --fit: ソースを書き換えずに、この図を使っているスライドを pages/*.md から探し、
 // そのスライドの空き幅・空き高さ(実測)に合わせて作り直す(diagram({fill, slide}) と同じ)。
@@ -76,7 +78,7 @@ try {
     }
     const outPath = outOverride ?? path.join('svg', path.basename(modPath, '.mjs') + '.svg');
     try {
-      const d = define();
+      const d = applyConfig(define(), config); // .svg-diagram.json: project-wide accepted rules and max width
       // provenance for drift checks: which source (and which tool version) produced this SVG
       d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source: path.relative(process.cwd(), abs), sourceSha256: crypto.createHash('sha256').update(fs.readFileSync(abs)).digest('hex')};
       if (FIT) {
