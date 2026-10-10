@@ -95,12 +95,16 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
       cursor = ay + SEQ.stepGap;
     } else if (s.kind === 'self') {
       const i = at(s.self, 'self');
-      const lx = cx[i] + SEQ.selfW + 8;
-      const lines = wrap(s.text, ROLES.note, 400, 'sans', Math.max(120, x + w - lx - 4), widthOf);
+      // The loop and its label go on the right of the lifeline, unless the label does not fit there at its natural
+      // width and the left side has more room (the last actor): then both mirror to the left, inside the frame.
+      const rightRoom = x + w - (cx[i] + SEQ.selfW + 8) - 4, leftRoom = cx[i] - SEQ.selfW - 8 - x - 4;
+      const side = textW(s.text, ROLES.note, 400, 'sans', widthOf) > rightRoom && leftRoom > rightRoom ? 'left' : 'right';
+      const lx = side === 'left' ? cx[i] - SEQ.selfW - 8 : cx[i] + SEQ.selfW + 8;
+      const lines = wrap(s.text, ROLES.note, 400, 'sans', Math.max(40, side === 'left' ? leftRoom : rightRoom), widthOf);
       const labelH = lines.length * lineH(ROLES.note);
       const loopH = 22;
       const rowH = Math.max(labelH, loopH + 12);
-      steps.push({kind: 'self', cx: cx[i], y: top + 6, loopH, lines, lx, labelTop: top, line: s.line ?? 'solid', tone: s.tone});
+      steps.push({kind: 'self', cx: cx[i], y: top + 6, loopH, lines, lx, side, labelTop: top, line: s.line ?? 'solid', tone: s.tone});
       cursor = top + rowH + SEQ.stepGap / 2;
     } else if (s.kind === 'note') {
       const ids = s.over.map(id => at(id, 'note.over'));

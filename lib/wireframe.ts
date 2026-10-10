@@ -192,7 +192,12 @@ function tableData(n: Extract<WfNode, {t: 'table'}>, w: number, ctx: WfCtx) {
   return {cols, cw, rows};
 }
 
+// A widget in a state that replaces its content grows to hold the state's message box (an explicit h is kept).
 function nat(n: WfNode, w: number, ctx: WfCtx): number {
+  const base = natBase(n, w, ctx);
+  return n.state && n.h == null ? Math.max(base, PARTS.stateMinH(n, w, ctx)) : base;
+}
+function natBase(n: WfNode, w: number, ctx: WfCtx): number {
   if (n.h != null) return n.h;
   const natFn = NAT[n.t] as WfNatFn | undefined; // per-t table: the call spot cannot correlate n with its t
   if (natFn) return natFn(n, w, ctx);

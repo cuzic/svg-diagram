@@ -42,7 +42,7 @@ const STEP_INDENT = 2 * STEP_BADGE_R + STEP_BADGE_GAP; // how far the title's fi
 
 type Requests = Map<string, MeasureRequest>;
 /** A band after placeBoxLike(): its own fields plus geometry, wrapped text and (maybe) the tag pill. */
-type Placed<B> = B & Rect & {wrappedRuns: WrappedRun[]; tagBox?: Rect};
+type Placed<B> = B & Rect & {wrappedRuns: WrappedRun[]; tagBox?: Rect; inkBox?: Rect};
 
 function textRuns(band: Band): TextRun[] {
   switch (band.type) {
@@ -259,6 +259,9 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       cursorY += gp;
       if (band.title) {
         const t = placeBoxLike(groupTitleBand(band), padX + gp, cursorY, cw - 2 * gp, false);
+        const inkW = Math.max(0, ...t.wrappedRuns.flatMap(r => r.lines.map(l => [...splitAtoms(l)].reduce((s, a) => s + widthOf(a, r.size, r.weight, r.mono ? 'mono' : 'sans'), 0))));
+        const inkX = t.align === 'center' ? t.x + (t.w - inkW) / 2 : t.align === 'right' ? t.x + t.w - inkW : t.x;
+        t.inkBox = {x: inkX, y: t.y, w: inkW, h: t.h};
         laidOut.push(t);
         cursorY += t.h + d.gap / 2;
       }

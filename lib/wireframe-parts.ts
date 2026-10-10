@@ -78,13 +78,25 @@ export function installParts(h: WfHelpers): WfPartsApi {
     else { circle(ctx, ix, iy, 11, {stroke: 'muted', sw: 2.5}); line(ctx, ix, iy, ix, iy - 7, {stroke: 'muted', sw: 2.5}); line(ctx, ix, iy, ix + 5, iy + 2, {stroke: 'muted', sw: 2.5}); }
   }
   // the message box: icon at the left of the words, or - in a narrow frame - above them
-  function drawStateBox(n: WfNode, st: StateInfo, x: number, y: number, w: number, hh: number, ctx: WfCtx) {
-    const title = n.stateTitle ?? st.title, tone = st.tone === 'danger' ? 'danger' : 'text';
+  function stateBoxData(n: WfNode, st: StateInfo, w: number, ctx: WfCtx) {
+    const title = n.stateTitle ?? st.title;
     const wide = tw(ctx, title, T, 700) + 64 <= w - 16;
     const note = n.stateNote ? wrapT(ctx, n.stateNote, S, 400, Math.max(60, wide ? Math.min(w - 72, 240) : w - 40)) : [];
     const inner = Math.max(tw(ctx, title, T, 700), ...note.map((l: string) => tw(ctx, l, S, 400)));
     const bw = Math.min(w - 16, inner + (wide ? 64 : 24));
     const bh = 12 + (wide ? 0 : 28) + lh(T) + (note.length ? note.length * lh(S) + 2 : 0) + 12;
+    return {title, wide, note, bw, bh};
+  }
+  // The height a widget needs so its state's message box fits inside the frame (8px of air above and below).
+  // stale only adds a badge on the edge, and a loading data widget draws skeleton bars: neither needs more.
+  function stateMinH(n: WfNode, w: number, ctx: WfCtx): number {
+    const st: StateInfo | undefined = n.state ? STATES[n.state] : undefined;
+    if (!st || n.state === 'stale' || (n.state === 'loading' && !VISUAL_T.has(n.t))) return 0;
+    return Math.ceil(stateBoxData(n, st, w, ctx).bh) + 16;
+  }
+  function drawStateBox(n: WfNode, st: StateInfo, x: number, y: number, w: number, hh: number, ctx: WfCtx) {
+    const tone = st.tone === 'danger' ? 'danger' : 'text';
+    const {title, wide, note, bw, bh} = stateBoxData(n, st, w, ctx);
     const bx = x + (w - bw) / 2, by = y + (hh - bh) / 2;
     rect(ctx, bx, by, bw, bh, {r: 8, fill: 'bg', stroke: st.tone, sw: 2.5});
     if (wide) {
@@ -253,18 +265,29 @@ export function installParts(h: WfHelpers): WfPartsApi {
     const bl = n.text ? wrapT(ctx, n.text, S, 400, inner) : [];
     // an evidence row is "kind  time" on one line; when that does not fit, the time goes on a second line
     const rows = n.evidence.map(e => ({e, stacked: 38 + tw(ctx, e.kind, S, 700) + 12 + tw(ctx, e.at, S, 400) > w - 12}));
-    const hgt = 12 + 24 + 6 + tl.length * lh(T) + (bl.length ? 4 + bl.length * lh(S) : 0) + 8 + rows.reduce((a, r) => a + (r.stacked ? 44 : 24), 0) + 12;
-    return {tl, bl, rows, h: hgt};
+    // chips: the level and "参考表示" share a row when they fit; in a narrow card the second one drops to its own row.
+    // A stale badge sits on the top edge (down to y + 12), so the card's content starts 4px lower then.
+    const lv = LEVEL[n.level ?? 'info'] ?? LEVEL.info, level = n.badge ?? lv.label;
+    const stacked2 = n.reference !== false && 18 + chipW(ctx, level) + 8 + chipW(ctx, '参考表示') > w - 8;
+    const top = n.state === 'stale' ? 4 : 0, chipExtra = stacked2 ? 28 : 0;
+    const hgt = top + chipExtra + 12 + 24 + 6 + tl.length * lh(T) + (bl.length ? 4 + bl.length * lh(S) : 0) + 8 + rows.reduce((a, r) => a + (r.stacked ? 44 : 24), 0) + 12;
+    return {tl, bl, rows, h: hgt, top, stacked2, chipExtra};
   }
   DRAW.insight = (n: WfInsight, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
     const lv = LEVEL[n.level ?? 'info'] ?? LEVEL.info, d = insightData(n, w, ctx);
     rect(ctx, x, y, w, d.h, {r: 8, fill: 'bg', stroke: lv.stroke});
     rect(ctx, x + 1, y + 1, 6, d.h - 2, {fill: lv.bar});
     let cx = x + 18;
-    part(ctx, n, 'level', x + 4, y + 10);
-    cx += drawChip(ctx, n.badge ?? lv.label, cx, y + 10, lv.chip) + 8;
-    if (n.reference !== false) { part(ctx, n, 'reference', cx + chipW(ctx, '参考表示') - 4, y + 10); drawChip(ctx, '参考表示', cx, y + 10, 'plain'); } // an insight is a reference, not a judgement
-    let ty = y + 12 + 24 + 6;
+    const cy = y + 10 + d.top;
+    part(ctx, n, 'level', x + 4, cy);
+    cx += drawChip(ctx, n.badge ?? lv.label, cx, cy, lv.chip) + 8;
+    if (n.reference !== false) { // an insight is a reference, not a judgement
+      const ry = d.stacked2 ? cy + 28 : cy;
+      if (d.stacked2) cx = x + 18;
+      part(ctx, n, 'reference', cx + chipW(ctx, '参考表示') - 4, ry);
+      drawChip(ctx, '参考表示', cx, ry, 'plain');
+    }
+    let ty = y + d.top + d.chipExtra + 12 + 24 + 6;
     part(ctx, n, 'title', x + 4, ty + 10);
     for (const l of d.tl) { text(ctx, l, x + 18, ty + T, {size: T, weight: 700}); ty += lh(T); }
     if (d.bl.length) { ty += 4; part(ctx, n, 'text', x + 4, ty + 10); for (const l of d.bl) { text(ctx, l, x + 18, ty + S, {fill: 'text'}); ty += lh(S); } }
@@ -411,5 +434,5 @@ export function installParts(h: WfHelpers): WfPartsApi {
     if (n.t === 'compare' && typeof n.sync === 'string') out.push(n.sync);
     return out;
   }
-  return {drawState, glyph, fovSector, headingArrow, strings, always: ALWAYS};
+  return {drawState, stateMinH, glyph, fovSector, headingArrow, strings, always: ALWAYS};
 }

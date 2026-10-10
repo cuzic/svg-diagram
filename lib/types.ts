@@ -1070,6 +1070,8 @@ export interface GlyphOpts {shape?: WfMarkerShape; id?: string; r?: number; fill
 /** What installParts() returns to wireframe.ts. */
 export interface WfPartsApi {
   drawState(n: WfNode, x: number, y: number, w: number, h: number, ctx: WfCtx): void;
+  /** Height a widget needs for its state's message box to fit (0: no extra need). */
+  stateMinH(n: WfNode, w: number, ctx: WfCtx): number;
   glyph(ctx: WfCtx, cx: number, cy: number, o?: GlyphOpts): void;
   fovSector(ctx: WfCtx, px: number, py: number, deg: number, fov: number, R: number): void;
   headingArrow(ctx: WfCtx, px: number, py: number, deg: number, r: number): void;
@@ -1107,7 +1109,12 @@ export interface TextRun {
 /** A text run after wrapping: `lines[i]` is drawn with its baseline at band.y + padY + lineYs[i]. */
 export interface WrappedRun extends TextRun {lines: string[]; lineYs: number[]}
 
-export interface LaidOutCaption extends CaptionBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect}
+export interface LaidOutCaption extends CaptionBand, Rect {
+  wrappedRuns: WrappedRun[];
+  tagBox?: Rect;
+  /** group() titles only: the rect the title's text really covers (the caption itself spans the whole frame width). */
+  inkBox?: Rect;
+}
 export interface LaidOutBox extends BoxBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect}
 export interface LaidOutBanner extends BannerBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect}
 /** The frame of a group; its children are laid out as separate bands after it. */
@@ -1161,7 +1168,7 @@ export interface LaidOutStep extends LaidOutBox {lane: string; row?: number; col
 
 export interface LaidOutSeqHead extends Rect {id: string; tone?: BoxTone; lines: string[]; cx: number}
 export interface LaidOutSeqMsg {kind: 'msg'; x1: number; x2: number; y: number; lines: string[]; labelTop: number; lx: number; line: LineStyle; arrow: Arrow; tone?: TextTone}
-export interface LaidOutSeqSelf {kind: 'self'; cx: number; y: number; loopH: number; lines: string[]; lx: number; labelTop: number; line: LineStyle; tone?: TextTone}
+export interface LaidOutSeqSelf {kind: 'self'; cx: number; y: number; loopH: number; lines: string[]; lx: number; side: 'left' | 'right'; labelTop: number; line: LineStyle; tone?: TextTone}
 export interface LaidOutSeqNote extends Rect {kind: 'note'; lines: string[]; tone: BoxTone}
 export interface LaidOutSeqDivider {kind: 'divider'; y: number; x1: number; x2: number; cx: number; chipW: number; text: string}
 export type LaidOutSeqStep = LaidOutSeqMsg | LaidOutSeqSelf | LaidOutSeqNote | LaidOutSeqDivider;

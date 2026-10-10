@@ -54,6 +54,8 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
   for (const band of d.laidOut) {
     if (band.type === 'screens') { // check each screen frame, not the bounding box that holds them all
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h});
+    } else if (band.type === 'caption' && band.inkBox) { // a group's title text: connectors must not run through it
+      rects.push({id: null, label: `group title "${band.text}"`, ...band.inkBox});
     } else if (band.type === 'row' || band.type === 'grid') {
       for (const c of band.children) rects.push({id: c.id ?? null, label: labelOf(c), x: c.x, y: c.y, w: c.w, h: c.h});
     } else if (band.type === 'box' || band.type === 'banner' || band.type === 'raw' || band.type === 'legend' || band.type === 'sequence' || band.type === 'table' || band.type === 'wireframe' || band.type === 'pyramid' || band.type === 'curve') {
@@ -82,7 +84,13 @@ function checkConnects(d: LaidOutDiagram, rects: CheckRect[]): string[] {
   for (const c of d.connects) {
     const isOwnEndpoint = (r: CheckRect) => r.id !== null && (r.id === c.fromId || r.id === c.toId);
     for (const r of rects) {
-      if (isOwnEndpoint(r)) continue;
+      if (isOwnEndpoint(r)) {
+        // The path starts on its own boxes, but the label/chip must not sit on top of their text:
+        // a chip wider than the gap between two boxes lands on both bodies.
+        const own = c.labelBox && rectOverlap(c.labelBox, r);
+        if (own) problems.push(`connect(${c.fromLabel} -> ${c.toLabel}) label "${c.label}" overlaps its own end "${r.label}" by ${Math.round(own.dx)}x${Math.round(own.dy)}px (widen the gap between the boxes, shorten the label, or label a longer leg with route: 'elbow')`);
+        continue;
+      }
       for (const seg of c.pathSegments) {
         const pathHit = rectOverlap(seg, r);
         if (pathHit) problems.push(`connect(${c.fromLabel} -> ${c.toLabel}) path overlaps "${r.label}" by ${Math.round(pathHit.dx)}x${Math.round(pathHit.dy)}px`);
