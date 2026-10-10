@@ -251,3 +251,19 @@ test('bin/svg-diagram diff: explains the change between two svgs', () => {
   assert.match(same.stdout, /同一/);
   assert.match(bin(proj, 'diff', a, b).stdout, /文字|図形|メタデータ|キャンバス/);
 });
+
+test('init makes a project that typechecks its type setting, and never overwrites', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'svgd-init-'));
+  fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"x"}\n');
+  fs.writeFileSync(path.join(dir, 'tsconfig.json'), '{"keep":true}\n');
+  const r = spawnSync(BIN, ['init'], {cwd: dir, encoding: 'utf8'});
+  assert.equal(r.status, 0, out(r));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).type, 'module');
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, 'tsconfig.json'), 'utf8')), {keep: true});
+  const fresh = fs.mkdtempSync(path.join(os.tmpdir(), 'svgd-init-'));
+  assert.equal(spawnSync(BIN, ['init'], {cwd: fresh, encoding: 'utf8'}).status, 0);
+  assert.ok(JSON.parse(fs.readFileSync(path.join(fresh, 'tsconfig.json'), 'utf8')).compilerOptions.noEmit);
+  const t = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8'});
+  assert.equal(t.status, 2); // no typescript in a bare temp project: says how to install it
+  assert.match(out(t), /typescript/);
+});

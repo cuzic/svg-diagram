@@ -7,18 +7,36 @@
 
 ## 導入
 
-Node.js 20 以上と pnpm が必要。
+Node.js 22.18 以上と pnpm が必要。
+
+### 案件のリポジトリに入れる（推奨）
+
+リリースタグには、コンパイル済みの `dist/`（JS と型定義）が入っている。`node_modules` の中の `.ts` は Node が型を消せないので、タグ指定でそのまま入れられる。
+
+    pnpm add -D typescript @types/node github:cuzic/svg-diagram#v0.3.0
+    pnpm exec svg-diagram init          # package.json に "type": "module"、tsconfig.json を用意
+    pnpm exec svg-diagram typecheck     # 図のソースを型検査（案件側の tsc を使う）
+    pnpm exec svg-diagram build diagrams/*.ts
+
+pnpm 10 以降は、`playwright-chromium`（文字幅の測定に使う）のビルドスクリプトを許可する必要がある（`pnpm-workspace.yaml` の `allowBuilds`）。
+CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagrams/*.ts`。ソースのハッシュと SVG の埋め込み情報を比べるだけで、ブラウザは起動しない（`--rebuild` を付けたときだけ起動する）。
+
+### 開発（このリポジトリ）
 
     git clone https://github.com/cuzic/svg-diagram.git
     cd svg-diagram
-    pnpm install                      # playwright-chromium（文字幅の測定に使う）も入る
-    ln -s "$PWD/bin/svg-diagram" ~/.local/bin/svg-diagram
+    pnpm install
+    ln -s "$PWD/bin/svg-diagram" ~/.local/bin/svg-diagram   # dist/ が無ければ .ts を直接実行する
+
+リリース: `package.json` の version を上げてから `pnpm release`（`dist/` を含むコミットにタグ `vX.Y.Z` を付ける。push は手動。そのコミットは main に入れない）。
 
 `svg-diagram preview` は PNG 化に Chrome / Chromium を使う（`CHROME=/path/to/chrome` で指定できる）。
 動作確認: `pnpm test`、`svg-diagram build examples/inventory-wireframe.ts --out /tmp/x.svg`。
 
 ## 使い方
 
+    svg-diagram init [dir]                               # 案件の初期設定（package.json の type、tsconfig.json）
+    svg-diagram typecheck                                # 図のソースの型検査
     svg-diagram build <source.ts>... [--out file.svg]   # 既定の出力: ./svg/<name>.svg
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
