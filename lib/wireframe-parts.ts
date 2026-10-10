@@ -14,48 +14,56 @@
 // Everything is token-coloured (bg/text/muted/border/code/danger/accent/soft), >= 14px text, and every state
 // is shown by shape, hatching or words as well as colour (WCAG 1.4.1).
 
-export function installParts(h) {
+import type {
+  ColorKey, GlyphOpts, WfAutoWTable, WfBattery, WfBreadcrumb, WfCallout, WfCheckbox, WfCompare, WfCtx, WfFusion, WfFusionLayerSpec, WfHelpers, WfInsight,
+  WfInsightOpts, WfNode, WfPartKey, WfPartsApi, WfRadio, WfRegion, WfRobot, WfSignal, WfSlider, WfState, WfToggle, WfTone, WfType,
+} from './types.ts';
+
+interface StateInfo {title: string; tone: ColorKey}
+interface FusionLayer extends WfFusionLayerSpec {kind: 'camera' | 'cloud' | 'thermal'; bad: WfState | undefined; on: boolean}
+
+export function installParts(h: WfHelpers): WfPartsApi {
   const {wf, DRAW, NAT, AUTO_W, S, T, lh, rect, circle, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder} = h;
-  const mk = (t, o = {}) => ({t, ...o});
+  const mk = (t: WfType, o: object = {}) => ({t, ...o});
 
   // ---- constructors ----------------------------------------------------------------------
   Object.assign(wf, {
-    fusion: (o) => mk('fusion', o),
-    compare: (o) => mk('compare', o),
-    region: (label, o) => mk('region', {...o, label}),
-    robot: (o) => mk('robot', o),
-    battery: (level, o) => mk('battery', {...o, level}),
-    signal: (level, o) => mk('signal', {...o, level}),
-    insight: (o) => { checkInsight(o); return mk('insight', o); },
-    breadcrumb: (items, o) => mk('breadcrumb', {...o, items}),
-    toggle: (label, o) => mk('toggle', {...o, label}),
-    checkbox: (label, o) => mk('checkbox', {...o, label}),
-    radio: (label, o) => mk('radio', {...o, label}),
-    slider: (label, o) => mk('slider', {...o, label}),
+    fusion: (o?: object) => mk('fusion', o),
+    compare: (o?: object) => mk('compare', o),
+    region: (label: string, o?: object) => mk('region', {...o, label}),
+    robot: (o: object) => mk('robot', o),
+    battery: (level: number, o?: object) => mk('battery', {...o, level}),
+    signal: (level: number | undefined, o?: object) => mk('signal', {...o, level}),
+    insight: (o: WfInsightOpts) => { checkInsight(o); return mk('insight', o); },
+    breadcrumb: (items: string[], o?: object) => mk('breadcrumb', {...o, items}),
+    toggle: (label: string, o?: object) => mk('toggle', {...o, label}),
+    checkbox: (label: string, o?: object) => mk('checkbox', {...o, label}),
+    radio: (label: string, o?: object) => mk('radio', {...o, label}),
+    slider: (label: string, o?: object) => mk('slider', {...o, label}),
   });
 
   // ---- shared drawing bits -----------------------------------------------------------------
   // A robot marker: shape + letter, so two vehicles never differ by colour alone.
-  function glyph(ctx, cx, cy, o = {}) {
+  function glyph(ctx: WfCtx, cx: number, cy: number, o: GlyphOpts = {}) {
     const shape = o.shape ?? 'circle', r = o.r ?? 11, fill = o.fill ?? 'accent';
     if (shape === 'square') rect(ctx, cx - r, cy - r, 2 * r, 2 * r, {r: 3, fill, stroke: 'bg', sw: 2});
     else if (shape === 'triangle') path(ctx, pts([[cx, cy - r - 3], [cx + r + 3, cy + r], [cx - r - 3, cy + r]]) + ' Z', {fill, stroke: 'bg', sw: 2});
     else circle(ctx, cx, cy, r, {fill, stroke: 'bg', sw: 2});
     if (o.id) text(ctx, o.id, cx, mid(cy + (shape === 'triangle' ? 4 : 0)), {weight: 700, fill: 'bg', anchor: 'middle'});
   }
-  const dirOf = (deg) => { const a = (deg - 90) * Math.PI / 180; return [Math.cos(a), Math.sin(a)]; }; // 0 = up, clockwise
-  function headingArrow(ctx, px, py, deg, r) {
+  const dirOf = (deg: number): [number, number] => { const a = (deg - 90) * Math.PI / 180; return [Math.cos(a), Math.sin(a)]; }; // 0 = up, clockwise
+  function headingArrow(ctx: WfCtx, px: number, py: number, deg: number, r: number) {
     const [dx, dy] = dirOf(deg), [qx, qy] = [-dy, dx];
     path(ctx, pts([[px + dx * (r + 11), py + dy * (r + 11)], [px + dx * (r + 1) + qx * 5, py + dy * (r + 1) + qy * 5], [px + dx * (r + 1) - qx * 5, py + dy * (r + 1) - qy * 5]]) + ' Z', {fill: 'text', stroke: 'bg', sw: 1.5});
   }
-  function fovSector(ctx, px, py, deg, fov, R) {
-    const p = [[px, py]];
+  function fovSector(ctx: WfCtx, px: number, py: number, deg: number, fov: number, R: number) {
+    const p: [number, number][] = [[px, py]];
     for (let i = 0; i <= 8; i++) { const [dx, dy] = dirOf(deg - fov / 2 + fov * i / 8); p.push([px + dx * R, py + dy * R]); }
     path(ctx, pts(p) + ' Z', {fill: 'accent', op: 0.18});
   }
 
   // ---- states: missing / disconnected / loading ------------------------------------------------
-  const STATES = {
+  const STATES: Record<WfState, StateInfo> = {
     missing: {title: 'データ欠損中', tone: 'muted'},
     disconnected: {title: '通信断', tone: 'danger'},
     loading: {title: '読み込み中', tone: 'muted'},
@@ -63,18 +71,18 @@ export function installParts(h) {
     stale: {title: '古い情報', tone: 'muted'},
   };
   const VISUAL_T = new Set(['map', 'video', 'heat', 'pointcloud', 'chart', 'image', 'compare', 'fusion', 'region']);
-  function drawStateIcon(n, ix, iy, ctx) {
+  function drawStateIcon(n: WfNode, ix: number, iy: number, ctx: WfCtx) {
     if (n.state === 'disconnected') { circle(ctx, ix, iy, 11, {stroke: 'danger', sw: 2.5}); line(ctx, ix - 5, iy - 5, ix + 5, iy + 5, {stroke: 'danger', sw: 2.5}); line(ctx, ix - 5, iy + 5, ix + 5, iy - 5, {stroke: 'danger', sw: 2.5}); }
     else if (n.state === 'missing') { path(ctx, pts([[ix, iy - 12], [ix + 12, iy + 10], [ix - 12, iy + 10]]) + ' Z', {stroke: 'muted', sw: 2.5}); text(ctx, '!', ix, mid(iy + 3), {weight: 700, fill: 'muted', anchor: 'middle'}); }
     else if (n.state === 'empty') { rect(ctx, ix - 10, iy - 10, 20, 20, {r: 3, stroke: 'muted', sw: 2.5, dash: '4,3'}); }
     else { circle(ctx, ix, iy, 11, {stroke: 'muted', sw: 2.5}); line(ctx, ix, iy, ix, iy - 7, {stroke: 'muted', sw: 2.5}); line(ctx, ix, iy, ix + 5, iy + 2, {stroke: 'muted', sw: 2.5}); }
   }
   // the message box: icon at the left of the words, or - in a narrow frame - above them
-  function drawStateBox(n, st, x, y, w, hh, ctx) {
+  function drawStateBox(n: WfNode, st: StateInfo, x: number, y: number, w: number, hh: number, ctx: WfCtx) {
     const title = n.stateTitle ?? st.title, tone = st.tone === 'danger' ? 'danger' : 'text';
     const wide = tw(ctx, title, T, 700) + 64 <= w - 16;
     const note = n.stateNote ? wrapT(ctx, n.stateNote, S, 400, Math.max(60, wide ? Math.min(w - 72, 240) : w - 40)) : [];
-    const inner = Math.max(tw(ctx, title, T, 700), ...note.map(l => tw(ctx, l, S, 400)));
+    const inner = Math.max(tw(ctx, title, T, 700), ...note.map((l: string) => tw(ctx, l, S, 400)));
     const bw = Math.min(w - 16, inner + (wide ? 64 : 24));
     const bh = 12 + (wide ? 0 : 28) + lh(T) + (note.length ? note.length * lh(S) + 2 : 0) + 12;
     const bx = x + (w - bw) / 2, by = y + (hh - bh) / 2;
@@ -82,17 +90,17 @@ export function installParts(h) {
     if (wide) {
       drawStateIcon(n, bx + 24, by + bh / 2, ctx);
       text(ctx, title, bx + 46, by + 12 + T, {size: T, weight: 700, fill: tone});
-      note.forEach((l, k) => text(ctx, l, bx + 46, by + 12 + lh(T) + S + 2 + k * lh(S), {fill: 'muted'}));
+      note.forEach((l: string, k: number) => text(ctx, l, bx + 46, by + 12 + lh(T) + S + 2 + k * lh(S), {fill: 'muted'}));
     } else {
       drawStateIcon(n, x + w / 2, by + 24, ctx);
       text(ctx, title, x + w / 2, by + 12 + 28 + T, {size: T, weight: 700, fill: tone, anchor: 'middle'});
-      note.forEach((l, k) => text(ctx, l, x + w / 2, by + 12 + 28 + lh(T) + S + 2 + k * lh(S), {fill: 'muted', anchor: 'middle'}));
+      note.forEach((l: string, k: number) => text(ctx, l, x + w / 2, by + 12 + 28 + lh(T) + S + 2 + k * lh(S), {fill: 'muted', anchor: 'middle'}));
     }
   }
   // state: any widget can be missing / disconnected / loading / empty / stale. Visual widgets (video, map ...)
   // get hatching; data widgets (stat, list, table, robot, insight ...) get a skeleton while loading.
-  function drawState(n, x, y, w, hh, ctx) {
-    const st = STATES[n.state];
+  function drawState(n: WfNode, x: number, y: number, w: number, hh: number, ctx: WfCtx) {
+    const st: StateInfo | undefined = n.state ? STATES[n.state] : undefined;
     if (!st) throw new Error(`wireframe(): unknown state "${n.state}" (use ${Object.keys(STATES).join(' / ')})`);
     if (hh < 40 || w < 80) throw new Error(`wireframe(): state "${n.state}" needs a widget at least 80x40px (a "${n.t}" here is ${Math.round(w)}x${Math.round(hh)})`);
     const visual = VISUAL_T.has(n.t);
@@ -118,18 +126,19 @@ export function installParts(h) {
       }
     }
     drawStateBox(n, st, x, y, w, hh, ctx);
-    if (visual && n.label && n.t !== 'chart') { // keep the frame's name (it says WHICH one is in this state), drawn after the hatching
-      const lw = tw(ctx, n.label, S, 700) + 12;
+    const label = (n as {label?: string}).label; // only some widgets have a label
+    if (visual && label && n.t !== 'chart') { // keep the frame's name (it says WHICH one is in this state), drawn after the hatching
+      const lw = tw(ctx, label, S, 700) + 12;
       rect(ctx, x + 8, y + hh - 30, lw, 22, {r: 4, fill: 'bg'});
-      text(ctx, n.label, x + 14, mid(y + hh - 19), {weight: 700, fill: 'muted'});
+      text(ctx, label, x + 14, mid(y + hh - 19), {weight: 700, fill: 'muted'});
     }
   }
 
   // numbers on a part's inner pieces: wf.insight({parts: {level: 1, evidence: 2}})
-  const part = (ctx, n, key, px, py) => { const v = n.parts?.[key]; if (v != null && v !== true) ctx.callouts.push({n: v, x: px, y: py}); };
+  const part = (ctx: WfCtx, n: WfNode, key: WfPartKey, px: number, py: number) => { const v = n.parts?.[key]; if (v != null && v !== true) ctx.callouts.push({n: v, x: px, y: py}); };
 
   // ---- small controls -------------------------------------------------------------------------
-  function drawToggleAt(ctx, x, y, on, label, o = {}) {
+  function drawToggleAt(ctx: WfCtx, x: number, y: number, on: boolean, label: string | undefined, o: {disabled?: boolean} = {}) {
     if (o.disabled) { // a layer that cannot be switched on (its data is missing)
       rect(ctx, x, y + 4, 36, 20, {r: 10, fill: 'code', stroke: 'border', dash: '4,3'});
       line(ctx, x + 12, y + 10, x + 24, y + 18, {stroke: 'muted', sw: 2}); line(ctx, x + 12, y + 18, x + 24, y + 10, {stroke: 'muted', sw: 2});
@@ -142,41 +151,41 @@ export function installParts(h) {
     if (label) text(ctx, label, x + 44, mid(y + 14), {});
     return 44 + (label ? tw(ctx, label, S, 400) : 0);
   }
-  function drawSliderAt(ctx, x, y, w, value) {
+  function drawSliderAt(ctx: WfCtx, x: number, y: number, w: number, value: number) {
     const cy = y + 14, at = x + 8 + (w - 16) * Math.max(0, Math.min(1, value));
     line(ctx, x + 8, cy, x + w - 8, cy, {stroke: 'border', sw: 4});
     line(ctx, x + 8, cy, at, cy, {stroke: 'accent', sw: 4});
     circle(ctx, at, cy, 8, {fill: 'bg', stroke: 'accent', sw: 3});
   }
-  const pct = (v) => `${Math.round(Math.max(0, Math.min(1, v)) * 100)}%`;
+  const pct = (v: number) => `${Math.round(Math.max(0, Math.min(1, v)) * 100)}%`;
 
   Object.assign(AUTO_W, {
-    toggle: (n, ctx) => 44 + tw(ctx, n.label, S, 400),
-    checkbox: (n, ctx) => 28 + tw(ctx, n.label, S, 400),
-    radio: (n, ctx) => 28 + tw(ctx, n.label, S, 400),
-    battery: (n, ctx) => 46 + tw(ctx, batteryText(n), S, 700),
-    signal: (n, ctx) => 30 + tw(ctx, signalText(n), S, 700),
+    toggle: (n: WfToggle, ctx: WfCtx) => 44 + tw(ctx, n.label, S, 400),
+    checkbox: (n: WfCheckbox, ctx: WfCtx) => 28 + tw(ctx, n.label, S, 400),
+    radio: (n: WfRadio, ctx: WfCtx) => 28 + tw(ctx, n.label, S, 400),
+    battery: (n: WfBattery, ctx: WfCtx) => 46 + tw(ctx, batteryText(n), S, 700),
+    signal: (n: WfSignal, ctx: WfCtx) => 30 + tw(ctx, signalText(n), S, 700),
   });
-  Object.assign(NAT, {toggle: () => 28, checkbox: () => 28, radio: () => 28, slider: () => 32, battery: () => 24, signal: () => 24, breadcrumb: () => 28, robot: (n, w) => (compactRobot(n, w) ? 150 : 104),
-    insight: (n, w, ctx) => insightData(n, w, ctx).h});
+  Object.assign(NAT, {toggle: () => 28, checkbox: () => 28, radio: () => 28, slider: () => 32, battery: () => 24, signal: () => 24, breadcrumb: () => 28, robot: (n: WfRobot, w: number) => (compactRobot(n, w) ? 150 : 104),
+    insight: (n: WfInsight, w: number, ctx: WfCtx) => insightData(n, w, ctx).h});
 
   Object.assign(DRAW, {
-    toggle: (n, x, y, w, hh, ctx) => ({w: drawToggleAt(ctx, x, y, n.on !== false, n.label), h: 28}),
-    checkbox: (n, x, y, w, hh, ctx) => {
+    toggle: (n: WfToggle, x: number, y: number, w: number, hh: number, ctx: WfCtx) => ({w: drawToggleAt(ctx, x, y, n.on !== false, n.label), h: 28}),
+    checkbox: (n: WfCheckbox, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
       const on = n.checked !== false;
       rect(ctx, x, y + 5, 18, 18, {r: 3, fill: on ? 'accent' : 'bg', stroke: on ? null : 'text'});
       if (on) path(ctx, pts([[x + 4, y + 14], [x + 8, y + 18], [x + 14, y + 10]]), {stroke: 'bg', sw: 2.5});
       text(ctx, n.label, x + 28, mid(y + 14), {});
       return {w: 28 + tw(ctx, n.label, S, 400), h: 28};
     },
-    slider: (n, x, y, w, hh, ctx) => {
+    slider: (n: WfSlider, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
       const lw = n.label ? tw(ctx, n.label, S, 400) + 12 : 0, dw = n.display ? tw(ctx, n.display, S, 700) + 12 : 0;
       if (n.label) text(ctx, n.label, x, mid(y + 14), {});
       drawSliderAt(ctx, x + lw, y, w - lw - dw, n.value ?? 0.5);
       if (n.display) text(ctx, n.display, x + w, mid(y + 14), {weight: 700, anchor: 'end'});
       return {w, h: 32};
     },
-    battery: (n, x, y, w, hh, ctx) => {
+    battery: (n: WfBattery, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
       const lv = Math.max(0, Math.min(1, n.level)), low = lv < 0.2;
       rect(ctx, x, y + 4, 36, 16, {r: 3, fill: 'bg', stroke: low ? 'danger' : 'text'});
       rect(ctx, x + 36, y + 9, 3, 6, {fill: low ? 'danger' : 'text'});
@@ -184,7 +193,7 @@ export function installParts(h) {
       text(ctx, batteryText(n), x + 46, mid(y + 12), {weight: 700, fill: low ? 'danger' : 'text'});
       return {w: 46 + tw(ctx, batteryText(n), S, 700), h: 24};
     },
-    signal: (n, x, y, w, hh, ctx) => {
+    signal: (n: WfSignal, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
       const lv = Math.max(0, Math.min(3, n.level ?? 3));
       [6, 11, 16].forEach((bh, i) => rect(ctx, x + i * 8, y + 20 - bh, 6, bh, {fill: i < lv ? 'accent' : 'border'}));
       if (lv === 0) { line(ctx, x - 1, y + 3, x + 23, y + 21, {stroke: 'danger', sw: 2.5}); }
@@ -193,33 +202,33 @@ export function installParts(h) {
     },
   });
   // radio needs the same signature as the others; defined separately to keep the Object.assign tidy
-  DRAW.radio = (n, x, y, w, hh, ctx) => {
+  DRAW.radio = (n: WfRadio, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
     circle(ctx, x + 9, y + 14, 9, {fill: 'bg', stroke: 'text'});
     if (n.selected !== false) circle(ctx, x + 9, y + 14, 5, {fill: 'accent'});
     text(ctx, n.label, x + 28, mid(y + 14), {});
     return {w: 28 + tw(ctx, n.label, S, 400), h: 28};
   };
 
-  const batteryText = (n) => `${pct(n.level)}${n.level < 0.2 ? ' 低下' : ''}`;
-  const signalText = (n) => n.text ?? ['途絶', '弱い', 'やや弱い', '良好'][Math.max(0, Math.min(3, n.level ?? 3))];
+  const batteryText = (n: {level: number}) => `${pct(n.level)}${n.level < 0.2 ? ' 低下' : ''}`;
+  const signalText = (n: {level?: number; text?: string}) => n.text ?? ['途絶', '弱い', 'やや弱い', '良好'][Math.max(0, Math.min(3, n.level ?? 3))];
 
   // ---- robot status card -----------------------------------------------------------------
   // narrow frames (a cell in a state matrix, a side rail) stack the card's rows instead of laying them side by side
-  const compactRobot = (n, w) => n.compact ?? w < 210;
-  DRAW.robot = (n, x, y, w, hh, ctx) => {
+  const compactRobot = (n: WfRobot, w: number) => n.compact ?? w < 210;
+  DRAW.robot = (n: WfRobot, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
     const lost = (n.link ?? 3) === 0, compact = compactRobot(n, w), H = compact ? 150 : 104;
     rect(ctx, x, y, w, H, {r: 8, fill: n.active ? 'soft' : 'bg', stroke: lost ? 'danger' : n.active ? 'accent' : 'border', sw: n.active ? 2.5 : 2, dash: lost ? '6,4' : undefined});
     let tx = x + 14;
     if (n.marker) { glyph(ctx, x + 26, y + 26, {shape: n.marker.shape, id: n.marker.id}); tx = x + 48; }
     text(ctx, n.name, tx, y + 31, {size: T, weight: 700});
-    const bat = {level: n.battery ?? 0}, batW = AUTO_W.battery(bat, ctx);
+    const bat = {t: 'battery', level: n.battery ?? 0} as WfBattery, batW = AUTO_W.battery!(bat, ctx);
     const modeW = n.mode ? chipW(ctx, n.mode) : 0, modeTone = n.modeTone ?? (lost ? 'danger' : 'accent');
     // rows: wide = [name .. mode] [battery  signal] [last];  compact = [name] [mode] [battery] [signal] [last]
     const mx = compact ? x + 14 : x + w - 12 - modeW, my = compact ? y + 44 : y + 14;
     const by = compact ? y + 76 : y + 46, sx = compact ? x + 14 : x + 14 + batW + 24, sy = compact ? y + 102 : y + 46, ly = compact ? y + 142 : y + 90;
     if (n.mode) drawChip(ctx, n.mode, mx, my, modeTone);
-    DRAW.battery(bat, x + 14, by, w, 24, ctx);
-    DRAW.signal({level: n.link ?? 3}, sx, sy, w, 24, ctx);
+    DRAW.battery!(bat, x + 14, by, w, 24, ctx);
+    DRAW.signal!({t: 'signal', level: n.link ?? 3} as WfSignal, sx, sy, w, 24, ctx);
     text(ctx, n.last ? `最終受信 ${n.last}` : '最終受信 —', x + 14, ly, {fill: lost ? 'danger' : 'muted', weight: lost ? 700 : 400});
     part(ctx, n, 'marker', x + 14, y + 12); part(ctx, n, 'name', tx - 2, y + 12); part(ctx, n, 'mode', mx + (compact ? -2 : modeW), my);
     part(ctx, n, 'battery', x + 8, by); part(ctx, n, 'signal', sx - 6, sy); part(ctx, n, 'last', x + 8, ly - 12);
@@ -227,17 +236,17 @@ export function installParts(h) {
   };
 
   // ---- insight card (evidence + acquisition time are required) -------------------------------------
-  function checkInsight(n) {
+  function checkInsight(n: WfInsightOpts) {
     const name = `wf.insight("${n.title ?? ''}")`;
     if (!n.evidence?.length) throw new Error(`${name}: evidence is required — an insight shows the data it rests on and when it was taken`);
     for (const e of n.evidence) if (!e.kind || !e.at) throw new Error(`${name}: every evidence needs {kind, at} — kind of data and its acquisition time`);
   }
-  const LEVEL = {
+  const LEVEL: Record<'danger' | 'warn' | 'info', {chip: WfTone; label: string; stroke: ColorKey; bar: ColorKey}> = {
     danger: {chip: 'solid-danger', label: '要確認', stroke: 'danger', bar: 'danger'},
     warn: {chip: 'danger', label: '注意', stroke: 'danger', bar: 'danger'},
     info: {chip: 'muted', label: '参考', stroke: 'border', bar: 'muted'},
   };
-  function insightData(n, w, ctx) {
+  function insightData(n: WfInsight, w: number, ctx: WfCtx) {
     checkInsight(n);
     const inner = w - 28;
     const tl = wrapT(ctx, n.title, T, 700, inner);
@@ -247,7 +256,7 @@ export function installParts(h) {
     const hgt = 12 + 24 + 6 + tl.length * lh(T) + (bl.length ? 4 + bl.length * lh(S) : 0) + 8 + rows.reduce((a, r) => a + (r.stacked ? 44 : 24), 0) + 12;
     return {tl, bl, rows, h: hgt};
   }
-  DRAW.insight = (n, x, y, w, hh, ctx) => {
+  DRAW.insight = (n: WfInsight, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
     const lv = LEVEL[n.level ?? 'info'] ?? LEVEL.info, d = insightData(n, w, ctx);
     rect(ctx, x, y, w, d.h, {r: 8, fill: 'bg', stroke: lv.stroke});
     rect(ctx, x + 1, y + 1, 6, d.h - 2, {fill: lv.bar});
@@ -271,20 +280,20 @@ export function installParts(h) {
   };
 
   // ---- region: a named block (for the coarse, whole-screen wireframe) ----------------------------------
-  DRAW.region = (n, x, y, w, hh, ctx) => {
+  DRAW.region = (n: WfRegion, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
     const primary = n.emphasis === 'primary';
     rect(ctx, x, y, w, hh, {r: 6, fill: primary ? 'soft' : 'code', stroke: primary ? 'accent' : 'border', sw: primary ? 2.5 : 2, dash: n.dashed ? '6,4' : undefined});
     const lines = wrapT(ctx, n.label, T, 700, w - 20), hint = n.hint ? wrapT(ctx, n.hint, S, 400, w - 20) : [];
     const total = lines.length * lh(T) + (hint.length ? 4 + hint.length * lh(S) : 0);
     let ty = y + Math.max(8, (hh - total) / 2);
-    lines.forEach((l, k) => text(ctx, l, x + w / 2, ty + T + k * lh(T), {size: T, weight: 700, anchor: 'middle', fill: primary ? 'accent' : 'text'}));
+    lines.forEach((l: string, k: number) => text(ctx, l, x + w / 2, ty + T + k * lh(T), {size: T, weight: 700, anchor: 'middle', fill: primary ? 'accent' : 'text'}));
     ty += lines.length * lh(T) + 4;
-    hint.forEach((l, k) => text(ctx, l, x + w / 2, ty + S + k * lh(S), {anchor: 'middle', fill: 'muted'}));
+    hint.forEach((l: string, k: number) => text(ctx, l, x + w / 2, ty + S + k * lh(S), {anchor: 'middle', fill: 'muted'}));
     return {w, h: hh};
   };
 
   // ---- breadcrumb ---------------------------------------------------------------------------
-  DRAW.breadcrumb = (n, x, y, w, hh, ctx) => {
+  DRAW.breadcrumb = (n: WfBreadcrumb, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
     let cx = x;
     n.items.forEach((it, i) => {
       const last = i === n.items.length - 1, wt = last ? 700 : 400, iw = tw(ctx, it, S, wt);
@@ -297,9 +306,9 @@ export function installParts(h) {
   };
 
   // ---- scenes shared by fusion / compare ----------------------------------------------------------
-  const KIND = (l) => /点群/.test(l.label) ? 'cloud' : /赤外|熱/.test(l.label) ? 'thermal' : 'camera';
-  function sceneBox(x, y, w, hh) { return {bx: x + w * 0.36, by: y + hh * 0.3, bw: w * 0.26, bh: hh * 0.42}; }
-  function drawCamera(ctx, x, y, w, hh) {
+  const KIND = (l: {label: string}) => /点群/.test(l.label) ? 'cloud' : /赤外|熱/.test(l.label) ? 'thermal' : 'camera';
+  function sceneBox(x: number, y: number, w: number, hh: number) { return {bx: x + w * 0.36, by: y + hh * 0.3, bw: w * 0.26, bh: hh * 0.42}; }
+  function drawCamera(ctx: WfCtx, x: number, y: number, w: number, hh: number) {
     const f = y + hh * 0.72;
     line(ctx, x + 8, f, x + w - 8, f, {stroke: 'muted', sw: 2});
     line(ctx, x + w * 0.2, y + 8, x + w * 0.2, f, {stroke: 'border', sw: 2});
@@ -307,7 +316,7 @@ export function installParts(h) {
     rect(ctx, b.bx, b.by, b.bw, b.bh, {r: 4, fill: 'bg', stroke: 'muted'});
     rect(ctx, b.bx + b.bw * 0.2, b.by + b.bh * 0.18, b.bw * 0.6, b.bh * 0.25, {stroke: 'border', sw: 1.5});
   }
-  function drawCloud(ctx, x, y, w, hh, seed = 3) {
+  function drawCloud(ctx: WfCtx, x: number, y: number, w: number, hh: number, seed = 3) {
     let a = seed * 9301 + 49297;
     const rnd = () => { a = (a * 9301 + 49297) % 233280; return a / 233280; };
     const b = sceneBox(x, y, w, hh);
@@ -317,7 +326,7 @@ export function installParts(h) {
       rect(ctx, px, py, 4, 4, {fill: 'accent', op: 0.35 + rnd() * 0.5});
     }
   }
-  function drawThermal(ctx, x, y, w, hh, label) {
+  function drawThermal(ctx: WfCtx, x: number, y: number, w: number, hh: number, label?: string) {
     const b = sceneBox(x, y, w, hh), hx = b.bx + b.bw * 0.55, hy = b.by + b.bh * 0.28;
     [[0.34, 0.12], [0.22, 0.25], [0.11, 0.5]].forEach(([r, op]) => circle(ctx, hx, hy, Math.min(w, hh) * r * 0.55, {fill: 'danger', op}));
     line(ctx, hx - 12, hy, hx + 12, hy, {stroke: 'text', sw: 2}); line(ctx, hx, hy - 12, hx, hy + 12, {stroke: 'text', sw: 2});
@@ -329,16 +338,16 @@ export function installParts(h) {
   }
 
   // ---- fusion: camera + point cloud + thermal in one frame, with layer controls -------------------------
-  DRAW.fusion = (n, x, y, w, hh, ctx) => {
-    const layers = (n.layers ?? ['カメラ', '点群', '赤外線']).map(l => typeof l === 'string' ? {label: l} : l).map(l => ({...l, kind: l.kind ?? KIND(l), bad: l.state, on: !l.state && l.on !== false}));
-    const lname = (l) => l.bad ? `${l.label}（${STATES[l.bad]?.title ?? l.bad}）` : l.label;
+  DRAW.fusion = (n: WfFusion, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+    const layers: FusionLayer[] = (n.layers ?? ['カメラ', '点群', '赤外線']).map((l): WfFusionLayerSpec => typeof l === 'string' ? {label: l} : l).map(l => ({...l, kind: l.kind ?? KIND(l), bad: l.state, on: !l.state && l.on !== false}));
+    const lname = (l: FusionLayer) => l.bad ? `${l.label}（${STATES[l.bad]?.title ?? l.bad}）` : l.label;
     // controls: the layer toggles wrap onto as many rows as the width needs; the opacity slider gets its own row
-    const rows = [[]];
+    const rows: {l: FusionLayer; lw: number}[][] = [[]];
     let used = 0;
     for (const l of layers) {
       const lw = 44 + tw(ctx, lname(l), S, 400);
-      if (rows.at(-1).length && used + lw > w - 16) { rows.push([]); used = 0; }
-      rows.at(-1).push({l, lw}); used += lw + 16;
+      if (rows.at(-1)!.length && used + lw > w - 16) { rows.push([]); used = 0; }
+      rows.at(-1)!.push({l, lw}); used += lw + 16;
     }
     const withSlider = n.controls !== false && n.opacity !== false;
     const strip = n.controls === false ? 0 : 8 + rows.length * 28 + (withSlider ? 30 : 0) + 6, vh = Math.max(60, hh - strip);
@@ -356,7 +365,7 @@ export function installParts(h) {
       part(ctx, n, 'controls', x + 6, ty + 14);
       for (const row of rows) { let tx = x + 8; for (const {l, lw} of row) { drawToggleAt(ctx, tx, ty, l.on, lname(l), {disabled: !!l.bad}); tx += lw + 16; } ty += 28; }
       if (withSlider) {
-        const op = n.opacity ?? 0.6, lab = `重ねる濃さ ${pct(op)}`, lw = tw(ctx, lab, S, 400) + 8;
+        const op = (n.opacity ?? 0.6) as number, lab = `重ねる濃さ ${pct(op)}`, lw = tw(ctx, lab, S, 400) + 8;
         part(ctx, n, 'opacity', x + 6, ty + 14);
         text(ctx, lab, x + 8, mid(ty + 14), {fill: 'muted'});
         drawSliderAt(ctx, x + 8 + lw, ty, w - 16 - lw, op);
@@ -366,7 +375,7 @@ export function installParts(h) {
   };
 
   // ---- compare: split view with a divider, labels and diff boxes ---------------------------------------
-  DRAW.compare = (n, x, y, w, hh, ctx) => {
+  DRAW.compare = (n: WfCompare, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
     const at = n.at ?? 0.5, sx = x + w * at;
     rect(ctx, x, y, w, hh, {r: 6, fill: 'code', stroke: 'border'});
     rect(ctx, x + 1, y + 1, sx - x - 1, hh - 2, {fill: 'bg', op: 0.55});
@@ -392,13 +401,13 @@ export function installParts(h) {
 
   // Every string a part may draw that is NOT literally in the node tree (defaults, formatted numbers),
   // so that wireframe.ts measures it before layout.
-  const ALWAYS = [...Object.values(STATES).map(x => x.title), ...Object.values(LEVEL).map(x => x.label), '参考表示', '再生位置を同期', '途絶', '弱い', 'やや弱い', '良好', ' 低下', '最終受信 —', 'カメラ', '点群', '赤外線'];
-  function strings(n) {
-    const out = [];
+  const ALWAYS: string[] = [...Object.values(STATES).map(x => x.title), ...Object.values(LEVEL).map(x => x.label), '参考表示', '再生位置を同期', '途絶', '弱い', 'やや弱い', '良好', ' 低下', '最終受信 —', 'カメラ', '点群', '赤外線'];
+  function strings(n: WfNode) {
+    const out: string[] = [];
     if (n.t === 'battery') out.push(batteryText(n));
     if (n.t === 'signal') out.push(signalText(n));
     if (n.t === 'robot') out.push(batteryText({level: n.battery ?? 0}), signalText({level: n.link ?? 3}), n.last ? `最終受信 ${n.last}` : '最終受信 —');
-    if (n.t === 'fusion') { out.push(`重ねる濃さ ${pct(n.opacity ?? 0.6)}`); for (const l of n.layers ?? []) if (l.state) out.push(`${l.label}（${STATES[l.state]?.title ?? l.state}）`); }
+    if (n.t === 'fusion') { out.push(`重ねる濃さ ${pct((n.opacity ?? 0.6) as number)}`); for (const l of n.layers ?? []) if (typeof l !== 'string' && l.state) out.push(`${l.label}（${STATES[l.state]?.title ?? l.state}）`); }
     if (n.t === 'compare' && typeof n.sync === 'string') out.push(n.sync);
     return out;
   }
