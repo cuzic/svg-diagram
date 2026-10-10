@@ -31,7 +31,8 @@ const {depsSha256} = await import('./lib/source-deps.ts');
 const {RULE_DOCS} = await import('./lib/rules.ts');
 const {scanMarkdown, compareNotes, notesOf, formatMap} = await import('./lib/docs-check.ts');
 const {explainChange} = await import('./lib/svg-diff.ts');
-const {loadConfig, applyConfig} = await import('./lib/config.ts');
+const {loadConfig} = await import('./lib/config.ts');
+const {loadDiagram} = await import('./lib/load-source.ts');
 
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
@@ -88,7 +89,7 @@ try {
         const srcFile = srcDir && ['.ts', '.mjs'].map(ext => path.join(srcDir, name + ext)).find(f => fs.existsSync(f));
         mapRows.push({name, svg: path.relative(process.cwd(), abs), doc: where, src: srcFile ? path.relative(process.cwd(), srcFile) : ''});
         if (srcFile) {
-          const d = (await import(path.resolve(srcFile))).default();
+          const d = await loadDiagram(path.resolve(srcFile), config);
           const sets = notesOf(d.bands);
           if (sets.length === 1) for (const f of compareNotes(fig.items, sets[0], name)) add({file: rel, line: fig.line, ...f});
           else if (sets.length > 1) add({file: rel, line: fig.line, rule: 'doc-notes-mismatch', severity: 'info', message: `${name}: 注釈つきのワイヤーフレームが ${sets.length} 枚あり、突き合わせない`});
@@ -119,11 +120,10 @@ try {
       if (meta.sourceSha256 !== sha(abs)) { add({file: src, rule: 'drift-stale', severity: 'error', message: `ソースが変わっているのに ${svg} が再生成されていない`}); complain(`✗ ${src}: ソースが変わっているのに ${svg} が再生成されていない`); continue; }
       if ((meta.depsSha256 ?? '') !== depsSha256(abs)) { add({file: src, rule: 'drift-stale-deps', severity: 'error', message: `ソースが import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`}); complain(`✗ ${src}: import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`); continue; }
       if (rebuild) {
-        const mod = await import(abs);
-        const d = applyConfig(mod.default(), config);
+        const d = await loadDiagram(abs, config);
         d.source = meta; // same provenance → byte-comparable
         const tmp = path.join(path.dirname(svg), `.${name}.rebuild.svg`);
-        try { await build(d, tmp, {lint: false}); } // the committed SVG was linted when it was built; an identical rebuild needs no second render
+        try { await build(d, tmp, {lint: false, name: `${name}.svg`}); } // the committed SVG was linted when it was built; an identical rebuild needs no second render
         catch (e) { // the regenerated picture fails its own checks: report it and go on with the rest
           fs.rmSync(tmp, {force: true});
           const why = String((e as Error).message).split('\n').filter(l => l.trim() && !/^Scanned|^─/.test(l)).slice(0, 3).join(' / ');
@@ -145,8 +145,7 @@ try {
       say(`✓ ${src}: ${svg} は最新（ツール ${meta.toolVersion}）`);
       continue;
     }
-    const mod = await import(abs);
-    const d = applyConfig(mod.default(), config);
+    const d = await loadDiagram(abs, config);
     const {verdict} = await checkDiagram(d);
     if (!verdict.ok) { for (const p of verdict.problems) add({file: src, rule: 'layout', severity: 'error', message: p}); complain(`✗ ${src}:\n  ${verdict.problems.join('\n  ')}`); continue; }
     for (const f of verdict.findings) add({file: src, rule: f.rule, severity: f.severity, message: f.message});

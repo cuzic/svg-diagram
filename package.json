@@ -8,7 +8,8 @@
     "svg-diagram": "./bin/svg-diagram"
   },
   "dependencies": {
-    "playwright-chromium": "1.62.1"
+    "playwright-chromium": "1.62.1",
+    "sixel": "^0.16.0"
   },
   "scripts": {
     "test": "node --test \"test/*.test.ts\"",

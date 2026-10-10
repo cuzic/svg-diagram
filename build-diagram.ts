@@ -32,7 +32,8 @@ import {register} from 'node:module';
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {build, closeMeasurer} = await import('./lib/dsl.ts');
-const {loadConfig, applyConfig} = await import('./lib/config.ts');
+const {loadConfig} = await import('./lib/config.ts');
+const {loadDiagram} = await import('./lib/load-source.ts');
 const {depsSha256, depsOf} = await import('./lib/source-deps.ts');
 const config = loadConfig();
 
@@ -114,7 +115,7 @@ try {
       }
     }
     try {
-      const d = applyConfig(define(), config); // .svg-diagram.json: project-wide accepted rules and max width
+      const d = await loadDiagram(abs, config); // .svg-diagram.json: project-wide accepted rules and max width
       // provenance for drift checks: which source (and which tool version) produced this SVG
       d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source: path.relative(process.cwd(), abs), sourceSha256: srcSha, ...(configSha256 ? {configSha256} : {}), ...(depsSha ? {depsSha256: depsSha} : {})};
       if (FIT) {

@@ -42,7 +42,7 @@ function slideMarkdown(pageFile: string, heading: string): string {
   return prev + '\n---\n' + segs[i];
 }
 
-function cacheKey(pageFile: string, heading: string, svg: string): string {
+export function cacheKey(pageFile: string, heading: string, svg: string): string {
   const md = slideMarkdown(pageFile, heading).replace(/max-height:\s*\d+px;?\s*/g, '');
   const h = crypto.createHash('sha256').update(md).update('\0' + svg);
   for (const f of LAYOUT_FILES) if (fs.existsSync(f)) h.update('\0' + fs.readFileSync(f));
@@ -113,6 +113,16 @@ async function measure(base: string, index: number, svg: string) {
   } finally {
     await browser.close();
   }
+}
+
+// The cached budget for this slide, or null when there is none (or it is stale). Starts no dev server and writes nothing —
+// for callers (`svg-diagram show`) that must not have side effects.
+export function readSlideBudgetCache({page, heading, svg, slidesMd = 'slides.md'}: {page: string; heading: string; svg: string; slidesMd?: string}): SlideBudget | null {
+  try {
+    const index = computeSlideIndex(slidesMd, page, heading);
+    const hit = readCache()[`${path.relative('.', page)}#${heading}#${svg}`];
+    return hit && hit.hash === cacheKey(page, heading, svg) ? {...hit.result, index, cached: true} : null;
+  } catch { return null; }
 }
 
 export async function getSlideBudget({page, heading, svg, slidesMd = 'slides.md', refresh = false}: {page: string; heading: string; svg: string; slidesMd?: string; refresh?: boolean}): Promise<SlideBudget> {
