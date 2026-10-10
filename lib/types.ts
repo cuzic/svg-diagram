@@ -13,6 +13,8 @@
 //     after defaults were applied" — a constructor that defaults a field (e.g. row().gap) returns it required.
 //   * Colours are never raw strings in the DSL: they are token keys (TextTone / BoxTone / ColorKey).
 
+import type {RULE_DOCS, DEFAULT_LEGEND_LABELS} from './rules.ts';
+
 // ============================================================================================
 // Tokens, tones, lines
 // ============================================================================================
@@ -48,6 +50,10 @@ export type Route = 'straight' | 'elbow' | 'loop-under';
 /** Where an elbow's middle leg sits: 0..1 along the way, 'start' / 'end' hug that endpoint, 'auto' = first candidate crossing no box. */
 export type Bend = number | 'start' | 'end' | 'auto';
 export type Side = 'left' | 'right' | 'top' | 'bottom' | 'center';
+/** Every rule id `svg-diagram check` can report (the keys of rules.ts RULE_DOCS, so the two cannot drift). */
+export type RuleId = keyof typeof RULE_DOCS;
+/** Legend keys of a notation: 'line:dashed' | 'arrow:both' | 'tone:new' ... (the keys of rules.ts DEFAULT_LEGEND_LABELS). */
+export type NotationKey = keyof typeof DEFAULT_LEGEND_LABELS;
 export type Align = 'left' | 'center' | 'right';
 
 // ============================================================================================
@@ -80,10 +86,10 @@ export interface DiagramOpts {
   /** SVG <desc> (doc medium). Falls back to a generated summary. */
   desc?: string;
   /** {'rule-id': 'why this finding is fine'}: shown as info instead of a warning. */
-  accept?: Record<string, string>;
+  accept?: Partial<Record<RuleId, string>>;
   /** 'auto' adds a legend entry for every notation used but not listed. */
   legend?: 'auto';
-  legendLabels?: Record<string, string>;
+  legendLabels?: Partial<Record<NotationKey, string>>;
   width?: number;
   pad?: number;
   gap?: number;
@@ -102,9 +108,9 @@ export interface DiagramData {
   medium: Medium;
   title?: string;
   desc?: string;
-  accept?: Record<string, string>;
+  accept?: Partial<Record<RuleId, string>>;
   legend?: 'auto';
-  legendLabels?: Record<string, string>;
+  legendLabels?: Partial<Record<NotationKey, string>>;
   width: number;
   pad: number;
   gap: number;
@@ -1291,7 +1297,7 @@ export interface CheckResult {laidOut: LaidOutDiagram; verdict: Verdict}
 
 /** .svg-diagram.json (+ `_file`, the path it was read from). */
 export interface Config {
-  accept?: Record<string, string>;
+  accept?: Partial<Record<RuleId, string>>;
   maxWidth?: number;
   _file?: string;
 }
