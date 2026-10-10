@@ -22,7 +22,17 @@ import path from 'path';
 // suspects is the list of non-blank lines under any "*-SUSPECT:" heading, for
 // callers that want to report specifics without re-parsing `raw` themselves.
 // Throws if `slidev export` itself fails (distinct from "exported but flagged").
-export async function exportAndCheck(index, opts = {}) {
+export interface ExportAndCheckOpts {
+  slidesMd?: string;
+  timeoutMs?: number;
+  renderTimeoutMs?: number;
+  excludeLeft?: number | string;
+  checkerArgs?: string[];
+  exportAttempts?: number;
+}
+export interface ExportAndCheckResult {ok: boolean; suspects: string[]; raw: string}
+
+export async function exportAndCheck(index: number, opts: ExportAndCheckOpts = {}): Promise<ExportAndCheckResult> {
   const {
     slidesMd = 'slides.md',
     timeoutMs = 180000,
@@ -41,8 +51,8 @@ export async function exportAndCheck(index, opts = {}) {
     // same print-server port, and Playwright's 30s networkidle wait loses
     // under load), so a single failure says nothing about the slide itself.
     // Retry before believing it.
-    let lastErr;
-    let pngs = [];
+    let lastErr: unknown;
+    let pngs: string[] = [];
     for (let attempt = 1; attempt <= exportAttempts; attempt++) {
       try {
         execFileSync('npx', ['slidev', 'export', slidesMd, '--format', 'png', '--range', String(index), '--output', tmpDir, '--timeout', String(renderTimeoutMs)], {
@@ -57,23 +67,24 @@ export async function exportAndCheck(index, opts = {}) {
       }
     }
     if (pngs.length === 0) {
-      throw new Error(`slidev export produced no PNG for slide ${index} after ${exportAttempts} attempts (possible host-load timeout — see token-economy.md's retry guidance)\n${lastErr?.message ?? ''}`);
+      throw new Error(`slidev export produced no PNG for slide ${index} after ${exportAttempts} attempts (possible host-load timeout — see token-economy.md's retry guidance)\n${(lastErr as Error | undefined)?.message ?? ''}`);
     }
 
     const args = [path.resolve('scripts/check-slide-overflow.ts'), tmpDir];
     if (excludeLeft !== undefined) args.push(`--exclude-left=${excludeLeft}`);
     args.push(...checkerArgs);
 
-    let raw, ok;
+    let raw: string, ok: boolean;
     try {
       raw = execFileSync('node', args, { encoding: 'utf8' });
       ok = true;
     } catch (err) {
-      raw = (err.stdout || '') + (err.stderr || '');
+      const e = err as {stdout?: string; stderr?: string}; // execFileSync failure carries the child's output
+      raw = (e.stdout || '') + (e.stderr || '');
       ok = false;
     }
 
-    const suspects = [];
+    const suspects: string[] = [];
     let inSuspectSection = false;
     for (const line of raw.split('\n')) {
       if (/-SUSPECT:|DECODE-FAIL:/.test(line)) { inSuspectSection = true; continue; }

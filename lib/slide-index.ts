@@ -24,27 +24,28 @@ import path from 'path';
 const HEADING_RE = /^# (.+)$/m;
 const SRC_RE = /^src:\s*(\S+)/m;
 
-function splitSegments(src) {
+function splitSegments(src: string): string[] {
   return src.split(/\n---\n/);
 }
 
-function headingsInFile(absPath) {
+function headingsInFile(absPath: string): string[] {
   const src = fs.readFileSync(absPath, 'utf8');
   return splitSegments(src)
     .map(seg => {
       const m = HEADING_RE.exec(seg);
       return m ? m[1].trim() : null;
     })
-    .filter(Boolean);
+    .filter((h): h is string => h !== null);
 }
 
 // Returns [{ file: absPath|null, headings: string[] }, ...] in deck order.
 // file is null for slides literally inline in slides.md (cover, toc).
-export function resolveDeckOrder(slidesMdPath) {
+export interface DeckEntry {file: string | null; headings: string[]}
+export function resolveDeckOrder(slidesMdPath: string): DeckEntry[] {
   const abs = path.resolve(slidesMdPath);
   const src = fs.readFileSync(abs, 'utf8');
   const baseDir = path.dirname(abs);
-  const order = [];
+  const order: DeckEntry[] = [];
   for (const seg of splitSegments(src)) {
     const srcMatch = SRC_RE.exec(seg);
     if (srcMatch) {
@@ -58,13 +59,13 @@ export function resolveDeckOrder(slidesMdPath) {
   return order;
 }
 
-export function countTotalSlides(slidesMdPath) {
+export function countTotalSlides(slidesMdPath: string): number {
   return resolveDeckOrder(slidesMdPath).reduce((n, e) => n + e.headings.length, 0);
 }
 
 // Throws with a descriptive message on no-match / ambiguous-match instead of
 // returning a silently-wrong index.
-export function computeSlideIndex(slidesMdPath, targetFile, headingSubstring) {
+export function computeSlideIndex(slidesMdPath: string, targetFile: string, headingSubstring: string): number {
   const targetAbs = path.resolve(targetFile);
   const order = resolveDeckOrder(slidesMdPath);
 
@@ -100,7 +101,7 @@ if (isMain) {
     process.exit(0);
   }
 
-  let pageArg, heading;
+  let pageArg: string, heading: string;
   if (args.length === 1 && args[0].includes(':')) {
     [pageArg, heading] = args[0].split(/:(.+)/s);
   } else if (args.length === 2) {
@@ -116,7 +117,7 @@ if (isMain) {
   try {
     console.log(computeSlideIndex(slidesMd, pageFile, heading));
   } catch (err) {
-    console.error(err.message);
+    console.error((err as Error).message);
     process.exit(1);
   }
 }
