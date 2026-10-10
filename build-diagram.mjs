@@ -76,7 +76,7 @@ try {
       failed = true;
       continue;
     }
-    const outPath = outOverride ?? path.join('svg', path.basename(modPath, '.mjs') + '.svg');
+    const outPath = outOverride ?? path.join('svg', path.parse(modPath).name + '.svg');
     try {
       const d = applyConfig(define(), config); // .svg-diagram.json: project-wide accepted rules and max width
       // provenance for drift checks: which source (and which tool version) produced this SVG

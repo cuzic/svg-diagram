@@ -75,8 +75,9 @@ try {
         const alt = fig.alt.trim();
         if (!alt) add({file: rel, line: fig.line, rule: 'doc-alt-empty', severity: 'warn', message: `${name}: 代替テキストが空`});
         else if ([...alt].length > 155) add({file: rel, line: fig.line, rule: 'doc-alt-long', severity: 'warn', message: `${name}: 代替テキストが ${[...alt].length} 文字（155 文字以内にして、詳しい説明は本文に）`});
-        if (srcDir && fs.existsSync(path.join(srcDir, `${name}.mjs`))) {
-          const d = (await import(path.resolve(srcDir, `${name}.mjs`))).default();
+        const srcFile = srcDir && ['.ts', '.mjs'].map(ext => path.join(srcDir, name + ext)).find(f => fs.existsSync(f));
+        if (srcFile) {
+          const d = (await import(path.resolve(srcFile))).default();
           const sets = notesOf(d.bands);
           if (sets.length === 1) for (const f of compareNotes(fig.items, sets[0], name)) add({file: rel, line: fig.line, ...f});
           else if (sets.length > 1) add({file: rel, line: fig.line, rule: 'doc-notes-mismatch', severity: 'info', message: `${name}: 注釈つきのワイヤーフレームが ${sets.length} 枚あり、突き合わせない`});
@@ -96,7 +97,7 @@ try {
   // ---- per-diagram checks -----------------------------------------------------------------------
   for (const src of sources) {
     const abs = path.resolve(src);
-    const name = path.basename(src, '.mjs');
+    const name = path.parse(src).name;
     if (drift) {
       const svg = path.join(svgDir ?? 'svg', `${name}.svg`);
       if (!fs.existsSync(svg)) { add({file: src, rule: 'drift-missing', severity: 'error', message: `${svg} がない（未生成）`}); complain(`✗ ${src}: ${svg} がない（未生成）`); continue; }
