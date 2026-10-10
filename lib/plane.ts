@@ -68,6 +68,13 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   const axisY = yDown ? plotT : plotB, axisX = plotL;
   const texts: PlaneText[] = [];
   const boxes: LaidOutPlane['labelBoxes'] = [];
+  const obstacles: LaidOutPlane['obstacles'] = [];
+  const ink = (what: string, r: {x: number; y: number; w: number; h: number}, dim?: number) => obstacles.push({what, ...r, dim});
+  // a segment as small squares along it, so a diagonal line does not block its whole bounding box
+  const inkSeg = (what: string, s: {x1: number; y1: number; x2: number; y2: number}, dim?: number) => {
+    const n = Math.max(1, Math.ceil(Math.hypot(s.x2 - s.x1, s.y2 - s.y1) / 6));
+    for (let i = 0; i <= n; i++) ink(what, {x: s.x1 + (s.x2 - s.x1) * i / n - 2, y: s.y1 + (s.y2 - s.y1) * i / n - 2, w: 4, h: 4}, dim);
+  };
   const addText = (s: string, tx: number, base: number, anchor: 'start' | 'middle' | 'end', tone: PlaneTone, bold = false): void => {
     texts.push({s, x: tx, y: base, anchor, tone, bold});
     const tww = tw(s, bold ? 700 : 400);
@@ -78,13 +85,20 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   for (const t of xTicks) {
     const tx = px(t.at);
     ticks.push({x1: tx, y1: axisY, x2: tx, y2: axisY + (yDown ? -TICK : TICK)});
-    addText(t.label, tx, yDown ? axisY - TICK - 6 : axisY + TICK + 16, 'middle', 'muted');
+    inkSeg('a tick mark', ticks[ticks.length - 1]);
+    addText(t.label, tx, yDown ? axisY - TICK - 8 : axisY + TICK + 16, 'middle', 'muted');
   }
   for (const t of yTicks) {
     const ty = py(t.at);
     ticks.push({x1: axisX, y1: ty, x2: axisX - TICK, y2: ty});
+    inkSeg('a tick mark', ticks[ticks.length - 1]);
     addText(t.label, axisX - TICK - 6, ty + 5, 'end', 'muted');
   }
+  // the axes (lines and arrowheads)
+  ink('the x axis', {x: axisX, y: axisY - 2, w: plotR - axisX, h: 4});
+  ink('the y axis', {x: axisX - 2, y: plotT, w: 4, h: plotB - plotT});
+  ink('the x axis arrow', {x: plotR - 10, y: axisY - 5, w: 12, h: 10});
+  ink('the y axis arrow', yDown ? {x: axisX - 5, y: plotB - 10, w: 10, h: 12} : {x: axisX - 5, y: plotT - 2, w: 10, h: 12});
   const grid: LaidOutPlane['grid'] = band.grid ? [
     ...xTicks.map(t => ({x1: px(t.at), y1: plotT, x2: px(t.at), y2: plotB})),
     ...yTicks.map(t => ({x1: plotL, y1: py(t.at), x2: plotR, y2: py(t.at)})),
@@ -101,15 +115,17 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
       else if (at === 'above') addText(p.label, q.x, q.y - 14, 'middle', tone, true);
       else addText(p.label, q.x, q.y + 26, 'middle', tone, true);
     }
+    ink('a point', {x: q.x - 7, y: q.y - 7, w: 14, h: 14});
     return {x: q.x, y: q.y, tone, shape: p.shape ?? 'dot'};
   });
 
   const lines: LaidOutPlane['lines'] = (band.lines ?? []).map(l => {
     const a = pt(l.from), b = pt(l.to);
+    inkSeg('a guide line', {x1: a.x, y1: a.y, x2: b.x, y2: b.y});
     return {x1: a.x, y1: a.y, x2: b.x, y2: b.y, tone: l.tone ?? 'muted', dashed: l.dashed ?? true, arrow: !!l.arrow};
   });
 
-  const dims: LaidOutPlane['dims'] = (band.dims ?? []).map(dm => {
+  const dims: LaidOutPlane['dims'] = (band.dims ?? []).map((dm, di) => {
     const a = pt(dm.from), b = pt(dm.to), tone = dm.tone ?? 'text';
     const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
     // the dimension line sits `offset` px (default DIM_OFFSET) to the chosen side of the measured segment
@@ -122,7 +138,10 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     const mx = (line.x1 + line.x2) / 2, my = (line.y1 + line.y2) / 2;
     const lw = tw(dm.label, 700), chip = {x: mx - lw / 2 - DIM_CHIP_PAD, y: my - 12, w: lw + 2 * DIM_CHIP_PAD, h: 24};
     texts.push({s: dm.label, x: mx, y: my + 5, anchor: 'middle', tone, bold: true});
-    boxes.push({label: dm.label, ...chip});
+    boxes.push({label: dm.label, ...chip, dim: di});
+    inkSeg('a dimension line', line, di);
+    inkSeg('a dimension line', {x1: a.x, y1: a.y, x2: line.x1, y2: line.y1}, di);
+    inkSeg('a dimension line', {x1: b.x, y1: b.y, x2: line.x2, y2: line.y2}, di);
     return {from: a, to: b, line, ext: [{x1: a.x, y1: a.y, x2: line.x1, y2: line.y1}, {x1: b.x, y1: b.y, x2: line.x2, y2: line.y2}], chip, tone};
   });
 
@@ -134,6 +153,6 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   return {
     type: 'plane', x, y, w, h, bounds: {x: left, y, w: width, h},
     axisX, axisY, plotL, plotR, plotT, plotB, yDown,
-    ticks, grid, texts, points, lines, dims, labelBoxes: boxes,
+    ticks, grid, texts, points, lines, dims, labelBoxes: boxes, obstacles,
   };
 }

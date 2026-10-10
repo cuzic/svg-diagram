@@ -19,7 +19,7 @@
 
 import type {MIN_FONT_SIZE} from './tokens.ts';
 import type {
-  Arrow, Bend, BoxOpts, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SeqDivider, SeqNote, SequenceActor, SeqMessage, SeqSelf,
+  Arrow, Bend, BoxOpts, PartRow, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SeqDivider, SeqNote, SequenceActor, SeqMessage, SeqSelf,
   SlideRef, StateMatrixCell, SwimlaneFlow, SwimlaneStep, TextTone, Theme,
 } from './types.ts';
 
@@ -247,6 +247,15 @@ type FixedTuple<T, N extends number, Acc extends T[] = []> = Acc['length'] exten
  * marker (rule wf-states-todo); a cell left out (too few) or surplus (too many, rule wf-states-ragged) is
  * a type error. Non-literal columns (`string[]`) accept any length.
  */
+/**
+ * The rows handed to stateMatrix(): a stateRow() that covers fewer states than the matrix has columns is a type error that
+ * names the row and the missing states (the plain `PartRow<...> is not assignable` message does not).
+ */
+export type ValidateStateRows<Cols extends string, R extends readonly unknown[]> = {
+  [I in keyof R]: R[I] extends PartRow<infer K, infer L>
+    ? ([Cols] extends [K] ? unknown : Err<`stateRow("${L}") has no entry for the state(s): ${Join<Exclude<Cols, K>>}`>)
+    : unknown;
+};
 export type StateRowIn<Cols extends readonly string[]> = {
   label: string;
   note?: string;

@@ -772,7 +772,7 @@ export interface StateMatrixRow {
 /** What one state of a stateRow() holds: the options that differ from the part's base, a bare WfState, or one of the plain cell forms. */
 export type StateCellIn<O> = Partial<O> | WfState | 'na' | 'todo' | {na: string} | undefined;
 /** stateRow() result: one part drawn once per state. `K` = the state columns it covers (carried only by the type). */
-export interface PartRow<K extends string = string> {
+export interface PartRow<K extends string = string, L extends string = string> {
   type: 'part-row';
   label: string;
   note?: string;
@@ -780,6 +780,8 @@ export interface PartRow<K extends string = string> {
   cells(cols: readonly string[]): StateMatrixCell[];
   /** Contravariant: a row covering MORE states than the matrix has columns is fine, one covering fewer is a type error. */
   readonly '~cols'?: (c: K) => void;
+  /** The row's label as a literal type, so a type error can name the row. */
+  readonly '~label'?: L;
 }
 export interface StateMatrixOpts {
   /** Columns that must exist (checked by the wf-states-required rule). */
@@ -1399,8 +1401,10 @@ export interface LaidOutPlane extends Rect {
   points: {x: number; y: number; tone: PlaneTone; shape: 'dot' | 'ring' | 'cross'}[];
   lines: (PlaneSeg & {tone: PlaneTone; dashed: boolean; arrow: boolean})[];
   dims: {from: Point; to: Point; line: PlaneSeg; ext: PlaneSeg[]; chip: Rect; tone: PlaneTone}[];
-  /** Every label placed, as a rect: verify.ts reports two that overlap or one that leaves the figure. */
-  labelBoxes: (Rect & {label: string})[];
+  /** Every label placed, as a rect: verify.ts reports two that overlap, one that leaves the figure, or one on the ink below. `dim`: the dimension line it belongs to. */
+  labelBoxes: (Rect & {label: string; dim?: number})[];
+  /** The plane's ink a label must stay clear of (axes and their arrowheads, ticks, points, guide and dimension lines). `dim`: the dimension it belongs to (its own label sits on it by design). */
+  obstacles: (Rect & {what: string; dim?: number})[];
 }
 
 export type LaidOutBand =

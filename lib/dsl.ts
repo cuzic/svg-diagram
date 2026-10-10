@@ -30,7 +30,7 @@ import type {
 } from './types.ts';
 import type {
   ActorIn, AnchorsOf, BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, FlowCheck, FlowIn, IdsOf, LaneCheck, Ok,
-  HandleOf, PyramidLayers, Refers, RefsOf, RowHandleOf, SeqStepIn, ScreensItemInput, StateRowIn, StepCheck, StepIds, SwimlaneStepIn,
+  HandleOf, PyramidLayers, Refers, RefsOf, RowHandleOf, SeqStepIn, ScreensItemInput, StateRowIn, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn,
 } from './strict.ts';
 export {wf} from './wireframe.ts';
 // Every public type (WfNode, TableCell, TextTone, RawColorTone, ...) so project code never has to spell Parameters<typeof wf.col>[0].
@@ -321,8 +321,8 @@ export function screens(items: ScreensItem[], opts: ScreensOpts = {}): ScreensBa
 // Types: `required` entries must be members of `cols` (rule wf-states-required), and each row's `cells` has EXACTLY
 // cols.length entries: too many is rule wf-states-ragged, too few would silently draw '未設計' (wf-states-todo).
 // An explicit `undefined` entry is still the deliberate TODO marker; 'na' / {na: reason} stay valid.
-export function stateMatrix<const C extends string[]>(cols: C, rows: (StateRowIn<C> | PartRow<string extends C[number] ? never : C[number]>)[], opts?: Omit<StateMatrixOpts, 'required'> & {required?: C[number][]}): ScreensBand;
-export function stateMatrix(cols: string[], rowsIn: (StateMatrixRow | PartRow<never>)[], opts: StateMatrixOpts = {}): ScreensBand {
+export function stateMatrix<const C extends string[], const R extends readonly (StateRowIn<C> | PartRow<never, string>)[]>(cols: C, rows: R & (string extends C[number] ? unknown : ValidateStateRows<C[number], R>), opts?: Omit<StateMatrixOpts, 'required'> & {required?: C[number][]}): ScreensBand;
+export function stateMatrix(cols: string[], rowsIn: readonly (StateMatrixRow | PartRow<never>)[], opts: StateMatrixOpts = {}): ScreensBand {
   const rows = rowsIn.map((r): StateMatrixRow => 'type' in r && r.type === 'part-row' ? {label: r.label, note: r.note, cells: r.cells(cols)} : r as StateMatrixRow);
   return {type: 'screens', items: [], matrix: {cols, rows, required: opts.required, labelW: opts.labelW, cellH: opts.cellH, gap: opts.gap, cellFrame: opts.cellFrame}, marks: opts.marks, skeleton: opts.skeleton, id: opts.id};
 }
@@ -335,9 +335,9 @@ export function stateMatrix(cols: string[], rowsIn: (StateMatrixRow | PartRow<ne
 //     stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', 空: {na: '必ず 1 件ある'}}),
 //     stateRow('検索結果', results, {通常: {}, 読み込み中: 'loading', 空: {state: 'empty', stateNote: '該当なし'}}, {note: '0 件のとき空'}),
 //   ])
-export function stateRow<const K extends string, O extends object = Record<string, unknown>>(
-  label: string, part: ((o?: O) => WfNode) | ((o: O) => WfNode), states: {[P in K]: StateCellIn<NoInfer<O>>}, opts: {note?: string; base?: Partial<NoInfer<O>>} = {},
-): PartRow<K> {
+export function stateRow<const K extends string, O extends object = Record<string, unknown>, const L extends string = string>(
+  label: L, part: ((o?: O) => WfNode) | ((o: O) => WfNode), states: {[P in K]: StateCellIn<NoInfer<O>>}, opts: {note?: string; base?: Partial<NoInfer<O>>} = {},
+): PartRow<K, L> {
   return {
     type: 'part-row', label, note: opts.note,
     cells(cols) {

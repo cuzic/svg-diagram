@@ -78,6 +78,16 @@ function checkPlanes(d: LaidOutDiagram): string[] {
       const o = rectOverlap(boxes[i], boxes[j]);
       if (o) problems.push(`plane: label "${boxes[i].label}" overlaps label "${boxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px (change labelAt / side)`);
     }
+    // a label must not sit on the plane's ink either: an axis or its arrowhead, a tick mark, a point, a guide or a dimension line
+    for (const b of boxes) {
+      const hit = new Map<string, {dx: number; dy: number}>();
+      for (const ob of band.obstacles) {
+        if (ob.dim !== undefined && ob.dim === b.dim) continue; // a dimension's own label sits on its own line
+        const o = rectOverlap(b, ob);
+        if (o && !hit.has(ob.what)) hit.set(ob.what, o);
+      }
+      for (const [what, o] of hit) problems.push(`plane: label "${b.label}" overlaps ${what} by ${Math.round(o.dx)}x${Math.round(o.dy)}px (move the label: labelAt / side / offset / anchor)`);
+    }
   }
   return problems;
 }

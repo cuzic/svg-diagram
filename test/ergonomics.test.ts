@@ -267,3 +267,36 @@ test('a nested grouprow gets the same gap in the pre-pass as in the layout (labe
   const d = diagram({theme: 'blue'}).add(inner, connect('a:right', 'b:left', {label: '長めのラベルです', chip: true}));
   assert.deepEqual((await checkDiagram(d)).verdict.problems, []);
 });
+
+// ---- plane(): labels against the plane's ink (feedback from a real figure) ----
+const planeProblems = async (p: ReturnType<typeof plane>) => (await checkDiagram(diagram({theme: 'blue'}).add(p))).verdict.problems;
+const axes = {x: {label: 'x', max: 100, step: 25}, y: {label: 'y', max: 50, step: 10}};
+
+test('plane(): a label on an axis line, a tick label or an arrowhead is reported', async () => {
+  const origin = await planeProblems(plane({...axes, labels: [{at: [0, 0], text: '原点', anchor: 'end'}]}));
+  assert.ok(origin.some(p => /label "原点" overlaps the y axis/.test(p)), origin.join('\n'));
+  assert.ok(origin.some(p => /label "0" overlaps label "原点"/.test(p)), 'and the tick label "0"');
+  const onTick = await planeProblems(plane({...axes, labels: [{at: [0, 20], text: '起点', anchor: 'end'}]}));
+  assert.ok(onTick.some(p => /label "20" overlaps label "起点"/.test(p)), onTick.join('\n'));
+  const arrow = await planeProblems(plane({...axes, labels: [{at: [100, 0], text: '端', anchor: 'middle'}]}));
+  assert.ok(arrow.some(p => /label "端" overlaps the x axis arrow/.test(p)), arrow.join('\n'));
+  const mark = await planeProblems(plane({...axes, labels: [{at: [50, 0], text: '中央', anchor: 'middle'}]}));
+  assert.ok(mark.some(p => /label "中央" overlaps (the x axis|a tick mark)/.test(p)), mark.join('\n'));
+});
+
+test('plane(): a short dimension line whose label sits on the axis is reported; its own line is not', async () => {
+  const near = await planeProblems(plane({...axes, dims: [{from: [25, 0], to: [50, 0], label: '25', side: 'above', offset: 6}]}));
+  assert.ok(near.some(p => /label "25" overlaps the x axis/.test(p)), near.join('\n'));
+  const fine = await planeProblems(plane({...axes, dims: [{from: [25, 0], to: [75, 0], label: '50 m', side: 'above'}]}));
+  assert.deepEqual(fine, [], 'a dimension label sits on its own line by design');
+  const other = await planeProblems(plane({...axes, dims: [{from: [10, 10], to: [90, 10], label: '80'}, {from: [50, 8], to: [50, 40], label: '32', side: 'left', offset: 2}]}));
+  assert.ok(other.some(p => /overlaps a dimension line/.test(p)), 'another dimension\'s line is ink too: ' + other.join('\n'));
+});
+
+test('plane(): points, guide lines and the axis name keep their space', async () => {
+  const point = await planeProblems(plane({...axes, points: [{id: 'a', at: [50, 25]}], labels: [{at: [50, 25], text: 'ここ', anchor: 'start'}]}));
+  assert.ok(point.some(p => /label "ここ" overlaps a point/.test(p)), point.join('\n'));
+  const guide = await planeProblems(plane({...axes, points: [{id: 'a', at: [50, 25]}], lines: [{from: 'a', to: [50, 0]}], labels: [{at: [50, 10], text: '補助', anchor: 'middle'}]}));
+  assert.ok(guide.some(p => /label "補助" overlaps a guide line/.test(p)), guide.join('\n'));
+  for (const yDown of [false, true]) assert.deepEqual(await planeProblems(plane({...axes, yDown})), [], `axis names and ticks are clear of the arrows (yDown: ${yDown})`);
+});
