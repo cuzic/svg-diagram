@@ -1,0 +1,222 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="1096" viewBox="0 0 940 1096" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">在庫画面の部品の仕様（例）: 全体の領域、部品の構成、部品の状態</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.3.0","source":"examples/inventory-component-spec.mjs","sourceSha256":"63aac1057f7950aeb9090090cb6688c64f4d9af537098027bf40c5c05f5ec04a"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="1096" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">1 全体の領域（粗い図）</text>
+
+  <text x="20" y="88" font-size="15" font-weight="700" fill="#22201b">在庫画面（全体）</text>
+  <rect x="20" y="100" width="608" height="280" rx="4" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="32" y="112" width="584" height="40" rx="6" fill="#f6f8fa" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="324" y="135" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">ナビゲーション</text>
+  <rect x="32" y="164" width="220" height="204" rx="6" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="141" y="258" text-anchor="middle" font-size="15" font-weight="700" fill="#1d5fa8">検索と絞り込み</text>
+  <text x="141" y="282" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">最初に見る</text>
+  <rect x="264" y="164" width="352" height="96" rx="6" fill="#f6f8fa" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="440" y="216" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">検索結果の一覧</text>
+  <rect x="264" y="272" width="352" height="96" rx="6" fill="#f6f8fa" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="440" y="325" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">選んだ在庫の詳細</text>
+  <rect x="32" y="144" width="24" height="24" fill="#ffffff" fill-opacity="0"/>
+  <circle cx="44" cy="156" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="43" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
+  <rect x="264" y="144" width="24" height="24" fill="#ffffff" fill-opacity="0"/>
+  <circle cx="276" cy="156" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="275" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
+  <rect x="264" y="252" width="24" height="24" fill="#ffffff" fill-opacity="0"/>
+  <circle cx="276" cy="264" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="275" y="271" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
+  <circle cx="668" cy="112" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="668" y="117" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
+  <text x="692" y="118" font-size="14" font-weight="700" fill="#22201b">検索と絞り込み</text>
+  <text x="692" y="137" font-size="14" font-weight="400" fill="#6f6659">品名・倉庫で絞る。最初に目が行</text>
+  <text x="692" y="157" font-size="14" font-weight="400" fill="#6f6659">く場所。</text>
+  <circle cx="668" cy="188" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="668" y="193" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
+  <text x="692" y="194" font-size="14" font-weight="700" fill="#22201b">検索結果</text>
+  <text x="692" y="214" font-size="14" font-weight="400" fill="#6f6659">絞り込んだ在庫の一覧。0 件のと</text>
+  <text x="692" y="234" font-size="14" font-weight="400" fill="#6f6659">きは空の状態（下の一覧表）。</text>
+  <circle cx="668" cy="264" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="668" y="270" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
+  <text x="692" y="271" font-size="14" font-weight="700" fill="#22201b">詳細</text>
+  <text x="692" y="291" font-size="14" font-weight="400" fill="#6f6659">選んだ在庫の数と棚。詳細は、次</text>
+  <text x="692" y="310" font-size="14" font-weight="400" fill="#6f6659">の「在庫インサイト」の構成を参</text>
+  <text x="692" y="330" font-size="14" font-weight="400" fill="#6f6659">照。</text>
+
+  <text x="470" y="421.6" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">2 在庫インサイトの構成</text>
+
+  <text x="20" y="475" font-size="15" font-weight="700" fill="#22201b">在庫インサイト</text>
+  <rect x="20" y="488" width="608" height="152" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <rect x="32" y="500" width="584" height="128" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2"/>
+  <rect x="32" y="500" width="8" height="128" fill="#b91c1c"/>
+  <rect x="48" y="508" width="64" height="24" rx="12" fill="#b91c1c"/>
+  <text x="80" y="525" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">要確認</text>
+  <rect x="120" y="508" width="76" height="24" rx="12" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <text x="157" y="525" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">参考表示</text>
+  <text x="49" y="555" font-size="15" font-weight="700" fill="#22201b">在庫が発注点を下回っている</text>
+  <text x="49" y="579" font-size="14" font-weight="400" fill="#22201b">発注点は 30 個。早めの発注を勧める。</text>
+  <rect x="48" y="596" width="12" height="12" rx="2" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <text x="69" y="609" font-size="14" font-weight="700" fill="#22201b">在庫数 24 個</text>
+  <text x="161" y="609" font-size="14" font-weight="400" fill="#6f6659">10/9 10:24</text>
+  <rect x="24" y="496" width="24" height="24" fill="#ffffff" fill-opacity="0"/>
+  <circle cx="36" cy="508" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="35" y="513" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
+  <rect x="180" y="496" width="24" height="24" fill="#ffffff" fill-opacity="0"/>
+  <circle cx="192" cy="508" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="191" y="513" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">4</text>
+  <rect x="24" y="540" width="24" height="24" fill="#ffffff" fill-opacity="0"/>
+  <circle cx="36" cy="552" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="35" y="555" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
+  <rect x="24" y="592" width="24" height="24" fill="#ffffff" fill-opacity="0"/>
+  <circle cx="36" cy="604" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="35" y="609" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
+  <circle cx="668" cy="500" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="668" y="504" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
+  <text x="692" y="505" font-size="14" font-weight="700" fill="#22201b">重要度</text>
+  <text x="692" y="525" font-size="14" font-weight="400" fill="#6f6659">要確認・注意・参考の 3 段。</text>
+  <circle cx="668" cy="556" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="668" y="561" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
+  <text x="692" y="562" font-size="14" font-weight="700" fill="#22201b">題名</text>
+  <text x="692" y="582" font-size="14" font-weight="400" fill="#6f6659">1 行で言い切る。</text>
+  <circle cx="668" cy="612" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="668" y="619" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
+  <text x="692" y="620" font-size="14" font-weight="700" fill="#22201b">根拠</text>
+  <text x="692" y="639" font-size="14" font-weight="400" fill="#6f6659">根拠の種類と取得時刻は必須。欠</text>
+  <text x="692" y="659" font-size="14" font-weight="400" fill="#6f6659">けた所見は作れない。</text>
+  <circle cx="668" cy="692" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="668" y="695" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">4</text>
+  <text x="692" y="696" font-size="14" font-weight="700" fill="#22201b">参考表示</text>
+  <text x="692" y="716" font-size="14" font-weight="400" fill="#6f6659">判断の根拠にはしない。</text>
+
+  <text x="470" y="767.6000000000003" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">3 部品の状態の一覧</text>
+
+  <text x="217" y="821" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">通常</text>
+  <text x="374" y="821" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">読み込み中</text>
+  <text x="532" y="821" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">空</text>
+  <text x="690" y="821" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">エラー</text>
+  <text x="847" y="821" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">古い情報</text>
+  <text x="20" y="889" font-size="15" font-weight="700" fill="#22201b">在庫カード</text>
+  <rect x="144" y="832" width="144" height="104" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <rect x="148" y="836" width="140" height="96" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="157" y="861" font-size="15" font-weight="700" fill="#22201b">ボルト M6</text>
+  <text x="157" y="890" font-size="14" font-weight="400" fill="#6f6659">在庫</text>
+  <text x="197" y="890" font-size="14" font-weight="400" fill="#22201b">24 個</text>
+  <text x="157" y="914" font-size="14" font-weight="400" fill="#6f6659">棚</text>
+  <text x="197" y="914" font-size="14" font-weight="400" fill="#22201b">A-03</text>
+  <rect x="300" y="832" width="148" height="104" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <rect x="304" y="836" width="140" height="96" rx="6" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <rect x="316" y="880" width="100" height="8" rx="5" fill="#e0d6c5"/>
+  <rect x="316" y="900" width="68" height="12" rx="5" fill="#e0d6c5"/>
+  <rect x="348" y="844" width="88" height="24" rx="12" fill="#f6f8fa" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="391" y="861" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">読み込み中</text>
+  <rect x="460" y="832" width="144" height="104" rx="8" fill="#f6f8fa" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="532" y="879" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">対象外</text>
+  <text x="532" y="899" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">必ず 1 件ある</text>
+  <rect x="616" y="832" width="148" height="104" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <rect x="620" y="836" width="140" height="96" rx="6" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M620,852 L636,836" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M620,868 L652,836" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M620,884 L668,836" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M620,900 L684,836" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M620,916 L700,836" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M620,932 L716,836" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M636,932 L732,836" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M652,932 L748,836" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M668,932 L759,841" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M684,932 L759,857" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M700,932 L759,873" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M716,932 L759,889" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M732,932 L759,905" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M748,932 L759,921" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="628" y="836" width="124" height="96" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <circle cx="688" cy="860" r="11" fill="none" stroke="#b91c1c" stroke-width="2.5"/>
+  <path d="M685,856 L695,866" fill="none" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M685,866 L695,856" fill="none" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="690" y="892" text-anchor="middle" font-size="15" font-weight="700" fill="#b91c1c">取得できません</text>
+  <text x="690" y="914" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">再試行</text>
+  <rect x="776" y="832" width="144" height="104" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <rect x="776" y="836" width="140" height="96" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="787" y="861" font-size="15" font-weight="700" fill="#22201b">ボルト M6</text>
+  <text x="787" y="890" font-size="14" font-weight="400" fill="#6f6659">在庫</text>
+  <text x="827" y="890" font-size="14" font-weight="400" fill="#22201b">24 個</text>
+  <text x="787" y="914" font-size="14" font-weight="400" fill="#6f6659">棚</text>
+  <text x="827" y="914" font-size="14" font-weight="400" fill="#22201b">A-03</text>
+  <rect x="776" y="836" width="140" height="96" rx="6" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
+  <rect x="792" y="824" width="116" height="24" rx="12" fill="#f6f8fa" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="851" y="841" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">古い情報 10:24</text>
+  <text x="20" y="1005" font-size="15" font-weight="700" fill="#22201b">検索結果</text>
+  <text x="20" y="1027" font-size="14" font-weight="400" fill="#6f6659">0 件のとき空</text>
+  <rect x="144" y="948" width="144" height="128" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <rect x="148" y="952" width="140" height="120" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="167" y="980" font-size="14" font-weight="400" fill="#22201b">ボルト</text>
+  <text x="167" y="1000" font-size="14" font-weight="400" fill="#22201b">M6</text>
+  <rect x="224" y="972" width="48" height="24" rx="12" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="247" y="991" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">十分</text>
+  <path d="M157,1011 L277,1011" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-linejoin="round"/>
+  <text x="167" y="1031" font-size="14" font-weight="400" fill="#22201b">ナット</text>
+  <text x="167" y="1051" font-size="14" font-weight="400" fill="#22201b">M6</text>
+  <rect x="208" y="1024" width="64" height="24" rx="12" fill="#ffffff" stroke="#b91c1c" stroke-width="2"/>
+  <text x="240" y="1042" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">少ない</text>
+  <path d="M157,1063 L277,1063" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="300" y="948" width="148" height="128" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M315,1011 L434,1011" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M315,1063 L434,1063" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="304" y="952" width="140" height="120" rx="6" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <rect x="316" y="992" width="100" height="12" rx="5" fill="#e0d6c5"/>
+  <rect x="316" y="1016" width="68" height="8" rx="5" fill="#e0d6c5"/>
+  <rect x="316" y="1036" width="88" height="12" rx="5" fill="#e0d6c5"/>
+  <rect x="348" y="960" width="88" height="24" rx="12" fill="#f6f8fa" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="391" y="975" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">読み込み中</text>
+  <rect x="460" y="948" width="144" height="128" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M472,1011 L592,1011" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M472,1063 L592,1063" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="464" y="952" width="136" height="120" rx="6" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <rect x="484" y="964" width="96" height="96" rx="8" fill="#ffffff" stroke="#6f6659" stroke-width="2.5"/>
+  <rect x="524" y="980" width="20" height="20" rx="3" fill="none" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="4,3"/>
+  <text x="532" y="1019" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">データなし</text>
+  <text x="532" y="1041" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">該当なし</text>
+  <rect x="616" y="948" width="148" height="128" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M630,1011 L749,1011" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M630,1063 L749,1063" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="620" y="952" width="140" height="120" rx="6" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M620,966 L636,950" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M620,982 L652,950" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M620,998 L668,950" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M620,1014 L684,950" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M620,1030 L700,950" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M620,1046 L716,950" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M620,1062 L732,950" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M625,1073 L748,950" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M641,1073 L759,955" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M657,1073 L759,971" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M673,1073 L759,987" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M689,1073 L759,1003" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M705,1073 L759,1019" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M721,1073 L759,1035" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M737,1073 L759,1051" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M753,1073 L759,1067" fill="none" stroke="#6f6659" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="628" y="964" width="124" height="96" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <circle cx="688" cy="988" r="11" fill="none" stroke="#b91c1c" stroke-width="2.5"/>
+  <path d="M685,983 L695,993" fill="none" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M685,993 L695,983" fill="none" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="690" y="1019" text-anchor="middle" font-size="15" font-weight="700" fill="#b91c1c">取得できません</text>
+  <text x="690" y="1041" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">再試行</text>
+  <rect x="776" y="948" width="144" height="128" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <rect x="776" y="952" width="140" height="120" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="797" y="980" font-size="14" font-weight="400" fill="#22201b">ボルト</text>
+  <text x="797" y="1000" font-size="14" font-weight="400" fill="#22201b">M6</text>
+  <rect x="852" y="972" width="48" height="24" rx="12" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="877" y="991" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">十分</text>
+  <path d="M787,1011 L907,1011" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-linejoin="round"/>
+  <text x="797" y="1031" font-size="14" font-weight="400" fill="#22201b">ナット</text>
+  <text x="797" y="1051" font-size="14" font-weight="400" fill="#22201b">M6</text>
+  <rect x="840" y="1024" width="60" height="24" rx="12" fill="#ffffff" stroke="#b91c1c" stroke-width="2"/>
+  <text x="870" y="1042" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">少ない</text>
+  <path d="M787,1063 L907,1063" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="776" y="952" width="140" height="120" rx="6" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
+  <rect x="792" y="940" width="116" height="24" rx="12" fill="#f6f8fa" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="851" y="955" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">古い情報 10:24</text>
+</svg>

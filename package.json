@@ -1,6 +1,6 @@
 {
   "name": "svg-diagram",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "private": true,
   "description": "Declarative SVG diagram DSL for documents: boxes, flows, swimlanes, sequences, tables, UI wireframes and screen-transition diagrams — with layout, overlap/contrast verification, lint and rule checks.",
@@ -11,7 +11,8 @@
     "playwright-chromium": "1.62.1"
   },
   "scripts": {
-    "test": "node --test \"test/*.test.mjs\""
+    "test": "node --test \"test/*.test.mjs\"",
+    "golden": "node check-diagram.mjs --drift --rebuild --svg-dir examples/out examples/*.mjs"
   },
   "license": "MIT",
   "repository": {

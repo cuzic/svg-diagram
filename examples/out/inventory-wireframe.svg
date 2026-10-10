@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="920" viewBox="0 0 940 920" role="img" aria-labelledby="svg-title">
   <title id="svg-title">在庫一覧のワイヤーフレームと、削除の確認ダイアログ</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.2.0","source":"examples/inventory-wireframe.mjs","sourceSha256":"fe6a6d6ff84d9ddcd4cac60b0c2316580f0dba0ab7cc6cd85d0b673eb73a53bc"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.3.0","source":"examples/inventory-wireframe.mjs","sourceSha256":"51817c512993666bb0c2b89b440dda651cf1fcad6b0d80d519a17f17fc288293"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
@@ -75,10 +75,13 @@
   <rect x="468" y="400" width="144" height="36" rx="6" fill="#22201b"/>
   <text x="553" y="422" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">保存しました</text>
   <rect x="468" y="400" width="32" height="32" fill="#22201b"/>
+  <rect x="32" y="100" width="24" height="24" fill="#ffffff" fill-opacity="0"/>
   <circle cx="44" cy="112" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="43" y="118" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
+  <rect x="32" y="144" width="24" height="24" fill="#ffffff" fill-opacity="0"/>
   <circle cx="44" cy="156" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="43" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
+  <rect x="472" y="404" width="24" height="24" fill="#ffffff" fill-opacity="0"/>
   <circle cx="484" cy="416" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="485" y="422" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
   <circle cx="668" cy="64" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
@@ -147,10 +150,7 @@
   <text x="456" y="749" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">削除する</text>
   <rect x="308" y="728" width="100" height="32" rx="6" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
   <text x="357" y="749" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">キャンセル</text>
-  <circle cx="44" cy="560" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
-  <text x="43" y="566" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
-  <circle cx="44" cy="604" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
-  <text x="43" y="610" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
+  <rect x="484" y="632" width="24" height="24" fill="#ffffff" fill-opacity="0"/>
   <circle cx="496" cy="644" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="496" y="647" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
   <circle cx="668" cy="512" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>

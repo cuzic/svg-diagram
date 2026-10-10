@@ -28,10 +28,10 @@ import {ALLOWED_COLORS, EMOJI_RE} from './lib/tokens.mjs';
 
 const strict = process.argv.includes('--strict');
 const fix = process.argv.includes('--fix');
-const arg = process.argv.slice(2).find(a => a !== '--strict' && a !== '--fix');
+const given = process.argv.slice(2).filter(a => a.endsWith('.svg'));
 let files;
-if (arg && arg.endsWith('.svg')) {
-  files = [arg];
+if (given.length) {
+  files = given; // every .svg named on the command line (it used to look at the first one only)
 } else {
   files = fs.globSync('svg/*.svg').sort();
 }
@@ -171,6 +171,7 @@ const contrastFindings = [];
 const overflowFindings = [];
 const textOverlapFindings = [];
 const containerOverflowFindings = [];
+const coveredFindings = [];
 
 for (const f of files) {
   const src = fs.readFileSync(f, 'utf8');
@@ -284,7 +285,41 @@ for (const f of files) {
       if (over > 3) containerOverflow.push({txt: t.txt, over: +over.toFixed(1)});
     }
 
-    return {contrast, overflow, textOverlap, containerOverflow};
+    // A shape painted AFTER a text (so on top of it) must not cover the text, and a line must not run through it.
+    // (A background drawn before the text is fine, and so is a shape marked data-allow-cover on itself or an ancestor.)
+    const covered = [];
+    {
+      const items = [...svg.querySelectorAll('rect,circle,ellipse,path,line,polygon,polyline,text')].filter(e => !e.closest('defs,marker'));
+      const info = items.map(e => {
+        const cs = getComputedStyle(e);
+        return {e, tag: e.tagName.toLowerCase(), bb: e.getBoundingClientRect(),
+          fill: cs.fill !== 'none', stroke: cs.stroke !== 'none' && parseFloat(cs.strokeWidth) > 0,
+          op: parseFloat(cs.opacity) * parseFloat(cs.fillOpacity || '1')};
+      });
+      info.forEach((t, i) => {
+        if (t.tag !== 'text' || !t.bb.width || !t.e.textContent.trim()) return;
+        for (let j = i + 1; j < info.length; j++) {
+          const sh = info[j];
+          if (sh.tag === 'text' || !sh.bb.width && !sh.bb.height || sh.e.closest('[data-allow-cover]')) continue;
+          const ow = Math.min(t.bb.right, sh.bb.right) - Math.max(t.bb.left, sh.bb.left);
+          const oh = Math.min(t.bb.bottom, sh.bb.bottom) - Math.max(t.bb.top, sh.bb.top);
+          if (ow < 0 || oh < 0) continue; // (a vertical or horizontal line has a zero-width box: it can still run through the text)
+          if (sh.fill && sh.op >= 0.5 && ow >= 3 && oh >= 3 && ow * oh >= 30) { covered.push({txt: t.e.textContent.trim(), by: sh.tag, how: 'covers'}); break; }
+          if (sh.stroke && !sh.fill && sh.tag !== 'rect' && sh.e.getTotalLength) { // a stroke-only line/path: does it run through the text box?
+            const len = sh.e.getTotalLength(), m = sh.e.getScreenCTM();
+            let hit = false;
+            for (let l = 0; l <= len && !hit; l += 3) {
+              const pt = sh.e.getPointAtLength(l);
+              const x = pt.x * m.a + pt.y * m.c + m.e, y = pt.x * m.b + pt.y * m.d + m.f;
+              hit = x >= t.bb.left && x <= t.bb.right && y >= t.bb.top + 2 && y <= t.bb.bottom - 2;
+            }
+            if (hit) { covered.push({txt: t.e.textContent.trim(), by: sh.tag, how: 'crosses'}); break; }
+          }
+        }
+      });
+    }
+
+    return {contrast, overflow, textOverlap, containerOverflow, covered};
   });
 
   if (!result) continue;
@@ -292,6 +327,7 @@ for (const f of files) {
   if (result.overflow) overflowFindings.push({file: f, ...result.overflow});
   if (result.textOverlap.length) textOverlapFindings.push({file: f, pairs: result.textOverlap});
   if (result.containerOverflow.length) containerOverflowFindings.push({file: f, items: result.containerOverflow});
+  if (result.covered.length) coveredFindings.push({file: f, items: result.covered});
 }
 await browser.close();
 
@@ -301,8 +337,9 @@ const totalContrastEls = contrastFindings.reduce((s, o) => s + o.elements.length
 const totalOverflow = overflowFindings.length;
 const totalTextOverlap = textOverlapFindings.reduce((s, o) => s + o.pairs.length, 0);
 const totalContainerOverflow = containerOverflowFindings.reduce((s, o) => s + o.items.length, 0);
+const totalCovered = coveredFindings.reduce((s, o) => s + o.items.length, 0);
 const totalError = totalStatic + totalContrastEls + totalOverflow + totalTextOverlap;
-const totalAdvisory = advisoryFindings.length + totalContainerOverflow;
+const totalAdvisory = advisoryFindings.length + totalContainerOverflow + totalCovered;
 const total = totalError + totalAdvisory;
 
 console.log(`\nScanned ${files.length} file(s).\n`);
@@ -353,6 +390,15 @@ if (containerOverflowFindings.length) {
   for (const o of containerOverflowFindings) {
     console.log(`  ${o.file}`);
     for (const it of o.items) console.log(`    "${it.txt}" overflows container by ${it.over}px`);
+  }
+  console.log('');
+}
+
+if (coveredFindings.length) {
+  console.log(`── A shape painted over a text, or a line through it (advisory; mark an intended overlap with data-allow-cover): ${totalCovered} element(s) in ${coveredFindings.length} file(s) ──`);
+  for (const o of coveredFindings) {
+    console.log(`  ${o.file}`);
+    for (const it of o.items) console.log(`    "${it.txt}" is ${it.how === 'covers' ? 'covered by' : 'crossed by'} a ${it.by}`);
   }
   console.log('');
 }
