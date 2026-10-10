@@ -7,34 +7,41 @@
 // in this deck.
 
 import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES} from './tokens.ts';
+import type {
+  LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
+  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
+  LaidOutConnect, WrappedRun, Theme, TextTone, BoxTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
+  LaidOutWireframe, LaidOutScreens, RawColorTone,
+} from './types.ts';
 import {diagramTitle, diagramDesc} from './rules.ts';
 import {BOX_PAD_X, BOX_PAD_Y, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
 
 const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
 
-function snap4(n) {
+function snap4(n: number): number {
   return Math.round(n / 4) * 4;
 }
 
-function escapeXml(s) {
-  return s.replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
+const XML_ESC: Record<string, string> = {'&': '&amp;', '<': '&lt;', '>': '&gt;'};
+function escapeXml(s: string): string {
+  return s.replace(/[&<>]/g, (c: string) => XML_ESC[c]);
 }
 
 // Wraps emoji codepoints in <tspan class="emoji">, using the SAME EMOJI_RE
 // lint-svg.ts checks against — generated text can never trip that check.
-function emojiSpan(text) {
+function emojiSpan(text: string): string {
   let out = '';
   let last = 0;
   for (const m of text.matchAll(EMOJI_G)) {
     out += escapeXml(text.slice(last, m.index));
     out += `<tspan class="emoji">${escapeXml(m[0])}</tspan>`;
-    last = m.index + m[0].length;
+    last = (m.index ?? 0) + m[0].length;
   }
   out += escapeXml(text.slice(last));
   return out;
 }
 
-export function resolveTextColor(tone, day) {
+export function resolveTextColor(tone: TextTone | undefined, day: Theme): string {
   switch (tone) {
     case 'accent': return PALETTE[day].accent;
     case 'muted': return PALETTE.muted;
@@ -43,8 +50,10 @@ export function resolveTextColor(tone, day) {
   }
 }
 
-export function resolveBoxStyle(tone, day, dashedOverride) {
-  let style;
+export interface BoxStyle {fill: string; stroke: string; dashed: boolean}
+
+export function resolveBoxStyle(tone: BoxTone | undefined, day: Theme, dashedOverride?: boolean): BoxStyle {
+  let style: BoxStyle;
   switch (tone) {
     case 'accent': style = {fill: PALETTE[day].soft, stroke: PALETTE[day].accent, dashed: false}; break;
     case 'new': style = {fill: PALETTE[day].soft, stroke: PALETTE[day].accent, dashed: false}; break;
@@ -59,7 +68,7 @@ export function resolveBoxStyle(tone, day, dashedOverride) {
   return style;
 }
 
-function resolveLineColor(tone, day) {
+function resolveLineColor(tone: TextTone | undefined, day: Theme): string {
   if (!tone) return PALETTE.text;
   if (tone === 'accent') return PALETTE[day].accent;
   if (tone === 'muted') return PALETTE.muted;
@@ -67,8 +76,11 @@ function resolveLineColor(tone, day) {
   return PALETTE.text;
 }
 
-function renderTextRuns(wrappedRuns, {originX, originY, w, align, day}) {
-  const parts = [];
+function renderTextRuns(
+  wrappedRuns: WrappedRun[],
+  {originX, originY, w, align, day}: {originX: number; originY: number; w: number; align: Align; day: Theme},
+): string {
+  const parts: string[] = [];
   for (const run of wrappedRuns) {
     const color = resolveTextColor(run.tone, day);
     const cls = run.mono ? ' class="mono"' : '';
@@ -90,7 +102,7 @@ function renderTextRuns(wrappedRuns, {originX, originY, w, align, day}) {
 // Numbered circle badge for box({step}) — solid accent fill, white number,
 // centered on the title's own baseline (same offset every hand-authored
 // "① foo" box in this deck used between the badge and its number glyph).
-function renderStepBadge(band, day) {
+function renderStepBadge(band: LaidOutBox, day: Theme): string {
   const titleRun = band.wrappedRuns[0];
   const titleBaselineY = band.y + BOX_PAD_Y + titleRun.lineYs[0];
   const cx = band.x + BOX_PAD_X + STEP_BADGE_R;
@@ -100,51 +112,52 @@ function renderStepBadge(band, day) {
   return `${circle}\n  ${text}`;
 }
 
-function renderCaption(band, day) {
+function renderCaption(band: LaidOutCaption, day: Theme): string {
   return renderTextRuns(band.wrappedRuns, {originX: band.x, originY: band.y, w: band.w, align: band.align ?? 'center', day});
 }
 
-function renderBoxRect(band, day, defaultTone) {
+type BoxLike = Rect & {tone?: BoxTone; dashed?: boolean};
+function renderBoxRect(band: BoxLike, day: Theme, defaultTone: BoxTone): string {
   const style = resolveBoxStyle(band.tone ?? defaultTone, day, band.dashed);
   const dash = style.dashed ? ' stroke-dasharray="6,4"' : '';
   const rx = snap4(band.x), ry = snap4(band.y), rw = snap4(band.w), rh = snap4(band.h);
   return `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" rx="8" fill="${style.fill}" stroke="${style.stroke}" stroke-width="2.5"${dash}/>`;
 }
 
-function renderBoxText(band, day, defaultAlign) {
+function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, defaultAlign: Align): string {
   const align = band.align ?? defaultAlign;
   const px = band.padX ?? BOX_PAD_X, py = band.padY ?? BOX_PAD_Y;
   const originX = band.x + px;
   return renderTextRuns(band.wrappedRuns, {originX, originY: band.y + py, w: band.w - 2 * px, align, day});
 }
 
-function renderTag(band, day) {
-  const t = band.tagBox;
+function renderTag(band: LaidOutBox, day: Theme): string {
+  const t = band.tagBox as Rect; // caller checked tagBox
   const fill = band.tagTone === 'danger' ? PALETTE.danger : band.tagTone === 'muted' ? PALETTE.muted : PALETTE[day].accent;
-  return `<rect x="${snap4(t.x)}" y="${snap4(t.y)}" width="${snap4(t.w)}" height="${t.h}" rx="12" fill="${fill}"/>\n  <text x="${Math.round(t.x + t.w / 2)}" y="${Math.round(t.y + 17)}" text-anchor="middle" font-size="14" font-weight="700" fill="${PALETTE.bg}">${emojiSpan(band.tag)}</text>`;
+  return `<rect x="${snap4(t.x)}" y="${snap4(t.y)}" width="${snap4(t.w)}" height="${t.h}" rx="12" fill="${fill}"/>\n  <text x="${Math.round(t.x + t.w / 2)}" y="${Math.round(t.y + 17)}" text-anchor="middle" font-size="14" font-weight="700" fill="${PALETTE.bg}">${emojiSpan(band.tag as string)}</text>`;
 }
 
-function renderBox(band, day) {
+function renderBox(band: LaidOutBox, day: Theme): string {
   const badge = band.step != null ? `\n  ${renderStepBadge(band, day)}` : '';
   const tag = band.tagBox ? `\n  ${renderTag(band, day)}` : '';
   return `${renderBoxRect(band, day, 'plain')}\n  ${renderBoxText(band, day, 'left')}${badge}${tag}`;
 }
 
-function renderGroup(band, day) {
+function renderGroup(band: LaidOutGroup, day: Theme): string {
   return renderBoxRect(band, day, 'muted');
 }
 
-function lineAttrs(line) {
+function lineAttrs(line: LineStyle | undefined): string {
   return line === 'dashed' ? ' stroke-dasharray="6,4"' : line === 'dotted' ? ' stroke-dasharray="2,5" stroke-linecap="round"' : '';
 }
 
-function arrowMarkers(arrow) {
+function arrowMarkers(arrow: Arrow | undefined): string {
   return `${arrow === 'start' || arrow === 'both' ? ' marker-start="url(#dsl-arrow)"' : ''}${arrow === 'end' || arrow === 'both' ? ' marker-end="url(#dsl-arrow)"' : ''}`;
 }
 
 // A line sample (and optional arrowhead) + label per item, laid out by layout.ts.
-function renderLegend(band, day) {
-  const parts = [];
+function renderLegend(band: LaidOutLegend, day: Theme): string {
+  const parts: string[] = [];
   for (const it of band.items) {
     const cy = it.y + 12;
     if (it.line) {
@@ -164,11 +177,11 @@ function renderLegend(band, day) {
   return parts.join('\n  ');
 }
 
-function renderBanner(band, day) {
+function renderBanner(band: LaidOutBanner, day: Theme): string {
   return `${renderBoxRect(band, day, 'accent')}\n  ${renderBoxText(band, day, 'center')}`;
 }
 
-function renderRow(band, day) {
+function renderRow(band: LaidOutRow, day: Theme): string {
   const boxes = band.children.map(c => renderBox(c, day)).join('\n\n  ');
   const arrows = band.arrows.map(a =>
     `<path d="M${snap4(a.x1)},${Math.round(a.y1)} L${snap4(a.x2)},${Math.round(a.y2)}" fill="none" stroke="${PALETTE.text}" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>`,
@@ -176,19 +189,19 @@ function renderRow(band, day) {
   return arrows ? `${boxes}\n\n  ${arrows}` : boxes;
 }
 
-function renderGrid(band, day) {
+function renderGrid(band: LaidOutGrid, day: Theme): string {
   return band.children.map(c => renderBox(c, day)).join('\n\n  ');
 }
 
-function renderConnectPath(c) {
+function renderConnectPath(c: LaidOutConnect): string {
   return c.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${Math.round(p.x)},${Math.round(p.y)}`).join(' ');
 }
 
-function renderConnect(c, day) {
+function renderConnect(c: LaidOutConnect, day: Theme): string {
   const color = resolveLineColor(c.tone, day);
   const d = renderConnectPath(c);
   const markers = arrowMarkers(c.arrow);
-  let path;
+  let path: string;
   if (c.line === 'double') {
     // a thick line with a background-colored core: reads as "=" and keeps the arrowhead on the core
     path = `<path d="${d}" fill="none" stroke="${color}" stroke-width="6"/>\n  <path d="${d}" fill="none" stroke="${PALETTE.bg}" stroke-width="2"${markers}/>`;
@@ -204,7 +217,7 @@ function renderConnect(c, day) {
   return `${path}\n  ${chip}${label}`;
 }
 
-function renderPyramid(band) {
+function renderPyramid(band: LaidOutPyramid): string {
   return band.layers.map(layer => {
     const pts = layer.points.map(([px, py]) => `${Math.round(px)},${Math.round(py)}`).join(' ');
     const accent = PALETTE[band.day].accent;
@@ -216,12 +229,12 @@ function renderPyramid(band) {
   }).join('\n\n  ');
 }
 
-function renderCurve(band, day) {
-  const parts = [];
+function renderCurve(band: LaidOutCurve, day: Theme): string {
+  const parts: string[] = [];
   parts.push(`<path d="M${Math.round(band.axisX)},${Math.round(band.axisTop)} L${Math.round(band.axisX)},${Math.round(band.axisBottom)} L${Math.round(band.axisRight)},${Math.round(band.axisBottom)}" fill="none" stroke="${PALETTE.text}" stroke-width="2"/>`);
   parts.push(`<path d="${band.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${Math.round(p.x)},${Math.round(p.y)}`).join(' ')}" fill="none" stroke="${PALETTE.text}" stroke-width="3"/>`);
 
-  const emphColor = (emphasis) => emphasis === 'accent' ? PALETTE[day].accent : emphasis === 'danger' ? PALETTE.danger : PALETTE.muted;
+  const emphColor = (emphasis: string) => emphasis === 'accent' ? PALETTE[day].accent : emphasis === 'danger' ? PALETTE.danger : PALETTE.muted;
   band.points.forEach((p, i) => {
     const color = p.emphasis ? emphColor(p.emphasis) : (i === 0 ? PALETTE[day].accent : PALETTE.muted);
     const r = p.emphasis === 'danger' ? 8 : i === 0 ? 6 : 5;
@@ -238,12 +251,12 @@ function renderCurve(band, day) {
   return parts.join('\n  ');
 }
 
-function renderRaw(band, day) {
+function renderRaw(band: LaidOutRaw, day: Theme): string {
   const ctx = {
     x: band.x, y: band.y, w: band.w, h: band.h, day,
-    color: (tone) => tone === 'accent' ? PALETTE[day].accent
+    color: (tone: RawColorTone): string => tone === 'accent' ? PALETTE[day].accent
       : tone === 'accent-soft' ? PALETTE[day].soft
-      : PALETTE[tone] ?? PALETTE.text,
+      : PALETTE[tone] ?? PALETTE.text, // unknown tones fall back to text at runtime
   };
   return band.draw(ctx);
 }
@@ -253,22 +266,25 @@ function renderRaw(band, day) {
 const NOTE = ROLES.note;
 const LH_EM = 1.4;
 
-function strokeLine(d, color, line, arrow, width = 2) {
+function strokeLine(d: string, color: string, line: LineStyle | undefined, arrow: Arrow | undefined, width = 2): string {
   if (line === 'double') {
     return `<path d="${d}" fill="none" stroke="${color}" stroke-width="6"/>\n  <path d="${d}" fill="none" stroke="${PALETTE.bg}" stroke-width="2"${arrowMarkers(arrow)}/>`;
   }
   return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}"${lineAttrs(line)}${arrowMarkers(arrow)}/>`;
 }
 
-function textLines(lines, {x, top, size, weight = 400, anchor = 'start', fill, mono = false}) {
+function textLines(
+  lines: string[],
+  {x, top, size, weight = 400, anchor = 'start', fill, mono = false}: {x: number; top: number; size: number; weight?: number; anchor?: 'start' | 'middle' | 'end'; fill: string; mono?: boolean},
+): string {
   const a = anchor === 'middle' ? ' text-anchor="middle"' : anchor === 'end' ? ' text-anchor="end"' : '';
   const cls = mono ? ' class="mono"' : '';
   return lines.map((l, k) =>
     `<text x="${Math.round(x)}" y="${Math.round(top + size + k * size * LH_EM)}"${a}${cls} font-size="${size}" font-weight="${weight}" fill="${fill}">${emojiSpan(l)}</text>`).join('\n  ');
 }
 
-function renderSequence(band, day) {
-  const parts = [];
+function renderSequence(band: LaidOutSequence, day: Theme): string {
+  const parts: string[] = [];
   for (const h of band.heads) {
     parts.push(`<path d="M${Math.round(h.cx)},${Math.round(h.y + h.h)} L${Math.round(h.cx)},${Math.round(band.lifeBottom)}" fill="none" stroke="${PALETTE.border}" stroke-width="2" stroke-dasharray="6,6"/>`);
   }
@@ -301,18 +317,18 @@ function renderSequence(band, day) {
 }
 
 // Rounded rectangle path; `r` per corner so table sections can round only the outer corners.
-function rrPath(x, y, w, h, {tl = 0, tr = 0, br = 0, bl = 0} = {}) {
+function rrPath(x: number, y: number, w: number, h: number, {tl = 0, tr = 0, br = 0, bl = 0}: {tl?: number; tr?: number; br?: number; bl?: number} = {}): string {
   const X = Math.round(x), Y = Math.round(y), W = Math.round(w), H = Math.round(h);
   return `M${X + tl},${Y} H${X + W - tr} ${tr ? `A${tr},${tr} 0 0 1 ${X + W},${Y + tr}` : ''} V${Y + H - br} ${br ? `A${br},${br} 0 0 1 ${X + W - br},${Y + H}` : ''} H${X + bl} ${bl ? `A${bl},${bl} 0 0 1 ${X},${Y + H - bl}` : ''} V${Y + tl} ${tl ? `A${tl},${tl} 0 0 1 ${X + tl},${Y}` : ''} Z`;
 }
 
-function renderTable(band, day) {
-  const parts = [];
+function renderTable(band: LaidOutTable, day: Theme): string {
+  const parts: string[] = [];
   const R = 8;
   const last = band.rows.length - 1;
   const titled = !!band.titleBar;
   if (titled) {
-    const t = band.titleBar;
+    const t = band.titleBar as NonNullable<LaidOutTable['titleBar']>;
     parts.push(`<path d="${rrPath(band.x, t.y, band.w, t.h, {tl: R, tr: R})}" fill="${PALETTE[day].accent}"/>`);
     parts.push(textLines(t.lines, {x: band.x + 12, top: t.y + 8, size: ROLES.title, weight: 700, fill: PALETTE.bg}));
   }
@@ -340,8 +356,8 @@ function renderTable(band, day) {
   return parts.join('\n  ');
 }
 
-function renderSwimlane(b, day) {
-  const parts = [];
+function renderSwimlane(b: LaidOutSwimlane, day: Theme): string {
+  const parts: string[] = [];
   const R = 8, n = b.lanes.length, hasPh = b.phaseH > 0;
   const X1 = b.x + b.w;
   if (hasPh) {
@@ -367,11 +383,15 @@ function renderSwimlane(b, day) {
 }
 
 // wireframe() / screens(): a flat list of primitives with token-key colours (see wireframe.ts)
-function renderPrims(b, day) {
-  const col = (k) => k == null ? 'none' : (k === 'accent' || k === 'soft') ? PALETTE[day][k] : PALETTE[k];
-  const stroke = (p) => p.stroke ? ` stroke="${col(p.stroke)}" stroke-width="${p.sw}"${p.dash ? ` stroke-dasharray="${p.dash}"` : ''}` : '';
-  const fill = (p) => `fill="${col(p.fill)}"${p.op != null && p.fill ? ` fill-opacity="${p.op}"` : ''}`;
-  const out = [];
+type PaintPrim = Exclude<Prim, {k: 'text'}>;
+function renderPrims(b: LaidOutWireframe | LaidOutScreens, day: Theme): string {
+  const col = (k: ColorKey | null): string => k == null ? 'none' : (k === 'accent' || k === 'soft') ? PALETTE[day][k] : PALETTE[k];
+  const stroke = (p: PaintPrim): string => {
+    const dash = 'dash' in p ? p.dash : undefined; // circles have no dash
+    return p.stroke ? ` stroke="${col(p.stroke)}" stroke-width="${p.sw}"${dash ? ` stroke-dasharray="${dash}"` : ''}` : '';
+  };
+  const fill = (p: PaintPrim): string => `fill="${col(p.fill)}"${p.op != null && p.fill ? ` fill-opacity="${p.op}"` : ''}`;
+  const out: string[] = [];
   for (const p of b.prims) {
     if (p.k === 'rect') {
       const x0 = snap4(p.x), y0 = snap4(p.y), x1 = snap4(p.x + p.w), y1 = snap4(p.y + p.h);
@@ -388,7 +408,7 @@ function renderPrims(b, day) {
   return out.join('\n  ');
 }
 
-function renderBand(band, day) {
+function renderBand(band: LaidOutBand, day: Theme): string {
   switch (band.type) {
     case 'caption': return renderCaption(band, day);
     case 'box': return renderBox(band, day);
@@ -408,16 +428,23 @@ function renderBand(band, day) {
   }
 }
 
-function usesArrows(laidOutDiagram) {
+function usesArrows(laidOutDiagram: LaidOutDiagram): boolean {
   if (laidOutDiagram.connects.some(c => c.arrow !== 'none')) return true;
   if (laidOutDiagram.laidOut.some(b => b.type === 'legend' && b.items.some(i => i.line && (i.arrow ?? 'end') !== 'none'))) return true;
   if (laidOutDiagram.laidOut.some(b => b.type === 'sequence' && b.steps.some(x => (x.kind === 'msg' && x.arrow !== 'none') || x.kind === 'self'))) return true;
   return laidOutDiagram.laidOut.some(b => b.type === 'row' && b.arrows.length > 0);
 }
 
-export function emitSvg(laidOutDiagram) {
+// A band's own text runs, or (row/grid) its child boxes — which carry runs of their own.
+function bandRuns(b: LaidOutBand): (WrappedRun | LaidOutBox)[] {
+  if ('wrappedRuns' in b) return b.wrappedRuns;
+  if ('children' in b) return b.children;
+  return [];
+}
+
+export function emitSvg(laidOutDiagram: LaidOutDiagram): string {
   const {width, canvasHeight, day, laidOut, connects} = laidOutDiagram;
-  const usesMono = laidOut.some(b => (b.wrappedRuns ?? b.children ?? []).some(x => x.mono || (x.wrappedRuns ?? []).some(r => r.mono)))
+  const usesMono = laidOut.some(b => bandRuns(b).some(x => (x as WrappedRun).mono || (('wrappedRuns' in x ? x.wrappedRuns : undefined) ?? []).some(r => r.mono)))
     || laidOut.some(b => b.type === 'table' && b.rows.some(r => r.cells.some(c => c.mono && c.lines.length)));
   const needsArrow = usesArrows(laidOutDiagram);
 
