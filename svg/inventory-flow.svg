@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="744" viewBox="0 0 940 744" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">在庫管理アプリの画面遷移図</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.3.0","source":"examples/inventory-flow.ts","sourceSha256":"0117bed99f4d7d02eef43d14556e7ae15424efdc2dcfefb20a11cdde6421e56d"}</metadata>
+  <defs>
+    <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="744" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">画面遷移: 一覧から詳細へ、詳細から編集または発注へ</text>
+
+  <text x="20" y="100" font-size="15" font-weight="700" fill="#22201b">一覧</text>
+  <rect x="20" y="112" width="232" height="248" rx="4" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="32" y="124" width="212" height="44" fill="#1d5fa8"/>
+  <text x="45" y="150" font-size="14" font-weight="700" fill="#ffffff">在庫一覧</text>
+  <rect x="128" y="140" width="40" height="8" rx="4" fill="#ffffff" fill-opacity="0.7"/>
+  <rect x="180" y="140" width="16" height="8" rx="4" fill="#ffffff" fill-opacity="0.7"/>
+  <rect x="208" y="140" width="12" height="8" rx="4" fill="#ffffff" fill-opacity="0.7"/>
+  <rect x="32" y="180" width="212" height="28" fill="#dce9f7"/>
+  <text x="39" y="198" font-size="14" font-weight="700" fill="#22201b">品名</text>
+  <text x="145" y="198" font-size="14" font-weight="700" fill="#22201b">在庫</text>
+  <path d="M31,207 L242,207" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="40" y="212" width="40" height="8" rx="4" fill="#e0d6c5"/>
+  <rect x="144" y="212" width="36" height="8" rx="4" fill="#e0d6c5"/>
+  <path d="M31,235 L242,235" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="40" y="240" width="40" height="8" rx="4" fill="#e0d6c5"/>
+  <rect x="144" y="240" width="16" height="8" rx="4" fill="#e0d6c5"/>
+  <rect x="32" y="180" width="212" height="84" rx="6" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="353" y="100" font-size="15" font-weight="700" fill="#22201b">詳細</text>
+  <rect x="392" y="80" width="48" height="24" rx="12" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="417" y="99" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">改修</text>
+  <rect x="352" y="112" width="236" height="248" rx="4" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="364" y="124" width="212" height="44" fill="#1d5fa8"/>
+  <text x="378" y="150" font-size="14" font-weight="700" fill="#ffffff">品目の詳細</text>
+  <rect x="476" y="140" width="40" height="8" rx="4" fill="#ffffff" fill-opacity="0.7"/>
+  <rect x="528" y="140" width="16" height="8" rx="4" fill="#ffffff" fill-opacity="0.7"/>
+  <text x="364" y="195" font-size="14" font-weight="400" fill="#6f6659">品名</text>
+  <text x="404" y="195" font-size="14" font-weight="400" fill="#22201b">ナット M8</text>
+  <text x="364" y="219" font-size="14" font-weight="400" fill="#6f6659">在庫</text>
+  <text x="404" y="219" font-size="14" font-weight="400" fill="#22201b">86</text>
+  <rect x="364" y="240" width="212" height="112" rx="6" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M378,253 L562,253" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-dasharray="4,4" stroke-linejoin="round"/>
+  <path d="M378,281 L562,281" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-dasharray="4,4" stroke-linejoin="round"/>
+  <path d="M378,309 L562,309" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-dasharray="4,4" stroke-linejoin="round"/>
+  <path d="M378,337 L562,337" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M378,303 L562,303" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4" stroke-linejoin="round"/>
+  <path d="M378,311 L415,307 L452,303 L488,299 L525,286 L562,269" fill="none" stroke="#1d5fa8" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="380" cy="312" r="4" fill="#1d5fa8"/>
+  <circle cx="416" cy="308" r="4" fill="#1d5fa8"/>
+  <circle cx="452" cy="304" r="4" fill="#1d5fa8"/>
+  <circle cx="488" cy="300" r="4" fill="#1d5fa8"/>
+  <circle cx="524" cy="288" r="4" fill="#1d5fa8"/>
+  <circle cx="560" cy="268" r="4" fill="#1d5fa8"/>
+  <text x="187" y="462" font-size="15" font-weight="700" fill="#22201b">編集</text>
+  <rect x="228" y="444" width="48" height="24" rx="12" fill="#1d5fa8"/>
+  <text x="251" y="461" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">新規</text>
+  <rect x="188" y="472" width="232" height="252" rx="4" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="196" y="484" width="212" height="44" fill="#1d5fa8"/>
+  <text x="212" y="512" font-size="14" font-weight="700" fill="#ffffff">品目の編集</text>
+  <rect x="308" y="504" width="40" height="8" rx="4" fill="#ffffff" fill-opacity="0.7"/>
+  <rect x="360" y="504" width="16" height="8" rx="4" fill="#ffffff" fill-opacity="0.7"/>
+  <rect x="196" y="540" width="212" height="32" rx="6" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <text x="208" y="562" font-size="14" font-weight="400" fill="#6f6659">品名</text>
+  <rect x="196" y="584" width="212" height="32" rx="6" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <text x="208" y="606" font-size="14" font-weight="400" fill="#6f6659">在庫</text>
+  <rect x="196" y="628" width="56" height="32" rx="6" fill="#1d5fa8"/>
+  <text x="226" y="650" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">保存</text>
+  <text x="520" y="462" font-size="15" font-weight="700" fill="#22201b">発注</text>
+  <rect x="520" y="472" width="232" height="252" rx="4" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="532" y="484" width="212" height="44" fill="#1d5fa8"/>
+  <text x="545" y="512" font-size="14" font-weight="700" fill="#ffffff">発注</text>
+  <rect x="600" y="504" width="40" height="8" rx="4" fill="#ffffff" fill-opacity="0.7"/>
+  <rect x="652" y="504" width="16" height="8" rx="4" fill="#ffffff" fill-opacity="0.7"/>
+  <rect x="680" y="504" width="12" height="8" rx="4" fill="#ffffff" fill-opacity="0.7"/>
+  <rect x="532" y="540" width="212" height="32" rx="6" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <text x="541" y="562" font-size="14" font-weight="400" fill="#6f6659">発注先</text>
+  <path d="M718,554 L730,554 L724,561 Z" fill="#6f6659"/>
+  <rect x="532" y="584" width="84" height="32" rx="6" fill="#1d5fa8"/>
+  <text x="573" y="606" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">発注する</text>
+
+  <path d="M253,221 L353,221" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <rect x="268" y="208" width="72" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="303" y="226" text-anchor="middle" font-size="14" fill="#22201b">行を選ぶ</text>
+
+  <path d="M412,362 L412,402 L303,402 L303,442" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <rect x="336" y="392" width="44" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="358" y="407" text-anchor="middle" font-size="14" fill="#22201b">編集</text>
+
+  <path d="M528,362 L528,402 L637,402 L637,442" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <rect x="560" y="392" width="44" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="583" y="407" text-anchor="middle" font-size="14" fill="#22201b">発注</text>
+</svg>

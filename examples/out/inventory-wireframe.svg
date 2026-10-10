@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="920" viewBox="0 0 940 920" role="img" aria-labelledby="svg-title">
   <title id="svg-title">在庫一覧のワイヤーフレームと、削除の確認ダイアログ</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.3.0","source":"examples/inventory-wireframe.ts","sourceSha256":"7f91d432f5716af36531f054d6cbd938c49097ad67c1fcde68d07250c2cb8a21"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.4.0","source":"examples/inventory-wireframe.ts","sourceSha256":"7f91d432f5716af36531f054d6cbd938c49097ad67c1fcde68d07250c2cb8a21"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }

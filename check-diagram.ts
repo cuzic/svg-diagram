@@ -21,7 +21,9 @@ import path from 'path';
 import crypto from 'crypto';
 import type {DiagramSource} from './lib/types.ts';
 import {register} from 'node:module';
-register('./lib/resolve-hook.ts', import.meta.url);
+// Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
+const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
+register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
 const {RULE_DOCS} = await import('./lib/rules.ts');
 const {scanMarkdown, compareNotes, notesOf} = await import('./lib/docs-check.ts');
@@ -111,7 +113,7 @@ try {
         const d = applyConfig(mod.default(), config);
         d.source = meta; // same provenance → byte-comparable
         const tmp = path.join(path.dirname(svg), `.${name}.rebuild.svg`);
-        try { await build(d, tmp); }
+        try { await build(d, tmp, {lint: false}); } // the committed SVG was linted when it was built; an identical rebuild needs no second render
         catch (e) { // the regenerated picture fails its own checks: report it and go on with the rest
           fs.rmSync(tmp, {force: true});
           const why = String((e as Error).message).split('\n').filter(l => l.trim() && !/^Scanned|^─/.test(l)).slice(0, 3).join(' / ');

@@ -134,6 +134,8 @@ export interface DiagramSource {
   toolVersion?: string;
   source?: string;
   sourceSha256: string;
+  /** sha256 of the .svg-diagram.json in force, when there was one (build --stale compares it). */
+  configSha256?: string;
 }
 
 /**
@@ -235,6 +237,11 @@ export interface GroupOpts {
   /** Inner padding (default 16). */
   pad?: number;
   id?: string;
+  /** Sizing when the group is a child of row(): the same fields as a box (flex / width for justify, span / col for cols). */
+  flex?: number;
+  width?: number;
+  span?: number;
+  col?: number;
 }
 export interface GroupBand {
   type: 'group';
@@ -246,6 +253,20 @@ export interface GroupBand {
   dashed?: boolean;
   pad?: number;
   id?: string;
+  flex?: number;
+  width?: number;
+  span?: number;
+  col?: number;
+}
+
+/** A row() whose children include groups: they sit side by side and their frames are stretched to the tallest one. */
+export interface GroupRowBand {
+  type: 'grouprow';
+  cols?: number;
+  children: (BoxBand | GroupBand)[];
+  gap: number;
+  justify: RowJustify;
+  itemWidth?: number;
 }
 
 /** A legend entry: a line sample ({line, arrow?}) or a tone swatch ({tone, dashed?}). */
@@ -479,7 +500,7 @@ export interface TableColumn {
 }
 export interface TableCellSpec {text?: string; tone?: TextTone; bold?: boolean; mono?: boolean; align?: Align}
 export type TableCell = string | number | TableCellSpec;
-export type TableRow = TableCell[] | {cells: TableCell[]; tone?: BoxTone};
+export type TableRow = readonly TableCell[] | {cells: readonly TableCell[]; tone?: BoxTone};
 export interface TableOpts {
   /** Accent bar on top (an ER entity name, a caption). */
   title?: string;
@@ -656,7 +677,7 @@ export interface ScreensBand extends ScreensOpts {
 /** Every band the DSL constructors return. */
 export type Band =
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GridBand | ConnectBand | PyramidBand | CurveBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -1070,6 +1091,8 @@ export interface GlyphOpts {shape?: WfMarkerShape; id?: string; r?: number; fill
 /** What installParts() returns to wireframe.ts. */
 export interface WfPartsApi {
   drawState(n: WfNode, x: number, y: number, w: number, h: number, ctx: WfCtx): void;
+  /** Height a widget needs for its state's message box to fit (0: no extra need). */
+  stateMinH(n: WfNode, w: number, ctx: WfCtx): number;
   glyph(ctx: WfCtx, cx: number, cy: number, o?: GlyphOpts): void;
   fovSector(ctx: WfCtx, px: number, py: number, deg: number, fov: number, R: number): void;
   headingArrow(ctx: WfCtx, px: number, py: number, deg: number, r: number): void;
@@ -1107,7 +1130,12 @@ export interface TextRun {
 /** A text run after wrapping: `lines[i]` is drawn with its baseline at band.y + padY + lineYs[i]. */
 export interface WrappedRun extends TextRun {lines: string[]; lineYs: number[]}
 
-export interface LaidOutCaption extends CaptionBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect}
+export interface LaidOutCaption extends CaptionBand, Rect {
+  wrappedRuns: WrappedRun[];
+  tagBox?: Rect;
+  /** group() titles only: the rect the title's text really covers (the caption itself spans the whole frame width). */
+  inkBox?: Rect;
+}
 export interface LaidOutBox extends BoxBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect}
 export interface LaidOutBanner extends BannerBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect}
 /** The frame of a group; its children are laid out as separate bands after it. */
@@ -1161,7 +1189,7 @@ export interface LaidOutStep extends LaidOutBox {lane: string; row?: number; col
 
 export interface LaidOutSeqHead extends Rect {id: string; tone?: BoxTone; lines: string[]; cx: number}
 export interface LaidOutSeqMsg {kind: 'msg'; x1: number; x2: number; y: number; lines: string[]; labelTop: number; lx: number; line: LineStyle; arrow: Arrow; tone?: TextTone}
-export interface LaidOutSeqSelf {kind: 'self'; cx: number; y: number; loopH: number; lines: string[]; lx: number; labelTop: number; line: LineStyle; tone?: TextTone}
+export interface LaidOutSeqSelf {kind: 'self'; cx: number; y: number; loopH: number; lines: string[]; lx: number; side: 'left' | 'right'; labelTop: number; line: LineStyle; tone?: TextTone}
 export interface LaidOutSeqNote extends Rect {kind: 'note'; lines: string[]; tone: BoxTone}
 export interface LaidOutSeqDivider {kind: 'divider'; y: number; x1: number; x2: number; cx: number; chipW: number; text: string}
 export type LaidOutSeqStep = LaidOutSeqMsg | LaidOutSeqSelf | LaidOutSeqNote | LaidOutSeqDivider;

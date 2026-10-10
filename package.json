@@ -1,6 +1,6 @@
 {
   "name": "svg-diagram",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "private": true,
   "description": "Declarative SVG diagram DSL for documents: boxes, flows, swimlanes, sequences, tables, UI wireframes and screen-transition diagrams — with layout, overlap/contrast verification, lint and rule checks.",
@@ -13,7 +13,9 @@
   "scripts": {
     "test": "node --test \"test/*.test.ts\"",
     "golden": "node check-diagram.ts --drift --rebuild --svg-dir examples/out examples/*.ts",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "build": "tsc -p tsconfig.build.json",
+    "release": "bash scripts/release.sh"
   },
   "license": "MIT",
   "repository": {
@@ -38,8 +40,18 @@
     "@types/node": "^26.6.4",
     "typescript": "^7.0.2"
   },
-  "types": "./lib/dsl.ts",
+  "types": "./dist/lib/dsl.d.ts",
   "exports": {
-    ".": "./lib/dsl.ts"
-  }
+    ".": {
+      "types": "./dist/lib/dsl.d.ts",
+      "default": "./dist/lib/dsl.js"
+    }
+  },
+  "files": [
+    "bin",
+    "dist",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ]
 }

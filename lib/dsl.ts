@@ -25,13 +25,15 @@ import type {
   LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
   Role, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
-  TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
+  GroupRowBand, TableCellSpec, TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
 } from './types.ts';
 import type {
   ActorIn, AnchorsOf, BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, FlowCheck, FlowIn, IdsOf, LaneCheck, Ok,
   HandleOf, PyramidLayers, Refers, RefsOf, SeqStepIn, ScreensItemInput, StateRowIn, StepCheck, StepIds, SwimlaneStepIn,
 } from './strict.ts';
 export {wf} from './wireframe.ts';
+// Every public type (WfNode, TableCell, TextTone, RawColorTone, ...) so project code never has to spell Parameters<typeof wf.col>[0].
+export type * from './types.ts';
 
 //
 // Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
@@ -119,7 +121,7 @@ export function banner(opts: BannerOpts): BannerBand {
 // Types: the ids (and connect() refs) of the children are exposed to add().
 export function group<C extends Band | Band[], const Id extends string = never>(children: C, opts?: GroupOpts & {id?: Id}): GroupBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & HandleOf<Id>;
 export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
-  return withHandle({type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad, id: opts.id}, opts.id);
+  return withHandle({type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col}, opts.id);
 }
 
 // Key for line styles / tones used in the diagram. items:
@@ -148,9 +150,15 @@ export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: S
 // a cell is a string or {text, tone?: 'accent'|'muted'|'danger', bold?, mono?, align?}.
 // title adds an accent bar on top (an ER entity name, a table caption); header: false hides
 // the column-label row; width narrows the table (centered).
-export function table<const Id extends string = never>(columns: TableColumn[], rows: TableRow[], opts?: TableOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
-export function table(columns: TableColumn[], rows: TableRow[], opts: TableOpts = {}): TableBand {
-  return withHandle({type: 'table', columns, rows, title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, id: opts.id}, opts.id);
+export function table<const Id extends string = never>(columns: TableColumn[], rows: readonly TableRow[], opts?: TableOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
+export function table(columns: TableColumn[], rows: readonly TableRow[], opts: TableOpts = {}): TableBand {
+  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, id: opts.id}, opts.id);
+}
+
+// A table cell whose tone stays a literal when the cell is built apart from the table() call
+// (`const c = {text: '通る', tone: 'accent'}` widens tone to string; `cell('通る', {tone: 'accent'})` does not).
+export function cell(text: string | number, opts: Omit<TableCellSpec, 'text'> = {}): TableCellSpec {
+  return {text: String(text), ...opts};
 }
 
 // Swimlane diagram: who does what, in what order, and where the hand-offs are.
@@ -284,6 +292,20 @@ export function spacer(h: number): SpacerBand {
   return {type: 'spacer', h};
 }
 
+function assertRowChildren(children: readonly {type?: string}[]): void {
+  children.forEach((c, i) => {
+    if (c?.type !== 'box' && c?.type !== 'group') throw new Error(`row(): child ${i} is ${c?.type === undefined ? 'not a band' : `a ${c.type}()`}, but row() takes box() and group() children only`);
+  });
+}
+
+// row()/grid() lay out boxes only. A group (or anything else) would silently render as an empty
+// little box in plain JS (.mjs), where the types do not stop it, so fail loudly instead.
+function assertBoxChildren(what: 'row' | 'grid', children: readonly {type?: string}[]): void {
+  children.forEach((c, i) => {
+    if (c?.type !== 'box') throw new Error(`${what}(): child ${i} is ${c?.type === undefined ? 'not a band' : `a ${c.type}()`}, but ${what}() takes box() children only. Stack groups vertically with d.add(group(...), group(...)) instead of placing them in a ${what}`);
+  });
+}
+
 // children: box() descriptors. justify: 'stretch' (default — fill the row,
 // each child's share set by its `flex`, default 1) | 'center' | 'start'
 // (fixed width per child, via each child's `width` or row-level `width`).
@@ -294,9 +316,20 @@ export function spacer(h: number): SpacerBand {
 // `span` columns, default 1, optionally starting at 1-based `col`). Rows with
 // the same cols/gap have identical column edges, so a box spanning two
 // columns lines up exactly over two single-column boxes in the next row.
+//
+// Groups may sit in a row too (side-by-side frames: Host | Cloud, or two containers next to each other). Their
+// frames are stretched to the tallest one; give a group `flex` / `width` / `span` / `col` like a box. Groups
+// in a row cannot be combined with `arrows: 'between'`.
 export function row<C extends BoxBand>(children: C[], opts?: RowOpts): RowBand & Declares<IdsOf<C>>;
-export function row(children: BoxBand[], opts: RowOpts = {}): RowBand {
-  return {type: 'row', cols: opts.cols, children, gap: opts.gap ?? 16, arrows: opts.arrows ?? 'none', justify: opts.justify ?? 'stretch', itemWidth: opts.width};
+export function row<C extends BoxBand | GroupBand>(children: C[], opts?: RowOpts): GroupRowBand & Declares<IdsOf<C>> & Refers<RefsOf<C>>;
+export function row(children: (BoxBand | GroupBand)[], opts: RowOpts = {}): RowBand | GroupRowBand {
+  if (children.some(c => c?.type === 'group')) {
+    if (opts.arrows === 'between') throw new Error("row(): arrows: 'between' cannot be used when a child is a group()");
+    assertRowChildren(children);
+    return {type: 'grouprow', cols: opts.cols, children, gap: opts.gap ?? 16, justify: opts.justify ?? 'stretch', itemWidth: opts.width};
+  }
+  assertBoxChildren('row', children as BoxBand[]);
+  return {type: 'row', cols: opts.cols, children: children as BoxBand[], gap: opts.gap ?? 16, arrows: opts.arrows ?? 'none', justify: opts.justify ?? 'stretch', itemWidth: opts.width};
 }
 
 // children: box() descriptors, laid out in `cols` columns (wraps to
@@ -305,6 +338,7 @@ export function row(children: BoxBand[], opts: RowOpts = {}): RowBand {
 export function grid<C extends BoxBand>(children: C[], opts: GridOpts): GridBand & Declares<IdsOf<C>>;
 export function grid(children: BoxBand[], opts: GridOpts): GridBand {
   if (!opts?.cols) throw new Error('grid(children, {cols}) needs cols');
+  assertBoxChildren('grid', children);
   return {type: 'grid', children, cols: opts.cols, gap: opts.gap ?? 16};
 }
 
@@ -416,7 +450,9 @@ function assertFontSize(size: number): void {
 //      actually drew (verifyDiagram only checks raw()'s self-reported
 //      x/y/w/h against its neighbors) and catches real-font-rendering
 //      discrepancies verifyDiagram's measured-atom approximation can't.
-export async function build(d: Diagram, outPath: string): Promise<BuildResult> {
+// opts.lint: false skips the per-file lint-svg.ts run (it starts its own Chromium), for callers that lint many
+// files in one go afterwards (build-diagram.ts). Default true.
+export async function build(d: Diagram, outPath: string, opts: {lint?: boolean} = {}): Promise<BuildResult> {
   applyAutoLegend(d);
   // A diagram that names its slide gets a measured height budget and width
   // (cached) instead of fit.ts's defaults.
@@ -450,7 +486,7 @@ export async function build(d: Diagram, outPath: string): Promise<BuildResult> {
     }
     laidOut = await layoutAt(fontScale);
     laidOut.fontScale = fontScale;
-    return await finishBuild(d, laidOut, outPath, budget);
+    return await finishBuild(d, laidOut, outPath, budget, opts.lint ?? true);
   } finally {
     applyScale(1);
   }
@@ -463,7 +499,7 @@ export async function checkDiagram(d: DiagramData): Promise<CheckResult> {
   return {laidOut, verdict: verifyDiagram(laidOut)};
 }
 
-async function finishBuild(d: DiagramData, laidOut: LaidOutDiagram, outPath: string, budget: SlideBudget | null): Promise<BuildResult> {
+async function finishBuild(d: DiagramData, laidOut: LaidOutDiagram, outPath: string, budget: SlideBudget | null, lint: boolean): Promise<BuildResult> {
   const verdict = verifyDiagram(laidOut);
   if (!verdict.ok) {
     throw new Error(`build(${outPath}): layout verification failed before any SVG was written:\n  ${verdict.problems.join('\n  ')}`);
@@ -473,8 +509,8 @@ async function finishBuild(d: DiagramData, laidOut: LaidOutDiagram, outPath: str
   fs.mkdirSync(path.dirname(outPath), {recursive: true});
   fs.writeFileSync(outPath, svg);
 
-  const lintScript = path.resolve(import.meta.dirname, '..', 'lint-svg.ts');
-  try {
+  const lintScript = path.resolve(import.meta.dirname, '..', import.meta.url.endsWith('.ts') ? 'lint-svg.ts' : 'lint-svg.js');
+  if (lint) try {
     execFileSync('node', [lintScript, outPath, '--strict'], {encoding: 'utf8'});
   } catch (err) {
     const e = err as {stdout?: string; stderr?: string};

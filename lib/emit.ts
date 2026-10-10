@@ -300,9 +300,10 @@ function renderSequence(band: LaidOutSequence, day: Theme): string {
       parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: NOTE, anchor: 'middle', fill: s.tone ? color : PALETTE.text}));
     } else if (s.kind === 'self') {
       const color = resolveLineColor(s.tone, day);
-      const x0 = Math.round(s.cx), x1 = Math.round(s.cx + 36), y0 = Math.round(s.y), y1 = Math.round(s.y + s.loopH);
+      const dir = s.side === 'left' ? -1 : 1;
+      const x0 = Math.round(s.cx), x1 = Math.round(s.cx + dir * 36), y0 = Math.round(s.y), y1 = Math.round(s.y + s.loopH);
       parts.push(strokeLine(`M${x0},${y0} L${x1},${y0} L${x1},${y1} L${x0},${y1}`, color, s.line, 'end'));
-      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: NOTE, fill: s.tone ? color : PALETTE.text}));
+      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: NOTE, anchor: s.side === 'left' ? 'end' : undefined, fill: s.tone ? color : PALETTE.text}));
     } else if (s.kind === 'note') {
       const st = resolveBoxStyle(s.tone, day);
       parts.push(`<rect x="${snap4(s.x)}" y="${snap4(s.y)}" width="${snap4(s.w)}" height="${snap4(s.h)}" rx="8" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5"${st.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);

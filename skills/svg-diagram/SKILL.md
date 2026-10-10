@@ -42,7 +42,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 
 ## 部品
 
-README の「部品」表を参照（box / row / grid / group / connect / swimlane / sequence / table / wireframe / screens ほか）。
+README の「部品」表を参照。基盤・ネットワーク図は、`group` の入れ子（ホスト > コンテナ > プロセス）と、`row([group, group])` の横並びで描く（接続線は、枠をまたぐ箇所で他の箱や題名を通らないよう、`@t` や `elbow` で調整）（box / row / grid / group / connect / swimlane / sequence / table / wireframe / screens ほか）。
 新しい部品は「同じパターンが 3 回出たら」が原則。既存の図の出力が変わらないこと（回帰）を確認してから足す。
 
 ## ワイヤーフレーム・画面遷移図で、見て直すこと（実際に効いた点）

@@ -7,19 +7,40 @@
 
 ## 導入
 
-Node.js 20 以上と pnpm が必要。
+Node.js 22.18 以上と pnpm が必要。
+
+### 案件のリポジトリに入れる（推奨）
+
+リリースタグには、コンパイル済みの `dist/`（JS と型定義）が入っている。`node_modules` の中の `.ts` は Node が型を消せないので、タグ指定でそのまま入れられる。
+
+    pnpm add -D typescript @types/node github:cuzic/svg-diagram#v0.4.0
+    pnpm exec svg-diagram init          # package.json に "type": "module"、tsconfig.json を用意
+    pnpm exec svg-diagram typecheck     # 図のソースを型検査（案件側の tsc を使う）
+    pnpm exec svg-diagram build diagrams/*.ts
+
+pnpm 10 以降は、`playwright-chromium`（文字幅の測定に使う）のビルドスクリプトを許可する必要がある（`pnpm-workspace.yaml` の `allowBuilds`）。
+CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagrams/*.ts`。ソースのハッシュと SVG の埋め込み情報を比べるだけで、ブラウザは起動しない（`--rebuild` を付けたときだけ起動する）。
+
+### 開発（このリポジトリ）
 
     git clone https://github.com/cuzic/svg-diagram.git
     cd svg-diagram
-    pnpm install                      # playwright-chromium（文字幅の測定に使う）も入る
-    ln -s "$PWD/bin/svg-diagram" ~/.local/bin/svg-diagram
+    pnpm install
+    ln -s "$PWD/bin/svg-diagram" ~/.local/bin/svg-diagram   # dist/ が無ければ .ts を直接実行する
+
+リリース: `package.json` の version を上げてから `pnpm release`（`dist/` を含むコミットにタグ `vX.Y.Z` を付ける。push は手動。そのコミットは main に入れない）。
+
+**たくさんの図を作るとき**は、ソースを 1 回の呼び出しにまとめる（`svg-diagram build diagrams/*.ts --out-dir public/svg`）。文字幅の測定と lint の描画を、1 つのブラウザで済ませる（ソースごとに呼ぶと、そのたびにブラウザを起動して遅い）。
+`--stale` を付けると、SVG が今のソース・ツールの版・`.svg-diagram.json` から作られたものならスキップする。判定に使うのは SVG に埋め込んだ生成元の情報で、**ソースが import している別ファイル（共通の部品など）の変更は見ない**。共通部品を直したときは `--stale` なしで作り直す。
 
 `svg-diagram preview` は PNG 化に Chrome / Chromium を使う（`CHROME=/path/to/chrome` で指定できる）。
 動作確認: `pnpm test`、`svg-diagram build examples/inventory-wireframe.ts --out /tmp/x.svg`。
 
 ## 使い方
 
-    svg-diagram build <source.ts>... [--out file.svg]   # 既定の出力: ./svg/<name>.svg
+    svg-diagram init [dir]                               # 案件の初期設定（package.json の type、tsconfig.json）
+    svg-diagram typecheck                                # 図のソースの型検査
+    svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale]   # 既定の出力: ./svg/<name>.svg
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
     svg-diagram check --docs DIR [--svg-dir DIR] [--src-dir DIR]   # 文書（Markdown）と図が食い違っていないか
@@ -27,6 +48,8 @@ Node.js 20 以上と pnpm が必要。
     svg-diagram contact a.svg b.svg ... --out sheet.png  # 図の集まりを 1 枚に並べて、一度に目視する
     svg-diagram lint  [file.svg ...] [--strict]
     svg-diagram preview <in.svg> <out.png> [scale]
+
+型もすべて同じ所から取れる: `import type {WfNode, TableCell, TextTone, RawColorTone} from 'svg-diagram'`。変数に切り出した表のセルは `cell('通る', {tone: 'accent'})` で作ると、tone が文字列に広がらない（`as const` でも可）。`row()` に入れられるのは `box()` と `group()`、`grid()` は `box()` だけ（違うものを入れると実行時エラー）。
 
 ソース: `import {diagram, box, ...} from 'svg-diagram'` / `export default () => diagram({theme: 'blue'})...`
 `theme`: blue | teal | amber（docs 向け。スライド警告なし）。`day: 1|2` は研修スライド用（slide-fit 警告あり）。
@@ -36,7 +59,7 @@ Node.js 20 以上と pnpm が必要。
 |---|---|
 | caption / box / banner / spacer / raw | 基本。box は tag・tagAt・tone(new/changed/removed/accent/muted/danger/plain) |
 | row / grid | 横並び（row は cols:N の共有列グリッド、span/col） |
-| group(children, {title, tone, titleAlign}) | ラベル付きの枠。入れ子可 |
+| group(children, {title, tone, titleAlign, flex, width, span, col}) | ラベル付きの枠。**入れ子可**（ホスト > コンテナ > プロセス）。`row([group(...), group(...)])` で横に並べると、枠の高さは一番高いものにそろう（`flex` / `width` / `span` / `col` は box と同じ。`arrows: 'between'` は不可）。中の box の id も、`connect()` の参照先になる |
 | connect / branch | 矢印。route(straight/elbow/loop-under)、arrow(end/both/start/none)、line(solid/dashed/dotted/double)、chip、labelAt、アンカー `id:side@0.2` |
 | legend(items) | 線種・トーンの凡例 |
 | swimlane(lanes, steps, {flows, phases}) | スイムレーン図。レーン=担当（人・チーム・システム）、列=時間。引き継ぎの矢印を自動で向きづけ。`col` で並行作業を揃える |

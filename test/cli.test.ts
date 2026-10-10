@@ -73,7 +73,7 @@ test('build: --out overrides the output path (and creates directories); the defa
 test('build: usage errors exit 2 (no input; --out with several inputs)', () => {
   const none = node(proj, BUILD);
   assert.equal(none.status, 2);
-  assert.match(none.stderr, /Usage: .*build-diagram/);
+  assert.match(none.stderr, /Usage: svg-diagram build/);
   const many = node(proj, BUILD, 'src/flow.ts', 'src/legacy.mjs', '--out', 'x.svg');
   assert.equal(many.status, 2);
   assert.match(many.stderr, /--out only makes sense with exactly one input module/);
@@ -250,4 +250,43 @@ test('bin/svg-diagram diff: explains the change between two svgs', () => {
   assert.equal(same.status, 0, out(same));
   assert.match(same.stdout, /同一/);
   assert.match(bin(proj, 'diff', a, b).stdout, /文字|図形|メタデータ|キャンバス/);
+});
+
+test('init makes a project that typechecks its type setting, and never overwrites', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'svgd-init-'));
+  fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"x"}\n');
+  fs.writeFileSync(path.join(dir, 'tsconfig.json'), '{"keep":true}\n');
+  const r = spawnSync(BIN, ['init'], {cwd: dir, encoding: 'utf8'});
+  assert.equal(r.status, 0, out(r));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).type, 'module');
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, 'tsconfig.json'), 'utf8')), {keep: true});
+  const fresh = fs.mkdtempSync(path.join(os.tmpdir(), 'svgd-init-'));
+  assert.equal(spawnSync(BIN, ['init'], {cwd: fresh, encoding: 'utf8'}).status, 0);
+  assert.ok(JSON.parse(fs.readFileSync(path.join(fresh, 'tsconfig.json'), 'utf8')).compilerOptions.noEmit);
+  const t = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8'});
+  assert.equal(t.status, 2); // no typescript in a bare temp project: says how to install it
+  assert.match(out(t), /typescript/);
+});
+
+test('build: --out-dir writes every source into one directory; --stale skips what is current and rebuilds what changed', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-stale-'));
+  fs.mkdirSync(path.join(dir, 'src'));
+  fs.writeFileSync(path.join(dir, 'src', 'a.ts'), GOOD_TS);
+  fs.writeFileSync(path.join(dir, 'src', 'b.mjs'), GOOD_MJS);
+  const first = node(dir, BUILD, 'src/a.ts', 'src/b.mjs', '--out-dir', 'out', '--stale');
+  assert.equal(first.status, 0, out(first));
+  assert.match(first.stdout, /2 件を生成、0 件は最新でスキップ/);
+  assert.ok(fs.existsSync(path.join(dir, 'out', 'a.svg')) && fs.existsSync(path.join(dir, 'out', 'b.svg')));
+  const again = node(dir, BUILD, 'src/a.ts', 'src/b.mjs', '--out-dir', 'out', '--stale');
+  assert.match(again.stdout, /0 件を生成、2 件は最新でスキップ/);
+  fs.writeFileSync(path.join(dir, 'src', 'a.ts'), GOOD_TS.replace('入口', '入口2'));
+  const third = node(dir, BUILD, 'src/a.ts', 'src/b.mjs', '--out-dir', 'out', '--stale');
+  assert.match(third.stdout, /1 件を生成、1 件は最新でスキップ/);
+  assert.match(fs.readFileSync(path.join(dir, 'out', 'a.svg'), 'utf8'), /入口2/);
+  // a project config change makes every SVG stale
+  fs.writeFileSync(path.join(dir, '.svg-diagram.json'), '{"accept": {"doc-width": "ok"}}');
+  assert.match(node(dir, BUILD, 'src/a.ts', 'src/b.mjs', '--out-dir', 'out', '--stale').stdout, /2 件を生成/);
+  // without --stale everything is rebuilt, and --out with --out-dir is a usage error
+  assert.doesNotMatch(node(dir, BUILD, 'src/a.ts', '--out-dir', 'out').stdout, /スキップ/);
+  assert.equal(node(dir, BUILD, 'src/a.ts', '--out', 'x.svg', '--out-dir', 'out').status, 2);
 });

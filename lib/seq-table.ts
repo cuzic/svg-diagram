@@ -44,7 +44,7 @@ export function collectTextRequests(band: SequenceBand | TableBand): TextRequest
     band.columns.forEach((c) => {
       if (c.label) out.push([c.label, ROLES.body, 700, 'sans']);
     });
-    for (const row of band.rows) (Array.isArray(row) ? row : row.cells).forEach((cell, i) => {
+    for (const row of band.rows) ('cells' in row ? row.cells : row).forEach((cell, i) => {
       const c = cellOf(cell, band.columns[i]);
       out.push([c.text, ROLES.body, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans']);
     });
@@ -95,12 +95,16 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
       cursor = ay + SEQ.stepGap;
     } else if (s.kind === 'self') {
       const i = at(s.self, 'self');
-      const lx = cx[i] + SEQ.selfW + 8;
-      const lines = wrap(s.text, ROLES.note, 400, 'sans', Math.max(120, x + w - lx - 4), widthOf);
+      // The loop and its label go on the right of the lifeline, unless the label does not fit there at its natural
+      // width and the left side has more room (the last actor): then both mirror to the left, inside the frame.
+      const rightRoom = x + w - (cx[i] + SEQ.selfW + 8) - 4, leftRoom = cx[i] - SEQ.selfW - 8 - x - 4;
+      const side = textW(s.text, ROLES.note, 400, 'sans', widthOf) > rightRoom && leftRoom > rightRoom ? 'left' : 'right';
+      const lx = side === 'left' ? cx[i] - SEQ.selfW - 8 : cx[i] + SEQ.selfW + 8;
+      const lines = wrap(s.text, ROLES.note, 400, 'sans', Math.max(40, side === 'left' ? leftRoom : rightRoom), widthOf);
       const labelH = lines.length * lineH(ROLES.note);
       const loopH = 22;
       const rowH = Math.max(labelH, loopH + 12);
-      steps.push({kind: 'self', cx: cx[i], y: top + 6, loopH, lines, lx, labelTop: top, line: s.line ?? 'solid', tone: s.tone});
+      steps.push({kind: 'self', cx: cx[i], y: top + 6, loopH, lines, lx, side, labelTop: top, line: s.line ?? 'solid', tone: s.tone});
       cursor = top + rowH + SEQ.stepGap / 2;
     } else if (s.kind === 'note') {
       const ids = s.over.map(id => at(id, 'note.over'));
@@ -148,7 +152,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     titleBar = {y: cy, h, lines};
     cy += h;
   }
-  const rowOf = (cells: (TableColumn | TableCell)[], header: boolean, tone?: BoxTone): LaidOutTableRow => {
+  const rowOf = (cells: readonly (TableColumn | TableCell)[], header: boolean, tone?: BoxTone): LaidOutTableRow => {
     const placed = cells.map((cell, i): LaidOutTableCell => {
       // header rows pass the column specs themselves (see the call below)
       const c: ResolvedCell = header ? {text: (cell as TableColumn).label ?? '', bold: true, mono: false, align: (cell as TableColumn).align ?? 'left'} : cellOf(cell as TableCell, cols[i]);
@@ -165,8 +169,8 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
   const hasHeader = cols.some(c => c.label) && band.header !== false;
   if (hasHeader) rows.push(rowOf(cols, true));
   for (const r of band.rows) {
-    const cells = Array.isArray(r) ? r : r.cells;
-    rows.push(rowOf(cells, false, Array.isArray(r) ? undefined : r.tone));
+    const cells = 'cells' in r ? r.cells : r;
+    rows.push(rowOf(cells, false, 'cells' in r ? r.tone : undefined));
   }
   return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone};
 }

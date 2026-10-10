@@ -42,7 +42,7 @@ const STEP_INDENT = 2 * STEP_BADGE_R + STEP_BADGE_GAP; // how far the title's fi
 
 type Requests = Map<string, MeasureRequest>;
 /** A band after placeBoxLike(): its own fields plus geometry, wrapped text and (maybe) the tag pill. */
-type Placed<B> = B & Rect & {wrappedRuns: WrappedRun[]; tagBox?: Rect};
+type Placed<B> = B & Rect & {wrappedRuns: WrappedRun[]; tagBox?: Rect; inkBox?: Rect};
 
 function textRuns(band: Band): TextRun[] {
   switch (band.type) {
@@ -125,7 +125,7 @@ function layoutBoxContent(band: Band, wrapWidth: number, widthOf: WidthOf): {wra
 // Structural width distribution for row()/grid() — pure arithmetic, no text
 // metrics needed, so this can run in the same pass that registers measure
 // requests (a child's wrap width must be known before we know what to wrap).
-function rowChildGeometry(band: RowBand, contentWidth: number) {
+function rowChildGeometry(band: Pick<RowBand, 'cols' | 'gap' | 'justify' | 'itemWidth'> & {children: {span?: number; col?: number; flex?: number; width?: number; title?: string; id?: string}[]}, contentWidth: number) {
   const n = band.children.length;
   const gap = band.gap;
   if (band.cols) {
@@ -190,6 +190,8 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       for (const [text, size, weight, font] of wfTextRequests(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'legend') {
       for (const item of band.items) registerAtoms(requests, item.label, ROLES.note, 400);
+    } else if (band.type === 'grouprow') {
+      for (const child of band.children) registerBand(child);
     } else if (band.type === 'row') {
       for (const child of band.children) registerRequests(requests, child);
     } else if (band.type === 'grid') {
@@ -259,6 +261,9 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       cursorY += gp;
       if (band.title) {
         const t = placeBoxLike(groupTitleBand(band), padX + gp, cursorY, cw - 2 * gp, false);
+        const inkW = Math.max(0, ...t.wrappedRuns.flatMap(r => r.lines.map(l => [...splitAtoms(l)].reduce((s, a) => s + widthOf(a, r.size, r.weight, r.mono ? 'mono' : 'sans'), 0))));
+        const inkX = t.align === 'center' ? t.x + (t.w - inkW) / 2 : t.align === 'right' ? t.x + t.w - inkW : t.x;
+        t.inkBox = {x: inkX, y: t.y, w: inkW, h: t.h};
         laidOut.push(t);
         cursorY += t.h + d.gap / 2;
       }
@@ -386,6 +391,35 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       if (band.id) anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
       laidOut.push(placed);
       cursorY += band.h + (band.h > 0 ? d.gap : 0);
+      continue;
+    }
+
+    if (band.type === 'grouprow') {
+      // Each child is laid out as if stacked alone at its own x / width, all starting at the row's top; afterwards every
+      // frame / box is stretched to the tallest one (a group's inner content keeps its natural height).
+      const {widths, xOffsets} = rowChildGeometry(band, cw);
+      const rowTop = cursorY;
+      const stretch: ((h: number) => void)[] = [];
+      let rowHeight = 0;
+      band.children.forEach((child, i) => {
+        cursorY = rowTop;
+        const x = padX + xOffsets[i];
+        if (child.type === 'box') {
+          const c = placeBoxLike(child, x, rowTop, widths[i], true);
+          const rw: LaidOutRow = {type: 'row', x, y: rowTop, w: widths[i], h: c.h, children: [c], arrows: []};
+          laidOut.push(rw);
+          rowHeight = Math.max(rowHeight, c.h);
+          stretch.push(h => { c.h = rw.h = h; if (c.id) anchors.set(c.id, {x: c.x, y: c.y, w: c.w, h}); });
+        } else {
+          const frame = laidOut.length;
+          stack([child], x, widths[i]);
+          const f = laidOut[frame] as LaidOutGroup; // stack() pushes a group's frame first
+          rowHeight = Math.max(rowHeight, f.h);
+          stretch.push(h => { f.h = h; if (child.id) anchors.set(child.id, {x: f.x, y: f.y, w: f.w, h}); });
+        }
+      });
+      stretch.forEach(s => s(rowHeight));
+      cursorY = rowTop + rowHeight + d.gap;
       continue;
     }
 
