@@ -5,7 +5,7 @@ import {diagram, wireframe, wf} from 'svg-diagram';
 export default function define() {
   const d = diagram({theme: 'blue', title: '在庫一覧のワイヤーフレームと、削除の確認ダイアログ'});
   // the same screen twice: the second copy (behind a dialog) carries no callout numbers of its own
-  const screen = (numbered) => [
+  const screen = (numbered: boolean) => [
     wf.appbar('在庫管理', {nav: ['ダッシュボード', '在庫', '発注', '設定'], active: 1, right: ['田中']}),
     wf.row([wf.input('品名・型番で検索', {flex: 3, ...(numbered && {n: 1})}), wf.select('倉庫: 東京', {flex: 2}), wf.btn('追加', {primary: true})], {align: 'center'}),
     wf.row([

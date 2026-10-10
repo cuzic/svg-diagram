@@ -2,7 +2,7 @@
 // ビルド: svg-diagram build examples/inventory-flow.ts --out examples/out/inventory-flow.svg
 import {diagram, caption, screens, wf, connect} from 'svg-diagram';
 
-const bar = (name, active) => wf.appbar(name, {nav: ['ダッシュボード', '在庫', '発注'], active});
+const bar = (name: string, active: number) => wf.appbar(name, {nav: ['ダッシュボード', '在庫', '発注'], active});
 
 export default function define() {
   const d = diagram({theme: 'blue', title: '在庫管理アプリの画面遷移図', gap: 40});
