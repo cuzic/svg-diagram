@@ -13,6 +13,7 @@
 //     after defaults were applied" — a constructor that defaults a field (e.g. row().gap) returns it required.
 //   * Colours are never raw strings in the DSL: they are token keys (TextTone / BoxTone / ColorKey).
 
+import type {BadgeBox} from './badge.ts';
 import type {DeclaredIds, ValidateBands} from './strict.ts';
 import type {RULE_DOCS, DEFAULT_LEGEND_LABELS} from './rules.ts';
 
@@ -1014,7 +1015,12 @@ export interface PrimText {
   /** Baseline. */
   y: number; size: number; weight: number; fill: ColorKey; anchor?: 'middle' | 'end';
 }
-export type Prim = PrimRect | PrimCircle | PrimPath | PrimText;
+/** A label inside a shape, drawn as one accessible group (see badge.ts). `w` is the measured width. */
+export interface PrimBadge {
+  k: 'badge'; cx: number; cy: number; r: number; w: number; shape: 'circle' | 'square' | 'triangle';
+  label: string; aria: string; size: number; fill: ColorKey;
+}
+export type Prim = PrimRect | PrimCircle | PrimPath | PrimText | PrimBadge;
 
 /** Options of the rect / circle / path / line drawing helpers. `fill` / `stroke` default to null (none). */
 export interface DrawShapeOpts {
@@ -1075,6 +1081,8 @@ export interface WfHelpers {
   lh(size: number): number;
   rect(ctx: WfCtx, x: number, y: number, w: number, h: number, o?: DrawShapeOpts): void;
   circle(ctx: WfCtx, cx: number, cy: number, r: number, o?: DrawShapeOpts): void;
+  /** A label inside a shape, as one accessible group; returns its bounding box (see badge.ts). */
+  badge(ctx: WfCtx, cx: number, cy: number, label: string | number, o?: BadgeOpts): BadgeBox;
   text(ctx: WfCtx, s: string | number, x: number, base: number, o?: DrawTextOpts): void;
   path(ctx: WfCtx, d: string, o?: DrawShapeOpts): void;
   line(ctx: WfCtx, x1: number, y1: number, x2: number, y2: number, o?: DrawShapeOpts): void;
@@ -1089,6 +1097,7 @@ export interface WfHelpers {
   chipW(ctx: WfCtx, label: string): number;
   hideUnder(ctx: WfCtx, X: number, Y: number, W: number, H: number): void;
 }
+export interface BadgeOpts {shape?: 'circle' | 'square' | 'triangle'; r?: number; fill?: ColorKey; aria?: string}
 export interface GlyphOpts {shape?: WfMarkerShape; id?: string; r?: number; fill?: ColorKey}
 /** What installParts() returns to wireframe.ts. */
 export interface WfPartsApi {

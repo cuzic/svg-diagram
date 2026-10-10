@@ -15,7 +15,7 @@ const layout = async (...bands: Band[]) => {
   return (await layoutDiagram(d)).laidOut as Screen[];
 };
 const isText = (p: Prim): p is PrimText => p.k === 'text';
-const texts = (band: Screen) => band.prims.filter(isText).map(p => p.s);
+const texts = (band: Screen) => band.prims.flatMap(p => p.k === 'badge' ? [p.label] : isText(p) ? [p.s] : []);
 const within = (p: Prim, b: Rect, slack = 16) => p.k !== 'rect' || (p.x >= b.x - slack && p.y >= b.y - slack && p.x + p.w <= b.x + b.w + slack && p.y + p.h <= b.y + b.h + slack);
 
 test('wireframe: lays out a screen with its notes, every shape stays inside the band', async () => {
@@ -36,7 +36,7 @@ test('wireframe: content taller than the screen is an error that says which cont
 test('wireframe: callout draws a numbered circle; mark draws an outline and a legend entry', async () => {
   const [band] = await layout(wireframe([wf.btn('OK', {n: 7, mark: 'new'})], {h: 120}));
   assert.ok(texts(band).includes('7'));
-  assert.ok(band.prims.some(p => p.k === 'circle' && p.fill === 'accent'));
+  assert.ok(band.prims.some(p => (p.k === 'circle' || p.k === 'badge') && p.fill === 'accent'));
   assert.ok(band.prims.some(p => p.k === 'rect' && p.dash === '6,4'), 'dashed outline for new');
   assert.ok(texts(band).includes('新規'), 'legend names the mark');
 });

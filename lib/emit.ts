@@ -7,6 +7,7 @@
 // in this deck.
 
 import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES} from './tokens.ts';
+import {badgeSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
   LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
@@ -107,9 +108,7 @@ function renderStepBadge(band: LaidOutBox, day: Theme): string {
   const titleBaselineY = band.y + BOX_PAD_Y + titleRun.lineYs[0];
   const cx = band.x + BOX_PAD_X + STEP_BADGE_R;
   const cy = titleBaselineY - STEP_BADGE_BASELINE_OFFSET;
-  const circle = `<circle cx="${snap4(cx)}" cy="${snap4(cy)}" r="${STEP_BADGE_R}" fill="${PALETTE[day].accent}"/>`;
-  const text = `<text x="${Math.round(cx)}" y="${Math.round(titleBaselineY)}" text-anchor="middle" font-size="16" font-weight="700" fill="${PALETTE.bg}">${escapeXml(String(band.step))}</text>`;
-  return `${circle}\n  ${text}`;
+  return badgeSvg({cx, cy, r: STEP_BADGE_R, w: 2 * STEP_BADGE_R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: 16, fill: PALETTE[day].accent, baseline: titleBaselineY, snap: snap4, esc: escapeXml});
 }
 
 function renderCaption(band: LaidOutCaption, day: Theme): string {
@@ -384,7 +383,7 @@ function renderSwimlane(b: LaidOutSwimlane, day: Theme): string {
 }
 
 // wireframe() / screens(): a flat list of primitives with token-key colours (see wireframe.ts)
-type PaintPrim = Exclude<Prim, {k: 'text'}>;
+type PaintPrim = Exclude<Prim, {k: 'text' | 'badge'}>;
 function renderPrims(b: LaidOutWireframe | LaidOutScreens, day: Theme): string {
   const col = (k: ColorKey | null): string => k == null ? 'none' : (k === 'accent' || k === 'soft') ? PALETTE[day][k] : PALETTE[k];
   const stroke = (p: PaintPrim): string => {
@@ -401,6 +400,8 @@ function renderPrims(b: LaidOutWireframe | LaidOutScreens, day: Theme): string {
       out.push(`<circle cx="${snap4(p.cx)}" cy="${snap4(p.cy)}" r="${p.r}" ${fill(p)}${stroke(p)}/>`);
     } else if (p.k === 'path') {
       out.push(`<path d="${p.d}" ${fill(p)}${stroke(p)}${p.stroke ? ' stroke-linejoin="round"' : ''}/>`);
+    } else if (p.k === 'badge') {
+      out.push(badgeSvg({cx: p.cx, cy: p.cy, r: p.r, w: p.w, shape: p.shape, label: p.label, aria: p.aria, size: p.size, fill: col(p.fill), stroke: PALETTE.bg, sw: 2, snap: snap4, esc: escapeXml}));
     } else if (p.k === 'text') {
       const a = p.anchor === 'middle' ? ' text-anchor="middle"' : p.anchor === 'end' ? ' text-anchor="end"' : '';
       out.push(`<text x="${Math.round(p.x)}" y="${Math.round(p.y)}"${a} font-size="${p.size}" font-weight="${p.weight}" fill="${col(p.fill)}">${emojiSpan(p.s)}</text>`);

@@ -18,12 +18,14 @@
 
 import {splitAtoms} from './measure.ts';
 import {wrapAtoms} from './wrap.ts';
+import {badgeBox, BADGE_R} from './badge.ts';
+import type {BadgeBox} from './badge.ts';
 import {installParts} from './wireframe-parts.ts';
 import type {
   Wf, WfNode, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark,
   WfChipSpec, WfChildren, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfBtn, WfScreen, WfKvPair,
   WfListItemSpec, WfTableCellSpec, WireframeBand, ScreensBand, StateMatrixCell, LaidOutWireframe, LaidOutScreens,
-  DrawShapeOpts, DrawTextOpts, ColorKey, Anchor, Rect, WfAutoWFn, Prim, TextRequest, WidthOf,
+  BadgeOpts, DrawShapeOpts, DrawTextOpts, ColorKey, Anchor, Rect, WfAutoWFn, Prim, TextRequest, WidthOf,
 } from './types.ts';
 
 const S = 14, T = 15, LHF = 1.4, GAP = 12;
@@ -104,6 +106,13 @@ const wrapT = (ctx: WfCtx, s: string | number, size: number, weight: number, max
 const rect = (ctx: WfCtx, x: number, y: number, w: number, h: number, o: DrawShapeOpts = {}): void => { ctx.prims.push({k: 'rect', x, y, w, h, r: o.r ?? 0, fill: o.fill ?? null, stroke: o.stroke ?? null, sw: o.sw ?? 2, dash: o.dash, op: o.op}); };
 const circle = (ctx: WfCtx, cx: number, cy: number, r: number, o: DrawShapeOpts = {}): void => { ctx.prims.push({k: 'circle', cx, cy, r, fill: o.fill ?? null, stroke: o.stroke ?? null, sw: o.sw ?? 2, op: o.op}); };
 const text = (ctx: WfCtx, s: string | number, x: number, base: number, o: DrawTextOpts = {}): void => { ctx.prims.push({k: 'text', s: String(s), x, y: base, size: o.size ?? S, weight: o.weight ?? 400, fill: o.fill ?? 'text', anchor: o.anchor}); };
+// A label in a shape (callout number, note number, robot marker, route point): one primitive, sized to the label.
+const badge = (ctx: WfCtx, cx: number, cy: number, label: string | number, o: BadgeOpts = {}): BadgeBox => {
+  const r = o.r ?? BADGE_R, shape = o.shape ?? 'circle', s = String(label);
+  const box = badgeBox(cx, cy, tw(ctx, s, S, 700), r, shape);
+  ctx.prims.push({k: 'badge', cx, cy, r, w: box.w, shape, label: s, aria: o.aria ?? s, size: S, fill: o.fill ?? 'accent'});
+  return box;
+};
 const pts = (ps: [number, number][]): string => ps.map(([x, y], i) => `${i ? 'L' : 'M'}${Math.round(x)},${Math.round(y)}`).join(' ');
 const path = (ctx: WfCtx, d: string, o: DrawShapeOpts = {}): void => { ctx.prims.push({k: 'path', d, fill: o.fill ?? null, stroke: o.stroke ?? null, sw: o.sw ?? 2, dash: o.dash, op: o.op, cap: o.cap}); };
 const line = (ctx: WfCtx, x1: number, y1: number, x2: number, y2: number, o: DrawShapeOpts = {}): void => path(ctx, pts([[x1, y1], [x2, y2]]), {stroke: o.stroke ?? 'border', ...o});
@@ -583,8 +592,7 @@ function drawMarker(m: WfMapMarker, [px, py]: [number, number], minX: number, ma
   else if (kind === 'alert') path(ctx, pts([[px, py - 11], [px + 11, py], [px, py + 11], [px - 11, py]]) + ' Z', {fill: 'danger', stroke: 'bg', sw: 2});
   else { rect(ctx, px - 8, py - 8, 16, 16, {r: 3, fill: 'bg', stroke: m.tone === 'danger' ? 'danger' : 'text'}); r = 9; }
   if (m.inside != null) { // a number drawn inside the dot (route points)
-    circle(ctx, px, py, 11, {fill: 'accent', stroke: 'bg', sw: 2});
-    text(ctx, m.inside, px, mid(py), {weight: 700, fill: 'bg', anchor: 'middle'});
+    badge(ctx, px, py, m.inside, {aria: `経路点 ${m.inside}`});
   }
   if (m.label) {
     const lw = tw(ctx, m.label, S, 700) + 8;
@@ -646,6 +654,7 @@ function hideUnder(ctx: WfCtx, X: number, Y: number, W: number, H: number): void
     }
     if (p.k === 'rect') return !inside(p.x, p.y, p.w, p.h);
     if (p.k === 'circle') return !inside(p.cx - p.r, p.cy - p.r, 2 * p.r, 2 * p.r);
+    if (p.k === 'badge') return !inside(p.cx - p.w / 2, p.cy - p.r - 3, p.w, 2 * p.r + 3);
     return true;
   });
 }
@@ -661,7 +670,6 @@ function drawOverlay(o: WfOverlay, ctx: WfCtx, x: number, y: number, w: number, 
     rect(ctx, tx, ty, tw_, H, {r: 6, fill: tone === 'danger' ? 'danger' : 'text'});
     text(ctx, o.text, tx + lead + (tw_ - lead) / 2, mid(ty + H / 2), {weight: 700, fill: 'bg', anchor: 'middle'});
     if (o.n != null) {
-      rect(ctx, tx + 2, ty + 2, 32, H - 4, {fill: tone === 'danger' ? 'danger' : 'text'}); // same colour as the toast: keeps the callout's own box the innermost one for overlap checks
       ctx.callouts.push({n: o.n as number, x: tx + 18, y: ty + H / 2}); // wireframe() has replaced `true` by a number
     }
     return;
@@ -690,9 +698,7 @@ function drawOverlay(o: WfOverlay, ctx: WfCtx, x: number, y: number, w: number, 
 function flushCallouts(ctx: WfCtx): void {
   for (const c of ctx.callouts) {
     ctx.all.push({n: c.n, x: c.x, y: c.y}); // kept on the band, so `check` can compare the numbers' order with the reading order
-    rect(ctx, c.x - 12, c.y - 12, 24, 24, {fill: 'bg', op: 0}); // invisible: the number's own "container" (a callout can sit on a frame edge)
-    circle(ctx, c.x, c.y, 11, {fill: 'accent', stroke: 'bg', sw: 2});
-    text(ctx, c.n, c.x, mid(c.y), {weight: 700, fill: 'bg', anchor: 'middle'});
+    badge(ctx, c.x, c.y, c.n, {aria: `注釈 ${c.n}`});
   }
   ctx.callouts = [];
 }
@@ -778,8 +784,7 @@ function drawNotes(ctx: WfCtx, notes: NonNullable<WireframeBand['notes']>, x: nu
     const num = o.n ?? i + 1;
     const tl = o.title ? wrapT(ctx, o.title, S, 700, w - 48) : [];
     const bl = o.text ? wrapT(ctx, o.text, S, 400, w - 48) : [];
-    circle(ctx, x + 12, cy + 12, 11, {fill: 'accent', stroke: 'bg', sw: 2});
-    text(ctx, num, x + 12, mid(cy + 12), {weight: 700, fill: 'bg', anchor: 'middle'});
+    badge(ctx, x + 12, cy + 12, num, {aria: `注釈 ${num}`});
     let ty = cy + 4;
     for (const l of tl) { text(ctx, l, x + 36, ty + S, {weight: 700}); ty += lh(S); }
     for (const l of bl) { text(ctx, l, x + 36, ty + S, {fill: o.title ? 'muted' : 'text'}); ty += lh(S); }
@@ -836,4 +841,4 @@ export function layoutScreens(band: ScreensBand, x: number, y: number, w: number
 
 // ---- parts defined in wireframe-parts.ts (states, fusion, robot status, insight, compare, controls) ----
 const AUTO_W: WfAutoWTable = {}, NAT: WfNatTable = {};
-const PARTS = installParts({wf, DRAW, NAT, AUTO_W, S, T, lh, rect, circle, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder});
+const PARTS = installParts({wf, DRAW, NAT, AUTO_W, S, T, lh, rect, circle, badge, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder});

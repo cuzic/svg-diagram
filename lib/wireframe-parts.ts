@@ -23,7 +23,7 @@ interface StateInfo {title: string; tone: ColorKey}
 interface FusionLayer extends WfFusionLayerSpec {kind: 'camera' | 'cloud' | 'thermal'; bad: WfState | undefined; on: boolean}
 
 export function installParts(h: WfHelpers): WfPartsApi {
-  const {wf, DRAW, NAT, AUTO_W, S, T, lh, rect, circle, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder} = h;
+  const {wf, DRAW, NAT, AUTO_W, S, T, lh, rect, circle, badge, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder} = h;
   const mk = (t: WfType, o: object = {}) => ({t, ...o});
 
   // ---- constructors ----------------------------------------------------------------------
@@ -46,10 +46,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
   // A robot marker: shape + letter, so two vehicles never differ by colour alone.
   function glyph(ctx: WfCtx, cx: number, cy: number, o: GlyphOpts = {}) {
     const shape = o.shape ?? 'circle', r = o.r ?? 11, fill = o.fill ?? 'accent';
-    if (shape === 'square') rect(ctx, cx - r, cy - r, 2 * r, 2 * r, {r: 3, fill, stroke: 'bg', sw: 2});
-    else if (shape === 'triangle') path(ctx, pts([[cx, cy - r - 3], [cx + r + 3, cy + r], [cx - r - 3, cy + r]]) + ' Z', {fill, stroke: 'bg', sw: 2});
-    else circle(ctx, cx, cy, r, {fill, stroke: 'bg', sw: 2});
-    if (o.id) text(ctx, o.id, cx, mid(cy + (shape === 'triangle' ? 4 : 0)), {weight: 700, fill: 'bg', anchor: 'middle'});
+    badge(ctx, cx, cy, o.id ?? '', {shape, r, fill, aria: o.id ? `ロボット ${o.id}` : 'ロボット'});
   }
   const dirOf = (deg: number): [number, number] => { const a = (deg - 90) * Math.PI / 180; return [Math.cos(a), Math.sin(a)]; }; // 0 = up, clockwise
   function headingArrow(ctx: WfCtx, px: number, py: number, deg: number, r: number) {
