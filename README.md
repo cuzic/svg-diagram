@@ -14,12 +14,12 @@ Node.js 22.18 以上と pnpm が必要。
 リリースタグには、コンパイル済みの `dist/`（JS と型定義）が入っている。`node_modules` の中の `.ts` は Node が型を消せないので、タグ指定でそのまま入れられる。
 
     pnpm add -D typescript @types/node github:cuzic/svg-diagram#v0.4.0
-    pnpm exec svg-diagram init          # package.json に "type": "module"、tsconfig.json を用意
+    pnpm exec svg-diagram init          # package.json に "type": "module"、tsconfig.json、pnpm-workspace.yaml を用意
     pnpm exec svg-diagram typecheck     # 図のソースを型検査（案件側の tsc を使う）
     pnpm exec svg-diagram build diagrams/*.ts
 
-pnpm 10 以降は、`playwright-chromium`（文字幅の測定に使う）のビルドスクリプトを許可する必要がある（`pnpm-workspace.yaml` の `allowBuilds`）。
-CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagrams/*.ts`。ソースのハッシュと SVG の埋め込み情報を比べるだけで、ブラウザは起動しない（`--rebuild` を付けたときだけ起動する）。
+pnpm 10 以降は、`playwright-chromium`（文字幅の測定に使う）のビルドスクリプトを許可する必要がある。`svg-diagram init` が `pnpm-workspace.yaml`（`allowBuilds:` の下に `playwright-chromium: true`）を作る。先に `pnpm add` していて `ERR_PNPM_IGNORED_BUILDS` で止まったときは、この 2 行を書くか `pnpm approve-builds` を実行する。
+CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagrams/*.ts`。ソースのハッシュと SVG の埋め込み情報を比べるだけで、ブラウザは起動しない（`--rebuild` を付けたときだけ起動する）。この用途の CI では Chromium の取得を省ける: `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install`（`build`・`lint`・`check --rebuild` を使う job では省かない）。
 
 ### 開発（このリポジトリ）
 
@@ -31,7 +31,8 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 リリース: `package.json` の version を上げてから `pnpm release`（`dist/` を含むコミットにタグ `vX.Y.Z` を付ける。push は手動。そのコミットは main に入れない）。
 
 **たくさんの図を作るとき**は、ソースを 1 回の呼び出しにまとめる（`svg-diagram build diagrams/*.ts --out-dir public/svg`）。文字幅の測定と lint の描画を、1 つのブラウザで済ませる（ソースごとに呼ぶと、そのたびにブラウザを起動して遅い）。
-`--stale` を付けると、SVG が今のソース・ツールの版・`.svg-diagram.json` から作られたものならスキップする。判定に使うのは SVG に埋め込んだ生成元の情報で、**ソースが import している別ファイル（共通の部品など）の変更は見ない**。共通部品を直したときは `--stale` なしで作り直す。
+反復の作業中は `--no-lint` で lint の描画を省ける（仕上げの build や `svg-diagram check` で通す）。
+`--stale` を付けると、SVG が今のソース・ツールの版・`.svg-diagram.json` から作られたものならスキップする。判定に使うのは SVG に埋め込んだ生成元の情報（ソース・import しているローカルファイル・ツールの版・設定の各ハッシュ）。共通部品を直せば、それを使う図は古いと判定される。import は静的に読むだけなので、相対パスの import だけが対象（`tsconfig` の `paths` の別名や、変数で組み立てた `import()` は追えない。後者は build が警告する）。
 
 `svg-diagram preview` は PNG 化に Chrome / Chromium を使う（`CHROME=/path/to/chrome` で指定できる）。
 動作確認: `pnpm test`、`svg-diagram build examples/inventory-wireframe.ts --out /tmp/x.svg`。
@@ -40,10 +41,11 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
     svg-diagram init [dir]                               # 案件の初期設定（package.json の type、tsconfig.json）
     svg-diagram typecheck                                # 図のソースの型検査
-    svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale]   # 既定の出力: ./svg/<name>.svg
+    svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint]   # 既定の出力: ./svg/<name>.svg
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
-    svg-diagram check --docs DIR [--svg-dir DIR] [--src-dir DIR]   # 文書（Markdown）と図が食い違っていないか
+    svg-diagram check --docs DIR [--svg-dir DIR] [--src-dir DIR] [--map]   # 文書（Markdown）と図が食い違っていないか（--map: 図・ソース・SVG・文書の対応表を Markdown で出す）
+    svg-diagram notes <source.ts>                        # 図の番号つき注釈を Markdown のリスト（1. **題名**：本文）で出す。文書に貼る
     svg-diagram diff old.svg new.svg                     # 2 つの SVG の違いを言葉で（見た目が変わるか）
     svg-diagram contact a.svg b.svg ... --out sheet.png  # 図の集まりを 1 枚に並べて、一度に目視する
     svg-diagram lint  [file.svg ...] [--strict]
@@ -88,6 +90,7 @@ map・video 等は残りの高さを埋める。`overlay` / `overlayRight` で�
 `svg-diagram check --docs docs --svg-dir docs/assets/diagrams/svg --src-dir docs/diagrams` は、Markdown の画像参照と、図のソースを突き合わせる。
 - 参照先の SVG がない（`doc-image-missing`、エラー）、代替テキストが空・155 文字超（`doc-alt-empty` / `doc-alt-long`）、どの文書からも参照されていない SVG（`doc-orphan-svg`）。
 - 図に `notes` があるとき、画像の直後の**番号つきリスト**（`1. **題名**：本文`）と、題名・本文が一致するか（`doc-notes-mismatch` / `doc-notes-missing`）。図と文書の**二重管理**で、片方の直し忘れを見つける。
+- `--map` で、図 / 図のソース / SVG / 使っている文書の**対応表**（Markdown）を標準出力に出す（参照のない SVG は「（参照なし）」）。手で書いた表の代わりに貼る。注釈の文は `svg-diagram notes <ソース>` で出せる（複数の画面に注釈があれば `<!-- 画面 N -->` で区切る）。
 - `--format json`（機械可読）、`--format github`（PR の注釈 `::warning file=…,line=…`）。
 
 ## 図の違いの説明（`--rebuild`、`diff`）
@@ -100,7 +103,7 @@ map・video 等は残りの高さを埋める。`overlay` / `overlayRight` で�
 ## check のルール（lib/rules.ts）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
 `a11y-no-title`、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、
-`edge-crossings`、`one-story`、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報）、`wf-callout-order`（情報: 図の番号が読む順でない）。
+`edge-crossings`、`one-story`、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
 `lint-svg`（描画後の検査）は、**後から描かれた図形が文字を覆う、または線が文字を貫く**ものも報告する（意図した重なりは、図形に `data-allow-cover`）。
 残す警告は `diagram({accept: {'rule-id': '理由'}})`。`theme:` の図（文書向け）だけが対象で、`day:` の図（スライド）は従来どおり。
 文書向けの図の SVG には `role="img"`・`<title>`・`<desc>`・生成元（ソースの SHA-256）が入る。`npm test` / `pnpm test` でルールの単体テスト。

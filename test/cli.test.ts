@@ -263,9 +263,39 @@ test('init makes a project that typechecks its type setting, and never overwrite
   const fresh = fs.mkdtempSync(path.join(os.tmpdir(), 'svgd-init-'));
   assert.equal(spawnSync(BIN, ['init'], {cwd: fresh, encoding: 'utf8'}).status, 0);
   assert.ok(JSON.parse(fs.readFileSync(path.join(fresh, 'tsconfig.json'), 'utf8')).compilerOptions.noEmit);
+  // pnpm 10+ refuses playwright-chromium's install script unless the workspace allows it
+  assert.match(fs.readFileSync(path.join(fresh, 'pnpm-workspace.yaml'), 'utf8'), /allowBuilds:\n {2}playwright-chromium: true/);
+  fs.writeFileSync(path.join(dir, 'pnpm-workspace.yaml'), 'packages: []\n');
+  assert.match(out(spawnSync(BIN, ['init'], {cwd: dir, encoding: 'utf8'})), /playwright-chromium/); // warns, leaves the file alone
+  assert.equal(fs.readFileSync(path.join(dir, 'pnpm-workspace.yaml'), 'utf8'), 'packages: []\n');
   const t = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8'});
   assert.equal(t.status, 2); // no typescript in a bare temp project: says how to install it
   assert.match(out(t), /typescript/);
+});
+
+test('build: --no-lint skips the lint pass but still writes the SVG', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-nolint-'));
+  fs.writeFileSync(path.join(dir, 'a.ts'), GOOD_TS);
+  const r = node(dir, BUILD, 'a.ts', '--no-lint', '--out-dir', 'out');
+  assert.equal(r.status, 0, out(r));
+  assert.ok(fs.existsSync(path.join(dir, 'out', 'a.svg')));
+});
+
+test('a change in a local file the source imports makes the SVG stale (--stale rebuilds, check --drift complains)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-deps-'));
+  fs.mkdirSync(path.join(dir, 'lib'));
+  fs.writeFileSync(path.join(dir, 'lib', 'common.ts'), "export const T = '入口';\n");
+  fs.writeFileSync(path.join(dir, 'a.ts'), GOOD_TS.replace("import type", "import {T} from './lib/common.ts';\nimport type").replace("title: '入口'", 'title: T'));
+  const b = () => node(dir, BUILD, 'a.ts', '--out-dir', 'out', '--stale', '--no-lint');
+  assert.equal(b().status, 0);
+  assert.match(b().stdout, /スキップ/);
+  assert.equal(node(dir, CHECK, '--drift', '--svg-dir', 'out', 'a.ts').status, 0);
+  fs.writeFileSync(path.join(dir, 'lib', 'common.ts'), "export const T = '玄関';\n");
+  const c = node(dir, CHECK, '--drift', '--svg-dir', 'out', 'a.ts');
+  assert.equal(c.status, 1);
+  assert.match(out(c), /import している/);
+  assert.match(b().stdout, /1 件を生成/);
+  assert.equal(node(dir, CHECK, '--drift', '--svg-dir', 'out', 'a.ts').status, 0);
 });
 
 test('build: --out-dir writes every source into one directory; --stale skips what is current and rebuilds what changed', () => {
@@ -289,4 +319,32 @@ test('build: --out-dir writes every source into one directory; --stale skips wha
   // without --stale everything is rebuilt, and --out with --out-dir is a usage error
   assert.doesNotMatch(node(dir, BUILD, 'src/a.ts', '--out-dir', 'out').stdout, /スキップ/);
   assert.equal(node(dir, BUILD, 'src/a.ts', '--out', 'x.svg', '--out-dir', 'out').status, 2);
+});
+
+test('notes prints the figure notes as a list that check --docs accepts; check --docs --map prints the table', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-notes-'));
+  const ex = path.join(ROOT, 'examples');
+  const notes = bin(dir, 'notes', path.join(ex, 'inventory-flow.ts'));
+  assert.equal(notes.status, 1); // no wireframe notes in a flow
+  const r = bin(dir, 'notes', path.join(ex, 'inventory-wireframe.ts'));
+  assert.equal(r.status, 0, out(r));
+  assert.match(r.stdout, /^1\. \*\*.+\*\*：/m);
+  fs.mkdirSync(path.join(dir, 'svg'));
+  fs.writeFileSync(path.join(dir, 'svg', 'inventory-wireframe.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  fs.writeFileSync(path.join(dir, 'svg', 'orphan.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  fs.writeFileSync(path.join(dir, 'a.md'), '![在庫画面](svg/inventory-wireframe.svg)\n');
+  const m = bin(dir, 'check', '--docs', '.', '--svg-dir', 'svg', '--map');
+  assert.match(m.stdout, /^\| inventory-wireframe \| — \| `svg\/inventory-wireframe.svg` \| `a.md:1` \|$/m);
+  assert.match(m.stdout, /\| orphan \|.*（参照なし）/);
+  assert.doesNotMatch(m.stdout, /doc-orphan/); // findings stay on stderr
+});
+
+test('init leaves the workspace file to an enclosing pnpm workspace; --map needs --docs and text format', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-ws-'));
+  fs.writeFileSync(path.join(root, 'pnpm-workspace.yaml'), 'packages: ["docs/*"]\n');
+  const sub = path.join(root, 'docs', 'diagrams');
+  assert.equal(bin(root, 'init', sub).status, 0);
+  assert.ok(!fs.existsSync(path.join(sub, 'pnpm-workspace.yaml')));
+  assert.equal(bin(root, 'check', '--map', 'x.ts').status, 2);
+  assert.equal(bin(root, 'check', '--docs', '.', '--map', '--format', 'json').status, 2);
 });

@@ -33,6 +33,7 @@ const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {build, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadConfig, applyConfig} = await import('./lib/config.ts');
+const {depsSha256, depsOf} = await import('./lib/source-deps.ts');
 const config = loadConfig();
 
 // --fit: ソースを書き換えずに、この図を使っているスライドを pages/*.md から探し、
@@ -59,11 +60,12 @@ const valueOf = (flag: string) => { const i = args.indexOf(flag); return i === -
 const outOverride = valueOf('--out');
 const outDir = valueOf('--out-dir');
 const FIT = args.includes('--fit');
+const NO_LINT = args.includes('--no-lint'); // iteration: skip the lint pass (check/CI or a final build runs it)
 const STALE = args.includes('--stale'); // skip diagrams whose SVG already matches this source, tool version and project config
-const modules = args.filter((a, i) => !['--out', '--out-dir', '--fit', '--stale'].includes(a) && !['--out', '--out-dir'].includes(args[i - 1]));
+const modules = args.filter((a, i) => !['--out', '--out-dir', '--fit', '--stale', '--no-lint'].includes(a) && !['--out', '--out-dir'].includes(args[i - 1]));
 
 if (modules.length === 0) {
-  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--stale] [--fit]');
+  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--stale] [--no-lint] [--fit]');
   process.exit(2);
 }
 if (outOverride && modules.length > 1) {
@@ -100,9 +102,12 @@ try {
       continue;
     }
     const outPath = outOverride ?? path.join(outDir ?? 'svg', path.parse(modPath).name + '.svg');
+    const srcSha = sha(fs.readFileSync(abs));
+    for (const f of depsOf(abs).unfollowable) console.warn(`  ⚠ ${path.relative(process.cwd(), f)}: 変数で組み立てた import() は、変更の検出（--stale / check --drift）の対象にならない`);
+    const depsSha = depsSha256(abs); // local files the source imports (shared parts): a change there makes the SVG stale too
     if (STALE && !FIT && fs.existsSync(outPath)) {
       const meta = embeddedSource(outPath);
-      if (meta && meta.sourceSha256 === sha(fs.readFileSync(abs)) && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256) {
+      if (meta && meta.sourceSha256 === srcSha && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256 && (meta.depsSha256 ?? '') === depsSha) {
         console.log(`· ${outPath} は最新（スキップ）`);
         skipped++;
         continue;
@@ -111,7 +116,7 @@ try {
     try {
       const d = applyConfig(define(), config); // .svg-diagram.json: project-wide accepted rules and max width
       // provenance for drift checks: which source (and which tool version) produced this SVG
-      d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source: path.relative(process.cwd(), abs), sourceSha256: sha(fs.readFileSync(abs)), ...(configSha256 ? {configSha256} : {})};
+      d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source: path.relative(process.cwd(), abs), sourceSha256: srcSha, ...(configSha256 ? {configSha256} : {}), ...(depsSha ? {depsSha256: depsSha} : {})};
       if (FIT) {
         const hits = locateSlide(path.basename(outPath));
         if (hits.length !== 1) throw new Error(`--fit: ${path.basename(outPath)} を使っているスライドが${hits.length}枚です(ちょうど1枚が必要)`);
@@ -136,7 +141,7 @@ try {
 } finally {
   await closeMeasurer();
 }
-if (written.length) { // lint-svg.ts renders every file in a single Chromium (it used to start one per diagram)
+if (written.length && !NO_LINT) { // lint-svg.ts renders every file in a single Chromium (it used to start one per diagram)
   const lintScript = fileURLToPath(new URL(`./lint-svg.${EXT}`, import.meta.url));
   const r = spawnSync(process.execPath, [lintScript, ...written, '--strict'], {encoding: 'utf8'});
   if (r.status !== 0) {

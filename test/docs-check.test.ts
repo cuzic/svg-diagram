@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {scanMarkdown, parseItem, compareNotes} from '../lib/docs-check.ts';
+import {scanMarkdown, parseItem, compareNotes, formatNotes, formatMap} from '../lib/docs-check.ts';
 import {explainChange} from '../lib/svg-diff.ts';
 import {loadConfig, applyConfig} from '../lib/config.ts';
 import type {DiagramData} from '../lib/types.ts';
@@ -93,4 +93,30 @@ test('check --docs --format json / github', () => {
   const j = JSON.parse(run(root, '--format', 'json').stdout);
   assert.equal(j.warnings, 1); assert.equal(j.findings[0].rule, 'doc-notes-mismatch'); assert.equal(j.findings[0].line, 3);
   assert.match(run(root, '--format', 'github').stdout, /^::warning file=docs\/page\.md,line=3,title=doc-notes-mismatch::/m);
+});
+
+test('formatNotes writes the list that compareNotes accepts', () => {
+  const notes = ['題名なし', {title: '検索', text: '品名で絞る。'}, {n: 5, title: '保存', text: '右下に出す。'}];
+  const md = formatNotes(notes);
+  assert.equal(md, '1. 題名なし\n2. **検索**：品名で絞る。\n5. **保存**：右下に出す。');
+  const items = scanMarkdown(`![a](x.svg)\n\n${md}\n`)[0].items;
+  assert.deepEqual(compareNotes(items, notes, 'x'), []);
+});
+
+test('formatMap lists each figure once with its documents, and marks the unreferenced', () => {
+  const t = formatMap([
+    {name: 'b', svg: 'svg/b.svg', doc: 'd/1.md:3', src: 'src/b.ts'},
+    {name: 'b', svg: 'svg/b.svg', doc: 'd/2.md:9', src: 'src/b.ts'},
+    {name: 'a', svg: 'svg/a.svg', doc: '', src: ''},
+  ]);
+  const rows = t.split('\n');
+  assert.equal(rows.length, 4);
+  assert.match(rows[2], /^\| a \| — \| `svg\/a.svg` \| （参照なし） \|$/);
+  assert.match(rows[3], /`d\/1.md:3`<br>`d\/2.md:9`/);
+});
+
+test('formatNotes keeps an item on one line; formatMap keeps same-named figures in different folders apart', () => {
+  assert.equal(formatNotes([{title: 'T', text: '一行目\n  二行目'}]), '1. **T**：一行目 二行目');
+  const t = formatMap([{name: 'f', svg: 'a/f.svg', doc: 'd.md:1', src: ''}, {name: 'f', svg: 'b/f.svg', doc: '', src: ''}]);
+  assert.equal(t.split('\n').length, 4);
 });

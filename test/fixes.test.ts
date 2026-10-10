@@ -48,9 +48,9 @@ test('a connector running through a group title is a layout error', async () => 
   assert.ok((await checkDiagram(mk('left'))).verdict.ok);
 });
 
-test('a label wider than the gap between its two boxes is an error, not a silent overlap', async () => {
+test('a label that cannot get room (an elbow leg in a narrow gap) is an error, not a silent overlap', async () => {
   const d = diagram({theme: 'blue'});
-  d.add(row([box({id: 'a', title: '左', body: '本文'}), box({id: 'b', title: '右', body: '本文'})], {gap: 24}), connect('a:right', 'b:left', {label: '長めのラベルです', chip: true}));
+  d.add(row([box({id: 'a', title: '左', body: '本文'}), box({id: 'b', title: '右', body: '本文'})], {gap: 24}), connect('a:right', 'b:left', {label: '長めのラベルです', chip: true, route: 'elbow'}));
   assert.ok((await checkDiagram(d)).verdict.problems.some(p => /overlaps its own end/.test(p)));
 });
 
@@ -86,4 +86,30 @@ test('row() of groups: side by side, frames stretched to the tallest, nested gro
   assert.ok(Math.abs(frames[0].w / frames[1].w - 3) < 0.1 || frames[0].w > 2 * frames[1].w);
   const c = r.laidOut.connects[0];
   assert.ok(c.points[0].y <= frames[0].y + frames[0].h);
+});
+
+test('a label between side-by-side groups gets room: the chip clears both frame lines and both boxes', async () => {
+  const d = diagram({theme: 'blue'});
+  d.add(
+    row([group([row([box({id: 'a', title: 'A'})])], {id: 'ga', title: 'G1'}), group([row([box({id: 'b', title: 'B'})])], {id: 'gb', title: 'G2'})]),
+    connect('a:right', 'b:left', {label: '映像・pose・route', chip: true}),
+  );
+  const {laidOut} = await checkDiagram(d);
+  const frames = laidOut.laidOut.filter(b => b.type === 'group') as unknown as {x: number; w: number}[];
+  const chip = laidOut.connects[0].chipBox!;
+  const gapL = frames[0].x + frames[0].w, gapR = frames[1].x;
+  assert.ok(chip.x >= gapL + 4 && chip.x + chip.w <= gapR - 4, `chip ${chip.x}..${chip.x + chip.w} must sit inside the gap ${gapL}..${gapR}`);
+});
+
+test('a row widens its gap for a straight labelled connector between neighbours (the old error case now fits)', async () => {
+  const d = diagram({theme: 'blue'});
+  d.add(row([box({id: 'a', title: '左'}), box({id: 'b', title: '右'})], {gap: 24}), connect('a:right', 'b:left', {label: '長めのラベルです', chip: true}));
+  assert.deepEqual((await checkDiagram(d)).verdict.problems, []);
+});
+
+test('a fixed-width row keeps its gap (growing it would overflow the canvas)', async () => {
+  const d = diagram({theme: 'blue'});
+  d.add(row([box({id: 'a', title: '左'}), box({id: 'b', title: '右'})], {justify: 'start', gap: 8}), connect('a:right', 'b:left', {label: '長めのラベルです', chip: true}));
+  const r = (await checkDiagram(d)).laidOut.laidOut.find(b => b.type === 'row') as unknown as {children: {x: number; w: number}[]};
+  assert.equal(r.children[1].x - (r.children[0].x + r.children[0].w), 8);
 });

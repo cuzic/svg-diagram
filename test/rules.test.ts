@@ -57,3 +57,22 @@ test('diagramTitle falls back to the first caption', () => {
   assert.equal(diagramTitle(d), '見出し');
   assert.equal(diagramTitle(diagram({theme: 'blue', title: '明示'})), '明示');
 });
+
+test('wf-callout-order: a sidebar read first is fine; only a step back (up-and-left) is flagged', () => {
+  const lint = (callouts: {n: number; x: number; y: number}[]) => lintDiagram({...diagram({theme: 'blue', title: 't'}), connects: [], laidOut: [{type: 'wireframe', title: 'S', callouts} as never]}).filter(f => f.rule === 'wf-callout-order');
+  // 1 in the left sidebar (low), 2 top right: column order, not a violation
+  assert.equal(lint([{n: 1, x: 40, y: 300}, {n: 2, x: 400, y: 60}]).length, 0);
+  // down a row, or along the row: fine
+  assert.equal(lint([{n: 1, x: 300, y: 60}, {n: 2, x: 40, y: 200}, {n: 3, x: 200, y: 200}]).length, 0);
+  // 2 is higher and to the left of 1; 3 is left of 2 on the same row
+  assert.match(lint([{n: 1, x: 300, y: 300}, {n: 2, x: 100, y: 60}])[0].message, /1→2/);
+  assert.match(lint([{n: 1, x: 300, y: 60}, {n: 2, x: 100, y: 70}])[0].message, /1→2/);
+});
+
+test('arrow-labels: none labelled is a convention; some labelled and most not is flagged', () => {
+  const c = (label?: string) => ({label, points: [{x: 0, y: 0}, {x: 1, y: 0}], pathSegments: []}) as never;
+  const run = (cs: unknown[]) => lintDiagram({...diagram({theme: 'blue', title: 't'}), laidOut: [], connects: cs as never}).some(f => f.rule === 'arrow-labels');
+  assert.equal(run([c(), c(), c(), c(), c()]), false);
+  assert.equal(run([c('x'), c(), c(), c(), c()]), true);
+  assert.equal(run([c('x'), c('y'), c('z'), c(), c()]), false);
+});

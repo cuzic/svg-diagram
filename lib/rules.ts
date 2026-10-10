@@ -28,7 +28,7 @@ export const RULE_DOCS = {
   'swimlane-lanes': 'レーンが多い（6 本まで）',
   'swimlane-hand-offs': 'レーンをまたぐ引き継ぎの数（情報）',
   'edge-crossings': '線どうしの交差・重なりがある',
-  'arrow-labels': 'ラベルのない矢印が多い',
+  'arrow-labels': '一部にだけラベルがあり、ラベルのない矢印が多い',
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
   'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む',
   'density': '文字量・箱の数が多い',
@@ -255,7 +255,9 @@ function calloutsOf(...trees: unknown[]): number[] {
   return out;
 }
 
-// the callout numbers should grow in reading order: top to bottom, left to right
+// the callout numbers should grow in reading order. Rows read top to bottom, columns (a sidebar, a main area) left to right,
+// so the next number may sit lower, or clearly to the right — only a step back (up-and-left, or left on the same row) is flagged.
+const ORDER_ROW = 48, ORDER_COL = 24;
 function calloutOrder(d: LintTarget, out: Finding[]): void {
   for (const b of d.laidOut ?? []) {
     if (b.type !== 'wireframe' || !b.callouts?.length) continue;
@@ -263,8 +265,10 @@ function calloutOrder(d: LintTarget, out: Finding[]): void {
     for (const c of b.callouts) if (!first.has(c.n)) first.set(c.n, c);
     const nums = [...first.keys()].sort((x, y) => x - y), bad = [];
     for (let i = 0; i + 1 < nums.length; i++) {
-      const a = first.get(nums[i]) as WfCallout, c = first.get(nums[i + 1]) as WfCallout, ra = Math.round(a.y / 48), rc = Math.round(c.y / 48);
-      if (rc < ra || (rc === ra && c.x < a.x - 8)) bad.push(`${nums[i]}→${nums[i + 1]}`);
+      const a = first.get(nums[i]) as WfCallout, c = first.get(nums[i + 1]) as WfCallout;
+      const leftOfIt = c.x < a.x - ORDER_COL && c.y < a.y + ORDER_ROW;       // not on a later row, yet to the left
+      const aboveIt = c.y < a.y - ORDER_ROW && c.x < a.x + ORDER_COL;        // higher up, and not in a column further right
+      if (leftOfIt || aboveIt) bad.push(`${nums[i]}→${nums[i + 1]}`);
     }
     if (bad.length) out.push({rule: 'wf-callout-order', severity: 'info', message: `${b.title ? `「${b.title}」` : 'ワイヤーフレーム'}: 番号が読む順でない所: ${bad.join('、')}`});
   }
@@ -319,7 +323,8 @@ function lintAll(d: LintTarget): Finding[] {
     const {crossings, overlaps} = edgeStats(connects);
     if (crossings || overlaps) out.push({rule: 'edge-crossings', severity: 'warn', message: `線の交差 ${crossings} 箇所、重なり ${overlaps} 箇所。箱や線の配置・レーンの順を見直す`});
     const unlabeled = connects.filter(c => !c.label).length;
-    if (connects.length >= 4 && unlabeled / connects.length > 0.6) out.push({rule: 'arrow-labels', severity: 'info', message: `矢印 ${connects.length} 本のうち ${unlabeled} 本にラベルがない。何が流れるか（成果物・プロトコル）を短く添える`});
+    // no label at all is a convention (the arrows only mean "depends on" / "next"); some labelled and most not is the inconsistency to flag
+    if (connects.length >= 4 && unlabeled < connects.length && unlabeled / connects.length > 0.6) out.push({rule: 'arrow-labels', severity: 'info', message: `矢印 ${connects.length} 本のうち ${unlabeled} 本にラベルがない。何が流れるか（成果物・プロトコル）を短く添える`});
   }
   if (d.medium === 'doc' && d.width > (d.maxWidth ?? 940)) out.push({rule: 'doc-width', severity: 'warn', message: `幅 ${d.width}px。本文の表示幅（約 930px）に縮められ、文字が小さくなる（${d.maxWidth ?? 940}px 以下にする）`});
   // doc diagrams are read at length on a page, so their budget is larger than the slide decks' (see budget.ts)
