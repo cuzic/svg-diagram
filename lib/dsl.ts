@@ -27,7 +27,12 @@ import type {
   Role, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
   TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
 } from './types.ts';
+import type {BoxInput, BranchInput, ConnectInput, CurvePoints, DiagramInput, PyramidLayers} from './strict.ts';
 export {wf} from './wireframe.ts';
+
+// Compile time (lib/strict.ts): diagram({theme | day}) is required and fill: true requires `slide`. The runtime
+// checks below are unchanged and still fire for JS callers.
+export function diagram(opts: DiagramInput): Diagram;
 
 export function diagram(opts: DiagramOpts = {}): Diagram {
   // `theme` (name from tokens.ts PALETTE) is the general form; `day` (1|2) is the
@@ -64,6 +69,9 @@ export function caption(text: string, opts: CaptionOpts = {}): CaptionBand {
 // `step`: a number/string drawn as a solid numbered badge over the title's
 // own baseline (requires `title` — the badge has nothing to align to
 // without it).
+//
+// Types: `step` requires `title`; `size` is an integer >= 14 (FontSize); unknown keys are rejected.
+export function box(opts: BoxInput): BoxBand;
 export function box(opts: BoxOpts): BoxBand {
   if (opts.size !== undefined) assertFontSize(opts.size);
   if (opts.step != null && !opts.title) throw new Error('box({step}) needs a title — the badge aligns to the title\'s first line');
@@ -165,7 +173,7 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
   const flows = specs.map(({f, b, from, to, auto}) => {
     if (auto) { from = spread(from); to = spread(to); }
     const k = slot.get(b.col) ?? 0; slot.set(b.col, k + 1);
-    return connect(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone});
+    return connectBand(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone});
   });
   const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, id: opts.id};
   return [block, ...flows];
@@ -259,7 +267,15 @@ export function grid(children: BoxBand[], opts: GridOpts): GridBand {
 // {route: 'loop-under', dip: 32})).
 // Consumes no vertical space — resolved after the whole stack is laid out,
 // so `from`/`to` may reference boxes declared earlier OR later in the stack.
+//
+// Types: `dip` only with route 'loop-under'; `bend` / `bendOffset` only with route 'elbow'; `chip` / `labelAt` only
+// with a `label`.
+export function connect(from: string, to: string, opts?: ConnectInput): ConnectBand;
 export function connect(from: string, to: string, opts: ConnectOpts = {}): ConnectBand {
+  return connectBand(from, to, opts);
+}
+
+function connectBand(from: string, to: string, opts: ConnectOpts): ConnectBand {
   // arrow: 'end' (default) | 'both' | 'start' | 'none'  (legacy `marker: false` = 'none')
   // line:  'solid' (default) | 'dashed' | 'dotted' | 'double'  (legacy `dashed: true` = 'dashed')
   // labelAt: 0..1 along a straight/loop-under connector where the label/chip sits (default 0.5)
@@ -272,8 +288,9 @@ export function connect(from: string, to: string, opts: ConnectOpts = {}): Conne
 // One box fanning out to several targets (a decision). `targets`:
 // [{to, label?, tone?, dashed?}]; opts as connect() (route defaults to
 // 'elbow'). Returns an array — d.add() flattens it.
+export function branch(from: string, targets: (BranchInput & {to: string})[], opts?: BranchInput): ConnectBand[];
 export function branch(from: string, targets: BranchTarget[], opts: ConnectOpts = {}): ConnectBand[] {
-  return targets.map(t => connect(from, t.to, {route: 'elbow', ...opts, ...t}));
+  return targets.map(t => connectBand(from, t.to, {route: 'elbow', ...opts, ...t}));
 }
 
 // Stacked trapezoid layers, bottom (widest) to top (narrowest) — a test
@@ -281,6 +298,8 @@ export function branch(from: string, targets: BranchTarget[], opts: ConnectOpts 
 // the bottom". `layers`: strings or {text}, bottom-to-top. Opacity and each
 // layer's text color are derived (see tokens.ts's SHADES/bestTextColor),
 // not chosen per diagram, so contrast is provably fine for any 2-6 layers.
+// Types: a tuple of at least 2 layers.
+export function pyramid(layers: PyramidLayers, opts?: PyramidOpts): PyramidBand;
 export function pyramid(layers: (string | PyramidLayer)[], opts: PyramidOpts = {}): PyramidBand {
   if (!Array.isArray(layers) || layers.length < 2) throw new Error('pyramid(layers) needs at least 2 layers, bottom to top');
   return {
@@ -298,6 +317,8 @@ export function pyramid(layers: (string | PyramidLayer)[], opts: PyramidOpts = {
 // 'muted', dropLine?: true} evenly spaced left-to-right along the x-axis.
 // Bespoke callouts (leader lines to side notes, etc.) are raw()'s job —
 // curve() only draws the reusable skeleton.
+// Types: a tuple of at least 2 points, each with a numeric y.
+export function curve(points: CurvePoints, opts?: CurveOpts): CurveBand;
 export function curve(points: CurveBand['points'], opts: CurveOpts = {}): CurveBand {
   if (!Array.isArray(points) || points.length < 2) throw new Error('curve(points) needs at least 2 points');
   for (const p of points) {
