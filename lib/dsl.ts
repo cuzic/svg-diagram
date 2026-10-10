@@ -27,13 +27,20 @@ import type {
   Role, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
   TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
 } from './types.ts';
-import type {BoxInput, BranchInput, ConnectInput, CurvePoints, DiagramInput, PyramidLayers, StateRowIn} from './strict.ts';
+import type {
+  BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, IdsOf, Ok, PyramidLayers, Refers, RefsOf,
+  ScreensItemInput, StateRowIn,
+} from './strict.ts';
 export {wf} from './wireframe.ts';
 
-// Compile time (lib/strict.ts): diagram({theme | day}) is required and fill: true requires `slide`. The runtime
-// checks below are unchanged and still fire for JS callers.
-export function diagram(opts: DiagramInput): Diagram;
-
+//
+// Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
+// that is declared neither in the same add() call (before OR after the connect) nor earlier in a chained
+// `.add().add()` is a type error. Forward refs across separate add() calls are therefore rejected by the types
+// although the runtime allows them; and in the statement style `d.add(x); d.add(connect(...))` (the result is not
+// assigned back) the type cannot see the earlier ids, so a call that declares nothing is not checked.
+// diagram({theme | day}) is required; fill: true requires `slide`. The runtime checks below are unchanged.
+export function diagram(opts: DiagramInput): Diagram<never>;
 export function diagram(opts: DiagramOpts = {}): Diagram {
   // `theme` (name from tokens.ts PALETTE) is the general form; `day` (1|2) is the
   // training deck's legacy spelling of the same thing. Stored as d.day internally.
@@ -59,7 +66,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     ...d,
     add(this: Diagram, ...bands: BandInput[]) { d.bands.push(...bands.flat()); return this; },
     get bands() { return d.bands; },
-  };
+  } as Diagram;
 }
 
 export function caption(text: string, opts: CaptionOpts = {}): CaptionBand {
@@ -70,14 +77,16 @@ export function caption(text: string, opts: CaptionOpts = {}): CaptionBand {
 // own baseline (requires `title` — the badge has nothing to align to
 // without it).
 //
-// Types: `step` requires `title`; `size` is an integer >= 14 (FontSize); unknown keys are rejected.
-export function box(opts: BoxInput): BoxBand;
+// Types: `step` requires `title`; `size` is one of FontSize (an integer >= 14); unknown keys are rejected; the
+// literal `id` is remembered so connect() refs to it can be checked by add().
+export function box<const Id extends string = never>(opts: BoxInput<Id>): BoxBand & Declares<Id>;
 export function box(opts: BoxOpts): BoxBand {
   if (opts.size !== undefined) assertFontSize(opts.size);
   if (opts.step != null && !opts.title) throw new Error('box({step}) needs a title — the badge aligns to the title\'s first line');
   return {type: 'box', ...opts};
 }
 
+export function banner<const Id extends string = never>(opts: BannerOpts & {id?: Id}): BannerBand & Declares<Id>;
 export function banner(opts: BannerOpts): BannerBand {
   return {type: 'banner', tone: opts.tone ?? 'accent', ...opts};
 }
@@ -86,6 +95,8 @@ export function banner(opts: BannerOpts): BannerBand {
 // release phase). children: any bands (row, grid, box, nested group...).
 // tone: 'muted' (default, grey fill) | 'accent' | 'plain' (white) | 'danger';
 // dashed: draw the boundary dashed (default true for 'plain' = a trust/zone line).
+// Types: the ids (and connect() refs) of the children are exposed to add().
+export function group<C extends Band | Band[], const Id extends string = never>(children: C, opts?: GroupOpts & {id?: Id}): GroupBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>>;
 export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
   return {type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad, id: opts.id};
 }
@@ -104,6 +115,8 @@ export function legend(items: LegendItem[], opts: LegendOpts = {}): LegendBand {
 //   {divider: text}                        — a phase separator across the whole width
 // Messages are auto-numbered 1, 2, ... (sequence(..., {numbered: false}) to turn off) so
 // the picture lines up with a numbered list in the surrounding text.
+// Types: an `id` in opts becomes a connect() anchor.
+export function sequence<const Id extends string = never>(actors: SequenceActor[], steps: SequenceStep[], opts?: SequenceOpts & {id?: Id}): SequenceBand & Declares<Id>;
 export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: SequenceOpts = {}): SequenceBand {
   return {type: 'sequence', actors, steps, numbered: opts.numbered, id: opts.id};
 }
@@ -113,6 +126,7 @@ export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: S
 // a cell is a string or {text, tone?: 'accent'|'muted'|'danger', bold?, mono?, align?}.
 // title adds an accent bar on top (an ER entity name, a table caption); header: false hides
 // the column-label row; width narrows the table (centered).
+export function table<const Id extends string = never>(columns: TableColumn[], rows: TableRow[], opts?: TableOpts & {id?: Id}): TableBand & Declares<Id>;
 export function table(columns: TableColumn[], rows: TableRow[], opts: TableOpts = {}): TableBand {
   return {type: 'table', columns, rows, title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, id: opts.id};
 }
@@ -187,6 +201,7 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
 //          noteW, skeleton (text becomes grey bars), marks: {new, changed} legend labels,
 //          overlays: [wf.dialog(...), wf.toast(...)]  — drawn over the screen (a dialog dims it)}
 // id makes the screen frame a connect() anchor.
+export function wireframe<const Id extends string = never>(root: WfRoot, opts?: WireframeOpts & {id?: Id}): WireframeBand & Declares<Id>;
 export function wireframe(root: WfRoot, opts: WireframeOpts = {}): WireframeBand {
   autoNumber(root, opts.overlays);
   return {type: 'wireframe', root, ...opts};
@@ -217,6 +232,8 @@ function autoNumber(...trees: (WfRoot | WfOverlay | WfOverlay[] | undefined)[]):
 // Several screens as thumbnails in a grid — a screen-transition diagram. Join them with connect().
 //   items: [{id, title, tag?, root, h?, skeleton?, at?: [row, col]}]   opts: {cols (3), gap (64), rowGap (56), h (320), skeleton}
 //   at places an item explicitly; col may be fractional (0.5 = half a column in) to centre a parent over its children.
+// Types: item ids are exposed to add() as connect() anchors; `at` is a [row, col] tuple.
+export function screens<const Id extends string = never>(items: ScreensItemInput<Id>[], opts?: ScreensOpts): ScreensBand & Declares<Id>;
 export function screens(items: ScreensItem[], opts: ScreensOpts = {}): ScreensBand {
   return {type: 'screens', items, ...opts};
 }
@@ -249,6 +266,7 @@ export function spacer(h: number): SpacerBand {
 // `span` columns, default 1, optionally starting at 1-based `col`). Rows with
 // the same cols/gap have identical column edges, so a box spanning two
 // columns lines up exactly over two single-column boxes in the next row.
+export function row<C extends BoxBand>(children: C[], opts?: RowOpts): RowBand & Declares<IdsOf<C>>;
 export function row(children: BoxBand[], opts: RowOpts = {}): RowBand {
   return {type: 'row', cols: opts.cols, children, gap: opts.gap ?? 16, arrows: opts.arrows ?? 'none', justify: opts.justify ?? 'stretch', itemWidth: opts.width};
 }
@@ -256,6 +274,7 @@ export function row(children: BoxBand[], opts: RowOpts = {}): RowBand {
 // children: box() descriptors, laid out in `cols` columns (wraps to
 // additional rows automatically). Every cell in the same grid-row shares
 // that row's tallest cell's height, same as row().
+export function grid<C extends BoxBand>(children: C[], opts: GridOpts): GridBand & Declares<IdsOf<C>>;
 export function grid(children: BoxBand[], opts: GridOpts): GridBand {
   if (!opts?.cols) throw new Error('grid(children, {cols}) needs cols');
   return {type: 'grid', children, cols: opts.cols, gap: opts.gap ?? 16};
@@ -273,9 +292,10 @@ export function grid(children: BoxBand[], opts: GridOpts): GridBand {
 // Consumes no vertical space — resolved after the whole stack is laid out,
 // so `from`/`to` may reference boxes declared earlier OR later in the stack.
 //
-// Types: `dip` only with route 'loop-under'; `bend` / `bendOffset` only with route 'elbow'; `chip` / `labelAt` only
-// with a `label`.
-export function connect(from: string, to: string, opts?: ConnectInput): ConnectBand;
+// Types: `from` / `to` must be well-formed ('id', 'id:side', 'id:side@t'; side = left|right|top|bottom|center; t = 0..1)
+// and add() checks the id exists in the diagram. `dip` only with route 'loop-under'; `bend` / `bendOffset` only with
+// route 'elbow'; `chip` / `labelAt` only with a `label`.
+export function connect<const F extends string, const T extends string>(from: Ok<F>, to: Ok<T>, opts?: ConnectInput): ConnectBand & Refers<F | T>;
 export function connect(from: string, to: string, opts: ConnectOpts = {}): ConnectBand {
   return connectBand(from, to, opts);
 }
@@ -293,7 +313,7 @@ function connectBand(from: string, to: string, opts: ConnectOpts): ConnectBand {
 // One box fanning out to several targets (a decision). `targets`:
 // [{to, label?, tone?, dashed?}]; opts as connect() (route defaults to
 // 'elbow'). Returns an array — d.add() flattens it.
-export function branch(from: string, targets: (BranchInput & {to: string})[], opts?: BranchInput): ConnectBand[];
+export function branch<const F extends string, const To extends string>(from: Ok<F>, targets: (BranchInput & {to: Ok<To>})[], opts?: BranchInput): (ConnectBand & Refers<F | To>)[];
 export function branch(from: string, targets: BranchTarget[], opts: ConnectOpts = {}): ConnectBand[] {
   return targets.map(t => connectBand(from, t.to, {route: 'elbow', ...opts, ...t}));
 }

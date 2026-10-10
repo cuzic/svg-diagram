@@ -2,11 +2,105 @@
 // here has a runtime twin (a `throw` in dsl.ts / layout.ts, or a rule of `svg-diagram check`) that still
 // fires for JS callers and `.mjs` diagram sources.
 //
-// Option bags that have mutually dependent fields (box step/title, connect route/bend/dip/label, ...)
-// are discriminated unions, so the wrong combination is an ordinary "not assignable" error.
+// How the pieces fit:
+//   * Constructors return their band intersected with a PHANTOM carrier: `Declares<'id'>` (the anchor ids the
+//     band introduces) or `Refers<'id:side'>` (the connect() refs it uses). The carriers are optional
+//     properties that never exist at runtime.
+//   * `diagram().add(...bands)` gathers the ids carried by the diagram so far plus those of THIS call, and
+//     rejects a band whose refs name an id that is not among them (ValidateBands).
+//   * Option bags that have mutually dependent fields (box step/title, connect route/bend/dip/label, ...)
+//     are discriminated unions, so the wrong combination is an ordinary "not assignable" error.
+//   * Where a plain "not assignable" message would be cryptic, the offending value is mapped to a string
+//     literal type that IS the message (`Ok<T, Problem>`), or to a required property whose NAME is the
+//     message (`Err<M>`), which TypeScript prints verbatim.
+//
+// A non-literal `string` (an id or ref computed at run time) can never be proven wrong, so it is accepted
+// everywhere: every check below degrades to "ok" for `string` and for template-literal patterns.
 
 import type {MIN_FONT_SIZE} from './tokens.ts';
-import type {Arrow, Bend, BoxOpts, CurvePoint, DiagramOpts, LineStyle, SlideRef, StateMatrixCell, TextTone, Theme} from './types.ts';
+import type {
+  Arrow, Bend, BoxOpts, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SlideRef, StateMatrixCell, TextTone, Theme,
+} from './types.ts';
+
+// ============================================================================================
+// Phantom carriers and their readers
+// ============================================================================================
+
+/** The anchor ids a band introduces (box id, row/grid child ids, screens item ids, swimlane step ids ...). */
+export interface Declares<I extends string> {readonly '~ids'?: I}
+/** The connect() refs ('id', 'id:side', 'id:side@t') a band uses. */
+export interface Refers<R extends string> {readonly '~refs'?: R}
+
+type Flat<X> = X extends readonly (infer E)[] ? E : X;
+/** Ids declared by one band (or a band array). `never` for bands that carry none. */
+export type IdsOf<X> = Flat<X> extends infer E ? (E extends {readonly '~ids'?: infer I} ? Extract<I, string> : never) : never;
+export type RefsOf<X> = Flat<X> extends infer E ? (E extends {readonly '~refs'?: infer R} ? Extract<R, string> : never) : never;
+/** Ids declared by the tuple of bands handed to add(). */
+export type DeclaredIds<B extends readonly unknown[]> = IdsOf<B[number]>;
+
+// ============================================================================================
+// Refs: 'id' | 'id:side' | 'id:side@t'
+// ============================================================================================
+
+/** `{[x: `a${number}`]: 1}`-style indexes make `{}` assignable; a plain literal makes a required key. */
+type IsPattern<R extends string> = {} extends {[K in R]: 1} ? true : false;
+export type SideName = 'left' | 'right' | 'top' | 'bottom' | 'center';
+type OffsetOk = '0' | '1' | `0.${number}` | `.${number}`;
+type IdOf<R extends string> = R extends `${infer Id}:${string}` ? Id : R;
+
+type SideProblem<R extends string, Rest extends string> =
+  IsPattern<Rest> extends true ? never
+  : Rest extends SideName ? never
+  : Rest extends `${infer S}@${infer T}`
+    ? (S extends SideName
+        ? (T extends OffsetOk ? never : `connect(): bad offset "@${T}" in "${R}" — use a number from 0 to 1, e.g. "box:left@0.25"`)
+        : BadSide<R, S>)
+    : BadSide<R, Rest>;
+type BadSide<R extends string, S extends string> = `connect(): unknown side "${S}" in "${R}" — use left | right | top | bottom | center`;
+
+/** What is wrong with the SHAPE of a ref (side / offset), as a message; `never` when fine. Needs no id list. */
+export type ShapeProblem<R extends string> = R extends string
+  ? (IsPattern<R> extends true ? never : R extends `${string}:${infer Rest}` ? SideProblem<R, Rest> : never)
+  : never;
+
+/** `T` when the ref is well-formed, otherwise the message (as a type no argument can satisfy). */
+export type Ok<T extends string> = [ShapeProblem<T>] extends [never] ? T : ShapeProblem<T>;
+
+type UnknownId<Id extends string, Known extends string> =
+  `unknown anchor id "${Id}" — declare it with {id: '${Id}'} (declared ids: ${Join<Known>})`;
+/** Refs among R whose id is not in Known (messages); never for non-literal refs. */
+type IdProblem<R extends string, Known extends string> = R extends string
+  ? (IsPattern<IdOf<R>> extends true ? never : IdOf<R> extends Known ? never : UnknownId<IdOf<R>, Known>)
+  : never;
+
+type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
+type LastOf<U> = UnionToIntersection<U extends unknown ? () => U : never> extends () => infer R ? R : never;
+type LastStr<U extends string> = Extract<LastOf<U>, string>;
+/** 'a' | 'b' | 'c' -> 'a | b | c' (declaration order, for messages only). */
+type Join<U extends string, Acc extends string = ''> =
+  [U] extends [never] ? Acc : Join<Exclude<U, LastStr<U>>, Acc extends '' ? LastStr<U> : `${LastStr<U>} | ${Acc}`>;
+
+/** A required property whose NAME is the error message. */
+export type Err<M extends string> = {readonly [K in M]: never};
+
+/** The anchor ref format: 'id', 'id:side', 'id:side@t'. For documentation and signatures; connect() validates the real literal. */
+export type AnchorRef<Id extends string = string> = Id | `${Id}:${SideName}` | `${Id}:${SideName}@${number}`;
+
+// ============================================================================================
+// diagram().add()
+// ============================================================================================
+
+type ElementCheck<Known extends string, X> = [IdProblem<RefsOf<X>, Known>] extends [never] ? unknown : Err<IdProblem<RefsOf<X>, Known>>;
+
+/**
+ * Per-argument check of add(): each connect ref must name an id declared EARLIER on the diagram (carried by its
+ * type when add() calls are chained) or ANYWHERE in this very call (forward refs inside one call are fine).
+ * When nothing is declared yet the refs can only point at earlier statements, which the type system cannot
+ * see (`d.add(x); d.add(connect(...))` -- add()'s result is not assigned back), so nothing is checked.
+ */
+export type ValidateBands<Ids extends string, B extends readonly unknown[]> =
+  [Ids | DeclaredIds<B>] extends [never] ? unknown
+  : {[K in keyof B]: ElementCheck<Ids | DeclaredIds<B>, B[K]>};
 
 // ============================================================================================
 // Option bags as discriminated unions
@@ -43,6 +137,12 @@ export type BranchInput = ConnectLook & (Omit<Elbow, 'route'> & {route?: 'elbow'
 export type PyramidLayers = [string | {text: string}, string | {text: string}, ...(string | {text: string})[]];
 /** curve(): at least two points. */
 export type CurvePoints = [CurvePoint, CurvePoint, ...CurvePoint[]];
+
+// ============================================================================================
+// screens() / sequence()
+// ============================================================================================
+
+export type ScreensItemInput<Id extends string = string> = Omit<ScreensItem, 'id'> & {id?: Id};
 
 // ============================================================================================
 // stateMatrix()

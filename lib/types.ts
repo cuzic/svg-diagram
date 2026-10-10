@@ -13,6 +13,7 @@
 //     after defaults were applied" — a constructor that defaults a field (e.g. row().gap) returns it required.
 //   * Colours are never raw strings in the DSL: they are token keys (TextTone / BoxTone / ColorKey).
 
+import type {DeclaredIds, ValidateBands} from './strict.ts';
 import type {RULE_DOCS, DEFAULT_LEGEND_LABELS} from './rules.ts';
 
 // ============================================================================================
@@ -135,9 +136,13 @@ export interface DiagramSource {
   sourceSha256: string;
 }
 
-/** What diagram() returns. `add()` accepts bands and arrays of bands (swimlane() / branch() return arrays). */
-export interface Diagram extends DiagramData {
-  add(this: Diagram, ...bands: BandInput[]): Diagram;
+/**
+ * What diagram() returns. `add()` accepts bands and arrays of bands (swimlane() / branch() return arrays).
+ * `Ids` = the anchor ids declared so far (lib/strict.ts): add() rejects a connect() whose ref names an id that is
+ * neither among them nor declared in the same call. Plain `Diagram` (= `Diagram<string>`) checks nothing.
+ */
+export interface Diagram<Ids extends string = string> extends DiagramData {
+  add<const B extends readonly BandInput[]>(...bands: B & ValidateBands<Ids, B>): Diagram<Ids | DeclaredIds<B>>;
 }
 export type BandInput = Band | Band[];
 
