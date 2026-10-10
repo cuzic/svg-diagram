@@ -20,33 +20,33 @@
   <text x="440" y="216" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">検索結果の一覧</text>
   <rect x="264" y="272" width="352" height="96" rx="6" fill="#f6f8fa" stroke="#e0d6c5" stroke-width="2"/>
   <text x="440" y="325" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">選んだ在庫の詳細</text>
-  <g role="img" aria-label="注釈 1" data-badge>
+  <g role="img" aria-label="注釈 1" data-badge="">
   <circle cx="44" cy="156" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="43" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
   </g>
-  <g role="img" aria-label="注釈 2" data-badge>
+  <g role="img" aria-label="注釈 2" data-badge="">
   <circle cx="276" cy="156" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="275" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
   </g>
-  <g role="img" aria-label="注釈 3" data-badge>
+  <g role="img" aria-label="注釈 3" data-badge="">
   <circle cx="276" cy="264" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="275" y="271" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
   </g>
-  <g role="img" aria-label="注釈 1" data-badge>
+  <g role="img" aria-label="注釈 1" data-badge="">
   <circle cx="668" cy="112" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="668" y="117" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
   </g>
   <text x="692" y="118" font-size="14" font-weight="700" fill="#22201b">検索と絞り込み</text>
   <text x="692" y="137" font-size="14" font-weight="400" fill="#6f6659">品名・倉庫で絞る。最初に目が行</text>
   <text x="692" y="157" font-size="14" font-weight="400" fill="#6f6659">く場所。</text>
-  <g role="img" aria-label="注釈 2" data-badge>
+  <g role="img" aria-label="注釈 2" data-badge="">
   <circle cx="668" cy="188" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="668" y="193" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
   </g>
   <text x="692" y="194" font-size="14" font-weight="700" fill="#22201b">検索結果</text>
   <text x="692" y="214" font-size="14" font-weight="400" fill="#6f6659">絞り込んだ在庫の一覧。0 件のと</text>
   <text x="692" y="234" font-size="14" font-weight="400" fill="#6f6659">きは空の状態（下の一覧表）。</text>
-  <g role="img" aria-label="注釈 3" data-badge>
+  <g role="img" aria-label="注釈 3" data-badge="">
   <circle cx="668" cy="264" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="668" y="270" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
   </g>
@@ -70,42 +70,42 @@
   <rect x="48" y="596" width="12" height="12" rx="2" fill="none" stroke="#6f6659" stroke-width="2"/>
   <text x="69" y="609" font-size="14" font-weight="700" fill="#22201b">在庫数 24 個</text>
   <text x="161" y="609" font-size="14" font-weight="400" fill="#6f6659">10/9 10:24</text>
-  <g role="img" aria-label="注釈 1" data-badge>
+  <g role="img" aria-label="注釈 1" data-badge="">
   <circle cx="36" cy="508" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="35" y="513" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
   </g>
-  <g role="img" aria-label="注釈 4" data-badge>
+  <g role="img" aria-label="注釈 4" data-badge="">
   <circle cx="192" cy="508" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="191" y="513" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">4</text>
   </g>
-  <g role="img" aria-label="注釈 2" data-badge>
+  <g role="img" aria-label="注釈 2" data-badge="">
   <circle cx="36" cy="552" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="35" y="555" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
   </g>
-  <g role="img" aria-label="注釈 3" data-badge>
+  <g role="img" aria-label="注釈 3" data-badge="">
   <circle cx="36" cy="604" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="35" y="609" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
   </g>
-  <g role="img" aria-label="注釈 1" data-badge>
+  <g role="img" aria-label="注釈 1" data-badge="">
   <circle cx="668" cy="500" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="668" y="504" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
   </g>
   <text x="692" y="505" font-size="14" font-weight="700" fill="#22201b">重要度</text>
   <text x="692" y="525" font-size="14" font-weight="400" fill="#6f6659">要確認・注意・参考の 3 段。</text>
-  <g role="img" aria-label="注釈 2" data-badge>
+  <g role="img" aria-label="注釈 2" data-badge="">
   <circle cx="668" cy="556" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="668" y="561" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
   </g>
   <text x="692" y="562" font-size="14" font-weight="700" fill="#22201b">題名</text>
   <text x="692" y="582" font-size="14" font-weight="400" fill="#6f6659">1 行で言い切る。</text>
-  <g role="img" aria-label="注釈 3" data-badge>
+  <g role="img" aria-label="注釈 3" data-badge="">
   <circle cx="668" cy="612" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="668" y="619" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
   </g>
   <text x="692" y="620" font-size="14" font-weight="700" fill="#22201b">根拠</text>
   <text x="692" y="639" font-size="14" font-weight="400" fill="#6f6659">根拠の種類と取得時刻は必須。欠</text>
   <text x="692" y="659" font-size="14" font-weight="400" fill="#6f6659">けた所見は作れない。</text>
-  <g role="img" aria-label="注釈 4" data-badge>
+  <g role="img" aria-label="注釈 4" data-badge="">
   <circle cx="668" cy="692" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="668" y="695" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">4</text>
   </g>

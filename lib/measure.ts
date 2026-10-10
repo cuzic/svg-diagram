@@ -68,6 +68,61 @@ function getBrowser(): Promise<Browser> {
 // process exit naturally — Playwright doesn't need an explicit close if the
 // process is about to end, but build-diagram.ts calls this for a clean exit
 // when building many diagrams in one process).
+// The measuring browser, for callers that must draw with the same engine (svg-diagram show).
+export {getBrowser};
+
+export interface Raster {
+  width: number;
+  height: number;
+  /** RGBA, row-major, 4 bytes per pixel (what the sixel encoder takes). */
+  rgba: Buffer;
+  /** PNG of the same pixels, when asked for. */
+  png?: Buffer;
+}
+
+/** The SVG's own width and height (the root's attributes, or its viewBox). */
+export function svgSize(svg: string): {w: number; h: number} | null {
+  const root = /<svg\b[^>]*>/.exec(svg)?.[0] ?? '';
+  const num = (n: string) => { const m = new RegExp(`\\s${n}="([0-9.]+)(?:px)?"`).exec(root); return m ? parseFloat(m[1]) : NaN; };
+  let w = num('width'), h = num('height');
+  if (!(w > 0 && h > 0)) { const vb = /viewBox="[-0-9.]+[ ,]+[-0-9.]+[ ,]+([0-9.]+)[ ,]+([0-9.]+)"/.exec(root); if (vb) { w = parseFloat(vb[1]); h = parseFloat(vb[2]); } }
+  return w > 0 && h > 0 ? {w, h} : null;
+}
+
+/**
+ * Draw `svg` the way a page's <img src="x.svg"> does — as an image document, parsed as XML, with this browser's fonts —
+ * scaled by `scale`, on white. An SVG that is not well-formed XML fails to load as an <img>; that is reported here as an
+ * error rather than drawn from a forgiving HTML parse. Reuses the measuring browser, so a .ts source costs no extra launch.
+ */
+export async function rasterize(svg: string, {scale = 1, png = false}: {scale?: number; png?: boolean} = {}): Promise<Raster> {
+  const size = svgSize(svg);
+  if (!size) throw new Error('the SVG has no width/height (or viewBox) on its root element');
+  const width = Math.max(1, Math.round(size.w * scale)), height = Math.max(1, Math.round(size.h * scale));
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  try {
+    const url = 'data:image/svg+xml;base64,' + Buffer.from(svg, 'utf8').toString('base64');
+    const out = await page.evaluate(async ({url, width, height, png}) => {
+      const img = new Image();
+      img.src = url;
+      try { await img.decode(); } catch { return {error: 'the browser could not load it as an <img> (not well-formed XML?)'}; }
+      const c = document.createElement('canvas');
+      c.width = width; c.height = height;
+      const g = c.getContext('2d')!;
+      g.fillStyle = '#fff'; g.fillRect(0, 0, width, height);
+      g.drawImage(img, 0, 0, width, height);
+      const data = g.getImageData(0, 0, width, height).data;
+      let bin = '';
+      for (let i = 0; i < data.length; i += 0x8000) bin += String.fromCharCode(...data.subarray(i, i + 0x8000));
+      return {rgba: btoa(bin), png: png ? c.toDataURL('image/png').split(',')[1] : undefined};
+    }, {url, width, height, png});
+    if ('error' in out) throw new Error(out.error);
+    return {width, height, rgba: Buffer.from(out.rgba, 'base64'), png: out.png ? Buffer.from(out.png, 'base64') : undefined};
+  } finally {
+    await page.close();
+  }
+}
+
 export async function closeMeasurer(): Promise<void> {
   if (browserPromise) {
     const b = await browserPromise;

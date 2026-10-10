@@ -11,6 +11,9 @@ importers:
       playwright-chromium:
         specifier: 1.62.1
         version: 1.62.1
+      sixel:
+        specifier: ^0.16.0
+        version: 0.16.0
     devDependencies:
       '@types/node':
         specifier: ^26.6.4
@@ -154,6 +157,9 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
+  sixel@0.16.0:
+    resolution: {integrity: sha512-xicu6Y6Cyhmv5rjyHxq2r5RnKerlL/nyZEGjOU5bLCshXkZryc9JFJThTCKPOAtWXCfeWquEKFVFfMPcTD25PA==}
+
   typescript@7.0.2:
     resolution: {integrity: sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==}
     engines: {node: '>=16.20.0'}
@@ -233,6 +239,8 @@ snapshots:
       playwright-core: 1.62.1
 
   playwright-core@1.62.1: {}
+
+  sixel@0.16.0: {}
 
   typescript@7.0.2:
     optionalDependencies:

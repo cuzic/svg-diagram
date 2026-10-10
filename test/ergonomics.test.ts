@@ -198,7 +198,7 @@ test('one primitive each: a wireframe chip is a pill, an alert mark is a badge, 
   const {emitSvg} = await import('../lib/emit.ts');
   const svg = emitSvg(laidOut);
   assert.match(svg, /<rect [^>]*rx="12"[^>]*\/>\s*<text [^>]*font-weight="700"[^>]*>稼働中<\/text>/);
-  assert.match(svg, /<g role="img" aria-label="警告" data-badge>/);
+  assert.match(svg, /<g role="img" aria-label="警告" data-badge="">/);
 });
 
 test('connector chips and box tags are pills too, and a plain connector label stays a bare text', async () => {

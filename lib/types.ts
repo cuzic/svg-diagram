@@ -1497,6 +1497,23 @@ export interface BuildResult {
   warnings: string[];
   findings: Finding[];
 }
+/** renderDiagram() result: everything build() knows before it touches the disk. */
+export interface RenderResult {
+  svg: string;
+  laidOut: LaidOutDiagram;
+  verdict: Verdict;
+  /** Problems that would keep an <img> from loading the SVG as XML (empty when well-formed). */
+  xml: string[];
+  /** Things the caller should tell the person (a slide budget that was not measured, ...). */
+  notes: string[];
+  width: number;
+  height: number;
+  fit: FitReport;
+  budget: SlideBudget | null;
+  /** Where the slide budget came from; null when the diagram names no slide. */
+  budgetSource: 'measured' | 'cache' | 'default' | null;
+  fontScale: number | undefined;
+}
 /** checkDiagram() result. */
 export interface CheckResult {laidOut: LaidOutDiagram; verdict: Verdict}
 

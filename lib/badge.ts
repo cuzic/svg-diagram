@@ -57,7 +57,7 @@ export function badgeSvg(o: BadgeSvgOpts): string {
   const base = o.baseline ?? cy + o.size * 0.36 + (o.shape === 'triangle' ? 4 : 0);
   const fill = o.text ?? PALETTE[badgeTextKey(o.fill)];
   const text = o.label === '' ? '' : `\n  <text x="${Math.round(cx)}" y="${Math.round(base)}" text-anchor="middle" font-size="${o.size}" font-weight="${o.weight ?? 700}" fill="${fill}">${o.esc(o.label)}</text>`;
-  return `<g role="img" aria-label="${o.esc(o.aria).replace(/"/g, '&quot;')}" data-badge>\n  ${shape}${text}\n  </g>`;
+  return `<g role="img" aria-label="${o.esc(o.aria).replace(/"/g, '&quot;')}" data-badge="">\n  ${shape}${text}\n  </g>`;
 }
 
 // ---- pill: a rounded label that holds TEXT (a tag on a box, a chip in a wireframe, the label on a connector) -------------

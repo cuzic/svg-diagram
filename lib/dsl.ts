@@ -14,14 +14,15 @@ import path from 'path';
 import {wf} from './wireframe.ts';
 import {layoutDiagram} from './layout.ts';
 import {emitSvg} from './emit.ts';
+import {xmlProblems} from './xml-check.ts';
 import {verifyDiagram} from './verify.ts';
 import {applyAutoLegend} from './rules.ts';
 import {analyzeFit} from './fit.ts';
-import {getSlideBudget} from './slide-budget.ts';
+import {getSlideBudget, readSlideBudgetCache} from './slide-budget.ts';
 import {closeMeasurer} from './measure.ts';
 import {MIN_FONT_SIZE, ROLES, THEMES} from './tokens.ts';
 import type {
-  Band, BandInput, BannerBand, BannerOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, CaptionBand, CaptionOpts, CheckResult,
+  Band, BandInput, BannerBand, BannerOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -643,17 +644,39 @@ function assertFontSize(size: number): void {
 //      actually drew (verifyDiagram only checks raw()'s self-reported
 //      x/y/w/h against its neighbors) and catches real-font-rendering
 //      discrepancies verifyDiagram's measured-atom approximation can't.
-// opts.lint: false skips the per-file lint-svg.ts run (it starts its own Chromium), for callers that lint many
+// opts.name: the SVG's published name when outPath is a scratch file (it keys the slide-budget cache). opts.lint: false skips the per-file lint-svg.ts run (it starts its own Chromium), for callers that lint many
 // files in one go afterwards (build-diagram.ts). Default true.
-export async function build(d: Diagram, outPath: string, opts: {lint?: boolean} = {}): Promise<BuildResult> {
+export async function build(d: Diagram, outPath: string, opts: {lint?: boolean; name?: string} = {}): Promise<BuildResult> {
+  const r = await renderDiagram(d, {name: opts.name ?? path.basename(outPath), budget: 'measure'});
+  return finishBuild(r, outPath, opts.lint ?? true);
+}
+
+// Everything build() does short of the disk: layout (with the slide budget and the fill / font scale search), verification,
+// the SVG, its XML well-formedness. It does not throw for a failed verification or a malformed SVG — it reports them in
+// `verdict` and `xml`, so build() can refuse to write while `svg-diagram show` can still draw the picture and say what is wrong.
+// (A define()/constructor/layout error still throws.) budget: 'measure' measures a slide that has no cached budget (starts the
+// dev server, writes the cache); 'cacheOnly' reads the cache and falls back to the default sizes with a note.
+export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'measure' | 'cacheOnly'}): Promise<RenderResult> {
   applyAutoLegend(d);
+  const notes: string[] = [];
   // A diagram that names its slide gets a measured height budget and width
   // (cached) instead of fit.ts's defaults.
   let budget: SlideBudget | null = null;
+  let budgetSource: RenderResult['budgetSource'] = null;
   if (d.slide) {
-    budget = await getSlideBudget({...d.slide, svg: path.basename(outPath)});
-    d.maxDisplayHeight = budget.maxHeight;
-    d.usableWidth = budget.contentWidth;
+    const key = {...d.slide, svg: opts.name};
+    if (opts.budget === 'measure') {
+      budget = await getSlideBudget(key);
+      budgetSource = budget.cached ? 'cache' : 'measured';
+    } else {
+      budget = readSlideBudgetCache(key);
+      budgetSource = budget ? 'cache' : 'default';
+      if (!budget) notes.push(`スライドの空き寸法が未計測(キャッシュなし)なので既定の寸法で描いた。\`svg-diagram build\` で一度実測すると正確になる`);
+    }
+    if (budget) {
+      d.maxDisplayHeight = budget.maxHeight;
+      d.usableWidth = budget.contentWidth;
+    }
   }
   // fill: true (fit-figure slides) — the <img> is stretched to the slide's free
   // area, so draw for that area: canvas as wide as the slot, and the largest
@@ -662,12 +685,12 @@ export async function build(d: Diagram, outPath: string, opts: {lint?: boolean} 
   // 14px text is as small as it was at 940px wide.
   let fontScale = 1;
   let laidOut: LaidOutDiagram;
+  let verdict: Verdict, svg: string;
   const baseRoles = {...ROLES};
   const applyScale = (s: number) => { for (const k of Object.keys(baseRoles) as Role[]) ROLES[k] = Math.round(baseRoles[k] * s); };
   const layoutAt = (s: number) => { applyScale(s); return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}); };
   try {
-    if (d.fill) {
-      if (!budget) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
+    if (d.fill && budget) {
       d.width = budget.contentWidth;
       let lo = 1, hi = 1.8;
       if ((await layoutAt(1)).canvasHeight > budget.maxHeight) hi = 1; // doesn't even fit at 1x: report via fit warnings
@@ -676,13 +699,19 @@ export async function build(d: Diagram, outPath: string, opts: {lint?: boolean} 
         if ((await layoutAt(mid)).canvasHeight <= budget.maxHeight) lo = mid; else hi = mid;
       }
       fontScale = Math.floor(lo * 100) / 100;
+    } else if (d.fill) {
+      if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
+      notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
     }
     laidOut = await layoutAt(fontScale);
     laidOut.fontScale = fontScale;
-    return await finishBuild(d, laidOut, outPath, budget, opts.lint ?? true);
+    // emit.ts reads ROLES while it draws, so the verdict and the SVG are made at the scale the layout was made at
+    verdict = verifyDiagram(laidOut);
+    svg = emitSvg(laidOut);
   } finally {
     applyScale(1);
   }
+  return {svg, laidOut, verdict, xml: xmlProblems(svg), notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget, budgetSource, fontScale: laidOut.fontScale};
 }
 
 // Layout + verification + rules, without writing any file: the engine behind `svg-diagram check`.
@@ -692,15 +721,14 @@ export async function checkDiagram(d: DiagramData): Promise<CheckResult> {
   return {laidOut, verdict: verifyDiagram(laidOut)};
 }
 
-async function finishBuild(d: DiagramData, laidOut: LaidOutDiagram, outPath: string, budget: SlideBudget | null, lint: boolean): Promise<BuildResult> {
-  const verdict = verifyDiagram(laidOut);
+async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Promise<BuildResult> {
+  const {verdict} = r;
   if (!verdict.ok) {
     throw new Error(`build(${outPath}): layout verification failed before any SVG was written:\n  ${verdict.problems.join('\n  ')}`);
   }
-
-  const svg = emitSvg(laidOut);
+  if (r.xml.length) throw new Error(`build(${outPath}): the emitted SVG is not well-formed XML (an <img> would fail to load it):\n  ${r.xml.join('\n  ')}`);
   fs.mkdirSync(path.dirname(outPath), {recursive: true});
-  fs.writeFileSync(outPath, svg);
+  fs.writeFileSync(outPath, r.svg);
 
   const lintScript = path.resolve(import.meta.dirname, '..', import.meta.url.endsWith('.ts') ? 'lint-svg.ts' : 'lint-svg.js');
   if (lint) try {
@@ -710,8 +738,7 @@ async function finishBuild(d: DiagramData, laidOut: LaidOutDiagram, outPath: str
     const out = (e.stdout || '') + (e.stderr || '');
     throw new Error(`build(${outPath}) produced an SVG that fails lint-svg.ts --strict:\n${out}`);
   }
-  const fit = analyzeFit(laidOut);
-  return {outPath, width: laidOut.width, height: laidOut.canvasHeight, fit, budget, fontScale: laidOut.fontScale, warnings: verdict.warnings, findings: verdict.findings};
+  return {outPath, width: r.width, height: r.height, fit: r.fit, budget: r.budget, fontScale: r.fontScale, warnings: verdict.warnings, findings: verdict.findings};
 }
 
 export {closeMeasurer};
