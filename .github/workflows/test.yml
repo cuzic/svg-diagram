@@ -16,9 +16,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright-chromium install --with-deps chromium
+      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test
       - name: examples build and pass the rule check
         run: |
-          for f in examples/*.mjs; do node bin/../build-diagram.mjs "$f" --out "/tmp/$(basename "$f" .mjs).svg"; done
+          for f in examples/*.mjs; do node build-diagram.mjs "$f" --out "/tmp/$(basename "$f" .mjs).svg"; done
           node check-diagram.mjs --strict examples/*.mjs
