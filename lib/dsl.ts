@@ -473,7 +473,7 @@ async function finishBuild(d: DiagramData, laidOut: LaidOutDiagram, outPath: str
   fs.mkdirSync(path.dirname(outPath), {recursive: true});
   fs.writeFileSync(outPath, svg);
 
-  const lintScript = path.resolve(import.meta.dirname, '..', 'lint-svg.ts');
+  const lintScript = path.resolve(import.meta.dirname, '..', import.meta.url.endsWith('.ts') ? 'lint-svg.ts' : 'lint-svg.js');
   try {
     execFileSync('node', [lintScript, outPath, '--strict'], {encoding: 'utf8'});
   } catch (err) {

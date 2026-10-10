@@ -8,13 +8,15 @@
 # Diagram sources import the DSL as:  import {diagram, box, ...} from 'svg-diagram'
 set -euo pipefail
 ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+# Compiled dist/ when present (installed from a package); otherwise the .ts sources.
+if [ -f "$ROOT/dist/build-diagram.js" ]; then B="$ROOT/dist"; X=js; else B="$ROOT"; X=ts; fi
 cmd="${1:-}"; shift || true
 case "$cmd" in
-  build)   exec node "$ROOT/build-diagram.ts" "$@" ;;
-  diff)    exec node "$ROOT/diff-svg.ts" "$@" ;;
-  contact) exec node "$ROOT/contact-sheet.ts" "$@" ;;
-  check)   exec node "$ROOT/check-diagram.ts" "$@" ;;
-  lint)    exec node "$ROOT/lint-svg.ts" "$@" ;;
+  build)   exec node "$B/build-diagram.$X" "$@" ;;
+  diff)    exec node "$B/diff-svg.$X" "$@" ;;
+  contact) exec node "$B/contact-sheet.$X" "$@" ;;
+  check)   exec node "$B/check-diagram.$X" "$@" ;;
+  lint)    exec node "$B/lint-svg.$X" "$@" ;;
   preview) exec bash "$ROOT/preview_svg.sh" "$@" ;;
   *) sed -n 2,9p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
 esac

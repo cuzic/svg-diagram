@@ -21,7 +21,9 @@ import path from 'path';
 import crypto from 'crypto';
 import type {DiagramSource} from './lib/types.ts';
 import {register} from 'node:module';
-register('./lib/resolve-hook.ts', import.meta.url);
+// Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
+const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
+register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
 const {RULE_DOCS} = await import('./lib/rules.ts');
 const {scanMarkdown, compareNotes, notesOf} = await import('./lib/docs-check.ts');

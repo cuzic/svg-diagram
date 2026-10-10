@@ -26,7 +26,9 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import {register} from 'node:module';
-register('./lib/resolve-hook.ts', import.meta.url);
+// Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
+const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
+register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {build, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadConfig, applyConfig} = await import('./lib/config.ts');
 const config = loadConfig();
@@ -49,7 +51,7 @@ function locateSlide(svgName: string) {
   return hits;
 }
 
-const TOOL_VERSION = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version;
+const TOOL_VERSION = JSON.parse(fs.readFileSync(new URL(EXT === 'ts' ? './package.json' : '../package.json', import.meta.url), 'utf8')).version;
 const args = process.argv.slice(2);
 const outIdx = args.indexOf('--out');
 const outOverride = outIdx === -1 ? null : args[outIdx + 1];
