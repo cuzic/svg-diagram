@@ -300,3 +300,8 @@ test('plane(): points, guide lines and the axis name keep their space', async ()
   assert.ok(guide.some(p => /label "補助" overlaps a guide line/.test(p)), guide.join('\n'));
   for (const yDown of [false, true]) assert.deepEqual(await planeProblems(plane({...axes, yDown})), [], `axis names and ticks are clear of the arrows (yDown: ${yDown})`);
 });
+
+test('plane(): the wide head of a guide-line arrow is ink too', async () => {
+  const p = await planeProblems(plane({...axes, lines: [{from: [10, 40], to: [60, 40], arrow: true}], labels: [{at: [60, 38], text: '先', anchor: 'middle'}]}));
+  assert.ok(p.some(m => /label "先" overlaps a guide line arrow/.test(m)), p.join('\n'));
+});

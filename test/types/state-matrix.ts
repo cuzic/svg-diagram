@@ -54,4 +54,16 @@ export function stateMatrixCases(): void {
   stateRow('カード', card, {通常: {colour: 'red'}});
   // @ts-expect-error a bare string other than a state / 'na' / 'todo'
   stateRow('カード', card, {通常: 'maybe'});
+
+  // ---- a stateRow() mixed with plain rows is checked row by row, in either order ----
+  const cardOf = (o: {state?: 'loading'} = {}) => wf.card([wf.text('x')], o);
+  stateMatrix(['通常', '空'], [stateRow('A', cardOf, {通常: {}, 空: {}}), {label: '素の行', cells: [node, 'na']}]);
+  // @ts-expect-error stateRow "A" has no entry for 空, although the second row is a plain one
+  stateMatrix(['通常', '空'], [stateRow('A', cardOf, {通常: {}}), {label: '素の行', cells: [node, 'na']}]);
+  // @ts-expect-error the same, with the plain row first
+  stateMatrix(['通常', '空'], [{label: '素の行', cells: [node, 'na']}, stateRow('A', cardOf, {通常: {}})]);
+  // @ts-expect-error the plain row is short, next to a complete stateRow
+  stateMatrix(['通常', '空'], [stateRow('A', cardOf, {通常: {}, 空: {}}), {label: '素の行', cells: [node]}]);
+  // @ts-expect-error a stateRow kept in a variable is checked as well
+  stateMatrix(['通常', '空'], [(() => stateRow('V', cardOf, {空: {}}))(), {label: 'x', cells: [node, node]}]);
 }

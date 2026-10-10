@@ -122,6 +122,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   const lines: LaidOutPlane['lines'] = (band.lines ?? []).map(l => {
     const a = pt(l.from), b = pt(l.to);
     inkSeg('a guide line', {x1: a.x, y1: a.y, x2: b.x, y2: b.y});
+    if (l.arrow) ink('a guide line arrow', {x: b.x - 8, y: b.y - 8, w: 16, h: 16}); // the head is wider than the line
     return {x1: a.x, y1: a.y, x2: b.x, y2: b.y, tone: l.tone ?? 'muted', dashed: l.dashed ?? true, arrow: !!l.arrow};
   });
 

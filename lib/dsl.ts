@@ -30,7 +30,7 @@ import type {
 } from './types.ts';
 import type {
   ActorIn, AnchorsOf, BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, FlowCheck, FlowIn, IdsOf, LaneCheck, Ok,
-  HandleOf, PyramidLayers, Refers, RefsOf, RowHandleOf, SeqStepIn, ScreensItemInput, StateRowIn, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn,
+  HandleOf, PyramidLayers, Refers, RefsOf, RowHandleOf, SeqStepIn, ScreensItemInput, StateRowIn, StateRowLoose, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn,
 } from './strict.ts';
 export {wf} from './wireframe.ts';
 // Every public type (WfNode, TableCell, TextTone, RawColorTone, ...) so project code never has to spell Parameters<typeof wf.col>[0].
@@ -321,7 +321,7 @@ export function screens(items: ScreensItem[], opts: ScreensOpts = {}): ScreensBa
 // Types: `required` entries must be members of `cols` (rule wf-states-required), and each row's `cells` has EXACTLY
 // cols.length entries: too many is rule wf-states-ragged, too few would silently draw '未設計' (wf-states-todo).
 // An explicit `undefined` entry is still the deliberate TODO marker; 'na' / {na: reason} stay valid.
-export function stateMatrix<const C extends string[], const R extends readonly (StateRowIn<C> | PartRow<never, string>)[]>(cols: C, rows: R & (string extends C[number] ? unknown : ValidateStateRows<C[number], R>), opts?: Omit<StateMatrixOpts, 'required'> & {required?: C[number][]}): ScreensBand;
+export function stateMatrix<const C extends string[], const R extends readonly (StateRowLoose | PartRow<never, string>)[]>(cols: C, rows: readonly [...R] & ValidateStateRows<C, R>, opts?: Omit<StateMatrixOpts, 'required'> & {required?: C[number][]}): ScreensBand;
 export function stateMatrix(cols: string[], rowsIn: readonly (StateMatrixRow | PartRow<never>)[], opts: StateMatrixOpts = {}): ScreensBand {
   const rows = rowsIn.map((r): StateMatrixRow => 'type' in r && r.type === 'part-row' ? {label: r.label, note: r.note, cells: r.cells(cols)} : r as StateMatrixRow);
   return {type: 'screens', items: [], matrix: {cols, rows, required: opts.required, labelW: opts.labelW, cellH: opts.cellH, gap: opts.gap, cellFrame: opts.cellFrame}, marks: opts.marks, skeleton: opts.skeleton, id: opts.id};
