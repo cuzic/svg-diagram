@@ -27,7 +27,7 @@ import type {
   Role, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
   TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
 } from './types.ts';
-import type {BoxInput, BranchInput, ConnectInput, CurvePoints, DiagramInput, PyramidLayers} from './strict.ts';
+import type {BoxInput, BranchInput, ConnectInput, CurvePoints, DiagramInput, PyramidLayers, StateRowIn} from './strict.ts';
 export {wf} from './wireframe.ts';
 
 // Compile time (lib/strict.ts): diagram({theme | day}) is required and fill: true requires `slide`. The runtime
@@ -226,6 +226,11 @@ export function screens(items: ScreensItem[], opts: ScreensOpts = {}): ScreensBa
 //   rows: [{label, note?, cells: [node | 'na' | {na: 'reason'} | undefined]}]  — a cell is a wf.* node (drawn in a light frame),
 //         'na' / {na} (not applicable, drawn dashed), or missing (drawn as "未設計": a gap in the spec, which `svg-diagram check` reports).
 //   opts: {required: [...cols that must exist], labelW, cellH (default: fit the content, min 72), cellFrame ('light' (default) | 'none' — 'none' when the parts already have their own border), gap, marks, skeleton}
+//
+// Types: `required` entries must be members of `cols` (rule wf-states-required), and each row's `cells` has EXACTLY
+// cols.length entries: too many is rule wf-states-ragged, too few would silently draw '未設計' (wf-states-todo).
+// An explicit `undefined` entry is still the deliberate TODO marker; 'na' / {na: reason} stay valid.
+export function stateMatrix<const C extends string[]>(cols: C, rows: StateRowIn<C>[], opts?: Omit<StateMatrixOpts, 'required'> & {required?: C[number][]}): ScreensBand;
 export function stateMatrix(cols: string[], rows: StateMatrixRow[], opts: StateMatrixOpts = {}): ScreensBand {
   return {type: 'screens', items: [], matrix: {cols, rows, required: opts.required, labelW: opts.labelW, cellH: opts.cellH, gap: opts.gap, cellFrame: opts.cellFrame}, marks: opts.marks, skeleton: opts.skeleton, id: opts.id};
 }

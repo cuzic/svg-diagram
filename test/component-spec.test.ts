@@ -81,6 +81,7 @@ test('stateMatrix: cells are designs, "対象外" (with a reason) or "未設計"
 
 test('check: unfinished state matrices and missing required states are reported', () => {
   const d = diagram({theme: 'blue', title: 't'});
+  // @ts-expect-error a JS caller can name a required state that is not a column; the type system rejects it (lib/strict.ts)
   d.add(stateMatrix(['通常', '空'], [{label: '一覧', cells: [wf.text('x'), undefined]}], {required: ['通常', '読み込み中']}));
   const f = lintDiagram({...d, laidOut: [], connects: []});
   assert.ok(f.some(x => x.rule === 'wf-states-todo' && /一覧×空/.test(x.message)));
@@ -109,12 +110,15 @@ test('region: a named block for a coarse screen, with a reading-order number', (
 });
 
 test('stateMatrix: a row shorter than the columns gets "未設計" cells (never blanks); a longer row is an error', () => {
+  // @ts-expect-error too few cells is a type error; the runtime pads with 未設計 for JS callers
   const band = stateMatrix(['通常', '空', 'エラー'], [{label: 'A', cells: [wf.text('x', {h: 30})]}]);
   const b = layoutScreens(band, 0, 0, 900, widthOf);
   assert.equal(texts(b).filter(t => t === '未設計').length, 2);
   const d = diagram({theme: 'blue', title: 't'});
+  // @ts-expect-error too few cells is a type error; the runtime pads with 未設計 for JS callers
   d.add(stateMatrix(['通常', '空', 'エラー'], [{label: 'A', cells: [wf.text('x')]}]));
   assert.match(lintDiagram({...d, laidOut: [], connects: []}).find(x => x.rule === 'wf-states-todo')!.message, /A×空.*A×エラー/);
+  // @ts-expect-error too many cells is a type error; the runtime throws for JS callers
   assert.throws(() => layoutScreens(stateMatrix(['通常'], [{label: 'A', cells: ['na', 'na']}]), 0, 0, 900, widthOf), /2 cells for 1 columns/);
 });
 

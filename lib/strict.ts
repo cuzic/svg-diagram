@@ -6,7 +6,7 @@
 // are discriminated unions, so the wrong combination is an ordinary "not assignable" error.
 
 import type {MIN_FONT_SIZE} from './tokens.ts';
-import type {Arrow, Bend, BoxOpts, CurvePoint, DiagramOpts, LineStyle, SlideRef, TextTone, Theme} from './types.ts';
+import type {Arrow, Bend, BoxOpts, CurvePoint, DiagramOpts, LineStyle, SlideRef, StateMatrixCell, TextTone, Theme} from './types.ts';
 
 // ============================================================================================
 // Option bags as discriminated unions
@@ -44,3 +44,18 @@ export type PyramidLayers = [string | {text: string}, string | {text: string}, .
 /** curve(): at least two points. */
 export type CurvePoints = [CurvePoint, CurvePoint, ...CurvePoint[]];
 
+// ============================================================================================
+// stateMatrix()
+// ============================================================================================
+
+type FixedTuple<T, N extends number, Acc extends T[] = []> = Acc['length'] extends N ? Acc : FixedTuple<T, N, [...Acc, T]>;
+/**
+ * One row of a state matrix: EXACTLY one cell per column. An explicit `undefined` is the deliberate "TODO"
+ * marker (rule wf-states-todo); a cell left out (too few) or surplus (too many, rule wf-states-ragged) is
+ * a type error. Non-literal columns (`string[]`) accept any length.
+ */
+export type StateRowIn<Cols extends readonly string[]> = {
+  label: string;
+  note?: string;
+  cells: number extends Cols['length'] ? StateMatrixCell[] : FixedTuple<StateMatrixCell, Cols['length']>;
+};
