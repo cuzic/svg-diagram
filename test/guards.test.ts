@@ -166,3 +166,11 @@ test('banner() / box() keep unknown extras instead of dropping them (JS callers)
   assert.equal((boxJs({title: 'T', extra: 1}) as {extra: number}).extra, 1);
   assert.equal(banner({headline: 'H'}).tone, 'accent');
 });
+
+test('row() and grid() refuse non-box children instead of drawing an empty box', async () => {
+  const {row, grid, group, box} = await import('../lib/dsl.ts');
+  const g = group([box({title: 'x'})], {title: 'g'}) as never;
+  assert.throws(() => row([g]), /row\(\): child 0 is a group\(\)/);
+  assert.throws(() => grid([box({title: 'a'}), g], {cols: 2}), /grid\(\): child 1 is a group\(\)/);
+  assert.doesNotThrow(() => row([box({title: 'a'})]));
+});

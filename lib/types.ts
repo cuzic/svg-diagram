@@ -479,7 +479,7 @@ export interface TableColumn {
 }
 export interface TableCellSpec {text?: string; tone?: TextTone; bold?: boolean; mono?: boolean; align?: Align}
 export type TableCell = string | number | TableCellSpec;
-export type TableRow = TableCell[] | {cells: TableCell[]; tone?: BoxTone};
+export type TableRow = readonly TableCell[] | {cells: readonly TableCell[]; tone?: BoxTone};
 export interface TableOpts {
   /** Accent bar on top (an ER entity name, a caption). */
   title?: string;

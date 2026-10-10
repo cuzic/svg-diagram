@@ -44,7 +44,7 @@ export function collectTextRequests(band: SequenceBand | TableBand): TextRequest
     band.columns.forEach((c) => {
       if (c.label) out.push([c.label, ROLES.body, 700, 'sans']);
     });
-    for (const row of band.rows) (Array.isArray(row) ? row : row.cells).forEach((cell, i) => {
+    for (const row of band.rows) ('cells' in row ? row.cells : row).forEach((cell, i) => {
       const c = cellOf(cell, band.columns[i]);
       out.push([c.text, ROLES.body, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans']);
     });
@@ -148,7 +148,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     titleBar = {y: cy, h, lines};
     cy += h;
   }
-  const rowOf = (cells: (TableColumn | TableCell)[], header: boolean, tone?: BoxTone): LaidOutTableRow => {
+  const rowOf = (cells: readonly (TableColumn | TableCell)[], header: boolean, tone?: BoxTone): LaidOutTableRow => {
     const placed = cells.map((cell, i): LaidOutTableCell => {
       // header rows pass the column specs themselves (see the call below)
       const c: ResolvedCell = header ? {text: (cell as TableColumn).label ?? '', bold: true, mono: false, align: (cell as TableColumn).align ?? 'left'} : cellOf(cell as TableCell, cols[i]);
@@ -165,8 +165,8 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
   const hasHeader = cols.some(c => c.label) && band.header !== false;
   if (hasHeader) rows.push(rowOf(cols, true));
   for (const r of band.rows) {
-    const cells = Array.isArray(r) ? r : r.cells;
-    rows.push(rowOf(cells, false, Array.isArray(r) ? undefined : r.tone));
+    const cells = 'cells' in r ? r.cells : r;
+    rows.push(rowOf(cells, false, 'cells' in r ? r.tone : undefined));
   }
   return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone};
 }

@@ -25,13 +25,15 @@ import type {
   LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
   Role, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
-  TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
+  TableCellSpec, TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
 } from './types.ts';
 import type {
   ActorIn, AnchorsOf, BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, FlowCheck, FlowIn, IdsOf, LaneCheck, Ok,
   HandleOf, PyramidLayers, Refers, RefsOf, SeqStepIn, ScreensItemInput, StateRowIn, StepCheck, StepIds, SwimlaneStepIn,
 } from './strict.ts';
 export {wf} from './wireframe.ts';
+// Every public type (WfNode, TableCell, TextTone, RawColorTone, ...) so project code never has to spell Parameters<typeof wf.col>[0].
+export type * from './types.ts';
 
 //
 // Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
@@ -148,9 +150,15 @@ export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: S
 // a cell is a string or {text, tone?: 'accent'|'muted'|'danger', bold?, mono?, align?}.
 // title adds an accent bar on top (an ER entity name, a table caption); header: false hides
 // the column-label row; width narrows the table (centered).
-export function table<const Id extends string = never>(columns: TableColumn[], rows: TableRow[], opts?: TableOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
-export function table(columns: TableColumn[], rows: TableRow[], opts: TableOpts = {}): TableBand {
-  return withHandle({type: 'table', columns, rows, title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, id: opts.id}, opts.id);
+export function table<const Id extends string = never>(columns: TableColumn[], rows: readonly TableRow[], opts?: TableOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
+export function table(columns: TableColumn[], rows: readonly TableRow[], opts: TableOpts = {}): TableBand {
+  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, id: opts.id}, opts.id);
+}
+
+// A table cell whose tone stays a literal when the cell is built apart from the table() call
+// (`const c = {text: '通る', tone: 'accent'}` widens tone to string; `cell('通る', {tone: 'accent'})` does not).
+export function cell(text: string | number, opts: Omit<TableCellSpec, 'text'> = {}): TableCellSpec {
+  return {text: String(text), ...opts};
 }
 
 // Swimlane diagram: who does what, in what order, and where the hand-offs are.
@@ -284,6 +292,14 @@ export function spacer(h: number): SpacerBand {
   return {type: 'spacer', h};
 }
 
+// row()/grid() lay out boxes only. A group (or anything else) would silently render as an empty
+// little box in plain JS (.mjs), where the types do not stop it, so fail loudly instead.
+function assertBoxChildren(what: 'row' | 'grid', children: readonly {type?: string}[]): void {
+  children.forEach((c, i) => {
+    if (c?.type !== 'box') throw new Error(`${what}(): child ${i} is ${c?.type === undefined ? 'not a band' : `a ${c.type}()`}, but ${what}() takes box() children only. Stack groups vertically with d.add(group(...), group(...)) instead of placing them in a ${what}`);
+  });
+}
+
 // children: box() descriptors. justify: 'stretch' (default — fill the row,
 // each child's share set by its `flex`, default 1) | 'center' | 'start'
 // (fixed width per child, via each child's `width` or row-level `width`).
@@ -296,6 +312,7 @@ export function spacer(h: number): SpacerBand {
 // columns lines up exactly over two single-column boxes in the next row.
 export function row<C extends BoxBand>(children: C[], opts?: RowOpts): RowBand & Declares<IdsOf<C>>;
 export function row(children: BoxBand[], opts: RowOpts = {}): RowBand {
+  assertBoxChildren('row', children);
   return {type: 'row', cols: opts.cols, children, gap: opts.gap ?? 16, arrows: opts.arrows ?? 'none', justify: opts.justify ?? 'stretch', itemWidth: opts.width};
 }
 
@@ -305,6 +322,7 @@ export function row(children: BoxBand[], opts: RowOpts = {}): RowBand {
 export function grid<C extends BoxBand>(children: C[], opts: GridOpts): GridBand & Declares<IdsOf<C>>;
 export function grid(children: BoxBand[], opts: GridOpts): GridBand {
   if (!opts?.cols) throw new Error('grid(children, {cols}) needs cols');
+  assertBoxChildren('grid', children);
   return {type: 'grid', children, cols: opts.cols, gap: opts.gap ?? 16};
 }
 

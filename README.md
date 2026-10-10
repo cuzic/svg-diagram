@@ -46,6 +46,8 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram lint  [file.svg ...] [--strict]
     svg-diagram preview <in.svg> <out.png> [scale]
 
+型もすべて同じ所から取れる: `import type {WfNode, TableCell, TextTone, RawColorTone} from 'svg-diagram'`。変数に切り出した表のセルは `cell('通る', {tone: 'accent'})` で作ると、tone が文字列に広がらない（`as const` でも可）。`row()` / `grid()` に入れられるのは `box()` だけ（グループは縦に並べる。違うものを入れると実行時エラー）。
+
 ソース: `import {diagram, box, ...} from 'svg-diagram'` / `export default () => diagram({theme: 'blue'})...`
 `theme`: blue | teal | amber（docs 向け。スライド警告なし）。`day: 1|2` は研修スライド用（slide-fit 警告あり）。
 
