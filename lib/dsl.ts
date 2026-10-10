@@ -19,17 +19,25 @@ import {analyzeFit} from './fit.ts';
 import {getSlideBudget} from './slide-budget.ts';
 import {closeMeasurer} from './measure.ts';
 import {MIN_FONT_SIZE, ROLES, THEMES} from './tokens.ts';
+import type {
+  Band, BandInput, BannerBand, BannerOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, CaptionBand, CaptionOpts, CheckResult,
+  ConnectBand, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
+  LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts,
+  ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
+  Role, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
+  TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
+} from './types.ts';
 export {wf} from './wireframe.ts';
 
-export function diagram(opts = {}) {
+export function diagram(opts: DiagramOpts = {}): Diagram {
   // `theme` (name from tokens.ts PALETTE) is the general form; `day` (1|2) is the
   // training deck's legacy spelling of the same thing. Stored as d.day internally.
   const theme = opts.theme ?? opts.day;
   if (!THEMES.map(String).includes(String(theme))) throw new Error(`diagram({theme}) must be one of ${THEMES.join(', ')} (or legacy day: 1|2)`);
-  const d = {
-    day: theme,
+  const d: DiagramData = {
+    day: theme as Theme,
     // 'slide' (legacy day: 1|2 diagrams) gets slide-fit warnings; 'doc' (theme: ...) does not.
-    medium: opts.medium ?? (opts.theme === undefined ? 'slide' : 'doc'),
+    medium: (opts.medium ?? (opts.theme === undefined ? 'slide' : 'doc')) as Medium,
     title: opts.title, desc: opts.desc,            // exposed as the SVG's <title> / <desc> (doc medium)
     accept: opts.accept, // {'rule-id': 'why this finding is fine'} — shown as info instead of a warning
     legend: opts.legend, legendLabels: opts.legendLabels, // legend: 'auto' adds entries for every notation used but not listed
@@ -44,25 +52,25 @@ export function diagram(opts = {}) {
   };
   return {
     ...d,
-    add(...bands) { d.bands.push(...bands.flat()); return this; },
+    add(this: Diagram, ...bands: BandInput[]) { d.bands.push(...bands.flat()); return this; },
     get bands() { return d.bands; },
   };
 }
 
-export function caption(text, opts = {}) {
+export function caption(text: string, opts: CaptionOpts = {}): CaptionBand {
   return {type: 'caption', text, align: opts.align ?? 'center', role: opts.role ?? 'label', tone: opts.tone ?? 'muted', bold: !!opts.bold, mono: !!opts.mono};
 }
 
 // `step`: a number/string drawn as a solid numbered badge over the title's
 // own baseline (requires `title` — the badge has nothing to align to
 // without it).
-export function box(opts) {
+export function box(opts: BoxOpts): BoxBand {
   if (opts.size !== undefined) assertFontSize(opts.size);
   if (opts.step != null && !opts.title) throw new Error('box({step}) needs a title — the badge aligns to the title\'s first line');
   return {type: 'box', ...opts};
 }
 
-export function banner(opts) {
+export function banner(opts: BannerOpts): BannerBand {
   return {type: 'banner', tone: opts.tone ?? 'accent', ...opts};
 }
 
@@ -70,14 +78,14 @@ export function banner(opts) {
 // release phase). children: any bands (row, grid, box, nested group...).
 // tone: 'muted' (default, grey fill) | 'accent' | 'plain' (white) | 'danger';
 // dashed: draw the boundary dashed (default true for 'plain' = a trust/zone line).
-export function group(children, opts = {}) {
+export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
   return {type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad, id: opts.id};
 }
 
 // Key for line styles / tones used in the diagram. items:
 //   {line: 'solid'|'dashed'|'dotted'|'double', arrow?: 'end'|'both'|'none', label}
 //   {tone: 'accent'|'muted'|'plain'|'danger'|'new'|'changed'|'removed', label}
-export function legend(items, opts = {}) {
+export function legend(items: LegendItem[], opts: LegendOpts = {}): LegendBand {
   return {type: 'legend', items, align: opts.align ?? 'center'};
 }
 
@@ -88,7 +96,7 @@ export function legend(items, opts = {}) {
 //   {divider: text}                        — a phase separator across the whole width
 // Messages are auto-numbered 1, 2, ... (sequence(..., {numbered: false}) to turn off) so
 // the picture lines up with a numbered list in the surrounding text.
-export function sequence(actors, steps, opts = {}) {
+export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: SequenceOpts = {}): SequenceBand {
   return {type: 'sequence', actors, steps, numbered: opts.numbered, id: opts.id};
 }
 
@@ -97,7 +105,7 @@ export function sequence(actors, steps, opts = {}) {
 // a cell is a string or {text, tone?: 'accent'|'muted'|'danger', bold?, mono?, align?}.
 // title adds an accent bar on top (an ER entity name, a table caption); header: false hides
 // the column-label row; width narrows the table (centered).
-export function table(columns, rows, opts = {}) {
+export function table(columns: TableColumn[], rows: TableRow[], opts: TableOpts = {}): TableBand {
   return {type: 'table', columns, rows, title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, id: opts.id};
 }
 
@@ -113,7 +121,7 @@ export function table(columns, rows, opts = {}) {
 //   opts.phases: [{label, from, to}]  — column groups named across the top (a stage, a sprint)
 //   opts.labelW: width of the lane-label column (default 128)
 // Returns an array (the lane block followed by its flows); d.add() accepts it directly.
-export function swimlane(lanes, steps, opts = {}) {
+export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
   const laneIdx = new Map(lanes.map((l, i) => [l.id, i]));
   let next = 1, cols = 0;
   const placed = steps.map(st => {
@@ -122,7 +130,7 @@ export function swimlane(lanes, steps, opts = {}) {
     const col = st.col ?? next;
     next = col + span;
     cols = Math.max(cols, col + span - 1);
-    return {...st, type: 'box', col, span};
+    return {...st, type: 'box' as const, col, span};
   });
   const byId = new Map(placed.map(st => [st.id, st]));
   // 1) pick sides, 2) spread flows that share a side of one step along that side, 3) stagger the
@@ -134,7 +142,7 @@ export function swimlane(lanes, steps, opts = {}) {
     let from = f.from, to = f.to, auto = false;
     if (!fside && !tside) {
       auto = true;
-      const la = laneIdx.get(a.lane), lb = laneIdx.get(b.lane);
+      const la = laneIdx.get(a.lane)!, lb = laneIdx.get(b.lane)!;
       if (b.col > a.col + a.span - 1) { from = `${fid}:right`; to = `${tid}:left`; }
       else if (a.col > b.col + b.span - 1) { from = `${fid}:left`; to = `${tid}:right`; }
       else if (lb > la || (lb === la && (b.row ?? 0) > (a.row ?? 0))) { from = `${fid}:bottom`; to = `${tid}:top`; }
@@ -143,10 +151,10 @@ export function swimlane(lanes, steps, opts = {}) {
     return {f, a, b, from, to, auto};
   });
   const uses = new Map();
-  const note = (k) => uses.set(k, (uses.get(k) ?? 0) + 1);
+  const note = (k: string) => uses.set(k, (uses.get(k) ?? 0) + 1);
   for (const sp of specs) if (sp.auto) { note(sp.from); note(sp.to); }
   const seen = new Map();
-  const spread = (ref) => {
+  const spread = (ref: string): string => {
     const n = uses.get(ref) ?? 1;
     if (n < 2) return ref;
     const k = seen.get(ref) ?? 0; seen.set(ref, k + 1);
@@ -158,7 +166,7 @@ export function swimlane(lanes, steps, opts = {}) {
     const k = slot.get(b.col) ?? 0; slot.set(b.col, k + 1);
     return connect(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone});
   });
-  const block = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, id: opts.id};
+  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, id: opts.id};
   return [block, ...flows];
 }
 
@@ -170,35 +178,37 @@ export function swimlane(lanes, steps, opts = {}) {
 //          noteW, skeleton (text becomes grey bars), marks: {new, changed} legend labels,
 //          overlays: [wf.dialog(...), wf.toast(...)]  — drawn over the screen (a dialog dims it)}
 // id makes the screen frame a connect() anchor.
-export function wireframe(root, opts = {}) {
+export function wireframe(root: WfRoot, opts: WireframeOpts = {}): WireframeBand {
   autoNumber(root, opts.overlays);
   return {type: 'wireframe', root, ...opts};
 }
 
 // `n: true` (on a node, on a part in `parts: {...}`, or on a map marker) means "number me": such callouts get consecutive
 // numbers in reading order (top to bottom, left to right), continuing after any explicit numbers.
-function autoNumber(...trees) {
-  const todo = [];
+function autoNumber(...trees: (WfRoot | WfOverlay | WfOverlay[] | undefined)[]): void {
+  const todo: ((n: number) => void)[] = []; // each one writes the number it is given back into its callout
   let max = 0;
-  const num = (v) => { if (typeof v === 'number') max = Math.max(max, v); };
-  const walk = (nd) => {
+  const num = (v: unknown) => { if (typeof v === 'number') max = Math.max(max, v); };
+  const walk = (nd: WfNode | WfNode[] | undefined | null): void => {
     if (!nd || typeof nd !== 'object') return;
-    if (Array.isArray(nd)) return nd.forEach(walk);
+    if (Array.isArray(nd)) return nd.forEach(c => walk(c));
     if (!nd.t) return;
-    if (nd.n === true) todo.push([nd, 'n']); else num(nd.n);
-    for (const [k, v] of Object.entries(nd.parts ?? {})) { if (v === true) todo.push([nd.parts, k]); else num(v); }
-    for (const m of nd.markers ?? []) { if (m.n === true) todo.push([m, 'n']); else num(m.n); }
-    walk(nd.children);
+    const node = nd;
+    if (node.n === true) todo.push(v => { node.n = v; }); else num(node.n);
+    const parts = node.parts;
+    if (parts) for (const [k, v] of Object.entries(parts)) { if (v === true) todo.push(nv => { parts[k as WfPartKey] = nv; }); else num(v); }
+    if (node.t === 'map') for (const m of node.markers ?? []) { if (m.n === true) todo.push(v => { m.n = v; }); else num(m.n); }
+    walk('children' in node ? node.children : undefined);
   };
-  trees.forEach(walk);
+  trees.forEach(t => walk(t));
   let next = max + 1;
-  for (const [o, k] of todo) o[k] = next++;
+  for (const set of todo) set(next++);
 }
 
 // Several screens as thumbnails in a grid — a screen-transition diagram. Join them with connect().
 //   items: [{id, title, tag?, root, h?, skeleton?, at?: [row, col]}]   opts: {cols (3), gap (64), rowGap (56), h (320), skeleton}
 //   at places an item explicitly; col may be fractional (0.5 = half a column in) to centre a parent over its children.
-export function screens(items, opts = {}) {
+export function screens(items: ScreensItem[], opts: ScreensOpts = {}): ScreensBand {
   return {type: 'screens', items, ...opts};
 }
 
@@ -207,11 +217,11 @@ export function screens(items, opts = {}) {
 //   rows: [{label, note?, cells: [node | 'na' | {na: 'reason'} | undefined]}]  — a cell is a wf.* node (drawn in a light frame),
 //         'na' / {na} (not applicable, drawn dashed), or missing (drawn as "未設計": a gap in the spec, which `svg-diagram check` reports).
 //   opts: {required: [...cols that must exist], labelW, cellH (default: fit the content, min 72), cellFrame ('light' (default) | 'none' — 'none' when the parts already have their own border), gap, marks, skeleton}
-export function stateMatrix(cols, rows, opts = {}) {
+export function stateMatrix(cols: string[], rows: StateMatrixRow[], opts: StateMatrixOpts = {}): ScreensBand {
   return {type: 'screens', items: [], matrix: {cols, rows, required: opts.required, labelW: opts.labelW, cellH: opts.cellH, gap: opts.gap, cellFrame: opts.cellFrame}, marks: opts.marks, skeleton: opts.skeleton, id: opts.id};
 }
 
-export function spacer(h) {
+export function spacer(h: number): SpacerBand {
   return {type: 'spacer', h};
 }
 
@@ -225,14 +235,14 @@ export function spacer(h) {
 // `span` columns, default 1, optionally starting at 1-based `col`). Rows with
 // the same cols/gap have identical column edges, so a box spanning two
 // columns lines up exactly over two single-column boxes in the next row.
-export function row(children, opts = {}) {
+export function row(children: BoxBand[], opts: RowOpts = {}): RowBand {
   return {type: 'row', cols: opts.cols, children, gap: opts.gap ?? 16, arrows: opts.arrows ?? 'none', justify: opts.justify ?? 'stretch', itemWidth: opts.width};
 }
 
 // children: box() descriptors, laid out in `cols` columns (wraps to
 // additional rows automatically). Every cell in the same grid-row shares
 // that row's tallest cell's height, same as row().
-export function grid(children, opts) {
+export function grid(children: BoxBand[], opts: GridOpts): GridBand {
   if (!opts?.cols) throw new Error('grid(children, {cols}) needs cols');
   return {type: 'grid', children, cols: opts.cols, gap: opts.gap ?? 16};
 }
@@ -248,7 +258,7 @@ export function grid(children, opts) {
 // {route: 'loop-under', dip: 32})).
 // Consumes no vertical space — resolved after the whole stack is laid out,
 // so `from`/`to` may reference boxes declared earlier OR later in the stack.
-export function connect(from, to, opts = {}) {
+export function connect(from: string, to: string, opts: ConnectOpts = {}): ConnectBand {
   // arrow: 'end' (default) | 'both' | 'start' | 'none'  (legacy `marker: false` = 'none')
   // line:  'solid' (default) | 'dashed' | 'dotted' | 'double'  (legacy `dashed: true` = 'dashed')
   // labelAt: 0..1 along a straight/loop-under connector where the label/chip sits (default 0.5)
@@ -261,7 +271,7 @@ export function connect(from, to, opts = {}) {
 // One box fanning out to several targets (a decision). `targets`:
 // [{to, label?, tone?, dashed?}]; opts as connect() (route defaults to
 // 'elbow'). Returns an array — d.add() flattens it.
-export function branch(from, targets, opts = {}) {
+export function branch(from: string, targets: BranchTarget[], opts: ConnectOpts = {}): ConnectBand[] {
   return targets.map(t => connect(from, t.to, {route: 'elbow', ...opts, ...t}));
 }
 
@@ -270,7 +280,7 @@ export function branch(from, targets, opts = {}) {
 // the bottom". `layers`: strings or {text}, bottom-to-top. Opacity and each
 // layer's text color are derived (see tokens.ts's SHADES/bestTextColor),
 // not chosen per diagram, so contrast is provably fine for any 2-6 layers.
-export function pyramid(layers, opts = {}) {
+export function pyramid(layers: (string | PyramidLayer)[], opts: PyramidOpts = {}): PyramidBand {
   if (!Array.isArray(layers) || layers.length < 2) throw new Error('pyramid(layers) needs at least 2 layers, bottom to top');
   return {
     type: 'pyramid',
@@ -287,7 +297,7 @@ export function pyramid(layers, opts = {}) {
 // 'muted', dropLine?: true} evenly spaced left-to-right along the x-axis.
 // Bespoke callouts (leader lines to side notes, etc.) are raw()'s job —
 // curve() only draws the reusable skeleton.
-export function curve(points, opts = {}) {
+export function curve(points: CurveBand['points'], opts: CurveOpts = {}): CurveBand {
   if (!Array.isArray(points) || points.length < 2) throw new Error('curve(points) needs at least 2 points');
   for (const p of points) {
     if (typeof p.y !== 'number') throw new Error('curve(): every point needs a numeric y (0 = axis bottom, 1 = axis top)');
@@ -307,12 +317,12 @@ export function curve(points, opts = {}) {
 // finished file regardless, so an off-token color or sub-14px size written
 // here still gets caught before the file is trusted — raw() only escapes
 // layout, never the constraint system's verification step.
-export function raw(opts) {
+export function raw(opts: RawOpts): RawBand {
   if (typeof opts.draw !== 'function') throw new Error('raw({draw}) needs a draw(ctx) function');
   return {type: 'raw', h: opts.h ?? 0, draw: opts.draw};
 }
 
-function assertFontSize(size) {
+function assertFontSize(size: number): void {
   if (size < MIN_FONT_SIZE) {
     throw new Error(`font-size ${size} is below the ${MIN_FONT_SIZE}px floor — this deck never uses smaller text. Reconsider the layout instead of shrinking the text.`);
   }
@@ -331,11 +341,11 @@ function assertFontSize(size) {
 //      actually drew (verifyDiagram only checks raw()'s self-reported
 //      x/y/w/h against its neighbors) and catches real-font-rendering
 //      discrepancies verifyDiagram's measured-atom approximation can't.
-export async function build(d, outPath) {
+export async function build(d: Diagram, outPath: string): Promise<BuildResult> {
   applyAutoLegend(d);
   // A diagram that names its slide gets a measured height budget and width
   // (cached) instead of fit.ts's defaults.
-  let budget = null;
+  let budget: SlideBudget | null = null;
   if (d.slide) {
     budget = await getSlideBudget({...d.slide, svg: path.basename(outPath)});
     d.maxDisplayHeight = budget.maxHeight;
@@ -347,10 +357,10 @@ export async function build(d, outPath) {
   // height. Without this a short diagram leaves the slot half empty and its
   // 14px text is as small as it was at 940px wide.
   let fontScale = 1;
-  let laidOut;
+  let laidOut: LaidOutDiagram;
   const baseRoles = {...ROLES};
-  const applyScale = (s) => { for (const k of Object.keys(baseRoles)) ROLES[k] = Math.round(baseRoles[k] * s); };
-  const layoutAt = (s) => { applyScale(s); return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}); };
+  const applyScale = (s: number) => { for (const k of Object.keys(baseRoles) as Role[]) ROLES[k] = Math.round(baseRoles[k] * s); };
+  const layoutAt = (s: number) => { applyScale(s); return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}); };
   try {
     if (d.fill) {
       if (!budget) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
@@ -372,13 +382,13 @@ export async function build(d, outPath) {
 }
 
 // Layout + verification + rules, without writing any file: the engine behind `svg-diagram check`.
-export async function checkDiagram(d) {
+export async function checkDiagram(d: DiagramData): Promise<CheckResult> {
   applyAutoLegend(d);
   const laidOut = await layoutDiagram(d);
   return {laidOut, verdict: verifyDiagram(laidOut)};
 }
 
-async function finishBuild(d, laidOut, outPath, budget) {
+async function finishBuild(d: DiagramData, laidOut: LaidOutDiagram, outPath: string, budget: SlideBudget | null): Promise<BuildResult> {
   const verdict = verifyDiagram(laidOut);
   if (!verdict.ok) {
     throw new Error(`build(${outPath}): layout verification failed before any SVG was written:\n  ${verdict.problems.join('\n  ')}`);
@@ -392,7 +402,8 @@ async function finishBuild(d, laidOut, outPath, budget) {
   try {
     execFileSync('node', [lintScript, outPath, '--strict'], {encoding: 'utf8'});
   } catch (err) {
-    const out = (err.stdout || '') + (err.stderr || '');
+    const e = err as {stdout?: string; stderr?: string};
+    const out = (e.stdout || '') + (e.stderr || '');
     throw new Error(`build(${outPath}) produced an SVG that fails lint-svg.ts --strict:\n${out}`);
   }
   const fit = analyzeFit(laidOut);
