@@ -9,9 +9,9 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
-import {PALETTE, wcagRatio} from './tokens.mjs';
-import {resolveTextColor, resolveBoxStyle} from './emit.mjs';
-import {budgetWarnings} from './budget.mjs';
+import {PALETTE, wcagRatio} from './tokens.ts';
+import {resolveTextColor, resolveBoxStyle} from './emit.ts';
+import {budgetWarnings} from './budget.ts';
 
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
@@ -312,7 +312,7 @@ function lintAll(d) {
     if (connects.length >= 4 && unlabeled / connects.length > 0.6) out.push({rule: 'arrow-labels', severity: 'info', message: `矢印 ${connects.length} 本のうち ${unlabeled} 本にラベルがない。何が流れるか（成果物・プロトコル）を短く添える`});
   }
   if (d.medium === 'doc' && d.width > (d.maxWidth ?? 940)) out.push({rule: 'doc-width', severity: 'warn', message: `幅 ${d.width}px。本文の表示幅（約 930px）に縮められ、文字が小さくなる（${d.maxWidth ?? 940}px 以下にする）`});
-  // doc diagrams are read at length on a page, so their budget is larger than the slide decks' (see budget.mjs)
+  // doc diagrams are read at length on a page, so their budget is larger than the slide decks' (see budget.ts)
   for (const w of budgetWarnings(d, d.medium === 'doc' ? {boxBody: 100, total: 700, boxes: 30} : undefined)) out.push({rule: 'density', severity: 'warn', message: w});
   if (d.medium === 'doc' && !diagramTitle(d)) out.push({rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する'});
   return out;

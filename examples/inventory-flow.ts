@@ -1,5 +1,5 @@
 // 架空の在庫管理アプリの画面遷移（screens() + connect() の使用例）。
-// ビルド: svg-diagram build examples/inventory-flow.mjs --out examples/out/inventory-flow.svg
+// ビルド: svg-diagram build examples/inventory-flow.ts --out examples/out/inventory-flow.svg
 import {diagram, caption, screens, wf, connect} from 'svg-diagram';
 
 const bar = (name, active) => wf.appbar(name, {nav: ['ダッシュボード', '在庫', '発注'], active});

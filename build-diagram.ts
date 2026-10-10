@@ -4,7 +4,7 @@
 // A diagram source module default-exports a function that constructs (but
 // does not write) a diagram():
 //
-//   import { diagram, caption, box, banner } from './lib/dsl.mjs';
+//   import { diagram, caption, box, banner } from './lib/dsl.ts';
 //   export default function define() {
 //     const d = diagram({ day: 2 });
 //     d.add(caption('...'));
@@ -13,22 +13,22 @@
 //   }
 //
 // Usage:
-//   node scripts/svg-diagram/build-diagram.mjs diagrams/day2-11-example.mjs
-//   node scripts/svg-diagram/build-diagram.mjs diagrams/*.mjs
-//   node scripts/svg-diagram/build-diagram.mjs diagrams/day2-11-example.mjs --out /tmp/preview.svg
+//   node scripts/svg-diagram/build-diagram.ts diagrams/day2-11-example.ts
+//   node scripts/svg-diagram/build-diagram.ts diagrams/*.ts
+//   node scripts/svg-diagram/build-diagram.ts diagrams/day2-11-example.ts --out /tmp/preview.svg
 //
-// Output path defaults to public/svg/<basename-without-.mjs>.svg.
+// Output path defaults to public/svg/<basename-without-extension>.svg.
 // --out overrides it (only valid with exactly one input module).
-// Always runs lint-svg.mjs --strict on the result (via dsl.mjs's build()) —
+// Always runs lint-svg.ts --strict on the result (via dsl.ts's build()) —
 // a diagram that fails lint is reported as a failure, not written silently.
 
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import {register} from 'node:module';
-register('./lib/resolve-hook.mjs', import.meta.url);
-const {build, closeMeasurer} = await import('./lib/dsl.mjs');
-const {loadConfig, applyConfig} = await import('./lib/config.mjs');
+register('./lib/resolve-hook.ts', import.meta.url);
+const {build, closeMeasurer} = await import('./lib/dsl.ts');
+const {loadConfig, applyConfig} = await import('./lib/config.ts');
 const config = loadConfig();
 
 // --fit: ソースを書き換えずに、この図を使っているスライドを pages/*.md から探し、
@@ -57,7 +57,7 @@ const modules = args.filter((a, i) => a !== '--out' && a !== '--fit' && args[i -
 const FIT = args.includes('--fit');;
 
 if (modules.length === 0) {
-  console.error('Usage: node scripts/svg-diagram/build-diagram.mjs <diagram-source.mjs> [<more...>] [--out <path>]');
+  console.error('Usage: node scripts/svg-diagram/build-diagram.ts <diagram-source.ts> [<more...>] [--out <path>]');
   process.exit(2);
 }
 if (outOverride && modules.length > 1) {

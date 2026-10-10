@@ -1,14 +1,14 @@
-// Serializes a layoutDiagram() result (see layout.mjs) into an SVG string.
+// Serializes a layoutDiagram() result (see layout.ts) into an SVG string.
 //
 // Shape (rect/line) coordinates are snapped to the 4px grid — matching
-// lint-svg.mjs's coordinate-grid advisory, which only checks
+// lint-svg.ts's coordinate-grid advisory, which only checks
 // rect/circle/ellipse/line, never <text>. Text baselines are left at their
 // computed (usually off-grid) position, same as every hand-authored diagram
 // in this deck.
 
-import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES} from './tokens.mjs';
-import {diagramTitle, diagramDesc} from './rules.mjs';
-import {BOX_PAD_X, BOX_PAD_Y, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.mjs';
+import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES} from './tokens.ts';
+import {diagramTitle, diagramDesc} from './rules.ts';
+import {BOX_PAD_X, BOX_PAD_Y, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
 
 const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
 
@@ -21,7 +21,7 @@ function escapeXml(s) {
 }
 
 // Wraps emoji codepoints in <tspan class="emoji">, using the SAME EMOJI_RE
-// lint-svg.mjs checks against — generated text can never trip that check.
+// lint-svg.ts checks against — generated text can never trip that check.
 function emojiSpan(text) {
   let out = '';
   let last = 0;
@@ -73,7 +73,7 @@ function renderTextRuns(wrappedRuns, {originX, originY, w, align, day}) {
     const color = resolveTextColor(run.tone, day);
     const cls = run.mono ? ' class="mono"' : '';
     const anchor = align === 'center' ? ' text-anchor="middle"' : align === 'right' ? ' text-anchor="end"' : '';
-    // A step() badge only ever indents the title run (see layout.mjs's
+    // A step() badge only ever indents the title run (see layout.ts's
     // textRuns) — every other run's indent is 0, so this is a no-op there.
     const indent = run.indent ?? 0;
     const runOriginX = originX + indent;
@@ -142,7 +142,7 @@ function arrowMarkers(arrow) {
   return `${arrow === 'start' || arrow === 'both' ? ' marker-start="url(#dsl-arrow)"' : ''}${arrow === 'end' || arrow === 'both' ? ' marker-end="url(#dsl-arrow)"' : ''}`;
 }
 
-// A line sample (and optional arrowhead) + label per item, laid out by layout.mjs.
+// A line sample (and optional arrowhead) + label per item, laid out by layout.ts.
 function renderLegend(band, day) {
   const parts = [];
   for (const it of band.items) {
@@ -196,8 +196,8 @@ function renderConnect(c, day) {
     path = `<path d="${d}" fill="none" stroke="${color}" stroke-width="2"${lineAttrs(c.line)}${markers}/>`;
   }
   if (!c.label) return path;
-  // labelX/labelY (and chipBox) are computed once in layout.mjs's resolveConnect()
-  // along with labelBox, which verify.mjs checks for overlap — reusing them here
+  // labelX/labelY (and chipBox) are computed once in layout.ts's resolveConnect()
+  // along with labelBox, which verify.ts checks for overlap — reusing them here
   // keeps emit and verify looking at the same point.
   const chip = c.chipBox ? `<rect x="${snap4(c.chipBox.x)}" y="${snap4(c.chipBox.y)}" width="${snap4(c.chipBox.w)}" height="${c.chipBox.h}" rx="12" fill="${PALETTE.bg}" stroke="${color}" stroke-width="2"/>\n  ` : '';
   const label = `<text x="${c.labelX}" y="${c.labelY}" text-anchor="middle" font-size="14" fill="${color}">${escapeXml(c.label)}</text>`;
@@ -249,7 +249,7 @@ function renderRaw(band, day) {
 }
 
 
-// ---- sequence() / table() renderers (geometry comes from seq-table.mjs) ------
+// ---- sequence() / table() renderers (geometry comes from seq-table.ts) ------
 const NOTE = ROLES.note;
 const LH_EM = 1.4;
 
@@ -366,7 +366,7 @@ function renderSwimlane(b, day) {
   return parts.join('\n  ');
 }
 
-// wireframe() / screens(): a flat list of primitives with token-key colours (see wireframe.mjs)
+// wireframe() / screens(): a flat list of primitives with token-key colours (see wireframe.ts)
 function renderPrims(b, day) {
   const col = (k) => k == null ? 'none' : (k === 'accent' || k === 'soft') ? PALETTE[day][k] : PALETTE[k];
   const stroke = (p) => p.stroke ? ` stroke="${col(p.stroke)}" stroke-width="${p.sw}"${p.dash ? ` stroke-dasharray="${p.dash}"` : ''}` : '';

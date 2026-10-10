@@ -5,11 +5,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {scanMarkdown, parseItem, compareNotes} from '../lib/docs-check.mjs';
-import {explainChange} from '../lib/svg-diff.mjs';
-import {loadConfig, applyConfig} from '../lib/config.mjs';
+import {scanMarkdown, parseItem, compareNotes} from '../lib/docs-check.ts';
+import {explainChange} from '../lib/svg-diff.ts';
+import {loadConfig, applyConfig} from '../lib/config.ts';
 
-const CHECK = new URL('../check-diagram.mjs', import.meta.url).pathname;
+const CHECK = new URL('../check-diagram.ts', import.meta.url).pathname;
 
 test('scanMarkdown: finds figures, their alt text and the numbered list that follows', () => {
   const md = ['# T', '', '![概要](../a/x.svg)', '', '図中の番号に対応する注釈：', '', '1. **題名一**：本文一', '2. **題名二**：本文二', '', '次の段落', '![](y.svg)', '- 箇条書き'].join('\n');

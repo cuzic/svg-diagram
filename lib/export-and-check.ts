@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 // Shared primitive: export a single Slidev slide to PNG and run it through
-// check-slide-overflow.mjs, in a throwaway temp dir. Used by both
-// verify-slide.mjs (one-shot check) and fit-image-height.mjs (repeated
+// check-slide-overflow.ts, in a throwaway temp dir. Used by both
+// verify-slide.ts (one-shot check) and fit-image-height.ts (repeated
 // checks during a binary search) so the export/check/cleanup logic exists
 // in exactly one place.
 //
 // Usage (module):
-//   import { exportAndCheck } from './export-and-check.mjs'
+//   import { exportAndCheck } from './export-and-check.ts'
 //   const { ok, suspects, raw } = await exportAndCheck(200, { timeoutMs: 150000 })
 //
 // Usage (CLI): prints the result for one slide index.
-//   node scripts/svg-diagram/lib/export-and-check.mjs 200
+//   node scripts/svg-diagram/lib/export-and-check.ts 200
 
 import { execFileSync } from 'child_process';
 import fs from 'fs';
@@ -18,7 +18,7 @@ import os from 'os';
 import path from 'path';
 
 // exportAndCheck(index, opts) -> { ok, suspects: string[], raw }
-// ok is true iff check-slide-overflow.mjs exited 0 (no *-SUSPECT of any kind).
+// ok is true iff check-slide-overflow.ts exited 0 (no *-SUSPECT of any kind).
 // suspects is the list of non-blank lines under any "*-SUSPECT:" heading, for
 // callers that want to report specifics without re-parsing `raw` themselves.
 // Throws if `slidev export` itself fails (distinct from "exported but flagged").
@@ -30,7 +30,7 @@ export async function exportAndCheck(index, opts = {}) {
     // for this deck when the host is under load (several concurrent exports,
     // each booting a dev server + Chromium) — see token-economy.md.
     renderTimeoutMs = 120000,
-    excludeLeft, // omit to use check-slide-overflow.mjs's own default
+    excludeLeft, // omit to use check-slide-overflow.ts's own default
     checkerArgs = [],
     exportAttempts = 4,
   } = opts;
@@ -60,7 +60,7 @@ export async function exportAndCheck(index, opts = {}) {
       throw new Error(`slidev export produced no PNG for slide ${index} after ${exportAttempts} attempts (possible host-load timeout — see token-economy.md's retry guidance)\n${lastErr?.message ?? ''}`);
     }
 
-    const args = [path.resolve('scripts/check-slide-overflow.mjs'), tmpDir];
+    const args = [path.resolve('scripts/check-slide-overflow.ts'), tmpDir];
     if (excludeLeft !== undefined) args.push(`--exclude-left=${excludeLeft}`);
     args.push(...checkerArgs);
 
@@ -92,7 +92,7 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve
 if (isMain) {
   const index = parseInt(process.argv[2], 10);
   if (!Number.isFinite(index)) {
-    console.error('Usage: node scripts/svg-diagram/lib/export-and-check.mjs <slide-index>');
+    console.error('Usage: node scripts/svg-diagram/lib/export-and-check.ts <slide-index>');
     process.exit(2);
   }
   const result = await exportAndCheck(index);

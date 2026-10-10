@@ -15,11 +15,11 @@
 // consume vertical space; they're resolved in a final pass once every named
 // anchor (any box/child with an explicit `id`) has a known rect.
 
-import {splitAtoms, measureAll} from './measure.mjs';
-import {wrapAtoms} from './wrap.mjs';
-import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.mjs';
-import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.mjs';
-import {ROLES, PALETTE, SHADES, blendLuminance, bestTextColor} from './tokens.mjs';
+import {splitAtoms, measureAll} from './measure.ts';
+import {wrapAtoms} from './wrap.ts';
+import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
+import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
+import {ROLES, PALETTE, SHADES, blendLuminance, bestTextColor} from './tokens.ts';
 
 export const LINE_HEIGHT_EM = 1.4;   // vertical spacing between wrapped lines within one text block
 export const BOX_PAD_X = 20;
@@ -187,7 +187,7 @@ export async function layoutDiagram(d) {
       for (const child of band.children) registerRequests(requests, child);
     } else if (band.type === 'connect' && band.label) {
       // connect() labels are single-line, always the 'note' role at plain
-      // weight (see emit.mjs's renderConnect) — registered here so their
+      // weight (see emit.ts's renderConnect) — registered here so their
       // real width is known before layoutDiagram resolves the connect,
       // instead of guessed at draw time.
       for (const atom of splitAtoms(band.label)) {
@@ -355,7 +355,7 @@ export async function layoutDiagram(d) {
       // reserve real vertical space for its dip + label — a zero-height
       // overlay resolved only after the whole stack is laid out would let
       // the return path silently collide with whatever comes next (this
-      // was caught by lint-svg.mjs's container-overflow check on the first
+      // was caught by lint-svg.ts's container-overflow check on the first
       // real test: a loop-under label overlapped the following banner).
       // Requires both anchors to already exist, i.e. connect() must be
       // declared after both referenced boxes.
@@ -429,12 +429,12 @@ export async function layoutDiagram(d) {
         const topY = bottomY - layerH;
         const bottomW = baseWidth - (baseWidth - apexWidth) * (i / n);
         const topW = baseWidth - (baseWidth - apexWidth) * ((i + 1) / n);
-        // Opacity climbs bottom->top using SHADES (see tokens.mjs) — the
+        // Opacity climbs bottom->top using SHADES (see tokens.ts) — the
         // apex (i = n-1) always gets SHADES[0] = fully opaque, matching
         // every hand-authored pyramid/funnel in this deck.
         const opacity = SHADES[Math.min(SHADES.length - 1, n - 1 - i)];
         // bg luminance is a real alpha-blend against white, so the text
-        // color choice is provably safe (see tokens.mjs's bestTextColor
+        // color choice is provably safe (see tokens.ts's bestTextColor
         // doc comment) without needing a Playwright-rendered check.
         const bgLum = blendLuminance(PALETTE.bg, PALETTE[d.day].accent, opacity);
         const textColor = bestTextColor(bgLum);
@@ -517,7 +517,7 @@ function anchorPoint(rect, side, at = 0.5) {
 // positions along a leg to try for a chip, nearest the middle first
 const CHIP_TS = Array.from({length: 41}, (_, i) => 0.1 + i * 0.02).sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5));
 const CONNECT_STROKE_PAD = 3; // half-thickness allowance so a perfectly horizontal/vertical path segment still has a non-zero-area bbox to check
-const LABEL_SIZE = 14; // must match emit.mjs's renderConnect label font-size
+const LABEL_SIZE = 14; // must match emit.ts's renderConnect label font-size
 
 function segRect(x0, y0, x1, y1) {
   const xa = Math.min(x0, x1), xb = Math.max(x0, x1);
@@ -630,6 +630,6 @@ function resolveConnect(band, anchors, widthOf) {
 
   // fromLabel/toLabel preserve the original "id:side" strings for error
   // messages — `from`/`to` themselves get overwritten by the spread below
-  // with the resolved {x,y} points emit.mjs's renderConnectPath needs.
+  // with the resolved {x,y} points emit.ts's renderConnectPath needs.
   return {...band, from, to, fromId: fromRef.id, toId: toRef.id, fromLabel: band.from, toLabel: band.to, points, pathSegments: segments, labelX, labelY, labelBox, chipBox};
 }

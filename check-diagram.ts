@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // svg-diagram check — rules, drift and document checks (nothing is written to the diagrams).
 //
-//   svg-diagram check [--strict] [--verbose] <source.mjs>...
-//       Lay the diagram out and run the rules (lib/rules.mjs): WCAG contrast, legend, lane order,
+//   svg-diagram check [--strict] [--verbose] <source.ts>...
+//       Lay the diagram out and run the rules (lib/rules.ts): WCAG contrast, legend, lane order,
 //       edge crossings, width, density, wireframe callouts and state matrices ... Exit 1 on a layout error,
 //       or on any warning with --strict.
-//   svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.mjs>...
+//   svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...
 //       Compare each source's SHA-256 with the one embedded in the committed SVG (<metadata id="svg-diagram">),
 //       so an SVG that was not regenerated after its source changed is caught. DIR defaults to ./svg.
 //       --rebuild also regenerates each SVG in memory and compares the bytes; a difference is explained
@@ -20,12 +20,12 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import {register} from 'node:module';
-register('./lib/resolve-hook.mjs', import.meta.url);
-const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.mjs');
-const {RULE_DOCS} = await import('./lib/rules.mjs');
-const {scanMarkdown, compareNotes, notesOf} = await import('./lib/docs-check.mjs');
-const {explainChange} = await import('./lib/svg-diff.mjs');
-const {loadConfig, applyConfig} = await import('./lib/config.mjs');
+register('./lib/resolve-hook.ts', import.meta.url);
+const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
+const {RULE_DOCS} = await import('./lib/rules.ts');
+const {scanMarkdown, compareNotes, notesOf} = await import('./lib/docs-check.ts');
+const {explainChange} = await import('./lib/svg-diff.ts');
+const {loadConfig, applyConfig} = await import('./lib/config.ts');
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
@@ -35,7 +35,7 @@ const strict = flag('--strict'), verbose = flag('--verbose'), drift = flag('--dr
 const svgDir = val('--svg-dir'), srcDir = val('--src-dir'), docsDir = val('--docs'), format = val('--format') ?? 'text';
 const sources = args.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1]));
 if (!['text', 'json', 'github'].includes(format)) { console.error(`--format must be text, json or github (got "${format}")`); process.exit(2); }
-if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs DIR [--svg-dir DIR] [--src-dir DIR]] [--format text|json|github] <source.mjs>...'); process.exit(2); }
+if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs DIR [--svg-dir DIR] [--src-dir DIR]] [--format text|json|github] <source.ts>...'); process.exit(2); }
 const config = loadConfig();
 
 const say = (...a) => { if (format === 'text') console.log(...a); };

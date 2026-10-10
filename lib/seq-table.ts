@@ -1,14 +1,14 @@
 // sequence() and table() — layout half. Both are self-contained blocks: they
 // take an origin + width, wrap their own text with the shared measurer, and
-// return one placed band whose geometry emit.mjs draws verbatim.
+// return one placed band whose geometry emit.ts draws verbatim.
 //
 // Text requests (collectTextRequests) and layout (layoutSequence/layoutTable)
 // must agree on every string/size/weight/font, so both go through the same
 // prepare step.
 
-import {splitAtoms} from './measure.mjs';
-import {wrapAtoms} from './wrap.mjs';
-import {ROLES} from './tokens.mjs';
+import {splitAtoms} from './measure.ts';
+import {wrapAtoms} from './wrap.ts';
+import {ROLES} from './tokens.ts';
 
 const LH = 1.4;
 const lineH = (size) => size * LH;

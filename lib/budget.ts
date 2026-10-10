@@ -1,5 +1,5 @@
 // Text-volume budget for a laid-out diagram (ADR 0003). Warn-only: a figure
-// that is too wordy is usually still a valid figure, so verify.mjs reports
+// that is too wordy is usually still a valid figure, so verify.ts reports
 // these as `warnings` and never fails the build on them.
 //
 // Counted in "display width" units rather than raw characters: a full-width

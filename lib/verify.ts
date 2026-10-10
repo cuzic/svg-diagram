@@ -1,32 +1,32 @@
 // Pre-render structural verification of a layoutDiagram() result — runs
-// BEFORE emitSvg(), using only the geometry/colors layout.mjs already
+// BEFORE emitSvg(), using only the geometry/colors layout.ts already
 // computed. Catches sibling/neighbor overlap, canvas-bounds overflow, and
 // low-contrast tone combinations without spinning up a Chromium render pass
 // at all.
 //
 // This exists because a real bug found during Phase 2 development (a
 // connect() loop-under return path silently overlapping the following
-// banner) was only caught by lint-svg.mjs's post-render heuristic check —
+// banner) was only caught by lint-svg.ts's post-render heuristic check —
 // but the layout engine already had every number needed to catch it
 // instantly, it just wasn't asked to. Text-overflowing-its-own-box is NOT
 // checked here because it's structurally impossible for box()/banner()/
 // caption() content: a band's height is *derived from* its own wrapped
-// text, not guessed independently of it (see layout.mjs's
+// text, not guessed independently of it (see layout.ts's
 // layoutBoxContent) — there is no code path that can produce a box shorter
 // than its own content.
 //
 // What this can't see: the actual drawn contents of raw() (only its
 // self-reported x/y/w/h is checked against neighbors, not what's actually
 // inside), and real browser font-rendering quirks (inter-atom kerning we
-// assumed was ~0 for CJK, subpixel rounding). lint-svg.mjs's Playwright-
+// assumed was ~0 for CJK, subpixel rounding). lint-svg.ts's Playwright-
 // based render check stays as the final safety net for exactly those two
 // gaps — verify() is the fast, primary check; lint is the backstop.
 
-import {PALETTE, luminance} from './tokens.mjs';
-import {resolveTextColor, resolveBoxStyle} from './emit.mjs';
-import {lintDiagram} from './rules.mjs';
+import {PALETTE, luminance} from './tokens.ts';
+import {resolveTextColor, resolveBoxStyle} from './emit.ts';
+import {lintDiagram} from './rules.ts';
 
-const CONTRAST_THRESHOLD = 70; // same threshold lint-svg.mjs's own contrast check uses
+const CONTRAST_THRESHOLD = 70; // same threshold lint-svg.ts's own contrast check uses
 
 // Returns the overlap {dx,dy} if two rects share more than `tolerance`px of
 // area in both axes, else null. Rects that merely touch at a shared edge
@@ -106,7 +106,7 @@ function checkBounds(d, rects) {
 
 // Contrast is computed purely from the known, closed set of (tone, day)
 // color combinations the DSL can ever produce — no rendering needed, this
-// is the same formula lint-svg.mjs uses, evaluated on values we already know.
+// is the same formula lint-svg.ts uses, evaluated on values we already know.
 function checkContrast(d) {
   const problems = [];
   const contrastFor = (band, boxTone) => {

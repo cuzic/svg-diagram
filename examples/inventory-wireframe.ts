@@ -1,5 +1,5 @@
 // 架空の在庫管理アプリのワイヤーフレーム（svg-diagram の wireframe() の使用例）。
-// ビルド: svg-diagram build examples/inventory-wireframe.mjs --out examples/out/inventory-wireframe.svg
+// ビルド: svg-diagram build examples/inventory-wireframe.ts --out examples/out/inventory-wireframe.svg
 import {diagram, wireframe, wf} from 'svg-diagram';
 
 export default function define() {

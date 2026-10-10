@@ -11,18 +11,18 @@
 import {execFileSync} from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import {layoutDiagram} from './layout.mjs';
-import {emitSvg} from './emit.mjs';
-import {verifyDiagram} from './verify.mjs';
-import {applyAutoLegend} from './rules.mjs';
-import {analyzeFit} from './fit.mjs';
-import {getSlideBudget} from './slide-budget.mjs';
-import {closeMeasurer} from './measure.mjs';
-import {MIN_FONT_SIZE, ROLES, THEMES} from './tokens.mjs';
-export {wf} from './wireframe.mjs';
+import {layoutDiagram} from './layout.ts';
+import {emitSvg} from './emit.ts';
+import {verifyDiagram} from './verify.ts';
+import {applyAutoLegend} from './rules.ts';
+import {analyzeFit} from './fit.ts';
+import {getSlideBudget} from './slide-budget.ts';
+import {closeMeasurer} from './measure.ts';
+import {MIN_FONT_SIZE, ROLES, THEMES} from './tokens.ts';
+export {wf} from './wireframe.ts';
 
 export function diagram(opts = {}) {
-  // `theme` (name from tokens.mjs PALETTE) is the general form; `day` (1|2) is the
+  // `theme` (name from tokens.ts PALETTE) is the general form; `day` (1|2) is the
   // training deck's legacy spelling of the same thing. Stored as d.day internally.
   const theme = opts.theme ?? opts.day;
   if (!THEMES.map(String).includes(String(theme))) throw new Error(`diagram({theme}) must be one of ${THEMES.join(', ')} (or legacy day: 1|2)`);
@@ -36,9 +36,9 @@ export function diagram(opts = {}) {
     width: opts.width ?? 940,
     pad: opts.pad ?? 20,
     gap: opts.gap ?? 16,
-    maxDisplayHeight: opts.maxDisplayHeight, // slide room for the <img> (see fit.mjs)
+    maxDisplayHeight: opts.maxDisplayHeight, // slide room for the <img> (see fit.ts)
     minEffectiveFont: opts.minEffectiveFont,
-    slide: opts.slide, // {page, heading}: measure the real budget from this slide (slide-budget.mjs)
+    slide: opts.slide, // {page, heading}: measure the real budget from this slide (slide-budget.ts)
     fill: !!opts.fill, // fit-figure slide: build to the measured width/height, growing fonts to use the slack (see build())
     bands: [],
   };
@@ -163,7 +163,7 @@ export function swimlane(lanes, steps, opts = {}) {
 }
 
 // Low-fidelity UI wireframe of ONE screen, with an optional column of numbered notes.
-//   root: a wf.* node or an array of them (laid out top to bottom). See wireframe.mjs for the parts.
+//   root: a wf.* node or an array of them (laid out top to bottom). See wireframe.ts for the parts.
 //   opts: {id, title, tag ('新規' | '改修' | text), h (screen height, default 440; 'fit' = as tall as the content),
 //          frame ('screen' (default, heavy) | 'light' | 'none' — use 'light'/'none' for a single component),
 //          notes: [string | {title?, text, n?}]  — numbered 1.. to match `n:` on nodes,
@@ -268,7 +268,7 @@ export function branch(from, targets, opts = {}) {
 // Stacked trapezoid layers, bottom (widest) to top (narrowest) — a test
 // pyramid, a maturity model, anything shaped like "few at the top, many at
 // the bottom". `layers`: strings or {text}, bottom-to-top. Opacity and each
-// layer's text color are derived (see tokens.mjs's SHADES/bestTextColor),
+// layer's text color are derived (see tokens.ts's SHADES/bestTextColor),
 // not chosen per diagram, so contrast is provably fine for any 2-6 layers.
 export function pyramid(layers, opts = {}) {
   if (!Array.isArray(layers) || layers.length < 2) throw new Error('pyramid(layers) needs at least 2 layers, bottom to top');
@@ -303,7 +303,7 @@ export function curve(points, opts = {}) {
 // Escape hatch. `draw(ctx)` must return a raw SVG fragment string; it
 // receives its allocated origin/size and a couple of tone-aware helpers, but
 // nothing stops it from emitting arbitrary markup — the fragment is passed
-// through emit.mjs unmodified. build() runs `lint-svg.mjs --strict` on the
+// through emit.ts unmodified. build() runs `lint-svg.ts --strict` on the
 // finished file regardless, so an off-token color or sub-14px size written
 // here still gets caught before the file is trusted — raw() only escapes
 // layout, never the constraint system's verification step.
@@ -326,7 +326,7 @@ function assertFontSize(size) {
 //      any SVG exists. Catches sibling/neighbor overlap, canvas-bounds
 //      overflow, and low-contrast tone pairs in milliseconds, with no
 //      Chromium render involved. This is the primary check.
-//   2. lint-svg.mjs --strict — a real Playwright render of the finished
+//   2. lint-svg.ts --strict — a real Playwright render of the finished
 //      file. Slower, but it's the only thing that can see what raw()
 //      actually drew (verifyDiagram only checks raw()'s self-reported
 //      x/y/w/h against its neighbors) and catches real-font-rendering
@@ -334,7 +334,7 @@ function assertFontSize(size) {
 export async function build(d, outPath) {
   applyAutoLegend(d);
   // A diagram that names its slide gets a measured height budget and width
-  // (cached) instead of fit.mjs's defaults.
+  // (cached) instead of fit.ts's defaults.
   let budget = null;
   if (d.slide) {
     budget = await getSlideBudget({...d.slide, svg: path.basename(outPath)});
@@ -388,12 +388,12 @@ async function finishBuild(d, laidOut, outPath, budget) {
   fs.mkdirSync(path.dirname(outPath), {recursive: true});
   fs.writeFileSync(outPath, svg);
 
-  const lintScript = path.resolve(import.meta.dirname, '..', 'lint-svg.mjs');
+  const lintScript = path.resolve(import.meta.dirname, '..', 'lint-svg.ts');
   try {
     execFileSync('node', [lintScript, outPath, '--strict'], {encoding: 'utf8'});
   } catch (err) {
     const out = (err.stdout || '') + (err.stderr || '');
-    throw new Error(`build(${outPath}) produced an SVG that fails lint-svg.mjs --strict:\n${out}`);
+    throw new Error(`build(${outPath}) produced an SVG that fails lint-svg.ts --strict:\n${out}`);
   }
   const fit = analyzeFit(laidOut);
   return {outPath, width: laidOut.width, height: laidOut.canvasHeight, fit, budget, fontScale: laidOut.fontScale, warnings: verdict.warnings, findings: verdict.findings};

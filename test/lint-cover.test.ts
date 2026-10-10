@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
-const LINT = new URL('../lint-svg.mjs', import.meta.url).pathname;
+const LINT = new URL('../lint-svg.ts', import.meta.url).pathname;
 const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120" viewBox="0 0 400 120"><rect width="400" height="120" fill="#ffffff"/><text x="40" y="64" font-size="14" font-weight="700" fill="#22201b">12% 低下 バッテリーの文字</text>${body}</svg>`;
 const lint = (name, markup) => {
   const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'lint-')), name);

@@ -1,4 +1,4 @@
-// Wireframe parts for monitoring-style screens (kept in its own module; wireframe.mjs hands over its drawing helpers).
+// Wireframe parts for monitoring-style screens (kept in its own module; wireframe.ts hands over its drawing helpers).
 //
 //   states     state: 'missing' | 'disconnected' | 'loading' | 'empty' | 'stale' on ANY widget (a visual one gets hatching; a data widget a skeleton / message)
 //   region     wf.region(label, {n, emphasis, hint})   a named block for coarse, whole-screen wireframes
@@ -391,7 +391,7 @@ export function installParts(h) {
   };
 
   // Every string a part may draw that is NOT literally in the node tree (defaults, formatted numbers),
-  // so that wireframe.mjs measures it before layout.
+  // so that wireframe.ts measures it before layout.
   const ALWAYS = [...Object.values(STATES).map(x => x.title), ...Object.values(LEVEL).map(x => x.label), '参考表示', '再生位置を同期', '途絶', '弱い', 'やや弱い', '良好', ' 低下', '最終受信 —', 'カメラ', '点群', '赤外線'];
   function strings(n) {
     const out = [];

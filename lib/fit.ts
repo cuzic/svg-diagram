@@ -4,13 +4,13 @@
 // The slide shows the SVG via <img style="max-height:Npx">, so the on-slide
 // scale is min(N / canvasHeight, SLIDE_USABLE_WIDTH / canvasWidth, 1). Text
 // that is 14px in the SVG is 14 * scale px on the slide — the 14px floor in
-// tokens.mjs is only meaningful at scale 1. This turns that into numbers
+// tokens.ts is only meaningful at scale 1. This turns that into numbers
 // before any export: a recommended max-height, and warnings when the
 // diagram (banner included) can't fit its height budget without shrinking
 // text below `minEffectiveFont`.
 //
 // When the diagram names its slide (diagram({slide:{page,heading}})), build()
-// fills maxDisplayHeight/usableWidth from slide-budget.mjs's measurement and
+// fills maxDisplayHeight/usableWidth from slide-budget.ts's measurement and
 // the defaults below are not used.
 //
 // `maxDisplayHeight` is the room the slide leaves for the image under its

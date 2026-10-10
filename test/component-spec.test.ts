@@ -1,9 +1,9 @@
 // Tools for specifying a component and its states: state matrix, frames, states on any widget, anatomy numbers, regions.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {wf, layoutWireframe, layoutScreens, collectTextRequests} from '../lib/wireframe.mjs';
-import {wireframe, stateMatrix, screens, diagram} from '../lib/dsl.mjs';
-import {lintDiagram} from '../lib/rules.mjs';
+import {wf, layoutWireframe, layoutScreens, collectTextRequests} from '../lib/wireframe.ts';
+import {wireframe, stateMatrix, screens, diagram} from '../lib/dsl.ts';
+import {lintDiagram} from '../lib/rules.ts';
 
 const widthOf = (atom, size) => [...atom].length * size * 0.6;
 const wfLayout = (root, opts = {}, w = 900) => layoutWireframe({type: 'wireframe', root, h: 420, ...opts}, 0, 0, w, widthOf);

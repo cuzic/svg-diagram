@@ -11,8 +11,8 @@
     "playwright-chromium": "1.62.1"
   },
   "scripts": {
-    "test": "node --test \"test/*.test.mjs\"",
-    "golden": "node check-diagram.mjs --drift --rebuild --svg-dir examples/out examples/*.mjs"
+    "test": "node --test \"test/*.test.ts\"",
+    "golden": "node check-diagram.ts --drift --rebuild --svg-dir examples/out examples/*.ts"
   },
   "license": "MIT",
   "repository": {
@@ -31,6 +31,6 @@
     "documentation"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.18"
   }
 }

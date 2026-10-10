@@ -2,7 +2,7 @@
 // svg-diagram diff old.svg new.svg — what changed between two generated SVGs, in words.
 // Exit 0 when nothing visible changed (identical, or metadata / invisible backing only), 1 when the picture changes.
 import fs from 'node:fs';
-import {explainChange} from './lib/svg-diff.mjs';
+import {explainChange} from './lib/svg-diff.ts';
 
 const [a, b] = process.argv.slice(2);
 if (!a || !b) { console.error('Usage: svg-diagram diff old.svg new.svg'); process.exit(2); }

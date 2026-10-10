@@ -1,8 +1,8 @@
 // Wireframe parts for monitoring-style screens: states, fusion, robot status, insight, compare, controls.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {wf, collectTextRequests, layoutWireframe} from '../lib/wireframe.mjs';
-import {wireframe} from '../lib/dsl.mjs';
+import {wf, collectTextRequests, layoutWireframe} from '../lib/wireframe.ts';
+import {wireframe} from '../lib/dsl.ts';
 
 // a stand-in for the browser measurer: every character is 0.6em wide
 const widthOf = (atom, size) => [...atom].length * size * 0.6;

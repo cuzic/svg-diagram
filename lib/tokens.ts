@@ -1,8 +1,8 @@
 // Single source of truth for this deck's SVG diagram tone-and-manner tokens
 // — color palette, font stacks, font-size roles, the emoji-detection regex,
-// and the opacity ladder used for gradient-style grouping. lint-svg.mjs
+// and the opacity ladder used for gradient-style grouping. lint-svg.ts
 // imports ALLOWED_COLORS and EMOJI_RE from here so the linter and the
-// diagram-builder (scripts/svg-diagram/lib/dsl.mjs) can never silently
+// diagram-builder (scripts/svg-diagram/lib/dsl.ts) can never silently
 // drift apart on what counts as an allowed color or an emoji glyph.
 //
 // See docs/diagram-tone-and-manner.md for the narrative rules this encodes.
@@ -26,7 +26,7 @@ export const PALETTE = {
 export const THEMES = Object.keys(PALETTE).filter(k => PALETTE[k] && PALETTE[k].accent);
 
 // Flat set of every hex value PALETTE can resolve to — this is exactly what
-// lint-svg.mjs's off-token-color check validates fill/stroke against.
+// lint-svg.ts's off-token-color check validates fill/stroke against.
 export const ALLOWED_COLORS = new Set([
   PALETTE.bg, PALETTE.text, PALETTE.muted, PALETTE.border, PALETTE.code, PALETTE.danger,
   ...THEMES.flatMap(k => [PALETTE[k].accent, PALETTE[k].soft]),
@@ -74,7 +74,7 @@ export function luminance(hex) {
 
 // Approximates alpha-compositing `overlayHex` at `alpha` over `baseHex` —
 // close enough to true sRGB blending for choosing text color (the real
-// composited pixel is only ever checked by lint-svg.mjs's Playwright render,
+// composited pixel is only ever checked by lint-svg.ts's Playwright render,
 // which is exact; this just needs to be right often enough that that check
 // stays a formality).
 export function blendLuminance(baseHex, overlayHex, alpha) {

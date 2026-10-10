@@ -10,12 +10,12 @@
 // verify-slide-render's SKILL.md, and global-bottom.vue's session table do.
 //
 // Usage (CLI):
-//   node scripts/svg-diagram/lib/slide-index.mjs <page.md> "<heading substring>"
-//   node scripts/svg-diagram/lib/slide-index.mjs "day2-10:ArchUnitとは"   # single-arg form
-//   node scripts/svg-diagram/lib/slide-index.mjs --total                  # just print total slide count
+//   node scripts/svg-diagram/lib/slide-index.ts <page.md> "<heading substring>"
+//   node scripts/svg-diagram/lib/slide-index.ts "day2-10:ArchUnitとは"   # single-arg form
+//   node scripts/svg-diagram/lib/slide-index.ts --total                  # just print total slide count
 //
 // Usage (module):
-//   import { computeSlideIndex, countTotalSlides } from './slide-index.mjs'
+//   import { computeSlideIndex, countTotalSlides } from './slide-index.ts'
 //   const index = computeSlideIndex('slides.md', 'pages/day2-10.md', 'ArchUnitとは')
 
 import fs from 'fs';
@@ -106,9 +106,9 @@ if (isMain) {
   } else if (args.length === 2) {
     [pageArg, heading] = args;
   } else {
-    console.error('Usage: node scripts/svg-diagram/lib/slide-index.mjs <page.md> "<heading substring>"');
-    console.error('       node scripts/svg-diagram/lib/slide-index.mjs "day2-10:ArchUnitとは"');
-    console.error('       node scripts/svg-diagram/lib/slide-index.mjs --total');
+    console.error('Usage: node scripts/svg-diagram/lib/slide-index.ts <page.md> "<heading substring>"');
+    console.error('       node scripts/svg-diagram/lib/slide-index.ts "day2-10:ArchUnitとは"');
+    console.error('       node scripts/svg-diagram/lib/slide-index.ts --total');
     process.exit(2);
   }
 

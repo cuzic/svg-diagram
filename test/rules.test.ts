@@ -1,9 +1,9 @@
 // node --test test/   — the rules must keep catching what they were written to catch.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {wcagRatio} from '../lib/tokens.mjs';
-import {usedNotation, legendKeys, applyAutoLegend, edgeStats, lintDiagram, diagramTitle} from '../lib/rules.mjs';
-import {diagram, caption, box, connect, legend, swimlane} from '../lib/dsl.mjs';
+import {wcagRatio} from '../lib/tokens.ts';
+import {usedNotation, legendKeys, applyAutoLegend, edgeStats, lintDiagram, diagramTitle} from '../lib/rules.ts';
+import {diagram, caption, box, connect, legend, swimlane} from '../lib/dsl.ts';
 
 test('wcagRatio: black on white is 21:1, same colour is 1:1', () => {
   assert.equal(Math.round(wcagRatio('#000000', '#ffffff')), 21);

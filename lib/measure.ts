@@ -13,13 +13,13 @@
 // let lines overflow their box by (spaces x 4)px.
 //
 // Uses getBBox() rather than getComputedTextLength() specifically because
-// lint-svg.mjs's own container-overflow check uses getBBox() — measuring
+// lint-svg.ts's own container-overflow check uses getBBox() — measuring
 // with the same primitive the linter checks against means a diagram that
-// passes layout here cannot then disagree with lint-svg.mjs about whether
+// passes layout here cannot then disagree with lint-svg.ts about whether
 // something fits.
 
 import {chromium} from 'playwright-chromium';
-import {FONT_STACKS} from './tokens.mjs';
+import {FONT_STACKS} from './tokens.ts';
 
 function isCJK(ch) {
   const c = ch.codePointAt(0);
@@ -57,7 +57,7 @@ function getBrowser() {
 
 // Call once after all measureAll() calls for a build are done (or let the
 // process exit naturally — Playwright doesn't need an explicit close if the
-// process is about to end, but build-diagram.mjs calls this for a clean exit
+// process is about to end, but build-diagram.ts calls this for a clean exit
 // when building many diagrams in one process).
 export async function closeMeasurer() {
   if (browserPromise) {

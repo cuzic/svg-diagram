@@ -1,6 +1,6 @@
 // 架空の在庫管理アプリの「部品の仕様」（svg-diagram の stateMatrix() / frame / parts / wf.region() の使用例）。
 // 画面全体は粗く（領域と見る順）、部品は別の図で詳しく（構成と、状態の一覧）。
-// ビルド: svg-diagram build examples/inventory-component-spec.mjs --out examples/out/inventory-component-spec.svg
+// ビルド: svg-diagram build examples/inventory-component-spec.ts --out examples/out/inventory-component-spec.svg
 import {diagram, caption, stateMatrix, wireframe, wf} from 'svg-diagram';
 
 const stock = (o = {}) => wf.card([wf.kv([['在庫', '24 個'], ['棚', 'A-03']])], {title: 'ボルト M6', ...o});

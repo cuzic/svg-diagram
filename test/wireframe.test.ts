@@ -1,9 +1,9 @@
-// node --test test/wireframe.test.mjs — wireframe() / screens() layout, callouts, overlays, errors.
-// These lay out real text, so they need the headless Chromium that measure.mjs uses.
+// node --test test/wireframe.test.ts — wireframe() / screens() layout, callouts, overlays, errors.
+// These lay out real text, so they need the headless Chromium that measure.ts uses.
 import test, {after} from 'node:test';
 import assert from 'node:assert/strict';
-import {diagram, wireframe, screens, wf, closeMeasurer} from '../lib/dsl.mjs';
-import {layoutDiagram} from '../lib/layout.mjs';
+import {diagram, wireframe, screens, wf, closeMeasurer} from '../lib/dsl.ts';
+import {layoutDiagram} from '../lib/layout.ts';
 
 after(() => closeMeasurer());
 

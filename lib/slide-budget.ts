@@ -4,8 +4,8 @@
 // laying the slide out: this renders it in a throwaway Slidev dev server,
 // hides the target <img>, finds where the remaining in-flow content ends, and
 // returns what is left above the bottom limit (the same ~6% bottom band
-// check-slide-overflow.mjs flags). Also returns the image's real available
-// width, so fit.mjs doesn't have to assume one.
+// check-slide-overflow.ts flags). Also returns the image's real available
+// width, so fit.ts doesn't have to assume one.
 //
 // Results are cached in .cache/slide-budget.json, keyed by page+heading and
 // validated by a hash of (the slide's markdown with the img's max-height
@@ -16,7 +16,7 @@
 //
 // Usage (module): getSlideBudget({page, heading, svg}) ->
 //   {maxHeight, contentWidth, index, cached}
-// CLI: node scripts/svg-diagram/lib/slide-budget.mjs <page.md> "<heading>" <svg-file> [--refresh]
+// CLI: node scripts/svg-diagram/lib/slide-budget.ts <page.md> "<heading>" <svg-file> [--refresh]
 
 import fs from 'fs';
 import path from 'path';
@@ -24,10 +24,10 @@ import net from 'net';
 import crypto from 'crypto';
 import {spawn} from 'child_process';
 import {chromium} from 'playwright-chromium';
-import {computeSlideIndex} from './slide-index.mjs';
+import {computeSlideIndex} from './slide-index.ts';
 
 const SLIDE_W = 980, SLIDE_H = 552;
-// Content may extend to here; matches what check-slide-overflow.mjs tolerates
+// Content may extend to here; matches what check-slide-overflow.ts tolerates
 // (bottom 6% band is 519px; content boxes may end at 520 with their own margin).
 export const BOTTOM_LIMIT = 520;
 const CACHE_FILE = '.cache/slide-budget.json';
@@ -132,6 +132,6 @@ export async function getSlideBudget({page, heading, svg, slidesMd = 'slides.md'
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
 if (isMain) {
   const [page, heading, svg] = process.argv.slice(2).filter(a => !a.startsWith('--'));
-  if (!page || !heading || !svg) { console.error('Usage: slide-budget.mjs <page.md> "<heading>" <svg-file> [--refresh]'); process.exit(2); }
+  if (!page || !heading || !svg) { console.error('Usage: slide-budget.ts <page.md> "<heading>" <svg-file> [--refresh]'); process.exit(2); }
   console.log(JSON.stringify(await getSlideBudget({page, heading, svg, refresh: process.argv.includes('--refresh')})));
 }

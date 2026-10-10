@@ -4,7 +4,7 @@
 // engine (col / row / card + leaf widgets); the result is a flat list of drawing primitives
 // (rect / text / path / circle) in absolute coordinates, with colours as TOKEN KEYS
 // ('bg' | 'text' | 'muted' | 'border' | 'code' | 'danger' | 'accent' | 'soft'), resolved against
-// the diagram theme by emit.mjs. Like every other part, nothing here accepts a raw colour or
+// the diagram theme by emit.ts. Like every other part, nothing here accepts a raw colour or
 // a font size below the 14px floor.
 //
 //   wireframe(root, {id, title, tag, h, notes, noteW, skeleton})   one screen + numbered notes
@@ -16,9 +16,9 @@
 // Nodes in a col are full width; widgets in a row take their natural width (btn, chip) or share
 // the rest by flex. map / video / heat / pointcloud / chart / image grow to fill leftover height.
 
-import {splitAtoms} from './measure.mjs';
-import {wrapAtoms} from './wrap.mjs';
-import {installParts} from './wireframe-parts.mjs';
+import {splitAtoms} from './measure.ts';
+import {wrapAtoms} from './wrap.ts';
+import {installParts} from './wireframe-parts.ts';
 
 const S = 14, T = 15, LHF = 1.4, GAP = 12;
 const lh = (s) => s * LHF;
@@ -814,6 +814,6 @@ export function layoutScreens(band, x, y, w, widthOf) {
   return {type: 'screens', id: band.id, title: band.items[0]?.title, x, y, w, h: bottom - y, prims: ctx.prims, anchors};
 }
 
-// ---- parts defined in wireframe-parts.mjs (states, fusion, robot status, insight, compare, controls) ----
+// ---- parts defined in wireframe-parts.ts (states, fusion, robot status, insight, compare, controls) ----
 const AUTO_W = {}, NAT = {};
 const PARTS = installParts({wf, DRAW, NAT, AUTO_W, S, T, lh, rect, circle, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder});

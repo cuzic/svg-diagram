@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SVG diagram linter for public/svg/*.svg (this Slidev deck).
 //
-// Adapted from ~/ai-employees/scripts/lint-svg.mjs (AI社員シリーズ book
+// Adapted from ~/ai-employees/scripts/lint-svg.ts (AI社員シリーズ book
 // pipeline's svg-diagram skill). Same check logic; the file-glob and color
 // token table are localized to this project. See
 // ~/ai-employees/.claude/skills/svg-diagram/SKILL.md "既知の落とし穴" for
@@ -10,10 +10,10 @@
 // actually rendered.
 //
 // Usage:
-//   node scripts/svg-diagram/lint-svg.mjs                  # scan public/svg/*.svg
-//   node scripts/svg-diagram/lint-svg.mjs public/svg/x.svg # one file
-//   node scripts/svg-diagram/lint-svg.mjs --strict          # advisories also fail
-//   node scripts/svg-diagram/lint-svg.mjs --fix              # mechanically fix font-size-too-small, then re-lint
+//   node scripts/svg-diagram/lint-svg.ts                  # scan public/svg/*.svg
+//   node scripts/svg-diagram/lint-svg.ts public/svg/x.svg # one file
+//   node scripts/svg-diagram/lint-svg.ts --strict          # advisories also fail
+//   node scripts/svg-diagram/lint-svg.ts --fix              # mechanically fix font-size-too-small, then re-lint
 //
 // --fix currently covers only font-size-too-small (bump below-14px sizes up to
 // 14px) — the one check that has been 100% mechanical, zero-judgment-call in
@@ -24,7 +24,7 @@
 // findings of any tier).
 import {chromium} from 'playwright-chromium';
 import fs from 'fs';
-import {ALLOWED_COLORS, EMOJI_RE} from './lib/tokens.mjs';
+import {ALLOWED_COLORS, EMOJI_RE} from './lib/tokens.ts';
 
 const strict = process.argv.includes('--strict');
 const fix = process.argv.includes('--fix');
@@ -41,8 +41,8 @@ if (files.length === 0) {
 }
 
 // day1(legacy/amber) と day2(modern/teal) の2アクセント体制。
-// ALLOWED_COLORS は lib/tokens.mjs が唯一の正 — style.css / uno.config.ts の
-// トークンと一致させること。dsl.mjs(図版ビルダー)も同じ定数を参照する。
+// ALLOWED_COLORS は lib/tokens.ts が唯一の正 — style.css / uno.config.ts の
+// トークンと一致させること。dsl.ts(図版ビルダー)も同じ定数を参照する。
 
 // ---- static (non-render) checks: source-text pattern matching ----------
 const staticFindings = [];

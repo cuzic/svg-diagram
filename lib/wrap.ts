@@ -1,4 +1,4 @@
-// Greedy line-wrapping over pre-measured break atoms (see measure.mjs),
+// Greedy line-wrapping over pre-measured break atoms (see measure.ts),
 // with basic Japanese kinsoku shori (禁則処理 — line-breaking prohibitions):
 // a line must not START with closing punctuation / small kana, and must not
 // END with opening punctuation.
@@ -15,7 +15,7 @@
 // deck's short UI-label-style text: don't orphan closing punctuation at a
 // line start, don't strand opening punctuation at a line end.
 
-import {splitAtoms} from './measure.mjs';
+import {splitAtoms} from './measure.ts';
 
 const CANNOT_START_LINE = new Set(
   '、。，．・：；！？」』）〕】〉》ゝゞーぁぃぅぇぉっゃゅょァィゥェォッャュョ'.split(''),
