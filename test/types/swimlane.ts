@@ -1,5 +1,5 @@
-// Type-level tests for swimlane(). Never executed (see ids.ts).
-import {swimlane} from '../../lib/dsl.ts';
+// Type-level tests for swimlane() and sequence(). Never executed (see ids.ts).
+import {swimlane, sequence} from '../../lib/dsl.ts';
 import type {SwimlaneLane} from '../../lib/types.ts';
 
 export function swimlaneCases(): void {
@@ -50,4 +50,32 @@ export function swimlaneCases(): void {
   swimlane([{id: 'dev', label: 'D', tone: 'purple'}], []);
   // @ts-expect-error sub-14px text
   swimlane([{id: 'dev', label: 'D'}], [{id: 'a', lane: 'dev', title: 'A', size: 12}]);
+}
+
+export function sequenceCases(): void {
+  // ---- positive ----
+  sequence([{id: 'user', label: '利用者'}, {id: 'api', label: 'API'}], [
+    {from: 'user', to: 'api', label: 'POST', line: 'dashed', arrow: 'both'},
+    {self: 'api', label: 'validate'},
+    {note: 'n', over: 'api'},
+    {note: 'n', over: ['user', 'api'], tone: 'accent'},
+    {divider: 'phase 2'},
+  ], {numbered: false, id: 'seq'});
+  const dyn: string = 'x';
+  sequence([{id: dyn, label: 'L'}], [{from: dyn, to: 'anyone', label: 'l'}]);
+
+  // ids held in a plain (non-const) variable are `string`: nothing can be proven wrong, so they are accepted
+  const widened = [{id: 'user', label: 'U'}];
+  sequence(widened, [{from: 'user', to: 'db', label: 'x'}]);
+
+  // ---- participants must be declared actors (runtime: "unknown actor") ----
+  // @ts-expect-error unknown target actor
+  sequence([{id: 'user', label: 'U'}, {id: 'api', label: 'A'}], [{from: 'user', to: 'db', label: 'x'}]);
+  // @ts-expect-error unknown self actor
+  sequence([{id: 'user', label: 'U'}, {id: 'api', label: 'A'}], [{self: 'db', label: 'x'}]);
+  // @ts-expect-error unknown actor in a note
+  sequence([{id: 'user', label: 'U'}, {id: 'api', label: 'A'}], [{note: 'n', over: ['user', 'db']}]);
+  // ---- a message to yourself must be {self} (runtime: "has from === to") ----
+  // @ts-expect-error from === to
+  sequence([{id: 'user', label: 'U'}, {id: 'api', label: 'A'}], [{from: 'api', to: 'api', label: 'x'}]);
 }

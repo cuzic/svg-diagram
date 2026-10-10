@@ -28,8 +28,8 @@ import type {
   TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WireframeBand, WireframeOpts, Medium,
 } from './types.ts';
 import type {
-  AnchorsOf, BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, FlowCheck, FlowIn, HandleOf, IdsOf,
-  LaneCheck, Ok, PyramidLayers, Refers, RefsOf, ScreensItemInput, StateRowIn, StepCheck, StepIds, SwimlaneStepIn,
+  ActorIn, AnchorsOf, BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, FlowCheck, FlowIn, IdsOf, LaneCheck, Ok,
+  HandleOf, PyramidLayers, Refers, RefsOf, SeqStepIn, ScreensItemInput, StateRowIn, StepCheck, StepIds, SwimlaneStepIn,
 } from './strict.ts';
 export {wf} from './wireframe.ts';
 
@@ -136,8 +136,9 @@ export function legend(items: LegendItem[], opts: LegendOpts = {}): LegendBand {
 //   {divider: text}                        — a phase separator across the whole width
 // Messages are auto-numbered 1, 2, ... (sequence(..., {numbered: false}) to turn off) so
 // the picture lines up with a numbered list in the surrounding text.
-// Types: an `id` in opts becomes a connect() anchor.
-export function sequence<const Id extends string = never>(actors: SequenceActor[], steps: SequenceStep[], opts?: SequenceOpts & {id?: Id}): SequenceBand & Declares<Id> & HandleOf<Id>;
+// Types: every `from` / `to` / `self` / `over` must be a declared actor id, and `from` may not equal `to`
+// (runtime: "unknown actor" / "use {self: id}"); an `id` in opts becomes a connect() anchor.
+export function sequence<const A extends string, const Id extends string = never>(actors: ActorIn<A>[], steps: SeqStepIn<NoInfer<A>>[], opts?: SequenceOpts & {id?: Id}): SequenceBand & Declares<Id> & HandleOf<Id>;
 export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: SequenceOpts = {}): SequenceBand {
   return withHandle({type: 'sequence', actors, steps, numbered: opts.numbered, id: opts.id}, opts.id);
 }

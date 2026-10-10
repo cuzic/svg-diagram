@@ -19,7 +19,8 @@
 
 import type {MIN_FONT_SIZE} from './tokens.ts';
 import type {
-  Arrow, Bend, BoxOpts, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SlideRef, StateMatrixCell, SwimlaneFlow, SwimlaneStep, TextTone, Theme,
+  Arrow, Bend, BoxOpts, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SeqDivider, SeqNote, SequenceActor, SeqMessage, SeqSelf,
+  SlideRef, StateMatrixCell, SwimlaneFlow, SwimlaneStep, TextTone, Theme,
 } from './types.ts';
 
 // ============================================================================================
@@ -168,6 +169,18 @@ export type CurvePoints = [CurvePoint, CurvePoint, ...CurvePoint[]];
 // ============================================================================================
 
 export type ScreensItemInput<Id extends string = string> = Omit<ScreensItem, 'id'> & {id?: Id};
+
+type MessageIn<A extends string, From extends string = A> = string extends A
+  ? Omit<SeqMessage, 'from' | 'to'> & {from: A; to: A}
+  // from === to is a runtime error ("use {self: id}"): spell out every ordered pair of distinct actors
+  : From extends string ? Omit<SeqMessage, 'from' | 'to'> & {from: From; to: Exclude<A, From>} : never;
+/** A sequence step whose participants must be declared actors. */
+export type SeqStepIn<A extends string> =
+  | MessageIn<A>
+  | (Omit<SeqSelf, 'self'> & {self: A})
+  | (Omit<SeqNote, 'over'> & {over: A | A[]})
+  | SeqDivider;
+export type ActorIn<A extends string> = Omit<SequenceActor, 'id'> & {id: A};
 
 // ============================================================================================
 // swimlane()
