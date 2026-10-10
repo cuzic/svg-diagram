@@ -15,7 +15,7 @@
     "golden": "node check-diagram.ts --drift --rebuild --svg-dir examples/out examples/*.ts",
     "typecheck": "tsc -p .",
     "build": "tsc -p tsconfig.build.json",
-    "prepare": "tsc -p tsconfig.build.json"
+    "release": "bash scripts/release.sh"
   },
   "license": "MIT",
   "repository": {
