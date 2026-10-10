@@ -115,3 +115,10 @@ test('stateMatrix: a row shorter than the columns gets "未設計" cells (never 
   assert.match(lintDiagram({...d, laidOut: [], connects: []}).find(x => x.rule === 'wf-states-todo').message, /A×空.*A×エラー/);
   assert.throws(() => layoutScreens(stateMatrix(['通常'], [{label: 'A', cells: ['na', 'na']}]), 0, 0, 900, widthOf), /2 cells for 1 columns/);
 });
+
+test('a state\'s frame name is drawn AFTER the hatching (nothing runs through it)', () => {
+  const b = wfLayout(wf.col([wf.video({state: 'disconnected', label: 'Go2-B', h: 120})]));
+  const hatch = b.prims.map((p, i) => (p.k === 'path' && p.op === 0.3 ? i : -1)).filter(i => i >= 0);
+  const name = b.prims.findIndex(p => p.k === 'text' && p.s === 'Go2-B');
+  assert.ok(hatch.length > 3 && name > Math.max(...hatch), 'name after every hatch line');
+});

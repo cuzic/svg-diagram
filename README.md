@@ -21,8 +21,11 @@ Node.js 20 以上と pnpm が必要。
 
     svg-diagram build <source.mjs>... [--out file.svg]   # 既定の出力: ./svg/<name>.svg
     svg-diagram check [--strict] [--verbose] <source.mjs>...        # ルール検査（SVG は書かない）
-    svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.mjs>...   # 生成済み SVG が最新か
-    svg-diagram lint  [file.svg] [--strict]
+    svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.mjs>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
+    svg-diagram check --docs DIR [--svg-dir DIR] [--src-dir DIR]   # 文書（Markdown）と図が食い違っていないか
+    svg-diagram diff old.svg new.svg                     # 2 つの SVG の違いを言葉で（見た目が変わるか）
+    svg-diagram contact a.svg b.svg ... --out sheet.png  # 図の集まりを 1 枚に並べて、一度に目視する
+    svg-diagram lint  [file.svg ...] [--strict]
     svg-diagram preview <in.svg> <out.png> [scale]
 
 ソース: `import {diagram, box, ...} from 'svg-diagram'` / `export default () => diagram({theme: 'blue'})...`
@@ -58,10 +61,24 @@ map・video 等は残りの高さを埋める。`overlay` / `overlayRight` で�
 新部品は「同じパターンが 3 回出たら」が原則だが、ユーザーが明示したときは例外。
 既存の `day:` 図の出力が変わらないこと（回帰）を確認してから足す。
 
+## 文書と図の整合（`check --docs`）
+`svg-diagram check --docs docs --svg-dir docs/assets/diagrams/svg --src-dir docs/diagrams` は、Markdown の画像参照と、図のソースを突き合わせる。
+- 参照先の SVG がない（`doc-image-missing`、エラー）、代替テキストが空・155 文字超（`doc-alt-empty` / `doc-alt-long`）、どの文書からも参照されていない SVG（`doc-orphan-svg`）。
+- 図に `notes` があるとき、画像の直後の**番号つきリスト**（`1. **題名**：本文`）と、題名・本文が一致するか（`doc-notes-mismatch` / `doc-notes-missing`）。図と文書の**二重管理**で、片方の直し忘れを見つける。
+- `--format json`（機械可読）、`--format github`（PR の注釈 `::warning file=…,line=…`）。
+
+## 図の違いの説明（`--rebuild`、`diff`）
+`check --drift --rebuild` は、再生成した SVG が違うとき、**何が変わったか**を示す（メタデータのみ / 不可視の下地 / 文字の移動 / 図形の増減 / キャンバスの大きさ）。
+「見た目は変わらない。再生成してよい」か「見た目が変わる。再生成して、目で確かめる」かが分かる。`pnpm golden` は、`examples/out/` の SVG が、今のコードの再生成と一致するかを調べる。
+
+## 共通設定（`.svg-diagram.json`）
+カレントディレクトリから上へたどって見つかる。`{"accept": {"rule-id": "理由"}, "maxWidth": 940}`。図ごとの `accept` が優先される。
+
 ## check のルール（lib/rules.mjs）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
 `a11y-no-title`、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、
-`edge-crossings`、`one-story`、`doc-width`（940px 以下）、`density`、`arrow-labels`（情報）。
+`edge-crossings`、`one-story`、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報）、`wf-callout-order`（情報: 図の番号が読む順でない）。
+`lint-svg`（描画後の検査）は、**後から描かれた図形が文字を覆う、または線が文字を貫く**ものも報告する（意図した重なりは、図形に `data-allow-cover`）。
 残す警告は `diagram({accept: {'rule-id': '理由'}})`。`theme:` の図（文書向け）だけが対象で、`day:` の図（スライド）は従来どおり。
 文書向けの図の SVG には `role="img"`・`<title>`・`<desc>`・生成元（ソースの SHA-256）が入る。`npm test` / `pnpm test` でルールの単体テスト。
 
