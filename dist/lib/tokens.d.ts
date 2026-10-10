@@ -1,0 +1,14 @@
+import type { Palette, Role } from './types.ts';
+export declare const PALETTE: Palette;
+export declare const THEMES: string[];
+export declare const ALLOWED_COLORS: Set<string>;
+export declare const FONT_STACKS: Record<'sans' | 'mono' | 'emoji', string>;
+export declare const MIN_FONT_SIZE = 14;
+export declare const ROLES: Record<Role, number>;
+export declare const SHADES: number[];
+export declare const EMOJI_RE: RegExp;
+export declare function luminance(hex: string): number;
+export declare function blendLuminance(baseHex: string, overlayHex: string, alpha: number): number;
+export declare function bestTextColor(bgLuminance: number): string;
+export declare function relativeLuminance(hex: string): number;
+export declare function wcagRatio(a: string, b: string): number;
