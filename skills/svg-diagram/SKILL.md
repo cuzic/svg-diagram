@@ -21,17 +21,17 @@ triggers:
 
 # svg-diagram で図を作る
 
-図は SVG を直接書かず、`*.mjs`（DSL）で宣言して生成する。レイアウト・重なり・コントラストの検査は DSL 側が行う。
+図は SVG を直接書かず、`*.ts`（DSL）で宣言して生成する。レイアウト・重なり・コントラストの検査は DSL 側が行う。
 SVG は生成物としてコミットし、Markdown からはそれを参照する。**SVG を手で編集しない**（ソースを直して再生成する）。
 
 ## 手順
 
 1. **ソースを書く**: `import {diagram, ...} from 'svg-diagram'` / `export default () => diagram({theme: 'blue', title: '図の題名'})...`
    - 文書向けは `theme: 'blue' | 'teal' | 'amber'`。`title` は必須（`check` が見る）。幅は 940px 以下（文書に埋めると縮むため）。
-2. **ビルド**: `svg-diagram build src.mjs --out out.svg`（重なり検査と lint --strict まで走る。失敗するとエラー文が出る）
-3. **ルール検査**: `svg-diagram check --strict src.mjs`（コントラスト、凡例、線の交差、幅、密度、題名）
+2. **ビルド**: `svg-diagram build src.ts --out out.svg`（重なり検査と lint --strict まで走る。失敗するとエラー文が出る）
+3. **ルール検査**: `svg-diagram check --strict src.ts`（コントラスト、凡例、線の交差、幅、密度、題名）
 4. **目で見る**: `svg-diagram preview out.svg out.png 2` で PNG にし、画像として読んで確認する。**検査を通っても、レイアウトの良し悪しは目で見ないと分からない**。
-5. **ズレ検査**: `svg-diagram check --drift --svg-dir <SVG の置き場> src.mjs`（SVG が最新のソースから生成されたものか）
+5. **ズレ検査**: `svg-diagram check --drift --svg-dir <SVG の置き場> src.ts`（SVG が最新のソースから生成されたものか）
    - `--rebuild` を付けると、違いを言葉で説明する（「見た目は変わらない」ならそのまま再生成してよい）。
 6. **文書との整合**: `svg-diagram check --docs <docs> --svg-dir <SVG の置き場> --src-dir <ソースの置き場>`（参照先、代替テキスト、孤立した図、図の注釈と文書のリストの一致）
 7. **まとめて目視**: `svg-diagram contact a.svg b.svg ... --out sheet.png`（余白や釣り合いは検査では分からない）

@@ -1,7 +1,7 @@
 # svg-diagram
 
 文書（仕様書・設計書）に入れる図を、宣言的な DSL で作るツール。構成図、フロー、スイムレーン、シーケンス図、表、**画面のワイヤーフレームと画面遷移図**に対応する。
-レイアウト、重なり、コントラスト、ルール（WCAG・凡例・線の交差・幅）の検査まで自動で行う。SVG を手で描かず、ソース（`*.mjs`）を直して再生成する。
+レイアウト、重なり、コントラスト、ルール（WCAG・凡例・線の交差・幅）の検査まで自動で行う。SVG を手で描かず、ソース（`*.ts`。`*.mjs` も可）を直して再生成する。
 
 ![在庫管理アプリのワイヤーフレーム（例）](examples/out/inventory-wireframe.svg)
 
@@ -15,13 +15,13 @@ Node.js 20 以上と pnpm が必要。
     ln -s "$PWD/bin/svg-diagram" ~/.local/bin/svg-diagram
 
 `svg-diagram preview` は PNG 化に Chrome / Chromium を使う（`CHROME=/path/to/chrome` で指定できる）。
-動作確認: `pnpm test`、`svg-diagram build examples/inventory-wireframe.mjs --out /tmp/x.svg`。
+動作確認: `pnpm test`、`svg-diagram build examples/inventory-wireframe.ts --out /tmp/x.svg`。
 
 ## 使い方
 
-    svg-diagram build <source.mjs>... [--out file.svg]   # 既定の出力: ./svg/<name>.svg
-    svg-diagram check [--strict] [--verbose] <source.mjs>...        # ルール検査（SVG は書かない）
-    svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.mjs>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
+    svg-diagram build <source.ts>... [--out file.svg]   # 既定の出力: ./svg/<name>.svg
+    svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
+    svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
     svg-diagram check --docs DIR [--svg-dir DIR] [--src-dir DIR]   # 文書（Markdown）と図が食い違っていないか
     svg-diagram diff old.svg new.svg                     # 2 つの SVG の違いを言葉で（見た目が変わるか）
     svg-diagram contact a.svg b.svg ... --out sheet.png  # 図の集まりを 1 枚に並べて、一度に目視する
@@ -74,7 +74,7 @@ map・video 等は残りの高さを埋める。`overlay` / `overlayRight` で�
 ## 共通設定（`.svg-diagram.json`）
 カレントディレクトリから上へたどって見つかる。`{"accept": {"rule-id": "理由"}, "maxWidth": 940}`。図ごとの `accept` が優先される。
 
-## check のルール（lib/rules.mjs）
+## check のルール（lib/rules.ts）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
 `a11y-no-title`、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、
 `edge-crossings`、`one-story`、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報）、`wf-callout-order`（情報: 図の番号が読む順でない）。
@@ -87,9 +87,9 @@ map・video 等は残りの高さを埋める。`overlay` / `overlayRight` で�
 
 | ソース | 内容 |
 |---|---|
-| `inventory-wireframe.mjs` | 画面のワイヤーフレーム。番号つき注釈、トースト、確認ダイアログ、地図の凡例 |
-| `inventory-flow.mjs` | 画面遷移図。画面のサムネイルを並べ、`connect()` で結ぶ |
-| `inventory-component-spec.mjs` | 部品の仕様。粗い全体の領域、部品の構成（内側の番号）、状態の一覧 |
+| `inventory-wireframe.ts` | 画面のワイヤーフレーム。番号つき注釈、トースト、確認ダイアログ、地図の凡例 |
+| `inventory-flow.ts` | 画面遷移図。画面のサムネイルを並べ、`connect()` で結ぶ |
+| `inventory-component-spec.ts` | 部品の仕様。粗い全体の領域、部品の構成（内側の番号）、状態の一覧 |
 
 ## Claude Code のスキル
 `skills/svg-diagram/SKILL.md` は、Claude Code で図を作る手順（ビルド → 検査 → スクリーンショットで目視 → ズレ検査）をまとめたスキル。
