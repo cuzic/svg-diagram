@@ -1,0 +1,24 @@
+name: test
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright-chromium install --with-deps chromium
+      - run: pnpm test
+      - name: examples build and pass the rule check
+        run: |
+          for f in examples/*.mjs; do node bin/../build-diagram.mjs "$f" --out "/tmp/$(basename "$f" .mjs).svg"; done
+          node check-diagram.mjs --strict examples/*.mjs

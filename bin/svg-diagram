@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# svg-diagram build <source.mjs>... [--out file.svg]   (default out: ./svg/<name>.svg)
+# svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] <source.mjs>...
+# svg-diagram lint  [file.svg] [--strict]               (default: ./svg/*.svg)
+# svg-diagram preview <in.svg> <out.png> [scale]
+# Diagram sources import the DSL as:  import {diagram, box, ...} from 'svg-diagram'
+set -euo pipefail
+ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+cmd="${1:-}"; shift || true
+case "$cmd" in
+  build)   exec node "$ROOT/build-diagram.mjs" "$@" ;;
+  check)   exec node "$ROOT/check-diagram.mjs" "$@" ;;
+  lint)    exec node "$ROOT/lint-svg.mjs" "$@" ;;
+  preview) exec bash "$ROOT/preview_svg.sh" "$@" ;;
+  *) sed -n 2,5p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
+esac
