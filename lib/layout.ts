@@ -19,6 +19,11 @@ import {splitAtoms, measureAll} from './measure.ts';
 import {wrapAtoms} from './wrap.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
+import type {
+  DiagramData, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
+  LaidOutSwimlane, LaidOutPyramidLayer, LaidOutRow, RowArrow, Band, CaptionBand, BoxBand, BannerBand, RowBand, GridBand, GroupBand,
+  ConnectBand, ConnectRef, Bend, BoxChrome, TextRun, WrappedRun, WidthOf, FontFamily, MeasureRequest, Point, Rect, Side,
+} from './types.ts';
 import {ROLES, PALETTE, SHADES, blendLuminance, bestTextColor} from './tokens.ts';
 
 export const LINE_HEIGHT_EM = 1.4;   // vertical spacing between wrapped lines within one text block
@@ -35,21 +40,25 @@ const STEP_BADGE_GAP = 10;
 export const STEP_BADGE_BASELINE_OFFSET = 6;
 const STEP_INDENT = 2 * STEP_BADGE_R + STEP_BADGE_GAP; // how far the title's first line is pushed right to clear the badge
 
-function textRuns(band) {
+type Requests = Map<string, MeasureRequest>;
+/** A band after placeBoxLike(): its own fields plus geometry, wrapped text and (maybe) the tag pill. */
+type Placed<B> = B & Rect & {wrappedRuns: WrappedRun[]; tagBox?: Rect};
+
+function textRuns(band: Band): TextRun[] {
   switch (band.type) {
     case 'caption':
       return [{text: band.text, size: ROLES[band.role ?? 'label'], weight: band.bold ? 700 : 400, mono: !!band.mono, tone: band.tone}];
     case 'banner': {
-      const runs = [{text: band.headline, size: ROLES.banner, weight: 700, mono: false, tone: band.headlineTone}];
+      const runs: TextRun[] = [{text: band.headline, size: ROLES.banner, weight: 700, mono: false, tone: band.headlineTone}];
       if (band.sub) runs.push({text: band.sub, size: ROLES.note, weight: 400, mono: false, tone: band.subTone ?? 'muted'});
       return runs;
     }
     case 'box': {
-      const runs = [];
+      const runs: TextRun[] = [];
       if (band.title) runs.push({text: band.title, size: ROLES.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: band.step != null ? STEP_INDENT : 0});
       if (band.body) runs.push({text: band.body, size: ROLES.body, weight: 400, mono: !!band.bodyMono, tone: band.bodyTone});
       if (band.lines) for (const l of band.lines) {
-        const line = typeof l === 'string' ? {text: l} : l;
+        const line: Exclude<typeof l, string> = typeof l === 'string' ? {text: l} : l;
         runs.push({text: line.text, size: ROLES[line.role ?? 'body'], weight: line.bold ? 700 : 400, mono: !!line.mono, tone: line.tone});
       }
       if (band.note) runs.push({text: band.note, size: ROLES.note, weight: 400, mono: false, tone: band.noteTone ?? 'muted'});
@@ -68,7 +77,7 @@ function textRuns(band) {
 const TAG_SIZE = 14, TAG_H = 24, TAG_PAD_X = 8;
 export const LEGEND_SWATCH_W = 36, LEGEND_ITEM_GAP = 28, LEGEND_ROW_H = 24;
 
-function registerAtoms(requests, text, size, weight, font = 'sans') {
+function registerAtoms(requests: Requests, text: string, size: number, weight: number, font: FontFamily = 'sans') {
   for (const atom of splitAtoms(text)) {
     const key = `${atom} ${size} ${weight} ${font}`;
     if (!requests.has(key)) requests.set(key, {text: atom, size, weight, font});
@@ -76,12 +85,12 @@ function registerAtoms(requests, text, size, weight, font = 'sans') {
 }
 
 // group() title is laid out as a left-aligned bold caption inside the frame.
-function groupTitleBand(band) {
-  return {type: 'caption', text: band.title, align: band.titleAlign ?? 'left', role: 'title', bold: true, tone: band.titleTone ?? (band.tone === 'accent' ? 'accent' : 'text'), mono: false};
+function groupTitleBand(band: GroupBand): CaptionBand {
+  return {type: 'caption', text: band.title as string, align: band.titleAlign ?? 'left', role: 'title', bold: true, tone: band.titleTone ?? (band.tone === 'accent' ? 'accent' : 'text'), mono: false};
 }
 
-function registerRequests(requests, band) {
-  if (band.tag) registerAtoms(requests, band.tag, TAG_SIZE, 700);
+function registerRequests(requests: Requests, band: Band) {
+  if ('tag' in band && band.tag) registerAtoms(requests, band.tag, TAG_SIZE, 700);
   for (const run of textRuns(band)) {
     const font = run.mono ? 'mono' : 'sans';
     for (const atom of splitAtoms(run.text)) {
@@ -93,12 +102,12 @@ function registerRequests(requests, band) {
 
 // Wraps a box-like band's text runs at `wrapWidth` (content width, i.e.
 // already excluding BOX_PAD_X*2) and returns {wrappedRuns, textHeight}.
-function layoutBoxContent(band, wrapWidth, widthOf) {
+function layoutBoxContent(band: Band, wrapWidth: number, widthOf: WidthOf): {wrappedRuns: WrappedRun[]; textHeight: number} {
   let relY = 0;
-  const wrappedRuns = textRuns(band).map(run => {
+  const wrappedRuns = textRuns(band).map((run): WrappedRun => {
     const font = run.mono ? 'mono' : 'sans';
     const indent = run.indent ?? 0;
-    const atomW = (atom) => widthOf(atom, run.size, run.weight, font);
+    const atomW = (atom: string) => widthOf(atom, run.size, run.weight, font);
     const lines = wrapAtoms(splitAtoms(run.text), {maxWidth: wrapWidth - indent, atomWidth: atomW});
     const lineYs = lines.map(() => {
       relY += run.size;
@@ -116,7 +125,7 @@ function layoutBoxContent(band, wrapWidth, widthOf) {
 // Structural width distribution for row()/grid() — pure arithmetic, no text
 // metrics needed, so this can run in the same pass that registers measure
 // requests (a child's wrap width must be known before we know what to wrap).
-function rowChildGeometry(band, contentWidth) {
+function rowChildGeometry(band: RowBand, contentWidth: number) {
   const n = band.children.length;
   const gap = band.gap;
   if (band.cols) {
@@ -125,7 +134,7 @@ function rowChildGeometry(band, contentWidth) {
     // above two boxes in columns 1 and 2 of the next row.
     const cw = (contentWidth - (band.cols - 1) * gap) / band.cols;
     let next = 1;
-    const widths = [], xOffsets = [];
+    const widths: number[] = [], xOffsets: number[] = [];
     for (const c of band.children) {
       const span = c.span ?? 1;
       const col = c.col ?? next;
@@ -140,7 +149,7 @@ function rowChildGeometry(band, contentWidth) {
     const avail = contentWidth - (n - 1) * gap;
     const flexSum = band.children.reduce((s, c) => s + (c.flex ?? 1), 0);
     const widths = band.children.map(c => avail * (c.flex ?? 1) / flexSum);
-    const xOffsets = [];
+    const xOffsets: number[] = [];
     let x = 0;
     for (const w of widths) { xOffsets.push(x); x += w + gap; }
     return {widths, xOffsets};
@@ -149,25 +158,25 @@ function rowChildGeometry(band, contentWidth) {
   const widths = band.children.map(c => c.width ?? band.itemWidth ?? 160);
   const blockWidth = widths.reduce((s, w) => s + w, 0) + (n - 1) * gap;
   const start = band.justify === 'center' ? (contentWidth - blockWidth) / 2 : 0;
-  const xOffsets = [];
+  const xOffsets: number[] = [];
   let x = start;
   for (const w of widths) { xOffsets.push(x); x += w + gap; }
   return {widths, xOffsets};
 }
 
-function gridChildGeometry(band, contentWidth) {
+function gridChildGeometry(band: GridBand, contentWidth: number) {
   const cols = band.cols;
   const gap = band.gap;
   const cellWidth = (contentWidth - (cols - 1) * gap) / cols;
   return {cellWidth};
 }
 
-export async function layoutDiagram(d) {
+export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
   const contentWidth = d.width - 2 * d.pad;
 
   // ---- pass 1: register + measure every atom this diagram needs, once ----
-  const requests = new Map();
-  const registerBand = (band) => {
+  const requests: Requests = new Map();
+  const registerBand = (band: Band): void => {
     if (band.type === 'group') {
       if (band.title) registerRequests(requests, groupTitleBand(band));
       for (const child of band.children) registerBand(child);
@@ -215,35 +224,36 @@ export async function layoutDiagram(d) {
   };
   for (const band of d.bands) registerBand(band);
   const measured = await measureAll(requests);
-  const widthOf = (atom, size, weight, font) => measured.get(`${atom} ${size} ${weight} ${font}`)?.w ?? 0;
+  const widthOf: WidthOf = (atom, size, weight, font) => measured.get(`${atom} ${size} ${weight} ${font}`)?.w ?? 0;
 
   // ---- pass 2: layout top-to-bottom ----
   let cursorY = d.pad;
-  const laidOut = [];
-  const anchors = new Map(); // id -> {x,y,w,h}
-  const connects = [];
+  const laidOut: LaidOutBand[] = [];
+  const anchors = new Map<string, Rect>(); // id -> {x,y,w,h}
+  const connects: LaidOutConnect[] = [];
 
-  const placeBoxLike = (band, x, y, w, isBoxLike) => {
-    const wrapWidth = isBoxLike ? w - 2 * (band.padX ?? BOX_PAD_X) : w;
+  const placeBoxLike = <B extends CaptionBand | BoxBand | BannerBand>(band: B, x: number, y: number, w: number, isBoxLike: boolean): Placed<B> => {
+    const chrome = band as BoxChrome; // caption has no padX / padY / tag / id: they read as undefined (its `tone` is a TextTone, unused here)
+    const wrapWidth = isBoxLike ? w - 2 * (chrome.padX ?? BOX_PAD_X) : w;
     const {wrappedRuns, textHeight} = layoutBoxContent(band, wrapWidth, widthOf);
-    const h = isBoxLike ? textHeight + 2 * (band.padY ?? BOX_PAD_Y) : textHeight;
-    const placed = {...band, x, y, w, h, wrappedRuns};
-    if (band.tag) {
-      const tw = [...splitAtoms(band.tag)].reduce((a, atom) => a + widthOf(atom, TAG_SIZE, 700, 'sans'), 0) + 2 * TAG_PAD_X;
-      placed.tagBox = {x: band.tagAt === undefined ? x + w - tw - 12 : x + w * band.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
+    const h = isBoxLike ? textHeight + 2 * (chrome.padY ?? BOX_PAD_Y) : textHeight;
+    const placed = {...band, x, y, w, h, wrappedRuns} as unknown as Placed<B>; // spreading a generic loses the intersection
+    if (chrome.tag) {
+      const tw = [...splitAtoms(chrome.tag)].reduce((a, atom) => a + widthOf(atom, TAG_SIZE, 700, 'sans'), 0) + 2 * TAG_PAD_X;
+      placed.tagBox = {x: chrome.tagAt === undefined ? x + w - tw - 12 : x + w * chrome.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
     }
-    if (band.id) anchors.set(band.id, {x, y, w, h});
+    if (chrome.id) anchors.set(chrome.id, {x, y, w, h});
     return placed;
   };
 
-  const stack = (bands, padX, cw) => {
+  const stack = (bands: Band[], padX: number, cw: number): void => {
   for (const band of bands) {
     if (band.type === 'spacer') { cursorY += band.h; continue; }
 
     if (band.type === 'group') {
       const gp = band.pad ?? 16;
       const startY = cursorY;
-      const frame = {type: 'group', x: padX, y: startY, w: cw, h: 0, tone: band.tone, dashed: band.dashed, id: band.id};
+      const frame: LaidOutGroup = {type: 'group', x: padX, y: startY, w: cw, h: 0, tone: band.tone, dashed: band.dashed, id: band.id};
       laidOut.push(frame); // pushed first so the frame is drawn under its children
       cursorY += gp;
       if (band.title) {
@@ -281,10 +291,10 @@ export async function layoutDiagram(d) {
       const colW = (bodyW - 2 * padX2 - (band.cols - 1) * colGap) / band.cols;
       if (colW < 60) throw new Error(`swimlane(): ${band.cols} columns leave only ${Math.round(colW)}px each — widen the diagram, shrink labelW, or use fewer columns`);
       const startY = cursorY;
-      const wrapLines = (text, size, weight, maxW) => wrapAtoms(splitAtoms(text), {maxWidth: Math.max(20, maxW), atomWidth: (a) => widthOf(a, size, weight, 'sans')});
+      const wrapLines = (text: string, size: number, weight: number, maxW: number) => wrapAtoms(splitAtoms(text), {maxWidth: Math.max(20, maxW), atomWidth: (a: string) => widthOf(a, size, weight, 'sans')});
       // column-group headers across the top
       let phaseH = 0;
-      const phases = (band.phases ?? []).map(ph => {
+      const phases = (band.phases ?? []).map((ph): LaidOutPhase => {
         const x = bodyX + padX2 + (ph.from - 1) * (colW + colGap) - colGap / 2;
         const w = (ph.to - ph.from + 1) * (colW + colGap);
         const lines = wrapLines(ph.label, ROLES.note, 700, w - 16);
@@ -300,7 +310,7 @@ export async function layoutDiagram(d) {
       const laneIndex = new Map(band.lanes.map((l, i) => [l.id, i]));
       const rowGap = 12;
       let y = startY + phaseH;
-      const lanes = band.lanes.map((lane, i) => {
+      const lanes = band.lanes.map((lane, i): LaidOutLane => {
         const labelLines = wrapLines(lane.label, ROLES.title, 700, labelW - 24);
         const labelH = labelLines.length * ROLES.title * LINE_HEIGHT_EM;
         const mine = stepsPlaced.filter(s => laneIndex.get(s.lane) === i);
@@ -312,10 +322,10 @@ export async function layoutDiagram(d) {
         y += h;
         return out;
       });
-      const frame = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes};
+      const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes};
       laidOut.push(frame); // before its steps so the lanes draw underneath
       for (const st of stepsPlaced) {
-        const ln = lanes[laneIndex.get(st.lane)];
+        const ln = lanes[laneIndex.get(st.lane) as number]; // an unknown lane id throws here, as before
         st.y = ln.blockTop + (st.row ?? 0) * (ln.maxStep + rowGap) + (ln.maxStep - st.h) / 2;
         if (st.id) anchors.set(st.id, {x: st.x, y: st.y, w: st.w, h: st.h});
         if (st.tagBox) st.tagBox.y = st.y - st.tagBox.h / 2;
@@ -330,15 +340,15 @@ export async function layoutDiagram(d) {
         const tw = [...splitAtoms(item.label)].reduce((a, atom) => a + widthOf(atom, ROLES.note, 400, 'sans'), 0);
         return {...item, textW: tw, w: LEGEND_SWATCH_W + 8 + tw};
       });
-      const rows = [[]];
+      const rows: (typeof items)[] = [[]];
       let rowW = 0;
       for (const it of items) {
-        const add = (rows.at(-1).length ? LEGEND_ITEM_GAP : 0) + it.w;
-        if (rows.at(-1).length && rowW + add > cw) { rows.push([]); rowW = 0; }
-        rowW += (rows.at(-1).length ? LEGEND_ITEM_GAP : 0) + it.w;
-        rows.at(-1).push(it);
+        const add = (rows.at(-1)!.length ? LEGEND_ITEM_GAP : 0) + it.w;
+        if (rows.at(-1)!.length && rowW + add > cw) { rows.push([]); rowW = 0; }
+        rowW += (rows.at(-1)!.length ? LEGEND_ITEM_GAP : 0) + it.w;
+        rows.at(-1)!.push(it);
       }
-      const placedItems = [];
+      const placedItems: LaidOutLegendItem[] = [];
       rows.forEach((r, ri) => {
         const total = r.reduce((a, it) => a + it.w, 0) + (r.length - 1) * LEGEND_ITEM_GAP;
         let x = band.align === 'left' ? padX : padX + (cw - total) / 2;
@@ -383,7 +393,7 @@ export async function layoutDiagram(d) {
       const rowHeight = Math.max(...placedChildren.map(c => c.h));
       for (const c of placedChildren) { c.h = rowHeight; if (c.id) anchors.set(c.id, {x: c.x, y: c.y, w: c.w, h: rowHeight}); }
 
-      const arrows = [];
+      const arrows: RowArrow[] = [];
       if (band.arrows === 'between') {
         for (let i = 0; i < placedChildren.length - 1; i++) {
           const a = placedChildren[i], b = placedChildren[i + 1];
@@ -401,7 +411,7 @@ export async function layoutDiagram(d) {
       const gridStartY = cursorY;
       const {cellWidth} = gridChildGeometry(band, cw);
       const cols = band.cols;
-      const placedRows = [];
+      const placedRows: Placed<BoxBand>[] = [];
       for (let i = 0; i < band.children.length; i += cols) {
         const rowChildren = band.children.slice(i, i + cols);
         const placed = rowChildren.map((child, j) =>
@@ -423,7 +433,7 @@ export async function layoutDiagram(d) {
       const layerH = band.layerHeight;
       const totalH = n * layerH;
       const cx = padX + cw / 2;
-      const layersOut = [];
+      const layersOut: LaidOutPyramidLayer[] = [];
       for (let i = 0; i < n; i++) { // i=0 is the bottom (widest) layer
         const bottomY = cursorY + totalH - i * layerH;
         const topY = bottomY - layerH;
@@ -442,7 +452,7 @@ export async function layoutDiagram(d) {
         // conservative since the layer is only wider than that going down,
         // so the label can never spill past the trapezoid's slanted sides.
         const wrapWidth = Math.max(40, topW - 24);
-        const atomW = (atom) => widthOf(atom, ROLES.title, 700, 'sans');
+        const atomW = (atom: string) => widthOf(atom, ROLES.title, 700, 'sans');
         const lines = wrapAtoms(splitAtoms(band.layers[i].text), {maxWidth: wrapWidth, atomWidth: atomW});
         const midY = (topY + bottomY) / 2;
         const lineGap = ROLES.title * LINE_HEIGHT_EM;
@@ -498,13 +508,13 @@ export async function layoutDiagram(d) {
 
 // 'id', 'id:side', or 'id:side@t' — t (0..1) slides the anchor along that side
 // (default 0.5) so several connectors can leave/enter the same side in parallel.
-function parseRef(ref) {
+function parseRef(ref: string): ConnectRef {
   const [id, sideAt] = ref.split(':');
   const [side, at] = (sideAt ?? 'center').split('@');
   return {id, side, at: at === undefined ? 0.5 : Number(at)};
 }
 
-function anchorPoint(rect, side, at = 0.5) {
+function anchorPoint(rect: Rect, side: string, at = 0.5): Point {
   switch (side) {
     case 'left': return {x: rect.x, y: rect.y + rect.h * at};
     case 'right': return {x: rect.x + rect.w, y: rect.y + rect.h * at};
@@ -519,7 +529,7 @@ const CHIP_TS = Array.from({length: 41}, (_, i) => 0.1 + i * 0.02).sort((a, b) =
 const CONNECT_STROKE_PAD = 3; // half-thickness allowance so a perfectly horizontal/vertical path segment still has a non-zero-area bbox to check
 const LABEL_SIZE = 14; // must match emit.ts's renderConnect label font-size
 
-function segRect(x0, y0, x1, y1) {
+function segRect(x0: number, y0: number, x1: number, y1: number): Rect {
   const xa = Math.min(x0, x1), xb = Math.max(x0, x1);
   const ya = Math.min(y0, y1), yb = Math.max(y0, y1);
   return {x: xa - CONNECT_STROKE_PAD, y: ya - CONNECT_STROKE_PAD, w: (xb - xa) + 2 * CONNECT_STROKE_PAD, h: (yb - ya) + 2 * CONNECT_STROKE_PAD};
@@ -531,18 +541,18 @@ function segRect(x0, y0, x1, y1) {
 // left/right side (`bend`, 0..1, is where the middle leg sits between the two
 // endpoints). Collinear/duplicate points are dropped so a degenerate elbow
 // (aligned endpoints) is just a straight line.
-function routePoints(band, from, to, fromSide) {
-  let pts;
+function routePoints(band: ConnectBand, from: Point, to: Point, fromSide: string): Point[] {
+  let pts: Point[];
   if (band.route === 'loop-under') {
     const midY = Math.max(from.y, to.y) + band.dip;
     pts = [from, {x: from.x, y: midY}, {x: to.x, y: midY}, to];
   } else if (band.route === 'elbow') {
     const vertical = fromSide === 'top' || fromSide === 'bottom' || (fromSide === 'center' && Math.abs(to.y - from.y) > Math.abs(to.x - from.x));
     if (vertical) {
-      const midY = band.bend === 'end' ? to.y - Math.sign(to.y - from.y) * (band.bendOffset ?? 14) : band.bend === 'start' ? from.y + Math.sign(to.y - from.y) * (band.bendOffset ?? 14) : from.y + (to.y - from.y) * band.bend;
+      const midY = band.bend === 'end' ? to.y - Math.sign(to.y - from.y) * (band.bendOffset ?? 14) : band.bend === 'start' ? from.y + Math.sign(to.y - from.y) * (band.bendOffset ?? 14) : from.y + (to.y - from.y) * (band.bend as number); // 'auto' only reaches here from resolveConnect, which replaces the result
       pts = [from, {x: from.x, y: midY}, {x: to.x, y: midY}, to];
     } else {
-      const midX = band.bend === 'end' ? to.x - Math.sign(to.x - from.x) * (band.bendOffset ?? 14) : band.bend === 'start' ? from.x + Math.sign(to.x - from.x) * (band.bendOffset ?? 14) : from.x + (to.x - from.x) * band.bend;
+      const midX = band.bend === 'end' ? to.x - Math.sign(to.x - from.x) * (band.bendOffset ?? 14) : band.bend === 'start' ? from.x + Math.sign(to.x - from.x) * (band.bendOffset ?? 14) : from.x + (to.x - from.x) * (band.bend as number);
       pts = [from, {x: midX, y: from.y}, {x: midX, y: to.y}, to];
     }
   } else {
@@ -554,13 +564,13 @@ function routePoints(band, from, to, fromSide) {
 // The path's ink as a list of thin segment rects rather than one bounding
 // box — a loop-under/elbow path's bbox would cover empty space that other
 // boxes legitimately occupy.
-function pathSegments(points) {
-  const segs = [];
+function pathSegments(points: Point[]): Rect[] {
+  const segs: Rect[] = [];
   for (let i = 0; i < points.length - 1; i++) segs.push(segRect(points[i].x, points[i].y, points[i + 1].x, points[i + 1].y));
   return segs;
 }
 
-function resolveConnect(band, anchors, widthOf) {
+function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, widthOf: WidthOf): LaidOutConnect {
   const fromRef = parseRef(band.from), toRef = parseRef(band.to);
   const fromRect = anchors.get(fromRef.id);
   const toRect = anchors.get(toRef.id);
@@ -572,17 +582,17 @@ function resolveConnect(band, anchors, widthOf) {
   if (band.route === 'elbow' && band.bend === 'auto') {
     // Pick the first bend whose path stays clear of every box except the two it joins.
     const others = [...anchors.entries()].filter(([id]) => id !== fromRef.id && id !== toRef.id).map(([, r]) => r);
-    const clear = (pts) => pathSegments(pts).every(seg => others.every(r => {
+    const clear = (pts: Point[]) => pathSegments(pts).every(seg => others.every(r => {
       const ox = Math.min(seg.x + seg.w, r.x + r.w) - Math.max(seg.x, r.x);
       const oy = Math.min(seg.y + seg.h, r.y + r.h) - Math.max(seg.y, r.y);
       return ox <= 0.5 || oy <= 0.5;
     }));
-    const cands = ['end', 'start', 0.5, 0.25, 0.75].map(b => routePoints({...band, bend: b}, from, to, fromRef.side));
+    const cands = (['end', 'start', 0.5, 0.25, 0.75] as Bend[]).map(b => routePoints({...band, bend: b}, from, to, fromRef.side));
     points = cands.find(clear) ?? cands[0];
   }
   const segments = pathSegments(points);
 
-  let labelX, labelY, labelBox, chipBox;
+  let labelX: number | undefined, labelY: number | undefined, labelBox: Rect | undefined, chipBox: Rect | undefined;
   if (band.label) {
     const labelWidth = [...splitAtoms(band.label)].reduce((s, a) => s + widthOf(a, LABEL_SIZE, 400, 'sans'), 0);
     const dy = band.chip ? 5 : -6; // a chip sits ON the line; a plain label sits above it
@@ -597,14 +607,14 @@ function resolveConnect(band, anchors, widthOf) {
       // A chip sits on the longest leg, at the first spot along it where the pill touches neither endpoint box.
       if (band.chip && points.length === 4) {
         const cw2 = labelWidth + 16;
-        const legs = [];
+        const legs: {p0: Point; p1: Point; len: number}[] = [];
         for (let i = 0; i < points.length - 1; i++) {
           const p0 = points[i], p1 = points[i + 1];
           legs.push({p0, p1, len: Math.abs(p1.x - p0.x) + Math.abs(p1.y - p0.y)});
         }
         legs.sort((x, y) => y.len - x.len);
-        const hit = (r, bx) => !(bx.x + bx.w <= r.x || r.x + r.w <= bx.x || bx.y + bx.h <= r.y || r.y + r.h <= bx.y);
-        let pick = null;
+        const hit = (r: Rect, bx: Rect) => !(bx.x + bx.w <= r.x || r.x + r.w <= bx.x || bx.y + bx.h <= r.y || r.y + r.h <= bx.y);
+        let pick: {mx: number; my: number} | null = null;
         for (const l of legs) {
           if (l.len < 24) continue;
           for (const t of CHIP_TS) {
