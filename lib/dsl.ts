@@ -130,6 +130,7 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
     const col = st.col ?? next;
     next = col + span;
     cols = Math.max(cols, col + span - 1);
+    if (st.size !== undefined) assertFontSize(st.size);
     return {...st, type: 'box' as const, col, span};
   });
   const byId = new Map(placed.map(st => [st.id, st]));
