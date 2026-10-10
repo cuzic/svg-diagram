@@ -16,7 +16,9 @@
 // Nodes in a col are full width; widgets in a row take their natural width (btn, chip) or share
 // the rest by flex. map / video / heat / pointcloud / chart / image grow to fill leftover height.
 
-import {splitAtoms} from './measure.ts';
+import {splitAtoms, textWidth} from './measure.ts';
+import {TONE_ALIAS, textKeyOf, toneStyle} from './tokens.ts';
+import type {ToneName} from './tokens.ts';
 import {wrapAtoms} from './wrap.ts';
 import {badgeBox, BADGE_R} from './badge.ts';
 import type {BadgeBox} from './badge.ts';
@@ -88,7 +90,7 @@ export function collectTextRequests(band: WireframeBand | ScreensBand): TextRequ
 function mkCtx(widthOf: WidthOf, skeleton?: boolean): WfCtx {
   return {widthOf, skeleton: !!skeleton, prims: [], callouts: [], all: [], used: new Set<WfMark>()};
 }
-const tw = (ctx: WfCtx, s: string | number, size: number, weight: number): number => [...splitAtoms(String(s))].reduce((a, atom) => a + ctx.widthOf(atom, size, weight, 'sans'), 0);
+const tw = (ctx: WfCtx, s: string | number, size: number, weight: number): number => textWidth(ctx.widthOf, String(s), size, weight);
 // Katakana runs stay in one piece (ドラッグ must not break as ドラッ/グ); widths are summed per character.
 const naOf = (c: StateMatrixCell): string | undefined => c && typeof c === 'object' && 'na' in c ? c.na : undefined;
 const KATA = /^[\u30A0-\u30FF]+$/;
@@ -101,7 +103,7 @@ function atomsOf(s: string | number): string[] {
   return out;
 }
 const wrapT = (ctx: WfCtx, s: string | number, size: number, weight: number, maxW: number): string[] =>
-  wrapAtoms(atomsOf(s), {maxWidth: Math.max(24, maxW), atomWidth: (a: string) => [...splitAtoms(a)].reduce((t, c) => t + ctx.widthOf(c, size, weight, 'sans'), 0)});
+  wrapAtoms(atomsOf(s), {maxWidth: Math.max(24, maxW), atomWidth: (a: string) => tw(ctx, a, size, weight)});
 
 const rect = (ctx: WfCtx, x: number, y: number, w: number, h: number, o: DrawShapeOpts = {}): void => { ctx.prims.push({k: 'rect', x, y, w, h, r: o.r ?? 0, fill: o.fill ?? null, stroke: o.stroke ?? null, sw: o.sw ?? 2, dash: o.dash, op: o.op}); };
 const circle = (ctx: WfCtx, cx: number, cy: number, r: number, o: DrawShapeOpts = {}): void => { ctx.prims.push({k: 'circle', cx, cy, r, fill: o.fill ?? null, stroke: o.stroke ?? null, sw: o.sw ?? 2, op: o.op}); };
@@ -118,25 +120,15 @@ const path = (ctx: WfCtx, d: string, o: DrawShapeOpts = {}): void => { ctx.prims
 const line = (ctx: WfCtx, x1: number, y1: number, x2: number, y2: number, o: DrawShapeOpts = {}): void => path(ctx, pts([[x1, y1], [x2, y2]]), {stroke: o.stroke ?? 'border', ...o});
 const mid = (cy: number, size = S): number => cy + size * 0.36; // baseline that centres text on cy
 
-const TONE_ALIAS: Record<string, string> = {ok: 'accent', warn: 'danger', off: 'muted'};
-const toneOf = (t?: WfTone): string => (t != null ? TONE_ALIAS[t] : undefined) ?? t ?? 'plain';
-const CHIP: Record<string, {fill: ColorKey; stroke: ColorKey | null; text: ColorKey}> = {
-  plain: {fill: 'bg', stroke: 'muted', text: 'text'},
-  accent: {fill: 'soft', stroke: 'accent', text: 'accent'},
-  danger: {fill: 'bg', stroke: 'danger', text: 'danger'},
-  muted: {fill: 'code', stroke: 'border', text: 'muted'},
-  solid: {fill: 'accent', stroke: null, text: 'bg'},
-  'solid-danger': {fill: 'danger', stroke: null, text: 'bg'},
-};
-const TEXT_TONE: Record<string, ColorKey | undefined> = {accent: 'accent', danger: 'danger', muted: 'muted'};
-const toneFill = (t: string | undefined): ColorKey => (t != null ? TEXT_TONE[t] : undefined) ?? 'text';
+// Tone names and their colours live in tokens.ts (TONES); wireframe only picks the part it draws.
+const toneOf = (t?: WfTone): ToneName => (t != null ? TONE_ALIAS[t] : undefined) ?? (t as ToneName | undefined) ?? 'plain';
+const toneFill = textKeyOf;
 
 const chipW = (ctx: WfCtx, label: string): number => tw(ctx, label, S, 700) + 20;
 function drawChip(ctx: WfCtx, label: string, x: number, y: number, tone?: WfTone): number {
-  const st = CHIP[toneOf(tone)] ?? CHIP.plain;
+  const st = toneStyle(tone);
   const w = chipW(ctx, label);
-  rect(ctx, x, y, w, 24, {r: 12, fill: st.fill, stroke: st.stroke});
-  text(ctx, label, x + w / 2, mid(y + 12), {weight: 700, fill: st.text, anchor: 'middle'});
+  ctx.prims.push({k: 'pill', x, y, w, h: 24, label, size: S, base: mid(y + 12), fill: st.fill, stroke: st.chipStroke ?? st.stroke, text: st.text});
   return w;
 }
 const chipSpec = (c: string | WfChipSpec): WfChipSpec => typeof c === 'string' ? {text: c} : c;
@@ -438,13 +430,13 @@ const DRAW: WfDrawTable = {
 
   alert: (n, x, y, w, h, ctx) => {
     const tone = toneOf(n.tone);
-    const ALERT: Record<string, {fill: ColorKey; stroke: ColorKey; text: ColorKey}> = {danger: {fill: 'bg', stroke: 'danger', text: 'danger'}, accent: {fill: 'soft', stroke: 'accent', text: 'text'}};
-    const st = ALERT[tone] ?? {fill: 'code', stroke: 'border', text: 'text'};
+    // an alert is a danger or an accent note (anything else is a neutral grey one); its text is bold, in the tone only when it is danger
+    const t = toneStyle(tone === 'danger' || tone === 'accent' ? tone : undefined);
+    const st = tone === 'danger' || tone === 'accent' ? {fill: t.fill, stroke: t.stroke ?? t.fill, text: tone === 'danger' ? t.text : 'text' as ColorKey} : {fill: 'code' as ColorKey, stroke: 'border' as ColorKey, text: 'text' as ColorKey};
     const lines = wrapT(ctx, n.text, S, 700, w - 44);
     const H = Math.max(36, lines.length * lh(S) + 16);
     rect(ctx, x, y, w, H, {r: 6, fill: st.fill, stroke: st.stroke});
-    circle(ctx, x + 18, y + H / 2, 9, {fill: tone === 'danger' ? 'danger' : 'accent'});
-    text(ctx, '!', x + 18, mid(y + H / 2), {weight: 700, fill: 'bg', anchor: 'middle'});
+    badge(ctx, x + 18, y + H / 2, '!', {r: 9, fill: tone === 'danger' ? 'danger' : 'accent', aria: tone === 'danger' ? '警告' : '注意'});
     lines.forEach((l, k) => text(ctx, l, x + 36, y + (H - lh(S) * lines.length) / 2 + S + k * lh(S), {weight: 700, fill: st.text}));
     return {w, h: H};
   },
@@ -654,6 +646,7 @@ function hideUnder(ctx: WfCtx, X: number, Y: number, W: number, H: number): void
     }
     if (p.k === 'rect') return !inside(p.x, p.y, p.w, p.h);
     if (p.k === 'circle') return !inside(p.cx - p.r, p.cy - p.r, 2 * p.r, 2 * p.r);
+    if (p.k === 'pill') return !inside(p.x, p.y, p.w, p.h);
     if (p.k === 'badge') return !inside(p.cx - p.w / 2, p.cy - p.r - 3, p.w, 2 * p.r + 3);
     return true;
   });

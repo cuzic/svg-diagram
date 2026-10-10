@@ -15,7 +15,7 @@ const layout = async (...bands: Band[]) => {
   return (await layoutDiagram(d)).laidOut as Screen[];
 };
 const isText = (p: Prim): p is PrimText => p.k === 'text';
-const texts = (band: Screen) => band.prims.flatMap(p => p.k === 'badge' ? [p.label] : isText(p) ? [p.s] : []);
+const texts = (band: Screen) => band.prims.flatMap(p => p.k === 'badge' || p.k === 'pill' ? [p.label] : isText(p) ? [p.s] : []);
 const within = (p: Prim, b: Rect, slack = 16) => p.k !== 'rect' || (p.x >= b.x - slack && p.y >= b.y - slack && p.x + p.w <= b.x + b.w + slack && p.y + p.h <= b.y + b.h + slack);
 
 test('wireframe: lays out a screen with its notes, every shape stays inside the band', async () => {

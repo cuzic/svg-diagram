@@ -58,11 +58,28 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
       rects.push({id: null, label: `group title "${band.text}"`, ...band.inkBox});
     } else if (band.type === 'row' || band.type === 'grid') {
       for (const c of band.children) rects.push({id: c.id ?? null, label: labelOf(c), x: c.x, y: c.y, w: c.w, h: c.h});
-    } else if (band.type === 'box' || band.type === 'banner' || band.type === 'raw' || band.type === 'legend' || band.type === 'sequence' || band.type === 'table' || band.type === 'wireframe' || band.type === 'pyramid' || band.type === 'curve') {
+    } else if (band.type === 'box' || band.type === 'banner' || band.type === 'raw' || band.type === 'legend' || band.type === 'sequence' || band.type === 'table' || band.type === 'wireframe' || band.type === 'pyramid' || band.type === 'curve' || band.type === 'plane') {
       rects.push({id: ('id' in band ? band.id : undefined) ?? null, label: labelOf(band), x: band.x, y: band.y, w: band.w, h: band.h});
     }
   }
   return rects;
+}
+
+// plane(): every label it placed must stay inside the figure and clear of the other labels.
+function checkPlanes(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  for (const band of d.laidOut) {
+    if (band.type !== 'plane') continue;
+    const boxes = band.labelBoxes, fig = band.bounds;
+    for (const b of boxes) {
+      if (b.x < fig.x - 0.5 || b.x + b.w > fig.x + fig.w + 0.5 || b.y < fig.y - 0.5 || b.y + b.h > fig.y + fig.h + 0.5) problems.push(`plane: label "${b.label}" runs outside the figure (move its point, change labelAt / side, or enlarge the figure)`);
+    }
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const o = rectOverlap(boxes[i], boxes[j]);
+      if (o) problems.push(`plane: label "${boxes[i].label}" overlaps label "${boxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px (change labelAt / side)`);
+    }
+  }
+  return problems;
 }
 
 function checkOverlaps(rects: CheckRect[]): string[] {
@@ -82,7 +99,9 @@ function checkOverlaps(rects: CheckRect[]): string[] {
 function checkConnects(d: LaidOutDiagram, rects: CheckRect[]): string[] {
   const problems: string[] = [];
   for (const c of d.connects) {
-    const isOwnEndpoint = (r: CheckRect) => r.id !== null && (r.id === c.fromId || r.id === c.toId);
+    const within = (r: CheckRect, a?: Rect) => !!a && Math.min(r.x + r.w, a.x + a.w) - Math.max(r.x, a.x) > 0.5 && Math.min(r.y + r.h, a.y + a.h) - Math.max(r.y, a.y) > 0.5;
+    // an end that is a row / a column of a row (row({id})) owns the boxes in it (a box spanning several columns belongs to each of them)
+    const isOwnEndpoint = (r: CheckRect) => (r.id !== null && (r.id === c.fromId || r.id === c.toId)) || within(r, c.fromArea) || within(r, c.toArea);
     for (const r of rects) {
       if (isOwnEndpoint(r)) {
         // The path starts on its own boxes, but the label/chip must not sit on top of their text:
@@ -148,6 +167,7 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
   const problems = [
     ...checkOverlaps(rects),
     ...checkConnects(d, rects),
+    ...checkPlanes(d),
     ...checkBounds(d, rects),
     ...checkContrast(d),
   ];

@@ -60,4 +60,20 @@ export function badgeSvg(o: BadgeSvgOpts): string {
   return `<g role="img" aria-label="${o.esc(o.aria).replace(/"/g, '&quot;')}" data-badge>\n  ${shape}${text}\n  </g>`;
 }
 
+// ---- pill: a rounded label that holds TEXT (a tag on a box, a chip in a wireframe, the label on a connector) -------------
+// The badge's sibling: a badge is a short mark (a number) in a shape, a pill is a word in a stadium. Both are one primitive here,
+// so the pill's geometry (corner radius = half the height, text centred) and its text-on-fill look are written once.
+export interface PillSvgOpts {
+  /** The pill's rect, already snapped by the caller (each drawing context snaps its own way). */
+  x: number; y: number; w: number; h: number;
+  fill: string; stroke?: string | null; sw?: number;
+  /** Text: its centre x, baseline, colour, size / weight, and the markup (already escaped / emoji-spanned). */
+  cx: number; baseline: number; text: string; size: number; weight?: number; labelHtml: string;
+}
+
+export function pillSvg(o: PillSvgOpts): string {
+  const st = o.stroke ? ` stroke="${o.stroke}" stroke-width="${o.sw ?? 2}"` : '';
+  return `<rect x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" rx="${o.h / 2}" fill="${o.fill}"${st}/>\n  <text x="${Math.round(o.cx)}" y="${Math.round(o.baseline)}" text-anchor="middle" font-size="${o.size}"${(o.weight ?? 700) === 400 ? '' : ` font-weight="${o.weight ?? 700}"`} fill="${o.text}">${o.labelHtml}</text>`;
+}
+
 export type { ColorKey };

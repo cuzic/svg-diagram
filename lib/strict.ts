@@ -47,7 +47,8 @@ export type DeclaredIds<B extends readonly unknown[]> = IdsOf<B[number]>;
 type IsPattern<R extends string> = {} extends {[K in R]: 1} ? true : false;
 export type SideName = 'left' | 'right' | 'top' | 'bottom' | 'center';
 type OffsetOk = '0' | '1' | `0.${number}` | `.${number}`;
-type IdOf<R extends string> = R extends `${infer Id}:${string}` ? Id : R;
+/** The id of a ref; a row column ('row#5:top', 'row#5-6') belongs to its row's id. */
+type IdOf<R extends string> = (R extends `${infer Id}:${string}` ? Id : R) extends infer I extends string ? (I extends `${infer Row}#${string}` ? Row : I) : never;
 
 type SideProblem<R extends string, Rest extends string> =
   IsPattern<Rest> extends true ? never
@@ -66,6 +67,10 @@ export type ShapeProblem<R extends string> = R extends string
 
 /** `T` when the ref is well-formed, otherwise the message (as a type no argument can satisfy). */
 export type Ok<T extends string> = [ShapeProblem<T>] extends [never] ? T : ShapeProblem<T>;
+
+/** A ref passed to `d.connect()`: well-formed, and (when earlier add() calls were chained) naming a declared id. */
+export type RefIn<Ids extends string, R extends string> =
+  [Ids] extends [never] ? Ok<R> : [IdProblem<R, Ids>] extends [never] ? Ok<R> : IdProblem<R, Ids>;
 
 type UnknownId<Id extends string, Known extends string> =
   `unknown anchor id "${Id}" — declare it with {id: '${Id}'} (declared ids: ${Join<Known>})`;
@@ -107,6 +112,15 @@ export interface Handle {
   /** `at('bottom', 0.25)` = 'id:bottom@0.25' (t = 0..1 along that side). */
   at(side: SideName, t: number): HandleRef;
 }
+/**
+ * A row({id}) is an anchor itself and also hands out its columns: `r.col(5).top` is the top edge of the 5th column of a
+ * `cols` row (of the 5th child on a row without `cols`); `r.col(5, 6)` spans columns 5..6. Row-height, so a connector
+ * lands exactly above / below that column whatever the boxes in it are.
+ */
+export interface RowHandle extends Handle {
+  col(n: number, to?: number): Handle;
+}
+export type RowHandleOf<Id extends string> = [Id] extends [never] ? unknown : RowHandle;
 /** `Handle` only when the id is known (a band built without an id has nothing to point at). */
 export type HandleOf<Id extends string> = [Id] extends [never] ? unknown : Handle;
 /** screens() / swimlane(): one handle per item / step id, under `.anchors`. */

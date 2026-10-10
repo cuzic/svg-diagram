@@ -9,7 +9,7 @@ import type {PrimRect, PrimText, WfCol, WfInsight, WfNote, WfRobotOpts, WfRoot, 
 const widthOf = (atom: string, size: number) => [...atom].length * size * 0.6;
 const wfLayout = (root: WfRoot, opts: Partial<WireframeOpts> = {}, w = 900) => layoutWireframe({type: 'wireframe', root, h: 420, ...opts}, 0, 0, w, widthOf);
 const isText = (p: {k: string}): p is PrimText => p.k === 'text';
-const texts = (b: {prims: {k: string}[]}) => b.prims.flatMap(p => p.k === 'badge' ? [(p as unknown as {label: string}).label] : isText(p) ? [p.s] : []);
+const texts = (b: {prims: {k: string}[]}) => b.prims.flatMap(p => p.k === 'badge' || p.k === 'pill' ? [(p as unknown as {label: string}).label] : isText(p) ? [p.s] : []);
 const robot = (o: Partial<WfRobotOpts> = {}) => wf.robot({name: 'A', battery: 0.82, link: 3, last: '1 秒前', ...o});
 
 test('robot card: the signal never overlaps the battery text, whatever its length', () => {

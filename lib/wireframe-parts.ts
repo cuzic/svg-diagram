@@ -14,6 +14,7 @@
 // Everything is token-coloured (bg/text/muted/border/code/danger/accent/soft), >= 14px text, and every state
 // is shown by shape, hatching or words as well as colour (WCAG 1.4.1).
 
+import {toneStyle} from './tokens.ts';
 import type {
   ColorKey, GlyphOpts, WfAutoWTable, WfBattery, WfBreadcrumb, WfCallout, WfCheckbox, WfCompare, WfCtx, WfFusion, WfFusionLayerSpec, WfHelpers, WfInsight,
   WfInsightOpts, WfNode, WfPartKey, WfPartsApi, WfRadio, WfRegion, WfRobot, WfSignal, WfSlider, WfState, WfToggle, WfTone, WfType,
@@ -250,10 +251,15 @@ export function installParts(h: WfHelpers): WfPartsApi {
     if (!n.evidence?.length) throw new Error(`${name}: evidence is required — an insight shows the data it rests on and when it was taken`);
     for (const e of n.evidence) if (!e.kind || !e.at) throw new Error(`${name}: every evidence needs {kind, at} — kind of data and its acquisition time`);
   }
+  // an insight level is a chip tone and a label; the card's outline and side bar are that tone's own colours (tokens.ts TONES)
+  const levelOf = (chip: WfTone, label: string): {chip: WfTone; label: string; stroke: ColorKey; bar: ColorKey} => {
+    const t = toneStyle(chip);
+    return {chip, label, stroke: t.chipStroke ?? t.stroke ?? t.fill, bar: t.ink};
+  };
   const LEVEL: Record<'danger' | 'warn' | 'info', {chip: WfTone; label: string; stroke: ColorKey; bar: ColorKey}> = {
-    danger: {chip: 'solid-danger', label: '要確認', stroke: 'danger', bar: 'danger'},
-    warn: {chip: 'danger', label: '注意', stroke: 'danger', bar: 'danger'},
-    info: {chip: 'muted', label: '参考', stroke: 'border', bar: 'muted'},
+    danger: levelOf('solid-danger', '要確認'),
+    warn: levelOf('danger', '注意'),
+    info: levelOf('muted', '参考'),
   };
   function insightData(n: WfInsight, w: number, ctx: WfCtx) {
     checkInsight(n);

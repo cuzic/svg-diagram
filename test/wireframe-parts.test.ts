@@ -9,7 +9,7 @@ import type {LaidOutWireframe, PrimRect, PrimText, WfEvidence, WfInsightOpts, Wf
 const widthOf = (atom: string, size: number) => [...atom].length * size * 0.6;
 const layout = (root: WfRoot, opts: Partial<WireframeOpts> = {}) => layoutWireframe({type: 'wireframe', root, h: 420, ...opts}, 0, 0, 900, widthOf);
 const isText = (p: {k: string}): p is PrimText => p.k === 'text';
-const texts = (band: LaidOutWireframe) => band.prims.flatMap(p => p.k === 'badge' ? [p.label] : isText(p) ? [p.s] : []);
+const texts = (band: LaidOutWireframe) => band.prims.flatMap(p => p.k === 'badge' || p.k === 'pill' ? [p.label] : isText(p) ? [p.s] : []);
 
 test('wf.insight refuses to exist without evidence and its acquisition time', () => {
   assert.throws(() => wf.insight({title: '異常', text: 'x'} as unknown as WfInsightOpts), /evidence is required/);
