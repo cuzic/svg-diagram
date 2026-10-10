@@ -105,3 +105,13 @@ test('region: a named block for a coarse screen, with a reading-order number', (
   const b = wfLayout(wf.row([wf.region('地図', {n: 1, emphasis: 'primary', hint: '約 2/3'}), wf.region('一覧')]));
   assert.ok(texts(b).includes('地図') && texts(b).includes('約 2/3') && texts(b).includes('一覧'));
 });
+
+test('stateMatrix: a row shorter than the columns gets "未設計" cells (never blanks); a longer row is an error', () => {
+  const band = stateMatrix(['通常', '空', 'エラー'], [{label: 'A', cells: [wf.text('x', {h: 30})]}]);
+  const b = layoutScreens(band, 0, 0, 900, widthOf);
+  assert.equal(texts(b).filter(t => t === '未設計').length, 2);
+  const d = diagram({theme: 'blue', title: 't'});
+  d.add(stateMatrix(['通常', '空', 'エラー'], [{label: 'A', cells: [wf.text('x')]}]));
+  assert.match(lintDiagram({...d, laidOut: [], connects: []}).find(x => x.rule === 'wf-states-todo').message, /A×空.*A×エラー/);
+  assert.throws(() => layoutScreens(stateMatrix(['通常'], [{label: 'A', cells: ['na', 'na']}]), 0, 0, 900, widthOf), /2 cells for 1 columns/);
+});
