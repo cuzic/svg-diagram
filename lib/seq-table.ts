@@ -6,9 +6,9 @@
 // must agree on every string/size/weight/font, so both go through the same
 // prepare step.
 
-import {splitAtoms} from './measure.ts';
+import {splitAtoms, textWidth} from './measure.ts';
 import {wrapAtoms} from './wrap.ts';
-import {ROLES} from './tokens.ts';
+import {ROLES, CELL_MARKS} from './tokens.ts';
 import type {
   SequenceBand, PreparedSequence, PreparedStep, TableBand, TableCell, TableColumn, TableRow, ResolvedCell, TextRequest,
   WidthOf, FontFamily, LaidOutSequence, LaidOutSeqStep, LaidOutSeqHead, LaidOutTable, LaidOutTableRow, LaidOutTableCell,
@@ -54,8 +54,7 @@ export function collectTextRequests(band: SequenceBand | TableBand): TextRequest
 
 const wrap = (text: string, size: number, weight: number, font: FontFamily, maxW: number, widthOf: WidthOf) =>
   wrapAtoms(splitAtoms(text), {maxWidth: Math.max(20, maxW), atomWidth: (a) => widthOf(a, size, weight, font)});
-const textW = (text: string, size: number, weight: number, font: FontFamily, widthOf: WidthOf) =>
-  [...splitAtoms(text)].reduce((s, a) => s + widthOf(a, size, weight, font), 0);
+const textW = (text: string, size: number, weight: number, font: FontFamily, widthOf: WidthOf) => textWidth(widthOf, text, size, weight, font);
 
 export function layoutSequence(band: SequenceBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutSequence {
   const p = prepareSequence(band);
@@ -132,7 +131,10 @@ export const TBL = {padX: 12, padY: 8};
 // A cell is a string or {text, tone?, bold?, mono?}; column defaults apply underneath.
 export function cellOf(cell: TableCell, col: TableColumn = {}): ResolvedCell {
   const c = typeof cell === 'string' || typeof cell === 'number' ? {text: String(cell)} as Exclude<typeof cell, string | number> : {...cell};
-  return {text: c.text ?? '', tone: c.tone, bold: c.bold ?? col.bold ?? false, mono: c.mono ?? col.mono ?? false, align: c.align ?? col.align ?? 'left'};
+  const mark = c.mark ? CELL_MARKS[c.mark] : undefined;
+  if (c.mark && !mark) throw new Error(`table cell: unknown mark "${c.mark}" (use ${Object.keys(CELL_MARKS).join(' | ')})`);
+  const text = mark ? (c.text ? `${mark.glyph} ${c.text}` : mark.glyph) : c.text ?? '';
+  return {text, tone: c.tone ?? mark?.tone, bold: c.bold ?? mark?.bold ?? col.bold ?? false, mono: c.mono ?? col.mono ?? false, align: c.align ?? col.align ?? 'left'};
 }
 
 export function layoutTable(band: TableBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutTable {

@@ -15,16 +15,17 @@
 // consume vertical space; they're resolved in a final pass once every named
 // anchor (any box/child with an explicit `id`) has a known rect.
 
-import {splitAtoms, measureAll} from './measure.ts';
+import {splitAtoms, measureAll, textWidth} from './measure.ts';
 import {wrapAtoms} from './wrap.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
+import {layoutPlane, planeTexts} from './plane.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {
   DiagramData, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
   LaidOutSwimlane, LaidOutPyramidLayer, LaidOutRow, RowArrow, Band, CaptionBand, BoxBand, BannerBand, RowBand, GridBand, GroupBand,
   ConnectBand, ConnectRef, Bend, BoxChrome, TextRun, WrappedRun, WidthOf, FontFamily, MeasureRequest, Point, Rect, Side,
 } from './types.ts';
-import {ROLES, PALETTE, SHADES, blendLuminance, bestTextColor} from './tokens.ts';
+import {ROLES, PALETTE, SHADES, CONNECT_LABEL_SIZE, TAG_SIZE, blendLuminance, bestTextColor} from './tokens.ts';
 
 export const LINE_HEIGHT_EM = 1.4;   // vertical spacing between wrapped lines within one text block
 export const BOX_PAD_X = 20;
@@ -74,7 +75,7 @@ function textRuns(band: Band): TextRun[] {
 // affect *what* needs measuring (that's per-atom, not per-line), so this can
 // run before measurement even for row/grid children whose width was just
 // computed structurally.
-const TAG_SIZE = 14, TAG_H = 24, TAG_PAD_X = 8;
+const TAG_H = 24, TAG_PAD_X = 8;
 export const LEGEND_SWATCH_W = 36, LEGEND_ITEM_GAP = 28, LEGEND_ROW_H = 24;
 
 function registerAtoms(requests: Requests, text: string, size: number, weight: number, font: FontFamily = 'sans') {
@@ -120,6 +121,13 @@ function layoutBoxContent(band: Band, wrapWidth: number, widthOf: WidthOf): {wra
   });
   const textHeight = Math.max(0, relY - BOX_INNER_GAP);
   return {wrappedRuns, textHeight};
+}
+
+type SlotSizing = {span?: number; col?: number};
+/** 1-based column and span of each row child on an N-column grid: `col` defaults to the column after the previous child. */
+function colSlots(children: SlotSizing[]): {col: number; span: number}[] {
+  let next = 1;
+  return children.map(c => { const span = c.span ?? 1, col = c.col ?? next; next = col + span; return {col, span}; });
 }
 
 // Structural width distribution for row()/grid() — pure arithmetic, no text
@@ -201,10 +209,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       // weight (see emit.ts's renderConnect) — registered here so their
       // real width is known before layoutDiagram resolves the connect,
       // instead of guessed at draw time.
-      for (const atom of splitAtoms(band.label)) {
-        const key = `${atom} ${ROLES.note} 400 sans`;
-        if (!requests.has(key)) requests.set(key, {text: atom, size: ROLES.note, weight: 400, font: 'sans'});
-      }
+      registerAtoms(requests, band.label, CONNECT_LABEL_SIZE, 400);
     } else if (band.type === 'pyramid') {
       for (const layer of band.layers) {
         for (const atom of splitAtoms(layer.text)) {
@@ -212,6 +217,8 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
           if (!requests.has(key)) requests.set(key, {text: atom, size: ROLES.title, weight: 700, font: 'sans'});
         }
       }
+    } else if (band.type === 'plane') {
+      for (const [text, size, weight, font] of planeTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'curve') {
       for (const label of [band.yTopLabel, band.yBottomLabel, band.xLabel]) {
         if (!label) continue;
@@ -230,31 +237,74 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
 
   // A labelled straight connector between two side-by-side children (right side -> left side) needs room in the gap
   // between them: a label wider than the gap lands on both boxes, or straddles the groups' frame lines. The row's gap grows to fit it.
+  // A row on a shared column grid (`cols`) keeps its column edges aligned with the other rows of that grid, so the gap grows for
+  // every row declaring the same `cols` + `gap` (the widest need wins), not for the one row that has the label.
   const labelled: ConnectBand[] = [];
   const collectConnects = (bs: Band[]): void => { for (const b of bs) { if (b.type === 'connect' && b.label && b.route === 'straight') labelled.push(b); else if ('children' in b && Array.isArray(b.children)) collectConnects(b.children as Band[]); } };
   collectConnects(d.bands);
   const idsIn = (b: Band, out = new Set<string>()): Set<string> => { const x = b as {id?: string; children?: unknown}; if (x.id) out.add(x.id); if (Array.isArray(x.children)) for (const c of x.children) idsIn(c as Band, out); return out; };
   const LABEL_MARGIN = 6; // clear space between a label and the boxes / frame lines on either side
   const MIN_CHILD_W = 80;
-  const gapForLabels = (band: {gap: number; cols?: number; justify?: string; children: Band[]}, cw: number): number => {
-    if (band.cols || band.justify !== 'stretch' || !labelled.length) return band.gap; // fixed-width rows would overflow the canvas
+  type RowLike = {gap: number; cols?: number; justify?: string; children: (Band & SlotSizing)[]};
+  // the gap one row needs for the labelled connectors between neighbours that sit side by side
+  const gapNeeded = (band: RowLike): number => {
+    if (!labelled.length) return band.gap;
     const kids = band.children.map(c => idsIn(c));
+    const slots = band.cols ? colSlots(band.children) : null;
     let gap = band.gap;
     for (const c of labelled) {
       const f = parseRef(c.from), t = parseRef(c.to);
       const i = kids.findIndex(k => k.has(f.id)), j = kids.findIndex(k => k.has(t.id));
       if (i < 0 || j < 0 || Math.abs(i - j) !== 1 || !((i < j && f.side === 'right' && t.side === 'left') || (i > j && f.side === 'left' && t.side === 'right'))) continue;
-      const w = [...splitAtoms(c.label as string)].reduce((acc, a) => acc + widthOf(a, LABEL_SIZE, 400, 'sans'), 0) + (c.chip ? 16 : 0);
-      gap = Math.max(gap, Math.ceil(w + 2 * LABEL_MARGIN));
+      if (slots) { const [a, b] = i < j ? [slots[i], slots[j]] : [slots[j], slots[i]]; if (b.col !== a.col + a.span) continue; } // empty columns between them already leave room
+      gap = Math.max(gap, Math.ceil(textWidth(widthOf, c.label as string, CONNECT_LABEL_SIZE, 400) + (c.chip ? 16 : 0) + 2 * LABEL_MARGIN));
     }
+    return gap;
+  };
+  const sharedGaps = new Map<string, number>(); // `${cols}/${gap}` -> the gap every row of that column grid uses (filled just below)
+  const gapForLabels = (band: RowLike, cw: number): number => {
+    if (band.cols) return sharedGaps.get(`${band.cols}/${band.gap}`) ?? band.gap;
+    if (band.justify !== 'stretch' || !labelled.length) return band.gap; // fixed-width rows would overflow the canvas
+    const gap = gapNeeded(band);
     const maxGap = band.children.length > 1 ? (cw - band.children.length * MIN_CHILD_W) / (band.children.length - 1) : band.gap;
     return gap <= maxGap ? gap : band.gap; // would squeeze the children: keep the gap (verify reports the label that does not fit)
   };
 
+  {
+    const grids = new Map<string, {need: number; rows: {cw: number; spans: number[]}[]}>();
+    const walk = (bs: Band[], cw: number): void => {
+      for (const b of bs) {
+        if (b.type === 'group') walk(b.children, cw - 2 * (b.pad ?? 16));
+        else if ((b.type === 'row' || b.type === 'grouprow') && b.cols) {
+          const key = `${b.cols}/${b.gap}`, g = grids.get(key) ?? {need: b.gap, rows: []};
+          g.need = Math.max(g.need, gapNeeded(b as RowLike));
+          g.rows.push({cw, spans: colSlots((b as RowLike).children).map(s => s.span)});
+          grids.set(key, g);
+          if (b.type === 'grouprow') { // (nested widths use the declared gap: the shared one is not known until every row has been seen)
+            const {widths} = rowChildGeometry(b, cw);
+            b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, widths[i] - 2 * (c.pad ?? 16)); });
+          }
+        } else if (b.type === 'grouprow') {
+          const {widths} = rowChildGeometry({...b, gap: gapForLabels(b as RowLike, cw)}, cw); // the same gap the real pass will use
+          b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, widths[i] - 2 * (c.pad ?? 16)); });
+        }
+      }
+    };
+    walk(d.bands, contentWidth);
+    for (const [key, g] of grids) {
+      const [cols, base] = key.split('/').map(Number);
+      const width = (cw: number, span: number, gap: number) => span * ((cw - (cols - 1) * gap) / cols) + (span - 1) * gap;
+      // growing must not squeeze a box: each child keeps >= 70% of its width (and >= 40px) or the gap stays as declared (verify reports the label)
+      const fits = g.need === base || g.rows.every(r => r.spans.every(sp => width(r.cw, sp, g.need) >= Math.min(width(r.cw, sp, base), Math.max(40, 0.7 * width(r.cw, sp, base)))));
+      sharedGaps.set(key, fits ? g.need : base);
+    }
+  }
   // ---- pass 2: layout top-to-bottom ----
   let cursorY = d.pad;
   const laidOut: LaidOutBand[] = [];
   const anchors = new Map<string, Rect>(); // id -> {x,y,w,h}
+  const areaIds = new Set<string>();       // ids of rows and row columns: anchors that hold other boxes
+  const claimed = (id: string, what: string): never => { throw new Error(`duplicate anchor id "${id}": ${what} — every id (and every row's "id#n" column ids) must be unique`); };
   const connects: LaidOutConnect[] = [];
   const deferred: ConnectBand[] = []; // connect()s that came before the boxes they name
 
@@ -265,9 +315,10 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     const h = isBoxLike ? textHeight + 2 * (chrome.padY ?? BOX_PAD_Y) : textHeight;
     const placed = {...band, x, y, w, h, wrappedRuns} as unknown as Placed<B>; // spreading a generic loses the intersection
     if (chrome.tag) {
-      const tw = [...splitAtoms(chrome.tag)].reduce((a, atom) => a + widthOf(atom, TAG_SIZE, 700, 'sans'), 0) + 2 * TAG_PAD_X;
+      const tw = textWidth(widthOf, chrome.tag, TAG_SIZE, 700) + 2 * TAG_PAD_X;
       placed.tagBox = {x: chrome.tagAt === undefined ? x + w - tw - 12 : x + w * chrome.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
     }
+    if (chrome.id && areaIds.has(chrome.id)) claimed(chrome.id, 'a box takes the id of a row or one of its columns');
     if (chrome.id) anchors.set(chrome.id, {x, y, w, h});
     return placed;
   };
@@ -284,7 +335,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       cursorY += gp;
       if (band.title) {
         const t = placeBoxLike(groupTitleBand(band), padX + gp, cursorY, cw - 2 * gp, false);
-        const inkW = Math.max(0, ...t.wrappedRuns.flatMap(r => r.lines.map(l => [...splitAtoms(l)].reduce((s, a) => s + widthOf(a, r.size, r.weight, r.mono ? 'mono' : 'sans'), 0))));
+        const inkW = Math.max(0, ...t.wrappedRuns.flatMap(r => r.lines.map(l => textWidth(widthOf, l, r.size, r.weight, r.mono ? 'mono' : 'sans'))));
         const inkX = t.align === 'center' ? t.x + (t.w - inkW) / 2 : t.align === 'right' ? t.x + t.w - inkW : t.x;
         t.inkBox = {x: inkX, y: t.y, w: inkW, h: t.h};
         laidOut.push(t);
@@ -366,7 +417,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
 
     if (band.type === 'legend') {
       const items = band.items.map(item => {
-        const tw = [...splitAtoms(item.label)].reduce((a, atom) => a + widthOf(atom, ROLES.note, 400, 'sans'), 0);
+        const tw = textWidth(widthOf, item.label, ROLES.note, 400);
         return {...item, textW: tw, w: LEGEND_SWATCH_W + 8 + tw};
       });
       const rows: (typeof items)[] = [[]];
@@ -400,7 +451,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       // names) resolution waits until the whole stack is placed; such a
       // connector reserves no loop-under space.
       if (!anchors.has(parseRef(band.from).id) || !anchors.has(parseRef(band.to).id)) { deferred.push(band); continue; }
-      const resolved = resolveConnect(band, anchors, widthOf);
+      const resolved = resolveConnect(band, anchors, areaIds, widthOf);
       connects.push(resolved);
       if (band.route === 'loop-under') {
         const labelClearance = band.label ? 24 : 8;
@@ -417,10 +468,32 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       continue;
     }
 
+    // row({id}): the row itself is an anchor, and so is each of its columns (`id#5`, `id#5-6`; the n-th child on a row without `cols`).
+    const registerRowSlots = (id: string | undefined, band: RowLike, rowTop: number, rowHeight: number, padX: number, cw: number, gap: number, placed: Rect[]): void => {
+      if (!id) return;
+      if (anchors.has(id)) claimed(id, 'a row takes an id that another box, group or row already has');
+      anchors.set(id, {x: padX, y: rowTop, w: cw, h: rowHeight});
+      areaIds.add(id);
+      if (band.cols) {
+        const cols = band.cols, colW = (cw - (cols - 1) * gap) / cols;
+        for (let a = 1; a <= cols; a++) for (let b = a; b <= cols; b++) {
+          const key = b === a ? `${id}#${a}` : `${id}#${a}-${b}`;
+          if (anchors.has(key)) claimed(key, 'a row column collides with an existing id');
+          anchors.set(key, {x: padX + (a - 1) * (colW + gap), y: rowTop, w: (b - a + 1) * colW + (b - a) * gap, h: rowHeight});
+          areaIds.add(key);
+        }
+      } else {
+        const put = (key: string, r: Rect) => { if (anchors.has(key)) claimed(key, 'a row column collides with an existing id'); anchors.set(key, r); areaIds.add(key); };
+        placed.forEach((r, i) => put(`${id}#${i + 1}`, {x: r.x, y: rowTop, w: r.w, h: rowHeight}));
+        for (let a = 0; a < placed.length; a++) for (let b = a + 1; b < placed.length; b++) put(`${id}#${a + 1}-${b + 1}`, {x: placed[a].x, y: rowTop, w: placed[b].x + placed[b].w - placed[a].x, h: rowHeight});
+      }
+    };
+
     if (band.type === 'grouprow') {
       // Each child is laid out as if stacked alone at its own x / width, all starting at the row's top; afterwards every
       // frame / box is stretched to the tallest one (a group's inner content keeps its natural height).
-      const {widths, xOffsets} = rowChildGeometry({...band, gap: gapForLabels(band, cw)}, cw);
+      const rowGap = gapForLabels(band, cw);
+      const {widths, xOffsets} = rowChildGeometry({...band, gap: rowGap}, cw);
       const rowTop = cursorY;
       const stretch: ((h: number) => void)[] = [];
       let rowHeight = 0;
@@ -442,12 +515,14 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
         }
       });
       stretch.forEach(s => s(rowHeight));
+      registerRowSlots(band.id, band, rowTop, rowHeight, padX, cw, rowGap, widths.map((w, i) => ({x: padX + xOffsets[i], y: rowTop, w, h: rowHeight})));
       cursorY = rowTop + rowHeight + d.gap;
       continue;
     }
 
     if (band.type === 'row') {
-      const {widths, xOffsets} = rowChildGeometry({...band, gap: gapForLabels(band, cw)}, cw);
+      const rowGap = gapForLabels(band, cw);
+      const {widths, xOffsets} = rowChildGeometry({...band, gap: rowGap}, cw);
       const placedChildren = band.children.map((child, i) =>
         placeBoxLike(child, padX + xOffsets[i], cursorY, widths[i], true));
       const rowHeight = Math.max(...placedChildren.map(c => c.h));
@@ -462,6 +537,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
         }
       }
 
+      registerRowSlots(band.id, band, cursorY, rowHeight, padX, cw, rowGap, placedChildren);
       laidOut.push({type: 'row', x: padX, y: cursorY, w: cw, h: rowHeight, children: placedChildren, arrows});
       cursorY += rowHeight + d.gap;
       continue;
@@ -527,6 +603,13 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       continue;
     }
 
+    if (band.type === 'plane') {
+      const placed = layoutPlane(band, padX, cursorY, cw, widthOf);
+      laidOut.push(placed);
+      cursorY += placed.h + d.gap;
+      continue;
+    }
+
     if (band.type === 'curve') {
       const w = band.width ?? cw;
       const h = band.height;
@@ -560,7 +643,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
   }
   };
   stack(d.bands, d.pad, contentWidth);
-  for (const band of deferred) connects.push(resolveConnect(band, anchors, widthOf)); // throws "unknown anchor id" if it never appears
+  for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf)); // throws "unknown anchor id" if it never appears
 
   const canvasHeight = Math.round(cursorY - d.gap + d.pad);
 
@@ -588,7 +671,6 @@ function anchorPoint(rect: Rect, side: string, at = 0.5): Point {
 // positions along a leg to try for a chip, nearest the middle first
 const CHIP_TS = Array.from({length: 41}, (_, i) => 0.1 + i * 0.02).sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5));
 const CONNECT_STROKE_PAD = 3; // half-thickness allowance so a perfectly horizontal/vertical path segment still has a non-zero-area bbox to check
-const LABEL_SIZE = 14; // must match emit.ts's renderConnect label font-size
 
 function segRect(x0: number, y0: number, x1: number, y1: number): Rect {
   const xa = Math.min(x0, x1), xb = Math.max(x0, x1);
@@ -631,7 +713,7 @@ function pathSegments(points: Point[]): Rect[] {
   return segs;
 }
 
-function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, widthOf: WidthOf): LaidOutConnect {
+function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf): LaidOutConnect {
   const fromRef = parseRef(band.from), toRef = parseRef(band.to);
   const fromRect = anchors.get(fromRef.id);
   const toRect = anchors.get(toRef.id);
@@ -642,7 +724,9 @@ function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, widthOf: 
   let points = routePoints(band, from, to, fromRef.side);
   if (band.route === 'elbow' && band.bend === 'auto') {
     // Pick the first bend whose path stays clear of every box except the two it joins.
-    const others = [...anchors.entries()].filter(([id]) => id !== fromRef.id && id !== toRef.id).map(([, r]) => r);
+    const inside = (r: Rect, a?: Rect) => !!a && Math.min(r.x + r.w, a.x + a.w) - Math.max(r.x, a.x) > 0.5 && Math.min(r.y + r.h, a.y + a.h) - Math.max(r.y, a.y) > 0.5;
+    const fromArea = areaIds.has(fromRef.id) ? fromRect : undefined, toArea = areaIds.has(toRef.id) ? toRect : undefined; // the boxes inside a row / column end belong to that end
+    const others = [...anchors.entries()].filter(([id, r]) => id !== fromRef.id && id !== toRef.id && !areaIds.has(id) && !inside(r, fromArea) && !inside(r, toArea)).map(([, r]) => r);
     const clear = (pts: Point[]) => pathSegments(pts).every(seg => others.every(r => {
       const ox = Math.min(seg.x + seg.w, r.x + r.w) - Math.max(seg.x, r.x);
       const oy = Math.min(seg.y + seg.h, r.y + r.h) - Math.max(seg.y, r.y);
@@ -655,7 +739,7 @@ function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, widthOf: 
 
   let labelX: number | undefined, labelY: number | undefined, labelBox: Rect | undefined, chipBox: Rect | undefined;
   if (band.label) {
-    const labelWidth = [...splitAtoms(band.label)].reduce((s, a) => s + widthOf(a, LABEL_SIZE, 400, 'sans'), 0);
+    const labelWidth = textWidth(widthOf, band.label, CONNECT_LABEL_SIZE, 400);
     const dy = band.chip ? 5 : -6; // a chip sits ON the line; a plain label sits above it
     if (band.route === 'elbow' && points.length === 4) {
       // vertical-first: label rides the middle (horizontal) leg; horizontal-
@@ -692,7 +776,7 @@ function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, widthOf: 
       labelX = Math.round(from.x + (to.x - from.x) * t);
       labelY = Math.round((band.route === 'loop-under' ? Math.max(from.y, to.y) + band.dip : from.y + (to.y - from.y) * t) + dy);
     }
-    labelBox = {x: labelX - labelWidth / 2, y: labelY - LABEL_SIZE, w: labelWidth, h: LABEL_SIZE + 4};
+    labelBox = {x: labelX - labelWidth / 2, y: labelY - CONNECT_LABEL_SIZE, w: labelWidth, h: CONNECT_LABEL_SIZE + 4};
     if (band.chip) {
       chipBox = {x: labelX - (labelWidth + 16) / 2, y: labelY - 17, w: labelWidth + 16, h: 24};
       labelBox = chipBox;
@@ -702,5 +786,5 @@ function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, widthOf: 
   // fromLabel/toLabel preserve the original "id:side" strings for error
   // messages — `from`/`to` themselves get overwritten by the spread below
   // with the resolved {x,y} points emit.ts's renderConnectPath needs.
-  return {...band, from, to, fromId: fromRef.id, toId: toRef.id, fromLabel: band.from, toLabel: band.to, points, pathSegments: segments, labelX, labelY, labelBox, chipBox};
+  return {...band, from, to, fromId: fromRef.id, toId: toRef.id, fromArea: areaIds.has(fromRef.id) ? fromRect : undefined, toArea: areaIds.has(toRef.id) ? toRect : undefined, fromLabel: band.from, toLabel: band.to, points, pathSegments: segments, labelX, labelY, labelBox, chipBox};
 }

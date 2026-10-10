@@ -45,6 +45,14 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 README の「部品」表を参照。基盤・ネットワーク図は、`group` の入れ子（ホスト > コンテナ > プロセス）と、`row([group, group])` の横並びで描く（接続線は、枠をまたぐ箇所で他の箱や題名を通らないよう、`@t` や `elbow` で調整）（box / row / grid / group / connect / swimlane / sequence / table / wireframe / screens ほか）。
 新しい部品は「同じパターンが 3 回出たら」が原則。既存の図の出力が変わらないこと（回帰）を確認してから足す。
 
+## くり返しは、まとめて書く
+
+- 12 列の行: `row([a, b], {cols: [6, 6]})`（`col:` を手で数えない）。別の行の N 列目への矢印は、`row({id: 'top'})` の `top.col(5).top`。
+- 接続線: `diagram({connectDefaults: {chip: true, route: 'elbow'}})` と `d.connect(from, to, {label})`。
+- ワイヤーフレームの外枠: `diagram({wireframeDefaults: {appbar: {title, nav}}})` と、画面ごとの `shell: {active: '在庫'}`。
+- 状態の一覧: `stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', 空: {na: '理由'}})`。
+- 表の記号セル: `cell('通る', {mark: 'ok' | 'mid' | 'ng' | 'best'})`。座標平面（軸・点・寸法線）は `plane()`。`raw()` で SVG を手書きする前に、これらを探す。
+
 ## ワイヤーフレーム・画面遷移図で、見て直すこと（実際に効いた点）
 
 画面ごとに `wireframe(root, {title, tag, h, notes})` を書き、`n:` で番号の丸を付けて右の注釈欄と対応させる。

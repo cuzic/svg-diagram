@@ -6,10 +6,11 @@
 // computed (usually off-grid) position, same as every hand-authored diagram
 // in this deck.
 
-import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES} from './tokens.ts';
+import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES, CONNECT_LABEL_SIZE, TAG_SIZE, colorOf, textColorOf, toneStyle} from './tokens.ts';
+import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
-  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
+  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
   LaidOutConnect, WrappedRun, Theme, TextTone, BoxTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
   LaidOutWireframe, LaidOutScreens, RawColorTone,
 } from './types.ts';
@@ -41,40 +42,18 @@ function emojiSpan(text: string): string {
   return out;
 }
 
-export function resolveTextColor(tone: TextTone | undefined, day: Theme): string {
-  switch (tone) {
-    case 'accent': return PALETTE[day].accent;
-    case 'muted': return PALETTE.muted;
-    case 'danger': return PALETTE.danger;
-    case 'text': case undefined: default: return PALETTE.text;
-  }
-}
+export const resolveTextColor = textColorOf;
 
 export interface BoxStyle {fill: string; stroke: string; dashed: boolean}
 
 export function resolveBoxStyle(tone: BoxTone | undefined, day: Theme, dashedOverride?: boolean): BoxStyle {
-  let style: BoxStyle;
-  switch (tone) {
-    case 'accent': style = {fill: PALETTE[day].soft, stroke: PALETTE[day].accent, dashed: false}; break;
-    case 'new': style = {fill: PALETTE[day].soft, stroke: PALETTE[day].accent, dashed: false}; break;
-    case 'changed': style = {fill: PALETTE.bg, stroke: PALETTE[day].accent, dashed: false}; break;
-    case 'removed': style = {fill: PALETTE.code, stroke: PALETTE.muted, dashed: true}; break;
-    // doc themes (string keys) use a stroke that reaches 3:1 against the page; the slide decks keep the pale border
-    case 'muted': style = {fill: PALETTE.code, stroke: typeof day === 'string' ? PALETTE.muted : PALETTE.border, dashed: false}; break;
-    case 'danger': style = {fill: PALETTE.bg, stroke: PALETTE.danger, dashed: true}; break;
-    case 'plain': default: style = {fill: PALETTE.bg, stroke: PALETTE.text, dashed: false};
-  }
-  if (dashedOverride !== undefined) style.dashed = dashedOverride;
-  return style;
+  const t = toneStyle(tone);
+  // doc themes (string keys) use a stroke that reaches 3:1 against the page; the slide decks keep the pale border
+  const stroke = typeof day === 'string' ? t.stroke : t.slideStroke ?? t.stroke;
+  return {fill: colorOf(t.fill, day), stroke: colorOf(stroke ?? t.fill, day), dashed: dashedOverride ?? t.dashed};
 }
 
-function resolveLineColor(tone: TextTone | undefined, day: Theme): string {
-  if (!tone) return PALETTE.text;
-  if (tone === 'accent') return PALETTE[day].accent;
-  if (tone === 'muted') return PALETTE.muted;
-  if (tone === 'danger') return PALETTE.danger;
-  return PALETTE.text;
-}
+const resolveLineColor = textColorOf;
 
 function renderTextRuns(
   wrappedRuns: WrappedRun[],
@@ -107,9 +86,7 @@ function renderStepBadge(band: LaidOutBox, day: Theme): string {
   const titleBaselineY = band.y + BOX_PAD_Y + titleRun.lineYs[0];
   const cx = band.x + BOX_PAD_X + STEP_BADGE_R;
   const cy = titleBaselineY - STEP_BADGE_BASELINE_OFFSET;
-  const circle = `<circle cx="${snap4(cx)}" cy="${snap4(cy)}" r="${STEP_BADGE_R}" fill="${PALETTE[day].accent}"/>`;
-  const text = `<text x="${Math.round(cx)}" y="${Math.round(titleBaselineY)}" text-anchor="middle" font-size="16" font-weight="700" fill="${PALETTE.bg}">${escapeXml(String(band.step))}</text>`;
-  return `${circle}\n  ${text}`;
+  return badgeSvg({cx, cy, r: STEP_BADGE_R, w: 2 * STEP_BADGE_R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: 16, fill: PALETTE[day].accent, baseline: titleBaselineY, snap: snap4, esc: escapeXml});
 }
 
 function renderCaption(band: LaidOutCaption, day: Theme): string {
@@ -133,8 +110,8 @@ function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, defaultAlig
 
 function renderTag(band: LaidOutBox, day: Theme): string {
   const t = band.tagBox as Rect; // caller checked tagBox
-  const fill = band.tagTone === 'danger' ? PALETTE.danger : band.tagTone === 'muted' ? PALETTE.muted : PALETTE[day].accent;
-  return `<rect x="${snap4(t.x)}" y="${snap4(t.y)}" width="${snap4(t.w)}" height="${t.h}" rx="12" fill="${fill}"/>\n  <text x="${Math.round(t.x + t.w / 2)}" y="${Math.round(t.y + 17)}" text-anchor="middle" font-size="14" font-weight="700" fill="${PALETTE.bg}">${emojiSpan(band.tag as string)}</text>`;
+  const fill = colorOf(toneStyle(band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
+  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, size: TAG_SIZE, labelHtml: emojiSpan(band.tag as string)});
 }
 
 function renderBox(band: LaidOutBox, day: Theme): string {
@@ -212,9 +189,11 @@ function renderConnect(c: LaidOutConnect, day: Theme): string {
   // labelX/labelY (and chipBox) are computed once in layout.ts's resolveConnect()
   // along with labelBox, which verify.ts checks for overlap — reusing them here
   // keeps emit and verify looking at the same point.
-  const chip = c.chipBox ? `<rect x="${snap4(c.chipBox.x)}" y="${snap4(c.chipBox.y)}" width="${snap4(c.chipBox.w)}" height="${c.chipBox.h}" rx="12" fill="${PALETTE.bg}" stroke="${color}" stroke-width="2"/>\n  ` : '';
-  const label = `<text x="${c.labelX}" y="${c.labelY}" text-anchor="middle" font-size="14" fill="${color}">${escapeXml(c.label)}</text>`;
-  return `${path}\n  ${chip}${label}`;
+  if (c.chipBox) {
+    const b = c.chipBox;
+    return `${path}\n  ${pillSvg({x: snap4(b.x), y: snap4(b.y), w: snap4(b.w), h: b.h, fill: PALETTE.bg, stroke: color, cx: c.labelX as number, baseline: c.labelY as number, text: color, size: CONNECT_LABEL_SIZE, weight: 400, labelHtml: escapeXml(c.label)})}`;
+  }
+  return `${path}\n  <text x="${c.labelX}" y="${c.labelY}" text-anchor="middle" font-size="${CONNECT_LABEL_SIZE}" fill="${color}">${escapeXml(c.label)}</text>`;
 }
 
 function renderPyramid(band: LaidOutPyramid): string {
@@ -234,7 +213,7 @@ function renderCurve(band: LaidOutCurve, day: Theme): string {
   parts.push(`<path d="M${Math.round(band.axisX)},${Math.round(band.axisTop)} L${Math.round(band.axisX)},${Math.round(band.axisBottom)} L${Math.round(band.axisRight)},${Math.round(band.axisBottom)}" fill="none" stroke="${PALETTE.text}" stroke-width="2"/>`);
   parts.push(`<path d="${band.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${Math.round(p.x)},${Math.round(p.y)}`).join(' ')}" fill="none" stroke="${PALETTE.text}" stroke-width="3"/>`);
 
-  const emphColor = (emphasis: string) => emphasis === 'accent' ? PALETTE[day].accent : emphasis === 'danger' ? PALETTE.danger : PALETTE.muted;
+  const emphColor = (emphasis: string) => colorOf(toneStyle(emphasis === 'accent' || emphasis === 'danger' ? emphasis : 'muted').ink, day);
   band.points.forEach((p, i) => {
     const color = p.emphasis ? emphColor(p.emphasis) : (i === 0 ? PALETTE[day].accent : PALETTE.muted);
     const r = p.emphasis === 'danger' ? 8 : i === 0 ? 6 : 5;
@@ -249,6 +228,46 @@ function renderCurve(band: LaidOutCurve, day: Theme): string {
   if (band.xLabel) parts.push(`<text x="${Math.round(band.axisX)}" y="${Math.round(band.axisBottom + 24)}" font-size="14" fill="${PALETTE.muted}">${escapeXml(band.xLabel)}</text>`);
 
   return parts.join('\n  ');
+}
+
+// plane(): axes (with arrowheads), ticks, guides, points, dimension lines with their label chips, then every text.
+function renderPlane(b: LaidOutPlane, day: Theme): string {
+  const col = (t: PlaneTone) => resolveTextColor(t, day);
+  const seg = (s: {x1: number; y1: number; x2: number; y2: number}) => `M${Math.round(s.x1)},${Math.round(s.y1)} L${Math.round(s.x2)},${Math.round(s.y2)}`;
+  // a filled arrowhead at (x, y) pointing along (dx, dy); drawn as a polygon so it needs no <marker>
+  const head = (x: number, y: number, dx: number, dy: number, color: string): string => {
+    const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, L = 10, W = 5;
+    const pts = [[x, y], [x - ux * L - uy * W, y - uy * L + ux * W], [x - ux * L + uy * W, y - uy * L - ux * W]];
+    return `<polygon points="${pts.map(([a, c]) => `${Math.round(a)},${Math.round(c)}`).join(' ')}" fill="${color}"/>`;
+  };
+  const out: string[] = [];
+  if (b.grid.length) out.push(`<path d="${b.grid.map(seg).join(' ')}" fill="none" stroke="${PALETTE.border}" stroke-width="2"/>`);
+  const yEnd = b.yDown ? b.plotB : b.plotT, xEnd = b.plotR;
+  out.push(`<path d="${seg({x1: b.axisX, y1: b.axisY, x2: xEnd, y2: b.axisY})} ${seg({x1: b.axisX, y1: b.axisY, x2: b.axisX, y2: yEnd})}" fill="none" stroke="${PALETTE.text}" stroke-width="2"/>`);
+  out.push(head(xEnd, b.axisY, 1, 0, PALETTE.text), head(b.axisX, yEnd, 0, b.yDown ? 1 : -1, PALETTE.text));
+  if (b.ticks.length) out.push(`<path d="${b.ticks.map(seg).join(' ')}" fill="none" stroke="${PALETTE.text}" stroke-width="2"/>`);
+  for (const l of b.lines) {
+    const c = col(l.tone);
+    out.push(`<path d="${seg(l)}" fill="none" stroke="${c}" stroke-width="2"${l.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
+    if (l.arrow) out.push(head(l.x2, l.y2, l.x2 - l.x1, l.y2 - l.y1, c));
+  }
+  for (const dm of b.dims) {
+    const c = col(dm.tone);
+    for (const e of dm.ext) out.push(`<path d="${seg(e)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>`);
+    out.push(`<path d="${seg(dm.line)}" fill="none" stroke="${c}" stroke-width="2"/>`);
+    out.push(head(dm.line.x1, dm.line.y1, dm.line.x1 - dm.line.x2, dm.line.y1 - dm.line.y2, c), head(dm.line.x2, dm.line.y2, dm.line.x2 - dm.line.x1, dm.line.y2 - dm.line.y1, c));
+    out.push(`<rect x="${snap4(dm.chip.x)}" y="${snap4(dm.chip.y)}" width="${snap4(dm.chip.x + dm.chip.w) - snap4(dm.chip.x)}" height="${dm.chip.h}" rx="12" fill="${PALETTE.bg}"/>`);
+  }
+  for (const p of b.points) {
+    const c = col(p.tone), x = snap4(p.x), y = snap4(p.y);
+    if (p.shape === 'ring') out.push(`<circle cx="${x}" cy="${y}" r="6" fill="${PALETTE.bg}" stroke="${c}" stroke-width="2.5"/>`);
+    else if (p.shape === 'cross') out.push(`<path d="M${x - 6},${y - 6} L${x + 6},${y + 6} M${x - 6},${y + 6} L${x + 6},${y - 6}" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`);
+    else out.push(`<circle cx="${x}" cy="${y}" r="6" fill="${c}"/>`);
+  }
+  for (const t of b.texts) {
+    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${ROLES.note}"${t.bold ? ' font-weight="700"' : ''} fill="${col(t.tone)}">${emojiSpan(t.s)}</text>`);
+  }
+  return out.join('\n  ');
 }
 
 function renderRaw(band: LaidOutRaw, day: Theme): string {
@@ -384,9 +403,9 @@ function renderSwimlane(b: LaidOutSwimlane, day: Theme): string {
 }
 
 // wireframe() / screens(): a flat list of primitives with token-key colours (see wireframe.ts)
-type PaintPrim = Exclude<Prim, {k: 'text'}>;
+type PaintPrim = Exclude<Prim, {k: 'text' | 'badge' | 'pill'}>;
 function renderPrims(b: LaidOutWireframe | LaidOutScreens, day: Theme): string {
-  const col = (k: ColorKey | null): string => k == null ? 'none' : (k === 'accent' || k === 'soft') ? PALETTE[day][k] : PALETTE[k];
+  const col = (k: ColorKey | null): string => k == null ? 'none' : colorOf(k, day);
   const stroke = (p: PaintPrim): string => {
     const dash = 'dash' in p ? p.dash : undefined; // circles have no dash
     return p.stroke ? ` stroke="${col(p.stroke)}" stroke-width="${p.sw}"${dash ? ` stroke-dasharray="${dash}"` : ''}` : '';
@@ -401,6 +420,11 @@ function renderPrims(b: LaidOutWireframe | LaidOutScreens, day: Theme): string {
       out.push(`<circle cx="${snap4(p.cx)}" cy="${snap4(p.cy)}" r="${p.r}" ${fill(p)}${stroke(p)}/>`);
     } else if (p.k === 'path') {
       out.push(`<path d="${p.d}" ${fill(p)}${stroke(p)}${p.stroke ? ' stroke-linejoin="round"' : ''}/>`);
+    } else if (p.k === 'pill') {
+      const x0 = snap4(p.x), y0 = snap4(p.y), x1 = snap4(p.x + p.w), y1 = snap4(p.y + p.h);
+      out.push(pillSvg({x: x0, y: y0, w: Math.max(0, x1 - x0), h: Math.max(0, y1 - y0), fill: col(p.fill), stroke: p.stroke ? col(p.stroke) : null, cx: p.x + p.w / 2, baseline: p.base, text: col(p.text), size: p.size, labelHtml: emojiSpan(p.label)}));
+    } else if (p.k === 'badge') {
+      out.push(badgeSvg({cx: p.cx, cy: p.cy, r: p.r, w: p.w, shape: p.shape, label: p.label, aria: p.aria, size: p.size, fill: col(p.fill), stroke: PALETTE.bg, sw: 2, snap: snap4, esc: escapeXml}));
     } else if (p.k === 'text') {
       const a = p.anchor === 'middle' ? ' text-anchor="middle"' : p.anchor === 'end' ? ' text-anchor="end"' : '';
       out.push(`<text x="${Math.round(p.x)}" y="${Math.round(p.y)}"${a} font-size="${p.size}" font-weight="${p.weight}" fill="${col(p.fill)}">${emojiSpan(p.s)}</text>`);
@@ -425,6 +449,7 @@ function renderBand(band: LaidOutBand, day: Theme): string {
     case 'raw': return renderRaw(band, day);
     case 'pyramid': return renderPyramid(band);
     case 'curve': return renderCurve(band, day);
+    case 'plane': return renderPlane(band, day);
     default: return '';
   }
 }

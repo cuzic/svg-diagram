@@ -7,7 +7,7 @@
 //
 // See docs/diagram-tone-and-manner.md for the narrative rules this encodes.
 
-import type {Palette, Role, Theme} from './types.ts';
+import type {ColorKey, Palette, Role, Theme, TextTone} from './types.ts';
 
 export const PALETTE: Palette = {
   bg: '#ffffff',
@@ -23,6 +23,56 @@ export const PALETTE: Palette = {
   teal: { accent: '#1f6e73', soft: '#dbeeee' },
   amber: { accent: '#a8632b', soft: '#f1e3d3' },
 };
+
+// ---- tones: the ONE table from a tone name to the colours it paints ---------------------------------------------------
+// Every place that turns a tone into colours reads this table (boxes, banners, legend swatches, tag pills, connector and text
+// colours, wireframe chips / alerts / insight levels, plane() labels), so adding or changing a tone is one edit here, and one
+// test (test/tones.test.ts) can check the contrast of every tone against every theme.
+export type ToneName = 'plain' | 'accent' | 'danger' | 'muted' | 'new' | 'changed' | 'removed' | 'solid' | 'solid-danger';
+export interface ToneStyle {
+  /** Fill of a shape in this tone. */
+  fill: ColorKey;
+  /** Outline (null: none). */
+  stroke: ColorKey | null;
+  /** Doc-theme stroke differs from the slide decks' pale one only for 'muted'; this is the slide-deck value. */
+  slideStroke?: ColorKey;
+  /** Outline of the small pills / chips (wireframe), when it is not `stroke`. */
+  chipStroke?: ColorKey;
+  /** Text colour on `fill`. */
+  text: ColorKey;
+  /** The tone as a plain colour: a bar, a tag pill, a line, text written "in" this tone. */
+  ink: ColorKey;
+  /** Boxes of this tone are drawn with a dashed outline. */
+  dashed: boolean;
+  /** Text can be set in this tone (accent / danger / muted); the others write in the normal text colour. */
+  asText: boolean;
+}
+export const TONES: Record<ToneName, ToneStyle> = {
+  plain:          {fill: 'bg',     stroke: 'text',   chipStroke: 'muted', text: 'text',   ink: 'text',   dashed: false, asText: false},
+  accent:         {fill: 'soft',   stroke: 'accent',                      text: 'accent', ink: 'accent', dashed: false, asText: true},
+  new:            {fill: 'soft',   stroke: 'accent',                      text: 'text',   ink: 'accent', dashed: false, asText: false},
+  changed:        {fill: 'bg',     stroke: 'accent',                      text: 'text',   ink: 'accent', dashed: false, asText: false},
+  removed:        {fill: 'code',   stroke: 'muted',                       text: 'muted',  ink: 'muted',  dashed: true,  asText: false},
+  muted:          {fill: 'code',   stroke: 'muted', slideStroke: 'border', chipStroke: 'border', text: 'muted', ink: 'muted', dashed: false, asText: true},
+  danger:         {fill: 'bg',     stroke: 'danger',                      text: 'danger', ink: 'danger', dashed: true,  asText: true},
+  solid:          {fill: 'accent', stroke: null,                          text: 'bg',     ink: 'accent', dashed: false, asText: false},
+  'solid-danger': {fill: 'danger', stroke: null,                          text: 'bg',     ink: 'danger', dashed: false, asText: false},
+};
+/** Wireframe spellings of a tone: ok = accent, warn = danger, off = muted. */
+export const TONE_ALIAS: Record<string, ToneName> = {ok: 'accent', warn: 'danger', off: 'muted'};
+/** The style of a tone name (aliases resolved; an unknown or missing tone is 'plain'). */
+export function toneStyle(tone: string | undefined): ToneStyle {
+  const name = tone == null ? 'plain' : TONE_ALIAS[tone] ?? tone;
+  return TONES[name as ToneName] ?? TONES.plain;
+}
+/** The colour key text in this tone uses ('text' unless the tone is one text can be set in). */
+export const textKeyOf = (tone: string | undefined): ColorKey => { const t = toneStyle(tone); return t.asText ? t.ink : 'text'; };
+/** A colour key resolved against a theme ('accent' and 'soft' are theme colours). */
+export function colorOf(key: ColorKey, theme: Theme): string {
+  return key === 'accent' || key === 'soft' ? PALETTE[theme][key] : PALETTE[key];
+}
+/** The colour of a TextTone (a text run, a connector line) in a theme. */
+export const textColorOf = (tone: TextTone | undefined, theme: Theme): string => colorOf(textKeyOf(tone), theme);
 
 // Palette keys diagram() accepts: 1, 2 (legacy day numbers) or a theme name.
 // Object.keys makes them strings ('1', '2', 'blue', ...); PALETTE[key] indexes the numeric keys identically.
@@ -49,6 +99,19 @@ export const MIN_FONT_SIZE = 14;
 // caller pick a raw px number outside this table.
 export const ROLES: Record<Role, number> = {
   title: 15, label: 14, body: 14, note: 14, banner: 16, stat: 34, hero: 18,
+};
+
+// Fixed sizes of text that is not a role: the label on a connector line and the tag pill on a box.
+// layout.ts measures with these and emit.ts draws with them, so they are defined once, here.
+export const CONNECT_LABEL_SIZE = 14;
+export const TAG_SIZE = 14;
+
+// Table cell marks (cell(text, {mark})): the symbol is what says "good / partial / bad", the tone only reinforces it.
+export const CELL_MARKS: Record<'ok' | 'mid' | 'ng' | 'best', {glyph: string; tone: 'text' | 'accent' | 'danger'; bold: boolean}> = {
+  ok: {glyph: '○', tone: 'accent', bold: false},
+  mid: {glyph: '△', tone: 'text', bold: false},
+  ng: {glyph: '×', tone: 'danger', bold: false},
+  best: {glyph: '◎', tone: 'accent', bold: true},
 };
 
 // Opacity steps for gradient-style grouping (e.g. a segmented usage bar, or

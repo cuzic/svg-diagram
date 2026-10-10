@@ -13,7 +13,8 @@
 //     after defaults were applied" — a constructor that defaults a field (e.g. row().gap) returns it required.
 //   * Colours are never raw strings in the DSL: they are token keys (TextTone / BoxTone / ColorKey).
 
-import type {DeclaredIds, ValidateBands} from './strict.ts';
+import type {BadgeBox} from './badge.ts';
+import type {ConnectInput, DeclaredIds, RefIn, ValidateBands} from './strict.ts';
 import type {RULE_DOCS, DEFAULT_LEGEND_LABELS} from './rules.ts';
 
 // ============================================================================================
@@ -75,6 +76,22 @@ export interface ConnectRef {id: string; side: string; at: number}
 /** Slide the diagram will be shown on (slide-budget.ts measures its free area). */
 export interface SlideRef {page: string; heading: string}
 
+/** diagram({connectDefaults}): connect() options every connector of the diagram starts from (an option given on the connector wins). */
+export interface ConnectDefaults {
+  route?: Route;
+  /** Applies to connectors that have a `label`. */
+  chip?: boolean;
+  arrow?: Arrow;
+  line?: LineStyle;
+  tone?: TextTone;
+  labelAt?: number;
+  /** Elbow connectors only. */
+  bend?: Bend;
+  bendOffset?: number;
+  /** loop-under connectors only. */
+  dip?: number;
+}
+
 export interface DiagramOpts {
   /** Theme name (or 1 | 2). One of `theme` / `day` is required. */
   theme?: Theme;
@@ -100,6 +117,10 @@ export interface DiagramOpts {
   slide?: SlideRef;
   /** fit-figure slide: build to the measured slot, growing fonts to use the slack. Needs `slide`. */
   fill?: boolean;
+  /** Options every connect() / branch() of this diagram starts from; see ConnectDefaults. */
+  connectDefaults?: ConnectDefaults;
+  /** What every wireframe() / screens() item starts from (a common app bar, frame, height); see WireframeDefaults. */
+  wireframeDefaults?: WireframeDefaults;
 }
 
 /** Everything diagram() stores, plus fields set later by build/check (usableWidth, maxWidth, source). */
@@ -119,6 +140,8 @@ export interface DiagramData {
   minEffectiveFont?: number;
   slide?: SlideRef;
   fill: boolean;
+  connectDefaults?: ConnectDefaults;
+  wireframeDefaults?: WireframeDefaults;
   bands: Band[];
   /** Set by build() from the measured slide (contentWidth). */
   usableWidth?: number;
@@ -147,6 +170,8 @@ export interface DiagramSource {
  */
 export interface Diagram<Ids extends string = string> extends DiagramData {
   add<const B extends readonly BandInput[]>(...bands: B & ValidateBands<Ids, B>): Diagram<Ids | DeclaredIds<B>>;
+  /** `d.connect(a, b, opts)` = `d.add(connect(a, b, opts))`, with the diagram's connectDefaults filled in. */
+  connect<const F extends string, const T extends string>(from: RefIn<Ids, F>, to: RefIn<Ids, T>, opts?: ConnectInput): Diagram<Ids>;
 }
 export type BandInput = Band | Band[];
 
@@ -264,6 +289,7 @@ export interface GroupBand {
 /** A row() whose children include groups: they sit side by side and their frames are stretched to the tallest one. */
 export interface GroupRowBand {
   type: 'grouprow';
+  id?: string;
   cols?: number;
   children: (BoxBand | GroupBand)[];
   gap: number;
@@ -316,16 +342,20 @@ export interface RawBand {
 export type RowArrows = 'between' | 'none';
 export type RowJustify = 'stretch' | 'center' | 'start';
 export interface RowOpts {
-  /** N: shared N-column grid (children take `span` columns). */
-  cols?: number;
+  /** N: shared N-column grid (children take `span` columns, and `col` follows the previous child's span).
+   *  [6, 6]: the same grid declared as one span per child (N = their sum; no `span` / `col` on the children). */
+  cols?: number | number[];
   gap?: number;
   arrows?: RowArrows;
   justify?: RowJustify;
   /** Fixed width per child for justify 'center' | 'start' (default 160). */
   width?: number;
+  /** Makes the row an anchor, and its columns ones: `r.col(5).top` (see RowHandle). */
+  id?: string;
 }
 export interface RowBand {
   type: 'row';
+  id?: string;
   cols?: number;
   children: BoxBand[];
   gap: number;
@@ -427,6 +457,70 @@ export interface CurveBand {
 }
 
 // ============================================================================================
+// DSL input + band: plane (a coordinate plane)
+// ============================================================================================
+
+export type PlaneTone = 'text' | 'accent' | 'muted' | 'danger';
+/** A position in the plane's own units: [x, y]. */
+export type PlanePos = [x: number, y: number];
+/** A position, or the id of a point of the same plane. */
+export type PlaneRef = PlanePos | string;
+export interface PlaneAxis {
+  /** The axis name, drawn at its end. */
+  label?: string;
+  /** Default 0. */
+  min?: number;
+  max: number;
+  /** Distance between ticks (default: a round number giving about 6). */
+  step?: number;
+  /** Explicit ticks instead of `step`: a value, or a value with its own label. */
+  ticks?: (number | {at: number; label: string})[];
+}
+export interface PlanePoint {
+  id?: string;
+  at: PlanePos;
+  /** Drawn next to the point; the point's tone colours both. */
+  label?: string;
+  /** Where the label sits (default 'right'). */
+  labelAt?: 'right' | 'left' | 'above' | 'below';
+  tone?: PlaneTone;
+  shape?: 'dot' | 'ring' | 'cross';
+}
+/** A guide line between two positions / points (a projection onto an axis, a path). */
+export interface PlaneLine {from: PlaneRef; to: PlaneRef; tone?: PlaneTone; /** Default true. */ dashed?: boolean; arrow?: boolean}
+/** A dimension line: the distance between two positions / points, drawn beside them with a label on it. */
+export interface PlaneDim {
+  from: PlaneRef;
+  to: PlaneRef;
+  label: string;
+  /** Which side of the measured segment the dimension line sits (default: above a horizontal one, right of a vertical one). */
+  side?: 'above' | 'below' | 'left' | 'right';
+  /** Distance of the dimension line from the measured segment, px (default 26; more to clear the tick labels when it runs along an axis). */
+  offset?: number;
+  tone?: PlaneTone;
+}
+export interface PlaneLabel {at: PlanePos; text: string; anchor?: 'start' | 'middle' | 'end'; tone?: PlaneTone; bold?: boolean}
+export interface PlaneOpts {
+  x: PlaneAxis;
+  y: PlaneAxis;
+  points?: PlanePoint[];
+  lines?: PlaneLine[];
+  dims?: PlaneDim[];
+  labels?: PlaneLabel[];
+  /** Figure height (default 300). */
+  height?: number;
+  width?: number;
+  /** y grows downward from the top-left origin (image / pixel coordinates). */
+  yDown?: boolean;
+  /** Light grid lines at the ticks. */
+  grid?: boolean;
+}
+export interface PlaneBand extends PlaneOpts {
+  type: 'plane';
+  height: number;
+}
+
+// ============================================================================================
 // DSL input + band: sequence
 // ============================================================================================
 
@@ -500,7 +594,13 @@ export interface TableColumn {
   bold?: boolean;
   align?: Align;
 }
-export interface TableCellSpec {text?: string; tone?: TextTone; bold?: boolean; mono?: boolean; align?: Align}
+/** A status symbol that goes in front of a table cell's text: ok ○ | mid △ | ng × | best ◎ (the symbol carries the meaning, the tone only reinforces it). */
+export type CellMark = 'ok' | 'mid' | 'ng' | 'best';
+export interface TableCellSpec {
+  text?: string; tone?: TextTone; bold?: boolean; mono?: boolean; align?: Align;
+  /** Draws the symbol + a default tone before `text` (an explicit `tone` / `bold` wins); without `text` the cell is the symbol alone. */
+  mark?: CellMark;
+}
 export type TableCell = string | number | TableCellSpec;
 export type TableRow = readonly TableCell[] | {cells: readonly TableCell[]; tone?: BoxTone};
 export interface TableOpts {
@@ -608,6 +708,28 @@ export interface WfScreen {
   frame?: WfFrame;
   /** Text becomes grey bars. */
   skeleton?: boolean;
+  /** The diagram's wireframeDefaults shell: `false` leaves this screen without it; an object gives it its per-screen props (see WireframeDefaults). */
+  shell?: false | WfShellProps;
+}
+/** Per-screen input of the diagram's shell: which nav item is selected, a different title, anything a custom `shell` function reads. */
+export interface WfShellProps {
+  /** appbar shell: the selected nav item, by label or by index. */
+  active?: string | number;
+  /** appbar shell: replaces the appbar's title for this screen. */
+  title?: string;
+  [key: string]: unknown;
+}
+/** diagram({wireframeDefaults}): what every wireframe() / screens() item starts from. A field set on the screen wins. */
+export interface WireframeDefaults {
+  /** The app's top bar, put above every screen's content: `{title, nav, right}` as wf.appbar(); a screen's `shell: {active}` selects the nav item. */
+  appbar?: {title: string; nav?: string[]; right?: string[]};
+  /** The general form: wraps each screen's content (any structure). Runs after / instead of `appbar`. */
+  shell?: (content: WfNode[], props: WfShellProps) => WfRoot;
+  h?: number | 'fit';
+  frame?: WfFrame;
+  skeleton?: boolean;
+  tag?: string;
+  tagTone?: WfTone;
 }
 
 export interface WireframeOpts extends Omit<WfScreen, 'root'> {
@@ -647,6 +769,18 @@ export interface StateMatrixRow {
   /** Mutated by layout: padded with undefined up to the number of columns. */
   cells: StateMatrixCell[];
 }
+/** What one state of a stateRow() holds: the options that differ from the part's base, a bare WfState, or one of the plain cell forms. */
+export type StateCellIn<O> = Partial<O> | WfState | 'na' | 'todo' | {na: string} | undefined;
+/** stateRow() result: one part drawn once per state. `K` = the state columns it covers (carried only by the type). */
+export interface PartRow<K extends string = string> {
+  type: 'part-row';
+  label: string;
+  note?: string;
+  /** Cells for these columns, in order. Throws on a state that is not a column. */
+  cells(cols: readonly string[]): StateMatrixCell[];
+  /** Contravariant: a row covering MORE states than the matrix has columns is fine, one covering fewer is a type error. */
+  readonly '~cols'?: (c: K) => void;
+}
 export interface StateMatrixOpts {
   /** Columns that must exist (checked by the wf-states-required rule). */
   required?: string[];
@@ -679,7 +813,7 @@ export interface ScreensBand extends ScreensOpts {
 /** Every band the DSL constructors return. */
 export type Band =
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -1014,7 +1148,17 @@ export interface PrimText {
   /** Baseline. */
   y: number; size: number; weight: number; fill: ColorKey; anchor?: 'middle' | 'end';
 }
-export type Prim = PrimRect | PrimCircle | PrimPath | PrimText;
+/** A label inside a shape, drawn as one accessible group (see badge.ts). `w` is the measured width. */
+export interface PrimBadge {
+  k: 'badge'; cx: number; cy: number; r: number; w: number; shape: 'circle' | 'square' | 'triangle';
+  label: string; aria: string; size: number; fill: ColorKey;
+}
+/** A word in a rounded label (a wireframe chip), drawn as one pill (see badge.ts). `base` is the text baseline. */
+export interface PrimPill {
+  k: 'pill'; x: number; y: number; w: number; h: number;
+  label: string; size: number; base: number; fill: ColorKey; stroke: ColorKey | null; text: ColorKey;
+}
+export type Prim = PrimRect | PrimCircle | PrimPath | PrimText | PrimBadge | PrimPill;
 
 /** Options of the rect / circle / path / line drawing helpers. `fill` / `stroke` default to null (none). */
 export interface DrawShapeOpts {
@@ -1075,6 +1219,8 @@ export interface WfHelpers {
   lh(size: number): number;
   rect(ctx: WfCtx, x: number, y: number, w: number, h: number, o?: DrawShapeOpts): void;
   circle(ctx: WfCtx, cx: number, cy: number, r: number, o?: DrawShapeOpts): void;
+  /** A label inside a shape, as one accessible group; returns its bounding box (see badge.ts). */
+  badge(ctx: WfCtx, cx: number, cy: number, label: string | number, o?: BadgeOpts): BadgeBox;
   text(ctx: WfCtx, s: string | number, x: number, base: number, o?: DrawTextOpts): void;
   path(ctx: WfCtx, d: string, o?: DrawShapeOpts): void;
   line(ctx: WfCtx, x1: number, y1: number, x2: number, y2: number, o?: DrawShapeOpts): void;
@@ -1089,6 +1235,7 @@ export interface WfHelpers {
   chipW(ctx: WfCtx, label: string): number;
   hideUnder(ctx: WfCtx, X: number, Y: number, W: number, H: number): void;
 }
+export interface BadgeOpts {shape?: 'circle' | 'square' | 'triangle'; r?: number; fill?: ColorKey; aria?: string}
 export interface GlyphOpts {shape?: WfMarkerShape; id?: string; r?: number; fill?: ColorKey}
 /** What installParts() returns to wireframe.ts. */
 export interface WfPartsApi {
@@ -1236,9 +1383,29 @@ export interface LaidOutScreens extends Rect {
   anchors: Anchor[];
 }
 
+/** Text the plane draws: a baseline position, an anchor and a tone. */
+export interface PlaneText {s: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; tone: PlaneTone; bold: boolean}
+interface PlaneSeg {x1: number; y1: number; x2: number; y2: number}
+export interface LaidOutPlane extends Rect {
+  type: 'plane';
+  /** The figure itself (the band is as wide as the page; the figure may be narrower and centred). */
+  bounds: Rect;
+  axisX: number; axisY: number;
+  plotL: number; plotR: number; plotT: number; plotB: number;
+  yDown: boolean;
+  ticks: PlaneSeg[];
+  grid: PlaneSeg[];
+  texts: PlaneText[];
+  points: {x: number; y: number; tone: PlaneTone; shape: 'dot' | 'ring' | 'cross'}[];
+  lines: (PlaneSeg & {tone: PlaneTone; dashed: boolean; arrow: boolean})[];
+  dims: {from: Point; to: Point; line: PlaneSeg; ext: PlaneSeg[]; chip: Rect; tone: PlaneTone}[];
+  /** Every label placed, as a rect: verify.ts reports two that overlap or one that leaves the figure. */
+  labelBoxes: (Rect & {label: string})[];
+}
+
 export type LaidOutBand =
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */
@@ -1247,6 +1414,9 @@ export interface LaidOutConnect extends Omit<ConnectBand, 'from' | 'to'> {
   to: Point;
   fromId: string;
   toId: string;
+  /** Set when an end is a row or a column of a row (row({id})): the boxes in this area (even partly) count as that end. */
+  fromArea?: Rect;
+  toArea?: Rect;
   /** The original 'id:side@t' strings (for error messages). */
   fromLabel: string;
   toLabel: string;

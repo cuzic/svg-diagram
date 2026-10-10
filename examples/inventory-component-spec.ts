@@ -1,7 +1,7 @@
 // 架空の在庫管理アプリの「部品の仕様」（svg-diagram の stateMatrix() / frame / parts / wf.region() の使用例）。
 // 画面全体は粗く（領域と見る順）、部品は別の図で詳しく（構成と、状態の一覧）。
 // ビルド: svg-diagram build examples/inventory-component-spec.ts --out examples/out/inventory-component-spec.svg
-import {diagram, caption, stateMatrix, wireframe, wf} from 'svg-diagram';
+import {diagram, caption, stateMatrix, stateRow, wireframe, wf} from 'svg-diagram';
 
 const stock = (o = {}) => wf.card([wf.kv([['在庫', '24 個'], ['棚', 'A-03']])], {title: 'ボルト M6', ...o});
 const results = (o = {}) => wf.card([wf.list([{text: 'ボルト M6', badge: '十分', tone: 'ok'}, {text: 'ナット M6', badge: '少ない', tone: 'danger'}])], o);
@@ -35,8 +35,8 @@ export default function define() {
 
   d.add(caption('3 部品の状態の一覧', {bold: true}));
   d.add(stateMatrix(['通常', '読み込み中', '空', 'エラー', '古い情報'], [
-    {label: '在庫カード', cells: [stock(), stock({state: 'loading'}), {na: '必ず 1 件ある'}, stock({state: 'disconnected', stateTitle: '取得できません', stateNote: '再試行'}), stock({state: 'stale', stateNote: '10:24'})]},
-    {label: '検索結果', note: '0 件のとき空', cells: [results(), results({state: 'loading'}), results({state: 'empty', stateNote: '該当なし'}), results({state: 'disconnected', stateTitle: '取得できません', stateNote: '再試行'}), results({state: 'stale', stateNote: '10:24'})]},
+    stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', 空: {na: '必ず 1 件ある'}, エラー: {state: 'disconnected', stateTitle: '取得できません', stateNote: '再試行'}, 古い情報: {state: 'stale', stateNote: '10:24'}}),
+    stateRow('検索結果', results, {通常: {}, 読み込み中: 'loading', 空: {state: 'empty', stateNote: '該当なし'}, エラー: {state: 'disconnected', stateTitle: '取得できません', stateNote: '再試行'}, 古い情報: {state: 'stale', stateNote: '10:24'}}, {note: '0 件のとき空'}),
   ], {required: ['通常', '読み込み中', '空', 'エラー']}));
   return d;
 }

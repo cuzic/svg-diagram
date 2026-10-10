@@ -9,7 +9,7 @@ import type {PrimRect, PrimText, WfCol, WfInsight, WfNote, WfRobotOpts, WfRoot, 
 const widthOf = (atom: string, size: number) => [...atom].length * size * 0.6;
 const wfLayout = (root: WfRoot, opts: Partial<WireframeOpts> = {}, w = 900) => layoutWireframe({type: 'wireframe', root, h: 420, ...opts}, 0, 0, w, widthOf);
 const isText = (p: {k: string}): p is PrimText => p.k === 'text';
-const texts = (b: {prims: {k: string}[]}) => b.prims.filter(isText).map(p => p.s);
+const texts = (b: {prims: {k: string}[]}) => b.prims.flatMap(p => p.k === 'badge' || p.k === 'pill' ? [(p as unknown as {label: string}).label] : isText(p) ? [p.s] : []);
 const robot = (o: Partial<WfRobotOpts> = {}) => wf.robot({name: 'A', battery: 0.82, link: 3, last: '1 秒前', ...o});
 
 test('robot card: the signal never overlaps the battery text, whatever its length', () => {
@@ -25,10 +25,17 @@ test('robot card: a narrow frame stacks its rows (nothing sticks out)', () => {
   assert.ok(rows.size >= 4, 'name, battery, signal and last-received sit on separate rows');
 });
 
-test('callouts get an invisible backing rect of their own (so a number on a frame edge is not "spilling")', () => {
+test('callouts are badges: one accessible primitive each, no invisible backing rect', () => {
   const b = wfLayout(wf.col([wf.btn('x', {n: 1})]));
-  const backing = b.prims.find(p => p.k === 'rect' && p.fill === 'bg' && p.op === 0 && p.w === 24);
-  assert.ok(backing, 'backing rect');
+  const badge = b.prims.find(p => p.k === 'badge');
+  assert.ok(badge && badge.k === 'badge' && badge.label === '1' && badge.aria === '注釈 1');
+  assert.ok(!b.prims.some(p => p.k === 'rect' && p.op === 0), 'no invisible rect');
+});
+
+test('a badge widens for a long label and keeps the base radius for a short one', () => {
+  const w = (label: string) => { const p = wfLayout(wf.col([wf.btn('x', {n: label as unknown as number})])).prims.find(q => q.k === 'badge'); return p && p.k === 'badge' ? p.w : 0; };
+  assert.equal(w('1'), 22);
+  assert.ok(w('1234') > 22);
 });
 
 test('state works on any widget: loading = skeleton, empty = message, stale = readable with a badge', () => {
@@ -55,7 +62,7 @@ test('fusion: a layer with a state is shown disabled and the rest keep working',
 
 test('anatomy: numbers on the inner parts of a component', () => {
   const b = wfLayout(wf.col([wf.insight({title: 'T', evidence: [{kind: 'k', at: 't'}], parts: {level: 1, title: 2, evidence: 3, reference: 4}})]));
-  const nums = b.prims.filter(isText).filter(p => p.fill === 'bg' && /^[1-4]$/.test(p.s)).map(p => p.s).sort();
+  const nums = b.prims.flatMap(p => p.k === 'badge' && /^[1-4]$/.test(p.label) ? [p.label] : []).sort();
   assert.deepEqual(nums, ['1', '2', '3', '4']);
 });
 

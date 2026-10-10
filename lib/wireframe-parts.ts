@@ -14,6 +14,7 @@
 // Everything is token-coloured (bg/text/muted/border/code/danger/accent/soft), >= 14px text, and every state
 // is shown by shape, hatching or words as well as colour (WCAG 1.4.1).
 
+import {toneStyle} from './tokens.ts';
 import type {
   ColorKey, GlyphOpts, WfAutoWTable, WfBattery, WfBreadcrumb, WfCallout, WfCheckbox, WfCompare, WfCtx, WfFusion, WfFusionLayerSpec, WfHelpers, WfInsight,
   WfInsightOpts, WfNode, WfPartKey, WfPartsApi, WfRadio, WfRegion, WfRobot, WfSignal, WfSlider, WfState, WfToggle, WfTone, WfType,
@@ -23,7 +24,7 @@ interface StateInfo {title: string; tone: ColorKey}
 interface FusionLayer extends WfFusionLayerSpec {kind: 'camera' | 'cloud' | 'thermal'; bad: WfState | undefined; on: boolean}
 
 export function installParts(h: WfHelpers): WfPartsApi {
-  const {wf, DRAW, NAT, AUTO_W, S, T, lh, rect, circle, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder} = h;
+  const {wf, DRAW, NAT, AUTO_W, S, T, lh, rect, circle, badge, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder} = h;
   const mk = (t: WfType, o: object = {}) => ({t, ...o});
 
   // ---- constructors ----------------------------------------------------------------------
@@ -46,10 +47,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
   // A robot marker: shape + letter, so two vehicles never differ by colour alone.
   function glyph(ctx: WfCtx, cx: number, cy: number, o: GlyphOpts = {}) {
     const shape = o.shape ?? 'circle', r = o.r ?? 11, fill = o.fill ?? 'accent';
-    if (shape === 'square') rect(ctx, cx - r, cy - r, 2 * r, 2 * r, {r: 3, fill, stroke: 'bg', sw: 2});
-    else if (shape === 'triangle') path(ctx, pts([[cx, cy - r - 3], [cx + r + 3, cy + r], [cx - r - 3, cy + r]]) + ' Z', {fill, stroke: 'bg', sw: 2});
-    else circle(ctx, cx, cy, r, {fill, stroke: 'bg', sw: 2});
-    if (o.id) text(ctx, o.id, cx, mid(cy + (shape === 'triangle' ? 4 : 0)), {weight: 700, fill: 'bg', anchor: 'middle'});
+    badge(ctx, cx, cy, o.id ?? '', {shape, r, fill, aria: o.id ? `ロボット ${o.id}` : 'ロボット'});
   }
   const dirOf = (deg: number): [number, number] => { const a = (deg - 90) * Math.PI / 180; return [Math.cos(a), Math.sin(a)]; }; // 0 = up, clockwise
   function headingArrow(ctx: WfCtx, px: number, py: number, deg: number, r: number) {
@@ -253,10 +251,15 @@ export function installParts(h: WfHelpers): WfPartsApi {
     if (!n.evidence?.length) throw new Error(`${name}: evidence is required — an insight shows the data it rests on and when it was taken`);
     for (const e of n.evidence) if (!e.kind || !e.at) throw new Error(`${name}: every evidence needs {kind, at} — kind of data and its acquisition time`);
   }
+  // an insight level is a chip tone and a label; the card's outline and side bar are that tone's own colours (tokens.ts TONES)
+  const levelOf = (chip: WfTone, label: string): {chip: WfTone; label: string; stroke: ColorKey; bar: ColorKey} => {
+    const t = toneStyle(chip);
+    return {chip, label, stroke: t.chipStroke ?? t.stroke ?? t.fill, bar: t.ink};
+  };
   const LEVEL: Record<'danger' | 'warn' | 'info', {chip: WfTone; label: string; stroke: ColorKey; bar: ColorKey}> = {
-    danger: {chip: 'solid-danger', label: '要確認', stroke: 'danger', bar: 'danger'},
-    warn: {chip: 'danger', label: '注意', stroke: 'danger', bar: 'danger'},
-    info: {chip: 'muted', label: '参考', stroke: 'border', bar: 'muted'},
+    danger: levelOf('solid-danger', '要確認'),
+    warn: levelOf('danger', '注意'),
+    info: levelOf('muted', '参考'),
   };
   function insightData(n: WfInsight, w: number, ctx: WfCtx) {
     checkInsight(n);
