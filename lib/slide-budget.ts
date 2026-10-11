@@ -23,7 +23,7 @@ import path from 'path';
 import net from 'net';
 import crypto from 'crypto';
 import {spawn} from 'child_process';
-import {chromium} from 'playwright-chromium';
+import {launchChromium} from './browser.ts';
 import {computeSlideIndex} from './slide-index.ts';
 import type {SlideBudget} from './types.ts';
 
@@ -78,7 +78,7 @@ async function withDevServer<T>(fn: (base: string) => Promise<T>): Promise<T> {
 }
 
 async function measure(base: string, index: number, svg: string) {
-  const browser = await chromium.launch();
+  const browser = await launchChromium();
   try {
     const p = await browser.newPage({viewport: {width: SLIDE_W, height: SLIDE_H}});
     // Vite may inline a small SVG as a data: URI, so match by path first and

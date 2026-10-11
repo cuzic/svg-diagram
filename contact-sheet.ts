@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {chromium} from 'playwright-chromium';
+import {launchChromium} from './lib/browser.ts';
 
 const args = process.argv.slice(2);
 const val = (n: string, d: string) => { const i = args.indexOf(n); return i === -1 ? d : args[i + 1]; };
@@ -17,7 +17,7 @@ const html = `<body style="margin:0;background:#fff;font:14px sans-serif"><div s
 }</div></body>`;
 const page_html = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'contact-')), 'sheet.html');
 fs.writeFileSync(page_html, html);
-const browser = await chromium.launch({args: ['--no-sandbox']});
+const browser = await launchChromium({args: ['--no-sandbox']}).catch(e => { console.error((e as Error).message); process.exit(1); });
 const page = await browser.newPage({viewport: {width, height: 800}});
 await page.goto(`file://${page_html}`, {waitUntil: 'load'});
 await page.screenshot({path: out, fullPage: true});

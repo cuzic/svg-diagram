@@ -18,8 +18,8 @@ Node.js 22.18 以上と pnpm が必要。
     pnpm exec svg-diagram typecheck     # 図のソースを型検査（案件側の tsc を使う）
     pnpm exec svg-diagram build diagrams/*.ts
 
-pnpm 10 以降は、`playwright-chromium`（文字幅の測定に使う）のビルドスクリプトを許可する必要がある。`svg-diagram init` が `pnpm-workspace.yaml`（`allowBuilds:` の下に `playwright-chromium: true`）を作る。先に `pnpm add` していて `ERR_PNPM_IGNORED_BUILDS` で止まったときは、この 2 行を書くか `pnpm approve-builds` を実行する。
-CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagrams/*.ts`。ソースのハッシュと SVG の埋め込み情報を比べるだけで、ブラウザは起動しない（`--rebuild` を付けたときだけ起動する）。この用途の CI では Chromium の取得を省ける: `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install`（`build`・`lint`・`check --rebuild` を使う job では省かない）。
+**ブラウザ（`playwright-chromium`）は要らない。** レイアウト、`build`、`check`、`renderSource` はフォントファイルから文字幅を読むので、ブラウザなしで動く。ブラウザが要るのは、実際の描画を見る次の用途だけで、どれも `pnpm add -D playwright-chromium`（pnpm 10 以降は `pnpm approve-builds` も）と `pnpm exec playwright install chromium` で足す: `lint` の描画を見る検査（コントラスト・はみ出し・文字の重なり・図形が文字に被る）、`diagram({slide})` の空き寸法の実測、`"measure": "chromium"`。入っていないときの `lint` は、文字列の検査（13 項目）だけを行い、描画を見る検査は「実行していない」と表示する（成功にはしない）。
+CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagrams/*.ts`（ソースのハッシュと SVG の埋め込み情報を比べるだけ。`--rebuild` を付けても、ブラウザは要らない）。
 
 ### 開発（このリポジトリ）
 

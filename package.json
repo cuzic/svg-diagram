@@ -9,8 +9,15 @@
   },
   "dependencies": {
     "harfbuzzjs": "^1.6.3",
-    "playwright-chromium": "1.62.1",
     "sixel": "^0.16.0"
+  },
+  "peerDependencies": {
+    "playwright-chromium": "^1.62.1"
+  },
+  "peerDependenciesMeta": {
+    "playwright-chromium": {
+      "optional": true
+    }
   },
   "scripts": {
     "test": "node --test \"test/*.test.ts\"",
@@ -40,6 +47,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
+    "playwright-chromium": "1.62.1",
     "typescript": "^7.0.2"
   },
   "types": "./dist/lib/dsl.d.ts",

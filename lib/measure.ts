@@ -18,8 +18,8 @@
 // passes layout here cannot then disagree with lint-svg.ts about whether
 // something fits.
 
-import {chromium} from 'playwright-chromium';
 import type {Browser} from 'playwright-chromium';
+import {launchChromium} from './browser.ts';
 import {FONT_STACKS} from './tokens.ts';
 import type {Config, FontFamily, FontSpecs, MeasureRequest, Measured, WidthOf} from './types.ts';
 import {loadConfig} from './config.ts';
@@ -61,7 +61,7 @@ function escapeXml(s: string): string {
 
 let browserPromise: Promise<Browser> | null = null;
 function getBrowser(): Promise<Browser> {
-  browserPromise ??= chromium.launch({args: ['--no-sandbox']});
+  browserPromise ??= launchChromium({args: ['--no-sandbox']}).catch(e => { browserPromise = null; throw e; });
   return browserPromise;
 }
 

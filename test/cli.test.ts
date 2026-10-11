@@ -263,11 +263,11 @@ test('init makes a project that typechecks its type setting, and never overwrite
   const fresh = fs.mkdtempSync(path.join(os.tmpdir(), 'svgd-init-'));
   assert.equal(spawnSync(BIN, ['init'], {cwd: fresh, encoding: 'utf8'}).status, 0);
   assert.ok(JSON.parse(fs.readFileSync(path.join(fresh, 'tsconfig.json'), 'utf8')).compilerOptions.noEmit);
-  // pnpm 10+ refuses playwright-chromium's install script unless the workspace allows it
-  assert.match(fs.readFileSync(path.join(fresh, 'pnpm-workspace.yaml'), 'utf8'), /allowBuilds:\n {2}playwright-chromium: true/);
+  // the browser is optional: init creates no pnpm-workspace.yaml for it, and says how to add it
+  assert.equal(fs.existsSync(path.join(fresh, 'pnpm-workspace.yaml')), false);
   fs.writeFileSync(path.join(dir, 'pnpm-workspace.yaml'), 'packages: []\n');
-  assert.match(out(spawnSync(BIN, ['init'], {cwd: dir, encoding: 'utf8'})), /playwright-chromium/); // warns, leaves the file alone
-  assert.equal(fs.readFileSync(path.join(dir, 'pnpm-workspace.yaml'), 'utf8'), 'packages: []\n');
+  assert.match(out(spawnSync(BIN, ['init'], {cwd: dir, encoding: 'utf8'})), /playwright-chromium/);
+  assert.equal(fs.readFileSync(path.join(dir, 'pnpm-workspace.yaml'), 'utf8'), 'packages: []\n'); // left alone
   const t = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8'});
   assert.equal(t.status, 2); // no typescript in a bare temp project: says how to install it
   assert.match(out(t), /typescript/);

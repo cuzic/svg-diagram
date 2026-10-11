@@ -11,9 +11,6 @@ importers:
       harfbuzzjs:
         specifier: ^1.6.3
         version: 1.6.3
-      playwright-chromium:
-        specifier: 1.62.1
-        version: 1.62.1
       sixel:
         specifier: ^0.16.0
         version: 0.16.0
@@ -21,6 +18,9 @@ importers:
       '@types/node':
         specifier: ^26.6.4
         version: 26.6.4
+      playwright-chromium:
+        specifier: 1.62.1
+        version: 1.62.1
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

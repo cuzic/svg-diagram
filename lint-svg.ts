@@ -22,7 +22,8 @@
 //
 // Exit code is 0 iff zero ERROR-tier findings (or, with --strict, zero
 // findings of any tier).
-import {chromium} from 'playwright-chromium';
+import type {Browser} from 'playwright-chromium';
+import {launchChromium} from './lib/browser.ts';
 import fs from 'fs';
 import {ALLOWED_COLORS, EMOJI_RE} from './lib/tokens.ts';
 
@@ -165,19 +166,21 @@ for (const f of files) {
 }
 
 // ---- render-based checks: contrast (composited) + canvas overflow -------
-const browser = await chromium.launch({args: ['--no-sandbox']});
-const page = await browser.newPage();
+// No browser installed: the static checks above still ran; these do not (the report says so).
+let browser: Browser | null = null, renderSkipped = '';
+try { browser = await launchChromium({args: ['--no-sandbox']}); } catch (e) { renderSkipped = (e as Error).message; }
+const page = browser ? await browser.newPage() : null;
 const contrastFindings: {file: string; elements: {txt: string; delta: number; fg: string; bg: string}[]}[] = [];
 const overflowFindings = [];
 const textOverlapFindings = [];
 const containerOverflowFindings = [];
 const coveredFindings = [];
 
-for (const f of files) {
+for (const f of page ? files : []) {
   const src = fs.readFileSync(f, 'utf8');
-  await page.setContent(`<body style="margin:0">${src}</body>`);
+  await page!.setContent(`<body style="margin:0">${src}</body>`);
 
-  const result = await page.evaluate(() => {
+  const result = await page!.evaluate(() => {
     const svg = document.querySelector('svg') as SVGSVGElement | null;
     if (!svg) return null;
     const vb = svg.viewBox.baseVal;
@@ -330,7 +333,7 @@ for (const f of files) {
   if (result.containerOverflow.length) containerOverflowFindings.push({file: f, items: result.containerOverflow});
   if (result.covered.length) coveredFindings.push({file: f, items: result.covered});
 }
-await browser.close();
+await browser?.close();
 
 // ---- report ---------------------------------------------------------------
 const totalStatic = staticFindings.length;
@@ -344,6 +347,7 @@ const totalAdvisory = advisoryFindings.length + totalContainerOverflow + totalCo
 const total = totalError + totalAdvisory;
 
 console.log(`\nScanned ${files.length} file(s).\n`);
+if (renderSkipped) console.log(`⚠ The checks on the rendering (contrast, overflow, text overlap, text out of its box, shapes over text) were NOT run:\n${renderSkipped.split('\n').map(l => '  ' + l).join('\n')}\n`);
 
 if (fixedFiles.length) {
   console.log(`── Fixed (--fix): ${fixedFiles.length} ──`);
