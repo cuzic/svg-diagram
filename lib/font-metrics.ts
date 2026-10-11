@@ -114,6 +114,11 @@ function measureText(f: Loaded, family: FontFamily, text: string, size: number, 
   return {w};
 }
 
+/** The code points the font that measures `family` at this weight has a glyph for; null when none can be found. */
+export function fontCoverage(family: FontFamily, weight = 400, specs?: FontSpecs): ReadonlySet<number> | null {
+  return fontFor(family, weight, specs, false)?.covered ?? null;
+}
+
 /** Whether the fonts that measure sans, mono and emoji between them have a glyph for every visible character of `text`. */
 export function fontsCover(text: string, specs?: FontSpecs): boolean {
   const fonts = (['sans', 'mono', 'emoji'] as const).flatMap(f => [400, 700].map(w => fontFor(f, w, specs, false))).filter((f): f is Loaded => f !== null);

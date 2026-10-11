@@ -3,8 +3,15 @@
 // Two engines. 'resvg' (the default) is a Rust renderer with no browser: it draws with the font files the measuring uses
 // (lib/font-metrics.ts), so what you see is what was laid out. 'chromium' draws the SVG as an <img> in a real browser, the way a
 // web page shows it (playwright-chromium, optional). 'auto' is resvg, or Chromium if resvg cannot be loaded here.
-import {fontsCover, resolveFontFile} from './font-metrics.ts';
-import type {FontSpecs} from './types.ts';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {fontCoverage, resolveFontFile} from './font-metrics.ts';
+import {subsetFont} from './font-subset.ts';
+import {computeStyles, elements, parseXml, type El} from './svg-dom.ts';
+import {familyKind} from './svg-geom.ts';
+import {EMOJI_RE} from './tokens.ts';
+import type {FontFamily, FontSpecs} from './types.ts';
 import {xmlProblems} from './xml-check.ts';
 
 export type RasterEngine = 'auto' | 'resvg' | 'chromium';
@@ -33,28 +40,72 @@ export const NOT_LOADABLE = `a figure could not be drawn: @resvg/resvg-js could 
 let resvgModule: Promise<typeof import('@resvg/resvg-js')> | null = null;
 const loadResvg = () => (resvgModule ??= import('@resvg/resvg-js'));
 
-/** The font files resvg is given: what the measuring reads (sans, mono, emoji; regular and bold), so layout and picture agree. */
-export function fontFilesForResvg(specs?: FontSpecs): {files: string[]; sans: string; mono: string} {
-  const found = (['sans', 'mono', 'emoji'] as const).flatMap(f => [400, 700].map(w => ({f, w, r: resolveFontFile(f, w, specs)}))).filter(x => x.r);
+/**
+ * What resvg draws this figure with. It parses every font it is given on every drawing and cannot keep them between drawings, which for a
+ * 14 MB Japanese font is seconds; so it is given, per font the figure needs (sans, bold, mono, emoji: only those used), that font cut down to the
+ * characters of the figure (lib/font-subset.ts). The pixels are the same. The system's fonts are read as well only when some character of the
+ * figure has no glyph in the layout's fonts (resvg falls back per glyph; reading them costs seconds). Call `cleanup()` when the drawing is done:
+ * the cut fonts are temporary files.
+ */
+export function prepareResvgFonts(svg: string, specs?: FontSpecs): {options: ResvgFontOptions; cleanup: () => void} {
+  let root: El | null = null;
+  try { root = parseXml(svg); } catch { /* an SVG resvg will reject anyway: take every font, whatever the text */ }
+  const styles = root ? computeStyles(root) : null;
+  const roles = new Set<string>(); // 'sans:400', 'sans:700', 'mono:400', ...
+  const chars = new Set<number>();
+  if (root && styles) {
+    for (const t of elements(root).filter(e => e.tag === 'text')) {
+      const walk = (e: El) => {
+        for (const c of e.children) {
+          if (typeof c !== 'string') { if (c.tag === 'tspan' || c.tag === 'a') walk(c); continue; }
+          for (const ch of c) if (!/[\n\r\t]/.test(ch)) chars.add(ch.codePointAt(0)!); // (a newline or tab in the source is drawn as a space: the cut adds that one)
+          const st = styles.get(e)!;
+          roles.add(`${familyKind(st.fontFamily)}:${st.fontWeight >= 600 ? 700 : 400}`);
+        }
+      };
+      walk(t);
+    }
+  } else for (const r of ['sans:400', 'sans:700', 'mono:400', 'mono:700', 'emoji:400']) roles.add(r);
+  for (const cp of chars) if (EMOJI_RE.test(String.fromCodePoint(cp))) roles.add('emoji:400');
+  const drawn = [...chars].some(cp => cp > 0x20); // any character to draw at all (a figure of shapes needs no font)
+
+  const resolve = (role: string) => { const [family, weight] = role.split(':'); return {role, r: resolveFontFile(family as FontFamily, +weight, specs), cov: fontCoverage(family as FontFamily, +weight, specs)}; };
+  const loaded = [...roles].map(resolve).filter(x => x.r);
+  // a character none of the needed fonts has may be in another of the layout's fonts (a symbol only the emoji font draws): take that one too
+  const missing = (list: typeof loaded) => [...chars].filter(cp => cp > 0x20 && !list.some(x => x.cov!.has(cp)));
+  for (const cp of missing(loaded)) {
+    const extra = ['sans:400', 'mono:400', 'emoji:400'].filter(r => !loaded.some(x => x.role === r)).map(resolve).find(x => x.r && x.cov!.has(cp));
+    if (extra) loaded.push(extra);
+  }
+  const needSystem = drawn && (loaded.length === 0 || missing(loaded).length > 0);
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'svg-diagram-fonts-'));
+  const files: string[] = [], seen = new Set<string>();
+  let n = 0;
+  for (const {r} of loaded) {
+    const key = `${r!.file}#${r!.index}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    try {
+      const out = path.join(dir, `${n++}.ttf`);
+      fs.writeFileSync(out, subsetFont(fs.readFileSync(r!.file), r!.index, [...chars, 0x20, 0xa0])); // a space is a glyph too: without it the gaps take another font's width
+      files.push(out);
+    } catch { files.push(r!.file); } // a font HarfBuzz cannot cut: resvg gets it whole
+  }
+  const first = (family: FontFamily) => loaded.find(x => x.role.startsWith(`${family}:`))?.r?.name ?? ''; // (only fonts the figure uses are looked up at all)
+  const sans = first('sans'), mono = first('mono');
   return {
-    files: [...new Set(found.map(x => x.r!.file))],
-    sans: found.find(x => x.f === 'sans')?.r?.name ?? '',
-    mono: found.find(x => x.f === 'mono')?.r?.name ?? '',
+    options: {
+      fontFiles: files,
+      loadSystemFonts: needSystem,
+      ...(sans ? {defaultFontFamily: sans, sansSerifFamily: sans} : {}),
+      ...(mono ? {monospaceFamily: mono} : {}),
+    },
+    cleanup: () => fs.rmSync(dir, {recursive: true, force: true}),
   };
 }
 
-/** The `font` options resvg is given for this figure. The layout's fonts first; the system's fonts are read as well only when some visible
- *  character of the figure has no glyph in them (resvg falls back per glyph, and reading them costs seconds). */
-export function resvgFontOptions(svg: string, fonts?: FontSpecs) {
-  const f = fontFilesForResvg(fonts);
-  const visible = svg.replace(/<style[\s\S]*?<\/style>|<metadata[\s\S]*?<\/metadata>|<[^>]*>/g, '');
-  return {
-    fontFiles: f.files,
-    loadSystemFonts: f.files.length === 0 || !fontsCover(visible, fonts),
-    ...(f.sans ? {defaultFontFamily: f.sans, sansSerifFamily: f.sans} : {}),
-    ...(f.mono ? {monospaceFamily: f.mono} : {}),
-  };
-}
+export interface ResvgFontOptions {fontFiles: string[]; loadSystemFonts: boolean; defaultFontFamily?: string; sansSerifFamily?: string; monospaceFamily?: string}
 
 export async function rasterizeWithResvg(svg: string, {scale = 1, png = false, fonts}: {scale?: number; png?: boolean; fonts?: FontSpecs} = {}): Promise<Raster> {
   const size = svgSize(svg);
@@ -64,13 +115,15 @@ export async function rasterizeWithResvg(svg: string, {scale = 1, png = false, f
   let Resvg: typeof import('@resvg/resvg-js').Resvg;
   try { ({Resvg} = await loadResvg()); } catch { throw new Error(NOT_LOADABLE); }
   let rendered;
+  const prepared = prepareResvgFonts(svg, fonts);
   try {
     rendered = new Resvg(svg, {
       background: '#ffffff',
       fitTo: scale === 1 ? {mode: 'original'} : {mode: 'zoom', value: scale},
-      font: resvgFontOptions(svg, fonts),
+      font: prepared.options,
     }).render();
   } catch (e) { throw new Error(`could not load it as an <img>: ${(e as Error).message}`); }
+  finally { prepared.cleanup(); }
   return {width: rendered.width, height: rendered.height, rgba: Buffer.from(rendered.pixels), png: png ? Buffer.from(rendered.asPng()) : undefined};
 }
 
