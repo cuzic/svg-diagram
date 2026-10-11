@@ -89,6 +89,32 @@ map・video 等は残りの高さを埋める。`overlay` / `overlayRight` で�
 ## くり返しをまとめる書き方
 同じ指定を図の中で何度も書くときの、まとめ方。
 
+### 大きな数値と棒グラフ
+
+`stat(value, label, opts)` は、大きな値と補足ラベルを中央揃えにした plain の `box()` を返すため、そのまま `row()` に入れられる。`size` は `'stat'`（34px、既定）または `'display'`（56px）。`tone` は値の文字だけに付き、ラベルは muted、箱の見た目は変わらない。値は折り返さず、幅に収まらない図は検証エラーになる。
+
+```ts
+row([
+  stat('76%', '導入前', {tone: 'danger'}),
+  stat('31%', '導入後', {tone: 'accent', size: 'display'}),
+])
+```
+
+`bars(data, opts)` は横棒（既定）、縦棒（`dir: 'v'`）、積み上げ（`stack: true`）を描く。`series` は `a | b | c` で、それぞれ accent / text / muted。`max` を省くと通常は最大値、積み上げでは合計値になる。値ラベルは必ず描かれ、`unit` は値の後ろに付く。各項目の `id` は `connect()` のアンカーとして使える。
+
+```ts
+bars([
+  {id: 'before', label: '導入前', value: 76, series: 'a'},
+  {id: 'after', label: '導入後', value: 31, series: 'b'},
+], {max: 100, unit: '%'})
+
+bars([
+  {label: '企画', value: 16, series: 'a'},
+  {label: '実装', value: 34, series: 'b'},
+  {label: '運用', value: 50, series: 'c'},
+], {max: 100, unit: '%', stack: true})
+```
+
 - **12 列の行**: `row([a, b], {cols: [6, 6]})`（子ごとの幅だけを並べる。`col` を手で数えない）。`span` を各子に書く形では、`col` は前の子の次の列から自動で進む。`cols` を指定した行は、ラベルつきの接続線のために隙間が広がるとき、**同じ `cols` と `gap` の行すべて**で広がり、列の縁はそろったまま。
 - **別の行の N 列目へ矢印をつなぐ**: `const top = row([...], {cols: 12, id: 'top'})` のあと `connect(a.bottom, top.col(5).top)`、`top.col(5, 6)` は 5〜6 列。`cols` のない行では N 番目の子。列の中の箱は、その端点の一部とみなされ、線が通っても重なりの警告にならない。
 - **接続線の既定値**: `diagram({connectDefaults: {chip: true, route: 'elbow'}})` と `d.connect(from, to, {label})`（`d.add(connect(...))` と同じ。`chip` は `label` のある線だけに効く。線ごとに指定した値が優先）。

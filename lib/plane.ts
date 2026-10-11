@@ -23,11 +23,11 @@ export function planeTexts(band: PlaneBand): [string, number, number, FontFamily
 }
 
 const fmt = (n: number): string => String(parseFloat(n.toFixed(6)));
-function niceStep(range: number): number {
+export function niceStep(range: number): number {
   const raw = range / 6, mag = 10 ** Math.floor(Math.log10(raw)), f = raw / mag;
   return mag * (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10);
 }
-function ticksOf(axis: PlaneBand['x']): {at: number; label: string}[] {
+export function ticksOf(axis: PlaneBand['x']): {at: number; label: string}[] {
   if (axis.ticks) return axis.ticks.map(t => typeof t === 'number' ? {at: t, label: fmt(t)} : t);
   const min = axis.min ?? 0, step = axis.step ?? niceStep(axis.max - min), out: {at: number; label: string}[] = [];
   if (!(step > 0) || !Number.isFinite(step)) throw new Error(`plane(): an axis step must be a number > 0 (got ${axis.step})`);

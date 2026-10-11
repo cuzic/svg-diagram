@@ -1,5 +1,5 @@
 // Type-level tests: option shapes that are discriminated unions, tuples and literal unions. Never executed (see ids.ts).
-import {diagram, box, banner, caption, connect, branch, grid, row, pyramid, curve, raw, screens, wireframe, wf} from '../../lib/dsl.ts';
+import {diagram, box, banner, bars, caption, connect, branch, grid, row, pyramid, curve, raw, screens, stat, wireframe, wf} from '../../lib/dsl.ts';
 
 export function optionCases(): void {
   // ---- diagram(): theme | day is required; fill needs slide ----
@@ -51,6 +51,20 @@ export function optionCases(): void {
   box({title: 'T', tone: 'warning'});
   // @ts-expect-error a banner needs its headline
   banner({sub: 'x'});
+
+  stat('76%', '率', {size: 'display', tone: 'danger'});
+  row([stat(10, '件数'), stat(20, '金額')]);
+  // @ts-expect-error stat has only the two semantic sizes
+  stat('76%', '率', {size: 'hero'});
+  // @ts-expect-error display is a text role, not a box tone
+  stat('76%', '率', {tone: 'display'});
+
+  bars([{label: 'A', value: 1, series: 'a', id: 'a'}], {max: 2, dir: 'h'});
+  bars([{label: 'A', value: 1}, {label: 'B', value: 2}], {dir: 'v', stack: true, unit: '%'});
+  // @ts-expect-error unknown series
+  bars([{label: 'A', value: 1, series: 'danger'}]);
+  // @ts-expect-error unknown direction
+  bars([{label: 'A', value: 1}], {dir: 'horizontal'});
 
   // ---- connect(): route-specific and label-specific options ----
   connect('a', 'b');

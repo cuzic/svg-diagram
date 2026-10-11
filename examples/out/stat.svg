@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="214" viewBox="0 0 940 214" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">導入前後の離脱率</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/stat.ts","sourceSha256":"f7745cb7fc1e2f444ed4f3dcf7b5cfa417adec8037ed141c59a340795b8883a6"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="214" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">導入前後の離脱率</text>
+
+  <rect x="20" y="56" width="444" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="241" y="127.6" text-anchor="middle" font-size="56" font-weight="700" fill="#b91c1c">76%</text>
+  <text x="241" y="172" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">導入前</text>
+
+  <rect x="480" y="56" width="444" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="699" y="127.6" text-anchor="middle" font-size="56" font-weight="700" fill="#1d5fa8">31%</text>
+  <text x="699" y="172" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">導入後</text>
+</svg>

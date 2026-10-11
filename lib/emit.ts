@@ -10,7 +10,7 @@ import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES, CONNECT_LABEL_SIZE, TAG_SIZE, col
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
-  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
+  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
   LaidOutConnect, WrappedRun, Theme, TextTone, BoxTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
   LaidOutWireframe, LaidOutScreens, RawColorTone,
 } from './types.ts';
@@ -270,6 +270,22 @@ function renderPlane(b: LaidOutPlane, day: Theme): string {
   return out.join('\n  ');
 }
 
+function renderBars(b: LaidOutBars, day: Theme): string {
+  const col = (k: ColorKey) => colorOf(k, day);
+  const out: string[] = [];
+  for (const t of b.ticks) out.push(`<path d="M${Math.round(t.x1)},${Math.round(t.y1)} L${Math.round(t.x2)},${Math.round(t.y2)}" fill="none" stroke="${PALETTE.border}" stroke-width="2"/>`);
+  for (const r of b.bars) {
+    const x = Math.round(r.x * 100) / 100, y = Math.round(r.y * 100) / 100;
+    const right = Math.round((r.x + r.w) * 100) / 100, bottom = Math.round((r.y + r.h) * 100) / 100;
+    out.push(`<path d="M${x},${y} H${right} V${bottom} H${x} Z" fill="${col(r.fill)}"/>`);
+  }
+  for (const t of b.texts) {
+    const anchor = t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`;
+    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${anchor} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${col(t.fill)}">${emojiSpan(t.text)}</text>`);
+  }
+  return out.join('\n  ');
+}
+
 function renderRaw(band: LaidOutRaw, day: Theme): string {
   const ctx = {
     x: band.x, y: band.y, w: band.w, h: band.h, day,
@@ -450,6 +466,7 @@ function renderBand(band: LaidOutBand, day: Theme): string {
     case 'pyramid': return renderPyramid(band);
     case 'curve': return renderCurve(band, day);
     case 'plane': return renderPlane(band, day);
+    case 'bars': return renderBars(band, day);
     default: return '';
   }
 }

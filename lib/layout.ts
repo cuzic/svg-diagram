@@ -19,6 +19,7 @@ import {splitAtoms, measureAll, textWidth} from './measure.ts';
 import {wrapAtoms} from './wrap.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {layoutPlane, planeTexts} from './plane.ts';
+import {barsTexts, layoutBars} from './bars.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {
   DiagramData, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
@@ -60,7 +61,7 @@ function textRuns(band: Band): TextRun[] {
       if (band.body) runs.push({text: band.body, size: ROLES.body, weight: 400, mono: !!band.bodyMono, tone: band.bodyTone});
       if (band.lines) for (const l of band.lines) {
         const line: Exclude<typeof l, string> = typeof l === 'string' ? {text: l} : l;
-        runs.push({text: line.text, size: ROLES[line.role ?? 'body'], weight: line.bold ? 700 : 400, mono: !!line.mono, tone: line.tone});
+        runs.push({text: line.text, size: ROLES[line.role ?? 'body'], weight: line.bold ? 700 : 400, mono: !!line.mono, tone: line.tone, nowrap: band.statValue === line.text && runs.length === 0});
       }
       if (band.note) runs.push({text: band.note, size: ROLES.note, weight: 400, mono: false, tone: band.noteTone ?? 'muted'});
       return runs;
@@ -109,7 +110,7 @@ function layoutBoxContent(band: Band, wrapWidth: number, widthOf: WidthOf): {wra
     const font = run.mono ? 'mono' : 'sans';
     const indent = run.indent ?? 0;
     const atomW = (atom: string) => widthOf(atom, run.size, run.weight, font);
-    const lines = wrapAtoms(splitAtoms(run.text), {maxWidth: wrapWidth - indent, atomWidth: atomW});
+    const lines = run.nowrap ? [run.text] : wrapAtoms(splitAtoms(run.text), {maxWidth: wrapWidth - indent, atomWidth: atomW});
     const lineYs = lines.map(() => {
       relY += run.size;
       const y = relY;
@@ -219,6 +220,8 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       }
     } else if (band.type === 'plane') {
       for (const [text, size, weight, font] of planeTexts(band)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'bars') {
+      for (const [text, size, weight, font] of barsTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'curve') {
       for (const label of [band.yTopLabel, band.yBottomLabel, band.xLabel]) {
         if (!label) continue;
@@ -314,6 +317,10 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     const {wrappedRuns, textHeight} = layoutBoxContent(band, wrapWidth, widthOf);
     const h = isBoxLike ? textHeight + 2 * (chrome.padY ?? BOX_PAD_Y) : textHeight;
     const placed = {...band, x, y, w, h, wrappedRuns} as unknown as Placed<B>; // spreading a generic loses the intersection
+    if (band.type === 'box') {
+      const overflow = wrappedRuns.filter(r => r.nowrap && textWidth(widthOf, r.text, r.size, r.weight, r.mono ? 'mono' : 'sans') > wrapWidth - (r.indent ?? 0) + 0.5).map(r => r.text);
+      if (overflow.length) (placed as Placed<BoxBand> & {nowrapOverflow?: string[]}).nowrapOverflow = overflow;
+    }
     if (chrome.tag) {
       const tw = textWidth(widthOf, chrome.tag, TAG_SIZE, 700) + 2 * TAG_PAD_X;
       placed.tagBox = {x: chrome.tagAt === undefined ? x + w - tw - 12 : x + w * chrome.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
@@ -352,6 +359,17 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     if (band.type === 'sequence' || band.type === 'table') {
       const placed = band.type === 'sequence' ? layoutSequence(band, padX, cursorY, cw, widthOf) : layoutTable(band, padX, cursorY, cw, widthOf);
       if (band.id) anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      laidOut.push(placed);
+      cursorY += placed.h + d.gap;
+      continue;
+    }
+
+    if (band.type === 'bars') {
+      const placed = layoutBars(band, padX, cursorY, cw, widthOf);
+      for (const a of placed.anchors) {
+        if (anchors.has(a.id)) claimed(a.id, 'a bar takes an id that another anchor already has');
+        anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
+      }
       laidOut.push(placed);
       cursorY += placed.h + d.gap;
       continue;

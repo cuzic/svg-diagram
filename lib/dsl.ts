@@ -1,7 +1,5 @@
 // Public API: a vertical stack of bands (caption, box, banner, spacer, raw,
-// row, grid, connect, pyramid, curve). bar() is the one primitive still
-// deferred — nothing in this deck has needed it since row()/grid() covered
-// the rest of the pattern catalog.
+// row, grid, connect, pyramid, curve, bars).
 //
 // Deliberately absent from every function signature: x, y, fill, stroke,
 // font-family, and (on the normal path) font-size/height. That absence IS
@@ -22,11 +20,11 @@ import {getSlideBudget, readSlideBudgetCache} from './slide-budget.ts';
 import {closeMeasurer} from './measure.ts';
 import {MIN_FONT_SIZE, ROLES, THEMES} from './tokens.ts';
 import type {
-  Band, BandInput, BannerBand, BannerOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
-  Role, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
+  Role, StatOpts, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
   GroupRowBand, PartRow, StateCellIn, StateMatrixCell, TableCellSpec, TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WfScreen, WfShellProps, WireframeBand, WireframeDefaults, WireframeOpts, Medium,
 } from './types.ts';
 import type {
@@ -117,6 +115,20 @@ export function box(opts: BoxOpts): BoxBand {
   if (opts.size !== undefined) assertFontSize(opts.size);
   if (opts.step != null && !opts.title) throw new Error('box({step}) needs a title — the badge aligns to the title\'s first line');
   return withHandle({type: 'box', ...opts}, opts.id);
+}
+
+/** A large, atomic value and its muted label. The result is an ordinary plain box, so it works in row(). */
+export function stat<const Id extends string = never>(value: string | number, label: string, opts?: StatOpts & {id?: Id}): BoxBand & Declares<Id> & HandleOf<Id>;
+export function stat(value: string | number, label: string, opts: StatOpts = {}): BoxBand {
+  if (opts.size !== undefined && opts.size !== 'stat' && opts.size !== 'display') throw new Error(`stat(): size must be 'stat' or 'display' (got ${opts.size})`);
+  const text = String(value);
+  return withHandle({
+    type: 'box', id: opts.id, flex: opts.flex, width: opts.width, col: opts.col, span: opts.span,
+    align: 'center', lines: [
+      {text, role: opts.size ?? 'stat', bold: true, tone: opts.tone},
+      {text: label, tone: 'muted'},
+    ], statValue: text,
+  }, opts.id);
 }
 
 export function banner<const Id extends string = never>(opts: BannerOpts & {id?: Id}): BannerBand & Declares<Id> & HandleOf<Id>;
@@ -611,6 +623,28 @@ export function plane(opts: PlaneOpts): PlaneBand {
     if (a.max <= (a.min ?? 0)) throw new Error(`plane(): axis ${k} needs max > min`);
   }
   return {type: 'plane', ...opts, height: opts.height ?? 300};
+}
+
+type BarIds<D extends readonly BarDatum[]> = Extract<D[number]['id'], string>;
+export function bars<const D extends readonly BarDatum[]>(data: D, opts?: BarsOpts): BarsBand & Declares<BarIds<D>> & AnchorsOf<BarIds<D>>;
+export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
+  if (!Array.isArray(data) || data.length === 0) throw new Error('bars(data) needs at least one value');
+  for (const d of data) {
+    if (!Number.isFinite(d.value)) throw new Error(`bars(): value for "${d.label}" must be finite (got ${d.value})`);
+    if (d.value < 0) throw new Error(`bars(): value for "${d.label}" must be >= 0 (got ${d.value})`);
+    if (d.series !== undefined && !['a', 'b', 'c'].includes(d.series)) throw new Error(`bars(): series for "${d.label}" must be a, b, or c (got ${d.series})`);
+  }
+  if (opts.dir !== undefined && opts.dir !== 'h' && opts.dir !== 'v') throw new Error(`bars(): dir must be 'h' or 'v' (got ${opts.dir})`);
+  if (data.every(d => d.value === 0)) throw new Error('bars(): all values are 0');
+  const stack = !!opts.stack;
+  const extent = stack ? data.reduce((n, d) => n + d.value, 0) : Math.max(...data.map(d => d.value));
+  const max = opts.max ?? extent;
+  if (!(max > 0) || !Number.isFinite(max)) throw new Error(`bars(): max must be a finite number > 0 (got ${max})`);
+  if (extent > max) throw new Error(`bars(): ${stack ? 'stack total' : 'a value'} (${extent}) exceeds max (${max})`);
+  const ids = data.map(d => d.id).filter((id): id is string => !!id);
+  if (new Set(ids).size !== ids.length) throw new Error('bars(): each id must be unique');
+  const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height};
+  return withAnchors(band, data.map(d => d.id));
 }
 
 // Escape hatch. `draw(ctx)` must return a raw SVG fragment string; it

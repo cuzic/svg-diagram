@@ -98,7 +98,7 @@ export const MIN_FONT_SIZE = 14;
 // construction — the DSL's normal box()/caption()/banner() path never lets a
 // caller pick a raw px number outside this table.
 export const ROLES: Record<Role, number> = {
-  title: 15, label: 14, body: 14, note: 14, banner: 16, stat: 34, hero: 18,
+  title: 15, label: 14, body: 14, note: 14, banner: 16, stat: 34, display: 56, hero: 18,
 };
 
 // Fixed sizes of text that is not a role: the label on a connector line and the tag pill on a box.
