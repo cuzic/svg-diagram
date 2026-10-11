@@ -1,6 +1,6 @@
 # ADR 0004: 資料づくりで見つかったツール側の改善要望(bars / spotlight / reveal / plane / table / 色 / 文字サイズ)
 
-- 状態: 提案(改訂 3。Opus レビュー 2 回分を反映。実装前)
+- 状態: 提案(改訂 3。Opus レビュー 2 回分を反映し、収束を確認。実装前)
 - 日付: 2026-10-11
 - 基点: `main`(ADR 0002・0003 の実装、表の行の高さ `rowh`、矢印の太さ `weight`、アイコンを含む)
 - 関連: ADR 0002(量・強調の部品)、ADR 0003(部分強調)
@@ -124,6 +124,7 @@ bars(data, {labels: 'all' | 'category' | 'none', axis: false, grid: false, basel
   4. **`a11y-nontext-contrast` の誤検知を直す**: stroke が null のトーンは `resolveBoxStyle` が stroke に fill を入れる(`emit.ts:56`)ため、`rules.ts:179` の `min(stroke と自分の塗り, stroke と白地)` が必ず 1.0:1 になる。stroke の無いトーンは「fill と白地」で判定する(accent と白地は 6.45 で通る)。
   5. **dim(spotlight)のとき**は、今の箱と同じく塗りを `bg`、文字を `muted` にする。白文字を残すと白地の上で見えなくなるので、dim の分岐が文字色の解決より**先**に来ることをテストする。
 - **凡例**: `tone:solid` は `line:solid`(実線)・`weight:strong` と接頭辞が違い、キーは衝突しない。意味の衝突がある: `accent` の凡例の既定ラベルは「強調」(`rules.ts:56`)なので、`solid` と併用した図の自動凡例は「主役 / 強調」になり、どちらが上か読めない。**(a) solid を使う図では `accent` の凡例ラベルを「次点」にする**(`legendLabels` で図ごとに変えられるなら、README にその例を書く)。`solid` のラベルは「主役」、`solid-danger` は「異常(強)」。凡例ラベルの無い tone を渡されたとき `legend: 'auto'` が `splitAtoms(undefined)` で落ちるのを、throw する検査に変える。
+- **実装時に決める 2 点**(Opus の最終確認で出たもの): (1) solid の箱では、**手順の番号バッジ(`step`)と `tag` の pill が箱の塗りと同じ accent 色**になり、見えなくなる(または溶ける)。白い縁を付けるか、solid との併用を throw にするかを決め、テストを足す。(2) `accent` の凡例ラベルを「次点」に変えるのが**自動**(solid を使う図で自動的に)か**利用者の指定**(`legendLabels`)かを決める。
 - **受け入れ条件**: solid の箱(title / body / note / lines / stat)が `verify` と `rules` の両方で**警告ゼロ**。group・表の行・sequence では型エラー。dim の solid の箱が読める。
 - bars の「次点」は、新しい系列色ではなく、既存の `SHADES`(不透明度の段)と `blendLuminance` / `bestTextColor` を使う(トークンの色に fill-opacity を付けるだけなので off-token-color を通る)。bars の系列 `d` を足す場合は、`dsl.ts:641` の `['a','b','c']` の直書きの検査、`BarSeries` 型、`SERIES` の対応表を更新する(bars の系列は凡例に載らない: `usedNotation` は box の tone しか見ない)。
 - `TextTone` には足さない(ADR 0003 の `em.*` が span の tone を `TextTone` に限っているのと整合する)。
