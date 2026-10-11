@@ -20,7 +20,7 @@
 import type {MIN_FONT_SIZE} from './tokens.ts';
 import type {
   Arrow, Bend, BoxOpts, PartRow, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SeqDivider, SeqNote, SequenceActor, SeqMessage, SeqSelf,
-  SlideRef, StateMatrixCell, SwimlaneFlow, SwimlaneStep, TextTone, Theme,
+  RichText, SlideRef, StateMatrixCell, SwimlaneFlow, SwimlaneStep, TextTone, Theme,
 } from './types.ts';
 
 // ============================================================================================
@@ -157,7 +157,7 @@ type FillRule = {fill?: false; slide?: SlideRef} | {fill: true; slide: SlideRef}
 export type DiagramInput = DiagramOpts & ThemeRule & FillRule;
 
 /** box({step}) needs a title (the badge aligns to the title's first line). */
-type StepRule = {step?: undefined} | {step: number | string; title: string};
+type StepRule = {step?: undefined} | {step: number | string; title: RichText};
 /** box() options: BoxOpts + the step rule, with the id type captured as `Id`. */
 export type BoxInput<Id extends string = string> = Omit<BoxOpts, 'size'> & {id?: Id; size?: FontSize} & StepRule;
 

@@ -50,6 +50,23 @@ export function parseXml(src: string): El {
 
 export const elements = (el: El): El[] => [el, ...el.children.flatMap(c => typeof c === 'string' ? [] : elements(c))];
 export const textOf = (el: El): string => el.children.map(c => typeof c === 'string' ? c : textOf(c)).join('');
+/**
+ * The text of a <text> grouped by the colour it is drawn in (a tspan with its own fill is a group of its own; a tspan that
+ * inherits the colour, an emoji's, joins the text's). A <text> drawn in one colour is one group. In order of first appearance.
+ */
+export function colourGroups(text: El, styles: Map<El, Style>): {style: Style; txt: string}[] {
+  const groups = new Map<string, {style: Style; txt: string}>();
+  const walk = (e: El) => {
+    for (const c of e.children) {
+      if (typeof c !== 'string') { walk(c); continue; }
+      const style = styles.get(e)!, g = groups.get(style.fill) ?? {style, txt: ''};
+      g.txt += c;
+      groups.set(style.fill, g);
+    }
+  };
+  walk(text);
+  return [...groups.values()].filter(g => g.txt.trim());
+}
 export const closest = (el: El | null, test: (e: El) => boolean): El | null => { for (let e = el; e; e = e.parent) if (test(e)) return e; return null; };
 
 // ---- colours ----

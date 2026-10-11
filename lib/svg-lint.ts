@@ -2,7 +2,7 @@
 // on the SVG's own geometry instead of in a browser. The boxes are what a browser reports (lib/svg-geom.ts); the text boxes come from the
 // same font files the layout is measured with, so no browser is started. lib/lint-browser.ts is the same five checks in Chromium, kept as
 // `lint --engine browser` and as the reference this is tested against (test/svg-lint.test.ts).
-import {apply, closest, computeStyles, elements, IDENTITY, multiply, parseColor, parseTransform, parseXml, textOf, type El, type Matrix, type RGBA, type Style} from './svg-dom.ts';
+import {apply, closest, colourGroups, computeStyles, elements, IDENTITY, multiply, parseColor, parseTransform, parseXml, textOf, type El, type Matrix, type RGBA, type Style} from './svg-dom.ts';
 import {boxOf, isShape, outlineOf, sampleAlong, textBoxOf, transformBox, unionBox, type Box, type Outline} from './svg-geom.ts';
 import type {FontSpecs} from './types.ts';
 
@@ -73,10 +73,14 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
     const b = t.user!, cx = b.x + b.w / 2, cy = b.y + b.h / 2;
     let bg: RGBA = {r: 255, g: 255, b: 255, a: 1};
     for (const s of shapes) if (cx >= s.box.x && cx <= s.box.x + s.box.w && cy >= s.box.y && cy <= s.box.y + s.box.h) bg = over(s.c, bg);
-    const tc = parseColor(t.style.fill, t.style.color);
-    if (!tc) continue;
-    const d = Math.abs(luminance(tc) - luminance(bg));
-    if (d < 70) result.contrast.push({txt: txt.slice(0, 40), delta: fixed(d, 0), fg: css(tc), bg: `rgb(${bg.r | 0},${bg.g | 0},${bg.b | 0})`});
+    // a tspan with a colour of its own is judged on its own (against the text's box, as the centre of a word is no nearer than that)
+    const groups = colourGroups(t.el, styles);
+    for (const g of groups) {
+      const tc = parseColor(g.style.fill, g.style.color);
+      if (!tc) continue;
+      const d = Math.abs(luminance(tc) - luminance(bg));
+      if (d < 70) result.contrast.push({txt: (groups.length > 1 ? g.txt.trim() : txt).slice(0, 40), delta: fixed(d, 0), fg: css(tc), bg: `rgb(${bg.r | 0},${bg.g | 0},${bg.b | 0})`});
+    }
   }
 
   // 2. content past the canvas (the box of everything drawn, without strokes)

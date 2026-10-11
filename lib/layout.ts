@@ -16,7 +16,8 @@
 // anchor (any box/child with an explicit `id`) has a known rect.
 
 import {splitAtoms, measureAll, textWidth} from './measure.ts';
-import {wrapAtoms} from './wrap.ts';
+import {wrapAtoms, wrapStyledAtoms} from './wrap.ts';
+import {assertSpans} from './rich.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {layoutPlane, planeTexts} from './plane.ts';
 import {barsTexts, layoutBars} from './bars.ts';
@@ -24,7 +25,7 @@ import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} f
 import type {
   DiagramData, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
   LaidOutSwimlane, LaidOutPyramidLayer, LaidOutRow, RowArrow, Band, CaptionBand, BoxBand, BannerBand, RowBand, GridBand, GroupBand,
-  ConnectBand, ConnectRef, Bend, BoxChrome, TextRun, WrappedRun, WidthOf, FontFamily, MeasureRequest, Point, Rect, Side,
+  ConnectBand, ConnectRef, Bend, BoxChrome, TextRun, WrappedRun, WidthOf, FontFamily, FontWeight, MeasureRequest, Point, Rect, Side, Span, TextTone,
 } from './types.ts';
 import {ROLES, PALETTE, SHADES, CONNECT_LABEL_SIZE, TAG_SIZE, blendLuminance, bestTextColor} from './tokens.ts';
 
@@ -43,32 +44,91 @@ export const STEP_BADGE_BASELINE_OFFSET = 6;
 const STEP_INDENT = 2 * STEP_BADGE_R + STEP_BADGE_GAP; // how far the title's first line is pushed right to clear the badge
 
 type Requests = Map<string, MeasureRequest>;
+
+// An atom that was never registered measures 0 wide, silently (a line then overflows its box). Tests and the golden check run
+// with SVG_DIAGRAM_STRICT_WIDTH=1 (test/helpers/strict-width.ts), which turns that into an error.
+const strictWidths = (): boolean => !!process.env.SVG_DIAGRAM_STRICT_WIDTH;
 /** A band after placeBoxLike(): its own fields plus geometry, wrapped text and (maybe) the tag pill. */
 type Placed<B> = B & Rect & {wrappedRuns: WrappedRun[]; tagBox?: Rect; inkBox?: Rect};
+
+/** `run` with the pieces of its text attached, when it has any (a plain run stays exactly as it was). */
+function withSpans(run: TextRun, spans: Span[] | undefined): TextRun {
+  if (!spans) return run;
+  assertSpans(run.text, spans, `text "${run.text.slice(0, 20)}"`); // add() takes a band as it is: hand-made spans may not match
+  if (run.nowrap) throw new Error(`"${run.text.slice(0, 20)}" cannot have spans: a stat value is one unbroken string`);
+  return {...run, spans};
+}
 
 function textRuns(band: Band): TextRun[] {
   switch (band.type) {
     case 'caption':
-      return [{text: band.text, size: ROLES[band.role ?? 'label'], weight: band.bold ? 700 : 400, mono: !!band.mono, tone: band.tone}];
+      return [withSpans({text: band.text, size: ROLES[band.role ?? 'label'], weight: band.bold ? 700 : 400, mono: !!band.mono, tone: band.tone}, band.spans?.text)];
     case 'banner': {
-      const runs: TextRun[] = [{text: band.headline, size: ROLES.banner, weight: 700, mono: false, tone: band.headlineTone}];
-      if (band.sub) runs.push({text: band.sub, size: ROLES.note, weight: 400, mono: false, tone: band.subTone ?? 'muted'});
+      const runs: TextRun[] = [withSpans({text: band.headline, size: ROLES.banner, weight: 700, mono: false, tone: band.headlineTone}, band.spans?.headline)];
+      if (band.sub) runs.push(withSpans({text: band.sub, size: ROLES.note, weight: 400, mono: false, tone: band.subTone ?? 'muted'}, band.spans?.sub));
       return runs;
     }
     case 'box': {
       const runs: TextRun[] = [];
-      if (band.title) runs.push({text: band.title, size: ROLES.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: band.step != null ? STEP_INDENT : 0});
-      if (band.body) runs.push({text: band.body, size: ROLES.body, weight: 400, mono: !!band.bodyMono, tone: band.bodyTone});
+      if (band.title) runs.push(withSpans({text: band.title, size: ROLES.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: band.step != null ? STEP_INDENT : 0}, band.spans?.title));
+      if (band.body) runs.push(withSpans({text: band.body, size: ROLES.body, weight: 400, mono: !!band.bodyMono, tone: band.bodyTone}, band.spans?.body));
       if (band.lines) for (const l of band.lines) {
         const line: Exclude<typeof l, string> = typeof l === 'string' ? {text: l} : l;
-        runs.push({text: line.text, size: ROLES[line.role ?? 'body'], weight: line.bold ? 700 : 400, mono: !!line.mono, tone: line.tone, nowrap: band.statValue === line.text && runs.length === 0});
+        runs.push(withSpans({text: line.text, size: ROLES[line.role ?? 'body'], weight: line.bold ? 700 : 400, mono: !!line.mono, tone: line.tone, nowrap: band.statValue === line.text && runs.length === 0}, line.spans));
       }
-      if (band.note) runs.push({text: band.note, size: ROLES.note, weight: 400, mono: false, tone: band.noteTone ?? 'muted'});
+      if (band.note) runs.push(withSpans({text: band.note, size: ROLES.note, weight: 400, mono: false, tone: band.noteTone ?? 'muted'}, band.spans?.note));
       return runs;
     }
     default:
       return [];
   }
+}
+
+/** An atom of a run's text with the weight (and tone) it is drawn in; `glue`: it continues the atom before it (see wrapStyledAtoms). */
+export interface StyledAtom {text: string; weight: FontWeight; tone?: TextTone; glue?: boolean}
+
+/**
+ * The atoms of a run, each with its own weight: the ONE place a run is cut up for measuring, wrapping and the width of a line,
+ * so what is registered is what is looked up. The plain text is cut as ever (splitAtoms); an atom that a span boundary falls
+ * inside ('API' | 's') is cut there into pieces, each continuing the one before it, so it is measured per piece but never
+ * broken between lines.
+ */
+export function styledAtoms(run: TextRun): StyledAtom[] {
+  const atoms = splitAtoms(run.text);
+  if (!run.spans) return atoms.map(text => ({text, weight: run.weight}));
+  const spanAt: number[] = [];
+  run.spans.forEach((sp, i) => { for (let k = 0; k < sp.text.length; k++) spanAt.push(i); });
+  const out: StyledAtom[] = [];
+  let at = 0;
+  for (const atom of atoms) {
+    for (let from = 0, to = 1; from < atom.length; from = to, to = from + 1) {
+      const i = spanAt[at + from];
+      while (to < atom.length && spanAt[at + to] === i) to++;
+      const sp = run.spans[i];
+      out.push({text: atom.slice(from, to), weight: sp.bold ? 700 : run.weight, tone: sp.tone, ...(from > 0 ? {glue: true} : {})});
+    }
+    at += atom.length;
+  }
+  return out;
+}
+
+/** The pieces of one wrapped line (neighbouring atoms of one weight and tone make one span). */
+function lineSpans(run: TextRun, atoms: StyledAtom[]): Span[] {
+  const out: Span[] = [];
+  for (const a of atoms) {
+    const bold = a.weight !== run.weight, last = out[out.length - 1];
+    if (last && !!last.bold === bold && last.tone === a.tone) last.text += a.text;
+    else out.push({text: a.text, ...(bold ? {bold: true} : {}), ...(a.tone ? {tone: a.tone} : {})});
+  }
+  return out;
+}
+
+/** Width of line `i` of a wrapped run: its atoms' widths added (the pieces of a line with spans, each in its own weight). */
+function lineWidth(widthOf: WidthOf, run: WrappedRun, i: number): number {
+  const font = run.mono ? 'mono' : 'sans';
+  return run.lineSpans
+    ? run.lineSpans[i].reduce((w, sp) => w + textWidth(widthOf, sp.text, run.size, sp.bold ? 700 : run.weight, font), 0)
+    : textWidth(widthOf, run.lines[i], run.size, run.weight, font);
 }
 
 // Registers every atom this band's text runs need, at the given wrap width,
@@ -90,7 +150,7 @@ function registerAtoms(requests: Requests, text: string, size: number, weight: n
 
 // group() title is laid out as a left-aligned bold caption inside the frame.
 function groupTitleBand(band: GroupBand): CaptionBand {
-  return {type: 'caption', text: band.title as string, align: band.titleAlign ?? 'left', role: 'title', bold: true, tone: band.titleTone ?? (band.tone === 'accent' ? 'accent' : 'text'), mono: false};
+  return {type: 'caption', text: band.title as string, ...(band.spans?.title ? {spans: {text: band.spans.title}} : {}), align: band.titleAlign ?? 'left', role: 'title', bold: true, tone: band.titleTone ?? (band.tone === 'accent' ? 'accent' : 'text'), mono: false};
 }
 
 function registerRequests(requests: Requests, band: Band) {
@@ -98,9 +158,9 @@ function registerRequests(requests: Requests, band: Band) {
   if ('stamp' in band && band.stamp) registerAtoms(requests, band.stamp, ROLES.note, 400);
   for (const run of textRuns(band)) {
     const font = run.mono ? 'mono' : 'sans';
-    for (const atom of splitAtoms(run.text)) {
-      const key = `${atom} ${run.size} ${run.weight} ${font}`;
-      if (!requests.has(key)) requests.set(key, {text: atom, size: run.size, weight: run.weight, font});
+    for (const {text, weight} of styledAtoms(run)) {
+      const key = `${text} ${run.size} ${weight} ${font}`;
+      if (!requests.has(key)) requests.set(key, {text, size: run.size, weight, font});
     }
   }
 }
@@ -112,8 +172,8 @@ function layoutBoxContent(band: Band, wrapWidth: number, widthOf: WidthOf): {wra
   const wrappedRuns = textRuns(band).map((run): WrappedRun => {
     const font = run.mono ? 'mono' : 'sans';
     const indent = run.indent ?? 0;
-    const atomW = (atom: string) => widthOf(atom, run.size, run.weight, font);
-    const lines = run.nowrap ? [run.text] : wrapAtoms(splitAtoms(run.text), {maxWidth: wrapWidth - indent, atomWidth: atomW});
+    const atomLines = run.nowrap ? null : wrapStyledAtoms(styledAtoms(run), {maxWidth: wrapWidth - indent, atomWidth: a => widthOf(a.text, run.size, a.weight, font)});
+    const lines = atomLines ? atomLines.map(l => l.map(a => a.text).join('')) : [run.text];
     const lineYs = lines.map(() => {
       relY += run.size;
       const y = relY;
@@ -121,7 +181,7 @@ function layoutBoxContent(band: Band, wrapWidth: number, widthOf: WidthOf): {wra
       return y;
     });
     relY += BOX_INNER_GAP;
-    return {...run, lines, lineYs};
+    return {...run, lines, lineYs, ...(run.spans && atomLines ? {lineSpans: atomLines.map(l => lineSpans(run, l))} : {})};
   });
   const textHeight = Math.max(0, relY - BOX_INNER_GAP);
   return {wrappedRuns, textHeight};
@@ -240,7 +300,12 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
   };
   for (const band of d.bands) registerBand(band);
   const measured = await measureAll(requests);
-  const widthOf: WidthOf = (atom, size, weight, font) => measured.get(`${atom} ${size} ${weight} ${font}`)?.w ?? 0;
+  const widthOf: WidthOf = (atom, size, weight, font) => {
+    const m = measured.get(`${atom} ${size} ${weight} ${font}`);
+    if (m) return m.w;
+    if (strictWidths()) throw new Error(`layout: "${atom}" (${size}px, ${weight}, ${font}) was not registered for measuring, so its width would be 0 (SVG_DIAGRAM_STRICT_WIDTH is set)`);
+    return 0;
+  };
 
   // A labelled straight connector between two side-by-side children (right side -> left side) needs room in the gap
   // between them: a label wider than the gap lands on both boxes, or straddles the groups' frame lines. The row's gap grows to fit it.
@@ -350,7 +415,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       cursorY += gp;
       if (band.title) {
         const t = placeBoxLike({...groupTitleBand(band), reveal: band.reveal} as CaptionBand, padX + gp, cursorY, cw - 2 * gp, false);
-        const inkW = Math.max(0, ...t.wrappedRuns.flatMap(r => r.lines.map(l => textWidth(widthOf, l, r.size, r.weight, r.mono ? 'mono' : 'sans'))));
+        const inkW = Math.max(0, ...t.wrappedRuns.flatMap(r => r.lines.map((_, i) => lineWidth(widthOf, r, i))));
         const inkX = t.align === 'center' ? t.x + (t.w - inkW) / 2 : t.align === 'right' ? t.x + t.w - inkW : t.x;
         t.inkBox = {x: inkX, y: t.y, w: inkW, h: t.h};
         laidOut.push(t);
