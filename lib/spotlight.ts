@@ -78,7 +78,14 @@ function targetRects(d: LaidOutDiagram, ids: string[]): Rect[] {
 }
 
 function dimBand(b: LaidOutBand, focus: Rect[]): void {
-  if (b.type === 'row' || b.type === 'grid') {
+  if (b.type === 'bars') {
+    // the whole band focused (e.g. inside a focused group): nothing dims. Otherwise dim bar by bar, labels with their bar;
+    // the axis dims only when no bar is a target.
+    if (focus.some(r => inside(b, r))) return;
+    for (const x of b.bars) x.dim = !focus.some(r => inside(x, r));
+    for (const t of b.texts) if (t.bar !== undefined) t.dim = b.bars[t.bar].dim;
+    b.dim = b.bars.every(x => x.dim);
+  } else if (b.type === 'row' || b.type === 'grid') {
     for (const c of b.children) c.dim = !focus.some(r => inside(c, r));
     b.dim = b.children.every(c => c.dim);
   } else b.dim = !focus.some(r => inside(b, r));

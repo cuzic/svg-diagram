@@ -24,9 +24,9 @@ export function barsTexts(band: BarsBand): [string, number, number, FontFamily][
 
 function putText(
   out: LaidOutBars, text: string, x: number, y: number, anchor: 'start' | 'middle' | 'end', fill: ColorKey,
-  widthOf: WidthOf, bold = false, background?: ColorKey, reveal?: number,
+  widthOf: WidthOf, bold = false, background?: ColorKey, reveal?: number, bar?: number,
 ): void {
-  out.texts.push({text, x, y, anchor, fill, size: ROLES.note, bold, reveal});
+  out.texts.push({text, x, y, anchor, fill, size: ROLES.note, bold, reveal, ...bar === undefined ? {} : {bar}});
   const w = textWidth(widthOf, text, ROLES.note, bold ? 700 : 400);
   out.labelBoxes.push({label: text, x: anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x, y: y - ROLES.note, w, h: ROLES.note + 4, background});
 }
@@ -70,17 +70,17 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
       const rawW = d.value / band.max * plotW, bw = Math.max(0, rawW - (i < band.data.length - 1 ? STACK_GAP : 0));
       const r = addBar(out, d, {x: at, y, w: bw, h: BAR});
       const text = segmentText(d, band.unit), tw = textWidth(widthOf, text, ROLES.note, 700);
-      if (bw >= tw + 12) putText(out, text, r.x + r.w / 2, r.y + BAR / 2 + ROLES.note * .36, 'middle', 'bg', widthOf, true, r.fill, d.reveal);
-      else putText(out, text, r.x + r.w / 2, r.y + BAR + ROLES.note + 4, 'middle', r.fill, widthOf, true, undefined, d.reveal);
+      if (bw >= tw + 12) putText(out, text, r.x + r.w / 2, r.y + BAR / 2 + ROLES.note * .36, 'middle', 'bg', widthOf, true, r.fill, d.reveal, out.bars.length - 1);
+      else putText(out, text, r.x + r.w / 2, r.y + BAR + ROLES.note + 4, 'middle', r.fill, widthOf, true, undefined, d.reveal, out.bars.length - 1);
       at += rawW;
     });
   } else band.data.forEach((d, i) => {
     const by = y + i * (BAR + GAP), bw = d.value / band.max * plotW;
     const r = addBar(out, d, {x: plotL, y: by, w: bw, h: BAR});
-    putText(out, d.label, plotL - 8, by + BAR / 2 + ROLES.note * .36, 'end', 'text', widthOf, false, undefined, d.reveal);
+    putText(out, d.label, plotL - 8, by + BAR / 2 + ROLES.note * .36, 'end', 'text', widthOf, false, undefined, d.reveal, out.bars.length - 1);
     const text = valueText(d, band.unit), tw = textWidth(widthOf, text, ROLES.note, 700);
-    if (bw >= tw + 12) putText(out, text, plotL + bw - 6, by + BAR / 2 + ROLES.note * .36, 'end', 'bg', widthOf, true, r.fill, d.reveal);
-    else putText(out, text, plotL + bw + 6, by + BAR / 2 + ROLES.note * .36, 'start', r.fill, widthOf, true, undefined, d.reveal);
+    if (bw >= tw + 12) putText(out, text, plotL + bw - 6, by + BAR / 2 + ROLES.note * .36, 'end', 'bg', widthOf, true, r.fill, d.reveal, out.bars.length - 1);
+    else putText(out, text, plotL + bw + 6, by + BAR / 2 + ROLES.note * .36, 'start', r.fill, widthOf, true, undefined, d.reveal, out.bars.length - 1);
   });
   out.ticks.push({x1: plotL, y1: axisY, x2: plotR, y2: axisY});
   return out;
@@ -108,8 +108,8 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
       addBar(out, d, r);
       const text = segmentText(d, band.unit);
       const tw = textWidth(widthOf, text, ROLES.note, 700);
-      if (bh >= ROLES.note + 10 && bw >= tw + 12) putText(out, text, bx + bw / 2, r.y + bh / 2 + ROLES.note * .36, 'middle', 'bg', widthOf, true, r.fill, d.reveal);
-      else putText(out, text, bx + bw / 2, r.y - 6, 'middle', r.fill, widthOf, true, undefined, d.reveal);
+      if (bh >= ROLES.note + 10 && bw >= tw + 12) putText(out, text, bx + bw / 2, r.y + bh / 2 + ROLES.note * .36, 'middle', 'bg', widthOf, true, r.fill, d.reveal, out.bars.length - 1);
+      else putText(out, text, bx + bw / 2, r.y - 6, 'middle', r.fill, widthOf, true, undefined, d.reveal, out.bars.length - 1);
       bottom -= rawH;
     });
   } else {
@@ -117,11 +117,11 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
     band.data.forEach((d, i) => {
       const bh = d.value / band.max * (plotB - plotT), bx = plotL + i * slot + (slot - bw) / 2;
       const r = addBar(out, d, {x: bx, y: plotB - bh, w: bw, h: bh});
-      putText(out, d.label, bx + bw / 2, plotB + ROLES.note + 10, 'middle', 'text', widthOf, false, undefined, d.reveal);
+      putText(out, d.label, bx + bw / 2, plotB + ROLES.note + 10, 'middle', 'text', widthOf, false, undefined, d.reveal, out.bars.length - 1);
       const text = valueText(d, band.unit);
       const tw = textWidth(widthOf, text, ROLES.note, 700);
-      if (bh >= ROLES.note + 10 && bw >= tw + 12) putText(out, text, bx + bw / 2, r.y + ROLES.note + 4, 'middle', 'bg', widthOf, true, r.fill, d.reveal);
-      else putText(out, text, bx + bw / 2, r.y - 6, 'middle', r.fill, widthOf, true, undefined, d.reveal);
+      if (bh >= ROLES.note + 10 && bw >= tw + 12) putText(out, text, bx + bw / 2, r.y + ROLES.note + 4, 'middle', 'bg', widthOf, true, r.fill, d.reveal, out.bars.length - 1);
+      else putText(out, text, bx + bw / 2, r.y - 6, 'middle', r.fill, widthOf, true, undefined, d.reveal, out.bars.length - 1);
     });
   }
   out.ticks.push({x1: plotL, y1: plotT, x2: plotL, y2: plotB}, {x1: plotL, y1: plotB, x2: plotR, y2: plotB});

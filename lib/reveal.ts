@@ -32,6 +32,7 @@ export function prepareReveal(d: DiagramData): number {
       if (b.type === 'group') walk(b.children, n);
       else if (b.type === 'row' || b.type === 'grouprow') {
         const childLevels = b.children.map((c, i) => set(c, n, `row() child ${i + 1}`));
+        b.children.forEach((c, i) => { if ('children' in c) walk(c.children, childLevels[i]); }); // a group in a grouprow
         if (b.id) {
           if (b.cols) {
             let next = 1;

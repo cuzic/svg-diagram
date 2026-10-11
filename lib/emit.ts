@@ -339,15 +339,16 @@ function renderPlane(b: LaidOutPlane, day: Theme): string {
 function renderBars(b: LaidOutBars, day: Theme, stage?: number): string {
   const col = (k: ColorKey) => colorOf(k, day);
   const out: string[] = [];
-  for (const t of b.ticks) out.push(`<path d="M${Math.round(t.x1)},${Math.round(t.y1)} L${Math.round(t.x2)},${Math.round(t.y2)}" fill="none" stroke="${PALETTE.border}" stroke-width="2"/>`);
+  for (const t of b.ticks) out.push(`<path d="M${Math.round(t.x1)},${Math.round(t.y1)} L${Math.round(t.x2)},${Math.round(t.y2)}" fill="none" stroke="${b.dim ? PALETTE.muted : PALETTE.border}" stroke-width="2"/>`);
   for (const r of b.bars.filter(r => visibleAt(r, stage))) {
     const x = Math.round(r.x * 100) / 100, y = Math.round(r.y * 100) / 100;
     const right = Math.round((r.x + r.w) * 100) / 100, bottom = Math.round((r.y + r.h) * 100) / 100;
-    out.push(`<path d="M${x},${y} H${right} V${bottom} H${x} Z" fill="${col(r.fill)}"/>`);
+    const d = `M${x},${y} H${right} V${bottom} H${x} Z`;
+    out.push(r.dim ? `<path d="${d}" fill="${PALETTE.bg}" stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"/>` : `<path d="${d}" fill="${col(r.fill)}"/>`);
   }
   for (const t of b.texts.filter(t => visibleAt(t, stage))) {
     const anchor = t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`;
-    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${anchor} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${col(t.fill)}">${emojiSpan(t.text)}</text>`);
+    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${anchor} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${t.dim || b.dim ? PALETTE.muted : col(t.fill)}">${emojiSpan(t.text)}</text>`);
   }
   return out.join('\n  ');
 }
@@ -539,7 +540,7 @@ function renderBandPlain(band: LaidOutBand, day: Theme, stage?: number): string 
 
 function renderBand(band: LaidOutBand, day: Theme, stage?: number): string {
   const svg = renderBandPlain(band, day, stage);
-  if (!band.dim || band.type === 'caption' || band.type === 'box' || band.type === 'banner' || band.type === 'group' || band.type === 'row' || band.type === 'grid') return svg;
+  if (!band.dim || band.type === 'caption' || band.type === 'box' || band.type === 'banner' || band.type === 'group' || band.type === 'row' || band.type === 'grid' || band.type === 'bars') return svg;
   return svg
     .replace(/marker-(start|end)="url\(#dsl-arrow(-strong)?\)"/g, 'marker-$1="url(#dsl-arrow$2-dim)"')
     .replace(/stroke="#[0-9a-fA-F]{6}"/g, `stroke="${PALETTE.muted}"`)

@@ -510,7 +510,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
         y += h;
         return out;
       });
-      const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes};
+      const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, id: band.id};
       laidOut.push(frame); // before its steps so the lanes draw underneath
       for (const st of stepsPlaced) {
         const ln = lanes[laneIndex.get(st.lane) as number]; // an unknown lane id throws here, as before

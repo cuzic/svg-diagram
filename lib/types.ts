@@ -1459,6 +1459,7 @@ export interface LaidOutSwimlane extends Rect {
   phaseH: number;
   phases: LaidOutPhase[];
   lanes: LaidOutLane[];
+  id?: string;
 }
 /** A swimlane step as laid out: a box that remembers its lane. */
 export interface LaidOutStep extends LaidOutBox {lane: string; row?: number; col: number; span: number}
@@ -1534,9 +1535,12 @@ export interface LaidOutPlane extends Rect {
   obstacles: (Rect & {what: string; dim?: number})[];
 }
 
-export interface BarRect extends Rect {fill: ColorKey; id?: string; reveal?: number}
-export interface BarText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number}
-export interface LaidOutBars extends Rect {
+export interface BarRect extends Rect, Dimmed {fill: ColorKey; id?: string; reveal?: number}
+export interface BarText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number;
+  /** Index into `bars` of the bar this label belongs to (none for tick labels), so spotlight can dim it with its bar. */
+  bar?: number;
+  dim?: boolean}
+export interface LaidOutBars extends Rect, Dimmed {
   type: 'bars';
   dir: 'h' | 'v';
   stack: boolean;
