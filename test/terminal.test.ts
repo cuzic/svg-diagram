@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseReplies, supportsSixel, isTmux, fitBox, fitScale, tmuxPassthrough, QUERY} from '../lib/terminal.ts';
-import {svgSize} from '../lib/measure.ts';
+import {svgSize} from '../lib/raster.ts';
 
 test('the replies to the combined query are told apart; DA1 ends them', () => {
   const r = parseReplies('\x1b[6;18;9t\x1b[4;900;1800t\x1bP>|WindowsTerminal 1.22\x1b\\\x1b[?61;4;6;22c');

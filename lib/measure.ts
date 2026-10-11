@@ -20,6 +20,8 @@
 
 import type {Browser} from 'playwright-chromium';
 import {launchChromium} from './browser.ts';
+import {svgSize} from './raster.ts';
+import type {Raster} from './raster.ts';
 import {FONT_STACKS} from './tokens.ts';
 import type {Config, FontFamily, FontSpecs, MeasureRequest, Measured, WidthOf} from './types.ts';
 import {loadConfig} from './config.ts';
@@ -72,30 +74,12 @@ function getBrowser(): Promise<Browser> {
 // The measuring browser, for callers that must draw with the same engine (svg-diagram show).
 export {getBrowser};
 
-export interface Raster {
-  width: number;
-  height: number;
-  /** RGBA, row-major, 4 bytes per pixel (what the sixel encoder takes). */
-  rgba: Buffer;
-  /** PNG of the same pixels, when asked for. */
-  png?: Buffer;
-}
-
-/** The SVG's own width and height (the root's attributes, or its viewBox). */
-export function svgSize(svg: string): {w: number; h: number} | null {
-  const root = /<svg\b[^>]*>/.exec(svg)?.[0] ?? '';
-  const num = (n: string) => { const m = new RegExp(`\\s${n}="([0-9.]+)(?:px)?"`).exec(root); return m ? parseFloat(m[1]) : NaN; };
-  let w = num('width'), h = num('height');
-  if (!(w > 0 && h > 0)) { const vb = /viewBox="[-0-9.]+[ ,]+[-0-9.]+[ ,]+([0-9.]+)[ ,]+([0-9.]+)"/.exec(root); if (vb) { w = parseFloat(vb[1]); h = parseFloat(vb[2]); } }
-  return w > 0 && h > 0 ? {w, h} : null;
-}
-
 /**
  * Draw `svg` the way a page's <img src="x.svg"> does — as an image document, parsed as XML, with this browser's fonts —
  * scaled by `scale`, on white. An SVG that is not well-formed XML fails to load as an <img>; that is reported here as an
  * error rather than drawn from a forgiving HTML parse. Reuses the measuring browser, so a .ts source costs no extra launch.
  */
-export async function rasterize(svg: string, {scale = 1, png = false}: {scale?: number; png?: boolean} = {}): Promise<Raster> {
+export async function rasterizeInBrowser(svg: string, {scale = 1, png = false}: {scale?: number; png?: boolean} = {}): Promise<Raster> {
   const size = svgSize(svg);
   if (!size) throw new Error('the SVG has no width/height (or viewBox) on its root element');
   const width = Math.max(1, Math.round(size.w * scale)), height = Math.max(1, Math.round(size.h * scale));

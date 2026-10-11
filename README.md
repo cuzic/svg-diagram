@@ -14,7 +14,7 @@ Node.js 22.18 以上と pnpm が必要。
 リリースタグには、コンパイル済みの `dist/`（JS と型定義）が入っている。`node_modules` の中の `.ts` は Node が型を消せないので、タグ指定でそのまま入れられる。
 
     pnpm add -D typescript @types/node github:cuzic/svg-diagram#v0.4.2
-    pnpm exec svg-diagram init          # package.json に "type": "module"、tsconfig.json、pnpm-workspace.yaml を用意
+    pnpm exec svg-diagram init          # package.json に "type": "module"、tsconfig.jsonを用意
     pnpm exec svg-diagram typecheck     # 図のソースを型検査（案件側の tsc を使う）
     pnpm exec svg-diagram build diagrams/*.ts
 
@@ -34,8 +34,8 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 反復の作業中は `--no-lint` で lint の描画を省ける（仕上げの build や `svg-diagram check` で通す）。
 `--stale` を付けると、SVG が今のソース・ツールの版・`.svg-diagram.json` から作られたものならスキップする。判定に使うのは SVG に埋め込んだ生成元の情報（ソース・import しているローカルファイル・ツールの版・設定の各ハッシュ）。共通部品を直せば、それを使う図は古いと判定される。import は静的に読むだけなので、相対パスの import だけが対象（`tsconfig` の `paths` の別名や、変数で組み立てた `import()` は追えない。後者は build が警告する）。
 
-`svg-diagram preview` は PNG 化に Chrome / Chromium を使う（`CHROME=/path/to/chrome` で指定できる）。
-`svg-diagram show` は人が端末で見るためのコマンド（Windows Terminal 1.22 以降、WezTerm、foot など sixel 対応の端末）。測定・lint と同じ Chromium で、文書の `<img>` と同じ読み方（XML）で描くので、整形式でない SVG はエラーになる。`.ts` は検証に落ちても描き、問題を stderr に出して終了コード 1 にする。tmux 3.4 未満は sixel を通さないので、`--passthrough`（`set -g allow-passthrough on` が要る）か `--png FILE` を使う。端末のない環境（エージェントなど）は `--png FILE` で書いて画像として読む。
+`svg-diagram preview` / `contact` / `show` は SVG をブラウザなしで描く（Rust 製の resvg。フォントは、文字幅の測定に使うのと同じファイル）。`--engine chromium` を付けると、実ブラウザが `<img>` として描いた絵になる（`playwright-chromium` が要る）。resvg が読めない環境（ビルド済みバイナリがない）では、`--engine` を省くと自動でブラウザに切り替わる。
+`svg-diagram show` は人が端末で見るためのコマンド（Windows Terminal 1.22 以降、WezTerm、foot など sixel 対応の端末）。文書の `<img>` と同じ読み方（XML）で描くので、整形式でない SVG はエラーになる。`.ts` は検証に落ちても描き、問題を stderr に出して終了コード 1 にする。tmux 3.4 未満は sixel を通さないので、`--passthrough`（`set -g allow-passthrough on` が要る）か `--png FILE` を使う。端末のない環境（エージェントなど）は `--png FILE` で書いて画像として読む。
 動作確認: `pnpm test`、`svg-diagram build examples/inventory-wireframe.ts --out /tmp/x.svg`。
 
 ## 使い方
@@ -48,10 +48,10 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram check --docs DIR [--svg-dir DIR] [--src-dir DIR] [--map]   # 文書（Markdown）と図が食い違っていないか（--map: 図・ソース・SVG・文書の対応表を Markdown で出す）
     svg-diagram notes <source.ts>                        # 図の番号つき注釈を Markdown のリスト（1. **題名**：本文）で出す。文書に貼る
     svg-diagram diff old.svg new.svg                     # 2 つの SVG の違いを言葉で（見た目が変わるか）
-    svg-diagram contact a.svg b.svg ... --out sheet.png  # 図の集まりを 1 枚に並べて、一度に目視する
+    svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX]  # 図の集まりを 1 枚に並べて、一度に目視する
     svg-diagram lint  [file.svg ...] [--strict]
-    svg-diagram preview <in.svg> <out.png> [scale]
-    svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX]   # ターミナルに sixel で直接表示（.ts は SVG を書かずに作って描く）
+    svg-diagram preview <in.svg> <out.png> [scale] [--engine resvg|chromium]   # 既定の倍率 2
+    svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium]   # ターミナルに sixel で直接表示（.ts は SVG を書かずに作って描く）
 
 型もすべて同じ所から取れる: `import type {WfNode, TableCell, TextTone, RawColorTone} from 'svg-diagram'`。変数に切り出した表のセルは `cell('通る', {tone: 'accent'})` で作ると、tone が文字列に広がらない（`as const` でも可）。`row()` に入れられるのは `box()` と `group()`、`grid()` は `box()` だけ（違うものを入れると実行時エラー）。
 

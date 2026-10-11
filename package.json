@@ -8,6 +8,7 @@
     "svg-diagram": "./bin/svg-diagram"
   },
   "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "harfbuzzjs": "^1.6.3",
     "sixel": "^0.16.0"
   },

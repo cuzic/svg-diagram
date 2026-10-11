@@ -20,12 +20,17 @@ import * as hb from 'harfbuzzjs';
 import {FONT_STACKS} from './tokens.ts';
 import type {FontFamily, FontSpecs, MeasureRequest, Measured} from './types.ts';
 
-interface Loaded {file: string; index: number; font: hb.Font; upem: number; covered: Set<number>; ascender: number; descender: number}
+interface Loaded {file: string; index: number; name: string; font: hb.Font; upem: number; covered: Set<number>; ascender: number; descender: number}
 
 const GENERIC = new Set(['sans-serif', 'serif', 'monospace']);
 // CSS weight → fontconfig weight (what `fc-match family:weight=N` takes)
 const FC_WEIGHT: [number, number][] = [[100, 0], [200, 40], [300, 50], [400, 80], [500, 100], [600, 180], [700, 200], [800, 205], [900, 210]];
 const fcWeight = (w: number) => FC_WEIGHT.reduce((best, c) => Math.abs(c[0] - w) < Math.abs(best[0] - w) ? c : best)[1];
+
+/** The family name in the font's name table (name ID 1), '' when it has none. */
+function familyName(face: hb.Face): string {
+  try { return face.getName(1, 'en') || ''; } catch { return ''; }
+}
 
 const loaded = new Map<string, Loaded>();
 function load(file: string, index: number): Loaded {
@@ -36,7 +41,7 @@ function load(file: string, index: number): Loaded {
     const face = new hb.Face(new hb.Blob(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)), index);
     const font = new hb.Font(face);
     const ext = font.hExtents();
-    f = {file, index, font, upem: face.upem, covered: new Set(face.collectUnicodes()), ascender: ext.ascender, descender: ext.descender};
+    f = {file, index, name: familyName(face), font, upem: face.upem, covered: new Set(face.collectUnicodes()), ascender: ext.ascender, descender: ext.descender};
     loaded.set(key, f);
   }
   return f;
@@ -109,10 +114,10 @@ function measureText(f: Loaded, family: FontFamily, text: string, size: number, 
   return {w};
 }
 
-/** The font file (and face index) that measures `family` at this weight, or null when none can be found. */
-export function resolveFontFile(family: FontFamily, weight = 400, specs?: FontSpecs): {file: string; index: number} | null {
+/** The font file (and face index, and the family name inside it) that measures `family` at this weight, or null when none can be found. */
+export function resolveFontFile(family: FontFamily, weight = 400, specs?: FontSpecs): {file: string; index: number; name: string} | null {
   const f = fontFor(family, weight, specs, false);
-  return f ? {file: f.file, index: f.index} : null;
+  return f ? {file: f.file, index: f.index, name: f.name} : null;
 }
 
 /** The widths and heights measure.ts would get from Chromium, read from the font files. Synchronous: no browser. */
