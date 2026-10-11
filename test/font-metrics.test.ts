@@ -1,6 +1,6 @@
 // The font-file measurement against Chromium's, atom by atom (what layout measures). Where the font has no hinting quirks (the sans
-// stack) widths agree within 1px and heights within 1px; a mono stack is held to Latin atoms and half a pixel per glyph, because Chromium
-// rounds some advances of a hinted font (8.80 -> 9.00). Skipped on a machine where no font file can be found; the last test pins the default and the fallback.
+// stack) widths agree within 1px and heights within 1px; a mono stack is held to Latin atoms and one pixel per glyph, because Chromium
+// rounds some advances of a hinted font to a whole pixel, sometimes up (8.80 -> 9.00, 8.43 -> 9). Skipped on a machine where no font file can be found; the last test pins the default and the fallback.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
@@ -50,7 +50,7 @@ for (const family of ['sans', 'mono'] as FontFamily[]) for (const weight of [400
     const off: string[] = [];
     for (const a of atoms) {
       const f = fromFont.get(a)!, c = fromChromium.get(a)!;
-      const wTol = family === 'mono' ? 0.5 * [...a].length : 1;
+      const wTol = family === 'mono' ? 1 * [...a].length : 1;
       if (Math.abs(f.w - c.w) > wTol || Math.abs(f.h - c.h) > 1) off.push(`${JSON.stringify(a)} font ${f.w.toFixed(2)}×${f.h} chromium ${c.w.toFixed(2)}×${c.h}`);
     }
     assert.deepEqual(off, []);

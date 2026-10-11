@@ -10,7 +10,7 @@
 // and what makes the numbers the same on every machine.
 //
 // Where it differs from Chromium (test/font-metrics.test.ts holds the bounds): Chromium on Linux rounds some glyph advances of
-// hinted fonts (Consolas: 8.80 -> 9.00 at 16px), so a long atom in such a font runs up to half a pixel per glyph narrower here; its
+// hinted fonts (Consolas: 8.80 -> 9.00 at 16px), so a long atom in such a font runs up to a pixel per glyph narrower here; its
 // box height can differ by 1px for a few glyphs at small sizes; a character no font has is measured as 1em (wide scripts) or
 // 0.5em; one the primary font lacks is looked up in the emoji font, then the sans one; bold of a family that has only a regular
 // file is not synthesized (Chromium's synthetic bold is wider).
