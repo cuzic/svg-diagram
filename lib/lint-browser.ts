@@ -48,11 +48,21 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
         const q = s.bb;
         if (cx >= q.x && cx <= q.x + q.width && cy >= q.y && cy <= q.y + q.height) bg = compositeOver(s.c, bg);
       }
-      const tc = parseColor(getComputedStyle(t).fill);
-      if (!tc) continue;
-      const d = Math.abs(luminance(tc) - luminance(bg));
-      if (d < 70) {
-        contrast.push({txt: txt.slice(0, 40), delta: +d.toFixed(0), fg: getComputedStyle(t).fill, bg: `rgb(${bg.r | 0},${bg.g | 0},${bg.b | 0})`});
+      // a tspan with a colour of its own is judged on its own (text nodes grouped by the colour they are drawn in)
+      const groups = new Map<string, string>();
+      const walker = document.createTreeWalker(t, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const fill = getComputedStyle(n.parentElement as Element).fill;
+        groups.set(fill, (groups.get(fill) ?? '') + (n.textContent ?? ''));
+      }
+      const parts = [...groups].filter(([, g]) => g.trim());
+      for (const [fill, g] of parts) {
+        const tc = parseColor(fill);
+        if (!tc) continue;
+        const d = Math.abs(luminance(tc) - luminance(bg));
+        if (d < 70) {
+          contrast.push({txt: (parts.length > 1 ? g.trim() : txt).slice(0, 40), delta: +d.toFixed(0), fg: fill, bg: `rgb(${bg.r | 0},${bg.g | 0},${bg.b | 0})`});
+        }
       }
     }
 

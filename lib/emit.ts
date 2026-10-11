@@ -12,7 +12,7 @@ import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
   LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
   LaidOutConnect, WrappedRun, Theme, TextTone, BoxTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
-  LaidOutWireframe, LaidOutScreens, RawColorTone,
+  LaidOutWireframe, LaidOutScreens, RawColorTone, Span,
 } from './types.ts';
 import {diagramTitle, diagramDesc} from './rules.ts';
 import {BOX_PAD_X, BOX_PAD_Y, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
@@ -56,6 +56,17 @@ export function resolveBoxStyle(tone: BoxTone | undefined, day: Theme, dashedOve
 
 const resolveLineColor = textColorOf;
 
+// One line made of bold / coloured pieces: what has the line's own look stays plain text of the <text>, every other piece is a
+// <tspan>. No whitespace goes between the tags (it would be drawn); an emoji inside a piece nests in it, so it keeps the piece's weight.
+// A dimmed box keeps the bold but loses the colours (its text is all muted).
+function spanTspans(spans: Span[], run: WrappedRun, color: string, day: Theme, dim?: boolean): string {
+  return spans.map(sp => {
+    const fill = !dim && sp.tone ? resolveTextColor(sp.tone, day) : color;
+    const attrs = `${sp.bold && run.weight !== 700 ? ' font-weight="700"' : ''}${fill !== color ? ` fill="${fill}"` : ''}`;
+    return attrs ? `<tspan${attrs}>${emojiSpan(sp.text)}</tspan>` : emojiSpan(sp.text);
+  }).join('');
+}
+
 function renderTextRuns(
   wrappedRuns: WrappedRun[],
   {originX, originY, w, align, day, dim}: {originX: number; originY: number; w: number; align: Align; day: Theme; dim?: boolean},
@@ -73,7 +84,8 @@ function renderTextRuns(
     const lx = align === 'center' ? runOriginX + runW / 2 : align === 'right' ? runOriginX + runW : runOriginX;
     run.lines.forEach((line, i) => {
       const y = originY + run.lineYs[i];
-      parts.push(`<text x="${lx}" y="${y}"${anchor}${cls} font-size="${run.size}" font-weight="${run.weight}" fill="${color}">${emojiSpan(line)}</text>`);
+      const content = run.lineSpans ? spanTspans(run.lineSpans[i], run, color, day, dim) : emojiSpan(line);
+      parts.push(`<text x="${lx}" y="${y}"${anchor}${cls} font-size="${run.size}" font-weight="${run.weight}" fill="${color}">${content}</text>`);
     });
   }
   return parts.join('\n  ');

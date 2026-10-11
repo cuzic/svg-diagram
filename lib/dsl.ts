@@ -20,13 +20,14 @@ import {getSlideBudget, readSlideBudgetCache} from './slide-budget.ts';
 import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
+import {richBoxFields, richField} from './rich.ts';
 import {MIN_FONT_SIZE, ROLES, THEMES} from './tokens.ts';
 import type {
   Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
-  Role, StatOpts, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
+  Role, RichText, StatOpts, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
   GroupRowBand, PartRow, StateCellIn, StateMatrixCell, TableCellSpec, TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WfScreen, WfShellProps, WireframeBand, WireframeDefaults, WireframeOpts, Medium,
 } from './types.ts';
 import type {
@@ -35,6 +36,7 @@ import type {
 } from './strict.ts';
 export {wf} from './wireframe.ts';
 export {versus} from './versus.ts';
+export {em} from './rich.ts';
 export type {VersusConnectLabels, VersusOpts, VersusPart, VersusSharedOpts} from './versus.ts';
 // Every public type (WfNode, TableCell, TextTone, RawColorTone, ...) so project code never has to spell Parameters<typeof wf.col>[0].
 export type * from './types.ts';
@@ -105,8 +107,11 @@ function withAnchors<T extends object>(band: T, ids: (string | undefined)[]): T 
   return Object.defineProperty(band, 'anchors', {value: anchors});
 }
 
-export function caption(text: string, opts: CaptionOpts = {}): CaptionBand {
-  return {type: 'caption', text, align: opts.align ?? 'center', role: opts.role ?? 'label', tone: opts.tone ?? 'muted', bold: !!opts.bold, mono: !!opts.mono};
+// text: a string (exactly its characters) or an array with em.* parts: caption(['Claude in ', em.b('Chrome')]).
+export function caption(text: RichText, opts: CaptionOpts = {}): CaptionBand {
+  const tone = opts.tone ?? 'muted';
+  const rich = richField(text, {field: 'caption()', bold: !!opts.bold, tone});
+  return {type: 'caption', text: rich.text ?? '', ...(rich.spans ? {spans: {text: rich.spans}} : {}), align: opts.align ?? 'center', role: opts.role ?? 'label', tone, bold: !!opts.bold, mono: !!opts.mono};
 }
 
 // `step`: a number/string drawn as a solid numbered badge over the title's
@@ -118,27 +123,34 @@ export function caption(text: string, opts: CaptionOpts = {}): CaptionBand {
 export function box<const Id extends string = never>(opts: BoxInput<Id>): BoxBand & Declares<Id> & HandleOf<Id>;
 export function box(opts: BoxOpts): BoxBand {
   if (opts.size !== undefined) assertFontSize(opts.size);
-  if (opts.step != null && !opts.title) throw new Error('box({step}) needs a title — the badge aligns to the title\'s first line');
-  return withHandle({type: 'box', ...opts}, opts.id);
+  // the plain text (and spans) of every rich field go over the copied options: a band never holds an array
+  const band = {type: 'box', ...opts, ...richBoxFields(opts)} as BoxBand;
+  if (band.step != null && !band.title) throw new Error('box({step}) needs a title — the badge aligns to the title\'s first line');
+  return withHandle(band, opts.id);
 }
 
 /** A large, atomic value and its muted label. The result is an ordinary plain box, so it works in row(). */
-export function stat<const Id extends string = never>(value: string | number, label: string, opts?: StatOpts & {id?: Id}): BoxBand & Declares<Id> & HandleOf<Id>;
-export function stat(value: string | number, label: string, opts: StatOpts = {}): BoxBand {
+export function stat<const Id extends string = never>(value: string | number, label: RichText, opts?: StatOpts & {id?: Id}): BoxBand & Declares<Id> & HandleOf<Id>;
+export function stat(value: string | number, label: RichText, opts: StatOpts = {}): BoxBand {
   if (opts.size !== undefined && opts.size !== 'stat' && opts.size !== 'display') throw new Error(`stat(): size must be 'stat' or 'display' (got ${opts.size})`);
   const text = String(value);
+  const rich = richField(label, {field: 'stat() label', bold: false, tone: 'muted'});
   return withHandle({
     type: 'box', id: opts.id, flex: opts.flex, width: opts.width, col: opts.col, span: opts.span,
     align: 'center', lines: [
       {text, role: opts.size ?? 'stat', bold: true, tone: opts.tone},
-      {text: label, tone: 'muted'},
+      {text: rich.text ?? '', tone: 'muted', ...(rich.spans ? {spans: rich.spans} : {})},
     ], statValue: text,
   }, opts.id);
 }
 
 export function banner<const Id extends string = never>(opts: BannerOpts & {id?: Id}): BannerBand & Declares<Id> & HandleOf<Id>;
 export function banner(opts: BannerOpts): BannerBand {
-  return withHandle({type: 'banner', tone: opts.tone ?? 'accent', ...opts}, opts.id);
+  const headline = richField(opts.headline, {field: 'banner() headline', bold: true, tone: opts.headlineTone});
+  const sub = richField(opts.sub, {field: 'banner() sub', bold: false, tone: opts.subTone ?? 'muted'});
+  const text = {...(typeof opts.headline === 'string' ? {} : {headline: headline.text ?? ''}), ...(typeof opts.sub === 'string' || opts.sub === undefined ? {} : {sub: sub.text})};
+  const spans = headline.spans || sub.spans ? {spans: {...(headline.spans ? {headline: headline.spans} : {}), ...(sub.spans ? {sub: sub.spans} : {})}} : {};
+  return withHandle({type: 'banner', tone: opts.tone ?? 'accent', ...opts, ...text, ...spans} as BannerBand, opts.id);
 }
 
 // A labelled frame around other bands (a network zone, a service boundary, a
@@ -149,8 +161,9 @@ export function banner(opts: BannerOpts): BannerBand {
 // Types: the ids (and connect() refs) of the children are exposed to add().
 export function group<C extends Band | Band[], const Id extends string = never>(children: C, opts?: GroupOpts & {id?: Id}): GroupBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & HandleOf<Id>;
 export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
-  if (opts.frame === false && (opts.title || opts.dashed || opts.tone)) throw new Error('group({frame: false}) draws no frame, so it takes no title, tone or dashed');
-  return withHandle({type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad ?? (opts.frame === false ? 0 : undefined), frame: opts.frame, stamp: opts.stamp, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col, reveal: opts.reveal}, opts.id);
+  const title = richField(opts.title, {field: 'group() title', bold: true, tone: opts.titleTone ?? (opts.tone === 'accent' ? 'accent' : 'text')});
+  if (opts.frame === false && (title.text || opts.dashed || opts.tone)) throw new Error('group({frame: false}) draws no frame, so it takes no title, tone or dashed');
+  return withHandle({type: 'group', children: [children].flat(), title: title.text, ...(title.spans ? {spans: {title: title.spans}} : {}), titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad ?? (opts.frame === false ? 0 : undefined), frame: opts.frame, stamp: opts.stamp, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col, reveal: opts.reveal}, opts.id);
 }
 
 // Key for line styles / tones used in the diagram. items:
@@ -216,13 +229,14 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
   const laneIdx = new Map(lanes.map((l, i) => [l.id, i]));
   let next = 1, cols = 0;
   const placed = steps.map(st => {
-    if (!laneIdx.has(st.lane)) throw new Error(`swimlane(): step "${st.id ?? st.title}" uses unknown lane "${st.lane}"`);
+    const rich = richBoxFields(st, 'swimlane() step');
+    if (!laneIdx.has(st.lane)) throw new Error(`swimlane(): step "${st.id ?? ('title' in rich ? rich.title : st.title)}" uses unknown lane "${st.lane}"`);
     const span = st.span ?? 1;
     const col = st.col ?? next;
     next = col + span;
     cols = Math.max(cols, col + span - 1);
     if (st.size !== undefined) assertFontSize(st.size);
-    return {...st, type: 'box' as const, col, span};
+    return {...st, ...rich, type: 'box' as const, col, span} as SwimlaneStepBand;
   });
   const byId = new Map(placed.map(st => [st.id, st]));
   // 1) pick sides, 2) spread flows that share a side of one step along that side, 3) stagger the
