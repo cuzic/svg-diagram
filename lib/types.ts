@@ -211,6 +211,8 @@ export interface BoxChrome {
   tagTone?: TagTone;
   /** 0..1 along the top edge where the tag is centred (default: right-aligned). */
   tagAt?: number;
+  /** Small chip at the bottom-right corner ("架空の例", "イメージ", "要確認"). Reserves a strip under the content, so it never covers the text. */
+  stamp?: string;
   padX?: number;
   padY?: number;
   /** row(): flex share (default 1). */
@@ -270,8 +272,12 @@ export interface GroupOpts {
   tone?: BoxTone;
   /** Default true for tone 'plain'. */
   dashed?: boolean;
-  /** Inner padding (default 16). */
+  /** Inner padding (default 16; 0 with `frame: false`). */
   pad?: number;
+  /** Chip at the bottom-right corner inside the frame (see box({stamp})). */
+  stamp?: string;
+  /** false draws no frame (and takes no title): a plain container, so a table / plane / banner can sit in a row() without a doubled outline. */
+  frame?: false;
   id?: string;
   /** Sizing when the group is a child of row(): the same fields as a box (flex / width for justify, span / col for cols). */
   flex?: number;
@@ -288,6 +294,8 @@ export interface GroupBand {
   tone: BoxTone;
   dashed?: boolean;
   pad?: number;
+  frame?: false;
+  stamp?: string;
   id?: string;
   flex?: number;
   width?: number;
@@ -642,6 +650,8 @@ export interface TableOpts {
   /** Narrows the table (centred). */
   width?: number;
   tone?: BoxTone;
+  /** Fixed height of every row (header included), text centred vertically. Throws when a cell's text needs more. */
+  cellH?: number;
   id?: string;
 }
 export interface TableBand {
@@ -652,6 +662,7 @@ export interface TableBand {
   header?: boolean;
   width?: number;
   tone?: BoxTone;
+  cellH?: number;
   id?: string;
 }
 /** cellOf(): a cell with column defaults applied. */
@@ -1320,10 +1331,10 @@ export interface LaidOutCaption extends CaptionBand, Rect {
   /** group() titles only: the rect the title's text really covers (the caption itself spans the whole frame width). */
   inkBox?: Rect;
 }
-export interface LaidOutBox extends BoxBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect; nowrapOverflow?: string[]}
-export interface LaidOutBanner extends BannerBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect}
+export interface LaidOutBox extends BoxBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number; nowrapOverflow?: string[]}
+export interface LaidOutBanner extends BannerBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number}
 /** The frame of a group; its children are laid out as separate bands after it. */
-export interface LaidOutGroup extends Rect {type: 'group'; tone: BoxTone; dashed?: boolean; id?: string}
+export interface LaidOutGroup extends Rect {type: 'group'; tone: BoxTone; dashed?: boolean; frame?: false; stamp?: string; stampW?: number; id?: string}
 export interface LaidOutLegendItem extends LegendItem {textW: number; w: number; x: number; y: number}
 export interface LaidOutLegend extends Rect {type: 'legend'; items: LaidOutLegendItem[]}
 export interface RowArrow {x1: number; y1: number; x2: number; y2: number}
@@ -1386,7 +1397,7 @@ export interface LaidOutSequence extends Rect {
   lifeBottom: number;
 }
 
-export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; lines: string[]; x: number; w: number}
+export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; lines: string[]; x: number; w: number; top: number}
 export interface LaidOutTableRow {y: number; h: number; cells: LaidOutTableCell[]; header?: boolean; tone?: BoxTone}
 export interface LaidOutTable extends Rect {
   type: 'table';
