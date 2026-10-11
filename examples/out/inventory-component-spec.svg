@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="1111" viewBox="0 0 940 1111" role="img" aria-labelledby="svg-title">
   <title id="svg-title">在庫画面の部品の仕様（例）: 全体の領域、部品の構成、部品の状態</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.4.2","source":"examples/inventory-component-spec.ts","sourceSha256":"0b94e3cf5b8041f019e2d56c1b1eb1861ce45b956f3d741dd605f9fadd0cd24a"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/inventory-component-spec.ts","sourceSha256":"0b94e3cf5b8041f019e2d56c1b1eb1861ce45b956f3d741dd605f9fadd0cd24a"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
