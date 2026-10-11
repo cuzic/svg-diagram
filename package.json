@@ -46,6 +46,10 @@
     ".": {
       "types": "./dist/lib/dsl.d.ts",
       "default": "./dist/lib/dsl.js"
+    },
+    "./render": {
+      "types": "./dist/lib/render-source.d.ts",
+      "default": "./dist/lib/render-source.js"
     }
   },
   "files": [
