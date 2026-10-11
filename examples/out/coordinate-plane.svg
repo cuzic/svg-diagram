@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="791" viewBox="0 0 940 791" role="img" aria-labelledby="svg-title">
   <title id="svg-title">地図の座標と画像の画素の対応（例）</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.4.2","source":"examples/coordinate-plane.ts","sourceSha256":"8d03c28eab808e29e55d1da10b6a132e6fd023de734886d7dd168d2ba5af883d"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/coordinate-plane.ts","sourceSha256":"8d03c28eab808e29e55d1da10b6a132e6fd023de734886d7dd168d2ba5af883d"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
