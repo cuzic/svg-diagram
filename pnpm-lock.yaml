@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      harfbuzzjs:
+        specifier: ^1.6.3
+        version: 1.6.3
       playwright-chromium:
         specifier: 1.62.1
         version: 1.62.1
@@ -147,6 +150,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  harfbuzzjs@1.6.3:
+    resolution: {integrity: sha512-R5Mfo1UUvQmZJmtScP7fBLKYKnYu82ZdtFT7WbQYeGb3Ut5PR3xfFCJ5/FjbcW5SAfb9cqCSny/KNjp+NJBx0w==}
+
   playwright-chromium@1.62.1:
     resolution: {integrity: sha512-yRMzeViD44qD1ZVMNupp82NJQNjumZ02W5r7+DmtD5+7aP9+v66a0PsAk63ewpVDH1GxMf/J/mO+TS1sTaK29w==}
     engines: {node: '>=20'}
@@ -233,6 +239,8 @@ snapshots:
 
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
+
+  harfbuzzjs@1.6.3: {}
 
   playwright-chromium@1.62.1:
     dependencies:

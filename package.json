@@ -8,6 +8,7 @@
     "svg-diagram": "./bin/svg-diagram"
   },
   "dependencies": {
+    "harfbuzzjs": "^1.6.3",
     "playwright-chromium": "1.62.1",
     "sixel": "^0.16.0"
   },

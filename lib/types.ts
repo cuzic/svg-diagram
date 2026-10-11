@@ -1525,8 +1525,13 @@ export interface CheckResult {laidOut: LaidOutDiagram; verdict: Verdict}
 export interface Config {
   accept?: Partial<Record<RuleId, string>>;
   maxWidth?: number;
+  /** How text is measured: 'font' (default) from the font files, no browser (see `fonts`); 'chromium' in a headless browser. */
+  measure?: 'chromium' | 'font';
+  /** Font files to measure with when `measure` is 'font': per family, the regular and the bold (weight >= 600) one, as `path` or `path#faceIndex`. Unset: found with fontconfig. */
+  fonts?: FontSpecs;
   _file?: string;
 }
+export type FontSpecs = Partial<Record<FontFamily, {regular?: string; bold?: string}>>;
 export interface ChangeExplanation {identical: boolean; visual: boolean; lines: string[]}
 /** One numbered item of a Markdown page's notes list. */
 export interface DocNoteItem {n: number; title: string; text: string}
