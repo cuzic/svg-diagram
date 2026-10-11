@@ -142,10 +142,12 @@ export function banner(opts: BannerOpts): BannerBand {
 // release phase). children: any bands (row, grid, box, nested group...).
 // tone: 'muted' (default, grey fill) | 'accent' | 'plain' (white) | 'danger';
 // dashed: draw the boundary dashed (default true for 'plain' = a trust/zone line).
+// frame: false draws no frame and no title (pad 0): a bare container, e.g. to put a table / plane / banner in a row() without a doubled outline.
 // Types: the ids (and connect() refs) of the children are exposed to add().
 export function group<C extends Band | Band[], const Id extends string = never>(children: C, opts?: GroupOpts & {id?: Id}): GroupBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & HandleOf<Id>;
 export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
-  return withHandle({type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col}, opts.id);
+  if (opts.frame === false && (opts.title || opts.dashed || opts.tone)) throw new Error('group({frame: false}) draws no frame, so it takes no title, tone or dashed');
+  return withHandle({type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad ?? (opts.frame === false ? 0 : undefined), frame: opts.frame, stamp: opts.stamp, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col}, opts.id);
 }
 
 // Key for line styles / tones used in the diagram. items:
@@ -173,10 +175,10 @@ export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: S
 // rows: [cell, ...] or {cells: [...], tone?: 'accent'|'new'|'changed'|'removed'|'muted'|'danger'};
 // a cell is a string or {text, tone?: 'accent'|'muted'|'danger', bold?, mono?, align?}.
 // title adds an accent bar on top (an ER entity name, a table caption); header: false hides
-// the column-label row; width narrows the table (centered).
+// the column-label row; width narrows the table (centered); cellH fixes every row's height (text centred; throws if a cell needs more).
 export function table<const Id extends string = never>(columns: TableColumn[], rows: readonly TableRow[], opts?: TableOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
 export function table(columns: TableColumn[], rows: readonly TableRow[], opts: TableOpts = {}): TableBand {
-  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, id: opts.id}, opts.id);
+  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, id: opts.id}, opts.id);
 }
 
 // A table cell with a status symbol: `cell('通る', {mark: 'ok'})` draws "○ 通る" in the accent tone; mark: 'ok' ○ | 'mid' △ | 'ng' × | 'best' ◎.
