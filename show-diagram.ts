@@ -8,11 +8,13 @@
 //   svg-diagram show flow.ts --png /tmp/flow.png   a PNG instead of sixel (also what an agent without a terminal uses)
 //
 // Options: --png FILE (one input; writes a PNG, no sixel, no terminal needed)   --scale N   --width PX (the cap, else the terminal's width)
+//          --engine resvg|chromium (default: resvg, no browser)
 //          --colors N (sixel palette, default 256)   --force (write sixel although stdout is not a terminal / sixel is not announced)
 //          --passthrough (wrap sixel for tmux; needs `set -g allow-passthrough on`)
 //
-// The picture is drawn by the same Chromium that measured and lints the diagram, as an <img> (so an SVG that is not
-// well-formed XML fails here the way it fails in a document). A .ts source is laid out and verified like `build`, but a
+// The picture is drawn without a browser (resvg, with the font files the layout was measured with); --engine chromium draws it as an
+// <img> in a real browser instead (needs playwright-chromium). Either way an SVG that is not well-formed XML fails here the way it
+// fails in a document. A .ts source is laid out and verified like `build`, but a
 // failed verification still draws — that is when you most want to see it. Nothing is written and no dev server is
 // started for a slide's size: with no cached budget the diagram is drawn at its default size, with a note.
 import fs from 'node:fs';
@@ -25,14 +27,14 @@ register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {renderDiagram, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
 const {loadConfig} = await import('./lib/config.ts');
-const {rasterize, svgSize} = await import('./lib/measure.ts');
+const {rasterize, svgSize} = await import('./lib/raster.ts');
 const {xmlProblems} = await import('./lib/xml-check.ts');
 const {queryTerminal, supportsSixel, isTmux, fitBox, fitScale, tmuxPassthrough} = await import('./lib/terminal.ts');
 const {image2sixel} = await import('sixel');
 
-const USAGE = 'Usage: svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--colors N] [--force] [--passthrough]';
+const USAGE = 'Usage: svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--colors N] [--engine resvg|chromium] [--force] [--passthrough]';
 const args = process.argv.slice(2);
-const VALUE = ['--png', '--scale', '--width', '--colors'];
+const VALUE = ['--png', '--scale', '--width', '--colors', '--engine'];
 const flag = (n: string) => args.includes(n);
 const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1] ?? null; };
 const num = (n: string) => { const v = val(n); if (v === null) return null; const x = Number(v); if (!(x > 0)) { console.error(`✗ ${n} needs a positive number (got ${v})\n${USAGE}`); process.exit(2); } return x; };
@@ -40,6 +42,9 @@ const files = args.filter((a, i) => !a.startsWith('--') && !VALUE.includes(args[
 for (const a of args) if (a.startsWith('--') && ![...VALUE, '--force', '--passthrough'].includes(a)) { console.error(`✗ unknown option ${a}\n${USAGE}`); process.exit(2); }
 if (!files.length) { console.error(USAGE); process.exit(2); }
 const pngOut = val('--png'), scaleOpt = num('--scale'), widthOpt = num('--width'), colors = num('--colors') ?? 256;
+const engineOpt = val('--engine') ?? 'auto';
+if (!['auto', 'resvg', 'chromium'].includes(engineOpt)) { console.error(`✗ --engine is resvg or chromium (got ${engineOpt})\n${USAGE}`); process.exit(2); }
+const engine = engineOpt as 'auto' | 'resvg' | 'chromium';
 if (!Number.isInteger(colors) || colors < 2 || colors > 256) { console.error(`✗ --colors is an integer from 2 to 256 (got ${colors})\n${USAGE}`); process.exit(2); }
 const force = flag('--force'), passthrough = flag('--passthrough');
 if (pngOut && files.length !== 1) { console.error(`✗ --png writes one picture: give exactly one input\n${USAGE}`); process.exit(2); }
@@ -113,7 +118,7 @@ try {
       const scale = scaleOpt ?? (pngOut ? 1 : Math.min(byWidth ?? 1, byBox));
       const byHeight = Math.min(1, box.maxH / size.h); // the tall-picture cap alone (the width limit has its own note)
       if (!scaleOpt && !pngOut && byHeight < 1 && byHeight <= Math.min(byWidth ?? 1, widthOpt ? 1 : box.maxW / size.w)) console.error(`  ⚠ ${file}: too tall for the screen (${Math.round(size.h)}px; the cap is ${box.maxH}px), shrunk to ${Math.round(byHeight * 100)}%`);
-      const ras = await rasterize(svg, {scale, png: !!pngOut});
+      const ras = await rasterize(svg, {scale, png: !!pngOut, engine, fonts: config.fonts});
       if (pngOut) { fs.writeFileSync(pngOut, ras.png!); console.log(`wrote ${pngOut} (${ras.width}x${ras.height})`); continue; }
       let seq = image2sixel(new Uint8ClampedArray(ras.rgba), ras.width, ras.height, colors);
       if (passthrough) seq = tmuxPassthrough(seq);

@@ -1,4 +1,4 @@
-// lint-svg: a shape painted over a text, or a line through it, is reported (needs Chromium, like the layout does).
+// lint-svg: a shape painted over a text, or a line through it, is reported (through the CLI; the default engine needs no browser).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

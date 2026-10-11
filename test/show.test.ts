@@ -6,7 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {image2sixel} from 'sixel';
-import {rasterize, closeMeasurer} from '../lib/measure.ts';
+import {closeMeasurer} from '../lib/measure.ts';
+import {rasterize} from '../lib/raster.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
 
 test.after(() => closeMeasurer());
