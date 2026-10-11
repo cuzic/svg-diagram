@@ -1,6 +1,6 @@
 # ADR 0004: 資料づくりで見つかったツール側の改善要望(bars / spotlight / reveal / plane / table / 色 / 文字サイズ)
 
-- 状態: 提案(改訂 2。Opus レビュー 1 回分を反映。実装前)
+- 状態: 提案(改訂 3。Opus レビュー 2 回分を反映。実装前)
 - 日付: 2026-10-11
 - 基点: `main`(ADR 0002・0003 の実装、表の行の高さ `rowh`、矢印の太さ `weight`、アイコンを含む)
 - 関連: ADR 0002(量・強調の部品)、ADR 0003(部分強調)
@@ -59,14 +59,16 @@ ADR 0002 の部品(`bars()` / `stat()` / `spotlight` / `reveal` など)を実際
 `BarsOpts` に次を足す。既定はすべて現状どおり(出力は変わらない)。
 
 ```ts
-bars(data, {labels: 'all' | 'values' | 'none', axis: false, grid: false, baseline: false})
+bars(data, {labels: 'all' | 'category' | 'none', axis: false, grid: false, baseline: false})
 ```
 
-- **`labels`**(3 段階): `'all'`(既定。値ラベルとカテゴリラベル)、`'values'`(値ラベルを消し、カテゴリラベルは残す)、`'none'`(どちらも消す)。カテゴリラベルを消せないと余白が空かない(上の事実 4)ので、値ラベルだけの `false` は不十分。
+- **`labels`**(3 段階): `'all'`(既定。値ラベルとカテゴリラベル)、`'category'`(**カテゴリラベルだけ残し**、値ラベルを消す。名前は残すものを指す)、`'none'`(どちらも消す)。カテゴリラベルを消せないと余白が空かない(上の事実 4)ので、値ラベルだけの `false` は不十分。
 - **`axis: false`**: 目盛りの数値・目盛り線・縦の軸線を消す。**カテゴリ側の基線は残す**(ハードルや階段は、地面の線があって初めてそう読める)。基線は `baseline: false` で個別に消せる。
 - **`grid`**: 補助線(目盛りに沿った線)。**既定は `axis` の値に連動**する(`axis: false, grid: true`=数値の無い格子は意味が無いので、その組み合わせは throw)。
-- **実装上の分割**: 縦棒の目盛り線は `plotL - TICK` から `plotR` まで 1 本、横棒も 1 本で、`renderBars` はすべて同じ線で描いている。`LaidOutBars.ticks` を `ticks` / `grid` / `baseline` に分ける。出力不変を守るため、**描画の順序は保つ**。
+- **横棒の基線**: 横棒の `out.ticks.push({x1: plotL, y1: axisY, x2: plotR, y2: axisY})`(`bars.ts:85`)は**値の軸(下の線)**で、カテゴリ側の基線ではない。カテゴリ側の基線にあたる x = 0 の縦線は、今は値 0 の目盛り線が兼ねている。`axis: false` で基線を残すには、横棒では **x = plotL の縦線を新しく引く**(`axis: false` のときだけなので既存の出力は変わらない)。下の線は axis 側として消す。縦棒は値 0 の目盛り線(`plotL - TICK` から `plotR`)と基線(`plotL` から `plotR`)が今も重なって 2 本描かれており、`axis: false` で目盛りの線だけを消せば基線が残る(テストはこの重なりを前提にする)。
+- **実装上の分割**: 縦棒の目盛り線は `plotL - TICK` から `plotR` まで 1 本、横棒も 1 本で、`renderBars` はすべて同じ線で描いている。`LaidOutBars.ticks` を `ticks` / `grid` / `baseline` に分ける。**既定(axis と grid が両方 on)では、今と同じ 1 本の線**(縦棒は `plotL - TICK` から `plotR`、横棒は `y` から `axisY + TICK`)を出す必要がある。目盛りの短い線と格子線を 2 本の path に分けるとバイトが変わり、emit 側で連結すると `Math.round` の丸めで端点がずれうるので、**レイアウトの段階で「結合した線」「短い目盛り線だけ」「格子線だけ」を選ぶ**。今の push の順序(縦棒は目盛りごとの線 → 縦の軸線 → 基線、横棒は目盛りごとの線 → 下の線)も保つ。
 - **横棒への連動**: `needH` に含まれる `tickH + 8`(`bars.ts:57`)、左右に取る `labelW` / `valueW`(49-50 行)、幅の検査 `plotW < 80`(54 行)を `axis` / `labels` に連動させる。
+- **値を伝える**(a11y)の条件(実装との整合): emit は **title が空のとき `<title>` も `<desc>` も出さない**(title は `d.title`・caption・banner の見出し・group の見出しから決まる)。値が見えない判定は 1 つに定める: **値ラベルが隠れていて(`labels` が `'category'` / `'none'`)、かつ `axis: false`**。`bars-values-hidden` の warn は、desc ではなく「**doc 媒体で `diagramTitle(d)` が空**」のときに出す(値を隠した bars は desc に自動追記するので、desc が空になることはもう無い)。`diagramDesc` は `d.desc` があるとそれだけを返す(`rules.ts:378`)ので、**利用者が desc を書いた図には追記しない**(利用者の desc を優先。desc に値が含まれているかは機械的に判定できないので警告しない。README に書く)。自動の desc は、他に要素が無いときだけ箱の見出しの一覧を入れる(`if (!parts.length)`、`rules.ts:387`)ので、bars の値の追記は**この分岐の外**で足す(足さないと、箱と値を隠した bars が混在する図で、箱の見出しが desc から消える)。reveal の段階ファイルでは `diagramDesc` が段階によらず同じなので、`reveal0.svg` の desc にも後の段階の値が入る(許容する)。
 - **値を伝える**(a11y): 画面に値を出さない bars(`labels: 'none'` かつ `axis: false` など)は、**値の列を `diagramDesc`(`rules.ts`)の `<desc>` に自動で追記**する(子の `<title>` は読まれない)。doc 媒体で、diagram に title / desc が無いとき `bars-values-hidden` を warn する。slide 媒体は title も desc も出さないので、README に「値を別の箇所に書く」運用を書く(色や長さだけに頼らない原則)。
 - ハードルの高さ・階段は、`dir: 'v'` + `labels: 'none'` + `axis: false` + `grid: false` + 各棒の値で作る。**階段は棒どうしが接していないと階段に見えない**ので、下の「棒の幅と間隔」が要る。
 
@@ -74,7 +76,7 @@ bars(data, {labels: 'all' | 'values' | 'none', axis: false, grid: false, baselin
 
 - 縦棒の最小高さ(約 136px)は、`plotT = y + 22` と `plotB = y + h - 33.6`(カテゴリラベル)と、プロット領域の最小 80px の和。`axis: false` / `labels` の指定に応じて余白を取らず、プロット領域の最小値も 80px から下げる(目安: 20px)。**受け入れ条件: ハードル(`dir: 'v'`、`labels: 'none'`、`height: 60`)で、プロット領域が 50px 以上**。
 - 小さい図で小さい値(0 を含む)が棒 1px 以下になるのは正当なので、**throw ではなく warn**(値 0 は今も許されている)。
-- **棒の幅と間隔**: 今の棒の幅は `slot * .62` 固定(`bars.ts:116`)、縦棒は最大 64px・積み上げ 72px。`barW` ではなく、**棒の幅の比率(`barRatio`: 0〜1、既定 0.62)** を足し、**間隔 0(`barRatio: 1`)を許す**(階段)。最大幅の上限は `barRatio` 指定時は外す。
+- **棒の幅と間隔**: 今の棒の幅は `slot * .62` 固定(`bars.ts:116`)、縦棒は最大 64px・積み上げ 72px。`barW` ではなく、**棒の幅の比率(`barRatio`: 0〜1)** を足し、**間隔 0(`barRatio: 1`)を許す**(階段)。**省略時は「未指定」で従来の挙動のまま**(`0.62` の上限 64px が効く)。指定したときだけ最大幅の上限を外す(`barRatio: 0.62` を明示した図と省略した図で出力が変わるのは、この意図による)。意味: 縦棒・縦の複数棒は `slot * barRatio`、横棒は `BAR / (BAR + GAP)` を比率に置き換える(`BAR 28` / `GAP 18` 固定の代わり)、積み上げ(棒が 1 本)は対象外。
 - 縦と横の両方で受け入れ条件を持つ(横棒の `needH`、`labelW`、`valueW` の連動を含む)。
 
 ### 3. spotlight: bars を対象にする(#3)
@@ -111,13 +113,21 @@ bars(data, {labels: 'all' | 'values' | 'none', axis: false, grid: false, baselin
 
 ### 7. 色: 新しい色を足さず、既存の `solid` で 3 段階を作る(#7)
 
-**`mid` は作らない**(上の計算表: 3:1 を満たすと `accent` の 1.2〜1.7 倍の明るさにしかならず、amber では主役と同じ色になる。`secondary`〔白地・枠 mid〕は既存の `changed`〔白地・枠 accent〕と枠の色の差 1.2〜1.96:1 でしか区別できず、ADR が掲げる「色だけに頼らない」に反する)。
+**`mid` は作らない**(上の計算表: 3:1 を満たすと `accent` の 1.2〜1.7 倍の明るさにしかならず、amber では主役と同じ色になる。`secondary`〔白地・枠 mid〕は既存の `changed`〔白地・枠 accent〕と枠の色の差 1.2〜1.96:1 でしか区別できず、「色だけに頼らない」に反する)。
 
-- **既存の `solid` を `BoxTone` に昇格**させる(今は `ToneName`〔`tokens.ts`〕にあり、ワイヤーフレームの `WfTone` 専用): **主役=`solid`**(accent の塗り+白文字。白文字の比は blue 6.45 / teal 5.94 / amber 4.68 で、いずれも 4.5 以上)、**次点=`accent`**(soft の塗り+accent の枠)、**その他=`plain` / `changed`**。塗りの有無で区別でき、新しい色が要らない。`solid-danger` も同時に昇格して体系をそろえる。
-- 凡例: `DEFAULT_LEGEND_LABELS` は `satisfies Record<`tone:${Exclude<BoxTone,'plain'>}`, string>` なので、昇格した 2 つのラベルが必須。`solid` は「主役」、`solid-danger` は「異常(強)」を想定(実装時に決める)。
+- **既存の `solid` / `solid-danger` を、箱の tone として使えるようにする**: **主役=`solid`**(accent の塗り+白文字。白文字の比は blue 6.45 / teal 5.94 / amber 4.68 で、いずれも 4.5 以上)、**次点=`accent`**(soft の塗り+accent の枠)、**その他=`plain` / `changed`**。塗りの有無で区別でき、新しい色が要らない。
+- **型の範囲**: `BoxTone` そのものは広げない。`BoxTone` は箱のほかに group・banner・legend の項目・table の tone と行の tone・sequence の参加者と note・swimlane のレーンでも使われるので、広げると `group({tone:'solid'})`(子の白い箱が accent の上に並ぶ)や表の行の `tone: 'solid'`(表のセルの文字は `resolveTextColor(c.tone)` で決まり、accent の上に濃い文字が出る。しかも表の文字にはコントラスト検査が無い)が型を通ってしまう。**`box()` / `banner()` / `stat()` / swimlane の手順だけが受ける型 `EmphasisTone = BoxTone | 'solid' | 'solid-danger'`** を作り、legend の項目にだけ同じ型を足す。`DEFAULT_LEGEND_LABELS` の `satisfies` も、この型から `tone:solid` / `tone:solid-danger` を要求するように変える。group・表の行・sequence では**型エラー**(実行時にも throw)。
+- **文字色の規則**(今は仕組みが無い): 箱の文字色は箱の tone ではなく run の tone で決まり(`emit.ts` の `renderTextRuns`、`verify.ts` の `contrastFor`。`TONES[*].text` は箱の文字には使われていない)、`box({tone:'solid'})` は accent の塗りの上に濃い文字が出て、`verify` が 3 件落ちる(実行で確認)。そこで:
+  1. `solid` / `solid-danger` の箱では、**run の tone が未指定なら `bg`(白)** にする(title・body・lines・stat の値)。note や stat のラベルなど既定が `muted` の run も白にする(muted を accent の上に置くと 1.1:1)。
+  2. 明示した `accent` / `danger` / `muted` の run と、ADR 0003 の span の tone(`em.accent` など)は、solid の上では塗りと同じ色になって見えないので **throw**(ADR 0003 の「run と同じ tone は error」と同じ考え方)。太字(`em.b`)は許す。
+  3. `verify.ts` の `contrastFor` と `rules.ts` の `a11y-text-contrast` が、1. の解決後の色で計算する。
+  4. **`a11y-nontext-contrast` の誤検知を直す**: stroke が null のトーンは `resolveBoxStyle` が stroke に fill を入れる(`emit.ts:56`)ため、`rules.ts:179` の `min(stroke と自分の塗り, stroke と白地)` が必ず 1.0:1 になる。stroke の無いトーンは「fill と白地」で判定する(accent と白地は 6.45 で通る)。
+  5. **dim(spotlight)のとき**は、今の箱と同じく塗りを `bg`、文字を `muted` にする。白文字を残すと白地の上で見えなくなるので、dim の分岐が文字色の解決より**先**に来ることをテストする。
+- **凡例**: `tone:solid` は `line:solid`(実線)・`weight:strong` と接頭辞が違い、キーは衝突しない。意味の衝突がある: `accent` の凡例の既定ラベルは「強調」(`rules.ts:56`)なので、`solid` と併用した図の自動凡例は「主役 / 強調」になり、どちらが上か読めない。**(a) solid を使う図では `accent` の凡例ラベルを「次点」にする**(`legendLabels` で図ごとに変えられるなら、README にその例を書く)。`solid` のラベルは「主役」、`solid-danger` は「異常(強)」。凡例ラベルの無い tone を渡されたとき `legend: 'auto'` が `splitAtoms(undefined)` で落ちるのを、throw する検査に変える。
+- **受け入れ条件**: solid の箱(title / body / note / lines / stat)が `verify` と `rules` の両方で**警告ゼロ**。group・表の行・sequence では型エラー。dim の solid の箱が読める。
 - bars の「次点」は、新しい系列色ではなく、既存の `SHADES`(不透明度の段)と `blendLuminance` / `bestTextColor` を使う(トークンの色に fill-opacity を付けるだけなので off-token-color を通る)。bars の系列 `d` を足す場合は、`dsl.ts:641` の `['a','b','c']` の直書きの検査、`BarSeries` 型、`SERIES` の対応表を更新する(bars の系列は凡例に載らない: `usedNotation` は box の tone しか見ない)。
 - `TextTone` には足さない(ADR 0003 の `em.*` が span の tone を `TextTone` に限っているのと整合する)。
-- **受け入れ条件**: 実際の図(主役 / 次点 / その他の 3 段階)で、この組み合わせが要望を満たすかを先に確かめる。満たさない場合に限り、`mid` を最後の手段として再検討する(名前は表のセル記号 `CellMark 'mid'` と紛らわしいので `accent2` など。要件は「白地 3:1、`mid` 上の文字 4.5:1」で、`test/tones.test.ts` の拡張を受け入れ条件にする。`Palette` は `Record<Theme, ThemeColors>` なので、`blue` / `teal` / `amber` に加えテーマ `1` / `2` にも要る。`colorOf` の解決も直す)。
+- 実際の図(主役 / 次点 / その他の 3 段階)で、この組み合わせが要望を満たすかを先に確かめる。満たさない場合に限り、`mid` を最後の手段として再検討する(名前は表のセル記号 `CellMark 'mid'` と紛らわしいので `accent2` など。要件は「白地 3:1、`mid` 上の文字 4.5:1」で、`test/tones.test.ts` の拡張を受け入れ条件にする。`Palette` は `Record<Theme, ThemeColors>` なので、`blue` / `teal` / `amber` に加えテーマ `1` / `2` にも要る。`colorOf` の解決も直す)。
 
 ### 8. 文字: 主役の絵に大きい文字(#8)
 
@@ -144,6 +154,8 @@ bars(data, {labels: 'all' | 'values' | 'none', axis: false, grid: false, baselin
 | `labelScale`(小数倍) | 「任意 px ではなくロール」の原則に反し、plane の固定 px との連動も崩れる |
 | `box({size})` を「任意 px の抜け道」として扱う | 実際は何もしない引数。warn → throw で削除 |
 
+**§0 の例外に、fit の警告も含める**: §8 で plane と table の文字を `analyzeFit` に含めると、既存の図の**警告**(SVG ではなく fit の warnings)が増えうる。「1 バイトも変えない」は SVG の話なので矛盾しないが、ここに明記する。
+
 ## 実装順と受け入れ条件
 
 0. **前提のバグ修正(別 PR)**: bars の棒ごとの dim、grouprow の reveal 継承、plane の文字サイズの出どころ、swimlane の id。
@@ -152,7 +164,7 @@ bars(data, {labels: 'all' | 'values' | 'none', axis: false, grid: false, baselin
 3. **table の `rowHeader`(§6)**。
 4. **plane の `paths`(§5)**: 単調 3 次補間を既定に。
 5. **文字(§8)**: `hero` の削除、`size` の warn、`headlineRole`、`labelRole`(plane / table の fit を先に)。
-6. **色(§7)**: `solid` / `solid-danger` の昇格。実際の図で 3 段階を確かめる。`mid` は最後の手段。
+6. **色(§7)**: `EmphasisTone` の追加と `solid` / `solid-danger` の文字色・コントラスト検査の修正。実際の図で 3 段階を確かめる。`mid` は最後の手段。
 
 どの段階でも `pnpm test` / `pnpm typecheck` / `pnpm golden` を通す。**新しい指定を使わない図の出力は 1 バイトも変えない。ただし §0 のバグ修正は例外**(変わってよい対象は §0 に列挙したものだけ)。各項目に `examples/` の図を足す。
 
