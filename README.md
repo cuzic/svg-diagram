@@ -11,9 +11,9 @@ Node.js 22.18 以上と pnpm が必要。
 
 ### 案件のリポジトリに入れる（推奨）
 
-リリースタグには、コンパイル済みの `dist/`（JS と型定義）が入っている。`node_modules` の中の `.ts` は Node が型を消せないので、タグ指定でそのまま入れられる。
+npm パッケージとして配る（コンパイル済みの `dist/`＝JS と型定義が入っている）。`pnpm add` だけで入り、ブラウザのダウンロードはない。リリースタグ（`dist/` 入り）からも入る: `github:cuzic/svg-diagram#vX.Y.Z`。
 
-    pnpm add -D typescript @types/node github:cuzic/svg-diagram#v0.4.2
+    pnpm add -D typescript @types/node svg-diagram
     pnpm exec svg-diagram init          # package.json に "type": "module"、tsconfig.jsonを用意
     pnpm exec svg-diagram typecheck     # 図のソースを型検査（案件側の tsc を使う）
     pnpm exec svg-diagram build diagrams/*.ts
