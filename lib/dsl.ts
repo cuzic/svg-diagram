@@ -18,6 +18,7 @@ import {applyAutoLegend} from './rules.ts';
 import {analyzeFit} from './fit.ts';
 import {getSlideBudget, readSlideBudgetCache} from './slide-budget.ts';
 import {closeMeasurer} from './measure.ts';
+import {applySpotlight} from './spotlight.ts';
 import {MIN_FONT_SIZE, ROLES, THEMES} from './tokens.ts';
 import type {
   Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
@@ -62,6 +63,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     minEffectiveFont: opts.minEffectiveFont,
     slide: opts.slide, // {page, heading}: measure the real budget from this slide (slide-budget.ts)
     connectDefaults: opts.connectDefaults, wireframeDefaults: opts.wireframeDefaults,
+    spotlight: opts.spotlight,
     fill: !!opts.fill, // fit-figure slide: build to the measured width/height, growing fonts to use the slack (see build())
     bands: [],
   };
@@ -740,6 +742,7 @@ export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'me
     }
     laidOut = await layoutAt(fontScale);
     laidOut.fontScale = fontScale;
+    applySpotlight(laidOut);
     // emit.ts reads ROLES while it draws, so the verdict and the SVG are made at the scale the layout was made at
     verdict = verifyDiagram(laidOut);
     svg = emitSvg(laidOut);
@@ -753,6 +756,7 @@ export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'me
 export async function checkDiagram(d: DiagramData): Promise<CheckResult> {
   applyAutoLegend(d);
   const laidOut = await layoutDiagram(d);
+  applySpotlight(laidOut);
   return {laidOut, verdict: verifyDiagram(laidOut)};
 }
 

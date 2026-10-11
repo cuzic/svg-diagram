@@ -559,7 +559,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       }
 
       registerRowSlots(band.id, band, cursorY, rowHeight, padX, cw, rowGap, placedChildren);
-      laidOut.push({type: 'row', x: padX, y: cursorY, w: cw, h: rowHeight, children: placedChildren, arrows});
+      laidOut.push({type: 'row', id: band.id, x: padX, y: cursorY, w: cw, h: rowHeight, children: placedChildren, arrows});
       cursorY += rowHeight + d.gap;
       continue;
     }
