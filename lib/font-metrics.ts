@@ -114,10 +114,32 @@ function measureText(f: Loaded, family: FontFamily, text: string, size: number, 
   return {w};
 }
 
+/** Whether the fonts that measure sans, mono and emoji between them have a glyph for every visible character of `text`. */
+export function fontsCover(text: string, specs?: FontSpecs): boolean {
+  const fonts = (['sans', 'mono', 'emoji'] as const).flatMap(f => [400, 700].map(w => fontFor(f, w, specs, false))).filter((f): f is Loaded => f !== null);
+  if (!fonts.length) return false;
+  for (const ch of new Set(text)) {
+    const cp = ch.codePointAt(0)!;
+    if (/\s/.test(ch) || cp < 0x20 || cp === 0x7f || cp === 0xfe0f || cp === 0x200d) continue;
+    if (!fonts.some(f => f.covered.has(cp))) return false;
+  }
+  return true;
+}
+
 /** The font file (and face index, and the family name inside it) that measures `family` at this weight, or null when none can be found. */
 export function resolveFontFile(family: FontFamily, weight = 400, specs?: FontSpecs): {file: string; index: number; name: string} | null {
   const f = fontFor(family, weight, specs, false);
   return f ? {file: f.file, index: f.index, name: f.name} : null;
+}
+
+/** The box Chromium gives a line of text at `size`: the font's ascent and descent, each rounded to a whole pixel, and the advance of `text`. */
+export function textBox(text: string, family: FontFamily, size: number, weight = 400, specs?: FontSpecs): {w: number; ascent: number; descent: number} {
+  const f = fontFor(family, weight, specs)!;
+  return {
+    w: measureText(f, family, text, size, weight, specs).w,
+    ascent: Math.round(f.ascender / f.upem * size),
+    descent: Math.round(-f.descender / f.upem * size),
+  };
 }
 
 /** The widths and heights measure.ts would get from Chromium, read from the font files. Synchronous: no browser. */

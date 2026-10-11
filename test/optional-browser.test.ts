@@ -64,20 +64,33 @@ test('layout and build need no browser: an example builds even though its lint c
   fs.rmSync(dir, {recursive: true});
 });
 
-test('lint without a browser still runs the static checks, reports the others as not run, and passes a clean file', () => {
+test('lint needs no browser: the static checks and the checks on the rendering both run, and a bad file fails', () => {
   const dir = tmp();
-  const clean = path.join(dir, 'clean.svg'), bad = path.join(dir, 'bad.svg');
+  const clean = path.join(dir, 'clean.svg'), bad = path.join(dir, 'bad.svg'), faint = path.join(dir, 'faint.svg');
   fs.writeFileSync(clean, CLEAN);
   fs.writeFileSync(bad, CLEAN.replace('y="40" ', '').replace('<text ', '<text writing-mode="tb" '));
+  fs.writeFileSync(faint, CLEAN.replace('fill="#22201b"', 'fill="#fafafa"'));
   const ok = node([path.join(ROOT, 'lint-svg.ts'), clean]);
   assert.equal(ok.status, 0, all(ok));
-  assert.match(ok.stdout, /checks on the rendering .* were NOT run/s);
-  assert.match(ok.stdout, /pnpm add -D playwright-chromium/);
+  assert.doesNotMatch(ok.stdout, /NOT run|playwright/);
   const ng = node([path.join(ROOT, 'lint-svg.ts'), bad]);
   assert.equal(ng.status, 1, all(ng));
   assert.match(ng.stdout, /\[text-missing-y\]/);
   assert.match(ng.stdout, /\[writing-mode-tb\]/);
-  assert.match(ng.stdout, /NOT run/);
+  const lc = node([path.join(ROOT, 'lint-svg.ts'), faint]);
+  assert.equal(lc.status, 1, all(lc)); // a check on the rendering, found without a browser
+  assert.match(lc.stdout, /Low-contrast text/);
+  fs.rmSync(dir, {recursive: true});
+});
+
+test('lint --engine browser, asked for with no browser installed, stops with the hint (exit 2), not with a silent pass', () => {
+  const dir = tmp();
+  const f = path.join(dir, 'clean.svg');
+  fs.writeFileSync(f, CLEAN);
+  const r = node([path.join(ROOT, 'lint-svg.ts'), '--engine', 'browser', f]);
+  assert.equal(r.status, 2, all(r));
+  assert.match(all(r), /--engine browser: playwright-chromium is not installed/);
+  assert.match(all(r), /pnpm add -D playwright-chromium/);
   fs.rmSync(dir, {recursive: true});
 });
 

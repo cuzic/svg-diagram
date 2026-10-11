@@ -3,7 +3,7 @@
 // Two engines. 'resvg' (the default) is a Rust renderer with no browser: it draws with the font files the measuring uses
 // (lib/font-metrics.ts), so what you see is what was laid out. 'chromium' draws the SVG as an <img> in a real browser, the way a
 // web page shows it (playwright-chromium, optional). 'auto' is resvg, or Chromium if resvg cannot be loaded here.
-import {resolveFontFile} from './font-metrics.ts';
+import {fontsCover, resolveFontFile} from './font-metrics.ts';
 import type {FontSpecs} from './types.ts';
 import {xmlProblems} from './xml-check.ts';
 
@@ -43,6 +43,19 @@ export function fontFilesForResvg(specs?: FontSpecs): {files: string[]; sans: st
   };
 }
 
+/** The `font` options resvg is given for this figure. The layout's fonts first; the system's fonts are read as well only when some visible
+ *  character of the figure has no glyph in them (resvg falls back per glyph, and reading them costs seconds). */
+export function resvgFontOptions(svg: string, fonts?: FontSpecs) {
+  const f = fontFilesForResvg(fonts);
+  const visible = svg.replace(/<style[\s\S]*?<\/style>|<metadata[\s\S]*?<\/metadata>|<[^>]*>/g, '');
+  return {
+    fontFiles: f.files,
+    loadSystemFonts: f.files.length === 0 || !fontsCover(visible, fonts),
+    ...(f.sans ? {defaultFontFamily: f.sans, sansSerifFamily: f.sans} : {}),
+    ...(f.mono ? {monospaceFamily: f.mono} : {}),
+  };
+}
+
 export async function rasterizeWithResvg(svg: string, {scale = 1, png = false, fonts}: {scale?: number; png?: boolean; fonts?: FontSpecs} = {}): Promise<Raster> {
   const size = svgSize(svg);
   if (!size) throw new Error('the SVG has no width/height (or viewBox) on its root element');
@@ -50,18 +63,12 @@ export async function rasterizeWithResvg(svg: string, {scale = 1, png = false, f
   if (problems.length) throw new Error(`could not load it as an <img> (not well-formed XML): ${problems[0]}`);
   let Resvg: typeof import('@resvg/resvg-js').Resvg;
   try { ({Resvg} = await loadResvg()); } catch { throw new Error(NOT_LOADABLE); }
-  const f = fontFilesForResvg(fonts);
   let rendered;
   try {
     rendered = new Resvg(svg, {
       background: '#ffffff',
       fitTo: scale === 1 ? {mode: 'original'} : {mode: 'zoom', value: scale},
-      font: {
-        fontFiles: f.files,
-        loadSystemFonts: f.files.length === 0, // none found by the measuring: let resvg look
-        ...(f.sans ? {defaultFontFamily: f.sans, sansSerifFamily: f.sans} : {}),
-        ...(f.mono ? {monospaceFamily: f.mono} : {}),
-      },
+      font: resvgFontOptions(svg, fonts),
     }).render();
   } catch (e) { throw new Error(`could not load it as an <img>: ${(e as Error).message}`); }
   return {width: rendered.width, height: rendered.height, rgba: Buffer.from(rendered.pixels), png: png ? Buffer.from(rendered.asPng()) : undefined};

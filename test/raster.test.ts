@@ -3,9 +3,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {rasterize, svgSize, embedSvg, fontFilesForResvg, rasterizeWithResvg} from '../lib/raster.ts';
+import {rasterize, svgSize, embedSvg, fontFilesForResvg, rasterizeWithResvg, resvgFontOptions} from '../lib/raster.ts';
 import {closeMeasurer} from '../lib/measure.ts';
-import {resolveFontFile} from '../lib/font-metrics.ts';
+import {resolveFontFile, fontsCover as fontsCoverSync} from '../lib/font-metrics.ts';
 
 test.after(() => closeMeasurer());
 
@@ -213,4 +213,48 @@ test('with the browser unavailable, auto and resvg draw; chromium asked for by n
 test('with neither available, auto reports the browser as the thing to install', () => {
   const none = child('@resvg/resvg-js,playwright-chromium', `try { await rasterize(${SMALL}); console.log('DREW'); } catch (e) { console.log('ERR ' + (e as Error).message); }`);
   assert.match(none, /ERR playwright-chromium is not installed/);
+});
+
+// ---- a primary font that lacks the characters ----
+
+const dejavu = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+const haveDejavu = fs.existsSync(dejavu);
+const latinOnly = {sans: {regular: dejavu, bold: dejavu}, mono: {regular: dejavu, bold: dejavu}, emoji: {regular: dejavu, bold: dejavu}};
+
+test('resvg is given the layout\'s font files, and the family names to fall back to', {skip: haveFont ? false : 'no font file found'}, () => {
+  const o = resvgFontOptions(text('Hello'));
+  assert.ok(o.fontFiles.length > 0 && o.fontFiles.every(f => fs.existsSync(f)));
+  assert.ok(o.defaultFontFamily && o.sansSerifFamily === o.defaultFontFamily);
+});
+
+test('the system\'s fonts are read for a figure whose characters the layout\'s fonts cannot draw, and only then', {skip: haveDejavu ? false : 'needs DejaVu Sans'}, () => {
+  assert.equal(resvgFontOptions(text('Hello'), latinOnly).loadSystemFonts, false);
+  assert.equal(resvgFontOptions(text('在庫管理'), latinOnly).loadSystemFonts, true);
+  assert.equal(resvgFontOptions(svgOf(10, 10, '<rect width="5" height="5"/>'), latinOnly).loadSystemFonts, false, 'no text: nothing to cover');
+  // what is in a <style> block, a <metadata> block or an attribute is not text that gets drawn
+  assert.equal(resvgFontOptions(svgOf(10, 10, '<metadata>在庫</metadata><style>/* 在庫 */</style><text x="1" y="9" data-x="在庫">ok</text>'), latinOnly).loadSystemFonts, false);
+  assert.equal(resvgFontOptions(text('Hello 在庫'), latinOnly).loadSystemFonts, true, 'one missing character is enough');
+});
+
+test('with the layout\'s fonts able to draw it, Japanese needs no system fonts', {skip: haveFont ? false : 'no font file found'}, () => {
+  assert.equal(resvgFontOptions(text('在庫管理 Hello')).loadSystemFonts, !fontsCoverSync('在庫管理 Hello'));
+});
+
+test('Japanese is drawn when the layout\'s fonts have none (a glyph from a system font, not just an empty box)', {skip: haveDejavu && haveFont ? false : 'needs DejaVu Sans and a Japanese font on the system'}, async () => {
+  const withFallback = await rasterizeWithResvg(text('在庫管理'), {fonts: latinOnly});
+  const own = await rasterizeWithResvg(text('在庫管理'));
+  // the same characters in a Japanese font: the ink is of the same order (a row of empty boxes would be a different amount)
+  const a = dark(withFallback), b = dark(own);
+  assert.ok(Math.abs(a - b) / b < 0.35, `${a} vs ${b}`);
+});
+
+test('fontsCover: true when sans, mono and emoji fonts between them have every visible character', {skip: haveFont ? false : 'no font file found'}, async () => {
+  const {fontsCover} = await import('../lib/font-metrics.ts');
+  assert.equal(fontsCover('Hello 123'), true);
+  assert.equal(fontsCover('  \n\t'), true);
+  assert.equal(fontsCover(''), false, 'a private-use character no font has');
+  if (haveDejavu) {
+    assert.equal(fontsCover('Hello', latinOnly), true);
+    assert.equal(fontsCover('在庫', latinOnly), false);
+  }
 });
