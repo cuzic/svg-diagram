@@ -126,7 +126,7 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
 }
 
 // ---- table ------------------------------------------------------------------
-export const TBL = {padX: 12, padY: 8};
+export const TBL = {padX: 12, padY: 8, padYDense: 4};
 
 // A cell is a string or {text, tone?, bold?, mono?}; column defaults apply underneath.
 export function cellOf(cell: TableCell, col: TableColumn = {}): ResolvedCell {
@@ -146,6 +146,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
   const colX: number[] = []; let ax = left;
   for (const cw of colW) { colX.push(ax); ax += cw; }
 
+  const padY = band.dense ? TBL.padYDense : TBL.padY;
   let cy = y;
   let titleBar: LaidOutTable['titleBar'] = null;
   if (band.title) {
@@ -154,7 +155,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     titleBar = {y: cy, h, lines};
     cy += h;
   }
-  const rowOf = (cells: readonly (TableColumn | TableCell)[], header: boolean, tone?: BoxTone): LaidOutTableRow => {
+  const rowOf = (cells: readonly (TableColumn | TableCell)[], header: boolean, tone?: BoxTone, rowH?: number): LaidOutTableRow => {
     const placed = cells.map((cell, i): LaidOutTableCell => {
       // header rows pass the column specs themselves (see the call below)
       const c: ResolvedCell = header ? {text: (cell as TableColumn).label ?? '', bold: true, mono: false, align: (cell as TableColumn).align ?? 'left'} : cellOf(cell as TableCell, cols[i]);
@@ -162,11 +163,13 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
       const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', colW[i] - 2 * TBL.padX, widthOf);
       return {...c, lines, x: colX[i], w: colW[i], top: 0};
     });
-    const need = Math.max(1, ...placed.map(c => c.lines.length)) * lineH(ROLES.body) + 2 * TBL.padY;
-    if (band.cellH !== undefined && band.cellH < need) throw new Error(`table(): cellH ${band.cellH} is too small for a row that needs ${Math.ceil(need)}px (${Math.max(1, ...placed.map(c => c.lines.length))} line(s) of ${ROLES.body}px text). Raise cellH or shorten the text`);
-    const h = band.cellH ?? need;
+    const nLines = Math.max(1, ...placed.map(c => c.lines.length));
+    const need = nLines * lineH(ROLES.body) + 2 * padY;
+    const fixed = rowH ?? (header ? band.headerH : undefined) ?? band.cellH;
+    if (fixed !== undefined && fixed < need) throw new Error(`table(): ${rowH !== undefined ? 'h' : header && band.headerH !== undefined ? 'headerH' : 'cellH'} ${fixed} is too small for a row that needs ${Math.ceil(need)}px (${nLines} line(s) of ${ROLES.body}px text). Raise it or shorten the text`);
+    const h = fixed ?? need;
     // fixed-height rows centre their text; content-height rows keep it top-aligned (the output before cellH existed)
-    for (const c of placed) c.top = band.cellH === undefined ? cy + TBL.padY : cy + (h - c.lines.length * lineH(ROLES.body)) / 2;
+    for (const c of placed) c.top = fixed === undefined ? cy + padY : cy + (h - c.lines.length * lineH(ROLES.body)) / 2;
     const row: LaidOutTableRow = {y: cy, h, cells: placed, header, tone};
     cy += h;
     return row;
@@ -176,7 +179,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
   if (hasHeader) rows.push(rowOf(cols, true));
   for (const r of band.rows) {
     const cells = 'cells' in r ? r.cells : r;
-    rows.push(rowOf(cells, false, 'cells' in r ? r.tone : undefined));
+    rows.push(rowOf(cells, false, 'cells' in r ? r.tone : undefined, 'cells' in r ? r.h : undefined));
   }
   return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone, reveal: band.reveal};
 }
