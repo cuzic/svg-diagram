@@ -21,7 +21,7 @@ function ensureResolveHook(): void {
 export interface RenderSourceOptions {
   /** 'cacheOnly' (default) never starts a dev server to measure a slide; 'measure' does, and caches the result. */
   budget?: 'measure' | 'cacheOnly';
-  /** Re-read the source even if it was imported before (for watch mode). Files it imports stay cached. */
+  /** Re-read the source, and the local files it imports, even if they were imported before (for watch mode). */
   fresh?: boolean;
   /** Where to look for .svg-diagram.json (default: the source's directory). */
   configFrom?: string;

@@ -194,3 +194,31 @@ test('package.json exposes ./render, and the build covers it', () => {
   assert.ok(build.include.includes('lib/**/*.ts'));
   assert.ok(fs.existsSync(path.join(ROOT, 'lib', 'render-source.ts')));
 });
+
+test('fresh re-reads the files a source imports too, however deep; without fresh they stay as first loaded', async () => {
+  const dir = tmp();
+  const helper = path.join(dir, 'deep.ts'), mid = path.join(dir, 'mid.ts'), src = path.join(dir, 'top.ts');
+  const text = (t: string) => `export const label = '${t}';\n`;
+  fs.writeFileSync(helper, text('deep-v1'));
+  fs.writeFileSync(mid, `export {label} from './deep.ts';\n`);
+  fs.writeFileSync(src, `import {diagram, box} from 'svg-diagram';\nimport {label} from './mid.ts';\nexport default function define() { return diagram({theme: 'blue'}).add(box({title: label})); }\n`);
+  assert.match((await renderSource(src)).svg, /deep-v1/);
+  fs.writeFileSync(helper, text('deep-v2'));
+  assert.match((await renderSource(src)).svg, /deep-v1/);
+  assert.match((await renderSource(src, {fresh: true})).svg, /deep-v2/);
+  fs.writeFileSync(helper, text('deep-v3'));
+  assert.match((await renderSource(src, {fresh: true})).svg, /deep-v3/);
+  fs.rmSync(dir, {recursive: true});
+});
+
+test('many fresh renders in a row stay correct and keep drawing with the one shared DSL', async () => {
+  const dir = tmp();
+  const src = path.join(dir, 'many.ts');
+  for (let i = 0; i < 8; i++) {
+    fs.writeFileSync(src, body(`round ${i}`));
+    const r = await renderSource(src, {fresh: true});
+    assert.match(r.svg, new RegExp(`round ${i}`));
+    assert.equal(r.ok, true);
+  }
+  fs.rmSync(dir, {recursive: true});
+});

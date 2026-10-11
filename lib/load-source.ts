@@ -8,11 +8,15 @@ import {pathToFileURL} from 'node:url';
 import type {Config, Diagram} from './types.ts';
 import {applyConfig, loadConfig} from './config.ts';
 import {configureMeasure} from './measure.ts';
+import {FRESH_PARAM} from './resolve-hook.ts';
+
+let freshCount = 0;
 
 /** `abs`'s default export, or an error that says what a source should export. */
 export async function importDefine(abs: string, opts: {fresh?: boolean} = {}): Promise<() => Diagram> {
-  // fresh: a query makes the loader treat the entry as a new module, so a watcher re-reads an edited source (its own imports stay cached)
-  const mod = await import(pathToFileURL(abs).href + (opts.fresh ? `?v=${Date.now()}` : ''));
+  // fresh: a query makes the loader treat the entry as a new module, and lib/resolve-hook.ts passes it on to the local files it
+  // imports, so a watcher re-reads an edited source and an edited helper alike
+  const mod = await import(pathToFileURL(abs).href + (opts.fresh ? `?${FRESH_PARAM}=${++freshCount}${Date.now()}` : ''));
   if (typeof mod.default !== 'function') throw new Error(`${abs}: no default export function — export default function define() { return diagram(...) }`);
   return mod.default;
 }
