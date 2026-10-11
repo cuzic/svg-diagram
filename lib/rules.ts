@@ -12,6 +12,7 @@
 import {PALETTE, wcagRatio} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {budgetWarnings} from './budget.ts';
+import {dimmedBands} from './spotlight.ts';
 import type {
   Band, BoxBand, BoxTone, DiagramData, Finding, LaidOutBand, LaidOutBox, LaidOutConnect, LegendBand, LegendItem,
   LineStyle, Point, RuleId, SwimlaneBand, WfCallout,
@@ -67,10 +68,11 @@ export function walkBands(bands: Band[], out: Band[] = []): Band[] {
 }
 
 // notation keys a diagram uses: 'line:dashed', 'arrow:both', 'tone:new', ...
-export function usedNotation(bands: Band[]): Set<string> {
+export function usedNotation(bands: Band[], dimmed = new Set<Band>()): Set<string> {
   const all = walkBands(bands);
   const used = new Set<string>(), lines = new Set<string>();
   for (const b of all) {
+    if (dimmed.has(b)) continue;
     if (b.type === 'connect') {
       lines.add(b.line ?? 'solid');
       if (b.arrow === 'both') used.add('arrow:both');
@@ -98,7 +100,7 @@ export function legendKeys(bands: Band[]): Set<string> {
 // diagram({legend: 'auto'}): add a legend entry for every notation used but not listed.
 export function applyAutoLegend(d: DiagramData): void {
   if (d.legend !== 'auto') return;
-  const used = usedNotation(d.bands), have = legendKeys(d.bands);
+  const used = usedNotation(d.bands, dimmedBands(d)), have = legendKeys(d.bands);
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return;
   const labels: Record<string, string> = {...DEFAULT_LEGEND_LABELS, ...(d.legendLabels ?? {})};
@@ -133,8 +135,8 @@ function textContrast(d: LintTarget, out: Finding[]): void {
   for (const b of d.laidOut ?? []) { if (b.type === 'row' || b.type === 'grid') boxes.push(...b.children); else boxes.push(b); }
   for (const b of boxes) {
     if (b.type === 'box' || b.type === 'banner') {
-      const bg = resolveBoxStyle(b.tone ?? ((b.type as string) === 'banner' ? 'accent' : 'plain'), d.day) /* banner() always sets tone; the fallback is defensive */.fill;
-      for (const run of b.wrappedRuns ?? []) check(resolveTextColor(run.tone, d.day), bg, `「${String(run.text).slice(0, 14)}」`);
+      const bg = b.dim ? PALETTE.bg : resolveBoxStyle(b.tone ?? ((b.type as string) === 'banner' ? 'accent' : 'plain'), d.day) /* banner() always sets tone; the fallback is defensive */.fill;
+      for (const run of b.wrappedRuns ?? []) check(b.dim ? PALETTE.muted : resolveTextColor(run.tone, d.day), bg, `「${String(run.text).slice(0, 14)}」`);
       if (b.tag) check(PALETTE.bg, b.tagTone === 'danger' ? PALETTE.danger : b.tagTone === 'muted' ? PALETTE.muted : PALETTE[d.day].accent, `タグ「${b.tag}」`);
     } else if (b.type === 'caption') {
       for (const run of b.wrappedRuns ?? []) check(resolveTextColor(run.tone, d.day), PALETTE.bg, `「${String(run.text).slice(0, 14)}」`);
@@ -150,7 +152,8 @@ function textContrast(d: LintTarget, out: Finding[]): void {
 
 function nonTextContrast(d: LintTarget, out: Finding[]): void {
   const tones = new Set<BoxTone>();
-  for (const b of walkBands(d.bands)) if (b.type === 'box') tones.add(b.tone ?? 'plain');
+  const dimmed = dimmedBands(d);
+  for (const b of walkBands(d.bands)) if (b.type === 'box' && !dimmed.has(b)) tones.add(b.tone ?? 'plain');
   for (const t of tones) {
     const st = resolveBoxStyle(t, d.day);
     const r = Math.min(wcagRatio(st.stroke, st.fill), wcagRatio(st.stroke, PALETTE.bg));
@@ -158,14 +161,14 @@ function nonTextContrast(d: LintTarget, out: Finding[]): void {
   }
   for (const c of d.connects ?? []) {
     // connector colours are resolved the same way emit does
-    const col = c.tone === 'muted' ? PALETTE.muted : c.tone === 'danger' ? PALETTE.danger : c.tone === 'accent' ? PALETTE[d.day].accent : PALETTE.text;
+    const col = c.dim ? PALETTE.muted : c.tone === 'muted' ? PALETTE.muted : c.tone === 'danger' ? PALETTE.danger : c.tone === 'accent' ? PALETTE[d.day].accent : PALETTE.text;
     const r = wcagRatio(col, PALETTE.bg);
     if (r < 3) { out.push({rule: 'a11y-nontext-contrast', severity: 'warn', message: `矢印の色 ${col} のコントラスト比が ${ratioText(r)}:1`}); break; }
   }
 }
 
 function legendRules(d: LintTarget, out: Finding[]): void {
-  const used = usedNotation(d.bands), have = legendKeys(d.bands);
+  const used = usedNotation(d.bands, dimmedBands(d)), have = legendKeys(d.bands);
   if (!used.size) return;
   const hasLegend = walkBands(d.bands).some(b => b.type === 'legend');
   const missing = [...used].filter(k => !have.has(k));

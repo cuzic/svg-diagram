@@ -58,11 +58,11 @@ const resolveLineColor = textColorOf;
 
 function renderTextRuns(
   wrappedRuns: WrappedRun[],
-  {originX, originY, w, align, day}: {originX: number; originY: number; w: number; align: Align; day: Theme},
+  {originX, originY, w, align, day, dim}: {originX: number; originY: number; w: number; align: Align; day: Theme; dim?: boolean},
 ): string {
   const parts: string[] = [];
   for (const run of wrappedRuns) {
-    const color = resolveTextColor(run.tone, day);
+    const color = dim ? PALETTE.muted : resolveTextColor(run.tone, day);
     const cls = run.mono ? ' class="mono"' : '';
     const anchor = align === 'center' ? ' text-anchor="middle"' : align === 'right' ? ' text-anchor="end"' : '';
     // A step() badge only ever indents the title run (see layout.ts's
@@ -91,13 +91,14 @@ function renderStepBadge(band: LaidOutBox, day: Theme): string {
 }
 
 function renderCaption(band: LaidOutCaption, day: Theme): string {
-  return renderTextRuns(band.wrappedRuns, {originX: band.x, originY: band.y, w: band.w, align: band.align ?? 'center', day});
+  return renderTextRuns(band.wrappedRuns, {originX: band.x, originY: band.y, w: band.w, align: band.align ?? 'center', day, dim: band.dim});
 }
 
-type BoxLike = Rect & {tone?: BoxTone; dashed?: boolean};
+type BoxLike = Rect & {tone?: BoxTone; dashed?: boolean; dim?: boolean};
 function renderBoxRect(band: BoxLike, day: Theme, defaultTone: BoxTone): string {
   const style = resolveBoxStyle(band.tone ?? defaultTone, day, band.dashed);
-  const dash = style.dashed ? ' stroke-dasharray="6,4"' : '';
+  if (band.dim) { style.fill = PALETTE.bg; style.stroke = PALETTE.muted; }
+  const dash = style.dashed ? ' stroke-dasharray="6,4"' : band.dim ? ' stroke-dasharray="2,5" stroke-linecap="round"' : '';
   const rx = snap4(band.x), ry = snap4(band.y), rw = snap4(band.w), rh = snap4(band.h);
   return `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" rx="8" fill="${style.fill}" stroke="${style.stroke}" stroke-width="2.5"${dash}/>`;
 }
@@ -106,12 +107,12 @@ function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, defaultAlig
   const align = band.align ?? defaultAlign;
   const px = band.padX ?? BOX_PAD_X, py = band.padY ?? BOX_PAD_Y;
   const originX = band.x + px;
-  return renderTextRuns(band.wrappedRuns, {originX, originY: band.y + py, w: band.w - 2 * px, align, day});
+  return renderTextRuns(band.wrappedRuns, {originX, originY: band.y + py, w: band.w - 2 * px, align, day, dim: band.dim});
 }
 
 function renderTag(band: LaidOutBox, day: Theme): string {
   const t = band.tagBox as Rect; // caller checked tagBox
-  const fill = colorOf(toneStyle(band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
+  const fill = band.dim ? PALETTE.muted : colorOf(toneStyle(band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
   return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, size: TAG_SIZE, labelHtml: emojiSpan(band.tag as string)});
 }
 
@@ -137,8 +138,9 @@ function lineAttrs(line: LineStyle | undefined): string {
   return line === 'dashed' ? ' stroke-dasharray="6,4"' : line === 'dotted' ? ' stroke-dasharray="2,5" stroke-linecap="round"' : '';
 }
 
-function arrowMarkers(arrow: Arrow | undefined): string {
-  return `${arrow === 'start' || arrow === 'both' ? ' marker-start="url(#dsl-arrow)"' : ''}${arrow === 'end' || arrow === 'both' ? ' marker-end="url(#dsl-arrow)"' : ''}`;
+function arrowMarkers(arrow: Arrow | undefined, dim = false): string {
+  const id = dim ? 'dsl-arrow-dim' : 'dsl-arrow';
+  return `${arrow === 'start' || arrow === 'both' ? ` marker-start="url(#${id})"` : ''}${arrow === 'end' || arrow === 'both' ? ` marker-end="url(#${id})"` : ''}`;
 }
 
 // A line sample (and optional arrowhead) + label per item, laid out by layout.ts.
@@ -170,7 +172,7 @@ function renderBanner(band: LaidOutBanner, day: Theme): string {
 function renderRow(band: LaidOutRow, day: Theme, stage?: number): string {
   const boxes = band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day)).join('\n\n  ');
   const arrows = band.arrows.filter((_, i) => visibleAt(band.children[i], stage) && visibleAt(band.children[i + 1], stage)).map(a =>
-    `<path d="M${snap4(a.x1)},${Math.round(a.y1)} L${snap4(a.x2)},${Math.round(a.y2)}" fill="none" stroke="${PALETTE.text}" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>`,
+    `<path d="M${snap4(a.x1)},${Math.round(a.y1)} L${snap4(a.x2)},${Math.round(a.y2)}" fill="none" stroke="${band.dim ? PALETTE.muted : PALETTE.text}" stroke-width="2.5" marker-end="url(#${band.dim ? 'dsl-arrow-dim' : 'dsl-arrow'})"/>`,
   ).join('\n  ');
   return arrows ? `${boxes}\n\n  ${arrows}` : boxes;
 }
@@ -184,9 +186,9 @@ function renderConnectPath(c: LaidOutConnect): string {
 }
 
 function renderConnect(c: LaidOutConnect, day: Theme): string {
-  const color = resolveLineColor(c.tone, day);
+  const color = c.dim ? PALETTE.muted : resolveLineColor(c.tone, day);
   const d = renderConnectPath(c);
-  const markers = arrowMarkers(c.arrow);
+  const markers = arrowMarkers(c.arrow, c.dim);
   let path: string;
   if (c.line === 'double') {
     // a thick line with a background-colored core: reads as "=" and keeps the arrowhead on the core
@@ -458,7 +460,7 @@ function renderPrims(b: LaidOutWireframe | LaidOutScreens, day: Theme): string {
   return out.join('\n  ');
 }
 
-function renderBand(band: LaidOutBand, day: Theme, stage?: number): string {
+function renderBandPlain(band: LaidOutBand, day: Theme, stage?: number): string {
   switch (band.type) {
     case 'caption': return renderCaption(band, day);
     case 'box': return renderBox(band, day);
@@ -480,6 +482,15 @@ function renderBand(band: LaidOutBand, day: Theme, stage?: number): string {
   }
 }
 
+function renderBand(band: LaidOutBand, day: Theme, stage?: number): string {
+  const svg = renderBandPlain(band, day, stage);
+  if (!band.dim || band.type === 'caption' || band.type === 'box' || band.type === 'banner' || band.type === 'group' || band.type === 'row' || band.type === 'grid') return svg;
+  return svg
+    .replace(/marker-(start|end)="url\(#dsl-arrow\)"/g, 'marker-$1="url(#dsl-arrow-dim)"')
+    .replace(/stroke="#[0-9a-fA-F]{6}"/g, `stroke="${PALETTE.muted}"`)
+    .replace(/fill="(#[0-9a-fA-F]{6})"/g, (_all, fill: string) => `fill="${fill === PALETTE.bg ? PALETTE.bg : PALETTE.muted}"`);
+}
+
 function usesArrows(laidOutDiagram: LaidOutDiagram): boolean {
   if (laidOutDiagram.connects.some(c => c.arrow !== 'none')) return true;
   if (laidOutDiagram.laidOut.some(b => b.type === 'legend' && b.items.some(i => i.line && (i.arrow ?? 'end') !== 'none'))) return true;
@@ -499,12 +510,20 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number} 
   const usesMono = laidOut.some(b => bandRuns(b).some(x => (x as WrappedRun).mono || (('wrappedRuns' in x ? x.wrappedRuns : undefined) ?? []).some(r => r.mono)))
     || laidOut.some(b => b.type === 'table' && b.rows.some(r => r.cells.some(c => c.mono && c.lines.length)));
   const needsArrow = usesArrows(laidOutDiagram);
+  const needsDimArrow = connects.some(c => c.dim && c.arrow !== 'none') || laidOut.some(b => b.dim && (
+    b.type === 'row' && b.arrows.length > 0
+    || b.type === 'legend' && b.items.some(i => i.line && (i.arrow ?? 'end') !== 'none')
+    || b.type === 'sequence' && b.steps.some(x => x.kind === 'self' || x.kind === 'msg' && x.arrow !== 'none')
+  ));
 
   const defs = needsArrow ? `
   <defs>
     <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="${PALETTE.text}"/>
-    </marker>
+    </marker>${needsDimArrow ? `
+    <marker id="dsl-arrow-dim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="${PALETTE.muted}"/>
+    </marker>` : ''}
   </defs>` : '';
 
   const style = `

@@ -122,6 +122,17 @@ bars([
 ], {max: 100, unit: '%', stack: true})
 ```
 
+### 主役以外を薄くする（spotlight）
+
+`diagram({spotlight: 'main'})` は、指定した id 以外を muted 色へ寄せ、主役を残す。group の id なら子孫も主役になり、row の特定の子は `'flow#2'` のように指定できる。矢印は既定で主役に片端でも接するものを残す (`edges: 'touching'`)。両端が主役の矢印だけを残す場合は `spotlight: {ids: ['a', 'b'], edges: 'between'}` とする。dim 側も破線・点線・二重線など形の手がかりは維持される。muted トーンの箱との併用は見分けにくいため check が警告する。
+
+```ts
+diagram({theme: 'blue', spotlight: {ids: ['main', 'choices#2'], edges: 'touching'}}).add(
+  group([box({id: 'main', title: '今回の判断'})], {id: 'scope'}),
+  row([box({title: '候補 A'}), box({title: '候補 B'})], {id: 'choices'}),
+)
+```
+
 ### 左右の対比
 
 `versus()` は `row({cols: [6, 6]})`、左右の `group()`、任意の共通部への `connect()` をまとめた糖衣構文。新しいレイアウト規則は持たない。左右だけなら `id` は任意で、`shared` を接続する場合は左右と共通部に `id` を付ける。

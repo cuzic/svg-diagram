@@ -24,7 +24,7 @@
 
 import {PALETTE, colorOf, luminance} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
-import {lintDiagram} from './rules.ts';
+import {lintDiagram, walkBands} from './rules.ts';
 import type {BoxTone, CheckRect, LaidOutBanner, LaidOutBox, LaidOutCaption, LaidOutDiagram, Rect, Verdict} from './types.ts';
 
 const CONTRAST_THRESHOLD = 70; // same threshold lint-svg.ts's own contrast check uses
@@ -177,10 +177,10 @@ function checkBounds(d: LaidOutDiagram, rects: CheckRect[]): string[] {
 function checkContrast(d: LaidOutDiagram): string[] {
   const problems: string[] = [];
   const contrastFor = (band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: BoxTone | null): string[] => {
-    const boxFill = boxTone ? resolveBoxStyle(boxTone, d.day).fill : PALETTE.bg;
+    const boxFill = band.dim ? PALETTE.bg : boxTone ? resolveBoxStyle(boxTone, d.day).fill : PALETTE.bg;
     const found: string[] = [];
     for (const run of band.wrappedRuns ?? []) {
-      const fg = resolveTextColor(run.tone, d.day);
+      const fg = band.dim ? PALETTE.muted : resolveTextColor(run.tone, d.day);
       const delta = Math.abs(luminance(fg) - luminance(boxFill));
       if (delta < CONTRAST_THRESHOLD) {
         found.push(`"${run.text.slice(0, 20)}" (${fg} on ${boxFill}, in "${labelOf(band)}") has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
@@ -220,5 +220,6 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
   // get the full set; legacy slide diagrams keep their existing text-volume warning only.
   const findings = d.medium === 'doc' ? lintDiagram(d) : lintDiagram(d).filter(f => f.rule === 'density');
   const warnings = [...(d.revealWarnings ?? []), ...findings.filter(f => f.severity === 'warn').map(f => `[${f.rule}] ${f.message}`)];
+  if (d.spotlight && walkBands(d.bands).some(b => b.type === 'box' && b.tone === 'muted')) warnings.push('[spotlight-muted] spotlight と muted トーンの箱を併用しているため、dim との違いを形でも確認する');
   return {ok: problems.length === 0, problems, warnings, findings};
 }

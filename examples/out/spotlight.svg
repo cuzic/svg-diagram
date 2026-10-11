@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="156" viewBox="0 0 940 156" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">主役に接する流れを残す</title>
+  <desc id="svg-desc">要素: 候補を集める、判断する、記録する</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/spotlight.ts","sourceSha256":"6db0897b4de268f1ba90bc7915a3c001db5251951f8f96f40077b9b983b6244d"}</metadata>
+  <defs>
+    <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="156" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">spotlight（既定 edges: touching）</text>
+
+  <rect x="20" y="56" width="288" height="80" rx="8" fill="#ffffff" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="2,5" stroke-linecap="round"/>
+  <text x="40" y="86.6" font-size="15" font-weight="700" fill="#6f6659">候補を集める</text>
+  <text x="40" y="114.6" font-size="14" font-weight="400" fill="#6f6659">前段の処理</text>
+
+  <rect x="324" y="56" width="288" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="345.3333333333333" y="86.6" font-size="15" font-weight="700" fill="#22201b">判断する</text>
+  <text x="345.3333333333333" y="114.6" font-size="14" font-weight="400" fill="#22201b">今回の主役</text>
+
+  <rect x="632" y="56" width="288" height="80" rx="8" fill="#ffffff" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <text x="650.6666666666666" y="86.6" font-size="15" font-weight="700" fill="#6f6659">記録する</text>
+  <text x="650.6666666666666" y="114.6" font-size="14" font-weight="400" fill="#6f6659">後段の処理</text>
+
+  <path d="M309,96 L325,96" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+
+  <path d="M615,96 L631,96" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+</svg>

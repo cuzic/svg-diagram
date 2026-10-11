@@ -64,6 +64,7 @@ export type Align = 'left' | 'center' | 'right';
 
 export interface Point {x: number; y: number}
 export interface Rect {x: number; y: number; w: number; h: number}
+export interface Dimmed {/** Set on laid-out elements outside diagram({spotlight}). */ dim?: boolean}
 /** A named rect connect() can attach to: any band/child with an `id` (boxes, groups, screens, ...). */
 export interface Anchor extends Rect {id: string}
 /** Result of parsing a connect() ref 'id', 'id:side' or 'id:side@t'. */
@@ -121,6 +122,8 @@ export interface DiagramOpts {
   connectDefaults?: ConnectDefaults;
   /** What every wireframe() / screens() item starts from (a common app bar, frame, height); see WireframeDefaults. */
   wireframeDefaults?: WireframeDefaults;
+  /** Keep these anchors prominent and render the rest with the muted spotlight treatment. */
+  spotlight?: string | {ids: string | readonly string[]; edges?: 'touching' | 'between'};
 }
 
 /** Everything diagram() stores, plus fields set later by build/check (usableWidth, maxWidth, source). */
@@ -142,6 +145,7 @@ export interface DiagramData {
   fill: boolean;
   connectDefaults?: ConnectDefaults;
   wireframeDefaults?: WireframeDefaults;
+  spotlight?: string | {ids: string | readonly string[]; edges?: 'touching' | 'between'};
   bands: Band[];
   /** Set by build() from the measured slide (contentWidth). */
   usableWidth?: number;
@@ -1338,22 +1342,22 @@ export interface TextRun {
 /** A text run after wrapping: `lines[i]` is drawn with its baseline at band.y + padY + lineYs[i]. */
 export interface WrappedRun extends TextRun {lines: string[]; lineYs: number[]}
 
-export interface LaidOutCaption extends CaptionBand, Rect {
+export interface LaidOutCaption extends CaptionBand, Rect, Dimmed {
   wrappedRuns: WrappedRun[];
   tagBox?: Rect;
   /** group() titles only: the rect the title's text really covers (the caption itself spans the whole frame width). */
   inkBox?: Rect;
 }
-export interface LaidOutBox extends BoxBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number; nowrapOverflow?: string[]}
-export interface LaidOutBanner extends BannerBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number}
+export interface LaidOutBox extends BoxBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number; nowrapOverflow?: string[]}
+export interface LaidOutBanner extends BannerBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number}
 /** The frame of a group; its children are laid out as separate bands after it. */
-export interface LaidOutGroup extends Rect {type: 'group'; tone: BoxTone; dashed?: boolean; frame?: false; stamp?: string; stampW?: number; id?: string; reveal?: number}
+export interface LaidOutGroup extends Rect, Dimmed {type: 'group'; tone: BoxTone; dashed?: boolean; frame?: false; stamp?: string; stampW?: number; id?: string; reveal?: number}
 export interface LaidOutLegendItem extends LegendItem {textW: number; w: number; x: number; y: number}
 export interface LaidOutLegend extends Rect {type: 'legend'; items: LaidOutLegendItem[]}
 export interface RowArrow {x1: number; y1: number; x2: number; y2: number}
-export interface LaidOutRow extends Rect {type: 'row'; children: LaidOutBox[]; arrows: RowArrow[]}
+export interface LaidOutRow extends Rect, Dimmed {type: 'row'; id?: string; children: LaidOutBox[]; arrows: RowArrow[]}
 /** Grids have no `h` of their own (children carry the geometry). */
-export interface LaidOutGrid {type: 'grid'; x: number; y: number; w: number; children: LaidOutBox[]}
+export interface LaidOutGrid extends Dimmed {type: 'grid'; x: number; y: number; w: number; children: LaidOutBox[]}
 export interface LaidOutRaw extends RawBand, Rect {}
 export interface LaidOutPyramidLayer {
   /** Trapezoid corners: bottom-left, bottom-right, top-right, top-left. */
@@ -1480,13 +1484,14 @@ export interface LaidOutBars extends Rect {
   anchors: Anchor[];
 }
 
-export type LaidOutBand =
+export type LaidOutBand = (
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
   | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutSwimlane | LaidOutSequence | LaidOutTable
-  | LaidOutWireframe | LaidOutScreens;
+  | LaidOutWireframe | LaidOutScreens) & Dimmed;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */
 export interface LaidOutConnect extends Omit<ConnectBand, 'from' | 'to'> {
+  dim?: boolean;
   from: Point;
   to: Point;
   fromId: string;
