@@ -99,7 +99,7 @@ try {
       if (n) say(`${findings.some(f => f.file === rel && f.severity !== 'info') ? '△' : '✓'} ${rel}（図 ${n}）`);
     }
     if (svgDir && fs.existsSync(svgDir)) {
-      for (const f of fs.readdirSync(svgDir).filter(x => x.endsWith('.svg')).sort()) {
+      for (const f of fs.readdirSync(svgDir).filter(x => x.endsWith('.svg') && !/\.reveal\d+\.svg$/.test(x)).sort()) {
         if (!referenced.has(path.resolve(svgDir, f))) mapRows.push({name: path.parse(f).name, svg: path.join(svgDir, f), doc: '', src: ''});
         if (!referenced.has(path.resolve(svgDir, f))) add({file: path.join(svgDir, f), rule: 'doc-orphan-svg', severity: 'warn', message: 'どの文書からも参照されていない'});
       }
@@ -123,7 +123,8 @@ try {
         const d = await loadDiagram(abs, config);
         d.source = meta; // same provenance → byte-comparable
         const tmp = path.join(path.dirname(svg), `.${name}.rebuild.svg`);
-        try { await build(d, tmp, {lint: false, name: `${name}.svg`}); } // the committed SVG was linted when it was built; an identical rebuild needs no second render
+        let rebuilt: Awaited<ReturnType<typeof build>>;
+        try { rebuilt = await build(d, tmp, {lint: false, name: `${name}.svg`}); } // the committed SVG was linted when it was built; an identical rebuild needs no second render
         catch (e) { // the regenerated picture fails its own checks: report it and go on with the rest
           fs.rmSync(tmp, {force: true});
           const why = String((e as Error).message).split('\n').filter(l => l.trim() && !/^Scanned|^─/.test(l)).slice(0, 3).join(' / ');
@@ -131,16 +132,36 @@ try {
           complain(`✗ ${src}: 再生成した SVG が自分の検査に通らない: ${why}`);
           continue;
         }
-        const before = fs.readFileSync(svg, 'utf8'), after = fs.readFileSync(tmp, 'utf8');
-        fs.rmSync(tmp, {force: true});
-        if (before !== after) {
+        const pairs = [[svg, tmp], ...rebuilt.revealPaths.map((p, stage) => [path.join(path.dirname(svg), `${name}.reveal${stage}.svg`), p])];
+        const orphaned = fs.readdirSync(path.dirname(svg)).filter(f => {
+          const m = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.reveal(\\d+)\\.svg$`).exec(f);
+          return m && Number(m[1]) >= rebuilt.revealPaths.length;
+        });
+        const changed = pairs.find(([beforePath, afterPath]) => !fs.existsSync(beforePath) || fs.readFileSync(beforePath, 'utf8') !== fs.readFileSync(afterPath, 'utf8'));
+        if (orphaned.length) {
+          for (const [, p] of pairs) fs.rmSync(p, {force: true});
+          add({file: src, rule: 'drift-orphan-reveal', severity: 'error', message: `古い reveal ファイルが残っている: ${orphaned.join(', ')}`});
+          complain(`✗ ${src}: 古い reveal ファイルが残っている: ${orphaned.join(', ')}`);
+          continue;
+        }
+        if (changed) {
+          const [beforePath, afterPath] = changed;
+          if (!fs.existsSync(beforePath)) {
+            for (const [, p] of pairs) fs.rmSync(p, {force: true});
+            add({file: src, rule: 'drift-missing', severity: 'error', message: `${beforePath} がない（未生成）`});
+            complain(`✗ ${src}: ${beforePath} がない（未生成）`);
+            continue;
+          }
+          const before = fs.readFileSync(beforePath, 'utf8'), after = fs.readFileSync(afterPath, 'utf8');
+          for (const [, p] of pairs) fs.rmSync(p, {force: true});
           const ex = explainChange(before, after);
-          add({file: src, rule: 'drift-rebuild', severity: 'error', message: `再生成した SVG が ${svg} と一致しない（ツールの版が違う、または手で編集された）。${ex.lines.join(' / ')}`});
-          complain(`✗ ${src}: 再生成した SVG が ${svg} と一致しない（ツールの版が違う、または手で編集された）`);
+          add({file: src, rule: 'drift-rebuild', severity: 'error', message: `再生成した SVG が ${beforePath} と一致しない（ツールの版が違う、または手で編集された）。${ex.lines.join(' / ')}`});
+          complain(`✗ ${src}: 再生成した SVG が ${beforePath} と一致しない（ツールの版が違う、または手で編集された）`);
           for (const l of ex.lines) complain(`     ↳ ${l}`);
           complain(`     ↳ ${ex.visual ? '見た目が変わる。再生成して、目で確かめる' : '見た目は変わらない。再生成してよい'}`);
           continue;
         }
+        for (const [, p] of pairs) fs.rmSync(p, {force: true});
       }
       say(`✓ ${src}: ${svg} は最新（ツール ${meta.toolVersion}）`);
       continue;

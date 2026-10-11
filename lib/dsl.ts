@@ -18,6 +18,7 @@ import {applyAutoLegend} from './rules.ts';
 import {analyzeFit} from './fit.ts';
 import {getSlideBudget, readSlideBudgetCache} from './slide-budget.ts';
 import {closeMeasurer} from './measure.ts';
+import {prepareReveal} from './reveal.ts';
 import {MIN_FONT_SIZE, ROLES, THEMES} from './tokens.ts';
 import type {
   Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
@@ -147,7 +148,7 @@ export function banner(opts: BannerOpts): BannerBand {
 export function group<C extends Band | Band[], const Id extends string = never>(children: C, opts?: GroupOpts & {id?: Id}): GroupBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & HandleOf<Id>;
 export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
   if (opts.frame === false && (opts.title || opts.dashed || opts.tone)) throw new Error('group({frame: false}) draws no frame, so it takes no title, tone or dashed');
-  return withHandle({type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad ?? (opts.frame === false ? 0 : undefined), frame: opts.frame, stamp: opts.stamp, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col}, opts.id);
+  return withHandle({type: 'group', children: [children].flat(), title: opts.title, titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad ?? (opts.frame === false ? 0 : undefined), frame: opts.frame, stamp: opts.stamp, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col, reveal: opts.reveal}, opts.id);
 }
 
 // Key for line styles / tones used in the diagram. items:
@@ -178,7 +179,7 @@ export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: S
 // the column-label row; width narrows the table (centered); cellH fixes every row's height (text centred; throws if a cell needs more).
 export function table<const Id extends string = never>(columns: TableColumn[], rows: readonly TableRow[], opts?: TableOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
 export function table(columns: TableColumn[], rows: readonly TableRow[], opts: TableOpts = {}): TableBand {
-  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, id: opts.id}, opts.id);
+  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, id: opts.id, reveal: opts.reveal}, opts.id);
 }
 
 // A table cell with a status symbol: `cell('通る', {mark: 'ok'})` draws "○ 通る" in the accent tone; mark: 'ok' ○ | 'mid' △ | 'ng' × | 'best' ◎.
@@ -560,7 +561,7 @@ function connectBand(from: string, to: string, opts: ConnectOpts, trackGiven = t
   // chip:  true puts the label in a bordered pill sitting ON the line (protocol / rate tags)
   const arrow = opts.arrow ?? (opts.marker === false ? 'none' : 'end');
   const line = opts.line ?? (opts.dashed ? 'dashed' : 'solid');
-  const band: ConnectBand = {type: 'connect', from, to, route: opts.route ?? 'straight', dip: opts.dip ?? 32, bend: opts.bend ?? 0.5, bendOffset: opts.bendOffset, arrow, line, chip: !!opts.chip, labelAt: opts.labelAt ?? 0.5, tone: opts.tone, label: opts.label};
+  const band: ConnectBand = {type: 'connect', from, to, route: opts.route ?? 'straight', dip: opts.dip ?? 32, bend: opts.bend ?? 0.5, bendOffset: opts.bendOffset, arrow, line, chip: !!opts.chip, labelAt: opts.labelAt ?? 0.5, tone: opts.tone, label: opts.label, reveal: opts.reveal};
   return trackGiven ? Object.defineProperty(band, GIVEN, {value: opts, configurable: true}) : band;
 }
 
@@ -696,6 +697,7 @@ export async function build(d: Diagram, outPath: string, opts: {lint?: boolean; 
 // (A define()/constructor/layout error still throws.) budget: 'measure' measures a slide that has no cached budget (starts the
 // dev server, writes the cache); 'cacheOnly' reads the cache and falls back to the default sizes with a note.
 export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'measure' | 'cacheOnly'}): Promise<RenderResult> {
+  const maxReveal = prepareReveal(d);
   applyAutoLegend(d);
   const notes: string[] = [];
   // A diagram that names its slide gets a measured height budget and width
@@ -746,7 +748,7 @@ export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'me
     laidOut.fontScale = fontScale;
     // emit.ts reads ROLES while it draws, so the verdict and the SVG are made at the scale the layout was made at
     verdict = verifyDiagram(laidOut);
-    svg = emitSvg(laidOut);
+    svg = emitSvg(laidOut, maxReveal ? {reveal: maxReveal} : {});
   } finally {
     applyScale(1);
   }
@@ -755,6 +757,7 @@ export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'me
 
 // Layout + verification + rules, without writing any file: the engine behind `svg-diagram check`.
 export async function checkDiagram(d: DiagramData): Promise<CheckResult> {
+  prepareReveal(d);
   applyAutoLegend(d);
   const laidOut = await layoutDiagram(d);
   return {laidOut, verdict: verifyDiagram(laidOut)};
@@ -768,6 +771,20 @@ async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Pro
   if (r.xml.length) throw new Error(`build(${outPath}): the emitted SVG is not well-formed XML (an <img> would fail to load it):\n  ${r.xml.join('\n  ')}`);
   fs.mkdirSync(path.dirname(outPath), {recursive: true});
   fs.writeFileSync(outPath, r.svg);
+  const revealPaths: string[] = [];
+  if (r.laidOut.maxReveal) {
+    const ext = path.extname(outPath), stem = outPath.slice(0, -ext.length);
+    for (let stage = 0; stage <= r.laidOut.maxReveal; stage++) {
+      const revealPath = `${stem}.reveal${stage}${ext}`;
+      fs.writeFileSync(revealPath, emitSvg(r.laidOut, {reveal: stage}));
+      revealPaths.push(revealPath);
+    }
+  }
+  const ext = path.extname(outPath), stem = outPath.slice(0, -ext.length);
+  for (const name of fs.readdirSync(path.dirname(outPath))) {
+    const m = new RegExp(`^${path.basename(stem).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.reveal(\\d+)${ext.replace('.', '\\.')}$$`).exec(name);
+    if (m && (!r.laidOut.maxReveal || Number(m[1]) > r.laidOut.maxReveal)) fs.rmSync(path.join(path.dirname(outPath), name));
+  }
 
   const lintScript = path.resolve(import.meta.dirname, '..', import.meta.url.endsWith('.ts') ? 'lint-svg.ts' : 'lint-svg.js');
   if (lint) try {
@@ -777,7 +794,7 @@ async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Pro
     const out = (e.stdout || '') + (e.stderr || '');
     throw new Error(`build(${outPath}) produced an SVG that fails lint-svg.ts --strict:\n${out}`);
   }
-  return {outPath, width: r.width, height: r.height, fit: r.fit, budget: r.budget, fontScale: r.fontScale, warnings: verdict.warnings, findings: verdict.findings};
+  return {outPath, revealPaths, width: r.width, height: r.height, fit: r.fit, budget: r.budget, fontScale: r.fontScale, warnings: verdict.warnings, findings: verdict.findings};
 }
 
 export {closeMeasurer};

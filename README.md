@@ -147,6 +147,28 @@ versus(
 新部品は「同じパターンが 3 回出たら」が原則だが、ユーザーが明示したときは例外。
 既存の `day:` 図の出力が変わらないこと（回帰）を確認してから足す。
 
+### クリックごとの段階表示
+
+`reveal: n`（1 始まり）を付けると、その要素は n 回目のクリックから表示される。対象は `box`、`group`、`row` の子、`connect`、`bars` の各棒、`banner`、`table`、`plane`。`caption`、`legend`、`spacer` には付けない。未指定の要素は最初から表示される。
+
+```ts
+const summary = box({id: 'summary', title: '概要'});
+const detail = box({id: 'detail', title: '詳細', reveal: 1});
+
+d.add(
+  row([summary, detail]),
+  connect(summary.right, detail.left), // 両端の reveal の大きい方（ここでは 1）
+  bars([
+    {label: '導入前', value: 76, reveal: 2},
+    {label: '導入後', value: 31, reveal: 3},
+  ], {max: 100, unit: '%'}),
+);
+```
+
+`group` の子は親と自分の大きい方を継承する。`connect` は未指定なら両端の大きい方になり、端点が `row#N` の場合はその列の子を使う。端点より早い `reveal` を明示した矢印は警告になる。
+
+build は通常の最終形 `name.svg` に加え、段階表示を使う図だけ `name.reveal0.svg`（クリック前）から `name.revealN.svg`（累積）までを生成する。全ファイルは同じレイアウトとキャンバス寸法で、段数を減らして再 build すると古い段階ファイルは削除される。`check --drift` は全段階を再生成して比べ、残った古い段階ファイルも報告する。`doc-orphan-svg` は `*.revealN.svg` を数えない。スライドの高さ計測（`slide-budget`）は `name.svg` でも `name.revealN.svg` でも同じ値になる。
+
 ## 文書と図の整合（`check --docs`）
 `svg-diagram check --docs docs --svg-dir docs/assets/diagrams/svg --src-dir docs/diagrams` は、Markdown の画像参照と、図のソースを突き合わせる。
 - 参照先の SVG がない（`doc-image-missing`、エラー）、代替テキストが空・155 文字超（`doc-alt-empty` / `doc-alt-long`）、どの文書からも参照されていない SVG（`doc-orphan-svg`）。

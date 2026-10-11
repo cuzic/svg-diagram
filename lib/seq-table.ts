@@ -178,5 +178,5 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     const cells = 'cells' in r ? r.cells : r;
     rows.push(rowOf(cells, false, 'cells' in r ? r.tone : undefined));
   }
-  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone};
+  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone, reveal: band.reveal};
 }
