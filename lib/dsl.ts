@@ -33,6 +33,8 @@ import type {
   HandleOf, PyramidLayers, Refers, RefsOf, RowHandleOf, SeqStepIn, ScreensItemInput, StateRowIn, StateRowLoose, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn,
 } from './strict.ts';
 export {wf} from './wireframe.ts';
+export {versus} from './versus.ts';
+export type {VersusConnectLabels, VersusOpts, VersusPart, VersusSharedOpts} from './versus.ts';
 // Every public type (WfNode, TableCell, TextTone, RawColorTone, ...) so project code never has to spell Parameters<typeof wf.col>[0].
 export type * from './types.ts';
 
