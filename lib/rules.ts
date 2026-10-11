@@ -9,12 +9,12 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
-import {PALETTE, wcagRatio} from './tokens.ts';
+import {PALETTE, STRONG_STROKE, wcagRatio} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {budgetWarnings} from './budget.ts';
 import {dimmedBands} from './spotlight.ts';
 import type {
-  Band, BoxBand, BoxTone, DiagramData, Finding, LaidOutBand, LaidOutBox, LaidOutConnect, LegendBand, LegendItem,
+  ArrowWeight, Band, BoxBand, BoxTone, DiagramData, Finding, LaidOutBand, LaidOutBox, LaidOutConnect, LegendBand, LegendItem,
   LineStyle, Point, RuleId, SwimlaneBand, WfCallout,
 } from './types.ts';
 import type {LintTarget} from './types.ts';
@@ -51,10 +51,10 @@ export const RULE_DOCS = {
 };
 
 export const DEFAULT_LEGEND_LABELS = {
-  'line:solid': '実線', 'line:dashed': '破線', 'line:dotted': '点線', 'line:double': '二重線', 'arrow:both': '双方向',
+  'line:solid': '実線', 'line:dashed': '破線', 'line:dotted': '点線', 'line:double': '二重線', 'arrow:both': '双方向', 'weight:strong': '強い流れ',
   'tone:new': '新規', 'tone:changed': '変更・改修', 'tone:removed': '対象外', 'tone:danger': '異常・注意',
   'tone:muted': '補助・任意', 'tone:accent': '強調',
-} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `tone:${Exclude<BoxTone, 'plain'>}`, string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
+} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<BoxTone, 'plain'>}`, string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
 
 // every band, including those nested in groups, rows, grids and swimlanes
 export function walkBands(bands: Band[], out: Band[] = []): Band[] {
@@ -68,7 +68,7 @@ export function walkBands(bands: Band[], out: Band[] = []): Band[] {
   return out;
 }
 
-// notation keys a diagram uses: 'line:dashed', 'arrow:both', 'tone:new', ...
+// notation keys a diagram uses: 'line:dashed', 'arrow:both', 'weight:strong', 'tone:new', ...
 export function usedNotation(bands: Band[], dimmed = new Set<Band>()): Set<string> {
   const all = walkBands(bands);
   const used = new Set<string>(), lines = new Set<string>();
@@ -77,11 +77,12 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>()): Set<strin
     if (b.type === 'connect') {
       lines.add(b.line ?? 'solid');
       if (b.arrow === 'both') used.add('arrow:both');
+      if (b.weight) used.add(`weight:${b.weight}`);
     } else if (b.type === 'box' && b.tone && b.tone !== 'plain') used.add(`tone:${b.tone}`);
   }
   const nonSolid = [...lines].filter(l => l !== 'solid');
   for (const l of nonSolid) used.add(`line:${l}`);
-  if (nonSolid.length || used.has('arrow:both')) used.add('line:solid'); // the plain line needs a legend entry once others exist
+  if (nonSolid.length || used.has('arrow:both') || used.has('weight:strong')) used.add('line:solid'); // the plain line needs a legend entry once others exist
   return used;
 }
 
@@ -91,6 +92,7 @@ export function legendKeys(bands: Band[]): Set<string> {
     if (b.type !== 'legend') continue;
     for (const it of b.items) {
       if (it.tone) keys.add(`tone:${it.tone}`);
+      else if (it.weight) keys.add(`weight:${it.weight}`);
       else if (it.arrow === 'both') keys.add('arrow:both');
       else keys.add(`line:${it.line ?? 'solid'}`);
     }
@@ -113,6 +115,7 @@ export function applyAutoLegend(d: DiagramData): void {
     // v comes from our own `tone:<tone>` / `line:<style>` keys (usedNotation), so the casts hold
     if (kind === 'tone') return allDashed(v) ? {tone: v as BoxTone, dashed: true, label: labels[k]} : {tone: v as BoxTone, label: labels[k]};
     if (kind === 'arrow') return {line: 'solid', arrow: 'both', label: labels[k]};
+    if (kind === 'weight') return {line: 'solid', weight: v as ArrowWeight, label: labels[k]};
     return {line: v as LineStyle, label: labels[k]};
   });
   const existing = d.bands.find((b): b is LegendBand => b.type === 'legend');
@@ -205,19 +208,23 @@ const horiz = (s: Seg) => Math.abs(s.a.y - s.b.y) < 0.5;
 const vert = (s: Seg) => Math.abs(s.a.x - s.b.x) < 0.5;
 const lo = (a: number, b: number) => Math.min(a, b), hi = (a: number, b: number) => Math.max(a, b);
 
+const strokeOf = (c: LaidOutConnect) => c.weight === 'strong' ? STRONG_STROKE : 2;
+
 export function edgeStats(connects: LaidOutConnect[]): {crossings: number; overlaps: number} {
   const segs = segsOf(connects);
   let crossings = 0, overlaps = 0;
   for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
     const s = segs[i], t = segs[j];
     if (s.i === t.i) continue;
+    // two lines this close (centre to centre) look like one: the normal width gives the usual 3, a strong line widens it
+    const near = (strokeOf(s.c) + strokeOf(t.c)) / 2 + 1;
     const share = s.c.fromId === t.c.fromId || s.c.toId === t.c.toId || s.c.fromId === t.c.toId || s.c.toId === t.c.fromId;
     if (horiz(s) && vert(t) || vert(s) && horiz(t)) {
       const h = horiz(s) ? s : t, v = horiz(s) ? t : s;
       if (v.a.x > lo(h.a.x, h.b.x) + 2 && v.a.x < hi(h.a.x, h.b.x) - 2 && h.a.y > lo(v.a.y, v.b.y) + 2 && h.a.y < hi(v.a.y, v.b.y) - 2) crossings++;
-    } else if (!share && horiz(s) && horiz(t) && Math.abs(s.a.y - t.a.y) < 3) {
+    } else if (!share && horiz(s) && horiz(t) && Math.abs(s.a.y - t.a.y) < near) {
       if (Math.min(hi(s.a.x, s.b.x), hi(t.a.x, t.b.x)) - Math.max(lo(s.a.x, s.b.x), lo(t.a.x, t.b.x)) > 12) overlaps++;
-    } else if (!share && vert(s) && vert(t) && Math.abs(s.a.x - t.a.x) < 3) {
+    } else if (!share && vert(s) && vert(t) && Math.abs(s.a.x - t.a.x) < near) {
       if (Math.min(hi(s.a.y, s.b.y), hi(t.a.y, t.b.y)) - Math.max(lo(s.a.y, s.b.y), lo(t.a.y, t.b.y)) > 12) overlaps++;
     }
   }

@@ -107,7 +107,7 @@ diagram({spotlight: 'main'})
 | (a) 並べると外枠が二重 | **まず `group(..., {frame: false})`(枠なし・pad 0)を足す**(`emit.ts:123` が必ず枠を描くのが原因)。row の子の拡張は、これで足りないと分かってから。 |
 | row の子の拡張(必要になった場合) | `assertBoxChildren` は grid 用に残し、変えるのは `assertRowChildren`(`dsl.ts:368`)と `hasGroup` 判定 →「box 以外を含む row は grouprow 経路」に広げる。`row` 型は box 専用のまま。先に決めること: 高さ揃え(table / plane は伸ばせない→上揃え。row#N アンカー矩形と描画矩形の不一致)、`width` の二重の意味(row の子幅 vs table/plane 自身の `width`)、`layout.ts:512` の `as LaidOutGroup` キャスト、共有格子の gap 走査(`layout.ts:275-291`)。 |
 | (b) 表の行高 | `table(..., {cellH})`。`stateMatrix` の `cellH` と意味も揃え、**固定高**とする。折り返しで 2 行になったセルに足りなければエラー(伸ばさない)。 |
-| (c) 矢印の太さ | `line: 'double'` が既に太線(stroke 6)で、`weight: 'heavy'` は見た目が競合する。**当面は作らない**。「同じ力」は `double` と凡例で表せるかを examples で確かめ、足りなければ別 ADR(marker の `markerUnits`、`edgeStats` の 12px 判定、凡例キーの追加が必要)。 |
+| (c) 矢印の太さ | **実装済み(別 ADR は立てず本項を更新)**: `connect({weight: 'strong'})`(5px。`heavy` ではなく意味の名前。任意 px は不可)。`line: 'double'` との併用は例外(意味が競合)、solid / dashed / dotted とは併用できる。矢じりは `markerUnits="userSpaceOnUse"` の専用 marker(`dsl-arrow-strong`、使用時のみ defs に出す。dim 用は `dsl-arrow-strong-dim`)で、線を矢じりの手前で止めて先端を箱の縁に合わせる。凡例キーは `weight:strong`(「強い流れ」)で、`legend: 'auto'` / `legend-missing` の対象。`edgeStats` の重なり判定は線の太さに応じて間隔を広げる(`edgeStats` は `verify.ts` ではなく `rules.ts`)。`connectDefaults` には入れない。 |
 | (d) 箱内の部分強調 | 単独の ADR。`measure` が部分ごとの太さを見る必要があり、実装コストが最大。 |
 | (e) stamp の汎用化 | stamp は `WfFrameDecor.stamp`(`types.ts:918-924`)で、`wf.stamp` という関数ではない。box の右下に出すなら `placeBoxLike`(`layout.ts:311`)の高さ計算で領域を確保し、tag の `tagBox` と同様に `stampBox` を verify の矩形検査に載せる(箱単位の `collectRects` では検出されないため)。 |
 

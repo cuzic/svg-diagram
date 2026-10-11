@@ -47,6 +47,8 @@ export type BoxTone = 'plain' | 'accent' | 'new' | 'changed' | 'removed' | 'mute
 /** Tone of the little tag pill on a box ('accent' default). */
 export type TagTone = 'accent' | 'muted' | 'danger';
 export type LineStyle = 'solid' | 'dashed' | 'dotted' | 'double';
+/** Thickness of an arrow, by meaning (not by px): 'strong' = a thick line, e.g. the same force on both sides. Unset = the normal line. Not with line 'double'. */
+export type ArrowWeight = 'strong';
 /** Arrowheads of a line: 'end' (default) | 'start' | 'both' | 'none'. */
 export type Arrow = 'end' | 'start' | 'both' | 'none';
 export type Route = 'straight' | 'elbow' | 'loop-under';
@@ -55,7 +57,7 @@ export type Bend = number | 'start' | 'end' | 'auto';
 export type Side = 'left' | 'right' | 'top' | 'bottom' | 'center';
 /** Every rule id `svg-diagram check` can report (the keys of rules.ts RULE_DOCS, so the two cannot drift). */
 export type RuleId = keyof typeof RULE_DOCS;
-/** Legend keys of a notation: 'line:dashed' | 'arrow:both' | 'tone:new' ... (the keys of rules.ts DEFAULT_LEGEND_LABELS). */
+/** Legend keys of a notation: 'line:dashed' | 'arrow:both' | 'weight:strong' | 'tone:new' ... (the keys of rules.ts DEFAULT_LEGEND_LABELS). */
 export type NotationKey = keyof typeof DEFAULT_LEGEND_LABELS;
 export type Align = 'left' | 'center' | 'right';
 
@@ -370,6 +372,8 @@ export interface LegendItem {
   label: string;
   line?: LineStyle;
   arrow?: Arrow;
+  /** A thick line sample; needs `line` (legend() fills in 'solid'). */
+  weight?: ArrowWeight;
   tone?: BoxTone;
   dashed?: boolean;
 }
@@ -452,6 +456,7 @@ export interface ConnectOpts extends RevealOpts {
   bendOffset?: number;
   arrow?: Arrow;
   line?: LineStyle;
+  weight?: ArrowWeight;
   /** Label in a bordered pill sitting ON the line. */
   chip?: boolean;
   /** 0..1 along a straight/loop-under connector where the label sits. */
@@ -474,6 +479,7 @@ export interface ConnectBand {
   bendOffset?: number;
   arrow: Arrow;
   line: LineStyle;
+  weight?: ArrowWeight;
   chip: boolean;
   labelAt: number;
   tone?: TextTone;
