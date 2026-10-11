@@ -22,15 +22,15 @@ export function planeTexts(band: PlaneBand): [string, number, number, FontFamily
   return out;
 }
 
-const fmt = (n: number): string => String(parseFloat(n.toFixed(6)));
+export const fmt = (n: number): string => String(parseFloat(n.toPrecision(3)));
 function niceStep(range: number): number {
   const raw = range / 6, mag = 10 ** Math.floor(Math.log10(raw)), f = raw / mag;
   return mag * (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10);
 }
-function ticksOf(axis: PlaneBand['x']): {at: number; label: string}[] {
+export function ticksOf(axis: PlaneBand['x'], caller = 'plane'): {at: number; label: string}[] {
   if (axis.ticks) return axis.ticks.map(t => typeof t === 'number' ? {at: t, label: fmt(t)} : t);
   const min = axis.min ?? 0, step = axis.step ?? niceStep(axis.max - min), out: {at: number; label: string}[] = [];
-  if (!(step > 0) || !Number.isFinite(step)) throw new Error(`plane(): an axis step must be a number > 0 (got ${axis.step})`);
+  if (!(step > 0) || !Number.isFinite(step)) throw new Error(`${caller}(): an axis step must be a number > 0 (got ${axis.step})`);
   for (let v = min, i = 0; v <= axis.max + step * 1e-9 && i < 200; v = min + ++i * step) out.push({at: v, label: fmt(v)});
   return out;
 }

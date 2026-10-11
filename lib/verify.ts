@@ -22,7 +22,7 @@
 // based render check stays as the final safety net for exactly those two
 // gaps — verify() is the fast, primary check; lint is the backstop.
 
-import {PALETTE, luminance} from './tokens.ts';
+import {PALETTE, colorOf, luminance} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {lintDiagram} from './rules.ts';
 import type {BoxTone, CheckRect, LaidOutBanner, LaidOutBox, LaidOutCaption, LaidOutDiagram, Rect, Verdict} from './types.ts';
@@ -54,6 +54,8 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
   for (const band of d.laidOut) {
     if (band.type === 'screens') { // check each screen frame, not the bounding box that holds them all
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h});
+    } else if (band.type === 'bars') {
+      for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h});
     } else if (band.type === 'caption' && band.inkBox) { // a group's title text: connectors must not run through it
       rects.push({id: null, label: `group title "${band.text}"`, ...band.inkBox});
     } else if (band.type === 'row' || band.type === 'grid') {
@@ -63,6 +65,31 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
     }
   }
   return rects;
+}
+
+function checkBars(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  for (const band of d.laidOut) {
+    if (band.type !== 'bars') continue;
+    for (const b of band.labelBoxes) {
+      if (b.x < band.x - 0.5 || b.x + b.w > band.x + band.w + 0.5 || b.y < band.y - 0.5 || b.y + b.h > band.y + band.h + 0.5) problems.push(`bars: value label "${b.label}" runs outside the figure (raise width / height or shorten the unit)`);
+    }
+    for (let i = 0; i < band.labelBoxes.length; i++) for (let j = i + 1; j < band.labelBoxes.length; j++) {
+      const o = rectOverlap(band.labelBoxes[i], band.labelBoxes[j]);
+      if (o) problems.push(`bars: value label "${band.labelBoxes[i].label}" overlaps value label "${band.labelBoxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
+    }
+  }
+  return problems;
+}
+
+function checkNoWrap(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  const check = (b: LaidOutBox) => { for (const value of b.nowrapOverflow ?? []) problems.push(`stat: value "${value}" does not fit its box without wrapping (widen the box or use size: 'stat')`); };
+  for (const band of d.laidOut) {
+    if (band.type === 'box') check(band);
+    else if (band.type === 'row' || band.type === 'grid') for (const child of band.children) check(child);
+  }
+  return problems;
 }
 
 // plane(): every label it placed must stay inside the figure and clear of the other labels.
@@ -166,6 +193,12 @@ function checkContrast(d: LaidOutDiagram): string[] {
     else if (band.type === 'banner') problems.push(...contrastFor(band, band.tone ?? 'accent'));
     else if (band.type === 'caption') problems.push(...contrastFor(band, null));
     else if (band.type === 'row' || band.type === 'grid') for (const c of band.children) problems.push(...contrastFor(c, c.tone ?? 'plain'));
+    else if (band.type === 'bars') for (const b of band.labelBoxes) {
+      if (!b.background) continue;
+      const fg = colorOf('bg', d.day), bg = colorOf(b.background, d.day);
+      const delta = Math.abs(luminance(fg) - luminance(bg));
+      if (delta < CONTRAST_THRESHOLD) problems.push(`bars: value label "${b.label}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
+    }
   }
   return problems;
 }
@@ -178,6 +211,8 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
     ...checkOverlaps(rects),
     ...checkConnects(d, rects),
     ...checkPlanes(d),
+    ...checkBars(d),
+    ...checkNoWrap(d),
     ...checkBounds(d, rects),
     ...checkContrast(d),
   ];

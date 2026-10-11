@@ -35,7 +35,7 @@ export type Palette = Record<PlainColorKey, string> & Record<Theme, ThemeColors>
 export type ColorKey = PlainColorKey | 'accent' | 'soft';
 
 /** font-size role (tokens.ts ROLES). */
-export type Role = 'title' | 'label' | 'body' | 'note' | 'banner' | 'stat' | 'hero';
+export type Role = 'title' | 'label' | 'body' | 'note' | 'banner' | 'stat' | 'display' | 'hero';
 export type FontFamily = 'sans' | 'mono' | 'emoji';
 export type FontWeight = 400 | 700;
 
@@ -238,7 +238,16 @@ export interface BoxOpts extends BoxChrome {
   /** Legacy escape hatch: a px font size (must be >= MIN_FONT_SIZE). Not used by layout. */
   size?: number;
 }
-export interface BoxBand extends BoxOpts {type: 'box'}
+export interface BoxBand extends BoxOpts {
+  type: 'box';
+  /** Internal: stat() keeps its first line on one line and verify reports overflow. */
+  statValue?: string;
+}
+
+export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col' | 'span'> {
+  tone?: TextTone;
+  size?: 'stat' | 'display';
+}
 
 export interface BannerOpts extends BoxChrome {
   headline: string;
@@ -518,6 +527,28 @@ export interface PlaneOpts {
 export interface PlaneBand extends PlaneOpts {
   type: 'plane';
   height: number;
+}
+
+// ============================================================================================
+// DSL input + band: bars
+// ============================================================================================
+
+export type BarSeries = 'a' | 'b' | 'c';
+export interface BarDatum {label: string; value: number; series?: BarSeries; id?: string}
+export interface BarsOpts {
+  max?: number;
+  unit?: string;
+  dir?: 'h' | 'v';
+  stack?: boolean;
+  /** Figure height. Vertical bars default to 280; horizontal bars derive it from their count. */
+  height?: number;
+}
+export interface BarsBand extends BarsOpts {
+  type: 'bars';
+  data: BarDatum[];
+  max: number;
+  dir: 'h' | 'v';
+  stack: boolean;
 }
 
 // ============================================================================================
@@ -815,7 +846,7 @@ export interface ScreensBand extends ScreensOpts {
 /** Every band the DSL constructors return. */
 export type Band =
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -1277,6 +1308,8 @@ export interface TextRun {
   tone?: TextTone;
   /** Pixels the first line is pushed right (to clear a step badge). */
   indent?: number;
+  /** A stat value is semantically atomic and must not wrap. */
+  nowrap?: boolean;
 }
 /** A text run after wrapping: `lines[i]` is drawn with its baseline at band.y + padY + lineYs[i]. */
 export interface WrappedRun extends TextRun {lines: string[]; lineYs: number[]}
@@ -1287,7 +1320,7 @@ export interface LaidOutCaption extends CaptionBand, Rect {
   /** group() titles only: the rect the title's text really covers (the caption itself spans the whole frame width). */
   inkBox?: Rect;
 }
-export interface LaidOutBox extends BoxBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect}
+export interface LaidOutBox extends BoxBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect; nowrapOverflow?: string[]}
 export interface LaidOutBanner extends BannerBand, Rect {wrappedRuns: WrappedRun[]; tagBox?: Rect}
 /** The frame of a group; its children are laid out as separate bands after it. */
 export interface LaidOutGroup extends Rect {type: 'group'; tone: BoxTone; dashed?: boolean; id?: string}
@@ -1407,9 +1440,22 @@ export interface LaidOutPlane extends Rect {
   obstacles: (Rect & {what: string; dim?: number})[];
 }
 
+export interface BarRect extends Rect {fill: ColorKey; id?: string}
+export interface BarText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean}
+export interface LaidOutBars extends Rect {
+  type: 'bars';
+  dir: 'h' | 'v';
+  stack: boolean;
+  bars: BarRect[];
+  ticks: {x1: number; y1: number; x2: number; y2: number}[];
+  texts: BarText[];
+  labelBoxes: (Rect & {label: string; background?: ColorKey})[];
+  anchors: Anchor[];
+}
+
 export type LaidOutBand =
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */
