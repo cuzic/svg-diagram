@@ -178,10 +178,11 @@ export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: S
 // rows: [cell, ...] or {cells: [...], tone?: 'accent'|'new'|'changed'|'removed'|'muted'|'danger'};
 // a cell is a string or {text, tone?: 'accent'|'muted'|'danger', bold?, mono?, align?}.
 // title adds an accent bar on top (an ER entity name, a table caption); header: false hides
-// the column-label row; width narrows the table (centered); cellH fixes every row's height (text centred; throws if a cell needs more).
+// the column-label row; width narrows the table (centered); cellH fixes every row's height (text centred; throws if a cell needs more),
+// a row's own `h` and headerH override it for that row / the header; dense trims the row padding to 4px.
 export function table<const Id extends string = never>(columns: TableColumn[], rows: readonly TableRow[], opts?: TableOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
 export function table(columns: TableColumn[], rows: readonly TableRow[], opts: TableOpts = {}): TableBand {
-  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, id: opts.id, reveal: opts.reveal}, opts.id);
+  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, headerH: opts.headerH, dense: opts.dense, id: opts.id, reveal: opts.reveal}, opts.id);
 }
 
 // A table cell with a status symbol: `cell('通る', {mark: 'ok'})` draws "○ 通る" in the accent tone; mark: 'ok' ○ | 'mid' △ | 'ng' × | 'best' ◎.

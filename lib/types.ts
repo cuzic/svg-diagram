@@ -657,7 +657,8 @@ export interface TableCellSpec {
   mark?: CellMark;
 }
 export type TableCell = string | number | TableCellSpec;
-export type TableRow = readonly TableCell[] | {cells: readonly TableCell[]; tone?: BoxTone};
+/** `h`: this row's fixed height (wins over `cellH`; text centred vertically; throws when a cell needs more). */
+export type TableRow = readonly TableCell[] | {cells: readonly TableCell[]; tone?: BoxTone; h?: number};
 export interface TableOpts extends RevealOpts {
   /** Accent bar on top (an ER entity name, a caption). */
   title?: string;
@@ -668,6 +669,10 @@ export interface TableOpts extends RevealOpts {
   tone?: BoxTone;
   /** Fixed height of every row (header included), text centred vertically. Throws when a cell's text needs more. */
   cellH?: number;
+  /** Fixed height of the header row (wins over `cellH`). */
+  headerH?: number;
+  /** Top and bottom padding of a row 4px instead of 8px (text stays 14px). `cellH` / `h` / `headerH` still win; the height a row needs is computed with the dense padding. */
+  dense?: boolean;
   id?: string;
 }
 export interface TableBand {
@@ -679,6 +684,8 @@ export interface TableBand {
   width?: number;
   tone?: BoxTone;
   cellH?: number;
+  headerH?: number;
+  dense?: boolean;
   id?: string;
   reveal?: number;
 }
