@@ -30,8 +30,8 @@ test('dist/ is built before every pack and publish, from scratch', () => {
   assert.ok(build.include.includes('lib/**/*.ts') && build.include.includes('*.ts'));
 });
 
-test('what `files` lists is what ships: bin, skills, README and LICENSE exist, dist comes from the build, and nothing else is listed', () => {
-  assert.deepEqual([...pkg.files].sort(), ['LICENSE', 'README.md', 'bin', 'dist', 'skills']);
+test('what `files` lists is what ships: bin, skills, README, LICENSE and NOTICE exist, dist comes from the build, and nothing else is listed', () => {
+  assert.deepEqual([...pkg.files].sort(), ['LICENSE', 'NOTICE', 'README.md', 'bin', 'dist', 'skills']);
   for (const f of pkg.files.filter((f: string) => f !== 'dist')) assert.ok(fs.existsSync(path.join(ROOT, f)), f);
   assert.ok(fs.readdirSync(path.join(ROOT, 'skills')).length > 0);
 });

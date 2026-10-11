@@ -18,6 +18,12 @@ importers:
         specifier: ^0.16.0
         version: 0.16.0
     devDependencies:
+      '@material-symbols/svg-400':
+        specifier: ^0.48.0
+        version: 0.48.0
+      '@mdi/js':
+        specifier: ^7.4.47
+        version: 7.4.47
       '@types/node':
         specifier: ^26.6.4
         version: 26.6.4
@@ -29,6 +35,12 @@ importers:
         version: 7.0.2
 
 packages:
+
+  '@material-symbols/svg-400@0.48.0':
+    resolution: {integrity: sha512-W20MjbiDbLJQ5yi4CPz2y6lCZ9bk3pJ1d5Ra+uErvtj/guVrCNfcYyMZn3KqHpDyyKVfBGkuGHVcdi5h+5+EqA==}
+
+  '@mdi/js@7.4.47':
+    resolution: {integrity: sha512-KPnNOtm5i2pMabqZxpUz7iQf+mfrYZyKCZ8QNz85czgEt7cuHcGorWfdzUMWYA0SD+a6Hn4FmJ+YhzzzjkTZrQ==}
 
   '@resvg/resvg-js-android-arm-eabi@2.6.2':
     resolution: {integrity: sha512-FrJibrAk6v29eabIPgcTUMPXiEz8ssrAk7TXxsiZzww9UTQ1Z5KAbFJs+Z0Ez+VZTYgnE5IQJqBcoSiMebtPHA==}
@@ -258,6 +270,10 @@ packages:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
 snapshots:
+
+  '@material-symbols/svg-400@0.48.0': {}
+
+  '@mdi/js@7.4.47': {}
 
   '@resvg/resvg-js-android-arm-eabi@2.6.2':
     optional: true

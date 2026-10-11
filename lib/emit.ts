@@ -15,8 +15,10 @@ import type {
   LaidOutWireframe, LaidOutScreens, RawColorTone,
 } from './types.ts';
 import {diagramTitle, diagramDesc} from './rules.ts';
-import {BOX_PAD_X, BOX_PAD_Y, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
+import {BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
 import {visibleAt} from './reveal.ts';
+import {ICON_PATHS} from './icons.ts';
+import type {IconName} from './icons.ts';
 
 const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
 
@@ -90,6 +92,18 @@ function renderStepBadge(band: LaidOutBox, day: Theme): string {
   return badgeSvg({cx, cy, r: STEP_BADGE_R, w: 2 * STEP_BADGE_R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: 16, fill: PALETTE[day].accent, baseline: titleBaselineY, snap: snap4, esc: escapeXml});
 }
 
+// box({icon}): the icon's path scaled from its source viewBox to ICON_SIZE, at the box's top-left. Its colour is a text tone
+// (a dimmed box: muted). With a title the label carries the meaning, so the icon is hidden from assistive technology.
+function renderBoxIcon(band: LaidOutBox, day: Theme): string {
+  const {vb: [vx, vy, vs], d} = ICON_PATHS[band.icon as IconName];
+  const s = ICON_SIZE / vs;
+  const x = band.x + (band.padX ?? BOX_PAD_X), y = band.y + (band.padY ?? BOX_PAD_Y);
+  const n = (v: number) => +v.toFixed(4);
+  const color = band.dim ? PALETTE.muted : resolveTextColor(band.iconTone ?? 'text', day);
+  const a11y = band.title ? 'aria-hidden="true"' : `role="img" aria-label="${band.icon}"`;
+  return `\n  <path d="${d}" transform="translate(${n(x - vx * s)} ${n(y - vy * s)}) scale(${n(s)})" fill="${color}" ${a11y} data-icon="${band.icon}"/>`;
+}
+
 function renderCaption(band: LaidOutCaption, day: Theme): string {
   return renderTextRuns(band.wrappedRuns, {originX: band.x, originY: band.y, w: band.w, align: band.align ?? 'center', day, dim: band.dim});
 }
@@ -125,8 +139,9 @@ function renderStamp(band: Rect & {stamp?: string; stampW?: number}): string {
 
 function renderBox(band: LaidOutBox, day: Theme): string {
   const badge = band.step != null ? `\n  ${renderStepBadge(band, day)}` : '';
+  const iconText = band.icon ? renderBoxIcon(band, day) : '';
   const tag = band.tagBox ? `\n  ${renderTag(band, day)}` : '';
-  return `${renderBoxRect(band, day, 'plain')}\n  ${renderBoxText(band, day, 'left')}${badge}${tag}${renderStamp(band)}`;
+  return `${renderBoxRect(band, day, 'plain')}\n  ${renderBoxText(band, day, 'left')}${badge}${iconText}${tag}${renderStamp(band)}`;
 }
 
 function renderGroup(band: LaidOutGroup, day: Theme): string {

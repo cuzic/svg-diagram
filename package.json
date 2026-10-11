@@ -47,6 +47,8 @@
     "node": ">=22.18"
   },
   "devDependencies": {
+    "@material-symbols/svg-400": "^0.48.0",
+    "@mdi/js": "^7.4.47",
     "@types/node": "^26.6.4",
     "playwright-chromium": "1.62.1",
     "typescript": "^7.0.2"
@@ -67,7 +69,8 @@
     "dist",
     "skills",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "publishConfig": {
     "access": "public"
