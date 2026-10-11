@@ -1,6 +1,6 @@
 # ADR 0002: 量・強調を表す部品の追加(stat / bars / reveal / spotlight / versus)
 
-- 状態: 提案(改訂 3。Opus レビュー 2 回分を反映)
+- 状態: 一部実装済み(PR #19〜#23)。未実装は下の「実装状況」を参照
 - 日付: 2026-10-11
 - 基点: 0.5.0(検査は `lib/svg-lint.ts` 基準)
 
@@ -133,6 +133,22 @@ diagram({spotlight: 'main'})
 6. 必要なら row の子の拡張、部分強調(別 ADR)、`versus`。
 
 どの段階でも `pnpm test` / `pnpm typecheck` / `pnpm golden` を通す。**出力が変わりうる変更は個別に列挙する**(`display` ロール追加は既存出力に影響なし、marker の色別化は `<defs>` が変わるので dim 使用時のみ出す)。各部品に `examples/` の図を足し、既存の手組み(row + group + connect)を新部品で書き直した before/after を 1 つ入れて、要望との対応を検証する。
+
+## 実装状況(2026-10-11 時点)
+
+| 項目 | 状況 | メモ |
+|---|---|---|
+| `stat()` / `display` ロール | 実装済み(#19) | |
+| `bars()` | 実装済み(#19) | コードレビュー 10 件を反映 |
+| `group({frame:false})` / `table({cellH})` / `stamp` | 実装済み(#22) | stamp は帯の確保と幅超過の throw で担保し、verify の矩形検査には載せていない。`frame:false` は title / tone / dashed と併用すると throw |
+| `reveal` | 本リポジトリ側は実装済み(#23) | slidev addon 側(段別ファイルの差し替え)は未実装。`slide-budget` のセレクタは前方一致の近似。`name.svg` の metadata に最大段が入る |
+| `spotlight` | 実装済み(#20) | 既定は `edges: 'touching'`(examples で `between` と比較し、ADR どおりと確認) |
+| `versus` | 実装済み(#21) | `shared` 使用時は左右・共通部すべてに `id` が必須。接続ラベルは `connectLabels.left/right`。間に spacer を入れる |
+| row の子の拡張 | **見送り** | `group({frame:false})` で table / plane / banner を row に並べられ、外枠も二重にならないため不要になった。必要になれば高さ揃え・`width` の二重の意味から決める |
+| 部分強調(箱内の太字・色) | **未実装(別 ADR が先)** | `measure` が部分ごとの太さを見る必要がある。最大コスト |
+| stat のコントラスト基準 | **現状維持** | 一律 4.5:1(厳しい側)。サイズ別(大きい文字 3:1)にするかは、実際に引っかかる図が出てから |
+| 矢印の太さ | 作らない | `line: 'double'` と競合 |
+| メタファー素材 | 範囲外 | |
 
 ## 影響とリスク
 

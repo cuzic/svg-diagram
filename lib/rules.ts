@@ -21,6 +21,7 @@ import type {LintTarget} from './types.ts';
 
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
+  'a11y-color-only-emphasis': '色だけで強調した語がある（太字も併用する。色が見えない読者にも伝わるように）',
   'a11y-nontext-contrast': '意味を持つ枠線・線のコントラスト比が 3:1 未満（色以外の手がかりも併用する）',
   'a11y-no-title': 'SVG の <title> に使える題名が見つからない（diagram({title}) を指定）',
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
@@ -140,9 +141,11 @@ function textContrast(d: LintTarget, out: Finding[]): void {
     if (b.type === 'box' || b.type === 'banner') {
       const bg = b.dim ? PALETTE.bg : resolveBoxStyle(b.tone ?? ((b.type as string) === 'banner' ? 'accent' : 'plain'), d.day) /* banner() always sets tone; the fallback is defensive */.fill;
       for (const run of b.wrappedRuns ?? []) check(b.dim ? PALETTE.muted : resolveTextColor(run.tone, d.day), bg, `「${String(run.text).slice(0, 14)}」`);
+      if (!b.dim) for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if (sp.tone) check(resolveTextColor(sp.tone, d.day), bg, `「${sp.text.slice(0, 14)}」`);
       if (b.tag) check(PALETTE.bg, b.tagTone === 'danger' ? PALETTE.danger : b.tagTone === 'muted' ? PALETTE.muted : PALETTE[d.day].accent, `タグ「${b.tag}」`);
     } else if (b.type === 'caption') {
       for (const run of b.wrappedRuns ?? []) check(resolveTextColor(run.tone, d.day), PALETTE.bg, `「${String(run.text).slice(0, 14)}」`);
+      for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if (sp.tone) check(resolveTextColor(sp.tone, d.day), PALETTE.bg, `「${sp.text.slice(0, 14)}」`);
     } else if (b.type === 'table') {
       if (b.titleBar) check(PALETTE.bg, PALETTE[d.day].accent, 'テーブルの題名帯');
       for (const row of b.rows) for (const c of row.cells) {
@@ -151,6 +154,20 @@ function textContrast(d: LintTarget, out: Finding[]): void {
       }
     }
   }
+}
+
+// em.danger() / em.accent() without em.b(): the emphasis is the colour alone (WCAG 1.4.1). em.muted() softens, so it is not one.
+function colourOnlyEmphasis(d: LintTarget, out: Finding[]): void {
+  if (d.medium !== 'doc') return;
+  const words: string[] = [];
+  const boxes: (LaidOutBand | LaidOutBox)[] = [];
+  for (const b of d.laidOut ?? []) { if (b.type === 'row' || b.type === 'grid') boxes.push(...b.children); else boxes.push(b); }
+  for (const b of boxes) {
+    if (b.type !== 'box' && b.type !== 'banner' && b.type !== 'caption') continue;
+    if (b.dim) continue;
+    for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if ((sp.tone === 'danger' || sp.tone === 'accent') && !sp.bold) words.push(`「${sp.text.slice(0, 14)}」`);
+  }
+  if (words.length) out.push({rule: 'a11y-color-only-emphasis', severity: 'warn', message: `色だけで強調した語: ${words.slice(0, 6).join('')}${words.length > 6 ? ` ほか ${words.length - 6} 件` : ''}。em.b() も併用する`});
 }
 
 function nonTextContrast(d: LintTarget, out: Finding[]): void {
@@ -323,6 +340,7 @@ export function lintDiagram(d: LintTarget): Finding[] {
 function lintAll(d: LintTarget): Finding[] {
   const out: Finding[] = [];
   textContrast(d, out);
+  colourOnlyEmphasis(d, out);
   nonTextContrast(d, out);
   legendRules(d, out);
   swimlaneRules(d, out);

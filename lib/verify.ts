@@ -185,6 +185,12 @@ function checkContrast(d: LaidOutDiagram): string[] {
       if (delta < CONTRAST_THRESHOLD) {
         found.push(`"${run.text.slice(0, 20)}" (${fg} on ${boxFill}, in "${labelOf(band)}") has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
       }
+      // a coloured piece of the run is its own text colour on the same fill (a dimmed box paints every piece muted: the run's check covers it)
+      if (!band.dim) for (const sp of run.spans ?? []) {
+        if (!sp.tone) continue;
+        const spanFg = resolveTextColor(sp.tone, d.day), spanDelta = Math.abs(luminance(spanFg) - luminance(boxFill));
+        if (spanDelta < CONTRAST_THRESHOLD) found.push(`"${sp.text.slice(0, 20)}" (${spanFg} on ${boxFill}, in "${labelOf(band)}") has low contrast (delta=${spanDelta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
+      }
     }
     return found;
   };
@@ -204,7 +210,7 @@ function checkContrast(d: LaidOutDiagram): string[] {
 }
 
 // verifyDiagram(laidOutDiagram) -> {ok, problems: string[], warnings: string[]}
-// `problems` fail the build; `warnings` (text volume, ADR 0003) never do.
+// `problems` fail the build; `warnings` (text volume, and the rules of rules.ts) never do.
 export function verifyDiagram(d: LaidOutDiagram): Verdict {
   const rects = collectRects(d);
   const problems = [
