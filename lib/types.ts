@@ -1449,7 +1449,7 @@ export interface LaidOutBars extends Rect {
   bars: BarRect[];
   ticks: {x1: number; y1: number; x2: number; y2: number}[];
   texts: BarText[];
-  labelBoxes: (Rect & {label: string})[];
+  labelBoxes: (Rect & {label: string; background?: ColorKey})[];
   anchors: Anchor[];
 }
 

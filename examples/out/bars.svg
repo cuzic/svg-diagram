@@ -54,34 +54,34 @@
   <text x="42" y="326" text-anchor="end" font-size="14" fill="#6f6659">60</text>
   <text x="42" y="303" text-anchor="end" font-size="14" fill="#6f6659">70</text>
   <text x="42" y="280" text-anchor="end" font-size="14" fill="#6f6659">80</text>
-  <text x="195" y="482" text-anchor="middle" font-size="14" fill="#22201b">Q1</text>
+  <text x="195" y="484" text-anchor="middle" font-size="14" fill="#22201b">Q1</text>
   <text x="195" y="381" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">42</text>
-  <text x="482" y="482" text-anchor="middle" font-size="14" fill="#22201b">Q2</text>
+  <text x="482" y="484" text-anchor="middle" font-size="14" fill="#22201b">Q2</text>
   <text x="482" y="321" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">68</text>
-  <text x="769" y="482" text-anchor="middle" font-size="14" fill="#22201b">Q3</text>
+  <text x="769" y="484" text-anchor="middle" font-size="14" fill="#22201b">Q3</text>
   <text x="769" y="360" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">51</text>
 
   <text x="470" y="535.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">積み上げ：工程の構成比</text>
 
-  <path d="M20,569 L20,603" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M192,569 L192,603" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M364,569 L364,603" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M536,569 L536,603" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M708,569 L708,603" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M880,569 L880,603" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M20,597 L880,597" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M20,568.8 H155.63 V596.8 H20 Z" fill="#1f6e73"/>
-  <path d="M157.63,568.8 H448.08 V596.8 H157.63 Z" fill="#22201b"/>
-  <path d="M450.08,568.8 H740.54 V596.8 H450.08 Z" fill="#6f6659"/>
-  <path d="M742.54,568.8 H880.16 V596.8 H742.54 Z" fill="#1f6e73"/>
-  <text x="20" y="619" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
-  <text x="192" y="619" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
-  <text x="364" y="619" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
-  <text x="536" y="619" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
-  <text x="708" y="619" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
-  <text x="880" y="619" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
-  <text x="88" y="588" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">企画 16%</text>
-  <text x="303" y="588" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">実装 34%</text>
-  <text x="595" y="588" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">検証 34%</text>
-  <text x="811" y="588" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">運用 16%</text>
+  <path d="M24,569 L24,603" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M201,569 L201,603" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M378,569 L378,603" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M555,569 L555,603" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M731,569 L731,603" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M908,569 L908,603" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M24,597 L908,597" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M23.89,568.8 H163.4 V596.8 H23.89 Z" fill="#1f6e73"/>
+  <path d="M165.4,568.8 H464.11 V596.8 H165.4 Z" fill="#22201b"/>
+  <path d="M466.11,568.8 H764.81 V596.8 H466.11 Z" fill="#6f6659"/>
+  <path d="M766.81,568.8 H908.32 V596.8 H766.81 Z" fill="#1f6e73"/>
+  <text x="24" y="619" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
+  <text x="201" y="619" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
+  <text x="378" y="619" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
+  <text x="555" y="619" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
+  <text x="731" y="619" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
+  <text x="908" y="619" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
+  <text x="94" y="588" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">企画 16%</text>
+  <text x="315" y="588" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">実装 34%</text>
+  <text x="615" y="588" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">検証 34%</text>
+  <text x="838" y="588" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">運用 16%</text>
 </svg>

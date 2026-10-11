@@ -22,7 +22,7 @@
 // based render check stays as the final safety net for exactly those two
 // gaps — verify() is the fast, primary check; lint is the backstop.
 
-import {PALETTE, luminance} from './tokens.ts';
+import {PALETTE, colorOf, luminance} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {lintDiagram} from './rules.ts';
 import type {BoxTone, CheckRect, LaidOutBanner, LaidOutBox, LaidOutCaption, LaidOutDiagram, Rect, Verdict} from './types.ts';
@@ -193,6 +193,12 @@ function checkContrast(d: LaidOutDiagram): string[] {
     else if (band.type === 'banner') problems.push(...contrastFor(band, band.tone ?? 'accent'));
     else if (band.type === 'caption') problems.push(...contrastFor(band, null));
     else if (band.type === 'row' || band.type === 'grid') for (const c of band.children) problems.push(...contrastFor(c, c.tone ?? 'plain'));
+    else if (band.type === 'bars') for (const b of band.labelBoxes) {
+      if (!b.background) continue;
+      const fg = colorOf('bg', d.day), bg = colorOf(b.background, d.day);
+      const delta = Math.abs(luminance(fg) - luminance(bg));
+      if (delta < CONTRAST_THRESHOLD) problems.push(`bars: value label "${b.label}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
+    }
   }
   return problems;
 }

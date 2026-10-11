@@ -325,7 +325,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       const tw = textWidth(widthOf, chrome.tag, TAG_SIZE, 700) + 2 * TAG_PAD_X;
       placed.tagBox = {x: chrome.tagAt === undefined ? x + w - tw - 12 : x + w * chrome.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
     }
-    if (chrome.id && areaIds.has(chrome.id)) claimed(chrome.id, 'a box takes the id of a row or one of its columns');
+    if (chrome.id && (areaIds.has(chrome.id) || anchors.has(chrome.id))) claimed(chrome.id, 'a box takes an id that another box, group or row already has');
     if (chrome.id) anchors.set(chrome.id, {x, y, w, h});
     return placed;
   };
@@ -351,7 +351,10 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       stack(band.children, padX + gp, cw - 2 * gp);
       cursorY = cursorY - d.gap + gp;
       frame.h = cursorY - startY;
-      if (band.id) anchors.set(band.id, {x: frame.x, y: frame.y, w: frame.w, h: frame.h});
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, 'a group takes an id that another box, group or row already has');
+        anchors.set(band.id, {x: frame.x, y: frame.y, w: frame.w, h: frame.h});
+      }
       cursorY += d.gap;
       continue;
     }
