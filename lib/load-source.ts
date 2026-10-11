@@ -9,13 +9,14 @@ import type {Config, Diagram} from './types.ts';
 import {applyConfig, loadConfig} from './config.ts';
 
 /** `abs`'s default export, or an error that says what a source should export. */
-export async function importDefine(abs: string): Promise<() => Diagram> {
-  const mod = await import(pathToFileURL(abs).href);
+export async function importDefine(abs: string, opts: {fresh?: boolean} = {}): Promise<() => Diagram> {
+  // fresh: a query makes the loader treat the entry as a new module, so a watcher re-reads an edited source (its own imports stay cached)
+  const mod = await import(pathToFileURL(abs).href + (opts.fresh ? `?v=${Date.now()}` : ''));
   if (typeof mod.default !== 'function') throw new Error(`${abs}: no default export function — export default function define() { return diagram(...) }`);
   return mod.default;
 }
 
 /** Import `abs`, run its define(), and apply the project's .svg-diagram.json (accepted rules, max width). */
-export async function loadDiagram(abs: string, config: Config = loadConfig()): Promise<Diagram> {
-  return applyConfig((await importDefine(abs))(), config);
+export async function loadDiagram(abs: string, config: Config = loadConfig(), opts: {fresh?: boolean} = {}): Promise<Diagram> {
+  return applyConfig((await importDefine(abs, opts))(), config);
 }
