@@ -1,4 +1,4 @@
-// Text-volume budget for a laid-out diagram (ADR 0003). Warn-only: a figure
+// Text-volume budget for a laid-out diagram. Warn-only: a figure
 // that is too wordy is usually still a valid figure, so verify.ts reports
 // these as `warnings` and never fails the build on them.
 //
@@ -11,7 +11,6 @@
 // Thresholds sit just above the current maximum of the existing, accepted
 // diagrams, so this is a guard against NEW outliers, not a critique of old ones.
 // (A percentile cut would flag a fixed share of diagrams whatever their quality.)
-// Rationale and history: docs/adr/0003-text-budget-warning.md
 import type {BudgetLimits, BudgetMeasure, LaidOutBox, LaidOutDiagram} from './types.ts';
 
 export const BUDGET: BudgetLimits = {

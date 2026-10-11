@@ -16,6 +16,7 @@
 import type {BadgeBox} from './badge.ts';
 import type {ConnectInput, DeclaredIds, RefIn, ValidateBands} from './strict.ts';
 import type {RULE_DOCS, DEFAULT_LEGEND_LABELS} from './rules.ts';
+import type {RICH} from './rich.ts';
 
 // ============================================================================================
 // Tokens, tones, lines
@@ -190,6 +191,25 @@ export type BandInput = Band | Band[];
 // DSL input + band: caption / box / banner
 // ============================================================================================
 
+// ============================================================================================
+// Rich text: a run of words with some of them bold / in a tone (lib/rich.ts builds the parts, richOf() flattens them)
+// ============================================================================================
+
+/** One piece of a line in one style. Consecutive spans of a text concatenate to its plain text. */
+export interface Span {text: string; bold?: boolean; tone?: TextTone}
+/** A bold / coloured piece, made by em.b() / em.danger() / ... (the brand keeps a BoxLine or any other object from passing for one). */
+export interface Styled {
+  readonly [RICH]: true;
+  readonly bold?: boolean;
+  readonly tone?: TextTone;
+  readonly of: string | Styled;
+}
+export type RichPart = string | Styled;
+/** Text as written: a string is always exactly its characters; an array mixes strings and em.* parts. */
+export type RichText = string | readonly RichPart[];
+/** Where a band's spans sit (the plain text stays in the band's own field). Set by the DSL functions; layout reads it. */
+export interface RichSpans {title?: Span[]; body?: Span[]; note?: Span[]; headline?: Span[]; sub?: Span[]; text?: Span[]}
+
 export interface CaptionOpts {
   align?: Align;
   role?: Role;
@@ -200,6 +220,8 @@ export interface CaptionOpts {
 export interface CaptionBand {
   type: 'caption';
   text: string;
+  /** Internal: set by caption() / group(); `text` is the plain text of these. */
+  spans?: RichSpans;
   align: Align;
   role: Role;
   tone: TextTone;
@@ -207,8 +229,10 @@ export interface CaptionBand {
   mono: boolean;
 }
 
-/** One extra line in a box: a plain string or a styled line. */
-export type BoxLine = string | {text: string; role?: Role; bold?: boolean; mono?: boolean; tone?: TextTone};
+/** One extra line of a box band: a plain string or a styled line (`spans`: internal, the pieces of `text`). */
+export type BoxLine = string | {text: string; role?: Role; bold?: boolean; mono?: boolean; tone?: TextTone; spans?: Span[]};
+/** One extra line as written to box(): `text` may mix em.* parts. A part on its own is not a line (it would be a separate one). */
+export type BoxLineIn = string | {text: RichText; role?: Role; bold?: boolean; mono?: boolean; tone?: TextTone};
 
 /** Fields shared by every box-like band (box, banner, swimlane step, row/grid child). */
 export interface BoxChrome extends RevealOpts {
@@ -236,23 +260,33 @@ export interface BoxChrome extends RevealOpts {
   span?: number;
 }
 
-export interface BoxOpts extends BoxChrome {
-  title?: string;
+/** The box() fields that are not text (shared by the input and the band, which differ in what a text field holds). */
+export interface BoxStyleOpts extends BoxChrome {
   titleTone?: TextTone;
   titleMono?: boolean;
-  body?: string;
   bodyTone?: TextTone;
   bodyMono?: boolean;
-  lines?: BoxLine[];
-  note?: string;
   noteTone?: TextTone;
   /** Number/string badge on the title's baseline. Requires `title`. */
   step?: number | string;
   /** Legacy escape hatch: a px font size (must be >= MIN_FONT_SIZE). Not used by layout. */
   size?: number;
 }
-export interface BoxBand extends BoxOpts {
+export interface BoxOpts extends BoxStyleOpts {
+  title?: RichText;
+  body?: RichText;
+  lines?: BoxLineIn[];
+  note?: RichText;
+}
+/** A box band holds plain text only; the pieces of a rich text are in `spans`. */
+export interface BoxBand extends BoxStyleOpts {
   type: 'box';
+  title?: string;
+  body?: string;
+  lines?: BoxLine[];
+  note?: string;
+  /** Internal: set by box() / swimlane(); `title` / `body` / `note` are the plain text of these. */
+  spans?: RichSpans;
   /** Internal: stat() keeps its first line on one line and verify reports overflow. */
   statValue?: string;
 }
@@ -262,21 +296,23 @@ export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col
   size?: 'stat' | 'display';
 }
 
-export interface BannerOpts extends BoxChrome {
-  headline: string;
+export interface BannerStyleOpts extends BoxChrome {
   headlineTone?: TextTone;
-  sub?: string;
   /** Default 'muted'. */
   subTone?: TextTone;
 }
-export interface BannerBand extends BannerOpts {type: 'banner'; tone: BoxTone}
+export interface BannerOpts extends BannerStyleOpts {
+  headline: RichText;
+  sub?: RichText;
+}
+export interface BannerBand extends BannerStyleOpts {type: 'banner'; tone: BoxTone; headline: string; sub?: string; /** Internal: see BoxBand. */ spans?: RichSpans}
 
 // ============================================================================================
 // DSL input + band: group / legend / spacer / raw
 // ============================================================================================
 
 export interface GroupOpts extends RevealOpts {
-  title?: string;
+  title?: RichText;
   titleTone?: TextTone;
   titleAlign?: Align;
   /** Default 'muted'. */
@@ -300,6 +336,8 @@ export interface GroupBand {
   type: 'group';
   children: Band[];
   title?: string;
+  /** Internal: see BoxBand. */
+  spans?: RichSpans;
   titleTone?: TextTone;
   titleAlign?: Align;
   tone: BoxTone;
@@ -725,8 +763,9 @@ export interface SwimlaneOpts {
   id?: string;
 }
 /** A step after swimlane() placed it in a column. */
-export interface SwimlaneStepBand extends SwimlaneStep {
-  type: 'box';
+export interface SwimlaneStepBand extends BoxBand {
+  lane: string;
+  row?: number;
   col: number;
   span: number;
 }
@@ -1334,13 +1373,20 @@ export interface TextRun {
   weight: FontWeight;
   mono: boolean;
   tone?: TextTone;
+  /** The pieces of `text` when part of it is bold / in a tone (concatenate to `text`); absent for plain text. */
+  spans?: Span[];
   /** Pixels the first line is pushed right (to clear a step badge). */
   indent?: number;
   /** A stat value is semantically atomic and must not wrap. */
   nowrap?: boolean;
 }
 /** A text run after wrapping: `lines[i]` is drawn with its baseline at band.y + padY + lineYs[i]. */
-export interface WrappedRun extends TextRun {lines: string[]; lineYs: number[]}
+export interface WrappedRun extends TextRun {
+  lines: string[];
+  lineYs: number[];
+  /** Per line, the pieces of `lines[i]` (only when the run has spans). */
+  lineSpans?: Span[][];
+}
 
 export interface LaidOutCaption extends CaptionBand, Rect, Dimmed {
   wrappedRuns: WrappedRun[];
