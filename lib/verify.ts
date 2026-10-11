@@ -219,6 +219,6 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
   // Rule findings (WCAG contrast, legend, lane order, crossings, density ...). Doc-medium diagrams
   // get the full set; legacy slide diagrams keep their existing text-volume warning only.
   const findings = d.medium === 'doc' ? lintDiagram(d) : lintDiagram(d).filter(f => f.rule === 'density');
-  const warnings = findings.filter(f => f.severity === 'warn').map(f => `[${f.rule}] ${f.message}`);
+  const warnings = [...(d.revealWarnings ?? []), ...findings.filter(f => f.severity === 'warn').map(f => `[${f.rule}] ${f.message}`)];
   return {ok: problems.length === 0, problems, warnings, findings};
 }

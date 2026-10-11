@@ -16,6 +16,7 @@ import type {
 } from './types.ts';
 import {diagramTitle, diagramDesc} from './rules.ts';
 import {BOX_PAD_X, BOX_PAD_Y, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
+import {visibleAt} from './reveal.ts';
 
 const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
 
@@ -158,16 +159,16 @@ function renderBanner(band: LaidOutBanner, day: Theme): string {
   return `${renderBoxRect(band, day, 'accent')}\n  ${renderBoxText(band, day, 'center')}`;
 }
 
-function renderRow(band: LaidOutRow, day: Theme): string {
-  const boxes = band.children.map(c => renderBox(c, day)).join('\n\n  ');
-  const arrows = band.arrows.map(a =>
+function renderRow(band: LaidOutRow, day: Theme, stage?: number): string {
+  const boxes = band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day)).join('\n\n  ');
+  const arrows = band.arrows.filter((_, i) => visibleAt(band.children[i], stage) && visibleAt(band.children[i + 1], stage)).map(a =>
     `<path d="M${snap4(a.x1)},${Math.round(a.y1)} L${snap4(a.x2)},${Math.round(a.y2)}" fill="none" stroke="${PALETTE.text}" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>`,
   ).join('\n  ');
   return arrows ? `${boxes}\n\n  ${arrows}` : boxes;
 }
 
-function renderGrid(band: LaidOutGrid, day: Theme): string {
-  return band.children.map(c => renderBox(c, day)).join('\n\n  ');
+function renderGrid(band: LaidOutGrid, day: Theme, stage?: number): string {
+  return band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day)).join('\n\n  ');
 }
 
 function renderConnectPath(c: LaidOutConnect): string {
@@ -270,16 +271,16 @@ function renderPlane(b: LaidOutPlane, day: Theme): string {
   return out.join('\n  ');
 }
 
-function renderBars(b: LaidOutBars, day: Theme): string {
+function renderBars(b: LaidOutBars, day: Theme, stage?: number): string {
   const col = (k: ColorKey) => colorOf(k, day);
   const out: string[] = [];
   for (const t of b.ticks) out.push(`<path d="M${Math.round(t.x1)},${Math.round(t.y1)} L${Math.round(t.x2)},${Math.round(t.y2)}" fill="none" stroke="${PALETTE.border}" stroke-width="2"/>`);
-  for (const r of b.bars) {
+  for (const r of b.bars.filter(r => visibleAt(r, stage))) {
     const x = Math.round(r.x * 100) / 100, y = Math.round(r.y * 100) / 100;
     const right = Math.round((r.x + r.w) * 100) / 100, bottom = Math.round((r.y + r.h) * 100) / 100;
     out.push(`<path d="M${x},${y} H${right} V${bottom} H${x} Z" fill="${col(r.fill)}"/>`);
   }
-  for (const t of b.texts) {
+  for (const t of b.texts.filter(t => visibleAt(t, stage))) {
     const anchor = t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`;
     out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${anchor} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${col(t.fill)}">${emojiSpan(t.text)}</text>`);
   }
@@ -449,7 +450,7 @@ function renderPrims(b: LaidOutWireframe | LaidOutScreens, day: Theme): string {
   return out.join('\n  ');
 }
 
-function renderBand(band: LaidOutBand, day: Theme): string {
+function renderBand(band: LaidOutBand, day: Theme, stage?: number): string {
   switch (band.type) {
     case 'caption': return renderCaption(band, day);
     case 'box': return renderBox(band, day);
@@ -460,13 +461,13 @@ function renderBand(band: LaidOutBand, day: Theme): string {
     case 'wireframe': case 'screens': return renderPrims(band, day);
     case 'sequence': return renderSequence(band, day);
     case 'table': return renderTable(band, day);
-    case 'row': return renderRow(band, day);
-    case 'grid': return renderGrid(band, day);
+    case 'row': return renderRow(band, day, stage);
+    case 'grid': return renderGrid(band, day, stage);
     case 'raw': return renderRaw(band, day);
     case 'pyramid': return renderPyramid(band);
     case 'curve': return renderCurve(band, day);
     case 'plane': return renderPlane(band, day);
-    case 'bars': return renderBars(band, day);
+    case 'bars': return renderBars(band, day, stage);
     default: return '';
   }
 }
@@ -485,7 +486,7 @@ function bandRuns(b: LaidOutBand): (WrappedRun | LaidOutBox)[] {
   return [];
 }
 
-export function emitSvg(laidOutDiagram: LaidOutDiagram): string {
+export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number} = {}): string {
   const {width, canvasHeight, day, laidOut, connects} = laidOutDiagram;
   const usesMono = laidOut.some(b => bandRuns(b).some(x => (x as WrappedRun).mono || (('wrappedRuns' in x ? x.wrappedRuns : undefined) ?? []).some(r => r.mono)))
     || laidOut.some(b => b.type === 'table' && b.rows.some(r => r.cells.some(c => c.mono && c.lines.length)));
@@ -503,8 +504,8 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram): string {
     .mono { font-family: ${FONT_STACKS.mono}; }` : ''}
     .emoji { font-family: ${FONT_STACKS.emoji}; }`;
 
-  const body = laidOut.map(band => renderBand(band, day)).join('\n\n  ');
-  const connectSvg = connects.map(c => renderConnect(c, day)).join('\n\n  ');
+  const body = laidOut.filter(band => visibleAt(band, opts.reveal)).map(band => renderBand(band, day, opts.reveal)).join('\n\n  ');
+  const connectSvg = connects.filter(c => visibleAt(c, opts.reveal)).map(c => renderConnect(c, day)).join('\n\n  ');
 
   // doc-medium diagrams carry an accessible name/description and (when built from a file) provenance
   let a11y = '', head = '';
@@ -514,7 +515,7 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram): string {
       a11y = ` role="img" aria-labelledby="svg-title${desc ? ' svg-desc' : ''}"`;
       head = `\n  <title id="svg-title">${escapeXml(title)}</title>${desc ? `\n  <desc id="svg-desc">${escapeXml(desc)}</desc>` : ''}`;
     }
-    if (laidOutDiagram.source) head += `\n  <metadata id="svg-diagram">${escapeXml(JSON.stringify(laidOutDiagram.source))}</metadata>`;
+    if (laidOutDiagram.source) head += `\n  <metadata id="svg-diagram">${escapeXml(JSON.stringify(opts.reveal === undefined ? laidOutDiagram.source : {...laidOutDiagram.source, reveal: opts.reveal}))}</metadata>`;
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${canvasHeight}" viewBox="0 0 ${width} ${canvasHeight}"${a11y}>${head}${defs}
