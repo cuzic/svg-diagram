@@ -104,6 +104,10 @@ export const ROLES: Record<Role, number> = {
 // Fixed sizes of text that is not a role: the label on a connector line and the tag pill on a box.
 // layout.ts measures with these and emit.ts draws with them, so they are defined once, here.
 export const CONNECT_LABEL_SIZE = 14;
+// connect({weight: 'strong'}): line width, and its arrowhead (userSpaceOnUse: a head scaled by the width would bite into the box).
+export const STRONG_STROKE = 5, STRONG_HEAD = 16, STRONG_HEAD_REF_X = 6;
+// how far the line stops short of the box edge so the head's tip lands on it (the line must end where the head is wider than the line)
+export const STRONG_TRIM = (10 - STRONG_HEAD_REF_X) * STRONG_HEAD / 10;
 export const TAG_SIZE = 14;
 
 // Table cell marks (cell(text, {mark})): the symbol is what says "good / partial / bad", the tone only reinforces it.

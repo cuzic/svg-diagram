@@ -154,10 +154,12 @@ export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
 }
 
 // Key for line styles / tones used in the diagram. items:
-//   {line: 'solid'|'dashed'|'dotted'|'double', arrow?: 'end'|'both'|'none', label}
+//   {line: 'solid'|'dashed'|'dotted'|'double', arrow?: 'end'|'both'|'none', weight?: 'strong', label}
 //   {tone: 'accent'|'muted'|'plain'|'danger'|'new'|'changed'|'removed', label}
 export function legend(items: LegendItem[], opts: LegendOpts = {}): LegendBand {
-  return {type: 'legend', items, align: opts.align ?? 'center'};
+  for (const it of items) if (it.weight && it.line === 'double') throw new Error(`legend(): weight '${it.weight}' cannot go with line 'double' ("${it.label}")`);
+  // a weight sample is a line sample: the plain line unless `line` says otherwise
+  return {type: 'legend', items: items.map(it => it.weight && !it.line ? {...it, line: 'solid'} : it), align: opts.align ?? 'center'};
 }
 
 // UML-style sequence diagram. actors: [{id, label, tone?}]. steps (in time order):
@@ -559,11 +561,14 @@ function applyConnectDefaults(bands: Band[], defaults: ConnectDefaults): Band[] 
 function connectBand(from: string, to: string, opts: ConnectOpts, trackGiven = true): ConnectBand {
   // arrow: 'end' (default) | 'both' | 'start' | 'none'  (legacy `marker: false` = 'none')
   // line:  'solid' (default) | 'dashed' | 'dotted' | 'double'  (legacy `dashed: true` = 'dashed')
+  // weight: 'strong' = a thick line with its own arrowhead (not with 'double')
   // labelAt: 0..1 along a straight/loop-under connector where the label/chip sits (default 0.5)
   // chip:  true puts the label in a bordered pill sitting ON the line (protocol / rate tags)
   const arrow = opts.arrow ?? (opts.marker === false ? 'none' : 'end');
   const line = opts.line ?? (opts.dashed ? 'dashed' : 'solid');
-  const band: ConnectBand = {type: 'connect', from, to, route: opts.route ?? 'straight', dip: opts.dip ?? 32, bend: opts.bend ?? 0.5, bendOffset: opts.bendOffset, arrow, line, chip: !!opts.chip, labelAt: opts.labelAt ?? 0.5, tone: opts.tone, label: opts.label, reveal: opts.reveal};
+  // weight: 'strong' = a thick line (a name for the meaning, not a px); 'double' already reads as a thick line, so the two cannot be combined
+  if (opts.weight && line === 'double') throw new Error(`connect(${from} -> ${to}): weight '${opts.weight}' cannot go with line 'double' (both mean a thick line)`);
+  const band: ConnectBand = {type: 'connect', from, to, route: opts.route ?? 'straight', dip: opts.dip ?? 32, bend: opts.bend ?? 0.5, bendOffset: opts.bendOffset, arrow, line, ...(opts.weight ? {weight: opts.weight} : {}), chip: !!opts.chip, labelAt: opts.labelAt ?? 0.5, tone: opts.tone, label: opts.label, reveal: opts.reveal};
   return trackGiven ? Object.defineProperty(band, GIVEN, {value: opts, configurable: true}) : band;
 }
 
