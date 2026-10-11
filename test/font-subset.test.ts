@@ -20,9 +20,11 @@ const advance = (f: ReturnType<typeof open>, text: string) => {
 const original = () => fs.readFileSync(sans!.file);
 
 test('the cut font is a valid font that has exactly the glyphs asked for (and .notdef)', {skip}, () => {
-  const cut = subsetFont(original(), sans!.index, cps('Aあ在'));
-  const f = open(cut);
-  assert.deepEqual([...f.face.collectUnicodes()].sort((a, b) => a - b), cps('Aあ在').sort((a, b) => a - b));
+  const has = new Set(open(original(), sans!.index).face.collectUnicodes());
+  const asked = cps('Aあ在a1');
+  const f = open(subsetFont(original(), sans!.index, asked));
+  assert.deepEqual([...f.face.collectUnicodes()].sort((a, b) => a - b), asked.filter(c => has.has(c)).sort((a, b) => a - b));
+  assert.ok(has.has(0x41), 'the font has an A at least');
 });
 
 test('it is much smaller than the original', {skip}, () => {
@@ -37,7 +39,7 @@ test('widths and kerning of the kept characters are those of the original', {ski
   const text = 'AV To Wave 在庫 Total: 1,240';
   const c = open(subsetFont(original(), sans!.index, cps(text)));
   assert.equal(c.upem, o.upem);
-  for (const t of ['AV', 'To', 'Wave', '在庫', 'Total: 1,240', text]) assert.equal(advance(c, t), advance(o, t), t);
+  for (const t of ['AV', 'To', 'Wave', '在庫', 'Total: 1,240', text]) assert.equal(advance(c, t), advance(o, t), t); // (a character the font lacks is the same .notdef in both)
 });
 
 test('the family name survives (resvg picks the font by it)', {skip}, () => {
@@ -78,7 +80,7 @@ test('data that is not a font is refused, not turned into something', () => {
   assert.throws(() => subsetFont(Buffer.from('<svg/>'), 0, [0x41]), /font subsetting/);
 });
 
-test('a face index past the end of the collection is refused', {skip}, () => {
+test('a face index past the end of a collection is refused', {skip: skip || (/\.(ttc|otc)$/i.test(sans?.file ?? '') ? false : 'the sans font is a single font, not a collection')}, () => {
   assert.throws(() => subsetFont(original(), 99, [0x41]), /font subsetting/);
 });
 

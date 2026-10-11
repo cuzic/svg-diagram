@@ -145,9 +145,12 @@ test('the browser engine reports the same sections for the same files (browser n
   fs.rmSync(dir, {recursive: true});
 });
 
-test('the examples pass with --strict, as CI runs them', {skip}, () => {
+test('the examples, built here, pass lint --strict (as CI builds them and then checks them)', {skip, timeout: 120_000}, () => {
   const dir = tmp();
-  const r = run(ROOT, ['--strict', ...fs.readdirSync(path.join(ROOT, 'examples', 'out')).filter(f => f.endsWith('.svg')).map(f => path.join(ROOT, 'examples', 'out', f))]);
+  const sources = fs.readdirSync(path.join(ROOT, 'examples')).filter(f => f.endsWith('.ts')).map(f => path.join(ROOT, 'examples', f));
+  const built = spawnSync(BIN, ['build', ...sources, '--out-dir', dir, '--no-lint'], {cwd: ROOT, encoding: 'utf8'});
+  assert.equal(built.status, 0, `${built.stdout}\n${built.stderr}`);
+  const r = run(ROOT, ['--strict', ...fs.readdirSync(dir).filter(f => f.endsWith('.svg')).map(f => path.join(dir, f))]);
   assert.equal(r.status, 0, out(r));
   fs.rmSync(dir, {recursive: true});
 });

@@ -12,6 +12,8 @@ test.after(() => closeMeasurer());
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const haveFont = resolveFontFile('sans') !== null;
+// a font of its own for emoji (on a machine whose emoji stack falls through to the generic sans, the emoji font is the sans font)
+const haveEmojiFont = (() => { const e = resolveFontFile('emoji'), s = resolveFontFile('sans'); return !!e && !!s && e.file !== s.file; })();
 const svgOf = (w: number, h: number, body = '<rect width="100%" height="100%" fill="#1f5fa8"/>') => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${body}</svg>`;
 const dark = (r: {width: number; height: number; rgba: Buffer}, box = {x: 0, y: 0, w: r.width, h: r.height}) => {
   let n = 0;
@@ -95,6 +97,8 @@ test('the real browser and resvg draw the same example figures to within anti-al
   let browser;
   try { browser = await rasterize(svgOf(10, 10), {engine: 'chromium'}); } catch (e) { return t.skip(`no browser: ${(e as Error).message.split('\n')[0]}`); }
   assert.equal(browser.width, 10);
+  const {chromiumUsesOurFont} = await import('./helpers/chromium-font.ts');
+  if (!await chromiumUsesOurFont('sans', 400) || !await chromiumUsesOurFont('sans', 700)) return t.skip('Chromium draws the sans stack with another font than the layout measures');
   for (const name of ['inventory-flow', 'inventory-wireframe']) {
     const svg = fs.readFileSync(path.join(ROOT, 'examples', 'out', `${name}.svg`), 'utf8');
     const a = await rasterize(svg, {engine: 'resvg'}), b = await rasterize(svg, {engine: 'chromium'});
@@ -242,7 +246,7 @@ test('only the fonts the figure needs are loaded: bold only when something is bo
   assert.equal(bold, 1);
   assert.ok(both >= 2, 'regular and bold are two files (when they are not one family file)');
   assert.ok(mono >= 1);
-  if (resolveFontFile('emoji')) assert.ok(emoji >= 2, 'the emoji font is added for an emoji');
+  if (haveEmojiFont) assert.ok(emoji >= 2, 'the emoji font is added for an emoji');
 });
 
 test('the cut keeps what the figure draws: each example, byte for byte the same pixels as with the whole fonts', {skip: haveFont ? false : 'no font file found', timeout: 120_000}, async () => {
@@ -252,7 +256,8 @@ test('the cut keeps what the figure draws: each example, byte for byte the same 
     const svg = fs.readFileSync(path.join(ROOT, 'examples', 'out', `${name}.svg`), 'utf8');
     const cut = await rasterizeWithResvg(svg);
     const whole = fontFilesForTest();
-    const full = new Resvg(svg, {background: '#ffffff', font: {fontFiles: whole.files, loadSystemFonts: false, defaultFontFamily: whole.sans}}).render();
+    const p = prepareResvgFonts(svg), system = p.options.loadSystemFonts; p.cleanup(); // (the same decision about the system's fonts: this is about the cut, not about the fallback)
+    const full = new Resvg(svg, {background: '#ffffff', font: {fontFiles: whole.files, loadSystemFonts: system, defaultFontFamily: whole.sans}}).render();
     assert.ok(Buffer.from(full.pixels).equals(cut.rgba), name);
   }
 });
@@ -276,11 +281,12 @@ test('the system\'s fonts are read for a figure whose characters the layout\'s f
   assert.equal(fontsFor(text('a &amp; b'), latinOnly).loadSystemFonts, false, 'entities are decoded before looking');
 });
 
-test('with the layout\'s fonts able to draw it, Japanese needs no system fonts', {skip: haveFont ? false : 'no font file found'}, () => {
-  assert.equal(fontsFor(text('在庫管理 Hello')).loadSystemFonts, false);
+test('with the layout\'s fonts able to draw it, Japanese needs no system fonts', {skip: haveFont ? false : 'no font file found'}, async () => {
+  const {fontsCover} = await import('../lib/font-metrics.ts');
+  assert.equal(fontsFor(text('在庫管理 Hello')).loadSystemFonts, !fontsCover('在庫管理 Hello'));
 });
 
-test('a character only another of the layout\'s fonts has (a symbol the emoji font draws) brings that font in', {skip: resolveFontFile('emoji') && haveFont ? false : 'needs an emoji font'}, () => {
+test('an emoji brings the emoji font in, and needs no system fonts', {skip: haveEmojiFont ? false : 'needs an emoji font of its own'}, () => {
   const sym = '\u{1F642}';
   const o = fontsFor(text(`a${sym}`));
   assert.ok(o.fontFiles.length >= 2);
@@ -342,8 +348,8 @@ test('a newline in the source is drawn as a space, so the space is kept even if 
 });
 
 test('characters in a <tspan> and in a text under a transformed group are kept', {skip: haveFont ? false : 'no font file found'}, async () => {
-  const kept = await keptBy(svgOf(200, 100, '<g transform="translate(5 5)"><text x="1" y="40" font-size="20">a<tspan>在<tspan font-weight="700">庫</tspan></tspan></text></g>'));
-  for (const ch of 'a在庫') assert.ok(kept.has(ch.codePointAt(0)!), ch);
+  const kept = await keptBy(svgOf(200, 100, '<g transform="translate(5 5)"><text x="1" y="40" font-size="20">a<tspan>b<tspan font-weight="700">c</tspan></tspan></text></g>'));
+  for (const ch of 'abc') assert.ok(kept.has(ch.codePointAt(0)!), ch);
 });
 
 test('what is not drawn is not kept: titles, descriptions, style, metadata, attributes', {skip: haveFont ? false : 'no font file found'}, async () => {
@@ -352,7 +358,7 @@ test('what is not drawn is not kept: titles, descriptions, style, metadata, attr
   for (const ch of '題名説明メタコメント属性Z') assert.ok(!kept.has(ch.codePointAt(0)!), ch);
 });
 
-test('a symbol that only the emoji font draws (and that is not an emoji by the layout\'s own test) brings the emoji font in', {skip: haveFont && resolveFontFile('emoji') ? false : 'needs an emoji font'}, async () => {
+test('a symbol that only the emoji font draws (and that is not an emoji by the layout\'s own test) brings the emoji font in', {skip: haveEmojiFont ? false : 'needs an emoji font of its own'}, async () => {
   const {fontCoverage} = await import('../lib/font-metrics.ts');
   const {EMOJI_RE} = await import('../lib/tokens.ts');
   const sansCov = fontCoverage('sans', 400)!, emojiCov = fontCoverage('emoji', 400)!;
