@@ -43,6 +43,11 @@ const STEP_BADGE_GAP = 10;
 export const STEP_BADGE_BASELINE_OFFSET = 6;
 const STEP_INDENT = 2 * STEP_BADGE_R + STEP_BADGE_GAP; // how far the title's first line is pushed right to clear the badge
 
+// box({icon}): an SVG icon drawn ICON_SIZE px square at the box's top-left; every text run is pushed right to clear it.
+export const ICON_SIZE = 32;
+const ICON_INDENT = ICON_SIZE + 12;
+const ICON_H = ICON_SIZE; // the icon is at least this tall, so a one-line box still holds it
+
 type Requests = Map<string, MeasureRequest>;
 
 // An atom that was never registered measures 0 wide, silently (a line then overflows its box). Tests and the golden check run
@@ -70,13 +75,14 @@ function textRuns(band: Band): TextRun[] {
     }
     case 'box': {
       const runs: TextRun[] = [];
-      if (band.title) runs.push(withSpans({text: band.title, size: ROLES.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: band.step != null ? STEP_INDENT : 0}, band.spans?.title));
-      if (band.body) runs.push(withSpans({text: band.body, size: ROLES.body, weight: 400, mono: !!band.bodyMono, tone: band.bodyTone}, band.spans?.body));
+      const iconIndent = band.icon ? {indent: ICON_INDENT} : {}; // (spread, so a box without an icon gets no new field)
+      if (band.title) runs.push(withSpans({text: band.title, size: ROLES.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: band.step != null ? STEP_INDENT : band.icon ? ICON_INDENT : 0}, band.spans?.title));
+      if (band.body) runs.push(withSpans({text: band.body, size: ROLES.body, weight: 400, mono: !!band.bodyMono, tone: band.bodyTone, ...iconIndent}, band.spans?.body));
       if (band.lines) for (const l of band.lines) {
         const line: Exclude<typeof l, string> = typeof l === 'string' ? {text: l} : l;
-        runs.push(withSpans({text: line.text, size: ROLES[line.role ?? 'body'], weight: line.bold ? 700 : 400, mono: !!line.mono, tone: line.tone, nowrap: band.statValue === line.text && runs.length === 0}, line.spans));
+        runs.push(withSpans({text: line.text, size: ROLES[line.role ?? 'body'], weight: line.bold ? 700 : 400, mono: !!line.mono, tone: line.tone, nowrap: band.statValue === line.text && runs.length === 0, ...iconIndent}, line.spans));
       }
-      if (band.note) runs.push(withSpans({text: band.note, size: ROLES.note, weight: 400, mono: false, tone: band.noteTone ?? 'muted'}, band.spans?.note));
+      if (band.note) runs.push(withSpans({text: band.note, size: ROLES.note, weight: 400, mono: false, tone: band.noteTone ?? 'muted', ...iconIndent}, band.spans?.note));
       return runs;
     }
     default:
@@ -383,7 +389,9 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
   const placeBoxLike = <B extends CaptionBand | BoxBand | BannerBand>(band: B, x: number, y: number, w: number, isBoxLike: boolean): Placed<B> => {
     const chrome = band as BoxChrome; // caption has no padX / padY / tag / id: they read as undefined (its `tone` is a TextTone, unused here)
     const wrapWidth = isBoxLike ? w - 2 * (chrome.padX ?? BOX_PAD_X) : w;
-    const {wrappedRuns, textHeight} = layoutBoxContent(band, wrapWidth, widthOf);
+    const content = layoutBoxContent(band, wrapWidth, widthOf);
+    const {wrappedRuns} = content;
+    const textHeight = band.type === 'box' && band.icon ? Math.max(content.textHeight, ICON_H) : content.textHeight;
     const stamp = isBoxLike ? chrome.stamp : undefined;
     const stampW = stamp ? stampChipW(widthOf, stamp) : undefined;
     if (stampW !== undefined && stampW > w - 16) throw new Error(`stamp "${stamp}" is wider than its box (${Math.round(w)}px): shorten it or widen the box`);

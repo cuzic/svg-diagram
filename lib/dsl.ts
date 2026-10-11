@@ -10,6 +10,7 @@ import {execFileSync} from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import {wf} from './wireframe.ts';
+import {assertIconName} from './icons.ts';
 import {layoutDiagram} from './layout.ts';
 import {emitSvg} from './emit.ts';
 import {xmlProblems} from './xml-check.ts';
@@ -25,7 +26,7 @@ import {MIN_FONT_SIZE, ROLES, THEMES} from './tokens.ts';
 import type {
   Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
-  LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts,
+  LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
   Role, RichText, StatOpts, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
   GroupRowBand, PartRow, StateCellIn, StateMatrixCell, TableCellSpec, TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WfScreen, WfShellProps, WireframeBand, WireframeDefaults, WireframeOpts, Medium,
@@ -35,6 +36,9 @@ import type {
   HandleOf, PyramidLayers, Refers, RefsOf, RowHandleOf, SeqStepIn, ScreensItemInput, StateRowIn, StateRowLoose, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn,
 } from './strict.ts';
 export {wf} from './wireframe.ts';
+export {icon} from './icons.ts';
+export type {IconName, EmojiName} from './icons.ts';
+import type {IconName} from './icons.ts';
 export {versus} from './versus.ts';
 export {em} from './rich.ts';
 export type {VersusConnectLabels, VersusOpts, VersusPart, VersusSharedOpts} from './versus.ts';
@@ -126,6 +130,8 @@ export function box(opts: BoxOpts): BoxBand {
   // the plain text (and spans) of every rich field go over the copied options: a band never holds an array
   const band = {type: 'box', ...opts, ...richBoxFields(opts)} as BoxBand;
   if (band.step != null && !band.title) throw new Error('box({step}) needs a title — the badge aligns to the title\'s first line');
+  if (band.icon !== undefined && band.step != null) throw new Error('box({icon}) and box({step}) both sit at the box\'s left edge — use one');
+  if (band.icon !== undefined) assertIconName(band.icon, 'box({icon})');
   return withHandle(band, opts.id);
 }
 
@@ -460,6 +466,15 @@ function spanRow<C extends BoxBand | GroupBand>(children: C[], cols: number | nu
     return Object.assign(Object.create(Object.getPrototypeOf(c), Object.getOwnPropertyDescriptors(c)) as C, {span: cols[i]});
   });
   return {cols: cols.reduce((a, b) => a + b, 0), kids};
+}
+
+/** One cell of iconRow(): the icon, the label beside it, and optionally a line of body. */
+export interface IconRowItem {icon: IconName; label: string; body?: string; tone?: BoxTone; iconTone?: TextTone}
+
+/** A row of icon + label boxes (each a plain box({icon, title})). The label is required: an icon alone does not say what it means. */
+export function iconRow(items: IconRowItem[], opts: RowOpts = {}): RowBand {
+  if (items.length === 0) throw new Error('iconRow(): needs at least one item');
+  return row(items.map(it => box({icon: it.icon, title: it.label, body: it.body, tone: it.tone, iconTone: it.iconTone})), opts);
 }
 
 // children: box() descriptors, laid out in `cols` columns (wraps to

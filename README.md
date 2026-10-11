@@ -154,6 +154,29 @@ diagram({theme: 'blue', spotlight: {ids: ['main', 'choices#2'], edges: 'touching
 )
 ```
 
+### メタファー用の絵記号（icon）
+
+人・書類・鍵・橋・柵・階段などの小さな絵記号を 2 系統で出せる。名前は `lib/icons.ts` に集約してあり、同じ名前（key, lock, person ...）で両方から引ける。片方にしか無い名前（パスだけ: `stairs` `check` `gear` など、絵文字だけ: `ladder` `globe`）は型（`IconName` / `EmojiName`）で分かり、`icon.has('key')` は `{path, emoji}` を返す。未知の名前は throw。
+
+```ts
+// 図形として出す（SVG パス）
+box({icon: 'key', iconTone: 'accent', title: '鍵の管理', body: '発行と失効'})
+iconRow([{icon: 'bridge', label: '橋'}, {icon: 'fence', label: '柵'}, {icon: 'stairs', label: '階段'}])
+// 文字列の中に埋め込む（絵文字）
+box({title: `${icon.emoji('key')} 鍵の管理`})
+```
+
+| | SVG パス（`box({icon})` / `iconRow()`） | 絵文字（`icon.emoji()`） |
+|---|---|---|
+| 置ける場所 | 箱の左端（32px）。文字列の中には置けない | タイトル・本文・ラベルなど文字列の中 |
+| 見た目 | 固定（Material Design Icons / Material Symbols）。色は `iconTone`（text / accent / muted / danger）で、spotlight で薄くする箱は muted | 環境の絵文字フォント（Noto Color Emoji / Segoe UI Emoji）で変わる。色は色トークンの外 |
+| 数 | 25 | 18（`EMOJI_RE` の範囲内でフォントに実在するものだけ。U+FE0F が要る ⚠️ ⚙️ ☁️ ✅ は無い） |
+
+- 絵記号は記憶には効くが、理解や検索には効きにくい。**核心の数枚だけ**に使い、全部の箱には付けない。
+- アイコンだけで意味を伝えない。`box({icon})` は `title` を併記する（title があるとアイコンは `aria-hidden`、title が無いと `role="img"` と名前を持つ）。`iconRow()` は label が必須。`step` との併用は throw。
+- パスのデータは `scripts/gen-icons.ts` が `@mdi/js`（Pictogrammers）と `@material-symbols/svg-400`（Google）から選んだ分だけ `lib/icon-paths.ts` に取り出したもの（devDependency、実行時の依存なし）。どちらも Apache-2.0 で、出典は `NOTICE` と各エントリの `src` にある。
+- `preview` / `show` の既定（resvg）は色つき絵文字を描けない。絵文字を使う図は `--engine chromium` で確認する。
+
 ### 矢印の太さ（weight）
 
 `connect(from, to, {weight: 'strong'})` は、5px の太い矢印を引く（任意の px は指定できない。「強い流れ」という意味に名前を付けたもの）。「同じ力」の 2 本を並べる、主な流れだけを強調する、といった使い方で、`line: 'solid' | 'dashed' | 'dotted'` と併用できる。`line: 'double'` は別の意味（二重線）を持つので併用すると例外になる。矢じりは線の太さに比例せず固定の大きさで、先端が箱の縁に合う。
@@ -290,6 +313,7 @@ d.add(flow, connect(flow.anchors.a.right, flow.anchors.b.left));   // screens() 
 | `inventory-wireframe.ts` | 画面のワイヤーフレーム。番号つき注釈、トースト、確認ダイアログ、地図の凡例 |
 | `inventory-flow.ts` | 画面遷移図。画面のサムネイルを並べ、`connect()` で結ぶ |
 | `inventory-component-spec.ts` | 部品の仕様。粗い全体の領域、部品の構成（内側の番号）、状態の一覧 |
+| `icons.ts` | 絵記号の一覧と、メタファー図の例（`icon()` と `box({icon})`） |
 | `emphasis.ts` | 文の一部だけの太字・色（`em.b()` / `em.danger()` ほか） |
 
 ## Claude Code のスキル

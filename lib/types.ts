@@ -14,6 +14,7 @@
 //   * Colours are never raw strings in the DSL: they are token keys (TextTone / BoxTone / ColorKey).
 
 import type {BadgeBox} from './badge.ts';
+import type {IconName} from './icons.ts';
 import type {ConnectInput, DeclaredIds, RefIn, ValidateBands} from './strict.ts';
 import type {RULE_DOCS, DEFAULT_LEGEND_LABELS} from './rules.ts';
 import type {RICH} from './rich.ts';
@@ -271,6 +272,10 @@ export interface BoxStyleOpts extends BoxChrome {
   noteTone?: TextTone;
   /** Number/string badge on the title's baseline. Requires `title`. */
   step?: number | string;
+  /** An SVG pictogram at the box's left edge (32px); the text is indented to clear it. Not with `step`. Put a label beside it: the icon alone is hidden from screen readers. */
+  icon?: IconName;
+  /** Colour of the icon (default 'text'); a dimmed box draws it muted. */
+  iconTone?: TextTone;
   /** Legacy escape hatch: a px font size (must be >= MIN_FONT_SIZE). Not used by layout. */
   size?: number;
 }
