@@ -19,8 +19,8 @@
 
 import type {MIN_FONT_SIZE} from './tokens.ts';
 import type {
-  Arrow, Bend, BoxOpts, PartRow, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SeqDivider, SeqNote, SequenceActor, SeqMessage, SeqSelf,
-  SlideRef, StateMatrixCell, SwimlaneFlow, SwimlaneStep, TextTone, Theme,
+  Arrow, ArrowWeight, Bend, BoxOpts, PartRow, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SeqDivider, SeqNote, SequenceActor, SeqMessage, SeqSelf,
+  RichText, SlideRef, StateMatrixCell, SwimlaneFlow, SwimlaneStep, TextTone, Theme,
 } from './types.ts';
 
 // ============================================================================================
@@ -157,7 +157,7 @@ type FillRule = {fill?: false; slide?: SlideRef} | {fill: true; slide: SlideRef}
 export type DiagramInput = DiagramOpts & ThemeRule & FillRule;
 
 /** box({step}) needs a title (the badge aligns to the title's first line). */
-type StepRule = {step?: undefined} | {step: number | string; title: string; icon?: undefined};
+type StepRule = {step?: undefined} | {step: number | string; title: RichText; icon?: undefined};
 /** box() options: BoxOpts + the step rule, with the id type captured as `Id`. */
 export type BoxInput<Id extends string = string> = Omit<BoxOpts, 'size'> & {id?: Id; size?: FontSize} & StepRule;
 
@@ -167,7 +167,7 @@ type Elbow = {route: 'elbow'; bend?: Bend; bendOffset?: number; dip?: never};
 type LoopUnder = {route: 'loop-under'; dip?: number; bend?: never; bendOffset?: never};
 /** chip / labelAt only make sense with a label. */
 type LabelRule = {label?: undefined; chip?: never; labelAt?: never} | {label: string; chip?: boolean; labelAt?: number};
-interface ConnectLook {arrow?: Arrow; line?: LineStyle; tone?: TextTone; reveal?: number; /** legacy */ marker?: boolean; /** legacy */ dashed?: boolean}
+interface ConnectLook {arrow?: Arrow; line?: LineStyle; weight?: ArrowWeight; tone?: TextTone; reveal?: number; /** legacy */ marker?: boolean; /** legacy */ dashed?: boolean}
 /** connect() options. */
 export type ConnectInput = ConnectLook & (Straight | Elbow | LoopUnder) & LabelRule;
 /** branch() options / targets: the route defaults to 'elbow', so `bend` needs no `route`. */

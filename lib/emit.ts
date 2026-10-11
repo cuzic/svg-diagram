@@ -6,13 +6,13 @@
 // computed (usually off-grid) position, same as every hand-authored diagram
 // in this deck.
 
-import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES, CONNECT_LABEL_SIZE, TAG_SIZE, colorOf, textColorOf, toneStyle} from './tokens.ts';
+import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
   LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
-  LaidOutConnect, WrappedRun, Theme, TextTone, BoxTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
-  LaidOutWireframe, LaidOutScreens, RawColorTone,
+  LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
+  LaidOutWireframe, LaidOutScreens, RawColorTone, Span,
 } from './types.ts';
 import {diagramTitle, diagramDesc} from './rules.ts';
 import {BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
@@ -58,6 +58,17 @@ export function resolveBoxStyle(tone: BoxTone | undefined, day: Theme, dashedOve
 
 const resolveLineColor = textColorOf;
 
+// One line made of bold / coloured pieces: what has the line's own look stays plain text of the <text>, every other piece is a
+// <tspan>. No whitespace goes between the tags (it would be drawn); an emoji inside a piece nests in it, so it keeps the piece's weight.
+// A dimmed box keeps the bold but loses the colours (its text is all muted).
+function spanTspans(spans: Span[], run: WrappedRun, color: string, day: Theme, dim?: boolean): string {
+  return spans.map(sp => {
+    const fill = !dim && sp.tone ? resolveTextColor(sp.tone, day) : color;
+    const attrs = `${sp.bold && run.weight !== 700 ? ' font-weight="700"' : ''}${fill !== color ? ` fill="${fill}"` : ''}`;
+    return attrs ? `<tspan${attrs}>${emojiSpan(sp.text)}</tspan>` : emojiSpan(sp.text);
+  }).join('');
+}
+
 function renderTextRuns(
   wrappedRuns: WrappedRun[],
   {originX, originY, w, align, day, dim}: {originX: number; originY: number; w: number; align: Align; day: Theme; dim?: boolean},
@@ -75,7 +86,8 @@ function renderTextRuns(
     const lx = align === 'center' ? runOriginX + runW / 2 : align === 'right' ? runOriginX + runW : runOriginX;
     run.lines.forEach((line, i) => {
       const y = originY + run.lineYs[i];
-      parts.push(`<text x="${lx}" y="${y}"${anchor}${cls} font-size="${run.size}" font-weight="${run.weight}" fill="${color}">${emojiSpan(line)}</text>`);
+      const content = run.lineSpans ? spanTspans(run.lineSpans[i], run, color, day, dim) : emojiSpan(line);
+      parts.push(`<text x="${lx}" y="${y}"${anchor}${cls} font-size="${run.size}" font-weight="${run.weight}" fill="${color}">${content}</text>`);
     });
   }
   return parts.join('\n  ');
@@ -153,8 +165,8 @@ function lineAttrs(line: LineStyle | undefined): string {
   return line === 'dashed' ? ' stroke-dasharray="6,4"' : line === 'dotted' ? ' stroke-dasharray="2,5" stroke-linecap="round"' : '';
 }
 
-function arrowMarkers(arrow: Arrow | undefined, dim = false): string {
-  const id = dim ? 'dsl-arrow-dim' : 'dsl-arrow';
+function arrowMarkers(arrow: Arrow | undefined, dim = false, strong = false): string {
+  const id = `dsl-arrow${strong ? '-strong' : ''}${dim ? '-dim' : ''}`;
   return `${arrow === 'start' || arrow === 'both' ? ` marker-start="url(#${id})"` : ''}${arrow === 'end' || arrow === 'both' ? ` marker-end="url(#${id})"` : ''}`;
 }
 
@@ -164,8 +176,12 @@ function renderLegend(band: LaidOutLegend, day: Theme): string {
   for (const it of band.items) {
     const cy = it.y + 12;
     if (it.line) {
-      const d = `M${snap4(it.x)},${cy} L${snap4(it.x + LEGEND_SWATCH_W)},${cy}`;
-      if (it.line === 'double') {
+      const strong = it.weight === 'strong', arrow = it.arrow ?? 'end';
+      const [x1, x2] = strong ? trimEnds(it.x, it.x + LEGEND_SWATCH_W, arrow) : [it.x, it.x + LEGEND_SWATCH_W];
+      const d = `M${snap4(x1)},${cy} L${snap4(x2)},${cy}`;
+      if (strong) {
+        parts.push(`<path d="${d}" fill="none" stroke="${PALETTE.text}" stroke-width="${STRONG_STROKE}"${lineAttrs(it.line)}${arrowMarkers(arrow, false, true)}/>`);
+      } else if (it.line === 'double') {
         parts.push(`<path d="${d}" fill="none" stroke="${PALETTE.text}" stroke-width="6"/>`);
         parts.push(`<path d="${d}" fill="none" stroke="${PALETTE.bg}" stroke-width="2"${arrowMarkers(it.arrow ?? 'end')}/>`);
       } else {
@@ -196,16 +212,40 @@ function renderGrid(band: LaidOutGrid, day: Theme, stage?: number): string {
   return band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day)).join('\n\n  ');
 }
 
+// A strong line stops STRONG_TRIM short of the end(s) that carry an arrowhead, so the head's tip lands on the box edge.
+function trimEnds(a: number, b: number, arrow: Arrow | undefined): [number, number] {
+  const dir = Math.sign(b - a), len = Math.abs(b - a);
+  if (len < STRONG_TRIM * 3) return [a, b];
+  return [arrow === 'start' || arrow === 'both' ? a + dir * STRONG_TRIM : a, arrow === 'end' || arrow === 'both' ? b - dir * STRONG_TRIM : b];
+}
+
+function trimPoints(points: Point[], arrow: Arrow): Point[] {
+  const pts = points.map(p => ({...p}));
+  const pull = (tip: Point, prev: Point): void => {
+    const len = Math.hypot(tip.x - prev.x, tip.y - prev.y);
+    if (len < STRONG_TRIM * 3) return;
+    tip.x -= (tip.x - prev.x) / len * STRONG_TRIM;
+    tip.y -= (tip.y - prev.y) / len * STRONG_TRIM;
+  };
+  if (arrow === 'end' || arrow === 'both') pull(pts[pts.length - 1], pts[pts.length - 2]);
+  if (arrow === 'start' || arrow === 'both') pull(pts[0], pts[1]);
+  return pts;
+}
+
 function renderConnectPath(c: LaidOutConnect): string {
-  return c.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${Math.round(p.x)},${Math.round(p.y)}`).join(' ');
+  const points = c.weight === 'strong' ? trimPoints(c.points, c.arrow) : c.points;
+  return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${Math.round(p.x)},${Math.round(p.y)}`).join(' ');
 }
 
 function renderConnect(c: LaidOutConnect, day: Theme): string {
   const color = c.dim ? PALETTE.muted : resolveLineColor(c.tone, day);
   const d = renderConnectPath(c);
-  const markers = arrowMarkers(c.arrow, c.dim);
+  const strong = c.weight === 'strong';
+  const markers = arrowMarkers(c.arrow, c.dim, strong);
   let path: string;
-  if (c.line === 'double') {
+  if (strong) {
+    path = `<path d="${d}" fill="none" stroke="${color}" stroke-width="${STRONG_STROKE}"${lineAttrs(c.line)}${markers}/>`;
+  } else if (c.line === 'double') {
     // a thick line with a background-colored core: reads as "=" and keeps the arrowhead on the core
     path = `<path d="${d}" fill="none" stroke="${color}" stroke-width="6"/>\n  <path d="${d}" fill="none" stroke="${PALETTE.bg}" stroke-width="2"${markers}/>`;
   } else {
@@ -501,7 +541,7 @@ function renderBand(band: LaidOutBand, day: Theme, stage?: number): string {
   const svg = renderBandPlain(band, day, stage);
   if (!band.dim || band.type === 'caption' || band.type === 'box' || band.type === 'banner' || band.type === 'group' || band.type === 'row' || band.type === 'grid') return svg;
   return svg
-    .replace(/marker-(start|end)="url\(#dsl-arrow\)"/g, 'marker-$1="url(#dsl-arrow-dim)"')
+    .replace(/marker-(start|end)="url\(#dsl-arrow(-strong)?\)"/g, 'marker-$1="url(#dsl-arrow$2-dim)"')
     .replace(/stroke="#[0-9a-fA-F]{6}"/g, `stroke="${PALETTE.muted}"`)
     .replace(/fill="(#[0-9a-fA-F]{6})"/g, (_all, fill: string) => `fill="${fill === PALETTE.bg ? PALETTE.bg : PALETTE.muted}"`);
 }
@@ -531,6 +571,16 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number} 
     || b.type === 'sequence' && b.steps.some(x => x.kind === 'self' || x.kind === 'msg' && x.arrow !== 'none')
   ));
 
+  // strong arrows have markers of their own (a fixed size, so a thick line does not scale its head)
+  const strongArrow = (c: LaidOutConnect) => c.weight === 'strong' && c.arrow !== 'none';
+  const strongItem = (i: LaidOutLegendItem) => i.weight === 'strong' && (i.arrow ?? 'end') !== 'none';
+  const needsStrongArrow = connects.some(strongArrow) || laidOut.some(b => b.type === 'legend' && b.items.some(strongItem));
+  const needsDimStrongArrow = connects.some(c => c.dim && strongArrow(c)) || laidOut.some(b => b.dim && b.type === 'legend' && b.items.some(strongItem));
+  const strongMarker = (id: string, fill: string) => `
+    <marker id="${id}" viewBox="0 0 10 10" refX="${STRONG_HEAD_REF_X}" refY="5" markerUnits="userSpaceOnUse" markerWidth="${STRONG_HEAD}" markerHeight="${STRONG_HEAD}" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="${fill}"/>
+    </marker>`;
+
   const defs = needsArrow ? `
   <defs>
     <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -538,7 +588,7 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number} 
     </marker>${needsDimArrow ? `
     <marker id="dsl-arrow-dim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="${PALETTE.muted}"/>
-    </marker>` : ''}
+    </marker>` : ''}${needsStrongArrow ? strongMarker('dsl-arrow-strong', PALETTE.text) : ''}${needsDimStrongArrow ? strongMarker('dsl-arrow-strong-dim', PALETTE.muted) : ''}
   </defs>` : '';
 
   const style = `

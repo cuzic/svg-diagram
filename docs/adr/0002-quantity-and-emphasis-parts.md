@@ -1,6 +1,6 @@
 # ADR 0002: 量・強調を表す部品の追加(stat / bars / reveal / spotlight / versus)
 
-- 状態: 提案(改訂 3。Opus レビュー 2 回分を反映)
+- 状態: 一部実装済み(PR #19〜#23)。未実装は下の「実装状況」を参照
 - 日付: 2026-10-11
 - 基点: 0.5.0(検査は `lib/svg-lint.ts` 基準)
 
@@ -107,7 +107,7 @@ diagram({spotlight: 'main'})
 | (a) 並べると外枠が二重 | **まず `group(..., {frame: false})`(枠なし・pad 0)を足す**(`emit.ts:123` が必ず枠を描くのが原因)。row の子の拡張は、これで足りないと分かってから。 |
 | row の子の拡張(必要になった場合) | `assertBoxChildren` は grid 用に残し、変えるのは `assertRowChildren`(`dsl.ts:368`)と `hasGroup` 判定 →「box 以外を含む row は grouprow 経路」に広げる。`row` 型は box 専用のまま。先に決めること: 高さ揃え(table / plane は伸ばせない→上揃え。row#N アンカー矩形と描画矩形の不一致)、`width` の二重の意味(row の子幅 vs table/plane 自身の `width`)、`layout.ts:512` の `as LaidOutGroup` キャスト、共有格子の gap 走査(`layout.ts:275-291`)。 |
 | (b) 表の行高 | `table(..., {cellH})`。`stateMatrix` の `cellH` と意味も揃え、**固定高**とする。折り返しで 2 行になったセルに足りなければエラー(伸ばさない)。 |
-| (c) 矢印の太さ | `line: 'double'` が既に太線(stroke 6)で、`weight: 'heavy'` は見た目が競合する。**当面は作らない**。「同じ力」は `double` と凡例で表せるかを examples で確かめ、足りなければ別 ADR(marker の `markerUnits`、`edgeStats` の 12px 判定、凡例キーの追加が必要)。 |
+| (c) 矢印の太さ | **実装済み(別 ADR は立てず本項を更新)**: `connect({weight: 'strong'})`(5px。`heavy` ではなく意味の名前。任意 px は不可)。`line: 'double'` との併用は例外(意味が競合)、solid / dashed / dotted とは併用できる。矢じりは `markerUnits="userSpaceOnUse"` の専用 marker(`dsl-arrow-strong`、使用時のみ defs に出す。dim 用は `dsl-arrow-strong-dim`)で、線を矢じりの手前で止めて先端を箱の縁に合わせる。凡例キーは `weight:strong`(「強い流れ」)で、`legend: 'auto'` / `legend-missing` の対象。`edgeStats` の重なり判定は線の太さに応じて間隔を広げる(`edgeStats` は `verify.ts` ではなく `rules.ts`)。`connectDefaults` には入れない。 |
 | (d) 箱内の部分強調 | 単独の ADR。`measure` が部分ごとの太さを見る必要があり、実装コストが最大。 |
 | (e) stamp の汎用化 | stamp は `WfFrameDecor.stamp`(`types.ts:918-924`)で、`wf.stamp` という関数ではない。box の右下に出すなら `placeBoxLike`(`layout.ts:311`)の高さ計算で領域を確保し、tag の `tagBox` と同様に `stampBox` を verify の矩形検査に載せる(箱単位の `collectRects` では検出されないため)。 |
 
@@ -133,6 +133,22 @@ diagram({spotlight: 'main'})
 6. 必要なら row の子の拡張、部分強調(別 ADR)、`versus`。
 
 どの段階でも `pnpm test` / `pnpm typecheck` / `pnpm golden` を通す。**出力が変わりうる変更は個別に列挙する**(`display` ロール追加は既存出力に影響なし、marker の色別化は `<defs>` が変わるので dim 使用時のみ出す)。各部品に `examples/` の図を足し、既存の手組み(row + group + connect)を新部品で書き直した before/after を 1 つ入れて、要望との対応を検証する。
+
+## 実装状況(2026-10-11 時点)
+
+| 項目 | 状況 | メモ |
+|---|---|---|
+| `stat()` / `display` ロール | 実装済み(#19) | |
+| `bars()` | 実装済み(#19) | コードレビュー 10 件を反映 |
+| `group({frame:false})` / `table({cellH})` / `stamp` | 実装済み(#22) | stamp は帯の確保と幅超過の throw で担保し、verify の矩形検査には載せていない。`frame:false` は title / tone / dashed と併用すると throw |
+| `reveal` | 本リポジトリ側は実装済み(#23) | slidev addon 側(段別ファイルの差し替え)は未実装。`slide-budget` のセレクタは前方一致の近似。`name.svg` の metadata に最大段が入る |
+| `spotlight` | 実装済み(#20) | 既定は `edges: 'touching'`(examples で `between` と比較し、ADR どおりと確認) |
+| `versus` | 実装済み(#21) | `shared` 使用時は左右・共通部すべてに `id` が必須。接続ラベルは `connectLabels.left/right`。間に spacer を入れる |
+| row の子の拡張 | **見送り** | `group({frame:false})` で table / plane / banner を row に並べられ、外枠も二重にならないため不要になった。必要になれば高さ揃え・`width` の二重の意味から決める |
+| 部分強調(箱内の太字・色) | **未実装(別 ADR が先)** | `measure` が部分ごとの太さを見る必要がある。最大コスト |
+| stat のコントラスト基準 | **現状維持** | 一律 4.5:1(厳しい側)。サイズ別(大きい文字 3:1)にするかは、実際に引っかかる図が出てから |
+| 矢印の太さ | 作らない | `line: 'double'` と競合 |
+| メタファー素材 | 範囲外 | |
 
 ## 影響とリスク
 
