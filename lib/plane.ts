@@ -156,7 +156,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   }
 
   return {
-    type: 'plane', x, y, w, h, bounds: {x: left, y, w: width, h},
+    type: 'plane', x, y, w, h, reveal: band.reveal, bounds: {x: left, y, w: width, h},
     axisX, axisY, plotL, plotR, plotT, plotB, yDown,
     ticks, grid, texts, points, lines, dims, labelBoxes: boxes, obstacles,
   };

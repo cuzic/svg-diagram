@@ -160,9 +160,13 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
       const c: ResolvedCell = header ? {text: (cell as TableColumn).label ?? '', bold: true, mono: false, align: (cell as TableColumn).align ?? 'left'} : cellOf(cell as TableCell, cols[i]);
       const size = ROLES.body;
       const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', colW[i] - 2 * TBL.padX, widthOf);
-      return {...c, lines, x: colX[i], w: colW[i]};
+      return {...c, lines, x: colX[i], w: colW[i], top: 0};
     });
-    const h = Math.max(1, ...placed.map(c => c.lines.length)) * lineH(ROLES.body) + 2 * TBL.padY;
+    const need = Math.max(1, ...placed.map(c => c.lines.length)) * lineH(ROLES.body) + 2 * TBL.padY;
+    if (band.cellH !== undefined && band.cellH < need) throw new Error(`table(): cellH ${band.cellH} is too small for a row that needs ${Math.ceil(need)}px (${Math.max(1, ...placed.map(c => c.lines.length))} line(s) of ${ROLES.body}px text). Raise cellH or shorten the text`);
+    const h = band.cellH ?? need;
+    // fixed-height rows centre their text; content-height rows keep it top-aligned (the output before cellH existed)
+    for (const c of placed) c.top = band.cellH === undefined ? cy + TBL.padY : cy + (h - c.lines.length * lineH(ROLES.body)) / 2;
     const row: LaidOutTableRow = {y: cy, h, cells: placed, header, tone};
     cy += h;
     return row;
@@ -174,5 +178,5 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     const cells = 'cells' in r ? r.cells : r;
     rows.push(rowOf(cells, false, 'cells' in r ? r.tone : undefined));
   }
-  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone};
+  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone, reveal: band.reveal};
 }

@@ -153,6 +153,9 @@ export interface DiagramData {
   maxWidth?: number;
   /** Provenance embedded as <metadata> (build-diagram.ts / check-diagram.ts). */
   source?: DiagramSource;
+  /** Internal reveal analysis, filled before layout. */
+  maxReveal?: number;
+  revealWarnings?: string[];
 }
 
 /** What goes in the SVG's <metadata id="svg-diagram">. */
@@ -165,7 +168,11 @@ export interface DiagramSource {
   configSha256?: string;
   /** sha256 over the local files the source imports (lib/source-deps.ts), when there are any. */
   depsSha256?: string;
+  /** Cumulative reveal stage represented by this file. */
+  reveal?: number;
 }
+
+export interface RevealOpts {reveal?: number}
 
 /**
  * What diagram() returns. `add()` accepts bands and arrays of bands (swimlane() / branch() return arrays).
@@ -204,7 +211,7 @@ export interface CaptionBand {
 export type BoxLine = string | {text: string; role?: Role; bold?: boolean; mono?: boolean; tone?: TextTone};
 
 /** Fields shared by every box-like band (box, banner, swimlane step, row/grid child). */
-export interface BoxChrome {
+export interface BoxChrome extends RevealOpts {
   id?: string;
   tone?: BoxTone;
   /** Draw the boundary dashed (overrides the tone's default). */
@@ -215,6 +222,8 @@ export interface BoxChrome {
   tagTone?: TagTone;
   /** 0..1 along the top edge where the tag is centred (default: right-aligned). */
   tagAt?: number;
+  /** Small chip at the bottom-right corner ("架空の例", "イメージ", "要確認"). Reserves a strip under the content, so it never covers the text. */
+  stamp?: string;
   padX?: number;
   padY?: number;
   /** row(): flex share (default 1). */
@@ -266,7 +275,7 @@ export interface BannerBand extends BannerOpts {type: 'banner'; tone: BoxTone}
 // DSL input + band: group / legend / spacer / raw
 // ============================================================================================
 
-export interface GroupOpts {
+export interface GroupOpts extends RevealOpts {
   title?: string;
   titleTone?: TextTone;
   titleAlign?: Align;
@@ -274,8 +283,12 @@ export interface GroupOpts {
   tone?: BoxTone;
   /** Default true for tone 'plain'. */
   dashed?: boolean;
-  /** Inner padding (default 16). */
+  /** Inner padding (default 16; 0 with `frame: false`). */
   pad?: number;
+  /** Chip at the bottom-right corner inside the frame (see box({stamp})). */
+  stamp?: string;
+  /** false draws no frame (and takes no title): a plain container, so a table / plane / banner can sit in a row() without a doubled outline. */
+  frame?: false;
   id?: string;
   /** Sizing when the group is a child of row(): the same fields as a box (flex / width for justify, span / col for cols). */
   flex?: number;
@@ -292,11 +305,14 @@ export interface GroupBand {
   tone: BoxTone;
   dashed?: boolean;
   pad?: number;
+  frame?: false;
+  stamp?: string;
   id?: string;
   flex?: number;
   width?: number;
   span?: number;
   col?: number;
+  reveal?: number;
 }
 
 /** A row() whose children include groups: they sit side by side and their frames are stretched to the tallest one. */
@@ -308,6 +324,7 @@ export interface GroupRowBand {
   gap: number;
   justify: RowJustify;
   itemWidth?: number;
+  reveal?: number;
 }
 
 /** A legend entry: a line sample ({line, arrow?}) or a tone swatch ({tone, dashed?}). */
@@ -388,7 +405,7 @@ export interface GridBand {
   gap: number;
 }
 
-export interface ConnectOpts {
+export interface ConnectOpts extends RevealOpts {
   route?: Route;
   /** loop-under: how far below the lower anchor the return path runs (default 32). */
   dip?: number;
@@ -423,6 +440,7 @@ export interface ConnectBand {
   labelAt: number;
   tone?: TextTone;
   label?: string;
+  reveal?: number;
 }
 /** branch() target: connect() options plus the target ref. */
 export interface BranchTarget extends ConnectOpts {to: string}
@@ -513,7 +531,7 @@ export interface PlaneDim {
   tone?: PlaneTone;
 }
 export interface PlaneLabel {at: PlanePos; text: string; anchor?: 'start' | 'middle' | 'end'; tone?: PlaneTone; bold?: boolean}
-export interface PlaneOpts {
+export interface PlaneOpts extends RevealOpts {
   x: PlaneAxis;
   y: PlaneAxis;
   points?: PlanePoint[];
@@ -538,7 +556,7 @@ export interface PlaneBand extends PlaneOpts {
 // ============================================================================================
 
 export type BarSeries = 'a' | 'b' | 'c';
-export interface BarDatum {label: string; value: number; series?: BarSeries; id?: string}
+export interface BarDatum extends RevealOpts {label: string; value: number; series?: BarSeries; id?: string}
 export interface BarsOpts {
   max?: number;
   unit?: string;
@@ -553,6 +571,8 @@ export interface BarsBand extends BarsOpts {
   max: number;
   dir: 'h' | 'v';
   stack: boolean;
+  /** Inherited from the enclosing group; each bar has its own too. */
+  reveal?: number;
 }
 
 // ============================================================================================
@@ -638,7 +658,7 @@ export interface TableCellSpec {
 }
 export type TableCell = string | number | TableCellSpec;
 export type TableRow = readonly TableCell[] | {cells: readonly TableCell[]; tone?: BoxTone};
-export interface TableOpts {
+export interface TableOpts extends RevealOpts {
   /** Accent bar on top (an ER entity name, a caption). */
   title?: string;
   /** false hides the column-label row. */
@@ -646,6 +666,8 @@ export interface TableOpts {
   /** Narrows the table (centred). */
   width?: number;
   tone?: BoxTone;
+  /** Fixed height of every row (header included), text centred vertically. Throws when a cell's text needs more. */
+  cellH?: number;
   id?: string;
 }
 export interface TableBand {
@@ -656,7 +678,9 @@ export interface TableBand {
   header?: boolean;
   width?: number;
   tone?: BoxTone;
+  cellH?: number;
   id?: string;
+  reveal?: number;
 }
 /** cellOf(): a cell with column defaults applied. */
 export interface ResolvedCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align}
@@ -1324,10 +1348,10 @@ export interface LaidOutCaption extends CaptionBand, Rect, Dimmed {
   /** group() titles only: the rect the title's text really covers (the caption itself spans the whole frame width). */
   inkBox?: Rect;
 }
-export interface LaidOutBox extends BoxBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; nowrapOverflow?: string[]}
-export interface LaidOutBanner extends BannerBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect}
+export interface LaidOutBox extends BoxBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number; nowrapOverflow?: string[]}
+export interface LaidOutBanner extends BannerBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number}
 /** The frame of a group; its children are laid out as separate bands after it. */
-export interface LaidOutGroup extends Rect, Dimmed {type: 'group'; tone: BoxTone; dashed?: boolean; id?: string}
+export interface LaidOutGroup extends Rect, Dimmed {type: 'group'; tone: BoxTone; dashed?: boolean; frame?: false; stamp?: string; stampW?: number; id?: string; reveal?: number}
 export interface LaidOutLegendItem extends LegendItem {textW: number; w: number; x: number; y: number}
 export interface LaidOutLegend extends Rect {type: 'legend'; items: LaidOutLegendItem[]}
 export interface RowArrow {x1: number; y1: number; x2: number; y2: number}
@@ -1390,7 +1414,7 @@ export interface LaidOutSequence extends Rect {
   lifeBottom: number;
 }
 
-export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; lines: string[]; x: number; w: number}
+export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; lines: string[]; x: number; w: number; top: number}
 export interface LaidOutTableRow {y: number; h: number; cells: LaidOutTableCell[]; header?: boolean; tone?: BoxTone}
 export interface LaidOutTable extends Rect {
   type: 'table';
@@ -1401,6 +1425,7 @@ export interface LaidOutTable extends Rect {
   colX: number[];
   colW: number[];
   tone?: BoxTone;
+  reveal?: number;
 }
 
 /** wireframe() as laid out: flat primitives + the callouts drawn (for the order rule). */
@@ -1427,6 +1452,7 @@ export interface PlaneText {s: string; x: number; y: number; anchor: 'start' | '
 interface PlaneSeg {x1: number; y1: number; x2: number; y2: number}
 export interface LaidOutPlane extends Rect {
   type: 'plane';
+  reveal?: number;
   /** The figure itself (the band is as wide as the page; the figure may be narrower and centred). */
   bounds: Rect;
   axisX: number; axisY: number;
@@ -1444,12 +1470,13 @@ export interface LaidOutPlane extends Rect {
   obstacles: (Rect & {what: string; dim?: number})[];
 }
 
-export interface BarRect extends Rect {fill: ColorKey; id?: string}
-export interface BarText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean}
+export interface BarRect extends Rect {fill: ColorKey; id?: string; reveal?: number}
+export interface BarText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number}
 export interface LaidOutBars extends Rect {
   type: 'bars';
   dir: 'h' | 'v';
   stack: boolean;
+  reveal?: number;
   bars: BarRect[];
   ticks: {x1: number; y1: number; x2: number; y2: number}[];
   texts: BarText[];
@@ -1540,6 +1567,7 @@ export interface SlideBudget {
 /** build() result. */
 export interface BuildResult {
   outPath: string;
+  revealPaths: string[];
   width: number;
   height: number;
   fit: FitReport;

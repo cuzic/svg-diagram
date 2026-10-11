@@ -77,6 +77,12 @@ async function withDevServer<T>(fn: (base: string) => Promise<T>): Promise<T> {
   }
 }
 
+// name.svg, or one of its click stages name.revealN.svg (every stage has the same size); CSS can't match \d+, so the stage suffix is matched by prefix
+export function imgSelector(scope: string, svg: string): string {
+  const stem = svg.replace(/\.svg$/, '');
+  return `${scope} img[src$="/svg/${svg}"], ${scope} img[src*="/svg/${stem}.reveal"][src$=".svg"], ${scope} img[src^="data:image/svg"]`;
+}
+
 async function measure(base: string, index: number, svg: string) {
   const browser = await launchChromium();
   try {
@@ -85,7 +91,7 @@ async function measure(base: string, index: number, svg: string) {
     // fall back to "the one SVG image in the slide".
     // The dev DOM holds many slides at once; scope to this slide's page node.
     const scope = `.slidev-page-${index} .slidev-layout`;
-    const sel = `${scope} img[src$="/svg/${svg}"], ${scope} img[src^="data:image/svg"]`;
+    const sel = imgSelector(scope, svg);
     await p.goto(`${base}/${index}?clicks=99`);
     await p.waitForSelector(sel, {state: 'attached', timeout: 60000});
     if ((await p.locator(sel).count()) !== 1) throw new Error(`slide ${index}: expected exactly one SVG <img> matching ${svg}, found ${await p.locator(sel).count()}`);

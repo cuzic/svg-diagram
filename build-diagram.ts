@@ -126,7 +126,7 @@ try {
         d.slide = {page: hits[0].page, heading: hits[0].heading as string};
       }
       const result = await build(d, outPath, {lint: false}); // linted together below: one Chromium for all files
-      written.push(outPath);
+      written.push(outPath, ...result.revealPaths);
       if (result.fit.doc) console.log(`✓ ${outPath} (${result.width}x${result.height})`);
       else {
         const imgTag = d.fill ? '<img class="fill">' : `<img style="${result.fit.imgStyle}">`;
