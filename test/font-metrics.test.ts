@@ -1,6 +1,6 @@
 // The font-file measurement against Chromium's, atom by atom (what layout measures). Where the font has no hinting quirks (the sans
 // stack) widths agree within 1px and heights within 1px; a mono stack is held to Latin atoms and half a pixel per glyph, because Chromium
-// rounds some advances of a hinted font (8.80 -> 9.00). Skipped on a machine where no font file can be found.
+// rounds some advances of a hinted font (8.80 -> 9.00). Skipped on a machine where no font file can be found; the last test pins the default and the fallback.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {measureAll, configureMeasure, closeMeasurer, splitAtoms} from '../lib/measure.ts';
@@ -33,3 +33,30 @@ for (const family of ['sans', 'mono'] as FontFamily[]) for (const weight of [400
     assert.deepEqual(off, []);
   });
 }
+
+test('the default is the font files; measure unset falls back to Chromium when none is found, measure "font" does not', async (t) => {
+  const req = new Map<string, MeasureRequest>([['a', {text: 'Dashboard', size: 16, weight: 400, font: 'sans'}]]);
+  const noFont = {sans: {regular: '/no/such/font.ttf'}};
+  const env = process.env.SVG_DIAGRAM_MEASURE;
+  delete process.env.SVG_DIAGRAM_MEASURE;
+  try {
+    try { measureWithFonts(req); } catch (e) { t.skip((e as Error).message.slice(0, 80)); return; }
+    configureMeasure({});
+    const viaDefault = await measureAll(req);
+    assert.deepEqual(viaDefault.get('a'), measureWithFonts(req).get('a'));
+    // an unreadable font file: unset → warns and measures in Chromium; "font" → throws
+    const warnings: string[] = [];
+    const warn = console.warn; console.warn = (m: string) => { warnings.push(m); };
+    try {
+      configureMeasure({fonts: noFont});
+      const fallback = await measureAll(new Map([['b', {text: 'Dashboard', size: 17, weight: 400, font: 'sans' as const}]]));
+      assert.ok(fallback.get('b')!.w > 0);
+      assert.match(warnings.join('\n'), /measuring with Chromium instead/);
+    } finally { console.warn = warn; }
+    configureMeasure({measure: 'font', fonts: noFont});
+    await assert.rejects(measureAll(new Map([['c', {text: 'Dashboard', size: 18, weight: 400, font: 'sans' as const}]])), /ENOENT|no such file/i);
+  } finally {
+    if (env !== undefined) process.env.SVG_DIAGRAM_MEASURE = env;
+    configureMeasure({measure: 'chromium'});
+  }
+});

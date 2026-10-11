@@ -138,14 +138,19 @@ export async function closeMeasurer(): Promise<void> {
 const memo = new Map<string, Measured>();
 const memoKey = (r: MeasureRequest) => JSON.stringify([backend, r.text, r.size, r.weight ?? 400, r.font ?? 'sans']);
 
-// Which engine measures: 'chromium' (a headless browser, the default) or 'font' (the font files read directly, no browser).
+// Which engine measures: 'font' (the font files read directly, no browser; the default) or 'chromium' (a headless browser).
 // SVG_DIAGRAM_MEASURE overrides .svg-diagram.json's `measure`. Unconfigured, the first measurement reads the config from the cwd.
+// When `measure` is not set anywhere and no font file can be found, measuring falls back to Chromium (with a warning, once);
+// when it is set to 'font' that is an error, because the person asked for the font files.
 let backend: 'chromium' | 'font' | null = null;
+let explicit = false;
 let fontSpecs: FontSpecs | undefined;
 export function configureMeasure(cfg: Pick<Config, 'measure' | 'fonts'>): void {
   const env = process.env.SVG_DIAGRAM_MEASURE;
   if (env && env !== 'chromium' && env !== 'font') throw new Error(`SVG_DIAGRAM_MEASURE=${env}: expected 'chromium' or 'font'`);
-  backend = (env as 'chromium' | 'font' | undefined) ?? cfg.measure ?? 'chromium';
+  const chosen = (env as 'chromium' | 'font' | undefined) ?? cfg.measure;
+  backend = chosen ?? 'font';
+  explicit = chosen !== undefined;
   fontSpecs = cfg.fonts;
 }
 
@@ -161,8 +166,14 @@ export async function measureAll(requests: Map<string, MeasureRequest>): Promise
   if (todo.size === 0) return result;
   if (backend === 'font') {
     const {measureWithFonts} = await import('./font-metrics.ts');
-    for (const [key, m] of measureWithFonts(todo, fontSpecs)) { memo.set(memoKey(todo.get(key)!), m); result.set(key, m); }
-    return result;
+    try {
+      for (const [key, m] of measureWithFonts(todo, fontSpecs)) { memo.set(memoKey(todo.get(key)!), m); result.set(key, m); }
+      return result;
+    } catch (e) {
+      if (explicit) throw e;
+      console.warn(`svg-diagram: ${(e as Error).message.split(' Name the file')[0]} — measuring with Chromium instead (set "fonts" to measure from font files).`);
+      backend = 'chromium';
+    }
   }
   const browser = await getBrowser();
   const page = await browser.newPage();

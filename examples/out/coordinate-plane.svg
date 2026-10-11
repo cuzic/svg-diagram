@@ -9,34 +9,34 @@
 
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">地図（メートル、y は上向き）</text>
 
-  <path d="M56,98 L56,344 M216,98 L216,344 M376,98 L376,344 M535,98 L535,344 M695,98 L695,344 M855,98 L855,344 M56,344 L855,344 M56,303 L855,303 M56,262 L855,262 M56,221 L855,221 M56,180 L855,180 M56,139 L855,139 M56,98 L855,98" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M56,344 L855,344 M56,344 L56,98" fill="none" stroke="#22201b" stroke-width="2"/>
-  <polygon points="855,344 845,349 845,339" fill="#22201b"/>
+  <path d="M56,98 L56,344 M216,98 L216,344 M376,98 L376,344 M536,98 L536,344 M696,98 L696,344 M856,98 L856,344 M56,344 L856,344 M56,303 L856,303 M56,262 L856,262 M56,221 L856,221 M56,180 L856,180 M56,139 L856,139 M56,98 L856,98" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M56,344 L856,344 M56,344 L56,98" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="856,344 846,349 846,339" fill="#22201b"/>
   <polygon points="56,98 61,108 51,108" fill="#22201b"/>
-  <path d="M56,344 L56,350 M216,344 L216,350 M376,344 L376,350 M535,344 L535,350 M695,344 L695,350 M855,344 L855,350 M56,344 L50,344 M56,303 L50,303 M56,262 L50,262 M56,221 L50,221 M56,180 L50,180 M56,139 L50,139 M56,98 L50,98" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M56,344 L56,350 M216,344 L216,350 M376,344 L376,350 M536,344 L536,350 M696,344 L696,350 M856,344 L856,350 M56,344 L50,344 M56,303 L50,303 M56,262 L50,262 M56,221 L50,221 M56,180 L50,180 M56,139 L50,139 M56,98 L50,98" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M296,262 L296,344" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
   <path d="M296,262 L56,262" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
   <path d="M296,262 L302,287" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
-  <path d="M695,159 L702,184" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
+  <path d="M696,159 L702,184" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
   <path d="M302,287 L702,184" fill="none" stroke="#22201b" stroke-width="2"/>
   <polygon points="302,287 311,279 313,289" fill="#22201b"/>
-  <polygon points="702,184 693,192 691,182" fill="#22201b"/>
-  <rect x="472" y="224" width="60" height="24" rx="12" fill="#ffffff"/>
+  <polygon points="702,184 694,192 692,182" fill="#22201b"/>
+  <rect x="476" y="224" width="56" height="24" rx="12" fill="#ffffff"/>
   <path d="M296,344 L296,330" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
-  <path d="M695,344 L695,330" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
-  <path d="M296,330 L695,330" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M696,344 L696,330" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
+  <path d="M296,330 L696,330" fill="none" stroke="#22201b" stroke-width="2"/>
   <polygon points="296,330 306,325 306,335" fill="#22201b"/>
-  <polygon points="695,330 685,335 685,325" fill="#22201b"/>
-  <rect x="472" y="316" width="44" height="24" rx="12" fill="#ffffff"/>
+  <polygon points="696,330 686,335 686,325" fill="#22201b"/>
+  <rect x="472" y="316" width="48" height="24" rx="12" fill="#ffffff"/>
   <circle cx="56" cy="344" r="6" fill="#ffffff" stroke="#6f6659" stroke-width="2.5"/>
   <circle cx="296" cy="260" r="6" fill="#1d5fa8"/>
   <circle cx="696" cy="160" r="6" fill="#b91c1c"/>
   <text x="56" y="366" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
   <text x="216" y="366" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
   <text x="376" y="366" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
-  <text x="535" y="366" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
-  <text x="695" y="366" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
-  <text x="855" y="366" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
+  <text x="536" y="366" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
+  <text x="696" y="366" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
+  <text x="856" y="366" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
   <text x="44" y="349" text-anchor="end" font-size="14" fill="#6f6659">0</text>
   <text x="44" y="308" text-anchor="end" font-size="14" fill="#6f6659">10</text>
   <text x="44" y="267" text-anchor="end" font-size="14" fill="#6f6659">20</text>
@@ -44,13 +44,13 @@
   <text x="44" y="185" text-anchor="end" font-size="14" fill="#6f6659">40</text>
   <text x="44" y="144" text-anchor="end" font-size="14" fill="#6f6659">50</text>
   <text x="44" y="103" text-anchor="end" font-size="14" fill="#6f6659">60</text>
-  <text x="875" y="349" font-size="14" font-weight="700" fill="#6f6659">x [m]</text>
+  <text x="876" y="349" font-size="14" font-weight="700" fill="#6f6659">x [m]</text>
   <text x="52" y="84" font-size="14" font-weight="700" fill="#6f6659">y [m]</text>
   <text x="296" y="248" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">A (30, 20)</text>
-  <text x="695" y="145" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B (80, 45)</text>
+  <text x="696" y="145" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B (80, 45)</text>
   <text x="502" y="241" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">58.3 m</text>
-  <text x="495" y="335" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">50 m</text>
-  <text x="615" y="123" text-anchor="middle" font-size="14" fill="#6f6659">地図の枠</text>
+  <text x="496" y="335" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">50 m</text>
+  <text x="616" y="123" text-anchor="middle" font-size="14" fill="#6f6659">地図の枠</text>
 
   <text x="470" y="421.6" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">画像（画素、v は下向き）</text>
 
