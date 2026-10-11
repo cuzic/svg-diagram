@@ -77,6 +77,8 @@ function textRuns(band: Band): TextRun[] {
 // run before measurement even for row/grid children whose width was just
 // computed structurally.
 const TAG_H = 24, TAG_PAD_X = 8;
+const STAMP_H = 24, STAMP_GAP = 6, STAMP_PAD_X = 6; // the stamp chip and the strip reserved for it under the content
+export const stampChipW = (widthOf: WidthOf, text: string): number => textWidth(widthOf, text, ROLES.note, 400) + 2 * STAMP_PAD_X;
 export const LEGEND_SWATCH_W = 36, LEGEND_ITEM_GAP = 28, LEGEND_ROW_H = 24;
 
 function registerAtoms(requests: Requests, text: string, size: number, weight: number, font: FontFamily = 'sans') {
@@ -93,6 +95,7 @@ function groupTitleBand(band: GroupBand): CaptionBand {
 
 function registerRequests(requests: Requests, band: Band) {
   if ('tag' in band && band.tag) registerAtoms(requests, band.tag, TAG_SIZE, 700);
+  if ('stamp' in band && band.stamp) registerAtoms(requests, band.stamp, ROLES.note, 400);
   for (const run of textRuns(band)) {
     const font = run.mono ? 'mono' : 'sans';
     for (const atom of splitAtoms(run.text)) {
@@ -187,6 +190,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
   const requests: Requests = new Map();
   const registerBand = (band: Band): void => {
     if (band.type === 'group') {
+      if (band.stamp) registerAtoms(requests, band.stamp, ROLES.note, 400);
       if (band.title) registerRequests(requests, groupTitleBand(band));
       for (const child of band.children) registerBand(child);
     } else if (band.type === 'swimlane') {
@@ -315,8 +319,12 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     const chrome = band as BoxChrome; // caption has no padX / padY / tag / id: they read as undefined (its `tone` is a TextTone, unused here)
     const wrapWidth = isBoxLike ? w - 2 * (chrome.padX ?? BOX_PAD_X) : w;
     const {wrappedRuns, textHeight} = layoutBoxContent(band, wrapWidth, widthOf);
-    const h = isBoxLike ? textHeight + 2 * (chrome.padY ?? BOX_PAD_Y) : textHeight;
+    const stamp = isBoxLike ? chrome.stamp : undefined;
+    const stampW = stamp ? stampChipW(widthOf, stamp) : undefined;
+    if (stampW !== undefined && stampW > w - 16) throw new Error(`stamp "${stamp}" is wider than its box (${Math.round(w)}px): shorten it or widen the box`);
+    const h = (isBoxLike ? textHeight + 2 * (chrome.padY ?? BOX_PAD_Y) : textHeight) + (stamp ? STAMP_H + STAMP_GAP : 0);
     const placed = {...band, x, y, w, h, wrappedRuns} as unknown as Placed<B>; // spreading a generic loses the intersection
+    if (stampW !== undefined) (placed as Placed<B> & {stampW?: number}).stampW = stampW;
     if (band.type === 'box') {
       const overflow = wrappedRuns.filter(r => r.nowrap && textWidth(widthOf, r.text, r.size, r.weight, r.mono ? 'mono' : 'sans') > wrapWidth - (r.indent ?? 0) + 0.5).map(r => r.text);
       if (overflow.length) (placed as Placed<BoxBand> & {nowrapOverflow?: string[]}).nowrapOverflow = overflow;
@@ -337,7 +345,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     if (band.type === 'group') {
       const gp = band.pad ?? 16;
       const startY = cursorY;
-      const frame: LaidOutGroup = {type: 'group', x: padX, y: startY, w: cw, h: 0, tone: band.tone, dashed: band.dashed, id: band.id, reveal: band.reveal};
+      const frame: LaidOutGroup = {type: 'group', x: padX, y: startY, w: cw, h: 0, tone: band.tone, dashed: band.dashed, frame: band.frame, id: band.id, reveal: band.reveal};
       laidOut.push(frame); // pushed first so the frame is drawn under its children
       cursorY += gp;
       if (band.title) {
@@ -350,6 +358,12 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       }
       stack(band.children, padX + gp, cw - 2 * gp);
       cursorY = cursorY - d.gap + gp;
+      if (band.stamp) {
+        frame.stamp = band.stamp;
+        frame.stampW = stampChipW(widthOf, band.stamp);
+        if (frame.stampW > cw - 16) throw new Error(`stamp "${band.stamp}" is wider than its group (${Math.round(cw)}px): shorten it or widen the group`);
+        cursorY += STAMP_H + STAMP_GAP;
+      }
       frame.h = cursorY - startY;
       if (band.id) {
         if (anchors.has(band.id)) claimed(band.id, 'a group takes an id that another box, group or row already has');

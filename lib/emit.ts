@@ -115,14 +115,22 @@ function renderTag(band: LaidOutBox, day: Theme): string {
   return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, size: TAG_SIZE, labelHtml: emojiSpan(band.tag as string)});
 }
 
+// The stamp chip: bottom-right inside the shape (layout reserved the strip; rows may have stretched the shape since, so it follows the bottom edge).
+function renderStamp(band: Rect & {stamp?: string; stampW?: number}): string {
+  if (!band.stamp || band.stampW === undefined) return '';
+  const x = snap4(band.x + band.w - 8 - band.stampW), y = snap4(band.y + band.h - 6 - 24);
+  return `\n  <rect x="${x}" y="${y}" width="${snap4(band.stampW)}" height="24" rx="4" fill="${PALETTE.bg}" stroke="${PALETTE.border}" stroke-width="1"/>\n  <text x="${snap4(band.x + band.w - 8 - band.stampW / 2)}" y="${y + 17}" font-size="${ROLES.note}" text-anchor="middle" fill="${PALETTE.muted}">${emojiSpan(band.stamp)}</text>`;
+}
+
 function renderBox(band: LaidOutBox, day: Theme): string {
   const badge = band.step != null ? `\n  ${renderStepBadge(band, day)}` : '';
   const tag = band.tagBox ? `\n  ${renderTag(band, day)}` : '';
-  return `${renderBoxRect(band, day, 'plain')}\n  ${renderBoxText(band, day, 'left')}${badge}${tag}`;
+  return `${renderBoxRect(band, day, 'plain')}\n  ${renderBoxText(band, day, 'left')}${badge}${tag}${renderStamp(band)}`;
 }
 
 function renderGroup(band: LaidOutGroup, day: Theme): string {
-  return renderBoxRect(band, day, 'muted');
+  if (band.frame === false) return renderStamp(band);
+  return renderBoxRect(band, day, 'muted') + renderStamp(band);
 }
 
 function lineAttrs(line: LineStyle | undefined): string {
@@ -156,7 +164,7 @@ function renderLegend(band: LaidOutLegend, day: Theme): string {
 }
 
 function renderBanner(band: LaidOutBanner, day: Theme): string {
-  return `${renderBoxRect(band, day, 'accent')}\n  ${renderBoxText(band, day, 'center')}`;
+  return `${renderBoxRect(band, day, 'accent')}\n  ${renderBoxText(band, day, 'center')}${renderStamp(band)}`;
 }
 
 function renderRow(band: LaidOutRow, day: Theme, stage?: number): string {
@@ -385,7 +393,7 @@ function renderTable(band: LaidOutTable, day: Theme): string {
       if (!c.lines.length) continue;
       const anchor = c.align === 'center' ? 'middle' : c.align === 'right' ? 'end' : 'start';
       const x = c.align === 'center' ? c.x + c.w / 2 : c.align === 'right' ? c.x + c.w - 12 : c.x + 12;
-      parts.push(textLines(c.lines, {x, top: row.y + 8, size: ROLES.body, weight: c.bold ? 700 : 400, anchor, fill: resolveTextColor(c.tone, day), mono: c.mono}));
+      parts.push(textLines(c.lines, {x, top: c.top, size: ROLES.body, weight: c.bold ? 700 : 400, anchor, fill: resolveTextColor(c.tone, day), mono: c.mono}));
     }
   }
   const top = band.y, h = band.h;
