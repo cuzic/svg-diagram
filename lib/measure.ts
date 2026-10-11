@@ -21,7 +21,8 @@
 import {chromium} from 'playwright-chromium';
 import type {Browser} from 'playwright-chromium';
 import {FONT_STACKS} from './tokens.ts';
-import type {FontFamily, MeasureRequest, Measured, WidthOf} from './types.ts';
+import type {Config, FontFamily, FontSpecs, MeasureRequest, Measured, WidthOf} from './types.ts';
+import {loadConfig} from './config.ts';
 
 function isCJK(ch: string): boolean {
   const c = ch.codePointAt(0)!;
@@ -135,10 +136,22 @@ export async function closeMeasurer(): Promise<void> {
 // returns Map<key, {w, h}>
 // Widths measured earlier in this process, so building many diagrams in one run measures each atom once.
 const memo = new Map<string, Measured>();
-const memoKey = (r: MeasureRequest) => JSON.stringify([r.text, r.size, r.weight ?? 400, r.font ?? 'sans']);
+const memoKey = (r: MeasureRequest) => JSON.stringify([backend, r.text, r.size, r.weight ?? 400, r.font ?? 'sans']);
+
+// Which engine measures: 'chromium' (a headless browser, the default) or 'font' (the font files read directly, no browser).
+// SVG_DIAGRAM_MEASURE overrides .svg-diagram.json's `measure`. Unconfigured, the first measurement reads the config from the cwd.
+let backend: 'chromium' | 'font' | null = null;
+let fontSpecs: FontSpecs | undefined;
+export function configureMeasure(cfg: Pick<Config, 'measure' | 'fonts'>): void {
+  const env = process.env.SVG_DIAGRAM_MEASURE;
+  if (env && env !== 'chromium' && env !== 'font') throw new Error(`SVG_DIAGRAM_MEASURE=${env}: expected 'chromium' or 'font'`);
+  backend = (env as 'chromium' | 'font' | undefined) ?? cfg.measure ?? 'chromium';
+  fontSpecs = cfg.fonts;
+}
 
 export async function measureAll(requests: Map<string, MeasureRequest>): Promise<Map<string, Measured>> {
   if (requests.size === 0) return new Map();
+  if (!backend) configureMeasure(loadConfig());
   const result = new Map<string, Measured>();
   const todo = new Map<string, MeasureRequest>();
   for (const [key, r] of requests) {
@@ -146,6 +159,11 @@ export async function measureAll(requests: Map<string, MeasureRequest>): Promise
     if (hit) result.set(key, hit); else todo.set(key, r);
   }
   if (todo.size === 0) return result;
+  if (backend === 'font') {
+    const {measureWithFonts} = await import('./font-metrics.ts');
+    for (const [key, m] of measureWithFonts(todo, fontSpecs)) { memo.set(memoKey(todo.get(key)!), m); result.set(key, m); }
+    return result;
+  }
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {

@@ -7,6 +7,7 @@
 import {pathToFileURL} from 'node:url';
 import type {Config, Diagram} from './types.ts';
 import {applyConfig, loadConfig} from './config.ts';
+import {configureMeasure} from './measure.ts';
 
 /** `abs`'s default export, or an error that says what a source should export. */
 export async function importDefine(abs: string, opts: {fresh?: boolean} = {}): Promise<() => Diagram> {
@@ -18,5 +19,6 @@ export async function importDefine(abs: string, opts: {fresh?: boolean} = {}): P
 
 /** Import `abs`, run its define(), and apply the project's .svg-diagram.json (accepted rules, max width). */
 export async function loadDiagram(abs: string, config: Config = loadConfig(), opts: {fresh?: boolean} = {}): Promise<Diagram> {
+  configureMeasure(config);
   return applyConfig((await importDefine(abs, opts))(), config);
 }
