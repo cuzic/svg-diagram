@@ -20,7 +20,7 @@ import * as hb from 'harfbuzzjs';
 import {FONT_STACKS} from './tokens.ts';
 import type {FontFamily, FontSpecs, MeasureRequest, Measured} from './types.ts';
 
-interface Loaded {file: string; font: hb.Font; upem: number; covered: Set<number>; ascender: number; descender: number}
+interface Loaded {file: string; index: number; font: hb.Font; upem: number; covered: Set<number>; ascender: number; descender: number}
 
 const GENERIC = new Set(['sans-serif', 'serif', 'monospace']);
 // CSS weight → fontconfig weight (what `fc-match family:weight=N` takes)
@@ -36,7 +36,7 @@ function load(file: string, index: number): Loaded {
     const face = new hb.Face(new hb.Blob(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)), index);
     const font = new hb.Font(face);
     const ext = font.hExtents();
-    f = {file, font, upem: face.upem, covered: new Set(face.collectUnicodes()), ascender: ext.ascender, descender: ext.descender};
+    f = {file, index, font, upem: face.upem, covered: new Set(face.collectUnicodes()), ascender: ext.ascender, descender: ext.descender};
     loaded.set(key, f);
   }
   return f;
@@ -107,6 +107,12 @@ function measureText(f: Loaded, family: FontFamily, text: string, size: number, 
   }
   flush();
   return {w};
+}
+
+/** The font file (and face index) that measures `family` at this weight, or null when none can be found. */
+export function resolveFontFile(family: FontFamily, weight = 400, specs?: FontSpecs): {file: string; index: number} | null {
+  const f = fontFor(family, weight, specs, false);
+  return f ? {file: f.file, index: f.index} : null;
 }
 
 /** The widths and heights measure.ts would get from Chromium, read from the font files. Synchronous: no browser. */

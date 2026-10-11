@@ -136,7 +136,7 @@ export async function closeMeasurer(): Promise<void> {
 // returns Map<key, {w, h}>
 // Widths measured earlier in this process, so building many diagrams in one run measures each atom once.
 const memo = new Map<string, Measured>();
-const memoKey = (r: MeasureRequest) => JSON.stringify([backend, r.text, r.size, r.weight ?? 400, r.font ?? 'sans']);
+const memoKey = (r: MeasureRequest) => JSON.stringify([backend, backend === 'font' ? fontSpecs ?? null : null, r.text, r.size, r.weight ?? 400, r.font ?? 'sans']);
 
 // Which engine measures: 'font' (the font files read directly, no browser; the default) or 'chromium' (a headless browser).
 // SVG_DIAGRAM_MEASURE overrides .svg-diagram.json's `measure`. Unconfigured, the first measurement reads the config from the cwd.
@@ -146,12 +146,18 @@ let backend: 'chromium' | 'font' | null = null;
 let explicit = false;
 let fontSpecs: FontSpecs | undefined;
 export function configureMeasure(cfg: Pick<Config, 'measure' | 'fonts'>): void {
-  const env = process.env.SVG_DIAGRAM_MEASURE;
+  const env = process.env.SVG_DIAGRAM_MEASURE || undefined; // empty counts as unset
   if (env && env !== 'chromium' && env !== 'font') throw new Error(`SVG_DIAGRAM_MEASURE=${env}: expected 'chromium' or 'font'`);
   const chosen = (env as 'chromium' | 'font' | undefined) ?? cfg.measure;
   backend = chosen ?? 'font';
   explicit = chosen !== undefined;
   fontSpecs = cfg.fonts;
+}
+
+/** Which engine measures now, and whether the person chose it (`measure` / SVG_DIAGRAM_MEASURE) rather than it being the default. */
+export function currentMeasure(): {backend: 'chromium' | 'font'; explicit: boolean} {
+  if (!backend) configureMeasure(loadConfig());
+  return {backend: backend!, explicit};
 }
 
 export async function measureAll(requests: Map<string, MeasureRequest>): Promise<Map<string, Measured>> {
