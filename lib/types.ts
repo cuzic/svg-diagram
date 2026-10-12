@@ -137,8 +137,16 @@ export interface DiagramOpts {
   /** What every wireframe() / screens() item starts from (a common app bar, frame, height); see WireframeDefaults. */
   wireframeDefaults?: WireframeDefaults;
   /** Keep these anchors prominent and render the rest with the muted spotlight treatment. */
-  spotlight?: string | {ids: string | readonly string[]; edges?: 'touching' | 'between'};
+  spotlight?: SpotlightOpt;
 }
+
+/**
+ * What diagram({spotlight}) takes: the anchor id(s) to keep prominent, or an object with more.
+ * `edges`: which connectors stay prominent ('touching': one end is a target; 'between': both are).
+ * `dim`: how a bar outside the spotlight is drawn. 'outline' (default) is a dotted outline on white; 'fill' keeps a pale fill
+ * (the border colour) so the bar's length can still be read.
+ */
+export type SpotlightOpt = string | {ids: string | readonly string[]; edges?: 'touching' | 'between'; dim?: 'outline' | 'fill'};
 
 /** Everything diagram() stores, plus fields set later by build/check (usableWidth, maxWidth, source). */
 export interface DiagramData {
@@ -159,7 +167,7 @@ export interface DiagramData {
   fill: boolean;
   connectDefaults?: ConnectDefaults;
   wireframeDefaults?: WireframeDefaults;
-  spotlight?: string | {ids: string | readonly string[]; edges?: 'touching' | 'between'};
+  spotlight?: SpotlightOpt;
   bands: Band[];
   /** Set by build() from the measured slide (contentWidth). */
   usableWidth?: number;
@@ -579,8 +587,13 @@ export interface PlanePoint {
   at: PlanePos;
   /** Drawn next to the point; the point's tone colours both. */
   label?: string;
-  /** Where the label sits (default 'right'). */
-  labelAt?: 'right' | 'left' | 'above' | 'below';
+  /**
+   * Where the label sits. Omitted (or 'auto'): 'right', and when that spot collides with the plane's ink or another label, the first
+   * free one of left / above / below / the four diagonals. An explicit side is kept as written.
+   */
+  labelAt?: 'right' | 'left' | 'above' | 'below' | 'auto';
+  /** Moves the label from where labelAt puts it, px [dx, dy]. Given: the label is not moved automatically. */
+  labelOffset?: [number, number];
   tone?: PlaneTone;
   shape?: 'dot' | 'ring' | 'cross';
   /** The stage it (and its label) appears at; default the plane's own. */
@@ -595,7 +608,21 @@ export interface PlaneLine {from: PlaneRef; to: PlaneRef; tone?: PlaneTone; /** 
  * hill or valley appears that the data does not have — and centripetal Catmull-Rom (alpha 0.5) otherwise. Without `smooth` it
  * is a polyline. Solid unless `dashed: true`; `arrow` points along the tangent at the last point.
  */
-export interface PlanePath {through: PlaneRef[]; smooth?: boolean; dashed?: boolean; tone?: PlaneTone; arrow?: boolean; reveal?: number}
+export interface PlanePath {
+  through: PlaneRef[];
+  smooth?: boolean;
+  dashed?: boolean;
+  tone?: PlaneTone;
+  arrow?: boolean;
+  reveal?: number;
+  /**
+   * Draw the path as it grows: at a stage the curve (the same one as the full path) runs only as far as the last point that is
+   * shown by then. Without it the whole path appears when its last point does.
+   */
+  grow?: boolean;
+  /** Internal (reveal.ts): the stage each piece of a `grow` path appears at. */
+  segReveal?: number[];
+}
 /** A dimension line: the distance between two positions / points, drawn beside them with a label on it. */
 export interface PlaneDim {
   from: PlaneRef;
@@ -639,7 +666,15 @@ export interface PlaneBand extends PlaneOpts {
 // ============================================================================================
 
 export type BarSeries = 'a' | 'b' | 'c';
-export interface BarDatum extends RevealOpts {label: string; value: number; series?: BarSeries; id?: string}
+export type BarTone = 'accent' | 'danger' | 'muted';
+export interface BarDatum extends RevealOpts {
+  label: string; value: number;
+  /** a: accent (blue), b: dark text colour, c: muted. */
+  series?: BarSeries;
+  /** The bar's colour by tone (accent / danger / muted); `danger` is the red. Not together with `series`. */
+  tone?: BarTone;
+  id?: string;
+}
 export interface BarsOpts extends RevealOpts {
   /** A spotlight target (the bars inside it too) and a connect() endpoint (the whole band); it may not repeat a bar's id. */
   id?: string;
@@ -1591,7 +1626,7 @@ export interface LaidOutPlane extends Rect {
   points: {x: number; y: number; tone: PlaneTone; shape: 'dot' | 'ring' | 'cross'; reveal?: number}[];
   lines: (PlaneSeg & {tone: PlaneTone; dashed: boolean; arrow: boolean; reveal?: number})[];
   /** `curves`: one [control 1, control 2, end] per piece of a smooth path (empty for a polyline, which runs through `pts`). `tip`: the unit direction of the arrowhead. `overshoot`: px the curve leaves the plot area. */
-  paths?: {pts: {x: number; y: number}[]; curves: {x: number; y: number}[][]; tone: PlaneTone; dashed: boolean; arrow: boolean; tip: {dx: number; dy: number}; reveal?: number; overshoot: number}[];
+  paths?: {pts: {x: number; y: number}[]; curves: {x: number; y: number}[][]; tone: PlaneTone; dashed: boolean; arrow: boolean; tip: {dx: number; dy: number}; reveal?: number; /** `grow` paths: the stage of each piece (one per segment of `pts`). */ segReveal?: number[]; overshoot: number}[];
   dims: {from: Point; to: Point; line: PlaneSeg; ext: PlaneSeg[]; chip: Rect; tone: PlaneTone; reveal?: number}[];
   /** Every label placed, as a rect: verify.ts reports two that overlap, one that leaves the figure, or one on the ink below. `dim`: the dimension line it belongs to. */
   labelBoxes: (Rect & {label: string; dim?: number})[];

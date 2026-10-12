@@ -17,6 +17,7 @@ import type {
 import {diagramTitle, diagramDesc} from './rules.ts';
 import {BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
 import {visibleAt} from './reveal.ts';
+import {spotlightDim} from './spotlight.ts';
 import {ICON_PATHS} from './icons.ts';
 import type {IconName} from './icons.ts';
 
@@ -323,9 +324,14 @@ function renderPlane(b: LaidOutPlane, day: Theme, stage?: number): string {
   }
   for (const pa of (b.paths ?? []).filter(pa => visibleAt(pa, stage))) {
     const c = col(pa.tone), r = (q: {x: number; y: number}) => `${Math.round(q.x)},${Math.round(q.y)}`;
-    const d = `M${r(pa.pts[0])} ` + (pa.curves.length ? pa.curves.map(([c1, c2, e]) => `C${r(c1)} ${r(c2)} ${r(e)}`) : pa.pts.slice(1).map(q => `L${r(q)}`)).join(' ');
+    // a growing path shows its first `k` pieces at this stage (the full path, or no stage: all of them)
+    const total = pa.pts.length - 1;
+    const k = pa.segReveal && stage !== undefined ? pa.segReveal.filter(s => s <= stage).length : total;
+    if (k < 1) continue;
+    const full = k >= total;
+    const d = `M${r(pa.pts[0])} ` + (pa.curves.length ? pa.curves.slice(0, k).map(([c1, c2, e]) => `C${r(c1)} ${r(c2)} ${r(e)}`) : pa.pts.slice(1, k + 1).map(q => `L${r(q)}`)).join(' ');
     out.push(`<path d="${d}" fill="none" stroke="${c}" stroke-width="2"${pa.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
-    if (pa.arrow) out.push(head(pa.pts[pa.pts.length - 1].x, pa.pts[pa.pts.length - 1].y, pa.tip.dx, pa.tip.dy, c));
+    if (pa.arrow && full) out.push(head(pa.pts[pa.pts.length - 1].x, pa.pts[pa.pts.length - 1].y, pa.tip.dx, pa.tip.dy, c));
   }
   for (const dm of b.dims.filter(dm => visibleAt(dm, stage))) {
     const c = col(dm.tone);
@@ -346,7 +352,7 @@ function renderPlane(b: LaidOutPlane, day: Theme, stage?: number): string {
   return out.join('\n  ');
 }
 
-function renderBars(b: LaidOutBars, day: Theme, stage?: number): string {
+function renderBars(b: LaidOutBars, day: Theme, stage?: number, dimFill = false): string {
   const col = (k: ColorKey) => colorOf(k, day);
   const out: string[] = [];
   for (const t of b.ticks) out.push(`<path d="M${Math.round(t.x1)},${Math.round(t.y1)} L${Math.round(t.x2)},${Math.round(t.y2)}" fill="none" stroke="${b.dim ? PALETTE.muted : PALETTE.border}" stroke-width="2"/>`);
@@ -354,6 +360,8 @@ function renderBars(b: LaidOutBars, day: Theme, stage?: number): string {
     const x = Math.round(r.x * 100) / 100, y = Math.round(r.y * 100) / 100;
     const right = Math.round((r.x + r.w) * 100) / 100, bottom = Math.round((r.y + r.h) * 100) / 100;
     if (!r.dim) { out.push(`<path d="M${x},${y} H${right} V${bottom} H${x} Z" fill="${col(r.fill)}"/>`); continue; }
+    // spotlight dim 'fill': a pale fill (the border colour) keeps the bar's length readable
+    if (dimFill) { out.push(`<path d="M${x},${y} H${right} V${bottom} H${x} Z" fill="${PALETTE.border}"/>`); continue; }
     // a dimmed bar is outlined just inside its rect (so the gap between stacked segments stays open); one too thin to see stays a bare fill
     const thin = r.w < 1 || r.h < 1, i = thin ? 0 : Math.min(1, r.w / 2, r.h / 2);
     out.push(`<path d="M${x + i},${y + i} H${right - i} V${bottom - i} H${x + i} Z" fill="${PALETTE.bg}"${thin ? '' : ` stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"`}/>`);
@@ -533,7 +541,7 @@ function renderPrims(b: LaidOutWireframe | LaidOutScreens, day: Theme): string {
   return out.join('\n  ');
 }
 
-function renderBandPlain(band: LaidOutBand, day: Theme, stage?: number): string {
+function renderBandPlain(band: LaidOutBand, day: Theme, stage?: number, dimFill = false): string {
   switch (band.type) {
     case 'caption': return renderCaption(band, day);
     case 'box': return renderBox(band, day);
@@ -550,7 +558,7 @@ function renderBandPlain(band: LaidOutBand, day: Theme, stage?: number): string 
     case 'pyramid': return renderPyramid(band);
     case 'curve': return renderCurve(band, day);
     case 'plane': return renderPlane(band, day, stage);
-    case 'bars': return renderBars(band, day, stage);
+    case 'bars': return renderBars(band, day, stage, dimFill);
     default: return '';
   }
 }
@@ -558,8 +566,8 @@ function renderBandPlain(band: LaidOutBand, day: Theme, stage?: number): string 
 // bands that draw their own dim state (spotlight) instead of having it painted over their svg
 const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars']);
 
-function renderBand(band: LaidOutBand, day: Theme, stage?: number): string {
-  const svg = renderBandPlain(band, day, stage);
+function renderBand(band: LaidOutBand, day: Theme, stage?: number, dimFill = false): string {
+  const svg = renderBandPlain(band, day, stage, dimFill);
   if (!band.dim || SELF_DIMMING.has(band.type)) return svg;
   return svg
     .replace(/marker-(start|end)="url\(#dsl-arrow(-strong)?\)"/g, 'marker-$1="url(#dsl-arrow$2-dim)"')
@@ -617,7 +625,8 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number} 
     .mono { font-family: ${FONT_STACKS.mono}; }` : ''}
     .emoji { font-family: ${FONT_STACKS.emoji}; }`;
 
-  const body = laidOut.filter(band => visibleAt(band, opts.reveal)).map(band => renderBand(band, day, opts.reveal)).join('\n\n  ');
+  const dimFill = spotlightDim(laidOutDiagram) === 'fill';
+  const body = laidOut.filter(band => visibleAt(band, opts.reveal)).map(band => renderBand(band, day, opts.reveal, dimFill)).join('\n\n  ');
   const connectSvg = connects.filter(c => visibleAt(c, opts.reveal)).map(c => renderConnect(c, day)).join('\n\n  ');
 
   // doc-medium diagrams carry an accessible name/description and (when built from a file) provenance

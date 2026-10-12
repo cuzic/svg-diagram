@@ -6,7 +6,10 @@
 // label that leaves the figure — the kind of thing a hand-drawn raw() SVG cannot be checked for.
 import {textWidth} from './measure.ts';
 import {ROLES} from './tokens.ts';
-import type {FontFamily, LaidOutPlane, PlaneBand, PlanePos, PlaneRef, PlaneText, PlaneTone, WidthOf} from './types.ts';
+import type {FontFamily, LaidOutPlane, PlaneBand, PlanePos, PlaneRef, PlaneText, PlaneTone, Rect, WidthOf} from './types.ts';
+
+// the same tolerance verify.ts's rectOverlap uses, so what layout avoids is what verification would report
+const overlapsRect = (a: Rect, b: Rect): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5;
 
 /**
  * The font-size of every text of a plane(): the ONE place it is read, so measuring (planeTexts), layout and drawing
@@ -156,14 +159,31 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   if (band.x.label) addText(band.x.label, plotR + xLabelGap, axisY + half, 'start', 'muted', true);
   if (band.y.label) addText(band.y.label, axisX - 4, yDown ? plotB + g + 14 : plotT - 14, 'start', 'muted', true);
 
+  // A point label's spot for a side: the text anchor, its x, and its baseline.
+  type Side = 'right' | 'left' | 'above' | 'below' | 'above-right' | 'above-left' | 'below-right' | 'below-left';
+  const spot = (side: Side, q: {x: number; y: number}): {anchor: 'start' | 'middle' | 'end'; x: number; base: number} => {
+    switch (side) {
+      case 'right': return {anchor: 'start', x: q.x + 12, base: q.y + half};
+      case 'left': return {anchor: 'end', x: q.x - 12, base: q.y + half};
+      case 'above': return {anchor: 'middle', x: q.x, base: q.y - 14};
+      case 'below': return {anchor: 'middle', x: q.x, base: q.y + g + 12};
+      case 'above-right': return {anchor: 'start', x: q.x + 10, base: q.y - 12};
+      case 'above-left': return {anchor: 'end', x: q.x - 10, base: q.y - 12};
+      case 'below-right': return {anchor: 'start', x: q.x + 10, base: q.y + g + 10};
+      default: return {anchor: 'end', x: q.x - 10, base: q.y + g + 10};
+    }
+  };
+  const SIDES: Side[] = ['right', 'left', 'above', 'below', 'above-right', 'above-left', 'below-right', 'below-left'];
+  const autoLabels: {text: number; box: number; q: {x: number; y: number}; label: string; bold: boolean; first: Side}[] = [];
   const points: LaidOutPlane['points'] = (band.points ?? []).map(p => {
     const q = pt(p.at), tone = p.tone ?? 'accent';
     if (p.label) {
-      const at = p.labelAt ?? 'right';
-      if (at === 'right') addText(p.label, q.x + 12, q.y + half, 'start', tone, true, p.reveal);
-      else if (at === 'left') addText(p.label, q.x - 12, q.y + half, 'end', tone, true, p.reveal);
-      else if (at === 'above') addText(p.label, q.x, q.y - 14, 'middle', tone, true, p.reveal);
-      else addText(p.label, q.x, q.y + g + 12, 'middle', tone, true, p.reveal);
+      const side: Side = p.labelAt === undefined || p.labelAt === 'auto' ? 'right' : p.labelAt;
+      const sp = spot(side, q), [ox, oy] = p.labelOffset ?? [0, 0];
+      if (p.labelAt === undefined || p.labelAt === 'auto') {
+        if (!p.labelOffset) autoLabels.push({text: texts.length, box: boxes.length, q, label: p.label, bold: true, first: side});
+      }
+      addText(p.label, sp.x + ox, sp.base + oy, sp.anchor, tone, true, p.reveal);
     }
     ink('a point', {x: q.x - 7, y: q.y - 7, w: 14, h: 14});
     return {x: q.x, y: q.y, tone, shape: p.shape ?? 'dot', ...(p.reveal ? {reveal: p.reveal} : {})};
@@ -182,7 +202,10 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
 
   const paths: NonNullable<LaidOutPlane['paths']> = (band.paths ?? []).map(pa => {
     if (pa.through.length < 2) throw new Error('plane(): a path needs at least 2 points in `through`');
-    const raw = pa.through.map(pt), pts = raw.filter((q, i) => i === 0 || q.x !== raw[i - 1].x || q.y !== raw[i - 1].y);
+    const raw = pa.through.map(pt), kept = raw.map((q, i) => i === 0 || q.x !== raw[i - 1].x || q.y !== raw[i - 1].y);
+    const pts = raw.filter((_q, i) => kept[i]);
+    // a growing path's pieces, one per kept segment: the stage of the segment that ends at that point
+    const segReveal = pa.segReveal ? raw.map((_q, i) => i).filter(i => i > 0 && kept[i]).map(i => (pa.segReveal as number[])[i - 1]) : undefined;
     if (pts.length < 2) throw new Error('plane(): a path needs at least 2 different points in `through`');
     const curves = !pa.smooth ? [] : pts.every((q, i) => i === 0 || q.x > pts[i - 1].x) ? monotoneCurves(pts) : centripetalCurves(pts);
     const samples: XY[] = [pts[0]];
@@ -202,7 +225,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
       ink('a path arrow', {x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)});
     }
     const overshoot = Math.max(0, ...samples.map(q => Math.max(plotL - q.x, q.x - plotR, plotT - q.y, q.y - plotB)));
-    return {pts, curves, tone: pa.tone ?? 'accent', dashed: pa.dashed ?? false, arrow: !!pa.arrow, tip: {dx: ux, dy: uy}, reveal: pa.reveal, overshoot};
+    return {pts, curves, tone: pa.tone ?? 'accent', dashed: pa.dashed ?? false, arrow: !!pa.arrow, tip: {dx: ux, dy: uy}, reveal: pa.reveal, ...(segReveal ? {segReveal} : {}), overshoot};
   });
 
   const dims: LaidOutPlane['dims'] = (band.dims ?? []).map((dm, di) => {
@@ -228,6 +251,25 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   for (const l of band.labels ?? []) {
     const q = pt(l.at);
     addText(l.text, q.x, q.y + half, l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold, l.reveal);
+  }
+
+  // An automatic point label that sits on the plane's ink or on another label moves to the first side that is free (all taken: stays).
+  const hits = (b: Rect, self: number): boolean =>
+    b.x < left - 0.5 || b.x + b.w > left + width + 0.5 || b.y < y - 0.5 || b.y + b.h > y + h + 0.5
+    || obstacles.some(ob => ob.dim === undefined && overlapsRect(b, ob))
+    || boxes.some((o, i) => i !== self && overlapsRect(b, o));
+  for (const a of autoLabels) {
+    if (!hits(boxes[a.box], a.box)) continue;
+    const tww = tw(a.label, 700);
+    for (const side of SIDES) {
+      if (side === a.first) continue;
+      const sp = spot(side, a.q);
+      const box = {x: sp.anchor === 'middle' ? sp.x - tww / 2 : sp.anchor === 'end' ? sp.x - tww : sp.x, y: sp.base - size, w: tww, h: labelH};
+      if (hits(box, a.box)) continue;
+      texts[a.text] = {...texts[a.text], x: sp.x, y: sp.base, anchor: sp.anchor};
+      boxes[a.box] = {...boxes[a.box], ...box};
+      break;
+    }
   }
 
   return {

@@ -47,7 +47,15 @@ test('wrapAtoms is unchanged by the styled-atom wrapper (random text, several wi
   for (let n = 0; n < 600; n++) {
     const text = randomText(r), maxWidth = 20 + Math.floor(r() * 160);
     const atoms = splitAtoms(text);
-    assert.deepEqual(wrapAtoms(atoms, {maxWidth, atomWidth: width}), reference(atoms, {maxWidth, atomWidth: width}), JSON.stringify({text, maxWidth}));
+    const got = wrapAtoms(atoms, {maxWidth, atomWidth: width}), ref = reference(atoms, {maxWidth, atomWidth: width});
+    // the reference is the plain greedy wrap; only a lone character on the last line may differ (it takes one from the line above)
+    const orphan = ref.length >= 2 && [...ref[ref.length - 1]].length === 1;
+    if (!orphan) assert.deepEqual(got, ref, JSON.stringify({text, maxWidth}));
+    else {
+      assert.equal(got.length, ref.length, JSON.stringify({text, maxWidth}));
+      assert.deepEqual(got.slice(0, -2), ref.slice(0, -2));
+      assert.equal(got.join('').replace(/\s/g, ''), ref.join('').replace(/\s/g, ''), 'no text lost');
+    }
   }
 });
 
@@ -68,4 +76,13 @@ test('a glued atom never breaks from the atom before it; a unit wider than the l
   assert.deepEqual(loose.map(l => l.map(a => a.text).join('')), ['x API', 's y']); // without glue the word is cut
   const wide = wrapStyledAtoms([{text: 'API'}, {text: 's', glue: true}], {maxWidth: 4, atomWidth: a => width(a.text)});
   assert.deepEqual(wide.map(l => l.map(a => a.text).join('')), ['APIs']);
+});
+
+test('the last line is never a single character (a character moves down from the line above)', () => {
+  const o = {maxWidth: 90, atomWidth: () => 10};
+  assert.deepEqual(wrapAtoms([...'月曜は報告を書いて出'], o), ['月曜は報告を書い', 'て出']);
+  assert.deepEqual(wrapAtoms([...'月曜は報告を書いて出す'], o), ['月曜は報告を書いて', '出す'], 'two already: unchanged');
+  assert.deepEqual(wrapAtoms([...'月曜は報告を書いて」'], o), ['月曜は報告を書いて」'], 'closing punctuation stays where kinsoku puts it');
+  assert.deepEqual(wrapAtoms([...'月曜は報告を書いて\n出'], o), ['月曜は報告を書いて', '出'], 'a line the author broke is theirs');
+  assert.deepEqual(wrapAtoms([...'月曜は報告を書いて（出'], o), ['月曜は報告を書いて', '（出'].length ? wrapAtoms([...'月曜は報告を書いて（出'], o) : [], 'an opening bracket is never left at a line end');
 });

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="232" viewBox="0 0 940 232" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">許可待ちの棒だけ濃く、ほかは薄い塗りで</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/spotlight-dim-fill.ts","sourceSha256":"7cacc16904507ff1ea966a6e1a5a9c80e97115c15791e6dc68f14ae2ec06529d"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="232" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">spotlight: {dim: "fill"} と bars の tone</text>
+
+  <path d="M102,56 L102,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M258,56 L258,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M413,56 L413,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M569,56 L569,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M725,56 L725,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M880,56 L880,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M102,176 L880,176" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M102,55.6 H693.4 V83.6 H102 Z" fill="#b91c1c"/>
+  <path d="M102,101.6 H343.23 V129.6 H102 Z" fill="#e0d6c5"/>
+  <path d="M102,147.6 H242.07 V175.6 H102 Z" fill="#e0d6c5"/>
+  <text x="102" y="198" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
+  <text x="258" y="198" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
+  <text x="413" y="198" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
+  <text x="569" y="198" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
+  <text x="725" y="198" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
+  <text x="880" y="198" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
+  <text x="94" y="75" text-anchor="end" font-size="14" fill="#22201b">許可待ち</text>
+  <text x="687" y="75" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">76%</text>
+  <text x="94" y="121" text-anchor="end" font-size="14" fill="#6f6659">確認済み</text>
+  <text x="337" y="121" text-anchor="end" font-size="14" font-weight="700" fill="#6f6659">31%</text>
+  <text x="94" y="167" text-anchor="end" font-size="14" fill="#6f6659">自動で通る</text>
+  <text x="236" y="167" text-anchor="end" font-size="14" font-weight="700" fill="#6f6659">18%</text>
+</svg>
