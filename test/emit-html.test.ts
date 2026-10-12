@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {box, caption, diagram, closeMeasurer, renderDiagram, table, raw} from '../lib/dsl.ts';
 import {configureMeasure} from '../lib/measure.ts';
+import {textBox} from '../lib/font-metrics.ts';
 import {PALETTE} from '../lib/tokens.ts';
 
 process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
@@ -123,16 +124,28 @@ test('an ideographic space or NBSP is a character, not white space to collapse',
   assert.ok(html.includes('c\u00a0\u00a0d'));
 });
 
-const dejavu = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
-test('the line box follows the project\'s fonts, not only the machine\'s', {skip: fs.existsSync(dejavu) ? false : 'needs DejaVu Sans'}, async () => {
-  const mk = () => { const d = diagram({theme: 'blue'}); d.add(caption('Hello')); return d; };
-  const lh = (h: string) => /line-height:(\d+)px/.exec(h)![1];
-  const before = lh(await htmlOf(mk()));
+// Both fonts are named in `fonts`, so the result does not depend on which sans font the machine has by default.
+const dejavu = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', mathy = '/usr/share/fonts/truetype/dejavu/DejaVuMathTeXGyre.ttf';
+let size = 16; // the font size of the caption, read from the HTML
+const lineHeightWith = async (font: string) => {
+  const d = diagram({theme: 'blue'});
+  d.add(caption('Hello'));
   try {
-    configureMeasure({measure: 'font', fonts: {sans: {regular: dejavu, bold: dejavu}}});
-    const after = lh(await htmlOf(mk()));
-    assert.notEqual(after, before, 'DejaVu has a different ascent + descent than the default sans');
+    configureMeasure({measure: 'font', fonts: {sans: {regular: font, bold: font}}});
+    const m = /font-size:(\d+)px;[^"]*line-height:(\d+)px/.exec(await htmlOf(d))!;
+    size = Number(m[1]);
+    return Number(m[2]);
   } finally { configureMeasure({}); }
+};
+
+test('the line box is the ascent + descent of the project\'s font', {skip: fs.existsSync(dejavu) ? false : 'needs DejaVu Sans'}, async () => {
+  const got = await lineHeightWith(dejavu);
+  const b = textBox('あ', 'sans', size, 400, {sans: {regular: dejavu, bold: dejavu}});
+  assert.equal(got, b.ascent + b.descent);
+});
+
+test('a project font with other vertical metrics gives another line box', {skip: fs.existsSync(dejavu) && fs.existsSync(mathy) ? false : 'needs DejaVu Sans and DejaVu Math TeX Gyre'}, async () => {
+  assert.notEqual(await lineHeightWith(mathy), await lineHeightWith(dejavu));
 });
 
 import {parsePath, shapesToCss} from '../lib/svg-to-css.ts';
