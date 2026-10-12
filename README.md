@@ -66,6 +66,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | image(src, {alt, marks, labels}) | 絵（PNG / JPEG / GIF / WebP）を部品として置き、上に印（`marks`）と文字（`labels`）を重ねる。ファイルは data URI で SVG に埋め込まれる（下の「絵を置く」） |
 | caption / box / banner / spacer / raw | 基本。box は tag・tagAt・tone(new/changed/removed/accent/muted/danger/plain、box / banner / stat は solid / solid-danger も) |
 | row / grid | 横並び（row は cols:N の共有列グリッド、span/col。`cols: [6, 6]` と span を並べて書ける。`id` を付けると、`r.col(5).top` で N 列目を接続点にできる） |
+| node({icon, label, sub, size, frame}) | 構成図の 1 点: アイコンを大きく（既定 48px）中央に置き、名前を下に付ける。枠は付けない（`frame: true` で付く）。`row()` / `grid()` に並べ、`group()` でネットワーク・VPC・ゾーンの境界を作り、`connect()` で結ぶ（下の「構成図（クラウド・ネットワーク）」） |
 | group(children, {title, tone, titleAlign, flex, width, span, col}) | ラベル付きの枠。**入れ子可**（ホスト > コンテナ > プロセス）。`row([group(...), group(...)])` で横に並べると、枠の高さは一番高いものにそろう（`flex` / `width` / `span` / `col` は box と同じ。`arrows: 'between'` は不可）。中の box の id も、`connect()` の参照先になる |
 | versus(left, right, {shared, connectLabels}) | 左右の `group()` を 12 列の半分ずつに並べる対比。各部は `{title, children, tone, id}`。`shared` を付けると、その共通部を下に置いて左右から接続する（3 部すべてに `id` が必要）。接続ラベルは `connectLabels.left` / `.right` |
 | connect / branch | 矢印。route(straight/elbow/loop-under)、arrow(end/both/start/none)、line(solid/dashed/dotted/double)、weight(strong)、chip、labelAt、アンカー `id:side@0.2` |
@@ -302,7 +303,7 @@ svg-diagram icons notice                        # 入れたアイコンのクレ
 - 取得元は [Iconify](https://iconify.design) の API（`SVG_DIAGRAM_ICONIFY_API` でミラーに替えられる）。`mdi:名前=自分の名前` で名前を付ける。`./logo.svg` のような自作の SVG も入る。
 - **入れられる形**: 塗りの 1 パス(mdi・material-symbols など)、**線画**(lucide・tabler・heroicons outline など。線の太さ・端の形は集合のまま)、複数パーツ、`currentColor` + 透明度のデュオトーン(phosphor duotone など)。これらは**トーンの色**で描くので、ダーク背景・spotlight・コントラスト検査がそのまま効く。幅と高さが違うアイコン(ロゴなど)は正方形の中央に置く。
 - **取り込み時に拒否するもの**: 図形以外(`<script>` `<style>` `<text>` `<image>`)、グラデーション・マスク・クリップ、`url(...)`、イベント属性、許可リスト外の属性。`svg-diagram.icons.json` は手で書き換えられるので、読み込むたびに同じ検査をする。
-- **多色(固定色)**: 自前の色(`#hex`)を持つアイコン(flat-color-icons、logos など)は **`--color` を付けたときだけ**入る。`icons list` に「固定色」と出る。**トーンにもダークテーマにも従わない**(色トークンの外)ので、検査はこの色を見ない。spotlight で薄くする箱では、色を変えずに透明度 0.35 に落とす。使うのは、色そのものに意味がある 1〜2 枚に留める。
+- **多色(固定色)**: グラデーション（`<linearGradient>` `<radialGradient>`）と `<clipPath>` も、アイコンの中で定義したものなら使える。 自前の色(`#hex`)を持つアイコン(flat-color-icons、logos など)は **`--color` を付けたときだけ**入る。`icons list` に「固定色」と出る。**トーンにもダークテーマにも従わない**(色トークンの外)ので、検査はこの色を見ない。spotlight で薄くする箱では、色を変えずに透明度 0.35 に落とす。使うのは、色そのものに意味がある 1〜2 枚に留める。
 - ライセンス: MIT / ISC / Apache-2.0 / CC0 / 0BSD / Unlicense / BSD は黙って入る。それ以外（CC BY など）は `--allow-license <SPDX>` が要る。出典・ライセンスは各アイコンに記録され、`icons notice` で一覧にできる。
 - 入れていない名前を `box({icon})` に渡すと、入れ方つきで throw する。`icon.use(manifest)` で、ファイルでなくオブジェクトを使わせることもできる（テストや複数プロジェクトを描くツール向け）。
 
@@ -323,6 +324,41 @@ box({title: `${icon.emoji('key')} 鍵の管理`})
 - 絵記号は記憶には効くが、理解や検索には効きにくい。**核心の数枚だけ**に使い、全部の箱には付けない。
 - アイコンだけで意味を伝えない。`box({icon})` は `title` を併記する（title があるとアイコンは `aria-hidden`、title が無いと `role="img"` と名前を持つ）。`iconRow()` は label が必須。`step` との併用は throw。
 - `preview` / `show` / `contact` の既定（resvg）も絵文字を色つきで描く。resvg 自体はカラーフォントの色を描けない（Noto Color Emoji はビットマップなので空白、Segoe UI Emoji は単色の輪郭）ので、`lib/emoji-color.ts` が描画の直前だけ、`class="emoji"` の字を透明にして幅だけ残し、同じ絵文字フォントから取り出した絵（CBDT / sbix の PNG は `<image>`、COLR のレイヤーは色つきの `<path>`）を `<text>` の直後に重ねる。ディスクの SVG は変わらない。図 1 枚あたりの増分は絵文字 30 個で約 50ms（1〜数個ならごく僅か）。限界: 肌色や国旗などの絵文字の列は、絵は描けるが、resvg が（絵文字なしでも）その `<text>` ごと落とす。`class="emoji"` の無い自前の `<text>` の絵文字は対象外。実ブラウザの見え方は `--engine chromium` で確かめる。
+
+### 構成図（クラウド・ネットワーク）
+
+Visio のように、**アイコン + 名前**の点を置き、境界の枠で囲み、線でつなぐ。部品は新しいものを 1 つ足しただけで、あとは今の `row()` / `group()` / `connect()` をそのまま使う（重なり・交差・コントラストの検査もそのまま効く）。
+
+```ts
+import {connect, diagram, group, node, row} from 'svg-diagram';
+diagram({theme: 'blue', title: 'Web サービスの構成'}).add(
+  row([node({id: 'user', icon: 'user', label: '利用者'}), node({id: 'dns', icon: 'dns', label: 'DNS', sub: 'example.com'})], {cols: 12}),
+  group([row([node({id: 'lb', icon: 'lb', label: 'ロードバランサー'}), node({id: 'app', icon: 'vm', label: 'アプリ'})])], {title: 'VPC 10.0.0.0/16'}),
+  connect('user:right', 'dns:left'),
+  connect('lb:right', 'app:left'),
+)
+```
+
+- **`node()`** = `box({icon, iconAt: 'top', title: label, body: sub, frame: false})`。`size`（16〜96px）でアイコンの大きさ、`frame: true` で箱、`tone` で箱の色。例: `examples/cloud-architecture.ts`。
+- **線は辺を指す**（`connect('a:right', 'b:left')`）。node の左・右・上は**アイコン**に付き、**下（`:bottom`）は名前の下**に付く。辺を書かないと中心同士を結ぶので、枠のない node では線がアイコンを貫く。
+- 境界（VPC・サブネット・ゾーン・リージョン）は `group({title, dashed})` の入れ子。ゾーンを並べるときは `row([group(..), group(..)], {cols: [6, 6]})`。
+- 曲がる線が枠の見出しや隣の node にかかると、`build` が理由つきで止まる。`route: 'elbow'` の `bend`（0〜1）で曲がる位置をずらす。
+- **PNG のプレビュー（既定の resvg）は、曲がる線の矢じりが横を向いて見える**ことがある。SVG 自体は正しく、ブラウザや `--engine chromium` では下を向く。
+
+#### アイコンの入手: 汎用は Iconify、公式は `add-pack`
+
+```sh
+svg-diagram icons find "load balancer" server database --set carbon --png sheet.png   # 汎用の絵（carbon は Apache-2.0）
+svg-diagram icons add carbon:load-balancer-vpc=lb carbon:virtual-machine=vm
+# AWS / Azure / Google Cloud / Kubernetes の公式アイコン集: 各社のサイトから zip（かフォルダ）を自分で DL して取り込む
+svg-diagram icons add-pack ~/Downloads/Asset-Package.zip --prefix aws --terms https://aws.amazon.com/architecture/icons/ --accept-terms --match "Lambda|EC2|S3"
+svg-diagram icons list aws                       # 入った名前（aws-lambda, aws-amazon-ec2 ...）
+```
+
+- Iconify には、AWS / Azure / GCP の**公式アーキテクチャアイコンは無い**（技術ロゴと汎用の絵だけ）。公式のものは `add-pack` で入れる。
+- **公式集は各社の独自規約**で、オープンなライセンスではない。`--terms`（規約の場所）と `--accept-terms`（読んだ）の**両方が無いと入らない**。どちらも `svg-diagram.icons.json` の `packs` に日付つきで残り、`icons notice` に出る。自動ダウンロードはしない。
+- 数百個あるので、`--match`（パスの正規表現）か `--all` が要る。`--list` で名前だけ確認できる（何も書かない）。サイズ違いのファイルは 48px のものを優先する。zip はシステムの `unzip` で展開する（無ければ自分で展開してフォルダを渡す）。
+- 公式集のアイコンは**固定色**（`fixed`）で、グラデーションやクリップも使う。取り込み時に検査し、`<style>` / `<text>` / `<image>` / `<use>` / マスク / フィルタ / 外部参照を使うファイルは理由つきで取り込まない。図に同じアイコンを何度置いても、中の id は置く場所ごとに付け替えるので衝突しない。
 
 ### 暗い背景と透明背景（`appearance` / `transparent`）
 `diagram({theme: 'teal', appearance: 'dark'})` で、暗い配色（文字は明るく、背景は暗い）で描く。トークンは明るい版と 1 対 1 に対応し（`DARK_PALETTE`）、レイアウト・トーン・文字の大きさは変わらない。明るい版の色（`#ffffff` など）を暗い版の色に置き換えるだけなので、新しいトーンに暗い版を別に書く必要はない。`raw()` の中の色はトークンでなければそのまま。
@@ -499,6 +535,7 @@ d.add(flow, connect(flow.anchors.a.right, flow.anchors.b.left));   // screens() 
 | `inventory-wireframe.ts` | 画面のワイヤーフレーム。番号つき注釈、トースト、確認ダイアログ、地図の凡例 |
 | `inventory-flow.ts` | 画面遷移図。画面のサムネイルを並べ、`connect()` で結ぶ |
 | `inventory-component-spec.ts` | 部品の仕様。粗い全体の領域、部品の構成（内側の番号）、状態の一覧 |
+| `cloud-architecture.ts` | クラウド構成図: `node()` + `group()` の入れ子 + `connect()` |
 | `icons.ts` | 絵記号の一覧と、メタファー図の例（`icon()` と `box({icon})`）。このリポジトリの `svg-diagram.icons.json` のアイコンを使う |
 | `emphasis.ts` | 文の一部だけの太字・色（`em.b()` / `em.danger()` ほか） |
 | `text-roles.ts` | 大きい文字: `banner` の `headlineRole: 'display'` と、`bars` / `plane` の `labelRole` |

@@ -50,6 +50,16 @@ const STEP_INDENT = 2 * STEP_BADGE_R + STEP_BADGE_GAP; // how far the title's fi
 export const ICON_SIZE = 32;
 const ICON_INDENT = ICON_SIZE + 12;
 const ICON_H = ICON_SIZE; // the icon is at least this tall, so a one-line box still holds it
+// box({icon, iconAt: 'top'}): the icon is centred above the text (node()); the text starts below it
+export const TOP_ICON_SIZE = 48;
+const TOP_ICON_GAP = 8;
+const topIcon = (band: {icon?: string; iconAt?: string}): boolean => band.icon !== undefined && band.iconAt === 'top';
+/** What connect() joins to: the box — but for a node (icon above its text) the icon, so an arrow meets the picture, not its label. */
+function anchorRect(c: Rect & {type?: string; icon?: string; iconAt?: string; iconSize?: number; padY?: number}, h: number = c.h): Rect {
+  if (c.type !== 'box' || !topIcon(c)) return {x: c.x, y: c.y, w: c.w, h};
+  const size = c.iconSize ?? TOP_ICON_SIZE;
+  return {x: c.x + c.w / 2 - size / 2 - 4, y: c.y + (c.padY ?? BOX_PAD_Y), w: size + 8, h: size};
+}
 
 type Requests = Map<string, MeasureRequest>;
 
@@ -75,8 +85,8 @@ function textRuns(band: Band, roles: Roles): TextRun[] {
     }
     case 'box': {
       const runs: TextRun[] = [];
-      const iconIndent = band.icon ? {indent: ICON_INDENT} : {}; // (spread, so a box without an icon gets no new field)
-      if (band.title) runs.push(withSpans({text: band.title, size: roles.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: band.step != null ? STEP_INDENT : band.icon ? ICON_INDENT : 0}, band.spans?.title));
+      const iconIndent = band.icon && !topIcon(band) ? {indent: ICON_INDENT} : {}; // (spread, so a box without an icon gets no new field)
+      if (band.title) runs.push(withSpans({text: band.title, size: roles.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: band.step != null ? STEP_INDENT : band.icon && !topIcon(band) ? ICON_INDENT : 0}, band.spans?.title));
       if (band.body) runs.push(withSpans({text: band.body, size: roles.body, weight: 400, mono: !!band.bodyMono, tone: band.bodyTone, ...iconIndent}, band.spans?.body));
       if (band.lines) for (const l of band.lines) {
         const line: Exclude<typeof l, string> = typeof l === 'string' ? {text: l} : l;
@@ -412,7 +422,12 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
   let cursorY = d.pad;
   const laidOut: LaidOutBand[] = [];
   const anchors = new Map<string, Rect>(); // id -> {x,y,w,h}
+  const nodeBottoms = new Map<string, number>(); // a node's anchor is its icon; an arrow leaving its bottom starts under the label
   const areaIds = new Set<string>();       // ids of rows and row columns: anchors that hold other boxes
+  const setBox = (id: string, c: Parameters<typeof anchorRect>[0], h: number): void => {
+    anchors.set(id, anchorRect(c, h));
+    if (c.type === 'box' && topIcon(c)) nodeBottoms.set(id, c.y + h); else nodeBottoms.delete(id);
+  };
   const claimed = (id: string, what: string): never => { throw new Error(`duplicate anchor id "${id}": ${what} — every id (and every row's "id#n" column ids) must be unique`); };
   const connects: LaidOutConnect[] = [];
   const deferred: ConnectBand[] = []; // connect()s that came before the boxes they name
@@ -421,8 +436,10 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
     const chrome = band as BoxChrome; // caption has no padX / padY / tag / id: they read as undefined (its `tone` is a TextTone, unused here)
     const wrapWidth = isBoxLike ? w - 2 * (chrome.padX ?? BOX_PAD_X) : w;
     const content = layoutBoxContent(band, wrapWidth, widthOf, roles);
-    const {wrappedRuns} = content;
-    const textHeight = band.type === 'box' && band.icon ? Math.max(content.textHeight, ICON_H) : content.textHeight;
+    // an icon above the text pushes every line down by its own height; a left icon only sets a minimum height
+    const topShift = band.type === 'box' && topIcon(band) ? ((band as BoxBand).iconSize ?? TOP_ICON_SIZE) + TOP_ICON_GAP : 0;
+    const wrappedRuns = topShift ? content.wrappedRuns.map(r => ({...r, lineYs: r.lineYs.map(y => y + topShift)})) : content.wrappedRuns;
+    const textHeight = band.type === 'box' && band.icon && !topShift ? Math.max(content.textHeight, ICON_H) : content.textHeight + topShift;
     const stamp = isBoxLike ? chrome.stamp : undefined;
     const stampW = stamp ? stampChipW(widthOf, stamp, roles) : undefined;
     if (stampW !== undefined && stampW > w - 16) throw new Error(`stamp "${stamp}" is wider than its box (${Math.round(w)}px): shorten it or widen the box`);
@@ -438,7 +455,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       placed.tagBox = {x: chrome.tagAt === undefined ? x + w - tw - 12 : x + w * chrome.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
     }
     if (chrome.id && (areaIds.has(chrome.id) || anchors.has(chrome.id))) claimed(chrome.id, 'a box takes an id that another box, group or row already has');
-    if (chrome.id) anchors.set(chrome.id, {x, y, w, h});
+    if (chrome.id) setBox(chrome.id, {...band, x, y, w, h} as never, h);
     return placed;
   };
 
@@ -642,7 +659,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       // names) resolution waits until the whole stack is placed; such a
       // connector reserves no loop-under space.
       if (!anchors.has(parseRef(band.from).id) || !anchors.has(parseRef(band.to).id)) { deferred.push(band); continue; }
-      const resolved = resolveConnect(band, anchors, areaIds, widthOf, roles);
+      const resolved = resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms);
       connects.push(resolved);
       if (band.route === 'loop-under') {
         const labelClearance = band.label ? 24 : 8;
@@ -696,7 +713,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
           const rw: LaidOutRow = {type: 'row', x, y: rowTop, w: widths[i], h: c.h, children: [c], arrows: []};
           laidOut.push(rw);
           rowHeight = Math.max(rowHeight, c.h);
-          stretch.push(h => { c.h = rw.h = h; if (c.id) anchors.set(c.id, {x: c.x, y: c.y, w: c.w, h}); });
+          stretch.push(h => { c.h = rw.h = h; if (c.id) setBox(c.id, c as never, h); });
         } else {
           const frame = laidOut.length;
           stack([child], x, widths[i]);
@@ -717,7 +734,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       const placedChildren = band.children.map((child, i) =>
         placeBoxLike(child, padX + xOffsets[i], cursorY, widths[i], true));
       const rowHeight = Math.max(...placedChildren.map(c => c.h));
-      for (const c of placedChildren) { c.h = rowHeight; if (c.id) anchors.set(c.id, {x: c.x, y: c.y, w: c.w, h: rowHeight}); }
+      for (const c of placedChildren) { c.h = rowHeight; if (c.id) setBox(c.id, c as never, rowHeight); }
 
       const arrows: RowArrow[] = [];
       if (band.arrows === 'between') {
@@ -744,7 +761,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
         const placed = rowChildren.map((child, j) =>
           placeBoxLike(child, padX + j * (cellWidth + band.gap), cursorY, cellWidth, true));
         const rowHeight = Math.max(...placed.map(c => c.h));
-        for (const c of placed) { c.h = rowHeight; if (c.id) anchors.set(c.id, {x: c.x, y: c.y, w: c.w, h: rowHeight}); }
+        for (const c of placed) { c.h = rowHeight; if (c.id) setBox(c.id, c as never, rowHeight); }
         placedRows.push(...placed);
         cursorY += rowHeight + band.gap; // this row's gap; replaced by d.gap below after the loop
       }
@@ -839,7 +856,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
   }
   };
   stack(d.bands, d.pad, contentWidth);
-  for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf, roles)); // throws "unknown anchor id" if it never appears
+  for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms)); // throws "unknown anchor id" if it never appears
 
   const contentHeight = Math.round(cursorY - d.gap + d.pad);
   const canvasHeight = d.canvas ? Math.max(contentHeight, d.canvas.height) : contentHeight;
@@ -910,7 +927,7 @@ function pathSegments(points: Point[]): Rect[] {
   return segs;
 }
 
-function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf, roles: Roles): LaidOutConnect {
+function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf, roles: Roles, nodeBottoms: Map<string, number> = new Map()): LaidOutConnect {
   const fromRef = parseRef(band.from), toRef = parseRef(band.to);
   const fromRect = anchors.get(fromRef.id);
   const toRect = anchors.get(toRef.id);
@@ -918,6 +935,9 @@ function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: 
   if (!toRect) throw new Error(`connect(): unknown anchor id "${toRef.id}" (give the target box an id: '${toRef.id}')`);
   const from = anchorPoint(fromRect, fromRef.side, fromRef.at);
   const to = anchorPoint(toRect, toRef.side, toRef.at);
+  // a node: left / right / top meet its icon, but bottom is under its label
+  if (fromRef.side === 'bottom' && nodeBottoms.has(fromRef.id)) from.y = nodeBottoms.get(fromRef.id)!;
+  if (toRef.side === 'bottom' && nodeBottoms.has(toRef.id)) to.y = nodeBottoms.get(toRef.id)!;
   let points = routePoints(band, from, to, fromRef.side);
   if (band.route === 'elbow' && band.bend === 'auto') {
     // Pick the first bend whose path stays clear of every box except the two it joins.

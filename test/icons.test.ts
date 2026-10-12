@@ -1,7 +1,7 @@
 import test from 'node:test';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-import {box, checkDiagram, closeMeasurer, diagram, icon, iconRow, renderDiagram, row} from '../lib/dsl.ts';
+import {box, checkDiagram, closeMeasurer, connect, diagram, icon, iconRow, node, renderDiagram, row} from '../lib/dsl.ts';
 import {EMOJIS} from '../lib/icons.ts';
 import type {EmojiName, IconName} from '../lib/icons.ts';
 import {parseManifest} from '../lib/icon-store.ts';
@@ -21,9 +21,9 @@ test('this repo\'s own svg-diagram.icons.json (what the examples and tests draw)
   assert.ok(names.length >= 20);
   for (const n of ['person', 'people', 'document', 'folder', 'key', 'lock', 'bridge', 'fence', 'stairs', 'warning', 'check', 'close', 'idea', 'search', 'gear', 'cloud', 'database', 'mail', 'shield', 'flag', 'clock']) assert.ok(icon.has(n).path, n);
   for (const n of names) {
-    const {d, from, license} = m.icons[n];
-    assert.ok(d!.length > 20 && from.includes(':') && license, n);
-    assert.deepEqual(xmlProblems(`<svg xmlns="http://www.w3.org/2000/svg"><path d="${d}"/></svg>`), [], n);
+    const {d, body, from, license} = m.icons[n];
+    assert.ok((d ?? body)!.length > 20 && from.includes(':') && license, n);
+    assert.deepEqual(xmlProblems(`<svg xmlns="http://www.w3.org/2000/svg">${d !== undefined ? `<path d="${d}"/>` : body}</svg>`), [], n);
   }
 });
 
@@ -126,4 +126,36 @@ test('line, duotone and colour icons draw as one <g> around the set\'s shapes: c
     assert.match(g('logo')[2], /data-icon-fixed="true" opacity="0\.35"/, 'dimmed by spotlight: faded, not recoloured');
     assert.ok(!svg.includes('group-transform'));
   } finally { icon.use(undefined); }
+});
+
+test('node(): the icon is centred above its label with no box around it; connect() meets the icon (bottom: under the label); ids inside a colour icon are unique per use', async () => {
+  const body = '<defs><linearGradient id="g"><stop offset="0" stop-color="#ff0000"/><stop offset="1" stop-color="#0000ff"/></linearGradient></defs><rect width="24" height="24" fill="url(#g)"/>';
+  icon.use({version: 1, icons: {grad: {vb: [0, 0, 24], body, fixed: true, from: 'pack:x/g.svg', license: 'vendor:x'}, line: {vb: [0, 0, 24], body: '<g fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></g>', from: 'lucide:x', license: 'ISC'}}});
+  try {
+    const d = diagram({theme: 'blue'}).add(
+      row([node({id: 'a', icon: 'grad', label: 'A', sub: 'a-sub'}), node({id: 'b', icon: 'grad', label: 'B', size: 64})], {gap: 80}),
+      row([node({id: 'c', icon: 'line', label: 'C', frame: true})], {cols: 12}),
+      connect('a:right', 'b:left'),
+      connect('a:bottom', 'c:top', {route: 'elbow', bend: 0.9}),
+    );
+    const {laidOut, verdict} = await checkDiagram(d);
+    assert.deepEqual(verdict.problems, []);
+    const find = (id: string) => (JSON.parse(JSON.stringify(laidOut.laidOut[0])) as {children: {id: string; x: number; y: number; w: number; h: number; wrappedRuns: {lineYs: number[]}[]}[]}).children.find(c => c.id === id)!;
+    const a = find('a'), b = find('b');
+    assert.ok(a.wrappedRuns[0].lineYs[0] >= 48 + 8, 'the label starts below the 48px icon and its gap');
+    assert.ok(b.h > a.h - 20 && b.wrappedRuns[0].lineYs[0] >= 64 + 8, 'size: 64 pushes the label lower');
+    const {svg} = await renderDiagram(d, {name: 'nodes.svg', budget: 'cacheOnly'});
+    assert.equal((svg.match(/<rect x="[\d.]+" y="[\d.]+" width="[\d.]+" height="[\d.]+" rx="8"/g) ?? []).length, 1, 'only the node with frame: true has a box');
+    const ids = [...svg.matchAll(/<linearGradient id="([^"]+)"/g)].map(m => m[1]);
+    assert.equal(ids.length, 2);
+    assert.notEqual(ids[0], ids[1], 'the same gradient drawn twice does not share an id');
+    for (const id of ids) assert.ok(svg.includes(`fill="url(#${id})"`), id);
+    assert.ok(a.x + a.w / 2 > 0);
+    const dpath = [...svg.matchAll(/<path d="(M[^"]+)" fill="none" stroke="#22201b"/g)].map(m => m[1]);
+    const first = dpath[0].split(' ');
+    assert.ok(Number(first[0].slice(1).split(',')[0]) > a.x + a.w / 2 && Number(first[0].slice(1).split(',')[0]) < a.x + a.w / 2 + 40, 'right: starts at the icon\'s edge, not the box\'s');
+  } finally { icon.use(undefined); }
+  assert.throws(() => node({icon: 'key', label: 'x', size: 4}), /between 16 and 96/);
+  assert.throws(() => box({iconAt: 'top', title: 'x'} as never), /needs an icon/);
+  assert.throws(() => box({icon: 'key', iconAt: 'middle', title: 'x'} as never), /'left' or 'top'/);
 });

@@ -1,19 +1,13 @@
 import {box, caption, diagram, group, icon, iconRow, row} from 'svg-diagram';
 import type {IconName} from 'svg-diagram';
 
-const SHAPES = icon.pathNames;
+const SHAPES = icon.pathNames.slice(0, 25); // (a figure with more boxes than the density budget would be flagged)
 
 export default function define() {
   const cell = (n: IconName) => ({icon: n, label: n});
   return diagram({theme: 'blue', title: 'メタファー用の絵記号'}).add(
     caption('メタファー用の絵記号（核心の数枚だけで使う）', {bold: true, tone: 'text'}),
-    group([
-      iconRow(SHAPES.slice(0, 5).map(cell)),
-      iconRow(SHAPES.slice(5, 10).map(cell)),
-      iconRow(SHAPES.slice(10, 15).map(cell)),
-      iconRow(SHAPES.slice(15, 20).map(cell)),
-      iconRow(SHAPES.slice(20).map(cell)),
-    ], {title: 'box({icon}) / iconRow() — 図形として出す（色はトーン）'}),
+    group(Array.from({length: Math.ceil(SHAPES.length / 5)}, (_, i) => iconRow(SHAPES.slice(i * 5, i * 5 + 5).map(cell))), {title: 'box({icon}) / iconRow() — 図形として出す（色はトーン）'}),
     group([
       caption(icon.emojiNames.slice(0, 9).map(n => `${icon.emoji(n)} ${n}`).join('   '), {role: 'body', tone: 'text'}),
       caption(icon.emojiNames.slice(9).map(n => `${icon.emoji(n)} ${n}`).join('   '), {role: 'body', tone: 'text'}),
