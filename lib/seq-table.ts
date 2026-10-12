@@ -122,7 +122,7 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
     }
   }
   const bottom = cursor + 4;
-  return {type: 'sequence', id: band.id, reveal: band.reveal, x, y, w, h: bottom - y, heads, steps, lifeTop: y + headH, lifeBottom: bottom};
+  return {type: 'sequence', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: bottom - y, heads, steps, lifeTop: y + headH, lifeBottom: bottom};
 }
 
 // ---- table ------------------------------------------------------------------
@@ -182,5 +182,5 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     const cells = 'cells' in r ? r.cells : r;
     rows.push(rowOf(cells, false, 'cells' in r ? r.tone : undefined, 'cells' in r ? r.h : undefined));
   }
-  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone, rowHeader: band.rowHeader || undefined, reveal: band.reveal, bodySize: ROLES.body};
+  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone, rowHeader: band.rowHeader || undefined, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), bodySize: ROLES.body};
 }

@@ -273,7 +273,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   }
 
   return {
-    type: 'plane', id: band.id, x, y, w, h, reveal: band.reveal, labelSize: size, bounds: {x: left, y, w: width, h},
+    type: 'plane', id: band.id, x, y, w, h, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), labelSize: size, bounds: {x: left, y, w: width, h},
     axisX, axisY, plotL, plotR, plotT, plotB, yDown,
     ticks, grid, texts, points, lines, ...(paths.length ? {paths} : {}), dims, labelBoxes: boxes, obstacles,
   };

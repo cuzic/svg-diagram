@@ -59,6 +59,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   // training deck's legacy spelling of the same thing. Stored as d.day internally.
   const theme = opts.theme ?? opts.day;
   if (!THEMES.map(String).includes(String(theme))) throw new Error(`diagram({theme}) must be one of ${THEMES.join(', ')} (or legacy day: 1|2)`);
+  if (typeof opts.spotlight === 'object' && opts.spotlight.mutedOk !== undefined && typeof opts.spotlight.mutedOk !== 'boolean') throw new Error(`diagram({spotlight: {mutedOk}}) must be true or false (got ${String(opts.spotlight.mutedOk)})`);
   if (typeof opts.spotlight === 'object' && opts.spotlight.dim !== undefined && !['outline', 'fill'].includes(opts.spotlight.dim)) throw new Error(`diagram({spotlight: {dim}}) must be 'outline' or 'fill' (got ${String(opts.spotlight.dim)})`);
   const d: DiagramData = {
     day: theme as Theme,
@@ -121,10 +122,10 @@ export function caption(text: RichText, opts: CaptionOpts = {}): CaptionBand {
 }
 
 // `reveal` goes onto a band only when it was given, so a band built without it is byte-for-byte what it was.
-const revealOf = (opts: {reveal?: number}): {reveal?: number} => opts.reveal === undefined ? {} : {reveal: opts.reveal};
+const revealOf = (opts: {reveal?: number; until?: number}): {reveal?: number; until?: number} => ({...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until})});
 // A constructor with no `reveal` (legend, spacer, raw, ...) refuses one instead of dropping it: the types already do, a JS caller is told here.
 function assertNoReveal(opts: object | undefined, what: string): void {
-  if (opts && 'reveal' in opts && (opts as {reveal?: unknown}).reveal !== undefined) throw new Error(`${what}: takes no reveal — it is shown from the start (reveal goes on box, banner, stat, caption, group, row's children, table, sequence, swimlane, plane, bars and connect)`);
+  if (opts && (['reveal', 'until'] as const).some(k => k in opts && (opts as Record<string, unknown>)[k] !== undefined)) throw new Error(`${what}: takes no reveal — it is shown from the start (reveal goes on box, banner, stat, caption, group, row's children, table, sequence, swimlane, plane, bars and connect)`);
 }
 
 // group / table rows / sequence / swimlane lanes carry dark text (or white boxes) on their fill, which a solid fill would swallow:
@@ -218,7 +219,7 @@ export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
   assertBoxTone(opts.tone, 'group()');
   const title = richField(opts.title, {field: 'group() title', bold: true, tone: opts.titleTone ?? (opts.tone === 'accent' ? 'accent' : 'text')});
   if (opts.frame === false && (title.text || opts.dashed || opts.tone)) throw new Error('group({frame: false}) draws no frame, so it takes no title, tone or dashed');
-  return withHandle({type: 'group', children: [children].flat(), title: title.text, ...(title.spans ? {spans: {title: title.spans}} : {}), titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad ?? (opts.frame === false ? 0 : undefined), frame: opts.frame, stamp: opts.stamp, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col, reveal: opts.reveal}, opts.id);
+  return withHandle({type: 'group', children: [children].flat(), title: title.text, ...(title.spans ? {spans: {title: title.spans}} : {}), titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad ?? (opts.frame === false ? 0 : undefined), frame: opts.frame, stamp: opts.stamp, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col, ...revealOf(opts)}, opts.id);
 }
 
 // Key for line styles / tones used in the diagram. items:
@@ -260,7 +261,7 @@ export function table(columns: TableColumn[], rows: readonly TableRow[], opts: T
   rows.forEach((r, i) => { if (!Array.isArray(r)) assertBoxTone((r as {tone?: string}).tone, `table() row ${i}`); });
   if (opts.rowHeader !== undefined && typeof opts.rowHeader !== 'boolean') throw new Error(`table(): rowHeader must be true or false, got ${JSON.stringify(opts.rowHeader)}`);
   if (opts.rowHeader && columns.length < 2) throw new Error('table(): rowHeader needs at least 2 columns (the first is the row heading, the rest are the body)');
-  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, headerH: opts.headerH, dense: opts.dense, rowHeader: opts.rowHeader, id: opts.id, reveal: opts.reveal}, opts.id);
+  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, headerH: opts.headerH, dense: opts.dense, rowHeader: opts.rowHeader, id: opts.id, ...revealOf(opts)}, opts.id);
 }
 
 // A table cell with a status symbol: `cell('通る', {mark: 'ok'})` draws "○ 通る" in the accent tone; mark: 'ok' ○ | 'mid' △ | 'ng' × | 'best' ◎.
@@ -664,7 +665,7 @@ function connectBand(from: string, to: string, opts: ConnectOpts, trackGiven = t
   const line = opts.line ?? (opts.dashed ? 'dashed' : 'solid');
   // weight: 'strong' = a thick line (a name for the meaning, not a px); 'double' already reads as a thick line, so the two cannot be combined
   if (opts.weight && line === 'double') throw new Error(`connect(${from} -> ${to}): weight '${opts.weight}' cannot go with line 'double' (both mean a thick line)`);
-  const band: ConnectBand = {type: 'connect', from, to, route: opts.route ?? 'straight', dip: opts.dip ?? 32, bend: opts.bend ?? 0.5, bendOffset: opts.bendOffset, arrow, line, ...(opts.weight ? {weight: opts.weight} : {}), chip: !!opts.chip, labelAt: opts.labelAt ?? 0.5, tone: opts.tone, label: opts.label, reveal: opts.reveal};
+  const band: ConnectBand = {type: 'connect', from, to, route: opts.route ?? 'straight', dip: opts.dip ?? 32, bend: opts.bend ?? 0.5, bendOffset: opts.bendOffset, arrow, line, ...(opts.weight ? {weight: opts.weight} : {}), chip: !!opts.chip, labelAt: opts.labelAt ?? 0.5, tone: opts.tone, label: opts.label, ...revealOf(opts)};
   return trackGiven ? Object.defineProperty(band, GIVEN, {value: opts, configurable: true}) : band;
 }
 

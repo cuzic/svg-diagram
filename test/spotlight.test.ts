@@ -162,3 +162,14 @@ test('sequence text is measured and drawn at the same (filled) size', async () =
     ROLES.note = base;
   }
 });
+
+test('spotlight {mutedOk: true} states the muted boxes are meant, so check does not warn', async () => {
+  const mk = (spotlight: Parameters<typeof diagram>[0]['spotlight']) => diagram({theme: 'blue', spotlight}).add(
+    row([box({id: 'main', title: 'Main'}), box({id: 'muted', title: 'Muted', tone: 'muted'})]),
+  );
+  const warned = (await renderDiagram(mk({ids: 'main'}), {name: 's.svg', budget: 'cacheOnly'})).verdict.warnings;
+  const quiet = (await renderDiagram(mk({ids: 'main', mutedOk: true}), {name: 's.svg', budget: 'cacheOnly'})).verdict.warnings;
+  assert.ok(warned.some(w => w.includes('spotlight-muted')));
+  assert.ok(!quiet.some(w => w.includes('spotlight-muted')));
+  assert.throws(() => mk({ids: 'main', mutedOk: 'yes' as unknown as boolean}), /mutedOk/);
+});
