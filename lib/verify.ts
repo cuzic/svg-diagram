@@ -60,6 +60,8 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
       rects.push({id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id), ...(band.backdrop ? {backdrop: true} : {})});
     } else if (band.type === 'bars') {
       for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})});
+    } else if (band.type === 'classes') {
+      rects.push({id: band.id ?? null, label: band.id ?? 'class diagram', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id)});
     } else if (band.type === 'gantt') {
       rects.push({id: band.id ?? null, label: band.id ?? 'gantt', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id)});
     } else if (band.type === 'states') {
@@ -136,6 +138,35 @@ function checkGantts(d: LaidOutDiagram): string[] {
       for (let j = i + 1; j < band.labelBoxes.length; j++) {
         const o = rectOverlap(b, band.labelBoxes[j]);
         if (o) problems.push(`gantt: label "${b.label}" overlaps label "${band.labelBoxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
+      }
+    }
+  }
+  return problems;
+}
+
+// Relations must not run through a class they do not touch; labels and multiplicities must stay clear of classes and each other.
+function checkClasses(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  for (const band of d.laidOut) {
+    if (band.type !== 'classes') continue;
+    for (const e of band.edges) {
+      for (const n of band.anchors) {
+        if (n.id === e.from || n.id === e.to) continue;
+        for (let i = 0; i + 1 < e.points.length; i++) {
+          const p = e.points[i], q = e.points[i + 1];
+          if (rectOverlap({x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}, n)) {
+            problems.push(`classes: relation ${e.from} -> ${e.to} runs through class "${n.id}" (reorder the classes, or change dir)`);
+            i = e.points.length;
+          }
+        }
+      }
+    }
+    for (const [i, l] of band.labels.entries()) {
+      if (l.x < band.x - 0.5 || l.x + l.w > band.x + band.w + 0.5) problems.push(`classes: label "${l.text}" runs outside the figure`);
+      for (const n of band.anchors) if (rectOverlap(l, n)) problems.push(`classes: label "${l.text}" overlaps class "${n.id}"`);
+      for (let j = i + 1; j < band.labels.length; j++) {
+        const o = rectOverlap(l, band.labels[j]);
+        if (o) problems.push(`classes: label "${l.text}" overlaps label "${band.labels[j].text}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
       }
     }
   }
@@ -326,6 +357,7 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
     ...checkTimelines(d),
     ...checkStates(d),
     ...checkGantts(d),
+    ...checkClasses(d),
     ...checkNoWrap(d),
     ...checkBounds(d, rects),
     ...checkContrast(d),

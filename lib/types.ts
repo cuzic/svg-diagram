@@ -1007,6 +1007,46 @@ export interface GanttBand extends GanttOpts {
 }
 
 // ============================================================================================
+// DSL input + band: classes (UML class diagram)
+// ============================================================================================
+
+export interface ClassItem {
+  id: string;
+  /** Shown name (default: the id). */
+  name?: string;
+  /** «interface», «enum» ... above the name. */
+  stereotype?: string;
+  /** Shorthand for the stereotype «abstract». */
+  abstract?: boolean;
+  /** One line each: '- id: number'. */
+  attrs?: string[];
+  methods?: string[];
+  tone?: BoxTone;
+}
+export type RelationKind = 'assoc' | 'arrow' | 'inherit' | 'implement' | 'compose' | 'aggregate' | 'depend';
+export interface ClassRelation {
+  from: string;
+  to: string;
+  /** 'assoc' a plain line (default) | 'arrow' directed association | 'inherit' from child to parent (hollow triangle at the parent) |
+   *  'implement' dashed, triangle at the interface | 'compose' / 'aggregate' diamond (filled / hollow) on `from`, the whole | 'depend' dashed open arrow. */
+  kind?: RelationKind;
+  label?: string;
+  /** Multiplicity near each end ('1', '0..*'). */
+  fromMult?: string;
+  toMult?: string;
+}
+export interface ClassesOpts extends RevealOpts {
+  /** 'down' (default): parents on top. 'right': left to right. */
+  dir?: 'down' | 'right';
+  id?: string;
+}
+export interface ClassesBand extends ClassesOpts {
+  type: 'classes';
+  classes: ClassItem[];
+  relations: ClassRelation[];
+}
+
+// ============================================================================================
 // DSL input + band: image
 // ============================================================================================
 
@@ -1424,7 +1464,7 @@ export interface ScreensBand extends ScreensOpts {
 /** Every band the DSL constructors return. */
 export type Band =
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | GanttBand | ImageBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | GanttBand | ClassesBand | ImageBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -2130,9 +2170,25 @@ export interface LaidOutGantt extends Rect, Dimmed {
   labelBoxes: (Rect & {label: string})[];
 }
 
+export interface LaidOutClasses extends Rect, Dimmed {
+  type: 'classes';
+  id?: string;
+  reveal?: number;
+  until?: number;
+  /** `dividers`: the y of the lines between name / attributes / methods. */
+  nodes: (Rect & {tone: BoxTone; dividers: number[]})[];
+  /** Orthogonal polylines from `from`'s box to `to`'s (the end marks come from `kind`: at the end for inherit / implement / arrow / depend, at the start for compose / aggregate). */
+  edges: {from: string; to: string; kind: RelationKind; line: 'solid' | 'dashed'; points: {x: number; y: number}[]}[];
+  texts: GanttText[];
+  /** Relation labels and multiplicities: a white chip with its text baseline at (tx, ty). */
+  labels: (Rect & {text: string; tx: number; ty: number})[];
+  anchors: Anchor[];
+  labelBoxes: (Rect & {label: string})[];
+}
+
 export type LaidOutBand = (
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutGantt | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutGantt | LaidOutClasses | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */

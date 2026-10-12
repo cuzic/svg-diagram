@@ -28,7 +28,7 @@ import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
 import {SLIDE_CANVAS, canvasFontScale, canvasRoles, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
-  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, GanttBand, GanttOpts, GanttRow, GanttTask, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, GanttBand, GanttOpts, GanttRow, GanttTask, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -939,6 +939,24 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
   walk(root);
   const band: TreeBand = {type: 'tree', root, ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), ids);
+}
+
+type ClassIds<C extends readonly ClassItem[]> = Extract<C[number]['id'], string>;
+
+/**
+ * A UML class diagram: classes ({id, name?, stereotype?, abstract?, attrs?, methods?}) and relations ({from, to, kind?, label?,
+ * fromMult?, toMult?}), placed in layers with parents on top. `inherit` / `implement` run child -> parent (triangle at the parent);
+ * `compose` / `aggregate` put the diamond on `from`, the whole.
+ *   classDiagram([{id: 'Animal', abstract: true, methods: ['+ eat()']}, {id: 'Dog', attrs: ['- name: string']}],
+ *                [{from: 'Dog', to: 'Animal', kind: 'inherit'}])
+ */
+export function classDiagram<const C extends readonly ClassItem[], const Id extends string = never>(classes: C, relations: readonly ClassRelation[], opts?: ClassesOpts & {id?: Id}): ClassesBand & Declares<Id | ClassIds<C>> & HandleOf<Id> & AnchorsOf<ClassIds<C>>;
+export function classDiagram(classes: readonly ClassItem[], relations: readonly ClassRelation[], opts: ClassesOpts = {}): ClassesBand {
+  if (!Array.isArray(classes) || classes.length === 0) throw new Error('classDiagram(classes, relations) needs at least one class');
+  if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right') throw new Error(`classDiagram(): dir must be 'down' or 'right' (got ${String(opts.dir)})`);
+  for (const c of classes) if (c.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(c.tone)) throw new Error(`classDiagram(): class "${c.id}" has tone ${String(c.tone)}`);
+  const band: ClassesBand = {type: 'classes', classes: [...classes], relations: [...relations], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  return withAnchors(withHandle(band, opts.id), classes.map(c => c.id));
 }
 
 type GanttIds<R extends readonly GanttRow[]> = Extract<(R[number] extends infer T ? T extends {readonly id: infer I} ? I : never : never), string>;
