@@ -5,7 +5,7 @@
 // Same geometry as the SVG: layout.ts has already broken every text into lines and placed each baseline, so a line is one element
 // with white-space: pre — the browser never re-wraps it. A line's top is its baseline minus the font's ascent (its line-height is
 // ascent + descent), which is how the baseline lands where the <text> of the SVG puts it.
-import {PALETTE, FONT_STACKS, ROLES, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle} from './tokens.ts';
+import {PALETTE, FONT_STACKS, ROLES, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle, recolor} from './tokens.ts';
 import {textBox} from './font-metrics.ts';
 import {emitSvg, resolveBoxStyle} from './emit.ts';
 import {shapesToCss} from './svg-to-css.ts';
@@ -175,8 +175,8 @@ function textsToHtml(svg: string): {svg: string; html: string} {
   return {svg: rest, html: out.join('')};
 }
 
-const CSS = (id: string) => `
-#${id} { position: relative; overflow: hidden; background: ${PALETTE.bg}; font-family: ${FONT_STACKS.sans}; }
+const CSS = (id: string, transparent = false) => `
+#${id} { position: relative; overflow: hidden; background: ${transparent ? 'transparent' : PALETTE.bg}; font-family: ${FONT_STACKS.sans}; }
 #${id} .sd-b { position: absolute; box-sizing: border-box; border-radius: 9.25px; }
 #${id} .sd-t { position: absolute; white-space: pre; }
 #${id} .sd-m { font-family: ${FONT_STACKS.mono}; }
@@ -212,9 +212,9 @@ export function emitHtml(d: LaidOutDiagram, opts: {reveal?: number; id?: string}
   const rest = visible.filter(b => !native(b) && b.type !== 'raw'), raws = visible.filter(b => b.type === 'raw');
   let overlay = '', words = '';
   if (rest.length || d.connects.length) {
-    const t = textsToHtml(strip(emitSvg({...d, laidOut: rest}, {reveal: opts.reveal}), 'sd-ov'));
+    const t = textsToHtml(strip(emitSvg({...d, laidOut: rest}, {reveal: opts.reveal, noRecolor: true}), 'sd-ov'));
     overlay = shapesToCss(t.svg, 'sd-ov'); words = t.html;
   }
-  if (raws.length) overlay += strip(emitSvg({...d, laidOut: raws, connects: []}, {reveal: opts.reveal}), 'sd-ov sd-raw');
-  return `<style>${CSS(id)}\n</style>\n<div id="${id}" class="sd" style="width:${px(width)};height:${px(canvasHeight)}">${html}${overlay}${words}</div>\n`;
+  if (raws.length) overlay += strip(emitSvg({...d, laidOut: raws, connects: []}, {reveal: opts.reveal, noRecolor: true}), 'sd-ov sd-raw');
+  return recolor(`<style>${CSS(id, d.transparent)}\n</style>\n<div id="${id}" class="sd" style="width:${px(width)};height:${px(canvasHeight)}">${html}${overlay}${words}</div>\n`, d.appearance);
 }

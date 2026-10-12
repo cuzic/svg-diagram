@@ -7,7 +7,7 @@
 //
 // See docs/diagram-tone-and-manner.md for the narrative rules this encodes.
 
-import type {ColorKey, Palette, Role, Theme, TextTone} from './types.ts';
+import type {ColorKey, Palette, Role, Theme, TextTone, Appearance} from './types.ts';
 
 export const PALETTE: Palette = {
   bg: '#ffffff',
@@ -22,6 +22,59 @@ export const PALETTE: Palette = {
   blue: { accent: '#1d5fa8', soft: '#dce9f7' },
   teal: { accent: '#1f6e73', soft: '#dbeeee' },
   amber: { accent: '#a8632b', soft: '#f1e3d3' },
+};
+
+// ---- dark appearance ----------------------------------------------------------------------------------------------------
+// The dark token set is a one-to-one recolouring of the light one: every light token hex maps to a dark hex (DARK_OF), and an
+// 'appearance: dark' diagram is drawn with the light tokens and recoloured at the end (recolor()). So the layout, the tones and the
+// roles are untouched, and a new tone needs no dark spelling. Dark hexes never coincide with a light hex, so recolor() is idempotent.
+// Contrast of every (text, fill) pair of every theme is checked in test/dark-theme.test.ts.
+export const DARK_PALETTE = {
+  bg: '#1b1a17', text: '#ece6da', muted: '#a79e8e', border: '#4a443a', code: '#24221e', danger: '#f08a8a',
+  amber: {accent: '#e0a066', soft: '#3b2f22'},
+  teal: {accent: '#5fc1c6', soft: '#1f3a3b'},
+  blue: {accent: '#7ab2ee', soft: '#1f3350'},
+} as const;
+const DARK_OF: Record<string, string> = {
+  [PALETTE.bg]: DARK_PALETTE.bg, [PALETTE.text]: DARK_PALETTE.text, [PALETTE.muted]: DARK_PALETTE.muted,
+  [PALETTE.border]: DARK_PALETTE.border, [PALETTE.code]: DARK_PALETTE.code, [PALETTE.danger]: DARK_PALETTE.danger,
+  [PALETTE.amber.accent]: DARK_PALETTE.amber.accent, [PALETTE.amber.soft]: DARK_PALETTE.amber.soft,
+  [PALETTE.teal.accent]: DARK_PALETTE.teal.accent, [PALETTE.teal.soft]: DARK_PALETTE.teal.soft,
+  [PALETTE.blue.accent]: DARK_PALETTE.blue.accent, [PALETTE.blue.soft]: DARK_PALETTE.blue.soft,
+};
+/** Every light token hex (the keys of the light→dark map). */
+export const LIGHT_COLORS: ReadonlySet<string> = new Set(Object.keys(DARK_OF));
+const HEX6 = /^#[0-9a-fA-F]{6}$/;
+/** The light→dark map of an appearance (null: light). An object appearance replaces the named tokens of the built-in dark set. */
+const MAPS = new Map<string, Record<string, string>>();
+export function mapOf(appearance: Appearance | undefined): Record<string, string> | null {
+  if (appearance === undefined || appearance === 'light') return null;
+  if (appearance === 'dark') return DARK_OF;
+  const key = JSON.stringify(appearance.dark);
+  let m = MAPS.get(key);
+  if (!m) {
+    const o = appearance.dark;
+    for (const [k, v] of Object.entries(o)) if (!['bg', 'text', 'muted', 'border', 'code', 'danger', 'accent', 'soft'].includes(k) || !HEX6.test(String(v))) throw new Error(`diagram({appearance: {dark: {${k}}}}): keys are bg, text, muted, border, code, danger, accent, soft, with a #rrggbb value (got ${String(v)})`);
+    const get = (k: keyof typeof o, fallback: string) => (o[k] ?? fallback).toLowerCase();
+    m = {...DARK_OF};
+    for (const k of ['bg', 'text', 'muted', 'border', 'code', 'danger'] as const) m[PALETTE[k]] = get(k, DARK_OF[PALETTE[k]]);
+    for (const t of ['amber', 'teal', 'blue'] as const) for (const k of ['accent', 'soft'] as const) if (o[k]) m[PALETTE[t][k]] = o[k]!.toLowerCase();
+    MAPS.set(key, m);
+  }
+  return m;
+}
+/** The colours a custom dark set adds to what a lint may see (lint-svg reads them from the root's data-palette). */
+export const customColors = (appearance: Appearance | undefined): string[] => typeof appearance === 'object' ? Object.values(appearance.dark).map(h => h.toLowerCase()) : [];
+/** A light token hex in the appearance's set (anything that is not a token, such as a raw() colour, stays as it is). */
+export const darkOf = (hex: string, appearance: Appearance = 'dark'): string => mapOf(appearance)?.[hex.toLowerCase()] ?? hex;
+/** The colour mapper of an appearance: dark recolours, light (or none) leaves colours alone. */
+export const paintOf = (appearance: Appearance | undefined): ((hex: string) => string) => { const m = mapOf(appearance); return m ? (h => m[h.toLowerCase()] ?? h) : (h => h); };
+/** The page colour a diagram is designed for: what a transparent diagram is checked against. */
+export const pageColorOf = (appearance: Appearance | undefined): string => paintOf(appearance)(PALETTE.bg);
+/** Recolour every #rrggbb in emitted SVG / HTML with the appearance's token set (once: a custom colour may equal a light token). */
+export const recolor = (text: string, appearance: Appearance | undefined): string => {
+  const p = paintOf(appearance);
+  return mapOf(appearance) ? text.replace(/#[0-9a-fA-F]{6}\b/g, h => p(h)) : text;
 };
 
 // ---- tones: the ONE table from a tone name to the colours it paints ---------------------------------------------------
@@ -90,6 +143,7 @@ const THEME_KEYS = THEMES as unknown as Theme[];
 export const ALLOWED_COLORS = new Set([
   PALETTE.bg, PALETTE.text, PALETTE.muted, PALETTE.border, PALETTE.code, PALETTE.danger,
   ...THEME_KEYS.flatMap(k => [PALETTE[k].accent, PALETTE[k].soft]),
+  ...Object.values(DARK_OF), // the dark appearance's tokens
 ]);
 
 export const FONT_STACKS: Record<'sans' | 'mono' | 'emoji', string> = {
@@ -167,9 +221,10 @@ export function blendLuminance(baseHex: string, overlayHex: string, alpha: numbe
 // Whichever of white / PALETTE.text has the larger luminance delta against
 // a known background luminance — used where a fixed tone (like box() tones)
 // isn't available because the background is a computed blend.
-export function bestTextColor(bgLuminance: number): string {
-  const whiteDelta = Math.abs(255 - bgLuminance);
-  const textDelta = Math.abs(luminance(PALETTE.text) - bgLuminance);
+export function bestTextColor(bgLuminance: number, paint: (hex: string) => string = h => h): string {
+  // judged on the colours as drawn (paint: the appearance's mapper); the light token is returned, to be recoloured with the rest
+  const whiteDelta = Math.abs(luminance(paint('#ffffff')) - bgLuminance);
+  const textDelta = Math.abs(luminance(paint(PALETTE.text)) - bgLuminance);
   return whiteDelta >= textDelta ? '#ffffff' : PALETTE.text;
 }
 

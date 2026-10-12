@@ -12,6 +12,7 @@ import path from 'path';
 import {wf} from './wireframe.ts';
 import {assertIconName} from './icons.ts';
 import {layoutDiagram} from './layout.ts';
+import {mapOf} from './tokens.ts';
 import {emitSvg} from './emit.ts';
 import {emitHtml} from './emit-html.ts';
 import {xmlProblems} from './xml-check.ts';
@@ -60,8 +61,11 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   const theme = opts.theme ?? opts.day;
   if (!THEMES.map(String).includes(String(theme))) throw new Error(`diagram({theme}) must be one of ${THEMES.join(', ')} (or legacy day: 1|2)`);
   if (typeof opts.spotlight === 'object' && opts.spotlight.dim !== undefined && !['outline', 'fill'].includes(opts.spotlight.dim)) throw new Error(`diagram({spotlight: {dim}}) must be 'outline' or 'fill' (got ${String(opts.spotlight.dim)})`);
+  if (opts.appearance !== undefined && !['light', 'dark'].includes(opts.appearance as string) && !(typeof opts.appearance === 'object' && opts.appearance && typeof opts.appearance.dark === 'object')) throw new Error(`diagram({appearance}) must be 'light', 'dark' or {dark: {bg, text, ...}} (got ${JSON.stringify(opts.appearance)})`);
+  mapOf(opts.appearance); // a custom dark set is validated here
   const d: DiagramData = {
     day: theme as Theme,
+    appearance: opts.appearance, transparent: opts.transparent,
     // 'slide' (legacy day: 1|2 diagrams) gets slide-fit warnings; 'doc' (theme: ...) does not.
     medium: (opts.medium ?? (opts.theme === undefined ? 'slide' : 'doc')) as Medium,
     title: opts.title, desc: opts.desc,            // exposed as the SVG's <title> / <desc> (doc medium)

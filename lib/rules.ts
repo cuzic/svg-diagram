@@ -9,7 +9,10 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
-import {PALETTE, STRONG_STROKE, wcagRatio, runColorOf, toneStyle} from './tokens.ts';
+import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, paintOf} from './tokens.ts';
+
+// contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
+const wcagIn = (d: LintTarget) => { const p = paintOf(d.appearance); return (a: string, b: string): number => lightWcag(p(a), p(b)); };
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {budgetWarnings} from './budget.ts';
 import {barsValuesHidden} from './bars.ts';
@@ -142,10 +145,12 @@ export function applyAutoLegend(d: DiagramData): void {
 function ratioText(r: number): string { return r.toFixed(1); }
 
 function textContrast(d: LintTarget, out: Finding[]): void {
+  const wcagRatio = wcagIn(d), paint = paintOf(d.appearance);
   const seen = new Set<string>();
   const check = (fg: string | undefined, bg: string | undefined, what: string): void => {
     if (!fg || !bg) return;
-    const need = 4.5, r = wcagRatio(fg, bg), key = `${fg}|${bg}`;
+    fg = paint(fg); bg = paint(bg);
+    const need = 4.5, r = lightWcag(fg, bg), key = `${fg}|${bg}`;
     if (r < need && !seen.has(key)) {
       seen.add(key);
       out.push({rule: 'a11y-text-contrast', severity: 'warn', message: `${what} の文字 ${fg} と背景 ${bg} のコントラスト比が ${ratioText(r)}:1（4.5:1 以上が目安）`});
@@ -188,6 +193,7 @@ function colourOnlyEmphasis(d: LintTarget, out: Finding[]): void {
 }
 
 function nonTextContrast(d: LintTarget, out: Finding[]): void {
+  const wcagRatio = wcagIn(d);
   const tones = new Set<EmphasisTone>();
   const dimmed = dimmedBands(d);
   for (const b of walkBands(d.bands)) if (b.type === 'box' && !dimmed.has(b)) tones.add(b.tone ?? 'plain');
