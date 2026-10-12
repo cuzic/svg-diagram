@@ -9,6 +9,7 @@ export function nodeIdsOf(b: Band): string[] {
     case 'states': return b.states.map(s => s.id);
     case 'gantt': return b.rows.flatMap(r => 'id' in r && r.id ? [r.id] : []);
     case 'classes': return b.classes.map(c => c.id);
+    case 'bpmn': return b.nodes.map(n => n.id);
     default: return [];
   }
 }

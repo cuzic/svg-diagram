@@ -1047,6 +1047,39 @@ export interface ClassesBand extends ClassesOpts {
 }
 
 // ============================================================================================
+// DSL input + band: bpmn (a process in lanes)
+// ============================================================================================
+
+export type BpmnNodeKind = 'task' | 'start' | 'end' | 'xor' | 'and' | 'or';
+export interface BpmnLane {id: string; label: string; tone?: BoxTone}
+export interface BpmnNode {
+  id: string;
+  lane: string;
+  /** A task needs one; an event or gateway may have one (drawn under the shape). */
+  label?: string;
+  /** A task's second, muted line. */
+  sub?: string;
+  /** 'task' (default) | 'start' / 'end' event | 'xor' exclusive, 'and' parallel, 'or' inclusive gateway. */
+  kind?: BpmnNodeKind;
+  tone?: BoxTone;
+}
+export interface BpmnFlow {
+  from: string;
+  to: string;
+  /** A condition on a flow out of a gateway ('承認'). */
+  label?: string;
+  /** 'dashed': a message flow between lanes (default: a sequence flow, solid). */
+  line?: 'solid' | 'dashed';
+}
+export interface BpmnOpts extends RevealOpts {id?: string}
+export interface BpmnBand extends BpmnOpts {
+  type: 'bpmn';
+  lanes: BpmnLane[];
+  nodes: BpmnNode[];
+  flows: BpmnFlow[];
+}
+
+// ============================================================================================
 // DSL input + band: image
 // ============================================================================================
 
@@ -1464,7 +1497,7 @@ export interface ScreensBand extends ScreensOpts {
 /** Every band the DSL constructors return. */
 export type Band =
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | GanttBand | ClassesBand | ImageBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | GanttBand | ClassesBand | BpmnBand | ImageBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -2151,7 +2184,7 @@ export interface LaidOutStates extends Rect, Dimmed {
   labelBoxes: (Rect & {label: string})[];
 }
 
-export interface GanttText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean; anchor: 'start' | 'middle'; tone?: 'danger'}
+export interface GanttText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean; anchor: 'start' | 'middle' | 'end'; tone?: 'danger'}
 export interface LaidOutGantt extends Rect, Dimmed {
   type: 'gantt';
   id?: string;
@@ -2187,9 +2220,25 @@ export interface LaidOutClasses extends Rect, Dimmed {
   labelBoxes: (Rect & {label: string})[];
 }
 
+export interface LaidOutBpmn extends Rect, Dimmed {
+  type: 'bpmn';
+  id?: string;
+  reveal?: number;
+  until?: number;
+  lanes: (Rect & {labelW: number; tone: BoxTone})[];
+  /** The shape of each node (a circle, a diamond or a rounded rectangle). */
+  nodes: (Rect & {kind: BpmnNodeKind; tone: BoxTone})[];
+  edges: {from: string; to: string; line: 'solid' | 'dashed'; points: {x: number; y: number}[]}[];
+  texts: GanttText[];
+  /** Flow conditions: a white chip with its text baseline at (tx, ty), in `size` px; `edge` is the index of its flow in `edges`. */
+  labels: (Rect & {text: string; tx: number; ty: number; size: number; edge: number})[];
+  anchors: Anchor[];
+  labelBoxes: (Rect & {label: string})[];
+}
+
 export type LaidOutBand = (
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutGantt | LaidOutClasses | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutGantt | LaidOutClasses | LaidOutBpmn | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */

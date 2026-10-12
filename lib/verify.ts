@@ -60,6 +60,8 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
       rects.push({id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id), ...(band.backdrop ? {backdrop: true} : {})});
     } else if (band.type === 'bars') {
       for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})});
+    } else if (band.type === 'bpmn') { // each node is its own rect: a connector from outside must not run through one
+      for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'classes') { // each class is its own rect: a connector from outside must not run through one
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'gantt') { // each task with an id is its own rect: a connector from outside must not run through one
@@ -180,6 +182,44 @@ function checkClasses(d: LaidOutDiagram): string[] {
       for (let j = i + 1; j < band.labels.length; j++) {
         const o = rectOverlap(l, band.labels[j]);
         if (o) problems.push(`classes: label "${l.text}" overlaps label "${band.labels[j].text}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
+      }
+    }
+  }
+  return problems;
+}
+
+// A flow must not run through a node it does not touch; flow labels must stay clear of nodes and each other.
+function checkBpmn(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  for (const band of d.laidOut) {
+    if (band.type !== 'bpmn') continue;
+    for (const e of band.edges) {
+      for (const n of band.anchors) {
+        if (n.id === e.from || n.id === e.to) continue;
+        for (let i = 0; i + 1 < e.points.length; i++) {
+          const p = e.points[i], q = e.points[i + 1];
+          if (rectOverlap({x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}, n)) {
+            problems.push(`bpmn: flow ${e.from} -> ${e.to} runs through "${n.id}" (move a node to another lane, or reorder the flow)`);
+            i = e.points.length;
+          }
+        }
+      }
+    }
+    // the text of an event / gateway (and a task's name): inside the figure and clear of the lane names, of every flow, and of the other nodes
+    for (const b of band.labelBoxes) {
+      if (band.anchors.some(a => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h)) continue; // a node's own box
+      if (b.x < band.x + (band.lanes[0]?.labelW ?? 0) - 0.5 || b.x + b.w > band.x + band.w + 0.5 || b.y < band.y - 0.5 || b.y + b.h > band.y + band.h + 0.5) problems.push(`bpmn: the text "${b.label}" runs outside its lane area (shorten it, or widen the figure)`);
+      for (const n of band.anchors) if (rectOverlap(b, n)) problems.push(`bpmn: the text "${b.label}" overlaps "${n.id}"`);
+      for (const e of band.edges) if (e.points.slice(1).some((q, m) => { const p = e.points[m]; return rectOverlap(b, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}); }) && !band.labels.some(l => l.x === b.x && l.y === b.y)) problems.push(`bpmn: the text "${b.label}" is crossed by the flow ${e.from} -> ${e.to}`);
+    }
+    for (const [i, l] of band.labels.entries()) {
+      band.edges.forEach((e, k) => { // the chip is white: on another flow it would cut it
+        if (k !== l.edge && e.points.slice(1).some((q, m) => { const p = e.points[m]; return rectOverlap(l, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}); })) problems.push(`bpmn: label "${l.text}" sits on the flow ${e.from} -> ${e.to} (it belongs to another flow)`);
+      });
+      for (const n of band.anchors) if (rectOverlap(l, n)) problems.push(`bpmn: label "${l.text}" overlaps "${n.id}"`);
+      for (let j = i + 1; j < band.labels.length; j++) {
+        const o = rectOverlap(l, band.labels[j]);
+        if (o) problems.push(`bpmn: label "${l.text}" overlaps label "${band.labels[j].text}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
       }
     }
   }
@@ -371,6 +411,7 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
     ...checkStates(d),
     ...checkGantts(d),
     ...checkClasses(d),
+    ...checkBpmn(d),
     ...checkNoWrap(d),
     ...checkBounds(d, rects),
     ...checkContrast(d),
