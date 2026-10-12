@@ -1,6 +1,5 @@
-import {textWidth} from './measure.ts';
-import {ROLES} from './tokens.ts';
-import type {DotsBand, DotTone, FontFamily, LaidOutDots, LaidOutPeople, PeopleBand, Theme, WidthOf} from './types.ts';
+import {textWidth} from './atoms.ts';
+import type {DotsBand, DotTone, FontFamily, LaidOutDots, LaidOutPeople, PeopleBand, Theme, WidthOf, Roles} from './types.ts';
 
 const DOT_GAP = 3, LABEL_GAP = 6, BAR_H = 8, AXIS_GAP = 4;
 // every shape coordinate sits on the 4px grid (the lint's coordinate-grid advisory fails a build), so the piles are packed on it
@@ -10,18 +9,18 @@ const snap4 = (v: number): number => Math.round(v / 4) * 4, ceil4 = (v: number):
 export const PERSON_BOX = {from: 4, size: 16};
 
 const SIDE_GAP = 24;
-const sideRole = (band: PeopleBand) => ROLES[band.side?.size ?? 'stat'];
+const sideRole = (band: PeopleBand, roles: Roles) => roles[band.side?.size ?? 'stat'];
 
 /** Every string a people() band draws beside its grid, registered before its geometry is calculated. */
-export function peopleTexts(band: PeopleBand): [string, number, number, FontFamily][] {
+export function peopleTexts(band: PeopleBand, roles: Roles): [string, number, number, FontFamily][] {
   if (!band.side) return [];
-  return [[band.side.value, sideRole(band), 700, 'sans'], ...(band.side.label ? [[band.side.label, ROLES.note, 400, 'sans'] as [string, number, number, FontFamily]] : [])];
+  return [[band.side.value, sideRole(band, roles), 700, 'sans'], ...(band.side.label ? [[band.side.label, roles.note, 400, 'sans'] as [string, number, number, FontFamily]] : [])];
 }
 
-export function layoutPeople(band: PeopleBand, x: number, y: number, cw: number, widthOf: WidthOf, day: Theme): LaidOutPeople {
+export function layoutPeople(band: PeopleBand, x: number, y: number, cw: number, widthOf: WidthOf, day: Theme, roles: Roles): LaidOutPeople {
   const {cols, size, gap, side} = band, rows = Math.ceil(band.total / cols);
   const gw = cols * size + (cols - 1) * gap, gh = rows * size + (rows - 1) * gap;
-  const V = sideRole(band), N = ROLES.note;
+  const V = sideRole(band, roles), N = roles.note;
   const vw = side ? textWidth(widthOf, side.value, V, 700) : 0, lw = side?.label ? textWidth(widthOf, side.label, N, 400) : 0;
   const tw = Math.max(vw, lw), w = side ? gw + SIDE_GAP + tw : gw;
   if (w > cw) throw new Error(`people(): ${cols} icons of ${size}px${side ? ' and the number beside them' : ''} are ${Math.ceil(w)}px wide, the column is ${cw}px — use fewer cols, a smaller size or gap`);
@@ -40,13 +39,13 @@ export function layoutPeople(band: PeopleBand, x: number, y: number, cw: number,
 }
 
 /** Every string a dots() band draws, registered before its geometry is calculated. */
-export function dotsTexts(band: DotsBand): [string, number, number, FontFamily][] {
-  const S = ROLES.note;
+export function dotsTexts(band: DotsBand, roles: Roles): [string, number, number, FontFamily][] {
+  const S = roles.note;
   return [band.lowLabel, band.highLabel, ...band.zones.map(z => z.label)].flatMap(t => t ? [[t, S, 400, 'sans'] as [string, number, number, FontFamily]] : []);
 }
 
-export function layoutDots(band: DotsBand, x: number, y: number, cw: number, widthOf: WidthOf, day: Theme): LaidOutDots {
-  const S = ROLES.note, r = band.r, w = Math.min(band.width ?? cw, cw), left = x + (cw - w) / 2;
+export function layoutDots(band: DotsBand, x: number, y: number, cw: number, widthOf: WidthOf, day: Theme, roles: Roles): LaidOutDots {
+  const S = roles.note, r = band.r, w = Math.min(band.width ?? cw, cw), left = x + (cw - w) / 2;
   const plotL = left + r + 2, plotR = left + w - r - 2;
   if (plotR - plotL < 80) throw new Error('dots(): the lane is too narrow — raise width');
   const px = (v: number) => plotL + (v - band.min) / (band.max - band.min) * (plotR - plotL);

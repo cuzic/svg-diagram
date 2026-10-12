@@ -25,6 +25,10 @@ import type {RICH} from './rich.ts';
 
 /** Palette keys diagram() accepts: 1 / 2 (the training deck's legacy day numbers) or a named theme. */
 export type Theme = 1 | 2 | 'blue' | 'teal' | 'amber';
+/** 'light' (default) | 'dark': which token set the diagram is drawn with (tokens.ts DARK_PALETTE). */
+export type Appearance = 'light' | 'dark' | {dark: Partial<DarkTokens>};
+/** The dark token set, replaceable per diagram: `appearance: {dark: {bg: '#0b1220', text: '#ffffff', accent: '#60a5fa'}}`. accent / soft replace those of every theme. */
+export interface DarkTokens {bg: string; text: string; muted: string; border: string; code: string; danger: string; accent: string; soft: string}
 /** 'slide' (legacy `day:` diagrams, get slide-fit warnings) | 'doc' (`theme:` diagrams: title/desc metadata, full rule set). */
 export type Medium = 'slide' | 'doc';
 
@@ -38,6 +42,9 @@ export type ColorKey = PlainColorKey | 'accent' | 'soft';
 
 /** font-size role (tokens.ts ROLES). */
 export type Role = 'title' | 'label' | 'body' | 'note' | 'banner' | 'stat' | 'display';
+/** The font size (px) of every role: a value, so a figure's text sizes travel with it (tokens.ts ROLES, scaleRoles). */
+/** Role sizes. `connectLabel` / `tag` (the fixed-size text that is not a role) are set only by a canvas diagram, which scales them too; absent means the 14px constants. */
+export type Roles = Readonly<Record<Role, number>> & {readonly connectLabel?: number; readonly tag?: number};
 /** The roles a banner() headline can be set in (default 'banner'). */
 export type HeadlineRole = 'banner' | 'stat' | 'display';
 /** The roles the labels of a bars() / plane() (axis labels, value labels, ticks) can be set in (default 'note'). */
@@ -88,6 +95,9 @@ export interface ConnectRef {id: string; side: string; at: number}
 // DSL input: diagram()
 // ============================================================================================
 
+/** diagram({canvas}): the fixed slide canvas the diagram is drawn on. `minText` is the smallest text size (px, in the canvas's own units) the lint accepts. */
+export interface SlideCanvas {width: number; height: number; minText: number}
+
 /** Slide the diagram will be shown on (slide-budget.ts measures its free area). */
 export interface SlideRef {page: string; heading: string}
 
@@ -114,6 +124,10 @@ export interface DiagramOpts {
   day?: 1 | 2;
   /** Defaults to 'slide' when built from `day`, 'doc' when from `theme`. */
   medium?: Medium;
+  /** 'dark' draws with the dark token set (light text on a dark page). Contrast checks use the dark colours. */
+  appearance?: Appearance;
+  /** true: no page-colour background rectangle (the diagram sits on whatever is behind it). Checks assume the page colour of `appearance`. */
+  transparent?: boolean;
   /** SVG <title> (doc medium). Falls back to the first caption / banner headline / group title. */
   title?: string;
   /** SVG <desc> (doc medium). Falls back to a generated summary. */
@@ -130,6 +144,8 @@ export interface DiagramOpts {
   maxDisplayHeight?: number;
   minEffectiveFont?: number;
   slide?: SlideRef;
+  /** A whole-slide 16:9 canvas (1280x720 by default) shown 1:1, with a minimum text size lint. Not with `slide` / `fill`. */
+  canvas?: 'slide' | Partial<SlideCanvas>;
   /** fit-figure slide: build to the measured slot, growing fonts to use the slack. Needs `slide`. */
   fill?: boolean;
   /** Options every connect() / branch() of this diagram starts from; see ConnectDefaults. */
@@ -138,6 +154,8 @@ export interface DiagramOpts {
   wireframeDefaults?: WireframeDefaults;
   /** Keep these anchors prominent and render the rest with the muted spotlight treatment. */
   spotlight?: SpotlightOpt;
+  /** A source / citation line pinned as the last line of the figure (left-aligned, muted, one line). See README. */
+  sourceLine?: string;
 }
 
 /**
@@ -145,14 +163,17 @@ export interface DiagramOpts {
  * `edges`: which connectors stay prominent ('touching': one end is a target; 'between': both are).
  * `dim`: how a bar outside the spotlight is drawn. 'outline' (default) is a dotted outline on white; 'fill' keeps a pale fill
  * (the border colour) so the bar's length can still be read.
+ * `mutedOk`: the muted-tone boxes next to the spotlight are meant (you have checked dim and muted still tell apart), so check does not warn `spotlight-muted`.
  */
-export type SpotlightOpt = string | {ids: string | readonly string[]; edges?: 'touching' | 'between'; dim?: 'outline' | 'fill'};
+export type SpotlightOpt = string | {ids: string | readonly string[]; edges?: 'touching' | 'between'; dim?: 'outline' | 'fill'; mutedOk?: boolean};
 
 /** Everything diagram() stores, plus fields set later by build/check (usableWidth, maxWidth, source). */
 export interface DiagramData {
   /** Theme key. (Named `day` for historical reasons; it holds any Theme.) */
   day: Theme;
   medium: Medium;
+  appearance?: Appearance;
+  transparent?: boolean;
   title?: string;
   desc?: string;
   accept?: Partial<Record<RuleId, string>>;
@@ -164,10 +185,12 @@ export interface DiagramData {
   maxDisplayHeight?: number;
   minEffectiveFont?: number;
   slide?: SlideRef;
+  canvas?: SlideCanvas;
   fill: boolean;
   connectDefaults?: ConnectDefaults;
   wireframeDefaults?: WireframeDefaults;
   spotlight?: SpotlightOpt;
+  sourceLine?: string;
   bands: Band[];
   /** Set by build() from the measured slide (contentWidth). */
   usableWidth?: number;
@@ -192,9 +215,10 @@ export interface DiagramSource {
   depsSha256?: string;
   /** Cumulative reveal stage represented by this file. */
   reveal?: number;
+  until?: number;
 }
 
-export interface RevealOpts {reveal?: number}
+export interface RevealOpts {reveal?: number; /** The click this element vanishes at (it is shown from `reveal` up to, not including, `until`). */ until?: number}
 
 /**
  * What diagram() returns. `add()` accepts bands and arrays of bands (swimlane() / branch() return arrays).
@@ -249,6 +273,9 @@ export interface CaptionBand {
   bold: boolean;
   mono: boolean;
   reveal?: number;
+  /** Internal: the diagram({sourceLine}) caption, which layout appends as the last band. */
+  sourceLine?: boolean;
+  until?: number;
 }
 
 /** One extra line of a box band: a plain string or a styled line (`spans`: internal, the pieces of `text`). */
@@ -321,7 +348,7 @@ export interface BoxBand extends BoxStyleOpts {
   statValue?: string;
 }
 
-export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col' | 'span' | 'reveal'> {
+export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col' | 'span' | 'reveal' | 'until'> {
   /** The value's text colour; 'solid' / 'solid-danger' instead fill the whole box (white text) as in box({tone}). */
   tone?: TextTone | 'solid' | 'solid-danger';
   size?: 'stat' | 'display';
@@ -384,6 +411,7 @@ export interface GroupBand {
   span?: number;
   col?: number;
   reveal?: number;
+  until?: number;
 }
 
 /** A row() whose children include groups: they sit side by side and their frames are stretched to the tallest one. */
@@ -396,6 +424,7 @@ export interface GroupRowBand {
   justify: RowJustify;
   itemWidth?: number;
   reveal?: number;
+  until?: number;
 }
 
 /** A legend entry: a line sample ({line, arrow?}) or a tone swatch ({tone, dashed?}). */
@@ -516,6 +545,7 @@ export interface ConnectBand {
   tone?: TextTone;
   label?: string;
   reveal?: number;
+  until?: number;
 }
 /** branch() target: connect() options plus the target ref. */
 export interface BranchTarget extends ConnectOpts {to: string}
@@ -712,6 +742,7 @@ export interface PlanePoint {
   shape?: 'dot' | 'ring' | 'cross';
   /** The stage it (and its label) appears at; default the plane's own. */
   reveal?: number;
+  until?: number;
 }
 /** A guide line between two positions / points (a projection onto an axis, a path). */
 /** `reveal` (here and on PlaneDim / PlaneLabel / PlanePath): default the max of the points it names (a coordinate counts 0) and the plane's own. */
@@ -729,6 +760,7 @@ export interface PlanePath {
   tone?: PlaneTone;
   arrow?: boolean;
   reveal?: number;
+  until?: number;
   /**
    * Draw the path as it grows: at a stage the curve (the same one as the full path) runs only as far as the last point that is
    * shown by then. Without it the whole path appears when its last point does.
@@ -748,6 +780,7 @@ export interface PlaneDim {
   offset?: number;
   tone?: PlaneTone;
   reveal?: number;
+  until?: number;
 }
 export interface PlaneLabel {at: PlanePos; text: string; anchor?: 'start' | 'middle' | 'end'; tone?: PlaneTone; bold?: boolean; reveal?: number}
 export interface PlaneOpts extends RevealOpts {
@@ -788,6 +821,8 @@ export interface BarDatum extends RevealOpts {
   /** The bar's colour by tone (accent / danger / muted); `danger` is the red. Not together with `series`. */
   tone?: BarTone;
   id?: string;
+  /** The id of an earlier bar of this band to take the place of: this bar sits in that bar's row / column, which vanishes (`until`) when this one appears (`reveal`, required). Not with `stack`. */
+  replaces?: string;
 }
 export interface BarsOpts extends RevealOpts {
   /** A spotlight target (the bars inside it too) and a connect() endpoint (the whole band); it may not repeat a bar's id. */
@@ -819,6 +854,40 @@ export interface BarsBand extends BarsOpts {
   stack: boolean;
   /** Its own, or the enclosing group's; each bar has its own too. */
   reveal?: number;
+  until?: number;
+}
+
+// ============================================================================================
+// DSL input + band: timeline
+// ============================================================================================
+
+export type TimelineTone = 'accent' | 'danger' | 'muted';
+export interface TimelineMark {
+  /** 'YYYY' | 'YYYY-MM' | 'YYYY-MM-DD'. */
+  at: string;
+  label: string;
+  /** Default 'muted'. */
+  tone?: TimelineTone;
+}
+export interface TimelineOpts extends RevealOpts {
+  /** The axis runs from `from` to `to` (dates as 'YYYY' | 'YYYY-MM' | 'YYYY-MM-DD'). */
+  from: string;
+  to: string;
+  /** Today. Always written out (a build never reads the clock), so the same source draws the same SVG. */
+  now: {at: string; label?: string};
+  /** The marker the figure is about, drawn in the danger colour. The span from `now` to it is the remaining time. */
+  deadline: {at: string; label: string; /** 'full': a line through the whole height of the figure at the deadline (default: a short stem and a big dot). */ line?: 'full'};
+  /** How the span from now to the deadline is drawn: 'bar' (default, a thick line on the axis) or 'fill' (a pale band above and below the axis). */
+  span?: 'bar' | 'fill';
+  /** Other dates on the axis (a release, a contract end). */
+  marks?: TimelineMark[];
+  /** The text of the remaining-span label. Default is computed ("あと 1 年 3 か月"); false hides the span label (the bar stays). */
+  remaining?: string | false;
+  /** A spotlight target and a connect() endpoint. */
+  id?: string;
+}
+export interface TimelineBand extends TimelineOpts {
+  type: 'timeline';
 }
 
 // ============================================================================================
@@ -874,6 +943,7 @@ export interface SequenceBand {
   numbered?: boolean;
   id?: string;
   reveal?: number;
+  until?: number;
 }
 
 /** prepareSequence(): a step with its kind resolved, `text` = the (numbered) label, note.over always an array. */
@@ -938,6 +1008,7 @@ export interface TableBand {
   rowHeader?: boolean;
   id?: string;
   reveal?: number;
+  until?: number;
 }
 /** cellOf(): a cell with column defaults applied. */
 export interface ResolvedCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align}
@@ -999,6 +1070,7 @@ export interface SwimlaneBand {
   colGap?: number;
   id?: string;
   reveal?: number;
+  until?: number;
 }
 
 // ============================================================================================
@@ -1133,7 +1205,7 @@ export interface ScreensBand extends ScreensOpts {
 /** Every band the DSL constructors return. */
 export type Band =
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -1663,6 +1735,7 @@ export interface LaidOutSwimlane extends Rect {
   lanes: LaidOutLane[];
   id?: string;
   reveal?: number;
+  until?: number;
 }
 /** A swimlane step as laid out: a box that remembers its lane. */
 export interface LaidOutStep extends LaidOutBox {lane: string; row?: number; col: number; span: number}
@@ -1677,6 +1750,7 @@ export interface LaidOutSequence extends Rect {
   type: 'sequence';
   id?: string;
   reveal?: number;
+  until?: number;
   heads: LaidOutSeqHead[];
   steps: LaidOutSeqStep[];
   lifeTop: number;
@@ -1697,6 +1771,7 @@ export interface LaidOutTable extends Rect {
   /** The left column of the body rows is a row heading (see TableOpts.rowHeader). */
   rowHeader?: boolean;
   reveal?: number;
+  until?: number;
   /** font-size of the cell text at layout time (the smallest text of the table; fit.ts counts it). */
   bodySize: number;
 }
@@ -1727,6 +1802,7 @@ export interface LaidOutPlane extends Rect {
   type: 'plane';
   id?: string;
   reveal?: number;
+  until?: number;
   /** font-size of every text of the figure (its labelRole at layout time). */
   labelSize: number;
   /** The figure itself (the band is as wide as the page; the figure may be narrower and centred). */
@@ -1748,15 +1824,16 @@ export interface LaidOutPlane extends Rect {
   obstacles: (Rect & {what: string; dim?: number})[];
 }
 
-export interface BarRect extends Rect, Dimmed {fill: ColorKey; id?: string; reveal?: number}
+export interface BarRect extends Rect, Dimmed {fill: ColorKey; id?: string; reveal?: number; until?: number}
 /** `bar`: index into `bars` of the bar the label belongs to (none for tick labels), so spotlight can dim it with its bar. */
-export interface BarText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number; bar?: number}
+export interface BarText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number; until?: number; bar?: number}
 export interface LaidOutBars extends Rect, Dimmed {
   type: 'bars';
   id?: string;
   dir: 'h' | 'v';
   stack: boolean;
   reveal?: number;
+  until?: number;
   bars: BarRect[];
   ticks: {x1: number; y1: number; x2: number; y2: number}[];
   texts: BarText[];
@@ -1764,9 +1841,28 @@ export interface LaidOutBars extends Rect, Dimmed {
   anchors: Anchor[];
 }
 
+export interface TimelineText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: 'text' | 'muted' | 'accent' | 'danger'; bold: boolean}
+export interface LaidOutTimeline extends Rect, Dimmed {
+  type: 'timeline';
+  id?: string;
+  reveal?: number;
+  axis: {x1: number; x2: number; y: number};
+  /** The bar on the axis between now and the deadline (accent while the deadline is ahead, danger once past). */
+  span?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'; fill?: boolean};
+  /** deadline.line 'full': the vertical line through the figure. */
+  fullLine?: {x: number; y1: number; y2: number};
+  /** The bracket under the ticks that carries the remaining-span label. */
+  bracket?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'};
+  ticks: {x: number; y1: number; y2: number}[];
+  stems: {x: number; y1: number; y2: number; tone: 'accent' | 'danger' | 'muted'}[];
+  dots: {x: number; y: number; r: number; tone: 'accent' | 'danger' | 'muted'}[];
+  texts: TimelineText[];
+  labelBoxes: (Rect & {label: string})[];
+}
+
 export type LaidOutBand = (
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutPeople | LaidOutDots | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutPeople | LaidOutDots | LaidOutTimeline | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */
@@ -1796,9 +1892,13 @@ export interface LaidOutConnect extends Omit<ConnectBand, 'from' | 'to'> {
 export interface LaidOutDiagram extends DiagramData {
   laidOut: LaidOutBand[];
   canvasHeight: number;
+  /** The height the bands need, before diagram({canvas}) pads the canvas up to its fixed height. */
+  contentHeight?: number;
   connects: LaidOutConnect[];
   /** Set by build() when fill: true scaled the fonts. */
   fontScale?: number;
+  /** The font sizes the layout was made with; emit reads them from here, so a drawing always agrees with its layout. */
+  roles: Roles;
 }
 
 // ============================================================================================
@@ -1812,6 +1912,7 @@ export interface Finding {rule: string; severity: Severity; message: string}
 export interface LintTarget extends DiagramData {
   laidOut?: LaidOutBand[];
   connects?: LaidOutConnect[];
+  contentHeight?: number;
 }
 /** verifyDiagram() result: `problems` fail the build, `warnings` never do. */
 export interface Verdict {
@@ -1821,7 +1922,8 @@ export interface Verdict {
   findings: Finding[];
 }
 /** A checkable rect in verify.ts (id null when the band has none). */
-export interface CheckRect extends Rect {id: string | null; label: string}
+/** `life`: when it is on screen, if not always (a bar that another `replaces` shares its place with it). */
+export interface CheckRect extends Rect {id: string | null; label: string; life?: {reveal?: number; until?: number}}
 
 export interface FitReport {
   scale: number;

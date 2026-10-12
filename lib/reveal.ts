@@ -1,6 +1,6 @@
 import type {Band, DiagramData} from './types.ts';
 
-type Revealed = {reveal?: number; id?: string};
+type Revealed = {reveal?: number; until?: number; id?: string};
 
 function checked(value: number | undefined, where: string): number | undefined {
   if (value === undefined) return undefined;
@@ -8,18 +8,29 @@ function checked(value: number | undefined, where: string): number | undefined {
   return value;
 }
 
+// `until`: the click an element vanishes at (a group's until takes its children with it). It must come after the reveal it ends up with.
+const earlier = (a: number | undefined, b: number | undefined): number | undefined => a === undefined ? b : b === undefined ? a : Math.min(a, b);
+
 const level = (x: Revealed | undefined): number => x?.reveal ?? 0;
 const refId = (ref: string): string => ref.split(':')[0];
 
 /** Resolve inheritance once, before the one full layout shared by every stage. */
 export function prepareReveal(d: DiagramData): number {
   const ids = new Map<string, number>();
+  const untils = new Map<string, number>();
   const connects: Extract<Band, {type: 'connect'}>[] = [];
   let max = 0;
-  const set = (x: Revealed, inherited: number, where: string): number => {
+  const set = (x: Revealed, inherited: number, where: string, inheritedUntil?: number): number => {
     const own = checked(x.reveal, where) ?? 0;
     const n = Math.max(inherited, own);
     if (n) x.reveal = n;
+    const u = earlier(inheritedUntil, checked(x.until, `${where} (until)`));
+    if (u !== undefined) {
+      if (u <= n) throw new Error(`${where}: until ${u} must be later than its reveal ${n || '(shown from the start)'}`);
+      x.until = u;
+      max = Math.max(max, u);
+      if (x.id) untils.set(x.id, u);
+    }
     max = Math.max(max, n);
     if (x.id) ids.set(x.id, n);
     return n;
@@ -58,15 +69,16 @@ export function prepareReveal(d: DiagramData): number {
     for (const [i, d] of (p.dims ?? []).entries()) derived(d, [d.from, d.to], `plane() dim ${i + 1}`, `plane() dim "${d.label}"`);
     for (const [i, l] of (p.labels ?? []).entries()) derived(l, [], `plane() label ${i + 1}`, `plane() label "${l.text}"`);
   };
-  const walk = (bands: Band[], inherited = 0): void => {
+  const walk = (bands: Band[], inherited = 0, until?: number): void => {
     for (const b of bands) {
-      if (b.type === 'connect') { checked(b.reveal, 'connect()'); connects.push(b); continue; }
+      if (b.type === 'connect') { checked(b.reveal, 'connect()'); checked(b.until, 'connect() (until)'); connects.push(b); continue; }
       if (b.type === 'legend' || b.type === 'spacer') continue;
-      const n = set(b as Revealed, inherited, `${b.type}()`);
-      if (b.type === 'group') walk(b.children, n);
+      const n = set(b as Revealed, inherited, `${b.type}()`, until);
+      const u = (b as Revealed).until;
+      if (b.type === 'group') walk(b.children, n, u);
       else if (b.type === 'row' || b.type === 'grouprow') {
-        const childLevels = b.children.map((c, i) => set(c, n, `row() child ${i + 1}`));
-        b.children.forEach((c, i) => { if ('children' in c) walk(c.children, childLevels[i]); }); // a group in a grouprow
+        const childLevels = b.children.map((c, i) => set(c, n, `row() child ${i + 1}`, u));
+        b.children.forEach((c, i) => { if ('children' in c) walk(c.children, childLevels[i], c.until); }); // a group in a grouprow
         if (b.id) {
           if (b.cols) {
             let next = 1;
@@ -78,10 +90,20 @@ export function prepareReveal(d: DiagramData): number {
           } else childLevels.forEach((r, i) => ids.set(`${b.id}#${i + 1}`, r));
         }
       } else if (b.type === 'plane') planeElements(b, n);
-      else if (b.type === 'swimlane') b.steps.forEach((c, i) => set(c, n, `swimlane() step ${i + 1}`));
-      else if (b.type === 'grid') b.children.forEach((c, i) => set(c, n, `grid() child ${i + 1}`));
+      else if (b.type === 'swimlane') b.steps.forEach((c, i) => set(c, n, `swimlane() step ${i + 1}`, u));
+      else if (b.type === 'grid') b.children.forEach((c, i) => set(c, n, `grid() child ${i + 1}`, u));
       else if (b.type === 'bars') for (const [i, bar] of b.data.entries()) {
-        const r = set(bar, n, `bars() value ${i + 1}`);
+        if (bar.replaces !== undefined) {
+          if (b.stack) throw new Error(`bars() value ${i + 1}: replaces does not work with stack (the segments share one bar)`);
+          const old = b.data.slice(0, i).find(d => d.id === bar.replaces);
+          if (!old) throw new Error(`bars() value ${i + 1}: replaces "${bar.replaces}" must name the id of an earlier bar of the same band`);
+          if (bar.reveal === undefined) throw new Error(`bars() value ${i + 1}: a bar that replaces another needs a reveal (the click it takes the place at)`);
+          if (old.until !== undefined && old.until !== bar.reveal) throw new Error(`bars() value ${i + 1}: replaces "${bar.replaces}", which already vanishes at ${old.until}, not at this bar's reveal ${bar.reveal}`);
+          if (bar.reveal <= (old.reveal ?? 0)) throw new Error(`bars() value ${i + 1}: replaces "${bar.replaces}" but is revealed (${bar.reveal}) no later than it (${old.reveal ?? 0})`);
+          if (old.id) untils.set(old.id, bar.reveal);
+          old.until = bar.reveal; // the replaced bar goes at the very click its replacement comes
+        }
+        const r = set(bar, n, `bars() value ${i + 1}`, u);
         if (bar.id) ids.set(bar.id, r);
       }
     }
@@ -93,10 +115,18 @@ export function prepareReveal(d: DiagramData): number {
     if (explicit !== undefined && explicit < ends) warnings.push(`connect(${c.from} -> ${c.to}) reveal ${explicit} is earlier than an endpoint (reveal ${ends})`);
     c.reveal = explicit ?? (ends || undefined);
     max = Math.max(max, c.reveal ?? 0);
+    // a connector goes with the first of its ends to vanish
+    const gone = c.until ?? earlier(untils.get(refId(c.from)), untils.get(refId(c.to)));
+    if (gone !== undefined) {
+      if (gone <= (c.reveal ?? 0)) throw new Error(`connect(${c.from} -> ${c.to}): until ${gone} must be later than its reveal ${c.reveal ?? '(shown from the start)'} (an arrow between two things that are never on screen together has nothing to show)`);
+      c.until = gone;
+      max = Math.max(max, gone);
+    }
   }
   d.maxReveal = max;
   d.revealWarnings = warnings;
   return max;
 }
 
-export const visibleAt = (x: object & {reveal?: number}, stage: number | undefined): boolean => stage === undefined || (x.reveal ?? 0) <= stage;
+export const visibleAt = (x: object & {reveal?: number; until?: number}, stage: number | undefined): boolean =>
+  stage === undefined || ((x.reveal ?? 0) <= stage && (x.until === undefined || stage < x.until));

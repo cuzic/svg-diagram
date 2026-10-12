@@ -63,7 +63,10 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
   const result: RenderChecks = {contrast: [], overflow: null, textOverlap: [], containerOverflow: [], covered: []};
   const texts = items.filter(i => i.tag === 'text' && i.user && i.user.w > 0);
 
-  // 1. contrast: the colour behind a text's centre is white with every filled shape that holds the centre painted over it, in order
+  // a transparent diagram has no page rectangle: it is judged against the page colour it was drawn for (data-assumed-bg), else white
+  const am = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(root.attrs['data-assumed-bg'] ?? '');
+  const page: RGBA = am ? {r: parseInt(am[1], 16), g: parseInt(am[2], 16), b: parseInt(am[3], 16), a: 1} : {r: 255, g: 255, b: 255, a: 1};
+  // 1. contrast: the colour behind a text's centre is the page colour with every filled shape that holds the centre painted over it, in order
   const shapes = items.filter(i => ['rect', 'circle', 'ellipse', 'polygon', 'path'].includes(i.tag) && i.user && i.style.fill !== 'none')
     .map(i => { const c = parseColor(i.style.fill, i.style.color); return c ? {box: i.user!, c: {...c, a: c.a * i.style.fillOpacity * i.style.opacity}} : null; })
     .filter((x): x is {box: Box; c: RGBA} => x !== null);
@@ -71,7 +74,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
     const txt = textOf(t.el).trim();
     if (!txt) continue;
     const b = t.user!, cx = b.x + b.w / 2, cy = b.y + b.h / 2;
-    let bg: RGBA = {r: 255, g: 255, b: 255, a: 1};
+    let bg: RGBA = page;
     for (const s of shapes) if (cx >= s.box.x && cx <= s.box.x + s.box.w && cy >= s.box.y && cy <= s.box.y + s.box.h) bg = over(s.c, bg);
     // a tspan with a colour of its own is judged on its own (against the text's box, as the centre of a word is no nearer than that)
     const groups = colourGroups(t.el, styles);

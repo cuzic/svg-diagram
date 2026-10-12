@@ -5,13 +5,13 @@
 // Same geometry as the SVG: layout.ts has already broken every text into lines and placed each baseline, so a line is one element
 // with white-space: pre — the browser never re-wraps it. A line's top is its baseline minus the font's ascent (its line-height is
 // ascent + descent), which is how the baseline lands where the <text> of the SVG puts it.
-import {PALETTE, FONT_STACKS, ROLES, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle} from './tokens.ts';
+import {PALETTE, FONT_STACKS, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle, recolor} from './tokens.ts';
 import {textBox} from './font-metrics.ts';
 import {emitSvg, resolveBoxStyle} from './emit.ts';
 import {shapesToCss} from './svg-to-css.ts';
 import {visibleAt} from './reveal.ts';
 import {BOX_PAD_X, BOX_PAD_Y} from './layout.ts';
-import type {LaidOutTable, LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutBanner, LaidOutCaption, LaidOutGroup, WrappedRun, Theme, Align, EmphasisTone, Rect, Span} from './types.ts';
+import type {LaidOutTable, LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutBanner, LaidOutCaption, LaidOutGroup, WrappedRun, Theme, Align, EmphasisTone, Rect, Span, Roles} from './types.ts';
 
 // like SVG text, runs of white space are one space
 const collapse = (s: string): string => s.replace(/\s+/g, ' ');
@@ -93,7 +93,7 @@ function lineDiv(o: {left: number; baseline: number; width: number; align: Align
 
 // A real <table> (header cells are <th>, so assistive technology reads rows and columns) with fixed column widths and row heights;
 // the text of a cell is pre-broken lines placed over its box. Rounded corners come from a clipping wrapper, the outline from an overlay.
-function table(b: LaidOutTable, day: Theme): string {
+function table(b: LaidOutTable, day: Theme, roles: Roles): string {
   const R = 8, LH = 1.4;
   const first = b.rows[0];
   const y0 = first.y, y1 = b.rows[b.rows.length - 1].y + b.rows[b.rows.length - 1].h;
@@ -119,7 +119,7 @@ function table(b: LaidOutTable, day: Theme): string {
     return `<tr style="height:${px(row.h)};background:${bg};${i > 0 || b.titleBar ? `border-top:${rule};` : ''}">${cells}</tr>`;
   }).join('');
   const title = b.titleBar
-    ? `<div class="sd-tb" style="left:${px(b.x)};top:${px(b.titleBar.y)};width:${px(b.w)};height:${px(b.titleBar.h)};background:${PALETTE[day].accent}">${b.titleBar.lines.map((l, k) => lineDiv({left: 12, baseline: 8 + ROLES.title + k * ROLES.title * LH, width: b.w - 24, align: 'left', size: ROLES.title, weight: 700, mono: false, color: PALETTE.bg, html: esc(l)})).join('')}</div>`
+    ? `<div class="sd-tb" style="left:${px(b.x)};top:${px(b.titleBar.y)};width:${px(b.w)};height:${px(b.titleBar.h)};background:${PALETTE[day].accent}">${b.titleBar.lines.map((l, k) => lineDiv({left: 12, baseline: 8 + roles.title + k * roles.title * LH, width: b.w - 24, align: 'left', size: roles.title, weight: 700, mono: false, color: PALETTE.bg, html: esc(l)})).join('')}</div>`
     : '';
     return `<div class="sd-tbl" style="left:${px(b.x)};top:${px(y0)};width:${px(b.w)};height:${px(y1 - y0)}${b.titleBar ? ';border-radius:0 0 8px 8px' : ''}"><table style="width:${px(b.w)}"><colgroup>${cols}</colgroup><tbody>${rows}</tbody></table></div>${title}<div class="sd-b" style="left:${px(b.x - 1.25)};top:${px(b.y - 1.25)};width:${px(b.w + 2.5)};height:${px(b.h + 2.5)};box-shadow:inset 0 0 0 2.5px ${PALETTE.text};border-radius:${R + 1.25}px"></div>`;
 }
@@ -139,9 +139,9 @@ function native(b: LaidOutBand): boolean {
   }
 }
 
-function render(b: LaidOutBand, day: Theme, stage?: number): string {
+function render(b: LaidOutBand, day: Theme, roles: Roles, stage?: number): string {
   switch (b.type) {
-    case 'table': return table(b, day);
+    case 'table': return table(b, day, roles);
     case 'row': case 'grid': return b.children.filter(c => visibleAt(c, stage)).map(c => box(c, day)).join('');
     case 'caption': return caption(b, day);
     case 'box': return box(b, day);
@@ -175,8 +175,8 @@ function textsToHtml(svg: string): {svg: string; html: string} {
   return {svg: rest, html: out.join('')};
 }
 
-const CSS = (id: string) => `
-#${id} { position: relative; overflow: hidden; background: ${PALETTE.bg}; font-family: ${FONT_STACKS.sans}; }
+const CSS = (id: string, transparent = false) => `
+#${id} { position: relative; overflow: hidden; background: ${transparent ? 'transparent' : PALETTE.bg}; font-family: ${FONT_STACKS.sans}; }
 #${id} .sd-b { position: absolute; box-sizing: border-box; border-radius: 9.25px; }
 #${id} .sd-t { position: absolute; white-space: pre; }
 #${id} .sd-m { font-family: ${FONT_STACKS.mono}; }
@@ -201,7 +201,7 @@ export function emitHtml(d: LaidOutDiagram, opts: {reveal?: number; id?: string}
   const {width, canvasHeight, day} = d;
   const id = opts.id ?? `sd-${++counter}`;
   const visible = d.laidOut.filter(b => visibleAt(b, opts.reveal));
-  const html = visible.filter(native).map(b => render(b, day, opts.reveal)).join('');
+  const html = visible.filter(native).map(b => render(b, day, d.roles, opts.reveal)).join('');
   // the rest, plus every connector, is the SVG the other emitter draws: same function, minus the white background and the native bands
   // raw() is the author's own SVG (transforms, anything): it stays whole. Every other part keeps its shapes as SVG and gives its words to HTML.
   const strip = (svg: string, cls: string) => svg
@@ -212,9 +212,9 @@ export function emitHtml(d: LaidOutDiagram, opts: {reveal?: number; id?: string}
   const rest = visible.filter(b => !native(b) && b.type !== 'raw'), raws = visible.filter(b => b.type === 'raw');
   let overlay = '', words = '';
   if (rest.length || d.connects.length) {
-    const t = textsToHtml(strip(emitSvg({...d, laidOut: rest}, {reveal: opts.reveal}), 'sd-ov'));
+    const t = textsToHtml(strip(emitSvg({...d, laidOut: rest}, {reveal: opts.reveal, noRecolor: true}), 'sd-ov'));
     overlay = shapesToCss(t.svg, 'sd-ov'); words = t.html;
   }
-  if (raws.length) overlay += strip(emitSvg({...d, laidOut: raws, connects: []}, {reveal: opts.reveal}), 'sd-ov sd-raw');
-  return `<style>${CSS(id)}\n</style>\n<div id="${id}" class="sd" style="width:${px(width)};height:${px(canvasHeight)}">${html}${overlay}${words}</div>\n`;
+  if (raws.length) overlay += strip(emitSvg({...d, laidOut: raws, connects: []}, {reveal: opts.reveal, noRecolor: true}), 'sd-ov sd-raw');
+  return recolor(`<style>${CSS(id, d.transparent)}\n</style>\n<div id="${id}" class="sd" style="width:${px(width)};height:${px(canvasHeight)}">${html}${overlay}${words}</div>\n`, d.appearance);
 }

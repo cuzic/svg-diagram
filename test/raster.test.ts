@@ -293,6 +293,11 @@ test('an emoji brings the emoji font in, and needs no system fonts', {skip: have
   assert.equal(o.loadSystemFonts, false);
 });
 
+test('an emoji variation selector or joiner (no glyph of its own) does not make resvg scan the system fonts', {skip: haveEmojiFont ? false : 'needs an emoji font of its own'}, () => {
+  const o = fontsFor(text('\u{2615}\u{FE0F} a\u{200D}b'));
+  assert.equal(o.loadSystemFonts, false);
+});
+
 test('Japanese is drawn when the layout\'s fonts have none (a glyph from a system font, not just an empty box)', {skip: haveDejavu && haveFont ? false : 'needs DejaVu Sans and a Japanese font on the system'}, async () => {
   const withFallback = await rasterizeWithResvg(text('在庫管理'), {fonts: latinOnly});
   const own = await rasterizeWithResvg(text('在庫管理'));
