@@ -11,7 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import {wf} from './wireframe.ts';
 import {assertIconName} from './icons.ts';
-import {layoutDiagram} from './layout.ts';
+import {collectMeasures, layoutWith, widthOfMeasured} from './layout.ts';
 import {emitSvg} from './emit.ts';
 import {emitHtml} from './emit-html.ts';
 import {xmlProblems} from './xml-check.ts';
@@ -19,13 +19,13 @@ import {verifyDiagram} from './verify.ts';
 import {applyAutoLegend, walkBands} from './rules.ts';
 import {analyzeFit} from './fit.ts';
 import {getSlideBudget, readSlideBudgetCache} from './slide-budget.ts';
-import {closeMeasurer} from './measure.ts';
+import {closeMeasurer, measureAll} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
-import {MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone} from './tokens.ts';
+import {MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
-  Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -164,11 +164,9 @@ function assertTextRole(role: string | undefined, allowed: readonly string[], wh
  * The usual roles (a stat({size: 'display'}) included) are not held back, so a diagram without these options scales as before.
  */
 export function fillScaleLimit(bands: Band[]): number {
-  const optIn = walkBands(bands).flatMap(b => b.type === 'banner' && b.headlineRole ? [baseRoles(b.headlineRole)] : (b.type === 'bars' || b.type === 'plane') && b.labelRole ? [baseRoles(b.labelRole)] : []);
+  const optIn = walkBands(bands).flatMap(b => b.type === 'banner' && b.headlineRole ? [ROLES[b.headlineRole]] : (b.type === 'bars' || b.type === 'plane') && b.labelRole ? [ROLES[b.labelRole]] : []);
   return Math.min(1.8, optIn.length ? OPT_IN_TEXT_MAX / Math.max(...optIn) : 1.8);
 }
-const BASE_ROLES: Record<Role, number> = {...ROLES};
-const baseRoles = (r: Role): number => BASE_ROLES[r];
 
 let boxSizeWarned = false;
 /** box({size}) is read by neither layout nor emit; said once per process, and a later version throws. */
@@ -814,7 +812,8 @@ export async function build(d: Diagram, outPath: string, opts: {lint?: boolean; 
 // `verdict` and `xml`, so build() can refuse to write while `svg-diagram show` can still draw the picture and say what is wrong.
 // (A define()/constructor/layout error still throws.) budget: 'measure' measures a slide that has no cached budget (starts the
 // dev server, writes the cache); 'cacheOnly' reads the cache and falls back to the default sizes with a note.
-export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'measure' | 'cacheOnly'; html?: boolean}): Promise<RenderResult> {
+export async function renderDiagram(input: Diagram, opts: {name: string; budget: 'measure' | 'cacheOnly'; html?: boolean}): Promise<RenderResult> {
+  const d = detach(input); // the passes below write into bands (reveal, legend items) and into d (width, ...): never into the caller's
   const maxReveal = prepareReveal(d);
   applyAutoLegend(d);
   const notes: string[] = [];
@@ -845,10 +844,12 @@ export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'me
   let fontScale = 1;
   let laidOut: LaidOutDiagram;
   let verdict: Verdict, svg: string, html: string | undefined;
-  const baseRoles = {...ROLES};
-  const applyScale = (s: number) => { for (const k of Object.keys(baseRoles) as Role[]) ROLES[k] = Math.round(baseRoles[k] * s); };
-  const layoutAt = (s: number) => { applyScale(s); return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}); };
-  try {
+  // Every scale is its own value (scaleRoles): measured with, laid out with and drawn with the same roles, which travel in the result.
+  const layoutAt = async (s: number): Promise<LaidOutDiagram> => {
+    const roles = scaleRoles(ROLES, s);
+    return layoutMeasured({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}, roles);
+  };
+  {
     if (d.fill && budget) {
       d.width = budget.contentWidth;
       let lo = 1, hi = fillScaleLimit(d.bands);
@@ -865,21 +866,35 @@ export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'me
     laidOut = await layoutAt(fontScale);
     laidOut.fontScale = fontScale;
     applySpotlight(laidOut);
-    // emit.ts reads ROLES while it draws, so the verdict and the SVG are made at the scale the layout was made at
     verdict = verifyDiagram(laidOut);
     svg = emitSvg(laidOut, maxReveal ? {reveal: maxReveal} : {});
     if (opts.html) html = emitHtml(laidOut, maxReveal ? {reveal: maxReveal} : {});
-  } finally {
-    applyScale(1);
   }
   return {svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml: xmlProblems(svg), notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget, budgetSource, fontScale: laidOut.fontScale};
 }
 
+/** The one await of a layout: measure what collectMeasures asked for, then lay out synchronously. */
+async function layoutMeasured(d: DiagramData, roles: Roles): Promise<LaidOutDiagram> {
+  return layoutWith(d, roles, widthOfMeasured(await measureAll(collectMeasures(d, roles))));
+}
+
+/** What the passes may write into: the bands are copied, so a band shared by two diagrams (or drawn twice) is never changed by a render. */
+function detach<D extends DiagramData>(d: D): D {
+  return {...d, bands: cloneData(d.bands)};
+}
+/** A deep copy of plain data: arrays and plain objects are copied, anything else (a raw() band's function, a string) is shared. (structuredClone throws on raw()'s function.) Non-enumerable handles are not copied; nothing downstream reads them. */
+function cloneData<T>(v: T): T {
+  if (Array.isArray(v)) return v.map(cloneData) as T;
+  if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, cloneData(x)])) as T;
+  return v;
+}
+
 // Layout + verification + rules, without writing any file: the engine behind `svg-diagram check`.
-export async function checkDiagram(d: DiagramData): Promise<CheckResult> {
+export async function checkDiagram(input: DiagramData): Promise<CheckResult> {
+  const d = detach(input);
   prepareReveal(d);
   applyAutoLegend(d);
-  const laidOut = await layoutDiagram(d);
+  const laidOut = await layoutMeasured(d, ROLES);
   applySpotlight(laidOut);
   return {laidOut, verdict: verifyDiagram(laidOut)};
 }

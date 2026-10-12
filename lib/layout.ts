@@ -23,7 +23,7 @@ import {layoutPlane, planeTexts} from './plane.ts';
 import {barsTexts, layoutBars} from './bars.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {
-  DiagramData, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
+  DiagramData, Roles, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
   LaidOutSwimlane, LaidOutPyramidLayer, LaidOutRow, RowArrow, Band, CaptionBand, BoxBand, BannerBand, RowBand, GridBand, GroupBand,
   ConnectBand, ConnectRef, Bend, BoxChrome, TextRun, WrappedRun, WidthOf, FontFamily, FontWeight, MeasureRequest, Point, Rect, Side, Span, TextTone,
 } from './types.ts';
@@ -64,25 +64,25 @@ function withSpans(run: TextRun, spans: Span[] | undefined): TextRun {
   return {...run, spans};
 }
 
-function textRuns(band: Band): TextRun[] {
+function textRuns(band: Band, roles: Roles): TextRun[] {
   switch (band.type) {
     case 'caption':
-      return [withSpans({text: band.text, size: ROLES[band.role ?? 'label'], weight: band.bold ? 700 : 400, mono: !!band.mono, tone: band.tone}, band.spans?.text)];
+      return [withSpans({text: band.text, size: roles[band.role ?? 'label'], weight: band.bold ? 700 : 400, mono: !!band.mono, tone: band.tone}, band.spans?.text)];
     case 'banner': {
-      const runs: TextRun[] = [withSpans({text: band.headline, size: ROLES[band.headlineRole ?? 'banner'], weight: 700, mono: false, tone: band.headlineTone}, band.spans?.headline)];
-      if (band.sub) runs.push(withSpans({text: band.sub, size: ROLES.note, weight: 400, mono: false, tone: band.subTone ?? (isSolidTone(band.tone) ? undefined : 'muted')}, band.spans?.sub));
+      const runs: TextRun[] = [withSpans({text: band.headline, size: roles[band.headlineRole ?? 'banner'], weight: 700, mono: false, tone: band.headlineTone}, band.spans?.headline)];
+      if (band.sub) runs.push(withSpans({text: band.sub, size: roles.note, weight: 400, mono: false, tone: band.subTone ?? (isSolidTone(band.tone) ? undefined : 'muted')}, band.spans?.sub));
       return runs;
     }
     case 'box': {
       const runs: TextRun[] = [];
       const iconIndent = band.icon ? {indent: ICON_INDENT} : {}; // (spread, so a box without an icon gets no new field)
-      if (band.title) runs.push(withSpans({text: band.title, size: ROLES.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: band.step != null ? STEP_INDENT : band.icon ? ICON_INDENT : 0}, band.spans?.title));
-      if (band.body) runs.push(withSpans({text: band.body, size: ROLES.body, weight: 400, mono: !!band.bodyMono, tone: band.bodyTone, ...iconIndent}, band.spans?.body));
+      if (band.title) runs.push(withSpans({text: band.title, size: roles.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: band.step != null ? STEP_INDENT : band.icon ? ICON_INDENT : 0}, band.spans?.title));
+      if (band.body) runs.push(withSpans({text: band.body, size: roles.body, weight: 400, mono: !!band.bodyMono, tone: band.bodyTone, ...iconIndent}, band.spans?.body));
       if (band.lines) for (const l of band.lines) {
         const line: Exclude<typeof l, string> = typeof l === 'string' ? {text: l} : l;
-        runs.push(withSpans({text: line.text, size: ROLES[line.role ?? 'body'], weight: line.bold ? 700 : 400, mono: !!line.mono, tone: line.tone, nowrap: band.statValue === line.text && runs.length === 0, ...iconIndent}, line.spans));
+        runs.push(withSpans({text: line.text, size: roles[line.role ?? 'body'], weight: line.bold ? 700 : 400, mono: !!line.mono, tone: line.tone, nowrap: band.statValue === line.text && runs.length === 0, ...iconIndent}, line.spans));
       }
-      if (band.note) runs.push(withSpans({text: band.note, size: ROLES.note, weight: 400, mono: false, tone: band.noteTone ?? (isSolidTone(band.tone) ? undefined : 'muted'), ...iconIndent}, band.spans?.note));
+      if (band.note) runs.push(withSpans({text: band.note, size: roles.note, weight: 400, mono: false, tone: band.noteTone ?? (isSolidTone(band.tone) ? undefined : 'muted'), ...iconIndent}, band.spans?.note));
       return runs;
     }
     default:
@@ -144,7 +144,7 @@ function lineWidth(widthOf: WidthOf, run: WrappedRun, i: number): number {
 // computed structurally.
 const TAG_H = 24, TAG_PAD_X = 8;
 const STAMP_H = 24, STAMP_GAP = 6, STAMP_PAD_X = 6; // the stamp chip and the strip reserved for it under the content
-export const stampChipW = (widthOf: WidthOf, text: string): number => textWidth(widthOf, text, ROLES.note, 400) + 2 * STAMP_PAD_X;
+export const stampChipW = (widthOf: WidthOf, text: string, roles: Roles): number => textWidth(widthOf, text, roles.note, 400) + 2 * STAMP_PAD_X;
 export const LEGEND_SWATCH_W = 36, LEGEND_ITEM_GAP = 28, LEGEND_ROW_H = 24;
 
 function registerAtoms(requests: Requests, text: string, size: number, weight: number, font: FontFamily = 'sans') {
@@ -159,10 +159,10 @@ function groupTitleBand(band: GroupBand): CaptionBand {
   return {type: 'caption', text: band.title as string, ...(band.spans?.title ? {spans: {text: band.spans.title}} : {}), align: band.titleAlign ?? 'left', role: 'title', bold: true, tone: band.titleTone ?? (band.tone === 'accent' ? 'accent' : 'text'), mono: false};
 }
 
-function registerRequests(requests: Requests, band: Band) {
+function registerRequests(requests: Requests, band: Band, roles: Roles) {
   if ('tag' in band && band.tag) registerAtoms(requests, band.tag, TAG_SIZE, 700);
-  if ('stamp' in band && band.stamp) registerAtoms(requests, band.stamp, ROLES.note, 400);
-  for (const run of textRuns(band)) {
+  if ('stamp' in band && band.stamp) registerAtoms(requests, band.stamp, roles.note, 400);
+  for (const run of textRuns(band, roles)) {
     const font = run.mono ? 'mono' : 'sans';
     for (const {text, weight} of styledAtoms(run)) {
       const key = `${text} ${run.size} ${weight} ${font}`;
@@ -173,9 +173,9 @@ function registerRequests(requests: Requests, band: Band) {
 
 // Wraps a box-like band's text runs at `wrapWidth` (content width, i.e.
 // already excluding BOX_PAD_X*2) and returns {wrappedRuns, textHeight}.
-function layoutBoxContent(band: Band, wrapWidth: number, widthOf: WidthOf): {wrappedRuns: WrappedRun[]; textHeight: number} {
+function layoutBoxContent(band: Band, wrapWidth: number, widthOf: WidthOf, roles: Roles): {wrappedRuns: WrappedRun[]; textHeight: number} {
   let relY = 0;
-  const wrappedRuns = textRuns(band).map((run): WrappedRun => {
+  const wrappedRuns = textRuns(band, roles).map((run): WrappedRun => {
     const font = run.mono ? 'mono' : 'sans';
     const indent = run.indent ?? 0;
     const atomLines = run.nowrap ? null : wrapStyledAtoms(styledAtoms(run), {maxWidth: wrapWidth - indent, atomWidth: a => widthOf(a.text, run.size, a.weight, font)});
@@ -249,32 +249,30 @@ function gridChildGeometry(band: GridBand, contentWidth: number) {
   return {cellWidth};
 }
 
-export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
-  const contentWidth = d.width - 2 * d.pad;
-
-  // ---- pass 1: register + measure every atom this diagram needs, once ----
+/** Pass 1: every atom this diagram needs measured, at the font sizes of `roles`. Pure: no measuring happens here. */
+export function collectMeasures(d: DiagramData, roles: Roles): Requests {
   const requests: Requests = new Map();
   const registerBand = (band: Band): void => {
     if (band.type === 'group') {
-      if (band.stamp) registerAtoms(requests, band.stamp, ROLES.note, 400);
-      if (band.title) registerRequests(requests, groupTitleBand(band));
+      if (band.stamp) registerAtoms(requests, band.stamp, roles.note, 400);
+      if (band.title) registerRequests(requests, groupTitleBand(band), roles);
       for (const child of band.children) registerBand(child);
     } else if (band.type === 'swimlane') {
-      for (const l of band.lanes) registerAtoms(requests, l.label, ROLES.title, 700);
-      for (const p of band.phases ?? []) registerAtoms(requests, p.label, ROLES.note, 700);
-      for (const st of band.steps) registerRequests(requests, st);
+      for (const l of band.lanes) registerAtoms(requests, l.label, roles.title, 700);
+      for (const p of band.phases ?? []) registerAtoms(requests, p.label, roles.note, 700);
+      for (const st of band.steps) registerRequests(requests, st, roles);
     } else if (band.type === 'sequence' || band.type === 'table') {
-      for (const [text, size, weight, font] of collectTextRequests(band)) registerAtoms(requests, text, size, weight, font);
+      for (const [text, size, weight, font] of collectTextRequests(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'wireframe' || band.type === 'screens') {
       for (const [text, size, weight, font] of wfTextRequests(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'legend') {
-      for (const item of band.items) registerAtoms(requests, item.label, ROLES.note, 400);
+      for (const item of band.items) registerAtoms(requests, item.label, roles.note, 400);
     } else if (band.type === 'grouprow') {
       for (const child of band.children) registerBand(child);
     } else if (band.type === 'row') {
-      for (const child of band.children) registerRequests(requests, child);
+      for (const child of band.children) registerRequests(requests, child, roles);
     } else if (band.type === 'grid') {
-      for (const child of band.children) registerRequests(requests, child);
+      for (const child of band.children) registerRequests(requests, child, roles);
     } else if (band.type === 'connect' && band.label) {
       // connect() labels are single-line, always the 'note' role at plain
       // weight (see emit.ts's renderConnect) — registered here so their
@@ -284,34 +282,49 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     } else if (band.type === 'pyramid') {
       for (const layer of band.layers) {
         for (const atom of splitAtoms(layer.text)) {
-          const key = `${atom} ${ROLES.title} 700 sans`;
-          if (!requests.has(key)) requests.set(key, {text: atom, size: ROLES.title, weight: 700, font: 'sans'});
+          const key = `${atom} ${roles.title} 700 sans`;
+          if (!requests.has(key)) requests.set(key, {text: atom, size: roles.title, weight: 700, font: 'sans'});
         }
       }
     } else if (band.type === 'plane') {
-      for (const [text, size, weight, font] of planeTexts(band)) registerAtoms(requests, text, size, weight, font);
+      for (const [text, size, weight, font] of planeTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'bars') {
-      for (const [text, size, weight, font] of barsTexts(band)) registerAtoms(requests, text, size, weight, font);
+      for (const [text, size, weight, font] of barsTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'curve') {
       for (const label of [band.yTopLabel, band.yBottomLabel, band.xLabel]) {
         if (!label) continue;
         for (const atom of splitAtoms(label)) {
-          const key = `${atom} ${ROLES.note} 400 sans`;
-          if (!requests.has(key)) requests.set(key, {text: atom, size: ROLES.note, weight: 400, font: 'sans'});
+          const key = `${atom} ${roles.note} 400 sans`;
+          if (!requests.has(key)) requests.set(key, {text: atom, size: roles.note, weight: 400, font: 'sans'});
         }
       }
     } else {
-      registerRequests(requests, band);
+      registerRequests(requests, band, roles);
     }
   };
   for (const band of d.bands) registerBand(band);
-  const measured = await measureAll(requests);
-  const widthOf: WidthOf = (atom, size, weight, font) => {
+  return requests;
+}
+
+/** The width lookup over what measureAll(collectMeasures(...)) returned. */
+export function widthOfMeasured(measured: Awaited<ReturnType<typeof measureAll>>): WidthOf {
+  return (atom, size, weight, font) => {
     const m = measured.get(`${atom} ${size} ${weight} ${font}`);
     if (m) return m.w;
     if (strictWidths()) throw new Error(`layout: "${atom}" (${size}px, ${weight}, ${font}) was not registered for measuring, so its width would be 0 (SVG_DIAGRAM_STRICT_WIDTH is set)`);
     return 0;
   };
+}
+
+/** Measure then lay out. `roles` (default ROLES) is baked into the result as LaidOutDiagram.roles. */
+export async function layoutDiagram(d: DiagramData, opts: {roles?: Roles} = {}): Promise<LaidOutDiagram> {
+  const roles = opts.roles ?? ROLES;
+  return layoutWith(d, roles, widthOfMeasured(await measureAll(collectMeasures(d, roles))));
+}
+
+/** Pass 2, synchronous: lay the diagram out with the widths already measured. */
+export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
+  const contentWidth = d.width - 2 * d.pad;
 
   // A labelled straight connector between two side-by-side children (right side -> left side) needs room in the gap
   // between them: a label wider than the gap lands on both boxes, or straddles the groups' frame lines. The row's gap grows to fit it.
@@ -389,11 +402,11 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
   const placeBoxLike = <B extends CaptionBand | BoxBand | BannerBand>(band: B, x: number, y: number, w: number, isBoxLike: boolean): Placed<B> => {
     const chrome = band as BoxChrome; // caption has no padX / padY / tag / id: they read as undefined (its `tone` is a TextTone, unused here)
     const wrapWidth = isBoxLike ? w - 2 * (chrome.padX ?? BOX_PAD_X) : w;
-    const content = layoutBoxContent(band, wrapWidth, widthOf);
+    const content = layoutBoxContent(band, wrapWidth, widthOf, roles);
     const {wrappedRuns} = content;
     const textHeight = band.type === 'box' && band.icon ? Math.max(content.textHeight, ICON_H) : content.textHeight;
     const stamp = isBoxLike ? chrome.stamp : undefined;
-    const stampW = stamp ? stampChipW(widthOf, stamp) : undefined;
+    const stampW = stamp ? stampChipW(widthOf, stamp, roles) : undefined;
     if (stampW !== undefined && stampW > w - 16) throw new Error(`stamp "${stamp}" is wider than its box (${Math.round(w)}px): shorten it or widen the box`);
     const h = (isBoxLike ? textHeight + 2 * (chrome.padY ?? BOX_PAD_Y) : textHeight) + (stamp ? STAMP_H + STAMP_GAP : 0);
     const placed = {...band, x, y, w, h, wrappedRuns} as unknown as Placed<B>; // spreading a generic loses the intersection
@@ -433,7 +446,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       cursorY = cursorY - d.gap + gp;
       if (band.stamp) {
         frame.stamp = band.stamp;
-        frame.stampW = stampChipW(widthOf, band.stamp);
+        frame.stampW = stampChipW(widthOf, band.stamp, roles);
         if (frame.stampW > cw - 16) throw new Error(`stamp "${band.stamp}" is wider than its group (${Math.round(cw)}px): shorten it or widen the group`);
         cursorY += STAMP_H + STAMP_GAP;
       }
@@ -447,7 +460,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     }
 
     if (band.type === 'sequence' || band.type === 'table') {
-      const placed = band.type === 'sequence' ? layoutSequence(band, padX, cursorY, cw, widthOf) : layoutTable(band, padX, cursorY, cw, widthOf);
+      const placed = band.type === 'sequence' ? layoutSequence(band, padX, cursorY, cw, widthOf, roles) : layoutTable(band, padX, cursorY, cw, widthOf, roles);
       if (band.id) anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
       laidOut.push(placed);
       cursorY += placed.h + d.gap;
@@ -455,7 +468,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     }
 
     if (band.type === 'bars') {
-      const placed = layoutBars(band, padX, cursorY, cw, widthOf);
+      const placed = layoutBars(band, padX, cursorY, cw, widthOf, roles);
       if (band.id) {
         if (anchors.has(band.id)) claimed(band.id, 'a bars band takes an id that another anchor already has');
         anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
@@ -489,8 +502,8 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       const phases = (band.phases ?? []).map((ph): LaidOutPhase => {
         const x = bodyX + padX2 + (ph.from - 1) * (colW + colGap) - colGap / 2;
         const w = (ph.to - ph.from + 1) * (colW + colGap);
-        const lines = wrapLines(ph.label, ROLES.note, 700, w - 16);
-        phaseH = Math.max(phaseH, lines.length * ROLES.note * LINE_HEIGHT_EM + 16);
+        const lines = wrapLines(ph.label, roles.note, 700, w - 16);
+        phaseH = Math.max(phaseH, lines.length * roles.note * LINE_HEIGHT_EM + 16);
         return {x, w, lines};
       });
       // steps first at y=0 (heights depend on wrapping), then lanes get the tallest step
@@ -503,8 +516,8 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       const rowGap = 12;
       let y = startY + phaseH;
       const lanes = band.lanes.map((lane, i): LaidOutLane => {
-        const labelLines = wrapLines(lane.label, ROLES.title, 700, labelW - 24);
-        const labelH = labelLines.length * ROLES.title * LINE_HEIGHT_EM;
+        const labelLines = wrapLines(lane.label, roles.title, 700, labelW - 24);
+        const labelH = labelLines.length * roles.title * LINE_HEIGHT_EM;
         const mine = stepsPlaced.filter(s => laneIndex.get(s.lane) === i);
         const maxStep = Math.max(0, ...mine.map(s => s.h));
         const rows = 1 + Math.max(0, ...mine.map(s => s.row ?? 0));
@@ -533,7 +546,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
 
     if (band.type === 'legend') {
       const items = band.items.map(item => {
-        const tw = textWidth(widthOf, item.label, ROLES.note, 400);
+        const tw = textWidth(widthOf, item.label, roles.note, 400);
         return {...item, textW: tw, w: LEGEND_SWATCH_W + 8 + tw};
       });
       const rows: (typeof items)[] = [[]];
@@ -704,11 +717,11 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
         // conservative since the layer is only wider than that going down,
         // so the label can never spill past the trapezoid's slanted sides.
         const wrapWidth = Math.max(40, topW - 24);
-        const atomW = (atom: string) => widthOf(atom, ROLES.title, 700, 'sans');
+        const atomW = (atom: string) => widthOf(atom, roles.title, 700, 'sans');
         const lines = wrapAtoms(splitAtoms(band.layers[i].text), {maxWidth: wrapWidth, atomWidth: atomW});
         const midY = (topY + bottomY) / 2;
-        const lineGap = ROLES.title * LINE_HEIGHT_EM;
-        const textYs = lines.map((_, li) => Math.round(midY + (li - (lines.length - 1) / 2) * lineGap + ROLES.title * 0.35));
+        const lineGap = roles.title * LINE_HEIGHT_EM;
+        const textYs = lines.map((_, li) => Math.round(midY + (li - (lines.length - 1) / 2) * lineGap + roles.title * 0.35));
         layersOut.push({
           points: [[cx - bottomW / 2, bottomY], [cx + bottomW / 2, bottomY], [cx + topW / 2, topY], [cx - topW / 2, topY]],
           opacity, textColor, lines, textYs, cx,
@@ -720,7 +733,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     }
 
     if (band.type === 'plane') {
-      const placed = layoutPlane(band, padX, cursorY, cw, widthOf);
+      const placed = layoutPlane(band, padX, cursorY, cw, widthOf, roles);
       if (band.id) {
         if (anchors.has(band.id)) claimed(band.id, 'a plane takes an id that another anchor already has');
         anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
@@ -767,7 +780,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
 
   const canvasHeight = Math.round(cursorY - d.gap + d.pad);
 
-  return {...d, laidOut, canvasHeight, connects};
+  return {...d, laidOut, canvasHeight, connects, roles};
 }
 
 // 'id', 'id:side', or 'id:side@t' — t (0..1) slides the anchor along that side

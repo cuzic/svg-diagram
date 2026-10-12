@@ -4,6 +4,7 @@ import {bars, box, checkDiagram, closeMeasurer, connect, diagram, group, renderD
 import type {LaidOutRow} from '../lib/dsl.ts';
 import {applySpotlight as applySpot} from '../lib/spotlight.ts';
 import {emitSvg} from '../lib/emit.ts';
+import {layoutDiagram} from '../lib/layout.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import {ROLES} from '../lib/tokens.ts';
 
@@ -152,13 +153,9 @@ test('a swimlane id is an anchor: connectable, and a duplicate is rejected', asy
 });
 
 test('sequence text is measured and drawn at the same (filled) size', async () => {
-  const base = ROLES.note;
-  try {
-    ROLES.note = 25;
-    const {svg} = await render(diagram({theme: 'blue'}).add(sequence([{id: 'a', label: 'A'}, {id: 'b', label: 'B'}], [{from: 'a', to: 'b', label: 'request message'}])), 'seq.svg');
-    assert.match(svg, /font-size="25"[^>]*>1\. request message</);
-    assert.doesNotMatch(svg, /font-size="14"/);
-  } finally {
-    ROLES.note = base;
-  }
+  const roles = {...ROLES, note: 25};
+  const laid = await layoutDiagram(diagram({theme: 'blue'}).add(sequence([{id: 'a', label: 'A'}, {id: 'b', label: 'B'}], [{from: 'a', to: 'b', label: 'request message'}])), {roles});
+  const svg = emitSvg(laid);
+  assert.match(svg, /font-size="25"[^>]*>1\. request message</);
+  assert.doesNotMatch(svg, /font-size="14"/);
 });

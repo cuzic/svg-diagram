@@ -1,16 +1,15 @@
 import {textWidth} from './measure.ts';
 import {fmt, ticksOf} from './plane.ts';
-import {ROLES} from './tokens.ts';
-import type {BarDatum, BarsBand, ColorKey, FontFamily, LaidOutBars, WidthOf} from './types.ts';
+import type {BarDatum, BarsBand, ColorKey, FontFamily, LaidOutBars, WidthOf, Roles} from './types.ts';
 
 const SERIES: Record<NonNullable<BarDatum['series']>, ColorKey> = {a: 'accent', b: 'text', c: 'muted'};
 const TICK = 6, BAR = 28, GAP = 18, STACK_GAP = 2;
 
 /**
  * The font-size of every label of a bars() band: the ONE place it is read, so measuring (barsTexts), layout and drawing
- * agree. Read at call time because fill mode rewrites ROLES.
+ * agree. Read from the `roles` the layout was made with.
  */
-const sizeOf = (band: BarsBand): number => ROLES[band.labelRole ?? 'note'];
+const sizeOf = (band: BarsBand, roles: Roles): number => roles[band.labelRole ?? 'note'];
 /**
  * Bar thickness (horizontal): BAR, or the label's height when the labelRole is bigger than the bar. Only an explicit
  * labelRole grows it, so a band without one is laid out exactly as before (fill mode's scaled note included).
@@ -33,9 +32,9 @@ const segmentText = (d: BarDatum, unit = '') => segmentOf(d, unit, 'all');
 const series = (d: BarDatum): ColorKey => d.tone ?? SERIES[d.series ?? 'a'];
 
 /** Every string bars() draws, registered before its geometry is calculated. */
-export function barsTexts(band: BarsBand): [string, number, number, FontFamily][] {
+export function barsTexts(band: BarsBand, roles: Roles): [string, number, number, FontFamily][] {
   const out: [string, number, number, FontFamily][] = [];
-  const f = flags(band), S = sizeOf(band);
+  const f = flags(band), S = sizeOf(band, roles);
   for (const d of band.data) {
     if (f.showCats) out.push([d.label, S, 400, 'sans']);
     if (f.showValues) out.push([valueText(d, band.unit), S, 700, 'sans']);
@@ -62,12 +61,12 @@ function addBar(out: LaidOutBars, d: BarDatum, r: Omit<LaidOutBars['bars'][numbe
   return bar;
 }
 
-export function layoutBars(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutBars {
-  return band.dir === 'v' ? layoutVertical(band, x, y, w, widthOf) : layoutHorizontal(band, x, y, w, widthOf);
+export function layoutBars(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBars {
+  return band.dir === 'v' ? layoutVertical(band, x, y, w, widthOf, roles) : layoutHorizontal(band, x, y, w, widthOf, roles);
 }
 
-function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutBars {
-  const f = flags(band), S = sizeOf(band), BARH = barH(band, S);
+function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBars {
+  const f = flags(band), S = sizeOf(band, roles), BARH = barH(band, S);
   const rows = band.stack ? 1 : band.data.length;
   // barRatio replaces the bar : gap split of one row pitch; without it BAR / GAP as ever
   const bh = band.barRatio === undefined || band.stack ? BARH : (BARH + GAP) * band.barRatio, gp = band.barRatio === undefined || band.stack ? GAP : BARH + GAP - bh;
@@ -120,8 +119,8 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
   return out;
 }
 
-function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutBars {
-  const f = flags(band), S = sizeOf(band);
+function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBars {
+  const f = flags(band), S = sizeOf(band, roles);
   const h = band.height ?? 280;
   const ticks = f.axis ? ticksOf({max: band.max}, 'bars') : [];
   const tickW = Math.max(0, ...ticks.map(t => textWidth(widthOf, t.label, S, 400)));
