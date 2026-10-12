@@ -110,3 +110,11 @@ test('layoutLayered: a wide layer of siblings keeps its crossings low (a diamond
   const y = (id: string): number => t.nodes.get(id)!.y;
   assert.ok(Math.abs((y('l') + y('r')) / 2 - y('s')) < 1 && Math.abs(y('s') - y('e')) < 1, 'the diamond is symmetric about its spine');
 });
+
+test('layoutLayered: a start node with an edge into it is placed after its tail, not pinned to layer 0', () => {
+  const t = layoutLayered(['A', 'X', 'B'].map(box), [{from: 'A', to: 'B'}, {from: 'X', to: 'A'}], {start: ['A']});
+  assert.ok(t.layers.get('A')! > t.layers.get('X')!, 'X comes before A');
+  for (const e of t.edges) assert.ok(t.layers.get(e.from)! < t.layers.get(e.to)!, `${e.from} -> ${e.to} runs forward`);
+  const pinned = layoutLayered(['A', 'B'].map(box), [{from: 'A', to: 'B'}], {start: ['A']});
+  assert.equal(pinned.layers.get('A'), 0);
+});

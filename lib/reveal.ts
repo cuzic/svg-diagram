@@ -1,3 +1,4 @@
+import {nodeIdsOf} from './band-ids.ts';
 import type {Band, DiagramData} from './types.ts';
 
 type Revealed = {reveal?: number; until?: number; id?: string};
@@ -76,6 +77,7 @@ export function prepareReveal(d: DiagramData): number {
       if (b.type === 'legend' || b.type === 'spacer') continue;
       const n = set(b as Revealed, inherited, `${b.type}()`, until);
       const u = (b as Revealed).until;
+      for (const id of nodeIdsOf(b)) { ids.set(id, n); if (u !== undefined) untils.set(id, u); } // the nodes of a self-placing figure come and go with it
       if (b.type === 'group') walk(b.children, n, u);
       else if (b.type === 'row' || b.type === 'grouprow') {
         const childLevels = b.children.map((c, i) => set(c, n, `row() child ${i + 1}`, u));
