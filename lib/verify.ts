@@ -173,6 +173,9 @@ function checkClasses(d: LaidOutDiagram): string[] {
     for (const [i, l] of band.labels.entries()) {
       if (l.x < band.x - 0.5 || l.x + l.w > band.x + band.w + 0.5) problems.push(`classes: label "${l.text}" runs outside the figure`);
       for (const n of band.anchors) if (rectOverlap(l, n)) problems.push(`classes: label "${l.text}" overlaps class "${n.id}"`);
+      band.edges.forEach((e, k) => { // the chip is white: on another relation it would cut it
+        if (k !== l.edge && e.points.slice(1).some((q, m) => { const p = e.points[m]; return rectOverlap(l, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}); })) problems.push(`classes: label "${l.text}" sits on the relation ${e.from} -> ${e.to} (it belongs to another relation)`);
+      });
       for (let j = i + 1; j < band.labels.length; j++) {
         const o = rectOverlap(l, band.labels[j]);
         if (o) problems.push(`classes: label "${l.text}" overlaps label "${band.labels[j].text}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);

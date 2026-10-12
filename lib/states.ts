@@ -2,7 +2,7 @@
 // node; a transition is an orthogonal arrow routed through the layers it skips; a label sits on the arrow in a white chip.
 import {textWidth} from './atoms.ts';
 import {layoutLayered} from './graph-layout.ts';
-import {routeLayered, STUB} from './layered-route.ts';
+import {gapFor, routeLayered, STUB} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
@@ -48,13 +48,15 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   const nodes = band.states.map(s => ({id: s.id, size: {w: lines.get(s.id)!.w, h: lines.get(s.id)!.h}}));
   const edges = band.transitions.map(t => ({from: t.from, to: t.to}));
   const loops = band.transitions.filter(t => t.from === t.to);
+  // the most arrows that meet one state (each needs its own lane in the gap beside it)
+  const degree = Math.max(1, ...band.states.map(s => Math.max(band.transitions.filter(t => t.from === s.id && t.from !== t.to).length, band.transitions.filter(t => t.to === s.id && t.from !== t.to).length)));
   if (band.initial) { nodes.unshift({id: INIT, size: {w: 2 * DOT, h: 2 * DOT}}); edges.push({from: INIT, to: band.initial}); }
   const swapSize = (s: {w: number; h: number}): {w: number; h: number} => ({w: s.h, h: s.w});
   // layered layout runs on a 'right' axis; a 'down' diagram is the same layout transposed
   const lay = layoutLayered(dir === 'down' ? nodes.map(n => ({id: n.id, size: swapSize(n.size)})) : nodes, edges, {
     // a loop needs room beside its state (down) or between rows (right), so states do not crowd it
     dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : GAP,
-    levelGap: dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, ...(band.initial ? {start: [INIT]} : {}),
+    levelGap: Math.max(dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, gapFor(degree)), ...(band.initial ? {start: [INIT]} : {}),
   });
   const at = (id: string) => { const p = lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
 

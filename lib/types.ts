@@ -2181,8 +2181,8 @@ export interface LaidOutClasses extends Rect, Dimmed {
   /** Orthogonal polylines from `from`'s box to `to`'s (the end marks come from `kind`: at the end for inherit / implement / arrow / depend, at the start for compose / aggregate). */
   edges: {from: string; to: string; kind: RelationKind; line: 'solid' | 'dashed'; points: {x: number; y: number}[]}[];
   texts: GanttText[];
-  /** Relation labels and multiplicities: a white chip with its text baseline at (tx, ty). */
-  labels: (Rect & {text: string; tx: number; ty: number})[];
+  /** Relation labels and multiplicities: a white chip with its text baseline at (tx, ty), in `size` px; `edge` is the index of its relation in `edges`. */
+  labels: (Rect & {text: string; tx: number; ty: number; size: number; edge: number})[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];
 }
