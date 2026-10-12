@@ -1,6 +1,6 @@
 ---
 name: svg-diagram
-description: 宣言的な DSL で文書向けの SVG 図（構成図・フロー・スイムレーン・シーケンス図・表・画面のワイヤーフレーム・画面遷移図）を作り、検査して仕上げる。図やワイヤーフレームを作る・直すとき、仕様書や設計書に図を入れるときに使う。
+description: 宣言的な DSL で文書向けの SVG 図（構成図・フロー・スイムレーン・シーケンス図・表・画面のワイヤーフレーム・画面遷移図・組織図・マインドマップ・状態遷移図・ガント・UML クラス図・BPMN 風の業務フロー）を作り、検査して仕上げる。図やワイヤーフレームを作る・直すとき、仕様書や設計書に図を入れるときに使う。
 argument-hint: "[作りたい図 / 直したい図のソース]"
 keywords:
   - svg
@@ -11,12 +11,22 @@ keywords:
   - 画面遷移図
   - スイムレーン
   - シーケンス図
+  - 組織図
+  - マインドマップ
+  - 状態遷移図
+  - ガントチャート
+  - クラス図
+  - BPMN
 triggers:
   - 図を作って
   - ワイヤーフレーム
   - 画面遷移図
   - svg-diagram
   - 図を直して
+  - 組織図を作って
+  - 状態遷移図を作って
+  - ガントチャートを作って
+  - クラス図を作って
 ---
 
 # svg-diagram で図を作る
@@ -44,6 +54,25 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 
 README の「部品」表を参照。基盤・ネットワーク図は、`group` の入れ子（ホスト > コンテナ > プロセス）と、`row([group, group])` の横並びで描く（接続線は、枠をまたぐ箇所で他の箱や題名を通らないよう、`@t` や `elbow` で調整）（box / row / grid / group / connect / swimlane / sequence / table / wireframe / screens ほか）。
 新しい部品は「同じパターンが 3 回出たら」が原則。既存の図の出力が変わらないこと（回帰）を確認してから足す。
+
+## 座標を書かずに自動で配置する図
+
+節（ノード）と関係だけを書く。配置・矢印の経路・ラベルの置き場所は自動。詳しい書き方は README の各節。
+
+| 描きたいもの | 部品 | 書くもの |
+|---|---|---|
+| 組織図・階層 | `tree(root, {dir})` | 節 `{label, sub?, id?, tone?, children?}` |
+| マインドマップ | `mindmap(root, {sides})` | 節（`tree` と同じ）。中央から左右へ |
+| 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?}` と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
+| スケジュール | `gantt(rows, {today})` | タスク `{label, start, end｜days, after?, progress?, milestone?}`（日付は `YYYY-MM-DD`、`today` は必ず書く） |
+| UML クラス図 | `classDiagram(classes, relations, {dir})` | クラス `{id, attrs?, methods?, stereotype?}` と関係 `{from, to, kind, label?, fromMult?, toMult?}` |
+| 業務フロー（BPMN 風） | `bpmn(lanes, nodes, flows)` | レーン・ノード（task / start / end / xor / and / or）・フロー（`line: 'dashed'` はメッセージ） |
+
+- 節に `id` を付けると、`connect()` の端点（`t.anchors.<id>` でも取れる）。図に `id` を付けると、図全体が端点・spotlight の対象になる（節の id は spotlight できない）。
+- **検査は 2 つの形で止まる**: 幅が足りない（`dir: 'right'` / `maxNodeW` / ラベルを短く）、矢印やラベルが何かに重なる（どれとどれかが書いてある。並びを替える・`dir` を変える・ラベルを短くする）。エラーを読んで直す。
+- 凡例の自動付与と「色だけの区別」の検査は、これらの図の `tone`・破線を数えない。`new` / `removed` や破線を使うときは `legend()` を自分で置く。
+- BPMN は標準の一部だけ（サブプロセス、タイマー・メッセージのイベント、プール、データは対象外）。start に入るフロー・end から出るフローは書けない。
+- 描いたら `svg-diagram preview` で必ず目で見る（配置は検査を通っても、読みやすさは見ないと分からない）。
 
 ## くり返しは、まとめて書く
 

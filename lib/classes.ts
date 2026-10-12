@@ -2,9 +2,8 @@
 // (graph-layout.ts layoutLayered) so a parent sits above its children. Relations are orthogonal arrows with the UML end
 // marks: hollow triangle (inherit / implement), diamond on the whole (compose / aggregate), open arrow (arrow / depend).
 import {textWidth} from './atoms.ts';
-import {layoutLayered} from './graph-layout.ts';
 import type {Pt} from './graph-layout.ts';
-import {gapFor, routeLayered} from './layered-route.ts';
+import {gapFor, layoutWithLanes, routeLayered} from './layered-route.ts';
 import type {ClassesBand, FontFamily, LaidOutClasses, Roles, WidthOf} from './types.ts';
 
 const PAD_X = 12, PAD_Y = 6, MIN_W = 110, GAP = 36, LEVEL_GAP = 72, LOOP = 26, CHIP_PAD = 5;
@@ -56,17 +55,19 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
   const edges = band.relations.map(r => flip(r.kind) ? {from: r.to, to: r.from} : {from: r.from, to: r.to});
   const widestLabel = Math.max(0, ...band.relations.map(r => r.label ? labelW(r.label) : 0));
   const degree = Math.max(1, ...band.classes.map(c => Math.max(band.relations.filter(r => r.from === c.id && r.from !== r.to).length, band.relations.filter(r => r.to === c.id && r.from !== r.to).length)));
-  const lay = layoutLayered(nodes, edges, {dir: 'right', gap: GAP, levelGap: Math.max(dir === 'down' ? LEVEL_GAP + 16 : LEVEL_GAP, gapFor(degree, dir === 'right' ? widestLabel : 0))});
+  const lay = layoutWithLanes(nodes, edges, {dir: 'right', gap: GAP, levelGap: Math.max(dir === 'down' ? LEVEL_GAP + 16 : LEVEL_GAP, gapFor(degree, dir === 'right' ? widestLabel : 0))});
   const swap = (p: Pt): Pt => ({x: p.y, y: p.x});
   const total = {w: dir === 'down' ? lay.h : lay.w, h: dir === 'down' ? lay.w : lay.h};
   const hasLoop = band.relations.some(r => r.from === r.to);
   const loopLabelW = Math.max(0, ...band.relations.filter(r => r.from === r.to).map(r => r.label ? labelW(r.label) : 0));
-  const reserve = hasLoop ? LOOP + 8 + Math.max(loopLabelW, 40) : 0; // a loop and its label stick out to the right of the rightmost class
+  // a loop sits to the right of its class when the flow runs down (its arrows leave through the bottom), above it when the flow runs right
+  const reserve = hasLoop && dir === 'down' ? LOOP + 8 + Math.max(loopLabelW, 40) : 0;
+  const top = hasLoop && dir === 'right' ? LOOP + S + 8 + 8 : 0;
   if (total.w + reserve > w + 0.5) throw new Error(`classDiagram(): the figure is ${Math.ceil(total.w + reserve)}px wide but it has ${Math.round(w)}px (use dir: 'right', shorter member lines, or fewer classes on one level)`);
-  const dx = x + (w - total.w - reserve) / 2, dy = y;
+  const dx = x + (w - total.w - reserve) / 2, dy = y + top;
   const place = (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + dx, y: q.y + dy}; };
   const out: LaidOutClasses = {
-    type: 'classes', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h,
+    type: 'classes', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + top,
     nodes: [], edges: [], texts: [], labels: [], anchors: [], labelBoxes: [],
   };
   const rects = new Map<string, {x: number; y: number; w: number; h: number}>();
@@ -122,12 +123,22 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
     const r = band.relations[e.index], kind = r.kind ?? 'assoc';
     const line = kind === 'implement' || kind === 'depend' ? 'dashed' : 'solid';
     if (e.self) {
-      const a = rects.get(r.from)!, cy = a.y + a.h / 2, pts = [{x: a.x + a.w, y: cy - 10}, {x: a.x + a.w + LOOP, y: cy - 10}, {x: a.x + a.w + LOOP, y: cy + 10}, {x: a.x + a.w, y: cy + 10}];
+      const a = rects.get(r.from)!, cy = a.y + a.h / 2, cx = a.x + a.w / 2, lh = S + 8;
+      if (dir === 'right') { // above the class: out of the top to the right of the middle, back in to the left of it
+        const pts = [{x: cx + 12, y: a.y}, {x: cx + 12, y: a.y - LOOP}, {x: cx - 12, y: a.y - LOOP}, {x: cx - 12, y: a.y}];
+        out.edges.push({from: r.from, to: r.to, kind, line, points: pts});
+        const own = out.edges.length - 1;
+        if (r.label) pending.push(() => chip(own, r.label!, [{x: cx, y: a.y - LOOP - lh / 2 - 2}]));
+        if (r.fromMult) pending.push(() => chip(own, r.fromMult!, [{x: cx + 12 + 4 + labelW(r.fromMult!) / 2, y: a.y - LOOP / 2}]));
+        if (r.toMult) pending.push(() => chip(own, r.toMult!, [{x: cx - 12 - 4 - labelW(r.toMult!) / 2, y: a.y - LOOP / 2}]));
+        return;
+      }
+      const pts = [{x: a.x + a.w, y: cy - 10}, {x: a.x + a.w + LOOP, y: cy - 10}, {x: a.x + a.w + LOOP, y: cy + 10}, {x: a.x + a.w, y: cy + 10}];
       out.edges.push({from: r.from, to: r.to, kind, line, points: pts});
       const own = out.edges.length - 1;
       if (r.label) pending.push(() => chip(own, r.label!, [{x: a.x + a.w + LOOP + 4 + labelW(r.label!) / 2, y: cy}]));
       // the multiplicities sit above and below the little loop, at its two ends
-      const lx = a.x + a.w + LOOP / 2 + 6, lh = S + 8;
+      const lx = a.x + a.w + LOOP / 2 + 6;
       if (r.fromMult) pending.push(() => chip(own, r.fromMult!, [{x: lx, y: cy - 10 - lh / 2 - 3}, {x: lx + 14, y: cy - 10 - lh / 2 - 3}]));
       if (r.toMult) pending.push(() => chip(own, r.toMult!, [{x: lx, y: cy + 10 + lh / 2 + 3}, {x: lx + 14, y: cy + 10 + lh / 2 + 3}]));
       return;

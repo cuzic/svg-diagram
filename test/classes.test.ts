@@ -147,3 +147,18 @@ test('classDiagram(): several classes depending on one (fan-in) do not cross; a 
   const w = await checkDiagram(diagram({theme: 'blue'}).add(fig, box({id: 'ext', title: '外部'}), connect('CD', 'ext', {route: 'elbow'})));
   assert.deepEqual(w.verdict.problems, []);
 });
+
+test('classDiagram(): a complete 2x2 between two layers has no shared run', async () => {
+  const {t, verdict} = await laid(classDiagram([{id: 'A'}, {id: 'B'}, {id: 'X'}, {id: 'Y'}], [{from: 'A', to: 'X', kind: 'arrow'}, {from: 'A', to: 'Y', kind: 'arrow'}, {from: 'B', to: 'X', kind: 'arrow'}, {from: 'B', to: 'Y', kind: 'arrow'}]));
+  assert.deepEqual(verdict.problems, []);
+  assert.equal(sharedRun(t.edges), undefined);
+});
+
+test('classDiagram() dir right: a self relation sits above its class, off the arrows that leave to the right, with its label and multiplicities', async () => {
+  const {t, verdict} = await laid(classDiagram([{id: 'Node'}, {id: 'Next'}], [{from: 'Node', to: 'Node', kind: 'aggregate', label: 'next', fromMult: '1', toMult: '0..1'}, {from: 'Node', to: 'Next', kind: 'arrow'}], {dir: 'right'}));
+  assert.deepEqual(verdict.problems, []);
+  const node = t.anchors.find(a => a.id === 'Node')!, loop = t.edges.find(e => e.from === 'Node' && e.to === 'Node')!;
+  assert.ok(loop.points.every(p => p.y <= node.y + 0.5), 'the loop is above the class');
+  assert.deepEqual(t.labels.map(l => l.text).sort(), ['0..1', '1', 'next']);
+  assert.ok(t.labels.every(l => l.y >= t.y - 0.5), 'inside the figure');
+});

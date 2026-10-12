@@ -186,3 +186,11 @@ test('stateDiagram(): arrows into one state (fan-in) and out of one state (fan-o
     assert.deepEqual(crossings(out.t.edges), [], `fan-out ${dir}`);
   }
 });
+
+test('stateDiagram(): a complete 2x2 (a->x, a->y, b->x, b->y) has no shared line or crossing-free lanes are distinct, in both directions', async () => {
+  for (const dir of ['right', 'down'] as const) {
+    const {t, verdict} = await laid(stateDiagram([S('a'), S('b'), S('x'), S('y')], [{from: 'a', to: 'x'}, {from: 'a', to: 'y'}, {from: 'b', to: 'x'}, {from: 'b', to: 'y'}], {dir}));
+    assert.deepEqual(verdict.problems, [], dir);
+    assert.equal(sharedRun(t.edges), undefined, dir);
+  }
+});

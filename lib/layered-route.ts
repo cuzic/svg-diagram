@@ -1,7 +1,8 @@
 // Orthogonal routing of the edges of a layered layout (graph-layout.ts layoutLayered), shared by stateDiagram() and classDiagram().
 // Everything here is in the layout's own ('right') axes: layers run along x. `place` moves a point into the figure (and transposes
 // it for a 'down' diagram).
-import type {LayeredLayout, Pt} from './graph-layout.ts';
+import {layoutLayered} from './graph-layout.ts';
+import type {LayeredEdge, LayeredLayout, LayeredNode, LayeredOpts, Pt} from './graph-layout.ts';
 
 export const STUB = 18;
 export const LANE = 14;
@@ -29,7 +30,7 @@ export function elbows(pts: Pt[], lane: number): Pt[] {
   for (let i = 0; i + 1 < pts.length; i++) {
     const p = pts[i], q = pts[i + 1];
     if (p.y !== q.y) {
-      const mx = pts.length === 2 ? p.x + Math.sign(q.x - p.x || 1) * Math.min(STUB + lane, Math.abs(q.x - p.x) / 2) : (p.x + q.x) / 2;
+      const mx = pts.length === 2 ? p.x + Math.sign(q.x - p.x || 1) * Math.min(STUB + lane, Math.max(Math.abs(q.x - p.x) / 2, Math.abs(q.x - p.x) - 22)) /* room for the arrowhead after the last turn */ : (p.x + q.x) / 2;
       out.push({x: mx, y: p.y}, {x: mx, y: q.y});
     }
     out.push(q);
@@ -55,7 +56,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     const first = e.points[1] ?? cb, last = e.points[e.points.length - 2] ?? ca;
     ends.push({key: `${e.from}:${first.x >= ca.x ? 'r' : 'l'}`, edge: i, end: 0, other: first.y}, {key: `${e.to}:${last.x <= cb.x ? 'l' : 'r'}`, edge: i, end: 1, other: last.y});
     if (e.points.length === 2) { // direct arrows through one gap between two layers, in groups that go down / go up
-      const k = `${Math.round(Math.min(ca.x, cb.x))}:${Math.round(Math.max(ca.x, cb.x))}:${cb.y >= ca.y ? 'd' : 'u'}`;
+      const k = `${Math.round(Math.min(ca.x, cb.x))}:${Math.round(Math.max(ca.x, cb.x))}`;
       corridors.set(k, [...(corridors.get(k) ?? []), i]);
     }
   });
@@ -66,15 +67,21 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     list.forEach((en, k) => {
       const e = lay.edges[en.edge], id = en.end === 0 ? e.from : e.to, h = lay.nodes.get(id)!.h;
       const step = list.length > 1 ? Math.min(portStep, (h - 12) / (list.length - 1)) : 0;
-      portOf.set(`${en.edge}:${en.end}`, (k - (list.length - 1) / 2) * step);
+      // heads sit 4px off the tails' grid: a tail port of one state and a head port of another (same layer) otherwise share a height and their runs line up as one line
+      portOf.set(`${en.edge}:${en.end}`, (k - (list.length - 1) / 2) * step + (en.end === 1 && list.length > 1 ? 4 : 0));
     });
   }
   // fan-out (one tail): the arrow that goes farthest turns first (the lane nearest the tail), so no vertical run crosses another arrow's
   // last run. fan-in (one head, several tails): the other way round, the nearest tail turns first.
   const dy = (i: number): number => { const e = lay.edges[i], A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!; return Math.abs((B.y + B.h / 2) - (A.y + A.h / 2)); };
-  for (const list of corridors.values()) {
-    const fanIn = new Set(list.map(i => lay.edges[i].to)).size === 1 && new Set(list.map(i => lay.edges[i].from)).size > 1;
-    [...list].sort((p, q) => (fanIn ? dy(p) - dy(q) : dy(q) - dy(p)) || p - q).forEach((i, k) => laneOf.set(i, k * LANE));
+  // arrows that go down and arrows that go up through the same gap are told apart too: the up group takes the lanes after the down group's
+  const goesDown = (i: number): boolean => { const e = lay.edges[i], A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!; return B.y + B.h / 2 >= A.y + A.h / 2; };
+  for (const all of corridors.values()) {
+    let k = 0;
+    for (const list of [all.filter(goesDown), all.filter(i => !goesDown(i))]) {
+      const fanIn = new Set(list.map(i => lay.edges[i].to)).size === 1 && new Set(list.map(i => lay.edges[i].from)).size > 1;
+      for (const i of [...list].sort((p, q) => (fanIn ? dy(p) - dy(q) : dy(q) - dy(p)) || p - q)) laneOf.set(i, k++ * LANE);
+    }
   }
   const out = new Map<number, Pt[]>();
   lay.edges.forEach((e, i) => {
@@ -86,4 +93,26 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     out.set(i, elbows([start, ...e.points.slice(1, -1), end], laneOf.get(i) ?? 0).map(place));
   });
   return out;
+}
+
+/** The most direct arrows that pass through one gap between two layers (each needs its own lane there). */
+export function corridorLoad(lay: LayeredLayout): number {
+  const load = new Map<string, number>();
+  for (const e of lay.edges) {
+    if (e.self || e.points.length !== 2) continue;
+    const A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!;
+    const k = `${Math.round(Math.min(A.x, B.x))}:${Math.round(Math.max(A.x, B.x))}`;
+    load.set(k, (load.get(k) ?? 0) + 1);
+  }
+  return Math.max(1, ...load.values());
+}
+
+/**
+ * layoutLayered, with the gap between layers wide enough for the arrows that share it: laid out once to see how many arrows go
+ * through each gap (layers do not depend on the gap), then again with a gap that gives each its own lane.
+ */
+export function layoutWithLanes(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]}, chip = 0): LayeredLayout {
+  const first = layoutLayered(nodes, edges, opts);
+  const need = gapFor(corridorLoad(first), chip);
+  return need > (opts.levelGap ?? 0) ? layoutLayered(nodes, edges, {...opts, levelGap: need}) : first;
 }

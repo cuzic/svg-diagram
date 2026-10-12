@@ -168,10 +168,9 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
       const bT = top + (down ? tailRow + 1 : tailRow) * ROW_H, bH = top + (down ? headRow : headRow + 1) * ROW_H;
       const lo = out.plot.x1 + 4, hi = out.plot.x2 - 4;
       const cols = bT === bH ? [x1 + 8] : Array.from({length: Math.floor((hi - lo) / 6) + 1}, (_, k) => lo + k * 6).filter(free).sort((u, v) => Math.abs(u - (x1 + x2) / 2) - Math.abs(v - (x1 + x2) / 2));
-      if (cols.length) pts = [{x: x1, y: y1}, {x: x1 + 8, y: y1}, {x: x1 + 8, y: bT}, {x: cols[0], y: bT}, {x: cols[0], y: bH}, {x: x2 - 8, y: bH}, {x: x2 - 8, y: y2}, {x: x2, y: y2}];
+      if (!cols.length) cols.push(x1 + 8); // nothing is free (verify will say which bar): still a route that ends on the head
+      pts = [{x: x1, y: y1}, {x: x1 + 8, y: y1}, {x: x1 + 8, y: bT}, {x: cols[0], y: bT}, {x: cols[0], y: bH}, {x: x2 - 8, y: bH}, {x: x2 - 8, y: y2}, {x: x2, y: y2}];
     }
-    // 3) nothing is free: the plain route (verify says which bar it runs through)
-    pts ??= [{x: x1, y: y1}, {x: x1 + 8, y: y1}, {x: x1 + 8, y: y2}, {x: Math.max(x2, x1 + 8 + ARROW), y: y2}];
     out.deps.push({from: tasks.indexOf(ids.get(a)!), to: tasks.indexOf(t), points: simplifyPts(pts)});
   }
   if (today !== undefined) {
