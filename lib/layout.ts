@@ -16,7 +16,6 @@
 // anchor (any box/child with an explicit `id`) has a known rect.
 
 import {splitAtoms, textWidth} from './atoms.ts';
-import type {measureAll} from './measure.ts';
 import {wrapAtoms, wrapStyledAtoms} from './wrap.ts';
 import {assertSpans} from './rich.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
@@ -26,9 +25,9 @@ import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} f
 import type {
   DiagramData, Roles, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
   LaidOutSwimlane, LaidOutPyramidLayer, LaidOutRow, RowArrow, Band, CaptionBand, BoxBand, BannerBand, RowBand, GridBand, GroupBand,
-  ConnectBand, ConnectRef, Bend, BoxChrome, TextRun, WrappedRun, WidthOf, FontFamily, FontWeight, MeasureRequest, Point, Rect, Side, Span, TextTone,
+  ConnectBand, ConnectRef, Bend, BoxChrome, TextRun, WrappedRun, WidthOf, FontFamily, FontWeight, MeasureRequest, Measured, Point, Rect, Side, Span, TextTone,
 } from './types.ts';
-import {ROLES, PALETTE, SHADES, isSolidTone, CONNECT_LABEL_SIZE, TAG_SIZE, blendLuminance, bestTextColor} from './tokens.ts';
+import {PALETTE, SHADES, isSolidTone, CONNECT_LABEL_SIZE, TAG_SIZE, blendLuminance, bestTextColor} from './tokens.ts';
 
 export const LINE_HEIGHT_EM = 1.4;   // vertical spacing between wrapped lines within one text block
 export const BOX_PAD_X = 20;
@@ -309,7 +308,7 @@ export function collectMeasures(d: DiagramData, roles: Roles): Requests {
  * silently (a line then overflows its box); with `strict` that is an error. The caller reads SVG_DIAGRAM_STRICT_WIDTH
  * (layout itself touches no environment).
  */
-export function widthOfMeasured(measured: Awaited<ReturnType<typeof measureAll>>, strict: boolean): WidthOf {
+export function widthOfMeasured(measured: Map<string, Measured>, strict: boolean): WidthOf {
   return (atom, size, weight, font) => {
     const m = measured.get(`${atom} ${size} ${weight} ${font}`);
     if (m) return m.w;

@@ -68,11 +68,11 @@ DSL(ビルダー) → Diagram データ → prepareReveal / applyAutoLegend
 ### 1. `ROLES` を値にして、結果に焼き込む(最優先)
 
 - `scaleRoles(base, s): Roles` を純粋関数にする(`Math.round(base * s)` のまま。丸めは今と同じ。最終描画は丸め後の `fontScale` の値でレイアウトした結果と一致させる)。`applyScale` と `finally` の巻き戻しをなくす。
-- `layoutDiagram(d, {roles?})`(省略時は `ROLES`)にして、直接呼ぶ箇所(`checkDiagram`、`test/wireframe.test.ts` など)は無変更で済ませる。`stampChipW` などの export 関数も、省略可能な引数で足す。
-- **`LaidOutDiagram.roles` にレイアウト時の値を持たせ**(`fontScale` と同じ場所)、`emitSvg` / `emitHtml` / `verifyDiagram` / `analyzeFit` はそこから読む。`emitSvg(laidOut, opts)` のシグネチャは変えない。呼び出し側が roles を持ち回って食い違える余地をなくす。前例: `LaidOutTable.bodySize`、`LaidOutPlane.labelSize`。
+- `layoutDiagram(d, {roles?})`(省略時は `ROLES`)にして、直接呼ぶ箇所(`checkDiagram`、`test/wireframe.test.ts` など)は無変更で済ませる。`stampChipW` などの export 関数の `roles` も必須引数にする。
+- **`LaidOutDiagram.roles` にレイアウト時の値を持たせ**(`fontScale` と同じ場所)、`emitSvg` / `emitHtml` はそこから読む(`verifyDiagram` / `analyzeFit` は `ROLES` を読まないので変えない)。`emitSvg(laidOut, opts)` のシグネチャは変えない。呼び出し側が roles を持ち回って食い違える余地をなくす。前例: `LaidOutTable.bodySize`、`LaidOutPlane.labelSize`。
 - `ROLES` は既定値の定数として `Object.freeze` する。`BASE_ROLES` と `baseRoles` は 1 つに統合する。`ROLES` は公開 API から re-export されておらず、`test/plane-size.test.ts` の代入だけ書き直す。
 - 内部関数(`textRuns`、`collectTextRequests`、`layoutSequence`、`layoutTable`、`barsTexts`、`layoutBars`、`planeTexts`、`layoutPlane`、emit の各 render 関数、emit-html)の `roles` は**必須引数**にする。省略可能は `layoutDiagram` だけ(テストが直接呼ぶ関数も必須にして、テストを書き直す。スパイクでは typecheck の赤を順に消すだけで済んだ)。
-- `layoutDiagram` を、同期の `collectMeasures(d, roles)` と `layoutWith(d, roles, widthOf)` に割り、`await measureAll` は dsl.ts に出す。`layoutDiagram` のラッパは dsl.ts に置く(layout.ts に残すと §4 が通らない)。
+- `layoutDiagram` を、同期の `collectMeasures(d, roles)` と `layoutWith(d, roles, widthOf)` に割り、`await measureAll` は殻の `lib/layout-measured.ts` に出す(`layoutDiagram` のラッパもそこ。layout.ts に残すと §4 が通らない)。
 - 出力が変わるのは、**fill モードの図の reveal 段階ファイル**(table / sequence / swimlane / legend / stamp / pyramid を含むもの)だけで、これは直る方向の変化(上の 2)。`check --drift --rebuild` が `drift-rebuild` を出すので、利用側に告知する。
 
 ### 2. 入力を破壊しない(小さく)
@@ -81,11 +81,11 @@ DSL(ビルダー) → Diagram データ → prepareReveal / applyAutoLegend
 
 ### 3. テスト環境の差し込み口
 
-必要なのは、`layout.ts:55` の `strictWidths()` が `process.env` を直接読むのをやめ、テスト用の固定幅を差し込めることだけ。`layoutDiagram(d, {roles?, widthOf?})` の省略可能引数で足りる(`test/helpers/strict-width.ts` が手作業でやっていることの置き換え)。
+`layout.ts` の `strictWidths()` が `process.env` を直接読むのをやめる(下の「実装での確定事項」)。テスト用の固定幅を差し込む口は**作らない**: `layoutWith(d, roles, widthOf)` が同期の純粋関数なので、必要なテストはそれを直接呼べば足りる。
 
 ### 4. 依存方向の検査(移動なし)
 
-「中核とみなすファイル」の一覧(layout・emit・emit-html・verify・spotlight・reveal・rules・seq-table・tokens・types・wrap・wireframe など)をテストに持ち、それらの**推移的な** import に `node:fs` / `child_process` / `playwright` / `resvg` がないことを検査する。前提として、`measure.ts` から純粋な `splitAtoms` / `textWidth` を `atoms.ts` に分ける(`wrap.ts`・`wireframe.ts`・`seq-table.ts` が I/O の塊を介してそれを import している)。`process.env` の直接読みは import 検査で見えないので、§3 で外す。
+「中核とみなすファイル」の一覧(layout・emit・verify・spotlight・reveal・rules・seq-table・tokens・types・wrap・wireframe など)をテストに持ち、それらの**推移的な** import に `node:fs` / `child_process` / `playwright` / `resvg` がないことを検査する。前提として、`measure.ts` から純粋な `splitAtoms` / `textWidth` を `atoms.ts` に分ける(`wrap.ts`・`wireframe.ts`・`seq-table.ts` が I/O の塊を介してそれを import している)。`process.env` の直接読みは import 検査で見えないので、§3 で外す。
 
 ## 段階(PR を分ける)
 
@@ -93,12 +93,12 @@ DSL(ビルダー) → Diagram データ → prepareReveal / applyAutoLegend
 |---|---|---|
 | 0 | 検査の先行(スパイクの `test/roles-state.test.ts` の 6 件が出発点。**main に入れるときは `todo` で入れ、PR 1 で外す**。または PR 0 と PR 1 を 1 つの PR の 2 コミットにする): fill モードの golden(各 band 種別 + reveal 段階ファイル。`test/helpers/slide-fixture.ts` を使う)と、並行描画の再現テスト(fill と非 fill を並行に描き、非 fill が逐次と 1 バイト一致) | 現在の main では、並行テストと段階ファイルの golden が**落ちる**(バグの再現) |
 | 1 | §1 `ROLES` を値にして `LaidOutDiagram.roles` に焼き込む | 0 のテストが通る。golden の差分は fill の reveal 段階ファイルだけ。`show --watch` で共通部品を編集しても 2 回目の描画が 1 回目と同じ |
-| 2 | §2 入力を破壊しないコピー + §3 `widthOf` の差し込み口 | 描画の前後で `d` が `structuredClone` 相当で一致。同じ band を共有する 2 つの図(片方だけ reveal 付きの group)で、もう片方の段階が変わらない |
-| 3 | §4 `atoms.ts` の分離と依存方向のテスト | テストが通る。公開 API(`svg-diagram`、`svg-diagram/render`)の型が変わらない |
+| 2 | §2 入力を破壊しないコピー + §3 の strict-width の移動 | 描画の前後で `d.bands` と `d.width` などが一致(fill の経路でも。`test/roles-state.test.ts` の 4)。同じ band を共有する 2 つの図(片方だけ reveal 付きの group)で、もう片方の段階が変わらない |
+| 3 | §4 `atoms.ts` の分離と依存方向のテスト | テストが通る。公開 API の関数のシグネチャが変わらない。ただし `LaidOutDiagram.roles` が必須フィールドとして増える(手で組む外部コードは型エラー) |
 
 ## 影響
 
-- **得るもの**: 並行描画(Slidev アドオン)で結果が実行順に依存しなくなる。fill の reveal 段階ファイルが直る。共通部品の band が図の間で漏れなくなる。測定を差し替えやすくなる。
+- **得るもの**: ROLES と入力の書き換えについては、並行描画(Slidev アドオン)で結果が実行順に依存しなくなる(`measure.ts` の `backend` が font から chromium に切り替わる状態は対象外)。fill の reveal 段階ファイルが直る。共通部品の band が図の間で漏れなくなる。測定を差し替えやすくなる。
 - **失うもの**: `layoutDiagram` などに省略可能な引数が増える。`LaidOutDiagram` のフィールドが 1 つ増える。fill を使う既存の資料で、reveal の段階ファイルが再ビルドで変わる。
 
 ## 実装での確定事項
@@ -106,6 +106,10 @@ DSL(ビルダー) → Diagram データ → prepareReveal / applyAutoLegend
 - strict-width の環境変数は CLI プロセスの env で効いているので、`widthOf` 引数では置き換えられない。読む場所を `lib/layout-measured.ts`(測定してから layout する殻)に移し、`widthOfMeasured(measured, strict)` へ引数で渡した。`layout.ts` は環境を読まない。
 - `emit-html.ts` は描画時に `font-metrics.ts`(`textBox`)を読むので、**中核の一覧から外した**(殻の側)。必要な値をレイアウト結果へ焼き込む案は、HTML 出力の変更が大きいので見送った。
 - §4 の検査は `test/core-purity.test.ts`。対象は atoms・bars・emit・fit・layout・plane・reveal・rich・rules・seq-table・spotlight・tokens・types・verify・wrap・wireframe。静的 import と動的 `import()` を推移的にたどり、fs / child_process / playwright / resvg / harfbuzz と `process.*` に届けば落ちる(`measure.ts` と `emit-html.ts` を一時的に対象へ入れて、落ちることを確かめた)。
+
+- `cloneData` は、同じオブジェクトを 2 回見たら 1 回だけコピーする(WeakMap)ので、1 枚の図の中で同じ band を 2 か所に置いても同一のまま(main と同じ挙動)で、循環でもスタックを使い切らない。Map / Set / Date は共有。非列挙のプロパティ(`.left` / `.right` / `.at` の handle、anchors)とシンボルキー(`NUMBERING`、`GIVEN`、`RICH`)は落ちる。`add()` が描画の前に使い切り、パスより下流は読まない。**描画結果の `laidOut.bands` の band から handle は取れなくなる**。
+- `test/core-purity.test.ts` には、描画の中核が `tokens.ts` のグローバルな `ROLES` を import しないことの検査も入れた(import すると、測るのは拡大値で描くのは 1 倍の食い違いが型検査を通ってしまう)。
+- 既知で範囲外: curve の軸ラベルは、測定の登録が `roles.note`(拡大値)で、描画は `font-size="14"` 固定。位置には効かないので、fill でも出力は変わらない。
 
 ## 未決
 

@@ -875,11 +875,27 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
 function detach<D extends DiagramData>(d: D): D {
   return {...d, bands: cloneData(d.bands)};
 }
-/** A deep copy of plain data: arrays and plain objects are copied, anything else (a raw() band's function, a string) is shared. (structuredClone throws on raw()'s function.) Non-enumerable handles are not copied; nothing downstream reads them. */
-function cloneData<T>(v: T): T {
-  if (Array.isArray(v)) return v.map(cloneData) as T;
-  if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, cloneData(x)])) as T;
-  return v;
+/**
+ * A deep copy of plain data: arrays, plain objects (Object.prototype or null prototype) and class instances are copied; a
+ * function (a raw() band's draw), a string, a Map / Set / Date is shared. (structuredClone throws on raw()'s function.)
+ * The same object met twice is copied once, so a band placed in two spots stays one band in the copy, and a cycle ends.
+ * Not copied: non-enumerable properties (the .left / .right / .at handles, withAnchors' anchors) and symbol keys
+ * (NUMBERING, GIVEN, RICH) — add() has already consumed them, and nothing downstream of the passes reads them.
+ */
+function cloneData<T>(v: T, seen = new WeakMap<object, unknown>()): T {
+  if (!v || typeof v !== 'object') return v;
+  if (seen.has(v)) return seen.get(v) as T;
+  if (Array.isArray(v)) {
+    const out: unknown[] = [];
+    seen.set(v, out);
+    for (const x of v) out.push(cloneData(x, seen));
+    return out as T;
+  }
+  if (v instanceof Map || v instanceof Set || v instanceof Date) return v;
+  const out = Object.create(Object.getPrototypeOf(v));
+  seen.set(v, out);
+  for (const [k, x] of Object.entries(v)) out[k] = cloneData(x, seen);
+  return out;
 }
 
 // Layout + verification + rules, without writing any file: the engine behind `svg-diagram check`.
