@@ -6,13 +6,13 @@
 // must agree on every string/size/weight/font, so both go through the same
 // prepare step.
 
-import {splitAtoms, textWidth} from './measure.ts';
+import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapAtoms} from './wrap.ts';
-import {ROLES, CELL_MARKS} from './tokens.ts';
+import {CELL_MARKS} from './tokens.ts';
 import type {
   SequenceBand, PreparedSequence, PreparedStep, TableBand, TableCell, TableColumn, TableRow, ResolvedCell, TextRequest,
   WidthOf, FontFamily, LaidOutSequence, LaidOutSeqStep, LaidOutSeqHead, LaidOutTable, LaidOutTableRow, LaidOutTableCell,
-  TextTone, BoxTone,
+  TextTone, BoxTone, Roles,
 } from './types.ts';
 
 const LH = 1.4;
@@ -33,20 +33,20 @@ export function prepareSequence(band: SequenceBand): PreparedSequence {
   return {...band, steps};
 }
 
-export function collectTextRequests(band: SequenceBand | TableBand): TextRequest[] {
+export function collectTextRequests(band: SequenceBand | TableBand, roles: Roles): TextRequest[] {
   const out: TextRequest[] = [];
   if (band.type === 'sequence') {
     const p = prepareSequence(band);
-    for (const a of p.actors) out.push([a.label, ROLES.title, 700, 'sans']);
-    for (const s of p.steps) out.push([s.text, ROLES.note, s.kind === 'divider' ? 700 : 400, 'sans']);
+    for (const a of p.actors) out.push([a.label, roles.title, 700, 'sans']);
+    for (const s of p.steps) out.push([s.text, roles.note, s.kind === 'divider' ? 700 : 400, 'sans']);
   } else if (band.type === 'table') {
-    if (band.title) out.push([band.title, ROLES.title, 700, 'sans']);
+    if (band.title) out.push([band.title, roles.title, 700, 'sans']);
     band.columns.forEach((c) => {
-      if (c.label) out.push([c.label, ROLES.body, 700, 'sans']);
+      if (c.label) out.push([c.label, roles.body, 700, 'sans']);
     });
     for (const row of band.rows) ('cells' in row ? row.cells : row).forEach((cell, i) => {
       const c = cellOf(cell, band.columns[i]);
-      out.push([c.text, ROLES.body, c.bold || (band.rowHeader && i === 0) ? 700 : 400, c.mono ? 'mono' : 'sans']);
+      out.push([c.text, roles.body, c.bold || (band.rowHeader && i === 0) ? 700 : 400, c.mono ? 'mono' : 'sans']);
     });
   }
   return out;
@@ -56,7 +56,7 @@ const wrap = (text: string, size: number, weight: number, font: FontFamily, maxW
   wrapAtoms(splitAtoms(text), {maxWidth: Math.max(20, maxW), atomWidth: (a) => widthOf(a, size, weight, font)});
 const textW = (text: string, size: number, weight: number, font: FontFamily, widthOf: WidthOf) => textWidth(widthOf, text, size, weight, font);
 
-export function layoutSequence(band: SequenceBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutSequence {
+export function layoutSequence(band: SequenceBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutSequence {
   const p = prepareSequence(band);
   const n = p.actors.length;
   const colW = w / n;
@@ -70,10 +70,10 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
   };
 
   const heads = p.actors.map((a, i): LaidOutSeqHead => {
-    const lines = wrap(a.label, ROLES.title, 700, 'sans', aw - 2 * SEQ.headPadX, widthOf);
+    const lines = wrap(a.label, roles.title, 700, 'sans', aw - 2 * SEQ.headPadX, widthOf);
     return {id: a.id, tone: a.tone, lines, x: cx[i] - aw / 2, w: aw, cx: cx[i], y: 0, h: 0};
   });
-  const headH = Math.max(...heads.map(h => h.lines.length)) * lineH(ROLES.title) + 2 * SEQ.headPadY;
+  const headH = Math.max(...heads.map(h => h.lines.length)) * lineH(roles.title) + 2 * SEQ.headPadY;
   for (const h of heads) { h.y = y; h.h = headH; }
 
   let cursor = y + headH;
@@ -87,8 +87,8 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
       // a label may run across neighbouring lifelines (as in UML); it only has to stay on the canvas
       const mid = (cx[i] + cx[j]) / 2;
       const room = Math.min(2 * (mid - x), 2 * (x + w - mid)) - 8;
-      const lines = wrap(s.text, ROLES.note, 400, 'sans', Math.min(room, Math.max(span - 20, 320)), widthOf);
-      const labelH = lines.length * lineH(ROLES.note);
+      const lines = wrap(s.text, roles.note, 400, 'sans', Math.min(room, Math.max(span - 20, 320)), widthOf);
+      const labelH = lines.length * lineH(roles.note);
       const ay = top + labelH + SEQ.labelGap;
       steps.push({kind: 'msg', x1: cx[i], x2: cx[j], y: ay, lines, labelTop: top, lx: (cx[i] + cx[j]) / 2, line: s.line ?? 'solid', arrow: s.arrow ?? 'end', tone: s.tone});
       cursor = ay + SEQ.stepGap;
@@ -97,10 +97,10 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
       // The loop and its label go on the right of the lifeline, unless the label does not fit there at its natural
       // width and the left side has more room (the last actor): then both mirror to the left, inside the frame.
       const rightRoom = x + w - (cx[i] + SEQ.selfW + 8) - 4, leftRoom = cx[i] - SEQ.selfW - 8 - x - 4;
-      const side = textW(s.text, ROLES.note, 400, 'sans', widthOf) > rightRoom && leftRoom > rightRoom ? 'left' : 'right';
+      const side = textW(s.text, roles.note, 400, 'sans', widthOf) > rightRoom && leftRoom > rightRoom ? 'left' : 'right';
       const lx = side === 'left' ? cx[i] - SEQ.selfW - 8 : cx[i] + SEQ.selfW + 8;
-      const lines = wrap(s.text, ROLES.note, 400, 'sans', Math.max(40, side === 'left' ? leftRoom : rightRoom), widthOf);
-      const labelH = lines.length * lineH(ROLES.note);
+      const lines = wrap(s.text, roles.note, 400, 'sans', Math.max(40, side === 'left' ? leftRoom : rightRoom), widthOf);
+      const labelH = lines.length * lineH(roles.note);
       const loopH = 22;
       const rowH = Math.max(labelH, loopH + 12);
       steps.push({kind: 'self', cx: cx[i], y: top + 6, loopH, lines, lx, side, labelTop: top, line: s.line ?? 'solid', tone: s.tone});
@@ -111,18 +111,18 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
       let left: number, right: number;
       if (lo === hi) { const nw = Math.min(aw + 40, 260); left = cx[lo] - nw / 2; right = cx[lo] + nw / 2; }
       else { left = Math.max(x, cx[lo] - 60); right = Math.min(x + w, cx[hi] + 60); }
-      const lines = wrap(s.text, ROLES.note, 400, 'sans', right - left - 24, widthOf);
-      const h = lines.length * lineH(ROLES.note) + 16;
+      const lines = wrap(s.text, roles.note, 400, 'sans', right - left - 24, widthOf);
+      const h = lines.length * lineH(roles.note) + 16;
       steps.push({kind: 'note', x: left, y: top, w: right - left, h, lines, tone: s.tone ?? 'muted'});
       cursor = top + h + SEQ.stepGap / 2;
     } else { // divider
-      const tw = textW(s.text, ROLES.note, 700, 'sans', widthOf) + 24;
+      const tw = textW(s.text, roles.note, 700, 'sans', widthOf) + 24;
       steps.push({kind: 'divider', y: top + 14, x1: x, x2: x + w, cx: x + w / 2, chipW: tw, text: s.text});
       cursor = top + SEQ.dividerH - SEQ.stepGap / 2;
     }
   }
   const bottom = cursor + 4;
-  return {type: 'sequence', id: band.id, reveal: band.reveal, x, y, w, h: bottom - y, heads, steps, lifeTop: y + headH, lifeBottom: bottom};
+  return {type: 'sequence', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: bottom - y, heads, steps, lifeTop: y + headH, lifeBottom: bottom};
 }
 
 // ---- table ------------------------------------------------------------------
@@ -137,7 +137,7 @@ export function cellOf(cell: TableCell, col: TableColumn = {}): ResolvedCell {
   return {text, tone: c.tone ?? mark?.tone, bold: c.bold ?? mark?.bold ?? col.bold ?? false, mono: c.mono ?? col.mono ?? false, align: c.align ?? col.align ?? 'left'};
 }
 
-export function layoutTable(band: TableBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutTable {
+export function layoutTable(band: TableBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutTable {
   const cols = band.columns;
   const tw = Math.min(w, band.width ?? w);
   const left = x + (w - tw) / 2;
@@ -150,8 +150,8 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
   let cy = y;
   let titleBar: LaidOutTable['titleBar'] = null;
   if (band.title) {
-    const lines = wrap(band.title, ROLES.title, 700, 'sans', tw - 2 * TBL.padX, widthOf);
-    const h = lines.length * lineH(ROLES.title) + 2 * TBL.padY;
+    const lines = wrap(band.title, roles.title, 700, 'sans', tw - 2 * TBL.padX, widthOf);
+    const h = lines.length * lineH(roles.title) + 2 * TBL.padY;
     titleBar = {y: cy, h, lines};
     cy += h;
   }
@@ -160,17 +160,17 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
       // header rows pass the column specs themselves (see the call below)
       const c: ResolvedCell = header ? {text: (cell as TableColumn).label ?? '', bold: true, mono: false, align: (cell as TableColumn).align ?? 'left'} : cellOf(cell as TableCell, cols[i]);
       if (band.rowHeader && !header && i === 0) c.bold = true;
-      const size = ROLES.body;
+      const size = roles.body;
       const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', colW[i] - 2 * TBL.padX, widthOf);
       return {...c, lines, x: colX[i], w: colW[i], top: 0};
     });
     const nLines = Math.max(1, ...placed.map(c => c.lines.length));
-    const need = nLines * lineH(ROLES.body) + 2 * padY;
+    const need = nLines * lineH(roles.body) + 2 * padY;
     const fixed = rowH ?? (header ? band.headerH : undefined) ?? band.cellH;
-    if (fixed !== undefined && fixed < need) throw new Error(`table(): ${rowH !== undefined ? 'h' : header && band.headerH !== undefined ? 'headerH' : 'cellH'} ${fixed} is too small for a row that needs ${Math.ceil(need)}px (${nLines} line(s) of ${ROLES.body}px text). Raise it or shorten the text`);
+    if (fixed !== undefined && fixed < need) throw new Error(`table(): ${rowH !== undefined ? 'h' : header && band.headerH !== undefined ? 'headerH' : 'cellH'} ${fixed} is too small for a row that needs ${Math.ceil(need)}px (${nLines} line(s) of ${roles.body}px text). Raise it or shorten the text`);
     const h = fixed ?? need;
     // fixed-height rows centre their text; content-height rows keep it top-aligned (the output before cellH existed)
-    for (const c of placed) c.top = fixed === undefined ? cy + padY : cy + (h - c.lines.length * lineH(ROLES.body)) / 2;
+    for (const c of placed) c.top = fixed === undefined ? cy + padY : cy + (h - c.lines.length * lineH(roles.body)) / 2;
     const row: LaidOutTableRow = {y: cy, h, cells: placed, header, tone};
     cy += h;
     return row;
@@ -182,5 +182,5 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     const cells = 'cells' in r ? r.cells : r;
     rows.push(rowOf(cells, false, 'cells' in r ? r.tone : undefined, 'cells' in r ? r.h : undefined));
   }
-  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone, rowHeader: band.rowHeader || undefined, reveal: band.reveal, bodySize: ROLES.body};
+  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone, rowHeader: band.rowHeader || undefined, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), bodySize: roles.body};
 }

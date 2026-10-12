@@ -1,16 +1,15 @@
-import {textWidth} from './measure.ts';
+import {textWidth} from './atoms.ts';
 import {fmt, ticksOf} from './plane.ts';
-import {ROLES} from './tokens.ts';
-import type {BarDatum, BarsBand, ColorKey, FontFamily, LaidOutBars, WidthOf} from './types.ts';
+import type {BarDatum, BarsBand, ColorKey, FontFamily, LaidOutBars, WidthOf, Roles} from './types.ts';
 
 const SERIES: Record<NonNullable<BarDatum['series']>, ColorKey> = {a: 'accent', b: 'text', c: 'muted'};
 const TICK = 6, BAR = 28, GAP = 18, STACK_GAP = 2;
 
 /**
  * The font-size of every label of a bars() band: the ONE place it is read, so measuring (barsTexts), layout and drawing
- * agree. Read at call time because fill mode rewrites ROLES.
+ * agree. Read from the `roles` the layout was made with.
  */
-const sizeOf = (band: BarsBand): number => ROLES[band.labelRole ?? 'note'];
+const sizeOf = (band: BarsBand, roles: Roles): number => roles[band.labelRole ?? 'note'];
 /**
  * Bar thickness (horizontal): BAR, or the label's height when the labelRole is bigger than the bar. Only an explicit
  * labelRole grows it, so a band without one is laid out exactly as before (fill mode's scaled note included).
@@ -33,9 +32,9 @@ const segmentText = (d: BarDatum, unit = '') => segmentOf(d, unit, 'all');
 const series = (d: BarDatum): ColorKey => d.tone ?? SERIES[d.series ?? 'a'];
 
 /** Every string bars() draws, registered before its geometry is calculated. */
-export function barsTexts(band: BarsBand): [string, number, number, FontFamily][] {
+export function barsTexts(band: BarsBand, roles: Roles): [string, number, number, FontFamily][] {
   const out: [string, number, number, FontFamily][] = [];
-  const f = flags(band), S = sizeOf(band);
+  const f = flags(band), S = sizeOf(band, roles);
   for (const d of band.data) {
     if (f.showCats) out.push([d.label, S, 400, 'sans']);
     if (f.showValues) out.push([valueText(d, band.unit), S, 700, 'sans']);
@@ -50,25 +49,38 @@ function putText(
   out: LaidOutBars, S: number, text: string, x: number, y: number, anchor: 'start' | 'middle' | 'end', fill: ColorKey,
   widthOf: WidthOf, bold = false, background?: ColorKey, bar?: number,
 ): void {
-  out.texts.push({text, x, y, anchor, fill, size: S, bold, reveal: bar === undefined ? undefined : out.bars[bar].reveal, bar});
+  out.texts.push({text, x, y, anchor, fill, size: S, bold, reveal: bar === undefined ? undefined : out.bars[bar].reveal, ...(bar === undefined || out.bars[bar].until === undefined ? {} : {until: out.bars[bar].until}), bar});
   const w = textWidth(widthOf, text, S, bold ? 700 : 400);
   out.labelBoxes.push({label: text, x: anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x, y: y - S, w, h: S + 4, background, bar});
 }
 
 function addBar(out: LaidOutBars, d: BarDatum, r: Omit<LaidOutBars['bars'][number], 'fill' | 'id'>): LaidOutBars['bars'][number] {
-  const bar = {...r, fill: series(d), id: d.id, reveal: d.reveal};
+  const bar = {...r, fill: series(d), id: d.id, reveal: d.reveal, ...(d.until === undefined ? {} : {until: d.until})};
   out.bars.push(bar);
   if (d.id) out.anchors.push({...bar, id: d.id});
   return bar;
 }
 
-export function layoutBars(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutBars {
-  return band.dir === 'v' ? layoutVertical(band, x, y, w, widthOf) : layoutHorizontal(band, x, y, w, widthOf);
+/** The row / column each bar sits in: a bar that `replaces` another takes that one's slot (they are never on screen together). */
+export function slotsOf(data: readonly BarDatum[]): {slots: number[]; count: number} {
+  const at = new Map<string, number>(), slots: number[] = [];
+  let count = 0;
+  for (const d of data) {
+    const slot = d.replaces !== undefined ? at.get(d.replaces) : undefined;
+    slots.push(slot ?? count++);
+    if (d.id) at.set(d.id, slots[slots.length - 1]);
+  }
+  return {slots, count};
 }
 
-function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutBars {
-  const f = flags(band), S = sizeOf(band), BARH = barH(band, S);
-  const rows = band.stack ? 1 : band.data.length;
+export function layoutBars(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBars {
+  return band.dir === 'v' ? layoutVertical(band, x, y, w, widthOf, roles) : layoutHorizontal(band, x, y, w, widthOf, roles);
+}
+
+function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBars {
+  const f = flags(band), S = sizeOf(band, roles), BARH = barH(band, S);
+  const {slots, count} = slotsOf(band.data);
+  const rows = band.stack ? 1 : count;
   // barRatio replaces the bar : gap split of one row pitch; without it BAR / GAP as ever
   const bh = band.barRatio === undefined || band.stack ? BARH : (BARH + GAP) * band.barRatio, gp = band.barRatio === undefined || band.stack ? GAP : BARH + GAP - bh;
   const tickH = f.axis ? S + TICK + 8 : 0;
@@ -85,7 +97,7 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
   const needH = rows * bh + Math.max(0, rows - 1) * gp + (f.axis ? tickH + 8 : 0) + outsideH;
   if (band.height !== undefined && band.height < needH) throw new Error(`bars(): height ${band.height} is too small for its content (need at least ${needH})`);
   const h = band.height ?? needH;
-  const out: LaidOutBars = {type: 'bars', id: band.id, x, y, w, h, dir: 'h', stack: band.stack, reveal: band.reveal, bars: [], ticks: [], texts: [], labelBoxes: [], anchors: []};
+  const out: LaidOutBars = {type: 'bars', id: band.id, x, y, w, h, dir: 'h', stack: band.stack, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), bars: [], ticks: [], texts: [], labelBoxes: [], anchors: []};
   const axisY = y + rows * bh + Math.max(0, rows - 1) * gp;
   for (const t of ticks) {
     const tx = plotL + t.at / band.max * plotW;
@@ -107,7 +119,7 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
       at += rawW;
     });
   } else band.data.forEach((d, i) => {
-    const by = y + i * (bh + gp), bw = d.value / band.max * plotW;
+    const by = y + slots[i] * (bh + gp), bw = d.value / band.max * plotW;
     const r = addBar(out, d, {x: plotL, y: by, w: bw, h: bh});
     const bar = out.bars.length - 1;
     if (f.showCats) putText(out, S, d.label, plotL - 8, by + bh / 2 + S * .36, 'end', 'text', widthOf, false, undefined, bar);
@@ -120,8 +132,8 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
   return out;
 }
 
-function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutBars {
-  const f = flags(band), S = sizeOf(band);
+function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBars {
+  const f = flags(band), S = sizeOf(band, roles);
   const h = band.height ?? 280;
   const ticks = f.axis ? ticksOf({max: band.max}, 'bars') : [];
   const tickW = Math.max(0, ...ticks.map(t => textWidth(widthOf, t.label, S, 400)));
@@ -129,7 +141,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
   // the margins hold the value labels / top tick label above and the category labels below; none of them, none of the margin
   const plotT = y + (f.axis || f.showValues ? S + 8 : 4), plotB = f.showCats ? y + h - S * 1.4 - 14 : y + h - 4;
   if (plotR - plotL < (f.axis || f.labels !== 'none' ? 80 : 20) || plotB - plotT < (f.axis || f.showValues ? 80 : 20)) throw new Error('bars(): the figure is too small; raise width / height');
-  const out: LaidOutBars = {type: 'bars', id: band.id, x, y, w, h, dir: 'v', stack: band.stack, reveal: band.reveal, bars: [], ticks: [], texts: [], labelBoxes: [], anchors: []};
+  const out: LaidOutBars = {type: 'bars', id: band.id, x, y, w, h, dir: 'v', stack: band.stack, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), bars: [], ticks: [], texts: [], labelBoxes: [], anchors: []};
   for (const t of ticks) {
     const ty = plotB - t.at / band.max * (plotB - plotT);
     if (f.grid && (f.baseline || t.at !== 0)) out.ticks.push({x1: plotL - TICK, y1: ty, x2: plotR, y2: ty});
@@ -152,9 +164,10 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
     });
   } else {
     // barRatio (when given) is the bar's share of its slot with no upper limit; 1 makes neighbours touch
-    const slot = (plotR - plotL) / band.data.length, bw = band.barRatio === undefined ? Math.min(64, slot * .62) : slot * band.barRatio;
+    const {slots, count} = slotsOf(band.data);
+    const slot = (plotR - plotL) / count, bw = band.barRatio === undefined ? Math.min(64, slot * .62) : slot * band.barRatio;
     band.data.forEach((d, i) => {
-      const bh = d.value / band.max * (plotB - plotT), bx = plotL + i * slot + (slot - bw) / 2;
+      const bh = d.value / band.max * (plotB - plotT), bx = plotL + slots[i] * slot + (slot - bw) / 2;
       const r = addBar(out, d, {x: bx, y: plotB - bh, w: bw, h: bh});
       const bar = out.bars.length - 1;
       if (f.showCats) putText(out, S, d.label, bx + bw / 2, plotB + S + 10, 'middle', 'text', widthOf, false, undefined, bar);

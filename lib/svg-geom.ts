@@ -188,8 +188,11 @@ export function familyKind(fontFamily: string): FontFamily {
 
 const num1 = (v: string | undefined) => { if (v === undefined) return null; const f = parseFloat(v.trim().split(/[\s,]+/)[0]); return Number.isFinite(f) ? f : null; };
 
-/** The box of a <text> element (its tspans included) in its own coordinates, or null when it draws nothing. */
-export function textBoxOf(text: El, styles: Map<El, Style>, specs?: FontSpecs): Box | null {
+/** One run of a <text> (the text of one tspan, or of the <text> itself) as it is laid out: where its pen starts and how big it is. */
+export interface PlacedRun {s: string; style: Style; x: number; y: number; w: number; ascent: number; descent: number}
+
+/** The runs of a <text> element (its tspans included) with the positions they are drawn at, in its own coordinates. */
+export function placeRuns(text: El, styles: Map<El, Style>, specs?: FontSpecs): PlacedRun[] {
   const preserve = (e: El) => { for (let p: El | null = e; p; p = p.parent) if (p.attrs['xml:space']) return p.attrs['xml:space'] === 'preserve'; return false; };
   type Run = {s: string; style: Style};
   type Chunk = {x: number; y: number; runs: Run[]};
@@ -229,16 +232,22 @@ export function textBoxOf(text: El, styles: Map<El, Style>, specs?: FontSpecs): 
     if (rs[rs.length - 1].s) break;
     rs.pop();
   }
-  const boxes: Box[] = [];
+  const placed: PlacedRun[] = [];
   for (const ch of chunks) {
+    const runs = ch.runs.filter(r => r.s);
     const parts = measured(ch);
     const total = parts.reduce((a, p) => a + p.w, 0);
     if (!parts.length || total === 0) continue;
     const anchor = ch.runs[0]?.style.textAnchor ?? 'start';
     let x = ch.x - (anchor === 'middle' ? total / 2 : anchor === 'end' ? total : 0);
-    for (const p of parts) { boxes.push({x, y: ch.y - p.ascent, w: p.w, h: p.ascent + p.descent}); x += p.w; }
+    parts.forEach((p, i) => { placed.push({...runs[i], x, y: ch.y, ...p}); x += p.w; });
   }
-  return unionBox(boxes);
+  return placed;
+}
+
+/** The box of a <text> element (its tspans included) in its own coordinates, or null when it draws nothing. */
+export function textBoxOf(text: El, styles: Map<El, Style>, specs?: FontSpecs): Box | null {
+  return unionBox(placeRuns(text, styles, specs).map(p => ({x: p.x, y: p.y - p.ascent, w: p.w, h: p.ascent + p.descent})));
 }
 
 export const textContent = (e: El) => textOf(e);
