@@ -61,7 +61,7 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
     } else if (band.type === 'bars') {
       for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})});
     } else if (band.type === 'gantt') { // each task with an id is its own rect: a connector from outside must not run through one
-      for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h});
+      for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'states') { // each state is its own rect: a connector from outside must not run through one
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'tree') { // each node is its own rect: a connector from outside must not run through one
