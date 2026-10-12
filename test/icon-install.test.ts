@@ -7,7 +7,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {execFile} from 'node:child_process';
 import {glyphFromBody, glyphFromSvg, parseManifest, parseSpec} from '../lib/icon-store.ts';
-import {addIcons, noticeText, readManifest, removeIcons} from '../lib/icon-install.ts';
+import {addIcons, noticeText, readManifest, removeIcons, setMainSet} from '../lib/icon-install.ts';
+import {findIcons, styleOf} from '../lib/icon-find.ts';
 
 const CLI = new URL('../manage-icons.ts', import.meta.url).pathname;
 const P = (a: string) => `<path fill="currentColor" d="${a}"/>`;
@@ -146,5 +147,82 @@ test('the CLI: add through SVG_DIAGRAM_ICONIFY_API, list, a failure exits 1, and
     const build = await new Promise<{code: number | null; err: string}>(ok => execFile('node', [new URL('../build-diagram.ts', import.meta.url).pathname, fig, '--out', path.join(dir, 'o.svg'), '--no-lint'], {cwd: dir}, (e, _o, err) => ok({code: e ? 1 : 0, err})));
     assert.equal(build.code, 0, build.err);
     assert.match(fs.readFileSync(path.join(dir, 'o.svg'), 'utf8'), /data-icon="lock2"/);
+  } finally { srv.close(); fs.rmSync(dir, {recursive: true}); }
+});
+
+// ---- icons find / main ---------------------------------------------------------------------------------------------------
+function iconifySearch() {
+  const col = (spdx: string, palette = false) => ({name: 'N', author: {name: 'A'}, license: {spdx, title: spdx}, palette});
+  const sets: Record<string, Record<string, string>> = {
+    mdi: {key: P('M1 1h4v4z'), 'key-plus': P('M2 2h4v4z')},
+    lucide: {key: '<g fill="none" stroke="currentColor" stroke-width="2"><path d="M0 0l8 8"/></g>', keys: '<script/>'},
+    fa: {key: P('M3 3h4v4z')},
+    pal: {key: '<circle r="2" fill="#f00"/>'},
+  };
+  const lic: Record<string, [string, boolean]> = {mdi: ['Apache-2.0', false], lucide: ['ISC', false], fa: ['CC-BY-4.0', false], pal: ['MIT', true]};
+  const server = http.createServer((req, res) => {
+    const u = new URL(req.url!, 'http://x');
+    res.setHeader('content-type', 'application/json');
+    if (u.pathname === '/search') {
+      const only = u.searchParams.get('prefixes')?.split(',');
+      const ids = ['fa:key', 'lucide:key', 'pal:key', 'lucide:keys', 'mdi:key-plus', 'mdi:key'].filter(id => !only || only.includes(id.split(':')[0]));
+      return void res.end(JSON.stringify({icons: ids, collections: Object.fromEntries([...new Set(ids.map(i => i.split(':')[0]))].map(p => [p, col(...lic[p])]))}));
+    }
+    const s = sets[u.pathname.slice(1).replace(/\.json$/, '')];
+    const want = (u.searchParams.get('icons') ?? '').split(',');
+    res.end(JSON.stringify({width: 24, icons: Object.fromEntries(want.filter(n => s?.[n]).map(n => [n, {body: s[n]}]))}));
+  });
+  return new Promise<{api: string; close(): void}>(ok => server.listen(0, '127.0.0.1', () => ok({api: `http://127.0.0.1:${(server.address() as {port: number}).port}`, close: () => server.close()})));
+}
+
+test('icons find: licence- and colour-filtered, undrawable icons dropped, the main set first, --style and --set narrow it', async () => {
+  const srv = await iconifySearch();
+  try {
+    const [r] = await findIcons(['key'], {api: srv.api, mainSet: 'mdi'});
+    assert.deepEqual(r.candidates.map(c => c.id), ['mdi:key', 'mdi:key-plus', 'lucide:key'], 'main set first, exact name before key-plus; fa (CC-BY), pal (colour) and the script icon are out');
+    assert.deepEqual(r.candidates.map(c => c.style), ['fill', 'fill', 'line']);
+    assert.deepEqual(r.skipped, ['fa (CC-BY-4.0)']);
+    assert.equal(r.candidates[0].add, 'mdi:key=key');
+    assert.deepEqual((await findIcons(['key'], {api: srv.api})).at(0)!.candidates.map(c => c.id), ['lucide:key', 'mdi:key', 'mdi:key-plus'], 'with no main set: exact names in search order');
+    assert.deepEqual((await findIcons(['key'], {api: srv.api, mainSet: 'mdi', style: 'line'}))[0].candidates.map(c => c.id), ['lucide:key']);
+    assert.deepEqual((await findIcons(['key'], {api: srv.api, sets: ['lucide']}))[0].candidates.map(c => c.id), ['lucide:key']);
+    assert.deepEqual((await findIcons(['key'], {api: srv.api, allowLicense: ['CC-BY-4.0'], limit: 9}))[0].candidates.map(c => c.id).includes('fa:key'), true);
+    assert.equal((await findIcons(['key'], {api: srv.api, color: true, limit: 9}))[0].candidates.find(c => c.id === 'pal:key')?.style, 'color');
+    assert.deepEqual(styleOf({vb: [0, 0, 24], d: 'M0 0'}), 'fill');
+    await assert.rejects(findIcons([' '], {api: srv.api}), /empty word/);
+  } finally { srv.close(); }
+});
+
+test('the first set installed becomes the main set; another set warns; icons main sets and clears it', async () => {
+  const srv = await iconify();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'icons-main-'));
+  try {
+    const first = await addIcons(['mdi:key'], {api: srv.api, cwd: dir});
+    assert.deepEqual(first.warnings, []);
+    const file = path.join(dir, 'svg-diagram.icons.json');
+    assert.equal(readManifest(file).mainSet, 'mdi');
+    const other = await addIcons(['ccby:a=x'], {api: srv.api, cwd: dir, allowLicense: ['CC-BY-4.0']});
+    assert.match(other.warnings[0], /主セットは mdi。ccby/);
+    assert.equal(readManifest(file).mainSet, 'mdi', 'adding from another set does not move it');
+    assert.equal(setMainSet('ccby', dir).mainSet, 'ccby');
+    assert.equal(readManifest(file).mainSet, 'ccby');
+    setMainSet(undefined, dir);
+    assert.equal(readManifest(file).mainSet, undefined);
+    assert.throws(() => setMainSet('Not A Set', dir), /not an Iconify set prefix/);
+    assert.equal(readManifest(file).icons.key.from, 'mdi:key', 'the icons are kept');
+  } finally { srv.close(); fs.rmSync(dir, {recursive: true}); }
+});
+
+test('the CLI: icons find prints candidates with the add line and writes the picture', async () => {
+  const srv = await iconifySearch();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'icons-find-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'svg-diagram.icons.json'), JSON.stringify({version: 1, mainSet: 'mdi', icons: {}}));
+    const r = await new Promise<{code: number; out: string; err: string}>(ok => execFile('node', [CLI, 'find', 'key', '--png', path.join(dir, 's.png')], {cwd: dir, env: {...process.env, SVG_DIAGRAM_ICONIFY_API: srv.api}}, (e, out, err) => ok({code: e ? 1 : 0, out, err})));
+    assert.equal(r.code, 0, r.err);
+    assert.match(r.out, /主セット: mdi/);
+    assert.match(r.out, /mdi:key\s+fill\s+Apache-2\.0\s+★主セット\n\s+→ svg-diagram icons add mdi:key=key/);
+    assert.match(r.out, /ライセンスのため除外: fa \(CC-BY-4\.0\)/);
+    assert.deepEqual([...fs.readFileSync(path.join(dir, 's.png')).subarray(1, 4)], [80, 78, 71], 'a PNG was written');
   } finally { srv.close(); fs.rmSync(dir, {recursive: true}); }
 });

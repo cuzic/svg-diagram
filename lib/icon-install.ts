@@ -19,10 +19,10 @@ export interface InstallOpts {
 }
 export const DEFAULT_API = 'https://api.iconify.design';
 
-interface IconifySet {prefix: string; icons: Record<string, {body: string; width?: number; height?: number; left?: number; top?: number; rotate?: number; hFlip?: boolean; vFlip?: boolean}>; aliases?: Record<string, {parent: string; body?: string; rotate?: number; hFlip?: boolean; vFlip?: boolean; width?: number; height?: number}>; width?: number; height?: number; not_found?: string[]}
-interface CollectionInfo {name?: string; author?: {name?: string}; license?: {spdx?: string; title?: string; url?: string}; palette?: boolean}
+export interface IconifySet {prefix: string; icons: Record<string, {body: string; width?: number; height?: number; left?: number; top?: number; rotate?: number; hFlip?: boolean; vFlip?: boolean}>; aliases?: Record<string, {parent: string; body?: string; rotate?: number; hFlip?: boolean; vFlip?: boolean; width?: number; height?: number}>; width?: number; height?: number; not_found?: string[]}
+export interface CollectionInfo {name?: string; author?: {name?: string}; license?: {spdx?: string; title?: string; url?: string}; palette?: boolean}
 
-async function getJson<T>(f: Fetch, url: string): Promise<T> {
+export async function getJson<T>(f: Fetch, url: string): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     let r;
     try { r = await f(url); } catch (e) { throw new Error(`cannot reach ${url} — ${(e as Error).message} (offline? install from a file instead: svg-diagram icons add ./name.svg)`); }
@@ -41,7 +41,7 @@ export function readManifest(file: string): IconManifest {
 }
 export function writeManifest(file: string, m: IconManifest): void {
   const icons = Object.fromEntries(Object.entries(m.icons).sort(([a], [b]) => a.localeCompare(b)));
-  fs.writeFileSync(file, JSON.stringify({version: 1, icons}, null, 2) + '\n');
+  fs.writeFileSync(file, JSON.stringify({version: 1, ...(m.mainSet ? {mainSet: m.mainSet} : {}), icons}, null, 2) + '\n');
 }
 
 /** Fetch and convert the icons for `specs`. Nothing is written; any failure throws, so one bad pick installs none. */
@@ -82,7 +82,7 @@ export async function resolveSpecs(specs: IconSpec[], opts: InstallOpts = {}): P
   return out;
 }
 
-export async function addIcons(args: string[], opts: InstallOpts = {}): Promise<{file: string; added: string[]; replaced: string[]}> {
+export async function addIcons(args: string[], opts: InstallOpts = {}): Promise<{file: string; added: string[]; replaced: string[]; warnings: string[]}> {
   const cwd = opts.cwd ?? process.cwd();
   const specs = args.map(parseSpec);
   const dup = specs.find((s, i) => specs.findIndex(t => t.name === s.name) !== i);
@@ -91,9 +91,14 @@ export async function addIcons(args: string[], opts: InstallOpts = {}): Promise<
   const file = manifestPath(cwd);
   const m = readManifest(file);
   const replaced = Object.keys(got).filter(n => n in m.icons);
+  // the first Iconify set a project installs from becomes its main set; later ones from another set are said to look different
+  const warnings: string[] = [];
+  const sets = [...new Set(specs.flatMap(sp => (sp.kind === 'iconify' ? [sp.prefix] : [])))];
+  if (!m.mainSet && sets.length) m.mainSet = sets[0];
+  for (const p of sets) if (m.mainSet && p !== m.mainSet) warnings.push(`主セットは ${m.mainSet}。${p} のアイコンは線の太さや絵柄が揃わないことがある（主セットを変えるなら: svg-diagram icons main ${p}）`);
   Object.assign(m.icons, got);
   writeManifest(file, m);
-  return {file, added: Object.keys(got).filter(n => !replaced.includes(n)), replaced};
+  return {file, added: Object.keys(got).filter(n => !replaced.includes(n)), replaced, warnings};
 }
 
 export function removeIcons(names: string[], cwd: string = process.cwd()): {file: string; removed: string[]} {
@@ -121,4 +126,13 @@ export function noticeText(m: IconManifest): string {
     groups.set(key, [...(groups.get(key) ?? []), name]);
   }
   return [...groups].map(([k, v]) => `- ${k}: ${v.join(', ')}`).join('\n') + '\n';
+}
+
+export function setMainSet(prefix: string | undefined, cwd: string = process.cwd()): {file: string; mainSet?: string} {
+  if (prefix !== undefined && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(prefix)) throw new Error(`"${prefix}" is not an Iconify set prefix (like mdi, lucide, material-symbols)`);
+  const file = manifestPath(cwd);
+  const m = readManifest(file);
+  if (prefix) m.mainSet = prefix; else delete m.mainSet;
+  writeManifest(file, m);
+  return {file, mainSet: prefix};
 }
