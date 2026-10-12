@@ -1,6 +1,6 @@
 # ADR 0005: HTML/CSS で描く出力(`--html`)
 
-- 状態: 実装済み(第 1 段。箱・見出し・文字だけ HTML。残りは重ねた SVG)
+- 状態: 実装済み(箱・見出し・表は HTML 要素。ほかの部品は図形が SVG、文字は HTML)
 - 日付: 2026-10-11
 
 ## 背景
@@ -15,13 +15,17 @@ Slidev や Web に埋め込むとき、図が 1 枚の SVG(`<img>`)だと文字�
 4. **枠線**: SVG は 2.5px の線が辺をまたぐ。CSS の `border` は整数 px に丸められるので、実線は `inset box-shadow`、破線・点線だけ `border`。座標は emit.ts と同じく 4px に丸める。
 5. 検証は変えない。検査は layout の結果(と SVG)を見るので、HTML 版も同じ検査を通った図から出る。
 
+6. **どの部品の文字も HTML**: SVG 側が書く `<text>` は属性が決まっている(x、y=baseline、text-anchor、class、font-size、font-weight、fill と、絵文字・太字・色つきの `<tspan>`)ので、重ねる SVG から抜き出して同じ絶対配置の行(中央・右揃いは `translateX(-50%/-100%)`)にする。線・矢印・曲線・表以外の図形(swimlane の枠、sequence の線、wireframe の部品、plane、bars、pyramid、legend、コネクタ)は SVG のまま。`raw()` は作者の SVG(transform なども可)なので、文字ごとそのまま残す。
+
 ## 実測
 
 Chromium で SVG 版と HTML 版を描いて画素を比べた(差が 1 チャンネル合計 60 超の画素の割合): text-roles 0.5%、emphasis 2.7%(group 枠と文字の 1px のずれ)、inventory-flow 0%(全部 SVG フォールバック)。
 
-## 既知の制約・次の段
+## 既知の制約
 
-- 表は `<table>`(th に scope、固定列幅)で出す。swimlane・sequence・wireframe・step/tag/icon/stamp 付きの箱などは、まだ SVG のまま(見た目は同じ、文字は選択できない)。順に HTML 化する。
-- 矢印つきの row は SVG。矢印だけ重ねて子の箱を HTML にする分割は未対応。
+- 図形は SVG のままなので、文字(HTML)は常に図形の上に描かれる。重なる要素が前後する図(別の部品の上に半透明の幕を重ねる、など)では、幕が文字を覆わない。重なりは verify が禁じているので通常の図では起きない。
+- `raw()` の文字は選択できない。
+- 矢印つきの row は SVG の矢印を重ね、箱は SVG 図形 + HTML の文字。step・icon・tag・stamp 付きの箱も同じ。
 - 同じページに複数枚置くと、`<marker id="dsl-arrow">` が重なる(SVG を `<img>` でなく直接埋めたときと同じ)。
 - フォントは CSS の font stack で解決される。測った font と違うと 1〜2px ずれる。
+- 実測(全 examples、SVG 版との画素差): 最大 1.6%。

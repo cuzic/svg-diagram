@@ -148,6 +148,29 @@ function render(b: LaidOutBand, day: Theme, stage?: number): string {
   }
 }
 
+// Every <text> the SVG emitter writes has the same few attributes (x, y = baseline, text-anchor, class, font-size, font-weight, fill) and
+// at most <tspan>s for an emoji or a bold / coloured piece, so the text of any part can become the same absolutely placed line the native
+// bands use. The shapes (lines, arrowheads, curves) stay SVG; the words are HTML, selectable and searchable.
+const attrOf = (attrs: string, name: string): string | undefined => new RegExp(`(?:^|\\s)${name}="([^"]*)"`).exec(attrs)?.[1];
+
+function textsToHtml(svg: string): {svg: string; html: string} {
+  const out: string[] = [];
+  const rest = svg.replace(/[ \t]*<text\b([^>]*)>([\s\S]*?)<\/text>\n?/g, (_m, attrs: string, inner: string) => {
+    const size = Number(attrOf(attrs, 'font-size') ?? 16), weight = Number(attrOf(attrs, 'font-weight') ?? 400);
+    const mono = attrOf(attrs, 'class') === 'mono', anchor = attrOf(attrs, 'text-anchor');
+    const {ascent, descent} = metrics(size, weight, mono);
+    const content = inner
+      .replace(/<tspan class="emoji">/g, '<span class="sd-e">')
+      .replace(/<tspan font-weight="(\d+)"(?: fill="([^"]+)")?>/g, (_t, w: string, f?: string) => `<span style="font-weight:${w}${f ? `;color:${f}` : ''}">`)
+      .replace(/<tspan fill="([^"]+)">/g, (_t, f: string) => `<span style="color:${f}">`)
+      .replace(/<\/tspan>/g, '</span>');
+    const cls = `sd-t${mono ? ' sd-m' : ''}${anchor === 'middle' ? ' sd-am' : anchor === 'end' ? ' sd-ae' : ''}`;
+    out.push(`<div class="${cls}" style="left:${px(Number(attrOf(attrs, 'x')))};top:${px(Number(attrOf(attrs, 'y')) - ascent)};font-size:${size}px;font-weight:${weight};line-height:${ascent + descent}px;color:${attrOf(attrs, 'fill') ?? PALETTE.text}">${content}</div>`);
+    return '';
+  });
+  return {svg: rest, html: out.join('')};
+}
+
 const CSS = (id: string) => `
 #${id} { position: relative; overflow: hidden; background: ${PALETTE.bg}; font-family: ${FONT_STACKS.sans}; }
 #${id} .sd-b { position: absolute; box-sizing: border-box; border-radius: 9.25px; }
@@ -158,6 +181,9 @@ const CSS = (id: string) => `
 #${id} .sd-tbl th, #${id} .sd-tbl td { position: relative; padding: 0; margin: 0; font-weight: 400; text-align: left; vertical-align: top; }
 #${id} .sd-tb { position: absolute; border-radius: 8px 8px 0 0; }
 #${id} .sd-ov { position: absolute; left: 0; top: 0; pointer-events: none; }
+#${id} .sd-am { transform: translateX(-50%); }
+#${id} .sd-ae { transform: translateX(-100%); }
+#${id} .sd-e { font-family: ${FONT_STACKS.emoji}; }
 #${id} .sd-ov text { font-family: ${FONT_STACKS.sans}; }
 #${id} .sd-ov .mono { font-family: ${FONT_STACKS.mono}; }
 #${id} .sd-ov .emoji { font-family: ${FONT_STACKS.emoji}; }`;
@@ -171,15 +197,18 @@ export function emitHtml(d: LaidOutDiagram, opts: {reveal?: number; id?: string}
   const visible = d.laidOut.filter(b => visibleAt(b, opts.reveal));
   const html = visible.filter(native).map(b => render(b, day, opts.reveal)).join('');
   // the rest, plus every connector, is the SVG the other emitter draws: same function, minus the white background and the native bands
-  const rest = visible.filter(b => !native(b));
-  let overlay = '';
+  // raw() is the author's own SVG (transforms, anything): it stays whole. Every other part keeps its shapes as SVG and gives its words to HTML.
+  const strip = (svg: string, cls: string) => svg
+    .replace(/<rect x="0" y="0" width="\d+(?:\.\d+)?" height="\d+(?:\.\d+)?" fill="#[0-9a-f]{6}"\/>\s*/i, '')
+    .replace(/<svg /, `<svg class="${cls}" `)
+    .replace(/<style>[\s\S]*?<\/style>\s*/, '')
+    .replace(/<metadata[\s\S]*?<\/metadata>\s*/, '').trim();
+  const rest = visible.filter(b => !native(b) && b.type !== 'raw'), raws = visible.filter(b => b.type === 'raw');
+  let overlay = '', words = '';
   if (rest.length || d.connects.length) {
-    const svg = emitSvg({...d, laidOut: rest}, {reveal: opts.reveal})
-      .replace(/<rect x="0" y="0" width="\d+(?:\.\d+)?" height="\d+(?:\.\d+)?" fill="#[0-9a-f]{6}"\/>\s*/i, '')
-      .replace(/<svg /, '<svg class="sd-ov" ')
-      .replace(/<style>[\s\S]*?<\/style>\s*/, '')
-      .replace(/<metadata[\s\S]*?<\/metadata>\s*/, '');
-    overlay = svg.trim();
+    const t = textsToHtml(strip(emitSvg({...d, laidOut: rest}, {reveal: opts.reveal}), 'sd-ov'));
+    overlay = t.svg; words = t.html;
   }
-  return `<style>${CSS(id)}\n</style>\n<div id="${id}" class="sd" style="width:${px(width)};height:${px(canvasHeight)}">${html}${overlay}</div>\n`;
+  if (raws.length) overlay += strip(emitSvg({...d, laidOut: raws, connects: []}, {reveal: opts.reveal}), 'sd-ov sd-raw');
+  return `<style>${CSS(id)}\n</style>\n<div id="${id}" class="sd" style="width:${px(width)};height:${px(canvasHeight)}">${html}${overlay}${words}</div>\n`;
 }

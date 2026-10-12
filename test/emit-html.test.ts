@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {box, caption, diagram, closeMeasurer, renderDiagram, table} from '../lib/dsl.ts';
+import {box, caption, diagram, closeMeasurer, renderDiagram, table, raw} from '../lib/dsl.ts';
 
 process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
 test.after(() => closeMeasurer());
@@ -47,4 +47,23 @@ test('a table is a real <table>: <th> headers with scope, fixed columns, text li
   assert.match(html!, /<th scope="row"[^>]*>.*画面/);
   assert.match(html!, /<td[^>]*>.*入力を受ける/);
   assert.doesNotMatch(html!, /<svg/, 'a table needs no SVG overlay');
+});
+
+test('every other part keeps its shapes in SVG but its words are HTML (no <text> left)', async () => {
+  const d = diagram({theme: 'blue'});
+  d.add(box({title: '手順', body: '本文 **強調** 🙂', step: 1, tag: 'new', id: 'a'}));
+  d.add(box({title: '次', id: 'b'}));
+  d.connect('a', 'b', {label: 'ラベル'});
+  const {html} = await renderDiagram(d, {name: 't.svg', budget: 'cacheOnly', html: true});
+  assert.doesNotMatch(html!, /<text/);
+  assert.match(html!, /class="sd-t sd-am"[^>]*>ラベル</, 'a centred label is HTML, shifted by CSS');
+  assert.match(html!, /<span class="sd-e">🙂<\/span>/);
+  assert.match(html!, /<svg class="sd-ov"/);
+});
+
+test('raw() stays the author\'s SVG, text included', async () => {
+  const d = diagram({theme: 'blue'});
+  d.add(raw({h: 60, draw: ({x, y}: {x: number; y: number}) => `<text x="${x + 10}" y="${y + 30}" font-size="16" fill="#22201b">生の文字</text>`}));
+  const {html} = await renderDiagram(d, {name: 't.svg', budget: 'cacheOnly', html: true});
+  assert.match(html!, /<text[^>]*>生の文字<\/text>/);
 });
