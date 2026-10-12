@@ -1,0 +1,124 @@
+// `svg-diagram icons ...` — the effects: asking Iconify (https://iconify.design — one API over the open icon sets), reading
+// .svg files, and writing the project's svg-diagram.icons.json. The pure parts are in icon-store.ts.
+import fs from 'node:fs';
+import path from 'node:path';
+import {emptyManifest, glyphFromBody, glyphFromSvg, MANIFEST_FILE, parseManifest, parseSpec, PERMISSIVE} from './icon-store.ts';
+import type {IconManifest, IconSpec, InstalledIcon} from './icon-store.ts';
+import {findManifest} from './icon-registry.ts';
+
+export type Fetch = (url: string) => Promise<{ok: boolean; status: number; json(): Promise<unknown>}>;
+export interface InstallOpts {
+  /** Iconify API root (SVG_DIAGRAM_ICONIFY_API overrides it, for a mirror or a test server). */
+  api?: string;
+  fetch?: Fetch;
+  /** Licences to accept besides the permissive ones (SPDX ids). */
+  allowLicense?: string[];
+  /** Accept icons with colours of their own (they do not follow the tone / dark theme). */
+  color?: boolean;
+  cwd?: string;
+}
+export const DEFAULT_API = 'https://api.iconify.design';
+
+interface IconifySet {prefix: string; icons: Record<string, {body: string; width?: number; height?: number; left?: number; top?: number; rotate?: number; hFlip?: boolean; vFlip?: boolean}>; aliases?: Record<string, {parent: string; body?: string; rotate?: number; hFlip?: boolean; vFlip?: boolean; width?: number; height?: number}>; width?: number; height?: number; not_found?: string[]}
+interface CollectionInfo {name?: string; author?: {name?: string}; license?: {spdx?: string; title?: string; url?: string}; palette?: boolean}
+
+async function getJson<T>(f: Fetch, url: string): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    let r;
+    try { r = await f(url); } catch (e) { throw new Error(`cannot reach ${url} — ${(e as Error).message} (offline? install from a file instead: svg-diagram icons add ./name.svg)`); }
+    if (r.status === 429 && attempt < 3) { await new Promise(ok => setTimeout(ok, 1500 * (attempt + 1))); continue; } // rate-limited: wait and ask again
+    if (!r.ok) throw new Error(`${url} → HTTP ${r.status}`);
+    return await r.json() as T;
+  }
+}
+
+/** Where this project's manifest is (nearest parent), or where `add` would create it (here). */
+export function manifestPath(cwd: string = process.cwd()): string {
+  return findManifest(cwd) ?? path.join(path.resolve(cwd), MANIFEST_FILE);
+}
+export function readManifest(file: string): IconManifest {
+  return fs.existsSync(file) ? parseManifest(fs.readFileSync(file, 'utf8'), file) : emptyManifest();
+}
+export function writeManifest(file: string, m: IconManifest): void {
+  const icons = Object.fromEntries(Object.entries(m.icons).sort(([a], [b]) => a.localeCompare(b)));
+  fs.writeFileSync(file, JSON.stringify({version: 1, icons}, null, 2) + '\n');
+}
+
+/** Fetch and convert the icons for `specs`. Nothing is written; any failure throws, so one bad pick installs none. */
+export async function resolveSpecs(specs: IconSpec[], opts: InstallOpts = {}): Promise<Record<string, InstalledIcon>> {
+  const f: Fetch = opts.fetch ?? (url => fetch(url) as never);
+  const api = (opts.api ?? process.env.SVG_DIAGRAM_ICONIFY_API ?? DEFAULT_API).replace(/\/$/, '');
+  const allow = new Set([...PERMISSIVE, ...(opts.allowLicense ?? [])]);
+  const out: Record<string, InstalledIcon> = {};
+  const byPrefix = new Map<string, Extract<IconSpec, {kind: 'iconify'}>[]>();
+  for (const s of specs) {
+    if (s.kind === 'file') {
+      const file = path.resolve(opts.cwd ?? '.', s.path);
+      out[s.name] = {...glyphFromSvg(fs.readFileSync(file, 'utf8'), s.path, {color: opts.color}), from: `file:${path.basename(s.path)}`, license: 'local'};
+    } else byPrefix.set(s.prefix, [...(byPrefix.get(s.prefix) ?? []), s]);
+  }
+  // one small call for every set's author / licence (the per-set /collection call lists all of its icons)
+  const infos = byPrefix.size ? await getJson<Record<string, CollectionInfo>>(f, `${api}/collections?prefixes=${[...byPrefix.keys()].join(',')}`) : {};
+  for (const [prefix, list] of byPrefix) {
+    const names = [...new Set(list.map(s => s.icon))].join(',');
+    const set = await getJson<IconifySet>(f, `${api}/${prefix}.json?icons=${encodeURIComponent(names)}`);
+    const col = {info: infos[prefix]};
+    const lic = col.info?.license;
+    if (!lic?.spdx) throw new Error(`${prefix}: the set states no licence (SPDX id) — not installing from it`);
+    if (!allow.has(lic.spdx)) throw new Error(`${prefix}: licence ${lic.spdx}${lic.title ? ` (${lic.title})` : ''} is not one of the permissive ones (${[...PERMISSIVE].join(', ')}) — it may need attribution or forbid commercial use. If you have read it and accept: --allow-license ${lic.spdx}`);
+    if (col.info?.palette && !opts.color) throw new Error(`${prefix}: a multi-colour set — its icons keep their own colours (no tone, no dark theme). To install from it anyway: --color`);
+    for (const s of list) {
+      const what = `${prefix}:${s.icon}`;
+      const direct = set.icons?.[s.icon];
+      const alias = set.aliases?.[s.icon];
+      const base = direct ?? (alias ? set.icons?.[alias.parent] : undefined);
+      if (!base) throw new Error(`${what}: not in the set (svg-diagram icons search ${s.icon.split('-')[0]} --set ${prefix})`);
+      const t = direct ?? {...base, ...alias};
+      if (t.rotate || t.hFlip || t.vFlip) throw new Error(`${what}: is a rotated / flipped alias — install ${alias?.parent ?? 'its parent'} instead`);
+      const g = glyphFromBody(t.body, {width: t.width ?? set.width ?? 16, height: t.height ?? set.height ?? t.width ?? set.width ?? 16, left: t.left, top: t.top}, what, {color: opts.color});
+      out[s.name] = {...g, from: what, license: lic.spdx, ...(lic.url ? {licenseUrl: lic.url} : {}), ...(col.info?.author?.name ? {author: col.info.author.name} : {})};
+    }
+  }
+  return out;
+}
+
+export async function addIcons(args: string[], opts: InstallOpts = {}): Promise<{file: string; added: string[]; replaced: string[]}> {
+  const cwd = opts.cwd ?? process.cwd();
+  const specs = args.map(parseSpec);
+  const dup = specs.find((s, i) => specs.findIndex(t => t.name === s.name) !== i);
+  if (dup) throw new Error(`the name "${dup.name}" is given twice — rename one with =name`);
+  const got = await resolveSpecs(specs, {...opts, cwd});
+  const file = manifestPath(cwd);
+  const m = readManifest(file);
+  const replaced = Object.keys(got).filter(n => n in m.icons);
+  Object.assign(m.icons, got);
+  writeManifest(file, m);
+  return {file, added: Object.keys(got).filter(n => !replaced.includes(n)), replaced};
+}
+
+export function removeIcons(names: string[], cwd: string = process.cwd()): {file: string; removed: string[]} {
+  const file = manifestPath(cwd);
+  const m = readManifest(file);
+  const missing = names.filter(n => !(n in m.icons));
+  if (missing.length) throw new Error(`not installed: ${missing.join(', ')}`);
+  for (const n of names) delete m.icons[n];
+  writeManifest(file, m);
+  return {file, removed: names};
+}
+
+export async function searchIcons(query: string, opts: InstallOpts & {set?: string; limit?: number} = {}): Promise<string[]> {
+  const f: Fetch = opts.fetch ?? (url => fetch(url) as never);
+  const api = (opts.api ?? process.env.SVG_DIAGRAM_ICONIFY_API ?? DEFAULT_API).replace(/\/$/, '');
+  const r = await getJson<{icons?: string[]}>(f, `${api}/search?query=${encodeURIComponent(query)}&limit=${opts.limit ?? 32}${opts.set ? `&prefix=${encodeURIComponent(opts.set)}` : ''}`);
+  return r.icons ?? [];
+}
+
+/** Markdown for a NOTICE / credits page: who made the icons the project installed, under which licence. */
+export function noticeText(m: IconManifest): string {
+  const groups = new Map<string, string[]>();
+  for (const [name, ic] of Object.entries(m.icons)) {
+    const key = ic.from.startsWith('file:') ? 'Drawn in this project' : `${ic.from.split(':')[0]} — ${ic.author ?? 'unknown author'}, ${ic.license}${ic.licenseUrl ? ` (${ic.licenseUrl})` : ''}`;
+    groups.set(key, [...(groups.get(key) ?? []), name]);
+  }
+  return [...groups].map(([k, v]) => `- ${k}: ${v.join(', ')}`).join('\n') + '\n';
+}

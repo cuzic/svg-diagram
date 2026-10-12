@@ -10,7 +10,7 @@ import {execFileSync} from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import {wf} from './wireframe.ts';
-import {assertIconName} from './icons.ts';
+import {resolveIcon} from './icon-registry.ts';
 import {readImage} from './image-file.ts';
 import {layoutDiagram} from './layout-measured.ts';
 import {mapOf} from './tokens.ts';
@@ -40,7 +40,7 @@ import type {
   HandleOf, PyramidLayers, Refers, RefsOf, RowHandleOf, SeqStepIn, ScreensItemInput, StateRowIn, StateRowLoose, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn,
 } from './strict.ts';
 export {wf} from './wireframe.ts';
-export {icon} from './icons.ts';
+export {icon} from './icon-registry.ts';
 export type {IconName, EmojiName} from './icons.ts';
 import type {IconName} from './icons.ts';
 export {versus} from './versus.ts';
@@ -162,7 +162,8 @@ export function box(opts: BoxOpts): BoxBand {
   assertSolidText(band, 'box()');
   if (band.step != null && !band.title) throw new Error('box({step}) needs a title — the badge aligns to the title\'s first line');
   if (band.icon !== undefined && band.step != null) throw new Error('box({icon}) and box({step}) both sit at the box\'s left edge — use one');
-  if (band.icon !== undefined) assertIconName(band.icon, 'box({icon})');
+  // the glyph is resolved here (the shell) and carried on the band, so emit stays free of I/O
+  if (band.icon !== undefined) band.iconGlyph = resolveIcon(band.icon, 'box({icon})');
   return withHandle(band, opts.id);
 }
 

@@ -5,8 +5,10 @@ const DOT_GAP = 3, LABEL_GAP = 6, BAR_H = 8, AXIS_GAP = 4;
 // every shape coordinate sits on the 4px grid (the lint's coordinate-grid advisory fails a build), so the piles are packed on it
 const snap4 = (v: number): number => Math.round(v / 4) * 4, ceil4 = (v: number): number => Math.ceil(v / 4) * 4;
 
-/** The person icon is drawn from the 4..20 square of its 24px source box; the rest is margin. */
+/** The person icon is drawn from the 4..20 square of its 24px box; the rest is margin. */
 export const PERSON_BOX = {from: 4, size: 16};
+/** people()'s own glyph (a head and shoulders, in the 24px box) — part of the primitive, not an installable icon. */
+export const PERSON_PATH = 'M12 4a4 4 0 1 1 0 8a4 4 0 0 1 0-8M12 14c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4z';
 
 const SIDE_GAP = 24;
 const sideRole = (band: PeopleBand, roles: Roles) => roles[band.side?.size ?? 'stat'];

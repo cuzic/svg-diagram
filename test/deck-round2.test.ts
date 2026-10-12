@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {bars, checkDiagram, closeMeasurer, diagram, plane, renderDiagram} from '../lib/dsl.ts';
-import {icon, EMOJIS} from '../lib/icons.ts';
+import {EMOJIS} from '../lib/icons.ts';
+import {icon} from '../lib/dsl.ts';
 import type {SpotlightOpt} from '../lib/types.ts';
 
 process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';

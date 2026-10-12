@@ -25,7 +25,7 @@ test('people() draws emphasized icons filled and the rest as outlines, with an a
   const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(people(10, 3, {alt: '10 人中 3 人'})), {name: 'p.svg', budget: 'cacheOnly'});
   assert.match(svg, /<g role="img" aria-label="10 人中 3 人">/);
   assert.equal(svg.match(/fill="none" stroke=/g)?.length, 7);
-  assert.equal(svg.match(/<path d="M12,4A4,4[^"]*" transform="[^"]*" fill="#/g)?.length, 3);
+  assert.equal(svg.match(/<path d="M12 4a4 4[^"]*" transform="[^"]*" fill="#/g)?.length, 3);
 });
 
 test('people(total, [k1, k2]) fills k1 in tone, the next k2 in tone2, the rest as outlines', async () => {

@@ -15,6 +15,7 @@
 
 import type {BadgeBox} from './badge.ts';
 import type {IconName} from './icons.ts';
+import type {IconGlyph} from './icon-store.ts';
 import type {ConnectInput, DeclaredIds, RefIn, ValidateBands} from './strict.ts';
 import type {RULE_DOCS, DEFAULT_LEGEND_LABELS} from './rules.ts';
 import type {RICH} from './rich.ts';
@@ -338,6 +339,8 @@ export interface BoxOpts extends BoxStyleOpts {
 /** A box band holds plain text only; the pieces of a rich text are in `spans`. */
 export interface BoxBand extends BoxStyleOpts {
   type: 'box';
+  /** Internal: the installed path of `icon`, resolved by box(). */
+  iconGlyph?: IconGlyph;
   title?: string;
   body?: string;
   lines?: BoxLine[];

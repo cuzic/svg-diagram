@@ -19,9 +19,7 @@ import {BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSE
 import {visibleAt} from './reveal.ts';
 import {spotlightDim} from './spotlight.ts';
 import {MARK_STROKE, plateStyle} from './image.ts';
-import {ICON_PATHS} from './icons.ts';
-import {PERSON_BOX} from './people.ts';
-import type {IconName} from './icons.ts';
+import {PERSON_BOX, PERSON_PATH} from './people.ts';
 
 const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
 
@@ -114,13 +112,18 @@ function renderStepBadge(band: LaidOutBox, day: Theme): string {
 // box({icon}): the icon's path scaled from its source viewBox to ICON_SIZE, at the box's top-left. Its colour is a text tone
 // (a dimmed box: muted). With a title the label carries the meaning, so the icon is hidden from assistive technology.
 function renderBoxIcon(band: LaidOutBox, day: Theme): string {
-  const {vb: [vx, vy, vs], d} = ICON_PATHS[band.icon as IconName];
+  const g = band.iconGlyph!;
+  const {vb: [vx, vy, vs]} = g;
   const s = ICON_SIZE / vs;
   const x = band.x + (band.padX ?? BOX_PAD_X), y = band.y + (band.padY ?? BOX_PAD_Y);
   const n = (v: number) => +v.toFixed(4);
   const color = band.dim ? PALETTE.muted : runColorOf(band.iconTone, band.tone, day);
   const a11y = band.title ? 'aria-hidden="true"' : `role="img" aria-label="${band.icon}"`;
-  return `\n  <path d="${d}" transform="translate(${n(x - vx * s)} ${n(y - vy * s)}) scale(${n(s)})" fill="${color}" ${a11y} data-icon="${band.icon}"/>`;
+  const at = `transform="translate(${n(x - vx * s)} ${n(y - vy * s)}) scale(${n(s)})"`;
+  if (g.body === undefined) return `\n  <path d="${g.d}" ${at} fill="${color}"${g.rule ? ' fill-rule="evenodd"' : ''} ${a11y} data-icon="${band.icon}"/>`;
+  // shapes drawn the way the set drew them: `currentColor` is the tone colour; an icon with colours of its own keeps them (faded when dimmed)
+  const inner = g.body.replaceAll('currentColor', color);
+  return `\n  <g ${at} fill="${color}"${g.fixed ? ` data-icon-fixed="true"${band.dim ? ' opacity="0.35"' : ''}` : ''} ${a11y} data-icon="${band.icon}">${inner}</g>`;
 }
 
 function renderCaption(band: LaidOutCaption, day: Theme): string {
@@ -283,7 +286,7 @@ function renderPyramid(band: LaidOutPyramid, roles: Roles): string {
 
 // people(): one person icon per head, the emphasized ones filled and the rest outlines (the count reads without colour).
 function renderPeople(band: LaidOutPeople, day: Theme): string {
-  const d = ICON_PATHS.person.d, s = band.size / PERSON_BOX.size, n = (v: number) => +v.toFixed(4);
+  const d = PERSON_PATH, s = band.size / PERSON_BOX.size, n = (v: number) => +v.toFixed(4);
   const color = colorOf(toneStyle(band.tone).ink, day), color2 = colorOf(toneStyle(band.tone2).ink, day), rest = colorOf(toneStyle(band.rest).ink, day);
   const icon = (i: {x: number; y: number; on: boolean; second?: true}) => `<path d="${d}" transform="translate(${n(i.x - PERSON_BOX.from * s)} ${n(i.y - PERSON_BOX.from * s)}) scale(${n(s)})" ${i.on ? `fill="${i.second ? color2 : color}"` : `fill="none" stroke="${rest}" stroke-width="${n(1.5 / s)}"`}/>`;
   const texts = band.texts.map(t => `\n  <text x="${Math.round(t.x)}" y="${Math.round(t.y)}" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${textColorOf(t.tone, day)}">${emojiSpan(t.text)}</text>`).join('');

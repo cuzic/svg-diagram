@@ -149,7 +149,8 @@ for (const f of files) {
     }
   }
 
-  if (/<g[^>]*\btransform\s*=/.test(src)) {
+  // (box({icon}) draws a line / colour icon as one <g transform> around the set's own shapes: that group is the icon)
+  if (/<g(?![^>]*\bdata-icon=)[^>]*\btransform\s*=/.test(src)) {
     advisoryFindings.push({file: f, check: 'group-transform', detail: '<g transform="..."> wrapping children — bake the offset into each child\'s own coordinates instead'});
   }
 
