@@ -62,7 +62,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | 描きたいもの | 部品 | 書くもの |
 |---|---|---|
 | 組織図・階層 | `tree(root, {dir})` | 節 `{label, sub?, id?, tone?, children?}` |
-| マインドマップ | `mindmap(root, {sides})` | 節（`tree` と同じ）。中央から左右へ |
+| マインドマップ | `mindmap(root, {layout, edges})` | 節（`tree` と同じ）。`layout`: radial（既定。中央から左右へ）/ right・left / down・up / org / list / brace / fishbone（原因分析。ルートの下は 2 階層まで）/ timeline。`edges`: elbow・curve・straight（ツリー系の形だけ） |
 | 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?}` と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
 | スケジュール | `gantt(rows, {today})` | タスク `{label, start, end｜days, after?, progress?, milestone?}`（日付は `YYYY-MM-DD`、`today` は必ず書く） |
 | UML クラス図 | `classDiagram(classes, relations, {dir})` | クラス `{id, attrs?, methods?, stereotype?}` と関係 `{from, to, kind, label?, fromMult?, toMult?}` |
