@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="257" viewBox="0 0 940 257" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">3 層の表(行ラベル)</title>
+  <desc id="svg-desc">表「3 層の構成」: 列 層、役割、主な技術</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/table-row-header.ts","sourceSha256":"bfb7ac806370f1bec76d20f23d46c5747f0f1e69612c0cea8721e6cd4227af80"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .mono { font-family: 'JetBrains Mono','SF Mono','Menlo','Consolas','Liberation Mono','Courier New',monospace; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="257" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">table({rowHeader, dense, cellH})</text>
+
+  <path d="M198,56 H742 A8,8 0 0 1 750,64 V93  H190  V64 A8,8 0 0 1 198,56 Z" fill="#1d5fa8"/>
+  <text x="202" y="79" font-size="15" font-weight="700" fill="#ffffff">3 層の構成</text>
+  <path d="M190,93 H750  V129  H190  V93  Z" fill="#dce9f7"/>
+  <path d="M190,93 H750" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M190,129 H750  V165  H190  V129  Z" fill="#ffffff"/>
+  <path d="M190,129 H283  V165  H190  V129  Z" fill="#dce9f7"/>
+  <path d="M190,129 H750" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M190,165 H750  V201  H190  V165  Z" fill="#ffffff"/>
+  <path d="M190,165 H283  V201  H190  V165  Z" fill="#dce9f7"/>
+  <path d="M190,165 H750" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M190,201 H750  V229 A8,8 0 0 1 742,237 H198 A8,8 0 0 1 190,229 V201  Z" fill="#f6f8fa"/>
+  <path d="M190,201 H283  V237  H198 A8,8 0 0 1 190,229 V201  Z" fill="#dce9f7"/>
+  <path d="M190,201 H750" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M283,93 V237" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M563,93 V237" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M283,129 V237" stroke="#22201b" stroke-width="3"/>
+  <text x="202" y="115" font-size="14" font-weight="700" fill="#22201b">層</text>
+  <text x="295" y="115" font-size="14" font-weight="700" fill="#22201b">役割</text>
+  <text x="575" y="115" font-size="14" font-weight="700" fill="#22201b">主な技術</text>
+  <text x="202" y="151" font-size="14" font-weight="700" fill="#22201b">画面</text>
+  <text x="295" y="151" font-size="14" font-weight="400" fill="#22201b">入力を受けて、結果を表示する</text>
+  <text x="575" y="151" class="mono" font-size="14" font-weight="400" fill="#22201b">React</text>
+  <text x="202" y="187" font-size="14" font-weight="700" fill="#22201b">業務</text>
+  <text x="295" y="187" font-size="14" font-weight="400" fill="#22201b">規則を適用し、権限を確かめる</text>
+  <text x="575" y="187" class="mono" font-size="14" font-weight="400" fill="#22201b">Node.js</text>
+  <text x="202" y="223" font-size="14" font-weight="700" fill="#22201b">データ</text>
+  <text x="295" y="223" font-size="14" font-weight="400" fill="#22201b">保存し、履歴を残す</text>
+  <text x="575" y="223" class="mono" font-size="14" font-weight="400" fill="#22201b">PostgreSQL</text>
+  <path d="M198,56 H742 A8,8 0 0 1 750,64 V229 A8,8 0 0 1 742,237 H198 A8,8 0 0 1 190,229 V64 A8,8 0 0 1 198,56 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
+</svg>
