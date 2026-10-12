@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="882" viewBox="0 0 940 882" role="img" aria-labelledby="svg-title svg-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="960" viewBox="0 0 940 960" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">メタファー用の絵記号</title>
   <desc id="svg-desc">要素: person、people、document、folder、key、lock、bridge、fence、stairs、warning、check、close、idea、search、gear、cloud ほか</desc>
   <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/icons.ts","sourceSha256":"89b6b08e7ec67809f9bcbc3841b10ef559cc2872684f934d3cd72a4c7c0d61bb"}</metadata>
@@ -6,7 +6,7 @@
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
   </style>
-  <rect x="0" y="0" width="940" height="882" fill="#ffffff"/>
+  <rect x="0" y="0" width="940" height="960" fill="#ffffff"/>
 
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">メタファー用の絵記号（核心の数枚だけで使う）</text>
 
@@ -114,36 +114,40 @@
   <text x="807.2" y="451.6" font-size="15" font-weight="700" fill="#22201b">tree</text>
   <path d="M604-120v-125H450v-410h-93v130H80v-315h277v125h247v-125h276v315H604v-130h-94v350h94v-130h276v315H604ZM140-780v195-195Zm524 405v195-195Zm0-405v195-195Zm0 195h156v-195H664v195Zm0 405h156v-195H664v195ZM140-585h157v-195H140v195Z" transform="translate(763.2 468.6) scale(0.0333)" fill="#22201b" aria-hidden="true" data-icon="tree"/>
 
-  <rect x="20" y="516" width="900" height="116" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <rect x="20" y="516" width="900" height="196" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
 
   <text x="36" y="547.6" font-size="15" font-weight="700" fill="#22201b">icon.emoji(name) — 文字列の中で使う（見た目は環境の絵文字フォント）</text>
 
   <text x="470" y="575.6" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b"><tspan class="emoji">🧑</tspan> person   <tspan class="emoji">👥</tspan> people   <tspan class="emoji">📄</tspan> document   <tspan class="emoji">📁</tspan> folder   <tspan class="emoji">🔑</tspan> key   <tspan class="emoji">🔒</tspan> lock   <tspan class="emoji">🌉</tspan> bridge   <tspan class="emoji">🚧</tspan> fence   <tspan class="emoji">🪜</tspan> ladder</text>
 
-  <text x="470" y="611.2" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b"><tspan class="emoji">💡</tspan> idea   <tspan class="emoji">🔍</tspan> search   <tspan class="emoji">🔧</tspan> tool   <tspan class="emoji">🌐</tspan> globe   <tspan class="emoji">💾</tspan> database   <tspan class="emoji">📧</tspan> mail   <tspan class="emoji">🚨</tspan> warning   <tspan class="emoji">🎯</tspan> target   <tspan class="emoji">🔗</tspan> link</text>
+  <text x="470" y="611.2" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b"><tspan class="emoji">💡</tspan> idea   <tspan class="emoji">🔍</tspan> search   <tspan class="emoji">🔧</tspan> tool   <tspan class="emoji">🌐</tspan> globe   <tspan class="emoji">💾</tspan> database   <tspan class="emoji">📧</tspan> mail   <tspan class="emoji">🚨</tspan> warning   <tspan class="emoji">🎯</tspan> target   <tspan class="emoji">🔗</tspan> link   <tspan class="emoji">🍚</tspan> rice   <tspan class="emoji">🌾</tspan> riceplant   <tspan class="emoji">🍙</tspan> onigiri   <tspan class="emoji">🍱</tspan></text>
+  <text x="470" y="630.8000000000001" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">bento   <tspan class="emoji">🍜</tspan> noodles   <tspan class="emoji">🍞</tspan> bread   <tspan class="emoji">🥗</tspan> salad   <tspan class="emoji">🥕</tspan> carrot   <tspan class="emoji">🍎</tspan> apple   <tspan class="emoji">🥩</tspan> meat   <tspan class="emoji">🐟</tspan> fish   <tspan class="emoji">🥚</tspan> egg   <tspan class="emoji">🥛</tspan> milk   <tspan class="emoji">🍳</tspan> cooking   <tspan class="emoji">🧊</tspan> ice   <tspan class="emoji">📦</tspan> package</text>
+  <text x="470" y="650.4000000000001" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b"><tspan class="emoji">🔨</tspan> hammer   <tspan class="emoji">🧰</tspan> toolbox   <tspan class="emoji">🏠</tspan> house   <tspan class="emoji">🏢</tspan> office   <tspan class="emoji">🚀</tspan> rocket   <tspan class="emoji">🔔</tspan> bell   <tspan class="emoji">🔥</tspan> fire   <tspan class="emoji">💰</tspan> money   <tspan class="emoji">📅</tspan> calendar   <tspan class="emoji">📝</tspan> memo   <tspan class="emoji">🕐</tspan> clock   <tspan class="emoji">📊</tspan> chart</text>
+  <text x="470" y="670" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b"><tspan class="emoji">📈</tspan> growth   <tspan class="emoji">📉</tspan> decline   <tspan class="emoji">💬</tspan> speech   <tspan class="emoji">😀</tspan> smile   <tspan class="emoji">🤔</tspan> thinking   <tspan class="emoji">😅</tspan> sweat   <tspan class="emoji">😢</tspan> sad   <tspan class="emoji">😠</tspan> angry   <tspan class="emoji">😴</tspan> sleepy   <tspan class="emoji">👍</tspan> thumbsup   <tspan class="emoji">👏</tspan> clap   <tspan class="emoji">🙏</tspan></text>
+  <text x="470" y="689.6" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">pray   <tspan class="emoji">👀</tspan> eyes   <tspan class="emoji">🧠</tspan> brain   <tspan class="emoji">🤝</tspan> handshake   <tspan class="emoji">🏃</tspan> runner</text>
 
-  <text x="470" y="662.8000000000001" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">例: 認証の橋渡し</text>
+  <text x="470" y="741.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">例: 認証の橋渡し</text>
 
-  <rect x="20" y="684" width="288" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="84" y="715.4000000000001" font-size="15" font-weight="700" fill="#22201b">利用者</text>
-  <text x="84" y="743.4000000000001" font-size="14" font-weight="400" fill="#22201b">社内の誰か</text>
-  <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" transform="translate(40 700.4) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="person"/>
+  <rect x="20" y="764" width="288" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="84" y="793.8000000000001" font-size="15" font-weight="700" fill="#22201b">利用者</text>
+  <text x="84" y="821.8000000000001" font-size="14" font-weight="400" fill="#22201b">社内の誰か</text>
+  <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" transform="translate(40 778.8) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="person"/>
 
-  <rect x="324" y="684" width="288" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="389.3333333333333" y="715.4000000000001" font-size="15" font-weight="700" fill="#22201b">認証ゲート</text>
-  <text x="389.3333333333333" y="743.4000000000001" font-size="14" font-weight="400" fill="#22201b">通れるのは鍵を持つ人だけ</text>
-  <path d="M9 9V11H7V9H5V11H3V9H1V21H3V19H5V21H7V19H9V21H11V19H13V21H15V19H17V21H19V19H21V21H23V9H21V11H19V9H17V11H15V9H13V11H11V9H9M3 13H5V17H3V13M7 13H9V17H7V13M11 13H13V17H11V13M15 13H17V17H15V13M19 13H21V17H19V13Z" transform="translate(345.3333 700.4) scale(1.3333)" fill="#b91c1c" aria-hidden="true" data-icon="fence"/>
+  <rect x="324" y="764" width="288" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="389.3333333333333" y="793.8000000000001" font-size="15" font-weight="700" fill="#22201b">認証ゲート</text>
+  <text x="389.3333333333333" y="821.8000000000001" font-size="14" font-weight="400" fill="#22201b">通れるのは鍵を持つ人だけ</text>
+  <path d="M9 9V11H7V9H5V11H3V9H1V21H3V19H5V21H7V19H9V21H11V19H13V21H15V19H17V21H19V19H21V21H23V9H21V11H19V9H17V11H15V9H13V11H11V9H9M3 13H5V17H3V13M7 13H9V17H7V13M11 13H13V17H11V13M15 13H17V17H15V13M19 13H21V17H19V13Z" transform="translate(345.3333 778.8) scale(1.3333)" fill="#b91c1c" aria-hidden="true" data-icon="fence"/>
 
-  <rect x="632" y="684" width="288" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="694.6666666666666" y="715.4000000000001" font-size="15" font-weight="700" fill="#22201b">顧客データ</text>
-  <text x="694.6666666666666" y="743.4000000000001" font-size="14" font-weight="400" fill="#22201b">鍵がないと開けない</text>
-  <path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z" transform="translate(650.6667 700.4) scale(1.3333)" fill="#1d5fa8" aria-hidden="true" data-icon="database"/>
+  <rect x="632" y="764" width="288" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="694.6666666666666" y="793.8000000000001" font-size="15" font-weight="700" fill="#22201b">顧客データ</text>
+  <text x="694.6666666666666" y="821.8000000000001" font-size="14" font-weight="400" fill="#22201b">鍵がないと開けない</text>
+  <path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z" transform="translate(650.6667 778.8) scale(1.3333)" fill="#1d5fa8" aria-hidden="true" data-icon="database"/>
 
-  <rect x="20" y="780" width="444" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="40" y="812.0000000000001" font-size="15" font-weight="700" fill="#22201b"><tspan class="emoji">🔑</tspan> 鍵の管理</text>
-  <text x="40" y="840.0000000000001" font-size="14" font-weight="400" fill="#22201b">発行・失効・ローテーションを一か所で</text>
+  <rect x="20" y="860" width="444" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="40" y="890.4000000000001" font-size="15" font-weight="700" fill="#22201b"><tspan class="emoji">🔑</tspan> 鍵の管理</text>
+  <text x="40" y="918.4000000000001" font-size="14" font-weight="400" fill="#22201b">発行・失効・ローテーションを一か所で</text>
 
-  <rect x="480" y="780" width="444" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="498" y="812.0000000000001" font-size="15" font-weight="700" fill="#22201b"><tspan class="emoji">🌉</tspan> 移行の橋</text>
-  <text x="498" y="840.0000000000001" font-size="14" font-weight="400" fill="#22201b">旧システムと新システムを並行運用でつなぐ</text>
+  <rect x="480" y="860" width="444" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="498" y="890.4000000000001" font-size="15" font-weight="700" fill="#22201b"><tspan class="emoji">🌉</tspan> 移行の橋</text>
+  <text x="498" y="918.4000000000001" font-size="14" font-weight="400" fill="#22201b">旧システムと新システムを並行運用でつなぐ</text>
 </svg>

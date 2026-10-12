@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="396" viewBox="0 0 940 396" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">号令から半年</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/plane-grow.ts","sourceSha256":"69f5dd4bddbf561b14356b936570f6da6a3779688e2942393b7e81d8a6994061","reveal":1}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="396" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">plane の path に grow（点が出た分だけ曲線が伸びる）</text>
+
+  <path d="M64,336 L884,336 M64,336 L64,90" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="884,336 874,341 874,331" fill="#22201b"/>
+  <polygon points="64,90 69,100 59,100" fill="#22201b"/>
+  <path d="M64,336 L64,342 M201,336 L201,342 M337,336 L337,342 M474,336 L474,342 M611,336 L611,342 M747,336 L747,342 M884,336 L884,342 M64,336 L58,336 M64,274 L58,274 M64,213 L58,213 M64,151 L58,151 M64,90 L58,90" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M64,311 C110,295 155,276 201,262" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="64" cy="312" r="6" fill="#1d5fa8"/>
+  <circle cx="200" cy="260" r="6" fill="#1d5fa8"/>
+  <text x="64" y="358" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
+  <text x="201" y="358" text-anchor="middle" font-size="14" fill="#6f6659">1</text>
+  <text x="337" y="358" text-anchor="middle" font-size="14" fill="#6f6659">2</text>
+  <text x="474" y="358" text-anchor="middle" font-size="14" fill="#6f6659">3</text>
+  <text x="611" y="358" text-anchor="middle" font-size="14" fill="#6f6659">4</text>
+  <text x="747" y="358" text-anchor="middle" font-size="14" fill="#6f6659">5</text>
+  <text x="884" y="358" text-anchor="middle" font-size="14" fill="#6f6659">6</text>
+  <text x="52" y="341" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <text x="52" y="279" text-anchor="end" font-size="14" fill="#6f6659">25</text>
+  <text x="52" y="218" text-anchor="end" font-size="14" fill="#6f6659">50</text>
+  <text x="52" y="156" text-anchor="end" font-size="14" fill="#6f6659">75</text>
+  <text x="52" y="95" text-anchor="end" font-size="14" fill="#6f6659">100</text>
+  <text x="898" y="341" font-size="14" font-weight="700" fill="#6f6659">月</text>
+  <text x="60" y="76" font-size="14" font-weight="700" fill="#6f6659">定着率</text>
+  <text x="52" y="316" text-anchor="end" font-size="14" font-weight="700" fill="#1d5fa8">号令</text>
+  <text x="201" y="248" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">1 か月</text>
+</svg>

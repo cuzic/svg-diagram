@@ -45,7 +45,16 @@ export function prepareReveal(d: DiagramData): number {
       max = Math.max(max, r);
     };
     for (const [i, l] of (p.lines ?? []).entries()) derived(l, [l.from, l.to], `plane() line ${i + 1}`, `plane() line ${i + 1} (${l.from} -> ${l.to})`);
-    for (const [i, pa] of (p.paths ?? []).entries()) derived(pa, pa.through, `plane() path ${i + 1}`, `plane() path ${i + 1}`);
+    for (const [i, pa] of (p.paths ?? []).entries()) {
+      if (!pa.grow) { derived(pa, pa.through, `plane() path ${i + 1}`, `plane() path ${i + 1}`); continue; }
+      // a growing path: piece k appears with the later of the points it runs between (and everything before it, so the curve only grows)
+      const lv = pa.through.map(r => typeof r === 'string' ? lvl.get(r) ?? 0 : 0);
+      const explicit = own(pa, `plane() path ${i + 1}`) ?? 0;
+      let run = Math.max(n, explicit, lv[0] ?? 0);
+      pa.segReveal = pa.through.slice(1).map((_r, k) => (run = Math.max(run, lv[k + 1])));
+      if (pa.segReveal[0]) pa.reveal = pa.segReveal[0]; else delete pa.reveal;
+      max = Math.max(max, ...pa.segReveal);
+    }
     for (const [i, d] of (p.dims ?? []).entries()) derived(d, [d.from, d.to], `plane() dim ${i + 1}`, `plane() dim "${d.label}"`);
     for (const [i, l] of (p.labels ?? []).entries()) derived(l, [], `plane() label ${i + 1}`, `plane() label "${l.text}"`);
   };

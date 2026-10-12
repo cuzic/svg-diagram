@@ -30,7 +30,7 @@ export const barsValuesHidden = (band: BarsBand): boolean => band.labels !== und
 const segmentOf = (d: BarDatum, unit: string | undefined, labels: 'all' | 'category' | 'none') =>
   labels === 'all' ? `${d.label} ${valueText(d, unit)}` : labels === 'category' ? d.label : '';
 const segmentText = (d: BarDatum, unit = '') => segmentOf(d, unit, 'all');
-const series = (d: BarDatum): ColorKey => SERIES[d.series ?? 'a'];
+const series = (d: BarDatum): ColorKey => d.tone ?? SERIES[d.series ?? 'a'];
 
 /** Every string bars() draws, registered before its geometry is calculated. */
 export function barsTexts(band: BarsBand): [string, number, number, FontFamily][] {
@@ -141,7 +141,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
     let bottom = plotB;
     band.data.forEach((d, i) => {
       const rawH = d.value / band.max * (plotB - plotT), bh = Math.max(0, rawH - (i > 0 ? STACK_GAP : 0));
-      const r = {x: bx, y: bottom - rawH, w: bw, h: bh, fill: SERIES[d.series ?? 'a'], id: d.id};
+      const r = {x: bx, y: bottom - rawH, w: bw, h: bh, fill: series(d), id: d.id};
       addBar(out, d, r);
       const bar = out.bars.length - 1;
       const text = segmentOf(d, band.unit, f.labels);

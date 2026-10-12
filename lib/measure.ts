@@ -90,7 +90,9 @@ export async function rasterizeInBrowser(svg: string, {scale = 1, png = false}: 
     const out = await page.evaluate(async ({url, width, height, png}) => {
       const img = new Image();
       img.src = url;
-      try { await img.decode(); } catch { return {error: 'the browser could not load it as an <img> (not well-formed XML?)'}; }
+      const timeout = new Promise<'timeout'>(r => setTimeout(() => r('timeout'), 30000));
+      try { if ((await Promise.race([img.decode().then(() => 'ok' as const), timeout])) === 'timeout') return {error: 'the browser did not finish loading it as an <img> in 30 seconds (a font that will not load?)'}; }
+      catch { return {error: 'the browser could not load it as an <img> (not well-formed XML?)'}; }
       const c = document.createElement('canvas');
       c.width = width; c.height = height;
       const g = c.getContext('2d')!;

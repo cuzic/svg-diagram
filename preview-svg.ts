@@ -3,6 +3,7 @@
 // Drawn without a browser (resvg) with the font files the layout was measured with; --engine chromium draws it in a real browser.
 import fs from 'node:fs';
 import {rasterize} from './lib/raster.ts';
+import {closeMeasurer} from './lib/measure.ts';
 
 const args = process.argv.slice(2);
 const ei = args.indexOf('--engine');
@@ -20,4 +21,7 @@ try {
 } catch (e) {
   console.error(`✗ ${input}: ${(e as Error).message}`);
   process.exit(1);
+} finally {
+  // --engine chromium starts a browser; left open it keeps the process alive (it looked like a hang after "wrote")
+  await closeMeasurer();
 }

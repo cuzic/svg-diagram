@@ -180,10 +180,10 @@ test('plane(): points and dimension lines land where their coordinates say, and 
 });
 
 test('plane(): labels that sit on each other, or leave the figure, are reported; a bad point id or axis throws', async () => {
-  const crowded = plane({x: {max: 10}, y: {max: 10}, points: [{at: [5, 5], label: 'ひとつめの点'}, {at: [5.1, 5], label: 'ふたつめの点'}]});
+  const crowded = plane({x: {max: 10}, y: {max: 10}, points: [{at: [5, 5], label: 'ひとつめの点', labelAt: 'right'}, {at: [5.1, 5], label: 'ふたつめの点', labelAt: 'right'}]}); // (sides written out: the automatic placement would move one)
   const v = (await checkDiagram(diagram({theme: 'blue'}).add(crowded))).verdict;
   assert.ok(v.problems.some(p => /plane: label "ひとつめの点" overlaps label "ふたつめの点"/.test(p)), v.problems.join('\n'));
-  const out = plane({x: {max: 10}, y: {max: 10}, points: [{at: [10, 5], label: 'とても長いラベルがはみ出す'}]});
+  const out = plane({x: {max: 10}, y: {max: 10}, points: [{at: [10, 5], label: 'とても長いラベルがはみ出す', labelAt: 'right'}]});
   assert.ok((await checkDiagram(diagram({theme: 'blue'}).add(out))).verdict.problems.some(p => /runs outside the figure/.test(p)));
   await assert.rejects(checkDiagram(diagram({theme: 'blue'}).add(plane({x: {max: 10}, y: {max: 10}, dims: [{from: 'nope', to: [1, 1], label: 'x'}]}))), /"nope" is not a point id/);
   assert.throws(() => plane({x: {max: 0}, y: {max: 10}}), /axis x needs max > min/);

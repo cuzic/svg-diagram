@@ -4,6 +4,7 @@
 // The sheet is itself one SVG (lib/contact.ts), drawn like any other: no browser by default.
 import fs from 'node:fs';
 import {rasterize} from './lib/raster.ts';
+import {closeMeasurer} from './lib/measure.ts';
 import {buildSheet} from './lib/contact.ts';
 
 const args = process.argv.slice(2);
@@ -24,4 +25,6 @@ try {
 } catch (e) {
   console.error(`✗ ${(e as Error).message}`);
   process.exit(1);
+} finally {
+  await closeMeasurer(); // --engine chromium starts a browser that would keep the process alive
 }

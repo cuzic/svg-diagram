@@ -6,6 +6,11 @@ export function spotlightIds(d: Pick<DiagramData, 'spotlight'>): string[] {
   return typeof ids === 'string' ? [ids] : [...ids];
 }
 
+/** How a bar outside the spotlight is drawn: a dotted outline (default) or a pale fill. */
+export function spotlightDim(d: Pick<DiagramData, 'spotlight'>): 'outline' | 'fill' {
+  return typeof d.spotlight === 'object' ? d.spotlight.dim ?? 'outline' : 'outline';
+}
+
 export function spotlightEdges(d: Pick<DiagramData, 'spotlight'>): 'touching' | 'between' {
   return typeof d.spotlight === 'object' ? d.spotlight.edges ?? 'touching' : 'touching';
 }
