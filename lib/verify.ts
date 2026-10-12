@@ -66,6 +66,8 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'gantt') { // each task with an id is its own rect: a connector from outside must not run through one
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
+    } else if (band.type === 'cause' || band.type === 'cloud') { // each entity / box is its own rect: a connector from outside must not run through one
+      for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'states') { // each state is its own rect: a connector from outside must not run through one
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'tree') { // each node is its own rect: a connector from outside must not run through one
@@ -221,6 +223,42 @@ function checkBpmn(d: LaidOutDiagram): string[] {
         const o = rectOverlap(l, band.labels[j]);
         if (o) problems.push(`bpmn: label "${l.text}" overlaps label "${band.labels[j].text}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
       }
+    }
+  }
+  return problems;
+}
+
+// A cause arrow must not run through an entity it does not touch; the arrows of an AND must be joined by their arc.
+function checkCause(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  for (const band of d.laidOut) {
+    if (band.type !== 'cause') continue;
+    for (const e of band.edges) {
+      for (const n of band.anchors) {
+        if (n.id === e.from || n.id === e.to) continue;
+        for (let i = 0; i + 1 < e.points.length; i++) {
+          const p = e.points[i], q = e.points[i + 1];
+          if (rectOverlap({x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}, n)) {
+            problems.push(`cause: arrow ${e.from} -> ${e.to} runs through "${n.id}" (reorder the nodes, or change dir)`);
+            i = e.points.length;
+          }
+        }
+      }
+    }
+    for (const to of band.loose) problems.push(`cause: the arrows into "${to}" do not reach it on one side, so their AND arc is not drawn (split the AND, or change dir)`);
+  }
+  return problems;
+}
+
+// The numbers on a cloud's arrows must clear the boxes and each other, and stay inside the figure.
+function checkCloud(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  for (const band of d.laidOut) {
+    if (band.type !== 'cloud') continue;
+    for (const [i, c] of band.chips.entries()) {
+      if (c.x < band.x - 0.5 || c.x + c.w > band.x + band.w + 0.5) problems.push(`cloud: the number "${c.text}" on the ${c.arrow} arrow runs outside the figure`);
+      for (const n of band.nodes) if (rectOverlap(c, n)) problems.push(`cloud: the number "${c.text}" on the ${c.arrow} arrow overlaps box ${n.key.toUpperCase()} (fewer assumptions on one arrow, or a wider figure)`);
+      for (let j = i + 1; j < band.chips.length; j++) if (rectOverlap(c, band.chips[j])) problems.push(`cloud: the numbers on the ${c.arrow} and ${band.chips[j].arrow} arrows overlap`);
     }
   }
   return problems;
@@ -409,6 +447,8 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
     ...checkImages(d),
     ...checkTimelines(d),
     ...checkStates(d),
+    ...checkCause(d),
+    ...checkCloud(d),
     ...checkGantts(d),
     ...checkClasses(d),
     ...checkBpmn(d),

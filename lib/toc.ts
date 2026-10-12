@@ -1,0 +1,229 @@
+// The thinking processes of the Theory of Constraints (Goldratt).
+//  causeTree(): entities and cause -> effect arrows that place themselves (graph-layout.ts layoutLayered), causes at the bottom and
+//               effects at the top by default. Current / Future Reality Tree, Prerequisite Tree and Transition Tree are all this
+//               figure: an arrow across an AND arc means "together", separate arrows mean "either".
+//  cloud():     the Evaporating Cloud: five boxes in a fixed place (A the common objective, B and C the needs, D and D' the
+//               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
+import {textWidth} from './atoms.ts';
+import {gapFor, layoutWithLanes, routeLayered} from './layered-route.ts';
+import type {Pt} from './graph-layout.ts';
+import {measureNode, nodeRuns} from './tree.ts';
+import {wrapText} from './wrap.ts';
+import type {BoxTone, CauseBand, CauseRole, CloudArrow, CloudBand, CloudBox, FontFamily, LaidOutCause, LaidOutCloud, Roles, WidthOf} from './types.ts';
+
+// ---- cause tree -------------------------------------------------------------------------------------------------------------
+
+const MAX_W = 200, GAP = 28, LEVEL = 64, PORT = 22; // PORT: the step between the arrows that meet one side of an entity (the arrowheads of an AND stay apart)
+/** The arc across the arrows of an AND: where its ends and its middle are, as distances from the arrowheads' tips. */
+const AND_END = 21, AND_PEAK = 15, AND_REACH = 10;
+
+/** What a role looks like when the node gives no tone. `double`: the box has a second outline (the finding of the figure). */
+export const CAUSE_ROLES: Record<CauseRole, {tone: BoxTone; double?: boolean}> = {
+  effect: {tone: 'plain'},
+  ude: {tone: 'danger'},
+  root: {tone: 'accent', double: true},
+  de: {tone: 'new'},
+  injection: {tone: 'changed'},
+  goal: {tone: 'accent', double: true},
+  obstacle: {tone: 'plain'}, // drawn as a hexagon
+  io: {tone: 'new'},
+  action: {tone: 'changed'},
+};
+
+export function causeTexts(band: CauseBand, roles: Roles): [string, number, number, FontFamily][] {
+  const out: [string, number, number, FontFamily][] = [];
+  for (const n of band.nodes) out.push([n.label, roles.body, 700, 'sans'], [n.sub ?? '', roles.note, 400, 'sans']);
+  return out;
+}
+
+const swap = (p: Pt): Pt => ({x: p.y, y: p.x});
+
+/** The ids a link's `from` names, as a list. */
+export const causesOf = (l: {from: string | readonly string[]}): string[] => typeof l.from === 'string' ? [l.from] : [...l.from];
+
+export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutCause {
+  const dir = band.dir ?? 'up', maxW = band.maxNodeW ?? MAX_W;
+  const vertical = dir === 'up' || dir === 'down', flip = dir === 'up' || dir === 'left';
+  const ids = new Set<string>();
+  for (const n of band.nodes) {
+    if (typeof n.id !== 'string' || !n.id) throw new Error('causeTree(): every node needs an id');
+    if (typeof n.label !== 'string' || !n.label.trim()) throw new Error(`causeTree(): node "${n.id}" needs a label`);
+    if (ids.has(n.id)) throw new Error(`causeTree(): duplicate node id "${n.id}"`);
+    ids.add(n.id);
+  }
+  // one arrow per cause of a link; an AND (several causes) is a group, remembered by its effect
+  const arrows: {from: string; to: string; line: 'solid' | 'dashed' | 'dotted'}[] = [];
+  const groups: {to: string; arrows: number[]}[] = [];
+  const pairs = new Set<string>();
+  for (const l of band.links) {
+    const froms = causesOf(l);
+    if (!froms.length) throw new Error(`causeTree(): a link to "${l.to}" has no cause`);
+    if (!ids.has(l.to)) throw new Error(`causeTree(): a link names unknown node "${l.to}"`);
+    const group = froms.length > 1 ? {to: l.to, arrows: [] as number[]} : undefined;
+    for (const f of froms) {
+      if (!ids.has(f)) throw new Error(`causeTree(): link ${f} -> ${l.to} names unknown node "${f}"`);
+      if (f === l.to) throw new Error(`causeTree(): "${f}" cannot be its own cause`);
+      if (pairs.has(`${f}\u0000${l.to}`)) throw new Error(`causeTree(): link ${f} -> ${l.to} is written twice`);
+      pairs.add(`${f}\u0000${l.to}`);
+      const k = arrows.push({from: f, to: l.to, line: l.line ?? 'solid'}) - 1;
+      group?.arrows.push(k);
+    }
+    if (group) groups.push(group);
+  }
+
+  const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles)]));
+  const nodes = band.nodes.map(n => ({id: n.id, size: vertical ? {w: lines.get(n.id)!.h, h: lines.get(n.id)!.w} : {w: lines.get(n.id)!.w, h: lines.get(n.id)!.h}}));
+  // the most arrows that meet one node (each needs its own lane in the gap beside it)
+  const degree = Math.max(1, ...band.nodes.map(n => Math.max(arrows.filter(a => a.from === n.id).length, arrows.filter(a => a.to === n.id).length)));
+  // layered layout runs on a 'right' axis; a vertical figure is the same layout transposed, an upward / leftward one mirrored
+  const lay = layoutWithLanes(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree))});
+  const total = {w: vertical ? lay.h : lay.w, h: vertical ? lay.w : lay.h};
+  if (total.w > w + 0.5) throw new Error(`causeTree(): the figure is ${Math.ceil(total.w)}px wide but it has ${Math.round(w)}px (use a smaller maxNodeW, dir: 'right' or 'left', or fewer entities on one level)`);
+  const dx = x + (w - total.w) / 2, dy = y;
+  const place = (p: Pt): Pt => {
+    const q = vertical ? swap(p) : {...p};
+    if (flip) { if (vertical) q.y = total.h - q.y; else q.x = total.w - q.x; }
+    return {x: q.x + dx, y: q.y + dy};
+  };
+  const rectOf = (id: string) => {
+    const p = lay.nodes.get(id)!, q = vertical ? {x: p.y, y: p.x, w: p.h, h: p.w} : {x: p.x, y: p.y, w: p.w, h: p.h};
+    if (flip) { if (vertical) q.y = total.h - (q.y + q.h); else q.x = total.w - (q.x + q.w); }
+    return {x: q.x + dx, y: q.y + dy, w: q.w, h: q.h};
+  };
+
+  const out: LaidOutCause = {
+    type: 'cause', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h,
+    nodes: [], edges: [], ands: [], loose: [], texts: [], anchors: [], labelBoxes: [],
+  };
+  for (const n of band.nodes) {
+    const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
+    out.nodes.push({...r, tone: n.tone ?? role.tone, ...(role.double ? {double: true} : {}), ...(n.role === 'obstacle' ? {hex: true} : {})});
+    out.anchors.push({id: n.id, ...r});
+    out.texts.push(...nodeRuns(r, lines.get(n.id)!, roles));
+    out.labelBoxes.push({label: n.label, ...r});
+  }
+  const routes = routeLayered(lay, place, PORT);
+  const drawn = new Map<number, number>(); // arrow index -> index in out.edges
+  for (const [i, e] of lay.edges.entries()) {
+    if (e.self) continue;
+    drawn.set(e.index, out.edges.length);
+    out.edges.push({from: e.from, to: e.to, points: routes.get(i)!, line: arrows[e.index].line});
+  }
+  // an AND: an arc across the last run of each of its arrows, a little before the arrowheads. It needs the arrows to arrive on
+  // one side of the effect, all heading the same way, with room before the head for the arc
+  for (const g of groups) {
+    const ends = g.arrows.map(k => out.edges[drawn.get(k)!].points).map(p => ({tip: p[p.length - 1], prev: p[p.length - 2]}));
+    const d = {x: Math.sign(ends[0].tip.x - ends[0].prev.x), y: Math.sign(ends[0].tip.y - ends[0].prev.y)};
+    const along = (p: Pt): number => d.x ? p.x : p.y, cross = (p: Pt): number => d.x ? p.y : p.x;
+    const aligned = ends.every(e => Math.sign(e.tip.x - e.prev.x) === d.x && Math.sign(e.tip.y - e.prev.y) === d.y && Math.abs(along(e.tip) - along(ends[0].tip)) < 1);
+    const room = Math.min(...ends.map(e => Math.abs(along(e.tip) - along(e.prev))));
+    if (!aligned || room < AND_END + 1) { out.loose.push(g.to); continue; }
+    const us = ends.map(e => cross(e.tip)), lo = Math.min(...us) - AND_REACH, hi = Math.max(...us) + AND_REACH, tip = ends[0].tip;
+    const at = (u: number, dist: number): Pt => d.x ? {x: tip.x - d.x * dist, y: u} : {x: u, y: tip.y - d.y * dist};
+    out.ands.push({to: g.to, p0: at(lo, AND_END), c: at((lo + hi) / 2, 2 * AND_PEAK - AND_END), p1: at(hi, AND_END)});
+  }
+  return out;
+}
+
+// ---- evaporating cloud ------------------------------------------------------------------------------------------------------
+
+const KEYS = ['a', 'b', 'c', 'd', 'd2'] as const;
+const LETTER = {a: 'A', b: 'B', c: 'C', d: 'D', d2: "D'"} as const;
+const ARROWS: CloudArrow[] = ['ab', 'ac', 'bd', 'cd', 'dd'];
+const CLOUD_W = 220, CLOUD_GAP_MIN = 110, CLOUD_GAP_MAX = 170, ROW_GAP = 96, LIST_GAP = 28, NUM_GAP = 8;
+
+const boxText = (k: typeof KEYS[number], v: CloudBox): string => `${LETTER[k]}：${typeof v === 'string' ? v : v.text}`;
+const injectionText = (t: string): string => `→ ${t}`;
+/** The number of each assumption (in the order written) and, per arrow, the chip text that lists its numbers. */
+function numbering(band: CloudBand): {chip: Partial<Record<CloudArrow, string>>; n: number[]} {
+  const by: Partial<Record<CloudArrow, number[]>> = {};
+  (band.assumptions ?? []).forEach((a, i) => (by[a.on] ??= []).push(i + 1));
+  return {chip: Object.fromEntries(Object.entries(by).map(([k, v]) => [k, v.join(',')])), n: (band.assumptions ?? []).map((_, i) => i + 1)};
+}
+
+export function cloudTexts(band: CloudBand, roles: Roles): [string, number, number, FontFamily][] {
+  const out: [string, number, number, FontFamily][] = [];
+  for (const k of KEYS) out.push([boxText(k, band[k]), roles.body, 700, 'sans']);
+  const num = numbering(band);
+  for (const t of Object.values(num.chip)) out.push([t, roles.note, 400, 'sans']);
+  for (const i of num.n) out.push([`${i}.`, roles.note, 400, 'sans']);
+  for (const a of band.assumptions ?? []) out.push([a.text, roles.note, 400, 'sans'], ...(a.injection ? [[injectionText(a.injection), roles.note, 400, 'sans'] as [string, number, number, FontFamily]] : []));
+  if (band.conflictLabel) out.push([band.conflictLabel, roles.note, 400, 'sans']);
+  return out;
+}
+
+export function layoutCloudBand(band: CloudBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutCloud {
+  const S = roles.note, maxW = band.maxNodeW ?? CLOUD_W;
+  const ids = new Set<string>();
+  for (const k of KEYS) {
+    const v = band[k], text = typeof v === 'string' ? v : v?.text;
+    if (typeof text !== 'string' || !text.trim()) throw new Error(`cloud(): box ${LETTER[k]} needs a text`);
+    const id = typeof v === 'string' ? undefined : v.id;
+    if (id !== undefined) { if (ids.has(id)) throw new Error(`cloud(): duplicate box id "${id}"`); ids.add(id); }
+  }
+  for (const a of band.assumptions ?? []) {
+    if (!ARROWS.includes(a.on)) throw new Error(`cloud(): an assumption sits on ${ARROWS.map(k => `'${k}'`).join(', ')} (got ${String(a.on)})`);
+    if (typeof a.text !== 'string' || !a.text.trim()) throw new Error('cloud(): every assumption needs a text');
+  }
+  const colW = Math.min(maxW, Math.floor((w - 2 * CLOUD_GAP_MIN) / 3));
+  if (colW < 120) throw new Error(`cloud(): the figure has ${Math.round(w)}px, too narrow for five boxes and the arrows between them (needs ${3 * 120 + 2 * CLOUD_GAP_MIN}px)`);
+  const lines = Object.fromEntries(KEYS.map(k => [k, measureNode(boxText(k, band[k]), undefined, colW, widthOf, roles)])) as Record<typeof KEYS[number], ReturnType<typeof measureNode>>;
+  const boxW = Math.max(...KEYS.map(k => lines[k].w)), H = Math.max(lines.b.h, lines.c.h, lines.d.h, lines.d2.h), hA = lines.a.h;
+  const gap = Math.min(CLOUD_GAP_MAX, Math.floor((w - 3 * boxW) / 2)), figW = 3 * boxW + 2 * gap, figH = 2 * H + ROW_GAP;
+  const x0 = x + (w - figW) / 2, x1 = x0 + boxW + gap, x2 = x1 + boxW + gap;
+  const at = {
+    a: {x: x0, y: y + figH / 2 - hA / 2, w: boxW, h: hA}, b: {x: x1, y, w: boxW, h: H}, c: {x: x1, y: y + H + ROW_GAP, w: boxW, h: H},
+    d: {x: x2, y, w: boxW, h: H}, d2: {x: x2, y: y + H + ROW_GAP, w: boxW, h: H},
+  };
+  const defaultTone: Record<typeof KEYS[number], BoxTone> = {a: 'accent', b: 'plain', c: 'plain', d: 'plain', d2: 'plain'};
+  const out: LaidOutCloud = {type: 'cloud', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: figH, nodes: [], edges: [], chips: [], texts: [], anchors: [], labelBoxes: []};
+  for (const k of KEYS) {
+    const v = band[k], r = at[k];
+    out.nodes.push({...r, key: k, tone: (typeof v === 'string' ? undefined : v.tone) ?? defaultTone[k]});
+    if (typeof v !== 'string' && v.id) out.anchors.push({id: v.id, ...r});
+    out.texts.push(...nodeRuns(r, lines[k], roles));
+    out.labelBoxes.push({label: boxText(k, v), ...r});
+  }
+
+  // arrows: a need points at the objective, a want at its need ("in order to A we must B, in order to B we must D")
+  const cyB = at.b.y + H / 2, cyC = at.c.y + H / 2, cyA = at.a.y + hA / 2, off = Math.min(12, hA / 2 - 8), midX = at.a.x + boxW + gap / 2;
+  const edge = (arrow: CloudArrow, points: Pt[]) => out.edges.push({arrow, points});
+  edge('ab', [{x: x1, y: cyB}, {x: midX, y: cyB}, {x: midX, y: cyA - off}, {x: x0 + boxW, y: cyA - off}]);
+  edge('ac', [{x: x1, y: cyC}, {x: midX, y: cyC}, {x: midX, y: cyA + off}, {x: x0 + boxW, y: cyA + off}]);
+  edge('bd', [{x: x2, y: cyB}, {x: x1 + boxW, y: cyB}]);
+  edge('cd', [{x: x2, y: cyC}, {x: x1 + boxW, y: cyC}]);
+  const cx = x2 + boxW / 2, y0 = y + H;
+  edge('dd', [{x: cx, y: y0}, {x: cx, y: y0 + ROW_GAP * 0.3}, {x: cx + 10, y: y0 + ROW_GAP * 0.45}, {x: cx - 10, y: y0 + ROW_GAP * 0.55}, {x: cx, y: y0 + ROW_GAP * 0.7}, {x: cx, y: y0 + ROW_GAP}]);
+
+  // the numbers of the assumptions, in a white chip on their arrow
+  const num = numbering(band), chipH = S + 8;
+  const chipAt: Record<CloudArrow, Pt> = {
+    ab: {x: midX, y: (cyB + cyA - off) / 2}, ac: {x: midX, y: (cyC + cyA + off) / 2},
+    bd: {x: (x1 + boxW + x2) / 2, y: cyB}, cd: {x: (x1 + boxW + x2) / 2, y: cyC}, dd: {x: 0, y: y0 + ROW_GAP / 2},
+  };
+  for (const arrow of ARROWS) {
+    const text = num.chip[arrow];
+    if (!text) continue;
+    const cw = Math.ceil(textWidth(widthOf, text, S, 400)) + 12;
+    const c = arrow === 'dd' ? {x: cx + 22 + cw / 2, y: chipAt.dd.y} : chipAt[arrow];
+    out.chips.push({text, x: c.x - cw / 2, y: c.y - chipH / 2, w: cw, h: chipH, tx: c.x, ty: c.y - chipH / 2 + S + 2, size: S, arrow});
+  }
+  if (band.conflictLabel) out.texts.push({text: band.conflictLabel, x: cx - 22, y: y0 + ROW_GAP / 2 + S / 2 - 2, size: S, bold: false, muted: false, anchor: 'end', tone: 'danger'});
+
+  // the list: each assumption by its number, its injection under it
+  const list = band.assumptions ?? [];
+  if (list.length) {
+    const numW = Math.ceil(Math.max(...num.n.map(i => textWidth(widthOf, `${i}.`, S, 400)))) + NUM_GAP, inner = w - numW, lh = Math.round(S * 1.4);
+    const wrap = (t: string): string[] => wrapText(t, {maxWidth: inner, atomWidth: a => widthOf(a, S, 400, 'sans')});
+    let ty = y + figH + LIST_GAP;
+    for (const [i, a] of list.entries()) {
+      out.texts.push({text: `${i + 1}.`, x, y: ty + S, size: S, bold: false, muted: false, anchor: 'start'});
+      for (const [text, tone] of [[a.text, undefined], ...(a.injection ? [[injectionText(a.injection), 'accent' as const]] as const : [])] as const) {
+        for (const line of wrap(text)) { out.texts.push({text: line, x: x + numW, y: ty + S, size: S, bold: false, muted: false, anchor: 'start', ...(tone ? {tone} : {})}); ty += lh; }
+      }
+      ty += 6;
+    }
+    out.h = ty - 6 - y;
+  }
+  return out;
+}
