@@ -6,13 +6,13 @@
 // computed (usually off-grid) position, same as every hand-authored diagram
 // in this deck.
 
-import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
+import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
   LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutImage, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
   LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, EmphasisTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
-  LaidOutWireframe, LaidOutScreens, RawColorTone, Span,
+  LaidOutWireframe, LaidOutScreens, RawColorTone, Span, Roles,
 } from './types.ts';
 import {diagramTitle, diagramDesc} from './rules.ts';
 import {BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
@@ -149,22 +149,22 @@ function renderTag(band: LaidOutBox, day: Theme): string {
 }
 
 // The stamp chip: bottom-right inside the shape (layout reserved the strip; rows may have stretched the shape since, so it follows the bottom edge).
-function renderStamp(band: Rect & {stamp?: string; stampW?: number}): string {
+function renderStamp(band: Rect & {stamp?: string; stampW?: number}, roles: Roles): string {
   if (!band.stamp || band.stampW === undefined) return '';
   const x = snap4(band.x + band.w - 8 - band.stampW), y = snap4(band.y + band.h - 6 - 24);
-  return `\n  <rect x="${x}" y="${y}" width="${snap4(band.stampW)}" height="24" rx="4" fill="${PALETTE.bg}" stroke="${PALETTE.border}" stroke-width="1"/>\n  <text x="${snap4(band.x + band.w - 8 - band.stampW / 2)}" y="${y + 17}" font-size="${ROLES.note}" text-anchor="middle" fill="${PALETTE.muted}">${emojiSpan(band.stamp)}</text>`;
+  return `\n  <rect x="${x}" y="${y}" width="${snap4(band.stampW)}" height="24" rx="4" fill="${PALETTE.bg}" stroke="${PALETTE.border}" stroke-width="1"/>\n  <text x="${snap4(band.x + band.w - 8 - band.stampW / 2)}" y="${y + 17}" font-size="${roles.note}" text-anchor="middle" fill="${PALETTE.muted}">${emojiSpan(band.stamp)}</text>`;
 }
 
-function renderBox(band: LaidOutBox, day: Theme): string {
+function renderBox(band: LaidOutBox, day: Theme, roles: Roles): string {
   const badge = band.step != null ? `\n  ${renderStepBadge(band, day)}` : '';
   const iconText = band.icon ? renderBoxIcon(band, day) : '';
   const tag = band.tagBox ? `\n  ${renderTag(band, day)}` : '';
-  return `${renderBoxRect(band, day, 'plain')}\n  ${renderBoxText(band, day, 'left')}${badge}${iconText}${tag}${renderStamp(band)}`;
+  return `${renderBoxRect(band, day, 'plain')}\n  ${renderBoxText(band, day, 'left')}${badge}${iconText}${tag}${renderStamp(band, roles)}`;
 }
 
-function renderGroup(band: LaidOutGroup, day: Theme): string {
-  if (band.frame === false) return renderStamp(band);
-  return renderBoxRect(band, day, 'muted') + renderStamp(band);
+function renderGroup(band: LaidOutGroup, day: Theme, roles: Roles): string {
+  if (band.frame === false) return renderStamp(band, roles);
+  return renderBoxRect(band, day, 'muted') + renderStamp(band, roles);
 }
 
 function lineAttrs(line: LineStyle | undefined): string {
@@ -177,7 +177,7 @@ function arrowMarkers(arrow: Arrow | undefined, dim = false, strong = false): st
 }
 
 // A line sample (and optional arrowhead) + label per item, laid out by layout.ts.
-function renderLegend(band: LaidOutLegend, day: Theme): string {
+function renderLegend(band: LaidOutLegend, day: Theme, roles: Roles): string {
   const parts: string[] = [];
   for (const it of band.items) {
     const cy = it.y + 12;
@@ -197,25 +197,25 @@ function renderLegend(band: LaidOutLegend, day: Theme): string {
       const style = resolveBoxStyle(it.tone ?? 'plain', day, it.dashed);
       parts.push(`<rect x="${snap4(it.x + 4)}" y="${snap4(cy - 8)}" width="28" height="16" rx="4" fill="${style.fill}" stroke="${style.stroke}" stroke-width="2.5"${style.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
     }
-    parts.push(`<text x="${Math.round(it.x + LEGEND_SWATCH_W + 8)}" y="${cy + 5}" font-size="${ROLES.note}" fill="${PALETTE.text}">${emojiSpan(it.label)}</text>`);
+    parts.push(`<text x="${Math.round(it.x + LEGEND_SWATCH_W + 8)}" y="${cy + 5}" font-size="${roles.note}" fill="${PALETTE.text}">${emojiSpan(it.label)}</text>`);
   }
   return parts.join('\n  ');
 }
 
-function renderBanner(band: LaidOutBanner, day: Theme): string {
-  return `${renderBoxRect(band, day, 'accent')}\n  ${renderBoxText(band, day, 'center')}${renderStamp(band)}`;
+function renderBanner(band: LaidOutBanner, day: Theme, roles: Roles): string {
+  return `${renderBoxRect(band, day, 'accent')}\n  ${renderBoxText(band, day, 'center')}${renderStamp(band, roles)}`;
 }
 
-function renderRow(band: LaidOutRow, day: Theme, stage?: number): string {
-  const boxes = band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day)).join('\n\n  ');
+function renderRow(band: LaidOutRow, day: Theme, roles: Roles, stage?: number): string {
+  const boxes = band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day, roles)).join('\n\n  ');
   const arrows = band.arrows.filter((_, i) => visibleAt(band.children[i], stage) && visibleAt(band.children[i + 1], stage)).map(a =>
     `<path d="M${snap4(a.x1)},${Math.round(a.y1)} L${snap4(a.x2)},${Math.round(a.y2)}" fill="none" stroke="${band.dim ? PALETTE.muted : PALETTE.text}" stroke-width="2.5" marker-end="url(#${band.dim ? 'dsl-arrow-dim' : 'dsl-arrow'})"/>`,
   ).join('\n  ');
   return arrows ? `${boxes}\n\n  ${arrows}` : boxes;
 }
 
-function renderGrid(band: LaidOutGrid, day: Theme, stage?: number): string {
-  return band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day)).join('\n\n  ');
+function renderGrid(band: LaidOutGrid, day: Theme, roles: Roles, stage?: number): string {
+  return band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day, roles)).join('\n\n  ');
 }
 
 // A strong line stops STRONG_TRIM short of the end(s) that carry an arrowhead, so the head's tip lands on the box edge.
@@ -268,13 +268,13 @@ function renderConnect(c: LaidOutConnect, day: Theme): string {
   return `${path}\n  <text x="${c.labelX}" y="${c.labelY}" text-anchor="middle" font-size="${CONNECT_LABEL_SIZE}" fill="${color}">${escapeXml(c.label)}</text>`;
 }
 
-function renderPyramid(band: LaidOutPyramid): string {
+function renderPyramid(band: LaidOutPyramid, roles: Roles): string {
   return band.layers.map(layer => {
     const pts = layer.points.map(([px, py]) => `${Math.round(px)},${Math.round(py)}`).join(' ');
     const accent = PALETTE[band.day].accent;
     const shape = `<polygon points="${pts}" fill="${accent}" fill-opacity="${layer.opacity}" stroke="${accent}" stroke-width="2.5"/>`;
     const text = layer.lines.map((line, i) =>
-      `<text x="${Math.round(layer.cx)}" y="${layer.textYs[i]}" text-anchor="middle" font-size="${ROLES.title}" font-weight="700" fill="${layer.textColor}">${emojiSpan(line)}</text>`,
+      `<text x="${Math.round(layer.cx)}" y="${layer.textYs[i]}" text-anchor="middle" font-size="${roles.title}" font-weight="700" fill="${layer.textColor}">${emojiSpan(line)}</text>`,
     ).join('\n  ');
     return `${shape}\n  ${text}`;
   }).join('\n\n  ');
@@ -432,7 +432,7 @@ function textLines(
     `<text x="${Math.round(x)}" y="${Math.round(top + size + k * size * LH_EM)}"${a}${cls} font-size="${size}" font-weight="${weight}" fill="${fill}">${emojiSpan(l)}</text>`).join('\n  ');
 }
 
-function renderSequence(band: LaidOutSequence, day: Theme): string {
+function renderSequence(band: LaidOutSequence, day: Theme, roles: Roles): string {
   const parts: string[] = [];
   for (const h of band.heads) {
     parts.push(`<path d="M${Math.round(h.cx)},${Math.round(h.y + h.h)} L${Math.round(h.cx)},${Math.round(band.lifeBottom)}" fill="none" stroke="${PALETTE.border}" stroke-width="2" stroke-dasharray="6,6"/>`);
@@ -440,27 +440,27 @@ function renderSequence(band: LaidOutSequence, day: Theme): string {
   for (const h of band.heads) {
     const st = resolveBoxStyle(h.tone ?? 'plain', day);
     parts.push(`<rect x="${snap4(h.x)}" y="${snap4(h.y)}" width="${snap4(h.w)}" height="${snap4(h.h)}" rx="8" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5"${st.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
-    parts.push(textLines(h.lines, {x: h.cx, top: h.y + 12, size: ROLES.title, weight: 700, anchor: 'middle', fill: PALETTE.text}));
+    parts.push(textLines(h.lines, {x: h.cx, top: h.y + 12, size: roles.title, weight: 700, anchor: 'middle', fill: PALETTE.text}));
   }
   for (const s of band.steps) {
     if (s.kind === 'msg') {
       const color = resolveLineColor(s.tone, day);
       parts.push(strokeLine(`M${Math.round(s.x1)},${Math.round(s.y)} L${Math.round(s.x2)},${Math.round(s.y)}`, color, s.line, s.arrow));
-      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: ROLES.note, anchor: 'middle', fill: s.tone ? color : PALETTE.text}));
+      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: roles.note, anchor: 'middle', fill: s.tone ? color : PALETTE.text}));
     } else if (s.kind === 'self') {
       const color = resolveLineColor(s.tone, day);
       const dir = s.side === 'left' ? -1 : 1;
       const x0 = Math.round(s.cx), x1 = Math.round(s.cx + dir * 36), y0 = Math.round(s.y), y1 = Math.round(s.y + s.loopH);
       parts.push(strokeLine(`M${x0},${y0} L${x1},${y0} L${x1},${y1} L${x0},${y1}`, color, s.line, 'end'));
-      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: ROLES.note, anchor: s.side === 'left' ? 'end' : undefined, fill: s.tone ? color : PALETTE.text}));
+      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: roles.note, anchor: s.side === 'left' ? 'end' : undefined, fill: s.tone ? color : PALETTE.text}));
     } else if (s.kind === 'note') {
       const st = resolveBoxStyle(s.tone, day);
       parts.push(`<rect x="${snap4(s.x)}" y="${snap4(s.y)}" width="${snap4(s.w)}" height="${snap4(s.h)}" rx="8" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5"${st.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
-      parts.push(textLines(s.lines, {x: s.x + 12, top: s.y + 8, size: ROLES.note, fill: PALETTE.text}));
+      parts.push(textLines(s.lines, {x: s.x + 12, top: s.y + 8, size: roles.note, fill: PALETTE.text}));
     } else {
       parts.push(`<path d="M${Math.round(s.x1)},${Math.round(s.y)} L${Math.round(s.x2)},${Math.round(s.y)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="6,4"/>`);
       parts.push(`<rect x="${snap4(s.cx - s.chipW / 2)}" y="${snap4(s.y - 12)}" width="${snap4(s.chipW)}" height="24" rx="12" fill="${PALETTE.bg}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
-      parts.push(textLines([s.text], {x: s.cx, top: s.y - 12 + 1, size: ROLES.note, weight: 700, anchor: 'middle', fill: PALETTE.text}));
+      parts.push(textLines([s.text], {x: s.cx, top: s.y - 12 + 1, size: roles.note, weight: 700, anchor: 'middle', fill: PALETTE.text}));
     }
   }
   return parts.join('\n  ');
@@ -472,7 +472,7 @@ function rrPath(x: number, y: number, w: number, h: number, {tl = 0, tr = 0, br 
   return `M${X + tl},${Y} H${X + W - tr} ${tr ? `A${tr},${tr} 0 0 1 ${X + W},${Y + tr}` : ''} V${Y + H - br} ${br ? `A${br},${br} 0 0 1 ${X + W - br},${Y + H}` : ''} H${X + bl} ${bl ? `A${bl},${bl} 0 0 1 ${X},${Y + H - bl}` : ''} V${Y + tl} ${tl ? `A${tl},${tl} 0 0 1 ${X + tl},${Y}` : ''} Z`;
 }
 
-function renderTable(band: LaidOutTable, day: Theme): string {
+function renderTable(band: LaidOutTable, day: Theme, roles: Roles): string {
   const parts: string[] = [];
   const R = 8;
   const last = band.rows.length - 1;
@@ -480,7 +480,7 @@ function renderTable(band: LaidOutTable, day: Theme): string {
   if (titled) {
     const t = band.titleBar as NonNullable<LaidOutTable['titleBar']>;
     parts.push(`<path d="${rrPath(band.x, t.y, band.w, t.h, {tl: R, tr: R})}" fill="${PALETTE[day].accent}"/>`);
-    parts.push(textLines(t.lines, {x: band.x + 12, top: t.y + 8, size: ROLES.title, weight: 700, fill: PALETTE.bg}));
+    parts.push(textLines(t.lines, {x: band.x + 12, top: t.y + 8, size: roles.title, weight: 700, fill: PALETTE.bg}));
   }
   band.rows.forEach((row, i) => {
     const top = i === 0 && !titled, bottom = i === last;
@@ -504,7 +504,7 @@ function renderTable(band: LaidOutTable, day: Theme): string {
       if (!c.lines.length) continue;
       const anchor = c.align === 'center' ? 'middle' : c.align === 'right' ? 'end' : 'start';
       const x = c.align === 'center' ? c.x + c.w / 2 : c.align === 'right' ? c.x + c.w - 12 : c.x + 12;
-      parts.push(textLines(c.lines, {x, top: c.top, size: ROLES.body, weight: c.bold ? 700 : 400, anchor, fill: resolveTextColor(c.tone, day), mono: c.mono}));
+      parts.push(textLines(c.lines, {x, top: c.top, size: roles.body, weight: c.bold ? 700 : 400, anchor, fill: resolveTextColor(c.tone, day), mono: c.mono}));
     }
   }
   const top = band.y, h = band.h;
@@ -512,7 +512,7 @@ function renderTable(band: LaidOutTable, day: Theme): string {
   return parts.join('\n  ');
 }
 
-function renderSwimlane(b: LaidOutSwimlane, day: Theme): string {
+function renderSwimlane(b: LaidOutSwimlane, day: Theme, roles: Roles): string {
   const parts: string[] = [];
   const R = 8, n = b.lanes.length, hasPh = b.phaseH > 0;
   const X1 = b.x + b.w;
@@ -521,7 +521,7 @@ function renderSwimlane(b: LaidOutSwimlane, day: Theme): string {
     parts.push(`<path d="${rrPath(b.x, b.y, b.labelW, b.phaseH, {tl: R})}" fill="${PALETTE.code}"/>`);
     for (const ph of b.phases) {
       parts.push(`<path d="M${Math.round(ph.x)},${Math.round(b.y)} V${Math.round(b.y + b.phaseH)}" stroke="${PALETTE.border}" stroke-width="2"/>`);
-      parts.push(textLines(ph.lines, {x: ph.x + ph.w / 2, top: b.y + 8, size: ROLES.note, weight: 700, anchor: 'middle', fill: PALETTE[day].accent}));
+      parts.push(textLines(ph.lines, {x: ph.x + ph.w / 2, top: b.y + 8, size: roles.note, weight: 700, anchor: 'middle', fill: PALETTE[day].accent}));
     }
   }
   b.lanes.forEach((ln, i) => {
@@ -531,7 +531,7 @@ function renderSwimlane(b: LaidOutSwimlane, day: Theme): string {
     parts.push(`<path d="${rrPath(b.x, ln.y, b.labelW, ln.h, {tl: first ? R : 0, bl: last ? R : 0})}" fill="${labelFill}"/>`);
     parts.push(`<path d="${rrPath(b.bodyX, ln.y, X1 - b.bodyX, ln.h, {tr: first ? R : 0, br: last ? R : 0})}" fill="${bodyFill}"/>`);
     if (i > 0 || hasPh) parts.push(`<path d="M${Math.round(b.x)},${Math.round(ln.y)} H${Math.round(X1)}" stroke="${PALETTE.border}" stroke-width="2"/>`);
-    parts.push(textLines(ln.labelLines, {x: b.x + b.labelW / 2, top: ln.labelTop, size: ROLES.title, weight: 700, anchor: 'middle', fill: ln.tone === 'accent' ? PALETTE[day].accent : PALETTE.text}));
+    parts.push(textLines(ln.labelLines, {x: b.x + b.labelW / 2, top: ln.labelTop, size: roles.title, weight: 700, anchor: 'middle', fill: ln.tone === 'accent' ? PALETTE[day].accent : PALETTE.text}));
   });
   parts.push(`<path d="M${Math.round(b.bodyX)},${Math.round(b.y)} V${Math.round(b.y + b.h)}" stroke="${PALETTE.text}" stroke-width="2"/>`);
   parts.push(`<path d="${rrPath(b.x, b.y, b.w, b.h, {tl: R, tr: R, bl: R, br: R})}" fill="none" stroke="${PALETTE.text}" stroke-width="2.5"/>`);
@@ -569,21 +569,21 @@ function renderPrims(b: LaidOutWireframe | LaidOutScreens, day: Theme): string {
   return out.join('\n  ');
 }
 
-function renderBandPlain(band: LaidOutBand, day: Theme, stage?: number, dimFill = false): string {
+function renderBandPlain(band: LaidOutBand, day: Theme, roles: Roles, stage?: number, dimFill = false): string {
   switch (band.type) {
     case 'caption': return renderCaption(band, day);
-    case 'box': return renderBox(band, day);
-    case 'banner': return renderBanner(band, day);
-    case 'group': return renderGroup(band, day);
-    case 'legend': return renderLegend(band, day);
-    case 'swimlane': return renderSwimlane(band, day);
+    case 'box': return renderBox(band, day, roles);
+    case 'banner': return renderBanner(band, day, roles);
+    case 'group': return renderGroup(band, day, roles);
+    case 'legend': return renderLegend(band, day, roles);
+    case 'swimlane': return renderSwimlane(band, day, roles);
     case 'wireframe': case 'screens': return renderPrims(band, day);
-    case 'sequence': return renderSequence(band, day);
-    case 'table': return renderTable(band, day);
-    case 'row': return renderRow(band, day, stage);
-    case 'grid': return renderGrid(band, day, stage);
+    case 'sequence': return renderSequence(band, day, roles);
+    case 'table': return renderTable(band, day, roles);
+    case 'row': return renderRow(band, day, roles, stage);
+    case 'grid': return renderGrid(band, day, roles, stage);
     case 'raw': return renderRaw(band, day);
-    case 'pyramid': return renderPyramid(band);
+    case 'pyramid': return renderPyramid(band, roles);
     case 'curve': return renderCurve(band, day);
     case 'plane': return renderPlane(band, day, stage);
     case 'bars': return renderBars(band, day, stage, dimFill);
@@ -595,8 +595,8 @@ function renderBandPlain(band: LaidOutBand, day: Theme, stage?: number, dimFill 
 // bands that draw their own dim state (spotlight) instead of having it painted over their svg
 const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars', 'image']);
 
-function renderBand(band: LaidOutBand, day: Theme, stage?: number, dimFill = false): string {
-  const svg = renderBandPlain(band, day, stage, dimFill);
+function renderBand(band: LaidOutBand, day: Theme, roles: Roles, stage?: number, dimFill = false): string {
+  const svg = renderBandPlain(band, day, roles, stage, dimFill);
   if (!band.dim || SELF_DIMMING.has(band.type)) return svg;
   return svg
     .replace(/marker-(start|end)="url\(#dsl-arrow(-strong)?\)"/g, 'marker-$1="url(#dsl-arrow$2-dim)"')
@@ -619,7 +619,7 @@ function bandRuns(b: LaidOutBand): (WrappedRun | LaidOutBox)[] {
 }
 
 export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number} = {}): string {
-  const {width, canvasHeight, day, laidOut, connects} = laidOutDiagram;
+  const {width, canvasHeight, day, laidOut, connects, roles} = laidOutDiagram;
   const usesMono = laidOut.some(b => bandRuns(b).some(x => (x as WrappedRun).mono || (('wrappedRuns' in x ? x.wrappedRuns : undefined) ?? []).some(r => r.mono)))
     || laidOut.some(b => b.type === 'table' && b.rows.some(r => r.cells.some(c => c.mono && c.lines.length)));
   const needsArrow = usesArrows(laidOutDiagram);
@@ -655,7 +655,7 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number} 
     .emoji { font-family: ${FONT_STACKS.emoji}; }`;
 
   const dimFill = spotlightDim(laidOutDiagram) === 'fill';
-  const body = laidOut.filter(band => visibleAt(band, opts.reveal)).map(band => renderBand(band, day, opts.reveal, dimFill)).join('\n\n  ');
+  const body = laidOut.filter(band => visibleAt(band, opts.reveal)).map(band => renderBand(band, day, roles, opts.reveal, dimFill)).join('\n\n  ');
   const connectSvg = connects.filter(c => visibleAt(c, opts.reveal)).map(c => renderConnect(c, day)).join('\n\n  ');
 
   // doc-medium diagrams carry an accessible name/description and (when built from a file) provenance

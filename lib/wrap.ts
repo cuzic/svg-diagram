@@ -15,7 +15,7 @@
 // deck's short UI-label-style text: don't orphan closing punctuation at a
 // line start, don't strand opening punctuation at a line end.
 
-import {splitAtoms} from './measure.ts';
+import {splitAtoms} from './atoms.ts';
 import type {WrapOptions} from './types.ts';
 
 const CANNOT_START_LINE = new Set(

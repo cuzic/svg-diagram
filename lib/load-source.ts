@@ -6,7 +6,7 @@
 // CLI entry does), because that hook has to be in place before the first source is imported.
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {withSourceDir} from './image.ts';
+import {withSourceDir} from './image-file.ts';
 import type {Config, Diagram} from './types.ts';
 import {applyConfig, loadConfig} from './config.ts';
 import {configureMeasure} from './measure.ts';

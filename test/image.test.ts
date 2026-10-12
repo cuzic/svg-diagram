@@ -9,7 +9,8 @@ import crypto from 'node:crypto';
 import {box, caption, checkDiagram, closeMeasurer, connect, diagram, group, image, renderDiagram, row} from '../lib/dsl.ts';
 import {emitSvg} from '../lib/emit.ts';
 import {lintDiagram} from '../lib/rules.ts';
-import {readImage, sniffImage, withSourceDir, IMAGE_WARN_BYTES} from '../lib/image.ts';
+import {IMAGE_WARN_BYTES} from '../lib/image.ts';
+import {readImage, sniffImage, withSourceDir} from '../lib/image-file.ts';
 import {geometryChecks} from '../lib/svg-lint.ts';
 import {rasterize} from '../lib/raster.ts';
 import {kitchenPng, makePng} from './helpers/png.ts';
@@ -214,4 +215,41 @@ test('a label role sets the text size, the plate follows it, and a plate that wo
   assert.match(svg, /font-size="34"[^>]*>一品</);
   assert.throws(() => image(kitchen, {alt: 'x', labelRole: 'huge' as never}), /labelRole/);
   assert.throws(() => image(kitchen, {alt: 'x', labels: [{text: 'a', at: [0, 0], role: 'title' as never}]}), /role/);
+});
+
+test('backdrop: boxes and connectors over a picture are checked as usual, except against the picture itself', async () => {
+  const make = (over: object[], extra: object = {}) => {
+    const k = image(kitchen, {alt: 'x', width: 480, marks: [MARKS[0]], over: over as never, ...extra});
+    return diagram({theme: 'blue'}).add(k, connect(k.anchors.pot.top, 'a:bottom' as never));
+  };
+  const good = await renderDiagram(make([row([box({id: 'a', title: '火を止める'}), box({id: 'b', title: '窓'})], {gap: 16, justify: 'start'})]), {name: 'k.svg', budget: 'cacheOnly'});
+  assert.deepEqual(good.verdict.problems, [], 'no overlap with the picture, and the connector may cross it');
+  const rects = good.laidOut.laidOut;
+  const pic = rects.find(b => b.type === 'image')!, a = rects.flatMap(b => b.type === 'row' ? b.children : []).find(c => c.id === 'a')!;
+  assert.ok(a.x >= pic.x + 16 && a.y >= pic.y + 16 && a.x + a.w <= pic.x + pic.w, 'laid out inside the picture, from its top-left');
+  assert.ok(good.svg.indexOf('<image') < good.svg.indexOf('火を止める'), 'drawn after the picture');
+  assert.deepEqual(geometryChecks(good.svg)!.contrast, [], 'a box is an opaque plate');
+});
+
+test('backdrop: a bare caption on the picture is stopped by the lint; too much content for the picture throws', async () => {
+  const d = diagram({theme: 'blue'}).add(image(kitchen, {alt: 'x', width: 480, over: [caption('素の文字')]}));
+  const {svg, verdict} = await renderDiagram(d, {name: 'k.svg', budget: 'cacheOnly'});
+  assert.deepEqual(verdict.problems, []);
+  const found = geometryChecks(svg)!.contrast;
+  assert.deepEqual(found.map(f => f.txt), ['素の文字']);
+  assert.match(found[0].bg, /image/);
+  const tall = diagram({theme: 'blue'}).add(image(kitchen, {alt: 'x', width: 240, over: [box({title: 'a', body: 'とてもながい文章'.repeat(12)})]}));
+  await assert.rejects(checkDiagram(tall), /need \d+px of height but the picture is 160px/);
+  assert.throws(() => image(kitchen, {alt: 'x', over: [connect('a', 'b')]}), /connect/);
+});
+
+test('backdrop: spotlight on a box over the picture veils the picture; reveal of the picture carries its parts', async () => {
+  const mk = (extra: object) => diagram({theme: 'blue', ...extra}).add(image(kitchen, {alt: 'x', width: 480, reveal: 1, over: [box({id: 'a', title: 'ここ'})]}), box({id: 'z', title: 'z'}));
+  const {laidOut} = await checkDiagram(mk({spotlight: 'a'}));
+  const pic = laidOut.laidOut.find(b => b.type === 'image')!;
+  assert.equal(pic.dim, true);
+  assert.equal(laidOut.laidOut.find(b => b.type === 'box' && b.id === 'a')!.dim, false);
+  const plain = (await checkDiagram(mk({}))).laidOut;
+  assert.doesNotMatch(emitSvg(plain, {reveal: 0}), /ここ|<image/);
+  assert.match(emitSvg(plain, {reveal: 1}), /ここ/);
 });

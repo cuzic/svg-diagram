@@ -23,39 +23,12 @@ import {launchChromium} from './browser.ts';
 import {svgSize} from './raster.ts';
 import type {Raster} from './raster.ts';
 import {FONT_STACKS} from './tokens.ts';
+import {splitAtoms, textWidth} from './atoms.ts';
 import type {Config, FontFamily, FontSpecs, MeasureRequest, Measured, WidthOf} from './types.ts';
 import {loadConfig} from './config.ts';
 
-function isCJK(ch: string): boolean {
-  const c = ch.codePointAt(0)!;
-  return (c >= 0x3000 && c <= 0x30ff)   // CJK punctuation, hiragana, katakana
-    || (c >= 0x3400 && c <= 0x9fff)      // CJK unified ideographs (+ ext A)
-    || (c >= 0xf900 && c <= 0xfaff)      // CJK compatibility ideographs
-    || (c >= 0xff00 && c <= 0xffef);     // fullwidth forms
-}
-
-// Splits text into atoms: each CJK character alone, each run of whitespace
-// alone, and each run of anything else (Latin words, digits, punctuation,
-// emoji) kept together.
-export function splitAtoms(text: string): string[] {
-  const atoms: string[] = [];
-  let buf = '';
-  const flush = () => { if (buf) { atoms.push(buf); buf = ''; } };
-  for (const ch of text) {
-    if (isCJK(ch)) { flush(); atoms.push(ch); }
-    else if (/\s/.test(ch)) { flush(); atoms.push(ch); }
-    else { buf += ch; }
-  }
-  flush();
-  return atoms;
-}
-
-/** Width of single-line text: the sum of its atoms' measured widths. The one place this sum is written. */
-export function textWidth(widthOf: WidthOf, text: string, size: number, weight: number, font: FontFamily = 'sans'): number {
-  let w = 0;
-  for (const atom of splitAtoms(text)) w += widthOf(atom, size, weight, font);
-  return w;
-}
+// splitAtoms / textWidth live in atoms.ts (pure); re-exported so existing imports keep working.
+export {splitAtoms, textWidth};
 
 function escapeXml(s: string): string {
   return s.replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c as '&' | '<' | '>']));

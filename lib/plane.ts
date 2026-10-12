@@ -4,29 +4,28 @@
 //
 // The layout also boxes every label it places (labelBoxes), so verify.ts can report two labels that sit on each other or a
 // label that leaves the figure — the kind of thing a hand-drawn raw() SVG cannot be checked for.
-import {textWidth} from './measure.ts';
-import {ROLES} from './tokens.ts';
-import type {FontFamily, LaidOutPlane, PlaneBand, PlanePos, PlaneRef, PlaneText, PlaneTone, Rect, WidthOf} from './types.ts';
+import {textWidth} from './atoms.ts';
+import type {FontFamily, LaidOutPlane, PlaneBand, PlanePos, PlaneRef, PlaneText, PlaneTone, Rect, WidthOf, Roles} from './types.ts';
 
 // the same tolerance verify.ts's rectOverlap uses, so what layout avoids is what verification would report
 const overlapsRect = (a: Rect, b: Rect): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5;
 
 /**
  * The font-size of every text of a plane(): the ONE place it is read, so measuring (planeTexts), layout and drawing
- * (LaidOutPlane.labelSize) agree. Read at call time because fill mode rewrites ROLES.
+ * (LaidOutPlane.labelSize) agree. Read from the `roles` the layout was made with.
  */
-const sizeOf = (band: PlaneBand): number => ROLES[band.labelRole ?? 'note'];
+const sizeOf = (band: PlaneBand, roles: Roles): number => roles[band.labelRole ?? 'note'];
 /**
  * The size the fixed pixel values (margins, label offsets, the dimension chip) are scaled from. They were drawn for 14px
  * text: only an explicit labelRole scales them, so a plane without one is laid out exactly as before (fill mode's scaled note included).
  */
-const geomOf = (band: PlaneBand): number => band.labelRole ? sizeOf(band) : 14;
+const geomOf = (band: PlaneBand, roles: Roles): number => band.labelRole ? sizeOf(band, roles) : 14;
 const TICK = 6, DIM_OFFSET = 26, DIM_CHIP_PAD = 6;
 
 /** Every [text, size, weight, font] the plane draws, so the measurer knows them before layout. */
-export function planeTexts(band: PlaneBand): [string, number, number, FontFamily][] {
+export function planeTexts(band: PlaneBand, roles: Roles): [string, number, number, FontFamily][] {
   const out: [string, number, number, FontFamily][] = [];
-  const add = (s: string | undefined, weight = 400) => { if (s) out.push([s, sizeOf(band), weight, 'sans']); };
+  const add = (s: string | undefined, weight = 400) => { if (s) out.push([s, sizeOf(band, roles), weight, 'sans']); };
   for (const axis of [band.x, band.y]) { add(axis.label, 700); for (const t of ticksOf(axis)) add(t.label); }
   for (const p of band.points ?? []) add(p.label, 700);
   for (const d of band.dims ?? []) add(d.label, 700);
@@ -86,8 +85,8 @@ const bez = (a: XY, c1: XY, c2: XY, b: XY, t: number): XY => {
   return {x: u * u * u * a.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * b.x, y: u * u * u * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * b.y};
 };
 
-export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutPlane {
-  const size = sizeOf(band), g = geomOf(band), half = g * 5 / 14, labelH = size + 6;
+export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutPlane {
+  const size = sizeOf(band, roles), g = geomOf(band, roles), half = g * 5 / 14, labelH = size + 6;
   const tw = (s: string, weight = 400) => textWidth(widthOf, s, size, weight);
   const width = Math.min(w, band.width ?? w), left = x + (w - width) / 2, h = band.height;
   const xTicks = ticksOf(band.x), yTicks = ticksOf(band.y);

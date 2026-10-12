@@ -196,6 +196,8 @@ d.add(kitchen, row([box({id: 'note', title: '見る所'})]), connect(kitchen.anc
 - **印（`marks`）**: 領域の枠線。`id` を付けると `diagram({spotlight: 'pot'})` と `connect(kitchen.anchors.pot.bottom, …)` の対象になる（band の id は絵全体）。`tone` は枠の色（既定 accent）、`label` は枠の左上に付く板。絵の中から出る矢印は、その絵を横切っても衝突として数えない。
 - **spotlight**: 印を指すと、その領域だけを明るく残し、絵のほかの部分に白いベール（70%）をかけ、ほかの印は点線にする。印以外（ほかの箱など）を指すと、絵全体がベールで薄くなる。絵の id か、それを含む group を指すと何も薄くならない。
 - **ラベルの位置は後から動かせる**: `labels[].at` と `marks[].rect` は絵に対する割合なので、絵ができてから数字だけ直せばよく、絵を差し替えたり `width` を変えても付いてくる。`anchor`（`start` / `middle` / `end`）で板のどの端を `at` に合わせるかを選ぶ。文字の大きさは `labelRole`（絵全体）と、各 `labels` / `marks` の `role`（`'note'` 14px・`'banner'` 16px・`'stat'` 34px。`bars` / `plane` の `labelRole` と同じ語彙）で選び、板は文字に追従して大きくなる。絵の外に出る位置は内側に寄せられる。長い文字や近すぎる位置で板どうしが重なると `verify` が止める。4 つの板の例は `examples/image-labels.ts`。
+- **絵を背景にして部品を重ねる（`over`）**: `over: [box(...), row(...), banner(...)]` に書いた部品は、絵の上端（`pad` 分、既定 16px）から group の子のように縦に積まれ、絵の後に描かれる。絵が背景なので、**その絵だけ**は重なり検査と矢印の衝突検査の対象外になる（重ねた部品どうし、ほかの部品との検査は従来どおり）。矢印は `connect()` を図の直下に書き、`over` の中の id や印の id を端点にできる（`connect()` を `over` に入れると throw）。重ねた部品が絵の高さに収まらないと、必要な高さを書いて throw する（`width` / `height` で絵を大きくする）。絵の `reveal` と spotlight は重ねた部品にも及ぶ（重ねた箱を spotlight すると、絵はベールで薄くなり、その箱だけが残る）。例は `examples/image-backdrop.ts`。
+  - **重ねた文字の検査**: 不透明な箱・バナーの上の文字と、板つきのラベルだけが許される。`caption` や group の見出しのような**素の文字**を絵の上に置くと、描画後の検査（`lint`）がコントラスト違反として止める（上の「絵の上の文字」と同じ規則）。
 - **reveal**: 絵の band、各印、各 label が `reveal` を受ける（印の id を端点にした矢印は、その印の段階に従う）。
 - **対応する形式と大きさ**: PNG / JPEG / GIF / WebP。SVG は埋め込まない（ほかの部品で描く）。8 MB を超えると throw。**300 KB を超えると `image-large` の warn**（ファイルがそのまま SVG に入り、段階表示では各ファイルに入る。縮小・圧縮してから使う）。
 - **ソースの変更検出**: 絵のファイルの変更は `--stale` / `check --drift` の依存には入らない（`import` を静的に追う仕組みのため）。`--rebuild` で SVG を作り直して比べると見つかる。
@@ -258,7 +260,7 @@ box({title: `${icon.emoji('key')} 鍵の管理`})
 - 絵記号は記憶には効くが、理解や検索には効きにくい。**核心の数枚だけ**に使い、全部の箱には付けない。
 - アイコンだけで意味を伝えない。`box({icon})` は `title` を併記する（title があるとアイコンは `aria-hidden`、title が無いと `role="img"` と名前を持つ）。`iconRow()` は label が必須。`step` との併用は throw。
 - パスのデータは `scripts/gen-icons.ts` が `@mdi/js`（Pictogrammers）と `@material-symbols/svg-400`（Google）から選んだ分だけ `lib/icon-paths.ts` に取り出したもの（devDependency、実行時の依存なし）。どちらも Apache-2.0 で、出典は `NOTICE` と各エントリの `src` にある。
-- `preview` / `show` の既定（resvg）は色つき絵文字を描けない。絵文字を使う図は `--engine chromium` で確認する。
+- `preview` / `show` / `contact` の既定（resvg）も絵文字を色つきで描く。resvg 自体はカラーフォントの色を描けない（Noto Color Emoji はビットマップなので空白、Segoe UI Emoji は単色の輪郭）ので、`lib/emoji-color.ts` が描画の直前だけ、`class="emoji"` の字を透明にして幅だけ残し、同じ絵文字フォントから取り出した絵（CBDT / sbix の PNG は `<image>`、COLR のレイヤーは色つきの `<path>`）を `<text>` の直後に重ねる。ディスクの SVG は変わらない。図 1 枚あたりの増分は絵文字 30 個で約 50ms（1〜数個ならごく僅か）。限界: 肌色や国旗などの絵文字の列は、絵は描けるが、resvg が（絵文字なしでも）その `<text>` ごと落とす。`class="emoji"` の無い自前の `<text>` の絵文字は対象外。実ブラウザの見え方は `--engine chromium` で確かめる。
 
 ### 矢印の太さ（weight）
 

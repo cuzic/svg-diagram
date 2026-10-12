@@ -57,7 +57,7 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
     if (band.type === 'screens') { // check each screen frame, not the bounding box that holds them all
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h});
     } else if (band.type === 'image') {
-      rects.push({id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id)});
+      rects.push({id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id), ...(band.backdrop ? {backdrop: true} : {})});
     } else if (band.type === 'bars') {
       for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h});
     } else if (band.type === 'caption' && band.inkBox) { // a group's title text: connectors must not run through it
@@ -242,8 +242,8 @@ function checkContrast(d: LaidOutDiagram): string[] {
 export function verifyDiagram(d: LaidOutDiagram): Verdict {
   const rects = collectRects(d);
   const problems = [
-    ...checkOverlaps(rects),
-    ...checkConnects(d, rects),
+    ...checkOverlaps(rects.filter(r => !r.backdrop)),
+    ...checkConnects(d, rects.filter(r => !r.backdrop)),
     ...checkPlanes(d),
     ...checkBars(d),
     ...checkImages(d),

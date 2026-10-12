@@ -38,6 +38,8 @@ export type ColorKey = PlainColorKey | 'accent' | 'soft';
 
 /** font-size role (tokens.ts ROLES). */
 export type Role = 'title' | 'label' | 'body' | 'note' | 'banner' | 'stat' | 'display';
+/** The font size (px) of every role: a value, so a figure's text sizes travel with it (tokens.ts ROLES, scaleRoles). */
+export type Roles = Readonly<Record<Role, number>>;
 /** The roles a banner() headline can be set in (default 'banner'). */
 export type HeadlineRole = 'banner' | 'stat' | 'display';
 /** The roles the labels of a bars() / plane() (axis labels, value labels, ticks) can be set in (default 'note'). */
@@ -756,6 +758,14 @@ export interface ImageOpts extends RevealOpts {
   labelRole?: LabelRole;
   marks?: readonly ImageMark[];
   labels?: readonly ImageLabel[];
+  /**
+   * Parts laid over the picture, stacked from its top like the children of a group(): the picture is their backdrop. Their text must
+   * be checkable: a box / banner is (opaque), a caption or a group title is bare text on the picture and fails the post-render lint.
+   * connect() stays a top-level band; it may point at their ids. They must fit in the picture's height (verify says by how much they do not).
+   */
+  over?: Band | readonly Band[];
+  /** Space between the picture's edge and `over` (default 16). */
+  pad?: number;
 }
 export interface ImageBand {
   type: 'image';
@@ -772,6 +782,9 @@ export interface ImageBand {
   labelRole?: LabelRole;
   marks?: ImageMark[];
   labels?: ImageLabel[];
+  /** The `over` parts (named like a group's so the walkers that follow `children` see them). */
+  children?: Band[];
+  pad?: number;
   reveal?: number;
 }
 /** A mark placed (px); `dim` is set by spotlight. */
@@ -788,6 +801,8 @@ export interface LaidOutImage extends Rect, Dimmed {
   marks: LaidOutImageMark[];
   plates: LaidOutImagePlate[];
   anchors: Anchor[];
+  /** Parts are laid over this picture: it is their backdrop, so the overlap and connector checks leave it out. */
+  backdrop?: boolean;
   /** Set by spotlight: regions of the picture that stay clear while the rest is veiled (a focused mark). */
   holes?: Rect[];
 }
@@ -1770,6 +1785,8 @@ export interface LaidOutDiagram extends DiagramData {
   connects: LaidOutConnect[];
   /** Set by build() when fill: true scaled the fonts. */
   fontScale?: number;
+  /** The font sizes the layout was made with; emit reads them from here, so a drawing always agrees with its layout. */
+  roles: Roles;
 }
 
 // ============================================================================================
@@ -1793,7 +1810,7 @@ export interface Verdict {
 }
 /** A checkable rect in verify.ts (id null when the band has none). */
 /** `holds`: ids of anchors drawn inside this rect (an image's marks): a connector that starts on one may cross the rect. */
-export interface CheckRect extends Rect {id: string | null; label: string; holds?: string[]}
+export interface CheckRect extends Rect {id: string | null; label: string; holds?: string[]; /** a picture with parts over it: not an obstacle or an overlap partner */ backdrop?: boolean}
 
 export interface FitReport {
   scale: number;

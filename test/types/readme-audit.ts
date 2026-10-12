@@ -185,4 +185,8 @@ export function imageCases(): void {
   d.add(pic, box({id: 'n'}), connect(pic.anchors.pot.bottom, 'n:top'), connect('pot', 'n'));
   // @ts-expect-error a mark id that does not exist
   d.add(image('./a.png', {alt: 'x', marks: [{id: 'pot', rect: [0, 0, 0.5, 0.5]}]}), box({id: 'n'}), connect('pott', 'n'));
+  // over: the ids of the parts laid over the picture can be connected to
+  d.add(image('./a.png', {alt: 'x', over: [box({id: 'inner'})]}), connect('inner:left', 'inner:right'));
+  // @ts-expect-error an id that is not over the picture
+  d.add(image('./a.png', {alt: 'x', over: [box({id: 'inner'})]}), connect('inner', 'outer'));
 }

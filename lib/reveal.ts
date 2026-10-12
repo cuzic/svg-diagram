@@ -83,6 +83,7 @@ export function prepareReveal(d: DiagramData): number {
       else if (b.type === 'image') {
         for (const [i, m] of (b.marks ?? []).entries()) { const r = set(m, n, `image() mark ${i + 1}`); if (m.id) ids.set(m.id, r); }
         for (const [i, l] of (b.labels ?? []).entries()) set(l, n, `image() label ${i + 1}`);
+        walk(b.children ?? [], n);
       } else if (b.type === 'bars') for (const [i, bar] of b.data.entries()) {
         const r = set(bar, n, `bars() value ${i + 1}`);
         if (bar.id) ids.set(bar.id, r);
