@@ -154,7 +154,7 @@ test('a group in a row inherits its own reveal into its boxes and the connect be
     connect('l', 'r', {label: 'CONLABEL'}),
   );
   const {laidOut} = await checkDiagram(d);
-  assert.equal(d.maxReveal, 2);
+  assert.equal(laidOut.maxReveal, 2);
   const drawn = (stage: number) => emitSvg(laidOut, {reveal: stage}).replace(/<(title|desc)\b.*?<\/\1>/g, ''); // the doc <desc> lists every box
   const one = drawn(1), two = drawn(2);
   assert.match(one, /LEFTBOX/);
@@ -169,7 +169,7 @@ test('reveal reaches boxes through nested row > group > row > group', async () =
     row([group([row([group([box({id: 'deep', title: 'DEEPBOX'})], {title: 'Inner'})], {cols: [12]})], {title: 'Outer', reveal: 2})], {cols: [12]}),
   );
   const {laidOut} = await checkDiagram(d);
-  assert.equal(d.maxReveal, 2);
+  assert.equal(laidOut.maxReveal, 2);
   const drawn = (stage: number) => emitSvg(laidOut, {reveal: stage}).replace(/<(title|desc)\b.*?<\/\1>/g, '');
   assert.doesNotMatch(drawn(1), /DEEPBOX|Inner|Outer/);
   assert.match(drawn(2), /DEEPBOX/);
@@ -181,9 +181,9 @@ test('a box revealed on its own inside a group without reveal makes the stages a
     row([group([box({id: 'late', title: 'LATE', reveal: 3})], {title: 'G'}), box({id: 'x', title: 'X'})], {cols: [6, 6]}),
     connect('a', 'late', {reveal: 1}),
   );
-  await checkDiagram(d);
-  assert.equal(d.maxReveal, 3);
-  assert.ok(d.revealWarnings?.some(w => w.includes('connect(a -> late) reveal 1 is earlier than an endpoint (reveal 3)')), String(d.revealWarnings));
+  const {laidOut} = await checkDiagram(d);
+  assert.equal(laidOut.maxReveal, 3);
+  assert.ok(laidOut.revealWarnings?.some(w => w.includes('connect(a -> late) reveal 1 is earlier than an endpoint (reveal 3)')), String(laidOut.revealWarnings));
 });
 
 

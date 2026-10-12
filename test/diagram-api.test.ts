@@ -143,8 +143,10 @@ test("legend 'auto' is not applied without the option, and does not duplicate an
 test('legendLabels flow through checkDiagram: with legend auto there is no legend-missing / legend-incomplete warning', async () => {
   const d = diagram({theme: 'blue', title: 't', legend: 'auto', legendLabels: {'line:dashed': '非同期'}});
   d.add(box({id: 'a', title: 'a', tone: 'new'}), box({id: 'b', title: 'b'}), connect('a', 'b', {line: 'dashed'}));
-  const fs = await findingsOf(d);
+  const {verdict, laidOut} = await checkDiagram(d);
+  const fs = verdict.findings;
   assert.equal(fs.some(f => f.rule.startsWith('legend-')), false, JSON.stringify(fs));
-  const l = (d.bands.find(b => b.type === 'legend') as LegendBand).items;
+  assert.equal(d.bands.some(b => b.type === 'legend'), false, 'the input is not changed');
+  const l = (laidOut.bands.find(b => b.type === 'legend') as LegendBand).items;
   assert.ok(l.some(i => i.label === '非同期'));
 });

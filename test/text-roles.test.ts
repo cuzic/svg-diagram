@@ -47,17 +47,17 @@ test('banner({headlineRole}) sets the headline size and grows the banner', async
 
 test('bars / plane labelRole: measured, laid out and drawn at one size', async () => {
   const b = bars([{label: 'A', value: 3}, {label: 'B', value: 5}], {max: 6, labelRole: 'stat'});
-  assert.ok(barsTexts(b).every(([, size]) => size === ROLES.stat));
+  assert.ok(barsTexts(b, ROLES).every(([, size]) => size === ROLES.stat));
   const widthOf = (_a: string, size: number) => size * 0.5;
-  const laid = layoutBars(b, 0, 0, 800, widthOf);
+  const laid = layoutBars(b, 0, 0, 800, widthOf, ROLES);
   assert.ok(laid.texts.every(t => t.size === ROLES.stat));
   assert.ok(laid.bars.every(r => r.h >= ROLES.stat + 14), 'bars are as thick as their labels');
-  const plain = layoutBars(bars([{label: 'A', value: 3}], {max: 6}), 0, 0, 800, widthOf);
+  const plain = layoutBars(bars([{label: 'A', value: 3}], {max: 6}), 0, 0, 800, widthOf, ROLES);
   assert.ok(plain.texts.every(t => t.size === ROLES.note) && plain.bars[0].h === 28);
 
   const p = plane({labelRole: 'banner', x: {label: 'X', max: 10}, y: {label: 'Y', max: 10}, height: 400, points: [{id: 'p', at: [5, 5], label: 'Point'}]});
-  assert.ok(planeTexts(p).every(([, size]) => size === ROLES.banner));
-  const lp: LaidOutPlane = layoutPlane(p, 0, 0, 800, widthOf);
+  assert.ok(planeTexts(p, ROLES).every(([, size]) => size === ROLES.banner));
+  const lp: LaidOutPlane = layoutPlane(p, 0, 0, 800, widthOf, ROLES);
   assert.equal(lp.labelSize, ROLES.banner);
   const label = lp.labelBoxes.find(x => x.label === 'Point')!;
   assert.equal(label.w, ROLES.banner * 0.5, 'measured at the role size');

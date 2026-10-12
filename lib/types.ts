@@ -38,6 +38,8 @@ export type ColorKey = PlainColorKey | 'accent' | 'soft';
 
 /** font-size role (tokens.ts ROLES). */
 export type Role = 'title' | 'label' | 'body' | 'note' | 'banner' | 'stat' | 'display';
+/** The font size (px) of every role: a value, so a figure's text sizes travel with it (tokens.ts ROLES, scaleRoles). */
+export type Roles = Readonly<Record<Role, number>>;
 /** The roles a banner() headline can be set in (default 'banner'). */
 export type HeadlineRole = 'banner' | 'stat' | 'display';
 /** The roles the labels of a bars() / plane() (axis labels, value labels, ticks) can be set in (default 'note'). */
@@ -1705,6 +1707,8 @@ export interface LaidOutDiagram extends DiagramData {
   connects: LaidOutConnect[];
   /** Set by build() when fill: true scaled the fonts. */
   fontScale?: number;
+  /** The font sizes the layout was made with; emit reads them from here, so a drawing always agrees with its layout. */
+  roles: Roles;
 }
 
 // ============================================================================================

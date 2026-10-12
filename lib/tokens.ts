@@ -7,7 +7,7 @@
 //
 // See docs/diagram-tone-and-manner.md for the narrative rules this encodes.
 
-import type {ColorKey, Palette, Role, Theme, TextTone} from './types.ts';
+import type {ColorKey, Palette, Role, Roles, Theme, TextTone} from './types.ts';
 
 export const PALETTE: Palette = {
   bg: '#ffffff',
@@ -109,9 +109,13 @@ export const OPT_IN_TEXT_MAX = 72;
 // font-size (px) per semantic role. Every value is >= MIN_FONT_SIZE by
 // construction — the DSL's normal box()/caption()/banner() path never lets a
 // caller pick a raw px number outside this table.
-export const ROLES: Record<Role, number> = {
+export const ROLES: Roles = Object.freeze({
   title: 15, label: 14, body: 14, note: 14, banner: 16, stat: 34, display: 56,
-};
+});
+/** `base` with every size scaled by `s` and rounded (fill: true). Pure: ROLES itself never changes. */
+export function scaleRoles(base: Roles, s: number): Roles {
+  return Object.freeze(Object.fromEntries(Object.entries(base).map(([k, v]) => [k, Math.round(v * s)])) as Record<Role, number>);
+}
 
 // Fixed sizes of text that is not a role: the label on a connector line and the tag pill on a box.
 // layout.ts measures with these and emit.ts draws with them, so they are defined once, here.
