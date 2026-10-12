@@ -38,4 +38,5 @@ else {
 
 // The browser is optional now (layout and the default checks need none): no pnpm-workspace.yaml is needed for it. Say how to add it.
 console.log('· Chromium は不要（レイアウトも既定の検査もブラウザなしで動く）。`lint --engine browser` や slide の空き寸法の実測を使うときだけ: pnpm add -D playwright-chromium（pnpm 10 以降は pnpm approve-builds も）');
+console.log('· 絵記号（box({icon})）は同梱していない: svg-diagram icons add mdi:key-variant=key のように、使うものを入れる（svg-diagram.icons.json）');
 console.log('次: pnpm add -D typescript @types/node  →  svg-diagram typecheck');

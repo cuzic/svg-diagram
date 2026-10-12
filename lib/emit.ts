@@ -18,8 +18,6 @@ import {diagramTitle, diagramDesc} from './rules.ts';
 import {BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
 import {visibleAt} from './reveal.ts';
 import {spotlightDim} from './spotlight.ts';
-import {ICON_PATHS} from './icons.ts';
-import type {IconName} from './icons.ts';
 
 const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
 
@@ -112,13 +110,13 @@ function renderStepBadge(band: LaidOutBox, day: Theme): string {
 // box({icon}): the icon's path scaled from its source viewBox to ICON_SIZE, at the box's top-left. Its colour is a text tone
 // (a dimmed box: muted). With a title the label carries the meaning, so the icon is hidden from assistive technology.
 function renderBoxIcon(band: LaidOutBox, day: Theme): string {
-  const {vb: [vx, vy, vs], d} = ICON_PATHS[band.icon as IconName];
+  const {vb: [vx, vy, vs], d, rule} = band.iconGlyph!;
   const s = ICON_SIZE / vs;
   const x = band.x + (band.padX ?? BOX_PAD_X), y = band.y + (band.padY ?? BOX_PAD_Y);
   const n = (v: number) => +v.toFixed(4);
   const color = band.dim ? PALETTE.muted : runColorOf(band.iconTone, band.tone, day);
   const a11y = band.title ? 'aria-hidden="true"' : `role="img" aria-label="${band.icon}"`;
-  return `\n  <path d="${d}" transform="translate(${n(x - vx * s)} ${n(y - vy * s)}) scale(${n(s)})" fill="${color}" ${a11y} data-icon="${band.icon}"/>`;
+  return `\n  <path d="${d}" transform="translate(${n(x - vx * s)} ${n(y - vy * s)}) scale(${n(s)})" fill="${color}"${rule ? ' fill-rule="evenodd"' : ''} ${a11y} data-icon="${band.icon}"/>`;
 }
 
 function renderCaption(band: LaidOutCaption, day: Theme): string {

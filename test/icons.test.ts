@@ -1,32 +1,48 @@
 import test from 'node:test';
+import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {box, checkDiagram, closeMeasurer, diagram, icon, iconRow, renderDiagram, row} from '../lib/dsl.ts';
-import {EMOJIS, ICON_PATHS} from '../lib/icons.ts';
+import {EMOJIS} from '../lib/icons.ts';
 import type {EmojiName, IconName} from '../lib/icons.ts';
+import {parseManifest} from '../lib/icon-store.ts';
 import {ALLOWED_COLORS, EMOJI_RE} from '../lib/tokens.ts';
 import {fontCoverage, measureWithFonts} from '../lib/font-metrics.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
 
 test.after(() => closeMeasurer());
 
-const pathNames = Object.keys(ICON_PATHS) as IconName[];
 const emojiNames = Object.keys(EMOJIS) as EmojiName[];
 const emojiFont = fontCoverage('emoji');
+const ROOT_MANIFEST = fs.readFileSync(new URL('../svg-diagram.icons.json', import.meta.url), 'utf8');
 
-test('every path icon is one non-empty d, a square source viewBox, and well-formed as XML', () => {
-  assert.ok(pathNames.length >= 20 && pathNames.length <= 30);
-  for (const n of pathNames) {
-    const {d, vb, from, src} = ICON_PATHS[n];
-    assert.ok(d.length > 20, n);
-    assert.ok(vb[2] > 0 && from && src, n);
-    assert.ok(!d.includes('"') && !d.includes('<'), n);
+test('this repo\'s own svg-diagram.icons.json (what the examples and tests draw) is a valid manifest that records each icon\'s source and licence', () => {
+  const m = parseManifest(ROOT_MANIFEST, 'svg-diagram.icons.json');
+  const names = Object.keys(m.icons);
+  assert.ok(names.length >= 20);
+  for (const n of ['person', 'people', 'document', 'folder', 'key', 'lock', 'bridge', 'fence', 'stairs', 'warning', 'check', 'close', 'idea', 'search', 'gear', 'cloud', 'database', 'mail', 'shield', 'flag', 'clock']) assert.ok(icon.has(n).path, n);
+  for (const n of names) {
+    const {d, from, license} = m.icons[n];
+    assert.ok(d.length > 20 && from.includes(':') && license, n);
     assert.deepEqual(xmlProblems(`<svg xmlns="http://www.w3.org/2000/svg"><path d="${d}"/></svg>`), [], n);
   }
 });
 
-test('the path set covers the metaphors and records where each came from', () => {
-  for (const n of ['person', 'people', 'document', 'folder', 'key', 'lock', 'bridge', 'fence', 'stairs', 'warning', 'check', 'close', 'idea', 'search', 'gear', 'cloud', 'database', 'mail', 'shield', 'flag', 'clock']) assert.ok(icon.has(n).path, n);
-  assert.ok(new Set(pathNames.map(n => ICON_PATHS[n].from)).size === 2, 'both sources are used');
+test('svg-diagram ships no icons: with none installed, box({icon}) throws and says how to install one', () => {
+  icon.use({version: 1, icons: {}});
+  try {
+    assert.throws(() => box({icon: 'key', title: 'x'}), /icon "key" is not installed.*svg-diagram icons add mdi:<icon>=key/);
+    assert.deepEqual(icon.pathNames, []);
+    assert.deepEqual(icon.has('key'), {path: false, emoji: true});
+  } finally { icon.use(undefined); }
+  assert.ok(icon.has('key').path, 'back to the file');
+});
+
+test('icon.use() draws a project\'s own glyph; evenodd is kept', async () => {
+  icon.use({version: 1, icons: {dot: {d: 'M2 2h20v20H2zM8 8v8h8V8z', vb: [0, 0, 24], rule: 'evenodd', from: 'file:dot.svg', license: 'local'}}});
+  try {
+    const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(box({icon: 'dot', title: '点'})), {name: 'dot.svg', budget: 'cacheOnly'});
+    assert.match(svg, /<path d="M2 2h20v20H2zM8 8v8h8V8z" transform="[^"]+" fill="#[0-9a-f]{6}" fill-rule="evenodd" aria-hidden="true" data-icon="dot"\/>/);
+  } finally { icon.use(undefined); }
 });
 
 test('every emoji is one code point inside EMOJI_RE (so emit gives it class="emoji")', () => {
@@ -49,8 +65,8 @@ test('icon.has says which set has a name; unknown names throw', () => {
   assert.deepEqual(icon.has('toString'), {path: false, emoji: false});
   assert.throws(() => icon.emoji('nope' as EmojiName), /unknown emoji icon "nope"/);
   assert.throws(() => icon.emoji('toString' as EmojiName), /unknown emoji icon/);
-  assert.throws(() => box({icon: 'nope' as IconName, title: 'x'}), /unknown icon "nope"/);
-  assert.throws(() => iconRow([{icon: 'nope' as IconName, label: 'x'}]), /unknown icon/);
+  assert.throws(() => box({icon: 'nope' as IconName, title: 'x'}), /icon "nope" is not installed/);
+  assert.throws(() => iconRow([{icon: 'nope' as IconName, label: 'x'}]), /not installed/);
   assert.throws(() => iconRow([]), /at least one/);
 });
 
