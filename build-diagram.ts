@@ -62,11 +62,12 @@ const outOverride = valueOf('--out');
 const outDir = valueOf('--out-dir');
 const FIT = args.includes('--fit');
 const NO_LINT = args.includes('--no-lint'); // iteration: skip the lint pass (check/CI or a final build runs it)
+const HTML = args.includes('--html'); // also write <name>.html (boxes and text as HTML/CSS, the rest as an inline SVG overlay)
 const STALE = args.includes('--stale'); // skip diagrams whose SVG already matches this source, tool version and project config
-const modules = args.filter((a, i) => !['--out', '--out-dir', '--fit', '--stale', '--no-lint'].includes(a) && !['--out', '--out-dir'].includes(args[i - 1]));
+const modules = args.filter((a, i) => !['--out', '--out-dir', '--fit', '--stale', '--no-lint', '--html'].includes(a) && !['--out', '--out-dir'].includes(args[i - 1]));
 
 if (modules.length === 0) {
-  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--stale] [--no-lint] [--fit]');
+  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--stale] [--no-lint] [--fit] [--html]');
   process.exit(2);
 }
 if (outOverride && modules.length > 1) {
@@ -125,8 +126,9 @@ try {
         d.fill = true;
         d.slide = {page: hits[0].page, heading: hits[0].heading as string};
       }
-      const result = await build(d, outPath, {lint: false}); // linted together below: one Chromium for all files
+      const result = await build(d, outPath, {lint: false, html: HTML}); // linted together below: one Chromium for all files
       written.push(outPath, ...result.revealPaths);
+      if (result.htmlPath) console.log(`✓ ${result.htmlPath}`);
       if (result.fit.doc) console.log(`✓ ${outPath} (${result.width}x${result.height})`);
       else {
         const imgTag = d.fill ? '<img class="fill">' : `<img style="${result.fit.imgStyle}">`;

@@ -1698,6 +1698,8 @@ export interface SlideBudget {
 /** build() result. */
 export interface BuildResult {
   outPath: string;
+  /** The .html written beside the SVG (build(..., {html: true})). */
+  htmlPath?: string;
   revealPaths: string[];
   width: number;
   height: number;
@@ -1710,6 +1712,8 @@ export interface BuildResult {
 /** renderDiagram() result: everything build() knows before it touches the disk. */
 export interface RenderResult {
   svg: string;
+  /** The HTML/CSS rendering (lib/emit-html.ts); set only when renderDiagram() was asked for it. */
+  html?: string;
   laidOut: LaidOutDiagram;
   verdict: Verdict;
   /** Problems that would keep an <img> from loading the SVG as XML (empty when well-formed). */

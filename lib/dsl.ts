@@ -13,6 +13,7 @@ import {wf} from './wireframe.ts';
 import {assertIconName} from './icons.ts';
 import {layoutDiagram} from './layout.ts';
 import {emitSvg} from './emit.ts';
+import {emitHtml} from './emit-html.ts';
 import {xmlProblems} from './xml-check.ts';
 import {verifyDiagram} from './verify.ts';
 import {applyAutoLegend, walkBands} from './rules.ts';
@@ -800,8 +801,8 @@ function assertFontSize(size: number): void {
 //      discrepancies verifyDiagram's measured-atom approximation can't.
 // opts.name: the SVG's published name when outPath is a scratch file (it keys the slide-budget cache). opts.lint: false skips the per-file lint-svg.ts run (it starts its own Chromium), for callers that lint many
 // files in one go afterwards (build-diagram.ts). Default true.
-export async function build(d: Diagram, outPath: string, opts: {lint?: boolean; name?: string} = {}): Promise<BuildResult> {
-  const r = await renderDiagram(d, {name: opts.name ?? path.basename(outPath), budget: 'measure'});
+export async function build(d: Diagram, outPath: string, opts: {lint?: boolean; name?: string; html?: boolean} = {}): Promise<BuildResult> {
+  const r = await renderDiagram(d, {name: opts.name ?? path.basename(outPath), budget: 'measure', html: opts.html});
   return finishBuild(r, outPath, opts.lint ?? true);
 }
 
@@ -810,7 +811,7 @@ export async function build(d: Diagram, outPath: string, opts: {lint?: boolean; 
 // `verdict` and `xml`, so build() can refuse to write while `svg-diagram show` can still draw the picture and say what is wrong.
 // (A define()/constructor/layout error still throws.) budget: 'measure' measures a slide that has no cached budget (starts the
 // dev server, writes the cache); 'cacheOnly' reads the cache and falls back to the default sizes with a note.
-export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'measure' | 'cacheOnly'}): Promise<RenderResult> {
+export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'measure' | 'cacheOnly'; html?: boolean}): Promise<RenderResult> {
   const maxReveal = prepareReveal(d);
   applyAutoLegend(d);
   const notes: string[] = [];
@@ -840,7 +841,7 @@ export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'me
   // 14px text is as small as it was at 940px wide.
   let fontScale = 1;
   let laidOut: LaidOutDiagram;
-  let verdict: Verdict, svg: string;
+  let verdict: Verdict, svg: string, html: string | undefined;
   const baseRoles = {...ROLES};
   const applyScale = (s: number) => { for (const k of Object.keys(baseRoles) as Role[]) ROLES[k] = Math.round(baseRoles[k] * s); };
   const layoutAt = (s: number) => { applyScale(s); return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}); };
@@ -864,10 +865,11 @@ export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'me
     // emit.ts reads ROLES while it draws, so the verdict and the SVG are made at the scale the layout was made at
     verdict = verifyDiagram(laidOut);
     svg = emitSvg(laidOut, maxReveal ? {reveal: maxReveal} : {});
+    if (opts.html) html = emitHtml(laidOut, maxReveal ? {reveal: maxReveal} : {});
   } finally {
     applyScale(1);
   }
-  return {svg, laidOut, verdict, xml: xmlProblems(svg), notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget, budgetSource, fontScale: laidOut.fontScale};
+  return {svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml: xmlProblems(svg), notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget, budgetSource, fontScale: laidOut.fontScale};
 }
 
 // Layout + verification + rules, without writing any file: the engine behind `svg-diagram check`.
@@ -887,6 +889,11 @@ async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Pro
   if (r.xml.length) throw new Error(`build(${outPath}): the emitted SVG is not well-formed XML (an <img> would fail to load it):\n  ${r.xml.join('\n  ')}`);
   fs.mkdirSync(path.dirname(outPath), {recursive: true});
   fs.writeFileSync(outPath, r.svg);
+  let htmlPath: string | undefined;
+  if (r.html !== undefined) {
+    htmlPath = outPath.replace(/\.svg$/, '') + '.html';
+    fs.writeFileSync(htmlPath, r.html);
+  }
   const revealPaths: string[] = [];
   if (r.laidOut.maxReveal) {
     const ext = path.extname(outPath), stem = outPath.slice(0, -ext.length);
@@ -910,7 +917,7 @@ async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Pro
     const out = (e.stdout || '') + (e.stderr || '');
     throw new Error(`build(${outPath}) produced an SVG that fails lint-svg.ts --strict:\n${out}`);
   }
-  return {outPath, revealPaths, width: r.width, height: r.height, fit: r.fit, budget: r.budget, fontScale: r.fontScale, warnings: verdict.warnings, findings: verdict.findings};
+  return {outPath, ...(htmlPath ? {htmlPath} : {}), revealPaths, width: r.width, height: r.height, fit: r.fit, budget: r.budget, fontScale: r.fontScale, warnings: verdict.warnings, findings: verdict.findings};
 }
 
 export {closeMeasurer};

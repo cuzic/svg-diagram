@@ -1,0 +1,140 @@
+// Serializes a layoutDiagram() result into an HTML fragment: boxes, banners, group frames and every line of text are
+// absolutely positioned elements styled by CSS; everything CSS cannot draw (connectors, arrowheads, tables, curves, wireframes …)
+// is the SVG emit.ts already makes, laid over the same canvas in one inline <svg class="sd-ov">.
+//
+// Same geometry as the SVG: layout.ts has already broken every text into lines and placed each baseline, so a line is one element
+// with white-space: pre — the browser never re-wraps it. A line's top is its baseline minus the font's ascent (its line-height is
+// ascent + descent), which is how the baseline lands where the <text> of the SVG puts it.
+import {PALETTE, FONT_STACKS, ROLES, runColorOf, isSolidTone, colorOf, toneStyle} from './tokens.ts';
+import {textBox} from './font-metrics.ts';
+import {emitSvg, resolveBoxStyle} from './emit.ts';
+import {visibleAt} from './reveal.ts';
+import {BOX_PAD_X, BOX_PAD_Y} from './layout.ts';
+import type {LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutBanner, LaidOutCaption, LaidOutGroup, WrappedRun, Theme, Align, EmphasisTone, Rect, Span} from './types.ts';
+
+const esc = (s: string): string => s.replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c] as string);
+const px = (n: number): string => `${+n.toFixed(2)}px`;
+// emit.ts snaps shapes (not text) to a 4px grid; the same here, so a box sits where its SVG twin does
+const snap4 = (n: number): number => Math.round(n / 4) * 4;
+
+// ascent / descent of the primary sans font at a size (a browser without that font falls back; the difference is a pixel or two)
+const boxMemo = new Map<string, {ascent: number; descent: number}>();
+function metrics(size: number, weight: number, mono: boolean): {ascent: number; descent: number} {
+  const key = `${mono}|${size}|${weight}`;
+  let m = boxMemo.get(key);
+  if (!m) {
+    try { const b = textBox('あ', mono ? 'mono' : 'sans', size, weight); m = {ascent: b.ascent, descent: b.descent}; }
+    catch { m = {ascent: Math.round(size * 0.88), descent: Math.round(size * 0.24)}; }
+    boxMemo.set(key, m);
+  }
+  return m;
+}
+
+function spans(sp: Span[], run: WrappedRun, color: string, day: Theme, dim?: boolean): string {
+  return sp.map(s => {
+    const fill = !dim && s.tone ? runColorOf(s.tone, undefined, day) : color;
+    const style = `${s.bold && run.weight !== 700 ? 'font-weight:700;' : ''}${fill !== color ? `color:${fill};` : ''}`;
+    return style ? `<span style="${style}">${esc(s.text)}</span>` : esc(s.text);
+  }).join('');
+}
+
+function textRuns(runs: WrappedRun[], o: {originX: number; originY: number; w: number; align: Align; day: Theme; dim?: boolean; boxTone?: EmphasisTone}): string {
+  const out: string[] = [];
+  for (const run of runs) {
+    const color = o.dim ? PALETTE.muted : runColorOf(run.tone, o.boxTone, o.day);
+    const indent = run.indent ?? 0;
+    const {ascent, descent} = metrics(run.size, run.weight, run.mono);
+    run.lines.forEach((line, i) => {
+      const top = o.originY + run.lineYs[i] - ascent;
+      const content = run.lineSpans ? spans(run.lineSpans[i], run, color, o.day, o.dim) : esc(line);
+      out.push(`<div class="sd-t${run.mono ? ' sd-m' : ''}" style="left:${px(o.originX + indent)};top:${px(top)};width:${px(o.w - indent)};text-align:${o.align};font-size:${run.size}px;font-weight:${run.weight};line-height:${ascent + descent}px;color:${color}">${content}</div>`);
+    });
+  }
+  return out.join('');
+}
+
+function shape(r: Rect, o: {tone?: EmphasisTone; dashed?: boolean; dim?: boolean}, day: Theme, fallbackTone: EmphasisTone): string {
+  const st = resolveBoxStyle(o.tone ?? fallbackTone, day, o.dashed);
+  let {fill, stroke} = st;
+  let line = st.dashed ? 'dashed' : 'solid';
+  if (o.dim) { fill = PALETTE.bg; stroke = PALETTE.muted; line = 'dotted'; }
+  // The SVG strokes 2.5px centred on the edge: the outer edge is 1.25px out, the outer radius 8 + 1.25. A CSS border is rounded to
+  // whole device pixels (2.5px draws as 2px), so a solid outline is an inset box-shadow, which is not; a dashed one has to be a border.
+  const outline = line === 'solid' ? `box-shadow:inset 0 0 0 2.5px ${stroke}` : `border:2.5px ${line} ${stroke}`;
+  return `<div class="sd-b" style="left:${px(snap4(r.x) - 1.25)};top:${px(snap4(r.y) - 1.25)};width:${px(snap4(r.w) + 2.5)};height:${px(snap4(r.h) + 2.5)};background:${fill};${outline}"></div>`;
+}
+
+function box(b: LaidOutBox, day: Theme): string {
+  const px_ = b.padX ?? BOX_PAD_X, py = b.padY ?? BOX_PAD_Y;
+  return shape(b, b, day, 'plain') + textRuns(b.wrappedRuns, {originX: b.x + px_, originY: b.y + py, w: b.w - 2 * px_, align: b.align ?? 'left', day, dim: b.dim, boxTone: b.tone});
+}
+
+function banner(b: LaidOutBanner, day: Theme): string {
+  const px_ = b.padX ?? BOX_PAD_X, py = b.padY ?? BOX_PAD_Y;
+  return shape(b, b, day, 'accent') + textRuns(b.wrappedRuns, {originX: b.x + px_, originY: b.y + py, w: b.w - 2 * px_, align: b.align ?? 'center', day, dim: b.dim, boxTone: b.tone});
+}
+
+function caption(b: LaidOutCaption, day: Theme): string {
+  return textRuns(b.wrappedRuns, {originX: b.x, originY: b.y, w: b.w, align: b.align ?? 'center', day, dim: b.dim});
+}
+
+function group(b: LaidOutGroup, day: Theme): string {
+  return b.frame === false ? '' : shape(b, b, day, 'muted');
+}
+
+// What this file draws as HTML. A box with a step badge / icon / tag / stamp carries SVG-only decorations, so it stays SVG as a whole.
+function native(b: LaidOutBand): boolean {
+  switch (b.type) {
+    case 'caption': return !b.tagBox;
+    case 'box': return b.step == null && !b.icon && !b.tagBox && !b.stamp;
+    case 'banner': return !b.tagBox && !b.stamp;
+    case 'group': return !b.stamp;
+    // a row's arrows are SVG paths, so only an arrow-less row (and a grid) can go over whole
+    case 'row': return b.arrows.length === 0 && b.children.every(c => native(c));
+    case 'grid': return b.children.every(c => native(c));
+    default: return false;
+  }
+}
+
+function render(b: LaidOutBand, day: Theme, stage?: number): string {
+  switch (b.type) {
+    case 'row': case 'grid': return b.children.filter(c => visibleAt(c, stage)).map(c => box(c, day)).join('');
+    case 'caption': return caption(b, day);
+    case 'box': return box(b, day);
+    case 'banner': return banner(b, day);
+    case 'group': return group(b, day);
+    default: return '';
+  }
+}
+
+const CSS = (id: string) => `
+#${id} { position: relative; overflow: hidden; background: ${PALETTE.bg}; font-family: ${FONT_STACKS.sans}; }
+#${id} .sd-b { position: absolute; box-sizing: border-box; border-radius: 9.25px; }
+#${id} .sd-t { position: absolute; white-space: pre; }
+#${id} .sd-m { font-family: ${FONT_STACKS.mono}; }
+#${id} .sd-ov { position: absolute; left: 0; top: 0; pointer-events: none; }
+#${id} .sd-ov text { font-family: ${FONT_STACKS.sans}; }
+#${id} .sd-ov .mono { font-family: ${FONT_STACKS.mono}; }
+#${id} .sd-ov .emoji { font-family: ${FONT_STACKS.emoji}; }`;
+
+let counter = 0;
+
+/** A self-contained HTML fragment (a <div> and a <style>) for the diagram. `id` scopes the CSS (default: a counter). */
+export function emitHtml(d: LaidOutDiagram, opts: {reveal?: number; id?: string} = {}): string {
+  const {width, canvasHeight, day} = d;
+  const id = opts.id ?? `sd-${++counter}`;
+  const visible = d.laidOut.filter(b => visibleAt(b, opts.reveal));
+  const html = visible.filter(native).map(b => render(b, day, opts.reveal)).join('');
+  // the rest, plus every connector, is the SVG the other emitter draws: same function, minus the white background and the native bands
+  const rest = visible.filter(b => !native(b));
+  let overlay = '';
+  if (rest.length || d.connects.length) {
+    const svg = emitSvg({...d, laidOut: rest}, {reveal: opts.reveal})
+      .replace(/<rect x="0" y="0" width="\d+(?:\.\d+)?" height="\d+(?:\.\d+)?" fill="#[0-9a-f]{6}"\/>\s*/i, '')
+      .replace(/<svg /, '<svg class="sd-ov" ')
+      .replace(/<style>[\s\S]*?<\/style>\s*/, '')
+      .replace(/<metadata[\s\S]*?<\/metadata>\s*/, '');
+    overlay = svg.trim();
+  }
+  return `<style>${CSS(id)}\n</style>\n<div id="${id}" class="sd" style="width:${px(width)};height:${px(canvasHeight)}">${html}${overlay}</div>\n`;
+}
