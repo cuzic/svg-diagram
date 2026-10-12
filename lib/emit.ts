@@ -10,7 +10,7 @@ import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRON
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
-  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutImage, LaidOutTimeline, LaidOutTree, LaidOutStates, LaidOutGantt, LaidOutClasses, LaidOutPeople, LaidOutDots, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
+  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutImage, LaidOutTimeline, LaidOutTree, LaidOutStates, LaidOutGantt, LaidOutClasses, LaidOutBpmn, LaidOutPeople, LaidOutDots, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
   LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, EmphasisTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
   LaidOutWireframe, LaidOutScreens, RawColorTone, Span, Roles,
 } from './types.ts';
@@ -514,7 +514,7 @@ function renderGantt(b: LaidOutGantt, day: Theme): string {
     }
   }
   if (b.today) out.push(`<path d="M${snap4(b.today.x)},${snap4(b.today.y1)} V${snap4(b.today.y2)}" fill="none" stroke="${b.dim ? PALETTE.muted : PALETTE.danger}" stroke-width="2"/>`);
-  for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : t.tone === 'danger' ? PALETTE.danger : t.muted ? PALETTE.muted : PALETTE.text}">${emojiSpan(t.text)}</text>`);
+  for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : t.anchor === 'end' ? ' text-anchor="end"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : t.tone === 'danger' ? PALETTE.danger : t.muted ? PALETTE.muted : PALETTE.text}">${emojiSpan(t.text)}</text>`);
   return out.join('\n  ');
 }
 
@@ -542,7 +542,42 @@ function renderClasses(b: LaidOutClasses, day: Theme): string {
   }
   for (const t of b.texts) {
     const n = b.nodes.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
-    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim || t.muted ? PALETTE.muted : tone(n?.tone)}">${emojiSpan(t.text)}</text>`);
+    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : t.anchor === 'end' ? ' text-anchor="end"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim || t.muted ? PALETTE.muted : tone(n?.tone)}">${emojiSpan(t.text)}</text>`);
+  }
+  for (const l of b.labels) {
+    out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${bg}"/>`);
+    out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty)}" text-anchor="middle" font-size="14" fill="${ink}">${emojiSpan(l.text)}</text>`);
+  }
+  return out.join('\n  ');
+}
+
+function renderBpmn(b: LaidOutBpmn, day: Theme): string {
+  const out: string[] = [];
+  const ink = b.dim ? PALETTE.muted : PALETTE.text, bg = PALETTE.bg;
+  for (const l of b.lanes) {
+    out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${snap4(l.h)}" fill="${l.tone === 'plain' ? bg : resolveBoxStyle(l.tone, day).fill}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
+    out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${l.labelW}" height="${snap4(l.h)}" fill="${PALETTE.code}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
+  }
+  for (const e of b.edges) {
+    const pts = e.points.slice(), n = pts.length, tip = pts[n - 1], prev = pts[n - 2];
+    const dx = Math.sign(tip.x - prev.x), dy = Math.sign(tip.y - prev.y), L = 11, W = 4.5;
+    pts[n - 1] = {x: tip.x - dx * (L - 2), y: tip.y - dy * (L - 2)};
+    out.push(`<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${ink}" stroke-width="2"${e.line === 'dashed' ? ' stroke-dasharray="6,4"' : ''}/>\n  <path d="M${snap4(tip.x)},${snap4(tip.y)} L${snap4(tip.x - dx * L - dy * W)},${snap4(tip.y - dy * L + dx * W)} L${snap4(tip.x - dx * L + dy * W)},${snap4(tip.y - dy * L - dx * W)} z" fill="${ink}"/>`);
+  }
+  for (const nd of b.nodes) {
+    const cx = nd.x + nd.w / 2, cy = nd.y + nd.h / 2, st = b.dim ? PALETTE.muted : resolveBoxStyle(nd.tone, day).stroke, fill = b.dim ? bg : resolveBoxStyle(nd.tone, day).fill;
+    if (nd.kind === 'task') { out.push(renderBoxRect({...nd, dim: b.dim}, day, 'plain')); continue; }
+    if (nd.kind === 'start' || nd.kind === 'end') { out.push(`<circle cx="${snap4(cx)}" cy="${snap4(cy)}" r="${nd.w / 2 - 2}" fill="${fill}" stroke="${st}" stroke-width="${nd.kind === 'end' ? 5 : 2}"/>`); continue; }
+    const r = nd.w / 2;
+    out.push(`<path d="M${snap4(cx)},${snap4(nd.y)} L${snap4(nd.x + nd.w)},${snap4(cy)} L${snap4(cx)},${snap4(nd.y + nd.h)} L${snap4(nd.x)},${snap4(cy)} z" fill="${fill}" stroke="${st}" stroke-width="2"/>`);
+    const m = r * 0.42;
+    if (nd.kind === 'xor') out.push(`<path d="M${snap4(cx - m)},${snap4(cy - m)} L${snap4(cx + m)},${snap4(cy + m)} M${snap4(cx + m)},${snap4(cy - m)} L${snap4(cx - m)},${snap4(cy + m)}" fill="none" stroke="${st}" stroke-width="3"/>`);
+    else if (nd.kind === 'and') out.push(`<path d="M${snap4(cx - m * 1.15)},${snap4(cy)} H${snap4(cx + m * 1.15)} M${snap4(cx)},${snap4(cy - m * 1.15)} V${snap4(cy + m * 1.15)}" fill="none" stroke="${st}" stroke-width="3"/>`);
+    else out.push(`<circle cx="${snap4(cx)}" cy="${snap4(cy)}" r="${snap4(m * 1.2)}" fill="none" stroke="${st}" stroke-width="3"/>`);
+  }
+  for (const t of b.texts) {
+    const n = b.nodes.find(r => r.kind === 'task' && t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
+    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : t.anchor === 'end' ? ' text-anchor="end"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim || t.muted ? PALETTE.muted : colorOf(toneStyle(n?.tone).text, day)}">${emojiSpan(t.text)}</text>`);
   }
   for (const l of b.labels) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${bg}"/>`);
@@ -745,12 +780,13 @@ function renderBandPlain(band: LaidOutBand, day: Theme, roles: Roles, stage?: nu
     case 'states': return renderStates(band, day);
     case 'gantt': return renderGantt(band, day);
     case 'classes': return renderClasses(band, day);
+    case 'bpmn': return renderBpmn(band, day);
     default: return '';
   }
 }
 
 // bands that draw their own dim state (spotlight) instead of having it painted over their svg
-const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars', 'timeline', 'tree', 'states', 'gantt', 'classes', 'image']);
+const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars', 'timeline', 'tree', 'states', 'gantt', 'classes', 'bpmn', 'image']);
 
 function renderBand(band: LaidOutBand, day: Theme, roles: Roles, stage?: number, dimFill = false): string {
   const svg = renderBandPlain(band, day, roles, stage, dimFill);
