@@ -1,6 +1,6 @@
 # ADR 0004: 資料づくりで見つかったツール側の改善要望(bars / spotlight / reveal / plane / table / 色 / 文字サイズ)
 
-- 状態: 提案(改訂 3。Opus レビュー 2 回分を反映し、収束を確認。実装前)
+- 状態: 実装済み(PR #32〜#38)。実装状況は末尾の表を参照
 - 日付: 2026-10-11
 - 基点: `main`(ADR 0002・0003 の実装、表の行の高さ `rowh`、矢印の太さ `weight`、アイコンを含む)
 - 関連: ADR 0002(量・強調の部品)、ADR 0003(部分強調)
@@ -155,6 +155,8 @@ bars(data, {labels: 'all' | 'category' | 'none', axis: false, grid: false, basel
 | `labelScale`(小数倍) | 「任意 px ではなくロール」の原則に反し、plane の固定 px との連動も崩れる |
 | `box({size})` を「任意 px の抜け道」として扱う | 実際は何もしない引数。warn → throw で削除 |
 
+**§0 で実際に出力が変わった図**(PR #32 のレビューで確認したもの。上の列挙に次を足す): (1) spotlight があり、**対象の外にある bars band**(灰色の塗りに白い値ラベル → 白地に点線枠・muted の値ラベル。box の dim と揃う)、(2) **group に reveal が無く、row の中の group の中の箱にだけ reveal がある**図(これまで walk されず段階ファイルが出なかったが、段階が出るようになる)、(3) **fill モードの sequence**(`emit.ts` の `const NOTE = ROLES.note` が読み込み時に 14 で固定され、測った大きさと描いた大きさがずれていた)。golden の既存の図は、いずれも変わらない。
+
 **§0 の例外に、fit の警告も含める**: §8 で plane と table の文字を `analyzeFit` に含めると、既存の図の**警告**(SVG ではなく fit の warnings)が増えうる。「1 バイトも変えない」は SVG の話なので矛盾しないが、ここに明記する。
 
 ## 実装順と受け入れ条件
@@ -178,3 +180,23 @@ bars(data, {labels: 'all' | 'category' | 'none', axis: false, grid: false, basel
   - `solid` / `solid-danger` の `BoxTone` への昇格は、`DEFAULT_LEGEND_LABELS`・`usedNotation`・`legend-missing` に及ぶ。#27 の `weight` が凡例に項目を足したので、凡例・notation の整合を確かめる。
   - `hero` の削除は公開型 `Role` の破壊的変更。
 - 未決: `solid` の凡例ラベルの文言、`labelRole` の上限(fill との重なり)、`barRatio` の既定、`rowheader-tone-collides` の severity。
+
+## 実装状況(2026-10-12 時点)
+
+| 節 | 内容 | PR |
+|---|---|---|
+| §0 | 前提のバグ修正(bars の棒ごとの dim、grouprow の reveal 継承、plane の文字サイズ、swimlane の id、sequence の `NOTE`) | #32 |
+| §1・§2 | bars の `labels` / `axis` / `grid` / `baseline` / `barRatio`、最小高さ、値の `<desc>` 追記と `bars-values-hidden` | #35 |
+| §3 | bars band・plane の `id`、spotlight の対象 | #37 |
+| §4 | reveal の受け皿(stat・bars band・caption・sequence・swimlane・versus・plane の点 / 線 / 寸法線 / ラベル / paths)。受けないものは throw | #37 |
+| §5 | plane の `paths`(単調 3 次補間が既定、実線が既定) | #36 |
+| §6 | table の `rowHeader` | #33 |
+| §7 | `EmphasisTone`(`solid` / `solid-danger`)、文字色の規則、`a11y-nontext-contrast` の誤検知の修正、凡例「主役 / 次点」。`mid` は作っていない | #34 |
+| §8 | `headlineRole` / `labelRole`、`hero` の削除、`box({size})` の warn。fit が plane と table の文字を数える | #38 |
+
+**残っている既知の問題**(範囲外):
+- `spotlight: 'r#2'` が、grouprow(子が group の row)のとき `unknown anchor id` で throw する(`targetRects` が laidOut の `type === 'row'` しか見ない)。
+- `row(children, {reveal: 2})` の `reveal` が、`row()` が band に写さないため黙って捨てられる。
+- doc 媒体の `<desc>` が reveal を考慮せず、reveal1.svg にも右側の箱の見出しが残る。
+- `SVG_DIAGRAM_STRICT_WIDTH` を全体で有効にするには、ワイヤーフレームの注釈番号(`drawNotes` → `badge`)の測定漏れを先に直す必要がある(直すとワイヤーフレームの出力が変わる)。
+- slidev addon 側の `reveal`(段別ファイルの差し替え)は、別リポジトリで未実装。
