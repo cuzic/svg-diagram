@@ -115,6 +115,9 @@ function checkStates(d: LaidOutDiagram): string[] {
     for (const [i, l] of band.labels.entries()) {
       if (l.x < band.x - 0.5 || l.x + l.w > band.x + band.w + 0.5) problems.push(`states: label "${l.text}" runs outside the figure (shorten it or widen the figure)`);
       for (const n of band.anchors) if (rectOverlap(l, n)) problems.push(`states: label "${l.text}" overlaps state "${n.id}" (shorten the label)`);
+      band.edges.forEach((e, k) => { // the chip is white: on another arrow it would cut it
+        if (k !== l.edge && e.points.slice(1).some((q, m) => { const p = e.points[m]; return rectOverlap(l, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}); })) problems.push(`states: label "${l.text}" sits on the arrow ${e.from} -> ${e.to} (it belongs to another arrow)`);
+      });
       for (let j = i + 1; j < band.labels.length; j++) {
         const o = rectOverlap(l, band.labels[j]);
         if (o) problems.push(`states: label "${l.text}" overlaps label "${band.labels[j].text}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);

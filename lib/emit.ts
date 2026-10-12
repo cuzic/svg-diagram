@@ -480,14 +480,15 @@ function renderStates(b: LaidOutStates, day: Theme): string {
     if (n.final) out.push(renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, 'plain').replace('rx="8"', 'rx="5"'));
   }
   const ink = (t: LaidOutStates['texts'][number]): string => {
-    if (b.dim || t.muted) return PALETTE.muted;
+    if (b.dim) return PALETTE.muted;
     const n = b.nodes.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
+    if (t.muted) return n && toneStyle(n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted; // muted on a soft fill is 4.48:1, under 4.5
     return colorOf(toneStyle(n?.tone).text, day);
   };
   for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}" text-anchor="middle" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t)}">${emojiSpan(t.text)}</text>`);
   for (const l of b.labels) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${PALETTE.bg}"/>`);
-    out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty)}" text-anchor="middle" font-size="14" fill="${stroke}">${emojiSpan(l.text)}</text>`);
+    out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty)}" text-anchor="middle" font-size="${l.size}" fill="${stroke}">${emojiSpan(l.text)}</text>`);
   }
   return out.join('\n  ');
 }

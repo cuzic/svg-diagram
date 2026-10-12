@@ -2069,8 +2069,8 @@ export interface LaidOutStates extends Rect, Dimmed {
   /** Orthogonal polylines from the tail state's box edge to the head's; the arrowhead is at the last point. */
   edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'}[];
   texts: TreeNodeText[];
-  /** Transition labels: a white chip (x, y, w, h) with its text baseline at (tx, ty). */
-  labels: (Rect & {text: string; tx: number; ty: number})[];
+  /** Transition labels: a white chip (x, y, w, h) with its text baseline at (tx, ty), in `size` px. */
+  labels: (Rect & {text: string; tx: number; ty: number; size: number; /** index of its arrow in `edges` */ edge: number})[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];
 }

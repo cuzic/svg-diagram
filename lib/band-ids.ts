@@ -6,6 +6,7 @@ import type {Band} from './types.ts';
 export function nodeIdsOf(b: Band): string[] {
   switch (b.type) {
     case 'tree': return treeItems(b.root).flatMap(n => n.id ? [n.id] : []);
+    case 'states': return b.states.map(s => s.id);
     default: return [];
   }
 }
