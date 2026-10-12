@@ -22,13 +22,14 @@ import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {layoutPlane, planeTexts} from './plane.ts';
 import {IMAGE_PAD, imageSize, imageTexts, layoutImage} from './image.ts';
 import {barsTexts, layoutBars} from './bars.ts';
+import {layoutTimeline, timelineTexts} from './timeline.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {
   DiagramData, Roles, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
   LaidOutSwimlane, LaidOutPyramidLayer, LaidOutRow, RowArrow, Band, CaptionBand, BoxBand, BannerBand, RowBand, GridBand, GroupBand,
   ConnectBand, ConnectRef, Bend, BoxChrome, TextRun, WrappedRun, WidthOf, FontFamily, FontWeight, MeasureRequest, Measured, Point, Rect, Side, Span, TextTone,
 } from './types.ts';
-import {PALETTE, SHADES, isSolidTone, CONNECT_LABEL_SIZE, TAG_SIZE, blendLuminance, bestTextColor} from './tokens.ts';
+import {PALETTE, SHADES, isSolidTone, CONNECT_LABEL_SIZE, TAG_SIZE, blendLuminance, bestTextColor, paintOf} from './tokens.ts';
 
 export const LINE_HEIGHT_EM = 1.4;   // vertical spacing between wrapped lines within one text block
 export const BOX_PAD_X = 20;
@@ -158,7 +159,7 @@ function groupTitleBand(band: GroupBand): CaptionBand {
 }
 
 function registerRequests(requests: Requests, band: Band, roles: Roles) {
-  if ('tag' in band && band.tag) registerAtoms(requests, band.tag, TAG_SIZE, 700);
+  if ('tag' in band && band.tag) registerAtoms(requests, band.tag, (roles.tag ?? TAG_SIZE), 700);
   if ('stamp' in band && band.stamp) registerAtoms(requests, band.stamp, roles.note, 400);
   for (const run of textRuns(band, roles)) {
     const font = run.mono ? 'mono' : 'sans';
@@ -247,8 +248,17 @@ function gridChildGeometry(band: GridBand, contentWidth: number) {
   return {cellWidth};
 }
 
+/**
+ * diagram({sourceLine}) is always the last band: left-aligned, muted, note size, whatever was add()ed and in whatever order.
+ * Returns a copy (the input is not changed); without a sourceLine, the input itself.
+ */
+function withSourceLine(d: DiagramData): DiagramData {
+  return d.sourceLine === undefined ? d : {...d, bands: [...d.bands, {type: 'caption', text: d.sourceLine, align: 'left', role: 'note', tone: 'muted', bold: false, mono: false, sourceLine: true}]};
+}
+
 /** Pass 1: every atom this diagram needs measured, at the font sizes of `roles`. Pure: no measuring happens here. */
-export function collectMeasures(d: DiagramData, roles: Roles): Requests {
+export function collectMeasures(data: DiagramData, roles: Roles): Requests {
+  const d = withSourceLine(data);
   const requests: Requests = new Map();
   const registerBand = (band: Band): void => {
     if (band.type === 'group') {
@@ -276,7 +286,7 @@ export function collectMeasures(d: DiagramData, roles: Roles): Requests {
       // weight (see emit.ts's renderConnect) — registered here so their
       // real width is known before layoutDiagram resolves the connect,
       // instead of guessed at draw time.
-      registerAtoms(requests, band.label, CONNECT_LABEL_SIZE, 400);
+      registerAtoms(requests, band.label, (roles.connectLabel ?? CONNECT_LABEL_SIZE), 400);
     } else if (band.type === 'pyramid') {
       for (const layer of band.layers) {
         for (const atom of splitAtoms(layer.text)) {
@@ -291,6 +301,8 @@ export function collectMeasures(d: DiagramData, roles: Roles): Requests {
       for (const child of band.children ?? []) registerBand(child);
     } else if (band.type === 'bars') {
       for (const [text, size, weight, font] of barsTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'timeline') {
+      for (const [text, size, weight, font] of timelineTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'curve') {
       for (const label of [band.yTopLabel, band.yBottomLabel, band.xLabel]) {
         if (!label) continue;
@@ -322,7 +334,8 @@ export function widthOfMeasured(measured: Map<string, Measured>, strict: boolean
 }
 
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
-export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
+export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
+  const d = withSourceLine(data);
   const contentWidth = d.width - 2 * d.pad;
 
   // A labelled straight connector between two side-by-side children (right side -> left side) needs room in the gap
@@ -347,7 +360,7 @@ export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): Laid
       const i = kids.findIndex(k => k.has(f.id)), j = kids.findIndex(k => k.has(t.id));
       if (i < 0 || j < 0 || Math.abs(i - j) !== 1 || !((i < j && f.side === 'right' && t.side === 'left') || (i > j && f.side === 'left' && t.side === 'right'))) continue;
       if (slots) { const [a, b] = i < j ? [slots[i], slots[j]] : [slots[j], slots[i]]; if (b.col !== a.col + a.span) continue; } // empty columns between them already leave room
-      gap = Math.max(gap, Math.ceil(textWidth(widthOf, c.label as string, CONNECT_LABEL_SIZE, 400) + (c.chip ? 16 : 0) + 2 * LABEL_MARGIN));
+      gap = Math.max(gap, Math.ceil(textWidth(widthOf, c.label as string, (roles.connectLabel ?? CONNECT_LABEL_SIZE), 400) + (c.chip ? 16 : 0) + 2 * LABEL_MARGIN));
     }
     return gap;
   };
@@ -416,7 +429,7 @@ export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): Laid
       if (overflow.length) (placed as Placed<BoxBand> & {nowrapOverflow?: string[]}).nowrapOverflow = overflow;
     }
     if (chrome.tag) {
-      const tw = textWidth(widthOf, chrome.tag, TAG_SIZE, 700) + 2 * TAG_PAD_X;
+      const tw = textWidth(widthOf, chrome.tag, (roles.tag ?? TAG_SIZE), 700) + 2 * TAG_PAD_X;
       placed.tagBox = {x: chrome.tagAt === undefined ? x + w - tw - 12 : x + w * chrome.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
     }
     if (chrome.id && (areaIds.has(chrome.id) || anchors.has(chrome.id))) claimed(chrome.id, 'a box takes an id that another box, group or row already has');
@@ -431,11 +444,11 @@ export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): Laid
     if (band.type === 'group') {
       const gp = band.pad ?? 16;
       const startY = cursorY;
-      const frame: LaidOutGroup = {type: 'group', x: padX, y: startY, w: cw, h: 0, tone: band.tone, dashed: band.dashed, frame: band.frame, id: band.id, reveal: band.reveal};
+      const frame: LaidOutGroup = {type: 'group', x: padX, y: startY, w: cw, h: 0, tone: band.tone, dashed: band.dashed, frame: band.frame, id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
       laidOut.push(frame); // pushed first so the frame is drawn under its children
       cursorY += gp;
       if (band.title) {
-        const t = placeBoxLike({...groupTitleBand(band), reveal: band.reveal} as CaptionBand, padX + gp, cursorY, cw - 2 * gp, false);
+        const t = placeBoxLike({...groupTitleBand(band), reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})} as CaptionBand, padX + gp, cursorY, cw - 2 * gp, false);
         const inkW = Math.max(0, ...t.wrappedRuns.flatMap(r => r.lines.map((_, i) => lineWidth(widthOf, r, i))));
         const inkX = t.align === 'center' ? t.x + (t.w - inkW) / 2 : t.align === 'right' ? t.x + t.w - inkW : t.x;
         t.inkBox = {x: inkX, y: t.y, w: inkW, h: t.h};
@@ -486,6 +499,17 @@ export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): Laid
         if (bottom > room + 0.5) throw new Error(`image(): the parts over it need ${Math.round(bottom - placed.y + pad)}px of height but the picture is ${placed.h}px high (make the picture bigger with width / height, or use less content)`);
       }
       cursorY = placed.y + placed.h + d.gap;
+      continue;
+    }
+
+    if (band.type === 'timeline') {
+      const placed = layoutTimeline(band, padX, cursorY, cw, widthOf);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, 'a timeline takes an id that another anchor already has');
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
+      laidOut.push(placed);
+      cursorY += placed.h + d.gap;
       continue;
     }
 
@@ -549,7 +573,7 @@ export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): Laid
         y += h;
         return out;
       });
-      const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, id: band.id, reveal: band.reveal};
+      const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
       laidOut.push(frame); // before its steps so the lanes draw underneath
       if (band.id) {
         if (anchors.has(band.id)) claimed(band.id, 'a swimlane takes an id that another anchor already has');
@@ -602,7 +626,7 @@ export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): Laid
       // names) resolution waits until the whole stack is placed; such a
       // connector reserves no loop-under space.
       if (!anchors.has(parseRef(band.from).id) || !anchors.has(parseRef(band.to).id)) { deferred.push(band); continue; }
-      const resolved = resolveConnect(band, anchors, areaIds, widthOf);
+      const resolved = resolveConnect(band, anchors, areaIds, widthOf, roles);
       connects.push(resolved);
       if (band.route === 'loop-under') {
         const labelClearance = band.label ? 24 : 8;
@@ -714,6 +738,7 @@ export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): Laid
     }
 
     if (band.type === 'pyramid') {
+      const paint = paintOf(d.appearance);
       const n = band.layers.length;
       const baseWidth = band.width ?? Math.min(cw, 520);
       const apexWidth = baseWidth * band.apexRatio;
@@ -733,8 +758,8 @@ export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): Laid
         // bg luminance is a real alpha-blend against white, so the text
         // color choice is provably safe (see tokens.ts's bestTextColor
         // doc comment) without needing a Playwright-rendered check.
-        const bgLum = blendLuminance(PALETTE.bg, PALETTE[d.day].accent, opacity);
-        const textColor = bestTextColor(bgLum);
+        const bgLum = blendLuminance(paint(PALETTE.bg), paint(PALETTE[d.day].accent), opacity);
+        const textColor = bestTextColor(bgLum, paint);
         // Wrapped at the narrower (top) edge of this layer, minus padding —
         // conservative since the layer is only wider than that going down,
         // so the label can never spill past the trapezoid's slanted sides.
@@ -798,11 +823,12 @@ export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): Laid
   }
   };
   stack(d.bands, d.pad, contentWidth);
-  for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf)); // throws "unknown anchor id" if it never appears
+  for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf, roles)); // throws "unknown anchor id" if it never appears
 
-  const canvasHeight = Math.round(cursorY - d.gap + d.pad);
+  const contentHeight = Math.round(cursorY - d.gap + d.pad);
+  const canvasHeight = d.canvas ? Math.max(contentHeight, d.canvas.height) : contentHeight;
 
-  return {...d, laidOut, canvasHeight, connects, roles};
+  return {...data, laidOut, canvasHeight, ...(data.canvas ? {contentHeight} : {}), connects, roles};
 }
 
 // 'id', 'id:side', or 'id:side@t' — t (0..1) slides the anchor along that side
@@ -868,7 +894,7 @@ function pathSegments(points: Point[]): Rect[] {
   return segs;
 }
 
-function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf): LaidOutConnect {
+function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf, roles: Roles): LaidOutConnect {
   const fromRef = parseRef(band.from), toRef = parseRef(band.to);
   const fromRect = anchors.get(fromRef.id);
   const toRect = anchors.get(toRef.id);
@@ -894,7 +920,7 @@ function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: 
 
   let labelX: number | undefined, labelY: number | undefined, labelBox: Rect | undefined, chipBox: Rect | undefined;
   if (band.label) {
-    const labelWidth = textWidth(widthOf, band.label, CONNECT_LABEL_SIZE, 400);
+    const labelWidth = textWidth(widthOf, band.label, (roles.connectLabel ?? CONNECT_LABEL_SIZE), 400);
     const dy = band.chip ? 5 : -6; // a chip sits ON the line; a plain label sits above it
     if (band.route === 'elbow' && points.length === 4) {
       // vertical-first: label rides the middle (horizontal) leg; horizontal-
@@ -931,7 +957,7 @@ function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: 
       labelX = Math.round(from.x + (to.x - from.x) * t);
       labelY = Math.round((band.route === 'loop-under' ? Math.max(from.y, to.y) + band.dip : from.y + (to.y - from.y) * t) + dy);
     }
-    labelBox = {x: labelX - labelWidth / 2, y: labelY - CONNECT_LABEL_SIZE, w: labelWidth, h: CONNECT_LABEL_SIZE + 4};
+    labelBox = {x: labelX - labelWidth / 2, y: labelY - (roles.connectLabel ?? CONNECT_LABEL_SIZE), w: labelWidth, h: (roles.connectLabel ?? CONNECT_LABEL_SIZE) + 4};
     if (band.chip) {
       chipBox = {x: labelX - (labelWidth + 16) / 2, y: labelY - 17, w: labelWidth + 16, h: 24};
       labelBox = chipBox;

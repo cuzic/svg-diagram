@@ -13,6 +13,8 @@ import {wf} from './wireframe.ts';
 import {assertIconName} from './icons.ts';
 import {readImage} from './image-file.ts';
 import {layoutDiagram} from './layout-measured.ts';
+import {mapOf} from './tokens.ts';
+import {timelineDay} from './timeline.ts';
 import {emitSvg} from './emit.ts';
 import {emitHtml} from './emit-html.ts';
 import {xmlProblems} from './xml-check.ts';
@@ -24,9 +26,9 @@ import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
-import {MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
+import {SLIDE_CANVAS, canvasFontScale, canvasRoles, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
-  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -60,15 +62,23 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   // training deck's legacy spelling of the same thing. Stored as d.day internally.
   const theme = opts.theme ?? opts.day;
   if (!THEMES.map(String).includes(String(theme))) throw new Error(`diagram({theme}) must be one of ${THEMES.join(', ')} (or legacy day: 1|2)`);
+  if (typeof opts.spotlight === 'object' && opts.spotlight.mutedOk !== undefined && typeof opts.spotlight.mutedOk !== 'boolean') throw new Error(`diagram({spotlight: {mutedOk}}) must be true or false (got ${String(opts.spotlight.mutedOk)})`);
   if (typeof opts.spotlight === 'object' && opts.spotlight.dim !== undefined && !['outline', 'fill'].includes(opts.spotlight.dim)) throw new Error(`diagram({spotlight: {dim}}) must be 'outline' or 'fill' (got ${String(opts.spotlight.dim)})`);
+  if (opts.appearance !== undefined && !['light', 'dark'].includes(opts.appearance as string) && !(typeof opts.appearance === 'object' && opts.appearance && typeof opts.appearance.dark === 'object')) throw new Error(`diagram({appearance}) must be 'light', 'dark' or {dark: {bg, text, ...}} (got ${JSON.stringify(opts.appearance)})`);
+  mapOf(opts.appearance); // a custom dark set is validated here
+  if (opts.sourceLine !== undefined && (typeof opts.sourceLine !== 'string' || !opts.sourceLine.trim() || /[\r\n]/.test(opts.sourceLine))) throw new Error('diagram({sourceLine}) must be a non-empty single-line string (e.g. "出典: 総務省 2025")');
+  if (opts.canvas !== undefined && (opts.slide || opts.fill)) throw new Error('diagram({canvas}) is a whole slide drawn 1:1; it cannot be combined with `slide` / `fill` (those fit a figure into a measured slot of a Slidev slide)');
+  const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...(opts.canvas === 'slide' ? {} : opts.canvas)};
   const d: DiagramData = {
     day: theme as Theme,
+    appearance: opts.appearance, transparent: opts.transparent,
     // 'slide' (legacy day: 1|2 diagrams) gets slide-fit warnings; 'doc' (theme: ...) does not.
     medium: (opts.medium ?? (opts.theme === undefined ? 'slide' : 'doc')) as Medium,
     title: opts.title, desc: opts.desc,            // exposed as the SVG's <title> / <desc> (doc medium)
     accept: opts.accept, // {'rule-id': 'why this finding is fine'} — shown as info instead of a warning
     legend: opts.legend, legendLabels: opts.legendLabels, // legend: 'auto' adds entries for every notation used but not listed
-    width: opts.width ?? 940,
+    width: opts.width ?? canvas?.width ?? 940,
+    canvas,
     pad: opts.pad ?? 20,
     gap: opts.gap ?? 16,
     maxDisplayHeight: opts.maxDisplayHeight, // slide room for the <img> (see fit.ts)
@@ -76,6 +86,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     slide: opts.slide, // {page, heading}: measure the real budget from this slide (slide-budget.ts)
     connectDefaults: opts.connectDefaults, wireframeDefaults: opts.wireframeDefaults,
     spotlight: opts.spotlight,
+    sourceLine: opts.sourceLine,
     fill: !!opts.fill, // fit-figure slide: build to the measured width/height, growing fonts to use the slack (see build())
     bands: [],
   };
@@ -122,10 +133,10 @@ export function caption(text: RichText, opts: CaptionOpts = {}): CaptionBand {
 }
 
 // `reveal` goes onto a band only when it was given, so a band built without it is byte-for-byte what it was.
-const revealOf = (opts: {reveal?: number}): {reveal?: number} => opts.reveal === undefined ? {} : {reveal: opts.reveal};
+const revealOf = (opts: {reveal?: number; until?: number}): {reveal?: number; until?: number} => ({...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until})});
 // A constructor with no `reveal` (legend, spacer, raw, ...) refuses one instead of dropping it: the types already do, a JS caller is told here.
 function assertNoReveal(opts: object | undefined, what: string): void {
-  if (opts && 'reveal' in opts && (opts as {reveal?: unknown}).reveal !== undefined) throw new Error(`${what}: takes no reveal — it is shown from the start (reveal goes on box, banner, stat, caption, group, row's children, table, sequence, swimlane, plane, bars and connect)`);
+  if (opts && (['reveal', 'until'] as const).some(k => k in opts && (opts as Record<string, unknown>)[k] !== undefined)) throw new Error(`${what}: takes no reveal — it is shown from the start (reveal goes on box, banner, stat, caption, group, row's children, table, sequence, swimlane, plane, bars and connect)`);
 }
 
 // group / table rows / sequence / swimlane lanes carry dark text (or white boxes) on their fill, which a solid fill would swallow:
@@ -217,7 +228,7 @@ export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
   assertBoxTone(opts.tone, 'group()');
   const title = richField(opts.title, {field: 'group() title', bold: true, tone: opts.titleTone ?? (opts.tone === 'accent' ? 'accent' : 'text')});
   if (opts.frame === false && (title.text || opts.dashed || opts.tone)) throw new Error('group({frame: false}) draws no frame, so it takes no title, tone or dashed');
-  return withHandle({type: 'group', children: [children].flat(), title: title.text, ...(title.spans ? {spans: {title: title.spans}} : {}), titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad ?? (opts.frame === false ? 0 : undefined), frame: opts.frame, stamp: opts.stamp, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col, reveal: opts.reveal}, opts.id);
+  return withHandle({type: 'group', children: [children].flat(), title: title.text, ...(title.spans ? {spans: {title: title.spans}} : {}), titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad ?? (opts.frame === false ? 0 : undefined), frame: opts.frame, stamp: opts.stamp, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col, ...revealOf(opts)}, opts.id);
 }
 
 // Key for line styles / tones used in the diagram. items:
@@ -259,7 +270,7 @@ export function table(columns: TableColumn[], rows: readonly TableRow[], opts: T
   rows.forEach((r, i) => { if (!Array.isArray(r)) assertBoxTone((r as {tone?: string}).tone, `table() row ${i}`); });
   if (opts.rowHeader !== undefined && typeof opts.rowHeader !== 'boolean') throw new Error(`table(): rowHeader must be true or false, got ${JSON.stringify(opts.rowHeader)}`);
   if (opts.rowHeader && columns.length < 2) throw new Error('table(): rowHeader needs at least 2 columns (the first is the row heading, the rest are the body)');
-  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, headerH: opts.headerH, dense: opts.dense, rowHeader: opts.rowHeader, id: opts.id, reveal: opts.reveal}, opts.id);
+  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, headerH: opts.headerH, dense: opts.dense, rowHeader: opts.rowHeader, id: opts.id, ...revealOf(opts)}, opts.id);
 }
 
 // A table cell with a status symbol: `cell('通る', {mark: 'ok'})` draws "○ 通る" in the accent tone; mark: 'ok' ○ | 'mid' △ | 'ng' × | 'best' ◎.
@@ -663,7 +674,7 @@ function connectBand(from: string, to: string, opts: ConnectOpts, trackGiven = t
   const line = opts.line ?? (opts.dashed ? 'dashed' : 'solid');
   // weight: 'strong' = a thick line (a name for the meaning, not a px); 'double' already reads as a thick line, so the two cannot be combined
   if (opts.weight && line === 'double') throw new Error(`connect(${from} -> ${to}): weight '${opts.weight}' cannot go with line 'double' (both mean a thick line)`);
-  const band: ConnectBand = {type: 'connect', from, to, route: opts.route ?? 'straight', dip: opts.dip ?? 32, bend: opts.bend ?? 0.5, bendOffset: opts.bendOffset, arrow, line, ...(opts.weight ? {weight: opts.weight} : {}), chip: !!opts.chip, labelAt: opts.labelAt ?? 0.5, tone: opts.tone, label: opts.label, reveal: opts.reveal};
+  const band: ConnectBand = {type: 'connect', from, to, route: opts.route ?? 'straight', dip: opts.dip ?? 32, bend: opts.bend ?? 0.5, bendOffset: opts.bendOffset, arrow, line, ...(opts.weight ? {weight: opts.weight} : {}), chip: !!opts.chip, labelAt: opts.labelAt ?? 0.5, tone: opts.tone, label: opts.label, ...revealOf(opts)};
   return trackGiven ? Object.defineProperty(band, GIVEN, {value: opts, configurable: true}) : band;
 }
 
@@ -818,6 +829,33 @@ export function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
   return withHandle(withAnchors(band, (opts.marks ?? []).map(m => m.id)), opts.id);
 }
 
+/**
+ * A horizontal time axis with a deadline: the axis (`from` - `to`), today (`now`), the deadline and the span between them
+ * ("あと 1 年 3 か月"), plus optional marks. Dates are 'YYYY' | 'YYYY-MM' | 'YYYY-MM-DD'; `now` is always written out, never read from the clock.
+ */
+export function timeline<const Id extends string = never>(opts: TimelineOpts & {id?: Id}): TimelineBand & Declares<Id> & HandleOf<Id>;
+export function timeline(opts: TimelineOpts): TimelineBand {
+  const day = (v: unknown, what: string): number => timelineDay(v as string, what);
+  const from = day(opts?.from, 'from'), to = day(opts?.to, 'to');
+  if (!(from < to)) throw new Error(`timeline(): from (${opts.from}) must be before to (${opts.to})`);
+  for (const [k, v] of [['now', opts.now], ['deadline', opts.deadline]] as const) {
+    if (!v || typeof v !== 'object') throw new Error(`timeline(): ${k} is required (${k === 'now' ? "{at: '2026-10'}" : "{at: '2027-03', label: 'サポート終了'}"})`);
+    const t = day(v.at, `${k}.at`);
+    if (t < from || t > to) throw new Error(`timeline(): ${k}.at (${v.at}) is outside the axis (${opts.from} - ${opts.to})`);
+  }
+  if (opts.deadline.line !== undefined && opts.deadline.line !== 'full') throw new Error(`timeline(): deadline.line must be 'full' (got ${String(opts.deadline.line)})`);
+  if (opts.span !== undefined && opts.span !== 'bar' && opts.span !== 'fill') throw new Error(`timeline(): span must be 'bar' or 'fill' (got ${String(opts.span)})`);
+  if (typeof opts.deadline.label !== 'string' || !opts.deadline.label.trim()) throw new Error('timeline(): deadline.label is required');
+  for (const [i, m] of (opts.marks ?? []).entries()) {
+    const t = day(m.at, `marks[${i}].at`);
+    if (t < from || t > to) throw new Error(`timeline(): marks[${i}].at (${m.at}) is outside the axis (${opts.from} - ${opts.to})`);
+    if (typeof m.label !== 'string' || !m.label.trim()) throw new Error(`timeline(): marks[${i}].label is required`);
+    if (m.tone !== undefined && !['accent', 'danger', 'muted'].includes(m.tone)) throw new Error(`timeline(): marks[${i}].tone must be accent, danger or muted (got ${m.tone})`);
+  }
+  if (opts.remaining !== undefined && opts.remaining !== false && (typeof opts.remaining !== 'string' || !opts.remaining.trim())) throw new Error('timeline(): remaining must be a string or false');
+  return withHandle({type: 'timeline', from: opts.from, to: opts.to, now: opts.now, deadline: opts.deadline, ...(opts.span === undefined ? {} : {span: opts.span}), ...(opts.marks ? {marks: opts.marks} : {}), ...(opts.remaining === undefined ? {} : {remaining: opts.remaining}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)}, opts.id);
+}
+
 // Escape hatch. `draw(ctx)` must return a raw SVG fragment string; it
 // receives its allocated origin/size and a couple of tone-aware helpers, but
 // nothing stops it from emitting arbitrary markup — the fragment is passed
@@ -896,7 +934,7 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
   let verdict: Verdict, svg: string, html: string | undefined;
   // Every scale is its own value (scaleRoles): measured with, laid out with and drawn with the same roles, which travel in the result.
   const layoutAt = async (s: number): Promise<LaidOutDiagram> => {
-    const roles = scaleRoles(ROLES, s);
+    const roles = d.canvas ? canvasRoles(s) : scaleRoles(ROLES, s);
     return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}, {roles});
   };
   if (d.fill && budget) {
@@ -908,6 +946,9 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
       if ((await layoutAt(mid)).canvasHeight <= budget.maxHeight) lo = mid; else hi = mid;
     }
     fontScale = Math.floor(lo * 100) / 100;
+  } else if (d.canvas) {
+    // a whole-slide canvas is drawn 1:1, so everything is scaled until the smallest text is the canvas's minimum
+    fontScale = canvasFontScale(d.canvas.minText);
   } else if (d.fill) {
     if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
     notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
@@ -956,7 +997,9 @@ export async function checkDiagram(input: DiagramData): Promise<CheckResult> {
   const d = detach(input);
   prepareReveal(d);
   applyAutoLegend(d);
-  const laidOut = await layoutDiagram(d);
+  // a canvas diagram is drawn at its font scale, so it is checked at that scale too
+  const s = d.canvas ? canvasFontScale(d.canvas.minText) : 1;
+  const laidOut = await layoutDiagram(d.canvas ? {...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)} : d, d.canvas ? {roles: canvasRoles(s)} : {});
   applySpotlight(laidOut);
   return {laidOut, verdict: verifyDiagram(laidOut)};
 }

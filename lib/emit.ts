@@ -6,11 +6,11 @@
 // computed (usually off-grid) position, same as every hand-authored diagram
 // in this deck.
 
-import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
+import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf, recolor, customColors} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
-  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutImage, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
+  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutImage, LaidOutTimeline, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
   LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, EmphasisTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
   LaidOutWireframe, LaidOutScreens, RawColorTone, Span, Roles,
 } from './types.ts';
@@ -142,10 +142,10 @@ function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, defaultAlig
   return renderTextRuns(band.wrappedRuns, {originX, originY: band.y + py, w: band.w - 2 * px, align, day, dim: band.dim, boxTone: band.tone});
 }
 
-function renderTag(band: LaidOutBox, day: Theme): string {
+function renderTag(band: LaidOutBox, day: Theme, roles: Roles): string {
   const t = band.tagBox as Rect; // caller checked tagBox
   const fill = band.dim ? PALETTE.muted : colorOf(toneStyle(band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
-  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: TAG_SIZE, labelHtml: emojiSpan(band.tag as string)});
+  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: (roles.tag ?? TAG_SIZE), labelHtml: emojiSpan(band.tag as string)});
 }
 
 // The stamp chip: bottom-right inside the shape (layout reserved the strip; rows may have stretched the shape since, so it follows the bottom edge).
@@ -158,7 +158,7 @@ function renderStamp(band: Rect & {stamp?: string; stampW?: number}, roles: Role
 function renderBox(band: LaidOutBox, day: Theme, roles: Roles): string {
   const badge = band.step != null ? `\n  ${renderStepBadge(band, day)}` : '';
   const iconText = band.icon ? renderBoxIcon(band, day) : '';
-  const tag = band.tagBox ? `\n  ${renderTag(band, day)}` : '';
+  const tag = band.tagBox ? `\n  ${renderTag(band, day, roles)}` : '';
   return `${renderBoxRect(band, day, 'plain')}\n  ${renderBoxText(band, day, 'left')}${badge}${iconText}${tag}${renderStamp(band, roles)}`;
 }
 
@@ -243,7 +243,7 @@ function renderConnectPath(c: LaidOutConnect): string {
   return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${Math.round(p.x)},${Math.round(p.y)}`).join(' ');
 }
 
-function renderConnect(c: LaidOutConnect, day: Theme): string {
+function renderConnect(c: LaidOutConnect, day: Theme, roles: Roles): string {
   const color = c.dim ? PALETTE.muted : resolveLineColor(c.tone, day);
   const d = renderConnectPath(c);
   const strong = c.weight === 'strong';
@@ -263,9 +263,9 @@ function renderConnect(c: LaidOutConnect, day: Theme): string {
   // keeps emit and verify looking at the same point.
   if (c.chipBox) {
     const b = c.chipBox;
-    return `${path}\n  ${pillSvg({x: snap4(b.x), y: snap4(b.y), w: snap4(b.w), h: b.h, fill: PALETTE.bg, stroke: color, cx: c.labelX as number, baseline: c.labelY as number, text: color, size: CONNECT_LABEL_SIZE, weight: 400, labelHtml: escapeXml(c.label)})}`;
+    return `${path}\n  ${pillSvg({x: snap4(b.x), y: snap4(b.y), w: snap4(b.w), h: b.h, fill: PALETTE.bg, stroke: color, cx: c.labelX as number, baseline: c.labelY as number, text: color, size: (roles.connectLabel ?? CONNECT_LABEL_SIZE), weight: 400, labelHtml: escapeXml(c.label)})}`;
   }
-  return `${path}\n  <text x="${c.labelX}" y="${c.labelY}" text-anchor="middle" font-size="${CONNECT_LABEL_SIZE}" fill="${color}">${escapeXml(c.label)}</text>`;
+  return `${path}\n  <text x="${c.labelX}" y="${c.labelY}" text-anchor="middle" font-size="${(roles.connectLabel ?? CONNECT_LABEL_SIZE)}" fill="${color}">${escapeXml(c.label)}</text>`;
 }
 
 function renderPyramid(band: LaidOutPyramid, roles: Roles): string {
@@ -398,6 +398,23 @@ function renderImage(b: LaidOutImage, day: Theme, stage?: number): string {
     out.push(`<rect x="${x}" y="${y}" width="${w}" height="${p.h}" rx="${p.h / 2}" fill="${dim ? PALETTE.bg : col(st.fill)}" stroke="${dim ? PALETTE.muted : col(st.stroke)}" stroke-width="2"/>`);
     out.push(`<text x="${Math.round(x + w / 2)}" y="${Math.round(y + p.h / 2 + p.size * 0.36)}" text-anchor="middle" font-size="${p.size}" font-weight="700" fill="${dim ? PALETTE.muted : col(st.text)}">${emojiSpan(p.text)}</text>`);
   }
+  return out.join('\n  ');
+}
+
+const S_TIMELINE = 14;
+function renderTimeline(b: LaidOutTimeline, day: Theme): string {
+  const col = (k: 'text' | 'muted' | 'accent' | 'danger') => colorOf(k, day);
+  const out: string[] = [`<path d="M${snap4(b.axis.x1)},${snap4(b.axis.y)} H${snap4(b.axis.x2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`];
+  if (b.span?.fill) {
+    const x1 = snap4(b.span.x1), y1 = snap4(b.span.y - 12);
+    out.unshift(`<rect x="${x1}" y="${y1}" width="${snap4(b.span.x2) - x1}" height="24" fill="${b.span.tone === 'accent' ? PALETTE[day].soft : PALETTE.border}"/>`);
+  } else if (b.span) out.push(`<path d="M${snap4(b.span.x1)},${snap4(b.span.y)} H${snap4(b.span.x2)}" fill="none" stroke="${col(b.span.tone)}" stroke-width="8"/>`);
+  if (b.fullLine) out.push(`<path d="M${snap4(b.fullLine.x)},${snap4(b.fullLine.y1)} V${snap4(b.fullLine.y2)}" fill="none" stroke="${col('danger')}" stroke-width="2"/>`);
+  for (const t of b.ticks) out.push(`<path d="M${snap4(t.x)},${snap4(t.y1)} V${snap4(t.y2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
+  for (const s of b.stems) out.push(`<path d="M${snap4(s.x)},${snap4(s.y1)} V${snap4(s.y2)}" fill="none" stroke="${col(s.tone)}" stroke-width="2"/>`);
+  for (const d of b.dots) out.push(`<circle cx="${snap4(d.x)}" cy="${snap4(d.y)}" r="${d.r}" fill="${col(d.tone)}" stroke="${PALETTE.bg}" stroke-width="4"/>`);
+  if (b.bracket) { const {x1, x2, y, tone} = b.bracket; out.push(`<path d="M${snap4(x1)},${snap4(y - 4)} V${snap4(y)} H${snap4(x2)} V${snap4(y - 4)}" fill="none" stroke="${col(tone)}" stroke-width="2"/>`); }
+  for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${S_TIMELINE}"${t.bold ? ' font-weight="700"' : ''} fill="${col(t.fill)}">${emojiSpan(t.text)}</text>`);
   return out.join('\n  ');
 }
 
@@ -588,6 +605,7 @@ function renderBandPlain(band: LaidOutBand, day: Theme, roles: Roles, stage?: nu
     case 'plane': return renderPlane(band, day, stage);
     case 'bars': return renderBars(band, day, stage, dimFill);
     case 'image': return renderImage(band, day, stage);
+    case 'timeline': return renderTimeline(band, day);
     default: return '';
   }
 }
@@ -618,7 +636,7 @@ function bandRuns(b: LaidOutBand): (WrappedRun | LaidOutBox)[] {
   return [];
 }
 
-export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number} = {}): string {
+export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noRecolor?: boolean} = {}): string {
   const {width, canvasHeight, day, laidOut, connects, roles} = laidOutDiagram;
   const usesMono = laidOut.some(b => bandRuns(b).some(x => (x as WrappedRun).mono || (('wrappedRuns' in x ? x.wrappedRuns : undefined) ?? []).some(r => r.mono)))
     || laidOut.some(b => b.type === 'table' && b.rows.some(r => r.cells.some(c => c.mono && c.lines.length)));
@@ -656,7 +674,7 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number} 
 
   const dimFill = spotlightDim(laidOutDiagram) === 'fill';
   const body = laidOut.filter(band => visibleAt(band, opts.reveal)).map(band => renderBand(band, day, roles, opts.reveal, dimFill)).join('\n\n  ');
-  const connectSvg = connects.filter(c => visibleAt(c, opts.reveal)).map(c => renderConnect(c, day)).join('\n\n  ');
+  const connectSvg = connects.filter(c => visibleAt(c, opts.reveal)).map(c => renderConnect(c, day, roles)).join('\n\n  ');
 
   // doc-medium diagrams carry an accessible name/description and (when built from a file) provenance
   let a11y = '', head = '';
@@ -669,12 +687,18 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number} 
     if (laidOutDiagram.source) head += `\n  <metadata id="svg-diagram">${escapeXml(JSON.stringify(opts.reveal === undefined ? laidOutDiagram.source : {...laidOutDiagram.source, reveal: opts.reveal}))}</metadata>`;
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${canvasHeight}" viewBox="0 0 ${width} ${canvasHeight}"${a11y}>${head}${defs}
+  // transparent: no page rectangle; the root says which page colour the checks assume (lint-svg reads it as the starting background)
+  const bgRect = laidOutDiagram.transparent ? '' : `\n  <rect x="0" y="0" width="${width}" height="${canvasHeight}" fill="${PALETTE.bg}"/>`;
+  const assumed = laidOutDiagram.transparent ? ` data-assumed-bg="${PALETTE.bg}"` : '';
+  const palette = customColors(laidOutDiagram.appearance), paletteAttr = palette.length ? ` data-palette="${[...new Set(palette)].join(' ')}"` : '';
+  const svgText = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${canvasHeight}" viewBox="0 0 ${width} ${canvasHeight}"${assumed}${a11y}>${head}${defs}
   <style>${style}
-  </style>
-  <rect x="0" y="0" width="${width}" height="${canvasHeight}" fill="${PALETTE.bg}"/>
+  </style>${bgRect}
 
   ${body}${connectSvg ? `\n\n  ${connectSvg}` : ''}
 </svg>
 `;
+  // the attribute is added after the recolouring: its values are final colours (a custom white must not be recoloured as a light token)
+  const out = opts.noRecolor ? svgText : recolor(svgText, laidOutDiagram.appearance);
+  return paletteAttr ? out.replace('<svg ', `<svg${paletteAttr} `) : out;
 }

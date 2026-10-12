@@ -253,3 +253,34 @@ test('backdrop: spotlight on a box over the picture veils the picture; reveal of
   assert.doesNotMatch(emitSvg(plain, {reveal: 0}), /ここ|<image/);
   assert.match(emitSvg(plain, {reveal: 1}), /ここ/);
 });
+
+test('reveal: a mark, label or part over the picture is never shown before the picture; until never outlives it', async () => {
+  const k = image(kitchen, {
+    alt: 'x', width: 480, reveal: 2, until: 4,
+    marks: [{id: 'early', rect: [0.1, 0.4, 0.2, 0.3], label: '早い印', reveal: 1}, {id: 'late', rect: [0.5, 0.4, 0.2, 0.3], label: '遅い印', reveal: 3}, {id: 'long', rect: [0.7, 0.1, 0.2, 0.2], label: '長い印', until: 9}],
+    labels: [{text: '早い文字', at: [0.02, 0.06], reveal: 1}],
+    over: [box({id: 'inner', title: '中の箱', reveal: 1})],
+  });
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(k));
+  const pic = laidOut.laidOut.find(b => b.type === 'image')!;
+  if (pic.type !== 'image') throw new Error('no image');
+  assert.deepEqual(pic.marks.map(m => [m.reveal, m.until]), [[2, 4], [3, 4], [2, 4]], 'the later reveal, the earlier until');
+  assert.deepEqual([pic.plates.map(p => p.reveal), pic.plates.map(p => p.until)], [[2, 3, 2, 2], [4, 4, 4, 4]]);
+  assert.equal(laidOut.laidOut.find(b => b.type === 'box' && b.id === 'inner')!.reveal, 2, 'a part over the picture inherits the picture');
+  const at = (n: number) => emitSvg(laidOut, {reveal: n});
+  assert.doesNotMatch(at(1), /<image|早い印|早い文字|中の箱/);
+  assert.match(at(2), /<image[\s\S]*早い印[\s\S]*中の箱/); assert.doesNotMatch(at(2), /遅い印/);
+  assert.match(at(3), /遅い印/);
+  assert.doesNotMatch(at(4), /<image|遅い印|中の箱/);
+});
+
+test('dark appearance recolours the plates, marks and veil, and leaves the picture file byte for byte', async () => {
+  const make = (appearance?: 'dark') => diagram({theme: 'blue', title: 't', ...(appearance ? {appearance} : {})}).add(image(kitchen, {alt: 'x', width: 480, marks: [...MARKS], labels: [{text: '台所', at: [0.02, 0.06]}], over: [box({id: 'a', title: '箱'})]}));
+  const light = (await renderDiagram(make(), {name: 'k.svg', budget: 'cacheOnly'})).svg, dark = await renderDiagram(make('dark'), {name: 'k.svg', budget: 'cacheOnly'});
+  const href = (svg: string) => /<image [^>]*href="([^"]+)"/.exec(svg)![1];
+  assert.equal(href(dark.svg), href(light));
+  assert.equal(href(dark.svg), readImage(kitchen).href);
+  assert.notEqual(dark.svg.replace(/href="[^"]+"/, ''), light.replace(/href="[^"]+"/, ''), 'the rest is recoloured');
+  assert.deepEqual(dark.verdict.problems, []);
+  assert.deepEqual(geometryChecks(dark.svg)!.contrast, [], 'plates and boxes stay legible on the dark page');
+});

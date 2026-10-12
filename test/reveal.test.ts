@@ -185,3 +185,54 @@ test('a box revealed on its own inside a group without reveal makes the stages a
   assert.equal(laidOut.maxReveal, 3);
   assert.ok(laidOut.revealWarnings?.some(w => w.includes('connect(a -> late) reveal 1 is earlier than an endpoint (reveal 3)')), String(laidOut.revealWarnings));
 });
+
+
+const layoutOf = async (d: Parameters<typeof checkDiagram>[0]) => (await checkDiagram(d)).laidOut;
+test('until: an element vanishes at its click, a group takes its children along, a connector goes with its first end', async () => {
+  const a = box({id: 'a', title: 'a', until: 2});
+  const b = box({id: 'b', title: 'b', reveal: 1});
+  const d = diagram({theme: 'blue', title: 't'}).add(
+    row([a, b], {id: 'r'}), connect(a.right, b.left),
+    group([banner({headline: 'inner'})], {title: 'g', reveal: 1, until: 3}),
+  );
+  const laid = await layoutOf(d);
+  const at = (n: number) => emitSvg(laid, {reveal: n});
+  assert.match(at(0), /a</);   assert.doesNotMatch(at(0), /inner/);
+  assert.match(at(1), /inner/); assert.match(at(1), /a</);
+  assert.doesNotMatch(at(2), /a</); assert.match(at(2), /inner/);
+  assert.doesNotMatch(at(3), /inner/);
+  assert.equal(laid.connects[0].until, 2);
+  assert.equal(canvas(at(0)), canvas(at(3)));
+});
+
+test('until must come after reveal', async () => {
+  await assert.rejects(() => layoutOf(diagram({theme: 'blue', title: 't'}).add(box({title: 'x', reveal: 2, until: 2}))), /until 2 must be later/);
+  await assert.rejects(() => layoutOf(diagram({theme: 'blue', title: 't'}).add(group([box({title: 'x', reveal: 3})], {title: 'g', until: 2}))), /until 2 must be later/);
+});
+
+test('bars replaces: the new bar takes the old one\'s row, which vanishes at its click', async () => {
+  const mk = (extra = {}) => diagram({theme: 'blue', title: 't'}).add(bars([
+    {id: 'o', label: 'order', value: 76},
+    {id: 'p', label: 'permit', value: 31, reveal: 2, replaces: 'o', ...extra},
+    {label: 'self', value: 12, reveal: 3},
+  ], {max: 100}));
+  const laid = await layoutOf(mk());
+  const band = laid.laidOut.find(b => b.type === 'bars')!;
+  assert.ok(band.type === 'bars');
+  assert.equal(band.bars[0].y, band.bars[1].y);
+  assert.notEqual(band.bars[0].y, band.bars[2].y);
+  assert.equal(band.bars[0].until, 2);
+  assert.match(emitSvg(laid, {reveal: 1}), /order/); assert.doesNotMatch(emitSvg(laid, {reveal: 1}), /permit/);
+  assert.doesNotMatch(emitSvg(laid, {reveal: 2}), /order/); assert.match(emitSvg(laid, {reveal: 2}), /permit/);
+  await assert.rejects(() => layoutOf(mk({reveal: undefined})), /needs a reveal/);
+  await assert.rejects(() => layoutOf(mk({replaces: 'nope'})), /earlier bar/);
+});
+
+test('bars replaces does not overlap-fail, and the replaced bar shares the slot in vertical bars too', async () => {
+  const d = diagram({theme: 'blue', title: 't'}).add(bars([
+    {id: 'o', label: 'order', value: 76},
+    {label: 'permit', value: 76, reveal: 2, replaces: 'o'},
+  ], {max: 100, dir: 'v'}));
+  const r = await checkDiagram(d);
+  assert.deepEqual(r.verdict.problems, []);
+});

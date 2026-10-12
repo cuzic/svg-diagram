@@ -35,6 +35,8 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
       return {bb, c: {...c, a}};
     }).filter((x): x is {bb: DOMRect; c: RGBA} => x !== null);
 
+    const am = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(svg.getAttribute('data-assumed-bg') ?? '');
+    const page = am ? {r: parseInt(am[1], 16), g: parseInt(am[2], 16), b: parseInt(am[3], 16), a: 1} : {r: 255, g: 255, b: 255, a: 1};
     const contrast: {txt: string; delta: number; fg: string; bg: string}[] = [];
     for (const t of svg.querySelectorAll('text')) {
       let bb: DOMRect;
@@ -59,7 +61,7 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
         });
         if (!plated) { contrast.push({txt: txt.slice(0, 40), delta: 0, fg: getComputedStyle(t).fill, bg: 'image (no opaque plate behind the text)'}); continue; }
       }
-      let bg = {r: 255, g: 255, b: 255, a: 1};
+      let bg = {...page};
       for (const s of shapes) {
         const q = s.bb;
         if (cx >= q.x && cx <= q.x + q.width && cy >= q.y && cy <= q.y + q.height) bg = compositeOver(s.c, bg);

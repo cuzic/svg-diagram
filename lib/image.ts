@@ -35,33 +35,40 @@ export function imageTexts(band: ImageBand, roles: Roles): [string, number, numb
     .map(([t, S]) => [t, S, 700, 'sans']);
 }
 
+type Life = {reveal?: number; until?: number};
+/** When a mark / label is on screen: never before the picture (the later reveal) and never after it (the earlier until). */
+function lifeOf(band: ImageBand, x: Life): Life {
+  const reveal = Math.max(band.reveal ?? 0, x.reveal ?? 0), until = band.until === undefined ? x.until : x.until === undefined ? band.until : Math.min(band.until, x.until);
+  return {...(reveal ? {reveal} : {}), ...(until === undefined ? {} : {until})};
+}
+
 const clamp = (n: number, lo: number, hi: number): number => Math.min(Math.max(n, lo), Math.max(lo, hi));
 
 export function layoutImage(band: ImageBand, x: number, y: number, cw: number, widthOf: WidthOf, roles: Roles): LaidOutImage {
   const {w, h} = imageSize(band, cw);
   const ix = x + Math.round(band.align === 'left' ? 0 : band.align === 'right' ? cw - w : (cw - w) / 2);
   const out: LaidOutImage = {
-    type: 'image', id: band.id, x: ix, y, w, h, href: band.href, alt: band.alt, bytes: band.bytes, reveal: band.reveal,
+    type: 'image', id: band.id, x: ix, y, w, h, href: band.href, alt: band.alt, bytes: band.bytes, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}),
     marks: [], plates: [], anchors: [], ...(band.children?.length ? {backdrop: true} : {}),
   };
-  const plate = (text: string, px: number, py: number, anchor: 'start' | 'middle' | 'end', tone: ImageMark['tone'], reveal: number | undefined, role: LabelRole | undefined, mark?: number, atTop = false): void => {
+  const plate = (text: string, px: number, py: number, anchor: 'start' | 'middle' | 'end', tone: ImageMark['tone'], life: Life, role: LabelRole | undefined, mark?: number, atTop = false): void => {
     const S = sizeOf(band, roles, role), plateH = Math.ceil((S + PLATE_H_EXTRA) / 4) * 4; // a multiple of 4: the plate sits on the 4px grid
     if (atTop) py += plateH / 2;
     const tw = textWidth(widthOf, text, S, 700), pw = Math.ceil(tw + 2 * PLATE_PAD_X);
     const left = clamp(anchor === 'start' ? px : anchor === 'middle' ? px - pw / 2 : px - pw, ix, ix + w - pw);
     const top = clamp(py - plateH / 2, y, y + h - plateH);
-    out.plates.push({x: Math.round(left), y: Math.round(top), w: pw, h: plateH, text, size: S, tone: tone ?? 'plain', reveal, mark});
+    out.plates.push({x: Math.round(left), y: Math.round(top), w: pw, h: plateH, text, size: S, tone: tone ?? 'plain', ...life, mark});
   };
   (band.marks ?? []).forEach((m, i) => {
     const [fx, fy, fw, fh] = m.rect;
     const r = {x: Math.round(ix + fx * w), y: Math.round(y + fy * h), w: Math.round(fw * w), h: Math.round(fh * h)};
-    const mark = {...r, id: m.id, tone: m.tone ?? 'accent', reveal: m.reveal ?? band.reveal};
+    const life = lifeOf(band, m), mark = {...r, id: m.id, tone: m.tone ?? 'accent', ...life};
     out.marks.push(mark);
     if (m.id) out.anchors.push({...r, id: m.id});
     // a mark's label is a tab on its top-left corner, inside the picture
-    if (m.label) plate(m.label, r.x, r.y, 'start', m.tone ?? 'accent', mark.reveal, m.role, i, true);
+    if (m.label) plate(m.label, r.x, r.y, 'start', m.tone ?? 'accent', life, m.role, i, true);
   });
-  for (const l of band.labels ?? []) plate(l.text, ix + l.at[0] * w, y + l.at[1] * h, l.anchor ?? 'start', l.tone, l.reveal ?? band.reveal, l.role);
+  for (const l of band.labels ?? []) plate(l.text, ix + l.at[0] * w, y + l.at[1] * h, l.anchor ?? 'start', l.tone, lifeOf(band, l), l.role);
   return out;
 }
 

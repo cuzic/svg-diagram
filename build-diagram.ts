@@ -63,11 +63,13 @@ const outDir = valueOf('--out-dir');
 const FIT = args.includes('--fit');
 const NO_LINT = args.includes('--no-lint'); // iteration: skip the lint pass (check/CI or a final build runs it)
 const HTML = args.includes('--html'); // also write <name>.html (boxes and text as HTML/CSS, the rest as an inline SVG overlay)
+const DARK = args.includes('--dark'); // draw with the dark token set (overrides diagram({appearance}))
+const TRANSPARENT = args.includes('--transparent'); // no page-colour background rectangle
 const STALE = args.includes('--stale'); // skip diagrams whose SVG already matches this source, tool version and project config
-const modules = args.filter((a, i) => !['--out', '--out-dir', '--fit', '--stale', '--no-lint', '--html'].includes(a) && !['--out', '--out-dir'].includes(args[i - 1]));
+const modules = args.filter((a, i) => !['--out', '--out-dir', '--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent'].includes(a) && !['--out', '--out-dir'].includes(args[i - 1]));
 
 if (modules.length === 0) {
-  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--stale] [--no-lint] [--fit] [--html]');
+  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--stale] [--no-lint] [--fit] [--html] [--dark] [--transparent]');
   process.exit(2);
 }
 if (outOverride && modules.length > 1) {
@@ -107,7 +109,7 @@ try {
     const srcSha = sha(fs.readFileSync(abs));
     for (const f of depsOf(abs).unfollowable) console.warn(`  ⚠ ${path.relative(process.cwd(), f)}: 変数で組み立てた import() は、変更の検出（--stale / check --drift）の対象にならない`);
     const depsSha = depsSha256(abs); // local files the source imports (shared parts): a change there makes the SVG stale too
-    if (STALE && !FIT && fs.existsSync(outPath)) {
+    if (STALE && !FIT && !DARK && !TRANSPARENT && fs.existsSync(outPath)) {
       const meta = embeddedSource(outPath);
       if (meta && meta.sourceSha256 === srcSha && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256 && (meta.depsSha256 ?? '') === depsSha) {
         console.log(`· ${outPath} は最新（スキップ）`);
@@ -119,6 +121,8 @@ try {
       const d = await loadDiagram(abs, config); // .svg-diagram.json: project-wide accepted rules and max width
       // provenance for drift checks: which source (and which tool version) produced this SVG
       d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source: path.relative(process.cwd(), abs), sourceSha256: srcSha, ...(configSha256 ? {configSha256} : {}), ...(depsSha ? {depsSha256: depsSha} : {})};
+      if (DARK && typeof d.appearance !== 'object') d.appearance = 'dark'; // a custom dark set the diagram names stays
+      if (TRANSPARENT) d.transparent = true;
       if (FIT) {
         const hits = locateSlide(path.basename(outPath));
         if (hits.length !== 1) throw new Error(`--fit: ${path.basename(outPath)} を使っているスライドが${hits.length}枚です(ちょうど1枚が必要)`);

@@ -112,7 +112,8 @@ for (const f of files) {
 
   const usedColors = new Set<string>();
   for (const m of src.matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) usedColors.add('#' + m[1].toLowerCase());
-  const offToken = [...usedColors].filter(c => !ALLOWED_COLORS.has(c));
+  const custom = new Set((/<svg[^>]*\sdata-palette="([^"]*)"/.exec(src)?.[1] ?? '').split(' ')); // a diagram's own dark set (appearance: {dark})
+  const offToken = [...usedColors].filter(c => !ALLOWED_COLORS.has(c) && !custom.has(c));
   if (offToken.length) {
     advisoryFindings.push({file: f, check: 'off-token-color', detail: `uses color(s) outside the token set: ${offToken.join(', ')}`});
   }

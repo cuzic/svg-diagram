@@ -23,7 +23,7 @@
 // gaps — verify() is the fast, primary check; lint is the backstop.
 
 import {plateStyle} from './image.ts';
-import {PALETTE, colorOf, luminance, runColorOf} from './tokens.ts';
+import {PALETTE, colorOf, luminance as lightLuminance, runColorOf, paintOf} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {lintDiagram, walkBands} from './rules.ts';
 import {spotlightDim} from './spotlight.ts';
@@ -59,16 +59,36 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
     } else if (band.type === 'image') {
       rects.push({id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id), ...(band.backdrop ? {backdrop: true} : {})});
     } else if (band.type === 'bars') {
-      for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h});
+      for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})});
     } else if (band.type === 'caption' && band.inkBox) { // a group's title text: connectors must not run through it
       rects.push({id: null, label: `group title "${band.text}"`, ...band.inkBox});
     } else if (band.type === 'row' || band.type === 'grid') {
       for (const c of band.children) rects.push({id: c.id ?? null, label: labelOf(c), x: c.x, y: c.y, w: c.w, h: c.h});
-    } else if (band.type === 'box' || band.type === 'banner' || band.type === 'raw' || band.type === 'legend' || band.type === 'sequence' || band.type === 'table' || band.type === 'wireframe' || band.type === 'pyramid' || band.type === 'curve' || band.type === 'plane') {
+    } else if (band.type === 'box' || band.type === 'banner' || band.type === 'raw' || band.type === 'legend' || band.type === 'sequence' || band.type === 'table' || band.type === 'wireframe' || band.type === 'pyramid' || band.type === 'curve' || band.type === 'plane' || band.type === 'timeline') {
       rects.push({id: ('id' in band ? band.id : undefined) ?? null, label: labelOf(band), x: band.x, y: band.y, w: band.w, h: band.h});
     }
   }
   return rects;
+}
+
+const neverTogether = (a: {reveal?: number; until?: number}, b: {reveal?: number; until?: number}): boolean =>
+  (a.until !== undefined && a.until <= (b.reveal ?? 0)) || (b.until !== undefined && b.until <= (a.reveal ?? 0));
+
+function checkTimelines(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  for (const band of d.laidOut) {
+    if (band.type !== 'timeline') continue;
+    const line = band.fullLine && {x: band.fullLine.x - 1, y: band.fullLine.y1, w: 2, h: band.fullLine.y2 - band.fullLine.y1};
+    for (const [i, b] of band.labelBoxes.entries()) {
+      if (line && rectOverlap(b, line)) problems.push(`timeline: label "${b.label}" is crossed by the deadline line (move the mark or change the axis range)`);
+      if (b.x < band.x - 0.5 || b.x + b.w > band.x + band.w + 0.5) problems.push(`timeline: label "${b.label}" runs outside the figure (shorten it or widen the figure)`);
+      for (let j = i + 1; j < band.labelBoxes.length; j++) {
+        const o = rectOverlap(b, band.labelBoxes[j]);
+        if (o) problems.push(`timeline: label "${b.label}" overlaps label "${band.labelBoxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
+      }
+    }
+  }
+  return problems;
 }
 
 function checkBars(d: LaidOutDiagram): string[] {
@@ -79,7 +99,9 @@ function checkBars(d: LaidOutDiagram): string[] {
       if (b.x < band.x - 0.5 || b.x + b.w > band.x + band.w + 0.5 || b.y < band.y - 0.5 || b.y + b.h > band.y + band.h + 0.5) problems.push(`bars: value label "${b.label}" runs outside the figure (raise width / height or shorten the unit)`);
     }
     for (let i = 0; i < band.labelBoxes.length; i++) for (let j = i + 1; j < band.labelBoxes.length; j++) {
-      const o = rectOverlap(band.labelBoxes[i], band.labelBoxes[j]);
+      const [a, b] = [band.labelBoxes[i], band.labelBoxes[j]];
+      if (a.bar !== undefined && b.bar !== undefined && neverTogether(band.bars[a.bar], band.bars[b.bar])) continue; // one replaces the other
+      const o = rectOverlap(a, b);
       if (o) problems.push(`bars: value label "${band.labelBoxes[i].label}" overlaps value label "${band.labelBoxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
     }
   }
@@ -146,7 +168,9 @@ function checkOverlaps(rects: CheckRect[]): string[] {
   const problems: string[] = [];
   for (let i = 0; i < rects.length; i++) {
     for (let j = i + 1; j < rects.length; j++) {
-      const o = rectOverlap(rects[i], rects[j]);
+      const [a, b] = [rects[i], rects[j]];
+      if ((a.life || b.life) && neverTogether(a.life ?? {}, b.life ?? {})) continue;
+      const o = rectOverlap(a, b);
       if (o) problems.push(`"${rects[i].label}" overlaps "${rects[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
     }
   }
@@ -198,6 +222,7 @@ function checkBounds(d: LaidOutDiagram, rects: CheckRect[]): string[] {
 // color combinations the DSL can ever produce — no rendering needed, this
 // is the same formula lint-svg.ts uses, evaluated on values we already know.
 function checkContrast(d: LaidOutDiagram): string[] {
+  const paint = paintOf(d.appearance), luminance = (hex: string) => lightLuminance(paint(hex)); // judged on the colours as drawn
   const problems: string[] = [];
   const contrastFor = (band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: EmphasisTone | null): string[] => {
     const boxFill = band.dim ? PALETTE.bg : boxTone ? resolveBoxStyle(boxTone, d.day).fill : PALETTE.bg;
@@ -247,6 +272,7 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
     ...checkPlanes(d),
     ...checkBars(d),
     ...checkImages(d),
+    ...checkTimelines(d),
     ...checkNoWrap(d),
     ...checkBounds(d, rects),
     ...checkContrast(d),
@@ -255,6 +281,6 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
   // get the full set; legacy slide diagrams keep their existing text-volume warning only.
   const findings = d.medium === 'doc' ? lintDiagram(d) : lintDiagram(d).filter(f => f.rule === 'density');
   const warnings = [...(d.revealWarnings ?? []), ...findings.filter(f => f.severity === 'warn').map(f => `[${f.rule}] ${f.message}`)];
-  if (d.spotlight && walkBands(d.bands).some(b => b.type === 'box' && b.tone === 'muted')) warnings.push('[spotlight-muted] spotlight と muted トーンの箱を併用しているため、dim との違いを形でも確認する');
+  if (d.spotlight && !(typeof d.spotlight === 'object' && d.spotlight.mutedOk) && walkBands(d.bands).some(b => b.type === 'box' && b.tone === 'muted')) warnings.push('[spotlight-muted] spotlight と muted トーンの箱を併用しているため、dim との違いを形でも確認する');
   return {ok: problems.length === 0, problems, warnings, findings};
 }
