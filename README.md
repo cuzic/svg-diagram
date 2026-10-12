@@ -82,6 +82,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | mindmap(root, {sides, maxNodeW, id}) | マインドマップ。節は `tree()` と同じ。中央のルートから、枝が左右へ自動で伸びる（書いた順に、前の半分を右、残りを左に振り分ける。高さで釣り合わせる。どちら側も上から下へ）。`sides: {枝の id: 'left'｜'right'}` で、ルートの子を左右に固定できる。下の「組織図（`tree`）」 |
 | stateDiagram(states, transitions, {initial, dir, maxNodeW, id}) | 状態遷移図。状態 `{id, label, sub?, tone?, final?}` と遷移 `{from, to, label?, line?}` を書くだけで、層に分けて自動配置する。戻る矢印・飛ばす矢印・自己ループも、ほかの状態を避けて引く。状態は `connect()` の端点になる。詳細は下の「状態遷移図（`stateDiagram`）」 |
 | gantt(rows, {from, to, today, id}) | ガントチャート。行は、タスク `{label, start, end｜days, id?, progress?, after?, tone?, milestone?}` と、見出し `{section}`。日付は `'YYYY-MM-DD'`（`end` はその日を含む。`'2026-10'` のような略記は止まる）。軸・目盛り・今日の線・依存の矢印・進捗は自動。詳細は下の「ガントチャート（`gantt`）」 |
+| classDiagram(classes, relations, {dir, id}) | UML クラス図。クラス `{id, name?, stereotype?, abstract?, attrs?, methods?, tone?}` と関係 `{from, to, kind?, label?, fromMult?, toMult?}`。親が上になる層に自動配置し、矢印の端の記号は `kind` で決まる。詳細は下の「クラス図（`classDiagram`）」 |
 | pyramid / curve | ピラミッド、曲線 |
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
 | plane({x, y, points, lines, dims, labels}) | 座標平面。軸・目盛り・点・補助線・**寸法線**・ラベルを、座標の単位のまま宣言する（地図 ↔ 画像の座標変換、位置の誤差）。`yDown: true` で画像座標。ラベルが、他のラベル・軸と矢印・目盛り・点・補助線・寸法線に重なる、または図からはみ出すと検査で止まる（寸法線の文字は、その線の上に載るのが正） 。`paths: [{through: [点の id か座標…], smooth?, dashed?, tone?, arrow?, reveal?}]` で複数点を通る線を引く（実線が既定。`smooth: true` は点を必ず通る曲線で、x が増える道筋は単調な 3 次補間（値を行き過ぎない）、そうでない道筋は centripetal Catmull-Rom。`smooth` なしは折れ線。曲線が軸の外に出る・ラベルに重なると検査で止まる。`examples/plane-paths.ts`）。`grow: true` を付けた path は、段階（`reveal`）ごとに、出ている点までの曲線を同じ形のまま伸ばす（`examples/plane-grow.ts`）。点のラベルは `labelAt` を書かなければ右に置き、線や他のラベルと重なるときは空いている側（左・上・下・斜め）へ自動で移る。`labelAt` で側を書くとそのまま、`labelOffset: [dx, dy]` で位置をずらせる |
@@ -198,7 +199,7 @@ stateDiagram(
 
 - 座標は書かない。状態を、遷移の向きに沿って層に分け（循環は、戻る遷移として逆向きに扱う）、交差が減るように並べる。`dir: 'right'`（既定）は左から右、`'down'` は上から下。
 - `initial` は、黒い点と、そこから入る矢印。`final: true` の状態は二重の枠。`tone` は箱と同じ。
-- 遷移は、直角に折れる矢印で、層を飛ばすものは間の状態を避けて迂回する。同じ 2 状態の間の行き来や、同じ側に出入りする矢印は、位置をずらして重ならないようにする。自己ループは、`dir: 'right'` では状態の上、`'down'` では右に出る。
+- 遷移は、直角に折れる矢印で、層を飛ばすものは間の状態を避けて迂回する。同じ 2 状態の間の行き来や、同じ側に出入りする矢印は、位置をずらして重ならないようにする（1 つから出る矢印は遠い行き先ほど先に、1 つへ入る矢印は近い尾ほど先に曲がり、互いに交差しない）。自己ループは、`dir: 'right'` では状態の上、`'down'` では右に出る。
 - ラベルは、矢印の直線部分の脇に置く。矢印の先や、状態・ほかのラベルに重なるときは、矢印に沿って場所を探し、それでも入らなければ矢印の脇に動かす。それも無理なら `check` / `build` が、どのラベルが何に重なるかを書いて止まる。矢印が無関係の状態を貫くときも止まる。ラベルが長いと層の間隔が広がるので、図の幅を超えたら、幅と直し方（`dir: 'down'`、`maxNodeW`、ラベルを短く）を書いて止まる。
 - 矢じりはマーカーではなく図形で描く（resvg は、左向きの終端マーカーを回さないため）。状態の `id` は `connect()` の端点で、`t.anchors.<id>` でも取れる。例は `examples/state-diagram.ts`。
 
@@ -218,6 +219,22 @@ gantt([
 - `progress`（0〜1）は、バーの塗りつぶしの割合。`milestone: true` は 1 日の菱形（`end` / `days` は要らない）。`tone` は `accent`（既定）/ `danger` / `muted`。
 - `after: 'id'`（または id の配列）で、先行タスクの終わりから、このタスクの始まりへ矢印を引く。縦の線は、間の行のバーを避けた最初の空き（先行タスクの終わりのすぐ右から）を通る。そこが空いていない（後続が先に始まる、間のバーが長い）ときは、行と行のあいだの線に沿って、バーのない列まで回る（後ろ向き・上向きの依存も同じ）。軸のどこにも空きがない（間の行のバーが軸いっぱい）ときだけ、どのバーを貫くかを書いて `check` / `build` が止まる（行の並びを替えるか、`from` / `to` で軸を広げる）。`after` が自分自身や輪になると止まる。
 - 行のラベルは図の幅の 4 割までの 1 行（超えると、短くするよう書いて止まる）。`id` を付けたタスクは `connect()` の端点で、`g.anchors.<id>` でも取れる。例は `examples/gantt.ts`。
+
+### クラス図（`classDiagram`）
+
+```ts
+classDiagram(
+  [{id: 'Payable', stereotype: 'interface', methods: ['+ pay(amount: number)']},
+   {id: 'Card', name: 'CardPayment', methods: ['+ pay(amount: number)']},
+   {id: 'Order', attrs: ['- total: number'], methods: ['+ cancel()']}],
+  [{from: 'Card', to: 'Payable', kind: 'implement'}, {from: 'Order', to: 'Payable', kind: 'depend', label: '支払い'}],
+)
+```
+
+- クラスは、名前（`stereotype` / `abstract` は名前の上に «…»）、属性、メソッドの 3 区画。中身のない区画の仕切りは出ない。メンバーは 1 行ずつの文字列で、折り返さない（長いと図の幅を超えて、止まる）。
+- `kind`: `assoc`（線、既定）/ `arrow`（矢印つきの関連）/ `inherit`（子から親へ。親の側に白抜きの三角）/ `implement`（破線 + 三角）/ `compose`・`aggregate`（`from` 側＝全体に、塗りつぶし・白抜きのひし形）/ `depend`（破線 + 開いた矢印）。`fromMult` / `toMult` は両端の多重度（`'1'`、`'0..*'`）、`label` は関係の名前。
+- 親が上（`dir: 'right'` なら左）になる層に並ぶ。継承の矢印が同じ親に集まるときは、辺の上で位置をずらす。自分自身への関係は、クラスの右に小さな輪で出る。
+- 関係が無関係なクラスを貫く・ラベルや多重度がクラスやほかのラベルに重なると、`check` / `build` が止まる（クラスの順を入れ替える、`dir` を変える、ラベルを短くする）。`id` はクラスごとに必須で、`connect()` の端点（`c.anchors.<id>` でも取れる）。例は `examples/class-diagram.ts`。
 
 ### 時間軸と期限（`timeline`）
 

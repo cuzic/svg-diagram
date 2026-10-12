@@ -1,4 +1,5 @@
 import test from 'node:test';
+import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
 import {box, checkDiagram, closeMeasurer, connect, diagram, renderDiagram, stateDiagram} from '../lib/dsl.ts';
 import type {LaidOutStates} from '../lib/types.ts';
@@ -133,8 +134,55 @@ test('stateDiagram(): nodes appear with the figure (reveal) and a node id cannot
   await assert.rejects(() => checkDiagram(diagram({theme: 'blue', spotlight: 'a'}).add(stateDiagram([S('a'), S('b')], []))), /node inside a figure/);
 });
 
+const sharedRun = (edges: {from: string; to: string; points: {x: number; y: number}[]}[]): string | undefined => {
+  const segs = edges.flatMap((e, k) => e.points.slice(1).map((q, m) => ({k, p: e.points[m], q})));
+  for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
+    const a = segs[i], b = segs[j];
+    if (a.k === b.k) continue;
+    const vert = (s: typeof a): boolean => Math.abs(s.p.x - s.q.x) < 0.01, horiz = (s: typeof a): boolean => Math.abs(s.p.y - s.q.y) < 0.01;
+    const over = (a1: number, a2: number, b1: number, b2: number): number => Math.min(Math.max(a1, a2), Math.max(b1, b2)) - Math.max(Math.min(a1, a2), Math.min(b1, b2));
+    if (vert(a) && vert(b) && Math.abs(a.p.x - b.p.x) < 1 && over(a.p.y, a.q.y, b.p.y, b.q.y) > 1) return `arrows ${edges[a.k].from}->${edges[a.k].to} and ${edges[b.k].from}->${edges[b.k].to} share a vertical run at x=${a.p.x}`;
+    if (horiz(a) && horiz(b) && Math.abs(a.p.y - b.p.y) < 1 && over(a.p.x, a.q.x, b.p.x, b.q.x) > 1) return `arrows ${edges[a.k].from}->${edges[a.k].to} and ${edges[b.k].from}->${edges[b.k].to} share a horizontal run at y=${a.p.y}`;
+  }
+  return undefined;
+};
+
+test('stateDiagram(): five arrows out of one state each have their own vertical run (no shared line), in both directions', async () => {
+  for (const dir of ['right', 'down'] as const) {
+    const names = ['b', 'c', 'd', 'e', 'f'];
+    const {t, verdict} = await laid(stateDiagram([S('a'), ...names.map(n => S(n))], names.map(n => ({from: 'a', to: n, label: `ev${n}`})), {dir}));
+    assert.deepEqual(verdict.problems, [], dir);
+    assert.equal(sharedRun(t.edges), undefined, dir);
+  }
+});
+
 test('stateDiagram(): a connector that ends on the whole figure (its id) is not stopped by its states', async () => {
   const sd = stateDiagram([S('a'), S('b'), S('c')], [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}], {id: 'SD'});
   const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(sd, box({id: 'ext', title: '外部'}), connect('SD', 'ext', {route: 'elbow'})));
   assert.deepEqual(verdict.problems, []);
+});
+
+const crossings = (edges: {from: string; to: string; points: {x: number; y: number}[]}[]): string[] => {
+  const out: string[] = [];
+  for (let i = 0; i < edges.length; i++) for (let j = i + 1; j < edges.length; j++) {
+    for (let a = 0; a + 1 < edges[i].points.length; a++) for (let b = 0; b + 1 < edges[j].points.length; b++) {
+      const p = edges[i].points[a], q = edges[i].points[a + 1], r = edges[j].points[b], s = edges[j].points[b + 1];
+      const iv = Math.abs(p.x - q.x) < 0.01, jv = Math.abs(r.x - s.x) < 0.01;
+      if (iv === jv) continue; // parallel: shared runs are checked elsewhere
+      const [v1, v2, h1, h2] = iv ? [p, q, r, s] : [r, s, p, q];
+      if (v1.x > Math.min(h1.x, h2.x) + 0.5 && v1.x < Math.max(h1.x, h2.x) - 0.5 && h1.y > Math.min(v1.y, v2.y) + 0.5 && h1.y < Math.max(v1.y, v2.y) - 0.5) out.push(`${edges[i].from}->${edges[i].to} x ${edges[j].from}->${edges[j].to}`);
+    }
+  }
+  return out;
+};
+
+test('stateDiagram(): arrows into one state (fan-in) and out of one state (fan-out) do not cross each other', async () => {
+  for (const dir of ['right', 'down'] as const) {
+    const names = ['a', 'b', 'c', 'd'];
+    const into = await laid(stateDiagram([...names.map(n => S(n)), S('e')], names.map(n => ({from: n, to: 'e'})), {dir}));
+    assert.deepEqual(into.verdict.problems, [], `fan-in ${dir}`);
+    assert.deepEqual(crossings(into.t.edges), [], `fan-in ${dir}`);
+    const out = await laid(stateDiagram([S('e'), ...names.map(n => S(n))], names.map(n => ({from: 'e', to: n})), {dir}));
+    assert.deepEqual(crossings(out.t.edges), [], `fan-out ${dir}`);
+  }
 });

@@ -140,7 +140,7 @@ export function layoutBalanced(root: TreeNode, opts: Omit<TreeOpts, 'dir'> & {si
 export interface LayeredNode {id: string; size: Size}
 export interface LayeredEdge {from: string; to: string}
 export interface LayeredOpts {dir?: Dir; gap?: number; levelGap?: number; /** crossing-reduction sweeps (default 4) */ sweeps?: number}
-export interface LayeredEdgeOut {from: string; to: string; /** centre to centre, through the layers it skips; reversed edges are drawn from `from` anyway */ points: Pt[]; reversed: boolean; self: boolean}
+export interface LayeredEdgeOut {from: string; to: string; /** index of this edge in the input list */ index: number; /** centre to centre, through the layers it skips; reversed edges are drawn from `from` anyway */ points: Pt[]; reversed: boolean; self: boolean}
 export interface LayeredLayout {nodes: Map<string, Placed>; edges: LayeredEdgeOut[]; /** layer index of each node (0 = first) */ layers: Map<string, number>; w: number; h: number}
 
 /**
@@ -170,7 +170,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
   };
   const starts = (opts.start ?? []).filter(s => ids.has(s));
   for (const s of [...starts, ...nodes.map(n => n.id)]) if (!state.get(s)) dfs(s);
-  const dag = edges.filter(e => e.from !== e.to).map(e => back.has(`${e.from}\u0000${e.to}`) ? {a: e.to, b: e.from, e, rev: true} : {a: e.from, b: e.to, e, rev: false});
+  const dag = edges.map((e, index) => ({e, index})).filter(({e}) => e.from !== e.to).map(({e, index}) => back.has(`${e.from}\u0000${e.to}`) ? {a: e.to, b: e.from, e, index, rev: true} : {a: e.from, b: e.to, e, index, rev: false});
 
   // 2. longest-path layering (a start node stays on layer 0)
   const layer = new Map<string, number>(), preds = new Map<string, string[]>(nodes.map(n => [n.id, []]));
@@ -190,7 +190,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
   // 3. dummies for edges that skip layers
   interface Slot {id: string; real: boolean; size: Size; layer: number}
   const slots = new Map<string, Slot>(nodes.map(n => [n.id, {id: n.id, real: true, size: n.size, layer: layer.get(n.id)!}]));
-  const chains: {e: LayeredEdge; ids: string[]; rev: boolean}[] = [];
+  const chains: {e: LayeredEdge; index: number; ids: string[]; rev: boolean}[] = [];
   const succ = new Map<string, string[]>(), pred = new Map<string, string[]>();
   for (const s of slots.keys()) { succ.set(s, []); pred.set(s, []); }
   const link = (a: string, b: string): void => { succ.get(a)!.push(b); pred.get(b)!.push(a); };
@@ -199,7 +199,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     const chain = [d.a];
     // longest-path layering puts the head of every edge below its tail, so ends on one layer cannot happen; kept straight if it ever does
     const to = d.b, step = lb >= la ? 1 : -1;
-    if (la === lb) { chain.push(d.b); chains.push({e: d.e, ids: chain, rev: d.rev}); return; }
+    if (la === lb) { chain.push(d.b); chains.push({e: d.e, index: d.index, ids: chain, rev: d.rev}); return; }
     for (let l = la + step; l !== lb; l += step) {
       const id = `\u0000d${i}.${l}`;
       slots.set(id, {id, real: false, size: {w: 1, h: 1}, layer: l});
@@ -207,7 +207,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
       chain.push(id);
     }
     chain.push(to);
-    chains.push({e: d.e, ids: chain, rev: d.rev});
+    chains.push({e: d.e, index: d.index, ids: chain, rev: d.rev});
     // links always run from the lower layer to the higher one
     const asc = la < lb ? chain : [...chain].reverse();
     for (let k = 0; k + 1 < asc.length; k++) link(asc[k], asc[k + 1]);
@@ -275,11 +275,11 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     placed.set(n.id, {x: p.x - n.size.w / 2, y: p.y - n.size.h / 2, ...n.size});
   }
   const edgesOut: LayeredEdgeOut[] = [];
-  for (const e of edges) if (e.from === e.to) edgesOut.push({from: e.from, to: e.to, points: [centre(e.from)], reversed: false, self: true});
+  edges.forEach((e, index) => { if (e.from === e.to) edgesOut.push({from: e.from, to: e.to, index, points: [centre(e.from)], reversed: false, self: true}); });
   for (const c of chains) {
     // the chain runs in layering order; a reversed edge's real direction is the other way
     const pts = (c.rev ? [...c.ids].reverse() : c.ids).map(centre);
-    edgesOut.push({from: c.e.from, to: c.e.to, points: pts, reversed: c.rev, self: false});
+    edgesOut.push({from: c.e.from, to: c.e.to, index: c.index, points: pts, reversed: c.rev, self: false});
   }
   const total = at[nLayers - 1] + thick[nLayers - 1];
   return {nodes: placed, edges: edgesOut, layers: layer, w: dir === 'down' ? hi : total, h: dir === 'down' ? total : hi};
