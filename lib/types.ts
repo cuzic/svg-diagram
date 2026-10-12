@@ -589,6 +589,8 @@ export interface PeopleOpts {
   align?: 'left' | 'center';
   /** Colour of the emphasized (filled) icons (default 'accent'; 'muted' for a grey figure). The others are outlines, so the count reads without colour. */
   tone?: PeopleTone;
+  /** Colour of the second group when `count` is [k1, k2] (default 'danger', or 'accent' when `tone` is 'danger'). */
+  tone2?: PeopleTone;
   /** Colour of the outlined icons (default 'muted'). */
   rest?: PeopleTone;
   /** A number beside the grid, vertically centred on it: the figure and its number in one band. */
@@ -601,21 +603,24 @@ export interface PeopleBand {
   type: 'people';
   total: number;
   count: number;
+  /** Icons of the second emphasized group, after the first `count` (0 when there is none). */
+  count2: number;
   cols: number;
   size: number;
   gap: number;
   align: 'left' | 'center';
   tone: PeopleTone;
+  tone2: PeopleTone;
   rest: PeopleTone;
   side?: PeopleSide;
   alt: string;
   id?: string;
 }
 export interface LaidOutPeople extends Rect {
-  type: 'people'; id?: string; day: Theme; tone: PeopleTone; rest: PeopleTone; alt: string; size: number;
+  type: 'people'; id?: string; day: Theme; tone: PeopleTone; tone2: PeopleTone; rest: PeopleTone; alt: string; size: number;
   texts: {text: string; x: number; y: number; size: number; bold: boolean; tone?: 'accent' | 'danger' | 'muted'}[];
   /** Top-left of every icon, emphasized ones first. */
-  icons: {x: number; y: number; on: boolean}[];
+  icons: {x: number; y: number; on: boolean; second?: true}[];
 }
 
 export type DotTone = 'accent' | 'danger' | 'muted';

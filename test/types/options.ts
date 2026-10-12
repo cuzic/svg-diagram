@@ -162,6 +162,9 @@ export function optionCases(): void {
 export function peopleDotsCases(): void {
   diagram({theme: 'blue'}).add(people(100, 76, {tone: 'danger', cols: 10}), dots([0.1, {at: 0.5, tone: 'accent'}], {zones: [{from: 0, to: 0.3, label: 'x'}]}));
   people(10, 1, {tone: 'muted', rest: 'accent', side: {value: '76%', tone: 'danger', size: 'display'}});
+  people(100, [35, 47], {tone2: 'muted'});
+  // @ts-expect-error a pair of counts only
+  people(100, [35, 47, 1]);
   // @ts-expect-error tone is accent | danger | muted
   people(10, 1, {tone: 'text'});
   // @ts-expect-error people() takes no reveal

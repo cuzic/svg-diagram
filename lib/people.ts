@@ -26,7 +26,7 @@ export function layoutPeople(band: PeopleBand, x: number, y: number, cw: number,
   const tw = Math.max(vw, lw), w = side ? gw + SIDE_GAP + tw : gw;
   if (w > cw) throw new Error(`people(): ${cols} icons of ${size}px${side ? ' and the number beside them' : ''} are ${Math.ceil(w)}px wide, the column is ${cw}px — use fewer cols, a smaller size or gap`);
   const left = band.align === 'left' ? x : x + (cw - w) / 2;
-  const icons = Array.from({length: band.total}, (_, i) => ({x: left + (i % cols) * (size + gap), y: y + Math.floor(i / cols) * (size + gap), on: i < band.count}));
+  const icons = Array.from({length: band.total}, (_, i) => ({x: left + (i % cols) * (size + gap), y: y + Math.floor(i / cols) * (size + gap), on: i < band.count + band.count2, ...(i >= band.count && i < band.count + band.count2 ? {second: true as const} : {})}));
   const texts: LaidOutPeople['texts'] = [];
   let h = gh;
   if (side) {
@@ -36,7 +36,7 @@ export function layoutPeople(band: PeopleBand, x: number, y: number, cw: number,
     texts.push({text: side.value, x: tx, y: top + V, size: V, bold: true, tone: side.tone});
     if (side.label) texts.push({text: side.label, x: tx, y: top + V * 1.2 + 6 + N, size: N, bold: false, tone: 'muted'});
   }
-  return {type: 'people', id: band.id, x: left, y, w, h, day, tone: band.tone, rest: band.rest, alt: band.alt, size, icons, texts};
+  return {type: 'people', id: band.id, x: left, y, w, h, day, tone: band.tone, tone2: band.tone2, rest: band.rest, alt: band.alt, size, icons, texts};
 }
 
 /** Every string a dots() band draws, registered before its geometry is calculated. */

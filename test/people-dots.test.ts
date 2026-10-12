@@ -28,6 +28,18 @@ test('people() draws emphasized icons filled and the rest as outlines, with an a
   assert.equal(svg.match(/<path d="M12,4A4,4[^"]*" transform="[^"]*" fill="#/g)?.length, 3);
 });
 
+test('people(total, [k1, k2]) fills k1 in tone, the next k2 in tone2, the rest as outlines', async () => {
+  const {svg, laidOut} = await renderDiagram(diagram({theme: 'blue'}).add(people(100, [35, 47], {tone: 'accent', tone2: 'danger'})), {name: 'p2.svg', budget: 'cacheOnly'});
+  const p = laidOut.laidOut.find(b => b.type === 'people') as LaidOutPeople;
+  assert.deepEqual([p.icons.filter(i => i.on && !i.second).length, p.icons.filter(i => i.second).length, p.icons.filter(i => !i.on).length], [35, 47, 18]);
+  assert.ok(p.icons.slice(35, 82).every(i => i.second) && p.icons.slice(0, 35).every(i => i.on && !i.second));
+  assert.equal(svg.match(/fill="#b91c1c"/gi)?.length, 47);
+  assert.equal(svg.match(/fill="none" stroke=/g)?.length, 18);
+  assert.throws(() => people(100, [60, 41]), /k1 \+ k2 <= total/);
+  assert.throws(() => people(10, [1, -1]), /count must be/);
+  assert.throws(() => people(10, [1, 1], {tone2: 'text' as 'accent'}), /tone2 must be/);
+});
+
 test('people() checks its arguments and the width', async () => {
   assert.throws(() => people(10, 11), /count must be/);
   assert.throws(() => people(10.5, 1), /total must be/);
