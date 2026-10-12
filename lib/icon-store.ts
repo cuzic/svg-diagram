@@ -27,6 +27,8 @@ export interface InstalledIcon extends IconGlyph {
 }
 export interface IconManifest {
   version: 1;
+  /** The Iconify set the project's icons mainly come from (`mdi`): `icons find` prefers it so the figure's icons look alike. */
+  mainSet?: string;
   icons: Record<string, InstalledIcon>;
 }
 
@@ -44,6 +46,7 @@ export function parseManifest(text: string, where: string): IconManifest {
   try { m = JSON.parse(text); } catch (e) { throw new Error(`${where}: ${(e as Error).message}`); }
   const o = m as Partial<IconManifest> | null;
   if (!o || o.version !== 1 || typeof o.icons !== 'object' || o.icons === null) throw new Error(`${where}: not an svg-diagram icon file (expected {"version": 1, "icons": {...}})`);
+  if (o.mainSet !== undefined && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(o.mainSet)) throw new Error(`${where}: bad mainSet "${o.mainSet}"`);
   for (const [name, ic] of Object.entries(o.icons)) {
     if (!ICON_NAME_RE.test(name)) throw new Error(`${where}: bad icon name "${name}"`);
     const shape = typeof ic?.d === 'string' ? ic.d : typeof ic?.body === 'string' ? ic.body : '';

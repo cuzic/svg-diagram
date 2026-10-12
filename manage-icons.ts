@@ -4,8 +4,13 @@
 //   icons remove <name>...
 //   icons list
 //   icons search <word> [--set mdi] [--limit N]                              find Iconify ids to add
+//   icons find <word>... [--style fill|line|color] [--set mdi,lucide] [--limit N] [--color] [--png sheet.png]
+//                                                                            candidates for a wanted icon (English words), main set first
+//   icons main [set]                                                         the set icons mainly come from (no argument: show it; `-`: clear)
 //   icons notice                                                             credits of the installed icons, as Markdown
-import {addIcons, manifestPath, noticeText, readManifest, removeIcons, searchIcons} from './lib/icon-install.ts';
+import {addIcons, manifestPath, noticeText, readManifest, removeIcons, searchIcons, setMainSet} from './lib/icon-install.ts';
+import {findIcons} from './lib/icon-find.ts';
+import type {Candidate} from './lib/icon-find.ts';
 
 const [sub, ...rest] = process.argv.slice(2);
 const BOOLEAN = new Set(['color']);
@@ -15,7 +20,7 @@ for (let i = 0; i < rest.length; i++) {
   if (rest[i].startsWith('--')) flags.set(rest[i].slice(2), BOOLEAN.has(rest[i].slice(2)) ? '1' : rest[++i] ?? '');
   else args.push(rest[i]);
 }
-const usage = () => { console.error(['usage: svg-diagram icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX] [--color]', '       svg-diagram icons remove <name>...', '       svg-diagram icons list', '       svg-diagram icons search <word> [--set mdi] [--limit N]', '       svg-diagram icons notice'].join('\n')); process.exit(2); };
+const usage = () => { console.error(['usage: svg-diagram icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX] [--color]', '       svg-diagram icons remove <name>...', '       svg-diagram icons list', '       svg-diagram icons search <word> [--set mdi] [--limit N]', '       svg-diagram icons find <word>... [--style fill|line|color] [--set mdi,lucide] [--limit N] [--color] [--png sheet.png]', '       svg-diagram icons main [set|-]', '       svg-diagram icons notice'].join('\n')); process.exit(2); };
 
 try {
   switch (sub) {
@@ -24,6 +29,7 @@ try {
       const r = await addIcons(args, {allowLicense: flags.get('allow-license')?.split(',').filter(Boolean), color: flags.has('color')});
       if (r.added.length) console.log(`✓ 追加: ${r.added.join(', ')}`);
       if (r.replaced.length) console.log(`✓ 置き換え: ${r.replaced.join(', ')}`);
+      for (const w of r.warnings) console.log(`⚠ ${w}`);
       console.log(`→ ${r.file}（図のソースでは box({icon: '<名前>'})。このファイルをコミットする）`);
       break;
     }
@@ -47,10 +53,52 @@ try {
       console.log(found.length ? found.join('\n') : '見つからない');
       break;
     }
+    case 'main': {
+      if (!args.length) { const m = readManifest(manifestPath()); console.log(m.mainSet ? `主セット: ${m.mainSet}` : '主セットは未設定（最初に icons add した Iconify のセットが主セットになる）'); break; }
+      const r = setMainSet(args[0] === '-' ? undefined : args[0]);
+      console.log(r.mainSet ? `✓ 主セット: ${r.mainSet}  (${r.file})` : `✓ 主セットを解除  (${r.file})`);
+      break;
+    }
+    case 'find': {
+      if (!args.length) usage();
+      const style = flags.get('style');
+      if (style && !['fill', 'line', 'color', 'any'].includes(style)) throw new Error('--style is fill, line or color');
+      const m = readManifest(manifestPath());
+      const found = await findIcons(args, {
+        sets: flags.get('set')?.split(',').filter(Boolean), style: style as 'fill' | 'line' | 'color' | undefined, mainSet: m.mainSet,
+        limit: flags.has('limit') ? Number(flags.get('limit')) : undefined, color: flags.has('color'), allowLicense: flags.get('allow-license')?.split(',').filter(Boolean),
+      });
+      console.log(m.mainSet ? `主セット: ${m.mainSet}（先に出す。見た目が揃う）` : '主セット: 未設定（最初に入れたセットが主セットになる）');
+      for (const f of found) {
+        console.log(`\n${f.word}:`);
+        if (!f.candidates.length) console.log('  （候補なし。別の英単語で探すか、--style / --set / --allow-license を見直す）');
+        for (const c of f.candidates) console.log(`  ${c.id.padEnd(40)} ${c.style.padEnd(6)} ${c.license}${c.mainSet ? '  ★主セット' : ''}\n    → svg-diagram icons add ${c.add}`);
+        if (f.skipped.length) console.log(`  ライセンスのため除外: ${f.skipped.join(', ')}（使うなら --allow-license <SPDX>）`);
+      }
+      const flat = found.flatMap(f => f.candidates.map(c => ({word: f.word, c})));
+      const png = flags.get('png');
+      if (png && flat.length) { await writeSheet(flat, png); console.log(`\n候補の一覧を ${png} に書いた（目で選ぶ）`); }
+      break;
+    }
     case 'notice': process.stdout.write(noticeText(readManifest(manifestPath()))); break;
     default: usage();
   }
 } catch (e) {
   console.error(`✗ ${(e as Error).message}`);
   process.exit(1);
+}
+
+// The candidates on one picture: each icon in a box labelled with its id, drawn the way box({icon}) will draw it.
+async function writeSheet(flat: {word: string; c: Candidate}[], file: string): Promise<void> {
+  const fs = await import('node:fs');
+  const {diagram, icon, iconRow, closeMeasurer, renderDiagram} = await import('./lib/dsl.ts');
+  const {rasterize} = await import('./lib/raster.ts');
+  const names = flat.map((_, i) => `c${i}`);
+  icon.use({version: 1, icons: Object.fromEntries(flat.map(({c}, i) => [names[i], {...c.glyph, from: c.id, license: c.license}]))});
+  try {
+    const rows = [];
+    for (let i = 0; i < flat.length; i += 3) rows.push(iconRow(flat.slice(i, i + 3).map(({word, c}, k) => ({icon: names[i + k], label: c.id, body: `${word} · ${c.style} · ${c.license}`, tone: c.mainSet ? 'accent' as const : undefined}))));
+    const {svg} = await renderDiagram(diagram({theme: 'blue', title: '候補（accent の枠は主セット）'}).add(...rows), {name: 'find.svg', budget: 'measure'});
+    fs.writeFileSync(file, (await rasterize(svg, {png: true})).png!);
+  } finally { icon.use(undefined); await closeMeasurer(); }
 }

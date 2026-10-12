@@ -288,6 +288,7 @@ diagram({theme: 'blue', legend: 'auto'}).add(
 人・書類・鍵・橋・柵・階段などの小さな絵記号を 2 系統で出せる。**SVG パスのアイコンは本体に同梱しない。** 使うものを、プロジェクトごとに `svg-diagram icons add` で入れる（ライセンスの違う無料セットから選ぶので、出典とライセンスをプロジェクト側に残すため）。絵文字は文字なので本体に入っている（`EmojiName`）。
 
 ```sh
+svg-diagram icons find key bridge --png sheet.png   # 欲しい絵記号（英語）から、入れられる候補を絵つきで出す
 svg-diagram icons search key --set mdi          # Iconify の id を探す（mdi:key-variant など）
 svg-diagram icons add mdi:key-variant=key mdi:account=person ./brand/logo.svg=logo
 svg-diagram icons list                          # 名前・出典・ライセンス
@@ -295,6 +296,8 @@ svg-diagram icons remove logo
 svg-diagram icons notice                        # 入れたアイコンのクレジットを Markdown で
 ```
 
+- **`icons find <英単語>...`**: 検索結果から、ライセンスと形が合うものだけを残し、**プロジェクトの主セットを先頭**に出す（`--style fill|line|color`、`--set mdi,lucide`、`--limit N`）。各候補に `icons add` の行が付く。`--png sheet.png` で、`box({icon})` で描いた候補の一覧画像を作る（主セットの枠は色つき）。日本語は英語に直して渡す（Iconify の検索は英語。`svg-diagram` スキルがその手順を持つ）。
+- **主セット**: 最初に `icons add` した Iconify のセットが `svg-diagram.icons.json` の `mainSet` になり、`find` はそれを優先する（図の中のアイコンの見た目が揃う）。別のセットから入れると警告が出る。`icons main lucide` で変更、`icons main -` で解除。
 - 入った先は**カレントかその親の `svg-diagram.icons.json`**（`.svg-diagram.json` と同じ探し方。無ければカレントに作る）。コミットする。図のビルドはネットワークを使わない。
 - 取得元は [Iconify](https://iconify.design) の API（`SVG_DIAGRAM_ICONIFY_API` でミラーに替えられる）。`mdi:名前=自分の名前` で名前を付ける。`./logo.svg` のような自作の SVG も入る。
 - **入れられる形**: 塗りの 1 パス(mdi・material-symbols など)、**線画**(lucide・tabler・heroicons outline など。線の太さ・端の形は集合のまま)、複数パーツ、`currentColor` + 透明度のデュオトーン(phosphor duotone など)。これらは**トーンの色**で描くので、ダーク背景・spotlight・コントラスト検査がそのまま効く。幅と高さが違うアイコン(ロゴなど)は正方形の中央に置く。
