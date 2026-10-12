@@ -8,9 +8,9 @@ import {textWidth} from './measure.ts';
 import {ROLES} from './tokens.ts';
 import type {FontFamily, LaidOutPlane, PlaneBand, PlanePos, PlaneRef, PlaneText, PlaneTone, WidthOf} from './types.ts';
 
-const LABEL_H = 20;
 // read at call time: fill mode rewrites ROLES, and measuring must see the size emit.ts draws with
 const size = (): number => ROLES.note;
+const labelH = (): number => size() + 6;
 const TICK = 6, DIM_OFFSET = 26, DIM_CHIP_PAD = 6;
 
 /** Every [text, size, weight, font] the plane draws, so the measurer knows them before layout. */
@@ -119,7 +119,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   const addText = (s: string, tx: number, base: number, anchor: 'start' | 'middle' | 'end', tone: PlaneTone, bold = false): void => {
     texts.push({s, x: tx, y: base, anchor, tone, bold});
     const tww = tw(s, bold ? 700 : 400);
-    boxes.push({label: s, x: anchor === 'middle' ? tx - tww / 2 : anchor === 'end' ? tx - tww : tx, y: base - size(), w: tww, h: LABEL_H});
+    boxes.push({label: s, x: anchor === 'middle' ? tx - tww / 2 : anchor === 'end' ? tx - tww : tx, y: base - size(), w: tww, h: labelH()});
   };
 
   const ticks: LaidOutPlane['ticks'] = [];

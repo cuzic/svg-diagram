@@ -45,6 +45,12 @@ export type FontWeight = 400 | 700;
 export type TextTone = 'text' | 'accent' | 'muted' | 'danger';
 /** Box fill/stroke tone (emit.ts resolveBoxStyle). 'plain' = white with a dark border (default for box). */
 export type BoxTone = 'plain' | 'accent' | 'new' | 'changed' | 'removed' | 'muted' | 'danger';
+/**
+ * What box() / banner() / stat() / a swimlane step / a legend item accept: BoxTone plus the filled 'solid' / 'solid-danger'
+ * (accent / danger fill, white text). group, table rows, sequence and swimlane lanes stay on BoxTone: their children / cells
+ * carry dark text that would sit on the fill.
+ */
+export type EmphasisTone = BoxTone | 'solid' | 'solid-danger';
 /** Tone of the little tag pill on a box ('accent' default). */
 export type TagTone = 'accent' | 'muted' | 'danger';
 export type LineStyle = 'solid' | 'dashed' | 'dotted' | 'double';
@@ -240,7 +246,7 @@ export type BoxLineIn = string | {text: RichText; role?: Role; bold?: boolean; m
 /** Fields shared by every box-like band (box, banner, swimlane step, row/grid child). */
 export interface BoxChrome extends RevealOpts {
   id?: string;
-  tone?: BoxTone;
+  tone?: EmphasisTone;
   /** Draw the boundary dashed (overrides the tone's default). */
   dashed?: boolean;
   align?: Align;
@@ -299,7 +305,8 @@ export interface BoxBand extends BoxStyleOpts {
 }
 
 export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col' | 'span'> {
-  tone?: TextTone;
+  /** The value's text colour; 'solid' / 'solid-danger' instead fill the whole box (white text) as in box({tone}). */
+  tone?: TextTone | 'solid' | 'solid-danger';
   size?: 'stat' | 'display';
 }
 
@@ -312,7 +319,7 @@ export interface BannerOpts extends BannerStyleOpts {
   headline: RichText;
   sub?: RichText;
 }
-export interface BannerBand extends BannerStyleOpts {type: 'banner'; tone: BoxTone; headline: string; sub?: string; /** Internal: see BoxBand. */ spans?: RichSpans}
+export interface BannerBand extends BannerStyleOpts {type: 'banner'; tone: EmphasisTone; headline: string; sub?: string; /** Internal: see BoxBand. */ spans?: RichSpans}
 
 // ============================================================================================
 // DSL input + band: group / legend / spacer / raw
@@ -379,7 +386,7 @@ export interface LegendItem {
   arrow?: Arrow;
   /** A thick line sample; needs `line` (legend() fills in 'solid'). */
   weight?: ArrowWeight;
-  tone?: BoxTone;
+  tone?: EmphasisTone;
   dashed?: boolean;
 }
 export interface LegendOpts {align?: 'left' | 'center'}
@@ -730,6 +737,8 @@ export interface TableOpts extends RevealOpts {
   headerH?: number;
   /** Top and bottom padding of a row 4px instead of 8px (text stays 14px). `cellH` / `h` / `headerH` still win; the height a row needs is computed with the dense padding. */
   dense?: boolean;
+  /** The left column is a row heading: its body cells are bold on a `soft` fill, with a heavy rule on their right (the top-left cell stays a header cell). Warns (`rowheader-tone-collides`) when a row's own tone also fills `soft`. */
+  rowHeader?: boolean;
   id?: string;
 }
 export interface TableBand {
@@ -743,6 +752,7 @@ export interface TableBand {
   cellH?: number;
   headerH?: number;
   dense?: boolean;
+  rowHeader?: boolean;
   id?: string;
   reveal?: number;
 }
@@ -1498,6 +1508,8 @@ export interface LaidOutTable extends Rect {
   colX: number[];
   colW: number[];
   tone?: BoxTone;
+  /** The left column of the body rows is a row heading (see TableOpts.rowHeader). */
+  rowHeader?: boolean;
   reveal?: number;
 }
 
@@ -1546,10 +1558,8 @@ export interface LaidOutPlane extends Rect {
 }
 
 export interface BarRect extends Rect, Dimmed {fill: ColorKey; id?: string; reveal?: number}
-export interface BarText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number;
-  /** Index into `bars` of the bar this label belongs to (none for tick labels), so spotlight can dim it with its bar. */
-  bar?: number;
-  dim?: boolean}
+/** `bar`: index into `bars` of the bar the label belongs to (none for tick labels), so spotlight can dim it with its bar. */
+export interface BarText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number; bar?: number}
 export interface LaidOutBars extends Rect, Dimmed {
   type: 'bars';
   dir: 'h' | 'v';
@@ -1558,7 +1568,7 @@ export interface LaidOutBars extends Rect, Dimmed {
   bars: BarRect[];
   ticks: {x1: number; y1: number; x2: number; y2: number}[];
   texts: BarText[];
-  labelBoxes: (Rect & {label: string; background?: ColorKey})[];
+  labelBoxes: (Rect & {label: string; background?: ColorKey; bar?: number})[];
   anchors: Anchor[];
 }
 

@@ -6,12 +6,12 @@
 // computed (usually off-grid) position, same as every hand-authored diagram
 // in this deck.
 
-import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle} from './tokens.ts';
+import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
   LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
-  LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
+  LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, EmphasisTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
   LaidOutWireframe, LaidOutScreens, RawColorTone, Span,
 } from './types.ts';
 import {diagramTitle, diagramDesc} from './rules.ts';
@@ -49,7 +49,7 @@ export const resolveTextColor = textColorOf;
 
 export interface BoxStyle {fill: string; stroke: string; dashed: boolean}
 
-export function resolveBoxStyle(tone: BoxTone | undefined, day: Theme, dashedOverride?: boolean): BoxStyle {
+export function resolveBoxStyle(tone: EmphasisTone | undefined, day: Theme, dashedOverride?: boolean): BoxStyle {
   const t = toneStyle(tone);
   // doc themes (string keys) use a stroke that reaches 3:1 against the page; the slide decks keep the pale border
   const stroke = typeof day === 'string' ? t.stroke : t.slideStroke ?? t.stroke;
@@ -71,11 +71,12 @@ function spanTspans(spans: Span[], run: WrappedRun, color: string, day: Theme, d
 
 function renderTextRuns(
   wrappedRuns: WrappedRun[],
-  {originX, originY, w, align, day, dim}: {originX: number; originY: number; w: number; align: Align; day: Theme; dim?: boolean},
+  {originX, originY, w, align, day, dim, boxTone}: {originX: number; originY: number; w: number; align: Align; day: Theme; dim?: boolean; boxTone?: EmphasisTone},
 ): string {
   const parts: string[] = [];
   for (const run of wrappedRuns) {
-    const color = dim ? PALETTE.muted : resolveTextColor(run.tone, day);
+    // the dimmed look comes first: a solid box that is dimmed is a white box, so its (white) text would vanish
+    const color = dim ? PALETTE.muted : runColorOf(run.tone, boxTone, day);
     const cls = run.mono ? ' class="mono"' : '';
     const anchor = align === 'center' ? ' text-anchor="middle"' : align === 'right' ? ' text-anchor="end"' : '';
     // A step() badge only ever indents the title run (see layout.ts's
@@ -96,12 +97,15 @@ function renderTextRuns(
 // Numbered circle badge for box({step}) — solid accent fill, white number,
 // centered on the title's own baseline (same offset every hand-authored
 // "① foo" box in this deck used between the badge and its number glyph).
+// On a solid box the badge / tag pill has the box's own fill, so a white ring keeps it apart from the box.
+const ringed = (band: LaidOutBox): boolean => !band.dim && isSolidTone(band.tone);
+
 function renderStepBadge(band: LaidOutBox, day: Theme): string {
   const titleRun = band.wrappedRuns[0];
   const titleBaselineY = band.y + BOX_PAD_Y + titleRun.lineYs[0];
   const cx = band.x + BOX_PAD_X + STEP_BADGE_R;
   const cy = titleBaselineY - STEP_BADGE_BASELINE_OFFSET;
-  return badgeSvg({cx, cy, r: STEP_BADGE_R, w: 2 * STEP_BADGE_R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: 16, fill: PALETTE[day].accent, baseline: titleBaselineY, snap: snap4, esc: escapeXml});
+  return badgeSvg({cx, cy, r: STEP_BADGE_R, w: 2 * STEP_BADGE_R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: 16, fill: PALETTE[day].accent, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), baseline: titleBaselineY, snap: snap4, esc: escapeXml});
 }
 
 // box({icon}): the icon's path scaled from its source viewBox to ICON_SIZE, at the box's top-left. Its colour is a text tone
@@ -111,7 +115,7 @@ function renderBoxIcon(band: LaidOutBox, day: Theme): string {
   const s = ICON_SIZE / vs;
   const x = band.x + (band.padX ?? BOX_PAD_X), y = band.y + (band.padY ?? BOX_PAD_Y);
   const n = (v: number) => +v.toFixed(4);
-  const color = band.dim ? PALETTE.muted : resolveTextColor(band.iconTone ?? 'text', day);
+  const color = band.dim ? PALETTE.muted : runColorOf(band.iconTone, band.tone, day);
   const a11y = band.title ? 'aria-hidden="true"' : `role="img" aria-label="${band.icon}"`;
   return `\n  <path d="${d}" transform="translate(${n(x - vx * s)} ${n(y - vy * s)}) scale(${n(s)})" fill="${color}" ${a11y} data-icon="${band.icon}"/>`;
 }
@@ -120,8 +124,8 @@ function renderCaption(band: LaidOutCaption, day: Theme): string {
   return renderTextRuns(band.wrappedRuns, {originX: band.x, originY: band.y, w: band.w, align: band.align ?? 'center', day, dim: band.dim});
 }
 
-type BoxLike = Rect & {tone?: BoxTone; dashed?: boolean; dim?: boolean};
-function renderBoxRect(band: BoxLike, day: Theme, defaultTone: BoxTone): string {
+type BoxLike = Rect & {tone?: EmphasisTone; dashed?: boolean; dim?: boolean};
+function renderBoxRect(band: BoxLike, day: Theme, defaultTone: EmphasisTone): string {
   const style = resolveBoxStyle(band.tone ?? defaultTone, day, band.dashed);
   if (band.dim) { style.fill = PALETTE.bg; style.stroke = PALETTE.muted; }
   const dash = style.dashed ? ' stroke-dasharray="6,4"' : band.dim ? ' stroke-dasharray="2,5" stroke-linecap="round"' : '';
@@ -133,13 +137,13 @@ function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, defaultAlig
   const align = band.align ?? defaultAlign;
   const px = band.padX ?? BOX_PAD_X, py = band.padY ?? BOX_PAD_Y;
   const originX = band.x + px;
-  return renderTextRuns(band.wrappedRuns, {originX, originY: band.y + py, w: band.w - 2 * px, align, day, dim: band.dim});
+  return renderTextRuns(band.wrappedRuns, {originX, originY: band.y + py, w: band.w - 2 * px, align, day, dim: band.dim, boxTone: band.tone});
 }
 
 function renderTag(band: LaidOutBox, day: Theme): string {
   const t = band.tagBox as Rect; // caller checked tagBox
   const fill = band.dim ? PALETTE.muted : colorOf(toneStyle(band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
-  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, size: TAG_SIZE, labelHtml: emojiSpan(band.tag as string)});
+  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: TAG_SIZE, labelHtml: emojiSpan(band.tag as string)});
 }
 
 // The stamp chip: bottom-right inside the shape (layout reserved the strip; rows may have stretched the shape since, so it follows the bottom edge).
@@ -349,8 +353,10 @@ function renderBars(b: LaidOutBars, day: Theme, stage?: number): string {
   for (const r of b.bars.filter(r => visibleAt(r, stage))) {
     const x = Math.round(r.x * 100) / 100, y = Math.round(r.y * 100) / 100;
     const right = Math.round((r.x + r.w) * 100) / 100, bottom = Math.round((r.y + r.h) * 100) / 100;
-    const d = `M${x},${y} H${right} V${bottom} H${x} Z`;
-    out.push(r.dim ? `<path d="${d}" fill="${PALETTE.bg}" stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"/>` : `<path d="${d}" fill="${col(r.fill)}"/>`);
+    if (!r.dim) { out.push(`<path d="M${x},${y} H${right} V${bottom} H${x} Z" fill="${col(r.fill)}"/>`); continue; }
+    // a dimmed bar is outlined just inside its rect (so the gap between stacked segments stays open); one too thin to see stays a bare fill
+    const thin = r.w < 1 || r.h < 1, i = thin ? 0 : Math.min(1, r.w / 2, r.h / 2);
+    out.push(`<path d="M${x + i},${y + i} H${right - i} V${bottom - i} H${x + i} Z" fill="${PALETTE.bg}"${thin ? '' : ` stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"`}/>`);
   }
   for (const t of b.texts.filter(t => visibleAt(t, stage))) {
     const anchor = t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`;
@@ -371,7 +377,6 @@ function renderRaw(band: LaidOutRaw, day: Theme): string {
 
 
 // ---- sequence() / table() renderers (geometry comes from seq-table.ts) ------
-const NOTE = ROLES.note;
 const LH_EM = 1.4;
 
 function strokeLine(d: string, color: string, line: LineStyle | undefined, arrow: Arrow | undefined, width = 2): string {
@@ -405,21 +410,21 @@ function renderSequence(band: LaidOutSequence, day: Theme): string {
     if (s.kind === 'msg') {
       const color = resolveLineColor(s.tone, day);
       parts.push(strokeLine(`M${Math.round(s.x1)},${Math.round(s.y)} L${Math.round(s.x2)},${Math.round(s.y)}`, color, s.line, s.arrow));
-      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: NOTE, anchor: 'middle', fill: s.tone ? color : PALETTE.text}));
+      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: ROLES.note, anchor: 'middle', fill: s.tone ? color : PALETTE.text}));
     } else if (s.kind === 'self') {
       const color = resolveLineColor(s.tone, day);
       const dir = s.side === 'left' ? -1 : 1;
       const x0 = Math.round(s.cx), x1 = Math.round(s.cx + dir * 36), y0 = Math.round(s.y), y1 = Math.round(s.y + s.loopH);
       parts.push(strokeLine(`M${x0},${y0} L${x1},${y0} L${x1},${y1} L${x0},${y1}`, color, s.line, 'end'));
-      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: NOTE, anchor: s.side === 'left' ? 'end' : undefined, fill: s.tone ? color : PALETTE.text}));
+      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: ROLES.note, anchor: s.side === 'left' ? 'end' : undefined, fill: s.tone ? color : PALETTE.text}));
     } else if (s.kind === 'note') {
       const st = resolveBoxStyle(s.tone, day);
       parts.push(`<rect x="${snap4(s.x)}" y="${snap4(s.y)}" width="${snap4(s.w)}" height="${snap4(s.h)}" rx="8" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5"${st.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
-      parts.push(textLines(s.lines, {x: s.x + 12, top: s.y + 8, size: NOTE, fill: PALETTE.text}));
+      parts.push(textLines(s.lines, {x: s.x + 12, top: s.y + 8, size: ROLES.note, fill: PALETTE.text}));
     } else {
       parts.push(`<path d="M${Math.round(s.x1)},${Math.round(s.y)} L${Math.round(s.x2)},${Math.round(s.y)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="6,4"/>`);
       parts.push(`<rect x="${snap4(s.cx - s.chipW / 2)}" y="${snap4(s.y - 12)}" width="${snap4(s.chipW)}" height="24" rx="12" fill="${PALETTE.bg}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
-      parts.push(textLines([s.text], {x: s.cx, top: s.y - 12 + 1, size: NOTE, weight: 700, anchor: 'middle', fill: PALETTE.text}));
+      parts.push(textLines([s.text], {x: s.cx, top: s.y - 12 + 1, size: ROLES.note, weight: 700, anchor: 'middle', fill: PALETTE.text}));
     }
   }
   return parts.join('\n  ');
@@ -446,11 +451,17 @@ function renderTable(band: LaidOutTable, day: Theme): string {
     const corners = {tl: top ? R : 0, tr: top ? R : 0, bl: bottom ? R : 0, br: bottom ? R : 0};
     const fill = row.header ? PALETTE[day].soft : row.tone ? resolveBoxStyle(row.tone, day).fill : PALETTE.bg;
     parts.push(`<path d="${rrPath(band.x, row.y, band.w, row.h, corners)}" fill="${fill}"/>`);
+    // row-heading cell: always soft, whatever the row's tone; only the outer left corners round
+    if (band.rowHeader && !row.header) parts.push(`<path d="${rrPath(band.x, row.y, band.colW[0], row.h, {tl: corners.tl, bl: corners.bl})}" fill="${PALETTE[day].soft}"/>`);
     if (i > 0 || titled) parts.push(`<path d="M${Math.round(band.x)},${Math.round(row.y)} H${Math.round(band.x + band.w)}" stroke="${PALETTE.border}" stroke-width="2"/>`);
   });
   const y0 = band.rows[0].y, y1 = band.rows[last].y + band.rows[last].h;
   for (let i = 1; i < band.colX.length; i++) {
     parts.push(`<path d="M${Math.round(band.colX[i])},${Math.round(y0)} V${Math.round(y1)}" stroke="${PALETTE.border}" stroke-width="2"/>`);
+  }
+  const firstBody = band.rows.findIndex(r => !r.header);
+  if (band.rowHeader && firstBody >= 0) {
+    parts.push(`<path d="M${Math.round(band.colX[1])},${Math.round(band.rows[firstBody].y)} V${Math.round(y1)}" stroke="${PALETTE.text}" stroke-width="3"/>`);
   }
   for (const row of band.rows) {
     for (const c of row.cells) {
@@ -544,9 +555,12 @@ function renderBandPlain(band: LaidOutBand, day: Theme, stage?: number): string 
   }
 }
 
+// bands that draw their own dim state (spotlight) instead of having it painted over their svg
+const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars']);
+
 function renderBand(band: LaidOutBand, day: Theme, stage?: number): string {
   const svg = renderBandPlain(band, day, stage);
-  if (!band.dim || band.type === 'caption' || band.type === 'box' || band.type === 'banner' || band.type === 'group' || band.type === 'row' || band.type === 'grid' || band.type === 'bars') return svg;
+  if (!band.dim || SELF_DIMMING.has(band.type)) return svg;
   return svg
     .replace(/marker-(start|end)="url\(#dsl-arrow(-strong)?\)"/g, 'marker-$1="url(#dsl-arrow$2-dim)"')
     .replace(/stroke="#[0-9a-fA-F]{6}"/g, `stroke="${PALETTE.muted}"`)

@@ -46,7 +46,7 @@ export function collectTextRequests(band: SequenceBand | TableBand): TextRequest
     });
     for (const row of band.rows) ('cells' in row ? row.cells : row).forEach((cell, i) => {
       const c = cellOf(cell, band.columns[i]);
-      out.push([c.text, ROLES.body, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans']);
+      out.push([c.text, ROLES.body, c.bold || (band.rowHeader && i === 0) ? 700 : 400, c.mono ? 'mono' : 'sans']);
     });
   }
   return out;
@@ -159,6 +159,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     const placed = cells.map((cell, i): LaidOutTableCell => {
       // header rows pass the column specs themselves (see the call below)
       const c: ResolvedCell = header ? {text: (cell as TableColumn).label ?? '', bold: true, mono: false, align: (cell as TableColumn).align ?? 'left'} : cellOf(cell as TableCell, cols[i]);
+      if (band.rowHeader && !header && i === 0) c.bold = true;
       const size = ROLES.body;
       const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', colW[i] - 2 * TBL.padX, widthOf);
       return {...c, lines, x: colX[i], w: colW[i], top: 0};
@@ -181,5 +182,5 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     const cells = 'cells' in r ? r.cells : r;
     rows.push(rowOf(cells, false, 'cells' in r ? r.tone : undefined, 'cells' in r ? r.h : undefined));
   }
-  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone, reveal: band.reveal};
+  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone, rowHeader: band.rowHeader || undefined, reveal: band.reveal};
 }
