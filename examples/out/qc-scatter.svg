@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="396" viewBox="0 0 940 396" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">温度と不良率（散布図）</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/qc-scatter.ts","sourceSha256":"3cb82003727fe9094c037eeb7140437f154a97262c322282322f675142e4d2b0"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="396" fill="#ffffff"/>
+
+  <path d="M48,54 L48,300 M120,54 L120,300 M192,54 L192,300 M263,54 L263,300 M335,54 L335,300 M407,54 L407,300 M479,54 L479,300 M551,54 L551,300 M623,54 L623,300 M694,54 L694,300 M766,54 L766,300 M838,54 L838,300 M48,300 L838,300 M48,273 L838,273 M48,246 L838,246 M48,218 L838,218 M48,191 L838,191 M48,164 L838,164 M48,137 L838,137 M48,110 L838,110 M48,82 L838,82" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M48,300 L838,300 M48,300 L48,54" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="838,300 828,305 828,295" fill="#22201b"/>
+  <polygon points="48,54 53,64 43,64" fill="#22201b"/>
+  <path d="M48,300 L48,306 M120,300 L120,306 M192,300 L192,306 M263,300 L263,306 M335,300 L335,306 M407,300 L407,306 M479,300 L479,306 M551,300 L551,306 M623,300 L623,306 M694,300 L694,306 M766,300 L766,306 M838,300 L838,306 M48,300 L42,300 M48,273 L42,273 M48,246 L42,246 M48,218 L42,218 M48,191 L42,191 M48,164 L42,164 M48,137 L42,137 M48,110 L42,110 M48,82 L42,82" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M120,259 L802,128" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
+  <circle cx="120" cy="276" r="6" fill="#1d5fa8"/>
+  <circle cx="192" cy="248" r="6" fill="#1d5fa8"/>
+  <circle cx="264" cy="252" r="6" fill="#1d5fa8"/>
+  <circle cx="336" cy="224" r="6" fill="#1d5fa8"/>
+  <circle cx="372" cy="240" r="6" fill="#1d5fa8"/>
+  <circle cx="444" cy="208" r="6" fill="#1d5fa8"/>
+  <circle cx="516" cy="212" r="6" fill="#1d5fa8"/>
+  <circle cx="552" cy="180" r="6" fill="#1d5fa8"/>
+  <circle cx="624" cy="188" r="6" fill="#1d5fa8"/>
+  <circle cx="696" cy="156" r="6" fill="#1d5fa8"/>
+  <circle cx="732" cy="164" r="6" fill="#1d5fa8"/>
+  <circle cx="804" cy="132" r="6" fill="#1d5fa8"/>
+  <path d="M114,242 L126,254 M114,254 L126,242" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <path d="M186,214 L198,226 M186,226 L198,214" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <path d="M258,206 L270,218 M258,218 L270,206" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <path d="M330,202 L342,214 M330,214 L342,202" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <path d="M366,194 L378,206 M366,206 L378,194" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <path d="M438,170 L450,182 M438,182 L450,170" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <path d="M510,178 L522,190 M510,190 L522,178" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <path d="M546,146 L558,158 M546,158 L558,146" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <path d="M618,142 L630,154 M618,154 L630,142" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <path d="M690,138 L702,150 M690,150 L702,138" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <path d="M726,118 L738,130 M726,130 L738,118" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <path d="M798,98 L810,110 M798,110 L810,98" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <text x="48" y="322" text-anchor="middle" font-size="14" fill="#6f6659">16</text>
+  <text x="120" y="322" text-anchor="middle" font-size="14" fill="#6f6659">18</text>
+  <text x="192" y="322" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
+  <text x="263" y="322" text-anchor="middle" font-size="14" fill="#6f6659">22</text>
+  <text x="335" y="322" text-anchor="middle" font-size="14" fill="#6f6659">24</text>
+  <text x="407" y="322" text-anchor="middle" font-size="14" fill="#6f6659">26</text>
+  <text x="479" y="322" text-anchor="middle" font-size="14" fill="#6f6659">28</text>
+  <text x="551" y="322" text-anchor="middle" font-size="14" fill="#6f6659">30</text>
+  <text x="623" y="322" text-anchor="middle" font-size="14" fill="#6f6659">32</text>
+  <text x="694" y="322" text-anchor="middle" font-size="14" fill="#6f6659">34</text>
+  <text x="766" y="322" text-anchor="middle" font-size="14" fill="#6f6659">36</text>
+  <text x="838" y="322" text-anchor="middle" font-size="14" fill="#6f6659">38</text>
+  <text x="36" y="305" text-anchor="end" font-size="14" fill="#6f6659">1</text>
+  <text x="36" y="278" text-anchor="end" font-size="14" fill="#6f6659">2</text>
+  <text x="36" y="251" text-anchor="end" font-size="14" fill="#6f6659">3</text>
+  <text x="36" y="223" text-anchor="end" font-size="14" fill="#6f6659">4</text>
+  <text x="36" y="196" text-anchor="end" font-size="14" fill="#6f6659">5</text>
+  <text x="36" y="169" text-anchor="end" font-size="14" fill="#6f6659">6</text>
+  <text x="36" y="142" text-anchor="end" font-size="14" fill="#6f6659">7</text>
+  <text x="36" y="115" text-anchor="end" font-size="14" fill="#6f6659">8</text>
+  <text x="36" y="87" text-anchor="end" font-size="14" fill="#6f6659">9</text>
+  <text x="854" y="305" font-size="14" font-weight="700" fill="#6f6659">温度 (℃)</text>
+  <text x="44" y="40" font-size="14" font-weight="700" fill="#6f6659">不良率 (%)</text>
+  <text x="56" y="72" font-size="14" fill="#1d5fa8">● 機械 A</text>
+  <text x="144" y="72" font-size="14" fill="#b91c1c">✕ 機械 B</text>
+  <text x="830" y="72" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">r = 0.92　y = 0.255x − 2.09　n = 24</text>
+
+  <text x="20" y="370" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

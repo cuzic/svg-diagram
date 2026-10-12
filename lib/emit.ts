@@ -396,6 +396,12 @@ function renderBars(b: LaidOutBars, day: Theme, stage?: number, dimFill = false)
     const thin = r.w < 1 || r.h < 1, i = thin ? 0 : Math.min(1, r.w / 2, r.h / 2);
     out.push(`<path d="M${x + i},${y + i} H${right - i} V${bottom - i} H${x + i} Z" fill="${PALETTE.bg}"${thin ? '' : ` stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"`}/>`);
   }
+  // reference lines, the cumulative line and the curve of a bars() that has them
+  const inkOf = (k: ColorKey) => b.dim ? PALETTE.muted : col(k);
+  for (const l of b.ink?.lines ?? []) out.push(`<path d="M${Math.round(l.x1)},${Math.round(l.y1)} L${Math.round(l.x2)},${Math.round(l.y2)}" fill="none" stroke="${inkOf(l.fill)}" stroke-width="2"${l.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
+  for (const l of b.ink?.polylines ?? []) out.push(`<path d="M${l.pts.map(p => `${Math.round(p.x * 10) / 10},${Math.round(p.y * 10) / 10}`).join(' L')}" fill="none" stroke="${inkOf(l.fill)}" stroke-width="2.5" stroke-linejoin="round"${l.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
+  // a dot sits exactly on the vertex of the line it marks, so it is a path (a <circle> would be snapped to the 4px grid)
+  for (const d of b.ink?.dots ?? []) { const x = Math.round(d.x * 10) / 10, y = Math.round(d.y * 10) / 10; out.push(`<path d="M${x - 4},${y} a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0 Z" fill="${PALETTE.bg}" stroke="${inkOf(d.fill)}" stroke-width="2.5"/>`); }
   for (const t of b.texts.filter(t => visibleAt(t, stage))) {
     const anchor = t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`;
     out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${anchor} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${t.dim || b.dim ? PALETTE.muted : col(t.fill)}">${emojiSpan(t.text)}</text>`);

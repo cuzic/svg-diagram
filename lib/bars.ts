@@ -1,6 +1,6 @@
 import {textWidth} from './atoms.ts';
 import {fmt, ticksOf} from './plane.ts';
-import type {BarDatum, BarsBand, ColorKey, FontFamily, LaidOutBars, WidthOf, Roles} from './types.ts';
+import type {BarDatum, BarsBand, BarsInk, BarsLine, ColorKey, FontFamily, LaidOutBars, WidthOf, Roles} from './types.ts';
 
 const SERIES: Record<NonNullable<BarDatum['series']>, ColorKey> = {a: 'accent', b: 'text', c: 'muted'};
 const TICK = 6, BAR = 28, GAP = 18, STACK_GAP = 2;
@@ -21,7 +21,7 @@ const valueText = (d: BarDatum, unit = '') => `${fmt(d.value)}${unit}`;
 /** What a bars() band shows; every default is the original look. */
 function flags(band: BarsBand) {
   const labels = band.labels ?? 'all', axis = band.axis !== false;
-  return {showValues: labels === 'all', showCats: labels !== 'none', axis, grid: band.grid ?? axis, baseline: band.baseline !== false, labels};
+  return {showValues: labels === 'all', showCats: labels !== 'none', axis, grid: band.grid ?? (axis && !band.cumulative), baseline: band.baseline !== false, labels};
 }
 /** Values are on neither a label nor a scale: the figure alone cannot be read for them. */
 export const barsValuesHidden = (band: BarsBand): boolean => band.labels !== undefined && band.labels !== 'all' && band.axis === false;
@@ -42,8 +42,45 @@ export function barsTexts(band: BarsBand, roles: Roles): [string, number, number
     if (band.stack && seg) out.push([seg, S, 700, 'sans']);
   }
   if (f.axis) for (const t of ticksOf({max: band.max}, 'bars')) out.push([t.label, S, 400, 'sans']);
+  for (const l of [...band.lines ?? [], ...band.vlines ?? []]) if (l.label) out.push([l.label, S, 700, 'sans']);
+  for (const e of band.edges ?? []) out.push([e, S, 400, 'sans']);
+  if (band.cumulative) {
+    for (const p of CUM_TICKS) out.push([`${p}%`, S, 400, 'sans']);
+    for (const p of cumulativeOf(band.data)) out.push([cumText(p), S, 700, 'sans']);
+    if (f.axis) out.push([fmt(band.max), S, 400, 'sans']); // the total, a tick of the left axis
+  }
   return out;
 }
+
+/**
+ * Where the labels of the vertical reference lines go: centred on their line, or beside it when centred they would leave the plot,
+ * each on the lowest row (0 is just above the plot) where it clears the labels already there.
+ */
+function vlineRows(band: BarsBand, plotL: number, plotR: number, S: number, widthOf: WidthOf): {rows: number; at: ({x: number; anchor: 'start' | 'middle' | 'end'; row: number} | undefined)[]} {
+  const count = slotsOf(band.data).count, slot = (plotR - plotL) / count;
+  const placed: {x1: number; x2: number; row: number}[] = [];
+  const at = (band.vlines ?? []).map(l => {
+    if (!l.label) return undefined;
+    const lx = plotL + l.at * slot, tw = textWidth(widthOf, l.label, S, 700);
+    const anchor = lx - tw / 2 < plotL + 2 ? 'start' : lx + tw / 2 > plotR - 2 ? 'end' : 'middle';
+    const x = anchor === 'start' ? lx + 4 : anchor === 'end' ? lx - 4 : lx, x1 = anchor === 'start' ? x : anchor === 'end' ? x - tw : x - tw / 2;
+    let row = 0;
+    while (placed.some(p => p.row === row && x1 < p.x2 + 6 && p.x1 < x1 + tw + 6)) row++;
+    placed.push({x1, x2: x1 + tw, row});
+    return {x, anchor: anchor as 'start' | 'middle' | 'end', row};
+  });
+  return {rows: at.reduce((n, a) => a ? Math.max(n, a.row + 1) : n, 0), at};
+}
+
+const CUM_TICKS = [0, 20, 40, 60, 80, 100];
+/** Cumulative share (0-100) after each bar, in the order of the data. */
+export const cumulativeOf = (data: readonly BarDatum[]): number[] => {
+  const total = data.reduce((n, d) => n + d.value, 0);
+  let run = 0;
+  return data.map(d => { run += d.value; return total > 0 ? run / total * 100 : 0; });
+};
+const cumText = (pct: number): string => `${Math.round(pct * 10) / 10}%`;
+const LINE_TONE: Record<NonNullable<BarsLine['tone']>, ColorKey> = {accent: 'accent', danger: 'danger', muted: 'muted', text: 'text'};
 
 function putText(
   out: LaidOutBars, S: number, text: string, x: number, y: number, anchor: 'start' | 'middle' | 'end', fill: ColorKey,
@@ -136,14 +173,23 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
   const f = flags(band), S = sizeOf(band, roles);
   const h = band.height ?? 280;
   const ticks = f.axis ? ticksOf({max: band.max}, 'bars') : [];
+  // a Pareto's left axis also has the total, where its 100% is
+  if (f.axis && band.cumulative && band.max - ticks[ticks.length - 1].at > band.max * 0.08) ticks.push({at: band.max, label: fmt(band.max)});
   const tickW = Math.max(0, ...ticks.map(t => textWidth(widthOf, t.label, S, 400)));
-  const plotL = x + (f.axis ? tickW + TICK + 10 : 4), plotR = x + w - 8;
+  const cumW = band.cumulative ? Math.max(...CUM_TICKS.map(p => textWidth(widthOf, `${p}%`, S, 400))) + TICK + 10 : 0;
+  // the edge labels are centred on the edges, so the first and the last stick out half their width
+  const edgeHalf = (i: number) => band.edges ? textWidth(widthOf, band.edges[i], S, 400) / 2 : 0;
+  const plotL = Math.max(x + (f.axis ? tickW + TICK + 10 : 4), x + edgeHalf(0)), plotR = Math.min(x + w - (band.cumulative ? cumW : 8), x + w - edgeHalf(band.edges ? band.edges.length - 1 : 0) - 2);
+  // the labels of the vertical reference lines stand on rows above the plot; one that would touch its neighbour goes a row higher
+  const vrows = vlineRows(band, plotL, plotR, S, widthOf);
+  const topLabels = [...band.lines ?? []].some(l => l.label) || vrows.rows > 0;
   // the margins hold the value labels / top tick label above and the category labels below; none of them, none of the margin
-  const plotT = y + (f.axis || f.showValues ? S + 8 : 4), plotB = f.showCats ? y + h - S * 1.4 - 14 : y + h - 4;
+  const plotT = y + (f.axis || f.showValues || topLabels || band.cumulative ? S + 8 : 4) + Math.max(0, vrows.rows - 1) * (S + 4), plotB = f.showCats || band.edges ? y + h - S * 1.4 - 14 : y + h - 4;
   if (plotR - plotL < (f.axis || f.labels !== 'none' ? 80 : 20) || plotB - plotT < (f.axis || f.showValues ? 80 : 20)) throw new Error('bars(): the figure is too small; raise width / height');
   const out: LaidOutBars = {type: 'bars', id: band.id, x, y, w, h, dir: 'v', stack: band.stack, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), bars: [], ticks: [], texts: [], labelBoxes: [], anchors: []};
+  const yOf = (v: number) => plotB - v / band.max * (plotB - plotT);
   for (const t of ticks) {
-    const ty = plotB - t.at / band.max * (plotB - plotT);
+    const ty = yOf(t.at);
     if (f.grid && (f.baseline || t.at !== 0)) out.ticks.push({x1: plotL - TICK, y1: ty, x2: plotR, y2: ty});
     else out.ticks.push({x1: plotL - TICK, y1: ty, x2: plotL, y2: ty});
     putText(out, S, t.label, plotL - TICK - 4, ty + (band.labelRole ? S * 5 / 14 : 5), 'end', 'muted', widthOf);
@@ -171,7 +217,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
       const bh = d.value / band.max * (plotB - plotT), bx = plotL + slots[i] * slot + (slot - bw) / 2;
       const r = addBar(out, d, {x: bx, y: plotB - bh, w: bw, h: bh});
       const bar = out.bars.length - 1;
-      if (f.showCats) putText(out, S, d.label, bx + bw / 2, plotB + S + 10, 'middle', 'text', widthOf, false, undefined, bar);
+      if (f.showCats && !band.edges) putText(out, S, d.label, bx + bw / 2, plotB + S + 10, 'middle', 'text', widthOf, false, undefined, bar);
       if (!f.showValues) return;
       const text = valueText(d, band.unit);
       const tw = textWidth(widthOf, text, S, 700);
@@ -181,5 +227,42 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
   }
   if (f.axis) out.ticks.push({x1: plotL, y1: plotT, x2: plotL, y2: plotB});
   if (f.baseline) out.ticks.push({x1: plotL, y1: plotB, x2: plotR, y2: plotB});
+  overlays(out, band, {plotL, plotR, plotT, plotB, S, widthOf, yOf, vrows});
   return out;
+}
+
+/** Reference lines, edge labels, the cumulative line (with its 0-100% axis) and the curve of a vertical bars(). */
+function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: number; plotT: number; plotB: number; S: number; widthOf: WidthOf; yOf: (v: number) => number; vrows: ReturnType<typeof vlineRows>}): void {
+  const {plotL, plotR, plotT, plotB, S, widthOf, yOf, vrows} = g;
+  const ink: BarsInk = {lines: [], polylines: [], dots: []};
+  const count = slotsOf(band.data).count, slot = (plotR - plotL) / count, xOf = (at: number) => plotL + at * slot;
+  for (const l of band.lines ?? []) {
+    const ly = yOf(l.at), fill = LINE_TONE[l.tone ?? 'danger'];
+    ink.lines.push({x1: plotL, y1: ly, x2: plotR, y2: ly, fill, dashed: l.dashed !== false});
+    if (l.label) putText(out, S, l.label, plotR - 4, ly - 5, 'end', fill, widthOf, true);
+  }
+  for (const [i, l] of (band.vlines ?? []).entries()) {
+    const lx = xOf(l.at), fill = LINE_TONE[l.tone ?? 'danger'], at = vrows.at[i];
+    ink.lines.push({x1: lx, y1: plotT - 4 - (at ? at.row * (S + 4) : 0), x2: lx, y2: plotB, fill, dashed: l.dashed !== false});
+    if (l.label && at) putText(out, S, l.label, at.x, plotT - 8 - at.row * (S + 4), at.anchor, fill, widthOf, true);
+  }
+  if (band.edges) band.edges.forEach((e, i) => putText(out, S, e, xOf(i), plotB + S + 10, 'middle', 'text', widthOf));
+  if (band.curve) ink.polylines.push({pts: band.curve.through.map(([sx, v]) => ({x: xOf(sx), y: yOf(v)})), fill: LINE_TONE[band.curve.tone ?? 'text'], dashed: band.curve.dashed === true});
+  if (band.cumulative) {
+    const cum = cumulativeOf(band.data), yPct = (p: number) => plotB - p / 100 * (plotB - plotT);
+    ink.lines.push({x1: plotR, y1: plotT, x2: plotR, y2: plotB, fill: 'border', dashed: false});
+    for (const p of CUM_TICKS) {
+      ink.lines.push({x1: plotR, y1: yPct(p), x2: plotR + TICK, y2: yPct(p), fill: 'border', dashed: false});
+      putText(out, S, `${p}%`, plotR + TICK + 4, yPct(p) + (band.labelRole ? S * 5 / 14 : 5), 'start', 'muted', widthOf);
+    }
+    if (band.cumulative.guide !== undefined) ink.lines.push({x1: plotL, y1: yPct(band.cumulative.guide), x2: plotR, y2: yPct(band.cumulative.guide), fill: 'muted', dashed: true});
+    // the textbook line: from the origin, through the upper right corner of each bar
+    const pts = [{x: plotL, y: plotB}, ...cum.map((p, i) => ({x: xOf(i + 1), y: yPct(p)}))];
+    ink.polylines.push({pts, fill: 'danger', dashed: false});
+    for (const [i, p] of pts.slice(1).entries()) {
+      ink.dots.push({x: p.x, y: p.y, fill: 'danger'});
+      putText(out, S, cumText(cum[i]), p.x - 6, p.y - 7, 'end', 'danger', widthOf, true);
+    }
+  }
+  if (ink.lines.length || ink.polylines.length || ink.dots.length) out.ink = ink;
 }

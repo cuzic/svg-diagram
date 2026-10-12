@@ -854,7 +854,19 @@ export interface BarsOpts extends RevealOpts {
   baseline?: boolean;
   /** Bar share of its slot (0 < r <= 1). Given: no upper width limit, 1 makes neighbours touch. Omitted: the usual look. Not for `stack`. */
   barRatio?: number;
+  /** Vertical bars only: horizontal reference lines (a target, a mean, a limit) at a value of the bars' axis. */
+  lines?: BarsLine[];
+  /** Vertical bars only: vertical reference lines at a position along the bars (in bar slots: 0 is the left edge of the first bar, 1 the edge between the first and the second). A histogram's specification limits and mean. */
+  vlines?: BarsLine[];
+  /** Vertical bars only: a curve over the bars through [slot position, value] points (a histogram's normal curve). */
+  curve?: {through: [slot: number, value: number][]; tone?: BarsTone; dashed?: boolean};
+  /** Vertical bars only: a Pareto's cumulative line on a 0-100% axis on the right (`max` must be the total: 100% is then the top of the plot). `guide`: a dashed line at that percent (80). */
+  cumulative?: {guide?: number};
+  /** Vertical bars only: labels at the edges between bars (one more than there are bars), written under the edges instead of under the bars. A histogram's class boundaries. Not with `labels: 'none'`. */
+  edges?: string[];
 }
+export type BarsTone = 'accent' | 'danger' | 'muted' | 'text';
+export interface BarsLine {at: number; label?: string; tone?: BarsTone; /** Default true. */ dashed?: boolean}
 export interface BarsBand extends BarsOpts {
   type: 'bars';
   data: BarDatum[];
@@ -2191,8 +2203,15 @@ export interface LaidOutPlane extends Rect {
 export interface BarRect extends Rect, Dimmed {fill: ColorKey; id?: string; reveal?: number; until?: number}
 /** `bar`: index into `bars` of the bar the label belongs to (none for tick labels), so spotlight can dim it with its bar. */
 export interface BarText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number; until?: number; bar?: number}
+export interface BarsInk {
+  lines: {x1: number; y1: number; x2: number; y2: number; fill: ColorKey; dashed: boolean}[];
+  polylines: {pts: {x: number; y: number}[]; fill: ColorKey; dashed: boolean}[];
+  dots: {x: number; y: number; fill: ColorKey}[];
+}
 export interface LaidOutBars extends Rect, Dimmed {
   type: 'bars';
+  /** Reference lines, the cumulative line and the curve of a bars() with those options. */
+  ink?: BarsInk;
   id?: string;
   dir: 'h' | 'v';
   stack: boolean;

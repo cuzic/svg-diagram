@@ -26,10 +26,15 @@ import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
 import {CAUSE_ROLES} from './toc.ts';
+import {histogramBins, mean, niceUp, normalCount, num, paretoOrder, sd} from './qc.ts';
+import {controlChartOpts, scatterOpts} from './qc-plane.ts';
+import {checkSheetParts, matrixParts} from './qc-table.ts';
+import type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from './qc-table.ts';
+import type {AttributeSample, ControlChartOpts, ControlType, ScatterOpts, ScatterPoint} from './qc-plane.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
 import {SLIDE_CANVAS, canvasFontScale, canvasRoles, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
-  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts, CloudBand, CloudBox, CloudOpts, GanttBand, GanttOpts, GanttRow, GanttTask, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsLine, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts, CloudBand, CloudBox, CloudOpts, GanttBand, GanttOpts, GanttRow, GanttTask, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -836,6 +841,35 @@ export function dots(values: readonly DotDatum[], opts: DotsOpts = {}): DotsBand
   return withHandle({type: 'dots', dots: list, min, max, lowLabel: opts.lowLabel, highLabel: opts.highLabel, zones, r, width: opts.width, height: opts.height, alt: opts.alt ?? `${list.length} dots`, ...(opts.id === undefined ? {} : {id: opts.id})}, opts.id);
 }
 
+/** The overlay options of bars(): reference lines, the cumulative line, the curve and the edge labels. */
+function validateBarsOverlays(data: readonly BarDatum[], opts: BarsOpts, max: number): void {
+  const tones = ['accent', 'danger', 'muted', 'text'];
+  const count = new Set(data.map((d, i) => d.replaces ?? d.id ?? i)).size;
+  for (const [key, list] of [['lines', opts.lines], ['vlines', opts.vlines]] as const) for (const [i, l] of (list ?? []).entries()) {
+    if (!Number.isFinite(l.at)) throw new Error(`bars(): ${key}[${i}].at must be a finite number (got ${l.at})`);
+    if (key === 'lines' && !(l.at >= 0 && l.at <= max)) throw new Error(`bars(): lines[${i}].at ${l.at} is outside the bars' axis 0-${max}`);
+    if (key === 'vlines' && !(l.at >= 0 && l.at <= data.length)) throw new Error(`bars(): vlines[${i}].at ${l.at} is outside the bars (0 is the left edge of the first bar, ${data.length} the right edge of the last)`);
+    if (l.tone !== undefined && !tones.includes(l.tone)) throw new Error(`bars(): ${key}[${i}].tone must be one of ${tones.join(', ')} (got ${String(l.tone)})`);
+    if (l.label !== undefined && !l.label.trim()) throw new Error(`bars(): ${key}[${i}].label is empty`);
+  }
+  if (opts.curve) {
+    const pts = opts.curve.through;
+    if (!Array.isArray(pts) || pts.length < 2 || pts.some(p => !Array.isArray(p) || p.length !== 2 || !p.every(Number.isFinite))) throw new Error('bars(): curve.through needs at least two [slot position, value] points');
+    if (pts.some(([sx, v]) => sx < 0 || sx > data.length || v < 0 || v > max)) throw new Error(`bars(): curve.through has a point outside the bars (slot 0-${data.length}, value 0-${max})`);
+  }
+  if (opts.cumulative) {
+    const total = data.reduce((n, d) => n + d.value, 0);
+    if (Math.abs(max - total) > total * 1e-9) throw new Error(`bars(): cumulative needs max to be the total (${total}), so that 100% is the top of the plot (got max ${max})`);
+    if (data.some(d => d.replaces !== undefined)) throw new Error('bars(): cumulative does not work with replaces');
+    const g = opts.cumulative.guide;
+    if (g !== undefined && !(g > 0 && g < 100)) throw new Error(`bars(): cumulative.guide must be a percent between 0 and 100 (got ${g})`);
+  }
+  if (opts.edges) {
+    if (opts.edges.length !== count + 1) throw new Error(`bars(): edges needs ${count + 1} labels for ${count} bars (got ${opts.edges.length})`);
+    if (opts.labels === 'none') throw new Error("bars(): edges is a category label — it cannot be used with labels: 'none'");
+  }
+}
+
 type BarIds<D extends readonly BarDatum[]> = Extract<D[number]['id'], string>;
 export function bars<const D extends readonly BarDatum[], const Id extends string = never>(data: D, opts?: BarsOpts & {id?: Id}): BarsBand & Declares<Id | BarIds<D>> & HandleOf<Id> & AnchorsOf<BarIds<D>>;
 export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
@@ -857,17 +891,147 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   if (opts.barRatio !== undefined && !(opts.barRatio > 0 && opts.barRatio <= 1)) throw new Error(`bars(): barRatio must be a number > 0 and <= 1 (got ${opts.barRatio})`);
   if (opts.barRatio !== undefined && opts.stack) throw new Error('bars(): barRatio does not apply to stack');
   const stack = !!opts.stack;
+  const overlay = (['lines', 'vlines', 'curve', 'cumulative', 'edges'] as const).filter(k => opts[k] !== undefined);
+  if (overlay.length && (opts.dir !== 'v' || stack)) throw new Error(`bars(): ${overlay.join(' / ')} need vertical bars that are not stacked (dir: 'v')`);
   const extent = stack ? data.reduce((n, d) => n + d.value, 0) : Math.max(...data.map(d => d.value));
   const max = opts.max ?? extent;
   if (!(max > 0) || !Number.isFinite(max)) throw new Error(`bars(): max must be a finite number > 0 (got ${max})`);
   if (extent > max) throw new Error(`bars(): ${stack ? 'stack total' : 'a value'} (${extent}) exceeds max (${max})`);
+  validateBarsOverlays(data, opts, max);
   const ids = data.map(d => d.id).filter((id): id is string => !!id);
   if (new Set(ids).size !== ids.length) throw new Error('bars(): each id must be unique');
   if (opts.id !== undefined && ids.includes(opts.id)) throw new Error(`bars(): the band's id "${opts.id}" is also a bar's id — each id must be unique`);
   const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height, ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
-  for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
+  for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole', 'lines', 'vlines', 'curve', 'cumulative', 'edges'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
   return withHandle(withAnchors(band, data.map(d => d.id)), opts.id);
 }
+
+export interface ParetoOpts extends Omit<BarsOpts, 'dir' | 'stack' | 'cumulative' | 'lines' | 'vlines' | 'curve' | 'edges' | 'max'> {
+  /** Keep the largest N items and fold the rest into `other`. */
+  top?: number;
+  /** The label of the fold-in item, always last whatever its size (default 'その他'). */
+  other?: string;
+  /** Draw a dashed line at this cumulative percent (default 80; `false`: none). */
+  guide?: number | false;
+  /** Colour the leading items that reach the guide percent (the vital few) and mute the rest (default true). */
+  highlight?: boolean;
+}
+/**
+ * A Pareto chart (パレート図): the items as bars in descending order, the "other" item last, and a cumulative line on a 0-100% axis
+ * on the right. The items that reach 80% are coloured (`highlight: false` to keep one colour). `top: 5` folds the rest into 'その他'.
+ *   pareto([{label: '傷', value: 42}, {label: '汚れ', value: 25}, {label: '欠け', value: 12}, {label: 'その他', value: 6}], {unit: '件'})
+ */
+export function pareto<const Id extends string = never>(items: readonly {label: string; value: number; id?: string}[], opts: ParetoOpts & {id?: Id} = {}): BarsBand & Declares<Id> & HandleOf<Id> {
+  if (!Array.isArray(items) || items.length === 0) throw new Error('pareto(items) needs at least one item');
+  for (const i of items) if (!Number.isFinite(i.value) || i.value < 0) throw new Error(`pareto(): value for "${i.label}" must be a finite number >= 0 (got ${i.value})`);
+  if (items.every(i => i.value === 0)) throw new Error('pareto(): all values are 0');
+  if (opts.top !== undefined && !(Number.isInteger(opts.top) && opts.top >= 1)) throw new Error(`pareto(): top must be a whole number >= 1 (got ${opts.top})`);
+  const guide = opts.guide === false ? undefined : opts.guide ?? 80;
+  const {items: ordered, vital} = paretoOrder(items, {top: opts.top, other: opts.other, reach: guide ?? 80});
+  const total = ordered.reduce((n, i) => n + i.value, 0), ids = new Map(items.map(i => [i.label, i.id]));
+  const {top: _t, other: _o, guide: _g, highlight, ...rest} = opts;
+  const data: BarDatum[] = ordered.map((i, k) => ({label: i.label, value: i.value, ...(ids.get(i.label) ? {id: ids.get(i.label)} : {}), ...(highlight === false ? {} : k < vital ? {} : {series: 'c' as const})}));
+  return bars(data, {...rest, dir: 'v', barRatio: 1, max: total, cumulative: guide === undefined ? {} : {guide}}) as never;
+}
+
+export interface HistogramOpts extends Omit<BarsOpts, 'dir' | 'stack' | 'cumulative' | 'lines' | 'vlines' | 'curve' | 'edges' | 'max' | 'barRatio'> {
+  /** About how many classes (Sturges' rule when omitted). The class width is a round number. */
+  bins?: number;
+  /** The class width. */
+  width?: number;
+  /** Specification limits: dashed lines, and the classes beyond them are red. */
+  lsl?: number;
+  usl?: number;
+  /** A target (nominal) value line. */
+  target?: number;
+  /** Draw the mean (default true). */
+  mean?: boolean;
+  /** Draw the normal curve with the data's mean and standard deviation. */
+  normal?: boolean;
+}
+/**
+ * A histogram (ヒストグラム) of raw measurements: the class width is a round number, the bars touch, the class boundaries are written
+ * under the bars. `lsl` / `usl` draw the specification limits and turn the classes outside them red; the mean is drawn by default.
+ *   histogram([9.8, 10.1, 10.0, 10.3, 9.9, ...], {lsl: 9.5, usl: 10.5, unit: '個'})
+ */
+export function histogram<const Id extends string = never>(values: readonly number[], opts: HistogramOpts & {id?: Id} = {}): BarsBand & Declares<Id> & HandleOf<Id> {
+  if (!Array.isArray(values) || values.length < 2) throw new Error('histogram(values) needs at least two values');
+  if (!values.every(Number.isFinite)) throw new Error('histogram(): every value must be a finite number');
+  for (const k of ['lsl', 'usl', 'target', 'width'] as const) if (opts[k] !== undefined && !Number.isFinite(opts[k])) throw new Error(`histogram(): ${k} must be a finite number (got ${opts[k]})`);
+  if (opts.width !== undefined && !(opts.width > 0)) throw new Error(`histogram(): width must be > 0 (got ${opts.width})`);
+  if (opts.bins !== undefined && !(Number.isInteger(opts.bins) && opts.bins >= 1)) throw new Error(`histogram(): bins must be a whole number >= 1 (got ${opts.bins})`);
+  if (opts.lsl !== undefined && opts.usl !== undefined && !(opts.lsl < opts.usl)) throw new Error(`histogram(): lsl (${opts.lsl}) must be below usl (${opts.usl})`);
+  const marks = [opts.lsl, opts.usl, opts.target].filter((v): v is number => v !== undefined);
+  const {edges, counts, width} = histogramBins(values, {bins: opts.bins, width: opts.width, include: marks});
+  const m = mean(values), s = sd(values), n = values.length;
+  const slot = (v: number) => (v - edges[0]) / width;
+  const out = (k: number) => (opts.lsl !== undefined && edges[k + 1] <= opts.lsl + 1e-9) || (opts.usl !== undefined && edges[k] >= opts.usl - 1e-9);
+  const peak = opts.normal ? normalCount(m, m, s, n, width) : 0;
+  const max = niceMax(Math.max(...counts, peak));
+  const {bins: _b, width: _w, lsl, usl, target, mean: showMean, normal, ...rest} = opts;
+  const lines: BarsLine[] = [];
+  if (lsl !== undefined) lines.push({at: slot(lsl), label: `下限 ${num(lsl)}`});
+  if (target !== undefined) lines.push({at: slot(target), label: `目標 ${num(target)}`, tone: 'muted'});
+  if (usl !== undefined) lines.push({at: slot(usl), label: `上限 ${num(usl)}`});
+  if (showMean !== false) lines.push({at: slot(m), label: `平均 ${num(m)}`, tone: 'accent'});
+  const curve = normal && s > 0 ? {through: Array.from({length: 41}, (_, i) => { const sx = i / 40 * counts.length; return [sx, normalCount(edges[0] + sx * width, m, s, n, width)] as [number, number]; }), tone: 'text' as const} : undefined;
+  return bars(counts.map((c, k) => ({label: `${num(edges[k])}-${num(edges[k + 1])}`, value: c, ...(out(k) ? {tone: 'danger' as const} : {})})), {...rest, dir: 'v', barRatio: 1, max, edges: edges.map(num), vlines: lines.sort((a, b) => a.at - b.at), ...(curve ? {curve} : {})}) as never;
+}
+/** The top of a count axis: the next multiple of a round step above the largest value. */
+const niceMax = (v: number): number => { const step = niceUp(v / 5); return Math.max(step, Math.ceil(v / step - 1e-9) * step); };
+
+/**
+ * A scatter diagram (散布図): the axes fit the data, each stratum (`group`) has its own colour and shape, and `regression: true` draws
+ * the least-squares line with the correlation coefficient r.
+ *   scatter([{x: 20, y: 3.1}, {x: 25, y: 3.8}, ...], {x: '温度 (℃)', y: '不良率 (%)', regression: true})
+ */
+export function scatter<const Id extends string = never>(points: readonly ScatterPoint[], opts: ScatterOpts & {id?: Id}): PlaneBand & Declares<Id> & HandleOf<Id>;
+export function scatter(points: readonly ScatterPoint[], opts: ScatterOpts): PlaneBand {
+  if (!opts?.x || !opts?.y) throw new Error("scatter(points, {x, y}) needs the axes' names: {x: '温度', y: '不良率'}");
+  return plane(scatterOpts(points, opts)) as PlaneBand;
+}
+/**
+ * A control chart (管理図) from the data: the centre line and the limits are worked out (3 sigma), points outside them are red crosses,
+ * 7 in a row on one side of the centre line or 7 in a row rising / falling are red rings.
+ *   'x' / 'mr'      individual values: the X chart and its moving range (data: number[])
+ *   'xbar' / 'r'    subgroups of 2-10 measurements: the mean and the range (data: number[][])
+ *   'p' / 'np' / 'u'  attributes per sample: [{n: 200, d: 6}, ...] (n inspected, d defective / defects)
+ *   'c'             defects per unit (data: number[])
+ *   controlChart('xbar', [[10.1, 10.0, 9.9], [10.2, 10.1, 10.0], ...], {limits: {cl: 10, ucl: 10.4, lcl: 9.6}})
+ */
+export function controlChart<const Id extends string = never>(type: ControlType, data: readonly (number | number[] | AttributeSample)[], opts?: ControlChartOpts & {id?: Id}): PlaneBand & Declares<Id> & HandleOf<Id>;
+export function controlChart(type: ControlType, data: readonly (number | number[] | AttributeSample)[], opts: ControlChartOpts = {}): PlaneBand {
+  return plane(controlChartOpts(type, data, opts)) as PlaneBand;
+}
+/** The X-bar chart and the R chart of the same subgroups, one above the other: `diagram().add(...xbarR(subgroups))`. */
+export function xbarR(subgroups: readonly number[][], opts: ControlChartOpts = {}): [PlaneBand, PlaneBand] {
+  const {id, limits, ...rest} = opts; // the id and the fixed limits belong to the X-bar chart
+  return [controlChart('xbar', subgroups, {...rest, ...(id === undefined ? {} : {id}), ...(limits === undefined ? {} : {limits})}), controlChart('r', subgroups, rest)] as [PlaneBand, PlaneBand];
+}
+
+/**
+ * A check sheet (チェックシート): the items down the side, the columns (days, machines, shifts) across, a column and a row of totals.
+ * Without `counts` it is an empty sheet to fill in by hand (`boxes: true` puts a ☐ in each cell); with them each count is written as
+ * tally marks (正丅 = 7; `as: 'number'` for digits, `'both'` for both).
+ *   checkSheet([{label: '傷', counts: [3, 5, 2]}, {label: '汚れ', counts: [1, 0, 4]}], ['月', '火', '水'], {corner: '不良の種類'})
+ */
+export function checkSheet<const Id extends string = never>(items: readonly (string | CheckItem)[], columns: readonly string[], opts?: CheckSheetOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
+export function checkSheet(items: readonly (string | CheckItem)[], columns: readonly string[], opts: CheckSheetOpts = {}): TableBand {
+  const p = checkSheetParts(items, columns, opts);
+  return table(p.columns, p.rows, p.opts);
+}
+/**
+ * A matrix diagram (マトリックス図, L-shaped): the rows (ideas, causes, requirements) against the columns (criteria, measures) with a
+ * ◎ ○ △ × where they relate. `weights` (the importance of each column) adds a row of them and a score per row — Σ weight x value,
+ * ◎ 9 / ○ 3 / △ 1 / × 0 unless `values` says otherwise — and the best score is marked.
+ *   matrix(['A 案', 'B 案'], ['コスト', '速さ', '品質'], [['○', '◎', '△'], ['◎', '△', '○']], {weights: [5, 3, 4], corner: '案 ＼ 評価'})
+ */
+export function matrix<const Id extends string = never>(rows: readonly string[], cols: readonly string[], cells: readonly (readonly MatrixMark[])[], opts?: MatrixOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
+export function matrix(rows: readonly string[], cols: readonly string[], cells: readonly (readonly MatrixMark[])[], opts: MatrixOpts = {}): TableBand {
+  const p = matrixParts(rows, cols, cells, opts);
+  return table(p.columns, p.rows, p.opts);
+}
+export {tally} from './qc-table.ts';
 
 type MarkIds<M extends readonly ImageMark[]> = Extract<M[number]['id'], string>;
 const IMAGE_TONES = ['plain', 'accent', 'danger', 'muted', 'new', 'changed', 'removed', 'solid', 'solid-danger'];
@@ -1301,3 +1465,5 @@ async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Pro
 }
 
 export {closeMeasurer};
+export type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from './qc-table.ts';
+export type {AttributeSample, ControlChartOpts, ControlType, ScatterOpts, ScatterPoint} from './qc-plane.ts';
