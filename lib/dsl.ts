@@ -753,8 +753,13 @@ export function people(total: number, count: number, opts: PeopleOpts = {}): Peo
   if (!(size >= 12 && size <= 96)) throw new Error(`people(): size must be from 12 to 96 px (got ${size})`);
   if (!(gap >= 0)) throw new Error(`people(): gap must be >= 0 (got ${gap})`);
   if (opts.align !== undefined && opts.align !== 'left' && opts.align !== 'center') throw new Error(`people(): align must be 'left' or 'center' (got ${opts.align})`);
-  if (opts.tone !== undefined && opts.tone !== 'accent' && opts.tone !== 'danger') throw new Error(`people(): tone must be 'accent' or 'danger' (got ${opts.tone})`);
-  return withHandle({type: 'people', total, count, cols, size, gap, align: opts.align ?? 'center', tone: opts.tone ?? 'accent', alt: opts.alt ?? `${count} / ${total}`, ...(opts.id === undefined ? {} : {id: opts.id})}, opts.id);
+  for (const k of ['tone', 'rest'] as const) if (opts[k] !== undefined && !['accent', 'danger', 'muted'].includes(opts[k]!)) throw new Error(`people(): ${k} must be 'accent', 'danger' or 'muted' (got ${opts[k]})`);
+  if (opts.side !== undefined) {
+    if (typeof opts.side.value !== 'string' || !opts.side.value) throw new Error('people(): side needs a value (the text beside the grid)');
+    if (opts.side.size !== undefined && opts.side.size !== 'stat' && opts.side.size !== 'display') throw new Error(`people(): side.size must be 'stat' or 'display' (got ${opts.side.size})`);
+    if (opts.side.tone !== undefined && !['accent', 'danger', 'muted'].includes(opts.side.tone)) throw new Error(`people(): side.tone must be 'accent', 'danger' or 'muted' (got ${opts.side.tone})`);
+  }
+  return withHandle({type: 'people', total, count, cols, size, gap, align: opts.align ?? 'center', tone: opts.tone ?? 'accent', rest: opts.rest ?? 'muted', ...(opts.side ? {side: opts.side} : {}), alt: opts.alt ?? `${count} / ${total}`, ...(opts.id === undefined ? {} : {id: opts.id})}, opts.id);
 }
 
 // Dots along a lane (an axis): each value is a dot at its position, dots that would touch pile up (the piles never overlap).
@@ -765,9 +770,9 @@ export function dots<const Id extends string = never>(values: readonly DotDatum[
 export function dots(values: readonly DotDatum[], opts: DotsOpts = {}): DotsBand {
   assertNoReveal(opts, 'dots()');
   if (!Array.isArray(values) || values.length === 0) throw new Error('dots(values) needs at least one value');
-  const min = opts.min ?? 0, max = opts.max ?? 1, r = opts.r ?? 6, TONES = ['accent', 'danger', 'muted'];
+  const min = opts.min ?? 0, max = opts.max ?? 1, r = opts.r ?? 10, TONES = ['accent', 'danger', 'muted'];
   if (!Number.isFinite(min) || !Number.isFinite(max) || !(max > min)) throw new Error(`dots(): needs finite min < max (got ${min} .. ${max})`);
-  if (!(r >= 2 && r <= 20)) throw new Error(`dots(): r must be from 2 to 20 px (got ${r})`);
+  if (!(r >= 2 && r <= 24)) throw new Error(`dots(): r must be from 2 to 24 px (got ${r})`);
   for (const k of ['width', 'height'] as const) if (opts[k] !== undefined && !(opts[k]! > 0 && Number.isFinite(opts[k]))) throw new Error(`dots(): ${k} must be a finite number > 0 (got ${opts[k]})`);
   const list = values.map(v => typeof v === 'number' ? {at: v} : v);
   for (const v of list) {

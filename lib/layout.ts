@@ -21,7 +21,7 @@ import {assertSpans} from './rich.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {layoutPlane, planeTexts} from './plane.ts';
 import {barsTexts, layoutBars} from './bars.ts';
-import {dotsTexts, layoutDots, layoutPeople} from './people.ts';
+import {dotsTexts, layoutDots, layoutPeople, peopleTexts} from './people.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {
   DiagramData, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
@@ -293,6 +293,8 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       for (const [text, size, weight, font] of planeTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'bars') {
       for (const [text, size, weight, font] of barsTexts(band)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'people') {
+      for (const [text, size, weight, font] of peopleTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'dots') {
       for (const [text, size, weight, font] of dotsTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'curve') {
@@ -473,7 +475,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     }
 
     if (band.type === 'people' || band.type === 'dots') {
-      const placed = band.type === 'people' ? layoutPeople(band, padX, cursorY, cw, d.day) : layoutDots(band, padX, cursorY, cw, widthOf, d.day);
+      const placed = band.type === 'people' ? layoutPeople(band, padX, cursorY, cw, widthOf, d.day) : layoutDots(band, padX, cursorY, cw, widthOf, d.day);
       if (band.id) {
         if (anchors.has(band.id)) claimed(band.id, `a ${band.type} band takes an id that another anchor already has`);
         anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});

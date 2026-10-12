@@ -32,9 +32,21 @@ test('people() checks its arguments and the width', async () => {
   assert.throws(() => people(10, 11), /count must be/);
   assert.throws(() => people(10.5, 1), /total must be/);
   assert.throws(() => people(10, 1, {cols: 11}), /cols must be/);
-  assert.throws(() => people(10, 1, {tone: 'muted' as 'accent'}), /tone must be/);
+  assert.throws(() => people(10, 1, {tone: 'text' as 'accent'}), /tone must be/);
   assert.throws(() => people(10, 1, {reveal: 1} as object), /takes no reveal/);
   await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 200}).add(people(100, 76))), /fewer cols, a smaller size or gap/);
+});
+
+test('people(): tone may be muted, rest and side are drawn, and side stays inside the column', async () => {
+  const {svg, laidOut} = await renderDiagram(diagram({theme: 'blue'}).add(people(100, 76, {tone: 'muted', rest: 'accent', size: 20, gap: 4, align: 'left', side: {value: '76%', label: '経営者の認識', tone: 'danger'}})), {name: 'ps.svg', budget: 'cacheOnly'});
+  assert.match(svg, />76%</);
+  assert.match(svg, />経営者の認識</);
+  const p = laidOut.laidOut.find(b => b.type === 'people') as LaidOutPeople;
+  assert.equal(p.texts.length, 2);
+  assert.ok(p.texts.every(t => t.x >= p.x + 10 * 20 + 9 * 4 && t.y > p.y && t.y < p.y + p.h));
+  assert.ok(p.w <= laidOut.width);
+  assert.throws(() => people(10, 1, {side: {value: ''}}), /needs a value/);
+  await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 360}).add(people(100, 76, {size: 24, gap: 4, side: {value: '76%'}}))), /number beside them/);
 });
 
 test('dots(): dots that would touch pile up, and no two dots overlap', async () => {

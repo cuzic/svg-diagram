@@ -161,8 +161,9 @@ export function optionCases(): void {
 
 export function peopleDotsCases(): void {
   diagram({theme: 'blue'}).add(people(100, 76, {tone: 'danger', cols: 10}), dots([0.1, {at: 0.5, tone: 'accent'}], {zones: [{from: 0, to: 0.3, label: 'x'}]}));
-  // @ts-expect-error tone is accent | danger
-  people(10, 1, {tone: 'muted'});
+  people(10, 1, {tone: 'muted', rest: 'accent', side: {value: '76%', tone: 'danger', size: 'display'}});
+  // @ts-expect-error tone is accent | danger | muted
+  people(10, 1, {tone: 'text'});
   // @ts-expect-error people() takes no reveal
   people(10, 1, {reveal: 1});
   // @ts-expect-error a zone needs a label

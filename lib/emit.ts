@@ -283,15 +283,17 @@ function renderPyramid(band: LaidOutPyramid): string {
 // people(): one person icon per head, the emphasized ones filled and the rest outlines (the count reads without colour).
 function renderPeople(band: LaidOutPeople, day: Theme): string {
   const d = ICON_PATHS.person.d, s = band.size / PERSON_BOX.size, n = (v: number) => +v.toFixed(4);
-  const color = colorOf(toneStyle(band.tone).ink, day);
-  const icon = (i: {x: number; y: number; on: boolean}) => `<path d="${d}" transform="translate(${n(i.x - PERSON_BOX.from * s)} ${n(i.y - PERSON_BOX.from * s)}) scale(${n(s)})" ${i.on ? `fill="${color}"` : `fill="none" stroke="${PALETTE.muted}" stroke-width="${n(1.5 / s)}"`}/>`;
-  return `<g role="img" aria-label="${escapeXml(band.alt)}">\n  ${band.icons.map(icon).join('\n  ')}\n  </g>`;
+  const color = colorOf(toneStyle(band.tone).ink, day), rest = colorOf(toneStyle(band.rest).ink, day);
+  const icon = (i: {x: number; y: number; on: boolean}) => `<path d="${d}" transform="translate(${n(i.x - PERSON_BOX.from * s)} ${n(i.y - PERSON_BOX.from * s)}) scale(${n(s)})" ${i.on ? `fill="${color}"` : `fill="none" stroke="${rest}" stroke-width="${n(1.5 / s)}"`}/>`;
+  const texts = band.texts.map(t => `\n  <text x="${Math.round(t.x)}" y="${Math.round(t.y)}" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${textColorOf(t.tone, day)}">${emojiSpan(t.text)}</text>`).join('');
+  return `<g role="img" aria-label="${escapeXml(band.alt)}">\n  ${band.icons.map(icon).join('\n  ')}\n  </g>${texts}`;
 }
 
 // dots(): a lane (an axis line), bars on the lane for its zones, a dot per value piled above it, labels under it.
 function renderDots(band: LaidOutDots, day: Theme): string {
   const color = (tone: string) => colorOf(toneStyle(tone).ink, day), n = (v: number) => +v.toFixed(2);
   const parts = [`<line x1="${n(band.axis.x1)}" y1="${n(band.axis.y)}" x2="${n(band.axis.x2)}" y2="${n(band.axis.y)}" stroke="${PALETTE.muted}" stroke-width="2"/>`];
+  for (const z of band.zones) parts.push(`<rect x="${n(z.x)}" y="${n(z.top)}" width="${n(z.w)}" height="${n(z.y - 4 - z.top)}" fill="${color(z.tone)}" fill-opacity="0.12"/>`);
   for (const z of band.zones) parts.push(`<rect x="${n(z.x)}" y="${n(z.y - 4)}" width="${n(z.w)}" height="8" fill="${color(z.tone)}"/>`);
   const dots = band.dots.map(p => `<circle cx="${n(p.x)}" cy="${n(p.y)}" r="${band.r}" fill="${color(p.tone)}"/>`).join('\n    ');
   parts.push(`<g role="img" aria-label="${escapeXml(band.alt)}">\n    ${dots}\n  </g>`);
