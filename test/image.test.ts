@@ -266,7 +266,7 @@ test('reveal: a mark, label or part over the picture is never shown before the p
   if (pic.type !== 'image') throw new Error('no image');
   assert.deepEqual(pic.marks.map(m => [m.reveal, m.until]), [[2, 4], [3, 4], [2, 4]], 'the later reveal, the earlier until');
   assert.deepEqual([pic.plates.map(p => p.reveal), pic.plates.map(p => p.until)], [[2, 3, 2, 2], [4, 4, 4, 4]]);
-  assert.equal(laidOut.laidOut.find(b => b.type === 'box' && b.id === 'inner')!.reveal, 2, 'a part over the picture inherits the picture');
+  assert.equal((laidOut.laidOut.find(b => b.type === 'box' && b.id === 'inner') as {reveal?: number}).reveal, 2, 'a part over the picture inherits the picture');
   const at = (n: number) => emitSvg(laidOut, {reveal: n});
   assert.doesNotMatch(at(1), /<image|早い印|早い文字|中の箱/);
   assert.match(at(2), /<image[\s\S]*早い印[\s\S]*中の箱/); assert.doesNotMatch(at(2), /遅い印/);
