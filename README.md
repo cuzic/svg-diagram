@@ -79,9 +79,9 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | stateMatrix(cols, rows, {required, cellH, cellFrame}) | 部品の**状態の一覧**。行=部品、列=状態（通常・読み込み中・空・エラー…）。欄は `wf.*` の図、`'na'` / `{na: '理由'}`（対象外）、未指定（**未設計**。`check` が警告）。`required` の列がなければ警告。行は `stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', ...})` で「部品 1 つ + 状態ごとの差分」としても書ける |
 | timeline({from, to, now, deadline, marks, remaining}) | 横軸が時間の部品。期限（danger 色の大きな点）、今日、途中の日付（`marks`）を旗で示し、今日から期限までを太い帯と「あと 1 年 5 か月」で見せる。詳細は下の「時間軸と期限」 |
 | tree(root, {dir, maxNodeW, id}) | 組織図・階層図。配置は自動（親は子の中央、同じ階層は揃う）。節は `{label, sub?, id?, tone?, children?}`。`id` を付けた節は `connect()` の端点になる（`t.anchors.<id>` でも取れる）。詳細は下の「組織図（`tree`）」 |
-| mindmap(root, {sides, maxNodeW, id}) | マインドマップ。節は `tree()` と同じ。中央のルートから、枝が左右へ自動で伸びる（高さで釣り合わせ、書いた順に右から）。`sides: {枝の id: 'left'｜'right'}` で、ルートの子を左右に固定できる。下の「組織図（`tree`）」 |
+| mindmap(root, {sides, maxNodeW, id}) | マインドマップ。節は `tree()` と同じ。中央のルートから、枝が左右へ自動で伸びる（書いた順に、前の半分を右、残りを左に振り分ける。高さで釣り合わせる。どちら側も上から下へ）。`sides: {枝の id: 'left'｜'right'}` で、ルートの子を左右に固定できる。下の「組織図（`tree`）」 |
 | stateDiagram(states, transitions, {initial, dir, maxNodeW, id}) | 状態遷移図。状態 `{id, label, sub?, tone?, final?}` と遷移 `{from, to, label?, line?}` を書くだけで、層に分けて自動配置する。戻る矢印・飛ばす矢印・自己ループも、ほかの状態を避けて引く。状態は `connect()` の端点になる。詳細は下の「状態遷移図（`stateDiagram`）」 |
-| gantt(rows, {from, to, today, id}) | ガントチャート。行は、タスク `{label, start, end｜days, id?, progress?, after?, tone?, milestone?}` と、見出し `{section}`。日付は `'YYYY-MM-DD'`（`end` はその日を含む）。軸・目盛り・今日の線・依存の矢印・進捗は自動。詳細は下の「ガントチャート（`gantt`）」 |
+| gantt(rows, {from, to, today, id}) | ガントチャート。行は、タスク `{label, start, end｜days, id?, progress?, after?, tone?, milestone?}` と、見出し `{section}`。日付は `'YYYY-MM-DD'`（`end` はその日を含む。`'2026-10'` のような略記は止まる）。軸・目盛り・今日の線・依存の矢印・進捗は自動。詳細は下の「ガントチャート（`gantt`）」 |
 | classDiagram(classes, relations, {dir, id}) | UML クラス図。クラス `{id, name?, stereotype?, abstract?, attrs?, methods?, tone?}` と関係 `{from, to, kind?, label?, fromMult?, toMult?}`。親が上になる層に自動配置し、矢印の端の記号は `kind` で決まる。詳細は下の「クラス図（`classDiagram`）」 |
 | bpmn(lanes, nodes, flows, {id}) | BPMN 風の業務フロー。レーン（担当）に、タスク・開始/終了イベント・ゲートウェイ（排他 `xor`・並行 `and`・包括 `or`）を置き、矢印で結ぶ。列は流れから、行はレーンから決まる。破線は、レーンをまたぐメッセージ。詳細は下の「業務フロー（`bpmn`）」 |
 | pyramid / curve | ピラミッド、曲線 |
@@ -186,7 +186,7 @@ tree({
 - 兄弟が多くて図の幅を超えるときは、何が足りないかを書いて止まる（`dir: 'right'`、`maxNodeW` を小さく、階層を分ける）。
 - `id` を付けた節は、`connect()` の端点（`connect('pf', '外部')`）。`tree()` 自身の `id` は、図全体の端点と spotlight の対象。`reveal` は図全体に付く。例は `examples/org-chart.ts`、`examples/org-chart-right.ts`。
 
-`mindmap(root, {sides})` は同じ節の書き方で、ルートを中央に置き、子を左右に振り分ける（枝の高さで釣り合わせる。振り分けは、書いた順に右側から）。`sides` は、ルートの子だけを `id` で左右に固定できる（深い節や未知の id は止まる）。節の `id` は `connect()` の端点になる。例は `examples/mindmap.ts`。
+`mindmap(root, {sides})` は同じ節の書き方で、ルートを中央に置き、子を左右に振り分ける（書いた順に、前の半分を右、残りを左へ。枝の高さで釣り合わせ、どちら側も上から下へ並ぶ）。`sides` は、ルートの子だけを `id` で左右に固定できる（深い節や未知の id は止まる）。節の `id` は `connect()` の端点になる。例は `examples/mindmap.ts`。
 
 ### 状態遷移図（`stateDiagram`）
 
@@ -218,7 +218,7 @@ gantt([
 - 日付だけを書く。軸は最初の開始から最後の終了まで（`from` / `to` で広げられる）。7 日あたりの幅が足りるだけ、週（月曜）の目盛り、約 20 週を超えると月の目盛り。
 - `today` は必ず書く（ビルドは時計を読まない）。軸の外だと止まる。`todayLabel` で「今日」を変えられる。
 - `progress`（0〜1）は、バーの塗りつぶしの割合。`milestone: true` は 1 日の菱形（`end` / `days` は要らない）。`tone` は `accent`（既定）/ `danger` / `muted`。
-- `after: 'id'`（または id の配列）で、先行タスクの終わりから、このタスクの始まりへ矢印を引く。縦の線は先行タスクの終わりのすぐ右を通るので、間の行のバーを横切ることがある（行の並びで避ける）。
+- `after: 'id'`（または id の配列）で、先行タスクの終わりから、このタスクの始まりへ矢印を引く。縦の線は、間の行のバーを避けた最初の空き（先行タスクの終わりのすぐ右から）を通る。避けられないと、どのバーを貫くかを書いて `check` / `build` が止まる（行の並びを替える）。`after` が自分自身や輪になると止まる。
 - 行のラベルは図の幅の 4 割までの 1 行（超えると、短くするよう書いて止まる）。`id` を付けたタスクは `connect()` の端点で、`g.anchors.<id>` でも取れる。例は `examples/gantt.ts`。
 
 ### クラス図（`classDiagram`）
@@ -253,6 +253,13 @@ bpmn(
 - 矢印は直角に折れる。同じ行なら一直線、ゲートウェイからほかのレーンへは、上か下の頂点から出る。戻る矢印（差し戻し）は、ノードの下を回る。間のノードを貫くときは、レーンの縁に沿って迂回し、それでも無関係なノードを貫くと `check` / `build` が止まる。`line: 'dashed'` は、レーンをまたぐメッセージ。ゲートウェイから出る矢印の `label` は、条件。
 - 標準の BPMN のすべては描かない（サブプロセス、タイマーやメッセージのイベント、プール間のメッセージ、データなどは対象外）。
 - ノードの `id` は `connect()` の端点（`b.anchors.<id>` でも取れる）。例は `examples/bpmn.ts`。
+
+### 自動配置の図の共通の注意（`tree` / `mindmap` / `stateDiagram` / `gantt` / `classDiagram` / `bpmn`）
+
+- 図の中の節（`id` を付けたもの）は、`connect()` の端点になり、`reveal` では図と一緒に出る。ただし spotlight は図ごと（図の `id`）で、節の `id` を指すと、そう書いて止まる。
+- `check` の「自動の凡例」（`legend: 'auto'`）と、色だけに頼る強調の検査は、これらの図の `tone`・破線・点線を数えない。`new` / `changed` / `removed` や破線の遷移・メッセージを使うときは、自分で `legend()` を置く。
+- 節の副題（`sub`）や «ステレオタイプ» の薄い文字は、`accent` / `new` の塗りの上でも 4.5:1 を保つよう、その塗りの上だけ通常の文字色になる。
+- ラベルの白いチップは、自分の矢印以外の矢印や、状態・クラス・ノードに乗らないよう置き場所を探す。見つからないときは `check` / `build` が、どれとどれが重なるかを書いて止まる。
 
 ### 時間軸と期限（`timeline`）
 

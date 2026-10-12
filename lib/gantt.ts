@@ -12,13 +12,17 @@ const tasksOf = (band: GanttBand): GanttTask[] => band.rows.filter((r): r is Gan
 
 const fmtDay = (day: number): string => { const d = new Date(day * MS_DAY); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; };
 const dayOf = (v: string, what: string): number => {
-  try { return timelineDay(v, what); } catch { throw new Error(`gantt(): ${what} must be 'YYYY-MM-DD' (got ${JSON.stringify(v)})`); }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(v))) throw new Error(`gantt(): ${what} must be 'YYYY-MM-DD' (got ${JSON.stringify(v)})`);
+  try { return timelineDay(v, what); } catch { throw new Error(`gantt(): ${what} is not a real date (${v})`); }
 };
 
 /** [start, end) of a task in days; a milestone is the one day `start`. */
 export function spanOf(t: GanttTask): [number, number] {
   const s = dayOf(t.start, `"${t.label}" start`);
-  if (t.milestone) return [s, s + 1];
+  if (t.milestone) {
+    if (t.end !== undefined || t.days !== undefined) throw new Error(`gantt(): "${t.label}" is a milestone (one day): drop end / days`);
+    return [s, s + 1];
+  }
   if (t.end !== undefined && t.days !== undefined) throw new Error(`gantt(): "${t.label}" has both end and days; use one`);
   if (t.days !== undefined) {
     if (!(Number.isInteger(t.days) && t.days >= 1)) throw new Error(`gantt(): "${t.label}" days must be a whole number >= 1 (got ${t.days})`);
@@ -30,9 +34,29 @@ export function spanOf(t: GanttTask): [number, number] {
   return [s, e + 1];
 }
 
+/** The axis in days: [from, to) — the given range, else the first start to the last end. */
+function axisOf(band: GanttBand, spans: [number, number][]): [number, number] {
+  const from = band.from !== undefined ? dayOf(band.from, 'from') : Math.min(...spans.map(s => s[0]));
+  const to = band.to !== undefined ? dayOf(band.to, 'to') + 1 : Math.max(...spans.map(s => s[1]));
+  return [from, to];
+}
+const SHORT_AXIS = 140; // days: up to this the ticks are weeks, above it months
+const mondays = (from: number, to: number): number[] => {
+  const out: number[] = [];
+  for (let d = from + ((8 - new Date(from * MS_DAY).getUTCDay()) % 7); d < to; d += 7) out.push(d);
+  return out;
+};
+
 export function ganttTexts(band: GanttBand, roles: Roles): [string, number, number, FontFamily][] {
   const S = roles.note, out: [string, number, number, FontFamily][] = [[band.todayLabel ?? '今日', S, 700, 'sans']];
   for (const r of band.rows) out.push([isSection(r) ? r.section : r.label, S, isSection(r) ? 700 : 400, 'sans']);
+  // every label the axis may draw (the layout picks among them by width): all weeks' dates, or the month ticks
+  const tasks = tasksOf(band);
+  if (tasks.length) {
+    const [from, to] = axisOf(band, tasks.map(spanOf));
+    if (to - from <= SHORT_AXIS) { out.push(['12/31', S, 400, 'sans'], [fmtDay(from), S, 400, 'sans']); for (const d of mondays(from, to)) out.push([fmtDay(d), S, 400, 'sans']); }
+    else for (const t of ticksOf(from, to)) out.push([t.label, S, 400, 'sans']);
+  }
   return out;
 }
 
@@ -47,9 +71,21 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
     if (t.id !== undefined) { if (ids.has(t.id)) throw new Error(`gantt(): duplicate task id "${t.id}"`); ids.set(t.id, t); }
   }
   const spans = new Map<GanttTask, [number, number]>(tasks.map(t => [t, spanOf(t)]));
-  for (const t of tasks) for (const a of [t.after ?? []].flat()) if (!ids.has(a)) throw new Error(`gantt(): "${t.label}" is after unknown task id "${a}"`);
-  const from = band.from !== undefined ? dayOf(band.from, 'from') : Math.min(...[...spans.values()].map(s => s[0]));
-  const to = band.to !== undefined ? dayOf(band.to, 'to') + 1 : Math.max(...[...spans.values()].map(s => s[1]));
+  for (const t of tasks) for (const a of [t.after ?? []].flat()) {
+    if (!ids.has(a)) throw new Error(`gantt(): "${t.label}" is after unknown task id "${a}"`);
+    if (ids.get(a) === t) throw new Error(`gantt(): "${t.label}" is after itself`);
+  }
+  // a task cannot come (transitively) after itself
+  const visiting = new Set<GanttTask>(), done = new Set<GanttTask>();
+  const visit = (t: GanttTask): void => {
+    if (done.has(t)) return;
+    if (visiting.has(t)) throw new Error(`gantt(): "${t.label}" is part of a cycle of after (a task cannot wait for itself)`);
+    visiting.add(t);
+    for (const a of [t.after ?? []].flat()) visit(ids.get(a)!);
+    visiting.delete(t); done.add(t);
+  };
+  tasks.forEach(visit);
+  const [from, to] = axisOf(band, [...spans.values()]);
   if (!(from < to)) throw new Error('gantt(): from must be before to');
   for (const [t, [s, e]] of spans) if (s < from || e > to) throw new Error(`gantt(): "${t.label}" (${t.start}${t.end ? ` - ${t.end}` : ''}) is outside the axis (from / to)`);
   const today = band.today !== undefined ? dayOf(band.today, 'today') : undefined;
@@ -58,7 +94,7 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
   const labelW = Math.max(...band.rows.map(r => Math.ceil(textWidth(widthOf, isSection(r) ? r.section : r.label, S, isSection(r) ? 700 : 400)))) + 2 * PAD;
   const maxLabel = Math.floor(w * LABEL_MAX);
   if (labelW > maxLabel) throw new Error(`gantt(): the longest row label needs ${labelW}px but only ${maxLabel}px of the ${Math.round(w)}px figure is for labels (shorten it)`);
-  const plotL = x + labelW + PAD, plotR = x + w - PAD;
+  const plotL = x + labelW + PAD, plotR = x + w - PAD - 12; // a margin: the diamond of a milestone on the last day sticks out of its day
   if (plotR - plotL < 240) throw new Error('gantt(): the chart area is too narrow (240px at least)');
   const px = (day: number): number => plotL + (day - from) / (to - from) * (plotR - plotL);
   const top = y + HEAD_H, height = HEAD_H + band.rows.length * ROW_H + PAD;
@@ -75,12 +111,12 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
   // ticks: weeks (every n-th Monday) for short axes, else months
   const span = to - from, perDay = (plotR - plotL) / span;
   const tickDays: {day: number; label: string}[] = [];
-  if (span <= 140) {
+  if (span <= SHORT_AXIS) {
     const widest = textWidth(widthOf, '12/31', S, 400) + 12;
     const every = Math.max(1, Math.ceil(widest / (7 * perDay)));
-    let d = from + ((8 - new Date(from * MS_DAY).getUTCDay()) % 7); // the first Monday on or after `from`
-    if (new Date(from * MS_DAY).getUTCDay() === 1) d = from;
-    for (let k = 0; d < to; d += 7 * every, k++) tickDays.push({day: d, label: fmtDay(d)});
+    const days = mondays(from, to);
+    if (!days.length) tickDays.push({day: from, label: fmtDay(from)}); // a short axis with no Monday: at least its first day
+    for (let k = 0; k < days.length; k += every) tickDays.push({day: days[k], label: fmtDay(days[k])});
   } else tickDays.push(...ticksOf(from, to));
   for (const t of tickDays) {
     const tx = px(t.day);
@@ -100,25 +136,29 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
     text(r.label, x + PAD, cy + S / 2 - 1, 'start');
     if (r.milestone) {
       const mx = px(s) + perDay / 2, hh = BAR_H / 2 + 2;
-      out.bars.push({x: mx - hh, y: cy - hh, w: 2 * hh, h: 2 * hh, tone: r.tone ?? 'accent', milestone: true});
+      out.bars.push({x: mx - hh, y: cy - hh, w: 2 * hh, h: 2 * hh, tone: r.tone ?? 'accent', milestone: true, label: r.label});
       if (r.id) out.anchors.push({id: r.id, x: mx - hh, y: cy - hh, w: 2 * hh, h: 2 * hh});
       return;
     }
     const bx = px(s), bw = Math.max(4, px(e) - px(s)), rect = {x: bx, y: cy - BAR_H / 2, w: bw, h: BAR_H};
-    out.bars.push({...rect, tone: r.tone ?? 'accent', ...(r.progress === undefined ? {} : {progress: r.progress})});
+    out.bars.push({...rect, tone: r.tone ?? 'accent', label: r.label, ...(r.progress === undefined ? {} : {progress: r.progress})});
     if (r.id) out.anchors.push({id: r.id, ...rect});
   });
   const rectOf = (t: GanttTask) => out.bars[tasks.indexOf(t)];
   for (const t of tasks) for (const a of [t.after ?? []].flat()) {
     const p = rectOf(ids.get(a)!), q = rectOf(t);
     const x1 = p.x + p.w, y1 = p.y + p.h / 2, x2 = q.x, y2 = q.y + q.h / 2;
-    const mx = x1 + 8;
-    out.deps.push({points: x2 >= mx + ARROW + 6 ? [{x: x1, y: y1}, {x: mx, y: y1}, {x: mx, y: y2}, {x: x2, y: y2}] : [{x: x1, y: y1}, {x: x1 + 8, y: y1}, {x: x1 + 8, y: (y1 + y2) / 2}, {x: x2 - 8, y: (y1 + y2) / 2}, {x: x2 - 8, y: y2}, {x: x2, y: y2}]});
+    // the vertical run goes in the first free column between the tail and the head: not through the bar of a row between them
+    const between = out.bars.filter(b => b !== p && b !== q && b.y + b.h > Math.min(y1, y2) && b.y < Math.max(y1, y2));
+    let mx = x1 + 8;
+    for (let c = x1 + 8; c <= x2 - ARROW - 6; c += 6) if (!between.some(b => c >= b.x - 4 && c <= b.x + b.w + 4)) { mx = c; break; }
+    out.deps.push({from: tasks.indexOf(ids.get(a)!), to: tasks.indexOf(t), points: x2 >= mx + ARROW + 6 ? [{x: x1, y: y1}, {x: mx, y: y1}, {x: mx, y: y2}, {x: x2, y: y2}] : [{x: x1, y: y1}, {x: x1 + 8, y: y1}, {x: x1 + 8, y: (y1 + y2) / 2}, {x: x2 - 8, y: (y1 + y2) / 2}, {x: x2 - 8, y: y2}, {x: x2, y: y2}]});
   }
   if (today !== undefined) {
     const tx = px(today) + perDay / 2;
     out.today = {x: tx, y1: top, y2: out.plot.y2};
-    text(band.todayLabel ?? '今日', tx, y + HEAD_H - 4, 'middle', true, false, 'danger');
+    const tl = band.todayLabel ?? '今日', tw = textWidth(widthOf, tl, S, 700);
+    text(tl, Math.min(Math.max(tx, x + tw / 2), x + w - tw / 2), y + HEAD_H - 4, 'middle', true, false, 'danger');
   }
   return out;
 }

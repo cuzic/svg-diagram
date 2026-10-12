@@ -955,6 +955,10 @@ export function bpmn(lanes: readonly BpmnLane[], nodes: readonly BpmnNode[], flo
   if (!Array.isArray(lanes) || lanes.length === 0) throw new Error('bpmn(lanes, nodes, flows) needs at least one lane');
   if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('bpmn(lanes, nodes, flows) needs at least one node');
   for (const l of lanes) if (l.tone !== undefined) assertBoxTone(l.tone, `bpmn() lane "${l.id}"`);
+  for (const n of nodes) if (n.tone !== undefined) {
+    assertBoxTone(n.tone, `bpmn() node "${n.id}"`);
+    if (!['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(n.tone)) throw new Error(`bpmn(): node "${n.id}" has tone ${String(n.tone)}`);
+  }
   for (const f of flows) if (f.line !== undefined && f.line !== 'solid' && f.line !== 'dashed') throw new Error(`bpmn(): flow ${f.from} -> ${f.to} has line ${String(f.line)}`);
   const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: [...nodes], flows: [...flows], ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));

@@ -1,4 +1,5 @@
 import test from 'node:test';
+import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
 import {bpmn, box, checkDiagram, closeMeasurer, connect, diagram, renderDiagram} from '../lib/dsl.ts';
 import type {LaidOutBpmn} from '../lib/types.ts';
@@ -64,8 +65,8 @@ test('bpmn() SVG: lanes, circles (thick end), diamond with a cross, dashed messa
 test('bpmn() nodes are anchors for connect()', async () => {
   const b = flow();
   assert.equal(b.anchors.chk.id, 'chk');
-  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(b, box({id: 'doc', title: '手順書'}), connect('chk', 'doc', {route: 'elbow'})));
-  assert.deepEqual(verdict.problems.filter(p => !/crosses|connector|runs through/.test(p)), []);
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(b, box({id: 'doc', title: '手順書'}), connect('ship', 'doc', {route: 'elbow'})));
+  assert.deepEqual(verdict.problems, []);
 });
 
 test('bpmn() rejects bad input', async () => {
@@ -79,4 +80,63 @@ test('bpmn() rejects bad input', async () => {
   await assert.rejects(() => bad(L, [{id: 'a', lane: 'x'}], []), /task "a" needs a label/);
   await assert.rejects(() => bad(L, [{id: 'a', lane: 'x', label: 't', kind: 'timer'}], []), /has kind timer/);
   await assert.rejects(() => bad(L, [{id: 'a', lane: 'x', label: 't'}], [{from: 'a', to: 'q'}]), /unknown node "q"/);
+});
+
+const L2 = [{id: 'a', label: '申請者'}, {id: 'b', label: '審査'}];
+
+test('bpmn(): a start event takes no flow in, an end event none out (message events are not drawn)', async () => {
+  const bad = (flows: object[]) => checkDiagram(diagram({theme: 'blue'}).add(bpmn(L2, [{id: 's', lane: 'a', kind: 'start'}, {id: 't', lane: 'b', label: '確認'}, {id: 'e', lane: 'b', kind: 'end'}], flows as never)));
+  await assert.rejects(() => bad([{from: 't', to: 's'}]), /start event takes no flow into it/);
+  await assert.rejects(() => bad([{from: 'e', to: 't'}]), /end event has no flow out/);
+});
+
+test('bpmn(): a long lane name fits its lane (the lane grows), inside the figure', async () => {
+  const name = '株式会社サンプル 東日本営業本部 第二営業部 法人営業課 担当者';
+  const {t, verdict} = await laid(bpmn([{id: 'a', label: name}, {id: 'b', label: '審査'}], [{id: 's', lane: 'a', kind: 'start'}, {id: 'k', lane: 'b', label: '確認'}], [{from: 's', to: 'k'}]));
+  assert.deepEqual(verdict.problems, []);
+  const lines = t.texts.filter(x => x.anchor === 'middle' && x.x < t.x + 140 && x.y < t.lanes[0].y + t.lanes[0].h + 1 && x.bold);
+  assert.ok(lines.length >= 3);
+  for (const l of lines) assert.ok(l.y - l.size >= t.lanes[0].y - 0.5 && l.y <= t.lanes[0].y + t.lanes[0].h + 0.5, `"${l.text}" is inside lane 1`);
+});
+
+test('bpmn(): a gateway label stays clear of the flows, the nodes and the lane names (left column, stacked, long label)', async () => {
+  const cases = [
+    bpmn(L2, [{id: 't', lane: 'a', label: '申請'}, {id: 'g', lane: 'b', kind: 'xor', label: '内容は妥当か?'}, {id: 'e', lane: 'b', kind: 'end'}], [{from: 't', to: 'g'}, {from: 'g', to: 'e', label: 'はい'}]),
+    bpmn([{id: 'b', label: '審査'}], [{id: 'g', lane: 'b', kind: 'xor', label: '条件分岐の判定をする'}, {id: 'e', lane: 'b', kind: 'end'}], [{from: 'g', to: 'e'}]),
+    bpmn([{id: 'a', label: '申請者'}, {id: 'b', label: '審査'}], [{id: 's', lane: 'a', kind: 'start'}, {id: 't1', lane: 'b', label: '確認'}, {id: 'g', lane: 'b', kind: 'and', label: '並行処理'}, {id: 'e', lane: 'b', kind: 'end'}], [{from: 's', to: 't1'}, {from: 's', to: 'g'}, {from: 't1', to: 'e'}, {from: 'g', to: 'e'}]),
+  ];
+  for (const [i, c] of cases.entries()) {
+    const {t, verdict} = await laid(c);
+    assert.deepEqual(verdict.problems, [], `case ${i}`);
+    const gl = t.labelBoxes.filter(b => !t.anchors.some(a => a.x === b.x && a.y === b.y && a.w === b.w) && /妥当|条件分岐|並行/.test(b.label));
+    assert.ok(gl.length, `case ${i} has a gateway label`);
+    for (const b of gl) assert.ok(b.x >= t.x + t.lanes[0].labelW, `case ${i}: "${b.label}" is right of the lane names`);
+  }
+});
+
+test('bpmn(): a detour along the lane edge is checked again (a wide node of another lane in the same column)', async () => {
+  const {verdict} = await laid(bpmn(
+    [{id: 'a', label: 'A'}, {id: 'b', label: 'B'}, {id: 'c', label: 'C'}],
+    [{id: 's', lane: 'a', kind: 'start'}, {id: 'g', lane: 'a', kind: 'and'}, {id: 'p', lane: 'b', label: '幅の広い名前のタスク'}, {id: 'x', lane: 'c', label: '末端'}, {id: 'q', lane: 'b', label: '前段'}],
+    [{from: 's', to: 'g'}, {from: 'g', to: 'q'}, {from: 'q', to: 'p'}, {from: 'g', to: 'x'}],
+  ));
+  assert.deepEqual(verdict.problems, []);
+});
+
+test('bpmn(): a flow from a node to itself keeps its label off the node; chips use the note size on a slide canvas', async () => {
+  const {t, verdict} = await laid(bpmn([{id: 'a', label: '担当'}], [{id: 'k', lane: 'a', label: '作業'}], [{from: 'k', to: 'k', label: '再試行'}]));
+  assert.deepEqual(verdict.problems, []);
+  assert.equal(t.labels.length, 1);
+  const slide = await checkDiagram(diagram({canvas: 'slide', theme: 'blue'}).add(bpmn([{id: 'a', label: '担当'}], [{id: 'x', lane: 'a', label: '作業'}, {id: 'y', lane: 'a', label: '確認'}], [{from: 'x', to: 'y', label: '済み'}])));
+  const sl = slide.laidOut.laidOut.find(b => b.type === 'bpmn') as LaidOutBpmn;
+  assert.equal(sl.labels[0].size, slide.laidOut.roles.note);
+});
+
+test('bpmn(): a node tone is checked like a lane tone; node ids come with the figure (reveal); a node id cannot be spotlighted', async () => {
+  assert.throws(() => bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x', tone: 'foo' as never}], []), /tone/);
+  assert.throws(() => bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x', tone: 'solid' as never}], []), /solid|tone/);
+  const b = bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x'}], [], {reveal: 2});
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(b, box({id: 'ext', title: '外部', reveal: 2}), connect('x', 'ext', {route: 'elbow'})));
+  assert.equal(laidOut.connects[0].reveal, 2);
+  await assert.rejects(() => checkDiagram(diagram({theme: 'blue', spotlight: 'x'}).add(bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x'}], []))), /node inside a figure/);
 });

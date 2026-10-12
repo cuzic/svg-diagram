@@ -1,4 +1,5 @@
 import test from 'node:test';
+import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
 import {box, checkDiagram, classDiagram, closeMeasurer, connect, diagram, renderDiagram} from '../lib/dsl.ts';
 import type {LaidOutClasses} from '../lib/types.ts';
@@ -71,8 +72,8 @@ test('classDiagram() SVG: boxes, dividers, hollow triangle, diamond, dashed depe
 test('classDiagram() classes are anchors for connect()', async () => {
   const c = model();
   assert.equal(c.anchors.Circle.id, 'Circle');
-  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(c, box({id: 'doc', title: '仕様書'}), connect('Style', 'doc', {route: 'elbow'})));
-  assert.deepEqual(verdict.problems.filter(p => !/crosses|connector/.test(p)), []);
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(c, box({id: 'doc', title: '仕様書'}), connect('Circle', 'doc', {route: 'elbow'})));
+  assert.deepEqual(verdict.problems, []);
 });
 
 test('classDiagram() rejects bad input', async () => {
@@ -82,4 +83,49 @@ test('classDiagram() rejects bad input', async () => {
   await assert.rejects(() => bad([{id: 'a'}, {id: 'a'}], []), /duplicate class id "a"/);
   await assert.rejects(() => bad([{id: 'a'}], [{from: 'a', to: 'zz'}]), /unknown class "zz"/);
   await assert.rejects(() => bad([{id: 'a'}, {id: 'b'}], [{from: 'a', to: 'b', kind: 'friend'}]), /has kind friend/);
+});
+
+const sharedRun = (edges: {from: string; to: string; points: {x: number; y: number}[]}[]): string | undefined => {
+  const segs = edges.flatMap((e, k) => e.points.slice(1).map((q, m) => ({k, p: e.points[m], q})));
+  const over = (a1: number, a2: number, b1: number, b2: number): number => Math.min(Math.max(a1, a2), Math.max(b1, b2)) - Math.max(Math.min(a1, a2), Math.min(b1, b2));
+  for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
+    const a = segs[i], b = segs[j];
+    if (a.k === b.k) continue;
+    if (Math.abs(a.p.x - a.q.x) < 0.01 && Math.abs(b.p.x - b.q.x) < 0.01 && Math.abs(a.p.x - b.p.x) < 1 && over(a.p.y, a.q.y, b.p.y, b.q.y) > 1) return `${edges[a.k].from}->${edges[a.k].to} and ${edges[b.k].from}->${edges[b.k].to} share a vertical run at x=${a.p.x}`;
+    if (Math.abs(a.p.y - a.q.y) < 0.01 && Math.abs(b.p.y - b.q.y) < 0.01 && Math.abs(a.p.y - b.p.y) < 1 && over(a.p.x, a.q.x, b.p.x, b.q.x) > 1) return `${edges[a.k].from}->${edges[a.k].to} and ${edges[b.k].from}->${edges[b.k].to} share a horizontal run at y=${a.p.y}`;
+  }
+  return undefined;
+};
+
+test('classDiagram(): five subclasses of one base do not share a line; same-pair compose + depend labels stay off each other\'s lines', async () => {
+  const subs = ['A1', 'A2', 'A3', 'A4', 'A5'];
+  const {t, verdict} = await laid(classDiagram([{id: 'Base'}, ...subs.map(id => ({id}))], subs.map(from => ({from, to: 'Base', kind: 'inherit' as const}))));
+  assert.deepEqual(verdict.problems, []);
+  assert.equal(sharedRun(t.edges), undefined);
+  const two = await laid(classDiagram([{id: 'A'}, {id: 'B'}], [{from: 'A', to: 'B', kind: 'compose', label: 'owns'}, {from: 'A', to: 'B', kind: 'depend', label: 'uses'}]));
+  assert.deepEqual(two.verdict.problems, []);
+  for (const l of two.t.labels) two.t.edges.forEach((e, k) => {
+    if (k === l.edge) return;
+    for (let m = 0; m + 1 < e.points.length; m++) {
+      const p = e.points[m], q = e.points[m + 1];
+      assert.ok(!overlap(l, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}), `${l.text} sits on ${e.from} -> ${e.to}`);
+    }
+  });
+});
+
+test('classDiagram(): a self relation keeps its multiplicities and fits the figure; chips use the figure\'s note size (slide canvas)', async () => {
+  const {t, verdict} = await laid(classDiagram([{id: 'Node', attrs: ['- next: Node']}], [{from: 'Node', to: 'Node', kind: 'aggregate', label: 'next', fromMult: '1', toMult: '0..1'}]));
+  assert.deepEqual(verdict.problems, []);
+  assert.deepEqual(t.labels.map(l => l.text).sort(), ['0..1', '1', 'next']);
+  for (const l of t.labels) assert.ok(l.x + l.w <= t.x + t.w);
+  const slide = await checkDiagram(diagram({canvas: 'slide', theme: 'blue'}).add(classDiagram([{id: 'A'}, {id: 'B'}], [{from: 'A', to: 'B', label: '使う'}])));
+  const sl = slide.laidOut.laidOut.find(b => b.type === 'classes') as LaidOutClasses;
+  assert.equal(sl.labels[0].size, slide.laidOut.roles.note);
+});
+
+test('classDiagram(): nodes appear with the figure (reveal); a class id cannot be spotlighted', async () => {
+  const c = classDiagram([{id: 'A'}, {id: 'B'}], [{from: 'A', to: 'B'}], {reveal: 2});
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(c, box({id: 'ext', title: '外部', reveal: 2}), connect('B', 'ext', {route: 'elbow'})));
+  assert.equal(laidOut.connects[0].reveal, 2);
+  await assert.rejects(() => checkDiagram(diagram({theme: 'blue', spotlight: 'A'}).add(classDiagram([{id: 'A'}], []))), /node inside a figure/);
 });

@@ -4,7 +4,7 @@
 import {textWidth} from './atoms.ts';
 import {layoutLayered} from './graph-layout.ts';
 import type {Pt} from './graph-layout.ts';
-import {routeLayered} from './layered-route.ts';
+import {gapFor, routeLayered} from './layered-route.ts';
 import type {ClassesBand, FontFamily, LaidOutClasses, Roles, WidthOf} from './types.ts';
 
 const PAD_X = 12, PAD_Y = 6, MIN_W = 110, GAP = 36, LEVEL_GAP = 72, LOOP = 26, CHIP_PAD = 5;
@@ -55,11 +55,13 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
   const nodes = band.classes.map(c => ({id: c.id, size: dir === 'down' ? {w: meas.get(c.id)!.h, h: meas.get(c.id)!.w} : {w: meas.get(c.id)!.w, h: meas.get(c.id)!.h}}));
   const edges = band.relations.map(r => flip(r.kind) ? {from: r.to, to: r.from} : {from: r.from, to: r.to});
   const widestLabel = Math.max(0, ...band.relations.map(r => r.label ? labelW(r.label) : 0));
-  const lay = layoutLayered(nodes, edges, {dir: 'right', gap: dir === 'down' ? GAP : GAP, levelGap: dir === 'down' ? LEVEL_GAP + 16 : Math.max(LEVEL_GAP, widestLabel + 40)});
+  const degree = Math.max(1, ...band.classes.map(c => Math.max(band.relations.filter(r => r.from === c.id && r.from !== r.to).length, band.relations.filter(r => r.to === c.id && r.from !== r.to).length)));
+  const lay = layoutLayered(nodes, edges, {dir: 'right', gap: GAP, levelGap: Math.max(dir === 'down' ? LEVEL_GAP + 16 : LEVEL_GAP, gapFor(degree, dir === 'right' ? widestLabel : 0))});
   const swap = (p: Pt): Pt => ({x: p.y, y: p.x});
   const total = {w: dir === 'down' ? lay.h : lay.w, h: dir === 'down' ? lay.w : lay.h};
   const hasLoop = band.relations.some(r => r.from === r.to);
-  const reserve = hasLoop ? LOOP + 4 : 0;
+  const loopLabelW = Math.max(0, ...band.relations.filter(r => r.from === r.to).map(r => r.label ? labelW(r.label) : 0));
+  const reserve = hasLoop ? LOOP + 8 + Math.max(loopLabelW, 40) : 0; // a loop and its label stick out to the right of the rightmost class
   if (total.w + reserve > w + 0.5) throw new Error(`classDiagram(): the figure is ${Math.ceil(total.w + reserve)}px wide but it has ${Math.round(w)}px (use dir: 'right', shorter member lines, or fewer classes on one level)`);
   const dx = x + (w - total.w - reserve) / 2, dy = y;
   const place = (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + dx, y: q.y + dy}; };
@@ -95,13 +97,18 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
     for (let i = 0; i < len.length; i++) { if (d <= len[i] || i === len.length - 1) { const f = len[i] ? d / len[i] : 0; return {x: pts[i].x + (pts[i + 1].x - pts[i].x) * f, y: pts[i].y + (pts[i + 1].y - pts[i].y) * f}; } d -= len[i]; }
     return pts[0];
   };
-  const chip = (text: string, cands: Pt[]): void => {
+  const chip = (own: number, text: string, cands: Pt[]): void => {
     const lw = labelW(text), lh = S + 8;
     const box = (c: Pt) => ({x: c.x - lw / 2, y: c.y - lh / 2, w: lw, h: lh});
-    const free = (b: ReturnType<typeof box>): boolean => !out.labels.some(o => hit(b, o)) && !out.nodes.some(n => hit(b, n));
+    // a chip is white: on another relation it would cut that line, so it keeps off every line but its own
+    const onOther = (b: ReturnType<typeof box>): boolean => out.edges.some((e, k) => k !== own && e.points.slice(1).some((q, m) => {
+      const p = e.points[m];
+      return hit(b, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2});
+    }));
+    const free = (b: ReturnType<typeof box>): boolean => !out.labels.some(o => hit(b, o)) && !out.nodes.some(n => hit(b, n)) && !onOther(b);
     const c = cands.find(p => free(box(p))) ?? cands[0];
     const b = box(c);
-    out.labels.push({text, ...b, tx: c.x, ty: b.y + S + 2});
+    out.labels.push({text, ...b, tx: c.x, ty: b.y + S + 2, size: S, edge: own});
     out.labelBoxes.push({label: text, ...b});
   };
   /** A point `along` px from the end of a polyline (end 0: the start) and `side` px to its left of the direction of travel. */
@@ -110,25 +117,33 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
     const ux = Math.sign(q.x - p.x), uy = Math.sign(q.y - p.y);
     return {x: p.x + ux * along - uy * side, y: p.y + uy * along + ux * side};
   };
+  const pending: (() => void)[] = [];
   lay.edges.forEach((e, i) => {
     const r = band.relations[e.index], kind = r.kind ?? 'assoc';
     const line = kind === 'implement' || kind === 'depend' ? 'dashed' : 'solid';
     if (e.self) {
       const a = rects.get(r.from)!, cy = a.y + a.h / 2, pts = [{x: a.x + a.w, y: cy - 10}, {x: a.x + a.w + LOOP, y: cy - 10}, {x: a.x + a.w + LOOP, y: cy + 10}, {x: a.x + a.w, y: cy + 10}];
       out.edges.push({from: r.from, to: r.to, kind, line, points: pts});
-      if (r.label) chip(r.label, [{x: a.x + a.w + LOOP + 4 + labelW(r.label) / 2, y: cy}]);
+      const own = out.edges.length - 1;
+      if (r.label) pending.push(() => chip(own, r.label!, [{x: a.x + a.w + LOOP + 4 + labelW(r.label!) / 2, y: cy}]));
+      // the multiplicities sit above and below the little loop, at its two ends
+      const lx = a.x + a.w + LOOP / 2 + 6, lh = S + 8;
+      if (r.fromMult) pending.push(() => chip(own, r.fromMult!, [{x: lx, y: cy - 10 - lh / 2 - 3}, {x: lx + 14, y: cy - 10 - lh / 2 - 3}]));
+      if (r.toMult) pending.push(() => chip(own, r.toMult!, [{x: lx, y: cy + 10 + lh / 2 + 3}, {x: lx + 14, y: cy + 10 + lh / 2 + 3}]));
       return;
     }
     const raw = routes.get(i)!;
     const pts = flip(r.kind) ? [...raw].reverse() : raw; // drawn from the child to the parent
     out.edges.push({from: r.from, to: r.to, kind, line, points: pts});
-    if (r.fromMult) chip(r.fromMult, [near(pts, 0, 28, 12), near(pts, 0, 28, -12), near(pts, 0, 40, 12), near(pts, 0, 40, -12)]);
-    if (r.toMult) chip(r.toMult, [near(pts, 1, 22, 12), near(pts, 1, 22, -12), near(pts, 1, 34, 12), near(pts, 1, 34, -12)]);
-    if (r.label) {
-      const lw = labelW(r.label), along = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8].map(t => at(pts, t));
-      // on the line first; else beside it (a vertical run takes the chip to its side, a horizontal one above or below)
-      chip(r.label, [...along, ...along.flatMap(p => [{x: p.x + lw / 2 + 8, y: p.y}, {x: p.x - lw / 2 - 8, y: p.y}, {x: p.x, y: p.y - 22}, {x: p.x, y: p.y + 22}])]);
-    }
+    const own = out.edges.length - 1;
+    if (r.fromMult) pending.push(() => chip(own, r.fromMult!, [near(pts, 0, 28, 12), near(pts, 0, 28, -12), near(pts, 0, 40, 12), near(pts, 0, 40, -12)]));
+    if (r.toMult) pending.push(() => chip(own, r.toMult!, [near(pts, 1, 22, 12), near(pts, 1, 22, -12), near(pts, 1, 34, 12), near(pts, 1, 34, -12)]));
+    if (r.label) pending.push(() => {
+      const lw = labelW(r.label!), along = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8].map(t => at(pts, t));
+      // on the line first; else beside it (a vertical run takes the chip to its side, a horizontal one above or below), nearest first
+      chip(own, r.label!, [...along, ...[[lw / 2 + 8, 0], [-(lw / 2 + 8), 0], [0, -22], [0, 22], [lw / 2 + 8, 22], [-(lw / 2 + 8), 22], [lw / 2 + 8, -22], [-(lw / 2 + 8), -22], [0, 44], [0, -44]].flatMap(([ox, oy]) => along.map(p => ({x: p.x + ox, y: p.y + oy})))]);
+    });
   });
+  for (const p of pending) p(); // every relation is routed first: a chip must know where the other lines run
   return out;
 }

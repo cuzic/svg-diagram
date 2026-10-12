@@ -1,4 +1,5 @@
 import test from 'node:test';
+import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
 import {box, checkDiagram, closeMeasurer, connect, diagram, renderDiagram, stateDiagram} from '../lib/dsl.ts';
 import type {LaidOutStates} from '../lib/types.ts';
@@ -84,4 +85,73 @@ test('stateDiagram() without labels or initial still lays out, and two opposite 
   assert.notEqual(e1.points[0].y, e2.points[e2.points.length - 1].y, 'a -> b leaves a at a different height than b -> a arrives');
   assert.notDeepEqual(e1.points, [...e2.points].reverse());
   assert.equal(t.labels.length, 0);
+});
+
+// ---- review fixes ----
+const rectHit = (a: {x: number; y: number; w: number; h: number}, b: {x: number; y: number; w: number; h: number}): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+test('stateDiagram(): a label chip is drawn in the figure\'s own note size (slide canvas), and counts for the smallest text', async () => {
+  const {laidOut} = await checkDiagram(diagram({canvas: 'slide', theme: 'blue'}).add(stateDiagram([S('a'), S('b')], [{from: 'a', to: 'b', label: '開始する'}])));
+  const t = laidOut.laidOut.find(b => b.type === 'states') as LaidOutStates;
+  const note = laidOut.roles.note;
+  assert.ok(note > 14);
+  assert.equal(t.labels[0].size, note);
+  assert.equal(t.labels[0].h, note + 8);
+  const {svg} = await renderDiagram(diagram({canvas: 'slide', theme: 'blue'}).add(stateDiagram([S('a'), S('b')], [{from: 'a', to: 'b', label: '開始する'}])), {name: 's.svg', budget: 'cacheOnly'});
+  assert.match(svg, new RegExp(`font-size="${note}"[^>]*>開始する<`));
+});
+
+test('stateDiagram(): five arrows out of one state: no chip sits on another arrow, each chip is on its own', async () => {
+  const names = ['b', 'c', 'd', 'e', 'f'];
+  const {t, verdict} = await laid(stateDiagram([S('a'), ...names.map(n => S(n))], names.map(n => ({from: 'a', to: n, label: `ev${n}`}))));
+  assert.deepEqual(verdict.problems, []);
+  for (const l of t.labels) t.edges.forEach((e, k) => {
+    if (k === l.edge) return;
+    for (let m = 0; m + 1 < e.points.length; m++) {
+      const p = e.points[m], q = e.points[m + 1];
+      assert.ok(!rectHit(l, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}), `${l.text} sits on arrow ${e.from} -> ${e.to}`);
+    }
+  });
+});
+
+test('stateDiagram() dir down: a loop on the rightmost state, with a long label, fits the figure', async () => {
+  const {t, verdict} = await laid(stateDiagram([S('a'), S('b'), S('c'), S('d')], [{from: 'a', to: 'b'}, {from: 'a', to: 'c'}, {from: 'a', to: 'd'}, {from: 'd', to: 'd', label: 'リトライする'}], {dir: 'down'}));
+  assert.deepEqual(verdict.problems, []);
+  assert.ok(t.labels[0].x + t.labels[0].w <= t.x + t.w);
+});
+
+test('stateDiagram() dir right: a loop does not touch the state above it', async () => {
+  const {t} = await laid(stateDiagram([S('a'), S('b'), S('c'), S('c2')], [{from: 'a', to: 'b'}, {from: 'a', to: 'c'}, {from: 'a', to: 'c2'}, {from: 'c', to: 'c', label: 'x'}]));
+  const loop = t.edges.find(e => e.from === 'c' && e.to === 'c')!;
+  const top = Math.min(...loop.points.map(p => p.y));
+  for (const n of t.anchors) if (n.id !== 'c') assert.ok(!(n.y + n.h > top - 6 && n.y + n.h <= t.anchors.find(a => a.id === 'c')!.y), `${n.id} sits right above the loop of c`);
+});
+
+test('stateDiagram(): nodes appear with the figure (reveal) and a node id cannot be spotlighted', async () => {
+  const sd = stateDiagram([S('a'), S('b')], [{from: 'a', to: 'b'}], {reveal: 2});
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(sd, box({id: 'ext', title: '外部', reveal: 2}), connect('a', 'ext', {route: 'elbow'})));
+  assert.equal(laidOut.connects[0].reveal, 2);
+  await assert.rejects(() => checkDiagram(diagram({theme: 'blue', spotlight: 'a'}).add(stateDiagram([S('a'), S('b')], []))), /node inside a figure/);
+});
+
+const sharedRun = (edges: {from: string; to: string; points: {x: number; y: number}[]}[]): string | undefined => {
+  const segs = edges.flatMap((e, k) => e.points.slice(1).map((q, m) => ({k, p: e.points[m], q})));
+  for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
+    const a = segs[i], b = segs[j];
+    if (a.k === b.k) continue;
+    const vert = (s: typeof a): boolean => Math.abs(s.p.x - s.q.x) < 0.01, horiz = (s: typeof a): boolean => Math.abs(s.p.y - s.q.y) < 0.01;
+    const over = (a1: number, a2: number, b1: number, b2: number): number => Math.min(Math.max(a1, a2), Math.max(b1, b2)) - Math.max(Math.min(a1, a2), Math.min(b1, b2));
+    if (vert(a) && vert(b) && Math.abs(a.p.x - b.p.x) < 1 && over(a.p.y, a.q.y, b.p.y, b.q.y) > 1) return `arrows ${edges[a.k].from}->${edges[a.k].to} and ${edges[b.k].from}->${edges[b.k].to} share a vertical run at x=${a.p.x}`;
+    if (horiz(a) && horiz(b) && Math.abs(a.p.y - b.p.y) < 1 && over(a.p.x, a.q.x, b.p.x, b.q.x) > 1) return `arrows ${edges[a.k].from}->${edges[a.k].to} and ${edges[b.k].from}->${edges[b.k].to} share a horizontal run at y=${a.p.y}`;
+  }
+  return undefined;
+};
+
+test('stateDiagram(): five arrows out of one state each have their own vertical run (no shared line), in both directions', async () => {
+  for (const dir of ['right', 'down'] as const) {
+    const names = ['b', 'c', 'd', 'e', 'f'];
+    const {t, verdict} = await laid(stateDiagram([S('a'), ...names.map(n => S(n))], names.map(n => ({from: 'a', to: n, label: `ev${n}`})), {dir}));
+    assert.deepEqual(verdict.problems, [], dir);
+    assert.equal(sharedRun(t.edges), undefined, dir);
+  }
 });

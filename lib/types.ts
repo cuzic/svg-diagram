@@ -2159,7 +2159,7 @@ export interface LaidOutTree extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone})[];
+  nodes: (Rect & {tone: BoxTone; id?: string})[];
   /** Parent to child, each a polyline (centre line of the box edge to the child's box edge). */
   edges: {points: {x: number; y: number}[]}[];
   texts: TreeNodeText[];
@@ -2178,8 +2178,8 @@ export interface LaidOutStates extends Rect, Dimmed {
   /** Orthogonal polylines from the tail state's box edge to the head's; the arrowhead is at the last point. */
   edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'}[];
   texts: TreeNodeText[];
-  /** Transition labels: a white chip (x, y, w, h) with its text baseline at (tx, ty). */
-  labels: (Rect & {text: string; tx: number; ty: number})[];
+  /** Transition labels: a white chip (x, y, w, h) with its text baseline at (tx, ty), in `size` px. */
+  labels: (Rect & {text: string; tx: number; ty: number; size: number; /** index of its arrow in `edges` */ edge: number})[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];
 }
@@ -2195,8 +2195,9 @@ export interface LaidOutGantt extends Rect, Dimmed {
   /** Section heading rows (a pale band across the figure). */
   sections: Rect[];
   /** One per task, in order (a milestone is a diamond; `progress` is the done part of a bar). */
-  bars: (Rect & {tone: 'accent' | 'danger' | 'muted'; progress?: number; milestone?: boolean})[];
-  deps: {points: {x: number; y: number}[]}[];
+  bars: (Rect & {label: string; tone: 'accent' | 'danger' | 'muted'; progress?: number; milestone?: boolean})[];
+  /** `from` / `to`: indexes into `bars` (the task it comes after, and the task). */
+  deps: {from: number; to: number; points: {x: number; y: number}[]}[];
   today?: {x: number; y1: number; y2: number};
   texts: GanttText[];
   anchors: Anchor[];
@@ -2213,8 +2214,8 @@ export interface LaidOutClasses extends Rect, Dimmed {
   /** Orthogonal polylines from `from`'s box to `to`'s (the end marks come from `kind`: at the end for inherit / implement / arrow / depend, at the start for compose / aggregate). */
   edges: {from: string; to: string; kind: RelationKind; line: 'solid' | 'dashed'; points: {x: number; y: number}[]}[];
   texts: GanttText[];
-  /** Relation labels and multiplicities: a white chip with its text baseline at (tx, ty). */
-  labels: (Rect & {text: string; tx: number; ty: number})[];
+  /** Relation labels and multiplicities: a white chip with its text baseline at (tx, ty), in `size` px; `edge` is the index of its relation in `edges`. */
+  labels: (Rect & {text: string; tx: number; ty: number; size: number; edge: number})[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];
 }
@@ -2229,7 +2230,8 @@ export interface LaidOutBpmn extends Rect, Dimmed {
   nodes: (Rect & {kind: BpmnNodeKind; tone: BoxTone})[];
   edges: {from: string; to: string; line: 'solid' | 'dashed'; points: {x: number; y: number}[]}[];
   texts: GanttText[];
-  labels: (Rect & {text: string; tx: number; ty: number})[];
+  /** Flow conditions: a white chip with its text baseline at (tx, ty), in `size` px; `edge` is the index of its flow in `edges`. */
+  labels: (Rect & {text: string; tx: number; ty: number; size: number; edge: number})[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];
 }

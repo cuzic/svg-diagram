@@ -4,6 +4,9 @@
 import type {LayeredLayout, Pt} from './graph-layout.ts';
 
 export const STUB = 18;
+export const LANE = 14;
+/** The gap two layers need so that `n` direct arrows through it each get a lane (and a label chip beside them has room). */
+export const gapFor = (n: number, chip = 0): number => Math.max(2 * STUB + LANE * Math.max(0, n - 1) + 16, chip + STUB + 26);
 const same = (a: Pt, b: Pt): boolean => Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y - b.y) < 0.01;
 
 /** Drops repeated points and the middle point of three on a line, so a polyline has only its corners. */
@@ -51,7 +54,10 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     const A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!, ca = {x: A.x + A.w / 2, y: A.y + A.h / 2}, cb = {x: B.x + B.w / 2, y: B.y + B.h / 2};
     const first = e.points[1] ?? cb, last = e.points[e.points.length - 2] ?? ca;
     ends.push({key: `${e.from}:${first.x >= ca.x ? 'r' : 'l'}`, edge: i, end: 0, other: first.y}, {key: `${e.to}:${last.x <= cb.x ? 'l' : 'r'}`, edge: i, end: 1, other: last.y});
-    if (e.points.length === 2) { const k = `${Math.round(Math.min(ca.x, cb.x))}:${Math.round(Math.max(ca.x, cb.x))}`; corridors.set(k, [...(corridors.get(k) ?? []), i]); }
+    if (e.points.length === 2) { // direct arrows through one gap between two layers, in groups that go down / go up
+      const k = `${Math.round(Math.min(ca.x, cb.x))}:${Math.round(Math.max(ca.x, cb.x))}:${cb.y >= ca.y ? 'd' : 'u'}`;
+      corridors.set(k, [...(corridors.get(k) ?? []), i]);
+    }
   });
   const byKey = new Map<string, typeof ends>();
   for (const en of ends) byKey.set(en.key, [...(byKey.get(en.key) ?? []), en]);
@@ -63,7 +69,9 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
       portOf.set(`${en.edge}:${en.end}`, (k - (list.length - 1) / 2) * step);
     });
   }
-  for (const list of corridors.values()) list.forEach((i, k) => laneOf.set(i, k * 14));
+  // the arrow that goes farthest turns first (the lane nearest its tail), so no vertical run crosses another arrow's last run
+  const dy = (i: number): number => { const e = lay.edges[i], A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!; return Math.abs((B.y + B.h / 2) - (A.y + A.h / 2)); };
+  for (const list of corridors.values()) [...list].sort((p, q) => dy(q) - dy(p) || p - q).forEach((i, k) => laneOf.set(i, k * LANE));
   const out = new Map<number, Pt[]>();
   lay.edges.forEach((e, i) => {
     if (e.self) return;

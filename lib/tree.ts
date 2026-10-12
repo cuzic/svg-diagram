@@ -80,7 +80,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   for (const n of items) {
     const p = tree.nodes.get(key.get(n)!)!, l = lines.get(n)!;
     const r = {x: p.x + dx, y: p.y + dy, w: p.w, h: p.h};
-    out.nodes.push({...r, tone: n.tone ?? 'plain'});
+    out.nodes.push({...r, tone: n.tone ?? 'plain', ...(n.id ? {id: n.id} : {})});
     if (n.id) out.anchors.push({id: n.id, ...r});
     out.texts.push(...nodeRuns(r, l, roles));
     out.labelBoxes.push({label: n.label, ...r});

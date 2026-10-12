@@ -1,4 +1,5 @@
 import test from 'node:test';
+import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
 import {box, checkDiagram, closeMeasurer, connect, diagram, renderDiagram, tree} from '../lib/dsl.ts';
 import type {LaidOutTree} from '../lib/types.ts';
@@ -42,7 +43,7 @@ test('tree() draws the nodes, the lines and the texts into the SVG', async () =>
   assert.match(svg, /font-weight="700"[^>]*>A部</);
 });
 
-test('tree() dir right makes a figure that is taller than wide for a deep chain', async () => {
+test('tree() dir right makes a deep chain shorter than dir down does', async () => {
   const chain = {label: 'a', children: [{label: 'b', children: [{label: 'c', children: [{label: 'd'}]}]}]};
   const down = (await laid(tree(chain))).t, right = (await laid(tree(chain, {dir: 'right'}))).t;
   assert.ok(right.h < down.h);
@@ -64,9 +65,29 @@ test('tree() rejects bad input', async () => {
   await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(tree({label: 'r', id: 'dup'}), box({id: 'dup', title: 'x'}))), /duplicate anchor id "dup"/);
 });
 
-test('tree() with reveal appears at its step', () => {
-  const t = tree({label: 'r'}, {reveal: 2});
-  assert.equal(t.reveal, 2);
+test('tree() with reveal: a connector to one of its nodes appears with the figure, not before', async () => {
+  const t = tree({label: 'r', children: [{label: 'x', id: 'x'}]}, {reveal: 2});
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(t, box({id: 'ext', title: '外部', reveal: 2}), connect('x', 'ext', {route: 'elbow'})));
+  assert.equal((laidOut.laidOut.find(b => b.type === 'tree') as LaidOutTree).reveal, 2);
+  assert.equal(laidOut.connects[0].reveal, 2);
+});
+
+test('tree(): spotlight on a node id says to spotlight the figure; on the figure id it works', async () => {
+  const t = (id?: string) => tree({label: 'r', children: [{label: 'x', id: 'x'}]}, id ? {id} : {});
+  await assert.rejects(() => checkDiagram(diagram({theme: 'blue', spotlight: 'x'}).add(t())), /"x" is a node inside a figure/);
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue', spotlight: 'fig'}).add(t('fig'), box({id: 'other', title: 'ほか'})));
+  assert.equal((laidOut.laidOut.find(b => b.type === 'tree') as LaidOutTree).dim, false);
+});
+
+test('tree(): a connector from outside that would cross a node is reported', async () => {
+  const t = tree({label: 'r', children: [{label: 'A部', id: 'a'}, {label: 'B部', id: 'b'}, {label: 'C部', id: 'c'}]});
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(t, connect('a', 'c', {route: 'straight'})));
+  assert.ok(verdict.problems.some(p => /B部|b\b|"b"/.test(p)), `a problem names the node in the way: ${JSON.stringify(verdict.problems)}`);
+});
+
+test('tree(): the muted sub line stays readable (4.5:1) on an accent node', async () => {
+  const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(tree({label: '本部', sub: '本部長', tone: 'accent'})), {name: 't.svg', budget: 'cacheOnly'});
+  assert.match(svg, /fill="#22201b"[^>]*>本部長</);
 });
 
 // ---- mindmap() ----

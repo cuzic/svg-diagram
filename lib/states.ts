@@ -2,7 +2,7 @@
 // node; a transition is an orthogonal arrow routed through the layers it skips; a label sits on the arrow in a white chip.
 import {textWidth} from './atoms.ts';
 import {layoutLayered} from './graph-layout.ts';
-import {routeLayered, STUB} from './layered-route.ts';
+import {gapFor, routeLayered, STUB} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
@@ -48,12 +48,15 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   const nodes = band.states.map(s => ({id: s.id, size: {w: lines.get(s.id)!.w, h: lines.get(s.id)!.h}}));
   const edges = band.transitions.map(t => ({from: t.from, to: t.to}));
   const loops = band.transitions.filter(t => t.from === t.to);
+  // the most arrows that meet one state (each needs its own lane in the gap beside it)
+  const degree = Math.max(1, ...band.states.map(s => Math.max(band.transitions.filter(t => t.from === s.id && t.from !== t.to).length, band.transitions.filter(t => t.to === s.id && t.from !== t.to).length)));
   if (band.initial) { nodes.unshift({id: INIT, size: {w: 2 * DOT, h: 2 * DOT}}); edges.push({from: INIT, to: band.initial}); }
   const swapSize = (s: {w: number; h: number}): {w: number; h: number} => ({w: s.h, h: s.w});
   // layered layout runs on a 'right' axis; a 'down' diagram is the same layout transposed
   const lay = layoutLayered(dir === 'down' ? nodes.map(n => ({id: n.id, size: swapSize(n.size)})) : nodes, edges, {
-    dir: 'right', gap: dir === 'down' && loops.length ? GAP + LOOP + Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : GAP,
-    levelGap: dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, ...(band.initial ? {start: [INIT]} : {}),
+    // a loop needs room beside its state (down) or between rows (right), so states do not crowd it
+    dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : GAP,
+    levelGap: Math.max(dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, gapFor(degree)), ...(band.initial ? {start: [INIT]} : {}),
   });
   const at = (id: string) => { const p = lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
 
@@ -61,8 +64,10 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   const loopLabelH = loops.some(t => t.label) ? S + 10 : 0;
   const top = loops.length && dir === 'right' ? LOOP + loopLabelH + 6 : 0;
   const total = {w: dir === 'down' ? lay.h : lay.w, h: dir === 'down' ? lay.w : lay.h};
-  if (total.w > w + 0.5) throw new Error(`stateDiagram(): the figure is ${Math.ceil(total.w)}px wide but it has ${Math.round(w)}px (use dir: 'right', a smaller maxNodeW, or fewer states on one level)`);
-  const dx = x + (w - total.w) / 2, dy = y + top;
+  // dir down: the loop and its label stick out to the right of the rightmost state
+  const reserve = dir === 'down' && loops.length ? LOOP + 4 + Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0;
+  if (total.w + reserve > w + 0.5) throw new Error(`stateDiagram(): the figure is ${Math.ceil(total.w + reserve)}px wide but it has ${Math.round(w)}px (use dir: 'right', a smaller maxNodeW, or fewer states on one level)`);
+  const dx = x + (w - total.w - reserve) / 2, dy = y + top;
   const out: LaidOutStates = {
     type: 'states', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + top,
     nodes: [], edges: [], texts: [], labels: [], anchors: [], labelBoxes: [],
@@ -89,11 +94,16 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   };
   const hit = (a: {x: number; y: number; w: number; h: number}, b: {x: number; y: number; w: number; h: number}): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   // a label sits on its arrow, in a chip: the middle of the arrow if free, else the nearest spot along it that clears the states and the other chips
-  const addLabel = (text: string, at: (t: number) => Pt, on: Pt[] = []): void => {
+  const addLabel = (own: number, text: string, at: (t: number) => Pt, on: Pt[] = []): void => {
     const lw = labelW(text), lh = S + 8;
     const boxAt = (c: Pt) => ({x: c.x - lw / 2, y: c.y - lh / 2, w: lw, h: lh});
     const tip = on.length ? {x: on[on.length - 1].x - ARROW, y: on[on.length - 1].y - ARROW, w: 2 * ARROW, h: 2 * ARROW} : null; // the arrowhead
-    const free = (b: ReturnType<typeof boxAt>): boolean => !out.labels.some(o => hit(b, o)) && !out.nodes.some(n => hit(b, n)) && !(tip && hit(b, tip));
+    // a chip is white: on another arrow it would cut that arrow, so it keeps off every arrow but its own
+    const onOther = (b: ReturnType<typeof boxAt>): boolean => out.edges.some((e, k) => k !== own && e.points.slice(1).some((q, m) => {
+      const p = e.points[m];
+      return hit(b, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2});
+    }));
+    const free = (b: ReturnType<typeof boxAt>): boolean => !out.labels.some(o => hit(b, o)) && !out.nodes.some(n => hit(b, n)) && !(tip && hit(b, tip)) && !onOther(b);
     // first choice: beside the arrow's straight runs, last run first (above a horizontal one, to the right of a vertical one)
     const runs: Pt[] = [];
     for (let k = on.length - 2; k >= 0; k--) {
@@ -106,14 +116,18 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
         if (len >= lh + 4) runs.push({x: p.x + 6 + lw / 2, y: p.y + Math.sign(q.y - p.y) * (len / 2)}, {x: p.x - 6 - lw / 2, y: p.y + Math.sign(q.y - p.y) * (len / 2)});
       }
     }
-    const along = [...runs, ...[0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9, 0.05, 0.95].map(at)];
-    // then a spot beside the arrow (up or down by whole chip heights), still next to it
-    const beside = [1, -1, 2, -2, 3, -3].flatMap(k => [0.5, 0.4, 0.6].map(at).flatMap(p => [{x: p.x, y: p.y + k * (lh + 2)}, {x: p.x + k * (lw / 2 + 8), y: p.y}]));
-    const c = [...along, ...beside].find(p => free(boxAt(p))) ?? at(0.5);
+    // candidates, nearest to the arrow first: its straight runs, then points along it, then spots beside those (right / left / above / below)
+    const offs: [number, number][] = [[0, 0], [lw / 2 + 8, 0], [-(lw / 2 + 8), 0], [0, lh + 2], [0, -(lh + 2)], [lw / 2 + 8, lh + 2], [-(lw / 2 + 8), lh + 2], [lw / 2 + 8, -(lh + 2)], [-(lw / 2 + 8), -(lh + 2)], [0, 2 * (lh + 2)], [0, -2 * (lh + 2)], [lw + 12, 0], [-(lw + 12), 0]];
+    const cands: {p: Pt; cost: number}[] = runs.map(p => ({p, cost: -1}));
+    for (let f = 0.05; f < 0.96; f += 0.05) for (const [ox, oy] of offs) { const q = at(f); cands.push({p: {x: q.x + ox, y: q.y + oy}, cost: Math.hypot(ox, oy) + Math.abs(f - 0.5) * 30}); }
+    cands.sort((u, v) => u.cost - v.cost);
+    const c = (cands.find(k => free(boxAt(k.p))) ?? cands[0]).p;
     const b = boxAt(c);
-    out.labels.push({text, ...b, tx: c.x, ty: b.y + S + 2});
+    out.labels.push({text, ...b, tx: c.x, ty: b.y + S + 2, size: S, edge: own});
     out.labelBoxes.push({label: text, ...b});
   };
+  // every arrow is routed first, then the labels are placed (a chip must know where the other arrows run)
+  const pending: {edge: number; text: string; at: (t: number) => Pt; on?: Pt[]}[] = [];
   for (const [i, e] of lay.edges.entries()) {
     const t = e.from === INIT ? undefined : pickTransition(e.from, e.to);
     if (e.self) {
@@ -121,17 +135,18 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
       if (dir === 'down') {
         const pts = [{x: a.x + a.w, y: cy - LOOP_W}, {x: a.x + a.w + LOOP, y: cy - LOOP_W}, {x: a.x + a.w + LOOP, y: cy + LOOP_W}, {x: a.x + a.w, y: cy + LOOP_W}];
         out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid'});
-        if (t?.label) { const lw = labelW(t.label); addLabel(t.label, () => ({x: a.x + a.w + LOOP + 4 + lw / 2, y: cy})); }
+        if (t?.label) { const lw = labelW(t.label); pending.push({edge: out.edges.length - 1, text: t.label, at: () => ({x: a.x + a.w + LOOP + 4 + lw / 2, y: cy})}); }
         continue;
       }
       const pts = [{x: cx + LOOP_W, y: a.y}, {x: cx + LOOP_W, y: a.y - LOOP}, {x: cx - LOOP_W, y: a.y - LOOP}, {x: cx - LOOP_W, y: a.y}];
       out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid'});
-      if (t?.label) addLabel(t.label, () => ({x: cx, y: a.y - LOOP - (S + 8) / 2 - 2}));
+      if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: () => ({x: cx, y: a.y - LOOP - (S + 8) / 2 - 2})});
       continue;
     }
     const pts = routes.get(i)!;
     out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid'});
-    if (t?.label) addLabel(t.label, f => pointAt(pts, f), pts);
+    if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: f => pointAt(pts, f), on: pts});
   }
+  for (const p of pending) addLabel(p.edge, p.text, p.at, p.on);
   return out;
 }
