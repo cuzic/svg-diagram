@@ -155,3 +155,9 @@ test('stateDiagram(): five arrows out of one state each have their own vertical 
     assert.equal(sharedRun(t.edges), undefined, dir);
   }
 });
+
+test('stateDiagram(): a connector that ends on the whole figure (its id) is not stopped by its states', async () => {
+  const sd = stateDiagram([S('a'), S('b'), S('c')], [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}], {id: 'SD'});
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(sd, box({id: 'ext', title: '外部'}), connect('SD', 'ext', {route: 'elbow'})));
+  assert.deepEqual(verdict.problems, []);
+});

@@ -93,15 +93,24 @@ test('gantt(): today on the last day keeps its label inside; a short axis with n
   assert.ok(short.texts.some(x => /^\d+\/\d+$/.test(x.text)), 'a date on the axis');
 });
 
-test('gantt(): a dependency arrow keeps out of the bars of the rows between; when it cannot, verify says which bar', async () => {
-  const ok = await laid(gantt([
-    {id: 'a', label: 'A', start: '2026-10-05', end: '2026-10-09'}, {label: 'X', start: '2026-10-12', end: '2026-10-30'}, {label: 'B', start: '2026-10-12', end: '2026-10-16', after: 'a'},
-  ]));
-  assert.deepEqual(ok.verdict.problems, []);
-  const bad = await laid(gantt([
-    {id: 'a', label: 'A', start: '2026-10-05', end: '2026-10-09'}, {label: 'X', start: '2026-10-05', end: '2026-10-30'}, {label: 'B', start: '2026-10-12', end: '2026-10-16', after: 'a'},
-  ]));
-  assert.ok(bad.verdict.problems.some(p => /"A" -> "B" runs through the bar "X"/.test(p)), JSON.stringify(bad.verdict.problems));
+test('gantt(): a dependency arrow keeps out of the bars of the rows between: straight on, or along the line between rows', async () => {
+  const cases: [string, object[], object?][] = [
+    ['forward, a free column', [{id: 'a', label: 'A', start: '2026-10-05', end: '2026-10-09'}, {label: 'X', start: '2026-10-12', end: '2026-10-30'}, {label: 'B', start: '2026-10-12', end: '2026-10-16', after: 'a'}]],
+    ['forward, no free column before the head (the line between rows, a free column outside the bar)', [{id: 'a', label: 'A', start: '2026-10-05', end: '2026-10-09'}, {label: 'X', start: '2026-10-05', end: '2026-10-30'}, {label: 'B', start: '2026-10-12', end: '2026-10-16', after: 'a'}], {from: '2026-10-01', to: '2026-11-10'}],
+    ['backward (the head starts before the tail ends)', [{id: 'a', label: 'A', start: '2026-10-01', end: '2026-10-20'}, {label: 'X', start: '2026-10-05', end: '2026-10-30'}, {label: 'B', start: '2026-10-05', days: 3, after: 'a'}], {from: '2026-10-01', to: '2026-11-10'}],
+    ['upward (a task listed first comes after a later one)', [{label: 'B', start: '2026-10-12', end: '2026-10-16', after: 'a'}, {label: 'X', start: '2026-10-05', end: '2026-10-30'}, {id: 'a', label: 'A', start: '2026-10-05', end: '2026-10-09'}], {from: '2026-10-01', to: '2026-11-10'}],
+  ];
+  for (const [name, rows, opts] of cases) {
+    const {t, verdict} = await laid(gantt(rows as never, opts as never));
+    assert.deepEqual(verdict.problems, [], name);
+    assert.equal(t.deps.length, 1, name);
+  }
+  // only when the rows between fill the whole axis is there nowhere to go: verify says which bar
+  const full = await laid(gantt([
+    {id: 'a', label: 'A', start: '2026-10-05', end: '2026-10-09'}, {label: 'X', start: '2026-10-05', end: '2026-10-30'}, {label: 'Y', start: '2026-10-05', end: '2026-10-30'},
+    {label: 'B', start: '2026-10-12', end: '2026-10-16', after: 'a'},
+  ], {from: '2026-10-05', to: '2026-10-30'}));
+  assert.ok(full.verdict.problems.some(p => /"A" -> "B" runs through the bar "[XY]"/.test(p)), JSON.stringify(full.verdict.problems));
 });
 
 test('gantt() rejects loose dates, milestone with a length, and an after that loops', async () => {
@@ -117,4 +126,10 @@ test('gantt(): task ids come with the figure (reveal); a task id cannot be spotl
   const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(g, box({id: 'ext', title: '外部', reveal: 2}), connect('a', 'ext', {route: 'elbow'})));
   assert.equal(laidOut.connects[0].reveal, 2);
   await assert.rejects(() => checkDiagram(diagram({theme: 'blue', spotlight: 'a'}).add(gantt([{id: 'a', label: 'A', start: '2026-10-05', days: 3}]))), /node inside a figure/);
+});
+
+test('gantt(): a connector that ends on the whole figure (its id) is not stopped by its tasks', async () => {
+  const g = gantt([{id: 'a', label: 'A', start: '2026-10-05', days: 5}, {id: 'b', label: 'B', start: '2026-10-05', days: 5}], {id: 'G'});
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(g, box({id: 'ext', title: '外部'}), connect('G', 'ext', {route: 'elbow'})));
+  assert.deepEqual(verdict.problems, []);
 });
