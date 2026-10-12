@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {banner, box, caption, checkDiagram, closeMeasurer, diagram, renderDiagram, row, stat, table} from '../lib/dsl.ts';
+import {bars, banner, box, caption, checkDiagram, closeMeasurer, diagram, renderDiagram, row, stat, table} from '../lib/dsl.ts';
 import {LIGHT_COLORS, DARK_PALETTE, PALETTE, TONES, darkOf, recolor, wcagRatio} from '../lib/tokens.ts';
 import {geometryChecks} from '../lib/svg-lint.ts';
 
@@ -107,7 +107,7 @@ const DECK = {bg: '#0b1220', text: '#ffffff', muted: '#94a3b8', accent: '#60a5fa
 test('appearance: {dark: {...}} replaces the named tokens; the rest stay the built-in dark set', async () => {
   const {svg} = await renderDiagram(make({appearance: {dark: DECK}, transparent: true}), {name: 'd.svg', budget: 'cacheOnly'});
   assert.match(svg, /data-assumed-bg="#0b1220"/);
-  assert.match(svg, /data-palette="[^"]*#0b1220/);
+  assert.match(svg, /data-palette="#0b1220 #ffffff #94a3b8 #60a5fa #1e3a8a"/);
   assert.ok(svg.includes('#60a5fa') && svg.includes('#ffffff') && svg.includes('#94a3b8'));
   assert.ok(!svg.includes(DARK_PALETTE.text) && !svg.includes(PALETTE.text));
   assert.ok(svg.includes(DARK_PALETTE.danger), 'danger was not replaced');
@@ -130,4 +130,32 @@ test('a custom dark set that would be unreadable is reported by the contrast rul
 test('a bad custom token is refused', () => {
   assert.throws(() => diagram({theme: 'teal', appearance: {dark: {bg: 'navy'}}}), /#rrggbb/);
   assert.throws(() => diagram({theme: 'teal', appearance: {dark: {nope: '#000000'} as never}}), /keys are/);
+});
+
+test('default dark danger is a saturated red that still reads as text on the page and on the code fill', () => {
+  assert.ok(wcagRatio(DARK_PALETTE.danger, DARK_PALETTE.bg) >= 4.5);
+  assert.ok(wcagRatio(DARK_PALETTE.danger, DARK_PALETTE.code) >= 4.5);
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(DARK_PALETTE.danger.slice(i, i + 2), 16));
+  assert.ok(Math.max(r, g, b) - Math.min(r, g, b) >= 150, 'not a pastel pink');
+});
+
+const WALL = {bg: '#0b1220', text: '#ffffff', muted: '#94a3b8', accent: '#60a5fa', soft: '#1e3a8a'};
+const wall = (danger: string) => diagram({theme: 'blue', title: 'wall', transparent: true, appearance: {dark: {...WALL, danger}}}).add(
+  caption('必要な電力と、使える電力', {bold: true, tone: 'text'}),
+  bars([{label: '使える', value: 40, series: 'a'}, {label: '必要', value: 100, tone: 'danger'}], {max: 100, unit: '%'}),
+);
+
+test('a deep red (#dc2626) on the deck palette: bars are drawn in it, and the checks pass while it is only a bar fill', async () => {
+  const {svg, verdict} = await renderDiagram(wall('#dc2626'), {name: 'w.svg', budget: 'cacheOnly'});
+  assert.match(svg, /fill="#dc2626"/);
+  assert.deepEqual(geometryChecks(svg)!.contrast, []);
+  assert.ok(wcagRatio('#dc2626', '#0b1220') >= 3, 'a bar fill needs 3:1 against the page');
+  assert.deepEqual(verdict.problems, []);
+  assert.deepEqual((await checkDiagram(wall('#dc2626'))).verdict.findings.filter(f => f.severity !== 'info'), []);
+});
+
+test('the same deep red used as text is reported (4.5:1), so it cannot slip through', async () => {
+  const d = diagram({theme: 'blue', title: 't', appearance: {dark: {...WALL, danger: '#dc2626'}}}).add(caption('赤い文字', {tone: 'danger'}));
+  const f = (await checkDiagram(d)).verdict.findings;
+  assert.ok(f.some(x => x.rule === 'a11y-text-contrast'), JSON.stringify(f));
 });

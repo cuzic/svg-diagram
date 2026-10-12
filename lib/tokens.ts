@@ -30,7 +30,7 @@ export const PALETTE: Palette = {
 // roles are untouched, and a new tone needs no dark spelling. Dark hexes never coincide with a light hex, so recolor() is idempotent.
 // Contrast of every (text, fill) pair of every theme is checked in test/dark-theme.test.ts.
 export const DARK_PALETTE = {
-  bg: '#1b1a17', text: '#ece6da', muted: '#a79e8e', border: '#4a443a', code: '#24221e', danger: '#f08a8a',
+  bg: '#1b1a17', text: '#ece6da', muted: '#a79e8e', border: '#4a443a', code: '#24221e', danger: '#f05252',
   amber: {accent: '#e0a066', soft: '#3b2f22'},
   teal: {accent: '#5fc1c6', soft: '#1f3a3b'},
   blue: {accent: '#7ab2ee', soft: '#1f3350'},

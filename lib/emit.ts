@@ -644,12 +644,14 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; 
   const bgRect = laidOutDiagram.transparent ? '' : `\n  <rect x="0" y="0" width="${width}" height="${canvasHeight}" fill="${PALETTE.bg}"/>`;
   const assumed = laidOutDiagram.transparent ? ` data-assumed-bg="${PALETTE.bg}"` : '';
   const palette = customColors(laidOutDiagram.appearance), paletteAttr = palette.length ? ` data-palette="${[...new Set(palette)].join(' ')}"` : '';
-  const svgText = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${canvasHeight}" viewBox="0 0 ${width} ${canvasHeight}"${assumed}${paletteAttr}${a11y}>${head}${defs}
+  const svgText = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${canvasHeight}" viewBox="0 0 ${width} ${canvasHeight}"${assumed}${a11y}>${head}${defs}
   <style>${style}
   </style>${bgRect}
 
   ${body}${connectSvg ? `\n\n  ${connectSvg}` : ''}
 </svg>
 `;
-  return opts.noRecolor ? svgText : recolor(svgText, laidOutDiagram.appearance);
+  // the attribute is added after the recolouring: its values are final colours (a custom white must not be recoloured as a light token)
+  const out = opts.noRecolor ? svgText : recolor(svgText, laidOutDiagram.appearance);
+  return paletteAttr ? out.replace('<svg ', `<svg${paletteAttr} `) : out;
 }

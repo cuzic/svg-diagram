@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="421" viewBox="0 0 940 421" data-assumed-bg="#0b1220" data-palette="#0b1220 #0b1220 #94a3b8 #60a5fa #1e3a8a" role="img" aria-labelledby="svg-title svg-desc">
+<svg data-palette="#0b1220 #ffffff #94a3b8 #60a5fa #1e3a8a" xmlns="http://www.w3.org/2000/svg" width="940" height="421" viewBox="0 0 940 421" data-assumed-bg="#0b1220" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">導入前後の離脱率（暗い背景）</title>
   <desc id="svg-desc">要素: 次の一手</desc>
   <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/dark-theme.ts","sourceSha256":"fe348a64faadd8d63bcbb236bfb2d2671dfa0d17552762332d615902b0cba11f"}</metadata>
@@ -13,7 +13,7 @@
   <text x="470" y="87.6" text-anchor="middle" font-size="16" font-weight="700" fill="#0b1220">離脱率は半分以下になった</text>
 
   <rect x="20" y="128" width="444" height="140" rx="8" fill="#0b1220" stroke="#ffffff" stroke-width="2.5"/>
-  <text x="241" y="198" text-anchor="middle" font-size="56" font-weight="700" fill="#f08a8a">76%</text>
+  <text x="241" y="198" text-anchor="middle" font-size="56" font-weight="700" fill="#f05252">76%</text>
   <text x="241" y="242.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#94a3b8">導入前</text>
 
   <rect x="480" y="128" width="444" height="140" rx="8" fill="#0b1220" stroke="#ffffff" stroke-width="2.5"/>
