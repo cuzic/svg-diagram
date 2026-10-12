@@ -61,7 +61,8 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
     } else if (band.type === 'bars') {
       for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})});
     } else if (band.type === 'tree') { // each node is its own rect: a connector from outside must not run through one
-      for (const [i, n] of band.nodes.entries()) rects.push({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h});
+      // `holds`: a connector that ends on the whole figure (its id) may run among its nodes
+      for (const [i, n] of band.nodes.entries()) rects.push({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'caption' && band.inkBox) { // a group's title text: connectors must not run through it
       rects.push({id: null, label: `group title "${band.text}"`, ...band.inkBox});
     } else if (band.type === 'row' || band.type === 'grid') {

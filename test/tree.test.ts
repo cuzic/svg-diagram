@@ -88,3 +88,9 @@ test('tree(): the muted sub line stays readable (4.5:1) on an accent node', asyn
   const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(tree({label: '本部', sub: '本部長', tone: 'accent'})), {name: 't.svg', budget: 'cacheOnly'});
   assert.match(svg, /fill="#22201b"[^>]*>本部長</);
 });
+
+test('tree(): a connector that ends on the whole figure (its id) is not stopped by the figure\'s own nodes', async () => {
+  const t = tree({label: 'r', children: [{label: 'A部', id: 'a'}, {label: 'B部', id: 'b'}, {label: 'C部', id: 'c'}]}, {id: 'T'});
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(t, box({id: 'ext', title: '外部'}), connect('T', 'ext', {route: 'elbow'})));
+  assert.deepEqual(verdict.problems, []);
+});
