@@ -313,3 +313,25 @@ test('causeTree() R3-2: an AND cause from another layer never runs side by side 
     void laidOut;
   }
 });
+
+// ---- round 4: a seeded fuzz of acyclic graphs with ANDs: no hard problem in any direction (a layout too wide for the page is the author's to fix) ----
+test('causeTree() fuzz: random acyclic graphs with ANDs lay out with no hard problem in every direction', async () => {
+  let seed = 12345;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  let laidOutCount = 0;
+  for (let g = 0; g < 60; g++) {
+    const n = 4 + Math.floor(rnd() * 5), ids = Array.from({length: n}, (_, i) => `n${i}`), links: {from: string | string[]; to: string}[] = [];
+    for (let to = 1; to < n; to++) {
+      const k = 1 + Math.floor(rnd() * Math.min(3, to)), pool = ids.slice(0, to).sort(() => rnd() - 0.5).slice(0, k);
+      if (k > 1 && rnd() < 0.6) links.push({from: pool, to: ids[to]}); else for (const f of pool) links.push({from: f, to: ids[to]});
+    }
+    for (const dir of ['up', 'down', 'right', 'left'] as const) {
+      try {
+        const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(causeTree(ids.map(i => N(i)), links, {dir})));
+        assert.deepEqual(verdict.problems, [], `${dir} ${JSON.stringify(links)}`);
+        laidOutCount++;
+      } catch (e) { if (!/wide but it has/.test(String(e))) throw e; }
+    }
+  }
+  assert.ok(laidOutCount > 150);
+});

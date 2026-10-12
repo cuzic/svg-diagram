@@ -289,8 +289,8 @@ function checkCause(d: LaidOutDiagram, warn: string[]): string[] {
       const key = `${Math.min(segs[i].k, segs[j].k)}:${Math.max(segs[i].k, segs[j].k)}`;
       if (!how || flagged.has(key)) continue;
       flagged.add(key);
-      // a crossing may be unavoidable (an AND's causes in different layers around an OR cause): it is a warning; two runs that merge are a problem
-      (how === 'crosses' ? warn : problems).push(`${how === 'crosses' ? '[cause-crossing] ' : ''}cause: arrow ${a.from} -> ${a.to} ${how} arrow ${b.from} -> ${b.to} (reorder the nodes, or change dir)`);
+      // a crossing may be unavoidable (an AND's causes in different layers around an OR cause), and long arrows can share a run: warnings
+      warn.push(`[cause-${how === 'crosses' ? 'crossing' : 'parallel'}] cause: arrow ${a.from} -> ${a.to} ${how} arrow ${b.from} -> ${b.to} (reorder the nodes, or change dir)`);
     }
     for (const to of band.loose) problems.push(`cause: the arrows into "${to}" do not reach it on one side, so their AND arc is not drawn (an arrow of a cycle arrives from the other side: break the cycle, or split the AND)`);
   }

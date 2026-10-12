@@ -126,9 +126,10 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   // one side of the effect, all heading the same way, with room before the head for the arc
   for (const g of groups) {
     const ends = g.arrows.map(k => out.edges[drawn.get(k)!].points).map(p => ({tip: p[p.length - 1], prev: p[p.length - 2]}));
-    const d = {x: Math.sign(ends[0].tip.x - ends[0].prev.x), y: Math.sign(ends[0].tip.y - ends[0].prev.y)};
+    const sgn = (v: number): number => Math.abs(v) < 0.5 ? 0 : Math.sign(v); // a last run a hair off the straight (float noise) is still straight
+    const d = {x: sgn(ends[0].tip.x - ends[0].prev.x), y: sgn(ends[0].tip.y - ends[0].prev.y)};
     const along = (p: Pt): number => d.x ? p.x : p.y, cross = (p: Pt): number => d.x ? p.y : p.x;
-    const aligned = ends.every(e => Math.sign(e.tip.x - e.prev.x) === d.x && Math.sign(e.tip.y - e.prev.y) === d.y && Math.abs(along(e.tip) - along(ends[0].tip)) < 1);
+    const aligned = ends.every(e => sgn(e.tip.x - e.prev.x) === d.x && sgn(e.tip.y - e.prev.y) === d.y && Math.abs(along(e.tip) - along(ends[0].tip)) < 1);
     const room = Math.min(...ends.map(e => Math.abs(along(e.tip) - along(e.prev))));
     if (!aligned || room < AND_END + 1) { out.loose.push(g.to); continue; }
     const us = ends.map(e => cross(e.tip)), tip = ends[0].tip;

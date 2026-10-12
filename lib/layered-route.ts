@@ -109,6 +109,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     }
   }
   const out = new Map<number, Pt[]>();
+  const longInto = new Map<string, number>(); // long arrows into one head, each with its own last turn
   lay.edges.forEach((e, i) => {
     if (e.self) return;
     const A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!, ca = {x: A.x + A.w / 2, y: A.y + A.h / 2}, cb = {x: B.x + B.w / 2, y: B.y + B.h / 2};
@@ -128,7 +129,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     let lastTurn: number | undefined;
     if (groupOf && e.points.length > 2 && forward(i)) {
       const lo = layerOf(e.to) - 1, gl = layerRight.get(lo), gr = layerLeft.get(lo + 1);
-      if (gl !== undefined && gr !== undefined) lastTurn = Math.max(gl + STUB, gr - 26);
+      if (gl !== undefined && gr !== undefined) { const k = longInto.get(e.to) ?? 0; longInto.set(e.to, k + 1); lastTurn = Math.max(gl + STUB, gr - 26 - k * LANE); }
     }
     out.set(i, elbows([start, ...e.points.slice(1, -1), end], turn, lastTurn).map(place));
   });
