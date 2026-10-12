@@ -27,7 +27,7 @@ import {MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_M
 import type {
   Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
-  LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
+  LaidOutDiagram, LegendBand, LegendItem, PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
   Role, RichText, StatOpts, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
   GroupRowBand, PartRow, StateCellIn, StateMatrixCell, TableCellSpec, TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WfScreen, WfShellProps, WireframeBand, WireframeDefaults, WireframeOpts, Medium,
@@ -735,6 +735,54 @@ export function plane(opts: PlaneOpts): PlaneBand {
     if (a.max <= (a.min ?? 0)) throw new Error(`plane(): axis ${k} needs max > min`);
   }
   return withHandle({type: 'plane', ...opts, height: opts.height ?? 300}, opts.id);
+}
+
+// N person icons in a grid, the first `count` emphasized — "76 of 100 people". The others are outlines, so the count reads
+// without colour. Pass the total and the count; the grid fills row by row from the top left. No text of its own: put the
+// number beside it with stat() / caption().
+//   people(100, 76)                       // 10 x 10
+//   people(10, 3, {cols: 5, tone: 'danger'})
+export function people<const Id extends string = never>(total: number, count: number, opts?: PeopleOpts & {id?: Id}): PeopleBand & Declares<Id> & HandleOf<Id>;
+export function people(total: number, count: number, opts: PeopleOpts = {}): PeopleBand {
+  assertNoReveal(opts, 'people()');
+  if (!Number.isInteger(total) || total < 1 || total > 400) throw new Error(`people(): total must be a whole number from 1 to 400 (got ${total})`);
+  if (!Number.isInteger(count) || count < 0 || count > total) throw new Error(`people(): count must be a whole number from 0 to total (${total}) (got ${count})`);
+  const cols = opts.cols ?? (total <= 10 ? total : Math.ceil(Math.sqrt(total)));
+  if (!Number.isInteger(cols) || cols < 1 || cols > total) throw new Error(`people(): cols must be a whole number from 1 to total (got ${cols})`);
+  const size = opts.size ?? 28, gap = opts.gap ?? 8;
+  if (!(size >= 12 && size <= 96)) throw new Error(`people(): size must be from 12 to 96 px (got ${size})`);
+  if (!(gap >= 0)) throw new Error(`people(): gap must be >= 0 (got ${gap})`);
+  if (opts.align !== undefined && opts.align !== 'left' && opts.align !== 'center') throw new Error(`people(): align must be 'left' or 'center' (got ${opts.align})`);
+  if (opts.tone !== undefined && opts.tone !== 'accent' && opts.tone !== 'danger') throw new Error(`people(): tone must be 'accent' or 'danger' (got ${opts.tone})`);
+  return withHandle({type: 'people', total, count, cols, size, gap, align: opts.align ?? 'center', tone: opts.tone ?? 'accent', alt: opts.alt ?? `${count} / ${total}`, ...(opts.id === undefined ? {} : {id: opts.id})}, opts.id);
+}
+
+// Dots along a lane (an axis): each value is a dot at its position, dots that would touch pile up (the piles never overlap).
+// `zones` mark spans of the lane — a bar on the lane, a label under it, and the tone of the dots inside it — for "the people who
+// cannot keep up". Values are in the lane's own units (min .. max, default 0 .. 1).
+//   dots([0.1, 0.12, 0.15, 0.5, 0.8], {zones: [{from: 0, to: 0.3, label: 'ついてこれない人'}], lowLabel: '遅い', highLabel: '速い'})
+export function dots<const Id extends string = never>(values: readonly DotDatum[], opts?: DotsOpts & {id?: Id}): DotsBand & Declares<Id> & HandleOf<Id>;
+export function dots(values: readonly DotDatum[], opts: DotsOpts = {}): DotsBand {
+  assertNoReveal(opts, 'dots()');
+  if (!Array.isArray(values) || values.length === 0) throw new Error('dots(values) needs at least one value');
+  const min = opts.min ?? 0, max = opts.max ?? 1, r = opts.r ?? 6, TONES = ['accent', 'danger', 'muted'];
+  if (!Number.isFinite(min) || !Number.isFinite(max) || !(max > min)) throw new Error(`dots(): needs finite min < max (got ${min} .. ${max})`);
+  if (!(r >= 2 && r <= 20)) throw new Error(`dots(): r must be from 2 to 20 px (got ${r})`);
+  for (const k of ['width', 'height'] as const) if (opts[k] !== undefined && !(opts[k]! > 0 && Number.isFinite(opts[k]))) throw new Error(`dots(): ${k} must be a finite number > 0 (got ${opts[k]})`);
+  const list = values.map(v => typeof v === 'number' ? {at: v} : v);
+  for (const v of list) {
+    if (!Number.isFinite(v.at)) throw new Error(`dots(): a value must be a finite number (got ${v.at})`);
+    if (v.at < min || v.at > max) throw new Error(`dots(): ${v.at} is outside the lane (${min} .. ${max})`);
+    if ('tone' in v && v.tone !== undefined && !TONES.includes(v.tone)) throw new Error(`dots(): tone must be accent, danger or muted (got ${v.tone})`);
+  }
+  const zones = (opts.zones ?? []).map(z => ({tone: 'danger' as const, ...z}));
+  zones.forEach((z, i) => {
+    if (!(z.from >= min && z.to <= max && z.from < z.to)) throw new Error(`dots(): zone "${z.label}" must satisfy ${min} <= from < to <= ${max}`);
+    if (!TONES.includes(z.tone)) throw new Error(`dots(): zone tone must be accent, danger or muted (got ${z.tone})`);
+    if (!z.label) throw new Error('dots(): a zone needs a label — the colour alone does not say what it marks');
+    for (const o of zones.slice(0, i)) if (z.from < o.to && o.from < z.to) throw new Error(`dots(): zones "${o.label}" and "${z.label}" overlap`);
+  });
+  return withHandle({type: 'dots', dots: list, min, max, lowLabel: opts.lowLabel, highLabel: opts.highLabel, zones, r, width: opts.width, height: opts.height, alt: opts.alt ?? `${list.length} dots`, ...(opts.id === undefined ? {} : {id: opts.id})}, opts.id);
 }
 
 type BarIds<D extends readonly BarDatum[]> = Extract<D[number]['id'], string>;

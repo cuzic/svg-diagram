@@ -1,5 +1,5 @@
 // Type-level tests: option shapes that are discriminated unions, tuples and literal unions. Never executed (see ids.ts).
-import {diagram, box, banner, bars, caption, connect, branch, grid, row, pyramid, curve, raw, screens, stat, wireframe, wf} from '../../lib/dsl.ts';
+import {diagram, box, banner, bars, caption, connect, branch, grid, row, pyramid, curve, raw, screens, stat, people, dots, wireframe, wf} from '../../lib/dsl.ts';
 
 export function optionCases(): void {
   // ---- diagram(): theme | day is required; fill needs slide ----
@@ -157,4 +157,14 @@ export function optionCases(): void {
   wireframe(wf.text('x'), {h: 'tall'});
   // @ts-expect-error a text size can only be 'title'
   wf.text('x', {size: 10});
+}
+
+export function peopleDotsCases(): void {
+  diagram({theme: 'blue'}).add(people(100, 76, {tone: 'danger', cols: 10}), dots([0.1, {at: 0.5, tone: 'accent'}], {zones: [{from: 0, to: 0.3, label: 'x'}]}));
+  // @ts-expect-error tone is accent | danger
+  people(10, 1, {tone: 'muted'});
+  // @ts-expect-error people() takes no reveal
+  people(10, 1, {reveal: 1});
+  // @ts-expect-error a zone needs a label
+  dots([0.1], {zones: [{from: 0, to: 0.3}]});
 }

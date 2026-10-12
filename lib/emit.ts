@@ -10,7 +10,7 @@ import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES, CONNECT_LABEL_SIZE, STRONG_STROKE
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
-  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
+  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutPeople, LaidOutDots, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
   LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, EmphasisTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
   LaidOutWireframe, LaidOutScreens, RawColorTone, Span,
 } from './types.ts';
@@ -19,6 +19,7 @@ import {BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSE
 import {visibleAt} from './reveal.ts';
 import {spotlightDim} from './spotlight.ts';
 import {ICON_PATHS} from './icons.ts';
+import {PERSON_BOX} from './people.ts';
 import type {IconName} from './icons.ts';
 
 const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
@@ -277,6 +278,25 @@ function renderPyramid(band: LaidOutPyramid): string {
     ).join('\n  ');
     return `${shape}\n  ${text}`;
   }).join('\n\n  ');
+}
+
+// people(): one person icon per head, the emphasized ones filled and the rest outlines (the count reads without colour).
+function renderPeople(band: LaidOutPeople, day: Theme): string {
+  const d = ICON_PATHS.person.d, s = band.size / PERSON_BOX.size, n = (v: number) => +v.toFixed(4);
+  const color = colorOf(toneStyle(band.tone).ink, day);
+  const icon = (i: {x: number; y: number; on: boolean}) => `<path d="${d}" transform="translate(${n(i.x - PERSON_BOX.from * s)} ${n(i.y - PERSON_BOX.from * s)}) scale(${n(s)})" ${i.on ? `fill="${color}"` : `fill="none" stroke="${PALETTE.muted}" stroke-width="${n(1.5 / s)}"`}/>`;
+  return `<g role="img" aria-label="${escapeXml(band.alt)}">\n  ${band.icons.map(icon).join('\n  ')}\n  </g>`;
+}
+
+// dots(): a lane (an axis line), bars on the lane for its zones, a dot per value piled above it, labels under it.
+function renderDots(band: LaidOutDots, day: Theme): string {
+  const color = (tone: string) => colorOf(toneStyle(tone).ink, day), n = (v: number) => +v.toFixed(2);
+  const parts = [`<line x1="${n(band.axis.x1)}" y1="${n(band.axis.y)}" x2="${n(band.axis.x2)}" y2="${n(band.axis.y)}" stroke="${PALETTE.muted}" stroke-width="2"/>`];
+  for (const z of band.zones) parts.push(`<rect x="${n(z.x)}" y="${n(z.y - 4)}" width="${n(z.w)}" height="8" fill="${color(z.tone)}"/>`);
+  const dots = band.dots.map(p => `<circle cx="${n(p.x)}" cy="${n(p.y)}" r="${band.r}" fill="${color(p.tone)}"/>`).join('\n    ');
+  parts.push(`<g role="img" aria-label="${escapeXml(band.alt)}">\n    ${dots}\n  </g>`);
+  for (const t of band.texts) parts.push(`<text x="${n(t.x)}" y="${n(t.y)}" text-anchor="${t.anchor}" font-size="${t.size}" fill="${PALETTE.text}">${emojiSpan(t.text)}</text>`);
+  return parts.join('\n  ');
 }
 
 function renderCurve(band: LaidOutCurve, day: Theme): string {
@@ -559,6 +579,8 @@ function renderBandPlain(band: LaidOutBand, day: Theme, stage?: number, dimFill 
     case 'curve': return renderCurve(band, day);
     case 'plane': return renderPlane(band, day, stage);
     case 'bars': return renderBars(band, day, stage, dimFill);
+    case 'people': return renderPeople(band, day);
+    case 'dots': return renderDots(band, day);
     default: return '';
   }
 }

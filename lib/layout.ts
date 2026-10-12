@@ -21,6 +21,7 @@ import {assertSpans} from './rich.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {layoutPlane, planeTexts} from './plane.ts';
 import {barsTexts, layoutBars} from './bars.ts';
+import {dotsTexts, layoutDots, layoutPeople} from './people.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {
   DiagramData, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
@@ -292,6 +293,8 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       for (const [text, size, weight, font] of planeTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'bars') {
       for (const [text, size, weight, font] of barsTexts(band)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'dots') {
+      for (const [text, size, weight, font] of dotsTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'curve') {
       for (const label of [band.yTopLabel, band.yBottomLabel, band.xLabel]) {
         if (!label) continue;
@@ -463,6 +466,17 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       for (const a of placed.anchors) {
         if (anchors.has(a.id)) claimed(a.id, 'a bar takes an id that another anchor already has');
         anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
+      }
+      laidOut.push(placed);
+      cursorY += placed.h + d.gap;
+      continue;
+    }
+
+    if (band.type === 'people' || band.type === 'dots') {
+      const placed = band.type === 'people' ? layoutPeople(band, padX, cursorY, cw, d.day) : layoutDots(band, padX, cursorY, cw, widthOf, d.day);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, `a ${band.type} band takes an id that another anchor already has`);
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
       }
       laidOut.push(placed);
       cursorY += placed.h + d.gap;
