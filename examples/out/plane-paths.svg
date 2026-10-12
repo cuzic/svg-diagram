@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="404" viewBox="0 0 940 404" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">点を通る滑らかな線（例）</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/plane-paths.ts","sourceSha256":"ab221b9df2a561d8ee2a1bb60b3a84bd7d221bb48f1bb0d3f9f2ac068a6fea15"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="404" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">smooth: true（点を必ず通り、0 や 10 の平らな区間は平らなまま）と、smooth なしの折れ線</text>
+
+  <path d="M56,98 L56,344 M194,98 L194,344 M331,98 L331,344 M469,98 L469,344 M607,98 L607,344 M744,98 L744,344 M882,98 L882,344 M56,344 L882,344 M56,294 L882,294 M56,245 L882,245 M56,196 L882,196 M56,147 L882,147 M56,98 L882,98" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M56,344 L882,344 M56,344 L56,98" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="882,344 872,349 872,339" fill="#22201b"/>
+  <polygon points="56,98 61,108 51,108" fill="#22201b"/>
+  <path d="M56,344 L56,350 M194,344 L194,350 M331,344 L331,350 M469,344 L469,350 M607,344 L607,350 M744,344 L744,350 M882,344 L882,350 M56,344 L50,344 M56,294 L50,294 M56,245 L50,245 M56,196 L50,196 M56,147 L50,147 M56,98 L50,98" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M139,319 C184,319 230,319 276,319 C368,319 460,122 552,122 C662,122 772,122 882,122" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <polygon points="882,122 872,127 872,117" fill="#1d5fa8"/>
+  <path d="M56,221 L331,196 L607,270 L882,221" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
+  <circle cx="140" cy="320" r="6" fill="#6f6659"/>
+  <circle cx="276" cy="320" r="6" fill="#6f6659"/>
+  <circle cx="552" cy="124" r="6" fill="#6f6659"/>
+  <circle cx="884" cy="124" r="6" fill="#6f6659"/>
+  <text x="56" y="366" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
+  <text x="194" y="366" text-anchor="middle" font-size="14" fill="#6f6659">5</text>
+  <text x="331" y="366" text-anchor="middle" font-size="14" fill="#6f6659">10</text>
+  <text x="469" y="366" text-anchor="middle" font-size="14" fill="#6f6659">15</text>
+  <text x="607" y="366" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
+  <text x="744" y="366" text-anchor="middle" font-size="14" fill="#6f6659">25</text>
+  <text x="882" y="366" text-anchor="middle" font-size="14" fill="#6f6659">30</text>
+  <text x="44" y="349" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <text x="44" y="299" text-anchor="end" font-size="14" fill="#6f6659">2</text>
+  <text x="44" y="250" text-anchor="end" font-size="14" fill="#6f6659">4</text>
+  <text x="44" y="201" text-anchor="end" font-size="14" fill="#6f6659">6</text>
+  <text x="44" y="152" text-anchor="end" font-size="14" fill="#6f6659">8</text>
+  <text x="44" y="103" text-anchor="end" font-size="14" fill="#6f6659">10</text>
+  <text x="898" y="349" font-size="14" font-weight="700" fill="#6f6659">日</text>
+  <text x="52" y="84" font-size="14" font-weight="700" fill="#6f6659">件</text>
+  <text x="139" y="305" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">a</text>
+  <text x="276" y="305" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">b</text>
+  <text x="552" y="108" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">c</text>
+  <text x="882" y="148" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">d</text>
+</svg>

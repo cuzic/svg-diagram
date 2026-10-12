@@ -321,6 +321,12 @@ function renderPlane(b: LaidOutPlane, day: Theme): string {
     out.push(`<path d="${seg(l)}" fill="none" stroke="${c}" stroke-width="2"${l.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
     if (l.arrow) out.push(head(l.x2, l.y2, l.x2 - l.x1, l.y2 - l.y1, c));
   }
+  for (const pa of b.paths ?? []) {
+    const c = col(pa.tone), r = (q: {x: number; y: number}) => `${Math.round(q.x)},${Math.round(q.y)}`;
+    const d = `M${r(pa.pts[0])} ` + (pa.curves.length ? pa.curves.map(([c1, c2, e]) => `C${r(c1)} ${r(c2)} ${r(e)}`) : pa.pts.slice(1).map(q => `L${r(q)}`)).join(' ');
+    out.push(`<path d="${d}" fill="none" stroke="${c}" stroke-width="2"${pa.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
+    if (pa.arrow) out.push(head(pa.pts[pa.pts.length - 1].x, pa.pts[pa.pts.length - 1].y, pa.tip.dx, pa.tip.dy, c));
+  }
   for (const dm of b.dims) {
     const c = col(dm.tone);
     for (const e of dm.ext) out.push(`<path d="${seg(e)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>`);

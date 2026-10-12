@@ -575,6 +575,13 @@ export interface PlanePoint {
 }
 /** A guide line between two positions / points (a projection onto an axis, a path). */
 export interface PlaneLine {from: PlaneRef; to: PlaneRef; tone?: PlaneTone; /** Default true. */ dashed?: boolean; arrow?: boolean}
+/**
+ * A line through several positions / points. `smooth: true` draws a curve through every point: monotone cubic interpolation
+ * (Fritsch-Carlson, like d3's curveMonotoneX) when x only increases along the path — it never overshoots the points, so no
+ * hill or valley appears that the data does not have — and centripetal Catmull-Rom (alpha 0.5) otherwise. Without `smooth` it
+ * is a polyline. Solid unless `dashed: true`; `arrow` points along the tangent at the last point.
+ */
+export interface PlanePath {through: PlaneRef[]; smooth?: boolean; dashed?: boolean; tone?: PlaneTone; arrow?: boolean; reveal?: number}
 /** A dimension line: the distance between two positions / points, drawn beside them with a label on it. */
 export interface PlaneDim {
   from: PlaneRef;
@@ -592,6 +599,7 @@ export interface PlaneOpts extends RevealOpts {
   y: PlaneAxis;
   points?: PlanePoint[];
   lines?: PlaneLine[];
+  paths?: PlanePath[];
   dims?: PlaneDim[];
   labels?: PlaneLabel[];
   /** Figure height (default 300). */
@@ -1550,6 +1558,8 @@ export interface LaidOutPlane extends Rect {
   texts: PlaneText[];
   points: {x: number; y: number; tone: PlaneTone; shape: 'dot' | 'ring' | 'cross'}[];
   lines: (PlaneSeg & {tone: PlaneTone; dashed: boolean; arrow: boolean})[];
+  /** `curves`: one [control 1, control 2, end] per piece of a smooth path (empty for a polyline, which runs through `pts`). `tip`: the unit direction of the arrowhead. `overshoot`: px the curve leaves the plot area. */
+  paths?: {pts: {x: number; y: number}[]; curves: {x: number; y: number}[][]; tone: PlaneTone; dashed: boolean; arrow: boolean; tip: {dx: number; dy: number}; reveal?: number; overshoot: number}[];
   dims: {from: Point; to: Point; line: PlaneSeg; ext: PlaneSeg[]; chip: Rect; tone: PlaneTone}[];
   /** Every label placed, as a rect: verify.ts reports two that overlap, one that leaves the figure, or one on the ink below. `dim`: the dimension line it belongs to. */
   labelBoxes: (Rect & {label: string; dim?: number})[];
