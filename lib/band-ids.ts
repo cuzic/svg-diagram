@@ -7,6 +7,7 @@ export function nodeIdsOf(b: Band): string[] {
   switch (b.type) {
     case 'tree': return treeItems(b.root).flatMap(n => n.id ? [n.id] : []);
     case 'states': return b.states.map(s => s.id);
+    case 'gantt': return b.rows.flatMap(r => 'id' in r && r.id ? [r.id] : []);
     default: return [];
   }
 }

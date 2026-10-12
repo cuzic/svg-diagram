@@ -6,13 +6,13 @@ export default function define() {
     gantt([
       {section: '設計'},
       {id: 'req', label: '要件定義', start: '2026-10-05', end: '2026-10-16', progress: 1},
-      {id: 'ui', label: '画面設計', start: '2026-10-12', end: '2026-10-30', progress: 0.5, after: 'req'},
+      {id: 'ui', label: '画面設計', start: '2026-10-19', end: '2026-10-30', progress: 0.5, after: 'req'},
       {section: '開発'},
-      {id: 'api', label: 'API 実装', start: '2026-10-26', end: '2026-11-20', after: 'req'},
-      {id: 'app', label: 'アプリ実装', start: '2026-11-02', end: '2026-11-27', after: ['ui']},
-      {label: '結合テスト', start: '2026-11-23', end: '2026-12-04', after: ['api', 'app'], tone: 'danger'},
+      {id: 'app', label: 'アプリ実装', start: '2026-11-02', end: '2026-11-27', after: 'ui'},
+      {id: 'api', label: 'API 実装', start: '2026-11-02', end: '2026-11-20', after: 'ui'},
+      {id: 'test', label: '結合テスト', start: '2026-11-30', end: '2026-12-11', after: ['api', 'app'], tone: 'danger'},
       {section: 'リリース'},
-      {label: '本番リリース', start: '2026-12-11', milestone: true, after: 'req'},
-    ], {today: '2026-10-19'}),
+      {label: '本番リリース', start: '2026-12-14', milestone: true, after: 'test'},
+    ], {today: '2026-10-26'}),
   );
 }

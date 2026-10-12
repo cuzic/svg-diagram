@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="416" viewBox="0 0 940 416" role="img" aria-labelledby="svg-title">
   <title id="svg-title">在庫管理アプリ 開発計画</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/gantt.ts","sourceSha256":"4f5d1fb689cc893ecdfd7e3fec79434a618a2a227713d052e96c691840632387"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/gantt.ts","sourceSha256":"1d2cc18b149d495c0def89531e3d8c7f7ea0ab5d03eb9beae11c719b012f6e13"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
@@ -11,57 +11,59 @@
   <rect x="20" y="160" width="900" height="32" fill="#f6f8fa"/>
   <rect x="20" y="288" width="900" height="32" fill="#f6f8fa"/>
   <path d="M128,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M208,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M288,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M372,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M452,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M532,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M612,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M692,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M772,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M856,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M128,64 H912" fill="none" stroke="#6f6659" stroke-width="2"/>
-  <path d="M268,112 L276,112 L276,128 L200,128 L200,144 L200,144" fill="none" stroke="#22201b" stroke-width="1.5"/>
-  <path d="M208,144 L200,148 L200,140 z" fill="#22201b"/>
-  <path d="M268,112 L276,112 L276,208 L364,208" fill="none" stroke="#22201b" stroke-width="1.5"/>
-  <path d="M372,208 L364,212 L364,204 z" fill="#22201b"/>
-  <path d="M428,144 L436,144 L436,240 L444,240" fill="none" stroke="#22201b" stroke-width="1.5"/>
-  <path d="M452,240 L444,244 L444,236 z" fill="#22201b"/>
-  <path d="M668,208 L676,208 L676,272 L684,272" fill="none" stroke="#22201b" stroke-width="1.5"/>
-  <path d="M692,272 L684,276 L684,268 z" fill="#22201b"/>
-  <path d="M752,240 L760,240 L760,256 L684,256 L684,272 L684,272" fill="none" stroke="#22201b" stroke-width="1.5"/>
-  <path d="M692,272 L684,276 L684,268 z" fill="#22201b"/>
-  <path d="M268,112 L276,112 L276,336 L888,336" fill="none" stroke="#22201b" stroke-width="1.5"/>
-  <path d="M896,336 L888,340 L888,332 z" fill="#22201b"/>
-  <rect x="128" y="104" width="140" height="18" rx="4" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
-  <rect x="128" y="104" width="140" height="18" rx="4" fill="#1d5fa8"/>
-  <rect x="208" y="136" width="220" height="18" rx="4" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
-  <rect x="208" y="136" width="108" height="18" rx="4" fill="#1d5fa8"/>
-  <rect x="372" y="200" width="300" height="18" rx="4" fill="#1d5fa8"/>
-  <rect x="452" y="232" width="300" height="18" rx="4" fill="#1d5fa8"/>
-  <rect x="692" y="264" width="140" height="18" rx="4" fill="#b91c1c"/>
-  <path d="M908,324 L916,336 L908,348 L896,336 z" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
-  <path d="M296,64 V352" fill="none" stroke="#b91c1c" stroke-width="2"/>
+  <path d="M204,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M280,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M356,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M432,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M508,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M584,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M660,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M736,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M812,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M888,64 V352" fill="none" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M128,64 H900" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M260,112 L268,112 L268,128 L272,128 L272,144 L272,144" fill="none" stroke="#22201b" stroke-width="1.5"/>
+  <path d="M280,144 L272,148 L272,140 z" fill="#22201b"/>
+  <path d="M412,144 L420,144 L420,176 L424,176 L424,208 L424,208" fill="none" stroke="#22201b" stroke-width="1.5"/>
+  <path d="M432,208 L424,212 L424,204 z" fill="#22201b"/>
+  <path d="M412,144 L420,144 L420,192 L424,192 L424,240 L424,240" fill="none" stroke="#22201b" stroke-width="1.5"/>
+  <path d="M432,240 L424,244 L424,236 z" fill="#22201b"/>
+  <path d="M640,240 L648,240 L648,272 L728,272" fill="none" stroke="#22201b" stroke-width="1.5"/>
+  <path d="M736,272 L728,276 L728,268 z" fill="#22201b"/>
+  <path d="M716,208 L724,208 L724,240 L728,240 L728,272 L728,272" fill="none" stroke="#22201b" stroke-width="1.5"/>
+  <path d="M736,272 L728,276 L728,268 z" fill="#22201b"/>
+  <path d="M868,272 L876,272 L876,304 L876,304 L876,336 L876,336" fill="none" stroke="#22201b" stroke-width="1.5"/>
+  <path d="M884,336 L876,340 L876,332 z" fill="#22201b"/>
+  <rect x="128" y="104" width="132" height="18" rx="4" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
+  <rect x="128" y="104" width="132" height="18" rx="4" fill="#1d5fa8"/>
+  <rect x="280" y="136" width="132" height="18" rx="4" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
+  <rect x="280" y="136" width="64" height="18" rx="4" fill="#1d5fa8"/>
+  <rect x="432" y="200" width="284" height="18" rx="4" fill="#1d5fa8"/>
+  <rect x="432" y="232" width="208" height="18" rx="4" fill="#1d5fa8"/>
+  <rect x="736" y="264" width="132" height="18" rx="4" fill="#b91c1c"/>
+  <path d="M896,324 L904,336 L896,348 L884,336 z" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <path d="M360,64 V352" fill="none" stroke="#b91c1c" stroke-width="2"/>
   <text x="128" y="36" text-anchor="middle" font-size="14" fill="#6f6659">10/5</text>
-  <text x="209" y="36" text-anchor="middle" font-size="14" fill="#6f6659">10/12</text>
-  <text x="289" y="36" text-anchor="middle" font-size="14" fill="#6f6659">10/19</text>
-  <text x="370" y="36" text-anchor="middle" font-size="14" fill="#6f6659">10/26</text>
-  <text x="451" y="36" text-anchor="middle" font-size="14" fill="#6f6659">11/2</text>
-  <text x="532" y="36" text-anchor="middle" font-size="14" fill="#6f6659">11/9</text>
-  <text x="612" y="36" text-anchor="middle" font-size="14" fill="#6f6659">11/16</text>
-  <text x="693" y="36" text-anchor="middle" font-size="14" fill="#6f6659">11/23</text>
-  <text x="774" y="36" text-anchor="middle" font-size="14" fill="#6f6659">11/30</text>
-  <text x="854" y="36" text-anchor="middle" font-size="14" fill="#6f6659">12/7</text>
+  <text x="204" y="36" text-anchor="middle" font-size="14" fill="#6f6659">10/12</text>
+  <text x="280" y="36" text-anchor="middle" font-size="14" fill="#6f6659">10/19</text>
+  <text x="356" y="36" text-anchor="middle" font-size="14" fill="#6f6659">10/26</text>
+  <text x="432" y="36" text-anchor="middle" font-size="14" fill="#6f6659">11/2</text>
+  <text x="509" y="36" text-anchor="middle" font-size="14" fill="#6f6659">11/9</text>
+  <text x="585" y="36" text-anchor="middle" font-size="14" fill="#6f6659">11/16</text>
+  <text x="661" y="36" text-anchor="middle" font-size="14" fill="#6f6659">11/23</text>
+  <text x="737" y="36" text-anchor="middle" font-size="14" fill="#6f6659">11/30</text>
+  <text x="813" y="36" text-anchor="middle" font-size="14" fill="#6f6659">12/7</text>
+  <text x="889" y="36" text-anchor="middle" font-size="14" fill="#6f6659">12/14</text>
   <text x="28" y="86" font-size="14" font-weight="700" fill="#22201b">設計</text>
   <text x="28" y="118" font-size="14" fill="#22201b">要件定義</text>
   <text x="28" y="150" font-size="14" fill="#22201b">画面設計</text>
   <text x="28" y="182" font-size="14" font-weight="700" fill="#22201b">開発</text>
-  <text x="28" y="214" font-size="14" fill="#22201b">API 実装</text>
-  <text x="28" y="246" font-size="14" fill="#22201b">アプリ実装</text>
+  <text x="28" y="214" font-size="14" fill="#22201b">アプリ実装</text>
+  <text x="28" y="246" font-size="14" fill="#22201b">API 実装</text>
   <text x="28" y="278" font-size="14" fill="#22201b">結合テスト</text>
   <text x="28" y="310" font-size="14" font-weight="700" fill="#22201b">リリース</text>
   <text x="28" y="342" font-size="14" fill="#22201b">本番リリース</text>
-  <text x="295" y="60" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">今日</text>
+  <text x="362" y="60" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">今日</text>
 
   <text x="20" y="390" font-size="14" font-weight="400" fill="#6f6659">出典: プロジェクト計画(例)</text>
 </svg>

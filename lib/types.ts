@@ -2122,8 +2122,9 @@ export interface LaidOutGantt extends Rect, Dimmed {
   /** Section heading rows (a pale band across the figure). */
   sections: Rect[];
   /** One per task, in order (a milestone is a diamond; `progress` is the done part of a bar). */
-  bars: (Rect & {tone: 'accent' | 'danger' | 'muted'; progress?: number; milestone?: boolean})[];
-  deps: {points: {x: number; y: number}[]}[];
+  bars: (Rect & {label: string; tone: 'accent' | 'danger' | 'muted'; progress?: number; milestone?: boolean})[];
+  /** `from` / `to`: indexes into `bars` (the task it comes after, and the task). */
+  deps: {from: number; to: number; points: {x: number; y: number}[]}[];
   today?: {x: number; y1: number; y2: number};
   texts: GanttText[];
   anchors: Anchor[];
