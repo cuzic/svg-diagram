@@ -20,7 +20,7 @@ import * as hb from 'harfbuzzjs';
 import {FONT_STACKS} from './tokens.ts';
 import type {FontFamily, FontSpecs, MeasureRequest, Measured} from './types.ts';
 
-interface Loaded {file: string; index: number; name: string; font: hb.Font; upem: number; covered: Set<number>; ascender: number; descender: number}
+interface Loaded {file: string; index: number; name: string; face: hb.Face; font: hb.Font; upem: number; covered: Set<number>; ascender: number; descender: number}
 
 const GENERIC = new Set(['sans-serif', 'serif', 'monospace']);
 // CSS weight → fontconfig weight (what `fc-match family:weight=N` takes)
@@ -41,7 +41,7 @@ function load(file: string, index: number): Loaded {
     const face = new hb.Face(new hb.Blob(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)), index);
     const font = new hb.Font(face);
     const ext = font.hExtents();
-    f = {file, index, name: familyName(face), font, upem: face.upem, covered: new Set(face.collectUnicodes()), ascender: ext.ascender, descender: ext.descender};
+    f = {file, index, name: familyName(face), face, font, upem: face.upem, covered: new Set(face.collectUnicodes()), ascender: ext.ascender, descender: ext.descender};
     loaded.set(key, f);
   }
   return f;
@@ -112,6 +112,12 @@ function measureText(f: Loaded, family: FontFamily, text: string, size: number, 
   }
   flush();
   return {w};
+}
+
+/** The font that measures `emoji` (regular) as HarfBuzz objects, for reading its color glyphs (lib/emoji-color.ts); null when none can be found. */
+export function emojiFontFace(specs?: FontSpecs): {face: hb.Face; font: hb.Font; upem: number; ascender: number; descender: number} | null {
+  const f = fontFor('emoji', 400, specs, false);
+  return f && {face: f.face, font: f.font, upem: f.upem, ascender: f.ascender, descender: f.descender};
 }
 
 /** The code points the font that measures `family` at this weight has a glyph for; null when none can be found. */

@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fontCoverage, resolveFontFile} from './font-metrics.ts';
+import {withColorEmoji} from './emoji-color.ts';
 import {subsetFont} from './font-subset.ts';
 import {computeStyles, elements, parseXml, type El} from './svg-dom.ts';
 import {familyKind} from './svg-geom.ts';
@@ -117,7 +118,7 @@ export async function rasterizeWithResvg(svg: string, {scale = 1, png = false, f
   let rendered;
   const prepared = prepareResvgFonts(svg, fonts);
   try {
-    rendered = new Resvg(svg, {
+    rendered = new Resvg(withColorEmoji(svg, fonts), {
       background: '#ffffff',
       fitTo: scale === 1 ? {mode: 'original'} : {mode: 'zoom', value: scale},
       font: prepared.options,
