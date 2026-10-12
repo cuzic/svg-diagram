@@ -20,7 +20,9 @@ import {wrapAtoms, wrapStyledAtoms} from './wrap.ts';
 import {assertSpans} from './rich.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {layoutPlane, planeTexts} from './plane.ts';
+import {IMAGE_PAD, imageSize, imageTexts, layoutImage} from './image.ts';
 import {barsTexts, layoutBars} from './bars.ts';
+import {dotsTexts, layoutDots, layoutPeople, peopleTexts} from './people.ts';
 import {layoutTimeline, timelineTexts} from './timeline.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {
@@ -158,7 +160,7 @@ function groupTitleBand(band: GroupBand): CaptionBand {
 }
 
 function registerRequests(requests: Requests, band: Band, roles: Roles) {
-  if ('tag' in band && band.tag) registerAtoms(requests, band.tag, TAG_SIZE, 700);
+  if ('tag' in band && band.tag) registerAtoms(requests, band.tag, (roles.tag ?? TAG_SIZE), 700);
   if ('stamp' in band && band.stamp) registerAtoms(requests, band.stamp, roles.note, 400);
   for (const run of textRuns(band, roles)) {
     const font = run.mono ? 'mono' : 'sans';
@@ -285,7 +287,7 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
       // weight (see emit.ts's renderConnect) — registered here so their
       // real width is known before layoutDiagram resolves the connect,
       // instead of guessed at draw time.
-      registerAtoms(requests, band.label, CONNECT_LABEL_SIZE, 400);
+      registerAtoms(requests, band.label, (roles.connectLabel ?? CONNECT_LABEL_SIZE), 400);
     } else if (band.type === 'pyramid') {
       for (const layer of band.layers) {
         for (const atom of splitAtoms(layer.text)) {
@@ -295,10 +297,17 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
       }
     } else if (band.type === 'plane') {
       for (const [text, size, weight, font] of planeTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'image') {
+      for (const [text, size, weight, font] of imageTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+      for (const child of band.children ?? []) registerBand(child);
     } else if (band.type === 'bars') {
       for (const [text, size, weight, font] of barsTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'people') {
+      for (const [text, size, weight, font] of peopleTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'dots') {
+      for (const [text, size, weight, font] of dotsTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'timeline') {
-      for (const [text, size, weight, font] of timelineTexts(band)) registerAtoms(requests, text, size, weight, font);
+      for (const [text, size, weight, font] of timelineTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'curve') {
       for (const label of [band.yTopLabel, band.yBottomLabel, band.xLabel]) {
         if (!label) continue;
@@ -356,7 +365,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       const i = kids.findIndex(k => k.has(f.id)), j = kids.findIndex(k => k.has(t.id));
       if (i < 0 || j < 0 || Math.abs(i - j) !== 1 || !((i < j && f.side === 'right' && t.side === 'left') || (i > j && f.side === 'left' && t.side === 'right'))) continue;
       if (slots) { const [a, b] = i < j ? [slots[i], slots[j]] : [slots[j], slots[i]]; if (b.col !== a.col + a.span) continue; } // empty columns between them already leave room
-      gap = Math.max(gap, Math.ceil(textWidth(widthOf, c.label as string, CONNECT_LABEL_SIZE, 400) + (c.chip ? 16 : 0) + 2 * LABEL_MARGIN));
+      gap = Math.max(gap, Math.ceil(textWidth(widthOf, c.label as string, (roles.connectLabel ?? CONNECT_LABEL_SIZE), 400) + (c.chip ? 16 : 0) + 2 * LABEL_MARGIN));
     }
     return gap;
   };
@@ -374,6 +383,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
     const walk = (bs: Band[], cw: number): void => {
       for (const b of bs) {
         if (b.type === 'group') walk(b.children, cw - 2 * (b.pad ?? 16));
+        else if (b.type === 'image') { if (b.children) walk(b.children, imageSize(b, cw).w - 2 * (b.pad ?? IMAGE_PAD)); }
         else if ((b.type === 'row' || b.type === 'grouprow') && b.cols) {
           const key = `${b.cols}/${b.gap}`, g = grids.get(key) ?? {need: b.gap, rows: []};
           g.need = Math.max(g.need, gapNeeded(b as RowLike));
@@ -424,7 +434,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       if (overflow.length) (placed as Placed<BoxBand> & {nowrapOverflow?: string[]}).nowrapOverflow = overflow;
     }
     if (chrome.tag) {
-      const tw = textWidth(widthOf, chrome.tag, TAG_SIZE, 700) + 2 * TAG_PAD_X;
+      const tw = textWidth(widthOf, chrome.tag, (roles.tag ?? TAG_SIZE), 700) + 2 * TAG_PAD_X;
       placed.tagBox = {x: chrome.tagAt === undefined ? x + w - tw - 12 : x + w * chrome.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
     }
     if (chrome.id && (areaIds.has(chrome.id) || anchors.has(chrome.id))) claimed(chrome.id, 'a box takes an id that another box, group or row already has');
@@ -475,8 +485,30 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       continue;
     }
 
+    if (band.type === 'image') {
+      const placed = layoutImage(band, padX, cursorY, cw, widthOf, roles);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, 'an image takes an id that another anchor already has');
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
+      for (const a of placed.anchors) {
+        if (anchors.has(a.id)) claimed(a.id, 'a mark takes an id that another anchor already has');
+        anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
+      }
+      laidOut.push(placed);
+      if (band.children?.length) { // the picture is a backdrop: its parts stack from the top inside it, drawn after it
+        const pad = band.pad ?? IMAGE_PAD;
+        cursorY = placed.y + pad;
+        stack(band.children, placed.x + pad, placed.w - 2 * pad);
+        const bottom = cursorY - d.gap, room = placed.y + placed.h - pad;
+        if (bottom > room + 0.5) throw new Error(`image(): the parts over it need ${Math.round(bottom - placed.y + pad)}px of height but the picture is ${placed.h}px high (make the picture bigger with width / height, or use less content)`);
+      }
+      cursorY = placed.y + placed.h + d.gap;
+      continue;
+    }
+
     if (band.type === 'timeline') {
-      const placed = layoutTimeline(band, padX, cursorY, cw, widthOf);
+      const placed = layoutTimeline(band, padX, cursorY, cw, widthOf, roles);
       if (band.id) {
         if (anchors.has(band.id)) claimed(band.id, 'a timeline takes an id that another anchor already has');
         anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
@@ -495,6 +527,17 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       for (const a of placed.anchors) {
         if (anchors.has(a.id)) claimed(a.id, 'a bar takes an id that another anchor already has');
         anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
+      }
+      laidOut.push(placed);
+      cursorY += placed.h + d.gap;
+      continue;
+    }
+
+    if (band.type === 'people' || band.type === 'dots') {
+      const placed = band.type === 'people' ? layoutPeople(band, padX, cursorY, cw, widthOf, d.day, roles) : layoutDots(band, padX, cursorY, cw, widthOf, d.day, roles);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, `a ${band.type} band takes an id that another anchor already has`);
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
       }
       laidOut.push(placed);
       cursorY += placed.h + d.gap;
@@ -599,7 +642,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       // names) resolution waits until the whole stack is placed; such a
       // connector reserves no loop-under space.
       if (!anchors.has(parseRef(band.from).id) || !anchors.has(parseRef(band.to).id)) { deferred.push(band); continue; }
-      const resolved = resolveConnect(band, anchors, areaIds, widthOf);
+      const resolved = resolveConnect(band, anchors, areaIds, widthOf, roles);
       connects.push(resolved);
       if (band.route === 'loop-under') {
         const labelClearance = band.label ? 24 : 8;
@@ -796,11 +839,12 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
   }
   };
   stack(d.bands, d.pad, contentWidth);
-  for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf)); // throws "unknown anchor id" if it never appears
+  for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf, roles)); // throws "unknown anchor id" if it never appears
 
-  const canvasHeight = Math.round(cursorY - d.gap + d.pad);
+  const contentHeight = Math.round(cursorY - d.gap + d.pad);
+  const canvasHeight = d.canvas ? Math.max(contentHeight, d.canvas.height) : contentHeight;
 
-  return {...data, laidOut, canvasHeight, connects, roles};
+  return {...data, laidOut, canvasHeight, ...(data.canvas ? {contentHeight} : {}), connects, roles};
 }
 
 // 'id', 'id:side', or 'id:side@t' — t (0..1) slides the anchor along that side
@@ -866,7 +910,7 @@ function pathSegments(points: Point[]): Rect[] {
   return segs;
 }
 
-function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf): LaidOutConnect {
+function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf, roles: Roles): LaidOutConnect {
   const fromRef = parseRef(band.from), toRef = parseRef(band.to);
   const fromRect = anchors.get(fromRef.id);
   const toRect = anchors.get(toRef.id);
@@ -892,7 +936,7 @@ function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: 
 
   let labelX: number | undefined, labelY: number | undefined, labelBox: Rect | undefined, chipBox: Rect | undefined;
   if (band.label) {
-    const labelWidth = textWidth(widthOf, band.label, CONNECT_LABEL_SIZE, 400);
+    const labelWidth = textWidth(widthOf, band.label, (roles.connectLabel ?? CONNECT_LABEL_SIZE), 400);
     const dy = band.chip ? 5 : -6; // a chip sits ON the line; a plain label sits above it
     if (band.route === 'elbow' && points.length === 4) {
       // vertical-first: label rides the middle (horizontal) leg; horizontal-
@@ -929,7 +973,7 @@ function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: 
       labelX = Math.round(from.x + (to.x - from.x) * t);
       labelY = Math.round((band.route === 'loop-under' ? Math.max(from.y, to.y) + band.dip : from.y + (to.y - from.y) * t) + dy);
     }
-    labelBox = {x: labelX - labelWidth / 2, y: labelY - CONNECT_LABEL_SIZE, w: labelWidth, h: CONNECT_LABEL_SIZE + 4};
+    labelBox = {x: labelX - labelWidth / 2, y: labelY - (roles.connectLabel ?? CONNECT_LABEL_SIZE), w: labelWidth, h: (roles.connectLabel ?? CONNECT_LABEL_SIZE) + 4};
     if (band.chip) {
       chipBox = {x: labelX - (labelWidth + 16) / 2, y: labelY - 17, w: labelWidth + 16, h: 24};
       labelBox = chipBox;

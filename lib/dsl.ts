@@ -10,7 +10,8 @@ import {execFileSync} from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import {wf} from './wireframe.ts';
-import {resolveIcon} from './icons.ts';
+import {resolveIcon} from './icon-registry.ts';
+import {readImage} from './image-file.ts';
 import {layoutDiagram} from './layout-measured.ts';
 import {mapOf} from './tokens.ts';
 import {timelineDay} from './timeline.ts';
@@ -25,11 +26,11 @@ import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
-import {MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
+import {SLIDE_CANVAS, canvasFontScale, canvasRoles, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
-  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, TimelineBand, TimelineOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
-  LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
+  LaidOutDiagram, LegendBand, LegendItem, PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
   Role, RichText, StatOpts, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
   GroupRowBand, PartRow, StateCellIn, StateMatrixCell, TableCellSpec, TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WfScreen, WfShellProps, WireframeBand, WireframeDefaults, WireframeOpts, Medium,
@@ -39,7 +40,7 @@ import type {
   HandleOf, PyramidLayers, Refers, RefsOf, RowHandleOf, SeqStepIn, ScreensItemInput, StateRowIn, StateRowLoose, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn,
 } from './strict.ts';
 export {wf} from './wireframe.ts';
-export {icon} from './icons.ts';
+export {icon} from './icon-registry.ts';
 export type {IconName, EmojiName} from './icons.ts';
 import type {IconName} from './icons.ts';
 export {versus} from './versus.ts';
@@ -66,6 +67,8 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (opts.appearance !== undefined && !['light', 'dark'].includes(opts.appearance as string) && !(typeof opts.appearance === 'object' && opts.appearance && typeof opts.appearance.dark === 'object')) throw new Error(`diagram({appearance}) must be 'light', 'dark' or {dark: {bg, text, ...}} (got ${JSON.stringify(opts.appearance)})`);
   mapOf(opts.appearance); // a custom dark set is validated here
   if (opts.sourceLine !== undefined && (typeof opts.sourceLine !== 'string' || !opts.sourceLine.trim() || /[\r\n]/.test(opts.sourceLine))) throw new Error('diagram({sourceLine}) must be a non-empty single-line string (e.g. "出典: 総務省 2025")');
+  if (opts.canvas !== undefined && (opts.slide || opts.fill)) throw new Error('diagram({canvas}) is a whole slide drawn 1:1; it cannot be combined with `slide` / `fill` (those fit a figure into a measured slot of a Slidev slide)');
+  const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...(opts.canvas === 'slide' ? {} : opts.canvas)};
   const d: DiagramData = {
     day: theme as Theme,
     appearance: opts.appearance, transparent: opts.transparent,
@@ -74,7 +77,8 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     title: opts.title, desc: opts.desc,            // exposed as the SVG's <title> / <desc> (doc medium)
     accept: opts.accept, // {'rule-id': 'why this finding is fine'} — shown as info instead of a warning
     legend: opts.legend, legendLabels: opts.legendLabels, // legend: 'auto' adds entries for every notation used but not listed
-    width: opts.width ?? 940,
+    width: opts.width ?? canvas?.width ?? 940,
+    canvas,
     pad: opts.pad ?? 20,
     gap: opts.gap ?? 16,
     maxDisplayHeight: opts.maxDisplayHeight, // slide room for the <img> (see fit.ts)
@@ -173,7 +177,7 @@ function assertTextRole(role: string | undefined, allowed: readonly string[], wh
  * The usual roles (a stat({size: 'display'}) included) are not held back, so a diagram without these options scales as before.
  */
 export function fillScaleLimit(bands: Band[]): number {
-  const optIn = walkBands(bands).flatMap(b => b.type === 'banner' && b.headlineRole ? [ROLES[b.headlineRole]] : (b.type === 'bars' || b.type === 'plane') && b.labelRole ? [ROLES[b.labelRole]] : []);
+  const optIn = walkBands(bands).flatMap(b => b.type === 'banner' && b.headlineRole ? [ROLES[b.headlineRole]] : (b.type === 'bars' || b.type === 'plane') && b.labelRole ? [ROLES[b.labelRole]] : b.type === 'image' ? [b.labelRole, ...(b.marks ?? []).map(m => m.role), ...(b.labels ?? []).map(l => l.role)].flatMap(r => r ? [ROLES[r]] : []) : []);
   return Math.min(1.8, optIn.length ? OPT_IN_TEXT_MAX / Math.max(...optIn) : 1.8);
 }
 
@@ -744,6 +748,61 @@ export function plane(opts: PlaneOpts): PlaneBand {
   return withHandle({type: 'plane', ...opts, height: opts.height ?? 300}, opts.id);
 }
 
+// N person icons in a grid, the first `count` emphasized — "76 of 100 people". The others are outlines, so the count reads
+// without colour. Pass the total and the count; the grid fills row by row from the top left. No text of its own: put the
+// number beside it with stat() / caption().
+//   people(100, 76)                       // 10 x 10
+//   people(10, 3, {cols: 5, tone: 'danger'})
+//   people(100, [35, 47], {tone: 'accent', tone2: 'danger'})  // 35 in tone, the next 47 in tone2, the rest outlines
+export function people<const Id extends string = never>(total: number, count: number | readonly [number, number], opts?: PeopleOpts & {id?: Id}): PeopleBand & Declares<Id> & HandleOf<Id>;
+export function people(total: number, countIn: number | readonly [number, number], opts: PeopleOpts = {}): PeopleBand {
+  assertNoReveal(opts, 'people()');
+  if (!Number.isInteger(total) || total < 1 || total > 400) throw new Error(`people(): total must be a whole number from 1 to 400 (got ${total})`);
+  const [count, count2] = typeof countIn === 'number' ? [countIn, 0] : countIn;
+  if (!Number.isInteger(count) || count < 0 || !Number.isInteger(count2) || count2 < 0 || count + count2 > total) throw new Error(`people(): count must be a whole number from 0 to total (${total}), or [k1, k2] with k1 + k2 <= total (got ${JSON.stringify(countIn)})`);
+  const cols = opts.cols ?? (total <= 10 ? total : Math.ceil(Math.sqrt(total)));
+  if (!Number.isInteger(cols) || cols < 1 || cols > total) throw new Error(`people(): cols must be a whole number from 1 to total (got ${cols})`);
+  const size = opts.size ?? 28, gap = opts.gap ?? 8;
+  if (!(size >= 12 && size <= 96)) throw new Error(`people(): size must be from 12 to 96 px (got ${size})`);
+  if (!(gap >= 0)) throw new Error(`people(): gap must be >= 0 (got ${gap})`);
+  if (opts.align !== undefined && opts.align !== 'left' && opts.align !== 'center') throw new Error(`people(): align must be 'left' or 'center' (got ${opts.align})`);
+  for (const k of ['tone', 'tone2', 'rest'] as const) if (opts[k] !== undefined && !['accent', 'danger', 'muted'].includes(opts[k]!)) throw new Error(`people(): ${k} must be 'accent', 'danger' or 'muted' (got ${opts[k]})`);
+  if (opts.side !== undefined) {
+    if (typeof opts.side.value !== 'string' || !opts.side.value) throw new Error('people(): side needs a value (the text beside the grid)');
+    if (opts.side.size !== undefined && opts.side.size !== 'stat' && opts.side.size !== 'display') throw new Error(`people(): side.size must be 'stat' or 'display' (got ${opts.side.size})`);
+    if (opts.side.tone !== undefined && !['accent', 'danger', 'muted'].includes(opts.side.tone)) throw new Error(`people(): side.tone must be 'accent', 'danger' or 'muted' (got ${opts.side.tone})`);
+  }
+  return withHandle({type: 'people', total, count, cols, size, gap, align: opts.align ?? 'center', tone: opts.tone ?? 'accent', tone2: opts.tone2 ?? ((opts.tone ?? 'accent') === 'danger' ? 'accent' : 'danger'), count2, rest: opts.rest ?? 'muted', ...(opts.side ? {side: opts.side} : {}), alt: opts.alt ?? (count2 ? `${count} + ${count2} / ${total}` : `${count} / ${total}`), ...(opts.id === undefined ? {} : {id: opts.id})}, opts.id);
+}
+
+// Dots along a lane (an axis): each value is a dot at its position, dots that would touch pile up (the piles never overlap).
+// `zones` mark spans of the lane — a bar on the lane, a label under it, and the tone of the dots inside it — for "the people who
+// cannot keep up". Values are in the lane's own units (min .. max, default 0 .. 1).
+//   dots([0.1, 0.12, 0.15, 0.5, 0.8], {zones: [{from: 0, to: 0.3, label: 'ついてこれない人'}], lowLabel: '遅い', highLabel: '速い'})
+export function dots<const Id extends string = never>(values: readonly DotDatum[], opts?: DotsOpts & {id?: Id}): DotsBand & Declares<Id> & HandleOf<Id>;
+export function dots(values: readonly DotDatum[], opts: DotsOpts = {}): DotsBand {
+  assertNoReveal(opts, 'dots()');
+  if (!Array.isArray(values) || values.length === 0) throw new Error('dots(values) needs at least one value');
+  const min = opts.min ?? 0, max = opts.max ?? 1, r = opts.r ?? 10, TONES = ['accent', 'danger', 'muted'];
+  if (!Number.isFinite(min) || !Number.isFinite(max) || !(max > min)) throw new Error(`dots(): needs finite min < max (got ${min} .. ${max})`);
+  if (!(r >= 2 && r <= 24)) throw new Error(`dots(): r must be from 2 to 24 px (got ${r})`);
+  for (const k of ['width', 'height'] as const) if (opts[k] !== undefined && !(opts[k]! > 0 && Number.isFinite(opts[k]))) throw new Error(`dots(): ${k} must be a finite number > 0 (got ${opts[k]})`);
+  const list = values.map(v => typeof v === 'number' ? {at: v} : v);
+  for (const v of list) {
+    if (!Number.isFinite(v.at)) throw new Error(`dots(): a value must be a finite number (got ${v.at})`);
+    if (v.at < min || v.at > max) throw new Error(`dots(): ${v.at} is outside the lane (${min} .. ${max})`);
+    if ('tone' in v && v.tone !== undefined && !TONES.includes(v.tone)) throw new Error(`dots(): tone must be accent, danger or muted (got ${v.tone})`);
+  }
+  const zones = (opts.zones ?? []).map(z => ({tone: 'danger' as const, ...z}));
+  zones.forEach((z, i) => {
+    if (!(z.from >= min && z.to <= max && z.from < z.to)) throw new Error(`dots(): zone "${z.label}" must satisfy ${min} <= from < to <= ${max}`);
+    if (!TONES.includes(z.tone)) throw new Error(`dots(): zone tone must be accent, danger or muted (got ${z.tone})`);
+    if (!z.label) throw new Error('dots(): a zone needs a label — the colour alone does not say what it marks');
+    for (const o of zones.slice(0, i)) if (z.from < o.to && o.from < z.to) throw new Error(`dots(): zones "${o.label}" and "${z.label}" overlap`);
+  });
+  return withHandle({type: 'dots', dots: list, min, max, lowLabel: opts.lowLabel, highLabel: opts.highLabel, zones, r, width: opts.width, height: opts.height, alt: opts.alt ?? `${list.length} dots`, ...(opts.id === undefined ? {} : {id: opts.id})}, opts.id);
+}
+
 type BarIds<D extends readonly BarDatum[]> = Extract<D[number]['id'], string>;
 export function bars<const D extends readonly BarDatum[], const Id extends string = never>(data: D, opts?: BarsOpts & {id?: Id}): BarsBand & Declares<Id | BarIds<D>> & HandleOf<Id> & AnchorsOf<BarIds<D>>;
 export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
@@ -777,6 +836,55 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   return withHandle(withAnchors(band, data.map(d => d.id)), opts.id);
 }
 
+type MarkIds<M extends readonly ImageMark[]> = Extract<M[number]['id'], string>;
+const IMAGE_TONES = ['plain', 'accent', 'danger', 'muted', 'new', 'changed', 'removed', 'solid', 'solid-danger'];
+/**
+ * A picture (PNG / JPEG / GIF / WebP) as a part, read now and embedded as a data URI so the SVG stays one file. `marks` outline regions
+ * (spotlight and connect() can point at their ids); `labels` put words on opaque plates. Positions are fractions of the picture.
+ * `src`: a path (relative: next to the diagram source), `new URL('./a.png', import.meta.url)`, or a data URI.
+ */
+export function image<const M extends readonly ImageMark[] = [], const Id extends string = never, C extends Band | Band[] = []>(src: string | URL, opts: Omit<ImageOpts, 'over'> & {id?: Id; marks?: M; over?: C}): ImageBand & Declares<Id | MarkIds<M> | IdsOf<C>> & Refers<RefsOf<C>> & HandleOf<Id> & AnchorsOf<MarkIds<M>>;
+export function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
+  if (opts.pad !== undefined && !(opts.pad >= 0 && Number.isFinite(opts.pad))) throw new Error(`image(): pad must be a finite number >= 0 (got ${opts.pad})`);
+  const over = opts.over === undefined ? [] : [opts.over].flat() as Band[];
+  for (const [i, c] of over.entries()) if (c?.type === 'connect') throw new Error(`image(): over[${i}] is a connect() — add connectors at the top level of the diagram (they may point at ids inside the picture)`);
+  if (!opts.alt?.trim() && !opts.decorative) throw new Error('image(): alt is required (what the picture shows) — or pass decorative: true when it adds nothing');
+  if (opts.alt && opts.decorative) throw new Error('image(): alt and decorative: true contradict each other');
+  for (const k of ['width', 'height'] as const) if (opts[k] !== undefined && (!(opts[k]! > 0) || !Number.isFinite(opts[k]))) throw new Error(`image(): ${k} must be a finite number > 0 (got ${opts[k]})`);
+  if (opts.width !== undefined && opts.height !== undefined) throw new Error('image(): give width or height, not both (the other follows the picture\'s aspect ratio)');
+  assertTextRole(opts.labelRole, LABEL_ROLES, 'image() labelRole');
+  if (opts.align !== undefined && !['left', 'center', 'right'].includes(opts.align)) throw new Error(`image(): align must be 'left', 'center' or 'right' (got ${opts.align})`);
+  const unit = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1;
+  const tone = (t: string | undefined, where: string) => { if (t !== undefined && !IMAGE_TONES.includes(t)) throw new Error(`image(): ${where} tone "${t}" is not one of ${IMAGE_TONES.join(', ')}`); };
+  (opts.marks ?? []).forEach((m, i) => {
+    const [x, y, w, h] = m.rect ?? [];
+    if (![x, y, w, h].every(n => typeof n === 'number' && unit(n)) || !(w > 0 && h > 0) || x + w > 1.0001 || y + h > 1.0001) throw new Error(`image(): mark ${i + 1} rect must be [x, y, w, h] as fractions of the picture, inside it (got ${JSON.stringify(m.rect)})`);
+    tone(m.tone, `mark ${i + 1}`);
+    assertTextRole(m.role, LABEL_ROLES, `image() mark ${i + 1} role`);
+    if (m.label !== undefined && !m.label.trim()) throw new Error(`image(): mark ${i + 1} label is empty`);
+  });
+  (opts.labels ?? []).forEach((l, i) => {
+    if (!l.text?.trim()) throw new Error(`image(): label ${i + 1} has no text`);
+    if (!Array.isArray(l.at) || l.at.length !== 2 || !l.at.every(unit)) throw new Error(`image(): label ${i + 1} "at" must be [x, y] as fractions of the picture (0 to 1) (got ${JSON.stringify(l.at)})`);
+    if (l.anchor !== undefined && !['start', 'middle', 'end'].includes(l.anchor)) throw new Error(`image(): label ${i + 1} anchor must be 'start', 'middle' or 'end' (got ${l.anchor})`);
+    tone(l.tone, `label ${i + 1}`);
+    assertTextRole(l.role, LABEL_ROLES, `image() label ${i + 1} role`);
+  });
+  const ids = (opts.marks ?? []).map(m => m.id).filter((id): id is string => !!id);
+  if (new Set(ids).size !== ids.length) throw new Error('image(): each mark id must be unique');
+  if (opts.id !== undefined && ids.includes(opts.id)) throw new Error(`image(): the band's id "${opts.id}" is also a mark's id — each id must be unique`);
+  const file = readImage(src);
+  const band: ImageBand = {
+    type: 'image', href: file.href, naturalW: file.w, naturalH: file.h, bytes: file.bytes, alt: opts.alt?.trim() ?? '',
+    ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts),
+    ...(opts.width === undefined ? {} : {width: opts.width}), ...(opts.height === undefined ? {} : {height: opts.height}), ...(opts.align === undefined ? {} : {align: opts.align}), ...(opts.labelRole === undefined ? {} : {labelRole: opts.labelRole}),
+    ...(opts.marks?.length ? {marks: opts.marks.map(m => ({...m, rect: [...m.rect] as unknown as ImageRect}))} : {}),
+    ...(opts.labels?.length ? {labels: opts.labels.map(l => ({...l}))} : {}),
+    ...(over.length ? {children: over} : {}), ...(opts.pad === undefined ? {} : {pad: opts.pad}),
+  };
+  return withHandle(withAnchors(band, (opts.marks ?? []).map(m => m.id)), opts.id);
+}
+
 /**
  * A horizontal time axis with a deadline: the axis (`from` - `to`), today (`now`), the deadline and the span between them
  * ("あと 1 年 3 か月"), plus optional marks. Dates are 'YYYY' | 'YYYY-MM' | 'YYYY-MM-DD'; `now` is always written out, never read from the clock.
@@ -793,6 +901,7 @@ export function timeline(opts: TimelineOpts): TimelineBand {
   }
   if (opts.deadline.line !== undefined && opts.deadline.line !== 'full') throw new Error(`timeline(): deadline.line must be 'full' (got ${String(opts.deadline.line)})`);
   if (opts.span !== undefined && opts.span !== 'bar' && opts.span !== 'fill') throw new Error(`timeline(): span must be 'bar' or 'fill' (got ${String(opts.span)})`);
+  if (opts.now.label !== undefined && (typeof opts.now.label !== 'string' || !opts.now.label.trim())) throw new Error('timeline(): now.label must not be empty (leave it out for "現在")');
   if (typeof opts.deadline.label !== 'string' || !opts.deadline.label.trim()) throw new Error('timeline(): deadline.label is required');
   for (const [i, m] of (opts.marks ?? []).entries()) {
     const t = day(m.at, `marks[${i}].at`);
@@ -882,7 +991,7 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
   let verdict: Verdict, svg: string, html: string | undefined;
   // Every scale is its own value (scaleRoles): measured with, laid out with and drawn with the same roles, which travel in the result.
   const layoutAt = async (s: number): Promise<LaidOutDiagram> => {
-    const roles = scaleRoles(ROLES, s);
+    const roles = d.canvas ? canvasRoles(s) : scaleRoles(ROLES, s);
     return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}, {roles});
   };
   if (d.fill && budget) {
@@ -894,6 +1003,9 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
       if ((await layoutAt(mid)).canvasHeight <= budget.maxHeight) lo = mid; else hi = mid;
     }
     fontScale = Math.floor(lo * 100) / 100;
+  } else if (d.canvas) {
+    // a whole-slide canvas is drawn 1:1, so everything is scaled until the smallest text is the canvas's minimum
+    fontScale = canvasFontScale(d.canvas.minText);
   } else if (d.fill) {
     if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
     notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
@@ -942,7 +1054,9 @@ export async function checkDiagram(input: DiagramData): Promise<CheckResult> {
   const d = detach(input);
   prepareReveal(d);
   applyAutoLegend(d);
-  const laidOut = await layoutDiagram(d);
+  // a canvas diagram is drawn at its font scale, so it is checked at that scale too
+  const s = d.canvas ? canvasFontScale(d.canvas.minText) : 1;
+  const laidOut = await layoutDiagram(d.canvas ? {...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)} : d, d.canvas ? {roles: canvasRoles(s)} : {});
   applySpotlight(laidOut);
   return {laidOut, verdict: verifyDiagram(laidOut)};
 }

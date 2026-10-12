@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {emptyManifest, glyphFromBody, glyphFromSvg, MANIFEST_FILE, parseManifest, parseSpec, PERMISSIVE} from './icon-store.ts';
 import type {IconManifest, IconSpec, InstalledIcon} from './icon-store.ts';
-import {findManifest} from './icons.ts';
+import {findManifest} from './icon-registry.ts';
 
 export type Fetch = (url: string) => Promise<{ok: boolean; status: number; json(): Promise<unknown>}>;
 export interface InstallOpts {

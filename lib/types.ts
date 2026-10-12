@@ -44,7 +44,8 @@ export type ColorKey = PlainColorKey | 'accent' | 'soft';
 /** font-size role (tokens.ts ROLES). */
 export type Role = 'title' | 'label' | 'body' | 'note' | 'banner' | 'stat' | 'display';
 /** The font size (px) of every role: a value, so a figure's text sizes travel with it (tokens.ts ROLES, scaleRoles). */
-export type Roles = Readonly<Record<Role, number>>;
+/** Role sizes. `connectLabel` / `tag` (the fixed-size text that is not a role) are set only by a canvas diagram, which scales them too; absent means the 14px constants. */
+export type Roles = Readonly<Record<Role, number>> & {readonly connectLabel?: number; readonly tag?: number};
 /** The roles a banner() headline can be set in (default 'banner'). */
 export type HeadlineRole = 'banner' | 'stat' | 'display';
 /** The roles the labels of a bars() / plane() (axis labels, value labels, ticks) can be set in (default 'note'). */
@@ -95,6 +96,9 @@ export interface ConnectRef {id: string; side: string; at: number}
 // DSL input: diagram()
 // ============================================================================================
 
+/** diagram({canvas}): the fixed slide canvas the diagram is drawn on. `minText` is the smallest text size (px, in the canvas's own units) the lint accepts. */
+export interface SlideCanvas {width: number; height: number; minText: number}
+
 /** Slide the diagram will be shown on (slide-budget.ts measures its free area). */
 export interface SlideRef {page: string; heading: string}
 
@@ -141,6 +145,8 @@ export interface DiagramOpts {
   maxDisplayHeight?: number;
   minEffectiveFont?: number;
   slide?: SlideRef;
+  /** A whole-slide 16:9 canvas (1280x720 by default) shown 1:1, with a minimum text size lint. Not with `slide` / `fill`. */
+  canvas?: 'slide' | Partial<SlideCanvas>;
   /** fit-figure slide: build to the measured slot, growing fonts to use the slack. Needs `slide`. */
   fill?: boolean;
   /** Options every connect() / branch() of this diagram starts from; see ConnectDefaults. */
@@ -180,6 +186,7 @@ export interface DiagramData {
   maxDisplayHeight?: number;
   minEffectiveFont?: number;
   slide?: SlideRef;
+  canvas?: SlideCanvas;
   fill: boolean;
   connectDefaults?: ConnectDefaults;
   wireframeDefaults?: WireframeDefaults;
@@ -589,6 +596,120 @@ export interface CurveBand {
 }
 
 // ============================================================================================
+// DSL input + band: people (N person icons, k emphasized) and dots (dots along a lane)
+// ============================================================================================
+
+export type PeopleTone = 'accent' | 'danger' | 'muted';
+/** A number (and a line under it) set to the right of the grid. */
+export interface PeopleSide {
+  /** The big text, e.g. '76%' or '76 人'. */
+  value: string;
+  /** A line under it. */
+  label?: string;
+  /** Colour of the value (default: the normal text colour). */
+  tone?: 'accent' | 'danger' | 'muted';
+  /** 'stat' (34px, default) or 'display' (56px). */
+  size?: 'stat' | 'display';
+}
+export interface PeopleOpts {
+  /** Icons per row. Default: the whole count when it is 10 or fewer, else the square root rounded up (100 -> 10). */
+  cols?: number;
+  /** Icon height in px (default 28). */
+  size?: number;
+  /** Gap between icons in px (default 8). */
+  gap?: number;
+  /** Where the grid sits in the column (default 'center'). */
+  align?: 'left' | 'center';
+  /** Colour of the emphasized (filled) icons (default 'accent'; 'muted' for a grey figure). The others are outlines, so the count reads without colour. */
+  tone?: PeopleTone;
+  /** Colour of the second group when `count` is [k1, k2] (default 'danger', or 'accent' when `tone` is 'danger'). */
+  tone2?: PeopleTone;
+  /** Colour of the outlined icons (default 'muted'). */
+  rest?: PeopleTone;
+  /** A number beside the grid, vertically centred on it: the figure and its number in one band. */
+  side?: PeopleSide;
+  /** The accessible name (default "k / total"). */
+  alt?: string;
+  id?: string;
+}
+export interface PeopleBand {
+  type: 'people';
+  total: number;
+  count: number;
+  /** Icons of the second emphasized group, after the first `count` (0 when there is none). */
+  count2: number;
+  cols: number;
+  size: number;
+  gap: number;
+  align: 'left' | 'center';
+  tone: PeopleTone;
+  tone2: PeopleTone;
+  rest: PeopleTone;
+  side?: PeopleSide;
+  alt: string;
+  id?: string;
+}
+export interface LaidOutPeople extends Rect {
+  type: 'people'; id?: string; day: Theme; tone: PeopleTone; tone2: PeopleTone; rest: PeopleTone; alt: string; size: number;
+  texts: {text: string; x: number; y: number; size: number; bold: boolean; tone?: 'accent' | 'danger' | 'muted'}[];
+  /** Top-left of every icon, emphasized ones first. */
+  icons: {x: number; y: number; on: boolean; second?: true}[];
+}
+
+export type DotTone = 'accent' | 'danger' | 'muted';
+/** A dot's position on the lane (in the lane's own units), and optionally its tone. */
+export type DotDatum = number | {at: number; tone?: DotTone};
+export interface DotZone {
+  /** The span of the lane, in the lane's own units. */
+  from: number;
+  to: number;
+  /** Text under the span. */
+  label: string;
+  /** Colour of the span's bar and of the dots inside it that have no tone of their own (default 'danger'). */
+  tone?: DotTone;
+}
+export interface DotsOpts {
+  /** The lane's range (default 0 .. 1). */
+  min?: number;
+  max?: number;
+  /** Text at the left / right end of the lane. */
+  lowLabel?: string;
+  highLabel?: string;
+  /** Spans of the lane to mark: a bar on the lane, its label under it, and the tone of the dots inside. */
+  zones?: DotZone[];
+  /** Dot radius in px (default 10). */
+  r?: number;
+  /** The figure's width (default: the column). */
+  width?: number;
+  /** The figure's height; it must hold the tallest pile (default: just that). */
+  height?: number;
+  /** The accessible name (default "N dots"). */
+  alt?: string;
+  id?: string;
+}
+export interface DotsBand {
+  type: 'dots';
+  dots: {at: number; tone?: DotTone}[];
+  min: number;
+  max: number;
+  lowLabel?: string;
+  highLabel?: string;
+  zones: Required<DotZone>[];
+  r: number;
+  width?: number;
+  height?: number;
+  alt: string;
+  id?: string;
+}
+export interface LaidOutDots extends Rect {
+  type: 'dots'; id?: string; day: Theme; alt: string; r: number;
+  axis: {x1: number; x2: number; y: number};
+  dots: {x: number; y: number; tone: DotTone}[];
+  zones: {x: number; w: number; y: number; tone: DotTone; top: number}[];
+  texts: {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; size: number}[];
+}
+
+// ============================================================================================
 // DSL input + band: plane (a coordinate plane)
 // ============================================================================================
 
@@ -770,6 +891,109 @@ export interface TimelineOpts extends RevealOpts {
 }
 export interface TimelineBand extends TimelineOpts {
   type: 'timeline';
+}
+
+// ============================================================================================
+// DSL input + band: image
+// ============================================================================================
+
+/** A position as fractions of the picture: [0, 0] is its top-left corner, [1, 1] its bottom-right. */
+export type ImagePoint = readonly [x: number, y: number];
+/** A region as fractions of the picture: [x, y, w, h]. */
+export type ImageRect = readonly [x: number, y: number, w: number, h: number];
+/** An outline round a region of the picture. Its `id` is a spotlight target and a connect() endpoint. */
+export interface ImageMark {
+  /** Unique across the diagram, like every anchor id. */
+  id?: string;
+  rect: ImageRect;
+  /** The outline's colour (and the label plate's tone). Default 'accent'. */
+  tone?: EmphasisTone;
+  /** A word on a plate at the outline's top-left corner. */
+  label?: string;
+  /** The label's text size (a role: 'note' 14px, 'banner' 16px, 'stat' 34px). Default: the picture's `labelRole`. The plate grows with it. */
+  role?: LabelRole;
+  /** Never earlier than the picture's own reveal (the later of the two); `until` likewise never later than the picture's. */
+  reveal?: number;
+  until?: number;
+}
+/** A word on an opaque plate at a point of the picture. There is no way to put text on the bare picture: its pixels are not known to the contrast check. */
+export interface ImageLabel {
+  text: string;
+  at: ImagePoint;
+  /** Which end of the plate sits on `at`. Default 'start'. */
+  anchor?: 'start' | 'middle' | 'end';
+  /** The plate's tone (its fill, outline and text). Default 'plain' (white plate, dark text). */
+  tone?: EmphasisTone;
+  /** The text size (a role: 'note' 14px, 'banner' 16px, 'stat' 34px). Default: the picture's `labelRole`. The plate grows with it. */
+  role?: LabelRole;
+  reveal?: number;
+  until?: number;
+}
+export interface ImageOpts extends RevealOpts {
+  /** A spotlight target and a connect() endpoint (the whole picture). May not repeat a mark's id. */
+  id?: string;
+  /** What the picture shows, for readers who cannot see it (the SVG's <desc> and the <image>'s label). Required: pass `decorative: true` instead when it adds nothing. */
+  alt?: string;
+  decorative?: boolean;
+  /** The picture's width in px (at most the content width; default: the content width). Its height follows the file's aspect ratio. Not together with `height`. */
+  width?: number;
+  /** The picture's height in px (the width follows the aspect ratio, and is capped at the content width). Not together with `width`. */
+  height?: number;
+  /** Where a picture narrower than the content sits. Default 'center'. */
+  align?: 'left' | 'center' | 'right';
+  /** The text size of every label plate that has no `role` of its own. Default 'note' (14px). */
+  labelRole?: LabelRole;
+  marks?: readonly ImageMark[];
+  labels?: readonly ImageLabel[];
+  /**
+   * Parts laid over the picture, stacked from its top like the children of a group(): the picture is their backdrop. Their text must
+   * be checkable: a box / banner is (opaque), a caption or a group title is bare text on the picture and fails the post-render lint.
+   * connect() stays a top-level band; it may point at their ids. They must fit in the picture's height (verify says by how much they do not).
+   */
+  over?: Band | readonly Band[];
+  /** Space between the picture's edge and `over` (default 16). */
+  pad?: number;
+}
+export interface ImageBand {
+  type: 'image';
+  id?: string;
+  /** The file as a `data:` URI (read once, by image()). */
+  href: string;
+  naturalW: number;
+  naturalH: number;
+  bytes: number;
+  alt: string;
+  width?: number;
+  height?: number;
+  align?: 'left' | 'center' | 'right';
+  labelRole?: LabelRole;
+  marks?: ImageMark[];
+  labels?: ImageLabel[];
+  /** The `over` parts (named like a group's so the walkers that follow `children` see them). */
+  children?: Band[];
+  pad?: number;
+  reveal?: number;
+  until?: number;
+}
+/** A mark placed (px); `dim` is set by spotlight. */
+export interface LaidOutImageMark extends Rect, Dimmed {id?: string; tone: EmphasisTone; reveal?: number; until?: number}
+/** A label plate placed (px). `mark`: index of the mark it belongs to. */
+export interface LaidOutImagePlate extends Rect, Dimmed {text: string; size: number; tone: EmphasisTone; reveal?: number; until?: number; mark?: number}
+export interface LaidOutImage extends Rect, Dimmed {
+  type: 'image';
+  id?: string;
+  href: string;
+  alt: string;
+  bytes: number;
+  reveal?: number;
+  until?: number;
+  marks: LaidOutImageMark[];
+  plates: LaidOutImagePlate[];
+  anchors: Anchor[];
+  /** Parts are laid over this picture: it is their backdrop, so the overlap and connector checks leave it out. */
+  backdrop?: boolean;
+  /** Set by spotlight: regions of the picture that stay clear while the rest is veiled (a focused mark). */
+  holes?: Rect[];
 }
 
 // ============================================================================================
@@ -1087,7 +1311,7 @@ export interface ScreensBand extends ScreensOpts {
 /** Every band the DSL constructors return. */
 export type Band =
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | TimelineBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | ImageBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -1641,7 +1865,7 @@ export interface LaidOutSequence extends Rect {
 
 export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; lines: string[]; x: number; w: number; top: number}
 export interface LaidOutTableRow {y: number; h: number; cells: LaidOutTableCell[]; header?: boolean; tone?: BoxTone}
-export interface LaidOutTable extends Rect {
+export interface LaidOutTable extends Rect, Dimmed {
   type: 'table';
   id?: string;
   titleBar: {y: number; h: number; lines: string[]} | null;
@@ -1723,11 +1947,12 @@ export interface LaidOutBars extends Rect, Dimmed {
   anchors: Anchor[];
 }
 
-export interface TimelineText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: 'text' | 'muted' | 'accent' | 'danger'; bold: boolean}
+export interface TimelineText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: 'text' | 'muted' | 'accent' | 'danger'; bold: boolean; size: number}
 export interface LaidOutTimeline extends Rect, Dimmed {
   type: 'timeline';
   id?: string;
   reveal?: number;
+  until?: number;
   axis: {x1: number; x2: number; y: number};
   /** The bar on the axis between now and the deadline (accent while the deadline is ahead, danger once past). */
   span?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'; fill?: boolean};
@@ -1744,7 +1969,7 @@ export interface LaidOutTimeline extends Rect, Dimmed {
 
 export type LaidOutBand = (
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutTimeline | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutTimeline | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */
@@ -1774,6 +1999,8 @@ export interface LaidOutConnect extends Omit<ConnectBand, 'from' | 'to'> {
 export interface LaidOutDiagram extends DiagramData {
   laidOut: LaidOutBand[];
   canvasHeight: number;
+  /** The height the bands need, before diagram({canvas}) pads the canvas up to its fixed height. */
+  contentHeight?: number;
   connects: LaidOutConnect[];
   /** Set by build() when fill: true scaled the fonts. */
   fontScale?: number;
@@ -1792,6 +2019,7 @@ export interface Finding {rule: string; severity: Severity; message: string}
 export interface LintTarget extends DiagramData {
   laidOut?: LaidOutBand[];
   connects?: LaidOutConnect[];
+  contentHeight?: number;
 }
 /** verifyDiagram() result: `problems` fail the build, `warnings` never do. */
 export interface Verdict {
@@ -1801,8 +2029,9 @@ export interface Verdict {
   findings: Finding[];
 }
 /** A checkable rect in verify.ts (id null when the band has none). */
+/** `holds`: ids of anchors drawn inside this rect (an image's marks): a connector that starts on one may cross the rect. `backdrop`: a picture with parts over it, not an obstacle or an overlap partner. */
 /** `life`: when it is on screen, if not always (a bar that another `replaces` shares its place with it). */
-export interface CheckRect extends Rect {id: string | null; label: string; life?: {reveal?: number; until?: number}}
+export interface CheckRect extends Rect {id: string | null; label: string; life?: {reveal?: number; until?: number}; holds?: string[]; backdrop?: boolean}
 
 export interface FitReport {
   scale: number;

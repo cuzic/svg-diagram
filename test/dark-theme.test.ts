@@ -53,7 +53,7 @@ test('default is light and unchanged; dark recolours every token and puts the da
   assert.match(light, new RegExp(`<rect x="0" y="0"[^>]*fill="${PALETTE.bg}"`));
   assert.match(dk, new RegExp(`<rect x="0" y="0"[^>]*fill="${DARK_PALETTE.bg}"`));
   for (const c of LIGHT_COLORS) assert.ok(!dk.includes(c), `light colour ${c} left in the dark SVG`);
-  assert.equal(dk.replace(/#[0-9a-f]{6}/gi, '#'), light.replace(/#[0-9a-f]{6}/gi, '#'), 'only colours differ');
+  assert.equal(dk.replace(' data-appearance="dark"', '').replace(/#[0-9a-f]{6}/gi, '#'), light.replace(/#[0-9a-f]{6}/gi, '#'), 'only colours differ');
 });
 
 test('transparent: no page rectangle, and the root names the page colour the checks assume', async () => {
@@ -158,4 +158,39 @@ test('the same deep red used as text is reported (4.5:1), so it cannot slip thro
   const d = diagram({theme: 'blue', title: 't', appearance: {dark: {...WALL, danger: '#dc2626'}}}).add(caption('赤い文字', {tone: 'danger'}));
   const f = (await checkDiagram(d)).verdict.findings;
   assert.ok(f.some(x => x.rule === 'a11y-text-contrast'), JSON.stringify(f));
+});
+
+test('recolor rewrites colour places only: text, <title>, <desc>, <metadata> and aria-label keep a "#ffffff" they mention', async () => {
+  const d = diagram({theme: 'teal', appearance: 'dark', title: '配色 #ffffff', desc: '背景は #ffffff', legend: 'auto'}).add(caption('背景色は #ffffff（#22201b）', {tone: 'text'}), box({title: '#a8632b', body: '#ffffff', id: 'x'}));
+  d.source = {generator: 'svg-diagram', toolVersion: '0', source: 'a #ffffff.ts', sourceSha256: 'x'} as never;
+  const {svg, html} = await renderDiagram(d, {name: 'd.svg', budget: 'cacheOnly', html: true});
+  assert.match(svg, /<title id="svg-title">配色 #ffffff<\/title>/);
+  assert.match(svg, /<desc id="svg-desc">背景は #ffffff<\/desc>/);
+  assert.match(svg, /a #ffffff\.ts/);
+  assert.match(svg, />背景色は #ffffff（#22201b）</);
+  assert.match(svg, />#a8632b</);
+  assert.match(html!, />背景色は #ffffff（#22201b）</);
+  // and the colours themselves were recoloured
+  assert.match(svg, new RegExp(`<rect x="0" y="0"[^>]*fill="${DARK_PALETTE.bg}"`));
+});
+
+test('recolor: attributes and CSS only, once', () => {
+  const s = `<svg data-assumed-bg="#ffffff" aria-label="#ffffff"><style>.a{fill:#ffffff}</style><text fill="#22201b" style="stroke:#e0d6c5">#ffffff</text></svg>`;
+  assert.equal(recolor(s, 'dark'), `<svg data-assumed-bg="${DARK_PALETTE.bg}" aria-label="#ffffff"><style>.a{fill:${DARK_PALETTE.bg}}</style><text fill="${DARK_PALETTE.text}" style="stroke:${DARK_PALETTE.border}">#ffffff</text></svg>`);
+});
+
+test('lint-svg: the dark tokens pass only in a diagram that says it is dark', async () => {
+  const {execFileSync} = await import('node:child_process');
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dk-'));
+  const lightSvg = (await renderDiagram(make(), {name: 'd.svg', budget: 'cacheOnly'})).svg;
+  const darkSvg = (await renderDiagram(make({appearance: 'dark'}), {name: 'd.svg', budget: 'cacheOnly'})).svg;
+  assert.match(darkSvg, /data-appearance="dark"/);
+  assert.doesNotMatch(lightSvg, /data-appearance/);
+  // a light diagram that has been hand-edited to a dark token is off-token
+  const forged = lightSvg.replace(PALETTE.text, DARK_PALETTE.text);
+  const run = (name: string, svg: string) => { const f = path.join(dir, name); fs.writeFileSync(f, svg); return execFileSync(process.execPath, [new URL('../lint-svg.ts', import.meta.url).pathname, f], {encoding: 'utf8'}); };
+  assert.match(run('forged.svg', forged), /off-token-color/);
+  assert.doesNotMatch(run('dark.svg', darkSvg), /off-token-color/);
+  assert.doesNotMatch(run('light.svg', lightSvg), /off-token-color/);
 });

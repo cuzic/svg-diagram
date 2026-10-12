@@ -9,6 +9,8 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
+import {minTextSize} from './fit.ts';
+import {IMAGE_WARN_BYTES} from './image.ts';
 import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, paintOf} from './tokens.ts';
 
 // contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
@@ -18,6 +20,7 @@ import {budgetWarnings} from './budget.ts';
 import {barsValuesHidden} from './bars.ts';
 import {fmt} from './plane.ts';
 import {dimmedBands} from './spotlight.ts';
+import {visibleAt} from './reveal.ts';
 import type {
   ArrowWeight, Band, BarsBand, BoxBand, EmphasisTone, DiagramData, Finding, LaidOutBand, LaidOutBox, LaidOutConnect, LegendBand, LegendItem,
   LineStyle, Point, RuleId, SwimlaneBand, WfCallout,
@@ -31,6 +34,7 @@ export const RULE_DOCS = {
   'a11y-no-title': 'SVG の <title> に使える題名が見つからない（diagram({title}) を指定）',
   'bars-values-hidden': '値ラベルも目盛りも出さない bars があるのに、図の題名（SVG の <title>）がなく、値を読み上げる <desc> が届かない（doc 媒体）',
   'bars-thin-bar': '棒が 1px 以下（値は 0 でない）。図の高さ・幅を上げるか max を見直す',
+  'image-large': '埋め込んだ画像が大きい（300 KB 超）。ファイルがそのまま SVG に入り、段階表示の各ファイルにも入る。縮小・圧縮してから使う',
   'source-wraps': '出典行（diagram({sourceLine})）が 1 行に収まらず折り返している（短くする）',
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える）',
@@ -41,6 +45,8 @@ export const RULE_DOCS = {
   'edge-crossings': '線どうしの交差・重なりがある',
   'arrow-labels': '一部にだけラベルがあり、ラベルのない矢印が多い',
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
+  'slide-min-text': 'スライド用キャンバスの最小文字サイズ(既定 24px)より小さい文字がある',
+  'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
   'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む',
   'density': '文字量・箱の数が多い',
   'wf-callout-no-note': '図の番号に対応する注釈がない',
@@ -69,7 +75,7 @@ export const DEFAULT_LEGEND_LABELS = {
 export function walkBands(bands: Band[], out: Band[] = []): Band[] {
   for (const b of bands) {
     out.push(b);
-    if (b.type === 'group') walkBands(b.children, out);
+    if (b.type === 'group' || b.type === 'image') walkBands(b.children ?? [], out);
     else if (b.type === 'grouprow') walkBands(b.children, out);
     else if (b.type === 'row' || b.type === 'grid') out.push(...b.children);
     else if (b.type === 'swimlane') out.push(...b.steps);
@@ -392,11 +398,17 @@ function lintAll(d: LintTarget): Finding[] {
     // no label at all is a convention (the arrows only mean "depends on" / "next"); some labelled and most not is the inconsistency to flag
     if (connects.length >= 4 && unlabeled < connects.length && unlabeled / connects.length > 0.6) out.push({rule: 'arrow-labels', severity: 'info', message: `矢印 ${connects.length} 本のうち ${unlabeled} 本にラベルがない。何が流れるか（成果物・プロトコル）を短く添える`});
   }
-  if (d.medium === 'doc' && d.width > (d.maxWidth ?? 940)) out.push({rule: 'doc-width', severity: 'warn', message: `幅 ${d.width}px。本文の表示幅（約 930px）に縮められ、文字が小さくなる（${d.maxWidth ?? 940}px 以下にする）`});
+  if (d.canvas && d.laidOut) {
+    const min = minTextSize(d);
+    if (min < d.canvas.minText) out.push({rule: 'slide-min-text', severity: 'warn', message: `最小の文字が ${min}px。スライド用キャンバスは ${d.canvas.minText}px 以上(その文字を大きくするか、減らす)`});
+    if (d.contentHeight !== undefined && d.contentHeight > d.canvas.height) out.push({rule: 'slide-canvas-overflow', severity: 'warn', message: `内容の高さ ${d.contentHeight}px が、キャンバスの高さ ${d.canvas.height}px を超える。行・文字を減らすか、図を分ける`});
+  }
+  if (d.medium === 'doc' && !d.canvas && d.width > (d.maxWidth ?? 940)) out.push({rule: 'doc-width', severity: 'warn', message: `幅 ${d.width}px。本文の表示幅（約 930px）に縮められ、文字が小さくなる（${d.maxWidth ?? 940}px 以下にする）`});
   // doc diagrams are read at length on a page, so their budget is larger than the slide decks' (see budget.ts)
   for (const w of budgetWarnings({laidOut: d.laidOut ?? []}, d.medium === 'doc' ? {boxBody: 100, total: 700, boxes: 30} : undefined)) out.push({rule: 'density', severity: 'warn', message: w});
   const allBars = walkBands(d.bands).filter((b): b is BarsBand => b.type === 'bars');
   if (d.medium === 'doc' && !diagramTitle(d) && allBars.some(barsValuesHidden)) out.push({rule: 'bars-values-hidden', severity: 'warn', message: '値を隠した bars があるが、図に題名がなく <desc> も出ない。diagram({title}) を指定する（値の列は自動で <desc> に入る）'});
+  for (const b of walkBands(d.bands)) if (b.type === 'image' && b.bytes > IMAGE_WARN_BYTES) out.push({rule: 'image-large', severity: 'warn', message: `画像（${Math.round(b.bytes / 1024)} KB）が大きい。SVG に埋め込まれ、段階表示の各ファイルにも入る。解像度を下げるか圧縮する（${IMAGE_WARN_BYTES / 1024} KB 以下が目安）`});
   for (const b of d.laidOut ?? []) if (b.type === 'bars' && b.bars.some(r => (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0))) { out.push({rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す'}); break; }
   for (const b of d.laidOut ?? []) if (b.type === 'caption' && b.sourceLine && b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0) > 1) out.push({rule: 'source-wraps', severity: 'warn', message: `出典行が ${b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0)} 行に折り返している。1 行に収まる長さにする（出典の細部は本文へ）`});
   if (d.medium === 'doc' && !diagramTitle(d)) out.push({rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する'});
@@ -416,21 +428,24 @@ export function diagramTitle(d: DiagramData): string {
   return '';
 }
 
-export function diagramDesc(d: DiagramData): string {
+/** `stage`: a click stage of a revealing diagram; only what is on screen then is listed (nothing is left out without it). */
+export function diagramDesc(d: DiagramData, stage?: number): string {
   if (d.desc) return oneLine(d.desc);
   const parts: string[] = [];
-  for (const b of walkBands(d.bands)) {
+  const bands = walkBands(d.bands).filter(b => visibleAt(b as {reveal?: number; until?: number}, stage));
+  for (const b of bands) {
     if (b.type === 'swimlane') {
       parts.push(`レーン: ${b.lanes.map(l => oneLine(l.label)).join('、')}`);
-      parts.push(`手順: ${b.steps.map(s => oneLine(s.title)).join('、')}`);
+      parts.push(`手順: ${b.steps.filter(s => visibleAt(s, stage)).map(s => oneLine(s.title)).join('、')}`);
     } else if (b.type === 'sequence') parts.push(`参加者: ${b.actors.map(a => oneLine(a.label)).join('、')}`);
     else if (b.type === 'table') parts.push(`表${b.title ? `「${oneLine(b.title)}」` : ''}: 列 ${b.columns.map(c => oneLine(c.label)).join('、')}`);
   }
   if (!parts.length) {
-    const titles = walkBands(d.bands).filter((b): b is BoxBand => b.type === 'box' && !!b.title).map(b => oneLine(b.title));
+    const titles = bands.filter((b): b is BoxBand => b.type === 'box' && !!b.title).map(b => oneLine(b.title));
     if (titles.length) parts.push(`要素: ${titles.slice(0, 16).join('、')}${titles.length > 16 ? ' ほか' : ''}`);
   }
+  for (const b of walkBands(d.bands)) if (b.type === 'image' && b.alt) parts.push(`画像: ${oneLine(b.alt)}`);
   // outside the fallback above, so boxes and hidden-value bars can share one description
-  for (const b of walkBands(d.bands)) if (b.type === 'bars' && barsValuesHidden(b)) parts.push(`値: ${b.data.map(x => `${oneLine(x.label)} ${fmt(x.value)}${b.unit ?? ''}`).join('、')}`);
+  for (const b of bands) if (b.type === 'bars' && barsValuesHidden(b)) parts.push(`値: ${b.data.filter(x => visibleAt(x, stage)).map(x => `${oneLine(x.label)} ${fmt(x.value)}${b.unit ?? ''}`).join('、')}`);
   return parts.join('。');
 }

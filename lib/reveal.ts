@@ -18,6 +18,7 @@ const refId = (ref: string): string => ref.split(':')[0];
 export function prepareReveal(d: DiagramData): number {
   const ids = new Map<string, number>();
   const untils = new Map<string, number>();
+  const ownUntils = new Map<object, number | undefined>(), replaced = new Set<string>();
   const connects: Extract<Band, {type: 'connect'}>[] = [];
   let max = 0;
   const set = (x: Revealed, inherited: number, where: string, inheritedUntil?: number): number => {
@@ -80,25 +81,40 @@ export function prepareReveal(d: DiagramData): number {
         const childLevels = b.children.map((c, i) => set(c, n, `row() child ${i + 1}`, u));
         b.children.forEach((c, i) => { if ('children' in c) walk(c.children, childLevels[i], c.until); }); // a group in a grouprow
         if (b.id) {
+          // row#k: the stage its cell appears at and the stage it vanishes at (the latest of its children; none if any child stays)
+          const slotUntil = new Map<string, number>(), stays = new Set<string>();
+          const cell = (key: string, r: number, until: number | undefined): void => {
+            ids.set(key, Math.max(ids.get(key) ?? 0, r));
+            if (until === undefined) stays.add(key); else slotUntil.set(key, Math.max(slotUntil.get(key) ?? 0, until));
+          };
           if (b.cols) {
             let next = 1;
             b.children.forEach((c, i) => {
               const span = c.span ?? 1, col = c.col ?? next;
-              for (let a = col; a < col + span; a++) ids.set(`${b.id}#${a}`, Math.max(ids.get(`${b.id}#${a}`) ?? 0, childLevels[i]));
+              for (let a = col; a < col + span; a++) cell(`${b.id}#${a}`, childLevels[i], c.until);
               next = col + span;
             });
-          } else childLevels.forEach((r, i) => ids.set(`${b.id}#${i + 1}`, r));
+          } else b.children.forEach((c, i) => cell(`${b.id}#${i + 1}`, childLevels[i], c.until));
+          for (const [key, u] of slotUntil) if (!stays.has(key)) untils.set(key, u);
         }
       } else if (b.type === 'plane') planeElements(b, n);
       else if (b.type === 'swimlane') b.steps.forEach((c, i) => set(c, n, `swimlane() step ${i + 1}`, u));
       else if (b.type === 'grid') b.children.forEach((c, i) => set(c, n, `grid() child ${i + 1}`, u));
-      else if (b.type === 'bars') for (const [i, bar] of b.data.entries()) {
+      else if (b.type === 'image') {
+        for (const [i, m] of (b.marks ?? []).entries()) { const r = set(m, n, `image() mark ${i + 1}`, u); if (m.id) ids.set(m.id, r); }
+        for (const [i, l] of (b.labels ?? []).entries()) set(l, n, `image() label ${i + 1}`, u);
+        walk(b.children ?? [], n, u);
+      } else if (b.type === 'bars') for (const [i, bar] of b.data.entries()) {
+        ownUntils.set(bar, bar.until); // the bar's own, before set() merges in the band's
         if (bar.replaces !== undefined) {
           if (b.stack) throw new Error(`bars() value ${i + 1}: replaces does not work with stack (the segments share one bar)`);
           const old = b.data.slice(0, i).find(d => d.id === bar.replaces);
           if (!old) throw new Error(`bars() value ${i + 1}: replaces "${bar.replaces}" must name the id of an earlier bar of the same band`);
           if (bar.reveal === undefined) throw new Error(`bars() value ${i + 1}: a bar that replaces another needs a reveal (the click it takes the place at)`);
-          if (old.until !== undefined && old.until !== bar.reveal) throw new Error(`bars() value ${i + 1}: replaces "${bar.replaces}", which already vanishes at ${old.until}, not at this bar's reveal ${bar.reveal}`);
+          if (replaced.has(bar.replaces)) throw new Error(`bars() value ${i + 1}: "${bar.replaces}" is already replaced by another bar`);
+          replaced.add(bar.replaces);
+          const oldOwn = ownUntils.get(old);
+          if (oldOwn !== undefined && oldOwn !== bar.reveal) throw new Error(`bars() value ${i + 1}: replaces "${bar.replaces}", which already vanishes at ${oldOwn}, not at this bar's reveal ${bar.reveal}`);
           if (bar.reveal <= (old.reveal ?? 0)) throw new Error(`bars() value ${i + 1}: replaces "${bar.replaces}" but is revealed (${bar.reveal}) no later than it (${old.reveal ?? 0})`);
           if (old.id) untils.set(old.id, bar.reveal);
           old.until = bar.reveal; // the replaced bar goes at the very click its replacement comes
@@ -118,6 +134,8 @@ export function prepareReveal(d: DiagramData): number {
     // a connector goes with the first of its ends to vanish
     const gone = c.until ?? earlier(untils.get(refId(c.from)), untils.get(refId(c.to)));
     if (gone !== undefined) {
+      const ends2 = earlier(untils.get(refId(c.from)), untils.get(refId(c.to)));
+      if (c.until !== undefined && ends2 !== undefined && c.until > ends2) warnings.push(`connect(${c.from} -> ${c.to}) until ${c.until} is later than an endpoint's (vanishes at ${ends2})`);
       if (gone <= (c.reveal ?? 0)) throw new Error(`connect(${c.from} -> ${c.to}): until ${gone} must be later than its reveal ${c.reveal ?? '(shown from the start)'} (an arrow between two things that are never on screen together has nothing to show)`);
       c.until = gone;
       max = Math.max(max, gone);

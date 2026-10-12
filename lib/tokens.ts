@@ -71,10 +71,14 @@ export const darkOf = (hex: string, appearance: Appearance = 'dark'): string => 
 export const paintOf = (appearance: Appearance | undefined): ((hex: string) => string) => { const m = mapOf(appearance); return m ? (h => m[h.toLowerCase()] ?? h) : (h => h); };
 /** The page colour a diagram is designed for: what a transparent diagram is checked against. */
 export const pageColorOf = (appearance: Appearance | undefined): string => paintOf(appearance)(PALETTE.bg);
-/** Recolour every #rrggbb in emitted SVG / HTML with the appearance's token set (once: a custom colour may equal a light token). */
+/** Recolour the colours of emitted SVG / HTML with the appearance's token set. Only colour-bearing places are rewritten: the <style> CSS,
+ *  and the fill / stroke / stop-color / flood-color / color / style / data-assumed-bg attributes of a tag. Text content, <title>, <desc>,
+ *  <metadata> and other attributes (aria-label ...) can say "#ffffff" and keep it. Once only: a custom colour may equal a light token. */
 export const recolor = (text: string, appearance: Appearance | undefined): string => {
-  const p = paintOf(appearance);
-  return mapOf(appearance) ? text.replace(/#[0-9a-fA-F]{6}\b/g, h => p(h)) : text;
+  if (!mapOf(appearance)) return text;
+  const p = paintOf(appearance), hex = (v: string) => v.replace(/#[0-9a-fA-F]{6}\b/g, h => p(h));
+  const attrs = /(\s(?:fill|stroke|stop-color|flood-color|color|style|data-assumed-bg)=")([^"]*)"/g;
+  return text.replace(/<style[\s\S]*?<\/style>|<[^>]*>/g, part => part.startsWith('<style') ? hex(part) : part.replace(attrs, (_m, pre: string, v: string) => `${pre}${hex(v)}"`));
 };
 
 // ---- tones: the ONE table from a tone name to the colours it paints ---------------------------------------------------
@@ -143,8 +147,9 @@ const THEME_KEYS = THEMES as unknown as Theme[];
 export const ALLOWED_COLORS = new Set([
   PALETTE.bg, PALETTE.text, PALETTE.muted, PALETTE.border, PALETTE.code, PALETTE.danger,
   ...THEME_KEYS.flatMap(k => [PALETTE[k].accent, PALETTE[k].soft]),
-  ...Object.values(DARK_OF), // the dark appearance's tokens
 ]);
+/** The built-in dark set's colours: allowed in a diagram that says it is dark (root data-appearance="dark"), not in a light one. */
+export const DARK_COLORS: ReadonlySet<string> = new Set(Object.values(DARK_OF));
 
 export const FONT_STACKS: Record<'sans' | 'mono' | 'emoji', string> = {
   sans: `'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif`,
@@ -169,6 +174,17 @@ export const ROLES: Roles = Object.freeze({
 /** `base` with every size scaled by `s` and rounded (fill: true). Pure: ROLES itself never changes. */
 export function scaleRoles(base: Roles, s: number): Roles {
   return Object.freeze(Object.fromEntries(Object.entries(base).map(([k, v]) => [k, Math.round(v * s)])) as Record<Role, number>);
+}
+
+/** diagram({canvas: 'slide'}): a 16:9 slide drawn 1:1; no text below `minText`. */
+export const SLIDE_CANVAS = {width: 1280, height: 720, minText: 24};
+/** The scale at which the smallest text (a role or a fixed size) becomes `minText`. */
+export function canvasFontScale(minText: number): number {
+  return Math.ceil(minText / Math.min(...Object.values(ROLES), 14) * 100) / 100;
+}
+/** The roles a canvas diagram is drawn with: every role and the fixed sizes (connector label, tag) scaled by `s`. */
+export function canvasRoles(s: number): Roles {
+  return Object.freeze({...scaleRoles(ROLES, s), connectLabel: Math.round(CONNECT_LABEL_SIZE * s), tag: Math.round(TAG_SIZE * s)});
 }
 
 // Fixed sizes of text that is not a role: the label on a connector line and the tag pill on a box.

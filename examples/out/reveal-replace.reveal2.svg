@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="289" viewBox="0 0 940 289" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">号令から許可へ</title>
-  <desc id="svg-desc">要素: 号令を待つ、許可を待つ</desc>
+  <desc id="svg-desc">要素: 許可を待つ</desc>
   <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/reveal-replace.ts","sourceSha256":"5113947dc85e73ed15c64bf015306d0d19fad35492c37bab38169fa73d63a24a","reveal":2}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }

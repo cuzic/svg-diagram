@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {box, caption, diagram, closeMeasurer, renderDiagram, table, raw} from '../lib/dsl.ts';
+import {configureMeasure} from '../lib/measure.ts';
+import {textBox} from '../lib/font-metrics.ts';
+import {PALETTE} from '../lib/tokens.ts';
 
 process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
 test.after(() => closeMeasurer());
@@ -64,6 +68,84 @@ test('raw() stays the author\'s SVG, text included', async () => {
   d.add(raw({h: 60, draw: ({x, y}: {x: number; y: number}) => `<text x="${x + 10}" y="${y + 30}" font-size="16" fill="#22201b">生の文字</text>`}));
   const {html} = await renderDiagram(d, {name: 't.svg', budget: 'cacheOnly', html: true});
   assert.match(html!, /<text[^>]*>生の文字<\/text>/);
+});
+
+const htmlOf = async (d: ReturnType<typeof diagram>) => (await renderDiagram(d, {name: 't.svg', budget: 'cacheOnly', html: true})).html!;
+
+test('the parts keep the order of the layout: a raw() before a box is under it, as in the SVG', async () => {
+  const d = diagram({theme: 'blue'});
+  d.add(raw({h: 60, draw: ({x, y}: {x: number; y: number}) => `<rect x="${x}" y="${y}" width="40" height="40" fill="#22201b"/>`}));
+  d.add(box({title: '上に乗る'}));
+  const html = await htmlOf(d);
+  assert.ok(html.indexOf('sd-raw') < html.indexOf('class="sd-b"'), 'the raw SVG comes first, the box over it');
+});
+
+test('connectors stay on top of every part', async () => {
+  const d = diagram({theme: 'blue'});
+  d.add(box({title: 'A', id: 'a'}));
+  d.add(box({title: 'B', id: 'b'}));
+  d.add(raw({h: 20, draw: () => '<g/>'}));
+  d.connect('a', 'b', {label: '線ラベル'});
+  const html = await htmlOf(d);
+  assert.ok(html.indexOf('sd-raw') < html.indexOf('線ラベル'));
+});
+
+test('a table outside the spotlight is muted, as the SVG paints it', async () => {
+  const mk = (spotlight?: string) => {
+    const d = diagram({theme: 'blue', ...(spotlight ? {spotlight} : {})});
+    d.add(box({title: '焦点', id: 'a'}));
+    d.add(table([{label: '層', flex: 1}, {label: '役割', flex: 2}], [['画面', '入力']], {rowHeader: true}));
+    return d;
+  };
+  const lit = (await htmlOf(mk())).split('class="sd-tbl"')[1];
+  const dim = (await htmlOf(mk('a'))).split('class="sd-tbl"')[1];
+  assert.match(lit, new RegExp(PALETTE.text, 'i'));
+  assert.doesNotMatch(dim, new RegExp(`${PALETTE.text}|${PALETTE.border}`, 'i'), 'no text or border colour is left');
+  assert.match(dim, new RegExp(PALETTE.muted, 'i'));
+});
+
+test('the id comes from the content, not from how many figures were built before', async () => {
+  const mk = (t: string) => { const d = diagram({theme: 'blue'}); d.add(box({title: t})); return d; };
+  const a1 = await htmlOf(mk('甲'));
+  await htmlOf(mk('乙'));
+  const a2 = await htmlOf(mk('甲'));
+  const b = await htmlOf(mk('乙'));
+  const idOf = (h: string) => /<div id="(sd-[0-9a-f]{8})"/.exec(h)![1];
+  assert.equal(idOf(a1), idOf(a2));
+  assert.notEqual(idOf(a1), idOf(b));
+  assert.ok(a1.includes(`#${idOf(a1)} .sd-b`), 'the CSS is scoped by that id');
+});
+
+test('an ideographic space or NBSP is a character, not white space to collapse', async () => {
+  const d = diagram({theme: 'blue'});
+  d.add(box({title: 'a\u3000\u3000b', body: 'c\u00a0\u00a0d'}));
+  const html = await htmlOf(d);
+  assert.ok(html.includes('a\u3000\u3000b'));
+  assert.ok(html.includes('c\u00a0\u00a0d'));
+});
+
+// Both fonts are named in `fonts`, so the result does not depend on which sans font the machine has by default.
+const dejavu = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', mathy = '/usr/share/fonts/truetype/dejavu/DejaVuMathTeXGyre.ttf';
+let size = 16; // the font size of the caption, read from the HTML
+const lineHeightWith = async (font: string) => {
+  const d = diagram({theme: 'blue'});
+  d.add(caption('Hello'));
+  try {
+    configureMeasure({measure: 'font', fonts: {sans: {regular: font, bold: font}}});
+    const m = /font-size:(\d+)px;[^"]*line-height:(\d+)px/.exec(await htmlOf(d))!;
+    size = Number(m[1]);
+    return Number(m[2]);
+  } finally { configureMeasure({}); }
+};
+
+test('the line box is the ascent + descent of the project\'s font', {skip: fs.existsSync(dejavu) ? false : 'needs DejaVu Sans'}, async () => {
+  const got = await lineHeightWith(dejavu);
+  const b = textBox('あ', 'sans', size, 400, {sans: {regular: dejavu, bold: dejavu}});
+  assert.equal(got, b.ascent + b.descent);
+});
+
+test('a project font with other vertical metrics gives another line box', {skip: fs.existsSync(dejavu) && fs.existsSync(mathy) ? false : 'needs DejaVu Sans and DejaVu Math TeX Gyre'}, async () => {
+  assert.notEqual(await lineHeightWith(mathy), await lineHeightWith(dejavu));
 });
 
 import {parsePath, shapesToCss} from '../lib/svg-to-css.ts';
