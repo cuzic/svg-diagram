@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="396" viewBox="0 0 940 396" role="img" aria-labelledby="svg-title">
   <title id="svg-title">座標平面の点を順に出す</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/plane-reveal.ts","sourceSha256":"055d7c36a25ccf2c20eb4fb75e523a7c4f06ee78966446561f28495036a2c19a","reveal":0}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/plane-reveal.ts","sourceSha256":"56abd79f8699e2a073bc8c227b8f8c32170d7a83e670a40368c0573e9c59a8b0","reveal":0}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
