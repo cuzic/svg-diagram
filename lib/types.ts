@@ -722,6 +722,8 @@ export interface TableOpts extends RevealOpts {
   headerH?: number;
   /** Top and bottom padding of a row 4px instead of 8px (text stays 14px). `cellH` / `h` / `headerH` still win; the height a row needs is computed with the dense padding. */
   dense?: boolean;
+  /** The left column is a row heading: its body cells are bold on a `soft` fill, with a heavy rule on their right (the top-left cell stays a header cell). Warns (`rowheader-tone-collides`) when a row's own tone also fills `soft`. */
+  rowHeader?: boolean;
   id?: string;
 }
 export interface TableBand {
@@ -735,6 +737,7 @@ export interface TableBand {
   cellH?: number;
   headerH?: number;
   dense?: boolean;
+  rowHeader?: boolean;
   id?: string;
   reveal?: number;
 }
@@ -1489,6 +1492,8 @@ export interface LaidOutTable extends Rect {
   colX: number[];
   colW: number[];
   tone?: BoxTone;
+  /** The left column of the body rows is a row heading (see TableOpts.rowHeader). */
+  rowHeader?: boolean;
   reveal?: number;
 }
 
