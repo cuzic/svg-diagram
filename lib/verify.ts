@@ -61,7 +61,7 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
       rects.push({id: null, label: `group title "${band.text}"`, ...band.inkBox});
     } else if (band.type === 'row' || band.type === 'grid') {
       for (const c of band.children) rects.push({id: c.id ?? null, label: labelOf(c), x: c.x, y: c.y, w: c.w, h: c.h});
-    } else if (band.type === 'box' || band.type === 'banner' || band.type === 'raw' || band.type === 'legend' || band.type === 'sequence' || band.type === 'table' || band.type === 'wireframe' || band.type === 'pyramid' || band.type === 'curve' || band.type === 'plane' || band.type === 'timeline') {
+    } else if (band.type === 'box' || band.type === 'banner' || band.type === 'raw' || band.type === 'legend' || band.type === 'sequence' || band.type === 'table' || band.type === 'wireframe' || band.type === 'pyramid' || band.type === 'curve' || band.type === 'plane' || band.type === 'people' || band.type === 'dots' || band.type === 'timeline') {
       rects.push({id: ('id' in band ? band.id : undefined) ?? null, label: labelOf(band), x: band.x, y: band.y, w: band.w, h: band.h});
     }
   }
