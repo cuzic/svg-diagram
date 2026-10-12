@@ -247,8 +247,8 @@ export function cell(text: string | number, opts: Omit<TableCellSpec, 'text'> = 
 // Types: at most 6 lanes (rule swimlane-lanes); every step.lane is a declared lane id; step ids are unique; flows'
 // from / to are step ids (optionally ':side[@t]'); chip / labelAt need a label. The step ids are exposed to add().
 export function swimlane<
-  const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [],
->(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows'> & {flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S>> | ConnectBand)[] & AnchorsOf<StepIds<S>>;
+  const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [], const Id extends string = never,
+>(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows' | 'id'> & {id?: Id; flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S> | Id> | ConnectBand)[] & AnchorsOf<StepIds<S> | Id>;
 export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
   for (const l of lanes) assertBoxTone(l.tone, `swimlane() lane "${l.id}"`);
   const laneIdx = new Map(lanes.map((l, i) => [l.id, i]));
