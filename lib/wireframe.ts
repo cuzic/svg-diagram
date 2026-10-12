@@ -16,7 +16,7 @@
 // Nodes in a col are full width; widgets in a row take their natural width (btn, chip) or share
 // the rest by flex. map / video / heat / pointcloud / chart / image grow to fill leftover height.
 
-import {splitAtoms, textWidth} from './measure.ts';
+import {splitAtoms, textWidth} from './atoms.ts';
 import {TONE_ALIAS, textKeyOf, toneStyle} from './tokens.ts';
 import type {ToneName} from './tokens.ts';
 import {wrapAtoms} from './wrap.ts';

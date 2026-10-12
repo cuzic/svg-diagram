@@ -11,7 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import {wf} from './wireframe.ts';
 import {assertIconName} from './icons.ts';
-import {layoutDiagram} from './layout.ts';
+import {layoutDiagram} from './layout-measured.ts';
 import {emitSvg} from './emit.ts';
 import {emitHtml} from './emit-html.ts';
 import {xmlProblems} from './xml-check.ts';
@@ -23,9 +23,9 @@ import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
-import {MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone} from './tokens.ts';
+import {MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
-  Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -164,11 +164,9 @@ function assertTextRole(role: string | undefined, allowed: readonly string[], wh
  * The usual roles (a stat({size: 'display'}) included) are not held back, so a diagram without these options scales as before.
  */
 export function fillScaleLimit(bands: Band[]): number {
-  const optIn = walkBands(bands).flatMap(b => b.type === 'banner' && b.headlineRole ? [baseRoles(b.headlineRole)] : (b.type === 'bars' || b.type === 'plane') && b.labelRole ? [baseRoles(b.labelRole)] : []);
+  const optIn = walkBands(bands).flatMap(b => b.type === 'banner' && b.headlineRole ? [ROLES[b.headlineRole]] : (b.type === 'bars' || b.type === 'plane') && b.labelRole ? [ROLES[b.labelRole]] : []);
   return Math.min(1.8, optIn.length ? OPT_IN_TEXT_MAX / Math.max(...optIn) : 1.8);
 }
-const BASE_ROLES: Record<Role, number> = {...ROLES};
-const baseRoles = (r: Role): number => BASE_ROLES[r];
 
 let boxSizeWarned = false;
 /** box({size}) is read by neither layout nor emit; said once per process, and a later version throws. */
@@ -814,7 +812,8 @@ export async function build(d: Diagram, outPath: string, opts: {lint?: boolean; 
 // `verdict` and `xml`, so build() can refuse to write while `svg-diagram show` can still draw the picture and say what is wrong.
 // (A define()/constructor/layout error still throws.) budget: 'measure' measures a slide that has no cached budget (starts the
 // dev server, writes the cache); 'cacheOnly' reads the cache and falls back to the default sizes with a note.
-export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'measure' | 'cacheOnly'; html?: boolean}): Promise<RenderResult> {
+export async function renderDiagram(input: Diagram, opts: {name: string; budget: 'measure' | 'cacheOnly'; html?: boolean}): Promise<RenderResult> {
+  const d = detach(input); // the passes below write into bands (reveal, legend items) and into d (width, ...): never into the caller's
   const maxReveal = prepareReveal(d);
   applyAutoLegend(d);
   const notes: string[] = [];
@@ -845,38 +844,66 @@ export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'me
   let fontScale = 1;
   let laidOut: LaidOutDiagram;
   let verdict: Verdict, svg: string, html: string | undefined;
-  const baseRoles = {...ROLES};
-  const applyScale = (s: number) => { for (const k of Object.keys(baseRoles) as Role[]) ROLES[k] = Math.round(baseRoles[k] * s); };
-  const layoutAt = (s: number) => { applyScale(s); return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}); };
-  try {
-    if (d.fill && budget) {
-      d.width = budget.contentWidth;
-      let lo = 1, hi = fillScaleLimit(d.bands);
-      if ((await layoutAt(1)).canvasHeight > budget.maxHeight) hi = 1; // doesn't even fit at 1x: report via fit warnings
-      for (let i = 0; i < 7 && hi - lo > 0.01; i++) {
-        const mid = (lo + hi) / 2;
-        if ((await layoutAt(mid)).canvasHeight <= budget.maxHeight) lo = mid; else hi = mid;
-      }
-      fontScale = Math.floor(lo * 100) / 100;
-    } else if (d.fill) {
-      if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
-      notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
+  // Every scale is its own value (scaleRoles): measured with, laid out with and drawn with the same roles, which travel in the result.
+  const layoutAt = async (s: number): Promise<LaidOutDiagram> => {
+    const roles = scaleRoles(ROLES, s);
+    return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}, {roles});
+  };
+  if (d.fill && budget) {
+    d.width = budget.contentWidth;
+    let lo = 1, hi = fillScaleLimit(d.bands);
+    if ((await layoutAt(1)).canvasHeight > budget.maxHeight) hi = 1; // doesn't even fit at 1x: report via fit warnings
+    for (let i = 0; i < 7 && hi - lo > 0.01; i++) {
+      const mid = (lo + hi) / 2;
+      if ((await layoutAt(mid)).canvasHeight <= budget.maxHeight) lo = mid; else hi = mid;
     }
-    laidOut = await layoutAt(fontScale);
-    laidOut.fontScale = fontScale;
-    applySpotlight(laidOut);
-    // emit.ts reads ROLES while it draws, so the verdict and the SVG are made at the scale the layout was made at
-    verdict = verifyDiagram(laidOut);
-    svg = emitSvg(laidOut, maxReveal ? {reveal: maxReveal} : {});
-    if (opts.html) html = emitHtml(laidOut, maxReveal ? {reveal: maxReveal} : {});
-  } finally {
-    applyScale(1);
+    fontScale = Math.floor(lo * 100) / 100;
+  } else if (d.fill) {
+    if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
+    notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
   }
+  laidOut = await layoutAt(fontScale);
+  laidOut.fontScale = fontScale;
+  applySpotlight(laidOut);
+  verdict = verifyDiagram(laidOut);
+  svg = emitSvg(laidOut, maxReveal ? {reveal: maxReveal} : {});
+  if (opts.html) html = emitHtml(laidOut, maxReveal ? {reveal: maxReveal} : {});
   return {svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml: xmlProblems(svg), notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget, budgetSource, fontScale: laidOut.fontScale};
 }
 
+/** What the passes may write into: the bands are copied, so a band shared by two diagrams (or drawn twice) is never changed by a render. */
+function detach<D extends DiagramData>(d: D): D {
+  return {...d, bands: cloneData(d.bands)};
+}
+/**
+ * A deep copy of plain data: arrays and plain objects (Object.prototype or null prototype) are copied; everything else is
+ * shared — a function (a raw() band's draw), a string, a Map / Set / Date / RegExp, a class instance. (structuredClone throws
+ * on raw()'s function; copying a class instance by hand breaks private fields and internal slots.) The same object met twice
+ * is copied once, so a band placed in two spots stays one band in the copy, and a cycle ends.
+ * Known gap: a class instance handed in as plan data (a point of plane({points})) is shared, so a reveal written into it by
+ * prepareReveal can still show in another figure. Not copied: non-enumerable properties (the .left / .right / .at handles,
+ * withAnchors' anchors) and symbol keys (NUMBERING, GIVEN, RICH) — add() has used them up and nothing downstream reads them.
+ */
+function cloneData<T>(v: T, seen = new WeakMap<object, unknown>()): T {
+  if (!v || typeof v !== 'object') return v;
+  if (seen.has(v)) return seen.get(v) as T;
+  if (Array.isArray(v)) {
+    const out: unknown[] = [];
+    seen.set(v, out);
+    for (const x of v) out.push(cloneData(x, seen));
+    return out as T;
+  }
+  const proto = Object.getPrototypeOf(v);
+  if (proto !== Object.prototype && proto !== null) return v;
+  const out = Object.create(proto);
+  seen.set(v, out);
+  for (const [k, x] of Object.entries(v)) out[k] = cloneData(x, seen);
+  return out;
+}
+
 // Layout + verification + rules, without writing any file: the engine behind `svg-diagram check`.
-export async function checkDiagram(d: DiagramData): Promise<CheckResult> {
+export async function checkDiagram(input: DiagramData): Promise<CheckResult> {
+  const d = detach(input);
   prepareReveal(d);
   applyAutoLegend(d);
   const laidOut = await layoutDiagram(d);
