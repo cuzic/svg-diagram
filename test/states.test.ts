@@ -155,3 +155,34 @@ test('stateDiagram(): five arrows out of one state each have their own vertical 
     assert.equal(sharedRun(t.edges), undefined, dir);
   }
 });
+
+test('stateDiagram(): a connector that ends on the whole figure (its id) is not stopped by its states', async () => {
+  const sd = stateDiagram([S('a'), S('b'), S('c')], [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}], {id: 'SD'});
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(sd, box({id: 'ext', title: '外部'}), connect('SD', 'ext', {route: 'elbow'})));
+  assert.deepEqual(verdict.problems, []);
+});
+
+const crossings = (edges: {from: string; to: string; points: {x: number; y: number}[]}[]): string[] => {
+  const out: string[] = [];
+  for (let i = 0; i < edges.length; i++) for (let j = i + 1; j < edges.length; j++) {
+    for (let a = 0; a + 1 < edges[i].points.length; a++) for (let b = 0; b + 1 < edges[j].points.length; b++) {
+      const p = edges[i].points[a], q = edges[i].points[a + 1], r = edges[j].points[b], s = edges[j].points[b + 1];
+      const iv = Math.abs(p.x - q.x) < 0.01, jv = Math.abs(r.x - s.x) < 0.01;
+      if (iv === jv) continue; // parallel: shared runs are checked elsewhere
+      const [v1, v2, h1, h2] = iv ? [p, q, r, s] : [r, s, p, q];
+      if (v1.x > Math.min(h1.x, h2.x) + 0.5 && v1.x < Math.max(h1.x, h2.x) - 0.5 && h1.y > Math.min(v1.y, v2.y) + 0.5 && h1.y < Math.max(v1.y, v2.y) - 0.5) out.push(`${edges[i].from}->${edges[i].to} x ${edges[j].from}->${edges[j].to}`);
+    }
+  }
+  return out;
+};
+
+test('stateDiagram(): arrows into one state (fan-in) and out of one state (fan-out) do not cross each other', async () => {
+  for (const dir of ['right', 'down'] as const) {
+    const names = ['a', 'b', 'c', 'd'];
+    const into = await laid(stateDiagram([...names.map(n => S(n)), S('e')], names.map(n => ({from: n, to: 'e'})), {dir}));
+    assert.deepEqual(into.verdict.problems, [], `fan-in ${dir}`);
+    assert.deepEqual(crossings(into.t.edges), [], `fan-in ${dir}`);
+    const out = await laid(stateDiagram([S('e'), ...names.map(n => S(n))], names.map(n => ({from: 'e', to: n})), {dir}));
+    assert.deepEqual(crossings(out.t.edges), [], `fan-out ${dir}`);
+  }
+});

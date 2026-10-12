@@ -2,10 +2,18 @@
 // ticks, today's line and the dependency arrows are computed. Dates are 'YYYY-MM-DD' (an end is inclusive); `today` is
 // always written out, never read from the clock.
 import {textWidth} from './atoms.ts';
+import type {Pt} from './graph-layout.ts';
 import {ticksOf, timelineDay} from './timeline.ts';
 import type {FontFamily, GanttBand, GanttRow, GanttTask, LaidOutGantt, Roles, WidthOf} from './types.ts';
 
 const ROW_H = 32, BAR_H = 18, HEAD_H = 44, PAD = 8, LABEL_MAX = 0.4, MS_DAY = 86400000, ARROW = 8;
+
+/** Drops repeated points and the middle point of three on a line. */
+const simplifyPts = (pts: Pt[]): Pt[] => {
+  const o: Pt[] = [];
+  for (const p of pts) if (!o.length || Math.abs(o[o.length - 1].x - p.x) > 0.01 || Math.abs(o[o.length - 1].y - p.y) > 0.01) o.push(p);
+  return o.filter((p, i) => i === 0 || i === o.length - 1 || !((o[i - 1].x === p.x && p.x === o[i + 1].x) || (o[i - 1].y === p.y && p.y === o[i + 1].y)));
+};
 
 const isSection = (r: GanttRow): r is {section: string} => 'section' in r;
 const tasksOf = (band: GanttBand): GanttTask[] => band.rows.filter((r): r is GanttTask => !isSection(r));
@@ -148,11 +156,23 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
   for (const t of tasks) for (const a of [t.after ?? []].flat()) {
     const p = rectOf(ids.get(a)!), q = rectOf(t);
     const x1 = p.x + p.w, y1 = p.y + p.h / 2, x2 = q.x, y2 = q.y + q.h / 2;
-    // the vertical run goes in the first free column between the tail and the head: not through the bar of a row between them
     const between = out.bars.filter(b => b !== p && b !== q && b.y + b.h > Math.min(y1, y2) && b.y < Math.max(y1, y2));
-    let mx = x1 + 8;
-    for (let c = x1 + 8; c <= x2 - ARROW - 6; c += 6) if (!between.some(b => c >= b.x - 4 && c <= b.x + b.w + 4)) { mx = c; break; }
-    out.deps.push({from: tasks.indexOf(ids.get(a)!), to: tasks.indexOf(t), points: x2 >= mx + ARROW + 6 ? [{x: x1, y: y1}, {x: mx, y: y1}, {x: mx, y: y2}, {x: x2, y: y2}] : [{x: x1, y: y1}, {x: x1 + 8, y: y1}, {x: x1 + 8, y: (y1 + y2) / 2}, {x: x2 - 8, y: (y1 + y2) / 2}, {x: x2 - 8, y: y2}, {x: x2, y: y2}]});
+    const free = (c: number): boolean => !between.some(b => c >= b.x - 4 && c <= b.x + b.w + 4);
+    const tailRow = band.rows.indexOf(ids.get(a)!), headRow = band.rows.indexOf(t), down = headRow > tailRow;
+    let pts: Pt[] | undefined;
+    // 1) straight on: out of the tail, down (or up) in the first free column before the head, into the head
+    for (let c = x1 + 8; c <= x2 - ARROW - 6 && !pts; c += 6) if (free(c)) pts = [{x: x1, y: y1}, {x: c, y: y1}, {x: c, y: y2}, {x: x2, y: y2}];
+    // 2) along the line between rows (no bar sits on it): out of the tail to the line below (above) its row, along it to a column free of
+    //    the bars of the rows between, to the line beside the head's row, along it to just before the head, into it
+    if (!pts) {
+      const bT = top + (down ? tailRow + 1 : tailRow) * ROW_H, bH = top + (down ? headRow : headRow + 1) * ROW_H;
+      const lo = out.plot.x1 + 4, hi = out.plot.x2 - 4;
+      const cols = bT === bH ? [x1 + 8] : Array.from({length: Math.floor((hi - lo) / 6) + 1}, (_, k) => lo + k * 6).filter(free).sort((u, v) => Math.abs(u - (x1 + x2) / 2) - Math.abs(v - (x1 + x2) / 2));
+      if (cols.length) pts = [{x: x1, y: y1}, {x: x1 + 8, y: y1}, {x: x1 + 8, y: bT}, {x: cols[0], y: bT}, {x: cols[0], y: bH}, {x: x2 - 8, y: bH}, {x: x2 - 8, y: y2}, {x: x2, y: y2}];
+    }
+    // 3) nothing is free: the plain route (verify says which bar it runs through)
+    pts ??= [{x: x1, y: y1}, {x: x1 + 8, y: y1}, {x: x1 + 8, y: y2}, {x: Math.max(x2, x1 + 8 + ARROW), y: y2}];
+    out.deps.push({from: tasks.indexOf(ids.get(a)!), to: tasks.indexOf(t), points: simplifyPts(pts)});
   }
   if (today !== undefined) {
     const tx = px(today) + perDay / 2;

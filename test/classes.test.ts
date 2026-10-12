@@ -129,3 +129,21 @@ test('classDiagram(): nodes appear with the figure (reveal); a class id cannot b
   assert.equal(laidOut.connects[0].reveal, 2);
   await assert.rejects(() => checkDiagram(diagram({theme: 'blue', spotlight: 'A'}).add(classDiagram([{id: 'A'}], []))), /node inside a figure/);
 });
+
+test('classDiagram(): several classes depending on one (fan-in) do not cross; a connector to the whole figure is not stopped by its classes', async () => {
+  const tails = ['A', 'B', 'C', 'D'];
+  const {t, verdict} = await laid(classDiagram([...tails.map(id => ({id})), {id: 'Log'}], tails.map(from => ({from, to: 'Log', kind: 'depend' as const}))));
+  assert.deepEqual(verdict.problems, []);
+  for (let i = 0; i < t.edges.length; i++) for (let j = i + 1; j < t.edges.length; j++) {
+    for (let a = 0; a + 1 < t.edges[i].points.length; a++) for (let b = 0; b + 1 < t.edges[j].points.length; b++) {
+      const p = t.edges[i].points[a], q = t.edges[i].points[a + 1], r = t.edges[j].points[b], s = t.edges[j].points[b + 1];
+      const iv = Math.abs(p.x - q.x) < 0.01, jv = Math.abs(r.x - s.x) < 0.01;
+      if (iv === jv) continue;
+      const [v1, v2, h1, h2] = iv ? [p, q, r, s] : [r, s, p, q];
+      assert.ok(!(v1.x > Math.min(h1.x, h2.x) + 0.5 && v1.x < Math.max(h1.x, h2.x) - 0.5 && h1.y > Math.min(v1.y, v2.y) + 0.5 && h1.y < Math.max(v1.y, v2.y) - 0.5), `${t.edges[i].from}->Log crosses ${t.edges[j].from}->Log`);
+    }
+  }
+  const fig = classDiagram([{id: 'A'}, {id: 'B'}, {id: 'C'}], [{from: 'A', to: 'B'}, {from: 'B', to: 'C'}], {id: 'CD'});
+  const w = await checkDiagram(diagram({theme: 'blue'}).add(fig, box({id: 'ext', title: '外部'}), connect('CD', 'ext', {route: 'elbow'})));
+  assert.deepEqual(w.verdict.problems, []);
+});
