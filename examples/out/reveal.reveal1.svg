@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="465" viewBox="0 0 940 465" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">段階表示</title>
-  <desc id="svg-desc">表: 列 指標、値</desc>
+  <desc id="svg-desc">要素: 全体像、詳細</desc>
   <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/reveal.ts","sourceSha256":"ed88c947606133f3ef60389d4355540a6c685405c271afd3fb05fa8390271516","reveal":1}</metadata>
   <defs>
     <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">

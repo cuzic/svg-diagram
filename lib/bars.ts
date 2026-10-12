@@ -159,7 +159,8 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
       const text = segmentOf(d, band.unit, f.labels);
       const tw = textWidth(widthOf, text, S, 700);
       if (text && bh >= S + 10 && bw >= tw + 12) putText(out, S, text, bx + bw / 2, r.y + bh / 2 + S * .36, 'middle', 'bg', widthOf, true, r.fill, bar);
-      else if (text) putText(out, S, text, bx + bw / 2, r.y - 6, 'middle', r.fill, widthOf, true, undefined, bar);
+      // a segment too small for its label: the label goes beside the column (above it would sit inside the next segment)
+      else if (text) putText(out, S, text, bx + bw + 8, r.y + bh / 2 + S * .36, 'start', r.fill, widthOf, true, undefined, bar);
       bottom -= rawH;
     });
   } else {
