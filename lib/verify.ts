@@ -201,7 +201,8 @@ function checkContrast(d: LaidOutDiagram): string[] {
     else if (band.type === 'row' || band.type === 'grid') for (const c of band.children) problems.push(...contrastFor(c, c.tone ?? 'plain'));
     else if (band.type === 'bars') for (const b of band.labelBoxes) {
       if (!b.background) continue;
-      const fg = colorOf('bg', d.day), bg = colorOf(b.background, d.day);
+      const dim = b.bar !== undefined && band.bars[b.bar].dim; // a dimmed bar draws its label muted on bg
+      const fg = dim ? PALETTE.muted : colorOf('bg', d.day), bg = dim ? PALETTE.bg : colorOf(b.background, d.day);
       const delta = Math.abs(luminance(fg) - luminance(bg));
       if (delta < CONTRAST_THRESHOLD) problems.push(`bars: value label "${b.label}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
     }

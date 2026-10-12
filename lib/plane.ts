@@ -8,13 +8,15 @@ import {textWidth} from './measure.ts';
 import {ROLES} from './tokens.ts';
 import type {FontFamily, LaidOutPlane, PlaneBand, PlanePos, PlaneRef, PlaneText, PlaneTone, WidthOf} from './types.ts';
 
-const SIZE = ROLES.note, LABEL_H = 20;
+// read at call time: fill mode rewrites ROLES, and measuring must see the size emit.ts draws with
+const size = (): number => ROLES.note;
+const labelH = (): number => size() + 6;
 const TICK = 6, DIM_OFFSET = 26, DIM_CHIP_PAD = 6;
 
 /** Every [text, size, weight, font] the plane draws, so the measurer knows them before layout. */
 export function planeTexts(band: PlaneBand): [string, number, number, FontFamily][] {
   const out: [string, number, number, FontFamily][] = [];
-  const add = (s: string | undefined, weight = 400) => { if (s) out.push([s, SIZE, weight, 'sans']); };
+  const add = (s: string | undefined, weight = 400) => { if (s) out.push([s, size(), weight, 'sans']); };
   for (const axis of [band.x, band.y]) { add(axis.label, 700); for (const t of ticksOf(axis)) add(t.label); }
   for (const p of band.points ?? []) add(p.label, 700);
   for (const d of band.dims ?? []) add(d.label, 700);
@@ -36,7 +38,7 @@ export function ticksOf(axis: PlaneBand['x'], caller = 'plane'): {at: number; la
 }
 
 export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutPlane {
-  const tw = (s: string, weight = 400) => textWidth(widthOf, s, SIZE, weight);
+  const tw = (s: string, weight = 400) => textWidth(widthOf, s, size(), weight);
   const width = Math.min(w, band.width ?? w), left = x + (w - width) / 2, h = band.height;
   const xTicks = ticksOf(band.x), yTicks = ticksOf(band.y);
   const xMin = band.x.min ?? 0, yMin = band.y.min ?? 0, xSpan = band.x.max - xMin;
@@ -78,7 +80,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   const addText = (s: string, tx: number, base: number, anchor: 'start' | 'middle' | 'end', tone: PlaneTone, bold = false): void => {
     texts.push({s, x: tx, y: base, anchor, tone, bold});
     const tww = tw(s, bold ? 700 : 400);
-    boxes.push({label: s, x: anchor === 'middle' ? tx - tww / 2 : anchor === 'end' ? tx - tww : tx, y: base - SIZE, w: tww, h: LABEL_H});
+    boxes.push({label: s, x: anchor === 'middle' ? tx - tww / 2 : anchor === 'end' ? tx - tww : tx, y: base - size(), w: tww, h: labelH()});
   };
 
   const ticks: LaidOutPlane['ticks'] = [];
