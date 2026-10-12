@@ -222,3 +222,23 @@ test('stateDiagram(): a 3x3 between two layers, states of different widths: the 
   assert.equal(sharedRun(t.edges), undefined);
   assert.ok(verdict.problems.every(p => !/share|side by side/.test(p)), JSON.stringify(verdict.problems));
 });
+
+test('stateDiagram(): the arrows that meet one side of a state keep an even step (a head and a tail are never 1px apart)', async () => {
+  for (const [name, sd] of [
+    ['fan-in + back', stateDiagram([S('a'), S('b'), S('c'), S('Z')], [{from: 'a', to: 'Z'}, {from: 'b', to: 'Z'}, {from: 'c', to: 'Z'}, {from: 'Z', to: 'a', label: 'reset'}])],
+    ['two-way pairs', stateDiagram(['a', 'b', 'c', 'd'].map(i => S(i)), [{from: 'a', to: 'c'}, {from: 'c', to: 'a'}, {from: 'b', to: 'd'}, {from: 'd', to: 'b'}, {from: 'a', to: 'd'}, {from: 'd', to: 'a'}])],
+  ] as const) {
+    const {t} = await laid(sd);
+    for (const n of t.anchors) {
+      for (const side of ['l', 'r'] as const) {
+        const ys: number[] = [];
+        for (const e of t.edges) {
+          const first = e.points[0], last = e.points[e.points.length - 1];
+          for (const [pt, id] of [[first, e.from], [last, e.to]] as const) if (id === n.id && Math.abs(pt.x - (side === 'l' ? n.x : n.x + n.w)) < 0.5) ys.push(pt.y);
+        }
+        ys.sort((p, q) => p - q);
+        for (let i = 1; i < ys.length; i++) assert.ok(ys[i] - ys[i - 1] >= 5, `${name}: two arrows meet ${n.id}'s ${side} side ${ys[i] - ys[i - 1]}px apart`);
+      }
+    }
+  }
+});
