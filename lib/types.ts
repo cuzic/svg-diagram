@@ -1645,7 +1645,7 @@ export interface LaidOutSequence extends Rect {
 
 export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; lines: string[]; x: number; w: number; top: number}
 export interface LaidOutTableRow {y: number; h: number; cells: LaidOutTableCell[]; header?: boolean; tone?: BoxTone}
-export interface LaidOutTable extends Rect {
+export interface LaidOutTable extends Rect, Dimmed {
   type: 'table';
   id?: string;
   titleBar: {y: number; h: number; lines: string[]} | null;
