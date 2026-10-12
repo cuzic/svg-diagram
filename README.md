@@ -79,7 +79,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | stateMatrix(cols, rows, {required, cellH, cellFrame}) | 部品の**状態の一覧**。行=部品、列=状態（通常・読み込み中・空・エラー…）。欄は `wf.*` の図、`'na'` / `{na: '理由'}`（対象外）、未指定（**未設計**。`check` が警告）。`required` の列がなければ警告。行は `stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', ...})` で「部品 1 つ + 状態ごとの差分」としても書ける |
 | timeline({from, to, now, deadline, marks, remaining}) | 横軸が時間の部品。期限（danger 色の大きな点）、今日、途中の日付（`marks`）を旗で示し、今日から期限までを太い帯と「あと 1 年 5 か月」で見せる。詳細は下の「時間軸と期限」 |
 | tree(root, {dir, maxNodeW, id}) | 組織図・階層図。配置は自動（親は子の中央、同じ階層は揃う）。節は `{label, sub?, id?, tone?, children?}`。`id` を付けた節は `connect()` の端点になる（`t.anchors.<id>` でも取れる）。詳細は下の「組織図（`tree`）」 |
-| mindmap(root, {sides, maxNodeW, id}) | マインドマップ。節は `tree()` と同じ。中央のルートから、枝が左右へ自動で伸びる（高さで釣り合わせ、書いた順に右から）。`sides: {枝の id: 'left'｜'right'}` で、ルートの子を左右に固定できる。下の「組織図（`tree`）」 |
+| mindmap(root, {sides, maxNodeW, id}) | マインドマップ。節は `tree()` と同じ。中央のルートから、枝が左右へ自動で伸びる（書いた順に、前の半分を右、残りを左に振り分ける。高さで釣り合わせる。どちら側も上から下へ）。`sides: {枝の id: 'left'｜'right'}` で、ルートの子を左右に固定できる。下の「組織図（`tree`）」 |
 | stateDiagram(states, transitions, {initial, dir, maxNodeW, id}) | 状態遷移図。状態 `{id, label, sub?, tone?, final?}` と遷移 `{from, to, label?, line?}` を書くだけで、層に分けて自動配置する。戻る矢印・飛ばす矢印・自己ループも、ほかの状態を避けて引く。状態は `connect()` の端点になる。詳細は下の「状態遷移図（`stateDiagram`）」 |
 | gantt(rows, {from, to, today, id}) | ガントチャート。行は、タスク `{label, start, end｜days, id?, progress?, after?, tone?, milestone?}` と、見出し `{section}`。日付は `'YYYY-MM-DD'`（`end` はその日を含む）。軸・目盛り・今日の線・依存の矢印・進捗は自動。詳細は下の「ガントチャート（`gantt`）」 |
 | pyramid / curve | ピラミッド、曲線 |
@@ -184,7 +184,7 @@ tree({
 - 兄弟が多くて図の幅を超えるときは、何が足りないかを書いて止まる（`dir: 'right'`、`maxNodeW` を小さく、階層を分ける）。
 - `id` を付けた節は、`connect()` の端点（`connect('pf', '外部')`）。`tree()` 自身の `id` は、図全体の端点と spotlight の対象。`reveal` は図全体に付く。例は `examples/org-chart.ts`、`examples/org-chart-right.ts`。
 
-`mindmap(root, {sides})` は同じ節の書き方で、ルートを中央に置き、子を左右に振り分ける（枝の高さで釣り合わせる。振り分けは、書いた順に右側から）。`sides` は、ルートの子だけを `id` で左右に固定できる（深い節や未知の id は止まる）。節の `id` は `connect()` の端点になる。例は `examples/mindmap.ts`。
+`mindmap(root, {sides})` は同じ節の書き方で、ルートを中央に置き、子を左右に振り分ける（書いた順に、前の半分を右、残りを左へ。枝の高さで釣り合わせ、どちら側も上から下へ並ぶ）。`sides` は、ルートの子だけを `id` で左右に固定できる（深い節や未知の id は止まる）。節の `id` は `connect()` の端点になる。例は `examples/mindmap.ts`。
 
 ### 状態遷移図（`stateDiagram`）
 

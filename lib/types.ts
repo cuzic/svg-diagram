@@ -2086,7 +2086,7 @@ export interface LaidOutTree extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone})[];
+  nodes: (Rect & {tone: BoxTone; id?: string})[];
   /** Parent to child, each a polyline (centre line of the box edge to the child's box edge). */
   edges: {points: {x: number; y: number}[]}[];
   texts: TreeNodeText[];
@@ -2105,8 +2105,8 @@ export interface LaidOutStates extends Rect, Dimmed {
   /** Orthogonal polylines from the tail state's box edge to the head's; the arrowhead is at the last point. */
   edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'}[];
   texts: TreeNodeText[];
-  /** Transition labels: a white chip (x, y, w, h) with its text baseline at (tx, ty). */
-  labels: (Rect & {text: string; tx: number; ty: number})[];
+  /** Transition labels: a white chip (x, y, w, h) with its text baseline at (tx, ty), in `size` px. */
+  labels: (Rect & {text: string; tx: number; ty: number; size: number; /** index of its arrow in `edges` */ edge: number})[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];
 }
