@@ -936,6 +936,41 @@ export interface MindmapOpts extends RevealOpts {
 }
 
 // ============================================================================================
+// DSL input + band: states (state diagram)
+// ============================================================================================
+
+export interface StateItem {
+  /** Required: the state is an anchor, and transitions name it. */
+  id: string;
+  label: string;
+  /** A second, muted line (an entry action, a note). */
+  sub?: string;
+  tone?: BoxTone;
+  /** An end state: drawn with a double outline. */
+  final?: boolean;
+}
+export interface Transition {
+  from: string;
+  to: string;
+  /** The event / condition, on the arrow (a state may go to itself). */
+  label?: string;
+  line?: 'solid' | 'dashed' | 'dotted';
+}
+export interface StatesOpts extends RevealOpts {
+  /** 'right' (default): the flow runs left to right. 'down': top to bottom. */
+  dir?: 'right' | 'down';
+  /** The state that starts: a filled dot with an arrow into it. */
+  initial?: string;
+  maxNodeW?: number;
+  id?: string;
+}
+export interface StatesBand extends StatesOpts {
+  type: 'states';
+  states: StateItem[];
+  transitions: Transition[];
+}
+
+// ============================================================================================
 // DSL input + band: image
 // ============================================================================================
 
@@ -1353,7 +1388,7 @@ export interface ScreensBand extends ScreensOpts {
 /** Every band the DSL constructors return. */
 export type Band =
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | ImageBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | ImageBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -2024,9 +2059,25 @@ export interface LaidOutTree extends Rect, Dimmed {
   labelBoxes: (Rect & {label: string})[];
 }
 
+export interface LaidOutStates extends Rect, Dimmed {
+  type: 'states';
+  id?: string;
+  reveal?: number;
+  until?: number;
+  nodes: (Rect & {tone: BoxTone; final?: boolean})[];
+  initial?: {x: number; y: number; r: number};
+  /** Orthogonal polylines from the tail state's box edge to the head's; the arrowhead is at the last point. */
+  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'}[];
+  texts: TreeNodeText[];
+  /** Transition labels: a white chip (x, y, w, h) with its text baseline at (tx, ty). */
+  labels: (Rect & {text: string; tx: number; ty: number})[];
+  anchors: Anchor[];
+  labelBoxes: (Rect & {label: string})[];
+}
+
 export type LaidOutBand = (
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutTimeline | LaidOutTree | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */

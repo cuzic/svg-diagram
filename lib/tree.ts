@@ -4,7 +4,7 @@ import {textWidth, splitAtoms} from './atoms.ts';
 import {layoutBalanced, layoutTree} from './graph-layout.ts';
 import type {TreeNode} from './graph-layout.ts';
 import {wrapText} from './wrap.ts';
-import type {FontFamily, LaidOutTree, Roles, TreeBand, TreeItem, WidthOf} from './types.ts';
+import type {FontFamily, LaidOutTree, Roles, TreeBand, TreeItem, TreeNodeText, WidthOf} from './types.ts';
 
 const PAD_X = 14, PAD_Y = 8, MIN_W = 88, DEFAULT_MAX_W = 200, GAP = 24, LEVEL_GAP = 44;
 
@@ -26,9 +26,29 @@ export function treeTexts(band: TreeBand, roles: Roles): [string, number, number
   return out;
 }
 
+export interface NodeLines {label: string[]; sub: string[]; w: number; h: number}
+const lineH = (s: number): number => Math.round(s * 1.4);
+
+/** A node's text wrapped to maxW, and the box size it needs (bold label, muted sub line). Shared with states(). */
+export function measureNode(label: string, sub: string | undefined, maxW: number, widthOf: WidthOf, roles: Roles): NodeLines {
+  const L = roles.body, S = roles.note, inner = maxW - 2 * PAD_X;
+  const lab = wrapText(label, {maxWidth: inner, atomWidth: a => widthOf(a, L, 700, 'sans')});
+  const sb = sub ? wrapText(sub, {maxWidth: inner, atomWidth: a => widthOf(a, S, 400, 'sans')}) : [];
+  const tw = Math.max(...lab.map(l => textWidth(widthOf, l, L, 700)), ...sb.map(l => textWidth(widthOf, l, S, 400)));
+  return {label: lab, sub: sb, w: Math.max(MIN_W, Math.ceil(tw + 2 * PAD_X)), h: 2 * PAD_Y + lab.length * lineH(L) + sb.length * lineH(S)};
+}
+
+/** The centred text runs of a node laid in rectangle r. */
+export function nodeRuns(r: {x: number; y: number; w: number}, l: NodeLines, roles: Roles): TreeNodeText[] {
+  const L = roles.body, S = roles.note, out: TreeNodeText[] = [];
+  let ty = r.y + PAD_Y;
+  for (const line of l.label) { out.push({text: line, x: r.x + r.w / 2, y: ty + L, size: L, bold: true, muted: false}); ty += lineH(L); }
+  for (const line of l.sub) { out.push({text: line, x: r.x + r.w / 2, y: ty + S, size: S, bold: false, muted: true}); ty += lineH(S); }
+  return out;
+}
+
 export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutTree {
-  const L = roles.body, S = roles.note, LH = (s: number): number => Math.round(s * 1.4);
-  const maxW = band.maxNodeW ?? DEFAULT_MAX_W, inner = maxW - 2 * PAD_X;
+  const maxW = band.maxNodeW ?? DEFAULT_MAX_W;
   const items = treeItems(band.root);
   const seen = new Set<string>();
   for (const n of items) {
@@ -37,14 +57,11 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   }
   // node i of `items` is "n<i>" in the layout (ids of the band are the user's; the layout needs unique keys for all)
   const key = new Map<TreeItem, string>(items.map((n, i) => [n, `n${i}`]));
-  const lines = new Map<TreeItem, {label: string[]; sub: string[]; w: number; h: number}>();
+  const lines = new Map<TreeItem, NodeLines>();
   const build = (n: TreeItem): TreeNode => {
-    const label = wrapText(n.label, {maxWidth: inner, atomWidth: a => widthOf(a, L, 700, 'sans')});
-    const sub = n.sub ? wrapText(n.sub, {maxWidth: inner, atomWidth: a => widthOf(a, S, 400, 'sans')}) : [];
-    const tw = Math.max(...label.map(l => textWidth(widthOf, l, L, 700)), ...sub.map(l => textWidth(widthOf, l, S, 400)));
-    const nw = Math.max(MIN_W, Math.ceil(tw + 2 * PAD_X)), nh = 2 * PAD_Y + label.length * LH(L) + sub.length * LH(S);
-    lines.set(n, {label, sub, w: nw, h: nh});
-    return {id: key.get(n)!, size: {w: nw, h: nh}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
+    const m = measureNode(n.label, n.sub, maxW, widthOf, roles);
+    lines.set(n, m);
+    return {id: key.get(n)!, size: {w: m.w, h: m.h}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
   };
   const laidRoot = build(band.root);
   const sides = Object.fromEntries(Object.entries(band.sides ?? {}).map(([id, side]) => {
@@ -65,9 +82,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     const r = {x: p.x + dx, y: p.y + dy, w: p.w, h: p.h};
     out.nodes.push({...r, tone: n.tone ?? 'plain'});
     if (n.id) out.anchors.push({id: n.id, ...r});
-    let ty = r.y + PAD_Y;
-    for (const line of l.label) { out.texts.push({text: line, x: r.x + r.w / 2, y: ty + L, size: L, bold: true, muted: false}); ty += LH(L); }
-    for (const line of l.sub) { out.texts.push({text: line, x: r.x + r.w / 2, y: ty + S, size: S, bold: false, muted: true}); ty += LH(S); }
+    out.texts.push(...nodeRuns(r, l, roles));
     out.labelBoxes.push({label: n.label, ...r});
   }
   for (const e of tree.edges) out.edges.push({points: e.points.map(p => ({x: p.x + dx, y: p.y + dy}))});
