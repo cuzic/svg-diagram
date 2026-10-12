@@ -38,6 +38,8 @@ export type ColorKey = PlainColorKey | 'accent' | 'soft';
 
 /** font-size role (tokens.ts ROLES). */
 export type Role = 'title' | 'label' | 'body' | 'note' | 'banner' | 'stat' | 'display';
+/** The font size (px) of every role: a value, so a figure's text sizes travel with it (tokens.ts ROLES, scaleRoles). */
+export type Roles = Readonly<Record<Role, number>>;
 /** The roles a banner() headline can be set in (default 'banner'). */
 export type HeadlineRole = 'banner' | 'stat' | 'display';
 /** The roles the labels of a bars() / plane() (axis labels, value labels, ticks) can be set in (default 'note'). */
@@ -147,8 +149,9 @@ export interface DiagramOpts {
  * `edges`: which connectors stay prominent ('touching': one end is a target; 'between': both are).
  * `dim`: how a bar outside the spotlight is drawn. 'outline' (default) is a dotted outline on white; 'fill' keeps a pale fill
  * (the border colour) so the bar's length can still be read.
+ * `mutedOk`: the muted-tone boxes next to the spotlight are meant (you have checked dim and muted still tell apart), so check does not warn `spotlight-muted`.
  */
-export type SpotlightOpt = string | {ids: string | readonly string[]; edges?: 'touching' | 'between'; dim?: 'outline' | 'fill'};
+export type SpotlightOpt = string | {ids: string | readonly string[]; edges?: 'touching' | 'between'; dim?: 'outline' | 'fill'; mutedOk?: boolean};
 
 /** Everything diagram() stores, plus fields set later by build/check (usableWidth, maxWidth, source). */
 export interface DiagramData {
@@ -195,9 +198,10 @@ export interface DiagramSource {
   depsSha256?: string;
   /** Cumulative reveal stage represented by this file. */
   reveal?: number;
+  until?: number;
 }
 
-export interface RevealOpts {reveal?: number}
+export interface RevealOpts {reveal?: number; /** The click this element vanishes at (it is shown from `reveal` up to, not including, `until`). */ until?: number}
 
 /**
  * What diagram() returns. `add()` accepts bands and arrays of bands (swimlane() / branch() return arrays).
@@ -254,6 +258,7 @@ export interface CaptionBand {
   reveal?: number;
   /** Internal: the diagram({sourceLine}) caption, which layout appends as the last band. */
   sourceLine?: boolean;
+  until?: number;
 }
 
 /** One extra line of a box band: a plain string or a styled line (`spans`: internal, the pieces of `text`). */
@@ -326,7 +331,7 @@ export interface BoxBand extends BoxStyleOpts {
   statValue?: string;
 }
 
-export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col' | 'span' | 'reveal'> {
+export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col' | 'span' | 'reveal' | 'until'> {
   /** The value's text colour; 'solid' / 'solid-danger' instead fill the whole box (white text) as in box({tone}). */
   tone?: TextTone | 'solid' | 'solid-danger';
   size?: 'stat' | 'display';
@@ -389,6 +394,7 @@ export interface GroupBand {
   span?: number;
   col?: number;
   reveal?: number;
+  until?: number;
 }
 
 /** A row() whose children include groups: they sit side by side and their frames are stretched to the tallest one. */
@@ -401,6 +407,7 @@ export interface GroupRowBand {
   justify: RowJustify;
   itemWidth?: number;
   reveal?: number;
+  until?: number;
 }
 
 /** A legend entry: a line sample ({line, arrow?}) or a tone swatch ({tone, dashed?}). */
@@ -521,6 +528,7 @@ export interface ConnectBand {
   tone?: TextTone;
   label?: string;
   reveal?: number;
+  until?: number;
 }
 /** branch() target: connect() options plus the target ref. */
 export interface BranchTarget extends ConnectOpts {to: string}
@@ -603,6 +611,7 @@ export interface PlanePoint {
   shape?: 'dot' | 'ring' | 'cross';
   /** The stage it (and its label) appears at; default the plane's own. */
   reveal?: number;
+  until?: number;
 }
 /** A guide line between two positions / points (a projection onto an axis, a path). */
 /** `reveal` (here and on PlaneDim / PlaneLabel / PlanePath): default the max of the points it names (a coordinate counts 0) and the plane's own. */
@@ -620,6 +629,7 @@ export interface PlanePath {
   tone?: PlaneTone;
   arrow?: boolean;
   reveal?: number;
+  until?: number;
   /**
    * Draw the path as it grows: at a stage the curve (the same one as the full path) runs only as far as the last point that is
    * shown by then. Without it the whole path appears when its last point does.
@@ -639,6 +649,7 @@ export interface PlaneDim {
   offset?: number;
   tone?: PlaneTone;
   reveal?: number;
+  until?: number;
 }
 export interface PlaneLabel {at: PlanePos; text: string; anchor?: 'start' | 'middle' | 'end'; tone?: PlaneTone; bold?: boolean; reveal?: number}
 export interface PlaneOpts extends RevealOpts {
@@ -679,6 +690,8 @@ export interface BarDatum extends RevealOpts {
   /** The bar's colour by tone (accent / danger / muted); `danger` is the red. Not together with `series`. */
   tone?: BarTone;
   id?: string;
+  /** The id of an earlier bar of this band to take the place of: this bar sits in that bar's row / column, which vanishes (`until`) when this one appears (`reveal`, required). Not with `stack`. */
+  replaces?: string;
 }
 export interface BarsOpts extends RevealOpts {
   /** A spotlight target (the bars inside it too) and a connect() endpoint (the whole band); it may not repeat a bar's id. */
@@ -710,6 +723,7 @@ export interface BarsBand extends BarsOpts {
   stack: boolean;
   /** Its own, or the enclosing group's; each bar has its own too. */
   reveal?: number;
+  until?: number;
 }
 
 // ============================================================================================
@@ -798,6 +812,7 @@ export interface SequenceBand {
   numbered?: boolean;
   id?: string;
   reveal?: number;
+  until?: number;
 }
 
 /** prepareSequence(): a step with its kind resolved, `text` = the (numbered) label, note.over always an array. */
@@ -862,6 +877,7 @@ export interface TableBand {
   rowHeader?: boolean;
   id?: string;
   reveal?: number;
+  until?: number;
 }
 /** cellOf(): a cell with column defaults applied. */
 export interface ResolvedCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align}
@@ -923,6 +939,7 @@ export interface SwimlaneBand {
   colGap?: number;
   id?: string;
   reveal?: number;
+  until?: number;
 }
 
 // ============================================================================================
@@ -1587,6 +1604,7 @@ export interface LaidOutSwimlane extends Rect {
   lanes: LaidOutLane[];
   id?: string;
   reveal?: number;
+  until?: number;
 }
 /** A swimlane step as laid out: a box that remembers its lane. */
 export interface LaidOutStep extends LaidOutBox {lane: string; row?: number; col: number; span: number}
@@ -1601,6 +1619,7 @@ export interface LaidOutSequence extends Rect {
   type: 'sequence';
   id?: string;
   reveal?: number;
+  until?: number;
   heads: LaidOutSeqHead[];
   steps: LaidOutSeqStep[];
   lifeTop: number;
@@ -1621,6 +1640,7 @@ export interface LaidOutTable extends Rect {
   /** The left column of the body rows is a row heading (see TableOpts.rowHeader). */
   rowHeader?: boolean;
   reveal?: number;
+  until?: number;
   /** font-size of the cell text at layout time (the smallest text of the table; fit.ts counts it). */
   bodySize: number;
 }
@@ -1651,6 +1671,7 @@ export interface LaidOutPlane extends Rect {
   type: 'plane';
   id?: string;
   reveal?: number;
+  until?: number;
   /** font-size of every text of the figure (its labelRole at layout time). */
   labelSize: number;
   /** The figure itself (the band is as wide as the page; the figure may be narrower and centred). */
@@ -1672,15 +1693,16 @@ export interface LaidOutPlane extends Rect {
   obstacles: (Rect & {what: string; dim?: number})[];
 }
 
-export interface BarRect extends Rect, Dimmed {fill: ColorKey; id?: string; reveal?: number}
+export interface BarRect extends Rect, Dimmed {fill: ColorKey; id?: string; reveal?: number; until?: number}
 /** `bar`: index into `bars` of the bar the label belongs to (none for tick labels), so spotlight can dim it with its bar. */
-export interface BarText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number; bar?: number}
+export interface BarText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number; until?: number; bar?: number}
 export interface LaidOutBars extends Rect, Dimmed {
   type: 'bars';
   id?: string;
   dir: 'h' | 'v';
   stack: boolean;
   reveal?: number;
+  until?: number;
   bars: BarRect[];
   ticks: {x1: number; y1: number; x2: number; y2: number}[];
   texts: BarText[];
@@ -1742,6 +1764,8 @@ export interface LaidOutDiagram extends DiagramData {
   connects: LaidOutConnect[];
   /** Set by build() when fill: true scaled the fonts. */
   fontScale?: number;
+  /** The font sizes the layout was made with; emit reads them from here, so a drawing always agrees with its layout. */
+  roles: Roles;
 }
 
 // ============================================================================================
@@ -1764,7 +1788,8 @@ export interface Verdict {
   findings: Finding[];
 }
 /** A checkable rect in verify.ts (id null when the band has none). */
-export interface CheckRect extends Rect {id: string | null; label: string}
+/** `life`: when it is on screen, if not always (a bar that another `replaces` shares its place with it). */
+export interface CheckRect extends Rect {id: string | null; label: string; life?: {reveal?: number; until?: number}}
 
 export interface FitReport {
   scale: number;

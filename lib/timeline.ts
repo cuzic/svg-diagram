@@ -1,4 +1,4 @@
-import {textWidth} from './measure.ts';
+import {textWidth} from './atoms.ts';
 import type {FontFamily, LaidOutTimeline, TimelineBand, TimelineTone, WidthOf} from './types.ts';
 
 const S = 14, LH = 20, FLAG_H = 2 * LH, FLAG_GAP = 6, STEM_MIN = 16, DOT = 8, TICK = 6, MAX_LEVELS = 5, MS_DAY = 86400000;
