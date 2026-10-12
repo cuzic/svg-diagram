@@ -56,7 +56,7 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
     if (band.type === 'screens') { // check each screen frame, not the bounding box that holds them all
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h});
     } else if (band.type === 'bars') {
-      for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h});
+      for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})});
     } else if (band.type === 'caption' && band.inkBox) { // a group's title text: connectors must not run through it
       rects.push({id: null, label: `group title "${band.text}"`, ...band.inkBox});
     } else if (band.type === 'row' || band.type === 'grid') {
@@ -68,6 +68,9 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
   return rects;
 }
 
+const neverTogether = (a: {reveal?: number; until?: number}, b: {reveal?: number; until?: number}): boolean =>
+  (a.until !== undefined && a.until <= (b.reveal ?? 0)) || (b.until !== undefined && b.until <= (a.reveal ?? 0));
+
 function checkBars(d: LaidOutDiagram): string[] {
   const problems: string[] = [];
   for (const band of d.laidOut) {
@@ -76,7 +79,9 @@ function checkBars(d: LaidOutDiagram): string[] {
       if (b.x < band.x - 0.5 || b.x + b.w > band.x + band.w + 0.5 || b.y < band.y - 0.5 || b.y + b.h > band.y + band.h + 0.5) problems.push(`bars: value label "${b.label}" runs outside the figure (raise width / height or shorten the unit)`);
     }
     for (let i = 0; i < band.labelBoxes.length; i++) for (let j = i + 1; j < band.labelBoxes.length; j++) {
-      const o = rectOverlap(band.labelBoxes[i], band.labelBoxes[j]);
+      const [a, b] = [band.labelBoxes[i], band.labelBoxes[j]];
+      if (a.bar !== undefined && b.bar !== undefined && neverTogether(band.bars[a.bar], band.bars[b.bar])) continue; // one replaces the other
+      const o = rectOverlap(a, b);
       if (o) problems.push(`bars: value label "${band.labelBoxes[i].label}" overlaps value label "${band.labelBoxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
     }
   }
@@ -127,7 +132,9 @@ function checkOverlaps(rects: CheckRect[]): string[] {
   const problems: string[] = [];
   for (let i = 0; i < rects.length; i++) {
     for (let j = i + 1; j < rects.length; j++) {
-      const o = rectOverlap(rects[i], rects[j]);
+      const [a, b] = [rects[i], rects[j]];
+      if ((a.life || b.life) && neverTogether(a.life ?? {}, b.life ?? {})) continue;
+      const o = rectOverlap(a, b);
       if (o) problems.push(`"${rects[i].label}" overlaps "${rects[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
     }
   }
@@ -231,6 +238,6 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
   // get the full set; legacy slide diagrams keep their existing text-volume warning only.
   const findings = d.medium === 'doc' ? lintDiagram(d) : lintDiagram(d).filter(f => f.rule === 'density');
   const warnings = [...(d.revealWarnings ?? []), ...findings.filter(f => f.severity === 'warn').map(f => `[${f.rule}] ${f.message}`)];
-  if (d.spotlight && walkBands(d.bands).some(b => b.type === 'box' && b.tone === 'muted')) warnings.push('[spotlight-muted] spotlight と muted トーンの箱を併用しているため、dim との違いを形でも確認する');
+  if (d.spotlight && !(typeof d.spotlight === 'object' && d.spotlight.mutedOk) && walkBands(d.bands).some(b => b.type === 'box' && b.tone === 'muted')) warnings.push('[spotlight-muted] spotlight と muted トーンの箱を併用しているため、dim との違いを形でも確認する');
   return {ok: problems.length === 0, problems, warnings, findings};
 }

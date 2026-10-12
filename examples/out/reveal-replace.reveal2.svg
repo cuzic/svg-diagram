@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="289" viewBox="0 0 940 289" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">号令から許可へ</title>
+  <desc id="svg-desc">要素: 号令を待つ、許可を待つ</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/reveal-replace.ts","sourceSha256":"5113947dc85e73ed15c64bf015306d0d19fad35492c37bab38169fa73d63a24a","reveal":2}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="289" fill="#ffffff"/>
+
+  <rect x="20" y="20" width="900" height="56" rx="8" fill="#ffffff" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="2,5" stroke-linecap="round"/>
+  <text x="470" y="52" text-anchor="middle" font-size="16" font-weight="700" fill="#6f6659">号令では動けない。許可で動く</text>
+
+  <rect x="480" y="92" width="444" height="52" rx="8" fill="#ffffff" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="2,5" stroke-linecap="round"/>
+  <text x="498" y="121.4" font-size="15" font-weight="700" fill="#6f6659">許可を待つ</text>
+
+  <path d="M102,159 L102,239" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M258,159 L258,239" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M413,159 L413,239" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M569,159 L569,239" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M725,159 L725,239" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M880,159 L880,239" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M102,233 L880,233" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M102,159.4 H343.23 V187.4 H102 Z" fill="#22201b"/>
+  <text x="102" y="255" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
+  <text x="258" y="255" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
+  <text x="413" y="255" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
+  <text x="569" y="255" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
+  <text x="725" y="255" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
+  <text x="880" y="255" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
+  <text x="94" y="178" text-anchor="end" font-size="14" fill="#22201b">許可</text>
+  <text x="337" y="178" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">31%</text>
+</svg>

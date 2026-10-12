@@ -426,11 +426,11 @@ export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): Laid
     if (band.type === 'group') {
       const gp = band.pad ?? 16;
       const startY = cursorY;
-      const frame: LaidOutGroup = {type: 'group', x: padX, y: startY, w: cw, h: 0, tone: band.tone, dashed: band.dashed, frame: band.frame, id: band.id, reveal: band.reveal};
+      const frame: LaidOutGroup = {type: 'group', x: padX, y: startY, w: cw, h: 0, tone: band.tone, dashed: band.dashed, frame: band.frame, id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
       laidOut.push(frame); // pushed first so the frame is drawn under its children
       cursorY += gp;
       if (band.title) {
-        const t = placeBoxLike({...groupTitleBand(band), reveal: band.reveal} as CaptionBand, padX + gp, cursorY, cw - 2 * gp, false);
+        const t = placeBoxLike({...groupTitleBand(band), reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})} as CaptionBand, padX + gp, cursorY, cw - 2 * gp, false);
         const inkW = Math.max(0, ...t.wrappedRuns.flatMap(r => r.lines.map((_, i) => lineWidth(widthOf, r, i))));
         const inkX = t.align === 'center' ? t.x + (t.w - inkW) / 2 : t.align === 'right' ? t.x + t.w - inkW : t.x;
         t.inkBox = {x: inkX, y: t.y, w: inkW, h: t.h};
@@ -522,7 +522,7 @@ export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): Laid
         y += h;
         return out;
       });
-      const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, id: band.id, reveal: band.reveal};
+      const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
       laidOut.push(frame); // before its steps so the lanes draw underneath
       if (band.id) {
         if (anchors.has(band.id)) claimed(band.id, 'a swimlane takes an id that another anchor already has');
