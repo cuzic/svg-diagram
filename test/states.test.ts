@@ -132,3 +132,9 @@ test('stateDiagram(): nodes appear with the figure (reveal) and a node id cannot
   assert.equal(laidOut.connects[0].reveal, 2);
   await assert.rejects(() => checkDiagram(diagram({theme: 'blue', spotlight: 'a'}).add(stateDiagram([S('a'), S('b')], []))), /node inside a figure/);
 });
+
+test('stateDiagram(): a connector that ends on the whole figure (its id) is not stopped by its states', async () => {
+  const sd = stateDiagram([S('a'), S('b'), S('c')], [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}], {id: 'SD'});
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(sd, box({id: 'ext', title: '外部'}), connect('SD', 'ext', {route: 'elbow'})));
+  assert.deepEqual(verdict.problems, []);
+});

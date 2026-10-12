@@ -124,6 +124,18 @@ test('mindmap() sides pins a branch; bad sides are rejected', async () => {
 test('mindmap() nodes with an id are anchors for connect()', async () => {
   const m = map();
   assert.equal(m.anchors.p.id, 'p');
-  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(m));
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(m, box({id: 'ext', title: '外部'}), connect('p', 'ext', {route: 'elbow'})));
+  assert.equal(laidOut.connects.length, 1);
+});
+
+test('mindmap(): a connector that ends on the whole figure is not stopped by its nodes', async () => {
+  const m = mindmap({label: 'r', children: [{label: 'P', id: 'p'}, {label: 'Q', id: 'q'}, {label: 'R', id: 'r1'}]}, {id: 'M'});
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(m, box({id: 'ext', title: '外部'}), connect('M', 'ext', {route: 'elbow'})));
+  assert.deepEqual(verdict.problems, []);
+});
+
+test('tree(): a connector that ends on the whole figure (its id) is not stopped by the figure\'s own nodes', async () => {
+  const t = tree({label: 'r', children: [{label: 'A部', id: 'a'}, {label: 'B部', id: 'b'}, {label: 'C部', id: 'c'}]}, {id: 'T'});
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(t, box({id: 'ext', title: '外部'}), connect('T', 'ext', {route: 'elbow'})));
   assert.deepEqual(verdict.problems, []);
 });
