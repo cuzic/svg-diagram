@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="452" viewBox="0 0 940 452" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">bars の band を主役にする</title>
+  <desc id="svg-desc">要素: 補足</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/spotlight-bars-band.ts","sourceSha256":"fd8e324dcfe9b7cb69e398fe0fc399a6e0d08d75818627a0953c3926fc23ff15"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="452" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">spotlight（bars の band を id で指す。棒もまとめて主役）</text>
+
+  <path d="M53,302 L912,302" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M53,257 L912,257" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M53,212 L912,212" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M53,167 L912,167" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M53,122 L912,122" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M53,78 L912,78" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M59,78 L59,302" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M59,302 L912,302" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M169.47,194.29 H233.47 V302 H169.47 Z" fill="#1d5fa8"/>
+  <path d="M453.68,167.36 H517.68 V302 H453.68 Z" fill="#1d5fa8"/>
+  <path d="M737.89,113.5 H801.89 V302 H737.89 Z" fill="#1d5fa8"/>
+  <text x="49" y="307" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <text x="49" y="262" text-anchor="end" font-size="14" fill="#6f6659">50</text>
+  <text x="49" y="217" text-anchor="end" font-size="14" fill="#6f6659">100</text>
+  <text x="49" y="172" text-anchor="end" font-size="14" fill="#6f6659">150</text>
+  <text x="49" y="127" text-anchor="end" font-size="14" fill="#6f6659">200</text>
+  <text x="49" y="83" text-anchor="end" font-size="14" fill="#6f6659">250</text>
+  <text x="201" y="326" text-anchor="middle" font-size="14" fill="#22201b">第1四半期</text>
+  <text x="201" y="212" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">120件</text>
+  <text x="486" y="326" text-anchor="middle" font-size="14" fill="#22201b">第2四半期</text>
+  <text x="486" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">150件</text>
+  <text x="770" y="326" text-anchor="middle" font-size="14" fill="#22201b">第3四半期</text>
+  <text x="770" y="132" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">210件</text>
+
+  <rect x="20" y="352" width="900" height="80" rx="8" fill="#ffffff" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="2,5" stroke-linecap="round"/>
+  <text x="40" y="382.6" font-size="15" font-weight="700" fill="#6f6659">補足</text>
+  <text x="40" y="410.6" font-size="14" font-weight="400" fill="#6f6659">主役以外は薄くなる</text>
+</svg>

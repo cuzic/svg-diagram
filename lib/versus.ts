@@ -7,6 +7,8 @@ export interface VersusPart<C extends BandInput = BandInput, Id extends string =
   title?: string;
   tone?: BoxTone;
   id?: Id;
+  /** Stage the whole side (frame and contents) appears at. The arrows to the shared part follow the later of their two ends. */
+  reveal?: number;
 }
 
 export interface VersusConnectLabels {
@@ -30,7 +32,7 @@ type VersusResult<LC, RC, LI extends string, RI extends string, SC = never, SI e
     & Refers<RefsOf<LC> | RefsOf<RC> | RefsOf<SC>>)[];
 
 function asGroup<C extends BandInput, Id extends string>(part: VersusPart<C, Id>): GroupBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> {
-  return group(part.children as Band | Band[], {title: part.title, tone: part.tone, id: part.id});
+  return group(part.children as Band | Band[], {title: part.title, tone: part.tone, id: part.id, reveal: part.reveal});
 }
 
 export function versus<LC extends BandInput, RC extends BandInput, const LI extends string = never, const RI extends string = never>(
