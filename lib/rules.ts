@@ -9,6 +9,7 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
+import {minTextSize} from './fit.ts';
 import {PALETTE, STRONG_STROKE, wcagRatio, runColorOf, toneStyle} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {budgetWarnings} from './budget.ts';
@@ -37,6 +38,8 @@ export const RULE_DOCS = {
   'edge-crossings': '線どうしの交差・重なりがある',
   'arrow-labels': '一部にだけラベルがあり、ラベルのない矢印が多い',
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
+  'slide-min-text': 'スライド用キャンバスの最小文字サイズ(既定 24px)より小さい文字がある',
+  'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
   'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む',
   'density': '文字量・箱の数が多い',
   'wf-callout-no-note': '図の番号に対応する注釈がない',
@@ -385,7 +388,12 @@ function lintAll(d: LintTarget): Finding[] {
     // no label at all is a convention (the arrows only mean "depends on" / "next"); some labelled and most not is the inconsistency to flag
     if (connects.length >= 4 && unlabeled < connects.length && unlabeled / connects.length > 0.6) out.push({rule: 'arrow-labels', severity: 'info', message: `矢印 ${connects.length} 本のうち ${unlabeled} 本にラベルがない。何が流れるか（成果物・プロトコル）を短く添える`});
   }
-  if (d.medium === 'doc' && d.width > (d.maxWidth ?? 940)) out.push({rule: 'doc-width', severity: 'warn', message: `幅 ${d.width}px。本文の表示幅（約 930px）に縮められ、文字が小さくなる（${d.maxWidth ?? 940}px 以下にする）`});
+  if (d.canvas && d.laidOut) {
+    const min = minTextSize(d);
+    if (min < d.canvas.minText) out.push({rule: 'slide-min-text', severity: 'warn', message: `最小の文字が ${min}px。スライド用キャンバスは ${d.canvas.minText}px 以上(その文字を大きくするか、減らす)`});
+    if (d.contentHeight !== undefined && d.contentHeight > d.canvas.height) out.push({rule: 'slide-canvas-overflow', severity: 'warn', message: `内容の高さ ${d.contentHeight}px が、キャンバスの高さ ${d.canvas.height}px を超える。行・文字を減らすか、図を分ける`});
+  }
+  if (d.medium === 'doc' && !d.canvas && d.width > (d.maxWidth ?? 940)) out.push({rule: 'doc-width', severity: 'warn', message: `幅 ${d.width}px。本文の表示幅（約 930px）に縮められ、文字が小さくなる（${d.maxWidth ?? 940}px 以下にする）`});
   // doc diagrams are read at length on a page, so their budget is larger than the slide decks' (see budget.ts)
   for (const w of budgetWarnings({laidOut: d.laidOut ?? []}, d.medium === 'doc' ? {boxBody: 100, total: 700, boxes: 30} : undefined)) out.push({rule: 'density', severity: 'warn', message: w});
   const allBars = walkBands(d.bands).filter((b): b is BarsBand => b.type === 'bars');

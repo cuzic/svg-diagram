@@ -113,14 +113,18 @@ export const ROLES: Record<Role, number> = {
   title: 15, label: 14, body: 14, note: 14, banner: 16, stat: 34, display: 56,
 };
 
-// Fixed sizes of text that is not a role: the label on a connector line and the tag pill on a box.
+// Fixed sizes of text that is not a role: the label on a connector line and the tag pill on a box. Mutable only so
+// renderDiagram's font scale (fill / canvas) can scale them with the roles; read them at use, never at import.
 // layout.ts measures with these and emit.ts draws with them, so they are defined once, here.
-export const CONNECT_LABEL_SIZE = 14;
+/** diagram({canvas: 'slide'}): a 16:9 slide drawn 1:1; no text below `minText`. */
+export const SLIDE_CANVAS = {width: 1280, height: 720, minText: 24};
+
+export const FIXED_SIZES = {connectLabel: 14, tag: 14};
+export const BASE_FIXED_SIZES = {...FIXED_SIZES};
 // connect({weight: 'strong'}): line width, and its arrowhead (userSpaceOnUse: a head scaled by the width would bite into the box).
 export const STRONG_STROKE = 5, STRONG_HEAD = 16, STRONG_HEAD_REF_X = 6;
 // how far the line stops short of the box edge so the head's tip lands on it (the line must end where the head is wider than the line)
 export const STRONG_TRIM = (10 - STRONG_HEAD_REF_X) * STRONG_HEAD / 10;
-export const TAG_SIZE = 14;
 
 // Table cell marks (cell(text, {mark})): the symbol is what says "good / partial / bad", the tone only reinforces it.
 export const CELL_MARKS: Record<'ok' | 'mid' | 'ng' | 'best', {glyph: string; tone: 'text' | 'accent' | 'danger'; bold: boolean}> = {

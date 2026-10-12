@@ -27,7 +27,7 @@ import type {
   LaidOutSwimlane, LaidOutPyramidLayer, LaidOutRow, RowArrow, Band, CaptionBand, BoxBand, BannerBand, RowBand, GridBand, GroupBand,
   ConnectBand, ConnectRef, Bend, BoxChrome, TextRun, WrappedRun, WidthOf, FontFamily, FontWeight, MeasureRequest, Point, Rect, Side, Span, TextTone,
 } from './types.ts';
-import {ROLES, PALETTE, SHADES, isSolidTone, CONNECT_LABEL_SIZE, TAG_SIZE, blendLuminance, bestTextColor} from './tokens.ts';
+import {ROLES, PALETTE, SHADES, isSolidTone, FIXED_SIZES, blendLuminance, bestTextColor} from './tokens.ts';
 
 export const LINE_HEIGHT_EM = 1.4;   // vertical spacing between wrapped lines within one text block
 export const BOX_PAD_X = 20;
@@ -160,7 +160,7 @@ function groupTitleBand(band: GroupBand): CaptionBand {
 }
 
 function registerRequests(requests: Requests, band: Band) {
-  if ('tag' in band && band.tag) registerAtoms(requests, band.tag, TAG_SIZE, 700);
+  if ('tag' in band && band.tag) registerAtoms(requests, band.tag, FIXED_SIZES.tag, 700);
   if ('stamp' in band && band.stamp) registerAtoms(requests, band.stamp, ROLES.note, 400);
   for (const run of textRuns(band)) {
     const font = run.mono ? 'mono' : 'sans';
@@ -280,7 +280,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       // weight (see emit.ts's renderConnect) — registered here so their
       // real width is known before layoutDiagram resolves the connect,
       // instead of guessed at draw time.
-      registerAtoms(requests, band.label, CONNECT_LABEL_SIZE, 400);
+      registerAtoms(requests, band.label, FIXED_SIZES.connectLabel, 400);
     } else if (band.type === 'pyramid') {
       for (const layer of band.layers) {
         for (const atom of splitAtoms(layer.text)) {
@@ -335,7 +335,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       const i = kids.findIndex(k => k.has(f.id)), j = kids.findIndex(k => k.has(t.id));
       if (i < 0 || j < 0 || Math.abs(i - j) !== 1 || !((i < j && f.side === 'right' && t.side === 'left') || (i > j && f.side === 'left' && t.side === 'right'))) continue;
       if (slots) { const [a, b] = i < j ? [slots[i], slots[j]] : [slots[j], slots[i]]; if (b.col !== a.col + a.span) continue; } // empty columns between them already leave room
-      gap = Math.max(gap, Math.ceil(textWidth(widthOf, c.label as string, CONNECT_LABEL_SIZE, 400) + (c.chip ? 16 : 0) + 2 * LABEL_MARGIN));
+      gap = Math.max(gap, Math.ceil(textWidth(widthOf, c.label as string, FIXED_SIZES.connectLabel, 400) + (c.chip ? 16 : 0) + 2 * LABEL_MARGIN));
     }
     return gap;
   };
@@ -403,7 +403,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       if (overflow.length) (placed as Placed<BoxBand> & {nowrapOverflow?: string[]}).nowrapOverflow = overflow;
     }
     if (chrome.tag) {
-      const tw = textWidth(widthOf, chrome.tag, TAG_SIZE, 700) + 2 * TAG_PAD_X;
+      const tw = textWidth(widthOf, chrome.tag, FIXED_SIZES.tag, 700) + 2 * TAG_PAD_X;
       placed.tagBox = {x: chrome.tagAt === undefined ? x + w - tw - 12 : x + w * chrome.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
     }
     if (chrome.id && (areaIds.has(chrome.id) || anchors.has(chrome.id))) claimed(chrome.id, 'a box takes an id that another box, group or row already has');
@@ -765,9 +765,10 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
   stack(d.bands, d.pad, contentWidth);
   for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf)); // throws "unknown anchor id" if it never appears
 
-  const canvasHeight = Math.round(cursorY - d.gap + d.pad);
+  const contentHeight = Math.round(cursorY - d.gap + d.pad);
+  const canvasHeight = d.canvas ? Math.max(contentHeight, d.canvas.height) : contentHeight;
 
-  return {...d, laidOut, canvasHeight, connects};
+  return {...d, laidOut, canvasHeight, ...(d.canvas ? {contentHeight} : {}), connects};
 }
 
 // 'id', 'id:side', or 'id:side@t' — t (0..1) slides the anchor along that side
@@ -859,7 +860,7 @@ function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: 
 
   let labelX: number | undefined, labelY: number | undefined, labelBox: Rect | undefined, chipBox: Rect | undefined;
   if (band.label) {
-    const labelWidth = textWidth(widthOf, band.label, CONNECT_LABEL_SIZE, 400);
+    const labelWidth = textWidth(widthOf, band.label, FIXED_SIZES.connectLabel, 400);
     const dy = band.chip ? 5 : -6; // a chip sits ON the line; a plain label sits above it
     if (band.route === 'elbow' && points.length === 4) {
       // vertical-first: label rides the middle (horizontal) leg; horizontal-
@@ -896,7 +897,7 @@ function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: 
       labelX = Math.round(from.x + (to.x - from.x) * t);
       labelY = Math.round((band.route === 'loop-under' ? Math.max(from.y, to.y) + band.dip : from.y + (to.y - from.y) * t) + dy);
     }
-    labelBox = {x: labelX - labelWidth / 2, y: labelY - CONNECT_LABEL_SIZE, w: labelWidth, h: CONNECT_LABEL_SIZE + 4};
+    labelBox = {x: labelX - labelWidth / 2, y: labelY - FIXED_SIZES.connectLabel, w: labelWidth, h: FIXED_SIZES.connectLabel + 4};
     if (band.chip) {
       chipBox = {x: labelX - (labelWidth + 16) / 2, y: labelY - 17, w: labelWidth + 16, h: 24};
       labelBox = chipBox;

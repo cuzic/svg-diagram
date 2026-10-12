@@ -6,7 +6,7 @@
 // computed (usually off-grid) position, same as every hand-authored diagram
 // in this deck.
 
-import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
+import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES, FIXED_SIZES, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
@@ -144,7 +144,7 @@ function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, defaultAlig
 function renderTag(band: LaidOutBox, day: Theme): string {
   const t = band.tagBox as Rect; // caller checked tagBox
   const fill = band.dim ? PALETTE.muted : colorOf(toneStyle(band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
-  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: TAG_SIZE, labelHtml: emojiSpan(band.tag as string)});
+  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: FIXED_SIZES.tag, labelHtml: emojiSpan(band.tag as string)});
 }
 
 // The stamp chip: bottom-right inside the shape (layout reserved the strip; rows may have stretched the shape since, so it follows the bottom edge).
@@ -262,9 +262,9 @@ function renderConnect(c: LaidOutConnect, day: Theme): string {
   // keeps emit and verify looking at the same point.
   if (c.chipBox) {
     const b = c.chipBox;
-    return `${path}\n  ${pillSvg({x: snap4(b.x), y: snap4(b.y), w: snap4(b.w), h: b.h, fill: PALETTE.bg, stroke: color, cx: c.labelX as number, baseline: c.labelY as number, text: color, size: CONNECT_LABEL_SIZE, weight: 400, labelHtml: escapeXml(c.label)})}`;
+    return `${path}\n  ${pillSvg({x: snap4(b.x), y: snap4(b.y), w: snap4(b.w), h: b.h, fill: PALETTE.bg, stroke: color, cx: c.labelX as number, baseline: c.labelY as number, text: color, size: FIXED_SIZES.connectLabel, weight: 400, labelHtml: escapeXml(c.label)})}`;
   }
-  return `${path}\n  <text x="${c.labelX}" y="${c.labelY}" text-anchor="middle" font-size="${CONNECT_LABEL_SIZE}" fill="${color}">${escapeXml(c.label)}</text>`;
+  return `${path}\n  <text x="${c.labelX}" y="${c.labelY}" text-anchor="middle" font-size="${FIXED_SIZES.connectLabel}" fill="${color}">${escapeXml(c.label)}</text>`;
 }
 
 function renderPyramid(band: LaidOutPyramid): string {

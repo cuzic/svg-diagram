@@ -88,6 +88,9 @@ export interface ConnectRef {id: string; side: string; at: number}
 // DSL input: diagram()
 // ============================================================================================
 
+/** diagram({canvas}): the fixed slide canvas the diagram is drawn on. `minText` is the smallest text size (px, in the canvas's own units) the lint accepts. */
+export interface SlideCanvas {width: number; height: number; minText: number}
+
 /** Slide the diagram will be shown on (slide-budget.ts measures its free area). */
 export interface SlideRef {page: string; heading: string}
 
@@ -130,6 +133,8 @@ export interface DiagramOpts {
   maxDisplayHeight?: number;
   minEffectiveFont?: number;
   slide?: SlideRef;
+  /** A whole-slide 16:9 canvas (1280x720 by default) shown 1:1, with a minimum text size lint. Not with `slide` / `fill`. */
+  canvas?: 'slide' | Partial<SlideCanvas>;
   /** fit-figure slide: build to the measured slot, growing fonts to use the slack. Needs `slide`. */
   fill?: boolean;
   /** Options every connect() / branch() of this diagram starts from; see ConnectDefaults. */
@@ -164,6 +169,7 @@ export interface DiagramData {
   maxDisplayHeight?: number;
   minEffectiveFont?: number;
   slide?: SlideRef;
+  canvas?: SlideCanvas;
   fill: boolean;
   connectDefaults?: ConnectDefaults;
   wireframeDefaults?: WireframeDefaults;
@@ -1682,6 +1688,8 @@ export interface LaidOutConnect extends Omit<ConnectBand, 'from' | 'to'> {
 export interface LaidOutDiagram extends DiagramData {
   laidOut: LaidOutBand[];
   canvasHeight: number;
+  /** The height the bands need, before diagram({canvas}) pads the canvas up to its fixed height. */
+  contentHeight?: number;
   connects: LaidOutConnect[];
   /** Set by build() when fill: true scaled the fonts. */
   fontScale?: number;
@@ -1698,6 +1706,7 @@ export interface Finding {rule: string; severity: Severity; message: string}
 export interface LintTarget extends DiagramData {
   laidOut?: LaidOutBand[];
   connects?: LaidOutConnect[];
+  contentHeight?: number;
 }
 /** verifyDiagram() result: `problems` fail the build, `warnings` never do. */
 export interface Verdict {

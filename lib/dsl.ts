@@ -23,9 +23,9 @@ import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
-import {MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone} from './tokens.ts';
+import {SLIDE_CANVAS, FIXED_SIZES, BASE_FIXED_SIZES, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone} from './tokens.ts';
 import type {
-  Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  SlideCanvas, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -60,6 +60,8 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   const theme = opts.theme ?? opts.day;
   if (!THEMES.map(String).includes(String(theme))) throw new Error(`diagram({theme}) must be one of ${THEMES.join(', ')} (or legacy day: 1|2)`);
   if (typeof opts.spotlight === 'object' && opts.spotlight.dim !== undefined && !['outline', 'fill'].includes(opts.spotlight.dim)) throw new Error(`diagram({spotlight: {dim}}) must be 'outline' or 'fill' (got ${String(opts.spotlight.dim)})`);
+  if (opts.canvas !== undefined && (opts.slide || opts.fill)) throw new Error('diagram({canvas}) is a whole slide drawn 1:1; it cannot be combined with `slide` / `fill` (those fit a figure into a measured slot of a Slidev slide)');
+  const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...(opts.canvas === 'slide' ? {} : opts.canvas)};
   const d: DiagramData = {
     day: theme as Theme,
     // 'slide' (legacy day: 1|2 diagrams) gets slide-fit warnings; 'doc' (theme: ...) does not.
@@ -67,7 +69,8 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     title: opts.title, desc: opts.desc,            // exposed as the SVG's <title> / <desc> (doc medium)
     accept: opts.accept, // {'rule-id': 'why this finding is fine'} — shown as info instead of a warning
     legend: opts.legend, legendLabels: opts.legendLabels, // legend: 'auto' adds entries for every notation used but not listed
-    width: opts.width ?? 940,
+    width: opts.width ?? canvas?.width ?? 940,
+    canvas,
     pad: opts.pad ?? 20,
     gap: opts.gap ?? 16,
     maxDisplayHeight: opts.maxDisplayHeight, // slide room for the <img> (see fit.ts)
@@ -169,6 +172,20 @@ export function fillScaleLimit(bands: Band[]): number {
 }
 const BASE_ROLES: Record<Role, number> = {...ROLES};
 const baseRoles = (r: Role): number => BASE_ROLES[r];
+
+// Scales every role size and the fixed sizes (connector label, tag) from their base values; emit.ts and layout.ts read them while they run.
+// `base` is the sizes in force when the call began (a caller may have set one), so scale 1 restores exactly those.
+function fontScaler(): (s: number) => void {
+  const roles = {...ROLES}, fixed = {...FIXED_SIZES};
+  return (s: number) => {
+    for (const k of Object.keys(roles) as Role[]) ROLES[k] = Math.round(roles[k] * s);
+    for (const k of Object.keys(fixed) as (keyof typeof FIXED_SIZES)[]) FIXED_SIZES[k] = Math.round(fixed[k] * s);
+  };
+}
+/** The scale at which the smallest text size becomes the canvas's `minText`. */
+function canvasFontScale(c: SlideCanvas): number {
+  return Math.ceil(c.minText / Math.min(...Object.values(BASE_ROLES), ...Object.values(BASE_FIXED_SIZES)) * 100) / 100;
+}
 
 let boxSizeWarned = false;
 /** box({size}) is read by neither layout nor emit; said once per process, and a later version throws. */
@@ -845,8 +862,7 @@ export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'me
   let fontScale = 1;
   let laidOut: LaidOutDiagram;
   let verdict: Verdict, svg: string, html: string | undefined;
-  const baseRoles = {...ROLES};
-  const applyScale = (s: number) => { for (const k of Object.keys(baseRoles) as Role[]) ROLES[k] = Math.round(baseRoles[k] * s); };
+  const applyScale = fontScaler();
   const layoutAt = (s: number) => { applyScale(s); return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}); };
   try {
     if (d.fill && budget) {
@@ -858,6 +874,9 @@ export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'me
         if ((await layoutAt(mid)).canvasHeight <= budget.maxHeight) lo = mid; else hi = mid;
       }
       fontScale = Math.floor(lo * 100) / 100;
+    } else if (d.canvas) {
+      // a whole-slide canvas is drawn 1:1, so the roles are scaled until the smallest is the canvas's minimum text size
+      fontScale = canvasFontScale(d.canvas);
     } else if (d.fill) {
       if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
       notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
@@ -879,9 +898,16 @@ export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'me
 export async function checkDiagram(d: DiagramData): Promise<CheckResult> {
   prepareReveal(d);
   applyAutoLegend(d);
-  const laidOut = await layoutDiagram(d);
-  applySpotlight(laidOut);
-  return {laidOut, verdict: verifyDiagram(laidOut)};
+  // a canvas diagram is drawn at its font scale, so it is checked at that scale too
+  const applyScale = fontScaler();
+  if (d.canvas) applyScale(canvasFontScale(d.canvas));
+  try {
+    const laidOut = await layoutDiagram(d.canvas ? {...d, pad: Math.round(d.pad * canvasFontScale(d.canvas)), gap: Math.round(d.gap * canvasFontScale(d.canvas))} : d);
+    applySpotlight(laidOut);
+    return {laidOut, verdict: verifyDiagram(laidOut)};
+  } finally {
+    applyScale(1);
+  }
 }
 
 async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Promise<BuildResult> {
