@@ -5,12 +5,12 @@
 // Same geometry as the SVG: layout.ts has already broken every text into lines and placed each baseline, so a line is one element
 // with white-space: pre — the browser never re-wraps it. A line's top is its baseline minus the font's ascent (its line-height is
 // ascent + descent), which is how the baseline lands where the <text> of the SVG puts it.
-import {PALETTE, FONT_STACKS, ROLES, runColorOf, isSolidTone, colorOf, toneStyle} from './tokens.ts';
+import {PALETTE, FONT_STACKS, ROLES, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle} from './tokens.ts';
 import {textBox} from './font-metrics.ts';
 import {emitSvg, resolveBoxStyle} from './emit.ts';
 import {visibleAt} from './reveal.ts';
 import {BOX_PAD_X, BOX_PAD_Y} from './layout.ts';
-import type {LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutBanner, LaidOutCaption, LaidOutGroup, WrappedRun, Theme, Align, EmphasisTone, Rect, Span} from './types.ts';
+import type {LaidOutTable, LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutBanner, LaidOutCaption, LaidOutGroup, WrappedRun, Theme, Align, EmphasisTone, Rect, Span} from './types.ts';
 
 const esc = (s: string): string => s.replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c] as string);
 const px = (n: number): string => `${+n.toFixed(2)}px`;
@@ -82,6 +82,45 @@ function group(b: LaidOutGroup, day: Theme): string {
   return b.frame === false ? '' : shape(b, b, day, 'muted');
 }
 
+// One line of text at an absolute spot: `baseline` is where the glyphs sit (as the SVG <text> y would be), relative to the parent.
+function lineDiv(o: {left: number; baseline: number; width: number; align: Align; size: number; weight: number; mono: boolean; color: string; html: string}): string {
+  const {ascent, descent} = metrics(o.size, o.weight, o.mono);
+  return `<div class="sd-t${o.mono ? ' sd-m' : ''}" style="left:${px(o.left)};top:${px(o.baseline - ascent)};width:${px(o.width)};text-align:${o.align};font-size:${o.size}px;font-weight:${o.weight};line-height:${ascent + descent}px;color:${o.color}">${o.html}</div>`;
+}
+
+// A real <table> (header cells are <th>, so assistive technology reads rows and columns) with fixed column widths and row heights;
+// the text of a cell is pre-broken lines placed over its box. Rounded corners come from a clipping wrapper, the outline from an overlay.
+function table(b: LaidOutTable, day: Theme): string {
+  const R = 8, LH = 1.4;
+  const first = b.rows[0];
+  const y0 = first.y, y1 = b.rows[b.rows.length - 1].y + b.rows[b.rows.length - 1].h;
+  const firstBody = b.rows.findIndex(r => !r.header);
+  const rule = `2px solid ${PALETTE.border}`;
+  const cols = b.colW.map(w => `<col style="width:${px(w)}">`).join('');
+  const rows = b.rows.map((row, i) => {
+    const bg = row.header ? PALETTE[day].soft : row.tone ? resolveBoxStyle(row.tone, day).fill : PALETTE.bg;
+    const cells = row.cells.map((c, j) => {
+      const tag = row.header ? 'th' : b.rowHeader && j === 0 ? 'th' : 'td';
+      const scope = tag === 'th' ? ` scope="${row.header ? 'col' : 'row'}"` : '';
+      const heading = b.rowHeader && !row.header && j === 0;
+      const left = c.align === 'center' ? 0 : c.align === 'right' ? 0 : 12;
+      const right = c.align === 'right' ? 12 : 0;
+      // a collapsed border takes half its width out of the cell on each side it has: shift the text back by that much
+      const edge = j === 1 && b.rowHeader && i >= firstBody && firstBody >= 0 ? 3 : j > 0 ? 2 : 0;
+      const topRule = i > 0 || b.titleBar ? 2 : 0;
+      const lines = c.lines.map((l, k) => lineDiv({left: left - edge / 2, baseline: c.top - row.y - topRule / 2 + b.bodySize + k * b.bodySize * LH, width: c.w - left - right, align: c.align, size: b.bodySize, weight: c.bold ? 700 : 400, mono: c.mono, color: textColorOf(c.tone, day), html: esc(l)})).join('');
+      const style = heading ? `background:${PALETTE[day].soft};` : '';
+      const borderL = edge === 3 ? `border-left:3px solid ${PALETTE.text};` : edge ? `border-left:${rule};` : '';
+      return `<${tag}${scope} style="${style}${borderL}">${lines}</${tag}>`;
+    }).join('');
+    return `<tr style="height:${px(row.h)};background:${bg};${i > 0 || b.titleBar ? `border-top:${rule};` : ''}">${cells}</tr>`;
+  }).join('');
+  const title = b.titleBar
+    ? `<div class="sd-tb" style="left:${px(b.x)};top:${px(b.titleBar.y)};width:${px(b.w)};height:${px(b.titleBar.h)};background:${PALETTE[day].accent}">${b.titleBar.lines.map((l, k) => lineDiv({left: 12, baseline: 8 + ROLES.title + k * ROLES.title * LH, width: b.w - 24, align: 'left', size: ROLES.title, weight: 700, mono: false, color: PALETTE.bg, html: esc(l)})).join('')}</div>`
+    : '';
+    return `<div class="sd-tbl" style="left:${px(b.x)};top:${px(y0)};width:${px(b.w)};height:${px(y1 - y0)}${b.titleBar ? ';border-radius:0 0 8px 8px' : ''}"><table style="width:${px(b.w)}"><colgroup>${cols}</colgroup><tbody>${rows}</tbody></table></div>${title}<div class="sd-b" style="left:${px(b.x - 1.25)};top:${px(b.y - 1.25)};width:${px(b.w + 2.5)};height:${px(b.h + 2.5)};box-shadow:inset 0 0 0 2.5px ${PALETTE.text};border-radius:${R + 1.25}px"></div>`;
+}
+
 // What this file draws as HTML. A box with a step badge / icon / tag / stamp carries SVG-only decorations, so it stays SVG as a whole.
 function native(b: LaidOutBand): boolean {
   switch (b.type) {
@@ -90,6 +129,7 @@ function native(b: LaidOutBand): boolean {
     case 'banner': return !b.tagBox && !b.stamp;
     case 'group': return !b.stamp;
     // a row's arrows are SVG paths, so only an arrow-less row (and a grid) can go over whole
+    case 'table': return true;
     case 'row': return b.arrows.length === 0 && b.children.every(c => native(c));
     case 'grid': return b.children.every(c => native(c));
     default: return false;
@@ -98,6 +138,7 @@ function native(b: LaidOutBand): boolean {
 
 function render(b: LaidOutBand, day: Theme, stage?: number): string {
   switch (b.type) {
+    case 'table': return table(b, day);
     case 'row': case 'grid': return b.children.filter(c => visibleAt(c, stage)).map(c => box(c, day)).join('');
     case 'caption': return caption(b, day);
     case 'box': return box(b, day);
@@ -112,6 +153,10 @@ const CSS = (id: string) => `
 #${id} .sd-b { position: absolute; box-sizing: border-box; border-radius: 9.25px; }
 #${id} .sd-t { position: absolute; white-space: pre; }
 #${id} .sd-m { font-family: ${FONT_STACKS.mono}; }
+#${id} .sd-tbl { position: absolute; overflow: hidden; border-radius: 8px; }
+#${id} .sd-tbl table { border-collapse: collapse; table-layout: fixed; }
+#${id} .sd-tbl th, #${id} .sd-tbl td { position: relative; padding: 0; margin: 0; font-weight: 400; text-align: left; vertical-align: top; }
+#${id} .sd-tb { position: absolute; border-radius: 8px 8px 0 0; }
 #${id} .sd-ov { position: absolute; left: 0; top: 0; pointer-events: none; }
 #${id} .sd-ov text { font-family: ${FONT_STACKS.sans}; }
 #${id} .sd-ov .mono { font-family: ${FONT_STACKS.mono}; }

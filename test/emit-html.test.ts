@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {box, caption, diagram, closeMeasurer, renderDiagram, row, connect} from '../lib/dsl.ts';
+import {box, caption, diagram, closeMeasurer, renderDiagram, table} from '../lib/dsl.ts';
 
 process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
 test.after(() => closeMeasurer());
@@ -36,4 +36,15 @@ test('every text line is pre-broken: white-space pre, a fixed width, no re-wrapp
   const {html} = await make();
   assert.match(html!, /\.sd-t \{ position: absolute; white-space: pre; \}/);
   assert.match(html!, /class="sd-t" style="left:[\d.]+px;top:[\d.]+px;width:[\d.]+px;text-align:left;font-size:\d+px;font-weight:\d+;line-height:\d+px;color:#/);
+});
+
+test('a table is a real <table>: <th> headers with scope, fixed columns, text lines placed over the cells', async () => {
+  const d = diagram({theme: 'blue'});
+  d.add(table([{label: '層', flex: 1}, {label: '役割', flex: 3}], [['画面', '入力を受ける'], ['業務', '規則を適用する']], {rowHeader: true, title: '構成'}));
+  const {html} = await renderDiagram(d, {name: 't.svg', budget: 'cacheOnly', html: true});
+  assert.match(html!, /<table style="width:[\d.]+px"><colgroup><col style="width:[\d.]+px"><col/);
+  assert.match(html!, /<th scope="col"[^>]*>.*層/);
+  assert.match(html!, /<th scope="row"[^>]*>.*画面/);
+  assert.match(html!, /<td[^>]*>.*入力を受ける/);
+  assert.doesNotMatch(html!, /<svg/, 'a table needs no SVG overlay');
 });

@@ -21,7 +21,7 @@ Chromium で SVG 版と HTML 版を描いて画素を比べた(差が 1 チャ�
 
 ## 既知の制約・次の段
 
-- 表・swimlane・sequence・wireframe・step/tag/icon/stamp 付きの箱は、まだ SVG のまま(見た目は同じ、文字は選択できない)。表は `<table>` にすれば意味のある HTML になる。
+- 表は `<table>`(th に scope、固定列幅)で出す。swimlane・sequence・wireframe・step/tag/icon/stamp 付きの箱などは、まだ SVG のまま(見た目は同じ、文字は選択できない)。順に HTML 化する。
 - 矢印つきの row は SVG。矢印だけ重ねて子の箱を HTML にする分割は未対応。
 - 同じページに複数枚置くと、`<marker id="dsl-arrow">` が重なる(SVG を `<img>` でなく直接埋めたときと同じ)。
 - フォントは CSS の font stack で解決される。測った font と違うと 1〜2px ずれる。
