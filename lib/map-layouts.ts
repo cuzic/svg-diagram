@@ -70,6 +70,12 @@ export function layoutBrace(root: TreeNode, opts: {gap?: number} = {}): TreeLayo
   const walk = (n: TreeNode): void => {
     const p = t.nodes.get(n.id)!, kids = (n.children ?? []).map(c => ({c, p: t.nodes.get(c.id)!}));
     if (!kids.length) return;
+    if (kids.length === 1) { // one child: nothing to gather, a plain line
+      const k = kids[0], cy = k.p.y + k.p.h / 2;
+      edges.push({from: n.id, to: k.c.id, points: [{x: p.x + p.w, y: p.y + p.h / 2}, {x: k.p.x, y: cy}]});
+      walk(k.c);
+      return;
+    }
     const left = Math.min(...kids.map(k => k.p.x)), spine = left - 26;
     const y1 = Math.min(...kids.map(k => k.p.y + k.p.h / 2)), y2 = Math.max(...kids.map(k => k.p.y + k.p.h / 2)), ymid = p.y + p.h / 2;
     braces.push({x: spine, y1, y2, ymid, tipX: spine - 10, side: 'right'});
@@ -88,39 +94,43 @@ export function layoutBrace(root: TreeNode, opts: {gap?: number} = {}): TreeLayo
 export function layoutFishbone(root: TreeNode, opts: {gap?: number} = {}): TreeLayout {
   const gap = opts.gap ?? 8, seen = new Set<string>([root.id]);
   const cats = root.children ?? [];
-  for (const c of cats) { dup(seen, c.id); for (const k of c.children ?? []) { dup(seen, k.id); if (k.children?.length) throw new Error(`mindmap(): fishbone has two levels under the root ("${k.id}" has children; use another layout)`); } }
+  for (const c of cats) { dup(seen, c.id); for (const k of c.children ?? []) { dup(seen, k.id); if (k.children?.length) throw new Error('mindmap(): fishbone has two levels under the root (use layout: \'list\', \'right\' or \'org\' for a deeper map)'); } }
   const lengthOf = (c: TreeNode): number => 16 + (c.children ?? []).reduce((s, k, i) => s + k.size.h + (i ? gap : 0), 0) + 22;
-  const half = Math.max(0, ...cats.map(c => c.size.h + lengthOf(c))), spineY = half;
+  const half = Math.max(0, ...cats.map(c => c.size.h + lengthOf(c)), root.size.h / 2), spineY = half;
   const causeW = (c: TreeNode): number => Math.max(0, ...(c.children ?? []).map(k => k.size.w));
-  const slant = (c: TreeNode): number => (half - c.size.h) * 0.4; // how far a bone runs to the right between its category and the spine
-  const pitch = Math.max(120, ...cats.map(c => Math.max(c.size.w, causeW(c) + 12 + slant(c)) + 28));
   const nodes = new Map<string, Placed>(), edges: TreeLayout['edges'] = [];
-  const cols = Math.ceil(cats.length / 2), x0 = 0;
-  cats.forEach((c, i) => {
-    const col = Math.floor(i / 2), top = i % 2 === 0, bx = x0 + col * pitch + causeW(c) + 12;
-    const cw = c.size.w, catX = bx - cw / 2;
-    const catY = top ? 0 : 2 * half - c.size.h;
-    nodes.set(c.id, {x: Math.max(0, catX), y: catY, ...c.size});
-    const startY = top ? catY + c.size.h : catY, dir = top ? 1 : -1;
-    const run = Math.abs(spineY - startY), dxs = run * 0.4;
-    const bone = (y: number): number => bx + dxs * (Math.abs(y - startY) / run);
-    edges.push({from: c.id, to: c.id, points: [{x: bx, y: startY}, {x: bx + dxs, y: spineY}]});
-    let y = startY + dir * 16;
-    for (const k of c.children ?? []) {
-      const cyk = top ? y + k.size.h / 2 : y - k.size.h / 2, bxk = bone(cyk);
-      nodes.set(k.id, {x: bxk - 12 - k.size.w, y: cyk - k.size.h / 2, ...k.size});
-      edges.push({from: c.id, to: k.id, points: [{x: bxk - 12, y: cyk}, {x: bxk, y: cyk}]});
-      y += dir * (k.size.h + gap);
+  // each row (the categories above the spine, the ones below) runs left to right: a category sits where its causes (to the left of
+  // its bone) and its own box clear the one before; the bone leans toward the spine
+  const rows: TreeNode[][] = [[], []];
+  cats.forEach((c, i) => rows[i % 2].push(c));
+  let spineEnd = 120;
+  rows.forEach((row, ri) => {
+    const top = ri === 0;
+    let cursor = top ? 0 : 56; // the lower row starts a little in, so the bones do not all meet the spine at one place
+    for (const c of row) {
+      const catY = top ? 0 : 2 * half - c.size.h, startY = top ? catY + c.size.h : catY, dir = top ? 1 : -1;
+      const run = Math.abs(spineY - startY), dxs = run * 0.4;
+      const bx = cursor + Math.max(causeW(c) + 12, c.size.w / 2);
+      nodes.set(c.id, {x: bx - c.size.w / 2, y: catY, ...c.size});
+      edges.push({from: c.id, to: c.id, points: [{x: bx, y: startY}, {x: bx + dxs, y: spineY}]});
+      let y = startY + dir * 16;
+      for (const k of c.children ?? []) {
+        const cyk = top ? y + k.size.h / 2 : y - k.size.h / 2, bxk = bx + dxs * (Math.abs(cyk - startY) / run);
+        nodes.set(k.id, {x: bxk - 12 - k.size.w, y: cyk - k.size.h / 2, ...k.size});
+        edges.push({from: c.id, to: k.id, points: [{x: bxk - 12, y: cyk}, {x: bxk, y: cyk}]});
+        y += dir * (k.size.h + gap);
+      }
+      cursor = Math.max(bx + c.size.w / 2, bx + dxs) + 28;
+      spineEnd = Math.max(spineEnd, bx + dxs + 24);
     }
   });
-  const spineEnd = (cols ? (cols - 1) * pitch + pitch : 120) + 40;
-  const rx = spineEnd + 8;
+  const rx = spineEnd + 16;
   nodes.set(root.id, {x: rx, y: spineY - root.size.h / 2, ...root.size});
   edges.unshift({from: root.id, to: root.id, points: [{x: 0, y: spineY}, {x: rx, y: spineY}], bold: true});
   let minX = 0;
   for (const p of nodes.values()) minX = Math.min(minX, p.x);
   if (minX < 0) { for (const [id, p] of nodes) nodes.set(id, {...p, x: p.x - minX}); for (const e of edges) e.points = e.points.map(p => ({x: p.x - minX, y: p.y})); }
-  return {nodes, edges, w: rx - minX + root.size.w, h: Math.max(2 * half, spineY + root.size.h / 2)};
+  return {nodes, edges, w: rx - minX + root.size.w, h: 2 * half};
 }
 
 /**

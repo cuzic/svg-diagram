@@ -72,6 +72,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     return [key.get(item)!, side];
   }));
   const kind = band.balanced ? band.layout ?? 'radial' : band.dir === 'right' ? 'right' : 'down';
+  if (kind === 'fishbone') for (const c of band.root.children ?? []) for (const k of c.children ?? []) if (k.children?.length) throw new Error(`mindmap(): fishbone has two levels under the root ("${k.label}" has children; use layout: 'list', 'right' or 'org' for a deeper map)`);
   if (band.sides && kind !== 'radial') throw new Error(`mindmap(): sides applies to the radial layout (this is layout: '${kind}')`);
   const styled = band.edges !== undefined && band.edges !== 'elbow';
   if (styled && !['radial', 'right', 'left', 'down', 'up'].includes(kind)) throw new Error(`mindmap(): edges: '${band.edges}' applies to the radial, right, left, down and up layouts (this is layout: '${kind}')`);

@@ -70,7 +70,7 @@ test('mindmap layout list: an outline — every node below the one before it, on
 
 test('mindmap layout brace: one brace per parent that has children, spanning its children; the parent points at it', async () => {
   const {t, at, root} = await laid('brace');
-  assert.equal(t.braces?.length, 4); // the root, 目的, 機能, 課題
+  assert.equal(t.braces?.length, 3); // the root, 目的, 機能 (課題 has one child: a plain line, not a brace)
   const rootBrace = t.braces!.find(b => Math.abs(b.ymid - (root.y + root.h / 2)) < 0.5)!;
   assert.ok(rootBrace.y1 <= at('p').y + at('p').h / 2 + 0.5 && rootBrace.y2 >= at('r').y + at('r').h / 2 - 0.5);
   assert.ok(rootBrace.x > root.x + root.w && at('p').x > rootBrace.x);
@@ -114,4 +114,38 @@ test('mindmap layouts: node ids come with the figure (reveal) and a connector to
     assert.equal(laidOut.connects[0].reveal, 2, layout);
     assert.deepEqual(verdict.problems, [], layout);
   }
+});
+
+test('mindmap brace: a parent with one child gets a plain line, not a zero-height brace', async () => {
+  const {t, at} = await laid('brace');
+  const only = t.edges.find(e => e.points.length === 2 && Math.abs(e.points[1].x - at('r1').x) < 0.5)!;
+  assert.ok(only && Math.abs(only.points[0].y - only.points[1].y) < 0.5, 'a straight line to the only child');
+  assert.ok(t.braces!.every(b => b.y2 - b.y1 > 8), 'every brace has some height');
+});
+
+test('mindmap fishbone: categories in one row never overlap, whatever causes they have (a category with none, a wide one); the root alone fits', async () => {
+  const one = (children: object[]) => checkDiagram(diagram({theme: 'blue'}).add(mindmap({label: 'テーマ', children} as never, {layout: 'fishbone'})));
+  const cases = [
+    [{label: 'A', children: [{label: 'a1'}, {label: 'a2'}]}, {label: 'B', children: [{label: 'b1'}]}, {label: 'C'}],
+    [{label: 'とても幅の広いカテゴリの名前'}, {label: 'B', children: [{label: '原因'}]}, {label: 'とても幅の広いカテゴリの名前その二'}, {label: 'D'}],
+    [{label: 'A'}, {label: 'B'}, {label: 'C'}, {label: 'D'}, {label: 'E'}],
+  ];
+  for (const [i, c] of cases.entries()) {
+    const {laidOut, verdict} = await one(c);
+    assert.deepEqual(verdict.problems, [], `case ${i}`);
+    const t = laidOut.laidOut.find(b => b.type === 'tree') as LaidOutTree;
+    for (let a = 0; a < t.nodes.length; a++) for (let b = a + 1; b < t.nodes.length; b++) assert.ok(!overlap(t.nodes[a], t.nodes[b]), `case ${i}: ${a} and ${b} overlap`);
+  }
+  const {laidOut, verdict} = await one([]);
+  const t = laidOut.laidOut.find(b => b.type === 'tree') as LaidOutTree;
+  assert.deepEqual(verdict.problems, []);
+  assert.ok(t.nodes[0].y >= t.y - 0.5 && t.nodes[0].y + t.nodes[0].h <= t.y + t.h + 0.5, 'the lone head is inside the figure');
+});
+
+test('mindmap fishbone: a bone leaves the middle of its category, even a wide one with no causes; a third level is refused by its label', async () => {
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(mindmap({label: 'テーマ', children: [{label: 'とても幅の広いカテゴリの名前'}, {label: 'B', children: [{label: 'b1'}]}]}, {layout: 'fishbone'})));
+  const t = laidOut.laidOut.find(b => b.type === 'tree') as LaidOutTree;
+  const cat = t.nodes[1], bone = t.edges.find(e => e.points.length === 2 && Math.abs(e.points[0].y - (cat.y + cat.h)) < 0.5)!;
+  assert.ok(Math.abs(bone.points[0].x - (cat.x + cat.w / 2)) < 0.5, 'the bone starts at the middle of the category');
+  await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(mindmap({label: 'r', children: [{label: 'a', children: [{label: '原因', children: [{label: 'c'}]}]}]}, {layout: 'fishbone'}))), /"原因" has children/);
 });
