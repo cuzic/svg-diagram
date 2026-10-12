@@ -200,10 +200,13 @@ export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: S
 // a cell is a string or {text, tone?: 'accent'|'muted'|'danger', bold?, mono?, align?}.
 // title adds an accent bar on top (an ER entity name, a table caption); header: false hides
 // the column-label row; width narrows the table (centered); cellH fixes every row's height (text centred; throws if a cell needs more),
-// a row's own `h` and headerH override it for that row / the header; dense trims the row padding to 4px.
+// a row's own `h` and headerH override it for that row / the header; dense trims the row padding to 4px;
+// rowHeader: true makes the left column a row heading (bold, soft fill, heavy rule on its right; top-aligned unless the row has a fixed height).
 export function table<const Id extends string = never>(columns: TableColumn[], rows: readonly TableRow[], opts?: TableOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
 export function table(columns: TableColumn[], rows: readonly TableRow[], opts: TableOpts = {}): TableBand {
-  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, headerH: opts.headerH, dense: opts.dense, id: opts.id, reveal: opts.reveal}, opts.id);
+  if (opts.rowHeader !== undefined && typeof opts.rowHeader !== 'boolean') throw new Error(`table(): rowHeader must be true or false, got ${JSON.stringify(opts.rowHeader)}`);
+  if (opts.rowHeader && columns.length < 2) throw new Error('table(): rowHeader needs at least 2 columns (the first is the row heading, the rest are the body)');
+  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, headerH: opts.headerH, dense: opts.dense, rowHeader: opts.rowHeader, id: opts.id, reveal: opts.reveal}, opts.id);
 }
 
 // A table cell with a status symbol: `cell('通る', {mark: 'ok'})` draws "○ 通る" in the accent tone; mark: 'ok' ○ | 'mid' △ | 'ng' × | 'best' ◎.

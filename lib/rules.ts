@@ -9,7 +9,7 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
-import {PALETTE, STRONG_STROKE, wcagRatio} from './tokens.ts';
+import {PALETTE, STRONG_STROKE, toneStyle, wcagRatio} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {budgetWarnings} from './budget.ts';
 import {dimmedBands} from './spotlight.ts';
@@ -27,6 +27,7 @@ export const RULE_DOCS = {
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える）',
   'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる',
+  'rowheader-tone-collides': '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある',
   'swimlane-lanes': 'レーンが多い（6 本まで）',
   'swimlane-hand-offs': 'レーンをまたぐ引き継ぎの数（情報）',
   'edge-crossings': '線どうしの交差・重なりがある',
@@ -149,7 +150,7 @@ function textContrast(d: LintTarget, out: Finding[]): void {
     } else if (b.type === 'table') {
       if (b.titleBar) check(PALETTE.bg, PALETTE[d.day].accent, 'テーブルの題名帯');
       for (const row of b.rows) for (const c of row.cells) {
-        const bg = row.header ? PALETTE[d.day].soft : row.tone ? resolveBoxStyle(row.tone, d.day).fill : PALETTE.bg;
+        const bg = row.header || (b.rowHeader && c === row.cells[0]) ? PALETTE[d.day].soft : row.tone ? resolveBoxStyle(row.tone, d.day).fill : PALETTE.bg;
         if (c.lines.length) check(resolveTextColor(c.tone, d.day), bg, `表のセル「${c.lines[0].slice(0, 12)}」`);
       }
     }
@@ -234,6 +235,17 @@ export function edgeStats(connects: LaidOutConnect[]): {crossings: number; overl
 function permutations<T>(a: T[]): T[][] {
   if (a.length <= 1) return [a];
   return a.flatMap((x, i) => permutations([...a.slice(0, i), ...a.slice(i + 1)]).map(p => [x, ...p]));
+}
+
+// rowHeader: true paints the row-heading cell `soft`; a row whose own tone also fills `soft` (accent / new) loses the difference.
+function rowHeaderRules(d: LintTarget, out: Finding[]): void {
+  for (const b of d.laidOut ?? []) {
+    if (b.type !== 'table' || !b.rowHeader) continue;
+    const rows = b.rows.filter(r => !r.header && toneStyle(r.tone).fill === 'soft');
+    if (!rows.length) continue;
+    const names = rows.slice(0, 4).map(r => `「${(r.cells[0]?.lines[0] ?? '').slice(0, 12)}」`).join('');
+    out.push({rule: 'rowheader-tone-collides', severity: 'warn', message: `表の行ラベルは soft で塗るが、${names}${rows.length > 4 ? ` ほか ${rows.length - 4} 行` : ''}は行のトーン（${[...new Set(rows.map(r => r.tone))].join('・')}）も soft なので、行ラベルと本文の塗りが同じになる。muted / changed / 太字の文字などに変えるか、行のトーンを外す`});
+  }
 }
 
 function swimlaneRules(d: LintTarget, out: Finding[]): void {
@@ -345,6 +357,7 @@ function lintAll(d: LintTarget): Finding[] {
   legendRules(d, out);
   swimlaneRules(d, out);
   wireframeRules(d, out);
+  rowHeaderRules(d, out);
 
   const connects = d.connects ?? [];
   if (connects.length) {
