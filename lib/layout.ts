@@ -15,7 +15,7 @@
 // consume vertical space; they're resolved in a final pass once every named
 // anchor (any box/child with an explicit `id`) has a known rect.
 
-import {splitAtoms, textWidth} from './measure.ts';
+import {splitAtoms, textWidth} from './atoms.ts';
 import type {measureAll} from './measure.ts';
 import {wrapAtoms, wrapStyledAtoms} from './wrap.ts';
 import {assertSpans} from './rich.ts';

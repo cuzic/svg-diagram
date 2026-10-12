@@ -1,4 +1,4 @@
-import {textWidth} from './measure.ts';
+import {textWidth} from './atoms.ts';
 import {fmt, ticksOf} from './plane.ts';
 import type {BarDatum, BarsBand, ColorKey, FontFamily, LaidOutBars, WidthOf, Roles} from './types.ts';
 

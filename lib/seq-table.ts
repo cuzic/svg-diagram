@@ -6,7 +6,7 @@
 // must agree on every string/size/weight/font, so both go through the same
 // prepare step.
 
-import {splitAtoms, textWidth} from './measure.ts';
+import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapAtoms} from './wrap.ts';
 import {CELL_MARKS} from './tokens.ts';
 import type {

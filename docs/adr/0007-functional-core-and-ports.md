@@ -1,6 +1,6 @@
 # ADR 0007: 描画の状態を値にする(ROLES・入力の破壊・ports)
 
-- 状態: 提案(改訂 2。Opus レビュー 2 回分とスパイク 3 案の結果を反映。設計確定、実装前)
+- 状態: 実装済み(`feat/roles-value`。PR 前。改訂 3)
 - 日付: 2026-10-11
 - 基点: `main`(221d59c、PR #42 まで)
 - 関連: ADR 0004 §0、ADR 0006(HTML/CSS 描画)
@@ -101,9 +101,13 @@ DSL(ビルダー) → Diagram データ → prepareReveal / applyAutoLegend
 - **得るもの**: 並行描画(Slidev アドオン)で結果が実行順に依存しなくなる。fill の reveal 段階ファイルが直る。共通部品の band が図の間で漏れなくなる。測定を差し替えやすくなる。
 - **失うもの**: `layoutDiagram` などに省略可能な引数が増える。`LaidOutDiagram` のフィールドが 1 つ増える。fill を使う既存の資料で、reveal の段階ファイルが再ビルドで変わる。
 
+## 実装での確定事項
+
+- strict-width の環境変数は CLI プロセスの env で効いているので、`widthOf` 引数では置き換えられない。読む場所を `lib/layout-measured.ts`(測定してから layout する殻)に移し、`widthOfMeasured(measured, strict)` へ引数で渡した。`layout.ts` は環境を読まない。
+- `emit-html.ts` は描画時に `font-metrics.ts`(`textBox`)を読むので、**中核の一覧から外した**(殻の側)。必要な値をレイアウト結果へ焼き込む案は、HTML 出力の変更が大きいので見送った。
+- §4 の検査は `test/core-purity.test.ts`。対象は atoms・bars・emit・fit・layout・plane・reveal・rich・rules・seq-table・spotlight・tokens・types・verify・wrap・wireframe。静的 import と動的 `import()` を推移的にたどり、fs / child_process / playwright / resvg / harfbuzz と `process.*` に届けば落ちる(`measure.ts` と `emit-html.ts` を一時的に対象へ入れて、落ちることを確かめた)。
+
 ## 未決
 
 - 外部の利用者が描画後の `d.maxReveal` などを読んでいないか(アドオンは読まない。他は未確認)。変更点として告知する。
-- `strictWidths()`(`layout.ts:55` の `process.env`)は CLI プロセスの env で効いているので、`widthOf` 引数では置き換えられない。env を読む場所を dsl.ts に移し、`layoutWith` へ引数で渡す(スパイクでは未着手)。
-- `emit-html.ts` は `font-metrics.ts`(`textBox`)を直接 import するので、§4 の「中核」の一覧から外すか、必要な値をレイアウト結果に焼き込むかを決める。
 - 将来、別の測定器や予算の取得元が実際に必要になったときの Ports(今は作らない)。
