@@ -115,7 +115,14 @@ function withAnchors<T extends object>(band: T, ids: (string | undefined)[]): T 
 export function caption(text: RichText, opts: CaptionOpts = {}): CaptionBand {
   const tone = opts.tone ?? 'muted';
   const rich = richField(text, {field: 'caption()', bold: !!opts.bold, tone});
-  return {type: 'caption', text: rich.text ?? '', ...(rich.spans ? {spans: {text: rich.spans}} : {}), align: opts.align ?? 'center', role: opts.role ?? 'label', tone, bold: !!opts.bold, mono: !!opts.mono};
+  return {type: 'caption', text: rich.text ?? '', ...(rich.spans ? {spans: {text: rich.spans}} : {}), align: opts.align ?? 'center', role: opts.role ?? 'label', tone, bold: !!opts.bold, mono: !!opts.mono, ...revealOf(opts)};
+}
+
+// `reveal` goes onto a band only when it was given, so a band built without it is byte-for-byte what it was.
+const revealOf = (opts: {reveal?: number}): {reveal?: number} => opts.reveal === undefined ? {} : {reveal: opts.reveal};
+// A constructor with no `reveal` (legend, spacer, raw, ...) refuses one instead of dropping it: the types already do, a JS caller is told here.
+function assertNoReveal(opts: object | undefined, what: string): void {
+  if (opts && 'reveal' in opts && (opts as {reveal?: unknown}).reveal !== undefined) throw new Error(`${what}: takes no reveal — it is shown from the start (reveal goes on box, banner, stat, caption, group, row's children, table, sequence, swimlane, plane, bars and connect)`);
 }
 
 // group / table rows / sequence / swimlane lanes carry dark text (or white boxes) on their fill, which a solid fill would swallow:
@@ -151,7 +158,7 @@ export function stat(value: string | number, label: RichText, opts: StatOpts = {
   const solid = opts.tone === 'solid' || opts.tone === 'solid-danger' ? opts.tone : undefined;
   const rich = richField(label, {field: 'stat() label', bold: false, tone: solid ? undefined : 'muted'});
   return withHandle({
-    type: 'box', id: opts.id, ...(solid ? {tone: solid} : {}), flex: opts.flex, width: opts.width, col: opts.col, span: opts.span,
+    type: 'box', id: opts.id, ...(solid ? {tone: solid} : {}), flex: opts.flex, width: opts.width, col: opts.col, span: opts.span, ...revealOf(opts),
     align: 'center', lines: [
       {text, role: opts.size ?? 'stat', bold: true, tone: solid ? undefined : opts.tone as TextTone | undefined},
       {text: rich.text ?? '', ...(solid ? {} : {tone: 'muted' as const}), ...(rich.spans ? {spans: rich.spans} : {})},
@@ -188,6 +195,7 @@ export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
 //   {line: 'solid'|'dashed'|'dotted'|'double', arrow?: 'end'|'both'|'none', weight?: 'strong', label}
 //   {tone: 'accent'|'muted'|'plain'|'danger'|'new'|'changed'|'removed', label}
 export function legend(items: LegendItem[], opts: LegendOpts = {}): LegendBand {
+  assertNoReveal(opts, 'legend()');
   for (const it of items) if (it.weight && it.line === 'double') throw new Error(`legend(): weight '${it.weight}' cannot go with line 'double' ("${it.label}")`);
   // a weight sample is a line sample: the plain line unless `line` says otherwise
   return {type: 'legend', items: items.map(it => it.weight && !it.line ? {...it, line: 'solid'} : it), align: opts.align ?? 'center'};
@@ -206,7 +214,7 @@ export function sequence<const A extends string, const Id extends string = never
 export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: SequenceOpts = {}): SequenceBand {
   for (const a of actors) assertBoxTone(a.tone, `sequence() actor "${a.id}"`);
   for (const st of steps) if ('note' in st) assertBoxTone((st as {tone?: string}).tone, 'sequence() note');
-  return withHandle({type: 'sequence', actors, steps, numbered: opts.numbered, id: opts.id}, opts.id);
+  return withHandle({type: 'sequence', actors, steps, numbered: opts.numbered, id: opts.id, ...revealOf(opts)}, opts.id);
 }
 
 // Table with a header row. columns: [{label, flex?, mono?, bold?, align?: 'left'|'center'|'right'}].
@@ -302,7 +310,7 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
     const k = slot.get(b.col) ?? 0; slot.set(b.col, k + 1);
     return connectBand(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone}, false);
   });
-  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, id: opts.id};
+  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, id: opts.id, ...revealOf(opts)};
   return withAnchors([block, ...flows], placed.map(st => st.id));
 }
 
@@ -316,6 +324,7 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
 // id makes the screen frame a connect() anchor.
 export function wireframe<const Id extends string = never>(root: WfRoot, opts?: WireframeOpts & {id?: Id}): WireframeBand & Declares<Id> & HandleOf<Id>;
 export function wireframe(root: WfRoot, opts: WireframeOpts = {}): WireframeBand {
+  assertNoReveal(opts, 'wireframe()');
   const numbering = autoNumber(root, opts.overlays);
   return Object.defineProperty(withHandle({type: 'wireframe', root, ...opts}, opts.id), NUMBERING, {value: numbering});
 }
@@ -374,6 +383,7 @@ function nodesOf(root: WfRoot): Set<object> {
 // Types: item ids are exposed to add() as connect() anchors; `at` is a [row, col] tuple.
 export function screens<const Id extends string = never>(items: ScreensItemInput<Id>[], opts?: ScreensOpts): ScreensBand & Declares<Id> & AnchorsOf<Id>;
 export function screens(items: ScreensItem[], opts: ScreensOpts = {}): ScreensBand {
+  assertNoReveal(opts, 'screens()');
   return withAnchors({type: 'screens', items, ...opts}, items.map(i => i.id));
 }
 
@@ -388,6 +398,7 @@ export function screens(items: ScreensItem[], opts: ScreensOpts = {}): ScreensBa
 // An explicit `undefined` entry is still the deliberate TODO marker; 'na' / {na: reason} stay valid.
 export function stateMatrix<const C extends string[], const R extends readonly (StateRowLoose | PartRow<never, string>)[]>(cols: C, rows: readonly [...R] & ValidateStateRows<C, R>, opts?: Omit<StateMatrixOpts, 'required'> & {required?: C[number][]}): ScreensBand;
 export function stateMatrix(cols: string[], rowsIn: readonly (StateMatrixRow | PartRow<never>)[], opts: StateMatrixOpts = {}): ScreensBand {
+  assertNoReveal(opts, 'stateMatrix()');
   const rows = rowsIn.map((r): StateMatrixRow => 'type' in r && r.type === 'part-row' ? {label: r.label, note: r.note, cells: r.cells(cols)} : r as StateMatrixRow);
   return {type: 'screens', items: [], matrix: {cols, rows, required: opts.required, labelW: opts.labelW, cellH: opts.cellH, gap: opts.gap, cellFrame: opts.cellFrame}, marks: opts.marks, skeleton: opts.skeleton, id: opts.id};
 }
@@ -419,7 +430,8 @@ export function stateRow<const K extends string, O extends object = Record<strin
   };
 }
 
-export function spacer(h: number): SpacerBand {
+export function spacer(h: number, opts?: {reveal?: number}): SpacerBand {
+  assertNoReveal(opts, 'spacer()');
   return {type: 'spacer', h};
 }
 
@@ -460,6 +472,7 @@ function assertBoxChildren(what: 'row' | 'grid', children: readonly {type?: stri
 export function row<C extends BoxBand, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): RowBand & Declares<IdsOf<C> | Id> & RowHandleOf<Id>;
 export function row<C extends BoxBand | GroupBand, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): GroupRowBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & RowHandleOf<Id>;
 export function row(children: (BoxBand | GroupBand)[], opts: RowOpts = {}): RowBand | GroupRowBand {
+  assertNoReveal(opts, 'row()'); // a row is shown with its children: give each child its own reveal
   const hasGroup = children.some(c => c?.type === 'group');
   if (hasGroup) {
     if (opts.arrows === 'between') throw new Error("row(): arrows: 'between' cannot be used when a child is a group()");
@@ -505,6 +518,7 @@ export function iconRow(items: IconRowItem[], opts: RowOpts = {}): RowBand {
 export function grid<C extends BoxBand>(children: C[], opts: GridOpts): GridBand & Declares<IdsOf<C>>;
 export function grid(children: BoxBand[], opts: GridOpts): GridBand {
   if (!opts?.cols) throw new Error('grid(children, {cols}) needs cols');
+  assertNoReveal(opts, 'grid()');
   assertBoxChildren('grid', children);
   return {type: 'grid', children, cols: opts.cols, gap: opts.gap ?? 16};
 }
@@ -640,6 +654,7 @@ export function branch(from: string, targets: BranchTarget[], opts: ConnectOpts 
 // Types: a tuple of at least 2 layers.
 export function pyramid(layers: PyramidLayers, opts?: PyramidOpts): PyramidBand;
 export function pyramid(layers: (string | PyramidLayer)[], opts: PyramidOpts = {}): PyramidBand {
+  assertNoReveal(opts, 'pyramid()');
   if (!Array.isArray(layers) || layers.length < 2) throw new Error('pyramid(layers) needs at least 2 layers, bottom to top');
   return {
     type: 'pyramid',
@@ -659,6 +674,7 @@ export function pyramid(layers: (string | PyramidLayer)[], opts: PyramidOpts = {
 // Types: a tuple of at least 2 points, each with a numeric y.
 export function curve(points: CurvePoints, opts?: CurveOpts): CurveBand;
 export function curve(points: CurveBand['points'], opts: CurveOpts = {}): CurveBand {
+  assertNoReveal(opts, 'curve()');
   if (!Array.isArray(points) || points.length < 2) throw new Error('curve(points) needs at least 2 points');
   for (const p of points) {
     if (typeof p.y !== 'number') throw new Error('curve(): every point needs a numeric y (0 = axis bottom, 1 = axis top)');
@@ -679,6 +695,7 @@ export function curve(points: CurveBand['points'], opts: CurveOpts = {}): CurveB
 //          labels: [{at: [50, 55], text: '原点', anchor?, tone?, bold?}], height?, width?})
 // A position is [x, y] or the id of a point. Layout places the ticks, labels and dimension lines; verify reports labels that
 // overlap each other or leave the figure.
+export function plane<const Id extends string = never>(opts: PlaneOpts & {id?: Id}): PlaneBand & Declares<Id> & HandleOf<Id>;
 export function plane(opts: PlaneOpts): PlaneBand {
   for (const k of ['x', 'y'] as const) {
     const a = opts?.[k];
@@ -686,11 +703,11 @@ export function plane(opts: PlaneOpts): PlaneBand {
     if (!a || typeof a.max !== 'number') throw new Error(`plane(): "${k}" needs an axis, e.g. {max: 100}`);
     if (a.max <= (a.min ?? 0)) throw new Error(`plane(): axis ${k} needs max > min`);
   }
-  return {type: 'plane', ...opts, height: opts.height ?? 300};
+  return withHandle({type: 'plane', ...opts, height: opts.height ?? 300}, opts.id);
 }
 
 type BarIds<D extends readonly BarDatum[]> = Extract<D[number]['id'], string>;
-export function bars<const D extends readonly BarDatum[]>(data: D, opts?: BarsOpts): BarsBand & Declares<BarIds<D>> & AnchorsOf<BarIds<D>>;
+export function bars<const D extends readonly BarDatum[], const Id extends string = never>(data: D, opts?: BarsOpts & {id?: Id}): BarsBand & Declares<Id | BarIds<D>> & HandleOf<Id> & AnchorsOf<BarIds<D>>;
 export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   if (!Array.isArray(data) || data.length === 0) throw new Error('bars(data) needs at least one value');
   if (opts.height !== undefined && (!(opts.height > 0) || !Number.isFinite(opts.height))) throw new Error(`bars(): height must be a finite number > 0 (got ${opts.height})`);
@@ -713,9 +730,10 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   if (extent > max) throw new Error(`bars(): ${stack ? 'stack total' : 'a value'} (${extent}) exceeds max (${max})`);
   const ids = data.map(d => d.id).filter((id): id is string => !!id);
   if (new Set(ids).size !== ids.length) throw new Error('bars(): each id must be unique');
-  const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height};
+  if (opts.id !== undefined && ids.includes(opts.id)) throw new Error(`bars(): the band's id "${opts.id}" is also a bar's id — each id must be unique`);
+  const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height, ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
-  return withAnchors(band, data.map(d => d.id));
+  return withHandle(withAnchors(band, data.map(d => d.id)), opts.id);
 }
 
 // Escape hatch. `draw(ctx)` must return a raw SVG fragment string; it
@@ -726,6 +744,7 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
 // here still gets caught before the file is trusted — raw() only escapes
 // layout, never the constraint system's verification step.
 export function raw(opts: RawOpts): RawBand {
+  assertNoReveal(opts, 'raw()');
   if (typeof opts.draw !== 'function') throw new Error('raw({draw}) needs a draw(ctx) function');
   return {type: 'raw', h: opts.h ?? 0, draw: opts.draw};
 }

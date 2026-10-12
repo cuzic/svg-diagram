@@ -116,8 +116,8 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     const n = Math.max(1, Math.ceil(Math.hypot(s.x2 - s.x1, s.y2 - s.y1) / 6));
     for (let i = 0; i <= n; i++) ink(what, {x: s.x1 + (s.x2 - s.x1) * i / n - 2, y: s.y1 + (s.y2 - s.y1) * i / n - 2, w: 4, h: 4}, dim);
   };
-  const addText = (s: string, tx: number, base: number, anchor: 'start' | 'middle' | 'end', tone: PlaneTone, bold = false): void => {
-    texts.push({s, x: tx, y: base, anchor, tone, bold});
+  const addText = (s: string, tx: number, base: number, anchor: 'start' | 'middle' | 'end', tone: PlaneTone, bold = false, reveal?: number): void => {
+    texts.push({s, x: tx, y: base, anchor, tone, bold, ...(reveal ? {reveal} : {})});
     const tww = tw(s, bold ? 700 : 400);
     boxes.push({label: s, x: anchor === 'middle' ? tx - tww / 2 : anchor === 'end' ? tx - tww : tx, y: base - size(), w: tww, h: labelH()});
   };
@@ -151,13 +151,13 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     const q = pt(p.at), tone = p.tone ?? 'accent';
     if (p.label) {
       const at = p.labelAt ?? 'right';
-      if (at === 'right') addText(p.label, q.x + 12, q.y + 5, 'start', tone, true);
-      else if (at === 'left') addText(p.label, q.x - 12, q.y + 5, 'end', tone, true);
-      else if (at === 'above') addText(p.label, q.x, q.y - 14, 'middle', tone, true);
-      else addText(p.label, q.x, q.y + 26, 'middle', tone, true);
+      if (at === 'right') addText(p.label, q.x + 12, q.y + 5, 'start', tone, true, p.reveal);
+      else if (at === 'left') addText(p.label, q.x - 12, q.y + 5, 'end', tone, true, p.reveal);
+      else if (at === 'above') addText(p.label, q.x, q.y - 14, 'middle', tone, true, p.reveal);
+      else addText(p.label, q.x, q.y + 26, 'middle', tone, true, p.reveal);
     }
     ink('a point', {x: q.x - 7, y: q.y - 7, w: 14, h: 14});
-    return {x: q.x, y: q.y, tone, shape: p.shape ?? 'dot'};
+    return {x: q.x, y: q.y, tone, shape: p.shape ?? 'dot', ...(p.reveal ? {reveal: p.reveal} : {})};
   });
 
   const lines: LaidOutPlane['lines'] = (band.lines ?? []).map(l => {
@@ -168,7 +168,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
       const xs = [b.x, b.x - ux * 10 - uy * 5, b.x - ux * 10 + uy * 5], ys = [b.y, b.y - uy * 10 + ux * 5, b.y - uy * 10 - ux * 5];
       ink('a guide line arrow', {x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)});
     }
-    return {x1: a.x, y1: a.y, x2: b.x, y2: b.y, tone: l.tone ?? 'muted', dashed: l.dashed ?? true, arrow: !!l.arrow};
+    return {x1: a.x, y1: a.y, x2: b.x, y2: b.y, tone: l.tone ?? 'muted', dashed: l.dashed ?? true, arrow: !!l.arrow, ...(l.reveal ? {reveal: l.reveal} : {})};
   });
 
   const paths: NonNullable<LaidOutPlane['paths']> = (band.paths ?? []).map(pa => {
@@ -208,21 +208,21 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     const line = {x1: a.x + ox, y1: a.y + oy, x2: b.x + ox, y2: b.y + oy};
     const mx = (line.x1 + line.x2) / 2, my = (line.y1 + line.y2) / 2;
     const lw = tw(dm.label, 700), chip = {x: mx - lw / 2 - DIM_CHIP_PAD, y: my - 12, w: lw + 2 * DIM_CHIP_PAD, h: 24};
-    texts.push({s: dm.label, x: mx, y: my + 5, anchor: 'middle', tone, bold: true});
+    texts.push({s: dm.label, x: mx, y: my + 5, anchor: 'middle', tone, bold: true, ...(dm.reveal ? {reveal: dm.reveal} : {})});
     boxes.push({label: dm.label, ...chip, dim: di});
     inkSeg('a dimension line', line, di);
     inkSeg('a dimension line', {x1: a.x, y1: a.y, x2: line.x1, y2: line.y1}, di);
     inkSeg('a dimension line', {x1: b.x, y1: b.y, x2: line.x2, y2: line.y2}, di);
-    return {from: a, to: b, line, ext: [{x1: a.x, y1: a.y, x2: line.x1, y2: line.y1}, {x1: b.x, y1: b.y, x2: line.x2, y2: line.y2}], chip, tone};
+    return {from: a, to: b, line, ext: [{x1: a.x, y1: a.y, x2: line.x1, y2: line.y1}, {x1: b.x, y1: b.y, x2: line.x2, y2: line.y2}], chip, tone, ...(dm.reveal ? {reveal: dm.reveal} : {})};
   });
 
   for (const l of band.labels ?? []) {
     const q = pt(l.at);
-    addText(l.text, q.x, q.y + 5, l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold);
+    addText(l.text, q.x, q.y + 5, l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold, l.reveal);
   }
 
   return {
-    type: 'plane', x, y, w, h, reveal: band.reveal, bounds: {x: left, y, w: width, h},
+    type: 'plane', id: band.id, x, y, w, h, reveal: band.reveal, bounds: {x: left, y, w: width, h},
     axisX, axisY, plotL, plotR, plotT, plotB, yDown,
     ticks, grid, texts, points, lines, ...(paths.length ? {paths} : {}), dims, labelBoxes: boxes, obstacles,
   };
