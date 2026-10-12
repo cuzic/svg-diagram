@@ -44,7 +44,7 @@ export function elbows(pts: Pt[], turn?: number): Pt[] {
  * ports: the edges that meet one side of a box fan out along it (ordered by where the other end is, so they do not cross);
  * lanes: direct arrows through one gap between two layers take separate vertical runs.
  */
-export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14): Map<number, Pt[]> {
+export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined): Map<number, Pt[]> {
   // ports: the edges that meet one side of a state fan out along it (ordered by where the other end is, so they do not cross)
   // lanes: direct arrows through one gap between two layers take separate vertical runs
   const portOf = new Map<string, number>(), laneOf = new Map<number, number>();
@@ -72,7 +72,11 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
   const byKey = new Map<string, typeof ends>();
   for (const en of ends) byKey.set(en.key, [...(byKey.get(en.key) ?? []), en]);
   for (const list of byKey.values()) {
-    list.sort((p, q) => p.other - q.other || p.edge - q.edge);
+    // the arrows of one group (an AND) arrive side by side: they sort by where the group as a whole comes from, then among themselves
+    const mean = new Map<number, number>();
+    if (groupOf) for (const en of list) { const g = en.end === 1 ? groupOf(en.edge) : undefined; if (g !== undefined) mean.set(g, (mean.get(g) ?? 0) + en.other / list.filter(o => o.end === 1 && groupOf(o.edge) === g).length); }
+    const key = (en: typeof list[number]): number => (en.end === 1 && groupOf && groupOf(en.edge) !== undefined ? mean.get(groupOf(en.edge)!)! : en.other);
+    list.sort((p, q) => key(p) - key(q) || (p.end === 1 && groupOf ? (groupOf(p.edge) ?? -1) - (groupOf(q.edge) ?? -1) : 0) || p.other - q.other || p.edge - q.edge);
     list.forEach((en, k) => {
       const e = lay.edges[en.edge], id = en.end === 0 ? e.from : e.to, h = lay.nodes.get(id)!.h;
       const step = list.length > 1 ? Math.min(portStep, (h - 12) / (list.length - 1)) : 0;

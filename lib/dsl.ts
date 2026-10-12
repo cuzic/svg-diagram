@@ -1035,6 +1035,7 @@ type CauseIds<N extends readonly CauseNode[]> = Extract<N[number]['id'], string>
 export function causeTree<const N extends readonly CauseNode[], const Id extends string = never>(nodes: N, links: readonly CauseLink[], opts?: CauseOpts & {id?: Id}): CauseBand & Declares<Id | CauseIds<N>> & HandleOf<Id> & AnchorsOf<CauseIds<N>>;
 export function causeTree(nodes: readonly CauseNode[], links: readonly CauseLink[], opts: CauseOpts = {}): CauseBand {
   if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('causeTree(nodes, links) needs at least one node');
+  if (!Array.isArray(links)) throw new Error('causeTree(nodes, links): links must be an array');
   if (opts.dir !== undefined && !['up', 'down', 'right', 'left'].includes(opts.dir)) throw new Error(`causeTree(): dir must be 'up', 'down', 'right' or 'left' (got ${String(opts.dir)})`);
   if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`causeTree(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
   for (const l of links) if (l.line !== undefined && !['solid', 'dashed', 'dotted'].includes(l.line)) throw new Error(`causeTree(): link to ${l.to} has line ${String(l.line)}`);
@@ -1058,7 +1059,7 @@ type CloudIds<B> = B extends {id: infer I extends string} ? I : never;
  */
 export function cloud<const A extends CloudBox, const B extends CloudBox, const C extends CloudBox, const D extends CloudBox, const D2 extends CloudBox, const Id extends string = never>(boxes: {a: A; b: B; c: C; d: D; d2: D2}, opts?: CloudOpts & {id?: Id}): CloudBand & Declares<Id | CloudIds<A> | CloudIds<B> | CloudIds<C> | CloudIds<D> | CloudIds<D2>> & HandleOf<Id> & AnchorsOf<CloudIds<A> | CloudIds<B> | CloudIds<C> | CloudIds<D> | CloudIds<D2>>;
 export function cloud(boxes: {a: CloudBox; b: CloudBox; c: CloudBox; d: CloudBox; d2: CloudBox}, opts: CloudOpts = {}): CloudBand {
-  for (const k of ['a', 'b', 'c', 'd', 'd2'] as const) if (boxes?.[k] === undefined) throw new Error(`cloud({a, b, c, d, d2}): box ${k} is missing`);
+  for (const k of ['a', 'b', 'c', 'd', 'd2'] as const) if (boxes?.[k] == null) throw new Error(`cloud({a, b, c, d, d2}): box ${k} is missing`);
   if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 120 && Number.isFinite(opts.maxNodeW))) throw new Error(`cloud(): maxNodeW must be a number >= 120 (got ${opts.maxNodeW})`);
   for (const k of ['a', 'b', 'c', 'd', 'd2'] as const) {
     const t = typeof boxes[k] === 'string' ? undefined : (boxes[k] as {tone?: string}).tone;

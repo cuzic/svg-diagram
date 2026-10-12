@@ -199,3 +199,77 @@ test('cloud() and causeTree() reveal and spotlight like the other bands: reveal 
   const {verdict} = await checkDiagram(d);
   assert.deepEqual(verdict.problems.filter(p => /reveal|appears/.test(p)), []);
 });
+
+// ---- review fixes (opus-review-toc) ----
+const tipsInto = (t: LaidOutCause, id: string) => t.edges.filter(e => e.to === id).map(e => ({from: e.from, tip: e.points[e.points.length - 1], tail: e.points[e.points.length - 2]}));
+
+for (const dir of ['up', 'down', 'right', 'left'] as const) {
+  test(`causeTree() dir ${dir} H1: an OR arrow never lands between the arrows of an AND, so the arc covers only its own arrows`, async () => {
+    const {t, verdict} = await laidCause(causeTree([N('a'), N('b'), N('c'), N('z')], [{from: ['a', 'c'], to: 'z'}, {from: 'b', to: 'z'}], {dir}));
+    assert.deepEqual(verdict.problems, [], dir);
+    const along = (p: {x: number; y: number}) => dir === 'up' || dir === 'down' ? p.x : p.y;
+    const tips = tipsInto(t, 'z'), order = tips.sort((p, q) => along(p.tip) - along(q.tip)).map(x => x.from);
+    assert.ok(order.join('') === 'acb' || order.join('') === 'bac' || order.join('') === 'bca' || order.join('') === 'cab', `a and c are neighbours: ${order}`);
+    assert.equal(t.ands.length, 1);
+    assert.deepEqual([...t.ands[0].from].sort(), ['a', 'c']);
+  });
+}
+
+test('causeTree() M1: two ANDs into one effect get separate arcs that do not touch', async () => {
+  for (const dir of ['up', 'right'] as const) {
+    const {t, verdict} = await laidCause(causeTree([N('a'), N('b'), N('c'), N('d'), N('z')], [{from: ['a', 'b'], to: 'z'}, {from: ['c', 'd'], to: 'z'}], {dir}));
+    assert.deepEqual(verdict.problems, [], dir);
+    assert.equal(t.ands.length, 2, dir);
+    const span = (a: LaidOutCause['ands'][number]) => dir === 'up' ? [a.p0.x, a.p1.x].sort((p, q) => p - q) : [a.p0.y, a.p1.y].sort((p, q) => p - q);
+    const [s1, s2] = t.ands.map(span).sort((p, q) => p[0] - q[0]);
+    assert.ok(s2[0] - s1[1] >= 6, `${dir}: ${s1} ${s2}`);
+  }
+});
+
+test('causeTree() M2: an AND of six causes keeps the arrowheads apart in every direction (the effect grows)', async () => {
+  for (const dir of ['up', 'right', 'left'] as const) {
+    const causes = ['a', 'b', 'c', 'd', 'e', 'f'];
+    const {t, verdict} = await laidCause(causeTree([...causes.map(c => N(c)), N('z')], [{from: causes, to: 'z'}], {dir}));
+    assert.deepEqual(verdict.problems, [], dir);
+    const along = (p: {x: number; y: number}) => dir === 'up' ? p.x : p.y;
+    const us = tipsInto(t, 'z').map(x => along(x.tip)).sort((p, q) => p - q);
+    for (let i = 1; i < us.length; i++) assert.ok(us[i] - us[i - 1] >= 10, `${dir}: heads ${us}`);
+    assert.equal(t.ands.length, 1, dir);
+  }
+});
+
+test('cloud() H2: a tall A makes the figure taller and keeps the next band below it', async () => {
+  const d = diagram({theme: 'blue'}).add(box({id: 'before', title: '前'}), cloud({...FIVE, a: '共通の目的'.repeat(30)}, {}), box({id: 'after', title: '後'}));
+  const {laidOut, verdict} = await checkDiagram(d);
+  assert.deepEqual(verdict.problems, []);
+  const t = laidOut.laidOut.find(b => b.type === 'cloud') as LaidOutCloud, a = t.nodes.find(n => n.key === 'a')!;
+  assert.ok(a.y >= t.y - 0.5 && a.y + a.h <= t.y + t.h + 0.5, 'A is inside its band');
+  for (const n of t.nodes) assert.ok(n.y >= t.y - 0.5 && n.y + n.h <= t.y + t.h + 0.5);
+  const at = (k: string) => t.nodes.find(n => n.key === k)!;
+  assert.ok(Math.abs((at('b').y + at('c').y + at('c').h) / 2 - (a.y + a.h / 2)) < 1, 'the rows stay centred beside A');
+});
+
+test('cloud() M3: a connector across a cloud whose boxes have no id is caught', async () => {
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(box({id: 'top', title: '上'}), cloud(FIVE, {id: 'cl'}), box({id: 'bot', title: '下'}), connect('top', 'bot')));
+  assert.ok(verdict.problems.some(p => /overlaps|runs through|crosses/i.test(p) || p.includes('cloud box')), `got ${JSON.stringify(verdict.problems)}`);
+});
+
+test('cloud() M4: conflictLabel is a chip left of the zigzag, checked like the others; a chip that would leave the figure on the right goes to the left', async () => {
+  const {t, verdict} = await laidCloud(assumed({conflictLabel: '対立'}));
+  assert.deepEqual(verdict.problems, []);
+  const dd = t.chips.filter(c => c.arrow === 'dd');
+  assert.equal(dd.length, 1);
+  assert.equal(dd[0].text, '対立');
+  const zig = t.edges.find(e => e.arrow === 'dd')!.points[0].x;
+  assert.ok(dd[0].x + dd[0].w < zig);
+  const narrow = await checkDiagram(diagram({theme: 'blue', width: 640} as never).add(cloud(FIVE, {assumptions: [{on: 'dd', text: 'a'}, {on: 'dd', text: 'b'}, {on: 'dd', text: 'c'}, {on: 'dd', text: 'd'}]})));
+  assert.deepEqual(narrow.verdict.problems, []);
+});
+
+test('cloud() L4: a null box is "missing", and the list lines up with the figure', async () => {
+  assert.throws(() => cloud({...FIVE, a: null as never}), /box a is missing/);
+  assert.throws(() => causeTree([N('a')], null as never), /links must be an array/);
+  const {t} = await laidCloud(assumed());
+  const left = Math.min(...t.nodes.map(n => n.x));
+  assert.ok(t.texts.filter(x => /^\d\.$/.test(x.text)).every(x => x.x === left));
+});

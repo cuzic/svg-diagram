@@ -66,7 +66,9 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'gantt') { // each task with an id is its own rect: a connector from outside must not run through one
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
-    } else if (band.type === 'cause' || band.type === 'cloud') { // each entity / box is its own rect: a connector from outside must not run through one
+    } else if (band.type === 'cloud') { // every box is its own rect (also one without an id): a connector from outside must not run through one
+      for (const n of band.nodes) rects.push({id: n.id ?? null, label: n.id ?? `cloud box ${n.key.toUpperCase()}`, x: n.x, y: n.y, w: n.w, h: n.h, ...(band.id ? {holds: [band.id]} : {})});
+    } else if (band.type === 'cause') { // each entity / box is its own rect: a connector from outside must not run through one
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'states') { // each state is its own rect: a connector from outside must not run through one
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
@@ -245,7 +247,24 @@ function checkCause(d: LaidOutDiagram): string[] {
         }
       }
     }
-    for (const to of band.loose) problems.push(`cause: the arrows into "${to}" do not reach it on one side, so their AND arc is not drawn (split the AND, or change dir)`);
+    // an AND's arc must cover only its own arrows, and must not touch another arc
+    for (const [i, a] of band.ands.entries()) {
+      const span = (p: {x: number; y: number}): number => Math.abs(a.p0.y - a.p1.y) < 1 ? p.x : p.y; // along the arc's length
+      const [u0, u1] = [span(a.p0), span(a.p1)].sort((p, q) => p - q);
+      for (const e of band.edges) {
+        if (e.to !== a.to) continue;
+        const tip = e.points[e.points.length - 1], u = span(tip);
+        const inside = u > u0 + 0.5 && u < u1 - 0.5;
+        if (inside && !a.from.includes(e.from)) problems.push(`cause: the AND arc into "${a.to}" also covers the arrow from "${e.from}" (it reads as part of the AND)`);
+      }
+      for (let j = i + 1; j < band.ands.length; j++) {
+        const b = band.ands[j];
+        if (b.to !== a.to) continue;
+        const [v0, v1] = [span(b.p0), span(b.p1)].sort((p, q) => p - q);
+        if (Math.min(u1, v1) - Math.max(u0, v0) > -6) problems.push(`cause: two AND arcs into "${a.to}" touch (they read as one AND; give them more room)`);
+      }
+    }
+    for (const to of band.loose) problems.push(`cause: the arrows into "${to}" do not reach it on one side, so their AND arc is not drawn (an arrow of a cycle arrives from the other side: break the cycle, or split the AND)`);
   }
   return problems;
 }

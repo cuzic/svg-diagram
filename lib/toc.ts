@@ -72,9 +72,15 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   }
 
   const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles)]));
-  const nodes = band.nodes.map(n => ({id: n.id, size: vertical ? {w: lines.get(n.id)!.h, h: lines.get(n.id)!.w} : {w: lines.get(n.id)!.w, h: lines.get(n.id)!.h}}));
   // the most arrows that meet one node (each needs its own lane in the gap beside it)
-  const degree = Math.max(1, ...band.nodes.map(n => Math.max(arrows.filter(a => a.from === n.id).length, arrows.filter(a => a.to === n.id).length)));
+  const degreeOf = (id: string): number => Math.max(arrows.filter(a => a.from === id).length, arrows.filter(a => a.to === id).length);
+  const degree = Math.max(1, ...band.nodes.map(n => degreeOf(n.id)));
+  // the side the arrows meet must be long enough to keep their heads apart: a box grows (its text stays centred)
+  const real = new Map(band.nodes.map(n => {
+    const l = lines.get(n.id)!, need = 12 + (degreeOf(n.id) - 1) * PORT;
+    return [n.id, vertical ? {w: Math.max(l.w, need), h: l.h} : {w: l.w, h: Math.max(l.h, need)}];
+  }));
+  const nodes = band.nodes.map(n => ({id: n.id, size: vertical ? {w: real.get(n.id)!.h, h: real.get(n.id)!.w} : real.get(n.id)!}));
   // layered layout runs on a 'right' axis; a vertical figure is the same layout transposed, an upward / leftward one mirrored
   const lay = layoutWithLanes(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree))});
   const total = {w: vertical ? lay.h : lay.w, h: vertical ? lay.w : lay.h};
@@ -99,10 +105,13 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
     out.nodes.push({...r, tone: n.tone ?? role.tone, ...(role.double ? {double: true} : {}), ...(n.role === 'obstacle' ? {hex: true} : {})});
     out.anchors.push({id: n.id, ...r});
-    out.texts.push(...nodeRuns(r, lines.get(n.id)!, roles));
+    const l = lines.get(n.id)!;
+    out.texts.push(...nodeRuns({x: r.x + (r.w - l.w) / 2, y: r.y + (r.h - l.h) / 2, w: l.w}, l, roles));
     out.labelBoxes.push({label: n.label, ...r});
   }
-  const routes = routeLayered(lay, place, PORT);
+  const groupIndex = new Map<number, number>();
+  groups.forEach((g, gi) => g.arrows.forEach(k => groupIndex.set(k, gi)));
+  const routes = routeLayered(lay, place, PORT, i => groupIndex.get(lay.edges[i].index));
   const drawn = new Map<number, number>(); // arrow index -> index in out.edges
   for (const [i, e] of lay.edges.entries()) {
     if (e.self) continue;
@@ -118,9 +127,13 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     const aligned = ends.every(e => Math.sign(e.tip.x - e.prev.x) === d.x && Math.sign(e.tip.y - e.prev.y) === d.y && Math.abs(along(e.tip) - along(ends[0].tip)) < 1);
     const room = Math.min(...ends.map(e => Math.abs(along(e.tip) - along(e.prev))));
     if (!aligned || room < AND_END + 1) { out.loose.push(g.to); continue; }
-    const us = ends.map(e => cross(e.tip)), lo = Math.min(...us) - AND_REACH, hi = Math.max(...us) + AND_REACH, tip = ends[0].tip;
+    const us = ends.map(e => cross(e.tip)), tip = ends[0].tip;
+    // the arc ends short of the nearest other arrow into this effect (another AND's arc, or an arrow of its own), so two arcs never touch
+    const others = out.edges.filter((e, k) => e.to === g.to && !g.arrows.some(a => drawn.get(a) === k)).map(e => cross(e.points[e.points.length - 1]));
+    const reachTo = (u: number, sign: 1 | -1): number => Math.min(AND_REACH, ...others.filter(o => (o - u) * sign > 0).map(o => Math.abs(o - u) / 2 - 3));
+    const lo = Math.min(...us) - reachTo(Math.min(...us), -1), hi = Math.max(...us) + reachTo(Math.max(...us), 1);
     const at = (u: number, dist: number): Pt => d.x ? {x: tip.x - d.x * dist, y: u} : {x: u, y: tip.y - d.y * dist};
-    out.ands.push({to: g.to, p0: at(lo, AND_END), c: at((lo + hi) / 2, 2 * AND_PEAK - AND_END), p1: at(hi, AND_END)});
+    out.ands.push({to: g.to, from: g.arrows.map(k => arrows[k].from), p0: at(lo, AND_END), c: at((lo + hi) / 2, 2 * AND_PEAK - AND_END), p1: at(hi, AND_END)});
   }
   return out;
 }
@@ -169,17 +182,18 @@ export function layoutCloudBand(band: CloudBand, x: number, y: number, w: number
   if (colW < 120) throw new Error(`cloud(): the figure has ${Math.round(w)}px, too narrow for five boxes and the arrows between them (needs ${3 * 120 + 2 * CLOUD_GAP_MIN}px)`);
   const lines = Object.fromEntries(KEYS.map(k => [k, measureNode(boxText(k, band[k]), undefined, colW, widthOf, roles)])) as Record<typeof KEYS[number], ReturnType<typeof measureNode>>;
   const boxW = Math.max(...KEYS.map(k => lines[k].w)), H = Math.max(lines.b.h, lines.c.h, lines.d.h, lines.d2.h), hA = lines.a.h;
-  const gap = Math.min(CLOUD_GAP_MAX, Math.floor((w - 3 * boxW) / 2)), figW = 3 * boxW + 2 * gap, figH = 2 * H + ROW_GAP;
+  const gap = Math.min(CLOUD_GAP_MAX, Math.floor((w - 3 * boxW) / 2)), figW = 3 * boxW + 2 * gap, rowsH = 2 * H + ROW_GAP;
+  const figH = Math.max(rowsH, hA), top = (figH - rowsH) / 2; // a tall A makes the figure taller; the rows stay centred beside it
   const x0 = x + (w - figW) / 2, x1 = x0 + boxW + gap, x2 = x1 + boxW + gap;
   const at = {
-    a: {x: x0, y: y + figH / 2 - hA / 2, w: boxW, h: hA}, b: {x: x1, y, w: boxW, h: H}, c: {x: x1, y: y + H + ROW_GAP, w: boxW, h: H},
-    d: {x: x2, y, w: boxW, h: H}, d2: {x: x2, y: y + H + ROW_GAP, w: boxW, h: H},
+    a: {x: x0, y: y + figH / 2 - hA / 2, w: boxW, h: hA}, b: {x: x1, y: y + top, w: boxW, h: H}, c: {x: x1, y: y + top + H + ROW_GAP, w: boxW, h: H},
+    d: {x: x2, y: y + top, w: boxW, h: H}, d2: {x: x2, y: y + top + H + ROW_GAP, w: boxW, h: H},
   };
   const defaultTone: Record<typeof KEYS[number], BoxTone> = {a: 'accent', b: 'plain', c: 'plain', d: 'plain', d2: 'plain'};
   const out: LaidOutCloud = {type: 'cloud', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: figH, nodes: [], edges: [], chips: [], texts: [], anchors: [], labelBoxes: []};
   for (const k of KEYS) {
     const v = band[k], r = at[k];
-    out.nodes.push({...r, key: k, tone: (typeof v === 'string' ? undefined : v.tone) ?? defaultTone[k]});
+    out.nodes.push({...r, key: k, tone: (typeof v === 'string' ? undefined : v.tone) ?? defaultTone[k], ...(typeof v !== 'string' && v.id ? {id: v.id} : {})});
     if (typeof v !== 'string' && v.id) out.anchors.push({id: v.id, ...r});
     out.texts.push(...nodeRuns(r, lines[k], roles));
     out.labelBoxes.push({label: boxText(k, v), ...r});
@@ -192,7 +206,7 @@ export function layoutCloudBand(band: CloudBand, x: number, y: number, w: number
   edge('ac', [{x: x1, y: cyC}, {x: midX, y: cyC}, {x: midX, y: cyA + off}, {x: x0 + boxW, y: cyA + off}]);
   edge('bd', [{x: x2, y: cyB}, {x: x1 + boxW, y: cyB}]);
   edge('cd', [{x: x2, y: cyC}, {x: x1 + boxW, y: cyC}]);
-  const cx = x2 + boxW / 2, y0 = y + H;
+  const cx = x2 + boxW / 2, y0 = y + top + H;
   edge('dd', [{x: cx, y: y0}, {x: cx, y: y0 + ROW_GAP * 0.3}, {x: cx + 10, y: y0 + ROW_GAP * 0.45}, {x: cx - 10, y: y0 + ROW_GAP * 0.55}, {x: cx, y: y0 + ROW_GAP * 0.7}, {x: cx, y: y0 + ROW_GAP}]);
 
   // the numbers of the assumptions, in a white chip on their arrow
@@ -201,25 +215,31 @@ export function layoutCloudBand(band: CloudBand, x: number, y: number, w: number
     ab: {x: midX, y: (cyB + cyA - off) / 2}, ac: {x: midX, y: (cyC + cyA + off) / 2},
     bd: {x: (x1 + boxW + x2) / 2, y: cyB}, cd: {x: (x1 + boxW + x2) / 2, y: cyC}, dd: {x: 0, y: y0 + ROW_GAP / 2},
   };
+  const chip = (arrow: CloudArrow, text: string, cxm: number, cym: number, conflict = false): void => {
+    const cw = Math.ceil(textWidth(widthOf, text, S, 400)) + 12;
+    out.chips.push({text, x: cxm - cw / 2, y: cym - chipH / 2, w: cw, h: chipH, tx: cxm, ty: cym - chipH / 2 + S + 2, size: S, arrow, ...(conflict ? {conflict: true} : {})});
+  };
+  const widthOfChip = (text: string): number => Math.ceil(textWidth(widthOf, text, S, 400)) + 12;
   for (const arrow of ARROWS) {
     const text = num.chip[arrow];
     if (!text) continue;
-    const cw = Math.ceil(textWidth(widthOf, text, S, 400)) + 12;
-    const c = arrow === 'dd' ? {x: cx + 22 + cw / 2, y: chipAt.dd.y} : chipAt[arrow];
-    out.chips.push({text, x: c.x - cw / 2, y: c.y - chipH / 2, w: cw, h: chipH, tx: c.x, ty: c.y - chipH / 2 + S + 2, size: S, arrow});
+    // beside the zigzag: to its right, or to its left when the right would leave the figure
+    if (arrow === 'dd') { const cw = widthOfChip(text), right = cx + 22 + cw / 2; chip(arrow, text, right + cw / 2 > x + w ? cx - 22 - cw / 2 : right, chipAt.dd.y); }
+    else chip(arrow, text, chipAt[arrow].x, chipAt[arrow].y);
   }
-  if (band.conflictLabel) out.texts.push({text: band.conflictLabel, x: cx - 22, y: y0 + ROW_GAP / 2 + S / 2 - 2, size: S, bold: false, muted: false, anchor: 'end', tone: 'danger'});
+  // the word on the conflict: a chip left of the zigzag, so verify keeps it clear of the boxes and the other chips
+  if (band.conflictLabel) { const cw = widthOfChip(band.conflictLabel); chip('dd', band.conflictLabel, cx - 22 - cw / 2, chipAt.dd.y, true); }
 
   // the list: each assumption by its number, its injection under it
   const list = band.assumptions ?? [];
   if (list.length) {
-    const numW = Math.ceil(Math.max(...num.n.map(i => textWidth(widthOf, `${i}.`, S, 400)))) + NUM_GAP, inner = w - numW, lh = Math.round(S * 1.4);
+    const numW = Math.ceil(Math.max(...num.n.map(i => textWidth(widthOf, `${i}.`, S, 400)))) + NUM_GAP, inner = figW - numW, lh = Math.round(S * 1.4);
     const wrap = (t: string): string[] => wrapText(t, {maxWidth: inner, atomWidth: a => widthOf(a, S, 400, 'sans')});
     let ty = y + figH + LIST_GAP;
     for (const [i, a] of list.entries()) {
-      out.texts.push({text: `${i + 1}.`, x, y: ty + S, size: S, bold: false, muted: false, anchor: 'start'});
+      out.texts.push({text: `${i + 1}.`, x: x0, y: ty + S, size: S, bold: false, muted: false, anchor: 'start'});
       for (const [text, tone] of [[a.text, undefined], ...(a.injection ? [[injectionText(a.injection), 'accent' as const]] as const : [])] as const) {
-        for (const line of wrap(text)) { out.texts.push({text: line, x: x + numW, y: ty + S, size: S, bold: false, muted: false, anchor: 'start', ...(tone ? {tone} : {})}); ty += lh; }
+        for (const line of wrap(text)) { out.texts.push({text: line, x: x0 + numW, y: ty + S, size: S, bold: false, muted: false, anchor: 'start', ...(tone ? {tone} : {})}); ty += lh; }
       }
       ty += 6;
     }

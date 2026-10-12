@@ -28,14 +28,14 @@
   <text x="470" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">C：市場機会を逃さない</text>
   <text x="819" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">D：検証に時間をかける</text>
   <text x="819" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">D'：早くリリースする</text>
-  <text x="20" y="230" text-anchor="start" font-size="14" fill="#22201b">1.</text>
-  <text x="40" y="230" text-anchor="start" font-size="14" fill="#22201b">品質確保には長い検証期間が必須だ</text>
-  <text x="40" y="250" text-anchor="start" font-size="14" fill="#1d5fa8">→ 自動テストで検証を短くする</text>
-  <text x="20" y="276" text-anchor="start" font-size="14" fill="#22201b">2.</text>
-  <text x="40" y="276" text-anchor="start" font-size="14" fill="#22201b">早いリリースとは全機能の一括公開だ</text>
-  <text x="40" y="296" text-anchor="start" font-size="14" fill="#1d5fa8">→ 主要機能から段階的に公開する</text>
-  <text x="20" y="322" text-anchor="start" font-size="14" fill="#22201b">3.</text>
-  <text x="40" y="322" text-anchor="start" font-size="14" fill="#22201b">検証を終えてからでないと公開できない</text>
+  <text x="32" y="230" text-anchor="start" font-size="14" fill="#22201b">1.</text>
+  <text x="52" y="230" text-anchor="start" font-size="14" fill="#22201b">品質確保には長い検証期間が必須だ</text>
+  <text x="52" y="250" text-anchor="start" font-size="14" fill="#1d5fa8">→ 自動テストで検証を短くする</text>
+  <text x="32" y="276" text-anchor="start" font-size="14" fill="#22201b">2.</text>
+  <text x="52" y="276" text-anchor="start" font-size="14" fill="#22201b">早いリリースとは全機能の一括公開だ</text>
+  <text x="52" y="296" text-anchor="start" font-size="14" fill="#1d5fa8">→ 主要機能から段階的に公開する</text>
+  <text x="32" y="322" text-anchor="start" font-size="14" fill="#22201b">3.</text>
+  <text x="52" y="322" text-anchor="start" font-size="14" fill="#22201b">検証を終えてからでないと公開できない</text>
   <rect x="636" y="28" width="20" height="22" fill="#ffffff"/>
   <text x="645" y="43" text-anchor="middle" font-size="14" fill="#22201b">1</text>
   <rect x="636" y="160" width="20" height="22" fill="#ffffff"/>

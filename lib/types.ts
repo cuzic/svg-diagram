@@ -2267,7 +2267,7 @@ export interface LaidOutCause extends Rect, Dimmed {
   /** Orthogonal polylines from the cause's box edge to the effect's; the arrowhead is at the last point. */
   edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'}[];
   /** The arc across the arrows of an AND: a quadratic curve p0 - c - p1. */
-  ands: {to: string; p0: {x: number; y: number}; c: {x: number; y: number}; p1: {x: number; y: number}}[];
+  ands: {to: string; /** the causes it joins */ from: string[]; p0: {x: number; y: number}; c: {x: number; y: number}; p1: {x: number; y: number}}[];
   /** Effects whose AND arrows could not be joined by an arc (they do not arrive on one side of the effect). */
   loose: string[];
   texts: TreeNodeText[];
@@ -2281,7 +2281,7 @@ export interface LaidOutCloud extends Rect, Dimmed {
   reveal?: number;
   until?: number;
   /** key: a b c d d2 */
-  nodes: (Rect & {key: string; tone: BoxTone})[];
+  nodes: (Rect & {key: string; tone: BoxTone; id?: string})[];
   /** Arrows of the needs (head at the last point) and, for 'dd', the double-headed conflict zigzag. */
   edges: {arrow: CloudArrow; points: {x: number; y: number}[]}[];
   /** The assumption numbers on an arrow: a white chip, text baseline at (tx, ty). */

@@ -557,7 +557,7 @@ function renderCloud(b: LaidOutCloud, day: Theme): string {
   for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}" text-anchor="${t.anchor ?? 'middle'}" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t)}">${emojiSpan(t.text)}</text>`);
   for (const c of b.chips) {
     out.push(`<rect x="${snap4(c.x)}" y="${snap4(c.y)}" width="${snap4(c.w)}" height="${c.h}" fill="${PALETTE.bg}"/>`);
-    out.push(`<text x="${Math.round(c.tx)}" y="${Math.round(c.ty)}" text-anchor="middle" font-size="${c.size}" fill="${c.arrow === 'dd' ? conflict : stroke}">${emojiSpan(c.text)}</text>`);
+    out.push(`<text x="${Math.round(c.tx)}" y="${Math.round(c.ty)}" text-anchor="middle" font-size="${c.size}" fill="${c.arrow === 'dd' || c.conflict ? conflict : stroke}">${emojiSpan(c.text)}</text>`);
   }
   return out.join('\n  ');
 }
