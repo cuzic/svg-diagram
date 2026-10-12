@@ -26,6 +26,7 @@ import {dotsTexts, layoutDots, layoutPeople, peopleTexts} from './people.ts';
 import {layoutTimeline, timelineTexts} from './timeline.ts';
 import {layoutTreeBand, treeTexts} from './tree.ts';
 import {layoutStatesBand, statesTexts} from './states.ts';
+import {causeTexts, cloudTexts, layoutCauseBand, layoutCloudBand} from './toc.ts';
 import {ganttTexts, layoutGantt} from './gantt.ts';
 import {classesTexts, layoutClassesBand} from './classes.ts';
 import {bpmnTexts, layoutBpmn} from './bpmn.ts';
@@ -329,6 +330,10 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
       for (const [text, size, weight, font] of classesTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'gantt') {
       for (const [text, size, weight, font] of ganttTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'cause') {
+      for (const [text, size, weight, font] of causeTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'cloud') {
+      for (const [text, size, weight, font] of cloudTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'states') {
       for (const [text, size, weight, font] of statesTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'tree') {
@@ -588,6 +593,21 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       }
       for (const a of placed.anchors) {
         if (anchors.has(a.id)) claimed(a.id, 'a gantt task takes an id that another anchor already has');
+        anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
+      }
+      laidOut.push(placed);
+      cursorY += placed.h + d.gap;
+      continue;
+    }
+
+    if (band.type === 'cause' || band.type === 'cloud') {
+      const placed = band.type === 'cause' ? layoutCauseBand(band, padX, cursorY, cw, widthOf, roles) : layoutCloudBand(band, padX, cursorY, cw, widthOf, roles);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, `${band.type === 'cause' ? 'a cause tree' : 'a cloud'} takes an id that another anchor already has`);
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
+      for (const a of placed.anchors) {
+        if (anchors.has(a.id)) claimed(a.id, `${band.type === 'cause' ? 'a cause tree node' : 'a cloud box'} takes an id that another anchor already has`);
         anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
       }
       laidOut.push(placed);

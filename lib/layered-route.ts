@@ -25,12 +25,12 @@ export function simplify(pts: Pt[]): Pt[] {
  * Horizontal-vertical-horizontal elbows through the points (the layer axis is x here). A direct arrow turns at `turn` (an x in the gap
  * between its two layers, from routeLayered); the others turn half-way between their points.
  */
-export function elbows(pts: Pt[], turn?: number): Pt[] {
+export function elbows(pts: Pt[], turn?: number, lastTurn?: number): Pt[] {
   const out: Pt[] = [pts[0]];
   for (let i = 0; i + 1 < pts.length; i++) {
     const p = pts[i], q = pts[i + 1];
     if (p.y !== q.y) {
-      const mx = pts.length === 2 && turn !== undefined ? turn : (p.x + q.x) / 2;
+      const mx = pts.length === 2 && turn !== undefined ? turn : i + 2 === pts.length && lastTurn !== undefined ? lastTurn : (p.x + q.x) / 2;
       out.push({x: mx, y: p.y}, {x: mx, y: q.y});
     }
     out.push(q);
@@ -44,7 +44,7 @@ export function elbows(pts: Pt[], turn?: number): Pt[] {
  * ports: the edges that meet one side of a box fan out along it (ordered by where the other end is, so they do not cross);
  * lanes: direct arrows through one gap between two layers take separate vertical runs.
  */
-export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14): Map<number, Pt[]> {
+export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined): Map<number, Pt[]> {
   // ports: the edges that meet one side of a state fan out along it (ordered by where the other end is, so they do not cross)
   // lanes: direct arrows through one gap between two layers take separate vertical runs
   const portOf = new Map<string, number>(), laneOf = new Map<number, number>();
@@ -72,7 +72,14 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
   const byKey = new Map<string, typeof ends>();
   for (const en of ends) byKey.set(en.key, [...(byKey.get(en.key) ?? []), en]);
   for (const list of byKey.values()) {
-    list.sort((p, q) => p.other - q.other || p.edge - q.edge);
+    // the arrows of one group (an AND) arrive side by side: they sort by where the group as a whole comes from, then among themselves
+    const mean = new Map<number, number>(), count = new Map<number, number>();
+    if (groupOf) {
+      for (const en of list) { const g = en.end === 1 ? groupOf(en.edge) : undefined; if (g !== undefined) { mean.set(g, (mean.get(g) ?? 0) + en.other); count.set(g, (count.get(g) ?? 0) + 1); } }
+      for (const [g, n] of count) mean.set(g, mean.get(g)! / n);
+    }
+    const key = (en: typeof list[number]): number => (en.end === 1 && groupOf && groupOf(en.edge) !== undefined ? mean.get(groupOf(en.edge)!)! : en.other);
+    list.sort((p, q) => key(p) - key(q) || (p.end === 1 && groupOf ? (groupOf(p.edge) ?? -1) - (groupOf(q.edge) ?? -1) : 0) || p.other - q.other || p.edge - q.edge);
     list.forEach((en, k) => {
       const e = lay.edges[en.edge], id = en.end === 0 ? e.from : e.to, h = lay.nodes.get(id)!.h;
       const step = list.length > 1 ? Math.min(portStep, (h - 12) / (list.length - 1)) : 0;
@@ -102,6 +109,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     }
   }
   const out = new Map<number, Pt[]>();
+  const longInto = new Map<string, number>(); // long arrows into one head, each with its own last turn
   lay.edges.forEach((e, i) => {
     if (e.self) return;
     const A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!, ca = {x: A.x + A.w / 2, y: A.y + A.h / 2}, cb = {x: B.x + B.w / 2, y: B.y + B.h / 2};
@@ -116,7 +124,14 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
       const d = Math.min(STUB + (laneOf.get(i) ?? 0), Math.max(gw / 2, gw - 22)); // the last run keeps room for the arrowhead
       turn = forward(i) ? gl + d : gr - d;
     }
-    out.set(i, elbows([start, ...e.points.slice(1, -1), end], turn).map(place));
+    // a long arrow into a grouped head (an AND) makes its last turn a fixed distance before the head, clear of the lanes of the direct arrows
+    // (which are counted from the gap's left side), so the two kinds never run side by side
+    let lastTurn: number | undefined;
+    if (groupOf && e.points.length > 2 && forward(i)) {
+      const lo = layerOf(e.to) - 1, gl = layerRight.get(lo), gr = layerLeft.get(lo + 1);
+      if (gl !== undefined && gr !== undefined) { const k = longInto.get(e.to) ?? 0; longInto.set(e.to, k + 1); lastTurn = Math.max(gl + STUB, gr - 26 - k * LANE); }
+    }
+    out.set(i, elbows([start, ...e.points.slice(1, -1), end], turn, lastTurn).map(place));
   });
   return out;
 }

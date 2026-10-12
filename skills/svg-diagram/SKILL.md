@@ -64,6 +64,8 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | 組織図・階層 | `tree(root, {dir})` | 節 `{label, sub?, id?, tone?, children?}` |
 | マインドマップ | `mindmap(root, {layout, edges})` | 節（`tree` と同じ）。`layout`: radial（既定。中央から左右へ）/ right・left / down・up / org / list / brace / fishbone（原因分析。ルートの下は 2 階層まで）/ timeline。`edges`: elbow・curve・straight（ツリー系の形だけ） |
 | 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?}` と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
+| TOC の因果の図（現状・未来現実・前提条件・移行ツリー） | `causeTree(nodes, links, {dir})` | 実体 `{id, label, role?}`（role: ude / root / de / injection / goal / obstacle / io / action）と `{from, to}`（`from` を配列にすると AND）。下が原因・上が結果 |
+| TOC のクラウド（対立解消図） | `cloud({a, b, c, d, d2}, {assumptions})` | 共通目的 A・必要条件 B/C・対立する要望 D/D'。前提 `{on: 'ab'｜'ac'｜'bd'｜'cd'｜'dd', text, injection?}` は番号が矢印に載り、一覧は図の下 |
 | スケジュール | `gantt(rows, {today})` | タスク `{label, start, end｜days, after?, progress?, milestone?}`（日付は `YYYY-MM-DD`、`today` は必ず書く） |
 | UML クラス図 | `classDiagram(classes, relations, {dir})` | クラス `{id, attrs?, methods?, stereotype?}` と関係 `{from, to, kind, label?, fromMult?, toMult?}` |
 | 業務フロー（BPMN 風） | `bpmn(lanes, nodes, flows)` | レーン・ノード（task / start / end / xor / and / or）・フロー（`line: 'dashed'` はメッセージ） |
