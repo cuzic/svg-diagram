@@ -37,6 +37,45 @@ export function ticksOf(axis: PlaneBand['x'], caller = 'plane'): {at: number; la
   return out;
 }
 
+type XY = {x: number; y: number};
+
+/** Monotone cubic (Fritsch-Carlson) through points whose x strictly increases: [control 1, control 2, end] per piece. */
+function monotoneCurves(p: XY[]): XY[][] {
+  const n = p.length, dx: number[] = [], sec: number[] = [];
+  for (let i = 0; i < n - 1; i++) { dx.push(p[i + 1].x - p[i].x); sec.push((p[i + 1].y - p[i].y) / dx[i]); }
+  const m: number[] = [sec[0]];
+  for (let i = 1; i < n - 1; i++) m.push(sec[i - 1] * sec[i] <= 0 ? 0 : 2 / (1 / sec[i - 1] + 1 / sec[i]));
+  m.push(sec[n - 2]);
+  for (let i = 0; i < n - 1; i++) { // a flat piece stays flat; a tangent never exceeds 3x the secant
+    if (sec[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / sec[i], b = m[i + 1] / sec[i], h = Math.hypot(a, b);
+    if (h > 3) { m[i] = 3 * a / h * sec[i]; m[i + 1] = 3 * b / h * sec[i]; }
+  }
+  return dx.map((d, i) => [{x: p[i].x + d / 3, y: p[i].y + m[i] * d / 3}, {x: p[i + 1].x - d / 3, y: p[i + 1].y - m[i + 1] * d / 3}, p[i + 1]]);
+}
+
+/** Centripetal Catmull-Rom (alpha 0.5) as cubic pieces; the ends use a mirrored phantom neighbour. */
+function centripetalCurves(p: XY[]): XY[][] {
+  const n = p.length, at = (i: number): XY => i < 0 ? {x: 2 * p[0].x - p[1].x, y: 2 * p[0].y - p[1].y} : i >= n ? {x: 2 * p[n - 1].x - p[n - 2].x, y: 2 * p[n - 1].y - p[n - 2].y} : p[i];
+  const d = (a: XY, b: XY) => Math.hypot(b.x - a.x, b.y - a.y) ** 0.5;
+  const out: XY[][] = [];
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = at(i - 1), p1 = p[i], p2 = p[i + 1], p3 = at(i + 2);
+    const d1 = d(p0, p1), d2 = d(p1, p2), d3 = d(p2, p3);
+    const c = (k: number, a: XY, b: XY, e: XY, f: number, g: number): XY => ({ // (k²e − f²a + (2k²+3kf+f²)b) / (3k(k+f)) written once for x and y
+      x: (k * k * e.x - g * g * a.x + (2 * k * k + 3 * k * f + f * f) * b.x) / (3 * k * (k + f)),
+      y: (k * k * e.y - g * g * a.y + (2 * k * k + 3 * k * f + f * f) * b.y) / (3 * k * (k + f)),
+    });
+    out.push([c(d1, p0, p1, p2, d2, d2), c(d3, p3, p2, p1, d2, d2), p2]);
+  }
+  return out;
+}
+
+const bez = (a: XY, c1: XY, c2: XY, b: XY, t: number): XY => {
+  const u = 1 - t;
+  return {x: u * u * u * a.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * b.x, y: u * u * u * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * b.y};
+};
+
 export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutPlane {
   const tw = (s: string, weight = 400) => textWidth(widthOf, s, size(), weight);
   const width = Math.min(w, band.width ?? w), left = x + (w - width) / 2, h = band.height;
@@ -132,6 +171,31 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     return {x1: a.x, y1: a.y, x2: b.x, y2: b.y, tone: l.tone ?? 'muted', dashed: l.dashed ?? true, arrow: !!l.arrow};
   });
 
+  const paths: NonNullable<LaidOutPlane['paths']> = (band.paths ?? []).map(pa => {
+    if (pa.through.length < 2) throw new Error('plane(): a path needs at least 2 points in `through`');
+    const raw = pa.through.map(pt), pts = raw.filter((q, i) => i === 0 || q.x !== raw[i - 1].x || q.y !== raw[i - 1].y);
+    if (pts.length < 2) throw new Error('plane(): a path needs at least 2 different points in `through`');
+    const curves = !pa.smooth ? [] : pts.every((q, i) => i === 0 || q.x > pts[i - 1].x) ? monotoneCurves(pts) : centripetalCurves(pts);
+    const samples: XY[] = [pts[0]];
+    if (curves.length) curves.forEach(([c1, c2, e], i) => {
+      const a = pts[i], n = Math.max(8, Math.ceil(Math.hypot(e.x - a.x, e.y - a.y) / 6));
+      for (let k = 1; k <= n; k++) samples.push(bez(a, c1, c2, e, k / n));
+    });
+    else samples.push(...pts.slice(1));
+    for (let i = 1; i < samples.length; i++) inkSeg('a path', {x1: samples[i - 1].x, y1: samples[i - 1].y, x2: samples[i].x, y2: samples[i].y});
+    const end = pts[pts.length - 1], from = curves.length ? curves[curves.length - 1][1] : pts[pts.length - 2];
+    let ux = end.x - from.x, uy = end.y - from.y;
+    if (Math.hypot(ux, uy) < 1e-6) { ux = end.x - pts[pts.length - 2].x; uy = end.y - pts[pts.length - 2].y; }
+    const len = Math.hypot(ux, uy) || 1;
+    ux /= len; uy /= len;
+    if (pa.arrow) { // the head emit.ts draws, as for a guide line
+      const xs = [end.x, end.x - ux * 10 - uy * 5, end.x - ux * 10 + uy * 5], ys = [end.y, end.y - uy * 10 + ux * 5, end.y - uy * 10 - ux * 5];
+      ink('a path arrow', {x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)});
+    }
+    const overshoot = Math.max(0, ...samples.map(q => Math.max(plotL - q.x, q.x - plotR, plotT - q.y, q.y - plotB)));
+    return {pts, curves, tone: pa.tone ?? 'accent', dashed: pa.dashed ?? false, arrow: !!pa.arrow, tip: {dx: ux, dy: uy}, reveal: pa.reveal, overshoot};
+  });
+
   const dims: LaidOutPlane['dims'] = (band.dims ?? []).map((dm, di) => {
     const a = pt(dm.from), b = pt(dm.to), tone = dm.tone ?? 'text';
     const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
@@ -160,6 +224,6 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   return {
     type: 'plane', x, y, w, h, reveal: band.reveal, bounds: {x: left, y, w: width, h},
     axisX, axisY, plotL, plotR, plotT, plotB, yDown,
-    ticks, grid, texts, points, lines, dims, labelBoxes: boxes, obstacles,
+    ticks, grid, texts, points, lines, ...(paths.length ? {paths} : {}), dims, labelBoxes: boxes, obstacles,
   };
 }

@@ -105,6 +105,9 @@ function checkPlanes(d: LaidOutDiagram): string[] {
       const o = rectOverlap(boxes[i], boxes[j]);
       if (o) problems.push(`plane: label "${boxes[i].label}" overlaps label "${boxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px (change labelAt / side)`);
     }
+    (band.paths ?? []).forEach((pa, i) => {
+      if (pa.overshoot > 1.5) problems.push(`plane: path ${i + 1} leaves the axes by ${Math.round(pa.overshoot)}px (a curve through these points swings outside the plot; use smooth: false, add points, or widen the axis range)`);
+    });
     // a label must not sit on the plane's ink either: an axis or its arrowhead, a tick mark, a point, a guide or a dimension line
     for (const b of boxes) {
       const hit = new Map<string, {dx: number; dy: number}>();
