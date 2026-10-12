@@ -165,7 +165,7 @@ function assertTextRole(role: string | undefined, allowed: readonly string[], wh
  * The usual roles (a stat({size: 'display'}) included) are not held back, so a diagram without these options scales as before.
  */
 export function fillScaleLimit(bands: Band[]): number {
-  const optIn = walkBands(bands).flatMap(b => b.type === 'banner' && b.headlineRole ? [baseRoles(b.headlineRole)] : (b.type === 'bars' || b.type === 'plane') && b.labelRole ? [baseRoles(b.labelRole)] : []);
+  const optIn = walkBands(bands).flatMap(b => b.type === 'banner' && b.headlineRole ? [baseRoles(b.headlineRole)] : (b.type === 'bars' || b.type === 'plane') && b.labelRole ? [baseRoles(b.labelRole)] : b.type === 'image' ? [b.labelRole, ...(b.marks ?? []).map(m => m.role), ...(b.labels ?? []).map(l => l.role)].flatMap(r => r ? [baseRoles(r)] : []) : []);
   return Math.min(1.8, optIn.length ? OPT_IN_TEXT_MAX / Math.max(...optIn) : 1.8);
 }
 const BASE_ROLES: Record<Role, number> = {...ROLES};
@@ -784,6 +784,7 @@ export function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
   if (opts.alt && opts.decorative) throw new Error('image(): alt and decorative: true contradict each other');
   for (const k of ['width', 'height'] as const) if (opts[k] !== undefined && (!(opts[k]! > 0) || !Number.isFinite(opts[k]))) throw new Error(`image(): ${k} must be a finite number > 0 (got ${opts[k]})`);
   if (opts.width !== undefined && opts.height !== undefined) throw new Error('image(): give width or height, not both (the other follows the picture\'s aspect ratio)');
+  assertTextRole(opts.labelRole, LABEL_ROLES, 'image() labelRole');
   if (opts.align !== undefined && !['left', 'center', 'right'].includes(opts.align)) throw new Error(`image(): align must be 'left', 'center' or 'right' (got ${opts.align})`);
   const unit = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1;
   const tone = (t: string | undefined, where: string) => { if (t !== undefined && !IMAGE_TONES.includes(t)) throw new Error(`image(): ${where} tone "${t}" is not one of ${IMAGE_TONES.join(', ')}`); };
@@ -791,6 +792,7 @@ export function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
     const [x, y, w, h] = m.rect ?? [];
     if (![x, y, w, h].every(n => typeof n === 'number' && unit(n)) || !(w > 0 && h > 0) || x + w > 1.0001 || y + h > 1.0001) throw new Error(`image(): mark ${i + 1} rect must be [x, y, w, h] as fractions of the picture, inside it (got ${JSON.stringify(m.rect)})`);
     tone(m.tone, `mark ${i + 1}`);
+    assertTextRole(m.role, LABEL_ROLES, `image() mark ${i + 1} role`);
     if (m.label !== undefined && !m.label.trim()) throw new Error(`image(): mark ${i + 1} label is empty`);
   });
   (opts.labels ?? []).forEach((l, i) => {
@@ -798,6 +800,7 @@ export function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
     if (!Array.isArray(l.at) || l.at.length !== 2 || !l.at.every(unit)) throw new Error(`image(): label ${i + 1} "at" must be [x, y] as fractions of the picture (0 to 1) (got ${JSON.stringify(l.at)})`);
     if (l.anchor !== undefined && !['start', 'middle', 'end'].includes(l.anchor)) throw new Error(`image(): label ${i + 1} anchor must be 'start', 'middle' or 'end' (got ${l.anchor})`);
     tone(l.tone, `label ${i + 1}`);
+    assertTextRole(l.role, LABEL_ROLES, `image() label ${i + 1} role`);
   });
   const ids = (opts.marks ?? []).map(m => m.id).filter((id): id is string => !!id);
   if (new Set(ids).size !== ids.length) throw new Error('image(): each mark id must be unique');
@@ -806,7 +809,7 @@ export function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
   const band: ImageBand = {
     type: 'image', href: file.href, naturalW: file.w, naturalH: file.h, bytes: file.bytes, alt: opts.alt?.trim() ?? '',
     ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts),
-    ...(opts.width === undefined ? {} : {width: opts.width}), ...(opts.height === undefined ? {} : {height: opts.height}), ...(opts.align === undefined ? {} : {align: opts.align}),
+    ...(opts.width === undefined ? {} : {width: opts.width}), ...(opts.height === undefined ? {} : {height: opts.height}), ...(opts.align === undefined ? {} : {align: opts.align}), ...(opts.labelRole === undefined ? {} : {labelRole: opts.labelRole}),
     ...(opts.marks?.length ? {marks: opts.marks.map(m => ({...m, rect: [...m.rect] as unknown as ImageRect}))} : {}),
     ...(opts.labels?.length ? {labels: opts.labels.map(l => ({...l}))} : {}),
   };

@@ -197,3 +197,21 @@ test('a label position is a fraction of the picture: it follows the picture when
   assert.ok(Math.abs(mid.p.x + mid.p.w / 2 - (mid.img.x + mid.img.w / 2)) <= 1);
   assert.ok(Math.abs(end.p.x + end.p.w - (end.img.x + end.img.w / 2)) <= 1);
 });
+
+test('a label role sets the text size, the plate follows it, and a plate that would leave the picture is pulled back', async () => {
+  const lay = async (opts: object, label: object = {}) => {
+    const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue'}).add(image(kitchen, {alt: 'x', width: 480, ...opts, labels: [{text: '食材から作る', at: [0.99, 0.99], anchor: 'end', ...label}]})));
+    const img = laidOut.laidOut.find(b => b.type === 'image')!;
+    if (img.type !== 'image') throw new Error('no image');
+    return {img, p: img.plates[0], verdict};
+  };
+  const note = await lay({}), banner = await lay({labelRole: 'banner'}), stat = await lay({}, {role: 'stat'}), own = await lay({labelRole: 'stat'}, {role: 'note'});
+  assert.deepEqual([note.p.size, banner.p.size, stat.p.size, own.p.size], [14, 16, 34, 14]);
+  assert.ok(banner.p.w > note.p.w && stat.p.w > banner.p.w && stat.p.h > note.p.h, 'the plate grows with the text');
+  assert.ok(stat.p.x + stat.p.w <= stat.img.x + stat.img.w && stat.p.y + stat.p.h <= stat.img.y + stat.img.h, 'pulled back inside');
+  assert.deepEqual(stat.verdict.problems, []);
+  const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(image(kitchen, {alt: 'x', width: 480, labelRole: 'banner', labels: [{text: '一品', at: [0.1, 0.1], role: 'stat'}]})), {name: 'k.svg', budget: 'cacheOnly'});
+  assert.match(svg, /font-size="34"[^>]*>一品</);
+  assert.throws(() => image(kitchen, {alt: 'x', labelRole: 'huge' as never}), /labelRole/);
+  assert.throws(() => image(kitchen, {alt: 'x', labels: [{text: 'a', at: [0, 0], role: 'title' as never}]}), /role/);
+});

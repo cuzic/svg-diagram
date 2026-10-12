@@ -724,6 +724,8 @@ export interface ImageMark {
   tone?: EmphasisTone;
   /** A word on a plate at the outline's top-left corner. */
   label?: string;
+  /** The label's text size (a role: 'note' 14px, 'banner' 16px, 'stat' 34px). Default: the picture's `labelRole`. The plate grows with it. */
+  role?: LabelRole;
   reveal?: number;
 }
 /** A word on an opaque plate at a point of the picture. There is no way to put text on the bare picture: its pixels are not known to the contrast check. */
@@ -734,6 +736,8 @@ export interface ImageLabel {
   anchor?: 'start' | 'middle' | 'end';
   /** The plate's tone (its fill, outline and text). Default 'plain' (white plate, dark text). */
   tone?: EmphasisTone;
+  /** The text size (a role: 'note' 14px, 'banner' 16px, 'stat' 34px). Default: the picture's `labelRole`. The plate grows with it. */
+  role?: LabelRole;
   reveal?: number;
 }
 export interface ImageOpts extends RevealOpts {
@@ -748,6 +752,8 @@ export interface ImageOpts extends RevealOpts {
   height?: number;
   /** Where a picture narrower than the content sits. Default 'center'. */
   align?: 'left' | 'center' | 'right';
+  /** The text size of every label plate that has no `role` of its own. Default 'note' (14px). */
+  labelRole?: LabelRole;
   marks?: readonly ImageMark[];
   labels?: readonly ImageLabel[];
 }
@@ -763,6 +769,7 @@ export interface ImageBand {
   width?: number;
   height?: number;
   align?: 'left' | 'center' | 'right';
+  labelRole?: LabelRole;
   marks?: ImageMark[];
   labels?: ImageLabel[];
   reveal?: number;

@@ -11,7 +11,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {textWidth} from './measure.ts';
 import {ROLES, toneStyle} from './tokens.ts';
-import type {FontFamily, ImageBand, ImageLabel, ImageMark, LaidOutImage, WidthOf} from './types.ts';
+import type {FontFamily, ImageBand, ImageLabel, ImageMark, LabelRole, LaidOutImage, WidthOf} from './types.ts';
 
 /** Larger than this and rules.ts warns (`image-large`): the whole file travels inside every SVG, and again in every reveal stage. */
 export const IMAGE_WARN_BYTES = 300 * 1024;
@@ -73,13 +73,13 @@ export function readImage(src: string | URL): ImageFile {
   return {href: `data:${info.mime};base64,${buf.toString('base64')}`, w: info.w, h: info.h, bytes: buf.length, mime: info.mime};
 }
 
-/** The font-size of every label plate. Read at call time (fill mode rewrites ROLES). */
-const sizeOf = (): number => ROLES.note;
+/** The font-size of a label plate: its own role, else the picture's, else 'note'. Read at call time (fill mode rewrites ROLES). */
+const sizeOf = (band: ImageBand, role?: LabelRole): number => ROLES[role ?? band.labelRole ?? 'note'];
 
 /** Every string an image() draws, registered before its geometry is calculated. */
 export function imageTexts(band: ImageBand): [string, number, number, FontFamily][] {
-  const S = sizeOf();
-  return [...(band.marks ?? []).flatMap(m => m.label ? [m.label] : []), ...(band.labels ?? []).map(l => l.text)].map(t => [t, S, 700, 'sans']);
+  return [...(band.marks ?? []).flatMap(m => m.label ? [[m.label, sizeOf(band, m.role)] as const] : []), ...(band.labels ?? []).map(l => [l.text, sizeOf(band, l.role)] as const)]
+    .map(([t, S]) => [t, S, 700, 'sans']);
 }
 
 const clamp = (n: number, lo: number, hi: number): number => Math.min(Math.max(n, lo), Math.max(lo, hi));
@@ -90,12 +90,13 @@ export function layoutImage(band: ImageBand, x: number, y: number, cw: number, w
   if (band.height !== undefined) { h = band.height; w = h * ar; if (w > cw) { w = cw; h = w / ar; } }
   w = Math.round(w); h = Math.round(h);
   const ix = x + Math.round(band.align === 'left' ? 0 : band.align === 'right' ? cw - w : (cw - w) / 2);
-  const S = sizeOf(), plateH = S + PLATE_H_EXTRA;
   const out: LaidOutImage = {
     type: 'image', id: band.id, x: ix, y, w, h, href: band.href, alt: band.alt, bytes: band.bytes, reveal: band.reveal,
     marks: [], plates: [], anchors: [],
   };
-  const plate = (text: string, px: number, py: number, anchor: 'start' | 'middle' | 'end', tone: ImageMark['tone'], reveal: number | undefined, mark?: number): void => {
+  const plate = (text: string, px: number, py: number, anchor: 'start' | 'middle' | 'end', tone: ImageMark['tone'], reveal: number | undefined, role: LabelRole | undefined, mark?: number, atTop = false): void => {
+    const S = sizeOf(band, role), plateH = Math.ceil((S + PLATE_H_EXTRA) / 4) * 4; // a multiple of 4: the plate sits on the 4px grid
+    if (atTop) py += plateH / 2;
     const tw = textWidth(widthOf, text, S, 700), pw = Math.ceil(tw + 2 * PLATE_PAD_X);
     const left = clamp(anchor === 'start' ? px : anchor === 'middle' ? px - pw / 2 : px - pw, ix, ix + w - pw);
     const top = clamp(py - plateH / 2, y, y + h - plateH);
@@ -108,9 +109,9 @@ export function layoutImage(band: ImageBand, x: number, y: number, cw: number, w
     out.marks.push(mark);
     if (m.id) out.anchors.push({...r, id: m.id});
     // a mark's label is a tab on its top-left corner, inside the picture
-    if (m.label) plate(m.label, r.x, r.y + (plateH / 2), 'start', m.tone ?? 'accent', mark.reveal, i);
+    if (m.label) plate(m.label, r.x, r.y, 'start', m.tone ?? 'accent', mark.reveal, m.role, i, true);
   });
-  for (const l of band.labels ?? []) plate(l.text, ix + l.at[0] * w, y + l.at[1] * h, l.anchor ?? 'start', l.tone, l.reveal ?? band.reveal);
+  for (const l of band.labels ?? []) plate(l.text, ix + l.at[0] * w, y + l.at[1] * h, l.anchor ?? 'start', l.tone, l.reveal ?? band.reveal, l.role);
   return out;
 }
 
