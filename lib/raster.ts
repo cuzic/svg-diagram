@@ -73,7 +73,7 @@ export function prepareResvgFonts(svg: string, specs?: FontSpecs): {options: Res
   const resolve = (role: string) => { const [family, weight] = role.split(':'); return {role, r: resolveFontFile(family as FontFamily, +weight, specs), cov: fontCoverage(family as FontFamily, +weight, specs)}; };
   const loaded = [...roles].map(resolve).filter(x => x.r);
   // a character none of the needed fonts has may be in another of the layout's fonts (a symbol only the emoji font draws): take that one too
-  const missing = (list: typeof loaded) => [...chars].filter(cp => cp > 0x20 && !list.some(x => x.cov!.has(cp)));
+  const missing = (list: typeof loaded) => [...chars].filter(cp => cp > 0x20 && cp !== 0xfe0f && cp !== 0x200d && !list.some(x => x.cov!.has(cp)));
   for (const cp of missing(loaded)) {
     const extra = ['sans:400', 'mono:400', 'emoji:400'].filter(r => !loaded.some(x => x.role === r)).map(resolve).find(x => x.r && x.cov!.has(cp));
     if (extra) loaded.push(extra);
