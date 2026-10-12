@@ -186,3 +186,59 @@ test('stateDiagram(): arrows into one state (fan-in) and out of one state (fan-o
     assert.deepEqual(crossings(out.t.edges), [], `fan-out ${dir}`);
   }
 });
+
+test('stateDiagram(): a complete 2x2 (a->x, a->y, b->x, b->y) has no shared line or crossing-free lanes are distinct, in both directions', async () => {
+  for (const dir of ['right', 'down'] as const) {
+    const {t, verdict} = await laid(stateDiagram([S('a'), S('b'), S('x'), S('y')], [{from: 'a', to: 'x'}, {from: 'a', to: 'y'}, {from: 'b', to: 'x'}, {from: 'b', to: 'y'}], {dir}));
+    assert.deepEqual(verdict.problems, [], dir);
+    assert.equal(sharedRun(t.edges), undefined, dir);
+  }
+});
+
+/** vertical runs of different arrows that are closer than `d` px (but not the same line) and overlap in height by more than `min` px */
+const nearParallel = (edges: {from: string; to: string; points: {x: number; y: number}[]}[], d = 8, min = 12): string[] => {
+  const segs = edges.flatMap((e, k) => e.points.slice(1).map((q, m) => ({k, p: e.points[m], q})).filter(s => Math.abs(s.p.x - s.q.x) < 0.01 && Math.abs(s.p.y - s.q.y) >= min));
+  const out: string[] = [];
+  for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
+    const a = segs[i], b = segs[j];
+    if (a.k === b.k || Math.abs(a.p.x - b.p.x) >= d) continue;
+    const over = Math.min(Math.max(a.p.y, a.q.y), Math.max(b.p.y, b.q.y)) - Math.max(Math.min(a.p.y, a.q.y), Math.min(b.p.y, b.q.y));
+    if (over > min) out.push(`${edges[a.k].from}->${edges[a.k].to} and ${edges[b.k].from}->${edges[b.k].to} run side by side (${Math.abs(a.p.x - b.p.x).toFixed(1)}px apart) at x=${a.p.x}`);
+  }
+  return out;
+};
+
+test('stateDiagram(): a fan-in and the arrow that goes back out of its head do not run side by side', async () => {
+  const {t, verdict} = await laid(stateDiagram([S('a'), S('b'), S('c'), S('Z')], [{from: 'a', to: 'Z'}, {from: 'b', to: 'Z'}, {from: 'c', to: 'Z'}, {from: 'Z', to: 'a', label: 'reset'}]));
+  assert.deepEqual(verdict.problems, []);
+  assert.deepEqual(nearParallel(t.edges), []);
+});
+
+test('stateDiagram(): a 3x3 between two layers, states of different widths: the lanes are separate and verify has nothing to say', async () => {
+  const subs: Record<string, string> = {a: '受付', b: '審査中の申請', c: '差し戻し待ちの状態', x: '承認', y: '却下された申請', z: '保留'};
+  const L = ['a', 'b', 'c'], R = ['x', 'y', 'z'];
+  const {t, verdict} = await laid(stateDiagram(Object.keys(subs).map(n => S(n, {sub: subs[n]})), L.flatMap(f => R.map(to => ({from: f, to})))));
+  assert.deepEqual(nearParallel(t.edges), []);
+  assert.equal(sharedRun(t.edges), undefined);
+  assert.ok(verdict.problems.every(p => !/share|side by side/.test(p)), JSON.stringify(verdict.problems));
+});
+
+test('stateDiagram(): the arrows that meet one side of a state keep an even step (a head and a tail are never 1px apart)', async () => {
+  for (const [name, sd] of [
+    ['fan-in + back', stateDiagram([S('a'), S('b'), S('c'), S('Z')], [{from: 'a', to: 'Z'}, {from: 'b', to: 'Z'}, {from: 'c', to: 'Z'}, {from: 'Z', to: 'a', label: 'reset'}])],
+    ['two-way pairs', stateDiagram(['a', 'b', 'c', 'd'].map(i => S(i)), [{from: 'a', to: 'c'}, {from: 'c', to: 'a'}, {from: 'b', to: 'd'}, {from: 'd', to: 'b'}, {from: 'a', to: 'd'}, {from: 'd', to: 'a'}])],
+  ] as const) {
+    const {t} = await laid(sd);
+    for (const n of t.anchors) {
+      for (const side of ['l', 'r'] as const) {
+        const ys: number[] = [];
+        for (const e of t.edges) {
+          const first = e.points[0], last = e.points[e.points.length - 1];
+          for (const [pt, id] of [[first, e.from], [last, e.to]] as const) if (id === n.id && Math.abs(pt.x - (side === 'l' ? n.x : n.x + n.w)) < 0.5) ys.push(pt.y);
+        }
+        ys.sort((p, q) => p - q);
+        for (let i = 1; i < ys.length; i++) assert.ok(ys[i] - ys[i - 1] >= 5, `${name}: two arrows meet ${n.id}'s ${side} side ${ys[i] - ys[i - 1]}px apart`);
+      }
+    }
+  }
+});

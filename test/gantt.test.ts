@@ -133,3 +133,14 @@ test('gantt(): a connector that ends on the whole figure (its id) is not stopped
   const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(g, box({id: 'ext', title: '外部'}), connect('G', 'ext', {route: 'elbow'})));
   assert.deepEqual(verdict.problems, []);
 });
+
+test('gantt(): even when nothing is free, the arrow still ends on the head bar (verify is what stops it)', async () => {
+  const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue'}).add(gantt([
+    {id: 'a', label: 'A', start: '2026-10-05', end: '2026-10-09'}, {label: 'X', start: '2026-10-05', end: '2026-10-30'}, {label: 'Y', start: '2026-10-05', end: '2026-10-30'},
+    {label: 'B', start: '2026-10-12', end: '2026-10-16', after: 'a'},
+  ], {from: '2026-10-05', to: '2026-10-30'})));
+  const t = laidOut.laidOut.find(b => b.type === 'gantt') as LaidOutGantt;
+  assert.ok(verdict.problems.some(p => /runs through the bar/.test(p)));
+  const end = t.deps[0].points[t.deps[0].points.length - 1], head = t.bars[3];
+  assert.ok(Math.abs(end.x - head.x) < 0.5 && end.y >= head.y && end.y <= head.y + head.h, 'the arrow ends on the left edge of B');
+});
