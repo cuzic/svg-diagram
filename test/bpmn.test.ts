@@ -140,3 +140,9 @@ test('bpmn(): a node tone is checked like a lane tone; node ids come with the fi
   assert.equal(laidOut.connects[0].reveal, 2);
   await assert.rejects(() => checkDiagram(diagram({theme: 'blue', spotlight: 'x'}).add(bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x'}], []))), /node inside a figure/);
 });
+
+test('bpmn(): a connector that ends on the whole figure (its id) is not stopped by its nodes', async () => {
+  const b = bpmn(L2, [{id: 's', lane: 'a', kind: 'start'}, {id: 't', lane: 'b', label: '確認'}, {id: 'e', lane: 'b', kind: 'end'}], [{from: 's', to: 't'}, {from: 't', to: 'e'}], {id: 'P'});
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(b, box({id: 'ext', title: '外部'}), connect('P', 'ext', {route: 'elbow'})));
+  assert.deepEqual(verdict.problems, []);
+});
