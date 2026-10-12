@@ -86,7 +86,7 @@ export function scatterOpts(points: readonly ScatterPoint[], opts: ScatterOpts):
   const y = fitAxis(Math.min(...ys), Math.max(...ys), ay.label, {min: ay.min, max: ay.max, step: ay.step}, {head});
   if (ax.ticks) x.ticks = ax.ticks; if (ay.ticks) y.ticks = ay.ticks;
   // the first labels of the two axes meet at the corner: the y axis leaves out its first one when neither is 0
-  if (!ay.ticks && (y.min ?? 0) !== 0 && (x.min ?? 0) !== 0 && Array.isArray(y.ticks)) y.ticks = y.ticks.slice(1);
+  if (!ay.ticks && (y.min ?? 0) !== 0 && (x.min ?? 0) !== 0 && Array.isArray(y.ticks)) y.ticks = y.ticks.map((t, i) => i === 0 ? {at: typeof t === 'number' ? t : t.at, label: ''} : t);
   const xMin = x.min ?? 0, yTop = y.max - head, rowY = (i: number) => y.max - unitsFor(18 + 22 * i, y.max - (y.min ?? 0), PLOT_H(height));
   const {labelRole, id, reveal, until, width} = opts as PlaneOpts;
   const pts: PlanePoint[] = points.map(p => {
@@ -176,19 +176,19 @@ export function controlStats(type: ControlType, data: readonly (number | number[
     }
     case 'mr': {
       const v = flat('mr');
-      values = v.slice(1).map((x, i) => Math.abs(x - v[i])); cl = sum(values) / values.length;
+      values = v.slice(1).map((x, i) => Math.abs(x - v[i])); cl = fixed.cl ?? sum(values) / values.length;
       ucl = new Array<number>(values.length).fill(D4_MR * cl); lcl = new Array<number>(values.length).fill(0); break;
     }
     case 'xbar': case 'r': {
       const g = groups(), n = g[0].length, f = FACTORS[n];
       const means = g.map(s => sum(s) / n), ranges = g.map(s => Math.max(...s) - Math.min(...s)), rBar = sum(ranges) / N;
       if (type === 'xbar') { values = means; cl = sum(means) / N; ({ucl, lcl} = same(cl, f.A2 * rBar)); }
-      else { values = ranges; cl = rBar; ucl = new Array<number>(N).fill(f.D4 * rBar); lcl = new Array<number>(N).fill(f.D3 * rBar); }
+      else { values = ranges; cl = fixed.cl ?? rBar; ucl = new Array<number>(N).fill(f.D4 * cl); lcl = new Array<number>(N).fill(f.D3 * cl); } // the limits are multiples of the centre line, a given one included
       break;
     }
     case 'p': {
       const a = attrs(); values = a.map(s => s.d / s.n); cl = fixed.cl ?? sum(a.map(s => s.d)) / sum(a.map(s => s.n));
-      if (!(cl > 0 && cl < 1)) throw new Error(`controlChart('p'): the centre line is a share, between 0 and 1 (got ${cl})`);
+      if (!(cl > 0 && cl < 1)) throw new Error(`controlChart('p'): the centre line is a share, between 0 and 1 (got ${num(cl)})`);
       ({ucl, lcl} = same(cl, a.map(s => 3 * Math.sqrt(cl * (1 - cl) / s.n)), 0)); ucl = ucl.map(u => Math.min(1, u)); break;
     }
     case 'np': {
@@ -196,26 +196,26 @@ export function controlStats(type: ControlType, data: readonly (number | number[
       if (!a.every(s => s.n === n)) throw new Error("controlChart('np'): every sample must inspect the same number (use 'p' when n varies)");
       if (!a.every(s => Number.isInteger(s.d))) throw new Error("controlChart('np'): d must be a whole number (the defectives counted)");
       const p = fixed.cl !== undefined ? fixed.cl / n : sum(a.map(s => s.d)) / sum(a.map(s => s.n)); values = a.map(s => s.d); cl = n * p;
-      if (!(p > 0 && p < 1)) throw new Error(`controlChart('np'): the centre line must be between 0 and ${n} (got ${cl})`);
+      if (!(p > 0 && p < 1)) throw new Error(`controlChart('np'): the centre line must be between 0 and ${n} (got ${num(cl)})`);
       ({ucl, lcl} = same(cl, 3 * Math.sqrt(n * p * (1 - p)), 0)); break;
     }
     case 'c': {
       values = flat('c');
       if (!values.every(v => Number.isInteger(v) && v >= 0)) throw new Error("controlChart('c'): each count must be a whole number >= 0");
       cl = fixed.cl ?? sum(values) / N;
-      if (!(cl > 0)) throw new Error(`controlChart('c'): the centre line must be > 0 (got ${cl})`);
+      if (!(cl > 0)) throw new Error(`controlChart('c'): the centre line must be > 0 (got ${num(cl)})`);
       ({ucl, lcl} = same(cl, 3 * Math.sqrt(cl), 0)); break;
     }
     case 'u': {
       const a = attrs(); values = a.map(s => s.d / s.n); cl = fixed.cl ?? sum(a.map(s => s.d)) / sum(a.map(s => s.n));
-      if (!(cl > 0)) throw new Error(`controlChart('u'): the centre line must be > 0 (got ${cl})`);
+      if (!(cl > 0)) throw new Error(`controlChart('u'): the centre line must be > 0 (got ${num(cl)})`);
       ({ucl, lcl} = same(cl, a.map(s => 3 * Math.sqrt(cl / s.n)), 0)); break;
     }
     default: throw new Error(`controlChart(): type must be one of x, mr, xbar, r, p, np, c, u (got ${String(type)})`);
   }
   for (const k of ['cl', 'ucl', 'lcl'] as const) if (fixed[k] !== undefined && !Number.isFinite(fixed[k])) throw new Error(`controlChart(): limits.${k} must be a finite number (got ${fixed[k]})`);
   // a fixed centre line moves the limits that are not fixed with it (they keep their distance from it)
-  // x / xbar / r / mr: the spread comes from the data, so a given centre line moves the limits with it (p, np, c, u have worked them out from it above)
+  // x / xbar: the spread comes from the data, so a given centre line moves the limits with it (r, mr, p, np, c, u have worked them out from it above)
   if (fixed.cl !== undefined && cl !== fixed.cl) { const d = fixed.cl - cl; ucl = ucl.map(u => u + d); lcl = lcl.map(l => Math.max(type === 'x' || type === 'xbar' ? -Infinity : 0, l + d)); cl = fixed.cl; }
   if (fixed.ucl !== undefined) ucl = ucl.map(() => fixed.ucl!);
   if (fixed.lcl !== undefined) lcl = lcl.map(() => fixed.lcl!);
@@ -281,7 +281,7 @@ export function controlChartOpts(type: ControlType, data: readonly (number | num
   const paths: PlanePath[] = [{through: points.map(p => p.at as PlanePos)}];
   const lines: PlaneLine[] = [{from: [0.5 + offset, s.cl], to: [N + 0.5, s.cl], tone: 'accent', dashed: false}];
   const labels: PlaneLabel[] = [];
-  const labelX = N + 0.8, gapY = unitsFor(18, y.max - (y.min ?? 0) - head, PLOT_H(height));
+  const labelX = N + 0.8, gapY = unitsFor(22, y.max - (y.min ?? 0), PLOT_H(height)); // a label is about 21px tall
   // the lower limit is drawn unless it is 0 all along (a line on the axis); its number is left out where it is 0 or changes with n
   const hasLcl = s.lcl.some(v => v > 1e-12 || type === 'x' || type === 'xbar');
   const lclLabeled = hasLcl && (type === 'x' || type === 'xbar' || s.lcl[n - 1] > 1e-12);

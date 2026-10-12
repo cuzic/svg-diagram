@@ -256,7 +256,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
       const cut = (cx: number, base: number): boolean => cumSegs.some(sg => segHitsRect(sg, {x: cx - tw / 2, y: base - S + 2, w: tw, h: S}));
       // inside the bar if it fits and the cumulative line stays off it, otherwise above the bar
       // the places for the value, in order of preference: at the top inside the bar, above it, lower inside, higher above; the first that no line cuts
-      const fitsIn = (base: number) => bw >= tw + 12 && base - S >= r.y && base <= r.y + bh;
+      const fitsIn = (base: number) => bw >= tw + 12 && base - S >= r.y && base <= r.y + bh && cx - tw / 2 >= bx - 0.5 && cx + tw / 2 <= bx + bw + 0.5; // white text stays on its bar
       const places: {base: number; inside: boolean}[] = [];
       if (bh >= S + 10) places.push({base: r.y + S + 4, inside: true});
       places.push({base: r.y - 6, inside: false});
@@ -280,10 +280,16 @@ function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: nu
   const {plotL, plotR, plotT, plotB, S, widthOf, yOf, vrows} = g;
   const ink: BarsInk = {lines: [], polylines: [], dots: []};
   const count = slotsOf(band.data).count, slot = (plotR - plotL) / count, xOf = (at: number) => plotL + at * slot;
-  for (const l of band.lines ?? []) {
+  const hy: number[] = []; // where the labels of the horizontal lines already are
+  for (const l of [...band.lines ?? []].sort((a, b) => b.at - a.at)) {
     const ly = yOf(l.at), fill = LINE_TONE[l.tone ?? 'danger'];
     ink.lines.push({x1: plotL, y1: ly, x2: plotR, y2: ly, fill, dashed: l.dashed !== false});
-    if (l.label) putText(out, S, l.label, plotR - 4, ly - 5, 'end', fill, widthOf, true);
+    if (!l.label) continue;
+    // a label closer than its height to the one before goes to the other end of its line (right, then left)
+    const near = hy.filter(y => Math.abs(y - ly) < S + 6).length;
+    hy.push(ly);
+    if (near % 2 === 0) putText(out, S, l.label, plotR - 4, ly - 5, 'end', fill, widthOf, true);
+    else putText(out, S, l.label, plotL + 4, ly - 5, 'start', fill, widthOf, true);
   }
   for (const [i, l] of (band.vlines ?? []).entries()) {
     const lx = xOf(l.at), fill = LINE_TONE[l.tone ?? 'danger'], at = vrows.at[i];

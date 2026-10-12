@@ -658,3 +658,50 @@ test('a seeded sweep of pareto / histogram / scatter / control charts passes ver
   }
   assert.deepEqual(bad, []);
 });
+
+// ---- the third review -----------------------------------------------------------------------------------------------------------
+
+test('bars(): white text on a bar stays on the bar when a vline cuts it (it goes above instead)', async () => {
+  const {laidOut, verdict} = await laid(bars(Array.from({length: 12}, (_, i) => ({label: `c${i}`, value: 60 + i})), {dir: 'v', max: 100, unit: '件', vlines: [{at: 3.5, label: '平均'}]}));
+  assert.deepEqual(verdict.problems, []);
+  const b = laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars;
+  for (const lb of b.labelBoxes.filter(x => x.background !== undefined && x.bar !== undefined)) {
+    const r = b.bars[lb.bar!];
+    assert.ok(lb.x >= r.x - 0.6 && lb.x + lb.w <= r.x + r.w + 0.6, `${lb.label} is on its bar`);
+  }
+});
+
+test('controlStats: a given centre line of an R or MR chart scales the limits (D4 x R-bar0), it does not shift them', () => {
+  const g = [[10, 12, 11, 13, 10], [11, 13, 12, 14, 11], [9, 11, 10, 12, 9], [10, 12, 14, 12, 10]];
+  const r = controlStats('r', g, {cl: 1});
+  near(r.ucl[0], 2.114); near(r.lcl[0], 0);
+  near(controlStats('r', g, {cl: 0.5}).ucl[0], 1.057);
+  near(controlStats('mr', [3, 5, 4, 6, 2, 4], {cl: 1}).ucl[0], 3.267);
+});
+
+test('controlChart(): narrow fixed limits keep their labels apart, with and without a legend row', async () => {
+  const v = [50, 51, 49, 50.5, 49.5, 50.2, 49.8, 50.1, 50.3, 49.7];
+  for (const rules of [true, false]) {
+    const {verdict} = await laid(controlChart('x', v, {limits: {cl: 50, ucl: 50.2, lcl: 49.8}, rules}));
+    assert.deepEqual(verdict.problems, [], `rules ${rules}`);
+  }
+  const p = await laid(controlChart('p', Array.from({length: 12}, (_, i) => ({n: 130 + i * 3, d: 6 + (i % 3)})), {limits: {cl: 0.002}}));
+  assert.deepEqual(p.verdict.problems, []);
+});
+
+test('bars(): the labels of two horizontal lines that are close go to opposite ends', async () => {
+  const {verdict} = await laid(bars([{label: 'a', value: 40}, {label: 'b', value: 50}, {label: 'c', value: 30}], {dir: 'v', max: 100, lines: [{at: 82, label: '目標'}, {at: 81, label: '下限'}]}));
+  assert.deepEqual(verdict.problems, []);
+});
+
+test('histogram(): the last class boundary is always written; scatter keeps the tick of the corner and blanks its text', async () => {
+  for (const n of [29, 31, 33, 37]) {
+    const v = Array.from({length: 60}, (_, i) => 10 + (i % n) * 0.01 + (i % 7) * 0.001);
+    const {b, verdict} = await planeOf(histogram(v, {width: 0.01, lsl: 9.99, usl: 10.4}));
+    assert.deepEqual(verdict.problems, [], `n ${n}`);
+    const last = b.texts.filter(t => t.anchor === 'middle' && /^\d+\.\d+$/.test(t.text)).map(t => Number(t.text));
+    assert.ok(last.length > 1);
+  }
+  const s = (await planeOf(scatter([{x: 5, y: 7}, {x: 9, y: 12}, {x: 12, y: 15}], {x: 'x', y: 'y'}))).p;
+  assert.ok(s.ticks.length > 3);
+});
