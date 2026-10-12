@@ -6,11 +6,11 @@
 // computed (usually off-grid) position, same as every hand-authored diagram
 // in this deck.
 
-import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf, recolor, customColors} from './tokens.ts';
+import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf, recolor, customColors, mapOf} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
-  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutTimeline, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
+  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutTimeline, LaidOutPeople, LaidOutDots, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
   LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, EmphasisTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
   LaidOutWireframe, LaidOutScreens, RawColorTone, Span, Roles,
 } from './types.ts';
@@ -19,6 +19,7 @@ import {BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSE
 import {visibleAt} from './reveal.ts';
 import {spotlightDim} from './spotlight.ts';
 import {ICON_PATHS} from './icons.ts';
+import {PERSON_BOX} from './people.ts';
 import type {IconName} from './icons.ts';
 
 const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
@@ -277,6 +278,27 @@ function renderPyramid(band: LaidOutPyramid, roles: Roles): string {
     ).join('\n  ');
     return `${shape}\n  ${text}`;
   }).join('\n\n  ');
+}
+
+// people(): one person icon per head, the emphasized ones filled and the rest outlines (the count reads without colour).
+function renderPeople(band: LaidOutPeople, day: Theme): string {
+  const d = ICON_PATHS.person.d, s = band.size / PERSON_BOX.size, n = (v: number) => +v.toFixed(4);
+  const color = colorOf(toneStyle(band.tone).ink, day), color2 = colorOf(toneStyle(band.tone2).ink, day), rest = colorOf(toneStyle(band.rest).ink, day);
+  const icon = (i: {x: number; y: number; on: boolean; second?: true}) => `<path d="${d}" transform="translate(${n(i.x - PERSON_BOX.from * s)} ${n(i.y - PERSON_BOX.from * s)}) scale(${n(s)})" ${i.on ? `fill="${i.second ? color2 : color}"` : `fill="none" stroke="${rest}" stroke-width="${n(1.5 / s)}"`}/>`;
+  const texts = band.texts.map(t => `\n  <text x="${Math.round(t.x)}" y="${Math.round(t.y)}" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${textColorOf(t.tone, day)}">${emojiSpan(t.text)}</text>`).join('');
+  return `<g role="img" aria-label="${escapeXml(band.alt)}">\n  ${band.icons.map(icon).join('\n  ')}\n  </g>${texts}`;
+}
+
+// dots(): a lane (an axis line), bars on the lane for its zones, a dot per value piled above it, labels under it.
+function renderDots(band: LaidOutDots, day: Theme): string {
+  const color = (tone: string) => colorOf(toneStyle(tone).ink, day), n = (v: number) => +v.toFixed(2);
+  const parts = [`<line x1="${n(band.axis.x1)}" y1="${n(band.axis.y)}" x2="${n(band.axis.x2)}" y2="${n(band.axis.y)}" stroke="${PALETTE.muted}" stroke-width="2"/>`];
+  for (const z of band.zones) parts.push(`<rect x="${n(z.x)}" y="${n(z.top)}" width="${n(z.w)}" height="${n(z.y - 4 - z.top)}" fill="${color(z.tone)}" fill-opacity="0.12"/>`);
+  for (const z of band.zones) parts.push(`<rect x="${n(z.x)}" y="${n(z.y - 4)}" width="${n(z.w)}" height="8" fill="${color(z.tone)}"/>`);
+  const dots = band.dots.map(p => `<circle cx="${n(p.x)}" cy="${n(p.y)}" r="${band.r}" fill="${color(p.tone)}"/>`).join('\n    ');
+  parts.push(`<g role="img" aria-label="${escapeXml(band.alt)}">\n    ${dots}\n  </g>`);
+  for (const t of band.texts) parts.push(`<text x="${n(t.x)}" y="${n(t.y)}" text-anchor="${t.anchor}" font-size="${t.size}" fill="${PALETTE.text}">${emojiSpan(t.text)}</text>`);
+  return parts.join('\n  ');
 }
 
 function renderCurve(band: LaidOutCurve, day: Theme): string {
@@ -576,6 +598,8 @@ function renderBandPlain(band: LaidOutBand, day: Theme, roles: Roles, stage?: nu
     case 'curve': return renderCurve(band, day);
     case 'plane': return renderPlane(band, day, stage);
     case 'bars': return renderBars(band, day, stage, dimFill);
+    case 'people': return renderPeople(band, day);
+    case 'dots': return renderDots(band, day);
     case 'timeline': return renderTimeline(band, day);
     default: return '';
   }
@@ -650,7 +674,7 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; 
   // doc-medium diagrams carry an accessible name/description and (when built from a file) provenance
   let a11y = '', head = '';
   if (laidOutDiagram.medium === 'doc') {
-    const title = diagramTitle(laidOutDiagram), desc = diagramDesc(laidOutDiagram);
+    const title = diagramTitle(laidOutDiagram), desc = diagramDesc(laidOutDiagram, opts.reveal);
     if (title) {
       a11y = ` role="img" aria-labelledby="svg-title${desc ? ' svg-desc' : ''}"`;
       head = `\n  <title id="svg-title">${escapeXml(title)}</title>${desc ? `\n  <desc id="svg-desc">${escapeXml(desc)}</desc>` : ''}`;
@@ -671,5 +695,6 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; 
 `;
   // the attribute is added after the recolouring: its values are final colours (a custom white must not be recoloured as a light token)
   const out = opts.noRecolor ? svgText : recolor(svgText, laidOutDiagram.appearance);
-  return paletteAttr ? out.replace('<svg ', `<svg${paletteAttr} `) : out;
+  const darkAttr = mapOf(laidOutDiagram.appearance) ? ' data-appearance="dark"' : '';
+  return paletteAttr || darkAttr ? out.replace('<svg ', `<svg${darkAttr}${paletteAttr} `) : out;
 }

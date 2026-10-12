@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">リクエストの流れ</title>
+  <desc id="svg-desc">要素: 利用者、API、DB</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/slide-canvas.ts","sourceSha256":"f1aca0019f13c43af8f08f31bb9ebf2fe5fdc9d6a4cd74e407d962814463a031"}</metadata>
+  <defs>
+    <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="1280" height="720" fill="#ffffff"/>
+
+  <rect x="36" y="36" width="1212" height="112" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="54" y="76" font-size="26" font-weight="700" fill="#22201b">利用者</text>
+  <text x="54" y="118.4" font-size="24" font-weight="400" fill="#22201b">ブラウザから送る</text>
+
+  <rect x="36" y="208" width="1212" height="112" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="54" y="248" font-size="26" font-weight="700" fill="#22201b">API</text>
+  <text x="54" y="290.4" font-size="24" font-weight="400" fill="#22201b">検証して処理する</text>
+
+  <rect x="36" y="380" width="1212" height="112" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="54" y="420" font-size="26" font-weight="700" fill="#22201b">DB</text>
+  <text x="54" y="462.4" font-size="24" font-weight="400" fill="#22201b">結果を保存する</text>
+
+  <path d="M640,89 L640,261" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <text x="640" y="169" text-anchor="middle" font-size="24" fill="#22201b">要求</text>
+
+  <path d="M640,261 L640,433" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <text x="640" y="341" text-anchor="middle" font-size="24" fill="#22201b">保存</text>
+</svg>

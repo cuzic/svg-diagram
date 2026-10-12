@@ -29,7 +29,7 @@ import {browserChecks} from './lib/lint-browser.ts';
 import {geometryChecks, type RenderChecks} from './lib/svg-lint.ts';
 import {loadConfig} from './lib/config.ts';
 import fs from 'fs';
-import {ALLOWED_COLORS, EMOJI_RE} from './lib/tokens.ts';
+import {ALLOWED_COLORS, DARK_COLORS, EMOJI_RE} from './lib/tokens.ts';
 
 const strict = process.argv.includes('--strict');
 const engineIdx = process.argv.indexOf('--engine');
@@ -112,8 +112,10 @@ for (const f of files) {
 
   const usedColors = new Set<string>();
   for (const m of src.matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) usedColors.add('#' + m[1].toLowerCase());
-  const custom = new Set((/<svg[^>]*\sdata-palette="([^"]*)"/.exec(src)?.[1] ?? '').split(' ')); // a diagram's own dark set (appearance: {dark})
-  const offToken = [...usedColors].filter(c => !ALLOWED_COLORS.has(c) && !custom.has(c));
+  // a diagram that says it is dark (data-appearance) may also use the dark tokens and its own dark set (data-palette); a light one may not
+  const dark = /<svg[^>]*\sdata-appearance="dark"/.test(src);
+  const custom = new Set(dark ? (/<svg[^>]*\sdata-palette="([^"]*)"/.exec(src)?.[1] ?? '').split(' ') : []);
+  const offToken = [...usedColors].filter(c => !ALLOWED_COLORS.has(c) && !(dark && DARK_COLORS.has(c)) && !custom.has(c));
   if (offToken.length) {
     advisoryFindings.push({file: f, check: 'off-token-color', detail: `uses color(s) outside the token set: ${offToken.join(', ')}`});
   }

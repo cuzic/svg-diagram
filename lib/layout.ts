@@ -21,6 +21,7 @@ import {assertSpans} from './rich.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {layoutPlane, planeTexts} from './plane.ts';
 import {barsTexts, layoutBars} from './bars.ts';
+import {dotsTexts, layoutDots, layoutPeople, peopleTexts} from './people.ts';
 import {layoutTimeline, timelineTexts} from './timeline.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {
@@ -297,6 +298,10 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
       for (const [text, size, weight, font] of planeTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'bars') {
       for (const [text, size, weight, font] of barsTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'people') {
+      for (const [text, size, weight, font] of peopleTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'dots') {
+      for (const [text, size, weight, font] of dotsTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'timeline') {
       for (const [text, size, weight, font] of timelineTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'curve') {
@@ -495,6 +500,17 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       for (const a of placed.anchors) {
         if (anchors.has(a.id)) claimed(a.id, 'a bar takes an id that another anchor already has');
         anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
+      }
+      laidOut.push(placed);
+      cursorY += placed.h + d.gap;
+      continue;
+    }
+
+    if (band.type === 'people' || band.type === 'dots') {
+      const placed = band.type === 'people' ? layoutPeople(band, padX, cursorY, cw, widthOf, d.day, roles) : layoutDots(band, padX, cursorY, cw, widthOf, d.day, roles);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, `a ${band.type} band takes an id that another anchor already has`);
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
       }
       laidOut.push(placed);
       cursorY += placed.h + d.gap;
