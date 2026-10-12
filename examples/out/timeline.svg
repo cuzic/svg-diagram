@@ -36,13 +36,13 @@
   <text x="591" y="71" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">移行開始の期限</text>
   <text x="591" y="91" text-anchor="middle" font-size="14" fill="#6f6659">2027-10</text>
   <text x="20" y="134" font-size="14" fill="#6f6659">2026</text>
-  <text x="177" y="134" text-anchor="middle" font-size="14" fill="#6f6659">2026/7</text>
-  <text x="324" y="134" text-anchor="middle" font-size="14" fill="#6f6659">2027</text>
-  <text x="468" y="134" text-anchor="middle" font-size="14" fill="#6f6659">2027/7</text>
-  <text x="615" y="134" text-anchor="middle" font-size="14" fill="#6f6659">2028</text>
-  <text x="761" y="134" text-anchor="middle" font-size="14" fill="#6f6659">2028/7</text>
-  <text x="920" y="134" text-anchor="end" font-size="14" fill="#6f6659">2029</text>
-  <text x="469" y="166" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">あと 1 年 5 か月</text>
+  <text x="154" y="134" font-size="14" fill="#6f6659">2026/7</text>
+  <text x="308" y="134" font-size="14" fill="#6f6659">2027</text>
+  <text x="446" y="134" font-size="14" fill="#6f6659">2027/7</text>
+  <text x="600" y="134" font-size="14" fill="#6f6659">2028</text>
+  <text x="738" y="134" font-size="14" fill="#6f6659">2028/7</text>
+  <text x="889" y="134" font-size="14" fill="#6f6659">2029</text>
+  <text x="418" y="166" font-size="14" font-weight="700" fill="#1d5fa8">あと 1 年 5 か月</text>
 
   <text x="20" y="199.6" font-size="14" font-weight="400" fill="#6f6659">出典: ベンダー公開のサポート終了予告(2026-04)</text>
 </svg>

@@ -133,3 +133,19 @@ test("timeline: span 'fill' paints a band instead of the bar; bad span / line th
   assert.throws(() => timeline({...BASE, span: 'x' as never}), /span must be/);
   assert.throws(() => timeline({...BASE, deadline: {...BASE.deadline, line: 'half' as never}}), /deadline.line must be/);
 });
+
+test("timeline: deadline.line 'full' over a tick label (2026-10 to 2027-06, deadline 2027-02-28, one mark) builds; the label steps aside", async () => {
+  const opts = {from: '2026-10', to: '2027-06', now: {at: '2026-10-12'}, deadline: {at: '2027-02-28', label: 'Extended Support 終了', line: 'full' as const}, marks: [{at: '2027-01', label: '移行リハーサル'}]};
+  for (const span of [undefined, 'fill' as const]) {
+    const {t, verdict} = await laid({...opts, ...(span ? {span} : {})});
+    assert.ok(verdict.ok, verdict.problems.join('\n'));
+    const x = t.fullLine!.x, [from, to] = [Date.UTC(2026, 9, 1), Date.UTC(2027, 5, 1)];
+    const at = (iso: string) => t.axis.x1 + (Date.parse(iso) - from) / (to - from) * (t.axis.x2 - t.axis.x1);
+    assert.ok(Math.abs(x - at('2027-02-28')) < 0.01, 'the deadline is placed by day');
+    const tick = t.ticks.find(k => Math.abs(k.x - at('2027-03-01')) < 0.01)!;
+    assert.ok(tick.x > x && tick.x - x < 6, 'the March tick is a day after the line');
+    const label = t.texts.find(l => l.text === '2027/3');
+    assert.ok(label && label.x > x, 'the label moved to the right of the line');
+    for (const b of t.labelBoxes) assert.ok(b.x + b.w <= x - 1 || b.x >= x + 1, b.label);
+  }
+});

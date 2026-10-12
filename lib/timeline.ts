@@ -116,21 +116,33 @@ export function layoutTimeline(band: TimelineBand, x: number, y: number, w: numb
   }
   const nowX = px(band.now.at, 'now.at'), dlX = px(band.deadline.at, 'deadline.at');
   out.span = {x1: Math.min(nowX, dlX), x2: Math.max(nowX, dlX), y: axisY, tone: nowX <= dlX ? 'accent' : 'danger', ...(fillSpan ? {fill: true} : {})};
+  // tick labels: centred on their tick, kept inside the figure; a label the deadline line would cross moves to the line's side its tick is on
+  // (and is left out, tick kept, if that lands on another label)
+  const ty = axisY + TICK + S + 2 + tickDrop;
+  const crosses = (left: number, tw: number): boolean => full && dlX >= left - 3 && dlX <= left + tw + 3;
+  const placed: {label: string; left: number; tw: number; moved: boolean}[] = [];
   for (const t of ticksOf(from, to)) {
     const tx = plotL + (t.day - from) / (to - from) * (plotR - plotL);
     out.ticks.push({x: tx, y1: axisY, y2: axisY + TICK});
-    const tw = textWidth(widthOf, t.label, S, 400); // a label at an end of the axis keeps inside the figure
-    if (tx - tw / 2 < x) text(t.label, x, axisY + TICK + S + 2 + tickDrop, 'start', 'muted', false, tw);
-    else if (tx + tw / 2 > x + w) text(t.label, x + w, axisY + TICK + S + 2 + tickDrop, 'end', 'muted', false, tw);
-    else text(t.label, tx, axisY + TICK + S + 2 + tickDrop, 'middle', 'muted', false, tw);
+    const tw = textWidth(widthOf, t.label, S, 400);
+    let left = Math.min(Math.max(tx - tw / 2, x), x + w - tw), moved = false;
+    if (crosses(left, tw)) { left = tx >= dlX ? dlX + 6 : dlX - 6 - tw; moved = true; }
+    placed.push({label: t.label, left, tw, moved});
+  }
+  const clash = (a: {left: number; tw: number}, b: {left: number; tw: number}): boolean => a.left < b.left + b.tw + 6 && b.left < a.left + a.tw + 6;
+  for (const p of placed) {
+    if (p.moved && (p.left < x || p.left + p.tw > x + w || placed.some(o => o !== p && clash(p, o)))) continue;
+    text(p.label, p.left, ty, 'start', 'muted', false, p.tw);
   }
   let bottom = axisY + TICK + S + 2 + 4 + tickDrop;
   const rem = remainingLabel(band);
   if (rem) {
     const by = bottom + 8;
     out.bracket = {x1: out.span.x1, x2: out.span.x2, y: by, tone: out.span.tone};
-    const rw = textWidth(widthOf, rem, S, 700), mid = Math.min(Math.max((out.span.x1 + out.span.x2) / 2, x + rw / 2), x + w - rw / 2);
-    text(rem, mid, by + 6 + S, 'middle', out.span.tone, true, rw);
+    const rw = textWidth(widthOf, rem, S, 700);
+    let rl = Math.min(Math.max((out.span.x1 + out.span.x2) / 2 - rw / 2, x), x + w - rw);
+    if (crosses(rl, rw)) rl = out.span.x2 === dlX ? dlX - 6 - rw : dlX + 6; // wider than its span: it keeps to the span's side of the line
+    text(rem, rl, by + 6 + S, 'start', out.span.tone, true, rw);
     bottom = by + 6 + S + 4;
   }
   out.h = bottom - y;
