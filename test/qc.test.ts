@@ -572,3 +572,89 @@ test('matrix(): a tie, or no score at all, marks no best row', async () => {
 });
 
 test('pdpc(): no nodes is a clear error', () => { assert.throws(() => pdpc(undefined as never, []), /at least one node/); });
+
+// ---- the second review: repros and a seeded sweep ------------------------------------------------------------------------------
+
+test('histogram(): a limit on the last class edge builds (float noise in the slot); wide limits thin the edge labels and hide the empty classes\' values', async () => {
+  const a = await laid(histogram([10.0, 10.1, 10.2, 9.9, 10.05, 9.95, 10.15], {usl: 10.3}));
+  assert.deepEqual(a.verdict.problems, []);
+  const b = await laid(histogram([50, 51, 52, 53, 52, 51, 52], {lsl: 30, usl: 70}));
+  assert.deepEqual(b.verdict.problems, []);
+  const bars = b.laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars;
+  assert.ok(!bars.texts.some(t => t.text === '0' && t.anchor === 'middle'), 'no "0" over empty classes');
+});
+
+test('pareto(): a first bar just above the guide keeps its value off the 80% line', async () => {
+  for (const first of [82, 83, 84, 85, 86, 88]) {
+    const {verdict} = await laid(pareto([{label: 'A', value: first}, {label: 'B', value: (100 - first) * 0.6}, {label: 'C', value: (100 - first) * 0.4}]));
+    assert.deepEqual(verdict.problems, [], `first ${first}`);
+  }
+});
+
+test('bars(): a target line near a bar\'s value does not run through its label', async () => {
+  const {verdict} = await laid(bars([{label: 'a', value: 10}, {label: 'b', value: 8}, {label: 'c', value: 9}], {dir: 'v', max: 12, lines: [{at: 9.3, label: '目標'}]}));
+  assert.deepEqual(verdict.problems, []);
+});
+
+test('controlStats: a given centre line of an attribute chart gives limits from that centre (the standard), not a shifted copy', () => {
+  const c = controlStats('c', [3, 5, 4, 6, 2, 4], {cl: 10});
+  near(c.ucl[0], 10 + 3 * Math.sqrt(10)); near(c.lcl[0], Math.max(0, 10 - 3 * Math.sqrt(10)));
+  const p = controlStats('p', [{n: 100, d: 3}, {n: 200, d: 9}], {cl: 0.02});
+  near(p.ucl[0], 0.02 + 3 * Math.sqrt(0.02 * 0.98 / 100)); near(p.ucl[1], 0.02 + 3 * Math.sqrt(0.02 * 0.98 / 200));
+  const np = controlStats('np', [{n: 50, d: 2}, {n: 50, d: 3}], {cl: 5});
+  near(np.ucl[0], 5 + 3 * Math.sqrt(50 * 0.1 * 0.9));
+  const u = controlStats('u', [{n: 2, d: 4}, {n: 4, d: 12}], {cl: 3});
+  near(u.ucl[1], 3 + 3 * Math.sqrt(3 / 4));
+  assert.throws(() => controlStats('p', [{n: 100, d: 3}, {n: 100, d: 4}], {cl: 1.5}), /between 0 and 1/);
+  assert.throws(() => controlStats('c', [3, 4], {cl: 0}), /> 0/);
+});
+
+test('scatter(): data that starts at 0 or above keeps its axes at 0 or above', async () => {
+  const a = (await planeOf(scatter([{x: 0.3, y: 2}, {x: 10, y: 4}, {x: 20, y: 5}, {x: 30, y: 9}], {x: 'x', y: 'y'}))).p;
+  assert.ok(a.texts.every(t => !t.s.startsWith('-') && !t.s.startsWith('−')));
+  const b = (await planeOf(scatter([{x: 0, y: 0}, {x: 50, y: 40}, {x: 100, y: 100}], {x: 'x', y: 'y'}))).p;
+  assert.ok(b.texts.every(t => !t.s.startsWith('-')));
+});
+
+test('xbarR(): mixed keys are refused, the error shows the numbers of limits that fail', () => {
+  assert.throws(() => xbarR([[1, 2], [2, 3], [1, 3]], {limits: {xbar: {cl: 2}, cl: 99} as never}), /mixes xbar \/ r/);
+  assert.throws(() => controlStats('x', [1, 2, 3, 2], {ucl: 0, lcl: 5}), /lcl 5, cl .*ucl 0/);
+});
+
+// a small seeded sweep over realistic data: nothing may fail verify or throw
+test('a seeded sweep of pareto / histogram / scatter / control charts passes verify', async () => {
+  let seed = 4242;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  const gauss = () => { let s = 0; for (let i = 0; i < 6; i++) s += rnd(); return s - 3; };
+  const bad: string[] = [];
+  const run = async (what: string, mk: () => unknown) => {
+    try {
+      const b = mk();
+      const {verdict} = await laid(...(Array.isArray(b) ? b : [b]));
+      if (verdict.problems.length) bad.push(`${what}: ${verdict.problems[0]}`);
+    } catch (e) { bad.push(`${what}: ${(e as Error).message}`); }
+  };
+  for (let t = 0; t < 25; t++) {
+    const first = 60 + rnd() * 35, rest = Array.from({length: 3 + Math.floor(rnd() * 5)}, () => 1 + rnd() * 10);
+    await run(`pareto ${t}`, () => pareto([{label: 'A', value: Math.round(first)}, ...rest.map((v, i) => ({label: `B${i}`, value: Math.round(v)}))], {unit: t % 2 ? '件' : undefined}));
+  }
+  for (let t = 0; t < 30; t++) {
+    const mu = [10, 250, 0.5, 1000][t % 4], sg = mu * (0.005 + rnd() * 0.03), dec = mu < 1 ? 3 : mu < 20 ? 2 : 1;
+    const v = Array.from({length: 20 + Math.floor(rnd() * 100)}, () => +(mu + gauss() * sg).toFixed(dec));
+    const opts: Record<string, unknown> = rnd() < 0.7 ? {lsl: +(mu - sg * (2 + rnd() * 2)).toFixed(dec), usl: +(mu + sg * (2 + rnd() * 2)).toFixed(dec)} : {};
+    if (rnd() < 0.4) opts.normal = true;
+    await run(`histogram ${t}`, () => histogram(v, opts));
+  }
+  for (let t = 0; t < 15; t++) {
+    const scale = [1, 0.01, 100][t % 3], a = rnd() * 10, b = (rnd() - 0.5) * 4, groups = rnd() < 0.4 ? ['A', 'B'] : [];
+    const pts = Array.from({length: 8 + Math.floor(rnd() * 20)}, (_, i) => ({x: +(i * scale + rnd()).toFixed(2), y: +((a + b * i + gauss()) * scale).toFixed(3), ...(groups.length ? {group: groups[i % 2]} : {})}));
+    await run(`scatter ${t}`, () => scatter(pts, {x: 'x', y: 'y', regression: rnd() < 0.6}));
+  }
+  for (let t = 0; t < 20; t++) {
+    const N = 10 + Math.floor(rnd() * 20);
+    const p = Array.from({length: N}, () => { const n = 50 + Math.floor(rnd() * 300); return {n, d: Math.floor(rnd() * n * 0.08)}; });
+    await run(`control p ${t}`, () => controlChart('p', p));
+    await run(`control x ${t}`, () => controlChart('x', Array.from({length: N}, () => +(50 + gauss() * 2).toFixed(1))));
+  }
+  assert.deepEqual(bad, []);
+});

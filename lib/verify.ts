@@ -324,7 +324,7 @@ function checkBars(d: LaidOutDiagram): string[] {
     const segs = [...(band.ink?.lines ?? []).filter(l => !l.soft), ...(band.ink?.polylines ?? []).filter(l => !l.soft).flatMap(l => l.pts.slice(1).map((q, k) => ({x1: l.pts[k].x, y1: l.pts[k].y, x2: q.x, y2: q.y})))];
     for (const b of band.labelBoxes) {
       const hit = segs.find(sg => segHitsRect(sg, {x: b.x + 1, y: b.y + 2, w: b.w - 2, h: b.h - 4}));
-      if (hit) problems.push(`bars: a line runs through the label "${b.label}" (move or shorten the line's own label, or hide the values with labels: 'category')`);
+      if (hit) problems.push(`bars: a reference line (a limit, a target, the guide or the cumulative line) runs through the label "${b.label}" (move the line, or hide the values with labels: 'category')`);
     }
     for (let i = 0; i < band.labelBoxes.length; i++) for (let j = i + 1; j < band.labelBoxes.length; j++) {
       const [a, b] = [band.labelBoxes[i], band.labelBoxes[j]];

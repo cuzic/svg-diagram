@@ -43,7 +43,7 @@ export function barsTexts(band: BarsBand, roles: Roles): [string, number, number
   }
   if (f.axis) for (const t of ticksOf({max: band.max}, 'bars')) out.push([t.label, S, 400, 'sans']);
   for (const l of [...band.lines ?? [], ...band.vlines ?? []]) if (l.label) out.push([l.label, S, 700, 'sans']);
-  for (const e of band.edges ?? []) out.push([e, S, 400, 'sans']);
+  for (const e of band.edges ?? []) if (e) out.push([e, S, 400, 'sans']);
   if (band.cumulative) {
     for (const p of CUM_TICKS) out.push([`${p}%`, S, 400, 'sans']);
     for (const p of cumulativeOf(band.data)) out.push([cumText(p), S, 700, 'sans']);
@@ -230,30 +230,43 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
     if (band.cumulative) {
       const pts = [{x: plotL, y: plotB}, ...cumulativeOf(band.data).map((p, k) => ({x: plotL + (k + 1) * slot, y: plotB - p / 100 * (plotB - plotT)}))];
       pts.slice(1).forEach((q, k) => cumSegs.push({x1: pts[k].x, y1: pts[k].y, x2: q.x, y2: q.y}));
+      if (band.cumulative.guide !== undefined) { const gy = plotB - band.cumulative.guide / 100 * (plotB - plotT); cumSegs.push({x1: plotL, y1: gy, x2: plotR, y2: gy}); }
     }
+    for (const l of band.lines ?? []) cumSegs.push({x1: plotL, y1: yOf(l.at), x2: plotR, y2: yOf(l.at)}); // the target lines too: a value label keeps off every horizontal line
     // a value label that a vertical reference line would cut moves along its bar to the side of the line with room
     const vx = (band.vlines ?? []).map(l => plotL + l.at * slot);
     const dodge = (cx: number, tw: number, lo: number, hi: number): number => {
-      const line = vx.find(v => v > cx - tw / 2 - 3 && v < cx + tw / 2 + 3);
-      if (line === undefined) return cx;
-      const left = line - 4 - tw / 2, right = line + 4 + tw / 2;
-      const fits = (c: number) => c - tw / 2 >= lo + 2 && c + tw / 2 <= hi - 2;
-      return fits(left) && (!fits(right) || cx - left <= right - cx) ? left : fits(right) ? right : cx;
+      const cuts = (c: number) => vx.some(v => v > c - tw / 2 - 3 && v < c + tw / 2 + 3);
+      if (!cuts(cx)) return cx;
+      // the nearest place along the bar that clears every line (beside each line, either side)
+      const sides = vx.flatMap(v => [v - 3.5 - tw / 2, v + 3.5 + tw / 2]).filter(c => !cuts(c));
+      // within the bar if it can, else a little beyond its edge (the neighbour's own label, if any, is checked by verify)
+      const near = (cs: number[]) => cs.length ? cs.reduce((a, b) => Math.abs(b - cx) < Math.abs(a - cx) ? b : a) : undefined;
+      return near(sides.filter(c => c - tw / 2 >= lo + 1 && c + tw / 2 <= hi - 1)) ?? near(sides.filter(c => c - tw / 2 >= lo - tw && c + tw / 2 <= hi + tw)) ?? cx;
     };
     band.data.forEach((d, i) => {
       const bh = d.value / band.max * (plotB - plotT), bx = plotL + slots[i] * slot + (slot - bw) / 2;
       const r = addBar(out, d, {x: bx, y: plotB - bh, w: bw, h: bh});
       const bar = out.bars.length - 1;
       if (f.showCats && !band.edges) putText(out, S, d.label, bx + bw / 2, plotB + S + 10, 'middle', 'text', widthOf, false, undefined, bar);
-      if (!f.showValues) return;
+      if (!f.showValues || (band.hideZero && d.value === 0)) return;
       const text = valueText(d, band.unit);
       const tw = textWidth(widthOf, text, S, 700);
       const cx = dodge(bx + bw / 2, tw, bx, bx + bw), cxOut = dodge(bx + bw / 2, tw, plotL + slots[i] * slot, plotL + (slots[i] + 1) * slot);
       const cut = (cx: number, base: number): boolean => cumSegs.some(sg => segHitsRect(sg, {x: cx - tw / 2, y: base - S + 2, w: tw, h: S}));
       // inside the bar if it fits and the cumulative line stays off it, otherwise above the bar
-      const roomIn = bw >= tw + 12 && (bh >= S + 10 || (bh >= S + 2 && cumSegs.length > 0 && cut(cxOut, r.y - 6) && !cut(cx, r.y + S + 4))); // a low bar holds its value only when the line keeps off the label above it
-      if (roomIn && !(cumSegs.length && cut(cx, r.y + S + 4) && !cut(cxOut, r.y - 6))) putText(out, S, text, cx, r.y + S + 4, 'middle', 'bg', widthOf, true, r.fill, bar);
-      else putText(out, S, text, cxOut, r.y - 6, 'middle', r.fill, widthOf, true, undefined, bar);
+      // the places for the value, in order of preference: at the top inside the bar, above it, lower inside, higher above; the first that no line cuts
+      const fitsIn = (base: number) => bw >= tw + 12 && base - S >= r.y && base <= r.y + bh;
+      const places: {base: number; inside: boolean}[] = [];
+      if (bh >= S + 10) places.push({base: r.y + S + 4, inside: true});
+      places.push({base: r.y - 6, inside: false});
+      if (bh >= 2 * S + 14) places.push({base: r.y + bh - 8, inside: true});
+      places.push({base: r.y - 6 - S - 6, inside: false});
+      if (bh < S + 10 && cumSegs.length) places.push({base: r.y + S + 2, inside: true}); // a low bar keeps its value inside only when everything above is cut
+      const ok = places.filter(p => !p.inside || fitsIn(p.base));
+      const pick = (cumSegs.length ? ok.find(p => !cut(p.inside ? cx : cxOut, p.base)) : undefined) ?? ok[0] ?? places[1];
+      if (pick.inside) putText(out, S, text, cx, pick.base, 'middle', 'bg', widthOf, true, r.fill, bar);
+      else putText(out, S, text, cxOut, pick.base, 'middle', r.fill, widthOf, true, undefined, bar);
     });
   }
   if (f.axis) out.ticks.push({x1: plotL, y1: plotT, x2: plotL, y2: plotB});
@@ -279,7 +292,7 @@ function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: nu
     if (at && at.row > 0) ink.lines.push({x1: lx, y1: plotT - 4 - at.row * (S + 4), x2: lx, y2: plotT - 4, fill, dashed: l.dashed !== false, soft: true});
     if (l.label && at) putText(out, S, l.label, at.x, plotT - 8 - at.row * (S + 4), at.anchor, fill, widthOf, true);
   }
-  if (band.edges) band.edges.forEach((e, i) => putText(out, S, e, xOf(i), plotB + S + 10, 'middle', 'text', widthOf));
+  if (band.edges) band.edges.forEach((e, i) => { if (e) putText(out, S, e, xOf(i), plotB + S + 10, 'middle', 'text', widthOf); });
   if (band.curve) ink.polylines.push({pts: band.curve.through.map(([sx, v]) => ({x: xOf(sx), y: yOf(v)})), fill: LINE_TONE[band.curve.tone ?? 'text'], dashed: band.curve.dashed === true, soft: true});
   if (band.cumulative) {
     const cum = cumulativeOf(band.data), yPct = (p: number) => plotB - p / 100 * (plotB - plotT);

@@ -850,7 +850,7 @@ function validateBarsOverlays(data: readonly BarDatum[], opts: BarsOpts, max: nu
   for (const [key, list] of [['lines', opts.lines], ['vlines', opts.vlines]] as const) for (const [i, l] of (list ?? []).entries()) {
     if (!Number.isFinite(l.at)) throw new Error(`bars(): ${key}[${i}].at must be a finite number (got ${l.at})`);
     if (key === 'lines' && !(l.at >= 0 && l.at <= max)) throw new Error(`bars(): lines[${i}].at ${l.at} is outside the bars' axis 0-${max}`);
-    if (key === 'vlines' && !(l.at >= 0 && l.at <= data.length)) throw new Error(`bars(): vlines[${i}].at ${l.at} is outside the bars (0 is the left edge of the first bar, ${data.length} the right edge of the last)`);
+    if (key === 'vlines' && !(l.at >= -1e-9 && l.at <= data.length + 1e-9)) throw new Error(`bars(): vlines[${i}].at ${l.at} is outside the bars (0 is the left edge of the first bar, ${data.length} the right edge of the last)`);
     if (l.tone !== undefined && !tones.includes(l.tone)) throw new Error(`bars(): ${key}[${i}].tone must be one of ${tones.join(', ')} (got ${String(l.tone)})`);
     if (l.label !== undefined && !l.label.trim()) throw new Error(`bars(): ${key}[${i}].label is empty`);
   }
@@ -904,7 +904,7 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   if (new Set(ids).size !== ids.length) throw new Error('bars(): each id must be unique');
   if (opts.id !== undefined && ids.includes(opts.id)) throw new Error(`bars(): the band's id "${opts.id}" is also a bar's id — each id must be unique`);
   const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height, ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
-  for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole', 'lines', 'vlines', 'curve', 'cumulative', 'edges'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
+  for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole', 'hideZero', 'lines', 'vlines', 'curve', 'cumulative', 'edges'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
   return withHandle(withAnchors(band, data.map(d => d.id)), opts.id);
 }
 
@@ -968,7 +968,7 @@ export function histogram<const Id extends string = never>(values: readonly numb
   const marks = [opts.lsl, opts.usl, opts.target].filter((v): v is number => v !== undefined);
   const {edges, counts, width} = histogramBins(values, {bins: opts.bins, width: opts.width, include: marks});
   const m = mean(values), s = sd(values), n = values.length;
-  const slot = (v: number) => (v - edges[0]) / width;
+  const slot = (v: number) => parseFloat(((v - edges[0]) / width).toPrecision(12));
   const out = (k: number) => (opts.lsl !== undefined && edges[k + 1] <= opts.lsl + 1e-9) || (opts.usl !== undefined && edges[k] >= opts.usl - 1e-9);
   const peak = opts.normal ? normalCount(m, m, s, n, width) : 0;
   const max = niceMax(Math.max(...counts, peak));
@@ -978,8 +978,14 @@ export function histogram<const Id extends string = never>(values: readonly numb
   if (target !== undefined) lines.push({at: slot(target), label: `目標 ${exact(target)}`, tone: 'muted'});
   if (usl !== undefined) lines.push({at: slot(usl), label: `上限 ${exact(usl)}`});
   if (showMean !== false) lines.push({at: slot(m), label: `平均 ${m.toFixed(decimalsOf(width) + 1)}`, tone: 'accent'});
+  const every = labelEvery(edges.map(exact));
   const curve = normal && s > 0 ? {through: Array.from({length: 41}, (_, i) => { const sx = i / 40 * counts.length; return [sx, normalCount(edges[0] + sx * width, m, s, n, width)] as [number, number]; }), tone: 'text' as const} : undefined;
-  return bars(counts.map((c, k) => ({label: `${exact(edges[k])}-${exact(edges[k + 1])}`, value: c, ...(out(k) ? {tone: 'danger' as const} : {})})), {...rest, dir: 'v', barRatio: 1, max, edges: edges.map(exact), vlines: lines.sort((a, b) => a.at - b.at), ...(curve ? {curve} : {})}) as never;
+  return bars(counts.map((c, k) => ({label: `${exact(edges[k])}-${exact(edges[k + 1])}`, value: c, ...(out(k) ? {tone: 'danger' as const} : {})})), {...rest, dir: 'v', barRatio: 1, max, edges: edges.map((e, i) => i % every === 0 ? exact(e) : ''), hideZero: true, vlines: lines.sort((a, b) => a.at - b.at), ...(curve ? {curve} : {})}) as never;
+}
+/** Every k-th class boundary gets its text, k from the width of the texts and the number of classes (a plot is about 800px wide). */
+function labelEvery(texts: string[]): number {
+  const widest = Math.max(...texts.map(t => [...t].reduce((n, c) => n + (c.charCodeAt(0) > 0x2e80 ? 14 : 8.4), 0)));
+  return Math.max(1, Math.ceil((widest + 10) / (780 / (texts.length - 1))));
 }
 /** The top of a count axis: the next multiple of a round step above the largest value. */
 const niceMax = (v: number): number => { const step = niceUp(v / 5); return Math.max(step, Math.ceil(v / step - 1e-9) * step); };
@@ -1014,8 +1020,12 @@ export function controlChart(type: ControlType, data: readonly (number | number[
 type PerChart<T> = T | {xbar?: T; r?: T};
 export function xbarR(subgroups: readonly number[][], opts: Omit<ControlChartOpts, 'limits' | 'yLabel'> & {id?: string; limits?: PerChart<ControlChartOpts['limits']>; yLabel?: PerChart<string>} = {}): [PlaneBand, PlaneBand] {
   const {id, limits, yLabel, ...rest} = opts;
-  const split = <T>(v: PerChart<T> | undefined): {xbar?: T; r?: T} => v !== null && typeof v === 'object' && Object.keys(v).length > 0 && Object.keys(v).every(k => k === 'xbar' || k === 'r') ? v as {xbar?: T; r?: T} : {xbar: v as T | undefined};
-  const lim = split(limits), lab = split(yLabel);
+  const split = <T>(v: PerChart<T> | undefined, what: string): {xbar?: T; r?: T} => {
+    const keys = v !== null && typeof v === 'object' ? Object.keys(v) : [];
+    if (keys.some(k => k === 'xbar' || k === 'r') && !keys.every(k => k === 'xbar' || k === 'r')) throw new Error(`xbarR(): ${what} mixes xbar / r with other keys (${keys.join(', ')}); write {xbar: ..., r: ...} or one plain value`);
+    return keys.length > 0 && keys.every(k => k === 'xbar' || k === 'r') ? v as {xbar?: T; r?: T} : {xbar: v as T | undefined};
+  };
+  const lim = split(limits, 'limits'), lab = split(yLabel, 'yLabel');
   const o1 = controlChartOpts('xbar', subgroups, {...rest, ...(id === undefined ? {} : {id}), ...(lim.xbar === undefined ? {} : {limits: lim.xbar}), ...(lab.xbar === undefined ? {} : {yLabel: lab.xbar})});
   const o2 = controlChartOpts('r', subgroups, {...rest, ...(lim.r === undefined ? {} : {limits: lim.r}), ...(lab.r === undefined ? {} : {yLabel: lab.r})});
   // the two charts are read down the page, sample by sample: they get the same left margin

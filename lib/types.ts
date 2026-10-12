@@ -856,6 +856,8 @@ export interface BarsOpts extends RevealOpts {
   baseline?: boolean;
   /** Bar share of its slot (0 < r <= 1). Given: no upper width limit, 1 makes neighbours touch. Omitted: the usual look. Not for `stack`. */
   barRatio?: number;
+  /** Leave out the value label of a bar that is 0 (a histogram's empty classes). */
+  hideZero?: boolean;
   /** Vertical bars only: horizontal reference lines (a target, a mean, a limit) at a value of the bars' axis. */
   lines?: BarsLine[];
   /** Vertical bars only: vertical reference lines at a position along the bars (in bar slots: 0 is the left edge of the first bar, 1 the edge between the first and the second). A histogram's specification limits and mean. */

@@ -13,7 +13,10 @@ const unitsFor = (px: number, range: number, plotPx: number): number => px / plo
 /** An axis over [lo, hi] with round ticks, `head` extra units above the last tick (room for a legend), and `tail` below the first. */
 function fitAxis(lo: number, hi: number, label: string | undefined, fixed: {min?: number; max?: number; step?: number} = {}, room: {head?: number} = {}): PlaneAxis {
   const span = hi - lo || Math.abs(hi) || 1, step = fixed.step ?? niceUp(span / 5);
-  const min = fixed.min ?? Math.floor((lo - span * 0.04) / step + 1e-9) * step, top = fixed.max ?? Math.ceil((hi + span * 0.04) / step - 1e-9) * step;
+  const pad = Math.max(span * 0.04, step * 0.2);
+  let min = fixed.min ?? Math.floor((lo - pad) / step + 1e-9) * step;
+  if (fixed.min === undefined && lo >= 0 && min < 0) min = 0; // a count, a rate, a temperature does not start below 0
+  const top = fixed.max ?? Math.ceil((hi + pad) / step - 1e-9) * step;
   const ticks: number[] = [];
   for (let v = min, i = 0; v <= top + step * 1e-9 && i < 200; v = min + ++i * step) ticks.push(parseFloat(v.toPrecision(12)));
   return {...(label ? {label} : {}), min, max: top + (room.head ?? 0), step, ticks};
@@ -82,6 +85,8 @@ export function scatterOpts(points: readonly ScatterPoint[], opts: ScatterOpts):
   const x = fitAxis(Math.min(...xs), Math.max(...xs), ax.label, {min: ax.min, max: ax.max, step: ax.step});
   const y = fitAxis(Math.min(...ys), Math.max(...ys), ay.label, {min: ay.min, max: ay.max, step: ay.step}, {head});
   if (ax.ticks) x.ticks = ax.ticks; if (ay.ticks) y.ticks = ay.ticks;
+  // the first labels of the two axes meet at the corner: the y axis leaves out its first one when neither is 0
+  if (!ay.ticks && (y.min ?? 0) !== 0 && (x.min ?? 0) !== 0 && Array.isArray(y.ticks)) y.ticks = y.ticks.slice(1);
   const xMin = x.min ?? 0, yTop = y.max - head, rowY = (i: number) => y.max - unitsFor(18 + 22 * i, y.max - (y.min ?? 0), PLOT_H(height));
   const {labelRole, id, reveal, until, width} = opts as PlaneOpts;
   const pts: PlanePoint[] = points.map(p => {
@@ -182,34 +187,40 @@ export function controlStats(type: ControlType, data: readonly (number | number[
       break;
     }
     case 'p': {
-      const a = attrs(); values = a.map(s => s.d / s.n); cl = sum(a.map(s => s.d)) / sum(a.map(s => s.n));
+      const a = attrs(); values = a.map(s => s.d / s.n); cl = fixed.cl ?? sum(a.map(s => s.d)) / sum(a.map(s => s.n));
+      if (!(cl > 0 && cl < 1)) throw new Error(`controlChart('p'): the centre line is a share, between 0 and 1 (got ${cl})`);
       ({ucl, lcl} = same(cl, a.map(s => 3 * Math.sqrt(cl * (1 - cl) / s.n)), 0)); ucl = ucl.map(u => Math.min(1, u)); break;
     }
     case 'np': {
       const a = attrs(), n = a[0].n;
       if (!a.every(s => s.n === n)) throw new Error("controlChart('np'): every sample must inspect the same number (use 'p' when n varies)");
       if (!a.every(s => Number.isInteger(s.d))) throw new Error("controlChart('np'): d must be a whole number (the defectives counted)");
-      const p = sum(a.map(s => s.d)) / sum(a.map(s => s.n)); values = a.map(s => s.d); cl = n * p;
+      const p = fixed.cl !== undefined ? fixed.cl / n : sum(a.map(s => s.d)) / sum(a.map(s => s.n)); values = a.map(s => s.d); cl = n * p;
+      if (!(p > 0 && p < 1)) throw new Error(`controlChart('np'): the centre line must be between 0 and ${n} (got ${cl})`);
       ({ucl, lcl} = same(cl, 3 * Math.sqrt(n * p * (1 - p)), 0)); break;
     }
     case 'c': {
       values = flat('c');
       if (!values.every(v => Number.isInteger(v) && v >= 0)) throw new Error("controlChart('c'): each count must be a whole number >= 0");
-      cl = sum(values) / N; ({ucl, lcl} = same(cl, 3 * Math.sqrt(cl), 0)); break;
+      cl = fixed.cl ?? sum(values) / N;
+      if (!(cl > 0)) throw new Error(`controlChart('c'): the centre line must be > 0 (got ${cl})`);
+      ({ucl, lcl} = same(cl, 3 * Math.sqrt(cl), 0)); break;
     }
     case 'u': {
-      const a = attrs(); values = a.map(s => s.d / s.n); cl = sum(a.map(s => s.d)) / sum(a.map(s => s.n));
+      const a = attrs(); values = a.map(s => s.d / s.n); cl = fixed.cl ?? sum(a.map(s => s.d)) / sum(a.map(s => s.n));
+      if (!(cl > 0)) throw new Error(`controlChart('u'): the centre line must be > 0 (got ${cl})`);
       ({ucl, lcl} = same(cl, a.map(s => 3 * Math.sqrt(cl / s.n)), 0)); break;
     }
     default: throw new Error(`controlChart(): type must be one of x, mr, xbar, r, p, np, c, u (got ${String(type)})`);
   }
   for (const k of ['cl', 'ucl', 'lcl'] as const) if (fixed[k] !== undefined && !Number.isFinite(fixed[k])) throw new Error(`controlChart(): limits.${k} must be a finite number (got ${fixed[k]})`);
   // a fixed centre line moves the limits that are not fixed with it (they keep their distance from it)
-  if (fixed.cl !== undefined) { const d = fixed.cl - cl; ucl = ucl.map(u => u + d); lcl = lcl.map(l => Math.max(type === 'x' || type === 'xbar' ? -Infinity : 0, l + d)); cl = fixed.cl; }
+  // x / xbar / r / mr: the spread comes from the data, so a given centre line moves the limits with it (p, np, c, u have worked them out from it above)
+  if (fixed.cl !== undefined && cl !== fixed.cl) { const d = fixed.cl - cl; ucl = ucl.map(u => u + d); lcl = lcl.map(l => Math.max(type === 'x' || type === 'xbar' ? -Infinity : 0, l + d)); cl = fixed.cl; }
   if (fixed.ucl !== undefined) ucl = ucl.map(() => fixed.ucl!);
   if (fixed.lcl !== undefined) lcl = lcl.map(() => fixed.lcl!);
   if (!(ucl.every(u => u > cl) && lcl.every(l => l < cl))) {
-    if (fixed.cl !== undefined || fixed.ucl !== undefined || fixed.lcl !== undefined) throw new Error(`controlChart(): the limits must satisfy lcl < cl < ucl (got lcl ${fixed.lcl ?? 'auto'}, cl ${cl}, ucl ${fixed.ucl ?? 'auto'})`);
+    if (fixed.cl !== undefined || fixed.ucl !== undefined || fixed.lcl !== undefined) throw new Error(`controlChart(): the limits must satisfy lcl < cl < ucl (got lcl ${num(Math.min(...lcl))}, cl ${num(cl)}, ucl ${num(Math.max(...ucl))})`);
     if (type !== 'p' && type !== 'np' && type !== 'c' && type !== 'u' && type !== 'mr' && type !== 'r') throw new Error(`controlChart('${type}'): the data does not vary (every limit would be ${cl}); there is nothing to chart`);
     if (!ucl.every(u => u > cl)) throw new Error(`controlChart('${type}'): the data does not vary enough to have limits above the centre line (${cl})`);
   }
@@ -285,6 +296,9 @@ export function controlChartOpts(type: ControlType, data: readonly (number | num
   // labels of lines that sit closer than a text's height are pushed apart, so none of them touches another
   const placed = rows.sort((a, b) => b.at - a.at);
   for (let i = 1; i < placed.length; i++) if (placed[i - 1].at - placed[i].at < gapY) placed[i] = {...placed[i], at: placed[i - 1].at - gapY};
+  // a label that went down to the axis is lifted off it, and the ones above it make room (the labels sit a little above their lines then)
+  const floor = (y.min ?? 0) + gapY * 1.15;
+  for (let i = placed.length - 1, lowest = floor; i >= 0; i--) { if (placed[i].at < lowest) placed[i] = {...placed[i], at: lowest}; lowest = placed[i].at + gapY; }
   for (const r of placed) labels.push({at: [labelX, r.at], text: r.text, anchor: 'start', tone: r.text.startsWith('CL') ? 'accent' : 'danger', bold: true});
   const flagLabels = legend.length ? legendRow(legend, 0.5, x.max, y.max - head * 0.45) : [];
   const {labelRole, id, reveal, until, width} = opts as PlaneOpts;
