@@ -21,6 +21,7 @@ import {assertSpans} from './rich.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {layoutPlane, planeTexts} from './plane.ts';
 import {barsTexts, layoutBars} from './bars.ts';
+import {layoutTimeline, timelineTexts} from './timeline.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {
   DiagramData, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
@@ -249,7 +250,9 @@ function gridChildGeometry(band: GridBand, contentWidth: number) {
   return {cellWidth};
 }
 
-export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
+export async function layoutDiagram(data: DiagramData): Promise<LaidOutDiagram> {
+  // diagram({sourceLine}) is always the last band: left-aligned, muted, note size, whatever was add()ed and in whatever order
+  const d: DiagramData = data.sourceLine === undefined ? data : {...data, bands: [...data.bands, {type: 'caption', text: data.sourceLine, align: 'left', role: 'note', tone: 'muted', bold: false, mono: false, sourceLine: true}]};
   const contentWidth = d.width - 2 * d.pad;
 
   // ---- pass 1: register + measure every atom this diagram needs, once ----
@@ -292,6 +295,8 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       for (const [text, size, weight, font] of planeTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'bars') {
       for (const [text, size, weight, font] of barsTexts(band)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'timeline') {
+      for (const [text, size, weight, font] of timelineTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'curve') {
       for (const label of [band.yTopLabel, band.yBottomLabel, band.xLabel]) {
         if (!label) continue;
@@ -449,6 +454,17 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     if (band.type === 'sequence' || band.type === 'table') {
       const placed = band.type === 'sequence' ? layoutSequence(band, padX, cursorY, cw, widthOf) : layoutTable(band, padX, cursorY, cw, widthOf);
       if (band.id) anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      laidOut.push(placed);
+      cursorY += placed.h + d.gap;
+      continue;
+    }
+
+    if (band.type === 'timeline') {
+      const placed = layoutTimeline(band, padX, cursorY, cw, widthOf);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, 'a timeline takes an id that another anchor already has');
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
       laidOut.push(placed);
       cursorY += placed.h + d.gap;
       continue;
@@ -767,7 +783,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
 
   const canvasHeight = Math.round(cursorY - d.gap + d.pad);
 
-  return {...d, laidOut, canvasHeight, connects};
+  return {...data, laidOut, canvasHeight, connects};
 }
 
 // 'id', 'id:side', or 'id:side@t' — t (0..1) slides the anchor along that side
