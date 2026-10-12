@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="283" viewBox="0 0 940 283" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">試作から納品までの日程（アロー・ダイヤグラム）</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/qc-arrow.ts","sourceSha256":"80723d0098acfc6093d554b14d5c9c896be43ef5f9853226a2981afc9f9678d9"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="283" fill="#ffffff"/>
+
+  <path d="M164,108 L308,108" fill="none" stroke="#b91c1c" stroke-width="4"/>
+  <path d="M320,108 L304,112 L304,100 z" fill="#b91c1c"/>
+  <path d="M376,100 L408,100 L408,56 L520,56" fill="none" stroke="#b91c1c" stroke-width="4"/>
+  <path d="M532,56 L516,64 L516,48 z" fill="#b91c1c"/>
+  <path d="M376,112 L396,112 L396,156 L524,156" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M532,156 L520,160 L520,152 z" fill="#22201b"/>
+  <path d="M604,56 L624,56 L624,108 L748,108" fill="none" stroke="#b91c1c" stroke-width="4"/>
+  <path d="M760,108 L744,112 L744,100 z" fill="#b91c1c"/>
+  <path d="M604,156 L636,156 L636,120 L752,120" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M760,120 L748,124 L748,116 z" fill="#22201b"/>
+  <circle cx="136" cy="108" r="28" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <circle cx="348" cy="108" r="28" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <circle cx="568" cy="56" r="36" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <circle cx="568" cy="156" r="36" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <circle cx="796" cy="108" r="36" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <text x="136" y="100" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">1</text>
+  <text x="136" y="120" text-anchor="middle" font-size="14" fill="#6f6659">0/0</text>
+  <text x="348" y="100" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">2</text>
+  <text x="348" y="120" text-anchor="middle" font-size="14" fill="#6f6659">5/5</text>
+  <text x="568" y="50" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">3</text>
+  <text x="568" y="70" text-anchor="middle" font-size="14" fill="#6f6659">13/13</text>
+  <text x="568" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">4</text>
+  <text x="568" y="170" text-anchor="middle" font-size="14" fill="#6f6659">11/14</text>
+  <text x="796" y="100" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">5</text>
+  <text x="796" y="120" text-anchor="middle" font-size="14" fill="#6f6659">17/17</text>
+  <rect x="208" y="80" width="52" height="22" fill="#ffffff"/>
+  <text x="235" y="97" text-anchor="middle" font-size="14" fill="#22201b">設計 5</text>
+  <rect x="436" y="32" width="52" height="22" fill="#ffffff"/>
+  <text x="463" y="47" text-anchor="middle" font-size="14" fill="#22201b">試作 8</text>
+  <rect x="400" y="132" width="116" height="22" fill="#ffffff"/>
+  <text x="456" y="147" text-anchor="middle" font-size="14" fill="#22201b">調達 6（余裕3）</text>
+  <rect x="660" y="80" width="52" height="22" fill="#ffffff"/>
+  <text x="684" y="97" text-anchor="middle" font-size="14" fill="#22201b">評価 4</text>
+  <rect x="608" y="108" width="116" height="22" fill="#ffffff"/>
+  <text x="664" y="125" text-anchor="middle" font-size="14" fill="#22201b">組立 3（余裕3）</text>
+
+  <text x="20" y="222" font-size="14" font-weight="400" fill="#6f6659">全体で 17日　クリティカルパス: 設計 → 試作 → 評価</text>
+
+  <text x="20" y="257.6" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

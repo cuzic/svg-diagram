@@ -974,6 +974,8 @@ export interface StateItem {
   tone?: BoxTone;
   /** An end state: drawn with a double outline. */
   final?: boolean;
+  /** 'circle': a round node that holds a short text (an event of an arrow diagram). Default a rounded box. */
+  shape?: 'box' | 'circle';
 }
 export interface Transition {
   from: string;
@@ -981,6 +983,10 @@ export interface Transition {
   /** The event / condition, on the arrow (a state may go to itself). */
   label?: string;
   line?: 'solid' | 'dashed' | 'dotted';
+  /** The colour of the arrow and its head: danger (the critical path), accent, muted. Default the text colour. */
+  tone?: 'danger' | 'accent' | 'muted';
+  /** A thick arrow. */
+  strong?: boolean;
 }
 export interface StatesOpts extends RevealOpts {
   /** 'right' (default): the flow runs left to right. 'down': top to bottom. */
@@ -1001,7 +1007,7 @@ export interface StatesBand extends StatesOpts {
 // ============================================================================================
 
 /** What an entity is. It sets the default tone and, for the two that name the finding, a double outline. */
-export type CauseRole = 'effect' | 'ude' | 'root' | 'de' | 'injection' | 'goal' | 'obstacle' | 'io' | 'action';
+export type CauseRole = 'effect' | 'ude' | 'root' | 'de' | 'injection' | 'goal' | 'obstacle' | 'io' | 'action' | 'start' | 'step' | 'risk' | 'measure';
 export interface CauseNode {
   /** Required: links name it, and connect() can reach it. */
   id: string;
@@ -1009,7 +1015,8 @@ export interface CauseNode {
   /** A second, muted line (a measure, a note). */
   sub?: string;
   /** ude = undesirable effect (danger), root = root cause (accent, double outline), de = desirable effect, injection = the change put in,
-   *  goal = the goal of a prerequisite tree (double outline), obstacle, io = intermediate objective, action = a step of a transition tree. */
+   *  goal = the goal of a prerequisite tree (double outline), obstacle, io = intermediate objective, action = a step of a transition tree.
+   *  For a PDPC (pdpc()): start, step, risk (what could go wrong: a danger hexagon), measure (what to do then), goal. */
   role?: CauseRole;
   /** Overrides the tone the role gives. */
   tone?: BoxTone;
@@ -2266,10 +2273,10 @@ export interface LaidOutStates extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone; final?: boolean})[];
+  nodes: (Rect & {tone: BoxTone; final?: boolean; circle?: boolean})[];
   initial?: {x: number; y: number; r: number};
   /** Orthogonal polylines from the tail state's box edge to the head's; the arrowhead is at the last point. */
-  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'}[];
+  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; tone?: 'danger' | 'accent' | 'muted'; strong?: boolean}[];
   texts: TreeNodeText[];
   /** Transition labels: a white chip (x, y, w, h) with its text baseline at (tx, ty), in `size` px. */
   labels: (Rect & {text: string; tx: number; ty: number; size: number; /** index of its arrow in `edges` */ edge: number})[];

@@ -90,3 +90,71 @@ export function capability(values: readonly number[], lsl?: number, usl?: number
   const cpk = ups !== undefined && lows !== undefined ? Math.min(ups, lows) : ups ?? lows;
   return {...(cp === undefined ? {} : {cp}), ...(cpk === undefined ? {} : {cpk})};
 }
+
+// ---- arrow diagram (critical path) -------------------------------------------------------------------------------------------
+
+export interface ArrowActivity {
+  /** The event it starts at (a number, or any text). */
+  from: number | string;
+  /** The event it ends at. */
+  to: number | string;
+  /** What is done (a dummy has none). */
+  name?: string;
+  /** How long it takes (a dummy: 0, or omitted). */
+  days?: number;
+  /** A dummy activity: only an order ("this one has to be done before that one"), drawn dashed, no time. */
+  dummy?: boolean;
+}
+export interface ArrowEvent {id: string; /** earliest time the event can happen */ early: number; /** latest time it can happen without delaying the end */ late: number}
+export interface ArrowResult {
+  events: ArrowEvent[];
+  /** The activities as given, each with its float (余裕: how long it can slip without delaying the end) and whether it is on the critical path (float 0). */
+  activities: {from: string; to: string; name?: string; days: number; dummy: boolean; float: number; critical: boolean}[];
+  /** The length of the whole project. */
+  length: number;
+  /** The names of the activities of one critical path, in order (dummies left out). */
+  path: string[];
+}
+
+/** The earliest and latest time of every event, the float of every activity and the critical path, of a network drawn with arrows as activities (the PERT / CPM arithmetic). */
+export function criticalPath(input: readonly ArrowActivity[]): ArrowResult {
+  if (!Array.isArray(input) || input.length === 0) throw new Error('arrowDiagram(activities) needs at least one activity');
+  const acts = input.map((a, i) => {
+    const from = String(a.from), to = String(a.to), days = a.days ?? 0, dummy = a.dummy === true;
+    if (a.from === undefined || a.to === undefined || from === '' || to === '') throw new Error(`arrowDiagram(): activity ${i + 1} needs a from and a to event`);
+    if (from === to) throw new Error(`arrowDiagram(): activity ${i + 1} ("${a.name ?? ''}") starts and ends at event ${from}`);
+    if (!(Number.isFinite(days) && days >= 0)) throw new Error(`arrowDiagram(): activity ${i + 1} ("${a.name ?? ''}") needs days >= 0 (got ${a.days})`);
+    if (!dummy && !a.name?.trim()) throw new Error(`arrowDiagram(): activity ${i + 1} (${from} -> ${to}) needs a name (or dummy: true)`);
+    if (dummy && days !== 0) throw new Error(`arrowDiagram(): the dummy ${from} -> ${to} takes no time (days ${days})`);
+    return {from, to, name: a.name, days, dummy};
+  });
+  const ids = [...new Set(acts.flatMap(a => [a.from, a.to]))];
+  const incoming = new Map(ids.map(id => [id, acts.filter(a => a.to === id)])), outgoing = new Map(ids.map(id => [id, acts.filter(a => a.from === id)]));
+  const starts = ids.filter(id => !incoming.get(id)!.length), ends = ids.filter(id => !outgoing.get(id)!.length);
+  if (starts.length !== 1) throw new Error(`arrowDiagram(): there must be exactly one start event, the one nothing leads into (found ${starts.length ? starts.join(', ') : 'none: the arrows go round'})`);
+  if (ends.length !== 1) throw new Error(`arrowDiagram(): there must be exactly one end event, the one nothing leaves (found ${ends.length ? ends.join(', ') : 'none'}); join the loose ends with a dummy`);
+  // topological order (Kahn); a cycle leaves events behind
+  const left = new Map(ids.map(id => [id, incoming.get(id)!.length])), order: string[] = [];
+  const queue = [starts[0]];
+  while (queue.length) {
+    const id = queue.shift()!;
+    order.push(id);
+    for (const a of outgoing.get(id)!) { left.set(a.to, left.get(a.to)! - 1); if (left.get(a.to) === 0) queue.push(a.to); }
+  }
+  if (order.length !== ids.length) throw new Error(`arrowDiagram(): the arrows go round in a circle (events ${ids.filter(id => !order.includes(id)).join(', ')}); an activity cannot wait for itself`);
+  const early = new Map<string, number>(), late = new Map<string, number>();
+  for (const id of order) early.set(id, Math.max(0, ...incoming.get(id)!.map(a => early.get(a.from)! + a.days)));
+  const length = early.get(ends[0])!;
+  for (const id of [...order].reverse()) late.set(id, outgoing.get(id)!.length ? Math.min(...outgoing.get(id)!.map(a => late.get(a.to)! - a.days)) : length);
+  const rounded = (v: number) => parseFloat(v.toPrecision(12));
+  const activities = acts.map(a => { const float = rounded(late.get(a.to)! - early.get(a.from)! - a.days); return {...a, float, critical: float < 1e-9}; });
+  // one critical path: from the start, always along a critical activity
+  const path: string[] = [];
+  for (let at = starts[0]; at !== ends[0];) {
+    const next = activities.find(a => a.from === at && a.critical)!;
+    if (!next.dummy) path.push(next.name!);
+    at = next.to;
+  }
+  const byId = (a: string, b: string) => { const x = Number(a), y = Number(b); return Number.isFinite(x) && Number.isFinite(y) ? x - y : a.localeCompare(b); };
+  return {events: ids.sort(byId).map(id => ({id, early: rounded(early.get(id)!), late: rounded(late.get(id)!)})), activities, length: rounded(length), path};
+}

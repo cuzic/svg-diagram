@@ -26,7 +26,8 @@ import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
 import {CAUSE_ROLES} from './toc.ts';
-import {histogramBins, mean, niceUp, normalCount, num, paretoOrder, sd} from './qc.ts';
+import {criticalPath, histogramBins, mean, niceUp, normalCount, num, paretoOrder, sd} from './qc.ts';
+import type {ArrowActivity} from './qc.ts';
 import {controlChartOpts, scatterOpts} from './qc-plane.ts';
 import {checkSheetParts, matrixParts} from './qc-table.ts';
 import type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from './qc-table.ts';
@@ -1181,6 +1182,8 @@ export function stateDiagram(states: readonly StateItem[], transitions: readonly
   if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`stateDiagram(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
   for (const t of transitions) if (t.line !== undefined && !['solid', 'dashed', 'dotted'].includes(t.line)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} has line ${String(t.line)}`);
   for (const s of states) if (s.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(s.tone)) throw new Error(`stateDiagram(): state "${s.id}" has tone ${String(s.tone)}`);
+  for (const s of states) if (s.shape !== undefined && s.shape !== 'box' && s.shape !== 'circle') throw new Error(`stateDiagram(): state "${s.id}" has shape ${String(s.shape)} (use 'box' or 'circle')`);
+  for (const t of transitions) if (t.tone !== undefined && !['danger', 'accent', 'muted'].includes(t.tone)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} has tone ${String(t.tone)} (use danger, accent or muted)`);
   const band: StatesBand = {type: 'states', states: [...states], transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), states.map(s => s.id));
 }
@@ -1209,6 +1212,134 @@ export function causeTree(nodes: readonly CauseNode[], links: readonly CauseLink
   }
   const band: CauseBand = {type: 'cause', nodes: [...nodes], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
+}
+
+export interface ArrowDiagramOpts extends Omit<StatesOpts, 'initial'> {
+  /** Write the earliest and latest time under each event's number ("5/7"), and the float on activities that are not critical (default true). */
+  times?: boolean;
+  /** 'right' (default): the network runs left to right; 'down': top to bottom, for a long chain of events that does not fit the width. */
+  /** The unit of the time, written in the line under the figure (default '日'). */
+  unit?: string;
+  /** A line under the figure with the length of the project and the critical path (default true). */
+  summary?: boolean;
+}
+/**
+ * An arrow diagram (アロー・ダイヤグラム; PERT): events are circles, activities are the arrows between them, each labelled with its name and
+ * days, and a dummy (`dummy: true`, dashed) only says "this before that". The earliest and latest time of every event, the float of every
+ * activity and the critical path are worked out: critical activities are thick red arrows and critical events are red.
+ * In each circle: the event number, and under it the earliest / latest time. Exactly one event starts the network and one ends it.
+ *   arrowDiagram([{from: 1, to: 2, name: '設計', days: 5}, {from: 2, to: 3, name: '製作', days: 7}, {from: 2, to: 3, dummy: true}, {from: 3, to: 4, name: '検査', days: 2}])
+ */
+export function arrowDiagram(activities: readonly ArrowActivity[], opts: ArrowDiagramOpts = {}): (StatesBand | CaptionBand)[] {
+  const r = criticalPath(activities), unit = opts.unit ?? '日', show = opts.times !== false;
+  const states: StateItem[] = r.events.map(e => ({id: e.id, label: e.id, shape: 'circle', ...(show ? {sub: `${num(e.early)}/${num(e.late)}`} : {}), ...(e.early === e.late ? {tone: 'danger' as const} : {})}));
+  const transitions: Transition[] = r.activities.map(a => ({
+    from: a.from, to: a.to, ...(a.dummy ? {line: 'dashed' as const} : {label: `${a.name} ${num(a.days)}${show && !a.critical && a.float > 0 ? `（余裕${num(a.float)}）` : ''}`}),
+    ...(a.critical ? {tone: 'danger' as const, strong: true} : {}),
+  }));
+  const {times: _t, unit: _u, summary, ...rest} = opts;
+  const band = stateDiagram(states, transitions, {...rest, dir: opts.dir ?? 'right'}) as StatesBand;
+  return summary === false ? [band] : [band, caption(`全体で ${num(r.length)}${unit}　クリティカルパス: ${r.path.join(' → ')}`, {align: 'left'})];
+}
+
+export interface AffinityGroup {
+  /** The group's name (表札): what the cards in it have in common, in a short sentence. */
+  title: string;
+  /** The cards: one idea or fact each. */
+  cards?: readonly string[];
+  /** Groups inside this one (a larger group is made of smaller ones). */
+  groups?: readonly AffinityGroup[];
+}
+export interface AffinityOpts {
+  /** How many groups side by side (default 3). */
+  cols?: number;
+  /** How many cards side by side in a group (default 1). */
+  cardCols?: number;
+}
+/**
+ * An affinity diagram (親和図): cards of ideas or facts gathered into groups, each group named by a short sentence (its 表札), and
+ * larger groups made of smaller ones. Groups sit side by side (`cols`), cards stack inside a group (`cardCols` to put them in columns).
+ *   affinity([{title: '準備が足りない', cards: ['段取りが決まっていない', '資料が古い']}, {title: '連絡が遅い', groups: [{title: '社内', cards: ['報告が遅れる']}]}])
+ */
+export function affinity(groups: readonly AffinityGroup[], opts: AffinityOpts = {}): (RowBand | GroupRowBand)[] {
+  if (!Array.isArray(groups) || groups.length === 0) throw new Error('affinity(groups) needs at least one group');
+  const cols = opts.cols ?? 3, cardCols = opts.cardCols ?? 1;
+  for (const [k, v] of [['cols', cols], ['cardCols', cardCols]] as const) if (!(Number.isInteger(v) && v >= 1 && v <= 6)) throw new Error(`affinity(): ${k} must be a whole number from 1 to 6 (got ${v})`);
+  const spanOf = (g: AffinityGroup, unit: number): number => Math.min(unit, Math.max(1, g.groups?.length ?? 1));
+  // a group made of smaller groups is as many columns wide as it has of them, so the small ones are not squeezed
+  const build = (g: AffinityGroup, depth: number, span: number, unit: number): GroupBand => {
+    if (typeof g?.title !== 'string' || !g.title.trim()) throw new Error('affinity(): every group needs a title (its 表札)');
+    const cards = (g.cards ?? []).map(t => {
+      if (typeof t !== 'string' || !t.trim()) throw new Error(`affinity(): group "${g.title}" has an empty card`);
+      return box({body: t, tone: 'plain'});
+    });
+    if (!cards.length && !g.groups?.length) throw new Error(`affinity(): group "${g.title}" has no cards and no groups`);
+    const inner: Band[] = [...rows(g.groups ?? [], depth + 1, span), ...(cardCols > 1 && cards.length ? [grid(cards, {cols: cardCols})] : cards)];
+    return group(inner, {title: g.title, tone: depth === 0 ? 'accent' : 'muted', dashed: false, ...(unit > 1 ? {span} : {})});
+  };
+  // rows of `unit` columns, groups packed in order
+  const rows = (list: readonly AffinityGroup[], depth: number, unit: number): (RowBand | GroupRowBand)[] => {
+    const out: (RowBand | GroupRowBand)[] = [];
+    let cur: GroupBand[] = [], used = 0;
+    const flush = (): void => { if (cur.length) out.push(row(cur, {cols: unit})); cur = []; used = 0; };
+    for (const g of list) {
+      const span = spanOf(g, unit);
+      if (used + span > unit) flush();
+      cur.push(build(g, depth, span, unit));
+      used += span;
+    }
+    flush();
+    return out;
+  };
+  return rows(groups, 0, cols);
+}
+
+export interface PdpcNode extends Omit<CauseNode, 'role'> {
+  /** start / goal (double outline), step (default), risk (what could go wrong: a hexagon), measure (what to do if it does). */
+  role?: 'start' | 'step' | 'risk' | 'measure' | 'goal';
+}
+export interface PdpcLink extends Omit<CauseLink, 'from'> {from: string}
+/**
+ * A PDPC (process decision program chart, 過程決定計画図): the way from the start to the goal, the things that could go wrong on the way
+ * (risk, a hexagon) and what to do then (measure). The main path is solid; an arrow into or out of a risk or a measure is dashed.
+ * Runs top to bottom (`dir: 'right'` for left to right, which needs a narrow `maxNodeW` when the way has many steps).
+ *   pdpc([{id: 's', label: '着手', role: 'start'}, {id: 'a', label: '試作'}, {id: 'r', label: '強度が足りない', role: 'risk'}, {id: 'm', label: '材質を変える', role: 'measure'}, {id: 'g', label: '量産開始', role: 'goal'}],
+ *        [{from: 's', to: 'a'}, {from: 'a', to: 'g'}, {from: 'a', to: 'r'}, {from: 'r', to: 'm'}, {from: 'm', to: 'a'}])
+ */
+export function pdpc<const N extends readonly PdpcNode[], const Id extends string = never>(nodes: N, links: readonly PdpcLink[], opts?: CauseOpts & {id?: Id}): CauseBand & Declares<Id | CauseIds<N>> & HandleOf<Id> & AnchorsOf<CauseIds<N>>;
+export function pdpc(nodes: readonly PdpcNode[], links: readonly PdpcLink[], opts: CauseOpts = {}): CauseBand {
+  const side = new Set((Array.isArray(nodes) ? nodes : []).filter(n => n.role === 'risk' || n.role === 'measure').map(n => n.id));
+  for (const n of nodes ?? []) if (n.role !== undefined && !['start', 'step', 'risk', 'measure', 'goal'].includes(n.role)) throw new Error(`pdpc(): node "${n.id}" has role ${String(n.role)} (use start, step, risk, measure or goal)`);
+  return causeTree(nodes.map(n => ({...n, role: n.role ?? 'step'})), (links ?? []).map(l => ({...l, line: l.line ?? (side.has(l.from) || side.has(l.to) ? 'dashed' : 'solid')} as CauseLink)), {...opts, dir: opts.dir ?? 'down'});
+}
+
+export interface RelationNode extends CauseNode {}
+export interface RelationOpts extends CauseOpts {
+  /** The ids of the problem (the result the diagram is about): marked as the effect to resolve. */
+  problem?: string | readonly string[];
+  /** Write how many arrows leave and enter each factor under its text (default true). */
+  counts?: boolean;
+}
+/**
+ * A relations diagram (連関図): the factors of a tangled problem and the arrows from cause to effect, which may go back and cross. It counts
+ * the arrows of every factor ('出' leaving, '入' entering) and marks the factor with the most leaving arrows (2 or more) as the
+ * key cause: the one to act on. `problem` names the result (red). A node's own `role` wins.
+ *   relationDiagram([{id: 'late', label: '納期遅れ'}, {id: 'rush', label: '急ぎ作業'}, ...], [{from: 'rush', to: 'late'}, ...], {problem: 'late'})
+ */
+export function relationDiagram<const N extends readonly RelationNode[], const Id extends string = never>(nodes: N, links: readonly {from: string; to: string; line?: 'solid' | 'dashed' | 'dotted'}[], opts?: RelationOpts & {id?: Id}): CauseBand & Declares<Id | CauseIds<N>> & HandleOf<Id> & AnchorsOf<CauseIds<N>>;
+export function relationDiagram(nodes: readonly RelationNode[], links: readonly {from: string; to: string; line?: 'solid' | 'dashed' | 'dotted'}[], opts: RelationOpts = {}): CauseBand {
+  if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('relationDiagram(nodes, links) needs at least one node');
+  const ids = new Set(nodes.map(n => n.id)), problems = new Set(opts.problem === undefined ? [] : typeof opts.problem === 'string' ? [opts.problem] : opts.problem);
+  for (const p of problems) if (!ids.has(p)) throw new Error(`relationDiagram(): problem names unknown node "${p}"`);
+  for (const l of links ?? []) if (typeof l.from !== 'string') throw new Error(`relationDiagram(): a link to "${l.to}" needs one cause as a string (use causeTree() for an AND)`);
+  const out = new Map(nodes.map(n => [n.id, (links ?? []).filter(l => l.from === n.id).length])), into = new Map(nodes.map(n => [n.id, (links ?? []).filter(l => l.to === n.id).length]));
+  const top = Math.max(0, ...nodes.filter(n => !problems.has(n.id) && n.role === undefined).map(n => out.get(n.id)!));
+  const {problem: _p, counts, ...rest} = opts;
+  return causeTree(nodes.map(n => ({
+    ...n,
+    role: n.role ?? (problems.has(n.id) ? 'ude' : top >= 2 && out.get(n.id) === top ? 'root' : 'effect'),
+    ...(counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}出 ${out.get(n.id)}・入 ${into.get(n.id)}`}),
+  })), (links ?? []).map(l => ({...l})), {...rest, dir: rest.dir ?? 'down'}) as CauseBand;
 }
 
 type CloudIds<B> = B extends {id: infer I extends string} ? I : never;

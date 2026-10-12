@@ -336,3 +336,132 @@ test('matrix(): no weights, no score unless total; bad input is named', async ()
   assert.throws(() => matrix(['A'], ['x'], [['○']], {weights: [-1]}), /weight must be/);
   assert.throws(() => matrix(['A'], ['x'], [['○']], {values: {oops: 1} as never}), /values has/);
 });
+
+// ---- the new QC seven: arrow diagram, relations, PDPC, affinity ---------------------------------------------------------------
+
+import {affinity, arrowDiagram, pdpc, relationDiagram, stateDiagram} from '../lib/dsl.ts';
+import {criticalPath} from '../lib/qc.ts';
+import type {LaidOutCause, LaidOutStates} from '../lib/types.ts';
+
+const NET = [
+  {from: 1, to: 2, name: 'A', days: 5}, {from: 2, to: 3, name: 'B', days: 8}, {from: 2, to: 4, name: 'C', days: 6},
+  {from: 3, to: 5, name: 'D', days: 4}, {from: 4, to: 5, name: 'E', days: 3},
+];
+
+test('criticalPath: earliest and latest times, the float of each activity, the critical path and the length', () => {
+  const r = criticalPath(NET);
+  assert.equal(r.length, 17);
+  assert.deepEqual(r.events.map(e => [e.id, e.early, e.late]), [['1', 0, 0], ['2', 5, 5], ['3', 13, 13], ['4', 11, 14], ['5', 17, 17]]);
+  assert.deepEqual(r.activities.map(a => [a.name, a.float, a.critical]), [['A', 0, true], ['B', 0, true], ['C', 3, false], ['D', 0, true], ['E', 3, false]]);
+  assert.deepEqual(r.path, ['A', 'B', 'D']);
+});
+
+test('criticalPath: a dummy takes no time but orders; a parallel pair of critical paths still gives one path; events sort as numbers', () => {
+  const r = criticalPath([
+    {from: 1, to: 2, name: 'A', days: 3}, {from: 1, to: 3, name: 'B', days: 3}, {from: 2, to: 4, name: 'C', days: 2},
+    {from: 3, to: 4, dummy: true}, {from: 4, to: 10, name: 'D', days: 1},
+  ]);
+  assert.deepEqual(r.events.map(e => e.id), ['1', '2', '3', '4', '10']);
+  assert.equal(r.length, 6);
+  assert.equal(r.activities.find(a => a.dummy)!.float, 2); // B ends at 3, the join at 5
+  assert.deepEqual(r.path, ['A', 'C', 'D']);
+});
+
+test('criticalPath: bad networks are named', () => {
+  assert.throws(() => criticalPath([]), /at least one/);
+  assert.throws(() => criticalPath([{from: 1, to: 2, name: 'A', days: 1}, {from: 3, to: 4, name: 'B', days: 1}]), /exactly one start event/);
+  assert.throws(() => criticalPath([{from: 1, to: 2, name: 'A', days: 1}, {from: 1, to: 3, name: 'B', days: 1}]), /exactly one end event/);
+  assert.throws(() => criticalPath([{from: 1, to: 2, name: 'A', days: 1}, {from: 2, to: 3, name: 'B', days: 1}, {from: 3, to: 2, name: 'C', days: 1}, {from: 3, to: 4, name: 'D', days: 1}]), /round in a circle/);
+  assert.throws(() => criticalPath([{from: 1, to: 1, name: 'A', days: 1}]), /starts and ends at event 1/);
+  assert.throws(() => criticalPath([{from: 1, to: 2, days: 1}]), /needs a name/);
+  assert.throws(() => criticalPath([{from: 1, to: 2, name: 'A', days: -1}]), /days >= 0/);
+  assert.throws(() => criticalPath([{from: 1, to: 2, dummy: true, days: 3}]), /takes no time/);
+});
+
+test('arrowDiagram(): circles with the times, critical arrows thick and red, floats on the others, a line with the length and the path; verify passes', async () => {
+  const bands = arrowDiagram(NET);
+  assert.equal(bands.length, 2);
+  const {laidOut, verdict} = await laid(...bands);
+  assert.deepEqual(verdict.problems, []);
+  const s = laidOut.laidOut.find(x => x.type === 'states') as LaidOutStates;
+  assert.equal(s.nodes.length, 5);
+  assert.ok(s.nodes.every(n => n.circle && Math.abs(n.w - n.h) < 1e-6));
+  assert.deepEqual(s.edges.filter(e => e.tone === 'danger').map(e => `${e.from}>${e.to}`).sort(), ['1>2', '2>3', '3>5']);
+  assert.ok(s.edges.filter(e => e.tone === 'danger').every(e => e.strong));
+  assert.ok(s.texts.some(t => t.text === '11/14') && s.texts.some(t => t.text === '17/17'));
+  assert.ok(s.labels.some(l => l.text === 'C 6（余裕3）') && s.labels.some(l => l.text === 'A 5'));
+  const cap = laidOut.laidOut.find(x => x.type === 'caption') as {lines: {text: string}[]} | undefined;
+  assert.ok(cap);
+});
+
+test('arrowDiagram(): summary / times options; the dummy is dashed and has no label; the svg draws circles and the red arrows', async () => {
+  const bands = arrowDiagram([{from: 1, to: 2, name: 'A', days: 2}, {from: 1, to: 3, name: 'B', days: 1}, {from: 3, to: 2, dummy: true}], {summary: false, times: false});
+  assert.equal(bands.length, 1);
+  const s = bands[0] as {transitions: {line?: string; label?: string; tone?: string}[]; states: {sub?: string}[]};
+  assert.ok(s.states.every(x => x.sub === undefined));
+  assert.equal(s.transitions[2].line, 'dashed'); assert.equal(s.transitions[2].label, undefined);
+  const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(...arrowDiagram(NET)), {name: 'arrow.svg', budget: 'cacheOnly'});
+  assert.equal((svg.match(/<circle /g) ?? []).length, 5);
+  assert.ok(svg.includes('stroke-width="4"'));
+});
+
+test('stateDiagram(): shape and tone are checked', () => {
+  assert.throws(() => stateDiagram([{id: 'a', label: 'a', shape: 'star' as never}], []), /shape/);
+  assert.throws(() => stateDiagram([{id: 'a', label: 'a'}, {id: 'b', label: 'b'}], [{from: 'a', to: 'b', tone: 'blue' as never}]), /tone/);
+});
+
+test('relationDiagram(): arrows are counted, the factor with the most leaving arrows is the key one, the problem is red, cycles are drawn', async () => {
+  const nodes = ['late', 'rush', 'plan', 'est', 'sw'].map(id => ({id, label: id}));
+  const links = [{from: 'est', to: 'plan'}, {from: 'est', to: 'rush'}, {from: 'est', to: 'sw'}, {from: 'plan', to: 'rush'}, {from: 'rush', to: 'plan'}, {from: 'rush', to: 'late'}, {from: 'sw', to: 'late'}];
+  const band = relationDiagram(nodes, links, {problem: 'late'});
+  assert.equal(band.nodes.find(n => n.id === 'est')!.role, 'root');
+  assert.equal(band.nodes.find(n => n.id === 'late')!.role, 'ude');
+  assert.equal(band.nodes.find(n => n.id === 'rush')!.role, 'effect');
+  assert.equal(band.nodes.find(n => n.id === 'est')!.sub, '出 3・入 0');
+  assert.equal(band.nodes.find(n => n.id === 'late')!.sub, '出 0・入 2');
+  const {laidOut, verdict} = await laid(band);
+  assert.deepEqual(verdict.problems, []);
+  assert.equal((laidOut.laidOut.find(x => x.type === 'cause') as LaidOutCause).edges.length, 7);
+});
+
+test('relationDiagram(): no key factor when no one leads (fewer than 2 leaving), an own role wins, counts: false, bad input is named', () => {
+  const nodes = [{id: 'a', label: 'a'}, {id: 'b', label: 'b', role: 'goal' as const}, {id: 'c', label: 'c'}];
+  const band = relationDiagram(nodes, [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}], {counts: false});
+  assert.deepEqual(band.nodes.map(n => n.role), ['effect', 'goal', 'effect']);
+  assert.ok(band.nodes.every(n => n.sub === undefined));
+  assert.throws(() => relationDiagram([], []), /at least one node/);
+  assert.throws(() => relationDiagram(nodes, [], {problem: 'zzz'}), /unknown node "zzz"/);
+  assert.throws(() => relationDiagram(nodes, [{from: ['a', 'b'], to: 'c'} as never]), /one cause/);
+});
+
+test('pdpc(): risks are hexagons, the arrows into and out of a risk or a measure are dashed, the main path is solid; verify passes', async () => {
+  const band = pdpc(
+    [{id: 's', label: 's', role: 'start'}, {id: 'a', label: 'a'}, {id: 'r', label: 'r', role: 'risk'}, {id: 'm', label: 'm', role: 'measure'}, {id: 'g', label: 'g', role: 'goal'}],
+    [{from: 's', to: 'a'}, {from: 'a', to: 'g'}, {from: 'a', to: 'r'}, {from: 'r', to: 'm'}, {from: 'm', to: 'a'}],
+  );
+  assert.deepEqual(band.links.map(l => l.line), ['solid', 'solid', 'dashed', 'dashed', 'dashed']);
+  assert.equal(band.dir, 'down');
+  const {laidOut, verdict} = await laid(band);
+  assert.deepEqual(verdict.problems, []);
+  const c = laidOut.laidOut.find(x => x.type === 'cause') as LaidOutCause;
+  assert.equal(c.nodes.filter(n => n.hex).length, 1);
+  assert.throws(() => pdpc([{id: 'a', label: 'a', role: 'obstacle' as never}], []), /role/);
+});
+
+test('affinity(): groups side by side, a group of groups is as wide as it has of them, cards stack; bad input is named', async () => {
+  const bands = affinity([
+    {title: '大 A', groups: [{title: '小 1', cards: ['a1', 'a2']}, {title: '小 2', cards: ['b1']}]},
+    {title: 'B', cards: ['c1', 'c2', 'c3']},
+    {title: 'C', cards: ['d1']},
+  ]);
+  assert.equal(bands.length, 2); // 2 + 1 columns fill the first row; C is on the second
+  const {laidOut, verdict} = await laid(...bands);
+  assert.deepEqual(verdict.problems, []);
+  const texts = JSON.stringify(laidOut.laidOut);
+  for (const t of ['大 A', '小 1', '小 2', 'B', 'C', 'a1', 'd1']) assert.ok(texts.includes(t), t);
+  assert.throws(() => affinity([]), /at least one group/);
+  assert.throws(() => affinity([{title: ' ', cards: ['x']}]), /needs a title/);
+  assert.throws(() => affinity([{title: 'g'}]), /no cards and no groups/);
+  assert.throws(() => affinity([{title: 'g', cards: ['']}]), /empty card/);
+  assert.throws(() => affinity([{title: 'g', cards: ['x']}], {cols: 0}), /cols must be/);
+});
