@@ -4,6 +4,11 @@
 /** A number as it reads on a chart: at most 3 significant digits (12.3, 0.052, 1200). */
 export const num = (n: number): string => String(parseFloat(n.toPrecision(3)));
 
+/** A number as it is, without float noise (1.2000000000000002 -> 1.2): for data, limits and times, which must be read exactly. */
+export const exact = (n: number): string => String(parseFloat(n.toPrecision(12)));
+/** How many decimals a number needs (0.25 -> 2, 10 -> 0). */
+export const decimalsOf = (n: number): number => { const t = exact(Math.abs(n)); const i = t.indexOf('.'); return i < 0 ? 0 : t.length - i - 1; };
+
 export const mean = (xs: readonly number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
 /** The sample standard deviation (n - 1). */
 export const sd = (xs: readonly number[]): number => {
@@ -63,12 +68,16 @@ export interface HistogramBins {
  * given); the first boundary is a multiple of the width at or below the smallest value (or `include`d position). A value on a boundary
  * belongs to the class above it, the largest value to the last class.
  */
+const MAX_CLASSES = 60;
 export function histogramBins(values: readonly number[], opts: {bins?: number; width?: number; include?: readonly number[]} = {}): HistogramBins {
-  const lo = Math.min(...values, ...opts.include ?? []), hi = Math.max(...values, ...opts.include ?? []);
+  const dlo = Math.min(...values), dhi = Math.max(...values);
   const want = opts.bins ?? Math.ceil(Math.log2(values.length)) + 1;
-  const width = opts.width ?? niceNear((hi - lo || Math.abs(hi) || 1) / want);
+  // the width comes from the data alone; marks (specification limits) only stretch the range the classes cover
+  const width = opts.width ?? niceNear((dhi - dlo || Math.abs(dhi) || 1) / want);
+  const lo = Math.min(dlo, ...opts.include ?? []), hi = Math.max(dhi, ...opts.include ?? []);
   const start = Math.floor(lo / width + 1e-9) * width;
   let n = Math.max(1, Math.ceil((hi - start) / width - 1e-9));
+  if (n > MAX_CLASSES) throw new Error(`histogram(): ${n} classes of width ${exact(width)} (at most ${MAX_CLASSES}): use a wider width, fewer bins, or limits closer to the data`);
   if (start + n * width <= hi - 1e-9) n++;
   const edges = Array.from({length: n + 1}, (_, i) => parseFloat((start + i * width).toPrecision(12)));
   const counts = new Array<number>(n).fill(0);
@@ -128,6 +137,12 @@ export function criticalPath(input: readonly ArrowActivity[]): ArrowResult {
     if (dummy && days !== 0) throw new Error(`arrowDiagram(): the dummy ${from} -> ${to} takes no time (days ${days})`);
     return {from, to, name: a.name, days, dummy};
   });
+  const seenPair = new Set<string>();
+  for (const a of acts) {
+    const k = `${a.from}\u0000${a.to}`;
+    if (seenPair.has(k)) throw new Error(`arrowDiagram(): two activities run from event ${a.from} to event ${a.to}; give one of them a dummy and a new event, so each pair of events has one arrow`);
+    seenPair.add(k);
+  }
   const ids = [...new Set(acts.flatMap(a => [a.from, a.to]))];
   const incoming = new Map(ids.map(id => [id, acts.filter(a => a.to === id)])), outgoing = new Map(ids.map(id => [id, acts.filter(a => a.from === id)]));
   const starts = ids.filter(id => !incoming.get(id)!.length), ends = ids.filter(id => !outgoing.get(id)!.length);
@@ -146,7 +161,7 @@ export function criticalPath(input: readonly ArrowActivity[]): ArrowResult {
   for (const id of order) early.set(id, Math.max(0, ...incoming.get(id)!.map(a => early.get(a.from)! + a.days)));
   const length = early.get(ends[0])!;
   for (const id of [...order].reverse()) late.set(id, outgoing.get(id)!.length ? Math.min(...outgoing.get(id)!.map(a => late.get(a.to)! - a.days)) : length);
-  const rounded = (v: number) => parseFloat(v.toPrecision(12));
+  const rounded = (v: number) => Math.abs(v) < 1e-9 ? 0 : parseFloat(v.toPrecision(12));
   const activities = acts.map(a => { const float = rounded(late.get(a.to)! - early.get(a.from)! - a.days); return {...a, float, critical: float < 1e-9}; });
   // one critical path: from the start, always along a critical activity
   const path: string[] = [];

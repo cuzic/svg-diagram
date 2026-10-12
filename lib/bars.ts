@@ -72,6 +72,18 @@ function vlineRows(band: BarsBand, plotL: number, plotR: number, S: number, widt
   return {rows: at.reduce((n, a) => a ? Math.max(n, a.row + 1) : n, 0), at};
 }
 
+const hitRect = (a: {x: number; y: number; w: number; h: number}, b: {x: number; y: number; w: number; h: number}): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5;
+/** Does the segment pass through the rectangle (Liang-Barsky)? */
+export function segHitsRect(sg: {x1: number; y1: number; x2: number; y2: number}, r: {x: number; y: number; w: number; h: number}): boolean {
+  let t0 = 0, t1 = 1;
+  const dx = sg.x2 - sg.x1, dy = sg.y2 - sg.y1;
+  for (const [p, q] of [[-dx, sg.x1 - r.x], [dx, r.x + r.w - sg.x1], [-dy, sg.y1 - r.y], [dy, r.y + r.h - sg.y1]] as const) {
+    if (p === 0) { if (q < 0) return false; continue; }
+    const t = q / p;
+    if (p < 0) { if (t > t1) return false; t0 = Math.max(t0, t); } else { if (t < t0) return false; t1 = Math.min(t1, t); }
+  }
+  return t0 <= t1;
+}
 const CUM_TICKS = [0, 20, 40, 60, 80, 100];
 /** Cumulative share (0-100) after each bar, in the order of the data. */
 export const cumulativeOf = (data: readonly BarDatum[]): number[] => {
@@ -213,6 +225,21 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
     // barRatio (when given) is the bar's share of its slot with no upper limit; 1 makes neighbours touch
     const {slots, count} = slotsOf(band.data);
     const slot = (plotR - plotL) / count, bw = band.barRatio === undefined ? Math.min(64, slot * .62) : slot * band.barRatio;
+    // the cumulative line, as segments, so that a value label can keep off it (the same points overlays() draws)
+    const cumSegs: {x1: number; y1: number; x2: number; y2: number}[] = [];
+    if (band.cumulative) {
+      const pts = [{x: plotL, y: plotB}, ...cumulativeOf(band.data).map((p, k) => ({x: plotL + (k + 1) * slot, y: plotB - p / 100 * (plotB - plotT)}))];
+      pts.slice(1).forEach((q, k) => cumSegs.push({x1: pts[k].x, y1: pts[k].y, x2: q.x, y2: q.y}));
+    }
+    // a value label that a vertical reference line would cut moves along its bar to the side of the line with room
+    const vx = (band.vlines ?? []).map(l => plotL + l.at * slot);
+    const dodge = (cx: number, tw: number, lo: number, hi: number): number => {
+      const line = vx.find(v => v > cx - tw / 2 - 3 && v < cx + tw / 2 + 3);
+      if (line === undefined) return cx;
+      const left = line - 4 - tw / 2, right = line + 4 + tw / 2;
+      const fits = (c: number) => c - tw / 2 >= lo + 2 && c + tw / 2 <= hi - 2;
+      return fits(left) && (!fits(right) || cx - left <= right - cx) ? left : fits(right) ? right : cx;
+    };
     band.data.forEach((d, i) => {
       const bh = d.value / band.max * (plotB - plotT), bx = plotL + slots[i] * slot + (slot - bw) / 2;
       const r = addBar(out, d, {x: bx, y: plotB - bh, w: bw, h: bh});
@@ -221,8 +248,12 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
       if (!f.showValues) return;
       const text = valueText(d, band.unit);
       const tw = textWidth(widthOf, text, S, 700);
-      if (bh >= S + 10 && bw >= tw + 12) putText(out, S, text, bx + bw / 2, r.y + S + 4, 'middle', 'bg', widthOf, true, r.fill, bar);
-      else putText(out, S, text, bx + bw / 2, r.y - 6, 'middle', r.fill, widthOf, true, undefined, bar);
+      const cx = dodge(bx + bw / 2, tw, bx, bx + bw), cxOut = dodge(bx + bw / 2, tw, plotL + slots[i] * slot, plotL + (slots[i] + 1) * slot);
+      const cut = (cx: number, base: number): boolean => cumSegs.some(sg => segHitsRect(sg, {x: cx - tw / 2, y: base - S + 2, w: tw, h: S}));
+      // inside the bar if it fits and the cumulative line stays off it, otherwise above the bar
+      const roomIn = bw >= tw + 12 && (bh >= S + 10 || (bh >= S + 2 && cumSegs.length > 0 && cut(cxOut, r.y - 6) && !cut(cx, r.y + S + 4))); // a low bar holds its value only when the line keeps off the label above it
+      if (roomIn && !(cumSegs.length && cut(cx, r.y + S + 4) && !cut(cxOut, r.y - 6))) putText(out, S, text, cx, r.y + S + 4, 'middle', 'bg', widthOf, true, r.fill, bar);
+      else putText(out, S, text, cxOut, r.y - 6, 'middle', r.fill, widthOf, true, undefined, bar);
     });
   }
   if (f.axis) out.ticks.push({x1: plotL, y1: plotT, x2: plotL, y2: plotB});
@@ -243,11 +274,13 @@ function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: nu
   }
   for (const [i, l] of (band.vlines ?? []).entries()) {
     const lx = xOf(l.at), fill = LINE_TONE[l.tone ?? 'danger'], at = vrows.at[i];
-    ink.lines.push({x1: lx, y1: plotT - 4 - (at ? at.row * (S + 4) : 0), x2: lx, y2: plotB, fill, dashed: l.dashed !== false});
+    ink.lines.push({x1: lx, y1: plotT - 4, x2: lx, y2: plotB, fill, dashed: l.dashed !== false});
+    // a label on a higher row is reached by a leader (it may pass the labels of the rows below)
+    if (at && at.row > 0) ink.lines.push({x1: lx, y1: plotT - 4 - at.row * (S + 4), x2: lx, y2: plotT - 4, fill, dashed: l.dashed !== false, soft: true});
     if (l.label && at) putText(out, S, l.label, at.x, plotT - 8 - at.row * (S + 4), at.anchor, fill, widthOf, true);
   }
   if (band.edges) band.edges.forEach((e, i) => putText(out, S, e, xOf(i), plotB + S + 10, 'middle', 'text', widthOf));
-  if (band.curve) ink.polylines.push({pts: band.curve.through.map(([sx, v]) => ({x: xOf(sx), y: yOf(v)})), fill: LINE_TONE[band.curve.tone ?? 'text'], dashed: band.curve.dashed === true});
+  if (band.curve) ink.polylines.push({pts: band.curve.through.map(([sx, v]) => ({x: xOf(sx), y: yOf(v)})), fill: LINE_TONE[band.curve.tone ?? 'text'], dashed: band.curve.dashed === true, soft: true});
   if (band.cumulative) {
     const cum = cumulativeOf(band.data), yPct = (p: number) => plotB - p / 100 * (plotB - plotT);
     ink.lines.push({x1: plotR, y1: plotT, x2: plotR, y2: plotB, fill: 'border', dashed: false});
@@ -259,9 +292,16 @@ function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: nu
     // the textbook line: from the origin, through the upper right corner of each bar
     const pts = [{x: plotL, y: plotB}, ...cum.map((p, i) => ({x: xOf(i + 1), y: yPct(p)}))];
     ink.polylines.push({pts, fill: 'danger', dashed: false});
+    // each percent sits at the first of four places that touches neither another label nor a line (the line, the guide, the bars' own values)
+    const segs = [...ink.lines.filter(l => !l.soft), ...ink.polylines.filter(l => !l.soft).flatMap(l => l.pts.slice(1).map((q, k) => ({x1: l.pts[k].x, y1: l.pts[k].y, x2: q.x, y2: q.y})))];
     for (const [i, p] of pts.slice(1).entries()) {
       ink.dots.push({x: p.x, y: p.y, fill: 'danger'});
-      putText(out, S, cumText(cum[i]), p.x - 6, p.y - 7, 'end', 'danger', widthOf, true);
+      const text = cumText(cum[i]), tw = textWidth(widthOf, text, S, 700);
+      const places: ['start' | 'middle' | 'end', number, number][] = [['end', p.x - 6, p.y - 7], ['middle', p.x, p.y - 12], ['start', p.x + 6, p.y - 7], ['end', p.x - 6, p.y + S + 4], ['start', p.x + 6, p.y + S + 4]];
+      const boxOf = (a: 'start' | 'middle' | 'end', lx: number, ly: number) => ({x: a === 'middle' ? lx - tw / 2 : a === 'end' ? lx - tw : lx, y: ly - S, w: tw, h: S + 4});
+      const clear = (b: {x: number; y: number; w: number; h: number}): boolean => b.x >= out.x && b.x + b.w <= out.x + out.w && b.y >= out.y && !out.labelBoxes.some(o => hitRect(b, o)) && !segs.some(sg => segHitsRect(sg, b));
+      const at = places.find(([a, lx, ly]) => clear(boxOf(a, lx, ly))) ?? places[0];
+      putText(out, S, text, at[1], at[2], at[0], 'danger', widthOf, true);
     }
   }
   if (ink.lines.length || ink.polylines.length || ink.dots.length) out.ink = ink;

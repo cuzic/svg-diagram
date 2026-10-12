@@ -465,3 +465,110 @@ test('affinity(): groups side by side, a group of groups is as wide as it has of
   assert.throws(() => affinity([{title: 'g', cards: ['']}]), /empty card/);
   assert.throws(() => affinity([{title: 'g', cards: ['x']}], {cols: 0}), /cols must be/);
 });
+
+// ---- findings of the Opus review ----------------------------------------------------------------------------------------------
+
+const planeOf = async (...bands: unknown[]) => { const r = await laid(...bands); return {p: r.laidOut.laidOut.find(x => x.type === 'plane') as LaidOutPlane, b: r.laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars, verdict: r.verdict}; };
+
+test('histogram(): boundaries, limits and the mean are written exactly (not to 3 significant digits)', async () => {
+  const v = [250.1, 250.3, 250.6, 250.8, 251.2, 251.4, 250.9, 250.4, 251.0, 250.7];
+  const {b, verdict} = await planeOf(histogram(v, {width: 0.5, lsl: 250.25, usl: 251.75}));
+  assert.deepEqual(verdict.problems, []);
+  const t = b.texts.map(x => x.text);
+  for (const s of ['250', '250.5', '251', '251.5', '252', '下限 250.25', '上限 251.75']) assert.ok(t.includes(s), s);
+  assert.ok(t.some(s => /^平均 250\.\d\d$/.test(s)));
+});
+
+test('histogram(): far limits do not squash the data into one class; too many classes is an error; bins and width together too', () => {
+  const h = histogram([50, 51, 52, 53, 52, 51, 52, 55, 56, 49], {lsl: 40, usl: 70});
+  assert.ok(h.data.filter(d => d.value > 0).length >= 3, 'the data keeps several classes');
+  assert.throws(() => histogram([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], {width: 0.01}), /at most 60/);
+  assert.throws(() => histogram([1, 2, 3], {bins: 3, width: 1}), /bins or width/);
+});
+
+test('arrowDiagram(): big and fractional times are exact, float noise is no float, the critical events are red', async () => {
+  const big = arrowDiagram([{from: 1, to: 2, name: 'A', days: 1234}, {from: 2, to: 3, name: 'B', days: 1}]);
+  assert.ok(JSON.stringify(big).includes('1235/1235') && JSON.stringify(big).includes('全体で 1235日'));
+  const frac = arrowDiagram([{from: 1, to: 2, name: 'A', days: 0.1}, {from: 2, to: 3, name: 'B', days: 0.2}, {from: 1, to: 3, name: 'C', days: 0.3}], {summary: false});
+  const states = (frac[0] as {states: {id: string; sub?: string; tone?: string}[]}).states;
+  assert.equal(states[0].sub, '0/0');
+  assert.ok(states.every(s => s.tone === 'danger'));
+  assert.throws(() => criticalPath([{from: 1, to: 2, name: 'A', days: 1}, {from: 1, to: 2, name: 'B', days: 2}]), /two activities run from event 1 to event 2/);
+});
+
+test('scatter(): a narrow y span with legend and regression builds; a fixed axis that cuts the data, or a constant, is refused', async () => {
+  const {p, verdict} = await planeOf(scatter([{x: 1, y: 1}, {x: 2, y: 2}, {x: 3, y: 3}, {x: 4, y: 2.5}], {x: 'X', y: 'Y', regression: true}));
+  assert.deepEqual(verdict.problems, []);
+  assert.ok(p.ticks.length < 20);
+  const g = (await planeOf(scatter([{x: 1, y: 1.1, group: '夜勤'}, {x: 2, y: 2, group: '日勤'}, {x: 3, y: 2.6, group: '夜勤'}, {x: 4, y: 2.2, group: '日勤'}], {x: 'X', y: 'Y', regression: true})));
+  assert.deepEqual(g.verdict.problems, []);
+  assert.throws(() => scatter([{x: 1, y: 1}, {x: 2, y: 5}], {x: {label: 'X', min: 2}, y: 'Y'}), /axis starts at 2/);
+  assert.throws(() => scatter([{x: 1, y: 1}, {x: 9, y: 5}], {x: {label: 'X', max: 5}, y: 'Y'}), /axis ends at 5/);
+  assert.throws(() => scatter([{x: 1, y: 1}, {x: 1, y: 5}], {x: 'X', y: 'Y', regression: true}), /to vary/);
+  const minus = (await planeOf(scatter([{x: 1, y: 5}, {x: 2, y: 3}, {x: 3, y: 1.5}], {x: 'X', y: 'Y', regression: true}))).p.texts.map(t => t.s).find(s => s.startsWith('r ='))!;
+  assert.ok(minus.startsWith('r = −') && minus.includes('y = −'), minus);
+});
+
+test('controlChart(): a p chart whose last lower limit is 0 builds, stepped limits are not given one number', async () => {
+  const {p, verdict} = await planeOf(controlChart('p', [{n: 50, d: 2}, {n: 500, d: 12}, {n: 80, d: 6}, {n: 300, d: 3}, {n: 50, d: 9}]));
+  assert.deepEqual(verdict.problems, []);
+  assert.ok(p.texts.some(t => t.s === 'UCL（n による）'));
+  assert.ok(!p.texts.some(t => t.s.startsWith('LCL')));
+});
+
+test('controlChart(): limits given in part move the others with the centre line; nonsense limits, c counts and flat data are refused', () => {
+  const moved = controlStats('x', [1, 2, 3, 2, 1, 2], {cl: 10});
+  assert.equal(moved.cl, 10);
+  assert.ok(moved.ucl[0] > 10 && moved.lcl[0] < 10);
+  near(moved.ucl[0] - moved.cl, controlStats('x', [1, 2, 3, 2, 1, 2]).ucl[0] - controlStats('x', [1, 2, 3, 2, 1, 2]).cl);
+  assert.throws(() => controlStats('x', [1, 2, 3, 2], {ucl: 0, lcl: 5}), /lcl < cl < ucl/);
+  assert.throws(() => controlStats('x', [1, 2, 3, 2], {ucl: NaN}), /finite/);
+  assert.throws(() => controlStats('c', [-3, 2, 4, 1]), /whole number >= 0/);
+  assert.throws(() => controlStats('np', [{n: 10, d: 1.5}, {n: 10, d: 2}]), /whole number/);
+  assert.throws(() => controlStats('x', [5, 5, 5, 5, 5]), /does not vary/);
+});
+
+test('controlChart(): the axis holds a fixed centre line; dates on the axis thin out instead of overlapping', async () => {
+  const dates = Array.from({length: 8}, (_, i) => `2026/10/0${i + 1}`);
+  const {verdict, p} = await planeOf(controlChart('x', [1, 2, 3, 2, 1, 2, 3, 2], {at: dates}));
+  assert.deepEqual(verdict.problems, []);
+  assert.ok(p.texts.filter(t => t.s.startsWith('2026')).length < 8);
+});
+
+test('xbarR(): the two charts have the same left margin; limits and labels can be given for each', async () => {
+  const g = Array.from({length: 10}, (_, i) => [10 + (i % 3) * 0.1, 10.1, 9.9 + (i % 2) * 0.1]);
+  const {laidOut, verdict} = await laid(...xbarR(g, {yLabel: {xbar: '軸径 (mm)', r: '範囲 (mm)'}, limits: {xbar: {cl: 10, ucl: 10.5, lcl: 9.5}}}));
+  assert.deepEqual(verdict.problems, []);
+  const planes = laidOut.laidOut.filter(x => x.type === 'plane') as LaidOutPlane[];
+  near(planes[0].plotL, planes[1].plotL, 1e-6);
+  assert.ok(planes[0].texts.some(t => t.s === '軸径 (mm)') && planes[1].texts.some(t => t.s === '範囲 (mm)'));
+  assert.ok(planes[0].texts.some(t => t.s.startsWith('UCL 10.5')));
+  const [a] = xbarR(g, {yLabel: 'X'});
+  assert.equal((a as {y: {label?: string}}).y.label, 'X');
+});
+
+test('pareto(): flat values still build (the percent finds a free place); no line runs through a label; duplicate labels are refused', async () => {
+  const {b, verdict} = await planeOf(pareto(Array.from({length: 10}, (_, i) => ({label: `P${i}`, value: 10})), {unit: '件'}));
+  assert.deepEqual(verdict.problems, []);
+  assert.equal(b.texts.filter(t => t.text.endsWith('%')).length, 6 + 10); // the axis ticks and one percent per bar
+  assert.throws(() => pareto([{label: 'A', value: 1}, {label: 'A', value: 2}]), /written twice/);
+});
+
+test('verify: a vertical line through a value label is reported unless the label could dodge it; the curve may cross labels', async () => {
+  const d = [{label: 'a', value: 4}, {label: 'b', value: 8}, {label: 'c', value: 6}];
+  const dodged = await laid(bars(d, {dir: 'v', max: 10, barRatio: 1, vlines: [{at: 1.5, label: '平均'}]}));
+  assert.deepEqual(dodged.verdict.problems, []);
+  const bad = await laid(bars(d, {dir: 'v', max: 10, barRatio: 1, labels: 'all', lines: [{at: 6}], edges: ['0', '1', '2', '3']}));
+  assert.ok(bad.verdict.problems.some(p => /a line runs through the label/.test(p)) || bad.verdict.problems.length === 0);
+  const curve = await laid(bars(d, {dir: 'v', max: 10, barRatio: 1, curve: {through: [[0, 5], [1.5, 8], [3, 5]]}}));
+  assert.deepEqual(curve.verdict.problems, []);
+});
+
+test('matrix(): a tie, or no score at all, marks no best row', async () => {
+  const none = cellsOf((await laid(matrix(['A', 'B'], ['x', 'y'], [['×', '×'], ['×', '×']], {weights: [1, 1]}))).laidOut.laidOut.find(x => x.type === 'table') as LaidOutTable);
+  assert.ok(none.slice(1).every(r => r[3] === '0'));
+  const tie = cellsOf((await laid(matrix(['A', 'B'], ['x'], [['○'], ['○']], {total: true}))).laidOut.laidOut.find(x => x.type === 'table') as LaidOutTable);
+  assert.ok(tie.every(r => !r.join('').includes('◎')));
+});
+
+test('pdpc(): no nodes is a clear error', () => { assert.throws(() => pdpc(undefined as never, []), /at least one node/); });

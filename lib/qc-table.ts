@@ -97,14 +97,14 @@ export function matrixParts(rowLabels: readonly string[], colLabels: readonly st
   }
   for (const [k, v] of Object.entries(opts.values ?? {})) if (!['best', 'ok', 'mid', 'ng'].includes(k) || !Number.isFinite(v)) throw new Error(`matrix(): values has ${k}: ${v} (keys best / ok / mid / ng, numbers)`);
   const withTotal = opts.total ?? weights !== undefined;
-  const scores = matrixScores(marks, weights, opts.values), top = Math.max(...scores);
+  const scores = matrixScores(marks, weights, opts.values), top = Math.max(...scores), best = top > 0 && scores.filter(v => v === top).length === 1; // a tie, or nothing scored, has no best row
   const cols: TableColumn[] = [{label: opts.corner ?? '', flex: 2, bold: true}, ...colLabels.map(label => ({label, flex: 1, align: 'center' as const})), ...(withTotal ? [{label: weights ? '評価点' : '合計', flex: 1, align: 'center' as const, bold: true}] : [])];
   const rows: TableRow[] = [];
   if (weights) rows.push({cells: ['重み', ...weights.map(w => ({text: String(w), align: 'center' as const, tone: 'muted' as const})), ...(withTotal ? [''] : [])], tone: 'muted'});
   rowLabels.forEach((label, i) => rows.push([
     label,
     ...marks[i].map((m): TableCellSpec => m ? {text: '', mark: m, align: 'center'} : {text: '', align: 'center'}),
-    ...(withTotal ? [scores[i] === top && opts.highlight !== false && rowLabels.length > 1 ? {text: String(scores[i]), tone: 'accent' as const, bold: true, mark: 'best' as const, align: 'center' as const} : {text: String(scores[i]), align: 'center' as const}] : []),
+    ...(withTotal ? [best && scores[i] === top && opts.highlight !== false && rowLabels.length > 1 ? {text: String(scores[i]), tone: 'accent' as const, bold: true, mark: 'best' as const, align: 'center' as const} : {text: String(scores[i]), align: 'center' as const}] : []),
   ]));
   const {corner: _c, weights: _w, values: _v, total: _t, highlight: _h, ...rest} = opts;
   return {columns: cols, rows, opts: {...rest, rowHeader: true}};

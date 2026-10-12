@@ -120,7 +120,7 @@ export function layoutFishbone(root: TreeNode, opts: {gap?: number} = {}): TreeL
       edges.push({from: c.id, to: c.id, points: [{x: bx, y: startY}, {x: bx + dxs, y: spineY}]});
       let y = startY + dir * 16;
       for (const k of c.children ?? []) {
-        // above the spine a block hangs downward from its cause; below it the block is turned over, so the cause is nearest the spine's side too
+        // above the spine a block hangs downward from its cause; below it the block is turned over (its small bones are above the cause, toward the spine)
         const raw = lists.get(k.id)!, block = top ? raw : mirror(raw, 'y');
         const y0 = top ? y : y - block.h, kp = block.nodes.get(k.id)!, cyk = y0 + kp.y + kp.h / 2;
         const bxk = bx + dxs * (Math.abs(cyk - startY) / run), sx = bxk - 12 - block.w;

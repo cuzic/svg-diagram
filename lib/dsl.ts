@@ -26,9 +26,10 @@ import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
 import {CAUSE_ROLES} from './toc.ts';
-import {criticalPath, histogramBins, mean, niceUp, normalCount, num, paretoOrder, sd} from './qc.ts';
+import {criticalPath, decimalsOf, exact, histogramBins, mean, niceUp, normalCount, num, paretoOrder, sd} from './qc.ts';
 import type {ArrowActivity} from './qc.ts';
 import {controlChartOpts, scatterOpts} from './qc-plane.ts';
+import {ticksOf} from './plane.ts';
 import {checkSheetParts, matrixParts} from './qc-table.ts';
 import type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from './qc-table.ts';
 import type {AttributeSample, ControlChartOpts, ControlType, ScatterOpts, ScatterPoint} from './qc-plane.ts';
@@ -926,6 +927,7 @@ export function pareto<const Id extends string = never>(items: readonly {label: 
   if (!Array.isArray(items) || items.length === 0) throw new Error('pareto(items) needs at least one item');
   for (const i of items) if (!Number.isFinite(i.value) || i.value < 0) throw new Error(`pareto(): value for "${i.label}" must be a finite number >= 0 (got ${i.value})`);
   if (items.every(i => i.value === 0)) throw new Error('pareto(): all values are 0');
+  { const seen = new Set<string>(); for (const i of items) { if (seen.has(i.label)) throw new Error(`pareto(): the label "${i.label}" is written twice (add the two values, or tell them apart)`); seen.add(i.label); } }
   if (opts.top !== undefined && !(Number.isInteger(opts.top) && opts.top >= 1)) throw new Error(`pareto(): top must be a whole number >= 1 (got ${opts.top})`);
   const guide = opts.guide === false ? undefined : opts.guide ?? 80;
   const {items: ordered, vital} = paretoOrder(items, {top: opts.top, other: opts.other, reach: guide ?? 80});
@@ -960,6 +962,7 @@ export function histogram<const Id extends string = never>(values: readonly numb
   if (!values.every(Number.isFinite)) throw new Error('histogram(): every value must be a finite number');
   for (const k of ['lsl', 'usl', 'target', 'width'] as const) if (opts[k] !== undefined && !Number.isFinite(opts[k])) throw new Error(`histogram(): ${k} must be a finite number (got ${opts[k]})`);
   if (opts.width !== undefined && !(opts.width > 0)) throw new Error(`histogram(): width must be > 0 (got ${opts.width})`);
+  if (opts.bins !== undefined && opts.width !== undefined) throw new Error('histogram(): give bins or width, not both');
   if (opts.bins !== undefined && !(Number.isInteger(opts.bins) && opts.bins >= 1)) throw new Error(`histogram(): bins must be a whole number >= 1 (got ${opts.bins})`);
   if (opts.lsl !== undefined && opts.usl !== undefined && !(opts.lsl < opts.usl)) throw new Error(`histogram(): lsl (${opts.lsl}) must be below usl (${opts.usl})`);
   const marks = [opts.lsl, opts.usl, opts.target].filter((v): v is number => v !== undefined);
@@ -971,12 +974,12 @@ export function histogram<const Id extends string = never>(values: readonly numb
   const max = niceMax(Math.max(...counts, peak));
   const {bins: _b, width: _w, lsl, usl, target, mean: showMean, normal, ...rest} = opts;
   const lines: BarsLine[] = [];
-  if (lsl !== undefined) lines.push({at: slot(lsl), label: `下限 ${num(lsl)}`});
-  if (target !== undefined) lines.push({at: slot(target), label: `目標 ${num(target)}`, tone: 'muted'});
-  if (usl !== undefined) lines.push({at: slot(usl), label: `上限 ${num(usl)}`});
-  if (showMean !== false) lines.push({at: slot(m), label: `平均 ${num(m)}`, tone: 'accent'});
+  if (lsl !== undefined) lines.push({at: slot(lsl), label: `下限 ${exact(lsl)}`});
+  if (target !== undefined) lines.push({at: slot(target), label: `目標 ${exact(target)}`, tone: 'muted'});
+  if (usl !== undefined) lines.push({at: slot(usl), label: `上限 ${exact(usl)}`});
+  if (showMean !== false) lines.push({at: slot(m), label: `平均 ${m.toFixed(decimalsOf(width) + 1)}`, tone: 'accent'});
   const curve = normal && s > 0 ? {through: Array.from({length: 41}, (_, i) => { const sx = i / 40 * counts.length; return [sx, normalCount(edges[0] + sx * width, m, s, n, width)] as [number, number]; }), tone: 'text' as const} : undefined;
-  return bars(counts.map((c, k) => ({label: `${num(edges[k])}-${num(edges[k + 1])}`, value: c, ...(out(k) ? {tone: 'danger' as const} : {})})), {...rest, dir: 'v', barRatio: 1, max, edges: edges.map(num), vlines: lines.sort((a, b) => a.at - b.at), ...(curve ? {curve} : {})}) as never;
+  return bars(counts.map((c, k) => ({label: `${exact(edges[k])}-${exact(edges[k + 1])}`, value: c, ...(out(k) ? {tone: 'danger' as const} : {})})), {...rest, dir: 'v', barRatio: 1, max, edges: edges.map(exact), vlines: lines.sort((a, b) => a.at - b.at), ...(curve ? {curve} : {})}) as never;
 }
 /** The top of a count axis: the next multiple of a round step above the largest value. */
 const niceMax = (v: number): number => { const step = niceUp(v / 5); return Math.max(step, Math.ceil(v / step - 1e-9) * step); };
@@ -1004,10 +1007,20 @@ export function controlChart<const Id extends string = never>(type: ControlType,
 export function controlChart(type: ControlType, data: readonly (number | number[] | AttributeSample)[], opts: ControlChartOpts = {}): PlaneBand {
   return plane(controlChartOpts(type, data, opts)) as PlaneBand;
 }
-/** The X-bar chart and the R chart of the same subgroups, one above the other: `diagram().add(...xbarR(subgroups))`. */
-export function xbarR(subgroups: readonly number[][], opts: ControlChartOpts = {}): [PlaneBand, PlaneBand] {
-  const {id, limits, ...rest} = opts; // the id and the fixed limits belong to the X-bar chart
-  return [controlChart('xbar', subgroups, {...rest, ...(id === undefined ? {} : {id}), ...(limits === undefined ? {} : {limits})}), controlChart('r', subgroups, rest)] as [PlaneBand, PlaneBand];
+/**
+ * The X-bar chart and the R chart of the same subgroups, one above the other: `diagram().add(...xbarR(subgroups))`. `limits` and `yLabel`
+ * can be given for each chart as `{xbar, r}`; a plain value is for the X-bar chart (the R chart keeps its own). `id` is the X-bar chart's.
+ */
+type PerChart<T> = T | {xbar?: T; r?: T};
+export function xbarR(subgroups: readonly number[][], opts: Omit<ControlChartOpts, 'limits' | 'yLabel'> & {id?: string; limits?: PerChart<ControlChartOpts['limits']>; yLabel?: PerChart<string>} = {}): [PlaneBand, PlaneBand] {
+  const {id, limits, yLabel, ...rest} = opts;
+  const split = <T>(v: PerChart<T> | undefined): {xbar?: T; r?: T} => v !== null && typeof v === 'object' && Object.keys(v).length > 0 && Object.keys(v).every(k => k === 'xbar' || k === 'r') ? v as {xbar?: T; r?: T} : {xbar: v as T | undefined};
+  const lim = split(limits), lab = split(yLabel);
+  const o1 = controlChartOpts('xbar', subgroups, {...rest, ...(id === undefined ? {} : {id}), ...(lim.xbar === undefined ? {} : {limits: lim.xbar}), ...(lab.xbar === undefined ? {} : {yLabel: lab.xbar})});
+  const o2 = controlChartOpts('r', subgroups, {...rest, ...(lim.r === undefined ? {} : {limits: lim.r}), ...(lab.r === undefined ? {} : {yLabel: lab.r})});
+  // the two charts are read down the page, sample by sample: they get the same left margin
+  const labels = (o: PlaneOpts): string[] => ticksOf(o.y).map(t => t.label);
+  return [plane({...o1, yTickSample: labels(o2)}), plane({...o2, yTickSample: labels(o1)})] as [PlaneBand, PlaneBand];
 }
 
 /**
@@ -1214,10 +1227,11 @@ export function causeTree(nodes: readonly CauseNode[], links: readonly CauseLink
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
 }
 
-export interface ArrowDiagramOpts extends Omit<StatesOpts, 'initial'> {
+export interface ArrowDiagramOpts extends Omit<StatesOpts, 'initial' | 'dir'> {
+  /** 'right' (default): the network runs left to right; 'down': top to bottom, for a long chain of events that does not fit the width. */
+  dir?: 'right' | 'down';
   /** Write the earliest and latest time under each event's number ("5/7"), and the float on activities that are not critical (default true). */
   times?: boolean;
-  /** 'right' (default): the network runs left to right; 'down': top to bottom, for a long chain of events that does not fit the width. */
   /** The unit of the time, written in the line under the figure (default '日'). */
   unit?: string;
   /** A line under the figure with the length of the project and the critical path (default true). */
@@ -1232,14 +1246,14 @@ export interface ArrowDiagramOpts extends Omit<StatesOpts, 'initial'> {
  */
 export function arrowDiagram(activities: readonly ArrowActivity[], opts: ArrowDiagramOpts = {}): (StatesBand | CaptionBand)[] {
   const r = criticalPath(activities), unit = opts.unit ?? '日', show = opts.times !== false;
-  const states: StateItem[] = r.events.map(e => ({id: e.id, label: e.id, shape: 'circle', ...(show ? {sub: `${num(e.early)}/${num(e.late)}`} : {}), ...(e.early === e.late ? {tone: 'danger' as const} : {})}));
+  const states: StateItem[] = r.events.map(e => ({id: e.id, label: e.id, shape: 'circle', ...(show ? {sub: `${exact(e.early)}/${exact(e.late)}`} : {}), ...(e.late - e.early < 1e-9 ? {tone: 'danger' as const} : {})}));
   const transitions: Transition[] = r.activities.map(a => ({
-    from: a.from, to: a.to, ...(a.dummy ? {line: 'dashed' as const} : {label: `${a.name} ${num(a.days)}${show && !a.critical && a.float > 0 ? `（余裕${num(a.float)}）` : ''}`}),
+    from: a.from, to: a.to, ...(a.dummy ? {line: 'dashed' as const} : {label: `${a.name} ${exact(a.days)}${show && !a.critical && a.float > 0 ? `（余裕${exact(a.float)}）` : ''}`}),
     ...(a.critical ? {tone: 'danger' as const, strong: true} : {}),
   }));
   const {times: _t, unit: _u, summary, ...rest} = opts;
   const band = stateDiagram(states, transitions, {...rest, dir: opts.dir ?? 'right'}) as StatesBand;
-  return summary === false ? [band] : [band, caption(`全体で ${num(r.length)}${unit}　クリティカルパス: ${r.path.join(' → ')}`, {align: 'left'})];
+  return summary === false ? [band] : [band, caption(`全体で ${exact(r.length)}${unit}　クリティカルパス: ${r.path.join(' → ')}${r.activities.filter(a => a.critical && !a.dummy).length > r.path.length ? '（ほかにも同じ長さの経路がある）' : ''}`, {align: 'left'})];
 }
 
 export interface AffinityGroup {
@@ -1308,6 +1322,7 @@ export interface PdpcLink extends Omit<CauseLink, 'from'> {from: string}
  */
 export function pdpc<const N extends readonly PdpcNode[], const Id extends string = never>(nodes: N, links: readonly PdpcLink[], opts?: CauseOpts & {id?: Id}): CauseBand & Declares<Id | CauseIds<N>> & HandleOf<Id> & AnchorsOf<CauseIds<N>>;
 export function pdpc(nodes: readonly PdpcNode[], links: readonly PdpcLink[], opts: CauseOpts = {}): CauseBand {
+  if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('pdpc(nodes, links) needs at least one node');
   const side = new Set((Array.isArray(nodes) ? nodes : []).filter(n => n.role === 'risk' || n.role === 'measure').map(n => n.id));
   for (const n of nodes ?? []) if (n.role !== undefined && !['start', 'step', 'risk', 'measure', 'goal'].includes(n.role)) throw new Error(`pdpc(): node "${n.id}" has role ${String(n.role)} (use start, step, risk, measure or goal)`);
   return causeTree(nodes.map(n => ({...n, role: n.role ?? 'step'})), (links ?? []).map(l => ({...l, line: l.line ?? (side.has(l.from) || side.has(l.to) ? 'dashed' : 'solid')} as CauseLink)), {...opts, dir: opts.dir ?? 'down'});

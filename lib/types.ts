@@ -807,6 +807,8 @@ export interface PlaneOpts extends RevealOpts {
   /** Figure height (default 300). */
   height?: number;
   width?: number;
+  /** Texts that count in the width of the y axis's tick labels, so that two planes with different ticks can have the same left margin (the X-bar and R charts of xbarR()). */
+  yTickSample?: string[];
   /** y grows downward from the top-left origin (image / pixel coordinates). */
   yDown?: boolean;
   /** Light grid lines at the ticks. */
@@ -2211,8 +2213,9 @@ export interface BarRect extends Rect, Dimmed {fill: ColorKey; id?: string; reve
 /** `bar`: index into `bars` of the bar the label belongs to (none for tick labels), so spotlight can dim it with its bar. */
 export interface BarText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number; until?: number; bar?: number}
 export interface BarsInk {
-  lines: {x1: number; y1: number; x2: number; y2: number; fill: ColorKey; dashed: boolean}[];
-  polylines: {pts: {x: number; y: number}[]; fill: ColorKey; dashed: boolean}[];
+  /** `soft`: it may cross labels (the curve laid over a histogram); every other line is kept clear of them. */
+  lines: {x1: number; y1: number; x2: number; y2: number; fill: ColorKey; dashed: boolean; soft?: boolean}[];
+  polylines: {pts: {x: number; y: number}[]; fill: ColorKey; dashed: boolean; soft?: boolean}[];
   dots: {x: number; y: number; fill: ColorKey}[];
 }
 export interface LaidOutBars extends Rect, Dimmed {

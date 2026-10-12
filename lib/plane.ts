@@ -27,6 +27,7 @@ export function planeTexts(band: PlaneBand, roles: Roles): [string, number, numb
   const out: [string, number, number, FontFamily][] = [];
   const add = (s: string | undefined, weight = 400) => { if (s) out.push([s, sizeOf(band, roles), weight, 'sans']); };
   for (const axis of [band.x, band.y]) { add(axis.label, 700); for (const t of ticksOf(axis)) add(t.label); }
+  for (const t of band.yTickSample ?? []) add(t);
   for (const p of band.points ?? []) add(p.label, 700);
   for (const d of band.dims ?? []) add(d.label, 700);
   for (const l of band.labels ?? []) add(l.text, l.bold ? 700 : 400);
@@ -95,7 +96,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   const yDown = !!band.yDown;
 
   // margins: room for the y tick labels, the axis names and the x tick labels
-  const yTickW = Math.max(0, ...yTicks.map(t => tw(t.label)));
+  const yTickW = Math.max(0, ...yTicks.map(t => tw(t.label)), ...(band.yTickSample ?? []).map(t => tw(t)));
   const padL = Math.ceil(yTickW) + TICK + 14;
   // the x axis name starts past the last tick's label (centred on the axis end), so the two never share space
   const lastTick = xTicks.length ? tw(xTicks[xTicks.length - 1].label) / 2 : 0;
