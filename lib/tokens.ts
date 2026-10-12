@@ -171,6 +171,17 @@ export function scaleRoles(base: Roles, s: number): Roles {
   return Object.freeze(Object.fromEntries(Object.entries(base).map(([k, v]) => [k, Math.round(v * s)])) as Record<Role, number>);
 }
 
+/** diagram({canvas: 'slide'}): a 16:9 slide drawn 1:1; no text below `minText`. */
+export const SLIDE_CANVAS = {width: 1280, height: 720, minText: 24};
+/** The scale at which the smallest text (a role or a fixed size) becomes `minText`. */
+export function canvasFontScale(minText: number): number {
+  return Math.ceil(minText / Math.min(...Object.values(ROLES), 14) * 100) / 100;
+}
+/** The roles a canvas diagram is drawn with: every role and the fixed sizes (connector label, tag) scaled by `s`. */
+export function canvasRoles(s: number): Roles {
+  return Object.freeze({...scaleRoles(ROLES, s), connectLabel: Math.round(CONNECT_LABEL_SIZE * s), tag: Math.round(TAG_SIZE * s)});
+}
+
 // Fixed sizes of text that is not a role: the label on a connector line and the tag pill on a box.
 // layout.ts measures with these and emit.ts draws with them, so they are defined once, here.
 export const CONNECT_LABEL_SIZE = 14;

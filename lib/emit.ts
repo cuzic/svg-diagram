@@ -141,10 +141,10 @@ function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, defaultAlig
   return renderTextRuns(band.wrappedRuns, {originX, originY: band.y + py, w: band.w - 2 * px, align, day, dim: band.dim, boxTone: band.tone});
 }
 
-function renderTag(band: LaidOutBox, day: Theme): string {
+function renderTag(band: LaidOutBox, day: Theme, roles: Roles): string {
   const t = band.tagBox as Rect; // caller checked tagBox
   const fill = band.dim ? PALETTE.muted : colorOf(toneStyle(band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
-  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: TAG_SIZE, labelHtml: emojiSpan(band.tag as string)});
+  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: (roles.tag ?? TAG_SIZE), labelHtml: emojiSpan(band.tag as string)});
 }
 
 // The stamp chip: bottom-right inside the shape (layout reserved the strip; rows may have stretched the shape since, so it follows the bottom edge).
@@ -157,7 +157,7 @@ function renderStamp(band: Rect & {stamp?: string; stampW?: number}, roles: Role
 function renderBox(band: LaidOutBox, day: Theme, roles: Roles): string {
   const badge = band.step != null ? `\n  ${renderStepBadge(band, day)}` : '';
   const iconText = band.icon ? renderBoxIcon(band, day) : '';
-  const tag = band.tagBox ? `\n  ${renderTag(band, day)}` : '';
+  const tag = band.tagBox ? `\n  ${renderTag(band, day, roles)}` : '';
   return `${renderBoxRect(band, day, 'plain')}\n  ${renderBoxText(band, day, 'left')}${badge}${iconText}${tag}${renderStamp(band, roles)}`;
 }
 
@@ -242,7 +242,7 @@ function renderConnectPath(c: LaidOutConnect): string {
   return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${Math.round(p.x)},${Math.round(p.y)}`).join(' ');
 }
 
-function renderConnect(c: LaidOutConnect, day: Theme): string {
+function renderConnect(c: LaidOutConnect, day: Theme, roles: Roles): string {
   const color = c.dim ? PALETTE.muted : resolveLineColor(c.tone, day);
   const d = renderConnectPath(c);
   const strong = c.weight === 'strong';
@@ -262,9 +262,9 @@ function renderConnect(c: LaidOutConnect, day: Theme): string {
   // keeps emit and verify looking at the same point.
   if (c.chipBox) {
     const b = c.chipBox;
-    return `${path}\n  ${pillSvg({x: snap4(b.x), y: snap4(b.y), w: snap4(b.w), h: b.h, fill: PALETTE.bg, stroke: color, cx: c.labelX as number, baseline: c.labelY as number, text: color, size: CONNECT_LABEL_SIZE, weight: 400, labelHtml: escapeXml(c.label)})}`;
+    return `${path}\n  ${pillSvg({x: snap4(b.x), y: snap4(b.y), w: snap4(b.w), h: b.h, fill: PALETTE.bg, stroke: color, cx: c.labelX as number, baseline: c.labelY as number, text: color, size: (roles.connectLabel ?? CONNECT_LABEL_SIZE), weight: 400, labelHtml: escapeXml(c.label)})}`;
   }
-  return `${path}\n  <text x="${c.labelX}" y="${c.labelY}" text-anchor="middle" font-size="${CONNECT_LABEL_SIZE}" fill="${color}">${escapeXml(c.label)}</text>`;
+  return `${path}\n  <text x="${c.labelX}" y="${c.labelY}" text-anchor="middle" font-size="${(roles.connectLabel ?? CONNECT_LABEL_SIZE)}" fill="${color}">${escapeXml(c.label)}</text>`;
 }
 
 function renderPyramid(band: LaidOutPyramid, roles: Roles): string {
@@ -645,7 +645,7 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; 
 
   const dimFill = spotlightDim(laidOutDiagram) === 'fill';
   const body = laidOut.filter(band => visibleAt(band, opts.reveal)).map(band => renderBand(band, day, roles, opts.reveal, dimFill)).join('\n\n  ');
-  const connectSvg = connects.filter(c => visibleAt(c, opts.reveal)).map(c => renderConnect(c, day)).join('\n\n  ');
+  const connectSvg = connects.filter(c => visibleAt(c, opts.reveal)).map(c => renderConnect(c, day, roles)).join('\n\n  ');
 
   // doc-medium diagrams carry an accessible name/description and (when built from a file) provenance
   let a11y = '', head = '';
