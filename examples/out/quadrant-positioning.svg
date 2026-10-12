@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="518" viewBox="0 0 940 518" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">ノート PC のポジショニングマップ</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/quadrant-positioning.ts","sourceSha256":"55913f1ecdb3be41d18df10a32d380fdf92a70fbf21c87382fc189ab7495614c"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="518" fill="#ffffff"/>
+
+  <rect x="88" y="28" width="412" height="200" rx="0" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <rect x="500" y="28" width="412" height="200" rx="0" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <rect x="88" y="228" width="412" height="200" rx="0" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <rect x="500" y="228" width="412" height="200" rx="0" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <path d="M500,28 L500,428" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M87,228 L912,228" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <circle cx="540" cy="88" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="376" cy="248" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <polygon points="740.9,60.9 755.1,60.9 755.1,75.1 740.9,75.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
+  <polygon points="244.9,340.9 259.1,340.9 259.1,355.1 244.9,355.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
+  <polygon points="576.9,300.9 591.1,300.9 591.1,315.1 576.9,315.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
+  <polygon points="180.9,172.9 195.1,172.9 195.1,187.1 180.9,187.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="96" cy="476" r="7" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <polygon points="161.8,469.8 174.2,469.8 174.2,482.2 161.8,482.2" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
+  <text x="552" y="93" font-size="14" fill="#22201b">自社 A（軽量）</text>
+  <text x="388" y="253" font-size="14" fill="#22201b">自社 B（標準）</text>
+  <text x="762" y="73" font-size="14" fill="#22201b">競合 X</text>
+  <text x="266" y="353" font-size="14" fill="#22201b">競合 Y</text>
+  <text x="598" y="313" font-size="14" fill="#22201b">競合 Z</text>
+  <text x="202" y="185" font-size="14" fill="#22201b">競合 W</text>
+  <text x="77" y="46" text-anchor="end" font-size="14" fill="#6f6659">軽い</text>
+  <text x="77" y="422" text-anchor="end" font-size="14" fill="#6f6659">重い</text>
+  <text x="77" y="233" text-anchor="end" font-size="15" font-weight="700" fill="#22201b">携帯性</text>
+  <text x="87" y="452" font-size="14" fill="#6f6659">安い</text>
+  <text x="912" y="452" text-anchor="end" font-size="14" fill="#6f6659">高い</text>
+  <text x="500" y="452" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">価格</text>
+  <text x="109" y="480" font-size="14" fill="#22201b">自社</text>
+  <text x="181" y="480" font-size="14" fill="#22201b">競合</text>
+</svg>

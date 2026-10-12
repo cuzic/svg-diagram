@@ -43,6 +43,8 @@ export const RULE_DOCS = {
   'swimlane-lanes': 'レーンが多い（6 本まで）',
   'swimlane-hand-offs': 'レーンをまたぐ引き継ぎの数（情報）',
   'edge-crossings': '線どうしの交差・重なりがある',
+  'quadrant-item-moved': 'quadrant() の項目が、重なりを避けるため指定した座標から 16px 以上動いた（座標は目安として読まれる）',
+  'quadrant-tone-only': 'quadrant() の項目の色（tone）だけで種類を分けている（group を使うと形と凡例でも伝わる）',
   'arrow-labels': '一部にだけラベルがあり、ラベルのない矢印が多い',
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
   'slide-min-text': 'スライド用キャンバスの最小文字サイズ(既定 24px)より小さい文字がある',
@@ -411,6 +413,11 @@ function lintAll(d: LintTarget): Finding[] {
   for (const b of walkBands(d.bands)) if (b.type === 'image' && b.bytes > IMAGE_WARN_BYTES) out.push({rule: 'image-large', severity: 'warn', message: `画像（${Math.round(b.bytes / 1024)} KB）が大きい。SVG に埋め込まれ、段階表示の各ファイルにも入る。解像度を下げるか圧縮する（${IMAGE_WARN_BYTES / 1024} KB 以下が目安）`});
   for (const b of d.laidOut ?? []) if (b.type === 'bars' && b.bars.some(r => (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0))) { out.push({rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す'}); break; }
   for (const b of d.laidOut ?? []) if (b.type === 'caption' && b.sourceLine && b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0) > 1) out.push({rule: 'source-wraps', severity: 'warn', message: `出典行が ${b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0)} 行に折り返している。1 行に収まる長さにする（出典の細部は本文へ）`});
+  for (const b of d.laidOut ?? []) if (b.type === 'quadrant') {
+    const far = b.moved.filter(m => m.px >= 16);
+    if (far.length) out.push({rule: 'quadrant-item-moved', severity: 'warn', message: `quadrant() の項目 ${far.map(m => `「${m.label}」(${Math.round(m.px)}px)`).join('、')} が、他の項目やラベルを避けて座標から離れた。座標を離すか、図を大きくする`});
+  }
+  for (const b of walkBands(d.bands)) if (b.type === 'quadrant' && !b.groups.length && new Set(b.items.flatMap(i => i.tone ? [i.tone] : [])).size >= 2) out.push({rule: 'quadrant-tone-only', severity: 'warn', message: 'quadrant() の項目を tone（色）だけで分けている。色だけでは意味が伝わらない。group を指定する（形と凡例が付く）'});
   if (d.medium === 'doc' && !diagramTitle(d)) out.push({rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する'});
   return out;
 }
