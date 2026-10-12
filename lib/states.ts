@@ -153,12 +153,12 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
         if (len >= lw) runs.push({x: p.x + Math.sign(q.x - p.x) * (len / 2), y: p.y - lh / 2 - 3});
       } else if (dir === 'down' && p.x === q.x) {
         const len = Math.abs(q.y - p.y) - trim;
-        if (len >= lh + 4) runs.push({x: p.x + 6 + lw / 2, y: p.y + Math.sign(q.y - p.y) * (len / 2)});
+        if (len >= lh + 4) runs.push({x: p.x + 6 + lw / 2, y: p.y + Math.sign(q.y - p.y) * (len / 2)}, {x: p.x - 6 - lw / 2, y: p.y + Math.sign(q.y - p.y) * (len / 2)});
       }
     }
-    const along = [...runs, ...[0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9].map(at)];
+    const along = [...runs, ...[0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9, 0.05, 0.95].map(at)];
     // then a spot beside the arrow (up or down by whole chip heights), still next to it
-    const beside = [1, -1, 2, -2].flatMap(k => [0.5, 0.4, 0.6].map(at).map(p => ({x: p.x, y: p.y + k * (lh + 2)})));
+    const beside = [1, -1, 2, -2, 3, -3].flatMap(k => [0.5, 0.4, 0.6].map(at).flatMap(p => [{x: p.x, y: p.y + k * (lh + 2)}, {x: p.x + k * (lw / 2 + 8), y: p.y}]));
     const c = [...along, ...beside].find(p => free(boxAt(p))) ?? at(0.5);
     const b = boxAt(c);
     out.labels.push({text, ...b, tx: c.x, ty: b.y + S + 2});
