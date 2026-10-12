@@ -1944,11 +1944,12 @@ export interface LaidOutBars extends Rect, Dimmed {
   anchors: Anchor[];
 }
 
-export interface TimelineText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: 'text' | 'muted' | 'accent' | 'danger'; bold: boolean}
+export interface TimelineText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: 'text' | 'muted' | 'accent' | 'danger'; bold: boolean; size: number}
 export interface LaidOutTimeline extends Rect, Dimmed {
   type: 'timeline';
   id?: string;
   reveal?: number;
+  until?: number;
   axis: {x1: number; x2: number; y: number};
   /** The bar on the axis between now and the deadline (accent while the deadline is ahead, danger once past). */
   span?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'; fill?: boolean};

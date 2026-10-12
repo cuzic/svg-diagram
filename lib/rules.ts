@@ -20,6 +20,7 @@ import {budgetWarnings} from './budget.ts';
 import {barsValuesHidden} from './bars.ts';
 import {fmt} from './plane.ts';
 import {dimmedBands} from './spotlight.ts';
+import {visibleAt} from './reveal.ts';
 import type {
   ArrowWeight, Band, BarsBand, BoxBand, EmphasisTone, DiagramData, Finding, LaidOutBand, LaidOutBox, LaidOutConnect, LegendBand, LegendItem,
   LineStyle, Point, RuleId, SwimlaneBand, WfCallout,
@@ -427,22 +428,24 @@ export function diagramTitle(d: DiagramData): string {
   return '';
 }
 
-export function diagramDesc(d: DiagramData): string {
+/** `stage`: a click stage of a revealing diagram; only what is on screen then is listed (nothing is left out without it). */
+export function diagramDesc(d: DiagramData, stage?: number): string {
   if (d.desc) return oneLine(d.desc);
   const parts: string[] = [];
-  for (const b of walkBands(d.bands)) {
+  const bands = walkBands(d.bands).filter(b => visibleAt(b as {reveal?: number; until?: number}, stage));
+  for (const b of bands) {
     if (b.type === 'swimlane') {
       parts.push(`レーン: ${b.lanes.map(l => oneLine(l.label)).join('、')}`);
-      parts.push(`手順: ${b.steps.map(s => oneLine(s.title)).join('、')}`);
+      parts.push(`手順: ${b.steps.filter(s => visibleAt(s, stage)).map(s => oneLine(s.title)).join('、')}`);
     } else if (b.type === 'sequence') parts.push(`参加者: ${b.actors.map(a => oneLine(a.label)).join('、')}`);
     else if (b.type === 'table') parts.push(`表${b.title ? `「${oneLine(b.title)}」` : ''}: 列 ${b.columns.map(c => oneLine(c.label)).join('、')}`);
   }
   if (!parts.length) {
-    const titles = walkBands(d.bands).filter((b): b is BoxBand => b.type === 'box' && !!b.title).map(b => oneLine(b.title));
+    const titles = bands.filter((b): b is BoxBand => b.type === 'box' && !!b.title).map(b => oneLine(b.title));
     if (titles.length) parts.push(`要素: ${titles.slice(0, 16).join('、')}${titles.length > 16 ? ' ほか' : ''}`);
   }
   for (const b of walkBands(d.bands)) if (b.type === 'image' && b.alt) parts.push(`画像: ${oneLine(b.alt)}`);
   // outside the fallback above, so boxes and hidden-value bars can share one description
-  for (const b of walkBands(d.bands)) if (b.type === 'bars' && barsValuesHidden(b)) parts.push(`値: ${b.data.map(x => `${oneLine(x.label)} ${fmt(x.value)}${b.unit ?? ''}`).join('、')}`);
+  for (const b of bands) if (b.type === 'bars' && barsValuesHidden(b)) parts.push(`値: ${b.data.filter(x => visibleAt(x, stage)).map(x => `${oneLine(x.label)} ${fmt(x.value)}${b.unit ?? ''}`).join('、')}`);
   return parts.join('。');
 }

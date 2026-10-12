@@ -6,7 +6,7 @@
 // computed (usually off-grid) position, same as every hand-authored diagram
 // in this deck.
 
-import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf, recolor, customColors} from './tokens.ts';
+import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf, recolor, customColors, mapOf} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
@@ -423,20 +423,20 @@ function renderImage(b: LaidOutImage, day: Theme, stage?: number): string {
   return out.join('\n  ');
 }
 
-const S_TIMELINE = 14;
 function renderTimeline(b: LaidOutTimeline, day: Theme): string {
-  const col = (k: 'text' | 'muted' | 'accent' | 'danger') => colorOf(k, day);
+  // a dimmed timeline draws itself muted (so the white knock-out ring around each dot stays white)
+  const col = (k: 'text' | 'muted' | 'accent' | 'danger') => b.dim ? PALETTE.muted : colorOf(k, day);
   const out: string[] = [`<path d="M${snap4(b.axis.x1)},${snap4(b.axis.y)} H${snap4(b.axis.x2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`];
   if (b.span?.fill) {
     const x1 = snap4(b.span.x1), y1 = snap4(b.span.y - 12);
-    out.unshift(`<rect x="${x1}" y="${y1}" width="${snap4(b.span.x2) - x1}" height="24" fill="${b.span.tone === 'accent' ? PALETTE[day].soft : PALETTE.border}"/>`);
+    out.unshift(`<rect x="${x1}" y="${y1}" width="${snap4(b.span.x2) - x1}" height="24" fill="${b.span.tone === 'accent' && !b.dim ? PALETTE[day].soft : PALETTE.border}"/>`);
   } else if (b.span) out.push(`<path d="M${snap4(b.span.x1)},${snap4(b.span.y)} H${snap4(b.span.x2)}" fill="none" stroke="${col(b.span.tone)}" stroke-width="8"/>`);
   if (b.fullLine) out.push(`<path d="M${snap4(b.fullLine.x)},${snap4(b.fullLine.y1)} V${snap4(b.fullLine.y2)}" fill="none" stroke="${col('danger')}" stroke-width="2"/>`);
   for (const t of b.ticks) out.push(`<path d="M${snap4(t.x)},${snap4(t.y1)} V${snap4(t.y2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
   for (const s of b.stems) out.push(`<path d="M${snap4(s.x)},${snap4(s.y1)} V${snap4(s.y2)}" fill="none" stroke="${col(s.tone)}" stroke-width="2"/>`);
   for (const d of b.dots) out.push(`<circle cx="${snap4(d.x)}" cy="${snap4(d.y)}" r="${d.r}" fill="${col(d.tone)}" stroke="${PALETTE.bg}" stroke-width="4"/>`);
   if (b.bracket) { const {x1, x2, y, tone} = b.bracket; out.push(`<path d="M${snap4(x1)},${snap4(y - 4)} V${snap4(y)} H${snap4(x2)} V${snap4(y - 4)}" fill="none" stroke="${col(tone)}" stroke-width="2"/>`); }
-  for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${S_TIMELINE}"${t.bold ? ' font-weight="700"' : ''} fill="${col(t.fill)}">${emojiSpan(t.text)}</text>`);
+  for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${col(t.fill)}">${emojiSpan(t.text)}</text>`);
   return out.join('\n  ');
 }
 
@@ -635,7 +635,7 @@ function renderBandPlain(band: LaidOutBand, day: Theme, roles: Roles, stage?: nu
 }
 
 // bands that draw their own dim state (spotlight) instead of having it painted over their svg
-const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars', 'image']);
+const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars', 'timeline', 'image']);
 
 function renderBand(band: LaidOutBand, day: Theme, roles: Roles, stage?: number, dimFill = false): string {
   const svg = renderBandPlain(band, day, roles, stage, dimFill);
@@ -703,7 +703,7 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; 
   // doc-medium diagrams carry an accessible name/description and (when built from a file) provenance
   let a11y = '', head = '';
   if (laidOutDiagram.medium === 'doc') {
-    const title = diagramTitle(laidOutDiagram), desc = diagramDesc(laidOutDiagram);
+    const title = diagramTitle(laidOutDiagram), desc = diagramDesc(laidOutDiagram, opts.reveal);
     if (title) {
       a11y = ` role="img" aria-labelledby="svg-title${desc ? ' svg-desc' : ''}"`;
       head = `\n  <title id="svg-title">${escapeXml(title)}</title>${desc ? `\n  <desc id="svg-desc">${escapeXml(desc)}</desc>` : ''}`;
@@ -724,5 +724,6 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; 
 `;
   // the attribute is added after the recolouring: its values are final colours (a custom white must not be recoloured as a light token)
   const out = opts.noRecolor ? svgText : recolor(svgText, laidOutDiagram.appearance);
-  return paletteAttr ? out.replace('<svg ', `<svg${paletteAttr} `) : out;
+  const darkAttr = mapOf(laidOutDiagram.appearance) ? ' data-appearance="dark"' : '';
+  return paletteAttr || darkAttr ? out.replace('<svg ', `<svg${darkAttr}${paletteAttr} `) : out;
 }

@@ -1,4 +1,4 @@
-<svg data-palette="#0b1220 #ffffff #94a3b8 #60a5fa #1e3a8a #dc2626" xmlns="http://www.w3.org/2000/svg" width="940" height="186" viewBox="0 0 940 186" data-assumed-bg="#0b1220" role="img" aria-labelledby="svg-title">
+<svg data-appearance="dark" data-palette="#0b1220 #ffffff #94a3b8 #60a5fa #1e3a8a #dc2626" xmlns="http://www.w3.org/2000/svg" width="940" height="186" viewBox="0 0 940 186" data-assumed-bg="#0b1220" role="img" aria-labelledby="svg-title">
   <title id="svg-title">要求が壁になる様子</title>
   <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/dark-bars-wall.ts","sourceSha256":"36959992b90125ea2b90e134120f6f86c2432da08b908c9841cc33255a21488d"}</metadata>
   <style>
