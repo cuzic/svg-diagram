@@ -55,7 +55,8 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
   const edges = band.relations.map(r => flip(r.kind) ? {from: r.to, to: r.from} : {from: r.from, to: r.to});
   const widestLabel = Math.max(0, ...band.relations.map(r => r.label ? labelW(r.label) : 0));
   const degree = Math.max(1, ...band.classes.map(c => Math.max(band.relations.filter(r => r.from === c.id && r.from !== r.to).length, band.relations.filter(r => r.to === c.id && r.from !== r.to).length)));
-  const lay = layoutWithLanes(nodes, edges, {dir: 'right', gap: GAP, levelGap: Math.max(dir === 'down' ? LEVEL_GAP + 16 : LEVEL_GAP, gapFor(degree, dir === 'right' ? widestLabel : 0))});
+  const loopRows = dir === 'right' && band.relations.some(r => r.from === r.to) ? LOOP + S + 8 + 4 : 0; // a loop above a class (dir right) needs room above it, between rows too
+  const lay = layoutWithLanes(nodes, edges, {dir: 'right', gap: GAP + loopRows, levelGap: Math.max(dir === 'down' ? LEVEL_GAP + 16 : LEVEL_GAP, gapFor(degree, dir === 'right' ? widestLabel : 0))});
   const swap = (p: Pt): Pt => ({x: p.y, y: p.x});
   const total = {w: dir === 'down' ? lay.h : lay.w, h: dir === 'down' ? lay.w : lay.h};
   const hasLoop = band.relations.some(r => r.from === r.to);

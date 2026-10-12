@@ -162,3 +162,12 @@ test('classDiagram() dir right: a self relation sits above its class, off the ar
   assert.deepEqual(t.labels.map(l => l.text).sort(), ['0..1', '1', 'next']);
   assert.ok(t.labels.every(l => l.y >= t.y - 0.5), 'inside the figure');
 });
+
+test('classDiagram() dir right: a self relation on the lower class of a layer leaves room above it (its label does not sit on the class above)', async () => {
+  const {t, verdict} = await laid(classDiagram([{id: 'P'}, {id: 'A'}, {id: 'B'}], [{from: 'A', to: 'P', kind: 'inherit'}, {from: 'B', to: 'P', kind: 'inherit'}, {from: 'B', to: 'B', kind: 'aggregate', label: 'next', fromMult: '1', toMult: '0..1'}], {dir: 'right'}));
+  assert.deepEqual(verdict.problems, []);
+  const a = t.anchors.find(n => n.id === 'A')!, b = t.anchors.find(n => n.id === 'B')!;
+  const upper = a.y < b.y ? a : b, lower = a.y < b.y ? b : a;
+  for (const l of t.labels) assert.ok(!(l.y < upper.y + upper.h && l.y + l.h > upper.y && l.x < upper.x + upper.w && l.x + l.w > upper.x), `${l.text} is not on ${upper.id}`);
+  void lower;
+});
