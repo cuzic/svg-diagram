@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="552" viewBox="0 0 940 552" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">寸法のばらつきの特性要因図</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/qc-fishbone.ts","sourceSha256":"902be21a7c8735af218cbf51a754d90288436f10cba6b0d59c2924c2c37d9916"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="552" fill="#ffffff"/>
+
+  <path d="M108,260 L708,260" fill="none" stroke="#6f6659" stroke-width="4"/>
+  <path d="M280,56 L360,260" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M264,108 L264,132 L260,132" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M264,108 L264,176 L260,176" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M280,92 L292,92" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M332,220 L344,220" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M540,56 L620,260" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M532,128 L532,152 L524,152" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M544,100 L556,100" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M584,196 L596,196" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M336,460 L416,260" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M320,408 L320,384 L316,384" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M336,428 L348,428" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M372,340 L384,340" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M588,460 L668,260" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M580,388 L580,364 L572,364" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M592,416 L604,416" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M632,320 L644,320" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <rect x="708" y="240" width="128" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="236" y="20" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="152" y="72" width="128" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="160" y="116" width="100" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="120" y="156" width="140" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="232" y="200" width="100" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="292" y="460" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="236" y="408" width="100" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="176" y="368" width="140" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="272" y="324" width="100" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="496" y="20" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="404" y="72" width="140" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="412" y="136" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="484" y="180" width="100" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="544" y="460" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="468" y="388" width="128" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="460" y="348" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="520" y="304" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="771" y="262" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">寸法のばらつき</text>
+  <text x="278" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">人</text>
+  <text x="217" y="94" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">作業者の経験差</text>
+  <text x="211" y="136" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">新人が多い</text>
+  <text x="190" y="178" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">教育の記録がない</text>
+  <text x="282" y="222" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">測定のくせ</text>
+  <text x="334" y="482" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">機械</text>
+  <text x="287" y="430" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">刃物の摩耗</text>
+  <text x="246" y="388" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">交換の基準がない</text>
+  <text x="321" y="344" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">主軸の振れ</text>
+  <text x="539" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">方法</text>
+  <text x="475" y="94" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">段取りが人によっ</text>
+  <text x="475" y="114" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">て違う</text>
+  <text x="469" y="156" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手順書が古い</text>
+  <text x="534" y="200" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">検査の頻度</text>
+  <text x="587" y="482" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">材料</text>
+  <text x="530" y="410" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">ロットごとの硬</text>
+  <text x="530" y="430" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">さ差</text>
+  <text x="517" y="368" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仕入先が複数</text>
+  <text x="575" y="324" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">保管中の変形</text>
+
+  <text x="20" y="526" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>
