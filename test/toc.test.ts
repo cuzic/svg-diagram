@@ -285,12 +285,6 @@ test('causeTree() N1: causes of an AND stay neighbours, so an OR arrow does not 
   }
 });
 
-test('causeTree() N1: verify reports two arrows that cross', async () => {
-  // K2,2 between two layers cannot be drawn without a crossing
-  const {verdict} = await laidCause(causeTree([N('a'), N('b'), N('x'), N('y')], [{from: 'a', to: 'x'}, {from: 'a', to: 'y'}, {from: 'b', to: 'x'}, {from: 'b', to: 'y'}]));
-  assert.ok(verdict.problems.some(p => p.includes('crosses arrow')), JSON.stringify(verdict.problems));
-});
-
 test('causeTree() N5: a back edge into an effect that has an AND still lays out, and the AND arc stays on its own arrows', async () => {
   const {t} = await laidCause(causeTree([N('a'), N('b'), N('z'), N('w')], [{from: ['a', 'b'], to: 'z'}, {from: 'z', to: 'w'}, {from: 'w', to: 'z'}]));
   assert.equal(t.edges.length, 4);
@@ -302,4 +296,20 @@ test('cloud() N2/N4: a long conflict label is reported when it sits on an arrow;
   assert.ok(long.verdict.problems.some(p => /conflict label/.test(p)), JSON.stringify(long.verdict.problems));
   const narrow = await checkDiagram(diagram({theme: 'blue', width: 640} as never).add(cloud(FIVE, {conflictLabel: '対立', assumptions: [{on: 'dd', text: 'a'}, {on: 'dd', text: 'b'}, {on: 'dd', text: 'c'}, {on: 'dd', text: 'd'}]})));
   assert.deepEqual(narrow.verdict.problems, []);
+});
+
+// ---- review fixes, round 3 ----
+test('causeTree() R3-1: crossings that no layout can avoid are not a build failure unless they touch an AND', async () => {
+  const k23 = causeTree(['a', 'b', 'x', 'y', 'z'].map(i => N(i)), ['x', 'y', 'z'].flatMap(t => ['a', 'b'].map(f => ({from: f, to: t}))));
+  const {verdict} = await laidCause(k23);
+  assert.deepEqual(verdict.problems, []);
+});
+
+test('causeTree() R3-2: an AND cause from another layer never runs side by side with the OR arrow into the same effect; a crossing it cannot avoid is a warning', async () => {
+  for (const dir of ['up', 'down', 'right', 'left'] as const) {
+    const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue'}).add(causeTree(['x', 'a', 'b', 'c', 'z'].map(i => N(i)), [{from: 'x', to: 'a'}, {from: ['a', 'c'], to: 'z'}, {from: 'b', to: 'z'}, {from: 'x', to: 'b'}], {dir})));
+    assert.deepEqual(verdict.problems, [], dir);
+    assert.ok(verdict.warnings.every(w => w.startsWith('[cause-crossing]') || !w.includes('cause:')), dir);
+    void laidOut;
+  }
 });

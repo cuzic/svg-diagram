@@ -231,7 +231,7 @@ function checkBpmn(d: LaidOutDiagram): string[] {
 }
 
 // A cause arrow must not run through an entity it does not touch; the arrows of an AND must be joined by their arc.
-function checkCause(d: LaidOutDiagram): string[] {
+function checkCause(d: LaidOutDiagram, warn: string[]): string[] {
   const problems: string[] = [];
   for (const band of d.laidOut) {
     if (band.type !== 'cause') continue;
@@ -264,19 +264,33 @@ function checkCause(d: LaidOutDiagram): string[] {
         if (Math.min(u1, v1) - Math.max(u0, v0) > -8) problems.push(`cause: two AND arcs into "${a.to}" touch (they read as one AND; give them more room)`);
       }
     }
-    // two arrows must not cross: near an AND arc a crossing makes it unclear which arrow belongs to which group
-    const segs = band.edges.flatMap((e, k) => e.points.slice(1).map((q, m) => ({k, p: e.points[m], q})));
+    // arrows into an effect that has an AND: two of them should not cross (a warning: it can be unavoidable) and must not run together
+    // (which arrow belongs to the AND would be unclear). A crossing elsewhere is left alone: many cause graphs cannot be drawn without one.
+    const andTo = new Set(band.ands.map(x => x.to));
+    const segs = band.edges.flatMap((e, k) => andTo.has(e.to) ? e.points.slice(1).map((q, m) => ({k, p: e.points[m], q})) : []);
     const cross = (a: typeof segs[number], b: typeof segs[number]): boolean => {
       const aH = a.p.y === a.q.y, bH = b.p.y === b.q.y;
       if (aH === bH) return false;
       const h = aH ? a : b, v = aH ? b : a;
-      return v.p.x > Math.min(h.p.x, h.q.x) + 1 && v.p.x < Math.max(h.p.x, h.q.x) - 1 && h.p.y > Math.min(v.p.y, v.q.y) + 1 && h.p.y < Math.max(v.p.y, v.q.y) - 1;
+      return v.p.x > Math.min(h.p.x, h.q.x) + 0.5 && v.p.x < Math.max(h.p.x, h.q.x) - 0.5 && h.p.y > Math.min(v.p.y, v.q.y) + 0.5 && h.p.y < Math.max(v.p.y, v.q.y) - 0.5;
     };
-    const crossed = new Set<string>();
+    // runs of two arrows side by side (under 4px apart, over 4px long together) read as one line
+    const together = (a: typeof segs[number], b: typeof segs[number]): boolean => {
+      const aH = a.p.y === a.q.y;
+      if (aH !== (b.p.y === b.q.y)) return false;
+      const [c, d] = aH ? ['x', 'y'] as const : ['y', 'x'] as const;
+      return Math.abs(a.p[d] - b.p[d]) < 4 && Math.min(Math.max(a.p[c], a.q[c]), Math.max(b.p[c], b.q[c])) - Math.max(Math.min(a.p[c], a.q[c]), Math.min(b.p[c], b.q[c])) > 4;
+    };
+    const flagged = new Set<string>();
     for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
-      if (segs[i].k === segs[j].k || !cross(segs[i], segs[j])) continue;
-      const a = band.edges[segs[i].k], b = band.edges[segs[j].k], key = `${Math.min(segs[i].k, segs[j].k)}:${Math.max(segs[i].k, segs[j].k)}`;
-      if (!crossed.has(key)) { crossed.add(key); problems.push(`cause: arrow ${a.from} -> ${a.to} crosses arrow ${b.from} -> ${b.to} (reorder the nodes, or change dir)`); }
+      const a = band.edges[segs[i].k], b = band.edges[segs[j].k];
+      if (segs[i].k === segs[j].k || a.to !== b.to) continue;
+      const how = cross(segs[i], segs[j]) ? 'crosses' : together(segs[i], segs[j]) ? 'runs together with' : '';
+      const key = `${Math.min(segs[i].k, segs[j].k)}:${Math.max(segs[i].k, segs[j].k)}`;
+      if (!how || flagged.has(key)) continue;
+      flagged.add(key);
+      // a crossing may be unavoidable (an AND's causes in different layers around an OR cause): it is a warning; two runs that merge are a problem
+      (how === 'crosses' ? warn : problems).push(`${how === 'crosses' ? '[cause-crossing] ' : ''}cause: arrow ${a.from} -> ${a.to} ${how} arrow ${b.from} -> ${b.to} (reorder the nodes, or change dir)`);
     }
     for (const to of band.loose) problems.push(`cause: the arrows into "${to}" do not reach it on one side, so their AND arc is not drawn (an arrow of a cycle arrives from the other side: break the cycle, or split the AND)`);
   }
@@ -473,6 +487,7 @@ function checkContrast(d: LaidOutDiagram): string[] {
 // `problems` fail the build; `warnings` (text volume, and the rules of rules.ts) never do.
 export function verifyDiagram(d: LaidOutDiagram): Verdict {
   const rects = collectRects(d);
+  const causeWarnings: string[] = [];
   const problems = [
     ...checkOverlaps(rects.filter(r => !r.backdrop)),
     ...checkConnects(d, rects.filter(r => !r.backdrop)),
@@ -481,7 +496,7 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
     ...checkImages(d),
     ...checkTimelines(d),
     ...checkStates(d),
-    ...checkCause(d),
+    ...checkCause(d, causeWarnings),
     ...checkCloud(d),
     ...checkGantts(d),
     ...checkClasses(d),
@@ -493,7 +508,7 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
   // Rule findings (WCAG contrast, legend, lane order, crossings, density ...). Doc-medium diagrams
   // get the full set; legacy slide diagrams keep their existing text-volume warning only.
   const findings = d.medium === 'doc' ? lintDiagram(d) : lintDiagram(d).filter(f => f.rule === 'density');
-  const warnings = [...(d.revealWarnings ?? []), ...findings.filter(f => f.severity === 'warn').map(f => `[${f.rule}] ${f.message}`)];
+  const warnings = [...(d.revealWarnings ?? []), ...causeWarnings, ...findings.filter(f => f.severity === 'warn').map(f => `[${f.rule}] ${f.message}`)];
   if (d.spotlight && !(typeof d.spotlight === 'object' && d.spotlight.mutedOk) && walkBands(d.bands).some(b => b.type === 'box' && b.tone === 'muted')) warnings.push('[spotlight-muted] spotlight と muted トーンの箱を併用しているため、dim との違いを形でも確認する');
   return {ok: problems.length === 0, problems, warnings, findings};
 }

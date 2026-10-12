@@ -25,12 +25,12 @@ export function simplify(pts: Pt[]): Pt[] {
  * Horizontal-vertical-horizontal elbows through the points (the layer axis is x here). A direct arrow turns at `turn` (an x in the gap
  * between its two layers, from routeLayered); the others turn half-way between their points.
  */
-export function elbows(pts: Pt[], turn?: number): Pt[] {
+export function elbows(pts: Pt[], turn?: number, lastTurn?: number): Pt[] {
   const out: Pt[] = [pts[0]];
   for (let i = 0; i + 1 < pts.length; i++) {
     const p = pts[i], q = pts[i + 1];
     if (p.y !== q.y) {
-      const mx = pts.length === 2 && turn !== undefined ? turn : (p.x + q.x) / 2;
+      const mx = pts.length === 2 && turn !== undefined ? turn : i + 2 === pts.length && lastTurn !== undefined ? lastTurn : (p.x + q.x) / 2;
       out.push({x: mx, y: p.y}, {x: mx, y: q.y});
     }
     out.push(q);
@@ -123,7 +123,14 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
       const d = Math.min(STUB + (laneOf.get(i) ?? 0), Math.max(gw / 2, gw - 22)); // the last run keeps room for the arrowhead
       turn = forward(i) ? gl + d : gr - d;
     }
-    out.set(i, elbows([start, ...e.points.slice(1, -1), end], turn).map(place));
+    // a long arrow into a grouped head (an AND) makes its last turn a fixed distance before the head, clear of the lanes of the direct arrows
+    // (which are counted from the gap's left side), so the two kinds never run side by side
+    let lastTurn: number | undefined;
+    if (groupOf && e.points.length > 2 && forward(i)) {
+      const lo = layerOf(e.to) - 1, gl = layerRight.get(lo), gr = layerLeft.get(lo + 1);
+      if (gl !== undefined && gr !== undefined) lastTurn = Math.max(gl + STUB, gr - 26);
+    }
+    out.set(i, elbows([start, ...e.points.slice(1, -1), end], turn, lastTurn).map(place));
   });
   return out;
 }
