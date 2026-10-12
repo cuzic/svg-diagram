@@ -1536,10 +1536,8 @@ export interface LaidOutPlane extends Rect {
 }
 
 export interface BarRect extends Rect, Dimmed {fill: ColorKey; id?: string; reveal?: number}
-export interface BarText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number;
-  /** Index into `bars` of the bar this label belongs to (none for tick labels), so spotlight can dim it with its bar. */
-  bar?: number;
-  dim?: boolean}
+/** `bar`: index into `bars` of the bar the label belongs to (none for tick labels), so spotlight can dim it with its bar. */
+export interface BarText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number; bar?: number}
 export interface LaidOutBars extends Rect, Dimmed {
   type: 'bars';
   dir: 'h' | 'v';
@@ -1548,7 +1546,7 @@ export interface LaidOutBars extends Rect, Dimmed {
   bars: BarRect[];
   ticks: {x1: number; y1: number; x2: number; y2: number}[];
   texts: BarText[];
-  labelBoxes: (Rect & {label: string; background?: ColorKey})[];
+  labelBoxes: (Rect & {label: string; background?: ColorKey; bar?: number})[];
   anchors: Anchor[];
 }
 

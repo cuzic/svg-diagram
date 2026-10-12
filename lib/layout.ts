@@ -512,6 +512,10 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       });
       const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, id: band.id};
       laidOut.push(frame); // before its steps so the lanes draw underneath
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, 'a swimlane takes an id that another anchor already has');
+        anchors.set(band.id, {x: frame.x, y: frame.y, w: frame.w, h: frame.h});
+      }
       for (const st of stepsPlaced) {
         const ln = lanes[laneIndex.get(st.lane) as number]; // an unknown lane id throws here, as before
         st.y = ln.blockTop + (st.row ?? 0) * (ln.maxStep + rowGap) + (ln.maxStep - st.h) / 2;

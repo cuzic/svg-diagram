@@ -17,10 +17,10 @@
   <path d="M53,78 L912,78" fill="none" stroke="#e0d6c5" stroke-width="2"/>
   <path d="M59,78 L59,302" fill="none" stroke="#e0d6c5" stroke-width="2"/>
   <path d="M59,302 L912,302" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M133.94,194.29 H197.94 V302 H133.94 Z" fill="#ffffff" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"/>
-  <path d="M347.1,167.36 H411.1 V302 H347.1 Z" fill="#ffffff" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"/>
+  <path d="M134.94,195.29 H196.94 V301 H134.94 Z" fill="#ffffff" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"/>
+  <path d="M348.1,168.36 H410.1 V301 H348.1 Z" fill="#ffffff" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"/>
   <path d="M560.26,113.5 H624.26 V302 H560.26 Z" fill="#1d5fa8"/>
-  <path d="M773.42,149.41 H837.42 V302 H773.42 Z" fill="#ffffff" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"/>
+  <path d="M774.42,150.41 H836.42 V301 H774.42 Z" fill="#ffffff" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"/>
   <text x="49" y="307" text-anchor="end" font-size="14" fill="#6f6659">0</text>
   <text x="49" y="262" text-anchor="end" font-size="14" fill="#6f6659">50</text>
   <text x="49" y="217" text-anchor="end" font-size="14" fill="#6f6659">100</text>
