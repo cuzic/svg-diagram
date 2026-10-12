@@ -1,6 +1,6 @@
 # ADR 0008: 資料づくり(3 巡目)で挙がったツール側の改善要望
 
-- 状態: 提案(未実装。着手順は未決)
+- 状態: 実装済み(#11 は測定のうえ見送り。下の「実装」を参照)
 - 日付: 2026-10-12
 - 基点: `main`(ADR 0006 の `--html` まで)
 - 関連: ADR 0004, ADR 0005
@@ -50,4 +50,18 @@
 
 ## 実装
 
-未着手。
+| # | 内容 | PR |
+|---|---|---|
+| 1 | `diagram({appearance: 'dark', transparent: true})`、`appearance: {dark: {bg, text, muted, accent, soft, danger}}` で色を差し替え。暗い側の danger の既定は濃い赤。色の置換は属性と CSS だけ(本文は書き換えない) | #46, #53 |
+| 2 | `until: n`(段階 n で消える)、bars の `replaces: '<id>'`(同じ位置で入れ替わる) | #48, #54 |
+| 3 | `people(total, count \| [k1, k2], opts)`、`side` で数字を横に、`tone` に muted | #47 |
+| 4 | `image(src, {marks, labels, over, labelRole})`。文字は不透明な板の上のみ。`over` で絵の上に箱を重ねる | #50 |
+| 5 | `timeline({from, to, now, deadline, marks, span: 'fill'})`、`deadline.line: 'full'` | #49, #55 |
+| 6 | `dots(values, {zones})` | #47 |
+| 7 | `diagram({canvas: 'slide'})`(既定 1280x720、最小文字 24px)。検査 `slide-min-text`、`slide-canvas-overflow` | #51 |
+| 8 | `diagram({sourceLine})`(図の最下行、左寄せ、14px) | #49 |
+| 9 | 既定プレビューでカラー絵文字(描画直前に絵を差し込む)。U+FE0F でシステムフォントを走査していた遅さも修正 | #45 |
+| 10 | `spotlight: {ids, mutedOk: true}` | #48 |
+| 11 | **見送り**。文字 635 個中 539 個が最大 2px 動き、枠と文字の差のずれは切り捨てに変わるだけで直らない。直すなら検査側。測定は ADR 0005 に追記 | #51 |
+
+コードレビュー(Opus、3 日分)の指摘は #53(ダーク)、#54(reveal/bars)、#55(timeline)、#56(--html)で直した。
