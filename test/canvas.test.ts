@@ -1,0 +1,286 @@
+import test from 'node:test';
+import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
+import assert from 'node:assert/strict';
+import {canvas, checkDiagram, closeMeasurer, connect, diagram, renderDiagram} from '../lib/dsl.ts';
+import {canvasKeys, canvasTemplates, TEMPLATES} from '../lib/canvas.ts';
+import {lintDiagram} from '../lib/rules.ts';
+import {geometryChecks} from '../lib/svg-lint.ts';
+import type {LaidOutBox, LaidOutGrid} from '../lib/types.ts';
+
+test.after(() => closeMeasurer());
+
+type R = {x: number; y: number; w: number; h: number};
+const overlap = (a: R, b: R): boolean => a.x < b.x + b.w - 0.5 && b.x < a.x + a.w - 0.5 && a.y < b.y + b.h - 0.5 && b.y < a.y + a.h - 0.5;
+
+const laid = async (...bands: unknown[]) => {
+  const d = diagram({theme: 'blue', title: 't'});
+  d.add(...(bands as never[]));
+  const {laidOut, verdict} = await checkDiagram(d);
+  const boxes = (laidOut.laidOut.find(b => b.type === 'grid') as LaidOutGrid).children;
+  return {laidOut, verdict, boxes, d, byTitle: (t: string) => boxes.find(b => b.title === t) as LaidOutBox};
+};
+
+// sample content for every region of every template
+const SAMPLE = (template: keyof typeof TEMPLATES, n = 2): Record<string, string[]> =>
+  Object.fromEntries(canvasKeys(template, true).map(k => [k, Array.from({length: n}, (_, i) => `${k} の要点 ${i + 1}`)]));
+
+// ---- the templates ---------------------------------------------------------------------------------------------------------------
+
+test('every template: sample content lays out, regions stay inside the figure and never overlap, verify and lint are clean', async () => {
+  for (const name of canvasTemplates() as (keyof typeof TEMPLATES)[]) {
+    const content = SAMPLE(name);
+    if (name !== 'pest') for (const k of ['legal', 'environmental']) delete content[k];
+    const {laidOut, verdict, boxes, d} = await laid(canvas(name, content, {title: name, requireAll: true}));
+    assert.deepEqual(verdict.problems, [], name);
+    for (const b of boxes) assert.ok(b.x >= 0 && b.x + b.w <= laidOut.width + 0.5 && b.y >= 0 && b.y + b.h <= (laidOut.contentHeight ?? 1e9) + 0.5, `${name}: ${b.title} is outside the figure`);
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) assert.ok(!overlap(boxes[i], boxes[j]), `${name}: ${boxes[i].title} overlaps ${boxes[j].title}`);
+    const findings = lintDiagram({...d, laidOut: laidOut.laidOut, connects: laidOut.connects});
+    assert.deepEqual(findings.filter(f => f.rule !== 'a11y-no-title'), [], `${name}: rules`);
+    const r = await renderDiagram(diagram({theme: 'blue', title: name}).add(canvas(name, content)), {name, budget: 'measure'});
+    assert.deepEqual(geometryChecks(r.svg)!.contrast, [], `${name}: contrast`);
+    assert.deepEqual(r.xml, []);
+  }
+});
+
+test('every template keeps its region ids unique and its cells on the grid', () => {
+  for (const [name, t] of Object.entries(TEMPLATES)) {
+    const ids = t.regions.map(r => r.id);
+    assert.equal(new Set(ids).size, ids.length, name);
+    for (const r of t.regions as readonly {id: string; col: number; row: number; cs?: number; rs?: number}[]) {
+      assert.ok(r.col + (r.cs ?? 1) <= t.cols.length, `${name}.${r.id} runs past the last column`);
+      assert.ok(r.row + (r.rs ?? 1) <= t.rows.length, `${name}.${r.id} runs past the last row`);
+    }
+    // no two regions share a cell
+    const taken = new Set<string>();
+    for (const r of t.regions as readonly {id: string; col: number; row: number; cs?: number; rs?: number}[]) {
+      for (let c = r.col; c < r.col + (r.cs ?? 1); c++) for (let w = r.row; w < r.row + (r.rs ?? 1); w++) { assert.ok(!taken.has(`${c},${w}`), `${name}.${r.id} shares a cell`); taken.add(`${c},${w}`); }
+    }
+  }
+});
+
+test('bmc: the classic arrangement (partners and segments are full height, value is the middle, cost and revenue share the bottom)', async () => {
+  const {boxes, byTitle} = await laid(canvas('bmc', SAMPLE('bmc')));
+  assert.equal(boxes.length, 9);
+  const [partners, activities, resources, value, rel, channels, segments, cost, revenue] = ['主要パートナー', '主要活動', '主要リソース', '提供価値', '顧客との関係', 'チャネル', '顧客セグメント', 'コスト構造', '収益の流れ'].map(byTitle);
+  for (const t of [partners, value, segments]) assert.ok(Math.abs(t.h - (activities.h + resources.h + 10)) < 1, 'a tall region spans the two rows');
+  assert.ok(partners.x < activities.x && activities.x < value.x && value.x < rel.x && rel.x < segments.x);
+  assert.equal(activities.x, resources.x);
+  assert.equal(rel.x, channels.x);
+  assert.ok(activities.y < resources.y && rel.y < channels.y);
+  assert.ok(cost.y > partners.y + partners.h && revenue.y === cost.y);
+  assert.ok(Math.abs(cost.w - revenue.w) < 1 && Math.abs(cost.x + cost.w + 10 - revenue.x) < 1);
+  assert.ok(Math.abs(revenue.x + revenue.w - (segments.x + segments.w)) < 0.5, 'the bottom row is as wide as the canvas');
+});
+
+test('vpc: customer side on the right, value side on the left, each row lines up with its counterpart', async () => {
+  const {byTitle} = await laid(canvas('vpc', SAMPLE('vpc')));
+  const pairs: [string, string][] = [['ゲイン・クリエイター（嬉しさを作る）', 'ゲイン（得たい成果）'], ['製品・サービス', 'ジョブ（片付けたい用事）'], ['ペイン・リリーバー（悩みを取る）', 'ペイン（困りごと）']];
+  for (const [l, r] of pairs) { assert.equal(byTitle(l).y, byTitle(r).y); assert.ok(byTitle(l).x < byTitle(r).x); }
+  assert.ok(byTitle('ゲイン（得たい成果）').y < byTitle('ジョブ（片付けたい用事）').y && byTitle('ジョブ（片付けたい用事）').y < byTitle('ペイン（困りごと）').y);
+});
+
+test('sevenS: the shared values are in the middle row, between the others; hard and soft are named by a tag', async () => {
+  const {boxes, byTitle} = await laid(canvas('sevenS', SAMPLE('sevenS')));
+  assert.equal(boxes.length, 7);
+  const v = byTitle('共通の価値観（Shared Values）');
+  for (const t of ['戦略（Strategy）', '組織構造（Structure）']) assert.ok(byTitle(t).y + byTitle(t).h <= v.y);
+  for (const t of ['人材（Staff）', 'スキル（Skills）']) assert.ok(byTitle(t).y >= v.y + v.h);
+  assert.ok(byTitle('経営スタイル（Style）').x + byTitle('経営スタイル（Style）').w <= v.x && v.x + v.w <= byTitle('制度・仕組み（Systems）').x);
+  const tags = Object.fromEntries(boxes.map(b => [b.title, b.tag]));
+  assert.equal(tags['戦略（Strategy）'], 'ハード');
+  assert.equal(tags['経営スタイル（Style）'], 'ソフト');
+});
+
+test('fiveForces: a cross, the rivalry in the centre', async () => {
+  const {byTitle} = await laid(canvas('fiveForces', SAMPLE('fiveForces')));
+  const c = byTitle('業界内の競争（競合との敵対関係）'), top = byTitle('▼ 新規参入の脅威'), bottom = byTitle('▲ 代替品の脅威'), left = byTitle('▶ 売り手の交渉力（供給者）'), right = byTitle('◀ 買い手の交渉力（顧客）');
+  assert.equal(top.x, c.x); assert.equal(bottom.x, c.x); assert.equal(left.y, c.y); assert.equal(right.y, c.y);
+  assert.ok(top.y + top.h <= c.y && c.y + c.h <= bottom.y && left.x + left.w <= c.x && c.x + c.w <= right.x);
+});
+
+test('empathy: the person is in the middle with says and does at its sides, thinks above and feels below', async () => {
+  const {byTitle} = await laid(canvas('empathy', SAMPLE('empathy')));
+  const p = byTitle('対象のユーザー'), says = byTitle('言っていること（Says）'), does = byTitle('していること（Does）'), thinks = byTitle('考えていること（Thinks）'), feels = byTitle('感じていること（Feels）');
+  assert.ok(says.x + says.w <= p.x && p.x + p.w <= does.x && says.y === p.y && does.y === p.y);
+  assert.ok(thinks.y + thinks.h <= p.y && p.y + p.h <= feels.y);
+});
+
+test('tows: the four strategies sit in a grid under the S/W row and next to the O/T column', async () => {
+  const {byTitle} = await laid(canvas('tows', {so: ['a'], wo: ['b'], st: ['c'], wt: ['d'], strengths: ['x']}));
+  const so = byTitle('SO 積極策（強みで機会をつかむ）'), wt = byTitle('WT 防衛策（最悪を避ける）'), s = byTitle('強み（S）'), o = byTitle('機会（O）');
+  assert.equal(so.x, s.x); assert.equal(so.y, o.y); assert.ok(wt.x > so.x && wt.y > so.y);
+});
+
+test('pest: four regions, PESTLE adds legal and environment (with pestle: true, or when they have content)', async () => {
+  assert.equal((await laid(canvas('pest', {political: ['a']}))).boxes.length, 4);
+  assert.equal((await laid(canvas('pest', {political: ['a']}, {pestle: true}))).boxes.length, 6);
+  assert.equal((await laid(canvas('pest', {legal: ['a']}))).boxes.length, 6);
+  assert.deepEqual(canvasKeys('pest'), ['political', 'economic', 'social', 'technological']);
+  assert.equal(canvasKeys('pest', true).length, 6);
+});
+
+// ---- content and options ---------------------------------------------------------------------------------------------------------
+
+test('content: an array is bullets, a string is a paragraph; a wrong key or template throws and lists the valid ones', async () => {
+  const {byTitle} = await laid(canvas('swot', {strengths: ['a', 'b'], weaknesses: '一文で書く'}));
+  assert.deepEqual(byTitle('強み（Strengths）').lines, ['・a', '・b']);
+  assert.equal(byTitle('弱み（Weaknesses）').body, '一文で書く');
+  assert.throws(() => canvas('swot', {strength: ['a']} as never), /"strength" is not a region of this template \(regions: strengths, weaknesses, opportunities, threats\)/);
+  assert.throws(() => canvas('swot', {value: ['a']} as never), /content key "value"/);
+  assert.throws(() => canvas('swat' as never, {}), /unknown template "swat" \(use bmc \| lean/);
+  assert.throws(() => canvas('swot', {strengths: [''] } as never), /non-empty string/);
+  assert.throws(() => canvas('swot', {strengths: [3]} as never), /non-empty string/);
+  assert.throws(() => canvas('swot', {strengths: 3} as never), /string or an array/);
+  assert.throws(() => canvas('swot', null as never), /content is an object/);
+  assert.throws(() => canvas('swot', {}, {titles: {x: 'a'}} as never), /titles key "x"/);
+  assert.throws(() => canvas('swot', {}, {emphasis: ['x']} as never), /emphasis region "x"/);
+  assert.throws(() => canvas('swot', {}, {tone: {x: 'accent'}} as never), /tone key "x"/);
+  assert.throws(() => canvas('swot', {}, {pestle: true}), /'pest' template only/);
+  assert.throws(() => canvas('swot', {}, {h: -1}), /canvas\(\{h\}\) must be a number > 0/);
+  assert.throws(() => canvas('swot', {}, {id: 'a b'}), /letters, digits/);
+  assert.throws(() => canvas('swot', {}, {title: ' '}), /title/);
+  assert.throws(() => canvas('swot', {}, {reveal: {strengths: 0}}), /whole stage/);
+});
+
+test('a bullet that already has a mark keeps one mark; text is trimmed', async () => {
+  const {byTitle} = await laid(canvas('swot', {strengths: ['- a', '・b', '  c  ']}));
+  assert.deepEqual(byTitle('強み（Strengths）').lines, ['・a', '・b', '・c']);
+});
+
+test('titles override the Japanese defaults; tone and emphasis: an emphasised region is accent AND says 重点 in words', async () => {
+  const {byTitle, boxes} = await laid(canvas('bmc', {value: ['v']}, {titles: {value: 'ご提供する価値'}, tone: {cost: 'danger'}, emphasis: ['segments']}));
+  assert.ok(byTitle('ご提供する価値'));
+  assert.equal(boxes.find(b => b.title === 'コスト構造')!.tone, 'danger');
+  const seg = byTitle('顧客セグメント');
+  assert.equal(seg.tone, 'accent');
+  assert.equal(seg.tag, '重点');
+  assert.ok(seg.tagBox, 'the pill is drawn');
+  // a region that already has a tag keeps it next to 重点
+  assert.equal((await laid(canvas('sevenS', {}, {emphasis: ['strategy']}))).byTitle('戦略（Strategy）').tag, '重点・ハード');
+});
+
+test('title is a caption above; stamp sits in the corner region', async () => {
+  const {laidOut, boxes} = await laid(canvas('swot', {strengths: ['a']}, {title: '現状分析', stamp: '仮説'}));
+  const cap = laidOut.laidOut.find(b => b.type === 'caption' && b.text === '現状分析');
+  assert.ok(cap);
+  assert.ok(boxes.every(b => b.y > (cap as {y: number}).y));
+  assert.deepEqual(boxes.filter(b => b.stamp).map(b => b.title), ['脅威（Threats）']);
+});
+
+test('h: the canvas is at least that tall (rows share it by weight), and content that needs more throws with the height it needs', async () => {
+  const {boxes} = await laid(canvas('swot', {strengths: ['a']}, {h: 900}));
+  const top = Math.min(...boxes.map(b => b.y)), bottom = Math.max(...boxes.map(b => b.y + b.h));
+  assert.ok(Math.abs(bottom - top - 900) < 1);
+  const long = Array.from({length: 20}, (_, i) => `項目 ${i} をかなり長めの文で書いて折り返しを起こす`);
+  await assert.rejects(laid(canvas('swot', {strengths: long}, {h: 300})), /the regions need \d+px of height but h is 300px/);
+});
+
+test('without h a region grows with its text: nothing overflows, every row is as tall as its tallest cell', async () => {
+  const long = Array.from({length: 14}, (_, i) => `項目 ${i} をかなり長めの文で書いて折り返しを起こさせる`);
+  const {boxes, verdict} = await laid(canvas('swot', {strengths: long, weaknesses: ['短い']}));
+  assert.deepEqual(verdict.problems, []);
+  const s = boxes.find(b => b.title === '強み（Strengths）')!, w = boxes.find(b => b.title === '弱み（Weaknesses）')!;
+  assert.equal(s.h, w.h);
+  const textBottom = s.y + 40 + s.wrappedRuns.reduce((n, r) => n + r.lines.length, 0) * 20;
+  assert.ok(textBottom <= s.y + s.h);
+});
+
+test('bigger text widens a spanning region equally across its rows (a tall bmc region)', async () => {
+  const many = Array.from({length: 16}, (_, i) => `パートナー候補 ${i}`);
+  const {byTitle} = await laid(canvas('bmc', {partners: many}));
+  const p = byTitle('主要パートナー'), a = byTitle('主要活動'), r = byTitle('主要リソース');
+  assert.ok(p.h >= p.wrappedRuns.reduce((n, x) => n + x.lines.length, 0) * 18);
+  assert.ok(Math.abs(p.h - (a.h + r.h + 10)) < 1);
+});
+
+// ---- ids, reveal, spotlight, rules ---------------------------------------------------------------------------------------------------
+
+test('with an id each region is the anchor id-region: connect() lands on it; a duplicate id is refused', async () => {
+  const {laidOut, byTitle} = await laid(canvas('swot', SAMPLE('swot'), {id: 'sw'}), connect('sw-strengths:bottom', 'sw-opportunities:top'));
+  const s = byTitle('強み（Strengths）'), o = byTitle('機会（Opportunities）');
+  assert.equal(s.id, 'sw-strengths');
+  const c = laidOut.connects[0] as {from: {x: number; y: number}; to: {x: number; y: number}};
+  assert.ok(Math.abs(c.from.y - (s.y + s.h)) < 0.5 && Math.abs(c.to.y - o.y) < 0.5);
+  await assert.rejects(laid(canvas('swot', {}, {id: 'sw'}), canvas('swot', {}, {id: 'sw'})), /duplicate anchor id "sw-strengths"/);
+});
+
+test('reveal: regions appear at their stage; a connect() to a region appears with it', async () => {
+  const d = diagram({theme: 'blue', title: 't'});
+  d.add(canvas('swot', SAMPLE('swot'), {id: 'sw', reveal: {strengths: 1, weaknesses: 2}}), connect('sw-strengths:right', 'sw-weaknesses:left'));
+  const r = await renderDiagram(d, {name: 'canvas-reveal', budget: 'measure'});
+  assert.equal(r.laidOut.maxReveal, 2);
+  const c = r.laidOut.connects[0] as {reveal?: number};
+  assert.equal(c.reveal, 2, 'the arrow waits for the later region');
+});
+
+test('spotlight: a region can be lit and the rest dims', async () => {
+  const d = diagram({theme: 'blue', title: 't', spotlight: 'sw-threats'});
+  d.add(canvas('swot', SAMPLE('swot'), {id: 'sw'}));
+  const {laidOut} = await checkDiagram(d);
+  const boxes = (laidOut.laidOut.find(b => b.type === 'grid') as LaidOutGrid).children;
+  assert.deepEqual(boxes.filter(b => !b.dim).map(b => b.id), ['sw-threats']);
+});
+
+test('requireAll: a missing region is a canvas-region-empty warning; optional regions are not counted; without requireAll nothing is said', async () => {
+  const rule = async (c: unknown) => { const {laidOut, d} = await laid(c); return lintDiagram({...d, laidOut: laidOut.laidOut, connects: []}).filter(f => f.rule === 'canvas-region-empty'); };
+  const f = await rule(canvas('swot', {strengths: ['a'], weaknesses: ['b']}, {requireAll: true}));
+  assert.equal(f.length, 1);
+  assert.match(f[0].message, /opportunities、threats/);
+  assert.equal(f[0].severity, 'warn');
+  assert.deepEqual(await rule(canvas('swot', {strengths: ['a']})), []);
+  assert.deepEqual(await rule(canvas('swot', SAMPLE('swot'), {requireAll: true})), []);
+  assert.deepEqual(await rule(canvas('empathy', {thinks: ['a'], says: ['a'], does: ['a'], feels: ['a'], pains: ['a'], gains: ['a']}, {requireAll: true})), [], 'the person box is optional');
+  assert.deepEqual(await rule(canvas('threeC', {customer: ['a'], competitor: ['a'], company: ['a']}, {requireAll: true})), [], 'the insight box is optional');
+  const {laidOut, d} = await laid(canvas('swot', {strengths: ['a']}, {requireAll: true}));
+  d.accept = {'canvas-region-empty': '草稿'};
+  assert.ok(lintDiagram({...d, laidOut: laidOut.laidOut, connects: []}).some(x => x.rule === 'canvas-region-empty'));
+});
+
+test('a tone that a pill explains needs no legend; a plain tone you pick yourself still does', async () => {
+  const lint = async (c: unknown) => { const {laidOut, d} = await laid(c); return lintDiagram({...d, laidOut: laidOut.laidOut, connects: []}).filter(f => f.rule === 'legend-missing'); };
+  assert.deepEqual(await lint(canvas('sevenS', SAMPLE('sevenS'), {emphasis: ['strategy']})), []);
+  assert.equal((await lint(canvas('swot', SAMPLE('swot'), {tone: {threats: 'danger'}}))).length, 1);
+});
+
+test('the canvas does not change the caller\'s band, and the same band lays out twice the same', async () => {
+  const c = canvas('bmc', SAMPLE('bmc'), {id: 'm'});
+  const before = JSON.stringify(c);
+  const a = await laid(c), b = await laid(c);
+  assert.equal(JSON.stringify(c), before);
+  assert.deepEqual(a.boxes.map(x => [x.x, x.y, x.w, x.h]), b.boxes.map(x => [x.x, x.y, x.w, x.h]));
+});
+
+test('slide medium: text keeps the slide minimum size', async () => {
+  const d = diagram({theme: 'blue', title: 't', canvas: 'slide'});
+  d.add(canvas('swot', SAMPLE('swot', 3), {title: 'SWOT'}));
+  const {laidOut, verdict} = await checkDiagram(d);
+  assert.deepEqual(verdict.problems, []);
+  const f = lintDiagram({...d, laidOut: laidOut.laidOut, connects: [], canvas: d.canvas, contentHeight: laidOut.contentHeight});
+  assert.deepEqual(f.filter(x => x.rule === 'slide-min-text'), []);
+});
+
+// ---- a seeded sweep ----------------------------------------------------------------------------------------------------------------
+
+test('a seeded sweep over text lengths, item counts, widths and templates: nothing overflows, overlaps or throws', async () => {
+  let seed = 20261012;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(rnd() * xs.length)];
+  const words = ['顧客', '価値', 'コスト', 'パートナー', 'Subscription', '定期便', '24h', '在庫', '品質管理', 'ブランド', 'API', '配送網'];
+  const names = canvasTemplates() as (keyof typeof TEMPLATES)[];
+  for (let i = 0; i < 40; i++) {
+    const name = pick(names), content: Record<string, string[]> = {};
+    for (const k of canvasKeys(name, true)) {
+      if (name !== 'pest' && (k === 'legal' || k === 'environmental')) continue;
+      if (rnd() < 0.15) continue;
+      content[k] = Array.from({length: 1 + Math.floor(rnd() * 5)}, () => Array.from({length: 1 + Math.floor(rnd() * 14)}, () => pick(words)).join(rnd() < 0.5 ? '' : ' '));
+    }
+    const width = pick([700, 940, 1100]);
+    const d = diagram({theme: 'blue', title: 't', width});
+    d.add(canvas(name, content, {title: `${name} ${i}`, emphasis: rnd() < 0.5 ? [canvasKeys(name)[0] as never] : []}));
+    const {laidOut, verdict} = await checkDiagram(d);
+    assert.deepEqual(verdict.problems, [], `${name} #${i} w${width}`);
+    const boxes = (laidOut.laidOut.find(b => b.type === 'grid') as LaidOutGrid).children;
+    for (let a = 0; a < boxes.length; a++) for (let b = a + 1; b < boxes.length; b++) assert.ok(!overlap(boxes[a], boxes[b]), `${name} #${i}: ${boxes[a].title} / ${boxes[b].title}`);
+    for (const b of boxes) assert.ok(b.x + b.w <= laidOut.width + 0.5, `${name} #${i}`);
+  }
+});

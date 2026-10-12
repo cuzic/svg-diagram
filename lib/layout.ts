@@ -24,6 +24,7 @@ import {IMAGE_PAD, imageSize, imageTexts, layoutImage} from './image.ts';
 import {barsTexts, layoutBars} from './bars.ts';
 import {dotsTexts, layoutDots, layoutPeople, peopleTexts} from './people.ts';
 import {layoutTimeline, timelineTexts} from './timeline.ts';
+import {canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
 import {layoutTreeBand, treeTexts} from './tree.ts';
 import {layoutStatesBand, statesTexts} from './states.ts';
 import {causeTexts, cloudTexts, layoutCauseBand, layoutCloudBand} from './toc.ts';
@@ -297,6 +298,7 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
     } else if (band.type === 'row') {
       for (const child of band.children) registerRequests(requests, child, roles);
     } else if (band.type === 'grid') {
+      if (band.canvas?.title) registerRequests(requests, {type: 'caption', text: band.canvas.title, align: 'left', role: 'title', bold: true, tone: 'text', mono: false}, roles);
       for (const child of band.children) registerRequests(requests, child, roles);
     } else if (band.type === 'connect' && band.label) {
       // connect() labels are single-line, always the 'note' role at plain
@@ -858,6 +860,33 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       registerRowSlots(band.id, band, cursorY, rowHeight, padX, cw, rowGap, placedChildren);
       laidOut.push({type: 'row', id: band.id, x: padX, y: cursorY, w: cw, h: rowHeight, children: placedChildren, arrows});
       cursorY += rowHeight + d.gap;
+      continue;
+    }
+
+    if (band.type === 'grid' && band.canvas) {
+      const cv = band.canvas, gap = band.gap, top0 = cursorY;
+      if (cv.title) {
+        const t = placeBoxLike({type: 'caption', text: cv.title, align: 'left', role: 'title', bold: true, tone: 'text', mono: false} as CaptionBand, padX, cursorY, cw, false);
+        laidOut.push(t);
+        cursorY += t.h + d.gap / 2;
+      }
+      const top = cursorY, cols = canvasColumns(cv, cw, gap);
+      const placed = band.children.map((child, i) => {
+        const s = canvasSpan(cols, cv.place[i]);
+        return placeBoxLike(child, padX + s.x, top, s.w, true);
+      });
+      const rows = canvasRowHeights(cv, placed.map(p => p.h), gap, cv.h ?? cv.aspect * cw);
+      const total = rows.reduce((a, b) => a + b, 0) + gap * (rows.length - 1);
+      if (cv.h !== undefined && total > cv.h + 0.5) throw new Error(`canvas("${cv.template}"): the regions need ${Math.ceil(total)}px of height but h is ${cv.h}px (shorten the text, widen the figure, or leave h out)`);
+      const rowY = rows.map((_, r) => top + rows.slice(0, r).reduce((a, b) => a + b, 0) + gap * r);
+      placed.forEach((p, i) => {
+        const pl = cv.place[i], h = rows.slice(pl.row, pl.row + pl.rs).reduce((a, b) => a + b, 0) + gap * (pl.rs - 1);
+        p.y = rowY[pl.row]; p.h = h;
+        if (p.tagBox) p.tagBox.y = p.y - p.tagBox.h / 2;
+        if (p.id) setBox(p.id, p as never, h);
+      });
+      laidOut.push({type: 'grid', x: padX, y: top0, w: cw, children: placed});
+      cursorY = top + total + d.gap;
       continue;
     }
 
