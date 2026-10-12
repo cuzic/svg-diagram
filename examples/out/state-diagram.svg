@@ -10,15 +10,15 @@
   <path d="M648,76 L648,52 L624,52 L624,68" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M624,76 L620,64 L628,64 z" fill="#22201b"/>
   <path d="M264,124 L296,124 L296,104 L368,104" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M380,104 L368,108 L368,100 z" fill="#22201b"/>
+  <path d="M380,104 L368,108 L368,96 z" fill="#22201b"/>
   <path d="M468,104 L568,104" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M580,104 L568,108 L568,100 z" fill="#22201b"/>
   <path d="M692,104 L788,104" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M800,104 L788,108 L788,100 z" fill="#22201b"/>
   <path d="M264,148 L284,148 L284,196 L364,196" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
   <path d="M372,196 L360,200 L360,188 z" fill="#22201b"/>
-  <path d="M380,112 L356,112 L356,140 L276,140" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M264,140 L276,136 L276,148 z" fill="#22201b"/>
+  <path d="M380,116 L356,116 L356,136 L276,136" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M264,136 L276,128 L276,140 z" fill="#22201b"/>
   <path d="M68,136 L168,136" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M176,136 L164,140 L164,128 z" fill="#22201b"/>
   <circle cx="60" cy="136" r="8" fill="#22201b"/>
@@ -37,16 +37,16 @@
   <text x="422" y="198" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">キャンセル</text>
   <rect x="608" y="28" width="56" height="22" fill="#ffffff"/>
   <text x="635" y="42" text-anchor="middle" font-size="14" fill="#22201b">再配達</text>
-  <rect x="312" y="80" width="40" height="22" fill="#ffffff"/>
-  <text x="331" y="95" text-anchor="middle" font-size="14" fill="#22201b">入金</text>
+  <rect x="312" y="76" width="40" height="22" fill="#ffffff"/>
+  <text x="331" y="93" text-anchor="middle" font-size="14" fill="#22201b">入金</text>
   <rect x="496" y="80" width="40" height="22" fill="#ffffff"/>
   <text x="516" y="95" text-anchor="middle" font-size="14" fill="#22201b">出荷</text>
   <rect x="720" y="80" width="40" height="22" fill="#ffffff"/>
   <text x="738" y="95" text-anchor="middle" font-size="14" fill="#22201b">到着</text>
   <rect x="288" y="168" width="68" height="22" fill="#ffffff"/>
   <text x="321" y="185" text-anchor="middle" font-size="14" fill="#22201b">期限切れ</text>
-  <rect x="304" y="132" width="68" height="22" fill="#ffffff"/>
-  <text x="337" y="146" text-anchor="middle" font-size="14" fill="#22201b">入金取消</text>
+  <rect x="296" y="124" width="68" height="22" fill="#ffffff"/>
+  <text x="331" y="139" text-anchor="middle" font-size="14" fill="#22201b">入金取消</text>
 
   <text x="20" y="242" font-size="14" font-weight="400" fill="#6f6659">出典: 注文サービスの設計メモ(例)</text>
 </svg>

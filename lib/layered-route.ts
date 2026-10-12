@@ -76,9 +76,13 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     list.forEach((en, k) => {
       const e = lay.edges[en.edge], id = en.end === 0 ? e.from : e.to, h = lay.nodes.get(id)!.h;
       const step = list.length > 1 ? Math.min(portStep, (h - 12) / (list.length - 1)) : 0;
-      // heads sit half a port step off the tails' grid: a tail port of one state and a head port of another (same layer) otherwise share a height and their runs line up as one line
-      portOf.set(`${en.edge}:${en.end}`, (k - (list.length - 1) / 2) * step + (en.end === 1 && list.length > 1 ? Math.round(portStep / 2) : 0));
-    });
+      // the ports of one side keep an even step (a tail and a head on one side are never closer than a step). The ports of every box's
+      // left side sit half a step lower than those of its right side: a tail port of one box and a head port of the next (same layer
+      // pair) otherwise share a height and their runs line up as one line. A lone port stays in the middle (a straight arrow stays straight).
+      const room = h / 2 - 6, span = (list.length - 1) / 2 * step; // how far the outer ports are from the middle
+      const slack = Math.min(step / 2, room - span); // as much of half a step as still keeps the whole side inside the box
+      const lower = en.key.endsWith(':l') && list.length > 1 && slack >= 3 ? slack : 0;
+      portOf.set(`${en.edge}:${en.end}`, (k - (list.length - 1) / 2) * step + lower);    });
   }
   // fan-out (one tail): the arrow that goes farthest turns first (the lane nearest the tail), so no vertical run crosses another arrow's
   // last run. fan-in (one head, several tails): the other way round, the nearest tail turns first.
