@@ -674,7 +674,7 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; 
   // doc-medium diagrams carry an accessible name/description and (when built from a file) provenance
   let a11y = '', head = '';
   if (laidOutDiagram.medium === 'doc') {
-    const title = diagramTitle(laidOutDiagram), desc = diagramDesc(laidOutDiagram);
+    const title = diagramTitle(laidOutDiagram), desc = diagramDesc(laidOutDiagram, opts.reveal);
     if (title) {
       a11y = ` role="img" aria-labelledby="svg-title${desc ? ' svg-desc' : ''}"`;
       head = `\n  <title id="svg-title">${escapeXml(title)}</title>${desc ? `\n  <desc id="svg-desc">${escapeXml(desc)}</desc>` : ''}`;

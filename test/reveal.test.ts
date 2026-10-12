@@ -236,3 +236,44 @@ test('bars replaces does not overlap-fail, and the replaced bar shares the slot 
   const r = await checkDiagram(d);
   assert.deepEqual(r.verdict.problems, []);
 });
+
+test('review fixes: row#n arrows go with their cell, replaces under a band until, double replace, stage desc, stacked label, connect until', async () => {
+  // (1) row#1 vanishes with its only child; with cols+span the latest until, unset if any child stays
+  const r = await layoutOf(diagram({theme: 'blue', title: 't'}).add(
+    row([box({title: 'P', until: 2}), box({title: 'Q'})], {id: 'r'}), box({id: 't', title: 'T'}), connect('r#1', 't'),
+  ));
+  assert.equal(r.connects[0].until, 2);
+  const r2 = await layoutOf(diagram({theme: 'blue', title: 't'}).add(
+    row([box({title: 'P', until: 2}), box({title: 'Q'})], {id: 'r'}), box({id: 't', title: 'T'}), connect('r#2', 't'),
+  ));
+  assert.equal(r2.connects[0].until, undefined);
+  // (2) a band-level until and a replaces together; two bars replacing one id throw
+  const ok = await layoutOf(diagram({theme: 'blue', title: 't'}).add(bars([
+    {id: 'o', label: 'o', value: 5}, {label: 'p', value: 6, reveal: 2, replaces: 'o'},
+  ], {max: 10, until: 4})));
+  assert.ok(ok);
+  await assert.rejects(() => layoutOf(diagram({theme: 'blue', title: 't'}).add(bars([
+    {id: 'o', label: 'o', value: 5}, {label: 'p', value: 6, reveal: 2, replaces: 'o'}, {label: 'q', value: 7, reveal: 2, replaces: 'o'},
+  ], {max: 10}))), /already replaced/);
+  // (4) <desc> lists only what is on screen at the stage
+  const hidden = diagram({theme: 'blue', title: 't'}).add(bars([
+    {label: 'gone', value: 5, until: 2}, {label: 'later', value: 6, reveal: 2},
+  ], {max: 10, axis: false, labels: 'category'}));
+  const lo = await layoutOf(hidden);
+  const desc = (n: number) => emitSvg(lo, {reveal: n}).match(/<desc[^>]*>(.*?)<\/desc>/)?.[1] ?? '';
+  assert.match(desc(1), /gone/); assert.doesNotMatch(desc(1), /later/);
+  assert.match(desc(2), /later/); assert.doesNotMatch(desc(2), /gone/);
+  // (3) a stacked column's small segment is labelled beside it, not inside the segment above
+  const st = (await layoutOf(diagram({theme: 'blue', title: 't'}).add(bars([
+    {label: 'a', value: 50}, {label: 'b', value: 3, series: 'b'}, {label: 'c', value: 47},
+  ], {max: 100, dir: 'v', stack: true, height: 320})))).laidOut.find(b => b.type === 'bars')!;
+  assert.ok(st.type === 'bars');
+  const small = st.texts.find(t => t.text.startsWith('b'))!;
+  assert.equal(small.anchor, 'start');
+  assert.ok(small.x > st.bars[1].x + st.bars[1].w);
+  // (5) connect until later than an end's warns
+  const w = await checkDiagram(diagram({theme: 'blue', title: 't'}).add(
+    box({id: 'a', title: 'a', until: 2}), box({id: 'b', title: 'b'}), connect('a', 'b', {until: 3}),
+  ));
+  assert.ok(w.verdict.warnings.some(x => /until 3 is later/.test(x)));
+});
