@@ -795,6 +795,7 @@ export function timeline(opts: TimelineOpts): TimelineBand {
   }
   if (opts.deadline.line !== undefined && opts.deadline.line !== 'full') throw new Error(`timeline(): deadline.line must be 'full' (got ${String(opts.deadline.line)})`);
   if (opts.span !== undefined && opts.span !== 'bar' && opts.span !== 'fill') throw new Error(`timeline(): span must be 'bar' or 'fill' (got ${String(opts.span)})`);
+  if (opts.now.label !== undefined && (typeof opts.now.label !== 'string' || !opts.now.label.trim())) throw new Error('timeline(): now.label must not be empty (leave it out for "現在")');
   if (typeof opts.deadline.label !== 'string' || !opts.deadline.label.trim()) throw new Error('timeline(): deadline.label is required');
   for (const [i, m] of (opts.marks ?? []).entries()) {
     const t = day(m.at, `marks[${i}].at`);

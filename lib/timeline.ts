@@ -1,7 +1,7 @@
 import {textWidth} from './atoms.ts';
-import type {FontFamily, LaidOutTimeline, TimelineBand, TimelineTone, WidthOf} from './types.ts';
+import type {FontFamily, LaidOutTimeline, Roles, TimelineBand, TimelineTone, WidthOf} from './types.ts';
 
-const S = 14, LH = 20, FLAG_H = 2 * LH, FLAG_GAP = 6, STEM_MIN = 16, DOT = 8, TICK = 6, MAX_LEVELS = 5, MS_DAY = 86400000;
+const FLAG_GAP = 6, STEM_MIN = 16, DOT = 8, TICK = 6, MAX_LEVELS = 5, MS_DAY = 86400000;
 const TONE_COLOR: Record<TimelineTone, 'accent' | 'danger' | 'muted'> = {accent: 'accent', danger: 'danger', muted: 'muted'};
 
 /** 'YYYY' | 'YYYY-MM' | 'YYYY-MM-DD' -> days since the epoch (UTC; a year or month means its first day). Never reads the clock. */
@@ -28,11 +28,23 @@ export function remainingText(from: string, to: string): string {
 
 interface Flag {label: string; at: string; tone: TimelineTone; bold: boolean; x: number; w: number; left: number; level: number; big: boolean}
 
-const flagsOf = (band: TimelineBand): Omit<Flag, 'x' | 'w' | 'left' | 'level'>[] => [
-  {label: band.now.label ?? '現在', at: band.now.at, tone: 'accent', bold: true, big: false},
-  {label: band.deadline.label, at: band.deadline.at, tone: 'danger', bold: true, big: true},
-  ...(band.marks ?? []).map(m => ({label: m.label, at: m.at, tone: m.tone ?? 'muted', bold: false, big: false})),
-];
+/** The flags in drawing order: now, the deadline, the marks. Flags on the same day are one flag (one stem): labels joined with '・', the deadline's look wins. */
+const flagsOf = (band: TimelineBand): Omit<Flag, 'x' | 'w' | 'left' | 'level'>[] => {
+  const all: Omit<Flag, 'x' | 'w' | 'left' | 'level'>[] = [
+    {label: band.now.label ?? '現在', at: band.now.at, tone: 'accent', bold: true, big: false},
+    {label: band.deadline.label, at: band.deadline.at, tone: 'danger', bold: true, big: true},
+    ...(band.marks ?? []).map(m => ({label: m.label, at: m.at, tone: m.tone ?? 'muted', bold: false, big: false})),
+  ];
+  const out: typeof all = [];
+  for (const f of all) {
+    const same = out.find(o => timelineDay(o.at, 'at') === timelineDay(f.at, 'at'));
+    if (!same) { out.push({...f}); continue; }
+    same.label += `・${f.label}`;
+    if (f.big) { same.big = true; same.tone = 'danger'; } else if (!same.big && f.tone === 'danger') same.tone = 'danger';
+    same.bold = same.bold || f.bold;
+  }
+  return out;
+};
 
 /** Ticks on the axis: a step of whole months (1, 3, 6, 12, 24, 60) that leaves at most ~8 of them; each tick is a month that is a multiple of the step. */
 function ticksOf(from: number, to: number): {day: number; label: string}[] {
@@ -51,8 +63,8 @@ function ticksOf(from: number, to: number): {day: number; label: string}[] {
 }
 
 /** Every string a timeline draws, registered before its geometry is calculated. */
-export function timelineTexts(band: TimelineBand): [string, number, number, FontFamily][] {
-  const out: [string, number, number, FontFamily][] = [];
+export function timelineTexts(band: TimelineBand, roles: Roles): [string, number, number, FontFamily][] {
+  const S = roles.note, out: [string, number, number, FontFamily][] = [];
   for (const f of flagsOf(band)) out.push([f.label, S, 700, 'sans'], [f.at, S, 400, 'sans']);
   const from = timelineDay(band.from, 'from'), to = timelineDay(band.to, 'to');
   for (const t of ticksOf(from, to)) out.push([t.label, S, 400, 'sans']);
@@ -62,7 +74,8 @@ export function timelineTexts(band: TimelineBand): [string, number, number, Font
 }
 const remainingLabel = (band: TimelineBand): string => band.remaining === false ? '' : band.remaining ?? remainingText(band.now.at, band.deadline.at);
 
-export function layoutTimeline(band: TimelineBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutTimeline {
+export function layoutTimeline(band: TimelineBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutTimeline {
+  const S = roles.note, LH = Math.round(S * 20 / 14), FLAG_H = 2 * LH;
   const from = timelineDay(band.from, 'from'), to = timelineDay(band.to, 'to');
   const plotL = x + 12, plotR = x + w - 12;
   if (plotR - plotL < 200) throw new Error('timeline(): the figure is too narrow (200px of axis at least)');
@@ -72,8 +85,8 @@ export function layoutTimeline(band: TimelineBand, x: number, y: number, w: numb
     return plotL + (day - from) / (to - from) * (plotR - plotL);
   };
   const full = band.deadline.line === 'full', dlAt = px(band.deadline.at, 'deadline.at');
-  const flags: Flag[] = flagsOf(band).map((f, i) => {
-    const fx = px(f.at, i === 0 ? 'now.at' : i === 1 ? 'deadline.at' : `marks[${i - 2}].at`);
+  const flags: Flag[] = flagsOf(band).map(f => {
+    const fx = px(f.at, 'at');
     const fw = Math.max(textWidth(widthOf, f.label, S, 700), textWidth(widthOf, f.at, S, 400)) + 8;
     return {...f, x: fx, w: fw, left: Math.min(Math.max(fx - fw / 2, x), x + w - fw), level: -1};
   });
@@ -99,11 +112,11 @@ export function layoutTimeline(band: TimelineBand, x: number, y: number, w: numb
   const fillSpan = band.span === 'fill', tickDrop = fillSpan ? 4 : 0;
   const axisY = y + levels * (FLAG_H + FLAG_GAP) + STEM_MIN - FLAG_GAP;
   const out: LaidOutTimeline = {
-    type: 'timeline', id: band.id, reveal: band.reveal, x, y, w, h: 0,
+    type: 'timeline', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: 0,
     axis: {x1: plotL, x2: plotR, y: axisY}, ticks: [], stems: [], dots: [], texts: [], labelBoxes: [],
   };
   const text = (s: string, tx: number, ty: number, anchor: 'start' | 'middle' | 'end', fill: 'text' | 'muted' | 'accent' | 'danger', bold: boolean, w2?: number) => {
-    out.texts.push({text: s, x: tx, y: ty, anchor, fill, bold});
+    out.texts.push({text: s, x: tx, y: ty, anchor, fill, bold, size: S});
     const tw = w2 ?? textWidth(widthOf, s, S, bold ? 700 : 400);
     out.labelBoxes.push({label: s, x: anchor === 'middle' ? tx - tw / 2 : anchor === 'end' ? tx - tw : tx, y: ty - S, w: tw, h: S + 4});
   };
@@ -138,7 +151,7 @@ export function layoutTimeline(band: TimelineBand, x: number, y: number, w: numb
   const rem = remainingLabel(band);
   if (rem) {
     const by = bottom + 8;
-    out.bracket = {x1: out.span.x1, x2: out.span.x2, y: by, tone: out.span.tone};
+    if (out.span.x2 > out.span.x1) out.bracket = {x1: out.span.x1, x2: out.span.x2, y: by, tone: out.span.tone};
     const rw = textWidth(widthOf, rem, S, 700);
     let rl = Math.min(Math.max((out.span.x1 + out.span.x2) / 2 - rw / 2, x), x + w - rw);
     if (crosses(rl, rw)) rl = out.span.x2 === dlX ? dlX - 6 - rw : dlX + 6; // wider than its span: it keeps to the span's side of the line
