@@ -731,7 +731,9 @@ export interface TimelineOpts extends RevealOpts {
   /** Today. Always written out (a build never reads the clock), so the same source draws the same SVG. */
   now: {at: string; label?: string};
   /** The marker the figure is about, drawn in the danger colour. The span from `now` to it is the remaining time. */
-  deadline: {at: string; label: string};
+  deadline: {at: string; label: string; /** 'full': a line through the whole height of the figure at the deadline (default: a short stem and a big dot). */ line?: 'full'};
+  /** How the span from now to the deadline is drawn: 'bar' (default, a thick line on the axis) or 'fill' (a pale band above and below the axis). */
+  span?: 'bar' | 'fill';
   /** Other dates on the axis (a release, a contract end). */
   marks?: TimelineMark[];
   /** The text of the remaining-span label. Default is computed ("あと 1 年 3 か月"); false hides the span label (the bar stays). */
@@ -1693,7 +1695,9 @@ export interface LaidOutTimeline extends Rect, Dimmed {
   reveal?: number;
   axis: {x1: number; x2: number; y: number};
   /** The bar on the axis between now and the deadline (accent while the deadline is ahead, danger once past). */
-  span?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'};
+  span?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'; fill?: boolean};
+  /** deadline.line 'full': the vertical line through the figure. */
+  fullLine?: {x: number; y1: number; y2: number};
   /** The bracket under the ticks that carries the remaining-span label. */
   bracket?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'};
   ticks: {x: number; y1: number; y2: number}[];

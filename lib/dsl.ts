@@ -787,6 +787,8 @@ export function timeline(opts: TimelineOpts): TimelineBand {
     const t = day(v.at, `${k}.at`);
     if (t < from || t > to) throw new Error(`timeline(): ${k}.at (${v.at}) is outside the axis (${opts.from} - ${opts.to})`);
   }
+  if (opts.deadline.line !== undefined && opts.deadline.line !== 'full') throw new Error(`timeline(): deadline.line must be 'full' (got ${String(opts.deadline.line)})`);
+  if (opts.span !== undefined && opts.span !== 'bar' && opts.span !== 'fill') throw new Error(`timeline(): span must be 'bar' or 'fill' (got ${String(opts.span)})`);
   if (typeof opts.deadline.label !== 'string' || !opts.deadline.label.trim()) throw new Error('timeline(): deadline.label is required');
   for (const [i, m] of (opts.marks ?? []).entries()) {
     const t = day(m.at, `marks[${i}].at`);
@@ -795,7 +797,7 @@ export function timeline(opts: TimelineOpts): TimelineBand {
     if (m.tone !== undefined && !['accent', 'danger', 'muted'].includes(m.tone)) throw new Error(`timeline(): marks[${i}].tone must be accent, danger or muted (got ${m.tone})`);
   }
   if (opts.remaining !== undefined && opts.remaining !== false && (typeof opts.remaining !== 'string' || !opts.remaining.trim())) throw new Error('timeline(): remaining must be a string or false');
-  return withHandle({type: 'timeline', from: opts.from, to: opts.to, now: opts.now, deadline: opts.deadline, ...(opts.marks ? {marks: opts.marks} : {}), ...(opts.remaining === undefined ? {} : {remaining: opts.remaining}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)}, opts.id);
+  return withHandle({type: 'timeline', from: opts.from, to: opts.to, now: opts.now, deadline: opts.deadline, ...(opts.span === undefined ? {} : {span: opts.span}), ...(opts.marks ? {marks: opts.marks} : {}), ...(opts.remaining === undefined ? {} : {remaining: opts.remaining}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)}, opts.id);
 }
 
 // Escape hatch. `draw(ctx)` must return a raw SVG fragment string; it

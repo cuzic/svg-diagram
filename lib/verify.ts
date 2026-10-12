@@ -72,7 +72,9 @@ function checkTimelines(d: LaidOutDiagram): string[] {
   const problems: string[] = [];
   for (const band of d.laidOut) {
     if (band.type !== 'timeline') continue;
+    const line = band.fullLine && {x: band.fullLine.x - 1, y: band.fullLine.y1, w: 2, h: band.fullLine.y2 - band.fullLine.y1};
     for (const [i, b] of band.labelBoxes.entries()) {
+      if (line && rectOverlap(b, line)) problems.push(`timeline: label "${b.label}" is crossed by the deadline line (move the mark or change the axis range)`);
       if (b.x < band.x - 0.5 || b.x + b.w > band.x + band.w + 0.5) problems.push(`timeline: label "${b.label}" runs outside the figure (shorten it or widen the figure)`);
       for (let j = i + 1; j < band.labelBoxes.length; j++) {
         const o = rectOverlap(b, band.labelBoxes[j]);

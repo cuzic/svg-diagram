@@ -115,3 +115,21 @@ test('timeline and sourceLine coexist: the source line sits under the timeline',
   const {t, laidOut} = await laid(BASE, {sourceLine: '出典: ベンダー告知'});
   assert.ok(laidOut.laidOut.at(-1)!.y >= t.y + t.h);
 });
+
+test("timeline: deadline.line 'full' draws a line through the whole figure, clear of every label", async () => {
+  const marks = [{at: '2026-12', label: '予算申請'}, {at: '2027-01', label: '調査'}];
+  const {t, verdict} = await laid({...BASE, deadline: {...BASE.deadline, line: 'full'}, marks});
+  assert.ok(verdict.ok, verdict.problems.join('\n'));
+  assert.deepEqual([t.fullLine!.x, t.fullLine!.y1, t.fullLine!.y2], [t.dots[1].x, t.y, t.y + t.h]);
+  for (const b of t.labelBoxes) assert.ok(b.x + b.w <= t.fullLine!.x - 1 || b.x >= t.fullLine!.x + 1, b.label);
+  assert.equal((await laid(BASE)).t.fullLine, undefined);
+});
+
+test("timeline: span 'fill' paints a band instead of the bar; bad span / line throw", async () => {
+  const svg = async (span?: 'bar' | 'fill') => (await renderDiagram(diagram({theme: 'blue', title: 't'}).add(timeline({...BASE, ...(span ? {span} : {})})), {name: 't', budget: 'measure'})).svg;
+  assert.equal(await svg('bar'), await svg(), 'bar is the default');
+  const fill = await svg('fill');
+  assert.ok(fill.includes('height="24" fill="#dce9f7"') && !fill.includes('stroke-width="8"'));
+  assert.throws(() => timeline({...BASE, span: 'x' as never}), /span must be/);
+  assert.throws(() => timeline({...BASE, deadline: {...BASE.deadline, line: 'half' as never}}), /deadline.line must be/);
+});

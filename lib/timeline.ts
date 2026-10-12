@@ -71,6 +71,7 @@ export function layoutTimeline(band: TimelineBand, x: number, y: number, w: numb
     if (day < from || day > to) throw new Error(`timeline(): ${what} (${at}) is outside the axis (${band.from} - ${band.to})`);
     return plotL + (day - from) / (to - from) * (plotR - plotL);
   };
+  const full = band.deadline.line === 'full', dlAt = px(band.deadline.at, 'deadline.at');
   const flags: Flag[] = flagsOf(band).map((f, i) => {
     const fx = px(f.at, i === 0 ? 'now.at' : i === 1 ? 'deadline.at' : `marks[${i - 2}].at`);
     const fw = Math.max(textWidth(widthOf, f.label, S, 700), textWidth(widthOf, f.at, S, 400)) + 8;
@@ -82,7 +83,10 @@ export function layoutTimeline(band: TimelineBand, x: number, y: number, w: numb
   const inside = (f: Flag, at: number): boolean => at >= f.left - 4 && at <= f.left + f.w + 4;
   const clampLeft = (f: Flag, left: number): number => Math.min(Math.max(left, x), x + w - f.w);
   for (const f of [...flags].sort((p, q) => q.x - p.x)) {
-    const lefts = [clampLeft(f, f.x - 4), f.left, clampLeft(f, f.x - f.w + 4)];
+    const isDl = full && f.big;
+    // with a full deadline line no box may sit on it: the deadline's own label starts just right of it (or ends just left of it)
+    let lefts = isDl ? [clampLeft(f, f.x + 6), clampLeft(f, f.x - f.w - 6)] : [clampLeft(f, f.x - 4), f.left, clampLeft(f, f.x - f.w + 4)];
+    if (full) lefts = lefts.filter(l => isDl ? l + f.w <= f.x - 2 || l >= f.x + 2 : !(dlAt >= l - 4 && dlAt <= l + f.w + 4));
     for (const left of lefts) {
       for (let k = 0; k < MAX_LEVELS && f.level < 0; k++) {
         f.left = left;
@@ -92,6 +96,7 @@ export function layoutTimeline(band: TimelineBand, x: number, y: number, w: numb
     if (f.level < 0) throw new Error(`timeline(): the labels near "${f.label}" do not fit above the axis; shorten them, drop a mark, or widen the figure`);
   }
   const levels = Math.max(...flags.map(f => f.level)) + 1;
+  const fillSpan = band.span === 'fill', tickDrop = fillSpan ? 4 : 0;
   const axisY = y + levels * (FLAG_H + FLAG_GAP) + STEM_MIN - FLAG_GAP;
   const out: LaidOutTimeline = {
     type: 'timeline', id: band.id, reveal: band.reveal, x, y, w, h: 0,
@@ -110,16 +115,16 @@ export function layoutTimeline(band: TimelineBand, x: number, y: number, w: numb
     text(f.at, cx, boxTop + LH + S + 1, 'middle', 'muted', false);
   }
   const nowX = px(band.now.at, 'now.at'), dlX = px(band.deadline.at, 'deadline.at');
-  out.span = {x1: Math.min(nowX, dlX), x2: Math.max(nowX, dlX), y: axisY, tone: nowX <= dlX ? 'accent' : 'danger'};
+  out.span = {x1: Math.min(nowX, dlX), x2: Math.max(nowX, dlX), y: axisY, tone: nowX <= dlX ? 'accent' : 'danger', ...(fillSpan ? {fill: true} : {})};
   for (const t of ticksOf(from, to)) {
     const tx = plotL + (t.day - from) / (to - from) * (plotR - plotL);
     out.ticks.push({x: tx, y1: axisY, y2: axisY + TICK});
     const tw = textWidth(widthOf, t.label, S, 400); // a label at an end of the axis keeps inside the figure
-    if (tx - tw / 2 < x) text(t.label, x, axisY + TICK + S + 2, 'start', 'muted', false, tw);
-    else if (tx + tw / 2 > x + w) text(t.label, x + w, axisY + TICK + S + 2, 'end', 'muted', false, tw);
-    else text(t.label, tx, axisY + TICK + S + 2, 'middle', 'muted', false, tw);
+    if (tx - tw / 2 < x) text(t.label, x, axisY + TICK + S + 2 + tickDrop, 'start', 'muted', false, tw);
+    else if (tx + tw / 2 > x + w) text(t.label, x + w, axisY + TICK + S + 2 + tickDrop, 'end', 'muted', false, tw);
+    else text(t.label, tx, axisY + TICK + S + 2 + tickDrop, 'middle', 'muted', false, tw);
   }
-  let bottom = axisY + TICK + S + 2 + 4;
+  let bottom = axisY + TICK + S + 2 + 4 + tickDrop;
   const rem = remainingLabel(band);
   if (rem) {
     const by = bottom + 8;
@@ -129,5 +134,6 @@ export function layoutTimeline(band: TimelineBand, x: number, y: number, w: numb
     bottom = by + 6 + S + 4;
   }
   out.h = bottom - y;
+  if (full) out.fullLine = {x: dlX, y1: y, y2: y + out.h};
   return out;
 }
