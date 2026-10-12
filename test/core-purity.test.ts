@@ -42,11 +42,17 @@ test('the rendering core reaches no I/O (transitive imports, process.*)', () => 
 });
 
 // ADR 0007 §1: the core draws with the roles of the layout (LaidOutDiagram.roles), never with the global table, which holds
-// the unscaled sizes — reading it there measures at the scaled size and draws at 1x again.
-test('the rendering core does not import the global ROLES table', () => {
-  const offenders = CORE.filter(n => n !== 'tokens').filter(n => {
-    const src = fs.readFileSync(path.join(LIB, n + '.ts'), 'utf8');
-    return /import\s*\{[^}]*\bROLES\b[^}]*\}\s*from\s*['"]\.\/tokens/.test(src);
-  });
+// the unscaled sizes — reading it there measures at the scaled size and draws at 1x again. Every file the core reaches is checked.
+test('nothing the rendering core reaches imports the global ROLES table', () => {
+  const offenders: string[] = [];
+  const seen = new Set<string>();
+  const walk = (file: string): void => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const src = fs.readFileSync(file, 'utf8');
+    if (path.basename(file) !== 'tokens.ts' && (/import\s*\{[^}]*\bROLES\b[^}]*\}\s*from\s*['"]\.\/tokens/.test(src) || /import\s*\*\s*as\s+\w+\s+from\s*['"]\.\/tokens/.test(src))) offenders.push(path.basename(file));
+    for (const l of importsOf(file).local) walk(path.resolve(path.dirname(file), l.replace(/\.js$/, '.ts')));
+  };
+  for (const name of CORE) walk(path.join(LIB, name + '.ts'));
   assert.deepEqual(offenders, []);
 });

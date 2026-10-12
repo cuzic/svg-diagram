@@ -92,7 +92,7 @@ DSL(ビルダー) → Diagram データ → prepareReveal / applyAutoLegend
 | # | 内容 | 受け入れ条件 |
 |---|---|---|
 | 0 | 検査の先行(スパイクの `test/roles-state.test.ts` の 6 件が出発点。**main に入れるときは `todo` で入れ、PR 1 で外す**。または PR 0 と PR 1 を 1 つの PR の 2 コミットにする): fill モードの golden(各 band 種別 + reveal 段階ファイル。`test/helpers/slide-fixture.ts` を使う)と、並行描画の再現テスト(fill と非 fill を並行に描き、非 fill が逐次と 1 バイト一致) | 現在の main では、並行テストと段階ファイルの golden が**落ちる**(バグの再現) |
-| 1 | §1 `ROLES` を値にして `LaidOutDiagram.roles` に焼き込む | 0 のテストが通る。golden の差分は fill の reveal 段階ファイルだけ。`show --watch` で共通部品を編集しても 2 回目の描画が 1 回目と同じ |
+| 1 | §1 `ROLES` を値にして `LaidOutDiagram.roles` に焼き込む | 0 のテストが通る。golden の差分は fill の reveal 段階ファイルだけ。`build()` の reveal 段階ファイルの文字サイズが本体と一致(fill) |
 | 2 | §2 入力を破壊しないコピー + §3 の strict-width の移動 | 描画の前後で `d.bands` と `d.width` などが一致(fill の経路でも。`test/roles-state.test.ts` の 4)。同じ band を共有する 2 つの図(片方だけ reveal 付きの group)で、もう片方の段階が変わらない |
 | 3 | §4 `atoms.ts` の分離と依存方向のテスト | テストが通る。公開 API の関数のシグネチャが変わらない。ただし `LaidOutDiagram.roles` が必須フィールドとして増える(手で組む外部コードは型エラー) |
 
@@ -107,7 +107,7 @@ DSL(ビルダー) → Diagram データ → prepareReveal / applyAutoLegend
 - `emit-html.ts` は描画時に `font-metrics.ts`(`textBox`)を読むので、**中核の一覧から外した**(殻の側)。必要な値をレイアウト結果へ焼き込む案は、HTML 出力の変更が大きいので見送った。
 - §4 の検査は `test/core-purity.test.ts`。対象は atoms・bars・emit・fit・layout・plane・reveal・rich・rules・seq-table・spotlight・tokens・types・verify・wrap・wireframe。静的 import と動的 `import()` を推移的にたどり、fs / child_process / playwright / resvg / harfbuzz と `process.*` に届けば落ちる(`measure.ts` と `emit-html.ts` を一時的に対象へ入れて、落ちることを確かめた)。
 
-- `cloneData` は、同じオブジェクトを 2 回見たら 1 回だけコピーする(WeakMap)ので、1 枚の図の中で同じ band を 2 か所に置いても同一のまま(main と同じ挙動)で、循環でもスタックを使い切らない。Map / Set / Date は共有。非列挙のプロパティ(`.left` / `.right` / `.at` の handle、anchors)とシンボルキー(`NUMBERING`、`GIVEN`、`RICH`)は落ちる。`add()` が描画の前に使い切り、パスより下流は読まない。**描画結果の `laidOut.bands` の band から handle は取れなくなる**。
+- `cloneData` は、配列とプレーンなオブジェクト(`Object.prototype` / `null` プロトタイプ)だけをコピーし、クラスのインスタンス・Map / Set / Date / RegExp・関数は共有する(クラスのインスタンスを手でコピーすると、private field や内部スロットが壊れて、描画が例外で落ちる)。**既知の穴**: クラスのインスタンスを `plane({points})` などに渡すと、`prepareReveal` の書き込みが図をまたいで漏れうる。同じオブジェクトを 2 回見たら 1 回だけコピーする(WeakMap)ので、1 枚の図の中で同じ band を 2 か所に置いても同一のまま(main と同じ挙動)で、循環でもスタックを使い切らない。非列挙のプロパティ(`.left` / `.right` / `.at` の handle、anchors)とシンボルキー(`NUMBERING`、`GIVEN`、`RICH`)は落ちる。`add()` が描画の前に使い切り、パスより下流は読まない。**描画結果の `laidOut.bands` の band から handle は取れなくなる**。
 - `test/core-purity.test.ts` には、描画の中核が `tokens.ts` のグローバルな `ROLES` を import しないことの検査も入れた(import すると、測るのは拡大値で描くのは 1 倍の食い違いが型検査を通ってしまう)。
 - 既知で範囲外: curve の軸ラベルは、測定の登録が `roles.note`(拡大値)で、描画は `font-size="14"` 固定。位置には効かないので、fill でも出力は変わらない。
 

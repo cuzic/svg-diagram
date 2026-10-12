@@ -24,8 +24,17 @@ test('1. a figure drawn while a fill figure is mid-search is drawn as if alone',
   const mkB = () => diagram({day: 2}).add(tbl(), box({title: '見出し', body: '本文'}));
   const alone = await render(mkB());
   const base = ROLES.title;
-  // B starts after A's n-th microtask: A awaits a measurement for each of its ~9 layouts, so for small n it is still mid-search.
-  for (const n of [1, 2, 4, 8, 16]) {
+  // B starts after A's n-th microtask, while A is still mid-search (it awaits a measurement for each of its ~9 layouts).
+  // T = how many microtasks a lone A takes; only n < T are mid-search, whatever T is after later optimisations.
+  let T = 0;
+  for (let pass = 0; pass < 2; pass++) { // the second pass is warm (measurements memoised), like the runs below
+    let done = false; T = 0;
+    const lone = render(diagram({day: 2, fill: true, slide}).add(tbl(), box({title: 'x', body: 'y'}))).finally(() => { done = true; });
+    while (!done && T < 100000) { await Promise.resolve(); T++; }
+    await lone;
+  }
+  assert.ok(T >= 2, `a fill render spans several microtasks (T=${T})`);
+  for (const n of [1, 2, 4, 8, 16, 32, 64].filter(n => n < T - 2)) {
     let aDone = false;
     const a = render(diagram({day: 2, fill: true, slide}).add(tbl(), box({title: 'x', body: 'y'}))).finally(() => { aDone = true; });
     for (let i = 0; i < n; i++) await Promise.resolve();
@@ -34,8 +43,8 @@ test('1. a figure drawn while a fill figure is mid-search is drawn as if alone',
     const [ra, rb] = await Promise.all([a, b]);
     assert.ok((ra.fontScale ?? 1) > 1);
     assert.equal(rb.svg, alone.svg, `B drawn ${n} microtasks into A == B drawn alone`);
-    assert.equal(ROLES.title, base, 'ROLES is back at its base values');
   }
+  assert.equal(ROLES.title, base, 'ROLES is back at its base values');
 });
 
 test('2. the reveal stage files of a fill figure are drawn at the same font sizes as the main file', async () => {
@@ -70,7 +79,7 @@ for (const [kind, mk] of Object.entries(shared)) {
 }
 
 test('4. a render does not change its input (bands, width), also on the fill path', async () => {
-  const snap = (d: ReturnType<typeof diagram>) => JSON.stringify({bands: d.bands, width: d.width, usableWidth: d.usableWidth, maxDisplayHeight: d.maxDisplayHeight});
+  const snap = (d: ReturnType<typeof diagram>) => JSON.stringify(d); // every enumerable data field (the methods drop out)
   for (const d of [
     diagram({day: 2}).add(box({title: 'a', reveal: 2}), group([box({title: 'b'})], {reveal: 1}), plane({x: {max: 1}, y: {max: 1}, points: [{id: 'p', at: [0.5, 0.5], label: 'P', reveal: 2}]})),
     diagram({day: 2, fill: true, slide}).add(tbl(), box({title: 'x'})),
@@ -83,11 +92,18 @@ test('4. a render does not change its input (bands, width), also on the fill pat
   }
 });
 
-test('5. a band placed twice stays one band in the copy, and a cycle does not overflow the stack', async () => {
-  const shared = box({title: 's'});
+test('5. a band placed twice stays one band in the copy; cycles, RegExp and class instances do not break the copy', async () => {
+  const shared = box({title: 'qq'});
   const r = await render(diagram({day: 2}).add(row([shared, shared])));
-  assert.ok(r.svg.includes('s'));
+  assert.equal([...r.svg.matchAll(/>qq</g)].length, 2);
+  // one object in two places: a reveal that reaches it through the group is the same value for both places, as before the copy
+  const s2 = box({title: 'zz'});
+  const withGroup = await render(diagram({day: 2}).add(group([s2], {reveal: 2}), s2));
+  const alone = await render(diagram({day: 2}).add(group([box({title: 'zz'})], {reveal: 2}), box({title: 'zz'})));
+  assert.equal(withGroup.laidOut.maxReveal, alone.laidOut.maxReveal);
   const loop: {title: string; self?: unknown} = {title: 'c'};
   loop.self = loop;
-  await render(diagram({day: 2}).add(Object.assign(box({title: 'c'}), {loop})));
+  await render(diagram({day: 2}).add(Object.assign(box({title: 'c'}), {loop, re: /x/g})));
+  class Pt { #id = 'p'; get id() { return this.#id; } }
+  await render(diagram({day: 2}).add(Object.assign(box({title: 'k'}), {pt: new Pt()})));
 });
