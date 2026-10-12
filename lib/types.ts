@@ -923,6 +923,16 @@ export interface TreeOpts extends RevealOpts {
 export interface TreeBand extends TreeOpts {
   type: 'tree';
   root: TreeItem;
+  /** mindmap(): the root in the middle, children split to both sides (the same band, laid out by layoutBalanced). */
+  balanced?: boolean;
+  /** mindmap(): the side of a root child, by its id (the rest are balanced by height). */
+  sides?: Record<string, 'left' | 'right'>;
+}
+export interface MindmapOpts extends RevealOpts {
+  /** Pin a child of the root (by its id) to a side; the others are balanced by height. */
+  sides?: Record<string, 'left' | 'right'>;
+  maxNodeW?: number;
+  id?: string;
 }
 
 // ============================================================================================

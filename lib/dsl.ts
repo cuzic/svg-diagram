@@ -28,7 +28,7 @@ import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
 import {SLIDE_CANVAS, canvasFontScale, canvasRoles, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
-  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -939,6 +939,19 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
   walk(root);
   const band: TreeBand = {type: 'tree', root, ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), ids);
+}
+
+/**
+ * A mind map: the root in the middle, its children split to the right and the left (balanced by height, in the order
+ * written: the right side first), each branch growing outward. Nodes are the same as tree()'s; `sides` pins a child of the root.
+ *   mindmap({label: '新機能', children: [{label: '目的', children: [...]}, {label: '課題', id: 'issues'}]}, {sides: {issues: 'left'}})
+ */
+export function mindmap<const R extends TreeItem, const Id extends string = never>(root: R, opts?: MindmapOpts & {id?: Id}): TreeBand & Declares<Id | TreeIds<R>> & HandleOf<Id> & AnchorsOf<TreeIds<R>>;
+export function mindmap(root: TreeItem, opts: MindmapOpts = {}): TreeBand {
+  if (opts.sides) for (const [id, side] of Object.entries(opts.sides)) if (side !== 'left' && side !== 'right') throw new Error(`mindmap(): sides.${id} must be 'left' or 'right' (got ${String(side)})`);
+  const band = tree(root, {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)});
+  Object.assign(band, {balanced: true, ...(opts.sides ? {sides: opts.sides} : {})});
+  return band as never;
 }
 
 /**
