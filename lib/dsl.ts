@@ -679,6 +679,11 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   }
   if (opts.dir !== undefined && opts.dir !== 'h' && opts.dir !== 'v') throw new Error(`bars(): dir must be 'h' or 'v' (got ${opts.dir})`);
   if (data.every(d => d.value === 0)) throw new Error('bars(): all values are 0');
+  if (opts.labels !== undefined && !['all', 'category', 'none'].includes(opts.labels)) throw new Error(`bars(): labels must be 'all', 'category' or 'none' (got ${opts.labels})`);
+  for (const k of ['axis', 'grid', 'baseline'] as const) if (opts[k] !== undefined && typeof opts[k] !== 'boolean') throw new Error(`bars(): ${k} must be true or false (got ${opts[k]})`);
+  if (opts.axis === false && opts.grid === true) throw new Error('bars(): grid needs axis (axis: false removes the ticks the grid lines belong to)');
+  if (opts.barRatio !== undefined && !(opts.barRatio > 0 && opts.barRatio <= 1)) throw new Error(`bars(): barRatio must be a number > 0 and <= 1 (got ${opts.barRatio})`);
+  if (opts.barRatio !== undefined && opts.stack) throw new Error('bars(): barRatio does not apply to stack');
   const stack = !!opts.stack;
   const extent = stack ? data.reduce((n, d) => n + d.value, 0) : Math.max(...data.map(d => d.value));
   const max = opts.max ?? extent;
@@ -687,6 +692,7 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   const ids = data.map(d => d.id).filter((id): id is string => !!id);
   if (new Set(ids).size !== ids.length) throw new Error('bars(): each id must be unique');
   const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height};
+  for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
   return withAnchors(band, data.map(d => d.id));
 }
 
