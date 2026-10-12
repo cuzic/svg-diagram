@@ -15,14 +15,14 @@ import {layoutDiagram} from './layout.ts';
 import {emitSvg} from './emit.ts';
 import {xmlProblems} from './xml-check.ts';
 import {verifyDiagram} from './verify.ts';
-import {applyAutoLegend} from './rules.ts';
+import {applyAutoLegend, walkBands} from './rules.ts';
 import {analyzeFit} from './fit.ts';
 import {getSlideBudget, readSlideBudgetCache} from './slide-budget.ts';
 import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
-import {MIN_FONT_SIZE, ROLES, THEMES, isSolidTone} from './tokens.ts';
+import {MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone} from './tokens.ts';
 import type {
   Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
@@ -132,7 +132,10 @@ function assertBoxTone(tone: string | undefined, what: string): void {
 // literal `id` is remembered so connect() refs to it can be checked by add().
 export function box<const Id extends string = never>(opts: BoxInput<Id>): BoxBand & Declares<Id> & HandleOf<Id>;
 export function box(opts: BoxOpts): BoxBand {
-  if (opts.size !== undefined) assertFontSize(opts.size);
+  if (opts.size !== undefined) {
+    assertFontSize(opts.size);
+    warnBoxSizeOnce();
+  }
   // the plain text (and spans) of every rich field go over the copied options: a band never holds an array
   const band = {type: 'box', ...opts, ...richBoxFields(opts)} as BoxBand;
   assertSolidText(band, 'box()');
@@ -140,6 +143,30 @@ export function box(opts: BoxOpts): BoxBand {
   if (band.icon !== undefined && band.step != null) throw new Error('box({icon}) and box({step}) both sit at the box\'s left edge — use one');
   if (band.icon !== undefined) assertIconName(band.icon, 'box({icon})');
   return withHandle(band, opts.id);
+}
+
+function assertTextRole(role: string | undefined, allowed: readonly string[], what: string): void {
+  if (role !== undefined && !allowed.includes(role)) throw new Error(`${what} must be ${allowed.map(r => `'${r}'`).join(' | ')} (got ${JSON.stringify(role)})`);
+}
+
+/**
+ * The largest scale fill: true may try. 1.8 as ever, but an opted-in size (banner headlineRole, bars / plane labelRole)
+ * is not scaled past OPT_IN_TEXT_MAX px: a 'display' headline stops at 1.28x, a 'stat' label (34px) never reaches it.
+ * The usual roles (a stat({size: 'display'}) included) are not held back, so a diagram without these options scales as before.
+ */
+export function fillScaleLimit(bands: Band[]): number {
+  const optIn = walkBands(bands).flatMap(b => b.type === 'banner' && b.headlineRole ? [baseRoles(b.headlineRole)] : (b.type === 'bars' || b.type === 'plane') && b.labelRole ? [baseRoles(b.labelRole)] : []);
+  return Math.min(1.8, optIn.length ? OPT_IN_TEXT_MAX / Math.max(...optIn) : 1.8);
+}
+const BASE_ROLES: Record<Role, number> = {...ROLES};
+const baseRoles = (r: Role): number => BASE_ROLES[r];
+
+let boxSizeWarned = false;
+/** box({size}) is read by neither layout nor emit; said once per process, and a later version throws. */
+function warnBoxSizeOnce(): void {
+  if (boxSizeWarned) return;
+  boxSizeWarned = true;
+  console.warn('svg-diagram: box({size}) は効果がない。大きい文字は role(stat() / display)を使う(次の版で throw する)');
 }
 
 /** A large, atomic value and its muted label. The result is an ordinary plain box, so it works in row(). */
@@ -161,6 +188,7 @@ export function stat(value: string | number, label: RichText, opts: StatOpts = {
 
 export function banner<const Id extends string = never>(opts: BannerOpts & {id?: Id}): BannerBand & Declares<Id> & HandleOf<Id>;
 export function banner(opts: BannerOpts): BannerBand {
+  assertTextRole(opts.headlineRole, HEADLINE_ROLES, 'banner() headlineRole');
   const headline = richField(opts.headline, {field: 'banner() headline', bold: true, tone: opts.headlineTone});
   const sub = richField(opts.sub, {field: 'banner() sub', bold: false, tone: opts.subTone ?? (isSolidTone(opts.tone) ? undefined : 'muted')});
   const text = {...(typeof opts.headline === 'string' ? {} : {headline: headline.text ?? ''}), ...(typeof opts.sub === 'string' || opts.sub === undefined ? {} : {sub: sub.text})};
@@ -680,6 +708,7 @@ export function curve(points: CurveBand['points'], opts: CurveOpts = {}): CurveB
 // A position is [x, y] or the id of a point. Layout places the ticks, labels and dimension lines; verify reports labels that
 // overlap each other or leave the figure.
 export function plane(opts: PlaneOpts): PlaneBand {
+  assertTextRole(opts?.labelRole, LABEL_ROLES, 'plane() labelRole');
   for (const k of ['x', 'y'] as const) {
     const a = opts?.[k];
     if (a && a.step !== undefined && !(a.step > 0 && Number.isFinite(a.step))) throw new Error(`plane(): axis ${k} step must be a number > 0 (got ${a.step})`);
@@ -692,6 +721,7 @@ export function plane(opts: PlaneOpts): PlaneBand {
 type BarIds<D extends readonly BarDatum[]> = Extract<D[number]['id'], string>;
 export function bars<const D extends readonly BarDatum[]>(data: D, opts?: BarsOpts): BarsBand & Declares<BarIds<D>> & AnchorsOf<BarIds<D>>;
 export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
+  assertTextRole(opts.labelRole, LABEL_ROLES, 'bars() labelRole');
   if (!Array.isArray(data) || data.length === 0) throw new Error('bars(data) needs at least one value');
   if (opts.height !== undefined && (!(opts.height > 0) || !Number.isFinite(opts.height))) throw new Error(`bars(): height must be a finite number > 0 (got ${opts.height})`);
   for (const d of data) {
@@ -714,7 +744,7 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   const ids = data.map(d => d.id).filter((id): id is string => !!id);
   if (new Set(ids).size !== ids.length) throw new Error('bars(): each id must be unique');
   const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height};
-  for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
+  for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
   return withAnchors(band, data.map(d => d.id));
 }
 
@@ -798,7 +828,7 @@ export async function renderDiagram(d: Diagram, opts: {name: string; budget: 'me
   try {
     if (d.fill && budget) {
       d.width = budget.contentWidth;
-      let lo = 1, hi = 1.8;
+      let lo = 1, hi = fillScaleLimit(d.bands);
       if ((await layoutAt(1)).canvasHeight > budget.maxHeight) hi = 1; // doesn't even fit at 1x: report via fit warnings
       for (let i = 0; i < 7 && hi - lo > 0.01; i++) {
         const mid = (lo + hi) / 2;

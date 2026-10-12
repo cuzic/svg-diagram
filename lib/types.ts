@@ -37,7 +37,11 @@ export type Palette = Record<PlainColorKey, string> & Record<Theme, ThemeColors>
 export type ColorKey = PlainColorKey | 'accent' | 'soft';
 
 /** font-size role (tokens.ts ROLES). */
-export type Role = 'title' | 'label' | 'body' | 'note' | 'banner' | 'stat' | 'display' | 'hero';
+export type Role = 'title' | 'label' | 'body' | 'note' | 'banner' | 'stat' | 'display';
+/** The roles a banner() headline can be set in (default 'banner'). */
+export type HeadlineRole = 'banner' | 'stat' | 'display';
+/** The roles the labels of a bars() / plane() (axis labels, value labels, ticks) can be set in (default 'note'). */
+export type LabelRole = 'note' | 'banner' | 'stat';
 export type FontFamily = 'sans' | 'mono' | 'emoji';
 export type FontWeight = 400 | 700;
 
@@ -282,7 +286,11 @@ export interface BoxStyleOpts extends BoxChrome {
   icon?: IconName;
   /** Colour of the icon (default 'text'); a dimmed box draws it muted. */
   iconTone?: TextTone;
-  /** Legacy escape hatch: a px font size (must be >= MIN_FONT_SIZE). Not used by layout. */
+  /**
+   * @deprecated Has no effect: layout and emit never read it. For big text use a role: stat() / stat({size: 'display'}),
+   * caption({role: 'display'}), banner({headlineRole}), bars / plane({labelRole}). box({size}) still passes its px check
+   * (14..72) and warns; the next version throws.
+   */
   size?: number;
 }
 export interface BoxOpts extends BoxStyleOpts {
@@ -312,6 +320,8 @@ export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col
 
 export interface BannerStyleOpts extends BoxChrome {
   headlineTone?: TextTone;
+  /** The headline's text role (default 'banner' = 16px; 'stat' 34px, 'display' 56px). */
+  headlineRole?: HeadlineRole;
   /** Default 'muted'. */
   subTone?: TextTone;
 }
@@ -595,6 +605,8 @@ export interface PlaneDim {
 }
 export interface PlaneLabel {at: PlanePos; text: string; anchor?: 'start' | 'middle' | 'end'; tone?: PlaneTone; bold?: boolean}
 export interface PlaneOpts extends RevealOpts {
+  /** The text role of every label of the figure (axis names, ticks, point / dimension / free labels). Default 'note' (14px). */
+  labelRole?: LabelRole;
   x: PlaneAxis;
   y: PlaneAxis;
   points?: PlanePoint[];
@@ -622,6 +634,8 @@ export interface PlaneBand extends PlaneOpts {
 export type BarSeries = 'a' | 'b' | 'c';
 export interface BarDatum extends RevealOpts {label: string; value: number; series?: BarSeries; id?: string}
 export interface BarsOpts {
+  /** The text role of every label of the figure (category, value, tick). Default 'note' (14px). Bars and the row pitch grow with it. */
+  labelRole?: LabelRole;
   max?: number;
   unit?: string;
   dir?: 'h' | 'v';
@@ -1521,6 +1535,8 @@ export interface LaidOutTable extends Rect {
   /** The left column of the body rows is a row heading (see TableOpts.rowHeader). */
   rowHeader?: boolean;
   reveal?: number;
+  /** font-size of the cell text at layout time (the smallest text of the table; fit.ts counts it). */
+  bodySize: number;
 }
 
 /** wireframe() as laid out: flat primitives + the callouts drawn (for the order rule). */
@@ -1548,6 +1564,8 @@ interface PlaneSeg {x1: number; y1: number; x2: number; y2: number}
 export interface LaidOutPlane extends Rect {
   type: 'plane';
   reveal?: number;
+  /** font-size of every text of the figure (its labelRole at layout time). */
+  labelSize: number;
   /** The figure itself (the band is as wide as the page; the figure may be narrower and centred). */
   bounds: Rect;
   axisX: number; axisY: number;

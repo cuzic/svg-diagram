@@ -159,7 +159,7 @@ export type DiagramInput = DiagramOpts & ThemeRule & FillRule;
 /** box({step}) needs a title (the badge aligns to the title's first line). */
 type StepRule = {step?: undefined} | {step: number | string; title: RichText; icon?: undefined};
 /** box() options: BoxOpts + the step rule, with the id type captured as `Id`. */
-export type BoxInput<Id extends string = string> = Omit<BoxOpts, 'size'> & {id?: Id; size?: FontSize} & StepRule;
+export type BoxInput<Id extends string = string> = Omit<BoxOpts, 'size'> & {id?: Id; /** @deprecated Has no effect (see BoxStyleOpts.size): use a role. */ size?: FontSize} & StepRule;
 
 /** loop-under takes `dip`, elbow takes `bend` / `bendOffset`; neither is meaningful for another route. */
 type Straight = {route?: 'straight'; dip?: never; bend?: never; bendOffset?: never};

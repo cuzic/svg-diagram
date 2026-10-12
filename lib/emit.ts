@@ -332,7 +332,7 @@ function renderPlane(b: LaidOutPlane, day: Theme): string {
     for (const e of dm.ext) out.push(`<path d="${seg(e)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>`);
     out.push(`<path d="${seg(dm.line)}" fill="none" stroke="${c}" stroke-width="2"/>`);
     out.push(head(dm.line.x1, dm.line.y1, dm.line.x1 - dm.line.x2, dm.line.y1 - dm.line.y2, c), head(dm.line.x2, dm.line.y2, dm.line.x2 - dm.line.x1, dm.line.y2 - dm.line.y1, c));
-    out.push(`<rect x="${snap4(dm.chip.x)}" y="${snap4(dm.chip.y)}" width="${snap4(dm.chip.x + dm.chip.w) - snap4(dm.chip.x)}" height="${dm.chip.h}" rx="12" fill="${PALETTE.bg}"/>`);
+    out.push(`<rect x="${snap4(dm.chip.x)}" y="${snap4(dm.chip.y)}" width="${snap4(dm.chip.x + dm.chip.w) - snap4(dm.chip.x)}" height="${dm.chip.h}" rx="${dm.chip.h / 2}" fill="${PALETTE.bg}"/>`);
   }
   for (const p of b.points) {
     const c = col(p.tone), x = snap4(p.x), y = snap4(p.y);
@@ -341,7 +341,7 @@ function renderPlane(b: LaidOutPlane, day: Theme): string {
     else out.push(`<circle cx="${x}" cy="${y}" r="6" fill="${c}"/>`);
   }
   for (const t of b.texts) {
-    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${ROLES.note}"${t.bold ? ' font-weight="700"' : ''} fill="${col(t.tone)}">${emojiSpan(t.s)}</text>`);
+    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${b.labelSize}"${t.bold ? ' font-weight="700"' : ''} fill="${col(t.tone)}">${emojiSpan(t.s)}</text>`);
   }
   return out.join('\n  ');
 }

@@ -36,6 +36,8 @@ export function analyzeFit(d: LaidOutDiagram): FitReport {
   for (const band of d.laidOut) {
     if (band.type === 'row' || band.type === 'grid') band.children.forEach(note); else note(band);
     if (band.type === 'bars') for (const t of band.texts) minSize = Math.min(minSize, t.size);
+    if (band.type === 'plane') minSize = Math.min(minSize, band.labelSize);
+    if (band.type === 'table') minSize = Math.min(minSize, band.bodySize);
     if (band.type === 'banner') bannerH += band.h + d.gap;
   }
   if (!Number.isFinite(minSize)) minSize = 14;
