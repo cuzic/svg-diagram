@@ -87,7 +87,7 @@ export function layoutBalanced(root: TreeNode, opts: Omit<TreeOpts, 'dir'> & {si
   const side: ('left' | 'right')[] = kids.map(k => opts.sides?.[k.id] ?? 'right');
   const load = {left: 0, right: 0};
   kids.forEach((k, i) => { if (opts.sides?.[k.id]) load[side[i]] += heights[i]; });
-  // unpinned children: the first half of what is left goes right, so reading order runs down the right side then up the left
+  // unpinned children: in the order written, the first half of what is left (by height) goes right, the rest left; each side reads top to bottom
   const free = kids.map((_, i) => i).filter(i => !opts.sides?.[kids[i].id]);
   const freeTotal = free.reduce((s, i) => s + heights[i], 0);
   let acc = 0;

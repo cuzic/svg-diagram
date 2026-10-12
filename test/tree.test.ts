@@ -89,6 +89,51 @@ test('tree(): the muted sub line stays readable (4.5:1) on an accent node', asyn
   assert.match(svg, /fill="#22201b"[^>]*>本部長</);
 });
 
+// ---- mindmap() ----
+import {mindmap} from '../lib/dsl.ts';
+
+const map = () => mindmap({
+  label: 'テーマ',
+  children: [
+    {label: 'P', id: 'p', children: [{label: 'p1'}, {label: 'p2'}]},
+    {label: 'Q', id: 'q', children: [{label: 'q1'}]},
+    {label: 'R', id: 'r'},
+    {label: 'S', id: 's', children: [{label: 's1'}, {label: 's2'}, {label: 's3'}]},
+  ],
+});
+
+test('mindmap() puts the root in the middle with branches on both sides, and passes verify', async () => {
+  const {t, verdict} = await laid(map());
+  assert.deepEqual(verdict.problems, []);
+  assert.equal(t.nodes.length, 11);
+  const root = t.nodes[0];
+  assert.ok(t.nodes.some(n => n.x + n.w <= root.x) && t.nodes.some(n => n.x >= root.x + root.w));
+  assert.ok(Math.abs((root.x + root.w / 2) - (t.x + t.w / 2)) < t.w * 0.35, 'the root is near the middle');
+  assert.equal(t.edges.length, 10);
+});
+
+test('mindmap() sides pins a branch; bad sides are rejected', async () => {
+  const {t} = await laid(mindmap({label: 'r', children: [{label: 'a', id: 'a'}, {label: 'b', id: 'b'}]}, {sides: {a: 'left', b: 'left'}}));
+  const root = t.nodes[0];
+  assert.ok(t.nodes.slice(1).every(n => n.x + n.w <= root.x));
+  assert.throws(() => mindmap({label: 'r'}, {sides: {a: 'up' as never}}), /must be 'left' or 'right'/);
+  await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(mindmap({label: 'r', children: [{label: 'a'}]}, {sides: {zz: 'left'}}))), /unknown node id "zz"/);
+  await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(mindmap({label: 'r', children: [{label: 'a', children: [{label: 'b', id: 'deep'}]}]}, {sides: {deep: 'left'}}))), /only a child of the root/);
+});
+
+test('mindmap() nodes with an id are anchors for connect()', async () => {
+  const m = map();
+  assert.equal(m.anchors.p.id, 'p');
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(m, box({id: 'ext', title: '外部'}), connect('p', 'ext', {route: 'elbow'})));
+  assert.equal(laidOut.connects.length, 1);
+});
+
+test('mindmap(): a connector that ends on the whole figure is not stopped by its nodes', async () => {
+  const m = mindmap({label: 'r', children: [{label: 'P', id: 'p'}, {label: 'Q', id: 'q'}, {label: 'R', id: 'r1'}]}, {id: 'M'});
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(m, box({id: 'ext', title: '外部'}), connect('M', 'ext', {route: 'elbow'})));
+  assert.deepEqual(verdict.problems, []);
+});
+
 test('tree(): a connector that ends on the whole figure (its id) is not stopped by the figure\'s own nodes', async () => {
   const t = tree({label: 'r', children: [{label: 'A部', id: 'a'}, {label: 'B部', id: 'b'}, {label: 'C部', id: 'c'}]}, {id: 'T'});
   const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(t, box({id: 'ext', title: '外部'}), connect('T', 'ext', {route: 'elbow'})));

@@ -1,7 +1,7 @@
 // tree(): an org chart / hierarchy. The nodes place themselves (graph-layout.ts layoutTree); each node is a box with a bold
 // label and an optional muted sub line, wrapped to maxNodeW. Nodes with an id are anchors, so connect() can reach them.
 import {textWidth, splitAtoms} from './atoms.ts';
-import {layoutTree} from './graph-layout.ts';
+import {layoutBalanced, layoutTree} from './graph-layout.ts';
 import type {TreeNode} from './graph-layout.ts';
 import {wrapText} from './wrap.ts';
 import type {FontFamily, LaidOutTree, Roles, TreeBand, TreeItem, WidthOf} from './types.ts';
@@ -46,8 +46,15 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     lines.set(n, {label, sub, w: nw, h: nh});
     return {id: key.get(n)!, size: {w: nw, h: nh}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
   };
-  const tree = layoutTree(build(band.root), {dir: band.dir ?? 'down', gap: GAP, levelGap: LEVEL_GAP});
-  if (tree.w > w + 0.5) throw new Error(`tree(): the chart is ${Math.ceil(tree.w)}px wide but the figure has ${Math.round(w)}px (use dir: 'right', a smaller maxNodeW, or fewer siblings on one level)`);
+  const laidRoot = build(band.root);
+  const sides = Object.fromEntries(Object.entries(band.sides ?? {}).map(([id, side]) => {
+    const item = items.find(n => n.id === id);
+    if (!item) throw new Error(`mindmap(): sides names unknown node id "${id}"`);
+    if (!band.root.children?.includes(item)) throw new Error(`mindmap(): sides can pin only a child of the root ("${id}" is deeper)`);
+    return [key.get(item)!, side];
+  }));
+  const tree = band.balanced ? layoutBalanced(laidRoot, {gap: GAP, levelGap: LEVEL_GAP, sides}) : layoutTree(laidRoot, {dir: band.dir ?? 'down', gap: GAP, levelGap: LEVEL_GAP});
+  if (tree.w > w + 0.5) throw new Error(`tree(): the chart is ${Math.ceil(tree.w)}px wide but the figure has ${Math.round(w)}px (${band.balanced ? 'use a smaller maxNodeW or fewer branches' : "use dir: 'right', a smaller maxNodeW, or fewer siblings on one level"})`);
   const dx = x + (w - tree.w) / 2, dy = y;
   const out: LaidOutTree = {
     type: 'tree', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: tree.h,
