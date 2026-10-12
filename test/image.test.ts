@@ -183,3 +183,17 @@ test('raster: resvg draws the embedded picture, with the plate over it', async (
   // the solid plate (the theme's accent) sits over the top-left of the picture
   assert.ok(!near(px(img.x + 14, img.y + 14), [235, 228, 210]));
 });
+
+test('a label position is a fraction of the picture: it follows the picture when its width changes, and anchor picks the plate end', async () => {
+  const plate = async (width: number, anchor?: 'start' | 'middle' | 'end') => {
+    const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(image(kitchen, {alt: 'x', width, labels: [{text: '一品足す', at: [0.5, 0.5], anchor}]})));
+    const img = laidOut.laidOut.find(b => b.type === 'image')!;
+    if (img.type !== 'image') throw new Error('no image');
+    return {img, p: img.plates[0]};
+  };
+  const small = await plate(240), big = await plate(480);
+  assert.ok(Math.abs((small.p.x - small.img.x) / small.img.w - (big.p.x - big.img.x) / big.img.w) < 0.05);
+  const mid = await plate(480, 'middle'), end = await plate(480, 'end');
+  assert.ok(Math.abs(mid.p.x + mid.p.w / 2 - (mid.img.x + mid.img.w / 2)) <= 1);
+  assert.ok(Math.abs(end.p.x + end.p.w - (end.img.x + end.img.w / 2)) <= 1);
+});

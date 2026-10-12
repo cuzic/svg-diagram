@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="503" viewBox="0 0 940 503" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">食事の 4 つの選び方</title>
+  <desc id="svg-desc">画像: 台所</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/image-labels.ts","sourceSha256":"75d0f7a4b7b14757fadecc2a6c559d2af8719dc381e9819a3c98efc410853093"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="503" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">image + labels（板つきの文字 4 つ。位置は割合）</text>
+
+  <image x="152" y="56" width="640" height="428" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAACg0lEQVR4nO3SMW0cABREwcN0teuAOGCBYxDG4M4kojQhkC+t8zLSAFit3uPr8wMyHvMFcEjQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTIuiC18+Uv7lC0AXzBAXNpXmCgubSPEFBc2meoKC5NE9Q0FyaJyhoLs0TFDSX5gkKmkvzBAXNpXmCgubSPEFBc2meoKC5NE9Q0FyaJyhoLs0TFDSX5gkKmkvzBAXNpXmCgubSPEFBc2meoKC5NE9Q0FyaJyhoLs0TFDSX5gkKmkvzBAXNpXmCgubSPEFBc2meoKC5NE9Q0FyaJyhoLs0TFDSX5gkKmkvzBAXNpXmCgubSPEFBc2meoKC5NE9Q0FyaJyhoLs0TFDSX5gkKmkvzBAXNpXmCgubSPEFBc2meoKC5NE9Q0FyaJyhoLs0TFDSX5gkKmkvzBAX92/vb87uZpyloQQt6n6CgBS1oQQta0IIW9D9H0IJOEbSgUwQt6BRBCzpF0P970PwhaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKY/XjydkCJoUQZMiaFIETYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSRE0KYImRdCk/AJBSU+ybdC4GwAAAABJRU5ErkJggg==" preserveAspectRatio="none" role="img" aria-label="台所"/>
+  <rect x="176" y="92" width="128" height="28" rx="14" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="240" y="111" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">冷凍食品を温める</text>
+  <rect x="692" y="92" width="72" height="28" rx="14" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="728" y="111" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">一品足す</text>
+  <rect x="176" y="416" width="100" height="28" rx="14" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="226" y="435" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">ミールキット</text>
+  <rect x="664" y="416" width="100" height="28" rx="14" fill="#1d5fa8" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="714" y="435" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">食材から作る</text>
+</svg>
