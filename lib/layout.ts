@@ -303,7 +303,7 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
     } else if (band.type === 'dots') {
       for (const [text, size, weight, font] of dotsTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'timeline') {
-      for (const [text, size, weight, font] of timelineTexts(band)) registerAtoms(requests, text, size, weight, font);
+      for (const [text, size, weight, font] of timelineTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'curve') {
       for (const label of [band.yTopLabel, band.yBottomLabel, band.xLabel]) {
         if (!label) continue;
@@ -481,7 +481,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
     }
 
     if (band.type === 'timeline') {
-      const placed = layoutTimeline(band, padX, cursorY, cw, widthOf);
+      const placed = layoutTimeline(band, padX, cursorY, cw, widthOf, roles);
       if (band.id) {
         if (anchors.has(band.id)) claimed(band.id, 'a timeline takes an id that another anchor already has');
         anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
