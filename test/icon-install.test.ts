@@ -6,7 +6,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import {execFile} from 'node:child_process';
-import {glyphFromBody, glyphFromSvg, parseManifest, parseSpec} from '../lib/icon-store.ts';
+import {glyphFromBody, glyphFromSvg, parseManifest, parseSpec, prefixIds, sanitizeBody} from '../lib/icon-store.ts';
 import {addIcons, noticeText, readManifest, removeIcons, setMainSet} from '../lib/icon-install.ts';
 import {findIcons, styleOf} from '../lib/icon-find.ts';
 
@@ -35,11 +35,17 @@ test('glyphFromBody: one filled path keeps the compact d form (evenodd kept); li
 
 test('glyphFromBody refuses what could carry more than a drawing: scripts, styles, gradients, urls, text, event attributes', () => {
   for (const [body, re] of [
-    ['<script>alert(1)</script>', /besides shapes/],
+    ['<script>alert(1)</script>', /<script> is not supported/],
     ['<path d="M0 0" onclick="x"/>', /onclick/],
     ['<path d="M0 0" style="fill:red"/>', /style/],
-    ['<linearGradient id="a"/><path d="M0 0"/>', /linearGradient/],
-    ['<path fill="url(#a)" d="M0 0"/>', /plain data/],
+    ['<mask id="a"/><path d="M0 0"/>', /<mask> is not supported/],
+    ['<filter id="a"/><path d="M0 0"/>', /<filter>/],
+    ['<text>x</text>', /<text> is not supported/],
+    ['<text/>', /<text>/],
+    ['<path fill="url(#a)" d="M0 0"/>', /does not define/],
+    ['<linearGradient id="a"/><path stroke-width="url(#a)" d="M0 0"/>', /only url\(#id\)/],
+    ['<use href="https://x/y.svg#a"/>', /<use>/],
+    ['<linearGradient id="a" href="http://evil/x"/><path fill="url(#a)" d="M0 0"/>', /inside the icon/],
     ['<g><path d="M0 0"/>hi</g>', /besides shapes/],
     ['<path d="M0 0"', /besides shapes/],
   ] as const) assert.throws(() => glyphFromBody(body, {width: 24}, 'x', {color: true}), re, body);
@@ -50,6 +56,18 @@ test('colours of their own need --color; they are kept, marked fixed, and #hex o
   assert.throws(() => glyphFromBody(red, {width: 16}, 'x'), /--color/);
   assert.deepEqual(glyphFromBody(red, {width: 16}, 'x', {color: true}), {vb: [0, 0, 16], body: '<circle cx="8" cy="8" r="6" fill="#e53935"/><path fill="currentColor" d="M0 0h2v2z"/>', fixed: true});
   assert.throws(() => glyphFromBody('<circle r="1" fill="red"/>', {width: 16}, 'x', {color: true}), /named colours/);
+});
+
+test('gradients and clip paths defined inside the icon are kept (colour: --color), their ids are checked, and unreferenced ids dropped', () => {
+  const g = '<defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff0000"/><stop offset="1" stop-color="#0000ff"/></linearGradient><clipPath id="c1"><rect width="24" height="24"/></clipPath></defs><g clip-path="url(#c1)"><rect id="Icon-Arch/48/x" width="24" height="24" fill="url(#g1)"/></g>';
+  assert.throws(() => glyphFromBody(g, {width: 24}, 'azure:x'), /--color/);
+  const r = glyphFromBody(g, {width: 24}, 'azure:x', {color: true});
+  assert.equal(r.fixed, true);
+  assert.ok(r.body!.includes('<linearGradient id="g1"') && r.body!.includes('fill="url(#g1)"') && !r.body!.includes('Icon-Arch'));
+  assert.equal(prefixIds(r.body!, 'p-').match(/p-g1/g)!.length, 2, 'the id and its url() both get the prefix');
+  assert.ok(prefixIds(r.body!, 'p-').includes('clip-path="url(#p-c1)"'));
+  assert.ok(sanitizeBody('<path d="M0 0" fill="currentColor" data-x="1" inkscape:label="a"/>', 'x', false, true).body.includes('d="M0 0"'), 'a file\'s editor leftovers are dropped');
+  assert.throws(() => sanitizeBody('<path d="M0 0" data-x="1"/>', 'x', false), /data-x/, 'but an Iconify body or a manifest is strict');
 });
 
 test('a hand-edited manifest is checked against the same whitelist', () => {
@@ -225,4 +243,52 @@ test('the CLI: icons find prints candidates with the add line and writes the pic
     assert.match(r.out, /ライセンスのため除外: fa \(CC-BY-4\.0\)/);
     assert.deepEqual([...fs.readFileSync(path.join(dir, 's.png')).subarray(1, 4)], [80, 78, 71], 'a PNG was written');
   } finally { srv.close(); fs.rmSync(dir, {recursive: true}); }
+});
+
+// ---- vendor packs (add-pack) ---------------------------------------------------------------------------------------------
+import {addPack} from '../lib/icon-pack.ts';
+import {packIconName} from '../lib/icon-store.ts';
+
+const AWS_SVG = (fill: string) => `<?xml version="1.0" encoding="UTF-8"?>\n<svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><title>Icon-Architecture/48/Arch_AWS-Lambda_48</title><g id="Icon-Architecture/48/Arch_AWS-Lambda_48" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><g id="Icon-Architecture-BG/48/Compute" fill="${fill}"><rect id="Rectangle" x="0" y="0" width="48" height="48"/></g><path d="M10,10 L38,10 L24,38 Z" id="Amazon-Lambda_Icon_48_Squid" fill="#FFFFFF"/></g></svg>`;
+
+test('packIconName: vendor file names become short kebab names under the prefix', () => {
+  assert.equal(packIconName('Arch_Compute/48/Arch_AWS-Lambda_48.svg', 'aws'), 'aws-lambda');
+  assert.equal(packIconName('Res_Amazon-EC2_Instance_48_Dark.svg', 'aws'), 'aws-amazon-ec2-instance-dark');
+  assert.equal(packIconName('10021-icon-service-Virtual-Machine.svg', 'azure'), 'azure-virtual-machine');
+  assert.equal(packIconName('Cloud Run.svg', 'gcp'), 'gcp-cloud-run');
+  assert.equal(packIconName('3d.svg', 'x'), 'x-3d');
+});
+
+test('add-pack: needs the vendor terms said and accepted, installs the best size per icon, records the terms, and reports what it cannot take', () => {
+  const src = fs.mkdtempSync(path.join(os.tmpdir(), 'pack-src-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pack-proj-'));
+  try {
+    const put = (rel: string, text: string) => { fs.mkdirSync(path.dirname(path.join(src, rel)), {recursive: true}); fs.writeFileSync(path.join(src, rel), text); };
+    put('Arch_Compute/48/Arch_AWS-Lambda_48.svg', AWS_SVG('#ED7100'));
+    put('Arch_Compute/64/Arch_AWS-Lambda_64.svg', AWS_SVG('#000000'));
+    put('Arch_Storage/48/Arch_Amazon-Simple-Storage-Service_48.svg', AWS_SVG('#7AA116'));
+    put('Arch_Odd/48/Arch_Styled_48.svg', '<svg viewBox="0 0 48 48"><style>.a{fill:red}</style><rect class="a" width="48" height="48"/></svg>');
+    put('readme.txt', 'not an icon');
+    assert.throws(() => addPack(src, {prefix: 'aws', cwd: dir, all: true}), /vendor's own terms/);
+    assert.throws(() => addPack(src, {prefix: 'aws', cwd: dir, all: true, terms: 'https://aws.amazon.com/architecture/icons/'}), /--accept-terms|own terms/);
+    assert.throws(() => addPack(src, {prefix: 'aws', cwd: dir, terms: 'u', acceptTerms: true}), /4 icons.*--match.*--all/s);
+    assert.throws(() => addPack(src, {prefix: 'AWS', cwd: dir, list: true}), /--prefix/);
+    const listed = addPack(src, {prefix: 'aws', cwd: dir, list: true});
+    assert.deepEqual(listed.added, ['aws-amazon-simple-storage-service', 'aws-lambda']);
+    assert.equal(fs.existsSync(path.join(dir, 'svg-diagram.icons.json')), false, '--list writes nothing');
+    const r = addPack(src, {prefix: 'aws', cwd: dir, all: true, terms: 'https://aws.amazon.com/architecture/icons/', acceptTerms: true, today: '2026-10-12'});
+    assert.deepEqual(r.added, ['aws-amazon-simple-storage-service', 'aws-lambda']);
+    assert.deepEqual(Object.keys(r.skipped).map(k => k.slice(0, 26)), ['<style> is not supported (']);
+    assert.deepEqual(Object.values(r.skipped), [['Arch_Odd/48/Arch_Styled_48.svg']]);
+    assert.match(r.collisions[0], /aws-lambda \(2 files: .*48.* kept\)/);
+    const m = readManifest(path.join(dir, 'svg-diagram.icons.json'));
+    assert.deepEqual(m.packs, {aws: {terms: 'https://aws.amazon.com/architecture/icons/', source: path.basename(src), acceptedAt: '2026-10-12'}});
+    const l = m.icons['aws-lambda'];
+    assert.deepEqual([l.license, l.fixed, l.vb], ['vendor:aws', true, [0, 0, 48]]);
+    assert.ok(l.body!.includes('fill="#ED7100"') && !l.body!.includes('Icon-Architecture') && !l.body!.includes('Rectangle'), 'the Arch_ 48 px file won; ids that nothing refers to are gone');
+    assert.match(noticeText(m), /aws — the vendor's own terms \(https:\/\/aws\.amazon\.com\/architecture\/icons\/\), accepted 2026-10-12: aws-amazon-simple-storage-service, aws-lambda/);
+    assert.throws(() => parseManifest(JSON.stringify({...m, packs: {aws: {terms: ''}}}), 'f'), /bad pack/);
+    const again = addPack(src, {prefix: 'aws', cwd: dir, match: /Lambda/, terms: 't', acceptTerms: true});
+    assert.deepEqual([again.added, again.replaced], [[], ['aws-lambda']]);
+  } finally { fs.rmSync(src, {recursive: true}); fs.rmSync(dir, {recursive: true}); }
 });

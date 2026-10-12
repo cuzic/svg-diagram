@@ -41,7 +41,7 @@ export function readManifest(file: string): IconManifest {
 }
 export function writeManifest(file: string, m: IconManifest): void {
   const icons = Object.fromEntries(Object.entries(m.icons).sort(([a], [b]) => a.localeCompare(b)));
-  fs.writeFileSync(file, JSON.stringify({version: 1, ...(m.mainSet ? {mainSet: m.mainSet} : {}), icons}, null, 2) + '\n');
+  fs.writeFileSync(file, JSON.stringify({version: 1, ...(m.mainSet ? {mainSet: m.mainSet} : {}), ...(m.packs && Object.keys(m.packs).length ? {packs: m.packs} : {}), icons}, null, 2) + '\n');
 }
 
 /** Fetch and convert the icons for `specs`. Nothing is written; any failure throws, so one bad pick installs none. */
@@ -122,7 +122,8 @@ export async function searchIcons(query: string, opts: InstallOpts & {set?: stri
 export function noticeText(m: IconManifest): string {
   const groups = new Map<string, string[]>();
   for (const [name, ic] of Object.entries(m.icons)) {
-    const key = ic.from.startsWith('file:') ? 'Drawn in this project' : `${ic.from.split(':')[0]} — ${ic.author ?? 'unknown author'}, ${ic.license}${ic.licenseUrl ? ` (${ic.licenseUrl})` : ''}`;
+    const pk = ic.license.startsWith('vendor:') ? m.packs?.[ic.license.slice(7)] : undefined;
+    const key = pk ? `${ic.license.slice(7)} — the vendor's own terms (${pk.terms}), accepted ${pk.acceptedAt}` : ic.from.startsWith('file:') ? 'Drawn in this project' : `${ic.from.split(':')[0]} — ${ic.author ?? 'unknown author'}, ${ic.license}${ic.licenseUrl ? ` (${ic.licenseUrl})` : ''}`;
     groups.set(key, [...(groups.get(key) ?? []), name]);
   }
   return [...groups].map(([k, v]) => `- ${k}: ${v.join(', ')}`).join('\n') + '\n';

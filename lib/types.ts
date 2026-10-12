@@ -323,6 +323,12 @@ export interface BoxStyleOpts extends BoxChrome {
   icon?: IconName;
   /** Colour of the icon (default 'text'); a dimmed box draws it muted. */
   iconTone?: TextTone;
+  /** Where the icon goes: 'left' (default, 32px, text beside it) or 'top' (centred above the text, `iconSize` px — see node()). */
+  iconAt?: 'left' | 'top';
+  /** Side of the icon when it is at the top (default 48). */
+  iconSize?: number;
+  /** `false`: no box around it (node() — an icon with its label, as in an architecture diagram). */
+  frame?: false;
   /**
    * @deprecated Has no effect: layout and emit never read it. For big text use a role: stat() / stat({size: 'display'}),
    * caption({role: 'display'}), banner({headlineRole}), bars / plane({labelRole}). box({size}) still passes its px check

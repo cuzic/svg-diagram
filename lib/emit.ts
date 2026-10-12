@@ -15,7 +15,8 @@ import type {
   LaidOutWireframe, LaidOutScreens, RawColorTone, Span, Roles,
 } from './types.ts';
 import {diagramTitle, diagramDesc} from './rules.ts';
-import {BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
+import {prefixIds} from './icon-store.ts';
+import {TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
 import {visibleAt} from './reveal.ts';
 import {spotlightDim} from './spotlight.ts';
 import {MARK_STROKE, plateStyle} from './image.ts';
@@ -114,15 +115,17 @@ function renderStepBadge(band: LaidOutBox, day: Theme): string {
 function renderBoxIcon(band: LaidOutBox, day: Theme): string {
   const g = band.iconGlyph!;
   const {vb: [vx, vy, vs]} = g;
-  const s = ICON_SIZE / vs;
-  const x = band.x + (band.padX ?? BOX_PAD_X), y = band.y + (band.padY ?? BOX_PAD_Y);
+  const top = band.iconAt === 'top', size = top ? band.iconSize ?? TOP_ICON_SIZE : ICON_SIZE;
+  const s = size / vs;
+  const x = top ? band.x + band.w / 2 - size / 2 : band.x + (band.padX ?? BOX_PAD_X), y = band.y + (band.padY ?? BOX_PAD_Y);
   const n = (v: number) => +v.toFixed(4);
   const color = band.dim ? PALETTE.muted : runColorOf(band.iconTone, band.tone, day);
   const a11y = band.title ? 'aria-hidden="true"' : `role="img" aria-label="${band.icon}"`;
   const at = `transform="translate(${n(x - vx * s)} ${n(y - vy * s)}) scale(${n(s)})"`;
   if (g.body === undefined) return `\n  <path d="${g.d}" ${at} fill="${color}"${g.rule ? ' fill-rule="evenodd"' : ''} ${a11y} data-icon="${band.icon}"/>`;
   // shapes drawn the way the set drew them: `currentColor` is the tone colour; an icon with colours of its own keeps them (faded when dimmed)
-  const inner = g.body.replaceAll('currentColor', color);
+  // (ids inside it are made unique to this place: the same icon drawn twice must not share a gradient id)
+  const inner = prefixIds(g.body.replaceAll('currentColor', color), `ic-${Math.round(x)}-${Math.round(y)}-`);
   return `\n  <g ${at} fill="${color}"${g.fixed ? ` data-icon-fixed="true"${band.dim ? ' opacity="0.35"' : ''}` : ''} ${a11y} data-icon="${band.icon}">${inner}</g>`;
 }
 
@@ -163,7 +166,8 @@ function renderBox(band: LaidOutBox, day: Theme, roles: Roles): string {
   const badge = band.step != null ? `\n  ${renderStepBadge(band, day)}` : '';
   const iconText = band.icon ? renderBoxIcon(band, day) : '';
   const tag = band.tagBox ? `\n  ${renderTag(band, day, roles)}` : '';
-  return `${renderBoxRect(band, day, 'plain')}\n  ${renderBoxText(band, day, 'left')}${badge}${iconText}${tag}${renderStamp(band, roles)}`;
+  const frame = band.frame === false ? '' : `${renderBoxRect(band, day, 'plain')}\n  `;
+  return `${frame}${renderBoxText(band, day, band.iconAt === 'top' ? 'center' : 'left')}${badge}${iconText}${tag}${renderStamp(band, roles)}`;
 }
 
 function renderGroup(band: LaidOutGroup, day: Theme, roles: Roles): string {

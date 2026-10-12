@@ -93,6 +93,15 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 - 入れたアイコンの出典は `svg-diagram icons notice` で出せる（クレジットが要る文書に貼る）。
 - 絵記号は図の核心の数枚だけ。全部の箱には付けない。
 
+## クラウド・ネットワークの構成図
+
+アイコン+名前の点を `node({id, icon, label, sub})` で置き、境界（VPC・サブネット・ゾーン）は `group({title})` の入れ子、線は `connect('a:right', 'b:left')`。例: `examples/cloud-architecture.ts`。
+
+- **線は必ず辺を指す**（`:right` `:left` `:top` `:bottom`）。省略すると中心同士を結び、枠のない node ではアイコンを貫く。`:bottom` は名前の下に付く。
+- 線が見出しや別の node にかかって `build` が止まったら、node の並び（同じ行・同じ列に寄せる）か、`route: 'elbow'` の `bend` で直す。ゾーンや層ごとに行を分け、線は隣の行へだけ引くと素直に収まる。
+- アイコンは汎用なら `icons find`（carbon が構成図向き）。**AWS / Azure / GCP / Kubernetes の公式アイコンは Iconify に無い**ので、ユーザーに各社の配布ページから zip を DL してもらい、`icons add-pack <zip> --prefix aws --terms <規約の URL> --accept-terms --match "..."` で入れる。**規約を読んだかはユーザーに確認してから** `--accept-terms` を付ける（勝手に付けない）。
+- PNG プレビューで曲がる線の矢じりが横向きに見えるのは resvg の癖。確かめるなら `--engine chromium`。
+
 ## 公開してよい内容か
 
 図のソースは、案件の内容（社名・画面・数値）を含みやすい。ツール本体のリポジトリには**架空の例**だけを置き、案件の図は案件側のリポジトリに置く。
