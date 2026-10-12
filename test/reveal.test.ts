@@ -144,3 +144,44 @@ test('bars inside a later group hide their axis too, and the bars band alone kee
   assert.ok(lines(emitSvg(grouped, {reveal: 2})) > 0);
   assert.ok(lines(emitSvg(alone, {reveal: 0})) > 0);
 });
+
+test('a group in a row inherits its own reveal into its boxes and the connect between them (the versus() shape)', async () => {
+  const d = diagram({theme: 'blue'}).add(
+    row([
+      group([box({id: 'l', title: 'LEFTBOX'})], {title: 'Left'}),
+      group([box({id: 'r', title: 'RIGHTBOX'})], {title: 'Right', reveal: 2}),
+    ], {cols: [6, 6]}),
+    connect('l', 'r', {label: 'CONLABEL'}),
+  );
+  const {laidOut} = await checkDiagram(d);
+  assert.equal(d.maxReveal, 2);
+  const drawn = (stage: number) => emitSvg(laidOut, {reveal: stage}).replace(/<(title|desc)\b.*?<\/\1>/g, ''); // the doc <desc> lists every box
+  const one = drawn(1), two = drawn(2);
+  assert.match(one, /LEFTBOX/);
+  assert.doesNotMatch(one, /RIGHTBOX|Right|CONLABEL/);
+  assert.match(two, /RIGHTBOX/);
+  assert.match(two, /CONLABEL/);
+  assert.equal(laidOut.connects[0].reveal, 2);
+});
+
+test('reveal reaches boxes through nested row > group > row > group', async () => {
+  const d = diagram({theme: 'blue'}).add(
+    row([group([row([group([box({id: 'deep', title: 'DEEPBOX'})], {title: 'Inner'})], {cols: [12]})], {title: 'Outer', reveal: 2})], {cols: [12]}),
+  );
+  const {laidOut} = await checkDiagram(d);
+  assert.equal(d.maxReveal, 2);
+  const drawn = (stage: number) => emitSvg(laidOut, {reveal: stage}).replace(/<(title|desc)\b.*?<\/\1>/g, '');
+  assert.doesNotMatch(drawn(1), /DEEPBOX|Inner|Outer/);
+  assert.match(drawn(2), /DEEPBOX/);
+});
+
+test('a box revealed on its own inside a group without reveal makes the stages and warns on an earlier connect', async () => {
+  const d = diagram({theme: 'blue'}).add(
+    box({id: 'a', title: 'A'}),
+    row([group([box({id: 'late', title: 'LATE', reveal: 3})], {title: 'G'}), box({id: 'x', title: 'X'})], {cols: [6, 6]}),
+    connect('a', 'late', {reveal: 1}),
+  );
+  await checkDiagram(d);
+  assert.equal(d.maxReveal, 3);
+  assert.ok(d.revealWarnings?.some(w => w.includes('connect(a -> late) reveal 1 is earlier than an endpoint (reveal 3)')), String(d.revealWarnings));
+});

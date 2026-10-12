@@ -339,15 +339,18 @@ function renderPlane(b: LaidOutPlane, day: Theme): string {
 function renderBars(b: LaidOutBars, day: Theme, stage?: number): string {
   const col = (k: ColorKey) => colorOf(k, day);
   const out: string[] = [];
-  for (const t of b.ticks) out.push(`<path d="M${Math.round(t.x1)},${Math.round(t.y1)} L${Math.round(t.x2)},${Math.round(t.y2)}" fill="none" stroke="${PALETTE.border}" stroke-width="2"/>`);
+  for (const t of b.ticks) out.push(`<path d="M${Math.round(t.x1)},${Math.round(t.y1)} L${Math.round(t.x2)},${Math.round(t.y2)}" fill="none" stroke="${b.dim ? PALETTE.muted : PALETTE.border}" stroke-width="2"/>`);
   for (const r of b.bars.filter(r => visibleAt(r, stage))) {
     const x = Math.round(r.x * 100) / 100, y = Math.round(r.y * 100) / 100;
     const right = Math.round((r.x + r.w) * 100) / 100, bottom = Math.round((r.y + r.h) * 100) / 100;
-    out.push(`<path d="M${x},${y} H${right} V${bottom} H${x} Z" fill="${col(r.fill)}"/>`);
+    if (!r.dim) { out.push(`<path d="M${x},${y} H${right} V${bottom} H${x} Z" fill="${col(r.fill)}"/>`); continue; }
+    // a dimmed bar is outlined just inside its rect (so the gap between stacked segments stays open); one too thin to see stays a bare fill
+    const thin = r.w < 1 || r.h < 1, i = thin ? 0 : Math.min(1, r.w / 2, r.h / 2);
+    out.push(`<path d="M${x + i},${y + i} H${right - i} V${bottom - i} H${x + i} Z" fill="${PALETTE.bg}"${thin ? '' : ` stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"`}/>`);
   }
   for (const t of b.texts.filter(t => visibleAt(t, stage))) {
     const anchor = t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`;
-    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${anchor} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${col(t.fill)}">${emojiSpan(t.text)}</text>`);
+    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${anchor} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${t.dim || b.dim ? PALETTE.muted : col(t.fill)}">${emojiSpan(t.text)}</text>`);
   }
   return out.join('\n  ');
 }
@@ -364,7 +367,6 @@ function renderRaw(band: LaidOutRaw, day: Theme): string {
 
 
 // ---- sequence() / table() renderers (geometry comes from seq-table.ts) ------
-const NOTE = ROLES.note;
 const LH_EM = 1.4;
 
 function strokeLine(d: string, color: string, line: LineStyle | undefined, arrow: Arrow | undefined, width = 2): string {
@@ -398,21 +400,21 @@ function renderSequence(band: LaidOutSequence, day: Theme): string {
     if (s.kind === 'msg') {
       const color = resolveLineColor(s.tone, day);
       parts.push(strokeLine(`M${Math.round(s.x1)},${Math.round(s.y)} L${Math.round(s.x2)},${Math.round(s.y)}`, color, s.line, s.arrow));
-      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: NOTE, anchor: 'middle', fill: s.tone ? color : PALETTE.text}));
+      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: ROLES.note, anchor: 'middle', fill: s.tone ? color : PALETTE.text}));
     } else if (s.kind === 'self') {
       const color = resolveLineColor(s.tone, day);
       const dir = s.side === 'left' ? -1 : 1;
       const x0 = Math.round(s.cx), x1 = Math.round(s.cx + dir * 36), y0 = Math.round(s.y), y1 = Math.round(s.y + s.loopH);
       parts.push(strokeLine(`M${x0},${y0} L${x1},${y0} L${x1},${y1} L${x0},${y1}`, color, s.line, 'end'));
-      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: NOTE, anchor: s.side === 'left' ? 'end' : undefined, fill: s.tone ? color : PALETTE.text}));
+      parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: ROLES.note, anchor: s.side === 'left' ? 'end' : undefined, fill: s.tone ? color : PALETTE.text}));
     } else if (s.kind === 'note') {
       const st = resolveBoxStyle(s.tone, day);
       parts.push(`<rect x="${snap4(s.x)}" y="${snap4(s.y)}" width="${snap4(s.w)}" height="${snap4(s.h)}" rx="8" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5"${st.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
-      parts.push(textLines(s.lines, {x: s.x + 12, top: s.y + 8, size: NOTE, fill: PALETTE.text}));
+      parts.push(textLines(s.lines, {x: s.x + 12, top: s.y + 8, size: ROLES.note, fill: PALETTE.text}));
     } else {
       parts.push(`<path d="M${Math.round(s.x1)},${Math.round(s.y)} L${Math.round(s.x2)},${Math.round(s.y)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="6,4"/>`);
       parts.push(`<rect x="${snap4(s.cx - s.chipW / 2)}" y="${snap4(s.y - 12)}" width="${snap4(s.chipW)}" height="24" rx="12" fill="${PALETTE.bg}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
-      parts.push(textLines([s.text], {x: s.cx, top: s.y - 12 + 1, size: NOTE, weight: 700, anchor: 'middle', fill: PALETTE.text}));
+      parts.push(textLines([s.text], {x: s.cx, top: s.y - 12 + 1, size: ROLES.note, weight: 700, anchor: 'middle', fill: PALETTE.text}));
     }
   }
   return parts.join('\n  ');
@@ -543,9 +545,12 @@ function renderBandPlain(band: LaidOutBand, day: Theme, stage?: number): string 
   }
 }
 
+// bands that draw their own dim state (spotlight) instead of having it painted over their svg
+const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars']);
+
 function renderBand(band: LaidOutBand, day: Theme, stage?: number): string {
   const svg = renderBandPlain(band, day, stage);
-  if (!band.dim || band.type === 'caption' || band.type === 'box' || band.type === 'banner' || band.type === 'group' || band.type === 'row' || band.type === 'grid') return svg;
+  if (!band.dim || SELF_DIMMING.has(band.type)) return svg;
   return svg
     .replace(/marker-(start|end)="url\(#dsl-arrow(-strong)?\)"/g, 'marker-$1="url(#dsl-arrow$2-dim)"')
     .replace(/stroke="#[0-9a-fA-F]{6}"/g, `stroke="${PALETTE.muted}"`)
