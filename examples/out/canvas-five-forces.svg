@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="735" viewBox="0 0 940 735" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">コワーキング事業の業界構造</title>
+  <desc id="svg-desc">要素: ▼ 新規参入の脅威、▶ 売り手の交渉力（供給者）、業界内の競争（競合との敵対関係）、◀ 買い手の交渉力（顧客）、▲ 代替品の脅威</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/canvas-five-forces.ts","sourceSha256":"aff8c580c59b3c446a486d8d53ab7c1d9d362a25c0f97364d8b3247de8f920d5"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="735" fill="#ffffff"/>
+
+  <text x="20" y="35" font-size="15" font-weight="700" fill="#22201b">5 つの競争要因</text>
+
+  <rect x="308" y="48" width="324" height="192" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="327.25" y="80" font-size="15" font-weight="700" fill="#22201b">▼ 新規参入の脅威</text>
+  <text x="327.25" y="108" font-size="14" font-weight="400" fill="#22201b">・初期費用が小さく、参入しやすい</text>
+  <text x="327.25" y="135.6" font-size="14" font-weight="400" fill="#22201b">・大手不動産の参入が増えた</text>
+
+  <rect x="20" y="256" width="272" height="212" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="40" y="288.9032258064516" font-size="15" font-weight="700" fill="#22201b">▶ 売り手の交渉力（供給者）</text>
+  <text x="40" y="316.9032258064516" font-size="14" font-weight="400" fill="#22201b">・ビルオーナー（賃料の交渉力が強</text>
+  <text x="40" y="336.5032258064516" font-size="14" font-weight="400" fill="#22201b">い）</text>
+  <text x="40" y="364.1032258064516" font-size="14" font-weight="400" fill="#22201b">・回線・備品は代わりがある</text>
+
+  <rect x="308" y="256" width="324" height="212" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="327.25" y="288.9032258064516" font-size="15" font-weight="700" fill="#22201b">業界内の競争（競合との敵対関係）</text>
+  <text x="327.25" y="316.9032258064516" font-size="14" font-weight="400" fill="#22201b">・駅近 1km 圏に同規模が 6 か所</text>
+  <text x="327.25" y="344.5032258064516" font-size="14" font-weight="400" fill="#22201b">・価格競争になりやすい</text>
+  <rect x="536" y="244" width="88" height="24" rx="12" fill="#1d5fa8"/>
+  <text x="578" y="263" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">重点・中心</text>
+
+  <rect x="648" y="256" width="272" height="212" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="668.75" y="288.9032258064516" font-size="15" font-weight="700" fill="#22201b">◀ 買い手の交渉力（顧客）</text>
+  <text x="668.75" y="316.9032258064516" font-size="14" font-weight="400" fill="#22201b">・月額会員は乗り換えが簡単</text>
+  <text x="668.75" y="344.5032258064516" font-size="14" font-weight="400" fill="#22201b">・法人は値引きを求める</text>
+
+  <rect x="308" y="488" width="324" height="192" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="327.25" y="517.0967741935484" font-size="15" font-weight="700" fill="#22201b">▲ 代替品の脅威</text>
+  <text x="327.25" y="545.0967741935484" font-size="14" font-weight="400" fill="#22201b">・自宅・カフェでの作業</text>
+  <text x="327.25" y="572.6967741935484" font-size="14" font-weight="400" fill="#22201b">・シェアオフィスの大手チェーン</text>
+
+  <text x="20" y="709" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

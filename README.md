@@ -92,6 +92,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | controlChart(type, data, {limits, at, rules}) / xbarR(subgroups) | 管理図。`'x'｜'mr'｜'xbar'｜'r'｜'p'｜'np'｜'c'｜'u'`。中心線と 3σ の管理限界を計算し、外れた点（✕）・連と傾向（○）を赤にする（`plane` を返す） |
 | checkSheet(items, columns, {as, total, boxes}) | チェックシート。件数は「正」の字、計の行と列は自動。`counts` なし・`boxes: true` で手書き用の空の用紙（`table` を返す） |
 | matrix(rows, cols, cells, {weights, values, total}) | マトリックス図（L 型）。◎ ○ △ × の記号、重み付きの評価点と最高点の印（`table` を返す） |
+| canvas(template, content, {title, emphasis, id, h}) | 枠が決まったキャンバス。`bmc`（ビジネスモデルキャンバス）・`lean`・`vpc`・`swot`・`tows`・`errc`・`pest`（`pestle: true` で PESTLE）・`threeC`・`sevenS`・`fiveForces`・`empathy`・`persona`・`a3`。内容は領域ごとの箇条書き（`grid` を返す） |
 | affinity(groups, {cols, cardCols}) | 親和図。カードを表札付きのグループに、グループの中にグループを入れ子にできる（`group` と `row` を返す） |
 | relationDiagram(nodes, links, {problem, counts}) | 連関図。要因と因果の矢印（戻る矢印も可）。出る矢印・入る矢印の数を書き、出る矢印が最多の要因を主原因に（`causeTree` を返す） |
 | pdpc(nodes, links, {dir}) | PDPC 法。道筋（実線）と、懸念（六角形）・対策（点線）。`role`: start / step / risk / measure / goal（`causeTree` を返す） |
@@ -305,6 +306,43 @@ matrix(['A 案', 'B 案'], ['コスト', '速さ'], [['○', '◎'], ['◎', '�
 - **`pdpc`** も `causeTree` で、既定は上から下（`dir: 'right'` は、道筋が短いときだけ。幅を超えると止まる）。懸念（`risk`）・対策（`measure`）に出入りする矢印は、書かなくても点線になる（`line` で上書き）。
 - **`arrowDiagram`**: 作業は `{from, to, name, days}`（結合点は番号か文字）、`dummy: true` は時間のない順序だけの矢印（点線）。始まりの結合点と終わりの結合点は、それぞれ 1 つ（行き止まりはダミーで終点につなぐ）。丸の中は「番号 / 最早/最遅」、余裕のある作業の札には「（余裕 n）」が付き、図の下に全体の長さとクリティカルパスが出る（`summary: false` で消す）。`times: false` で時刻と余裕を消す。横に並べて幅（940px）を超えるときは `dir: 'down'`。矢印の色・太さ（`tone` / `strong`）と丸い節（`shape: 'circle'`）は `stateDiagram` でも使える。
 - 計算だけ取り出したいときは、`lib/qc.ts`（`paretoOrder` / `histogramBins` / `capability`（全体の標準偏差から出す Cp・Cpk。群内のばらつきで出す工程能力ではなく、Pp・Ppk に当たる）/ `criticalPath`）と `lib/qc-plane.ts`（`controlStats` / `controlSignals` / `correlation`）が純粋な関数。
+
+### 枠が決まったキャンバス（`canvas`）
+
+ビジネスモデルキャンバスや SWOT のように、領域の位置と名前が決まっている図。テンプレート名と、領域ごとの内容（短い文の配列）を渡す。領域の位置・大きさ・見出し（日本語）は自動で、文が多い領域は伸びる（行は一番高い領域に揃う）。
+
+```ts
+canvas('swot', {
+  strengths: ['地域の学校との取引', '目利きのいる選書'],
+  weaknesses: ['在庫管理が人頼み'],
+  opportunities: ['読書イベントの需要'],
+  threats: ['大手ネット書店の値引き'],
+}, {title: '現状分析', stamp: '架空の例', id: 'sw'})
+```
+
+| テンプレート | 領域の id | 配置 |
+|---|---|---|
+| `bmc` | `partners` `activities` `resources` `value` `relationships` `channels` `segments` `cost` `revenue` | Strategyzer の配置（5 列、下に 2 つ） |
+| `lean` | `problem` `solution` `metrics` `uvp` `unfair` `channels` `segments` `cost` `revenue` | リーンキャンバス（`bmc` と同じ形） |
+| `vpc` | `gainCreators` `products` `painRelievers`（価値側）／`gains` `jobs` `pains`（顧客側） | 左が価値提案、右が顧客。同じ高さが対応 |
+| `swot` | `strengths` `weaknesses` `opportunities` `threats` | 2 × 2。タグに「内部／外部・プラス／マイナス」 |
+| `tows` | `so` `wo` `st` `wt`（と、任意で `strengths` `weaknesses` `opportunities` `threats`） | 左と上が SWOT の見出し、中が 4 つの戦略 |
+| `errc` | `eliminate` `raise` `reduce` `create` | 2 × 2（見出しに － ▲ ▼ ＋） |
+| `pest` | `political` `economic` `social` `technological`（`legal` `environmental`） | `pestle: true`、または `legal` / `environmental` を書くと 6 領域 |
+| `threeC` | `customer` `competitor` `company`（任意で `insight`） | 3 列、下に示唆 |
+| `sevenS` | `strategy` `structure` `systems` `style` `staff` `skills` `values` | 中央に共通の価値観、まわりに 6 つ。ハード／ソフトはタグ |
+| `fiveForces` | `newEntrants` `suppliers` `rivalry` `buyers` `substitutes` | 十字。中央が業界内の競争。見出しの ▼ ▶ ◀ ▲ が中央へ向かう力 |
+| `empathy` | `thinks` `says` `does` `feels` `pains` `gains`（任意で `person`） | 中央に対象、上下左右に 4 つ、下にペインとゲイン |
+| `persona` | `profile` `quote` `goals` `frustrations` `behaviors` `needs` | プロフィールと 5 つの欄 |
+| `a3` | `background` `current` `goal` `cause` / `countermeasures` `plan` `followup` | 左に現状把握、右に対策と計画 |
+
+- 内容は文字列（1 文）か文字列の配列（箇条書き。先頭の `・` `-` は 1 つに揃う）。テンプレートにない id は型エラーで、実行時にも有効な id の一覧つきで止まる。
+- オプション: `title`（上の見出し）、`titles`（領域の見出しの差し替え）、`tone`（領域ごとのトーン）、`emphasis`（重点の領域。アクセント色に「重点」のタグが付き、色だけに頼らない）、`stamp`、`h`（キャンバスの最小の高さ。内容が収まらないと、必要な高さを示して止まる。省略すると内容に合わせて伸びる）、`gap`、`requireAll`、`reveal`（領域ごとの段階）、`id`。幅は `diagram({width})` で決める。
+- `id: 'bmc'` を付けると、各領域が `bmc-value` のようなアンカーになる（`connect('bmc-value:right', ...)`、`diagram({spotlight})`、`reveal` がそのまま効く。型でも `bmc-` の後ろは領域の id だけ通る）。
+- `requireAll: true` のとき、内容のない領域は `canvas-region-empty`（警告）。任意の領域（`person` / `insight` ほか）は数えない。
+- 各領域は `box` なので、はみ出し・コントラスト・密度などの検査は他の部品と同じ。`tone` を自分で選んだ領域は、`legend` が必要（タグで言葉にした既定のトーンは要らない）。
+- 例: `examples/canvas-bmc.ts` / `canvas-swot.ts` / `canvas-vpc.ts` / `canvas-seven-s.ts` / `canvas-five-forces.ts` / `canvas-empathy.ts`。
+- 対象外: 領域どうしをつなぐ矢印（5 フォースの矢印、VPC の対応線）は描かない（見出しの記号と並びで示す。必要なら `connect` で足す）。7S の六角形・円形の枠は四角で描く。
 
 ### ガントチャート（`gantt`）
 
@@ -679,7 +717,7 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 ## check のルール（lib/rules.ts）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
 `a11y-no-title`、`source-wraps`（出典行が折り返している）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、
-`image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`one-story`、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
+`image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
 `lint-svg`（描画後の検査: コントラスト・キャンバスのはみ出し・文字の重なり・枠からのはみ出し・図形が文字に被る）は、SVG の幾何と文字の箱（レイアウトと同じフォントファイル）から調べる。`--engine browser` は同じ検査を実ブラウザで行う（`test/svg-lint-browser.test.ts` が両方を同じ SVG に当てて比べる。丸めの境界で 1px 違うことと、回転したグループの中のコントラストの比べ方（ブラウザ版は文字と図形を別々の座標系で比べていた）だけが違う）。
 描画後の検査は、**後から描かれた図形が文字を覆う、または線が文字を貫く**ものも報告する（意図した重なりは、図形に `data-allow-cover`）。
 残す警告は `diagram({accept: {'rule-id': '理由'}})`。`theme:` の図（文書向け）だけが対象で、`day:` の図（スライド）は従来どおり。

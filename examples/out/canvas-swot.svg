@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="555" viewBox="0 0 940 555" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">地方の老舗書店の SWOT 分析</title>
+  <desc id="svg-desc">要素: 強み（Strengths）、弱み（Weaknesses）、機会（Opportunities）、脅威（Threats）</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/canvas-swot.ts","sourceSha256":"bad65262f8886f33cb741225364aec7a25ba5a0fe64e6c3611e91bb1350fb58b"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="555" fill="#ffffff"/>
+
+  <text x="20" y="35" font-size="15" font-weight="700" fill="#22201b">現状分析</text>
+
+  <rect x="20" y="48" width="444" height="220" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="40" y="80" font-size="15" font-weight="700" fill="#22201b">強み（Strengths）</text>
+  <text x="40" y="108" font-size="14" font-weight="400" fill="#22201b">・地域の学校・図書館との取引</text>
+  <text x="40" y="135.6" font-size="14" font-weight="400" fill="#22201b">・目利きのいる選書</text>
+  <text x="40" y="163.2" font-size="14" font-weight="400" fill="#22201b">・駅前の立地</text>
+  <rect x="324" y="36" width="128" height="24" rx="12" fill="#6f6659"/>
+  <text x="389" y="54" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">内部環境・プラス</text>
+
+  <rect x="476" y="48" width="444" height="220" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="495" y="80" font-size="15" font-weight="700" fill="#22201b">弱み（Weaknesses）</text>
+  <text x="495" y="108" font-size="14" font-weight="400" fill="#22201b">・在庫の管理が人頼み</text>
+  <text x="495" y="135.6" font-size="14" font-weight="400" fill="#22201b">・ネット販売の経験が浅い</text>
+  <text x="495" y="163.2" font-size="14" font-weight="400" fill="#22201b">・店員の高齢化</text>
+  <rect x="768" y="36" width="144" height="24" rx="12" fill="#6f6659"/>
+  <text x="837" y="54" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">内部環境・マイナス</text>
+
+  <rect x="20" y="280" width="444" height="220" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="40" y="310" font-size="15" font-weight="700" fill="#22201b">機会（Opportunities）</text>
+  <text x="40" y="338" font-size="14" font-weight="400" fill="#22201b">・地域の読書イベントの需要</text>
+  <text x="40" y="365.6" font-size="14" font-weight="400" fill="#22201b">・学校の探究学習で資料が要る</text>
+  <text x="40" y="393.2" font-size="14" font-weight="400" fill="#22201b">・古本の買い取り市場</text>
+  <rect x="324" y="268" width="128" height="24" rx="12" fill="#6f6659"/>
+  <text x="389" y="284" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">外部環境・プラス</text>
+
+  <rect x="476" y="280" width="444" height="220" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="495" y="310" font-size="15" font-weight="700" fill="#22201b">脅威（Threats）</text>
+  <text x="495" y="338" font-size="14" font-weight="400" fill="#22201b">・大手ネット書店の値引き</text>
+  <text x="495" y="365.6" font-size="14" font-weight="400" fill="#22201b">・電子書籍の普及</text>
+  <text x="495" y="393.2" font-size="14" font-weight="400" fill="#22201b">・再開発による賃料の上昇</text>
+  <rect x="768" y="268" width="144" height="24" rx="12" fill="#6f6659"/>
+  <text x="837" y="284" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">外部環境・マイナス</text>
+  <rect x="844" y="468" width="68" height="24" rx="4" fill="#ffffff" stroke="#e0d6c5" stroke-width="1"/>
+  <text x="880" y="485" font-size="14" text-anchor="middle" fill="#6f6659">架空の例</text>
+
+  <text x="20" y="529" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>
