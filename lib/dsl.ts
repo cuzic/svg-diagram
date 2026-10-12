@@ -25,7 +25,7 @@ import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
-import {MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
+import {SLIDE_CANVAS, canvasFontScale, canvasRoles, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
   Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, TimelineBand, TimelineOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
@@ -66,6 +66,8 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (opts.appearance !== undefined && !['light', 'dark'].includes(opts.appearance as string) && !(typeof opts.appearance === 'object' && opts.appearance && typeof opts.appearance.dark === 'object')) throw new Error(`diagram({appearance}) must be 'light', 'dark' or {dark: {bg, text, ...}} (got ${JSON.stringify(opts.appearance)})`);
   mapOf(opts.appearance); // a custom dark set is validated here
   if (opts.sourceLine !== undefined && (typeof opts.sourceLine !== 'string' || !opts.sourceLine.trim() || /[\r\n]/.test(opts.sourceLine))) throw new Error('diagram({sourceLine}) must be a non-empty single-line string (e.g. "出典: 総務省 2025")');
+  if (opts.canvas !== undefined && (opts.slide || opts.fill)) throw new Error('diagram({canvas}) is a whole slide drawn 1:1; it cannot be combined with `slide` / `fill` (those fit a figure into a measured slot of a Slidev slide)');
+  const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...(opts.canvas === 'slide' ? {} : opts.canvas)};
   const d: DiagramData = {
     day: theme as Theme,
     appearance: opts.appearance, transparent: opts.transparent,
@@ -74,7 +76,8 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     title: opts.title, desc: opts.desc,            // exposed as the SVG's <title> / <desc> (doc medium)
     accept: opts.accept, // {'rule-id': 'why this finding is fine'} — shown as info instead of a warning
     legend: opts.legend, legendLabels: opts.legendLabels, // legend: 'auto' adds entries for every notation used but not listed
-    width: opts.width ?? 940,
+    width: opts.width ?? canvas?.width ?? 940,
+    canvas,
     pad: opts.pad ?? 20,
     gap: opts.gap ?? 16,
     maxDisplayHeight: opts.maxDisplayHeight, // slide room for the <img> (see fit.ts)
@@ -881,7 +884,7 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
   let verdict: Verdict, svg: string, html: string | undefined;
   // Every scale is its own value (scaleRoles): measured with, laid out with and drawn with the same roles, which travel in the result.
   const layoutAt = async (s: number): Promise<LaidOutDiagram> => {
-    const roles = scaleRoles(ROLES, s);
+    const roles = d.canvas ? canvasRoles(s) : scaleRoles(ROLES, s);
     return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}, {roles});
   };
   if (d.fill && budget) {
@@ -893,6 +896,9 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
       if ((await layoutAt(mid)).canvasHeight <= budget.maxHeight) lo = mid; else hi = mid;
     }
     fontScale = Math.floor(lo * 100) / 100;
+  } else if (d.canvas) {
+    // a whole-slide canvas is drawn 1:1, so everything is scaled until the smallest text is the canvas's minimum
+    fontScale = canvasFontScale(d.canvas.minText);
   } else if (d.fill) {
     if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
     notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
@@ -941,7 +947,9 @@ export async function checkDiagram(input: DiagramData): Promise<CheckResult> {
   const d = detach(input);
   prepareReveal(d);
   applyAutoLegend(d);
-  const laidOut = await layoutDiagram(d);
+  // a canvas diagram is drawn at its font scale, so it is checked at that scale too
+  const s = d.canvas ? canvasFontScale(d.canvas.minText) : 1;
+  const laidOut = await layoutDiagram(d.canvas ? {...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)} : d, d.canvas ? {roles: canvasRoles(s)} : {});
   applySpotlight(laidOut);
   return {laidOut, verdict: verifyDiagram(laidOut)};
 }
