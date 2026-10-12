@@ -21,13 +21,42 @@ test('parseSpec: Iconify ids, =name, and .svg files; bad names are refused', () 
   assert.throws(() => parseSpec('mdi:1up'), /usable icon name/);
 });
 
-test('glyphFromBody: one filled path passes (evenodd kept); stroke, groups, several paths and non-square are refused with the reason', () => {
+test('glyphFromBody: one filled path keeps the compact d form (evenodd kept); line icons and several parts are kept as a sanitized body', () => {
   assert.deepEqual(glyphFromBody(P('M0 0h8v8z'), {width: 24, height: 24}, 'x'), {d: 'M0 0h8v8z', vb: [0, 0, 24]});
   assert.equal(glyphFromBody('<path fill="currentColor" fill-rule="evenodd" d="M0 0h8v8z"/>', {width: 20}, 'x').rule, 'evenodd');
-  assert.throws(() => glyphFromBody('<g fill="none" stroke="currentColor"><path d="M0 0"/></g>', {width: 24}, 'lucide:key'), /lucide:key.*group/);
-  assert.throws(() => glyphFromBody(P('M0 0') + P('M1 1'), {width: 24}, 'x'), /several parts/);
-  assert.throws(() => glyphFromBody('<path fill="none" stroke="currentColor" d="M0 0"/>', {width: 24}, 'x'), /stroke="currentColor"|fill="none"/);
-  assert.throws(() => glyphFromBody(P('M0 0'), {width: 24, height: 16}, 'x'), /not square/);
+  const lucide = '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2l-9.6 9.6"/></g>';
+  assert.deepEqual(glyphFromBody(lucide, {width: 24}, 'lucide:key'), {vb: [0, 0, 24], body: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2l-9.6 9.6"/></g>'});
+  const duo = glyphFromBody('<path fill="currentColor" d="M1 1h4v4z" opacity=".2"/><path fill="currentColor" d="M2 2h4v4z"/>', {width: 24}, 'x');
+  assert.ok(duo.body && !duo.fixed && duo.d === undefined);
+  assert.equal(glyphFromBody('<path fill="none" stroke="currentColor" d="M0 0"/>', {width: 24}, 'x').body, '<path fill="none" stroke="currentColor" d="M0 0"/>');
+  assert.deepEqual(glyphFromBody(P('M0 0'), {width: 24, height: 16}, 'x').vb, [0, -4, 24], 'a wide icon is centred in a square');
+});
+
+test('glyphFromBody refuses what could carry more than a drawing: scripts, styles, gradients, urls, text, event attributes', () => {
+  for (const [body, re] of [
+    ['<script>alert(1)</script>', /besides shapes/],
+    ['<path d="M0 0" onclick="x"/>', /onclick/],
+    ['<path d="M0 0" style="fill:red"/>', /style/],
+    ['<linearGradient id="a"/><path d="M0 0"/>', /linearGradient/],
+    ['<path fill="url(#a)" d="M0 0"/>', /plain data/],
+    ['<g><path d="M0 0"/>hi</g>', /besides shapes/],
+    ['<path d="M0 0"', /besides shapes/],
+  ] as const) assert.throws(() => glyphFromBody(body, {width: 24}, 'x', {color: true}), re, body);
+});
+
+test('colours of their own need --color; they are kept, marked fixed, and #hex only', () => {
+  const red = '<circle cx="8" cy="8" r="6" fill="#e53935"/><path fill="currentColor" d="M0 0h2v2z"/>';
+  assert.throws(() => glyphFromBody(red, {width: 16}, 'x'), /--color/);
+  assert.deepEqual(glyphFromBody(red, {width: 16}, 'x', {color: true}), {vb: [0, 0, 16], body: '<circle cx="8" cy="8" r="6" fill="#e53935"/><path fill="currentColor" d="M0 0h2v2z"/>', fixed: true});
+  assert.throws(() => glyphFromBody('<circle r="1" fill="red"/>', {width: 16}, 'x', {color: true}), /named colours/);
+});
+
+test('a hand-edited manifest is checked against the same whitelist', () => {
+  const ok = {version: 1, icons: {a: {vb: [0, 0, 24], body: '<path d="M0 0" stroke="currentColor"/>', from: 'f', license: 'local'}}};
+  assert.ok(parseManifest(JSON.stringify(ok), 'f'));
+  assert.throws(() => parseManifest(JSON.stringify({...ok, icons: {a: {...ok.icons.a, body: '<script/>'}}}), 'f'), /not supported/);
+  assert.throws(() => parseManifest(JSON.stringify({...ok, icons: {a: {...ok.icons.a, body: '<path d="M0" fill="#f00"/>'}}}), 'f'), /--color/);
+  assert.throws(() => parseManifest(JSON.stringify({...ok, icons: {a: {...ok.icons.a, fixed: true}}}), 'f'), /says fixed/);
 });
 
 test('glyphFromSvg reads the viewBox (with an origin) and ignores <title>', () => {
@@ -42,19 +71,18 @@ test('parseManifest refuses anything that is not the file this tool writes', () 
   assert.throws(() => parseManifest('{"version":1,"icons":{"a":{"d":"M\\"","vb":[0,0,24]}}}', 'f'), /usable path/);
 });
 
-// A stand-in for api.iconify.design: /<prefix>.json?icons=a,b and /collection?prefix=&info=true
+// A stand-in for api.iconify.design: /<prefix>.json?icons=a,b and /collections?prefixes=a,b
 function iconify() {
   const sets: Record<string, {license: {spdx: string; title: string}; palette?: boolean; width: number; icons: Record<string, object>; aliases?: Record<string, object>}> = {
-    mdi: {license: {spdx: 'Apache-2.0', title: 'Apache 2.0'}, width: 24, icons: {key: {body: P('M1 1h4v4z')}, rocket: {body: P('M2 2h4v4z')}, stroke: {body: '<g stroke="currentColor"><path d="M0 0"/></g>'}}, aliases: {'old-key': {parent: 'key'}, flipped: {parent: 'key', hFlip: true}}},
+    mdi: {license: {spdx: 'Apache-2.0', title: 'Apache 2.0'}, width: 24, icons: {key: {body: P('M1 1h4v4z')}, rocket: {body: P('M2 2h4v4z')}, stroke: {body: '<g stroke="currentColor"><path d="M0 0"/></g>'}, flag: {body: '<circle r="2" fill="#f00"/>'}, script: {body: '<script/>'}}, aliases: {'old-key': {parent: 'key'}, flipped: {parent: 'key', hFlip: true}}},
     ccby: {license: {spdx: 'CC-BY-4.0', title: 'CC BY 4.0'}, width: 24, icons: {a: {body: P('M1 1h4v4z')}}},
     color: {license: {spdx: 'MIT', title: 'MIT'}, palette: true, width: 24, icons: {a: {body: P('M1 1h4v4z')}}},
   };
   const server = http.createServer((req, res) => {
     const u = new URL(req.url!, 'http://x');
     res.setHeader('content-type', 'application/json');
-    if (u.pathname === '/collection') {
-      const s = sets[u.searchParams.get('prefix')!];
-      return void res.end(JSON.stringify({info: s && {name: 'N', author: {name: 'Someone'}, license: {...s.license, url: 'https://l'}, palette: !!s.palette}}));
+    if (u.pathname === '/collections') {
+      return void res.end(JSON.stringify(Object.fromEntries(u.searchParams.get('prefixes')!.split(',').filter(p => sets[p]).map(p => [p, {name: 'N', author: {name: 'Someone'}, license: {...sets[p].license, url: 'https://l'}, palette: !!sets[p].palette}]))));
     }
     const s = sets[u.pathname.slice(1).replace(/\.json$/, '')];
     if (!s) { res.statusCode = 404; return void res.end('{}'); }
@@ -79,12 +107,16 @@ test('icons add / remove / notice against a stand-in Iconify: licence, aliases, 
     const before = fs.readFileSync(path.join(dir, 'svg-diagram.icons.json'), 'utf8');
     await assert.rejects(addIcons(['mdi:rocket', 'mdi:nope'], {api: srv.api, cwd: dir}), /mdi:nope: not in the set/);
     await assert.rejects(addIcons(['mdi:flipped'], {api: srv.api, cwd: dir}), /rotated \/ flipped/);
-    await assert.rejects(addIcons(['mdi:stroke'], {api: srv.api, cwd: dir}), /group/);
+    await assert.rejects(addIcons(['mdi:script'], {api: srv.api, cwd: dir}), /not supported/);
+    await assert.rejects(addIcons(['mdi:flag'], {api: srv.api, cwd: dir}), /--color/);
     await assert.rejects(addIcons(['ccby:a'], {api: srv.api, cwd: dir}), /--allow-license CC-BY-4\.0/);
-    await assert.rejects(addIcons(['color:a'], {api: srv.api, cwd: dir}), /multi-colour/);
+    await assert.rejects(addIcons(['color:a'], {api: srv.api, cwd: dir}), /multi-colour.*--color/);
     await assert.rejects(addIcons(['mdi:key=a', 'mdi:rocket=a'], {api: srv.api, cwd: dir}), /given twice/);
     assert.equal(fs.readFileSync(path.join(dir, 'svg-diagram.icons.json'), 'utf8'), before, 'a failed add writes nothing');
 
+    assert.deepEqual((await addIcons(['mdi:stroke', 'mdi:flag=red', 'color:a=pal'], {api: srv.api, cwd: dir, color: true})).added.sort(), ['pal', 'red', 'stroke']);
+    assert.equal(readManifest(path.join(dir, 'svg-diagram.icons.json')).icons.red.fixed, true);
+    removeIcons(['pal', 'red', 'stroke'], dir);
     assert.deepEqual((await addIcons(['ccby:a'], {api: srv.api, cwd: dir, allowLicense: ['CC-BY-4.0']})).added, ['a']);
     assert.deepEqual((await addIcons(['mdi:rocket=key'], {api: srv.api, cwd: dir})).replaced, ['key']);
     assert.deepEqual(removeIcons(['a', 'key'], dir).removed, ['a', 'key']);

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // svg-diagram icons <add|remove|list|search|notice> — the project's own icon set (svg-diagram.icons.json). svg-diagram ships no icons.
-//   icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX]   install (e.g. mdi:key-variant=key, ./logo.svg)
+//   icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX] [--color]   install (e.g. mdi:key-variant=key, ./logo.svg)
 //   icons remove <name>...
 //   icons list
 //   icons search <word> [--set mdi] [--limit N]                              find Iconify ids to add
@@ -8,19 +8,20 @@
 import {addIcons, manifestPath, noticeText, readManifest, removeIcons, searchIcons} from './lib/icon-install.ts';
 
 const [sub, ...rest] = process.argv.slice(2);
+const BOOLEAN = new Set(['color']);
 const flags = new Map<string, string>();
 const args: string[] = [];
 for (let i = 0; i < rest.length; i++) {
-  if (rest[i].startsWith('--')) flags.set(rest[i].slice(2), rest[++i] ?? '');
+  if (rest[i].startsWith('--')) flags.set(rest[i].slice(2), BOOLEAN.has(rest[i].slice(2)) ? '1' : rest[++i] ?? '');
   else args.push(rest[i]);
 }
-const usage = () => { console.error(['usage: svg-diagram icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX]', '       svg-diagram icons remove <name>...', '       svg-diagram icons list', '       svg-diagram icons search <word> [--set mdi] [--limit N]', '       svg-diagram icons notice'].join('\n')); process.exit(2); };
+const usage = () => { console.error(['usage: svg-diagram icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX] [--color]', '       svg-diagram icons remove <name>...', '       svg-diagram icons list', '       svg-diagram icons search <word> [--set mdi] [--limit N]', '       svg-diagram icons notice'].join('\n')); process.exit(2); };
 
 try {
   switch (sub) {
     case 'add': {
       if (!args.length) usage();
-      const r = await addIcons(args, {allowLicense: flags.get('allow-license')?.split(',').filter(Boolean)});
+      const r = await addIcons(args, {allowLicense: flags.get('allow-license')?.split(',').filter(Boolean), color: flags.has('color')});
       if (r.added.length) console.log(`✓ 追加: ${r.added.join(', ')}`);
       if (r.replaced.length) console.log(`✓ 置き換え: ${r.replaced.join(', ')}`);
       console.log(`→ ${r.file}（図のソースでは box({icon: '<名前>'})。このファイルをコミットする）`);
@@ -37,7 +38,7 @@ try {
       const m = readManifest(file);
       const names = Object.keys(m.icons);
       if (!names.length) console.log(`インストール済みのアイコンは無い（${file}）。svg-diagram icons add mdi:key-variant=key`);
-      for (const n of names) console.log(`${n.padEnd(20)} ${m.icons[n].from.padEnd(34)} ${m.icons[n].license}`);
+      for (const n of names) console.log(`${n.padEnd(20)} ${m.icons[n].from.padEnd(34)} ${m.icons[n].license}${m.icons[n].fixed ? '  【固定色】' : ''}`);
       break;
     }
     case 'search': {

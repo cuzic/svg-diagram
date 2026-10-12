@@ -245,7 +245,9 @@ svg-diagram icons notice                        # 入れたアイコンのクレ
 
 - 入った先は**カレントかその親の `svg-diagram.icons.json`**（`.svg-diagram.json` と同じ探し方。無ければカレントに作る）。コミットする。図のビルドはネットワークを使わない。
 - 取得元は [Iconify](https://iconify.design) の API（`SVG_DIAGRAM_ICONIFY_API` でミラーに替えられる）。`mdi:名前=自分の名前` で名前を付ける。`./logo.svg` のような自作の SVG も入る。
-- 入れられるのは **塗りの単一パスで正方形のアイコン**だけ（`box({icon})` はトーンの 1 色で塗るため）。lucide / tabler のような線画、複数パーツ、多色のセットは、理由つきで断る（mdi・material-symbols・ph-fill・heroicons-solid など塗りのセットを使う）。
+- **入れられる形**: 塗りの 1 パス(mdi・material-symbols など)、**線画**(lucide・tabler・heroicons outline など。線の太さ・端の形は集合のまま)、複数パーツ、`currentColor` + 透明度のデュオトーン(phosphor duotone など)。これらは**トーンの色**で描くので、ダーク背景・spotlight・コントラスト検査がそのまま効く。幅と高さが違うアイコン(ロゴなど)は正方形の中央に置く。
+- **取り込み時に拒否するもの**: 図形以外(`<script>` `<style>` `<text>` `<image>`)、グラデーション・マスク・クリップ、`url(...)`、イベント属性、許可リスト外の属性。`svg-diagram.icons.json` は手で書き換えられるので、読み込むたびに同じ検査をする。
+- **多色(固定色)**: 自前の色(`#hex`)を持つアイコン(flat-color-icons、logos など)は **`--color` を付けたときだけ**入る。`icons list` に「固定色」と出る。**トーンにもダークテーマにも従わない**(色トークンの外)ので、検査はこの色を見ない。spotlight で薄くする箱では、色を変えずに透明度 0.35 に落とす。使うのは、色そのものに意味がある 1〜2 枚に留める。
 - ライセンス: MIT / ISC / Apache-2.0 / CC0 / 0BSD / Unlicense / BSD は黙って入る。それ以外（CC BY など）は `--allow-license <SPDX>` が要る。出典・ライセンスは各アイコンに記録され、`icons notice` で一覧にできる。
 - 入れていない名前を `box({icon})` に渡すと、入れ方つきで throw する。`icon.use(manifest)` で、ファイルでなくオブジェクトを使わせることもできる（テストや複数プロジェクトを描くツール向け）。
 

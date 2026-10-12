@@ -22,7 +22,7 @@ test('this repo\'s own svg-diagram.icons.json (what the examples and tests draw)
   for (const n of ['person', 'people', 'document', 'folder', 'key', 'lock', 'bridge', 'fence', 'stairs', 'warning', 'check', 'close', 'idea', 'search', 'gear', 'cloud', 'database', 'mail', 'shield', 'flag', 'clock']) assert.ok(icon.has(n).path, n);
   for (const n of names) {
     const {d, from, license} = m.icons[n];
-    assert.ok(d.length > 20 && from.includes(':') && license, n);
+    assert.ok(d!.length > 20 && from.includes(':') && license, n);
     assert.deepEqual(xmlProblems(`<svg xmlns="http://www.w3.org/2000/svg"><path d="${d}"/></svg>`), [], n);
   }
 });
@@ -102,4 +102,28 @@ test('box({icon}) draws a path in a token colour, muted when dimmed, and iconRow
   assert.deepEqual(paths.map(m => m[4]), ['lock', 'person', 'bridge', 'fence', 'stairs']);
   for (const m of paths) assert.ok(ALLOWED_COLORS.has(m[3]), `${m[4]} fill ${m[3]} is a token`);
   assert.notEqual(paths[0][3], paths[1][3], 'the focused box keeps its tone, the dimmed one is muted');
+});
+
+test('line, duotone and colour icons draw as one <g> around the set\'s shapes: currentColor is the tone, fixed colours stay, a dimmed fixed icon fades', async () => {
+  icon.use({version: 1, icons: {
+    line: {vb: [0, 0, 24], body: '<g fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="5"/><path d="M12 12l8 8"/></g>', from: 'lucide:x', license: 'ISC'},
+    duo: {vb: [0, 0, 24], body: '<path fill="currentColor" d="M1 1h10v10z" opacity=".3"/><path fill="currentColor" d="M2 2h4v4z"/>', from: 'ph:x', license: 'MIT'},
+    logo: {vb: [0, 0, 24], body: '<circle cx="12" cy="12" r="9" fill="#e53935"/>', fixed: true, from: 'file:l.svg', license: 'local'},
+  }});
+  try {
+    const d = diagram({theme: 'blue', spotlight: 'on'}).add(row([
+      box({id: 'on', icon: 'line', iconTone: 'danger', title: '線', body: '本文'}),
+      box({icon: 'duo', title: '二色', body: '本文'}),
+      box({icon: 'logo', title: 'ロゴ', body: '本文'}),
+    ]));
+    const {svg, verdict} = await renderDiagram(d, {name: 'lines.svg', budget: 'cacheOnly'});
+    assert.deepEqual(verdict.problems, []);
+    const g = (n: string) => new RegExp(`<g transform="[^"]+" fill="(#[0-9a-f]{6})"([^>]*?) aria-hidden="true" data-icon="${n}">(.*?)</g>`).exec(svg)!;
+    assert.ok(ALLOWED_COLORS.has(g('line')[1]));
+    assert.ok(g('line')[3].includes(`stroke="${g('line')[1]}"`) && !g('line')[3].includes('currentColor'), 'currentColor became the tone colour');
+    assert.ok(g('duo')[3].includes('opacity=".3"') && g('duo')[3].includes(`fill="${g('duo')[1]}"`));
+    assert.ok(g('logo')[3].includes('fill="#e53935"'), 'the logo keeps its own colour');
+    assert.match(g('logo')[2], /data-icon-fixed="true" opacity="0\.35"/, 'dimmed by spotlight: faded, not recoloured');
+    assert.ok(!svg.includes('group-transform'));
+  } finally { icon.use(undefined); }
 });

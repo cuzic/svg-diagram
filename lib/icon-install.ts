@@ -13,18 +13,23 @@ export interface InstallOpts {
   fetch?: Fetch;
   /** Licences to accept besides the permissive ones (SPDX ids). */
   allowLicense?: string[];
+  /** Accept icons with colours of their own (they do not follow the tone / dark theme). */
+  color?: boolean;
   cwd?: string;
 }
 export const DEFAULT_API = 'https://api.iconify.design';
 
 interface IconifySet {prefix: string; icons: Record<string, {body: string; width?: number; height?: number; left?: number; top?: number; rotate?: number; hFlip?: boolean; vFlip?: boolean}>; aliases?: Record<string, {parent: string; body?: string; rotate?: number; hFlip?: boolean; vFlip?: boolean; width?: number; height?: number}>; width?: number; height?: number; not_found?: string[]}
-interface Collection {info?: {name?: string; author?: {name?: string}; license?: {spdx?: string; title?: string; url?: string}; palette?: boolean}}
+interface CollectionInfo {name?: string; author?: {name?: string}; license?: {spdx?: string; title?: string; url?: string}; palette?: boolean}
 
 async function getJson<T>(f: Fetch, url: string): Promise<T> {
-  let r;
-  try { r = await f(url); } catch (e) { throw new Error(`cannot reach ${url} — ${(e as Error).message} (offline? install from a file instead: svg-diagram icons add ./name.svg)`); }
-  if (!r.ok) throw new Error(`${url} → HTTP ${r.status}`);
-  return await r.json() as T;
+  for (let attempt = 0; ; attempt++) {
+    let r;
+    try { r = await f(url); } catch (e) { throw new Error(`cannot reach ${url} — ${(e as Error).message} (offline? install from a file instead: svg-diagram icons add ./name.svg)`); }
+    if (r.status === 429 && attempt < 3) { await new Promise(ok => setTimeout(ok, 1500 * (attempt + 1))); continue; } // rate-limited: wait and ask again
+    if (!r.ok) throw new Error(`${url} → HTTP ${r.status}`);
+    return await r.json() as T;
+  }
 }
 
 /** Where this project's manifest is (nearest parent), or where `add` would create it (here). */
@@ -49,19 +54,19 @@ export async function resolveSpecs(specs: IconSpec[], opts: InstallOpts = {}): P
   for (const s of specs) {
     if (s.kind === 'file') {
       const file = path.resolve(opts.cwd ?? '.', s.path);
-      out[s.name] = {...glyphFromSvg(fs.readFileSync(file, 'utf8'), s.path), from: `file:${path.basename(s.path)}`, license: 'local'};
+      out[s.name] = {...glyphFromSvg(fs.readFileSync(file, 'utf8'), s.path, {color: opts.color}), from: `file:${path.basename(s.path)}`, license: 'local'};
     } else byPrefix.set(s.prefix, [...(byPrefix.get(s.prefix) ?? []), s]);
   }
+  // one small call for every set's author / licence (the per-set /collection call lists all of its icons)
+  const infos = byPrefix.size ? await getJson<Record<string, CollectionInfo>>(f, `${api}/collections?prefixes=${[...byPrefix.keys()].join(',')}`) : {};
   for (const [prefix, list] of byPrefix) {
     const names = [...new Set(list.map(s => s.icon))].join(',');
-    const [set, col] = await Promise.all([
-      getJson<IconifySet>(f, `${api}/${prefix}.json?icons=${encodeURIComponent(names)}`),
-      getJson<Collection>(f, `${api}/collection?prefix=${prefix}&info=true`),
-    ]);
+    const set = await getJson<IconifySet>(f, `${api}/${prefix}.json?icons=${encodeURIComponent(names)}`);
+    const col = {info: infos[prefix]};
     const lic = col.info?.license;
     if (!lic?.spdx) throw new Error(`${prefix}: the set states no licence (SPDX id) — not installing from it`);
     if (!allow.has(lic.spdx)) throw new Error(`${prefix}: licence ${lic.spdx}${lic.title ? ` (${lic.title})` : ''} is not one of the permissive ones (${[...PERMISSIVE].join(', ')}) — it may need attribution or forbid commercial use. If you have read it and accept: --allow-license ${lic.spdx}`);
-    if (col.info?.palette) throw new Error(`${prefix}: a multi-colour set — box({icon}) draws one tone colour. Pick a monochrome set`);
+    if (col.info?.palette && !opts.color) throw new Error(`${prefix}: a multi-colour set — its icons keep their own colours (no tone, no dark theme). To install from it anyway: --color`);
     for (const s of list) {
       const what = `${prefix}:${s.icon}`;
       const direct = set.icons?.[s.icon];
@@ -70,7 +75,7 @@ export async function resolveSpecs(specs: IconSpec[], opts: InstallOpts = {}): P
       if (!base) throw new Error(`${what}: not in the set (svg-diagram icons search ${s.icon.split('-')[0]} --set ${prefix})`);
       const t = direct ?? {...base, ...alias};
       if (t.rotate || t.hFlip || t.vFlip) throw new Error(`${what}: is a rotated / flipped alias — install ${alias?.parent ?? 'its parent'} instead`);
-      const g = glyphFromBody(t.body, {width: t.width ?? set.width ?? 16, height: t.height ?? set.height ?? t.width ?? set.width ?? 16, left: t.left, top: t.top}, what);
+      const g = glyphFromBody(t.body, {width: t.width ?? set.width ?? 16, height: t.height ?? set.height ?? t.width ?? set.width ?? 16, left: t.left, top: t.top}, what, {color: opts.color});
       out[s.name] = {...g, from: what, license: lic.spdx, ...(lic.url ? {licenseUrl: lic.url} : {}), ...(col.info?.author?.name ? {author: col.info.author.name} : {})};
     }
   }

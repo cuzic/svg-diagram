@@ -110,13 +110,18 @@ function renderStepBadge(band: LaidOutBox, day: Theme): string {
 // box({icon}): the icon's path scaled from its source viewBox to ICON_SIZE, at the box's top-left. Its colour is a text tone
 // (a dimmed box: muted). With a title the label carries the meaning, so the icon is hidden from assistive technology.
 function renderBoxIcon(band: LaidOutBox, day: Theme): string {
-  const {vb: [vx, vy, vs], d, rule} = band.iconGlyph!;
+  const g = band.iconGlyph!;
+  const {vb: [vx, vy, vs]} = g;
   const s = ICON_SIZE / vs;
   const x = band.x + (band.padX ?? BOX_PAD_X), y = band.y + (band.padY ?? BOX_PAD_Y);
   const n = (v: number) => +v.toFixed(4);
   const color = band.dim ? PALETTE.muted : runColorOf(band.iconTone, band.tone, day);
   const a11y = band.title ? 'aria-hidden="true"' : `role="img" aria-label="${band.icon}"`;
-  return `\n  <path d="${d}" transform="translate(${n(x - vx * s)} ${n(y - vy * s)}) scale(${n(s)})" fill="${color}"${rule ? ' fill-rule="evenodd"' : ''} ${a11y} data-icon="${band.icon}"/>`;
+  const at = `transform="translate(${n(x - vx * s)} ${n(y - vy * s)}) scale(${n(s)})"`;
+  if (g.body === undefined) return `\n  <path d="${g.d}" ${at} fill="${color}"${g.rule ? ' fill-rule="evenodd"' : ''} ${a11y} data-icon="${band.icon}"/>`;
+  // shapes drawn the way the set drew them: `currentColor` is the tone colour; an icon with colours of its own keeps them (faded when dimmed)
+  const inner = g.body.replaceAll('currentColor', color);
+  return `\n  <g ${at} fill="${color}"${g.fixed ? ` data-icon-fixed="true"${band.dim ? ' opacity="0.35"' : ''}` : ''} ${a11y} data-icon="${band.icon}">${inner}</g>`;
 }
 
 function renderCaption(band: LaidOutCaption, day: Theme): string {
