@@ -27,7 +27,7 @@ import type {
   LaidOutSwimlane, LaidOutPyramidLayer, LaidOutRow, RowArrow, Band, CaptionBand, BoxBand, BannerBand, RowBand, GridBand, GroupBand,
   ConnectBand, ConnectRef, Bend, BoxChrome, TextRun, WrappedRun, WidthOf, FontFamily, FontWeight, MeasureRequest, Point, Rect, Side, Span, TextTone,
 } from './types.ts';
-import {ROLES, PALETTE, SHADES, CONNECT_LABEL_SIZE, TAG_SIZE, blendLuminance, bestTextColor} from './tokens.ts';
+import {ROLES, PALETTE, SHADES, isSolidTone, CONNECT_LABEL_SIZE, TAG_SIZE, blendLuminance, bestTextColor} from './tokens.ts';
 
 export const LINE_HEIGHT_EM = 1.4;   // vertical spacing between wrapped lines within one text block
 export const BOX_PAD_X = 20;
@@ -70,7 +70,7 @@ function textRuns(band: Band): TextRun[] {
       return [withSpans({text: band.text, size: ROLES[band.role ?? 'label'], weight: band.bold ? 700 : 400, mono: !!band.mono, tone: band.tone}, band.spans?.text)];
     case 'banner': {
       const runs: TextRun[] = [withSpans({text: band.headline, size: ROLES.banner, weight: 700, mono: false, tone: band.headlineTone}, band.spans?.headline)];
-      if (band.sub) runs.push(withSpans({text: band.sub, size: ROLES.note, weight: 400, mono: false, tone: band.subTone ?? 'muted'}, band.spans?.sub));
+      if (band.sub) runs.push(withSpans({text: band.sub, size: ROLES.note, weight: 400, mono: false, tone: band.subTone ?? (isSolidTone(band.tone) ? undefined : 'muted')}, band.spans?.sub));
       return runs;
     }
     case 'box': {
@@ -82,7 +82,7 @@ function textRuns(band: Band): TextRun[] {
         const line: Exclude<typeof l, string> = typeof l === 'string' ? {text: l} : l;
         runs.push(withSpans({text: line.text, size: ROLES[line.role ?? 'body'], weight: line.bold ? 700 : 400, mono: !!line.mono, tone: line.tone, nowrap: band.statValue === line.text && runs.length === 0, ...iconIndent}, line.spans));
       }
-      if (band.note) runs.push(withSpans({text: band.note, size: ROLES.note, weight: 400, mono: false, tone: band.noteTone ?? 'muted', ...iconIndent}, band.spans?.note));
+      if (band.note) runs.push(withSpans({text: band.note, size: ROLES.note, weight: 400, mono: false, tone: band.noteTone ?? (isSolidTone(band.tone) ? undefined : 'muted'), ...iconIndent}, band.spans?.note));
       return runs;
     }
     default:

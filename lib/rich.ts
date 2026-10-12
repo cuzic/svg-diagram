@@ -4,7 +4,7 @@
 // own characters: nothing in it is parsed, so '**API**', '{frame: false}' and 'lib/**/*.ts' mean what they say.
 //
 //   box({body: ['許可は ', em.danger(em.b('ユーザー')), ' が決める']})
-import {textKeyOf} from './tokens.ts';
+import {isSolidTone, textKeyOf} from './tokens.ts';
 import type {BoxBand, BoxLine, BoxOpts, RichSpans, RichText, Span, Styled, TextTone} from './types.ts';
 
 /** The brand of a Styled part. */
@@ -61,6 +61,23 @@ export function richOf(input: RichText, ctx: RichContext): {text: string; spans?
   return {text, spans: out.some(sp => sp.bold || sp.tone) ? out : undefined};
 }
 
+/**
+ * A solid / solid-danger box draws every run in white, so a colour of its own (a *Tone field, a line's tone, an em.* colour)
+ * would be the fill's own colour or a dark one on it. em.b() is fine. `what` names the caller for the message.
+ */
+export function assertSolidText(band: {tone?: string; titleTone?: string; bodyTone?: string; noteTone?: string; iconTone?: string; headlineTone?: string; subTone?: string; lines?: readonly unknown[]; spans?: RichSpans}, what: string): void {
+  if (!isSolidTone(band.tone)) return;
+  const bad = (field: string, tone: string): never => { throw new Error(`${what}: tone '${band.tone}' draws white text, so ${field} '${tone}' would not show — leave the colour out (em.b() is fine)`); };
+  for (const k of ['titleTone', 'bodyTone', 'noteTone', 'iconTone', 'headlineTone', 'subTone'] as const) if (band[k]) bad(k, band[k]);
+  for (const [i, l] of (band.lines ?? []).entries()) {
+    const line = l as {tone?: string; spans?: readonly Span[]};
+    if (typeof l === 'string') continue;
+    if (line.tone) bad(`lines[${i}].tone`, line.tone);
+    for (const sp of line.spans ?? []) if (sp.tone) bad(`em.${sp.tone}() in lines[${i}]`, sp.tone);
+  }
+  for (const [field, spans] of Object.entries(band.spans ?? {}) as [string, readonly Span[] | undefined][]) for (const sp of spans ?? []) if (sp.tone) bad(`em.${sp.tone}() in ${field}`, sp.tone);
+}
+
 /** Throws when hand-made spans (add() takes a band as it is) do not concatenate to the text they claim to be the pieces of. */
 export function assertSpans(text: string, spans: Span[], what: string): void {
   if (spans.map(sp => sp.text).join('') !== text) throw new Error(`${what}: spans do not add up to the text "${text.slice(0, 30)}" — build rich text with box({body: [...]}) and em.*, not by hand`);
@@ -90,7 +107,7 @@ export function richBoxFields(opts: BoxOpts, what = 'box()'): Partial<Pick<BoxBa
   };
   field('title', true, opts.titleTone);
   field('body', false, opts.bodyTone);
-  field('note', false, opts.noteTone ?? 'muted');
+  field('note', false, opts.noteTone ?? (isSolidTone(opts.tone) ? undefined : 'muted'));
   if (opts.lines?.some(l => typeof l !== 'string' && typeof (l as {text?: unknown}).text !== 'string')) {
     out.lines = opts.lines.map((l, i): BoxLine => {
       if (typeof l === 'string') return l;

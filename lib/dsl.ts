@@ -21,8 +21,8 @@ import {getSlideBudget, readSlideBudgetCache} from './slide-budget.ts';
 import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
-import {richBoxFields, richField} from './rich.ts';
-import {MIN_FONT_SIZE, ROLES, THEMES} from './tokens.ts';
+import {assertSolidText, richBoxFields, richField} from './rich.ts';
+import {MIN_FONT_SIZE, ROLES, THEMES, isSolidTone} from './tokens.ts';
 import type {
   Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
@@ -118,6 +118,12 @@ export function caption(text: RichText, opts: CaptionOpts = {}): CaptionBand {
   return {type: 'caption', text: rich.text ?? '', ...(rich.spans ? {spans: {text: rich.spans}} : {}), align: opts.align ?? 'center', role: opts.role ?? 'label', tone, bold: !!opts.bold, mono: !!opts.mono};
 }
 
+// group / table rows / sequence / swimlane lanes carry dark text (or white boxes) on their fill, which a solid fill would swallow:
+// the types leave 'solid' / 'solid-danger' out (BoxTone), and this is the same rule for JS callers.
+function assertBoxTone(tone: string | undefined, what: string): void {
+  if (isSolidTone(tone)) throw new Error(`${what}: tone '${tone}' is for box() / banner() / stat() / a swimlane step / a legend item only — what sits on it would read dark on the fill; use 'accent' here`);
+}
+
 // `step`: a number/string drawn as a solid numbered badge over the title's
 // own baseline (requires `title` — the badge has nothing to align to
 // without it).
@@ -129,6 +135,7 @@ export function box(opts: BoxOpts): BoxBand {
   if (opts.size !== undefined) assertFontSize(opts.size);
   // the plain text (and spans) of every rich field go over the copied options: a band never holds an array
   const band = {type: 'box', ...opts, ...richBoxFields(opts)} as BoxBand;
+  assertSolidText(band, 'box()');
   if (band.step != null && !band.title) throw new Error('box({step}) needs a title — the badge aligns to the title\'s first line');
   if (band.icon !== undefined && band.step != null) throw new Error('box({icon}) and box({step}) both sit at the box\'s left edge — use one');
   if (band.icon !== undefined) assertIconName(band.icon, 'box({icon})');
@@ -140,12 +147,14 @@ export function stat<const Id extends string = never>(value: string | number, la
 export function stat(value: string | number, label: RichText, opts: StatOpts = {}): BoxBand {
   if (opts.size !== undefined && opts.size !== 'stat' && opts.size !== 'display') throw new Error(`stat(): size must be 'stat' or 'display' (got ${opts.size})`);
   const text = String(value);
-  const rich = richField(label, {field: 'stat() label', bold: false, tone: 'muted'});
+  // 'solid' / 'solid-danger' fill the box (white text, so no tone of its own on the value or the label); any other tone colours the value
+  const solid = opts.tone === 'solid' || opts.tone === 'solid-danger' ? opts.tone : undefined;
+  const rich = richField(label, {field: 'stat() label', bold: false, tone: solid ? undefined : 'muted'});
   return withHandle({
-    type: 'box', id: opts.id, flex: opts.flex, width: opts.width, col: opts.col, span: opts.span,
+    type: 'box', id: opts.id, ...(solid ? {tone: solid} : {}), flex: opts.flex, width: opts.width, col: opts.col, span: opts.span,
     align: 'center', lines: [
-      {text, role: opts.size ?? 'stat', bold: true, tone: opts.tone},
-      {text: rich.text ?? '', tone: 'muted', ...(rich.spans ? {spans: rich.spans} : {})},
+      {text, role: opts.size ?? 'stat', bold: true, tone: solid ? undefined : opts.tone as TextTone | undefined},
+      {text: rich.text ?? '', ...(solid ? {} : {tone: 'muted' as const}), ...(rich.spans ? {spans: rich.spans} : {})},
     ], statValue: text,
   }, opts.id);
 }
@@ -153,10 +162,12 @@ export function stat(value: string | number, label: RichText, opts: StatOpts = {
 export function banner<const Id extends string = never>(opts: BannerOpts & {id?: Id}): BannerBand & Declares<Id> & HandleOf<Id>;
 export function banner(opts: BannerOpts): BannerBand {
   const headline = richField(opts.headline, {field: 'banner() headline', bold: true, tone: opts.headlineTone});
-  const sub = richField(opts.sub, {field: 'banner() sub', bold: false, tone: opts.subTone ?? 'muted'});
+  const sub = richField(opts.sub, {field: 'banner() sub', bold: false, tone: opts.subTone ?? (isSolidTone(opts.tone) ? undefined : 'muted')});
   const text = {...(typeof opts.headline === 'string' ? {} : {headline: headline.text ?? ''}), ...(typeof opts.sub === 'string' || opts.sub === undefined ? {} : {sub: sub.text})};
   const spans = headline.spans || sub.spans ? {spans: {...(headline.spans ? {headline: headline.spans} : {}), ...(sub.spans ? {sub: sub.spans} : {})}} : {};
-  return withHandle({type: 'banner', tone: opts.tone ?? 'accent', ...opts, ...text, ...spans} as BannerBand, opts.id);
+  const band = {type: 'banner', tone: opts.tone ?? 'accent', ...opts, ...text, ...spans} as BannerBand;
+  assertSolidText(band, 'banner()');
+  return withHandle(band, opts.id);
 }
 
 // A labelled frame around other bands (a network zone, a service boundary, a
@@ -167,6 +178,7 @@ export function banner(opts: BannerOpts): BannerBand {
 // Types: the ids (and connect() refs) of the children are exposed to add().
 export function group<C extends Band | Band[], const Id extends string = never>(children: C, opts?: GroupOpts & {id?: Id}): GroupBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & HandleOf<Id>;
 export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
+  assertBoxTone(opts.tone, 'group()');
   const title = richField(opts.title, {field: 'group() title', bold: true, tone: opts.titleTone ?? (opts.tone === 'accent' ? 'accent' : 'text')});
   if (opts.frame === false && (title.text || opts.dashed || opts.tone)) throw new Error('group({frame: false}) draws no frame, so it takes no title, tone or dashed');
   return withHandle({type: 'group', children: [children].flat(), title: title.text, ...(title.spans ? {spans: {title: title.spans}} : {}), titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad ?? (opts.frame === false ? 0 : undefined), frame: opts.frame, stamp: opts.stamp, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col, reveal: opts.reveal}, opts.id);
@@ -192,6 +204,8 @@ export function legend(items: LegendItem[], opts: LegendOpts = {}): LegendBand {
 // (runtime: "unknown actor" / "use {self: id}"); an `id` in opts becomes a connect() anchor.
 export function sequence<const A extends string, const Id extends string = never>(actors: ActorIn<A>[], steps: SeqStepIn<NoInfer<A>>[], opts?: SequenceOpts & {id?: Id}): SequenceBand & Declares<Id> & HandleOf<Id>;
 export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: SequenceOpts = {}): SequenceBand {
+  for (const a of actors) assertBoxTone(a.tone, `sequence() actor "${a.id}"`);
+  for (const st of steps) if ('note' in st) assertBoxTone((st as {tone?: string}).tone, 'sequence() note');
   return withHandle({type: 'sequence', actors, steps, numbered: opts.numbered, id: opts.id}, opts.id);
 }
 
@@ -204,6 +218,8 @@ export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: S
 // rowHeader: true makes the left column a row heading (bold, soft fill, heavy rule on its right; top-aligned unless the row has a fixed height).
 export function table<const Id extends string = never>(columns: TableColumn[], rows: readonly TableRow[], opts?: TableOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
 export function table(columns: TableColumn[], rows: readonly TableRow[], opts: TableOpts = {}): TableBand {
+  assertBoxTone(opts.tone, 'table()');
+  rows.forEach((r, i) => { if (!Array.isArray(r)) assertBoxTone((r as {tone?: string}).tone, `table() row ${i}`); });
   if (opts.rowHeader !== undefined && typeof opts.rowHeader !== 'boolean') throw new Error(`table(): rowHeader must be true or false, got ${JSON.stringify(opts.rowHeader)}`);
   if (opts.rowHeader && columns.length < 2) throw new Error('table(): rowHeader needs at least 2 columns (the first is the row heading, the rest are the body)');
   return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, headerH: opts.headerH, dense: opts.dense, rowHeader: opts.rowHeader, id: opts.id, reveal: opts.reveal}, opts.id);
@@ -237,6 +253,7 @@ export function swimlane<
   const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [], const Id extends string = never,
 >(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows' | 'id'> & {id?: Id; flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S> | Id> | ConnectBand)[] & AnchorsOf<StepIds<S> | Id>;
 export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
+  for (const l of lanes) assertBoxTone(l.tone, `swimlane() lane "${l.id}"`);
   const laneIdx = new Map(lanes.map((l, i) => [l.id, i]));
   let next = 1, cols = 0;
   const placed = steps.map(st => {
@@ -247,7 +264,9 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
     next = col + span;
     cols = Math.max(cols, col + span - 1);
     if (st.size !== undefined) assertFontSize(st.size);
-    return {...st, ...rich, type: 'box' as const, col, span} as SwimlaneStepBand;
+    const step = {...st, ...rich, type: 'box' as const, col, span} as SwimlaneStepBand;
+    assertSolidText(step, 'swimlane() step');
+    return step;
   });
   const byId = new Map(placed.map(st => [st.id, st]));
   // 1) pick sides, 2) spread flows that share a side of one step along that side, 3) stagger the
