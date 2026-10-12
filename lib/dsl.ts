@@ -26,10 +26,17 @@ import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
 import {CAUSE_ROLES} from './toc.ts';
+import {criticalPath, decimalsOf, exact, histogramBins, mean, niceUp, normalCount, num, paretoOrder, sd} from './qc.ts';
+import type {ArrowActivity} from './qc.ts';
+import {controlChartOpts, scatterOpts} from './qc-plane.ts';
+import {ticksOf} from './plane.ts';
+import {checkSheetParts, matrixParts} from './qc-table.ts';
+import type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from './qc-table.ts';
+import type {AttributeSample, ControlChartOpts, ControlType, ScatterOpts, ScatterPoint} from './qc-plane.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
 import {SLIDE_CANVAS, canvasFontScale, canvasRoles, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
-  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts, CloudBand, CloudBox, CloudOpts, GanttBand, GanttOpts, GanttRow, GanttTask, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsLine, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts, CloudBand, CloudBox, CloudOpts, GanttBand, GanttOpts, GanttRow, GanttTask, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -836,6 +843,35 @@ export function dots(values: readonly DotDatum[], opts: DotsOpts = {}): DotsBand
   return withHandle({type: 'dots', dots: list, min, max, lowLabel: opts.lowLabel, highLabel: opts.highLabel, zones, r, width: opts.width, height: opts.height, alt: opts.alt ?? `${list.length} dots`, ...(opts.id === undefined ? {} : {id: opts.id})}, opts.id);
 }
 
+/** The overlay options of bars(): reference lines, the cumulative line, the curve and the edge labels. */
+function validateBarsOverlays(data: readonly BarDatum[], opts: BarsOpts, max: number): void {
+  const tones = ['accent', 'danger', 'muted', 'text'];
+  const count = new Set(data.map((d, i) => d.replaces ?? d.id ?? i)).size;
+  for (const [key, list] of [['lines', opts.lines], ['vlines', opts.vlines]] as const) for (const [i, l] of (list ?? []).entries()) {
+    if (!Number.isFinite(l.at)) throw new Error(`bars(): ${key}[${i}].at must be a finite number (got ${l.at})`);
+    if (key === 'lines' && !(l.at >= 0 && l.at <= max)) throw new Error(`bars(): lines[${i}].at ${l.at} is outside the bars' axis 0-${max}`);
+    if (key === 'vlines' && !(l.at >= -1e-9 && l.at <= data.length + 1e-9)) throw new Error(`bars(): vlines[${i}].at ${l.at} is outside the bars (0 is the left edge of the first bar, ${data.length} the right edge of the last)`);
+    if (l.tone !== undefined && !tones.includes(l.tone)) throw new Error(`bars(): ${key}[${i}].tone must be one of ${tones.join(', ')} (got ${String(l.tone)})`);
+    if (l.label !== undefined && !l.label.trim()) throw new Error(`bars(): ${key}[${i}].label is empty`);
+  }
+  if (opts.curve) {
+    const pts = opts.curve.through;
+    if (!Array.isArray(pts) || pts.length < 2 || pts.some(p => !Array.isArray(p) || p.length !== 2 || !p.every(Number.isFinite))) throw new Error('bars(): curve.through needs at least two [slot position, value] points');
+    if (pts.some(([sx, v]) => sx < 0 || sx > data.length || v < 0 || v > max)) throw new Error(`bars(): curve.through has a point outside the bars (slot 0-${data.length}, value 0-${max})`);
+  }
+  if (opts.cumulative) {
+    const total = data.reduce((n, d) => n + d.value, 0);
+    if (Math.abs(max - total) > total * 1e-9) throw new Error(`bars(): cumulative needs max to be the total (${total}), so that 100% is the top of the plot (got max ${max})`);
+    if (data.some(d => d.replaces !== undefined)) throw new Error('bars(): cumulative does not work with replaces');
+    const g = opts.cumulative.guide;
+    if (g !== undefined && !(g > 0 && g < 100)) throw new Error(`bars(): cumulative.guide must be a percent between 0 and 100 (got ${g})`);
+  }
+  if (opts.edges) {
+    if (opts.edges.length !== count + 1) throw new Error(`bars(): edges needs ${count + 1} labels for ${count} bars (got ${opts.edges.length})`);
+    if (opts.labels === 'none') throw new Error("bars(): edges is a category label — it cannot be used with labels: 'none'");
+  }
+}
+
 type BarIds<D extends readonly BarDatum[]> = Extract<D[number]['id'], string>;
 export function bars<const D extends readonly BarDatum[], const Id extends string = never>(data: D, opts?: BarsOpts & {id?: Id}): BarsBand & Declares<Id | BarIds<D>> & HandleOf<Id> & AnchorsOf<BarIds<D>>;
 export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
@@ -857,17 +893,176 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   if (opts.barRatio !== undefined && !(opts.barRatio > 0 && opts.barRatio <= 1)) throw new Error(`bars(): barRatio must be a number > 0 and <= 1 (got ${opts.barRatio})`);
   if (opts.barRatio !== undefined && opts.stack) throw new Error('bars(): barRatio does not apply to stack');
   const stack = !!opts.stack;
+  const overlay = (['lines', 'vlines', 'curve', 'cumulative', 'edges'] as const).filter(k => opts[k] !== undefined);
+  if (overlay.length && (opts.dir !== 'v' || stack)) throw new Error(`bars(): ${overlay.join(' / ')} need vertical bars that are not stacked (dir: 'v')`);
   const extent = stack ? data.reduce((n, d) => n + d.value, 0) : Math.max(...data.map(d => d.value));
   const max = opts.max ?? extent;
   if (!(max > 0) || !Number.isFinite(max)) throw new Error(`bars(): max must be a finite number > 0 (got ${max})`);
   if (extent > max) throw new Error(`bars(): ${stack ? 'stack total' : 'a value'} (${extent}) exceeds max (${max})`);
+  validateBarsOverlays(data, opts, max);
   const ids = data.map(d => d.id).filter((id): id is string => !!id);
   if (new Set(ids).size !== ids.length) throw new Error('bars(): each id must be unique');
   if (opts.id !== undefined && ids.includes(opts.id)) throw new Error(`bars(): the band's id "${opts.id}" is also a bar's id — each id must be unique`);
   const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height, ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
-  for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
+  for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole', 'hideZero', 'lines', 'vlines', 'curve', 'cumulative', 'edges'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
   return withHandle(withAnchors(band, data.map(d => d.id)), opts.id);
 }
+
+export interface ParetoOpts extends Omit<BarsOpts, 'dir' | 'stack' | 'cumulative' | 'lines' | 'vlines' | 'curve' | 'edges' | 'max'> {
+  /** Keep the largest N items and fold the rest into `other`. */
+  top?: number;
+  /** The label of the fold-in item, always last whatever its size (default 'その他'). */
+  other?: string;
+  /** Draw a dashed line at this cumulative percent (default 80; `false`: none). */
+  guide?: number | false;
+  /** Colour the leading items that reach the guide percent (the vital few) and mute the rest (default true). */
+  highlight?: boolean;
+}
+/**
+ * A Pareto chart (パレート図): the items as bars in descending order, the "other" item last, and a cumulative line on a 0-100% axis
+ * on the right. The items that reach 80% are coloured (`highlight: false` to keep one colour). `top: 5` folds the rest into 'その他'.
+ *   pareto([{label: '傷', value: 42}, {label: '汚れ', value: 25}, {label: '欠け', value: 12}, {label: 'その他', value: 6}], {unit: '件'})
+ */
+export function pareto<const Id extends string = never>(items: readonly {label: string; value: number; id?: string}[], opts: ParetoOpts & {id?: Id} = {}): BarsBand & Declares<Id> & HandleOf<Id> {
+  if (!Array.isArray(items) || items.length === 0) throw new Error('pareto(items) needs at least one item');
+  for (const i of items) if (!Number.isFinite(i.value) || i.value < 0) throw new Error(`pareto(): value for "${i.label}" must be a finite number >= 0 (got ${i.value})`);
+  if (items.every(i => i.value === 0)) throw new Error('pareto(): all values are 0');
+  { const seen = new Set<string>(); for (const i of items) { if (seen.has(i.label)) throw new Error(`pareto(): the label "${i.label}" is written twice (add the two values, or tell them apart)`); seen.add(i.label); } }
+  if (opts.top !== undefined && !(Number.isInteger(opts.top) && opts.top >= 1)) throw new Error(`pareto(): top must be a whole number >= 1 (got ${opts.top})`);
+  const guide = opts.guide === false ? undefined : opts.guide ?? 80;
+  const {items: ordered, vital} = paretoOrder(items, {top: opts.top, other: opts.other, reach: guide ?? 80});
+  const total = ordered.reduce((n, i) => n + i.value, 0), ids = new Map(items.map(i => [i.label, i.id]));
+  const {top: _t, other: _o, guide: _g, highlight, ...rest} = opts;
+  const data: BarDatum[] = ordered.map((i, k) => ({label: i.label, value: i.value, ...(ids.get(i.label) ? {id: ids.get(i.label)} : {}), ...(highlight === false ? {} : k < vital ? {} : {series: 'c' as const})}));
+  return bars(data, {...rest, dir: 'v', barRatio: 1, max: total, cumulative: guide === undefined ? {} : {guide}}) as never;
+}
+
+export interface HistogramOpts extends Omit<BarsOpts, 'dir' | 'stack' | 'cumulative' | 'lines' | 'vlines' | 'curve' | 'edges' | 'max' | 'barRatio'> {
+  /** About how many classes (Sturges' rule when omitted). The class width is a round number. */
+  bins?: number;
+  /** The class width. */
+  width?: number;
+  /** Specification limits: dashed lines, and the classes beyond them are red. */
+  lsl?: number;
+  usl?: number;
+  /** A target (nominal) value line. */
+  target?: number;
+  /** Draw the mean (default true). */
+  mean?: boolean;
+  /** Draw the normal curve with the data's mean and standard deviation. */
+  normal?: boolean;
+}
+/**
+ * A histogram (ヒストグラム) of raw measurements: the class width is a round number, the bars touch, the class boundaries are written
+ * under the bars. `lsl` / `usl` draw the specification limits and turn the classes outside them red; the mean is drawn by default.
+ *   histogram([9.8, 10.1, 10.0, 10.3, 9.9, ...], {lsl: 9.5, usl: 10.5, unit: '個'})
+ */
+export function histogram<const Id extends string = never>(values: readonly number[], opts: HistogramOpts & {id?: Id} = {}): BarsBand & Declares<Id> & HandleOf<Id> {
+  if (!Array.isArray(values) || values.length < 2) throw new Error('histogram(values) needs at least two values');
+  if (!values.every(Number.isFinite)) throw new Error('histogram(): every value must be a finite number');
+  for (const k of ['lsl', 'usl', 'target', 'width'] as const) if (opts[k] !== undefined && !Number.isFinite(opts[k])) throw new Error(`histogram(): ${k} must be a finite number (got ${opts[k]})`);
+  if (opts.width !== undefined && !(opts.width > 0)) throw new Error(`histogram(): width must be > 0 (got ${opts.width})`);
+  if (opts.bins !== undefined && opts.width !== undefined) throw new Error('histogram(): give bins or width, not both');
+  if (opts.bins !== undefined && !(Number.isInteger(opts.bins) && opts.bins >= 1)) throw new Error(`histogram(): bins must be a whole number >= 1 (got ${opts.bins})`);
+  if (opts.lsl !== undefined && opts.usl !== undefined && !(opts.lsl < opts.usl)) throw new Error(`histogram(): lsl (${opts.lsl}) must be below usl (${opts.usl})`);
+  const marks = [opts.lsl, opts.usl, opts.target].filter((v): v is number => v !== undefined);
+  const {edges, counts, width} = histogramBins(values, {bins: opts.bins, width: opts.width, include: marks});
+  const m = mean(values), s = sd(values), n = values.length;
+  const slot = (v: number) => parseFloat(((v - edges[0]) / width).toPrecision(12));
+  const out = (k: number) => (opts.lsl !== undefined && edges[k + 1] <= opts.lsl + 1e-9) || (opts.usl !== undefined && edges[k] >= opts.usl - 1e-9);
+  const peak = opts.normal ? normalCount(m, m, s, n, width) : 0;
+  const max = niceMax(Math.max(...counts, peak));
+  const {bins: _b, width: _w, lsl, usl, target, mean: showMean, normal, ...rest} = opts;
+  const lines: BarsLine[] = [];
+  if (lsl !== undefined) lines.push({at: slot(lsl), label: `下限 ${exact(lsl)}`});
+  if (target !== undefined) lines.push({at: slot(target), label: `目標 ${exact(target)}`, tone: 'muted'});
+  if (usl !== undefined) lines.push({at: slot(usl), label: `上限 ${exact(usl)}`});
+  if (showMean !== false) lines.push({at: slot(m), label: `平均 ${m.toFixed(decimalsOf(width) + 1)}`, tone: 'accent'});
+  const every = labelEvery(edges.map(exact));
+  const curve = normal && s > 0 ? {through: Array.from({length: 41}, (_, i) => { const sx = i / 40 * counts.length; return [sx, normalCount(edges[0] + sx * width, m, s, n, width)] as [number, number]; }), tone: 'text' as const} : undefined;
+  return bars(counts.map((c, k) => ({label: `${exact(edges[k])}-${exact(edges[k + 1])}`, value: c, ...(out(k) ? {tone: 'danger' as const} : {})})), {...rest, dir: 'v', barRatio: 1, max, edges: edges.map((e, i) => edgeShown(i, edges.length - 1, every) ? exact(e) : ''), hideZero: true, vlines: lines.sort((a, b) => a.at - b.at), ...(curve ? {curve} : {})}) as never;
+}
+/** Whether boundary i (of 0..last) is written: every k-th one, and always the last (the one before it gives way when they would be closer than k/2). */
+function edgeShown(i: number, last: number, every: number): boolean {
+  if (i === last) return true;
+  if (i % every !== 0) return false;
+  const lastLabelled = last - (last % every);
+  return !(lastLabelled !== last && i === lastLabelled && last - lastLabelled < every / 2);
+}
+/** Every k-th class boundary gets its text, k from the width of the texts and the number of classes (a plot is about 800px wide). */
+function labelEvery(texts: string[]): number {
+  const widest = Math.max(...texts.map(t => [...t].reduce((n, c) => n + (c.charCodeAt(0) > 0x2e80 ? 14 : 8.4), 0)));
+  return Math.max(1, Math.ceil((widest + 10) / (780 / (texts.length - 1))));
+}
+/** The top of a count axis: the next multiple of a round step above the largest value. */
+const niceMax = (v: number): number => { const step = niceUp(v / 5); return Math.max(step, Math.ceil(v / step - 1e-9) * step); };
+
+/**
+ * A scatter diagram (散布図): the axes fit the data, each stratum (`group`) has its own colour and shape, and `regression: true` draws
+ * the least-squares line with the correlation coefficient r.
+ *   scatter([{x: 20, y: 3.1}, {x: 25, y: 3.8}, ...], {x: '温度 (℃)', y: '不良率 (%)', regression: true})
+ */
+export function scatter<const Id extends string = never>(points: readonly ScatterPoint[], opts: ScatterOpts & {id?: Id}): PlaneBand & Declares<Id> & HandleOf<Id>;
+export function scatter(points: readonly ScatterPoint[], opts: ScatterOpts): PlaneBand {
+  if (!opts?.x || !opts?.y) throw new Error("scatter(points, {x, y}) needs the axes' names: {x: '温度', y: '不良率'}");
+  return plane(scatterOpts(points, opts)) as PlaneBand;
+}
+/**
+ * A control chart (管理図) from the data: the centre line and the limits are worked out (3 sigma), points outside them are red crosses,
+ * 7 in a row on one side of the centre line or 7 in a row rising / falling are red rings.
+ *   'x' / 'mr'      individual values: the X chart and its moving range (data: number[])
+ *   'xbar' / 'r'    subgroups of 2-10 measurements: the mean and the range (data: number[][])
+ *   'p' / 'np' / 'u'  attributes per sample: [{n: 200, d: 6}, ...] (n inspected, d defective / defects)
+ *   'c'             defects per unit (data: number[])
+ *   controlChart('xbar', [[10.1, 10.0, 9.9], [10.2, 10.1, 10.0], ...], {limits: {cl: 10, ucl: 10.4, lcl: 9.6}})
+ */
+export function controlChart<const Id extends string = never>(type: ControlType, data: readonly (number | number[] | AttributeSample)[], opts?: ControlChartOpts & {id?: Id}): PlaneBand & Declares<Id> & HandleOf<Id>;
+export function controlChart(type: ControlType, data: readonly (number | number[] | AttributeSample)[], opts: ControlChartOpts = {}): PlaneBand {
+  return plane(controlChartOpts(type, data, opts)) as PlaneBand;
+}
+/**
+ * The X-bar chart and the R chart of the same subgroups, one above the other: `diagram().add(...xbarR(subgroups))`. `limits` and `yLabel`
+ * can be given for each chart as `{xbar, r}`; a plain value is for the X-bar chart (the R chart keeps its own). `id` is the X-bar chart's.
+ */
+type PerChart<T> = T | {xbar?: T; r?: T};
+export function xbarR(subgroups: readonly number[][], opts: Omit<ControlChartOpts, 'limits' | 'yLabel'> & {id?: string; limits?: PerChart<ControlChartOpts['limits']>; yLabel?: PerChart<string>} = {}): [PlaneBand, PlaneBand] {
+  const {id, limits, yLabel, ...rest} = opts;
+  const split = <T>(v: PerChart<T> | undefined, what: string): {xbar?: T; r?: T} => {
+    const keys = v !== null && typeof v === 'object' ? Object.keys(v) : [];
+    if (keys.some(k => k === 'xbar' || k === 'r') && !keys.every(k => k === 'xbar' || k === 'r')) throw new Error(`xbarR(): ${what} mixes xbar / r with other keys (${keys.join(', ')}); write {xbar: ..., r: ...} or one plain value`);
+    return keys.length > 0 && keys.every(k => k === 'xbar' || k === 'r') ? v as {xbar?: T; r?: T} : {xbar: v as T | undefined};
+  };
+  const lim = split(limits, 'limits'), lab = split(yLabel, 'yLabel');
+  const o1 = controlChartOpts('xbar', subgroups, {...rest, ...(id === undefined ? {} : {id}), ...(lim.xbar === undefined ? {} : {limits: lim.xbar}), ...(lab.xbar === undefined ? {} : {yLabel: lab.xbar})});
+  const o2 = controlChartOpts('r', subgroups, {...rest, ...(lim.r === undefined ? {} : {limits: lim.r}), ...(lab.r === undefined ? {} : {yLabel: lab.r})});
+  // the two charts are read down the page, sample by sample: they get the same left margin
+  const labels = (o: PlaneOpts): string[] => ticksOf(o.y).map(t => t.label);
+  return [plane({...o1, yTickSample: labels(o2)}), plane({...o2, yTickSample: labels(o1)})] as [PlaneBand, PlaneBand];
+}
+
+/**
+ * A check sheet (チェックシート): the items down the side, the columns (days, machines, shifts) across, a column and a row of totals.
+ * Without `counts` it is an empty sheet to fill in by hand (`boxes: true` puts a ☐ in each cell); with them each count is written as
+ * tally marks (正丅 = 7; `as: 'number'` for digits, `'both'` for both).
+ *   checkSheet([{label: '傷', counts: [3, 5, 2]}, {label: '汚れ', counts: [1, 0, 4]}], ['月', '火', '水'], {corner: '不良の種類'})
+ */
+export function checkSheet<const Id extends string = never>(items: readonly (string | CheckItem)[], columns: readonly string[], opts?: CheckSheetOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
+export function checkSheet(items: readonly (string | CheckItem)[], columns: readonly string[], opts: CheckSheetOpts = {}): TableBand {
+  const p = checkSheetParts(items, columns, opts);
+  return table(p.columns, p.rows, p.opts);
+}
+/**
+ * A matrix diagram (マトリックス図, L-shaped): the rows (ideas, causes, requirements) against the columns (criteria, measures) with a
+ * ◎ ○ △ × where they relate. `weights` (the importance of each column) adds a row of them and a score per row — Σ weight x value,
+ * ◎ 9 / ○ 3 / △ 1 / × 0 unless `values` says otherwise — and the best score is marked.
+ *   matrix(['A 案', 'B 案'], ['コスト', '速さ', '品質'], [['○', '◎', '△'], ['◎', '△', '○']], {weights: [5, 3, 4], corner: '案 ＼ 評価'})
+ */
+export function matrix<const Id extends string = never>(rows: readonly string[], cols: readonly string[], cells: readonly (readonly MatrixMark[])[], opts?: MatrixOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
+export function matrix(rows: readonly string[], cols: readonly string[], cells: readonly (readonly MatrixMark[])[], opts: MatrixOpts = {}): TableBand {
+  const p = matrixParts(rows, cols, cells, opts);
+  return table(p.columns, p.rows, p.opts);
+}
+export {tally} from './qc-table.ts';
 
 type MarkIds<M extends readonly ImageMark[]> = Extract<M[number]['id'], string>;
 const IMAGE_TONES = ['plain', 'accent', 'danger', 'muted', 'new', 'changed', 'removed', 'solid', 'solid-danger'];
@@ -1017,6 +1212,8 @@ export function stateDiagram(states: readonly StateItem[], transitions: readonly
   if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`stateDiagram(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
   for (const t of transitions) if (t.line !== undefined && !['solid', 'dashed', 'dotted'].includes(t.line)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} has line ${String(t.line)}`);
   for (const s of states) if (s.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(s.tone)) throw new Error(`stateDiagram(): state "${s.id}" has tone ${String(s.tone)}`);
+  for (const s of states) if (s.shape !== undefined && s.shape !== 'box' && s.shape !== 'circle') throw new Error(`stateDiagram(): state "${s.id}" has shape ${String(s.shape)} (use 'box' or 'circle')`);
+  for (const t of transitions) if (t.tone !== undefined && !['danger', 'accent', 'muted'].includes(t.tone)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} has tone ${String(t.tone)} (use danger, accent or muted)`);
   const band: StatesBand = {type: 'states', states: [...states], transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), states.map(s => s.id));
 }
@@ -1045,6 +1242,136 @@ export function causeTree(nodes: readonly CauseNode[], links: readonly CauseLink
   }
   const band: CauseBand = {type: 'cause', nodes: [...nodes], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
+}
+
+export interface ArrowDiagramOpts extends Omit<StatesOpts, 'initial' | 'dir'> {
+  /** 'right' (default): the network runs left to right; 'down': top to bottom, for a long chain of events that does not fit the width. */
+  dir?: 'right' | 'down';
+  /** Write the earliest and latest time under each event's number ("5/7"), and the float on activities that are not critical (default true). */
+  times?: boolean;
+  /** The unit of the time, written in the line under the figure (default '日'). */
+  unit?: string;
+  /** A line under the figure with the length of the project and the critical path (default true). */
+  summary?: boolean;
+}
+/**
+ * An arrow diagram (アロー・ダイヤグラム; PERT): events are circles, activities are the arrows between them, each labelled with its name and
+ * days, and a dummy (`dummy: true`, dashed) only says "this before that". The earliest and latest time of every event, the float of every
+ * activity and the critical path are worked out: critical activities are thick red arrows and critical events are red.
+ * In each circle: the event number, and under it the earliest / latest time. Exactly one event starts the network and one ends it.
+ *   arrowDiagram([{from: 1, to: 2, name: '設計', days: 5}, {from: 2, to: 3, name: '製作', days: 7}, {from: 2, to: 3, dummy: true}, {from: 3, to: 4, name: '検査', days: 2}])
+ */
+export function arrowDiagram(activities: readonly ArrowActivity[], opts: ArrowDiagramOpts = {}): (StatesBand | CaptionBand)[] {
+  const r = criticalPath(activities), unit = opts.unit ?? '日', show = opts.times !== false;
+  const states: StateItem[] = r.events.map(e => ({id: e.id, label: e.id, shape: 'circle', ...(show ? {sub: `${exact(e.early)}/${exact(e.late)}`} : {}), ...(e.late - e.early < 1e-9 ? {tone: 'danger' as const} : {})}));
+  const transitions: Transition[] = r.activities.map(a => ({
+    from: a.from, to: a.to, ...(a.dummy ? {line: 'dashed' as const} : {label: `${a.name} ${exact(a.days)}${show && !a.critical && a.float > 0 ? `（余裕${exact(a.float)}）` : ''}`}),
+    ...(a.critical ? {tone: 'danger' as const, strong: true} : {}),
+  }));
+  const {times: _t, unit: _u, summary, ...rest} = opts;
+  const band = stateDiagram(states, transitions, {...rest, dir: opts.dir ?? 'right'}) as StatesBand;
+  return summary === false ? [band] : [band, caption(`全体で ${exact(r.length)}${unit}　クリティカルパス: ${r.path.join(' → ')}${r.activities.filter(a => a.critical && !a.dummy).length > r.path.length ? '（ほかにも同じ長さの経路がある）' : ''}`, {align: 'left'})];
+}
+
+export interface AffinityGroup {
+  /** The group's name (表札): what the cards in it have in common, in a short sentence. */
+  title: string;
+  /** The cards: one idea or fact each. */
+  cards?: readonly string[];
+  /** Groups inside this one (a larger group is made of smaller ones). */
+  groups?: readonly AffinityGroup[];
+}
+export interface AffinityOpts {
+  /** How many groups side by side (default 3). */
+  cols?: number;
+  /** How many cards side by side in a group (default 1). */
+  cardCols?: number;
+}
+/**
+ * An affinity diagram (親和図): cards of ideas or facts gathered into groups, each group named by a short sentence (its 表札), and
+ * larger groups made of smaller ones. Groups sit side by side (`cols`), cards stack inside a group (`cardCols` to put them in columns).
+ *   affinity([{title: '準備が足りない', cards: ['段取りが決まっていない', '資料が古い']}, {title: '連絡が遅い', groups: [{title: '社内', cards: ['報告が遅れる']}]}])
+ */
+export function affinity(groups: readonly AffinityGroup[], opts: AffinityOpts = {}): (RowBand | GroupRowBand)[] {
+  if (!Array.isArray(groups) || groups.length === 0) throw new Error('affinity(groups) needs at least one group');
+  const cols = opts.cols ?? 3, cardCols = opts.cardCols ?? 1;
+  for (const [k, v] of [['cols', cols], ['cardCols', cardCols]] as const) if (!(Number.isInteger(v) && v >= 1 && v <= 6)) throw new Error(`affinity(): ${k} must be a whole number from 1 to 6 (got ${v})`);
+  const spanOf = (g: AffinityGroup, unit: number): number => Math.min(unit, Math.max(1, g.groups?.length ?? 1));
+  // a group made of smaller groups is as many columns wide as it has of them, so the small ones are not squeezed
+  const build = (g: AffinityGroup, depth: number, span: number, unit: number): GroupBand => {
+    if (typeof g?.title !== 'string' || !g.title.trim()) throw new Error('affinity(): every group needs a title (its 表札)');
+    const cards = (g.cards ?? []).map(t => {
+      if (typeof t !== 'string' || !t.trim()) throw new Error(`affinity(): group "${g.title}" has an empty card`);
+      return box({body: t, tone: 'plain'});
+    });
+    if (!cards.length && !g.groups?.length) throw new Error(`affinity(): group "${g.title}" has no cards and no groups`);
+    const inner: Band[] = [...rows(g.groups ?? [], depth + 1, span), ...(cardCols > 1 && cards.length ? [grid(cards, {cols: cardCols})] : cards)];
+    return group(inner, {title: g.title, tone: depth === 0 ? 'accent' : 'muted', dashed: false, ...(unit > 1 ? {span} : {})});
+  };
+  // rows of `unit` columns, groups packed in order
+  const rows = (list: readonly AffinityGroup[], depth: number, unit: number): (RowBand | GroupRowBand)[] => {
+    const out: (RowBand | GroupRowBand)[] = [];
+    let cur: GroupBand[] = [], used = 0;
+    const flush = (): void => { if (cur.length) out.push(row(cur, {cols: unit})); cur = []; used = 0; };
+    for (const g of list) {
+      const span = spanOf(g, unit);
+      if (used + span > unit) flush();
+      cur.push(build(g, depth, span, unit));
+      used += span;
+    }
+    flush();
+    return out;
+  };
+  return rows(groups, 0, cols);
+}
+
+export interface PdpcNode extends Omit<CauseNode, 'role'> {
+  /** start / goal (double outline), step (default), risk (what could go wrong: a hexagon), measure (what to do if it does). */
+  role?: 'start' | 'step' | 'risk' | 'measure' | 'goal';
+}
+export interface PdpcLink extends Omit<CauseLink, 'from'> {from: string}
+/**
+ * A PDPC (process decision program chart, 過程決定計画図): the way from the start to the goal, the things that could go wrong on the way
+ * (risk, a hexagon) and what to do then (measure). The main path is solid; an arrow into or out of a risk or a measure is dashed.
+ * Runs top to bottom (`dir: 'right'` for left to right, which needs a narrow `maxNodeW` when the way has many steps).
+ *   pdpc([{id: 's', label: '着手', role: 'start'}, {id: 'a', label: '試作'}, {id: 'r', label: '強度が足りない', role: 'risk'}, {id: 'm', label: '材質を変える', role: 'measure'}, {id: 'g', label: '量産開始', role: 'goal'}],
+ *        [{from: 's', to: 'a'}, {from: 'a', to: 'g'}, {from: 'a', to: 'r'}, {from: 'r', to: 'm'}, {from: 'm', to: 'a'}])
+ */
+export function pdpc<const N extends readonly PdpcNode[], const Id extends string = never>(nodes: N, links: readonly PdpcLink[], opts?: CauseOpts & {id?: Id}): CauseBand & Declares<Id | CauseIds<N>> & HandleOf<Id> & AnchorsOf<CauseIds<N>>;
+export function pdpc(nodes: readonly PdpcNode[], links: readonly PdpcLink[], opts: CauseOpts = {}): CauseBand {
+  if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('pdpc(nodes, links) needs at least one node');
+  const side = new Set((Array.isArray(nodes) ? nodes : []).filter(n => n.role === 'risk' || n.role === 'measure').map(n => n.id));
+  for (const n of nodes ?? []) if (n.role !== undefined && !['start', 'step', 'risk', 'measure', 'goal'].includes(n.role)) throw new Error(`pdpc(): node "${n.id}" has role ${String(n.role)} (use start, step, risk, measure or goal)`);
+  return causeTree(nodes.map(n => ({...n, role: n.role ?? 'step'})), (links ?? []).map(l => ({...l, line: l.line ?? (side.has(l.from) || side.has(l.to) ? 'dashed' : 'solid')} as CauseLink)), {...opts, dir: opts.dir ?? 'down'});
+}
+
+export interface RelationNode extends CauseNode {}
+export interface RelationOpts extends CauseOpts {
+  /** The ids of the problem (the result the diagram is about): marked as the effect to resolve. */
+  problem?: string | readonly string[];
+  /** Write how many arrows leave and enter each factor under its text (default true). */
+  counts?: boolean;
+}
+/**
+ * A relations diagram (連関図): the factors of a tangled problem and the arrows from cause to effect, which may go back and cross. It counts
+ * the arrows of every factor ('出' leaving, '入' entering) and marks the factor with the most leaving arrows (2 or more) as the
+ * key cause: the one to act on. `problem` names the result (red). A node's own `role` wins.
+ *   relationDiagram([{id: 'late', label: '納期遅れ'}, {id: 'rush', label: '急ぎ作業'}, ...], [{from: 'rush', to: 'late'}, ...], {problem: 'late'})
+ */
+export function relationDiagram<const N extends readonly RelationNode[], const Id extends string = never>(nodes: N, links: readonly {from: string; to: string; line?: 'solid' | 'dashed' | 'dotted'}[], opts?: RelationOpts & {id?: Id}): CauseBand & Declares<Id | CauseIds<N>> & HandleOf<Id> & AnchorsOf<CauseIds<N>>;
+export function relationDiagram(nodes: readonly RelationNode[], links: readonly {from: string; to: string; line?: 'solid' | 'dashed' | 'dotted'}[], opts: RelationOpts = {}): CauseBand {
+  if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('relationDiagram(nodes, links) needs at least one node');
+  const ids = new Set(nodes.map(n => n.id)), problems = new Set(opts.problem === undefined ? [] : typeof opts.problem === 'string' ? [opts.problem] : opts.problem);
+  for (const p of problems) if (!ids.has(p)) throw new Error(`relationDiagram(): problem names unknown node "${p}"`);
+  for (const l of links ?? []) if (typeof l.from !== 'string') throw new Error(`relationDiagram(): a link to "${l.to}" needs one cause as a string (use causeTree() for an AND)`);
+  const out = new Map(nodes.map(n => [n.id, (links ?? []).filter(l => l.from === n.id).length])), into = new Map(nodes.map(n => [n.id, (links ?? []).filter(l => l.to === n.id).length]));
+  const top = Math.max(0, ...nodes.filter(n => !problems.has(n.id) && n.role === undefined).map(n => out.get(n.id)!));
+  const {problem: _p, counts, ...rest} = opts;
+  return causeTree(nodes.map(n => ({
+    ...n,
+    role: n.role ?? (problems.has(n.id) ? 'ude' : top >= 2 && out.get(n.id) === top ? 'root' : 'effect'),
+    ...(counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}出 ${out.get(n.id)}・入 ${into.get(n.id)}`}),
+  })), (links ?? []).map(l => ({...l})), {...rest, dir: rest.dir ?? 'down'}) as CauseBand;
 }
 
 type CloudIds<B> = B extends {id: infer I extends string} ? I : never;
@@ -1301,3 +1628,5 @@ async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Pro
 }
 
 export {closeMeasurer};
+export type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from './qc-table.ts';
+export type {AttributeSample, ControlChartOpts, ControlType, ScatterOpts, ScatterPoint} from './qc-plane.ts';

@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="732" viewBox="0 0 940 732" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">軸径の X̄-R 管理図</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/qc-control.ts","sourceSha256":"d3be53c7909e72e8c2d7022bff91514a6ac8d2e0665959eeceb287aff29ba9d6"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="732" fill="#ffffff"/>
+
+  <path d="M67,300 L840,300 M67,300 L67,54" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="840,300 830,305 830,295" fill="#22201b"/>
+  <polygon points="67,54 72,64 62,64" fill="#22201b"/>
+  <path d="M108,300 L108,306 M148,300 L148,306 M189,300 L189,306 M230,300 L230,306 M270,300 L270,306 M311,300 L311,306 M352,300 L352,306 M392,300 L392,306 M433,300 L433,306 M474,300 L474,306 M515,300 L515,306 M555,300 L555,306 M596,300 L596,306 M637,300 L637,306 M677,300 L677,306 M67,300 L61,300 M67,246 L61,246 M67,191 L61,191 M67,137 L61,137 M67,82 L61,82" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M87,222 L698,222" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M87,182 L698,182" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M87,261 L698,261" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M108,235 L148,240 L189,235 L230,208 L270,256 L311,213 L352,180 L392,240 L433,267 L474,224 L515,93 L555,235 L596,240 L637,235 L677,224" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="108" cy="236" r="6" fill="#1d5fa8"/>
+  <circle cx="148" cy="240" r="6" fill="#1d5fa8"/>
+  <circle cx="188" cy="236" r="6" fill="#1d5fa8"/>
+  <circle cx="228" cy="208" r="6" fill="#1d5fa8"/>
+  <circle cx="272" cy="256" r="6" fill="#1d5fa8"/>
+  <circle cx="312" cy="212" r="6" fill="#1d5fa8"/>
+  <path d="M346,174 L358,186 M346,186 L358,174" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="392" cy="240" r="6" fill="#1d5fa8"/>
+  <path d="M426,262 L438,274 M426,274 L438,262" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="472" cy="224" r="6" fill="#1d5fa8"/>
+  <path d="M510,86 L522,98 M510,98 L522,86" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="556" cy="236" r="6" fill="#1d5fa8"/>
+  <circle cx="596" cy="240" r="6" fill="#1d5fa8"/>
+  <circle cx="636" cy="236" r="6" fill="#1d5fa8"/>
+  <circle cx="676" cy="224" r="6" fill="#1d5fa8"/>
+  <text x="108" y="322" text-anchor="middle" font-size="14" fill="#6f6659">1</text>
+  <text x="148" y="322" text-anchor="middle" font-size="14" fill="#6f6659">2</text>
+  <text x="189" y="322" text-anchor="middle" font-size="14" fill="#6f6659">3</text>
+  <text x="230" y="322" text-anchor="middle" font-size="14" fill="#6f6659">4</text>
+  <text x="270" y="322" text-anchor="middle" font-size="14" fill="#6f6659">5</text>
+  <text x="311" y="322" text-anchor="middle" font-size="14" fill="#6f6659">6</text>
+  <text x="352" y="322" text-anchor="middle" font-size="14" fill="#6f6659">7</text>
+  <text x="392" y="322" text-anchor="middle" font-size="14" fill="#6f6659">8</text>
+  <text x="433" y="322" text-anchor="middle" font-size="14" fill="#6f6659">9</text>
+  <text x="474" y="322" text-anchor="middle" font-size="14" fill="#6f6659">10</text>
+  <text x="515" y="322" text-anchor="middle" font-size="14" fill="#6f6659">11</text>
+  <text x="555" y="322" text-anchor="middle" font-size="14" fill="#6f6659">12</text>
+  <text x="596" y="322" text-anchor="middle" font-size="14" fill="#6f6659">13</text>
+  <text x="637" y="322" text-anchor="middle" font-size="14" fill="#6f6659">14</text>
+  <text x="677" y="322" text-anchor="middle" font-size="14" fill="#6f6659">15</text>
+  <text x="55" y="305" text-anchor="end" font-size="14" fill="#6f6659">9.8</text>
+  <text x="55" y="251" text-anchor="end" font-size="14" fill="#6f6659">10</text>
+  <text x="55" y="196" text-anchor="end" font-size="14" fill="#6f6659">10.2</text>
+  <text x="55" y="142" text-anchor="end" font-size="14" fill="#6f6659">10.4</text>
+  <text x="55" y="87" text-anchor="end" font-size="14" fill="#6f6659">10.6</text>
+  <text x="856" y="305" font-size="14" font-weight="700" fill="#6f6659">群の番号</text>
+  <text x="63" y="40" font-size="14" font-weight="700" fill="#6f6659">群の平均</text>
+  <text x="710" y="187" font-size="14" font-weight="700" fill="#b91c1c">UCL 10.23</text>
+  <text x="710" y="227" font-size="14" font-weight="700" fill="#1d5fa8">CL 10.09</text>
+  <text x="710" y="266" font-size="14" font-weight="700" fill="#b91c1c">LCL 9.94</text>
+  <text x="87" y="72" font-size="14" fill="#b91c1c">✕ 管理限界の外</text>
+
+  <path d="M67,636 L840,636 M67,636 L67,390" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="840,636 830,641 830,631" fill="#22201b"/>
+  <polygon points="67,390 72,400 62,400" fill="#22201b"/>
+  <path d="M108,636 L108,642 M148,636 L148,642 M189,636 L189,642 M230,636 L230,642 M270,636 L270,642 M311,636 L311,642 M352,636 L352,642 M392,636 L392,642 M433,636 L433,642 M474,636 L474,642 M515,636 L515,642 M555,636 L555,642 M596,636 L596,642 M637,636 L637,642 M677,636 L677,642 M67,636 L61,636 M67,554 L61,554 M67,472 L61,472 M67,390 L61,390" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M87,532 L698,532" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M87,416 L698,416" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M108,513 L148,554 L189,513 L230,513 L270,513 L311,554 L352,513 L392,554 L433,554 L474,554 L515,513 L555,513 L596,554 L637,513 L677,554" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="108" cy="512" r="6" fill="#1d5fa8"/>
+  <circle cx="148" cy="556" r="6" fill="#1d5fa8"/>
+  <circle cx="188" cy="512" r="6" fill="#1d5fa8"/>
+  <circle cx="228" cy="512" r="6" fill="#1d5fa8"/>
+  <circle cx="272" cy="512" r="6" fill="#1d5fa8"/>
+  <circle cx="312" cy="556" r="6" fill="#1d5fa8"/>
+  <circle cx="352" cy="512" r="6" fill="#1d5fa8"/>
+  <circle cx="392" cy="556" r="6" fill="#1d5fa8"/>
+  <circle cx="432" cy="556" r="6" fill="#1d5fa8"/>
+  <circle cx="472" cy="556" r="6" fill="#1d5fa8"/>
+  <circle cx="516" cy="512" r="6" fill="#1d5fa8"/>
+  <circle cx="556" cy="512" r="6" fill="#1d5fa8"/>
+  <circle cx="596" cy="556" r="6" fill="#1d5fa8"/>
+  <circle cx="636" cy="512" r="6" fill="#1d5fa8"/>
+  <circle cx="676" cy="556" r="6" fill="#1d5fa8"/>
+  <text x="108" y="658" text-anchor="middle" font-size="14" fill="#6f6659">1</text>
+  <text x="148" y="658" text-anchor="middle" font-size="14" fill="#6f6659">2</text>
+  <text x="189" y="658" text-anchor="middle" font-size="14" fill="#6f6659">3</text>
+  <text x="230" y="658" text-anchor="middle" font-size="14" fill="#6f6659">4</text>
+  <text x="270" y="658" text-anchor="middle" font-size="14" fill="#6f6659">5</text>
+  <text x="311" y="658" text-anchor="middle" font-size="14" fill="#6f6659">6</text>
+  <text x="352" y="658" text-anchor="middle" font-size="14" fill="#6f6659">7</text>
+  <text x="392" y="658" text-anchor="middle" font-size="14" fill="#6f6659">8</text>
+  <text x="433" y="658" text-anchor="middle" font-size="14" fill="#6f6659">9</text>
+  <text x="474" y="658" text-anchor="middle" font-size="14" fill="#6f6659">10</text>
+  <text x="515" y="658" text-anchor="middle" font-size="14" fill="#6f6659">11</text>
+  <text x="555" y="658" text-anchor="middle" font-size="14" fill="#6f6659">12</text>
+  <text x="596" y="658" text-anchor="middle" font-size="14" fill="#6f6659">13</text>
+  <text x="637" y="658" text-anchor="middle" font-size="14" fill="#6f6659">14</text>
+  <text x="677" y="658" text-anchor="middle" font-size="14" fill="#6f6659">15</text>
+  <text x="55" y="641" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <text x="55" y="559" text-anchor="end" font-size="14" fill="#6f6659">0.2</text>
+  <text x="55" y="477" text-anchor="end" font-size="14" fill="#6f6659">0.4</text>
+  <text x="55" y="395" text-anchor="end" font-size="14" fill="#6f6659">0.6</text>
+  <text x="856" y="641" font-size="14" font-weight="700" fill="#6f6659">群の番号</text>
+  <text x="63" y="376" font-size="14" font-weight="700" fill="#6f6659">範囲 R</text>
+  <text x="710" y="421" font-size="14" font-weight="700" fill="#b91c1c">UCL 0.54</text>
+  <text x="710" y="537" font-size="14" font-weight="700" fill="#1d5fa8">CL 0.25</text>
+
+  <text x="20" y="706" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

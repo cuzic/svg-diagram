@@ -23,6 +23,7 @@
 // gaps — verify() is the fast, primary check; lint is the backstop.
 
 import {plateStyle} from './image.ts';
+import {segHitsRect} from './bars.ts';
 import {PALETTE, colorOf, luminance as lightLuminance, runColorOf, paintOf} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {lintDiagram, walkBands} from './rules.ts';
@@ -318,6 +319,12 @@ function checkBars(d: LaidOutDiagram): string[] {
     if (band.type !== 'bars') continue;
     for (const b of band.labelBoxes) {
       if (b.x < band.x - 0.5 || b.x + b.w > band.x + band.w + 0.5 || b.y < band.y - 0.5 || b.y + b.h > band.y + band.h + 0.5) problems.push(`bars: value label "${b.label}" runs outside the figure (raise width / height or shorten the unit)`);
+    }
+    // the reference lines, the cumulative line and its guide must not run through a label (the curve over a histogram may)
+    const segs = [...(band.ink?.lines ?? []).filter(l => !l.soft), ...(band.ink?.polylines ?? []).filter(l => !l.soft).flatMap(l => l.pts.slice(1).map((q, k) => ({x1: l.pts[k].x, y1: l.pts[k].y, x2: q.x, y2: q.y})))];
+    for (const b of band.labelBoxes) {
+      const hit = segs.find(sg => segHitsRect(sg, {x: b.x + 1, y: b.y + 2, w: b.w - 2, h: b.h - 4}));
+      if (hit) problems.push(`bars: a reference line (a limit, a target, the guide or the cumulative line) runs through the label "${b.label}" (move the line, or hide the values with labels: 'category')`);
     }
     for (let i = 0; i < band.labelBoxes.length; i++) for (let j = i + 1; j < band.labelBoxes.length; j++) {
       const [a, b] = [band.labelBoxes[i], band.labelBoxes[j]];

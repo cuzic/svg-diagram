@@ -62,7 +62,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | 描きたいもの | 部品 | 書くもの |
 |---|---|---|
 | 組織図・階層 | `tree(root, {dir})` | 節 `{label, sub?, id?, tone?, children?}` |
-| マインドマップ | `mindmap(root, {layout, edges})` | 節（`tree` と同じ）。`layout`: radial（既定。中央から左右へ）/ right・left / down・up / org / list / brace / fishbone（原因分析。ルートの下は 2 階層まで）/ timeline。`edges`: elbow・curve・straight（ツリー系の形だけ） |
+| マインドマップ | `mindmap(root, {layout, edges})` | 節（`tree` と同じ）。`layout`: radial（既定。中央から左右へ）/ right・left / down・up / org / list / brace / fishbone（特性要因図。大骨=子、中骨=孫、小骨=その下）/ timeline。`edges`: elbow・curve・straight（ツリー系の形だけ） |
 | 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?}` と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
 | TOC の因果の図（現状・未来現実・前提条件・移行ツリー） | `causeTree(nodes, links, {dir})` | 実体 `{id, label, role?}`（role: ude / root / de / injection / goal / obstacle / io / action）と `{from, to}`（`from` を配列にすると AND）。下が原因・上が結果 |
 | TOC のクラウド（対立解消図） | `cloud({a, b, c, d, d2}, {assumptions})` | 共通目的 A・必要条件 B/C・対立する要望 D/D'。前提 `{on: 'ab'｜'ac'｜'bd'｜'cd'｜'dd', text, injection?}` は番号が矢印に載り、一覧は図の下 |
@@ -75,6 +75,30 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 - 凡例の自動付与と「色だけの区別」の検査は、これらの図の `tone`・破線を数えない。`new` / `removed` や破線を使うときは `legend()` を自分で置く。
 - BPMN は標準の一部だけ（サブプロセス、タイマー・メッセージのイベント、プール、データは対象外）。start に入るフロー・end から出るフローは書けない。
 - 描いたら `svg-diagram preview` で必ず目で見る（配置は検査を通っても、読みやすさは見ないと分からない）。
+
+## QC 七つ道具・新 QC 七つ道具
+
+データや関係を渡す。軸・区間・限界・配置・計算は自動。書き方の全部は README の「QC 七つ道具と新 QC 七つ道具」。
+
+| 道具 | 部品 | 書くもの |
+|---|---|---|
+| パレート図 | `pareto(items, {top, unit})` | `{label, value}` の一覧。大きい順・「その他」を最後・累積線・80% までの色分けは自動 |
+| ヒストグラム | `histogram(values, {lsl, usl, normal})` | 測定値そのまま。区間の幅・境目の文字・規格外の赤は自動 |
+| 散布図 | `scatter(points, {x, y, regression})` | `{x, y, group?}`。`group` が層別（色と形）、`regression` で r と回帰直線 |
+| 管理図 | `controlChart(type, data)` / `...xbarR(subgroups)` | type: x / mr / xbar / r / p / np / c / u。中心線・3σ・外れ・連・傾向は自動 |
+| チェックシート | `checkSheet(items, columns)` | `{label, counts?}`。「正」の字・計は自動、`counts` なしは手書き用 |
+| 特性要因図 | `mindmap(root, {layout: 'fishbone'})` | 大骨（子）・中骨（孫）・小骨（その下） |
+| 親和図 | `affinity(groups, {cols})` | `{title, cards?, groups?}`（グループの入れ子） |
+| 連関図 | `relationDiagram(nodes, links, {problem})` | `{id, label}` と `{from, to}`。出入りの数と主原因は自動 |
+| 系統図 | `tree(root, {dir: 'right'})` | 目的が左、手段が右 |
+| マトリックス図 | `matrix(rows, cols, cells, {weights})` | ◎ ○ △ × の表。重みがあれば評価点と最高点の印 |
+| アロー・ダイヤグラム | `arrowDiagram(activities)` | `{from, to, name, days}`（`dummy: true` は順序だけ）。最早/最遅・余裕・クリティカルパスは自動 |
+| PDPC | `pdpc(nodes, links)` | `role`: start / step / risk / measure / goal。懸念・対策の矢印は点線 |
+
+- 層別は専用の部品がない。層ごとに図を分けるか、`scatter` の `group` / `bars` の `stack` を使う。マトリックス・データ解析法（主成分分析）は計算しない。
+- `pareto` / `histogram` / `scatter` / `controlChart` は、`bars` / `plane` を返すので、`labelRole` や `id`、spotlight、段階表示がそのまま効く。`checkSheet` / `matrix` は `table`。
+- 管理図は、外れた点を含めて限界を計算する。安定した期間の限界で見たいときは `limits: {cl, ucl, lcl}` を渡す。
+- アロー・ダイヤグラムは、始まりの結合点と終わりの結合点が 1 つずつでないと止まる。幅（940px）を超えるときは `{dir: 'down'}`。
 
 ## くり返しは、まとめて書く
 

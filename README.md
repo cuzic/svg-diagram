@@ -86,6 +86,16 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | gantt(rows, {from, to, today, id}) | ガントチャート。行は、タスク `{label, start, end｜days, id?, progress?, after?, tone?, milestone?}` と、見出し `{section}`。日付は `'YYYY-MM-DD'`（`end` はその日を含む。`'2026-10'` のような略記は止まる）。軸・目盛り・今日の線・依存の矢印・進捗は自動。詳細は下の「ガントチャート（`gantt`）」 |
 | classDiagram(classes, relations, {dir, id}) | UML クラス図。クラス `{id, name?, stereotype?, abstract?, attrs?, methods?, tone?}` と関係 `{from, to, kind?, label?, fromMult?, toMult?}`。親が上になる層に自動配置し、矢印の端の記号は `kind` で決まる。詳細は下の「クラス図（`classDiagram`）」 |
 | bpmn(lanes, nodes, flows, {id}) | BPMN 風の業務フロー。レーン（担当）に、タスク・開始/終了イベント・ゲートウェイ（排他 `xor`・並行 `and`・包括 `or`）を置き、矢印で結ぶ。列は流れから、行はレーンから決まる。破線は、レーンをまたぐメッセージ。詳細は下の「業務フロー（`bpmn`）」 |
+| pareto(items, {top, other, guide, highlight, unit}) | パレート図（QC 七つ道具）。項目 `{label, value}` を大きい順の棒にし、右の 0〜100% の軸に累積比率の折れ線。80% に届くまでの項目だけ色が付く。詳細は下の「QC 七つ道具と新 QC 七つ道具」 |
+| histogram(values, {bins, width, lsl, usl, target, normal}) | ヒストグラム。測定値をそのまま渡す。区間の幅は切りのよい数、棒は接し、区間の境目が下に付く。規格の上下限・平均・正規分布の曲線 |
+| scatter(points, {x, y, regression}) | 散布図。軸は点に合わせて自動。`group` で層別（色と形が変わる）、`regression: true` で回帰直線と相関係数 r（`plane` を返す） |
+| controlChart(type, data, {limits, at, rules}) / xbarR(subgroups) | 管理図。`'x'｜'mr'｜'xbar'｜'r'｜'p'｜'np'｜'c'｜'u'`。中心線と 3σ の管理限界を計算し、外れた点（✕）・連と傾向（○）を赤にする（`plane` を返す） |
+| checkSheet(items, columns, {as, total, boxes}) | チェックシート。件数は「正」の字、計の行と列は自動。`counts` なし・`boxes: true` で手書き用の空の用紙（`table` を返す） |
+| matrix(rows, cols, cells, {weights, values, total}) | マトリックス図（L 型）。◎ ○ △ × の記号、重み付きの評価点と最高点の印（`table` を返す） |
+| affinity(groups, {cols, cardCols}) | 親和図。カードを表札付きのグループに、グループの中にグループを入れ子にできる（`group` と `row` を返す） |
+| relationDiagram(nodes, links, {problem, counts}) | 連関図。要因と因果の矢印（戻る矢印も可）。出る矢印・入る矢印の数を書き、出る矢印が最多の要因を主原因に（`causeTree` を返す） |
+| pdpc(nodes, links, {dir}) | PDPC 法。道筋（実線）と、懸念（六角形）・対策（点線）。`role`: start / step / risk / measure / goal（`causeTree` を返す） |
+| arrowDiagram(activities, {dir, times, summary}) | アロー・ダイヤグラム。丸が結合点、矢印が作業。最早/最遅の時刻・余裕・クリティカルパス（赤い太線）を計算する（`stateDiagram` を返す） |
 | pyramid / curve | ピラミッド、曲線 |
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
 | plane({x, y, points, lines, dims, labels}) | 座標平面。軸・目盛り・点・補助線・**寸法線**・ラベルを、座標の単位のまま宣言する（地図 ↔ 画像の座標変換、位置の誤差）。`yDown: true` で画像座標。ラベルが、他のラベル・軸と矢印・目盛り・点・補助線・寸法線に重なる、または図からはみ出すと検査で止まる（寸法線の文字は、その線の上に載るのが正） 。`paths: [{through: [点の id か座標…], smooth?, dashed?, tone?, arrow?, reveal?}]` で複数点を通る線を引く（実線が既定。`smooth: true` は点を必ず通る曲線で、x が増える道筋は単調な 3 次補間（値を行き過ぎない）、そうでない道筋は centripetal Catmull-Rom。`smooth` なしは折れ線。曲線が軸の外に出る・ラベルに重なると検査で止まる。`examples/plane-paths.ts`）。`grow: true` を付けた path は、段階（`reveal`）ごとに、出ている点までの曲線を同じ形のまま伸ばす（`examples/plane-grow.ts`）。点のラベルは `labelAt` を書かなければ右に置き、線や他のラベルと重なるときは空いている側（左・上・下・斜め）へ自動で移る。`labelAt` で側を書くとそのまま、`labelOffset: [dx, dy]` で位置をずらせる |
@@ -198,7 +208,7 @@ tree({
 | `org` | ルートの下に子が横一列、各子の下に子孫のリストが字下げでぶら下がる（組織図型） | 組織、役割 |
 | `list` | 全ノードを縦に並べ、字下げで階層を示す（アウトライン） | 議題、ToDo |
 | `brace` | 右へ展開し、親から子へ `{` のブレースで分解する（ブレースマップ） | 全体と部分の分解 |
-| `fishbone` | ルートが魚の頭（右）、背骨に斜めの骨。ルートの子がカテゴリ、その子が原因。**ルートの下は 2 階層まで**（3 階層目があると止まる） | 原因分析 |
+| `fishbone` | ルートが魚の頭（右）、背骨に斜めの骨。ルートの子がカテゴリ（大骨）、その子が原因（中骨）、孫以下は原因の下に字下げでぶら下がる（小骨。下半分の骨では上下が逆になり、小骨が原因の上に付く）。特性要因図（`examples/qc-fishbone.ts`） | 原因分析 |
 | `timeline` | ルートを左端に、横の軸に沿って子を上下交互に並べ、各子のリストが軸から遠ざかる向きに伸びる | 経緯、計画 |
 
 `edges: 'curve' | 'straight'` は、`radial` / `right` / `left` / `down` / `up` で枝の線を滑らかな S 字・直線にする（ほかの形で指定すると、そう書いて止まる）。`sides` は `radial` のときだけで、ルートの子だけを `id` で左右に固定できる（深い節や未知の id は止まる）。幅を超えるときは、`layout` を `list` / `right` / `left` に替えるか、`maxNodeW` を小さくする。マトリクス型・ツリーテーブル型は、マインドマップの配置ではなく表なので `table()` で描く。節の `id` は `connect()` の端点になる。例は `examples/mindmap.ts`（radial）、`examples/mindmap-brace.ts`、`mindmap-fishbone.ts`、`mindmap-org.ts`、`mindmap-timeline.ts`、`mindmap-list.ts`。
@@ -250,6 +260,52 @@ cloud({a: '製品を成功させる', b: '品質を確保する', c: '市場機�
 - `cloud` の箱は文字列か `{text, id?, tone?}`。箱の文頭に `A：` `B：` `C：` `D：` `D'：` が付く。`assumptions` は書いた順に 1, 2, … と番号が付き、その番号が `on` の矢印（`ab` `ac` `bd` `cd`、`dd` は対立そのもの）の上に載り、一覧は図の下に出る。`injection` は前提を崩す変更で、一覧の下にアクセント色で出る。`conflictLabel` で対立の矢印に一言添えられる。
 - 矢じりは図形で描く。実体・箱の `id` は `connect()` の端点。例は `examples/toc-crt.ts`、`examples/toc-cloud.ts`。
 
+### QC 七つ道具と新 QC 七つ道具
+
+どの道具も、データか関係を渡すと、軸・区間・限界・配置を計算して描く。座標は書かない。
+
+| 道具 | 書き方 | 例 |
+|---|---|---|
+| チェックシート | `checkSheet` | `examples/qc-check-sheet.ts` |
+| パレート図 | `pareto` | `examples/qc-pareto.ts` |
+| 管理図 | `controlChart` / `xbarR` | `examples/qc-control.ts` |
+| ヒストグラム | `histogram` | `examples/qc-histogram.ts` |
+| 特性要因図 | `mindmap(root, {layout: 'fishbone'})`（大骨・中骨・小骨の 3 階層以上） | `examples/qc-fishbone.ts` |
+| 散布図 | `scatter` | `examples/qc-scatter.ts` |
+| 層別 | 図を層ごとに分けて描く。`scatter` は `group` で層ごとに色と形を変える。`bars` は `stack: true` で積む | |
+| 親和図法 | `affinity` | `examples/qc-affinity.ts` |
+| 連関図法 | `relationDiagram` | `examples/qc-relation.ts` |
+| 系統図法 | `tree(root, {dir: 'right'})`（目的が左、手段が右） | `examples/qc-systematic.ts` |
+| マトリックス図法 | `matrix`（L 型）。多元の表は `table` | `examples/qc-matrix.ts` |
+| アロー・ダイヤグラム法 | `arrowDiagram` | `examples/qc-arrow.ts`（縦向きは `qc-arrow-long.ts`） |
+| PDPC 法 | `pdpc` | `examples/qc-pdpc.ts` |
+| マトリックス・データ解析法 | 対象外（主成分分析の計算は持たない）。結果の散布図は `scatter` で描く | |
+
+```ts
+pareto([{label: '傷', value: 42}, {label: '汚れ', value: 25}, {label: '欠け', value: 12}, {label: 'その他', value: 6}], {unit: '件'})
+histogram(lengths, {lsl: 9.8, usl: 10.4, normal: true, unit: '個'})
+scatter(points, {x: '温度 (℃)', y: '不良率 (%)', regression: true})
+controlChart('xbar', subgroups)            // 群ごとの測定値 number[][]。R 管理図は 'r'、まとめて 2 枚なら ...xbarR(subgroups)
+controlChart('p', [{n: 200, d: 6}, ...])   // 不良率。n が変わると限界が段を作る
+checkSheet([{label: '傷', counts: [3, 5, 2]}, ...], ['月', '火', '水'], {corner: '不良の種類'})
+matrix(['A 案', 'B 案'], ['コスト', '速さ'], [['○', '◎'], ['◎', '△']], {weights: [5, 3]})
+```
+
+- **`pareto`**: `max` は合計に固定される（100% が図の上端）。「その他」は大きさに関わらず最後（`other` で名前を変える）。`top: 5` は 5 位までを残して残りを「その他」にまとめる。`guide`（既定 80）の破線、`highlight: false` で色分けなし。累積の折れ線は原点から各棒の右上の角を通る（教科書の形）。
+- **`bars` の追加の指定**（縦棒・積み上げなし）: `lines: [{at, label?, tone?}]` は値の位置の横線、`vlines` は棒の並びの上の位置（0 が最初の棒の左端、1 が最初と 2 番目の境目）の縦線、`curve: {through: [[位置, 値], …]}` は棒の上に重ねる曲線、`cumulative: {guide?}` は累積の線と右の 0〜100% の軸、`edges: [...]` は棒の境目の下に書く文字（棒の数 + 1 個）。ラベルが重なったら `check` が止める（縦線の文字は、近いものを段にずらす。縦線にかかる値の文字は棒の中で横へよける。線が文字を貫くときも止まる。曲線だけは文字の上を通ってよい）。
+- **`histogram`**: 区間は最大 60（限界がデータから遠いと止まる）。区間の幅はデータだけから決め、限界は範囲を広げるだけ。区間の境目の文字は、混むと k 個おきに書き、度数 0 の棒には値を書かない。区間の幅はデータだけから、1・2・5 × 10 のべき乗のうち `bins`（既定は Sturges の式）に近いものを選ぶ。`width` で指定もできる。境目の値は上の区間に入り、最大値は最後の区間に入る。`lsl` / `usl` の外の区間は赤。平均線は既定で付く（`mean: false` で消す）。`normal: true` で、データの平均と標準偏差の正規分布の曲線を重ねる。
+- **`controlChart`** の限界は 3σ（`x` は 2.66 × 移動範囲の平均、`xbar` / `r` は A2・D3・D4 の係数で群の大きさ 2〜10、`p` / `np` / `c` / `u` は二項・ポアソン分布）。`limits: {cl, ucl, lcl}` で、安定した期間から決めた限界を固定できる（外れた点を除いて計算し直すのは、書く側の仕事）。`rules: false` で外れの印を消す。連・傾向は 7 点（JIS Z 9021 の流儀。新しい JIS Z 9020-2 / ISO 7870-2 は連 9 点・傾向 6 点）。限界の一部だけ（`{cl}` だけ）を渡すと、`x` / `xbar` / `r` / `mr` は残りの限界が中心線と同じだけずれ、`p` / `np` / `c` / `u` は与えた中心線（標準の値）から限界を計算し直す。n が変わる p / u 管理図の限界は段になり、ラベルは「UCL（n による）」（最後の標本の下限が 0 のときは下限のラベルを省く）。`lcl < cl < ucl` でないと止まる。`at: ['10/1', …]` は軸の下に書く文字。印は色だけでなく形も違う（外れ ✕、連・傾向 ○）。
+- **`xbarR`** の 2 枚は、左の余白がそろう（サンプルが縦に並ぶ）。`limits` と `yLabel` は `{xbar, r}` で別々に、値だけ書くと X̄ 管理図に付く。
+- **図の幅**: 区間ラベルの間引きや凡例の並べ方は、図の幅 800px 前後（既定）を前提にする。`diagram({width})` を 640px より狭くすると、ラベルが重なって検査で止まることがある。
+- **`scatter`** の層は 4 つまで。回帰直線は最小二乗法で、全体に 1 本。軸の範囲は `x: {label, min, max, step}` で指定できる。
+- **`checkSheet`** の「正」の字は、一 丅 下 止 が 1〜4、正が 5（6 以上は 5 ずつ続ける）。`as: 'number'` は数字、`'both'` は両方。`tally(n)` だけ取り出して使うこともできる。
+- **`matrix`** の記号は `◎ ○ △ ×`（`best / ok / mid / ng` でも書ける）。`weights`（列の重み）を書くと評価点 = Σ 重み × 点（◎ 9 / ○ 3 / △ 1 / × 0。`values` で変える）が行ごとに付き、最高点に印が付く。`weights` なしでも `total: true` で行ごとの合計。T 型・Y 型・X 型（3 つ以上の要素群の対応）は対象外。
+- **`affinity`** は、`groups` の中に `groups` を入れると小さなまとまりから大きなまとまりへ重なる。グループの幅は、中のグループの数だけの列になる。カードは 1 グループ内に縦に並ぶ（`cardCols` で横にも）。
+- **`relationDiagram`** は `causeTree` なので、`role`・`dir`・`maxNodeW` や、戻る矢印の描き方も同じ。主原因の印は、出る矢印が 2 本以上で最多の要因にだけ付く（同数なら全部）。`problem`（取り上げる結果）は赤の破線。
+- **`pdpc`** も `causeTree` で、既定は上から下（`dir: 'right'` は、道筋が短いときだけ。幅を超えると止まる）。懸念（`risk`）・対策（`measure`）に出入りする矢印は、書かなくても点線になる（`line` で上書き）。
+- **`arrowDiagram`**: 作業は `{from, to, name, days}`（結合点は番号か文字）、`dummy: true` は時間のない順序だけの矢印（点線）。始まりの結合点と終わりの結合点は、それぞれ 1 つ（行き止まりはダミーで終点につなぐ）。丸の中は「番号 / 最早/最遅」、余裕のある作業の札には「（余裕 n）」が付き、図の下に全体の長さとクリティカルパスが出る（`summary: false` で消す）。`times: false` で時刻と余裕を消す。横に並べて幅（940px）を超えるときは `dir: 'down'`。矢印の色・太さ（`tone` / `strong`）と丸い節（`shape: 'circle'`）は `stateDiagram` でも使える。
+- 計算だけ取り出したいときは、`lib/qc.ts`（`paretoOrder` / `histogramBins` / `capability`（全体の標準偏差から出す Cp・Cpk。群内のばらつきで出す工程能力ではなく、Pp・Ppk に当たる）/ `criticalPath`）と `lib/qc-plane.ts`（`controlStats` / `controlSignals` / `correlation`）が純粋な関数。
+
 ### ガントチャート（`gantt`）
 
 ```ts
@@ -300,7 +356,7 @@ bpmn(
 - 標準の BPMN のすべては描かない（サブプロセス、タイマーやメッセージのイベント、プール間のメッセージ、データなどは対象外）。
 - ノードの `id` は `connect()` の端点（`b.anchors.<id>` でも取れる）。例は `examples/bpmn.ts`。
 
-### 自動配置の図の共通の注意（`tree` / `mindmap` / `stateDiagram` / `causeTree` / `cloud` / `gantt` / `classDiagram` / `bpmn`）
+### 自動配置の図の共通の注意（`tree` / `mindmap` / `stateDiagram` / `causeTree` / `cloud` / `gantt` / `classDiagram` / `bpmn` / `relationDiagram` / `pdpc` / `arrowDiagram`）
 
 - 図の中の節（`id` を付けたもの）は、`connect()` の端点になり、`reveal` では図と一緒に出る。ただし spotlight は図ごと（図の `id`）で、節の `id` を指すと、そう書いて止まる。
 - `check` の「自動の凡例」（`legend: 'auto'`）と、色だけに頼る強調の検査は、これらの図の `tone`・破線・点線を数えない。`new` / `changed` / `removed` や破線の遷移・メッセージを使うときは、自分で `legend()` を置く。

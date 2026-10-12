@@ -89,15 +89,20 @@ export function layoutBrace(root: TreeNode, opts: {gap?: number} = {}): TreeLayo
 /**
  * A fishbone (cause and effect): the root is the head on the right, a spine runs to it, each child of the root is a category at
  * the end of a slanted bone (alternately above and below the spine), and its children are causes hung on that bone by short
- * horizontal lines. Two levels under the root; deeper nodes need another layout.
+ * horizontal lines. A cause's own children (and theirs) hang under it as an outline, indented toward the tail, so the fishbone
+ * of the QC seven tools (large bone, medium bone, small bone) is three levels under the root, or more.
  */
 export function layoutFishbone(root: TreeNode, opts: {gap?: number} = {}): TreeLayout {
   const gap = opts.gap ?? 8, seen = new Set<string>([root.id]);
   const cats = root.children ?? [];
-  for (const c of cats) { dup(seen, c.id); for (const k of c.children ?? []) { dup(seen, k.id); if (k.children?.length) throw new Error('mindmap(): fishbone has two levels under the root (use layout: \'list\', \'right\' or \'org\' for a deeper map)'); } }
-  const lengthOf = (c: TreeNode): number => 16 + (c.children ?? []).reduce((s, k, i) => s + k.size.h + (i ? gap : 0), 0) + 22;
+  for (const c of cats) dup(seen, c.id);
+  // each cause is a hanging list (its causes under it, indented to the left of the bone's side), read right to left
+  const lists = new Map<string, TreeLayout>();
+  for (const c of cats) for (const k of c.children ?? []) { const l = layoutHanging(k, {gap: 6, indent: 20}); for (const id of l.nodes.keys()) dup(seen, id); lists.set(k.id, mirror(l, 'x')); }
+  const blocksH = (c: TreeNode): number => (c.children ?? []).reduce((s, k, i) => s + lists.get(k.id)!.h + (i ? gap : 0), 0);
+  const lengthOf = (c: TreeNode): number => 16 + blocksH(c) + 22;
   const half = Math.max(0, ...cats.map(c => c.size.h + lengthOf(c)), root.size.h / 2), spineY = half;
-  const causeW = (c: TreeNode): number => Math.max(0, ...(c.children ?? []).map(k => k.size.w));
+  const causeW = (c: TreeNode): number => Math.max(0, ...(c.children ?? []).map(k => lists.get(k.id)!.w));
   const nodes = new Map<string, Placed>(), edges: TreeLayout['edges'] = [];
   // each row (the categories above the spine, the ones below) runs left to right: a category sits where its causes (to the left of
   // its bone) and its own box clear the one before; the bone leans toward the spine
@@ -115,10 +120,14 @@ export function layoutFishbone(root: TreeNode, opts: {gap?: number} = {}): TreeL
       edges.push({from: c.id, to: c.id, points: [{x: bx, y: startY}, {x: bx + dxs, y: spineY}]});
       let y = startY + dir * 16;
       for (const k of c.children ?? []) {
-        const cyk = top ? y + k.size.h / 2 : y - k.size.h / 2, bxk = bx + dxs * (Math.abs(cyk - startY) / run);
-        nodes.set(k.id, {x: bxk - 12 - k.size.w, y: cyk - k.size.h / 2, ...k.size});
+        // above the spine a block hangs downward from its cause; below it the block is turned over (its small bones are above the cause, toward the spine)
+        const raw = lists.get(k.id)!, block = top ? raw : mirror(raw, 'y');
+        const y0 = top ? y : y - block.h, kp = block.nodes.get(k.id)!, cyk = y0 + kp.y + kp.h / 2;
+        const bxk = bx + dxs * (Math.abs(cyk - startY) / run), sx = bxk - 12 - block.w;
+        for (const [id, p] of block.nodes) nodes.set(id, {...p, x: p.x + sx, y: p.y + y0});
+        for (const e of block.edges) edges.push({...e, points: e.points.map(q => ({x: q.x + sx, y: q.y + y0}))});
         edges.push({from: c.id, to: k.id, points: [{x: bxk - 12, y: cyk}, {x: bxk, y: cyk}]});
-        y += dir * (k.size.h + gap);
+        y += dir * (block.h + gap);
       }
       cursor = Math.max(bx + c.size.w / 2, bx + dxs) + 28;
       spineEnd = Math.max(spineEnd, bx + dxs + 24);

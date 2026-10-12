@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="396" viewBox="0 0 940 396" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">不良の内訳（パレート図）</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/qc-pareto.ts","sourceSha256":"45f7eba5b94e9b6637cd4de5e566113659d557e8fe11a488819a37178796b4c3"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="396" fill="#ffffff"/>
+
+  <path d="M46,306 L52,306" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,252 L52,252" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,197 L52,197" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,143 L52,143" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,88 L52,88" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,42 L52,42" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M52,42 L52,306" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M52,306 L869,306" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M51.57,191.92 H215.14 V306.4 H51.57 Z" fill="#1d5fa8"/>
+  <path d="M215.14,238.26 H378.71 V306.4 H215.14 Z" fill="#1d5fa8"/>
+  <path d="M378.71,273.69 H542.28 V306.4 H378.71 Z" fill="#1d5fa8"/>
+  <path d="M542.28,284.59 H705.85 V306.4 H542.28 Z" fill="#6f6659"/>
+  <path d="M705.85,279.14 H869.42 V306.4 H705.85 Z" fill="#6f6659"/>
+  <path d="M869,42 L869,306" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M869,306 L875,306" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M869,254 L875,254" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M869,201 L875,201" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M869,148 L875,148" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M869,95 L875,95" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M869,42 L875,42" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M52,95 L869,95" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M51.6,306.4 L215.1,191.9 L378.7,123.8 L542.3,91.1 L705.8,69.3 L869.4,42" fill="none" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M211.1,191.9 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <path d="M374.7,123.8 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <path d="M538.3,91.1 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <path d="M701.8,69.3 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <path d="M865.4,42 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <text x="42" y="311" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <text x="42" y="257" text-anchor="end" font-size="14" fill="#6f6659">20</text>
+  <text x="42" y="202" text-anchor="end" font-size="14" fill="#6f6659">40</text>
+  <text x="42" y="148" text-anchor="end" font-size="14" fill="#6f6659">60</text>
+  <text x="42" y="93" text-anchor="end" font-size="14" fill="#6f6659">80</text>
+  <text x="42" y="47" text-anchor="end" font-size="14" fill="#6f6659">97</text>
+  <text x="133" y="330" text-anchor="middle" font-size="14" fill="#22201b">傷</text>
+  <text x="133" y="210" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">42件</text>
+  <text x="297" y="330" text-anchor="middle" font-size="14" fill="#22201b">汚れ</text>
+  <text x="297" y="256" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">25件</text>
+  <text x="460" y="330" text-anchor="middle" font-size="14" fill="#22201b">欠け</text>
+  <text x="460" y="292" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">12件</text>
+  <text x="624" y="330" text-anchor="middle" font-size="14" fill="#22201b">寸法不良</text>
+  <text x="624" y="279" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">8件</text>
+  <text x="788" y="330" text-anchor="middle" font-size="14" fill="#22201b">その他</text>
+  <text x="788" y="297" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">10件</text>
+  <text x="879" y="311" font-size="14" fill="#6f6659">0%</text>
+  <text x="879" y="259" font-size="14" fill="#6f6659">20%</text>
+  <text x="879" y="206" font-size="14" fill="#6f6659">40%</text>
+  <text x="879" y="153" font-size="14" fill="#6f6659">60%</text>
+  <text x="879" y="100" font-size="14" fill="#6f6659">80%</text>
+  <text x="879" y="47" font-size="14" fill="#6f6659">100%</text>
+  <text x="209" y="185" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">43.3%</text>
+  <text x="373" y="117" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">69.1%</text>
+  <text x="536" y="84" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">81.4%</text>
+  <text x="700" y="62" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">89.7%</text>
+  <text x="863" y="35" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">100%</text>
+
+  <text x="20" y="370" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

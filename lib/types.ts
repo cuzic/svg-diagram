@@ -807,6 +807,8 @@ export interface PlaneOpts extends RevealOpts {
   /** Figure height (default 300). */
   height?: number;
   width?: number;
+  /** Texts that count in the width of the y axis's tick labels, so that two planes with different ticks can have the same left margin (the X-bar and R charts of xbarR()). */
+  yTickSample?: string[];
   /** y grows downward from the top-left origin (image / pixel coordinates). */
   yDown?: boolean;
   /** Light grid lines at the ticks. */
@@ -854,7 +856,21 @@ export interface BarsOpts extends RevealOpts {
   baseline?: boolean;
   /** Bar share of its slot (0 < r <= 1). Given: no upper width limit, 1 makes neighbours touch. Omitted: the usual look. Not for `stack`. */
   barRatio?: number;
+  /** Leave out the value label of a bar that is 0 (a histogram's empty classes). */
+  hideZero?: boolean;
+  /** Vertical bars only: horizontal reference lines (a target, a mean, a limit) at a value of the bars' axis. */
+  lines?: BarsLine[];
+  /** Vertical bars only: vertical reference lines at a position along the bars (in bar slots: 0 is the left edge of the first bar, 1 the edge between the first and the second). A histogram's specification limits and mean. */
+  vlines?: BarsLine[];
+  /** Vertical bars only: a curve over the bars through [slot position, value] points (a histogram's normal curve). */
+  curve?: {through: [slot: number, value: number][]; tone?: BarsTone; dashed?: boolean};
+  /** Vertical bars only: a Pareto's cumulative line on a 0-100% axis on the right (`max` must be the total: 100% is then the top of the plot). `guide`: a dashed line at that percent (80). */
+  cumulative?: {guide?: number};
+  /** Vertical bars only: labels at the edges between bars (one more than there are bars), written under the edges instead of under the bars. A histogram's class boundaries. Not with `labels: 'none'`. */
+  edges?: string[];
 }
+export type BarsTone = 'accent' | 'danger' | 'muted' | 'text';
+export interface BarsLine {at: number; label?: string; tone?: BarsTone; /** Default true. */ dashed?: boolean}
 export interface BarsBand extends BarsOpts {
   type: 'bars';
   data: BarDatum[];
@@ -962,6 +978,8 @@ export interface StateItem {
   tone?: BoxTone;
   /** An end state: drawn with a double outline. */
   final?: boolean;
+  /** 'circle': a round node that holds a short text (an event of an arrow diagram). Default a rounded box. */
+  shape?: 'box' | 'circle';
 }
 export interface Transition {
   from: string;
@@ -969,6 +987,10 @@ export interface Transition {
   /** The event / condition, on the arrow (a state may go to itself). */
   label?: string;
   line?: 'solid' | 'dashed' | 'dotted';
+  /** The colour of the arrow and its head: danger (the critical path), accent, muted. Default the text colour. */
+  tone?: 'danger' | 'accent' | 'muted';
+  /** A thick arrow. */
+  strong?: boolean;
 }
 export interface StatesOpts extends RevealOpts {
   /** 'right' (default): the flow runs left to right. 'down': top to bottom. */
@@ -989,7 +1011,7 @@ export interface StatesBand extends StatesOpts {
 // ============================================================================================
 
 /** What an entity is. It sets the default tone and, for the two that name the finding, a double outline. */
-export type CauseRole = 'effect' | 'ude' | 'root' | 'de' | 'injection' | 'goal' | 'obstacle' | 'io' | 'action';
+export type CauseRole = 'effect' | 'ude' | 'root' | 'de' | 'injection' | 'goal' | 'obstacle' | 'io' | 'action' | 'start' | 'step' | 'risk' | 'measure';
 export interface CauseNode {
   /** Required: links name it, and connect() can reach it. */
   id: string;
@@ -997,7 +1019,8 @@ export interface CauseNode {
   /** A second, muted line (a measure, a note). */
   sub?: string;
   /** ude = undesirable effect (danger), root = root cause (accent, double outline), de = desirable effect, injection = the change put in,
-   *  goal = the goal of a prerequisite tree (double outline), obstacle, io = intermediate objective, action = a step of a transition tree. */
+   *  goal = the goal of a prerequisite tree (double outline), obstacle, io = intermediate objective, action = a step of a transition tree.
+   *  For a PDPC (pdpc()): start, step, risk (what could go wrong: a danger hexagon), measure (what to do then), goal. */
   role?: CauseRole;
   /** Overrides the tone the role gives. */
   tone?: BoxTone;
@@ -2191,8 +2214,16 @@ export interface LaidOutPlane extends Rect {
 export interface BarRect extends Rect, Dimmed {fill: ColorKey; id?: string; reveal?: number; until?: number}
 /** `bar`: index into `bars` of the bar the label belongs to (none for tick labels), so spotlight can dim it with its bar. */
 export interface BarText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number; until?: number; bar?: number}
+export interface BarsInk {
+  /** `soft`: it may cross labels (the curve laid over a histogram); every other line is kept clear of them. */
+  lines: {x1: number; y1: number; x2: number; y2: number; fill: ColorKey; dashed: boolean; soft?: boolean}[];
+  polylines: {pts: {x: number; y: number}[]; fill: ColorKey; dashed: boolean; soft?: boolean}[];
+  dots: {x: number; y: number; fill: ColorKey}[];
+}
 export interface LaidOutBars extends Rect, Dimmed {
   type: 'bars';
+  /** Reference lines, the cumulative line and the curve of a bars() with those options. */
+  ink?: BarsInk;
   id?: string;
   dir: 'h' | 'v';
   stack: boolean;
@@ -2247,10 +2278,10 @@ export interface LaidOutStates extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone; final?: boolean})[];
+  nodes: (Rect & {tone: BoxTone; final?: boolean; circle?: boolean})[];
   initial?: {x: number; y: number; r: number};
   /** Orthogonal polylines from the tail state's box edge to the head's; the arrowhead is at the last point. */
-  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'}[];
+  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; tone?: 'danger' | 'accent' | 'muted'; strong?: boolean}[];
   texts: TreeNodeText[];
   /** Transition labels: a white chip (x, y, w, h) with its text baseline at (tx, ty), in `size` px. */
   labels: (Rect & {text: string; tx: number; ty: number; size: number; /** index of its arrow in `edges` */ edge: number})[];

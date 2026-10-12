@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="520" viewBox="0 0 940 520" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">新人の定着についての親和図</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/qc-affinity.ts","sourceSha256":"18f7fb963bd61369ea94a91d69360f427a5da93ad170e9e0b6ae31ba1f41a36c"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="520" fill="#ffffff"/>
+
+  <rect x="20" y="20" width="596" height="248" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+
+  <text x="36" y="51" font-size="15" font-weight="700" fill="#1d5fa8">最初の数週間で不安になる</text>
+
+  <rect x="36" y="64" width="272" height="180" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+
+  <text x="52" y="96" font-size="15" font-weight="700" fill="#22201b">何をすればいいか分からない</text>
+
+  <rect x="52" y="112" width="240" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="72" y="140" font-size="14" font-weight="400" fill="#22201b">初日の予定が決まっていない</text>
+
+  <rect x="52" y="176" width="240" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="72" y="207.6" font-size="14" font-weight="400" fill="#22201b">手順書が古い</text>
+
+  <rect x="324" y="64" width="272" height="180" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+
+  <text x="341.3333333333333" y="96" font-size="15" font-weight="700" fill="#22201b">聞ける人がいない</text>
+
+  <rect x="340" y="112" width="240" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="361.3333333333333" y="140" font-size="14" font-weight="400" fill="#22201b">担当者が忙しそう</text>
+
+  <rect x="340" y="176" width="240" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="361.3333333333333" y="207.6" font-size="14" font-weight="400" fill="#22201b">質問のしかたが分からない</text>
+
+  <rect x="632" y="20" width="288" height="248" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+
+  <text x="646.6666666666666" y="51" font-size="15" font-weight="700" fill="#1d5fa8">仕事の意味が見えない</text>
+
+  <rect x="648" y="64" width="256" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="666.6666666666666" y="95" font-size="14" font-weight="400" fill="#22201b">全体の流れを知らない</text>
+
+  <rect x="648" y="132" width="256" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="666.6666666666666" y="162.6" font-size="14" font-weight="400" fill="#22201b">自分の作業が何に使われるか不明</text>
+
+  <rect x="648" y="200" width="256" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="666.6666666666666" y="230.2" font-size="14" font-weight="400" fill="#22201b">成果の確認がない</text>
+
+  <rect x="20" y="284" width="288" height="180" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+
+  <text x="36" y="314.79999999999995" font-size="15" font-weight="700" fill="#1d5fa8">職場に慣れにくい</text>
+
+  <rect x="36" y="328" width="256" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="56" y="358.79999999999995" font-size="14" font-weight="400" fill="#22201b">昼休みに話す相手がいない</text>
+
+  <rect x="36" y="396" width="256" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="56" y="426.4" font-size="14" font-weight="400" fill="#22201b">会議で発言しにくい</text>
+
+  <text x="20" y="494" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

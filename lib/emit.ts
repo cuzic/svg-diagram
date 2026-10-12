@@ -396,6 +396,12 @@ function renderBars(b: LaidOutBars, day: Theme, stage?: number, dimFill = false)
     const thin = r.w < 1 || r.h < 1, i = thin ? 0 : Math.min(1, r.w / 2, r.h / 2);
     out.push(`<path d="M${x + i},${y + i} H${right - i} V${bottom - i} H${x + i} Z" fill="${PALETTE.bg}"${thin ? '' : ` stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"`}/>`);
   }
+  // reference lines, the cumulative line and the curve of a bars() that has them
+  const inkOf = (k: ColorKey) => b.dim ? PALETTE.muted : col(k);
+  for (const l of b.ink?.lines ?? []) out.push(`<path d="M${Math.round(l.x1)},${Math.round(l.y1)} L${Math.round(l.x2)},${Math.round(l.y2)}" fill="none" stroke="${inkOf(l.fill)}" stroke-width="2"${l.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
+  for (const l of b.ink?.polylines ?? []) out.push(`<path d="M${l.pts.map(p => `${Math.round(p.x * 10) / 10},${Math.round(p.y * 10) / 10}`).join(' L')}" fill="none" stroke="${inkOf(l.fill)}" stroke-width="2.5" stroke-linejoin="round"${l.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
+  // a dot sits exactly on the vertex of the line it marks, so it is a path (a <circle> would be snapped to the 4px grid)
+  for (const d of b.ink?.dots ?? []) { const x = Math.round(d.x * 10) / 10, y = Math.round(d.y * 10) / 10; out.push(`<path d="M${x - 4},${y} a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0 Z" fill="${PALETTE.bg}" stroke="${inkOf(d.fill)}" stroke-width="2.5"/>`); }
   for (const t of b.texts.filter(t => visibleAt(t, stage))) {
     const anchor = t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`;
     out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${anchor} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${t.dim || b.dim ? PALETTE.muted : col(t.fill)}">${emojiSpan(t.text)}</text>`);
@@ -475,16 +481,22 @@ function renderTree(b: LaidOutTree, day: Theme): string {
 function renderStates(b: LaidOutStates, day: Theme): string {
   const out: string[] = [];
   const stroke = b.dim ? PALETTE.muted : PALETTE.text;
+  const inkOf = (tone: 'danger' | 'accent' | 'muted' | undefined): string => b.dim ? PALETTE.muted : tone === undefined ? PALETTE.text : tone === 'muted' ? PALETTE.muted : colorOf(tone, day);
   // arrowheads are drawn as shapes, not markers: a marker on a leftward end is not turned by every renderer (resvg leaves it pointing right)
   for (const e of b.edges) {
-    const pts = e.points.slice(), n = pts.length, tip = pts[n - 1], prev = pts[n - 2];
-    const dx = Math.sign(tip.x - prev.x), dy = Math.sign(tip.y - prev.y), L = 12, W = 5;
+    const pts = e.points.slice(), n = pts.length, tip = pts[n - 1], prev = pts[n - 2], color = inkOf(e.tone);
+    const dx = Math.sign(tip.x - prev.x), dy = Math.sign(tip.y - prev.y), L = e.strong ? 16 : 12, W = e.strong ? 7 : 5;
     pts[n - 1] = {x: tip.x - dx * (L - 2), y: tip.y - dy * (L - 2)}; // the line stops inside the head
     const head = `M${snap4(tip.x)},${snap4(tip.y)} L${snap4(tip.x - dx * L - dy * W)},${snap4(tip.y - dy * L + dx * W)} L${snap4(tip.x - dx * L + dy * W)},${snap4(tip.y - dy * L - dx * W)} z`;
-    out.push(`<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${stroke}" stroke-width="2"${lineAttrs(e.line === 'solid' ? undefined : e.line)}/>\n  <path d="${head}" fill="${stroke}"/>`);
+    out.push(`<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${color}" stroke-width="${e.strong ? 4 : 2}"${lineAttrs(e.line === 'solid' ? undefined : e.line)}/>\n  <path d="${head}" fill="${color}"/>`);
   }
   if (b.initial) out.push(`<circle cx="${snap4(b.initial.x)}" cy="${snap4(b.initial.y)}" r="${b.initial.r}" fill="${stroke}"/>`);
   for (const n of b.nodes) {
+    if (n.circle) { // an event: a circle in its tone's colours
+      const st = b.dim ? {fill: PALETTE.bg, stroke: PALETTE.muted, dashed: false} : resolveBoxStyle(n.tone, day);
+      out.push(`<circle cx="${snap4(n.x + n.w / 2)}" cy="${snap4(n.y + n.h / 2)}" r="${snap4(n.w / 2)}" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5"/>`);
+      continue;
+    }
     out.push(renderBoxRect({...n, dim: b.dim}, day, 'plain'));
     if (n.final) out.push(renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, 'plain').replace('rx="8"', 'rx="5"'));
   }

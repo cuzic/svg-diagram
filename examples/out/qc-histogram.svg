@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="376" viewBox="0 0 940 376" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">部品の長さの分布（ヒストグラム）</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/qc-histogram.ts","sourceSha256":"fd60af1ce3db913e26584f0229408e67a74fab47d905656714b3fcd8ed127e62"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="376" fill="#ffffff"/>
+
+  <path d="M46,286 L905,286" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,262 L905,262" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,238 L905,238" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,213 L905,213" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,189 L905,189" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,164 L905,164" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,140 L905,140" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,115 L905,115" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,91 L905,91" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,66 L905,66" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,42 L905,42" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M52,42 L52,286" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M52,286 L905,286" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M51.57,261.96 H158.19 V286.4 H51.57 Z" fill="#1d5fa8"/>
+  <path d="M158.19,200.86 H264.81 V286.4 H158.19 Z" fill="#1d5fa8"/>
+  <path d="M264.81,54.22 H371.43 V286.4 H264.81 Z" fill="#1d5fa8"/>
+  <path d="M371.43,151.98 H478.04 V286.4 H371.43 Z" fill="#1d5fa8"/>
+  <path d="M478.04,213.08 H584.66 V286.4 H478.04 Z" fill="#1d5fa8"/>
+  <path d="M584.66,249.74 H691.28 V286.4 H584.66 Z" fill="#1d5fa8"/>
+  <path d="M691.28,274.18 H797.9 V286.4 H691.28 Z" fill="#b91c1c"/>
+  <path d="M797.9,274.18 H904.52 V286.4 H797.9 Z" fill="#b91c1c"/>
+  <path d="M52,38 L52,286" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M372,38 L372,286" fill="none" stroke="#1d5fa8" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M691,38 L691,286" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M51.6,268.5 L72.9,262.5 L94.2,255 L115.5,246 L136.9,235.5 L158.2,223.5 L179.5,210.2 L200.8,196 L222.2,181.2 L243.5,166.5 L264.8,152.4 L286.1,139.7 L307.5,128.9 L328.8,120.7 L350.1,115.5 L371.4,113.7 L392.7,115.3 L414.1,120.3 L435.4,128.3 L456.7,139 L478,151.6 L499.4,165.6 L520.7,180.4 L542,195.1 L563.3,209.4 L584.7,222.7 L606,234.8 L627.3,245.4 L648.6,254.5 L670,262.1 L691.3,268.2 L712.6,273.1 L733.9,276.8 L755.3,279.7 L776.6,281.7 L797.9,283.2 L819.2,284.3 L840.5,285 L861.9,285.5 L883.2,285.9 L904.5,286.1" fill="none" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="42" y="291" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <text x="42" y="267" text-anchor="end" font-size="14" fill="#6f6659">2</text>
+  <text x="42" y="243" text-anchor="end" font-size="14" fill="#6f6659">4</text>
+  <text x="42" y="218" text-anchor="end" font-size="14" fill="#6f6659">6</text>
+  <text x="42" y="194" text-anchor="end" font-size="14" fill="#6f6659">8</text>
+  <text x="42" y="169" text-anchor="end" font-size="14" fill="#6f6659">10</text>
+  <text x="42" y="145" text-anchor="end" font-size="14" fill="#6f6659">12</text>
+  <text x="42" y="120" text-anchor="end" font-size="14" fill="#6f6659">14</text>
+  <text x="42" y="96" text-anchor="end" font-size="14" fill="#6f6659">16</text>
+  <text x="42" y="71" text-anchor="end" font-size="14" fill="#6f6659">18</text>
+  <text x="42" y="47" text-anchor="end" font-size="14" fill="#6f6659">20</text>
+  <text x="105" y="280" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2個</text>
+  <text x="211" y="219" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">7個</text>
+  <text x="318" y="72" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">19個</text>
+  <text x="425" y="170" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">11個</text>
+  <text x="531" y="231" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">6個</text>
+  <text x="638" y="268" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3個</text>
+  <text x="745" y="268" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">1個</text>
+  <text x="851" y="268" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">1個</text>
+  <text x="56" y="34" font-size="14" font-weight="700" fill="#b91c1c">下限 9.8</text>
+  <text x="372" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">平均 10.10</text>
+  <text x="691" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">上限 10.4</text>
+  <text x="52" y="310" text-anchor="middle" font-size="14" fill="#22201b">9.8</text>
+  <text x="158" y="310" text-anchor="middle" font-size="14" fill="#22201b">9.9</text>
+  <text x="265" y="310" text-anchor="middle" font-size="14" fill="#22201b">10</text>
+  <text x="371" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.1</text>
+  <text x="478" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.2</text>
+  <text x="585" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.3</text>
+  <text x="691" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.4</text>
+  <text x="798" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.5</text>
+  <text x="905" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.6</text>
+
+  <text x="20" y="350" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

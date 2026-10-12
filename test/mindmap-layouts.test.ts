@@ -83,7 +83,13 @@ test('mindmap layout fishbone: the root is the head on the right, categories alt
   assert.ok(at('p').y + at('p').h <= spineY && at('q').y >= spineY && at('r').y + at('r').h <= spineY, 'p above, q below, r above');
   for (const [cat, kids] of [['p', ['p1', 'p2']], ['q', ['q1', 'q2', 'q3']]] as const) for (const k of kids) assert.ok(at(k).y !== at(cat).y && at(k).x < at(cat).x + at(cat).w + 120, `${k} hangs on the bone of ${cat}`);
   assert.ok(t.edges.some(e => e.bold), 'a spine');
-  await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(mindmap({label: 'r', children: [{label: 'a', children: [{label: 'b', children: [{label: 'c'}]}]}]}, {layout: 'fishbone'}))), /two levels under the root/);
+  // the third level (small bones) hangs under its cause, indented away from the bone, and nothing overlaps; a fourth level hangs under that
+  const deep = await checkDiagram(diagram({theme: 'blue'}).add(mindmap({label: 'r', children: [{label: 'a', children: [{label: 'b', id: 'b', children: [{label: 'c', id: 'c', children: [{label: 'd', id: 'd'}]}, {label: 'c2'}]}, {label: 'b2'}]}, {label: 'z', children: [{label: 'y', children: [{label: 'x'}]}]}]}, {layout: 'fishbone'})));
+  assert.deepEqual(deep.verdict.problems, []);
+  const tr = deep.laidOut.laidOut.find(b => b.type === 'tree') as LaidOutTree;
+  const get = (id: string) => tr.nodes.find(n => n.id === id)!;
+  assert.ok(get('c').y > get('b').y && get('c').x + get('c').w < get('b').x + get('b').w, 'c hangs under b, indented toward the tail');
+  assert.ok(get('d').y > get('c').y && get('d').x + get('d').w < get('c').x + get('c').w, 'd hangs under c');
 });
 
 test('mindmap layout timeline: the root at the left end of an axis, children along it alternately above and below, lists growing away', async () => {
@@ -142,10 +148,9 @@ test('mindmap fishbone: categories in one row never overlap, whatever causes the
   assert.ok(t.nodes[0].y >= t.y - 0.5 && t.nodes[0].y + t.nodes[0].h <= t.y + t.h + 0.5, 'the lone head is inside the figure');
 });
 
-test('mindmap fishbone: a bone leaves the middle of its category, even a wide one with no causes; a third level is refused by its label', async () => {
+test('mindmap fishbone: a bone leaves the middle of its category, even a wide one with no causes', async () => {
   const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(mindmap({label: 'テーマ', children: [{label: 'とても幅の広いカテゴリの名前'}, {label: 'B', children: [{label: 'b1'}]}]}, {layout: 'fishbone'})));
   const t = laidOut.laidOut.find(b => b.type === 'tree') as LaidOutTree;
   const cat = t.nodes[1], bone = t.edges.find(e => e.points.length === 2 && Math.abs(e.points[0].y - (cat.y + cat.h)) < 0.5)!;
   assert.ok(Math.abs(bone.points[0].x - (cat.x + cat.w / 2)) < 0.5, 'the bone starts at the middle of the category');
-  await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(mindmap({label: 'r', children: [{label: 'a', children: [{label: '原因', children: [{label: 'c'}]}]}]}, {layout: 'fishbone'}))), /"原因" has children/);
 });

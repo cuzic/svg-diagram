@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="254" viewBox="0 0 940 254" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">改善案の評価マトリックス</title>
+  <desc id="svg-desc">表: 列 案 ＼ 評価項目、コスト、効果、早さ、現場の負担、評価点</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/qc-matrix.ts","sourceSha256":"a7303220a7700b3813d158717fd1fa87cd46514ffbe619c96c7206bde351b744"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="254" fill="#ffffff"/>
+
+  <path d="M28,20 H912 A8,8 0 0 1 920,28 V56  H20  V28 A8,8 0 0 1 28,20 Z" fill="#dce9f7"/>
+  <path d="M20,56 H920  V92  H20  V56  Z" fill="#f6f8fa"/>
+  <path d="M20,56 H277  V92  H20  V56  Z" fill="#dce9f7"/>
+  <path d="M20,56 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,91 H920  V127  H20  V91  Z" fill="#ffffff"/>
+  <path d="M20,91 H277  V127  H20  V91  Z" fill="#dce9f7"/>
+  <path d="M20,91 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,127 H920  V163  H20  V127  Z" fill="#ffffff"/>
+  <path d="M20,127 H277  V163  H20  V127  Z" fill="#dce9f7"/>
+  <path d="M20,127 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,162 H920  V190 A8,8 0 0 1 912,198 H28 A8,8 0 0 1 20,190 V162  Z" fill="#ffffff"/>
+  <path d="M20,162 H277  V198  H28 A8,8 0 0 1 20,190 V162  Z" fill="#dce9f7"/>
+  <path d="M20,162 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M277,20 V198" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M406,20 V198" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M534,20 V198" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M663,20 V198" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M791,20 V198" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M277,56 V198" stroke="#22201b" stroke-width="3"/>
+  <text x="32" y="42" font-size="14" font-weight="700" fill="#22201b">案 ＼ 評価項目</text>
+  <text x="341" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">コスト</text>
+  <text x="470" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">効果</text>
+  <text x="599" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">早さ</text>
+  <text x="727" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">現場の負担</text>
+  <text x="856" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">評価点</text>
+  <text x="32" y="78" font-size="14" font-weight="700" fill="#22201b">重み</text>
+  <text x="341" y="78" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">5</text>
+  <text x="470" y="78" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">4</text>
+  <text x="599" y="78" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">3</text>
+  <text x="727" y="78" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">2</text>
+  <text x="32" y="113" font-size="14" font-weight="700" fill="#22201b">A 案　治具の追加</text>
+  <text x="341" y="113" text-anchor="middle" font-size="14" font-weight="400" fill="#1d5fa8">○</text>
+  <text x="470" y="113" text-anchor="middle" font-size="14" font-weight="400" fill="#1d5fa8">○</text>
+  <text x="599" y="113" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">◎</text>
+  <text x="727" y="113" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">△</text>
+  <text x="856" y="113" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">56</text>
+  <text x="32" y="149" font-size="14" font-weight="700" fill="#22201b">B 案　作業手順の変更</text>
+  <text x="341" y="149" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">◎</text>
+  <text x="470" y="149" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">△</text>
+  <text x="599" y="149" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">◎</text>
+  <text x="727" y="149" text-anchor="middle" font-size="14" font-weight="400" fill="#1d5fa8">○</text>
+  <text x="856" y="149" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">◎ 82</text>
+  <text x="32" y="184" font-size="14" font-weight="700" fill="#22201b">C 案　設備の更新</text>
+  <text x="341" y="184" text-anchor="middle" font-size="14" font-weight="400" fill="#b91c1c">×</text>
+  <text x="470" y="184" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">◎</text>
+  <text x="599" y="184" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">△</text>
+  <text x="727" y="184" text-anchor="middle" font-size="14" font-weight="400" fill="#1d5fa8">○</text>
+  <text x="856" y="184" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">45</text>
+  <path d="M28,20 H912 A8,8 0 0 1 920,28 V190 A8,8 0 0 1 912,198 H28 A8,8 0 0 1 20,190 V28 A8,8 0 0 1 28,20 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
+
+  <text x="20" y="227.99999999999997" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

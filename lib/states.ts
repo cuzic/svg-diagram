@@ -41,7 +41,14 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   for (const t of band.transitions) for (const e of [t.from, t.to]) if (!ids.has(e)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} names unknown state "${e}"`);
   if (band.initial !== undefined && !ids.has(band.initial)) throw new Error(`stateDiagram(): initial names unknown state "${band.initial}"`);
 
-  const lines = new Map<string, NodeLines>(band.states.map(s => [s.id, measureNode(s.label, s.sub, maxW, widthOf, roles)]));
+  // a round node is as wide as its text needs and as tall as it is wide
+  const lines = new Map<string, NodeLines>(band.states.map(s => {
+    const l = measureNode(s.label, s.sub, maxW, widthOf, roles);
+    if (s.shape !== 'circle') return [s.id, l];
+    const text = Math.max(...l.label.map(t => textWidth(widthOf, t, roles.body, 700)), ...l.sub.map(t => textWidth(widthOf, t, roles.note, 400))), inner = l.h - 16;
+    const d = Math.max(44, Math.ceil((Math.hypot(text, inner) + 10) / 8) * 8); // a multiple of 8: the radius sits on the 4px grid
+    return [s.id, {...l, w: d, h: d}];
+  }));
   const labelW = (t: string): number => Math.ceil(textWidth(widthOf, t, S, 400)) + 2 * CHIP_PAD;
   const widest = Math.max(0, ...band.transitions.map(t => t.label ? labelW(t.label) : 0));
   const nodes = band.states.map(s => ({id: s.id, size: {w: lines.get(s.id)!.w, h: lines.get(s.id)!.h}}));
@@ -75,9 +82,11 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   for (const s of band.states) {
     const p = at(s.id), r = {x: p.x + dx, y: p.y + dy, w: p.w, h: p.h};
     rects.set(s.id, r);
-    out.nodes.push({...r, tone: s.tone ?? 'plain', ...(s.final ? {final: true} : {})});
+    out.nodes.push({...r, tone: s.tone ?? 'plain', ...(s.final ? {final: true} : {}), ...(s.shape === 'circle' ? {circle: true} : {})});
     out.anchors.push({id: s.id, ...r});
-    out.texts.push(...nodeRuns(r, lines.get(s.id)!, roles));
+    const nl = lines.get(s.id)!, textH = (nl.label.length * Math.round(roles.body * 1.4)) + (nl.sub.length * Math.round(roles.note * 1.4));
+    // the text of a round node sits in its middle
+    out.texts.push(...nodeRuns(s.shape === 'circle' ? {x: r.x, y: r.y + (r.h - textH) / 2 - 8, w: r.w} : r, nl, roles));
     out.labelBoxes.push({label: s.label, ...r});
   }
   if (band.initial) { const p = at(INIT); out.initial = {x: p.x + dx + DOT, y: p.y + dy + DOT, r: DOT}; }
@@ -133,17 +142,17 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
       const a = rects.get(e.from)!, cx = a.x + a.w / 2, cy = a.y + a.h / 2;
       if (dir === 'down') {
         const pts = [{x: a.x + a.w, y: cy - LOOP_W}, {x: a.x + a.w + LOOP, y: cy - LOOP_W}, {x: a.x + a.w + LOOP, y: cy + LOOP_W}, {x: a.x + a.w, y: cy + LOOP_W}];
-        out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid'});
+        out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});
         if (t?.label) { const lw = labelW(t.label); pending.push({edge: out.edges.length - 1, text: t.label, at: () => ({x: a.x + a.w + LOOP + 4 + lw / 2, y: cy})}); }
         continue;
       }
       const pts = [{x: cx + LOOP_W, y: a.y}, {x: cx + LOOP_W, y: a.y - LOOP}, {x: cx - LOOP_W, y: a.y - LOOP}, {x: cx - LOOP_W, y: a.y}];
-      out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid'});
+      out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});
       if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: () => ({x: cx, y: a.y - LOOP - (S + 8) / 2 - 2})});
       continue;
     }
     const pts = routes.get(i)!;
-    out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid'});
+    out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});
     if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: f => pointAt(pts, f), on: pts});
   }
   for (const p of pending) addLabel(p.edge, p.text, p.at, p.on);
