@@ -69,9 +69,13 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
       portOf.set(`${en.edge}:${en.end}`, (k - (list.length - 1) / 2) * step);
     });
   }
-  // the arrow that goes farthest turns first (the lane nearest its tail), so no vertical run crosses another arrow's last run
+  // fan-out (one tail): the arrow that goes farthest turns first (the lane nearest the tail), so no vertical run crosses another arrow's
+  // last run. fan-in (one head, several tails): the other way round, the nearest tail turns first.
   const dy = (i: number): number => { const e = lay.edges[i], A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!; return Math.abs((B.y + B.h / 2) - (A.y + A.h / 2)); };
-  for (const list of corridors.values()) [...list].sort((p, q) => dy(q) - dy(p) || p - q).forEach((i, k) => laneOf.set(i, k * LANE));
+  for (const list of corridors.values()) {
+    const fanIn = new Set(list.map(i => lay.edges[i].to)).size === 1 && new Set(list.map(i => lay.edges[i].from)).size > 1;
+    [...list].sort((p, q) => (fanIn ? dy(p) - dy(q) : dy(q) - dy(p)) || p - q).forEach((i, k) => laneOf.set(i, k * LANE));
+  }
   const out = new Map<number, Pt[]>();
   lay.edges.forEach((e, i) => {
     if (e.self) return;
