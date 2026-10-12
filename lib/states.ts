@@ -1,8 +1,7 @@
 // stateDiagram(): states and transitions that place themselves (graph-layout.ts layoutLayered). A state is a box like a tree
 // node; a transition is an orthogonal arrow routed through the layers it skips; a label sits on the arrow in a white chip.
 import {textWidth} from './atoms.ts';
-import {layoutLayered} from './graph-layout.ts';
-import {gapFor, routeLayered, STUB} from './layered-route.ts';
+import {gapFor, layoutWithLanes, routeLayered, STUB} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
@@ -53,7 +52,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   if (band.initial) { nodes.unshift({id: INIT, size: {w: 2 * DOT, h: 2 * DOT}}); edges.push({from: INIT, to: band.initial}); }
   const swapSize = (s: {w: number; h: number}): {w: number; h: number} => ({w: s.h, h: s.w});
   // layered layout runs on a 'right' axis; a 'down' diagram is the same layout transposed
-  const lay = layoutLayered(dir === 'down' ? nodes.map(n => ({id: n.id, size: swapSize(n.size)})) : nodes, edges, {
+  const lay = layoutWithLanes(dir === 'down' ? nodes.map(n => ({id: n.id, size: swapSize(n.size)})) : nodes, edges, {
     // a loop needs room beside its state (down) or between rows (right), so states do not crowd it
     dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : GAP,
     levelGap: Math.max(dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, gapFor(degree)), ...(band.initial ? {start: [INIT]} : {}),

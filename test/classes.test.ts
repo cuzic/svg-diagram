@@ -147,3 +147,27 @@ test('classDiagram(): several classes depending on one (fan-in) do not cross; a 
   const w = await checkDiagram(diagram({theme: 'blue'}).add(fig, box({id: 'ext', title: '外部'}), connect('CD', 'ext', {route: 'elbow'})));
   assert.deepEqual(w.verdict.problems, []);
 });
+
+test('classDiagram(): a complete 2x2 between two layers has no shared run', async () => {
+  const {t, verdict} = await laid(classDiagram([{id: 'A'}, {id: 'B'}, {id: 'X'}, {id: 'Y'}], [{from: 'A', to: 'X', kind: 'arrow'}, {from: 'A', to: 'Y', kind: 'arrow'}, {from: 'B', to: 'X', kind: 'arrow'}, {from: 'B', to: 'Y', kind: 'arrow'}]));
+  assert.deepEqual(verdict.problems, []);
+  assert.equal(sharedRun(t.edges), undefined);
+});
+
+test('classDiagram() dir right: a self relation sits above its class, off the arrows that leave to the right, with its label and multiplicities', async () => {
+  const {t, verdict} = await laid(classDiagram([{id: 'Node'}, {id: 'Next'}], [{from: 'Node', to: 'Node', kind: 'aggregate', label: 'next', fromMult: '1', toMult: '0..1'}, {from: 'Node', to: 'Next', kind: 'arrow'}], {dir: 'right'}));
+  assert.deepEqual(verdict.problems, []);
+  const node = t.anchors.find(a => a.id === 'Node')!, loop = t.edges.find(e => e.from === 'Node' && e.to === 'Node')!;
+  assert.ok(loop.points.every(p => p.y <= node.y + 0.5), 'the loop is above the class');
+  assert.deepEqual(t.labels.map(l => l.text).sort(), ['0..1', '1', 'next']);
+  assert.ok(t.labels.every(l => l.y >= t.y - 0.5), 'inside the figure');
+});
+
+test('classDiagram() dir right: a self relation on the lower class of a layer leaves room above it (its label does not sit on the class above)', async () => {
+  const {t, verdict} = await laid(classDiagram([{id: 'P'}, {id: 'A'}, {id: 'B'}], [{from: 'A', to: 'P', kind: 'inherit'}, {from: 'B', to: 'P', kind: 'inherit'}, {from: 'B', to: 'B', kind: 'aggregate', label: 'next', fromMult: '1', toMult: '0..1'}], {dir: 'right'}));
+  assert.deepEqual(verdict.problems, []);
+  const a = t.anchors.find(n => n.id === 'A')!, b = t.anchors.find(n => n.id === 'B')!;
+  const upper = a.y < b.y ? a : b, lower = a.y < b.y ? b : a;
+  for (const l of t.labels) assert.ok(!(l.y < upper.y + upper.h && l.y + l.h > upper.y && l.x < upper.x + upper.w && l.x + l.w > upper.x), `${l.text} is not on ${upper.id}`);
+  void lower;
+});
