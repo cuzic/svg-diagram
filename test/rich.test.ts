@@ -254,7 +254,8 @@ test('the tspan widths are the layout widths (left / centre / right, spaces at t
 
 // ---- checks that see the pieces ----
 
-const solid = (body: BoxBand['body'] | (string | ReturnType<typeof em.b>)[]) => box({tone: 'solid-danger' as never, body: body as never});
+// box() refuses a colour on solid-danger (the text would vanish), so the unreadable box is made by hand: the verify / lint safety net for add()ed bands
+const solid = (body: BoxBand['body'] | (string | ReturnType<typeof em.b>)[]): BoxBand => ({...box({body: body as never}), tone: 'solid-danger'});
 
 test('verify and the SVG lint both fail a coloured word that is unreadable on its box', async () => {
   for (const [part, word] of [[em.danger('ユーザー'), 'ユーザー'], [em.muted('補助'), '補助']] as const) {

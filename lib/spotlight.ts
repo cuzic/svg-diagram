@@ -13,6 +13,7 @@ export function spotlightEdges(d: Pick<DiagramData, 'spotlight'>): 'touching' | 
 function descendants(b: Band, out: Set<Band>): void {
   out.add(b);
   if ('children' in b && Array.isArray(b.children)) for (const child of b.children as Band[]) descendants(child, out);
+  if (b.type === 'swimlane') for (const step of b.steps) descendants(step, out);
 }
 
 /** Input bands outside the spotlight. Used before layout so auto legends ignore their notation. */
