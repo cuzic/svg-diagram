@@ -85,7 +85,7 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
   const needH = rows * bh + Math.max(0, rows - 1) * gp + (f.axis ? tickH + 8 : 0) + outsideH;
   if (band.height !== undefined && band.height < needH) throw new Error(`bars(): height ${band.height} is too small for its content (need at least ${needH})`);
   const h = band.height ?? needH;
-  const out: LaidOutBars = {type: 'bars', x, y, w, h, dir: 'h', stack: band.stack, reveal: band.reveal, bars: [], ticks: [], texts: [], labelBoxes: [], anchors: []};
+  const out: LaidOutBars = {type: 'bars', id: band.id, x, y, w, h, dir: 'h', stack: band.stack, reveal: band.reveal, bars: [], ticks: [], texts: [], labelBoxes: [], anchors: []};
   const axisY = y + rows * bh + Math.max(0, rows - 1) * gp;
   for (const t of ticks) {
     const tx = plotL + t.at / band.max * plotW;
@@ -129,7 +129,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
   // the margins hold the value labels / top tick label above and the category labels below; none of them, none of the margin
   const plotT = y + (f.axis || f.showValues ? S + 8 : 4), plotB = f.showCats ? y + h - S * 1.4 - 14 : y + h - 4;
   if (plotR - plotL < (f.axis || f.labels !== 'none' ? 80 : 20) || plotB - plotT < (f.axis || f.showValues ? 80 : 20)) throw new Error('bars(): the figure is too small; raise width / height');
-  const out: LaidOutBars = {type: 'bars', x, y, w, h, dir: 'v', stack: band.stack, reveal: band.reveal, bars: [], ticks: [], texts: [], labelBoxes: [], anchors: []};
+  const out: LaidOutBars = {type: 'bars', id: band.id, x, y, w, h, dir: 'v', stack: band.stack, reveal: band.reveal, bars: [], ticks: [], texts: [], labelBoxes: [], anchors: []};
   for (const t of ticks) {
     const ty = plotB - t.at / band.max * (plotB - plotT);
     if (f.grid && (f.baseline || t.at !== 0)) out.ticks.push({x1: plotL - TICK, y1: ty, x2: plotR, y2: ty});

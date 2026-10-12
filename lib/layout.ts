@@ -456,6 +456,10 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
 
     if (band.type === 'bars') {
       const placed = layoutBars(band, padX, cursorY, cw, widthOf);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, 'a bars band takes an id that another anchor already has');
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
       for (const a of placed.anchors) {
         if (anchors.has(a.id)) claimed(a.id, 'a bar takes an id that another anchor already has');
         anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
@@ -510,7 +514,7 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
         y += h;
         return out;
       });
-      const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, id: band.id};
+      const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, id: band.id, reveal: band.reveal};
       laidOut.push(frame); // before its steps so the lanes draw underneath
       if (band.id) {
         if (anchors.has(band.id)) claimed(band.id, 'a swimlane takes an id that another anchor already has');
@@ -717,6 +721,10 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
 
     if (band.type === 'plane') {
       const placed = layoutPlane(band, padX, cursorY, cw, widthOf);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, 'a plane takes an id that another anchor already has');
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
       laidOut.push(placed);
       cursorY += placed.h + d.gap;
       continue;

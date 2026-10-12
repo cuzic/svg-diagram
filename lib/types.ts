@@ -223,7 +223,7 @@ export type RichText = string | readonly RichPart[];
 /** Where a band's spans sit (the plain text stays in the band's own field). Set by the DSL functions; layout reads it. */
 export interface RichSpans {title?: Span[]; body?: Span[]; note?: Span[]; headline?: Span[]; sub?: Span[]; text?: Span[]}
 
-export interface CaptionOpts {
+export interface CaptionOpts extends RevealOpts {
   align?: Align;
   role?: Role;
   tone?: TextTone;
@@ -240,6 +240,7 @@ export interface CaptionBand {
   tone: TextTone;
   bold: boolean;
   mono: boolean;
+  reveal?: number;
 }
 
 /** One extra line of a box band: a plain string or a styled line (`spans`: internal, the pieces of `text`). */
@@ -312,7 +313,7 @@ export interface BoxBand extends BoxStyleOpts {
   statValue?: string;
 }
 
-export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col' | 'span'> {
+export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col' | 'span' | 'reveal'> {
   /** The value's text colour; 'solid' / 'solid-danger' instead fill the whole box (white text) as in box({tone}). */
   tone?: TextTone | 'solid' | 'solid-danger';
   size?: 'stat' | 'display';
@@ -582,9 +583,12 @@ export interface PlanePoint {
   labelAt?: 'right' | 'left' | 'above' | 'below';
   tone?: PlaneTone;
   shape?: 'dot' | 'ring' | 'cross';
+  /** The stage it (and its label) appears at; default the plane's own. */
+  reveal?: number;
 }
 /** A guide line between two positions / points (a projection onto an axis, a path). */
-export interface PlaneLine {from: PlaneRef; to: PlaneRef; tone?: PlaneTone; /** Default true. */ dashed?: boolean; arrow?: boolean}
+/** `reveal` (here and on PlaneDim / PlaneLabel / PlanePath): default the max of the points it names (a coordinate counts 0) and the plane's own. */
+export interface PlaneLine {from: PlaneRef; to: PlaneRef; tone?: PlaneTone; /** Default true. */ dashed?: boolean; arrow?: boolean; reveal?: number}
 /**
  * A line through several positions / points. `smooth: true` draws a curve through every point: monotone cubic interpolation
  * (Fritsch-Carlson, like d3's curveMonotoneX) when x only increases along the path — it never overshoots the points, so no
@@ -602,11 +606,14 @@ export interface PlaneDim {
   /** Distance of the dimension line from the measured segment, px (default 26; more to clear the tick labels when it runs along an axis). */
   offset?: number;
   tone?: PlaneTone;
+  reveal?: number;
 }
-export interface PlaneLabel {at: PlanePos; text: string; anchor?: 'start' | 'middle' | 'end'; tone?: PlaneTone; bold?: boolean}
+export interface PlaneLabel {at: PlanePos; text: string; anchor?: 'start' | 'middle' | 'end'; tone?: PlaneTone; bold?: boolean; reveal?: number}
 export interface PlaneOpts extends RevealOpts {
   /** The text role of every label of the figure (axis names, ticks, point / dimension / free labels). Default 'note' (14px). */
   labelRole?: LabelRole;
+  /** A spotlight target and a connect() endpoint (the whole figure). */
+  id?: string;
   x: PlaneAxis;
   y: PlaneAxis;
   points?: PlanePoint[];
@@ -633,7 +640,9 @@ export interface PlaneBand extends PlaneOpts {
 
 export type BarSeries = 'a' | 'b' | 'c';
 export interface BarDatum extends RevealOpts {label: string; value: number; series?: BarSeries; id?: string}
-export interface BarsOpts {
+export interface BarsOpts extends RevealOpts {
+  /** A spotlight target (the bars inside it too) and a connect() endpoint (the whole band); it may not repeat a bar's id. */
+  id?: string;
   /** The text role of every label of the figure (category, value, tick). Default 'note' (14px). Bars and the row pitch grow with it. */
   labelRole?: LabelRole;
   max?: number;
@@ -659,7 +668,7 @@ export interface BarsBand extends BarsOpts {
   max: number;
   dir: 'h' | 'v';
   stack: boolean;
-  /** Inherited from the enclosing group; each bar has its own too. */
+  /** Its own, or the enclosing group's; each bar has its own too. */
   reveal?: number;
 }
 
@@ -704,7 +713,7 @@ export interface SeqDivider {
 }
 export type SequenceStep = SeqMessage | SeqSelf | SeqNote | SeqDivider;
 
-export interface SequenceOpts {
+export interface SequenceOpts extends RevealOpts {
   /** false: do not auto-number messages. */
   numbered?: boolean;
   id?: string;
@@ -715,6 +724,7 @@ export interface SequenceBand {
   steps: SequenceStep[];
   numbered?: boolean;
   id?: string;
+  reveal?: number;
 }
 
 /** prepareSequence(): a step with its kind resolved, `text` = the (numbered) label, note.over always an array. */
@@ -814,7 +824,7 @@ export interface SwimlaneFlow {
 }
 /** Column group named across the top (a stage, a sprint). */
 export interface SwimlanePhase {label: string; from: number; to: number}
-export interface SwimlaneOpts {
+export interface SwimlaneOpts extends RevealOpts {
   flows?: SwimlaneFlow[];
   phases?: SwimlanePhase[];
   /** Width of the lane-label column (default 128). */
@@ -839,6 +849,7 @@ export interface SwimlaneBand {
   labelW?: number;
   colGap?: number;
   id?: string;
+  reveal?: number;
 }
 
 // ============================================================================================
@@ -1502,6 +1513,7 @@ export interface LaidOutSwimlane extends Rect {
   phases: LaidOutPhase[];
   lanes: LaidOutLane[];
   id?: string;
+  reveal?: number;
 }
 /** A swimlane step as laid out: a box that remembers its lane. */
 export interface LaidOutStep extends LaidOutBox {lane: string; row?: number; col: number; span: number}
@@ -1515,6 +1527,7 @@ export type LaidOutSeqStep = LaidOutSeqMsg | LaidOutSeqSelf | LaidOutSeqNote | L
 export interface LaidOutSequence extends Rect {
   type: 'sequence';
   id?: string;
+  reveal?: number;
   heads: LaidOutSeqHead[];
   steps: LaidOutSeqStep[];
   lifeTop: number;
@@ -1559,10 +1572,11 @@ export interface LaidOutScreens extends Rect {
 }
 
 /** Text the plane draws: a baseline position, an anchor and a tone. */
-export interface PlaneText {s: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; tone: PlaneTone; bold: boolean}
+export interface PlaneText {s: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; tone: PlaneTone; bold: boolean; reveal?: number}
 interface PlaneSeg {x1: number; y1: number; x2: number; y2: number}
 export interface LaidOutPlane extends Rect {
   type: 'plane';
+  id?: string;
   reveal?: number;
   /** font-size of every text of the figure (its labelRole at layout time). */
   labelSize: number;
@@ -1574,11 +1588,11 @@ export interface LaidOutPlane extends Rect {
   ticks: PlaneSeg[];
   grid: PlaneSeg[];
   texts: PlaneText[];
-  points: {x: number; y: number; tone: PlaneTone; shape: 'dot' | 'ring' | 'cross'}[];
-  lines: (PlaneSeg & {tone: PlaneTone; dashed: boolean; arrow: boolean})[];
+  points: {x: number; y: number; tone: PlaneTone; shape: 'dot' | 'ring' | 'cross'; reveal?: number}[];
+  lines: (PlaneSeg & {tone: PlaneTone; dashed: boolean; arrow: boolean; reveal?: number})[];
   /** `curves`: one [control 1, control 2, end] per piece of a smooth path (empty for a polyline, which runs through `pts`). `tip`: the unit direction of the arrowhead. `overshoot`: px the curve leaves the plot area. */
   paths?: {pts: {x: number; y: number}[]; curves: {x: number; y: number}[][]; tone: PlaneTone; dashed: boolean; arrow: boolean; tip: {dx: number; dy: number}; reveal?: number; overshoot: number}[];
-  dims: {from: Point; to: Point; line: PlaneSeg; ext: PlaneSeg[]; chip: Rect; tone: PlaneTone}[];
+  dims: {from: Point; to: Point; line: PlaneSeg; ext: PlaneSeg[]; chip: Rect; tone: PlaneTone; reveal?: number}[];
   /** Every label placed, as a rect: verify.ts reports two that overlap, one that leaves the figure, or one on the ink below. `dim`: the dimension line it belongs to. */
   labelBoxes: (Rect & {label: string; dim?: number})[];
   /** The plane's ink a label must stay clear of (axes and their arrowheads, ticks, points, guide and dimension lines). `dim`: the dimension it belongs to (its own label sits on it by design). */
@@ -1590,6 +1604,7 @@ export interface BarRect extends Rect, Dimmed {fill: ColorKey; id?: string; reve
 export interface BarText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number; bar?: number}
 export interface LaidOutBars extends Rect, Dimmed {
   type: 'bars';
+  id?: string;
   dir: 'h' | 'v';
   stack: boolean;
   reveal?: number;

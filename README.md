@@ -173,7 +173,7 @@ box({title: '許可', body: ['許可は ', em.danger(em.b('ユーザー')), ' �
 
 ### 主役以外を薄くする（spotlight）
 
-`diagram({spotlight: 'main'})` は、指定した id 以外を muted 色へ寄せ、主役を残す。group の id なら子孫も主役になり、row の特定の子は `'flow#2'` のように指定できる。矢印は既定で主役に片端でも接するものを残す (`edges: 'touching'`)。両端が主役の矢印だけを残す場合は `spotlight: {ids: ['a', 'b'], edges: 'between'}` とする。dim 側も破線・点線・二重線など形の手がかりは維持される。muted トーンの箱との併用は見分けにくいため check が警告する。
+`diagram({spotlight: 'main'})` は、指定した id 以外を muted 色へ寄せ、主役を残す。group の id なら子孫も主役になり、row の特定の子は `'flow#2'` のように指定できる。矢印は既定で主役に片端でも接するものを残す (`edges: 'touching'`)。両端が主役の矢印だけを残す場合は `spotlight: {ids: ['a', 'b'], edges: 'between'}` とする。`bars` は band の `id` で band ごと（棒も含めて）、棒の `id` で 1 本だけを指せ、`plane({id})` も指せる。band の id は `connect` の端点（`chart:bottom` など）にもなり、棒の id と重ねられない（`bars(): the band's id ... is also a bar's id`）。例は `examples/spotlight-bars-band.ts`。dim 側も破線・点線・二重線など形の手がかりは維持される。muted トーンの箱との併用は見分けにくいため check が警告する。
 
 ```ts
 diagram({theme: 'blue', spotlight: {ids: ['main', 'choices#2'], edges: 'touching'}}).add(
@@ -267,7 +267,19 @@ versus(
 
 ### クリックごとの段階表示
 
-`reveal: n`（1 始まり）を付けると、その要素は n 回目のクリックから表示される。対象は `box`、`group`、`row` の子、`connect`、`bars` の各棒、`banner`、`table`、`plane`。`caption`、`legend`、`spacer` には付けない。未指定の要素は最初から表示される。
+`reveal: n`（1 始まり）を付けると、その要素は n 回目のクリックから表示される。対象は下の表のとおり。未指定の要素は最初から表示される。
+
+| reveal を受ける | 付け方 |
+|---|---|
+| `box` / `banner` / `stat` / `caption` | opts の `reveal`（`stat` と `caption` は最後の引数の opts） |
+| `group` / `table` / `sequence` / `swimlane` / `plane` / `bars` の band | opts の `reveal`（`swimlane` は枠・手順・つなぎ線がまとめて）。`group` の子は親と自分の大きい方 |
+| `row` / `grid` の子 | 各子の `reveal`（`row({reveal})` / `grid({reveal})` は throw） |
+| `bars` の各棒 | データの `reveal` |
+| `versus` の左・右・共通部 | 各 part の `reveal`（枠と中身。共通部への矢印は両端の大きい方） |
+| `plane` の `points` / `lines` / `paths` / `dims` / `labels` | 要素の `reveal`（点のラベルは点と一緒）。未指定は plane 自身と、`id` で指した点の大きい方（座標で指した端点は 0）。端点より早い明示は警告 |
+| `connect` / `branch` | `reveal`（未指定は両端の大きい方） |
+| **受けない** | `legend` / `spacer` / `raw` / `pyramid` / `curve` / `wireframe` / `screens` / `stateMatrix` / `row` / `grid` / `iconRow` の opts。`reveal` を渡すと構築時に throw する |
+
 
 ```ts
 const summary = box({id: 'summary', title: '概要'});

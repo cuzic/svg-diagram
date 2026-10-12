@@ -122,7 +122,7 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
     }
   }
   const bottom = cursor + 4;
-  return {type: 'sequence', id: band.id, x, y, w, h: bottom - y, heads, steps, lifeTop: y + headH, lifeBottom: bottom};
+  return {type: 'sequence', id: band.id, reveal: band.reveal, x, y, w, h: bottom - y, heads, steps, lifeTop: y + headH, lifeBottom: bottom};
 }
 
 // ---- table ------------------------------------------------------------------
