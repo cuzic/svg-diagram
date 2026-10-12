@@ -900,6 +900,32 @@ export interface TimelineBand extends TimelineOpts {
 }
 
 // ============================================================================================
+// DSL input + band: tree (org chart / hierarchy)
+// ============================================================================================
+
+export interface TreeItem {
+  label: string;
+  /** A second, muted line (a title, a headcount). */
+  sub?: string;
+  /** Makes the node an anchor: connect() can start or end there. */
+  id?: string;
+  tone?: BoxTone;
+  children?: TreeItem[];
+}
+export interface TreeOpts extends RevealOpts {
+  /** 'down' (default): levels run top to bottom. 'right': left to right, which fits more siblings in a narrow figure. */
+  dir?: 'down' | 'right';
+  /** The widest a node grows before its text wraps (default 200px). */
+  maxNodeW?: number;
+  /** A spotlight target and a connect() endpoint (the whole figure). */
+  id?: string;
+}
+export interface TreeBand extends TreeOpts {
+  type: 'tree';
+  root: TreeItem;
+}
+
+// ============================================================================================
 // DSL input + band: image
 // ============================================================================================
 
@@ -1317,7 +1343,7 @@ export interface ScreensBand extends ScreensOpts {
 /** Every band the DSL constructors return. */
 export type Band =
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | ImageBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | ImageBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -1973,9 +1999,24 @@ export interface LaidOutTimeline extends Rect, Dimmed {
   labelBoxes: (Rect & {label: string})[];
 }
 
+export interface TreeNodeText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean}
+export interface LaidOutTree extends Rect, Dimmed {
+  type: 'tree';
+  id?: string;
+  reveal?: number;
+  until?: number;
+  nodes: (Rect & {tone: BoxTone})[];
+  /** Parent to child, each a polyline (centre line of the box edge to the child's box edge). */
+  edges: {points: {x: number; y: number}[]}[];
+  texts: TreeNodeText[];
+  /** Nodes with an id: what connect() can reach. */
+  anchors: Anchor[];
+  labelBoxes: (Rect & {label: string})[];
+}
+
 export type LaidOutBand = (
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutTimeline | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutTimeline | LaidOutTree | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */

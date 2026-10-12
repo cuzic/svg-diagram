@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="576" viewBox="0 0 940 576" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">サービスの依存関係(階層)</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/org-chart-right.ts","sourceSha256":"676f97af92ba973352e055d93eb17b2aa967cfe206d2ae0f345c0835ab651576"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="576" fill="#ffffff"/>
+
+  <path d="M384,288 L404,288 L404,108 L428,108" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M516,108 L536,108 L536,40 L560,40" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M516,108 L536,108 L536,108 L560,108" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M516,108 L536,108 L536,180 L560,180" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M384,288 L404,288 L404,268 L428,268" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M516,268 L536,268 L536,240 L560,240" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M516,268 L536,268 L536,300 L560,300" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M384,288 L404,288 L404,448 L428,448" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M516,448 L536,448 L536,360 L560,360" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M516,448 L536,448 L536,420 L560,420" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M516,448 L536,448 L536,480 L560,480" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M516,448 L536,448 L536,540 L560,540" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <rect x="296" y="272" width="88" height="36" rx="8" fill="#dbeeee" stroke="#1f6e73" stroke-width="2.5"/>
+  <rect x="428" y="92" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="560" y="20" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="560" y="80" width="88" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="560" y="160" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="428" y="252" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="560" y="220" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="560" y="280" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="428" y="432" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="560" y="340" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="560" y="400" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="560" y="460" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="560" y="520" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="338" y="292" text-anchor="middle" font-size="14" font-weight="700" fill="#1f6e73">ショップ</text>
+  <text x="470" y="112" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">注文</text>
+  <text x="602" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">在庫引当</text>
+  <text x="602" y="102" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">決済</text>
+  <text x="602" y="122" text-anchor="middle" font-size="14" fill="#6f6659">外部 API</text>
+  <text x="602" y="182" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">配送手配</text>
+  <text x="470" y="272" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">会員</text>
+  <text x="602" y="242" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">認証</text>
+  <text x="602" y="302" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">ポイント</text>
+  <text x="470" y="452" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">商品</text>
+  <text x="602" y="362" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">検索</text>
+  <text x="602" y="422" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">推薦</text>
+  <text x="602" y="482" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">レビュー</text>
+  <text x="602" y="542" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">画像変換</text>
+</svg>
