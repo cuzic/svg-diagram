@@ -453,8 +453,10 @@ function renderTree(b: LaidOutTree, day: Theme): string {
   for (const n of b.nodes) out.push(renderBoxRect({...n, dim: b.dim}, day, 'plain'));
   const tones = b.nodes;
   const ink = (t: LaidOutTree['texts'][number]): string => {
-    if (b.dim || t.muted) return PALETTE.muted;
+    if (b.dim) return PALETTE.muted;
     const n = tones.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
+    // the muted second line is 4.48:1 on a soft (accent / new) fill, under the 4.5 the text rules ask for: it takes the plain text colour there
+    if (t.muted) return n && toneStyle(n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted;
     return colorOf(toneStyle(n?.tone).text, day);
   };
   for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}" text-anchor="middle" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t)}">${emojiSpan(t.text)}</text>`);

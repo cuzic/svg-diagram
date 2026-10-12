@@ -2005,7 +2005,7 @@ export interface LaidOutTree extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone})[];
+  nodes: (Rect & {tone: BoxTone; id?: string})[];
   /** Parent to child, each a polyline (centre line of the box edge to the child's box edge). */
   edges: {points: {x: number; y: number}[]}[];
   texts: TreeNodeText[];
