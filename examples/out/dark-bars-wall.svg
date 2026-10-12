@@ -1,0 +1,30 @@
+<svg data-palette="#0b1220 #ffffff #94a3b8 #60a5fa #1e3a8a #dc2626" xmlns="http://www.w3.org/2000/svg" width="940" height="186" viewBox="0 0 940 186" data-assumed-bg="#0b1220" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">要求が壁になる様子</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/dark-bars-wall.ts","sourceSha256":"36959992b90125ea2b90e134120f6f86c2432da08b908c9841cc33255a21488d"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">必要な電力と、使える電力</text>
+
+  <path d="M74,56 L74,136" fill="none" stroke="#4a443a" stroke-width="2"/>
+  <path d="M234,56 L234,136" fill="none" stroke="#4a443a" stroke-width="2"/>
+  <path d="M393,56 L393,136" fill="none" stroke="#4a443a" stroke-width="2"/>
+  <path d="M553,56 L553,136" fill="none" stroke="#4a443a" stroke-width="2"/>
+  <path d="M713,56 L713,136" fill="none" stroke="#4a443a" stroke-width="2"/>
+  <path d="M872,56 L872,136" fill="none" stroke="#4a443a" stroke-width="2"/>
+  <path d="M74,130 L872,130" fill="none" stroke="#4a443a" stroke-width="2"/>
+  <path d="M74,55.6 H393.26 V83.6 H74 Z" fill="#60a5fa"/>
+  <path d="M74,101.6 H872.14 V129.6 H74 Z" fill="#dc2626"/>
+  <text x="74" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">0</text>
+  <text x="234" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">20</text>
+  <text x="393" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">40</text>
+  <text x="553" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">60</text>
+  <text x="713" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">80</text>
+  <text x="872" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">100</text>
+  <text x="66" y="75" text-anchor="end" font-size="14" fill="#ffffff">使える</text>
+  <text x="387" y="75" text-anchor="end" font-size="14" font-weight="700" fill="#0b1220">40%</text>
+  <text x="66" y="121" text-anchor="end" font-size="14" fill="#ffffff">必要</text>
+  <text x="866" y="121" text-anchor="end" font-size="14" font-weight="700" fill="#0b1220">100%</text>
+</svg>

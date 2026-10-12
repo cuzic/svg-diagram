@@ -6,7 +6,7 @@
 // computed (usually off-grid) position, same as every hand-authored diagram
 // in this deck.
 
-import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
+import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf, recolor, customColors} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
@@ -607,7 +607,7 @@ function bandRuns(b: LaidOutBand): (WrappedRun | LaidOutBox)[] {
   return [];
 }
 
-export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number} = {}): string {
+export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noRecolor?: boolean} = {}): string {
   const {width, canvasHeight, day, laidOut, connects, roles} = laidOutDiagram;
   const usesMono = laidOut.some(b => bandRuns(b).some(x => (x as WrappedRun).mono || (('wrappedRuns' in x ? x.wrappedRuns : undefined) ?? []).some(r => r.mono)))
     || laidOut.some(b => b.type === 'table' && b.rows.some(r => r.cells.some(c => c.mono && c.lines.length)));
@@ -658,12 +658,18 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number} 
     if (laidOutDiagram.source) head += `\n  <metadata id="svg-diagram">${escapeXml(JSON.stringify(opts.reveal === undefined ? laidOutDiagram.source : {...laidOutDiagram.source, reveal: opts.reveal}))}</metadata>`;
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${canvasHeight}" viewBox="0 0 ${width} ${canvasHeight}"${a11y}>${head}${defs}
+  // transparent: no page rectangle; the root says which page colour the checks assume (lint-svg reads it as the starting background)
+  const bgRect = laidOutDiagram.transparent ? '' : `\n  <rect x="0" y="0" width="${width}" height="${canvasHeight}" fill="${PALETTE.bg}"/>`;
+  const assumed = laidOutDiagram.transparent ? ` data-assumed-bg="${PALETTE.bg}"` : '';
+  const palette = customColors(laidOutDiagram.appearance), paletteAttr = palette.length ? ` data-palette="${[...new Set(palette)].join(' ')}"` : '';
+  const svgText = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${canvasHeight}" viewBox="0 0 ${width} ${canvasHeight}"${assumed}${a11y}>${head}${defs}
   <style>${style}
-  </style>
-  <rect x="0" y="0" width="${width}" height="${canvasHeight}" fill="${PALETTE.bg}"/>
+  </style>${bgRect}
 
   ${body}${connectSvg ? `\n\n  ${connectSvg}` : ''}
 </svg>
 `;
+  // the attribute is added after the recolouring: its values are final colours (a custom white must not be recoloured as a light token)
+  const out = opts.noRecolor ? svgText : recolor(svgText, laidOutDiagram.appearance);
+  return paletteAttr ? out.replace('<svg ', `<svg${paletteAttr} `) : out;
 }

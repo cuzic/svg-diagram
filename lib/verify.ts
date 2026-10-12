@@ -22,7 +22,7 @@
 // based render check stays as the final safety net for exactly those two
 // gaps — verify() is the fast, primary check; lint is the backstop.
 
-import {PALETTE, colorOf, luminance, runColorOf} from './tokens.ts';
+import {PALETTE, colorOf, luminance as lightLuminance, runColorOf, paintOf} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {lintDiagram, walkBands} from './rules.ts';
 import {spotlightDim} from './spotlight.ts';
@@ -203,6 +203,7 @@ function checkBounds(d: LaidOutDiagram, rects: CheckRect[]): string[] {
 // color combinations the DSL can ever produce — no rendering needed, this
 // is the same formula lint-svg.ts uses, evaluated on values we already know.
 function checkContrast(d: LaidOutDiagram): string[] {
+  const paint = paintOf(d.appearance), luminance = (hex: string) => lightLuminance(paint(hex)); // judged on the colours as drawn
   const problems: string[] = [];
   const contrastFor = (band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: EmphasisTone | null): string[] => {
     const boxFill = band.dim ? PALETTE.bg : boxTone ? resolveBoxStyle(boxTone, d.day).fill : PALETTE.bg;

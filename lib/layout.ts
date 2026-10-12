@@ -28,7 +28,7 @@ import type {
   LaidOutSwimlane, LaidOutPyramidLayer, LaidOutRow, RowArrow, Band, CaptionBand, BoxBand, BannerBand, RowBand, GridBand, GroupBand,
   ConnectBand, ConnectRef, Bend, BoxChrome, TextRun, WrappedRun, WidthOf, FontFamily, FontWeight, MeasureRequest, Measured, Point, Rect, Side, Span, TextTone,
 } from './types.ts';
-import {PALETTE, SHADES, isSolidTone, CONNECT_LABEL_SIZE, TAG_SIZE, blendLuminance, bestTextColor} from './tokens.ts';
+import {PALETTE, SHADES, isSolidTone, CONNECT_LABEL_SIZE, TAG_SIZE, blendLuminance, bestTextColor, paintOf} from './tokens.ts';
 
 export const LINE_HEIGHT_EM = 1.4;   // vertical spacing between wrapped lines within one text block
 export const BOX_PAD_X = 20;
@@ -711,6 +711,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
     }
 
     if (band.type === 'pyramid') {
+      const paint = paintOf(d.appearance);
       const n = band.layers.length;
       const baseWidth = band.width ?? Math.min(cw, 520);
       const apexWidth = baseWidth * band.apexRatio;
@@ -730,8 +731,8 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
         // bg luminance is a real alpha-blend against white, so the text
         // color choice is provably safe (see tokens.ts's bestTextColor
         // doc comment) without needing a Playwright-rendered check.
-        const bgLum = blendLuminance(PALETTE.bg, PALETTE[d.day].accent, opacity);
-        const textColor = bestTextColor(bgLum);
+        const bgLum = blendLuminance(paint(PALETTE.bg), paint(PALETTE[d.day].accent), opacity);
+        const textColor = bestTextColor(bgLum, paint);
         // Wrapped at the narrower (top) edge of this layer, minus padding —
         // conservative since the layer is only wider than that going down,
         // so the label can never spill past the trapezoid's slanted sides.

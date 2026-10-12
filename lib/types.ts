@@ -25,6 +25,10 @@ import type {RICH} from './rich.ts';
 
 /** Palette keys diagram() accepts: 1 / 2 (the training deck's legacy day numbers) or a named theme. */
 export type Theme = 1 | 2 | 'blue' | 'teal' | 'amber';
+/** 'light' (default) | 'dark': which token set the diagram is drawn with (tokens.ts DARK_PALETTE). */
+export type Appearance = 'light' | 'dark' | {dark: Partial<DarkTokens>};
+/** The dark token set, replaceable per diagram: `appearance: {dark: {bg: '#0b1220', text: '#ffffff', accent: '#60a5fa'}}`. accent / soft replace those of every theme. */
+export interface DarkTokens {bg: string; text: string; muted: string; border: string; code: string; danger: string; accent: string; soft: string}
 /** 'slide' (legacy `day:` diagrams, get slide-fit warnings) | 'doc' (`theme:` diagrams: title/desc metadata, full rule set). */
 export type Medium = 'slide' | 'doc';
 
@@ -116,6 +120,10 @@ export interface DiagramOpts {
   day?: 1 | 2;
   /** Defaults to 'slide' when built from `day`, 'doc' when from `theme`. */
   medium?: Medium;
+  /** 'dark' draws with the dark token set (light text on a dark page). Contrast checks use the dark colours. */
+  appearance?: Appearance;
+  /** true: no page-colour background rectangle (the diagram sits on whatever is behind it). Checks assume the page colour of `appearance`. */
+  transparent?: boolean;
   /** SVG <title> (doc medium). Falls back to the first caption / banner headline / group title. */
   title?: string;
   /** SVG <desc> (doc medium). Falls back to a generated summary. */
@@ -158,6 +166,8 @@ export interface DiagramData {
   /** Theme key. (Named `day` for historical reasons; it holds any Theme.) */
   day: Theme;
   medium: Medium;
+  appearance?: Appearance;
+  transparent?: boolean;
   title?: string;
   desc?: string;
   accept?: Partial<Record<RuleId, string>>;
