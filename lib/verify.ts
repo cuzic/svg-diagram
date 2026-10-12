@@ -22,10 +22,10 @@
 // based render check stays as the final safety net for exactly those two
 // gaps — verify() is the fast, primary check; lint is the backstop.
 
-import {PALETTE, colorOf, luminance} from './tokens.ts';
+import {PALETTE, colorOf, luminance, runColorOf} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {lintDiagram, walkBands} from './rules.ts';
-import type {BoxTone, CheckRect, LaidOutBanner, LaidOutBox, LaidOutCaption, LaidOutDiagram, Rect, Verdict} from './types.ts';
+import type {EmphasisTone, CheckRect, LaidOutBanner, LaidOutBox, LaidOutCaption, LaidOutDiagram, Rect, Verdict} from './types.ts';
 
 const CONTRAST_THRESHOLD = 70; // same threshold lint-svg.ts's own contrast check uses
 
@@ -176,11 +176,11 @@ function checkBounds(d: LaidOutDiagram, rects: CheckRect[]): string[] {
 // is the same formula lint-svg.ts uses, evaluated on values we already know.
 function checkContrast(d: LaidOutDiagram): string[] {
   const problems: string[] = [];
-  const contrastFor = (band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: BoxTone | null): string[] => {
+  const contrastFor = (band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: EmphasisTone | null): string[] => {
     const boxFill = band.dim ? PALETTE.bg : boxTone ? resolveBoxStyle(boxTone, d.day).fill : PALETTE.bg;
     const found: string[] = [];
     for (const run of band.wrappedRuns ?? []) {
-      const fg = band.dim ? PALETTE.muted : resolveTextColor(run.tone, d.day);
+      const fg = band.dim ? PALETTE.muted : runColorOf(run.tone, boxTone ?? undefined, d.day); // dim first: a dimmed solid box is white
       const delta = Math.abs(luminance(fg) - luminance(boxFill));
       if (delta < CONTRAST_THRESHOLD) {
         found.push(`"${run.text.slice(0, 20)}" (${fg} on ${boxFill}, in "${labelOf(band)}") has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);

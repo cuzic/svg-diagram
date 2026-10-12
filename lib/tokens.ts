@@ -67,6 +67,12 @@ export function toneStyle(tone: string | undefined): ToneStyle {
 }
 /** The colour key text in this tone uses ('text' unless the tone is one text can be set in). */
 export const textKeyOf = (tone: string | undefined): ColorKey => { const t = toneStyle(tone); return t.asText ? t.ink : 'text'; };
+/** A filled emphasis tone: the box is an accent / danger fill, so its text is white unless a run says otherwise (it may not). */
+export const isSolidTone = (tone: string | undefined): boolean => tone === 'solid' || tone === 'solid-danger';
+/** The colour of a box's text run: `bg` (white) when the box is solid and the run has no tone of its own, else the run's tone. */
+export function runColorOf(runTone: TextTone | undefined, boxTone: string | undefined, theme: Theme): string {
+  return isSolidTone(boxTone) && runTone === undefined ? colorOf('bg', theme) : textColorOf(runTone, theme);
+}
 /** A colour key resolved against a theme ('accent' and 'soft' are theme colours). */
 export function colorOf(key: ColorKey, theme: Theme): string {
   return key === 'accent' || key === 'soft' ? PALETTE[theme][key] : PALETTE[key];

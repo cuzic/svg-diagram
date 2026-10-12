@@ -6,12 +6,12 @@
 // computed (usually off-grid) position, same as every hand-authored diagram
 // in this deck.
 
-import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle} from './tokens.ts';
+import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
   LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
-  LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
+  LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, EmphasisTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
   LaidOutWireframe, LaidOutScreens, RawColorTone, Span,
 } from './types.ts';
 import {diagramTitle, diagramDesc} from './rules.ts';
@@ -49,7 +49,7 @@ export const resolveTextColor = textColorOf;
 
 export interface BoxStyle {fill: string; stroke: string; dashed: boolean}
 
-export function resolveBoxStyle(tone: BoxTone | undefined, day: Theme, dashedOverride?: boolean): BoxStyle {
+export function resolveBoxStyle(tone: EmphasisTone | undefined, day: Theme, dashedOverride?: boolean): BoxStyle {
   const t = toneStyle(tone);
   // doc themes (string keys) use a stroke that reaches 3:1 against the page; the slide decks keep the pale border
   const stroke = typeof day === 'string' ? t.stroke : t.slideStroke ?? t.stroke;
@@ -71,11 +71,12 @@ function spanTspans(spans: Span[], run: WrappedRun, color: string, day: Theme, d
 
 function renderTextRuns(
   wrappedRuns: WrappedRun[],
-  {originX, originY, w, align, day, dim}: {originX: number; originY: number; w: number; align: Align; day: Theme; dim?: boolean},
+  {originX, originY, w, align, day, dim, boxTone}: {originX: number; originY: number; w: number; align: Align; day: Theme; dim?: boolean; boxTone?: EmphasisTone},
 ): string {
   const parts: string[] = [];
   for (const run of wrappedRuns) {
-    const color = dim ? PALETTE.muted : resolveTextColor(run.tone, day);
+    // the dimmed look comes first: a solid box that is dimmed is a white box, so its (white) text would vanish
+    const color = dim ? PALETTE.muted : runColorOf(run.tone, boxTone, day);
     const cls = run.mono ? ' class="mono"' : '';
     const anchor = align === 'center' ? ' text-anchor="middle"' : align === 'right' ? ' text-anchor="end"' : '';
     // A step() badge only ever indents the title run (see layout.ts's
@@ -96,12 +97,15 @@ function renderTextRuns(
 // Numbered circle badge for box({step}) — solid accent fill, white number,
 // centered on the title's own baseline (same offset every hand-authored
 // "① foo" box in this deck used between the badge and its number glyph).
+// On a solid box the badge / tag pill has the box's own fill, so a white ring keeps it apart from the box.
+const ringed = (band: LaidOutBox): boolean => !band.dim && isSolidTone(band.tone);
+
 function renderStepBadge(band: LaidOutBox, day: Theme): string {
   const titleRun = band.wrappedRuns[0];
   const titleBaselineY = band.y + BOX_PAD_Y + titleRun.lineYs[0];
   const cx = band.x + BOX_PAD_X + STEP_BADGE_R;
   const cy = titleBaselineY - STEP_BADGE_BASELINE_OFFSET;
-  return badgeSvg({cx, cy, r: STEP_BADGE_R, w: 2 * STEP_BADGE_R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: 16, fill: PALETTE[day].accent, baseline: titleBaselineY, snap: snap4, esc: escapeXml});
+  return badgeSvg({cx, cy, r: STEP_BADGE_R, w: 2 * STEP_BADGE_R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: 16, fill: PALETTE[day].accent, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), baseline: titleBaselineY, snap: snap4, esc: escapeXml});
 }
 
 // box({icon}): the icon's path scaled from its source viewBox to ICON_SIZE, at the box's top-left. Its colour is a text tone
@@ -111,7 +115,7 @@ function renderBoxIcon(band: LaidOutBox, day: Theme): string {
   const s = ICON_SIZE / vs;
   const x = band.x + (band.padX ?? BOX_PAD_X), y = band.y + (band.padY ?? BOX_PAD_Y);
   const n = (v: number) => +v.toFixed(4);
-  const color = band.dim ? PALETTE.muted : resolveTextColor(band.iconTone ?? 'text', day);
+  const color = band.dim ? PALETTE.muted : runColorOf(band.iconTone, band.tone, day);
   const a11y = band.title ? 'aria-hidden="true"' : `role="img" aria-label="${band.icon}"`;
   return `\n  <path d="${d}" transform="translate(${n(x - vx * s)} ${n(y - vy * s)}) scale(${n(s)})" fill="${color}" ${a11y} data-icon="${band.icon}"/>`;
 }
@@ -120,8 +124,8 @@ function renderCaption(band: LaidOutCaption, day: Theme): string {
   return renderTextRuns(band.wrappedRuns, {originX: band.x, originY: band.y, w: band.w, align: band.align ?? 'center', day, dim: band.dim});
 }
 
-type BoxLike = Rect & {tone?: BoxTone; dashed?: boolean; dim?: boolean};
-function renderBoxRect(band: BoxLike, day: Theme, defaultTone: BoxTone): string {
+type BoxLike = Rect & {tone?: EmphasisTone; dashed?: boolean; dim?: boolean};
+function renderBoxRect(band: BoxLike, day: Theme, defaultTone: EmphasisTone): string {
   const style = resolveBoxStyle(band.tone ?? defaultTone, day, band.dashed);
   if (band.dim) { style.fill = PALETTE.bg; style.stroke = PALETTE.muted; }
   const dash = style.dashed ? ' stroke-dasharray="6,4"' : band.dim ? ' stroke-dasharray="2,5" stroke-linecap="round"' : '';
@@ -133,13 +137,13 @@ function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, defaultAlig
   const align = band.align ?? defaultAlign;
   const px = band.padX ?? BOX_PAD_X, py = band.padY ?? BOX_PAD_Y;
   const originX = band.x + px;
-  return renderTextRuns(band.wrappedRuns, {originX, originY: band.y + py, w: band.w - 2 * px, align, day, dim: band.dim});
+  return renderTextRuns(band.wrappedRuns, {originX, originY: band.y + py, w: band.w - 2 * px, align, day, dim: band.dim, boxTone: band.tone});
 }
 
 function renderTag(band: LaidOutBox, day: Theme): string {
   const t = band.tagBox as Rect; // caller checked tagBox
   const fill = band.dim ? PALETTE.muted : colorOf(toneStyle(band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
-  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, size: TAG_SIZE, labelHtml: emojiSpan(band.tag as string)});
+  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: TAG_SIZE, labelHtml: emojiSpan(band.tag as string)});
 }
 
 // The stamp chip: bottom-right inside the shape (layout reserved the strip; rows may have stretched the shape since, so it follows the bottom edge).

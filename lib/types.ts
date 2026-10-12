@@ -45,6 +45,12 @@ export type FontWeight = 400 | 700;
 export type TextTone = 'text' | 'accent' | 'muted' | 'danger';
 /** Box fill/stroke tone (emit.ts resolveBoxStyle). 'plain' = white with a dark border (default for box). */
 export type BoxTone = 'plain' | 'accent' | 'new' | 'changed' | 'removed' | 'muted' | 'danger';
+/**
+ * What box() / banner() / stat() / a swimlane step / a legend item accept: BoxTone plus the filled 'solid' / 'solid-danger'
+ * (accent / danger fill, white text). group, table rows, sequence and swimlane lanes stay on BoxTone: their children / cells
+ * carry dark text that would sit on the fill.
+ */
+export type EmphasisTone = BoxTone | 'solid' | 'solid-danger';
 /** Tone of the little tag pill on a box ('accent' default). */
 export type TagTone = 'accent' | 'muted' | 'danger';
 export type LineStyle = 'solid' | 'dashed' | 'dotted' | 'double';
@@ -240,7 +246,7 @@ export type BoxLineIn = string | {text: RichText; role?: Role; bold?: boolean; m
 /** Fields shared by every box-like band (box, banner, swimlane step, row/grid child). */
 export interface BoxChrome extends RevealOpts {
   id?: string;
-  tone?: BoxTone;
+  tone?: EmphasisTone;
   /** Draw the boundary dashed (overrides the tone's default). */
   dashed?: boolean;
   align?: Align;
@@ -299,7 +305,8 @@ export interface BoxBand extends BoxStyleOpts {
 }
 
 export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col' | 'span'> {
-  tone?: TextTone;
+  /** The value's text colour; 'solid' / 'solid-danger' instead fill the whole box (white text) as in box({tone}). */
+  tone?: TextTone | 'solid' | 'solid-danger';
   size?: 'stat' | 'display';
 }
 
@@ -312,7 +319,7 @@ export interface BannerOpts extends BannerStyleOpts {
   headline: RichText;
   sub?: RichText;
 }
-export interface BannerBand extends BannerStyleOpts {type: 'banner'; tone: BoxTone; headline: string; sub?: string; /** Internal: see BoxBand. */ spans?: RichSpans}
+export interface BannerBand extends BannerStyleOpts {type: 'banner'; tone: EmphasisTone; headline: string; sub?: string; /** Internal: see BoxBand. */ spans?: RichSpans}
 
 // ============================================================================================
 // DSL input + band: group / legend / spacer / raw
@@ -379,7 +386,7 @@ export interface LegendItem {
   arrow?: Arrow;
   /** A thick line sample; needs `line` (legend() fills in 'solid'). */
   weight?: ArrowWeight;
-  tone?: BoxTone;
+  tone?: EmphasisTone;
   dashed?: boolean;
 }
 export interface LegendOpts {align?: 'left' | 'center'}

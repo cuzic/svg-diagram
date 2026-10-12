@@ -9,12 +9,12 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
-import {PALETTE, STRONG_STROKE, wcagRatio} from './tokens.ts';
+import {PALETTE, STRONG_STROKE, wcagRatio, runColorOf, toneStyle} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {budgetWarnings} from './budget.ts';
 import {dimmedBands} from './spotlight.ts';
 import type {
-  ArrowWeight, Band, BoxBand, BoxTone, DiagramData, Finding, LaidOutBand, LaidOutBox, LaidOutConnect, LegendBand, LegendItem,
+  ArrowWeight, Band, BoxBand, EmphasisTone, DiagramData, Finding, LaidOutBand, LaidOutBox, LaidOutConnect, LegendBand, LegendItem,
   LineStyle, Point, RuleId, SwimlaneBand, WfCallout,
 } from './types.ts';
 import type {LintTarget} from './types.ts';
@@ -53,8 +53,8 @@ export const RULE_DOCS = {
 export const DEFAULT_LEGEND_LABELS = {
   'line:solid': '実線', 'line:dashed': '破線', 'line:dotted': '点線', 'line:double': '二重線', 'arrow:both': '双方向', 'weight:strong': '強い流れ',
   'tone:new': '新規', 'tone:changed': '変更・改修', 'tone:removed': '対象外', 'tone:danger': '異常・注意',
-  'tone:muted': '補助・任意', 'tone:accent': '強調',
-} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<BoxTone, 'plain'>}`, string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
+  'tone:muted': '補助・任意', 'tone:accent': '強調', 'tone:solid': '主役', 'tone:solid-danger': '異常(強)',
+} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}`, string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
 
 // every band, including those nested in groups, rows, grids and swimlanes
 export function walkBands(bands: Band[], out: Band[] = []): Band[] {
@@ -100,23 +100,34 @@ export function legendKeys(bands: Band[]): Set<string> {
   return keys;
 }
 
+// The legend labels of a diagram: the defaults, with 'accent' read as the runner-up ('次点') once the diagram has a solid ('主役') box:
+// "主役 / 強調" would not say which is the upper step. An explicit legendLabels['tone:accent'] always wins.
+export function legendLabelsFor(used: ReadonlySet<string>, custom?: Partial<Record<string, string>>): Record<string, string> {
+  return {...DEFAULT_LEGEND_LABELS, ...(used.has('tone:solid') ? {'tone:accent': '次点'} : {}), ...(custom ?? {})} as Record<string, string>;
+}
+
 // diagram({legend: 'auto'}): add a legend entry for every notation used but not listed.
 export function applyAutoLegend(d: DiagramData): void {
   if (d.legend !== 'auto') return;
   const used = usedNotation(d.bands, dimmedBands(d)), have = legendKeys(d.bands);
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return;
-  const labels: Record<string, string> = {...DEFAULT_LEGEND_LABELS, ...(d.legendLabels ?? {})};
+  const labels = legendLabelsFor(used, d.legendLabels);
   // a tone whose boxes are ALL dashed gets a dashed swatch
   const boxes = walkBands(d.bands).filter((b): b is BoxBand => b.type === 'box');
   const allDashed = (tone: string) => { const bs = boxes.filter(b => b.tone === tone); return bs.length > 0 && bs.every(b => b.dashed); };
+  const labelOf = (k: string): string => {
+    const label = labels[k];
+    if (label === undefined) throw new Error(`diagram({legend: 'auto'}): no legend label for "${k}" — add it to legendLabels`);
+    return label;
+  };
   const items = missing.map((k): LegendItem => {
     const [kind, v] = k.split(':');
     // v comes from our own `tone:<tone>` / `line:<style>` keys (usedNotation), so the casts hold
-    if (kind === 'tone') return allDashed(v) ? {tone: v as BoxTone, dashed: true, label: labels[k]} : {tone: v as BoxTone, label: labels[k]};
-    if (kind === 'arrow') return {line: 'solid', arrow: 'both', label: labels[k]};
-    if (kind === 'weight') return {line: 'solid', weight: v as ArrowWeight, label: labels[k]};
-    return {line: v as LineStyle, label: labels[k]};
+    if (kind === 'tone') return allDashed(v) ? {tone: v as EmphasisTone, dashed: true, label: labelOf(k)} : {tone: v as EmphasisTone, label: labelOf(k)};
+    if (kind === 'arrow') return {line: 'solid', arrow: 'both', label: labelOf(k)};
+    if (kind === 'weight') return {line: 'solid', weight: v as ArrowWeight, label: labelOf(k)};
+    return {line: v as LineStyle, label: labelOf(k)};
   });
   const existing = d.bands.find((b): b is LegendBand => b.type === 'legend');
   if (existing) existing.items.push(...items);
@@ -140,7 +151,8 @@ function textContrast(d: LintTarget, out: Finding[]): void {
   for (const b of boxes) {
     if (b.type === 'box' || b.type === 'banner') {
       const bg = b.dim ? PALETTE.bg : resolveBoxStyle(b.tone ?? ((b.type as string) === 'banner' ? 'accent' : 'plain'), d.day) /* banner() always sets tone; the fallback is defensive */.fill;
-      for (const run of b.wrappedRuns ?? []) check(b.dim ? PALETTE.muted : resolveTextColor(run.tone, d.day), bg, `「${String(run.text).slice(0, 14)}」`);
+      const boxTone = b.tone ?? ((b.type as string) === 'banner' ? 'accent' : 'plain');
+      for (const run of b.wrappedRuns ?? []) check(b.dim ? PALETTE.muted : runColorOf(run.tone, boxTone, d.day), bg, `「${String(run.text).slice(0, 14)}」`);
       if (!b.dim) for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if (sp.tone) check(resolveTextColor(sp.tone, d.day), bg, `「${sp.text.slice(0, 14)}」`);
       if (b.tag) check(PALETTE.bg, b.tagTone === 'danger' ? PALETTE.danger : b.tagTone === 'muted' ? PALETTE.muted : PALETTE[d.day].accent, `タグ「${b.tag}」`);
     } else if (b.type === 'caption') {
@@ -171,12 +183,14 @@ function colourOnlyEmphasis(d: LintTarget, out: Finding[]): void {
 }
 
 function nonTextContrast(d: LintTarget, out: Finding[]): void {
-  const tones = new Set<BoxTone>();
+  const tones = new Set<EmphasisTone>();
   const dimmed = dimmedBands(d);
   for (const b of walkBands(d.bands)) if (b.type === 'box' && !dimmed.has(b)) tones.add(b.tone ?? 'plain');
   for (const t of tones) {
     const st = resolveBoxStyle(t, d.day);
-    const r = Math.min(wcagRatio(st.stroke, st.fill), wcagRatio(st.stroke, PALETTE.bg));
+    // a tone with no border of its own (solid) is drawn with its fill as the stroke: the fill against the page is what delimits it
+    const ts = toneStyle(t), own = typeof d.day === 'string' ? ts.stroke : ts.slideStroke ?? ts.stroke;
+    const r = own == null ? wcagRatio(st.fill, PALETTE.bg) : Math.min(wcagRatio(st.stroke, st.fill), wcagRatio(st.stroke, PALETTE.bg));
     if (r < 3) out.push({rule: 'a11y-nontext-contrast', severity: 'warn', message: `トーン「${t}」の枠線 ${st.stroke} が、背景に対して ${ratioText(r)}:1（3:1 以上が目安）。タグや文言など、色以外の手がかりを必ず併用する`});
   }
   for (const c of d.connects ?? []) {
@@ -193,7 +207,7 @@ function legendRules(d: LintTarget, out: Finding[]): void {
   const hasLegend = walkBands(d.bands).some(b => b.type === 'legend');
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return;
-  const names = missing.map(k => `${k}（例: ${(DEFAULT_LEGEND_LABELS as Record<string, string>)[k] ?? k}）`).join('、');
+  const labels = legendLabelsFor(used, d.legendLabels), names = missing.map(k => `${k}（例: ${labels[k] ?? k}）`).join('、');
   out.push({rule: hasLegend ? 'legend-incomplete' : 'legend-missing', severity: 'warn', message: `凡例にない記法: ${names}`});
 }
 
