@@ -85,3 +85,50 @@ test('stateDiagram() without labels or initial still lays out, and two opposite 
   assert.notDeepEqual(e1.points, [...e2.points].reverse());
   assert.equal(t.labels.length, 0);
 });
+
+// ---- review fixes ----
+const rectHit = (a: {x: number; y: number; w: number; h: number}, b: {x: number; y: number; w: number; h: number}): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+test('stateDiagram(): a label chip is drawn in the figure\'s own note size (slide canvas), and counts for the smallest text', async () => {
+  const {laidOut} = await checkDiagram(diagram({canvas: 'slide', theme: 'blue'}).add(stateDiagram([S('a'), S('b')], [{from: 'a', to: 'b', label: '開始する'}])));
+  const t = laidOut.laidOut.find(b => b.type === 'states') as LaidOutStates;
+  const note = laidOut.roles.note;
+  assert.ok(note > 14);
+  assert.equal(t.labels[0].size, note);
+  assert.equal(t.labels[0].h, note + 8);
+  const {svg} = await renderDiagram(diagram({canvas: 'slide', theme: 'blue'}).add(stateDiagram([S('a'), S('b')], [{from: 'a', to: 'b', label: '開始する'}])), {name: 's.svg', budget: 'cacheOnly'});
+  assert.match(svg, new RegExp(`font-size="${note}"[^>]*>開始する<`));
+});
+
+test('stateDiagram(): five arrows out of one state: no chip sits on another arrow, each chip is on its own', async () => {
+  const names = ['b', 'c', 'd', 'e', 'f'];
+  const {t, verdict} = await laid(stateDiagram([S('a'), ...names.map(n => S(n))], names.map(n => ({from: 'a', to: n, label: `ev${n}`}))));
+  assert.deepEqual(verdict.problems, []);
+  for (const l of t.labels) t.edges.forEach((e, k) => {
+    if (k === l.edge) return;
+    for (let m = 0; m + 1 < e.points.length; m++) {
+      const p = e.points[m], q = e.points[m + 1];
+      assert.ok(!rectHit(l, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}), `${l.text} sits on arrow ${e.from} -> ${e.to}`);
+    }
+  });
+});
+
+test('stateDiagram() dir down: a loop on the rightmost state, with a long label, fits the figure', async () => {
+  const {t, verdict} = await laid(stateDiagram([S('a'), S('b'), S('c'), S('d')], [{from: 'a', to: 'b'}, {from: 'a', to: 'c'}, {from: 'a', to: 'd'}, {from: 'd', to: 'd', label: 'リトライする'}], {dir: 'down'}));
+  assert.deepEqual(verdict.problems, []);
+  assert.ok(t.labels[0].x + t.labels[0].w <= t.x + t.w);
+});
+
+test('stateDiagram() dir right: a loop does not touch the state above it', async () => {
+  const {t} = await laid(stateDiagram([S('a'), S('b'), S('c'), S('c2')], [{from: 'a', to: 'b'}, {from: 'a', to: 'c'}, {from: 'a', to: 'c2'}, {from: 'c', to: 'c', label: 'x'}]));
+  const loop = t.edges.find(e => e.from === 'c' && e.to === 'c')!;
+  const top = Math.min(...loop.points.map(p => p.y));
+  for (const n of t.anchors) if (n.id !== 'c') assert.ok(!(n.y + n.h > top - 6 && n.y + n.h <= t.anchors.find(a => a.id === 'c')!.y), `${n.id} sits right above the loop of c`);
+});
+
+test('stateDiagram(): nodes appear with the figure (reveal) and a node id cannot be spotlighted', async () => {
+  const sd = stateDiagram([S('a'), S('b')], [{from: 'a', to: 'b'}], {reveal: 2});
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(sd, box({id: 'ext', title: '外部', reveal: 2}), connect('a', 'ext', {route: 'elbow'})));
+  assert.equal(laidOut.connects[0].reveal, 2);
+  await assert.rejects(() => checkDiagram(diagram({theme: 'blue', spotlight: 'a'}).add(stateDiagram([S('a'), S('b')], []))), /node inside a figure/);
+});

@@ -87,7 +87,7 @@ export function layoutBalanced(root: TreeNode, opts: Omit<TreeOpts, 'dir'> & {si
   const side: ('left' | 'right')[] = kids.map(k => opts.sides?.[k.id] ?? 'right');
   const load = {left: 0, right: 0};
   kids.forEach((k, i) => { if (opts.sides?.[k.id]) load[side[i]] += heights[i]; });
-  // unpinned children: the first half of what is left goes right, so reading order runs down the right side then up the left
+  // unpinned children: in the order written, the first half of what is left (by height) goes right, the rest left; each side reads top to bottom
   const free = kids.map((_, i) => i).filter(i => !opts.sides?.[kids[i].id]);
   const freeTotal = free.reduce((s, i) => s + heights[i], 0);
   let acc = 0;
@@ -177,7 +177,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
   for (const d of dag) preds.get(d.b)!.push(d.a);
   const depth = (u: string, trail: Set<string>): number => {
     if (layer.has(u)) return layer.get(u)!;
-    if (starts.includes(u)) { layer.set(u, 0); return 0; }
+    if (starts.includes(u) && !preds.get(u)!.length) { layer.set(u, 0); return 0; } // a start with an edge into it is placed by that edge
     if (trail.has(u)) return 0;
     trail.add(u);
     const l = preds.get(u)!.reduce((m, p) => Math.max(m, depth(p, trail) + 1), 0);
@@ -197,9 +197,9 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
   dag.forEach((d, i) => {
     const la = layer.get(d.a)!, lb = layer.get(d.b)!;
     const chain = [d.a];
-    // an edge whose ends sit on one layer (a reversed edge can) is bent over a dummy on the next layer so it has a path
+    // longest-path layering puts the head of every edge below its tail, so ends on one layer cannot happen; kept straight if it ever does
     const to = d.b, step = lb >= la ? 1 : -1;
-    if (la === lb) { /* same layer: drawn straight between the two */ chain.push(d.b); chains.push({e: d.e, index: d.index, ids: chain, rev: d.rev}); return; }
+    if (la === lb) { chain.push(d.b); chains.push({e: d.e, index: d.index, ids: chain, rev: d.rev}); return; }
     for (let l = la + step; l !== lb; l += step) {
       const id = `\u0000d${i}.${l}`;
       slots.set(id, {id, real: false, size: {w: 1, h: 1}, layer: l});
