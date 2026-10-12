@@ -261,8 +261,22 @@ function checkCause(d: LaidOutDiagram): string[] {
         const b = band.ands[j];
         if (b.to !== a.to) continue;
         const [v0, v1] = [span(b.p0), span(b.p1)].sort((p, q) => p - q);
-        if (Math.min(u1, v1) - Math.max(u0, v0) > -6) problems.push(`cause: two AND arcs into "${a.to}" touch (they read as one AND; give them more room)`);
+        if (Math.min(u1, v1) - Math.max(u0, v0) > -8) problems.push(`cause: two AND arcs into "${a.to}" touch (they read as one AND; give them more room)`);
       }
+    }
+    // two arrows must not cross: near an AND arc a crossing makes it unclear which arrow belongs to which group
+    const segs = band.edges.flatMap((e, k) => e.points.slice(1).map((q, m) => ({k, p: e.points[m], q})));
+    const cross = (a: typeof segs[number], b: typeof segs[number]): boolean => {
+      const aH = a.p.y === a.q.y, bH = b.p.y === b.q.y;
+      if (aH === bH) return false;
+      const h = aH ? a : b, v = aH ? b : a;
+      return v.p.x > Math.min(h.p.x, h.q.x) + 1 && v.p.x < Math.max(h.p.x, h.q.x) - 1 && h.p.y > Math.min(v.p.y, v.q.y) + 1 && h.p.y < Math.max(v.p.y, v.q.y) - 1;
+    };
+    const crossed = new Set<string>();
+    for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
+      if (segs[i].k === segs[j].k || !cross(segs[i], segs[j])) continue;
+      const a = band.edges[segs[i].k], b = band.edges[segs[j].k], key = `${Math.min(segs[i].k, segs[j].k)}:${Math.max(segs[i].k, segs[j].k)}`;
+      if (!crossed.has(key)) { crossed.add(key); problems.push(`cause: arrow ${a.from} -> ${a.to} crosses arrow ${b.from} -> ${b.to} (reorder the nodes, or change dir)`); }
     }
     for (const to of band.loose) problems.push(`cause: the arrows into "${to}" do not reach it on one side, so their AND arc is not drawn (an arrow of a cycle arrives from the other side: break the cycle, or split the AND)`);
   }
@@ -277,7 +291,8 @@ function checkCloud(d: LaidOutDiagram): string[] {
     for (const [i, c] of band.chips.entries()) {
       if (c.x < band.x - 0.5 || c.x + c.w > band.x + band.w + 0.5) problems.push(`cloud: the number "${c.text}" on the ${c.arrow} arrow runs outside the figure`);
       for (const n of band.nodes) if (rectOverlap(c, n)) problems.push(`cloud: the number "${c.text}" on the ${c.arrow} arrow overlaps box ${n.key.toUpperCase()} (fewer assumptions on one arrow, or a wider figure)`);
-      for (let j = i + 1; j < band.chips.length; j++) if (rectOverlap(c, band.chips[j])) problems.push(`cloud: the numbers on the ${c.arrow} and ${band.chips[j].arrow} arrows overlap`);
+      for (const e of band.edges) if (e.arrow !== c.arrow && e.points.slice(1).some((q, m) => { const p = e.points[m]; return rectOverlap(c, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}); })) problems.push(`cloud: ${c.conflict ? 'the conflict label' : `the number "${c.text}"`} sits on the ${e.arrow} arrow (shorten it)`);
+      for (let j = i + 1; j < band.chips.length; j++) if (rectOverlap(c, band.chips[j])) problems.push(`cloud: ${c.conflict || band.chips[j].conflict ? 'the conflict label and the numbers' : `the numbers on the ${c.arrow} and ${band.chips[j].arrow} arrows`} overlap`);
     }
   }
   return problems;

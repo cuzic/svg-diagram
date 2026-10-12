@@ -73,8 +73,11 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
   for (const en of ends) byKey.set(en.key, [...(byKey.get(en.key) ?? []), en]);
   for (const list of byKey.values()) {
     // the arrows of one group (an AND) arrive side by side: they sort by where the group as a whole comes from, then among themselves
-    const mean = new Map<number, number>();
-    if (groupOf) for (const en of list) { const g = en.end === 1 ? groupOf(en.edge) : undefined; if (g !== undefined) mean.set(g, (mean.get(g) ?? 0) + en.other / list.filter(o => o.end === 1 && groupOf(o.edge) === g).length); }
+    const mean = new Map<number, number>(), count = new Map<number, number>();
+    if (groupOf) {
+      for (const en of list) { const g = en.end === 1 ? groupOf(en.edge) : undefined; if (g !== undefined) { mean.set(g, (mean.get(g) ?? 0) + en.other); count.set(g, (count.get(g) ?? 0) + 1); } }
+      for (const [g, n] of count) mean.set(g, mean.get(g)! / n);
+    }
     const key = (en: typeof list[number]): number => (en.end === 1 && groupOf && groupOf(en.edge) !== undefined ? mean.get(groupOf(en.edge)!)! : en.other);
     list.sort((p, q) => key(p) - key(q) || (p.end === 1 && groupOf ? (groupOf(p.edge) ?? -1) - (groupOf(q.edge) ?? -1) : 0) || p.other - q.other || p.edge - q.edge);
     list.forEach((en, k) => {

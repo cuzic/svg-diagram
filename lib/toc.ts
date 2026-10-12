@@ -72,6 +72,10 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   }
 
   const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles)]));
+  // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
+  const order: string[] = [], put = (id: string): void => { if (!order.includes(id)) order.push(id); };
+  for (const n of band.nodes) { put(n.id); for (const g of groups) if (g.arrows.some(k => arrows[k].from === n.id)) g.arrows.forEach(k => put(arrows[k].from)); }
+  const ranked = order.map(id => band.nodes.find(n => n.id === id)!);
   // the most arrows that meet one node (each needs its own lane in the gap beside it)
   const degreeOf = (id: string): number => Math.max(arrows.filter(a => a.from === id).length, arrows.filter(a => a.to === id).length);
   const degree = Math.max(1, ...band.nodes.map(n => degreeOf(n.id)));
@@ -80,7 +84,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     const l = lines.get(n.id)!, need = 12 + (degreeOf(n.id) - 1) * PORT;
     return [n.id, vertical ? {w: Math.max(l.w, need), h: l.h} : {w: l.w, h: Math.max(l.h, need)}];
   }));
-  const nodes = band.nodes.map(n => ({id: n.id, size: vertical ? {w: real.get(n.id)!.h, h: real.get(n.id)!.w} : real.get(n.id)!}));
+  const nodes = ranked.map(n => ({id: n.id, size: vertical ? {w: real.get(n.id)!.h, h: real.get(n.id)!.w} : real.get(n.id)!}));
   // layered layout runs on a 'right' axis; a vertical figure is the same layout transposed, an upward / leftward one mirrored
   const lay = layoutWithLanes(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree))});
   const total = {w: vertical ? lay.h : lay.w, h: vertical ? lay.w : lay.h};
@@ -130,7 +134,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     const us = ends.map(e => cross(e.tip)), tip = ends[0].tip;
     // the arc ends short of the nearest other arrow into this effect (another AND's arc, or an arrow of its own), so two arcs never touch
     const others = out.edges.filter((e, k) => e.to === g.to && !g.arrows.some(a => drawn.get(a) === k)).map(e => cross(e.points[e.points.length - 1]));
-    const reachTo = (u: number, sign: 1 | -1): number => Math.min(AND_REACH, ...others.filter(o => (o - u) * sign > 0).map(o => Math.abs(o - u) / 2 - 3));
+    const reachTo = (u: number, sign: 1 | -1): number => Math.min(AND_REACH, ...others.filter(o => (o - u) * sign > 0).map(o => Math.abs(o - u) / 2 - 5));
     const lo = Math.min(...us) - reachTo(Math.min(...us), -1), hi = Math.max(...us) + reachTo(Math.max(...us), 1);
     const at = (u: number, dist: number): Pt => d.x ? {x: tip.x - d.x * dist, y: u} : {x: u, y: tip.y - d.y * dist};
     out.ands.push({to: g.to, from: g.arrows.map(k => arrows[k].from), p0: at(lo, AND_END), c: at((lo + hi) / 2, 2 * AND_PEAK - AND_END), p1: at(hi, AND_END)});
@@ -224,11 +228,14 @@ export function layoutCloudBand(band: CloudBand, x: number, y: number, w: number
     const text = num.chip[arrow];
     if (!text) continue;
     // beside the zigzag: to its right, or to its left when the right would leave the figure
-    if (arrow === 'dd') { const cw = widthOfChip(text), right = cx + 22 + cw / 2; chip(arrow, text, right + cw / 2 > x + w ? cx - 22 - cw / 2 : right, chipAt.dd.y); }
-    else chip(arrow, text, chipAt[arrow].x, chipAt[arrow].y);
+    if (arrow === 'dd') {
+      const cw = widthOfChip(text), right = cx + 22 + cw / 2, left = right + cw / 2 > x + w;
+      // a conflict label also sits on the left: the two chips stack (the label above, the numbers below)
+      chip(arrow, text, left ? cx - 22 - cw / 2 : right, chipAt.dd.y + (left && band.conflictLabel ? chipH / 2 + 2 : 0));
+    } else chip(arrow, text, chipAt[arrow].x, chipAt[arrow].y);
   }
-  // the word on the conflict: a chip left of the zigzag, so verify keeps it clear of the boxes and the other chips
-  if (band.conflictLabel) { const cw = widthOfChip(band.conflictLabel); chip('dd', band.conflictLabel, cx - 22 - cw / 2, chipAt.dd.y, true); }
+  // the word on the conflict: a chip left of the zigzag, so verify keeps it clear of the boxes, the arrows and the other chips
+  if (band.conflictLabel) { const cw = widthOfChip(band.conflictLabel); chip('dd', band.conflictLabel, cx - 22 - cw / 2, chipAt.dd.y - (num.chip.dd && cx + 22 + widthOfChip(num.chip.dd) > x + w ? chipH / 2 + 2 : 0), true); }
 
   // the list: each assumption by its number, its injection under it
   const list = band.assumptions ?? [];

@@ -273,3 +273,33 @@ test('cloud() L4: a null box is "missing", and the list lines up with the figure
   const left = Math.min(...t.nodes.map(n => n.x));
   assert.ok(t.texts.filter(x => /^\d\.$/.test(x.text)).every(x => x.x === left));
 });
+
+// ---- review fixes, round 2 ----
+test('causeTree() N1: causes of an AND stay neighbours, so an OR arrow does not cross them (also interleaved ANDs)', async () => {
+  for (const dir of ['up', 'down', 'right', 'left'] as const) {
+    const a = await laidCause(causeTree([N('a'), N('b'), N('c'), N('z')], [{from: ['a', 'c'], to: 'z'}, {from: 'b', to: 'z'}], {dir}));
+    assert.deepEqual(a.verdict.problems, [], dir);
+    const b = await laidCause(causeTree([N('a'), N('b'), N('c'), N('d'), N('z')], [{from: ['a', 'c'], to: 'z'}, {from: ['b', 'd'], to: 'z'}], {dir}));
+    assert.deepEqual(b.verdict.problems, [], dir);
+    assert.equal(b.t.ands.length, 2, dir);
+  }
+});
+
+test('causeTree() N1: verify reports two arrows that cross', async () => {
+  // K2,2 between two layers cannot be drawn without a crossing
+  const {verdict} = await laidCause(causeTree([N('a'), N('b'), N('x'), N('y')], [{from: 'a', to: 'x'}, {from: 'a', to: 'y'}, {from: 'b', to: 'x'}, {from: 'b', to: 'y'}]));
+  assert.ok(verdict.problems.some(p => p.includes('crosses arrow')), JSON.stringify(verdict.problems));
+});
+
+test('causeTree() N5: a back edge into an effect that has an AND still lays out, and the AND arc stays on its own arrows', async () => {
+  const {t} = await laidCause(causeTree([N('a'), N('b'), N('z'), N('w')], [{from: ['a', 'b'], to: 'z'}, {from: 'z', to: 'w'}, {from: 'w', to: 'z'}]));
+  assert.equal(t.edges.length, 4);
+  for (const arc of t.ands) assert.deepEqual([...arc.from].sort(), ['a', 'b']);
+});
+
+test('cloud() N2/N4: a long conflict label is reported when it sits on an arrow; a label and numbers on the left stack', async () => {
+  const long = await laidCloud(assumed({conflictLabel: '両立しない、どちらかしか選べない対立関係にある要望同士の衝突、どうしても譲れない'}));
+  assert.ok(long.verdict.problems.some(p => /conflict label/.test(p)), JSON.stringify(long.verdict.problems));
+  const narrow = await checkDiagram(diagram({theme: 'blue', width: 640} as never).add(cloud(FIVE, {conflictLabel: '対立', assumptions: [{on: 'dd', text: 'a'}, {on: 'dd', text: 'b'}, {on: 'dd', text: 'c'}, {on: 'dd', text: 'd'}]})));
+  assert.deepEqual(narrow.verdict.problems, []);
+});
