@@ -8,11 +8,14 @@
 import {PALETTE, FONT_STACKS, ROLES, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle} from './tokens.ts';
 import {textBox} from './font-metrics.ts';
 import {emitSvg, resolveBoxStyle} from './emit.ts';
+import {shapesToCss} from './svg-to-css.ts';
 import {visibleAt} from './reveal.ts';
 import {BOX_PAD_X, BOX_PAD_Y} from './layout.ts';
 import type {LaidOutTable, LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutBanner, LaidOutCaption, LaidOutGroup, WrappedRun, Theme, Align, EmphasisTone, Rect, Span} from './types.ts';
 
-const esc = (s: string): string => s.replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c] as string);
+// like SVG text, runs of white space are one space
+const collapse = (s: string): string => s.replace(/\s+/g, ' ');
+const esc = (s: string): string => collapse(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c] as string);
 const px = (n: number): string => `${+n.toFixed(2)}px`;
 // emit.ts snaps shapes (not text) to a 4px grid; the same here, so a box sits where its SVG twin does
 const snap4 = (n: number): number => Math.round(n / 4) * 4;
@@ -46,7 +49,7 @@ function textRuns(runs: WrappedRun[], o: {originX: number; originY: number; w: n
     const {ascent, descent} = metrics(run.size, run.weight, run.mono);
     run.lines.forEach((line, i) => {
       const top = o.originY + run.lineYs[i] - ascent;
-      const content = run.lineSpans ? spans(run.lineSpans[i], run, color, o.day, o.dim) : esc(line);
+      const content = run.lineSpans ? spans(run.lineSpans[i], run, color, o.day, o.dim) : esc(line).trim();
       out.push(`<div class="sd-t${run.mono ? ' sd-m' : ''}" style="left:${px(o.originX + indent)};top:${px(top)};width:${px(o.w - indent)};text-align:${o.align};font-size:${run.size}px;font-weight:${run.weight};line-height:${ascent + descent}px;color:${color}">${content}</div>`);
     });
   }
@@ -159,7 +162,8 @@ function textsToHtml(svg: string): {svg: string; html: string} {
     const size = Number(attrOf(attrs, 'font-size') ?? 16), weight = Number(attrOf(attrs, 'font-weight') ?? 400);
     const mono = attrOf(attrs, 'class') === 'mono', anchor = attrOf(attrs, 'text-anchor');
     const {ascent, descent} = metrics(size, weight, mono);
-    const content = inner
+    // SVG collapses runs of white space (and the line break after a tag); white-space: pre would keep them
+    const content = inner.replace(/\s+/g, ' ')
       .replace(/<tspan class="emoji">/g, '<span class="sd-e">')
       .replace(/<tspan font-weight="(\d+)"(?: fill="([^"]+)")?>/g, (_t, w: string, f?: string) => `<span style="font-weight:${w}${f ? `;color:${f}` : ''}">`)
       .replace(/<tspan fill="([^"]+)">/g, (_t, f: string) => `<span style="color:${f}">`)
@@ -180,6 +184,8 @@ const CSS = (id: string) => `
 #${id} .sd-tbl table { border-collapse: collapse; table-layout: fixed; }
 #${id} .sd-tbl th, #${id} .sd-tbl td { position: relative; padding: 0; margin: 0; font-weight: 400; text-align: left; vertical-align: top; }
 #${id} .sd-tb { position: absolute; border-radius: 8px 8px 0 0; }
+#${id} .sd-s { position: absolute; box-sizing: border-box; }
+#${id} .sd-g { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; }
 #${id} .sd-ov { position: absolute; left: 0; top: 0; pointer-events: none; }
 #${id} .sd-am { transform: translateX(-50%); }
 #${id} .sd-ae { transform: translateX(-100%); }
@@ -207,7 +213,7 @@ export function emitHtml(d: LaidOutDiagram, opts: {reveal?: number; id?: string}
   let overlay = '', words = '';
   if (rest.length || d.connects.length) {
     const t = textsToHtml(strip(emitSvg({...d, laidOut: rest}, {reveal: opts.reveal}), 'sd-ov'));
-    overlay = t.svg; words = t.html;
+    overlay = shapesToCss(t.svg, 'sd-ov'); words = t.html;
   }
   if (raws.length) overlay += strip(emitSvg({...d, laidOut: raws, connects: []}, {reveal: opts.reveal}), 'sd-ov sd-raw');
   return `<style>${CSS(id)}\n</style>\n<div id="${id}" class="sd" style="width:${px(width)};height:${px(canvasHeight)}">${html}${overlay}${words}</div>\n`;

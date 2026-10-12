@@ -19,14 +19,13 @@ test('renderDiagram builds html only when asked', async () => {
   assert.equal(typeof (await make(true)).html, 'string');
 });
 
-test('boxes and text are HTML elements; connectors stay in an inline SVG overlay', async () => {
+test('boxes, text and connectors are HTML elements', async () => {
   const {html} = await make();
   assert.match(html!, /<div class="sd-b" /);
   assert.match(html!, /class="sd-t"[^>]*>許可</);
-  assert.match(html!, /<svg class="sd-ov" /);
-  assert.match(html!, /marker-end="url\(#dsl-arrow\)"/);
-  // the overlay brings no white background of its own, nor the SVG <style>/<metadata>
-  assert.doesNotMatch(html!, /<svg[^>]*>[\s\S]*<rect x="0" y="0"/);
+  // the connector and its arrowhead are CSS boxes clipped to a polygon, not SVG
+  assert.doesNotMatch(html!, /<svg|<path|marker-end/);
+  assert.match(html!, /<div class="sd-s" style="[^"]*clip-path:polygon\(nonzero,/);
   // text is escaped, and drawn once (HTML), not also as SVG <text>
   assert.match(html!, /見出し &lt;ok&gt; &amp; more/);
   assert.doesNotMatch(html!, /<text[^>]*>許可/);
@@ -58,7 +57,6 @@ test('every other part keeps its shapes in SVG but its words are HTML (no <text>
   assert.doesNotMatch(html!, /<text/);
   assert.match(html!, /class="sd-t sd-am"[^>]*>ラベル</, 'a centred label is HTML, shifted by CSS');
   assert.match(html!, /<span class="sd-e">🙂<\/span>/);
-  assert.match(html!, /<svg class="sd-ov"/);
 });
 
 test('raw() stays the author\'s SVG, text included', async () => {
@@ -66,4 +64,32 @@ test('raw() stays the author\'s SVG, text included', async () => {
   d.add(raw({h: 60, draw: ({x, y}: {x: number; y: number}) => `<text x="${x + 10}" y="${y + 30}" font-size="16" fill="#22201b">生の文字</text>`}));
   const {html} = await renderDiagram(d, {name: 't.svg', budget: 'cacheOnly', html: true});
   assert.match(html!, /<text[^>]*>生の文字<\/text>/);
+});
+
+import {parsePath, shapesToCss} from '../lib/svg-to-css.ts';
+
+test('parsePath flattens curves and arcs, reads relative and shorthand commands', () => {
+  const [c] = parsePath('M0,0 C10,0 20,10 20,20')!;
+  assert.ok(c.pts.length > 4);
+  assert.deepEqual(c.pts[c.pts.length - 1], {x: 20, y: 20});
+  const [a] = parsePath('M10,0 A10,10 0 0 1 0,10')!;
+  assert.ok(a.pts.every(p => Math.abs(Math.hypot(p.x, p.y) - 10) < 0.01));
+  assert.deepEqual(a.pts[a.pts.length - 1], {x: 0, y: 10});
+  const [r] = parsePath('m1,1 h2 v2 h-2 z')!;
+  assert.deepEqual(r.pts, [{x: 1, y: 1}, {x: 3, y: 1}, {x: 3, y: 3}, {x: 1, y: 3}]);
+  assert.equal(r.closed, true);
+  assert.equal(parsePath('M0,0 X1,1'), null);
+});
+
+test('shapes CSS can draw become boxes; what it cannot (a filter, a gradient) stays an inline SVG in order', () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">'
+    + '<rect x="4" y="4" width="40" height="20" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>'
+    + '<path d="M0,40 L50,40" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>'
+    + '<rect x="0" y="0" width="5" height="5" fill="url(#g)"/>'
+    + '</svg>';
+  const html = shapesToCss(svg, 'sd-ov');
+  assert.match(html, /^<div class="sd-s"[^>]*box-shadow:inset 0 0 0 2.5px #22201b/);
+  assert.equal((html.match(/clip-path:polygon/g) ?? []).length, 5, 'a 50px dashed line is 5 dashes');
+  assert.match(html, /<svg class="sd-ov"[^>]*><rect[^>]*url\(#g\)/);
+  assert.ok(html.indexOf('<svg') > html.lastIndexOf('clip-path'), 'paint order is kept');
 });
