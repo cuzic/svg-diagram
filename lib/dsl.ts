@@ -28,7 +28,7 @@ import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
 import {SLIDE_CANVAS, canvasFontScale, canvasRoles, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
-  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -939,6 +939,25 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
   walk(root);
   const band: TreeBand = {type: 'tree', root, ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), ids);
+}
+
+type StateIds<S extends readonly StateItem[]> = Extract<S[number]['id'], string>;
+
+/**
+ * A state diagram: states (boxes) and transitions (arrows) that place themselves in layers, flowing left to right
+ * (dir: 'down' for top to bottom). A transition that goes back, skips a state or loops on itself is routed around the others.
+ *   stateDiagram([{id: 'idle', label: '待機'}, {id: 'run', label: '実行中'}, {id: 'done', label: '完了', final: true}],
+ *                [{from: 'idle', to: 'run', label: '開始'}, {from: 'run', to: 'idle', label: '中止'}, {from: 'run', to: 'done'}], {initial: 'idle'})
+ */
+export function stateDiagram<const S extends readonly StateItem[], const Id extends string = never>(states: S, transitions: readonly Transition[], opts?: StatesOpts & {id?: Id}): StatesBand & Declares<Id | StateIds<S>> & HandleOf<Id> & AnchorsOf<StateIds<S>>;
+export function stateDiagram(states: readonly StateItem[], transitions: readonly Transition[], opts: StatesOpts = {}): StatesBand {
+  if (!Array.isArray(states) || states.length === 0) throw new Error('stateDiagram(states, transitions) needs at least one state');
+  if (opts.dir !== undefined && opts.dir !== 'right' && opts.dir !== 'down') throw new Error(`stateDiagram(): dir must be 'right' or 'down' (got ${String(opts.dir)})`);
+  if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`stateDiagram(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
+  for (const t of transitions) if (t.line !== undefined && !['solid', 'dashed', 'dotted'].includes(t.line)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} has line ${String(t.line)}`);
+  for (const s of states) if (s.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(s.tone)) throw new Error(`stateDiagram(): state "${s.id}" has tone ${String(s.tone)}`);
+  const band: StatesBand = {type: 'states', states: [...states], transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  return withAnchors(withHandle(band, opts.id), states.map(s => s.id));
 }
 
 /**

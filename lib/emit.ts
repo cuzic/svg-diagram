@@ -10,7 +10,7 @@ import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRON
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
-  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutImage, LaidOutTimeline, LaidOutTree, LaidOutPeople, LaidOutDots, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
+  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutImage, LaidOutTimeline, LaidOutTree, LaidOutStates, LaidOutPeople, LaidOutDots, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
   LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, EmphasisTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
   LaidOutWireframe, LaidOutScreens, RawColorTone, Span, Roles,
 } from './types.ts';
@@ -463,6 +463,36 @@ function renderTree(b: LaidOutTree, day: Theme): string {
   return out.join('\n  ');
 }
 
+function renderStates(b: LaidOutStates, day: Theme): string {
+  const out: string[] = [];
+  const stroke = b.dim ? PALETTE.muted : PALETTE.text;
+  // arrowheads are drawn as shapes, not markers: a marker on a leftward end is not turned by every renderer (resvg leaves it pointing right)
+  for (const e of b.edges) {
+    const pts = e.points.slice(), n = pts.length, tip = pts[n - 1], prev = pts[n - 2];
+    const dx = Math.sign(tip.x - prev.x), dy = Math.sign(tip.y - prev.y), L = 12, W = 5;
+    pts[n - 1] = {x: tip.x - dx * (L - 2), y: tip.y - dy * (L - 2)}; // the line stops inside the head
+    const head = `M${snap4(tip.x)},${snap4(tip.y)} L${snap4(tip.x - dx * L - dy * W)},${snap4(tip.y - dy * L + dx * W)} L${snap4(tip.x - dx * L + dy * W)},${snap4(tip.y - dy * L - dx * W)} z`;
+    out.push(`<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${stroke}" stroke-width="2"${lineAttrs(e.line === 'solid' ? undefined : e.line)}/>\n  <path d="${head}" fill="${stroke}"/>`);
+  }
+  if (b.initial) out.push(`<circle cx="${snap4(b.initial.x)}" cy="${snap4(b.initial.y)}" r="${b.initial.r}" fill="${stroke}"/>`);
+  for (const n of b.nodes) {
+    out.push(renderBoxRect({...n, dim: b.dim}, day, 'plain'));
+    if (n.final) out.push(renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, 'plain').replace('rx="8"', 'rx="5"'));
+  }
+  const ink = (t: LaidOutStates['texts'][number]): string => {
+    if (b.dim) return PALETTE.muted;
+    const n = b.nodes.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
+    if (t.muted) return n && toneStyle(n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted; // muted on a soft fill is 4.48:1, under 4.5
+    return colorOf(toneStyle(n?.tone).text, day);
+  };
+  for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}" text-anchor="middle" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t)}">${emojiSpan(t.text)}</text>`);
+  for (const l of b.labels) {
+    out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${PALETTE.bg}"/>`);
+    out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty)}" text-anchor="middle" font-size="${l.size}" fill="${stroke}">${emojiSpan(l.text)}</text>`);
+  }
+  return out.join('\n  ');
+}
+
 function renderRaw(band: LaidOutRaw, day: Theme): string {
   const ctx = {
     x: band.x, y: band.y, w: band.w, h: band.h, day,
@@ -654,12 +684,13 @@ function renderBandPlain(band: LaidOutBand, day: Theme, roles: Roles, stage?: nu
     case 'dots': return renderDots(band, day);
     case 'timeline': return renderTimeline(band, day);
     case 'tree': return renderTree(band, day);
+    case 'states': return renderStates(band, day);
     default: return '';
   }
 }
 
 // bands that draw their own dim state (spotlight) instead of having it painted over their svg
-const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars', 'timeline', 'tree', 'image']);
+const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars', 'timeline', 'tree', 'states', 'image']);
 
 function renderBand(band: LaidOutBand, day: Theme, roles: Roles, stage?: number, dimFill = false): string {
   const svg = renderBandPlain(band, day, roles, stage, dimFill);

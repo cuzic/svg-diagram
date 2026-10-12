@@ -60,6 +60,8 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
       rects.push({id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id), ...(band.backdrop ? {backdrop: true} : {})});
     } else if (band.type === 'bars') {
       for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})});
+    } else if (band.type === 'states') { // each state is its own rect: a connector from outside must not run through one
+      for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'tree') { // each node is its own rect: a connector from outside must not run through one
       // `holds`: a connector that ends on the whole figure (its id) may run among its nodes
       for (const [i, n] of band.nodes.entries()) rects.push({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h, ...(band.id ? {holds: [band.id]} : {})});
@@ -88,6 +90,38 @@ function checkTimelines(d: LaidOutDiagram): string[] {
       for (let j = i + 1; j < band.labelBoxes.length; j++) {
         const o = rectOverlap(b, band.labelBoxes[j]);
         if (o) problems.push(`timeline: label "${b.label}" overlaps label "${band.labelBoxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
+      }
+    }
+  }
+  return problems;
+}
+
+// A transition must not run through a state it does not touch; its label chip must stay inside the figure and clear of states and other chips.
+function checkStates(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  for (const band of d.laidOut) {
+    if (band.type !== 'states') continue;
+    for (const e of band.edges) {
+      for (const n of band.anchors) {
+        if (n.id === e.from || n.id === e.to) continue;
+        for (let i = 0; i + 1 < e.points.length; i++) {
+          const p = e.points[i], q = e.points[i + 1];
+          if (rectOverlap({x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}, n)) {
+            problems.push(`states: transition ${e.from} -> ${e.to} runs through state "${n.id}" (reorder the states, or change dir)`);
+            i = e.points.length;
+          }
+        }
+      }
+    }
+    for (const [i, l] of band.labels.entries()) {
+      if (l.x < band.x - 0.5 || l.x + l.w > band.x + band.w + 0.5) problems.push(`states: label "${l.text}" runs outside the figure (shorten it or widen the figure)`);
+      for (const n of band.anchors) if (rectOverlap(l, n)) problems.push(`states: label "${l.text}" overlaps state "${n.id}" (shorten the label)`);
+      band.edges.forEach((e, k) => { // the chip is white: on another arrow it would cut it
+        if (k !== l.edge && e.points.slice(1).some((q, m) => { const p = e.points[m]; return rectOverlap(l, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}); })) problems.push(`states: label "${l.text}" sits on the arrow ${e.from} -> ${e.to} (it belongs to another arrow)`);
+      });
+      for (let j = i + 1; j < band.labels.length; j++) {
+        const o = rectOverlap(l, band.labels[j]);
+        if (o) problems.push(`states: label "${l.text}" overlaps label "${band.labels[j].text}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
       }
     }
   }
@@ -276,6 +310,7 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
     ...checkBars(d),
     ...checkImages(d),
     ...checkTimelines(d),
+    ...checkStates(d),
     ...checkNoWrap(d),
     ...checkBounds(d, rects),
     ...checkContrast(d),
