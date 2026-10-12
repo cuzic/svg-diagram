@@ -113,6 +113,9 @@ export function configureMeasure(cfg: Pick<Config, 'measure' | 'fonts'>): void {
   fontSpecs = cfg.fonts;
 }
 
+/** The font files the project names for measuring (`fonts` of .svg-diagram.json), if any. */
+export const currentFontSpecs = (): FontSpecs | undefined => fontSpecs;
+
 /** Which engine measures now, and whether the person chose it (`measure` / SVG_DIAGRAM_MEASURE) rather than it being the default. */
 export function currentMeasure(): {backend: 'chromium' | 'font'; explicit: boolean} {
   if (!backend) configureMeasure(loadConfig());

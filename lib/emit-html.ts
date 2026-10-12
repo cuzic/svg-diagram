@@ -6,15 +6,17 @@
 // with white-space: pre — the browser never re-wraps it. A line's top is its baseline minus the font's ascent (its line-height is
 // ascent + descent), which is how the baseline lands where the <text> of the SVG puts it.
 import {PALETTE, FONT_STACKS, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle, recolor} from './tokens.ts';
+import {createHash} from 'node:crypto';
 import {textBox} from './font-metrics.ts';
+import {currentFontSpecs} from './measure.ts';
 import {emitSvg, resolveBoxStyle} from './emit.ts';
 import {shapesToCss} from './svg-to-css.ts';
 import {visibleAt} from './reveal.ts';
 import {BOX_PAD_X, BOX_PAD_Y} from './layout.ts';
 import type {LaidOutTable, LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutBanner, LaidOutCaption, LaidOutGroup, WrappedRun, Theme, Align, EmphasisTone, Rect, Span, Roles} from './types.ts';
 
-// like SVG text, runs of white space are one space
-const collapse = (s: string): string => s.replace(/\s+/g, ' ');
+// like SVG text, runs of white space are one space (XML white space only: U+3000 and NBSP are characters, not white space)
+const collapse = (s: string): string => s.replace(/[ \t\r\n]+/g, ' ');
 const esc = (s: string): string => collapse(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c] as string);
 const px = (n: number): string => `${+n.toFixed(2)}px`;
 // emit.ts snaps shapes (not text) to a 4px grid; the same here, so a box sits where its SVG twin does
@@ -23,10 +25,11 @@ const snap4 = (n: number): number => Math.round(n / 4) * 4;
 // ascent / descent of the primary sans font at a size (a browser without that font falls back; the difference is a pixel or two)
 const boxMemo = new Map<string, {ascent: number; descent: number}>();
 function metrics(size: number, weight: number, mono: boolean): {ascent: number; descent: number} {
-  const key = `${mono}|${size}|${weight}`;
+  const specs = currentFontSpecs();
+  const key = `${mono}|${size}|${weight}|${specs ? JSON.stringify(specs) : ''}`;
   let m = boxMemo.get(key);
   if (!m) {
-    try { const b = textBox('あ', mono ? 'mono' : 'sans', size, weight); m = {ascent: b.ascent, descent: b.descent}; }
+    try { const b = textBox('あ', mono ? 'mono' : 'sans', size, weight, specs); m = {ascent: b.ascent, descent: b.descent}; }
     catch { m = {ascent: Math.round(size * 0.88), descent: Math.round(size * 0.24)}; }
     boxMemo.set(key, m);
   }
@@ -94,6 +97,12 @@ function lineDiv(o: {left: number; baseline: number; width: number; align: Align
 // A real <table> (header cells are <th>, so assistive technology reads rows and columns) with fixed column widths and row heights;
 // the text of a cell is pre-broken lines placed over its box. Rounded corners come from a clipping wrapper, the outline from an overlay.
 function table(b: LaidOutTable, day: Theme, roles: Roles): string {
+  const out = tablePlain(b, day, roles);
+  // outside the spotlight: what emit.ts does to the SVG of a table: every colour but the page's becomes muted
+  return b.dim ? out.replace(/#[0-9a-fA-F]{6}/g, c => c.toLowerCase() === PALETTE.bg.toLowerCase() ? c : PALETTE.muted) : out;
+}
+
+function tablePlain(b: LaidOutTable, day: Theme, roles: Roles): string {
   const R = 8, LH = 1.4;
   const first = b.rows[0];
   const y0 = first.y, y1 = b.rows[b.rows.length - 1].y + b.rows[b.rows.length - 1].h;
@@ -163,7 +172,7 @@ function textsToHtml(svg: string): {svg: string; html: string} {
     const mono = attrOf(attrs, 'class') === 'mono', anchor = attrOf(attrs, 'text-anchor');
     const {ascent, descent} = metrics(size, weight, mono);
     // SVG collapses runs of white space (and the line break after a tag); white-space: pre would keep them
-    const content = inner.replace(/\s+/g, ' ')
+    const content = inner.replace(/[ \t\r\n]+/g, ' ')
       .replace(/<tspan class="emoji">/g, '<span class="sd-e">')
       .replace(/<tspan font-weight="(\d+)"(?: fill="([^"]+)")?>/g, (_t, w: string, f?: string) => `<span style="font-weight:${w}${f ? `;color:${f}` : ''}">`)
       .replace(/<tspan fill="([^"]+)">/g, (_t, f: string) => `<span style="color:${f}">`)
@@ -194,27 +203,35 @@ const CSS = (id: string, transparent = false) => `
 #${id} .sd-ov .mono { font-family: ${FONT_STACKS.mono}; }
 #${id} .sd-ov .emoji { font-family: ${FONT_STACKS.emoji}; }`;
 
-let counter = 0;
-
-/** A self-contained HTML fragment (a <div> and a <style>) for the diagram. `id` scopes the CSS (default: a counter). */
+/** A self-contained HTML fragment (a <div> and a <style>) for the diagram. `id` scopes the CSS (default: a hash of the content, so the same figure always gets the same id and two figures do not share one). */
 export function emitHtml(d: LaidOutDiagram, opts: {reveal?: number; id?: string} = {}): string {
   const {width, canvasHeight, day} = d;
-  const id = opts.id ?? `sd-${++counter}`;
   const visible = d.laidOut.filter(b => visibleAt(b, opts.reveal));
-  const html = visible.filter(native).map(b => render(b, day, d.roles, opts.reveal)).join('');
-  // the rest, plus every connector, is the SVG the other emitter draws: same function, minus the white background and the native bands
-  // raw() is the author's own SVG (transforms, anything): it stays whole. Every other part keeps its shapes as SVG and gives its words to HTML.
+  // The SVG draws the bands in order and the connectors on top; so does this: consecutive bands of one kind (drawn as HTML, as the SVG
+  // of the emitter, or as the author's own raw SVG) are one piece, and the pieces go out in the order of the layout.
   const strip = (svg: string, cls: string) => svg
     .replace(/<rect x="0" y="0" width="\d+(?:\.\d+)?" height="\d+(?:\.\d+)?" fill="#[0-9a-f]{6}"\/>\s*/i, '')
     .replace(/<svg /, `<svg class="${cls}" `)
     .replace(/<style>[\s\S]*?<\/style>\s*/, '')
     .replace(/<metadata[\s\S]*?<\/metadata>\s*/, '').trim();
-  const rest = visible.filter(b => !native(b) && b.type !== 'raw'), raws = visible.filter(b => b.type === 'raw');
-  let overlay = '', words = '';
-  if (rest.length || d.connects.length) {
-    const t = textsToHtml(strip(emitSvg({...d, laidOut: rest}, {reveal: opts.reveal, noRecolor: true}), 'sd-ov'));
-    overlay = shapesToCss(t.svg, 'sd-ov'); words = t.html;
+  // the shapes of a part stay SVG (as CSS where it can), its words are HTML; raw() is the author's SVG and stays whole
+  const overlay = (bands: LaidOutBand[], connects: LaidOutDiagram['connects']): string => {
+    const t = textsToHtml(strip(emitSvg({...d, laidOut: bands, connects}, {reveal: opts.reveal, noRecolor: true}), 'sd-ov'));
+    return shapesToCss(t.svg, 'sd-ov') + t.html;
+  };
+  const kindOf = (b: LaidOutBand) => native(b) ? 'html' : b.type === 'raw' ? 'raw' : 'svg';
+  let body = '';
+  for (let i = 0; i < visible.length;) {
+    const kind = kindOf(visible[i]);
+    let j = i;
+    while (j < visible.length && kindOf(visible[j]) === kind) j++;
+    const run = visible.slice(i, j);
+    if (kind === 'html') body += run.map(b => render(b, day, d.roles, opts.reveal)).join('');
+    else if (kind === 'raw') body += strip(emitSvg({...d, laidOut: run, connects: []}, {reveal: opts.reveal, noRecolor: true}), 'sd-ov sd-raw');
+    else body += overlay(run, []);
+    i = j;
   }
-  if (raws.length) overlay += strip(emitSvg({...d, laidOut: raws, connects: []}, {reveal: opts.reveal, noRecolor: true}), 'sd-ov sd-raw');
-  return recolor(`<style>${CSS(id, d.transparent)}\n</style>\n<div id="${id}" class="sd" style="width:${px(width)};height:${px(canvasHeight)}">${html}${overlay}${words}</div>\n`, d.appearance);
+  if (d.connects.some(c => visibleAt(c, opts.reveal))) body += overlay([], d.connects);
+  const id = opts.id ?? `sd-${createHash('sha1').update(JSON.stringify([width, canvasHeight, d.transparent ?? false, d.appearance ?? null, body])).digest('hex').slice(0, 8)}`;
+  return recolor(`<style>${CSS(id, d.transparent)}\n</style>\n<div id="${id}" class="sd" style="width:${px(width)};height:${px(canvasHeight)}">${body}</div>\n`, d.appearance);
 }
