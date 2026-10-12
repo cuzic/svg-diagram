@@ -6,7 +6,7 @@
 // computed (usually off-grid) position, same as every hand-authored diagram
 // in this deck.
 
-import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf, recolor, customColors} from './tokens.ts';
+import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf, recolor, customColors, mapOf} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
@@ -671,5 +671,6 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; 
 `;
   // the attribute is added after the recolouring: its values are final colours (a custom white must not be recoloured as a light token)
   const out = opts.noRecolor ? svgText : recolor(svgText, laidOutDiagram.appearance);
-  return paletteAttr ? out.replace('<svg ', `<svg${paletteAttr} `) : out;
+  const darkAttr = mapOf(laidOutDiagram.appearance) ? ' data-appearance="dark"' : '';
+  return paletteAttr || darkAttr ? out.replace('<svg ', `<svg${darkAttr}${paletteAttr} `) : out;
 }
