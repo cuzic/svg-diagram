@@ -12,6 +12,7 @@ import path from 'path';
 import {wf} from './wireframe.ts';
 import {assertIconName} from './icons.ts';
 import {layoutDiagram} from './layout-measured.ts';
+import {timelineDay} from './timeline.ts';
 import {emitSvg} from './emit.ts';
 import {emitHtml} from './emit-html.ts';
 import {xmlProblems} from './xml-check.ts';
@@ -25,7 +26,7 @@ import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
 import {MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
-  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, TimelineBand, TimelineOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -61,6 +62,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (!THEMES.map(String).includes(String(theme))) throw new Error(`diagram({theme}) must be one of ${THEMES.join(', ')} (or legacy day: 1|2)`);
   if (typeof opts.spotlight === 'object' && opts.spotlight.mutedOk !== undefined && typeof opts.spotlight.mutedOk !== 'boolean') throw new Error(`diagram({spotlight: {mutedOk}}) must be true or false (got ${String(opts.spotlight.mutedOk)})`);
   if (typeof opts.spotlight === 'object' && opts.spotlight.dim !== undefined && !['outline', 'fill'].includes(opts.spotlight.dim)) throw new Error(`diagram({spotlight: {dim}}) must be 'outline' or 'fill' (got ${String(opts.spotlight.dim)})`);
+  if (opts.sourceLine !== undefined && (typeof opts.sourceLine !== 'string' || !opts.sourceLine.trim() || /[\r\n]/.test(opts.sourceLine))) throw new Error('diagram({sourceLine}) must be a non-empty single-line string (e.g. "出典: 総務省 2025")');
   const d: DiagramData = {
     day: theme as Theme,
     // 'slide' (legacy day: 1|2 diagrams) gets slide-fit warnings; 'doc' (theme: ...) does not.
@@ -76,6 +78,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     slide: opts.slide, // {page, heading}: measure the real budget from this slide (slide-budget.ts)
     connectDefaults: opts.connectDefaults, wireframeDefaults: opts.wireframeDefaults,
     spotlight: opts.spotlight,
+    sourceLine: opts.sourceLine,
     fill: !!opts.fill, // fit-figure slide: build to the measured width/height, growing fonts to use the slack (see build())
     bands: [],
   };
@@ -767,6 +770,33 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height, ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
   return withHandle(withAnchors(band, data.map(d => d.id)), opts.id);
+}
+
+/**
+ * A horizontal time axis with a deadline: the axis (`from` - `to`), today (`now`), the deadline and the span between them
+ * ("あと 1 年 3 か月"), plus optional marks. Dates are 'YYYY' | 'YYYY-MM' | 'YYYY-MM-DD'; `now` is always written out, never read from the clock.
+ */
+export function timeline<const Id extends string = never>(opts: TimelineOpts & {id?: Id}): TimelineBand & Declares<Id> & HandleOf<Id>;
+export function timeline(opts: TimelineOpts): TimelineBand {
+  const day = (v: unknown, what: string): number => timelineDay(v as string, what);
+  const from = day(opts?.from, 'from'), to = day(opts?.to, 'to');
+  if (!(from < to)) throw new Error(`timeline(): from (${opts.from}) must be before to (${opts.to})`);
+  for (const [k, v] of [['now', opts.now], ['deadline', opts.deadline]] as const) {
+    if (!v || typeof v !== 'object') throw new Error(`timeline(): ${k} is required (${k === 'now' ? "{at: '2026-10'}" : "{at: '2027-03', label: 'サポート終了'}"})`);
+    const t = day(v.at, `${k}.at`);
+    if (t < from || t > to) throw new Error(`timeline(): ${k}.at (${v.at}) is outside the axis (${opts.from} - ${opts.to})`);
+  }
+  if (opts.deadline.line !== undefined && opts.deadline.line !== 'full') throw new Error(`timeline(): deadline.line must be 'full' (got ${String(opts.deadline.line)})`);
+  if (opts.span !== undefined && opts.span !== 'bar' && opts.span !== 'fill') throw new Error(`timeline(): span must be 'bar' or 'fill' (got ${String(opts.span)})`);
+  if (typeof opts.deadline.label !== 'string' || !opts.deadline.label.trim()) throw new Error('timeline(): deadline.label is required');
+  for (const [i, m] of (opts.marks ?? []).entries()) {
+    const t = day(m.at, `marks[${i}].at`);
+    if (t < from || t > to) throw new Error(`timeline(): marks[${i}].at (${m.at}) is outside the axis (${opts.from} - ${opts.to})`);
+    if (typeof m.label !== 'string' || !m.label.trim()) throw new Error(`timeline(): marks[${i}].label is required`);
+    if (m.tone !== undefined && !['accent', 'danger', 'muted'].includes(m.tone)) throw new Error(`timeline(): marks[${i}].tone must be accent, danger or muted (got ${m.tone})`);
+  }
+  if (opts.remaining !== undefined && opts.remaining !== false && (typeof opts.remaining !== 'string' || !opts.remaining.trim())) throw new Error('timeline(): remaining must be a string or false');
+  return withHandle({type: 'timeline', from: opts.from, to: opts.to, now: opts.now, deadline: opts.deadline, ...(opts.span === undefined ? {} : {span: opts.span}), ...(opts.marks ? {marks: opts.marks} : {}), ...(opts.remaining === undefined ? {} : {remaining: opts.remaining}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)}, opts.id);
 }
 
 // Escape hatch. `draw(ctx)` must return a raw SVG fragment string; it

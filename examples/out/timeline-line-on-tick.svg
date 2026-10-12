@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="194" viewBox="0 0 940 194" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">RDS MySQL 5.7 の Extended Support 終了まで</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/timeline-line-on-tick.ts","sourceSha256":"14e0af2a37785784fda7bb692bf4949fc44f5d5511b36ca9c04a4c08c9b405f6"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="194" fill="#ffffff"/>
+
+  <rect x="72" y="64" width="500" height="24" fill="#dce9f7"/>
+  <path d="M32,76 H908" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M572,20 V140" fill="none" stroke="#b91c1c" stroke-width="2"/>
+  <path d="M32,76 V84" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M144,76 V84" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M252,76 V84" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M364,76 V84" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M476,76 V84" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M576,76 V84" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M688,76 V84" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M796,76 V84" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M908,76 V84" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M72,60 V76" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M572,60 V76" fill="none" stroke="#b91c1c" stroke-width="2"/>
+  <path d="M364,60 V76" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <circle cx="72" cy="76" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="4"/>
+  <circle cx="572" cy="76" r="12" fill="#b91c1c" stroke="#ffffff" stroke-width="4"/>
+  <circle cx="364" cy="76" r="8" fill="#6f6659" stroke="#ffffff" stroke-width="4"/>
+  <path d="M72,112 V116 H572 V112" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="109" y="35" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">現在</text>
+  <text x="109" y="55" text-anchor="middle" font-size="14" fill="#6f6659">2026-10-12</text>
+  <text x="660" y="35" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">Extended Support 終了</text>
+  <text x="660" y="55" text-anchor="middle" font-size="14" fill="#6f6659">2027-02-28</text>
+  <text x="413" y="35" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">移行リハーサル</text>
+  <text x="413" y="55" text-anchor="middle" font-size="14" fill="#6f6659">2027-01</text>
+  <text x="20" y="102" font-size="14" fill="#6f6659">2026/10</text>
+  <text x="117" y="102" font-size="14" fill="#6f6659">2026/11</text>
+  <text x="225" y="102" font-size="14" fill="#6f6659">2026/12</text>
+  <text x="348" y="102" font-size="14" fill="#6f6659">2027</text>
+  <text x="453" y="102" font-size="14" fill="#6f6659">2027/2</text>
+  <text x="579" y="102" font-size="14" fill="#6f6659">2027/3</text>
+  <text x="665" y="102" font-size="14" fill="#6f6659">2027/4</text>
+  <text x="773" y="102" font-size="14" fill="#6f6659">2027/5</text>
+  <text x="874" y="102" font-size="14" fill="#6f6659">2027/6</text>
+  <text x="286" y="134" font-size="14" font-weight="700" fill="#1d5fa8">あと 4 か月</text>
+
+  <text x="20" y="168" font-size="14" font-weight="400" fill="#6f6659">出典: AWS 公式ドキュメント</text>
+</svg>

@@ -21,6 +21,7 @@ import {assertSpans} from './rich.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {layoutPlane, planeTexts} from './plane.ts';
 import {barsTexts, layoutBars} from './bars.ts';
+import {layoutTimeline, timelineTexts} from './timeline.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {
   DiagramData, Roles, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
@@ -246,8 +247,17 @@ function gridChildGeometry(band: GridBand, contentWidth: number) {
   return {cellWidth};
 }
 
+/**
+ * diagram({sourceLine}) is always the last band: left-aligned, muted, note size, whatever was add()ed and in whatever order.
+ * Returns a copy (the input is not changed); without a sourceLine, the input itself.
+ */
+function withSourceLine(d: DiagramData): DiagramData {
+  return d.sourceLine === undefined ? d : {...d, bands: [...d.bands, {type: 'caption', text: d.sourceLine, align: 'left', role: 'note', tone: 'muted', bold: false, mono: false, sourceLine: true}]};
+}
+
 /** Pass 1: every atom this diagram needs measured, at the font sizes of `roles`. Pure: no measuring happens here. */
-export function collectMeasures(d: DiagramData, roles: Roles): Requests {
+export function collectMeasures(data: DiagramData, roles: Roles): Requests {
+  const d = withSourceLine(data);
   const requests: Requests = new Map();
   const registerBand = (band: Band): void => {
     if (band.type === 'group') {
@@ -287,6 +297,8 @@ export function collectMeasures(d: DiagramData, roles: Roles): Requests {
       for (const [text, size, weight, font] of planeTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'bars') {
       for (const [text, size, weight, font] of barsTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'timeline') {
+      for (const [text, size, weight, font] of timelineTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'curve') {
       for (const label of [band.yTopLabel, band.yBottomLabel, band.xLabel]) {
         if (!label) continue;
@@ -318,7 +330,8 @@ export function widthOfMeasured(measured: Map<string, Measured>, strict: boolean
 }
 
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
-export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
+export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
+  const d = withSourceLine(data);
   const contentWidth = d.width - 2 * d.pad;
 
   // A labelled straight connector between two side-by-side children (right side -> left side) needs room in the gap
@@ -457,6 +470,17 @@ export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): Laid
     if (band.type === 'sequence' || band.type === 'table') {
       const placed = band.type === 'sequence' ? layoutSequence(band, padX, cursorY, cw, widthOf, roles) : layoutTable(band, padX, cursorY, cw, widthOf, roles);
       if (band.id) anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      laidOut.push(placed);
+      cursorY += placed.h + d.gap;
+      continue;
+    }
+
+    if (band.type === 'timeline') {
+      const placed = layoutTimeline(band, padX, cursorY, cw, widthOf);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, 'a timeline takes an id that another anchor already has');
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
       laidOut.push(placed);
       cursorY += placed.h + d.gap;
       continue;
@@ -775,7 +799,7 @@ export function layoutWith(d: DiagramData, roles: Roles, widthOf: WidthOf): Laid
 
   const canvasHeight = Math.round(cursorY - d.gap + d.pad);
 
-  return {...d, laidOut, canvasHeight, connects, roles};
+  return {...data, laidOut, canvasHeight, connects, roles};
 }
 
 // 'id', 'id:side', or 'id:side@t' — t (0..1) slides the anchor along that side

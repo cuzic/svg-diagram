@@ -140,6 +140,8 @@ export interface DiagramOpts {
   wireframeDefaults?: WireframeDefaults;
   /** Keep these anchors prominent and render the rest with the muted spotlight treatment. */
   spotlight?: SpotlightOpt;
+  /** A source / citation line pinned as the last line of the figure (left-aligned, muted, one line). See README. */
+  sourceLine?: string;
 }
 
 /**
@@ -171,6 +173,7 @@ export interface DiagramData {
   connectDefaults?: ConnectDefaults;
   wireframeDefaults?: WireframeDefaults;
   spotlight?: SpotlightOpt;
+  sourceLine?: string;
   bands: Band[];
   /** Set by build() from the measured slide (contentWidth). */
   usableWidth?: number;
@@ -253,6 +256,8 @@ export interface CaptionBand {
   bold: boolean;
   mono: boolean;
   reveal?: number;
+  /** Internal: the diagram({sourceLine}) caption, which layout appends as the last band. */
+  sourceLine?: boolean;
   until?: number;
 }
 
@@ -722,6 +727,39 @@ export interface BarsBand extends BarsOpts {
 }
 
 // ============================================================================================
+// DSL input + band: timeline
+// ============================================================================================
+
+export type TimelineTone = 'accent' | 'danger' | 'muted';
+export interface TimelineMark {
+  /** 'YYYY' | 'YYYY-MM' | 'YYYY-MM-DD'. */
+  at: string;
+  label: string;
+  /** Default 'muted'. */
+  tone?: TimelineTone;
+}
+export interface TimelineOpts extends RevealOpts {
+  /** The axis runs from `from` to `to` (dates as 'YYYY' | 'YYYY-MM' | 'YYYY-MM-DD'). */
+  from: string;
+  to: string;
+  /** Today. Always written out (a build never reads the clock), so the same source draws the same SVG. */
+  now: {at: string; label?: string};
+  /** The marker the figure is about, drawn in the danger colour. The span from `now` to it is the remaining time. */
+  deadline: {at: string; label: string; /** 'full': a line through the whole height of the figure at the deadline (default: a short stem and a big dot). */ line?: 'full'};
+  /** How the span from now to the deadline is drawn: 'bar' (default, a thick line on the axis) or 'fill' (a pale band above and below the axis). */
+  span?: 'bar' | 'fill';
+  /** Other dates on the axis (a release, a contract end). */
+  marks?: TimelineMark[];
+  /** The text of the remaining-span label. Default is computed ("あと 1 年 3 か月"); false hides the span label (the bar stays). */
+  remaining?: string | false;
+  /** A spotlight target and a connect() endpoint. */
+  id?: string;
+}
+export interface TimelineBand extends TimelineOpts {
+  type: 'timeline';
+}
+
+// ============================================================================================
 // DSL input + band: sequence
 // ============================================================================================
 
@@ -1036,7 +1074,7 @@ export interface ScreensBand extends ScreensOpts {
 /** Every band the DSL constructors return. */
 export type Band =
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | TimelineBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -1672,9 +1710,28 @@ export interface LaidOutBars extends Rect, Dimmed {
   anchors: Anchor[];
 }
 
+export interface TimelineText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: 'text' | 'muted' | 'accent' | 'danger'; bold: boolean}
+export interface LaidOutTimeline extends Rect, Dimmed {
+  type: 'timeline';
+  id?: string;
+  reveal?: number;
+  axis: {x1: number; x2: number; y: number};
+  /** The bar on the axis between now and the deadline (accent while the deadline is ahead, danger once past). */
+  span?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'; fill?: boolean};
+  /** deadline.line 'full': the vertical line through the figure. */
+  fullLine?: {x: number; y1: number; y2: number};
+  /** The bracket under the ticks that carries the remaining-span label. */
+  bracket?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'};
+  ticks: {x: number; y1: number; y2: number}[];
+  stems: {x: number; y1: number; y2: number; tone: 'accent' | 'danger' | 'muted'}[];
+  dots: {x: number; y: number; r: number; tone: 'accent' | 'danger' | 'muted'}[];
+  texts: TimelineText[];
+  labelBoxes: (Rect & {label: string})[];
+}
+
 export type LaidOutBand = (
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutTimeline | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */

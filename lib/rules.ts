@@ -28,6 +28,7 @@ export const RULE_DOCS = {
   'a11y-no-title': 'SVG の <title> に使える題名が見つからない（diagram({title}) を指定）',
   'bars-values-hidden': '値ラベルも目盛りも出さない bars があるのに、図の題名（SVG の <title>）がなく、値を読み上げる <desc> が届かない（doc 媒体）',
   'bars-thin-bar': '棒が 1px 以下（値は 0 でない）。図の高さ・幅を上げるか max を見直す',
+  'source-wraps': '出典行（diagram({sourceLine})）が 1 行に収まらず折り返している（短くする）',
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える）',
   'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる',
@@ -391,6 +392,7 @@ function lintAll(d: LintTarget): Finding[] {
   const allBars = walkBands(d.bands).filter((b): b is BarsBand => b.type === 'bars');
   if (d.medium === 'doc' && !diagramTitle(d) && allBars.some(barsValuesHidden)) out.push({rule: 'bars-values-hidden', severity: 'warn', message: '値を隠した bars があるが、図に題名がなく <desc> も出ない。diagram({title}) を指定する（値の列は自動で <desc> に入る）'});
   for (const b of d.laidOut ?? []) if (b.type === 'bars' && b.bars.some(r => (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0))) { out.push({rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す'}); break; }
+  for (const b of d.laidOut ?? []) if (b.type === 'caption' && b.sourceLine && b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0) > 1) out.push({rule: 'source-wraps', severity: 'warn', message: `出典行が ${b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0)} 行に折り返している。1 行に収まる長さにする（出典の細部は本文へ）`});
   if (d.medium === 'doc' && !diagramTitle(d)) out.push({rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する'});
   return out;
 }

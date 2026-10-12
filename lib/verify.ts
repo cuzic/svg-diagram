@@ -61,7 +61,7 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
       rects.push({id: null, label: `group title "${band.text}"`, ...band.inkBox});
     } else if (band.type === 'row' || band.type === 'grid') {
       for (const c of band.children) rects.push({id: c.id ?? null, label: labelOf(c), x: c.x, y: c.y, w: c.w, h: c.h});
-    } else if (band.type === 'box' || band.type === 'banner' || band.type === 'raw' || band.type === 'legend' || band.type === 'sequence' || band.type === 'table' || band.type === 'wireframe' || band.type === 'pyramid' || band.type === 'curve' || band.type === 'plane') {
+    } else if (band.type === 'box' || band.type === 'banner' || band.type === 'raw' || band.type === 'legend' || band.type === 'sequence' || band.type === 'table' || band.type === 'wireframe' || band.type === 'pyramid' || band.type === 'curve' || band.type === 'plane' || band.type === 'timeline') {
       rects.push({id: ('id' in band ? band.id : undefined) ?? null, label: labelOf(band), x: band.x, y: band.y, w: band.w, h: band.h});
     }
   }
@@ -70,6 +70,23 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
 
 const neverTogether = (a: {reveal?: number; until?: number}, b: {reveal?: number; until?: number}): boolean =>
   (a.until !== undefined && a.until <= (b.reveal ?? 0)) || (b.until !== undefined && b.until <= (a.reveal ?? 0));
+
+function checkTimelines(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  for (const band of d.laidOut) {
+    if (band.type !== 'timeline') continue;
+    const line = band.fullLine && {x: band.fullLine.x - 1, y: band.fullLine.y1, w: 2, h: band.fullLine.y2 - band.fullLine.y1};
+    for (const [i, b] of band.labelBoxes.entries()) {
+      if (line && rectOverlap(b, line)) problems.push(`timeline: label "${b.label}" is crossed by the deadline line (move the mark or change the axis range)`);
+      if (b.x < band.x - 0.5 || b.x + b.w > band.x + band.w + 0.5) problems.push(`timeline: label "${b.label}" runs outside the figure (shorten it or widen the figure)`);
+      for (let j = i + 1; j < band.labelBoxes.length; j++) {
+        const o = rectOverlap(b, band.labelBoxes[j]);
+        if (o) problems.push(`timeline: label "${b.label}" overlaps label "${band.labelBoxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
+      }
+    }
+  }
+  return problems;
+}
 
 function checkBars(d: LaidOutDiagram): string[] {
   const problems: string[] = [];
@@ -230,6 +247,7 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
     ...checkConnects(d, rects),
     ...checkPlanes(d),
     ...checkBars(d),
+    ...checkTimelines(d),
     ...checkNoWrap(d),
     ...checkBounds(d, rects),
     ...checkContrast(d),

@@ -10,7 +10,7 @@ import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRON
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
-  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
+  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutTimeline, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
   LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, EmphasisTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
   LaidOutWireframe, LaidOutScreens, RawColorTone, Span, Roles,
 } from './types.ts';
@@ -373,6 +373,23 @@ function renderBars(b: LaidOutBars, day: Theme, stage?: number, dimFill = false)
   return out.join('\n  ');
 }
 
+const S_TIMELINE = 14;
+function renderTimeline(b: LaidOutTimeline, day: Theme): string {
+  const col = (k: 'text' | 'muted' | 'accent' | 'danger') => colorOf(k, day);
+  const out: string[] = [`<path d="M${snap4(b.axis.x1)},${snap4(b.axis.y)} H${snap4(b.axis.x2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`];
+  if (b.span?.fill) {
+    const x1 = snap4(b.span.x1), y1 = snap4(b.span.y - 12);
+    out.unshift(`<rect x="${x1}" y="${y1}" width="${snap4(b.span.x2) - x1}" height="24" fill="${b.span.tone === 'accent' ? PALETTE[day].soft : PALETTE.border}"/>`);
+  } else if (b.span) out.push(`<path d="M${snap4(b.span.x1)},${snap4(b.span.y)} H${snap4(b.span.x2)}" fill="none" stroke="${col(b.span.tone)}" stroke-width="8"/>`);
+  if (b.fullLine) out.push(`<path d="M${snap4(b.fullLine.x)},${snap4(b.fullLine.y1)} V${snap4(b.fullLine.y2)}" fill="none" stroke="${col('danger')}" stroke-width="2"/>`);
+  for (const t of b.ticks) out.push(`<path d="M${snap4(t.x)},${snap4(t.y1)} V${snap4(t.y2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
+  for (const s of b.stems) out.push(`<path d="M${snap4(s.x)},${snap4(s.y1)} V${snap4(s.y2)}" fill="none" stroke="${col(s.tone)}" stroke-width="2"/>`);
+  for (const d of b.dots) out.push(`<circle cx="${snap4(d.x)}" cy="${snap4(d.y)}" r="${d.r}" fill="${col(d.tone)}" stroke="${PALETTE.bg}" stroke-width="4"/>`);
+  if (b.bracket) { const {x1, x2, y, tone} = b.bracket; out.push(`<path d="M${snap4(x1)},${snap4(y - 4)} V${snap4(y)} H${snap4(x2)} V${snap4(y - 4)}" fill="none" stroke="${col(tone)}" stroke-width="2"/>`); }
+  for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${S_TIMELINE}"${t.bold ? ' font-weight="700"' : ''} fill="${col(t.fill)}">${emojiSpan(t.text)}</text>`);
+  return out.join('\n  ');
+}
+
 function renderRaw(band: LaidOutRaw, day: Theme): string {
   const ctx = {
     x: band.x, y: band.y, w: band.w, h: band.h, day,
@@ -559,6 +576,7 @@ function renderBandPlain(band: LaidOutBand, day: Theme, roles: Roles, stage?: nu
     case 'curve': return renderCurve(band, day);
     case 'plane': return renderPlane(band, day, stage);
     case 'bars': return renderBars(band, day, stage, dimFill);
+    case 'timeline': return renderTimeline(band, day);
     default: return '';
   }
 }
