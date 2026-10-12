@@ -12,9 +12,11 @@
 import {PALETTE, STRONG_STROKE, wcagRatio, runColorOf, toneStyle} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {budgetWarnings} from './budget.ts';
+import {barsValuesHidden} from './bars.ts';
+import {fmt} from './plane.ts';
 import {dimmedBands} from './spotlight.ts';
 import type {
-  ArrowWeight, Band, BoxBand, EmphasisTone, DiagramData, Finding, LaidOutBand, LaidOutBox, LaidOutConnect, LegendBand, LegendItem,
+  ArrowWeight, Band, BarsBand, BoxBand, EmphasisTone, DiagramData, Finding, LaidOutBand, LaidOutBox, LaidOutConnect, LegendBand, LegendItem,
   LineStyle, Point, RuleId, SwimlaneBand, WfCallout,
 } from './types.ts';
 import type {LintTarget} from './types.ts';
@@ -24,6 +26,8 @@ export const RULE_DOCS = {
   'a11y-color-only-emphasis': '色だけで強調した語がある（太字も併用する。色が見えない読者にも伝わるように）',
   'a11y-nontext-contrast': '意味を持つ枠線・線のコントラスト比が 3:1 未満（色以外の手がかりも併用する）',
   'a11y-no-title': 'SVG の <title> に使える題名が見つからない（diagram({title}) を指定）',
+  'bars-values-hidden': '値ラベルも目盛りも出さない bars があるのに、図の題名（SVG の <title>）がなく、値を読み上げる <desc> が届かない（doc 媒体）',
+  'bars-thin-bar': '棒が 1px 以下（値は 0 でない）。図の高さ・幅を上げるか max を見直す',
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える）',
   'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる',
@@ -384,6 +388,9 @@ function lintAll(d: LintTarget): Finding[] {
   if (d.medium === 'doc' && d.width > (d.maxWidth ?? 940)) out.push({rule: 'doc-width', severity: 'warn', message: `幅 ${d.width}px。本文の表示幅（約 930px）に縮められ、文字が小さくなる（${d.maxWidth ?? 940}px 以下にする）`});
   // doc diagrams are read at length on a page, so their budget is larger than the slide decks' (see budget.ts)
   for (const w of budgetWarnings({laidOut: d.laidOut ?? []}, d.medium === 'doc' ? {boxBody: 100, total: 700, boxes: 30} : undefined)) out.push({rule: 'density', severity: 'warn', message: w});
+  const allBars = walkBands(d.bands).filter((b): b is BarsBand => b.type === 'bars');
+  if (d.medium === 'doc' && !diagramTitle(d) && allBars.some(barsValuesHidden)) out.push({rule: 'bars-values-hidden', severity: 'warn', message: '値を隠した bars があるが、図に題名がなく <desc> も出ない。diagram({title}) を指定する（値の列は自動で <desc> に入る）'});
+  for (const b of d.laidOut ?? []) if (b.type === 'bars' && b.bars.some(r => (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0))) { out.push({rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す'}); break; }
   if (d.medium === 'doc' && !diagramTitle(d)) out.push({rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する'});
   return out;
 }
@@ -415,5 +422,7 @@ export function diagramDesc(d: DiagramData): string {
     const titles = walkBands(d.bands).filter((b): b is BoxBand => b.type === 'box' && !!b.title).map(b => oneLine(b.title));
     if (titles.length) parts.push(`要素: ${titles.slice(0, 16).join('、')}${titles.length > 16 ? ' ほか' : ''}`);
   }
+  // outside the fallback above, so boxes and hidden-value bars can share one description
+  for (const b of walkBands(d.bands)) if (b.type === 'bars' && barsValuesHidden(b)) parts.push(`値: ${b.data.map(x => `${oneLine(x.label)} ${fmt(x.value)}${b.unit ?? ''}`).join('、')}`);
   return parts.join('。');
 }

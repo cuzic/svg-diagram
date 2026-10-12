@@ -620,6 +620,16 @@ export interface BarsOpts {
   stack?: boolean;
   /** Figure height. Vertical bars default to 280; horizontal bars derive it from their count. */
   height?: number;
+  /** Which labels to draw: both (default), the category labels only, or none. */
+  labels?: 'all' | 'category' | 'none';
+  /** false drops the scale: tick numbers, tick lines and the value axis. The category baseline stays (see `baseline`). Default true. */
+  axis?: boolean;
+  /** Lines across the plot at each tick. Follows `axis`; true needs `axis` on. */
+  grid?: boolean;
+  /** The line the bars stand on (or start from). Default true. */
+  baseline?: boolean;
+  /** Bar share of its slot (0 < r <= 1). Given: no upper width limit, 1 makes neighbours touch. Omitted: the usual look. Not for `stack`. */
+  barRatio?: number;
 }
 export interface BarsBand extends BarsOpts {
   type: 'bars';
