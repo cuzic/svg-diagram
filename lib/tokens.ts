@@ -100,11 +100,17 @@ export const FONT_STACKS: Record<'sans' | 'mono' | 'emoji', string> = {
 
 export const MIN_FONT_SIZE = 14;
 
+/** The roles an opt-in text size (banner headlineRole, bars / plane labelRole) may name. */
+export const HEADLINE_ROLES = ['banner', 'stat', 'display'] as const;
+export const LABEL_ROLES = ['note', 'banner', 'stat'] as const;
+/** What fill: true may scale an opted-in text size up to (px). The usual roles are scaled by up to 1.8 without this limit. */
+export const OPT_IN_TEXT_MAX = 72;
+
 // font-size (px) per semantic role. Every value is >= MIN_FONT_SIZE by
 // construction — the DSL's normal box()/caption()/banner() path never lets a
 // caller pick a raw px number outside this table.
 export const ROLES: Record<Role, number> = {
-  title: 15, label: 14, body: 14, note: 14, banner: 16, stat: 34, display: 56, hero: 18,
+  title: 15, label: 14, body: 14, note: 14, banner: 16, stat: 34, display: 56,
 };
 
 // Fixed sizes of text that is not a role: the label on a connector line and the tag pill on a box.

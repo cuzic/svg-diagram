@@ -69,7 +69,7 @@ function textRuns(band: Band): TextRun[] {
     case 'caption':
       return [withSpans({text: band.text, size: ROLES[band.role ?? 'label'], weight: band.bold ? 700 : 400, mono: !!band.mono, tone: band.tone}, band.spans?.text)];
     case 'banner': {
-      const runs: TextRun[] = [withSpans({text: band.headline, size: ROLES.banner, weight: 700, mono: false, tone: band.headlineTone}, band.spans?.headline)];
+      const runs: TextRun[] = [withSpans({text: band.headline, size: ROLES[band.headlineRole ?? 'banner'], weight: 700, mono: false, tone: band.headlineTone}, band.spans?.headline)];
       if (band.sub) runs.push(withSpans({text: band.sub, size: ROLES.note, weight: 400, mono: false, tone: band.subTone ?? (isSolidTone(band.tone) ? undefined : 'muted')}, band.spans?.sub));
       return runs;
     }

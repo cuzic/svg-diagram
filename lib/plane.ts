@@ -8,15 +8,22 @@ import {textWidth} from './measure.ts';
 import {ROLES} from './tokens.ts';
 import type {FontFamily, LaidOutPlane, PlaneBand, PlanePos, PlaneRef, PlaneText, PlaneTone, WidthOf} from './types.ts';
 
-// read at call time: fill mode rewrites ROLES, and measuring must see the size emit.ts draws with
-const size = (): number => ROLES.note;
-const labelH = (): number => size() + 6;
+/**
+ * The font-size of every text of a plane(): the ONE place it is read, so measuring (planeTexts), layout and drawing
+ * (LaidOutPlane.labelSize) agree. Read at call time because fill mode rewrites ROLES.
+ */
+const sizeOf = (band: PlaneBand): number => ROLES[band.labelRole ?? 'note'];
+/**
+ * The size the fixed pixel values (margins, label offsets, the dimension chip) are scaled from. They were drawn for 14px
+ * text: only an explicit labelRole scales them, so a plane without one is laid out exactly as before (fill mode's scaled note included).
+ */
+const geomOf = (band: PlaneBand): number => band.labelRole ? sizeOf(band) : 14;
 const TICK = 6, DIM_OFFSET = 26, DIM_CHIP_PAD = 6;
 
 /** Every [text, size, weight, font] the plane draws, so the measurer knows them before layout. */
 export function planeTexts(band: PlaneBand): [string, number, number, FontFamily][] {
   const out: [string, number, number, FontFamily][] = [];
-  const add = (s: string | undefined, weight = 400) => { if (s) out.push([s, size(), weight, 'sans']); };
+  const add = (s: string | undefined, weight = 400) => { if (s) out.push([s, sizeOf(band), weight, 'sans']); };
   for (const axis of [band.x, band.y]) { add(axis.label, 700); for (const t of ticksOf(axis)) add(t.label); }
   for (const p of band.points ?? []) add(p.label, 700);
   for (const d of band.dims ?? []) add(d.label, 700);
@@ -77,7 +84,8 @@ const bez = (a: XY, c1: XY, c2: XY, b: XY, t: number): XY => {
 };
 
 export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutPlane {
-  const tw = (s: string, weight = 400) => textWidth(widthOf, s, size(), weight);
+  const size = sizeOf(band), g = geomOf(band), half = g * 5 / 14, labelH = size + 6;
+  const tw = (s: string, weight = 400) => textWidth(widthOf, s, size, weight);
   const width = Math.min(w, band.width ?? w), left = x + (w - width) / 2, h = band.height;
   const xTicks = ticksOf(band.x), yTicks = ticksOf(band.y);
   const xMin = band.x.min ?? 0, yMin = band.y.min ?? 0, xSpan = band.x.max - xMin;
@@ -91,8 +99,9 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   const lastTick = xTicks.length ? tw(xTicks[xTicks.length - 1].label) / 2 : 0;
   const xLabelGap = Math.max(14, Math.ceil(lastTick) + 8);
   const padR = band.x.label ? xLabelGap + Math.ceil(tw(band.x.label, 700)) + 8 : Math.max(16, Math.ceil(lastTick) + 4);
-  const padT = yDown ? 40 : band.y.label ? 34 : 14;
-  const padB = yDown ? (band.y.label ? 36 : 14) : 40;
+  const edge = Math.max(14, Math.ceil(g / 2) + 7); // half a tick label plus the gap, for a margin with no label of its own
+  const padT = yDown ? g + 26 : band.y.label ? g + 20 : edge;
+  const padB = yDown ? (band.y.label ? g + 22 : edge) : g + 26;
   const plotL = left + padL, plotR = left + width - padR, plotT = y + padT, plotB = y + h - padB;
   if (plotR - plotL < 60 || plotB - plotT < 60) throw new Error('plane(): the figure is too small for its axes — raise height / width');
   const px = (v: number) => plotL + (v - xMin) / xSpan * (plotR - plotL);
@@ -119,7 +128,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   const addText = (s: string, tx: number, base: number, anchor: 'start' | 'middle' | 'end', tone: PlaneTone, bold = false, reveal?: number): void => {
     texts.push({s, x: tx, y: base, anchor, tone, bold, ...(reveal ? {reveal} : {})});
     const tww = tw(s, bold ? 700 : 400);
-    boxes.push({label: s, x: anchor === 'middle' ? tx - tww / 2 : anchor === 'end' ? tx - tww : tx, y: base - size(), w: tww, h: labelH()});
+    boxes.push({label: s, x: anchor === 'middle' ? tx - tww / 2 : anchor === 'end' ? tx - tww : tx, y: base - size, w: tww, h: labelH});
   };
 
   const ticks: LaidOutPlane['ticks'] = [];
@@ -127,13 +136,13 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     const tx = px(t.at);
     ticks.push({x1: tx, y1: axisY, x2: tx, y2: axisY + (yDown ? -TICK : TICK)});
     inkSeg('a tick mark', ticks[ticks.length - 1]);
-    addText(t.label, tx, yDown ? axisY - TICK - 8 : axisY + TICK + 16, 'middle', 'muted');
+    addText(t.label, tx, yDown ? axisY - TICK - 8 : axisY + TICK + g + 2, 'middle', 'muted');
   }
   for (const t of yTicks) {
     const ty = py(t.at);
     ticks.push({x1: axisX, y1: ty, x2: axisX - TICK, y2: ty});
     inkSeg('a tick mark', ticks[ticks.length - 1]);
-    addText(t.label, axisX - TICK - 6, ty + 5, 'end', 'muted');
+    addText(t.label, axisX - TICK - 6, ty + half, 'end', 'muted');
   }
   // the axes (lines and arrowheads)
   ink('the x axis', {x: axisX, y: axisY - 2, w: plotR - axisX, h: 4});
@@ -144,17 +153,17 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     ...xTicks.map(t => ({x1: px(t.at), y1: plotT, x2: px(t.at), y2: plotB})),
     ...yTicks.map(t => ({x1: plotL, y1: py(t.at), x2: plotR, y2: py(t.at)})),
   ] : [];
-  if (band.x.label) addText(band.x.label, plotR + xLabelGap, axisY + 5, 'start', 'muted', true);
-  if (band.y.label) addText(band.y.label, axisX - 4, yDown ? plotB + 28 : plotT - 14, 'start', 'muted', true);
+  if (band.x.label) addText(band.x.label, plotR + xLabelGap, axisY + half, 'start', 'muted', true);
+  if (band.y.label) addText(band.y.label, axisX - 4, yDown ? plotB + g + 14 : plotT - 14, 'start', 'muted', true);
 
   const points: LaidOutPlane['points'] = (band.points ?? []).map(p => {
     const q = pt(p.at), tone = p.tone ?? 'accent';
     if (p.label) {
       const at = p.labelAt ?? 'right';
-      if (at === 'right') addText(p.label, q.x + 12, q.y + 5, 'start', tone, true, p.reveal);
-      else if (at === 'left') addText(p.label, q.x - 12, q.y + 5, 'end', tone, true, p.reveal);
+      if (at === 'right') addText(p.label, q.x + 12, q.y + half, 'start', tone, true, p.reveal);
+      else if (at === 'left') addText(p.label, q.x - 12, q.y + half, 'end', tone, true, p.reveal);
       else if (at === 'above') addText(p.label, q.x, q.y - 14, 'middle', tone, true, p.reveal);
-      else addText(p.label, q.x, q.y + 26, 'middle', tone, true, p.reveal);
+      else addText(p.label, q.x, q.y + g + 12, 'middle', tone, true, p.reveal);
     }
     ink('a point', {x: q.x - 7, y: q.y - 7, w: 14, h: 14});
     return {x: q.x, y: q.y, tone, shape: p.shape ?? 'dot', ...(p.reveal ? {reveal: p.reveal} : {})};
@@ -204,11 +213,11 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     const nx0 = -dy / len, ny0 = dx / len; // a normal of the segment
     const want = side === 'above' ? [0, -1] : side === 'below' ? [0, 1] : side === 'left' ? [-1, 0] : [1, 0];
     const sgn = nx0 * want[0] + ny0 * want[1] >= 0 ? 1 : -1;
-    const off = dm.offset ?? DIM_OFFSET, ox = sgn * nx0 * off, oy = sgn * ny0 * off;
+    const off = dm.offset ?? DIM_OFFSET * g / 14, ox = sgn * nx0 * off, oy = sgn * ny0 * off;
     const line = {x1: a.x + ox, y1: a.y + oy, x2: b.x + ox, y2: b.y + oy};
     const mx = (line.x1 + line.x2) / 2, my = (line.y1 + line.y2) / 2;
-    const lw = tw(dm.label, 700), chip = {x: mx - lw / 2 - DIM_CHIP_PAD, y: my - 12, w: lw + 2 * DIM_CHIP_PAD, h: 24};
-    texts.push({s: dm.label, x: mx, y: my + 5, anchor: 'middle', tone, bold: true, ...(dm.reveal ? {reveal: dm.reveal} : {})});
+    const lw = tw(dm.label, 700), chipH = g + 10, chip = {x: mx - lw / 2 - DIM_CHIP_PAD, y: my - chipH / 2, w: lw + 2 * DIM_CHIP_PAD, h: chipH};
+    texts.push({s: dm.label, x: mx, y: my + half, anchor: 'middle', tone, bold: true, ...(dm.reveal ? {reveal: dm.reveal} : {})});
     boxes.push({label: dm.label, ...chip, dim: di});
     inkSeg('a dimension line', line, di);
     inkSeg('a dimension line', {x1: a.x, y1: a.y, x2: line.x1, y2: line.y1}, di);
@@ -218,11 +227,11 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
 
   for (const l of band.labels ?? []) {
     const q = pt(l.at);
-    addText(l.text, q.x, q.y + 5, l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold, l.reveal);
+    addText(l.text, q.x, q.y + half, l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold, l.reveal);
   }
 
   return {
-    type: 'plane', id: band.id, x, y, w, h, reveal: band.reveal, bounds: {x: left, y, w: width, h},
+    type: 'plane', id: band.id, x, y, w, h, reveal: band.reveal, labelSize: size, bounds: {x: left, y, w: width, h},
     axisX, axisY, plotL, plotR, plotT, plotB, yDown,
     ticks, grid, texts, points, lines, ...(paths.length ? {paths} : {}), dims, labelBoxes: boxes, obstacles,
   };
