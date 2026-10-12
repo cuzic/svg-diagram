@@ -20,6 +20,7 @@ import {wrapAtoms, wrapStyledAtoms} from './wrap.ts';
 import {assertSpans} from './rich.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {layoutPlane, planeTexts} from './plane.ts';
+import {IMAGE_PAD, imageSize, imageTexts, layoutImage} from './image.ts';
 import {barsTexts, layoutBars} from './bars.ts';
 import {dotsTexts, layoutDots, layoutPeople, peopleTexts} from './people.ts';
 import {layoutTimeline, timelineTexts} from './timeline.ts';
@@ -296,6 +297,9 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
       }
     } else if (band.type === 'plane') {
       for (const [text, size, weight, font] of planeTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'image') {
+      for (const [text, size, weight, font] of imageTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+      for (const child of band.children ?? []) registerBand(child);
     } else if (band.type === 'bars') {
       for (const [text, size, weight, font] of barsTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'people') {
@@ -379,6 +383,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
     const walk = (bs: Band[], cw: number): void => {
       for (const b of bs) {
         if (b.type === 'group') walk(b.children, cw - 2 * (b.pad ?? 16));
+        else if (b.type === 'image') { if (b.children) walk(b.children, imageSize(b, cw).w - 2 * (b.pad ?? IMAGE_PAD)); }
         else if ((b.type === 'row' || b.type === 'grouprow') && b.cols) {
           const key = `${b.cols}/${b.gap}`, g = grids.get(key) ?? {need: b.gap, rows: []};
           g.need = Math.max(g.need, gapNeeded(b as RowLike));
@@ -477,6 +482,28 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       if (band.id) anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
       laidOut.push(placed);
       cursorY += placed.h + d.gap;
+      continue;
+    }
+
+    if (band.type === 'image') {
+      const placed = layoutImage(band, padX, cursorY, cw, widthOf, roles);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, 'an image takes an id that another anchor already has');
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
+      for (const a of placed.anchors) {
+        if (anchors.has(a.id)) claimed(a.id, 'a mark takes an id that another anchor already has');
+        anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
+      }
+      laidOut.push(placed);
+      if (band.children?.length) { // the picture is a backdrop: its parts stack from the top inside it, drawn after it
+        const pad = band.pad ?? IMAGE_PAD;
+        cursorY = placed.y + pad;
+        stack(band.children, placed.x + pad, placed.w - 2 * pad);
+        const bottom = cursorY - d.gap, room = placed.y + placed.h - pad;
+        if (bottom > room + 0.5) throw new Error(`image(): the parts over it need ${Math.round(bottom - placed.y + pad)}px of height but the picture is ${placed.h}px high (make the picture bigger with width / height, or use less content)`);
+      }
+      cursorY = placed.y + placed.h + d.gap;
       continue;
     }
 

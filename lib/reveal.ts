@@ -100,7 +100,11 @@ export function prepareReveal(d: DiagramData): number {
       } else if (b.type === 'plane') planeElements(b, n);
       else if (b.type === 'swimlane') b.steps.forEach((c, i) => set(c, n, `swimlane() step ${i + 1}`, u));
       else if (b.type === 'grid') b.children.forEach((c, i) => set(c, n, `grid() child ${i + 1}`, u));
-      else if (b.type === 'bars') for (const [i, bar] of b.data.entries()) {
+      else if (b.type === 'image') {
+        for (const [i, m] of (b.marks ?? []).entries()) { const r = set(m, n, `image() mark ${i + 1}`, u); if (m.id) ids.set(m.id, r); }
+        for (const [i, l] of (b.labels ?? []).entries()) set(l, n, `image() label ${i + 1}`, u);
+        walk(b.children ?? [], n, u);
+      } else if (b.type === 'bars') for (const [i, bar] of b.data.entries()) {
         ownUntils.set(bar, bar.until); // the bar's own, before set() merges in the band's
         if (bar.replaces !== undefined) {
           if (b.stack) throw new Error(`bars() value ${i + 1}: replaces does not work with stack (the segments share one bar)`);

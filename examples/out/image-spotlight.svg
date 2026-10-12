@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="396" viewBox="0 0 940 396" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">絵の一部だけを主役にする</title>
+  <desc id="svg-desc">画像: 台所。左にコンロと赤い鍋、右に窓がある</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/image-spotlight.ts","sourceSha256":"2011ec6653c98dcb5a0bcbaf31fc1160b1316cd15d599bc5a5240afbec54aa94"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="396" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">image + spotlight（印の id を指す）</text>
+
+  <image x="232" y="56" width="480" height="320" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAACg0lEQVR4nO3SMW0cABREwcN0teuAOGCBYxDG4M4kojQhkC+t8zLSAFit3uPr8wMyHvMFcEjQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTIuiC18+Uv7lC0AXzBAXNpXmCgubSPEFBc2meoKC5NE9Q0FyaJyhoLs0TFDSX5gkKmkvzBAXNpXmCgubSPEFBc2meoKC5NE9Q0FyaJyhoLs0TFDSX5gkKmkvzBAXNpXmCgubSPEFBc2meoKC5NE9Q0FyaJyhoLs0TFDSX5gkKmkvzBAXNpXmCgubSPEFBc2meoKC5NE9Q0FyaJyhoLs0TFDSX5gkKmkvzBAXNpXmCgubSPEFBc2meoKC5NE9Q0FyaJyhoLs0TFDSX5gkKmkvzBAXNpXmCgubSPEFBc2meoKC5NE9Q0FyaJyhoLs0TFDSX5gkKmkvzBAX92/vb87uZpyloQQt6n6CgBS1oQQta0IIW9D9H0IJOEbSgUwQt6BRBCzpF0P970PwhaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKYIWdIqgBZ0iaEGnCFrQKY/XjydkCJoUQZMiaFIETYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSRE0KYImRdCk/AJBSU+ybdC4GwAAAABJRU5ErkJggg==" preserveAspectRatio="none" role="img" aria-label="台所。左にコンロと赤い鍋、右に窓がある"/>
+  <path d="M232,56 h480 v320 h-480 Z M308,192 h116 v96 h-116 Z" fill="#ffffff" fill-opacity="0.7" fill-rule="evenodd"/>
+  <rect x="308" y="192" width="116" height="96" fill="none" stroke="#b91c1c" stroke-width="3"/>
+  <rect x="528" y="96" width="144" height="120" fill="none" stroke="#6f6659" stroke-width="3" stroke-dasharray="2,5" stroke-linecap="round"/>
+  <rect x="308" y="192" width="56" height="28" rx="14" fill="#ffffff" stroke="#b91c1c" stroke-width="2"/>
+  <text x="336" y="211" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">火の元</text>
+  <rect x="528" y="96" width="32" height="28" rx="14" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <text x="544" y="115" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">窓</text>
+</svg>

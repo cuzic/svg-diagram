@@ -45,6 +45,22 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
       const txt = (t.textContent || '').trim();
       if (!txt) continue;
       const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
+      // text on an <image> needs an opaque shape between them (its pixels are unknown): same rule as svg-lint.ts
+      const before = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      const pics = ([...svg.querySelectorAll('image')] as SVGGraphicsElement[]).filter(im => {
+        const q = im.getBBox();
+        return before(im, t) && cx >= q.x && cx <= q.x + q.width && cy >= q.y && cy <= q.y + q.height;
+      });
+      const pic = pics[pics.length - 1];
+      if (pic) {
+        const plated = ([...svg.querySelectorAll('rect,circle,ellipse,polygon,path')] as SVGGraphicsElement[]).some(e => {
+          if (!before(pic, e) || !before(e, t)) return false;
+          const cs = getComputedStyle(e), c = parseColor(cs.fill), q = e.getBBox();
+          return !!c && cs.fill !== 'none' && c.a * parseFloat(cs.fillOpacity || '1') * parseFloat(cs.opacity || '1') >= 0.9
+            && bb.x >= q.x - 1 && bb.x + bb.width <= q.x + q.width + 1 && bb.y >= q.y - 1 && bb.y + bb.height <= q.y + q.height + 1;
+        });
+        if (!plated) { contrast.push({txt: txt.slice(0, 40), delta: 0, fg: getComputedStyle(t).fill, bg: 'image (no opaque plate behind the text)'}); continue; }
+      }
       let bg = {...page};
       for (const s of shapes) {
         const q = s.bb;

@@ -15,7 +15,7 @@ export interface RenderChecks {
 }
 
 const NOT_DRAWN = new Set(['defs', 'marker', 'clipPath', 'mask', 'pattern', 'symbol', 'linearGradient', 'radialGradient', 'filter', 'title', 'desc', 'metadata', 'style', 'script']);
-const SIZED = new Set(['rect', 'circle', 'ellipse', 'path', 'line', 'polygon', 'polyline', 'text']);
+const SIZED = new Set(['rect', 'circle', 'ellipse', 'path', 'line', 'polygon', 'polyline', 'text', 'image']);
 
 interface Item {el: El; tag: string; style: Style; outline: Outline | null; user: Box | null; screen: Box | null; toScreen: Matrix}
 
@@ -52,6 +52,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
       const toScreen = multiply(view, m);
       let outline: Outline | null = null, local: Box | null;
       if (el.tag === 'text') local = textBoxOf(el, styles, specs);
+      else if (el.tag === 'image') { const n = (k: string) => parseFloat(el.attrs[k] ?? '0') || 0; local = n('width') && n('height') ? {x: n('x'), y: n('y'), w: n('width'), h: n('height')} : null; }
       else { outline = isShape(el) ? outlineOf(el, vp) : null; local = outline?.box ?? null; }
       // a transformed element's box is the box of its own box's corners (as a browser reports it), not of its outline's points
       items.push({el, tag: el.tag, style, outline, user: local && transformBox(local, m), screen: local && transformBox(local, toScreen), toScreen});
@@ -74,6 +75,16 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
     const txt = textOf(t.el).trim();
     if (!txt) continue;
     const b = t.user!, cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    // an <image>'s pixels are unknown, so text drawn on one is judged by what is between them: it needs an opaque shape behind the whole
+    // text (a plate); without one the contrast cannot be checked and is reported
+    const at = items.indexOf(t);
+    const pic = items.findLastIndex((i, k) => k < at && i.tag === 'image' && i.user && cx >= i.user.x && cx <= i.user.x + i.user.w && cy >= i.user.y && cy <= i.user.y + i.user.h);
+    if (pic >= 0 && !items.slice(pic + 1, at).some(i => ['rect', 'circle', 'ellipse', 'polygon', 'path'].includes(i.tag) && i.user && i.style.fill !== 'none'
+      && i.style.fillOpacity * i.style.opacity >= 0.9 && (parseColor(i.style.fill, i.style.color)?.a ?? 0) >= 0.9
+      && b.x >= i.user.x - 1 && b.x + b.w <= i.user.x + i.user.w + 1 && b.y >= i.user.y - 1 && b.y + b.h <= i.user.y + i.user.h + 1)) {
+      result.contrast.push({txt: txt.slice(0, 40), delta: 0, fg: css(parseColor(t.style.fill, t.style.color) ?? {r: 0, g: 0, b: 0, a: 1}), bg: 'image (no opaque plate behind the text)'});
+      continue;
+    }
     let bg: RGBA = page;
     for (const s of shapes) if (cx >= s.box.x && cx <= s.box.x + s.box.w && cy >= s.box.y && cy <= s.box.y + s.box.h) bg = over(s.c, bg);
     // a tspan with a colour of its own is judged on its own (against the text's box, as the centre of a word is no nearer than that)

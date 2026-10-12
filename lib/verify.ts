@@ -22,6 +22,7 @@
 // based render check stays as the final safety net for exactly those two
 // gaps — verify() is the fast, primary check; lint is the backstop.
 
+import {plateStyle} from './image.ts';
 import {PALETTE, colorOf, luminance as lightLuminance, runColorOf, paintOf} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {lintDiagram, walkBands} from './rules.ts';
@@ -55,6 +56,8 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
   for (const band of d.laidOut) {
     if (band.type === 'screens') { // check each screen frame, not the bounding box that holds them all
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h});
+    } else if (band.type === 'image') {
+      rects.push({id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id), ...(band.backdrop ? {backdrop: true} : {})});
     } else if (band.type === 'bars') {
       for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})});
     } else if (band.type === 'caption' && band.inkBox) { // a group's title text: connectors must not run through it
@@ -100,6 +103,22 @@ function checkBars(d: LaidOutDiagram): string[] {
       if (a.bar !== undefined && b.bar !== undefined && neverTogether(band.bars[a.bar], band.bars[b.bar])) continue; // one replaces the other
       const o = rectOverlap(a, b);
       if (o) problems.push(`bars: value label "${band.labelBoxes[i].label}" overlaps value label "${band.labelBoxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
+    }
+  }
+  return problems;
+}
+
+// image(): a label plate must stay inside the picture and clear of the other plates (it sits on the picture, so a plate over a plate hides words).
+function checkImages(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  for (const band of d.laidOut) {
+    if (band.type !== 'image') continue;
+    for (const p of band.plates) {
+      if (p.x < band.x - 0.5 || p.x + p.w > band.x + band.w + 0.5 || p.y < band.y - 0.5 || p.y + p.h > band.y + band.h + 0.5) problems.push(`image: label "${p.text}" does not fit inside the picture (shorten it or make the picture bigger)`);
+    }
+    for (let i = 0; i < band.plates.length; i++) for (let j = i + 1; j < band.plates.length; j++) {
+      const o = rectOverlap(band.plates[i], band.plates[j]);
+      if (o) problems.push(`image: label "${band.plates[i].text}" overlaps label "${band.plates[j].text}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px (move one: its position is a fraction of the picture)`);
     }
   }
   return problems;
@@ -166,7 +185,7 @@ function checkConnects(d: LaidOutDiagram, rects: CheckRect[]): string[] {
   for (const c of d.connects) {
     const within = (r: CheckRect, a?: Rect) => !!a && Math.min(r.x + r.w, a.x + a.w) - Math.max(r.x, a.x) > 0.5 && Math.min(r.y + r.h, a.y + a.h) - Math.max(r.y, a.y) > 0.5;
     // an end that is a row / a column of a row (row({id})) owns the boxes in it (a box spanning several columns belongs to each of them)
-    const isOwnEndpoint = (r: CheckRect) => (r.id !== null && (r.id === c.fromId || r.id === c.toId)) || within(r, c.fromArea) || within(r, c.toArea);
+    const isOwnEndpoint = (r: CheckRect) => (r.id !== null && (r.id === c.fromId || r.id === c.toId)) || !!r.holds?.some(h => h === c.fromId || h === c.toId) || within(r, c.fromArea) || within(r, c.toArea);
     for (const r of rects) {
       if (isOwnEndpoint(r)) {
         // The path starts on its own boxes, but the label/chip must not sit on top of their text:
@@ -235,6 +254,10 @@ function checkContrast(d: LaidOutDiagram): string[] {
       const delta = Math.abs(luminance(fg) - luminance(bg));
       if (delta < CONTRAST_THRESHOLD) problems.push(`bars: value label "${b.label}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
     }
+    else if (band.type === 'image') for (const p of band.plates) {
+      const st = plateStyle(p.tone), fg = colorOf(st.text, d.day), bg = colorOf(st.fill, d.day), delta = Math.abs(luminance(fg) - luminance(bg));
+      if (!p.dim && !band.dim && delta < CONTRAST_THRESHOLD) problems.push(`image: label "${p.text}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
+    }
   }
   return problems;
 }
@@ -244,10 +267,11 @@ function checkContrast(d: LaidOutDiagram): string[] {
 export function verifyDiagram(d: LaidOutDiagram): Verdict {
   const rects = collectRects(d);
   const problems = [
-    ...checkOverlaps(rects),
-    ...checkConnects(d, rects),
+    ...checkOverlaps(rects.filter(r => !r.backdrop)),
+    ...checkConnects(d, rects.filter(r => !r.backdrop)),
     ...checkPlanes(d),
     ...checkBars(d),
+    ...checkImages(d),
     ...checkTimelines(d),
     ...checkNoWrap(d),
     ...checkBounds(d, rects),
