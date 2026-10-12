@@ -15,7 +15,8 @@
 // consume vertical space; they're resolved in a final pass once every named
 // anchor (any box/child with an explicit `id`) has a known rect.
 
-import {splitAtoms, measureAll, textWidth} from './measure.ts';
+import {splitAtoms, textWidth} from './measure.ts';
+import type {measureAll} from './measure.ts';
 import {wrapAtoms, wrapStyledAtoms} from './wrap.ts';
 import {assertSpans} from './rich.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
@@ -50,9 +51,6 @@ const ICON_H = ICON_SIZE; // the icon is at least this tall, so a one-line box s
 
 type Requests = Map<string, MeasureRequest>;
 
-// An atom that was never registered measures 0 wide, silently (a line then overflows its box). Tests and the golden check run
-// with SVG_DIAGRAM_STRICT_WIDTH=1 (test/helpers/strict-width.ts), which turns that into an error.
-const strictWidths = (): boolean => !!process.env.SVG_DIAGRAM_STRICT_WIDTH;
 /** A band after placeBoxLike(): its own fields plus geometry, wrapped text and (maybe) the tag pill. */
 type Placed<B> = B & Rect & {wrappedRuns: WrappedRun[]; tagBox?: Rect; inkBox?: Rect};
 
@@ -306,20 +304,18 @@ export function collectMeasures(d: DiagramData, roles: Roles): Requests {
   return requests;
 }
 
-/** The width lookup over what measureAll(collectMeasures(...)) returned. */
-export function widthOfMeasured(measured: Awaited<ReturnType<typeof measureAll>>): WidthOf {
+/**
+ * The width lookup over what measureAll(collectMeasures(...)) returned. An atom that was never registered measures 0 wide,
+ * silently (a line then overflows its box); with `strict` that is an error. The caller reads SVG_DIAGRAM_STRICT_WIDTH
+ * (layout itself touches no environment).
+ */
+export function widthOfMeasured(measured: Awaited<ReturnType<typeof measureAll>>, strict: boolean): WidthOf {
   return (atom, size, weight, font) => {
     const m = measured.get(`${atom} ${size} ${weight} ${font}`);
     if (m) return m.w;
-    if (strictWidths()) throw new Error(`layout: "${atom}" (${size}px, ${weight}, ${font}) was not registered for measuring, so its width would be 0 (SVG_DIAGRAM_STRICT_WIDTH is set)`);
+    if (strict) throw new Error(`layout: "${atom}" (${size}px, ${weight}, ${font}) was not registered for measuring, so its width would be 0 (SVG_DIAGRAM_STRICT_WIDTH is set)`);
     return 0;
   };
-}
-
-/** Measure then lay out. `roles` (default ROLES) is baked into the result as LaidOutDiagram.roles. */
-export async function layoutDiagram(d: DiagramData, opts: {roles?: Roles} = {}): Promise<LaidOutDiagram> {
-  const roles = opts.roles ?? ROLES;
-  return layoutWith(d, roles, widthOfMeasured(await measureAll(collectMeasures(d, roles))));
 }
 
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */

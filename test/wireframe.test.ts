@@ -3,7 +3,7 @@
 import test, {after} from 'node:test';
 import assert from 'node:assert/strict';
 import {diagram, wireframe, screens, wf, closeMeasurer} from '../lib/dsl.ts';
-import {layoutDiagram} from '../lib/layout.ts';
+import {layoutDiagram} from '../lib/layout-measured.ts';
 import type {Band, LaidOutScreens, LaidOutWireframe, PrimRect, PrimText, Prim, Rect} from '../lib/types.ts';
 
 after(() => closeMeasurer());

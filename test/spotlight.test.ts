@@ -4,7 +4,7 @@ import {bars, box, checkDiagram, closeMeasurer, connect, diagram, group, renderD
 import type {LaidOutRow} from '../lib/dsl.ts';
 import {applySpotlight as applySpot} from '../lib/spotlight.ts';
 import {emitSvg} from '../lib/emit.ts';
-import {layoutDiagram} from '../lib/layout.ts';
+import {layoutDiagram} from '../lib/layout-measured.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import {ROLES} from '../lib/tokens.ts';
 

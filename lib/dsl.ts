@@ -11,7 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import {wf} from './wireframe.ts';
 import {assertIconName} from './icons.ts';
-import {collectMeasures, layoutWith, widthOfMeasured} from './layout.ts';
+import {layoutDiagram} from './layout-measured.ts';
 import {emitSvg} from './emit.ts';
 import {emitHtml} from './emit-html.ts';
 import {xmlProblems} from './xml-check.ts';
@@ -19,7 +19,7 @@ import {verifyDiagram} from './verify.ts';
 import {applyAutoLegend, walkBands} from './rules.ts';
 import {analyzeFit} from './fit.ts';
 import {getSlideBudget, readSlideBudgetCache} from './slide-budget.ts';
-import {closeMeasurer, measureAll} from './measure.ts';
+import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
@@ -847,35 +847,28 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
   // Every scale is its own value (scaleRoles): measured with, laid out with and drawn with the same roles, which travel in the result.
   const layoutAt = async (s: number): Promise<LaidOutDiagram> => {
     const roles = scaleRoles(ROLES, s);
-    return layoutMeasured({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}, roles);
+    return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}, {roles});
   };
-  {
-    if (d.fill && budget) {
-      d.width = budget.contentWidth;
-      let lo = 1, hi = fillScaleLimit(d.bands);
-      if ((await layoutAt(1)).canvasHeight > budget.maxHeight) hi = 1; // doesn't even fit at 1x: report via fit warnings
-      for (let i = 0; i < 7 && hi - lo > 0.01; i++) {
-        const mid = (lo + hi) / 2;
-        if ((await layoutAt(mid)).canvasHeight <= budget.maxHeight) lo = mid; else hi = mid;
-      }
-      fontScale = Math.floor(lo * 100) / 100;
-    } else if (d.fill) {
-      if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
-      notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
+  if (d.fill && budget) {
+    d.width = budget.contentWidth;
+    let lo = 1, hi = fillScaleLimit(d.bands);
+    if ((await layoutAt(1)).canvasHeight > budget.maxHeight) hi = 1; // doesn't even fit at 1x: report via fit warnings
+    for (let i = 0; i < 7 && hi - lo > 0.01; i++) {
+      const mid = (lo + hi) / 2;
+      if ((await layoutAt(mid)).canvasHeight <= budget.maxHeight) lo = mid; else hi = mid;
     }
-    laidOut = await layoutAt(fontScale);
-    laidOut.fontScale = fontScale;
-    applySpotlight(laidOut);
-    verdict = verifyDiagram(laidOut);
-    svg = emitSvg(laidOut, maxReveal ? {reveal: maxReveal} : {});
-    if (opts.html) html = emitHtml(laidOut, maxReveal ? {reveal: maxReveal} : {});
+    fontScale = Math.floor(lo * 100) / 100;
+  } else if (d.fill) {
+    if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
+    notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
   }
+  laidOut = await layoutAt(fontScale);
+  laidOut.fontScale = fontScale;
+  applySpotlight(laidOut);
+  verdict = verifyDiagram(laidOut);
+  svg = emitSvg(laidOut, maxReveal ? {reveal: maxReveal} : {});
+  if (opts.html) html = emitHtml(laidOut, maxReveal ? {reveal: maxReveal} : {});
   return {svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml: xmlProblems(svg), notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget, budgetSource, fontScale: laidOut.fontScale};
-}
-
-/** The one await of a layout: measure what collectMeasures asked for, then lay out synchronously. */
-async function layoutMeasured(d: DiagramData, roles: Roles): Promise<LaidOutDiagram> {
-  return layoutWith(d, roles, widthOfMeasured(await measureAll(collectMeasures(d, roles))));
 }
 
 /** What the passes may write into: the bands are copied, so a band shared by two diagrams (or drawn twice) is never changed by a render. */
@@ -894,7 +887,7 @@ export async function checkDiagram(input: DiagramData): Promise<CheckResult> {
   const d = detach(input);
   prepareReveal(d);
   applyAutoLegend(d);
-  const laidOut = await layoutMeasured(d, ROLES);
+  const laidOut = await layoutDiagram(d);
   applySpotlight(laidOut);
   return {laidOut, verdict: verifyDiagram(laidOut)};
 }
