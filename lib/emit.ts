@@ -449,7 +449,16 @@ function renderTimeline(b: LaidOutTimeline, day: Theme): string {
 
 function renderTree(b: LaidOutTree, day: Theme): string {
   const out: string[] = [];
-  for (const e of b.edges) out.push(`<path d="M${e.points.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
+  for (const e of b.edges) {
+    const [a, z] = [e.points[0], e.points[e.points.length - 1]];
+    // curve: a cubic that leaves and arrives along the axis the tree grows on (`curve`), so it reads as one smooth S
+    const d = e.curve ? (e.curve === 'x' ? `M${snap4(a.x)},${snap4(a.y)} C${snap4((a.x + z.x) / 2)},${snap4(a.y)} ${snap4((a.x + z.x) / 2)},${snap4(z.y)} ${snap4(z.x)},${snap4(z.y)}` : `M${snap4(a.x)},${snap4(a.y)} C${snap4(a.x)},${snap4((a.y + z.y) / 2)} ${snap4(z.x)},${snap4((a.y + z.y) / 2)} ${snap4(z.x)},${snap4(z.y)}`) : `M${e.points.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}`;
+    out.push(`<path d="${d}" fill="none" stroke="${PALETTE.muted}" stroke-width="${e.bold ? 4 : 2}"/>`);
+  }
+  for (const br of b.braces ?? []) { // a `{`: two quarter turns in, a point toward the parent, two quarter turns out
+    const s = br.side === 'right' ? 1 : -1, r = 8, x = snap4(br.x), xt = snap4(br.tipX), y1 = snap4(br.y1), y2 = snap4(br.y2), ym = snap4(br.ymid);
+    out.push(`<path d="M${x + s * r},${y1} Q${x},${y1} ${x},${y1 + r} V${ym - r} Q${x},${ym} ${xt},${ym} Q${x},${ym} ${x},${ym + r} V${y2 - r} Q${x},${y2} ${x + s * r},${y2}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
+  }
   for (const n of b.nodes) out.push(renderBoxRect({...n, dim: b.dim}, day, 'plain'));
   const tones = b.nodes;
   const ink = (t: LaidOutTree['texts'][number]): string => {

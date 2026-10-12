@@ -927,8 +927,22 @@ export interface TreeBand extends TreeOpts {
   balanced?: boolean;
   /** mindmap(): the side of a root child, by its id (the rest are balanced by height). */
   sides?: Record<string, 'left' | 'right'>;
+  /** mindmap(): how the branches are laid out (default 'radial'). */
+  layout?: MindmapLayout;
+  /** mindmap(): how a branch's line is drawn (tree-like layouts: radial / right / left / down / up). */
+  edges?: 'elbow' | 'curve' | 'straight';
 }
+/**
+ * radial: the root in the middle, branches to both sides | right / left: one side only (a logic chart) | down / up: a tree |
+ * org: the root's children side by side, each with a list below | list: an outline, indented | brace: a brace map |
+ * fishbone: cause and effect, the root is the head | timeline: children along an axis, alternately above and below.
+ */
+export type MindmapLayout = 'radial' | 'right' | 'left' | 'down' | 'up' | 'org' | 'list' | 'brace' | 'fishbone' | 'timeline';
 export interface MindmapOpts extends RevealOpts {
+  /** How the branches are laid out (default 'radial'): see MindmapLayout. */
+  layout?: MindmapLayout;
+  /** How a branch's line is drawn: 'elbow' (default), 'curve' or 'straight'. For radial / right / left / down / up. */
+  edges?: 'elbow' | 'curve' | 'straight';
   /** Pin a child of the root (by its id) to a side; the others are balanced by height. */
   sides?: Record<string, 'left' | 'right'>;
   maxNodeW?: number;
@@ -2160,8 +2174,10 @@ export interface LaidOutTree extends Rect, Dimmed {
   reveal?: number;
   until?: number;
   nodes: (Rect & {tone: BoxTone; id?: string})[];
-  /** Parent to child, each a polyline (centre line of the box edge to the child's box edge). */
-  edges: {points: {x: number; y: number}[]}[];
+  /** Parent to child, each a polyline (centre line of the box edge to the child's box edge); `curve` draws it as a smooth S, `bold` as a spine. */
+  edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean}[];
+  /** brace maps: a `{` over the children of one parent. */
+  braces?: {x: number; y1: number; y2: number; ymid: number; tipX: number; side: 'right' | 'left'}[];
   texts: TreeNodeText[];
   /** Nodes with an id: what connect() can reach. */
   anchors: Anchor[];

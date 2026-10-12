@@ -10,7 +10,16 @@ export type Dir = 'down' | 'right';
 
 export interface TreeNode {id: string; size: Size; children?: TreeNode[]}
 export interface TreeOpts {dir?: Dir; /** space between siblings */ gap?: number; /** space between a level and the next */ levelGap?: number}
-export interface TreeLayout {nodes: Map<string, Placed>; /** parent -> child polylines (centre to centre, elbow at the half-way level) */ edges: {from: string; to: string; points: Pt[]}[]; w: number; h: number}
+/** A `{` brace gathering the children of one parent (map-layouts.ts): its spine at x from y1 to y2, the tip at (tipX, ymid) pointing at the parent. */
+export interface Brace {x: number; y1: number; y2: number; ymid: number; tipX: number; side: 'right' | 'left'}
+export interface TreeLayout {
+  nodes: Map<string, Placed>;
+  /** parent -> child polylines (centre to centre, elbow at the half-way level); `curve`: drawn as a smooth S along that axis; `bold`: a spine */
+  edges: {from: string; to: string; points: Pt[]; curve?: 'x' | 'y'; bold?: boolean}[];
+  braces?: Brace[];
+  w: number;
+  h: number;
+}
 
 const GAP = 24, LEVEL_GAP = 40;
 

@@ -2,7 +2,8 @@
 // label and an optional muted sub line, wrapped to maxNodeW. Nodes with an id are anchors, so connect() can reach them.
 import {textWidth, splitAtoms} from './atoms.ts';
 import {layoutBalanced, layoutTree} from './graph-layout.ts';
-import type {TreeNode} from './graph-layout.ts';
+import type {TreeLayout, TreeNode} from './graph-layout.ts';
+import {layoutBrace, layoutFishbone, layoutHanging, layoutTimelineMap, mirror} from './map-layouts.ts';
 import {wrapText} from './wrap.ts';
 import type {FontFamily, LaidOutTree, Roles, TreeBand, TreeItem, TreeNodeText, WidthOf} from './types.ts';
 
@@ -70,8 +71,19 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     if (!band.root.children?.includes(item)) throw new Error(`mindmap(): sides can pin only a child of the root ("${id}" is deeper)`);
     return [key.get(item)!, side];
   }));
-  const tree = band.balanced ? layoutBalanced(laidRoot, {gap: GAP, levelGap: LEVEL_GAP, sides}) : layoutTree(laidRoot, {dir: band.dir ?? 'down', gap: GAP, levelGap: LEVEL_GAP});
-  if (tree.w > w + 0.5) throw new Error(`tree(): the chart is ${Math.ceil(tree.w)}px wide but the figure has ${Math.round(w)}px (${band.balanced ? 'use a smaller maxNodeW or fewer branches' : "use dir: 'right', a smaller maxNodeW, or fewer siblings on one level"})`);
+  const kind = band.balanced ? band.layout ?? 'radial' : band.dir === 'right' ? 'right' : 'down';
+  if (band.sides && kind !== 'radial') throw new Error(`mindmap(): sides applies to the radial layout (this is layout: '${kind}')`);
+  const styled = band.edges !== undefined && band.edges !== 'elbow';
+  if (styled && !['radial', 'right', 'left', 'down', 'up'].includes(kind)) throw new Error(`mindmap(): edges: '${band.edges}' applies to the radial, right, left, down and up layouts (this is layout: '${kind}')`);
+  const grown = (dir: 'down' | 'right'): TreeLayout => layoutTree(laidRoot, {dir, gap: GAP, levelGap: LEVEL_GAP});
+  const raw: TreeLayout = kind === 'radial' ? layoutBalanced(laidRoot, {gap: GAP, levelGap: LEVEL_GAP, sides})
+    : kind === 'right' ? grown('right') : kind === 'left' ? mirror(grown('right'), 'x') : kind === 'down' ? grown('down') : kind === 'up' ? mirror(grown('down'), 'y')
+    : kind === 'org' ? layoutHanging(laidRoot, {rowFirst: true}) : kind === 'list' ? layoutHanging(laidRoot)
+    : kind === 'brace' ? layoutBrace(laidRoot) : kind === 'fishbone' ? layoutFishbone(laidRoot) : layoutTimelineMap(laidRoot);
+  // the line style: straight or smooth instead of the elbow (the first and last point of each line, the smooth one along the way the tree grows)
+  const along: 'x' | 'y' = kind === 'down' || kind === 'up' ? 'y' : 'x';
+  const tree: TreeLayout = !styled ? raw : {...raw, edges: raw.edges.map(e => ({...e, points: [e.points[0], e.points[e.points.length - 1]], ...(band.edges === 'curve' ? {curve: along} : {})}))};
+  if (tree.w > w + 0.5) throw new Error(`tree(): the chart is ${Math.ceil(tree.w)}px wide but the figure has ${Math.round(w)}px (${band.balanced ? (kind === 'org' || kind === 'timeline' || kind === 'fishbone' || kind === 'down' || kind === 'up' ? "use layout: 'list', 'right' or 'left', a smaller maxNodeW, or fewer branches" : 'use a smaller maxNodeW or fewer branches') : "use dir: 'right', a smaller maxNodeW, or fewer siblings on one level"})`);
   const dx = x + (w - tree.w) / 2, dy = y;
   const out: LaidOutTree = {
     type: 'tree', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: tree.h,
@@ -85,6 +97,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     out.texts.push(...nodeRuns(r, l, roles));
     out.labelBoxes.push({label: n.label, ...r});
   }
-  for (const e of tree.edges) out.edges.push({points: e.points.map(p => ({x: p.x + dx, y: p.y + dy}))});
+  for (const e of tree.edges) out.edges.push({points: e.points.map(p => ({x: p.x + dx, y: p.y + dy})), ...(e.curve ? {curve: e.curve} : {}), ...(e.bold ? {bold: true} : {})});
+  if (tree.braces?.length) out.braces = tree.braces.map(b => ({...b, x: b.x + dx, tipX: b.tipX + dx, y1: b.y1 + dy, y2: b.y2 + dy, ymid: b.ymid + dy}));
   return out;
 }

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="412" viewBox="0 0 940 412" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">新機能の検討(ブレース型)</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/mindmap-brace.ts","sourceSha256":"a834d346ba1c9d223f80212a428cda867bf95140939fad37483c0d501fb989fd"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="412" fill="#ffffff"/>
+
+  <path d="M336,208 L364,208" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M384,68 L400,68" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M488,68 L516,68" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M536,40 L552,40" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M536,96 L552,96" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M384,208 L400,208" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M488,208 L516,208" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M536,152 L552,152" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M536,208 L552,208" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M536,264 L552,264" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M384,348 L400,348" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M488,348 L516,348" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M536,320 L552,320" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M536,376 L552,376" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M384,68 Q376,68 376,76 V200 Q376,208 364,208 Q376,208 376,216 V340 Q376,348 384,348" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M536,40 Q528,40 528,48 V60 Q528,68 516,68 Q528,68 528,76 V88 Q528,96 536,96" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M536,152 Q528,152 528,160 V200 Q528,208 516,208 Q528,208 528,216 V256 Q528,264 536,264" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M536,320 Q528,320 528,328 V340 Q528,348 516,348 Q528,348 528,356 V368 Q528,376 536,376" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <rect x="248" y="188" width="88" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="400" y="48" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="552" y="20" width="128" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="552" y="76" width="100" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="400" y="188" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="552" y="132" width="100" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="552" y="188" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="552" y="244" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="400" y="328" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="552" y="300" width="140" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="552" y="356" width="100" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="292" y="210" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">新機能</text>
+  <text x="444" y="70" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">目的</text>
+  <text x="615" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">棚卸しを半分に</text>
+  <text x="601" y="98" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">欠品の防止</text>
+  <text x="444" y="210" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">機能</text>
+  <text x="601" y="154" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">バーコード</text>
+  <text x="608" y="210" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">発注アラート</text>
+  <text x="597" y="266" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">CSV 出力</text>
+  <text x="444" y="350" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">課題</text>
+  <text x="622" y="322" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">既存システム連携</text>
+  <text x="601" y="378" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">現場の端末</text>
+</svg>
