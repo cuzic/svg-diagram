@@ -708,6 +708,84 @@ export interface BarsBand extends BarsOpts {
 }
 
 // ============================================================================================
+// DSL input + band: image
+// ============================================================================================
+
+/** A position as fractions of the picture: [0, 0] is its top-left corner, [1, 1] its bottom-right. */
+export type ImagePoint = readonly [x: number, y: number];
+/** A region as fractions of the picture: [x, y, w, h]. */
+export type ImageRect = readonly [x: number, y: number, w: number, h: number];
+/** An outline round a region of the picture. Its `id` is a spotlight target and a connect() endpoint. */
+export interface ImageMark {
+  /** Unique across the diagram, like every anchor id. */
+  id?: string;
+  rect: ImageRect;
+  /** The outline's colour (and the label plate's tone). Default 'accent'. */
+  tone?: EmphasisTone;
+  /** A word on a plate at the outline's top-left corner. */
+  label?: string;
+  reveal?: number;
+}
+/** A word on an opaque plate at a point of the picture. There is no way to put text on the bare picture: its pixels are not known to the contrast check. */
+export interface ImageLabel {
+  text: string;
+  at: ImagePoint;
+  /** Which end of the plate sits on `at`. Default 'start'. */
+  anchor?: 'start' | 'middle' | 'end';
+  /** The plate's tone (its fill, outline and text). Default 'plain' (white plate, dark text). */
+  tone?: EmphasisTone;
+  reveal?: number;
+}
+export interface ImageOpts extends RevealOpts {
+  /** A spotlight target and a connect() endpoint (the whole picture). May not repeat a mark's id. */
+  id?: string;
+  /** What the picture shows, for readers who cannot see it (the SVG's <desc> and the <image>'s label). Required: pass `decorative: true` instead when it adds nothing. */
+  alt?: string;
+  decorative?: boolean;
+  /** The picture's width in px (at most the content width; default: the content width). Its height follows the file's aspect ratio. Not together with `height`. */
+  width?: number;
+  /** The picture's height in px (the width follows the aspect ratio, and is capped at the content width). Not together with `width`. */
+  height?: number;
+  /** Where a picture narrower than the content sits. Default 'center'. */
+  align?: 'left' | 'center' | 'right';
+  marks?: readonly ImageMark[];
+  labels?: readonly ImageLabel[];
+}
+export interface ImageBand {
+  type: 'image';
+  id?: string;
+  /** The file as a `data:` URI (read once, by image()). */
+  href: string;
+  naturalW: number;
+  naturalH: number;
+  bytes: number;
+  alt: string;
+  width?: number;
+  height?: number;
+  align?: 'left' | 'center' | 'right';
+  marks?: ImageMark[];
+  labels?: ImageLabel[];
+  reveal?: number;
+}
+/** A mark placed (px); `dim` is set by spotlight. */
+export interface LaidOutImageMark extends Rect, Dimmed {id?: string; tone: EmphasisTone; reveal?: number}
+/** A label plate placed (px). `mark`: index of the mark it belongs to. */
+export interface LaidOutImagePlate extends Rect, Dimmed {text: string; size: number; tone: EmphasisTone; reveal?: number; mark?: number}
+export interface LaidOutImage extends Rect, Dimmed {
+  type: 'image';
+  id?: string;
+  href: string;
+  alt: string;
+  bytes: number;
+  reveal?: number;
+  marks: LaidOutImageMark[];
+  plates: LaidOutImagePlate[];
+  anchors: Anchor[];
+  /** Set by spotlight: regions of the picture that stay clear while the rest is veiled (a focused mark). */
+  holes?: Rect[];
+}
+
+// ============================================================================================
 // DSL input + band: sequence
 // ============================================================================================
 
@@ -1019,7 +1097,7 @@ export interface ScreensBand extends ScreensOpts {
 /** Every band the DSL constructors return. */
 export type Band =
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | ImageBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -1652,7 +1730,7 @@ export interface LaidOutBars extends Rect, Dimmed {
 
 export type LaidOutBand = (
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */
@@ -1707,7 +1785,8 @@ export interface Verdict {
   findings: Finding[];
 }
 /** A checkable rect in verify.ts (id null when the band has none). */
-export interface CheckRect extends Rect {id: string | null; label: string}
+/** `holds`: ids of anchors drawn inside this rect (an image's marks): a connector that starts on one may cross the rect. */
+export interface CheckRect extends Rect {id: string | null; label: string; holds?: string[]}
 
 export interface FitReport {
   scale: number;

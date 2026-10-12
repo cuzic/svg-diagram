@@ -20,6 +20,7 @@ import {wrapAtoms, wrapStyledAtoms} from './wrap.ts';
 import {assertSpans} from './rich.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {layoutPlane, planeTexts} from './plane.ts';
+import {imageTexts, layoutImage} from './image.ts';
 import {barsTexts, layoutBars} from './bars.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {
@@ -290,6 +291,8 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
       }
     } else if (band.type === 'plane') {
       for (const [text, size, weight, font] of planeTexts(band)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'image') {
+      for (const [text, size, weight, font] of imageTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'bars') {
       for (const [text, size, weight, font] of barsTexts(band)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'curve') {
@@ -449,6 +452,21 @@ export async function layoutDiagram(d: DiagramData): Promise<LaidOutDiagram> {
     if (band.type === 'sequence' || band.type === 'table') {
       const placed = band.type === 'sequence' ? layoutSequence(band, padX, cursorY, cw, widthOf) : layoutTable(band, padX, cursorY, cw, widthOf);
       if (band.id) anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      laidOut.push(placed);
+      cursorY += placed.h + d.gap;
+      continue;
+    }
+
+    if (band.type === 'image') {
+      const placed = layoutImage(band, padX, cursorY, cw, widthOf);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, 'an image takes an id that another anchor already has');
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
+      for (const a of placed.anchors) {
+        if (anchors.has(a.id)) claimed(a.id, 'a mark takes an id that another anchor already has');
+        anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
+      }
       laidOut.push(placed);
       cursorY += placed.h + d.gap;
       continue;

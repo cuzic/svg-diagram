@@ -1,6 +1,6 @@
 // Type-level tests that close gaps found when auditing README's 「コンパイル時に検出されるもの」 table against the other
 // files in this directory: every row has at least one case that compiles and one `@ts-expect-error` case. Never executed.
-import {diagram, box, banner, table, wireframe, sequence, group, grid, row, connect, branch, pyramid, curve, plane, swimlane, screens, stateMatrix, wf} from '../../lib/dsl.ts';
+import {diagram, box, banner, image, table, wireframe, sequence, group, grid, row, connect, branch, pyramid, curve, plane, swimlane, screens, stateMatrix, wf} from '../../lib/dsl.ts';
 import type {Band} from '../../lib/types.ts';
 
 export function readmeAuditCases(): void {
@@ -176,4 +176,13 @@ export function ergonomicsCases(): void {
   plane({x: {max: 10}, y: {max: 10}, points: [{id: 'p', at: [1, 2]}], dims: [{from: 'p', to: [3, 4], label: 'd'}]});
   // @ts-expect-error a point is [x, y]
   plane({x: {max: 10}, y: {max: 10}, points: [{at: [1]}]});
+}
+
+// image(): a mark's id is an anchor of the band; an unknown one is a type error, and alt is checked at run time (test/image.test.ts)
+export function imageCases(): void {
+  const d = diagram({theme: 'blue'});
+  const pic = image('./a.png', {alt: 'x', marks: [{id: 'pot', rect: [0, 0, 0.5, 0.5]}]});
+  d.add(pic, box({id: 'n'}), connect(pic.anchors.pot.bottom, 'n:top'), connect('pot', 'n'));
+  // @ts-expect-error a mark id that does not exist
+  d.add(image('./a.png', {alt: 'x', marks: [{id: 'pot', rect: [0, 0, 0.5, 0.5]}]}), box({id: 'n'}), connect('pott', 'n'));
 }

@@ -11,6 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import {wf} from './wireframe.ts';
 import {assertIconName} from './icons.ts';
+import {readImage} from './image.ts';
 import {layoutDiagram} from './layout.ts';
 import {emitSvg} from './emit.ts';
 import {emitHtml} from './emit-html.ts';
@@ -25,7 +26,7 @@ import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
 import {MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone} from './tokens.ts';
 import type {
-  Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -768,6 +769,48 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height, ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
   return withHandle(withAnchors(band, data.map(d => d.id)), opts.id);
+}
+
+type MarkIds<M extends readonly ImageMark[]> = Extract<M[number]['id'], string>;
+const IMAGE_TONES = ['plain', 'accent', 'danger', 'muted', 'new', 'changed', 'removed', 'solid', 'solid-danger'];
+/**
+ * A picture (PNG / JPEG / GIF / WebP) as a part, read now and embedded as a data URI so the SVG stays one file. `marks` outline regions
+ * (spotlight and connect() can point at their ids); `labels` put words on opaque plates. Positions are fractions of the picture.
+ * `src`: a path (relative: next to the diagram source), `new URL('./a.png', import.meta.url)`, or a data URI.
+ */
+export function image<const M extends readonly ImageMark[] = [], const Id extends string = never>(src: string | URL, opts: ImageOpts & {id?: Id; marks?: M}): ImageBand & Declares<Id | MarkIds<M>> & HandleOf<Id> & AnchorsOf<MarkIds<M>>;
+export function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
+  if (!opts.alt?.trim() && !opts.decorative) throw new Error('image(): alt is required (what the picture shows) — or pass decorative: true when it adds nothing');
+  if (opts.alt && opts.decorative) throw new Error('image(): alt and decorative: true contradict each other');
+  for (const k of ['width', 'height'] as const) if (opts[k] !== undefined && (!(opts[k]! > 0) || !Number.isFinite(opts[k]))) throw new Error(`image(): ${k} must be a finite number > 0 (got ${opts[k]})`);
+  if (opts.width !== undefined && opts.height !== undefined) throw new Error('image(): give width or height, not both (the other follows the picture\'s aspect ratio)');
+  if (opts.align !== undefined && !['left', 'center', 'right'].includes(opts.align)) throw new Error(`image(): align must be 'left', 'center' or 'right' (got ${opts.align})`);
+  const unit = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1;
+  const tone = (t: string | undefined, where: string) => { if (t !== undefined && !IMAGE_TONES.includes(t)) throw new Error(`image(): ${where} tone "${t}" is not one of ${IMAGE_TONES.join(', ')}`); };
+  (opts.marks ?? []).forEach((m, i) => {
+    const [x, y, w, h] = m.rect ?? [];
+    if (![x, y, w, h].every(n => typeof n === 'number' && unit(n)) || !(w > 0 && h > 0) || x + w > 1.0001 || y + h > 1.0001) throw new Error(`image(): mark ${i + 1} rect must be [x, y, w, h] as fractions of the picture, inside it (got ${JSON.stringify(m.rect)})`);
+    tone(m.tone, `mark ${i + 1}`);
+    if (m.label !== undefined && !m.label.trim()) throw new Error(`image(): mark ${i + 1} label is empty`);
+  });
+  (opts.labels ?? []).forEach((l, i) => {
+    if (!l.text?.trim()) throw new Error(`image(): label ${i + 1} has no text`);
+    if (!Array.isArray(l.at) || l.at.length !== 2 || !l.at.every(unit)) throw new Error(`image(): label ${i + 1} "at" must be [x, y] as fractions of the picture (0 to 1) (got ${JSON.stringify(l.at)})`);
+    if (l.anchor !== undefined && !['start', 'middle', 'end'].includes(l.anchor)) throw new Error(`image(): label ${i + 1} anchor must be 'start', 'middle' or 'end' (got ${l.anchor})`);
+    tone(l.tone, `label ${i + 1}`);
+  });
+  const ids = (opts.marks ?? []).map(m => m.id).filter((id): id is string => !!id);
+  if (new Set(ids).size !== ids.length) throw new Error('image(): each mark id must be unique');
+  if (opts.id !== undefined && ids.includes(opts.id)) throw new Error(`image(): the band's id "${opts.id}" is also a mark's id — each id must be unique`);
+  const file = readImage(src);
+  const band: ImageBand = {
+    type: 'image', href: file.href, naturalW: file.w, naturalH: file.h, bytes: file.bytes, alt: opts.alt?.trim() ?? '',
+    ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts),
+    ...(opts.width === undefined ? {} : {width: opts.width}), ...(opts.height === undefined ? {} : {height: opts.height}), ...(opts.align === undefined ? {} : {align: opts.align}),
+    ...(opts.marks?.length ? {marks: opts.marks.map(m => ({...m, rect: [...m.rect] as unknown as ImageRect}))} : {}),
+    ...(opts.labels?.length ? {labels: opts.labels.map(l => ({...l}))} : {}),
+  };
+  return withHandle(withAnchors(band, (opts.marks ?? []).map(m => m.id)), opts.id);
 }
 
 // Escape hatch. `draw(ctx)` must return a raw SVG fragment string; it

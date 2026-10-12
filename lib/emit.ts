@@ -10,7 +10,7 @@ import {PALETTE, FONT_STACKS, EMOJI_RE, ROLES, CONNECT_LABEL_SIZE, STRONG_STROKE
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
-  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
+  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutImage, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
   LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, EmphasisTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
   LaidOutWireframe, LaidOutScreens, RawColorTone, Span,
 } from './types.ts';
@@ -18,6 +18,7 @@ import {diagramTitle, diagramDesc} from './rules.ts';
 import {BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
 import {visibleAt} from './reveal.ts';
 import {spotlightDim} from './spotlight.ts';
+import {MARK_STROKE, plateStyle} from './image.ts';
 import {ICON_PATHS} from './icons.ts';
 import type {IconName} from './icons.ts';
 
@@ -373,6 +374,33 @@ function renderBars(b: LaidOutBars, day: Theme, stage?: number, dimFill = false)
   return out.join('\n  ');
 }
 
+function renderImage(b: LaidOutImage, day: Theme, stage?: number): string {
+  const col = (k: ColorKey) => colorOf(k, day);
+  const out: string[] = [];
+  const esc = (s: string) => escapeXml(s).replace(/"/g, '&quot;');
+  const r4 = (r: {x: number; y: number; w: number; h: number}) => ({x: snap4(r.x), y: snap4(r.y), w: snap4(r.x + r.w) - snap4(r.x), h: snap4(r.y + r.h) - snap4(r.y)});
+  const pic = r4(b);
+  out.push(`<image x="${pic.x}" y="${pic.y}" width="${pic.w}" height="${pic.h}" href="${b.href}" preserveAspectRatio="none"${b.alt ? ` role="img" aria-label="${esc(b.alt)}"` : ' aria-hidden="true"'}/>`);
+  // spotlight: the picture outside the focused marks is veiled (all of it when nothing in it is focused)
+  if (b.dim || b.holes?.length) {
+    const hole = (m: {x: number; y: number; w: number; h: number}) => { const r = r4(m); return ` M${r.x},${r.y} h${r.w} v${r.h} h${-r.w} Z`; };
+    out.push(`<path d="M${pic.x},${pic.y} h${pic.w} v${pic.h} h${-pic.w} Z${b.dim ? '' : (b.holes ?? []).map(hole).join('')}" fill="${PALETTE.bg}" fill-opacity="0.7" fill-rule="evenodd"/>`);
+  }
+  const marks = b.marks.filter(m => visibleAt(m, stage));
+  for (const mk of marks) {
+    const m = {...mk, ...r4(mk)};
+    const ink = m.dim || b.dim ? PALETTE.muted : col(toneStyle(m.tone).ink);
+    out.push(`<rect x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}" fill="none" stroke="${ink}" stroke-width="${MARK_STROKE}"${m.dim || b.dim ? ' stroke-dasharray="2,5" stroke-linecap="round"' : ''}/>`);
+  }
+  for (const p of b.plates.filter(p => visibleAt(p, stage))) {
+    const st = plateStyle(p.tone), dim = p.dim || b.dim;
+    const x = snap4(p.x), y = snap4(p.y), w = snap4(p.x + p.w) - x;
+    out.push(`<rect x="${x}" y="${y}" width="${w}" height="${p.h}" rx="${p.h / 2}" fill="${dim ? PALETTE.bg : col(st.fill)}" stroke="${dim ? PALETTE.muted : col(st.stroke)}" stroke-width="2"/>`);
+    out.push(`<text x="${Math.round(x + w / 2)}" y="${Math.round(y + p.h / 2 + p.size * 0.36)}" text-anchor="middle" font-size="${p.size}" font-weight="700" fill="${dim ? PALETTE.muted : col(st.text)}">${emojiSpan(p.text)}</text>`);
+  }
+  return out.join('\n  ');
+}
+
 function renderRaw(band: LaidOutRaw, day: Theme): string {
   const ctx = {
     x: band.x, y: band.y, w: band.w, h: band.h, day,
@@ -559,12 +587,13 @@ function renderBandPlain(band: LaidOutBand, day: Theme, stage?: number, dimFill 
     case 'curve': return renderCurve(band, day);
     case 'plane': return renderPlane(band, day, stage);
     case 'bars': return renderBars(band, day, stage, dimFill);
+    case 'image': return renderImage(band, day, stage);
     default: return '';
   }
 }
 
 // bands that draw their own dim state (spotlight) instead of having it painted over their svg
-const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars']);
+const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars', 'image']);
 
 function renderBand(band: LaidOutBand, day: Theme, stage?: number, dimFill = false): string {
   const svg = renderBandPlain(band, day, stage, dimFill);
