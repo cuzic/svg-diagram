@@ -47,7 +47,7 @@ const flagsOf = (band: TimelineBand): Omit<Flag, 'x' | 'w' | 'left' | 'level'>[]
 };
 
 /** Ticks on the axis: a step of whole months (1, 3, 6, 12, 24, 60) that leaves at most ~8 of them; each tick is a month that is a multiple of the step. */
-function ticksOf(from: number, to: number): {day: number; label: string}[] {
+export function ticksOf(from: number, to: number): {day: number; label: string}[] {
   const a = new Date(from * MS_DAY), months = Math.max(1, (to - from) / 30.4375);
   const step = [1, 3, 6, 12, 24, 60, 120].find(s => months / s <= 8) ?? 120;
   const out: {day: number; label: string}[] = [];

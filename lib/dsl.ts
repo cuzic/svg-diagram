@@ -28,7 +28,7 @@ import {prepareReveal} from './reveal.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
 import {SLIDE_CANVAS, canvasFontScale, canvasRoles, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
-  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, GanttBand, GanttOpts, GanttRow, GanttTask, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -939,6 +939,25 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
   walk(root);
   const band: TreeBand = {type: 'tree', root, ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), ids);
+}
+
+type GanttIds<R extends readonly GanttRow[]> = Extract<(R[number] extends infer T ? T extends {readonly id: infer I} ? I : never : never), string>;
+
+/**
+ * A schedule: rows of tasks (bars), milestones (diamonds) and `{section}` headings on a date axis. Dates are 'YYYY-MM-DD',
+ * `end` is the last day; `after` draws a dependency arrow; `today` (always written out) draws a line.
+ *   gantt([{section: '設計'}, {id: 'spec', label: '仕様', start: '2026-10-05', end: '2026-10-16', progress: 1},
+ *          {label: '実装', start: '2026-10-19', days: 14, after: 'spec'}, {label: 'リリース', start: '2026-11-13', milestone: true}], {today: '2026-10-12'})
+ */
+export function gantt<const R extends readonly GanttRow[], const Id extends string = never>(rows: R, opts?: GanttOpts & {id?: Id}): GanttBand & Declares<Id | GanttIds<R>> & HandleOf<Id> & AnchorsOf<GanttIds<R>>;
+export function gantt(rows: readonly GanttRow[], opts: GanttOpts = {}): GanttBand {
+  if (!Array.isArray(rows) || !rows.some(r => !('section' in r))) throw new Error('gantt(rows) needs at least one task');
+  for (const r of rows) {
+    if ('section' in r) { if (typeof r.section !== 'string' || !r.section.trim()) throw new Error('gantt(): a section needs a title'); continue; }
+    if (r.tone !== undefined && !['accent', 'danger', 'muted'].includes(r.tone)) throw new Error(`gantt(): "${r.label}" tone must be accent, danger or muted (got ${String(r.tone)})`);
+  }
+  const band: GanttBand = {type: 'gantt', rows: [...rows], ...(opts.from === undefined ? {} : {from: opts.from}), ...(opts.to === undefined ? {} : {to: opts.to}), ...(opts.today === undefined ? {} : {today: opts.today}), ...(opts.todayLabel === undefined ? {} : {todayLabel: opts.todayLabel}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  return withAnchors(withHandle(band, opts.id), rows.map(r => 'id' in r ? r.id : undefined));
 }
 
 type StateIds<S extends readonly StateItem[]> = Extract<S[number]['id'], string>;

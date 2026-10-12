@@ -60,6 +60,8 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
       rects.push({id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id), ...(band.backdrop ? {backdrop: true} : {})});
     } else if (band.type === 'bars') {
       for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})});
+    } else if (band.type === 'gantt') {
+      rects.push({id: band.id ?? null, label: band.id ?? 'gantt', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id)});
     } else if (band.type === 'states') {
       rects.push({id: band.id ?? null, label: band.id ?? 'state diagram', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id)});
     } else if (band.type === 'tree') { // each node is its own rect: a connector must not run through one
@@ -118,6 +120,22 @@ function checkStates(d: LaidOutDiagram): string[] {
       for (let j = i + 1; j < band.labels.length; j++) {
         const o = rectOverlap(l, band.labels[j]);
         if (o) problems.push(`states: label "${l.text}" overlaps label "${band.labels[j].text}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
+      }
+    }
+  }
+  return problems;
+}
+
+// A gantt's texts must stay inside the figure and apart (the today label against the tick labels, a long tick against the edge).
+function checkGantts(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  for (const band of d.laidOut) {
+    if (band.type !== 'gantt') continue;
+    for (const [i, b] of band.labelBoxes.entries()) {
+      if (b.x < band.x - 0.5 || b.x + b.w > band.x + band.w + 0.5) problems.push(`gantt: label "${b.label}" runs outside the figure (shorten it or widen the figure)`);
+      for (let j = i + 1; j < band.labelBoxes.length; j++) {
+        const o = rectOverlap(b, band.labelBoxes[j]);
+        if (o) problems.push(`gantt: label "${b.label}" overlaps label "${band.labelBoxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
       }
     }
   }
@@ -307,6 +325,7 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
     ...checkImages(d),
     ...checkTimelines(d),
     ...checkStates(d),
+    ...checkGantts(d),
     ...checkNoWrap(d),
     ...checkBounds(d, rects),
     ...checkContrast(d),

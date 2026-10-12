@@ -971,6 +971,42 @@ export interface StatesBand extends StatesOpts {
 }
 
 // ============================================================================================
+// DSL input + band: gantt (a schedule)
+// ============================================================================================
+
+export interface GanttTask {
+  label: string;
+  /** Makes the bar an anchor for connect(), and nameable in `after`. */
+  id?: string;
+  /** 'YYYY-MM-DD'. */
+  start: string;
+  /** 'YYYY-MM-DD', the last day (inclusive). Or give `days`. */
+  end?: string;
+  days?: number;
+  /** One day, drawn as a diamond. */
+  milestone?: boolean;
+  /** 0 - 1: how much of the bar is done. */
+  progress?: number;
+  /** An arrow from the end of these tasks (ids) to the start of this one. */
+  after?: string | string[];
+  tone?: 'accent' | 'danger' | 'muted';
+}
+export type GanttRow = GanttTask | {section: string};
+export interface GanttOpts extends RevealOpts {
+  /** The axis (default: the first start to the last end). 'YYYY-MM-DD'. */
+  from?: string;
+  to?: string;
+  /** Today, always written out (a build never reads the clock). A line through the chart. */
+  today?: string;
+  todayLabel?: string;
+  id?: string;
+}
+export interface GanttBand extends GanttOpts {
+  type: 'gantt';
+  rows: GanttRow[];
+}
+
+// ============================================================================================
 // DSL input + band: image
 // ============================================================================================
 
@@ -1388,7 +1424,7 @@ export interface ScreensBand extends ScreensOpts {
 /** Every band the DSL constructors return. */
 export type Band =
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | ImageBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | GanttBand | ImageBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -2075,9 +2111,28 @@ export interface LaidOutStates extends Rect, Dimmed {
   labelBoxes: (Rect & {label: string})[];
 }
 
+export interface GanttText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean; anchor: 'start' | 'middle'; tone?: 'danger'}
+export interface LaidOutGantt extends Rect, Dimmed {
+  type: 'gantt';
+  id?: string;
+  reveal?: number;
+  until?: number;
+  plot: {x1: number; x2: number; y1: number; y2: number};
+  ticks: {x: number}[];
+  /** Section heading rows (a pale band across the figure). */
+  sections: Rect[];
+  /** One per task, in order (a milestone is a diamond; `progress` is the done part of a bar). */
+  bars: (Rect & {tone: 'accent' | 'danger' | 'muted'; progress?: number; milestone?: boolean})[];
+  deps: {points: {x: number; y: number}[]}[];
+  today?: {x: number; y1: number; y2: number};
+  texts: GanttText[];
+  anchors: Anchor[];
+  labelBoxes: (Rect & {label: string})[];
+}
+
 export type LaidOutBand = (
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutGantt | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */

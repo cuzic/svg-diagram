@@ -26,6 +26,7 @@ import {dotsTexts, layoutDots, layoutPeople, peopleTexts} from './people.ts';
 import {layoutTimeline, timelineTexts} from './timeline.ts';
 import {layoutTreeBand, treeTexts} from './tree.ts';
 import {layoutStatesBand, statesTexts} from './states.ts';
+import {ganttTexts, layoutGantt} from './gantt.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {
   DiagramData, Roles, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
@@ -320,6 +321,8 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
       for (const [text, size, weight, font] of dotsTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'timeline') {
       for (const [text, size, weight, font] of timelineTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'gantt') {
+      for (const [text, size, weight, font] of ganttTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'states') {
       for (const [text, size, weight, font] of statesTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'tree') {
@@ -535,6 +538,21 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       if (band.id) {
         if (anchors.has(band.id)) claimed(band.id, 'a timeline takes an id that another anchor already has');
         anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
+      laidOut.push(placed);
+      cursorY += placed.h + d.gap;
+      continue;
+    }
+
+    if (band.type === 'gantt') {
+      const placed = layoutGantt(band, padX, cursorY, cw, widthOf, roles);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, 'a gantt takes an id that another anchor already has');
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
+      for (const a of placed.anchors) {
+        if (anchors.has(a.id)) claimed(a.id, 'a gantt task takes an id that another anchor already has');
+        anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
       }
       laidOut.push(placed);
       cursorY += placed.h + d.gap;

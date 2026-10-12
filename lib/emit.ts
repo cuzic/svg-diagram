@@ -10,7 +10,7 @@ import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRON
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
-  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutImage, LaidOutTimeline, LaidOutTree, LaidOutStates, LaidOutPeople, LaidOutDots, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
+  LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPlane, LaidOutBars, LaidOutImage, LaidOutTimeline, LaidOutTree, LaidOutStates, LaidOutGantt, LaidOutPeople, LaidOutDots, PlaneTone, LaidOutSwimlane, LaidOutSequence, LaidOutTable,
   LaidOutConnect, LaidOutLegendItem, Point, WrappedRun, Theme, TextTone, BoxTone, EmphasisTone, LineStyle, Arrow, Align, ColorKey, Prim, Rect,
   LaidOutWireframe, LaidOutScreens, RawColorTone, Span, Roles,
 } from './types.ts';
@@ -490,6 +490,34 @@ function renderStates(b: LaidOutStates, day: Theme): string {
   return out.join('\n  ');
 }
 
+function renderGantt(b: LaidOutGantt, day: Theme): string {
+  const out: string[] = [];
+  const ink = b.dim ? PALETTE.muted : PALETTE.text;
+  const tone = (t: 'accent' | 'danger' | 'muted'): string => b.dim ? PALETTE.muted : t === 'accent' ? PALETTE[day].accent : t === 'danger' ? PALETTE.danger : PALETTE.muted;
+  const soft = (t: 'accent' | 'danger' | 'muted'): string => b.dim ? PALETTE.bg : t === 'accent' ? PALETTE[day].soft : PALETTE.border;
+  for (const s of b.sections) out.push(`<rect x="${snap4(s.x)}" y="${snap4(s.y)}" width="${snap4(s.w)}" height="${s.h}" fill="${PALETTE.code}"/>`);
+  for (const t of b.ticks) out.push(`<path d="M${snap4(t.x)},${snap4(b.plot.y1)} V${snap4(b.plot.y2)}" fill="none" stroke="${PALETTE.border}" stroke-width="1"/>`);
+  out.push(`<path d="M${snap4(b.plot.x1)},${snap4(b.plot.y1)} H${snap4(b.plot.x2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
+  for (const d of b.deps) {
+    const pts = d.points.slice(), n = pts.length, tip = pts[n - 1], prev = pts[n - 2], L = 8, W = 4;
+    const dx = Math.sign(tip.x - prev.x), dy = Math.sign(tip.y - prev.y);
+    pts[n - 1] = {x: tip.x - dx * (L - 1), y: tip.y - dy * (L - 1)};
+    out.push(`<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${ink}" stroke-width="1.5"/>\n  <path d="M${snap4(tip.x)},${snap4(tip.y)} L${snap4(tip.x - dx * L - dy * W)},${snap4(tip.y - dy * L + dx * W)} L${snap4(tip.x - dx * L + dy * W)},${snap4(tip.y - dy * L - dx * W)} z" fill="${ink}"/>`);
+  }
+  for (const r of b.bars) {
+    if (r.milestone) { const cx = r.x + r.w / 2, cy = r.y + r.h / 2; out.push(`<path d="M${snap4(cx)},${snap4(r.y)} L${snap4(r.x + r.w)},${snap4(cy)} L${snap4(cx)},${snap4(r.y + r.h)} L${snap4(r.x)},${snap4(cy)} z" fill="${tone(r.tone)}" stroke="${PALETTE.bg}" stroke-width="2"/>`); continue; }
+    const x = snap4(r.x), y = snap4(r.y), w = snap4(r.w);
+    if (r.progress === undefined) out.push(`<rect x="${x}" y="${y}" width="${w}" height="${r.h}" rx="4" fill="${tone(r.tone)}"/>`);
+    else {
+      out.push(`<rect x="${x}" y="${y}" width="${w}" height="${r.h}" rx="4" fill="${soft(r.tone)}" stroke="${tone(r.tone)}" stroke-width="2"/>`);
+      if (r.progress > 0) out.push(`<rect x="${x}" y="${y}" width="${snap4(r.w * r.progress)}" height="${r.h}" rx="4" fill="${tone(r.tone)}"/>`);
+    }
+  }
+  if (b.today) out.push(`<path d="M${snap4(b.today.x)},${snap4(b.today.y1)} V${snap4(b.today.y2)}" fill="none" stroke="${b.dim ? PALETTE.muted : PALETTE.danger}" stroke-width="2"/>`);
+  for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : t.tone === 'danger' ? PALETTE.danger : t.muted ? PALETTE.muted : PALETTE.text}">${emojiSpan(t.text)}</text>`);
+  return out.join('\n  ');
+}
+
 function renderRaw(band: LaidOutRaw, day: Theme): string {
   const ctx = {
     x: band.x, y: band.y, w: band.w, h: band.h, day,
@@ -682,12 +710,13 @@ function renderBandPlain(band: LaidOutBand, day: Theme, roles: Roles, stage?: nu
     case 'timeline': return renderTimeline(band, day);
     case 'tree': return renderTree(band, day);
     case 'states': return renderStates(band, day);
+    case 'gantt': return renderGantt(band, day);
     default: return '';
   }
 }
 
 // bands that draw their own dim state (spotlight) instead of having it painted over their svg
-const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars', 'timeline', 'tree', 'states', 'image']);
+const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars', 'timeline', 'tree', 'states', 'gantt', 'image']);
 
 function renderBand(band: LaidOutBand, day: Theme, roles: Roles, stage?: number, dimFill = false): string {
   const svg = renderBandPlain(band, day, roles, stage, dimFill);
