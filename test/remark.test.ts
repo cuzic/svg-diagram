@@ -15,13 +15,15 @@ test.after(() => close());
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'remark-'));
 const ok = (t: string) => `import {diagram, box} from 'svg-diagram';\nexport default function define() { return diagram({theme: 'blue'}).add(box({title: '${t}'})); }\n`;
-const html = (opts = {}) => unified().use(remarkParse).use(svgDiagram, opts).use(remarkRehype, {allowDangerousHtml: true}).use(rehypeStringify, {allowDangerousHtml: true});
+const html = (opts = {}) => unified().use(remarkParse).use(svgDiagram, opts).use(remarkRehype).use(rehypeStringify);
 
 test('a diagram source renders inline, relative to the file; other images and code are untouched', async () => {
   const dir = tmp();
   fs.writeFileSync(path.join(dir, 'flow.ts'), ok('流れ'));
   const out = String(await html().process({path: path.join(dir, 'page.md'), value: '![流れ図](flow.ts)\n\n![x](a.png) `![y](flow.ts)`\n\n```md\n![z](flow.ts)\n```\n'}));
   assert.match(out, /<svg role="img" aria-label="流れ図"[^]*<\/svg>/);
+  assert.match(out, /<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"[^>]* viewBox="0 0 \d+ \d+"/);
+  assert.match(out, /<text\b[^>]*>[^<]*流れ/);
   assert.match(out, /<img src="a\.png" alt="x">/);
   assert.match(out, /<code>!\[y\]\(flow\.ts\)<\/code>/);
   assert.match(out, /!\[z\]\(flow\.ts\)/);

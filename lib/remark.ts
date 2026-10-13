@@ -1,12 +1,12 @@
 // remark plugin: an image whose target is a diagram source — `![alt](./flow.ts)` — becomes the figure's inline <svg>.
-//   unified().use(remarkParse).use(svgDiagram).use(remarkRehype, {allowDangerousHtml: true}).use(rehypeStringify, {allowDangerousHtml: true})
-// The svg is an `html` node, so remark-rehype needs allowDangerousHtml (and rehype-raw, or the stringifier's
-// allowDangerousHtml, to pass it through). The source's path is relative to the page (file.path), else `baseDir`, else the cwd.
+//   unified().use(remarkParse).use(svgDiagram).use(remarkRehype).use(rehypeStringify)
+// The svg becomes a node that remark-rehype turns into real <svg> elements (data.hName / hChildren), not a raw `html` node,
+// so no allowDangerousHtml and no rehype-raw are needed, and rehype plugins (sanitize, …) see the elements. The source's path is relative to the page (file.path), else `baseDir`, else the cwd.
 // Code blocks and inline code are not images, so they are left alone. A transformer may be async, so the figure is drawn
 // in-process (no child process, unlike the markdown-it plugin).
 import path from 'node:path';
 import {renderSource} from './render-source.ts';
-import {inlineSvg} from './markdown.ts';
+import {parseXml, type El} from './svg-dom.ts';
 
 export interface RemarkSvgDiagramOptions {
   /** Where relative sources are resolved from when the file has no path. */
@@ -16,7 +16,12 @@ export interface RemarkSvgDiagramOptions {
 }
 
 // Only the parts of mdast / vfile the plugin touches.
-interface Node {type: string; url?: string; alt?: string; value?: string; children?: Node[]}
+interface Node {type: string; url?: string; alt?: string; title?: string | null; children?: Node[]; data?: Record<string, unknown>}
+interface Hast {type: 'element' | 'text'; tagName?: string; properties?: Record<string, string>; children?: Hast[]; value?: string}
+
+const toHast = (c: El | string): Hast => typeof c === 'string'
+  ? {type: 'text', value: c}
+  : {type: 'element', tagName: c.tag, properties: c.attrs, children: c.children.map(toHast)};
 interface File {path?: string; fail(reason: string, node?: Node): never; message(reason: string, node?: Node): unknown}
 
 export default function remarkSvgDiagram(opts: RemarkSvgDiagramOptions = {}) {
@@ -43,10 +48,18 @@ export default function remarkSvgDiagram(opts: RemarkSvgDiagramOptions = {}) {
         if (strict) file.fail(msg, n);
         file.message(msg, n);
       }
-      n.type = 'html';
-      n.value = inlineSvg(r.svg, n.alt ?? '').trim();
+      const root = parseXml(r.svg);
+      const alt = n.alt ?? '';
+      // A node type remark-rehype has no handler for becomes an element from data.hName/hProperties/hChildren.
+      n.type = 'svgDiagram';
+      n.data = {
+        hName: 'svg',
+        hProperties: {...root.attrs, ...(alt && !root.attrs.role ? {role: 'img', ariaLabel: alt} : {})},
+        hChildren: root.children.map(toHast),
+      };
       delete n.url;
       delete n.alt;
+      delete n.title;
     }
   };
 }
