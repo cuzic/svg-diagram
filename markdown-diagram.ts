@@ -33,6 +33,7 @@ const r = await expandMarkdown(fs.readFileSync(file, 'utf8'), {
 for (const n of r.notes) console.error(`! ${n}`);
 for (const p of r.problems) console.error(`✗ ${p}`);
 for (const f of r.figures) for (const w of f.warnings) console.error(`! ${path.basename(f.source)}: ${w}`);
+if (!out && r.notes.length) { console.error('✗ some figures were kept as images of SVG files, and without --out there is nowhere to put them: give --out FILE'); process.exit(2); }
 if (r.problems.length) { console.error(`✗ ${r.problems.length} problem(s) — nothing written`); process.exit(1); }
 
 if (!inline || r.notes.length) {

@@ -14,7 +14,7 @@
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {renderSource} from './render-source.ts';
-import {diagramTarget, decodeTarget, resolveSource, figureName, inlineSvg, htmlFigure, type Render} from './markdown-target.ts';
+import {diagramTarget, decodeTarget, resolveSource, figureName, inlineSvg, htmlFigure, plainText, type Render} from './markdown-target.ts';
 
 export interface ExpandOptions {
   /** The Markdown file's path — sources are resolved from its directory. */
@@ -65,6 +65,7 @@ export async function expandMarkdown(text: string, opts: ExpandOptions): Promise
   const notes: string[] = [];
   const failed = new Set<string>();
   const seen = new Map<string, number>();
+  const root = opts.root ?? process.cwd();
 
   const draw = async (rel: string): Promise<Figure | undefined> => {
     let src: string;
@@ -79,7 +80,8 @@ export async function expandMarkdown(text: string, opts: ExpandOptions): Promise
         failed.add(src);
         return undefined;
       }
-      const name = `${figureName(src)}-${createHash('sha1').update(src).digest('hex').slice(0, 8)}.svg`;
+      // the hash is of the path from root, so a checkout anywhere writes the same names
+      const name = `${figureName(src)}-${createHash('sha1').update(path.relative(root, src).split(path.sep).join('/')).digest('hex').slice(0, 8)}.svg`;
       const f: Figure = {source: src, name, svg: r.svg, html: r.html ?? '', warnings: r.warnings};
       figures.set(src, f);
       return f;
@@ -94,19 +96,26 @@ export async function expandMarkdown(text: string, opts: ExpandOptions): Promise
   let fence: string | undefined;
   let comment = false;
   let inList = false;
+  let afterBlock = false; // the previous line closed a block (a heading, a fence): an indented line after it is code
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
     const ln = raw.replace(/\r$/, '');
-    // a fence opens and closes at any indent and inside quotes / list items; a line of a comment or an indented block is skipped
-    const m = /^[ \t>]*(?:(?:[-*+]|\d+[.)])[ \t]+)?(`{3,}|~{3,})/.exec(ln);
-    if (fence) { if (m && m[1][0] === fence[0] && m[1].length >= fence.length && !ln.slice(m[0].length).trim()) fence = undefined; continue; }
+    // a fence opens and closes inside quotes and list items; outside them only with 0-3 spaces of indent, and a backtick fence's info has no backtick
+    const m = /^([ \t>]*)(?:(?:[-*+]|\d+[.)])[ \t]+)?(`{3,}|~{3,})/.exec(ln);
+    const nested = !!m && /[>\-*+\d]/.test(m[0].replace(m[2], '')) || inList;
+    const isFence = !!m && (nested || m[1].replace(/\t/g, '    ').length < 4);
+    if (fence) { if (isFence && m![2][0] === fence[0] && m![2].length >= fence.length && !ln.slice(m![0].length).trim()) { fence = undefined; afterBlock = true; } continue; }
     if (comment) { if (ln.includes('-->')) comment = false; continue; }
-    if (m) { fence = m[1]; continue; }
-    if (/^\s*<!--/.test(ln) && !ln.includes('-->', ln.indexOf('<!--') + 4)) { comment = true; continue; }
+    if (isFence && !(m![2][0] === '`' && ln.slice(m![0].length).includes('`'))) { fence = m![2]; continue; }
     if (/^\s*(?:[-*+]|\d+[.)])[ \t]/.test(ln)) inList = true;
     else if (ln.trim() && !/^\s/.test(ln)) inList = false;
-    if (/^( {4,}|\t)/.test(ln) && !inList && (i === 0 || !lines[i - 1].trim() || /^( {4,}|\t)/.test(lines[i - 1]))) continue;
-    const masked = maskCode(ln);
+    const indented = /^( {4,}|\t)/.test(ln);
+    const wasBlock = afterBlock;
+    afterBlock = /^ {0,3}#{1,6}(\s|$)/.test(ln);
+    if (indented && !inList && (i === 0 || !lines[i - 1].trim() || /^( {4,}|\t)/.test(lines[i - 1]) || wasBlock)) continue;
+    let masked = maskCode(ln);
+    const cut = masked.indexOf('<!--'); // a comment that opens here and ends on a later line
+    if (cut >= 0) { comment = true; masked = masked.slice(0, cut); }
     const hits = [...masked.matchAll(IMAGE)];
     if (!hits.length) continue;
     let out = '';
@@ -115,9 +124,10 @@ export async function expandMarkdown(text: string, opts: ExpandOptions): Promise
       const real = ln.slice(h.index, h.index + h[0].length);
       out += ln.slice(at, h.index);
       at = h.index + h[0].length;
-      if (h.index > 0 && ln[h.index - 1] === '\\') { out += real; continue; }
+      if ((/\\*$/.exec(ln.slice(0, h.index))![0].length) % 2 === 1) { out += real; continue; } // `\!` is escaped, `\\!` is not
       const [a0, a1] = h.indices![1]!;
       const alt = ln.slice(a0, a1);
+      const label = plainText(alt) || undefined; // the text a screen reader gets
       const t = diagramTarget(h[2]);
       if (!t) { out += real; continue; }
       const title = h[3] ?? h[4];
@@ -129,13 +139,14 @@ export async function expandMarkdown(text: string, opts: ExpandOptions): Promise
       const alone = !ln.slice(0, h.index).trim() && !ln.slice(at).trim() && !/^\s*(?:[>|]|(?:[-*+]|\d+[.)])\s)/.test(ln) && !inList;
       if (render === 'html') {
         if (!alone) { problems.push(`${path.relative(dir, f.source)}: the HTML form needs a line of its own (not in a list, a quote or a table, and no text beside it)`); out += real; continue; }
-        out += `\n\n${htmlFigure(f.html, alt)}\n\n`;
+        out += `\n\n${htmlFigure(f.html, label, seen)}\n\n`;
       } else if (mode === 'inline') {
         if (!alone) { notes.push(`${path.relative(dir, f.source)}: line ${i + 1} is in a list, a quote or a table, or has text beside the figure — kept as an image of ${f.name}`); out += file; continue; }
-        out += `\n\n${inlineSvg(f.svg, alt || undefined, seen)}\n\n`;
+        out += `\n\n${inlineSvg(f.svg, label, seen)}\n\n`;
       } else out += file;
     }
-    lines[i] = out + ln.slice(at) + (raw.endsWith('\r') ? '\r' : '');
+    // a CRLF document keeps its line ends in what is inserted
+    lines[i] = raw.endsWith('\r') ? out.replace(/\n/g, '\r\n') + ln.slice(at) + '\r' : out + ln.slice(at);
   }
   return {markdown: lines.join('\n'), figures: [...figures.values()], problems, notes};
 }

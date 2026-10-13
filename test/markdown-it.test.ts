@@ -111,3 +111,19 @@ test('the plugin works from a folder whose path has spaces and non-ASCII charact
   assert.match(html, /<svg\b/);
   fs.rmSync(dir, {recursive: true});
 });
+
+test('a source that ignores SIGTERM is still stopped by the timeout; the HTML form twice repeats no id; a vue error is a v-html value with no build path', () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'stubborn.diagram.ts'), `import {diagram} from 'svg-diagram';\nprocess.on('SIGTERM', () => {});\nexport default function define() { for (;;) {} return diagram(); }\n`);
+  const t0 = Date.now();
+  assert.throws(() => use({timeout: 4000}).render('![](stubborn.diagram.ts)', {path: path.join(dir, 'p.md')}), /ETIMEDOUT|timeout|killed/i);
+  assert.ok(Date.now() - t0 < 30000, 'returned long before the 120 s default');
+  fs.writeFileSync(path.join(dir, 'a.diagram.ts'), ok('A'));
+  const html = use({render: 'html'}).render('![](a.diagram.ts)\n\n![](a.diagram.ts)\n', {path: path.join(dir, 'p.md')});
+  const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]);
+  assert.equal(new Set(ids).size, ids.length);
+  const err = use({vue: true, strict: false}).render('![](nope{{1}}.diagram.ts)\n', {path: path.join(dir, 'p.md')});
+  assert.match(err, /^<div class="svg-diagram-vue" v-html=/);
+  assert.doesNotMatch(err, new RegExp(dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  fs.rmSync(dir, {recursive: true});
+});

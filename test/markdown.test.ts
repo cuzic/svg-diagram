@@ -168,3 +168,41 @@ test('two pages that share one svg folder do not overwrite each other\'s figures
   assert.match(fs.readFileSync(path.join(dir, 'out', target('pb.md')), 'utf8'), /図b/);
   fs.rmSync(dir, {recursive: true});
 });
+
+test('the same repository gives the same file names wherever it is checked out; a heading, a comment opened mid-line and a fence in code are read as a renderer does', async () => {
+  const names: string[] = [];
+  for (let k = 0; k < 2; k++) {
+    const dir = tmp();
+    fs.mkdirSync(path.join(dir, 'd'));
+    fs.writeFileSync(path.join(dir, 'd/a.diagram.ts'), ok('A'));
+    const r = await expandMarkdown('![](d/a.diagram.ts)', {file: path.join(dir, 'p.md'), root: dir});
+    names.push(r.figures[0].name);
+    fs.rmSync(dir, {recursive: true});
+  }
+  assert.equal(names[0], names[1]);
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'a.diagram.ts'), ok('A'));
+  for (const k of ['text <!-- start\n![a](a.diagram.ts)\n--> end', '# h\n    ![a](a.diagram.ts)', '```js `x`\nmore\n```']) {
+    const r = await expand(k, dir);
+    if (k.startsWith('```')) assert.equal(r.figures.length, 0); // not a fence: the image after it is read
+    else assert.deepEqual([r.markdown, r.figures.length], [k, 0], JSON.stringify(k));
+  }
+  const esc = await expand('\\\\![a](a.diagram.ts)', dir);
+  assert.equal(esc.figures.length, 1, 'an escaped backslash does not escape the image');
+  const fenceInCode = await expand('para\n\n    ```\n    x\n\n![a](a.diagram.ts)', dir);
+  assert.equal(fenceInCode.figures.length, 1, 'a fence-looking line in indented code opens nothing');
+  fs.rmSync(dir, {recursive: true});
+});
+
+test('the HTML form twice on a page does not repeat an id; its alt is plain text; a CRLF page keeps its line ends', async () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'a.diagram.ts'), ok('A'));
+  const r = await expand('![**太字** と `x`](a.diagram.ts)\n\n![](a.diagram.ts)', dir, {render: 'html'});
+  const ids = [...r.markdown.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.match(r.markdown, /aria-label="太字 と x"/);
+  assert.match(r.markdown, /#sd-[0-9a-f]+-2 /, 'the second figure\'s CSS follows its id');
+  const crlf = await expand('前\r\n\r\n![](a.diagram.ts)\r\n\r\n後\r\n', dir, {mode: 'inline'});
+  assert.doesNotMatch(crlf.markdown.replace(/\r\n/g, ''), /[\r\n]/);
+  fs.rmSync(dir, {recursive: true});
+});

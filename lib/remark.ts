@@ -73,13 +73,13 @@ export default function remarkSvgDiagram(opts: RemarkSvgDiagramOptions = {}) {
       try {
         src = resolveSource(decodeTarget(target.file), base, opts.root);
         r = await draw(src, html);
-      } catch (e) { bad(`${path.relative(base, src)}: ${(e as Error).message}`); continue; }
+      } catch (e) { bad(`${path.relative(base, src)}: ${(e as Error).message.split(base + path.sep).join('').split(process.cwd() + path.sep).join('')}`); continue; }
       r.deps.forEach(d => deps.add(d));
       if (!r.ok) bad(`${path.relative(base, src)}: ${r.problems.join('; ')}`);
       const alt = n.alt ?? '';
       // A node type remark-rehype has no handler for becomes an element from data.hName/hProperties/hChildren.
       const fig: Node = {type: 'svgDiagram', data: html
-        ? {hName: 'div', hProperties: {className: ['svg-diagram'], ...(alt ? {role: 'figure', ariaLabel: alt} : {})}, hChildren: parseXmlFragment(r.html!).children.map(toHast)}
+        ? {hName: 'div', hProperties: {className: ['svg-diagram'], ...(alt ? {role: 'figure', ariaLabel: alt} : {})}, hChildren: parseXmlFragment(dedupeId(r.html!, seen)).children.map(toHast)}
         : (() => { const root = parseXml(inlineSvg(r.svg, alt || undefined, seen)); return {hName: 'svg', hProperties: props(root.attrs), hChildren: root.children.map(toHast)}; })()};
       // A paragraph that is only the figure is replaced (<p> cannot hold the <div>s of the HTML form).
       const holder = lone ? findParent(tree, parent) : undefined;
@@ -88,6 +88,15 @@ export default function remarkSvgDiagram(opts: RemarkSvgDiagramOptions = {}) {
     }
     file.data.svgDiagramDeps = [...deps];
   };
+}
+
+/** The same HTML figure twice on a page: its content-hash id gets a suffix the second time. */
+function dedupeId(html: string, seen: Map<string, number>): string {
+  const id = /\sid="(sd-[0-9a-f]+)"/.exec(html)?.[1];
+  if (!id) return html;
+  const n = (seen.get(id) ?? 0) + 1;
+  seen.set(id, n);
+  return n > 1 ? html.split(id).join(`${id}-${n}`) : html;
 }
 
 function findParent(root: Node, target: Node): Node | undefined {

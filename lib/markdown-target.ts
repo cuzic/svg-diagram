@@ -37,7 +37,7 @@ export function resolveSource(file: string, base: string, root: string = process
   const abs = path.resolve(base, file);
   const real = (p: string) => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
   const rel = path.relative(real(root), real(abs));
-  if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error(`${file}: outside ${root} — set the root option to allow it`);
+  if (rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) throw new Error(`${file}: outside ${root} — set the root option to allow it`);
   return abs;
 }
 
@@ -60,7 +60,7 @@ export function inlineSvg(svg: string, alt: string | undefined, seen: Map<string
       .replace(new RegExp(`((?:xlink:)?href=")#${re(id)}(")`, 'g'), `$1#${pre}-${id}$2`);
   }
   s = s.replace(/(\saria-(?:labelledby|describedby)=")([^"]*)(")/g, (_, a, v: string, c) => a + v.split(/\s+/).map(t => ids.has(t) ? `${pre}-${t}` : t).join(' ') + c);
-  s = s.replace(/<style>([\s\S]*?)<\/style>/, (_, css: string) =>
+  s = s.replace(/<style>([\s\S]*?)<\/style>/g, (_, css: string) =>
     `<style>${css.replace(/(^|\})\s*([^{}@]+)\{/g, (_m, a: string, sel: string) => `${a}\n#${pre} ${sel.split(',').map(x => x.trim()).join(`, #${pre} `)} {`)}</style>`);
   const end = s.indexOf('>');
   let root = s.slice(0, end);
@@ -76,8 +76,21 @@ export function inlineSvg(svg: string, alt: string | undefined, seen: Map<string
  * The HTML/CSS form of a figure, in a wrapper that carries the alt text. It is made of <div>s, and an HTML parser closes an open <p>
  * at a <div> — whatever sits between — so it can only stand as a block of its own, never inside running text (that is drawn as an <svg>).
  */
-export function htmlFigure(html: string, alt: string | undefined): string {
-  return `<div class="svg-diagram"${alt ? ` role="figure" aria-label="${escAttr(alt)}"` : ''}>${noBlankLines(html).trim()}</div>`;
+export function htmlFigure(html: string, alt: string | undefined, seen: Map<string, number>): string {
+  // the figure's id is a hash of its content: the same figure twice gets a suffix on its second, so no id repeats on a page
+  const id = /\sid="(sd-[0-9a-f]+)"/.exec(html)?.[1];
+  let h = noBlankLines(html).trim();
+  if (id) {
+    const n = (seen.get(id) ?? 0) + 1;
+    seen.set(id, n);
+    if (n > 1) h = h.split(id).join(`${id}-${n}`);
+  }
+  return `<div class="svg-diagram"${alt ? ` role="figure" aria-label="${escAttr(alt)}"` : ''}>${h}</div>`;
+}
+
+/** Markdown inline text as plain text, for an `aria-label`: `**x**` → `x`, `[x](y)` → `x`, `` `x` `` → `x`, `\*` → `*`. */
+export function plainText(md: string): string {
+  return md.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/(\*\*|__|\*|_|~~|`)/g, '').replace(/\\([\\`*_{}[\]()#+\-.!~])/g, '$1');
 }
 
 /**

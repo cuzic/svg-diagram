@@ -40,7 +40,7 @@ function draw(src: string, html: boolean, timeout: number): Drawn {
   const hit = cache.get(src);
   if (hit && (!html || hit.drawn.html !== undefined) && [...hit.stamps].every(([f, t]) => mtime(f) === t)) return hit.drawn;
   const started = Date.now();
-  const r = spawnSync(process.execPath, [WORKER, src, html ? '1' : '0'], {encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout, stdio: ['ignore', 'ignore', 'pipe', 'pipe']});
+  const r = spawnSync(process.execPath, [WORKER, src, html ? '1' : '0'], {encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout, killSignal: 'SIGKILL', stdio: ['ignore', 'ignore', 'pipe', 'pipe']});
   const why = () => r.error ? r.error.message : r.signal ? `killed by ${r.signal}${r.error ? '' : ' (timeout?)'}` : `exit ${r.status}`;
   const raw = (r.output as (string | null)[] | null)?.[3];
   let out: Drawn & {error?: string};
@@ -81,14 +81,17 @@ export default function svgDiagram(md: MdLike, opts: SvgDiagramPluginOptions = {
       r = draw(src, html, timeout);
     } catch (e) {
       if (strict) throw e;
-      return `<span class="svg-diagram-error">${escAttr((e as Error).message)}</span>`;
+      // the message names files by their path from the page, not the build machine's
+      const msg = (e as Error).message.split(base + path.sep).join('').split(process.cwd() + path.sep).join('');
+      const span = `<span class="svg-diagram-error">${escAttr(msg)}</span>`;
+      return opts.vue ? vueHtml(span, inline ? 'span' : 'div') : span;
     }
     // VitePress watches the files listed in env.includes and re-renders the page when one changes.
     if (Array.isArray(env?.includes)) env.includes.push(...r.deps);
     if (!r.ok && strict) throw new Error(`svg-diagram: ${path.relative(base, src)}: ${r.problems.join('; ')}`);
     const alt = altOf(tok) || undefined;
     const seen: Map<string, number> = (env.__svgDiagramSeen ??= new Map());
-    const body = html ? htmlFigure(r.html!, alt) : inlineSvg(r.svg, alt, seen);
+    const body = html ? htmlFigure(r.html!, alt, seen) : inlineSvg(r.svg, alt, seen);
     return opts.vue ? vueHtml(body, inline ? 'span' : 'div') : body;
   };
 
