@@ -86,9 +86,10 @@ try {
       else if (p.endsWith('.md')) { pages.add(path.resolve(p)); scoped = true; }
       else { console.error(`--docs ${p}: ディレクトリか .md ファイルを指定する`); process.exit(2); }
     }
-    for (const md of [...pages].sort()) {
+    const inScope = [...pages].sort().filter(md => matchesAny(only, path.relative(process.cwd(), md)));
+    if (only.length && !inScope.length) { console.error(`--only ${vals('--only').join(' ')} に合う文書がない（カレントからの相対パスかファイル名に合わせる）`); process.exit(2); }
+    for (const md of inScope) {
       const rel = path.relative(process.cwd(), md);
-      if (!matchesAny(only, rel)) continue;
       const text = fs.readFileSync(md, 'utf8');
       const figs = scanMarkdown(text);
       for (const f of checkFigures(text, figs, chapterOf(path.basename(md)))) add({file: rel, ...f});
