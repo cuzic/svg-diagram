@@ -1390,6 +1390,8 @@ export interface TableColumn {
 export type CellMark = 'ok' | 'mid' | 'ng' | 'best';
 export interface TableCellSpec {
   text?: string; tone?: TextTone; bold?: boolean; mono?: boolean; align?: Align;
+  /** Vertical alignment in a fixed-height row. The default is center. */
+  vAlign?: 'top' | 'center';
   /** Draws the symbol + a default tone before `text` (an explicit `tone` / `bold` wins); without `text` the cell is the symbol alone. */
   mark?: CellMark;
 }
@@ -1429,9 +1431,13 @@ export interface TableBand {
   id?: string;
   reveal?: number;
   until?: number;
+  /** Domain warnings attached by a semantic table constructor and reported by svg-diagram check. */
+  semanticWarnings?: readonly string[];
+  /** A small score curve drawn in the lower part of one body row (used by journeyMap's emotion lane). */
+  rowCurve?: {row: number; values: readonly number[]; min: number; max: number};
 }
 /** cellOf(): a cell with column defaults applied. */
-export interface ResolvedCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align}
+export interface ResolvedCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; vAlign?: 'top' | 'center'}
 
 // ============================================================================================
 // DSL input + band: swimlane
@@ -2178,7 +2184,7 @@ export interface LaidOutSequence extends Rect {
   lifeBottom: number;
 }
 
-export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; lines: string[]; x: number; w: number; top: number}
+export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; vAlign?: 'top' | 'center'; lines: string[]; x: number; w: number; top: number}
 export interface LaidOutTableRow {y: number; h: number; cells: LaidOutTableCell[]; header?: boolean; tone?: BoxTone}
 export interface LaidOutTable extends Rect, Dimmed {
   type: 'table';
@@ -2195,6 +2201,8 @@ export interface LaidOutTable extends Rect, Dimmed {
   until?: number;
   /** font-size of the cell text at layout time (the smallest text of the table; fit.ts counts it). */
   bodySize: number;
+  /** Curve points and its neutral-score guide (the middle of the range, where the marks switch), wholly inside a reserved table row. */
+  rowCurve?: {points: {x: number; y: number}[]; midY: number; top: number; bottom: number};
 }
 
 /** wireframe() as laid out: flat primitives + the callouts drawn (for the order rule). */
