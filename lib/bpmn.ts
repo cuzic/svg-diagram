@@ -194,7 +194,14 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
         pts = tries.find(t => !through(t, [f.from, f.to])) ?? tries[0];
       }
     } else { // back (or into the same column): out of the bottom, along under the lane's content, into the bottom
-      const yb = Math.max(A.y + A.h, Bx.y + Bx.h) + 14 + (fi % 3) * 7;
+      // under both ends, and under any node that the run passes beneath and that reaches below them (a tall task between the two)
+      let base = Math.max(A.y + A.h, Bx.y + Bx.h);
+      const lo = Math.min(ca.x, cb.x), hi = Math.max(ca.x, cb.x);
+      for (let moved = true; moved;) {
+        moved = false;
+        for (const r of rect.values()) if (r.x < hi && r.x + r.w > lo && r.y < base && r.y + r.h > base) { base = r.y + r.h; moved = true; }
+      }
+      const yb = base + 14 + (fi % 3) * 7;
       pts = simplify([{x: ca.x, y: A.y + A.h}, {x: ca.x, y: yb}, {x: cb.x, y: yb}, {x: cb.x, y: Bx.y + Bx.h}]);
     }
     out.edges.push({from: f.from, to: f.to, line, points: pts});
