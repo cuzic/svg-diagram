@@ -80,6 +80,7 @@ if (outOverride && modules.length > 1) {
   process.exit(2);
 }
 if (pngDir !== null && (!pngDir || pngDir.startsWith('--'))) { console.error('--png needs a directory'); process.exit(2); }
+if (scaleArg !== null && pngDir === null) { console.error('--scale is the PNG scale: use it with --png <dir>'); process.exit(2); }
 if (!(PNG_SCALE > 0)) { console.error(`--scale is a positive number (got ${scaleArg})`); process.exit(2); }
 if (outOverride && outDir) {
   console.error('use either --out or --out-dir, not both');
@@ -114,7 +115,9 @@ try {
     const srcSha = sha(fs.readFileSync(abs));
     for (const f of depsOf(abs).unfollowable) console.warn(`  ⚠ ${path.relative(process.cwd(), f)}: 変数で組み立てた import() は、変更の検出（--stale / check --drift）の対象にならない`);
     const depsSha = depsSha256(abs); // local files the source imports (shared parts): a change there makes the SVG stale too
-    if (STALE && !FIT && !DARK && !TRANSPARENT && fs.existsSync(outPath)) {
+    const pngPath = pngDir && path.join(pngDir, path.parse(outPath).name + '.png');
+    const pngCurrent = () => !pngPath || (fs.existsSync(pngPath) && fs.statSync(pngPath).mtimeMs >= fs.statSync(outPath).mtimeMs);
+    if (STALE && !FIT && !DARK && !TRANSPARENT && fs.existsSync(outPath) && pngCurrent()) { // --png: a missing or older PNG is not up to date either
       const meta = embeddedSource(outPath);
       if (meta && meta.sourceSha256 === srcSha && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256 && (meta.depsSha256 ?? '') === depsSha) {
         console.log(`· ${outPath} は最新（スキップ）`);
