@@ -22,8 +22,8 @@ test('versus() expands to the same row, groups and connects as the manual form',
     row([group(left().children, left()), group(right().children, right())], {cols: [6, 6]}),
     spacer(48),
     group(shared().children, shared()),
-    connect('usual:bottom', 'evidence:top@0.25', {label: '見立てを照合'}),
-    connect('actual:bottom', 'evidence:top@0.75', {label: '原因を裏づけ'}),
+    {...connect('usual:bottom', 'evidence:top@0.25', {label: '見立てを照合'}), plumb: true},
+    {...connect('actual:bottom', 'evidence:top@0.75', {label: '原因を裏づけ'}), plumb: true},
   );
   const sugar = diagram({theme: 'blue'}).add(versus(left(), right(), {
     shared: shared(), connectLabels: {left: '見立てを照合', right: '原因を裏づけ'},
@@ -81,7 +81,7 @@ test('versus() ends on the same right edge as a banner above it (snapping the ri
   assert.equal(Math.max(...edges), rects[0][0] + rects[0][1], 'no frame reaches past the banner');
 });
 
-test('versus() shared connectors are take route / arrow', async () => {
+test('versus() shared connectors take route / arrow', () => {
   const mk = (extra: object) => versus(left(), right(), {shared: shared(), ...extra});
   const cons = (b: ReturnType<typeof mk>) => b.filter(x => x.type === 'connect') as {route: string; arrow: string}[];
   assert.deepEqual(cons(mk({})).map(c => [c.route, c.arrow]), [['straight', 'end'], ['straight', 'end']]);
@@ -89,15 +89,43 @@ test('versus() shared connectors are take route / arrow', async () => {
   assert.deepEqual(cons(mk({connectRoute: 'straight', connectArrow: 'none'})).map(c => [c.route, c.arrow]), [['straight', 'none'], ['straight', 'none']]);
 });
 
-test('versus() children: arrays stack, direction row puts them side by side, row() takes captions', async () => {
-  const stacked = {id: 'l', title: 'L', children: [box({id: 'a', title: 'A'}), box({id: 'b', title: 'B'})]};
+test('versus() shared connectors drop plumb (issue #95): vertical by default, and elbow has no jog', async () => {
+  for (const extra of [{}, {connectRoute: 'elbow' as const}, {connectLabels: {left: '照合', right: '裏づけ'}}]) {
+    const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue'}).add(versus(left(), right(), {shared: shared(), ...extra})));
+    assert.deepEqual(verdict.problems, []);
+    assert.equal(laidOut.connects.length, 2);
+    for (const c of laidOut.connects) {
+      const xs = c.points.map(p => p.x);
+      assert.equal(new Set(xs).size, 1, `one x for every point (${JSON.stringify(c.points)})`);
+      // a plain label sits beside the vertical line, not struck through by it
+      if (c.labelBox) assert.ok(c.labelBox.x > xs[0], `label right of the line (${JSON.stringify(c.labelBox)} vs x=${xs[0]})`);
+    }
+  }
+});
+
+test('versus() children: arrays stack, direction row puts them side by side', async () => {
   const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue'}).add(versus(
-    stacked,
+    {id: 'l', title: 'L', children: [box({id: 'a', title: 'A'}), box({id: 'b', title: 'B'})]},
     {id: 'r', title: 'R', direction: 'row', children: [box({id: 'c', title: 'C'}), box({id: 'd', title: 'D'})]},
   )));
   assert.deepEqual(verdict.problems, []);
-  const rect = (id: string) => (laidOut as any).nodes?.[id] ?? undefined;
-  void rect;
-  const svgA = await renderDiagram(diagram({theme: 'blue'}).add(row([caption('列見出し'), stat('42', '件')])), {name: 'r.svg', budget: 'cacheOnly'});
-  assert.deepEqual(svgA.verdict.problems, []);
+  const find = (n: unknown, id: string): {x: number; y: number; w: number; h: number} | undefined => {
+    if (!n || typeof n !== 'object') return undefined;
+    if ((n as {id?: string}).id === id && typeof (n as {x?: number}).x === 'number') return n as never;
+    for (const v of Object.values(n)) { const hit = find(v, id); if (hit) return hit; }
+    return undefined;
+  };
+  const at = (id: string) => find(laidOut.laidOut, id)!;
+  assert.equal(at('a').x, at('b').x, 'stacked: same x');
+  assert.ok(at('b').y > at('a').y + at('a').h - 1, 'stacked: b below a');
+  assert.equal(at('c').y, at('d').y, 'row: same y');
+  assert.ok(at('d').x >= at('c').x + at('c').w, 'row: d right of c');
+  assert.throws(() => versus({children: box({title: 'x'}), direction: 'rows' as never}, {children: box({title: 'y'})}), /direction must be 'column' or 'row'/);
+});
+
+test('row() wraps caption / banner children in a frameless group, keeping their row placement', async () => {
+  const {verdict} = await renderDiagram(diagram({theme: 'blue'}).add(row([caption('列見出し'), stat('42', '件')])), {name: 'r.svg', budget: 'cacheOnly'});
+  assert.deepEqual(verdict.problems, []);
+  const r = row([banner({headline: 'h', span: 4} as never), box({title: 'b', span: 8})], {cols: 12}) as {children: {type: string; span?: number; frame?: boolean}[]};
+  assert.deepEqual(r.children.map(c => [c.type, c.span, c.frame]), [['group', 4, false], ['box', 8, undefined]]);
 });

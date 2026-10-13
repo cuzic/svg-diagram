@@ -25,7 +25,7 @@ export interface VersusOpts {
 export interface VersusSharedOpts<C extends BandInput = BandInput, Id extends string = string> {
   shared: VersusPart<C, Id> & {id: Id};
   connectLabels?: VersusConnectLabels;
-  /** Route of the two connectors: 'straight' (default; slightly diagonal when the anchors differ in x) or 'elbow' (orthogonal, with a small jog when the anchors are only a few px apart). */
+  /** Route of the two connectors (default 'straight'). Each drops plumb from the middle of its side onto the shared frame, so both routes draw a vertical line. */
   connectRoute?: Route;
   /** Arrowhead of the two connectors (default 'end'; 'none' for a plain line). */
   connectArrow?: Arrow;
@@ -38,6 +38,7 @@ type VersusResult<LC, RC, LI extends string, RI extends string, SC = never, SI e
     & Refers<RefsOf<LC> | RefsOf<RC> | RefsOf<SC>>)[];
 
 function asGroup<C extends BandInput, Id extends string>(part: VersusPart<C, Id>): GroupBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> {
+  if (part.direction !== undefined && part.direction !== 'column' && part.direction !== 'row') throw new Error(`versus(): direction must be 'column' or 'row' (got ${String(part.direction)})`);
   const kids = part.children as Band | Band[];
   const children = part.direction === 'row' && Array.isArray(kids) && kids.length > 1 ? row(kids as never, {cols: 12}) as Band : kids;
   return group(children, {title: part.title, tone: part.tone, id: part.id, reveal: part.reveal});
@@ -63,7 +64,8 @@ export function versus(
     sides,
     spacer(opts.connectLabels ? 48 : 28), // room for the arrows (and their labels) between the frames
     shared,
-    connect(`${left.id}:bottom`, `${opts.shared.id}:top@0.25`, {...style, ...(opts.connectLabels?.left === undefined ? {} : {label: opts.connectLabels.left})}),
-    connect(`${right.id}:bottom`, `${opts.shared.id}:top@0.75`, {...style, ...(opts.connectLabels?.right === undefined ? {} : {label: opts.connectLabels.right})}),
+    // plumb: each line ends straight below the middle of its side, not at a fixed 1/4 / 3/4 of the shared top (which sits a few px off it)
+    {...connect(`${left.id}:bottom`, `${opts.shared.id}:top@0.25`, {...style, ...(opts.connectLabels?.left === undefined ? {} : {label: opts.connectLabels.left})}), plumb: true},
+    {...connect(`${right.id}:bottom`, `${opts.shared.id}:top@0.75`, {...style, ...(opts.connectLabels?.right === undefined ? {} : {label: opts.connectLabels.right})}), plumb: true},
   ];
 }

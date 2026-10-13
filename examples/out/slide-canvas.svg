@@ -26,8 +26,8 @@
   <text x="54" y="462.4" font-size="24" font-weight="400" fill="#22201b">結果を保存する</text>
 
   <path d="M640,89 L640,261" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
-  <text x="640" y="169" text-anchor="middle" font-size="24" fill="#22201b">要求</text>
+  <text x="672" y="185" text-anchor="middle" font-size="24" fill="#22201b">要求</text>
 
   <path d="M640,261 L640,433" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
-  <text x="640" y="341" text-anchor="middle" font-size="24" fill="#22201b">保存</text>
+  <text x="672" y="357" text-anchor="middle" font-size="24" fill="#22201b">保存</text>
 </svg>
