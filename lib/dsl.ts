@@ -560,7 +560,13 @@ export function row(rawChildren: Band[], opts: RowOpts = {}): RowBand | GroupRow
   assertNoReveal(opts, 'row()'); // a row is shown with its children: give each child its own reveal
   // caption / stat / banner / table ... in a row: each goes into a frameless group (the same as writing group([x], {frame: false}) by hand)
   const wrappable = (c: Band) => c?.type !== undefined && !['box', 'group', 'connect', 'spacer', 'row', 'grouprow', 'grid'].includes(c.type);
-  const children = rawChildren.map(c => wrappable(c) ? group(c, {frame: false, ...(c as {flex?: number}).flex === undefined ? {} : {flex: (c as {flex?: number}).flex}}) : c) as (BoxBand | GroupBand)[];
+  // the row placement (flex / width / span / col) moves to the wrapper, where the row reads it
+  const wrap = (c: Band): GroupBand => {
+    const {flex, width, span, col} = c as {flex?: number; width?: number; span?: number; col?: number};
+    const place = Object.fromEntries(Object.entries({flex, width, span, col}).filter(([, v]) => v !== undefined));
+    return group(c, {frame: false, ...place});
+  };
+  const children = rawChildren.map(c => wrappable(c) ? wrap(c) : c) as (BoxBand | GroupBand)[];
   const hasGroup = children.some(c => c?.type === 'group');
   if (hasGroup) {
     if (opts.arrows === 'between') throw new Error("row(): arrows: 'between' cannot be used when a child is a group()");
