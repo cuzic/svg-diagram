@@ -579,6 +579,8 @@ export interface ConnectBand {
   labelAt: number;
   tone?: TextTone;
   label?: string;
+  /** bracket() / callout(): an annotation connector (the path is a bracket under / over a span, or a leader line to a bubble). */
+  annot?: {kind: 'bracket' | 'callout'; side: 'below' | 'above' | 'left' | 'right'};
   reveal?: number;
   until?: number;
 }
@@ -949,6 +951,38 @@ export interface TimelineOpts extends RevealOpts {
   id?: string;
 }
 export interface TimelineBand extends TimelineOpts {
+  type: 'timeline';
+}
+
+/** An event on a numeric axis (a dot with its label and value). */
+export interface NumericTimelineEvent {at: number; label: string; /** One of `lanes` (default: the first). */ lane?: string; /** Default 'muted'. */ tone?: TimelineTone}
+/** A stretch of the numeric axis: a bar (default) or, with `dim`, a dimension line with its length written above ("344ms"). */
+export interface NumericTimelineSpan {
+  from: number;
+  to: number;
+  /** Default for a dimension line: the length with the unit ("344ms"); none for a bar. */
+  label?: string;
+  lane?: string;
+  /** Default 'accent'. */
+  tone?: TimelineTone;
+  /** A dimension line (two end ticks, the length above) instead of a bar. */
+  dim?: boolean;
+}
+/** timeline({unit, from, to, ...}): a time axis of plain numbers (ms, s, steps) with lanes, events and spans. */
+export interface NumericTimelineOpts extends RevealOpts {
+  /** 'ms', 's', '分'...: written after every tick and event value. */
+  unit: string;
+  from: number;
+  to: number;
+  /** Tick spacing (default: 1, 2 or 5 times a power of ten, at most 8 ticks). */
+  step?: number;
+  /** Rows, top to bottom, each with its name at the left. Without it: one unnamed row. */
+  lanes?: string[];
+  events?: NumericTimelineEvent[];
+  spans?: NumericTimelineSpan[];
+  id?: string;
+}
+export interface NumericTimelineBand extends NumericTimelineOpts {
   type: 'timeline';
 }
 
@@ -1654,7 +1688,7 @@ export interface ScreensBand extends ScreensOpts {
 export type Band =
   | ChartBand
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | ImageBand | QuadrantBand | FlowShapeBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | NumericTimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | ImageBand | QuadrantBand | FlowShapeBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -2314,6 +2348,10 @@ export interface LaidOutTimeline extends Rect, Dimmed {
   /** The bracket under the ticks that carries the remaining-span label. */
   bracket?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'};
   ticks: {x: number; y1: number; y2: number}[];
+  /** Numeric timeline: thin lines (lane baselines and separators), bars and dimension lines. */
+  guides?: {x1: number; x2: number; y: number}[];
+  bars?: (Rect & {tone: 'accent' | 'danger' | 'muted'})[];
+  dims?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger' | 'muted'}[];
   stems: {x: number; y1: number; y2: number; tone: 'accent' | 'danger' | 'muted'}[];
   dots: {x: number; y: number; r: number; tone: 'accent' | 'danger' | 'muted'}[];
   texts: TimelineText[];

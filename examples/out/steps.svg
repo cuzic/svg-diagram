@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="188" viewBox="0 0 940 188" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">再発から遮断まで</title>
+  <desc id="svg-desc">要素: 1回目、2回目、3回目、4回目、5回目</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/steps.ts","sourceSha256":"e59f6ece59cf5146f2a6745218b8fda3a7aab29f84a370c5c2729688d53e6538"}</metadata>
+  <defs>
+    <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="188" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">4回の再発のあと、5回目で遮断する</text>
+
+  <rect x="20" y="56" width="168" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="80" y="86.6" font-size="15" font-weight="700" fill="#22201b">1回目</text>
+  <text x="40" y="114.6" font-size="14" font-weight="400" fill="#22201b">原因は不明</text>
+  <g role="img" aria-label="手順 1" data-badge="">
+  <circle cx="56" cy="80" r="15" fill="#1d5fa8"/>
+  <text x="55" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">1</text>
+  </g>
+
+  <rect x="204" y="56" width="168" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="263.2" y="86.6" font-size="15" font-weight="700" fill="#22201b">2回目</text>
+  <text x="223.2" y="114.6" font-size="14" font-weight="400" fill="#22201b">手で復旧</text>
+  <g role="img" aria-label="手順 2" data-badge="">
+  <circle cx="240" cy="80" r="15" fill="#1d5fa8"/>
+  <text x="238" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">2</text>
+  </g>
+
+  <rect x="388" y="56" width="164" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="446.4" y="86.6" font-size="15" font-weight="700" fill="#22201b">3回目</text>
+  <text x="406.4" y="114.6" font-size="14" font-weight="400" fill="#22201b">手で復旧</text>
+  <g role="img" aria-label="手順 3" data-badge="">
+  <circle cx="420" cy="80" r="15" fill="#1d5fa8"/>
+  <text x="421" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">3</text>
+  </g>
+
+  <rect x="568" y="56" width="168" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="629.5999999999999" y="86.6" font-size="15" font-weight="700" fill="#22201b">4回目</text>
+  <text x="589.5999999999999" y="114.6" font-size="14" font-weight="400" fill="#22201b">同じ原因と判明</text>
+  <g role="img" aria-label="手順 4" data-badge="">
+  <circle cx="604" cy="80" r="15" fill="#1d5fa8"/>
+  <text x="605" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">4</text>
+  </g>
+  <rect x="668" y="44" width="60" height="24" rx="12" fill="#1d5fa8"/>
+  <text x="696" y="61" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">気づく</text>
+
+  <rect x="752" y="56" width="168" height="80" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <text x="856.8" y="86.6" font-size="15" font-weight="700" fill="#22201b">5回目</text>
+  <text x="816.8" y="114.6" font-size="14" font-weight="400" fill="#22201b">自動で遮断</text>
+  <g role="img" aria-label="手順 5" data-badge="">
+  <circle cx="832" cy="80" r="15" fill="#1d5fa8"/>
+  <text x="832" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">5</text>
+  </g>
+  <path d="M21 11c0 5.55-3.84 10.74-9 12c-5.16-1.26-9-6.45-9-12V5l9-4l9 4zm-9 10c3.75-1 7-5.46 7-9.78V6.3l-7-3.12L5 6.3v4.92C5 15.54 8.25 20 12 21" transform="translate(772.8 71.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="shield"/>
+
+  <path d="M188,96 L204,96" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+  <path d="M372,96 L388,96" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+  <path d="M552,96 L568,96" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+  <path d="M736,96 L752,96" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+
+  <path d="M203,140 L203,152 L737,152 L737,140" fill="none" stroke="#22201b" stroke-width="2"/>
+  <text x="470" y="172" text-anchor="middle" font-size="14" fill="#22201b">手で復旧していた区間</text>
+</svg>

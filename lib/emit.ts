@@ -510,6 +510,9 @@ function renderTimeline(b: LaidOutTimeline, day: Theme): string {
     const x1 = snap4(b.span.x1), y1 = snap4(b.span.y - 12);
     out.unshift(`<rect x="${x1}" y="${y1}" width="${snap4(b.span.x2) - x1}" height="24" fill="${b.span.tone === 'accent' && !b.dim ? PALETTE[day].soft : PALETTE.border}"/>`);
   } else if (b.span) out.push(`<path d="M${snap4(b.span.x1)},${snap4(b.span.y)} H${snap4(b.span.x2)}" fill="none" stroke="${col(b.span.tone)}" stroke-width="8"/>`);
+  for (const g of b.guides ?? []) out.push(`<path d="M${snap4(g.x1)},${snap4(g.y)} H${snap4(g.x2)}" fill="none" stroke="${PALETTE.border}" stroke-width="1"/>`);
+  for (const r of b.bars ?? []) out.push(`<rect x="${snap4(r.x)}" y="${snap4(r.y)}" width="${snap4(r.x + r.w) - snap4(r.x)}" height="${r.h}" fill="${col(r.tone)}" fill-opacity="0.18" stroke="${col(r.tone)}" stroke-width="2"/>`);
+  for (const d of b.dims ?? []) out.push(`<path d="M${snap4(d.x1)},${snap4(d.y)} H${snap4(d.x2)} M${snap4(d.x1)},${snap4(d.y - 5)} V${snap4(d.y + 5)} M${snap4(d.x2)},${snap4(d.y - 5)} V${snap4(d.y + 5)}" fill="none" stroke="${col(d.tone)}" stroke-width="2"/>`);
   if (b.fullLine) out.push(`<path d="M${snap4(b.fullLine.x)},${snap4(b.fullLine.y1)} V${snap4(b.fullLine.y2)}" fill="none" stroke="${col('danger')}" stroke-width="2"/>`);
   for (const t of b.ticks) out.push(`<path d="M${snap4(t.x)},${snap4(t.y1)} V${snap4(t.y2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
   for (const s of b.stems) out.push(`<path d="M${snap4(s.x)},${snap4(s.y1)} V${snap4(s.y2)}" fill="none" stroke="${col(s.tone)}" stroke-width="2"/>`);

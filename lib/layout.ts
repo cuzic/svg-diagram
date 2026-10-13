@@ -821,6 +821,8 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
       if (!anchors.has(parseRef(band.from).id) || !anchors.has(parseRef(band.to).id)) { deferred.push(band); continue; }
       const resolved = resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms);
       connects.push(resolved);
+      // a bracket / callout under its boxes needs room for its line and label, as a loop-under does
+      if (band.annot?.side === 'below') cursorY = Math.max(cursorY, ...resolved.pathSegments.map(r => r.y + r.h), resolved.labelBox ? resolved.labelBox.y + resolved.labelBox.h : 0) + 8;
       if (band.route === 'loop-under') {
         const labelClearance = band.label ? 24 : 8;
         cursorY = Math.max(resolved.from.y, resolved.to.y, cursorY) + band.dip + labelClearance;
@@ -1152,7 +1154,48 @@ function pathSegments(points: Point[]): Rect[] {
   return segs;
 }
 
+const ANNOT_LEG = 16, ANNOT_GAP = 4, CALLOUT_LEN = 28;
+/** bracket(): ⊔ (below) / ⊓ (above) from one anchor's x to the other's, label outside it. callout(): a leader line to the target, the text in a pill at its far end. */
+function resolveAnnotation(band: ConnectBand, anchors: Map<string, Rect>, widthOf: WidthOf, roles: Roles): LaidOutConnect {
+  const {kind, side} = band.annot!, size = roles.connectLabel ?? CONNECT_LABEL_SIZE;
+  const fromRef = parseRef(band.from), toRef = parseRef(band.to);
+  const fromRect = anchors.get(fromRef.id), toRect = anchors.get(toRef.id);
+  if (!fromRect) throw new Error(`${kind}(): unknown anchor id "${fromRef.id}" (give the box an id)`);
+  if (!toRect) throw new Error(`${kind}(): unknown anchor id "${toRef.id}" (give the box an id)`);
+  const from = anchorPoint(fromRect, fromRef.side, fromRef.at), to = anchorPoint(toRect, toRef.side, toRef.at);
+  const lw = band.label ? textWidth(widthOf, band.label, size, 400) : 0;
+  let points: Point[], labelX: number | undefined, labelY: number | undefined, labelBox: Rect | undefined, chipBox: Rect | undefined;
+  if (kind === 'bracket') {
+    const below = side === 'below';
+    const edge = below ? Math.max(fromRect.y + fromRect.h, toRect.y + toRect.h) : Math.min(fromRect.y, toRect.y), y = edge + (below ? ANNOT_LEG : -ANNOT_LEG);
+    const e0 = edge + (below ? ANNOT_GAP : -ANNOT_GAP); // a hair off the boxes, so the line does not touch them
+    points = [{x: from.x, y: e0}, {x: from.x, y}, {x: to.x, y}, {x: to.x, y: e0}];
+    if (band.label) {
+      labelX = Math.round((from.x + to.x) / 2);
+      labelY = Math.round(below ? y + 6 + size : y - 6);
+      labelBox = {x: labelX - lw / 2, y: labelY - size, w: lw, h: size + 4};
+    }
+  } else {
+    // `to` is the target; the bubble sits `side` of it. A leader of CALLOUT_LEN px runs from the pill to a point ANNOT_GAP short of the target's edge.
+    const pw = lw + 16, ph = 24, vertical = side === 'above' || side === 'below', dir = side === 'above' || side === 'left' ? -1 : 1;
+    const edge: Point = vertical
+      ? (toRef.side === 'top' || toRef.side === 'bottom' ? to : {x: to.x, y: side === 'above' ? toRect.y : toRect.y + toRect.h})
+      : (toRef.side === 'left' || toRef.side === 'right' ? to : {x: side === 'left' ? toRect.x : toRect.x + toRect.w, y: to.y});
+    const end: Point = vertical ? {x: edge.x, y: edge.y + dir * ANNOT_GAP} : {x: edge.x + dir * ANNOT_GAP, y: edge.y};
+    const reach = CALLOUT_LEN + (vertical ? ph : pw) / 2;
+    const c: Point = vertical ? {x: end.x, y: end.y + dir * reach} : {x: end.x + dir * reach, y: end.y};
+    const start: Point = vertical ? {x: c.x, y: c.y - dir * ph / 2} : {x: c.x - dir * pw / 2, y: c.y};
+    points = [start, end];
+    labelX = Math.round(c.x);
+    labelY = Math.round(c.y + 5);
+    chipBox = {x: labelX - pw / 2, y: labelY - 17, w: pw, h: ph};
+    labelBox = chipBox;
+  }
+  return {...band, from: points[0], to: points[points.length - 1], fromId: fromRef.id, toId: toRef.id, fromLabel: band.from, toLabel: band.to, points, pathSegments: pathSegments(points), labelX, labelY, labelBox, chipBox};
+}
+
 function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf, roles: Roles, nodeBottoms: Map<string, number> = new Map()): LaidOutConnect {
+  if (band.annot) return resolveAnnotation(band, anchors, widthOf, roles);
   const fromRef = parseRef(band.from), toRef = parseRef(band.to);
   const fromRect = anchors.get(fromRef.id);
   const toRect = anchors.get(toRef.id);

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="340" viewBox="0 0 940 340" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">再初期化の間隔</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/timeline-ms.ts","sourceSha256":"e17275f95ba31a1fd45b23e767a1d8c8f7b1ff4e9b9b2f1a1e5da5d182a842d9"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="340" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">0 から 700ms の間に起きたこと</text>
+
+  <path d="M72,292 H908" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M72,120 H908" fill="none" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M20,172 H920" fill="none" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M72,236 H908" fill="none" stroke="#e0d6c5" stroke-width="1"/>
+  <rect x="216" y="252" width="524" height="24" fill="#1d5fa8" fill-opacity="0.18" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M124,160 H536 M124,156 V168 M536,156 V168" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M72,292 V300" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M192,292 V300" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M312,292 V300" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M432,292 V300" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M548,292 V300" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M668,292 V300" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M788,292 V300" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M908,292 V300" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M124,104 V120" fill="none" stroke="#b91c1c" stroke-width="2"/>
+  <path d="M536,104 V120" fill="none" stroke="#b91c1c" stroke-width="2"/>
+  <path d="M216,220 V236" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="124" cy="120" r="8" fill="#b91c1c" stroke="#ffffff" stroke-width="4"/>
+  <circle cx="536" cy="120" r="8" fill="#b91c1c" stroke="#ffffff" stroke-width="4"/>
+  <circle cx="216" cy="236" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="4"/>
+  <text x="153" y="79" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">再初期化</text>
+  <text x="153" y="99" text-anchor="middle" font-size="14" fill="#6f6659">44ms</text>
+  <text x="563" y="79" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">再初期化</text>
+  <text x="563" y="99" text-anchor="middle" font-size="14" fill="#6f6659">388ms</text>
+  <text x="308" y="156" font-size="14" font-weight="700" fill="#1d5fa8">344ms</text>
+  <text x="32" y="119" font-size="14" font-weight="700" fill="#6f6659">UI</text>
+  <text x="237" y="195" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">要求</text>
+  <text x="237" y="215" text-anchor="middle" font-size="14" fill="#6f6659">120ms</text>
+  <text x="450" y="271" font-size="14" fill="#22201b">応答待ち</text>
+  <text x="32" y="236" font-size="14" font-weight="700" fill="#6f6659">通信</text>
+  <text x="59" y="316" font-size="14" fill="#6f6659">0ms</text>
+  <text x="170" y="316" font-size="14" fill="#6f6659">100ms</text>
+  <text x="290" y="316" font-size="14" fill="#6f6659">200ms</text>
+  <text x="409" y="316" font-size="14" fill="#6f6659">300ms</text>
+  <text x="528" y="316" font-size="14" fill="#6f6659">400ms</text>
+  <text x="648" y="316" font-size="14" fill="#6f6659">500ms</text>
+  <text x="767" y="316" font-size="14" fill="#6f6659">600ms</text>
+  <text x="877" y="316" font-size="14" fill="#6f6659">700ms</text>
+</svg>
