@@ -199,7 +199,7 @@ PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `
 2. **候補を出す**: `svg-diagram icons find key bridge --png sheet.png`。ライセンスが許すセットだけが並び、**主セット**（最初に入れたセット）が先頭に出る。`--style fill|line` で塗り／線画を絞れる。
 3. **目で選ぶ**: `sheet.png` を見る（枠が色つきのものが主セット）。図の中のアイコンは見た目を揃える（塗りと線画を混ぜない・太さが違うセットを混ぜない）。迷ったら主セットのものを選ぶ。主セットに無い時だけ他のセットから選び、揃わないことを伝える。
 4. **入れる**: 候補の下に出る行をそのまま実行する（`svg-diagram icons add mdi:key-variant=key`）。1 回で複数入れられる。名前は図のソースで使う短い名前。
-5. **使う**: `box({icon: 'key', title: '鍵の管理'})`。入っていない名前は、入れ方つきのエラーで教えてくれる。
+5. **使う**: `box({icon: 'key', title: '鍵の管理'})`。`icon` は box のほか、swimlane の step、`cell('鍵', {icon: 'key'})`（table のセル）、stateDiagram の状態 `{id, label, icon}`、sankey のノード `{id, icon}` にも付く。`step`（丸番号）とも併用できる（アイコン→番号→タイトルの順）。入っていない名前は、入れ方つきのエラーで教えてくれる。
 
 注意:
 - CC BY などのライセンスのセットは既定で除外される。使うかはユーザーに確認し、了承されたら `--allow-license CC-BY-4.0`。

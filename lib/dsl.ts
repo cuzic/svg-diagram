@@ -59,7 +59,7 @@ import type {
   LaidOutDiagram, LegendBand, LegendItem, PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
   Role, RichText, StatOpts, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
-  GroupRowBand, PartRow, StateCellIn, StateMatrixCell, TableCellSpec, TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WfScreen, WfShellProps, WireframeBand, WireframeDefaults, WireframeOpts, Medium,
+  GroupRowBand, PartRow, StateCellIn, StateMatrixCell, TableCell, TableCellSpec, TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WfScreen, WfShellProps, WireframeBand, WireframeDefaults, WireframeOpts, Medium,
 } from './types.ts';
 import type {
   ActorIn, AnchorsOf, BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, FlowCheck, FlowIn, IdsOf, LaneCheck, Ok,
@@ -187,7 +187,6 @@ export function box(opts: BoxOpts): BoxBand {
   const band = {type: 'box', ...opts, ...richBoxFields(opts)} as BoxBand;
   assertSolidText(band, 'box()');
   if (band.step != null && !band.title) throw new Error('box({step}) needs a title — the badge aligns to the title\'s first line');
-  if (band.icon !== undefined && band.step != null) throw new Error('box({icon}) and box({step}) both sit at the box\'s left edge — use one');
   // the glyph is resolved here (the shell) and carried on the band, so emit stays free of I/O
   if (band.icon !== undefined) band.iconGlyph = resolveIcon(band.icon, 'box({icon})');
   if ((band.iconAt !== undefined || band.iconSize !== undefined) && band.icon === undefined) throw new Error('box({iconAt, iconSize}) needs an icon');
@@ -299,7 +298,10 @@ export function table(columns: TableColumn[], rows: readonly TableRow[], opts: T
   rows.forEach((r, i) => { if (!Array.isArray(r)) assertBoxTone((r as {tone?: string}).tone, `table() row ${i}`); });
   if (opts.rowHeader !== undefined && typeof opts.rowHeader !== 'boolean') throw new Error(`table(): rowHeader must be true or false, got ${JSON.stringify(opts.rowHeader)}`);
   if (opts.rowHeader && columns.length < 2) throw new Error('table(): rowHeader needs at least 2 columns (the first is the row heading, the rest are the body)');
-  return withHandle({type: 'table', columns, rows: rows as TableRow[], title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, headerH: opts.headerH, dense: opts.dense, rowHeader: opts.rowHeader, id: opts.id, ...revealOf(opts)}, opts.id);
+  // an icon is resolved here (the shell) and carried on the cell, so layout and emit stay free of I/O
+  const withGlyph = (c: TableCell): TableCell => typeof c === 'object' && c.icon !== undefined ? {...c, iconGlyph: resolveIcon(c.icon, 'table() cell icon')} : c;
+  const placedRows = rows.map(r => Array.isArray(r) ? r.map(withGlyph) : {...(r as {cells: readonly TableCell[]}), cells: (r as {cells: readonly TableCell[]}).cells.map(withGlyph)}) as TableRow[];
+  return withHandle({type: 'table', columns, rows: placedRows, title: opts.title, header: opts.header, width: opts.width, tone: opts.tone, cellH: opts.cellH, headerH: opts.headerH, dense: opts.dense, rowHeader: opts.rowHeader, id: opts.id, ...revealOf(opts)}, opts.id);
 }
 
 // A table cell with a status symbol: `cell('通る', {mark: 'ok'})` draws "○ 通る" in the accent tone; mark: 'ok' ○ | 'mid' △ | 'ng' × | 'best' ◎.
@@ -343,6 +345,8 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
     if (st.size !== undefined) assertFontSize(st.size);
     const step = {...st, ...rich, type: 'box' as const, col, span} as SwimlaneStepBand;
     assertSolidText(step, 'swimlane() step');
+    if (step.icon !== undefined) step.iconGlyph = resolveIcon(step.icon, 'swimlane() step icon');
+    if ((step.iconAt !== undefined || step.iconSize !== undefined) && step.icon === undefined) throw new Error('swimlane() step: iconAt / iconSize need an icon');
     return step;
   });
   const byId = new Map(placed.map(st => [st.id, st]));
@@ -1387,7 +1391,7 @@ export function stateDiagram(states: readonly StateItem[], transitions: readonly
   for (const s of states) if (s.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(s.tone)) throw new Error(`stateDiagram(): state "${s.id}" has tone ${String(s.tone)}`);
   for (const s of states) if (s.shape !== undefined && s.shape !== 'box' && s.shape !== 'circle') throw new Error(`stateDiagram(): state "${s.id}" has shape ${String(s.shape)} (use 'box' or 'circle')`);
   for (const t of transitions) if (t.tone !== undefined && !['danger', 'accent', 'muted'].includes(t.tone)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} has tone ${String(t.tone)} (use danger, accent or muted)`);
-  const band: StatesBand = {type: 'states', states: [...states], transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  const band: StatesBand = {type: 'states', states: states.map(s => s.icon === undefined ? s : {...s, iconGlyph: resolveIcon(s.icon, 'stateDiagram() state "' + s.id + '" icon')}), transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), states.map(s => s.id));
 }
 

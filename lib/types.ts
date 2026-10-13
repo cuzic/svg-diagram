@@ -321,7 +321,7 @@ export interface BoxStyleOpts extends BoxChrome {
   noteTone?: TextTone;
   /** Number/string badge on the title's baseline. Requires `title`. */
   step?: number | string;
-  /** An SVG pictogram at the box's left edge (32px); the text is indented to clear it. Not with `step`. Put a label beside it: the icon alone is hidden from screen readers. */
+  /** An SVG pictogram at the box's left edge (32px); the text is indented to clear it. With `step` the badge sits right of the icon. Put a label beside it: the icon alone is hidden from screen readers. */
   icon?: IconName;
   /** Colour of the icon (default 'text'); a dimmed box draws it muted. */
   iconTone?: TextTone;
@@ -1012,6 +1012,10 @@ export interface StateItem {
   final?: boolean;
   /** 'circle': a round node that holds a short text (an event of an arrow diagram). Default a rounded box. */
   shape?: 'box' | 'circle';
+  /** An installed SVG icon (see `icon`), 24px, centred above the label. */
+  icon?: IconName;
+  /** Internal: the installed path of `icon`, resolved by stateDiagram(). */
+  iconGlyph?: IconGlyph;
 }
 export interface Transition {
   from: string;
@@ -1391,6 +1395,11 @@ export interface TableCellSpec {
   text?: string; tone?: TextTone; bold?: boolean; mono?: boolean; align?: Align;
   /** Draws the symbol + a default tone before `text` (an explicit `tone` / `bold` wins); without `text` the cell is the symbol alone. */
   mark?: CellMark;
+  /** An installed SVG icon (see `icon`) before the text, 18px, in the text's tone (or `iconTone`). Alone (no text) it is the cell's content: it gets `role="img"`. */
+  icon?: IconName;
+  iconTone?: TextTone;
+  /** Internal: the installed path of `icon`, resolved by table(). */
+  iconGlyph?: IconGlyph;
 }
 export type TableCell = string | number | TableCellSpec;
 /** `h`: this row's fixed height (wins over `cellH`; text centred vertically; throws when a cell needs more). */
@@ -1430,7 +1439,9 @@ export interface TableBand {
   until?: number;
 }
 /** cellOf(): a cell with column defaults applied. */
-export interface ResolvedCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align}
+export interface ResolvedCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; icon?: CellIcon}
+/** The icon of a table cell: what to draw and in which tone. */
+export interface CellIcon {name: string; glyph: IconGlyph; tone?: TextTone}
 
 // ============================================================================================
 // DSL input + band: swimlane
@@ -2177,7 +2188,7 @@ export interface LaidOutSequence extends Rect {
   lifeBottom: number;
 }
 
-export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; lines: string[]; x: number; w: number; top: number}
+export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; lines: string[]; x: number; w: number; top: number; icon?: CellIcon}
 export interface LaidOutTableRow {y: number; h: number; cells: LaidOutTableCell[]; header?: boolean; tone?: BoxTone}
 export interface LaidOutTable extends Rect, Dimmed {
   type: 'table';
@@ -2316,6 +2327,8 @@ export interface LaidOutStates extends Rect, Dimmed {
   /** Orthogonal polylines from the tail state's box edge to the head's; the arrowhead is at the last point. */
   edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; tone?: 'danger' | 'accent' | 'muted'; strong?: boolean}[];
   texts: TreeNodeText[];
+  /** The icons of the states that have one (24px, above the label); `node` indexes `nodes`. */
+  icons: {node: number; name: string; glyph: IconGlyph; x: number; y: number; size: number}[];
   /** Transition labels: a white chip (x, y, w, h) with its text baseline at (tx, ty), in `size` px. */
   labels: (Rect & {text: string; tx: number; ty: number; size: number; /** index of its arrow in `edges` */ edge: number})[];
   anchors: Anchor[];

@@ -7,6 +7,8 @@ import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
 import type {FontFamily, LaidOutStates, Roles, StatesBand, WidthOf} from './types.ts';
 
+export const STATE_ICON = 24;
+const ICON_H = STATE_ICON + 4; // an icon above the label: its size and a gap
 const ARROW = 14, MAX_W = 200, GAP = 28, DOT = 8, LOOP = 26, LOOP_W = 12, CHIP_PAD = 6, INIT = '\u0000init';
 
 export function statesTexts(band: StatesBand, roles: Roles): [string, number, number, FontFamily][] {
@@ -43,9 +45,9 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
 
   // a round node is as wide as its text needs and as tall as it is wide
   const lines = new Map<string, NodeLines>(band.states.map(s => {
-    const l = measureNode(s.label, s.sub, maxW, widthOf, roles);
-    if (s.shape !== 'circle') return [s.id, l];
-    const text = Math.max(...l.label.map(t => textWidth(widthOf, t, roles.body, 700)), ...l.sub.map(t => textWidth(widthOf, t, roles.note, 400))), inner = l.h - 16;
+    const l = measureNode(s.label, s.sub, maxW, widthOf, roles), iconH = s.icon ? ICON_H : 0;
+    if (s.shape !== 'circle') return [s.id, {...l, h: l.h + iconH}];
+    const text = Math.max(...l.label.map(t => textWidth(widthOf, t, roles.body, 700)), ...l.sub.map(t => textWidth(widthOf, t, roles.note, 400))), inner = l.h - 16 + iconH;
     const d = Math.max(44, Math.ceil((Math.hypot(text, inner) + 10) / 8) * 8); // a multiple of 8: the radius sits on the 4px grid
     return [s.id, {...l, w: d, h: d}];
   }));
@@ -76,7 +78,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   const dx = x + (w - total.w - reserve) / 2, dy = y + top;
   const out: LaidOutStates = {
     type: 'states', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + top,
-    nodes: [], edges: [], texts: [], labels: [], anchors: [], labelBoxes: [],
+    nodes: [], edges: [], texts: [], icons: [], labels: [], anchors: [], labelBoxes: [],
   };
   const rects = new Map<string, {x: number; y: number; w: number; h: number}>();
   for (const s of band.states) {
@@ -85,8 +87,10 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
     out.nodes.push({...r, tone: s.tone ?? 'plain', ...(s.final ? {final: true} : {}), ...(s.shape === 'circle' ? {circle: true} : {})});
     out.anchors.push({id: s.id, ...r});
     const nl = lines.get(s.id)!, textH = (nl.label.length * Math.round(roles.body * 1.4)) + (nl.sub.length * Math.round(roles.note * 1.4));
-    // the text of a round node sits in its middle
-    out.texts.push(...nodeRuns(s.shape === 'circle' ? {x: r.x, y: r.y + (r.h - textH) / 2 - 8, w: r.w} : r, nl, roles));
+    // the text of a round node sits in its middle; an icon is above the text
+    const iconH = s.icon ? ICON_H : 0, y0 = s.shape === 'circle' ? r.y + (r.h - textH - iconH) / 2 - 8 : r.y;
+    out.texts.push(...nodeRuns({x: r.x, y: y0 + iconH, w: r.w}, nl, roles));
+    if (s.icon) out.icons.push({node: out.nodes.length - 1, name: s.icon, glyph: s.iconGlyph!, x: r.x + (r.w - STATE_ICON) / 2, y: y0 + 8, size: STATE_ICON});
     out.labelBoxes.push({label: s.label, ...r});
   }
   if (band.initial) { const p = at(INIT); out.initial = {x: p.x + dx + DOT, y: p.y + dy + DOT, r: DOT}; }

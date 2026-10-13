@@ -16,7 +16,7 @@ import type {
 } from './types.ts';
 
 const LH = 1.4;
-const lineH = (size: number) => size * LH;
+export const lineH = (size: number) => size * LH;
 
 // ---- sequence ---------------------------------------------------------------
 export const SEQ = {headPadY: 12, headPadX: 12, stepGap: 14, labelGap: 10, selfW: 36, noteH: 8, dividerH: 36};
@@ -126,7 +126,7 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
 }
 
 // ---- table ------------------------------------------------------------------
-export const TBL = {padX: 12, padY: 8, padYDense: 4};
+export const TBL = {padX: 12, padY: 8, padYDense: 4, iconSize: 18, iconGap: 6};
 
 // A cell is a string or {text, tone?, bold?, mono?}; column defaults apply underneath.
 export function cellOf(cell: TableCell, col: TableColumn = {}): ResolvedCell {
@@ -134,7 +134,8 @@ export function cellOf(cell: TableCell, col: TableColumn = {}): ResolvedCell {
   const mark = c.mark ? CELL_MARKS[c.mark] : undefined;
   if (c.mark && !mark) throw new Error(`table cell: unknown mark "${c.mark}" (use ${Object.keys(CELL_MARKS).join(' | ')})`);
   const text = mark ? (c.text ? `${mark.glyph} ${c.text}` : mark.glyph) : c.text ?? '';
-  return {text, tone: c.tone ?? mark?.tone, bold: c.bold ?? mark?.bold ?? col.bold ?? false, mono: c.mono ?? col.mono ?? false, align: c.align ?? col.align ?? 'left'};
+  const icon = c.icon !== undefined ? {name: c.icon, glyph: c.iconGlyph as NonNullable<typeof c.iconGlyph>, ...(c.iconTone ? {tone: c.iconTone} : {})} : undefined;
+  return {text, tone: c.tone ?? mark?.tone, bold: c.bold ?? mark?.bold ?? col.bold ?? false, mono: c.mono ?? col.mono ?? false, align: c.align ?? col.align ?? 'left', ...(icon ? {icon} : {})};
 }
 
 export function layoutTable(band: TableBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutTable {
@@ -161,7 +162,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
       const c: ResolvedCell = header ? {text: (cell as TableColumn).label ?? '', bold: true, mono: false, align: (cell as TableColumn).align ?? 'left'} : cellOf(cell as TableCell, cols[i]);
       if (band.rowHeader && !header && i === 0) c.bold = true;
       const size = roles.body;
-      const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', colW[i] - 2 * TBL.padX, widthOf);
+      const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', colW[i] - 2 * TBL.padX - (c.icon ? TBL.iconSize + TBL.iconGap : 0), widthOf);
       return {...c, lines, x: colX[i], w: colW[i], top: 0};
     });
     const nLines = Math.max(1, ...placed.map(c => c.lines.length));

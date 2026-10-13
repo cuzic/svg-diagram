@@ -15,8 +15,9 @@ import type {
   LaidOutWireframe, LaidOutScreens, RawColorTone, Span, Roles,
 } from './types.ts';
 import {diagramTitle, diagramDesc} from './rules.ts';
-import {prefixIds} from './icon-store.ts';
-import {TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
+import {TBL, lineH} from './seq-table.ts';
+import {iconSvg} from './icon-svg.ts';
+import {ICON_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
 import {visibleAt} from './reveal.ts';
 import {spotlightDim} from './spotlight.ts';
 import {MARK_STROKE, plateStyle} from './image.ts';
@@ -107,7 +108,7 @@ const ringed = (band: LaidOutBox): boolean => !band.dim && isSolidTone(band.tone
 function renderStepBadge(band: LaidOutBox, day: Theme): string {
   const titleRun = band.wrappedRuns[0];
   const titleBaselineY = band.y + BOX_PAD_Y + titleRun.lineYs[0];
-  const cx = band.x + BOX_PAD_X + STEP_BADGE_R;
+  const cx = band.x + BOX_PAD_X + STEP_BADGE_R + (band.icon && band.iconAt !== 'top' ? ICON_INDENT : 0); // after a left icon
   const cy = titleBaselineY - STEP_BADGE_BASELINE_OFFSET;
   return badgeSvg({cx, cy, r: STEP_BADGE_R, w: 2 * STEP_BADGE_R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: 16, fill: PALETTE[day].accent, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), baseline: titleBaselineY, snap: snap4, esc: escapeXml});
 }
@@ -115,20 +116,10 @@ function renderStepBadge(band: LaidOutBox, day: Theme): string {
 // box({icon}): the icon's path scaled from its source viewBox to ICON_SIZE, at the box's top-left. Its colour is a text tone
 // (a dimmed box: muted). With a title the label carries the meaning, so the icon is hidden from assistive technology.
 function renderBoxIcon(band: LaidOutBox, day: Theme): string {
-  const g = band.iconGlyph!;
-  const {vb: [vx, vy, vs]} = g;
   const top = band.iconAt === 'top', size = top ? band.iconSize ?? TOP_ICON_SIZE : ICON_SIZE;
-  const s = size / vs;
   const x = top ? band.x + band.w / 2 - size / 2 : band.x + (band.padX ?? BOX_PAD_X), y = band.y + (band.padY ?? BOX_PAD_Y);
-  const n = (v: number) => +v.toFixed(4);
   const color = band.dim ? PALETTE.muted : runColorOf(band.iconTone, band.tone, day);
-  const a11y = band.title ? 'aria-hidden="true"' : `role="img" aria-label="${band.icon}"`;
-  const at = `transform="translate(${n(x - vx * s)} ${n(y - vy * s)}) scale(${n(s)})"`;
-  if (g.body === undefined) return `\n  <path d="${g.d}" ${at} fill="${color}"${g.rule ? ' fill-rule="evenodd"' : ''} ${a11y} data-icon="${band.icon}"/>`;
-  // shapes drawn the way the set drew them: `currentColor` is the tone colour; an icon with colours of its own keeps them (faded when dimmed)
-  // (ids inside it are made unique to this place: the same icon drawn twice must not share a gradient id)
-  const inner = prefixIds(g.body.replaceAll('currentColor', color), `ic-${Math.round(x)}-${Math.round(y)}-`);
-  return `\n  <g ${at} fill="${color}"${g.fixed ? ` data-icon-fixed="true"${band.dim ? ' opacity="0.35"' : ''}` : ''} ${a11y} data-icon="${band.icon}">${inner}</g>`;
+  return '\n  ' + iconSvg({glyph: band.iconGlyph!, name: band.icon!, x, y, size, color, dim: band.dim, labelled: !!band.title});
 }
 
 function renderCaption(band: LaidOutCaption, day: Theme): string {
@@ -556,6 +547,7 @@ function renderStates(b: LaidOutStates, day: Theme): string {
     return colorOf(toneStyle(n?.tone).text, day);
   };
   for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}" text-anchor="middle" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t)}">${emojiSpan(t.text)}</text>`);
+  for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : colorOf(toneStyle(b.nodes[ic.node].tone).text, day), dim: b.dim, labelled: true}));
   for (const l of b.labels) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${PALETTE.bg}"/>`);
     out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty)}" text-anchor="middle" font-size="${l.size}" fill="${stroke}">${emojiSpan(l.text)}</text>`);
@@ -819,10 +811,17 @@ function renderTable(band: LaidOutTable, day: Theme, roles: Roles): string {
   }
   for (const row of band.rows) {
     for (const c of row.cells) {
-      if (!c.lines.length) continue;
+      const withIcon = c.icon !== undefined, indent = withIcon ? TBL.iconSize + TBL.iconGap : 0;
+      const left = c.x + 12 + indent, right = c.x + c.w - 12;
       const anchor = c.align === 'center' ? 'middle' : c.align === 'right' ? 'end' : 'start';
-      const x = c.align === 'center' ? c.x + c.w / 2 : c.align === 'right' ? c.x + c.w - 12 : c.x + 12;
-      parts.push(textLines(c.lines, {x, top: c.top, size: roles.body, weight: c.bold ? 700 : 400, anchor, fill: resolveTextColor(c.tone, day), mono: c.mono}));
+      const x = c.align === 'center' ? (left + right) / 2 : c.align === 'right' ? right : left;
+      if (c.lines.length) parts.push(textLines(c.lines, {x, top: c.top, size: roles.body, weight: c.bold ? 700 : 400, anchor, fill: resolveTextColor(c.tone, day), mono: c.mono}));
+      if (c.icon) {
+        // beside the text: at the cell's left edge; alone: where the text would stand
+        const ix = c.lines.length || c.align === 'left' ? c.x + 12 : c.align === 'center' ? c.x + (c.w - TBL.iconSize) / 2 : right - TBL.iconSize;
+        const iy = c.top + (lineH(roles.body) - TBL.iconSize) / 2;
+        parts.push(iconSvg({glyph: c.icon.glyph, name: c.icon.name, x: ix, y: iy, size: TBL.iconSize, color: resolveTextColor(c.icon.tone ?? c.tone, day), labelled: c.lines.length > 0}));
+      }
     }
   }
   const top = band.y, h = band.h;
