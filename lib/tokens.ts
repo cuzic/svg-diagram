@@ -165,6 +165,8 @@ export function checkTones(input: unknown, where: string): ToneOverrides {
     const {dark, ...light} = v as Record<string, unknown>;
     const o: ToneOverride = checkColors(light, `${where}.${name}`);
     if (dark !== undefined) o.dark = checkColors(dark, `${where}.${name}.dark`);
+    // a dark colour is a light→dark pair for the whole SVG: on a token colour it would recolour everything else in that colour too
+    for (const k of TONE_COLOR_KEYS) if (o.dark?.[k] && LIGHT_COLORS.has(o[k] ?? '')) throw new Error(`${where}.${name}.${k} ${o[k]} is a built-in colour (its dark colour is fixed); pick another light colour to give it dark.${k}`);
     out[name as ToneName] = o;
   }
   return out;
@@ -188,6 +190,7 @@ function activate(ov: ToneOverrides): ActiveTones {
       if (k === 'stroke') delete s.slideStroke; // the override is the outline in the slide decks too
       colors.push(c);
       const dk = o.dark?.[k];
+      if (dk && pairs[c] && pairs[c] !== dk) throw new Error(`tones: ${c} is given two dark colours (${pairs[c]} and ${dk}); one light colour has one dark colour`);
       if (dk) { pairs[c] = dk; colors.push(dk); }
     }
     styles[name] = s;
@@ -209,7 +212,7 @@ export const textKeyOf = (tone: string | undefined): ColorKey => { const t = ton
 export const isSolidTone = (tone: string | undefined): boolean => tone === 'solid' || tone === 'solid-danger';
 /** The colour of a box's text run: `bg` (white) when the box is solid and the run has no tone of its own, else the run's tone. */
 export function runColorOf(runTone: TextTone | undefined, boxTone: string | undefined, theme: Theme): string {
-  return isSolidTone(boxTone) && runTone === undefined ? colorOf('bg', theme) : textColorOf(runTone, theme);
+  return isSolidTone(boxTone) && runTone === undefined ? colorOf(toneStyle(boxTone).text, theme) : textColorOf(runTone, theme);
 }
 /** A colour key resolved against a theme ('accent' and 'soft' are theme colours). */
 export function colorOf(key: ColorKey, theme: Theme): string {

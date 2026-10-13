@@ -81,3 +81,41 @@ test('.svg-diagram.json: loaded, validated, and a diagram\'s own colours win per
   fs.writeFileSync(path.join(dir, '.svg-diagram.json'), JSON.stringify({tones: {bogus: {}}}));
   assert.throws(() => loadConfig(dir), /unknown tone "bogus"/);
 });
+
+test('a diagram rendered after one with overrides gets the built-in colours (no leak), and a throw restores the table', async () => {
+  const over = await svgOf({tones: {accent: {fill: '#b8cfe8'}}});
+  const plain = await svgOf();
+  assert.match(over, /#b8cfe8/);
+  assert.doesNotMatch(plain, /#b8cfe8|data-tone-colors/);
+  assert.equal(await svgOf(), plain);
+  assert.throws(() => withTones({accent: {fill: '#112233'}}, () => { throw new Error('boom'); }), /boom/);
+  assert.equal(toneStyle('accent'), TONES.accent);
+});
+
+test('solid: an overridden text colour is what the box text is drawn in and judged by', async () => {
+  const solid = async (tones: ToneOverrides) => {
+    const d = diagram({theme: 'blue', tones});
+    d.add(box({id: 'a', title: 'a', tone: 'solid'}));
+    return {svg: (await renderDiagram(d, {name: 'd.svg', budget: 'cacheOnly'})).svg, findings: (await checkDiagram(d)).verdict.findings.map(f => f.rule)};
+  };
+  const ok = await solid({solid: {text: '#fff4e0'}});
+  assert.match(ok.svg.replace(/data-tone-colors="[^"]*"/, ''), /fill="#fff4e0"/);
+  const bad = await solid({solid: {text: '#3070b0'}});
+  assert.ok(bad.findings.includes('a11y-text-contrast'), 'blue text on the blue solid fill');
+});
+
+test('dark colours: none for a built-in light colour, one per light colour', async () => {
+  assert.throws(() => diagram({theme: 'blue', tones: {accent: {fill: '#ffffff', dark: {fill: '#334455'}}}}), /#ffffff is a built-in colour/);
+  await assert.rejects(svgOf({appearance: 'dark', tones: {accent: {fill: '#aabbcc', dark: {fill: '#111111'}}, new: {fill: '#aabbcc', dark: {fill: '#222222'}}}}), /two dark colours/);
+});
+
+test('lint-svg: override colours are not off-token in the diagram that declares them', async () => {
+  const {execFileSync} = await import('node:child_process');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tones-lint-'));
+  const run = (name: string, svg: string) => { const f = path.join(dir, name); fs.writeFileSync(f, svg); return execFileSync(process.execPath, [new URL('../lint-svg.ts', import.meta.url).pathname, f], {encoding: 'utf8'}); };
+  const light = await svgOf({tones: {accent: {fill: '#b8cfe8', stroke: '#2a4a70'}}});
+  const dark = await svgOf({appearance: 'dark', tones: {accent: {fill: '#b8cfe8', dark: {fill: '#2a4a70'}}}});
+  assert.doesNotMatch(run('light.svg', light), /off-token-color/);
+  assert.doesNotMatch(run('dark.svg', dark), /off-token-color/);
+  assert.match(run('stripped.svg', light.replace(/ data-tone-colors="[^"]*"/, '')), /off-token-color[\s\S]*#b8cfe8/);
+});
