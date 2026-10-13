@@ -35,6 +35,16 @@ export function svgSize(svg: string): {w: number; h: number} | null {
   return w > 0 && h > 0 ? {w, h} : null;
 }
 
+/** The SVG with everything it draws turned to grey (luma, as a mono print or a colour-blind reader sees it): the content goes inside a group filtered by a colour matrix. */
+export function grayscaleSvg(svg: string): string {
+  const open = /<svg\b[^>]*>/.exec(svg);
+  const end = svg.lastIndexOf('</svg>');
+  if (!open || end === -1) return svg;
+  const filter = '<filter id="svg-diagram-gray" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/></filter>';
+  const at = open.index + open[0].length;
+  return `${svg.slice(0, at)}${filter}<g filter="url(#svg-diagram-gray)">${svg.slice(at, end)}</g>${svg.slice(end)}`;
+}
+
 export const NOT_LOADABLE = `a figure could not be drawn: @resvg/resvg-js could not be loaded on this machine (no prebuilt binary for it?).
   Use the browser instead:  --engine chromium  (needs: pnpm add -D playwright-chromium)`;
 
