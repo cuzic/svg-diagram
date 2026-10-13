@@ -108,6 +108,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | pyramid / curve | ピラミッド、曲線 |
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
 | quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
+| chevron / funnel / cycle / venn / concentric | 流れ・絞り込み・循環・集合・階層を表す flowShapes。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 |
 | plane({x, y, points, lines, dims, labels}) | 座標平面。軸・目盛り・点・補助線・**寸法線**・ラベルを、座標の単位のまま宣言する（地図 ↔ 画像の座標変換、位置の誤差）。`yDown: true` で画像座標。ラベルが、他のラベル・軸と矢印・目盛り・点・補助線・寸法線に重なる、または図からはみ出すと検査で止まる（寸法線の文字は、その線の上に載るのが正） 。`paths: [{through: [点の id か座標…], smooth?, dashed?, tone?, arrow?, reveal?}]` で複数点を通る線を引く（実線が既定。`smooth: true` は点を必ず通る曲線で、x が増える道筋は単調な 3 次補間（値を行き過ぎない）、そうでない道筋は centripetal Catmull-Rom。`smooth` なしは折れ線。曲線が軸の外に出る・ラベルに重なると検査で止まる。`examples/plane-paths.ts`）。`grow: true` を付けた path は、段階（`reveal`）ごとに、出ている点までの曲線を同じ形のまま伸ばす（`examples/plane-grow.ts`）。点のラベルは `labelAt` を書かなければ右に置き、線や他のラベルと重なるときは空いている側（左・上・下・斜め）へ自動で移る。`labelAt` で側を書くとそのまま、`labelOffset: [dx, dy]` で位置をずらせる |
 
 `wf.*`: col / row / card / spacer、text / btn / input / select / chip / tabs / appbar / seek、kv / stat / list / table / alert、map / video / heat / pointcloud / chart / image。
@@ -316,6 +317,26 @@ matrix(['A 案', 'B 案'], ['コスト', '速さ'], [['○', '◎'], ['◎', '�
 - **`arrowDiagram`**: 作業は `{from, to, name, days}`（結合点は番号か文字）、`dummy: true` は時間のない順序だけの矢印（点線）。始まりの結合点と終わりの結合点は、それぞれ 1 つ（行き止まりはダミーで終点につなぐ）。丸の中は「番号 / 最早/最遅」、余裕のある作業の札には「（余裕 n）」が付き、図の下に全体の長さとクリティカルパスが出る（`summary: false` で消す）。`times: false` で時刻と余裕を消す。横に並べて幅（940px）を超えるときは `dir: 'down'`。矢印の色・太さ（`tone` / `strong`）と丸い節（`shape: 'circle'`）は `stateDiagram` でも使える。
 - 計算だけ取り出したいときは、`lib/qc.ts`（`paretoOrder` / `histogramBins` / `capability`（全体の標準偏差から出す Cp・Cpk。群内のばらつきで出す工程能力ではなく、Pp・Ppk に当たる）/ `criticalPath`）と `lib/qc-plane.ts`（`controlStats` / `controlSignals` / `correlation`）が純粋な関数。
 
+### flowShapes（流れ・集合・階層）
+
+よく使うビジネス図を band 1 つで描く。項目の `id` は `connect()` と spotlight のアンカーになり、図の `reveal` / `until` と一緒に現れる。
+
+```ts
+chevron([{id: 'plan', label: '計画', sub: '要件を確認'}, {id: 'build', label: '実装'}], {current: 1})
+funnel([{label: '訪問', value: 1200}, {label: '成約', value: 52}], {scale: 'value', showRate: true})
+cycle([{label: 'Plan'}, {label: 'Do'}, {label: 'Check'}, {label: 'Act'}], {centre: '継続改善'})
+venn([{name: '技術'}, {name: '顧客'}], {overlaps: [{sets: ['技術', '顧客'], label: '価値'}]})
+concentric([{label: '境界'}, {label: 'アプリ'}, {label: 'データ'}], {centre: '重要情報'})
+```
+
+- `chevron`: 横（既定）または縦の矢羽根。`first: 'pentagon' | 'chevron'`（先頭の形）、`gap`、`current`（`highlight` も可。色に加えて太い枠で示す）。`sub` は見出しの下に小さく出る。長い文字は矢羽根の内側で折り返し、必要な高さまで伸びる。縦の幅は 360px まで（`width` を書けばその幅）。
+- `funnel`: 下ほど狭い漏斗。各段は上の段の下端と同じ幅で始まる。`scale: 'value'` は全段の `value` が必要で、幅が値に比例する（下の段で値が増えると警告 `funnel-values-rise`）。`showRate` は前段からの率を段の左に出す（左に余地がなければ段の文字の下）。段に入らない文字は段の右へ出す。
+- `cycle`: 3〜8 個の節を、円周に沿った矢印で閉じる（矢印は節の間だけを通り、節や文字に重ならない）。`direction: 'cw' | 'ccw'`、`centre`、各節の `sub`。
+- `venn`: 2 または 3 集合。色に加えて線種（実線・破線・点線）を変え、色だけに頼らない。集合の名前はその集合だけの部分に、`overlaps` の 2 集合のラベルはその 2 つだけが重なる部分に、`centre` は全集合が重なる部分に入る（`centre` と全集合の overlap を両方書くと throw）。`universe` で全体の枠（文字列ならその名前）。
+- `concentric`: 同心円。`order: 'outer-first' | 'inner-first'`（`rings` を書く順）、`centre`。`labels: 'inside'`（既定）は各層の帯の上部に、`'side'` は右の凡例に出して引き出し線で層につなぐ。`description` は「ラベル — 説明」で続く。
+- ラベルが図からはみ出す・ラベル同士が重なると検査で止まる。
+- 例: `examples/chevron-*.ts`、`funnel-*.ts`、`cycle-*.ts`、`venn-*.ts`、`concentric-*.ts`。
+
 ### 象限図・分類マトリクス（`quadrant`）
 
 2 本の軸でマスに分ける図（BCG・GE・アンゾフ・人材 9 ボックス・リスクマトリクス・ポジショニングマップ ...）。マスの見出し・軸・項目の置き場所を宣言すると、配置・重ならない調整・凡例は自動。
@@ -497,6 +518,21 @@ tornado([{label: '販売単価', low: 640, high: 1360}, {label: '為替', low: 8
 - 全部の検査（重なり・はみ出し・コントラスト）は `check` で、描画後の確認は `svg-diagram preview`。入らないラベル・列は、エラーに直し方（幅・高さ・省略）が書いてある。
 - 計算だけ取り出したいときは、`lib/charts-treemap.ts`（`squarify`）、`lib/charts-sankey.ts`（`layersOf`）、`lib/charts-heatmap.ts`（`heatLevel`）、`lib/charts-base.ts`（`niceScale`）が純粋な関数。
 - **`plane` の追加**: 点の `shape` は `dot` / `ring` / `cross`（4px の格子に載る）のほか、頂点にぴったり載る `disc` / `hole` / `square` / `diamond` / `triangle`。`endLabels: true` は `labelAt: 'right'` の点の名前を図の右端に集めて縦にずらす。`labelLeader: true` の点は、空いた側がないとき名前を右端へ移して点線でつなぐ。`labels` の `offset: [dx, dy]` で位置をずらせる。
+
+### 意味付きネットワーク（`pert` / `causalLoop` / `dependencyNetwork`）
+
+ノードとリンクに業務上の意味を持たせたネットワークを、既存の階層型レイアウトで自動配置する。`direction: 'LR' | 'TB'`（既定 LR）、`width` / `height`、`labelRole`、図とノードの `id`、dark theme はチャートと共通。
+
+```ts
+pert([{id: 'design', label: '設計', duration: 4}, {id: 'build', label: '実装', duration: 6, predecessors: ['design']}], {unit: '日'})
+causalLoop([{id: 'quality', label: '品質'}, {id: 'orders', label: '受注'}], [{from: 'quality', to: 'orders', polarity: '+'}, {from: 'orders', to: 'quality', polarity: '-', delay: true}])
+dependencyNetwork([{id: 'web', label: 'Web', kind: 'app'}, {id: 'api', label: 'API', kind: 'service'}], [{from: 'web', to: 'api', type: 'uses', weight: 3}], {nodeKinds: {app: 'アプリ', service: 'サービス'}, edgeTypes: {uses: '利用'}})
+```
+
+- `pert`: activity-on-node の PERT（作業を矢印で描く activity-on-arrow は `arrowDiagram`）。ES / EF / LS / LF / slack を計算し、slack 0 のノードとリンクを強調する。未知の先行タスクと循環はエラー。`compact: true` は小さい箱。純粋関数 `analyzeCriticalPath(tasks)` も公開。
+- `causalLoop`: `polarity` は `'+' | '-' | 'same' | 'opposite'`。`delay: true` は `||`。単純ループの負リンクが偶数なら Reinforcing (`R1`)、奇数なら Balancing (`B1`)。番号は R / B それぞれで 1 から振る。純粋関数 `analyzeCausalLoops(nodeIds, links)` も公開。
+- `dependencyNetwork`: ノードの `kind` は色と枠、リンクの `type` は線種、`weight` は線幅と数値に対応する。使用した kind / type の凡例を自動で描き、表示名を `nodeKinds` / `edgeTypes` で指定できる。`blocks` は danger、`relates` は矢じりなし。
+- 例は `examples/semnet-pert*.ts`、`examples/semnet-causal*.ts`、`examples/semnet-deps*.ts`。
 
 ### 時間軸と期限（`timeline`）
 
@@ -766,6 +802,7 @@ versus(
 | `image` の印・文字・重ねた部品 | 各 `marks` / `labels` の `reveal` / `until`（絵の band の値との**遅い方**の reveal、早い方の until。絵より先には出ない） |
 | `versus` の左・右・共通部 | 各 part の `reveal`（枠と中身。共通部への矢印は両端の大きい方） |
 | `quadrant` の band | opts の `reveal` / `until`（項目・矢印は図と一緒。項目単位の reveal はない。項目の id は図の段階で `connect` に出る） |
+| `chevron` / `funnel` / `cycle` / `venn` / `concentric` の band | opts の `reveal` / `until`（各項目の id は図と同じ段階で `connect` に出る） |
 | `plane` の `points` / `lines` / `paths` / `dims` / `labels` | 要素の `reveal`（点のラベルは点と一緒）。未指定は plane 自身と、`id` で指した点の大きい方（座標で指した端点は 0）。端点より早い明示は警告 |
 | `connect` / `branch` | `reveal`（未指定は両端の大きい方） |
 | **受けない** | `legend` / `spacer` / `raw` / `pyramid` / `curve` / `wireframe` / `screens` / `stateMatrix` / `row` / `grid` / `iconRow` の opts。`reveal` を渡すと構築時に throw する |
@@ -867,6 +904,26 @@ d.add(flow, connect(flow.anchors.a.right, flow.anchors.b.left));   // screens() 
 型の仕組みは `lib/strict.ts`、保証の一覧は `test/types/*.ts`（`@ts-expect-error` つきの型テスト。`npx tsc -p .` で検査される）。
 **型で検出できないもの**: 番号つき注釈と `n:` の対応（`wf-callout-*`。`n: true` の自動採番と、`wf.*` の入れ子・関数での組み立てを型で数えるのは割に合わない）、コントラスト・凡例・線の交差・幅・密度などの描画結果に依存するルール、`row({cols})` の `col` / `span` が枠をはみ出すこと。これらは従来どおり `build` / `check` が見つける。
 
+## 意味付き表（RACI / FMEA / QFD / カスタマージャーニー）
+
+`table()` と同じレイアウト・段階表示・ハンドルを使いながら、セルの値を検証し、集計値と意味のある印を自動で付ける。どれも `{title, width, dense, id, reveal, until}` を受ける。
+
+| 部品 | 入力と自動処理 |
+|---|---|
+| `raci(tasks, roles, assignments, opts)` | 行ごとの `R` / `A` / `C` / `I`（`A/R` も可）。各タスクは A がちょうど 1 つ、R が 1 つ以上。A が不要な表だけ `allowNoA: true`。`legend: true` で凡例行。空の役割列は check の警告になる |
+| `fmea(rows, opts)` | `{item, mode, effect, cause, action, s, o, d, after?}`。S/O/D は 1〜10 の整数で、RPN = S×O×D を自動計算。`sort: 'rpn'`（降順）、`threshold`（既定 100 以上が danger）/ `midThreshold`（既定その半分以上が accent）で段階、最大の RPN は太字、`after: {s,o,d}` で改善後 RPN。見出しは `labels` で変えられる |
+| `qfd(demands, characteristics, relations, opts)` | 要求 `{label, importance}` × 品質特性に `◎`(9) / `○`(3) / `△`(1) / `×`(0)。下段に得点（重要度 × 9 / 3 / 1 / 0 の列合計）と相対 %。単独首位の得点は太字（`highlight: false` で無効） |
+| `journeyMap(stages, lanes, opts)` | レーン `{id, label, cells}` をステージ横断で表示。`id: 'emotion'` は数値範囲（既定 -2〜+2）を検証し、行の上側に値と記号（中央より上 ◎、中央 △、下 ×）、その下に折れ線と点を描く。破線は範囲の中央。範囲は `emotionRange: [min, max]` |
+
+```ts
+fmea([
+  {item: '駆動軸', mode: '摩耗', effect: '停止', cause: '潤滑不足', action: '定期給油', s: 8, o: 5, d: 4,
+   after: {s: 8, o: 2, d: 2}},
+], {sort: 'rpn', threshold: 100});
+```
+
+色は補助で、RACI の文字、FMEA/QFD/感情の数値・記号を常に残す。感情曲線は専用の高さを確保した行の下側だけに描き、上側のスコア文字とは重ならない。
+
 ## 例
 `examples/` に架空の在庫管理アプリの例がある（生成済みの SVG は `examples/out/`）。
 
@@ -882,6 +939,8 @@ d.add(flow, connect(flow.anchors.a.right, flow.anchors.b.left));   // screens() 
 | `dark-theme.ts` | 暗い背景＋背景なし（`appearance: 'dark'`、`transparent: true`） |
 | `dark-bars-wall.ts` | 濃い背景の資料の色＋濃い赤の danger で描く棒グラフ（透明） |
 | `chart-waterfall.ts` ほか `chart-*.ts` | コンサル系のチャート（ウォーターフォール・レーダー・ヒートマップ・戦略キャンバス・バーンダウン・積み上げ・マリメッコ・ツリーマップ・サンキー・トルネード） |
+| `raci-project.ts` / `fmea-basic.ts` / `qfd-basic.ts` / `journey-map.ts` | 意味付き表（責任分担、故障リスク、品質機能展開、顧客体験） |
+| `semnet-*.ts` | 意味付きネットワーク（PERT、因果ループ、型付き・重み付き依存関係） |
 | `emphasis-tiers.ts` | 主役（solid）/ 次点（accent）/ その他（plain）の 3 段階と、凡例の「次点」 |
 
 ## Claude Code のスキル
