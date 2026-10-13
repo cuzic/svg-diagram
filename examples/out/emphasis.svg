@@ -12,8 +12,8 @@
 
   <rect x="20" y="56" width="444" height="128" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <text x="40" y="86.6" font-size="15" font-weight="700" fill="#22201b">許可</text>
-  <text x="40" y="114.6" font-size="14" font-weight="400" fill="#22201b">操作してよいサイトは <tspan font-weight="700" fill="#b91c1c">ユーザー</tspan> が決める。<tspan font-weight="700">API</tspan>s を呼ぶ前に確</text>
-  <text x="40" y="134.2" font-size="14" font-weight="400" fill="#22201b">認する。</text>
+  <text x="40" y="114.6" font-size="14" font-weight="400" fill="#22201b">操作してよいサイトは <tspan font-weight="700" fill="#b91c1c">ユーザー</tspan> が決める。<tspan font-weight="700">API</tspan>s を呼ぶ前に</text>
+  <text x="40" y="134.2" font-size="14" font-weight="400" fill="#22201b">確認する。</text>
   <text x="40" y="161.8" font-size="14" font-weight="400" fill="#6f6659">例: <tspan font-weight="700">lib/**/*.ts</tspan> のような記号も、文字列ならそのまま</text>
 
   <rect x="480" y="56" width="444" height="128" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>

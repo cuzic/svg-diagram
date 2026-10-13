@@ -16,7 +16,7 @@
 // anchor (any box/child with an explicit `id`) has a known rect.
 
 import {splitAtoms, textWidth} from './atoms.ts';
-import {wrapAtoms, wrapStyledAtoms} from './wrap.ts';
+import {setWrapMode, wrapAtoms, wrapStyledAtoms} from './wrap.ts';
 import {assertSpans} from './rich.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {layoutPlane, planeTexts} from './plane.ts';
@@ -380,6 +380,11 @@ export function widthOfMeasured(measured: Map<string, Measured>, strict: boolean
 
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
 export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
+  const prev = setWrapMode(data.wrap ?? 'phrase');
+  try { return layoutBands(data, roles, widthOf); } finally { setWrapMode(prev); }
+}
+
+function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
   const d = withSourceLine(data);
   const contentWidth = d.width - 2 * d.pad;
 

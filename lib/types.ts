@@ -140,6 +140,8 @@ export interface DiagramOpts {
   /** 'auto' adds a legend entry for every notation used but not listed. */
   legend?: 'auto';
   legendLabels?: Partial<Record<NotationKey, string>>;
+  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
+  wrap?: 'phrase' | 'char';
   width?: number;
   pad?: number;
   gap?: number;
@@ -182,6 +184,8 @@ export interface DiagramData {
   accept?: Partial<Record<RuleId, string>>;
   legend?: 'auto';
   legendLabels?: Partial<Record<NotationKey, string>>;
+  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
+  wrap?: 'phrase' | 'char';
   width: number;
   pad: number;
   gap: number;

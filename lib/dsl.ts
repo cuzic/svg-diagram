@@ -88,6 +88,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (typeof opts.spotlight === 'object' && opts.spotlight.mutedOk !== undefined && typeof opts.spotlight.mutedOk !== 'boolean') throw new Error(`diagram({spotlight: {mutedOk}}) must be true or false (got ${String(opts.spotlight.mutedOk)})`);
   if (typeof opts.spotlight === 'object' && opts.spotlight.dim !== undefined && !['outline', 'fill'].includes(opts.spotlight.dim)) throw new Error(`diagram({spotlight: {dim}}) must be 'outline' or 'fill' (got ${String(opts.spotlight.dim)})`);
   if (opts.appearance !== undefined && !['light', 'dark'].includes(opts.appearance as string) && !(typeof opts.appearance === 'object' && opts.appearance && typeof opts.appearance.dark === 'object')) throw new Error(`diagram({appearance}) must be 'light', 'dark' or {dark: {bg, text, ...}} (got ${JSON.stringify(opts.appearance)})`);
+  if (opts.wrap !== undefined && opts.wrap !== 'phrase' && opts.wrap !== 'char') throw new Error(`diagram({wrap}) must be 'phrase' or 'char' (got ${JSON.stringify(opts.wrap)})`);
   mapOf(opts.appearance); // a custom dark set is validated here
   if (opts.sourceLine !== undefined && (typeof opts.sourceLine !== 'string' || !opts.sourceLine.trim() || /[\r\n]/.test(opts.sourceLine))) throw new Error('diagram({sourceLine}) must be a non-empty single-line string (e.g. "出典: 総務省 2025")');
   if (opts.canvas !== undefined && (opts.slide || opts.fill)) throw new Error('diagram({canvas}) is a whole slide drawn 1:1; it cannot be combined with `slide` / `fill` (those fit a figure into a measured slot of a Slidev slide)');
@@ -99,6 +100,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     medium: (opts.medium ?? (opts.theme === undefined ? 'slide' : 'doc')) as Medium,
     title: opts.title, desc: opts.desc,            // exposed as the SVG's <title> / <desc> (doc medium)
     accept: opts.accept, // {'rule-id': 'why this finding is fine'} — shown as info instead of a warning
+    wrap: opts.wrap,
     legend: opts.legend, legendLabels: opts.legendLabels, // legend: 'auto' adds entries for every notation used but not listed
     width: opts.width ?? canvas?.width ?? 940,
     canvas,
@@ -559,7 +561,14 @@ export function row(children: (BoxBand | GroupBand)[], opts: RowOpts = {}): RowB
 // row({cols: [6, 6]}): one span per child, so the column count is their sum and no child carries `span` / `col`.
 // The children are copied with their span filled in (a child that also sets `span` / `col` is a contradiction, so it throws).
 function spanRow<C extends BoxBand | GroupBand>(children: C[], cols: number | number[] | undefined): {cols: number | undefined; kids: C[]} {
-  if (!Array.isArray(cols)) return {cols, kids: children};
+  if (!Array.isArray(cols)) {
+    // row(children, {cols: 12}) with no child placed (no `span` / `col`): the children share the grid equally (12 / n columns each,
+    // the remainder going to the first ones) instead of each being one column wide. A child with an explicit `span` / `col` opts out.
+    const n = children.length;
+    if (cols === undefined || n < 2 || n >= cols || children.some(c => c.span !== undefined || c.col !== undefined)) return {cols, kids: children};
+    const base = Math.floor(cols / n), extra = cols % n;
+    return {cols, kids: children.map((c, i) => Object.assign(Object.create(Object.getPrototypeOf(c), Object.getOwnPropertyDescriptors(c)) as C, {span: base + (i < extra ? 1 : 0)}))};
+  }
   if (cols.length !== children.length) throw new Error(`row({cols: [${cols.join(', ')}]}) declares ${cols.length} spans for ${children.length} children`);
   if (cols.some(n => !Number.isInteger(n) || n < 1)) throw new Error(`row({cols: [${cols.join(', ')}]}): every span must be a whole number >= 1`);
   const kids = children.map((c, i) => {

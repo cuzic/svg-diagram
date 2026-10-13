@@ -24,7 +24,7 @@
   <rect x="592" y="140" width="168" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="364" y="240" width="140" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="592" y="200" width="184" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="592" y="260" width="184" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="592" y="260" width="168" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="364" y="372" width="156" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="592" y="340" width="156" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="592" y="400" width="184" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
@@ -35,8 +35,8 @@
   <text x="675" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">新人教育を標準化する</text>
   <text x="435" y="262" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">設備の状態を保つ</text>
   <text x="682" y="222" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">刃物の交換基準を決める</text>
-  <text x="682" y="282" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">日常点検をチェックシー</text>
-  <text x="682" y="302" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">ト化する</text>
+  <text x="675" y="282" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">日常点検を</text>
+  <text x="675" y="302" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">チェックシート化する</text>
   <text x="442" y="392" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">不良を早く見つける</text>
   <text x="668" y="362" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">工程内で寸法を測る</text>
   <text x="682" y="422" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">管理図で異常を知らせる</text>
