@@ -56,3 +56,13 @@ test('nothing the rendering core reaches imports the global ROLES table', () => 
   for (const name of CORE) walk(path.join(LIB, name + '.ts'));
   assert.deepEqual(offenders, []);
 });
+
+// ADR 0007 §4: dsl.ts is the builder (constructors, define()) and the public entry; what touches the disk or a process is in
+// build.ts, and rendering (budget cache, measuring) is in render-diagram.ts. dsl.ts itself imports no I/O module and writes nothing.
+test('dsl.ts holds the builder only: no filesystem or process access of its own', () => {
+  const {external, usesEnv} = importsOf(path.join(LIB, 'dsl.ts'));
+  assert.deepEqual(external.filter(e => FORBIDDEN.test(e)), []);
+  assert.equal(usesEnv, false);
+  const src = fs.readFileSync(path.join(LIB, 'dsl.ts'), 'utf8');
+  assert.doesNotMatch(src, /\b(?:fs|execFileSync|execSync|spawnSync)\./);
+});
