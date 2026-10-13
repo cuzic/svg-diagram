@@ -21,8 +21,10 @@ export interface ComboOpts extends ChartOpts {
   y2?: ComboAxis;
   /** Write the values (default true). */
   values?: boolean;
+  /** Stack the bar series in one column per category (values must be >= 0); the column's total is written above it. */
+  stack?: boolean;
 }
-export interface ComboSpec {categories: string[]; series: (Required<Pick<ComboSeries, 'label' | 'type' | 'axis'>> & {values: (number | null)[]; tone: ChartTone; id?: string})[]; y: ComboAxis; y2: ComboAxis; values: boolean}
+export interface ComboSpec {categories: string[]; series: (Required<Pick<ComboSeries, 'label' | 'type' | 'axis'>> & {values: (number | null)[]; tone: ChartTone; id?: string})[]; y: ComboAxis; y2: ComboAxis; values: boolean; stack: boolean}
 
 const BAR_TONES: ChartTone[] = ['accent', 'text', 'muted'], LINE_TONES: ChartTone[] = ['danger', 'text', 'accent'];
 export function resolveCombo(categories: readonly string[], series: readonly ComboSeries[], opts: ComboOpts = {}): ComboSpec {
@@ -54,18 +56,23 @@ export function resolveCombo(categories: readonly string[], series: readonly Com
     for (const f of ['min', 'max'] as const) if (ax[f] !== undefined) finiteNum('combo', `${a}.${f}`, ax[f]);
     if (ax.min !== undefined && ax.max !== undefined && !(ax.max > ax.min)) fail('combo', `${a}.max must be larger than ${a}.min`);
   }
+  if (opts.stack && bars.length < 2) fail('combo', 'stack needs at least two bar series');
+  if (opts.stack) for (const s of out) if (s.type === 'bar' && s.values.some(v => v !== null && v < 0)) fail('combo', `"${s.label}": stacked bars cannot be negative`);
   if (!out.some(s => s.axis === 'right') && opts.y2 !== undefined) fail('combo', 'y2 is given but no series reads on the right axis');
-  return {categories: [...categories], series: out, y: opts.y ?? {}, y2: opts.y2 ?? {}, values: opts.values !== false};
+  return {categories: [...categories], series: out, y: opts.y ?? {}, y2: opts.y2 ?? {}, values: opts.values !== false, stack: opts.stack === true};
 }
 const unitOf = (s: ComboSpec, axis: 'left' | 'right'): string => (axis === 'left' ? s.y : s.y2).unit ?? '';
 const vals = (s: ComboSpec, axis: 'left' | 'right'): number[] => s.series.filter(x => x.axis === axis).flatMap(x => x.values.flatMap(v => v === null ? [] : [v]));
 export function comboAlt(s: ComboSpec): string {
   return `コンボチャート: ${s.series.map(x => `${x.type === 'bar' ? '棒' : '折れ線'} ${x.label}（${s.categories.map((k, i) => `${k} ${x.values[i] === null ? 'なし' : numText(x.values[i] as number) + unitOf(s, x.axis)}`).join('、')}）`).join('、')}`;
 }
+/** The sum of the bar series in each category (stacked columns). */
+const totals = (s: ComboSpec): number[] => s.categories.map((_k, i) => s.series.reduce((a, x) => a + (x.type === 'bar' ? x.values[i] ?? 0 : 0), 0));
 /** The scale of an axis: bars (left) reach down to zero; the ticks are round. */
 function scaleOf(s: ComboSpec, axis: 'left' | 'right', want = 5) {
   const ax = axis === 'left' ? s.y : s.y2, v = vals(s, axis), hasBar = axis === 'left' && s.series.some(x => x.type === 'bar');
-  const lo = ax.min ?? Math.min(...v, ...(hasBar ? [0] : [])), hi = ax.max ?? Math.max(...v, ...(hasBar ? [0] : []));
+  const top = s.stack && hasBar ? totals(s) : [];
+  const lo = ax.min ?? Math.min(...v, ...(hasBar ? [0] : [])), hi = ax.max ?? Math.max(...v, ...top, ...(hasBar ? [0] : []));
   return niceScale(lo, hi, want);
 }
 export function comboTexts(s: ComboSpec): [string, number][] {
@@ -75,6 +82,7 @@ export function comboTexts(s: ComboSpec): [string, number][] {
     out.push([x.label, 400]);
     for (const v of x.values) if (v !== null) out.push([`${numText(v)}${unitOf(s, x.axis)}`, 700]);
   }
+  if (s.stack) for (const v of totals(s)) out.push([`${numText(v)}${unitOf(s, 'left')}`, 700]);
   for (const axis of ['left', 'right'] as const) {
     if (!s.series.some(x => x.axis === axis)) continue;
     const ax = axis === 'left' ? s.y : s.y2;
@@ -95,7 +103,7 @@ export function layoutCombo(s: ComboSpec, g: ChartGeom): LaidOutChartPart {
   const plotL = g.x + lw + 14, plotR = g.x + g.w - (hasRight ? rw + 14 : 8), slot = (plotR - plotL) / n;
   if (slot < S * 2.2) fail('combo', `${n} categories do not fit in ${Math.round(g.w)}px (raise width, or use fewer categories)`);
   const bars = s.series.filter(x => x.type === 'bar'), lines = s.series.filter(x => x.type === 'line');
-  const groupW = Math.min(slot * 0.7, 56 * bars.length), bw = bars.length ? Math.floor(groupW / bars.length) - (bars.length > 1 ? 2 : 0) : 0;
+  const nb = s.stack ? 1 : bars.length, groupW = Math.min(slot * 0.7, (s.stack ? 72 : 56 * bars.length)), bw = nb ? Math.floor(groupW / nb) - (nb > 1 ? 2 : 0) : 0;
   const cats = s.categories.map(k => c.wrap(k, slot - 6)), catH = Math.max(...cats.map(l => l.length)) * c.lineH() + Math.ceil(S * 0.36) + 6;
   for (const [i, ls] of cats.entries()) for (const l of ls) if (c.tw(l) > slot - 2) fail('combo', `the category "${s.categories[i]}" is too long for a column ${Math.round(slot)}px wide (shorten it, or raise width)`);
   // legend over the plot (rows of swatch + name), then the axis titles
@@ -138,10 +146,13 @@ export function layoutCombo(s: ComboSpec, g: ChartGeom): LaidOutChartPart {
   if (axTitle(s.y)) c.text(axTitle(s.y), g.x, plotT - 6, 'start', 'text', {bold: true});
   if (hasRight && axTitle(s.y2)) c.text(axTitle(s.y2), g.x + g.w, plotT - 6, 'end', 'text', {bold: true});
   // bars: side by side in each category; light, so a line may cross them
+  const stackedBelow = s.categories.map(() => 0);
   const barGeo = bars.map((x, bi) => x.values.map((v, i) => {
     if (v === null) return undefined;
-    const cx = plotL + (i + 0.5) * slot, x0 = cx - groupW / 2 + bi * (bw + (bars.length > 1 ? 2 : 0)) + (groupW - bars.length * bw - (bars.length - 1) * (bars.length > 1 ? 2 : 0)) / 2;
-    const a = yL(Math.max(v, 0)), b = yL(Math.min(v, 0)), top = b - a < 2 ? a - 1 : a, h = Math.max(2, b - a), key = x.id ?? x.label;
+    const cx = plotL + (i + 0.5) * slot, x0 = s.stack ? cx - bw / 2 : cx - groupW / 2 + bi * (bw + (nb > 1 ? 2 : 0)) + (groupW - nb * bw - (nb - 1) * (nb > 1 ? 2 : 0)) / 2;
+    const base = s.stack ? stackedBelow[i] : 0;
+    if (s.stack) stackedBelow[i] += v;
+    const a = yL(Math.max(v, 0) + base), b = yL(Math.min(v, 0) + base), top = b - a < 2 ? a - 1 : a, h = Math.max(2, b - a), key = x.id ?? x.label;
     c.rect(r1(x0), r1(top), bw, r1(h), {fill: x.tone, op: 0.4, stroke: x.tone, sw: 1, of: key});
     return {x, v, cx: x0 + bw / 2, top, h, key};
   }));
@@ -166,11 +177,21 @@ export function layoutCombo(s: ComboSpec, g: ChartGeom): LaidOutChartPart {
     for (const row of barGeo) for (const q of row) {
       if (!q) continue;
       const t = text(q.x, q.v), up = q.v >= 0;
+      if (s.stack) { // inside its own segment, or left to the description
+        const fits = q.h >= S + 6 && c.tw(t, true) <= bw - 4;
+        if (!fits || !c.place(t, [{x: q.cx, y: c.mid(q.top + q.h / 2), anchor: 'middle'}], 'text', {bold: true, of: q.key})) c.omitted.push(`${q.x.label} ${s.categories[Math.round((q.cx - plotL) / slot - 0.5)]} ${t}`);
+        continue;
+      }
       const cands = [{x: q.cx, y: q.top - 6, anchor: 'middle' as const}, {x: q.cx, y: q.top + q.h + S + 4, anchor: 'middle' as const}];
       const inside = {x: q.cx, y: c.mid(q.top + q.h / 2), anchor: 'middle' as const};
       const ok = (cs: typeof cands) => cs.filter(k => inPlot(c.boxOf(t, k.x, k.y, k.anchor, true)));
       if (!c.place(t, ok(up ? [...cands, inside] : [cands[1], cands[0], inside]), 'text', {bold: true, of: q.key})) c.omitted.push(`${q.x.label} ${s.categories[Math.round((q.cx - plotL) / slot - 0.5)]} ${t}`);
     }
+    if (s.stack) totals(s).forEach((v, i) => {
+      const t = `${numText(v)}${unitOf(s, 'left')}`, top = yL(v), cx = plotL + (i + 0.5) * slot;
+      const cs = [{x: cx, y: top - 6, anchor: 'middle' as const}].filter(k => inPlot(c.boxOf(t, k.x, k.y, k.anchor, true)));
+      if (!c.place(t, cs, 'text', {bold: true})) c.omitted.push(`合計 ${s.categories[i]} ${t}`);
+    });
     for (const L of lineGeo) for (const p of L.pts) {
       if (!p) continue;
       const t = text(L.x, p.v), r = 7;

@@ -88,6 +88,17 @@ test('combo(): a gap in a line, a negative bar, two lines on both axes; errors a
   assert.throws(() => combo(['a', 'b'], [{label: 'x', type: 'bar', values: [null, null]}]), /no value/);
 });
 
+test('combo({stack}): bar series pile in one column, each segment and the column total are written; negatives are refused', async () => {
+  const {chart, problems} = await chartOf(combo(['2024', '2025'], [{label: '国内', type: 'bar', values: [100, 120], id: 'jp'}, {label: '海外', type: 'bar', values: [50, 90]}, {label: '率', type: 'line', values: [5, 8]}], {stack: true, y: {unit: '億円'}, y2: {unit: '%', min: 0, max: 10}}));
+  assert.deepEqual(problems, []);
+  const t = texts(chart);
+  for (const s of ['100億円', '50億円', '150億円', '120億円', '90億円', '210億円']) assert.ok(t.includes(s) || chart.omitted.some(o => o.includes(s)), `${s} is printed or left to the description`);
+  for (const s of ['150億円', '210億円']) assert.ok(t.includes(s), `the total ${s} is printed`);
+  assert.ok(chart.anchors.some(a => a.id === 'jp'));
+  assert.throws(() => combo(['a', 'b'], [{label: 'x', type: 'bar', values: [1, -2]}, {label: 'y', type: 'bar', values: [1, 2]}], {stack: true}), /cannot be negative/);
+  assert.throws(() => combo(['a', 'b'], [{label: 'x', type: 'bar', values: [1, 2]}], {stack: true}), /at least two bar series/);
+});
+
 // ---- harvey ---------------------------------------------------------------------------------------------------------------------
 
 test('harvey(): each cell is a circle with a wedge of its quarters; the scale is in the legend; null is a dash', async () => {
@@ -103,6 +114,15 @@ test('harvey(): each cell is a circle with a wedge of its quarters; the scale is
   const outlines = chart.items.filter(i => i.k === 'path' && i.fill === 'bg').length, wedges = chart.items.filter(i => i.k === 'path' && i.fill === 'text').length;
   assert.equal(outlines, 3 + 5); assert.equal(wedges, 2 + 4);
   assert.ok(chart.alt.includes('価格: A 社 十分、B 社 なし') && chart.alt.includes('B 社 未評価'));
+});
+
+test('harvey(): a row with an id is an anchor over the whole row', async () => {
+  const {chart, problems} = await chartOf(harvey([{label: '価格', id: 'price'}, '品質'], ['A', 'B'], [[1, 2], [3, 4]]));
+  assert.deepEqual(problems, []);
+  const a = chart.anchors.find(x => x.id === 'price')!;
+  assert.ok(a && a.w > 300 && a.h > 20);
+  const d = await checkDiagram(diagram({theme: 'blue', spotlight: 'price'}).add(harvey([{label: '価格', id: 'price'}, {label: '品質', id: 'q'}], ['A'], [[1], [2]])));
+  assert.deepEqual(d.verdict.problems, []);
 });
 
 test('harvey(): values other than 0-4 and ragged tables are refused with a reason', () => {
@@ -158,7 +178,7 @@ test('a seeded sweep of the four charts (zeros, negatives, long labels, crowds) 
   };
   for (let t = 0; t < 30 * mult; t++) await run(`butterfly ${t}`, () => butterfly(uniq(1 + Math.floor(rnd() * 10), word).map(label => ({label, left: Math.abs(val()), right: Math.abs(val())})), {leftLabel: word(), rightLabel: word(), unit: pick(['', '点', '百万円']), sort: pick(['given', 'left', 'right'] as const)}));
   for (let t = 0; t < 30 * mult; t++) await run(`bubble ${t}`, () => bubble(uniq(1 + Math.floor(rnd() * 14), word).map(label => ({label, x: val(true), y: val(true), size: Math.abs(val()) + 0.01})), {x: {title: word()}, y: {title: word(), unit: pick(['', '%'])}, sizeTitle: word(), sizeUnit: pick(['', '億円'])}));
-  for (let t = 0; t < 30 * mult; t++) await run(`combo ${t}`, () => { const N = 2 + Math.floor(rnd() * 9), S = uniq(1 + Math.floor(rnd() * 4), word); return combo(Array.from({length: N}, (_, i) => `${word()}${i}`), S.map((label, i) => ({label, type: i % 2 === 0 ? 'bar' as const : 'line' as const, values: Array.from({length: N}, () => rnd() < 0.1 ? null : val(true))})).map(s => s.values.every(v => v === null) ? {...s, values: s.values.map(() => 1)} : s), {y: {unit: pick(['', '億円'])}, y2: {unit: pick(['', '%'])}}); });
+  for (let t = 0; t < 30 * mult; t++) await run(`combo ${t}`, () => { const N = 2 + Math.floor(rnd() * 9), S = uniq(1 + Math.floor(rnd() * 4), word); const stack = rnd() < 0.3; return combo(Array.from({length: N}, (_, i) => `${word()}${i}`), S.map((label, i) => ({label, type: i % 2 === 0 ? 'bar' as const : 'line' as const, values: Array.from({length: N}, () => rnd() < 0.1 ? null : stack ? Math.abs(val()) : val(true))})).map(s => s.values.every(v => v === null) ? {...s, values: s.values.map(() => 1)} : s), {stack, y: {unit: pick(['', '億円'])}, y2: {unit: pick(['', '%'])}}); });
   for (let t = 0; t < 30 * mult; t++) await run(`harvey ${t}`, () => { const R = 1 + Math.floor(rnd() * 10), C = 1 + Math.floor(rnd() * 6); return harvey(uniq(R, word).concat(Array.from({length: R}, (_, i) => `基準${i}`)).slice(0, R), uniq(C, word).concat(Array.from({length: C}, (_, i) => `案${i}`)).slice(0, C), Array.from({length: R}, () => Array.from({length: C}, () => rnd() < 0.1 ? null : Math.floor(rnd() * 5)))); });
   if (process.env.DBG) console.log(named.map(n => n.slice(0, 160)).join('\n'));
   assert.deepEqual(bad, []);

@@ -41,7 +41,7 @@ import type {TornadoItem, TornadoOpts} from './charts-tornado.ts';
 import type {BubbleOpts, BubblePoint} from './charts-bubble.ts';
 import type {ButterflyOpts, ButterflyRow} from './charts-butterfly.ts';
 import type {ComboOpts, ComboSeries} from './charts-combo.ts';
-import type {HarveyOpts} from './charts-harvey.ts';
+import type {HarveyOpts, HarveyRow} from './charts-harvey.ts';
 import type {ChartBand} from './charts.ts';
 import type {WaterfallOpts, WaterfallStep} from './charts-waterfall.ts';
 import {causalBand, dependencyBand, pertBand} from './semnet-dsl.ts';
@@ -1130,11 +1130,13 @@ export function combo(categories: readonly string[], series: readonly ComboSerie
  * A table of Harvey balls (ハーベイボール): each cell is a circle filled 0–4 quarters (null: not rated), rows are criteria, columns are options.
  *   harvey(['価格', '品質'], ['A 社', 'B 社'], [[4, 2], [1, 3]], {highlight: ['A 社']})
  */
-export function harvey<const Id extends string = never>(rows: readonly string[], cols: readonly string[], values: readonly (readonly (number | null)[])[], opts?: HarveyOpts & {id?: Id}): ChartBand & Declares<Id> & HandleOf<Id>;
-export function harvey(rows: readonly string[], cols: readonly string[], values: readonly (readonly (number | null)[])[], opts: HarveyOpts = {}): ChartBand {
-  return withHandle(harveyBand(rows, cols, values, opts), opts.id);
+export function harvey<const R extends readonly HarveyRow[], const Id extends string = never>(rows: R, cols: readonly string[], values: readonly (readonly (number | null)[])[], opts?: HarveyOpts & {id?: Id}): ChartBand & Declares<Id | HarveyIds<R>> & HandleOf<Id> & AnchorsOf<HarveyIds<R>>;
+export function harvey(rows: readonly HarveyRow[], cols: readonly string[], values: readonly (readonly (number | null)[])[], opts: HarveyOpts = {}): ChartBand {
+  const band = harveyBand(rows, cols, values, opts);
+  return withHandle(withAnchors(band, band.ids), opts.id);
 }
 
+type HarveyIds<R extends readonly HarveyRow[]> = R[number] extends infer E ? E extends {id: infer I extends string} ? I : never : never;
 type BarIds<D extends readonly BarDatum[]> = Extract<D[number]['id'], string>;
 export function bars<const D extends readonly BarDatum[], const Id extends string = never>(data: D, opts?: BarsOpts & {id?: Id}): BarsBand & Declares<Id | BarIds<D>> & HandleOf<Id> & AnchorsOf<BarIds<D>>;
 export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
@@ -1986,7 +1988,7 @@ export type {TornadoItem, TornadoOpts} from './charts-tornado.ts';
 export type {BubbleAxis, BubbleOpts, BubblePoint} from './charts-bubble.ts';
 export type {ButterflyOpts, ButterflyRow} from './charts-butterfly.ts';
 export type {ComboAxis, ComboOpts, ComboSeries} from './charts-combo.ts';
-export type {HarveyOpts} from './charts-harvey.ts';
+export type {HarveyOpts, HarveyRow} from './charts-harvey.ts';
 export type {HeatmapOpts} from './charts-heatmap.ts';
 export type {RadarOpts, RadarSeries} from './charts-radar.ts';
 export type {BurndownSpec, BurnupSpec, LineSeries, LinesAnnotation, LinesAxis, LinesOpts, StrategyCanvasOpts} from './charts-lines.ts';

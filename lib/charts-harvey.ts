@@ -1,9 +1,11 @@
 // harvey(): a table of Harvey balls (ハーベイボール): each cell is a circle filled by a quarter, a half, three quarters or fully, the
 // usual way a consulting slide rates options against criteria. The fill is a shape (a wedge), never just a colour, and the scale is
 // written under the table; the values are listed in the description.
-import {Canvas, checkText, fail, finiteNum, numText} from './charts-base.ts';
+import {Canvas, checkIds, checkText, fail, finiteNum} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
 
+/** A row: its name, or its name with an id (a connect() / spotlight target for the whole row). */
+export type HarveyRow = string | {label: string; id?: string};
 export interface HarveyOpts extends ChartOpts {
   /** The name of the five steps, from empty (0) to full (4), written in the legend. Default なし / 一部 / 半分 / ほぼ / 十分. */
   levels?: readonly [string, string, string, string, string];
@@ -12,10 +14,12 @@ export interface HarveyOpts extends ChartOpts {
   /** Column names to stress (their header is bold and the column is boxed). */
   highlight?: readonly string[];
 }
-export interface HarveySpec {rows: string[]; cols: string[]; values: (number | null)[][]; levels: string[]; corner: string; highlight: string[]}
+export interface HarveySpec {rows: string[]; rowIds: (string | undefined)[]; cols: string[]; values: (number | null)[][]; levels: string[]; corner: string; highlight: string[]}
 
-export function resolveHarvey(rows: readonly string[], cols: readonly string[], values: readonly (readonly (number | null)[])[], opts: HarveyOpts = {}): HarveySpec {
-  if (!Array.isArray(rows) || rows.length === 0) fail('harvey', 'needs at least one row');
+export function resolveHarvey(rowsIn: readonly HarveyRow[], cols: readonly string[], values: readonly (readonly (number | null)[])[], opts: HarveyOpts = {}): HarveySpec {
+  if (!Array.isArray(rowsIn) || rowsIn.length === 0) fail('harvey', 'needs at least one row');
+  const rows = rowsIn.map(r => typeof r === 'string' ? r : r.label), rowIds = rowsIn.map(r => typeof r === 'string' ? undefined : r.id);
+  checkIds('harvey', rowIds, opts.id);
   if (!Array.isArray(cols) || cols.length === 0) fail('harvey', 'needs at least one column');
   if (rows.length > 20 || cols.length > 10) fail('harvey', 'is limited to 20 rows and 10 columns (it is a table of symbols to read at a glance)');
   rows.forEach((r, i) => checkText('harvey', `row ${i + 1}`, r));
@@ -35,7 +39,7 @@ export function resolveHarvey(rows: readonly string[], cols: readonly string[], 
   if (levels.length !== 5) fail('harvey', 'levels needs 5 names, from empty to full');
   levels.forEach((l, i) => checkText('harvey', `levels[${i}]`, l));
   for (const h of opts.highlight ?? []) if (!cols.includes(h)) fail('harvey', `highlight "${h}" is not a column name`);
-  return {rows: [...rows], cols: [...cols], values: grid, levels, corner: opts.corner ?? '', highlight: [...(opts.highlight ?? [])]};
+  return {rows, rowIds, cols: [...cols], values: grid, levels, corner: opts.corner ?? '', highlight: [...(opts.highlight ?? [])]};
 }
 export function harveyAlt(s: HarveySpec): string {
   return `ハーベイボール（${s.levels.map((l, i) => `${i}/4 = ${l}`).join('、')}）: ${s.rows.map((r, i) => `${r}: ${s.cols.map((c, j) => `${c} ${s.values[i][j] === null ? '未評価' : s.levels[s.values[i][j] as number]}`).join('、')}`).join(' / ')}`;
@@ -81,11 +85,13 @@ export function layoutHarvey(s: HarveySpec, g: ChartGeom): LaidOutChartPart {
   let y = bodyT;
   s.rows.forEach((r, i) => {
     const cy = y + rowH[i] / 2;
-    c.lines(rowsW[i], g.x + 4, cy - (rowsW[i].length - 1) * lh / 2 + S * 0.36, 'start', 'text', {bold: true});
+    const key = s.rowIds[i] ?? `#${i}`;
+    c.lines(rowsW[i], g.x + 4, cy - (rowsW[i].length - 1) * lh / 2 + S * 0.36, 'start', 'text', {bold: true, of: key});
+    if (s.rowIds[i]) c.anchors.push({id: s.rowIds[i] as string, x: g.x, y: r1(y), w: g.w, h: rowH[i]});
     s.cols.forEach((_k, j) => {
       const cx = left + (j + 0.5) * colW, v = s.values[i][j];
-      if (v === null) { c.text('—', cx, c.mid(cy), 'middle', 'muted'); return; }
-      ball(c, cx, cy, R, v);
+      if (v === null) { c.text('—', cx, c.mid(cy), 'middle', 'muted', {of: key}); return; }
+      ball(c, cx, cy, R, v, key);
     });
     y += rowH[i];
     c.line(g.x, y, g.x + g.w, y, {stroke: i === s.rows.length - 1 ? 'text' : 'border'});
@@ -99,8 +105,8 @@ export function layoutHarvey(s: HarveySpec, g: ChartGeom): LaidOutChartPart {
   void ly;
   return c.done();
 }
-function ball(c: Canvas, cx: number, cy: number, r: number, q: number): void {
+function ball(c: Canvas, cx: number, cy: number, r: number, q: number, of?: string): void {
   const f = (v: number) => Math.round(v * 10) / 10;
-  c.path(`M${f(cx - r)},${f(cy)} a${r},${r} 0 1,0 ${2 * r},0 a${r},${r} 0 1,0 ${-2 * r},0 Z`, {fill: 'bg', stroke: 'text', sw: 2});
-  if (q > 0) c.path(harveyWedge(cx, cy, r, q), {fill: 'text', stroke: 'text', sw: 2});
+  c.path(`M${f(cx - r)},${f(cy)} a${r},${r} 0 1,0 ${2 * r},0 a${r},${r} 0 1,0 ${-2 * r},0 Z`, {fill: 'bg', stroke: 'text', sw: 2, of});
+  if (q > 0) c.path(harveyWedge(cx, cy, r, q), {fill: 'text', stroke: 'text', sw: 2, of});
 }
