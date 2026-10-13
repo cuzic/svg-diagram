@@ -135,7 +135,7 @@ export interface LaidOutQuadrant extends Rect, Dimmed {
   moved: {id?: string; label: string; px: number}[];
   /** Items whose size is so small that the bubble is drawn at the least radius (its area is then larger than the value says). */
   floored: string[];
-  /** Cells that hold no item and are not listed in allowEmpty: "title (col, row)", 1-based from the top-left. */
+  /** Cells that hold no item and are not listed in allowEmpty: "title [col, row]", 0-based from the top-left (as allowEmpty takes them). */
   emptyCells: string[];
 }
 
@@ -288,6 +288,7 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
   if (items.some(i => i.group !== undefined) && ungrouped >= 0) throw new Error(`quadrant() item ${ungrouped + 1} "${items[ungrouped].label}": has no group, but other items do — give every item a group (it would look like the first group's marker), or none`);
   for (const it of items) if (it.group !== undefined && !groups.includes(it.group)) groups.push(it.group);
   if (groups.length > SHAPES.length * 2) throw new Error(`quadrant(): ${groups.length} groups — at most ${SHAPES.length * 2} can be told apart by shape and colour`);
+  if (opts.allowEmpty !== undefined && opts.allowEmpty !== true && !Array.isArray(opts.allowEmpty)) throw new Error(`quadrant(): allowEmpty must be true or a list of [col, row] cells (got ${JSON.stringify(opts.allowEmpty)})`);
   if (opts.allowEmpty !== undefined && opts.allowEmpty !== true) for (const e of opts.allowEmpty) {
     if (!Array.isArray(e) || !Number.isInteger(e[0]) || !Number.isInteger(e[1]) || e[0] < 0 || e[1] < 0 || e[0] >= cols || e[1] >= rows) throw new Error(`quadrant(): allowEmpty cell ${JSON.stringify(e)} is outside the ${cols} x ${rows} grid (columns 0..${cols - 1}, rows 0..${rows - 1}, from the top-left), or use true`);
   }
@@ -687,7 +688,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   const taken = new Set(bubbles.map(b => b.cell));
   const allowed = band.allowEmpty;
   const emptyCells = allowed === true ? [] : band.cells.flatMap((rowCells, r) => rowCells.flatMap((cell, k) =>
-    taken.has(r * cols + k) || allowed?.some(([c, rr]) => c === k && rr === r) ? [] : [`${cell.title ? `${cell.title} ` : ''}(${k + 1}, ${r + 1})`]));
+    taken.has(r * cols + k) || allowed?.some(([c, rr]) => c === k && rr === r) ? [] : [`${cell.title ? `${cell.title} ` : ''}[${k}, ${r}]`]));
 
   return {
     type: 'quadrant', ...(band.id ? {id: band.id} : {}), x, y, w, h, ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until}),

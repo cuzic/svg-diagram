@@ -374,10 +374,12 @@ test('quadrant-empty-cell: a cell with no item is reported by name; allowEmpty o
   assert.deepEqual(await emptyRule(quadrant.preset('bcg', {items, allowEmpty: true})), []);
   const all = await emptyRule(quadrant({...AX, items: [{label: 'a', cell: [0, 0]}]}));
   assert.equal(all.length, 1);
-  assert.match(all[0]!.message, /\(2, 1\)|\(1, 2\)|\(2, 2\)/);
+  for (const c of ['[1, 0]', '[0, 1]', '[1, 1]']) assert.ok(all[0]!.message.includes(c), all[0]!.message); // 0-based, as allowEmpty takes them
+  assert.ok(!all[0]!.message.includes('[0, 0]'), all[0]!.message);
   assert.deepEqual(await emptyRule(quadrant({...AX, items: [{label: 'a', cell: [0, 0]}], allowEmpty: [[1, 0], [0, 1], [1, 1]]})), []);
   assert.equal((await emptyRule(quadrant({...AX, items: [{label: 'a', cell: [0, 0]}], allowEmpty: [[1, 0]]}))).length, 1);
   assert.throws(() => quadrant({...AX, items, allowEmpty: [[5, 0]]}), /allowEmpty/);
+  assert.throws(() => quadrant({...AX, items, allowEmpty: false as never}), /allowEmpty must be true or a list/);
 });
 
 test('quadrant-empty-cell: accept turns it into info', async () => {
