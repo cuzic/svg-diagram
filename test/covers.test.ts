@@ -16,6 +16,12 @@ test('readTable: Markdown skips the rule line and strips emphasis; CSV honours q
   assert.deepEqual(readTable('a,"b,c",""\n"x ""y""",z', 'csv').map(c => c.text), ['a', 'b,c', 'x "y"', 'z']);
 });
 
+test('readTable: tables without outer pipes, not code fences or headings; CSV line breaks in quotes, BOM, CRLF', () => {
+  const md = ['# 題', '', '支店 | 件数', ':-- | --:', '東京 | 1 \\| 2', '', '```', '| x | y |', '|---|---|', '| z | w |', '```', '見出し | です', '---'].join('\n');
+  assert.deepEqual(readTable(md, 'md').map(c => [c.text, c.line]), [['支店', 3], ['件数', 3], ['東京', 5], ['1 | 2', 5]]);
+  assert.deepEqual(readTable('﻿a,"x\r\ny"\r\nb,c\r\n', 'csv').map(c => [c.text, c.line]), [['a', 1], ['x\r\ny', 1], ['b', 3], ['c', 3]]);
+});
+
 test('normalize: width, case, space, punctuation and digit grouping do not matter', () => {
   assert.equal(normalize('ＡＢＣ １２３'), normalize('abc123'));
   assert.equal(normalize('1,200 円'), normalize('1200円'));
@@ -33,13 +39,13 @@ test('checkCovers: whole cell, token match and missing tokens', () => {
 });
 
 test('checkCovers: a number is not found inside a longer one, and the missing tokens are shown as written', () => {
-  const lost = (t: string, f: string) => checkCovers(readTable(t, 'md'), f).map(u => u.missing);
-  assert.deepEqual(lost('| 30 |', '300 件'), [['30']]);
-  assert.deepEqual(lost('| 3.5% |', '35%'), [['3.5%']]);
-  assert.deepEqual(lost('| 12 |', 'Q1 2'), [['12']]);
-  assert.deepEqual(lost('| 30 |', '30日'), []);
-  assert.deepEqual(lost('| 1,200 円 |', '合計 1200円'), []);
-  assert.deepEqual(lost('| サーバー 構成 |', '構成'), [['サーバー']]);
+  const lost = (t: string, f: string) => checkCovers([{text: t, line: 1}], f).map(u => u.missing);
+  assert.deepEqual(lost('30', '300 件'), [['30']]);
+  assert.deepEqual(lost('3.5%', '35%'), [['3.5%']]);
+  assert.deepEqual(lost('12', 'Q1 2'), [['12']]);
+  assert.deepEqual(lost('30', '30日'), []);
+  assert.deepEqual(lost('1,200 円', '合計 1200円'), []);
+  assert.deepEqual(lost('サーバー 構成', '構成'), [['サーバー']]);
 });
 
 test('check --covers: lists the missing cells and exits 0 (warning), 1 with --strict', () => {

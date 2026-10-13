@@ -46,34 +46,51 @@ function rawTokens(cell: string): Map<string, string> {
 }
 export const tokensOf = (cell: string): string[] => [...rawTokens(cell).keys()];
 
-function splitCsvLine(l: string): string[] {
-  const out: string[] = []; let cur = '', q = false;
-  for (let i = 0; i < l.length; i++) {
-    const c = l[i];
-    if (q) { if (c === '"') { if (l[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+/** CSV rows with the line each row starts on; a quoted field may hold commas, doubled quotes and line breaks */
+function csvRows(text: string): {row: string[]; line: number}[] {
+  const rows: {row: string[]; line: number}[] = [];
+  let row: string[] = [], cur = '', q = false, line = 1, start = 1;
+  const endRow = () => { row.push(cur); if (row.some(c => c.trim())) rows.push({row, line: start}); row = []; cur = ''; start = line; };
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '\n') line++;
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
     else if (c === '"') q = true;
-    else if (c === ',') { out.push(cur); cur = ''; }
+    else if (c === ',') { row.push(cur); cur = ''; }
+    else if (c === '\n') { if (cur.endsWith('\r')) cur = cur.slice(0, -1); endRow(); }
     else cur += c;
   }
-  return [...out, cur];
+  if (cur.endsWith('\r')) cur = cur.slice(0, -1);
+  endRow();
+  return rows;
 }
 
 const stripMd = (s: string): string => s.replace(/<br\s*\/?>/gi, ' ').replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '').trim();
+const DELIM = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+const FENCE = /^\s*(```|~~~)/;
+const mdRow = (ln: string): string[] =>
+  ln.trim().replace(/^\|/, '').replace(/(?<!\\)\|$/, '').split(/(?<!\\)\|/).map(c => c.replace(/\\\|/g, '|'));
+
+/** Markdown: the GFM tables (a header row, the |---| rule, then rows up to a blank line; outside code fences) */
+function mdRows(text: string): {row: string[]; line: number}[] {
+  const lines = text.split(/\r?\n/), rows: {row: string[]; line: number}[] = [];
+  let fence = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (FENCE.test(lines[i])) { fence = !fence; continue; }
+    // a header needs a pipe and a rule with as many columns ("Title\n---" is a heading, not a table)
+    if (fence || !lines[i].includes('|') || !DELIM.test(lines[i + 1] ?? '') || mdRow(lines[i + 1]).length !== mdRow(lines[i]).length) continue;
+    rows.push({row: mdRow(lines[i]), line: i + 1});
+    for (i += 2; i < lines.length && lines[i].trim() && lines[i].includes('|') && !FENCE.test(lines[i]); i++) rows.push({row: mdRow(lines[i]), line: i + 1});
+    i--;
+  }
+  return rows;
+}
 
 export function readTable(text: string, kind: 'md' | 'csv'): Cell[] {
+  text = text.replace(/^\uFEFF/, '');
   const cells: Cell[] = [];
-  text.split(/\r?\n/).forEach((ln, i) => {
-    if (!ln.trim()) return;
-    let row: string[];
-    if (kind === 'csv') row = splitCsvLine(ln);
-    else {
-      const t = ln.trim();
-      if (!t.startsWith('|')) return;
-      if (/^\|?[\s:|-]+\|?$/.test(t) && t.includes('-')) return;   // the |---|---| rule
-      row = t.replace(/^\|/, '').replace(/\|$/, '').split(/(?<!\\)\|/).map(c => c.replace(/\\\|/g, '|'));
-    }
-    for (const c of row) { const s = kind === 'md' ? stripMd(c) : c.trim(); if (s) cells.push({text: s, line: i + 1}); }
-  });
+  for (const {row, line} of kind === 'csv' ? csvRows(text) : mdRows(text))
+    for (const c of row) { const s = kind === 'md' ? stripMd(c) : c.trim(); if (s) cells.push({text: s, line}); }
   return cells;
 }
 

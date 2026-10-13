@@ -49,8 +49,14 @@ if (mapMode && (!val('--docs') || (val('--format') ?? 'text') !== 'text')) { con
 const svgDir = val('--svg-dir'), srcDir = val('--src-dir'), docsDir = val('--docs'), coversFile = val('--covers'), format = val('--format') ?? 'text';
 const sources = args.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1]));
 if (!['text', 'json', 'github'].includes(format)) { console.error(`--format must be text, json or github (got "${format}")`); process.exit(2); }
-if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs DIR [--svg-dir DIR] [--src-dir DIR] [--map]] [--format text|json|github] <source.ts>...'); process.exit(2); }
+if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs DIR [--svg-dir DIR] [--src-dir DIR] [--map]] [--covers TABLE.md|TABLE.csv [--svg-dir DIR]] [--format text|json|github] <source.ts>...'); process.exit(2); }
 const config = loadConfig();
+let coverCells: ReturnType<typeof readTable> = [];
+if (coversFile) {
+  if (!fs.existsSync(coversFile)) { console.error(`--covers: ${coversFile} がない`); process.exit(2); }
+  coverCells = readTable(fs.readFileSync(coversFile, 'utf8'), coversFile.toLowerCase().endsWith('.csv') ? 'csv' : 'md');
+  if (!coverCells.length) { console.error(`--covers: ${coversFile} に表がない（Markdown は見出し行と |---| の行が要る）`); process.exit(2); }
+}
 
 const say = (...a: unknown[]) => { if (format === 'text') (mapMode ? console.error : console.log)(...a); };
 const complain = (...a: unknown[]) => { if (format === 'text') console.error(...a); };
@@ -120,7 +126,7 @@ try {
     if (coversFile) {
       const svg = src.endsWith('.svg') ? src : path.join(svgDir ?? 'svg', `${name}.svg`);
       if (!fs.existsSync(svg)) { add({file: src, rule: 'covers-missing-svg', severity: 'error', message: `${svg} がない（未生成）`}); complain(`✗ ${src}: ${svg} がない（未生成）`); continue; }
-      const cells = readTable(fs.readFileSync(coversFile, 'utf8'), coversFile.endsWith('.csv') ? 'csv' : 'md');
+      const cells = coverCells;
       const lost = checkCovers(cells, figureText(fs.readFileSync(svg, 'utf8')));
       for (const u of lost) add({file: coversFile, line: u.cell.line, rule: 'covers-missing', severity: 'warn', message: `${name}: 「${u.cell.text}」が図にない（欠けた語: ${u.missing.join('、')}）`});
       say(`${lost.length ? '△' : '✓'} ${src}: 表のセル ${cells.length} 件中 ${lost.length} 件が図にない`);
