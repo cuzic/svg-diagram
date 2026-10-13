@@ -12,17 +12,18 @@ const VALUE = ['--out', '--cols', '--width', '--engine', '--per-page', '--pages'
 const val = (n: string, d: string) => { const i = args.indexOf(n); return i === -1 ? d : args[i + 1]; };
 const out = val('--out', 'contact-sheet.png'), cols = Number(val('--cols', '2')), width = Number(val('--width', '1400'));
 const engine = val('--engine', 'auto') as 'auto' | 'resvg' | 'chromium';
-const perPageArg = val('--per-page', ''), pagesArg = val('--pages', '');
+const perPageArg = args.includes('--per-page') ? val('--per-page', '') ?? '' : undefined;
+const pagesArg = args.includes('--pages') ? val('--pages', '') ?? '' : undefined;
 const files = args.filter((a, i) => a.endsWith('.svg') && !VALUE.includes(args[i - 1]));
 const USAGE = 'Usage: svg-diagram contact a.svg b.svg ... --out sheet.png [--cols 2] [--width 1400] [--per-page N | --pages N] [--engine resvg|chromium]';
 for (const a of args) if (a.startsWith('--') && !VALUE.includes(a)) { console.error(`✗ unknown option ${a}\n${USAGE}`); process.exit(2); }
-if ((perPageArg && !(Number(perPageArg) >= 1)) || (pagesArg && !(Number(pagesArg) >= 1))) { console.error(`✗ --per-page and --pages need positive numbers\n${USAGE}`); process.exit(2); }
-if (perPageArg && pagesArg) { console.error(`✗ use --per-page or --pages, not both\n${USAGE}`); process.exit(2); }
+if ((perPageArg !== undefined && !(Number(perPageArg) >= 1)) || (pagesArg !== undefined && !(Number(pagesArg) >= 1))) { console.error(`✗ --per-page and --pages need positive numbers\n${USAGE}`); process.exit(2); }
+if (perPageArg !== undefined && pagesArg !== undefined) { console.error(`✗ use --per-page or --pages, not both\n${USAGE}`); process.exit(2); }
 if (!files.length) { console.error(USAGE); process.exit(2); }
 if (!['auto', 'resvg', 'chromium'].includes(engine)) { console.error(`✗ --engine is resvg or chromium (got ${engine})\n${USAGE}`); process.exit(2); }
 if (!(width > 0) || !(cols >= 1)) { console.error(`✗ --width and --cols need positive numbers\n${USAGE}`); process.exit(2); }
 try {
-  const pages = paginate(files, {perPage: perPageArg ? Number(perPageArg) : undefined, pages: pagesArg ? Number(pagesArg) : undefined});
+  const pages = paginate(files, {perPage: perPageArg === undefined ? undefined : Number(perPageArg), pages: pagesArg === undefined ? undefined : Number(pagesArg)});
   const written: string[] = [];
   for (const [i, page] of pages.entries()) {
     const sheet = buildSheet(page.map(f => [f, fs.readFileSync(f, 'utf8')] as [string, string]), {cols, width});

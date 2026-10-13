@@ -193,6 +193,8 @@ test('contact --per-page writes several sheets and lists them; default stays one
   assert.ok(!fs.existsSync(path.join(d, 'p-3.png')));
   assert.match(r.stdout, /2 sheets: p-1\.png p-2\.png/);
   assert.notEqual(run(d, 'contact', 'a.svg', '--per-page', '2', '--pages', '2').status, 0);
+  assert.equal(run(d, 'contact', 'a.svg', '--out', 'q.png', '--per-page').status, 2); // a missing value is an error, not ignored
+  assert.equal(run(d, 'contact', 'a.svg', '--out', 'q.png', '--pages', '0').status, 2);
 });
 
 test('preview without an output name writes a fresh temp file each time', { skip: !haveFont }, () => {
