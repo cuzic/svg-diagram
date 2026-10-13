@@ -10,6 +10,14 @@ const decode = (s: string) => s.replace(/&(#x[0-9a-fA-F]+|#\d+|[a-z]+);/g, (m, e
 
 /** Parses well-formed XML (xmlProblems() says whether it is) into a tree; returns the root element. Throws on what it cannot read. */
 export function parseXml(src: string): El {
+  const svg = parseXmlFragment(src).children.find((c): c is El => typeof c !== 'string' && c.tag === 'svg');
+  if (!svg) throw new Error('no <svg> element');
+  svg.parent = null;
+  return svg;
+}
+
+/** Parses a well-formed XML fragment — several top-level elements and text, like the HTML of `build --html` — into a '#document' node. */
+export function parseXmlFragment(src: string): El {
   let i = 0, order = 0;
   const root: El = {tag: '#document', attrs: {}, children: [], parent: null, order: order++};
   let cur = root;
@@ -42,10 +50,7 @@ export function parseXml(src: string): El {
     i = p + t[0].length;
   }
   if (cur !== root) throw new Error(`<${cur.tag}> is never closed`);
-  const svg = root.children.find((c): c is El => typeof c !== 'string' && c.tag === 'svg');
-  if (!svg) throw new Error('no <svg> element');
-  svg.parent = null;
-  return svg;
+  return root;
 }
 
 export const elements = (el: El): El[] => [el, ...el.children.flatMap(c => typeof c === 'string' ? [] : elements(c))];

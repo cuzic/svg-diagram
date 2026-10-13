@@ -1,18 +1,23 @@
-// Markdown that points at diagram sources: `![alt](./flow.ts)` becomes the figure.
+// Markdown that points at diagram sources: `![alt](./flow.diagram.ts)` becomes the figure.
 //   expandMarkdown(text, {file, ...})  →  the Markdown with each figure replaced, plus the SVGs it drew
-// An image whose target ends in `.ts` is a diagram source (the module `svg-diagram build` takes, path relative to the
+// An image whose target ends in `.diagram.ts` is a diagram source (the module `svg-diagram build` takes, path relative to the
 // Markdown file). Anything inside a fenced block or an inline code span is left alone, so a page can show the syntax.
 //   mode 'file'   (default)  the SVG is returned in `files` and the image points at it — the Markdown stays portable
 //   mode 'inline'            the <svg> itself replaces the image (as an HTML block), for renderers that cannot load files
+//   render 'html'            the figure as HTML/CSS (what `build --html` writes) replaces the image; it is always inline
+// `![alt](flow.diagram.ts#html)` / `#svg` picks the output for that one figure.
 // Nothing is written here; the CLI (`svg-diagram md`) writes `files` and the Markdown. A figure that fails verification
 // is reported in `problems` and its image is left as written.
 import path from 'node:path';
 import {renderSource} from './render-source.ts';
+import {diagramTarget, figureName, noBlankLines, type Render} from './markdown-target.ts';
 
 export interface ExpandOptions {
   /** The Markdown file's path — sources are resolved from its directory. */
   file: string;
   mode?: 'file' | 'inline';
+  /** 'svg' (default) or 'html' (HTML/CSS, always inline). A `#svg` / `#html` on an image's target wins. */
+  render?: Render;
   /** Where the SVGs will be written, relative to the Markdown file's directory (default: svg). Used for the image targets. */
   svgDir?: string;
   /** Passed to renderSource. */
@@ -25,6 +30,7 @@ export interface Figure {
   /** The SVG's file name inside svgDir (mode 'file'). */
   name: string;
   svg: string;
+  html: string;
   warnings: string[];
 }
 
@@ -35,7 +41,7 @@ export interface ExpandResult {
   problems: string[];
 }
 
-const IMAGE = /!\[([^\]\n]*)\]\(\s*<?([^)\s>]+\.ts)>?(?:\s+(?:"([^"]*)"|'([^']*)'))?\s*\)/g;
+const IMAGE = /!\[([^\]\n]*)\]\(\s*<?([^)\s>]+\.diagram\.ts(?:#(?:svg|html))?)>?(?:\s+(?:"([^"]*)"|'([^']*)'))?\s*\)/g;
 
 /** The same text with every inline code span's characters blanked, so a match inside one can be told apart by offset. */
 function maskCode(line: string): string {
@@ -56,16 +62,16 @@ export async function expandMarkdown(text: string, opts: ExpandOptions): Promise
     if (failed.has(src)) return undefined;
     const label = path.relative(dir, src) || src;
     try {
-      const r = await renderSource(src, {fresh: opts.fresh});
+      const r = await renderSource(src, {fresh: opts.fresh, html: true});
       if (!r.ok) {
         for (const p of r.problems) problems.push(`${label}: ${p}`);
         failed.add(src);
         return undefined;
       }
-      let name = path.basename(src, '.ts') + '.svg';
-      for (let n = 2; used.has(name); n++) name = `${path.basename(src, '.ts')}-${n}.svg`;
+      let name = figureName(src) + '.svg';
+      for (let n = 2; used.has(name); n++) name = `${figureName(src)}-${n}.svg`;
       used.add(name);
-      const f: Figure = {source: src, name, svg: r.svg, warnings: r.warnings};
+      const f: Figure = {source: src, name, svg: r.svg, html: r.html ?? '', warnings: r.warnings};
       figures.set(src, f);
       return f;
     } catch (e) {
@@ -92,11 +98,15 @@ export async function expandMarkdown(text: string, opts: ExpandOptions): Promise
       const [, alt, target, t1, t2] = IMAGE_ONE(real);
       out += ln.slice(at, h.index);
       at = h.index + h[0].length;
-      if (/^[a-z][a-z0-9+.-]*:/i.test(target)) { out += real; continue; }
-      const f = await draw(path.resolve(dir, decodeURI(target)));
+      const t = diagramTarget(target);
+      if (!t) { out += real; continue; }
+      const f = await draw(path.resolve(dir, decodeURI(t.file)));
       if (!f) { out += real; continue; }
       const title = t1 ?? t2;
-      out += mode === 'inline'
+      const render = t.render ?? opts.render ?? 'svg';
+      out += render === 'html'
+        ? `\n\n${noBlankLines(f.html)}\n\n`
+        : mode === 'inline'
         ? inlineSvg(f.svg, alt)
         : `![${alt}](${svgDir}/${f.name}${title !== undefined ? ` "${title}"` : ''})`;
     }

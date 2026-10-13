@@ -1,5 +1,5 @@
-// VitePress: `markdown: {config: svgDiagram()}` in .vitepress/config.ts — `![alt](./flow.ts)` in a page renders as the figure's
-// inline <svg>. It is the markdown-it plugin (svg-diagram/markdown-it) set up for VitePress: sources are resolved from the page
+// VitePress: `markdown: {config: svgDiagram()}` in .vitepress/config.ts — `![alt](./flow.diagram.ts)` in a page renders as the
+// figure, inline (render: 'svg' or 'html'). It is the markdown-it plugin (svg-diagram/markdown-it) set up for VitePress: sources are resolved from the page
 // (VitePress passes env.path), and editing a source — or a file it imports — re-renders the page in `vitepress dev`.
 import svgDiagramPlugin, {type SvgDiagramPluginOptions} from './markdown-it.ts';
 
