@@ -329,11 +329,12 @@ venn([{name: '技術'}, {name: '顧客'}], {overlaps: [{sets: ['技術', '顧客
 concentric([{label: '境界'}, {label: 'アプリ'}, {label: 'データ'}], {centre: '重要情報'})
 ```
 
-- `chevron`: 横（既定）または縦の矢羽根。`first: 'pentagon' | 'chevron'`、`gap`、`current`（`highlight` も可）。長い文字は折り返し、必要な高さまで伸びる。
-- `funnel`: 下ほど狭い漏斗。`scale: 'value'` は全段の `value` が必要。`showRate` は前段からの率を表示し、狭い段の文字は横へ逃がす。
-- `cycle`: 3〜8 個の節を曲線矢印で閉じる。`direction: 'cw' | 'ccw'`、`centre`。
-- `venn`: 2 または 3 集合。半透明色に加えて線種を変え、色だけに頼らない。`overlaps`、`centre`、`universe` を指定できる。
-- `concentric`: 同心円。`order: 'outer-first' | 'inner-first'`、`labels: 'inside' | 'side'`、`centre`。
+- `chevron`: 横（既定）または縦の矢羽根。`first: 'pentagon' | 'chevron'`（先頭の形）、`gap`、`current`（`highlight` も可。色に加えて太い枠で示す）。`sub` は見出しの下に小さく出る。長い文字は矢羽根の内側で折り返し、必要な高さまで伸びる。縦の幅は 360px まで（`width` を書けばその幅）。
+- `funnel`: 下ほど狭い漏斗。各段は上の段の下端と同じ幅で始まる。`scale: 'value'` は全段の `value` が必要で、幅が値に比例する（下の段で値が増えると警告 `funnel-values-rise`）。`showRate` は前段からの率を段の左に出す（左に余地がなければ段の文字の下）。段に入らない文字は段の右へ出す。
+- `cycle`: 3〜8 個の節を、円周に沿った矢印で閉じる（矢印は節の間だけを通り、節や文字に重ならない）。`direction: 'cw' | 'ccw'`、`centre`、各節の `sub`。
+- `venn`: 2 または 3 集合。色に加えて線種（実線・破線・点線）を変え、色だけに頼らない。集合の名前はその集合だけの部分に、`overlaps` の 2 集合のラベルはその 2 つだけが重なる部分に、`centre` は全集合が重なる部分に入る（`centre` と全集合の overlap を両方書くと throw）。`universe` で全体の枠（文字列ならその名前）。
+- `concentric`: 同心円。`order: 'outer-first' | 'inner-first'`（`rings` を書く順）、`centre`。`labels: 'inside'`（既定）は各層の帯の上部に、`'side'` は右の凡例に出して引き出し線で層につなぐ。`description` は「ラベル — 説明」で続く。
+- ラベルが図からはみ出す・ラベル同士が重なると検査で止まる。
 - 例: `examples/chevron-*.ts`、`funnel-*.ts`、`cycle-*.ts`、`venn-*.ts`、`concentric-*.ts`。
 
 ### 象限図・分類マトリクス（`quadrant`）
