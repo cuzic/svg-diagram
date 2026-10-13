@@ -27,7 +27,7 @@ import {layoutTimeline, timelineTexts} from './timeline.ts';
 import {layoutQuadrant, quadrantTexts} from './quadrant.ts';
 import {flowShapeTexts, layoutFlowShape} from './flow-shapes.ts';
 import {canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
-import {layoutTreeBand, treeTexts} from './tree.ts';
+import {layoutTreeBand, narrowField, treeTexts} from './tree.ts';
 import {layoutStatesBand, statesTexts} from './states.ts';
 import {causeTexts, cloudTexts, layoutCauseBand, layoutCloudBand} from './toc.ts';
 import {ganttTexts, layoutGantt} from './gantt.ts';
@@ -766,7 +766,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
         y += h;
         return out;
       });
-      const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
+      const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, ...(band.fit === 'shrink' ? narrowField(stepsPlaced.flatMap(s => s.wrappedRuns.map(r => r.lines))) : {}), id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
       laidOut.push(frame); // before its steps so the lanes draw underneath
       if (band.id) {
         if (anchors.has(band.id)) claimed(band.id, 'a swimlane takes an id that another anchor already has');
