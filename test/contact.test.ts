@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
-import {buildSheet} from '../lib/contact.ts';
+import {buildSheet, paginate, pageName} from '../lib/contact.ts';
 import {rasterize, svgSize} from '../lib/raster.ts';
 import {resolveFontFile} from '../lib/font-metrics.ts';
 
@@ -149,7 +149,7 @@ test('show --png: draws a source and a file, with no browser available; a bad --
 test('the usage text lists contact, preview and show with their options', () => {
   const r = spawnSync(BIN, [], {encoding: 'utf8'});
   assert.match(out(r), /contact a\.svg b\.svg/);
-  assert.match(out(r), /preview <in\.svg> <out\.png>/);
+  assert.match(out(r), /preview <in\.svg> \[out\.png\]/);
   assert.match(out(r), /show <file\.svg\|file\.ts>.*--engine/);
 });
 
@@ -166,4 +166,41 @@ test('--engine chromium reaches the renderer in contact, preview and show: with 
     assert.match(out(r), NO_BROWSER, args[0]);
   }
   fs.rmSync(dir, {recursive: true});
+});
+
+test('paginate and pageName split a set into numbered sheets', () => {
+  const xs = [1, 2, 3, 4, 5];
+  assert.deepEqual(paginate(xs), [xs]);
+  assert.deepEqual(paginate(xs, {perPage: 2}), [[1, 2], [3, 4], [5]]);
+  assert.deepEqual(paginate(xs, {pages: 2}), [[1, 2, 3], [4, 5]]);
+  assert.equal(pageName('s.png', 0, 1), 's.png');
+  assert.equal(pageName('d/s.png', 1, 3), 'd/s-2.png');
+});
+
+test('contact --per-page writes several sheets and lists them; default stays one file', { skip: !haveFont }, () => {
+  const d = tmp();
+  for (const n of ['a', 'b', 'c']) fs.writeFileSync(path.join(d, `${n}.svg`), figure(200, 100));
+  const one = run(d, 'contact', 'a.svg', 'b.svg', 'c.svg', '--out', 's.png');
+  assert.equal(one.status, 0, out(one));
+  assert.ok(fs.existsSync(path.join(d, 's.png')));
+  const r = run(d, 'contact', 'a.svg', 'b.svg', 'c.svg', '--out', 'p.png', '--per-page', '2');
+  assert.equal(r.status, 0, out(r));
+  assert.ok(fs.existsSync(path.join(d, 'p-1.png')) && fs.existsSync(path.join(d, 'p-2.png')));
+  assert.ok(!fs.existsSync(path.join(d, 'p-3.png')));
+  assert.match(r.stdout, /2 sheets: p-1\.png p-2\.png/);
+  assert.notEqual(run(d, 'contact', 'a.svg', '--per-page', '2', '--pages', '2').status, 0);
+});
+
+test('preview without an output name writes a fresh temp file each time', { skip: !haveFont }, () => {
+  const d = tmp();
+  fs.writeFileSync(path.join(d, 'x.svg'), figure(100, 50));
+  const paths = [1, 2].map(() => {
+    const r = run(d, 'preview', 'x.svg');
+    assert.equal(r.status, 0, out(r));
+    const m = r.stdout.match(/wrote (\S+\.png)/);
+    assert.ok(m, r.stdout);
+    return m![1];
+  });
+  assert.notEqual(paths[0], paths[1]);
+  for (const p of paths) { assert.ok(path.basename(p).startsWith('x-') && fs.existsSync(p)); fs.rmSync(p); }
 });

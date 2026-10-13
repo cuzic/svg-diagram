@@ -44,11 +44,11 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
    - 型エラーは `check` の警告より前に直す。型を通っても、重なり・コントラスト・見た目は下のビルド・検査・目視で確かめる。
 2. **ビルド**: `svg-diagram build src.ts --out out.svg`（重なり検査と lint --strict まで走る。失敗するとエラー文が出る）
 3. **ルール検査**: `svg-diagram check --strict src.ts`（コントラスト、凡例、線の交差、幅、密度、題名）
-4. **目で見る**: `svg-diagram preview out.svg out.png 2` で PNG にし、画像として読んで確認する（`svg-diagram show x.ts --png out.png` なら SVG を書かずにソースから直接 PNG にできる。`show` を `--png` なしで使うのは人が sixel 対応の端末で見るとき用で、エージェントの実行環境では端末がないためエラーになる）。**検査を通っても、レイアウトの良し悪しは目で見ないと分からない**。
+4. **目で見る**: `svg-diagram preview out.svg out.png 2` で PNG にし（並列で動かすときは出力名を省くと、一時ディレクトリに重ならない名前で書いてパスを表示する）、画像として読んで確認する（`svg-diagram show x.ts --png out.png` なら SVG を書かずにソースから直接 PNG にできる。`show` を `--png` なしで使うのは人が sixel 対応の端末で見るとき用で、エージェントの実行環境では端末がないためエラーになる）。**検査を通っても、レイアウトの良し悪しは目で見ないと分からない**。
 5. **ズレ検査**: `svg-diagram check --drift --svg-dir <SVG の置き場> src.ts`（SVG が最新のソースから生成されたものか）
    - `--rebuild` を付けると、違いを言葉で説明する（「見た目は変わらない」ならそのまま再生成してよい）。
 6. **文書との整合**: `svg-diagram check --docs <docs> --svg-dir <SVG の置き場> --src-dir <ソースの置き場>`（参照先、代替テキスト、孤立した図、図の注釈と文書のリストの一致）
-7. **まとめて目視**: `svg-diagram contact a.svg b.svg ... --out sheet.png`（余白や釣り合いは検査では分からない）
+7. **まとめて目視**: `svg-diagram contact a.svg b.svg ... --out sheet.png`（多いときは `--per-page 12` か `--pages 4` で sheet-1.png, sheet-2.png … に分ける。1 枚に詰めると縮んで読めない。余白や釣り合いは検査では分からない）
 
 ## 部品
 

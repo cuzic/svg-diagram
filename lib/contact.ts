@@ -36,3 +36,19 @@ export function buildSheet(figures: [string, string][], {cols = 2, width = 1400}
   const height = (cells.length ? y - GAP : y) + PAD;
   return {svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#ffffff"/>${body.join('')}</svg>`, width, height};
 }
+
+/** Splits `items` into pages of `perPage`, or into `pages` pages of near-equal size; neither given: one page. */
+export function paginate<T>(items: T[], {perPage, pages}: {perPage?: number; pages?: number} = {}): T[][] {
+  const size = perPage ? Math.floor(perPage) : pages ? Math.ceil(items.length / Math.floor(pages)) : items.length;
+  if (!(size >= 1)) return [items];
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/** `sheet.png` -> `sheet-1.png`, `sheet-2.png`, ... (1-based); a single page keeps the name as given. */
+export function pageName(out: string, index: number, total: number): string {
+  if (total <= 1) return out;
+  const ext = path.extname(out);
+  return `${out.slice(0, out.length - ext.length)}-${index + 1}${ext}`;
+}
