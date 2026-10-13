@@ -22,6 +22,7 @@ import {spotlightDim} from './spotlight.ts';
 import {MARK_STROKE, plateStyle} from './image.ts';
 import {renderChart} from './charts-emit.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
+import type {LaidOutQuadrant} from './quadrant.ts';
 
 const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
 
@@ -439,6 +440,47 @@ function renderImage(b: LaidOutImage, day: Theme, stage?: number): string {
     const x = snap4(p.x), y = snap4(p.y), w = snap4(p.x + p.w) - x;
     out.push(`<rect x="${x}" y="${y}" width="${w}" height="${p.h}" rx="${p.h / 2}" fill="${dim ? PALETTE.bg : col(st.fill)}" stroke="${dim ? PALETTE.muted : col(st.stroke)}" stroke-width="2"/>`);
     out.push(`<text x="${Math.round(x + w / 2)}" y="${Math.round(y + p.h / 2 + p.size * 0.36)}" text-anchor="middle" font-size="${p.size}" font-weight="700" fill="${dim ? PALETTE.muted : col(st.text)}">${emojiSpan(p.text)}</text>`);
+  }
+  return out.join('\n  ');
+}
+
+// quadrant(): the cells, the crosshair, arrows, bubbles (a shape per group), the legend markers, then every text.
+function renderQuadrant(b: LaidOutQuadrant, day: Theme): string {
+  const ink = (k: 'text' | 'muted' | 'accent' | 'danger', dim?: boolean) => dim ? PALETTE.muted : colorOf(k, day);
+  const out: string[] = [];
+  for (const c of b.cells) {
+    const ts = toneStyle(c.tone), fill = b.dim ? PALETTE.bg : colorOf(ts.fill, day);
+    const stroke = b.dim ? PALETTE.muted : ts.stroke === null ? colorOf(ts.fill, day) : c.tone === 'plain' ? PALETTE.muted : colorOf(ts.stroke, day);
+    // snap the edges, not the width: every gap between two cells comes out the same
+    const x0 = snap4(c.x), y0 = snap4(c.y), x1 = snap4(c.x + c.w), y1 = snap4(c.y + c.h);
+    out.push(`<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="${b.crosshair ? 0 : 8}" fill="${fill}" stroke="${stroke}" stroke-width="2"${ts.dashed && !b.dim ? ' stroke-dasharray="6,4"' : ''}/>`);
+  }
+  for (const l of b.lines) out.push(`<path d="M${snap4(l.x1)},${snap4(l.y1)} L${snap4(l.x2)},${snap4(l.y2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`); // on the snapped cell edges
+  const head = (x: number, y: number, dx: number, dy: number, color: string): string => {
+    const L = 10, W = 5, pts = [[x, y], [x - dx * L - dy * W, y - dy * L + dx * W], [x - dx * L + dy * W, y - dy * L - dx * W]];
+    return `<polygon points="${pts.map(([a, c]) => `${Math.round(a)},${Math.round(c)}`).join(' ')}" fill="${color}"/>`;
+  };
+  const shapeSvg = (shape: LaidOutQuadrant['bubbles'][number]['shape'], x: number, y: number, r: number, fill: string, stroke: string, sw: number): string => {
+    const f = `fill="${fill}" stroke="${stroke}" stroke-width="${sw}"`, n = (v: number) => Math.round(v * 10) / 10;
+    if (shape === 'circle') return `<circle cx="${n(x)}" cy="${n(y)}" r="${n(r)}" ${f}/>`;
+    if (shape === 'square') { const s = r * Math.sqrt(Math.PI) / 2; return `<polygon points="${n(x - s)},${n(y - s)} ${n(x + s)},${n(y - s)} ${n(x + s)},${n(y + s)} ${n(x - s)},${n(y + s)}" ${f}/>`; }
+    if (shape === 'diamond') { const s = r * Math.sqrt(Math.PI) / Math.SQRT2; return `<polygon points="${n(x)},${n(y - s)} ${n(x + s)},${n(y)} ${n(x)},${n(y + s)} ${n(x - s)},${n(y)}" ${f}/>`; }
+    const a = r * Math.sqrt(4 * Math.PI / Math.sqrt(3)), hh = a * Math.sqrt(3) / 2, cy = y - hh / 3 * 0; // an equilateral triangle of area pi r^2, centred on its centroid
+    return `<polygon points="${n(x)},${n(cy - hh * 2 / 3)} ${n(x + a / 2)},${n(cy + hh / 3)} ${n(x - a / 2)},${n(cy + hh / 3)}" ${f}/>`;
+  };
+  for (const a of b.arrows) {
+    out.push(`<path d="M${Math.round(a.x1)},${Math.round(a.y1)} L${Math.round(a.x2)},${Math.round(a.y2)}" fill="none" stroke="${PALETTE.text}" stroke-width="2"${a.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
+    out.push(head(a.x2, a.y2, a.tip.dx, a.tip.dy, PALETTE.text));
+  }
+  for (const c of b.chips) out.push(`<rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="4" fill="${PALETTE.bg}"/>`);
+  // a hollow marker (groups 5 to 8) is an outline drawn inside the shape's area, so it is told from the filled ones by more than colour
+  const marker = (shape: LaidOutQuadrant['bubbles'][number]['shape'], x: number, y: number, r: number, color: string, hollow: boolean | undefined): string =>
+    hollow ? shapeSvg(shape, x, y, r - 1.5, PALETTE.bg, color, 3) : shapeSvg(shape, x, y, r, color, PALETTE.bg, 1.5);
+  for (const q of b.bubbles) out.push(marker(q.shape, q.x, q.y, q.r, ink(q.tone, q.dim), q.hollow));
+  for (const m of b.marks) out.push(m.ring ? shapeSvg(m.shape, m.x, m.y, m.r, 'none', ink(m.tone, b.dim), 2) : marker(m.shape, m.x, m.y, m.r, ink(m.tone, b.dim), m.hollow));
+  for (const t of b.texts) {
+    const dim = b.dim || (t.item !== undefined && b.bubbles[t.item].dim);
+    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t.fill, dim)}">${emojiSpan(t.text)}</text>`);
   }
   return out.join('\n  ');
 }
@@ -862,6 +904,7 @@ function renderBandPlain(band: LaidOutBand, day: Theme, roles: Roles, stage?: nu
     case 'pyramid': return renderPyramid(band, roles);
     case 'curve': return renderCurve(band, day);
     case 'plane': return renderPlane(band, day, stage);
+    case 'quadrant': return renderQuadrant(band, day);
     case 'bars': return renderBars(band, day, stage, dimFill);
     case 'chart': return renderChart(band, day, emojiSpan, stage, dimFill);
     case 'image': return renderImage(band, day, stage);
@@ -880,7 +923,7 @@ function renderBandPlain(band: LaidOutBand, day: Theme, roles: Roles, stage?: nu
 }
 
 // bands that draw their own dim state (spotlight) instead of having it painted over their svg
-const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars', 'timeline', 'tree', 'states', 'cause', 'cloud', 'gantt', 'classes', 'bpmn', 'image']);
+const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', 'group', 'row', 'grid', 'bars', 'quadrant', 'timeline', 'tree', 'states', 'cause', 'cloud', 'gantt', 'classes', 'bpmn', 'image']);
 
 function renderBand(band: LaidOutBand, day: Theme, roles: Roles, stage?: number, dimFill = false): string {
   const svg = renderBandPlain(band, day, roles, stage, dimFill);

@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="844" viewBox="0 0 940 844" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">地方スーパーの 7S 診断</title>
+  <desc id="svg-desc">要素: 戦略（Strategy）、組織構造（Structure）、経営スタイル（Style）、共通の価値観（Shared Values）、制度・仕組み（Systems）、人材（Staff）、スキル（Skills）</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/canvas-seven-s.ts","sourceSha256":"45fc4543f0990da167027fc0430a012d0e9f1bc0178bf0bbc4269c6913de6704"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="844" fill="#ffffff"/>
+
+  <text x="20" y="35" font-size="15" font-weight="700" fill="#22201b">7S の現状</text>
+
+  <rect x="20" y="60" width="444" height="224" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="40" y="91" font-size="15" font-weight="700" fill="#22201b">戦略（Strategy）</text>
+  <text x="40" y="119" font-size="14" font-weight="400" fill="#22201b">・惣菜と地元産の鮮度で勝つ</text>
+  <text x="40" y="146.6" font-size="14" font-weight="400" fill="#22201b">・郊外への出店は止める</text>
+  <rect x="396" y="48" width="60" height="24" rx="12" fill="#6f6659"/>
+  <text x="423" y="65" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">ハード</text>
+
+  <rect x="476" y="60" width="444" height="224" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="496" y="91" font-size="15" font-weight="700" fill="#22201b">組織構造（Structure）</text>
+  <text x="496" y="119" font-size="14" font-weight="400" fill="#22201b">・店長に仕入れの裁量がある</text>
+  <text x="496" y="146.6" font-size="14" font-weight="400" fill="#22201b">・本部は 12 人と小さい</text>
+  <rect x="852" y="48" width="60" height="24" rx="12" fill="#6f6659"/>
+  <text x="879" y="65" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">ハード</text>
+
+  <rect x="20" y="300" width="216" height="248" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <text x="40" y="331" font-size="15" font-weight="700" fill="#22201b">経営スタイル（Style）</text>
+  <text x="40" y="359" font-size="14" font-weight="400" fill="#22201b">・社長が毎朝売り場に立つ</text>
+  <rect x="168" y="288" width="60" height="24" rx="12" fill="#6f6659"/>
+  <text x="195" y="305" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">ソフト</text>
+
+  <rect x="248" y="300" width="444" height="248" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="268" y="331" font-size="15" font-weight="700" fill="#22201b">共通の価値観（Shared Values）</text>
+  <text x="268" y="359" font-size="14" font-weight="400" fill="#22201b">・地元の食卓を守る</text>
+  <text x="268" y="386.6" font-size="14" font-weight="400" fill="#22201b">・顔の見える商売</text>
+  <rect x="636" y="288" width="44" height="24" rx="12" fill="#6f6659"/>
+  <text x="658" y="305" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">中心</text>
+
+  <rect x="704" y="300" width="216" height="248" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="724" y="331" font-size="15" font-weight="700" fill="#22201b">制度・仕組み（Systems）</text>
+  <text x="724" y="359" font-size="14" font-weight="400" fill="#22201b">・発注は店ごとの手書き</text>
+  <text x="724" y="378.6" font-size="14" font-weight="400" fill="#22201b">台帳</text>
+  <text x="724" y="406.2" font-size="14" font-weight="400" fill="#22201b">・売れ筋の集計が週 1 回</text>
+  <rect x="808" y="288" width="100" height="24" rx="12" fill="#1d5fa8"/>
+  <text x="858" y="305" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">重点・ハード</text>
+
+  <rect x="20" y="564" width="444" height="224" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <text x="40" y="595" font-size="15" font-weight="700" fill="#22201b">人材（Staff）</text>
+  <text x="40" y="623" font-size="14" font-weight="400" fill="#22201b">・パートが主力（平均勤続 9 年）</text>
+  <text x="40" y="650.6" font-size="14" font-weight="400" fill="#22201b">・若手が定着しない</text>
+  <rect x="396" y="552" width="60" height="24" rx="12" fill="#6f6659"/>
+  <text x="423" y="569" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">ソフト</text>
+
+  <rect x="476" y="564" width="444" height="224" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <text x="496" y="595" font-size="15" font-weight="700" fill="#22201b">スキル（Skills）</text>
+  <text x="496" y="623" font-size="14" font-weight="400" fill="#22201b">・鮮魚のさばき</text>
+  <text x="496" y="650.6" font-size="14" font-weight="400" fill="#22201b">・惣菜の開発</text>
+  <text x="496" y="678.2" font-size="14" font-weight="400" fill="#22201b">・データ活用は弱い</text>
+  <rect x="852" y="552" width="60" height="24" rx="12" fill="#6f6659"/>
+  <text x="879" y="569" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">ソフト</text>
+
+  <text x="20" y="818" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

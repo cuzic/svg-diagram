@@ -92,6 +92,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | controlChart(type, data, {limits, at, rules}) / xbarR(subgroups) | 管理図。`'x'｜'mr'｜'xbar'｜'r'｜'p'｜'np'｜'c'｜'u'`。中心線と 3σ の管理限界を計算し、外れた点（✕）・連と傾向（○）を赤にする（`plane` を返す） |
 | checkSheet(items, columns, {as, total, boxes}) | チェックシート。件数は「正」の字、計の行と列は自動。`counts` なし・`boxes: true` で手書き用の空の用紙（`table` を返す） |
 | matrix(rows, cols, cells, {weights, values, total}) | マトリックス図（L 型）。◎ ○ △ × の記号、重み付きの評価点と最高点の印（`table` を返す） |
+| canvas(template, content, {title, emphasis, id, h}) | 枠が決まったキャンバス。`bmc`（ビジネスモデルキャンバス）・`lean`・`vpc`・`swot`・`tows`・`errc`・`pest`（`pestle: true` で PESTLE）・`threeC`・`sevenS`・`fiveForces`・`empathy`・`persona`・`a3`。内容は領域ごとの箇条書き（`grid` を返す） |
 | affinity(groups, {cols, cardCols}) | 親和図。カードを表札付きのグループに、グループの中にグループを入れ子にできる（`group` と `row` を返す） |
 | relationDiagram(nodes, links, {problem, counts}) | 連関図。要因と因果の矢印（戻る矢印も可）。出る矢印・入る矢印の数を書き、出る矢印が最多の要因を主原因に（`causeTree` を返す） |
 | pdpc(nodes, links, {dir}) | PDPC 法。道筋（実線）と、懸念（六角形）・対策（点線）。`role`: start / step / risk / measure / goal（`causeTree` を返す） |
@@ -106,6 +107,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | tornado(items, {base, unit}) | トルネード図（感度分析）。基準値から低ケース・高ケースの棒、幅の大きい順 |
 | pyramid / curve | ピラミッド、曲線 |
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
+| quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
 | plane({x, y, points, lines, dims, labels}) | 座標平面。軸・目盛り・点・補助線・**寸法線**・ラベルを、座標の単位のまま宣言する（地図 ↔ 画像の座標変換、位置の誤差）。`yDown: true` で画像座標。ラベルが、他のラベル・軸と矢印・目盛り・点・補助線・寸法線に重なる、または図からはみ出すと検査で止まる（寸法線の文字は、その線の上に載るのが正） 。`paths: [{through: [点の id か座標…], smooth?, dashed?, tone?, arrow?, reveal?}]` で複数点を通る線を引く（実線が既定。`smooth: true` は点を必ず通る曲線で、x が増える道筋は単調な 3 次補間（値を行き過ぎない）、そうでない道筋は centripetal Catmull-Rom。`smooth` なしは折れ線。曲線が軸の外に出る・ラベルに重なると検査で止まる。`examples/plane-paths.ts`）。`grow: true` を付けた path は、段階（`reveal`）ごとに、出ている点までの曲線を同じ形のまま伸ばす（`examples/plane-grow.ts`）。点のラベルは `labelAt` を書かなければ右に置き、線や他のラベルと重なるときは空いている側（左・上・下・斜め）へ自動で移る。`labelAt` で側を書くとそのまま、`labelOffset: [dx, dy]` で位置をずらせる |
 
 `wf.*`: col / row / card / spacer、text / btn / input / select / chip / tabs / appbar / seek、kv / stat / list / table / alert、map / video / heat / pointcloud / chart / image。
@@ -313,6 +315,84 @@ matrix(['A 案', 'B 案'], ['コスト', '速さ'], [['○', '◎'], ['◎', '�
 - **`pdpc`** も `causeTree` で、既定は上から下（`dir: 'right'` は、道筋が短いときだけ。幅を超えると止まる）。懸念（`risk`）・対策（`measure`）に出入りする矢印は、書かなくても点線になる（`line` で上書き）。
 - **`arrowDiagram`**: 作業は `{from, to, name, days}`（結合点は番号か文字）、`dummy: true` は時間のない順序だけの矢印（点線）。始まりの結合点と終わりの結合点は、それぞれ 1 つ（行き止まりはダミーで終点につなぐ）。丸の中は「番号 / 最早/最遅」、余裕のある作業の札には「（余裕 n）」が付き、図の下に全体の長さとクリティカルパスが出る（`summary: false` で消す）。`times: false` で時刻と余裕を消す。横に並べて幅（940px）を超えるときは `dir: 'down'`。矢印の色・太さ（`tone` / `strong`）と丸い節（`shape: 'circle'`）は `stateDiagram` でも使える。
 - 計算だけ取り出したいときは、`lib/qc.ts`（`paretoOrder` / `histogramBins` / `capability`（全体の標準偏差から出す Cp・Cpk。群内のばらつきで出す工程能力ではなく、Pp・Ppk に当たる）/ `criticalPath`）と `lib/qc-plane.ts`（`controlStats` / `controlSignals` / `correlation`）が純粋な関数。
+
+### 象限図・分類マトリクス（`quadrant`）
+
+2 本の軸でマスに分ける図（BCG・GE・アンゾフ・人材 9 ボックス・リスクマトリクス・ポジショニングマップ ...）。マスの見出し・軸・項目の置き場所を宣言すると、配置・重ならない調整・凡例は自動。
+
+```ts
+quadrant.preset('bcg', {
+  sizeTitle: '売上高', sizeUnit: '億円',
+  items: [
+    {id: 'cloud', label: 'クラウド', at: [0.85, 0.82], size: 120},   // 座標で置く（0〜1。1 が高い側）
+    {label: 'パッケージ', at: [0.82, 0.25], size: 300},
+    {label: 'AI 新規', cell: [1, 0], size: 40},                       // マスに入れる（[列, 行]。左上が [0, 0]）
+  ],
+  arrows: [{from: 'cloud', to: [0.5, 0.9], label: '来期'}],
+})
+quadrant({x: {title: '価格', low: '安い', high: '高い'}, y: {title: '携帯性', low: '重い', high: '軽い'}, crosshair: true, items: [...]})
+```
+
+| プリセット | 軸（x × y） | マスの見出し |
+|---|---|---|
+| `bcg` | 相対市場シェア（高→低）× 市場成長率 | 花形・問題児・金のなる木・負け犬 |
+| `ge` | 事業の競争力（強→弱）× 業界の魅力度。3×3 | 投資・成長 / 選別的投資 / 収穫・撤退 |
+| `ansoff` | 製品（既存・新規）× 市場（既存・新規） | 市場浸透・新製品開発・新市場開拓・多角化 |
+| `nineBox` | 業績 × 潜在能力（右上がスター）。3×3 | スター・中核人材・専門人材・有望株・堅実人材・貢献人材・原石・要改善・要対応 |
+| `impactEffort` | 実行容易性 × インパクト | クイックウィン・大型案件・ついでに・後回し |
+| `risk` | 影響度 × 発生可能性。3×3 | 「リスク 低｜中｜高｜重大」（発生と影響の積。評価は文字で書く） |
+| `stakeholder` | 関心度 × 影響力 | 重点管理・満足させる・情報提供・監視 |
+| `positioning` | 自由（価格 × 機能の充実度が既定）。マスの名前なし、十字線 | |
+| `eisenhower` | 緊急度（高→低）× 重要度 | 今すぐやる・計画してやる・任せる・やめる |
+
+- **プリセットは上書きできる**: `x` / `y`（書いた項目だけ置き換わる）、`cells`（書いたマスだけ置き換わる）、`grid`。`grid` がプリセットと違うと、プリセットの見出しは使わない。`preset:` を `quadrant({preset})` の option として書いても同じ。
+- **項目の置き方**: `cell: [列, 行]` はマスの中に重ならず並べる（置ききれなければ行が伸びる）。`at: [x, y]` は座標（0〜1、**値の空間**で 1 が高い側。軸を逆向きに描いても数字は変わらない）で、マスの見出しを避けて、そのマスの中に置く。ちょうど境目の値は、高い側のマスに入る。
+- **重ならない**: 項目と項目、項目と他のラベル・マスの見出し・矢印は重ならない。項目の印とラベルは自分のマスの枠の中に収まる（枠をまたぐと別のマスに見える）。`cell` の項目が多いと、その行が伸びる。座標が近い項目は、同じマスの中で最も近い空きへ動く（動かせないほど混むと、行の高さ（`height` は最小値）を伸ばす。それでも置けなければ、どの項目か書いて throw）。座標から 16px 以上動いた項目は `quadrant-item-moved`（警告）で知らせる。
+- **大きさ**: `size` を書くと円の**面積**が値に比例する。1 つに書いたら全部の項目に書く（書かない項目は小さな値に見えるので throw）。図の下に「円の面積 = {sizeTitle}」と基準の円（切りのよい値、`sizeUnit` 付き）が付く。最大の 1/50 ほどより小さい値は最小の円（半径 6px）で描き、`quadrant-size-floor`（警告）で知らせる（面積が値より大きく見える）。
+- **色だけにしない**: マスの評価は常に見出し・説明の文字で書く（色・破線は補助）。項目の種類は `group` で分ける（円・四角・ひし形・三角と色の組み合わせ、5 つ目からは中抜きの形。凡例付き。8 グループまで）。1 つに書いたら全部の項目に書く（書かない項目は 1 つ目のグループと同じ印に見えるので throw）。`tone` だけで分けると `quadrant-tone-only`（警告）。凡例の順は `groups: [...]`。
+- **矢印**（ポートフォリオの移動）: `arrows: [{from: 項目の id｜[x, y], to: 同左, label?, dashed?}]`。円の縁から縁へ引き、ラベルは線上の白い札。矢印が項目やラベルを横切ると検査で止まる。
+- **id**: 項目の `id` は `connect()` と spotlight の対象（図全体の `id` も）。段階表示は図ごと（項目単位の reveal はない）。
+- **幅**: x 軸の名前（低・タイトル・高）が 1 行で入らない、1 マスが 90px 未満（列が多すぎる）、1 つのラベルがマスより広いときは throw。
+- 例: `examples/quadrant-bcg.ts` / `-ge` / `-ansoff` / `-nine-box` / `-impact-effort` / `-risk` / `-stakeholder` / `-positioning` / `-eisenhower`。
+
+### 枠が決まったキャンバス（`canvas`）
+
+ビジネスモデルキャンバスや SWOT のように、領域の位置と名前が決まっている図。テンプレート名と、領域ごとの内容（短い文の配列）を渡す。領域の位置・大きさ・見出し（日本語）は自動で、文が多い領域は伸びる（行は一番高い領域に揃う）。
+
+```ts
+canvas('swot', {
+  strengths: ['地域の学校との取引', '目利きのいる選書'],
+  weaknesses: ['在庫管理が人頼み'],
+  opportunities: ['読書イベントの需要'],
+  threats: ['大手ネット書店の値引き'],
+}, {title: '現状分析', stamp: '架空の例', id: 'sw'})
+```
+
+| テンプレート | 領域の id | 配置 |
+|---|---|---|
+| `bmc` | `partners` `activities` `resources` `value` `relationships` `channels` `segments` `cost` `revenue` | Strategyzer の配置（5 列、下に 2 つ） |
+| `lean` | `problem` `solution` `metrics` `uvp` `unfair` `channels` `segments` `cost` `revenue` | リーンキャンバス（`bmc` と同じ形） |
+| `vpc` | `gainCreators` `products` `painRelievers`（価値側）／`gains` `jobs` `pains`（顧客側） | 左が価値提案、右が顧客。同じ高さが対応 |
+| `swot` | `strengths` `weaknesses` `opportunities` `threats` | 2 × 2。タグに「内部／外部・プラス／マイナス」 |
+| `tows` | `so` `wo` `st` `wt`（と、任意で `strengths` `weaknesses` `opportunities` `threats`） | 左と上が SWOT の見出し、中が 4 つの戦略 |
+| `errc` | `eliminate` `raise` `reduce` `create` | 2 × 2（見出しに － ▲ ▼ ＋） |
+| `pest` | `political` `economic` `social` `technological`（`legal` `environmental`） | `pestle: true`、または `legal` / `environmental` を書くと 6 領域 |
+| `threeC` | `customer` `competitor` `company`（任意で `insight`） | 3 列、下に示唆 |
+| `sevenS` | `strategy` `structure` `systems` `style` `staff` `skills` `values` | 中央に共通の価値観、まわりに 6 つ。ハード／ソフトはタグ |
+| `fiveForces` | `newEntrants` `suppliers` `rivalry` `buyers` `substitutes` | 十字。中央が業界内の競争。見出しの ▼ ▶ ◀ ▲ が中央へ向かう力 |
+| `empathy` | `thinks` `says` `does` `feels` `pains` `gains`（任意で `person`） | 中央に対象、上下左右に 4 つ、下にペインとゲイン |
+| `persona` | `profile` `quote` `goals` `frustrations` `behaviors` `needs` | プロフィールと 5 つの欄 |
+| `a3` | `background` `current` `goal` `cause` / `countermeasures` `plan` `followup` | 左に現状把握、右に対策と計画 |
+
+- 内容は文字列（1 文）か文字列の配列（箇条書き。先頭の `・` や、後ろに空白のある `- ` `* ` は 1 つの `・` に揃う。`-5%` のように空白のない `-` は文の一部として残る）。テンプレートにない id は型エラーで、実行時にも有効な id の一覧つきで止まる。
+- オプション: `title`（上の見出し）、`titles`（領域の見出しの差し替え）、`tone`（領域ごとのトーン）、`emphasis`（重点の領域。アクセント色に「重点」のタグが付き、色だけに頼らない）、`stamp`、`h`（領域部分の最小の高さ。`title` の見出しは含まない。内容が収まらないと、必要な高さを示して止まる。省略すると内容に合わせて伸びる）、`gap`（4px 単位に丸める。領域の縁は 4px の格子に乗り、隙間はどこも同じ幅。2 行目以降の領域にタグがあるときは、上下の隙間を 16px 以上とってタグが上の領域に重ならないようにする）、`requireAll`、`reveal`（領域ごとの段階）、`id`。
+- 幅は `diagram({width})` で決まる。領域の幅が 96px 未満になる幅・`gap` は、狭すぎる領域の名前を示して止まる。空白で区切れない長い語（URL など）が領域より広いときも、その語と領域を示して止まる（箱からはみ出させない）。
+- `diagram({canvas: 'slide'})` では、テンプレートの縦横比よりスライドの高さ（720px）を優先する（内容が多いときだけ伸び、`slide-canvas-overflow` になる）。
+- `id: 'bmc'` を付けると、各領域が `bmc-value` のようなアンカーになる（`connect('bmc-value:right', ...)`、`diagram({spotlight})`、`reveal` がそのまま効く。型でも `bmc-` の後ろは領域の id だけ通る）。
+- `requireAll: true` のとき、内容のない領域は `canvas-region-empty`（警告）。任意の領域（`person` / `insight` ほか）は数えない。
+- 各領域は `box` なので、はみ出し・コントラスト・密度などの検査は他の部品と同じ。`tone` を自分で選んだ領域は、`legend` が必要（タグで言葉にした既定のトーンは要らない）。
+- 例: `examples/canvas-bmc.ts` / `canvas-swot.ts` / `canvas-vpc.ts` / `canvas-seven-s.ts` / `canvas-five-forces.ts` / `canvas-empathy.ts`。
+- 対象外: 領域どうしをつなぐ矢印（5 フォースの矢印、VPC の対応線）は描かない（見出しの記号と並びで示す。必要なら `connect` で足す）。7S の六角形・円形の枠は四角で描く。
 
 ### ガントチャート（`gantt`）
 
@@ -684,6 +764,7 @@ versus(
 | `bars` の各棒 | データの `reveal`（消すのは `until`、置き換えは `replaces`。下記） |
 | `image` の印・文字・重ねた部品 | 各 `marks` / `labels` の `reveal` / `until`（絵の band の値との**遅い方**の reveal、早い方の until。絵より先には出ない） |
 | `versus` の左・右・共通部 | 各 part の `reveal`（枠と中身。共通部への矢印は両端の大きい方） |
+| `quadrant` の band | opts の `reveal` / `until`（項目・矢印は図と一緒。項目単位の reveal はない。項目の id は図の段階で `connect` に出る） |
 | `plane` の `points` / `lines` / `paths` / `dims` / `labels` | 要素の `reveal`（点のラベルは点と一緒）。未指定は plane 自身と、`id` で指した点の大きい方（座標で指した端点は 0）。端点より早い明示は警告 |
 | `connect` / `branch` | `reveal`（未指定は両端の大きい方） |
 | **受けない** | `legend` / `spacer` / `raw` / `pyramid` / `curve` / `wireframe` / `screens` / `stateMatrix` / `row` / `grid` / `iconRow` の opts。`reveal` を渡すと構築時に throw する |
@@ -734,7 +815,7 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 ## check のルール（lib/rules.ts）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
 `a11y-no-title`、`source-wraps`（出典行が折り返している）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、
-`image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`one-story`、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
+`image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
 `lint-svg`（描画後の検査: コントラスト・キャンバスのはみ出し・文字の重なり・枠からのはみ出し・図形が文字に被る）は、SVG の幾何と文字の箱（レイアウトと同じフォントファイル）から調べる。`--engine browser` は同じ検査を実ブラウザで行う（`test/svg-lint-browser.test.ts` が両方を同じ SVG に当てて比べる。丸めの境界で 1px 違うことと、回転したグループの中のコントラストの比べ方（ブラウザ版は文字と図形を別々の座標系で比べていた）だけが違う）。
 描画後の検査は、**後から描かれた図形が文字を覆う、または線が文字を貫く**ものも報告する（意図した重なりは、図形に `data-allow-cover`）。
 残す警告は `diagram({accept: {'rule-id': '理由'}})`。`theme:` の図（文書向け）だけが対象で、`day:` の図（スライド）は従来どおり。

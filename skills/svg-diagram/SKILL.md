@@ -76,6 +76,18 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 - BPMN は標準の一部だけ（サブプロセス、タイマー・メッセージのイベント、プール、データは対象外）。start に入るフロー・end から出るフローは書けない。
 - 描いたら `svg-diagram preview` で必ず目で見る（配置は検査を通っても、読みやすさは見ないと分からない）。
 
+## 枠が決まったキャンバス（canvas）
+
+ビジネスモデルキャンバス・SWOT・7S などは `canvas(template, content, opts)`。領域の位置・見出し（日本語）は自動、内容は領域 id ごとの文字列の配列。
+
+| 部品 | 書き方 | 備考 |
+|---|---|---|
+| canvas | `canvas('bmc', {value: ['…'], segments: ['…']}, {title, emphasis, id})` | template: `bmc` `lean` `vpc` `swot` `tows` `errc` `pest` `threeC` `sevenS` `fiveForces` `empathy` `persona` `a3`。領域の id は README の表 |
+
+- 間違った領域 id は型エラー（実行時は有効な id を列挙して止まる）。`titles` で見出しを差し替え、`emphasis: ['value']` で重点（「重点」タグ付き）、`h` で最小の高さ、`requireAll: true` で未記入を `canvas-region-empty` に、`pestle: true` で PESTLE。
+- `id: 'c'` で各領域が `c-<領域>` のアンカーになり、`connect` / `spotlight` / `reveal` が効く。矢印は描かない（必要なら `connect`）。
+- 書き方の全部は README の「枠が決まったキャンバス」。例: `examples/canvas-*.ts`。
+
 ## QC 七つ道具・新 QC 七つ道具
 
 データや関係を渡す。軸・区間・限界・配置・計算は自動。書き方の全部は README の「QC 七つ道具と新 QC 七つ道具」。
@@ -99,6 +111,22 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 - `pareto` / `histogram` / `scatter` / `controlChart` は、`bars` / `plane` を返すので、`labelRole` や `id`、spotlight、段階表示がそのまま効く。`checkSheet` / `matrix` は `table`。
 - 管理図は、外れた点を含めて限界を計算する。安定した期間の限界で見たいときは `limits: {cl, ucl, lcl}` を渡す。
 - アロー・ダイヤグラムは、始まりの結合点と終わりの結合点が 1 つずつでないと止まる。幅（940px）を超えるときは `{dir: 'down'}`。
+
+## 象限図・分類マトリクス
+
+2 軸のマス分け（BCG・GE・アンゾフ・人材 9 ボックス・リスクマトリクス・ポジショニングマップ・影響力×関心度）は `quadrant`。軸・マスの見出し・項目の置き場所を書く。配置と重ならない調整は自動。書き方の全部は README の「象限図・分類マトリクス」。
+
+| 書くもの | 書き方 |
+|---|---|
+| 型から始める | `quadrant.preset('bcg' \| 'ge' \| 'ansoff' \| 'nineBox' \| 'impactEffort' \| 'risk' \| 'stakeholder' \| 'positioning' \| 'eisenhower', {items})`。軸・見出し・色は日本語で入る。書いたものだけ上書き |
+| 自分で作る | `quadrant({x: {title, low, high, reversed?}, y: {...}, grid: [列, 行], cells: [[{title, note, tone}, ...], ...], items})`。`cells[行][列]` は見た目の順（上から） |
+| 項目 | `{label, cell: [列, 行]}`（マスの中に自動で並ぶ）か `{label, at: [x, y]}`（0〜1、1 が高い側。軸を逆向きにしても数字は同じ）。`size`（円の面積）、`group`（形・色・凡例）、`id`（connect / spotlight）。`size` と `group` は、1 つに書いたら全部の項目に書く |
+| 矢印 | `arrows: [{from: id, to: id｜[x, y], label?}]`（ポートフォリオの移動） |
+
+- 評価は色だけにしない。マスの見出し・説明を文字で書き、項目の種類は `tone` ではなく `group` で分ける（`quadrant-tone-only`）。
+- 項目は重ならず、混めば行が伸びる。座標から大きく動いた項目は `quadrant-item-moved` が知らせるので、座標か図の大きさを見直す。矢印が項目やラベルを横切るときは項目の位置を替える。
+- 座標は値の空間（BCG のように x を高い→低い向きに描いても、シェアが高ければ x は 1 に近い）。マスの境目（0.5 など）の項目は、高い側のマスに入る。
+- 描いたら `svg-diagram preview` で見る。例は `examples/quadrant-*.ts`。
 
 ## くり返しは、まとめて書く
 

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="426" viewBox="0 0 940 426" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">成長戦略（アンゾフ）</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/quadrant-ansoff.ts","sourceSha256":"75678ce66dc8c10d6cd8bd69b0657cdff9134690ce83ffa348bfd6a9ece30243"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="426" fill="#ffffff"/>
+
+  <rect x="72" y="28" width="416" height="172" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
+  <rect x="496" y="28" width="416" height="172" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2"/>
+  <rect x="72" y="204" width="416" height="172" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2"/>
+  <rect x="496" y="204" width="416" height="172" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4"/>
+  <circle cx="164" cy="128" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="288" cy="128" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="404" cy="128" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="636" cy="128" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="752" cy="128" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="232" cy="304" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="348" cy="304" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="704" cy="304" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <text x="82" y="51" font-size="15" font-weight="700" fill="#1d5fa8">市場浸透</text>
+  <text x="82" y="70" font-size="14" fill="#6f6659">既存の市場に既存の製品で攻める</text>
+  <text x="505" y="51" font-size="15" font-weight="700" fill="#22201b">新製品開発</text>
+  <text x="505" y="70" font-size="14" fill="#6f6659">既存の市場に新製品を出す</text>
+  <text x="82" y="227" font-size="15" font-weight="700" fill="#22201b">新市場開拓</text>
+  <text x="82" y="246" font-size="14" fill="#6f6659">既存の製品を新しい市場へ</text>
+  <text x="505" y="227" font-size="15" font-weight="700" fill="#b91c1c">多角化</text>
+  <text x="505" y="246" font-size="14" fill="#6f6659">新製品を新しい市場へ（最も高リスク）</text>
+  <text x="164" y="154" text-anchor="middle" font-size="14" fill="#22201b">既存客への増量パック</text>
+  <text x="288" y="154" text-anchor="middle" font-size="14" fill="#22201b">販売店の拡大</text>
+  <text x="404" y="154" text-anchor="middle" font-size="14" fill="#22201b">値引きキャンペーン</text>
+  <text x="636" y="154" text-anchor="middle" font-size="14" fill="#22201b">無糖シリーズ</text>
+  <text x="752" y="154" text-anchor="middle" font-size="14" fill="#22201b">機能性表示の新商品</text>
+  <text x="232" y="330" text-anchor="middle" font-size="14" fill="#22201b">海外の日系スーパー</text>
+  <text x="348" y="330" text-anchor="middle" font-size="14" fill="#22201b">業務用ルート</text>
+  <text x="704" y="330" text-anchor="middle" font-size="14" fill="#22201b">健康食品への参入</text>
+  <text x="62" y="46" text-anchor="end" font-size="14" fill="#6f6659">既存</text>
+  <text x="62" y="368" text-anchor="end" font-size="14" fill="#6f6659">新規</text>
+  <text x="62" y="206" text-anchor="end" font-size="15" font-weight="700" fill="#22201b">市場</text>
+  <text x="72" y="398" font-size="14" fill="#6f6659">既存</text>
+  <text x="912" y="398" text-anchor="end" font-size="14" fill="#6f6659">新規</text>
+  <text x="492" y="398" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">製品</text>
+</svg>

@@ -20,6 +20,7 @@ import type {ChartBand, LaidOutChart} from './charts.ts';
 import type {ConnectInput, DeclaredIds, RefIn, ValidateBands} from './strict.ts';
 import type {RULE_DOCS, DEFAULT_LEGEND_LABELS} from './rules.ts';
 import type {RICH} from './rich.ts';
+import type {LaidOutQuadrant, QuadrantBand} from './quadrant.ts';
 
 // ============================================================================================
 // Tokens, tones, lines
@@ -510,11 +511,30 @@ export interface GridOpts {
   cols: number;
   gap?: number;
 }
+/** What makes a grid a canvas() (lib/canvas.ts): where each child sits, and how the template's columns and rows share the space. */
+export interface CanvasLayout {
+  template: string;
+  /** One per child: the column / row it starts in and the columns / rows it spans. */
+  place: {col: number; row: number; cs: number; rs: number}[];
+  colW: number[];
+  rowW: number[];
+  /** Least height / width of the canvas. */
+  aspect: number;
+  /** The least height (px) the user asked for: more content than fits throws. */
+  h?: number;
+  title?: string;
+  /** One per child: its tone (if any) is said in words by its pill, so it needs no legend entry. */
+  worded: boolean[];
+  /** Regions without content, and whether the author wanted every one filled (rule canvas-region-empty). */
+  empty: string[];
+  requireAll: boolean;
+}
 export interface GridBand {
   type: 'grid';
   children: BoxBand[];
   cols: number;
   gap: number;
+  canvas?: CanvasLayout;
 }
 
 export interface ConnectOpts extends RevealOpts {
@@ -1605,7 +1625,7 @@ export interface ScreensBand extends ScreensOpts {
 export type Band =
   | ChartBand
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | ImageBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | ImageBand | QuadrantBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -2390,7 +2410,7 @@ export interface LaidOutBpmn extends Rect, Dimmed {
 export type LaidOutBand = (
   | LaidOutChart
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutCause | LaidOutCloud | LaidOutGantt | LaidOutClasses | LaidOutBpmn | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutQuadrant | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutCause | LaidOutCloud | LaidOutGantt | LaidOutClasses | LaidOutBpmn | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */

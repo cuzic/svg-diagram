@@ -76,7 +76,7 @@ function targetRects(d: LaidOutDiagram, ids: string[]): Rect[] {
       for (const c of b.children) if (c.id && ids.includes(c.id)) out.push(c);
     } else if (b.type === 'grid') {
       for (const c of b.children) if (c.id && ids.includes(c.id)) out.push(c);
-    } else if (b.type === 'bars' || b.type === 'image') {
+    } else if (b.type === 'bars' || b.type === 'image' || b.type === 'quadrant') {
       for (const a of b.anchors) if (ids.includes(a.id)) out.push(a);
     }
   };
@@ -110,6 +110,12 @@ function dimBand(b: LaidOutBand, focus: Rect[]): void {
     b.plates.forEach(p => { p.dim = p.mark === undefined ? true : !lit[p.mark]; });
     const holes = b.marks.filter((_m, i) => lit[i]).map(({x, y, w, h}) => ({x, y, w, h}));
     if (holes.length) b.holes = holes; else b.dim = true;
+  } else if (b.type === 'quadrant') {
+    // the whole figure focused: nothing dims. Otherwise a focused item stays lit and the rest dim (cells and axes with them, unless an item is lit)
+    if (focus.some(r => inside(b, r))) return;
+    b.anchors.forEach(a => { const q = b.bubbles.find(v => v.id === a.id); if (q) q.dim = !focus.some(r => inside(a, r)); });
+    for (const q of b.bubbles) if (q.dim === undefined) q.dim = true;
+    b.dim = b.bubbles.every(q => q.dim);
   } else if (b.type === 'row' || b.type === 'grid') {
     for (const c of b.children) c.dim = !focus.some(r => inside(c, r));
     b.dim = b.children.every(c => c.dim);
@@ -136,7 +142,7 @@ export function applySpotlight(d: LaidOutDiagram): void {
       if ('id' in b && 'h' in b && b.id === id) return b;
       if (b.type === 'chart') { const a = b.anchors.find(x => x.id === id); if (a) return a; }
       if (b.type === 'row' || b.type === 'grid') { const c = b.children.find(x => x.id === id); if (c) return c; }
-      if (b.type === 'bars' || b.type === 'image') { const a = b.anchors.find(x => x.id === id); if (a) return a; }
+      if (b.type === 'bars' || b.type === 'image' || b.type === 'quadrant') { const a = b.anchors.find(x => x.id === id); if (a) return a; }
     }
     return undefined;
   };
