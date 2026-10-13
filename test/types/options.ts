@@ -108,7 +108,7 @@ export function optionCases(): void {
   grid([box({title: 'a'})]);
   // @ts-expect-error cols missing
   grid([box({title: 'a'})], {gap: 8});
-  // @ts-expect-error row children are box() bands, not captions
+  // a caption is wrapped in a frameless group
   row([caption('x')]);
 
   // ---- pyramid(): at least 2 layers; curve(): at least 2 points with a numeric y ----
