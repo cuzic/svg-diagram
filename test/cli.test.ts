@@ -285,7 +285,13 @@ test('typecheck works with this tool run globally: a tsc on PATH, `svg-diagram` 
   fs.mkdirSync(wrap);
   fs.writeFileSync(path.join(wrap, 'tsc'), `#!/bin/sh\nexec "${tscBin}" "$@"\n`, {mode: 0o755});
   const env = {...process.env, PATH: `${wrap}${path.delimiter}${process.env.PATH}`};
-  fs.writeFileSync(path.join(dir, 'diagrams', 'a.ts'), src('console.log(process.argv.length);\n'));
+  // the project's own type packages stay visible next to the tool's @types/node, and the `svg-diagram/render` entry resolves too
+  fs.mkdirSync(path.join(dir, 'node_modules', '@types', 'foo'), {recursive: true});
+  fs.writeFileSync(path.join(dir, 'node_modules', '@types', 'foo', 'index.d.ts'), 'declare const FOO: number;\n');
+  const tsconfig = JSON.parse(fs.readFileSync(path.join(dir, 'tsconfig.json'), 'utf8'));
+  tsconfig.compilerOptions.types = ['foo', 'node'];
+  fs.writeFileSync(path.join(dir, 'tsconfig.json'), JSON.stringify(tsconfig));
+  fs.writeFileSync(path.join(dir, 'diagrams', 'a.ts'), src("import {renderSource} from 'svg-diagram/render';\nconsole.log(process.argv.length + FOO, typeof renderSource);\n"));
   const ok = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8', env});
   assert.equal(ok.status, 0, out(ok));
   assert.equal(fs.existsSync(path.join(dir, '.svg-diagram-tsconfig.json')), false); // the temporary config is removed

@@ -31,31 +31,44 @@ else {
 // This tool's own copies: the .ts sources in a clone, dist/ in a package.
 const here = import.meta.dirname;
 const root = fs.existsSync(path.join(here, 'lib', 'dsl.ts')) ? here : path.dirname(here);
-const dsl = [path.join(root, 'dist', 'lib', 'dsl.d.ts'), path.join(root, 'lib', 'dsl.ts')].find(f => fs.existsSync(f));
+const own = (f: string) => [path.join(root, 'dist', 'lib', `${f}.d.ts`), path.join(root, 'lib', `${f}.ts`)].find(x => fs.existsSync(x));
 const paths: Record<string, string[]> = {};
-if (dsl && !resolves('svg-diagram')) paths['svg-diagram'] = [dsl];
+for (const [spec, f] of [['svg-diagram', 'dsl'], ['svg-diagram/render', 'render-source']]) {
+  const file = own(f);
+  if (file && !resolves(spec)) paths[spec] = [file];
+}
 const typeRoots: string[] = [];
 if (!resolves('@types/node/package.json')) {
   // @types/node of this tool (a dependency of a clone; absent from a package): next to it, or in a pnpm store layout
-  const own = createRequire(path.join(root, 'package.json')).resolve.bind(null);
-  try { typeRoots.push(path.dirname(path.dirname(own('@types/node/package.json')))); } catch { /* not available either: tsc says so */ }
+  try { typeRoots.push(path.dirname(path.dirname(createRequire(path.join(root, 'package.json')).resolve('@types/node/package.json')))); } catch { /* not available either: tsc says so */ }
 }
 
 let config = '.';
 let temp: string | null = null;
 if (Object.keys(paths).length || typeRoots.length) {
   temp = path.resolve('.svg-diagram-tsconfig.json');
+  // The project's own options, to keep what the temporary config would otherwise replace (`paths` and `typeRoots` replace, not merge).
+  // A tsconfig with block comments or trailing commas is not read: its `paths` / `typeRoots` are then not kept.
+  let project: {baseUrl?: string; paths?: Record<string, string[]>; typeRoots?: string[]} = {};
+  try { project = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8').replace(/^\s*\/\/.*$/gm, '')).compilerOptions ?? {}; } catch { /* see above */ }
   const compilerOptions: Record<string, unknown> = {};
-  // `paths` replaces (not merges) the project's, and is relative to the config that sets it: keep the project's entries, made absolute
   if (Object.keys(paths).length) {
-    let own: Record<string, string[]> = {};
-    try { own = (JSON.parse(fs.readFileSync('tsconfig.json', 'utf8').replace(/^\s*\/\/.*$/gm, '')).compilerOptions?.paths) ?? {}; } catch { /* a tsconfig with comments or trailing commas: its paths are not kept */ }
-    compilerOptions.paths = {...Object.fromEntries(Object.entries(own).map(([k, v]) => [k, v.map(p => path.resolve(p))])), ...paths};
+    // the project's entries are relative to its baseUrl (else to its tsconfig): made absolute so they keep pointing at the same files
+    const base = path.resolve(project.baseUrl ?? '.');
+    compilerOptions.paths = {...Object.fromEntries(Object.entries(project.paths ?? {}).map(([k, v]) => [k, v.map(p => path.resolve(base, p))])), ...paths};
   }
-  if (typeRoots.length) compilerOptions.typeRoots = typeRoots;
+  if (typeRoots.length) {
+    // the project's other type packages stay visible: its own typeRoots, or the default node_modules/@types
+    const mine = project.typeRoots?.map(t => path.resolve(t)) ?? [path.resolve('node_modules', '@types')].filter(t => fs.existsSync(t));
+    compilerOptions.typeRoots = [...mine, ...typeRoots];
+  }
   fs.writeFileSync(temp, JSON.stringify({extends: './tsconfig.json', compilerOptions}));
   config = temp;
 }
-const r = spawnSync(tsc.cmd, [...tsc.args, '-p', config, '--noEmit', ...process.argv.slice(2)], {stdio: 'inherit'});
+// Ctrl-C reaches tsc too; this process waits for it and still removes the temporary config instead of dying first
+if (temp) process.on('SIGINT', () => {});
+// a `tsc.cmd` on Windows only starts through the shell (quoted: it may sit under "Program Files")
+const shell = process.platform === 'win32' && !tsc.args.length;
+const r = spawnSync(shell ? `"${tsc.cmd}"` : tsc.cmd, [...tsc.args, '-p', config, '--noEmit', ...process.argv.slice(2)], {stdio: 'inherit', shell});
 if (temp) fs.rmSync(temp, {force: true});
 process.exit(r.status ?? 1);
