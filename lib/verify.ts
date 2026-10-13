@@ -61,6 +61,8 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
       rects.push({id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id), ...(band.backdrop ? {backdrop: true} : {})});
     } else if (band.type === 'bars') {
       for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})});
+    } else if (band.type === 'quadrant') { // each item with an id is its own rect: a connector from outside must not run through one
+      for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'bpmn') { // each node is its own rect: a connector from outside must not run through one
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'classes') { // each class is its own rect: a connector from outside must not run through one
@@ -362,6 +364,40 @@ function checkNoWrap(d: LaidOutDiagram): string[] {
   return problems;
 }
 
+// quadrant(): items keep clear of each other, of every label and of the arrows; every label stays inside the figure.
+function checkQuadrants(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  const nearRect = (cx: number, cy: number, r: number, b: Rect): boolean => Math.hypot(cx - Math.max(b.x, Math.min(cx, b.x + b.w)), cy - Math.max(b.y, Math.min(cy, b.y + b.h))) < r - 0.5;
+  for (const band of d.laidOut) {
+    if (band.type !== 'quadrant') continue;
+    const fig = {x: band.x, y: band.y, w: band.w, h: band.h}, boxes = band.labelBoxes, bs = band.bubbles;
+    for (const b of boxes) {
+      const lim = b.kind === 'item' ? band.plot : fig;
+      if (b.x < lim.x - 0.5 || b.x + b.w > lim.x + lim.w + 0.5 || b.y < lim.y - 0.5 || b.y + b.h > lim.y + lim.h + 0.5) problems.push(`quadrant: label "${b.label}" runs outside the ${b.kind === 'item' ? 'plot' : 'figure'} (shorten it or widen the figure)`);
+    }
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const o = rectOverlap(boxes[i], boxes[j]);
+      if (o) problems.push(`quadrant: label "${boxes[i].label}" overlaps label "${boxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
+    }
+    // an item (its mark and its label) stays inside its own cell: one on a border reads as the other cell's
+    const within = (r: Rect, c: Rect) => r.x >= c.x - 0.5 && r.y >= c.y - 0.5 && r.x + r.w <= c.x + c.w + 0.5 && r.y + r.h <= c.y + c.h + 0.5;
+    bs.forEach(q => { if (!within({x: q.x - q.cr, y: q.y - q.cr, w: 2 * q.cr, h: 2 * q.cr}, band.cells[q.cell])) problems.push(`quadrant: item "${q.label}" crosses the border of its cell`); });
+    for (const b of boxes) if (b.kind === 'item' && b.item !== undefined && !within(b, band.cells[bs[b.item].cell])) problems.push(`quadrant: the label of "${b.label}" runs out of its cell`);
+    bs.forEach((q, i) => {
+      for (let j = i + 1; j < bs.length; j++) if (Math.hypot(q.x - bs[j].x, q.y - bs[j].y) < q.cr + bs[j].cr - 1) problems.push(`quadrant: item "${q.label}" overlaps item "${bs[j].label}" (move one, or give the cell more room)`);
+      for (const b of boxes) if (nearRect(q.x, q.y, q.cr, b)) problems.push(`quadrant: item "${q.label}" sits on the label "${b.label}"`);
+      if (q.x - q.cr < band.plot.x - 0.5 || q.x + q.cr > band.plot.x + band.plot.w + 0.5 || q.y - q.cr < band.plot.y - 0.5 || q.y + q.cr > band.plot.y + band.plot.h + 0.5) problems.push(`quadrant: item "${q.label}" runs outside the plot`);
+    });
+    band.arrows.forEach((a, k) => {
+      const n = Math.max(1, Math.ceil(Math.hypot(a.x2 - a.x1, a.y2 - a.y1) / 3));
+      const on = (r: Rect) => Array.from({length: n + 1}, (_v, s) => ({x: a.x1 + (a.x2 - a.x1) * s / n, y: a.y1 + (a.y2 - a.y1) * s / n})).some(p => p.x >= r.x - 1 && p.x <= r.x + r.w + 1 && p.y >= r.y - 1 && p.y <= r.y + r.h + 1);
+      for (const b of boxes) if (b.kind !== 'arrow' && !(b.kind === 'axis') && on(b)) problems.push(`quadrant: arrow ${k + 1} runs through the label "${b.label}" (move an item, or a label's cell)`);
+      for (const q of bs) if (Array.from({length: n + 1}, (_v, s) => ({x: a.x1 + (a.x2 - a.x1) * s / n, y: a.y1 + (a.y2 - a.y1) * s / n})).some(p => Math.hypot(p.x - q.x, p.y - q.y) < q.cr - 1)) problems.push(`quadrant: arrow ${k + 1} runs through the item "${q.label}"`);
+    });
+  }
+  return problems;
+}
+
 // plane(): every label it placed must stay inside the figure and clear of the other labels.
 function checkPlanes(d: LaidOutDiagram): string[] {
   const problems: string[] = [];
@@ -499,6 +535,7 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
     ...checkOverlaps(rects.filter(r => !r.backdrop)),
     ...checkConnects(d, rects.filter(r => !r.backdrop)),
     ...checkPlanes(d),
+    ...checkQuadrants(d),
     ...checkBars(d),
     ...checkImages(d),
     ...checkTimelines(d),

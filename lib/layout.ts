@@ -24,6 +24,7 @@ import {IMAGE_PAD, imageSize, imageTexts, layoutImage} from './image.ts';
 import {barsTexts, layoutBars} from './bars.ts';
 import {dotsTexts, layoutDots, layoutPeople, peopleTexts} from './people.ts';
 import {layoutTimeline, timelineTexts} from './timeline.ts';
+import {layoutQuadrant, quadrantTexts} from './quadrant.ts';
 import {canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
 import {layoutTreeBand, treeTexts} from './tree.ts';
 import {layoutStatesBand, statesTexts} from './states.ts';
@@ -317,6 +318,8 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
       }
     } else if (band.type === 'plane') {
       for (const [text, size, weight, font] of planeTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'quadrant') {
+      for (const [text, size, weight, font] of quadrantTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'image') {
       for (const [text, size, weight, font] of imageTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
       for (const child of band.children ?? []) registerBand(child);
@@ -974,6 +977,21 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       if (band.id) {
         if (anchors.has(band.id)) claimed(band.id, 'a plane takes an id that another anchor already has');
         anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
+      laidOut.push(placed);
+      cursorY += placed.h + d.gap;
+      continue;
+    }
+
+    if (band.type === 'quadrant') {
+      const placed = layoutQuadrant(band, padX, cursorY, cw, widthOf, roles);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, 'a quadrant takes an id that another anchor already has');
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
+      for (const a of placed.anchors) {
+        if (anchors.has(a.id)) claimed(a.id, 'a quadrant item takes an id that another anchor already has');
+        anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
       }
       laidOut.push(placed);
       cursorY += placed.h + d.gap;
