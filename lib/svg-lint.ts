@@ -62,7 +62,9 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
   walk(root, IDENTITY, true);
 
   const result: RenderChecks = {contrast: [], overflow: null, textOverlap: [], containerOverflow: [], covered: []};
-  const texts = items.filter(i => i.tag === 'text' && i.user && i.user.w > 0);
+  // a copy of a text drawn for decoration (the shadow / outer outlines of a wordart) is aria-hidden: it is not a label, so it is not judged as one
+  const decorative = (el: El): boolean => !!closest(el, e => e.attrs['aria-hidden'] === 'true');
+  const texts = items.filter(i => i.tag === 'text' && i.user && i.user.w > 0 && !decorative(i.el));
 
   // a transparent diagram has no page rectangle: it is judged against the page colour it was drawn for (data-assumed-bg), else white
   const am = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(root.attrs['data-assumed-bg'] ?? '');
@@ -93,7 +95,9 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
       const tc = parseColor(g.style.fill, g.style.color);
       if (!tc) continue;
       const d = Math.abs(luminance(tc) - luminance(bg));
-      if (d < 70) result.contrast.push({txt: (groups.length > 1 ? g.txt.trim() : txt).slice(0, 40), delta: fixed(d, 0), fg: css(tc), bg: `rgb(${bg.r | 0},${bg.g | 0},${bg.b | 0})`});
+      // an outlined letter reads by its rim when its fill is too close to the ground (a white letter with a dark outline)
+      const rim = t.style.stroke !== 'none' && t.style.strokeWidth > 0 ? parseColor(t.style.stroke, t.style.color) : null;
+      if (d < 70 && !(rim && Math.abs(luminance(rim) - luminance(bg)) >= 70)) result.contrast.push({txt: (groups.length > 1 ? g.txt.trim() : txt).slice(0, 40), delta: fixed(d, 0), fg: css(tc), bg: `rgb(${bg.r | 0},${bg.g | 0},${bg.b | 0})`});
     }
   }
 
@@ -102,7 +106,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
   if (all && (all.y + all.h > H + 2 || all.x + all.w > W + 2)) result.overflow = {dx: fixed(all.x + all.w - W, 0), dy: fixed(all.y + all.h - H, 0)};
 
   // 3. text over text
-  const labelled = items.filter(i => i.tag === 'text' && i.screen && i.screen.w && i.screen.h && textOf(i.el).trim())
+  const labelled = items.filter(i => i.tag === 'text' && i.screen && i.screen.w && i.screen.h && textOf(i.el).trim() && !decorative(i.el))
     .map(i => ({txt: textOf(i.el).trim().slice(0, 30), bb: i.screen!}));
   for (let i = 0; i < labelled.length; i++) for (let j = i + 1; j < labelled.length; j++) {
     const a = labelled[i].bb, b = labelled[j].bb;
