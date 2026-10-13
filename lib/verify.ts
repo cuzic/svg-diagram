@@ -25,7 +25,7 @@
 import {plateStyle} from './image.ts';
 import {segHitsRect} from './bars.ts';
 import {checkCharts} from './charts-verify.ts';
-import {PALETTE, colorOf, luminance as lightLuminance, runColorOf, paintOf} from './tokens.ts';
+import {PALETTE, colorOf, luminance as lightLuminance, runColorOf, paintOf, withTones} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {lintDiagram, walkBands} from './rules.ts';
 import {spotlightDim} from './spotlight.ts';
@@ -573,6 +573,9 @@ function checkContrast(d: LaidOutDiagram): string[] {
 // verifyDiagram(laidOutDiagram) -> {ok, problems: string[], warnings: string[]}
 // `problems` fail the build; `warnings` (text volume, and the rules of rules.ts) never do.
 export function verifyDiagram(d: LaidOutDiagram): Verdict {
+  return withTones(d.tones, () => verifyWith(d));
+}
+function verifyWith(d: LaidOutDiagram): Verdict {
   const rects = collectRects(d);
   const causeWarnings: string[] = [];
   const problems = [

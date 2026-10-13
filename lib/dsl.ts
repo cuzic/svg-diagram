@@ -13,7 +13,7 @@ import {wf} from './wireframe.ts';
 import {resolveIcon} from './icon-registry.ts';
 import {readImage} from './image-file.ts';
 import {layoutDiagram} from './layout-measured.ts';
-import {mapOf} from './tokens.ts';
+import {mapOf, checkTones} from './tokens.ts';
 import {timelineDay} from './timeline.ts';
 import {emitSvg} from './emit.ts';
 import {emitHtml} from './emit-html.ts';
@@ -115,6 +115,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     title: opts.title, desc: opts.desc,            // exposed as the SVG's <title> / <desc> (doc medium)
     accept: opts.accept, // {'rule-id': 'why this finding is fine'} — shown as info instead of a warning
     wrap: opts.wrap,
+    tones: opts.tones === undefined ? undefined : checkTones(opts.tones, 'diagram({tones})'),
     legend: opts.legend, legendLabels: opts.legendLabels, // legend: 'auto' adds entries for every notation used but not listed
     width: opts.width ?? canvas?.width ?? 940,
     canvas,
