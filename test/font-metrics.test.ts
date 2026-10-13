@@ -39,8 +39,8 @@ for (const family of ['sans', 'mono'] as FontFamily[]) for (const weight of [400
 test('the default is the font files; measure unset falls back to Chromium when none is found, measure "font" does not', async (t) => {
   const req = new Map<string, MeasureRequest>([['a', {text: 'Dashboard', size: 16, weight: 400, font: 'sans'}]]);
   const noFont = {sans: {regular: '/no/such/font.ttf'}};
-  const env = process.env.SVG_DIAGRAM_MEASURE;
-  delete process.env.SVG_DIAGRAM_MEASURE;
+  const env = process.env['SVG_DIAGRAM_MEASURE'];
+  delete process.env['SVG_DIAGRAM_MEASURE'];
   try {
     try { measureWithFonts(req); } catch (e) { t.skip((e as Error).message.slice(0, 80)); return; }
     configureMeasure({});
@@ -58,7 +58,7 @@ test('the default is the font files; measure unset falls back to Chromium when n
     configureMeasure({measure: 'font', fonts: noFont});
     await assert.rejects(measureAll(new Map([['c', {text: 'Dashboard', size: 18, weight: 400, font: 'sans' as const}]])), /ENOENT|no such file/i);
   } finally {
-    if (env !== undefined) process.env.SVG_DIAGRAM_MEASURE = env;
+    if (env !== undefined) process.env['SVG_DIAGRAM_MEASURE'] = env;
     configureMeasure({measure: 'chromium'});
   }
 });

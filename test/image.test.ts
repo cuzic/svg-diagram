@@ -15,7 +15,7 @@ import {geometryChecks} from '../lib/svg-lint.ts';
 import {rasterize} from '../lib/raster.ts';
 import {kitchenPng, makePng} from './helpers/png.ts';
 
-process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
+process.env['SVG_DIAGRAM_STRICT_WIDTH'] = '1';
 test.after(() => closeMeasurer());
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'image-test-'));

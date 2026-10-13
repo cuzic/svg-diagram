@@ -120,7 +120,7 @@ try {
     const pngCurrent = () => !pngPath || (fs.existsSync(pngPath) && fs.statSync(pngPath).mtimeMs >= fs.statSync(outPath).mtimeMs);
     if (STALE && !FIT && !DARK && !TRANSPARENT && fs.existsSync(outPath) && pngCurrent()) { // --png: a missing or older PNG is not up to date either
       const meta = embeddedSource(outPath);
-      if (meta && meta.sourceSha256 === srcSha && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256 && (meta.depsSha256 ?? '') === depsSha) {
+      if (meta && meta['sourceSha256'] === srcSha && meta['toolVersion'] === TOOL_VERSION && (meta['configSha256'] ?? '') === configSha256 && (meta['depsSha256'] ?? '') === depsSha) {
         console.log(`· ${outPath} は最新（スキップ）`);
         skipped++;
         continue;

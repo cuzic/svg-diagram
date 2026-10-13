@@ -4,7 +4,7 @@ import {bars, banner, box, caption, checkDiagram, closeMeasurer, diagram, render
 import {LIGHT_COLORS, DARK_PALETTE, PALETTE, TONES, darkOf, recolor, wcagRatio} from '../lib/tokens.ts';
 import {geometryChecks} from '../lib/svg-lint.ts';
 
-process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
+process.env['SVG_DIAGRAM_STRICT_WIDTH'] = '1';
 test.after(() => closeMeasurer());
 
 const dark = (c: string) => darkOf(c);

@@ -6,7 +6,7 @@ import {configureMeasure} from '../lib/measure.ts';
 import {textBox} from '../lib/font-metrics.ts';
 import {PALETTE} from '../lib/tokens.ts';
 
-process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
+process.env['SVG_DIAGRAM_STRICT_WIDTH'] = '1';
 test.after(() => closeMeasurer());
 
 const make = (html = true) => {

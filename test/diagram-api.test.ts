@@ -119,10 +119,10 @@ test("legend 'auto' uses legendLabels over DEFAULT_LEGEND_LABELS, per key, and f
   d.add(box({id: 'a', title: 'a', tone: 'new'}), box({id: 'b', title: 'b', tone: 'changed'}), box({id: 'c', title: 'c', tone: 'danger'}), connect('a', 'b'));
   applyAutoLegend(d);
   const l = labelsOf(d);
-  assert.equal(l.new, '追加');
+  assert.equal(l['new'], '追加');
   assert.ok(legendKeys(d.bands).has('tone:changed'));
-  assert.equal(l.danger, '要注意');
-  assert.equal(l.changed, DEFAULT_LEGEND_LABELS['tone:changed']);
+  assert.equal(l['danger'], '要注意');
+  assert.equal(l['changed'], DEFAULT_LEGEND_LABELS['tone:changed']);
 });
 
 test("legend 'auto' is not applied without the option, and does not duplicate an entry already listed", () => {
@@ -135,7 +135,7 @@ test("legend 'auto' is not applied without the option, and does not duplicate an
   on.add(box({id: 'a', tone: 'new', title: 'a'}), legend([{tone: 'new', label: '手書き'}]));
   applyAutoLegend(on);
   assert.equal(on.bands.filter(b => b.type === 'legend').length, 1);
-  assert.equal(labelsOf(on).new, '手書き', 'a hand-written entry wins over both the default and legendLabels');
+  assert.equal(labelsOf(on)['new'], '手書き', 'a hand-written entry wins over both the default and legendLabels');
   applyAutoLegend(on); // idempotent
   assert.equal((on.bands.find(b => b.type === 'legend') as LegendBand).items.length, 1);
 });

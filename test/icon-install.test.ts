@@ -120,9 +120,9 @@ test('icons add / remove / notice against a stand-in Iconify: licence, aliases, 
     const r = await addIcons(['mdi:key', 'mdi:old-key=oldkey', './logo.svg'], {api: srv.api, cwd: dir});
     assert.deepEqual(r.added.sort(), ['key', 'logo', 'oldkey']);
     const m = readManifest(path.join(dir, 'svg-diagram.icons.json'));
-    assert.deepEqual(m.icons.key, {d: 'M1 1h4v4z', vb: [0, 0, 24], from: 'mdi:key', license: 'Apache-2.0', licenseUrl: 'https://l', author: 'Someone'});
-    assert.equal(m.icons.oldkey.d, 'M1 1h4v4z', 'an alias takes its parent\'s path');
-    assert.equal(m.icons.logo.license, 'local');
+    assert.deepEqual(m.icons['key'], {d: 'M1 1h4v4z', vb: [0, 0, 24], from: 'mdi:key', license: 'Apache-2.0', licenseUrl: 'https://l', author: 'Someone'});
+    assert.equal(m.icons['oldkey'].d, 'M1 1h4v4z', 'an alias takes its parent\'s path');
+    assert.equal(m.icons['logo'].license, 'local');
     assert.match(noticeText(m), /mdi — Someone, Apache-2\.0.*: key, oldkey\n- Drawn in this project: logo/);
 
     const before = fs.readFileSync(path.join(dir, 'svg-diagram.icons.json'), 'utf8');
@@ -136,7 +136,7 @@ test('icons add / remove / notice against a stand-in Iconify: licence, aliases, 
     assert.equal(fs.readFileSync(path.join(dir, 'svg-diagram.icons.json'), 'utf8'), before, 'a failed add writes nothing');
 
     assert.deepEqual((await addIcons(['mdi:stroke', 'mdi:flag=red', 'color:a=pal'], {api: srv.api, cwd: dir, color: true})).added.sort(), ['pal', 'red', 'stroke']);
-    assert.equal(readManifest(path.join(dir, 'svg-diagram.icons.json')).icons.red.fixed, true);
+    assert.equal(readManifest(path.join(dir, 'svg-diagram.icons.json')).icons['red'].fixed, true);
     removeIcons(['pal', 'red', 'stroke'], dir);
     assert.deepEqual((await addIcons(['ccby:a'], {api: srv.api, cwd: dir, allowLicense: ['CC-BY-4.0']})).added, ['a']);
     assert.deepEqual((await addIcons(['mdi:rocket=key'], {api: srv.api, cwd: dir})).replaced, ['key']);
@@ -229,7 +229,7 @@ test('the first set installed becomes the main set; another set warns; icons mai
     setMainSet(undefined, dir);
     assert.equal(readManifest(file).mainSet, undefined);
     assert.throws(() => setMainSet('Not A Set', dir), /not an Iconify set prefix/);
-    assert.equal(readManifest(file).icons.key.from, 'mdi:key', 'the icons are kept');
+    assert.equal(readManifest(file).icons['key'].from, 'mdi:key', 'the icons are kept');
   } finally { srv.close(); fs.rmSync(dir, {recursive: true}); }
 });
 
@@ -322,7 +322,7 @@ test('a lock left by a dead process is taken over; a live one makes the run wait
 
 test('icons sets: every curated id is an mdi icon with a usable short name, and add-set installs through addIcons', async () => {
   assert.ok(Object.keys(ICON_SETS).includes('accounting'));
-  assert.ok(Object.keys(ICON_SETS.accounting.icons).length >= 30);
+  assert.ok(Object.keys(ICON_SETS['accounting'].icons).length >= 30);
   for (const [n, s] of Object.entries(ICON_SETS)) for (const [name, id] of Object.entries(s.icons)) {
     assert.match(id, /^mdi:[a-z0-9-]+$/, `${n}/${name}`);
     assert.match(name, ICON_NAME_RE, `${n}/${name}`);
@@ -339,10 +339,10 @@ test('icons sets: every curated id is an mdi icon with a usable short name, and 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'icons-set-'));
   try {
     const r = await addSet('accounting', {fetch: fetchFake, cwd: dir});
-    assert.equal(r.added.length, Object.keys(ICON_SETS.accounting.icons).length);
+    assert.equal(r.added.length, Object.keys(ICON_SETS['accounting'].icons).length);
     const m = readManifest(path.join(dir, 'svg-diagram.icons.json'));
-    assert.equal(m.icons.receipt.from, 'mdi:receipt-text');
-    assert.equal(m.icons.receipt.license, 'Apache-2.0');
+    assert.equal(m.icons['receipt'].from, 'mdi:receipt-text');
+    assert.equal(m.icons['receipt'].license, 'Apache-2.0');
     assert.equal(m.mainSet, 'mdi');
     assert.match(noticeText(m), /mdi — P, Apache-2\.0/);
   } finally { fs.rmSync(dir, {recursive: true}); }
@@ -362,8 +362,8 @@ test('add-set keeps an icon the project already has under the same name', async 
     const r = await addSet('accounting', {fetch: fetchFake, cwd: dir});
     assert.deepEqual([r.kept, r.replaced], [['lock'], []]);
     const m = readManifest(path.join(dir, 'svg-diagram.icons.json'));
-    assert.equal(m.icons.lock.from, 'file:mine.svg');
-    assert.equal(m.icons.receipt.from, 'mdi:receipt-text');
+    assert.equal(m.icons['lock'].from, 'file:mine.svg');
+    assert.equal(m.icons['receipt'].from, 'mdi:receipt-text');
   } finally { fs.rmSync(dir, {recursive: true}); }
 });
 

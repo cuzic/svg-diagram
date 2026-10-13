@@ -8,7 +8,7 @@ import {ROLES} from '../lib/tokens.ts';
 import type {LaidOutBanner, LaidOutPlane, Role} from '../lib/dsl.ts';
 
 // every atom must be registered for measuring, or layout throws instead of measuring 0 wide
-process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
+process.env['SVG_DIAGRAM_STRICT_WIDTH'] = '1';
 test.after(() => closeMeasurer());
 
 test('hero is gone from Role and ROLES', () => {
@@ -67,7 +67,7 @@ test('bars / plane labelRole: measured, laid out and drawn at one size', async (
 });
 
 test('every label of a labelRole figure is registered for measuring (STRICT_WIDTH: no miss)', async () => {
-  assert.ok(process.env.SVG_DIAGRAM_STRICT_WIDTH);
+  assert.ok(process.env['SVG_DIAGRAM_STRICT_WIDTH']);
   const d = diagram({theme: 'blue', width: 940}).add(
     banner({headline: '見出し', headlineRole: 'display', sub: '副題'}),
     bars([{label: '導入前', value: 76}, {label: '導入後', value: 31}], {max: 100, unit: '%', labelRole: 'stat'}),

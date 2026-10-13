@@ -46,7 +46,8 @@
 				"noAssignInExpressions": "off"
 			},
 			"complexity": {
-				"noCommaOperator": "off"
+				"noCommaOperator": "off",
+				"useLiteralKeys": "off"
 			}
 		}
 	},

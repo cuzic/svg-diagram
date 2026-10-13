@@ -519,8 +519,8 @@ test('spotlight on an element dims the other elements, not the figure; connect()
 // ---- a seeded sweep: random data, zeros, negatives, long labels ------------------------------------------------------------------
 
 test('a seeded sweep of every chart (zeros, negatives, long labels, many items) never throws except with a named reason and never fails verify', async () => {
-  let seed = Number(process.env.SWEEP_SEED ?? 20261012);
-  const mult = Number(process.env.SWEEP_MULT ?? 1);
+  let seed = Number(process.env['SWEEP_SEED'] ?? 20261012);
+  const mult = Number(process.env['SWEEP_MULT'] ?? 1);
   const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
   const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)];
   const word = (): string => pick(['売上', '利益', 'コスト', 'Customer', '新規顧客の獲得', 'アジア太平洋地域', 'x', '長い名前のものがここに入ります', '費用', 'EBITDA']);
@@ -531,7 +531,7 @@ test('a seeded sweep of every chart (zeros, negatives, long labels, many items) 
     try { band = mk(); } catch (e) { named.push(`${what}: ${(e as Error).message}`); return; }
     try {
       const {verdict} = await laid(band);
-      if (verdict.problems.length) bad.push(`${what}: ${verdict.problems[0]}${what.startsWith('lines') && process.env.DBG ? ' ' + JSON.stringify((globalThis as {dbg?: unknown}).dbg) : ''}`);
+      if (verdict.problems.length) bad.push(`${what}: ${verdict.problems[0]}${what.startsWith('lines') && process.env['DBG'] ? ' ' + JSON.stringify((globalThis as {dbg?: unknown}).dbg) : ''}`);
     } catch (e) { const m = (e as Error).message; if (/^\w+\(\): /.test(m)) named.push(`${what}: ${m}`); else bad.push(`${what}: ${m}`); }
   };
   const uniq = (n: number, f: () => string): string[] => { const s = new Set<string>(); let i = 0; while (s.size < n && i++ < 100) s.add(f()); return [...s]; };
@@ -556,7 +556,7 @@ test('a seeded sweep of every chart (zeros, negatives, long labels, many items) 
   });
   for (let t = 0; t < 30 * mult; t++) await run(`lines ${t}`, () => { const N = 3 + Math.floor(rnd() * 8), S = 1 + Math.floor(rnd() * 4); const data = Array.from({length: S}, (_, i) => ({label: `${word()}${i}`, values: Array.from({length: N}, () => rnd() < 0.1 ? null : Math.round(rnd() * 50) / 10)})); (globalThis as {dbg?: unknown}).dbg = data; return lines(data, {x: {categories: Array.from({length: N}, (_, i) => `${i + 1}`)}, y: {min: 0, max: 5}}); });
   // the failures that are not named, or that came out of verify, are bugs; the named ones are the data being refused with a reason
-  if (process.env.DBG) console.log(named.map(n => n.slice(0, 150)).join('\n'));
+  if (process.env['DBG']) console.log(named.map(n => n.slice(0, 150)).join('\n'));
   assert.deepEqual(bad, []);
   assert.ok(named.length < 100 * mult, `too many refusals: ${named.slice(0, 5).join(' | ')}`);
 });

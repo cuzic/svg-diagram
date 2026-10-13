@@ -56,7 +56,7 @@ test('stateDiagram(): arrows end on the head state, the loop is above its state,
 
 test('stateDiagram() states are anchors for connect(); the SVG has the boxes, double outline for final, arrowheads', async () => {
   const sd = flow();
-  assert.equal(sd.anchors.run.id, 'run');
+  assert.equal(sd.anchors['run'].id, 'run');
   const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(sd, box({id: 'log', title: 'ログ'}), connect('run', 'log', {route: 'elbow'})));
   assert.deepEqual(verdict.problems, []);
   const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(sd), {name: 's.svg', budget: 'cacheOnly'});

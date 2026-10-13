@@ -86,9 +86,9 @@ test('screens: items get anchors; fractional `at` columns centre a parent over i
     {id: 'c2', title: 'C2', root: mini, at: [1, 1]},
   ], {gap: 20, rowGap: 40, h: 80}));
   const a = Object.fromEntries(band.anchors.map(x => [x.id, x]));
-  assert.ok(Math.abs((a.p.x + a.p.w / 2) - ((a.c1.x + a.c1.w / 2 + a.c2.x + a.c2.w / 2) / 2)) < 1, 'parent centred over children');
-  assert.ok(a.c1.y > a.p.y + a.p.h, 'children are on the next row');
-  assert.ok(a.p.h > 80, 'anchor includes the title row');
+  assert.ok(Math.abs((a['p'].x + a['p'].w / 2) - ((a['c1'].x + a['c1'].w / 2 + a['c2'].x + a['c2'].w / 2) / 2)) < 1, 'parent centred over children');
+  assert.ok(a['c1'].y > a['p'].y + a['p'].h, 'children are on the next row');
+  assert.ok(a['p'].h > 80, 'anchor includes the title row');
 });
 
 test('skeleton: body text becomes bars, titles stay text', async () => {

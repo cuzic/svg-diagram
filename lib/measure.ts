@@ -107,7 +107,7 @@ let backend: 'chromium' | 'font' | null = null;
 let explicit = false;
 let fontSpecs: FontSpecs | undefined;
 export function configureMeasure(cfg: Pick<Config, 'measure' | 'fonts'>): void {
-  const env = process.env.SVG_DIAGRAM_MEASURE || undefined; // empty counts as unset
+  const env = process.env['SVG_DIAGRAM_MEASURE'] || undefined; // empty counts as unset
   if (env && env !== 'chromium' && env !== 'font') throw new Error(`SVG_DIAGRAM_MEASURE=${env}: expected 'chromium' or 'font'`);
   const chosen = (env as 'chromium' | 'font' | undefined) ?? cfg.measure;
   backend = chosen ?? 'font';

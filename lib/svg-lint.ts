@@ -32,7 +32,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
   try { root = parseXml(src); } catch (e) { if ((e as Error).message === 'no <svg> element') return null; throw new Error(`not well-formed XML (${(e as Error).message})`); }
   const styles = computeStyles(root);
 
-  const vbm = /^\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*$/.exec(root.attrs.viewBox ?? '');
+  const vbm = /^\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*$/.exec(root.attrs['viewBox'] ?? '');
   const vb = vbm ? {x: +vbm[1], y: +vbm[2], w: +vbm[3], h: +vbm[4]} : null;
   const attrPx = (n: string) => { const m = /^\s*([\d.]+)(px)?\s*$/.exec(root.attrs[n] ?? ''); return m ? parseFloat(m[1]) : 0; };
   const W = vb?.w || attrPx('width'), H = vb?.h || attrPx('height');
@@ -46,8 +46,8 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
 
   const items: Item[] = [];
   const walk = (el: El, ctm: Matrix, drawn: boolean) => {
-    const hidden = !drawn || NOT_DRAWN.has(el.tag) || el.attrs.display === 'none' || /display\s*:\s*none/.test(el.attrs.style ?? '');
-    const m = el === root ? ctm : multiply(ctm, parseTransform(el.attrs.transform));
+    const hidden = !drawn || NOT_DRAWN.has(el.tag) || el.attrs['display'] === 'none' || /display\s*:\s*none/.test(el.attrs['style'] ?? '');
+    const m = el === root ? ctm : multiply(ctm, parseTransform(el.attrs['transform']));
     if (!hidden && SIZED.has(el.tag)) {
       const style = must(styles.get(el));
       const toScreen = multiply(view, m);

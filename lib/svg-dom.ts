@@ -162,7 +162,7 @@ function compound(sel: string): {test: (e: El) => boolean; spec: number} | null 
   const parts = [...m[2].matchAll(/([.#])([\w-]+)/g)].map(x => [x[1], x[2]] as const);
   return {
     spec: (tag ? 1 : 0) + parts.filter(p => p[0] === '.').length * 10 + parts.filter(p => p[0] === '#').length * 100,
-    test: e => (!tag || e.tag === tag) && parts.every(([k, v]) => k === '.' ? (e.attrs.class ?? '').split(/\s+/).includes(v) : e.attrs.id === v),
+    test: e => (!tag || e.tag === tag) && parts.every(([k, v]) => k === '.' ? (e.attrs['class'] ?? '').split(/\s+/).includes(v) : e.attrs['id'] === v),
   };
 }
 
@@ -216,7 +216,7 @@ export function computeStyles(root: El): Map<El, Style> {
     const s: Style = {...parent, opacity: 1}; // opacity is not inherited
     for (const [name, value] of Object.entries(el.attrs)) setProp(s, parent, name, value);
     for (const r of rules) if (r.sel(el)) for (const [name, value] of Object.entries(r.decls)) setProp(s, parent, name, value);
-    for (const d of (el.attrs.style ?? '').split(';')) { const i = d.indexOf(':'); if (i > 0) setProp(s, parent, d.slice(0, i).trim().toLowerCase(), d.slice(i + 1).trim()); }
+    for (const d of (el.attrs['style'] ?? '').split(';')) { const i = d.indexOf(':'); if (i > 0) setProp(s, parent, d.slice(0, i).trim().toLowerCase(), d.slice(i + 1).trim()); }
     out.set(el, s);
     for (const c of el.children) if (typeof c !== 'string') walk(c, s);
   };

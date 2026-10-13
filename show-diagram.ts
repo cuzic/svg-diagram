@@ -50,7 +50,7 @@ if (!Number.isInteger(colors) || colors < 2 || colors > 256) { console.error(`âœ
 const force = flag('--force'), passthrough = flag('--passthrough');
 if (pngOut && files.length !== 1) { console.error(`âœ— --png writes one picture: give exactly one input\n${USAGE}`); process.exit(2); }
 
-const inTmux = !!process.env.TMUX;
+const inTmux = !!process.env['TMUX'];
 const tmuxQuery = (fmt: string) => { try { return execFileSync('tmux', ['display', '-p', fmt], {encoding: 'utf8', timeout: 2000}).trim(); } catch { return ''; } };
 
 // ---- what the terminal can do (not needed for --png) ----------------------------------------------------------------

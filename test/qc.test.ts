@@ -686,7 +686,7 @@ test('a seeded sweep of pareto / histogram / scatter / control charts passes ver
     const mu = [10, 250, 0.5, 1000][t % 4], sg = mu * (0.005 + rnd() * 0.03), dec = mu < 1 ? 3 : mu < 20 ? 2 : 1;
     const v = Array.from({length: 20 + Math.floor(rnd() * 100)}, () => +(mu + gauss() * sg).toFixed(dec));
     const opts: Record<string, unknown> = rnd() < 0.7 ? {lsl: +(mu - sg * (2 + rnd() * 2)).toFixed(dec), usl: +(mu + sg * (2 + rnd() * 2)).toFixed(dec)} : {};
-    if (rnd() < 0.4) opts.normal = true;
+    if (rnd() < 0.4) opts['normal'] = true;
     await run(`histogram ${t}`, () => histogram(v, opts));
   }
   for (let t = 0; t < 15; t++) {

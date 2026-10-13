@@ -87,7 +87,7 @@ export default function remarkSvgDiagram(opts: RemarkSvgDiagramOptions = {}) {
       if (lone && holder) must(holder.children)[must(holder.children).indexOf(parent)] = fig;
       else { Object.assign(n, fig); delete n.url; delete n.alt; delete n.title; }
     }
-    file.data.svgDiagramDeps = [...deps];
+    file.data['svgDiagramDeps'] = [...deps];
   };
 }
 

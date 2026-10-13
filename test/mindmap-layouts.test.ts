@@ -34,7 +34,7 @@ for (const layout of LAYOUTS) {
     for (let i = 0; i < t.nodes.length; i++) for (let j = i + 1; j < t.nodes.length; j++) assert.ok(!overlap(t.nodes[i], t.nodes[j]), `${layout}: nodes ${i} and ${j} overlap`);
     for (const n of t.nodes) assert.ok(n.x >= t.x - 0.5 && n.x + n.w <= t.x + t.w + 0.5 && n.y >= t.y - 0.5 && n.y + n.h <= t.y + t.h + 0.5, `${layout}: a node is outside the figure`);
     const m = mindmap(topic(), {layout});
-    assert.equal(m.anchors.q2.id, 'q2');
+    assert.equal(m.anchors['q2'].id, 'q2');
   });
 }
 

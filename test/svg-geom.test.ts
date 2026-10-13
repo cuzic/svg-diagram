@@ -9,7 +9,7 @@ const haveFont = resolveFontFile('sans') !== null;
 const near = (a: number, b: number, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} vs ${b}`);
 const nearPt = (p: Point, x: number, y: number, eps = 1e-6) => { near(p[0], x, eps); near(p[1], y, eps); };
 const root = (inner: string, attrs = '') => parseXml(`<svg xmlns="http://www.w3.org/2000/svg" ${attrs}>${inner}</svg>`);
-const el = (inner: string, id = 'e') => elements(root(inner)).find(e => e.attrs.id === id)!;
+const el = (inner: string, id = 'e') => elements(root(inner)).find(e => e.attrs['id'] === id)!;
 const VP = {w: 400, h: 200};
 
 // ---- boxes ----
@@ -181,7 +181,7 @@ test('familyKind: the first family of the list decides', () => {
 const STYLE = `<style>text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }</style>`;
 const boxOfText = (inner: string, attrs = '') => {
   const r = root(`${STYLE}<text id="e" ${attrs}>${inner}</text>`);
-  return textBoxOf(elements(r).find(e => e.attrs.id === 'e')!, computeStyles(r));
+  return textBoxOf(elements(r).find(e => e.attrs['id'] === 'e')!, computeStyles(r));
 };
 const sans = (text: string, size: number, weight = 400) => textBox(text, 'sans', size, weight);
 const skip = haveFont ? false : 'no font file found';

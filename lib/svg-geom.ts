@@ -148,14 +148,14 @@ export function outlineOf(el: El, vp: {w: number; h: number}): Outline {
     }
     case 'line': polylines = [[[n('x1', vp.w), n('y1', vp.h)], [n('x2', vp.w), n('y2', vp.h)]]]; break;
     case 'polyline': case 'polygon': {
-      const nums = (el.attrs.points ?? '').split(/[\s,]+/).filter(Boolean).map(Number);
+      const nums = (el.attrs['points'] ?? '').split(/[\s,]+/).filter(Boolean).map(Number);
       const pts: Point[] = [];
       for (let k = 0; k + 1 < nums.length; k += 2) pts.push([nums[k], nums[k + 1]]);
       if (pts.length && el.tag === 'polygon') pts.push(pts[0]);
       polylines = pts.length ? [pts] : [];
       break;
     }
-    case 'path': { const sub = flattenPath(el.attrs.d ?? ''); polylines = sub.map(s => s.closed ? [...s.pts, s.pts[0]] : s.pts); extra = sub.flatMap(s => s.extrema); break; }
+    case 'path': { const sub = flattenPath(el.attrs['d'] ?? ''); polylines = sub.map(s => s.closed ? [...s.pts, s.pts[0]] : s.pts); extra = sub.flatMap(s => s.extrema); break; }
   }
   // the box of a circle/ellipse is exact (a 65-gon through the extreme points has them), of a rect/line/polygon the points', of a curve the flattened one's
   const points = [...polylines.flat(), ...extra];
@@ -200,7 +200,7 @@ export function placeRuns(text: El, styles: Map<El, Style>, specs?: FontSpecs): 
   const measured = (ch: Chunk) => ch.runs.filter(r => r.s).map(r => ({...textBox(r.s, familyKind(r.style.fontFamily), r.style.fontSize, r.style.fontWeight, specs)}));
   const widthOf = (ch: Chunk) => measured(ch).reduce((a, p) => a + p.w, 0);
   const chunks: Chunk[] = [];
-  let chunk: Chunk = {x: (num1(text.attrs.x) ?? 0) + (num1(text.attrs.dx) ?? 0), y: (num1(text.attrs.y) ?? 0) + (num1(text.attrs.dy) ?? 0), runs: []};
+  let chunk: Chunk = {x: (num1(text.attrs['x']) ?? 0) + (num1(text.attrs['dx']) ?? 0), y: (num1(text.attrs['y']) ?? 0) + (num1(text.attrs['dy']) ?? 0), runs: []};
   chunks.push(chunk);
   const keep = preserve(text);
   let atStart = true; // the last character kept was a space (or none yet): collapsing drops the next leading space
@@ -215,7 +215,7 @@ export function placeRuns(text: El, styles: Map<El, Style>, specs?: FontSpecs): 
     for (const c of e.children) {
       if (typeof c === 'string') { const s = norm(c); if (s) chunk.runs.push({s, style: must(styles.get(e))}); continue; }
       if (c.tag !== 'tspan' && c.tag !== 'a') continue;
-      const ax = num1(c.attrs.x), ay = num1(c.attrs.y), dx = num1(c.attrs.dx) ?? 0, dy = num1(c.attrs.dy) ?? 0;
+      const ax = num1(c.attrs['x']), ay = num1(c.attrs['y']), dx = num1(c.attrs['dx']) ?? 0, dy = num1(c.attrs['dy']) ?? 0;
       if (ax !== null || ay !== null || dx || dy) {
         // an absolute position starts a new text chunk, anchored on its own; a relative shift continues from where the last one ended
         const end = chunk.x + widthOf(chunk);

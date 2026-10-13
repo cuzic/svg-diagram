@@ -91,7 +91,7 @@ test('causeTree(): the SVG has the boxes, double outlines, arrowheads as shapes 
 
 test('causeTree(): nodes are anchors for connect(); a connect to the whole figure may cross it', async () => {
   const ct = crt({id: 'tree'});
-  assert.equal(ct.anchors.kpi.id, 'kpi');
+  assert.equal(ct.anchors['kpi'].id, 'kpi');
   const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(ct, box({id: 'memo', title: 'メモ'}), connect('kpi', 'memo', {route: 'elbow'}), connect('tree', 'memo')));
   assert.deepEqual(verdict.problems, []);
 });

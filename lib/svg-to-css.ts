@@ -272,10 +272,10 @@ function parseMarkers(svg: string): Map<string, Marker> {
   const out = new Map<string, Marker>();
   for (const m of svg.matchAll(/<marker\b([^>]*)>([\s\S]*?)<\/marker>/g)) {
     const a = attrsOf(m[1]), p = /<path\b([^>]*)\/?>/.exec(m[2]);
-    if (!a.id || !p) continue;
-    const pa = attrsOf(p[1]), sub = parsePath(pa.d ?? '');
+    if (!a['id'] || !p) continue;
+    const pa = attrsOf(p[1]), sub = parsePath(pa['d'] ?? '');
     if (!sub) continue;
-    out.set(a.id, {w: Number(a.markerWidth ?? 3), h: Number(a.markerHeight ?? 3), vb: (a.viewBox ?? '0 0 10 10').split(/[\s,]+/).map(Number), refX: Number(a.refX ?? 0), refY: Number(a.refY ?? 0), userSpace: a.markerUnits === 'userSpaceOnUse', fill: pa.fill ?? '#000000', sub});
+    out.set(a['id'], {w: Number(a['markerWidth'] ?? 3), h: Number(a['markerHeight'] ?? 3), vb: (a['viewBox'] ?? '0 0 10 10').split(/[\s,]+/).map(Number), refX: Number(a['refX'] ?? 0), refY: Number(a['refY'] ?? 0), userSpace: a['markerUnits'] === 'userSpaceOnUse', fill: pa['fill'] ?? '#000000', sub});
   }
   return out;
 }
@@ -291,48 +291,48 @@ function arrowHead(mk: Marker, at: Pt, dir: Pt, sw: number): string {
 
 // ---- elements -------------------------------------------------------------------------------------------------------------------------------
 
-const hasStroke = (a: Attrs) => !!a.stroke && a.stroke !== 'none';
-const hasFill = (a: Attrs) => a.fill !== 'none' && a.fill !== undefined;
-const opacityStyle = (a: Attrs) => a.opacity ? `;opacity:${a.opacity}` : '';
+const hasStroke = (a: Attrs) => !!a['stroke'] && a['stroke'] !== 'none';
+const hasFill = (a: Attrs) => a['fill'] !== 'none' && a['fill'] !== undefined;
+const opacityStyle = (a: Attrs) => a['opacity'] ? `;opacity:${a['opacity']}` : '';
 
 /** CSS boxes for one element, or null when it has to stay SVG. */
 function convert(tag: string, a: Attrs, markers: Map<string, Marker>): string | null {
-  const unsupported = ['filter', 'mask', 'clip-path', 'style', 'class'].some(k => k in a) || /url\(#/.test(a.fill ?? '') || /url\(#/.test(a.stroke ?? '');
+  const unsupported = ['filter', 'mask', 'clip-path', 'style', 'class'].some(k => k in a) || /url\(#/.test(a['fill'] ?? '') || /url\(#/.test(a['stroke'] ?? '');
   if (unsupported) return null;
   const sw = hasStroke(a) ? Number(a['stroke-width'] ?? 1) : 0;
   if (tag === 'rect' || tag === 'circle') {
     const r = tag === 'rect'
-      ? {x: Number(a.x ?? 0), y: Number(a.y ?? 0), w: Number(a.width), h: Number(a.height), rx: Number(a.rx ?? 0)}
-      : {x: Number(a.cx) - Number(a.r), y: Number(a.cy) - Number(a.r), w: 2 * Number(a.r), h: 2 * Number(a.r), rx: Number(a.r)};
-    if (![r.x, r.y, r.w, r.h, r.rx].every(Number.isFinite) || a.transform) return null;
-    const fill = hasFill(a) ? rgba(a.fill ?? '#000000', Number(a['fill-opacity'] ?? 1)) : 'transparent';
+      ? {x: Number(a['x'] ?? 0), y: Number(a['y'] ?? 0), w: Number(a['width']), h: Number(a['height']), rx: Number(a['rx'] ?? 0)}
+      : {x: Number(a['cx']) - Number(a['r']), y: Number(a['cy']) - Number(a['r']), w: 2 * Number(a['r']), h: 2 * Number(a['r']), rx: Number(a['r'])};
+    if (![r.x, r.y, r.w, r.h, r.rx].every(Number.isFinite) || a['transform']) return null;
+    const fill = hasFill(a) ? rgba(a['fill'] ?? '#000000', Number(a['fill-opacity'] ?? 1)) : 'transparent';
     if (!hasFill(a) && !sw) return '';
     const o = sw / 2;
     const dash = a['stroke-dasharray'] ? (a['stroke-linecap'] === 'round' ? 'dotted' : 'dashed') : '';
-    const outline = !sw ? '' : dash ? `;border:${num(sw)}px ${dash} ${a.stroke}` : `;box-shadow:inset 0 0 0 ${num(sw)}px ${a.stroke}`;
+    const outline = !sw ? '' : dash ? `;border:${num(sw)}px ${dash} ${a['stroke']}` : `;box-shadow:inset 0 0 0 ${num(sw)}px ${a['stroke']}`;
     return `<div class="sd-s" style="left:${px(r.x - o)};top:${px(r.y - o)};width:${px(r.w + sw)};height:${px(r.h + sw)};background:${fill};border-radius:${px(r.rx ? r.rx + o : 0)}${outline}${opacityStyle(a)}"></div>`;
   }
   if (tag === 'polygon') {
-    if (sw || !hasFill(a) || a.transform) return null;
-    const nums = (a.points ?? '').split(/[\s,]+/).filter(Boolean).map(Number);
+    if (sw || !hasFill(a) || a['transform']) return null;
+    const nums = (a['points'] ?? '').split(/[\s,]+/).filter(Boolean).map(Number);
     if (nums.length < 6 || nums.length % 2 || nums.some(n => !Number.isFinite(n))) return null;
     const pts: Pt[] = [];
     for (let i = 0; i < nums.length; i += 2) pts.push({x: nums[i], y: nums[i + 1]});
-    return clipBox(pts, rgba(a.fill, Number(a['fill-opacity'] ?? 1)), 'nonzero', opacityStyle(a));
+    return clipBox(pts, rgba(a['fill'], Number(a['fill-opacity'] ?? 1)), 'nonzero', opacityStyle(a));
   }
   if (tag !== 'path') return null;
-  const f = parseTransform(a.transform);
-  const subs = parsePath(a.d ?? '');
+  const f = parseTransform(a['transform']);
+  const subs = parsePath(a['d'] ?? '');
   if (!f || !subs) return null;
   const maps = subs.map(s => ({...s, pts: s.pts.map(f)}));
   const parts: string[] = [];
   const op = opacityStyle(a);
-  const fillOn = a.fill === undefined ? !hasStroke(a) : hasFill(a);   // an SVG path with neither attribute fills black
+  const fillOn = a['fill'] === undefined ? !hasStroke(a) : hasFill(a);   // an SVG path with neither attribute fills black
   if (fillOn) {
     const polys = maps.filter(s => s.pts.length >= 3).map(s => s.pts);
-    if (polys.length) parts.push(clipBox(joined(polys), rgba(a.fill ?? '#000000', Number(a['fill-opacity'] ?? 1)), a['fill-rule'] === 'evenodd' ? 'evenodd' : 'nonzero', op));
+    if (polys.length) parts.push(clipBox(joined(polys), rgba(a['fill'] ?? '#000000', Number(a['fill-opacity'] ?? 1)), a['fill-rule'] === 'evenodd' ? 'evenodd' : 'nonzero', op));
   }
-  if (sw && a.transform && Math.abs(f({x: 1, y: 0}).x - f({x: 0, y: 0}).x) !== 1) return null; // a scaled stroke
+  if (sw && a['transform'] && Math.abs(f({x: 1, y: 0}).x - f({x: 0, y: 0}).x) !== 1) return null; // a scaled stroke
   if (sw) {
     const hw = sw / 2, cap = a['stroke-linecap'] ?? 'butt';
     const dash = a['stroke-dasharray'] ? a['stroke-dasharray'].split(/[\s,]+/).map(Number) : null;
@@ -343,13 +343,13 @@ function convert(tag: string, a: Attrs, markers: Map<string, Marker>): string | 
         const pieces = dashPieces(pts, dash);
         if (!pieces) return null;
         // a round cap grows each dash by half the width at both ends, which the pattern's lengths do not count
-        for (const pc of pieces) { const poly = ribbon(pc, hw, cap); if (poly) parts.push(clipBox(poly, a.stroke, 'nonzero', op)); }
+        for (const pc of pieces) { const poly = ribbon(pc, hw, cap); if (poly) parts.push(clipBox(poly, a['stroke'], 'nonzero', op)); }
       } else if (s.closed) {
         const poly = ringStroke(s.pts, hw);
-        if (poly) parts.push(clipBox(poly, a.stroke, 'evenodd', op));
+        if (poly) parts.push(clipBox(poly, a['stroke'], 'evenodd', op));
       } else {
         const poly = ribbon(s.pts, hw, cap);
-        if (poly) parts.push(clipBox(poly, a.stroke, 'nonzero', op));
+        if (poly) parts.push(clipBox(poly, a['stroke'], 'nonzero', op));
       }
     }
     // arrowheads: along the first / last segment of the whole path
@@ -366,7 +366,7 @@ function convert(tag: string, a: Attrs, markers: Map<string, Marker>): string | 
 
 /** A <g role="img" aria-label> (a badge): its shapes in a zero-size box at the origin that carries the same role and label. */
 function convertGroup(el: string, a: Attrs, markers: Map<string, Marker>): string | null {
-  if (a.transform || a.filter || a.opacity) return null;
+  if (a['transform'] || a['filter'] || a['opacity']) return null;
   const inner = el.slice(el.indexOf('>') + 1, el.lastIndexOf('</g>'));
   const parts: string[] = [];
   for (const child of topLevel(inner)) {
@@ -402,7 +402,7 @@ export function shapesToCss(svg: string, cls: string): string {
   const inner = svg.slice(open[0].length, svg.lastIndexOf('</svg>'));
   const markers = parseMarkers(inner);
   const a = attrsOf(open[1]);
-  const wrap = (body: string) => `<svg class="${cls}" xmlns="http://www.w3.org/2000/svg" width="${a.width}" height="${a.height}" viewBox="${a.viewBox}"${/role="img"/.test(body) ? '' : ' aria-hidden="true"'}>${body}</svg>`;
+  const wrap = (body: string) => `<svg class="${cls}" xmlns="http://www.w3.org/2000/svg" width="${a['width']}" height="${a['height']}" viewBox="${a['viewBox']}"${/role="img"/.test(body) ? '' : ' aria-hidden="true"'}>${body}</svg>`;
   const out: string[] = [];
   let pending: string[] = [];
   const flush = () => { if (pending.length) { out.push(wrap(pending.join('\n  '))); pending = []; } };

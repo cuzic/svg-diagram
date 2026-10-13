@@ -43,7 +43,7 @@ export function withColorEmoji(svg: string, specs?: FontSpecs): string {
     if (!pictures.length) return;
     // the emoji that are drawn here are not drawn by the text as well: their span keeps its width and loses its ink
     const hidden = m[0].replace(/<tspan class="emoji">([^<]*)<\/tspan>/g, (all, s: string) => drawn.has(s) ? `<tspan class="emoji" fill-opacity="0" stroke="none">${s}</tspan>` : all);
-    const tf = text.attrs.transform;
+    const tf = text.attrs['transform'];
     out += svg.slice(at, m.index) + hidden + (tf ? `<g transform="${tf}">${pictures.join('')}</g>` : pictures.join(''));
     at = m.index + m[0].length;
     changed = true;

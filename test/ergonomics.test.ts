@@ -122,7 +122,7 @@ test('wireframeDefaults: an app bar above every screen, the selected nav item pe
 test('wireframeDefaults: an unknown nav item throws; a custom shell function wraps the content', () => {
   const d = diagram({theme: 'blue', wireframeDefaults: {appbar: {title: 'X', nav: ['a', 'b']}}});
   assert.throws(() => d.add(wireframe(wf.text('t'), {shell: {active: 'c'}})), /"c" is not one of the nav items/);
-  const e = diagram({theme: 'blue', wireframeDefaults: {shell: (content, p) => wf.col([wf.text(`${p.section}`), ...content])}});
+  const e = diagram({theme: 'blue', wireframeDefaults: {shell: (content, p) => wf.col([wf.text(`${p['section']}`), ...content])}});
   const w = wireframe(wf.text('t'), {shell: {section: '設定'}});
   e.add(w);
   assert.deepEqual([(e.bands[0] as {root: {t: string}}).root.t], ['col']);

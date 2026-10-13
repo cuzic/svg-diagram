@@ -90,7 +90,7 @@ export function withManifestLock<T>(file: string, fn: () => T): T {
 /** Fetch and convert the icons for `specs`. Nothing is written; any failure throws, so one bad pick installs none. */
 export async function resolveSpecs(specs: IconSpec[], opts: InstallOpts = {}, skipped: string[] = []): Promise<Record<string, InstalledIcon>> {
   const f: Fetch = opts.fetch ?? (url => fetch(url) as never);
-  const api = (opts.api ?? process.env.SVG_DIAGRAM_ICONIFY_API ?? DEFAULT_API).replace(/\/$/, '');
+  const api = (opts.api ?? process.env['SVG_DIAGRAM_ICONIFY_API'] ?? DEFAULT_API).replace(/\/$/, '');
   const allow = new Set([...PERMISSIVE, ...(opts.allowLicense ?? [])]);
   const out: Record<string, InstalledIcon> = {};
   const missing: string[] = []; // every name the set lacks, reported together (one typo should not hide the others)
@@ -176,7 +176,7 @@ export function removeIcons(names: string[], cwd: string = process.cwd()): {file
 
 export async function searchIcons(query: string, opts: InstallOpts & {set?: string; limit?: number} = {}): Promise<string[]> {
   const f: Fetch = opts.fetch ?? (url => fetch(url) as never);
-  const api = (opts.api ?? process.env.SVG_DIAGRAM_ICONIFY_API ?? DEFAULT_API).replace(/\/$/, '');
+  const api = (opts.api ?? process.env['SVG_DIAGRAM_ICONIFY_API'] ?? DEFAULT_API).replace(/\/$/, '');
   const r = await getJson<{icons?: string[]}>(f, `${api}/search?query=${encodeURIComponent(query)}&limit=${opts.limit ?? 32}${opts.set ? `&prefix=${encodeURIComponent(opts.set)}` : ''}`);
   return r.icons ?? [];
 }

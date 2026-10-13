@@ -136,10 +136,10 @@ t('a `fonts` file that is not there is an error naming the file', () => {
 });
 
 t('without fontconfig and without `fonts`, the error says what to set', () => {
-  const path = process.env.PATH;
-  process.env.PATH = '';
+  const path = process.env['PATH'];
+  process.env['PATH'] = '';
   try {
     // a spec object the earlier tests did not use, so this family is resolved afresh
     assert.throws(() => w('x', 16, 400, 'mono', {mono: {}}), (e: Error) => /no mono font file found/.test(e.message) && /\.svg-diagram\.json/.test(e.message) && /"measure": "chromium"/.test(e.message));
-  } finally { process.env.PATH = path; }
+  } finally { process.env['PATH'] = path; }
 });

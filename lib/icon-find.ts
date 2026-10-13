@@ -39,7 +39,7 @@ const NAME_OK = /^[A-Za-z][A-Za-z0-9_-]*$/;
 
 export async function findIcons(words: string[], opts: FindOpts = {}): Promise<{word: string; candidates: Candidate[]; skipped: string[]}[]> {
   const f: Fetch = opts.fetch ?? (url => fetch(url) as never);
-  const api = (opts.api ?? process.env.SVG_DIAGRAM_ICONIFY_API ?? DEFAULT_API).replace(/\/$/, '');
+  const api = (opts.api ?? process.env['SVG_DIAGRAM_ICONIFY_API'] ?? DEFAULT_API).replace(/\/$/, '');
   const allow = new Set([...PERMISSIVE, ...(opts.allowLicense ?? [])]);
   const limit = opts.limit ?? 6;
   const out: {word: string; candidates: Candidate[]; skipped: string[]}[] = [];

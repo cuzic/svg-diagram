@@ -268,7 +268,7 @@ test('init makes a project that typechecks its type setting, and never overwrite
   fs.writeFileSync(path.join(dir, 'pnpm-workspace.yaml'), 'packages: []\n');
   assert.match(out(spawnSync(BIN, ['init'], {cwd: dir, encoding: 'utf8'})), /playwright-chromium/);
   assert.equal(fs.readFileSync(path.join(dir, 'pnpm-workspace.yaml'), 'utf8'), 'packages: []\n'); // left alone
-  const noTsc = (process.env.PATH ?? '').split(path.delimiter).filter(d => !fs.existsSync(path.join(d, 'tsc'))).join(path.delimiter);
+  const noTsc = (process.env['PATH'] ?? '').split(path.delimiter).filter(d => !fs.existsSync(path.join(d, 'tsc'))).join(path.delimiter);
   const t = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8', env: {...process.env, PATH: noTsc}});
   assert.equal(t.status, 2); // no typescript in a bare temp project, none on PATH: says how to install it
   assert.match(out(t), /typescript/);
@@ -284,7 +284,7 @@ test('typecheck works with this tool run globally: a tsc on PATH, `svg-diagram` 
   const wrap = path.join(dir, 'bin');
   fs.mkdirSync(wrap);
   fs.writeFileSync(path.join(wrap, 'tsc'), `#!/bin/sh\nexec "${tscBin}" "$@"\n`, {mode: 0o755});
-  const env = {...process.env, PATH: `${wrap}${path.delimiter}${process.env.PATH}`};
+  const env = {...process.env, PATH: `${wrap}${path.delimiter}${process.env['PATH']}`};
   // the project's own type packages stay visible next to the tool's @types/node, and the `svg-diagram/render` entry resolves too
   fs.mkdirSync(path.join(dir, 'node_modules', '@types', 'foo'), {recursive: true});
   fs.writeFileSync(path.join(dir, 'node_modules', '@types', 'foo', 'index.d.ts'), 'declare const FOO: number;\n');
