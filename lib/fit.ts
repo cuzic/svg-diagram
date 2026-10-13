@@ -34,6 +34,7 @@ export function minTextSize(d: {laidOut?: LaidOutDiagram['laidOut']; connects?: 
     if (band.type === 'cloud') for (const l of band.chips) minSize = Math.min(minSize, l.size);
     if (band.type === 'states' || band.type === 'classes' || band.type === 'bpmn') for (const l of band.labels) minSize = Math.min(minSize, l.size);
     if (band.type === 'quadrant') for (const t of band.texts) minSize = Math.min(minSize, t.size);
+    if (band.type === 'chevron' || band.type === 'funnel' || band.type === 'cycle' || band.type === 'venn' || band.type === 'concentric') for (const t of band.texts) minSize = Math.min(minSize, t.size);
     if (band.type === 'plane') minSize = Math.min(minSize, band.labelSize);
     if (band.type === 'table') minSize = Math.min(minSize, band.bodySize);
   }
