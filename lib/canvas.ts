@@ -238,10 +238,13 @@ export function canvasBand(template: string, content: Record<string, string | re
     place.push({col: l.col, row: l.row, cs: l.cs ?? 1, rs: l.rs ?? 1});
   }
   if (opts.stamp !== undefined) {
-    // the stamp belongs to the canvas: it sits in the box that holds the bottom-right corner
-    const lastRow = Math.max(...place.map(p => p.row + p.rs)), lastCol = Math.max(...place.map(p => p.col + p.cs));
-    const i = place.findIndex(p => p.row + p.rs === lastRow && p.col + p.cs === lastCol);
-    children[i] = {...children[i], stamp: opts.stamp};
+    if (typeof opts.stamp !== 'string' || !opts.stamp.trim()) throw new Error(`canvas({stamp}) must be a non-empty string (got ${JSON.stringify(opts.stamp)})`);
+    // the stamp belongs to the canvas: it sits in the bottom row's right-most box (the corner box, or, when the corner cell is empty
+    // as in fiveForces, the box nearest to it)
+    const lastRow = Math.max(...place.map(p => p.row + p.rs));
+    let i = -1;
+    place.forEach((p, k) => { if (p.row + p.rs === lastRow && (i < 0 || p.col + p.cs > place[i].col + place[i].cs)) i = k; });
+    children[i] = {...children[i], stamp: opts.stamp.trim()};
   }
   const rows = Math.max(...place.map(p => p.row + p.rs));
   const colW = [...t.cols], rowW = Array.from({length: rows}, (_, i) => t.rows[i] ?? 1);

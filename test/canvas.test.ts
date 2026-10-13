@@ -174,6 +174,20 @@ test('title is a caption above; stamp sits in the corner region', async () => {
   assert.deepEqual(boxes.filter(b => b.stamp).map(b => b.title), ['脅威（Threats）']);
 });
 
+test('stamp: every template draws it exactly once, in the bottom row\'s right-most box (fiveForces has no box in its corner cell)', async () => {
+  for (const name of canvasTemplates() as (keyof typeof TEMPLATES)[]) {
+    const r = await renderDiagram(diagram({theme: 'blue', title: name}).add(canvas(name, {}, {stamp: '架空の例'})), {name, budget: 'measure'});
+    assert.equal(r.svg.split('架空の例').length - 1, 1, `${name}: the stamp is drawn once`);
+    const boxes = (r.laidOut.laidOut.find(b => b.type === 'grid') as LaidOutGrid).children;
+    const s = boxes.find(b => b.stamp)!, bottom = Math.max(...boxes.map(b => b.y + b.h));
+    assert.ok(Math.abs(s.y + s.h - bottom) < 0.5, `${name}: in the bottom row`);
+    for (const b of boxes) if (Math.abs(b.y + b.h - bottom) < 0.5) assert.ok(b.x <= s.x, `${name}: right-most`);
+  }
+  assert.equal((await laid(canvas('fiveForces', {}, {stamp: '仮説'}))).byTitle('▲ 代替品の脅威').stamp, '仮説');
+  assert.throws(() => canvas('swot', {}, {stamp: ''}), /stamp\}\) must be a non-empty string/);
+  assert.throws(() => canvas('swot', {}, {stamp: 3 as never}), /stamp\}\) must be a non-empty string/);
+});
+
 test('h: the canvas is at least that tall (rows share it by weight), and content that needs more throws with the height it needs', async () => {
   const {boxes} = await laid(canvas('swot', {strengths: ['a']}, {h: 900}));
   const top = Math.min(...boxes.map(b => b.y)), bottom = Math.max(...boxes.map(b => b.y + b.h));
