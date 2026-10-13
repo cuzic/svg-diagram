@@ -5,7 +5,7 @@
 // Same geometry as the SVG: layout.ts has already broken every text into lines and placed each baseline, so a line is one element
 // with white-space: pre — the browser never re-wraps it. A line's top is its baseline minus the font's ascent (its line-height is
 // ascent + descent), which is how the baseline lands where the <text> of the SVG puts it.
-import {PALETTE, FONT_STACKS, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle, recolor} from './tokens.ts';
+import {PALETTE, FONT_STACKS, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle, recolor, withTones} from './tokens.ts';
 import {createHash} from 'node:crypto';
 import {textBox} from './font-metrics.ts';
 import {currentFontSpecs} from './measure.ts';
@@ -205,6 +205,9 @@ const CSS = (id: string, transparent = false) => `
 
 /** A self-contained HTML fragment (a <div> and a <style>) for the diagram. `id` scopes the CSS (default: a hash of the content, so the same figure always gets the same id and two figures do not share one). */
 export function emitHtml(d: LaidOutDiagram, opts: {reveal?: number; id?: string} = {}): string {
+  return withTones(d.tones, () => emitHtmlWith(d, opts));
+}
+function emitHtmlWith(d: LaidOutDiagram, opts: {reveal?: number; id?: string}): string {
   const {width, canvasHeight, day} = d;
   const visible = d.laidOut.filter(b => visibleAt(b, opts.reveal));
   // The SVG draws the bands in order and the connectors on top; so does this: consecutive bands of one kind (drawn as HTML, as the SVG

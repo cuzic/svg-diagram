@@ -20,6 +20,7 @@ import type {ChartBand, LaidOutChart} from './charts.ts';
 import type {ConnectInput, DeclaredIds, RefIn, ValidateBands} from './strict.ts';
 import type {RULE_DOCS, DEFAULT_LEGEND_LABELS} from './rules.ts';
 import type {RICH} from './rich.ts';
+import type {ToneOverrides} from './tokens.ts';
 import type {LaidOutQuadrant, QuadrantBand} from './quadrant.ts';
 import type {FlowShapeBand, LaidOutFlowShape} from './flow-shapes.ts';
 
@@ -42,7 +43,7 @@ export interface ThemeColors {accent: string; soft: string}
 export type PlainColorKey = 'bg' | 'text' | 'muted' | 'border' | 'code' | 'danger';
 export type Palette = Record<PlainColorKey, string> & Record<Theme, ThemeColors>;
 /** Token key a wireframe primitive carries; emit.ts resolves it against the diagram theme ('accent' | 'soft' are theme colours). */
-export type ColorKey = PlainColorKey | 'accent' | 'soft';
+export type ColorKey = PlainColorKey | 'accent' | 'soft' | `#${string}`; // a #rrggbb only comes from a tone override (tokens.ts withTones)
 
 /** font-size role (tokens.ts ROLES). */
 export type Role = 'title' | 'label' | 'body' | 'note' | 'banner' | 'stat' | 'display';
@@ -141,6 +142,8 @@ export interface DiagramOpts {
   /** 'auto' adds a legend entry for every notation used but not listed. false: this diagram needs no legend (legend-missing / legend-incomplete are not reported). */
   legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
+  /** Replace colours of tones for this diagram: `{accent: {fill: '#e6d3bd', dark: {fill: '#4a3a28'}}}`. Per tone: fill / stroke / text / ink (#rrggbb), and `dark` for the same under appearance 'dark'. Checked like the built-in colours (text-contrast, gray-tone-collision). The project's `tones` apply under it. */
+  tones?: ToneOverrides;
   /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
   wrap?: 'phrase' | 'char';
   width?: number;
@@ -185,6 +188,7 @@ export interface DiagramData {
   accept?: Partial<Record<RuleId, string>>;
   legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
+  tones?: ToneOverrides;
   /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
   wrap?: 'phrase' | 'char';
   width: number;
@@ -2621,6 +2625,8 @@ export interface Config {
   legend?: 'auto' | false;
   /** Legend wording for every diagram, e.g. {"tone:accent": "注意"} (a diagram's own legendLabels win per key). */
   legendLabels?: Partial<Record<NotationKey, string>>;
+  /** Tone colours for every diagram, e.g. {"accent": {"fill": "#e6d3bd", "dark": {"fill": "#4a3a28"}}} (a diagram's own `tones` win per colour). */
+  tones?: ToneOverrides;
   /** How text is measured: 'font' (default) from the font files, no browser (see `fonts`); 'chromium' in a headless browser. */
   measure?: 'chromium' | 'font';
   /** Font files to measure with when `measure` is 'font': per family, the regular and the bold (weight >= 600) one, as `path` or `path#faceIndex`. Unset: found with fontconfig. */

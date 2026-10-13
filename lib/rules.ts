@@ -11,7 +11,7 @@
 
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
-import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, paintOf, relativeLuminance} from './tokens.ts';
+import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, withTones} from './tokens.ts';
 
 // contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
 const wcagIn = (d: LintTarget) => { const p = paintOf(d.appearance); return (a: string, b: string): number => lightWcag(p(a), p(b)); };
@@ -184,7 +184,7 @@ function textContrast(d: LintTarget, out: Finding[]): void {
       const boxTone = b.tone ?? ((b.type as string) === 'banner' ? 'accent' : 'plain');
       for (const run of b.wrappedRuns ?? []) check(b.dim ? PALETTE.muted : runColorOf(run.tone, boxTone, d.day), bg, `「${String(run.text).slice(0, 14)}」`);
       if (!b.dim) for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if (sp.tone) check(resolveTextColor(sp.tone, d.day), bg, `「${sp.text.slice(0, 14)}」`);
-      if (b.tag) check(PALETTE.bg, b.tagTone === 'danger' ? PALETTE.danger : b.tagTone === 'muted' ? PALETTE.muted : PALETTE[d.day].accent, `タグ「${b.tag}」`);
+      if (b.tag) check(PALETTE.bg, colorOf(toneStyle(b.tagTone === 'danger' || b.tagTone === 'muted' ? b.tagTone : 'accent').ink, d.day), `タグ「${b.tag}」`);
     } else if (b.type === 'caption') {
       for (const run of b.wrappedRuns ?? []) check(resolveTextColor(run.tone, d.day), PALETTE.bg, `「${String(run.text).slice(0, 14)}」`);
       for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if (sp.tone) check(resolveTextColor(sp.tone, d.day), PALETTE.bg, `「${sp.text.slice(0, 14)}」`);
@@ -226,7 +226,7 @@ function nonTextContrast(d: LintTarget, out: Finding[]): void {
   }
   for (const c of d.connects ?? []) {
     // connector colours are resolved the same way emit does
-    const col = c.dim ? PALETTE.muted : c.tone === 'muted' ? PALETTE.muted : c.tone === 'danger' ? PALETTE.danger : c.tone === 'accent' ? PALETTE[d.day].accent : PALETTE.text;
+    const col = c.dim ? PALETTE.muted : c.tone === 'muted' || c.tone === 'danger' || c.tone === 'accent' ? colorOf(toneStyle(c.tone).ink, d.day) : PALETTE.text;
     const r = wcagRatio(col, PALETTE.bg);
     if (r < 3) { out.push({rule: 'a11y-nontext-contrast', severity: 'warn', message: `矢印の色 ${col} のコントラスト比が ${ratioText(r)}:1`}); break; }
   }
@@ -319,7 +319,7 @@ function grayToneRules(d: LintTarget, out: Finding[]): void {
     const pair = `${a.name}・${b.name}`;
     if (!seen.has(pair)) { seen.add(pair); hits.push(`${pair}（L* ${Math.round(a.l)} と ${Math.round(b.l)}）`); }
   }
-  if (hits.length) out.push({rule: 'gray-tone-collision', severity: 'warn', message: `白黒にすると塗りの明度が近く、見分けにくいトーンの組: ${hits.join('、')}。どちらかを solid / muted にするか、破線・太字・ラベルなど色以外の手がかりを足す（確認は preview --gray）`});
+  if (hits.length) out.push({rule: 'gray-tone-collision', severity: 'warn', message: `白黒にすると塗りの明度が近く、見分けにくいトーンの組: ${hits.join('、')}。直し方は 2 つ: (1) トーンの塗りの明度差を L* 10 以上にする（diagram({tones: {accent: {fill: '#…'}}}) か .svg-diagram.json の \"tones\" で色を変える。または片方を solid / muted にする）、(2) 破線・太字・ラベルなど色以外の手がかりを足し、accept: {'gray-tone-collision': '理由'} で許容する（確認は preview --gray）`});
 }
 
 function swimlaneRules(d: LintTarget, out: Finding[]): void {
@@ -418,7 +418,7 @@ function wireframeRules(d: LintTarget, out: Finding[]): void {
 }
 
 export function lintDiagram(d: LintTarget): Finding[] {
-  const out = lintAll(d);
+  const out = withTones(d.tones, () => lintAll(d));
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
   return out.map(f => (d.accept && d.accept[f.rule as RuleId] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule as RuleId]}）`} : f));
 }
