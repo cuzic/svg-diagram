@@ -117,6 +117,8 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 
 2 軸のマス分け（BCG・GE・アンゾフ・人材 9 ボックス・リスクマトリクス・ポジショニングマップ・影響力×関心度）は `quadrant`。軸・マスの見出し・項目の置き場所を書く。配置と重ならない調整は自動。書き方の全部は README の「象限図・分類マトリクス」。
 
+流れや構造の定型図は flowShapes を使う。工程は `chevron(steps)`、段階的な減少は `funnel(stages, {scale: 'value', showRate: true})`、閉じた改善は `cycle(steps)`、2〜3 集合は `venn(sets, {overlaps})`、入れ子の層は `concentric(rings)`。各項目の `id` は connect / spotlight の対象。cycle は 3〜8 個、venn は 2〜3 集合に限る。色だけにせず、venn は自動の線種の違い、他は文字ラベルを必ず残す（concentric の `labels: 'side'` は引き出し線で層につながる）。venn の `centre` は全集合の重なり（全集合の overlap と同時には書けない）。例は `examples/chevron-*` など。
+
 | 書くもの | 書き方 |
 |---|---|
 | 型から始める | `quadrant.preset('bcg' \| 'ge' \| 'ansoff' \| 'nineBox' \| 'impactEffort' \| 'risk' \| 'stakeholder' \| 'positioning' \| 'eisenhower', {items})`。軸・見出し・色は日本語で入る。書いたものだけ上書き |
@@ -155,6 +157,31 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 - どれも `id`（図全体）と、要素の `id` が `connect()` / `spotlight` の端点になり、`labelRole` で文字を大きくできる。`lines` 系は `plane` を返す。
 - 入らない値のラベル（狭い列・小さなセル）はエラーに直し方が書いてある。幅・高さを上げるか、小さいものを「その他」にまとめる。
 - 描いたら `svg-diagram preview` で目で見る。
+
+## 意味付き表
+
+表のセルが業務上の意味を持つなら、生の `table()` より専用部品を使う。入力検査、集計、非色覚依存の文字・記号が付く。
+
+| 図 | 部品 | 要点 |
+|---|---|---|
+| RACI 責任分担表 | `raci(tasks, roles, assignments)` | `R/A/C/I` と `A/R`。各タスクは A が 1、R が 1 以上。例外は `allowNoA`。空の役割列は check が警告 |
+| FMEA | `fmea(rows, {sort: 'rpn'})` | S/O/D は 1〜10。RPN は自動。`after: {s,o,d}` で改善後、`threshold` / `midThreshold` で段階 |
+| QFD | `qfd(demands, characteristics, relations)` | 要求の `importance` と `◎○△×` から得点（列合計）・相対 % を自動計算。単独首位は太字 |
+| ジャーニーマップ | `journeyMap(stages, lanes)` | `{id,label,cells}`。`id: 'emotion'` は既定 -2〜+2 の折れ線＋点と記号付き数値（値は行上部、曲線は下部）。別尺度は `emotionRange` |
+
+4 部品とも `title / width / dense / id / reveal / until` が使え、結果は通常の `table` band（ハンドルも同じ）。色だけに頼らず、RACI 文字・評価記号・数値を消さない。例は `examples/raci-project.ts`、`fmea-basic.ts`、`qfd-basic.ts`、`journey-map.ts`。
+
+## 意味付きネットワーク
+
+座標を手で書かず、意味をデータに持たせるネットワークは次を使う。方向はすべて `direction: 'LR' | 'TB'`、ノード `id` は `connect()` の端点になる。
+
+| 図 | 書き方 | 自動で行うこと |
+|---|---|---|
+| PERT（作業を箱にする activity-on-node。作業を矢印にするなら `arrowDiagram`） | `pert([{id, label, duration, predecessors}], {unit})` | ES / EF / LS / LF / slack とクリティカルパス。循環・未知の先行タスクを拒否 |
+| 因果ループ図 | `causalLoop(nodes, [{from, to, polarity, delay?}])` | `+` / `-`、遅延 `||`、単純ループの R / B 分類 |
+| 関連図 / 依存ネットワーク | `dependencyNetwork([{id, label, kind?}], [{from, to, type, weight?}], opts)` | kind / type の表現、重みの線幅と数値、使用した記法の凡例 |
+
+PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `analyzeCausalLoops`。長い日本語ラベルでは `width` を広げ、層が多いときは LR、並列が多いときは TB を試す。描いた後は必ず `check` とプレビューを通す。
 
 ## ワイヤーフレーム・画面遷移図で、見て直すこと（実際に効いた点）
 

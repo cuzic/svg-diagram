@@ -16,10 +16,12 @@ import {layoutTreemap, treemapTexts} from './charts-treemap.ts';
 import type {TreemapSpec} from './charts-treemap.ts';
 import {layoutSankey, sankeyTexts} from './charts-sankey.ts';
 import type {SankeySpec} from './charts-sankey.ts';
+import {layoutCausal, layoutDependency, layoutPert, semnetTexts} from './semnet.ts';
+import type {CausalSpec, DependencySpec, PertSpec} from './semnet.ts';
 import type {FontFamily, Rect, Dimmed, Roles, WidthOf} from './types.ts';
 import type {RevealOpts} from './types.ts';
 
-export type ChartSpec = {kind: 'waterfall'; spec: WaterfallSpec} | {kind: 'tornado'; spec: TornadoSpec} | {kind: 'heatmap'; spec: HeatmapSpec} | {kind: 'stacked'; spec: StackedSpec} | {kind: 'radar'; spec: RadarSpec} | {kind: 'treemap'; spec: TreemapSpec} | {kind: 'sankey'; spec: SankeySpec};
+export type ChartSpec = {kind: 'waterfall'; spec: WaterfallSpec} | {kind: 'tornado'; spec: TornadoSpec} | {kind: 'heatmap'; spec: HeatmapSpec} | {kind: 'stacked'; spec: StackedSpec} | {kind: 'radar'; spec: RadarSpec} | {kind: 'treemap'; spec: TreemapSpec} | {kind: 'sankey'; spec: SankeySpec} | {kind: 'pert'; spec: PertSpec} | {kind: 'causal'; spec: CausalSpec} | {kind: 'dependency'; spec: DependencySpec};
 
 export interface ChartBand extends RevealOpts {
   type: 'chart';
@@ -57,6 +59,7 @@ export function chartTexts(band: ChartBand, roles: Roles): [string, number, numb
       case 'radar': return radarTexts(band.spec as RadarSpec);
       case 'treemap': return treemapTexts(band.spec as TreemapSpec);
       case 'sankey': return sankeyTexts(band.spec as SankeySpec);
+      case 'pert': case 'causal': case 'dependency': return semnetTexts(band.kind, band.spec as PertSpec | CausalSpec | DependencySpec);
       default: return [];
     }
   })();
@@ -75,6 +78,9 @@ export function layoutChart(band: ChartBand, x: number, y: number, w: number, wi
       case 'radar': return layoutRadar(band.spec as RadarSpec, g);
       case 'treemap': return layoutTreemap(band.spec as TreemapSpec, g);
       case 'sankey': return layoutSankey(band.spec as SankeySpec, g);
+      case 'pert': return layoutPert(band.spec as PertSpec, g);
+      case 'causal': return layoutCausal(band.spec as CausalSpec, g);
+      case 'dependency': return layoutDependency(band.spec as DependencySpec, g);
       default: throw new Error(`chart(): unknown kind ${band.kind}`);
     }
   })();

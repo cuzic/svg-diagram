@@ -64,8 +64,9 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
       rects.push({id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id), ...(band.backdrop ? {backdrop: true} : {})});
     } else if (band.type === 'bars') {
       for (const [i, b] of band.bars.entries()) rects.push({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})});
-    } else if (band.type === 'quadrant') { // each item with an id is its own rect: a connector from outside must not run through one
-      for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
+    } else if (band.type === 'quadrant' || band.type === 'chevron' || band.type === 'funnel' || band.type === 'cycle' || band.type === 'venn' || band.type === 'concentric') { // each item with an id is its own rect
+      const intentional = band.type === 'venn' || band.type === 'concentric' ? `@intentional-overlap:${band.x},${band.y}` : undefined;
+      for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...((band.id || intentional) ? {holds: [band.id, intentional].filter((x): x is string => !!x)} : {})});
     } else if (band.type === 'bpmn') { // each node is its own rect: a connector from outside must not run through one
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'classes') { // each class is its own rect: a connector from outside must not run through one
@@ -401,6 +402,20 @@ function checkQuadrants(d: LaidOutDiagram): string[] {
   return problems;
 }
 
+function checkFlowShapes(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  for (const band of d.laidOut) {
+    if (band.type !== 'chevron' && band.type !== 'funnel' && band.type !== 'cycle' && band.type !== 'venn' && band.type !== 'concentric') continue;
+    for (const t of band.labelBoxes) if (t.x < band.x - .5 || t.y < band.y - .5 || t.x + t.w > band.x + band.w + .5 || t.y + t.h > band.y + band.h + .5) problems.push(`${band.type}: label "${t.label}" runs outside the figure`);
+    const boxes = band.labelBoxes;
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const o = rectOverlap(boxes[i], boxes[j]);
+      if (o && o.dx > 1 && o.dy > 1) problems.push(`${band.type}: label "${boxes[i].label}" overlaps label "${boxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
+    }
+  }
+  return problems;
+}
+
 // plane(): every label it placed must stay inside the figure and clear of the other labels.
 function checkPlanes(d: LaidOutDiagram): string[] {
   const problems: string[] = [];
@@ -436,6 +451,7 @@ function checkOverlaps(rects: CheckRect[]): string[] {
   for (let i = 0; i < rects.length; i++) {
     for (let j = i + 1; j < rects.length; j++) {
       const [a, b] = [rects[i], rects[j]];
+      if (a.holds?.some(h => h.startsWith('@intentional-overlap:') && b.holds?.includes(h))) continue;
       if ((a.life || b.life) && neverTogether(a.life ?? {}, b.life ?? {})) continue;
       const o = rectOverlap(a, b);
       if (o) problems.push(`"${rects[i].label}" overlaps "${rects[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
@@ -539,6 +555,7 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
     ...checkConnects(d, rects.filter(r => !r.backdrop)),
     ...checkPlanes(d),
     ...checkQuadrants(d),
+    ...checkFlowShapes(d),
     ...checkBars(d),
     ...checkCharts(d),
     ...checkImages(d),

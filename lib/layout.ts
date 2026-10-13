@@ -25,6 +25,7 @@ import {barsTexts, layoutBars} from './bars.ts';
 import {dotsTexts, layoutDots, layoutPeople, peopleTexts} from './people.ts';
 import {layoutTimeline, timelineTexts} from './timeline.ts';
 import {layoutQuadrant, quadrantTexts} from './quadrant.ts';
+import {flowShapeTexts, layoutFlowShape} from './flow-shapes.ts';
 import {canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
 import {layoutTreeBand, treeTexts} from './tree.ts';
 import {layoutStatesBand, statesTexts} from './states.ts';
@@ -324,6 +325,8 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
       for (const [text, size, weight, font] of planeTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'quadrant') {
       for (const [text, size, weight, font] of quadrantTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'chevron' || band.type === 'funnel' || band.type === 'cycle' || band.type === 'venn' || band.type === 'concentric') {
+      for (const [text, size, weight, font] of flowShapeTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'image') {
       for (const [text, size, weight, font] of imageTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
       for (const child of band.children ?? []) registerBand(child);
@@ -1025,6 +1028,13 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       laidOut.push(placed);
       cursorY += placed.h + d.gap;
       continue;
+    }
+
+    if (band.type === 'chevron' || band.type === 'funnel' || band.type === 'cycle' || band.type === 'venn' || band.type === 'concentric') {
+      const placed = layoutFlowShape(band, padX, cursorY, cw, widthOf, roles);
+      if (band.id) { if (anchors.has(band.id)) claimed(band.id, `a ${band.type} takes an id that another anchor already has`); anchors.set(band.id, placed); }
+      for (const a of placed.anchors) { if (anchors.has(a.id)) claimed(a.id, `a ${band.type} item takes an id that another anchor already has`); anchors.set(a.id, a); }
+      laidOut.push(placed); cursorY += placed.h + d.gap; continue;
     }
 
     if (band.type === 'curve') {
