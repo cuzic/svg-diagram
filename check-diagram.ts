@@ -21,7 +21,12 @@
 //       Does the figure that replaces a table still carry the table's cells? Each cell is looked up in the figure's <text>
 //       (width, case, spaces and punctuation ignored); a cell that is not there whole is judged by its proper-noun and number tokens,
 //       and the missing ones are listed. A source is read through its committed SVG (DIR defaults to ./svg).
-//   Any mode:  --format text|json|github   (github = ::warning annotations for a pull request)
+//   svg-diagram check --rules | --explain RULE
+//       List every rule id, or explain one (what it means, how to accept it in .svg-diagram.json).
+//   svg-diagram check --write-baseline FILE <...>   /   --baseline FILE <...>
+//       Adopt the checker in a project that already has warnings: --write-baseline records today's warnings in FILE (JSON),
+//       --baseline FILE then reports only warnings that are NOT in it (the recorded ones become info). Errors are never baselined.
+//   Any mode:  --format text|json|github|sarif   (github = ::warning annotations for a pull request, sarif = SARIF 2.1.0 for code scanning)
 //   Project settings (accepted rules, max width) come from .svg-diagram.json, found by walking up from the current directory.
 
 import fs from 'fs';
@@ -45,12 +50,41 @@ const {readTable, figureText, checkCovers} = await import('./lib/covers.ts');
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
 const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1]; };
-const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--covers', '--format', '--only'];
+const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--covers', '--format', '--only', '--explain', '--baseline', '--write-baseline'];
 const vals = (n: string) => args.flatMap((a, i) => (a === n && args[i + 1] !== undefined ? [args[i + 1]] : []));
 // --docs takes the path after it, and every following .md file / directory too (`--docs A.md B.md dir`): those are documents, never sources
 const isDocArg = (a: string) => !a.startsWith('--') && (a.toLowerCase().endsWith('.md') || (fs.existsSync(a) && fs.statSync(a).isDirectory()));
 const docsArgIdx = new Set<number>();
 args.forEach((a, i) => { if (a === '--docs') for (let j = i + 1; j < args.length && (j === i + 1 ? args[j] !== undefined && !args[j].startsWith('--') : isDocArg(args[j])); j++) docsArgIdx.add(j); });
+const NON_DIAGRAM_RULES: Record<string, string> = {
+  'layout': '図が置けない（重なり・はみ出し・幅超過など）。メッセージに直し方がある。許容できない（accept できない）エラー',
+  'drift-missing': '--drift: ソースに対応する SVG がない（未生成）',
+  'drift-no-provenance': '--drift: SVG に生成元の情報（<metadata id="svg-diagram">）がない',
+  'drift-stale': '--drift: ソースが変わっているのに SVG が再生成されていない',
+  'drift-stale-deps': '--drift: ソースが import しているファイルが変わっているのに SVG が再生成されていない',
+  'drift-rebuild': '--drift --rebuild: 再生成した SVG が、コミット済みの SVG と一致しない',
+  'drift-rebuild-failed': '--drift --rebuild: 再生成した SVG が自分の検査に通らない',
+  'drift-orphan-reveal': '--drift: 段階表示の段数を減らしたのに、古い reveal ファイルが残っている',
+  'covers-missing': '--covers: 表のセルの語・数値が図に残っていない',
+  'covers-missing-svg': '--covers: 図の SVG がない（未生成）',
+  'doc-fig-number': '--docs: 図の番号 図N-M が順番どおりでない',
+  'doc-fig-ref-missing': '--docs: 本文の 図N-M が、実在する図を指していない',
+  'doc-notes-number': '--docs: 図の下の注釈の番号が連番でない',
+  'doc-alt-placeholder': '--docs: 代替テキストが仮のまま（画像・図 など）',
+};
+const explain = val('--explain');
+if (explain !== null || flag('--rules')) {
+  const all: Record<string, string> = {...RULE_DOCS, ...NON_DIAGRAM_RULES};
+  if (explain === null) { for (const [k, v] of Object.entries(all).sort(([a], [b]) => a.localeCompare(b))) console.log(`${k}\t${v}`); process.exit(0); }
+  const doc = all[explain];
+  if (!doc) {
+    const near = Object.keys(all).filter(k => k.includes(explain) || explain.includes(k) || k.split('-')[0] === explain.split('-')[0]).slice(0, 8);
+    console.error(`✗ ルール "${explain}" はない。${near.length ? `似た名前: ${near.join(', ')}。` : ''}一覧は svg-diagram check --rules`); process.exit(2);
+  }
+  console.log(`${explain}\n  ${doc}`);
+  if (Object.hasOwn(RULE_DOCS, explain)) console.log(`\n許容するとき（理由が要る）:\n  案件全体: .svg-diagram.json の {"accept": {"${explain}": "なぜ問題ないか"}}\n  その図だけ: diagram({accept: {'${explain}': 'なぜ問題ないか'}})\n  （許容した指摘は info に下がり、理由が添えられる）`);
+  process.exit(0);
+}
 const strict = flag('--strict'), verbose = flag('--verbose'), drift = flag('--drift'), rebuild = flag('--rebuild');
 const mapMode = flag('--map');
 if (mapMode && (!val('--docs') || (val('--format') ?? 'text') !== 'text')) { console.error('--map は --docs と一緒に、--format text で使う（表を標準出力に出す）'); process.exit(2); }
@@ -60,8 +94,8 @@ for (const s of sources) {
   const ok = coversFile && s.toLowerCase().endsWith('.svg') ? true : /\.(ts|mts|cts|js|mjs|cjs)$/i.test(s);
   if (!ok) { console.error(`✗ ${s}: 図のソース（.ts / .mjs）ではない。${/\.md$/i.test(s) ? '文書は --docs ' + s + ' で渡す' : '図のソースを指定する'}`); process.exit(2); }
 }
-if (!['text', 'json', 'github'].includes(format)) { console.error(`--format must be text, json or github (got "${format}")`); process.exit(2); }
-if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]] [--covers TABLE.md|TABLE.csv [--svg-dir DIR]] [--format text|json|github] <source.ts>...'); process.exit(2); }
+if (!['text', 'json', 'github', 'sarif'].includes(format)) { console.error(`--format must be text, json, github or sarif (got "${format}")`); process.exit(2); }
+if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]] [--covers TABLE.md|TABLE.csv [--svg-dir DIR]] [--format text|json|github|sarif] [--baseline FILE | --write-baseline FILE] <source.ts>...\n       svg-diagram check --rules | --explain RULE'); process.exit(2); }
 const config = loadConfig();
 let coverCells: ReturnType<typeof readTable> = [];
 if (coversFile) {
@@ -75,7 +109,19 @@ const complain = (...a: unknown[]) => { if (format === 'text') console.error(...
 type CheckFinding = {file: string; line?: number; rule: string; severity: 'error' | 'warn' | 'info'; message: string};
 const findings: CheckFinding[] = [];
 let bad = 0, warned = 0;
-const add = (f: CheckFinding) => { findings.push(f); if (f.severity === 'error') bad++; else if (f.severity === 'warn') warned++; };
+// --baseline: warnings recorded in the baseline file become info (errors never do), so --strict fails only on new ones
+const fingerprint = (f: {file: string; rule: string; message: string}) => `${f.file}\u0000${f.rule}\u0000${f.message}`;
+const baselineFile = val('--baseline'), writeBaseline = val('--write-baseline');
+if (baselineFile && writeBaseline) { console.error('--baseline と --write-baseline は同時に使えない'); process.exit(2); }
+const baselined = new Set<string>();
+if (baselineFile) {
+  if (!fs.existsSync(baselineFile)) { console.error(`--baseline: ${baselineFile} がない（--write-baseline ${baselineFile} で作る）`); process.exit(2); }
+  try { for (const e of JSON.parse(fs.readFileSync(baselineFile, 'utf8')).warnings as {file: string; rule: string; message: string}[]) baselined.add(fingerprint(e)); }
+  catch { console.error(`--baseline: ${baselineFile} を読めない（--write-baseline で作ったJSONではない）`); process.exit(2); }
+}
+const applyBaseline = <T extends {rule: string; severity: string; message: string}>(file: string, f: T): T =>
+  f.severity === 'warn' && baselined.has(fingerprint({file, rule: f.rule, message: f.message})) ? {...f, severity: 'info', message: `${f.message}（ベースライン済み）`} : f;
+const add = (f0: CheckFinding) => { const f = applyBaseline(f0.file, f0); findings.push(f); if (f.severity === 'error') bad++; else if (f.severity === 'warn') warned++; };
 
 const sha = (f: string) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
 function embedded(svgPath: string): DiagramSource | null {
@@ -233,15 +279,35 @@ try {
     const d = await loadDiagram(abs, config);
     const {verdict} = await checkDiagram(d);
     if (!verdict.ok) { for (const p of verdict.problems) add({file: src, rule: 'layout', severity: 'error', message: p}); complain(`✗ ${src}:\n  ${verdict.problems.join('\n  ')}`); continue; }
-    for (const f of verdict.findings) add({file: src, rule: f.rule, severity: f.severity, message: f.message});
-    const w = verdict.findings.filter(f => f.severity === 'warn').length;
+    const shown = verdict.findings.map(f => applyBaseline(src, f));
+    for (const f of shown) add({file: src, rule: f.rule, severity: f.severity, message: f.message});
+    const w = shown.filter(f => f.severity === 'warn').length;
     say(`${w ? '△' : '✓'} ${src}${w ? `（警告 ${w}）` : ''}`);
-    for (const f of verdict.findings.filter(f => verbose || f.severity === 'warn')) say(`   ${f.severity === 'warn' ? '⚠' : 'ℹ'} [${f.rule}] ${f.message}`);
+    for (const f of shown.filter(f => verbose || f.severity === 'warn')) say(`   ${f.severity === 'warn' ? '⚠' : 'ℹ'} [${f.rule}] ${f.message}`);
   }
 } finally {
   await closeMeasurer();
 }
 
+if (writeBaseline) {
+  const warnings = findings.filter(f => f.severity === 'warn').map(({file, rule, message}) => ({file, rule, message}));
+  fs.writeFileSync(writeBaseline, JSON.stringify({version: 1, warnings}, null, 2) + '\n');
+  console.error(`ℹ ベースライン ${writeBaseline} に警告 ${warnings.length} 件を記録した（--baseline ${writeBaseline} で、これ以外の新しい警告だけを報告する）`);
+}
+if (format === 'sarif') {
+  const ruleIds = [...new Set(findings.map(f => f.rule))].sort();
+  const docs: Record<string, string> = {...RULE_DOCS, ...NON_DIAGRAM_RULES};
+  console.log(JSON.stringify({
+    $schema: 'https://json.schemastore.org/sarif-2.1.0.json', version: '2.1.0',
+    runs: [{
+      tool: {driver: {name: 'svg-diagram check', rules: ruleIds.map(id => ({id, shortDescription: {text: docs[id] ?? id}}))}},
+      results: findings.map(f => ({
+        ruleId: f.rule, level: f.severity === 'error' ? 'error' : f.severity === 'warn' ? 'warning' : 'note', message: {text: f.message},
+        locations: [{physicalLocation: {artifactLocation: {uri: f.file.split(path.sep).join('/')}, ...(f.line ? {region: {startLine: f.line}} : {})}}],
+      })),
+    }],
+  }, null, 2));
+}
 if (format === 'json') console.log(JSON.stringify({errors: bad, warnings: warned, findings}, null, 2));
 if (format === 'github') {
   for (const f of findings.filter(f => f.severity !== 'info')) {
