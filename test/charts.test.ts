@@ -313,6 +313,17 @@ test('treemap(): the area of a leaf is its value, name and value are written whe
   assert.ok(chart.anchors.some(a => a.id === 'k'));
 });
 
+test('treemap(): a leaf has the same area per unit of value inside a group (under its header and frame) as outside it', async () => {
+  // with the values as weights, the header strips of A and A1 took their room from a and b only: a got ~26% less area per unit than B
+  const tree = [{label: 'A', children: [{label: 'A1', children: [{label: 'a', value: 5}, {label: 'b', value: 3}]}, {label: 'A2', value: 4}]}, {label: 'B', value: 10}];
+  const {chart, problems} = await chartOf(treemap(tree));
+  assert.deepEqual(problems, []);
+  const per = (l: string, v: number) => { const c = solid(chart, `cell "${l}"`); return c.w * c.h / v; };
+  const r = [per('a', 5), per('b', 3), per('A2', 4), per('B', 10)];
+  assert.ok(Math.max(...r) / Math.min(...r) < 1.03, `area per unit: ${r.map(x => x.toFixed(0)).join(', ')}`);
+  for (const t of ['A 12', 'A1 8']) assert.ok(texts(chart).includes(t), `the header ${t} is still written`);
+});
+
 test('treemap(): strict turns an omitted label into an error; a group with a wrong value, a tone on a group, all-zero are named', async () => {
   await assert.rejects(laid(treemap([{label: 'a', value: 1000}, {label: 'b', value: 1}], {strict: true})), /does not fit \(b/);
   assert.throws(() => treemap([{label: 'g', value: 5, children: [{label: 'a', value: 1}]}]), /children add up to 1/);
