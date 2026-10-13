@@ -171,11 +171,15 @@ const item = (s: unknown, where: string): string => {
   if (typeof s !== 'string' || !s.trim()) throw new Error(`canvas(): ${where} must be a non-empty string (got ${JSON.stringify(s)})`);
   return s.trim();
 };
-const BULLET = /^[・･•\-*]\s*/;
+// a mark the author already put in front of a bullet: ・ / • stand alone, - and * only with a space after them (so "-5%" and "*注" keep
+// their sign and star)
+const BULLET = /^(?:[・･•]\s*|[-*]\s+)/;
+const TONES: readonly string[] = ['plain', 'accent', 'danger', 'muted', 'new', 'changed', 'removed', 'solid', 'solid-danger'];
+const OPT_KEYS: readonly string[] = ['title', 'titles', 'tone', 'emphasis', 'stamp', 'h', 'gap', 'requireAll', 'pestle', 'reveal', 'id'];
 
-/** The grid() a canvas is: one box per region, in the template's order, with its cell. */
 /** CanvasOpts with the region ids as plain strings: what canvasBand() validates. */
 export type LooseCanvasOpts = Omit<CanvasOpts, 'titles' | 'tone' | 'reveal' | 'emphasis'> & {titles?: Record<string, string | undefined>; tone?: Record<string, EmphasisTone | undefined>; reveal?: Record<string, number | undefined>; emphasis?: readonly string[]};
+/** The grid() a canvas is: one box per region, in the template's order, with its cell. */
 export function canvasBand(template: string, content: Record<string, string | readonly string[] | undefined>, opts: LooseCanvasOpts = {}): GridBand {
   if (!Object.hasOwn(TEMPLATES, template)) throw new Error(`canvas(template): unknown template ${JSON.stringify(template)} (use ${canvasTemplates().join(' | ')})`);
   const t = TEMPLATES[template as CanvasTemplate] as Template;
@@ -211,7 +215,11 @@ export function canvasBand(template: string, content: Record<string, string | re
     const single = typeof raw === 'string';
     const box: BoxBand = {
       type: 'box', title: title?.trim() ?? r.title,
-      ...(single ? {body: items[0]} : items.length ? {lines: items.map(s => BULLET.test(s) ? s.replace(BULLET, '・') : `・${s}`)} : {}),
+      ...(single ? {body: items[0]} : items.length ? {lines: items.map((s, i) => {
+        const bare = s.replace(BULLET, '');
+        if (!bare.trim() || /^[-*]$/.test(s)) throw new Error(`canvas(): ${r.id}[${i}] is only a bullet mark (${JSON.stringify(s)}): write the point after it`);
+        return `・${bare}`;
+      })} : {}),
       ...(tone ? {tone} : {}),
       ...(emphasis.has(r.id) ? {tag: r.tag ? `重点・${r.tag}` : '重点', tagTone: 'accent' as const} : r.tag ? {tag: r.tag, tagTone: 'muted' as const} : {}),
       ...(opts.id ? {id: `${opts.id}-${r.id}`} : {}),

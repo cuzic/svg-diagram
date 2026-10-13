@@ -147,6 +147,13 @@ test('a bullet that already has a mark keeps one mark; text is trimmed', async (
   assert.deepEqual(byTitle('強み（Strengths）').lines, ['・a', '・b', '・c']);
 });
 
+test('a leading minus or star that is part of the text is kept (only "- " / "* " with a space are bullet marks); a bare mark throws', async () => {
+  const {byTitle} = await laid(canvas('swot', {threats: ['-5% の値下げ', '*注 仮の数字', '* 星の箇条', '•黒丸', '−3 pt']}));
+  assert.deepEqual(byTitle('脅威（Threats）').lines, ['・-5% の値下げ', '・*注 仮の数字', '・星の箇条', '・黒丸', '・−3 pt']);
+  assert.throws(() => canvas('swot', {threats: ['a', '・']}), /threats\[1\] is only a bullet mark/);
+  assert.throws(() => canvas('swot', {threats: ['- ']}), /only a bullet mark/);
+});
+
 test('titles override the Japanese defaults; tone and emphasis: an emphasised region is accent AND says 重点 in words', async () => {
   const {byTitle, boxes} = await laid(canvas('bmc', {value: ['v']}, {titles: {value: 'ご提供する価値'}, tone: {cost: 'danger'}, emphasis: ['segments']}));
   assert.ok(byTitle('ご提供する価値'));

@@ -336,7 +336,7 @@ canvas('swot', {
 | `persona` | `profile` `quote` `goals` `frustrations` `behaviors` `needs` | プロフィールと 5 つの欄 |
 | `a3` | `background` `current` `goal` `cause` / `countermeasures` `plan` `followup` | 左に現状把握、右に対策と計画 |
 
-- 内容は文字列（1 文）か文字列の配列（箇条書き。先頭の `・` `-` は 1 つに揃う）。テンプレートにない id は型エラーで、実行時にも有効な id の一覧つきで止まる。
+- 内容は文字列（1 文）か文字列の配列（箇条書き。先頭の `・` や、後ろに空白のある `- ` `* ` は 1 つの `・` に揃う。`-5%` のように空白のない `-` は文の一部として残る）。テンプレートにない id は型エラーで、実行時にも有効な id の一覧つきで止まる。
 - オプション: `title`（上の見出し）、`titles`（領域の見出しの差し替え）、`tone`（領域ごとのトーン）、`emphasis`（重点の領域。アクセント色に「重点」のタグが付き、色だけに頼らない）、`stamp`、`h`（キャンバスの最小の高さ。内容が収まらないと、必要な高さを示して止まる。省略すると内容に合わせて伸びる）、`gap`、`requireAll`、`reveal`（領域ごとの段階）、`id`。幅は `diagram({width})` で決める。
 - `id: 'bmc'` を付けると、各領域が `bmc-value` のようなアンカーになる（`connect('bmc-value:right', ...)`、`diagram({spotlight})`、`reveal` がそのまま効く。型でも `bmc-` の後ろは領域の id だけ通る）。
 - `requireAll: true` のとき、内容のない領域は `canvas-region-empty`（警告）。任意の領域（`person` / `insight` ほか）は数えない。
