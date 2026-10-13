@@ -5,15 +5,32 @@
 //   parseItem(raw)                "**title**：text"  ->  {title, text}
 //   compareNotes(items, notes)    the list in the page vs the figure's own notes  ->  findings
 
-import type {DocImage, DocNoteItem, Finding, WfNote, Band} from './types.ts';
+import type {DocImage, DocCaption, DocNoteItem, Finding, WfNote, Band} from './types.ts';
 
 const IMG = /!\[([^\]]*)\]\(([^)\s]+\.svg)\)/g;
 const norm = (s: unknown): string => String(s ?? '').replace(/\s+/g, '').replace(/：/g, ':');
 
 export function scanMarkdown(text: string): DocImage[] {
   const lines = text.split('\n'), out: DocImage[] = [];
-  lines.forEach((ln, i) => { for (const m of ln.matchAll(IMG)) out.push({line: i + 1, alt: m[1], ref: m[2], items: listAfter(lines, i)}); });
+  lines.forEach((ln, i) => { for (const m of ln.matchAll(IMG)) out.push({line: i + 1, alt: m[1], ref: m[2], items: listAfter(lines, i), caption: captionOf(lines, i, m[1])}); });
   return out;
+}
+
+const FIG = '図\\s*(\\d+)\\s*[-－ー−‐]\\s*(\\d+)';
+// a caption is 図N-M in the alt text, or at the start of the nearest non-blank line before/after the image (a mention inside a sentence is a reference, not a caption)
+function captionOf(lines: string[], i: number, alt: string): DocCaption | undefined {
+  const a = new RegExp(FIG).exec(alt);
+  if (a) return {ch: +a[1], no: +a[2], line: i + 1};
+  const at = (j: number): DocCaption | undefined => {
+    const m = new RegExp(`^[\\s*_>]*${FIG}`).exec(lines[j]);
+    return m ? {ch: +m[1], no: +m[2], line: j + 1} : undefined;
+  };
+  for (const dir of [1, -1]) {
+    let j = i + dir;
+    while (j >= 0 && j < lines.length && lines[j].trim() === '') j += dir;
+    if (j >= 0 && j < lines.length && !new RegExp(IMG.source).test(lines[j])) { const c = at(j); if (c) return c; }
+  }
+  return undefined;
 }
 
 // the first numbered list after line i, stopping at the next heading or image (at most 40 lines on)
@@ -66,6 +83,65 @@ export function formatNotes(notes: WfNote[]): string {
     return `${w.n}. ${w.title ? `**${w.title}**：` : ''}${w.text.replace(/\s*\n\s*/g, ' ').trim()}`; // one line per item: a line break would end the list item
   }).join('\n');
 }
+
+// the chapter number a file name carries: "03-intro.md", "ch3.md", "chapter-03_x.md" -> 3
+export function chapterOf(file: string): number | null {
+  const m = /^(?:ch(?:apter)?[-_]?)?0*(\d+)(?!\d)/i.exec(file.replace(/^.*[\\/]/, ''));
+  return m ? +m[1] : null;
+}
+
+const PLACEHOLDER_ALT = /^(image|img|diagram|figure|fig\d*|picture|図|画像|図表|図解)$/i;
+export interface DocFinding extends Finding {line?: number}
+// figure numbering and prose in one page: captions 図N-M in order, a real alt text, and body references that point at a figure that exists
+export function checkFigures(text: string, figs: DocImage[], chapter: number | null): DocFinding[] {
+  const out: DocFinding[] = [];
+  const caps = figs.filter(f => f.caption);
+  let prev: DocCaption | null = null;
+  const seen = new Set<string>();
+  for (const f of figs) {
+    const alt = f.alt.trim();
+    if (alt && (PLACEHOLDER_ALT.test(alt) || alt.replace(/\.svg$/i, '') === f.ref.replace(/^.*\//, '').replace(/\.svg$/i, ''))) out.push({line: f.line, rule: 'doc-alt-placeholder', severity: 'warn', message: `代替テキストが「${alt}」のままで、図の内容を言っていない`});
+    const c = f.caption;
+    if (!c) continue;
+    const label = `図${c.ch}-${c.no}`, key = `${c.ch}-${c.no}`;
+    if (chapter !== null && c.ch !== chapter) out.push({line: c.line, rule: 'doc-fig-number', severity: 'warn', message: `${label}: 章番号がファイルの章（${chapter}）と違う`});
+    else if (prev && prev.ch !== c.ch) out.push({line: c.line, rule: 'doc-fig-number', severity: 'warn', message: `${label}: 前の図（図${prev.ch}-${prev.no}）と章番号が違う`});
+    if (seen.has(key)) out.push({line: c.line, rule: 'doc-fig-number', severity: 'warn', message: `${label} が重複している`});
+    else if (prev && prev.ch === c.ch && c.no !== prev.no + 1) out.push({line: c.line, rule: 'doc-fig-number', severity: 'warn', message: `${label}: 図番号が連番でない（前は 図${prev.ch}-${prev.no}、次は 図${prev.ch}-${prev.no + 1} のはず）`});
+    else if (!prev && c.no !== 1) out.push({line: c.line, rule: 'doc-fig-number', severity: 'warn', message: `${label}: 最初の図が 図${c.ch}-1 でない`});
+    seen.add(key); prev = c;
+  }
+  for (const f of figs) {                         // the numbered notes under a figure count 1, 2, 3 ... (a gap hides a deleted note)
+    const ns = f.items.map(i => i.n);
+    if (ns.length && ns.some((n, k) => n !== k + 1)) out.push({line: f.line, rule: 'doc-notes-number', severity: 'warn', message: `図の下の注釈の番号が 1 から順でない（${ns.join(', ')}）`});
+  }
+  if (caps.length) {                              // 図N-M in a sentence must name a figure that has a caption in this page (references to other chapters are not checked)
+    const have = new Set(caps.map(f => `${f.caption!.ch}-${f.caption!.no}`)), capLines = new Set(caps.map(f => f.caption!.line));
+    let fence = false;
+    text.split('\n').forEach((ln, k) => {
+      if (/^\s*(```|~~~)/.test(ln)) { fence = !fence; return; }
+      if (fence || capLines.has(k + 1)) return;
+      for (const m of ln.matchAll(new RegExp(FIG, 'g'))) {
+        const ch = +m[1], key = `${m[1]}-${m[2]}`;
+        if (ch === (chapter ?? caps[0].caption!.ch) && !have.has(key)) out.push({line: k + 1, rule: 'doc-fig-ref-missing', severity: 'warn', message: `本文の「図${m[1]}-${m[2]}」に対応する図がこの文書にない`});
+      }
+    });
+  }
+  return out;
+}
+
+// --only globs: ** crosses folders, * and ? stay inside one; matched against the path relative to the current directory (and against the bare file name)
+export function globToRegExp(glob: string): RegExp {
+  let re = '';
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === '*') { if (glob[i + 1] === '*') { i++; if (glob[i + 1] === '/') { i++; re += '(?:.*/)?'; } else re += '.*'; } else re += '[^/]*'; }
+    else if (c === '?') re += '[^/]';
+    else re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  }
+  return new RegExp(`^${re}$`);
+}
+export const matchesAny = (globs: RegExp[], rel: string): boolean => !globs.length || globs.some(g => g.test(rel.replace(/\\/g, '/')) || g.test(rel.replace(/^.*[\\/]/, '')));
 
 export interface MapRow {name: string; svg: string; doc: string; src: string}
 // the figure <-> document table (Markdown); rows with no document are the orphans

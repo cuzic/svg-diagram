@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {scanMarkdown, parseItem, compareNotes, formatNotes, formatMap} from '../lib/docs-check.ts';
+import {scanMarkdown, parseItem, compareNotes, formatNotes, formatMap, checkFigures, chapterOf, globToRegExp, matchesAny} from '../lib/docs-check.ts';
 import {explainChange} from '../lib/svg-diff.ts';
 import {loadConfig, applyConfig} from '../lib/config.ts';
 import type {DiagramData} from '../lib/types.ts';
@@ -119,4 +119,38 @@ test('formatNotes keeps an item on one line; formatMap keeps same-named figures 
   assert.equal(formatNotes([{title: 'T', text: '一行目\n  二行目'}]), '1. **T**：一行目 二行目');
   const t = formatMap([{name: 'f', svg: 'a/f.svg', doc: 'd.md:1', src: ''}, {name: 'f', svg: 'b/f.svg', doc: '', src: ''}]);
   assert.equal(t.split('\n').length, 4);
+});
+
+test('checkFigures: captions must run 図N-1, N-2 ... in the file chapter; references must name a real figure', () => {
+  const page = (raw: string, ch: number | null = 3) => { const body = raw.replace(/!\[([a-z])\]/g, '![説明$1]'); const figs = scanMarkdown(body); return checkFigures(body, figs, ch).map(f => `${f.rule}@${f.line}`); };
+  const ok = '![画面](a.svg)\n*図3-1　画面*\n\n本文は図3-2を見る。\n\n![表](b.svg)\n*図3-2　表*\n';
+  assert.deepEqual(page(ok), []);
+  assert.deepEqual(page('![a](a.svg "t")\n![x](a.svg)\n*図3-1 x*\n\n![y](b.svg)\n*図3-3 y*\n'), ['doc-fig-number@6'], 'gap');
+  assert.deepEqual(page('![a](a.svg)\n図3-1 a\n\n![b](b.svg)\n図3-1 b\n'), ['doc-fig-number@5'], 'duplicate');
+  assert.deepEqual(page('![a](a.svg)\n図3-2 a\n\n![b](b.svg)\n図3-1 b\n'), ['doc-fig-number@2', 'doc-fig-number@5'], 'out of order');
+  assert.deepEqual(page('![a](a.svg)\n図4-1 a\n'), ['doc-fig-number@2'], 'chapter of the file is 3');
+  assert.deepEqual(page('![a](a.svg)\n図4-1 a\n', null), [], 'no chapter in the file name: only consistency');
+  assert.deepEqual(page('![図3-1 画面](a.svg)\n\n図3-4 を参照。図2-9 は別章。\n'), ['doc-fig-ref-missing@3'], 'alt caption; dangling reference');
+  assert.deepEqual(page('![a](a.svg)\n図3-1 a\n\n```\n図3-7\n```\n'), [], 'fenced code is ignored');
+  assert.deepEqual(page('![image](a.svg)\n![a](a.svg)\n1. x\n3. y\n'), ['doc-alt-placeholder@1', 'doc-notes-number@2']);
+  assert.deepEqual([3, 12, 7, null].map((_, i) => chapterOf(['03-a.md', 'ch12.md', 'chapter-7_x.md', 'intro.md'][i])), [3, 12, 7, null]);
+  assert.ok(globToRegExp('docs/**/03-*.md').test('docs/a/b/03-x.md') && !globToRegExp('docs/*.md').test('docs/a/x.md'));
+  assert.ok(matchesAny([globToRegExp('03-*.md')], 'docs/03-x.md') && matchesAny([], 'any.md'));
+});
+
+test('check --docs: one chapter alone (file or --only), several --docs, and orphans only when every page is in scope', () => {
+  const root = project(GOOD, {orphan: true});
+  fs.writeFileSync(path.join(root, 'docs', '02-other.md'), '# O\n\n![別の図](../svg/orphan.svg)\n\n図2-1 別\n');
+  const one = run(root, '--strict', '--only', 'docs/page.md');
+  assert.equal(one.status, 0, one.stdout + one.stderr); assert.match(one.stdout, /検査は行わない/); assert.doesNotMatch(one.stdout, /\[doc-orphan-svg\]/);
+  const file = spawnSync('node', [CHECK, '--docs', 'docs/page.md', '--svg-dir', 'svg', '--strict'], {cwd: root, encoding: 'utf8'});
+  assert.equal(file.status, 0, file.stdout + file.stderr);
+  const two = spawnSync('node', [CHECK, '--docs', 'docs/page.md', '--docs', 'docs/02-other.md', '--svg-dir', 'svg', '--strict'], {cwd: root, encoding: 'utf8'});
+  assert.equal(two.status, 0, two.stdout + two.stderr);
+  fs.writeFileSync(path.join(root, 'svg', 'lonely.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>');
+  const all = run(root, '--strict');
+  assert.equal(all.status, 1); assert.match(all.stdout, /lonely\.svg \[doc-orphan-svg\]/);
+  fs.writeFileSync(path.join(root, 'docs', '02-other.md'), '# O\n\n![別の図](../svg/orphan.svg)\n図2-2 別\n');
+  const bad = run(root, '--strict', '--only', '02-*.md');
+  assert.equal(bad.status, 1); assert.match(bad.stdout, /02-other\.md:4 \[doc-fig-number\]/);
 });

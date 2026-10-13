@@ -10,9 +10,12 @@
 //       so an SVG that was not regenerated after its source — or a local file it imports — changed is caught. DIR defaults to ./svg.
 //       --rebuild also regenerates each SVG in memory and compares the bytes; a difference is explained
 //       (metadata only? text moved? shapes added?), so you can tell whether regenerating is safe.
-//   svg-diagram check --docs DIR [--svg-dir DIR] [--src-dir DIR]
-//       Do the Markdown pages under DIR and the diagrams still agree? Referenced SVGs exist, alt text is short and present,
+//   svg-diagram check --docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR]
+//       Do the Markdown pages and the diagrams still agree? PATH is a directory (searched for .md) or one .md file; repeat --docs for several.
+//       Referenced SVGs exist, alt text is short and present, figure captions 図N-M are in order, 図N-M in the text names a real figure,
 //       no SVG is left unreferenced (--svg-dir), and the numbered notes under a figure match the figure's own notes (--src-dir).
+//       --only GLOB (repeatable, e.g. 'docs/03-*.md') keeps just the matching pages. Whenever the pages are narrowed (a .md file or --only),
+//       the orphan-SVG check is skipped (it needs every page to know what is unreferenced) and a note says so.
 //       --map prints the figure <-> document table (Markdown) on stdout instead; the findings go to stderr.
 //   Any mode:  --format text|json|github   (github = ::warning annotations for a pull request)
 //   Project settings (accepted rules, max width) come from .svg-diagram.json, found by walking up from the current directory.
@@ -29,7 +32,7 @@ register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
 const {depsSha256} = await import('./lib/source-deps.ts');
 const {RULE_DOCS} = await import('./lib/rules.ts');
-const {scanMarkdown, compareNotes, notesOf, formatMap} = await import('./lib/docs-check.ts');
+const {scanMarkdown, compareNotes, notesOf, formatMap, checkFigures, chapterOf, globToRegExp, matchesAny} = await import('./lib/docs-check.ts');
 const {explainChange} = await import('./lib/svg-diff.ts');
 const {loadConfig} = await import('./lib/config.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
@@ -37,14 +40,15 @@ const {loadDiagram} = await import('./lib/load-source.ts');
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
 const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1]; };
-const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--format'];
+const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--format', '--only'];
+const vals = (n: string) => args.flatMap((a, i) => (a === n && args[i + 1] !== undefined ? [args[i + 1]] : []));
 const strict = flag('--strict'), verbose = flag('--verbose'), drift = flag('--drift'), rebuild = flag('--rebuild');
 const mapMode = flag('--map');
 if (mapMode && (!val('--docs') || (val('--format') ?? 'text') !== 'text')) { console.error('--map は --docs と一緒に、--format text で使う（表を標準出力に出す）'); process.exit(2); }
-const svgDir = val('--svg-dir'), srcDir = val('--src-dir'), docsDir = val('--docs'), format = val('--format') ?? 'text';
+const svgDir = val('--svg-dir'), srcDir = val('--src-dir'), docsDirs = vals('--docs'), docsDir = docsDirs[0], only = vals('--only').map(globToRegExp), format = val('--format') ?? 'text';
 const sources = args.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1]));
 if (!['text', 'json', 'github'].includes(format)) { console.error(`--format must be text, json or github (got "${format}")`); process.exit(2); }
-if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs DIR [--svg-dir DIR] [--src-dir DIR] [--map]] [--format text|json|github] <source.ts>...'); process.exit(2); }
+if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]] [--format text|json|github] <source.ts>...'); process.exit(2); }
 const config = loadConfig();
 
 const say = (...a: unknown[]) => { if (format === 'text') (mapMode ? console.error : console.log)(...a); };
@@ -74,9 +78,20 @@ try {
   if (docsDir) {
     const referenced = new Set<string>();
     const mapRows: MapRow[] = [];
-    for (const md of walkMd(docsDir).sort()) {
+    const pages = new Set<string>();
+    let scoped = only.length > 0;
+    for (const p of docsDirs) {
+      if (!fs.existsSync(p)) { console.error(`--docs ${p} がない`); process.exit(2); }
+      if (fs.statSync(p).isDirectory()) walkMd(p).forEach(f => pages.add(path.resolve(f)));
+      else if (p.endsWith('.md')) { pages.add(path.resolve(p)); scoped = true; }
+      else { console.error(`--docs ${p}: ディレクトリか .md ファイルを指定する`); process.exit(2); }
+    }
+    for (const md of [...pages].sort()) {
       const rel = path.relative(process.cwd(), md);
-      const figs = scanMarkdown(fs.readFileSync(md, 'utf8'));
+      if (!matchesAny(only, rel)) continue;
+      const text = fs.readFileSync(md, 'utf8');
+      const figs = scanMarkdown(text);
+      for (const f of checkFigures(text, figs, chapterOf(path.basename(md)))) add({file: rel, ...f});
       let n = 0;
       for (const fig of figs) {
         if (/^https?:/.test(fig.ref)) continue;
@@ -98,7 +113,8 @@ try {
       }
       if (n) say(`${findings.some(f => f.file === rel && f.severity !== 'info') ? '△' : '✓'} ${rel}（図 ${n}）`);
     }
-    if (svgDir && fs.existsSync(svgDir)) {
+    if (svgDir && scoped) say(`ℹ 文書を絞っているので、どの文書からも参照されていない SVG（doc-orphan-svg）の検査は行わない（全文書を指定すると行う）`);
+    else if (svgDir && fs.existsSync(svgDir)) {
       for (const f of fs.readdirSync(svgDir).filter(x => x.endsWith('.svg') && !/\.reveal\d+\.svg$/.test(x)).sort()) {
         if (!referenced.has(path.resolve(svgDir, f))) mapRows.push({name: path.parse(f).name, svg: path.join(svgDir, f), doc: '', src: ''});
         if (!referenced.has(path.resolve(svgDir, f))) add({file: path.join(svgDir, f), rule: 'doc-orphan-svg', severity: 'warn', message: 'どの文書からも参照されていない'});
