@@ -143,6 +143,15 @@ test('tornado(): a result above the base in both cases is drawn as two thin bars
 
 // ---- heatmap -------------------------------------------------------------------------------------------------------------------
 
+test('tornado(): long case names wrap the legend to a second row; a base at the edge keeps its name in the figure (both used to run outside)', async () => {
+  const L = '非常に長い名前がここに入ってしまったケースを想定しています';
+  const a = await chartOf(tornado([{label: 'a', low: 90, high: 110}], {base: 100, lowLabel: L + L, highLabel: L}));
+  assert.deepEqual(a.problems, []);
+  const b = await chartOf(tornado([{label: 'a', low: 100, high: 300}], {base: 100, baseLabel: '基準ケースの営業利益'}));
+  assert.deepEqual(b.problems, []);
+  await assert.rejects(laid(tornado([{label: 'a', low: 1, high: 2}], {base: 1.5, lowLabel: L.repeat(4)})), /legend name .* is wider than the figure/);
+});
+
 test('heatmap(): every cell prints its number, null is a dash, shades are monotone in the value, the scale lists every step', async () => {
   const {chart, problems} = await chartOf(heatmap(['A', 'B'], ['1', '2', '3'], [[10, 50, 100], [null, 30, 70]], {unit: '%', levels: 5}));
   assert.deepEqual(problems, []);

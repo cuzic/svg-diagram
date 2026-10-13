@@ -65,21 +65,25 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
   const wrapped = s.items.map(i => c.wrap(i.label, labelW - 14));
   const sameSide = (i: TornadoItem) => (i.low - s.base) * (i.high - s.base) > 0;
   const rowH = wrapped.map((l, k) => Math.max(sameSide(s.items[k]) ? 2 * pitch - 8 : pitch, l.length * lineH + 8));
-  const headH = (S + 12) * 2 + 8, axisH = S + 16;
+  // legend: two swatches with the names of the cases, from the plot's left edge; the second goes on a row of its own when the two do not fit
+  const sw = 14, itemW = (t: string) => sw + 6 + c.tw(t);
+  for (const t of [s.lowLabel, s.highLabel]) if (itemW(t) > g.w) fail('tornado', `the legend name "${t}" is wider than the figure (shorten lowLabel / highLabel, or raise width)`);
+  const legendAt: {x: number; row: number}[] = [];
+  { let lx = Math.min(plotL, g.x + g.w - itemW(s.lowLabel)), row = 0;
+    for (const t of [s.lowLabel, s.highLabel]) { if (legendAt.length && lx + itemW(t) > g.x + g.w) { lx = Math.min(plotL, g.x + g.w - itemW(t)); row++; } legendAt.push({x: lx, row}); lx += itemW(t) + 22; } }
+  const legendRows = legendAt[legendAt.length - 1].row + 1;
+  const headH = (S + 12) * (legendRows + 1) + 8, axisH = S + 16;
   const y0 = g.y + headH;
   c.h = g.height ?? Math.max(160, headH + rowH.reduce((a, b) => a + b, 0) + axisH + 4);
   if (g.height !== undefined && g.height < headH + rowH.reduce((a, b) => a + b, 0) + axisH) fail('tornado', `height ${g.height} is too small for ${s.items.length} rows (need at least ${headH + rowH.reduce((a, b) => a + b, 0) + axisH})`);
   const bodyB = y0 + rowH.reduce((a, b) => a + b, 0);
   const r1 = (v: number) => Math.round(v * 10) / 10;
-  // legend row: two swatches with the names of the cases
-  const sw = 14;
-  let lx = plotL;
-  for (const [tone, text] of [[s.lowTone, s.lowLabel], [s.highTone, s.highLabel]] as const) {
-    const cy = g.y + Math.max(4 + sw / 2, Math.ceil(S * 0.64)); // the text's top stays in the figure at a large label size (a canvas)
+  ([[s.lowTone, s.lowLabel], [s.highTone, s.highLabel]] as const).forEach(([tone, text], i) => {
+    const {x: lx, row} = legendAt[i];
+    const cy = g.y + row * (S + 12) + Math.max(4 + sw / 2, Math.ceil(S * 0.64)); // the text's top stays in the figure at a large label size (a canvas)
     c.rect(lx, cy - sw / 2, sw, sw, {fill: tone});
     c.text(text, lx + sw + 6, c.mid(cy), 'start', 'text');
-    lx += sw + 6 + c.tw(text) + 22;
-  }
+  });
   // grid and axis
   const tk = sc.ticks.map(v => ({v})), shown = thinTicks(tk, xOf, t => c.tw(numText(t.v)), 12);
   for (const t of tk) { c.line(xOf(t.v), y0, xOf(t.v), bodyB, {stroke: 'border'}); if (shown.has(t)) c.text(numText(t.v), xOf(t.v), bodyB + S + 8, 'middle', 'muted'); }
@@ -108,7 +112,10 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
   // the base line over the bars, its name above
   const xb = r1(xOf(s.base));
   c.line(xb, y0 - 6, xb, bodyB, {stroke: 'text', sw: 2});
-  c.text(`${s.baseLabel} ${vText(s.base)}`, xb, y0 - 12, 'middle', 'text', {bold: true});
+  // its name centred on it, kept inside the figure when the base is near an edge
+  const baseText = `${s.baseLabel} ${vText(s.base)}`, half = c.tw(baseText, true) / 2;
+  if (2 * half > g.w) fail('tornado', `the base label "${baseText}" is wider than the figure (shorten baseLabel, or raise width)`);
+  c.text(baseText, Math.min(Math.max(xb, g.x + half), g.x + g.w - half), y0 - 12, 'middle', 'text', {bold: true});
   void Canvas;
   return c.done();
 }
