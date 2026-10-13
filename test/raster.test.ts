@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {rasterize, svgSize, embedSvg, rasterizeWithResvg, prepareResvgFonts} from '../lib/raster.ts';
+import {rasterize, svgSize, embedSvg, rasterizeWithResvg, prepareResvgFonts, resvgMarkers} from '../lib/raster.ts';
 import {closeMeasurer} from '../lib/measure.ts';
 import {resolveFontFile} from '../lib/font-metrics.ts';
 
@@ -257,7 +257,7 @@ test('the cut keeps what the figure draws: each example, byte for byte the same 
     const cut = await rasterizeWithResvg(svg);
     const whole = fontFilesForTest();
     const p = prepareResvgFonts(svg), system = p.options.loadSystemFonts; p.cleanup(); // (the same decision about the system's fonts: this is about the cut, not about the fallback)
-    const full = new Resvg(svg, {background: '#ffffff', font: {fontFiles: whole.files, loadSystemFonts: system, defaultFontFamily: whole.sans}}).render();
+    const full = new Resvg(resvgMarkers(svg), {background: '#ffffff', font: {fontFiles: whole.files, loadSystemFonts: system, defaultFontFamily: whole.sans}}).render();
     assert.ok(Buffer.from(full.pixels).equals(cut.rgba), name);
   }
 });
@@ -372,4 +372,15 @@ test('a symbol that only the emoji font draws (and that is not an emoji by the l
   if (sym === null) return; // this machine's fonts have no such symbol: nothing to show
   const kept = await keptBy(text(`a${String.fromCodePoint(sym)}`));
   assert.ok(kept.has(sym), `U+${sym.toString(16)} is drawn by the emoji font, which must be loaded`);
+});
+
+test('resvg: an elbow ending downward gets a head pointing down, and marker-start a head pointing back (auto-start-reverse worked around)', async () => {
+  const marker = '<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>';
+  const r = await rasterizeWithResvg(svgOf(200, 200, `${marker}<path d="M30,30 L30,100 L120,100 L120,150" fill="none" stroke="#000" stroke-width="2" marker-start="url(#a)" marker-end="url(#a)"/>`));
+  // end (120,150): the head is 14 wide across the line and reaches only ~2px past the end; turned sideways it would reach 7px past
+  assert.equal(dark(r, {x: 100, y: 156, w: 40, h: 30}), 0);
+  assert.ok(dark(r, {x: 110, y: 135, w: 20, h: 15}) > 40, 'a head across the line just before the end');
+  // start (30,30), the line leaves downward: the head points up, nothing more than ~2px above
+  assert.equal(dark(r, {x: 10, y: 0, w: 40, h: 25}), 0);
+  assert.ok(dark(r, {x: 20, y: 30, w: 20, h: 15}) > 40);
 });

@@ -50,6 +50,23 @@ export function grayscaleSvg(svg: string): string {
   return `${svg.slice(0, at)}${filter}<g filter="url(#svg-diagram-gray)">${svg.slice(at, end)}</g>${svg.slice(end)}`;
 }
 
+/** resvg points an `orient="auto-start-reverse"` end marker along the wrong segment at a corner (an elbow ending downward gets a sideways head), while `orient="auto"` is right.
+ *  So each such marker becomes two for resvg: the same marker with `auto` (for marker-end / marker-mid), and a copy for marker-start whose content is turned 180 degrees about the ref point. */
+export function resvgMarkers(svg: string): string {
+  if (!svg.includes('auto-start-reverse')) return svg;
+  const attr = (a: string, n: string) => new RegExp(`\\s${n}="([^"]*)"`).exec(a)?.[1];
+  const ids: string[] = [];
+  const out = svg.replace(/<marker\b([^>]*?)\sorient="auto-start-reverse"([^>]*)>([\s\S]*?)<\/marker>/g, (_m, a: string, b: string, body: string) => {
+    const attrs = `${a}${b}`, id = attr(attrs, 'id');
+    if (!id) return _m;
+    ids.push(id);
+    const rx = attr(attrs, 'refX') ?? '0', ry = attr(attrs, 'refY') ?? '0';
+    const startAttrs = attrs.replace(/(\sid=")[^"]*"/, `$1${id}--start"`);
+    return `<marker${attrs} orient="auto">${body}</marker><marker${startAttrs} orient="auto" overflow="visible"><g transform="rotate(180 ${rx} ${ry})">${body}</g></marker>`;
+  });
+  return ids.reduce((acc, id) => acc.replace(new RegExp(`marker-start="url\\(#${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)"`, 'g'), `marker-start="url(#${id}--start)"`), out);
+}
+
 export const NOT_LOADABLE = `a figure could not be drawn: @resvg/resvg-js could not be loaded on this machine (no prebuilt binary for it?).
   Use the browser instead:  --engine chromium  (needs: pnpm add -D playwright-chromium)`;
 
@@ -133,7 +150,7 @@ export async function rasterizeWithResvg(svg: string, {scale = 1, png = false, f
   let rendered;
   const prepared = prepareResvgFonts(svg, fonts);
   try {
-    rendered = new Resvg(withColorEmoji(svg, fonts), {
+    rendered = new Resvg(resvgMarkers(withColorEmoji(svg, fonts)), {
       background: '#ffffff',
       fitTo: scale === 1 ? {mode: 'original'} : {mode: 'zoom', value: scale},
       font: prepared.options,
