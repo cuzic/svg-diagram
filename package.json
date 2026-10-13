@@ -55,7 +55,8 @@
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
     "typescript": "^7.0.2",
-    "unified": "^11.0.5"
+    "unified": "^11.0.5",
+    "vitepress": "^1.6.4"
   },
   "types": "./dist/lib/dsl.d.ts",
   "exports": {
@@ -70,6 +71,10 @@
     "./remark": {
       "types": "./dist/lib/remark.d.ts",
       "default": "./dist/lib/remark.js"
+    },
+    "./vitepress": {
+      "types": "./dist/lib/vitepress.d.ts",
+      "default": "./dist/lib/vitepress.js"
     },
     "./markdown": {
       "types": "./dist/lib/markdown.d.ts",

@@ -45,7 +45,7 @@ test('the command is the bash wrapper, executable, and runs the compiled files w
 });
 
 test('the entry points are in dist/ and are what the build produces from lib/', () => {
-  assert.deepEqual(Object.keys(pkg.exports).sort(), ['.', './markdown', './markdown-it', './remark', './render']);
+  assert.deepEqual(Object.keys(pkg.exports).sort(), ['.', './markdown', './markdown-it', './remark', './render', './vitepress']);
   for (const [name, e] of Object.entries(pkg.exports) as [string, {types: string; default: string}][]) {
     for (const f of [e.types, e.default]) assert.match(f, /^\.\/dist\//, `${name}: ${f}`);
     assert.ok(fs.existsSync(path.join(ROOT, e.default.replace('./dist/', '').replace(/\.js$/, '.ts'))), `${name} has a source`);

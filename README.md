@@ -42,6 +42,8 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 **HTML に描画するプラグイン（markdown-it）**: `import svgDiagram from 'svg-diagram/markdown-it'; new MarkdownIt().use(svgDiagram)`。`![流れ図](./flow.ts)` が、その場で `<svg role="img" aria-label="流れ図">` になる。VitePress は `markdown: {config: md => md.use(svgDiagram)}`。パスはページからの相対（`env.path`、なければオプション `baseDir`、なければ cwd）。markdown-it の描画は同期で、図の描画は非同期なので、図は子プロセスで描いて待つ（ソースと import 先が変わるまでキャッシュ）。検査に通らない図は既定で例外を投げてビルドを止める（`{strict: false}` で、描いたうえでページにエラーを出す）。
 
+**VitePress**: `.vitepress/config.ts` に `import svgDiagram from 'svg-diagram/vitepress'` と `markdown: {config: svgDiagram()}`（中身は上の markdown-it プラグイン）。ページの `![流れ図](./flow.ts)` が `<svg>` になる。図のソースと import 先は VitePress の `env.includes` に登録するので、`vitepress dev` でそれらを編集するとページが描き直される。`vitepress build` は実物で確かめてある（テストは本物の build を走らせる）。`dev` 中の再描画は、VitePress の監視の仕組み（`env.includes`）に載せているだけで、実際のブラウザでの確認はしていない。
+
 **remark プラグイン**: `import svgDiagram from 'svg-diagram/remark'`。`unified().use(remarkParse).use(svgDiagram).use(remarkRehype).use(rehypeStringify)` のように、`remark-rehype` の前に挟む。svg は生の `html` ノードではなく本物の `<svg>` 要素（hast）になるので、`allowDangerousHtml` も `rehype-raw` も要らず、`rehype-sanitize` などの rehype プラグインからも見える。MDX・Astro・Docusaurus・Next.js の remark 設定にもそのまま入る。パスは `file.path` からの相対（なければ `baseDir`、なければ cwd）。remark の変換は非同期にできるので、markdown-it と違い子プロセスは使わず、同じプロセスで描く。検査に通らない図は既定でそのファイルの処理を失敗させる（`{strict: false}` で、画像を残して警告メッセージにする）。
 
 ## 使い方

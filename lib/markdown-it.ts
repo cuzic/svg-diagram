@@ -3,7 +3,7 @@
 //   const md = new MarkdownIt().use(svgDiagram);        // VitePress: markdown: {config: md => md.use(svgDiagram)}
 // markdown-it renders synchronously and a figure is drawn asynchronously, so each figure is drawn in a child process
 // (lib/render-sync-worker) that the renderer waits for. Results are cached per source until it or a file it imports changes.
-// The source's path is relative to the page: env.path / env.filePath (VitePress sets env.path), else `baseDir`, else the cwd.
+// Each figure's source and imports are added to env.includes (VitePress's list of files a page depends on). The source's path is relative to the page: env.path / env.filePath (VitePress sets env.path), else `baseDir`, else the cwd.
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
@@ -57,6 +57,8 @@ export default function svgDiagram(md: MdLike, opts: SvgDiagramPluginOptions = {
       if (strict) throw e;
       return `<p class="svg-diagram-error">${esc((e as Error).message)}</p>`;
     }
+    // VitePress watches the files listed in env.includes and re-renders the page when one changes.
+    if (Array.isArray(env?.includes)) env.includes.push(...r.deps);
     if (!r.ok && strict) throw new Error(`svg-diagram: ${path.relative(base, src)}: ${r.problems.join('; ')}`);
     const svg = r.svg.replace(/^\s*<\?xml[^>]*\?>\s*/, '').trim();
     const labelled = alt && !/\brole=/.test(svg.slice(0, svg.indexOf('>'))) ? svg.replace(/^<svg\b/, `<svg role="img" aria-label="${esc(alt)}"`) : svg;
