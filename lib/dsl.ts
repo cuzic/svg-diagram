@@ -58,7 +58,7 @@ import {chevronBand, concentricBand, cycleBand, funnelBand, vennBand} from './fl
 import type {ChevronBand, ChevronOpts, ConcentricBand, ConcentricOpts, ConcentricRing, CycleBand, CycleOpts, FlowStep, FunnelBand, FunnelOpts, FunnelStage, VennBand, VennOpts, VennSet} from './flow-shapes.ts';
 import {SLIDE_CANVAS, canvasFontScale, canvasRoles, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
-  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsLine, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts, CloudBand, CloudBox, CloudOpts, GanttBand, GanttOpts, GanttRow, GanttTask, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsLine, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, NumericTimelineBand, NumericTimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts, CloudBand, CloudBox, CloudOpts, GanttBand, GanttOpts, GanttRow, GanttTask, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -73,7 +73,10 @@ export {wf} from './wireframe.ts';
 export {icon} from './icon-registry.ts';
 export type {IconName, EmojiName} from './icons.ts';
 import type {IconName} from './icons.ts';
+import type {RevealOpts} from './types.ts';
 export {versus} from './versus.ts';
+export {steps} from './steps.ts';
+export type {StepItem, StepsOpts} from './steps.ts';
 export {hero} from './hero.ts';
 export {em} from './rich.ts';
 export type {HeroOpts, HeroStat} from './hero.ts';
@@ -768,6 +771,40 @@ function connectBand(from: string, to: string, opts: ConnectOpts, trackGiven = t
   if (opts.weight && line === 'double') throw new Error(`connect(${from} -> ${to}): weight '${opts.weight}' cannot go with line 'double' (both mean a thick line)`);
   const band: ConnectBand = {type: 'connect', from, to, route: opts.route ?? 'straight', dip: opts.dip ?? 32, bend: opts.bend ?? 0.5, bendOffset: opts.bendOffset, arrow, line, ...(opts.weight ? {weight: opts.weight} : {}), chip: !!opts.chip, labelAt: opts.labelAt ?? 0.5, tone: opts.tone, label: opts.label, ...revealOf(opts)};
   return trackGiven ? Object.defineProperty(band, GIVEN, {value: opts, configurable: true}) : band;
+}
+
+export interface BracketOpts extends RevealOpts {
+  label?: string;
+  /** Which side of the span the bracket sits on (default 'below'). */
+  side?: 'below' | 'above';
+  tone?: TextTone;
+}
+/**
+ * A bracket under (or over) a span of boxes: `bracket(a.left, b.right, {label: 'この区間だけが対象'})`. It runs from the x of the first ref
+ * to the x of the second, just outside the lower (or upper) edge of the two boxes; the label sits outside the bracket.
+ */
+export function bracket<const F extends string, const T extends string>(from: Ok<F>, to: Ok<T>, opts?: BracketOpts): ConnectBand & Refers<F | T>;
+export function bracket(from: string, to: string, opts: BracketOpts = {}): ConnectBand {
+  const side = opts.side ?? 'below';
+  if (side !== 'below' && side !== 'above') throw new Error(`bracket(): side must be 'below' or 'above' (got ${JSON.stringify(side)})`);
+  if (opts.label !== undefined && (typeof opts.label !== 'string' || !opts.label.trim())) throw new Error('bracket(): label must not be empty (leave it out for none)');
+  return {...connectBand(from, to, {arrow: 'none', tone: opts.tone, label: opts.label, reveal: opts.reveal, until: opts.until}, false), annot: {kind: 'bracket', side}};
+}
+
+export interface CalloutOpts extends RevealOpts {
+  /** The text of the bubble (one line). */
+  text: string;
+  /** Which side of the target the bubble is on (default 'above'). */
+  side?: 'above' | 'below' | 'left' | 'right';
+  tone?: TextTone;
+}
+/** A bubble with a leader line pointing at a box: `callout('slow', {text: '344ms かかる', side: 'below'})`. Put the target's id or 'id:side'. */
+export function callout<const T extends string>(target: Ok<T>, opts: CalloutOpts): ConnectBand & Refers<T>;
+export function callout(target: string, opts: CalloutOpts): ConnectBand {
+  const side = opts?.side ?? 'above';
+  if (!['above', 'below', 'left', 'right'].includes(side)) throw new Error(`callout(): side must be above | below | left | right (got ${JSON.stringify(side)})`);
+  if (typeof opts?.text !== 'string' || !opts.text.trim()) throw new Error('callout(): text is required');
+  return {...connectBand(target, target, {arrow: 'end', tone: opts.tone, label: opts.text, chip: true, reveal: opts.reveal, until: opts.until}, false), annot: {kind: 'callout', side}};
 }
 
 // One box fanning out to several targets (a decision). `targets`:
@@ -1672,8 +1709,12 @@ export function mindmap(root: TreeItem, opts: MindmapOpts = {}): TreeBand {
  * A horizontal time axis with a deadline: the axis (`from` - `to`), today (`now`), the deadline and the span between them
  * ("あと 1 年 3 か月"), plus optional marks. Dates are 'YYYY' | 'YYYY-MM' | 'YYYY-MM-DD'; `now` is always written out, never read from the clock.
  */
+/** A numeric axis (`unit: 'ms'`, `from: 0`, `to: 700`) with lanes, events (dots with labels) and spans (bars, or dimension lines with `dim: true`). */
+export function timeline<const Id extends string = never>(opts: NumericTimelineOpts & {id?: Id}): NumericTimelineBand & Declares<Id> & HandleOf<Id>;
 export function timeline<const Id extends string = never>(opts: TimelineOpts & {id?: Id}): TimelineBand & Declares<Id> & HandleOf<Id>;
-export function timeline(opts: TimelineOpts): TimelineBand {
+export function timeline(arg: TimelineOpts | NumericTimelineOpts): TimelineBand | NumericTimelineBand {
+  if (typeof arg?.from === 'number' || 'unit' in (arg ?? {})) return numericTimeline(arg as NumericTimelineOpts);
+  const opts = arg as TimelineOpts;
   const day = (v: unknown, what: string): number => timelineDay(v as string, what);
   const from = day(opts?.from, 'from'), to = day(opts?.to, 'to');
   if (!(from < to)) throw new Error(`timeline(): from (${opts.from}) must be before to (${opts.to})`);
@@ -1898,3 +1939,31 @@ export type {BurndownSpec, BurnupSpec, LineSeries, LinesAnnotation, LinesAxis, L
 export type {SankeyLink, SankeyNode, SankeyOpts} from './charts-sankey.ts';
 export type {TreemapNode, TreemapOpts} from './charts-treemap.ts';
 export type {StackColumn, StackPart, StackedOpts} from './charts-stacked.ts';
+
+function numericTimeline(o: NumericTimelineOpts): NumericTimelineBand {
+  const num = (v: unknown, what: string): number => { if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`timeline(): ${what} must be a number (got ${JSON.stringify(v)})`); return v; };
+  if (typeof o.unit !== 'string') throw new Error("timeline(): unit is required for a numeric axis ('ms', 's', ...; '' for none)");
+  const from = num(o.from, 'from'), to = num(o.to, 'to');
+  if (!(from < to)) throw new Error(`timeline(): from (${from}) must be less than to (${to})`);
+  if (o.step !== undefined && !(num(o.step, 'step') > 0 && (to - from) / o.step <= 40)) throw new Error('timeline(): step must be > 0 and give at most 40 ticks');
+  const lanes = o.lanes ?? [];
+  if (o.lanes !== undefined && (!Array.isArray(lanes) || !lanes.length || lanes.some(l => typeof l !== 'string' || !l.trim()) || new Set(lanes).size !== lanes.length)) throw new Error('timeline(): lanes must be a list of distinct, non-empty names');
+  const tones = ['accent', 'danger', 'muted'];
+  const laneOk = (l: string | undefined, what: string) => { if (l !== undefined && !lanes.includes(l)) throw new Error(`timeline(): ${what}.lane "${l}" is not one of lanes (${lanes.join(', ') || 'none declared'})`); };
+  (o.events ?? []).forEach((e, i) => {
+    const at = num(e?.at, `events[${i}].at`);
+    if (at < from || at > to) throw new Error(`timeline(): events[${i}].at (${at}) is outside the axis (${from} - ${to})`);
+    if (typeof e.label !== 'string' || !e.label.trim()) throw new Error(`timeline(): events[${i}].label is required`);
+    if (e.tone !== undefined && !tones.includes(e.tone)) throw new Error(`timeline(): events[${i}].tone must be accent, danger or muted (got ${e.tone})`);
+    laneOk(e.lane, `events[${i}]`);
+  });
+  (o.spans ?? []).forEach((sp, i) => {
+    const a = num(sp?.from, `spans[${i}].from`), b = num(sp?.to, `spans[${i}].to`);
+    if (!(a < b)) throw new Error(`timeline(): spans[${i}].from (${a}) must be less than to (${b})`);
+    if (a < from || b > to) throw new Error(`timeline(): spans[${i}] (${a} - ${b}) is outside the axis (${from} - ${to})`);
+    if (sp.tone !== undefined && !tones.includes(sp.tone)) throw new Error(`timeline(): spans[${i}].tone must be accent, danger or muted (got ${sp.tone})`);
+    if (sp.label !== undefined && (typeof sp.label !== 'string' || !sp.label.trim())) throw new Error(`timeline(): spans[${i}].label must not be empty`);
+    laneOk(sp.lane, `spans[${i}]`);
+  });
+  return withHandle({type: 'timeline', unit: o.unit, from, to, ...(o.step === undefined ? {} : {step: o.step}), ...(o.lanes ? {lanes: o.lanes} : {}), ...(o.events ? {events: o.events} : {}), ...(o.spans ? {spans: o.spans} : {}), ...(o.id === undefined ? {} : {id: o.id}), ...revealOf(o)}, o.id);
+}
