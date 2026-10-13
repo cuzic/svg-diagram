@@ -17,6 +17,7 @@
 // badge/breadcrumb/text. The five day2 prototypes needed 270-300px, so 300
 // is the default; override per diagram when the slide has less body text.
 
+import {bandTextSizes} from './fit-handlers.ts';
 import type {FitReport, LaidOutDiagram} from './types.ts';
 
 export const SLIDE_USABLE_WIDTH = 860; // docs/diagram-tone-and-manner.md section 5
@@ -24,20 +25,7 @@ export const SLIDE_USABLE_WIDTH = 860; // docs/diagram-tone-and-manner.md sectio
 /** The smallest text size (px, in the SVG's own units) the diagram draws. */
 export function minTextSize(d: {laidOut?: LaidOutDiagram['laidOut']; connects?: LaidOutDiagram['connects']; roles?: LaidOutDiagram['roles']}): number {
   let minSize = Infinity;
-  const note = (band: LaidOutDiagram['laidOut'][number]): void => { for (const r of 'wrappedRuns' in band ? band.wrappedRuns : []) minSize = Math.min(minSize, r.size); };
-  for (const band of d.laidOut ?? []) {
-    if (band.type === 'row' || band.type === 'grid') band.children.forEach(note); else note(band);
-    if (band.type === 'bars') for (const t of band.texts) minSize = Math.min(minSize, t.size);
-    if (band.type === 'chart') minSize = Math.min(minSize, band.size);
-    if (band.type === 'image') for (const p of band.plates) minSize = Math.min(minSize, p.size);
-    if (band.type === 'timeline' || band.type === 'tree' || band.type === 'states' || band.type === 'cause' || band.type === 'cloud' || band.type === 'gantt' || band.type === 'classes' || band.type === 'bpmn') for (const t of band.texts) minSize = Math.min(minSize, t.size);
-    if (band.type === 'cloud') for (const l of band.chips) minSize = Math.min(minSize, l.size);
-    if (band.type === 'states' || band.type === 'classes' || band.type === 'bpmn') for (const l of band.labels) minSize = Math.min(minSize, l.size);
-    if (band.type === 'quadrant') for (const t of band.texts) minSize = Math.min(minSize, t.size);
-    if (band.type === 'chevron' || band.type === 'funnel' || band.type === 'cycle' || band.type === 'venn' || band.type === 'concentric') for (const t of band.texts) minSize = Math.min(minSize, t.size);
-    if (band.type === 'plane') minSize = Math.min(minSize, band.labelSize);
-    if (band.type === 'table') minSize = Math.min(minSize, band.bodySize);
-  }
+  for (const band of d.laidOut ?? []) for (const size of bandTextSizes(band)) minSize = Math.min(minSize, size);
   if (!Number.isFinite(minSize)) minSize = 14;
   if ((d.connects ?? []).some(c => c.label)) minSize = Math.min(minSize, d.roles?.connectLabel ?? 14);
   return minSize;
