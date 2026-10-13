@@ -16,9 +16,17 @@ const sizeOf = (band: BarsBand, roles: Roles): number => roles[band.labelRole ??
  */
 const barH = (band: BarsBand, S: number): number => band.labelRole ? Math.max(BAR, S + 14) : BAR;
 
-/** A bar's value as written: whole numbers exactly (1055 stays 1055), others to 3 significant digits, unless valueFormat says otherwise. */
-const valueNum = (v: number, f: BarsBand['valueFormat']): string =>
-  typeof f === 'function' ? f(v) : f === 'exact' ? String(v) : typeof f === 'number' ? v.toFixed(f) : Number.isInteger(v) ? String(v) : fmt(v);
+/**
+ * A bar's value as written, unless valueFormat says otherwise: whole numbers exactly (1055 stays 1055); others to 3 significant
+ * digits, but never fewer than the digits of their whole part (1055.5 is 1056, not 1060; 0.01234 is 0.0123).
+ */
+const valueNum = (v: number, f: BarsBand['valueFormat']): string => {
+  if (typeof f === 'function') return String(f(v));
+  if (f === 'exact' || Number.isInteger(v) && f === undefined) return String(v);
+  if (typeof f === 'number') return v.toFixed(f);
+  const whole = Math.abs(v) >= 1 ? Math.floor(Math.log10(Math.abs(v))) + 1 : 0;
+  return whole > 3 && whole <= 21 ? String(parseFloat(v.toPrecision(whole))) : fmt(v);
+};
 const valueText = (d: BarDatum, band: BarsBand) => `${valueNum(d.value, band.valueFormat)}${band.unit ?? ''}`;
 
 /** What a bars() band shows; every default is the original look. */

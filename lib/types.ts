@@ -879,7 +879,7 @@ export interface BarsOpts extends RevealOpts {
   labelRole?: LabelRole;
   max?: number;
   unit?: string;
-  /** How a bar's value is written. Default: whole numbers exactly (1055 stays 1055), others to 3 significant digits. 'exact' writes the number as given; a number is the decimals; a function formats it yourself. */
+  /** How a bar's value is written. Default: whole numbers exactly (1055 stays 1055), others to 3 significant digits but keeping the whole part (1055.5 is 1056). 'exact' writes the number as given; a number is the decimals; a function formats it yourself. */
   valueFormat?: 'exact' | number | ((value: number) => string);
   dir?: 'h' | 'v';
   stack?: boolean;
