@@ -1243,6 +1243,11 @@ export interface BpmnNode {
   /** 'task' (default) | 'start' / 'end' event | 'xor' exclusive, 'and' parallel, 'or' inclusive gateway. */
   kind?: BpmnNodeKind;
   tone?: BoxTone;
+  /** A task only: an installed SVG icon (see `icon`) above the label, 20px, in the node's text tone (or `iconTone`). The label carries the meaning, so the icon is `aria-hidden`. */
+  icon?: IconName;
+  iconTone?: TextTone;
+  /** Internal: the installed path of `icon`, resolved by bpmn(). */
+  iconGlyph?: IconGlyph;
 }
 export interface BpmnFlow {
   from: string;
@@ -1371,7 +1376,14 @@ export interface LaidOutImage extends Rect, Dimmed {
 // DSL input + band: sequence
 // ============================================================================================
 
-export interface SequenceActor {id: string; label: string; tone?: BoxTone}
+export interface SequenceActor {
+  id: string; label: string; tone?: BoxTone;
+  /** An installed SVG icon (see `icon`) above the label in the header, 20px, in `iconTone` (default: the label's text colour). The label carries the meaning, so the icon is `aria-hidden`. */
+  icon?: IconName;
+  iconTone?: TextTone;
+  /** Internal: the installed path of `icon`, resolved by sequence(). */
+  iconGlyph?: IconGlyph;
+}
 
 /** A message between two participants. */
 export interface SeqMessage {
@@ -2234,7 +2246,12 @@ export interface LaidOutSwimlane extends Rect {
 /** A swimlane step as laid out: a box that remembers its lane. */
 export interface LaidOutStep extends LaidOutBox {lane: string; row?: number; col: number; span: number}
 
-export interface LaidOutSeqHead extends Rect {id: string; tone?: BoxTone; lines: string[]; cx: number}
+export interface LaidOutSeqHead extends Rect {
+  id: string; tone?: BoxTone; lines: string[]; cx: number;
+  /** Top of the label's first line, relative to the head's top (an icon above it, or the label centred in a head that is taller than its text). */
+  textDy: number;
+  icon?: {name: string; glyph: IconGlyph; x: number; y: number; size: number; tone?: TextTone};
+}
 export interface LaidOutSeqMsg {kind: 'msg'; x1: number; x2: number; y: number; lines: string[]; labelTop: number; lx: number; line: LineStyle; arrow: Arrow; tone?: TextTone}
 export interface LaidOutSeqSelf {kind: 'self'; cx: number; y: number; loopH: number; lines: string[]; lx: number; side: 'left' | 'right'; labelTop: number; line: LineStyle; tone?: TextTone}
 export interface LaidOutSeqNote extends Rect {kind: 'note'; lines: string[]; tone: BoxTone}
@@ -2481,6 +2498,8 @@ export interface LaidOutBpmn extends Rect, Dimmed {
   lanes: (Rect & {labelW: number; tone: BoxTone})[];
   /** The shape of each node (a circle, a diamond or a rounded rectangle). */
   nodes: (Rect & {kind: BpmnNodeKind; tone: BoxTone})[];
+  /** The icons of the tasks that have one (20px, above the label); `node` indexes `nodes`. */
+  icons: {node: number; name: string; glyph: IconGlyph; x: number; y: number; size: number; tone?: TextTone}[];
   edges: {from: string; to: string; line: 'solid' | 'dashed'; points: {x: number; y: number}[]}[];
   texts: GanttText[];
   /** Flow conditions: a white chip with its text baseline at (tx, ty), in `size` px; `edge` is the index of its flow in `edges`. */

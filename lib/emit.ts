@@ -736,6 +736,7 @@ function renderBpmn(b: LaidOutBpmn, day: Theme): string {
     const n = b.nodes.find(r => r.kind === 'task' && t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
     out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : t.anchor === 'end' ? ' text-anchor="end"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : t.muted ? (n && toneStyle(n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted) : colorOf(toneStyle(n?.tone).text, day)}">${emojiSpan(t.text)}</text>`);
   }
+  for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : ic.tone ? textColorOf(ic.tone, day) : colorOf(toneStyle(b.nodes[ic.node].tone).text, day), dim: b.dim, labelled: true}));
   for (const l of b.labels) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${bg}"/>`);
     out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty)}" text-anchor="middle" font-size="${l.size}" fill="${ink}">${emojiSpan(l.text)}</text>`);
@@ -782,7 +783,8 @@ function renderSequence(band: LaidOutSequence, day: Theme, roles: Roles): string
   for (const h of band.heads) {
     const st = resolveBoxStyle(h.tone ?? 'plain', day);
     parts.push(`<rect x="${snap4(h.x)}" y="${snap4(h.y)}" width="${snap4(h.w)}" height="${snap4(h.h)}" rx="8" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5"${st.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
-    parts.push(textLines(h.lines, {x: h.cx, top: h.y + 12, size: roles.title, weight: 700, anchor: 'middle', fill: PALETTE.text}));
+    if (h.icon) parts.push(iconSvg({glyph: h.icon.glyph, name: h.icon.name, x: h.icon.x, y: h.icon.y, size: h.icon.size, color: runColorOf(h.icon.tone, h.tone, day), labelled: true}));
+    parts.push(textLines(h.lines, {x: h.cx, top: h.y + h.textDy, size: roles.title, weight: 700, anchor: 'middle', fill: PALETTE.text}));
   }
   for (const s of band.steps) {
     if (s.kind === 'msg') {

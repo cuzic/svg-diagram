@@ -19,6 +19,7 @@ const LH = 1.4;
 export const lineH = (size: number) => size * LH;
 
 // ---- sequence ---------------------------------------------------------------
+export const SEQ_ICON = 20, SEQ_ICON_H = SEQ_ICON + 4; // an icon above a participant's label: its size and the room it takes
 export const SEQ = {headPadY: 12, headPadX: 12, stepGap: 14, labelGap: 10, selfW: 36, noteH: 8, dividerH: 36};
 
 export function prepareSequence(band: SequenceBand): PreparedSequence {
@@ -71,10 +72,18 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
 
   const heads = p.actors.map((a, i): LaidOutSeqHead => {
     const lines = wrap(a.label, roles.title, 700, 'sans', aw - 2 * SEQ.headPadX, widthOf);
-    return {id: a.id, tone: a.tone, lines, x: cx[i] - aw / 2, w: aw, cx: cx[i], y: 0, h: 0};
+    return {id: a.id, tone: a.tone, lines, x: cx[i] - aw / 2, w: aw, cx: cx[i], y: 0, h: 0, textDy: SEQ.headPadY};
   });
-  const headH = Math.max(...heads.map(h => h.lines.length)) * lineH(roles.title) + 2 * SEQ.headPadY;
-  for (const h of heads) { h.y = y; h.h = headH; }
+  // every head is as tall as the tallest; when any head has an icon, each head's stack (icon, then label) sits in the middle of the room
+  const anyIcon = p.actors.some(a => a.icon), textH = Math.max(...heads.map(h => h.lines.length)) * lineH(roles.title);
+  const headH = textH + (anyIcon ? SEQ_ICON_H : 0) + 2 * SEQ.headPadY;
+  heads.forEach((h, i) => {
+    const a = p.actors[i];
+    h.y = y; h.h = headH;
+    const top = SEQ.headPadY + (anyIcon ? Math.round((headH - 2 * SEQ.headPadY - h.lines.length * lineH(roles.title) - (a.icon ? SEQ_ICON_H : 0)) / 2) : 0);
+    h.textDy = top + (a.icon ? SEQ_ICON_H : 0);
+    if (a.icon) h.icon = {name: a.icon, glyph: a.iconGlyph!, x: h.cx - SEQ_ICON / 2, y: y + top, size: SEQ_ICON, ...(a.iconTone ? {tone: a.iconTone} : {})};
+  });
 
   let cursor = y + headH;
   const steps: LaidOutSeqStep[] = [];

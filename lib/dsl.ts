@@ -296,6 +296,9 @@ export function legend(items: LegendItem[], opts: LegendOpts = {}): LegendBand {
 export function sequence<const A extends string, const Id extends string = never>(actors: ActorIn<A>[], steps: SeqStepIn<NoInfer<A>>[], opts?: SequenceOpts & {id?: Id}): SequenceBand & Declares<Id> & HandleOf<Id>;
 export function sequence(actors: SequenceActor[], steps: SequenceStep[], opts: SequenceOpts = {}): SequenceBand {
   for (const a of actors) assertBoxTone(a.tone, `sequence() actor "${a.id}"`);
+  // an icon is resolved here (the shell) and carried on the actor, so layout and emit stay free of I/O
+  if (actors.some(a => a.iconTone !== undefined && a.icon === undefined)) throw new Error('sequence(): an actor has iconTone but no icon');
+  actors = actors.map(a => a.icon === undefined ? a : {...a, iconGlyph: resolveIcon(a.icon, `sequence() actor "${a.id}" icon`)});
   for (const st of steps) if ('note' in st) assertBoxTone((st as {tone?: string}).tone, 'sequence() note');
   return withHandle({type: 'sequence', actors, steps, numbered: opts.numbered, id: opts.id, ...revealOf(opts)}, opts.id);
 }
@@ -1448,9 +1451,11 @@ export function bpmn(lanes: readonly BpmnLane[], nodes: readonly BpmnNode[], flo
     assertBoxTone(n.tone, `bpmn() node "${n.id}"`);
     if (!['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(n.tone)) throw new Error(`bpmn(): node "${n.id}" has tone ${String(n.tone)}`);
   }
+  // an icon is resolved here (the shell) and carried on the node, so layout and emit stay free of I/O
+  const placedNodes = nodes.map(n => n.icon === undefined ? n : {...n, iconGlyph: resolveIcon(n.icon, `bpmn() task "${n.id}" icon`)});
   for (const f of flows) if (f.line !== undefined && f.line !== 'solid' && f.line !== 'dashed') throw new Error(`bpmn(): flow ${f.from} -> ${f.to} has line ${String(f.line)}`);
   if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`bpmn(): fit must be 'shrink' (got ${String(opts.fit)})`);
-  const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: [...nodes], flows: [...flows], ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.fit === undefined ? {} : {fit: opts.fit}), ...revealOf(opts)};
+  const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: placedNodes, flows: [...flows], ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.fit === undefined ? {} : {fit: opts.fit}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
 }
 

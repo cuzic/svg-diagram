@@ -229,7 +229,7 @@ PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `
 4. **入れる**: 候補の下に出る行をそのまま実行する（`svg-diagram icons add mdi:key-variant=key`）。1 回で複数入れられる。名前は図のソースで使う短い名前。
    セットに無い名前が混じるときは `--skip-missing`（あるものだけ入れて、無い名前を一覧する）。無いまま既定で実行すると、無い名前を全部まとめて報告して何も入れない。
    経理・業務の図なら、まず `svg-diagram icons add-set accounting`（`icons sets` で `office` / `infra` も）で用途別のセットを一括で入れられる。個別の `find` はその後の不足分だけ。
-5. **使う**: `box({icon: 'key', title: '鍵の管理'})`。`icon` は box のほか、swimlane の step、`cell('鍵', {icon: 'key'})`（table のセル）、stateDiagram の状態 `{id, label, icon}`、sankey のノード `{id, icon}` にも付く。`step`（丸番号）とも併用できる（アイコン→番号→タイトルの順）。入っていない名前は、入れ方つきのエラーで教えてくれる。
+5. **使う**: `box({icon: 'key', title: '鍵の管理'})`。`icon` は box のほか、swimlane の step、`cell('鍵', {icon: 'key'})`（table のセル）、stateDiagram の状態 `{id, label, icon}`、sankey のノード `{id, icon}`、bpmn のタスク `{id, lane, label, icon, iconTone?}`（イベント・ゲートウェイは不可）、sequence の参加者 `{id, label, icon, iconTone?}` にも付く（bpmn / sequence はラベルの上に 20px）。`step`（丸番号）とも併用できる（アイコン→番号→タイトルの順）。入っていない名前は、入れ方つきのエラーで教えてくれる。
 
 注意:
 - CC BY などのライセンスのセットは既定で除外される。使うかはユーザーに確認し、了承されたら `--allow-license CC-BY-4.0`。

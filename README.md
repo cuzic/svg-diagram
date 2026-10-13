@@ -736,11 +736,11 @@ box({title: `${icon.emoji('key')} 鍵の管理`})
 
 | | SVG パス（`box({icon})` / `iconRow()`） | 絵文字（`icon.emoji()`） |
 |---|---|---|
-| 置ける場所 | 箱の左端（32px）・swimlane の step・table のセル・状態・sankey のノード。文字列の中には置けない | タイトル・本文・ラベルなど文字列の中 |
+| 置ける場所 | 箱の左端（32px）・swimlane の step・table のセル・状態・sankey のノード・bpmn のタスク・sequence の参加者。文字列の中には置けない | タイトル・本文・ラベルなど文字列の中 |
 | 見た目 | 入れたセットのとおり（固定）。色は `iconTone`（text / accent / muted / danger）で、spotlight で薄くする箱は muted | 環境の絵文字フォント（Noto Color Emoji / Segoe UI Emoji）で変わる。色は色トークンの外 |
 | 数 | プロジェクトが入れた分 | 18（`EMOJI_RE` の範囲内でフォントに実在するものだけ。U+FE0F が要る ⚠️ ⚙️ ☁️ ✅ は無い） |
 
-- **アイコンを付けられる場所**: `box({icon})`（箱の左端 32px、`iconAt: 'top'` で上）と `iconRow()` / `node()`、**swimlane の step**（`{lane, title, icon}`。box の項目はそのまま効く）、**table のセル**（`cell('鍵', {icon: 'key', iconTone?})`。文字の前に 18px。文字が無ければアイコンだけが中身で `role="img"`）、**stateDiagram の状態**（`{id, label, icon}`。ラベルの上に 24px、box も circle も）、**sankey のノード**（`{id, icon}`。ラベルの前に 1 行の高さで）。入っていない名前はどこでも入れ方つきで throw する。
+- **アイコンを付けられる場所**: `box({icon})`（箱の左端 32px、`iconAt: 'top'` で上）と `iconRow()` / `node()`、**swimlane の step**（`{lane, title, icon}`。box の項目はそのまま効く）、**table のセル**（`cell('鍵', {icon: 'key', iconTone?})`。文字の前に 18px。文字が無ければアイコンだけが中身で `role="img"`）、**stateDiagram の状態**（`{id, label, icon}`。ラベルの上に 24px、box も circle も）、**sankey のノード**（`{id, icon}`。ラベルの前に 1 行の高さで）、**bpmn のタスク**（`{id, lane, label, icon, iconTone?}`。ラベルの上に 20px、タスクがその分（24px）高くなる。イベント・ゲートウェイには付けられず throw。`fit: 'shrink'` はそのまま効く）、**sequence の参加者**（`{id, label, icon, iconTone?}`。ヘッダーのラベルの上に 20px。ヘッダーは全員同じ高さのまま、アイコンの無い参加者のラベルは余白の中央）。bpmn のタスクと sequence の参加者はラベルが必須なので、アイコンは常に装飾（`aria-hidden`）。入っていない名前はどこでも入れ方つきで throw する。
 - **`step` と `icon` は併用できる**: 左からアイコン、丸番号、タイトルの順（`iconAt: 'top'` ならアイコンは上、番号はタイトルの左）。
 - `iconRow()` のラベルは、アイコン（32px）の高さの中央に揃う（箱の上寄せで下に余白が出ない）。
 - 絵記号は記憶には効くが、理解や検索には効きにくい。**核心の数枚だけ**に使い、全部の箱には付けない。
