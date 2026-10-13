@@ -198,7 +198,7 @@ test('mekko(): the width of a column is its total, the height of a segment its s
   near((n.h + 2) / (nb.h + 2), 60 / 30, 0.05);
   const area = (x: {w: number; h: number}) => x.w * x.h;
   near(area(n) / area(s), (100 * 0.6) / (40 * 0.5), 0.1);
-  for (const label of ['A 60%', 'B 50%']) assert.ok(texts(chart).some(t => t.includes(label)) || true);
+  for (const label of ['A 60%', 'B 30%', 'C 10%', 'A 50%', 'B 50%', '（71.4%）', '（28.6%）']) assert.ok(texts(chart).includes(label), label);
   assert.ok(chart.alt.includes('北（計 100億円）') && chart.alt.includes('A 60億円（60%）'));
 });
 
@@ -348,7 +348,7 @@ test('sankey(): layers come from the longest path, node heights are proportional
   near(solid(chart, 'c').h / solid(chart, 'a').h, 50 / 30, 0.02);
   near(solid(chart, 'd').h / solid(chart, 'e').h, 35 / 15, 0.02);
   assert.equal(chart.items.filter(i => i.k === 'path' && i.fill !== 'none' && i.op === 0.22).length, 4); // one ribbon per link
-  for (const s of ['c 50人', 'a 30人']) assert.ok(texts(chart).includes(s) || chart.items.some(i => i.k === 'text' && i.s.includes(s.split(' ')[0])), s);
+  for (const s of ['a 30人', 'b 20人', 'c 50人', 'd 35人', 'e 15人']) assert.ok(texts(chart).includes(s), s); // a node's height is max(in, out): c carries 50
   assert.ok(chart.alt.includes('a → c 30人'));
 });
 
