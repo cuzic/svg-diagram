@@ -167,13 +167,18 @@ test('scanPngRefs finds PNG references outside code fences', () => {
 });
 
 test('check --docs: PNG references - missing file, no matching figure, orphan PNG', () => {
-  const root = project(GOOD + '\n![ボタンの画面](images/fig.png)\n\n![手描き](images/hand.png)\n\n![無い](images/none.png)\n');
+  const root = project(GOOD + '\n![ボタンの画面](images/fig.png)\n\n![手描き](images/hand.png)\n\n![無い](images/none.png)\n\n![大文字](images/FIG.PNG)\n\n![壊れた参照](images/100%.png)\n');
   fs.mkdirSync(path.join(root, 'docs', 'images'));
-  for (const n of ['fig', 'hand', 'old']) fs.writeFileSync(path.join(root, 'docs', 'images', n + '.png'), 'x');
+  for (const n of ['fig.png', 'hand.png', 'old.png', 'FIG.PNG', '100%.png']) fs.writeFileSync(path.join(root, 'docs', 'images', n), 'x');
+  fs.writeFileSync(path.join(root, 'svg', 'FIG.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>');
   const r = run(root);
   assert.match(r.stdout, /\[doc-image-missing\].*images\/none\.png/);
   assert.match(r.stdout, /\[doc-png-no-source\].*hand\.png/);
   assert.doesNotMatch(r.stdout, /doc-png-no-source\].*fig\.png/);
   assert.match(r.stdout, /old\.png \[doc-orphan-png\]/);
   assert.doesNotMatch(r.stdout, /(fig|hand)\.png \[doc-orphan-png\]/);
+  assert.doesNotMatch(r.stdout, /no-source\] FIG/, 'an upper-case extension finds FIG.svg');
+  assert.doesNotMatch(r.stdout, /image-missing\].*100%/, 'a stray % is read as written');
+  const scoped = run(root, '--only', 'docs/page.md');
+  assert.match(scoped.stdout, /PNG（doc-orphan-png）の検査は行わない/); assert.doesNotMatch(scoped.stdout, /\[doc-orphan-png\]/);
 });

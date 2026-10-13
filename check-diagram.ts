@@ -107,13 +107,17 @@ try {
       for (const f of checkFigures(text, figs, chapterOf(path.basename(md)))) add({file: rel, ...f});
       for (const png of scanPngRefs(text)) {
         if (/^(https?:|data:)/.test(png.ref)) continue;
-        const abs = path.resolve(path.dirname(md), decodeURI(png.ref)), name = path.basename(abs, '.png');
+        let ref = png.ref;
+        try { ref = decodeURI(ref); } catch { /* a stray % stays as written */ }
+        const abs = path.resolve(path.dirname(md), ref), name = path.basename(abs).replace(/\.png$/i, '');
         if (!fs.existsSync(abs)) { add({file: rel, line: png.line, rule: 'doc-image-missing', severity: 'error', message: `${png.ref} がない`}); continue; }
         pngReferenced.add(abs); pngDirs.add(path.dirname(abs));
         // a raster copy of a figure has a source or an SVG of the same name; one with neither is a hand-made or stale picture
         const hasSrc = srcDir && ['.ts', '.mjs'].some(ext => fs.existsSync(path.join(srcDir, name + ext))), hasSvg = svgDir && fs.existsSync(path.join(svgDir, name + '.svg'));
         if ((srcDir || svgDir) && !hasSrc && !hasSvg) add({file: rel, line: png.line, rule: 'doc-png-no-source', severity: 'warn', message: `${name}.png に対応する図のソース${srcDir ? `（${srcDir}/${name}.ts）` : ''}も SVG${svgDir ? `（${svgDir}/${name}.svg）` : ''}もない`});
-        if (!png.alt.trim()) add({file: rel, line: png.line, rule: 'doc-alt-empty', severity: 'warn', message: `${name}.png: 代替テキストが空`});
+        const alt = png.alt.trim();
+        if (!alt) add({file: rel, line: png.line, rule: 'doc-alt-empty', severity: 'warn', message: `${name}.png: 代替テキストが空`});
+        else if ([...alt].length > 155) add({file: rel, line: png.line, rule: 'doc-alt-long', severity: 'warn', message: `${name}.png: 代替テキストが ${[...alt].length} 文字（155 文字以内にして、詳しい説明は本文に）`});
       }
       let n = 0;
       for (const fig of figs) {
@@ -136,7 +140,7 @@ try {
       }
       if (n) say(`${findings.some(f => f.file === rel && f.severity !== 'info') ? '△' : '✓'} ${rel}（図 ${n}）`);
     }
-    if (svgDir && scoped) say(`ℹ 文書を絞っているので、どの文書からも参照されていない SVG（doc-orphan-svg）の検査は行わない（全文書を指定すると行う）`);
+    if (scoped && (svgDir || pngDirs.size)) say(`ℹ 文書を絞っているので、どの文書からも参照されていない ${[svgDir ? 'SVG（doc-orphan-svg）' : '', pngDirs.size ? 'PNG（doc-orphan-png）' : ''].filter(Boolean).join('・')}の検査は行わない（全文書を指定すると行う）`);
     else if (svgDir && fs.existsSync(svgDir)) {
       for (const f of fs.readdirSync(svgDir).filter(x => x.endsWith('.svg') && !/\.reveal\d+\.svg$/.test(x)).sort()) {
         if (!referenced.has(path.resolve(svgDir, f))) mapRows.push({name: path.parse(f).name, svg: path.join(svgDir, f), doc: '', src: ''});

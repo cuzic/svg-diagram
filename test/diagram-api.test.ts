@@ -163,11 +163,21 @@ test('legend: false declares that no legend is needed: legend-missing / legend-i
 
 test('cjk-line-long: a long title or banner headline line is flagged, a short or line-broken one is not', async () => {
   const {fullWidthUnits} = await import('../lib/rules.ts');
+  const {HEADLINE_PX} = await import('../lib/rules.ts');
+  const {ROLES} = await import('../lib/tokens.ts');
+  for (const [r, px] of Object.entries(HEADLINE_PX)) assert.equal(px, ROLES[r as keyof typeof ROLES], `HEADLINE_PX.${r} follows ROLES`);
   assert.equal(fullWidthUnits('あいabc'), 3.5);
+  assert.equal(fullWidthUnits('ｱｲｳ'), 1.5, 'halfwidth katakana is half');
+  assert.equal(fullWidthUnits('한국ＡＢ𠮷'), 5);
   const f = (...bands: any[]) => { const d = diagram({theme: 'blue', title: 't'}); for (const b of bands) d.add(b); return lintDiagram({...d, laidOut: [], connects: []}).filter(x => x.rule === 'cjk-line-long'); };
   assert.equal(f(caption('あ'.repeat(41), {role: 'title'})).length, 1);
   assert.equal(f(caption('あ'.repeat(40), {role: 'title'})).length, 0);
   assert.equal(f(caption('あ'.repeat(30) + '\n' + 'い'.repeat(30), {role: 'title'})).length, 0);
   assert.equal(f(banner({headline: 'あ'.repeat(38)})).length, 1);
   assert.equal(f(banner({headline: '短い見出し'})).length, 0);
+  // under the budget but wrapped by a narrow diagram
+  const narrow = await findingsOf(diagram({theme: 'blue', title: 't', legend: false, width: 320}).add(banner({headline: '承認待ちが三日から一日へ短くなった'})));
+  assert.match(narrow.filter(x => x.rule === 'cjk-line-long').map(x => x.message).join(), /自動で折り返している/);
+  const wide = await findingsOf(diagram({theme: 'blue', title: 't', legend: false}).add(banner({headline: '承認待ちが三日から一日へ短くなった'})));
+  assert.ok(!wide.some(x => x.rule === 'cjk-line-long'));
 });

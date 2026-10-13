@@ -35,7 +35,7 @@ export const RULE_DOCS = {
   'bars-values-hidden': '値ラベルも目盛りも出さない bars があるのに、図の題名（SVG の <title>）がなく、値を読み上げる <desc> が届かない（doc 媒体）',
   'bars-thin-bar': '棒が 1px 以下（値は 0 でない）。図の高さ・幅を上げるか max を見直す',
   'image-large': '埋め込んだ画像が大きい（300 KB 超）。ファイルがそのまま SVG に入り、段階表示の各ファイルにも入る。縮小・圧縮してから使う',
-  'cjk-line-long': '見出し（caption の title / display / stat と banner の headline）の 1 行が、全角で数えて長すぎる（本文幅 600px に収まる字数の目安を超える。短くするか改行する）',
+  'cjk-line-long': '見出し（caption の title / display / stat と banner の headline）の 1 行が、全角で数えて長すぎる（本文幅 600px に収まる字数の目安を超える、または図の幅に収まらず自動で折り返した。短くするか改行する）',
   'source-wraps': '出典行（diagram({sourceLine})）が 1 行に収まらず折り返している（短くする）',
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える。凡例が要らない図は diagram({legend: false})）',
@@ -423,28 +423,42 @@ export function lintDiagram(d: LintTarget): Finding[] {
   return out.map(f => (d.accept && d.accept[f.rule as RuleId] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule as RuleId]}）`} : f));
 }
 
-// the width of a line in full-width characters (CJK and fullwidth forms count 1, everything else 0.5)
+// the width of a line in full-width characters (CJK, kana, hangul, fullwidth forms and pictographs count 1, everything else
+// - Latin, digits, halfwidth katakana - 0.5)
+const WIDE: [number, number][] = [[0x1100, 0x115f], [0x2e80, 0xa4cf], [0xa960, 0xa97f], [0xac00, 0xd7af], [0xf900, 0xfaff], [0xfe30, 0xfe4f], [0xff01, 0xff60], [0xffe0, 0xffe6], [0x1f300, 0x1faff], [0x20000, 0x3fffd]];
 export function fullWidthUnits(line: string): number {
   let n = 0;
-  for (const ch of line) { const c = ch.codePointAt(0)!; n += (c >= 0x3000 && c <= 0x30ff) || (c >= 0x3400 && c <= 0x9fff) || (c >= 0xf900 && c <= 0xfaff) || (c >= 0xff00 && c <= 0xffef) ? 1 : 0.5; }
+  for (const ch of line) { const c = ch.codePointAt(0)!; n += WIDE.some(([a, b]) => c >= a && c <= b) ? 1 : 0.5; }
   return n;
 }
 export const HEADLINE_BUDGET_PX = 600;
-// the role sizes (tokens ROLES), kept here because the rendering core must not import that global table
-const HEADLINE_PX: Record<string, number> = {title: 15, banner: 16, stat: 34, display: 56};
-const HEADLINE_ROLES = new Set(Object.keys(HEADLINE_PX));
+// the role sizes (tokens ROLES; test/diagram-api.test.ts keeps them equal), kept here because the rendering core must not import that global table
+export const HEADLINE_PX: Readonly<Record<'title' | 'banner' | 'stat' | 'display', number>> = {title: 15, banner: 16, stat: 34, display: 56};
+const isHeadlineRole = (r: string | undefined): r is keyof typeof HEADLINE_PX => r != null && r in HEADLINE_PX;
+// a headline line over the budget (a guide in full-width characters: what fits a 600px text column), or one the layout had to wrap
 function headlineLength(d: LintTarget, out: Finding[]): void {
   const seen = new Set<string>();
-  const check = (text: string, role: string): void => {
-    const budget = Math.floor(HEADLINE_BUDGET_PX / (HEADLINE_PX[role]  ?? 15));
+  const flag = (line: string, message: string): void => { if (!seen.has(line)) { seen.add(line); out.push({rule: 'cjk-line-long', severity: 'warn', message}); } };
+  const quote = (line: string): string => { const t = line.trim(); return [...t].length > 16 ? `${[...t].slice(0, 16).join('')}…` : t; };
+  const check = (text: string, role: keyof typeof HEADLINE_PX): void => {
+    const budget = Math.floor(HEADLINE_BUDGET_PX / HEADLINE_PX[role]);
     for (const line of text.split('\n')) {
       const u = fullWidthUnits(line.trim());
-      if (u > budget && !seen.has(line)) { seen.add(line); out.push({rule: 'cjk-line-long', severity: 'warn', message: `見出しの 1 行が全角 ${Math.ceil(u)} 字ぶんで、${budget} 字の目安（${role}）を超える（はみ出す・折り返す）: 「${line.trim().slice(0, 16)}…」。短くするか、改行して分ける`}); }
+      if (u > budget) flag(line, `見出しの 1 行が全角 ${Math.ceil(u)} 字ぶんで、${budget} 字の目安（${role}。本文幅 ${HEADLINE_BUDGET_PX}px に収まる字数）を超える: 「${quote(line)}」。短くするか、改行して分ける`);
     }
   };
   for (const b of walkBands(d.bands)) {
-    if (b.type === 'caption' && !b.sourceLine && HEADLINE_ROLES.has(b.role)) check(b.text, b.role);
+    if (b.type === 'caption' && !b.sourceLine && isHeadlineRole(b.role)) check(b.text, b.role);
     else if (b.type === 'banner') check(b.headline, b.headlineRole ?? 'banner');
+  }
+  // under the budget but still wrapped by the layout (a narrow diagram, a banner in a row): the break falls anywhere, even inside a word
+  const laid = (d.laidOut ?? []).flatMap(b => b.type === 'row' || b.type === 'grid' ? b.children : [b]);
+  for (const b of laid) {
+    const head = b.type === 'caption' && !b.sourceLine && isHeadlineRole(b.role) ? b.text : b.type === 'banner' ? b.headline : null;
+    const run = head != null ? (b as {wrappedRuns: {text: string; lines: string[]}[]}).wrappedRuns[0] : undefined;
+    if (head == null || !run) continue;
+    const given = head.split('\n');
+    if (run.lines.length > given.length && !given.some(l => seen.has(l))) flag(head, `見出しが幅に収まらず、${run.lines.length} 行に自動で折り返している: 「${quote(given[0])}」。短くするか、区切りのよいところで改行する`);
   }
 }
 
