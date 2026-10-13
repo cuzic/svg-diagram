@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import {rasterize} from './lib/raster.ts';
+import {grayscaleSvg, rasterize} from './lib/raster.ts';
 import {closeMeasurer} from './lib/measure.ts';
 
 // No name given: <tmpdir>/svg-diagram-preview-<uid>/<source>-<unique>.png, created exclusively so parallel runs never overwrite each other.
@@ -25,15 +25,16 @@ function uniquePreview(input: string, png: Buffer): string {
 const args = process.argv.slice(2);
 const ei = args.indexOf('--engine');
 const engine = (ei === -1 ? 'auto' : args[ei + 1]) as 'auto' | 'resvg' | 'chromium';
-const rest = args.filter((a, i) => i !== ei && i !== ei + 1 || ei === -1);
-const USAGE = 'Usage: svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium]\n  without out.png: a new file in the temp dir (never overwrites), its path is printed';
+const GRAY = args.includes('--gray'); // as a mono print or a colour-blind reader sees it
+const rest = args.filter((a, i) => (i !== ei && i !== ei + 1 || ei === -1) && a !== '--gray');
+const USAGE = 'Usage: svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray]\n  without out.png: a new file in the temp dir (never overwrites), its path is printed';
 let [input, output, scaleArg] = rest as (string | undefined)[];
 if (output !== undefined && scaleArg === undefined && /^[\d.]+$/.test(output)) { scaleArg = output; output = undefined; } // `preview in.svg 3`
 const scale = scaleArg === undefined ? 2 : Number(scaleArg);
 if (!input || !(scale > 0)) { console.error(USAGE); process.exit(2); }
 if (!['auto', 'resvg', 'chromium'].includes(engine)) { console.error(`✗ --engine is resvg or chromium (got ${engine})\n${USAGE}`); process.exit(2); }
 try {
-  const r = await rasterize(fs.readFileSync(input, 'utf8'), {scale, png: true, engine});
+  const r = await rasterize(GRAY ? grayscaleSvg(fs.readFileSync(input, 'utf8')) : fs.readFileSync(input, 'utf8'), {scale, png: true, engine});
   if (output) fs.writeFileSync(output, r.png!);
   else output = uniquePreview(input, r.png!);
   console.log(`wrote ${output} (${r.width}x${r.height})`);

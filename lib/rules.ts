@@ -11,7 +11,7 @@
 
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
-import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, paintOf} from './tokens.ts';
+import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, paintOf, relativeLuminance} from './tokens.ts';
 
 // contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
 const wcagIn = (d: LintTarget) => { const p = paintOf(d.appearance); return (a: string, b: string): number => lightWcag(p(a), p(b)); };
@@ -39,6 +39,7 @@ export const RULE_DOCS = {
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える。凡例が要らない図は diagram({legend: false})）',
   'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる',
+  'gray-tone-collision': '使っている 2 つのトーンの塗りが、白黒（グレースケール）にすると見分けにくい（明度差 L* が 10 未満。破線などの形の手がかりがあれば除く）',
   'rowheader-tone-collides': '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある',
   'semantic-table-warning': '意味付き表の入力に注意点がある（例: RACI の空の役割列）',
   'swimlane-lanes': 'レーンが多い（6 本まで）',
@@ -290,6 +291,34 @@ function rowHeaderRules(d: LintTarget, out: Finding[]): void {
   }
 }
 
+// In grayscale (a mono print, a colour-blind reader) only lightness is left. The fill of every tone a diagram uses (boxes, table rows),
+// in the diagram's own theme and appearance, goes to CIE L* (0 black .. 100 white); two fills closer than GRAY_MIN_DL cannot be told apart.
+// 10 is about where two flat greys stop reading as "different" on paper: it flags soft (L* ~93) next to plain white (100), and passes accent-soft against solid (~50). The de-emphasis tones (muted / removed: the pale code fill, grey text) are meant to sit back and are left out. Tones that differ in their dashed outline are told apart by shape; tones
+// with the same fill (new / accent, changed / plain) are not told apart by their fill in colour either (the outline or nothing does it), so that is not this rule's matter.
+export const GRAY_MIN_DL = 10;
+const lightnessOf = (hex: string): number => { const y = relativeLuminance(hex); return y > 0.008856 ? 116 * Math.cbrt(y) - 16 : 903.3 * y; };
+
+function grayToneRules(d: LintTarget, out: Finding[]): void {
+  const used = new Set<string>(), all = walkBands(d.bands);
+  // a canvas() region with a pill (重点 / 中心 / 結論) says its tone in words, as for the legend (usedNotation): not a grayscale matter
+  const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => b.canvas!.worded[i]) : []));
+  for (const b of all) if (b.type === 'box' && !worded.has(b)) used.add(b.tone ?? 'plain');
+  for (const b of d.laidOut ?? []) if (b.type === 'table') for (const r of b.rows) if (!r.header && r.tone) used.add(r.tone);
+  const p = paintOf(d.appearance);
+  const tones = [...used].map(name => {
+    const t = toneStyle(name), box = resolveBoxStyle(name as EmphasisTone, d.day);
+    return {name, fill: p(box.fill).toLowerCase(), dashed: box.dashed, l: lightnessOf(p(box.fill)), quiet: t.fill === 'code'};
+  });
+  const seen = new Set<string>(), hits: string[] = [];
+  for (let i = 0; i < tones.length; i++) for (let j = i + 1; j < tones.length; j++) {
+    const a = tones[i], b = tones[j];
+    if (a.fill === b.fill || a.quiet || b.quiet || a.dashed !== b.dashed || Math.abs(a.l - b.l) >= GRAY_MIN_DL) continue;
+    const pair = `${a.name}・${b.name}`;
+    if (!seen.has(pair)) { seen.add(pair); hits.push(`${pair}（L* ${Math.round(a.l)} と ${Math.round(b.l)}）`); }
+  }
+  if (hits.length) out.push({rule: 'gray-tone-collision', severity: 'warn', message: `白黒にすると塗りの明度が近く、見分けにくいトーンの組: ${hits.join('、')}。どちらかを solid / muted にするか、破線・太字・ラベルなど色以外の手がかりを足す（確認は preview --gray）`});
+}
+
 function swimlaneRules(d: LintTarget, out: Finding[]): void {
   const lanesBands = d.bands.filter((b): b is SwimlaneBand => b.type === 'swimlane');
   if (lanesBands.length > 1) out.push({rule: 'one-story', severity: 'warn', message: `スイムレーンが ${lanesBands.length} つある。1 図 1 話にして、図を分けることを検討する`});
@@ -400,6 +429,7 @@ function lintAll(d: LintTarget): Finding[] {
   swimlaneRules(d, out);
   wireframeRules(d, out);
   rowHeaderRules(d, out);
+  grayToneRules(d, out);
 
   const connects = d.connects ?? [];
   if (connects.length) {

@@ -60,22 +60,28 @@ const args = process.argv.slice(2);
 const valueOf = (flag: string) => { const i = args.indexOf(flag); return i === -1 ? null : args[i + 1]; };
 const outOverride = valueOf('--out');
 const outDir = valueOf('--out-dir');
+const pngDir = valueOf('--png'); // also write <name>.png (the rasters of lib/raster.ts) here
+const scaleArg = valueOf('--scale');
+const PNG_SCALE = scaleArg === null ? 2 : Number(scaleArg);
 const FIT = args.includes('--fit');
 const NO_LINT = args.includes('--no-lint'); // iteration: skip the lint pass (check/CI or a final build runs it)
 const HTML = args.includes('--html'); // also write <name>.html (boxes and text as HTML/CSS, the rest as an inline SVG overlay)
 const DARK = args.includes('--dark'); // draw with the dark token set (overrides diagram({appearance}))
 const TRANSPARENT = args.includes('--transparent'); // no page-colour background rectangle
 const STALE = args.includes('--stale'); // skip diagrams whose SVG already matches this source, tool version and project config
-const modules = args.filter((a, i) => !['--out', '--out-dir', '--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent'].includes(a) && !['--out', '--out-dir'].includes(args[i - 1]));
+const modules = args.filter((a, i) => !['--out', '--out-dir', '--png', '--scale', '--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent'].includes(a) && !['--out', '--out-dir', '--png', '--scale'].includes(args[i - 1]));
 
 if (modules.length === 0) {
-  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--stale] [--no-lint] [--fit] [--html] [--dark] [--transparent]');
+  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--png <dir> [--scale N]] [--stale] [--no-lint] [--fit] [--html] [--dark] [--transparent]');
   process.exit(2);
 }
 if (outOverride && modules.length > 1) {
   console.error('--out only makes sense with exactly one input module (use --out-dir for several)');
   process.exit(2);
 }
+if (pngDir !== null && (!pngDir || pngDir.startsWith('--'))) { console.error('--png needs a directory'); process.exit(2); }
+if (scaleArg !== null && pngDir === null) { console.error('--scale is the PNG scale: use it with --png <dir>'); process.exit(2); }
+if (!(PNG_SCALE > 0)) { console.error(`--scale is a positive number (got ${scaleArg})`); process.exit(2); }
 if (outOverride && outDir) {
   console.error('use either --out or --out-dir, not both');
   process.exit(2);
@@ -109,7 +115,9 @@ try {
     const srcSha = sha(fs.readFileSync(abs));
     for (const f of depsOf(abs).unfollowable) console.warn(`  ⚠ ${path.relative(process.cwd(), f)}: 変数で組み立てた import() は、変更の検出（--stale / check --drift）の対象にならない`);
     const depsSha = depsSha256(abs); // local files the source imports (shared parts): a change there makes the SVG stale too
-    if (STALE && !FIT && !DARK && !TRANSPARENT && fs.existsSync(outPath)) {
+    const pngPath = pngDir && path.join(pngDir, path.parse(outPath).name + '.png');
+    const pngCurrent = () => !pngPath || (fs.existsSync(pngPath) && fs.statSync(pngPath).mtimeMs >= fs.statSync(outPath).mtimeMs);
+    if (STALE && !FIT && !DARK && !TRANSPARENT && fs.existsSync(outPath) && pngCurrent()) { // --png: a missing or older PNG is not up to date either
       const meta = embeddedSource(outPath);
       if (meta && meta.sourceSha256 === srcSha && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256 && (meta.depsSha256 ?? '') === depsSha) {
         console.log(`· ${outPath} は最新（スキップ）`);
@@ -146,6 +154,19 @@ try {
     }
   }
 } finally {
+  await closeMeasurer();
+}
+if (pngDir && written.length) { // the SVG and its PNG come from one build, so they cannot disagree
+  const {rasterize} = await import('./lib/raster.ts');
+  fs.mkdirSync(pngDir, {recursive: true});
+  for (const svgPath of written) {
+    try {
+      const r = await rasterize(fs.readFileSync(svgPath, 'utf8'), {scale: PNG_SCALE, png: true});
+      const pngPath = path.join(pngDir, path.parse(svgPath).name + '.png');
+      fs.writeFileSync(pngPath, r.png!);
+      console.log(`✓ ${pngPath} (${r.width}x${r.height})`);
+    } catch (err) { console.error(`✗ ${svgPath}: ${(err as Error).message}`); failed = true; }
+  }
   await closeMeasurer();
 }
 if (written.length && !NO_LINT) { // lint-svg.ts renders every file in a single Chromium (it used to start one per diagram)
