@@ -450,6 +450,15 @@ test('every chart renders in the dark appearance and passes lint; the descriptio
   }
 });
 
+test('spotlight on a treemap group keeps the cells inside it lit (they used to dim, leaving only the frame)', async () => {
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue', spotlight: 'g'}).add(treemap([{label: '国内', id: 'g', children: [{label: '東京', value: 40}, {label: '大阪', value: 22, id: 'osaka'}]}, {label: '海外', value: 30}])));
+  const c = laidOut.laidOut.find(b => b.type === 'chart') as LaidOutChart;
+  const keyOf = (label: string) => (c.items.find(i => i.k === 'rect' && c.solids.some(s => s.label.endsWith(`"${label}"`) && s.x === i.x && s.y === i.y)) as {of: string} | undefined)?.of ?? label;
+  assert.ok(!c.dim);
+  for (const l of ['東京', 'osaka']) assert.ok(!c.dimIds?.includes(keyOf(l)), `${l} stays lit`);
+  assert.ok(c.dimIds?.includes(keyOf('海外')), '海外 dims');
+});
+
 test('on a canvas (30px text) the charts keep their labels in the figure and off each other: legends, radar ring values', async () => {
   // a legend row centred 9px under the top put a 30px label 10px above the figure; radar ring values 1-5 overlapped each other on plates
   const bands = [

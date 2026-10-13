@@ -96,9 +96,11 @@ function dimBand(b: LaidOutBand, focus: Rect[]): void {
   } else if (b.type === 'chart') {
     // the whole figure focused: nothing dims. Otherwise the elements that are targets stay lit and the others dim; none a target: the figure dims whole
     if (focus.some(r => inside(b, r))) return;
-    const lit = b.anchors.filter(a => focus.some(r => inside(a, r)));
-    // every element is keyed (its id, or a number when it has none): the ones that are not targets dim
-    if (lit.length) b.dimIds = [...new Set(b.items.flatMap(i => i.of !== undefined ? [i.of].flat() : []))].filter(k => !lit.some(a => a.id === k)); else b.dim = true;
+    // lit: the elements that are targets, and every element drawn inside one (a treemap group's cells, keyed or not)
+    const lit = new Set(b.anchors.filter(a => focus.some(r => inside(a, r))).map(a => a.id));
+    for (const i of b.items) if (i.k === 'rect' && typeof i.of === 'string' && focus.some(r => inside(i, r))) lit.add(i.of);
+    // every element is keyed (its id, or a number when it has none): the ones that are not lit dim
+    if (lit.size) b.dimIds = [...new Set(b.items.flatMap(i => i.of !== undefined ? [i.of].flat() : []))].filter(k => !lit.has(k)); else b.dim = true;
   } else if (b.type === 'image') {
     // the whole picture focused (itself, or an enclosing group): nothing dims. Otherwise a focused mark keeps its region clear of
     // the veil and the other marks dim; with no mark focused the picture is veiled whole.
