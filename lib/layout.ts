@@ -1206,6 +1206,7 @@ function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: 
   // a node: left / right / top meet its icon, but bottom is under its label
   if (fromRef.side === 'bottom' && nodeBottoms.has(fromRef.id)) from.y = nodeBottoms.get(fromRef.id)!;
   if (toRef.side === 'bottom' && nodeBottoms.has(toRef.id)) to.y = nodeBottoms.get(toRef.id)!;
+  if (band.plumb && (toRef.side === 'top' || toRef.side === 'bottom')) to.x = Math.min(toRect.x + toRect.w, Math.max(toRect.x, from.x));
   let points = routePoints(band, from, to, fromRef.side);
   if (band.route === 'elbow' && band.bend === 'auto') {
     // Pick the first bend whose path stays clear of every box except the two it joins.
@@ -1260,6 +1261,11 @@ function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: 
       const t = band.labelAt ?? 0.5;
       labelX = Math.round(from.x + (to.x - from.x) * t);
       labelY = Math.round((band.route === 'loop-under' ? Math.max(from.y, to.y) + band.dip : from.y + (to.y - from.y) * t) + dy);
+      // a plain label centred on a vertical line would be struck through by it: it sits beside the line instead (a chip is meant to sit on it)
+      if (!band.chip && band.route === 'straight' && Math.round(from.x) === Math.round(to.x)) {
+        labelX = Math.round(from.x + labelWidth / 2 + 8);
+        labelY = Math.round(from.y + (to.y - from.y) * t + (roles.connectLabel ?? CONNECT_LABEL_SIZE) / 2 - 2);
+      }
     }
     labelBox = {x: labelX - labelWidth / 2, y: labelY - (roles.connectLabel ?? CONNECT_LABEL_SIZE), w: labelWidth, h: (roles.connectLabel ?? CONNECT_LABEL_SIZE) + 4};
     if (band.chip) {

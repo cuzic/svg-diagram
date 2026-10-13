@@ -72,6 +72,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | 日付のない順序だけの出来事 | `steps([{title, body?, icon?, tag?}], {numbered, highlight})` | 番号バッジ・矢印つきの `row()`。`highlight: n` で 1 つ強調。`id` を付けると `s.col(n)` が端点 |
 | 区間を示す括弧・箱を指す吹き出し | `bracket(a.left, b.right, {label, side})` / `callout(id, {text, side})` | `connect()` の 2 本引きの代わり。bracket は箱の下（`side: 'above'` で上）、callout は 1 行の吹き出し |
 | 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?}` と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
+| 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?, tone?}`（`tone` は `'solid'` / `'solid-danger'` も可）と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
 | TOC の因果の図（現状・未来現実・前提条件・移行ツリー） | `causeTree(nodes, links, {dir})` | 実体 `{id, label, role?}`（role: ude / root / de / injection / goal / obstacle / io / action）と `{from, to}`（`from` を配列にすると AND）。下が原因・上が結果 |
 | TOC のクラウド（対立解消図） | `cloud({a, b, c, d, d2}, {assumptions})` | 共通目的 A・必要条件 B/C・対立する要望 D/D'。前提 `{on: 'ab'｜'ac'｜'bd'｜'cd'｜'dd', text, injection?}` は番号が矢印に載り、一覧は図の下 |
 | スケジュール | `gantt(rows, {today})` | タスク `{label, start, end｜days, after?, progress?, milestone?}`（日付は `YYYY-MM-DD`、`today` は必ず書く） |
@@ -143,11 +144,12 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 ## くり返しは、まとめて書く
 
 - 12 列の行: `row([a, b], {cols: [6, 6]})`（`col:` を手で数えない）。`row([a, b, c], {cols: 12})` のように子に `span` を書かなければ、12/n 列ずつの等分（3 個なら 4+4+4）。
+- `row()` の子は `box()` / `group()` のほか `caption()` / `banner()` なども可（枠なし `group()` に自動で包まれる）。`versus()` の `children` は配列（縦積み）、`direction: 'row'` で横並び。共通部への接続線は垂直（矢頭なしは `connectArrow: 'none'`）。
 - 折り返しは文節単位（既定 `wrap: 'phrase'`）: カタカナ・漢字の連続は割れない。1 文字ずつ折りたいときだけ `diagram({wrap: 'char'})`。別の行の N 列目への矢印は、`row({id: 'top'})` の `top.col(5).top`。
 - 接続線: `diagram({connectDefaults: {chip: true, route: 'elbow'}})` と `d.connect(from, to, {label})`。
 - ワイヤーフレームの外枠: `diagram({wireframeDefaults: {appbar: {title, nav}}})` と、画面ごとの `shell: {active: '在庫'}`。
 - 状態の一覧: `stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', 空: {na: '理由'}})`。
-- 表の記号セル: `cell('通る', {mark: 'ok' | 'mid' | 'ng' | 'best'})`。座標平面（軸・点・寸法線）は `plane()`。`raw()` で SVG を手書きする前に、これらを探す。
+- 表の記号セル: `cell('通る', {mark: 'ok' | 'mid' | 'ng' | 'best'})`。座標平面（軸・点・寸法線）は `plane()`。点ラベルは `labelAt` を省くと寸法線・補助線・他ラベルを避けて自動で置く。軸の `categories: [...]` でレーン名を目盛りにできる（`max` は個数 + 1）。`raw()` で SVG を手書きする前に、これらを探す。
 
 ## コンサル系のチャート
 
@@ -241,7 +243,8 @@ PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `
 - **線は必ず辺を指す**（`:right` `:left` `:top` `:bottom`）。省略すると中心同士を結び、枠のない node ではアイコンを貫く。`:bottom` は名前の下に付く。
 - 線が見出しや別の node にかかって `build` が止まったら、node の並び（同じ行・同じ列に寄せる）か、`route: 'elbow'` の `bend` で直す。ゾーンや層ごとに行を分け、線は隣の行へだけ引くと素直に収まる。
 - アイコンは汎用なら `icons find`（carbon が構成図向き）。**AWS / Azure / GCP / Kubernetes の公式アイコンは Iconify に無い**ので、ユーザーに各社の配布ページから zip を DL してもらい、`icons add-pack <zip> --prefix aws --terms <規約の URL> --accept-terms --match "..."` で入れる。**規約を読んだかはユーザーに確認してから** `--accept-terms` を付ける（勝手に付けない）。
-- PNG プレビューで曲がる線の矢じりが横向きに見えるのは resvg の癖。確かめるなら `--engine chromium`。
+- PNG プレビュー（resvg）でも曲がる線の矢じりは線の向きに合う（描くときだけマーカーを置き換えて直してある）。実ブラウザで確かめたいときは `--engine chromium`。
+- グローバル運用（案件に `svg-diagram` を入れない）でも `svg-diagram typecheck` は動く（PATH 上の `tsc` と、このツールの型定義を使う）。
 
 ## 公開してよい内容か
 
