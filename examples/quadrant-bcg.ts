@@ -12,7 +12,7 @@ export default function define() {
       {id: 'app', label: 'アプリ', at: [0.35, 0.8], size: 40},
       {id: 'pkg', label: 'パッケージ', at: [0.82, 0.25], size: 300},
       {id: 'old', label: '旧システム', at: [0.2, 0.2], size: 60},
-      {id: 'ai', label: 'AI 新規', at: [0.15, 0.58], size: 12},
+      {id: 'ai', label: 'AI 新規', at: [0.15, 0.58], size: 30},
     ],
     arrows: [{from: 'app', to: [0.12, 0.9], label: '来期'}],
   }));

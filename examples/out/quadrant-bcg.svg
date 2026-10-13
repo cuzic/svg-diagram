@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="530" viewBox="0 0 940 530" role="img" aria-labelledby="svg-title">
   <title id="svg-title">事業ポートフォリオ（BCG マトリクス）</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/quadrant-bcg.ts","sourceSha256":"e6fac414e0249b901886c05be0222ea55bf9dbb5a81ac8cc72166c35f934a17b"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/quadrant-bcg.ts","sourceSha256":"85cfd8e7c0bd2ddf583d9ebf619f56410006e99b87fe21276f5b60055c24b267"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
@@ -9,10 +9,10 @@
 
   <text x="20" y="34" font-size="14" font-weight="400" fill="#6f6659">円の面積は売上高。矢印は来期の見込み。</text>
 
-  <rect x="116" y="68" width="396" height="172" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
-  <rect x="516" y="68" width="396" height="172" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2"/>
-  <rect x="116" y="244" width="396" height="172" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
-  <rect x="516" y="244" width="396" height="172" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2"/>
+  <rect x="116" y="68" width="396" height="168" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
+  <rect x="516" y="68" width="396" height="168" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2"/>
+  <rect x="116" y="244" width="396" height="168" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
+  <rect x="516" y="244" width="396" height="168" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2"/>
   <path d="M648,166 L814,144" fill="none" stroke="#22201b" stroke-width="2"/>
   <polygon points="814,144 805,150 804,140" fill="#22201b"/>
   <rect x="708" y="144" width="44" height="24" rx="4" fill="#ffffff"/>
@@ -20,7 +20,7 @@
   <circle cx="636" cy="168" r="8.6" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <circle cx="260" cy="356" r="23.6" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <circle cx="756" cy="368" r="10.6" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
-  <circle cx="792" cy="220" r="6" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="792" cy="220" r="7.5" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <circle cx="276" cy="476" r="19.3" fill="none" stroke="#6f6659" stroke-width="2"/>
   <circle cx="380" cy="476" r="6.1" fill="none" stroke="#6f6659" stroke-width="2"/>
   <text x="127" y="91" font-size="15" font-weight="700" fill="#1d5fa8">花形</text>
@@ -35,7 +35,7 @@
   <text x="623" y="173" text-anchor="end" font-size="14" fill="#22201b">アプリ</text>
   <text x="288" y="361" font-size="14" fill="#22201b">パッケージ</text>
   <text x="771" y="373" font-size="14" fill="#22201b">旧システム</text>
-  <text x="802" y="225" font-size="14" fill="#22201b">AI 新規</text>
+  <text x="803" y="225" font-size="14" fill="#22201b">AI 新規</text>
   <text x="730" y="160" text-anchor="middle" font-size="14" fill="#22201b">来期</text>
   <text x="107" y="86" text-anchor="end" font-size="14" fill="#6f6659">高</text>
   <text x="107" y="408" text-anchor="end" font-size="14" fill="#6f6659">低</text>

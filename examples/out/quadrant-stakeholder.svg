@@ -17,7 +17,7 @@
   <circle cx="788" cy="328" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <polygon points="244.9,108.9 259.1,108.9 259.1,123.1 244.9,123.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
   <polygon points="324.9,168.9 339.1,168.9 339.1,183.1 324.9,183.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
-  <polygon points="700.9,180.9 715.1,180.9 715.1,195.1 700.9,195.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
+  <polygon points="700.9,176.9 715.1,176.9 715.1,191.1 700.9,191.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
   <polygon points="200.9,320.9 215.1,320.9 215.1,335.1 200.9,335.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
   <circle cx="96" cy="420" r="7" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <polygon points="161.8,413.8 174.2,413.8 174.2,426.2 161.8,426.2" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
@@ -35,7 +35,7 @@
   <text x="800" y="333" font-size="14" fill="#22201b">経理部</text>
   <text x="266" y="121" font-size="14" fill="#22201b">監督官庁</text>
   <text x="346" y="181" font-size="14" fill="#22201b">主要取引先</text>
-  <text x="722" y="193" font-size="14" fill="#22201b">開発ベンダー</text>
+  <text x="722" y="189" font-size="14" fill="#22201b">開発ベンダー</text>
   <text x="222" y="333" font-size="14" fill="#22201b">株主</text>
   <text x="77" y="46" text-anchor="end" font-size="14" fill="#6f6659">大きい</text>
   <text x="77" y="368" text-anchor="end" font-size="14" fill="#6f6659">小さい</text>

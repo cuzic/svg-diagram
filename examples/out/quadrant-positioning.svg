@@ -12,7 +12,7 @@
   <rect x="88" y="228" width="412" height="200" rx="0" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
   <rect x="500" y="228" width="412" height="200" rx="0" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
   <path d="M500,28 L500,428" fill="none" stroke="#6f6659" stroke-width="2"/>
-  <path d="M87,228 L912,228" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M88,228 L912,228" fill="none" stroke="#6f6659" stroke-width="2"/>
   <circle cx="540" cy="88" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <circle cx="376" cy="248" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <polygon points="740.9,60.9 755.1,60.9 755.1,75.1 740.9,75.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
