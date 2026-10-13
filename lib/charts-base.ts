@@ -87,6 +87,8 @@ export class Canvas {
   readonly segs: ChartSeg[] = [];
   readonly anchors: {id: string; x: number; y: number; w: number; h: number}[] = [];
   readonly omitted: string[] = [];
+  /** Small marks (a line chart's markers) a label placed by place() keeps off; verify does not check them (two may share a spot). */
+  readonly marks: Rect[] = [];
   readonly x: number; readonly y: number; readonly w: number; h: number; readonly size: number; readonly widthOf: WidthOf;
   constructor(x: number, y: number, w: number, h: number, size: number, widthOf: WidthOf) { this.x = x; this.y = y; this.w = w; this.h = h; this.size = size; this.widthOf = widthOf; }
 
@@ -127,6 +129,7 @@ export class Canvas {
     if (b.x < this.x - 0.5 + margin || b.x + b.w > this.x + this.w + 0.5 - margin || b.y < this.y - 0.5 + margin || b.y + b.h > this.y + this.h + 0.5 - margin) return false;
     if (this.boxes.some(o => overlaps(b, o))) return false;
     if (this.solids.some((s, i) => i !== host && overlaps(b, s))) return false;
+    if (this.marks.some(m => overlaps(b, m))) return false;
     return plated || !this.segs.some(sg => segHitsRect(sg, {x: b.x - 1, y: b.y, w: b.w + 2, h: b.h}));
   }
   /** Draws the label at the first candidate that is free; undefined (nothing drawn) when none is. */

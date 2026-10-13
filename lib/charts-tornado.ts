@@ -75,8 +75,9 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
   const sw = 14;
   let lx = plotL;
   for (const [tone, text] of [[s.lowTone, s.lowLabel], [s.highTone, s.highLabel]] as const) {
-    c.rect(lx, g.y + 4, sw, sw, {fill: tone});
-    c.text(text, lx + sw + 6, c.mid(g.y + 4 + sw / 2), 'start', 'text');
+    const cy = g.y + Math.max(4 + sw / 2, Math.ceil(S * 0.64)); // the text's top stays in the figure at a large label size (a canvas)
+    c.rect(lx, cy - sw / 2, sw, sw, {fill: tone});
+    c.text(text, lx + sw + 6, c.mid(cy), 'start', 'text');
     lx += sw + 6 + c.tw(text) + 22;
   }
   // grid and axis

@@ -3,6 +3,7 @@
 import {niceNear} from './qc.ts';
 import {Canvas, overlaps, checkIds, checkText, fail, finiteNum, niceScale, numText} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
+import type {Rect} from './types.ts';
 
 export interface RadarSeries {label: string; values: number[]; id?: string}
 export interface RadarOpts extends ChartOpts {
@@ -119,21 +120,30 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
     pts.forEach((p, i) => { const q = pts[(i + 1) % n]; c.segs.push({x1: p.x, y1: p.y, x2: q.x, y2: q.y}); });
     if (x.id) { const xs = pts.map(p => p.x), ys = pts.map(p => p.y); c.anchors.push({id: x.id, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)}); }
   });
-  s.series.forEach((x, k) => { const st = SERIES_STYLES[k]; for (const p of polys[k]) c.path(markerPath(st.marker, p.x, p.y), {fill: 'bg', stroke: st.tone, sw: 2.5, of: x.id ?? `#${k}`}); });
+  s.series.forEach((x, k) => { const st = SERIES_STYLES[k]; for (const p of polys[k]) { c.path(markerPath(st.marker, p.x, p.y), {fill: 'bg', stroke: st.tone, sw: 2.5, of: x.id ?? `#${k}`}); c.marks.push({x: p.x - 7, y: p.y - 7, w: 14, h: 14}); } });
   // axis names beyond the outer ring
   for (let i = 0; i < n; i++) { const q = nameAt(i, R, cy, labels[i]); c.lines(labels[i], q.x, q.base, q.anchor, 'text', {bold: true}); }
-  // tick values: along the first spoke that has room for every one of them, beside it (right, then left)
-  const tickTexts = Array.from({length: s.rings}, (_, j) => ({k: j + 1, s: numText(ringValue(s, j + 1))}));
-  const spokes = [0, ...Array.from({length: n - 1}, (_, i) => i + 1)];
-  let placedTicks = false;
-  for (const sp of spokes) {
-    const boxes = tickTexts.map(t => { const p = at(sp, t.k / s.rings), dx = Math.cos(ang(sp)) >= 0 ? 6 : -6; return {t, p, anchor: dx > 0 ? 'start' as const : 'end' as const, x: p.x + dx, y: c.mid(p.y) - (Math.abs(Math.sin(ang(sp))) > 0.7 ? 0 : 0)}; });
-    const ok = boxes.every(b => c.free(c.boxOf(b.t.s, Math.round(b.x), b.y, b.anchor)));
-    if (!ok) continue;
-    for (const b of boxes) c.text(b.t.s, b.x, b.y, b.anchor, 'muted');
-    placedTicks = true; break;
+  // tick values: beside one spoke (right of it, or left on the left half), each beside its ring, or just above / below that when the
+  // ring's own spot is taken. The spoke that has room for the most of them (the first such) takes them; where the rings are closer than a
+  // line of text (a large label size) every 2nd / 3rd ... ring is labelled, counting down from the outer one. A ring with no room anywhere
+  // stays unlabelled: no plate is put over the data.
+  const minStep = Math.max(1, Math.ceil((S + 6) / (R / s.rings)));
+  const tickTexts = Array.from({length: s.rings}, (_, j) => ({k: j + 1, s: numText(ringValue(s, j + 1))})).filter(t => (s.rings - t.k) % minStep === 0);
+  let bestTicks: {s: string; x: number; y: number; anchor: 'start' | 'end'}[] = [];
+  for (let sp = 0; sp < n; sp++) {
+    const right = Math.cos(ang(sp)) >= -1e-9, dx = right ? 9 : -9, anchor = right ? 'start' as const : 'end' as const, got: Rect[] = [], put: typeof bestTicks = [];
+    for (const t of [...tickTexts].reverse()) {
+      const p = at(sp, t.k / s.rings);
+      for (const y of [c.mid(p.y), c.mid(p.y) - Math.round(S * 0.7), c.mid(p.y) + Math.round(S * 0.7)]) {
+        const r = c.boxOf(t.s, Math.round(p.x + dx), y, anchor);
+        if (!c.free(r) || got.some(o => overlaps(r, o))) continue;
+        got.push(r); put.push({s: t.s, x: p.x + dx, y, anchor}); break;
+      }
+    }
+    if (put.length > bestTicks.length) bestTicks = put;
+    if (put.length === tickTexts.length) break;
   }
-  if (!placedTicks) for (const t of tickTexts) { const p = at(0, t.k / s.rings); c.text(t.s, p.x + 6, c.mid(p.y), 'start', 'muted', {plate: true}); }
+  for (const t of bestTicks) c.text(t.s, t.x, t.y, t.anchor, 'muted');
   // centre value
   // value labels at the vertices (optional): outward first, then to the sides; one with no free place stays out of the drawing and in the description
   if (s.values) s.series.forEach((x, k) => {

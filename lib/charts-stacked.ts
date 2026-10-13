@@ -117,8 +117,10 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
   if (plotB - plotT < 120) fail(s.mode === 'mekko' ? 'mekko' : 'stackedBars', 'the figure is too short; raise height');
   const yOf = (f: number) => plotB - f * (plotB - plotT), r1 = (v: number) => Math.round(v * 10) / 10;
   legend.forEach(l => {
-    c.rect(l.x, g.y + l.y + 2, 14, 14, {fill: 'accent', op: opOf(l.i), stroke: 'accent', sw: 2});
-    c.text(s.series[l.i], l.x + 20, c.mid(g.y + l.y + 9), 'start', 'text');
+    // the row's centre low enough for the text's top to stay in the figure at a large label size (a canvas)
+    const cy = g.y + l.y + Math.max(9, Math.ceil(S * 0.64));
+    c.rect(l.x, cy - 7, 14, 14, {fill: 'accent', op: opOf(l.i), stroke: 'accent', sw: 2});
+    c.text(s.series[l.i], l.x + 20, c.mid(cy), 'start', 'text');
   });
   for (const t of ticks) { c.line(plotL - 6, yOf(t.f), plotR, yOf(t.f), {stroke: t.v === 0 ? 'text' : 'border'}); c.text(t.s, plotL - 10, c.mid(yOf(t.f)), 'end', 'muted'); }
   c.line(plotL, r1(yOf(1)), plotL, r1(yOf(0)), {stroke: 'border'});

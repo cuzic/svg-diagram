@@ -46,22 +46,16 @@
   <text x="470" y="436" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">サポート</text>
   <text x="307" y="342" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">機能の幅</text>
   <text x="307" y="136" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">導入のしやすさ</text>
-  <path d="M474,190 H485.79 V208 H474 Z" fill="#ffffff"/>
-  <text x="476" y="204" font-size="14" fill="#6f6659">1</text>
-  <path d="M474,155 H485.79 V173 H474 Z" fill="#ffffff"/>
-  <text x="476" y="169" font-size="14" fill="#6f6659">2</text>
-  <path d="M474,121 H485.79 V139 H474 Z" fill="#ffffff"/>
-  <text x="476" y="135" font-size="14" fill="#6f6659">3</text>
-  <path d="M474,86 H485.79 V104 H474 Z" fill="#ffffff"/>
-  <text x="476" y="100" font-size="14" fill="#6f6659">4</text>
-  <path d="M474,51 H485.79 V69 H474 Z" fill="#ffffff"/>
-  <text x="476" y="65" font-size="14" fill="#6f6659">5</text>
-  <text x="573" y="173" font-size="14" font-weight="700" fill="#1d5fa8">3</text>
+  <text x="630" y="162" font-size="14" fill="#6f6659">5</text>
+  <text x="600" y="169" font-size="14" fill="#6f6659">4</text>
+  <text x="569" y="187" font-size="14" fill="#6f6659">3</text>
+  <text x="539" y="204" font-size="14" fill="#6f6659">2</text>
+  <text x="509" y="222" font-size="14" fill="#6f6659">1</text>
+  <text x="579" y="169" font-size="14" font-weight="700" fill="#1d5fa8">3</text>
   <text x="631" y="311" font-size="14" font-weight="700" fill="#1d5fa8">5</text>
   <text x="470" y="400" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">4</text>
   <text x="367" y="306" text-anchor="end" font-size="14" font-weight="700" fill="#1d5fa8">3</text>
   <text x="359" y="186" font-size="14" font-weight="700" fill="#1d5fa8">4</text>
-  <text x="542" y="190" font-size="14" font-weight="700" fill="#22201b">2</text>
   <text x="573" y="306" font-size="14" font-weight="700" fill="#22201b">3</text>
   <text x="460" y="328" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">3</text>
   <text x="309" y="311" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">5</text>
@@ -69,7 +63,7 @@
   <text x="470" y="148" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">2</text>
   <text x="611" y="137" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">5</text>
   <text x="550" y="276" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">3</text>
-  <text x="470" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">2</text>
+  <text x="480" y="294" font-size="14" font-weight="700" fill="#b91c1c">2</text>
   <text x="398" y="288" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">2</text>
   <text x="329" y="137" font-size="14" font-weight="700" fill="#b91c1c">5</text>
   <path d="M341.7,462 L371.7,462" fill="none" stroke="#1d5fa8" stroke-width="3" stroke-linejoin="round"/>

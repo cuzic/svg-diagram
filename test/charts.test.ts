@@ -276,7 +276,10 @@ test('radar(): a vertex is as far from the centre as its value says; each series
   near(dist[3] / dist[0], 0, 0.02);     // 0
   const t = texts(chart);
   assert.ok(t.includes('一') && t.includes('二'));
-  for (const s of ['1', '2', '3', '4', '5']) assert.ok(t.includes(s), `tick ${s}`);
+  // ring values stand where they cross no series line and no marker (no plate is put over the data); a ring with no room stays unlabelled
+  const ticks = ['1', '2', '3', '4', '5'].filter(s => t.includes(s));
+  assert.ok(ticks.includes('5') && ticks.length >= 4, `ring values: ${ticks.join(', ')}`);
+  assert.ok(!chart.items.some(i => i.k === 'rect' && i.fill === 'bg'), 'no plate');
   const markers = chart.items.filter(i => i.k === 'path' && i.fill === 'bg' && i.stroke);
   assert.ok(markers.length >= 8);
   assert.notEqual((markers[0] as {d: string}).d.replace(/[\d.,-]+/g, ''), (markers[markers.length - 1] as {d: string}).d.replace(/[\d.,-]+/g, ''));
@@ -444,6 +447,22 @@ test('every chart renders in the dark appearance and passes lint; the descriptio
     assert.deepEqual(verdict.problems, []);
     if ((b as {type: string}).type === 'chart') assert.ok(svg.includes('<desc'), 'a description is written');
     assert.ok(!svg.includes('#ffffff') || svg.includes('data-appearance'), 'recoloured');
+  }
+});
+
+test('on a canvas (30px text) the charts keep their labels in the figure and off each other: legends, radar ring values', async () => {
+  // a legend row centred 9px under the top put a 30px label 10px above the figure; radar ring values 1-5 overlapped each other on plates
+  const bands = [
+    radar(['品質', '価格', '納期', '対応', '提案力'], [{label: '自社', values: [4, 3, 5, 4, 2]}, {label: '競合', values: [3, 5, 3, 2, 4]}], {max: 5, values: true}),
+    tornado([{label: '原材料費', low: 850, high: 1150}, {label: '為替', low: 940, high: 1060}], {base: 1000, unit: '百万円'}),
+    mekko([{label: 'A 社', parts: [{label: '製品', value: 70}, {label: '保守', value: 30}]}, {label: 'B 社', parts: [{label: '製品', value: 30}, {label: '保守', value: 10}]}], {unit: '億円'}),
+    stackedBars([{label: 'A', parts: [{label: '製品', value: 70}, {label: '保守', value: 30}]}]),
+    waterfall(WF), heatmap(['1月', '2月'], ['0', '1'], [[100, 62], [100, null]], {unit: '%'}), treemap([{label: 'a', value: 3}, {label: 'b', value: 1}]),
+    sankey(['a', 'b', 'c'], [{from: 'a', to: 'b', value: 3}, {from: 'b', to: 'c', value: 2}]),
+  ];
+  for (const b of bands) {
+    const {verdict} = await checkDiagram(diagram({theme: 'blue', canvas: {width: 1920, height: 1080, minText: 30}}).add(b as never));
+    assert.deepEqual(verdict.problems, [], (b as {kind: string}).kind);
   }
 });
 
