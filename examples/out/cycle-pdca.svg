@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="560" viewBox="0 0 940 560" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">PDCA</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/cycle-pdca.ts","sourceSha256":"1727008ba353008282c799faadf5b143d57aa79f7b25ab9f70a3b50896104d7d"}</metadata>
+  <defs>
+    <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="560" fill="#ffffff"/>
+
+  <path d="M531,114.1 A176.8,176.8 0 0 1 635.9,219" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M635.9,341 A176.8,176.8 0 0 1 531,445.9" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M409,445.9 A176.8,176.8 0 0 1 304.1,341" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M304.1,219 A176.8,176.8 0 0 1 409,114.1" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <circle cx="472" cy="104" r="54" fill="#1d5fa8" fill-opacity="0.16" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="648" cy="280" r="54" fill="#1d5fa8" fill-opacity="0.16" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="472" cy="456" r="54" fill="#1d5fa8" fill-opacity="0.16" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="292" cy="280" r="54" fill="#1d5fa8" fill-opacity="0.16" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="472" y="109.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">Plan</text>
+  <text x="648" y="285.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">Do</text>
+  <text x="472" y="461.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">Check</text>
+  <text x="292" y="285.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">Act</text>
+  <text x="470" y="285.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">継続改善</text>
+</svg>

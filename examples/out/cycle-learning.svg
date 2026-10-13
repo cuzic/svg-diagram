@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="560" viewBox="0 0 940 560" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">学習サイクル</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/cycle-learning.ts","sourceSha256":"8c63110d24e7c9e857baf7e48fd21bcef05ece79b9a4adaed8a1c80796f81fc8"}</metadata>
+  <defs>
+    <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="560" fill="#ffffff"/>
+
+  <path d="M409,114.1 A176.8,176.8 0 0 0 331.1,170.7" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M293.3,286.8 A176.8,176.8 0 0 0 323.1,378.4" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M421.9,450.1 A176.8,176.8 0 0 0 518.1,450.1" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M616.9,378.4 A176.8,176.8 0 0 0 646.7,286.8" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M608.9,170.7 A176.8,176.8 0 0 0 531,114.1" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <circle cx="472" cy="104" r="54" fill="#1f6e73" fill-opacity="0.16" stroke="#1f6e73" stroke-width="2"/>
+  <circle cx="300" cy="224" r="54" fill="#1f6e73" fill-opacity="0.16" stroke="#1f6e73" stroke-width="2"/>
+  <circle cx="368" cy="424" r="54" fill="#1f6e73" fill-opacity="0.16" stroke="#1f6e73" stroke-width="2"/>
+  <circle cx="572" cy="424" r="54" fill="#1f6e73" fill-opacity="0.16" stroke="#1f6e73" stroke-width="2"/>
+  <circle cx="640" cy="224" r="54" fill="#1f6e73" fill-opacity="0.16" stroke="#1f6e73" stroke-width="2"/>
+  <text x="472" y="100.1" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">観察</text>
+  <text x="472" y="119.1" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">現場を見る</text>
+  <text x="300" y="229.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仮説</text>
+  <text x="368" y="429.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">実験</text>
+  <text x="572" y="429.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">計測</text>
+  <text x="640" y="229.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">共有</text>
+  <text x="470" y="285.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">学び</text>
+</svg>

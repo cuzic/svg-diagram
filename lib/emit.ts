@@ -23,6 +23,7 @@ import {MARK_STROKE, plateStyle} from './image.ts';
 import {renderChart} from './charts-emit.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
 import type {LaidOutQuadrant} from './quadrant.ts';
+import type {LaidOutFlowShape} from './flow-shapes.ts';
 
 const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
 
@@ -485,6 +486,25 @@ function renderQuadrant(b: LaidOutQuadrant, day: Theme): string {
   return out.join('\n  ');
 }
 
+export function renderFlowShape(b: LaidOutFlowShape, day: Theme): string {
+  const out: string[] = [], n = (v: number) => Math.round(v * 10) / 10;
+  for (const p of b.primitives) {
+    if (p.k === 'polygon') {
+      const s = resolveBoxStyle(p.tone, day);
+      out.push(`<polygon points="${p.points.map(q => `${n(q[0])},${n(q[1])}`).join(' ')}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${p.strong ? 3.5 : 2}"${s.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
+    } else if (p.k === 'circle') {
+      const c = colorOf(p.tone, day);
+      out.push(`<circle cx="${n(p.cx)}" cy="${n(p.cy)}" r="${n(p.r)}" fill="${c}" fill-opacity="${p.opacity ?? .16}" stroke="${c}" stroke-width="2"${p.dash ? ` stroke-dasharray="${p.dash}"` : ''}/>`);
+    } else if (p.k === 'rect') {
+      out.push(`<rect x="${n(p.x)}" y="${n(p.y)}" width="${n(p.w)}" height="${n(p.h)}" rx="8" fill="none" stroke="${colorOf(p.tone, day)}" stroke-width="2"/>`);
+    } else {
+      out.push(`<path d="${p.d}" fill="none" stroke="${colorOf(p.tone, day)}" stroke-width="${p.thin ? 1.5 : 2}"${p.arrow ? ' marker-end="url(#dsl-arrow)"' : ''}/>`);
+    }
+  }
+  for (const t of b.texts) out.push(`<text x="${n(t.tx)}" y="${n(t.ty)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${t.size}" font-weight="${t.weight}" fill="${colorOf(t.tone, day)}">${emojiSpan(t.text)}</text>`);
+  return out.join('\n  ');
+}
+
 function renderTimeline(b: LaidOutTimeline, day: Theme): string {
   // a dimmed timeline draws itself muted (so the white knock-out ring around each dot stays white)
   const col = (k: 'text' | 'muted' | 'accent' | 'danger') => b.dim ? PALETTE.muted : colorOf(k, day);
@@ -911,6 +931,7 @@ function renderBandPlain(band: LaidOutBand, day: Theme, roles: Roles, stage?: nu
     case 'curve': return renderCurve(band, day);
     case 'plane': return renderPlane(band, day, stage);
     case 'quadrant': return renderQuadrant(band, day);
+    case 'chevron': case 'funnel': case 'cycle': case 'venn': case 'concentric': return renderFlowShape(band, day);
     case 'bars': return renderBars(band, day, stage, dimFill);
     case 'chart': return renderChart(band, day, emojiSpan, stage, dimFill);
     case 'image': return renderImage(band, day, stage);
@@ -944,6 +965,7 @@ function usesArrows(laidOutDiagram: LaidOutDiagram): boolean {
   if (laidOutDiagram.connects.some(c => c.arrow !== 'none')) return true;
   if (laidOutDiagram.laidOut.some(b => b.type === 'legend' && b.items.some(i => i.line && (i.arrow ?? 'end') !== 'none'))) return true;
   if (laidOutDiagram.laidOut.some(b => b.type === 'sequence' && b.steps.some(x => (x.kind === 'msg' && x.arrow !== 'none') || x.kind === 'self'))) return true;
+  if (laidOutDiagram.laidOut.some(b => b.type === 'cycle')) return true;
   return laidOutDiagram.laidOut.some(b => b.type === 'row' && b.arrows.length > 0);
 }
 
@@ -963,6 +985,7 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; 
     b.type === 'row' && b.arrows.length > 0
     || b.type === 'legend' && b.items.some(i => i.line && (i.arrow ?? 'end') !== 'none')
     || b.type === 'sequence' && b.steps.some(x => x.kind === 'self' || x.kind === 'msg' && x.arrow !== 'none')
+    || b.type === 'cycle'
   ));
 
   // strong arrows have markers of their own (a fixed size, so a thick line does not scale its head)
