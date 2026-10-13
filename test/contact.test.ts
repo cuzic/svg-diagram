@@ -212,3 +212,12 @@ test('preview without an output name writes a fresh temp file each time', { skip
   assert.notEqual(paths[0], paths[1]);
   for (const p of paths) { assert.ok(path.basename(p).startsWith('x-') && fs.existsSync(p)); fs.rmSync(p); }
 });
+
+test('contact --out creates a missing output directory', () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'a.svg'), figure(200, 100));
+  const r = run(dir, 'contact', 'a.svg', '--out', 'new/deeper/sheet.png');
+  assert.equal(r.status, 0, out(r));
+  assert.equal(png(path.join(dir, 'new/deeper/sheet.png')).sig, 'PNG');
+  fs.rmSync(dir, {recursive: true});
+});
