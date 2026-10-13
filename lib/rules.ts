@@ -46,6 +46,7 @@ export const RULE_DOCS = {
   'quadrant-item-moved': 'quadrant() の項目が、重なりを避けるため指定した座標から 16px 以上動いた（座標は目安として読まれる）',
   'quadrant-size-floor': 'quadrant() の項目の size が小さすぎ、最小の円で描いた（面積が値より大きく見える）',
   'quadrant-tone-only': 'quadrant() の項目の色（tone）だけで種類を分けている（group を使うと形と凡例でも伝わる）',
+  'funnel-values-rise': 'funnel({scale: "value"}) の値が下の段で増えている（漏斗として読むなら、値と段の順を確認する）',
   'arrow-labels': '一部にだけラベルがあり、ラベルのない矢印が多い',
   'canvas-region-empty': 'canvas() の領域に内容がない（requireAll: 全領域を埋める指定）',
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
@@ -423,6 +424,7 @@ function lintAll(d: LintTarget): Finding[] {
     if (b.floored.length) out.push({rule: 'quadrant-size-floor', severity: 'warn', message: `quadrant() の項目 ${b.floored.map(l => `「${l}」`).join('、')} の size が最大の値に比べて小さすぎ、最小の円で描いた（面積が値より大きく見える）。値の差が大きすぎるなら、大きさではなく文字で示す`});
   }
   for (const b of walkBands(d.bands)) if (b.type === 'quadrant' && !b.groups.length && new Set(b.items.flatMap(i => i.tone ? [i.tone] : [])).size >= 2) out.push({rule: 'quadrant-tone-only', severity: 'warn', message: 'quadrant() の項目を tone（色）だけで分けている。色だけでは意味が伝わらない。group を指定する（形と凡例が付く）'});
+  for (const b of walkBands(d.bands)) if (b.type === 'funnel' && b.scale === 'value' && b.stages.some((s, i) => i > 0 && (s.value ?? 0) > (b.stages[i - 1].value ?? 0))) out.push({rule: 'funnel-values-rise', severity: 'warn', message: 'funnel() の value が下の段で増えている。漏斗の減少として読ませるなら、値または段の順を見直す'});
   for (const b of walkBands(d.bands)) if (b.type === 'grid' && b.canvas?.requireAll && b.canvas.empty.length) out.push({rule: 'canvas-region-empty', severity: 'warn', message: `canvas("${b.canvas.template}") の領域 ${b.canvas.empty.join('、')} に内容がない。書くか、requireAll を外す`});
   if (d.medium === 'doc' && !diagramTitle(d)) out.push({rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する'});
   return out;
@@ -438,6 +440,12 @@ export function diagramTitle(d: DiagramData): string {
     if (b.type === 'banner' && b.headline) return oneLine(b.headline);
   }
   for (const b of walkBands(d.bands)) if (b.type === 'group' && b.title) return oneLine(b.title);
+  for (const b of walkBands(d.bands)) {
+    if (b.type === 'chevron' || b.type === 'cycle') return oneLine(b.steps[0]?.label);
+    if (b.type === 'funnel') return oneLine(b.stages[0]?.label);
+    if (b.type === 'venn') return oneLine(b.sets.map(s => s.label ?? s.name).join('・'));
+    if (b.type === 'concentric') return oneLine(b.centre ?? b.rings[0]?.label);
+  }
   return '';
 }
 

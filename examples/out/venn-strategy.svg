@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="500" viewBox="0 0 940 500" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">戦略の焦点</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/venn-strategy.ts","sourceSha256":"176f625063a220b1e36783200301d5800ec3dc84fce0015e93b03214fd2e6cde","depsSha256":"a48cfa5c878f2658022bb0e0d6737fda82ae592cde8b7fc461c24bdd93d938f1"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="500" fill="#ffffff"/>
+
+  <circle cx="384" cy="214.2" r="156.4" fill="#a8632b" fill-opacity="0.22" stroke="#a8632b" stroke-width="2"/>
+  <circle cx="556" cy="214.2" r="156.4" fill="#b91c1c" fill-opacity="0.22" stroke="#b91c1c" stroke-width="2" stroke-dasharray="7,5"/>
+  <circle cx="470" cy="339.3" r="156.4" fill="#6f6659" fill-opacity="0.22" stroke="#6f6659" stroke-width="2"/>
+  <text x="384" y="123.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客</text>
+  <text x="556" y="123.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">自社</text>
+  <text x="470" y="248.7" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">競合</text>
+  <text x="470" y="219.1" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">提供価値</text>
+  <text x="513" y="281.7" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">差別化</text>
+  <text x="470" y="262.9" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">勝ち筋</text>
+</svg>

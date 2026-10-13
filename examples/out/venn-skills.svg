@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="532" viewBox="0 0 940 532" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">必要な能力</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/venn-skills.ts","sourceSha256":"284c972c7c345aab9fa69b30c2bd7371ee3208973f44409160f56812b6b514cf","depsSha256":"a48cfa5c878f2658022bb0e0d6737fda82ae592cde8b7fc461c24bdd93d938f1"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="532" fill="#ffffff"/>
+
+  <rect x="28" y="28" width="884" height="476" rx="8" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <text x="38" y="48" font-size="14" fill="#6f6659">チーム</text>
+  <circle cx="373" cy="274" r="167.3" fill="#1d5fa8" fill-opacity="0.22" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="567" cy="274" r="167.3" fill="#b91c1c" fill-opacity="0.22" stroke="#b91c1c" stroke-width="2" stroke-dasharray="7,5"/>
+  <text x="373" y="175.8" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">技術</text>
+  <text x="567" y="175.8" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客理解</text>
+  <text x="470" y="278.9" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">価値</text>
+</svg>

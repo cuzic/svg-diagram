@@ -108,6 +108,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | pyramid / curve | ピラミッド、曲線 |
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
 | quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
+| chevron / funnel / cycle / venn / concentric | 流れ・絞り込み・循環・集合・階層を表す flowShapes。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 |
 | plane({x, y, points, lines, dims, labels}) | 座標平面。軸・目盛り・点・補助線・**寸法線**・ラベルを、座標の単位のまま宣言する（地図 ↔ 画像の座標変換、位置の誤差）。`yDown: true` で画像座標。ラベルが、他のラベル・軸と矢印・目盛り・点・補助線・寸法線に重なる、または図からはみ出すと検査で止まる（寸法線の文字は、その線の上に載るのが正） 。`paths: [{through: [点の id か座標…], smooth?, dashed?, tone?, arrow?, reveal?}]` で複数点を通る線を引く（実線が既定。`smooth: true` は点を必ず通る曲線で、x が増える道筋は単調な 3 次補間（値を行き過ぎない）、そうでない道筋は centripetal Catmull-Rom。`smooth` なしは折れ線。曲線が軸の外に出る・ラベルに重なると検査で止まる。`examples/plane-paths.ts`）。`grow: true` を付けた path は、段階（`reveal`）ごとに、出ている点までの曲線を同じ形のまま伸ばす（`examples/plane-grow.ts`）。点のラベルは `labelAt` を書かなければ右に置き、線や他のラベルと重なるときは空いている側（左・上・下・斜め）へ自動で移る。`labelAt` で側を書くとそのまま、`labelOffset: [dx, dy]` で位置をずらせる |
 
 `wf.*`: col / row / card / spacer、text / btn / input / select / chip / tabs / appbar / seek、kv / stat / list / table / alert、map / video / heat / pointcloud / chart / image。
@@ -315,6 +316,25 @@ matrix(['A 案', 'B 案'], ['コスト', '速さ'], [['○', '◎'], ['◎', '�
 - **`pdpc`** も `causeTree` で、既定は上から下（`dir: 'right'` は、道筋が短いときだけ。幅を超えると止まる）。懸念（`risk`）・対策（`measure`）に出入りする矢印は、書かなくても点線になる（`line` で上書き）。
 - **`arrowDiagram`**: 作業は `{from, to, name, days}`（結合点は番号か文字）、`dummy: true` は時間のない順序だけの矢印（点線）。始まりの結合点と終わりの結合点は、それぞれ 1 つ（行き止まりはダミーで終点につなぐ）。丸の中は「番号 / 最早/最遅」、余裕のある作業の札には「（余裕 n）」が付き、図の下に全体の長さとクリティカルパスが出る（`summary: false` で消す）。`times: false` で時刻と余裕を消す。横に並べて幅（940px）を超えるときは `dir: 'down'`。矢印の色・太さ（`tone` / `strong`）と丸い節（`shape: 'circle'`）は `stateDiagram` でも使える。
 - 計算だけ取り出したいときは、`lib/qc.ts`（`paretoOrder` / `histogramBins` / `capability`（全体の標準偏差から出す Cp・Cpk。群内のばらつきで出す工程能力ではなく、Pp・Ppk に当たる）/ `criticalPath`）と `lib/qc-plane.ts`（`controlStats` / `controlSignals` / `correlation`）が純粋な関数。
+
+### flowShapes（流れ・集合・階層）
+
+よく使うビジネス図を band 1 つで描く。項目の `id` は `connect()` と spotlight のアンカーになり、図の `reveal` / `until` と一緒に現れる。
+
+```ts
+chevron([{id: 'plan', label: '計画', sub: '要件を確認'}, {id: 'build', label: '実装'}], {current: 1})
+funnel([{label: '訪問', value: 1200}, {label: '成約', value: 52}], {scale: 'value', showRate: true})
+cycle([{label: 'Plan'}, {label: 'Do'}, {label: 'Check'}, {label: 'Act'}], {centre: '継続改善'})
+venn([{name: '技術'}, {name: '顧客'}], {overlaps: [{sets: ['技術', '顧客'], label: '価値'}]})
+concentric([{label: '境界'}, {label: 'アプリ'}, {label: 'データ'}], {centre: '重要情報'})
+```
+
+- `chevron`: 横（既定）または縦の矢羽根。`first: 'pentagon' | 'chevron'`、`gap`、`current`（`highlight` も可）。長い文字は折り返し、必要な高さまで伸びる。
+- `funnel`: 下ほど狭い漏斗。`scale: 'value'` は全段の `value` が必要。`showRate` は前段からの率を表示し、狭い段の文字は横へ逃がす。
+- `cycle`: 3〜8 個の節を曲線矢印で閉じる。`direction: 'cw' | 'ccw'`、`centre`。
+- `venn`: 2 または 3 集合。半透明色に加えて線種を変え、色だけに頼らない。`overlaps`、`centre`、`universe` を指定できる。
+- `concentric`: 同心円。`order: 'outer-first' | 'inner-first'`、`labels: 'inside' | 'side'`、`centre`。
+- 例: `examples/chevron-*.ts`、`funnel-*.ts`、`cycle-*.ts`、`venn-*.ts`、`concentric-*.ts`。
 
 ### 象限図・分類マトリクス（`quadrant`）
 
@@ -765,6 +785,7 @@ versus(
 | `image` の印・文字・重ねた部品 | 各 `marks` / `labels` の `reveal` / `until`（絵の band の値との**遅い方**の reveal、早い方の until。絵より先には出ない） |
 | `versus` の左・右・共通部 | 各 part の `reveal`（枠と中身。共通部への矢印は両端の大きい方） |
 | `quadrant` の band | opts の `reveal` / `until`（項目・矢印は図と一緒。項目単位の reveal はない。項目の id は図の段階で `connect` に出る） |
+| `chevron` / `funnel` / `cycle` / `venn` / `concentric` の band | opts の `reveal` / `until`（各項目の id は図と同じ段階で `connect` に出る） |
 | `plane` の `points` / `lines` / `paths` / `dims` / `labels` | 要素の `reveal`（点のラベルは点と一緒）。未指定は plane 自身と、`id` で指した点の大きい方（座標で指した端点は 0）。端点より早い明示は警告 |
 | `connect` / `branch` | `reveal`（未指定は両端の大きい方） |
 | **受けない** | `legend` / `spacer` / `raw` / `pyramid` / `curve` / `wireframe` / `screens` / `stateMatrix` / `row` / `grid` / `iconRow` の opts。`reveal` を渡すと構築時に throw する |

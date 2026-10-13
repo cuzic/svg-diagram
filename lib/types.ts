@@ -21,6 +21,7 @@ import type {ConnectInput, DeclaredIds, RefIn, ValidateBands} from './strict.ts'
 import type {RULE_DOCS, DEFAULT_LEGEND_LABELS} from './rules.ts';
 import type {RICH} from './rich.ts';
 import type {LaidOutQuadrant, QuadrantBand} from './quadrant.ts';
+import type {FlowShapeBand, LaidOutFlowShape} from './flow-shapes.ts';
 
 // ============================================================================================
 // Tokens, tones, lines
@@ -1625,7 +1626,7 @@ export interface ScreensBand extends ScreensOpts {
 export type Band =
   | ChartBand
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | ImageBand | QuadrantBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | ImageBand | QuadrantBand | FlowShapeBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -2410,7 +2411,7 @@ export interface LaidOutBpmn extends Rect, Dimmed {
 export type LaidOutBand = (
   | LaidOutChart
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutQuadrant | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutCause | LaidOutCloud | LaidOutGantt | LaidOutClasses | LaidOutBpmn | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutQuadrant | LaidOutFlowShape | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutCause | LaidOutCloud | LaidOutGantt | LaidOutClasses | LaidOutBpmn | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */

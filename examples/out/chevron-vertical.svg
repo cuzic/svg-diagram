@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="228" viewBox="0 0 940 228" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">問い合わせ対応</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chevron-vertical.ts","sourceSha256":"7ca99176af95ead1d2a909d98f4007600a62dfc22bf22ad1c239071bef0fd1ab","depsSha256":"a48cfa5c878f2658022bb0e0d6737fda82ae592cde8b7fc461c24bdd93d938f1"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="228" fill="#ffffff"/>
+
+  <polygon points="290,20 650,20 650,65 470,80 290,65" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <polygon points="290,84 650,84 650,129 470,144 290,129" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <polygon points="290,148 650,148 650,193 470,208 290,193" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="470" y="46.9" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">受付</text>
+  <text x="470" y="110.9" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">内容の分類</text>
+  <text x="470" y="174.9" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">担当者が回答</text>
+</svg>
