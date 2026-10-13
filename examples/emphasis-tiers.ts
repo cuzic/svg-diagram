@@ -3,7 +3,7 @@ import {banner, box, caption, diagram, row, stat} from 'svg-diagram';
 // 主役=solid / 次点=accent / その他=plain の 3 段階。新しい色は足さず、塗りの有無で区別する。
 // legend: 'auto' は solid の図で accent を「次点」と読む。
 export default function define() {
-  return diagram({theme: 'blue', title: '施策の優先度(3 段階)', legend: 'auto', gap: 40}).add(
+  return diagram({theme: 'blue', title: '施策の優先度(3 段階)', legend: 'auto', gap: 40, accept: {'gray-tone-collision': '次点（accent）とその他（plain）は、番号バッジ（step）と並び順でも区別している'}}).add(
     banner({headline: '今期は検索改善に集中する', sub: '主役は 1 つ、次点は 2 つまで', tone: 'solid'}),
     row([
       box({id: 'search', title: '検索改善', body: '離脱の最大要因', note: '工数 3 人月', tone: 'solid', step: 1, tag: '主役'}),

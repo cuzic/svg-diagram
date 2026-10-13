@@ -66,9 +66,17 @@ export function barsTexts(band: BarsBand, roles: Roles): [string, number, number
  * Where the labels of the vertical reference lines go: centred on their line, or beside it when centred they would leave the plot,
  * each on the lowest row (0 is just above the plot) where it clears the labels already there.
  */
-function vlineRows(band: BarsBand, plotL: number, plotR: number, S: number, widthOf: WidthOf): {rows: number; at: ({x: number; anchor: 'start' | 'middle' | 'end'; row: number} | undefined)[]} {
-  const count = slotsOf(band.data).count, slot = (plotR - plotL) / count;
-  const placed: {x1: number; x2: number; row: number}[] = [];
+function vlineRows(band: BarsBand, plotL: number, plotR: number, S: number, widthOf: WidthOf, plotH: number, showValues: boolean): {rows: number; at: ({x: number; anchor: 'start' | 'middle' | 'end'; row: number} | undefined)[]} {
+  const {slots, count} = slotsOf(band.data), slot = (plotR - plotL) / count;
+  // the value of a bar that reaches the top of the plot stands above it when it does not fit inside, on the first row of the line labels: that row is taken there
+  const bw = band.barRatio === undefined ? Math.min(64, slot * .62) : slot * band.barRatio;
+  const placed: {x1: number; x2: number; row: number}[] = showValues && !band.stack ? band.data.flatMap((d, i) => {
+    if (d.value / band.max * plotH < plotH - S - 6) return [];
+    const tw = textWidth(widthOf, valueText(d, band), S, 700);
+    if (bw >= tw + 12) return [];
+    const cx = plotL + (slots[i] + .5) * slot;
+    return [{x1: cx - tw / 2, x2: cx + tw / 2, row: 0}];
+  }) : [];
   const at = (band.vlines ?? []).map(l => {
     if (!l.label) return undefined;
     const lx = plotL + l.at * slot, tw = textWidth(widthOf, l.label, S, 700);
@@ -203,7 +211,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
   const edgeHalf = (i: number) => band.edges ? textWidth(widthOf, band.edges[i], S, 400) / 2 : 0;
   const plotL = Math.max(x + (f.axis ? tickW + TICK + 10 : 4), x + edgeHalf(0)), plotR = Math.min(x + w - (band.cumulative ? cumW : 8), x + w - edgeHalf(band.edges ? band.edges.length - 1 : 0) - 2);
   // the labels of the vertical reference lines stand on rows above the plot; one that would touch its neighbour goes a row higher
-  const vrows = vlineRows(band, plotL, plotR, S, widthOf);
+  const vrows = vlineRows(band, plotL, plotR, S, widthOf, h - (S + 8) - (S * 1.4 + 14), f.showValues);
   const topLabels = [...band.lines ?? []].some(l => l.label) || vrows.rows > 0;
   // the margins hold the value labels / top tick label above and the category labels below; none of them, none of the margin
   const plotT = y + (f.axis || f.showValues || topLabels || band.cumulative ? S + 8 : 4) + Math.max(0, vrows.rows - 1) * (S + 4), plotB = f.showCats || band.edges ? y + h - S * 1.4 - 14 : y + h - 4;

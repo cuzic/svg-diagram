@@ -705,3 +705,12 @@ test('histogram(): the last class boundary is always written; scatter keeps the 
   const s = (await planeOf(scatter([{x: 5, y: 7}, {x: 9, y: 12}, {x: 12, y: 15}], {x: 'x', y: 'y'}))).p;
   assert.ok(s.ticks.length > 3);
 });
+
+test('bars(): the value of a narrow bar that reaches the top keeps off a vertical line\'s label, whatever the width of the text', async () => {
+  // the bar is too narrow for its value, so the value stands above it, where the first row of the line labels is; the line is on the bar
+  const d = Array.from({length: 40}, (_, i) => ({label: `${i}`, value: i === 20 ? 10 : 1}));
+  for (const label of ['平均 5.5', '平均の位置を示す長いラベル', '下限 9.99']) {
+    const {verdict} = await laid(bars(d, {dir: 'v', max: 10, vlines: [{at: 20.5, label}]}));
+    assert.deepEqual(verdict.problems, [], label);
+  }
+});
