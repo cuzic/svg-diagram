@@ -139,6 +139,8 @@ export async function addIcons(args: string[], opts: InstallOpts & {keepExisting
   const skipped: string[] = [];
   const got = await resolveSpecs(specs, {...opts, cwd}, skipped);
   const file = manifestPath(cwd);
+  if (!Object.keys(got).length) return {file, added: [], replaced: [], kept: [], skipped, warnings: []}; // everything skipped: nothing to write
+  const resolved = new Set(Object.keys(got));
   return withManifestLock(file, () => {
   const m = readManifest(file);
   // keepExisting (add-set): a name the project already has stays as it is — the set's pick does not overwrite the user's own
@@ -147,7 +149,8 @@ export async function addIcons(args: string[], opts: InstallOpts & {keepExisting
   const replaced = Object.keys(got).filter(n => n in m.icons);
   // the first Iconify set a project installs from becomes its main set; later ones from another set are said to look different
   const warnings: string[] = [];
-  const sets = [...new Set(specs.flatMap(sp => (sp.kind === 'iconify' ? [sp.prefix] : [])))];
+  // only the sets something was installed from: a set whose names were all skipped (--skip-missing) neither becomes the main set nor warns
+  const sets = [...new Set(specs.flatMap(sp => (sp.kind === 'iconify' && resolved.has(sp.name) ? [sp.prefix] : [])))];
   if (!m.mainSet && sets.length) m.mainSet = sets[0];
   for (const p of sets) if (m.mainSet && p !== m.mainSet) warnings.push(`主セットは ${m.mainSet}。${p} のアイコンは線の太さや絵柄が揃わないことがある（主セットを変えるなら: svg-diagram icons main ${p}）`);
   Object.assign(m.icons, got);

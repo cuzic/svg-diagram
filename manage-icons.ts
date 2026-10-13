@@ -36,6 +36,7 @@ try {
       if (r.replaced.length) console.log(`✓ 置き換え: ${r.replaced.join(', ')}`);
       if (r.skipped.length) console.log(`・セットに無いので飛ばした: ${r.skipped.join(', ')}`);
       for (const w of r.warnings) console.log(`⚠ ${w}`);
+      if (!r.added.length && !r.replaced.length) { console.log('何も入れていない（指定した名前がどれもセットに無い）'); process.exitCode = 1; break; }
       console.log(`→ ${r.file}（図のソースでは box({icon: '<名前>'})。このファイルをコミットする）`);
       break;
     }
@@ -50,6 +51,7 @@ try {
       if (r.added.length) console.log(`✓ 追加 ${r.added.length} 個: ${r.added.join(', ')}`);
       if (r.kept.length) console.log(`・入っている名前はそのまま（上書きしない）: ${r.kept.join(', ')}`);
       for (const w of r.warnings) console.log(`⚠ ${w}`);
+      if (!r.added.length && !r.replaced.length) { console.log('何も入れていない（指定した名前がどれもセットに無い）'); process.exitCode = 1; break; }
       console.log(`→ ${r.file}（図のソースでは box({icon: '<名前>'})。このファイルをコミットする）`);
       break;
     }

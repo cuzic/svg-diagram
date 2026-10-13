@@ -396,3 +396,16 @@ test('icons add: every missing name is reported together; --skip-missing install
     await assert.rejects(addIcons(['mdi:flipped', 'mdi:nope'], {api: srv.api, cwd: dir, skipMissing: true}), /rotated \/ flipped/);
   } finally { srv.close(); fs.rmSync(dir, {recursive: true}); }
 });
+
+test('icons add --skip-missing: a set whose names were all skipped is not the main set; nothing found writes nothing', async () => {
+  const srv = await iconify();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'icons-'));
+  try {
+    const none = await addIcons(['mdi:nope'], {api: srv.api, cwd: dir, skipMissing: true});
+    assert.deepEqual([none.added, none.skipped], [[], ['mdi:nope']]);
+    assert.equal(fs.existsSync(path.join(dir, 'svg-diagram.icons.json')), false, 'nothing written');
+    const r = await addIcons(['ccby:nope', 'mdi:key'], {api: srv.api, cwd: dir, skipMissing: true, allowLicense: ['CC-BY-4.0']});
+    assert.deepEqual([r.added, r.skipped, r.warnings], [['key'], ['ccby:nope'], []]);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'svg-diagram.icons.json'), 'utf8')).mainSet, 'mdi');
+  } finally { srv.close(); fs.rmSync(dir, {recursive: true}); }
+});
