@@ -37,7 +37,7 @@ const SIDE_STAT_FLEX = 1.5; // the number is wider than a step (a step has flex 
  */
 export function hero<C extends BoxBand, const Id extends string = never>(opts: HeroOpts<C, Id>): (HeroBand & Declares<IdsOf<C> | Id>)[];
 export function hero(opts: HeroOpts<BoxBand, string>): HeroBand[] {
-  if (!opts || typeof opts !== 'object' || !opts.stat) throw new Error('hero(): needs a stat: {value, label}');
+  if (!opts || typeof opts !== 'object' || !opts.stat || opts.stat.value === undefined || opts.stat.label === undefined) throw new Error('hero(): needs a stat: {value, label}');
   if (!Array.isArray(opts.flow) || opts.flow.length === 0) throw new Error('hero(): needs a flow of at least one box()');
   for (const [i, s] of opts.flow.entries()) if (s?.type !== 'box') throw new Error(`hero(): flow[${i}] is ${s?.type === undefined ? 'not a band' : `a ${s.type}()`}, but a flow takes box() only`);
   const layout = opts.layout ?? (opts.flow.length <= SIDE_MAX_STEPS ? 'side' : 'stack');

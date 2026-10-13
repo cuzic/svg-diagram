@@ -33,6 +33,7 @@ test('hero() stacks the number above a long flow, and its ids are connect() targ
 
 test('hero() rejects a missing stat, an empty flow, a non-box step and a bad layout', () => {
   assert.throws(() => (hero as (o: unknown) => unknown)({flow: steps()}), /needs a stat/);
+  assert.throws(() => (hero as (o: unknown) => unknown)({stat: {label: 'x'}, flow: steps()}), /needs a stat/);
   assert.throws(() => hero({stat: {value: 1, label: 'x'}, flow: []}), /at least one box/);
   assert.throws(() => hero({stat: {value: 1, label: 'x'}, flow: [caption('x') as never]}), /flow\[0\] is a caption/);
   assert.throws(() => hero({stat: {value: 1, label: 'x'}, flow: steps(), layout: 'wide' as never}), /layout must be/);
