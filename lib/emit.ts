@@ -569,6 +569,7 @@ function renderStates(b: LaidOutStates, day: Theme): string {
   const ink = (t: LaidOutStates['texts'][number]): string => {
     if (b.dim) return PALETTE.muted;
     const n = b.nodes.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
+    if (n && isSolidTone(n.tone)) return colorOf(toneStyle(n.tone).text, day); // white on the fill, the sub line too
     if (t.muted) return n && toneStyle(n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted; // muted on a soft fill is 4.48:1, under 4.5
     return colorOf(toneStyle(n?.tone).text, day);
   };

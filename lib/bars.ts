@@ -16,7 +16,10 @@ const sizeOf = (band: BarsBand, roles: Roles): number => roles[band.labelRole ??
  */
 const barH = (band: BarsBand, S: number): number => band.labelRole ? Math.max(BAR, S + 14) : BAR;
 
-const valueText = (d: BarDatum, unit = '') => `${fmt(d.value)}${unit}`;
+/** A bar's value as written: whole numbers exactly (1055 stays 1055), others to 3 significant digits, unless valueFormat says otherwise. */
+const valueNum = (v: number, f: BarsBand['valueFormat']): string =>
+  typeof f === 'function' ? f(v) : f === 'exact' ? String(v) : typeof f === 'number' ? v.toFixed(f) : Number.isInteger(v) ? String(v) : fmt(v);
+const valueText = (d: BarDatum, band: BarsBand) => `${valueNum(d.value, band.valueFormat)}${band.unit ?? ''}`;
 
 /** What a bars() band shows; every default is the original look. */
 function flags(band: BarsBand) {
@@ -26,9 +29,8 @@ function flags(band: BarsBand) {
 /** Values are on neither a label nor a scale: the figure alone cannot be read for them. */
 export const barsValuesHidden = (band: BarsBand): boolean => band.labels !== undefined && band.labels !== 'all' && band.axis === false;
 /** Text inside / beside a stacked segment: label and value, or what labels: leaves of them. */
-const segmentOf = (d: BarDatum, unit: string | undefined, labels: 'all' | 'category' | 'none') =>
-  labels === 'all' ? `${d.label} ${valueText(d, unit)}` : labels === 'category' ? d.label : '';
-const segmentText = (d: BarDatum, unit = '') => segmentOf(d, unit, 'all');
+const segmentOf = (d: BarDatum, band: BarsBand, labels: 'all' | 'category' | 'none') =>
+  labels === 'all' ? `${d.label} ${valueText(d, band)}` : labels === 'category' ? d.label : '';
 const series = (d: BarDatum): ColorKey => d.tone ?? SERIES[d.series ?? 'a'];
 
 /** Every string bars() draws, registered before its geometry is calculated. */
@@ -37,8 +39,8 @@ export function barsTexts(band: BarsBand, roles: Roles): [string, number, number
   const f = flags(band), S = sizeOf(band, roles);
   for (const d of band.data) {
     if (f.showCats) out.push([d.label, S, 400, 'sans']);
-    if (f.showValues) out.push([valueText(d, band.unit), S, 700, 'sans']);
-    const seg = segmentOf(d, band.unit, f.labels);
+    if (f.showValues) out.push([valueText(d, band), S, 700, 'sans']);
+    const seg = segmentOf(d, band, f.labels);
     if (band.stack && seg) out.push([seg, S, 700, 'sans']);
   }
   if (f.axis) for (const t of ticksOf({max: band.max}, 'bars')) out.push([t.label, S, 400, 'sans']);
@@ -135,12 +137,12 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
   const tickH = f.axis ? S + TICK + 8 : 0;
   const ticks = f.axis ? ticksOf({max: band.max}, 'bars') : [];
   const labelW = band.stack || !f.showCats ? 0 : Math.max(...band.data.map(d => textWidth(widthOf, d.label, S, 400))) + 12;
-  const valueW = band.stack || !f.showValues ? 0 : Math.max(...band.data.map(d => textWidth(widthOf, valueText(d, band.unit), S, 700))) + 12;
+  const valueW = band.stack || !f.showValues ? 0 : Math.max(...band.data.map(d => textWidth(widthOf, valueText(d, band), S, 700))) + 12;
   const tickPadL = band.stack && f.axis ? textWidth(widthOf, ticks[0].label, S, 400) / 2 : 0;
   const tickPadR = band.stack && f.axis ? textWidth(widthOf, ticks[ticks.length - 1].label, S, 400) / 2 : 0;
   const plotL = x + labelW + tickPadL, plotR = x + w - valueW - tickPadR, plotW = plotR - plotL;
   if (plotW < (f.axis || f.labels !== 'none' ? 80 : 20)) throw new Error('bars(): the figure is too narrow for its labels');
-  const segs = band.data.map(d => segmentOf(d, band.unit, f.labels));
+  const segs = band.data.map(d => segmentOf(d, band, f.labels));
   const hasOutside = band.stack && band.data.some((d, i) => segs[i] && d.value / band.max * plotW < textWidth(widthOf, segs[i], S, 700) + 12);
   const outsideH = hasOutside ? S + 6 : 0;
   const needH = rows * bh + Math.max(0, rows - 1) * gp + (f.axis ? tickH + 8 : 0) + outsideH;
@@ -173,7 +175,7 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
     const bar = out.bars.length - 1;
     if (f.showCats) putText(out, S, d.label, plotL - 8, by + bh / 2 + S * .36, 'end', 'text', widthOf, false, undefined, bar);
     if (!f.showValues) return;
-    const text = valueText(d, band.unit), tw = textWidth(widthOf, text, S, 700);
+    const text = valueText(d, band), tw = textWidth(widthOf, text, S, 700);
     if (bw >= tw + 12) putText(out, S, text, plotL + bw - 6, by + bh / 2 + S * .36, 'end', 'bg', widthOf, true, r.fill, bar);
     else putText(out, S, text, plotL + bw + 6, by + bh / 2 + S * .36, 'start', r.fill, widthOf, true, undefined, bar);
   });
@@ -214,7 +216,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
       const r = {x: bx, y: bottom - rawH, w: bw, h: bh, fill: series(d), id: d.id};
       addBar(out, d, r);
       const bar = out.bars.length - 1;
-      const text = segmentOf(d, band.unit, f.labels);
+      const text = segmentOf(d, band, f.labels);
       const tw = textWidth(widthOf, text, S, 700);
       if (text && bh >= S + 10 && bw >= tw + 12) putText(out, S, text, bx + bw / 2, r.y + bh / 2 + S * .36, 'middle', 'bg', widthOf, true, r.fill, bar);
       // a segment too small for its label: the label goes beside the column (above it would sit inside the next segment)
@@ -250,7 +252,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
       const bar = out.bars.length - 1;
       if (f.showCats && !band.edges) putText(out, S, d.label, bx + bw / 2, plotB + S + 10, 'middle', 'text', widthOf, false, undefined, bar);
       if (!f.showValues || (band.hideZero && d.value === 0)) return;
-      const text = valueText(d, band.unit);
+      const text = valueText(d, band);
       const tw = textWidth(widthOf, text, S, 700);
       const cx = dodge(bx + bw / 2, tw, bx, bx + bw), cxOut = dodge(bx + bw / 2, tw, plotL + slots[i] * slot, plotL + (slots[i] + 1) * slot);
       const cut = (cx: number, base: number): boolean => cumSegs.some(sg => segHitsRect(sg, {x: cx - tw / 2, y: base - S + 2, w: tw, h: S}));
