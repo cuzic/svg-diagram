@@ -223,3 +223,22 @@ test('iconRow: the label is centred beside the icon, not hung from the top', asy
   const base0 = Number(/"lineYs":\[([\d.]+)\]/.exec(JSON.stringify(plain.laidOut.laidOut))![1]);
   assert.ok(base > base0, `baseline ${base} is lower than a plain box's ${base0}: the label is centred on the 32px icon`);
 });
+
+test('step badge: uses the box padding (swimlane steps) and sits just before a centred title (iconAt top)', async () => {
+  const lanes = [{id: 'a', label: '営業'}];
+  const sw = await renderDiagram(diagram({theme: 'blue'}).add(swimlane(lanes, [{id: 's1', lane: 'a', title: '受注', icon: 'key', step: 1}])), {name: 'swim-step.svg', budget: 'cacheOnly'});
+  const badge = /<circle cx="([\d.]+)" cy="([\d.]+)"/.exec(sw.svg)!, title = /<text x="([\d.]+)" y="([\d.]+)"[^>]*font-weight="700"[^>]*>受注/.exec(sw.svg)!;
+  assert.ok(Math.abs(Number(title[1]) - (Number(badge[1]) + 15 + 10)) <= 4, `badge ${badge[1]} / title ${title[1]}: the title follows the badge`);
+  assert.ok(Number(badge[2]) < Number(title[2]), 'the badge is centred on the title line, not below it');
+  const top = await renderDiagram(diagram({theme: 'blue'}).add(box({icon: 'person', iconAt: 'top', step: 3, title: '利用者'})), {name: 'top-step.svg', budget: 'cacheOnly'});
+  const cx = Number(/<circle cx="([\d.]+)"/.exec(top.svg)![1]), iconX = Number(/data-icon="person"/.test(top.svg) && /translate\(([\d.-]+) /.exec(top.svg)![1]);
+  assert.ok(cx > iconX - 40, `badge ${cx} is beside the centred title, not at the box's left edge (icon at ${iconX})`);
+});
+
+test('a table icon beside centred / right-aligned text sits just before the text', async () => {
+  const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(table([{label: 'a', align: 'center'}, {label: 'b', align: 'right'}], [[cell('済', {icon: 'key'}), cell('1,000', {icon: 'lock'})]])), {name: 'table-align.svg', budget: 'cacheOnly'});
+  const at = (n: string) => Number(new RegExp(`translate\\(([\\d.-]+) [^"]*"[^>]*data-icon="${n}"`).exec(svg)![1]);
+  const tx = (s: string) => Number(new RegExp(`<text x="([\\d.]+)"[^>]*>${s}<`).exec(svg)![1]);
+  assert.ok(tx('済') - at('key') < 50, `centred: icon ${at('key')} near text ${tx('済')}`);
+  assert.ok(tx('1,000') - at('lock') < 90, `right: icon ${at('lock')} near text end ${tx('1,000')}`);
+});

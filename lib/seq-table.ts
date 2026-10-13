@@ -164,7 +164,9 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
       if (band.rowHeader && !header && i === 0) c.bold = true;
       const size = roles.body;
       const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', colW[i] - 2 * TBL.padX - (c.icon ? TBL.iconSize + TBL.iconGap : 0), widthOf);
-      return {...c, lines, x: colX[i], w: colW[i], top: 0};
+      // an icon beside centred / right-aligned text sits just before its first line (left-aligned: at the cell's left edge)
+      const lineW = c.icon && lines.length && c.align !== 'left' ? textWidth(widthOf, lines[0], size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans') : undefined;
+      return {...c, lines, x: colX[i], w: colW[i], top: 0, ...(lineW !== undefined ? {lineW} : {})};
     });
     const nLines = Math.max(1, ...placed.map(c => c.lines.length));
     const need = nLines * lineH(roles.body) + 2 * padY;

@@ -17,7 +17,7 @@ import type {
 import {diagramTitle, diagramDesc} from './rules.ts';
 import {TBL, lineH} from './seq-table.ts';
 import {iconSvg} from './icon-svg.ts';
-import {ICON_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
+import {ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout.ts';
 import {visibleAt} from './reveal.ts';
 import {spotlightDim} from './spotlight.ts';
 import {MARK_STROKE, plateStyle} from './image.ts';
@@ -108,8 +108,13 @@ const ringed = (band: LaidOutBox): boolean => !band.dim && isSolidTone(band.tone
 
 function renderStepBadge(band: LaidOutBox, day: Theme): string {
   const titleRun = band.wrappedRuns[0];
-  const titleBaselineY = band.y + BOX_PAD_Y + titleRun.lineYs[0];
-  const cx = band.x + BOX_PAD_X + STEP_BADGE_R + (band.icon && band.iconAt !== 'top' ? ICON_INDENT : 0); // after a left icon
+  // the same padding the text and the icon use (a swimlane step has its own)
+  const px = band.padX ?? BOX_PAD_X, titleBaselineY = band.y + (band.padY ?? BOX_PAD_Y) + titleRun.lineYs[0];
+  // a centred / right-aligned title: the badge goes just before its first line (titleW, from layout); else at the left edge, after a left icon
+  const indent = titleRun.indent ?? 0, left = band.x + px + indent, right = band.x + band.w - px;
+  const align = band.align ?? (band.iconAt === 'top' ? 'center' : 'left');
+  const textX = band.titleW === undefined || align === 'left' ? undefined : align === 'center' ? (left + right) / 2 - band.titleW / 2 : right - band.titleW;
+  const cx = textX !== undefined ? textX - STEP_INDENT + STEP_BADGE_R : band.x + px + STEP_BADGE_R + (band.icon && band.iconAt !== 'top' ? ICON_INDENT : 0);
   const cy = titleBaselineY - STEP_BADGE_BASELINE_OFFSET;
   return badgeSvg({cx, cy, r: STEP_BADGE_R, w: 2 * STEP_BADGE_R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: 16, fill: PALETTE[day].accent, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), baseline: titleBaselineY, snap: snap4, esc: escapeXml});
 }
@@ -844,8 +849,11 @@ function renderTable(band: LaidOutTable, day: Theme, roles: Roles): string {
       const x = c.align === 'center' ? (left + right) / 2 : c.align === 'right' ? right : left;
       if (c.lines.length) parts.push(textLines(c.lines, {x, top: c.top, size: roles.body, weight: c.bold ? 700 : 400, anchor, fill: resolveTextColor(c.tone, day), mono: c.mono}));
       if (c.icon) {
-        // beside the text: at the cell's left edge; alone: where the text would stand
-        const ix = c.lines.length || c.align === 'left' ? c.x + 12 : c.align === 'center' ? c.x + (c.w - TBL.iconSize) / 2 : right - TBL.iconSize;
+        // beside left-aligned text: at the cell's left edge; beside centred / right-aligned text: just before its first line; alone: where the text would stand
+        const before = (tx: number) => tx - TBL.iconGap - TBL.iconSize;
+        const ix = c.align === 'left' ? c.x + 12
+          : c.lines.length ? (c.align === 'center' ? before(x - (c.lineW ?? 0) / 2) : before(right - (c.lineW ?? 0)))
+          : c.align === 'center' ? c.x + (c.w - TBL.iconSize) / 2 : right - TBL.iconSize;
         const iy = c.top + (lineH(roles.body) - TBL.iconSize) / 2;
         parts.push(iconSvg({glyph: c.icon.glyph, name: c.icon.name, x: ix, y: iy, size: TBL.iconSize, color: resolveTextColor(c.icon.tone ?? c.tone, day), labelled: c.lines.length > 0}));
       }

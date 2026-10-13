@@ -54,7 +54,7 @@ export const BOX_INNER_GAP = 8;      // vertical gap between title/body/note run
 export const STEP_BADGE_R = 15;
 const STEP_BADGE_GAP = 10;
 export const STEP_BADGE_BASELINE_OFFSET = 6;
-const STEP_INDENT = 2 * STEP_BADGE_R + STEP_BADGE_GAP; // how far the title's first line is pushed right to clear the badge
+export const STEP_INDENT = 2 * STEP_BADGE_R + STEP_BADGE_GAP; // how far the title's first line is pushed right to clear the badge
 
 // box({icon}): an SVG icon drawn ICON_SIZE px square at the box's top-left; every text run is pushed right to clear it.
 export const ICON_SIZE = 32;
@@ -491,6 +491,8 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
     const h = (isBoxLike ? textHeight + 2 * (chrome.padY ?? BOX_PAD_Y) : textHeight) + (stamp ? STAMP_H + STAMP_GAP : 0);
     const placed = {...band, x, y, w, h, wrappedRuns} as unknown as Placed<B>; // spreading a generic loses the intersection
     if (stampW !== undefined) (placed as Placed<B> & {stampW?: number}).stampW = stampW;
+    // a centred / right-aligned title: the step badge sits just before its first line, so emit needs that line's width
+    if (band.type === 'box' && band.step != null && band.title && (band.align ?? (topIcon(band) ? 'center' : 'left')) !== 'left') (placed as Placed<B> & {titleW?: number}).titleW = lineWidth(widthOf, wrappedRuns[0], 0);
     if (band.type === 'box') {
       const overflow = wrappedRuns.filter(r => r.nowrap && textWidth(widthOf, r.text, r.size, r.weight, r.mono ? 'mono' : 'sans') > wrapWidth - (r.indent ?? 0) + 0.5).map(r => r.text);
       if (overflow.length) (placed as Placed<BoxBand> & {nowrapOverflow?: string[]}).nowrapOverflow = overflow;

@@ -2135,7 +2135,7 @@ export interface LaidOutCaption extends CaptionBand, Rect, Dimmed {
   /** group() titles only: the rect the title's text really covers (the caption itself spans the whole frame width). */
   inkBox?: Rect;
 }
-export interface LaidOutBox extends BoxBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number; nowrapOverflow?: string[]}
+export interface LaidOutBox extends BoxBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number; nowrapOverflow?: string[]; /** With `step` and a centred / right-aligned title: its first line's width (the badge sits just before it). */ titleW?: number}
 export interface LaidOutBanner extends BannerBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number}
 /** The frame of a group; its children are laid out as separate bands after it. */
 export interface LaidOutGroup extends Rect, Dimmed {type: 'group'; tone: BoxTone; dashed?: boolean; frame?: false; stamp?: string; stampW?: number; id?: string; reveal?: number}
@@ -2206,7 +2206,7 @@ export interface LaidOutSequence extends Rect {
   lifeBottom: number;
 }
 
-export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; vAlign?: 'top' | 'center'; lines: string[]; x: number; w: number; top: number; icon?: CellIcon}
+export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; vAlign?: 'top' | 'center'; lines: string[]; x: number; w: number; top: number; icon?: CellIcon; /** With an icon and centred / right-aligned text: the first line's width (the icon goes just before it). */ lineW?: number}
 export interface LaidOutTableRow {y: number; h: number; cells: LaidOutTableCell[]; header?: boolean; tone?: BoxTone}
 export interface LaidOutTable extends Rect, Dimmed {
   type: 'table';
