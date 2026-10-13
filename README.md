@@ -18,6 +18,8 @@ npm パッケージとして配る（コンパイル済みの `dist/`＝JS と�
     pnpm exec svg-diagram typecheck     # 図のソースを型検査（案件側の tsc を使う）
     pnpm exec svg-diagram build diagrams/*.ts
 
+**グローバルに入れて使う場合**（`~/.local/bin/svg-diagram` のように、案件に `svg-diagram` を入れない）も `svg-diagram typecheck` は動く。コンパイラは案件の `typescript`、なければ PATH 上の `tsc`（`pnpm add -g typescript`）を使い、案件に `svg-diagram` や `@types/node` がなければ、一時的な tsconfig（`.svg-diagram-tsconfig.json`、終了時に消える。案件の tsconfig を `extends` する）でこのツール自身の型定義へ向ける。手で書くなら、案件の `tsconfig.json` の `compilerOptions` に `"paths": {"svg-diagram": ["<このツールの場所>/lib/dsl.ts"]}` を足す（パッケージ版は `dist/lib/dsl.d.ts`）。
+
 **ブラウザ（`playwright-chromium`）は要らない。** レイアウト、`build`（lint を含む）、`check`、`lint`、`show`、`preview`、`contact`、`renderSource` は、どれもブラウザなしで動く（文字幅はフォントファイルから、描画は resvg、描画後の検査は SVG の幾何から）。ブラウザが要るのは、実ブラウザで確かめたいときだけで、`pnpm add -D playwright-chromium`（pnpm 10 以降は `pnpm approve-builds` も）と `pnpm exec playwright install chromium` で足す: `lint --engine browser`、`show` / `preview` / `contact` の `--engine chromium`、`"measure": "chromium"`、`diagram({slide})` の空き寸法の実測（Slidev のテーマが実際に空ける余白を測る）。
 CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagrams/*.ts`（ソースのハッシュと SVG の埋め込み情報を比べるだけ。`--rebuild` を付けても、ブラウザは要らない）。
 
@@ -726,7 +728,7 @@ diagram({theme: 'blue', title: 'Web サービスの構成'}).add(
 - **線は辺を指す**（`connect('a:right', 'b:left')`）。node の左・右・上は**アイコン**に付き、**下（`:bottom`）は名前の下**に付く。辺を書かないと中心同士を結ぶので、枠のない node では線がアイコンを貫く。
 - 境界（VPC・サブネット・ゾーン・リージョン）は `group({title, dashed})` の入れ子。ゾーンを並べるときは `row([group(..), group(..)], {cols: [6, 6]})`。
 - 曲がる線が枠の見出しや隣の node にかかると、`build` が理由つきで止まる。`route: 'elbow'` の `bend`（0〜1）で曲がる位置をずらす。
-- **PNG のプレビュー（既定の resvg）は、曲がる線の矢じりが横を向いて見える**ことがある。SVG 自体は正しく、ブラウザや `--engine chromium` では下を向く。
+- PNG のプレビュー（既定の resvg）でも、曲がる線の矢じりは線の向きに合う（resvg は `orient="auto-start-reverse"` の終端マーカーを曲がり角で横に向けるので、描くときだけ `auto` のマーカーと、始端用の 180° 回した複製に置き換える。SVG 自体は変えない）。
 
 #### アイコンの入手: 汎用は Iconify、公式は `add-pack`
 
