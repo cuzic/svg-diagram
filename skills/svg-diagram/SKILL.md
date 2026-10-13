@@ -108,7 +108,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 |---|---|
 | 型から始める | `quadrant.preset('bcg' \| 'ge' \| 'ansoff' \| 'nineBox' \| 'impactEffort' \| 'risk' \| 'stakeholder' \| 'positioning' \| 'eisenhower', {items})`。軸・見出し・色は日本語で入る。書いたものだけ上書き |
 | 自分で作る | `quadrant({x: {title, low, high, reversed?}, y: {...}, grid: [列, 行], cells: [[{title, note, tone}, ...], ...], items})`。`cells[行][列]` は見た目の順（上から） |
-| 項目 | `{label, cell: [列, 行]}`（マスの中に自動で並ぶ）か `{label, at: [x, y]}`（0〜1、1 が高い側。軸を逆向きにしても数字は同じ）。`size`（円の面積）、`group`（形・色・凡例）、`id`（connect / spotlight） |
+| 項目 | `{label, cell: [列, 行]}`（マスの中に自動で並ぶ）か `{label, at: [x, y]}`（0〜1、1 が高い側。軸を逆向きにしても数字は同じ）。`size`（円の面積）、`group`（形・色・凡例）、`id`（connect / spotlight）。`size` と `group` は、1 つに書いたら全部の項目に書く |
 | 矢印 | `arrows: [{from: id, to: id｜[x, y], label?}]`（ポートフォリオの移動） |
 
 - 評価は色だけにしない。マスの見出し・説明を文字で書き、項目の種類は `tone` ではなく `group` で分ける（`quadrant-tone-only`）。
