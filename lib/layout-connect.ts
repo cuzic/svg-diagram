@@ -5,6 +5,7 @@ import {textWidth} from './atoms.ts';
 import {CONNECT_LABEL_SIZE} from './tokens.ts';
 import type {Bend, ConnectBand, ConnectRef, LaidOutConnect, Point, Rect, Roles, WidthOf} from './types.ts';
 
+import {must} from './must.ts';
 // 'id', 'id:side', or 'id:side@t' — t (0..1) slides the anchor along that side
 // (default 0.5) so several connectors can leave/enter the same side in parallel.
 export function parseRef(ref: string): ConnectRef {
@@ -71,7 +72,7 @@ function pathSegments(points: Point[]): Rect[] {
 const ANNOT_LEG = 16, ANNOT_GAP = 4, CALLOUT_LEN = 28;
 /** bracket(): ⊔ (below) / ⊓ (above) from one anchor's x to the other's, label outside it. callout(): a leader line to the target, the text in a pill at its far end. */
 function resolveAnnotation(band: ConnectBand, anchors: Map<string, Rect>, widthOf: WidthOf, roles: Roles): LaidOutConnect {
-  const {kind, side} = band.annot!, size = roles.connectLabel ?? CONNECT_LABEL_SIZE;
+  const {kind, side} = must(band.annot), size = roles.connectLabel ?? CONNECT_LABEL_SIZE;
   const fromRef = parseRef(band.from), toRef = parseRef(band.to);
   const fromRect = anchors.get(fromRef.id), toRect = anchors.get(toRef.id);
   if (!fromRect) throw new Error(`${kind}(): unknown anchor id "${fromRef.id}" (give the box an id)`);
@@ -118,8 +119,8 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
   const from = anchorPoint(fromRect, fromRef.side, fromRef.at);
   const to = anchorPoint(toRect, toRef.side, toRef.at);
   // a node: left / right / top meet its icon, but bottom is under its label
-  if (fromRef.side === 'bottom' && nodeBottoms.has(fromRef.id)) from.y = nodeBottoms.get(fromRef.id)!;
-  if (toRef.side === 'bottom' && nodeBottoms.has(toRef.id)) to.y = nodeBottoms.get(toRef.id)!;
+  if (fromRef.side === 'bottom' && nodeBottoms.has(fromRef.id)) from.y = must(nodeBottoms.get(fromRef.id));
+  if (toRef.side === 'bottom' && nodeBottoms.has(toRef.id)) to.y = must(nodeBottoms.get(toRef.id));
   if (band.plumb && (toRef.side === 'top' || toRef.side === 'bottom')) to.x = Math.min(toRect.x + toRect.w, Math.max(toRect.x, from.x));
   let points = routePoints(band, from, to, fromRef.side);
   if (band.route === 'elbow' && band.bend === 'auto') {

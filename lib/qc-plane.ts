@@ -3,6 +3,7 @@
 import {niceUp, num} from './qc.ts';
 import type {PlaneAxis, PlaneLabel, PlaneLine, PlaneOpts, PlanePath, PlanePoint, PlanePos, PlaneTone} from './types.ts';
 
+import {must} from './must.ts';
 /** How wide a text is, roughly (before layout knows the fonts): full-width characters take the whole size, the others 0.6 of it. */
 const estimate = (s: string, size = 14): number => [...s].reduce((n, c) => n + (c.charCodeAt(0) > 0x2e80 ? size : size * 0.6), 0);
 /** The plot's rough size in px, to turn pixel room (a legend row, a label beside a line) into units of an axis. */
@@ -217,8 +218,8 @@ export function controlStats(type: ControlType, data: readonly (number | number[
   // a fixed centre line moves the limits that are not fixed with it (they keep their distance from it)
   // x / xbar: the spread comes from the data, so a given centre line moves the limits with it (r, mr, p, np, c, u have worked them out from it above)
   if (fixed.cl !== undefined && cl !== fixed.cl) { const d = fixed.cl - cl; ucl = ucl.map(u => u + d); lcl = lcl.map(l => Math.max(type === 'x' || type === 'xbar' ? -Infinity : 0, l + d)); cl = fixed.cl; }
-  if (fixed.ucl !== undefined) ucl = ucl.map(() => fixed.ucl!);
-  if (fixed.lcl !== undefined) lcl = lcl.map(() => fixed.lcl!);
+  if (fixed.ucl !== undefined) ucl = ucl.map(() => must(fixed.ucl));
+  if (fixed.lcl !== undefined) lcl = lcl.map(() => must(fixed.lcl));
   if (!(ucl.every(u => u > cl) && lcl.every(l => l < cl))) {
     if (fixed.cl !== undefined || fixed.ucl !== undefined || fixed.lcl !== undefined) throw new Error(`controlChart(): the limits must satisfy lcl < cl < ucl (got lcl ${num(Math.min(...lcl))}, cl ${num(cl)}, ucl ${num(Math.max(...ucl))})`);
     if (type !== 'p' && type !== 'np' && type !== 'c' && type !== 'u' && type !== 'mr' && type !== 'r') throw new Error(`controlChart('${type}'): the data does not vary (every limit would be ${cl}); there is nothing to chart`);

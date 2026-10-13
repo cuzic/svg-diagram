@@ -5,6 +5,7 @@
 import {Canvas, checkIds, checkText, fail, finiteNum, inkOnShade, niceScale, numText, shadeOps} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
 
+import {must} from './must.ts';
 export interface StackPart {label: string; value: number}
 export interface StackColumn {label: string; parts: StackPart[]; id?: string}
 export interface StackedOpts extends ChartOpts {
@@ -109,7 +110,7 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
       if (cx - half >= prevRight[row] + 6) { best = {main, second: sec, cx, row}; prevRight[row] = cx + half; break; }
     }
     if (!best) fail(s.mode === 'mekko' ? 'mekko' : 'stackedBars', `the label of "${k.label}" has no room under its column (shorten the labels, or raise width)`);
-    catLines.push(best!);
+    catLines.push(must(best));
   });
   const blockH = Math.max(...catLines.map(k => k.main.length + k.second.length)) * lh + 4;
   const catH = (Math.max(...catLines.map(k => k.row)) + 1) * blockH + 13;
@@ -132,7 +133,7 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
     s.series.forEach((nm, si) => {
       const v = k.values[si];
       if (!(v > 0)) return;
-      const f0 = (s.mode === 'stacked' ? acc / scale!.max : acc / top), f1 = (s.mode === 'stacked' ? (acc + v) / scale!.max : (acc + v) / top);
+      const f0 = (s.mode === 'stacked' ? acc / must(scale).max : acc / top), f1 = (s.mode === 'stacked' ? (acc + v) / must(scale).max : (acc + v) / top);
       acc += v;
       const y1 = yOf(f1), y0 = yOf(f0), full = y0 - y1, gp = Math.min(2, full * 0.3), h = full - gp, op = opOf(si), ink = inkOnShade(op);
       if (h < 0.5) { omitted.push(`${nm} ${segText(s, v, k.total)}（${k.label}）`); return; } // thinner than half a pixel: nothing to draw
@@ -145,8 +146,8 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
       else if (s.mode === 'mekko') omitted.push(`${nm} ${short}（${k.label}）`);
       else beside.push({text: whole, x: xs[ci] + widths[ci] + 8, y: c.mid(cy), key: k.id ?? `#${ci}`, left: `${nm} ${short}（${k.label}）`});
     });
-    if (k.id) c.anchors.push({id: k.id, x: xs[ci], y: yOf(s.mode === 'stacked' ? k.total / scale!.max : 1), w: widths[ci], h: yOf(0) - yOf(s.mode === 'stacked' ? k.total / scale!.max : 1)});
-    if (s.mode === 'stacked') c.text(`${numText(k.total)}${s.unit}`, xs[ci] + widths[ci] / 2, yOf(k.total / scale!.max) - 7, 'middle', 'text', {bold: true, of: k.id ?? `#${ci}`});
+    if (k.id) c.anchors.push({id: k.id, x: xs[ci], y: yOf(s.mode === 'stacked' ? k.total / must(scale).max : 1), w: widths[ci], h: yOf(0) - yOf(s.mode === 'stacked' ? k.total / must(scale).max : 1)});
+    if (s.mode === 'stacked') c.text(`${numText(k.total)}${s.unit}`, xs[ci] + widths[ci] / 2, yOf(k.total / must(scale).max) - 7, 'middle', 'text', {bold: true, of: k.id ?? `#${ci}`});
   });
   for (const b of beside) if (!c.place(b.text, [{x: b.x, y: b.y, anchor: 'start'}], 'text', {bold: true, of: b.key})) omitted.push(b.left);
   // column labels, the second line (the total) lighter

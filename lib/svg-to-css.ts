@@ -1,3 +1,4 @@
+import {must} from './must.ts';
 // Turns the shapes of an SVG fragment (what emit.ts writes) into absolutely positioned HTML elements drawn by CSS alone:
 //   rect / circle        -> a box (background, an inset box-shadow for the outline, border-radius; a dashed outline is a border)
 //   polygon, filled path -> a box clipped by clip-path: polygon(); curves and arcs are flattened to short segments first
@@ -97,23 +98,23 @@ export function parsePath(d: string): Sub[] | null {
     let p: Pt;
     switch (C) {
       case 'M': p = {x: v[0] + ox, y: v[1] + oy}; open(p); start = p; cmd = rel ? 'l' : 'L'; lastCtl = null; break;
-      case 'L': p = {x: v[0] + ox, y: v[1] + oy}; sub!.pts.push(p); lastCtl = null; break;
-      case 'H': p = {x: v[0] + ox, y: pos.y}; sub!.pts.push(p); lastCtl = null; break;
-      case 'V': p = {x: pos.x, y: v[0] + oy}; sub!.pts.push(p); lastCtl = null; break;
-      case 'C': { const c1 = {x: v[0] + ox, y: v[1] + oy}, c2 = {x: v[2] + ox, y: v[3] + oy}; p = {x: v[4] + ox, y: v[5] + oy}; flattenCubic(sub!.pts, pos, c1, c2, p); lastCtl = c2; break; }
+      case 'L': p = {x: v[0] + ox, y: v[1] + oy}; must(sub).pts.push(p); lastCtl = null; break;
+      case 'H': p = {x: v[0] + ox, y: pos.y}; must(sub).pts.push(p); lastCtl = null; break;
+      case 'V': p = {x: pos.x, y: v[0] + oy}; must(sub).pts.push(p); lastCtl = null; break;
+      case 'C': { const c1 = {x: v[0] + ox, y: v[1] + oy}, c2 = {x: v[2] + ox, y: v[3] + oy}; p = {x: v[4] + ox, y: v[5] + oy}; flattenCubic(must(sub).pts, pos, c1, c2, p); lastCtl = c2; break; }
       case 'S': {
         const c1 = lastCtl && /[CS]/i.test(lastCmd) ? {x: 2 * pos.x - lastCtl.x, y: 2 * pos.y - lastCtl.y} : pos;
         const c2 = {x: v[0] + ox, y: v[1] + oy}; p = {x: v[2] + ox, y: v[3] + oy};
-        flattenCubic(sub!.pts, pos, c1, c2, p); lastCtl = c2; break;
+        flattenCubic(must(sub).pts, pos, c1, c2, p); lastCtl = c2; break;
       }
       case 'Q': case 'T': {
         let q: Pt;
         if (C === 'Q') { q = {x: v[0] + ox, y: v[1] + oy}; p = {x: v[2] + ox, y: v[3] + oy}; }
         else { q = lastCtl && /[QT]/i.test(lastCmd) ? {x: 2 * pos.x - lastCtl.x, y: 2 * pos.y - lastCtl.y} : pos; p = {x: v[0] + ox, y: v[1] + oy}; }
-        flattenCubic(sub!.pts, pos, {x: pos.x + 2 / 3 * (q.x - pos.x), y: pos.y + 2 / 3 * (q.y - pos.y)}, {x: p.x + 2 / 3 * (q.x - p.x), y: p.y + 2 / 3 * (q.y - p.y)}, p);
+        flattenCubic(must(sub).pts, pos, {x: pos.x + 2 / 3 * (q.x - pos.x), y: pos.y + 2 / 3 * (q.y - pos.y)}, {x: p.x + 2 / 3 * (q.x - p.x), y: p.y + 2 / 3 * (q.y - p.y)}, p);
         lastCtl = q; break;
       }
-      default: p = {x: v[5] + ox, y: v[6] + oy}; flattenArc(sub!.pts, pos, v[0], v[1], v[2], v[3] !== 0, v[4] !== 0, p); lastCtl = null;
+      default: p = {x: v[5] + ox, y: v[6] + oy}; flattenArc(must(sub).pts, pos, v[0], v[1], v[2], v[3] !== 0, v[4] !== 0, p); lastCtl = null;
     }
     pos = p; lastCmd = C;
   }

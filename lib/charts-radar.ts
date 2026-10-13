@@ -5,6 +5,7 @@ import {Canvas, overlaps, checkIds, checkText, fail, finiteNum, niceScale, numTe
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 import type {Rect} from './types.ts';
 
+import {must} from './must.ts';
 export interface RadarSeries {label: string; values: number[]; id?: string}
 export interface RadarOpts extends ChartOpts {
   /** The value at the centre (default 0). */
@@ -105,7 +106,7 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
     plan = {labels, R, cy}; c.h = h; break;
   }
   if (!plan) fail('radar', 'the figure is too small for its axis names (raise width / height, shorten the names, or use fewer axes)');
-  const {labels, R, cy} = plan!, areaH = c.h - legendH;
+  const {labels, R, cy} = must(plan), areaH = c.h - legendH;
   const at = (i: number, f: number) => ({x: cx + Math.cos(ang(i)) * R * f, y: cy + Math.sin(ang(i)) * R * f});
   const poly = (f: number) => `M${Array.from({length: n}, (_, i) => { const p = at(i, f); return `${r1(p.x)},${r1(p.y)}`; }).join(' L')} Z`;
   // grid: rings, then spokes

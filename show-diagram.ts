@@ -21,6 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {register} from 'node:module';
+import {must} from './lib/must.ts';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 register(`./lib/resolve-hook.${EXT}`, import.meta.url);
@@ -119,7 +120,7 @@ try {
       const byHeight = Math.min(1, box.maxH / size.h); // the tall-picture cap alone (the width limit has its own note)
       if (!scaleOpt && !pngOut && byHeight < 1 && byHeight <= Math.min(byWidth ?? 1, widthOpt ? 1 : box.maxW / size.w)) console.error(`  ⚠ ${file}: too tall for the screen (${Math.round(size.h)}px; the cap is ${box.maxH}px), shrunk to ${Math.round(byHeight * 100)}%`);
       const ras = await rasterize(svg, {scale, png: !!pngOut, engine, fonts: config.fonts});
-      if (pngOut) { fs.writeFileSync(pngOut, ras.png!); console.log(`wrote ${pngOut} (${ras.width}x${ras.height})`); continue; }
+      if (pngOut) { fs.writeFileSync(pngOut, must(ras.png)); console.log(`wrote ${pngOut} (${ras.width}x${ras.height})`); continue; }
       let seq = image2sixel(new Uint8ClampedArray(ras.rgba), ras.width, ras.height, colors);
       if (passthrough) seq = tmuxPassthrough(seq);
       if (files.length > 1) process.stdout.write(`${file}\n`);

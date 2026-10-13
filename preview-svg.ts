@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import {grayscaleSvg, rasterize} from './lib/raster.ts';
 import {closeMeasurer} from './lib/measure.ts';
 
+import {must} from './lib/must.ts';
 // No name given: <tmpdir>/svg-diagram-preview-<uid>/<source>-<unique>.png, created exclusively so parallel runs never overwrite each other.
 // The directory is per user and private (0700): a shared one would fail for the second user on a host, or be pre-created by someone else.
 function uniquePreview(input: string, png: Buffer): string {
@@ -35,8 +36,8 @@ if (!input || !(scale > 0)) { console.error(USAGE); process.exit(2); }
 if (!['auto', 'resvg', 'chromium'].includes(engine)) { console.error(`✗ --engine is resvg or chromium (got ${engine})\n${USAGE}`); process.exit(2); }
 try {
   const r = await rasterize(GRAY ? grayscaleSvg(fs.readFileSync(input, 'utf8')) : fs.readFileSync(input, 'utf8'), {scale, png: true, engine});
-  if (output) fs.writeFileSync(output, r.png!);
-  else output = uniquePreview(input, r.png!);
+  if (output) fs.writeFileSync(output, must(r.png));
+  else output = uniquePreview(input, must(r.png));
   console.log(`wrote ${output} (${r.width}x${r.height})`);
 } catch (e) {
   console.error(`✗ ${input}: ${(e as Error).message}`);

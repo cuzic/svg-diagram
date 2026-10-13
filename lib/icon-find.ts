@@ -7,6 +7,7 @@ import type {CollectionInfo, Fetch, IconifySet, InstallOpts} from './icon-instal
 import {glyphFromBody, PERMISSIVE} from './icon-store.ts';
 import type {IconGlyph} from './icon-store.ts';
 
+import {must} from './must.ts';
 export type IconStyle = 'fill' | 'line' | 'color';
 export interface Candidate {
   id: string;
@@ -87,7 +88,7 @@ export async function findIcons(words: string[], opts: FindOpts = {}): Promise<{
       try { glyph = glyphFromBody(t.body, {width: t.width ?? set.width ?? 16, height: t.height ?? set.height ?? t.width ?? set.width ?? 16, left: t.left, top: t.top}, id, {color: opts.color}); } catch { continue; }
       const style = styleOf(glyph);
       if (opts.style && opts.style !== 'any' && style !== opts.style) continue;
-      candidates.push({id, prefix, name, style, license: infos[prefix].license!.spdx!, mainSet: prefix === opts.mainSet, glyph, add: `${id}=${NAME_OK.test(q) ? q : name}`});
+      candidates.push({id, prefix, name, style, license: must(must(infos[prefix].license).spdx), mainSet: prefix === opts.mainSet, glyph, add: `${id}=${NAME_OK.test(q) ? q : name}`});
     }
     out.push({word: q, candidates, skipped});
   }

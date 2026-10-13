@@ -37,7 +37,7 @@
 			},
 			"style": {
 				"useImportType": "error",
-				"noNonNullAssertion": "warn",
+				"noNonNullAssertion": "error",
 				"useTemplate": "off"
 			},
 			"suspicious": {
@@ -78,6 +78,21 @@
 					"correctness": {
 						"noEmptyCharacterClassInRegex": "off",
 						"noConstantCondition": "off"
+					},
+					"style": {
+						"noNonNullAssertion": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"lib/lint-browser.ts"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noNonNullAssertion": "off"
 					}
 				}
 			}

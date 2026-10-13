@@ -6,6 +6,7 @@ import type {Pt} from './graph-layout.ts';
 import {ticksOf, timelineDay} from './timeline.ts';
 import type {FontFamily, GanttBand, GanttRow, GanttTask, LaidOutGantt, Roles, WidthOf} from './types.ts';
 
+import {must} from './must.ts';
 const ROW_H = 32, BAR_H = 18, HEAD_H = 44, PAD = 8, LABEL_MAX = 0.4, MS_DAY = 86400000, ARROW = 8;
 
 /** Drops repeated points and the middle point of three on a line. */
@@ -89,7 +90,7 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
     if (done.has(t)) return;
     if (visiting.has(t)) throw new Error(`gantt(): "${t.label}" is part of a cycle of after (a task cannot wait for itself)`);
     visiting.add(t);
-    for (const a of [t.after ?? []].flat()) visit(ids.get(a)!);
+    for (const a of [t.after ?? []].flat()) visit(must(ids.get(a)));
     visiting.delete(t); done.add(t);
   };
   tasks.forEach(visit);
@@ -140,7 +141,7 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
       text(r.section, x + PAD, cy + S / 2 - 1, 'start', true);
       return;
     }
-    const [s, e] = spans.get(r)!;
+    const [s, e] = must(spans.get(r));
     text(r.label, x + PAD, cy + S / 2 - 1, 'start');
     if (r.milestone) {
       const mx = px(s) + perDay / 2, hh = BAR_H / 2 + 2;
@@ -154,11 +155,11 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
   });
   const rectOf = (t: GanttTask) => out.bars[tasks.indexOf(t)];
   for (const t of tasks) for (const a of [t.after ?? []].flat()) {
-    const p = rectOf(ids.get(a)!), q = rectOf(t);
+    const p = rectOf(must(ids.get(a))), q = rectOf(t);
     const x1 = p.x + p.w, y1 = p.y + p.h / 2, x2 = q.x, y2 = q.y + q.h / 2;
     const between = out.bars.filter(b => b !== p && b !== q && b.y + b.h > Math.min(y1, y2) && b.y < Math.max(y1, y2));
     const free = (c: number): boolean => !between.some(b => c >= b.x - 4 && c <= b.x + b.w + 4);
-    const tailRow = band.rows.indexOf(ids.get(a)!), headRow = band.rows.indexOf(t), down = headRow > tailRow;
+    const tailRow = band.rows.indexOf(must(ids.get(a))), headRow = band.rows.indexOf(t), down = headRow > tailRow;
     let pts: Pt[] | undefined;
     // 1) straight on: out of the tail, down (or up) in the first free column before the head, into the head
     for (let c = x1 + 8; c <= x2 - ARROW - 6 && !pts; c += 6) if (free(c)) pts = [{x: x1, y: y1}, {x: c, y: y1}, {x: c, y: y2}, {x: x2, y: y2}];
@@ -171,7 +172,7 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
       if (!cols.length) cols.push(x1 + 8); // nothing is free (verify will say which bar): still a route that ends on the head
       pts = [{x: x1, y: y1}, {x: x1 + 8, y: y1}, {x: x1 + 8, y: bT}, {x: cols[0], y: bT}, {x: cols[0], y: bH}, {x: x2 - 8, y: bH}, {x: x2 - 8, y: y2}, {x: x2, y: y2}];
     }
-    out.deps.push({from: tasks.indexOf(ids.get(a)!), to: tasks.indexOf(t), points: simplifyPts(pts)});
+    out.deps.push({from: tasks.indexOf(must(ids.get(a))), to: tasks.indexOf(t), points: simplifyPts(pts)});
   }
   if (today !== undefined) {
     const tx = px(today) + perDay / 2;

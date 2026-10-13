@@ -5,6 +5,7 @@ import {Canvas, checkIds, checkText, fail, finiteNum, inkOnShade, numText} from 
 import type {ColorKey} from './types.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 
+import {must} from './must.ts';
 export interface TreemapNode {
   label: string;
   /** A leaf's value (the area). A group takes the sum of its children. */
@@ -140,7 +141,7 @@ export function layoutTreemap(s: TreemapSpec, g: ChartGeom): LaidOutChartPart {
     const area = leaves.reduce((a, n) => a + (drawn.get(n) ?? 0), 0), value = leaves.reduce((a, n) => a + (n.value as number), 0);
     if (!(area > 0)) break;
     // the area each leaf should have, at the figure's area per unit; a leaf drawn too small gets more weight (one that vanished: double)
-    for (const n of leaves) { const want = (n.value as number) * area / value, got = drawn.get(n) ?? 0; weight.set(n, weight.get(n)! * (got > 0 ? want / got : 2)); }
+    for (const n of leaves) { const want = (n.value as number) * area / value, got = drawn.get(n) ?? 0; weight.set(n, must(weight.get(n)) * (got > 0 ? want / got : 2)); }
     placed = plan(weight);
     const err = spread(placed);
     if (err < best.err - 1e-9) best = {placed, err};
@@ -174,7 +175,7 @@ export function layoutTreemap(s: TreemapSpec, g: ChartGeom): LaidOutChartPart {
     if (q.k === 'leaf') {
       const id = n.id, key = id ?? `#${leafNo++}`, solidTone = n.tone, op = solidTone ? undefined : shadeOf(q.gi);
       const host = c.rect(q.x, q.y, q.w, q.h, {fill: solidTone ?? 'accent', ...(op === undefined ? {} : {op}), id, of: key, solid: id ?? `cell "${n.label}"`});
-      const ink = solidTone ? 'bg' as const : inkOnShade(op!);
+      const ink = solidTone ? 'bg' as const : inkOnShade(must(op));
       if (!label(q, host, ink, {fill: solidTone ?? 'accent', ...(op === undefined ? {} : {op}), ink}, key)) small.push(`${n.label} ${valueText(n.value ?? 0, s)}`);
       continue;
     }

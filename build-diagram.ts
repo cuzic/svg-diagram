@@ -28,6 +28,7 @@ import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {register} from 'node:module';
+import {must} from './lib/must.ts';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 register(`./lib/resolve-hook.${EXT}`, import.meta.url);
@@ -163,7 +164,7 @@ if (pngDir && written.length) { // the SVG and its PNG come from one build, so t
     try {
       const r = await rasterize(fs.readFileSync(svgPath, 'utf8'), {scale: PNG_SCALE, png: true});
       const pngPath = path.join(pngDir, path.parse(svgPath).name + '.png');
-      fs.writeFileSync(pngPath, r.png!);
+      fs.writeFileSync(pngPath, must(r.png));
       console.log(`✓ ${pngPath} (${r.width}x${r.height})`);
     } catch (err) { console.error(`✗ ${svgPath}: ${(err as Error).message}`); failed = true; }
   }

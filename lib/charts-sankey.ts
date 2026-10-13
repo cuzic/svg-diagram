@@ -6,6 +6,7 @@ import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-b
 import type {IconName} from './icons.ts';
 import type {IconGlyph} from './icon-store.ts';
 
+import {must} from './must.ts';
 export interface SankeyNode {
   id: string; label?: string; tone?: ChartTone;
   /** An installed SVG icon (see `icon`) before the node's label, as tall as a line of it. */
@@ -55,7 +56,7 @@ export function layersOf(s: SankeySpec): Map<string, number> {
   const layer = new Map<string, number>(), state = new Map<string, 1 | 2>();
   const into = (id: string) => s.links.filter(l => l.to === id).map(l => l.from);
   const visit = (id: string, trail: string[]): number => {
-    if (state.get(id) === 2) return layer.get(id)!;
+    if (state.get(id) === 2) return must(layer.get(id));
     if (state.get(id) === 1) fail('sankey', `the links form a cycle (${[...trail.slice(trail.indexOf(id)), id].join(' -> ')}); a sankey flows one way`);
     state.set(id, 1);
     const l = Math.max(-1, ...into(id).map(p => visit(p, [...trail, id]))) + 1;
@@ -70,7 +71,7 @@ export function layersOf(s: SankeySpec): Map<string, number> {
 const flowOf = (s: SankeySpec, id: string): number => Math.max(s.links.filter(l => l.to === id).reduce((a, l) => a + l.value, 0), s.links.filter(l => l.from === id).reduce((a, l) => a + l.value, 0));
 const val = (v: number, s: SankeySpec): string => `${numText(parseFloat(v.toPrecision(12)))}${s.unit}`;
 export function sankeyAlt(s: SankeySpec): string {
-  const name = (id: string) => s.nodes.find(n => n.id === id)!.label;
+  const name = (id: string) => must(s.nodes.find(n => n.id === id)).label;
   return `サンキー図: ${s.links.map(l => `${name(l.from)} → ${name(l.to)} ${val(l.value, s)}`).join('、')}`;
 }
 export function sankeyTexts(s: SankeySpec): [string, number][] {
@@ -84,13 +85,13 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
   const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
   const layer = layersOf(s), L = Math.max(...layer.values()) + 1;
   const cols: string[][] = Array.from({length: L}, () => []);
-  for (const n of s.nodes) cols[layer.get(n.id)!].push(n.id);
+  for (const n of s.nodes) cols[must(layer.get(n.id))].push(n.id);
   // order inside each layer: barycentre sweeps (towards the sinks, then back), keeping the given order for ties
   const pos = new Map<string, number>();
   cols.forEach(col => col.forEach((id, i) => pos.set(id, i)));
   const bary = (id: string, side: 'in' | 'out'): number => {
     const ws = s.links.filter(l => side === 'in' ? l.to === id : l.from === id);
-    return ws.length ? ws.reduce((a, l) => a + (pos.get(side === 'in' ? l.from : l.to) ?? 0) * l.value, 0) / ws.reduce((a, l) => a + l.value, 0) : pos.get(id)!;
+    return ws.length ? ws.reduce((a, l) => a + (pos.get(side === 'in' ? l.from : l.to) ?? 0) * l.value, 0) / ws.reduce((a, l) => a + l.value, 0) : must(pos.get(id));
   };
   for (let it = 0; it < 4; it++) {
     for (const dir of ['in', 'out'] as const) {
@@ -98,13 +99,13 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
       for (const li of order) {
         const col = cols[li];
         const before = new Map(col.map((id, i) => [id, i]));
-        col.sort((a, b) => bary(a, dir) - bary(b, dir) || before.get(a)! - before.get(b)!);
+        col.sort((a, b) => bary(a, dir) - bary(b, dir) || must(before.get(a)) - must(before.get(b)));
         col.forEach((id, i) => pos.set(id, i));
       }
     }
   }
   // geometry: node width, layer pitch, label room on the right of the last layer
-  const nodeW = 14, iconW = c.lineH() + 4, iconOf = (id: string) => s.nodes.find(n => n.id === id)!.icon ? iconW : 0, nameOf = (id: string) => s.nodes.find(n => n.id === id)!;
+  const nodeW = 14, iconW = c.lineH() + 4, iconOf = (id: string) => must(s.nodes.find(n => n.id === id)).icon ? iconW : 0, nameOf = (id: string) => must(s.nodes.find(n => n.id === id));
   const lastNatural = Math.max(...cols[L - 1].map(id => c.tw(`${nameOf(id).label} ${val(flowOf(s, id), s)}`, true) + iconOf(id)));
   const rightPad = Math.min(lastNatural, g.w * 0.24) + 14, leftPad = 4;
   const plotL = g.x + leftPad, plotR = g.x + g.w - rightPad;
@@ -114,12 +115,12 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
   // a node's label: name (wrapped) over the value, or on one line when it fits
   const labels = new Map<string, string[]>();
   for (const n of s.nodes) {
-    const li = layer.get(n.id)!, full = `${n.label} ${val(flowOf(s, n.id), s)}`, w = labelW(li) - iconOf(n.id);
+    const li = must(layer.get(n.id)), full = `${n.label} ${val(flowOf(s, n.id), s)}`, w = labelW(li) - iconOf(n.id);
     const one = c.tw(full, true) <= w ? [full] : [...c.wrap(n.label, w, true), val(flowOf(s, n.id), s)];
     for (const l of one) if (c.tw(l, true) > w + 1) fail('sankey', `the label "${l}" does not fit between the layers (shorten it, or raise width)`);
     labels.set(n.id, one);
   }
-  const gap = Math.max(10, S * 0.8), minH = (id: string) => labels.get(id)!.length * lh + 4;
+  const gap = Math.max(10, S * 0.8), minH = (id: string) => must(labels.get(id)).length * lh + 4;
   const maxCount = Math.max(...cols.map(c2 => c2.length));
   const H = (g.height ?? Math.max(300, 46 * maxCount + 120)) - 8;
   c.h = H + 8;
@@ -136,13 +137,13 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
     for (const id of col) { const nh = Math.max(2, flowOf(s, id) * sc); geo.set(id, {x: plotL + li * step, y: y + (slot(id) - nh) / 2, h: nh}); y += slot(id) + gap; }
   });
   // ribbons first (under everything): out-links stack down a node's right edge in the order of their targets, in-links down its left edge
-  const centre = (id: string) => geo.get(id)!.y + geo.get(id)!.h / 2;
+  const centre = (id: string) => must(geo.get(id)).y + must(geo.get(id)).h / 2;
   const outOff = new Map<string, number>(), inOff = new Map<string, number>(), outAt = new Map<string, number>(), inAt = new Map<string, number>();
   for (const l of [...s.links].sort((a, b) => centre(a.to) - centre(b.to))) { outOff.set(`${l.from}>${l.to}`, outAt.get(l.from) ?? 0); outAt.set(l.from, (outAt.get(l.from) ?? 0) + l.value * sc); }
   for (const l of [...s.links].sort((a, b) => centre(a.from) - centre(b.from))) { inOff.set(`${l.from}>${l.to}`, inAt.get(l.to) ?? 0); inAt.set(l.to, (inAt.get(l.to) ?? 0) + l.value * sc); }
   const ribbons = s.links.map(l => {
-    const a = geo.get(l.from)!, b = geo.get(l.to)!, t = l.value * sc, k = `${l.from}>${l.to}`;
-    const x0 = a.x + nodeW, x1 = b.x, y0 = a.y + outOff.get(k)!, y1 = b.y + inOff.get(k)!, xm = (x0 + x1) / 2;
+    const a = must(geo.get(l.from)), b = must(geo.get(l.to)), t = l.value * sc, k = `${l.from}>${l.to}`;
+    const x0 = a.x + nodeW, x1 = b.x, y0 = a.y + must(outOff.get(k)), y1 = b.y + must(inOff.get(k)), xm = (x0 + x1) / 2;
     return {l, t, x0, x1, y0, y1, xm};
   });
   for (const r of ribbons) {
@@ -152,9 +153,9 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
   }
   // nodes, then their labels
   for (const n of s.nodes) {
-    const q = geo.get(n.id)!, li = layer.get(n.id)!;
+    const q = must(geo.get(n.id)), li = must(layer.get(n.id));
     c.rect(r1(q.x), r1(q.y), nodeW, r1(q.h), {fill: n.tone, id: n.id, of: n.id, solid: n.id});
-    const ls = labels.get(n.id)!, cy = q.y + q.h / 2;
+    const ls = must(labels.get(n.id)), cy = q.y + q.h / 2;
     if (n.icon) c.icon(n.icon.glyph, n.icon.name, q.x + nodeW + 8, cy - lh / 2 + 1, lh - 2, 'text', n.id);
     c.lines(ls.length > 1 ? ls.map(t => t) : ls, q.x + nodeW + 8 + iconOf(n.id), cy - (ls.length - 1) * lh / 2 + S * 0.36, 'start', 'text', {bold: ls.length === 1, of: n.id, plate: true});
     void li;

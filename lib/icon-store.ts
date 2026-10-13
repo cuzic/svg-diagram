@@ -1,3 +1,4 @@
+import {must} from './must.ts';
 // The project's installed icons (svg-diagram.icons.json) — the pure part: the file's shape, and turning an Iconify / .svg body
 // into one filled path. No I/O here (icons.ts reads the file, manage-icons.ts installs into it). svg-diagram ships no icons:
 // each project installs the ones it uses with `svg-diagram icons add`, so every icon's licence travels with the project.
@@ -176,7 +177,7 @@ export function glyphFromBody(body: string, box: {width?: number | string; heigh
   const clean = sanitizeBody(body, what, opts.color === true, opts.lenient === true);
   const only = clean.tags.length === 2 && clean.tags[0].name === 'path' ? clean.tags[0].attrs : undefined;
   if (only && [...only.keys()].every(k => k === 'd' || k === 'fill' || k === 'fill-rule' || k === 'clip-rule') && only.get('d') && only.get('fill') !== 'none' && !clean.fixed) {
-    return {d: only.get('d')!, vb, ...(only.get('fill-rule') === 'evenodd' ? {rule: 'evenodd' as const} : {})};
+    return {d: must(only.get('d')), vb, ...(only.get('fill-rule') === 'evenodd' ? {rule: 'evenodd' as const} : {})};
   }
   return {body: clean.body, vb, ...(clean.fixed ? {fixed: true as const} : {})};
 }
@@ -201,7 +202,7 @@ export function parseSpec(arg: string): IconSpec {
   const eq = arg.lastIndexOf('=');
   const [src, as] = eq > 0 ? [arg.slice(0, eq), arg.slice(eq + 1)] : [arg, undefined];
   if (/\.svg$/i.test(src)) {
-    const base = src.split('/').pop()!.replace(/\.svg$/i, '');
+    const base = must(src.split('/').pop()).replace(/\.svg$/i, '');
     return finish({kind: 'file', path: src, name: as ?? base});
   }
   const m = /^([a-z0-9]+(?:-[a-z0-9]+)*):([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(src);
@@ -219,7 +220,7 @@ function finish<S extends IconSpec>(s: S): S {
  * repeated when the name already starts with it).
  */
 export function packIconName(file: string, prefix: string): string {
-  let n = file.split('/').pop()!.replace(/\.svg$/i, '');
+  let n = must(file.split('/').pop()).replace(/\.svg$/i, '');
   n = n.replace(/^\d+[-_ ]/, '').replace(/^(icon-service|icon|arch(-category)?|res|resource)[-_ ]/i, '').replace(/^(icon-service|icon)[-_ ]/i, '');
   n = n.replace(/[-_ ]\d{2,3}(px)?([-_ ].*)?$/, (_m, _a, rest: string | undefined) => (rest ? `-${rest.slice(1)}` : ''));
   n = n.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase();

@@ -15,6 +15,7 @@ import {EMOJI_RE} from './tokens.ts';
 import type {FontFamily, FontSpecs} from './types.ts';
 import {xmlProblems} from './xml-check.ts';
 
+import {must} from './must.ts';
 export type RasterEngine = 'auto' | 'resvg' | 'chromium';
 
 export interface Raster {
@@ -95,8 +96,8 @@ export function prepareResvgFonts(svg: string, specs?: FontSpecs): {options: Res
       const walk = (e: El) => {
         for (const c of e.children) {
           if (typeof c !== 'string') { if (c.tag === 'tspan' || c.tag === 'a') walk(c); continue; }
-          for (const ch of c) if (!/[\n\r\t]/.test(ch)) chars.add(ch.codePointAt(0)!); // (a newline or tab in the source is drawn as a space: the cut adds that one)
-          const st = styles.get(e)!;
+          for (const ch of c) if (!/[\n\r\t]/.test(ch)) chars.add(must(ch.codePointAt(0))); // (a newline or tab in the source is drawn as a space: the cut adds that one)
+          const st = must(styles.get(e));
           roles.add(`${familyKind(st.fontFamily)}:${st.fontWeight >= 600 ? 700 : 400}`);
         }
       };
@@ -109,9 +110,9 @@ export function prepareResvgFonts(svg: string, specs?: FontSpecs): {options: Res
   const resolve = (role: string) => { const [family, weight] = role.split(':'); return {role, r: resolveFontFile(family as FontFamily, +weight, specs), cov: fontCoverage(family as FontFamily, +weight, specs)}; };
   const loaded = [...roles].map(resolve).filter(x => x.r);
   // a character none of the needed fonts has may be in another of the layout's fonts (a symbol only the emoji font draws): take that one too
-  const missing = (list: typeof loaded) => [...chars].filter(cp => cp > 0x20 && cp !== 0xfe0f && cp !== 0x200d && !list.some(x => x.cov!.has(cp)));
+  const missing = (list: typeof loaded) => [...chars].filter(cp => cp > 0x20 && cp !== 0xfe0f && cp !== 0x200d && !list.some(x => must(x.cov).has(cp)));
   for (const cp of missing(loaded)) {
-    const extra = ['sans:400', 'mono:400', 'emoji:400'].filter(r => !loaded.some(x => x.role === r)).map(resolve).find(x => x.r && x.cov!.has(cp));
+    const extra = ['sans:400', 'mono:400', 'emoji:400'].filter(r => !loaded.some(x => x.role === r)).map(resolve).find(x => x.r && must(x.cov).has(cp));
     if (extra) loaded.push(extra);
   }
   const needSystem = drawn && (loaded.length === 0 || missing(loaded).length > 0);
@@ -120,14 +121,14 @@ export function prepareResvgFonts(svg: string, specs?: FontSpecs): {options: Res
   const files: string[] = [], seen = new Set<string>();
   let n = 0;
   for (const {r} of loaded) {
-    const key = `${r!.file}#${r!.index}`;
+    const key = `${must(r).file}#${must(r).index}`;
     if (seen.has(key)) continue;
     seen.add(key);
     try {
       const out = path.join(dir, `${n++}.ttf`);
-      fs.writeFileSync(out, subsetFont(fs.readFileSync(r!.file), r!.index, [...chars, 0x20, 0xa0])); // a space is a glyph too: without it the gaps take another font's width
+      fs.writeFileSync(out, subsetFont(fs.readFileSync(must(r).file), must(r).index, [...chars, 0x20, 0xa0])); // a space is a glyph too: without it the gaps take another font's width
       files.push(out);
-    } catch { files.push(r!.file); } // a font HarfBuzz cannot cut: resvg gets it whole
+    } catch { files.push(must(r).file); } // a font HarfBuzz cannot cut: resvg gets it whole
   }
   const first = (family: FontFamily) => loaded.find(x => x.role.startsWith(`${family}:`))?.r?.name ?? ''; // (only fonts the figure uses are looked up at all)
   const sans = first('sans'), mono = first('mono');
@@ -186,7 +187,7 @@ export function embedSvg(svg: string, box: {x: number; y: number; w: number; h: 
   const viewBox = /\sviewBox="([^"]*)"/.exec(open[0])?.[1] ?? `0 0 ${size.w} ${size.h}`;
   const ns = /\sxmlns="([^"]*)"/.exec(open[0])?.[1] ?? 'http://www.w3.org/2000/svg';
   const extra = [...open[0].matchAll(/\s(xmlns:[\w-]+="[^"]*")/g)].map(m => m[1]).join(' ');
-  let inner = svg.slice(open.index! + open[0].length, svg.lastIndexOf('</svg>'));
+  let inner = svg.slice(must(open.index) + open[0].length, svg.lastIndexOf('</svg>'));
   const ids = [...new Set([...inner.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]))];
   for (const id of ids) {
     const re = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

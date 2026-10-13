@@ -15,6 +15,7 @@
 // is shown by shape, hatching or words as well as colour (WCAG 1.4.1).
 
 import {toneStyle} from './tokens.ts';
+import {must} from './must.ts';
 import type {
   ColorKey, GlyphOpts, WfBattery, WfBreadcrumb, WfCheckbox, WfCompare, WfCtx, WfFusion, WfFusionLayerSpec, WfHelpers, WfInsight,
   WfInsightOpts, WfNode, WfPartKey, WfPartsApi, WfRadio, WfRegion, WfRobot, WfSignal, WfSlider, WfState, WfToggle, WfTone, WfType,
@@ -231,14 +232,14 @@ export function installParts(h: WfHelpers): WfPartsApi {
     let tx = x + 14;
     if (n.marker) { glyph(ctx, x + 26, y + 26, {shape: n.marker.shape, id: n.marker.id}); tx = x + 48; }
     text(ctx, n.name, tx, y + 31, {size: T, weight: 700});
-    const bat = {t: 'battery', level: n.battery ?? 0} as WfBattery, batW = AUTO_W.battery!(bat, ctx);
+    const bat = {t: 'battery', level: n.battery ?? 0} as WfBattery, batW = must(AUTO_W.battery)(bat, ctx);
     const modeW = n.mode ? chipW(ctx, n.mode) : 0, modeTone = n.modeTone ?? (lost ? 'danger' : 'accent');
     // rows: wide = [name .. mode] [battery  signal] [last];  compact = [name] [mode] [battery] [signal] [last]
     const mx = compact ? x + 14 : x + w - 12 - modeW, my = compact ? y + 44 : y + 14;
     const by = compact ? y + 76 : y + 46, sx = compact ? x + 14 : x + 14 + batW + 24, sy = compact ? y + 102 : y + 46, ly = compact ? y + 142 : y + 90;
     if (n.mode) drawChip(ctx, n.mode, mx, my, modeTone);
-    DRAW.battery!(bat, x + 14, by, w, 24, ctx);
-    DRAW.signal!({t: 'signal', level: n.link ?? 3} as WfSignal, sx, sy, w, 24, ctx);
+    must(DRAW.battery)(bat, x + 14, by, w, 24, ctx);
+    must(DRAW.signal)({t: 'signal', level: n.link ?? 3} as WfSignal, sx, sy, w, 24, ctx);
     text(ctx, n.last ? `最終受信 ${n.last}` : '最終受信 —', x + 14, ly, {fill: lost ? 'danger' : 'muted', weight: lost ? 700 : 400});
     part(ctx, n, 'marker', x + 14, y + 12); part(ctx, n, 'name', tx - 2, y + 12); part(ctx, n, 'mode', mx + (compact ? -2 : modeW), my);
     part(ctx, n, 'battery', x + 8, by); part(ctx, n, 'signal', sx - 6, sy); part(ctx, n, 'last', x + 8, ly - 12);
@@ -372,8 +373,8 @@ export function installParts(h: WfHelpers): WfPartsApi {
     let used = 0;
     for (const l of layers) {
       const lw = 44 + tw(ctx, lname(l), S, 400);
-      if (rows.at(-1)!.length && used + lw > w - 16) { rows.push([]); used = 0; }
-      rows.at(-1)!.push({l, lw}); used += lw + 16;
+      if (must(rows.at(-1)).length && used + lw > w - 16) { rows.push([]); used = 0; }
+      must(rows.at(-1)).push({l, lw}); used += lw + 16;
     }
     const withSlider = n.controls !== false && n.opacity !== false;
     const strip = n.controls === false ? 0 : 8 + rows.length * 28 + (withSlider ? 30 : 0) + 6, vh = Math.max(60, hh - strip);

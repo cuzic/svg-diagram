@@ -10,6 +10,7 @@ import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
 import type {Anchor, BoxTone, Dimmed, FontFamily, Rect, RevealOpts, Roles, TextTone, WidthOf} from './types.ts';
 
+import {must} from './must.ts';
 export interface FlowStep {label: string; sub?: string; id?: string; tone?: BoxTone}
 export interface ChevronOpts extends RevealOpts {id?: string; direction?: 'horizontal' | 'vertical'; first?: 'pentagon' | 'chevron'; gap?: number; current?: number; highlight?: number; width?: number}
 export interface FunnelStage {label: string; value?: number; id?: string; tone?: BoxTone}
@@ -280,7 +281,7 @@ function layoutVenn(b: VennBand, out: LaidOutFlowShape, t: Texts, anchor: Anchor
     const idx = o.sets.map(name => b.sets.findIndex(s => s.name === name));
     if (idx.length === b.sets.length) { centred(o.label, mid, (three ? .55 : .7) * r); continue; }
     // a pair of three: the middle of the part only these two share, on the side away from the third circle
-    const [p, q] = [pos[idx[0]], pos[idx[1]]], third = pos[[0, 1, 2].find(j => !idx.includes(j))!];
+    const [p, q] = [pos[idx[0]], pos[idx[1]]], third = pos[must([0, 1, 2].find(j => !idx.includes(j)))];
     const m: Pt = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], D = Math.hypot(m[0] - third[0], m[1] - third[1]);
     const half = Math.sqrt(r * r - (Math.hypot(p[0] - q[0], p[1] - q[1]) / 2) ** 2), reach = (r + D + half) / 2;
     centred(o.label, [third[0] + (m[0] - third[0]) / D * reach, third[1] + (m[1] - third[1]) / D * reach], .5 * r);

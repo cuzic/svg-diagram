@@ -8,6 +8,7 @@ import {rasterize} from './lib/raster.ts';
 import {closeMeasurer} from './lib/measure.ts';
 import {buildSheet, paginate, pageName} from './lib/contact.ts';
 
+import {must} from './lib/must.ts';
 const args = process.argv.slice(2);
 const VALUE = ['--out', '--cols', '--width', '--engine', '--per-page', '--pages'];
 const val = (n: string, d: string) => { const i = args.indexOf(n); return i === -1 ? d : args[i + 1]; };
@@ -30,7 +31,7 @@ try {
     const sheet = buildSheet(page.map(f => [f, fs.readFileSync(f, 'utf8')] as [string, string]), {cols, width});
     const file = pageName(out, i, pages.length);
     fs.mkdirSync(path.dirname(path.resolve(file)), {recursive: true});
-    fs.writeFileSync(file, (await rasterize(sheet.svg, {png: true, engine})).png!);
+    fs.writeFileSync(file, must((await rasterize(sheet.svg, {png: true, engine})).png));
     written.push(file);
     console.log(`wrote ${file} (${page.length} diagrams)`);
   }

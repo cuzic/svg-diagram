@@ -7,6 +7,7 @@ import type {PlaneBand, PlaneOpts, PlanePoint, PlanePath, PlaneTone, PlaneLine, 
 import type {ChartOpts} from './charts-base.ts';
 import {ROLES} from './tokens.ts';
 
+import {must} from './must.ts';
 export interface LineSeries {
   label: string;
   /** One value per category (null: a gap), or [x, y] pairs for a numeric x axis. */
@@ -72,7 +73,7 @@ export function linesOpts(series: readonly LineSeries[], opts: LinesOpts = {}): 
     });
   });
   if (cats) for (const [k, p] of pts.entries()) if (p.length !== cats.length) fail(who, `series "${series[k].label}" has ${p.length} values for ${cats.length} categories (use null for a gap)`);
-  if (!cats) for (const [k, p] of pts.entries()) { const xs = p.map(q => q![0]); if (xs.some((x, i) => i > 0 && x <= xs[i - 1])) fail(who, `series "${series[k].label}": x must increase along the series`); }
+  if (!cats) for (const [k, p] of pts.entries()) { const xs = p.map(q => must(q)[0]); if (xs.some((x, i) => i > 0 && x <= xs[i - 1])) fail(who, `series "${series[k].label}": x must increase along the series`); }
   const real = pts.flat().filter((q): q is [number, number] => q !== null);
   if (!real.length) fail(who, 'every value is null');
   // axes

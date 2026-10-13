@@ -6,6 +6,7 @@ import {FONT_STACKS} from './tokens.ts';
 import {apply, elements, textOf, type El, type Matrix, type Style} from './svg-dom.ts';
 import type {FontFamily, FontSpecs} from './types.ts';
 
+import {must} from './must.ts';
 export interface Box {x: number; y: number; w: number; h: number}
 export type Point = [number, number];
 
@@ -20,7 +21,7 @@ export const unionBox = (boxes: (Box | null)[]): Box | null => {
   return b.length ? boxOf(b.flatMap(c => [[c.x, c.y], [c.x + c.w, c.y + c.h]] as Point[])) : null;
 };
 export const corners = (b: Box): Point[] => [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]];
-export const transformBox = (b: Box, m: Matrix): Box => boxOf(corners(b).map(([x, y]) => apply(m, x, y)))!;
+export const transformBox = (b: Box, m: Matrix): Box => must(boxOf(corners(b).map(([x, y]) => apply(m, x, y))));
 
 // ---- paths ----
 
@@ -36,10 +37,10 @@ export function flattenPath(d: string): {pts: Point[]; closed: boolean; extrema:
   const num = () => { ws(); NUM.lastIndex = i; const m = NUM.exec(d); if (!m) throw new Error(`path data: a number was expected at ${i}`); i += m[0].length; return parseFloat(m[0]); };
   const flag = () => { ws(); const c = d[i++]; if (c !== '0' && c !== '1') throw new Error(`path data: an arc flag was expected at ${i - 1}`); return c === '1'; };
   const start = (px: number, py: number) => { cur = {pts: [[px, py]], closed: false, extrema: []}; out.push(cur); };
-  const line = (px: number, py: number) => { if (!cur) start(fx, fy); cur!.pts.push([px, py]); };
+  const line = (px: number, py: number) => { if (!cur) start(fx, fy); must(cur).pts.push([px, py]); };
   const bez = (pts: Point[], n: number) => {
     if (!cur) start(fx, fy);
-    cur!.extrema.push(...curveExtrema(pts));
+    must(cur).extrema.push(...curveExtrema(pts));
     for (let k = 1; k <= n; k++) {
       const t = k / n, u = 1 - t;
       if (pts.length === 4) line(u ** 3 * pts[0][0] + 3 * u * u * t * pts[1][0] + 3 * u * t * t * pts[2][0] + t ** 3 * pts[3][0], u ** 3 * pts[0][1] + 3 * u * u * t * pts[1][1] + 3 * u * t * t * pts[2][1] + t ** 3 * pts[3][1]);
@@ -212,7 +213,7 @@ export function placeRuns(text: El, styles: Map<El, Style>, specs?: FontSpecs): 
   };
   const walk = (e: El) => {
     for (const c of e.children) {
-      if (typeof c === 'string') { const s = norm(c); if (s) chunk.runs.push({s, style: styles.get(e)!}); continue; }
+      if (typeof c === 'string') { const s = norm(c); if (s) chunk.runs.push({s, style: must(styles.get(e))}); continue; }
       if (c.tag !== 'tspan' && c.tag !== 'a') continue;
       const ax = num1(c.attrs.x), ay = num1(c.attrs.y), dx = num1(c.attrs.dx) ?? 0, dy = num1(c.attrs.dy) ?? 0;
       if (ax !== null || ay !== null || dx || dy) {

@@ -11,6 +11,7 @@ import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
 import type {Anchor, BoxTone, Dimmed, FontFamily, Rect, RevealOpts, Roles, WidthOf} from './types.ts';
 
+import {must} from './must.ts';
 // ---------------------------------------------------------------------------------------------------------------------------
 // input types
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -596,8 +597,8 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
       if (!arrows.some(a => segmentMeets(a, spot.box, 2))) return;
       const others = placed.filter((_p, j) => j !== pi);
       const save = placed.splice(0, placed.length, ...others); // test against the others only
-      const cands = SIDES.filter(s => s !== spot.side).map(side => ({side, box: result!.labelAt(u, side, spot.cx, spot.cy)}));
-      const ok = cands.find(cd => result!.free(u, spot.cx, spot.cy, cd.box, arrows.map(s => ({s}))));
+      const cands = SIDES.filter(s => s !== spot.side).map(side => ({side, box: must(result).labelAt(u, side, spot.cx, spot.cy)}));
+      const ok = cands.find(cd => must(result).free(u, spot.cx, spot.cy, cd.box, arrows.map(s => ({s}))));
       placed.splice(0, placed.length, ...save);
       if (ok) placed[pi].spot = {...spot, side: ok.side, box: ok.box};
     });
@@ -605,11 +606,11 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
 
   // ---- item labels (after any move) and the arrow labels
   placed.forEach(({u, spot}, pi) => {
-    const lb = result!.labelAt(u, spot.side, spot.cx, spot.cy);
+    const lb = must(result).labelAt(u, spot.side, spot.cx, spot.cy);
     u.lines.forEach((line, k) => texts.push({text: line, x: lb.tx, y: lb.y + k * lineN + size, anchor: lb.anchor, size, bold: false, fill: 'text', item: pi}));
     labelBoxes.push({x: spot.box.x, y: spot.box.y, w: spot.box.w, h: spot.box.h, label: u.item.label, kind: 'item', item: pi});
   });
-  const chipsBusy = (r: Rect): boolean => placed.some(({u, spot}) => circleRect(spot.cx, spot.cy, u.cr, r, 2) || rectsMeet(r, spot.box, 2)) || chips.some(o => rectsMeet(r, o, 2)) || result!.headers.some(hd => rectsMeet(r, hd, 2)) || !inside(r, result!.inPlot);
+  const chipsBusy = (r: Rect): boolean => placed.some(({u, spot}) => circleRect(spot.cx, spot.cy, u.cr, r, 2) || rectsMeet(r, spot.box, 2)) || chips.some(o => rectsMeet(r, o, 2)) || must(result).headers.some(hd => rectsMeet(r, hd, 2)) || !inside(r, must(result).inPlot);
   for (const al of arrowLabels) {
     const s = arrows[al.seg], lw = tw(al.text, size, 400), cw2 = lw + 10, ch = size + 6;
     let chip: Rect | undefined;

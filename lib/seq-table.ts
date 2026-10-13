@@ -9,6 +9,7 @@
 import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapAtoms} from './wrap.ts';
 import {CELL_MARKS} from './tokens.ts';
+import {must} from './must.ts';
 import type {
   SequenceBand, PreparedSequence, PreparedStep, TableBand, TableCell, TableColumn, ResolvedCell, TextRequest,
   WidthOf, FontFamily, LaidOutSequence, LaidOutSeqStep, LaidOutSeqHead, LaidOutTable, LaidOutTableRow, LaidOutTableCell,BoxTone, Roles,
@@ -81,7 +82,7 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
     h.y = y; h.h = headH;
     const top = SEQ.headPadY + (anyIcon ? Math.round((headH - 2 * SEQ.headPadY - h.lines.length * lineH(roles.title) - (a.icon ? SEQ_ICON_H : 0)) / 2) : 0);
     h.textDy = top + (a.icon ? SEQ_ICON_H : 0);
-    if (a.icon) h.icon = {name: a.icon, glyph: a.iconGlyph!, x: h.cx - SEQ_ICON / 2, y: y + top, size: SEQ_ICON, ...(a.iconTone ? {tone: a.iconTone} : {})};
+    if (a.icon) h.icon = {name: a.icon, glyph: must(a.iconGlyph), x: h.cx - SEQ_ICON / 2, y: y + top, size: SEQ_ICON, ...(a.iconTone ? {tone: a.iconTone} : {})};
   });
 
   let cursor = y + headH;
@@ -205,7 +206,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     const textBottom = Math.max(row.y, ...row.cells.slice(1).map(c => c.top + c.lines.length * lineH(roles.body)));
     const top = Math.max(row.y + row.h * 0.5, textBottom + 8), bottom = row.y + row.h - 10;
     const span = band.rowCurve.max - band.rowCurve.min;
-    const yOf = (v: number) => bottom - (v - band.rowCurve!.min) / span * (bottom - top);
+    const yOf = (v: number) => bottom - (v - must(band.rowCurve).min) / span * (bottom - top);
     rowCurve = {
       points: band.rowCurve.values.map((v, i) => ({x: colX[i + 1] + colW[i + 1] / 2, y: yOf(v)})),
       midY: yOf((band.rowCurve.min + band.rowCurve.max) / 2), top, bottom,

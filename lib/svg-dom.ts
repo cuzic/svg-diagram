@@ -1,3 +1,4 @@
+import {must} from './must.ts';
 // A small SVG reader for the checks on a rendering (lib/svg-lint.ts): the element tree, the cascade (presentation attributes, a
 // <style> block's simple selectors, style=""), colours and transforms. It covers what this tool emits and what a hand-written
 // diagram plausibly uses; it is not a CSS engine.
@@ -64,7 +65,7 @@ export function colourGroups(text: El, styles: Map<El, Style>): {style: Style; t
   const walk = (e: El) => {
     for (const c of e.children) {
       if (typeof c !== 'string') { walk(c); continue; }
-      const style = styles.get(e)!, g = groups.get(style.fill) ?? {style, txt: ''};
+      const style = must(styles.get(e)), g = groups.get(style.fill) ?? {style, txt: ''};
       g.txt += c;
       groups.set(style.fill, g);
     }
@@ -176,10 +177,10 @@ function rulesOf(root: El): Rule[] {
       for (const selText of r[1].split(',')) {
         const chain = selText.trim().split(/\s+/).map(compound);
         if (!chain.length || chain.some(c => !c)) continue;
-        const last = chain[chain.length - 1]!;
+        const last = must(chain[chain.length - 1]);
         const ancestors = chain.slice(0, -1) as NonNullable<(typeof chain)[number]>[];
         rules.push({
-          specificity: chain.reduce((s, c) => s + c!.spec, 0), order: order++, decls,
+          specificity: chain.reduce((s, c) => s + must(c).spec, 0), order: order++, decls,
           sel: e => last.test(e) && (() => { let a = e.parent, i = ancestors.length - 1; while (a && i >= 0) { if (ancestors[i].test(a)) i--; a = a.parent; } return i < 0; })(),
         });
       }

@@ -16,6 +16,7 @@ import {createHash} from 'node:crypto';
 import {renderSource} from './render-source.ts';
 import {diagramTarget, decodeTarget, resolveSource, figureName, inlineSvg, htmlFigure, plainText, type Render} from './markdown-target.ts';
 
+import {must} from './must.ts';
 export interface ExpandOptions {
   /** The Markdown file's path — sources are resolved from its directory. */
   file: string;
@@ -104,9 +105,9 @@ export async function expandMarkdown(text: string, opts: ExpandOptions): Promise
     const m = /^([ \t>]*)(?:(?:[-*+]|\d+[.)])[ \t]+)?(`{3,}|~{3,})/.exec(ln);
     const nested = !!m && /[>\-*+\d]/.test(m[0].replace(m[2], '')) || inList;
     const isFence = !!m && (nested || m[1].replace(/\t/g, '    ').length < 4);
-    if (fence) { if (isFence && m![2][0] === fence[0] && m![2].length >= fence.length && !ln.slice(m![0].length).trim()) { fence = undefined; afterBlock = true; } continue; }
+    if (fence) { if (isFence && must(m)[2][0] === fence[0] && must(m)[2].length >= fence.length && !ln.slice(must(m)[0].length).trim()) { fence = undefined; afterBlock = true; } continue; }
     if (comment) { if (ln.includes('-->')) comment = false; continue; }
-    if (isFence && !(m![2][0] === '`' && ln.slice(m![0].length).includes('`'))) { fence = m![2]; continue; }
+    if (isFence && !(must(m)[2][0] === '`' && ln.slice(must(m)[0].length).includes('`'))) { fence = must(m)[2]; continue; }
     if (/^\s*(?:[-*+]|\d+[.)])[ \t]/.test(ln)) inList = true;
     else if (ln.trim() && !/^\s/.test(ln)) inList = false;
     const indented = /^( {4,}|\t)/.test(ln);
@@ -124,8 +125,8 @@ export async function expandMarkdown(text: string, opts: ExpandOptions): Promise
       const real = ln.slice(h.index, h.index + h[0].length);
       out += ln.slice(at, h.index);
       at = h.index + h[0].length;
-      if ((/\\*$/.exec(ln.slice(0, h.index))![0].length) % 2 === 1) { out += real; continue; } // `\!` is escaped, `\\!` is not
-      const [a0, a1] = h.indices![1]!;
+      if ((must(/\\*$/.exec(ln.slice(0, h.index)))[0].length) % 2 === 1) { out += real; continue; } // `\!` is escaped, `\\!` is not
+      const [a0, a1] = must(must(h.indices)[1]);
       const alt = ln.slice(a0, a1);
       const label = plainText(alt) || undefined; // the text a screen reader gets
       const t = diagramTarget(h[2]);

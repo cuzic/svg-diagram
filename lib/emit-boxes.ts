@@ -7,6 +7,7 @@ import {visibleAt} from './reveal.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
 import {snap4, escapeXml, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
 
+import {must} from './must.ts';
 // Numbered circle badge for box({step}) — solid accent fill, white number,
 // centered on the title's own baseline (same offset every hand-authored
 // "① foo" box in this deck used between the badge and its number glyph).
@@ -34,7 +35,7 @@ export function renderBoxIcon(band: LaidOutBox, day: Theme): string {
   const top = band.iconAt === 'top', size = top ? band.iconSize ?? TOP_ICON_SIZE : ICON_SIZE;
   const x = top ? band.x + band.w / 2 - size / 2 : band.x + (band.padX ?? BOX_PAD_X), y = band.y + (band.padY ?? BOX_PAD_Y);
   const color = band.dim ? PALETTE.muted : runColorOf(band.iconTone, band.tone, day);
-  return '\n  ' + iconSvg({glyph: band.iconGlyph!, name: band.icon!, x, y, size, color, dim: band.dim, labelled: !!band.title});
+  return '\n  ' + iconSvg({glyph: must(band.iconGlyph), name: must(band.icon), x, y, size, color, dim: band.dim, labelled: !!band.title});
 }
 
 

@@ -3,6 +3,7 @@
 import {layoutTree} from './graph-layout.ts';
 import type {Placed, Pt, TreeLayout, TreeNode} from './graph-layout.ts';
 
+import {must} from './must.ts';
 const GAP = 20;
 
 const dup = (seen: Set<string>, id: string): void => {
@@ -68,7 +69,7 @@ export function layoutBrace(root: TreeNode, opts: {gap?: number} = {}): TreeLayo
   const t = layoutTree(root, {dir: 'right', gap: opts.gap ?? GAP, levelGap: 64});
   const braces: NonNullable<TreeLayout['braces']> = [], edges: TreeLayout['edges'] = [];
   const walk = (n: TreeNode): void => {
-    const p = t.nodes.get(n.id)!, kids = (n.children ?? []).map(c => ({c, p: t.nodes.get(c.id)!}));
+    const p = must(t.nodes.get(n.id)), kids = (n.children ?? []).map(c => ({c, p: must(t.nodes.get(c.id))}));
     if (!kids.length) return;
     if (kids.length === 1) { // one child: nothing to gather, a plain line
       const k = kids[0], cy = k.p.y + k.p.h / 2;
@@ -99,10 +100,10 @@ export function layoutFishbone(root: TreeNode, opts: {gap?: number} = {}): TreeL
   // each cause is a hanging list (its causes under it, indented to the left of the bone's side), read right to left
   const lists = new Map<string, TreeLayout>();
   for (const c of cats) for (const k of c.children ?? []) { const l = layoutHanging(k, {gap: 6, indent: 20}); for (const id of l.nodes.keys()) dup(seen, id); lists.set(k.id, mirror(l, 'x')); }
-  const blocksH = (c: TreeNode): number => (c.children ?? []).reduce((s, k, i) => s + lists.get(k.id)!.h + (i ? gap : 0), 0);
+  const blocksH = (c: TreeNode): number => (c.children ?? []).reduce((s, k, i) => s + must(lists.get(k.id)).h + (i ? gap : 0), 0);
   const lengthOf = (c: TreeNode): number => 16 + blocksH(c) + 22;
   const half = Math.max(0, ...cats.map(c => c.size.h + lengthOf(c)), root.size.h / 2), spineY = half;
-  const causeW = (c: TreeNode): number => Math.max(0, ...(c.children ?? []).map(k => lists.get(k.id)!.w));
+  const causeW = (c: TreeNode): number => Math.max(0, ...(c.children ?? []).map(k => must(lists.get(k.id)).w));
   const nodes = new Map<string, Placed>(), edges: TreeLayout['edges'] = [];
   // each row (the categories above the spine, the ones below) runs left to right: a category sits where its causes (to the left of
   // its bone) and its own box clear the one before; the bone leans toward the spine
@@ -121,8 +122,8 @@ export function layoutFishbone(root: TreeNode, opts: {gap?: number} = {}): TreeL
       let y = startY + dir * 16;
       for (const k of c.children ?? []) {
         // above the spine a block hangs downward from its cause; below it the block is turned over (its small bones are above the cause, toward the spine)
-        const raw = lists.get(k.id)!, block = top ? raw : mirror(raw, 'y');
-        const y0 = top ? y : y - block.h, kp = block.nodes.get(k.id)!, cyk = y0 + kp.y + kp.h / 2;
+        const raw = must(lists.get(k.id)), block = top ? raw : mirror(raw, 'y');
+        const y0 = top ? y : y - block.h, kp = must(block.nodes.get(k.id)), cyk = y0 + kp.y + kp.h / 2;
         const bxk = bx + dxs * (Math.abs(cyk - startY) / run), sx = bxk - 12 - block.w;
         for (const [id, p] of block.nodes) nodes.set(id, {...p, x: p.x + sx, y: p.y + y0});
         for (const e of block.edges) edges.push({...e, points: e.points.map(q => ({x: q.x + sx, y: q.y + y0}))});
@@ -162,7 +163,7 @@ export function layoutTimelineMap(root: TreeNode, opts: {gap?: number} = {}): Tr
     const placed = up ? mirror(sub, 'y') : sub;
     for (const [id, p] of placed.nodes) nodes.set(id, {...p, x: p.x + x, y: p.y + dy});
     for (const e of placed.edges) edges.push({from: e.from, to: e.to, points: e.points.map(p => ({x: p.x + x, y: p.y + dy}))});
-    const kp = nodes.get(k.id)!;
+    const kp = must(nodes.get(k.id));
     const stemX = kp.x + kp.w / 2;
     stems.push(stemX);
     edges.push({from: root.id, to: k.id, points: [{x: stemX, y: axisY}, {x: stemX, y: up ? kp.y + kp.h : kp.y}]});

@@ -11,6 +11,7 @@ import {measureNode, nodeRuns} from './tree.ts';
 import {wrapText} from './wrap.ts';
 import type {BoxTone, CauseBand, CauseRole, CloudArrow, CloudBand, CloudBox, FontFamily, LaidOutCause, LaidOutCloud, Roles, WidthOf} from './types.ts';
 
+import {must} from './must.ts';
 // ---- cause tree -------------------------------------------------------------------------------------------------------------
 
 const MAX_W = 200, GAP = 28, LEVEL = 64, PORT = 22; // PORT: the step between the arrows that meet one side of an entity (the arrowheads of an AND stay apart)
@@ -79,16 +80,16 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
   const order: string[] = [], put = (id: string): void => { if (!order.includes(id)) order.push(id); };
   for (const n of band.nodes) { put(n.id); for (const g of groups) if (g.arrows.some(k => arrows[k].from === n.id)) g.arrows.forEach(k => put(arrows[k].from)); }
-  const ranked = order.map(id => band.nodes.find(n => n.id === id)!);
+  const ranked = order.map(id => must(band.nodes.find(n => n.id === id)));
   // the most arrows that meet one node (each needs its own lane in the gap beside it)
   const degreeOf = (id: string): number => Math.max(arrows.filter(a => a.from === id).length, arrows.filter(a => a.to === id).length);
   const degree = Math.max(1, ...band.nodes.map(n => degreeOf(n.id)));
   // the side the arrows meet must be long enough to keep their heads apart: a box grows (its text stays centred)
   const real = new Map(band.nodes.map(n => {
-    const l = lines.get(n.id)!, need = 12 + (degreeOf(n.id) - 1) * PORT;
+    const l = must(lines.get(n.id)), need = 12 + (degreeOf(n.id) - 1) * PORT;
     return [n.id, vertical ? {w: Math.max(l.w, need), h: l.h} : {w: l.w, h: Math.max(l.h, need)}];
   }));
-  const nodes = ranked.map(n => ({id: n.id, size: vertical ? {w: real.get(n.id)!.h, h: real.get(n.id)!.w} : real.get(n.id)!}));
+  const nodes = ranked.map(n => ({id: n.id, size: vertical ? {w: must(real.get(n.id)).h, h: must(real.get(n.id)).w} : must(real.get(n.id))}));
   // layered layout runs on a 'right' axis; a vertical figure is the same layout transposed, an upward / leftward one mirrored
   const lay = layoutWithLanes(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree))});
   const total = {w: vertical ? lay.h : lay.w, h: vertical ? lay.w : lay.h};
@@ -100,7 +101,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     return {x: q.x + dx, y: q.y + dy};
   };
   const rectOf = (id: string) => {
-    const p = lay.nodes.get(id)!, q = vertical ? {x: p.y, y: p.x, w: p.h, h: p.w} : {x: p.x, y: p.y, w: p.w, h: p.h};
+    const p = must(lay.nodes.get(id)), q = vertical ? {x: p.y, y: p.x, w: p.h, h: p.w} : {x: p.x, y: p.y, w: p.w, h: p.h};
     if (flip) { if (vertical) q.y = total.h - (q.y + q.h); else q.x = total.w - (q.x + q.w); }
     return {x: q.x + dx, y: q.y + dy, w: q.w, h: q.h};
   };
@@ -113,7 +114,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
     out.nodes.push({...r, tone: n.tone ?? role.tone, ...(role.double ? {double: true} : {}), ...(n.role === 'obstacle' || n.role === 'risk' ? {hex: true} : {})});
     out.anchors.push({id: n.id, ...r});
-    const l = lines.get(n.id)!;
+    const l = must(lines.get(n.id));
     out.texts.push(...nodeRuns({x: r.x + (r.w - l.w) / 2, y: r.y + (r.h - l.h) / 2, w: l.w}, l, roles));
     out.labelBoxes.push({label: n.label, ...r});
   }
@@ -124,12 +125,12 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   for (const [i, e] of lay.edges.entries()) {
     if (e.self) continue;
     drawn.set(e.index, out.edges.length);
-    out.edges.push({from: e.from, to: e.to, points: routes.get(i)!, line: arrows[e.index].line});
+    out.edges.push({from: e.from, to: e.to, points: must(routes.get(i)), line: arrows[e.index].line});
   }
   // an AND: an arc across the last run of each of its arrows, a little before the arrowheads. It needs the arrows to arrive on
   // one side of the effect, all heading the same way, with room before the head for the arc
   for (const g of groups) {
-    const ends = g.arrows.map(k => out.edges[drawn.get(k)!].points).map(p => ({tip: p[p.length - 1], prev: p[p.length - 2]}));
+    const ends = g.arrows.map(k => out.edges[must(drawn.get(k))].points).map(p => ({tip: p[p.length - 1], prev: p[p.length - 2]}));
     const sgn = (v: number): number => Math.abs(v) < 0.5 ? 0 : Math.sign(v); // a last run a hair off the straight (float noise) is still straight
     const d = {x: sgn(ends[0].tip.x - ends[0].prev.x), y: sgn(ends[0].tip.y - ends[0].prev.y)};
     const along = (p: Pt): number => d.x ? p.x : p.y, cross = (p: Pt): number => d.x ? p.y : p.x;

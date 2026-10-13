@@ -1,3 +1,4 @@
+import {must} from './must.ts';
 // Pure graph layout for the diagram parts that place themselves: org charts and trees (layoutTree), mind maps (layoutBalanced),
 // state machines and flows (layoutLayered). No bands, fonts or SVG here: sizes in, rectangles and edge polylines out, so each
 // part measures its own boxes, calls one of these, and draws the result. Deterministic: the same input is the same output,
@@ -53,26 +54,26 @@ export function layoutTree(root: TreeNode, opts: TreeOpts = {}): TreeLayout {
   levelDepth.reduce((at, d, i) => (levelAt[i] = at, at + d + levelGap), 0);
   const centres = new Map<string, number>(), levels = new Map<string, number>();
   const place = (n: TreeNode, from: number, level: number): void => {
-    const mine = span.get(n)!, kids = n.children ?? [];
+    const mine = must(span.get(n)), kids = n.children ?? [];
     centres.set(n.id, from + mine / 2);
     levels.set(n.id, level);
-    const kidsSpan = kids.reduce((s, k, i) => s + span.get(k)! + (i ? gap : 0), 0);
+    const kidsSpan = kids.reduce((s, k, i) => s + must(span.get(k)) + (i ? gap : 0), 0);
     let at = from + (mine - kidsSpan) / 2;
-    for (const k of kids) { place(k, at, level + 1); at += span.get(k)! + gap; }
+    for (const k of kids) { place(k, at, level + 1); at += must(span.get(k)) + gap; }
   };
   place(root, 0, 0);
   const nodes = new Map<string, Placed>();
   const index = (n: TreeNode): void => {
-    const c = centres.get(n.id)!, l = levels.get(n.id)!;
+    const c = must(centres.get(n.id)), l = must(levels.get(n.id));
     nodes.set(n.id, dir === 'down' ? {x: c - n.size.w / 2, y: levelAt[l], ...n.size} : {x: levelAt[l], y: c - n.size.h / 2, ...n.size});
     for (const k of n.children ?? []) index(k);
   };
   index(root);
   const edges: TreeLayout['edges'] = [];
   const link = (n: TreeNode): void => {
-    const p = nodes.get(n.id)!;
+    const p = must(nodes.get(n.id));
     for (const k of n.children ?? []) {
-      const q = nodes.get(k.id)!;
+      const q = must(nodes.get(k.id));
       const [a, b] = dir === 'down' ? [{x: p.x + p.w / 2, y: p.y + p.h}, {x: q.x + q.w / 2, y: q.y}] : [{x: p.x + p.w, y: p.y + p.h / 2}, {x: q.x, y: q.y + q.h / 2}];
       const mid = dir === 'down' ? (a.y + b.y) / 2 : (a.x + b.x) / 2;
       edges.push({from: n.id, to: k.id, points: dir === 'down' ? [a, {x: a.x, y: mid}, {x: b.x, y: mid}, b] : [a, {x: mid, y: a.y}, {x: mid, y: b.y}, b]});
@@ -80,7 +81,7 @@ export function layoutTree(root: TreeNode, opts: TreeOpts = {}): TreeLayout {
     }
   };
   link(root);
-  const total = span.get(root)!, depth = levelAt[levelAt.length - 1] + levelDepth[levelDepth.length - 1];
+  const total = must(span.get(root)), depth = levelAt[levelAt.length - 1] + levelDepth[levelDepth.length - 1];
   return {nodes, edges, w: dir === 'down' ? total : depth, h: dir === 'down' ? depth : total};
 }
 
@@ -116,7 +117,7 @@ export function layoutBalanced(root: TreeNode, opts: Omit<TreeOpts, 'dir'> & {si
   const nodes = new Map<string, Placed>(), edges: TreeLayout['edges'] = [];
   const seen = new Set<string>([root.id]);
   nodes.set(root.id, {x: rootX, y: (H - root.size.h) / 2, ...root.size});
-  const rootP = nodes.get(root.id)!;
+  const rootP = must(nodes.get(root.id));
   const take = (t: TreeLayout | null, which: 'left' | 'right'): void => {
     if (!t) return;
     const ghost = `${root.id}\u0000${which}`, dy = (H - t.h) / 2;
@@ -128,7 +129,7 @@ export function layoutBalanced(root: TreeNode, opts: Omit<TreeOpts, 'dir'> & {si
       nodes.set(id, {...p, x: which === 'right' ? p.x + shiftX : t.w - p.x - p.w, y: p.y + dy});
     }
     const rootEdge = (to: string): Pt[] => {
-      const q = nodes.get(to)!;
+      const q = must(nodes.get(to));
       const a = {x: which === 'right' ? rootP.x + rootP.w : rootP.x, y: rootP.y + rootP.h / 2}, b = {x: which === 'right' ? q.x : q.x + q.w, y: q.y + q.h / 2};
       const m = (a.x + b.x) / 2;
       return [a, {x: m, y: a.y}, {x: m, y: b.y}, b];
@@ -167,11 +168,11 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
 
   // 1. break cycles: DFS from the start nodes (then from the rest in input order); an edge to a node on the stack is reversed
   const out = new Map<string, string[]>(nodes.map(n => [n.id, []]));
-  for (const e of edges) if (e.from !== e.to) out.get(e.from)!.push(e.to);
+  for (const e of edges) if (e.from !== e.to) must(out.get(e.from)).push(e.to);
   const state = new Map<string, 0 | 1 | 2>(), back = new Set<string>();
   const dfs = (u: string): void => {
     state.set(u, 1);
-    for (const v of out.get(u)!) {
+    for (const v of must(out.get(u))) {
       if (state.get(v) === 1) back.add(`${u}\u0000${v}`);
       else if (!state.get(v)) dfs(v);
     }
@@ -183,13 +184,13 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
 
   // 2. longest-path layering (a start node stays on layer 0)
   const layer = new Map<string, number>(), preds = new Map<string, string[]>(nodes.map(n => [n.id, []]));
-  for (const d of dag) preds.get(d.b)!.push(d.a);
+  for (const d of dag) must(preds.get(d.b)).push(d.a);
   const depth = (u: string, trail: Set<string>): number => {
-    if (layer.has(u)) return layer.get(u)!;
-    if (starts.includes(u) && !preds.get(u)!.length) { layer.set(u, 0); return 0; } // a start with an edge into it is placed by that edge
+    if (layer.has(u)) return must(layer.get(u));
+    if (starts.includes(u) && !must(preds.get(u)).length) { layer.set(u, 0); return 0; } // a start with an edge into it is placed by that edge
     if (trail.has(u)) return 0;
     trail.add(u);
-    const l = preds.get(u)!.reduce((m, p) => Math.max(m, depth(p, trail) + 1), 0);
+    const l = must(preds.get(u)).reduce((m, p) => Math.max(m, depth(p, trail) + 1), 0);
     trail.delete(u);
     layer.set(u, l);
     return l;
@@ -198,13 +199,13 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
 
   // 3. dummies for edges that skip layers
   interface Slot {id: string; real: boolean; size: Size; layer: number}
-  const slots = new Map<string, Slot>(nodes.map(n => [n.id, {id: n.id, real: true, size: n.size, layer: layer.get(n.id)!}]));
+  const slots = new Map<string, Slot>(nodes.map(n => [n.id, {id: n.id, real: true, size: n.size, layer: must(layer.get(n.id))}]));
   const chains: {e: LayeredEdge; index: number; ids: string[]; rev: boolean}[] = [];
   const succ = new Map<string, string[]>(), pred = new Map<string, string[]>();
   for (const s of slots.keys()) { succ.set(s, []); pred.set(s, []); }
-  const link = (a: string, b: string): void => { succ.get(a)!.push(b); pred.get(b)!.push(a); };
+  const link = (a: string, b: string): void => { must(succ.get(a)).push(b); must(pred.get(b)).push(a); };
   dag.forEach((d, i) => {
-    const la = layer.get(d.a)!, lb = layer.get(d.b)!;
+    const la = must(layer.get(d.a)), lb = must(layer.get(d.b));
     const chain = [d.a];
     // longest-path layering puts the head of every edge below its tail, so ends on one layer cannot happen; kept straight if it ever does
     const to = d.b, step = lb >= la ? 1 : -1;
@@ -233,10 +234,10 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
   reindex();
   const sortBy = (r: string[], nb: Map<string, string[]>): void => {
     const key = new Map(r.map((id, i) => {
-      const ns = nb.get(id)!;
-      return [id, ns.length ? ns.reduce((s, n) => s + pos.get(n)!, 0) / ns.length : i] as const;
+      const ns = must(nb.get(id));
+      return [id, ns.length ? ns.reduce((s, n) => s + must(pos.get(n)), 0) / ns.length : i] as const;
     }));
-    r.sort((a, b) => key.get(a)! - key.get(b)! || pos.get(a)! - pos.get(b)!);
+    r.sort((a, b) => must(key.get(a)) - must(key.get(b)) || must(pos.get(a)) - must(pos.get(b)));
     r.forEach((id, i) => pos.set(id, i));
   };
   for (let s = 0; s < sweeps; s++) {
@@ -245,20 +246,20 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
   }
 
   // 5. coordinates: layers along one axis, each layer centred on the widest, then relaxed toward the neighbours without overlap
-  const thick = rows.map(r => Math.max(0, ...r.map(id => along(slots.get(id)!.size))));
+  const thick = rows.map(r => Math.max(0, ...r.map(id => along(must(slots.get(id)).size))));
   const at: number[] = [];
   thick.reduce((a, t, i) => (at[i] = a, a + t + levelGap), 0);
   const cross = new Map<string, number>(); // centre on the across axis
-  const extent = (r: string[]): number => r.reduce((s, id, i) => s + across(slots.get(id)!.size) + (i ? gap : 0), 0);
+  const extent = (r: string[]): number => r.reduce((s, id, i) => s + across(must(slots.get(id)).size) + (i ? gap : 0), 0);
   const widest = Math.max(0, ...rows.map(extent));
   for (const r of rows) {
     let a = (widest - extent(r)) / 2;
-    for (const id of r) { const w = across(slots.get(id)!.size); cross.set(id, a + w / 2); a += w + gap; }
+    for (const id of r) { const w = across(must(slots.get(id)).size); cross.set(id, a + w / 2); a += w + gap; }
   }
   const settle = (r: string[], nb: Map<string, string[]>): void => {
-    const want = r.map(id => { const ns = nb.get(id)!; return ns.length ? ns.reduce((s, n) => s + cross.get(n)!, 0) / ns.length : cross.get(id)!; });
+    const want = r.map(id => { const ns = must(nb.get(id)); return ns.length ? ns.reduce((s, n) => s + must(cross.get(n)), 0) / ns.length : must(cross.get(id)); });
     // left to right push-apart, then right to left, so the result is the closest non-overlapping arrangement to `want`
-    const w = r.map(id => across(slots.get(id)!.size));
+    const w = r.map(id => across(must(slots.get(id)).size));
     const c = want.slice();
     for (let i = 1; i < r.length; i++) c[i] = Math.max(c[i], c[i - 1] + (w[i - 1] + w[i]) / 2 + gap);
     const shift = (want.reduce((s, v, i) => s + v - c[i], 0)) / Math.max(1, r.length);
@@ -275,7 +276,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
   const hi = Math.max(0, ...[...slots.values()].map(s => (cross.get(s.id) ?? 0) + across(s.size) / 2));
 
   const centre = (id: string): Pt => {
-    const s = slots.get(id)!, a = at[s.layer] + thick[s.layer] / 2, c = cross.get(id)!;
+    const s = must(slots.get(id)), a = at[s.layer] + thick[s.layer] / 2, c = must(cross.get(id));
     return dir === 'down' ? {x: c, y: a} : {x: a, y: c};
   };
   const placed = new Map<string, Placed>();

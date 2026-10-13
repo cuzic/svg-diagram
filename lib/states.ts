@@ -7,6 +7,7 @@ import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
 import type {FontFamily, LaidOutStates, Roles, StatesBand, WidthOf} from './types.ts';
 
+import {must} from './must.ts';
 export const STATE_ICON = 24;
 const ICON_H = STATE_ICON + 4; // an icon above the label: its size and a gap
 const ARROW = 14, MAX_W = 200, GAP = 28, DOT = 8, LOOP = 26, LOOP_W = 12, CHIP_PAD = 6, INIT = '\u0000init';
@@ -53,7 +54,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   }));
   const labelW = (t: string): number => Math.ceil(textWidth(widthOf, t, S, 400)) + 2 * CHIP_PAD;
   const widest = Math.max(0, ...band.transitions.map(t => t.label ? labelW(t.label) : 0));
-  const nodes = band.states.map(s => ({id: s.id, size: {w: lines.get(s.id)!.w, h: lines.get(s.id)!.h}}));
+  const nodes = band.states.map(s => ({id: s.id, size: {w: must(lines.get(s.id)).w, h: must(lines.get(s.id)).h}}));
   const edges = band.transitions.map(t => ({from: t.from, to: t.to}));
   const loops = band.transitions.filter(t => t.from === t.to);
   // the most arrows that meet one state (each needs its own lane in the gap beside it)
@@ -66,7 +67,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
     dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : GAP,
     levelGap: Math.max(dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, gapFor(degree)), ...(band.initial ? {start: [INIT]} : {}),
   });
-  const at = (id: string) => { const p = lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
+  const at = (id: string) => { const p = must(lay.nodes.get(id)); return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
 
   // a loop sits above its state when the flow runs right (room is made at the top), and to its right when the flow runs down
   const loopLabelH = loops.some(t => t.label) ? S + 10 : 0;
@@ -86,11 +87,11 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
     rects.set(s.id, r);
     out.nodes.push({...r, tone: s.tone ?? 'plain', ...(s.final ? {final: true} : {}), ...(s.shape === 'circle' ? {circle: true} : {})});
     out.anchors.push({id: s.id, ...r});
-    const nl = lines.get(s.id)!, textH = (nl.label.length * Math.round(roles.body * 1.4)) + (nl.sub.length * Math.round(roles.note * 1.4));
+    const nl = must(lines.get(s.id)), textH = (nl.label.length * Math.round(roles.body * 1.4)) + (nl.sub.length * Math.round(roles.note * 1.4));
     // the text of a round node sits in its middle; an icon is above the text
     const iconH = s.icon ? ICON_H : 0, y0 = s.shape === 'circle' ? r.y + (r.h - textH - iconH) / 2 - 8 : r.y;
     out.texts.push(...nodeRuns({x: r.x, y: y0 + iconH, w: r.w}, nl, roles));
-    if (s.icon) out.icons.push({node: out.nodes.length - 1, name: s.icon, glyph: s.iconGlyph!, x: r.x + (r.w - STATE_ICON) / 2, y: y0 + 8, size: STATE_ICON});
+    if (s.icon) out.icons.push({node: out.nodes.length - 1, name: s.icon, glyph: must(s.iconGlyph), x: r.x + (r.w - STATE_ICON) / 2, y: y0 + 8, size: STATE_ICON});
     out.labelBoxes.push({label: s.label, ...r});
   }
   if (band.initial) { const p = at(INIT); out.initial = {x: p.x + dx + DOT, y: p.y + dy + DOT, r: DOT}; }
@@ -143,7 +144,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   for (const [i, e] of lay.edges.entries()) {
     const t = e.from === INIT ? undefined : pickTransition(e.from, e.to);
     if (e.self) {
-      const a = rects.get(e.from)!, cx = a.x + a.w / 2, cy = a.y + a.h / 2;
+      const a = must(rects.get(e.from)), cx = a.x + a.w / 2, cy = a.y + a.h / 2;
       if (dir === 'down') {
         const pts = [{x: a.x + a.w, y: cy - LOOP_W}, {x: a.x + a.w + LOOP, y: cy - LOOP_W}, {x: a.x + a.w + LOOP, y: cy + LOOP_W}, {x: a.x + a.w, y: cy + LOOP_W}];
         out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});
@@ -155,7 +156,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
       if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: () => ({x: cx, y: a.y - LOOP - (S + 8) / 2 - 2})});
       continue;
     }
-    const pts = routes.get(i)!;
+    const pts = must(routes.get(i));
     out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});
     if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: f => pointAt(pts, f), on: pts});
   }

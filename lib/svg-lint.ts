@@ -6,6 +6,7 @@ import {apply, closest, colourGroups, computeStyles, elements, IDENTITY, multipl
 import {boxOf, isShape, outlineOf, sampleAlong, textBoxOf, transformBox, unionBox, type Box, type Outline} from './svg-geom.ts';
 import type {FontSpecs} from './types.ts';
 
+import {must} from './must.ts';
 export interface RenderChecks {
   contrast: {txt: string; delta: number; fg: string; bg: string}[];
   overflow: {dx: number; dy: number} | null;
@@ -48,7 +49,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
     const hidden = !drawn || NOT_DRAWN.has(el.tag) || el.attrs.display === 'none' || /display\s*:\s*none/.test(el.attrs.style ?? '');
     const m = el === root ? ctm : multiply(ctm, parseTransform(el.attrs.transform));
     if (!hidden && SIZED.has(el.tag)) {
-      const style = styles.get(el)!;
+      const style = must(styles.get(el));
       const toScreen = multiply(view, m);
       let outline: Outline | null = null, local: Box | null;
       if (el.tag === 'text') local = textBoxOf(el, styles, specs);
@@ -69,12 +70,12 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
   const page: RGBA = am ? {r: parseInt(am[1], 16), g: parseInt(am[2], 16), b: parseInt(am[3], 16), a: 1} : {r: 255, g: 255, b: 255, a: 1};
   // 1. contrast: the colour behind a text's centre is the page colour with every filled shape that holds the centre painted over it, in order
   const shapes = items.filter(i => ['rect', 'circle', 'ellipse', 'polygon', 'path'].includes(i.tag) && i.user && i.style.fill !== 'none')
-    .map(i => { const c = parseColor(i.style.fill, i.style.color); return c ? {box: i.user!, c: {...c, a: c.a * i.style.fillOpacity * i.style.opacity}} : null; })
+    .map(i => { const c = parseColor(i.style.fill, i.style.color); return c ? {box: must(i.user), c: {...c, a: c.a * i.style.fillOpacity * i.style.opacity}} : null; })
     .filter((x): x is {box: Box; c: RGBA} => x !== null);
   for (const t of texts) {
     const txt = textOf(t.el).trim();
     if (!txt) continue;
-    const b = t.user!, cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    const b = must(t.user), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
     // an <image>'s pixels are unknown, so text drawn on one is judged by what is between them: it needs an opaque shape behind the whole
     // text (a plate); without one the contrast cannot be checked and is reported
     const at = items.indexOf(t);
@@ -103,7 +104,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
 
   // 3. text over text
   const labelled = items.filter(i => i.tag === 'text' && i.screen && i.screen.w && i.screen.h && textOf(i.el).trim())
-    .map(i => ({txt: textOf(i.el).trim().slice(0, 30), bb: i.screen!}));
+    .map(i => ({txt: textOf(i.el).trim().slice(0, 30), bb: must(i.screen)}));
   for (let i = 0; i < labelled.length; i++) for (let j = i + 1; j < labelled.length; j++) {
     const a = labelled[i].bb, b = labelled[j].bb;
     const ix = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), iy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);

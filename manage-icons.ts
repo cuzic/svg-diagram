@@ -17,6 +17,7 @@ import {addPack} from './lib/icon-pack.ts';
 import {findIcons} from './lib/icon-find.ts';
 import type {Candidate} from './lib/icon-find.ts';
 
+import {must} from './lib/must.ts';
 const [sub, ...rest] = process.argv.slice(2);
 const BOOLEAN = new Set(['color', 'accept-terms', 'all', 'list', 'skip-missing']);
 const flags = new Map<string, string>();
@@ -77,7 +78,7 @@ try {
     }
     case 'add-pack': {
       if (args.length !== 1 || !flags.get('prefix')) usage();
-      const r = addPack(args[0], {prefix: flags.get('prefix')!, terms: flags.get('terms'), acceptTerms: flags.has('accept-terms'), all: flags.has('all'), list: flags.has('list'), match: flags.get('match') ? new RegExp(flags.get('match')!, 'i') : undefined, exclude: flags.get('exclude') ? new RegExp(flags.get('exclude')!, 'i') : undefined});
+      const r = addPack(args[0], {prefix: must(flags.get('prefix')), terms: flags.get('terms'), acceptTerms: flags.has('accept-terms'), all: flags.has('all'), list: flags.has('list'), match: flags.get('match') ? new RegExp(must(flags.get('match')), 'i') : undefined, exclude: flags.get('exclude') ? new RegExp(must(flags.get('exclude')), 'i') : undefined});
       if (r.listed) console.log(r.added.join('\n'));
       else {
         console.log(`✓ ${flags.get('prefix')}: ${r.added.length} 個を追加${r.replaced.length ? `、${r.replaced.length} 個を置き換え` : ''}`);
@@ -133,6 +134,6 @@ async function writeSheet(flat: {word: string; c: Candidate}[], file: string): P
     const rows = [];
     for (let i = 0; i < flat.length; i += 3) rows.push(iconRow(flat.slice(i, i + 3).map(({word, c}, k) => ({icon: names[i + k], label: c.id, body: `${word} · ${c.style} · ${c.license}`, tone: c.mainSet ? 'accent' as const : undefined}))));
     const {svg} = await renderDiagram(diagram({theme: 'blue', title: '候補（accent の枠は主セット）'}).add(...rows), {name: 'find.svg', budget: 'measure'});
-    fs.writeFileSync(file, (await rasterize(svg, {png: true})).png!);
+    fs.writeFileSync(file, must((await rasterize(svg, {png: true})).png));
   } finally { icon.use(undefined); await closeMeasurer(); }
 }

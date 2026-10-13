@@ -18,6 +18,7 @@
 import {splitAtoms} from './atoms.ts';
 import type {WrapOptions} from './types.ts';
 
+import {must} from './must.ts';
 const CANNOT_START_LINE = new Set(
   '、。，．・：；！？」』）〕】〉》ゝゞーぁぃぅぇぉっゃゅょァィゥェォッャュョ'.split(''),
 );
@@ -34,7 +35,7 @@ export function setWrapMode(mode: WrapMode): WrapMode { const prev = wrapMode; w
 // The script run a one-character atom belongs to: 'k' katakana (with ー ・ and half-width kana), 'h' kanji; '' for anything else.
 function scriptRun(atom: string): 'k' | 'h' | '' {
   if ([...atom].length !== 1) return '';
-  const c = atom.codePointAt(0)!;
+  const c = must(atom.codePointAt(0));
   if ((c >= 0x30a1 && c <= 0x30ff) || (c >= 0xff66 && c <= 0xff9f)) return 'k';
   if ((c >= 0x4e00 && c <= 0x9fff) || (c >= 0x3400 && c <= 0x4dbf) || c === 0x3005) return 'h';
   return '';
@@ -123,14 +124,14 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
   // forward onto the next line's start instead.
   for (let i = 0; i < lines.length - 1; i++) {
     const line = lines[i];
-    const last = line[line.length - 1]!;
-    if (line.length > 1 && CANNOT_END_LINE.has(last.text)) {
+    const last = line.at(-1);
+    if (last && line.length > 1 && CANNOT_END_LINE.has(last.text)) {
       line.pop();
-      lines[i + 1]!.unshift(last);
+      must(lines[i + 1]).unshift(last);
     }
   }
 
-  for (const line of lines) while (line.length && isWhitespace(line[line.length - 1]!.text)) line.pop();
+  for (const line of lines) while (line.length && isWhitespace(must(line[line.length - 1]).text)) line.pop();
   return lines;
 }
 

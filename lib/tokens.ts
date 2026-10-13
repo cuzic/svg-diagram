@@ -9,6 +9,7 @@
 
 import type {ColorKey, PlainColorKey, Palette, Role, Roles, Theme, TextTone, Appearance} from './types.ts';
 
+import {must} from './must.ts';
 export const PALETTE: Palette = {
   bg: '#ffffff',
   text: '#22201b',
@@ -66,7 +67,7 @@ function baseMapOf(appearance: Appearance | undefined): Record<string, string> |
     const get = (k: keyof typeof o, fallback: string) => (o[k] ?? fallback).toLowerCase();
     m = {...DARK_OF};
     for (const k of ['bg', 'text', 'muted', 'border', 'code', 'danger'] as const) m[PALETTE[k]] = get(k, DARK_OF[PALETTE[k]]);
-    for (const t of ['amber', 'teal', 'blue'] as const) for (const k of ['accent', 'soft'] as const) if (o[k]) m[PALETTE[t][k]] = o[k]!.toLowerCase();
+    for (const t of ['amber', 'teal', 'blue'] as const) for (const k of ['accent', 'soft'] as const) if (o[k]) m[PALETTE[t][k]] = must(o[k]).toLowerCase();
     MAPS.set(key, m);
   }
   return m;

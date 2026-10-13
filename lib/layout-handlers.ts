@@ -33,6 +33,7 @@ import {
 import {lineWidth} from './layout-text.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
 
+import {must} from './must.ts';
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
 const rectOf = (p: Rect): Rect => ({x: p.x, y: p.y, w: p.w, h: p.h});
 
@@ -242,10 +243,10 @@ function layoutLegend(band: LegendBand, ctx: LayoutCtx, padX: number, cw: number
   const rows: (typeof items)[] = [[]];
   let rowW = 0;
   for (const it of items) {
-    const add = (rows.at(-1)!.length ? LEGEND_ITEM_GAP : 0) + it.w;
-    if (rows.at(-1)!.length && rowW + add > cw) { rows.push([]); rowW = 0; }
-    rowW += (rows.at(-1)!.length ? LEGEND_ITEM_GAP : 0) + it.w;
-    rows.at(-1)!.push(it);
+    const add = (must(rows.at(-1)).length ? LEGEND_ITEM_GAP : 0) + it.w;
+    if (must(rows.at(-1)).length && rowW + add > cw) { rows.push([]); rowW = 0; }
+    rowW += (must(rows.at(-1)).length ? LEGEND_ITEM_GAP : 0) + it.w;
+    must(rows.at(-1)).push(it);
   }
   const placedItems: LaidOutLegendItem[] = [];
   rows.forEach((r, ri) => {

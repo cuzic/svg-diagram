@@ -7,6 +7,7 @@ import {layoutBrace, layoutFishbone, layoutHanging, layoutTimelineMap, mirror} f
 import {wrapText} from './wrap.ts';
 import type {FontFamily, LaidOutTree, Roles, TreeBand, TreeItem, TreeNodeText, WidthOf} from './types.ts';
 
+import {must} from './must.ts';
 const PAD_X = 14, PAD_Y = 8, MIN_W = 88, DEFAULT_MAX_W = 200, GAP = 24, LEVEL_GAP = 44;
 
 /** Every item of a tree in drawing order (a parent before its children). */
@@ -70,14 +71,14 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   const build = (n: TreeItem): TreeNode => {
     const m = measureNode(n.label, n.sub, maxW, widthOf, roles);
     lines.set(n, m);
-    return {id: key.get(n)!, size: {w: m.w, h: m.h}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
+    return {id: must(key.get(n)), size: {w: m.w, h: m.h}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
   };
   const laidRoot = build(band.root);
   const sides = Object.fromEntries(Object.entries(band.sides ?? {}).map(([id, side]) => {
     const item = items.find(n => n.id === id);
     if (!item) throw new Error(`mindmap(): sides names unknown node id "${id}"`);
     if (!band.root.children?.includes(item)) throw new Error(`mindmap(): sides can pin only a child of the root ("${id}" is deeper)`);
-    return [key.get(item)!, side];
+    return [must(key.get(item)), side];
   }));
   const kind = band.balanced ? band.layout ?? 'radial' : band.dir === 'right' ? 'right' : 'down';
   if (band.sides && kind !== 'radial') throw new Error(`mindmap(): sides applies to the radial layout (this is layout: '${kind}')`);
@@ -98,7 +99,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     nodes: [], edges: [], texts: [], anchors: [], labelBoxes: [],
   };
   for (const n of items) {
-    const p = tree.nodes.get(key.get(n)!)!, l = lines.get(n)!;
+    const p = must(tree.nodes.get(must(key.get(n)))), l = must(lines.get(n));
     const r = {x: p.x + dx, y: p.y + dy, w: p.w, h: p.h};
     out.nodes.push({...r, tone: n.tone ?? 'plain', ...(n.id ? {id: n.id} : {})});
     if (n.id) out.anchors.push({id: n.id, ...r});

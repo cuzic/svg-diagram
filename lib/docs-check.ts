@@ -7,6 +7,7 @@
 
 import type {DocImage, DocCaption, DocNoteItem, Finding, WfNote, Band} from './types.ts';
 
+import {must} from './must.ts';
 const IMG = /!\[([^\]]*)\]\(([^)\s]+\.svg)\)/g;
 const PNG = /!\[([^\]]*)\]\(([^)\s]+\.png)\)/gi;
 // every  ![alt](...png)  in a page (local or remote): the raster copies of figures, checked against the figure sources and the files on disk
@@ -133,14 +134,14 @@ export function checkFigures(text: string, figs: DocImage[], chapter: number | n
     if (ns.length && ns.some((n, k) => n !== k + 1) && !ns.every(n => n === 1)) out.push({line: f.line, rule: 'doc-notes-number', severity: 'warn', message: `図の下の注釈の番号が 1 から順でない（${ns.join(', ')}）`});
   }
   if (caps.length) {                              // 図N-M in a sentence must name a figure that has a caption in this page (references to other chapters are not checked)
-    const have = new Set(caps.map(f => `${f.caption!.ch}-${f.caption!.no}`)), capLines = new Set(caps.map(f => f.caption!.line));
+    const have = new Set(caps.map(f => `${must(f.caption).ch}-${must(f.caption).no}`)), capLines = new Set(caps.map(f => must(f.caption).line));
     let fence = false;
     text.split('\n').forEach((ln, k) => {
       if (/^\s*(```|~~~)/.test(ln)) { fence = !fence; return; }
       if (fence || capLines.has(k + 1)) return;
       for (const m of ln.replace(/`[^`]*`/g, '').matchAll(new RegExp(FIG, 'g'))) {   // `図3-9` in inline code is an example, not a reference
         const ch = +m[1], key = `${m[1]}-${m[2]}`;
-        if (ch === (chapter ?? caps[0].caption!.ch) && !have.has(key)) out.push({line: k + 1, rule: 'doc-fig-ref-missing', severity: 'warn', message: `本文の「図${m[1]}-${m[2]}」に対応する図がこの文書にない`});
+        if (ch === (chapter ?? must(caps[0].caption).ch) && !have.has(key)) out.push({line: k + 1, rule: 'doc-fig-ref-missing', severity: 'warn', message: `本文の「図${m[1]}-${m[2]}」に対応する図がこの文書にない`});
       }
     });
   }

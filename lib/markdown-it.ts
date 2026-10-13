@@ -15,6 +15,7 @@ import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {diagramTarget, decodeTarget, resolveSource, inlineSvg, htmlFigure, vueHtml, escAttr, type Render} from './markdown-target.ts';
 
+import {must} from './must.ts';
 export interface SvgDiagramPluginOptions {
   /** 'svg' (default) or 'html'. A `#svg` / `#html` on an image's target wins. */
   render?: Render;
@@ -95,7 +96,7 @@ export default function svgDiagram(md: MdLike, opts: SvgDiagramPluginOptions = {
     if (!r.ok && strict) throw new Error(`svg-diagram: ${path.relative(base, src)}: ${r.problems.join('; ')}`);
     const alt = altOf(tok) || undefined;
     const seen: Map<string, number> = (env.__svgDiagramSeen ??= new Map());
-    const body = html ? htmlFigure(r.html!, alt, seen) : inlineSvg(r.svg, alt, seen);
+    const body = html ? htmlFigure(must(r.html), alt, seen) : inlineSvg(r.svg, alt, seen);
     return opts.vue ? vueHtml(body, inline ? 'span' : 'div') : body;
   };
 

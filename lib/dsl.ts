@@ -72,6 +72,7 @@ export {icon} from './icon-registry.ts';
 export type {IconName, EmojiName} from './icons.ts';
 import type {IconName} from './icons.ts';
 import type {RevealOpts} from './types.ts';
+import {must} from './must.ts';
 export {versus} from './versus.ts';
 export {steps} from './steps.ts';
 export type {StepItem, StepsOpts} from './steps.ts';
@@ -375,7 +376,7 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
     let from = f.from, to = f.to, auto = false;
     if (!fside && !tside) {
       auto = true;
-      const la = laneIdx.get(a.lane)!, lb = laneIdx.get(b.lane)!;
+      const la = must(laneIdx.get(a.lane)), lb = must(laneIdx.get(b.lane));
       if (b.col > a.col + a.span - 1) { from = `${fid}:right`; to = `${tid}:left`; }
       else if (a.col > b.col + b.span - 1) { from = `${fid}:left`; to = `${tid}:right`; }
       else if (lb > la || (lb === la && (b.row ?? 0) > (a.row ?? 0))) { from = `${fid}:bottom`; to = `${tid}:top`; }
@@ -902,7 +903,7 @@ export function people(total: number, countIn: number | readonly [number, number
   if (!(size >= 12 && size <= 96)) throw new Error(`people(): size must be from 12 to 96 px (got ${size})`);
   if (!(gap >= 0)) throw new Error(`people(): gap must be >= 0 (got ${gap})`);
   if (opts.align !== undefined && opts.align !== 'left' && opts.align !== 'center') throw new Error(`people(): align must be 'left' or 'center' (got ${opts.align})`);
-  for (const k of ['tone', 'tone2', 'rest'] as const) if (opts[k] !== undefined && !['accent', 'danger', 'muted'].includes(opts[k]!)) throw new Error(`people(): ${k} must be 'accent', 'danger' or 'muted' (got ${opts[k]})`);
+  for (const k of ['tone', 'tone2', 'rest'] as const) if (opts[k] !== undefined && !['accent', 'danger', 'muted'].includes(must(opts[k]))) throw new Error(`people(): ${k} must be 'accent', 'danger' or 'muted' (got ${opts[k]})`);
   if (opts.side !== undefined) {
     if (typeof opts.side.value !== 'string' || !opts.side.value) throw new Error('people(): side needs a value (the text beside the grid)');
     if (opts.side.size !== undefined && opts.side.size !== 'stat' && opts.side.size !== 'display') throw new Error(`people(): side.size must be 'stat' or 'display' (got ${opts.side.size})`);
@@ -922,7 +923,7 @@ export function dots(values: readonly DotDatum[], opts: DotsOpts = {}): DotsBand
   const min = opts.min ?? 0, max = opts.max ?? 1, r = opts.r ?? 10, TONES = ['accent', 'danger', 'muted'];
   if (!Number.isFinite(min) || !Number.isFinite(max) || !(max > min)) throw new Error(`dots(): needs finite min < max (got ${min} .. ${max})`);
   if (!(r >= 2 && r <= 24)) throw new Error(`dots(): r must be from 2 to 24 px (got ${r})`);
-  for (const k of ['width', 'height'] as const) if (opts[k] !== undefined && !(opts[k]! > 0 && Number.isFinite(opts[k]))) throw new Error(`dots(): ${k} must be a finite number > 0 (got ${opts[k]})`);
+  for (const k of ['width', 'height'] as const) if (opts[k] !== undefined && !(must(opts[k]) > 0 && Number.isFinite(opts[k]))) throw new Error(`dots(): ${k} must be a finite number > 0 (got ${opts[k]})`);
   const list = values.map(v => typeof v === 'number' ? {at: v} : v);
   for (const v of list) {
     if (!Number.isFinite(v.at)) throw new Error(`dots(): a value must be a finite number (got ${v.at})`);
@@ -1372,7 +1373,7 @@ export function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
   for (const [i, c] of over.entries()) if (c?.type === 'connect') throw new Error(`image(): over[${i}] is a connect() — add connectors at the top level of the diagram (they may point at ids inside the picture)`);
   if (!opts.alt?.trim() && !opts.decorative) throw new Error('image(): alt is required (what the picture shows) — or pass decorative: true when it adds nothing');
   if (opts.alt && opts.decorative) throw new Error('image(): alt and decorative: true contradict each other');
-  for (const k of ['width', 'height'] as const) if (opts[k] !== undefined && (!(opts[k]! > 0) || !Number.isFinite(opts[k]))) throw new Error(`image(): ${k} must be a finite number > 0 (got ${opts[k]})`);
+  for (const k of ['width', 'height'] as const) if (opts[k] !== undefined && (!(must(opts[k]) > 0) || !Number.isFinite(opts[k]))) throw new Error(`image(): ${k} must be a finite number > 0 (got ${opts[k]})`);
   if (opts.width !== undefined && opts.height !== undefined) throw new Error('image(): give width or height, not both (the other follows the picture\'s aspect ratio)');
   assertTextRole(opts.labelRole, LABEL_ROLES, 'image() labelRole');
   if (opts.align !== undefined && !['left', 'center', 'right'].includes(opts.align)) throw new Error(`image(): align must be 'left', 'center' or 'right' (got ${opts.align})`);
@@ -1662,7 +1663,7 @@ export function relationDiagram(nodes: readonly RelationNode[], links: readonly 
   for (const p of problems) if (!ids.has(p)) throw new Error(`relationDiagram(): problem names unknown node "${p}"`);
   for (const l of links ?? []) if (typeof l.from !== 'string') throw new Error(`relationDiagram(): a link to "${l.to}" needs one cause as a string (use causeTree() for an AND)`);
   const out = new Map(nodes.map(n => [n.id, (links ?? []).filter(l => l.from === n.id).length])), into = new Map(nodes.map(n => [n.id, (links ?? []).filter(l => l.to === n.id).length]));
-  const top = Math.max(0, ...nodes.filter(n => !problems.has(n.id) && n.role === undefined).map(n => out.get(n.id)!));
+  const top = Math.max(0, ...nodes.filter(n => !problems.has(n.id) && n.role === undefined).map(n => must(out.get(n.id))));
   const {problem: _p, counts, ...rest} = opts;
   return causeTree(nodes.map(n => ({
     ...n,
@@ -1815,7 +1816,6 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
   // height. Without this a short diagram leaves the slot half empty and its
   // 14px text is as small as it was at 940px wide.
   let fontScale = 1;
-  let laidOut: LaidOutDiagram;
   let svg: string, html: string | undefined;
   // Every scale is its own value (scaleRoles): measured with, laid out with and drawn with the same roles, which travel in the result.
   const layoutAt = async (s: number): Promise<LaidOutDiagram> => {
@@ -1838,7 +1838,7 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
     if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
     notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
   }
-  laidOut = await layoutAt(fontScale);
+  const laidOut = await layoutAt(fontScale);
   laidOut.fontScale = fontScale;
   applySpotlight(laidOut);
   const verdict: Verdict = verifyDiagram(laidOut);

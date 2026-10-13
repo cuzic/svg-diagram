@@ -23,6 +23,7 @@ import {wrapAtoms} from './wrap.ts';
 import {badgeBox, BADGE_R} from './badge.ts';
 import type {BadgeBox} from './badge.ts';
 import {installParts} from './wireframe-parts.ts';
+import {must} from './must.ts';
 import type {
   Wf, WfNode, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark,
   WfChipSpec, WfChildren, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfScreen, WfKvPair,
@@ -722,7 +723,7 @@ function layoutScreen(item: WfScreen, ctx: WfCtx, x: number, y: number, w: numbe
 
 // ---- state matrix: rows (parts) x columns (states); every cell is a design, "対象外" (n/a, with a reason) or "未設計" (to do)
 function layoutMatrix(band: ScreensBand, ctx: WfCtx, x: number, y: number, w: number) {
-  const m = band.matrix!, n = m.cols.length, labelW = m.labelW ?? 112, gap = m.gap ?? 12;
+  const m = must(band.matrix), n = m.cols.length, labelW = m.labelW ?? 112, gap = m.gap ?? 12;
   const cw = (w - labelW - gap * n) / n, anchors: Rect[] = [];
   let cy = y;
   m.cols.forEach((c, i) => text(ctx, c, x + labelW + gap + i * (cw + gap) + cw / 2, cy + 20, {size: T, weight: 700, anchor: 'middle'}));
@@ -793,7 +794,7 @@ export function layoutWireframe(band: WireframeBand, x: number, y: number, w: nu
   const sw = hasNotes ? w - noteW - gap : w;
   const scr = layoutScreen({title: band.title, tag: band.tag, tagTone: band.tagTone, root: band.root, overlays: band.overlays, h: band.h, frame: band.frame, skeleton: band.skeleton}, ctx, x, y, sw, 440);
   let bottom = scr.bottom;
-  if (hasNotes) bottom = Math.max(bottom, scr.frame.y + drawNotes(ctx, band.notes!, x + sw + gap, scr.frame.y, noteW));
+  if (hasNotes) bottom = Math.max(bottom, scr.frame.y + drawNotes(ctx, must(band.notes), x + sw + gap, scr.frame.y, noteW));
   bottom += drawMarksLegend(ctx, band.marks, x, bottom + 4) ? 32 : 0;
   return {type: 'wireframe', id: band.id, title: band.title, x, y, w, h: bottom - y, prims: ctx.prims, callouts: ctx.all, anchors: band.id ? [{id: band.id, ...scr.frame}] : []};
 }

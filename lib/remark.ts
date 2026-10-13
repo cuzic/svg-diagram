@@ -14,6 +14,7 @@ import {renderSource, type RenderSourceResult} from './render-source.ts';
 import {parseXml, parseXmlFragment, type El} from './svg-dom.ts';
 import {diagramTarget, decodeTarget, resolveSource, inlineSvg, type Render} from './markdown-target.ts';
 
+import {must} from './must.ts';
 export interface RemarkSvgDiagramOptions {
   /** 'svg' (default) or 'html'. A `#svg` / `#html` on an image's target wins. */
   render?: Render;
@@ -64,9 +65,9 @@ export default function remarkSvgDiagram(opts: RemarkSvgDiagramOptions = {}) {
     const seen = new Map<string, number>();
     const deps = new Set<string>();
     for (const {node: n, parent} of found) {
-      const target = diagramTarget(n.url!)!;
+      const target = must(diagramTarget(must(n.url)));
       // the HTML form is made of <div>s, so it needs a paragraph of its own; inside running text the figure is drawn as an <svg>
-      const lone = parent.type === 'paragraph' && parent.children!.length === 1;
+      const lone = parent.type === 'paragraph' && must(parent.children).length === 1;
       const html = (target.render ?? opts.render) === 'html' && lone;
       let src = target.file, r: RenderSourceResult;
       const bad = (msg: string) => { if (strict) file.fail(msg, n); file.message(msg, n); };
@@ -79,11 +80,11 @@ export default function remarkSvgDiagram(opts: RemarkSvgDiagramOptions = {}) {
       const alt = n.alt ?? '';
       // A node type remark-rehype has no handler for becomes an element from data.hName/hProperties/hChildren.
       const fig: Node = {type: 'svgDiagram', data: html
-        ? {hName: 'div', hProperties: {className: ['svg-diagram'], ...(alt ? {role: 'figure', ariaLabel: alt} : {})}, hChildren: parseXmlFragment(dedupeId(r.html!, seen)).children.map(toHast)}
+        ? {hName: 'div', hProperties: {className: ['svg-diagram'], ...(alt ? {role: 'figure', ariaLabel: alt} : {})}, hChildren: parseXmlFragment(dedupeId(must(r.html), seen)).children.map(toHast)}
         : (() => { const root = parseXml(inlineSvg(r.svg, alt || undefined, seen)); return {hName: 'svg', hProperties: props(root.attrs), hChildren: root.children.map(toHast)}; })()};
       // A paragraph that is only the figure is replaced (<p> cannot hold the <div>s of the HTML form).
       const holder = lone ? findParent(tree, parent) : undefined;
-      if (lone && holder) holder.children![holder.children!.indexOf(parent)] = fig;
+      if (lone && holder) must(holder.children)[must(holder.children).indexOf(parent)] = fig;
       else { Object.assign(n, fig); delete n.url; delete n.alt; delete n.title; }
     }
     file.data.svgDiagramDeps = [...deps];

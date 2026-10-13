@@ -10,6 +10,7 @@ import {glyphFromSvg, packIconName} from './icon-store.ts';
 import type {InstalledIcon} from './icon-store.ts';
 import {manifestPath, readManifest, withManifestLock, writeManifest} from './icon-install.ts';
 
+import {must} from './must.ts';
 export interface PackOpts {
   prefix: string;
   terms?: string;
@@ -88,7 +89,7 @@ export function addPack(src: string, o: PackOpts): PackResult {
     const m = readManifest(file);
     const replaced = Object.keys(got).filter(n => n in m.icons);
     Object.assign(m.icons, got);
-    m.packs = {...(m.packs ?? {}), [o.prefix]: {terms: o.terms!.trim(), source: path.basename(path.resolve(src)), acceptedAt: o.today ?? new Date().toISOString().slice(0, 10)}};
+    m.packs = {...(m.packs ?? {}), [o.prefix]: {terms: must(o.terms).trim(), source: path.basename(path.resolve(src)), acceptedAt: o.today ?? new Date().toISOString().slice(0, 10)}};
     writeManifest(file, m);
     return {file, added: Object.keys(got).filter(n => !replaced.includes(n)), replaced, skipped, collisions, listed: false};
     });
