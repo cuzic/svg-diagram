@@ -101,7 +101,15 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   // the x axis name starts past the last tick's label (centred on the axis end), so the two never share space
   const lastTick = xTicks.length ? tw(xTicks[xTicks.length - 1].label) / 2 : 0;
   const xLabelGap = Math.max(14, Math.ceil(lastTick) + 8);
-  const padR = band.x.label ? xLabelGap + Math.ceil(tw(band.x.label, 700)) + 8 : Math.max(16, Math.ceil(lastTick) + 4);
+  let padR = band.x.label ? xLabelGap + Math.ceil(tw(band.x.label, 700)) + 8 : Math.max(16, Math.ceil(lastTick) + 4);
+  // endLabels: the right margin holds the widest label of a point labelled on its right (a label at fraction t of the plot is wholly inside when padR >= (14 + w - (1 - t)(W - padL)) / t)
+  const isLeader = (p: NonNullable<PlaneBand['points']>[number]): boolean => !!p.labelLeader && !!p.label && (p.labelAt === undefined || p.labelAt === 'auto') && !p.labelOffset;
+  const isEnd = (p: NonNullable<PlaneBand['points']>[number]): boolean => !!band.endLabels && !!p.label && p.labelAt === 'right' && !p.labelOffset;
+  for (const p of band.points ?? []) if (isLeader(p)) padR = Math.max(padR, Math.ceil(tw(p.label as string, 700)) + 10); // the margin column a leader label may move to
+  for (const p of band.points ?? []) if (isEnd(p)) {
+    const t = (p.at[0] - xMin) / xSpan;
+    if (t > 0.05) padR = Math.max(padR, Math.ceil((14 + tw(p.label as string, 700) - (1 - t) * (width - padL)) / t));
+  }
   const edge = Math.max(14, Math.ceil(g / 2) + 7); // half a tick label plus the gap, for a margin with no label of its own
   const padT = yDown ? g + 26 : band.y.label ? g + 20 : edge;
   const padB = yDown ? (band.y.label ? g + 22 : edge) : g + 26;
@@ -174,17 +182,19 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     }
   };
   const SIDES: Side[] = ['right', 'left', 'above', 'below', 'above-right', 'above-left', 'below-right', 'below-left'];
-  const autoLabels: {text: number; box: number; q: {x: number; y: number}; label: string; bold: boolean; first: Side}[] = [];
+  const endLabels: {text: number; box: number; y: number; from?: {x: number; y: number}}[] = [];
+  const autoLabels: {text: number; box: number; q: {x: number; y: number}; label: string; bold: boolean; first: Side; leader: boolean}[] = [];
   const points: LaidOutPlane['points'] = (band.points ?? []).map(p => {
     const q = pt(p.at), tone = p.tone ?? 'accent';
     if (p.label) {
       const side: Side = p.labelAt === undefined || p.labelAt === 'auto' ? 'right' : p.labelAt;
       const sp = spot(side, q), [ox, oy] = p.labelOffset ?? [0, 0];
       if (p.labelAt === undefined || p.labelAt === 'auto') {
-        if (!p.labelOffset) autoLabels.push({text: texts.length, box: boxes.length, q, label: p.label, bold: true, first: side});
+        if (!p.labelOffset && !isEnd(p)) autoLabels.push({text: texts.length, box: boxes.length, q, label: p.label, bold: true, first: side, leader: isLeader(p)});
       }
       addText(p.label, sp.x + ox, sp.base + oy, sp.anchor, tone, true, p.reveal);
     }
+    if (isEnd(p)) endLabels.push({text: texts.length - 1, box: boxes.length - 1, y: q.y});
     ink('a point', {x: q.x - 7, y: q.y - 7, w: 14, h: 14});
     return {x: q.x, y: q.y, tone, shape: p.shape ?? 'dot', ...(p.reveal ? {reveal: p.reveal} : {})};
   });
@@ -250,7 +260,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
 
   for (const l of band.labels ?? []) {
     const q = pt(l.at);
-    addText(l.text, q.x, q.y + half, l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold, l.reveal);
+    addText(l.text, q.x + (l.offset?.[0] ?? 0), q.y + half + (l.offset?.[1] ?? 0), l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold, l.reveal);
   }
 
   // An automatic point label that sits on the plane's ink or on another label moves to the first side that is free (all taken: stays).
@@ -260,6 +270,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     || boxes.some((o, i) => i !== self && overlapsRect(b, o));
   for (const a of autoLabels) {
     if (!hits(boxes[a.box], a.box)) continue;
+    let moved = false;
     const tww = tw(a.label, 700);
     for (const side of SIDES) {
       if (side === a.first) continue;
@@ -268,8 +279,30 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
       if (hits(box, a.box)) continue;
       texts[a.text] = {...texts[a.text], x: sp.x, y: sp.base, anchor: sp.anchor};
       boxes[a.box] = {...boxes[a.box], ...box};
+      moved = true;
       break;
     }
+    // no side is free: to the margin column, on a leader (it is spread with the end labels below)
+    if (!moved && a.leader) {
+      const x0 = plotR + 8, base = a.q.y + half, tww2 = tw(a.label, 700);
+      texts[a.text] = {...texts[a.text], x: x0, y: base, anchor: 'start'};
+      boxes[a.box] = {...boxes[a.box], x: x0, y: base - size, w: tww2, h: labelH};
+      endLabels.push({text: a.text, box: a.box, y: a.q.y, from: a.q});
+    }
+  }
+
+  // end labels: where two would touch, spread them apart (top to bottom, then back up from the bottom), keeping them on their points as near as possible
+  if (endLabels.length >= 1) {
+    const sorted = [...endLabels].sort((a, b) => a.y - b.y), pitch = labelH + 2;
+    const lo = plotT + size - 2, hi = plotB - 18; // a label's baseline stays inside the plot, off the axis
+    let ys = sorted.map(e => Math.min(hi, Math.max(lo, e.y + half)));
+    for (let i = 1; i < ys.length; i++) ys[i] = Math.max(ys[i], ys[i - 1] + pitch);
+    if (ys[ys.length - 1] > hi) { ys[ys.length - 1] = hi; for (let i = ys.length - 2; i >= 0; i--) ys[i] = Math.min(ys[i], ys[i + 1] - pitch); }
+    ys = ys.map(v => v - half);
+    sorted.forEach((e, i) => {
+      const base = ys[i] + half; texts[e.text] = {...texts[e.text], y: base}; boxes[e.box] = {...boxes[e.box], y: base - size};
+      if (e.from) lines.push({x1: e.from.x, y1: e.from.y, x2: plotR + 4, y2: base - half, tone: 'muted', dashed: true, arrow: false});
+    });
   }
 
   return {

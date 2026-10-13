@@ -16,6 +16,7 @@
 import type {BadgeBox} from './badge.ts';
 import type {IconName} from './icons.ts';
 import type {IconGlyph} from './icon-store.ts';
+import type {ChartBand, LaidOutChart} from './charts.ts';
 import type {ConnectInput, DeclaredIds, RefIn, ValidateBands} from './strict.ts';
 import type {RULE_DOCS, DEFAULT_LEGEND_LABELS} from './rules.ts';
 import type {RICH} from './rich.ts';
@@ -767,8 +768,14 @@ export interface PlanePoint {
   labelAt?: 'right' | 'left' | 'above' | 'below' | 'auto';
   /** Moves the label from where labelAt puts it, px [dx, dy]. Given: the label is not moved automatically. */
   labelOffset?: [number, number];
+  /**
+   * With an automatic `labelAt`: when no side of the point is free, the label moves to the right margin (room is made for it; it is spread
+   * apart from the other end labels) and a dotted leader joins it to its point. For a name that must be written even in a crowded plot.
+   */
+  labelLeader?: boolean;
   tone?: PlaneTone;
-  shape?: 'dot' | 'ring' | 'cross';
+  /** dot / ring / cross sit on the 4px grid; disc / hole / square / diamond / triangle sit exactly on the point (a line chart's markers on its vertices). */
+  shape?: 'dot' | 'ring' | 'cross' | 'disc' | 'hole' | 'square' | 'diamond' | 'triangle';
   /** The stage it (and its label) appears at; default the plane's own. */
   reveal?: number;
   until?: number;
@@ -811,7 +818,7 @@ export interface PlaneDim {
   reveal?: number;
   until?: number;
 }
-export interface PlaneLabel {at: PlanePos; text: string; anchor?: 'start' | 'middle' | 'end'; tone?: PlaneTone; bold?: boolean; reveal?: number}
+export interface PlaneLabel {at: PlanePos; text: string; anchor?: 'start' | 'middle' | 'end'; tone?: PlaneTone; bold?: boolean; reveal?: number; /** Moves the label from its position, px [dx, dy]. */ offset?: [number, number]}
 export interface PlaneOpts extends RevealOpts {
   /** The text role of every label of the figure (axis names, ticks, point / dimension / free labels). Default 'note' (14px). */
   labelRole?: LabelRole;
@@ -833,6 +840,11 @@ export interface PlaneOpts extends RevealOpts {
   yDown?: boolean;
   /** Light grid lines at the ticks. */
   grid?: boolean;
+  /**
+   * Direct end labels: the labels of points with an explicit `labelAt: 'right'` stand to the right of the plot (it makes room for the widest) and are
+   * spread apart vertically where they would touch. The way a line chart names its series without a legend.
+   */
+  endLabels?: boolean;
 }
 export interface PlaneBand extends PlaneOpts {
   type: 'plane';
@@ -1611,6 +1623,7 @@ export interface ScreensBand extends ScreensOpts {
 
 /** Every band the DSL constructors return. */
 export type Band =
+  | ChartBand
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
   | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | ImageBand | QuadrantBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
@@ -2220,7 +2233,7 @@ export interface LaidOutPlane extends Rect {
   ticks: PlaneSeg[];
   grid: PlaneSeg[];
   texts: PlaneText[];
-  points: {x: number; y: number; tone: PlaneTone; shape: 'dot' | 'ring' | 'cross'; reveal?: number}[];
+  points: {x: number; y: number; tone: PlaneTone; shape: NonNullable<PlanePoint['shape']>; reveal?: number}[];
   lines: (PlaneSeg & {tone: PlaneTone; dashed: boolean; arrow: boolean; reveal?: number})[];
   /** `curves`: one [control 1, control 2, end] per piece of a smooth path (empty for a polyline, which runs through `pts`). `tip`: the unit direction of the arrowhead. `overshoot`: px the curve leaves the plot area. */
   paths?: {pts: {x: number; y: number}[]; curves: {x: number; y: number}[][]; tone: PlaneTone; dashed: boolean; arrow: boolean; tip: {dx: number; dy: number}; reveal?: number; /** `grow` paths: the stage of each piece (one per segment of `pts`). */ segReveal?: number[]; overshoot: number}[];
@@ -2395,6 +2408,7 @@ export interface LaidOutBpmn extends Rect, Dimmed {
 }
 
 export type LaidOutBand = (
+  | LaidOutChart
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
   | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutQuadrant | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutCause | LaidOutCloud | LaidOutGantt | LaidOutClasses | LaidOutBpmn | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;

@@ -24,6 +24,7 @@
 
 import {plateStyle} from './image.ts';
 import {segHitsRect} from './bars.ts';
+import {checkCharts} from './charts-verify.ts';
 import {PALETTE, colorOf, luminance as lightLuminance, runColorOf, paintOf} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {lintDiagram, walkBands} from './rules.ts';
@@ -57,6 +58,8 @@ function collectRects(d: LaidOutDiagram): CheckRect[] {
   for (const band of d.laidOut) {
     if (band.type === 'screens') { // check each screen frame, not the bounding box that holds them all
       for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h});
+    } else if (band.type === 'chart') { // each bar / cell / node with an id is its own rect: a connector from outside must not run through one
+      for (const a of band.anchors) rects.push({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...(band.id ? {holds: [band.id]} : {})});
     } else if (band.type === 'image') {
       rects.push({id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id), ...(band.backdrop ? {backdrop: true} : {})});
     } else if (band.type === 'bars') {
@@ -537,6 +540,7 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
     ...checkPlanes(d),
     ...checkQuadrants(d),
     ...checkBars(d),
+    ...checkCharts(d),
     ...checkImages(d),
     ...checkTimelines(d),
     ...checkStates(d),

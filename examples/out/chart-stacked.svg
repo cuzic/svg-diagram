@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="741" viewBox="0 0 940 741" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">売上の内訳の推移</title>
+  <desc id="svg-desc">積み上げ棒グラフ: 2022（計 95億円）: 国内 62億円、北米 21億円、欧州 12億円。2023（計 107億円）: 国内 64億円、北米 29億円、欧州 14億円。2024（計 118億円）: 国内 61億円、北米 38億円、欧州 19億円。2025（計 136億円）: 国内 63億円、北米 47億円、欧州 26億円。100%積み上げ棒グラフ: 2022（計 95億円）: 国内 62億円（65.3%）、北米 21億円（22.1%）、欧州 12億円（12.6%）。2025（計 136億円）: 国内 63億円（46.3%）、北米 47億円（34.6%）、欧州 26億円（19.1%）</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-stacked.ts","sourceSha256":"9a9b4490270eb1e4ece2403ca860b2bf93f72d26317df5e05481fbbe45bce3c8"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="741" fill="#ffffff"/>
+
+  <path d="M59.36,22 H73.36 V36 H59.36 Z" fill="#ffffff"/>
+  <path d="M59.36,22 H73.36 V36 H59.36 Z" fill="#1d5fa8" fill-opacity="0.85" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="79" y="34" font-size="14" fill="#22201b">国内</text>
+  <path d="M129.36,22 H143.36 V36 H129.36 Z" fill="#ffffff"/>
+  <path d="M129.36,22 H143.36 V36 H129.36 Z" fill="#1d5fa8" fill-opacity="0.5" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="149" y="34" font-size="14" fill="#22201b">北米</text>
+  <path d="M199.36,22 H213.36 V36 H199.36 Z" fill="#ffffff"/>
+  <path d="M199.36,22 H213.36 V36 H199.36 Z" fill="#1d5fa8" fill-opacity="0.15" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="219" y="34" font-size="14" fill="#22201b">欧州</text>
+  <path d="M53.4,328 L912,328" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="49" y="333" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <path d="M53.4,292 L912,292" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="49" y="297" text-anchor="end" font-size="14" fill="#6f6659">20</text>
+  <path d="M53.4,256 L912,256" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="49" y="261" text-anchor="end" font-size="14" fill="#6f6659">40</text>
+  <path d="M53.4,220 L912,220" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="49" y="225" text-anchor="end" font-size="14" fill="#6f6659">60</text>
+  <path d="M53.4,184 L912,184" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="49" y="189" text-anchor="end" font-size="14" fill="#6f6659">80</text>
+  <path d="M53.4,148 L912,148" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="49" y="153" text-anchor="end" font-size="14" fill="#6f6659">100</text>
+  <path d="M53.4,112 L912,112" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="49" y="117" text-anchor="end" font-size="14" fill="#6f6659">120</text>
+  <path d="M53.4,76 L912,76" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="49" y="81" text-anchor="end" font-size="14" fill="#6f6659">140</text>
+  <path d="M59.4,76 L59.4,328" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M117.9,218.4 H213.9 V328 H117.9 Z" fill="#ffffff"/>
+  <path d="M117.9,218.4 H213.9 V328 H117.9 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="166" y="278" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">国内 62億円</text>
+  <path d="M117.9,180.6 H213.9 V216.4 H117.9 Z" fill="#ffffff"/>
+  <path d="M117.9,180.6 H213.9 V216.4 H117.9 Z" fill="#1d5fa8" fill-opacity="0.5"/>
+  <text x="166" y="204" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">北米 21億円</text>
+  <path d="M117.9,159 H213.9 V178.6 H117.9 Z" fill="#ffffff"/>
+  <path d="M117.9,159 H213.9 V178.6 H117.9 Z" fill="#1d5fa8" fill-opacity="0.15"/>
+  <text x="166" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">95億円</text>
+  <path d="M331.1,214.8 H427.1 V328 H331.1 Z" fill="#ffffff"/>
+  <path d="M331.1,214.8 H427.1 V328 H331.1 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="379" y="276" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">国内 64億円</text>
+  <path d="M331.1,162.6 H427.1 V212.8 H331.1 Z" fill="#ffffff"/>
+  <path d="M331.1,162.6 H427.1 V212.8 H331.1 Z" fill="#1d5fa8" fill-opacity="0.5"/>
+  <text x="379" y="193" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">北米 29億円</text>
+  <path d="M331.1,137.4 H427.1 V160.6 H331.1 Z" fill="#ffffff"/>
+  <path d="M331.1,137.4 H427.1 V160.6 H331.1 Z" fill="#1d5fa8" fill-opacity="0.15"/>
+  <text x="379" y="154" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">欧州 14億円</text>
+  <text x="379" y="128" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">107億円</text>
+  <path d="M544.3,220.2 H640.3 V328 H544.3 Z" fill="#ffffff"/>
+  <path d="M544.3,220.2 H640.3 V328 H544.3 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="592" y="279" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">国内 61億円</text>
+  <path d="M544.3,151.8 H640.3 V218.2 H544.3 Z" fill="#ffffff"/>
+  <path d="M544.3,151.8 H640.3 V218.2 H544.3 Z" fill="#1d5fa8" fill-opacity="0.5"/>
+  <text x="592" y="190" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">北米 38億円</text>
+  <path d="M544.3,117.6 H640.3 V149.8 H544.3 Z" fill="#ffffff"/>
+  <path d="M544.3,117.6 H640.3 V149.8 H544.3 Z" fill="#1d5fa8" fill-opacity="0.15"/>
+  <text x="592" y="139" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">欧州 19億円</text>
+  <text x="592" y="109" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">118億円</text>
+  <path d="M757.4,216.6 H853.4 V328 H757.4 Z" fill="#ffffff"/>
+  <path d="M757.4,216.6 H853.4 V328 H757.4 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="805" y="277" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">国内 63億円</text>
+  <path d="M757.4,132 H853.4 V214.6 H757.4 Z" fill="#ffffff"/>
+  <path d="M757.4,132 H853.4 V214.6 H757.4 Z" fill="#1d5fa8" fill-opacity="0.5"/>
+  <text x="805" y="178" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">北米 47億円</text>
+  <path d="M757.4,85.2 H853.4 V130 H757.4 Z" fill="#ffffff"/>
+  <path d="M757.4,85.2 H853.4 V130 H757.4 Z" fill="#1d5fa8" fill-opacity="0.15"/>
+  <text x="805" y="113" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">欧州 26億円</text>
+  <text x="805" y="76" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">136億円</text>
+  <text x="222" y="174" font-size="14" font-weight="700" fill="#22201b">欧州 12億円</text>
+  <text x="166" y="353" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">2022</text>
+  <text x="379" y="353" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">2023</text>
+  <text x="592" y="353" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">2024</text>
+  <text x="805" y="353" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">2025</text>
+
+  <path d="M70.58,387 H84.58 V401 H70.58 Z" fill="#ffffff"/>
+  <path d="M70.58,387 H84.58 V401 H70.58 Z" fill="#1d5fa8" fill-opacity="0.85" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="91" y="399" font-size="14" fill="#22201b">国内</text>
+  <path d="M140.58,387 H154.58 V401 H140.58 Z" fill="#ffffff"/>
+  <path d="M140.58,387 H154.58 V401 H140.58 Z" fill="#1d5fa8" fill-opacity="0.5" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="161" y="399" font-size="14" fill="#22201b">北米</text>
+  <path d="M210.58,387 H224.58 V401 H210.58 Z" fill="#ffffff"/>
+  <path d="M210.58,387 H224.58 V401 H210.58 Z" fill="#1d5fa8" fill-opacity="0.15" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="231" y="399" font-size="14" fill="#22201b">欧州</text>
+  <path d="M64.6,626 L912,626" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="631" text-anchor="end" font-size="14" fill="#6f6659">0%</text>
+  <path d="M64.6,585.4 L912,585.4" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="590" text-anchor="end" font-size="14" fill="#6f6659">20%</text>
+  <path d="M64.6,544.8 L912,544.8" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="550" text-anchor="end" font-size="14" fill="#6f6659">40%</text>
+  <path d="M64.6,504.2 L912,504.2" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="509" text-anchor="end" font-size="14" fill="#6f6659">60%</text>
+  <path d="M64.6,463.6 L912,463.6" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="469" text-anchor="end" font-size="14" fill="#6f6659">80%</text>
+  <path d="M64.6,423 L912,423" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="428" text-anchor="end" font-size="14" fill="#6f6659">100%</text>
+  <path d="M70.6,423 L70.6,626" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M232.9,495.5 H328.9 V626 H232.9 Z" fill="#ffffff"/>
+  <path d="M232.9,495.5 H328.9 V626 H232.9 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="281" y="566" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">国内 65.3%</text>
+  <path d="M232.9,450.6 H328.9 V493.5 H232.9 Z" fill="#ffffff"/>
+  <path d="M232.9,450.6 H328.9 V493.5 H232.9 Z" fill="#1d5fa8" fill-opacity="0.5"/>
+  <text x="281" y="477" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">北米 22.1%</text>
+  <path d="M232.9,425 H328.9 V448.6 H232.9 Z" fill="#ffffff"/>
+  <path d="M232.9,425 H328.9 V448.6 H232.9 Z" fill="#1d5fa8" fill-opacity="0.15"/>
+  <text x="281" y="442" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">欧州 12.6%</text>
+  <path d="M653.6,534 H749.6 V626 H653.6 Z" fill="#ffffff"/>
+  <path d="M653.6,534 H749.6 V626 H653.6 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="702" y="585" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">国内 46.3%</text>
+  <path d="M653.6,463.8 H749.6 V532 H653.6 Z" fill="#ffffff"/>
+  <path d="M653.6,463.8 H749.6 V532 H653.6 Z" fill="#1d5fa8" fill-opacity="0.5"/>
+  <text x="702" y="503" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">北米 34.6%</text>
+  <path d="M653.6,425 H749.6 V461.8 H653.6 Z" fill="#ffffff"/>
+  <path d="M653.6,425 H749.6 V461.8 H653.6 Z" fill="#1d5fa8" fill-opacity="0.15"/>
+  <text x="702" y="448" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">欧州 19.1%</text>
+  <text x="281" y="651" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">2022</text>
+  <text x="281" y="669" text-anchor="middle" font-size="14" fill="#6f6659">計 95億円</text>
+  <text x="702" y="651" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">2025</text>
+  <text x="702" y="669" text-anchor="middle" font-size="14" fill="#6f6659">計 136億円</text>
+
+  <text x="20" y="715" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

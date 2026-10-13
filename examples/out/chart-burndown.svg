@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="416" viewBox="0 0 940 416" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">スプリント 12 のバーンダウン</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-burndown.ts","sourceSha256":"751d979ab735d5b4d69e42c94ad1e459fcf7a44381bca395e3ebcc6700dabd7a"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="416" fill="#ffffff"/>
+
+  <path d="M56,54 L56,320 M139,54 L139,320 M221,54 L221,320 M304,54 L304,320 M386,54 L386,320 M469,54 L469,320 M552,54 L552,320 M634,54 L634,320 M717,54 L717,320 M799,54 L799,320 M882,54 L882,320 M56,320 L882,320 M56,254 L882,254 M56,187 L882,187 M56,121 L882,121 M56,54 L882,54" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M56,320 L882,320 M56,320 L56,54" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="882,320 872,325 872,315" fill="#22201b"/>
+  <polygon points="56,54 61,64 51,64" fill="#22201b"/>
+  <path d="M56,320 L56,326 M139,320 L139,326 M221,320 L221,326 M304,320 L304,326 M386,320 L386,326 M469,320 L469,326 M552,320 L552,326 M634,320 L634,326 M717,320 L717,326 M799,320 L799,326 M882,320 L882,326 M56,320 L50,320 M56,254 L50,254 M56,187 L50,187 M56,121 L50,121 M56,54 L50,54" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M56,54 L882,320" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M56,54 L139,61 L221,81 L304,87 L386,117 L469,127 L552,157" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="884" cy="320" r="6" fill="#ffffff" stroke="#6f6659" stroke-width="2.5"/>
+  <path d="M50,54 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="#1d5fa8"/>
+  <path d="M133,61 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="#1d5fa8"/>
+  <path d="M215,81 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="#1d5fa8"/>
+  <path d="M298,87 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="#1d5fa8"/>
+  <path d="M380,117 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="#1d5fa8"/>
+  <path d="M463,127 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="#1d5fa8"/>
+  <path d="M546,157 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="#1d5fa8"/>
+  <circle cx="304" cy="88" r="6" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <text x="56" y="342" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
+  <text x="139" y="342" text-anchor="middle" font-size="14" fill="#6f6659">1</text>
+  <text x="221" y="342" text-anchor="middle" font-size="14" fill="#6f6659">2</text>
+  <text x="304" y="342" text-anchor="middle" font-size="14" fill="#6f6659">3</text>
+  <text x="386" y="342" text-anchor="middle" font-size="14" fill="#6f6659">4</text>
+  <text x="469" y="342" text-anchor="middle" font-size="14" fill="#6f6659">5</text>
+  <text x="552" y="342" text-anchor="middle" font-size="14" fill="#6f6659">6</text>
+  <text x="634" y="342" text-anchor="middle" font-size="14" fill="#6f6659">7</text>
+  <text x="717" y="342" text-anchor="middle" font-size="14" fill="#6f6659">8</text>
+  <text x="799" y="342" text-anchor="middle" font-size="14" fill="#6f6659">9</text>
+  <text x="882" y="342" text-anchor="middle" font-size="14" fill="#6f6659">10</text>
+  <text x="44" y="325" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <text x="44" y="259" text-anchor="end" font-size="14" fill="#6f6659">20</text>
+  <text x="44" y="192" text-anchor="end" font-size="14" fill="#6f6659">40</text>
+  <text x="44" y="126" text-anchor="end" font-size="14" fill="#6f6659">60</text>
+  <text x="44" y="59" text-anchor="end" font-size="14" fill="#6f6659">80</text>
+  <text x="898" y="325" font-size="14" font-weight="700" fill="#6f6659">日</text>
+  <text x="52" y="40" font-size="14" font-weight="700" fill="#6f6659">残りポイント</text>
+  <text x="564" y="162" font-size="14" font-weight="700" fill="#1d5fa8">実績</text>
+  <text x="304" y="73" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">仕様変更で増加</text>
+  <text x="479" y="180" font-size="14" font-weight="700" fill="#6f6659">理想</text>
+
+  <text x="20" y="390" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

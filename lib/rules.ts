@@ -460,5 +460,6 @@ export function diagramDesc(d: DiagramData, stage?: number): string {
   for (const b of walkBands(d.bands)) if (b.type === 'image' && b.alt) parts.push(`画像: ${oneLine(b.alt)}`);
   // outside the fallback above, so boxes and hidden-value bars can share one description
   for (const b of bands) if (b.type === 'bars' && barsValuesHidden(b)) parts.push(`値: ${b.data.filter(x => visibleAt(x, stage)).map(x => `${oneLine(x.label)} ${fmt(x.value)}${b.unit ?? ''}`).join('、')}`);
+  for (const b of bands) if (b.type === 'chart') parts.push(oneLine(b.alt));
   return parts.join('。');
 }

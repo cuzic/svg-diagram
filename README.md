@@ -97,6 +97,14 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | relationDiagram(nodes, links, {problem, counts}) | 連関図。要因と因果の矢印（戻る矢印も可）。出る矢印・入る矢印の数を書き、出る矢印が最多の要因を主原因に（`causeTree` を返す） |
 | pdpc(nodes, links, {dir}) | PDPC 法。道筋（実線）と、懸念（六角形）・対策（点線）。`role`: start / step / risk / measure / goal（`causeTree` を返す） |
 | arrowDiagram(activities, {dir, times, summary}) | アロー・ダイヤグラム。丸が結合点、矢印が作業。最早/最遅の時刻・余裕・クリティカルパス（赤い太線）を計算する（`stateDiagram` を返す） |
+| waterfall(steps, {unit, dir, axis, connectors}) | ウォーターフォール図。開始 `{label, value}`・増減（`value` は ± の差）・小計/合計（`kind: 'subtotal'｜'total'`、`value` なしで累計）。棒は前の水準から浮き、コネクタで水準をつなぐ。値は `+220` / `-130` と符号つきで必ず書く。詳細は下の「コンサル系のチャート」 |
+| radar(axes, series, {max, values, unit}) | レーダーチャート。3〜12 軸・1〜4 系列。同心の目盛りに値、系列は線の種類と印の形（○ □ ◇ △）が違い、凡例に同じ線と印が出る |
+| heatmap(rows, cols, values, {unit, levels, corner, scale}) | ヒートマップ・コホート表・リテンション表。セルには数字を必ず書き、濃さは 3〜6 段階。`null` は空欄（–）。段階の凡例つき |
+| lines(series, {x, y, target, annotate}) / strategyCanvas / burndown / burnup | 折れ線（`plane` の薄い層）。系列ごとに印の形と線の種類が違い、名前は線の右端に直接書く。目標線・注目点。戦略キャンバス・バーンダウン・バーンアップのひな形つき |
+| stackedBars(columns, {unit, percent}) / mekko(columns, {unit}) | 積み上げ棒（`percent: true` で 100%）とマリメッコ図（列の幅 ∝ 合計、高さ ∝ 構成比）。各部分に数字。入らない部分は描かず `<desc>` に残る |
+| treemap(tree, {unit, percent, strict}) | ツリーマップ（squarified）。面積 ∝ 値（グループの枠と見出しの分も補正し、グループの中でも外でも同じ比）。名前と値が入らない小さなセルは描かず `<desc>` に残る（`strict: true` はエラー） |
+| sankey(nodes, links, {unit, align}) | サンキー図。層に分け、ノードの高さとリボンの太さは値に比例（目盛りは図全体で一つ）、ノードの名前に値、重ならない。リンクのないノードはエラー |
+| tornado(items, {base, unit}) | トルネード図（感度分析）。基準値から低ケース・高ケースの棒、幅の大きい順 |
 | pyramid / curve | ピラミッド、曲線 |
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
 | quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
@@ -442,6 +450,53 @@ bpmn(
 - `check` の「自動の凡例」（`legend: 'auto'`）と、色だけに頼る強調の検査は、これらの図の `tone`・破線・点線を数えない。`new` / `changed` / `removed` や破線の遷移・メッセージを使うときは、自分で `legend()` を置く。
 - 節の副題（`sub`）や «ステレオタイプ» の薄い文字は、`accent` / `new` の塗りの上でも 4.5:1 を保つよう、その塗りの上だけ通常の文字色になる。
 - ラベルの白いチップは、自分の矢印以外の矢印や、状態・クラス・ノードに乗らないよう置き場所を探す。見つからないときは `check` / `build` が、どれとどれが重なるかを書いて止まる。
+
+### コンサル系のチャート（`waterfall` / `radar` / `heatmap` / `lines` / `stackedBars` / `mekko` / `treemap` / `sankey` / `tornado`）
+
+データを渡すと、軸・目盛り・配置・ラベルの避け方を計算して描く。座標は書かない。どれも次を満たす。
+
+- **数字は必ず読める**: 値のラベルを出す。入らないセル・部分は描かずに `<desc>`（`diagram({title})` のある doc 媒体）に値を残す（`treemap({strict: true})` はエラー）。
+- **色だけに頼らない**: 増減は符号（`+` / `-`）と棒の向き、系列は線の種類と印の形、濃淡は数字と凡例。
+- **`id`**: 図に付けた `id` は図全体の `connect()` / `spotlight` の端点。要素の `id`（`waterfall` の段、`tornado` の行、`sankey` のノード、`treemap` の節、`radar` の系列、`stackedBars` / `mekko` の列）も端点になり、`spotlight` はその要素だけを残して他を薄くする（`treemap` の枠は残す）。`reveal` / `until` は図ごと。
+- **`labelRole`**（`'note'`｜`'banner'`｜`'stat'`）で文字の大きさを選べる。暗い背景（`appearance: 'dark'`）でも使える。
+- 色は既存のパレット。濃淡は強調色の 3〜6 段階（`pyramid` と同じ考え方）で、白い文字は濃い段にだけ載る（コントラストは `check` が見る）。
+
+| 図 | 書き方 | 例 |
+|---|---|---|
+| ウォーターフォール図 | `waterfall(steps, {unit, dir: 'v'｜'h'})` | `examples/chart-waterfall.ts` |
+| レーダーチャート | `radar(axes, series, {max, values})` | `examples/chart-radar.ts` |
+| ヒートマップ / コホート表 | `heatmap(rows, cols, values, {unit, corner})` | `examples/chart-heatmap.ts` |
+| 戦略キャンバス | `strategyCanvas(factors, series)` | `examples/chart-lines.ts` |
+| バーンダウン / バーンアップ | `burndown({total, days, actual})` / `burnup({scope, days, done})` | `examples/chart-burndown.ts` |
+| 折れ線（S カーブ・リテンション・カノモデル） | `lines(series, {x, y, target, annotate})` | |
+| 積み上げ棒 / 100% 積み上げ | `stackedBars(columns, {percent})` | `examples/chart-stacked.ts` |
+| マリメッコ図 | `mekko(columns)` | `examples/chart-mekko.ts` |
+| ツリーマップ | `treemap(tree)` | `examples/chart-treemap.ts` |
+| サンキー図 | `sankey(nodes, links)` | `examples/chart-sankey.ts` |
+| トルネード図 | `tornado(items, {base})` | `examples/chart-tornado.ts` |
+
+```ts
+waterfall([{label: '前期', value: 1000}, {label: '価格', value: 220}, {label: '数量', value: -130}, {label: '小計', kind: 'subtotal'}, {label: '今期', kind: 'total'}], {unit: '百万円'})
+radar(['品質', '価格', '納期'], [{label: '自社', values: [4, 3, 5]}, {label: 'A 社', values: [5, 2, 3]}], {max: 5, values: true})
+heatmap(['4月登録', '5月登録'], ['0か月', '1か月', '2か月'], [[100, 62, 48], [100, 66, null]], {unit: '%', corner: '登録月 ＼ 経過月'})
+lines([{label: '自社', values: [3, 4, 5]}, {label: '競合', values: [5, 3, 2]}], {x: {categories: ['価格', '品質', '速さ']}, y: {min: 0, max: 5}})
+mekko([{label: '北米', parts: [{label: 'A 社', value: 520}, {label: 'B 社', value: 310}]}, {label: '欧州', parts: [{label: 'A 社', value: 240}, {label: 'B 社', value: 280}]}], {unit: '億円'})
+treemap([{label: 'クラウド', children: [{label: 'ストレージ', value: 420}, {label: '計算基盤', value: 310}]}, {label: 'その他', value: 40}], {unit: '億円'})
+sankey(['広告', '訪問', '購入', '離脱'], [{from: '広告', to: '訪問', value: 100}, {from: '訪問', to: '購入', value: 15}, {from: '訪問', to: '離脱', value: 85}], {unit: '人'})
+tornado([{label: '販売単価', low: 640, high: 1360}, {label: '為替', low: 880, high: 1130}], {base: 1000, unit: '百万円'})
+```
+
+- **`waterfall`**: 最初の段は開始（`value` が水準）、ほかは増減（`value` が差）。`kind: 'subtotal'｜'total'` は 0 から立つ棒で（先頭には置けない）、`value` を書かなければ累計、書けば累計と合わなければ止まる。水準が 0 をまたいでも、負の合計でも描ける（0 の線が太い）。`dir: 'h'` は横向き（段の名前が長いとき）。棒の色は開始・合計が濃い色、小計が灰色、増加がアクセント、減少が赤（`tone` で変える）。
+- **`radar`**: 軸の値は同じ目盛り（`max`、既定は切りのよい数）。`values: true` で頂点に値を書く。ほかの系列と同じ場所で入らない値は描かず、`<desc>` に残る。系列の見分けは、実線・破線・点線・一点鎖線と、○ □ ◇ △ の印（凡例に同じものが出る）。目盛りの値は、系列の線と印に重ならない軸の横に書く（輪が文字より狭いときは 1 つおき、場所のない輪には書かない）。
+- **`heatmap`**: `null` は空欄（点線の枠にダッシュ）。濃さの境目は、`min` / `max` を省くと切りのよい数になり（段数は `levels` が上限）、凡例に範囲が出る。`rowHeader: false` で行の名前を太字にしない。長い行の名前は折り返し、行が高くなる。
+- **`lines`**: `plane` を返すので、`labelRole`・`id`・`reveal` はそのまま効く。`x: {categories}` なら系列は値の配列（`null` は途切れ）、数値軸なら `[x, y]` の配列。系列名は線の右端に書き、同じ高さで終わる名前は縦にずらす。早く終わる系列の名前は、近くに空きがなければ右端へ点線でつなぐ。`ideal: true` は破線の計画線（名前は線の途中に付く）、`target: {at, label}` は目標の横線、`annotate: [{at: [x, y]｜{series, index}, label}]` は注目点の輪と名前。カノモデルは `[x, y]` の点と `smooth: true`。系列は 6 つまで（印は ● ■ ◆ ▲ ○ ✕）。
+- **`mekko` / `stackedBars`**: 部分の名前は、列の最初の登場順に下から積む。7 つ以上の部分は止まる（「その他」にまとめる）。`stackedBars` の列は数字が入る幅まで広がる（区画の幅まで）。それでも数字が入らない部分は描かず `<desc>` に残る。`mekko` の列は最大 12、`stackedBars` は 20。
+- **`treemap`**: 葉は `{label, value}`、グループは `children`（4 階層まで。グループの値は子の合計で、書くなら一致が必要）。葉の `tone: 'accent'｜'danger'` は塗りつぶし。グループの名前が入らないときも `<desc>` に残る。グループの枠と見出しの帯が子の場所を取る分は重みを補正するので、葉の面積はグループの中でも外でも値に比例する。`percent: true` で全体に対する割合を添える。
+- **`sankey`**: ノードは文字列か `{id, label?, tone?}`（どのリンクにも出てこないノードはエラー）。層は最長経路で決まり（循環は止まる）、出ていかないノードは最後の層に寄る（`align: 'left'` で寄せない）。ノードの並びは交差が少なくなるように入れ替える。ノードの高さが値に比例するので、名前が収まらないほど低いノードでも、名前の高さ分の場所は空ける。リボンには、両端のどちらの名前にも載っていない値（分岐・合流の途中）だけ数字が入る。`tone: 'danger'` のリボンは赤の破線で縁取る。
+- **`tornado`**: `low` / `high` は「その入力が低い / 高いときの結果」（結果が低いとは限らない）。結果が基準と同じならその棒は描かず数字だけ書く。両方が基準の同じ側に出るときは、棒を 2 段に分ける。
+- 全部の検査（重なり・はみ出し・コントラスト）は `check` で、描画後の確認は `svg-diagram preview`。入らないラベル・列は、エラーに直し方（幅・高さ・省略）が書いてある。
+- 計算だけ取り出したいときは、`lib/charts-treemap.ts`（`squarify`）、`lib/charts-sankey.ts`（`layersOf`）、`lib/charts-heatmap.ts`（`heatLevel`）、`lib/charts-base.ts`（`niceScale`）が純粋な関数。
+- **`plane` の追加**: 点の `shape` は `dot` / `ring` / `cross`（4px の格子に載る）のほか、頂点にぴったり載る `disc` / `hole` / `square` / `diamond` / `triangle`。`endLabels: true` は `labelAt: 'right'` の点の名前を図の右端に集めて縦にずらす。`labelLeader: true` の点は、空いた側がないとき名前を右端へ移して点線でつなぐ。`labels` の `offset: [dx, dy]` で位置をずらせる。
 
 ### 時間軸と期限（`timeline`）
 
@@ -822,6 +877,7 @@ d.add(flow, connect(flow.anchors.a.right, flow.anchors.b.left));   // screens() 
 | `text-roles.ts` | 大きい文字: `banner` の `headlineRole: 'display'` と、`bars` / `plane` の `labelRole` |
 | `dark-theme.ts` | 暗い背景＋背景なし（`appearance: 'dark'`、`transparent: true`） |
 | `dark-bars-wall.ts` | 濃い背景の資料の色＋濃い赤の danger で描く棒グラフ（透明） |
+| `chart-waterfall.ts` ほか `chart-*.ts` | コンサル系のチャート（ウォーターフォール・レーダー・ヒートマップ・戦略キャンバス・バーンダウン・積み上げ・マリメッコ・ツリーマップ・サンキー・トルネード） |
 | `emphasis-tiers.ts` | 主役（solid）/ 次点（accent）/ その他（plain）の 3 段階と、凡例の「次点」 |
 
 ## Claude Code のスキル

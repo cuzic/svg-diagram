@@ -136,6 +136,25 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 - 状態の一覧: `stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', 空: {na: '理由'}})`。
 - 表の記号セル: `cell('通る', {mark: 'ok' | 'mid' | 'ng' | 'best'})`。座標平面（軸・点・寸法線）は `plane()`。`raw()` で SVG を手書きする前に、これらを探す。
 
+## コンサル系のチャート
+
+データを渡すと、軸・目盛り・配置・ラベルの避け方は自動。数字は必ず書く（入らない部分は `<desc>` に残る）。書き方の全部は README の「コンサル系のチャート」。
+
+| 図 | 部品 | 書くもの |
+|---|---|---|
+| ウォーターフォール | `waterfall(steps, {unit})` | `{label, value}`（先頭が開始、あとは ± の差）、`{label, kind: 'subtotal'｜'total'}`（累計）。符号つきの値・コネクタは自動。`dir: 'h'` は横向き |
+| レーダー | `radar(axes, series, {max, values})` | 3〜12 軸、1〜4 系列 `{label, values}`。線の種類と印の形で見分ける |
+| ヒートマップ / コホート表 | `heatmap(rows, cols, values, {unit, corner})` | 数字の表。`null` は空欄。濃淡は段階で、凡例つき |
+| 折れ線・戦略キャンバス・バーンダウン | `lines(series, {x, y, target, annotate})` / `strategyCanvas(factors, series)` / `burndown({total, days, actual})` / `burnup({scope, days, done})` | 系列名は線の右端。`ideal: true` が計画線 |
+| 積み上げ・100%・マリメッコ | `stackedBars(columns, {percent})` / `mekko(columns)` | `{label, parts: [{label, value}]}`。マリメッコは幅が合計、高さが構成比 |
+| ツリーマップ | `treemap(tree)` | 葉 `{label, value}`、グループ `{label, children}` |
+| サンキー | `sankey(nodes, links)` | ノード（文字列か `{id, label}`）と `{from, to, value}`。層・並び・太さは自動 |
+| トルネード | `tornado(items, {base})` | `{label, low, high}`（その入力が低い・高いときの結果）。幅の大きい順 |
+
+- どれも `id`（図全体）と、要素の `id` が `connect()` / `spotlight` の端点になり、`labelRole` で文字を大きくできる。`lines` 系は `plane` を返す。
+- 入らない値のラベル（狭い列・小さなセル）はエラーに直し方が書いてある。幅・高さを上げるか、小さいものを「その他」にまとめる。
+- 描いたら `svg-diagram preview` で目で見る。
+
 ## ワイヤーフレーム・画面遷移図で、見て直すこと（実際に効いた点）
 
 画面ごとに `wireframe(root, {title, tag, h, notes})` を書き、`n:` で番号の丸を付けて右の注釈欄と対応させる。

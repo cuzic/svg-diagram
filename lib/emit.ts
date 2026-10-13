@@ -20,6 +20,7 @@ import {TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE
 import {visibleAt} from './reveal.ts';
 import {spotlightDim} from './spotlight.ts';
 import {MARK_STROKE, plateStyle} from './image.ts';
+import {renderChart} from './charts-emit.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
 import type {LaidOutQuadrant} from './quadrant.ts';
 
@@ -375,6 +376,12 @@ function renderPlane(b: LaidOutPlane, day: Theme, stage?: number): string {
     const c = col(p.tone), x = snap4(p.x), y = snap4(p.y);
     if (p.shape === 'ring') out.push(`<circle cx="${x}" cy="${y}" r="6" fill="${PALETTE.bg}" stroke="${c}" stroke-width="2.5"/>`);
     else if (p.shape === 'cross') out.push(`<path d="M${x - 6},${y - 6} L${x + 6},${y + 6} M${x - 6},${y + 6} L${x + 6},${y - 6}" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`);
+    else if (p.shape === 'disc' || p.shape === 'hole') { const ex = Math.round(p.x), ey = Math.round(p.y); out.push(`<path d="M${ex - 6},${ey} a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="${p.shape === 'hole' ? PALETTE.bg : c}"${p.shape === 'hole' ? ` stroke="${c}" stroke-width="2.5"` : ''}/>`); }
+    else if (p.shape === 'square' || p.shape === 'diamond' || p.shape === 'triangle') {
+      const ex = Math.round(p.x), ey = Math.round(p.y);
+      const d = p.shape === 'square' ? `M${ex - 6},${ey - 6} H${ex + 6} V${ey + 6} H${ex - 6} Z` : p.shape === 'diamond' ? `M${ex},${ey - 8} L${ex + 8},${ey} L${ex},${ey + 8} L${ex - 8},${ey} Z` : `M${ex},${ey - 8} L${ex + 8},${ey + 6} L${ex - 8},${ey + 6} Z`;
+      out.push(`<path d="${d}" fill="${c}"/>`);
+    }
     else out.push(`<circle cx="${x}" cy="${y}" r="6" fill="${c}"/>`);
   }
   for (const t of b.texts.filter(t => visibleAt(t, stage))) {
@@ -899,6 +906,7 @@ function renderBandPlain(band: LaidOutBand, day: Theme, roles: Roles, stage?: nu
     case 'plane': return renderPlane(band, day, stage);
     case 'quadrant': return renderQuadrant(band, day);
     case 'bars': return renderBars(band, day, stage, dimFill);
+    case 'chart': return renderChart(band, day, emojiSpan, stage, dimFill);
     case 'image': return renderImage(band, day, stage);
     case 'people': return renderPeople(band, day);
     case 'dots': return renderDots(band, day);
@@ -919,7 +927,7 @@ const SELF_DIMMING = new Set<LaidOutBand['type']>(['caption', 'box', 'banner', '
 
 function renderBand(band: LaidOutBand, day: Theme, roles: Roles, stage?: number, dimFill = false): string {
   const svg = renderBandPlain(band, day, roles, stage, dimFill);
-  if (!band.dim || SELF_DIMMING.has(band.type)) return svg;
+  if (!band.dim || SELF_DIMMING.has(band.type) || band.type === 'chart') return svg; // a chart draws its own dim state
   return svg
     .replace(/marker-(start|end)="url\(#dsl-arrow(-strong)?\)"/g, 'marker-$1="url(#dsl-arrow$2-dim)"')
     .replace(/stroke="#[0-9a-fA-F]{6}"/g, `stroke="${PALETTE.muted}"`)

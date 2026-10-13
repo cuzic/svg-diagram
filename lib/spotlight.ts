@@ -65,6 +65,7 @@ const inside = (b: Rect, r: Rect): boolean => b.x >= r.x - 0.5 && b.y >= r.y - 0
 function targetRects(d: LaidOutDiagram, ids: string[]): Rect[] {
   const out: Rect[] = [];
   const add = (b: LaidOutBand): void => {
+    if (b.type === 'chart') for (const a of b.anchors) if (ids.includes(a.id)) out.push(a); // a chart's elements are targets (its own id is handled below)
     if ('id' in b && 'h' in b && b.id && ids.includes(b.id)) out.push(b);
     if (b.type === 'row') {
       if (b.id && ids.includes(b.id)) out.push(b);
@@ -92,6 +93,14 @@ function dimBand(b: LaidOutBand, focus: Rect[]): void {
     for (const x of b.bars) x.dim = !focus.some(r => inside(x, r));
     for (const t of b.texts) if (t.bar !== undefined) t.dim = b.bars[t.bar].dim;
     b.dim = b.bars.every(x => x.dim);
+  } else if (b.type === 'chart') {
+    // the whole figure focused: nothing dims. Otherwise the elements that are targets stay lit and the others dim; none a target: the figure dims whole
+    if (focus.some(r => inside(b, r))) return;
+    // lit: the elements that are targets, and every element drawn inside one (a treemap group's cells, keyed or not)
+    const lit = new Set(b.anchors.filter(a => focus.some(r => inside(a, r))).map(a => a.id));
+    for (const i of b.items) if (i.k === 'rect' && typeof i.of === 'string' && focus.some(r => inside(i, r))) lit.add(i.of);
+    // every element is keyed (its id, or a number when it has none): the ones that are not lit dim
+    if (lit.size) b.dimIds = [...new Set(b.items.flatMap(i => i.of !== undefined ? [i.of].flat() : []))].filter(k => !lit.has(k)); else b.dim = true;
   } else if (b.type === 'image') {
     // the whole picture focused (itself, or an enclosing group): nothing dims. Otherwise a focused mark keeps its region clear of
     // the veil and the other marks dim; with no mark focused the picture is veiled whole.
@@ -131,6 +140,7 @@ export function applySpotlight(d: LaidOutDiagram): void {
   const findId = (id: string): Rect | undefined => {
     for (const b of d.laidOut) {
       if ('id' in b && 'h' in b && b.id === id) return b;
+      if (b.type === 'chart') { const a = b.anchors.find(x => x.id === id); if (a) return a; }
       if (b.type === 'row' || b.type === 'grid') { const c = b.children.find(x => x.id === id); if (c) return c; }
       if (b.type === 'bars' || b.type === 'image' || b.type === 'quadrant') { const a = b.anchors.find(x => x.id === id); if (a) return a; }
     }

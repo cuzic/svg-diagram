@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="386" viewBox="0 0 940 386" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">営業利益の感度分析</title>
+  <desc id="svg-desc">トルネード図（基準 1,000百万円）: 販売単価（±10%） 前提が低いとき 640百万円・前提が高いとき 1,360百万円、販売数量（±8%） 前提が低いとき 780百万円・前提が高いとき 1,220百万円、原材料費（±15%） 前提が低いとき 1,210百万円・前提が高いとき 790百万円、為替（±5円） 前提が低いとき 880百万円・前提が高いとき 1,130百万円、人件費（±3%） 前提が低いとき 950百万円・前提が高いとき 1,050百万円、物流費 前提が低いとき 970百万円・前提が高いとき 1,030百万円</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-tornado.ts","sourceSha256":"c2990ca59d82732776eefd2fd04f87f1f08c8b943038772a76052a20ff112d9f"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="386" fill="#ffffff"/>
+
+  <path d="M250.8,24 H264.8 V38 H250.8 Z" fill="#22201b"/>
+  <text x="271" y="36" font-size="14" fill="#22201b">前提が低いとき</text>
+  <path d="M390.8,24 H404.8 V38 H390.8 Z" fill="#1d5fa8"/>
+  <text x="411" y="36" font-size="14" fill="#22201b">前提が高いとき</text>
+  <path d="M250.8,80 L250.8,296" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="251" y="318" text-anchor="middle" font-size="14" fill="#6f6659">600</text>
+  <path d="M322.5,80 L322.5,296" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="322" y="318" text-anchor="middle" font-size="14" fill="#6f6659">700</text>
+  <path d="M394.1,80 L394.1,296" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="394" y="318" text-anchor="middle" font-size="14" fill="#6f6659">800</text>
+  <path d="M465.7,80 L465.7,296" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="466" y="318" text-anchor="middle" font-size="14" fill="#6f6659">900</text>
+  <path d="M537.4,80 L537.4,296" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="537" y="318" text-anchor="middle" font-size="14" fill="#6f6659">1,000</text>
+  <path d="M609,80 L609,296" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="609" y="318" text-anchor="middle" font-size="14" fill="#6f6659">1,100</text>
+  <path d="M680.7,80 L680.7,296" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="681" y="318" text-anchor="middle" font-size="14" fill="#6f6659">1,200</text>
+  <path d="M752.3,80 L752.3,296" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="752" y="318" text-anchor="middle" font-size="14" fill="#6f6659">1,300</text>
+  <path d="M824,80 L824,296" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="824" y="318" text-anchor="middle" font-size="14" fill="#6f6659">1,400</text>
+  <text x="149" y="103" text-anchor="end" font-size="14" fill="#22201b">販売単価（±10%）</text>
+  <path d="M279.5,86 H537.4 V110 H279.5 Z" fill="#22201b"/>
+  <path d="M537.4,86 H795.3 V110 H537.4 Z" fill="#1d5fa8"/>
+  <text x="273" y="103" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">640百万円</text>
+  <text x="801" y="103" font-size="14" font-weight="700" fill="#1d5fa8">1,360百万円</text>
+  <text x="149" y="139" text-anchor="end" font-size="14" fill="#22201b">販売数量（±8%）</text>
+  <path d="M379.8,122 H537.4 V146 H379.8 Z" fill="#22201b"/>
+  <path d="M537.4,122 H695 V146 H537.4 Z" fill="#1d5fa8"/>
+  <text x="374" y="139" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">780百万円</text>
+  <text x="701" y="139" font-size="14" font-weight="700" fill="#1d5fa8">1,220百万円</text>
+  <text x="149" y="175" text-anchor="end" font-size="14" fill="#22201b">原材料費（±15%）</text>
+  <path d="M537.4,158 H687.9 V182 H537.4 Z" fill="#22201b"/>
+  <path d="M386.9,158 H537.4 V182 H386.9 Z" fill="#1d5fa8"/>
+  <text x="694" y="175" font-size="14" font-weight="700" fill="#22201b">1,210百万円</text>
+  <text x="381" y="175" text-anchor="end" font-size="14" font-weight="700" fill="#1d5fa8">790百万円</text>
+  <text x="149" y="211" text-anchor="end" font-size="14" fill="#22201b">為替（±5円）</text>
+  <path d="M451.4,194 H537.4 V218 H451.4 Z" fill="#22201b"/>
+  <path d="M537.4,194 H630.5 V218 H537.4 Z" fill="#1d5fa8"/>
+  <text x="445" y="211" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">880百万円</text>
+  <text x="637" y="211" font-size="14" font-weight="700" fill="#1d5fa8">1,130百万円</text>
+  <text x="149" y="247" text-anchor="end" font-size="14" fill="#22201b">人件費（±3%）</text>
+  <path d="M501.6,230 H537.4 V254 H501.6 Z" fill="#22201b"/>
+  <path d="M537.4,230 H573.2 V254 H537.4 Z" fill="#1d5fa8"/>
+  <text x="496" y="247" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">950百万円</text>
+  <text x="579" y="247" font-size="14" font-weight="700" fill="#1d5fa8">1,050百万円</text>
+  <text x="149" y="283" text-anchor="end" font-size="14" fill="#22201b">物流費</text>
+  <path d="M515.9,266 H537.4 V290 H515.9 Z" fill="#22201b"/>
+  <path d="M537.4,266 H558.9 V290 H537.4 Z" fill="#1d5fa8"/>
+  <text x="510" y="283" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">970百万円</text>
+  <text x="565" y="283" font-size="14" font-weight="700" fill="#1d5fa8">1,030百万円</text>
+  <path d="M537.4,74 L537.4,296" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="537" y="68" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">基準 1,000百万円</text>
+
+  <text x="20" y="360" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

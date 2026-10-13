@@ -32,6 +32,7 @@ import {causeTexts, cloudTexts, layoutCauseBand, layoutCloudBand} from './toc.ts
 import {ganttTexts, layoutGantt} from './gantt.ts';
 import {classesTexts, layoutClassesBand} from './classes.ts';
 import {bpmnTexts, layoutBpmn} from './bpmn.ts';
+import {chartTexts, layoutChart} from './charts.ts';
 import {collectTextRequests as wfTextRequests, layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {
   DiagramData, Roles, LaidOutDiagram, LaidOutBand, LaidOutConnect, LaidOutGroup, LaidOutLegendItem, LaidOutLane, LaidOutPhase,
@@ -325,6 +326,8 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
       for (const child of band.children ?? []) registerBand(child);
     } else if (band.type === 'bars') {
       for (const [text, size, weight, font] of barsTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'chart') {
+      for (const [text, size, weight, font] of chartTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'people') {
       for (const [text, size, weight, font] of peopleTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'dots') {
@@ -660,6 +663,21 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       }
       for (const a of placed.anchors) {
         if (anchors.has(a.id)) claimed(a.id, 'a bar takes an id that another anchor already has');
+        anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
+      }
+      laidOut.push(placed);
+      cursorY += placed.h + d.gap;
+      continue;
+    }
+
+    if (band.type === 'chart') {
+      const placed = layoutChart(band, padX, cursorY, cw, widthOf, roles);
+      if (band.id) {
+        if (anchors.has(band.id)) claimed(band.id, 'a chart takes an id that another anchor already has');
+        anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+      }
+      for (const a of placed.anchors) {
+        if (anchors.has(a.id)) claimed(a.id, 'a chart element takes an id that another anchor already has');
         anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
       }
       laidOut.push(placed);

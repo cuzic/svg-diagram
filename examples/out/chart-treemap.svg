@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="516" viewBox="0 0 940 516" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">事業別・製品別の売上構成</title>
+  <desc id="svg-desc">ツリーマップ（全体 1,762億円 (100%)）: クラウド（計 992億円 (56.3%)）: ストレージ 420億円 (23.8%)、計算基盤 310億円 (17.6%)、データベース 180億円 (10.2%)、ネットワーク 70億円 (4%)、その他 12億円 (0.7%)、ソフトウェア（計 505億円 (28.7%)）: 業務パッケージ 260億円 (14.8%)、開発ツール 150億円 (8.5%)、保守 95億円 (5.4%)、ハードウェア（計 225億円 (12.8%)）: サーバー 120億円 (6.8%)、端末 85億円 (4.8%)、周辺機器 20億円 (1.1%)、その他 40億円 (2.3%)</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-treemap.ts","sourceSha256":"b381184ef9d078adc50cc175e97c86a8c8cf241b202411536ef7bb23ef102051"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="516" fill="#ffffff"/>
+
+  <path d="M22,22 H504.2 V458 H22 Z" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M24,24 H502.2 V48 H24 Z" fill="#f6f8fa"/>
+  <text x="30" y="41" font-size="14" font-weight="700" fill="#22201b">クラウド 992億円 (56.3%)</text>
+  <path d="M26,52 H224.8 V454 H26 Z" fill="#ffffff"/>
+  <path d="M26,52 H224.8 V454 H26 Z" fill="#1d5fa8" fill-opacity="0.1"/>
+  <text x="125" y="249" text-anchor="middle" font-size="14" fill="#22201b">ストレージ</text>
+  <text x="125" y="267" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">420億円 (23.8%)</text>
+  <path d="M226.8,52 H500.2 V267.7 H226.8 Z" fill="#ffffff"/>
+  <path d="M226.8,52 H500.2 V267.7 H226.8 Z" fill="#1d5fa8" fill-opacity="0.1"/>
+  <text x="364" y="156" text-anchor="middle" font-size="14" fill="#22201b">計算基盤</text>
+  <text x="364" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">310億円 (17.6%)</text>
+  <path d="M226.8,269.7 H412.7 V454 H226.8 Z" fill="#ffffff"/>
+  <path d="M226.8,269.7 H412.7 V454 H226.8 Z" fill="#1d5fa8" fill-opacity="0.1"/>
+  <text x="320" y="358" text-anchor="middle" font-size="14" fill="#22201b">データベース</text>
+  <text x="320" y="376" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">180億円 (10.2%)</text>
+  <path d="M414.6,269.7 H500.2 V425.4 H414.6 Z" fill="#ffffff"/>
+  <path d="M414.6,269.7 H500.2 V425.4 H414.6 Z" fill="#1d5fa8" fill-opacity="0.1"/>
+  <text x="457" y="326" text-anchor="middle" font-size="14" fill="#22201b">ネットワー</text>
+  <text x="457" y="344" text-anchor="middle" font-size="14" fill="#22201b">ク</text>
+  <text x="457" y="362" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">70億円</text>
+  <text x="457" y="380" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">(4%)</text>
+  <path d="M414.6,427.3 H500.2 V454 H414.6 Z" fill="#ffffff"/>
+  <path d="M414.6,427.3 H500.2 V454 H414.6 Z" fill="#1d5fa8" fill-opacity="0.1"/>
+  <path d="M508.2,22 H918 V297.7 H508.2 Z" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M510.2,24 H916 V48 H510.2 Z" fill="#f6f8fa"/>
+  <text x="516" y="41" font-size="14" font-weight="700" fill="#22201b">ソフトウェア 505億円 (28.7%)</text>
+  <path d="M512.2,52 H717.3 V293.7 H512.2 Z" fill="#1d5fa8"/>
+  <text x="615" y="169" text-anchor="middle" font-size="14" fill="#ffffff">業務パッケージ</text>
+  <text x="615" y="187" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">260億円 (14.8%)</text>
+  <path d="M719.2,52 H914 V198.7 H719.2 Z" fill="#ffffff"/>
+  <path d="M719.2,52 H914 V198.7 H719.2 Z" fill="#1d5fa8" fill-opacity="0.2"/>
+  <text x="817" y="121" text-anchor="middle" font-size="14" fill="#22201b">開発ツール</text>
+  <text x="817" y="139" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">150億円 (8.5%)</text>
+  <path d="M719.2,200.7 H914 V293.6 H719.2 Z" fill="#ffffff"/>
+  <path d="M719.2,200.7 H914 V293.6 H719.2 Z" fill="#1d5fa8" fill-opacity="0.2"/>
+  <text x="817" y="243" text-anchor="middle" font-size="14" fill="#22201b">保守</text>
+  <text x="817" y="261" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">95億円 (5.4%)</text>
+  <path d="M508.2,301.7 H867.9 V458 H508.2 Z" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M510.2,303.7 H865.9 V327.7 H510.2 Z" fill="#f6f8fa"/>
+  <text x="516" y="321" font-size="14" font-weight="700" fill="#22201b">ハードウェア 225億円 (12.8%)</text>
+  <path d="M512.2,331.7 H697.6 V454 H512.2 Z" fill="#ffffff"/>
+  <path d="M512.2,331.7 H697.6 V454 H512.2 Z" fill="#1d5fa8" fill-opacity="0.3"/>
+  <text x="605" y="389" text-anchor="middle" font-size="14" fill="#22201b">サーバー</text>
+  <text x="605" y="407" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">120億円 (6.8%)</text>
+  <path d="M699.6,331.7 H831 V454 H699.6 Z" fill="#b91c1c"/>
+  <text x="765" y="389" text-anchor="middle" font-size="14" fill="#ffffff">端末</text>
+  <text x="765" y="407" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">85億円 (4.8%)</text>
+  <path d="M833,331.7 H863.9 V454 H833 Z" fill="#ffffff"/>
+  <path d="M833,331.7 H863.9 V454 H833 Z" fill="#1d5fa8" fill-opacity="0.3"/>
+  <path d="M870.9,300.7 H919 V459 H870.9 Z" fill="#ffffff"/>
+  <path d="M870.9,300.7 H919 V459 H870.9 Z" fill="#1d5fa8" fill-opacity="0.1"/>
+
+  <text x="20" y="490" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>
