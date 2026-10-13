@@ -82,8 +82,15 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
     } else if (CANNOT_START_LINE.has(atom.text)) {
       // would-be line-start is prohibited punctuation — keep it on the
       // current (now slightly overflowing) line instead of breaking before it.
+      // A katakana run it opens ('・テスト') is not dragged along: the run starts afresh after it.
+      const cut = unit.findIndex((a, k) => k > 0 && !a.glue);
+      if (cut > 0) {
+        i = i - unit.length + cut; // the next iteration starts at the run's first character
+        runGlue[i + 1] = false;
+        unit = unit.slice(0, cut);
+      }
       cur.push(...unit);
-      curWidth += w;
+      curWidth += unit.reduce((s, a) => s + atomWidth(a), 0);
     } else {
       lines.push(cur);
       cur = unit;
@@ -92,6 +99,7 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
     }
   }
   if (cur.length) lines.push(cur);
+  const runGlued = new Set(atoms.filter((_, k) => runGlue[k])); // still part of a whole katakana / kanji run: the orphan fix must not split it
 
   // An orphan: the wrap left a single character alone on the last line ("書いて出" / "す"). Bring the last character of the
   // line above down with it, so the last line has two. (Not after an explicit line break; not when it would put a prohibited
@@ -103,7 +111,7 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
       let at = prev.length - 1;
       while (at >= 0 && isWhitespace(prev[at].text)) at--;
       const moved = prev[at];
-      if (moved && at >= 2 && !moved.glue && !prev[at + 1]?.glue && !CANNOT_END_LINE.has(prev[at - 1].text) && !CANNOT_START_LINE.has(moved.text)
+      if (moved && at >= 2 && !moved.glue && !prev[at + 1]?.glue && !runGlued.has(moved) && !CANNOT_END_LINE.has(prev[at - 1].text) && !CANNOT_START_LINE.has(moved.text)
         && atomWidth(moved) + atomWidth(last[0]) <= maxWidth) {
         prev.length = at;            // drops the moved atom and the white space after it
         last.unshift(moved);

@@ -573,7 +573,7 @@ function spanRow<C extends BoxBand | GroupBand>(children: C[], cols: number | nu
     // row(children, {cols: 12}) with no child placed (no `span` / `col`): the children share the grid equally (12 / n columns each,
     // the remainder going to the first ones) instead of each being one column wide. A child with an explicit `span` / `col` opts out.
     const n = children.length;
-    if (cols === undefined || n < 2 || n >= cols || children.some(c => c.span !== undefined || c.col !== undefined)) return {cols, kids: children};
+    if (cols === undefined || n < 1 || n >= cols || children.some(c => c.span !== undefined || c.col !== undefined)) return {cols, kids: children};
     const base = Math.floor(cols / n), extra = cols % n;
     return {cols, kids: children.map((c, i) => Object.assign(Object.create(Object.getPrototypeOf(c), Object.getOwnPropertyDescriptors(c)) as C, {span: base + (i < extra ? 1 : 0)}))};
   }

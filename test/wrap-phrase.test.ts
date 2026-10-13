@@ -34,3 +34,15 @@ test('row({cols: 12}) with unplaced children shares the grid equally', () => {
   const placed = row([box({title: 'a', span: 1}), box({title: 'b'})], {cols: 12});
   assert.deepEqual(placed.children.map(c => c.span), [1, undefined]);
 });
+
+test('a prohibited line-start that opens a katakana run keeps only itself on the line', () => {
+  assert.deepEqual(wrapText('設計・テスト工程', opts(50)), ['設計・', 'テスト工程']);
+});
+
+test('the orphan fix does not split a katakana run', () => {
+  assert.deepEqual(wrapText('これはアプリ用', opts(60)), ['これはアプリ', '用']);
+});
+
+test('row({cols: 12}) with one unplaced child spans the grid', () => {
+  assert.deepEqual(row([box({title: 'a'})], {cols: 12}).children.map(c => c.span), [12]);
+});
