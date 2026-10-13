@@ -379,6 +379,10 @@ function checkQuadrants(d: LaidOutDiagram): string[] {
       const o = rectOverlap(boxes[i], boxes[j]);
       if (o) problems.push(`quadrant: label "${boxes[i].label}" overlaps label "${boxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
     }
+    // an item (its mark and its label) stays inside its own cell: one on a border reads as the other cell's
+    const within = (r: Rect, c: Rect) => r.x >= c.x - 0.5 && r.y >= c.y - 0.5 && r.x + r.w <= c.x + c.w + 0.5 && r.y + r.h <= c.y + c.h + 0.5;
+    bs.forEach(q => { if (!within({x: q.x - q.cr, y: q.y - q.cr, w: 2 * q.cr, h: 2 * q.cr}, band.cells[q.cell])) problems.push(`quadrant: item "${q.label}" crosses the border of its cell`); });
+    for (const b of boxes) if (b.kind === 'item' && b.item !== undefined && !within(b, band.cells[bs[b.item].cell])) problems.push(`quadrant: the label of "${b.label}" runs out of its cell`);
     bs.forEach((q, i) => {
       for (let j = i + 1; j < bs.length; j++) if (Math.hypot(q.x - bs[j].x, q.y - bs[j].y) < q.cr + bs[j].cr - 1) problems.push(`quadrant: item "${q.label}" overlaps item "${bs[j].label}" (move one, or give the cell more room)`);
       for (const b of boxes) if (nearRect(q.x, q.y, q.cr, b)) problems.push(`quadrant: item "${q.label}" sits on the label "${b.label}"`);

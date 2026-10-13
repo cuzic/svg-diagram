@@ -444,9 +444,11 @@ function renderQuadrant(b: LaidOutQuadrant, day: Theme): string {
   for (const c of b.cells) {
     const ts = toneStyle(c.tone), fill = b.dim ? PALETTE.bg : colorOf(ts.fill, day);
     const stroke = b.dim ? PALETTE.muted : ts.stroke === null ? colorOf(ts.fill, day) : c.tone === 'plain' ? PALETTE.muted : colorOf(ts.stroke, day);
-    out.push(`<rect x="${snap4(c.x)}" y="${snap4(c.y)}" width="${snap4(c.w)}" height="${snap4(c.h)}" rx="${b.crosshair ? 0 : 8}" fill="${fill}" stroke="${stroke}" stroke-width="2"${ts.dashed && !b.dim ? ' stroke-dasharray="6,4"' : ''}/>`);
+    // snap the edges, not the width: every gap between two cells comes out the same
+    const x0 = snap4(c.x), y0 = snap4(c.y), x1 = snap4(c.x + c.w), y1 = snap4(c.y + c.h);
+    out.push(`<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="${b.crosshair ? 0 : 8}" fill="${fill}" stroke="${stroke}" stroke-width="2"${ts.dashed && !b.dim ? ' stroke-dasharray="6,4"' : ''}/>`);
   }
-  for (const l of b.lines) out.push(`<path d="M${Math.round(l.x1)},${Math.round(l.y1)} L${Math.round(l.x2)},${Math.round(l.y2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
+  for (const l of b.lines) out.push(`<path d="M${snap4(l.x1)},${snap4(l.y1)} L${snap4(l.x2)},${snap4(l.y2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`); // on the snapped cell edges
   const head = (x: number, y: number, dx: number, dy: number, color: string): string => {
     const L = 10, W = 5, pts = [[x, y], [x - dx * L - dy * W, y - dy * L + dx * W], [x - dx * L + dy * W, y - dy * L - dx * W]];
     return `<polygon points="${pts.map(([a, c]) => `${Math.round(a)},${Math.round(c)}`).join(' ')}" fill="${color}"/>`;
@@ -464,8 +466,11 @@ function renderQuadrant(b: LaidOutQuadrant, day: Theme): string {
     out.push(head(a.x2, a.y2, a.tip.dx, a.tip.dy, PALETTE.text));
   }
   for (const c of b.chips) out.push(`<rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="4" fill="${PALETTE.bg}"/>`);
-  for (const q of b.bubbles) out.push(shapeSvg(q.shape, q.x, q.y, q.r, ink(q.tone, q.dim), PALETTE.bg, 1.5));
-  for (const m of b.marks) out.push(m.ring ? shapeSvg(m.shape, m.x, m.y, m.r, 'none', ink(m.tone, b.dim), 2) : shapeSvg(m.shape, m.x, m.y, m.r, ink(m.tone, b.dim), PALETTE.bg, 1.5));
+  // a hollow marker (groups 5 to 8) is an outline drawn inside the shape's area, so it is told from the filled ones by more than colour
+  const marker = (shape: LaidOutQuadrant['bubbles'][number]['shape'], x: number, y: number, r: number, color: string, hollow: boolean | undefined): string =>
+    hollow ? shapeSvg(shape, x, y, r - 1.5, PALETTE.bg, color, 3) : shapeSvg(shape, x, y, r, color, PALETTE.bg, 1.5);
+  for (const q of b.bubbles) out.push(marker(q.shape, q.x, q.y, q.r, ink(q.tone, q.dim), q.hollow));
+  for (const m of b.marks) out.push(m.ring ? shapeSvg(m.shape, m.x, m.y, m.r, 'none', ink(m.tone, b.dim), 2) : marker(m.shape, m.x, m.y, m.r, ink(m.tone, b.dim), m.hollow));
   for (const t of b.texts) {
     const dim = b.dim || (t.item !== undefined && b.bubbles[t.item].dim);
     out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t.fill, dim)}">${emojiSpan(t.text)}</text>`);

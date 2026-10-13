@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {box, build, caption, checkDiagram, closeMeasurer, connect, diagram, quadrant, renderDiagram} from '../lib/dsl.ts';
 import {QUADRANT_PRESETS, sizeRefs} from '../lib/quadrant.ts';
+import {verifyDiagram} from '../lib/verify.ts';
 import type {LaidOutQuadrant, QuadrantItem, QuadrantPreset} from '../lib/quadrant.ts';
 
 test.after(() => closeMeasurer());
@@ -208,8 +209,8 @@ test('lint rules: tone-only items warn, a moved item warns, groups do not', asyn
 test('every preset passes verify, the rules without a single warning, and the strict SVG lint', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'quadrant-'));
   const items: Record<QuadrantPreset, QuadrantItem[]> = {
-    bcg: [{id: 'a', label: 'クラウド', at: [0.8, 0.8], size: 120}, {label: 'パッケージ', at: [0.8, 0.2], size: 300}, {label: '新規 AI', cell: [1, 0]}],
-    ge: [{label: '決済', at: [0.9, 0.9], size: 80}, {label: '物流', at: [0.5, 0.5], size: 200}, {label: '旧店舗', cell: [2, 2]}],
+    bcg: [{id: 'a', label: 'クラウド', at: [0.8, 0.8], size: 120}, {label: 'パッケージ', at: [0.8, 0.2], size: 300}, {label: '新規 AI', cell: [1, 0], size: 40}],
+    ge: [{label: '決済', at: [0.9, 0.9], size: 80}, {label: '物流', at: [0.5, 0.5], size: 200}, {label: '旧店舗', cell: [2, 2], size: 40}],
     ansoff: [{label: '増量パック', cell: [0, 0]}, {label: '無糖', cell: [1, 0]}, {label: '海外', cell: [0, 1]}, {label: '健康食品', cell: [1, 1]}],
     nineBox: [{label: '田中', cell: [2, 0]}, {label: '佐藤', at: [0.5, 0.5]}, {label: '鈴木', at: [0.1, 0.1]}],
     impactEffort: [{label: '自動取込', at: [0.8, 0.8], size: 30}, {label: '刷新', at: [0.2, 0.9], size: 90}],
@@ -263,4 +264,98 @@ test('a seeded sweep of items at random coordinates / cells with random sizes an
     } catch (e) { bad.push(`#${t} ${preset ?? 'free'} ${cols}x${rows} n=${n}: ${(e as Error).message}`); }
   }
   assert.deepEqual(bad, []);
+});
+
+// ---- review fixes -----------------------------------------------------------------------------------------------------------
+
+const insideRect = (r: {x: number; y: number; w: number; h: number}, c: {x: number; y: number; w: number; h: number}) => r.x >= c.x && r.y >= c.y && r.x + r.w <= c.x + c.w && r.y + r.h <= c.y + c.h;
+
+test('an item pushed aside never straddles a cell border: its mark and its label stay inside its own cell', async () => {
+  const cases = [
+    quadrant({x: {title: 'x'}, y: {title: 'y'}, items: Array.from({length: 8}, (_v, i) => ({label: `P${i}`, at: [0.3, 0.3] as [number, number], size: 100}))}),
+    quadrant.preset('ge', {items: Array.from({length: 40}, (_v, i) => ({label: `社${i}`, at: [((i * 37) % 100) / 100, ((i * 61) % 100) / 100] as [number, number], size: 1 + (i % 7) * 10}))}),
+    quadrant({x: {title: 'x'}, y: {title: 'y'}, crosshair: true, items: [{label: '境目の上', at: [0.5, 0.5]}, {label: '角', at: [1, 1]}, {label: '原点', at: [0, 0]}]}),
+  ];
+  for (const band of cases) {
+    const f = await figure(band);
+    for (const q of f.bubbles) assert.ok(insideRect({x: q.x - q.cr, y: q.y - q.cr, w: 2 * q.cr, h: 2 * q.cr}, f.cells[q.cell]), `"${q.label}" crosses its cell border`);
+    for (const b of f.labelBoxes) if (b.kind === 'item') assert.ok(insideRect(b, f.cells[f.bubbles[b.item!].cell]), `the label of "${b.label}" leaves its cell`);
+  }
+});
+
+test('verify reports an item mark or label that runs out of its cell', async () => {
+  const {laidOut} = await laid(quadrant({x: {title: 'x'}, y: {title: 'y'}, items: [{label: 'A', at: [0.2, 0.2]}]}));
+  const f = laidOut.laidOut.find(b => b.type === 'quadrant') as LaidOutQuadrant;
+  const cell = f.cells[f.bubbles[0].cell];
+  f.bubbles[0].y = cell.y + cell.h; // the centre on the bottom edge
+  const box = f.labelBoxes.find(b => b.kind === 'item')!;
+  box.x = cell.x + cell.w - 2;
+  const problems = verifyDiagram(laidOut).problems.join('\n');
+  assert.match(problems, /item "A" crosses the border of its cell/);
+  assert.match(problems, /the label of "A" runs out of its cell/);
+});
+
+test('groups 5 to 8 are hollow, so no two groups differ by colour alone', async () => {
+  const names = Array.from({length: 8}, (_v, i) => `G${i}`);
+  const f = await figure(quadrant({x: {title: 'x'}, y: {title: 'y'}, items: names.map((g, i) => ({label: g, group: g, at: [0.1 + (i % 4) * 0.25, i < 4 ? 0.8 : 0.3] as [number, number]}))}));
+  assert.deepEqual(f.bubbles.map(b => b.hollow), [false, false, false, false, true, true, true, true]);
+  const look = (b: {shape: string; hollow?: boolean}) => `${b.shape}/${b.hollow ? 'hollow' : 'filled'}`;
+  assert.equal(new Set(f.bubbles.map(look)).size, 8, 'shape + fill alone tell the 8 groups apart');
+  assert.deepEqual(f.marks.filter(m => !m.ring).map(m => !!m.hollow), [false, false, false, false, true, true, true, true]);
+  const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(quadrant({x: {title: 'x'}, y: {title: 'y'}, items: names.map((g, i) => ({label: g, group: g, at: [0.1 + (i % 4) * 0.25, i < 4 ? 0.8 : 0.3] as [number, number]}))})), {name: 'q.svg', budget: 'cacheOnly'});
+  assert.ok(/stroke-width="3"/.test(svg), 'a hollow marker is an outline');
+});
+
+test('validation (review): mixed sizes / groups, unknown tones, duplicate group names, non-finite height', () => {
+  const ok = {x: {title: 'x'}, y: {title: 'y'}};
+  assert.throws(() => quadrant({...ok, items: [{label: 'a', at: [0.1, 0.1], size: 5}, {label: 'b', cell: [0, 0]}]}), /item 2 "b": has no size, but other items do/);
+  assert.throws(() => quadrant({...ok, items: [{label: 'a', at: [0.1, 0.1], group: 'G'}, {label: 'b', at: [0.9, 0.9]}]}), /item 2 "b": has no group, but other items do/);
+  assert.throws(() => quadrant({...ok, items: [{label: 'a', at: [0.1, 0.1], tone: 'blue' as never}]}), /tone must be accent \/ text \/ muted \/ danger/);
+  assert.throws(() => quadrant({...ok, cells: [[{title: 'a', tone: 'solid' as never}]]}), /cell \[0, 0\] has tone "solid"/);
+  assert.throws(() => quadrant({...ok, groups: ['A', 'A'], items: [{label: 'a', at: [0.1, 0.1], group: 'A'}]}), /groups lists a name twice/);
+  assert.throws(() => quadrant({...ok, items: [{label: 'a', at: [0.1, 0.1], group: 3 as never}]}), /group must be a non-empty string/);
+  assert.throws(() => quadrant({...ok, height: Infinity}), /height must be a finite number/);
+  assert.throws(() => quadrant({...ok, sizeUnit: '円', items: [{label: 'a', at: [0.1, 0.1]}]}), /no item has a size/);
+});
+
+test('a crowded cell grows its row to fit every cell-placed item instead of giving up', async () => {
+  const f = await figure(quadrant.preset('ge', {items: Array.from({length: 60}, (_v, i) => ({label: `人${i}`, cell: [0, 0] as [number, number]}))}));
+  assert.equal(f.bubbles.length, 60);
+  for (const q of f.bubbles) assert.equal(q.cell, 0);
+});
+
+test('a size far below the largest is drawn at the least radius and reported by quadrant-size-floor', async () => {
+  const r = await laid(quadrant({x: {title: 'x'}, y: {title: 'y'}, items: [{label: 'big', at: [0.2, 0.2], size: 1000}, {label: 'tiny', at: [0.8, 0.8], size: 1}]}));
+  const f = r.laidOut.laidOut.find(b => b.type === 'quadrant') as LaidOutQuadrant;
+  assert.deepEqual(f.floored, ['tiny']);
+  assert.ok(r.verdict.findings.some(x => x.rule === 'quadrant-size-floor' && x.message.includes('tiny')));
+  const fine = await laid(quadrant({x: {title: 'x'}, y: {title: 'y'}, items: [{label: 'big', at: [0.2, 0.2], size: 100}, {label: 'half', at: [0.8, 0.8], size: 50}]}));
+  assert.ok(!fine.verdict.findings.some(x => x.rule === 'quadrant-size-floor'));
+});
+
+test('cells are drawn with equal gaps, and a crosshair lies on the cell edges', async () => {
+  const gaps = (svg: string) => {
+    const xs = [...svg.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)" rx="[08]"/g)].map(m => m.slice(1).map(Number));
+    const top = Math.min(...xs.map(r => r[1])), row = xs.filter(r => r[1] === top).sort((a, b) => a[0] - b[0]);
+    return {row, gaps: row.slice(1).map((r, i) => r[0] - (row[i][0] + row[i][2]))};
+  };
+  const g = await renderDiagram(diagram({theme: 'blue'}).add(quadrant({x: {title: 'x'}, y: {title: 'y'}, grid: [7, 2]})), {name: 'q.svg', budget: 'cacheOnly'});
+  const {gaps: gs} = gaps(g.svg);
+  assert.equal(gs.length, 6);
+  assert.equal(new Set(gs).size, 1, `gaps ${gs.join(', ')}`);
+  const c = await renderDiagram(diagram({theme: 'blue'}).add(quadrant({x: {title: 'x'}, y: {title: 'y'}, grid: [3, 2], crosshair: true})), {name: 'q.svg', budget: 'cacheOnly'});
+  const {row} = gaps(c.svg);
+  const lineXs = [...c.svg.matchAll(/<path d="M(\d+),\d+ L(\d+),\d+"/g)].filter(m => m[1] === m[2]).map(m => Number(m[1]));
+  assert.deepEqual(lineXs, row.slice(1).map(r => r[0]));
+});
+
+test('nineBox reads like the usual talent grid: performance across, potential up, the star top-right', () => {
+  const q = quadrant.preset('nineBox');
+  assert.equal(q.x.title, '業績');
+  assert.equal(q.y.title, '潜在能力');
+  assert.equal(q.cells[0][2].title, 'スター');
+  assert.equal(q.cells[0][0].title, '原石'); // high potential, low performance
+  assert.equal(q.cells[2][2].title, '専門人材'); // high performance, low potential
+  assert.equal(q.cells[2][0].title, '要対応');
+  q.cells.forEach((row, r) => row.forEach((c, k) => assert.equal(c.note, `業績 ${['低', '中', '高'][k]} × 潜在 ${['高', '中', '低'][r]}`)));
 });

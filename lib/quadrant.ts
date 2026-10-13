@@ -101,7 +101,12 @@ export interface QuadrantBand {
 export type QuadrantShape = 'circle' | 'square' | 'diamond' | 'triangle';
 export type QuadrantInk = 'text' | 'muted' | 'accent' | 'danger';
 export interface QuadrantText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; size: number; bold: boolean; fill: QuadrantInk; /** index into bubbles: dims with its bubble */ item?: number}
-export interface QuadrantBubble {x: number; y: number; /** area radius */ r: number; /** the radius of the circle that holds the shape */ cr: number; shape: QuadrantShape; tone: QuadrantInk; id?: string; label: string; dim?: boolean}
+export interface QuadrantBubble {
+  x: number; y: number; /** area radius */ r: number; /** the radius of the circle that holds the shape */ cr: number; shape: QuadrantShape; tone: QuadrantInk;
+  /** drawn as an outline (groups 5 to 8) */ hollow: boolean;
+  /** index into cells: the cell the item belongs to (verify checks that it stays inside) */ cell: number;
+  id?: string; label: string; dim?: boolean;
+}
 export type QuadrantBoxKind = 'item' | 'arrow' | 'caption' | 'axis' | 'legend';
 export interface LaidOutQuadrant extends Rect, Dimmed {
   type: 'quadrant';
@@ -119,12 +124,14 @@ export interface LaidOutQuadrant extends Rect, Dimmed {
   /** The backing of an arrow's label. */
   chips: Rect[];
   /** Markers of the legend (a group's shape, a reference bubble). */
-  marks: {x: number; y: number; r: number; shape: QuadrantShape; tone: QuadrantInk; ring: boolean}[];
+  marks: {x: number; y: number; r: number; shape: QuadrantShape; tone: QuadrantInk; ring: boolean; hollow?: boolean}[];
   anchors: Anchor[];
   /** Every text, as a rect: verify.ts reports two that overlap or one that leaves the figure. */
-  labelBoxes: (Rect & {label: string; kind: QuadrantBoxKind})[];
+  labelBoxes: (Rect & {label: string; kind: QuadrantBoxKind; /** an item label: index into bubbles */ item?: number})[];
   /** Items that were moved off their coordinates to keep clear of others, with the distance (px). */
   moved: {id?: string; label: string; px: number}[];
+  /** Items whose size is so small that the bubble is drawn at the least radius (its area is then larger than the value says). */
+  floored: string[];
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -159,17 +166,18 @@ const PRESETS: Record<QuadrantPreset, PresetDef> = {
     x: {title: '製品', low: '既存', high: '新規'}, y: {title: '市場', low: '既存', high: '新規', reversed: true}, grid: [2, 2],
     cells: [[c('市場浸透', '既存の市場に既存の製品で攻める', 'accent'), c('新製品開発', '既存の市場に新製品を出す', 'changed')], [c('新市場開拓', '既存の製品を新しい市場へ', 'changed'), c('多角化', '新製品を新しい市場へ（最も高リスク）', 'danger')]],
   },
+  // the usual talent grid: performance across (low -> high), potential up (low -> high); the star is top-right
   nineBox: {
-    x: {title: '潜在能力', low: '低い', high: '高い'}, y: {title: '業績', low: '低い', high: '高い'}, grid: [3, 3],
+    x: {title: '業績', low: '低い', high: '高い'}, y: {title: '潜在能力', low: '低い', high: '高い'}, grid: [3, 3],
     cells: [
-      [c('専門人材', '業績 高 × 潜在 低', 'plain'), c('中核人材', '業績 高 × 潜在 中', 'changed'), c('スター', '業績 高 × 潜在 高', 'accent')],
-      [c('貢献人材', '業績 中 × 潜在 低', 'plain'), c('堅実人材', '業績 中 × 潜在 中', 'plain'), c('有望株', '業績 中 × 潜在 高', 'changed')],
-      [c('要対応', '業績 低 × 潜在 低', 'removed'), c('要改善', '業績 低 × 潜在 中', 'muted'), c('原石', '業績 低 × 潜在 高', 'muted')],
+      [c('原石', '業績 低 × 潜在 高', 'muted'), c('有望株', '業績 中 × 潜在 高', 'changed'), c('スター', '業績 高 × 潜在 高', 'accent')],
+      [c('要改善', '業績 低 × 潜在 中', 'muted'), c('堅実人材', '業績 中 × 潜在 中', 'plain'), c('中核人材', '業績 高 × 潜在 中', 'changed')],
+      [c('要対応', '業績 低 × 潜在 低', 'removed'), c('貢献人材', '業績 中 × 潜在 低', 'plain'), c('専門人材', '業績 高 × 潜在 低', 'plain')],
     ],
   },
   impactEffort: {
     x: {title: '実行容易性', low: '難しい', high: '易しい'}, y: {title: 'インパクト', low: '小さい', high: '大きい'}, grid: [2, 2],
-    cells: [[c('大型案件', '効果は大きいが難しい。計画して挑む', 'changed'), c('クイックウィン', '効果が大きく易しい。まずやる', 'accent')], [c('後回し', '効果が小さく難しい。やらない', 'muted'), c('ついでに', '効果は小さいが易しい。余力で', 'changed')]],
+    cells: [[c('大型案件', '効果は大きいが難しい。計画して挑む', 'changed'), c('クイックウィン', '効果が大きく易しい。まずやる', 'accent')], [c('後回し', '効果が小さく難しい。手を付けない', 'muted'), c('ついでに', '効果は小さいが易しい。余力で', 'changed')]],
   },
   risk: {x: {title: '影響度', low: '小', high: '大'}, y: {title: '発生可能性', low: '低', high: '高'}, grid: [3, 3], cells: riskCells()},
   stakeholder: {
@@ -193,11 +201,14 @@ const PRESETS: Record<QuadrantPreset, PresetDef> = {
 const MAX_GRID = 8;
 const SHAPES: QuadrantShape[] = ['circle', 'square', 'diamond', 'triangle'];
 const GROUP_TONES: QuadrantInk[] = ['accent', 'text', 'danger', 'muted'];
+const ITEM_TONES: readonly QuadrantItemTone[] = ['accent', 'text', 'muted', 'danger'];
+const CELL_TONES: readonly QuadrantTone[] = ['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'];
 /** The radius of the circle that holds a shape of area pi r^2. */
 const HOLD: Record<QuadrantShape, number> = {circle: 1, square: 1.26, diamond: 1.26, triangle: 1.56};
 
-/** The marker of the n-th group: a shape and a colour, so that no two groups look alike (up to 8). */
-const groupStyle = (gi: number): {shape: QuadrantShape; tone: QuadrantInk} => ({shape: SHAPES[gi % SHAPES.length], tone: GROUP_TONES[(gi + Math.floor(gi / SHAPES.length)) % GROUP_TONES.length]});
+/** The marker of the n-th group: a shape and a colour, and from the fifth group on a hollow shape, so that no two groups differ
+ *  by colour alone (up to 8). */
+const groupStyle = (gi: number): {shape: QuadrantShape; tone: QuadrantInk; hollow: boolean} => ({shape: SHAPES[gi % SHAPES.length], tone: GROUP_TONES[(gi + Math.floor(gi / SHAPES.length)) % GROUP_TONES.length], hollow: gi >= SHAPES.length});
 
 const defined = <T extends object>(o: T | undefined): Partial<T> => Object.fromEntries(Object.entries(o ?? {}).filter(([, v]) => v !== undefined)) as Partial<T>;
 
@@ -227,6 +238,9 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
     for (const key of ['title', 'note'] as const) if (merged[key] === '') delete merged[key];
     return merged;
   }));
+  cells.forEach((row, r) => row.forEach((cell, k) => {
+    if (cell.tone !== undefined && !CELL_TONES.includes(cell.tone)) throw new Error(`quadrant(): cell [${k}, ${r}] has tone "${String(cell.tone)}" (${CELL_TONES.join(' / ')})`);
+  }));
   const items = (opts.items ?? []).map((it): QuadrantItem => ({...it}));
   const ids = new Set<string>();
   items.forEach((it, i) => {
@@ -242,6 +256,8 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
       if (!ok) throw new Error(`${what}: at must be [x, y] with both from 0 to 1 (got ${JSON.stringify(it.at)}); 1 is the high end of the axis`);
     }
     if (it.size !== undefined && !(typeof it.size === 'number' && it.size > 0 && Number.isFinite(it.size))) throw new Error(`${what}: size must be a number > 0 (got ${it.size})`);
+    if (it.tone !== undefined && !ITEM_TONES.includes(it.tone)) throw new Error(`${what}: tone must be ${ITEM_TONES.join(' / ')} (got ${JSON.stringify(it.tone)})`);
+    if (it.group !== undefined && (typeof it.group !== 'string' || !it.group)) throw new Error(`${what}: group must be a non-empty string (got ${JSON.stringify(it.group)})`);
     if (it.id !== undefined) {
       if (ids.has(it.id)) throw new Error(`${what}: the id "${it.id}" is used twice`);
       ids.add(it.id);
@@ -256,11 +272,18 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
     }
   });
   const sizes = items.filter(i => i.size !== undefined);
-  if (opts.sizeTitle !== undefined && !sizes.length) throw new Error('quadrant(): sizeTitle / sizeUnit describe the bubble sizes, but no item has a size');
+  if ((opts.sizeTitle !== undefined || opts.sizeUnit !== undefined) && !sizes.length) throw new Error('quadrant(): sizeTitle / sizeUnit describe the bubble sizes, but no item has a size');
+  // a bubble without a size would read as a small value: either every item has a size or none has
+  const unsized = items.findIndex(i => i.size === undefined);
+  if (sizes.length && unsized >= 0) throw new Error(`quadrant() item ${unsized + 1} "${items[unsized].label}": has no size, but other items do — give every item a size (its bubble would read as a small value), or none`);
   const groups = [...(opts.groups ?? [])];
+  if (new Set(groups).size !== groups.length) throw new Error(`quadrant(): groups lists a name twice (${groups.join(', ')})`);
+  // an item without a group would look like the first group's marker
+  const ungrouped = items.findIndex(i => i.group === undefined);
+  if (items.some(i => i.group !== undefined) && ungrouped >= 0) throw new Error(`quadrant() item ${ungrouped + 1} "${items[ungrouped].label}": has no group, but other items do — give every item a group (it would look like the first group's marker), or none`);
   for (const it of items) if (it.group !== undefined && !groups.includes(it.group)) groups.push(it.group);
   if (groups.length > SHAPES.length * 2) throw new Error(`quadrant(): ${groups.length} groups — at most ${SHAPES.length * 2} can be told apart by shape and colour`);
-  for (const [k, v] of [['height', opts.height], ['width', opts.width]] as const) if (v !== undefined && !(v > 0)) throw new Error(`quadrant(): ${k} must be > 0`);
+  for (const [k, v] of [['height', opts.height], ['width', opts.width]] as const) if (v !== undefined && !(typeof v === 'number' && v > 0 && Number.isFinite(v))) throw new Error(`quadrant(): ${k} must be a finite number > 0 (got ${v})`);
   return {
     type: 'quadrant', ...(opts.id ? {id: opts.id} : {}), ...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until}),
     x, y, cols, rows, cells, items, arrows, groups, crosshair: opts.crosshair ?? p?.crosshair ?? false,
@@ -309,6 +332,8 @@ type Side = 'right' | 'left' | 'below' | 'above' | 'below-right' | 'below-left' 
 const SIDES: Side[] = ['right', 'left', 'below', 'above', 'below-right', 'below-left', 'above-right', 'above-left'];
 const FLOW_SIDES: Side[] = ['below', 'right', 'left', 'above', 'below-right', 'below-left', 'above-right', 'above-left'];
 const GAP = 4, PAD = 8, MARGIN = 3;
+/** The least bubble radius: a smaller size is drawn this big (and reported in `floored`). */
+const MIN_R = 6;
 /** Bubble centres sit on the 4px grid every other shape of the SVG uses. */
 const g4 = (v: number): number => Math.round(v / 4) * 4;
 
@@ -340,7 +365,7 @@ const segmentMeets = (s: {x1: number; y1: number; x2: number; y2: number}, r: Re
 };
 
 interface Unit {
-  i: number; item: QuadrantItem; r: number; cr: number; shape: QuadrantShape; tone: QuadrantInk;
+  i: number; item: QuadrantItem; r: number; cr: number; shape: QuadrantShape; tone: QuadrantInk; hollow: boolean;
   lines: string[]; lw: number; lh: number;
   /** the cell it must stay in (as drawn), and where its coordinates put it. */
   col: number; row: number; ideal?: {x: number; y: number};
@@ -380,17 +405,36 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   const labelW = Math.max(70, Math.min(150, cw * 0.55));
   const units: Unit[] = band.items.map((item, i) => {
     const gi = groupIndex(item.group);
-    const shape = gi < 0 ? 'circle' : groupStyle(gi).shape;
+    const shape = gi < 0 ? 'circle' : groupStyle(gi).shape, hollow = gi >= 0 && groupStyle(gi).hollow;
     const tone = item.tone ?? (gi < 0 ? 'accent' : groupStyle(gi).tone);
-    const r = item.size === undefined || mx <= 0 ? (mx > 0 ? 6 : 8) : Math.max(6, rMax * Math.sqrt(item.size / mx));
+    const r = item.size === undefined || mx <= 0 ? 8 : Math.max(MIN_R, rMax * Math.sqrt(item.size / mx));
     const lines = wrap(item.label, size, 400, labelW);
-    return {i, item, r, cr: r * HOLD[shape], shape, tone, lines, lw: widest(lines, size, 400), lh: lines.length * lineN, col: 0, row: 0};
+    return {i, item, r, cr: r * HOLD[shape], shape, tone, hollow, lines, lw: widest(lines, size, 400), lh: lines.length * lineN, col: 0, row: 0};
   });
+  const floored = mx > 0 ? units.filter(u => u.item.size !== undefined && rMax * Math.sqrt(u.item.size / mx) < MIN_R - 0.5).map(u => u.item.label) : [];
+
+  // ---- cell-placed items: a row-wrapped flow per cell (each unit a bubble with its label below); its height sets the row's least height
+  const flowW = cw - 16, uw = (u: Unit) => Math.max(2 * u.cr, u.lw), uh = (u: Unit) => 2 * u.cr + GAP + u.lh;
+  const flows = new Map<string, {rows: Unit[][]; heights: number[]; total: number}>();
+  for (let k = 0; k < cols; k++) for (let r = 0; r < rows; r++) {
+    const mine = units.filter(u => u.item.cell && u.item.cell[0] === k && u.item.cell[1] === r);
+    if (!mine.length) continue;
+    for (const u of mine) if (uw(u) > flowW) throw new Error(`quadrant(): the label "${u.item.label}" is wider than its cell (${Math.round(flowW)}px) — shorten it or widen the figure`);
+    const flowRows: Unit[][] = [[]];
+    let used = 0;
+    for (const u of mine) {
+      const cur = flowRows[flowRows.length - 1];
+      if (cur.length && used + 12 + uw(u) > flowW) { flowRows.push([u]); used = uw(u); } else { used += (cur.length ? 12 : 0) + uw(u); cur.push(u); }
+    }
+    const heights = flowRows.map(fr => Math.max(...fr.map(uh)));
+    flows.set(`${k},${r}`, {rows: flowRows, heights, total: heights.reduce((a, b) => a + b, 0) + 10 * (flowRows.length - 1)});
+  }
+  const flowNeed = Array.from({length: rows}, (_r, r) => Math.max(0, ...[...flows.entries()].filter(([key]) => Number(key.split(',')[1]) === r).map(([, f]) => f.total + 12)));
 
   // ---- one attempt at a layout with the rows grown by `grow`
   const attempt = (grow: number, moveLimit: number) => {
     const plotH0 = Math.max(band.height ?? (rows === 2 ? 340 : 120 * rows + 90), rows * (Math.max(...hdr) + 90));
-    const rowH = Array.from({length: rows}, (_r, r) => Math.max(plotH0 / rows * grow, hdr[r] + 90));
+    const rowH = Array.from({length: rows}, (_r, r) => Math.max(plotH0 / rows * grow, hdr[r] + 90, hdr[r] + flowNeed[r]));
     const plotT = y + PAD, plotH = rowH.reduce((a, b) => a + b, 0) + gap * (rows - 1), plotB = plotT + plotH;
     const rowTop = rowH.map((_h, r) => plotT + rowH.slice(0, r).reduce((a, b) => a + b, 0) + gap * r);
     const cellX = (k: number) => plotL + k * (cw + gap);
@@ -439,9 +483,10 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
       }
     };
     const inPlot = {x: plotL + MARGIN, y: plotT + MARGIN, w: plotW - 2 * MARGIN, h: plotH - 2 * MARGIN};
-    const free = (u: Unit, cx: number, cy: number, box: Rect, within?: Rect, extra: {s: {x1: number; y1: number; x2: number; y2: number}}[] = []): boolean => {
-      if (cx - u.cr < inPlot.x || cx + u.cr > inPlot.x + inPlot.w || cy - u.cr < inPlot.y || cy + u.cr > inPlot.y + inPlot.h || !inside(box, inPlot)) return false;
-      if (within && !inside(box, within)) return false;
+    // the bubble and its label stay inside the item's own cell (a mark on a border would read as the other cell's)
+    const free = (u: Unit, cx: number, cy: number, box: Rect, extra: {s: {x1: number; y1: number; x2: number; y2: number}}[] = []): boolean => {
+      const c0 = cellRect(u.col, u.row), cell = {x: c0.x + MARGIN, y: c0.y + MARGIN, w: c0.w - 2 * MARGIN, h: c0.h - 2 * MARGIN};
+      if (cx - u.cr < cell.x || cx + u.cr > cell.x + cell.w || cy - u.cr < cell.y || cy + u.cr > cell.y + cell.h || !inside(box, cell)) return false;
       if (headers.some(hd => rectsMeet(box, hd, 2) || circleRect(cx, cy, u.cr, hd, 2))) return false;
       for (const p of placed) {
         const o = p.u;
@@ -450,24 +495,21 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
       }
       return !extra.some(e => segmentMeets(e.s, box));
     };
-    const tryAt = (u: Unit, cx: number, cy: number, sides: Side[], within?: Rect): Spot | undefined => {
+    const tryAt = (u: Unit, cx: number, cy: number, sides: Side[]): Spot | undefined => {
       for (const side of sides) {
         const box = labelAt(u, side, cx, cy);
-        if (free(u, cx, cy, box, within)) return {cx, cy, side, box};
+        if (free(u, cx, cy, box)) return {cx, cy, side, box};
       }
       return undefined;
     };
     const moved: LaidOutQuadrant['moved'] = [];
     const settle = (u: Unit, ax: number, ay: number, sides: Side[], home: Rect, limit: number): Spot | undefined => {
-      for (const strict of [true, false]) {
-        const within = strict ? cellRect(u.col, u.row) : undefined;
-        for (const [dx, dy, dist] of OFFSETS) {
-          if (dist > limit) break;
-          const cx = ax + dx, cy = ay + dy;
-          if (cx < home.x || cx > home.x + home.w || cy < home.y || cy > home.y + home.h) continue; // the centre stays in its own cell
-          const s = tryAt(u, cx, cy, sides, within);
-          if (s) return s;
-        }
+      for (const [dx, dy, dist] of OFFSETS) {
+        if (dist > limit) break;
+        const cx = ax + dx, cy = ay + dy;
+        if (cx < home.x || cx > home.x + home.w || cy < home.y || cy > home.y + home.h) continue; // the centre stays in the body of its own cell
+        const s = tryAt(u, cx, cy, sides);
+        if (s) return s;
       }
       return undefined;
     };
@@ -485,21 +527,11 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
       const px = Math.hypot(s.cx - ideal.x, s.cy - ideal.y);
       if (Math.hypot(s.cx - ideal.x, s.cy - ideal.y) > 3) moved.push({id: u.item.id, label: u.item.label, px});
     }
-    for (let k = 0; k < cols; k++) for (let r = 0; r < rows; r++) {
-      const mine = units.filter(u => !u.ideal && u.col === k && u.row === r);
-      if (!mine.length) continue;
-      const body = bodyRect(k, r);
-      // a row-wrapped flow, each unit a bubble with its label below, centred in the body
-      const flowW = body.w - 16, uw = (u: Unit) => Math.max(2 * u.cr, u.lw), uh = (u: Unit) => 2 * u.cr + GAP + u.lh;
-      for (const u of mine) if (uw(u) > flowW) throw new Error(`quadrant(): the label "${u.item.label}" is wider than its cell (${Math.round(flowW)}px) — shorten it or widen the figure`);
-      const flowRows: Unit[][] = [[]];
-      let used = 0;
-      for (const u of mine) {
-        const cur = flowRows[flowRows.length - 1];
-        if (cur.length && used + 12 + uw(u) > flowW) { flowRows.push([u]); used = uw(u); } else { used += (cur.length ? 12 : 0) + uw(u); cur.push(u); }
-      }
-      const rowHs = flowRows.map(fr => Math.max(...fr.map(uh))), total = rowHs.reduce((a, b) => a + b, 0) + 10 * (flowRows.length - 1);
-      if (total > body.h - 10) throw new Grow(`the cell [${k}, ${r}] cannot hold ${mine.length} item${mine.length > 1 ? 's' : ''}`);
+    for (const [key, flow] of flows) {
+      const [k, r] = key.split(',').map(Number), body = bodyRect(k, r);
+      const {rows: flowRows, heights: rowHs, total} = flow;
+      const n = flowRows.reduce((a, fr) => a + fr.length, 0);
+      if (total > body.h - 10) throw new Grow(`the cell [${k}, ${r}] cannot hold ${n} item${n > 1 ? 's' : ''}`);
       let top = body.y + (body.h - total) / 2;
       flowRows.forEach((fr, fi) => {
         const rw = fr.reduce((a, u) => a + uw(u), 0) + 12 * (fr.length - 1);
@@ -529,7 +561,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   placed.sort((a, b) => a.u.i - b.u.i);
 
   // ---- bubbles, anchors
-  const bubbles: QuadrantBubble[] = placed.map(({u, spot}) => ({x: spot.cx, y: spot.cy, r: u.r, cr: u.cr, shape: u.shape, tone: u.tone, ...(u.item.id ? {id: u.item.id} : {}), label: u.item.label}));
+  const bubbles: QuadrantBubble[] = placed.map(({u, spot}) => ({x: spot.cx, y: spot.cy, r: u.r, cr: u.cr, shape: u.shape, tone: u.tone, hollow: u.hollow, cell: u.row * cols + u.col, ...(u.item.id ? {id: u.item.id} : {}), label: u.item.label}));
   const anchors: Anchor[] = placed.flatMap(({u, spot}) => u.item.id ? [{id: u.item.id, x: spot.cx - u.cr, y: spot.cy - u.cr, w: 2 * u.cr, h: 2 * u.cr}] : []);
 
   // ---- arrows, then every item label that an arrow crosses looks for another side
@@ -555,7 +587,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
       const others = placed.filter((_p, j) => j !== pi);
       const save = placed.splice(0, placed.length, ...others); // test against the others only
       const cands = SIDES.filter(s => s !== spot.side).map(side => ({side, box: result!.labelAt(u, side, spot.cx, spot.cy)}));
-      const ok = cands.find(cd => result!.free(u, spot.cx, spot.cy, cd.box, undefined, arrows.map(s => ({s}))));
+      const ok = cands.find(cd => result!.free(u, spot.cx, spot.cy, cd.box, arrows.map(s => ({s}))));
       placed.splice(0, placed.length, ...save);
       if (ok) placed[pi].spot = {...spot, side: ok.side, box: ok.box};
     });
@@ -565,7 +597,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   placed.forEach(({u, spot}, pi) => {
     const lb = result!.labelAt(u, spot.side, spot.cx, spot.cy);
     u.lines.forEach((line, k) => texts.push({text: line, x: lb.tx, y: lb.y + k * lineN + size, anchor: lb.anchor, size, bold: false, fill: 'text', item: pi}));
-    labelBoxes.push({x: spot.box.x, y: spot.box.y, w: spot.box.w, h: spot.box.h, label: u.item.label, kind: 'item'});
+    labelBoxes.push({x: spot.box.x, y: spot.box.y, w: spot.box.w, h: spot.box.h, label: u.item.label, kind: 'item', item: pi});
   });
   const chipsBusy = (r: Rect): boolean => placed.some(({u, spot}) => circleRect(spot.cx, spot.cy, u.cr, r, 2) || rectsMeet(r, spot.box, 2)) || chips.some(o => rectsMeet(r, o, 2)) || result!.headers.some(hd => rectsMeet(r, hd, 2)) || !inside(r, result!.inPlot);
   for (const al of arrowLabels) {
@@ -645,6 +677,6 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
 
   return {
     type: 'quadrant', ...(band.id ? {id: band.id} : {}), x, y, w, h, ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until}),
-    plot, crosshair: band.crosshair, cells, lines, texts, bubbles, arrows, chips, marks, anchors, labelBoxes, moved,
+    plot, crosshair: band.crosshair, cells, lines, texts, bubbles, arrows, chips, marks, anchors, labelBoxes, moved, floored,
   };
 }
