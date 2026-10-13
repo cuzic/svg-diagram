@@ -161,7 +161,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 
 | 図 | 書き方 | 自動で行うこと |
 |---|---|---|
-| PERT / アローダイアグラム | `pert([{id, label, duration, predecessors}], {unit})` | ES / EF / LS / LF / slack とクリティカルパス。循環・未知の先行タスクを拒否 |
+| PERT（作業を箱にする activity-on-node。作業を矢印にするなら `arrowDiagram`） | `pert([{id, label, duration, predecessors}], {unit})` | ES / EF / LS / LF / slack とクリティカルパス。循環・未知の先行タスクを拒否 |
 | 因果ループ図 | `causalLoop(nodes, [{from, to, polarity, delay?}])` | `+` / `-`、遅延 `||`、単純ループの R / B 分類 |
 | 関連図 / 依存ネットワーク | `dependencyNetwork([{id, label, kind?}], [{from, to, type, weight?}], opts)` | kind / type の表現、重みの線幅と数値、使用した記法の凡例 |
 

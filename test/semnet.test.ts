@@ -55,3 +55,21 @@ test('dependency network rejects unknown nodes and invalid weights', () => {
   assert.throws(() => dependencyNetwork([{id: 'a', label: 'A'}], [{from: 'a', to: 'x', type: 'uses'}]), /unknown node/);
   assert.throws(() => dependencyNetwork([{id: 'a', label: 'A'}], [{from: 'a', to: 'a', type: 'uses', weight: -1}]), /must be >= 0/);
 });
+
+test('causal loops are numbered within their kind and the dependency legend matches the edge styles', async () => {
+  const loops = causalLoop([{id: 'a', label: 'A'}, {id: 'b', label: 'B'}, {id: 'c', label: 'C'}], [
+    {from: 'a', to: 'b', polarity: '+'}, {from: 'b', to: 'a', polarity: '+'}, {from: 'b', to: 'c', polarity: '-'}, {from: 'c', to: 'a', polarity: '+'},
+  ]);
+  assert.match(loops.alt!, /R1: a → b; B1: a → b → c/);
+  const deps = dependencyNetwork([{id: 'a', label: 'A'}, {id: 'b', label: 'B'}], [{from: 'a', to: 'b', type: 'blocks'}], {height: 160});
+  const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(deps), {name: 'semnet-legend.svg', budget: 'cacheOnly'});
+  assert.equal(svg.match(/stroke-dasharray="10,4,2,4"/g)?.length, 2); // the edge and its legend sample
+});
+
+test('a long dependency legend wraps into rows instead of running off the figure', async () => {
+  const kinds = ['フロントエンドアプリ', 'バックエンドサービス', 'データベース基盤', '外部パートナーAPI', 'バッチ処理基盤', '監視基盤'];
+  const band = dependencyNetwork(kinds.map((k, i) => ({id: `n${i}`, label: `N${i}`, kind: k})), ['depends', 'uses', 'blocks', 'relates', 'feeds'].map((type, i) => ({from: `n${i}`, to: `n${i + 1}`, type})),
+    {edgeTypes: {depends: '依存関係あり', uses: '利用している', blocks: '阻害している', relates: '関連している', feeds: 'データ供給'}});
+  const checked = await checkDiagram(diagram({theme: 'blue'}).add(band));
+  assert.deepEqual(checked.verdict.problems, []);
+});

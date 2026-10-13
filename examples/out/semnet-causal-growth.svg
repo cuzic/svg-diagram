@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="388" viewBox="0 0 940 388" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">学習と成長の二つのループ</title>
-  <desc id="svg-desc">Causal loop diagram. R1: practice → skill → result; B2: practice → fatigue</desc>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/semnet-causal-growth.ts","sourceSha256":"cd2e1a068521eb7804c5be222db0c9fbe36f6728f3a73b9e1fa9af1ba4c02692","configSha256":"688d3ef287b787fab7567d00de30c32c8b97a91b5093dcbe3849582e932f5109"}</metadata>
+  <desc id="svg-desc">Causal loop diagram. R1: practice → skill → result; B1: practice → fatigue</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/semnet-causal-growth.ts","sourceSha256":"cd2e1a068521eb7804c5be222db0c9fbe36f6728f3a73b9e1fa9af1ba4c02692"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
@@ -12,13 +12,13 @@
   <path d="M470.6,108 L383.5,108" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M383.5,108 L383.5,156" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M383.5,156 L378.6,147 L388.5,147 Z" fill="#22201b"/>
-  <path d="M419.17,88 H434.83 V106 H419.17 Z" fill="#ffffff"/>
+  <path d="M419.8,88 H434.2 V106 H419.8 Z" fill="#ffffff"/>
   <text x="427" y="102" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
   <path d="M383.5,204 L383.5,222" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M383.5,222 L426.8,222" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M426.8,222 L426.8,284" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M426.8,284 L421.8,275 L431.7,275 Z" fill="#22201b"/>
-  <path d="M397.17,230 H412.83 V248 H397.17 Z" fill="#ffffff"/>
+  <path d="M397.8,230 H412.2 V248 H397.8 Z" fill="#ffffff"/>
   <text x="405" y="244" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
   <path d="M440.8,284 L440.8,232" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M440.8,232 L470,232" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
@@ -26,21 +26,21 @@
   <path d="M470,128 L484.6,128" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M484.6,128 L484.6,76" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M484.6,76 L489.6,85 L479.7,85 Z" fill="#22201b"/>
-  <path d="M462.17,160 H477.83 V178 H462.17 Z" fill="#ffffff"/>
+  <path d="M462.8,160 H477.2 V178 H462.8 Z" fill="#ffffff"/>
   <text x="470" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
-  <path d="M461,188 H479 V206 H461 Z" fill="#ffffff"/>
+  <path d="M462.35,188 H477.65 V206 H462.35 Z" fill="#ffffff"/>
   <text x="470" y="202" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
   <path d="M498.6,76 L498.6,94" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M498.6,94 L556.5,94" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M556.5,94 L556.5,156" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M556.5,156 L551.6,147 L561.5,147 Z" fill="#22201b"/>
-  <path d="M520.17,102 H535.83 V120 H520.17 Z" fill="#ffffff"/>
+  <path d="M520.8,102 H535.2 V120 H520.8 Z" fill="#ffffff"/>
   <text x="528" y="116" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
   <path d="M570.5,156 L570.5,138" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M570.5,138 L512.6,138" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M512.6,138 L512.6,76" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M512.6,76 L517.6,85 L507.7,85 Z" fill="#22201b"/>
-  <path d="M536.73,118 H547.27 V136 H536.73 Z" fill="#ffffff"/>
+  <path d="M536.99,118 H547.01 V136 H536.99 Z" fill="#ffffff"/>
   <text x="542" y="132" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
   <path d="M433.63,28 H549.63 V76 H433.63 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
   <text x="492" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">練習量</text>
@@ -50,8 +50,8 @@
   <text x="427" y="313" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">成果</text>
   <path d="M498.5,156 H614.5 V204 H498.5 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
   <text x="557" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">疲労</text>
-  <path d="M422.02,338 H445.98 V356 H422.02 Z" fill="#ffffff"/>
+  <path d="M423.09,338 H444.91 V356 H423.09 Z" fill="#ffffff"/>
   <text x="434" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">R1</text>
-  <path d="M512.14,210 H535.86 V228 H512.14 Z" fill="#ffffff"/>
-  <text x="524" y="224" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B2</text>
+  <path d="M513.02,210 H534.98 V228 H513.02 Z" fill="#ffffff"/>
+  <text x="524" y="224" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B1</text>
 </svg>

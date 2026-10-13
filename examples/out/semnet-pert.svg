@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="370" viewBox="0 0 940 370" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">新サービス公開の PERT</title>
   <desc id="svg-desc">PERT network. Project duration 16日. Critical path: plan → design → build → review → release. 要件整理: duration 3, ES 0, EF 3, LS 0, LF 3, slack 0; 設計: duration 4, ES 3, EF 7, LS 3, LF 7, slack 0; 原稿作成: duration 2, ES 3, EF 5, LS 11, LF 13, slack 8; 実装: duration 6, ES 7, EF 13, LS 7, LF 13, slack 0; レビュー: duration 2, ES 13, EF 15, LS 13, LF 15, slack 0; 公開: duration 1, ES 15, EF 16, LS 15, LF 16, slack 0</desc>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/semnet-pert.ts","sourceSha256":"e2fda09bde0a6aeb587bf1a65822e9fc006b921464e2e1c8fa48c753725748ff","configSha256":"688d3ef287b787fab7567d00de30c32c8b97a91b5093dcbe3849582e932f5109"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/semnet-pert.ts","sourceSha256":"e2fda09bde0a6aeb587bf1a65822e9fc006b921464e2e1c8fa48c753725748ff"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
