@@ -33,7 +33,7 @@ const KINDS = ['start', 'delta', 'subtotal', 'total'];
 /** Works the running level out of the steps (and checks every subtotal / total given against it). */
 export function resolveWaterfall(steps: readonly WaterfallStep[], opts: WaterfallOpts): WaterfallSpec {
   if (!Array.isArray(steps) || steps.length < 2) fail('waterfall', 'needs at least two steps (a start and a change)');
-  checkIds('waterfall()', steps.map(s => s.id), opts.id);
+  checkIds('waterfall', steps.map(s => s.id), opts.id);
   let level = 0;
   const out: ResolvedStep[] = steps.map((s, i) => {
     const label = checkText('waterfall', `step ${i + 1}'s label`, s.label);

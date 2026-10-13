@@ -43,7 +43,7 @@ export function resolveRadar(axes: readonly string[], series: readonly RadarSeri
   if (!Array.isArray(axes) || axes.length < 3 || axes.length > 12) fail('radar', `needs 3 to 12 axes (got ${Array.isArray(axes) ? axes.length : 0})`);
   if (!Array.isArray(series) || series.length < 1 || series.length > 4) fail('radar', `needs 1 to 4 series (got ${Array.isArray(series) ? series.length : 0}; more cannot be told apart)`);
   axes.forEach((a, i) => checkText('radar', `axis ${i + 1}'s label`, a));
-  checkIds('radar()', series.map(s => s.id), opts.id);
+  checkIds('radar', series.map(s => s.id), opts.id);
   const min = finiteNum('radar', 'min', opts.min ?? 0);
   for (const s of series) {
     checkText('radar', 'a series label', s.label);

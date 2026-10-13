@@ -18,7 +18,7 @@ export interface StackedSpec {mode: StackMode; series: string[]; columns: {label
 export function resolveStacked(who: string, columns: readonly StackColumn[], mode: StackMode, opts: StackedOpts): StackedSpec {
   if (!Array.isArray(columns) || columns.length === 0) fail(who, 'needs at least one column');
   if (columns.length > (mode === 'mekko' ? 12 : 20)) fail(who, `${columns.length} columns are too many for one figure (at most ${mode === 'mekko' ? 12 : 20})`);
-  checkIds(`${who}()`, columns.map(c => c.id), opts.id);
+  checkIds(who, columns.map(c => c.id), opts.id);
   const series: string[] = [];
   for (const [k, col] of columns.entries()) {
     checkText(who, `column ${k + 1}'s label`, col.label);

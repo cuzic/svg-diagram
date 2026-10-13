@@ -33,7 +33,7 @@ export function resolveTornado(items: readonly TornadoItem[], opts: TornadoOpts)
   if (items.length > 24) fail('tornado', `${items.length} items are too many for one figure (at most 24: keep the ones that matter)`);
   if (opts?.base === undefined) fail('tornado', 'needs the base result: tornado(items, {base: 1000})');
   const base = finiteNum('tornado', 'base', opts.base);
-  checkIds('tornado()', items.map(i => i.id), opts.id);
+  checkIds('tornado', items.map(i => i.id), opts.id);
   const list = items.map((i, k) => ({label: checkText('tornado', `item ${k + 1}'s label`, i.label), low: finiteNum('tornado', `"${i.label}" low`, i.low), high: finiteNum('tornado', `"${i.label}" high`, i.high), ...(i.id === undefined ? {} : {id: i.id})}));
   const ordered = opts.sort === false ? list : [...list].sort((a, b) => Math.abs(b.high - b.low) - Math.abs(a.high - a.low) || list.indexOf(a) - list.indexOf(b));
   const tones = ['accent', 'danger', 'muted', 'text'];

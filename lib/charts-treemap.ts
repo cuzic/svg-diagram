@@ -42,7 +42,7 @@ export function resolveTreemap(tree: TreemapNode | readonly TreemapNode[], opts:
     return {label: n.label, value: v, ...(n.tone === undefined ? {} : {tone: n.tone}), ...(n.id === undefined ? {} : {id: n.id})};
   };
   const out = nodes.map((n, i) => walk(n, 1, `node ${i + 1}`));
-  checkIds('treemap()', ids, opts.id);
+  checkIds('treemap', ids, opts.id);
   const total = out.reduce((a, n) => a + totalOf(n), 0);
   if (!(total > 0)) fail('treemap', 'every value is 0');
   return {nodes: out, unit: opts.unit ?? '', percent: !!opts.percent, strict: !!opts.strict, total};
