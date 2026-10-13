@@ -715,6 +715,7 @@ svg-diagram icons notice                        # 入れたアイコンのクレ
 
 - **`icons find <英単語>...`**: 検索結果から、ライセンスと形が合うものだけを残し、**プロジェクトの主セットを先頭**に出す（`--style fill|line|color`、`--set mdi,lucide`、`--limit N`）。各候補に `icons add` の行が付く。`--png sheet.png` で、`box({icon})` で描いた候補の一覧画像を作る（主セットの枠は色つき）。日本語は英語に直して渡す（Iconify の検索は英語。`svg-diagram` スキルがその手順を持つ）。
 - **用途別セット**: `icons sets` で一覧、`icons add-set <名前>` で入れる。`accounting`（領収書・請求書・銀行・承認・印鑑・財布・硬貨・電卓・契約書など 61 個）、`office`（人・会議・文書・メール・予定など）、`infra`（サーバー・DB・ネットワーク・クラウド・コンテナ・監視など）。名前は図のソースでそのまま使う（`box({icon: 'receipt'})`）。すでに入っている名前は上書きしない（自分で入れたアイコンはそのまま）。一覧は `lib/icon-sets.ts`（Iconify の id と短い名前の表）。
+- **名前がセットに無いとき**: 既定では、無い名前を**全部まとめて**報告して何も入れない（1 つの綴り違いで他が隠れない）。`icons add ... --skip-missing` なら、あるものだけ入れて、無かった名前を「飛ばした」と一覧する（ライセンス・形式のエラーは従来どおり中断。どれも無かったときは何も書かず終了コード 1。全部飛ばされたセットは主セットにならない）。
 - **並行実行**: `icons add` / `remove` / `add-pack` / `main` は `svg-diagram.icons.json.lock` で排他し、一時ファイル + rename で書く。複数のプロセスから同時に実行しても更新は失われない（落ちたプロセスのロックは自動で引き継ぐ）。
 - **主セット**: 最初に `icons add` した Iconify のセットが `svg-diagram.icons.json` の `mainSet` になり、`find` はそれを優先する（図の中のアイコンの見た目が揃う）。別のセットから入れると警告が出る。`icons main lucide` で変更、`icons main -` で解除。
 - 入った先は**カレントかその親の `svg-diagram.icons.json`**（`.svg-diagram.json` と同じ探し方。無ければカレントに作る）。コミットする。図のビルドはネットワークを使わない。
@@ -906,7 +907,7 @@ build は通常の最終形 `name.svg` に加え、段階表示を使う図だ�
 
 ## 文書と図の整合（`check --docs`）
 `svg-diagram check --docs docs --svg-dir docs/assets/diagrams/svg --src-dir docs/diagrams` は、Markdown の画像参照と、図のソースを突き合わせる。
-- 参照先の SVG がない（`doc-image-missing`、エラー）、代替テキストが空・155 文字超（`doc-alt-empty` / `doc-alt-long`）、どの文書からも参照されていない SVG（`doc-orphan-svg`）。
+- 参照先の SVG がない（`doc-image-missing`、エラー）、代替テキストが空・155 文字超（`doc-alt-empty` / `doc-alt-long`）、どの文書からも参照されていない SVG（`doc-orphan-svg`）。`![alt](images/x.png)` の PNG 参照も見る: ファイルがない（`doc-image-missing`）、同じ名前の図のソース（`--src-dir`）も SVG（`--svg-dir`）もない（`doc-png-no-source`）、参照された PNG と同じフォルダにある、どこからも参照されていない PNG（`doc-orphan-png`。文書を絞ると行わない）。
 - 図に `notes` があるとき、画像の直後の**番号つきリスト**（`1. **題名**：本文`）と、題名・本文が一致するか（`doc-notes-mismatch` / `doc-notes-missing`）。図と文書の**二重管理**で、片方の直し忘れを見つける。
 - **図番号と本文**（警告）: キャプション `図N-M`（代替テキスト、または画像の前後の行の**行頭**）が章内で 1 から連番か・重複や順序の入れ替えがないか・章番号がファイル名の章（`03-x.md` / `ch3.md`）と合うか（`doc-fig-number`）、本文の `図N-M` が、この文書にない図を指していないか（`doc-fig-ref-missing`。別の章への参照とコードブロックは見ない）、代替テキストが `image` / `図` / ファイル名のままでないか（`doc-alt-placeholder`。空は従来どおり `doc-alt-empty`）、図の下の注釈の番号が 1 から順か（`doc-notes-number`）。
 - **一章だけ検査する**: `--docs` は**ディレクトリでも .md ファイルでもよく、何度でも**書ける。`--only 'docs/03-*.md'`（繰り返し可。`**` はフォルダをまたぎ、`*` `?` は 1 階層内。カレントからの相対パスかファイル名に合わせる）で、対象のページを絞る。**絞ったとき（.md 指定または `--only`）は、孤立 SVG（`doc-orphan-svg`）の検査をしない**（全ページを見ないと「参照されていない」とは言えないため）。その旨を 1 行出す。全体を見るときは、ディレクトリだけを指定する。
@@ -931,13 +932,15 @@ build は通常の最終形 `name.svg` に加え、段階表示を使う図だ�
 ## 共通設定（`.svg-diagram.json`）
 カレントディレクトリから上へたどって見つかる。`{"accept": {"rule-id": "理由"}, "maxWidth": 940}`。図ごとの `accept` が優先される。
 
+**凡例の既定**: `"legend": false`（凡例は要らない）または `"legend": "auto"` を書くと、`diagram({legend})` を書いていない図すべての既定になる（図ごとの指定が優先）。凡例の文言は `"legendLabels": {"tone:accent": "注意", "tone:solid": "結論"}` で案件全体を揃える（図の `legendLabels` がキーごとに優先）。キーは `diagram({legendLabels})` と同じ（知らないキー・`legend` の他の値・空の文言は、ファイル名つきのエラー）。
+
 **文字幅の測定**: 既定は、文字幅と高さをフォントファイルから読む（`"measure": "font"`。HarfBuzz。kerning・合字込みで、ブラウザは起動しない）。Chromium で測るなら `{"measure": "chromium"}`（または環境変数 `SVG_DIAGRAM_MEASURE=chromium`）。`measure` を書いていないのにフォントが見つからないときは、警告を出して Chromium で測る（`"font"` と書いたのに見つからないときはエラー）。
 使うフォントは、`FONT_STACKS` の先頭から見て最初に入っているファミリー（fontconfig の `fc-match` で探す）。ファイルを直接指定するなら `{"fonts": {"sans": {"regular": "/path/YuGothR.ttc#0", "bold": "/path/YuGothB.ttc#0"}}}`（`#N` は .ttc の何番目か。`mono` `emoji` も同じ）。fontconfig のない環境（macOS など）や、どのマシンでも同じ値にしたいときは指定する。
 Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Gothic）は幅 1px・高さ 1px 以内、mono（Consolas など hinting の効くフォント）は Chromium が advance を整数ピクセルに丸める（切り上げることもある）ため、1 字あたり 1px 以内。例の図 3 つは、どちらの方式でも SVG がバイト単位で同じだった。フォントに無い字は emoji → sans のフォントで測り、どれにも無ければ 1em（全角）か 0.5em。`lint-svg` と `show` と `preview` は引き続き Chromium を使う。
 
 ## check のルール（lib/rules.ts）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える。記法が少なく凡例が要らない図は `diagram({legend: false})` で「凡例は要らない」と宣言する。凡例を足すためだけに足さない）、`quadrant-empty-cell`（`quadrant()` に項目のないマスがある。意図した空きは `allowEmpty`）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
-`a11y-no-title`、`source-wraps`（出典行が折り返している）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、`gray-tone-collision`（使っている 2 つのトーンの塗りが、白黒にすると見分けにくい。塗りを CIE L* にして、差が 10 未満なら警告。10 は、紙の白黒印刷で 2 つの平らな灰色が「違う」と読めなくなるあたり。soft（L* 約 93）と plain の白（100）が当たり、solid との組は当たらない。控えめにするトーン（muted / removed）は除く。破線の有無が違う組と、塗りが同じ組（new と accent、changed と plain。色でも塗りでは見分けていない）は除く。canvas() の、ピル（重点・中心など）で言葉にした領域は数えない。`diagram({accept})` で許容できる。`preview --gray` で目でも確かめる）、
+`a11y-no-title`、`source-wraps`（出典行が折り返している）、`cjk-line-long`（見出し＝caption の title / display / stat と banner の headline の 1 行が、全角換算で本文幅 600px に収まる字数 — title 40・banner 37・stat 17・display 10 字 — を超える。半角は 0.5 字。目安以内でも、図が狭くて見出しが自動で折り返したときも出す。改行で分けるか短くする）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、`gray-tone-collision`（使っている 2 つのトーンの塗りが、白黒にすると見分けにくい。塗りを CIE L* にして、差が 10 未満なら警告。10 は、紙の白黒印刷で 2 つの平らな灰色が「違う」と読めなくなるあたり。soft（L* 約 93）と plain の白（100）が当たり、solid との組は当たらない。控えめにするトーン（muted / removed）は除く。破線の有無が違う組と、塗りが同じ組（new と accent、changed と plain。色でも塗りでは見分けていない）は除く。canvas() の、ピル（重点・中心など）で言葉にした領域は数えない。`diagram({accept})` で許容できる。`preview --gray` で目でも確かめる）、
 `image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
 `lint-svg`（描画後の検査: コントラスト・キャンバスのはみ出し・文字の重なり・枠からのはみ出し・図形が文字に被る）は、SVG の幾何と文字の箱（レイアウトと同じフォントファイル）から調べる。`--engine browser` は同じ検査を実ブラウザで行う（`test/svg-lint-browser.test.ts` が両方を同じ SVG に当てて比べる。丸めの境界で 1px 違うことと、回転したグループの中のコントラストの比べ方（ブラウザ版は文字と図形を別々の座標系で比べていた）だけが違う）。
 描画後の検査は、**後から描かれた図形が文字を覆う、または線が文字を貫く**ものも報告する（意図した重なりは、図形に `data-allow-cover`）。
