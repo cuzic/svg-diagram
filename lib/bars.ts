@@ -246,18 +246,19 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
   const topLabels = [...band.lines ?? [], ...band.vlines ?? []].some(l => l.label);
   const plotB = f.showCats || band.edges ? y + h - S * 1.4 - 14 : y + h - 4;
   const plotTOf = (rows: number) => y + (f.axis || f.showValues || topLabels || band.cumulative ? S + 8 : 4) + Math.max(0, rows - 1) * (S + 4);
-  let vrows = vlineRows(band, plotL, plotR, plotTOf(0), S, widthOf, []), maxRows = vrows;
-  for (let n = 0; n < 4; n++) {
-    const plotT = plotTOf(vrows.rows), yOf = (v: number) => plotB - v / band.max * (plotB - plotT);
+  // the labels of the vertical reference lines stand on rows above the plot; one that would touch its neighbour or a value label goes a row higher
+  const rowsAt = (rows: number) => {
+    const plotT = plotTOf(rows), yOf = (v: number) => plotB - v / band.max * (plotB - plotT);
     const values = f.showValues && !band.stack ? verticalValues(band, plotL, plotR, plotT, plotB, S, widthOf, slots, slot, bw, yOf).flatMap(p => p ? [p.box] : []) : [];
-    const next = vlineRows(band, plotL, plotR, plotT, S, widthOf, values);
-    if (next.rows > maxRows.rows) maxRows = next;
-    if (next.rows === vrows.rows) { vrows = next; break; }
-    vrows = next;
-    if (n === 3) vrows = maxRows;
-  }
+    return vlineRows(band, plotL, plotR, plotT, S, widthOf, values);
+  };
+  // more rows lower the plot top and the values with it, which can free a row again: settle in a few passes; if the count swings,
+  // keep the most rows seen (and more, while the labels laid out against the values at that height need more), never the labels of another height
+  let rows = vlineRows(band, plotL, plotR, plotTOf(0), S, widthOf, []).rows, vrows = rowsAt(rows), most = Math.max(rows, vrows.rows);
+  for (let n = 0; n < 3 && vrows.rows !== rows; n++) { rows = vrows.rows; vrows = rowsAt(rows); most = Math.max(most, vrows.rows); }
+  if (vrows.rows !== rows) for (rows = most, vrows = rowsAt(rows); vrows.rows > rows; vrows = rowsAt(rows)) rows = vrows.rows;
   // the margins hold the value labels / top tick label above and the category labels below; none of them, none of the margin
-  const plotT = plotTOf(vrows.rows);
+  const plotT = plotTOf(rows);
   if (plotR - plotL < (f.axis || f.labels !== 'none' ? 80 : 20) || plotB - plotT < (f.axis || f.showValues ? 80 : 20)) throw new Error('bars(): the figure is too small; raise width / height');
   const out: LaidOutBars = {type: 'bars', id: band.id, x, y, w, h, dir: 'v', stack: band.stack, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), bars: [], ticks: [], texts: [], labelBoxes: [], anchors: []};
   const yOf = (v: number) => plotB - v / band.max * (plotB - plotT);
