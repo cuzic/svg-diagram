@@ -510,11 +510,30 @@ export interface GridOpts {
   cols: number;
   gap?: number;
 }
+/** What makes a grid a canvas() (lib/canvas.ts): where each child sits, and how the template's columns and rows share the space. */
+export interface CanvasLayout {
+  template: string;
+  /** One per child: the column / row it starts in and the columns / rows it spans. */
+  place: {col: number; row: number; cs: number; rs: number}[];
+  colW: number[];
+  rowW: number[];
+  /** Least height / width of the canvas. */
+  aspect: number;
+  /** The least height (px) the user asked for: more content than fits throws. */
+  h?: number;
+  title?: string;
+  /** One per child: its tone (if any) is said in words by its pill, so it needs no legend entry. */
+  worded: boolean[];
+  /** Regions without content, and whether the author wanted every one filled (rule canvas-region-empty). */
+  empty: string[];
+  requireAll: boolean;
+}
 export interface GridBand {
   type: 'grid';
   children: BoxBand[];
   cols: number;
   gap: number;
+  canvas?: CanvasLayout;
 }
 
 export interface ConnectOpts extends RevealOpts {

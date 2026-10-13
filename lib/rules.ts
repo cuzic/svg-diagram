@@ -47,6 +47,7 @@ export const RULE_DOCS = {
   'quadrant-size-floor': 'quadrant() の項目の size が小さすぎ、最小の円で描いた（面積が値より大きく見える）',
   'quadrant-tone-only': 'quadrant() の項目の色（tone）だけで種類を分けている（group を使うと形と凡例でも伝わる）',
   'arrow-labels': '一部にだけラベルがあり、ラベルのない矢印が多い',
+  'canvas-region-empty': 'canvas() の領域に内容がない（requireAll: 全領域を埋める指定）',
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
   'slide-min-text': 'スライド用キャンバスの最小文字サイズ(既定 24px)より小さい文字がある',
   'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
@@ -90,8 +91,10 @@ export function walkBands(bands: Band[], out: Band[] = []): Band[] {
 export function usedNotation(bands: Band[], dimmed = new Set<Band>()): Set<string> {
   const all = walkBands(bands);
   const used = new Set<string>(), lines = new Set<string>();
+  // a canvas() region with a pill (重点 / 中心 / ソフト) says its tone in words: that tone needs no legend entry
+  const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => b.canvas!.worded[i]) : []));
   for (const b of all) {
-    if (dimmed.has(b)) continue;
+    if (dimmed.has(b) || worded.has(b)) continue;
     if (b.type === 'connect') {
       lines.add(b.line ?? 'solid');
       if (b.arrow === 'both') used.add('arrow:both');
@@ -420,6 +423,7 @@ function lintAll(d: LintTarget): Finding[] {
     if (b.floored.length) out.push({rule: 'quadrant-size-floor', severity: 'warn', message: `quadrant() の項目 ${b.floored.map(l => `「${l}」`).join('、')} の size が最大の値に比べて小さすぎ、最小の円で描いた（面積が値より大きく見える）。値の差が大きすぎるなら、大きさではなく文字で示す`});
   }
   for (const b of walkBands(d.bands)) if (b.type === 'quadrant' && !b.groups.length && new Set(b.items.flatMap(i => i.tone ? [i.tone] : [])).size >= 2) out.push({rule: 'quadrant-tone-only', severity: 'warn', message: 'quadrant() の項目を tone（色）だけで分けている。色だけでは意味が伝わらない。group を指定する（形と凡例が付く）'});
+  for (const b of walkBands(d.bands)) if (b.type === 'grid' && b.canvas?.requireAll && b.canvas.empty.length) out.push({rule: 'canvas-region-empty', severity: 'warn', message: `canvas("${b.canvas.template}") の領域 ${b.canvas.empty.join('、')} に内容がない。書くか、requireAll を外す`});
   if (d.medium === 'doc' && !diagramTitle(d)) out.push({rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する'});
   return out;
 }

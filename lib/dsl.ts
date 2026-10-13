@@ -31,6 +31,8 @@ import type {ArrowActivity} from './qc.ts';
 import {controlChartOpts, scatterOpts} from './qc-plane.ts';
 import {ticksOf} from './plane.ts';
 import {checkSheetParts, matrixParts} from './qc-table.ts';
+import {canvasBand} from './canvas.ts';
+import type {CanvasContent, CanvasKey, CanvasOpts, CanvasTemplate, LooseCanvasOpts} from './canvas.ts';
 import type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from './qc-table.ts';
 import type {AttributeSample, ControlChartOpts, ControlType, ScatterOpts, ScatterPoint} from './qc-plane.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
@@ -1086,6 +1088,19 @@ export function matrix(rows: readonly string[], cols: readonly string[], cells: 
   return table(p.columns, p.rows, p.opts);
 }
 export {tally} from './qc-table.ts';
+
+/**
+ * A fixed-region canvas from a named template: 'bmc' (Business Model Canvas), 'lean', 'vpc', 'swot', 'tows', 'errc', 'pest' (PESTLE with
+ * `pestle: true`), 'threeC', 'sevenS', 'fiveForces', 'empathy', 'persona', 'a3'. `content` is the text of each region (a string, or an array
+ * of short bullets) by region id; a wrong id is a type error (and throws, listing the valid ones). Each region is a box: with `id: 'c'` it
+ * is the anchor 'c-<region>' for connect(), reveal and spotlight.
+ *   canvas('swot', {strengths: ['技術力'], weaknesses: ['知名度'], opportunities: ['需要増'], threats: ['新規参入']}, {title: '現状分析'})
+ */
+export function canvas<const T extends CanvasTemplate, const Id extends string = never>(template: T, content: CanvasContent<T>, opts?: CanvasOpts<T> & {id?: Id}): GridBand & Declares<`${Id}-${CanvasKey<T>}`>;
+export function canvas(template: CanvasTemplate, content: Record<string, string | readonly string[] | undefined>, opts: LooseCanvasOpts = {}): GridBand {
+  return canvasBand(template, content, opts);
+}
+export type {CanvasContent, CanvasKey, CanvasOpts, CanvasTemplate} from './canvas.ts';
 
 type MarkIds<M extends readonly ImageMark[]> = Extract<M[number]['id'], string>;
 const IMAGE_TONES = ['plain', 'accent', 'danger', 'muted', 'new', 'changed', 'removed', 'solid', 'solid-danger'];
