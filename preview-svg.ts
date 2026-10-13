@@ -8,10 +8,14 @@ import crypto from 'node:crypto';
 import {rasterize} from './lib/raster.ts';
 import {closeMeasurer} from './lib/measure.ts';
 
-// No name given: <tmpdir>/svg-diagram-preview/<source>-<unique>.png, created exclusively so parallel runs never overwrite each other.
+// No name given: <tmpdir>/svg-diagram-preview-<uid>/<source>-<unique>.png, created exclusively so parallel runs never overwrite each other.
+// The directory is per user and private (0700): a shared one would fail for the second user on a host, or be pre-created by someone else.
 function uniquePreview(input: string, png: Buffer): string {
-  const dir = path.join(os.tmpdir(), 'svg-diagram-preview');
-  fs.mkdirSync(dir, {recursive: true});
+  const uid = process.getuid?.();
+  const dir = path.join(os.tmpdir(), `svg-diagram-preview${uid === undefined ? '' : `-${uid}`}`);
+  fs.mkdirSync(dir, {recursive: true, mode: 0o700});
+  const st = fs.lstatSync(dir);
+  if (!st.isDirectory() || (uid !== undefined && st.uid !== uid)) throw new Error(`${dir} is not a directory of this user; give an output name`);
   for (;;) {
     const file = path.join(dir, `${path.basename(input, path.extname(input))}-${process.pid}-${crypto.randomBytes(3).toString('hex')}.png`);
     try { fs.writeFileSync(file, png, {flag: 'wx'}); return file; } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e; }
