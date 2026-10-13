@@ -55,16 +55,20 @@ export function grayscaleSvg(svg: string): string {
 export function resvgMarkers(svg: string): string {
   if (!svg.includes('auto-start-reverse')) return svg;
   const attr = (a: string, n: string) => new RegExp(`\\s${n}="([^"]*)"`).exec(a)?.[1];
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // a reference as an attribute (marker-start="url(#a)") or as CSS (style="marker-start: url('#a')", a <style> rule)
+  const ref = (prop: string, id: string) => new RegExp(`(?<![-\\w])(${prop}\\s*(?:=\\s*["']|:\\s*))url\\(\\s*(["']?)#${esc(id)}\\2\\s*\\)`, 'g');
   const ids: string[] = [];
-  const out = svg.replace(/<marker\b([^>]*?)\sorient="auto-start-reverse"([^>]*)>([\s\S]*?)<\/marker>/g, (_m, a: string, b: string, body: string) => {
+  const out = svg.replace(/<marker\b([^>]*?)\sorient="auto-start-reverse"([^>]*?)(?<!\/)>([\s\S]*?)<\/marker>/g, (m, a: string, b: string, body: string) => {
     const attrs = `${a}${b}`, id = attr(attrs, 'id');
-    if (!id) return _m;
+    // the `marker` shorthand also sets marker-start, which cannot be pointed at a separate copy: leave such a marker as it is
+    if (!id || ref('marker', id).test(svg)) return m;
     ids.push(id);
     const rx = attr(attrs, 'refX') ?? '0', ry = attr(attrs, 'refY') ?? '0';
-    const startAttrs = attrs.replace(/(\sid=")[^"]*"/, `$1${id}--start"`);
+    const startAttrs = attrs.replace(/(\sid=")[^"]*"/, `$1${id}--start"`).replace(/\soverflow="[^"]*"/, '');
     return `<marker${attrs} orient="auto">${body}</marker><marker${startAttrs} orient="auto" overflow="visible"><g transform="rotate(180 ${rx} ${ry})">${body}</g></marker>`;
   });
-  return ids.reduce((acc, id) => acc.replace(new RegExp(`marker-start="url\\(#${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)"`, 'g'), `marker-start="url(#${id}--start)"`), out);
+  return ids.reduce((acc, id) => acc.replace(ref('marker-start', id), `$1url($2#${id}--start$2)`), out);
 }
 
 export const NOT_LOADABLE = `a figure could not be drawn: @resvg/resvg-js could not be loaded on this machine (no prebuilt binary for it?).

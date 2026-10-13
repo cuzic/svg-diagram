@@ -384,3 +384,17 @@ test('resvg: an elbow ending downward gets a head pointing down, and marker-star
   assert.equal(dark(r, {x: 10, y: 0, w: 40, h: 25}), 0);
   assert.ok(dark(r, {x: 20, y: 30, w: 20, h: 15}) > 40);
 });
+
+test('resvgMarkers: marker-start written as CSS goes to the turned copy; the `marker` shorthand and a self-closing marker are left alone', () => {
+  const m = (id: string) => `<marker id="${id}" refX="9" refY="5" overflow="hidden" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>`;
+  const css = resvgMarkers(`<svg>${m('a')}<path style="marker-start: url('#a')" marker-end="url(#a)"/></svg>`);
+  assert.match(css, /marker-start: url\('#a--start'\)/);
+  assert.match(css, /marker-end="url\(#a\)"/);
+  assert.equal((css.match(/overflow=/g) ?? []).length, 2); // the copy's overflow="visible" replaces, not duplicates, the marker's own
+  const short = `<svg>${m('a')}<path marker="url(#a)"/></svg>`;
+  assert.equal(resvgMarkers(short), short);
+  const self = `<svg><marker id="b" orient="auto-start-reverse"/>${m('a')}<path marker-start="url(#a)"/></svg>`;
+  const out = resvgMarkers(self);
+  assert.match(out, /<marker id="b" orient="auto-start-reverse"\/>/);
+  assert.match(out, /marker-start="url\(#a--start\)"/);
+});
