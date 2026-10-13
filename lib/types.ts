@@ -2579,6 +2579,10 @@ export interface CheckResult {laidOut: LaidOutDiagram; verdict: Verdict}
 export interface Config {
   accept?: Partial<Record<RuleId, string>>;
   maxWidth?: number;
+  /** The default for every diagram's `legend` (a diagram's own wins): false = no legend needed, 'auto' = add the missing entries. */
+  legend?: 'auto' | false;
+  /** Legend wording for every diagram, e.g. {"tone:accent": "注意"} (a diagram's own legendLabels win per key). */
+  legendLabels?: Partial<Record<NotationKey, string>>;
   /** How text is measured: 'font' (default) from the font files, no browser (see `fonts`); 'chromium' in a headless browser. */
   measure?: 'chromium' | 'font';
   /** Font files to measure with when `measure` is 'font': per family, the regular and the bold (weight >= 600) one, as `path` or `path#faceIndex`. Unset: found with fontconfig. */
