@@ -104,7 +104,8 @@ DSL(ビルダー) → Diagram データ → prepareReveal / applyAutoLegend
 ## 実装での確定事項
 
 - strict-width の環境変数は CLI プロセスの env で効いているので、`widthOf` 引数では置き換えられない。読む場所を `lib/layout-measured.ts`(測定してから layout する殻)に移し、`widthOfMeasured(measured, strict)` へ引数で渡した。`layout.ts` は環境を読まない。
-- `emit-html.ts` は描画時に `font-metrics.ts`(`textBox`)を読むので、**中核の一覧から外した**(殻の側)。必要な値をレイアウト結果へ焼き込む案は、HTML 出力の変更が大きいので見送った。
+- `emit-html.ts` は、フォント測定値(ascent / descent)と図の id 用のダイジェストを `HtmlEnv` として引数で受け取る(`emitHtml(d, env, opts)`)。実体は殻の `lib/html-env.ts` が `font-metrics.ts` / `node:crypto` から作る。これで `emit-html.ts` は中核の一覧に入り、出力は変わらない(golden 不変)。
+- `dsl.ts` からディスクを触る部分を出した: `build` / `finishBuild` は `lib/build.ts`、`renderDiagram` / `checkDiagram` / `fillScaleLimit` は `lib/render-diagram.ts`。`dsl.ts` は両方を再 export するので公開 API は変わらない。`dsl.ts` が I/O を直接持たないことは `test/core-purity.test.ts` が見る。既知の残り: ビルダーの `box({size})` 警告の `console.warn`。
 - §4 の検査は `test/core-purity.test.ts`。対象は atoms・bars・emit・fit・layout・plane・reveal・rich・rules・seq-table・spotlight・tokens・types・verify・wrap・wireframe。静的 import と動的 `import()` を推移的にたどり、fs / child_process / playwright / resvg / harfbuzz と `process.*` に届けば落ちる(`measure.ts` と `emit-html.ts` を一時的に対象へ入れて、落ちることを確かめた)。
 
 - `cloneData` は、配列とプレーンなオブジェクト(`Object.prototype` / `null` プロトタイプ)だけをコピーし、クラスのインスタンス・Map / Set / Date / RegExp・関数は共有する(クラスのインスタンスを手でコピーすると、private field や内部スロットが壊れて、描画が例外で落ちる)。**既知の穴**: クラスのインスタンスを `plane({points})` などに渡すと、`prepareReveal` の書き込みが図をまたいで漏れうる。同じオブジェクトを 2 回見たら 1 回だけコピーする(WeakMap)ので、1 枚の図の中で同じ band を 2 か所に置いても同一のまま(main と同じ挙動)で、循環でもスタックを使い切らない。非列挙のプロパティ(`.left` / `.right` / `.at` の handle、anchors)とシンボルキー(`NUMBERING`、`GIVEN`、`RICH`)は落ちる。`add()` が描画の前に使い切り、パスより下流は読まない。**描画結果の `laidOut.bands` の band から handle は取れなくなる**。
