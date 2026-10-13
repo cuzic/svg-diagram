@@ -225,6 +225,9 @@ function colSlots(children: SlotSizing[]): {col: number; span: number}[] {
 // Structural width distribution for row()/grid() — pure arithmetic, no text
 // metrics needed, so this can run in the same pass that registers measure
 // requests (a child's wrap width must be known before we know what to wrap).
+/** swimlane({fit: 'shrink'}) leaves the lane label / gap sizes alone while every column is at least this wide. */
+const SWIMLANE_COMFY_COL = 112;
+
 function rowChildGeometry(band: Pick<RowBand, 'cols' | 'gap' | 'justify' | 'itemWidth'> & {children: {span?: number; col?: number; flex?: number; width?: number; title?: string; id?: string}[]}, contentWidth: number) {
   const n = band.children.length;
   const gap = band.gap;
@@ -713,9 +716,17 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
     }
 
     if (band.type === 'swimlane') {
-      const labelW = band.labelW ?? 128, colGap = band.colGap ?? 28, padY = 14, padX2 = 14;
+      let labelW = band.labelW ?? 128, colGap = band.colGap ?? 28, padX2 = 14;
+      const padY = 14;
+      const colWAt = (): number => (cw - labelW - 2 * padX2 - (band.cols - 1) * colGap) / band.cols;
+      if (band.fit === 'shrink' && colWAt() < SWIMLANE_COMFY_COL) { // free room for the columns: lane labels and gaps give way first, a step at a time
+        for (const [lw, cg, px] of [[104, 20, 12], [88, 12, 8]]) {
+          labelW = Math.min(labelW, lw); colGap = Math.min(colGap, cg); padX2 = Math.min(padX2, px);
+          if (colWAt() >= SWIMLANE_COMFY_COL) break;
+        }
+      }
       const bodyX = padX + labelW, bodyW = cw - labelW;
-      const colW = (bodyW - 2 * padX2 - (band.cols - 1) * colGap) / band.cols;
+      const colW = colWAt();
       if (colW < 60) throw new Error(`swimlane(): ${band.cols} columns leave only ${Math.round(colW)}px each — widen the diagram, shrink labelW, or use fewer columns`);
       const startY = cursorY;
       const wrapLines = (text: string, size: number, weight: number, maxW: number) => wrapAtoms(splitAtoms(text), {maxWidth: Math.max(20, maxW), atomWidth: (a: string) => widthOf(a, size, weight, 'sans')});

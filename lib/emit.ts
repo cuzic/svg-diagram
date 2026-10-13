@@ -141,7 +141,8 @@ function renderBoxRect(band: BoxLike, day: Theme, defaultTone: EmphasisTone): st
   const style = resolveBoxStyle(band.tone ?? defaultTone, day, band.dashed);
   if (band.dim) { style.fill = PALETTE.bg; style.stroke = PALETTE.muted; }
   const dash = style.dashed ? ' stroke-dasharray="6,4"' : band.dim ? ' stroke-dasharray="2,5" stroke-linecap="round"' : '';
-  const rx = snap4(band.x), ry = snap4(band.y), rw = snap4(band.w), rh = snap4(band.h);
+  // the right edge snaps like the left one (not the width alone), so a frame ends where a neighbouring band of the same extent ends
+  const rx = snap4(band.x), ry = snap4(band.y), rw = snap4(band.x + band.w) - rx, rh = snap4(band.h);
   return `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" rx="8" fill="${style.fill}" stroke="${style.stroke}" stroke-width="2.5"${dash}/>`;
 }
 

@@ -8,7 +8,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {glyphFromSvg, packIconName} from './icon-store.ts';
 import type {InstalledIcon} from './icon-store.ts';
-import {manifestPath, readManifest, writeManifest} from './icon-install.ts';
+import {manifestPath, readManifest, withManifestLock, writeManifest} from './icon-install.ts';
 
 export interface PackOpts {
   prefix: string;
@@ -84,11 +84,13 @@ export function addPack(src: string, o: PackOpts): PackResult {
     }
     const file = manifestPath(o.cwd);
     if (o.list) return {file, added: Object.keys(got), replaced: [], skipped, collisions, listed: true};
+    return withManifestLock(file, () => {
     const m = readManifest(file);
     const replaced = Object.keys(got).filter(n => n in m.icons);
     Object.assign(m.icons, got);
     m.packs = {...(m.packs ?? {}), [o.prefix]: {terms: o.terms!.trim(), source: path.basename(path.resolve(src)), acceptedAt: o.today ?? new Date().toISOString().slice(0, 10)}};
     writeManifest(file, m);
     return {file, added: Object.keys(got).filter(n => !replaced.includes(n)), replaced, skipped, collisions, listed: false};
+    });
   } finally { cleanup(); }
 }

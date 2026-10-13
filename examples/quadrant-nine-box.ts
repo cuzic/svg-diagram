@@ -5,6 +5,7 @@ import {diagram, quadrant} from 'svg-diagram';
 export default function define() {
   const d = diagram({theme: 'blue', width: 940, gap: 20, title: '人材 9 ボックス'});
   d.add(quadrant.preset('nineBox', {
+    allowEmpty: true, // a sample: not every cell is filled
     items: [
       {label: '田中', cell: [2, 0]}, {label: '佐藤', cell: [2, 1]}, {label: '鈴木', cell: [2, 1]},
       {label: '高橋', cell: [2, 2]}, {label: '伊藤', cell: [1, 1]}, {label: '渡辺', cell: [1, 1]}, {label: '山本', cell: [1, 1]},

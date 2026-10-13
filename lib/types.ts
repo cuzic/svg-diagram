@@ -138,8 +138,8 @@ export interface DiagramOpts {
   desc?: string;
   /** {'rule-id': 'why this finding is fine'}: shown as info instead of a warning. */
   accept?: Partial<Record<RuleId, string>>;
-  /** 'auto' adds a legend entry for every notation used but not listed. */
-  legend?: 'auto';
+  /** 'auto' adds a legend entry for every notation used but not listed. false: this diagram needs no legend (legend-missing / legend-incomplete are not reported). */
+  legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
   /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
   wrap?: 'phrase' | 'char';
@@ -183,7 +183,7 @@ export interface DiagramData {
   title?: string;
   desc?: string;
   accept?: Partial<Record<RuleId, string>>;
-  legend?: 'auto';
+  legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
   /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
   wrap?: 'phrase' | 'char';
@@ -1203,7 +1203,11 @@ export interface BpmnFlow {
   /** 'dashed': a message flow between lanes (default: a sequence flow, solid). */
   line?: 'solid' | 'dashed';
 }
-export interface BpmnOpts extends RevealOpts {id?: string}
+export interface BpmnOpts extends RevealOpts {
+  id?: string;
+  /** 'shrink': when the figure is wider than the diagram, narrow the lane-name column, the column gaps and the task boxes step by step until it fits (default: throw). */
+  fit?: 'shrink';
+}
 export interface BpmnBand extends BpmnOpts {
   type: 'bpmn';
   lanes: BpmnLane[];
@@ -1480,6 +1484,8 @@ export interface SwimlaneOpts extends RevealOpts {
   /** Width of the lane-label column (default 128). */
   labelW?: number;
   colGap?: number;
+  /** 'shrink': when the columns come out narrower than ~112px, narrow the lane-label column and the column gaps (down to 88 / 12px) to give them room. Default: the sizes above, as given. */
+  fit?: 'shrink';
   id?: string;
 }
 /** A step after swimlane() placed it in a column. */
@@ -1498,6 +1504,7 @@ export interface SwimlaneBand {
   phases?: SwimlanePhase[];
   labelW?: number;
   colGap?: number;
+  fit?: 'shrink';
   id?: string;
   reveal?: number;
   until?: number;
@@ -2563,4 +2570,6 @@ export interface ChangeExplanation {identical: boolean; visual: boolean; lines: 
 /** One numbered item of a Markdown page's notes list. */
 export interface DocNoteItem {n: number; title: string; text: string}
 /** One `![alt](x.svg)` found in a Markdown page, with the numbered list after it. */
-export interface DocImage {line: number; alt: string; ref: string; items: DocNoteItem[]}
+export interface DocImage {line: number; alt: string; ref: string; items: DocNoteItem[]; caption?: DocCaption}
+/** A 「図N-M」 caption tied to a figure: in its alt text, or on the line just before/after it. */
+export interface DocCaption {ch: number; no: number; line: number}
