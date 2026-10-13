@@ -47,7 +47,8 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram build <source.ts> --html                 # <name>.html も書く（文字・箱・表・線・矢印・曲線を HTML/CSS で。docs/adr/0006）
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
-    svg-diagram check --docs DIR [--svg-dir DIR] [--src-dir DIR] [--map]   # 文書（Markdown）と図が食い違っていないか（--map: 図・ソース・SVG・文書の対応表を Markdown で出す）
+    svg-diagram check --covers 表.md|表.csv [--svg-dir DIR] <ソース.ts|図.svg>...   # 表を図に置き換えたとき、表のセルの語・数値が図に残っているか
+    svg-diagram check --docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]   # 文書（Markdown）と図が食い違っていないか（--map: 図・ソース・SVG・文書の対応表を Markdown で出す）
     svg-diagram notes <source.ts>                        # 図の番号つき注釈を Markdown のリスト（1. **題名**：本文）で出す。文書に貼る
     svg-diagram diff old.svg new.svg                     # 2 つの SVG の違いを言葉で（見た目が変わるか）
     svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX]  # 図の集まりを 1 枚に並べて、一度に目視する
@@ -372,6 +373,7 @@ quadrant({x: {title: '価格', low: '安い', high: '高い'}, y: {title: '携�
 - **重ならない**: 項目と項目、項目と他のラベル・マスの見出し・矢印は重ならない。項目の印とラベルは自分のマスの枠の中に収まる（枠をまたぐと別のマスに見える）。`cell` の項目が多いと、その行が伸びる。座標が近い項目は、同じマスの中で最も近い空きへ動く（動かせないほど混むと、行の高さ（`height` は最小値）を伸ばす。それでも置けなければ、どの項目か書いて throw）。座標から 16px 以上動いた項目は `quadrant-item-moved`（警告）で知らせる。
 - **大きさ**: `size` を書くと円の**面積**が値に比例する。1 つに書いたら全部の項目に書く（書かない項目は小さな値に見えるので throw）。図の下に「円の面積 = {sizeTitle}」と基準の円（切りのよい値、`sizeUnit` 付き）が付く。最大の 1/50 ほどより小さい値は最小の円（半径 6px）で描き、`quadrant-size-floor`（警告）で知らせる（面積が値より大きく見える）。
 - **色だけにしない**: マスの評価は常に見出し・説明の文字で書く（色・破線は補助）。項目の種類は `group` で分ける（円・四角・ひし形・三角と色の組み合わせ、5 つ目からは中抜きの形。凡例付き。8 グループまで）。1 つに書いたら全部の項目に書く（書かない項目は 1 つ目のグループと同じ印に見えるので throw）。`tone` だけで分けると `quadrant-tone-only`（警告）。凡例の順は `groups: [...]`。
+- **空のマス**: 項目が 1 つもないマスは「空の枠」が残るので `quadrant-empty-cell`（警告。マスは「見出し [列, 行]」で示す。`allowEmpty` と同じ数え方）。項目を入れるか、意図した空きなら `allowEmpty: [[col, row]]`（上から数えた 0 始まり。全部なら `allowEmpty: true`）で示す。図ごとに理由を残すなら `accept: {'quadrant-empty-cell': '理由'}`（情報に下がる）。
 - **矢印**（ポートフォリオの移動）: `arrows: [{from: 項目の id｜[x, y], to: 同左, label?, dashed?}]`。円の縁から縁へ引き、ラベルは線上の白い札。矢印が項目やラベルを横切ると検査で止まる。
 - **id**: 項目の `id` は `connect()` と spotlight の対象（図全体の `id` も）。段階表示は図ごと（項目単位の reveal はない）。
 - **幅**: x 軸の名前（低・タイトル・高）が 1 行で入らない、1 マスが 90px 未満（列が多すぎる）、1 つのラベルがマスより広いときは throw。
@@ -665,12 +667,16 @@ diagram({theme: 'blue', legend: 'auto'}).add(
 svg-diagram icons find key bridge --png sheet.png   # 欲しい絵記号（英語）から、入れられる候補を絵つきで出す
 svg-diagram icons search key --set mdi          # Iconify の id を探す（mdi:key-variant など）
 svg-diagram icons add mdi:key-variant=key mdi:account=person ./brand/logo.svg=logo
+svg-diagram icons sets                          # 用途別のおすすめセット（accounting / office / infra）
+svg-diagram icons add-set accounting            # セットを 1 コマンドで入れる（すべて mdi。ライセンス・出典は add と同じ扱い）
 svg-diagram icons list                          # 名前・出典・ライセンス
 svg-diagram icons remove logo
 svg-diagram icons notice                        # 入れたアイコンのクレジットを Markdown で
 ```
 
 - **`icons find <英単語>...`**: 検索結果から、ライセンスと形が合うものだけを残し、**プロジェクトの主セットを先頭**に出す（`--style fill|line|color`、`--set mdi,lucide`、`--limit N`）。各候補に `icons add` の行が付く。`--png sheet.png` で、`box({icon})` で描いた候補の一覧画像を作る（主セットの枠は色つき）。日本語は英語に直して渡す（Iconify の検索は英語。`svg-diagram` スキルがその手順を持つ）。
+- **用途別セット**: `icons sets` で一覧、`icons add-set <名前>` で入れる。`accounting`（領収書・請求書・銀行・承認・印鑑・財布・硬貨・電卓・契約書など 61 個）、`office`（人・会議・文書・メール・予定など）、`infra`（サーバー・DB・ネットワーク・クラウド・コンテナ・監視など）。名前は図のソースでそのまま使う（`box({icon: 'receipt'})`）。すでに入っている名前は上書きしない（自分で入れたアイコンはそのまま）。一覧は `lib/icon-sets.ts`（Iconify の id と短い名前の表）。
+- **並行実行**: `icons add` / `remove` / `add-pack` / `main` は `svg-diagram.icons.json.lock` で排他し、一時ファイル + rename で書く。複数のプロセスから同時に実行しても更新は失われない（落ちたプロセスのロックは自動で引き継ぐ）。
 - **主セット**: 最初に `icons add` した Iconify のセットが `svg-diagram.icons.json` の `mainSet` になり、`find` はそれを優先する（図の中のアイコンの見た目が揃う）。別のセットから入れると警告が出る。`icons main lucide` で変更、`icons main -` で解除。
 - 入った先は**カレントかその親の `svg-diagram.icons.json`**（`.svg-diagram.json` と同じ探し方。無ければカレントに作る）。コミットする。図のビルドはネットワークを使わない。
 - 取得元は [Iconify](https://iconify.design) の API（`SVG_DIAGRAM_ICONIFY_API` でミラーに替えられる）。`mdi:名前=自分の名前` で名前を付ける。`./logo.svg` のような自作の SVG も入る。
@@ -856,8 +862,18 @@ build は通常の最終形 `name.svg` に加え、段階表示を使う図だ�
 `svg-diagram check --docs docs --svg-dir docs/assets/diagrams/svg --src-dir docs/diagrams` は、Markdown の画像参照と、図のソースを突き合わせる。
 - 参照先の SVG がない（`doc-image-missing`、エラー）、代替テキストが空・155 文字超（`doc-alt-empty` / `doc-alt-long`）、どの文書からも参照されていない SVG（`doc-orphan-svg`）。
 - 図に `notes` があるとき、画像の直後の**番号つきリスト**（`1. **題名**：本文`）と、題名・本文が一致するか（`doc-notes-mismatch` / `doc-notes-missing`）。図と文書の**二重管理**で、片方の直し忘れを見つける。
+- **図番号と本文**（警告）: キャプション `図N-M`（代替テキスト、または画像の前後の行の**行頭**）が章内で 1 から連番か・重複や順序の入れ替えがないか・章番号がファイル名の章（`03-x.md` / `ch3.md`）と合うか（`doc-fig-number`）、本文の `図N-M` が、この文書にない図を指していないか（`doc-fig-ref-missing`。別の章への参照とコードブロックは見ない）、代替テキストが `image` / `図` / ファイル名のままでないか（`doc-alt-placeholder`。空は従来どおり `doc-alt-empty`）、図の下の注釈の番号が 1 から順か（`doc-notes-number`）。
+- **一章だけ検査する**: `--docs` は**ディレクトリでも .md ファイルでもよく、何度でも**書ける。`--only 'docs/03-*.md'`（繰り返し可。`**` はフォルダをまたぎ、`*` `?` は 1 階層内。カレントからの相対パスかファイル名に合わせる）で、対象のページを絞る。**絞ったとき（.md 指定または `--only`）は、孤立 SVG（`doc-orphan-svg`）の検査をしない**（全ページを見ないと「参照されていない」とは言えないため）。その旨を 1 行出す。全体を見るときは、ディレクトリだけを指定する。
 - `--map` で、図 / 図のソース / SVG / 使っている文書の**対応表**（Markdown）を標準出力に出す（参照のない SVG は「（参照なし）」）。手で書いた表の代わりに貼る。注釈の文は `svg-diagram notes <ソース>` で出せる（複数の画面に注釈があれば `<!-- 画面 N -->` で区切る）。
 - `--format json`（機械可読）、`--format github`（PR の注釈 `::warning file=…,line=…`）。
+
+## 表と図の突き合わせ（`check --covers`）
+`svg-diagram check --covers table.md --svg-dir svg diagrams/flow.ts` は、本文の Markdown 表（または CSV）を図に置き換えたとき、表のセルの文字列が図の `<text>` に残っているかを調べ、欠けたセルを `covers-missing`（警告）で一覧する。
+- 全角/半角・大文字小文字・空白・句読点・桁区切りの違いは無視する（`ＡＢＣ１２３` = `abc123`、`1,200 円` = `1200円`）。
+- 数値は数値として比べる（`30` は `300` の一部とみなさない。`3.5` と `35` は別）。
+- Markdown は見出し行と `|---|` の行がある GFM の表を読む（外側の `|` は省略可、コードブロックの中は読まない）。CSV は引用符の中のカンマ・改行・`""` を扱う。表が見つからなければ終了コード 2。
+- セルがそのまま見つからなければ、固有名詞と数値のトークン（英単語、カタカナ語、漢字 2 字以上の語、数値）で判定し、欠けたトークンを示す。ひらがなの助詞や言い換えでは警告しない。
+- ソース（`.ts`）は、`--svg-dir`（既定 `./svg`）の生成済み SVG を読む。`.svg` を直接渡してもよい。
 
 ## 図の違いの説明（`--rebuild`、`diff`）
 `check --drift --rebuild` は、再生成した SVG が違うとき、**何が変わったか**を示す（メタデータのみ / 不可視の下地 / 文字の移動 / 図形の増減 / キャンバスの大きさ）。
@@ -871,7 +887,7 @@ build は通常の最終形 `name.svg` に加え、段階表示を使う図だ�
 Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Gothic）は幅 1px・高さ 1px 以内、mono（Consolas など hinting の効くフォント）は Chromium が advance を整数ピクセルに丸める（切り上げることもある）ため、1 字あたり 1px 以内。例の図 3 つは、どちらの方式でも SVG がバイト単位で同じだった。フォントに無い字は emoji → sans のフォントで測り、どれにも無ければ 1em（全角）か 0.5em。`lint-svg` と `show` と `preview` は引き続き Chromium を使う。
 
 ## check のルール（lib/rules.ts）
-`legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
+`legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える。記法が少なく凡例が要らない図は `diagram({legend: false})` で「凡例は要らない」と宣言する。凡例を足すためだけに足さない）、`quadrant-empty-cell`（`quadrant()` に項目のないマスがある。意図した空きは `allowEmpty`）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
 `a11y-no-title`、`source-wraps`（出典行が折り返している）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、
 `image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
 `lint-svg`（描画後の検査: コントラスト・キャンバスのはみ出し・文字の重なり・枠からのはみ出し・図形が文字に被る）は、SVG の幾何と文字の箱（レイアウトと同じフォントファイル）から調べる。`--engine browser` は同じ検査を実ブラウザで行う（`test/svg-lint-browser.test.ts` が両方を同じ SVG に当てて比べる。丸めの境界で 1px 違うことと、回転したグループの中のコントラストの比べ方（ブラウザ版は文字と図形を別々の座標系で比べていた）だけが違う）。

@@ -100,6 +100,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (opts.appearance !== undefined && !['light', 'dark'].includes(opts.appearance as string) && !(typeof opts.appearance === 'object' && opts.appearance && typeof opts.appearance.dark === 'object')) throw new Error(`diagram({appearance}) must be 'light', 'dark' or {dark: {bg, text, ...}} (got ${JSON.stringify(opts.appearance)})`);
   mapOf(opts.appearance); // a custom dark set is validated here
   if (opts.sourceLine !== undefined && (typeof opts.sourceLine !== 'string' || !opts.sourceLine.trim() || /[\r\n]/.test(opts.sourceLine))) throw new Error('diagram({sourceLine}) must be a non-empty single-line string (e.g. "出典: 総務省 2025")');
+  if (opts.legend !== undefined && opts.legend !== 'auto' && opts.legend !== false) throw new Error(`diagram({legend}) must be 'auto' or false (got ${JSON.stringify(opts.legend)})`);
   if (opts.canvas !== undefined && (opts.slide || opts.fill)) throw new Error('diagram({canvas}) is a whole slide drawn 1:1; it cannot be combined with `slide` / `fill` (those fit a figure into a measured slot of a Slidev slide)');
   const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...(opts.canvas === 'slide' ? {} : opts.canvas)};
   const d: DiagramData = {

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="638" viewBox="0 0 940 638" role="img" aria-labelledby="svg-title">
   <title id="svg-title">事業ポートフォリオ（GE マッキンゼー）</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/quadrant-ge.ts","sourceSha256":"6802d993f2f78f6bbe40264eaa532c3cc7ea38bf6405bfd216cc0b6e7f9e3c5f"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/quadrant-ge.ts","sourceSha256":"bf378e8ab49313083da125d1bcfe7585a10eb72132c9473162d8f6e0e83a32c2"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }

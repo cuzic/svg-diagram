@@ -6,6 +6,7 @@ export default function define() {
   const d = diagram({theme: 'blue', width: 940, gap: 20, title: '事業ポートフォリオ（GE マッキンゼー）'});
   d.add(caption('円の面積は売上高。位置は 0〜1 の評点（1 が高い・強い）。', {align: 'left'}));
   d.add(quadrant.preset('ge', {
+    allowEmpty: true, // a sample: not every cell is filled
     sizeTitle: '売上高', sizeUnit: '億円',
     items: [
       {label: '決済', at: [0.88, 0.9], size: 80},
