@@ -244,3 +244,18 @@ test('applyConfig: project legend fills only when the diagram has none; legendLa
   assert.deepEqual(own.legendLabels, {'tone:accent': '要点', 'tone:solid': '結論'});
   assert.equal((applyConfig({} as never, {}) as {legend?: unknown}).legend, undefined);
 });
+
+test('loadConfig: a bad legend / legendLabels in .svg-diagram.json is an error naming the file', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cfg-legend-'));
+  const f = path.join(dir, '.svg-diagram.json');
+  try {
+    const bad = (json: object, re: RegExp) => { fs.writeFileSync(f, JSON.stringify(json)); assert.throws(() => loadConfig(dir), (e: Error) => e.message.startsWith(f) && re.test(e.message)); };
+    bad({legend: 'off'}, /"legend" must be "auto" or false/);
+    bad({legend: true}, /"legend" must be/);
+    bad({legendLabels: {'tone:acent': '注意'}}, /unknown key "tone:acent"/);
+    bad({legendLabels: {'tone:accent': 1}}, /non-empty string/);
+    bad({legendLabels: ['x']}, /must be an object/);
+    fs.writeFileSync(f, JSON.stringify({legend: false, legendLabels: {'tone:accent': '注意'}}));
+    assert.equal(loadConfig(dir).legend, false);
+  } finally { fs.rmSync(dir, {recursive: true}); }
+});
