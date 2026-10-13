@@ -47,11 +47,19 @@ const flag = (n: string) => args.includes(n);
 const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1]; };
 const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--covers', '--format', '--only'];
 const vals = (n: string) => args.flatMap((a, i) => (a === n && args[i + 1] !== undefined ? [args[i + 1]] : []));
+// --docs takes the path after it, and every following .md file / directory too (`--docs A.md B.md dir`): those are documents, never sources
+const isDocArg = (a: string) => !a.startsWith('--') && (a.toLowerCase().endsWith('.md') || (fs.existsSync(a) && fs.statSync(a).isDirectory()));
+const docsArgIdx = new Set<number>();
+args.forEach((a, i) => { if (a === '--docs') for (let j = i + 1; j < args.length && (j === i + 1 ? args[j] !== undefined && !args[j].startsWith('--') : isDocArg(args[j])); j++) docsArgIdx.add(j); });
 const strict = flag('--strict'), verbose = flag('--verbose'), drift = flag('--drift'), rebuild = flag('--rebuild');
 const mapMode = flag('--map');
 if (mapMode && (!val('--docs') || (val('--format') ?? 'text') !== 'text')) { console.error('--map は --docs と一緒に、--format text で使う（表を標準出力に出す）'); process.exit(2); }
-const svgDir = val('--svg-dir'), srcDir = val('--src-dir'), docsDirs = vals('--docs'), docsDir = docsDirs[0], coversFile = val('--covers'), only = vals('--only').map(globToRegExp), format = val('--format') ?? 'text';
-const sources = args.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1]));
+const svgDir = val('--svg-dir'), srcDir = val('--src-dir'), docsDirs = args.filter((_, i) => docsArgIdx.has(i)), docsDir = docsDirs[0], coversFile = val('--covers'), only = vals('--only').map(globToRegExp), format = val('--format') ?? 'text';
+const sources = args.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1]) && !docsArgIdx.has(i));
+for (const s of sources) {
+  const ok = coversFile && s.toLowerCase().endsWith('.svg') ? true : /\.(ts|mts|cts|js|mjs|cjs)$/i.test(s);
+  if (!ok) { console.error(`✗ ${s}: 図のソース（.ts / .mjs）ではない。${/\.md$/i.test(s) ? '文書は --docs ' + s + ' で渡す' : '図のソースを指定する'}`); process.exit(2); }
+}
 if (!['text', 'json', 'github'].includes(format)) { console.error(`--format must be text, json or github (got "${format}")`); process.exit(2); }
 if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]] [--covers TABLE.md|TABLE.csv [--svg-dir DIR]] [--format text|json|github] <source.ts>...'); process.exit(2); }
 const config = loadConfig();
