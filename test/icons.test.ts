@@ -258,8 +258,26 @@ test('a bpmn task takes an icon above its label; the task grows to hold it', asy
   assert.equal(await h('key') - await h(), 24);
 });
 
+test("a bpmn task's icon takes the task's text tone unless iconTone says otherwise", async () => {
+  const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(bpmn([{id: 'a', label: 'x'}],
+    [{id: 't', lane: 'a', label: '承認', icon: 'key', tone: 'accent'}, {id: 'u', lane: 'a', label: '照合', icon: 'lock', tone: 'danger', iconTone: 'muted'}], [{from: 't', to: 'u'}])), {name: 'bpmn-icon-tone.svg', budget: 'cacheOnly'});
+  const fill = (name: string) => svg.match(new RegExp(`fill="(#\\w+)" aria-hidden="true" data-icon="${name}"`))![1];
+  const textFill = (s: string) => svg.match(new RegExp(`fill="(#\\w+)">${s}`))![1];
+  assert.equal(fill('key'), textFill('承認'));
+  assert.notEqual(fill('lock'), textFill('照合'));
+});
+
 test("bpmn icons survive fit: 'shrink'", async () => {
   const {verdict} = await renderDiagram(diagram({theme: 'blue'}).add(bpmnWith({fit: 'shrink'})), {name: 'bpmn-icon-shrink.svg', budget: 'cacheOnly'});
+  assert.deepEqual(verdict.problems, []);
+});
+
+test('a back flow runs under a tall task with an icon that stands between its ends, not through it', async () => {
+  const d = diagram({theme: 'blue'}).add(bpmn(
+    [{id: 'a', label: '申請者'}, {id: 'm', label: '上長'}],
+    [{id: 'w', lane: 'a', label: '精算書を作成'}, {id: 'ap', lane: 'm', label: '内容を承認', sub: '金額と領収書を確かめる', icon: 'check'}, {id: 'g', lane: 'm', kind: 'xor', label: '承認'}, {id: 'e', lane: 'm', kind: 'end'}],
+    [{from: 'w', to: 'ap'}, {from: 'ap', to: 'g'}, {from: 'g', to: 'e', label: '可'}, {from: 'g', to: 'w', label: '却下'}]));
+  const {verdict} = await renderDiagram(d, {name: 'bpmn-icon-back.svg', budget: 'cacheOnly'});
   assert.deepEqual(verdict.problems, []);
 });
 
