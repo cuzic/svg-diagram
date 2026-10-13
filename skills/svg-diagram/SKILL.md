@@ -47,6 +47,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 4. **目で見る**: `svg-diagram preview out.svg out.png 2` で PNG にし、画像として読んで確認する（`svg-diagram show x.ts --png out.png` なら SVG を書かずにソースから直接 PNG にできる。`show` を `--png` なしで使うのは人が sixel 対応の端末で見るとき用で、エージェントの実行環境では端末がないためエラーになる）。**検査を通っても、レイアウトの良し悪しは目で見ないと分からない**。
 5. **ズレ検査**: `svg-diagram check --drift --svg-dir <SVG の置き場> src.ts`（SVG が最新のソースから生成されたものか）
    - `--rebuild` を付けると、違いを言葉で説明する（「見た目は変わらない」ならそのまま再生成してよい）。
+   表を図に置き換えたときは `svg-diagram check --covers <表.md|csv> <ソース.ts|図.svg>` で、表の語・数値が図から落ちていないか確かめる
 6. **文書との整合**: `svg-diagram check --docs <docs> --svg-dir <SVG の置き場> --src-dir <ソースの置き場>`（参照先、代替テキスト、孤立した図、図の注釈と文書のリストの一致、キャプション `図N-M` の連番と本文中の参照）。`--docs` は .md ファイルや複数指定もでき、`--only <glob>` で一章だけ検査できる（絞ると孤立 SVG の検査はしない）
 7. **まとめて目視**: `svg-diagram contact a.svg b.svg ... --out sheet.png`（余白や釣り合いは検査では分からない）
 
@@ -214,6 +215,7 @@ PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `
 2. **候補を出す**: `svg-diagram icons find key bridge --png sheet.png`。ライセンスが許すセットだけが並び、**主セット**（最初に入れたセット）が先頭に出る。`--style fill|line` で塗り／線画を絞れる。
 3. **目で選ぶ**: `sheet.png` を見る（枠が色つきのものが主セット）。図の中のアイコンは見た目を揃える（塗りと線画を混ぜない・太さが違うセットを混ぜない）。迷ったら主セットのものを選ぶ。主セットに無い時だけ他のセットから選び、揃わないことを伝える。
 4. **入れる**: 候補の下に出る行をそのまま実行する（`svg-diagram icons add mdi:key-variant=key`）。1 回で複数入れられる。名前は図のソースで使う短い名前。
+   経理・業務の図なら、まず `svg-diagram icons add-set accounting`（`icons sets` で `office` / `infra` も）で用途別のセットを一括で入れられる。個別の `find` はその後の不足分だけ。
 5. **使う**: `box({icon: 'key', title: '鍵の管理'})`。入っていない名前は、入れ方つきのエラーで教えてくれる。
 
 注意:
