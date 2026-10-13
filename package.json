@@ -51,7 +51,11 @@
     "@types/node": "^26.6.4",
     "markdown-it": "^14.3.2",
     "playwright-chromium": "1.62.1",
-    "typescript": "^7.0.2"
+    "rehype-stringify": "^10.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "typescript": "^7.0.2",
+    "unified": "^11.0.5"
   },
   "types": "./dist/lib/dsl.d.ts",
   "exports": {
@@ -62,6 +66,10 @@
     "./markdown-it": {
       "types": "./dist/lib/markdown-it.d.ts",
       "default": "./dist/lib/markdown-it.js"
+    },
+    "./remark": {
+      "types": "./dist/lib/remark.d.ts",
+      "default": "./dist/lib/remark.js"
     },
     "./markdown": {
       "types": "./dist/lib/markdown.d.ts",

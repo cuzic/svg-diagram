@@ -42,6 +42,8 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 **HTML に描画するプラグイン（markdown-it）**: `import svgDiagram from 'svg-diagram/markdown-it'; new MarkdownIt().use(svgDiagram)`。`![流れ図](./flow.ts)` が、その場で `<svg role="img" aria-label="流れ図">` になる。VitePress は `markdown: {config: md => md.use(svgDiagram)}`。パスはページからの相対（`env.path`、なければオプション `baseDir`、なければ cwd）。markdown-it の描画は同期で、図の描画は非同期なので、図は子プロセスで描いて待つ（ソースと import 先が変わるまでキャッシュ）。検査に通らない図は既定で例外を投げてビルドを止める（`{strict: false}` で、描いたうえでページにエラーを出す）。
 
+**remark プラグイン**: `import svgDiagram from 'svg-diagram/remark'`。`unified().use(remarkParse).use(svgDiagram).use(remarkRehype, {allowDangerousHtml: true}).use(rehypeStringify, {allowDangerousHtml: true})` のように、`remark-rehype` の前に挟む（svg は `html` ノードになるので、`allowDangerousHtml` か `rehype-raw` が要る）。MDX・Astro・Docusaurus・Next.js の remark 設定にもそのまま入る。パスは `file.path` からの相対（なければ `baseDir`、なければ cwd）。remark の変換は非同期にできるので、markdown-it と違い子プロセスは使わず、同じプロセスで描く。検査に通らない図は既定でそのファイルの処理を失敗させる（`{strict: false}` で、画像を残して警告メッセージにする）。
+
 ## 使い方
 
     svg-diagram init [dir]                               # 案件の初期設定（package.json の type、tsconfig.json）

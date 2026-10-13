@@ -110,7 +110,7 @@ function IMAGE_ONE(s: string): string[] {
 }
 
 /** The <svg> as an HTML block: no XML prolog, its own paragraph (blank lines around it), the alt text as a label. */
-function inlineSvg(svg: string, alt: string): string {
+export function inlineSvg(svg: string, alt: string): string {
   let s = svg.replace(/^\s*<\?xml[^>]*\?>\s*/, '').trim();
   // A blank line ends a Markdown HTML block, so the picture must not contain one.
   s = s.replace(/\n\s*\n/g, '\n');
