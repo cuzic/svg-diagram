@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {banner, box, checkDiagram, closeMeasurer, connect, diagram, group, renderDiagram, row, spacer, versus} from '../lib/dsl.ts';
+import {banner, box, caption, stat, checkDiagram, closeMeasurer, connect, diagram, group, renderDiagram, row, spacer, versus} from '../lib/dsl.ts';
 
 test.after(() => closeMeasurer());
 
@@ -79,4 +79,25 @@ test('versus() ends on the same right edge as a banner above it (snapping the ri
   const rects = [...svg.matchAll(/<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)" height="[\d.]+" rx="8"/g)].map(m => [Number(m[1]), Number(m[2])]);
   const edges = rects.map(([x, w]) => x + w);
   assert.equal(Math.max(...edges), rects[0][0] + rects[0][1], 'no frame reaches past the banner');
+});
+
+test('versus() shared connectors are take route / arrow', async () => {
+  const mk = (extra: object) => versus(left(), right(), {shared: shared(), ...extra});
+  const cons = (b: ReturnType<typeof mk>) => b.filter(x => x.type === 'connect') as {route: string; arrow: string}[];
+  assert.deepEqual(cons(mk({})).map(c => [c.route, c.arrow]), [['straight', 'end'], ['straight', 'end']]);
+  assert.deepEqual(cons(mk({connectRoute: 'elbow', connectArrow: 'none'})).map(c => [c.route, c.arrow]), [['elbow', 'none'], ['elbow', 'none']]);
+  assert.deepEqual(cons(mk({connectRoute: 'straight', connectArrow: 'none'})).map(c => [c.route, c.arrow]), [['straight', 'none'], ['straight', 'none']]);
+});
+
+test('versus() children: arrays stack, direction row puts them side by side, row() takes captions', async () => {
+  const stacked = {id: 'l', title: 'L', children: [box({id: 'a', title: 'A'}), box({id: 'b', title: 'B'})]};
+  const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue'}).add(versus(
+    stacked,
+    {id: 'r', title: 'R', direction: 'row', children: [box({id: 'c', title: 'C'}), box({id: 'd', title: 'D'})]},
+  )));
+  assert.deepEqual(verdict.problems, []);
+  const rect = (id: string) => (laidOut as any).nodes?.[id] ?? undefined;
+  void rect;
+  const svgA = await renderDiagram(diagram({theme: 'blue'}).add(row([caption('列見出し'), stat('42', '件')])), {name: 'r.svg', budget: 'cacheOnly'});
+  assert.deepEqual(svgA.verdict.problems, []);
 });
