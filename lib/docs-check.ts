@@ -8,6 +8,17 @@
 import type {DocImage, DocCaption, DocNoteItem, Finding, WfNote, Band} from './types.ts';
 
 const IMG = /!\[([^\]]*)\]\(([^)\s]+\.svg)\)/g;
+const PNG = /!\[([^\]]*)\]\(([^)\s]+\.png)\)/gi;
+// every  ![alt](...png)  in a page (local or remote): the raster copies of figures, checked against the figure sources and the files on disk
+export function scanPngRefs(text: string): {line: number; alt: string; ref: string}[] {
+  const out: {line: number; alt: string; ref: string}[] = [];
+  let fence = false;
+  text.split('\n').forEach((ln, i) => {
+    if (/^\s*(```|~~~)/.test(ln)) { fence = !fence; return; }
+    if (!fence) for (const m of ln.matchAll(PNG)) out.push({line: i + 1, alt: m[1], ref: m[2]});
+  });
+  return out;
+}
 const norm = (s: unknown): string => String(s ?? '').replace(/\s+/g, '').replace(/：/g, ':');
 
 export function scanMarkdown(text: string): DocImage[] {
