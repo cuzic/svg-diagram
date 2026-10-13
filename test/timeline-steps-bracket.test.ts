@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {box, bracket, callout, checkDiagram, closeMeasurer, diagram, renderDiagram, row, steps, timeline} from '../lib/dsl.ts';
+import {box, bracket, callout, caption, checkDiagram, closeMeasurer, diagram, renderDiagram, row, spacer, steps, timeline} from '../lib/dsl.ts';
 import {numericTicks} from '../lib/timeline.ts';
 import type {LaidOutTimeline, NumericTimelineOpts} from '../lib/dsl.ts';
 
@@ -127,4 +127,20 @@ test('callout(): a bubble with a leader to the target, on each side', async () =
 
 test('bracket(): an unknown id names the box', async () => {
   await assert.rejects(checkDiagram(diagram({theme: 'blue', title: 't'}).add(two(), bracket('zzz:left', 'b:right') as never)), /unknown anchor id "zzz"/);
+});
+
+test('bracket() / callout(): leaving the canvas or landing on a caption fails the check (#109); a spacer() fixes it', async () => {
+  const r3 = () => row([box({id: 'a', title: 'A'}), box({id: 'b', title: 'B'}), box({id: 'c', title: 'C'})], {arrows: 'between'});
+  const bad = async (d: ReturnType<typeof diagram>, re: RegExp) => {
+    const r = await checkDiagram(d);
+    assert.ok(!r.verdict.ok);
+    assert.ok(r.verdict.problems.some(p => re.test(p)), r.verdict.problems.join('\n'));
+  };
+  await bad(diagram({theme: 'blue', title: 't'}).add(r3(), bracket('a', 'b', {label: '上', side: 'above'})), /^bracket\(a, b\) label "上" runs outside the .* canvas/);
+  await bad(diagram({theme: 'blue', title: 't'}).add(r3(), callout('b', {text: '上の吹き出し'})), /^callout\(b\) label .* runs outside/);
+  await bad(diagram({theme: 'blue', title: 't'}).add(r3(), callout('a', {text: '左', side: 'left'})), /^callout\(a\) .* runs outside/);
+  await bad(diagram({theme: 'blue', title: 't'}).add(r3(), callout('c', {text: '右', side: 'right'})), /^callout\(c\) .* runs outside/);
+  await bad(diagram({theme: 'blue', title: 't'}).add(caption('見出し', {bold: true}), r3(), callout('b', {text: '上の吹き出し'})), /^callout\(b\) .* overlaps the caption "見出し"/);
+  const ok = await checkDiagram(diagram({theme: 'blue', title: 't'}).add(caption('見出し', {bold: true}), spacer(40), r3(), callout('b', {text: '上の吹き出し'}), bracket('a', 'b', {label: '上', side: 'above'})));
+  assert.ok(ok.verdict.ok, ok.verdict.problems.join('\n'));
 });

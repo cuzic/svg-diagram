@@ -588,7 +588,7 @@ const s = steps([{title: '1回目', body: '原因は不明'}, {title: '4回目',
 ### 注釈のコネクタ（`bracket` / `callout`）
 
 - `bracket(a.left, b.right, {label, side: 'below' | 'above'})` は、2 つの箱（行の列でも可）の下（`above` なら上）に、左の端点の x から右の端点の x まで括弧を引き、ラベルを括弧の外に書く。下に付けるときは、括弧とラベルの分の高さを空ける。`connect(arrow: 'none', line: 'dotted')` を 2 本引く代わり。
-- `callout('id' または 'id:side', {text, side: 'above' | 'below' | 'left' | 'right'})` は、箱を指す矢印と、その先の吹き出し（1 行）。`side` の既定は `above`。`below` のときだけ高さを空ける（ほかは周りの箱に重ならないよう、余白を見て選ぶ）。
+- `callout('id' または 'id:side', {text, side: 'above' | 'below' | 'left' | 'right'})` は、箱を指す矢印と、その先の吹き出し（1 行）。`side` の既定は `above`。`below` のときだけ高さを空ける（ほかは周りの箱に重ならないよう、余白を見て選ぶ）。`bracket` の `above` と `callout` の `above` / `left` / `right` が図の外にはみ出す、または caption に重なると、検査（verify）が止める。上に余白が要るなら、行の前に `spacer()` を置く。
 - どちらも `connect()` の一種で、`reveal` / `until` と `tone` が使える。`diagram({connectDefaults})` は適用されない。例は `examples/bracket-callout.ts`。
 
 ### 出典行（`sourceLine`）
