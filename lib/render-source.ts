@@ -10,7 +10,8 @@ import {loadConfig} from './config.ts';
 import {loadDiagram} from './load-source.ts';
 import {depsOf} from './source-deps.ts';
 import {findManifest} from './icon-registry.ts';
-import {renderDiagram, closeMeasurer} from './dsl.ts';
+import {renderDiagram} from './dsl/render.ts';
+import {closeMeasurer} from './measure.ts';
 
 let hooked = false;
 function ensureResolveHook(): void {

@@ -1,4 +1,5 @@
-import {box, row} from './dsl.ts';
+import {box} from './dsl/text-bands.ts';
+import {row} from './dsl/containers.ts';
 import type {BoxBand, BoxTone, RowBand, TagTone} from './types.ts';
 import type {IconName} from './icons.ts';
 import type {Declares, RowHandleOf} from './strict.ts';
