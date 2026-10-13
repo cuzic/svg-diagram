@@ -13,7 +13,7 @@
   <text x="241" y="127.6" text-anchor="middle" font-size="56" font-weight="700" fill="#b91c1c">76%</text>
   <text x="241" y="172" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">導入前</text>
 
-  <rect x="480" y="56" width="444" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="480" y="56" width="440" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <text x="699" y="127.6" text-anchor="middle" font-size="56" font-weight="700" fill="#1d5fa8">31%</text>
   <text x="699" y="172" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">導入後</text>
 </svg>

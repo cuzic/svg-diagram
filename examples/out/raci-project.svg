@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="255" viewBox="0 0 940 255" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">新サービス立ち上げ RACI</title>
+  <desc id="svg-desc">表「RACI 責任分担表」: 列 タスク ＼ 役割、PM、デザイン、開発、事業責任者</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/raci-project.ts","sourceSha256":"c5cb12e032db1aa61118664338b66d41f9fa48e3bb0c058617e64b80d63bdd82"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="255" fill="#ffffff"/>
+
+  <path d="M28,20 H912 A8,8 0 0 1 920,28 V57  H20  V28 A8,8 0 0 1 28,20 Z" fill="#1d5fa8"/>
+  <text x="32" y="43" font-size="15" font-weight="700" fill="#ffffff">RACI 責任分担表</text>
+  <path d="M20,57 H920  V93  H20  V57  Z" fill="#dce9f7"/>
+  <path d="M20,57 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,93 H920  V129  H20  V93  Z" fill="#ffffff"/>
+  <path d="M20,93 H320  V129  H20  V93  Z" fill="#dce9f7"/>
+  <path d="M20,93 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,128 H920  V164  H20  V128  Z" fill="#ffffff"/>
+  <path d="M20,128 H320  V164  H20  V128  Z" fill="#dce9f7"/>
+  <path d="M20,128 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,164 H920  V200  H20  V164  Z" fill="#ffffff"/>
+  <path d="M20,164 H320  V200  H20  V164  Z" fill="#dce9f7"/>
+  <path d="M20,164 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,199 H920  V227 A8,8 0 0 1 912,235 H28 A8,8 0 0 1 20,227 V199  Z" fill="#f6f8fa"/>
+  <path d="M20,199 H320  V235  H28 A8,8 0 0 1 20,227 V199  Z" fill="#dce9f7"/>
+  <path d="M20,199 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M320,57 V235" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M470,57 V235" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M620,57 V235" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M770,57 V235" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M320,93 V235" stroke="#22201b" stroke-width="3"/>
+  <text x="32" y="79" font-size="14" font-weight="700" fill="#22201b">タスク ＼ 役割</text>
+  <text x="395" y="79" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">PM</text>
+  <text x="545" y="79" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">デザイン</text>
+  <text x="695" y="79" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">開発</text>
+  <text x="845" y="79" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">事業責任者</text>
+  <text x="32" y="115" font-size="14" font-weight="700" fill="#22201b">要件定義</text>
+  <text x="395" y="115" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">R</text>
+  <text x="545" y="115" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">C</text>
+  <text x="695" y="115" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">C</text>
+  <text x="845" y="115" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">A</text>
+  <text x="32" y="150" font-size="14" font-weight="700" fill="#22201b">画面設計</text>
+  <text x="395" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">A</text>
+  <text x="545" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">R</text>
+  <text x="695" y="150" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">C</text>
+  <text x="845" y="150" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">I</text>
+  <text x="32" y="186" font-size="14" font-weight="700" fill="#22201b">リリース判定</text>
+  <text x="395" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">R</text>
+  <text x="545" y="186" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">I</text>
+  <text x="695" y="186" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">C</text>
+  <text x="845" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">A</text>
+  <text x="32" y="221" font-size="14" font-weight="700" fill="#22201b">凡例</text>
+  <text x="395" y="221" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">R: 実行責任</text>
+  <text x="545" y="221" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">A: 説明責任</text>
+  <text x="695" y="221" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">C: 相談先</text>
+  <text x="845" y="221" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">I: 報告先</text>
+  <path d="M28,20 H912 A8,8 0 0 1 920,28 V227 A8,8 0 0 1 912,235 H28 A8,8 0 0 1 20,227 V28 A8,8 0 0 1 28,20 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
+</svg>

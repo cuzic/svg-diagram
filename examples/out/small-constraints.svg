@@ -30,7 +30,7 @@
   <text x="179" y="214" font-size="14" font-weight="400" fill="#22201b">保存する</text>
   <path d="M28,56 H454 A8,8 0 0 1 462,64 V224 A8,8 0 0 1 454,232 H28 A8,8 0 0 1 20,224 V64 A8,8 0 0 1 28,56 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
 
-  <rect x="480" y="56" width="444" height="176" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="480" y="56" width="440" height="176" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <text x="498" y="86.6" font-size="15" font-weight="700" fill="#22201b">画面の例</text>
   <text x="498" y="114.6" font-size="14" font-weight="400" fill="#22201b">実際の画面ではない</text>
   <rect x="844" y="200" width="68" height="24" rx="4" fill="#ffffff" stroke="#e0d6c5" stroke-width="1"/>

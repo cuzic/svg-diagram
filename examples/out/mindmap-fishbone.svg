@@ -26,13 +26,13 @@
   <rect x="204" y="116" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="308" y="292" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="244" y="240" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="276" y="196" width="100" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="276" y="196" width="96" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="444" y="20" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="364" y="72" width="128" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="364" y="72" width="124" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="408" y="116" width="100" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="536" y="292" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="444" y="240" width="140" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="504" y="196" width="100" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="504" y="196" width="96" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <text x="717" y="178" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">在庫のずれ</text>
   <text x="274" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">人</text>
   <text x="231" y="94" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">入力ミス</text>

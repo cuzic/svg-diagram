@@ -6,8 +6,10 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import {execFile} from 'node:child_process';
-import {glyphFromBody, glyphFromSvg, parseManifest, parseSpec, prefixIds, sanitizeBody} from '../lib/icon-store.ts';
-import {addIcons, noticeText, readManifest, removeIcons, setMainSet} from '../lib/icon-install.ts';
+import {ICON_NAME_RE, glyphFromBody, glyphFromSvg, parseManifest, parseSpec, prefixIds, sanitizeBody} from '../lib/icon-store.ts';
+import {addIcons, addSet, noticeText, readManifest, removeIcons, setMainSet, withManifestLock} from '../lib/icon-install.ts';
+import type {Fetch} from '../lib/icon-install.ts';
+import {ICON_SETS, setArgs} from '../lib/icon-sets.ts';
 import {findIcons, styleOf} from '../lib/icon-find.ts';
 
 const CLI = new URL('../manage-icons.ts', import.meta.url).pathname;
@@ -291,4 +293,93 @@ test('add-pack: needs the vendor terms said and accepted, installs the best size
     const again = addPack(src, {prefix: 'aws', cwd: dir, match: /Lambda/, terms: 't', acceptTerms: true});
     assert.deepEqual([again.added, again.replaced], [[], ['aws-lambda']]);
   } finally { fs.rmSync(src, {recursive: true}); fs.rmSync(dir, {recursive: true}); }
+});
+
+test('parallel `icons add` runs against one manifest lose no update, and leave no lock or temp file', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'icons-par-'));
+  try {
+    const N = 8;
+    for (let i = 0; i < N; i++) fs.writeFileSync(path.join(dir, `p${i}.svg`), `<svg viewBox="0 0 10 10"><path d="M0 0h${i + 1}v10z"/></svg>`);
+    const run = (...a: string[]) => new Promise<{code: number; err: string}>(ok => execFile('node', [CLI, ...a], {cwd: dir}, (e, _o, err) => ok({code: e ? 1 : 0, err})));
+    const rs = await Promise.all(Array.from({length: N}, (_, i) => run('add', `./p${i}.svg`)));
+    for (const r of rs) assert.equal(r.code, 0, r.err);
+    const m = readManifest(path.join(dir, 'svg-diagram.icons.json'));
+    assert.deepEqual(Object.keys(m.icons).sort(), Array.from({length: N}, (_, i) => `p${i}`));
+    assert.deepEqual(fs.readdirSync(dir).filter(f => /\.(lock|tmp)$/.test(f)), []);
+  } finally { fs.rmSync(dir, {recursive: true}); }
+});
+
+test('a lock left by a dead process is taken over; a live one makes the run wait', {timeout: 60000}, () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'icons-lock-'));
+  try {
+    const file = path.join(dir, 'svg-diagram.icons.json');
+    fs.writeFileSync(`${file}.lock`, '2147483646\n'); // no such process
+    assert.equal(withManifestLock(file, () => 'ok'), 'ok');
+    assert.equal(fs.existsSync(`${file}.lock`), false);
+    assert.throws(() => withManifestLock(file, () => withManifestLock(file, () => 1)), /held by another/);
+  } finally { fs.rmSync(dir, {recursive: true}); }
+});
+
+test('icons sets: every curated id is an mdi icon with a usable short name, and add-set installs through addIcons', async () => {
+  assert.ok(Object.keys(ICON_SETS).includes('accounting'));
+  assert.ok(Object.keys(ICON_SETS.accounting.icons).length >= 30);
+  for (const [n, s] of Object.entries(ICON_SETS)) for (const [name, id] of Object.entries(s.icons)) {
+    assert.match(id, /^mdi:[a-z0-9-]+$/, `${n}/${name}`);
+    assert.match(name, ICON_NAME_RE, `${n}/${name}`);
+  }
+  assert.throws(() => setArgs('nope'), /no icon set "nope"/);
+  const asked: string[] = [];
+  const fetchFake: Fetch = async url => {
+    asked.push(url);
+    const u = new URL(url);
+    if (u.pathname === '/collections') return {ok: true, status: 200, json: async () => ({mdi: {author: {name: 'P'}, license: {spdx: 'Apache-2.0', url: 'https://l'}}})};
+    const icons = Object.fromEntries(decodeURIComponent(u.searchParams.get('icons')!).split(',').map(i => [i, {body: '<path fill="currentColor" d="M1 1h4v4z"/>'}]));
+    return {ok: true, status: 200, json: async () => ({prefix: 'mdi', width: 24, height: 24, icons})};
+  };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'icons-set-'));
+  try {
+    const r = await addSet('accounting', {fetch: fetchFake, cwd: dir});
+    assert.equal(r.added.length, Object.keys(ICON_SETS.accounting.icons).length);
+    const m = readManifest(path.join(dir, 'svg-diagram.icons.json'));
+    assert.equal(m.icons.receipt.from, 'mdi:receipt-text');
+    assert.equal(m.icons.receipt.license, 'Apache-2.0');
+    assert.equal(m.mainSet, 'mdi');
+    assert.match(noticeText(m), /mdi — P, Apache-2\.0/);
+  } finally { fs.rmSync(dir, {recursive: true}); }
+});
+
+test('add-set keeps an icon the project already has under the same name', async () => {
+  const fetchFake: Fetch = async url => {
+    const u = new URL(url);
+    if (u.pathname === '/collections') return {ok: true, status: 200, json: async () => ({mdi: {license: {spdx: 'Apache-2.0'}}})};
+    const icons = Object.fromEntries(decodeURIComponent(u.searchParams.get('icons')!).split(',').map(i => [i, {body: '<path fill="currentColor" d="M1 1h4v4z"/>'}]));
+    return {ok: true, status: 200, json: async () => ({prefix: 'mdi', width: 24, height: 24, icons})};
+  };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'icons-setkeep-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'mine.svg'), '<svg viewBox="0 0 10 10"><path d="M0 0h5v10z"/></svg>');
+    await addIcons(['./mine.svg=lock'], {cwd: dir});
+    const r = await addSet('accounting', {fetch: fetchFake, cwd: dir});
+    assert.deepEqual([r.kept, r.replaced], [['lock'], []]);
+    const m = readManifest(path.join(dir, 'svg-diagram.icons.json'));
+    assert.equal(m.icons.lock.from, 'file:mine.svg');
+    assert.equal(m.icons.receipt.from, 'mdi:receipt-text');
+  } finally { fs.rmSync(dir, {recursive: true}); }
+});
+
+test('parallel runs that all find a stale lock take it over one at a time and lose no update', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'icons-stale-'));
+  try {
+    const N = 8;
+    for (let i = 0; i < N; i++) fs.writeFileSync(path.join(dir, `p${i}.svg`), `<svg viewBox="0 0 10 10"><path d="M0 0h${i + 1}v10z"/></svg>`);
+    const lock = path.join(dir, 'svg-diagram.icons.json.lock');
+    fs.writeFileSync(lock, '2147483646\n');
+    const old = new Date(Date.now() - 120_000); fs.utimesSync(lock, old, old);
+    const run = (...a: string[]) => new Promise<{code: number; err: string}>(ok => execFile('node', [CLI, ...a], {cwd: dir}, (e, _o, err) => ok({code: e ? 1 : 0, err})));
+    const rs = await Promise.all(Array.from({length: N}, (_, i) => run('add', `./p${i}.svg`)));
+    for (const r of rs) assert.equal(r.code, 0, r.err);
+    const m = readManifest(path.join(dir, 'svg-diagram.icons.json'));
+    assert.deepEqual(Object.keys(m.icons).sort(), Array.from({length: N}, (_, i) => `p${i}`));
+    assert.deepEqual(fs.readdirSync(dir).filter(f => /\.(lock|tmp|stale)$/.test(f)), []);
+  } finally { fs.rmSync(dir, {recursive: true}); }
 });

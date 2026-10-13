@@ -40,15 +40,22 @@ import type {HeatmapOpts} from './charts-heatmap.ts';
 import type {TornadoItem, TornadoOpts} from './charts-tornado.ts';
 import type {ChartBand} from './charts.ts';
 import type {WaterfallOpts, WaterfallStep} from './charts-waterfall.ts';
+import {causalBand, dependencyBand, pertBand} from './semnet-dsl.ts';
+import type {CausalLink, PertTask} from './semnet-analysis.ts';
+import type {CausalNode, CausalOpts, DependencyEdge, DependencyNode, DependencyOpts, PertOpts} from './semnet.ts';
 import {ticksOf} from './plane.ts';
 import {checkSheetParts, matrixParts} from './qc-table.ts';
+import {fmeaParts, journeyMapParts, qfdParts, raciParts} from './semantic-table.ts';
 import {canvasBand} from './canvas.ts';
 import type {CanvasContent, CanvasKey, CanvasOpts, CanvasTemplate, LooseCanvasOpts} from './canvas.ts';
 import type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from './qc-table.ts';
+import type {FmeaOpts, FmeaRow, JourneyLane, JourneyMapOpts, JourneyStage, QfdDemand, QfdOpts, RaciAssignment, RaciOpts} from './semantic-table.ts';
 import type {AttributeSample, ControlChartOpts, ControlType, ScatterOpts, ScatterPoint} from './qc-plane.ts';
 import {assertSolidText, richBoxFields, richField} from './rich.ts';
 import {quadrantBand} from './quadrant.ts';
 import type {QuadrantBand, QuadrantItem, QuadrantOpts, QuadrantPreset} from './quadrant.ts';
+import {chevronBand, concentricBand, cycleBand, funnelBand, vennBand} from './flow-shapes.ts';
+import type {ChevronBand, ChevronOpts, ConcentricBand, ConcentricOpts, ConcentricRing, CycleBand, CycleOpts, FlowStep, FunnelBand, FunnelOpts, FunnelStage, VennBand, VennOpts, VennSet} from './flow-shapes.ts';
 import {SLIDE_CANVAS, canvasFontScale, canvasRoles, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
   Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsLine, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts, CloudBand, CloudBox, CloudOpts, GanttBand, GanttOpts, GanttRow, GanttTask, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
@@ -67,10 +74,13 @@ export {icon} from './icon-registry.ts';
 export type {IconName, EmojiName} from './icons.ts';
 import type {IconName} from './icons.ts';
 export {versus} from './versus.ts';
+export {hero} from './hero.ts';
 export {em} from './rich.ts';
+export type {HeroOpts, HeroStat} from './hero.ts';
 export type {VersusConnectLabels, VersusOpts, VersusPart, VersusSharedOpts} from './versus.ts';
 // Every public type (WfNode, TableCell, TextTone, RawColorTone, ...) so project code never has to spell Parameters<typeof wf.col>[0].
 export type * from './types.ts';
+export type * from './semantic-table.ts';
 
 //
 // Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
@@ -88,8 +98,10 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (typeof opts.spotlight === 'object' && opts.spotlight.mutedOk !== undefined && typeof opts.spotlight.mutedOk !== 'boolean') throw new Error(`diagram({spotlight: {mutedOk}}) must be true or false (got ${String(opts.spotlight.mutedOk)})`);
   if (typeof opts.spotlight === 'object' && opts.spotlight.dim !== undefined && !['outline', 'fill'].includes(opts.spotlight.dim)) throw new Error(`diagram({spotlight: {dim}}) must be 'outline' or 'fill' (got ${String(opts.spotlight.dim)})`);
   if (opts.appearance !== undefined && !['light', 'dark'].includes(opts.appearance as string) && !(typeof opts.appearance === 'object' && opts.appearance && typeof opts.appearance.dark === 'object')) throw new Error(`diagram({appearance}) must be 'light', 'dark' or {dark: {bg, text, ...}} (got ${JSON.stringify(opts.appearance)})`);
+  if (opts.wrap !== undefined && opts.wrap !== 'phrase' && opts.wrap !== 'char') throw new Error(`diagram({wrap}) must be 'phrase' or 'char' (got ${JSON.stringify(opts.wrap)})`);
   mapOf(opts.appearance); // a custom dark set is validated here
   if (opts.sourceLine !== undefined && (typeof opts.sourceLine !== 'string' || !opts.sourceLine.trim() || /[\r\n]/.test(opts.sourceLine))) throw new Error('diagram({sourceLine}) must be a non-empty single-line string (e.g. "出典: 総務省 2025")');
+  if (opts.legend !== undefined && opts.legend !== 'auto' && opts.legend !== false) throw new Error(`diagram({legend}) must be 'auto' or false (got ${JSON.stringify(opts.legend)})`);
   if (opts.canvas !== undefined && (opts.slide || opts.fill)) throw new Error('diagram({canvas}) is a whole slide drawn 1:1; it cannot be combined with `slide` / `fill` (those fit a figure into a measured slot of a Slidev slide)');
   const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...(opts.canvas === 'slide' ? {} : opts.canvas)};
   const d: DiagramData = {
@@ -99,6 +111,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     medium: (opts.medium ?? (opts.theme === undefined ? 'slide' : 'doc')) as Medium,
     title: opts.title, desc: opts.desc,            // exposed as the SVG's <title> / <desc> (doc medium)
     accept: opts.accept, // {'rule-id': 'why this finding is fine'} — shown as info instead of a warning
+    wrap: opts.wrap,
     legend: opts.legend, legendLabels: opts.legendLabels, // legend: 'auto' adds entries for every notation used but not listed
     width: opts.width ?? canvas?.width ?? 940,
     canvas,
@@ -376,7 +389,8 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
     const k = slot.get(b.col) ?? 0; slot.set(b.col, k + 1);
     return connectBand(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone}, false);
   });
-  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, id: opts.id, ...revealOf(opts)};
+  if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`swimlane(): fit must be 'shrink' (got ${String(opts.fit)})`);
+  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...revealOf(opts)};
   return withAnchors([block, ...flows], placed.map(st => st.id));
 }
 
@@ -559,7 +573,14 @@ export function row(children: (BoxBand | GroupBand)[], opts: RowOpts = {}): RowB
 // row({cols: [6, 6]}): one span per child, so the column count is their sum and no child carries `span` / `col`.
 // The children are copied with their span filled in (a child that also sets `span` / `col` is a contradiction, so it throws).
 function spanRow<C extends BoxBand | GroupBand>(children: C[], cols: number | number[] | undefined): {cols: number | undefined; kids: C[]} {
-  if (!Array.isArray(cols)) return {cols, kids: children};
+  if (!Array.isArray(cols)) {
+    // row(children, {cols: 12}) with no child placed (no `span` / `col`): the children share the grid equally (12 / n columns each,
+    // the remainder going to the first ones) instead of each being one column wide. A child with an explicit `span` / `col` opts out.
+    const n = children.length;
+    if (cols === undefined || n < 1 || n >= cols || children.some(c => c.span !== undefined || c.col !== undefined)) return {cols, kids: children};
+    const base = Math.floor(cols / n), extra = cols % n;
+    return {cols, kids: children.map((c, i) => Object.assign(Object.create(Object.getPrototypeOf(c), Object.getOwnPropertyDescriptors(c)) as C, {span: base + (i < extra ? 1 : 0)}))};
+  }
   if (cols.length !== children.length) throw new Error(`row({cols: [${cols.join(', ')}]}) declares ${cols.length} spans for ${children.length} children`);
   if (cols.some(n => !Number.isInteger(n) || n < 1)) throw new Error(`row({cols: [${cols.join(', ')}]}): every span must be a whole number >= 1`);
   const kids = children.map((c, i) => {
@@ -899,6 +920,18 @@ export function waterfall(steps: readonly WaterfallStep[], opts: WaterfallOpts =
   return withHandle(withAnchors(band, band.ids), opts.id);
 }
 
+/** A PERT / activity-on-node arrow diagram. Timing and zero-slack critical paths are calculated from predecessors. */
+export function pert<const T extends readonly PertTask[], const Id extends string = never>(tasks: T, opts?: PertOpts & {id?: Id}): ChartBand & Declares<Id | ChartIds<T>> & HandleOf<Id> & AnchorsOf<ChartIds<T>>;
+export function pert(tasks: readonly PertTask[], opts: PertOpts = {}): ChartBand { const band = pertBand(tasks, opts); return withHandle(withAnchors(band, band.ids), opts.id); }
+
+/** A causal-loop diagram. Link signs and delays are drawn; simple loops are classified R/B. */
+export function causalLoop<const N extends readonly CausalNode[], const Id extends string = never>(nodes: N, links: readonly CausalLink[], opts?: CausalOpts & {id?: Id}): ChartBand & Declares<Id | ChartIds<N>> & HandleOf<Id> & AnchorsOf<ChartIds<N>>;
+export function causalLoop(nodes: readonly CausalNode[], links: readonly CausalLink[], opts: CausalOpts = {}): ChartBand { const band = causalBand(nodes, links, opts); return withHandle(withAnchors(band, band.ids), opts.id); }
+
+/** A typed / weighted dependency network with an automatic notation legend. */
+export function dependencyNetwork<const N extends readonly DependencyNode[], const Id extends string = never>(nodes: N, edges: readonly DependencyEdge[], opts?: DependencyOpts & {id?: Id}): ChartBand & Declares<Id | ChartIds<N>> & HandleOf<Id> & AnchorsOf<ChartIds<N>>;
+export function dependencyNetwork(nodes: readonly DependencyNode[], edges: readonly DependencyEdge[], opts: DependencyOpts = {}): ChartBand { const band = dependencyBand(nodes, edges, opts); return withHandle(withAnchors(band, band.ids), opts.id); }
+
 /**
  * A radar chart (レーダーチャート): 3-12 axes, 1-4 series. A concentric grid carries the tick values; the series differ by line style
  * and marker shape, and the legend names them. `values: true` prints the value at each vertex.
@@ -1152,6 +1185,20 @@ export const quadrant: QuadrantFn = Object.assign(
   {preset: (name: QuadrantPreset, opts: Omit<QuadrantOpts, 'preset'> = {}): QuadrantBand => withHandle(quadrantBand({...opts, preset: name}), opts.id)},
 ) as QuadrantFn;
 export type {QuadrantOpts, QuadrantItem, QuadrantPreset, QuadrantCell, QuadrantAxis, QuadrantArrow} from './quadrant.ts';
+
+type ItemIds<I extends readonly {id?: string}[]> = I[number] extends infer E ? E extends {readonly id: infer X extends string} ? X : never : never;
+type ShapeExtra<B, Id extends string, I extends readonly {id?: string}[]> = B & Declares<Id | ItemIds<I>> & HandleOf<Id>;
+/** A row or column of arrow-shaped process steps. Step ids are anchors for connect() and spotlight. */
+export function chevron<const Id extends string = never, const I extends readonly FlowStep[] = readonly FlowStep[]>(steps: I, opts?: ChevronOpts & {id?: Id}): ShapeExtra<ChevronBand, Id, I> { return withHandle(chevronBand(steps, opts), opts?.id) as ShapeExtra<ChevronBand, Id, I>; }
+/** A narrowing stack of funnel stages. `scale: 'value'` uses each stage value; `showRate` prints conversion from the preceding stage. */
+export function funnel<const Id extends string = never, const I extends readonly FunnelStage[] = readonly FunnelStage[]>(stages: I, opts?: FunnelOpts & {id?: Id}): ShapeExtra<FunnelBand, Id, I> { return withHandle(funnelBand(stages, opts), opts?.id) as ShapeExtra<FunnelBand, Id, I>; }
+/** Three to eight nodes joined as a closed circular process. Node ids are anchors for connect() and spotlight. */
+export function cycle<const Id extends string = never, const I extends readonly FlowStep[] = readonly FlowStep[]>(steps: I, opts?: CycleOpts & {id?: Id}): ShapeExtra<CycleBand, Id, I> { return withHandle(cycleBand(steps, opts), opts?.id) as ShapeExtra<CycleBand, Id, I>; }
+/** A two- or three-set Venn diagram. Dashed outlines supplement translucent colours, so sets are not distinguished by colour alone. */
+export function venn<const Id extends string = never, const I extends readonly VennSet[] = readonly VennSet[]>(sets: I, opts?: VennOpts & {id?: Id}): ShapeExtra<VennBand, Id, I> { return withHandle(vennBand(sets, opts), opts?.id) as ShapeExtra<VennBand, Id, I>; }
+/** Nested rings, ordered from the outside or inside, with labels in the rings or in a side key. */
+export function concentric<const Id extends string = never, const I extends readonly ConcentricRing[] = readonly ConcentricRing[]>(rings: I, opts?: ConcentricOpts & {id?: Id}): ShapeExtra<ConcentricBand, Id, I> { return withHandle(concentricBand(rings, opts), opts?.id) as ShapeExtra<ConcentricBand, Id, I>; }
+export type {FlowStep, ChevronOpts, FunnelStage, FunnelOpts, CycleOpts, VennSet, VennOverlap, VennOpts, ConcentricRing, ConcentricOpts} from './flow-shapes.ts';
 /**
  * A control chart (管理図) from the data: the centre line and the limits are worked out (3 sigma), points outside them are red crosses,
  * 7 in a row on one side of the centre line or 7 in a row rising / falling are red rings.
@@ -1208,6 +1255,34 @@ export function matrix(rows: readonly string[], cols: readonly string[], cells: 
   return table(p.columns, p.rows, p.opts);
 }
 export {tally} from './qc-table.ts';
+
+/** A RACI responsibility chart. Every task normally needs exactly one A and at least one R. */
+export function raci<const Id extends string = never>(tasks: readonly string[], roles: readonly string[], assignments: readonly (readonly RaciAssignment[])[], opts?: RaciOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
+export function raci(tasks: readonly string[], roles: readonly string[], assignments: readonly (readonly RaciAssignment[])[], opts: RaciOpts = {}): TableBand {
+  const p = raciParts(tasks, roles, assignments, opts), band = table(p.columns, p.rows, p.opts);
+  if (p.emptyRoles.length) band.semanticWarnings = [`raci(): role column(s) have no assignments: ${p.emptyRoles.join(', ')}`];
+  return band;
+}
+
+/** Failure mode and effects analysis. RPN is computed as S x O x D. */
+export function fmea<const Id extends string = never>(rows: readonly FmeaRow[], opts?: FmeaOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
+export function fmea(rows: readonly FmeaRow[], opts: FmeaOpts = {}): TableBand {
+  const p = fmeaParts(rows, opts); return table(p.columns, p.rows, p.opts);
+}
+
+/** Quality function deployment: weighted customer demands against quality characteristics. */
+export function qfd<const Id extends string = never>(demands: readonly QfdDemand[], characteristics: readonly string[], relations: readonly (readonly MatrixMark[])[], opts?: QfdOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
+export function qfd(demands: readonly QfdDemand[], characteristics: readonly string[], relations: readonly (readonly MatrixMark[])[], opts: QfdOpts = {}): TableBand {
+  const p = qfdParts(demands, characteristics, relations, opts); return table(p.columns, p.rows, p.opts);
+}
+
+/** Customer journey map. A lane whose id is `emotion` is validated and drawn with numeric, toned status marks. */
+export function journeyMap<const Id extends string = never>(stages: readonly (string | JourneyStage)[], lanes: readonly JourneyLane[], opts?: JourneyMapOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
+export function journeyMap(stages: readonly (string | JourneyStage)[], lanes: readonly JourneyLane[], opts: JourneyMapOpts = {}): TableBand {
+  const p = journeyMapParts(stages, lanes, opts), band = table(p.columns, p.rows, p.opts);
+  if (p.emotionCurve) band.rowCurve = p.emotionCurve;
+  return band;
+}
 
 /**
  * A fixed-region canvas from a named template: 'bmc' (Business Model Canvas), 'lean', 'vpc', 'swot', 'tows', 'errc', 'pest' (PESTLE with
@@ -1314,7 +1389,8 @@ export function bpmn(lanes: readonly BpmnLane[], nodes: readonly BpmnNode[], flo
     if (!['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(n.tone)) throw new Error(`bpmn(): node "${n.id}" has tone ${String(n.tone)}`);
   }
   for (const f of flows) if (f.line !== undefined && f.line !== 'solid' && f.line !== 'dashed') throw new Error(`bpmn(): flow ${f.from} -> ${f.to} has line ${String(f.line)}`);
-  const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: [...nodes], flows: [...flows], ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`bpmn(): fit must be 'shrink' (got ${String(opts.fit)})`);
+  const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: [...nodes], flows: [...flows], ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.fit === undefined ? {} : {fit: opts.fit}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
 }
 
@@ -1790,6 +1866,9 @@ export type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from './qc-table
 export type {AttributeSample, ControlChartOpts, ControlType, ScatterOpts, ScatterPoint} from './qc-plane.ts';
 export type {ChartBand} from './charts.ts';
 export type {WaterfallOpts, WaterfallStep} from './charts-waterfall.ts';
+export type {PertTask, PertAnalysis, PertResult, CausalLink, CausalLoop, CausalPolarity} from './semnet-analysis.ts';
+export {analyzeCriticalPath, analyzeCausalLoops} from './semnet-analysis.ts';
+export type {PertOpts, CausalNode, CausalOpts, DependencyNode, DependencyEdge, DependencyEdgeType, DependencyOpts, SemnetDirection} from './semnet.ts';
 export type {TornadoItem, TornadoOpts} from './charts-tornado.ts';
 export type {HeatmapOpts} from './charts-heatmap.ts';
 export type {RadarOpts, RadarSeries} from './charts-radar.ts';
