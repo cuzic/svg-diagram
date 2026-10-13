@@ -35,12 +35,17 @@ export function svgSize(svg: string): {w: number; h: number} | null {
   return w > 0 && h > 0 ? {w, h} : null;
 }
 
-/** The SVG with everything it draws turned to grey (luma, as a mono print or a colour-blind reader sees it): the content goes inside a group filtered by a colour matrix. */
+/** The SVG with everything it draws turned to grey (luma, as a mono print or a colour-blind reader sees it): the content goes inside a group filtered by a colour matrix.
+ *  The filter region is the canvas in user units (the viewBox, with a margin), not the group's bounding box: a box-relative region is empty for content with no height (a lone horizontal line),
+ *  which would drop it. Absolute numbers, not percentages: resvg panics on a userSpaceOnUse region in percent when the viewBox does not start at 0 0. */
 export function grayscaleSvg(svg: string): string {
   const open = /<svg\b[^>]*>/.exec(svg);
   const end = svg.lastIndexOf('</svg>');
   if (!open || end === -1) return svg;
-  const filter = '<filter id="svg-diagram-gray" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/></filter>';
+  const vb = /\sviewBox="\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*"/.exec(open[0])?.slice(1).map(Number), size = svgSize(svg);
+  const [x, y, w, h] = vb ?? (size ? [0, 0, size.w, size.h] : [0, 0, 0, 0]);
+  const region = w > 0 && h > 0 ? ` filterUnits="userSpaceOnUse" x="${x - w}" y="${y - h}" width="${3 * w}" height="${3 * h}"` : '';
+  const filter = `<filter id="svg-diagram-gray"${region} color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/></filter>`;
   const at = open.index + open[0].length;
   return `${svg.slice(0, at)}${filter}<g filter="url(#svg-diagram-gray)">${svg.slice(at, end)}</g>${svg.slice(end)}`;
 }
