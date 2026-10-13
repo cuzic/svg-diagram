@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="456" viewBox="0 0 940 456" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">売上・営業利益と営業利益率</title>
+  <desc id="svg-desc">コンボチャート: 棒 売上（2021 820億円、2022 910億円、2023 1,040億円、2024 1,180億円、2025 1,330億円）、棒 営業利益（2021 49億円、2022 64億円、2023 94億円、2024 130億円、2025 173億円）、折れ線 営業利益率（2021 6%、2022 7%、2023 9%、2024 11%、2025 13%）</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-combo.ts","sourceSha256":"d87e6055d32faa69beef1dd88efd6a66e9b85cb3b79367ac3f2125c26f260c32"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="456" fill="#ffffff"/>
+
+  <path d="M68.75,24 H82.75 V38 H68.75 Z" fill="#ffffff"/>
+  <path d="M68.75,24 H82.75 V38 H68.75 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#1d5fa8" stroke-width="1"/>
+  <text x="89" y="36" font-size="14" fill="#22201b">売上</text>
+  <path d="M138.75,24 H152.75 V38 H138.75 Z" fill="#ffffff"/>
+  <path d="M138.75,24 H152.75 V38 H138.75 Z" fill="#22201b" fill-opacity="0.4" stroke="#22201b" stroke-width="1"/>
+  <text x="159" y="36" font-size="14" fill="#22201b">営業利益</text>
+  <path d="M236.8,31 L260.8,31" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M244.8,31 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" fill="#b91c1c" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/>
+  <text x="267" y="36" font-size="14" fill="#22201b">営業利益率</text>
+  <path d="M62.8,364 L896.4,364" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="369" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <path d="M62.8,324.1 L896.4,324.1" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="329" text-anchor="end" font-size="14" fill="#6f6659">200</text>
+  <path d="M62.8,284.3 L896.4,284.3" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="289" text-anchor="end" font-size="14" fill="#6f6659">400</text>
+  <path d="M62.8,244.4 L896.4,244.4" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="249" text-anchor="end" font-size="14" fill="#6f6659">600</text>
+  <path d="M62.8,204.6 L896.4,204.6" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="210" text-anchor="end" font-size="14" fill="#6f6659">800</text>
+  <path d="M62.8,164.7 L896.4,164.7" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="170" text-anchor="end" font-size="14" fill="#6f6659">1,000</text>
+  <path d="M62.8,124.9 L896.4,124.9" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="130" text-anchor="end" font-size="14" fill="#6f6659">1,200</text>
+  <path d="M62.8,85 L896.4,85" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="90" text-anchor="end" font-size="14" fill="#6f6659">1,400</text>
+  <path d="M890.4,364 L896.4,364" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="900" y="369" font-size="14" fill="#6f6659">0</text>
+  <path d="M890.4,294.3 L896.4,294.3" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="900" y="299" font-size="14" fill="#6f6659">5</text>
+  <path d="M890.4,224.5 L896.4,224.5" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="900" y="230" font-size="14" fill="#6f6659">10</text>
+  <path d="M890.4,154.8 L896.4,154.8" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="900" y="160" font-size="14" fill="#6f6659">15</text>
+  <path d="M890.4,85 L896.4,85" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="900" y="90" font-size="14" fill="#6f6659">20</text>
+  <text x="20" y="68" font-size="14" font-weight="700" fill="#22201b">億円</text>
+  <text x="920" y="68" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">%</text>
+  <path d="M95.9,200.6 H149.9 V364 H95.9 Z" fill="#ffffff"/>
+  <path d="M95.9,200.6 H149.9 V364 H95.9 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#1d5fa8" stroke-width="1"/>
+  <path d="M260.3,182.7 H314.3 V364.1 H260.3 Z" fill="#ffffff"/>
+  <path d="M260.3,182.7 H314.3 V364.1 H260.3 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#1d5fa8" stroke-width="1"/>
+  <path d="M424.6,156.7 H478.6 V364 H424.6 Z" fill="#ffffff"/>
+  <path d="M424.6,156.7 H478.6 V364 H424.6 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#1d5fa8" stroke-width="1"/>
+  <path d="M588.9,128.8 H642.9 V364 H588.9 Z" fill="#ffffff"/>
+  <path d="M588.9,128.8 H642.9 V364 H588.9 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#1d5fa8" stroke-width="1"/>
+  <path d="M753.3,98.9 H807.3 V364 H753.3 Z" fill="#ffffff"/>
+  <path d="M753.3,98.9 H807.3 V364 H753.3 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#1d5fa8" stroke-width="1"/>
+  <path d="M151.9,354.2 H205.9 V364 H151.9 Z" fill="#ffffff"/>
+  <path d="M151.9,354.2 H205.9 V364 H151.9 Z" fill="#22201b" fill-opacity="0.4" stroke="#22201b" stroke-width="1"/>
+  <path d="M316.3,351.2 H370.3 V364 H316.3 Z" fill="#ffffff"/>
+  <path d="M316.3,351.2 H370.3 V364 H316.3 Z" fill="#22201b" fill-opacity="0.4" stroke="#22201b" stroke-width="1"/>
+  <path d="M480.6,345.3 H534.6 V364 H480.6 Z" fill="#ffffff"/>
+  <path d="M480.6,345.3 H534.6 V364 H480.6 Z" fill="#22201b" fill-opacity="0.4" stroke="#22201b" stroke-width="1"/>
+  <path d="M644.9,338.1 H698.9 V364 H644.9 Z" fill="#ffffff"/>
+  <path d="M644.9,338.1 H698.9 V364 H644.9 Z" fill="#22201b" fill-opacity="0.4" stroke="#22201b" stroke-width="1"/>
+  <path d="M809.3,329.5 H863.3 V364 H809.3 Z" fill="#ffffff"/>
+  <path d="M809.3,329.5 H863.3 V364 H809.3 Z" fill="#22201b" fill-opacity="0.4" stroke="#22201b" stroke-width="1"/>
+  <path d="M150.9,280.3 L315.3,266.4 L479.6,238.5 L643.9,210.6 L808.3,182.7" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M146.9,280.3 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" fill="#b91c1c" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M311.3,266.4 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" fill="#b91c1c" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M475.6,238.5 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" fill="#b91c1c" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M639.9,210.6 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" fill="#b91c1c" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M804.3,182.7 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" fill="#b91c1c" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/>
+  <text x="123" y="195" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">820億円</text>
+  <text x="287" y="177" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">910億円</text>
+  <text x="452" y="151" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">1,040億円</text>
+  <text x="616" y="123" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">1,180億円</text>
+  <text x="780" y="93" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">1,330億円</text>
+  <text x="179" y="348" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">49億円</text>
+  <text x="343" y="345" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">64億円</text>
+  <text x="508" y="339" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">94億円</text>
+  <text x="672" y="332" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">130億円</text>
+  <text x="836" y="324" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">173億円</text>
+  <text x="151" y="270" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">6%</text>
+  <text x="315" y="256" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">7%</text>
+  <text x="480" y="228" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">9%</text>
+  <text x="644" y="201" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">11%</text>
+  <text x="808" y="173" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">13%</text>
+  <text x="151" y="392" text-anchor="middle" font-size="14" fill="#22201b">2021</text>
+  <text x="315" y="392" text-anchor="middle" font-size="14" fill="#22201b">2022</text>
+  <text x="480" y="392" text-anchor="middle" font-size="14" fill="#22201b">2023</text>
+  <text x="644" y="392" text-anchor="middle" font-size="14" fill="#22201b">2024</text>
+  <text x="808" y="392" text-anchor="middle" font-size="14" fill="#22201b">2025</text>
+
+  <text x="20" y="430" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

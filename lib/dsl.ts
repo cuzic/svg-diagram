@@ -31,13 +31,17 @@ import type {ArrowActivity} from './qc.ts';
 import {controlChartOpts, scatterOpts} from './qc-plane.ts';
 import {burndownOpts, burnupOpts, linesOpts, strategyCanvasOpts} from './charts-lines.ts';
 import type {BurndownSpec, BurnupSpec, LineSeries, LinesOpts, StrategyCanvasOpts} from './charts-lines.ts';
-import {heatmapBand, radarBand, sankeyBand, treemapBand, stackedBand, tornadoBand, waterfallBand} from './charts-dsl.ts';
+import {bubbleBand, butterflyBand, comboBand, harveyBand, heatmapBand, radarBand, sankeyBand, treemapBand, stackedBand, tornadoBand, waterfallBand} from './charts-dsl.ts';
 import type {RadarOpts, RadarSeries} from './charts-radar.ts';
 import type {SankeyLink, SankeyNode, SankeyOpts} from './charts-sankey.ts';
 import type {TreemapNode, TreemapOpts} from './charts-treemap.ts';
 import type {StackColumn, StackedOpts} from './charts-stacked.ts';
 import type {HeatmapOpts} from './charts-heatmap.ts';
 import type {TornadoItem, TornadoOpts} from './charts-tornado.ts';
+import type {BubbleOpts, BubblePoint} from './charts-bubble.ts';
+import type {ButterflyOpts, ButterflyRow} from './charts-butterfly.ts';
+import type {ComboOpts, ComboSeries} from './charts-combo.ts';
+import type {HarveyOpts} from './charts-harvey.ts';
 import type {ChartBand} from './charts.ts';
 import type {WaterfallOpts, WaterfallStep} from './charts-waterfall.ts';
 import {causalBand, dependencyBand, pertBand} from './semnet-dsl.ts';
@@ -1091,6 +1095,46 @@ export function tornado(items: readonly TornadoItem[], opts: TornadoOpts): Chart
   return withHandle(withAnchors(band, band.ids), opts?.id);
 }
 
+/**
+ * A bubble chart (バブルチャート): x and y on numeric axes, the AREA of the circle for a third measure (growth × share × revenue).
+ * Every bubble is named; `x.line` / `y.line` draw a dashed threshold; a legend circle says what the area stands for.
+ *   bubble([{label: 'A 事業', x: 1.8, y: 12, size: 520}, {label: 'B 事業', x: 0.6, y: 4, size: 180}], {x: {title: '相対シェア'}, y: {title: '市場成長率', unit: '%'}, sizeTitle: '売上', sizeUnit: '億円'})
+ */
+export function bubble<const P extends readonly BubblePoint[], const Id extends string = never>(points: P, opts?: BubbleOpts & {id?: Id}): ChartBand & Declares<Id | ChartIds<P>> & HandleOf<Id> & AnchorsOf<ChartIds<P>>;
+export function bubble(points: readonly BubblePoint[], opts: BubbleOpts = {}): ChartBand {
+  const band = bubbleBand(points, opts);
+  return withHandle(withAnchors(band, band.ids), opts.id);
+}
+
+/**
+ * A butterfly chart (バタフライチャート): two groups' bars grow left and right from a column of item names, on one scale.
+ *   butterfly([{label: '品質', left: 82, right: 74}, {label: '価格', left: 60, right: 88}], {leftLabel: '自社', rightLabel: '競合', unit: '点'})
+ */
+export function butterfly<const R extends readonly ButterflyRow[], const Id extends string = never>(rows: R, opts: ButterflyOpts & {id?: Id}): ChartBand & Declares<Id | ChartIds<R>> & HandleOf<Id> & AnchorsOf<ChartIds<R>>;
+export function butterfly(rows: readonly ButterflyRow[], opts: ButterflyOpts): ChartBand {
+  const band = butterflyBand(rows, opts);
+  return withHandle(withAnchors(band, band.ids), opts?.id);
+}
+
+/**
+ * A combo chart (コンボチャート / 複合グラフ): bars (left axis) and lines (right axis by default) over the same categories.
+ *   combo(['2022', '2023', '2024'], [{label: '売上', type: 'bar', values: [120, 150, 190]}, {label: '営業利益率', type: 'line', values: [8, 9.5, 12]}], {y: {unit: '億円'}, y2: {unit: '%'}})
+ */
+export function combo<const S extends readonly ComboSeries[], const Id extends string = never>(categories: readonly string[], series: S, opts?: ComboOpts & {id?: Id}): ChartBand & Declares<Id | ChartIds<S>> & HandleOf<Id> & AnchorsOf<ChartIds<S>>;
+export function combo(categories: readonly string[], series: readonly ComboSeries[], opts: ComboOpts = {}): ChartBand {
+  const band = comboBand(categories, series, opts);
+  return withHandle(withAnchors(band, band.ids), opts.id);
+}
+
+/**
+ * A table of Harvey balls (ハーベイボール): each cell is a circle filled 0–4 quarters (null: not rated), rows are criteria, columns are options.
+ *   harvey(['価格', '品質'], ['A 社', 'B 社'], [[4, 2], [1, 3]], {highlight: ['A 社']})
+ */
+export function harvey<const Id extends string = never>(rows: readonly string[], cols: readonly string[], values: readonly (readonly (number | null)[])[], opts?: HarveyOpts & {id?: Id}): ChartBand & Declares<Id> & HandleOf<Id>;
+export function harvey(rows: readonly string[], cols: readonly string[], values: readonly (readonly (number | null)[])[], opts: HarveyOpts = {}): ChartBand {
+  return withHandle(harveyBand(rows, cols, values, opts), opts.id);
+}
+
 type BarIds<D extends readonly BarDatum[]> = Extract<D[number]['id'], string>;
 export function bars<const D extends readonly BarDatum[], const Id extends string = never>(data: D, opts?: BarsOpts & {id?: Id}): BarsBand & Declares<Id | BarIds<D>> & HandleOf<Id> & AnchorsOf<BarIds<D>>;
 export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
@@ -1939,6 +1983,10 @@ export type {PertTask, PertAnalysis, PertResult, CausalLink, CausalLoop, CausalP
 export {analyzeCriticalPath, analyzeCausalLoops} from './semnet-analysis.ts';
 export type {PertOpts, CausalNode, CausalOpts, DependencyNode, DependencyEdge, DependencyEdgeType, DependencyOpts, SemnetDirection} from './semnet.ts';
 export type {TornadoItem, TornadoOpts} from './charts-tornado.ts';
+export type {BubbleAxis, BubbleOpts, BubblePoint} from './charts-bubble.ts';
+export type {ButterflyOpts, ButterflyRow} from './charts-butterfly.ts';
+export type {ComboAxis, ComboOpts, ComboSeries} from './charts-combo.ts';
+export type {HarveyOpts} from './charts-harvey.ts';
 export type {HeatmapOpts} from './charts-heatmap.ts';
 export type {RadarOpts, RadarSeries} from './charts-radar.ts';
 export type {BurndownSpec, BurnupSpec, LineSeries, LinesAnnotation, LinesAxis, LinesOpts, StrategyCanvasOpts} from './charts-lines.ts';

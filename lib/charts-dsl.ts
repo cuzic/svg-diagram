@@ -14,6 +14,14 @@ import {resolveTreemap, treemapAlt} from './charts-treemap.ts';
 import type {TreemapNode, TreemapOpts} from './charts-treemap.ts';
 import {resolveSankey, sankeyAlt} from './charts-sankey.ts';
 import type {SankeyLink, SankeyNode, SankeyOpts} from './charts-sankey.ts';
+import {bubbleAlt, resolveBubble} from './charts-bubble.ts';
+import type {BubbleOpts, BubblePoint} from './charts-bubble.ts';
+import {butterflyAlt, resolveButterfly} from './charts-butterfly.ts';
+import type {ButterflyOpts, ButterflyRow} from './charts-butterfly.ts';
+import {comboAlt, resolveCombo} from './charts-combo.ts';
+import type {ComboOpts, ComboSeries} from './charts-combo.ts';
+import {harveyAlt, resolveHarvey} from './charts-harvey.ts';
+import type {HarveyOpts} from './charts-harvey.ts';
 import {fail} from './charts-base.ts';
 import {resolveIcon} from './icon-registry.ts';
 import type {ChartBand} from './charts.ts';
@@ -66,4 +74,24 @@ export function sankeyBand(nodes: readonly (SankeyNode | string)[], links: reado
   const placed = nodes.map(n => typeof n === 'string' || n.icon === undefined ? n : {...n, iconGlyph: resolveIcon(n.icon, 'sankey() node "' + n.id + '" icon')});
   const spec = resolveSankey(placed, links, opts);
   return {type: 'chart', kind: 'sankey', spec, alt: opts.alt ?? sankeyAlt(spec), ids: spec.nodes.map(n => n.id), ...common('sankey', opts)};
+}
+
+export function bubbleBand(points: readonly BubblePoint[], opts: BubbleOpts): ChartBand {
+  const spec = resolveBubble(points, opts);
+  return {type: 'chart', kind: 'bubble', spec, alt: opts.alt ?? bubbleAlt(spec), ids: points.flatMap(p => p.id ? [p.id] : []), ...common('bubble', opts)};
+}
+
+export function butterflyBand(rows: readonly ButterflyRow[], opts: ButterflyOpts): ChartBand {
+  const spec = resolveButterfly(rows, opts);
+  return {type: 'chart', kind: 'butterfly', spec, alt: opts.alt ?? butterflyAlt(spec), ids: spec.rows.flatMap(r => r.id ? [r.id] : []), ...common('butterfly', opts)};
+}
+
+export function comboBand(categories: readonly string[], series: readonly ComboSeries[], opts: ComboOpts): ChartBand {
+  const spec = resolveCombo(categories, series, opts);
+  return {type: 'chart', kind: 'combo', spec, alt: opts.alt ?? comboAlt(spec), ids: series.flatMap(s => s.id ? [s.id] : []), ...common('combo', opts)};
+}
+
+export function harveyBand(rows: readonly string[], cols: readonly string[], values: readonly (readonly (number | null)[])[], opts: HarveyOpts): ChartBand {
+  const spec = resolveHarvey(rows, cols, values, opts);
+  return {type: 'chart', kind: 'harvey', spec, alt: opts.alt ?? harveyAlt(spec), ids: [], ...common('harvey', opts)};
 }

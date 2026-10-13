@@ -112,6 +112,10 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | treemap(tree, {unit, percent, strict}) | ツリーマップ（squarified）。面積 ∝ 値（グループの枠と見出しの分も補正し、グループの中でも外でも同じ比）。名前と値が入らない小さなセルは描かず `<desc>` に残る（`strict: true` はエラー） |
 | sankey(nodes, links, {unit, align}) | サンキー図。層に分け、ノードの高さとリボンの太さは値に比例（目盛りは図全体で一つ）、ノードの名前に値、重ならない。リンクのないノードはエラー |
 | tornado(items, {base, unit}) | トルネード図（感度分析）。基準値から低ケース・高ケースの棒、幅の大きい順 |
+| bubble(points, {x, y, sizeTitle, sizeUnit}) | バブルチャート。x・y が数値軸、円の**面積**が 3 つ目の指標（凡例の円つき）。`x.line` / `y.line` で境目の破線。名前は円の中か横、軸は円がはみ出さないよう自動で広がる |
+| butterfly(rows, {leftLabel, rightLabel, unit}) | バタフライチャート。中央の項目名をはさんで、左右の群の棒を同じ目盛りで比べる。`sort: 'left'｜'right'` |
+| combo(categories, series, {y, y2}) | コンボチャート（棒 + 折れ線）。棒は左軸、折れ線は右軸（`axis: 'left'` で左）。値は単位つきで全部書き、入らないものは `<desc>` に残る |
+| harvey(rows, cols, values, {levels, highlight}) | ハーベイボールの評価表。値は 0〜4（四分円の数）、`null` は未評価。形（扇）で段階を示し、凡例つき |
 | pyramid / curve | ピラミッド、曲線 |
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
 | quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
@@ -482,7 +486,7 @@ bpmn(
 - 節の副題（`sub`）や «ステレオタイプ» の薄い文字は、`accent` / `new` の塗りの上でも 4.5:1 を保つよう、その塗りの上だけ通常の文字色になる。
 - ラベルの白いチップは、自分の矢印以外の矢印や、状態・クラス・ノードに乗らないよう置き場所を探す。見つからないときは `check` / `build` が、どれとどれが重なるかを書いて止まる。
 
-### コンサル系のチャート（`waterfall` / `radar` / `heatmap` / `lines` / `stackedBars` / `mekko` / `treemap` / `sankey` / `tornado`）
+### コンサル系のチャート（`waterfall` / `radar` / `heatmap` / `lines` / `stackedBars` / `mekko` / `treemap` / `sankey` / `tornado` / `bubble` / `butterfly` / `combo` / `harvey`）
 
 データを渡すと、軸・目盛り・配置・ラベルの避け方を計算して描く。座標は書かない。どれも次を満たす。
 
@@ -505,6 +509,10 @@ bpmn(
 | ツリーマップ | `treemap(tree)` | `examples/chart-treemap.ts` |
 | サンキー図 | `sankey(nodes, links)` | `examples/chart-sankey.ts` |
 | トルネード図 | `tornado(items, {base})` | `examples/chart-tornado.ts` |
+| バブルチャート | `bubble(points, {x, y, sizeTitle, sizeUnit})` | `examples/chart-bubble.ts` |
+| バタフライチャート | `butterfly(rows, {leftLabel, rightLabel, unit})` | `examples/chart-butterfly.ts` |
+| コンボチャート（棒 + 折れ線） | `combo(categories, series, {y, y2})` | `examples/chart-combo.ts` |
+| ハーベイボール | `harvey(rows, cols, values, {levels, highlight})` | `examples/chart-harvey.ts` |
 
 ```ts
 waterfall([{label: '前期', value: 1000}, {label: '価格', value: 220}, {label: '数量', value: -130}, {label: '小計', kind: 'subtotal'}, {label: '今期', kind: 'total'}], {unit: '百万円'})
@@ -515,6 +523,10 @@ mekko([{label: '北米', parts: [{label: 'A 社', value: 520}, {label: 'B 社', 
 treemap([{label: 'クラウド', children: [{label: 'ストレージ', value: 420}, {label: '計算基盤', value: 310}]}, {label: 'その他', value: 40}], {unit: '億円'})
 sankey(['広告', '訪問', '購入', '離脱'], [{from: '広告', to: '訪問', value: 100}, {from: '訪問', to: '購入', value: 15}, {from: '訪問', to: '離脱', value: 85}], {unit: '人'})
 tornado([{label: '販売単価', low: 640, high: 1360}, {label: '為替', low: 880, high: 1130}], {base: 1000, unit: '百万円'})
+bubble([{label: 'A 事業', x: 1.8, y: 6, size: 520}, {label: 'B 事業', x: 0.7, y: 18, size: 240}], {x: {title: '相対シェア', line: 1}, y: {title: '成長率', unit: '%', line: 10}, sizeTitle: '売上', sizeUnit: '億円'})
+butterfly([{label: '品質', left: 82, right: 74}, {label: '価格', left: 58, right: 88}], {leftLabel: '自社', rightLabel: '競合', unit: '点'})
+combo(['2024', '2025'], [{label: '売上', type: 'bar', values: [1180, 1330]}, {label: '営業利益率', type: 'line', values: [11, 13]}], {y: {unit: '億円'}, y2: {unit: '%'}})
+harvey(['価格', '品質'], ['A 社', 'B 社'], [[4, 2], [1, 3]], {highlight: ['A 社']})
 ```
 
 - **`waterfall`**: 最初の段は開始（`value` が水準）、ほかは増減（`value` が差）。`kind: 'subtotal'｜'total'` は 0 から立つ棒で（先頭には置けない）、`value` を書かなければ累計、書けば累計と合わなければ止まる。水準が 0 をまたいでも、負の合計でも描ける（0 の線が太い）。`dir: 'h'` は横向き（段の名前が長いとき）。棒の色は開始・合計が濃い色、小計が灰色、増加がアクセント、減少が赤（`tone` で変える）。
@@ -525,6 +537,10 @@ tornado([{label: '販売単価', low: 640, high: 1360}, {label: '為替', low: 8
 - **`treemap`**: 葉は `{label, value}`、グループは `children`（4 階層まで。グループの値は子の合計で、書くなら一致が必要）。葉の `tone: 'accent'｜'danger'` は塗りつぶし。グループの名前が入らないときも `<desc>` に残る。グループの枠と見出しの帯が子の場所を取る分は重みを補正するので、葉の面積はグループの中でも外でも値に比例する。`percent: true` で全体に対する割合を添える。
 - **`sankey`**: ノードは文字列か `{id, label?, tone?}`（どのリンクにも出てこないノードはエラー）。層は最長経路で決まり（循環は止まる）、出ていかないノードは最後の層に寄る（`align: 'left'` で寄せない）。ノードの並びは交差が少なくなるように入れ替える。ノードの高さが値に比例するので、名前が収まらないほど低いノードでも、名前の高さ分の場所は空ける。リボンには、両端のどちらの名前にも載っていない値（分岐・合流の途中）だけ数字が入る。`tone: 'danger'` のリボンは赤の破線で縁取る。
 - **`tornado`**: `low` / `high` は「その入力が低い / 高いときの結果」（結果が低いとは限らない）。結果が基準と同じならその棒は描かず数字だけ書く。両方が基準の同じ側に出るときは、棒を 2 段に分ける。
+- **`bubble`**: 面積が値に比例（半径は √値）。`size` は 0 より大きい。軸は点と `x.line` / `y.line` に合わせて自動で、端の円がはみ出すときは目盛りを足して広げる（`x.min` / `x.max` を書いた軸は広げず、はみ出すなら止まる）。名前は円に収まれば中、だめなら右・左・上・下・斜めの順で、他の円・名前・軸の数字に重ならない場所へ（どこにも置けなければ止まる。点を減らすか、`width` / `height` を上げる）。重なる円は大きい方を先に描く。`tone` は円の色（`accent`｜`danger`｜`muted`｜`text`）。
+- **`butterfly`**: 左右の棒は同じ目盛り（長い方が半分の幅）。値は棒の外側に書き、0 は棒なしで数字だけ。群の名前は色見本つきで上に出る。行は 20 まで。
+- **`combo`**: 棒は 3 系列まで（横に並べる）、折れ線は 3 系列まで（実線・破線と ● ■ ◆）。棒は薄い塗りで、折れ線とその数字が上を通れる。右軸の目盛りは左軸の罫線に合わせた間隔にし、合わなければ罫線なしで右軸だけ書く。`null` は棒なし・線の途切れ。入らない値は描かず `<desc>` に残る（`values: false` で数字を全部消す）。
+- **`harvey`**: 値は 0〜4 の整数（0 = 空、4 = 全塗り）。色ではなく扇の形で示すので、白黒でも読める。`levels` で 5 段階の呼び名を変える（既定 なし / 一部 / 半分 / ほぼ / 十分）。表の中の `—` は未評価。<desc> に「行: 列 呼び名」の形で全部残る。
 - 全部の検査（重なり・はみ出し・コントラスト）は `check` で、描画後の確認は `svg-diagram preview`。入らないラベル・列は、エラーに直し方（幅・高さ・省略）が書いてある。
 - 計算だけ取り出したいときは、`lib/charts-treemap.ts`（`squarify`）、`lib/charts-sankey.ts`（`layersOf`）、`lib/charts-heatmap.ts`（`heatLevel`）、`lib/charts-base.ts`（`niceScale`）が純粋な関数。
 - **`plane` の追加**: 点の `shape` は `dot` / `ring` / `cross`（4px の格子に載る）のほか、頂点にぴったり載る `disc` / `hole` / `square` / `diamond` / `triangle`。`endLabels: true` は `labelAt: 'right'` の点の名前を図の右端に集めて縦にずらす。`labelLeader: true` の点は、空いた側がないとき名前を右端へ移して点線でつなぐ。`labels` の `offset: [dx, dy]` で位置をずらせる。

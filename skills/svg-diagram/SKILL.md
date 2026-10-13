@@ -165,6 +165,10 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | ツリーマップ | `treemap(tree)` | 葉 `{label, value}`、グループ `{label, children}` |
 | サンキー | `sankey(nodes, links)` | ノード（文字列か `{id, label}`）と `{from, to, value}`。層・並び・太さは自動 |
 | トルネード | `tornado(items, {base})` | `{label, low, high}`（その入力が低い・高いときの結果）。幅の大きい順 |
+| バブル | `bubble(points, {x, y, sizeTitle, sizeUnit})` | `{label, x, y, size}`。円の**面積**が `size`。`x.line` / `y.line` は境目の破線。軸は円がはみ出さないよう自動で広がる |
+| バタフライ | `butterfly(rows, {leftLabel, rightLabel, unit})` | `{label, left, right}`。中央の名前をはさんで左右に同じ目盛りの棒 |
+| コンボ（棒 + 折れ線） | `combo(categories, series, {y, y2})` | `{label, type: 'bar'｜'line', values}`。折れ線は既定で右軸（`y2`）。`null` は欠測 |
+| ハーベイボール | `harvey(rows, cols, values, {highlight})` | 値は 0〜4（四分円の数）、`null` は未評価。扇の形で示す |
 
 - どれも `id`（図全体）と、要素の `id` が `connect()` / `spotlight` の端点になり、`labelRole` で文字を大きくできる。`lines` 系は `plane` を返す。
 - 入らない値のラベル（狭い列・小さなセル）はエラーに直し方が書いてある。幅・高さを上げるか、小さいものを「その他」にまとめる。
