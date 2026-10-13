@@ -11,6 +11,12 @@ test('bars: whole numbers are written exactly (1055 is not 1060) (#98)', async (
   assert.match(svg, />1055</);
   assert.match(svg, />1234</);
   assert.doesNotMatch(svg, />1060</);
+  // a fraction keeps its whole part too (3 significant digits would make 1055.5 into 1060)
+  const frac = await textsOf(bars([{label: 'A', value: 1055.5}, {label: 'B', value: 0.01234}], {}));
+  assert.match(frac, />1056</);
+  assert.match(frac, />0\.0123</);
+  // a function's result is written as text even when it is not a string
+  assert.match(await textsOf(bars([{label: 'A', value: 3}], {valueFormat: ((v: number) => v * 2) as never})), />6</);
 });
 
 test('bars: valueFormat exact / decimals / function (#98)', async () => {
@@ -30,6 +36,9 @@ test('stateDiagram: solid / solid-danger states draw white text; an unknown tone
   assert.match(svg, /fill="#ffffff">主役</);
   assert.match(svg, /fill="#ffffff">却下</);
   assert.throws(() => stateDiagram([{id: 'a', label: 'a', tone: 'bogus' as never}], []), /tone/);
+  // an end state on a solid fill keeps its double outline: the inner ring is white, not the fill colour
+  const fin = (await renderDiagram(diagram({theme: 'blue', title: 't'}).add(stateDiagram([{id: 'a', label: 'a'}, {id: 'z', label: '完了', tone: 'solid', final: true}], [{from: 'a', to: 'z'}])), {name: 't', budget: 'measure'})).svg;
+  assert.match(fin, /rx="5" fill="([^"]+)" stroke="#ffffff"/);
   const r = await checkDiagram(d);
   assert.equal(r.verdict === undefined, false);
 });

@@ -564,7 +564,9 @@ function renderStates(b: LaidOutStates, day: Theme): string {
       continue;
     }
     out.push(renderBoxRect({...n, dim: b.dim}, day, 'plain'));
-    if (n.final) out.push(renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, 'plain').replace('rx="8"', 'rx="5"'));
+    // the inner outline of an end state: on a solid fill its stroke would be the fill colour, so it is drawn in the text colour (white)
+    const inner = renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, 'plain').replace('rx="8"', 'rx="5"');
+    if (n.final) out.push(!b.dim && isSolidTone(n.tone) ? inner.replace(/stroke="[^"]*"/, `stroke="${colorOf(toneStyle(n.tone).text, day)}"`) : inner);
   }
   const ink = (t: LaidOutStates['texts'][number]): string => {
     if (b.dim) return PALETTE.muted;
