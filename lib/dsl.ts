@@ -40,6 +40,9 @@ import type {HeatmapOpts} from './charts-heatmap.ts';
 import type {TornadoItem, TornadoOpts} from './charts-tornado.ts';
 import type {ChartBand} from './charts.ts';
 import type {WaterfallOpts, WaterfallStep} from './charts-waterfall.ts';
+import {causalBand, dependencyBand, pertBand} from './semnet-dsl.ts';
+import type {CausalLink, PertTask} from './semnet-analysis.ts';
+import type {CausalNode, CausalOpts, DependencyEdge, DependencyNode, DependencyOpts, PertOpts} from './semnet.ts';
 import {ticksOf} from './plane.ts';
 import {checkSheetParts, matrixParts} from './qc-table.ts';
 import {canvasBand} from './canvas.ts';
@@ -898,6 +901,18 @@ export function waterfall(steps: readonly WaterfallStep[], opts: WaterfallOpts =
   const band = waterfallBand(steps, opts);
   return withHandle(withAnchors(band, band.ids), opts.id);
 }
+
+/** A PERT / activity-on-node arrow diagram. Timing and zero-slack critical paths are calculated from predecessors. */
+export function pert<const T extends readonly PertTask[], const Id extends string = never>(tasks: T, opts?: PertOpts & {id?: Id}): ChartBand & Declares<Id | ChartIds<T>> & HandleOf<Id> & AnchorsOf<ChartIds<T>>;
+export function pert(tasks: readonly PertTask[], opts: PertOpts = {}): ChartBand { const band = pertBand(tasks, opts); return withHandle(withAnchors(band, band.ids), opts.id); }
+
+/** A causal-loop diagram. Link signs and delays are drawn; simple loops are classified R/B. */
+export function causalLoop<const N extends readonly CausalNode[], const Id extends string = never>(nodes: N, links: readonly CausalLink[], opts?: CausalOpts & {id?: Id}): ChartBand & Declares<Id | ChartIds<N>> & HandleOf<Id> & AnchorsOf<ChartIds<N>>;
+export function causalLoop(nodes: readonly CausalNode[], links: readonly CausalLink[], opts: CausalOpts = {}): ChartBand { const band = causalBand(nodes, links, opts); return withHandle(withAnchors(band, band.ids), opts.id); }
+
+/** A typed / weighted dependency network with an automatic notation legend. */
+export function dependencyNetwork<const N extends readonly DependencyNode[], const Id extends string = never>(nodes: N, edges: readonly DependencyEdge[], opts?: DependencyOpts & {id?: Id}): ChartBand & Declares<Id | ChartIds<N>> & HandleOf<Id> & AnchorsOf<ChartIds<N>>;
+export function dependencyNetwork(nodes: readonly DependencyNode[], edges: readonly DependencyEdge[], opts: DependencyOpts = {}): ChartBand { const band = dependencyBand(nodes, edges, opts); return withHandle(withAnchors(band, band.ids), opts.id); }
 
 /**
  * A radar chart (レーダーチャート): 3-12 axes, 1-4 series. A concentric grid carries the tick values; the series differ by line style
@@ -1790,6 +1805,9 @@ export type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from './qc-table
 export type {AttributeSample, ControlChartOpts, ControlType, ScatterOpts, ScatterPoint} from './qc-plane.ts';
 export type {ChartBand} from './charts.ts';
 export type {WaterfallOpts, WaterfallStep} from './charts-waterfall.ts';
+export type {PertTask, PertAnalysis, PertResult, CausalLink, CausalLoop, CausalPolarity} from './semnet-analysis.ts';
+export {analyzeCriticalPath, analyzeCausalLoops} from './semnet-analysis.ts';
+export type {PertOpts, CausalNode, CausalOpts, DependencyNode, DependencyEdge, DependencyEdgeType, DependencyOpts, SemnetDirection} from './semnet.ts';
 export type {TornadoItem, TornadoOpts} from './charts-tornado.ts';
 export type {HeatmapOpts} from './charts-heatmap.ts';
 export type {RadarOpts, RadarSeries} from './charts-radar.ts';

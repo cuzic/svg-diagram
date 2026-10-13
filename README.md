@@ -498,6 +498,21 @@ tornado([{label: '販売単価', low: 640, high: 1360}, {label: '為替', low: 8
 - 計算だけ取り出したいときは、`lib/charts-treemap.ts`（`squarify`）、`lib/charts-sankey.ts`（`layersOf`）、`lib/charts-heatmap.ts`（`heatLevel`）、`lib/charts-base.ts`（`niceScale`）が純粋な関数。
 - **`plane` の追加**: 点の `shape` は `dot` / `ring` / `cross`（4px の格子に載る）のほか、頂点にぴったり載る `disc` / `hole` / `square` / `diamond` / `triangle`。`endLabels: true` は `labelAt: 'right'` の点の名前を図の右端に集めて縦にずらす。`labelLeader: true` の点は、空いた側がないとき名前を右端へ移して点線でつなぐ。`labels` の `offset: [dx, dy]` で位置をずらせる。
 
+### 意味付きネットワーク（`pert` / `causalLoop` / `dependencyNetwork`）
+
+ノードとリンクに業務上の意味を持たせたネットワークを、既存の階層型レイアウトで自動配置する。`direction: 'LR' | 'TB'`（既定 LR）、`width` / `height`、`labelRole`、図とノードの `id`、dark theme はチャートと共通。
+
+```ts
+pert([{id: 'design', label: '設計', duration: 4}, {id: 'build', label: '実装', duration: 6, predecessors: ['design']}], {unit: '日'})
+causalLoop([{id: 'quality', label: '品質'}, {id: 'orders', label: '受注'}], [{from: 'quality', to: 'orders', polarity: '+'}, {from: 'orders', to: 'quality', polarity: '-', delay: true}])
+dependencyNetwork([{id: 'web', label: 'Web', kind: 'app'}, {id: 'api', label: 'API', kind: 'service'}], [{from: 'web', to: 'api', type: 'uses', weight: 3}], {nodeKinds: {app: 'アプリ', service: 'サービス'}, edgeTypes: {uses: '利用'}})
+```
+
+- `pert`: activity-on-node の PERT（作業を矢印で描く activity-on-arrow は `arrowDiagram`）。ES / EF / LS / LF / slack を計算し、slack 0 のノードとリンクを強調する。未知の先行タスクと循環はエラー。`compact: true` は小さい箱。純粋関数 `analyzeCriticalPath(tasks)` も公開。
+- `causalLoop`: `polarity` は `'+' | '-' | 'same' | 'opposite'`。`delay: true` は `||`。単純ループの負リンクが偶数なら Reinforcing (`R1`)、奇数なら Balancing (`B1`)。番号は R / B それぞれで 1 から振る。純粋関数 `analyzeCausalLoops(nodeIds, links)` も公開。
+- `dependencyNetwork`: ノードの `kind` は色と枠、リンクの `type` は線種、`weight` は線幅と数値に対応する。使用した kind / type の凡例を自動で描き、表示名を `nodeKinds` / `edgeTypes` で指定できる。`blocks` は danger、`relates` は矢じりなし。
+- 例は `examples/semnet-pert*.ts`、`examples/semnet-causal*.ts`、`examples/semnet-deps*.ts`。
+
 ### 時間軸と期限（`timeline`）
 
 ```ts
@@ -878,6 +893,7 @@ d.add(flow, connect(flow.anchors.a.right, flow.anchors.b.left));   // screens() 
 | `dark-theme.ts` | 暗い背景＋背景なし（`appearance: 'dark'`、`transparent: true`） |
 | `dark-bars-wall.ts` | 濃い背景の資料の色＋濃い赤の danger で描く棒グラフ（透明） |
 | `chart-waterfall.ts` ほか `chart-*.ts` | コンサル系のチャート（ウォーターフォール・レーダー・ヒートマップ・戦略キャンバス・バーンダウン・積み上げ・マリメッコ・ツリーマップ・サンキー・トルネード） |
+| `semnet-*.ts` | 意味付きネットワーク（PERT、因果ループ、型付き・重み付き依存関係） |
 | `emphasis-tiers.ts` | 主役（solid）/ 次点（accent）/ その他（plain）の 3 段階と、凡例の「次点」 |
 
 ## Claude Code のスキル
