@@ -50,6 +50,27 @@ export function grayscaleSvg(svg: string): string {
   return `${svg.slice(0, at)}${filter}<g filter="url(#svg-diagram-gray)">${svg.slice(at, end)}</g>${svg.slice(end)}`;
 }
 
+/** resvg points an `orient="auto-start-reverse"` end marker along the wrong segment at a corner (an elbow ending downward gets a sideways head), while `orient="auto"` is right.
+ *  So each such marker becomes two for resvg: the same marker with `auto` (for marker-end / marker-mid), and a copy for marker-start whose content is turned 180 degrees about the ref point. */
+export function resvgMarkers(svg: string): string {
+  if (!svg.includes('auto-start-reverse')) return svg;
+  const attr = (a: string, n: string) => new RegExp(`\\s${n}="([^"]*)"`).exec(a)?.[1];
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // a reference as an attribute (marker-start="url(#a)") or as CSS (style="marker-start: url('#a')", a <style> rule)
+  const ref = (prop: string, id: string) => new RegExp(`(?<![-\\w])(${prop}\\s*(?:=\\s*["']|:\\s*))url\\(\\s*(["']?)#${esc(id)}\\2\\s*\\)`, 'g');
+  const ids: string[] = [];
+  const out = svg.replace(/<marker\b([^>]*?)\sorient="auto-start-reverse"([^>]*?)(?<!\/)>([\s\S]*?)<\/marker>/g, (m, a: string, b: string, body: string) => {
+    const attrs = `${a}${b}`, id = attr(attrs, 'id');
+    // the `marker` shorthand also sets marker-start, which cannot be pointed at a separate copy: leave such a marker as it is
+    if (!id || ref('marker', id).test(svg)) return m;
+    ids.push(id);
+    const rx = attr(attrs, 'refX') ?? '0', ry = attr(attrs, 'refY') ?? '0';
+    const startAttrs = attrs.replace(/(\sid=")[^"]*"/, `$1${id}--start"`).replace(/\soverflow="[^"]*"/, '');
+    return `<marker${attrs} orient="auto">${body}</marker><marker${startAttrs} orient="auto" overflow="visible"><g transform="rotate(180 ${rx} ${ry})">${body}</g></marker>`;
+  });
+  return ids.reduce((acc, id) => acc.replace(ref('marker-start', id), `$1url($2#${id}--start$2)`), out);
+}
+
 export const NOT_LOADABLE = `a figure could not be drawn: @resvg/resvg-js could not be loaded on this machine (no prebuilt binary for it?).
   Use the browser instead:  --engine chromium  (needs: pnpm add -D playwright-chromium)`;
 
@@ -121,29 +142,6 @@ export function prepareResvgFonts(svg: string, specs?: FontSpecs): {options: Res
   };
 }
 
-/**
- * resvg (2.6) does not know orient="auto-start-reverse" and draws such a marker unrotated, so every arrowhead points right whatever
- * the line's direction. Rewrite it for resvg: the marker becomes orient="auto" (what auto-start-reverse is at a line's end), and a
- * marker-start gets a copy turned half a turn about its reference point (what auto-start-reverse is at a line's start).
- */
-export function withResvgMarkerOrient(svg: string): string {
-  const flipped = new Set<string>();
-  const out = svg.replace(/<marker\b([^>]*?)\borient="auto-start-reverse"([^>]*)>([\s\S]*?)<\/marker>/g, (_m, a: string, b: string, body: string) => {
-    const attrs = `${a}orient="auto"${b}`;
-    const end = `<marker${attrs}>${body}</marker>`;
-    const id = /\bid="([^"]+)"/.exec(attrs)?.[1];
-    if (!id || !svg.includes(`marker-start="url(#${id})"`)) return end;
-    flipped.add(id);
-    // turned about the middle of its box (a marker is clipped to its viewBox), so the reference point moves to its mirror image
-    const num = (name: string, dflt: number) => Number(new RegExp(`\\b${name}="([^"]+)"`).exec(attrs)?.[1] ?? dflt);
-    const vb = /\bviewBox="([^"]+)"/.exec(attrs)?.[1].trim().split(/[\s,]+/).map(Number);
-    const [cx, cy] = vb && vb.length === 4 ? [vb[0] + vb[2] / 2, vb[1] + vb[3] / 2] : [num('markerWidth', 3) / 2, num('markerHeight', 3) / 2];
-    const startAttrs = attrs.replace(`id="${id}"`, `id="${id}--start"`).replace(/\brefX="[^"]*"/, '').replace(/\brefY="[^"]*"/, '') + ` refX="${2 * cx - num('refX', 0)}" refY="${2 * cy - num('refY', 0)}"`;
-    return `${end}<marker${startAttrs}><g transform="rotate(180 ${cx} ${cy})">${body}</g></marker>`;
-  });
-  return flipped.size === 0 ? out : out.replace(/marker-start="url\(#([^)"]+)\)"/g, (m, id: string) => flipped.has(id) ? `marker-start="url(#${id}--start)"` : m);
-}
-
 export interface ResvgFontOptions {fontFiles: string[]; loadSystemFonts: boolean; defaultFontFamily?: string; sansSerifFamily?: string; monospaceFamily?: string}
 
 export async function rasterizeWithResvg(svg: string, {scale = 1, png = false, fonts}: {scale?: number; png?: boolean; fonts?: FontSpecs} = {}): Promise<Raster> {
@@ -156,7 +154,7 @@ export async function rasterizeWithResvg(svg: string, {scale = 1, png = false, f
   let rendered;
   const prepared = prepareResvgFonts(svg, fonts);
   try {
-    rendered = new Resvg(withResvgMarkerOrient(withColorEmoji(svg, fonts)), {
+    rendered = new Resvg(resvgMarkers(withColorEmoji(svg, fonts)), {
       background: '#ffffff',
       fitTo: scale === 1 ? {mode: 'original'} : {mode: 'zoom', value: scale},
       font: prepared.options,

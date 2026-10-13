@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {rasterize, svgSize, embedSvg, rasterizeWithResvg, prepareResvgFonts, withResvgMarkerOrient} from '../lib/raster.ts';
+import {rasterize, svgSize, embedSvg, rasterizeWithResvg, prepareResvgFonts, resvgMarkers} from '../lib/raster.ts';
 import {closeMeasurer} from '../lib/measure.ts';
 import {resolveFontFile} from '../lib/font-metrics.ts';
 
@@ -257,7 +257,7 @@ test('the cut keeps what the figure draws: each example, byte for byte the same 
     const cut = await rasterizeWithResvg(svg);
     const whole = fontFilesForTest();
     const p = prepareResvgFonts(svg), system = p.options.loadSystemFonts; p.cleanup(); // (the same decision about the system's fonts: this is about the cut, not about the fallback)
-    const full = new Resvg(withResvgMarkerOrient(svg), {background: '#ffffff', font: {fontFiles: whole.files, loadSystemFonts: system, defaultFontFamily: whole.sans}}).render();
+    const full = new Resvg(resvgMarkers(svg), {background: '#ffffff', font: {fontFiles: whole.files, loadSystemFonts: system, defaultFontFamily: whole.sans}}).render();
     assert.ok(Buffer.from(full.pixels).equals(cut.rgba), name);
   }
 });
@@ -374,18 +374,27 @@ test('a symbol that only the emoji font draws (and that is not an emoji by the l
   assert.ok(kept.has(sym), `U+${sym.toString(16)} is drawn by the emoji font, which must be loaded`);
 });
 
-test('resvg: an auto-start-reverse arrowhead follows the line (resvg would draw it pointing right), at the end and at the start', async () => {
-  const marker = '<defs><marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#000"/></marker></defs>';
-  const svg = (attrs: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">${marker}<path d="M30,5 L30,45" stroke="#000" stroke-width="1" fill="none" ${attrs}/></svg>`;
-  const dark = (r: {width: number; rgba: Buffer}, x: number, y: number) => r.rgba[(y * r.width + x) * 4] < 128;
-  // a downward line: the head's wide base lies across the line above its tip, so pixels left and right of the line are inked there
-  const down = await rasterizeWithResvg(svg('marker-end="url(#m)"'));
-  assert.ok(dark(down, 28, 39) && dark(down, 32, 39), 'end head points down');
-  const up = await rasterizeWithResvg(svg('marker-start="url(#m)"'));
-  assert.ok(dark(up, 28, 11) && dark(up, 32, 11), 'start head points up');
-  const rewritten = withResvgMarkerOrient(svg('marker-start="url(#m)" marker-end="url(#m)"'));
-  assert.match(rewritten, /id="m" [^>]*orient="auto"/);
-  assert.match(rewritten, /id="m--start"[^>]*refX="1" refY="5"/);
-  assert.match(rewritten, /marker-start="url\(#m--start\)" marker-end="url\(#m\)"/);
-  assert.equal(withResvgMarkerOrient('<svg/>'), '<svg/>');
+test('resvg: an elbow ending downward gets a head pointing down, and marker-start a head pointing back (auto-start-reverse worked around)', async () => {
+  const marker = '<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>';
+  const r = await rasterizeWithResvg(svgOf(200, 200, `${marker}<path d="M30,30 L30,100 L120,100 L120,150" fill="none" stroke="#000" stroke-width="2" marker-start="url(#a)" marker-end="url(#a)"/>`));
+  // end (120,150): the head is 14 wide across the line and reaches only ~2px past the end; turned sideways it would reach 7px past
+  assert.equal(dark(r, {x: 100, y: 156, w: 40, h: 30}), 0);
+  assert.ok(dark(r, {x: 110, y: 135, w: 20, h: 15}) > 40, 'a head across the line just before the end');
+  // start (30,30), the line leaves downward: the head points up, nothing more than ~2px above
+  assert.equal(dark(r, {x: 10, y: 0, w: 40, h: 25}), 0);
+  assert.ok(dark(r, {x: 20, y: 30, w: 20, h: 15}) > 40);
+});
+
+test('resvgMarkers: marker-start written as CSS goes to the turned copy; the `marker` shorthand and a self-closing marker are left alone', () => {
+  const m = (id: string) => `<marker id="${id}" refX="9" refY="5" overflow="hidden" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>`;
+  const css = resvgMarkers(`<svg>${m('a')}<path style="marker-start: url('#a')" marker-end="url(#a)"/></svg>`);
+  assert.match(css, /marker-start: url\('#a--start'\)/);
+  assert.match(css, /marker-end="url\(#a\)"/);
+  assert.equal((css.match(/overflow=/g) ?? []).length, 2); // the copy's overflow="visible" replaces, not duplicates, the marker's own
+  const short = `<svg>${m('a')}<path marker="url(#a)"/></svg>`;
+  assert.equal(resvgMarkers(short), short);
+  const self = `<svg><marker id="b" orient="auto-start-reverse"/>${m('a')}<path marker-start="url(#a)"/></svg>`;
+  const out = resvgMarkers(self);
+  assert.match(out, /<marker id="b" orient="auto-start-reverse"\/>/);
+  assert.match(out, /marker-start="url\(#a--start\)"/);
 });

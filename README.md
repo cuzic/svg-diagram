@@ -18,6 +18,8 @@ npm パッケージとして配る（コンパイル済みの `dist/`＝JS と�
     pnpm exec svg-diagram typecheck     # 図のソースを型検査（案件側の tsc を使う）
     pnpm exec svg-diagram build diagrams/*.ts
 
+**グローバルに入れて使う場合**（`~/.local/bin/svg-diagram` のように、案件に `svg-diagram` を入れない）も `svg-diagram typecheck` は動く。コンパイラは案件の `typescript`、なければ PATH 上の `tsc`（`pnpm add -g typescript`）を使い、案件に `svg-diagram` や `@types/node` がなければ、一時的な tsconfig（`.svg-diagram-tsconfig.json`、終了時に消える。案件の tsconfig を `extends` する）でこのツール自身の型定義へ向ける。手で書くなら、案件の `tsconfig.json` の `compilerOptions` に `"paths": {"svg-diagram": ["<このツールの場所>/lib/dsl.ts"]}` を足す（パッケージ版は `dist/lib/dsl.d.ts`）。
+
 **ブラウザ（`playwright-chromium`）は要らない。** レイアウト、`build`（lint を含む）、`check`、`lint`、`show`、`preview`、`contact`、`renderSource` は、どれもブラウザなしで動く（文字幅はフォントファイルから、描画は resvg、描画後の検査は SVG の幾何から）。ブラウザが要るのは、実ブラウザで確かめたいときだけで、`pnpm add -D playwright-chromium`（pnpm 10 以降は `pnpm approve-builds` も）と `pnpm exec playwright install chromium` で足す: `lint --engine browser`、`show` / `preview` / `contact` の `--engine chromium`、`"measure": "chromium"`、`diagram({slide})` の空き寸法の実測（Slidev のテーマが実際に空ける余白を測る）。
 CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagrams/*.ts`（ソースのハッシュと SVG の埋め込み情報を比べるだけ。`--rebuild` を付けても、ブラウザは要らない）。
 
@@ -111,7 +113,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
 | quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
 | chevron / funnel / cycle / venn / concentric | 流れ・絞り込み・循環・集合・階層を表す flowShapes。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 |
-| plane({x, y, points, lines, dims, labels}) | 座標平面。軸・目盛り・点・補助線・**寸法線**・ラベルを、座標の単位のまま宣言する（地図 ↔ 画像の座標変換、位置の誤差）。`yDown: true` で画像座標。ラベルが、他のラベル・軸と矢印・目盛り・点・補助線・寸法線に重なる、または図からはみ出すと検査で止まる（寸法線の文字は、その線の上に載るのが正） 。`paths: [{through: [点の id か座標…], smooth?, dashed?, tone?, arrow?, reveal?}]` で複数点を通る線を引く（実線が既定。`smooth: true` は点を必ず通る曲線で、x が増える道筋は単調な 3 次補間（値を行き過ぎない）、そうでない道筋は centripetal Catmull-Rom。`smooth` なしは折れ線。曲線が軸の外に出る・ラベルに重なると検査で止まる。`examples/plane-paths.ts`）。`grow: true` を付けた path は、段階（`reveal`）ごとに、出ている点までの曲線を同じ形のまま伸ばす（`examples/plane-grow.ts`）。点のラベルは `labelAt` を書かなければ右に置き、線や他のラベルと重なるときは空いている側（左・上・下・斜め）へ自動で移る。`labelAt` で側を書くとそのまま、`labelOffset: [dx, dy]` で位置をずらせる |
+| plane({x, y, points, lines, dims, labels}) | 座標平面。軸・目盛り・点・補助線・**寸法線**・ラベルを、座標の単位のまま宣言する（地図 ↔ 画像の座標変換、位置の誤差）。`yDown: true` で画像座標。ラベルが、他のラベル・軸と矢印・目盛り・点・補助線・寸法線に重なる、または図からはみ出すと検査で止まる（寸法線の文字は、その線の上に載るのが正） 。`paths: [{through: [点の id か座標…], smooth?, dashed?, tone?, arrow?, reveal?}]` で複数点を通る線を引く（実線が既定。`smooth: true` は点を必ず通る曲線で、x が増える道筋は単調な 3 次補間（値を行き過ぎない）、そうでない道筋は centripetal Catmull-Rom。`smooth` なしは折れ線。曲線が軸の外に出る・ラベルに重なると検査で止まる。`examples/plane-paths.ts`）。`grow: true` を付けた path は、段階（`reveal`）ごとに、出ている点までの曲線を同じ形のまま伸ばす（`examples/plane-grow.ts`）。点のラベルは `labelAt` を書かなければ右に置き、線や他のラベルと重なるときは空いている側（左・上・下・斜め）へ自動で移る。`labelAt` で側を書くとそのまま、`labelOffset: [dx, dy]` で位置をずらせる。自動の置き場は寸法線（延長線を含む）・補助線・軸・目盛りも避ける。軸に `categories: ['営業', '開発', …]` を書くと、レーン名・段階名が 1, 2, 3 … の位置の目盛りになる（`max` は個数 + 1） |
 
 `wf.*`: col / row / card / spacer、text / btn / input / select / chip / tabs / appbar / seek、kv / stat / list / table / alert、map / video / heat / pointcloud / chart / image。
 map・video 等は残りの高さを埋める。`overlay` / `overlayRight` でチップ、`label` / `stamp` で枠内の文字。
@@ -170,6 +172,7 @@ bars([
 | `axis: false` | 目盛りの数値・目盛り線・値の軸線を消す。棒の立つ基線は残る（横棒は x = 0 の縦線を引く） |
 | `grid` | 目盛りに沿った格子。既定は `axis` に連動。`axis: false, grid: true` は throw |
 | `baseline: false` | 基線も消す |
+| `valueFormat` | 値の書き方。既定は、整数はそのまま（1055 は 1055）、小数は有効数字 3 桁（ただし整数部は削らない: 1055.5 は 1056）。`'exact'`（与えた数のまま）、小数の桁数（`1` なら 1055.3）、関数（`` v => `${v}件` ``）も書ける |
 | `barRatio` | 棒の幅の比率（0 < r ≤ 1）。指定すると最大幅の上限（縦棒 64px）を外す。`1` で棒が接して階段になる。横棒は行の高さ（28+18）に対する棒の高さ。省略時は従来の幅。`stack` とは併用できない |
 
 `labels` が `'all'` でなく `axis: false` のとき、図から値は読めない。ハードル（高さが値に比例する壁）や階段のような「量の感じ」を見せる図で使い、**数値は本文・`caption`・隣の表など図の外に必ず書く**（長さや色だけで量を伝えない）。そのとき SVG の `<desc>` に値の列（`値: A 20%、B 40%`）を自動で追記する（`diagram({desc})` を自分で書いた図には追記しない）。doc 媒体で題名がない図は、`<title>` も `<desc>` も出ないので `bars-values-hidden` で warn する。reveal の段階ごとのファイルの `<desc>` は、その段階で見えている要素だけを挙げる（まだ出ていない値・消えた値は入らない）。目盛りも値ラベルも出さない縦棒は、`height: 60` のような小さい図が書ける（目盛りか値ラベルがあるときの最小の高さは従来のまま）。棒が 1px 以下になる図は throw ではなく `bars-thin-bar` の warn。例は `examples/bars-bare.ts`。
@@ -237,7 +240,7 @@ stateDiagram(
 ```
 
 - 座標は書かない。状態を、遷移の向きに沿って層に分け（循環は、戻る遷移として逆向きに扱う）、交差が減るように並べる。`dir: 'right'`（既定）は左から右、`'down'` は上から下。
-- `initial` は、黒い点と、そこから入る矢印。`final: true` の状態は二重の枠。`tone` は箱と同じ。
+- `initial` は、黒い点と、そこから入る矢印。`final: true` の状態は二重の枠。`tone` は箱と同じ（`danger` のほか、主役の `'solid'` と異常の `'solid-danger'` は、塗りつぶして白い文字になる）。戻る遷移は同じ層の間で別の帯を通り、絡まない。
 - 遷移は、直角に折れる矢印で、層を飛ばすものは間の状態を避けて迂回する。同じ 2 状態の間の行き来や、同じ側に出入りする矢印は、位置をずらして重ならないようにする（1 つから出る矢印は遠い行き先ほど先に、1 つへ入る矢印は近い尾ほど先に曲がり、互いに交差しない）。自己ループは、`dir: 'right'` では状態の上、`'down'` では右に出る。
 - ラベルは、矢印の直線部分の脇に置く。矢印の先や、状態・ほかのラベルに重なるときは、矢印に沿って場所を探し、それでも入らなければ矢印の脇に動かす。それも無理なら `check` / `build` が、どのラベルが何に重なるかを書いて止まる。矢印が無関係の状態を貫くときも止まる。ラベルが長いと層の間隔が広がるので、図の幅を超えたら、幅と直し方（`dir: 'down'`、`maxNodeW`、ラベルを短く）を書いて止まる。
 - 矢じりはマーカーではなく図形で描く（resvg は、左向きの終端マーカーを回さないため）。状態の `id` は `connect()` の端点で、`t.anchors.<id>` でも取れる。例は `examples/state-diagram.ts`。
@@ -725,7 +728,7 @@ diagram({theme: 'blue', title: 'Web サービスの構成'}).add(
 - **線は辺を指す**（`connect('a:right', 'b:left')`）。node の左・右・上は**アイコン**に付き、**下（`:bottom`）は名前の下**に付く。辺を書かないと中心同士を結ぶので、枠のない node では線がアイコンを貫く。
 - 境界（VPC・サブネット・ゾーン・リージョン）は `group({title, dashed})` の入れ子。ゾーンを並べるときは `row([group(..), group(..)], {cols: [6, 6]})`。
 - 曲がる線が枠の見出しや隣の node にかかると、`build` が理由つきで止まる。`route: 'elbow'` の `bend`（0〜1）で曲がる位置をずらす。
-- **PNG のプレビュー（既定の resvg）は、曲がる線の矢じりが横を向いて見える**ことがある。SVG 自体は正しく、ブラウザや `--engine chromium` では下を向く。
+- PNG のプレビュー（既定の resvg）でも、曲がる線の矢じりは線の向きに合う（resvg は `orient="auto-start-reverse"` の終端マーカーを曲がり角で横に向けるので、描くときだけ `auto` のマーカーと、始端用の 180° 回した複製に置き換える。SVG 自体は変えない）。
 
 #### アイコンの入手: 汎用は Iconify、公式は `add-pack`
 
@@ -799,6 +802,7 @@ versus(
 - **children と接続線**: `children` は箱 1 つでも配列でもよい（配列は縦に積む。`direction: 'row'` で横に等幅で並べる）。接続線は左右の枠の中央から共通部へ垂直に降り（以前は共通部の 1/4・3/4 に向かい、数 px 斜めだった）、ラベルは線の右に置く。`connectArrow: 'none'` で矢頭なし。`row()` の子には `box()` / `group()` のほか `caption()` / `banner()` などの帯も置ける（枠なしの `group()` に自動で包まれる）。
 - **PNG の矢頭**: `svg-diagram preview` などの PNG（resvg）は、矢頭を線の向きに回して描く（以前は向きを無視して、下向きの線でも右向きに描いていた）。縦の直線に付けた（chip でない）ラベルは、線に貫かれないよう線の右に置く。
 - **帯と幅がそろう**: 枠の右端は、帯と同じ位置で 4px の格子に丸める（以前は幅だけを丸めていたので、`versus()` の右の枠が帯より最大 4px はみ出すことがあった）。
+- `group()` に `gap` は無い（書くと throw）。箱の間は、入っている `row([...], {gap})`、帯の間は `diagram({gap})`。グループを並べた行の `gap` はそのまま効く。
 - **12 列の行**: `row([a, b], {cols: [6, 6]})`（子ごとの幅だけを並べる。`col` を手で数えない）。`span` を各子に書く形では、`col` は前の子の次の列から自動で進む。`cols` を指定した行は、ラベルつきの接続線のために隙間が広がるとき、**同じ `cols` と `gap` の行すべて**で広がり、列の縁はそろったまま。
 - **`cols: 12` だけで子に `span` / `col` を書かない行**は、子が 12/n 列ずつを等分する（余りは前の子から 1 列ずつ。3 個なら 4+4+4）。以前は 1 列幅ずつになり、名前が縦に折れた。列をそろえたいときは、子に `span`（`span: 1` でもよい）か `col` を書く。
 - **別の行の N 列目へ矢印をつなぐ**: `const top = row([...], {cols: 12, id: 'top'})` のあと `connect(a.bottom, top.col(5).top)`、`top.col(5, 6)` は 5〜6 列。`cols` のない行では N 番目の子。列の中の箱は、その端点の一部とみなされ、線が通っても重なりの警告にならない。
