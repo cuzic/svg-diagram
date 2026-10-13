@@ -2239,6 +2239,8 @@ export interface LaidOutSwimlane extends Rect {
   phaseH: number;
   phases: LaidOutPhase[];
   lanes: LaidOutLane[];
+  /** With `fit: 'shrink'`: the steps whose text broke into lines of 2.5 characters or fewer on average (the shrink-narrow-text rule reads it). */
+  narrow?: string[];
   id?: string;
   reveal?: number;
   until?: number;
@@ -2492,6 +2494,8 @@ export interface LaidOutClasses extends Rect, Dimmed {
 
 export interface LaidOutBpmn extends Rect, Dimmed {
   type: 'bpmn';
+  /** With `fit: 'shrink'`: the tasks whose label broke into lines of 2.5 characters or fewer on average (the shrink-narrow-text rule reads it). */
+  narrow?: string[];
   id?: string;
   reveal?: number;
   until?: number;

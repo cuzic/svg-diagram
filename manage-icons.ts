@@ -11,7 +11,7 @@
 //   icons add-pack <dir|vendor.zip> --prefix aws --terms <url> --accept-terms [--match REGEX] [--exclude REGEX] [--all] [--list]
 //                                                                            a vendor's own icon set (AWS / Azure / ...), under its terms
 //   icons notice                                                             credits of the installed icons, as Markdown
-import {addIcons, addSet, manifestPath, noticeText, readManifest, removeIcons, searchIcons, setMainSet} from './lib/icon-install.ts';
+import {addIcons, addSet, manifestNote, manifestPath, noticeText, readManifest, removeIcons, searchIcons, setMainSet} from './lib/icon-install.ts';
 import {ICON_SETS} from './lib/icon-sets.ts';
 import {addPack} from './lib/icon-pack.ts';
 import {findIcons} from './lib/icon-find.ts';
@@ -37,7 +37,7 @@ try {
       if (r.skipped.length) console.log(`・セットに無いので飛ばした: ${r.skipped.join(', ')}`);
       for (const w of r.warnings) console.log(`⚠ ${w}`);
       if (!r.added.length && !r.replaced.length) { console.log('何も入れていない（指定した名前がどれもセットに無い）'); process.exitCode = 1; break; }
-      console.log(`→ ${r.file}（図のソースでは box({icon: '<名前>'})。このファイルをコミットする）`);
+      console.log(`→ 書いた: ${manifestNote(r.file)}（図のソースでは box({icon: '<名前>'})。このファイルをコミットする）`);
       break;
     }
     case 'sets': {
@@ -52,13 +52,13 @@ try {
       if (r.kept.length) console.log(`・入っている名前はそのまま（上書きしない）: ${r.kept.join(', ')}`);
       for (const w of r.warnings) console.log(`⚠ ${w}`);
       if (!r.added.length && !r.replaced.length) { console.log('何も入れていない（指定した名前がどれもセットに無い）'); process.exitCode = 1; break; }
-      console.log(`→ ${r.file}（図のソースでは box({icon: '<名前>'})。このファイルをコミットする）`);
+      console.log(`→ 書いた: ${manifestNote(r.file)}（図のソースでは box({icon: '<名前>'})。このファイルをコミットする）`);
       break;
     }
     case 'remove': {
       if (!args.length) usage();
       const r = removeIcons(args);
-      console.log(`✓ 削除: ${r.removed.join(', ')}  (${r.file})`);
+      console.log(`✓ 削除: ${r.removed.join(', ')}\n→ 書いた: ${manifestNote(r.file)}`);
       break;
     }
     case 'list': {

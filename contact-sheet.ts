@@ -3,6 +3,7 @@
 // Several diagrams on one picture, to review a whole set at a glance (checks cannot judge balance or spacing).
 // The sheet is itself one SVG (lib/contact.ts), drawn like any other: no browser by default.
 import fs from 'node:fs';
+import path from 'node:path';
 import {rasterize} from './lib/raster.ts';
 import {closeMeasurer} from './lib/measure.ts';
 import {buildSheet, paginate, pageName} from './lib/contact.ts';
@@ -28,6 +29,7 @@ try {
   for (const [i, page] of pages.entries()) {
     const sheet = buildSheet(page.map(f => [f, fs.readFileSync(f, 'utf8')] as [string, string]), {cols, width});
     const file = pageName(out, i, pages.length);
+    fs.mkdirSync(path.dirname(path.resolve(file)), {recursive: true});
     fs.writeFileSync(file, (await rasterize(sheet.svg, {png: true, engine})).png!);
     written.push(file);
     console.log(`wrote ${file} (${page.length} diagrams)`);
