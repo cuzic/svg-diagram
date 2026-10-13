@@ -18,10 +18,13 @@ const chain = (n: number, fit?: 'shrink') => {
 };
 
 test("bpmn fit:'shrink' that squeezes tasks warns; a roomy one does not", async () => {
-  let narrow: Awaited<ReturnType<typeof rule>> = [];
-  for (const n of [7, 8]) { const d = diagram({theme: 'blue'}); d.add(chain(n, 'shrink')); try { narrow = await rule(d); } catch { continue; } if (narrow.length) break; }
+  const d = diagram({theme: 'blue'}); d.add(chain(8, 'shrink'));
+  const narrow = await rule(d);
   assert.equal(narrow.length, 1);
   assert.match(narrow[0].message, /字ずつ/);
+  // eight tasks with the same label are named once, not eight times
+  assert.equal(narrow[0].message.match(/「在庫を確認する」/g)?.length, 1);
+  assert.doesNotMatch(narrow[0].message, /ほか/);
   const ok = diagram({theme: 'blue'}); ok.add(chain(3, 'shrink'));
   assert.deepEqual(await rule(ok), []);
 });
@@ -42,6 +45,7 @@ const withCfg = (cfg: unknown) => {
 test('.svg-diagram.json accept: unknown rule ids and empty reasons throw; diagram accept wins', () => {
   assert.throws(() => loadConfig(withCfg({accept: {'gray-tone-colision': 'x'}})), /unknown rule "gray-tone-colision"/);
   assert.throws(() => loadConfig(withCfg({accept: {'gray-tone-collision': ''}})), /non-empty reason/);
+  assert.throws(() => loadConfig(withCfg({accept: {constructor: 'x'}})), /unknown rule "constructor"/);
   const cfg = loadConfig(withCfg({accept: {'gray-tone-collision': 'project', 'shrink-narrow-text': 'p2'}}));
   const d = applyConfig({accept: {'gray-tone-collision': 'own'}} as never, cfg) as {accept: Record<string, string>};
   assert.equal(d.accept['gray-tone-collision'], 'own');

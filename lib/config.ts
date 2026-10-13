@@ -43,7 +43,7 @@ function checkAccept(cfg: Config, f: string): void {
   if (acc === undefined) return;
   if (typeof acc !== 'object' || acc === null || Array.isArray(acc)) throw new Error(`${f}: "accept" must be an object like {"gray-tone-collision": "why this is fine"}`);
   for (const [k, v] of Object.entries(acc)) {
-    if (!(k in RULE_DOCS)) throw new Error(`${f}: accept: unknown rule "${k}" (see RULE_DOCS: ${Object.keys(RULE_DOCS).join(', ')})`);
+    if (!Object.hasOwn(RULE_DOCS, k)) throw new Error(`${f}: accept: unknown rule "${k}" (see RULE_DOCS: ${Object.keys(RULE_DOCS).join(', ')})`);
     if (typeof v !== 'string' || !v.trim()) throw new Error(`${f}: accept["${k}"] must be a non-empty reason string`);
   }
 }

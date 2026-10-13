@@ -30,15 +30,15 @@ export function treeTexts(band: TreeBand, roles: Roles): [string, number, number
 export interface NodeLines {label: string[]; sub: string[]; w: number; h: number}
 const lineH = (s: number): number => Math.round(s * 1.4);
 
-/** A node's text wrapped to maxW, and the box size it needs (bold label, muted sub line). Shared with states(). */
-/** The wrapped texts (each a list of lines) that broke into several lines of 2.5 characters or fewer on average: what `fit: 'shrink'` squeezing a column too far does (rule shrink-narrow-text). Returns the joined texts. */
+/** The wrapped texts (each a list of lines) that broke into several lines of 2.5 characters or fewer on average: what `fit: 'shrink'` squeezing a column too far does (rule shrink-narrow-text). Returns the joined texts, each once. */
 export function narrowTexts(texts: string[][]): string[] {
-  return texts.filter(lines => lines.length >= 3 && lines.join('').replace(/\s/g, '').length / lines.length <= 2.5).map(lines => lines.join(''));
+  return texts.filter(lines => lines.length >= 3 && lines.join('').replace(/\s/g, '').length / lines.length <= 2.5).map(lines => lines.join('')).filter((t, i, a) => a.indexOf(t) === i);
 }
 
 /** `{narrow}` for a laid-out band, or nothing when no text broke that way (so a shrink that changed nothing leaves the band as it was). */
 export function narrowField(texts: string[][]): {narrow?: string[]} { const n = narrowTexts(texts); return n.length ? {narrow: n} : {}; }
 
+/** A node's text wrapped to maxW, and the box size it needs (bold label, muted sub line). Shared with states(). */
 export function measureNode(label: string, sub: string | undefined, maxW: number, widthOf: WidthOf, roles: Roles): NodeLines {
   const L = roles.body, S = roles.note, inner = maxW - 2 * PAD_X;
   const lab = wrapText(label, {maxWidth: inner, atomWidth: a => widthOf(a, L, 700, 'sans')});
