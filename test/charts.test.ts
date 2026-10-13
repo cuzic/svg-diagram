@@ -332,6 +332,15 @@ test('sankey(): a sink goes to the last layer (align: left keeps it where its pa
   assert.throws(() => sankey(['a', 'b'], [{from: 'a', to: 'a', value: 1}]), /flows into itself/);
 });
 
+test('sankey(): a node with no link is an error (it used to make the scale 0 and draw every node 2px high, with no ribbons)', async () => {
+  assert.throws(() => sankey(['a', 'b', 'c', 'lonely'], [{from: 'a', to: 'b', value: 10}, {from: 'b', to: 'c', value: 5}]), /node "lonely" has no link/);
+  // the scale is the one of the linked nodes: a ribbon is as thick as the node it is the whole flow of
+  const {chart, problems} = await chartOf(sankey(['a', 'b', 'c'], [{from: 'a', to: 'b', value: 10}, {from: 'b', to: 'c', value: 5}]));
+  assert.deepEqual(problems, []);
+  assert.ok(solid(chart, 'a').h > 100, `node a is ${solid(chart, 'a').h}px high`);
+  near(solid(chart, 'c').h / solid(chart, 'a').h, 0.5, 0.02);
+});
+
 // ---- lines ---------------------------------------------------------------------------------------------------------------------
 
 test('lines(): a plane with a path and markers per series; each series has its own marker shape and line style; names stand at the line ends', async () => {
@@ -449,7 +458,7 @@ test('a seeded sweep of every chart (zeros, negatives, long labels, many items) 
     const links: {from: string; to: string; value: number}[] = [];
     for (let i = 0; i + 1 < L; i++) for (const f of layers[i]) for (const to of layers[i + 1]) if (rnd() < 0.6) links.push({from: f, to, value: Math.max(1, Math.round(Math.abs(val())))});
     if (!links.length) links.push({from: layers[0][0], to: layers[1][0], value: 5});
-    return sankey(layers.flat().map(id => ({id, label: word()})), links, {unit: pick(['', '人'])});
+    return sankey(layers.flat().filter(id => links.some(l => l.from === id || l.to === id)).map(id => ({id, label: word()})), links, {unit: pick(['', '人'])});
   });
   for (let t = 0; t < 30 * mult; t++) await run(`lines ${t}`, () => { const N = 3 + Math.floor(rnd() * 8), S = 1 + Math.floor(rnd() * 4); const data = Array.from({length: S}, (_, i) => ({label: `${word()}${i}`, values: Array.from({length: N}, () => rnd() < 0.1 ? null : Math.round(rnd() * 50) / 10)})); (globalThis as {dbg?: unknown}).dbg = data; return lines(data, {x: {categories: Array.from({length: N}, (_, i) => `${i + 1}`)}, y: {min: 0, max: 5}}); });
   // the failures that are not named, or that came out of verify, are bugs; the named ones are the data being refused with a reason

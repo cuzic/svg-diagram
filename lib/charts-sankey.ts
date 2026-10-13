@@ -36,6 +36,8 @@ export function resolveSankey(nodes: readonly (SankeyNode | string)[], links: re
     if (l.tone !== undefined && !['accent', 'danger', 'muted'].includes(l.tone)) fail('sankey', `link ${i + 1}: tone must be accent, danger or muted`);
     return {from: l.from, to: l.to, value, tone: l.tone ?? 'accent' as const};
   });
+  // a node no link touches carries no flow: it would have no height, and the scale would be worked out from its zero flow
+  for (const n of ns) if (!ls.some(l => l.from === n.id || l.to === n.id)) fail('sankey', `node "${n.id}" has no link (leave it out, or link it)`);
   const spec: SankeySpec = {nodes: ns, links: ls, unit: opts.unit ?? '', align: opts.align ?? 'justify', linkLabels: opts.linkLabels !== false};
   layersOf(spec); // a cycle is an error now, not at layout
   return spec;
