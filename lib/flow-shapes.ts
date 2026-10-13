@@ -238,7 +238,7 @@ function layoutCycle(b: CycleBand, out: LaidOutFlowShape, t: Texts, anchor: Anch
   const at = (a: number, r = R): Pt => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
   const skip = 2 * Math.asin(Math.min(1, (nr + 8) / (2 * R))); // the angle a node (plus a gap) covers on the ring
   const r1 = (v: number) => Math.round(v * 10) / 10;
-  b.steps.forEach((s, i) => {
+  b.steps.forEach((_s, i) => {
     const [p, q] = [at(angle(i) + sign * skip), at(angle(i + 1) - sign * skip)];
     out.primitives.push({k: 'path', d: `M${r1(p[0])},${r1(p[1])} A${r1(R)},${r1(R)} 0 0 ${sign > 0 ? 1 : 0} ${r1(q[0])},${r1(q[1])}`, tone: 'text', arrow: true});
   });

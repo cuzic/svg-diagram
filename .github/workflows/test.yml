@@ -21,6 +21,7 @@ jobs:
       # the tests that compare with a real browser (lint --engine browser, --engine chromium, the Chromium measuring engine) need one
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm typecheck
+      - run: pnpm lint
       - run: pnpm test
       - name: examples build and pass the rule check
         run: |

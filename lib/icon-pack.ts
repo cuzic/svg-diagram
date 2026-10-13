@@ -65,7 +65,7 @@ export function addPack(src: string, o: PackOpts): PackResult {
   if (!o.list && (!o.terms?.trim() || !o.acceptTerms)) throw new Error(`a vendor pack comes under the vendor's own terms, not an open licence. Read them, then install with --terms <where they are (a URL)> --accept-terms — both are recorded in svg-diagram.icons.json`);
   const {dir, cleanup} = openSource(src);
   try {
-    const files = walk(dir).map(f => path.relative(dir, f).split(path.sep).join('/')).filter(f => (!o.match || o.match.test(f)) && !(o.exclude && o.exclude.test(f)));
+    const files = walk(dir).map(f => path.relative(dir, f).split(path.sep).join('/')).filter(f => (!o.match || o.match.test(f)) && !(o.exclude?.test(f)));
     if (!files.length) throw new Error(`no .svg file${o.match ? ` matches ${o.match}` : ''} in ${src}`);
     if (!o.all && !o.match && !o.list) throw new Error(`${src} has ${files.length} icons (e.g. ${files.slice(0, 3).join(', ')}). Install the ones you need with --match <regex on the path> (like --match "Lambda|EC2|S3"), or everything with --all. --list shows the names.`);
     // one icon per name: the best size wins

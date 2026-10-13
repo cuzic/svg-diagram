@@ -60,15 +60,15 @@ export function resolveWaterfall(steps: readonly WaterfallStep[], opts: Waterfal
   return {steps: out, unit: opts.unit ?? '', axis: opts.axis !== false, connectors: opts.connectors !== false, dir: opts.dir ?? 'v'};
 }
 
-const valueOf = (s: ResolvedStep, unit: string): string => `${s.kind === 'delta' ? signedText(s.value) : numText(s.value)}${unit}`;
+const stepText = (s: ResolvedStep, unit: string): string => `${s.kind === 'delta' ? signedText(s.value) : numText(s.value)}${unit}`;
 export const KIND_JA: Record<WaterfallKind, string> = {start: '開始', delta: '増減', subtotal: '小計', total: '合計'};
 export function waterfallAlt(spec: WaterfallSpec): string {
-  return `ウォーターフォール図: ${spec.steps.map(s => `${s.label} ${valueOf(s, spec.unit)}`).join('、')}`;
+  return `ウォーターフォール図: ${spec.steps.map(s => `${s.label} ${stepText(s, spec.unit)}`).join('、')}`;
 }
 
 export function waterfallTexts(spec: WaterfallSpec): [string, number][] {
   const out: [string, number][] = [];
-  for (const s of spec.steps) { out.push([s.label, 400], [s.label, 700], [valueOf(s, spec.unit), 700]); }
+  for (const s of spec.steps) { out.push([s.label, 400], [s.label, 700], [stepText(s, spec.unit), 700]); }
   const lo = Math.min(0, ...spec.steps.flatMap(s => [s.from, s.to])), hi = Math.max(0, ...spec.steps.flatMap(s => [s.from, s.to]));
   if (spec.axis) for (const t of niceScale(lo, hi).ticks) out.push([numText(t), 400]);
   return out;
@@ -126,7 +126,7 @@ export function layoutWaterfall(spec: WaterfallSpec, g: ChartGeom): LaidOutChart
   }
   // value labels: above a bar that rises (or a level above zero), below one that falls; inside it (in the page colour) when the outside is taken
   for (const b of bars) {
-    const text = valueOf(b.s, spec.unit), up = b.s.kind === 'delta' ? b.s.value >= 0 : b.s.value >= 0;
+    const text = stepText(b.s, spec.unit), up = b.s.kind === 'delta' ? b.s.value >= 0 : b.s.value >= 0;
     const above = {x: b.cx, y: b.top - 7, anchor: 'middle' as const}, below = {x: b.cx, y: b.top + b.h + S + 5, anchor: 'middle' as const};
     const cands = up ? [above, below] : [below, above];
     const inside = {x: b.cx, y: c.mid(b.top + b.h / 2), anchor: 'middle' as const};
@@ -146,7 +146,7 @@ function layoutWaterfallH(spec: WaterfallSpec, g: ChartGeom): LaidOutChartPart {
   const S = g.size, n = spec.steps.length, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
   const lo = Math.min(0, ...spec.steps.flatMap(s => [s.from, s.to])), hi = Math.max(0, ...spec.steps.flatMap(s => [s.from, s.to]));
   const sc = niceScale(lo, hi), ticks = spec.axis ? sc.ticks.map(t => ({v: t, s: numText(t)})) : [];
-  const texts = spec.steps.map(s => valueOf(s, spec.unit));
+  const texts = spec.steps.map(s => stepText(s, spec.unit));
   const valW = Math.max(...texts.map(t => c.tw(t, true))) + 12;
   const labelW = Math.min(Math.max(...spec.steps.map(s => c.tw(s.label, s.kind !== 'delta'))) + 14, g.w * 0.3);
   const cats = spec.steps.map(s => c.wrap(s.label, labelW - 14, s.kind !== 'delta'));

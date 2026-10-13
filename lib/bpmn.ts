@@ -10,7 +10,7 @@ import type {NodeLines} from './tree.ts';
 import {wrapText} from './wrap.ts';
 import type {BpmnBand, BpmnNodeKind, FontFamily, LaidOutBpmn, Roles, WidthOf} from './types.ts';
 
-const LABEL_COL = 120, PAD_Y = 22, COL_GAP = 52, EVENT = 36, GATE = 44, TASK_MAX = 168, LABEL_MAX = 120, STUB = 16, CHIP_PAD = 5, ARROW = 12;
+const LABEL_COL = 120, PAD_Y = 22, COL_GAP = 52, EVENT = 36, GATE = 44, TASK_MAX = 168, LABEL_MAX = 120, STUB = 16, CHIP_PAD = 5;
 const TASK_ICON = 20, ICON_H = TASK_ICON + 4; // an icon above a task's label: its size and the room it takes
 const lineH = (s: number): number => Math.round(s * 1.4);
 const isEvent = (k: BpmnNodeKind): boolean => k === 'start' || k === 'end';

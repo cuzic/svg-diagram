@@ -335,7 +335,7 @@ function convert(tag: string, a: Attrs, markers: Map<string, Marker>): string | 
   if (sw) {
     const hw = sw / 2, cap = a['stroke-linecap'] ?? 'butt';
     const dash = a['stroke-dasharray'] ? a['stroke-dasharray'].split(/[\s,]+/).map(Number) : null;
-    if (dash && dash.some(n => !Number.isFinite(n))) return null;
+    if (dash?.some(n => !Number.isFinite(n))) return null;
     for (const s of maps) {
       if (dash) {
         const pts = s.closed ? [...s.pts, s.pts[0]] : s.pts;

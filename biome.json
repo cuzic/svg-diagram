@@ -1,0 +1,86 @@
+{
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"includes": [
+			"*.ts",
+			"lib/**",
+			"test/**",
+			"examples/**",
+			"scripts/**",
+			"!examples/out",
+			"!**/*.svg"
+		]
+	},
+	"formatter": {
+		"enabled": false
+	},
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "off"
+			}
+		}
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended",
+			"correctness": {
+				"noUnusedImports": "error",
+				"noUnusedVariables": "error",
+				"noUnusedFunctionParameters": "error"
+			},
+			"style": {
+				"useImportType": "error",
+				"noNonNullAssertion": "warn",
+				"useTemplate": "off"
+			},
+			"suspicious": {
+				"noExplicitAny": "error",
+				"useIterableCallbackReturn": "off",
+				"noAssignInExpressions": "off"
+			},
+			"complexity": {
+				"noCommaOperator": "off"
+			}
+		}
+	},
+	"overrides": [
+		{
+			"includes": [
+				"lib/terminal.ts",
+				"lib/xml-check.ts",
+				"test/show.test.ts"
+			],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noControlCharactersInRegex": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"test/**"
+			],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noExplicitAny": "off",
+						"noImplicitAnyLet": "off"
+					},
+					"correctness": {
+						"noEmptyCharacterClassInRegex": "off",
+						"noConstantCondition": "off"
+					}
+				}
+			}
+		}
+	]
+}

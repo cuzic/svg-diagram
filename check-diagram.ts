@@ -24,9 +24,9 @@
 //   Any mode:  --format text|json|github   (github = ::warning annotations for a pull request)
 //   Project settings (accepted rules, max width) come from .svg-diagram.json, found by walking up from the current directory.
 
-import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
 import type {DiagramSource} from './lib/types.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import {register} from 'node:module';

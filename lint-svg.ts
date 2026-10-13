@@ -28,7 +28,7 @@ import {launchChromium} from './lib/browser.ts';
 import {browserChecks} from './lib/lint-browser.ts';
 import {geometryChecks, type RenderChecks} from './lib/svg-lint.ts';
 import {loadConfig} from './lib/config.ts';
-import fs from 'fs';
+import fs from 'node:fs';
 import {ALLOWED_COLORS, DARK_COLORS, EMOJI_RE} from './lib/tokens.ts';
 
 const strict = process.argv.includes('--strict');
@@ -37,12 +37,8 @@ const engine = engineIdx === -1 ? 'geometry' : process.argv[engineIdx + 1];
 if (engine !== 'geometry' && engine !== 'browser') { console.error(`✗ --engine is geometry or browser (got ${engine ?? 'nothing'})`); process.exit(2); }
 const fix = process.argv.includes('--fix');
 const given = process.argv.slice(2).filter((a, i, all) => a.endsWith('.svg') && all[i - 1] !== '--engine');
-let files;
-if (given.length) {
-  files = given; // every .svg named on the command line (it used to look at the first one only)
-} else {
-  files = fs.globSync('svg/*.svg').sort();
-}
+// every .svg named on the command line (it used to look at the first one only), else all of svg/
+const files: string[] = given.length ? given : fs.globSync('svg/*.svg').sort();
 if (files.length === 0) {
   console.error('no SVG files matched');
   process.exit(2);

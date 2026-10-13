@@ -27,7 +27,7 @@ export interface CollectionInfo {name?: string; author?: {name?: string}; licens
 
 export async function getJson<T>(f: Fetch, url: string): Promise<T> {
   for (let attempt = 0; ; attempt++) {
-    let r;
+    let r: Awaited<ReturnType<Fetch>>;
     try { r = await f(url); } catch (e) { throw new Error(`cannot reach ${url} — ${(e as Error).message} (offline? install from a file instead: svg-diagram icons add ./name.svg)`); }
     if (r.status === 429 && attempt < 3) { await new Promise(ok => setTimeout(ok, 1500 * (attempt + 1))); continue; } // rate-limited: wait and ask again
     if (!r.ok) throw new Error(`${url} → HTTP ${r.status}`);

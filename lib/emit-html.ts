@@ -5,7 +5,7 @@
 // Same geometry as the SVG: layout.ts has already broken every text into lines and placed each baseline, so a line is one element
 // with white-space: pre — the browser never re-wraps it. A line's top is its baseline minus the font's ascent (its line-height is
 // ascent + descent), which is how the baseline lands where the <text> of the SVG puts it.
-import {PALETTE, FONT_STACKS, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle, recolor, withTones} from './tokens.ts';
+import {PALETTE, FONT_STACKS, runColorOf, textColorOf, recolor, withTones} from './tokens.ts';
 import {createHash} from 'node:crypto';
 import {textBox} from './font-metrics.ts';
 import {currentFontSpecs} from './measure.ts';

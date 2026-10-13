@@ -6,9 +6,9 @@
 // the constraint system — a caller cannot express an off-token color or a
 // sub-14px font because there is no parameter that accepts one.
 
-import {execFileSync} from 'child_process';
-import fs from 'fs';
-import path from 'path';
+import {execFileSync} from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import {wf} from './wireframe.ts';
 import {resolveIcon} from './icon-registry.ts';
 import {readImage} from './image-file.ts';
@@ -26,7 +26,7 @@ import {closeMeasurer} from './measure.ts';
 import {applySpotlight} from './spotlight.ts';
 import {prepareReveal} from './reveal.ts';
 import {CAUSE_ROLES} from './toc.ts';
-import {criticalPath, decimalsOf, exact, histogramBins, mean, niceUp, normalCount, num, paretoOrder, sd} from './qc.ts';
+import {criticalPath, decimalsOf, exact, histogramBins, mean, niceUp, normalCount, paretoOrder, sd} from './qc.ts';
 import type {ArrowActivity} from './qc.ts';
 import {controlChartOpts, scatterOpts} from './qc-plane.ts';
 import {burndownOpts, burnupOpts, linesOpts, strategyCanvasOpts} from './charts-lines.ts';
@@ -57,17 +57,15 @@ import type {QuadrantBand, QuadrantItem, QuadrantOpts, QuadrantPreset} from './q
 import {chevronBand, concentricBand, cycleBand, funnelBand, vennBand} from './flow-shapes.ts';
 import type {ChevronBand, ChevronOpts, ConcentricBand, ConcentricOpts, ConcentricRing, CycleBand, CycleOpts, FlowStep, FunnelBand, FunnelOpts, FunnelStage, VennBand, VennOpts, VennSet} from './flow-shapes.ts';
 import {SLIDE_CANVAS, canvasFontScale, canvasRoles, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
-import type {
-  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsLine, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, NumericTimelineBand, NumericTimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts, CloudBand, CloudBox, CloudOpts, GanttBand, GanttOpts, GanttRow, GanttTask, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+import type {Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsLine, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, NumericTimelineBand, NumericTimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts, CloudBand, CloudBox, CloudOpts, GanttBand, GanttOpts, GanttRow, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
-  ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
-  Role, RichText, StatOpts, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
+  ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,RichText, StatOpts, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand,
   GroupRowBand, PartRow, StateCellIn, StateMatrixCell, TableCell, TableCellSpec, TableColumn, TableOpts, TableRow, Theme, WfNode, WfOverlay, WfPartKey, WfRoot, WfScreen, WfShellProps, WireframeBand, WireframeDefaults, WireframeOpts, Medium,
 } from './types.ts';
 import type {
   ActorIn, AnchorsOf, BoxInput, BranchInput, ConnectInput, CurvePoints, Declares, DiagramInput, FlowCheck, FlowIn, IdsOf, LaneCheck, Ok,
-  HandleOf, PyramidLayers, Refers, RefsOf, RowHandleOf, SeqStepIn, ScreensItemInput, StateRowIn, StateRowLoose, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn,
+  HandleOf, PyramidLayers, Refers, RefsOf, RowHandleOf, SeqStepIn, ScreensItemInput, StateRowLoose, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn,
 } from './strict.ts';
 export {wf} from './wireframe.ts';
 export {icon} from './icon-registry.ts';
@@ -438,7 +436,7 @@ function collectNumbering(skip: Set<object> | null, trees: NumberTrees): Numberi
   const num = (v: unknown) => { if (typeof v === 'number') max = Math.max(max, v); };
   const walk = (nd: WfNode | WfNode[] | undefined | null): void => {
     if (!nd || typeof nd !== 'object') return;
-    if (Array.isArray(nd)) return nd.forEach(c => walk(c));
+    if (Array.isArray(nd)) { nd.forEach(c => walk(c)); return; }
     if (!nd.t || skip?.has(nd)) return;
     const node = nd;
     if (node.n === true) todo.push(v => { node.n = v; }); else num(node.n);
@@ -461,7 +459,7 @@ function nodesOf(root: WfRoot): Set<object> {
   const out = new Set<object>();
   const walk = (nd: unknown): void => {
     if (!nd || typeof nd !== 'object') return;
-    if (Array.isArray(nd)) return nd.forEach(walk);
+    if (Array.isArray(nd)) { nd.forEach(walk); return; }
     out.add(nd);
     walk((nd as {children?: unknown}).children);
   };
@@ -1818,7 +1816,7 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
   // 14px text is as small as it was at 940px wide.
   let fontScale = 1;
   let laidOut: LaidOutDiagram;
-  let verdict: Verdict, svg: string, html: string | undefined;
+  let svg: string, html: string | undefined;
   // Every scale is its own value (scaleRoles): measured with, laid out with and drawn with the same roles, which travel in the result.
   const layoutAt = async (s: number): Promise<LaidOutDiagram> => {
     const roles = d.canvas ? canvasRoles(s) : scaleRoles(ROLES, s);
@@ -1843,7 +1841,7 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
   laidOut = await layoutAt(fontScale);
   laidOut.fontScale = fontScale;
   applySpotlight(laidOut);
-  verdict = verifyDiagram(laidOut);
+  const verdict: Verdict = verifyDiagram(laidOut);
   svg = emitSvg(laidOut, maxReveal ? {reveal: maxReveal} : {});
   if (opts.html) html = emitHtml(laidOut, maxReveal ? {reveal: maxReveal} : {});
   return {svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml: xmlProblems(svg), notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget, budgetSource, fontScale: laidOut.fontScale};

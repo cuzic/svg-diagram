@@ -56,7 +56,7 @@ export function parseManifest(text: string, where: string): IconManifest {
   let m: unknown;
   try { m = JSON.parse(text); } catch (e) { throw new Error(`${where}: ${(e as Error).message}`); }
   const o = m as Partial<IconManifest> | null;
-  if (!o || o.version !== 1 || typeof o.icons !== 'object' || o.icons === null) throw new Error(`${where}: not an svg-diagram icon file. The smallest valid file is {"version": 1, "icons": {}} (an empty {} is not enough). Write that, or delete the file and let "svg-diagram icons add ..." create it`);
+  if (o?.version !== 1 || typeof o.icons !== 'object' || o.icons === null) throw new Error(`${where}: not an svg-diagram icon file. The smallest valid file is {"version": 1, "icons": {}} (an empty {} is not enough). Write that, or delete the file and let "svg-diagram icons add ..." create it`);
   for (const [k, pk] of Object.entries(o.packs ?? {})) if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(k) || typeof pk?.terms !== 'string' || !pk.terms || typeof pk.source !== 'string' || typeof pk.acceptedAt !== 'string') throw new Error(`${where}: bad pack "${k}" (needs terms, source and acceptedAt)`);
   if (o.mainSet !== undefined && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(o.mainSet)) throw new Error(`${where}: bad mainSet "${o.mainSet}"`);
   for (const [name, ic] of Object.entries(o.icons)) {
@@ -187,7 +187,7 @@ export function glyphFromSvg(svg: string, what: string, opts: {color?: boolean} 
   if (!root) throw new Error(`${what}: not an <svg> file`);
   const attr = (n: string) => new RegExp(`\\s${n}\\s*=\\s*"([^"]+)"`).exec(root[1])?.[1];
   let vb = attr('viewBox')?.trim().split(/[\s,]+/).map(Number);
-  if (!vb || vb.length !== 4 || !vb.every(Number.isFinite)) {
+  if (vb?.length !== 4 || !vb.every(Number.isFinite)) {
     const w = num(attr('width')), h = num(attr('height'));
     if (!w || !h) throw new Error(`${what}: needs a viewBox`);
     vb = [0, 0, w, h];
@@ -221,7 +221,7 @@ function finish<S extends IconSpec>(s: S): S {
 export function packIconName(file: string, prefix: string): string {
   let n = file.split('/').pop()!.replace(/\.svg$/i, '');
   n = n.replace(/^\d+[-_ ]/, '').replace(/^(icon-service|icon|arch(-category)?|res|resource)[-_ ]/i, '').replace(/^(icon-service|icon)[-_ ]/i, '');
-  n = n.replace(/[-_ ]\d{2,3}(px)?([-_ ].*)?$/, (m, _a, rest: string | undefined) => (rest ? `-${rest.slice(1)}` : ''));
+  n = n.replace(/[-_ ]\d{2,3}(px)?([-_ ].*)?$/, (_m, _a, rest: string | undefined) => (rest ? `-${rest.slice(1)}` : ''));
   n = n.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase();
   if (n === prefix || n.startsWith(prefix + '-')) return n;
   return `${prefix}-${n}`;

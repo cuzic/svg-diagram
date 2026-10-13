@@ -16,7 +16,7 @@
 
 import {toneStyle} from './tokens.ts';
 import type {
-  ColorKey, GlyphOpts, WfAutoWTable, WfBattery, WfBreadcrumb, WfCallout, WfCheckbox, WfCompare, WfCtx, WfFusion, WfFusionLayerSpec, WfHelpers, WfInsight,
+  ColorKey, GlyphOpts, WfBattery, WfBreadcrumb, WfCheckbox, WfCompare, WfCtx, WfFusion, WfFusionLayerSpec, WfHelpers, WfInsight,
   WfInsightOpts, WfNode, WfPartKey, WfPartsApi, WfRadio, WfRegion, WfRobot, WfSignal, WfSlider, WfState, WfToggle, WfTone, WfType,
 } from './types.ts';
 
@@ -180,22 +180,22 @@ export function installParts(h: WfHelpers): WfPartsApi {
     insight: (n: WfInsight, w: number, ctx: WfCtx) => insightData(n, w, ctx).h});
 
   Object.assign(DRAW, {
-    toggle: (n: WfToggle, x: number, y: number, w: number, hh: number, ctx: WfCtx) => ({w: drawToggleAt(ctx, x, y, n.on !== false, n.label), h: 28}),
-    checkbox: (n: WfCheckbox, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+    toggle: (n: WfToggle, x: number, y: number, _w: number, _hh: number, ctx: WfCtx) => ({w: drawToggleAt(ctx, x, y, n.on !== false, n.label), h: 28}),
+    checkbox: (n: WfCheckbox, x: number, y: number, _w: number, _hh: number, ctx: WfCtx) => {
       const on = n.checked !== false;
       rect(ctx, x, y + 5, 18, 18, {r: 3, fill: on ? 'accent' : 'bg', stroke: on ? null : 'text'});
       if (on) path(ctx, pts([[x + 4, y + 14], [x + 8, y + 18], [x + 14, y + 10]]), {stroke: 'bg', sw: 2.5});
       text(ctx, n.label, x + 28, mid(y + 14), {});
       return {w: 28 + tw(ctx, n.label, S, 400), h: 28};
     },
-    slider: (n: WfSlider, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+    slider: (n: WfSlider, x: number, y: number, w: number, _hh: number, ctx: WfCtx) => {
       const lw = n.label ? tw(ctx, n.label, S, 400) + 12 : 0, dw = n.display ? tw(ctx, n.display, S, 700) + 12 : 0;
       if (n.label) text(ctx, n.label, x, mid(y + 14), {});
       drawSliderAt(ctx, x + lw, y, w - lw - dw, n.value ?? 0.5);
       if (n.display) text(ctx, n.display, x + w, mid(y + 14), {weight: 700, anchor: 'end'});
       return {w, h: 32};
     },
-    battery: (n: WfBattery, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+    battery: (n: WfBattery, x: number, y: number, _w: number, _hh: number, ctx: WfCtx) => {
       const lv = Math.max(0, Math.min(1, n.level)), low = lv < 0.2;
       rect(ctx, x, y + 4, 36, 16, {r: 3, fill: 'bg', stroke: low ? 'danger' : 'text'});
       rect(ctx, x + 36, y + 9, 3, 6, {fill: low ? 'danger' : 'text'});
@@ -203,7 +203,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
       text(ctx, batteryText(n), x + 46, mid(y + 12), {weight: 700, fill: low ? 'danger' : 'text'});
       return {w: 46 + tw(ctx, batteryText(n), S, 700), h: 24};
     },
-    signal: (n: WfSignal, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+    signal: (n: WfSignal, x: number, y: number, _w: number, _hh: number, ctx: WfCtx) => {
       const lv = Math.max(0, Math.min(3, n.level ?? 3));
       [6, 11, 16].forEach((bh, i) => rect(ctx, x + i * 8, y + 20 - bh, 6, bh, {fill: i < lv ? 'accent' : 'border'}));
       if (lv === 0) { line(ctx, x - 1, y + 3, x + 23, y + 21, {stroke: 'danger', sw: 2.5}); }
@@ -212,7 +212,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
     },
   });
   // radio needs the same signature as the others; defined separately to keep the Object.assign tidy
-  DRAW.radio = (n: WfRadio, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+  DRAW.radio = (n: WfRadio, x: number, y: number, _w: number, _hh: number, ctx: WfCtx) => {
     circle(ctx, x + 9, y + 14, 9, {fill: 'bg', stroke: 'text'});
     if (n.selected !== false) circle(ctx, x + 9, y + 14, 5, {fill: 'accent'});
     text(ctx, n.label, x + 28, mid(y + 14), {});
@@ -225,7 +225,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
   // ---- robot status card -----------------------------------------------------------------
   // narrow frames (a cell in a state matrix, a side rail) stack the card's rows instead of laying them side by side
   const compactRobot = (n: WfRobot, w: number) => n.compact ?? w < 210;
-  DRAW.robot = (n: WfRobot, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+  DRAW.robot = (n: WfRobot, x: number, y: number, w: number, _hh: number, ctx: WfCtx) => {
     const lost = (n.link ?? 3) === 0, compact = compactRobot(n, w), H = compact ? 150 : 104;
     rect(ctx, x, y, w, H, {r: 8, fill: n.active ? 'soft' : 'bg', stroke: lost ? 'danger' : n.active ? 'accent' : 'border', sw: n.active ? 2.5 : 2, dash: lost ? '6,4' : undefined});
     let tx = x + 14;
@@ -276,7 +276,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
     const hgt = top + chipExtra + 12 + 24 + 6 + tl.length * lh(T) + (bl.length ? 4 + bl.length * lh(S) : 0) + 8 + rows.reduce((a, r) => a + (r.stacked ? 44 : 24), 0) + 12;
     return {tl, bl, rows, h: hgt, top, stacked2, chipExtra};
   }
-  DRAW.insight = (n: WfInsight, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+  DRAW.insight = (n: WfInsight, x: number, y: number, w: number, _hh: number, ctx: WfCtx) => {
     const lv = LEVEL[n.level ?? 'info'] ?? LEVEL.info, d = insightData(n, w, ctx);
     rect(ctx, x, y, w, d.h, {r: 8, fill: 'bg', stroke: lv.stroke});
     rect(ctx, x + 1, y + 1, 6, d.h - 2, {fill: lv.bar});
@@ -319,7 +319,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
   };
 
   // ---- breadcrumb ---------------------------------------------------------------------------
-  DRAW.breadcrumb = (n: WfBreadcrumb, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+  DRAW.breadcrumb = (n: WfBreadcrumb, x: number, y: number, _w: number, _hh: number, ctx: WfCtx) => {
     let cx = x;
     n.items.forEach((it, i) => {
       const last = i === n.items.length - 1, wt = last ? 700 : 400, iw = tw(ctx, it, S, wt);

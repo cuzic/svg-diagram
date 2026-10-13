@@ -135,7 +135,7 @@ export function parseTransform(value: string | undefined): Matrix {
       case 'skewY': n = [1, Math.tan(rad(a[0] ?? 0)), 0, 1, 0, 0]; break;
       case 'matrix': if (a.length === 6) n = a as Matrix; break;
     }
-    if (n && n.every(Number.isFinite)) m = multiply(m, n);
+    if (n?.every(Number.isFinite)) m = multiply(m, n);
   }
   return m;
 }

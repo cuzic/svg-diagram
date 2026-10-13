@@ -140,7 +140,7 @@ export interface JourneyMapOpts extends CommonOpts {corner?: string; emotionRang
 export function journeyMapParts(stagesIn: readonly (string | JourneyStage)[], lanes: readonly JourneyLane[], opts: JourneyMapOpts = {}): SemanticTableParts & {emotionCurve?: {row: number; values: number[]; min: number; max: number}} {
   if (!stagesIn.length) throw new Error('journeyMap(stages, lanes) needs at least one stage');
   if (!lanes.length) throw new Error('journeyMap(stages, lanes) needs at least one lane');
-  const stages = stagesIn.map((s, i) => typeof s === 'string' ? s : s.label);
+  const stages = stagesIn.map((s, _i) => typeof s === 'string' ? s : s.label);
   if (stages.some(s => !s?.trim())) throw new Error('journeyMap(): every stage needs a non-empty label');
   const range = opts.emotionRange ?? [-2, 2];
   if (!(range.length === 2 && Number.isFinite(range[0]) && Number.isFinite(range[1]) && range[0] < range[1])) throw new Error('journeyMap(): emotionRange must be [min, max] with min < max');

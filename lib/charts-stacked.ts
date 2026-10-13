@@ -60,7 +60,7 @@ export function stackedTexts(s: StackedSpec): [string, number][] {
   const top = s.mode === 'stacked' ? niceScale(0, Math.max(...s.columns.map(c => c.total))) : undefined;
   if (top) for (const t of top.ticks) out.push([numText(t), 400]);
   else for (const t of [0, 20, 40, 60, 80, 100]) out.push([`${t}%`, 400]);
-  return out.flatMap(([t, w]) => [[t, 400], [t, 700]] as [string, number][]);
+  return out.flatMap(([t, _w]) => [[t, 400], [t, 700]] as [string, number][]);
 }
 
 export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {

@@ -22,9 +22,9 @@
 // Always runs lint-svg.ts --strict on the result (via dsl.ts's build()) —
 // a diagram that fails lint is reported as a failure, not written silently.
 
-import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {register} from 'node:module';
@@ -57,11 +57,11 @@ function locateSlide(svgName: string) {
 
 const TOOL_VERSION = JSON.parse(fs.readFileSync(new URL(EXT === 'ts' ? './package.json' : '../package.json', import.meta.url), 'utf8')).version;
 const args = process.argv.slice(2);
-const valueOf = (flag: string) => { const i = args.indexOf(flag); return i === -1 ? null : args[i + 1]; };
-const outOverride = valueOf('--out');
-const outDir = valueOf('--out-dir');
-const pngDir = valueOf('--png'); // also write <name>.png (the rasters of lib/raster.ts) here
-const scaleArg = valueOf('--scale');
+const flagValue = (flag: string) => { const i = args.indexOf(flag); return i === -1 ? null : args[i + 1]; };
+const outOverride = flagValue('--out');
+const outDir = flagValue('--out-dir');
+const pngDir = flagValue('--png'); // also write <name>.png (the rasters of lib/raster.ts) here
+const scaleArg = flagValue('--scale');
 const PNG_SCALE = scaleArg === null ? 2 : Number(scaleArg);
 const FIT = args.includes('--fit');
 const NO_LINT = args.includes('--no-lint'); // iteration: skip the lint pass (check/CI or a final build runs it)

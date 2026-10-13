@@ -18,11 +18,11 @@
 //   {maxHeight, contentWidth, index, cached}
 // CLI: node scripts/svg-diagram/lib/slide-budget.ts <page.md> "<heading>" <svg-file> [--refresh]
 
-import fs from 'fs';
-import path from 'path';
-import net from 'net';
-import crypto from 'crypto';
-import {spawn} from 'child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import net from 'node:net';
+import crypto from 'node:crypto';
+import {spawn} from 'node:child_process';
 import {launchChromium} from './browser.ts';
 import {computeSlideIndex} from './slide-index.ts';
 import type {SlideBudget} from './types.ts';

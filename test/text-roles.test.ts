@@ -5,7 +5,7 @@ import {layoutBars, barsTexts} from '../lib/bars.ts';
 import {layoutPlane, planeTexts} from '../lib/plane.ts';
 import {analyzeFit} from '../lib/fit.ts';
 import {ROLES} from '../lib/tokens.ts';
-import type {LaidOutBars, LaidOutBanner, LaidOutPlane, Role} from '../lib/dsl.ts';
+import type {LaidOutBanner, LaidOutPlane, Role} from '../lib/dsl.ts';
 
 // every atom must be registered for measuring, or layout throws instead of measuring 0 wide
 process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';

@@ -164,7 +164,7 @@ export function applyAutoLegend(d: DiagramData): void {
 function ratioText(r: number): string { return r.toFixed(1); }
 
 function textContrast(d: LintTarget, out: Finding[]): void {
-  const wcagRatio = wcagIn(d), paint = paintOf(d.appearance);
+  const paint = paintOf(d.appearance);
   const seen = new Set<string>();
   const check = (fg: string | undefined, bg: string | undefined, what: string): void => {
     if (!fg || !bg) return;
@@ -318,7 +318,7 @@ function grayToneRules(d: LintTarget, out: Finding[]): void {
     const pair = `${a.name}・${b.name}`;
     if (!seen.has(pair)) { seen.add(pair); hits.push(`${pair}（L* ${Math.round(a.l)} と ${Math.round(b.l)}）`); }
   }
-  if (hits.length) out.push({rule: 'gray-tone-collision', severity: 'warn', message: `白黒にすると塗りの明度が近く、見分けにくいトーンの組: ${hits.join('、')}。直し方は 2 つ: (1) トーンの塗りの明度差を L* 10 以上にする（diagram({tones: {accent: {fill: '#…'}}}) か .svg-diagram.json の \"tones\" で色を変える。または片方を solid / muted にする）、(2) 破線・太字・ラベルなど色以外の手がかりを足し、accept: {'gray-tone-collision': '理由'} で許容する（確認は preview --gray）`});
+  if (hits.length) out.push({rule: 'gray-tone-collision', severity: 'warn', message: `白黒にすると塗りの明度が近く、見分けにくいトーンの組: ${hits.join('、')}。直し方は 2 つ: (1) トーンの塗りの明度差を L* 10 以上にする（diagram({tones: {accent: {fill: '#…'}}}) か .svg-diagram.json の "tones" で色を変える。または片方を solid / muted にする）、(2) 破線・太字・ラベルなど色以外の手がかりを足し、accept: {'gray-tone-collision': '理由'} で許容する（確認は preview --gray）`});
 }
 
 function shrinkRules(d: LintTarget, out: Finding[]): void {
@@ -362,7 +362,7 @@ function calloutsOf(...trees: unknown[]): number[] {
   const out: number[] = [];
   const walk = (x: unknown): void => {
     if (!x || typeof x !== 'object') return;
-    if (Array.isArray(x)) return x.forEach(walk);
+    if (Array.isArray(x)) { x.forEach(walk); return; }
     // a wf node tree is walked generically (any node kind may carry n / parts / markers / children)
     const nd = x as {t?: unknown; n?: unknown; parts?: Record<string, unknown>; markers?: {n?: unknown}[]; children?: unknown};
     if (!nd.t) return;
@@ -427,7 +427,7 @@ function wireframeRules(d: LintTarget, out: Finding[]): void {
 export function lintDiagram(d: LintTarget): Finding[] {
   const out = withTones(d.tones, () => lintAll(d));
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
-  return out.map(f => (d.accept && d.accept[f.rule as RuleId] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule as RuleId]}）`} : f));
+  return out.map(f => (d.accept?.[f.rule as RuleId] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule as RuleId]}）`} : f));
 }
 
 // the width of a line in full-width characters (CJK, kana, hangul, fullwidth forms and pictographs count 1, everything else

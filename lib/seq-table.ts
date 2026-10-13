@@ -10,9 +10,8 @@ import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapAtoms} from './wrap.ts';
 import {CELL_MARKS} from './tokens.ts';
 import type {
-  SequenceBand, PreparedSequence, PreparedStep, TableBand, TableCell, TableColumn, TableRow, ResolvedCell, TextRequest,
-  WidthOf, FontFamily, LaidOutSequence, LaidOutSeqStep, LaidOutSeqHead, LaidOutTable, LaidOutTableRow, LaidOutTableCell,
-  TextTone, BoxTone, Roles,
+  SequenceBand, PreparedSequence, PreparedStep, TableBand, TableCell, TableColumn, ResolvedCell, TextRequest,
+  WidthOf, FontFamily, LaidOutSequence, LaidOutSeqStep, LaidOutSeqHead, LaidOutTable, LaidOutTableRow, LaidOutTableCell,BoxTone, Roles,
 } from './types.ts';
 
 const LH = 1.4;

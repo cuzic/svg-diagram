@@ -182,7 +182,7 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
       if (colWAt() >= SWIMLANE_COMFY_COL) break;
     }
   }
-  const bodyX = padX + labelW, bodyW = cw - labelW;
+  const bodyX = padX + labelW;
   const colW = colWAt();
   if (colW < 60) throw new Error(`swimlane(): ${band.cols} columns leave only ${Math.round(colW)}px each — widen the diagram, shrink labelW, or use fewer columns`);
   const startY = ctx.y;
@@ -258,7 +258,7 @@ function layoutLegend(band: LegendBand, ctx: LayoutCtx, padX: number, cw: number
   ctx.y += h + d.gap;
 }
 
-function layoutConnect(band: ConnectBand, ctx: LayoutCtx, padX: number, cw: number): void {
+function layoutConnect(band: ConnectBand, ctx: LayoutCtx, _padX: number, _cw: number): void {
   const {roles, widthOf} = ctx;
   // Resolved immediately (not deferred) so a loop-under route can
   // reserve real vertical space for its dip + label — a zero-height

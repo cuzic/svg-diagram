@@ -151,7 +151,7 @@ export async function rasterizeWithResvg(svg: string, {scale = 1, png = false, f
   if (problems.length) throw new Error(`could not load it as an <img> (not well-formed XML): ${problems[0]}`);
   let Resvg: typeof import('@resvg/resvg-js').Resvg;
   try { ({Resvg} = await loadResvg()); } catch { throw new Error(NOT_LOADABLE); }
-  let rendered;
+  let rendered: ReturnType<InstanceType<typeof Resvg>['render']>;
   const prepared = prepareResvgFonts(svg, fonts);
   try {
     rendered = new Resvg(resvgMarkers(withColorEmoji(svg, fonts)), {

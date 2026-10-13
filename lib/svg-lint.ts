@@ -37,7 +37,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
   const W = vb?.w || attrPx('width'), H = vb?.h || attrPx('height');
   // the viewBox → viewport mapping (preserveAspectRatio "xMidYMid meet"): the identity when the two sizes agree
   let view: Matrix = IDENTITY;
-  if (vb && vb.w && vb.h && attrPx('width') && attrPx('height')) {
+  if (vb?.w && vb.h && attrPx('width') && attrPx('height')) {
     const s = Math.min(attrPx('width') / vb.w, attrPx('height') / vb.h);
     view = [s, 0, 0, s, (attrPx('width') - vb.w * s) / 2 - vb.x * s, (attrPx('height') - vb.h * s) / 2 - vb.y * s];
   }
@@ -118,7 +118,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
     if (el.tag === 'g' && el.attrs['data-badge'] !== undefined && !closest(el, e => NOT_DRAWN.has(e.tag))) {
       const inside = items.filter(i => i.screen && closest(i.el, e => e === el));
       const b = unionBox(inside.map(i => i.screen));
-      if (b && b.w && b.h) containers.push(b);
+      if (b?.w && b.h) containers.push(b);
     }
   }
   for (const i of items) if (i.tag === 'rect' && i.screen && i.screen.w && i.screen.h && !(i.style.fill === 'none' && i.style.stroke === 'none')) containers.push(i.screen);

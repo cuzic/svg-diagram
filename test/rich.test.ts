@@ -234,7 +234,7 @@ test('the tspan widths are the layout widths (left / centre / right, spaces at t
     const root = parseXml(svg), styles = computeStyles(root);
     const drawn = elements(root).filter(e => e.tag === 'text');
     const runs = boxesOf(laidOut).flatMap(b => b.wrappedRuns);
-    const lines = runs.flatMap(r => r.lines.map((l, i) => ({run: r, i})));
+    const lines = runs.flatMap(r => r.lines.map((_l, i) => ({run: r, i})));
     assert.equal(drawn.length, lines.length);
     const atoms = new Map<string, {text: string; size: number; weight: number; font: 'sans' | 'mono'}>();
     for (const {run, i} of lines) for (const sp of run.lineSpans?.[i] ?? []) for (const a of splitAtoms(sp.text)) atoms.set(`${a} ${run.size} ${sp.bold ? 700 : run.weight}`, {text: a, size: run.size, weight: sp.bold ? 700 : run.weight, font: 'sans'});

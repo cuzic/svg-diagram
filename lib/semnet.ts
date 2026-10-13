@@ -95,7 +95,7 @@ function networkCanvas(g: ChartGeom, nodes: {id: string; label: string; w: numbe
   return {c, positions, paths};
 }
 
-function nodeBox(c: Canvas, p: {x: number; y: number; w: number; h: number}, id: string, label: string, tone: 'accent' | 'danger' | 'muted' | 'text', critical = false): number {
+function nodeBox(c: Canvas, p: {x: number; y: number; w: number; h: number}, id: string, _label: string, tone: 'accent' | 'danger' | 'muted' | 'text', critical = false): number {
   c.rect(p.x, p.y, p.w, p.h, {fill: critical ? 'accent' : 'bg', op: critical ? .16 : undefined, stroke: tone, sw: critical ? 4 : 2, id, of: id});
   return c.solids.findIndex(s => s.id === id);
 }

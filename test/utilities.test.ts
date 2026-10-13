@@ -11,7 +11,7 @@ import {splitAtoms} from '../lib/measure.ts';
 import {explainChange} from '../lib/svg-diff.ts';
 import {scanMarkdown, parseItem, compareNotes, notesOf} from '../lib/docs-check.ts';
 import {loadConfig, applyConfig} from '../lib/config.ts';
-import {edgeStats, walkBands, usedNotation, legendKeys, diagramTitle, diagramDesc} from '../lib/rules.ts';
+import {edgeStats, usedNotation, legendKeys, diagramTitle, diagramDesc} from '../lib/rules.ts';
 import {diagram, box, banner, caption, group, row, grid, swimlane, table, sequence, wireframe, wf, legend} from '../lib/dsl.ts';
 import type {LaidOutConnect, Point, Band} from '../lib/types.ts';
 

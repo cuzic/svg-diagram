@@ -18,8 +18,8 @@
 //   import { computeSlideIndex, countTotalSlides } from './slide-index.ts'
 //   const index = computeSlideIndex('slides.md', 'pages/day2-10.md', 'ArchUnitとは')
 
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const HEADING_RE = /^# (.+)$/m;
 const SRC_RE = /^src:\s*(\S+)/m;

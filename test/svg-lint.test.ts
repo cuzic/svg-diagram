@@ -133,7 +133,7 @@ test('overflow: a stroke is not counted; a shape past the left or top edge is no
 test('overflow: a text counts, and so does a transformed shape', {skip}, () => {
   const w = T('far right', 20).w;
   const r = check(`<text x="${400 - w + 40}" y="100" font-size="20">far right</text>`);
-  assert.deepEqual(r.overflow && r.overflow.dx, 40);
+  assert.deepEqual(r.overflow?.dx, 40);
   assert.equal(check('<g transform="translate(350 0)"><rect x="0" y="0" width="100" height="50" fill="#ccc"/></g>').overflow?.dx, 50);
 });
 

@@ -12,7 +12,6 @@ function checked(value: number | undefined, where: string): number | undefined {
 // `until`: the click an element vanishes at (a group's until takes its children with it). It must come after the reveal it ends up with.
 const earlier = (a: number | undefined, b: number | undefined): number | undefined => a === undefined ? b : b === undefined ? a : Math.min(a, b);
 
-const level = (x: Revealed | undefined): number => x?.reveal ?? 0;
 const refId = (ref: string): string => ref.split(':')[0];
 
 /** Resolve inheritance once, before the one full layout shared by every stage. */
