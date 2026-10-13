@@ -15,6 +15,7 @@ import type {TreemapNode, TreemapOpts} from './charts-treemap.ts';
 import {resolveSankey, sankeyAlt} from './charts-sankey.ts';
 import type {SankeyLink, SankeyNode, SankeyOpts} from './charts-sankey.ts';
 import {fail} from './charts-base.ts';
+import {resolveIcon} from './icon-registry.ts';
 import type {ChartBand} from './charts.ts';
 import type {ChartOpts} from './charts-base.ts';
 
@@ -61,6 +62,8 @@ export function treemapBand(tree: TreemapNode | readonly TreemapNode[], opts: Tr
 }
 
 export function sankeyBand(nodes: readonly (SankeyNode | string)[], links: readonly SankeyLink[], opts: SankeyOpts): ChartBand {
-  const spec = resolveSankey(nodes, links, opts);
+  // an icon is resolved here (the shell) and carried on the node, so layout and emit stay free of I/O
+  const placed = nodes.map(n => typeof n === 'string' || n.icon === undefined ? n : {...n, iconGlyph: resolveIcon(n.icon, 'sankey() node "' + n.id + '" icon')});
+  const spec = resolveSankey(placed, links, opts);
   return {type: 'chart', kind: 'sankey', spec, alt: opts.alt ?? sankeyAlt(spec), ids: spec.nodes.map(n => n.id), ...common('sankey', opts)};
 }

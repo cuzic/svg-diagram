@@ -54,11 +54,11 @@ export const BOX_INNER_GAP = 8;      // vertical gap between title/body/note run
 export const STEP_BADGE_R = 15;
 const STEP_BADGE_GAP = 10;
 export const STEP_BADGE_BASELINE_OFFSET = 6;
-const STEP_INDENT = 2 * STEP_BADGE_R + STEP_BADGE_GAP; // how far the title's first line is pushed right to clear the badge
+export const STEP_INDENT = 2 * STEP_BADGE_R + STEP_BADGE_GAP; // how far the title's first line is pushed right to clear the badge
 
 // box({icon}): an SVG icon drawn ICON_SIZE px square at the box's top-left; every text run is pushed right to clear it.
 export const ICON_SIZE = 32;
-const ICON_INDENT = ICON_SIZE + 12;
+export const ICON_INDENT = ICON_SIZE + 12;
 const ICON_H = ICON_SIZE; // the icon is at least this tall, so a one-line box still holds it
 // box({icon, iconAt: 'top'}): the icon is centred above the text (node()); the text starts below it
 export const TOP_ICON_SIZE = 48;
@@ -96,7 +96,7 @@ function textRuns(band: Band, roles: Roles): TextRun[] {
     case 'box': {
       const runs: TextRun[] = [];
       const iconIndent = band.icon && !topIcon(band) ? {indent: ICON_INDENT} : {}; // (spread, so a box without an icon gets no new field)
-      if (band.title) runs.push(withSpans({text: band.title, size: roles.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: band.step != null ? STEP_INDENT : band.icon && !topIcon(band) ? ICON_INDENT : 0}, band.spans?.title));
+      if (band.title) runs.push(withSpans({text: band.title, size: roles.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: (band.step != null ? STEP_INDENT : 0) + (band.icon && !topIcon(band) ? ICON_INDENT : 0)}, band.spans?.title));
       if (band.body) runs.push(withSpans({text: band.body, size: roles.body, weight: 400, mono: !!band.bodyMono, tone: band.bodyTone, ...iconIndent}, band.spans?.body));
       if (band.lines) for (const l of band.lines) {
         const line: Exclude<typeof l, string> = typeof l === 'string' ? {text: l} : l;
@@ -479,14 +479,20 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
     const content = layoutBoxContent(band, wrapWidth, widthOf, roles);
     // an icon above the text pushes every line down by its own height; a left icon only sets a minimum height
     const topShift = band.type === 'box' && topIcon(band) ? ((band as BoxBand).iconSize ?? TOP_ICON_SIZE) + TOP_ICON_GAP : 0;
-    const wrappedRuns = topShift ? content.wrappedRuns.map(r => ({...r, lineYs: r.lineYs.map(y => y + topShift)})) : content.wrappedRuns;
-    const textHeight = band.type === 'box' && band.icon && !topShift ? Math.max(content.textHeight, ICON_H) : content.textHeight + topShift;
+    // a left icon is taller than a line or two of text: the text is centred beside it, not hung from the top with the room left below
+    const leftIcon = band.type === 'box' && !!band.icon && !topShift;
+    const centre = leftIcon && content.textHeight < ICON_H ? Math.round((ICON_H - content.textHeight) / 2) : 0;
+    const shift = topShift + centre;
+    const wrappedRuns = shift ? content.wrappedRuns.map(r => ({...r, lineYs: r.lineYs.map(y => y + shift)})) : content.wrappedRuns;
+    const textHeight = leftIcon ? Math.max(content.textHeight, ICON_H) : content.textHeight + topShift;
     const stamp = isBoxLike ? chrome.stamp : undefined;
     const stampW = stamp ? stampChipW(widthOf, stamp, roles) : undefined;
     if (stampW !== undefined && stampW > w - 16) throw new Error(`stamp "${stamp}" is wider than its box (${Math.round(w)}px): shorten it or widen the box`);
     const h = (isBoxLike ? textHeight + 2 * (chrome.padY ?? BOX_PAD_Y) : textHeight) + (stamp ? STAMP_H + STAMP_GAP : 0);
     const placed = {...band, x, y, w, h, wrappedRuns} as unknown as Placed<B>; // spreading a generic loses the intersection
     if (stampW !== undefined) (placed as Placed<B> & {stampW?: number}).stampW = stampW;
+    // a centred / right-aligned title: the step badge sits just before its first line, so emit needs that line's width
+    if (band.type === 'box' && band.step != null && band.title && (band.align ?? (topIcon(band) ? 'center' : 'left')) !== 'left') (placed as Placed<B> & {titleW?: number}).titleW = lineWidth(widthOf, wrappedRuns[0], 0);
     if (band.type === 'box') {
       const overflow = wrappedRuns.filter(r => r.nowrap && textWidth(widthOf, r.text, r.size, r.weight, r.mono ? 'mono' : 'sans') > wrapWidth - (r.indent ?? 0) + 0.5).map(r => r.text);
       if (overflow.length) (placed as Placed<BoxBand> & {nowrapOverflow?: string[]}).nowrapOverflow = overflow;

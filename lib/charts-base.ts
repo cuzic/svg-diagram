@@ -5,6 +5,7 @@ import {segHitsRect} from './bars.ts';
 import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapAtoms} from './wrap.ts';
 import {niceNear} from './qc.ts';
+import type {IconGlyph} from './icon-store.ts';
 import type {ColorKey, Rect, RevealOpts, Roles, WidthOf, LabelRole} from './types.ts';
 
 export type ChartKind = 'waterfall' | 'radar' | 'heatmap' | 'stacked' | 'treemap' | 'sankey' | 'tornado' | 'pert' | 'causal' | 'dependency';
@@ -26,6 +27,7 @@ export interface ChartBg {fill: ColorKey; op?: number; /** The colour of the tex
 export type ChartItem =
   | {k: 'rect'; x: number; y: number; w: number; h: number; fill: ColorKey | 'none'; op?: number; stroke?: ColorKey; sw?: number; dash?: string; of?: string | string[]}
   | {k: 'path'; d: string; fill: ColorKey | 'none'; op?: number; stroke?: ColorKey; sw?: number; dash?: string; of?: string | string[]; soft?: boolean}
+  | {k: 'icon'; name: string; glyph: IconGlyph; x: number; y: number; size: number; fill: ColorKey; of?: string}
   | {k: 'text'; s: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; of?: string};
 export interface ChartBox extends Rect {label: string; on?: ChartBg; host?: number; of?: string; /** Drawn on a plate of the page colour: lines behind it are covered, not crossed. */ plate?: boolean}
 export interface ChartSolid extends Rect {label: string; id?: string}
@@ -114,6 +116,10 @@ export class Canvas {
     const r = (n: number) => Math.round(n * 10) / 10;
     this.path(`M${r(x1)},${r(y1)} L${r(x2)},${r(y2)}`, {fill: 'none', stroke: o.stroke, sw: o.sw ?? 2, dash: o.dash, of: o.of, soft: o.soft});
     if (o.avoid) this.segs.push({x1, y1, x2, y2});
+  }
+  /** An installed icon beside a label (decoration: the label says what it is). */
+  icon(glyph: IconGlyph, name: string, x: number, y: number, size: number, fill: ColorKey, of?: string): void {
+    this.items.push({k: 'icon', name, glyph, x, y, size, fill, ...(of ? {of} : {})});
   }
   /** Draws a label and registers its box. Coordinates are whole pixels, so the box is exactly what is drawn. */
   text(s: string, x: number, base: number, anchor: 'start' | 'middle' | 'end', fill: ColorKey, o: {bold?: boolean; of?: string; on?: ChartBg; host?: number; plate?: boolean} = {}): ChartBox {

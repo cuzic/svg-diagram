@@ -3,8 +3,16 @@
 // (longest path), and ordered inside a layer by the position of the nodes they connect to, to keep ribbons from crossing.
 import {Canvas, checkText, fail, finiteNum, numText} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
+import type {IconName} from './icons.ts';
+import type {IconGlyph} from './icon-store.ts';
 
-export interface SankeyNode {id: string; label?: string; tone?: ChartTone}
+export interface SankeyNode {
+  id: string; label?: string; tone?: ChartTone;
+  /** An installed SVG icon (see `icon`) before the node's label, as tall as a line of it. */
+  icon?: IconName;
+  /** Internal: the installed path of `icon`, resolved by sankey(). */
+  iconGlyph?: IconGlyph;
+}
 export interface SankeyLink {from: string; to: string; value: number; /** `danger` ribbons are drawn with a dashed outline too. */ tone?: Extract<ChartTone, 'accent' | 'danger' | 'muted'>}
 export interface SankeyOpts extends ChartOpts {
   unit?: string;
@@ -13,13 +21,13 @@ export interface SankeyOpts extends ChartOpts {
   /** Print the value on each ribbon thick enough for it (default true). */
   linkLabels?: boolean;
 }
-export interface SankeySpec {nodes: {id: string; label: string; tone: ChartTone}[]; links: {from: string; to: string; value: number; tone: 'accent' | 'danger' | 'muted'}[]; unit: string; align: 'justify' | 'left'; linkLabels: boolean}
+export interface SankeySpec {nodes: {id: string; label: string; tone: ChartTone; icon?: {name: string; glyph: IconGlyph}}[]; links: {from: string; to: string; value: number; tone: 'accent' | 'danger' | 'muted'}[]; unit: string; align: 'justify' | 'left'; linkLabels: boolean}
 
 export function resolveSankey(nodes: readonly (SankeyNode | string)[], links: readonly SankeyLink[], opts: SankeyOpts): SankeySpec {
   if (!Array.isArray(nodes) || nodes.length < 2) fail('sankey', 'needs at least two nodes');
   if (nodes.length > 40) fail('sankey', `${nodes.length} nodes are too many for one figure (at most 40)`);
   if (!Array.isArray(links) || links.length < 1) fail('sankey', 'needs at least one link');
-  const ns = nodes.map(n => typeof n === 'string' ? {id: n, label: n, tone: 'text' as ChartTone} : {id: checkText('sankey', 'a node id', n.id), label: n.label ?? n.id, tone: n.tone ?? 'text' as ChartTone});
+  const ns = nodes.map(n => typeof n === 'string' ? {id: n, label: n, tone: 'text' as ChartTone} : {id: checkText('sankey', 'a node id', n.id), label: n.label ?? n.id, tone: n.tone ?? 'text' as ChartTone, ...(n.icon !== undefined ? {icon: {name: n.icon, glyph: n.iconGlyph as IconGlyph}} : {})});
   const ids = new Set<string>();
   for (const n of ns) { checkText('sankey', `node "${n.id}"'s label`, n.label); if (ids.has(n.id)) fail('sankey', `node id "${n.id}" is used twice`); ids.add(n.id); }
   if (opts.id !== undefined && ids.has(opts.id)) fail('sankey', `the band's id "${opts.id}" is also a node's id — each id must be unique`);
@@ -96,8 +104,8 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
     }
   }
   // geometry: node width, layer pitch, label room on the right of the last layer
-  const nodeW = 14, nameOf = (id: string) => s.nodes.find(n => n.id === id)!;
-  const lastNatural = Math.max(...cols[L - 1].map(id => c.tw(`${nameOf(id).label} ${val(flowOf(s, id), s)}`, true)));
+  const nodeW = 14, iconW = c.lineH() + 4, iconOf = (id: string) => s.nodes.find(n => n.id === id)!.icon ? iconW : 0, nameOf = (id: string) => s.nodes.find(n => n.id === id)!;
+  const lastNatural = Math.max(...cols[L - 1].map(id => c.tw(`${nameOf(id).label} ${val(flowOf(s, id), s)}`, true) + iconOf(id)));
   const rightPad = Math.min(lastNatural, g.w * 0.24) + 14, leftPad = 4;
   const plotL = g.x + leftPad, plotR = g.x + g.w - rightPad;
   const step = L > 1 ? (plotR - nodeW - plotL) / (L - 1) : 0;
@@ -106,7 +114,7 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
   // a node's label: name (wrapped) over the value, or on one line when it fits
   const labels = new Map<string, string[]>();
   for (const n of s.nodes) {
-    const li = layer.get(n.id)!, full = `${n.label} ${val(flowOf(s, n.id), s)}`, w = labelW(li);
+    const li = layer.get(n.id)!, full = `${n.label} ${val(flowOf(s, n.id), s)}`, w = labelW(li) - iconOf(n.id);
     const one = c.tw(full, true) <= w ? [full] : [...c.wrap(n.label, w, true), val(flowOf(s, n.id), s)];
     for (const l of one) if (c.tw(l, true) > w + 1) fail('sankey', `the label "${l}" does not fit between the layers (shorten it, or raise width)`);
     labels.set(n.id, one);
@@ -147,7 +155,8 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
     const q = geo.get(n.id)!, li = layer.get(n.id)!;
     c.rect(r1(q.x), r1(q.y), nodeW, r1(q.h), {fill: n.tone, id: n.id, of: n.id, solid: n.id});
     const ls = labels.get(n.id)!, cy = q.y + q.h / 2;
-    c.lines(ls.length > 1 ? ls.map(t => t) : ls, q.x + nodeW + 8, cy - (ls.length - 1) * lh / 2 + S * 0.36, 'start', 'text', {bold: ls.length === 1, of: n.id, plate: true});
+    if (n.icon) c.icon(n.icon.glyph, n.icon.name, q.x + nodeW + 8, cy - lh / 2 + 1, lh - 2, 'text', n.id);
+    c.lines(ls.length > 1 ? ls.map(t => t) : ls, q.x + nodeW + 8 + iconOf(n.id), cy - (ls.length - 1) * lh / 2 + S * 0.36, 'start', 'text', {bold: ls.length === 1, of: n.id, plate: true});
     void li;
   }
   // the value on a ribbon, in the middle of its run, when it is thick enough and there is room
