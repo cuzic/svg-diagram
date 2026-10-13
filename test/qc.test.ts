@@ -195,6 +195,50 @@ test('bars() lines: a reference line sits at its value; a label that would touch
   assert.notEqual(ys[0], ys[1]);
 });
 
+test('bars() vline label clears a value moved above its bar by a horizontal line', async () => {
+  const {laidOut} = await laid(bars([{label: 'a', value: 3}, {label: 'b', value: 10}, {label: 'c', value: 4}, {label: 'd', value: 2}, {label: 'e', value: 5}], {dir: 'v', max: 10, lines: [{at: 9.6, label: '目標'}], vlines: [{at: 1.5, label: '平均'}]}));
+  const b = laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars;
+  const value = b.labelBoxes.find(x => x.label === '10' && x.bar !== undefined)!;
+  const line = b.labelBoxes.find(x => x.label === '平均' && x.bar === undefined)!;
+  assert.ok(line.x + line.w <= value.x || value.x + value.w <= line.x || line.y + line.h <= value.y || value.y + value.h <= line.y);
+});
+
+test('bars() nearby vline labels clear the actual dodged value position', async () => {
+  const data = Array.from({length: 30}, (_, i) => ({label: `${i}`, value: i === 20 ? 10 : 1}));
+  const {laidOut} = await laid(bars(data, {dir: 'v', max: 10, vlines: [{at: 20.5, label: 'μ'}, {at: 21.3, label: 'ab'}]}));
+  const b = laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars;
+  const value = b.labelBoxes.find(x => x.label === '10' && x.bar === 20)!;
+  for (const label of ['μ', 'ab']) {
+    const line = b.labelBoxes.find(x => x.label === label && x.bar === undefined)!;
+    assert.ok(line.x + line.w <= value.x || value.x + value.w <= line.x || line.y + line.h <= value.y || value.y + value.h <= line.y);
+  }
+  // where the dodged value lands depends on the font: a second line swept across the bar's slot meets it somewhere, whatever the font
+  for (let k = 0; k <= 80; k++) {
+    const at = 2.5 + k / 100;
+    const data = Array.from({length: 7}, (_, i) => ({label: `${i}`, value: i === 3 ? 10 : 1}));
+    const {laidOut} = await laid(bars(data, {dir: 'v', max: 10, unit: ' pcs', valueFormat: 2, vlines: [{at: 3.5, label: 'μ'}, {at, label: 'LSL'}]}));
+    const b = laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars;
+    const value = b.labelBoxes.find(x => x.label === '10.00 pcs' && x.bar === 3)!;
+    for (const label of ['μ', 'LSL']) {
+      const line = b.labelBoxes.find(x => x.label === label && x.bar === undefined)!;
+      assert.ok(line.x + line.w <= value.x || value.x + value.w <= line.x || line.y + line.h <= value.y || value.y + value.h <= line.y, `LSL at ${at}: ${label}`);
+    }
+  }
+});
+
+test('bars() a vline row count that swings between passes keeps the most rows, the labels clear of the values', async () => {
+  // one row lets the value of the top bar stand where a label needs a second row; two rows lower it out of the way
+  const data = [{label: '0', value: 1000}, {label: '1', value: 867.7}, {label: '2', value: 260.6}, {label: '3', value: 36.3}];
+  const vlines = [{at: 0.7, label: 'USL 10.5'}, {at: 2.7, label: '平均'}, {at: 3.1, label: 'ab'}, {at: 2.4}];
+  const {laidOut} = await laid(bars(data, {dir: 'v', max: 1000, lines: [{at: 972.1, label: '基準'}], vlines}));
+  const b = laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars;
+  const values = b.labelBoxes.filter(x => x.bar !== undefined);
+  for (const label of ['USL 10.5', '平均', 'ab']) {
+    const line = b.labelBoxes.find(x => x.label === label && x.bar === undefined)!;
+    for (const value of values) assert.ok(line.x + line.w <= value.x || value.x + value.w <= line.x || line.y + line.h <= value.y || value.y + value.h <= line.y, `${label} / ${value.label}`);
+  }
+});
+
 test('scatter(): axes fit the data, strata differ in colour and shape, the line and r are drawn, verify passes', async () => {
   const pts = Array.from({length: 12}, (_, i) => ({x: 20 + i, y: 2 + i * 0.5 + (i % 3) * 0.2, group: i % 2 ? '機械 B' : '機械 A'}));
   const {laidOut, verdict} = await laid(scatter(pts, {x: '温度', y: '不良率', regression: true}));
