@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // svg-diagram icons <add|remove|list|search|notice> — the project's own icon set (svg-diagram.icons.json). svg-diagram ships no icons.
 //   icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX] [--color]   install (e.g. mdi:key-variant=key, ./logo.svg)
+//   icons sets / icons add-set <name>                                        recommended use-case sets (accounting, office, infra), all mdi
 //   icons remove <name>...
 //   icons list
 //   icons search <word> [--set mdi] [--limit N]                              find Iconify ids to add
@@ -10,7 +11,8 @@
 //   icons add-pack <dir|vendor.zip> --prefix aws --terms <url> --accept-terms [--match REGEX] [--exclude REGEX] [--all] [--list]
 //                                                                            a vendor's own icon set (AWS / Azure / ...), under its terms
 //   icons notice                                                             credits of the installed icons, as Markdown
-import {addIcons, manifestPath, noticeText, readManifest, removeIcons, searchIcons, setMainSet} from './lib/icon-install.ts';
+import {addIcons, addSet, manifestPath, noticeText, readManifest, removeIcons, searchIcons, setMainSet} from './lib/icon-install.ts';
+import {ICON_SETS} from './lib/icon-sets.ts';
 import {addPack} from './lib/icon-pack.ts';
 import {findIcons} from './lib/icon-find.ts';
 import type {Candidate} from './lib/icon-find.ts';
@@ -23,7 +25,7 @@ for (let i = 0; i < rest.length; i++) {
   if (rest[i].startsWith('--')) flags.set(rest[i].slice(2), BOOLEAN.has(rest[i].slice(2)) ? '1' : rest[++i] ?? '');
   else args.push(rest[i]);
 }
-const usage = () => { console.error(['usage: svg-diagram icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX] [--color]', '       svg-diagram icons remove <name>...', '       svg-diagram icons list [regex]', '       svg-diagram icons search <word> [--set mdi] [--limit N]', '       svg-diagram icons find <word>... [--style fill|line|color] [--set mdi,lucide] [--limit N] [--color] [--png sheet.png]', '       svg-diagram icons main [set|-]', '       svg-diagram icons add-pack <dir|vendor.zip> --prefix aws --terms <url> --accept-terms [--match REGEX] [--exclude REGEX] [--all] [--list]', '       svg-diagram icons notice'].join('\n')); process.exit(2); };
+const usage = () => { console.error(['usage: svg-diagram icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX] [--color]', '       svg-diagram icons sets                      (list the recommended sets)', '       svg-diagram icons add-set <accounting|office|infra> [--allow-license SPDX] [--color]', '       svg-diagram icons remove <name>...', '       svg-diagram icons list [regex]', '       svg-diagram icons search <word> [--set mdi] [--limit N]', '       svg-diagram icons find <word>... [--style fill|line|color] [--set mdi,lucide] [--limit N] [--color] [--png sheet.png]', '       svg-diagram icons main [set|-]', '       svg-diagram icons add-pack <dir|vendor.zip> --prefix aws --terms <url> --accept-terms [--match REGEX] [--exclude REGEX] [--all] [--list]', '       svg-diagram icons notice'].join('\n')); process.exit(2); };
 
 try {
   switch (sub) {
@@ -31,6 +33,20 @@ try {
       if (!args.length) usage();
       const r = await addIcons(args, {allowLicense: flags.get('allow-license')?.split(',').filter(Boolean), color: flags.has('color')});
       if (r.added.length) console.log(`✓ 追加: ${r.added.join(', ')}`);
+      if (r.replaced.length) console.log(`✓ 置き換え: ${r.replaced.join(', ')}`);
+      for (const w of r.warnings) console.log(`⚠ ${w}`);
+      console.log(`→ ${r.file}（図のソースでは box({icon: '<名前>'})。このファイルをコミットする）`);
+      break;
+    }
+    case 'sets': {
+      for (const [n, s] of Object.entries(ICON_SETS)) console.log(`${n.padEnd(12)} ${String(Object.keys(s.icons).length).padStart(3)} 個  ${s.description}\n${' '.repeat(17)}${Object.keys(s.icons).join(' ')}`);
+      console.log('\n→ svg-diagram icons add-set <名前>');
+      break;
+    }
+    case 'add-set': {
+      if (args.length !== 1) usage();
+      const r = await addSet(args[0], {allowLicense: flags.get('allow-license')?.split(',').filter(Boolean), color: flags.has('color')});
+      if (r.added.length) console.log(`✓ 追加 ${r.added.length} 個: ${r.added.join(', ')}`);
       if (r.replaced.length) console.log(`✓ 置き換え: ${r.replaced.join(', ')}`);
       for (const w of r.warnings) console.log(`⚠ ${w}`);
       console.log(`→ ${r.file}（図のソースでは box({icon: '<名前>'})。このファイルをコミットする）`);
