@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="456" viewBox="0 0 940 456" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">関係者の距離</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/concentric-stakeholders.ts","sourceSha256":"d2aa7cda37bac68135973490f8c5677245fb4f89701768acd7c8ed2f0ad44f99"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="456" fill="#ffffff"/>
+
+  <circle cx="236" cy="228" r="200" fill="#1f6e73" fill-opacity="0.1" stroke="#1f6e73" stroke-width="2"/>
+  <circle cx="236" cy="228" r="133.3" fill="#6f6659" fill-opacity="0.15000000000000002" stroke="#6f6659" stroke-width="2" stroke-dasharray="7,5"/>
+  <circle cx="236" cy="228" r="66.7" fill="#b91c1c" fill-opacity="0.1" stroke="#b91c1c" stroke-width="2"/>
+  <path d="M380.0,144.0 L476.0,94.7" fill="none" stroke="#6f6659" stroke-width="1.5"/>
+  <circle cx="380" cy="144" r="3.5" fill="#22201b" fill-opacity="1" stroke="#22201b" stroke-width="2"/>
+  <path d="M324.0,180.0 L476.0,228.0" fill="none" stroke="#6f6659" stroke-width="1.5"/>
+  <circle cx="324" cy="180" r="3.5" fill="#22201b" fill-opacity="1" stroke="#22201b" stroke-width="2"/>
+  <path d="M264.0,212.0 L476.0,361.3" fill="none" stroke="#6f6659" stroke-width="1.5"/>
+  <circle cx="264" cy="212" r="3.5" fill="#22201b" fill-opacity="1" stroke="#22201b" stroke-width="2"/>
+  <text x="484" y="100.3" font-size="14" font-weight="700" fill="#22201b">社会</text>
+  <text x="484" y="233.6" font-size="14" font-weight="700" fill="#22201b">顧客と取引先</text>
+  <text x="484" y="366.9" font-size="14" font-weight="700" fill="#22201b">チーム</text>
+  <text x="236" y="233.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">利用者</text>
+</svg>
