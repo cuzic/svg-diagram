@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="735" viewBox="0 0 940 735" role="img" aria-labelledby="svg-title svg-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="760" viewBox="0 0 940 760" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">在宅ワーカー向けデスクのバリュー・プロポジション</title>
   <desc id="svg-desc">要素: ゲイン・クリエイター（嬉しさを作る）、ゲイン（得たい成果）、製品・サービス、ジョブ（片付けたい用事）、ペイン・リリーバー（悩みを取る）、ペイン（困りごと）、価値提案（バリューマップ）、顧客プロフィール</desc>
   <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/canvas-vpc.ts","sourceSha256":"779e9ec807a1f5baedbbf6a707bcd8d9bd8d23252c1fb2e1d38011baaa88e855"}</metadata>
@@ -6,51 +6,51 @@
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
   </style>
-  <rect x="0" y="0" width="940" height="735" fill="#ffffff"/>
+  <rect x="0" y="0" width="940" height="760" fill="#ffffff"/>
 
   <text x="20" y="35" font-size="15" font-weight="700" fill="#22201b">価値提案と顧客の対応</text>
 
-  <rect x="20" y="140" width="444" height="172" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="40" y="169.47826086956522" font-size="15" font-weight="700" fill="#22201b">ゲイン・クリエイター（嬉しさを作る）</text>
-  <text x="40" y="197.47826086956522" font-size="14" font-weight="400" fill="#22201b">・天板の高さが 1 タッチで変わる</text>
-  <text x="40" y="225.0782608695652" font-size="14" font-weight="400" fill="#22201b">・配線が見えず、画面に映っても散らからない</text>
+  <rect x="20" y="152" width="444" height="176" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="40" y="183" font-size="15" font-weight="700" fill="#22201b">ゲイン・クリエイター（嬉しさを作る）</text>
+  <text x="40" y="211" font-size="14" font-weight="400" fill="#22201b">・天板の高さが 1 タッチで変わる</text>
+  <text x="40" y="238.6" font-size="14" font-weight="400" fill="#22201b">・配線が見えず、画面に映っても散らからない</text>
 
-  <rect x="476" y="140" width="444" height="172" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="496" y="169.47826086956522" font-size="15" font-weight="700" fill="#22201b">ゲイン（得たい成果）</text>
-  <text x="496" y="197.47826086956522" font-size="14" font-weight="400" fill="#22201b">・長時間座っても腰が楽</text>
-  <text x="496" y="225.0782608695652" font-size="14" font-weight="400" fill="#22201b">・オンライン会議で整って見える</text>
+  <rect x="476" y="152" width="444" height="176" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="496" y="183" font-size="15" font-weight="700" fill="#22201b">ゲイン（得たい成果）</text>
+  <text x="496" y="211" font-size="14" font-weight="400" fill="#22201b">・長時間座っても腰が楽</text>
+  <text x="496" y="238.6" font-size="14" font-weight="400" fill="#22201b">・オンライン会議で整って見える</text>
 
-  <rect x="20" y="324" width="444" height="172" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="40" y="353.6521739130435" font-size="15" font-weight="700" fill="#22201b">製品・サービス</text>
-  <text x="40" y="381.6521739130435" font-size="14" font-weight="400" fill="#22201b">・昇降式デスク</text>
-  <text x="40" y="409.2521739130435" font-size="14" font-weight="400" fill="#22201b">・配線トレー</text>
-  <text x="40" y="436.8521739130435" font-size="14" font-weight="400" fill="#22201b">・組み立て出張サービス</text>
+  <rect x="20" y="340" width="444" height="176" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="40" y="371" font-size="15" font-weight="700" fill="#22201b">製品・サービス</text>
+  <text x="40" y="399" font-size="14" font-weight="400" fill="#22201b">・昇降式デスク</text>
+  <text x="40" y="426.6" font-size="14" font-weight="400" fill="#22201b">・配線トレー</text>
+  <text x="40" y="454.2" font-size="14" font-weight="400" fill="#22201b">・組み立て出張サービス</text>
 
-  <rect x="476" y="324" width="444" height="172" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="496" y="353.6521739130435" font-size="15" font-weight="700" fill="#22201b">ジョブ（片付けたい用事）</text>
-  <text x="496" y="381.6521739130435" font-size="14" font-weight="400" fill="#22201b">・自宅で 1 日 8 時間働く</text>
-  <text x="496" y="409.2521739130435" font-size="14" font-weight="400" fill="#22201b">・会議・資料作成・集中作業を切り替える</text>
+  <rect x="476" y="340" width="444" height="176" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="496" y="371" font-size="15" font-weight="700" fill="#22201b">ジョブ（片付けたい用事）</text>
+  <text x="496" y="399" font-size="14" font-weight="400" fill="#22201b">・自宅で 1 日 8 時間働く</text>
+  <text x="496" y="426.6" font-size="14" font-weight="400" fill="#22201b">・会議・資料作成・集中作業を切り替える</text>
 
-  <rect x="20" y="508" width="444" height="172" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="40" y="537.8260869565217" font-size="15" font-weight="700" fill="#22201b">ペイン・リリーバー（悩みを取る）</text>
-  <text x="40" y="565.8260869565217" font-size="14" font-weight="400" fill="#22201b">・脚の振動を抑えて、画面が揺れない</text>
-  <text x="40" y="593.4260869565218" font-size="14" font-weight="400" fill="#22201b">・工具なしで 30 分で組める</text>
+  <rect x="20" y="528" width="444" height="176" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="40" y="559" font-size="15" font-weight="700" fill="#22201b">ペイン・リリーバー（悩みを取る）</text>
+  <text x="40" y="587" font-size="14" font-weight="400" fill="#22201b">・脚の振動を抑えて、画面が揺れない</text>
+  <text x="40" y="614.6" font-size="14" font-weight="400" fill="#22201b">・工具なしで 30 分で組める</text>
 
-  <rect x="476" y="508" width="444" height="172" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="496" y="537.8260869565217" font-size="15" font-weight="700" fill="#22201b">ペイン（困りごと）</text>
-  <text x="496" y="565.8260869565217" font-size="14" font-weight="400" fill="#22201b">・作業中に肩と腰が痛む</text>
-  <text x="496" y="593.4260869565218" font-size="14" font-weight="400" fill="#22201b">・狭い部屋に大きな家具が置けない</text>
-  <text x="496" y="621.0260869565218" font-size="14" font-weight="400" fill="#22201b">・組み立てが大変</text>
+  <rect x="476" y="528" width="444" height="176" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="496" y="559" font-size="15" font-weight="700" fill="#22201b">ペイン（困りごと）</text>
+  <text x="496" y="587" font-size="14" font-weight="400" fill="#22201b">・作業中に肩と腰が痛む</text>
+  <text x="496" y="614.6" font-size="14" font-weight="400" fill="#22201b">・狭い部屋に大きな家具が置けない</text>
+  <text x="496" y="642.2" font-size="14" font-weight="400" fill="#22201b">・組み立てが大変</text>
 
-  <rect x="20" y="48" width="444" height="76" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
-  <text x="40" y="80" font-size="15" font-weight="700" fill="#22201b">価値提案（バリューマップ）</text>
-  <rect x="368" y="36" width="88" height="24" rx="12" fill="#6f6659"/>
-  <text x="409" y="54" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">提供する側</text>
+  <rect x="20" y="60" width="444" height="80" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <text x="40" y="91" font-size="15" font-weight="700" fill="#22201b">価値提案（バリューマップ）</text>
+  <rect x="368" y="48" width="88" height="24" rx="12" fill="#6f6659"/>
+  <text x="409" y="65" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">提供する側</text>
 
-  <rect x="476" y="48" width="444" height="76" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
-  <text x="496" y="80" font-size="15" font-weight="700" fill="#22201b">顧客プロフィール</text>
-  <rect x="836" y="36" width="72" height="24" rx="12" fill="#6f6659"/>
-  <text x="872" y="54" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">求める側</text>
+  <rect x="476" y="60" width="444" height="80" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <text x="496" y="91" font-size="15" font-weight="700" fill="#22201b">顧客プロフィール</text>
+  <rect x="836" y="48" width="72" height="24" rx="12" fill="#6f6659"/>
+  <text x="872" y="65" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">求める側</text>
 
-  <text x="20" y="709" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+  <text x="20" y="734" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>

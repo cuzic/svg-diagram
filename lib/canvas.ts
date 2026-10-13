@@ -148,9 +148,9 @@ export interface CanvasOpts<T extends CanvasTemplate = CanvasTemplate> {
   emphasis?: readonly CanvasKey<T>[];
   /** A chip at the bottom-right corner of the canvas (架空の例 / 仮説). */
   stamp?: string;
-  /** The canvas is at least this tall (px). Content that needs more throws (shorten it or leave `h` out: without it the canvas grows). */
+  /** The regions (not the title above them) are at least this tall (px). Content that needs more throws (shorten it or leave `h` out: without it the canvas grows). */
   h?: number;
-  /** Gap between the regions (px). */
+  /** Gap between the regions (px, rounded to a multiple of 4; the rows under a tagged region keep at least 16px). */
   gap?: number;
   /** Every region needs content: a missing one is reported as canvas-region-empty. */
   requireAll?: boolean;
@@ -257,22 +257,27 @@ export function canvasBand(template: string, content: Record<string, string | re
   const rows = Math.max(...place.map(p => p.row + p.rs));
   const colW = [...t.cols], rowW = Array.from({length: rows}, (_, i) => t.rows[i] ?? 1);
   return {
-    type: 'grid', children, cols: colW.length, gap: opts.gap ?? t.gap ?? 10,
+    // the gap is a multiple of 4: the regions' edges stay on the 4px grid (see canvasColumns)
+    type: 'grid', children, cols: colW.length, gap: Math.round((opts.gap ?? t.gap ?? 12) / 4) * 4,
     canvas: {template, place, worded, colW, rowW, aspect: t.aspect, ...(opts.h === undefined ? {} : {h: opts.h}), ...(opts.title ? {title: opts.title.trim()} : {}), empty, requireAll: opts.requireAll === true},
   };
 }
 
 // ---- geometry (pure) -----------------------------------------------------------------------------------------------------------
 
-/** The x and width of every column of a canvas that is `cw` wide. */
-export function canvasColumns(c: CanvasLayout, cw: number, gap: number): {x: number[]; w: number[]} {
-  const total = c.colW.reduce((a, b) => a + b, 0), room = cw - gap * (c.colW.length - 1);
-  const w = c.colW.map(v => room * v / total), x: number[] = [];
-  let at = 0;
-  for (const v of w) { x.push(at); at += v + gap; }
+/**
+ * The x and width of every column of a canvas `cw` wide whose left edge is `x0`. Column starts are on the 4px grid the emitter snaps
+ * shapes to (gap is a multiple of 4), so the gutters are all `gap` wide and a region spanning columns lines up with the ones it spans.
+ */
+export function canvasColumns(c: CanvasLayout, x0: number, cw: number, gap: number): {x: number[]; w: number[]} {
+  const total = c.colW.reduce((a, b) => a + b, 0), room = cw - gap * (c.colW.length - 1), n = c.colW.length;
+  const x: number[] = [];
+  let at = x0;
+  c.colW.forEach((v, i) => { x.push(i === 0 ? x0 : Math.round(at / 4) * 4); at += room * v / total + gap; });
+  const w = x.map((v, i) => (i + 1 < n ? x[i + 1] - gap : x0 + cw) - v);
   return {x, w};
 }
-/** The left edge (relative) and width of the cell `p` covers. */
+/** The left edge and width of the cell `p` covers. */
 export function canvasSpan(cols: {x: number[]; w: number[]}, p: {col: number; cs: number}): {x: number; w: number} {
   const last = p.col + p.cs - 1;
   return {x: cols.x[p.col], w: cols.x[last] + cols.w[last] - cols.x[p.col]};

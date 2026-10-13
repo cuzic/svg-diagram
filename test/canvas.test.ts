@@ -1,7 +1,7 @@
 import test from 'node:test';
 import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
-import {canvas, checkDiagram, closeMeasurer, connect, diagram, renderDiagram} from '../lib/dsl.ts';
+import {canvas, checkDiagram, closeMeasurer, connect, diagram, group, renderDiagram} from '../lib/dsl.ts';
 import {canvasKeys, canvasTemplates, TEMPLATES} from '../lib/canvas.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import {geometryChecks} from '../lib/svg-lint.ts';
@@ -62,13 +62,13 @@ test('bmc: the classic arrangement (partners and segments are full height, value
   const {boxes, byTitle} = await laid(canvas('bmc', SAMPLE('bmc')));
   assert.equal(boxes.length, 9);
   const [partners, activities, resources, value, rel, channels, segments, cost, revenue] = ['主要パートナー', '主要活動', '主要リソース', '提供価値', '顧客との関係', 'チャネル', '顧客セグメント', 'コスト構造', '収益の流れ'].map(byTitle);
-  for (const t of [partners, value, segments]) assert.ok(Math.abs(t.h - (activities.h + resources.h + 10)) < 1, 'a tall region spans the two rows');
+  for (const t of [partners, value, segments]) assert.ok(Math.abs(t.h - (activities.h + resources.h + 12)) < 1, 'a tall region spans the two rows');
   assert.ok(partners.x < activities.x && activities.x < value.x && value.x < rel.x && rel.x < segments.x);
   assert.equal(activities.x, resources.x);
   assert.equal(rel.x, channels.x);
   assert.ok(activities.y < resources.y && rel.y < channels.y);
   assert.ok(cost.y > partners.y + partners.h && revenue.y === cost.y);
-  assert.ok(Math.abs(cost.w - revenue.w) < 1 && Math.abs(cost.x + cost.w + 10 - revenue.x) < 1);
+  assert.ok(Math.abs(cost.w - revenue.w) <= 4 && Math.abs(cost.x + cost.w + 12 - revenue.x) < 1);
   assert.ok(Math.abs(revenue.x + revenue.w - (segments.x + segments.w)) < 0.5, 'the bottom row is as wide as the canvas');
 });
 
@@ -203,7 +203,7 @@ test('stamp: every template draws it exactly once, in the bottom row\'s right-mo
 test('h: the canvas is at least that tall (rows share it by weight), and content that needs more throws with the height it needs', async () => {
   const {boxes} = await laid(canvas('swot', {strengths: ['a']}, {h: 900}));
   const top = Math.min(...boxes.map(b => b.y)), bottom = Math.max(...boxes.map(b => b.y + b.h));
-  assert.ok(Math.abs(bottom - top - 900) < 1);
+  assert.ok(bottom - top >= 900 && bottom - top < 900 + 4 * 2, `${bottom - top}: h, up to the 4px grid per row`);
   const long = Array.from({length: 20}, (_, i) => `項目 ${i} をかなり長めの文で書いて折り返しを起こす`);
   await assert.rejects(laid(canvas('swot', {strengths: long}, {h: 300})), /the regions need \d+px of height but h is 300px/);
 });
@@ -223,7 +223,61 @@ test('bigger text widens a spanning region equally across its rows (a tall bmc r
   const {byTitle} = await laid(canvas('bmc', {partners: many}));
   const p = byTitle('主要パートナー'), a = byTitle('主要活動'), r = byTitle('主要リソース');
   assert.ok(p.h >= p.wrappedRuns.reduce((n, x) => n + x.lines.length, 0) * 18);
-  assert.ok(Math.abs(p.h - (a.h + r.h + 10)) < 1);
+  assert.ok(Math.abs(p.h - (a.h + r.h + 12)) < 1);
+});
+
+test('every edge is on the 4px grid the emitter snaps to: neighbours share a straight edge and every gutter is the gap (also inside a group)', async () => {
+  for (const name of canvasTemplates() as (keyof typeof TEMPLATES)[]) for (const inGroup of [false, true]) {
+    const c = canvas(name, SAMPLE(name, 1), {title: name});
+    const {boxes} = await laid(inGroup ? group([c], {title: 'G'}) : c);
+    for (const b of boxes) for (const v of [b.x - (inGroup ? 36 : 20), b.y, b.w, b.h, b.x + b.w]) assert.ok(Math.abs(v / 4 - Math.round(v / 4)) < 1e-6 || v === b.x + b.w, `${name}${inGroup ? ' in a group' : ''}: ${b.title} ${v} is off the grid`);
+    for (const b of boxes) for (const v of [b.y, b.y + b.h]) assert.ok(Math.abs(v / 4 - Math.round(v / 4)) < 1e-6, `${name}: ${b.title} y ${v}`);
+    // two regions side by side are a gap apart; the gutters are all the same
+    const gutters = new Set<number>();
+    for (const a of boxes) for (const b of boxes) if (b.x > a.x + a.w - 0.5 && b.y < a.y + a.h && a.y < b.y + b.h && !boxes.some(o => o !== a && o !== b && o.x >= a.x + a.w - 0.5 && o.x + o.w <= b.x + 0.5 && o.y < a.y + a.h && a.y < o.y + o.h)) gutters.add(Math.round(b.x - a.x - a.w));
+    assert.equal(gutters.size, 1, `${name}: gutters ${[...gutters]}`);
+  }
+});
+
+test('a pill on a region below the first row keeps clear of the region above, and of the caption over the canvas', async () => {
+  for (const name of canvasTemplates() as (keyof typeof TEMPLATES)[]) {
+    const content = SAMPLE(name, 1);
+    if (name !== 'pest') for (const k of ['legal', 'environmental']) delete content[k];
+    const {boxes, laidOut} = await laid(canvas(name, content, {title: `${name} の題名をかなり長く書いて右端まで届かせる見出しにする`, emphasis: Object.keys(content) as never[]}));
+    const cap = laidOut.laidOut.find(b => b.type === 'caption') as {y: number; h: number};
+    for (const b of boxes) {
+      assert.ok(b.tagBox, `${name}: ${b.title} has its 重点 pill`);
+      assert.ok(b.tagBox!.y >= cap.y + cap.h, `${name}: the pill of ${b.title} meets the caption`);
+      for (const o of boxes) if (o !== b) assert.ok(!overlap(b.tagBox!, o), `${name}: the pill of ${b.title} sits on ${o.title}`);
+    }
+  }
+});
+
+test('too narrow: a region below 96px, or a gap that leaves no room, throws and says to widen the figure', async () => {
+  const narrow = async (width: number, c: unknown) => { const d = diagram({theme: 'blue', title: 't', width}); d.add(c as never); return checkDiagram(d); };
+  await assert.rejects(narrow(360, canvas('bmc', {partners: ['地元の契約農家']})), /canvas\("bmc"\): region "主要パートナー" is only \d+px wide \(at least 96px\): widen the figure/);
+  await assert.rejects(narrow(940, canvas('bmc', {}, {gap: 200})), /region "主要パートナー" is only \d+px wide/);
+  await assert.doesNotReject(narrow(600, canvas('bmc', {partners: ['地元の契約農家']})));
+});
+
+test('a word longer than its region (no place to break) throws with the word and the region, instead of running out of the box', async () => {
+  await assert.rejects(laid(canvas('bmc', {partners: ['Supercalifragilisticexpialidociousxxxxxxxxxxxxxxxxx']})), /"Supercalifragilisticexpialidocious\w*" in region "主要パートナー" is wider than the region/);
+  await assert.rejects(laid(canvas('bmc', {value: 'https://example.com/very/long/path/without/spaces/at/all/whatsoever'})), /in region "提供価値" is wider than the region/);
+  // the same text with spaces wraps; CJK always wraps
+  await assert.doesNotReject(laid(canvas('bmc', {partners: ['Super cali fragilistic expiali docious'], segments: ['あ'.repeat(60)]})));
+});
+
+test('slide canvas: the canvas keeps to the slide height (its aspect does not push it past 720px); content that needs more still grows', async () => {
+  const check = async (c: unknown) => { const d = diagram({theme: 'blue', title: 't', canvas: 'slide'}); d.add(c as never); const {laidOut} = await checkDiagram(d); return {laidOut, f: lintDiagram({...d, laidOut: laidOut.laidOut, connects: [], canvas: d.canvas, contentHeight: laidOut.contentHeight}).map(x => x.rule)}; };
+  for (const name of ['bmc', 'swot', 'empathy', 'a3'] as const) {
+    const {laidOut, f} = await check(canvas(name, {}, {title: name}));
+    assert.ok(laidOut.contentHeight! <= 720, `${name}: ${laidOut.contentHeight}`);
+    assert.ok(!f.includes('slide-canvas-overflow'), name);
+  }
+  const many = Array.from({length: 12}, (_, i) => `項目 ${i}`);
+  const {laidOut} = await check(canvas('swot', {strengths: many}));
+  const s = (laidOut.laidOut.find(b => b.type === 'grid') as LaidOutGrid).children[0];
+  assert.ok(s.y + s.h >= s.wrappedRuns.at(-1)!.lineYs.at(-1)!, 'the region still holds its text');
 });
 
 // ---- ids, reveal, spotlight, rules ---------------------------------------------------------------------------------------------------
@@ -294,12 +348,13 @@ test('slide medium: text keeps the slide minimum size', async () => {
 
 // ---- a seeded sweep ----------------------------------------------------------------------------------------------------------------
 
-test('a seeded sweep over text lengths, item counts, widths and templates: nothing overflows, overlaps or throws', async () => {
+test('a seeded sweep over text lengths, item counts, widths and templates: no text runs out of a box or meets another, no pill sits on a neighbour; a word too long for its region is refused by name', async () => {
   let seed = 20261012;
   const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
   const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(rnd() * xs.length)];
   const words = ['顧客', '価値', 'コスト', 'パートナー', 'Subscription', '定期便', '24h', '在庫', '品質管理', 'ブランド', 'API', '配送網'];
   const names = canvasTemplates() as (keyof typeof TEMPLATES)[];
+  let drawn = 0, refused = 0;
   for (let i = 0; i < 40; i++) {
     const name = pick(names), content: Record<string, string[]> = {};
     for (const k of canvasKeys(name, true)) {
@@ -310,10 +365,20 @@ test('a seeded sweep over text lengths, item counts, widths and templates: nothi
     const width = pick([700, 940, 1100]);
     const d = diagram({theme: 'blue', title: 't', width});
     d.add(canvas(name, content, {title: `${name} ${i}`, emphasis: rnd() < 0.5 ? [canvasKeys(name)[0] as never] : []}));
-    const {laidOut, verdict} = await checkDiagram(d);
-    assert.deepEqual(verdict.problems, [], `${name} #${i} w${width}`);
-    const boxes = (laidOut.laidOut.find(b => b.type === 'grid') as LaidOutGrid).children;
+    let r;
+    try { r = await renderDiagram(d, {name: `sweep-${i}`, budget: 'measure'}); } catch (e) {
+      assert.match((e as Error).message, /is wider than the region/, `${name} #${i} w${width}`);
+      refused++;
+      continue;
+    }
+    drawn++;
+    assert.deepEqual(r.verdict.problems, [], `${name} #${i} w${width}`);
+    const g = geometryChecks(r.svg)!;
+    assert.deepEqual([g.containerOverflow, g.textOverlap, g.covered, g.overflow], [[], [], [], null], `${name} #${i} w${width}: the drawn SVG`);
+    const boxes = (r.laidOut.laidOut.find(b => b.type === 'grid') as LaidOutGrid).children;
     for (let a = 0; a < boxes.length; a++) for (let b = a + 1; b < boxes.length; b++) assert.ok(!overlap(boxes[a], boxes[b]), `${name} #${i}: ${boxes[a].title} / ${boxes[b].title}`);
-    for (const b of boxes) assert.ok(b.x + b.w <= laidOut.width + 0.5, `${name} #${i}`);
+    for (const b of boxes) assert.ok(b.x + b.w <= r.laidOut.width + 0.5, `${name} #${i}`);
+    for (const b of boxes) if (b.tagBox) for (const o of boxes) if (o !== b) assert.ok(!overlap(b.tagBox, o), `${name} #${i}: the pill of ${b.title} sits on ${o.title}`);
   }
+  assert.ok(drawn >= 30 && refused >= 1, `drawn ${drawn}, refused ${refused}`);
 });

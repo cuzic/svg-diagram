@@ -160,6 +160,8 @@ function lineWidth(widthOf: WidthOf, run: WrappedRun, i: number): number {
 // run before measurement even for row/grid children whose width was just
 // computed structurally.
 const TAG_H = 24, TAG_PAD_X = 8;
+/** The narrowest a canvas() region may be (px): below it a title breaks a character or two per line. */
+const CANVAS_MIN_REGION_W = 96;
 const STAMP_H = 24, STAMP_GAP = 6, STAMP_PAD_X = 6; // the stamp chip and the strip reserved for it under the content
 export const stampChipW = (widthOf: WidthOf, text: string, roles: Roles): number => textWidth(widthOf, text, roles.note, 400) + 2 * STAMP_PAD_X;
 export const LEGEND_SWATCH_W = 36, LEGEND_ITEM_GAP = 28, LEGEND_ROW_H = 24;
@@ -865,28 +867,44 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
 
     if (band.type === 'grid' && band.canvas) {
       const cv = band.canvas, gap = band.gap, top0 = cursorY;
+      // a region's pill sits on its top edge, half above it: the rows under the first keep it clear of the box above
+      // (and of the caption above the first row)
+      const tagged = (row: (r: number) => boolean): boolean => band.children.some((c, i) => c.tag && row(cv.place[i].row));
+      const rowGap = tagged(r => r > 0) ? Math.max(gap, TAG_H / 2 + 4) : gap;
       if (cv.title) {
         const t = placeBoxLike({type: 'caption', text: cv.title, align: 'left', role: 'title', bold: true, tone: 'text', mono: false} as CaptionBand, padX, cursorY, cw, false);
         laidOut.push(t);
-        cursorY += t.h + d.gap / 2;
+        cursorY += t.h + Math.max(d.gap / 2, tagged(r => r === 0) ? TAG_H / 2 + 4 : 0);
       }
-      const top = cursorY, cols = canvasColumns(cv, cw, gap);
+      // every edge on the 4px grid the emitter snaps shapes to, so neighbouring regions keep one straight edge and even gutters
+      const top = Math.ceil(cursorY / 4 - 1e-6) * 4, cols = canvasColumns(cv, padX, cw, gap);
       const placed = band.children.map((child, i) => {
         const s = canvasSpan(cols, cv.place[i]);
-        return placeBoxLike(child, padX + s.x, top, s.w, true);
+        const name = child.title ?? `region ${i + 1}`;
+        if (s.w < CANVAS_MIN_REGION_W) throw new Error(`canvas("${cv.template}"): region "${name}" is only ${Math.max(0, Math.round(s.w))}px wide (at least ${CANVAS_MIN_REGION_W}px): widen the figure (diagram({width})) or use a smaller gap`);
+        const p = placeBoxLike(child, s.x, top, s.w, true);
+        // a word longer than the region is placed whole by the wrapper (it has no place to break) and would run out of the box
+        const room = s.w - 2 * (child.padX ?? BOX_PAD_X) + 0.5;
+        for (const r of p.wrappedRuns) for (const line of r.lines) for (const atom of splitAtoms(line)) {
+          if (textWidth(widthOf, atom, r.size, r.weight, r.mono ? 'mono' : 'sans') + (r.indent ?? 0) > room) throw new Error(`canvas("${cv.template}"): "${atom.slice(0, 40)}" in region "${name}" is wider than the region (${Math.round(room)}px of text): break the word (a space or a shorter word), or widen the figure`);
+        }
+        return p;
       });
-      const rows = canvasRowHeights(cv, placed.map(p => p.h), gap, cv.h ?? cv.aspect * cw);
-      const total = rows.reduce((a, b) => a + b, 0) + gap * (rows.length - 1);
+      // the canvas keeps its aspect, except on a slide canvas, where it never grows past the slide's height for that alone
+      const aspectH = cv.aspect * cw, slideRoom = d.canvas ? d.canvas.height - d.pad - top - 4 * cv.rowW.length /* the 4px grid */ : Infinity;
+      const rows = canvasRowHeights(cv, placed.map(p => p.h), rowGap, cv.h ?? Math.max(0, Math.min(aspectH, slideRoom)));
+      const total = rows.reduce((a, b) => a + b, 0) + rowGap * (rows.length - 1);
       if (cv.h !== undefined && total > cv.h + 0.5) throw new Error(`canvas("${cv.template}"): the regions need ${Math.ceil(total)}px of height but h is ${cv.h}px (shorten the text, widen the figure, or leave h out)`);
-      const rowY = rows.map((_, r) => top + rows.slice(0, r).reduce((a, b) => a + b, 0) + gap * r);
+      const rowY = [top];
+      rows.forEach((v, r) => rowY.push(rowY[r] + Math.ceil(v / 4 - 1e-6) * 4 + rowGap));
       placed.forEach((p, i) => {
-        const pl = cv.place[i], h = rows.slice(pl.row, pl.row + pl.rs).reduce((a, b) => a + b, 0) + gap * (pl.rs - 1);
+        const pl = cv.place[i], h = rowY[pl.row + pl.rs] - rowGap - rowY[pl.row];
         p.y = rowY[pl.row]; p.h = h;
         if (p.tagBox) p.tagBox.y = p.y - p.tagBox.h / 2;
         if (p.id) setBox(p.id, p as never, h);
       });
       laidOut.push({type: 'grid', x: padX, y: top0, w: cw, children: placed});
-      cursorY = top + total + d.gap;
+      cursorY = rowY[rows.length] - rowGap + d.gap;
       continue;
     }
 
