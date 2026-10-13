@@ -70,9 +70,10 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | node({icon, label, sub, size, frame}) | 構成図の 1 点: アイコンを大きく（既定 48px）中央に置き、名前を下に付ける。枠は付けない（`frame: true` で付く）。`row()` / `grid()` に並べ、`group()` でネットワーク・VPC・ゾーンの境界を作り、`connect()` で結ぶ（下の「構成図（クラウド・ネットワーク）」） |
 | group(children, {title, tone, titleAlign, flex, width, span, col}) | ラベル付きの枠。**入れ子可**（ホスト > コンテナ > プロセス）。`row([group(...), group(...)])` で横に並べると、枠の高さは一番高いものにそろう（`flex` / `width` / `span` / `col` は box と同じ。`arrows: 'between'` は不可）。中の box の id も、`connect()` の参照先になる |
 | versus(left, right, {shared, connectLabels}) | 左右の `group()` を 12 列の半分ずつに並べる対比。各部は `{title, children, tone, id}`。`shared` を付けると、その共通部を下に置いて左右から接続する（3 部すべてに `id` が必要）。接続ラベルは `connectLabels.left` / `.right` |
+| hero({banner, stat, flow, caption, note}) | 章の頭に置く 1 枚: 帯（任意）の下に、流れの箱（`flow: [box(...), ...]`、矢印でつなぐ）とその行き着く大きな数字（`stat: {value, label, tone}`）を 1 行に並べ、その下に一言（`caption`）と出典・注（`note`）。箱が 5 つ以上なら数字を上に置く（`layout: 'stack'`）。既存の部品を並べるだけ。下の「章の頭の 1 枚」 |
 | connect / branch | 矢印。route(straight/elbow/loop-under)、arrow(end/both/start/none)、line(solid/dashed/dotted/double)、weight(strong)、chip、labelAt、アンカー `id:side@0.2` |
 | legend(items) | 線種・トーンの凡例 |
-| swimlane(lanes, steps, {flows, phases}) | スイムレーン図。レーン=担当（人・チーム・システム）、列=時間。引き継ぎの矢印を自動で向きづけ。`col` で並行作業を揃える |
+| swimlane(lanes, steps, {flows, phases, fit}) | スイムレーン図。レーン=担当（人・チーム・システム）、列=時間。引き継ぎの矢印を自動で向きづけ。`col` で並行作業を揃える。列が狭くなるときは `fit: 'shrink'` でレーン名の列と列の間隔を詰める |
 | sequence(actors, steps) | シーケンス図。message / self / note / divider、自動番号 |
 | table(columns, rows, {title}) | 見出し付き表（ER の entity 兼用）。セルは {text, tone, bold, mono}、`cell('通る', {mark: 'ok'})` で ○△×◎ の記号つき（色だけに頼らない） |
 | wireframe(root, {title, tag, h, frame, notes, skeleton}) | 画面 1 枚のローファイ・ワイヤーフレーム + 番号つき注釈欄。部品は `wf.*`（下記）。`n:` で番号の丸、`mark:'new'/'changed'` で新規・改修の枠 |
@@ -86,7 +87,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | cloud({a, b, c, d, d2}, {assumptions, conflictLabel, id}) | TOC のクラウド（対立解消図）。共通目的 A・必要条件 B/C・対立する要望 D/D' の 5 つの箱と、前提の番号付き一覧。詳細は下の「TOC の思考プロセス」 |
 | gantt(rows, {from, to, today, id}) | ガントチャート。行は、タスク `{label, start, end｜days, id?, progress?, after?, tone?, milestone?}` と、見出し `{section}`。日付は `'YYYY-MM-DD'`（`end` はその日を含む。`'2026-10'` のような略記は止まる）。軸・目盛り・今日の線・依存の矢印・進捗は自動。詳細は下の「ガントチャート（`gantt`）」 |
 | classDiagram(classes, relations, {dir, id}) | UML クラス図。クラス `{id, name?, stereotype?, abstract?, attrs?, methods?, tone?}` と関係 `{from, to, kind?, label?, fromMult?, toMult?}`。親が上になる層に自動配置し、矢印の端の記号は `kind` で決まる。詳細は下の「クラス図（`classDiagram`）」 |
-| bpmn(lanes, nodes, flows, {id}) | BPMN 風の業務フロー。レーン（担当）に、タスク・開始/終了イベント・ゲートウェイ（排他 `xor`・並行 `and`・包括 `or`）を置き、矢印で結ぶ。列は流れから、行はレーンから決まる。破線は、レーンをまたぐメッセージ。詳細は下の「業務フロー（`bpmn`）」 |
+| bpmn(lanes, nodes, flows, {id, fit}) | BPMN 風の業務フロー。レーン（担当）に、タスク・開始/終了イベント・ゲートウェイ（排他 `xor`・並行 `and`・包括 `or`）を置き、矢印で結ぶ。列は流れから、行はレーンから決まる。破線は、レーンをまたぐメッセージ。詳細は下の「業務フロー（`bpmn`）」 |
 | pareto(items, {top, other, guide, highlight, unit}) | パレート図（QC 七つ道具）。項目 `{label, value}` を大きい順の棒にし、右の 0〜100% の軸に累積比率の折れ線。80% に届くまでの項目だけ色が付く。詳細は下の「QC 七つ道具と新 QC 七つ道具」 |
 | histogram(values, {bins, width, lsl, usl, target, normal}) | ヒストグラム。測定値をそのまま渡す。区間の幅は切りのよい数、棒は接し、区間の境目が下に付く。規格の上下限・平均・正規分布の曲線 |
 | scatter(points, {x, y, regression}) | 散布図。軸は点に合わせて自動。`group` で層別（色と形が変わる）、`regression: true` で回帰直線と相関係数 r（`plane` を返す） |
@@ -465,6 +466,7 @@ bpmn(
 - レーンは上から並ぶ。列は、矢印の向きに沿った層（`start` が先頭）。同じレーンの同じ列に 2 つ以上あれば、縦に積む。レーンの高さは中身に合わせる。
 - 矢印は直角に折れる。同じ行なら一直線、ゲートウェイからほかのレーンへは、上か下の頂点から出る。戻る矢印（差し戻し）は、ノードの下を回る。間のノードを貫くときは、レーンの縁に沿って迂回し、それでも無関係なノードを貫くと `check` / `build` が止まる。`line: 'dashed'` は、レーンをまたぐメッセージ。ゲートウェイから出る矢印の `label` は、条件。
 - 標準の BPMN のすべては描かない（サブプロセス、タイマーやメッセージのイベント、プール間のメッセージ、データなどは対象外）。
+- **幅に収まらないとき**: 図が帯の幅より広いと、何 px 足りないかを書いて throw する（既定のまま）。`bpmn(..., {fit: 'shrink'})` を付けると、レーン名の列・列の間隔・タスクの幅を、収まるまで段階的に詰める（収まる最初の段階で止まる。もともと収まる図は変わらない）。詰めすぎて矢印のラベルが箱に重なると `check` / `build` が止まるので、ノードを減らすか図を 2 つに分ける。縦向き（レーンを列にして上から下へ）には自動で切り替えない。例は `examples/bpmn-shrink.ts`。
 - ノードの `id` は `connect()` の端点（`b.anchors.<id>` でも取れる）。例は `examples/bpmn.ts`。
 
 ### 自動配置の図の共通の注意（`tree` / `mindmap` / `stateDiagram` / `causeTree` / `cloud` / `gantt` / `classDiagram` / `bpmn` / `relationDiagram` / `pdpc` / `arrowDiagram`）
@@ -758,6 +760,24 @@ connect('rope:bottom', 'note:top'),
 
 `legend: 'auto'` は使った weight を「強い流れ」として凡例に足す（`legend([{line: 'solid', weight: 'strong', label: '強い流れ'}])` と手で書くこともできる）。凡例がないと `legend-missing` / `legend-incomplete` で警告する。`check` の矢印の重なり判定は、太い線ほど広い間隔まで重なりとみなす。`diagram({connectDefaults})` には weight を入れられない（個々の矢印に書く）。例: `examples/arrow-weight.ts`。
 
+### 章の頭の 1 枚
+
+`hero()` は、章の頭に置く「大きな数字 + それを生む流れ + 一言」を 1 回で書く糖衣構文。新しいレイアウト規則は持たない（`banner()`、`row({arrows: 'between'})`、`stat()`、`caption()` を並べるだけ）。
+
+```ts
+hero({
+  banner: {headline: '承認の待ち時間が 3 日から 1 日に縮んだ', tone: 'accent'},
+  stat: {value: '-67%', label: '承認の待ち時間', tone: 'accent'},
+  flow: [box({title: '申請'}), box({title: '一次承認'}), box({title: '決裁'})],
+  caption: '差し戻しの往復をなくしたのが効いた',
+  note: '出典: 社内調査(2026 年上期)',
+})
+```
+
+- `flow` は `box()` だけ（`id` は `connect()` の端点になる）。`layout: 'side'`（箱が 4 つ以下の既定）は、箱の列の最後に数字を置き、矢印で「流れの行き着く先」として結ぶ。`'stack'`（5 つ以上の既定）は、数字の行を箱の列の上に置く。
+- `stat` は `stat()` の `value` / `label` / `tone` / `size`（既定 `'display'`）/ `id`。`banner` は `banner()` の引数そのまま。`caption` は太字、`note` は薄い 1 行。どれも省ける（`stat` と `flow` は必須）。
+- 例は `examples/hero.ts`。
+
 ### 左右の対比
 
 `versus()` は `row({cols: [6, 6]})`、左右の `group()`、任意の共通部への `connect()` をまとめた糖衣構文。新しいレイアウト規則は持たない。左右だけなら `id` は任意で、`shared` を接続する場合は左右と共通部に `id` を付ける。
@@ -773,6 +793,7 @@ versus(
 )
 ```
 
+- **帯と幅がそろう**: 枠の右端は、帯と同じ位置で 4px の格子に丸める（以前は幅だけを丸めていたので、`versus()` の右の枠が帯より最大 4px はみ出すことがあった）。
 - **12 列の行**: `row([a, b], {cols: [6, 6]})`（子ごとの幅だけを並べる。`col` を手で数えない）。`span` を各子に書く形では、`col` は前の子の次の列から自動で進む。`cols` を指定した行は、ラベルつきの接続線のために隙間が広がるとき、**同じ `cols` と `gap` の行すべて**で広がり、列の縁はそろったまま。
 - **別の行の N 列目へ矢印をつなぐ**: `const top = row([...], {cols: 12, id: 'top'})` のあと `connect(a.bottom, top.col(5).top)`、`top.col(5, 6)` は 5〜6 列。`cols` のない行では N 番目の子。列の中の箱は、その端点の一部とみなされ、線が通っても重なりの警告にならない。
 - **接続線の既定値**: `diagram({connectDefaults: {chip: true, route: 'elbow'}})` と `d.connect(from, to, {label})`（`d.add(connect(...))` と同じ。`chip` は `label` のある線だけに効く。線ごとに指定した値が優先）。
