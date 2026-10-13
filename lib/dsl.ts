@@ -17,6 +17,7 @@ import {mapOf, checkTones} from './tokens.ts';
 import {timelineDay} from './timeline.ts';
 import {emitSvg} from './emit.ts';
 import {emitHtml} from './emit-html.ts';
+import {htmlEnv} from './html-env.ts';
 import {xmlProblems} from './xml-check.ts';
 import {verifyDiagram} from './verify.ts';
 import {applyAutoLegend, walkBands} from './rules.ts';
@@ -1845,7 +1846,7 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
   applySpotlight(laidOut);
   verdict = verifyDiagram(laidOut);
   svg = emitSvg(laidOut, maxReveal ? {reveal: maxReveal} : {});
-  if (opts.html) html = emitHtml(laidOut, maxReveal ? {reveal: maxReveal} : {});
+  if (opts.html) html = emitHtml(laidOut, htmlEnv, maxReveal ? {reveal: maxReveal} : {});
   return {svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml: xmlProblems(svg), notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget, budgetSource, fontScale: laidOut.fontScale};
 }
 
