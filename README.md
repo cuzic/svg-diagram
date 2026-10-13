@@ -38,6 +38,8 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 `svg-diagram show` は人が端末で見るためのコマンド（Windows Terminal 1.22 以降、WezTerm、foot など sixel 対応の端末）。文書の `<img>` と同じ読み方（XML）で描くので、整形式でない SVG はエラーになる。`.ts` は検証に落ちても描き、問題を stderr に出して終了コード 1 にする。tmux 3.4 未満は sixel を通さないので、`--passthrough`（`set -g allow-passthrough on` が要る）か `--png FILE` を使う。端末のない環境（エージェントなど）は `--png FILE` で書いて画像として読む。
 動作確認: `pnpm test`、`svg-diagram build examples/inventory-wireframe.ts --out /tmp/x.svg`。
 
+**Markdown から使う**: 図のソースを画像として書く（`![流れ図](./diagrams/flow.ts)`。パスは Markdown ファイルからの相対）。`svg-diagram md page.md --out out/page.md` が、ソースを描いて `out/svg/flow.svg` に書き、`![流れ図](svg/flow.svg)` に差し替えた普通の Markdown を出す（GitHub・VitePress・markdown-it など、どの描画系でもそのまま読める）。コードブロックとインラインコードの中は触らない。検査に通らない図があれば、何も書かずに終了コード 1。プログラムからは `import {expandMarkdown} from 'svg-diagram/markdown'`（文字列と `{file}` を渡すと、変換後の Markdown と描いた SVG の一覧が返る。書き出しは呼び出し側）。
+
 ## 使い方
 
     svg-diagram init [dir]                               # 案件の初期設定（package.json の type、tsconfig.json）
@@ -49,6 +51,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
     svg-diagram check --covers 表.md|表.csv [--svg-dir DIR] <ソース.ts|図.svg>...   # 表を図に置き換えたとき、表のセルの語・数値が図に残っているか
     svg-diagram check --docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]   # 文書（Markdown）と図が食い違っていないか（--map: 図・ソース・SVG・文書の対応表を Markdown で出す）
+    svg-diagram md <page.md> [--out FILE] [--svg-dir DIR] [--inline]   # Markdown の ![alt](flow.ts) を図に展開（SVG を書いて画像に差し替える。--inline は <svg> を埋め込む）
     svg-diagram notes <source.ts>                        # 図の番号つき注釈を Markdown のリスト（1. **題名**：本文）で出す。文書に貼る
     svg-diagram diff old.svg new.svg                     # 2 つの SVG の違いを言葉で（見た目が変わるか）
     svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX] [--per-page N | --pages N]  # 図の集まりを 1 枚に並べて、一度に目視する

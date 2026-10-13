@@ -4,6 +4,7 @@
 # svg-diagram init [dir]                                 (package.json + tsconfig.json for a diagram project)
 # svg-diagram icons add|remove|list|search|notice ...   (the project's own icons: svg-diagram.icons.json; add mdi:key-variant=key)
 # svg-diagram typecheck                                  (the project's tsc over its tsconfig.json)
+# svg-diagram md <page.md> [--out FILE] [--svg-dir DIR] [--inline]   (draw the diagrams a Markdown page points at: ![alt](flow.ts))
 # svg-diagram notes <source.ts>                         (the figure's numbered notes as a Markdown list)
 # svg-diagram diff old.svg new.svg                       (what changed, in words)
 # svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX] [--per-page N | --pages N]   (a whole set on one picture)
@@ -22,11 +23,12 @@ case "$cmd" in
   icons)   exec node "$B/manage-icons.$X" "$@" ;;
   typecheck) exec node "$B/typecheck.$X" "$@" ;;
   show)    exec node "$B/show-diagram.$X" "$@" ;;
+  md)      exec node "$B/markdown-diagram.$X" "$@" ;;
   notes)   exec node "$B/notes-diagram.$X" "$@" ;;
   diff)    exec node "$B/diff-svg.$X" "$@" ;;
   contact) exec node "$B/contact-sheet.$X" "$@" ;;
   check)   exec node "$B/check-diagram.$X" "$@" ;;
   lint)    exec node "$B/lint-svg.$X" "$@" ;;
   preview) exec node "$B/preview-svg.$X" "$@" ;;
-  *) sed -n 2,14p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
+  *) sed -n 2,15p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
 esac
