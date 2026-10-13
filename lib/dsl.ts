@@ -825,6 +825,12 @@ export function plane(opts: PlaneOpts): PlaneBand {
     if (a && a.step !== undefined && !(a.step > 0 && Number.isFinite(a.step))) throw new Error(`plane(): axis ${k} step must be a number > 0 (got ${a.step})`);
     if (!a || typeof a.max !== 'number') throw new Error(`plane(): "${k}" needs an axis, e.g. {max: 100}`);
     if (a.max <= (a.min ?? 0)) throw new Error(`plane(): axis ${k} needs max > min`);
+    if (a.categories !== undefined) {
+      const c = a.categories;
+      if (!Array.isArray(c) || !c.length || c.some(s => typeof s !== 'string' || !s)) throw new Error(`plane(): axis ${k} categories must be a non-empty list of names, e.g. ['営業', '開発']`);
+      if (a.ticks !== undefined || a.step !== undefined) throw new Error(`plane(): axis ${k} takes categories or ticks / step, not both (the categories are its ticks)`);
+      if ((a.min ?? 0) >= 1 || a.max < c.length) throw new Error(`plane(): axis ${k} puts its ${c.length} categories at 1..${c.length}, so it needs min < 1 and max >= ${c.length} (use max: ${c.length + 1})`);
+    }
   }
   return withHandle({type: 'plane', ...opts, height: opts.height ?? 300}, opts.id);
 }
