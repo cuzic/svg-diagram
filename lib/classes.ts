@@ -95,9 +95,9 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
   const routes = routeLayered(lay, place, 22); // wide steps: two hollow triangles on one side do not touch
   const hit = (a: {x: number; y: number; w: number; h: number}, b: {x: number; y: number; w: number; h: number}): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   const at = (pts: Pt[], t: number): Pt => {
-    const len = pts.slice(1).map((p, i) => Math.abs(p.x - pts[i].x) + Math.abs(p.y - pts[i].y));
+    const len = pts.slice(1).map((p, i) => Math.abs(p.x - must(pts[i]).x) + Math.abs(p.y - must(pts[i]).y));
     let d = len.reduce((a, b) => a + b, 0) * t;
-    for (let i = 0; i < len.length; i++) { if (d <= len[i] || i === len.length - 1) { const f = len[i] ? d / len[i] : 0; return {x: pts[i].x + (pts[i + 1].x - pts[i].x) * f, y: pts[i].y + (pts[i + 1].y - pts[i].y) * f}; } d -= len[i]; }
+    for (let i = 0; i < len.length; i++) { if (d <= must(len[i]) || i === len.length - 1) { const f = len[i] ? d / must(len[i]) : 0; return {x: must(pts[i]).x + (must(pts[i + 1]).x - must(pts[i]).x) * f, y: must(pts[i]).y + (must(pts[i + 1]).y - must(pts[i]).y) * f}; } d -= must(len[i]); }
     return pts[0];
   };
   const chip = (own: number, text: string, cands: Pt[]): void => {

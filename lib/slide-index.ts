@@ -21,6 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import {must} from './must.ts';
 const HEADING_RE = /^# (.+)$/m;
 const SRC_RE = /^src:\s*(\S+)/m;
 
@@ -33,7 +34,7 @@ function headingsInFile(absPath: string): string[] {
   return splitSegments(src)
     .map(seg => {
       const m = HEADING_RE.exec(seg);
-      return m ? m[1].trim() : null;
+      return m ? must(m[1]).trim() : null;
     })
     .filter((h): h is string => h !== null);
 }
@@ -49,11 +50,11 @@ export function resolveDeckOrder(slidesMdPath: string): DeckEntry[] {
   for (const seg of splitSegments(src)) {
     const srcMatch = SRC_RE.exec(seg);
     if (srcMatch) {
-      const target = path.resolve(baseDir, srcMatch[1].replace(/^\.\//, ''));
+      const target = path.resolve(baseDir, must(srcMatch[1]).replace(/^\.\//, ''));
       order.push({ file: target, headings: headingsInFile(target) });
     } else {
       const h = HEADING_RE.exec(seg);
-      if (h) order.push({ file: null, headings: [h[1].trim()] });
+      if (h) order.push({ file: null, headings: [must(h[1]).trim()] });
     }
   }
   return order;
@@ -83,7 +84,7 @@ export function computeSlideIndex(slidesMdPath: string, targetFile: string, head
         const list = matches.map(({ h, i }) => `  [${i + 1}] ${h}`).join('\n');
         throw new Error(`"${headingSubstring}" matches ${matches.length} headings in ${targetFile}, be more specific:\n${list}`);
       }
-      return cumulative + matches[0].i + 1;
+      return cumulative + must(matches[0]).i + 1;
     }
     cumulative += entry.headings.length;
   }
@@ -102,8 +103,8 @@ if (isMain) {
   }
 
   let pageArg: string, heading: string;
-  if (args.length === 1 && args[0].includes(':')) {
-    [pageArg, heading] = args[0].split(/:(.+)/s);
+  if (args.length === 1 && must(args[0]).includes(':')) {
+    [pageArg, heading] = must(args[0]).split(/:(.+)/s);
   } else if (args.length === 2) {
     [pageArg, heading] = args;
   } else {

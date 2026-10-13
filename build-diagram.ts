@@ -92,7 +92,7 @@ if (outOverride && outDir) {
 function embeddedSource(svgPath: string): Record<string, string> | null {
   try {
     const m = fs.readFileSync(svgPath, 'utf8').match(/<metadata id="svg-diagram">([^<]*)<\/metadata>/);
-    return m ? JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')) : null;
+    return m ? JSON.parse(must(m[1]).replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')) : null;
   } catch { return null; }
 }
 const sha = (s: string | Buffer) => crypto.createHash('sha256').update(s).digest('hex');
@@ -135,9 +135,9 @@ try {
       if (FIT) {
         const hits = locateSlide(path.basename(outPath));
         if (hits.length !== 1) throw new Error(`--fit: ${path.basename(outPath)} を使っているスライドが${hits.length}枚です(ちょうど1枚が必要)`);
-        if (!hits[0].isFill) throw new Error(`--fit: ${hits[0].page} の「${hits[0].heading}」の <img> に class="fill"(と frontmatter の fit-figure)がありません`);
+        if (!must(hits[0]).isFill) throw new Error(`--fit: ${must(hits[0]).page} の「${must(hits[0]).heading}」の <img> に class="fill"(と frontmatter の fit-figure)がありません`);
         d.fill = true;
-        d.slide = {page: hits[0].page, heading: hits[0].heading as string};
+        d.slide = {page: must(hits[0]).page, heading: must(hits[0]).heading as string};
       }
       const result = await build(d, outPath, {lint: false, html: HTML}); // linted together below: one Chromium for all files
       written.push(outPath, ...result.revealPaths);

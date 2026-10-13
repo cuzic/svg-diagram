@@ -47,7 +47,7 @@ const pct = (v: number, total: number): string => `${numText(Math.round(v / tota
 const segText = (s: StackedSpec, v: number, total: number): string => s.mode === 'stacked' ? `${numText(v)}${s.unit}` : pct(v, total);
 export function stackedAlt(s: StackedSpec): string {
   const name = s.mode === 'mekko' ? 'マリメッコ図' : s.mode === 'percent' ? '100%積み上げ棒グラフ' : '積み上げ棒グラフ';
-  const body = s.columns.map(c => `${c.label}（計 ${numText(c.total)}${s.unit}）: ${s.series.flatMap((n, i) => c.values[i] > 0 || s.mode === 'stacked' ? [`${n} ${numText(c.values[i])}${s.unit}${s.mode === 'stacked' ? '' : `（${pct(c.values[i], c.total)}）`}`] : []).join('、')}`);
+  const body = s.columns.map(c => `${c.label}（計 ${numText(c.total)}${s.unit}）: ${s.series.flatMap((n, i) => must(c.values[i]) > 0 || s.mode === 'stacked' ? [`${n} ${numText(c.values[i])}${s.unit}${s.mode === 'stacked' ? '' : `（${pct(c.values[i], c.total)}）`}`] : []).join('、')}`);
   return `${name}: ${body.join('。')}`;
 }
 export function stackedTexts(s: StackedSpec): [string, number][] {
@@ -56,7 +56,7 @@ export function stackedTexts(s: StackedSpec): [string, number][] {
   for (const c of s.columns) {
     out.push([c.label, 400], [c.label, 700], [`計 ${numText(c.total)}${s.unit}`, 400], [`${numText(c.total)}${s.unit}`, 700]);
     if (s.mode === 'mekko') out.push([`（${pct(c.total, s.columns.reduce((a, b) => a + b.total, 0))}）`, 400]);
-    s.series.forEach((n, i) => { if (c.values[i] > 0) out.push([segText(s, c.values[i], c.total), 700], [`${n} ${segText(s, c.values[i], c.total)}`, 700]); });
+    s.series.forEach((n, i) => { if (must(c.values[i]) > 0) out.push([segText(s, c.values[i], c.total), 700], [`${n} ${segText(s, c.values[i], c.total)}`, 700]); });
   }
   const top = s.mode === 'stacked' ? niceScale(0, Math.max(...s.columns.map(c => c.total))) : undefined;
   if (top) for (const t of top.ticks) out.push([numText(t), 400]);
@@ -101,13 +101,13 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
     const second = s.mode === 'stacked' ? [] : s.mode === 'mekko' ? [`計 ${numText(k.total)}${s.unit}`, `（${pct(k.total, total)}）`] : [`計 ${numText(k.total)}${s.unit}`];
     const natural = Math.max(c.tw(k.label, true), ...second.map(t => c.tw(t)));
     const slotW = (plotR - plotL) / n - 8;
-    const tries = s.mode === 'mekko' ? [Math.max(widths[i], Math.min(natural, 128)), Math.max(widths[i] + 24, 60), Math.max(widths[i], 40), 72] : [slotW];
+    const tries = s.mode === 'mekko' ? [Math.max(widths[i], Math.min(natural, 128)), Math.max(must(widths[i]) + 24, 60), Math.max(widths[i], 40), 72] : [slotW];
     let best: (typeof catLines)[number] | undefined;
     for (let row = 0; row < 3 && !best; row++) for (const maxW of tries) {
       const main = c.wrap(k.label, maxW, true), sec = second.flatMap(t => c.wrap(t, maxW));
       const half = Math.max(...main.map(l => c.tw(l, true)), ...sec.map(l => c.tw(l))) / 2;
-      const cx = Math.min(Math.max(xs[i] + widths[i] / 2, g.x + half + 1), g.x + g.w - half - 1); // inside the figure
-      if (cx - half >= prevRight[row] + 6) { best = {main, second: sec, cx, row}; prevRight[row] = cx + half; break; }
+      const cx = Math.min(Math.max(must(xs[i]) + must(widths[i]) / 2, g.x + half + 1), g.x + g.w - half - 1); // inside the figure
+      if (cx - half >= must(prevRight[row]) + 6) { best = {main, second: sec, cx, row}; prevRight[row] = cx + half; break; }
     }
     if (!best) fail(s.mode === 'mekko' ? 'mekko' : 'stackedBars', `the label of "${k.label}" has no room under its column (shorten the labels, or raise width)`);
     catLines.push(must(best));
@@ -139,15 +139,15 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
       if (h < 0.5) { omitted.push(`${nm} ${segText(s, v, k.total)}（${k.label}）`); return; } // thinner than half a pixel: nothing to draw
       const host = c.rect(r1(xs[ci]), r1(y1 + gp), r1(widths[ci]), r1(h), {fill: 'accent', op, solid: `"${nm}" in "${k.label}"`, of: k.id ?? `#${ci}`});
       const whole = `${nm} ${segText(s, v, k.total)}`, short = segText(s, v, k.total);
-      const room = h >= S + 6, cx = xs[ci] + widths[ci] / 2, cy = y1 + gp + h / 2;
-      const pick = room && c.tw(whole, true) <= widths[ci] - 8 ? whole : room && c.tw(short, true) <= widths[ci] - 6 ? short : undefined;
+      const room = h >= S + 6, cx = must(xs[ci]) + must(widths[ci]) / 2, cy = y1 + gp + h / 2;
+      const pick = room && c.tw(whole, true) <= must(widths[ci]) - 8 ? whole : room && c.tw(short, true) <= must(widths[ci]) - 6 ? short : undefined;
       if (pick) c.text(pick, cx, c.mid(cy), 'middle', ink, {bold: true, host, on: {fill: 'accent', op, ink}, of: k.id ?? `#${ci}`});
       // a part with no room inside a column that has air beside it is written beside the column (after every column is drawn, so the label sees them all); a mekko's columns touch, so it is left out
       else if (s.mode === 'mekko') omitted.push(`${nm} ${short}（${k.label}）`);
-      else beside.push({text: whole, x: xs[ci] + widths[ci] + 8, y: c.mid(cy), key: k.id ?? `#${ci}`, left: `${nm} ${short}（${k.label}）`});
+      else beside.push({text: whole, x: must(xs[ci]) + must(widths[ci]) + 8, y: c.mid(cy), key: k.id ?? `#${ci}`, left: `${nm} ${short}（${k.label}）`});
     });
     if (k.id) c.anchors.push({id: k.id, x: xs[ci], y: yOf(s.mode === 'stacked' ? k.total / must(scale).max : 1), w: widths[ci], h: yOf(0) - yOf(s.mode === 'stacked' ? k.total / must(scale).max : 1)});
-    if (s.mode === 'stacked') c.text(`${numText(k.total)}${s.unit}`, xs[ci] + widths[ci] / 2, yOf(k.total / must(scale).max) - 7, 'middle', 'text', {bold: true, of: k.id ?? `#${ci}`});
+    if (s.mode === 'stacked') c.text(`${numText(k.total)}${s.unit}`, must(xs[ci]) + must(widths[ci]) / 2, yOf(k.total / must(scale).max) - 7, 'middle', 'text', {bold: true, of: k.id ?? `#${ci}`});
   });
   for (const b of beside) if (!c.place(b.text, [{x: b.x, y: b.y, anchor: 'start'}], 'text', {bold: true, of: b.key})) omitted.push(b.left);
   // column labels, the second line (the total) lighter

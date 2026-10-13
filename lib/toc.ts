@@ -79,7 +79,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles)]));
   // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
   const order: string[] = [], put = (id: string): void => { if (!order.includes(id)) order.push(id); };
-  for (const n of band.nodes) { put(n.id); for (const g of groups) if (g.arrows.some(k => arrows[k].from === n.id)) g.arrows.forEach(k => put(arrows[k].from)); }
+  for (const n of band.nodes) { put(n.id); for (const g of groups) if (g.arrows.some(k => must(arrows[k]).from === n.id)) g.arrows.forEach(k => put(must(arrows[k]).from)); }
   const ranked = order.map(id => must(band.nodes.find(n => n.id === id)));
   // the most arrows that meet one node (each needs its own lane in the gap beside it)
   const degreeOf = (id: string): number => Math.max(arrows.filter(a => a.from === id).length, arrows.filter(a => a.to === id).length);
@@ -120,30 +120,30 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   }
   const groupIndex = new Map<number, number>();
   groups.forEach((g, gi) => g.arrows.forEach(k => groupIndex.set(k, gi)));
-  const routes = routeLayered(lay, place, PORT, i => groupIndex.get(lay.edges[i].index));
+  const routes = routeLayered(lay, place, PORT, i => groupIndex.get(must(lay.edges[i]).index));
   const drawn = new Map<number, number>(); // arrow index -> index in out.edges
   for (const [i, e] of lay.edges.entries()) {
     if (e.self) continue;
     drawn.set(e.index, out.edges.length);
-    out.edges.push({from: e.from, to: e.to, points: must(routes.get(i)), line: arrows[e.index].line});
+    out.edges.push({from: e.from, to: e.to, points: must(routes.get(i)), line: must(arrows[e.index]).line});
   }
   // an AND: an arc across the last run of each of its arrows, a little before the arrowheads. It needs the arrows to arrive on
   // one side of the effect, all heading the same way, with room before the head for the arc
   for (const g of groups) {
-    const ends = g.arrows.map(k => out.edges[must(drawn.get(k))].points).map(p => ({tip: p[p.length - 1], prev: p[p.length - 2]}));
+    const ends = g.arrows.map(k => must(out.edges[must(drawn.get(k))]).points).map(p => ({tip: p[p.length - 1], prev: p[p.length - 2]}));
     const sgn = (v: number): number => Math.abs(v) < 0.5 ? 0 : Math.sign(v); // a last run a hair off the straight (float noise) is still straight
-    const d = {x: sgn(ends[0].tip.x - ends[0].prev.x), y: sgn(ends[0].tip.y - ends[0].prev.y)};
+    const d = {x: sgn(must(ends[0]).tip.x - must(ends[0]).prev.x), y: sgn(must(ends[0]).tip.y - must(ends[0]).prev.y)};
     const along = (p: Pt): number => d.x ? p.x : p.y, cross = (p: Pt): number => d.x ? p.y : p.x;
-    const aligned = ends.every(e => sgn(e.tip.x - e.prev.x) === d.x && sgn(e.tip.y - e.prev.y) === d.y && Math.abs(along(e.tip) - along(ends[0].tip)) < 1);
+    const aligned = ends.every(e => sgn(e.tip.x - e.prev.x) === d.x && sgn(e.tip.y - e.prev.y) === d.y && Math.abs(along(e.tip) - along(must(ends[0]).tip)) < 1);
     const room = Math.min(...ends.map(e => Math.abs(along(e.tip) - along(e.prev))));
     if (!aligned || room < AND_END + 1) { out.loose.push(g.to); continue; }
-    const us = ends.map(e => cross(e.tip)), tip = ends[0].tip;
+    const us = ends.map(e => cross(e.tip)), tip = must(ends[0]).tip;
     // the arc ends short of the nearest other arrow into this effect (another AND's arc, or an arrow of its own), so two arcs never touch
     const others = out.edges.filter((e, k) => e.to === g.to && !g.arrows.some(a => drawn.get(a) === k)).map(e => cross(e.points[e.points.length - 1]));
     const reachTo = (u: number, sign: 1 | -1): number => Math.min(AND_REACH, ...others.filter(o => (o - u) * sign > 0).map(o => Math.abs(o - u) / 2 - 5));
     const lo = Math.min(...us) - reachTo(Math.min(...us), -1), hi = Math.max(...us) + reachTo(Math.max(...us), 1);
     const at = (u: number, dist: number): Pt => d.x ? {x: tip.x - d.x * dist, y: u} : {x: u, y: tip.y - d.y * dist};
-    out.ands.push({to: g.to, from: g.arrows.map(k => arrows[k].from), p0: at(lo, AND_END), c: at((lo + hi) / 2, 2 * AND_PEAK - AND_END), p1: at(hi, AND_END)});
+    out.ands.push({to: g.to, from: g.arrows.map(k => must(arrows[k]).from), p0: at(lo, AND_END), c: at((lo + hi) / 2, 2 * AND_PEAK - AND_END), p1: at(hi, AND_END)});
   }
   return out;
 }

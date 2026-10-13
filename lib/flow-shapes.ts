@@ -120,7 +120,7 @@ function textSpecs(b: FlowShapeBand, roles: Roles): TextSpec[] {
   switch (b.type) {
     case 'chevron': return b.steps.flatMap(s => [...bold(s.label), ...plain(s.sub)]);
     case 'cycle': return [...b.steps.flatMap(s => [...bold(s.label), ...plain(s.sub)]), ...(b.centre ? [[b.centre, roles.label, 700] as TextSpec] : [])];
-    case 'funnel': return b.stages.flatMap((s, i) => [...bold(funnelLabel(s)), ...(b.showRate && i ? plain(funnelRate(b.stages[i - 1].value, s.value)) : [])]);
+    case 'funnel': return b.stages.flatMap((s, i) => [...bold(funnelLabel(s)), ...(b.showRate && i ? plain(funnelRate(must(b.stages[i - 1]).value, s.value)) : [])]);
     case 'venn': return [...b.sets.flatMap(s => bold(s.label ?? s.name)), ...b.overlaps.flatMap(o => bold(o.label)), ...bold(b.centre), ...plain(typeof b.universe === 'string' ? b.universe : undefined)];
     case 'concentric': return [...b.rings.flatMap(r => bold(ringLabel(r))), ...bold(b.centre)];
   }
@@ -201,7 +201,7 @@ function layoutChevron(b: ChevronBand, out: LaidOutFlowShape, t: Texts, anchor: 
 
 function layoutFunnel(b: FunnelBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn, roles: Roles): void {
   const n = b.stages.length, w = out.w, cx = out.x + w / 2, minW = Math.min(150, w * .3), max = Math.max(...b.stages.map(s => s.value ?? 0), 1);
-  const frac = (i: number) => b.scale === 'value' ? (b.stages[i].value ?? 0) / max : n === 1 ? 1 : 1 - i * .65 / (n - 1);
+  const frac = (i: number) => b.scale === 'value' ? (must(b.stages[i]).value ?? 0) / max : n === 1 ? 1 : 1 - i * .65 / (n - 1);
   const tops = b.stages.map((_, i) => Math.max(minW, w * frac(i)));
   const bottoms = tops.map((top, i) => i < n - 1 ? tops[i + 1] : Math.max(minW * .8, top * .8)); // each stage ends where the next begins
   const lh = roles.note * LINE;
@@ -209,7 +209,7 @@ function layoutFunnel(b: FunnelBand, out: LaidOutFlowShape, t: Texts, anchor: An
     const text = funnelLabel(s), inner = Math.min(tops[i], bottoms[i]) - 24, sideLeft = cx + Math.max(tops[i], bottoms[i]) / 2 + 14, sideW = out.x + w - sideLeft;
     const beside = t.width(text) > inner && sideW >= 80; // too wide for the stage: to its right, when there is room
     const label = t.wrap(text, beside ? sideW : inner);
-    const rateText = b.showRate && i ? funnelRate(b.stages[i - 1].value, s.value) : undefined;
+    const rateText = b.showRate && i ? funnelRate(must(b.stages[i - 1]).value, s.value) : undefined;
     const rate = rateText ? t.wrap(rateText, w, 400) : undefined;
     const rateLeft = rate !== undefined && cx - Math.max(tops[i], bottoms[i]) / 2 - 14 - rate.w >= out.x; // else under the label
     return {label, beside, sideLeft, rate, rateLeft};

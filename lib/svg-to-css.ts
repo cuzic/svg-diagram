@@ -97,24 +97,24 @@ export function parsePath(d: string): Sub[] | null {
     const sub = cur as Sub | null;
     let p: Pt;
     switch (C) {
-      case 'M': p = {x: v[0] + ox, y: v[1] + oy}; open(p); start = p; cmd = rel ? 'l' : 'L'; lastCtl = null; break;
-      case 'L': p = {x: v[0] + ox, y: v[1] + oy}; must(sub).pts.push(p); lastCtl = null; break;
-      case 'H': p = {x: v[0] + ox, y: pos.y}; must(sub).pts.push(p); lastCtl = null; break;
-      case 'V': p = {x: pos.x, y: v[0] + oy}; must(sub).pts.push(p); lastCtl = null; break;
-      case 'C': { const c1 = {x: v[0] + ox, y: v[1] + oy}, c2 = {x: v[2] + ox, y: v[3] + oy}; p = {x: v[4] + ox, y: v[5] + oy}; flattenCubic(must(sub).pts, pos, c1, c2, p); lastCtl = c2; break; }
+      case 'M': p = {x: must(v[0]) + ox, y: must(v[1]) + oy}; open(p); start = p; cmd = rel ? 'l' : 'L'; lastCtl = null; break;
+      case 'L': p = {x: must(v[0]) + ox, y: must(v[1]) + oy}; must(sub).pts.push(p); lastCtl = null; break;
+      case 'H': p = {x: must(v[0]) + ox, y: pos.y}; must(sub).pts.push(p); lastCtl = null; break;
+      case 'V': p = {x: pos.x, y: must(v[0]) + oy}; must(sub).pts.push(p); lastCtl = null; break;
+      case 'C': { const c1 = {x: must(v[0]) + ox, y: must(v[1]) + oy}, c2 = {x: must(v[2]) + ox, y: must(v[3]) + oy}; p = {x: must(v[4]) + ox, y: must(v[5]) + oy}; flattenCubic(must(sub).pts, pos, c1, c2, p); lastCtl = c2; break; }
       case 'S': {
         const c1 = lastCtl && /[CS]/i.test(lastCmd) ? {x: 2 * pos.x - lastCtl.x, y: 2 * pos.y - lastCtl.y} : pos;
-        const c2 = {x: v[0] + ox, y: v[1] + oy}; p = {x: v[2] + ox, y: v[3] + oy};
+        const c2 = {x: must(v[0]) + ox, y: must(v[1]) + oy}; p = {x: must(v[2]) + ox, y: must(v[3]) + oy};
         flattenCubic(must(sub).pts, pos, c1, c2, p); lastCtl = c2; break;
       }
       case 'Q': case 'T': {
         let q: Pt;
-        if (C === 'Q') { q = {x: v[0] + ox, y: v[1] + oy}; p = {x: v[2] + ox, y: v[3] + oy}; }
-        else { q = lastCtl && /[QT]/i.test(lastCmd) ? {x: 2 * pos.x - lastCtl.x, y: 2 * pos.y - lastCtl.y} : pos; p = {x: v[0] + ox, y: v[1] + oy}; }
+        if (C === 'Q') { q = {x: must(v[0]) + ox, y: must(v[1]) + oy}; p = {x: must(v[2]) + ox, y: must(v[3]) + oy}; }
+        else { q = lastCtl && /[QT]/i.test(lastCmd) ? {x: 2 * pos.x - lastCtl.x, y: 2 * pos.y - lastCtl.y} : pos; p = {x: must(v[0]) + ox, y: must(v[1]) + oy}; }
         flattenCubic(must(sub).pts, pos, {x: pos.x + 2 / 3 * (q.x - pos.x), y: pos.y + 2 / 3 * (q.y - pos.y)}, {x: p.x + 2 / 3 * (q.x - p.x), y: p.y + 2 / 3 * (q.y - p.y)}, p);
         lastCtl = q; break;
       }
-      default: p = {x: v[5] + ox, y: v[6] + oy}; flattenArc(must(sub).pts, pos, v[0], v[1], v[2], v[3] !== 0, v[4] !== 0, p); lastCtl = null;
+      default: p = {x: must(v[5]) + ox, y: must(v[6]) + oy}; flattenArc(must(sub).pts, pos, v[0], v[1], v[2], v[3] !== 0, v[4] !== 0, p); lastCtl = null;
     }
     pos = p; lastCmd = C;
   }
@@ -128,9 +128,9 @@ function parseTransform(t: string | undefined): ((p: Pt) => Pt) | null {
   if (!t) return p => p;
   let sx = 1, sy = 1, tx = 0, ty = 0;
   for (const m of t.matchAll(/(\w+)\(([^)]*)\)/g)) {
-    const a = m[2].split(/[\s,]+/).filter(Boolean).map(Number);
-    if (m[1] === 'translate') { tx += sx * a[0]; ty += sy * (a[1] ?? 0); }
-    else if (m[1] === 'scale') { sx *= a[0]; sy *= a[1] ?? a[0]; }
+    const a = must(m[2]).split(/[\s,]+/).filter(Boolean).map(Number);
+    if (m[1] === 'translate') { tx += sx * must(a[0]); ty += sy * (a[1] ?? 0); }
+    else if (m[1] === 'scale') { sx *= must(a[0]); sy *= must(a[1] ?? a[0]); }
     else return null;
   }
   return p => ({x: p.x * sx + tx, y: p.y * sy + ty});
@@ -143,7 +143,7 @@ const unit = (v: Pt): Pt => { const l = Math.hypot(v.x, v.y) || 1; return {x: v.
 
 function dedupe(pts: Pt[]): Pt[] {
   const out: Pt[] = [];
-  for (const p of pts) if (!out.length || Math.hypot(p.x - out[out.length - 1].x, p.y - out[out.length - 1].y) > 1e-6) out.push(p);
+  for (const p of pts) if (!out.length || Math.hypot(p.x - must(out[out.length - 1]).x, p.y - must(out[out.length - 1]).y) > 1e-6) out.push(p);
   return out;
 }
 
@@ -191,7 +191,7 @@ function ribbon(raw: Pt[], hw: number, cap: string): Pt[] | null {
 /** A closed polyline's stroke: the outer ring and the inner ring, as one even-odd polygon. */
 function ringStroke(raw: Pt[], hw: number): Pt[] | null {
   const pts = dedupe(raw);
-  if (pts.length > 1 && Math.hypot(pts[0].x - pts[pts.length - 1].x, pts[0].y - pts[pts.length - 1].y) < 1e-6) pts.pop();
+  if (pts.length > 1 && Math.hypot(must(pts[0]).x - must(pts[pts.length - 1]).x, must(pts[0]).y - must(pts[pts.length - 1]).y) < 1e-6) pts.pop();
   if (pts.length < 3) return null;
   const m = pts.length, a: Pt[] = [], b: Pt[] = [];
   for (let i = 0; i < m; i++) {
@@ -259,7 +259,7 @@ function joined(subs: Pt[][]): Pt[] {
   const out: Pt[] = [];
   subs.forEach((s, k) => {
     out.push(...s, s[0]);
-    if (k > 0) out.push(subs[0][0]);
+    if (k > 0) out.push(must(subs[0])[0]);
   });
   return out;
 }
@@ -281,7 +281,7 @@ function parseMarkers(svg: string): Map<string, Marker> {
 }
 
 function arrowHead(mk: Marker, at: Pt, dir: Pt, sw: number): string {
-  const sx = mk.w / mk.vb[2] * (mk.userSpace ? 1 : sw), sy = mk.h / mk.vb[3] * (mk.userSpace ? 1 : sw);
+  const sx = mk.w / must(mk.vb[2]) * (mk.userSpace ? 1 : sw), sy = mk.h / must(mk.vb[3]) * (mk.userSpace ? 1 : sw);
   const pts = mk.sub.flatMap(s => s.pts).map(p => {
     const lx = (p.x - mk.refX) * sx, ly = (p.y - mk.refY) * sy;
     return {x: at.x + lx * dir.x - ly * dir.y, y: at.y + lx * dir.y + ly * dir.x};

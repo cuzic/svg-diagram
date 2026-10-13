@@ -8,6 +8,7 @@ import {niceNear} from './qc.ts';
 import type {IconGlyph} from './icon-store.ts';
 import type {ColorKey, Rect, RevealOpts, Roles, WidthOf, LabelRole} from './types.ts';
 
+import {must} from './must.ts';
 export type ChartKind = 'waterfall' | 'radar' | 'heatmap' | 'stacked' | 'treemap' | 'sankey' | 'tornado' | 'pert' | 'causal' | 'dependency';
 export type ChartTone = 'accent' | 'danger' | 'muted' | 'text';
 /** Options every chart has. */
@@ -75,7 +76,7 @@ export function niceScale(lo: number, hi: number, want = 5): {min: number; max: 
 /** Ticks thin enough for their labels: every k-th tick (counting from the one at zero, or the first) so that neighbours are `gap` apart. */
 export function thinTicks<T extends {v: number}>(ticks: T[], px: (v: number) => number, size: (t: T) => number, gap = 10): Set<T> {
   if (ticks.length < 2) return new Set(ticks);
-  const pitch = Math.abs(px(ticks[1].v) - px(ticks[0].v)), need = Math.max(...ticks.map(size)) + gap;
+  const pitch = Math.abs(px(must(ticks[1]).v) - px(must(ticks[0]).v)), need = Math.max(...ticks.map(size)) + gap;
   const k = Math.max(1, Math.ceil(need / Math.max(1, pitch))), zero = Math.max(0, ticks.findIndex(t => t.v === 0));
   return new Set(ticks.filter((_t, i) => ((i - zero) % k + k) % k === 0));
 }

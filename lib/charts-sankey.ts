@@ -85,7 +85,7 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
   const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
   const layer = layersOf(s), L = Math.max(...layer.values()) + 1;
   const cols: string[][] = Array.from({length: L}, () => []);
-  for (const n of s.nodes) cols[must(layer.get(n.id))].push(n.id);
+  for (const n of s.nodes) must(cols[must(layer.get(n.id))]).push(n.id);
   // order inside each layer: barycentre sweeps (towards the sinks, then back), keeping the given order for ties
   const pos = new Map<string, number>();
   cols.forEach(col => col.forEach((id, i) => pos.set(id, i)));
@@ -106,7 +106,7 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
   }
   // geometry: node width, layer pitch, label room on the right of the last layer
   const nodeW = 14, iconW = c.lineH() + 4, iconOf = (id: string) => must(s.nodes.find(n => n.id === id)).icon ? iconW : 0, nameOf = (id: string) => must(s.nodes.find(n => n.id === id));
-  const lastNatural = Math.max(...cols[L - 1].map(id => c.tw(`${nameOf(id).label} ${val(flowOf(s, id), s)}`, true) + iconOf(id)));
+  const lastNatural = Math.max(...must(cols[L - 1]).map(id => c.tw(`${nameOf(id).label} ${val(flowOf(s, id), s)}`, true) + iconOf(id)));
   const rightPad = Math.min(lastNatural, g.w * 0.24) + 14, leftPad = 4;
   const plotL = g.x + leftPad, plotR = g.x + g.w - rightPad;
   const step = L > 1 ? (plotR - nodeW - plotL) / (L - 1) : 0;

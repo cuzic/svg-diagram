@@ -3,6 +3,7 @@
 import {Canvas, checkIds, checkText, fail, finiteNum, niceScale, numText, thinTicks} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 
+import {must} from './must.ts';
 export interface TornadoItem {
   label: string;
   /** The result when this input is at its low value (not necessarily the lower result). */
@@ -71,7 +72,7 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
   const legendAt: {x: number; row: number}[] = [];
   { let lx = Math.min(plotL, g.x + g.w - itemW(s.lowLabel)), row = 0;
     for (const t of [s.lowLabel, s.highLabel]) { if (legendAt.length && lx + itemW(t) > g.x + g.w) { lx = Math.min(plotL, g.x + g.w - itemW(t)); row++; } legendAt.push({x: lx, row}); lx += itemW(t) + 22; } }
-  const legendRows = legendAt[legendAt.length - 1].row + 1;
+  const legendRows = must(legendAt[legendAt.length - 1]).row + 1;
   const headH = (S + 12) * (legendRows + 1) + 8, axisH = S + 16;
   const y0 = g.y + headH;
   c.h = g.height ?? Math.max(160, headH + rowH.reduce((a, b) => a + b, 0) + axisH + 4);
@@ -90,8 +91,8 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
   // rows
   let y = y0;
   s.items.forEach((it, k) => {
-    const cy = y + rowH[k] / 2, top = cy - barH / 2;
-    c.lines(wrapped[k], g.x + labelW - 10, cy - (wrapped[k].length - 1) * lineH / 2 + S * 0.36, 'end', 'text', {of: it.id ?? `#${k}`});
+    const cy = y + must(rowH[k]) / 2, top = cy - barH / 2;
+    c.lines(wrapped[k], g.x + labelW - 10, cy - (must(wrapped[k]).length - 1) * lineH / 2 + S * 0.36, 'end', 'text', {of: it.id ?? `#${k}`});
     const xb = xOf(s.base), same = sameSide(it);
     const bars = [{v: it.low, tone: s.lowTone, name: s.lowLabel}, {v: it.high, tone: s.highTone, name: s.highLabel}];
     const geom = bars.map((b, j) => {
@@ -108,7 +109,7 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
       const alt = right ? {x: x1 - 6, y: out.y, anchor: 'end' as const} : {x: x2 + 6, y: out.y, anchor: 'start' as const};
       if (!c.place(text, [out, alt], b.tone === 'muted' ? 'text' : b.tone, {bold: true, of: it.id ?? `#${k}`})) fail('tornado', `the value "${text}" of "${it.label}" has no room`);
     });
-    y += rowH[k];
+    y += must(rowH[k]);
   });
   // the base line over the bars, its name above
   const xb = r1(xOf(s.base));

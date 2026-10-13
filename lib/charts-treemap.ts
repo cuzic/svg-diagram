@@ -80,8 +80,8 @@ export function squarify(items: {n: TreemapNode; v: number}[], x: number, y: num
     const rs = row.reduce((a, b) => a + b, 0), thick = rs / side;
     let off = 0;
     for (let k = i; k < j; k++) {
-      const len = areas[k] / thick;
-      if (rw >= rh) out.push({n: list[k].n, v: list[k].v, x: rx, y: ry + off, w: thick, h: len}); else out.push({n: list[k].n, v: list[k].v, x: rx + off, y: ry, w: len, h: thick});
+      const len = must(areas[k]) / thick;
+      if (rw >= rh) out.push({n: must(list[k]).n, v: must(list[k]).v, x: rx, y: ry + off, w: thick, h: len}); else out.push({n: must(list[k]).n, v: must(list[k]).v, x: rx + off, y: ry, w: len, h: thick});
       off += len;
     }
     if (rw >= rh) { rx += thick; rw -= thick; } else { ry += thick; rh -= thick; }

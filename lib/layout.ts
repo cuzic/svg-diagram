@@ -31,6 +31,7 @@ import type {
 } from './types.ts';
 import {CONNECT_LABEL_SIZE, TAG_SIZE, withTones} from './tokens.ts';
 
+import {must} from './must.ts';
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
 export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
   const prev = setWrapMode(data.wrap ?? 'phrase');
@@ -88,11 +89,11 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
           grids.set(key, g);
           if (b.type === 'grouprow') { // (nested widths use the declared gap: the shared one is not known until every row has been seen)
             const {widths} = rowChildGeometry(b, cw);
-            b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, widths[i] - 2 * (c.pad ?? 16)); });
+            b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, must(widths[i]) - 2 * (c.pad ?? 16)); });
           }
         } else if (b.type === 'grouprow') {
           const {widths} = rowChildGeometry({...b, gap: gapForLabels(b as RowLike, cw)}, cw); // the same gap the real pass will use
-          b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, widths[i] - 2 * (c.pad ?? 16)); });
+          b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, must(widths[i]) - 2 * (c.pad ?? 16)); });
         }
       }
     };

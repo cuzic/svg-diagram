@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import tty from 'node:tty';
 
+import {must} from './must.ts';
 export interface TermInfo {
   /** DA1 attributes (4 = sixel). null when the terminal never answered. */
   da1: number[] | null;
@@ -24,7 +25,7 @@ export function parseReplies(raw: string): Omit<TermInfo, 'cols' | 'rows'> & {co
   const da1 = /\x1b\[\?([0-9;]*)c/.exec(raw);
   const ver = /\x1bP>\|([^\x1b]*)\x1b\\/.exec(raw);
   return {
-    da1: da1 ? da1[1].split(';').filter(Boolean).map(Number) : null,
+    da1: da1 ? must(da1[1]).split(';').filter(Boolean).map(Number) : null,
     windowPx: px(4), cellPx: px(6),
     version: ver ? ver[1] : null,
     complete: !!da1,

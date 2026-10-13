@@ -12,6 +12,7 @@ import {CONTRAST_THRESHOLD, dxdy, eachOverlap, labelOf, neverTogether, outsideBo
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import type {EmphasisTone, CheckRect, LaidOutBanner, LaidOutBox, LaidOutCaption, LaidOutDiagram, Rect} from './types.ts';
 
+import {must} from './must.ts';
 /** Where a band's findings go: `problems` fail the build, `warnings` never do. */
 export interface VerifyOut {problems: string[]; warnings: string[]}
 
@@ -50,7 +51,7 @@ const checkTimeline = (band: LaidOutOf<'timeline'>, _d: LaidOutDiagram, {problem
     if (outsideX(b, band)) problems.push(`timeline: label "${b.label}" runs outside the figure (shorten it or widen the figure)`);
     for (let j = i + 1; j < band.labelBoxes.length; j++) {
       const o = rectOverlap(b, band.labelBoxes[j]);
-      if (o) problems.push(`timeline: label "${b.label}" overlaps label "${band.labelBoxes[j].label}" by ${dxdy(o)}`);
+      if (o) problems.push(`timeline: label "${b.label}" overlaps label "${must(band.labelBoxes[j]).label}" by ${dxdy(o)}`);
     }
   }
 };
@@ -66,7 +67,7 @@ const checkStates = (band: LaidOutOf<'states'>, _d: LaidOutDiagram, {problems}: 
     });
     for (let j = i + 1; j < band.labels.length; j++) {
       const o = rectOverlap(l, band.labels[j]);
-      if (o) problems.push(`states: label "${l.text}" overlaps label "${band.labels[j].text}" by ${dxdy(o)}`);
+      if (o) problems.push(`states: label "${l.text}" overlaps label "${must(band.labels[j]).text}" by ${dxdy(o)}`);
     }
   }
 };
@@ -76,14 +77,14 @@ const checkGantt = (band: LaidOutOf<'gantt'>, _d: LaidOutDiagram, {problems}: Ve
   for (const d of band.deps) { // a dependency arrow must not run through the bar of a task it does not join
     for (const [k, bar] of band.bars.entries()) {
       if (k === d.from || k === d.to) continue;
-      if (routeHits(d.points, bar)) problems.push(`gantt: the arrow "${band.bars[d.from].label}" -> "${band.bars[d.to].label}" runs through the bar "${bar.label}" (reorder the rows, or drop the dependency)`);
+      if (routeHits(d.points, bar)) problems.push(`gantt: the arrow "${must(band.bars[d.from]).label}" -> "${must(band.bars[d.to]).label}" runs through the bar "${bar.label}" (reorder the rows, or drop the dependency)`);
     }
   }
   for (const [i, b] of band.labelBoxes.entries()) {
     if (outsideX(b, band)) problems.push(`gantt: label "${b.label}" runs outside the figure (shorten it or widen the figure)`);
     for (let j = i + 1; j < band.labelBoxes.length; j++) {
       const o = rectOverlap(b, band.labelBoxes[j]);
-      if (o) problems.push(`gantt: label "${b.label}" overlaps label "${band.labelBoxes[j].label}" by ${dxdy(o)}`);
+      if (o) problems.push(`gantt: label "${b.label}" overlaps label "${must(band.labelBoxes[j]).label}" by ${dxdy(o)}`);
     }
   }
 };
@@ -99,7 +100,7 @@ const checkClasses = (band: LaidOutOf<'classes'>, _d: LaidOutDiagram, {problems}
     });
     for (let j = i + 1; j < band.labels.length; j++) {
       const o = rectOverlap(l, band.labels[j]);
-      if (o) problems.push(`classes: label "${l.text}" overlaps label "${band.labels[j].text}" by ${dxdy(o)}`);
+      if (o) problems.push(`classes: label "${l.text}" overlaps label "${must(band.labels[j]).text}" by ${dxdy(o)}`);
     }
   }
 };
@@ -121,7 +122,7 @@ const checkBpmn = (band: LaidOutOf<'bpmn'>, _d: LaidOutDiagram, {problems}: Veri
     for (const n of band.anchors) if (rectOverlap(l, n)) problems.push(`bpmn: label "${l.text}" overlaps "${n.id}"`);
     for (let j = i + 1; j < band.labels.length; j++) {
       const o = rectOverlap(l, band.labels[j]);
-      if (o) problems.push(`bpmn: label "${l.text}" overlaps label "${band.labels[j].text}" by ${dxdy(o)}`);
+      if (o) problems.push(`bpmn: label "${l.text}" overlaps label "${must(band.labels[j]).text}" by ${dxdy(o)}`);
     }
   }
 };
@@ -165,10 +166,10 @@ const checkCause = (band: LaidOutOf<'cause'>, _d: LaidOutDiagram, {problems, war
   };
   const flagged = new Set<string>();
   for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
-    const a = band.edges[segs[i].k], b = band.edges[segs[j].k];
-    if (segs[i].k === segs[j].k || a.to !== b.to) continue;
+    const a = band.edges[must(segs[i]).k], b = band.edges[must(segs[j]).k];
+    if (must(segs[i]).k === must(segs[j]).k || a.to !== b.to) continue;
     const how = cross(segs[i], segs[j]) ? 'crosses' : together(segs[i], segs[j]) ? 'runs together with' : '';
-    const key = `${Math.min(segs[i].k, segs[j].k)}:${Math.max(segs[i].k, segs[j].k)}`;
+    const key = `${Math.min(must(segs[i]).k, must(segs[j]).k)}:${Math.max(must(segs[i]).k, must(segs[j]).k)}`;
     if (!how || flagged.has(key)) continue;
     flagged.add(key);
     // a crossing may be unavoidable (an AND's causes in different layers around an OR cause), and long arrows can share a run: warnings
@@ -183,7 +184,7 @@ const checkCloud = (band: LaidOutOf<'cloud'>, _d: LaidOutDiagram, {problems}: Ve
     if (outsideX(c, band)) problems.push(`cloud: the number "${c.text}" on the ${c.arrow} arrow runs outside the figure`);
     for (const n of band.nodes) if (rectOverlap(c, n)) problems.push(`cloud: the number "${c.text}" on the ${c.arrow} arrow overlaps box ${n.key.toUpperCase()} (fewer assumptions on one arrow, or a wider figure)`);
     for (const e of band.edges) if (e.arrow !== c.arrow && routeHits(e.points, c)) problems.push(`cloud: ${c.conflict ? 'the conflict label' : `the number "${c.text}"`} sits on the ${e.arrow} arrow (shorten it)`);
-    for (let j = i + 1; j < band.chips.length; j++) if (rectOverlap(c, band.chips[j])) problems.push(`cloud: ${c.conflict || band.chips[j].conflict ? 'the conflict label and the numbers' : `the numbers on the ${c.arrow} and ${band.chips[j].arrow} arrows`} overlap`);
+    for (let j = i + 1; j < band.chips.length; j++) if (rectOverlap(c, band.chips[j])) problems.push(`cloud: ${c.conflict || must(band.chips[j]).conflict ? 'the conflict label and the numbers' : `the numbers on the ${c.arrow} and ${must(band.chips[j]).arrow} arrows`} overlap`);
   }
 };
 
@@ -192,7 +193,7 @@ const checkBars = (band: LaidOutOf<'bars'>, _d: LaidOutDiagram, {problems}: Veri
     if (outsideBox(b, band)) problems.push(`bars: value label "${b.label}" runs outside the figure (raise width / height or shorten the unit)`);
   }
   // the reference lines, the cumulative line and its guide must not run through a label (the curve over a histogram may)
-  const segs = [...(band.ink?.lines ?? []).filter(l => !l.soft), ...(band.ink?.polylines ?? []).filter(l => !l.soft).flatMap(l => l.pts.slice(1).map((q, k) => ({x1: l.pts[k].x, y1: l.pts[k].y, x2: q.x, y2: q.y})))];
+  const segs = [...(band.ink?.lines ?? []).filter(l => !l.soft), ...(band.ink?.polylines ?? []).filter(l => !l.soft).flatMap(l => l.pts.slice(1).map((q, k) => ({x1: must(l.pts[k]).x, y1: must(l.pts[k]).y, x2: q.x, y2: q.y})))];
   for (const b of band.labelBoxes) {
     const hit = segs.find(sg => segHitsRect(sg, {x: b.x + 1, y: b.y + 2, w: b.w - 2, h: b.h - 4}));
     if (hit) problems.push(`bars: a reference line (a limit, a target, the guide or the cumulative line) runs through the label "${b.label}" (move the line, or hide the values with labels: 'category')`);
@@ -201,7 +202,7 @@ const checkBars = (band: LaidOutOf<'bars'>, _d: LaidOutDiagram, {problems}: Veri
     const [a, b] = [band.labelBoxes[i], band.labelBoxes[j]];
     if (a.bar !== undefined && b.bar !== undefined && neverTogether(band.bars[a.bar], band.bars[b.bar])) continue; // one replaces the other
     const o = rectOverlap(a, b);
-    if (o) problems.push(`bars: value label "${band.labelBoxes[i].label}" overlaps value label "${band.labelBoxes[j].label}" by ${dxdy(o)}`);
+    if (o) problems.push(`bars: value label "${must(band.labelBoxes[i]).label}" overlaps value label "${must(band.labelBoxes[j]).label}" by ${dxdy(o)}`);
   }
 };
 
@@ -227,9 +228,9 @@ const checkQuadrant = (band: LaidOutOf<'quadrant'>, _d: LaidOutDiagram, {problem
   // an item (its mark and its label) stays inside its own cell: one on a border reads as the other cell's
   const within = (r: Rect, c: Rect) => r.x >= c.x - 0.5 && r.y >= c.y - 0.5 && r.x + r.w <= c.x + c.w + 0.5 && r.y + r.h <= c.y + c.h + 0.5;
   bs.forEach(q => { if (!within({x: q.x - q.cr, y: q.y - q.cr, w: 2 * q.cr, h: 2 * q.cr}, band.cells[q.cell])) problems.push(`quadrant: item "${q.label}" crosses the border of its cell`); });
-  for (const b of boxes) if (b.kind === 'item' && b.item !== undefined && !within(b, band.cells[bs[b.item].cell])) problems.push(`quadrant: the label of "${b.label}" runs out of its cell`);
+  for (const b of boxes) if (b.kind === 'item' && b.item !== undefined && !within(b, band.cells[must(bs[b.item]).cell])) problems.push(`quadrant: the label of "${b.label}" runs out of its cell`);
   bs.forEach((q, i) => {
-    for (let j = i + 1; j < bs.length; j++) if (Math.hypot(q.x - bs[j].x, q.y - bs[j].y) < q.cr + bs[j].cr - 1) problems.push(`quadrant: item "${q.label}" overlaps item "${bs[j].label}" (move one, or give the cell more room)`);
+    for (let j = i + 1; j < bs.length; j++) if (Math.hypot(q.x - must(bs[j]).x, q.y - must(bs[j]).y) < q.cr + must(bs[j]).cr - 1) problems.push(`quadrant: item "${q.label}" overlaps item "${must(bs[j]).label}" (move one, or give the cell more room)`);
     for (const b of boxes) if (nearRect(q.x, q.y, q.cr, b)) problems.push(`quadrant: item "${q.label}" sits on the label "${b.label}"`);
     if (q.x - q.cr < band.plot.x - 0.5 || q.x + q.cr > band.plot.x + band.plot.w + 0.5 || q.y - q.cr < band.plot.y - 0.5 || q.y + q.cr > band.plot.y + band.plot.h + 0.5) problems.push(`quadrant: item "${q.label}" runs outside the plot`);
   });
@@ -297,7 +298,7 @@ function barsContrast(band: LaidOutOf<'bars'>, d: LaidOutDiagram): string[] {
   const luminance = lum(d), problems: string[] = [];
   for (const b of band.labelBoxes) {
     if (!b.background) continue;
-    const dim = b.bar !== undefined && band.bars[b.bar].dim; // a dimmed bar draws its label muted on bg (on the pale fill when spotlight dim is 'fill')
+    const dim = b.bar !== undefined && must(band.bars[b.bar]).dim; // a dimmed bar draws its label muted on bg (on the pale fill when spotlight dim is 'fill')
     const fg = dim ? PALETTE.muted : colorOf('bg', d.day), bg = dim ? (spotlightDim(d) === 'fill' ? PALETTE.border : PALETTE.bg) : colorOf(b.background, d.day);
     const delta = Math.abs(luminance(fg) - luminance(bg));
     if (delta < CONTRAST_THRESHOLD) problems.push(`bars: value label "${b.label}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);

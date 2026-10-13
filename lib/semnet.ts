@@ -66,12 +66,12 @@ export function semnetTexts(kind: 'pert' | 'causal' | 'dependency', spec: PertSp
 
 const r = (n: number): number => Math.round(n * 10) / 10;
 function arrow(c: Canvas, points: Pt[], o: {stroke: 'accent' | 'danger' | 'muted' | 'text'; sw?: number; dash?: string; of?: string}, mark = true): void {
-  for (let i = 1; i < points.length; i++) c.line(points[i - 1].x, points[i - 1].y, points[i].x, points[i].y, {...o, avoid: true});
+  for (let i = 1; i < points.length; i++) c.line(must(points[i - 1]).x, must(points[i - 1]).y, must(points[i]).x, must(points[i]).y, {...o, avoid: true});
   if (!mark || points.length < 2) return;
   const b = must(points.at(-1)), a = must(points.at(-2)), dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, px = -uy, py = ux, z = 7 + (o.sw ?? 2);
   c.path(`M${r(b.x)},${r(b.y)} L${r(b.x - ux * z + px * z * .55)},${r(b.y - uy * z + py * z * .55)} L${r(b.x - ux * z - px * z * .55)},${r(b.y - uy * z - py * z * .55)} Z`, {fill: o.stroke, of: o.of});
 }
-const edgeMid = (p: Pt[]): Pt => { const i = Math.max(0, Math.floor((p.length - 1) / 2)); return {x: (p[i].x + p[i + 1].x) / 2, y: (p[i].y + p[i + 1].y) / 2}; };
+const edgeMid = (p: Pt[]): Pt => { const i = Math.max(0, Math.floor((p.length - 1) / 2)); return {x: (must(p[i]).x + must(p[i + 1]).x) / 2, y: (must(p[i]).y + must(p[i + 1]).y) / 2}; };
 const pathOf = (paths: Map<number, Pt[]>, i: number, e: {from: string; to: string}, positions: Map<string, {x: number; y: number; w: number; h: number}>): Pt[] => {
   const routed = paths.get(i); if (routed) return routed;
   const n = must(positions.get(e.from)); // self loop (routeLayered deliberately leaves these to the caller)

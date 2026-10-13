@@ -1,6 +1,7 @@
 import {childrenOf, nestedBandsOf} from './band-children.ts';
 import type {Band, DiagramData, LaidOutBand, LaidOutDiagram, Rect} from './types.ts';
 
+import {must} from './must.ts';
 export function spotlightIds(d: Pick<DiagramData, 'spotlight'>): string[] {
   if (!d.spotlight) return [];
   const ids = typeof d.spotlight === 'string' ? d.spotlight : d.spotlight.ids;
@@ -91,7 +92,7 @@ function dimBand(b: LaidOutBand, focus: Rect[]): void {
     // the axis dims only when no bar is a target.
     if (focus.some(r => inside(b, r))) return;
     for (const x of b.bars) x.dim = !focus.some(r => inside(x, r));
-    for (const t of b.texts) if (t.bar !== undefined) t.dim = b.bars[t.bar].dim;
+    for (const t of b.texts) if (t.bar !== undefined) t.dim = must(b.bars[t.bar]).dim;
     b.dim = b.bars.every(x => x.dim);
   } else if (b.type === 'chart') {
     // the whole figure focused: nothing dims. Otherwise the elements that are targets stay lit and the others dim; none a target: the figure dims whole
@@ -129,7 +130,7 @@ export function applySpotlight(d: LaidOutDiagram): void {
   const ids = spotlightIds(d);
   if (!ids.length) return;
   const found = ids.map(id => targetRects(d, [id]));
-  const missing = ids.filter((_id, i) => !found[i].length);
+  const missing = ids.filter((_id, i) => !must(found[i]).length);
   if (missing.length) {
     // a node of a self-placing figure is an anchor for connect(), but the figure is dimmed or lit as a whole
     const figureOf = (id: string): LaidOutBand | undefined => d.laidOut.find(b => b.type !== 'bars' && b.type !== 'image' && 'anchors' in b && (b.anchors as {id: string}[]).some(a => a.id === id));

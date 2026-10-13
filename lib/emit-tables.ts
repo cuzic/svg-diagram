@@ -5,6 +5,7 @@ import {TBL, lineH} from './seq-table.ts';
 import {iconSvg} from './icon-svg.ts';
 import {snap4, escapeXml, emojiSpan, resolveTextColor, resolveLineColor, strokeLine, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
 
+import {must} from './must.ts';
 export function renderSequence(band: LaidOutSequence, day: Theme, roles: Roles): string {
   const parts: string[] = [];
   for (const h of band.heads) {
@@ -60,17 +61,17 @@ export function renderTable(band: LaidOutTable, day: Theme, roles: Roles): strin
     if (band.rowHeader && !row.header) parts.push(`<path d="${rrPath(band.x, row.y, band.colW[0], row.h, {tl: corners.tl, bl: corners.bl})}" fill="${PALETTE[day].soft}"/>`);
     if (i > 0 || titled) parts.push(`<path d="M${Math.round(band.x)},${Math.round(row.y)} H${Math.round(band.x + band.w)}" stroke="${PALETTE.border}" stroke-width="2"/>`);
   });
-  const y0 = band.rows[0].y, y1 = band.rows[last].y + band.rows[last].h;
+  const y0 = must(band.rows[0]).y, y1 = must(band.rows[last]).y + must(band.rows[last]).h;
   for (let i = 1; i < band.colX.length; i++) {
     parts.push(`<path d="M${Math.round(band.colX[i])},${Math.round(y0)} V${Math.round(y1)}" stroke="${PALETTE.border}" stroke-width="2"/>`);
   }
   const firstBody = band.rows.findIndex(r => !r.header);
   if (band.rowHeader && firstBody >= 0) {
-    parts.push(`<path d="M${Math.round(band.colX[1])},${Math.round(band.rows[firstBody].y)} V${Math.round(y1)}" stroke="${PALETTE.text}" stroke-width="3"/>`);
+    parts.push(`<path d="M${Math.round(band.colX[1])},${Math.round(must(band.rows[firstBody]).y)} V${Math.round(y1)}" stroke="${PALETTE.text}" stroke-width="3"/>`);
   }
   if (band.rowCurve?.points.length) {
     const c = band.rowCurve;
-    parts.push(`<path d="M${snap4(band.colX[1] + 8)},${snap4(c.midY)} H${snap4(band.x + band.w - 8)}" fill="none" stroke="${PALETTE.muted}" stroke-width="1.5" stroke-dasharray="4,4"/>`);
+    parts.push(`<path d="M${snap4(must(band.colX[1]) + 8)},${snap4(c.midY)} H${snap4(band.x + band.w - 8)}" fill="none" stroke="${PALETTE.muted}" stroke-width="1.5" stroke-dasharray="4,4"/>`);
     if (c.points.length > 1) parts.push(`<polyline points="${c.points.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' ')}" fill="none" stroke="${PALETTE[day].accent}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`);
     for (const p of c.points) { const x = snap4(p.x), y = snap4(p.y); parts.push(`<path d="M${x - 4},${y} A4,4 0 1 0 ${x + 4},${y} A4,4 0 1 0 ${x - 4},${y}" fill="${PALETTE.bg}" stroke="${PALETTE[day].accent}" stroke-width="2.5"/>`); }
   }

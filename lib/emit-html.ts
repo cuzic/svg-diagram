@@ -15,6 +15,7 @@ import {visibleAt} from './reveal.ts';
 import {BOX_PAD_X, BOX_PAD_Y} from './layout-util.ts';
 import type {LaidOutTable, LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutBanner, LaidOutCaption, LaidOutGroup, WrappedRun, Theme, Align, EmphasisTone, Rect, Span, Roles} from './types.ts';
 
+import {must} from './must.ts';
 // like SVG text, runs of white space are one space (XML white space only: U+3000 and NBSP are characters, not white space)
 const collapse = (s: string): string => s.replace(/[ \t\r\n]+/g, ' ');
 const esc = (s: string): string => collapse(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c] as string);
@@ -51,7 +52,7 @@ function textRuns(runs: WrappedRun[], o: {originX: number; originY: number; w: n
     const indent = run.indent ?? 0;
     const {ascent, descent} = metrics(run.size, run.weight, run.mono);
     run.lines.forEach((line, i) => {
-      const top = o.originY + run.lineYs[i] - ascent;
+      const top = o.originY + must(run.lineYs[i]) - ascent;
       const content = run.lineSpans ? spans(run.lineSpans[i], run, color, o.day, o.dim) : esc(line).trim();
       out.push(`<div class="sd-t${run.mono ? ' sd-m' : ''}" style="left:${px(o.originX + indent)};top:${px(top)};width:${px(o.w - indent)};text-align:${o.align};font-size:${run.size}px;font-weight:${run.weight};line-height:${ascent + descent}px;color:${color}">${content}</div>`);
     });
@@ -105,7 +106,7 @@ function table(b: LaidOutTable, day: Theme, roles: Roles): string {
 function tablePlain(b: LaidOutTable, day: Theme, roles: Roles): string {
   const R = 8, LH = 1.4;
   const first = b.rows[0];
-  const y0 = first.y, y1 = b.rows[b.rows.length - 1].y + b.rows[b.rows.length - 1].h;
+  const y0 = first.y, y1 = must(b.rows[b.rows.length - 1]).y + must(b.rows[b.rows.length - 1]).h;
   const firstBody = b.rows.findIndex(r => !r.header);
   const rule = `2px solid ${PALETTE.border}`;
   const cols = b.colW.map(w => `<col style="width:${px(w)}">`).join('');

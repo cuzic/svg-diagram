@@ -18,7 +18,7 @@ export const ringed = (band: LaidOutBox): boolean => !band.dim && isSolidTone(ba
 export function renderStepBadge(band: LaidOutBox, day: Theme): string {
   const titleRun = band.wrappedRuns[0];
   // the same padding the text and the icon use (a swimlane step has its own)
-  const px = band.padX ?? BOX_PAD_X, titleBaselineY = band.y + (band.padY ?? BOX_PAD_Y) + titleRun.lineYs[0];
+  const px = band.padX ?? BOX_PAD_X, titleBaselineY = band.y + (band.padY ?? BOX_PAD_Y) + must(titleRun.lineYs[0]);
   // a centred / right-aligned title: the badge goes just before its first line (titleW, from layout); else at the left edge, after a left icon
   const indent = titleRun.indent ?? 0, left = band.x + px + indent, right = band.x + band.w - px;
   const align = band.align ?? (band.iconAt === 'top' ? 'center' : 'left');

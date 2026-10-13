@@ -80,7 +80,7 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
   const items = s.series.map((x, i) => ({x, i, w: 34 + 8 + c.tw(x.label) + 24}));
   const rows: typeof items[] = [[]];
   let rw = 0;
-  for (const it of items) { if (rw + it.w - 24 > g.w && rows[rows.length - 1].length) { rows.push([]); rw = 0; } rows[rows.length - 1].push(it); rw += it.w; }
+  for (const it of items) { if (rw + it.w - 24 > g.w && must(rows[rows.length - 1]).length) { rows.push([]); rw = 0; } must(rows[rows.length - 1]).push(it); rw += it.w; }
   const legendH = rows.length * (lh + 6) + 8;
   const cx = g.x + g.w / 2, r1 = (v: number) => Math.round(v * 10) / 10;
   const ang = (i: number) => -Math.PI / 2 + 2 * Math.PI * i / n;
@@ -121,7 +121,7 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
     pts.forEach((p, i) => { const q = pts[(i + 1) % n]; c.segs.push({x1: p.x, y1: p.y, x2: q.x, y2: q.y}); });
     if (x.id) { const xs = pts.map(p => p.x), ys = pts.map(p => p.y); c.anchors.push({id: x.id, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)}); }
   });
-  s.series.forEach((x, k) => { const st = SERIES_STYLES[k]; for (const p of polys[k]) { c.path(markerPath(st.marker, p.x, p.y), {fill: 'bg', stroke: st.tone, sw: 2.5, of: x.id ?? `#${k}`}); c.marks.push({x: p.x - 7, y: p.y - 7, w: 14, h: 14}); } });
+  s.series.forEach((x, k) => { const st = SERIES_STYLES[k]; for (const p of must(polys[k])) { c.path(markerPath(st.marker, p.x, p.y), {fill: 'bg', stroke: st.tone, sw: 2.5, of: x.id ?? `#${k}`}); c.marks.push({x: p.x - 7, y: p.y - 7, w: 14, h: 14}); } });
   // axis names beyond the outer ring
   for (let i = 0; i < n; i++) { const q = nameAt(i, R, cy, labels[i]); c.lines(labels[i], q.x, q.base, q.anchor, 'text', {bold: true}); }
   // tick values: beside one spoke (right of it, or left on the left half), each beside its ring, or just above / below that when the
@@ -149,12 +149,12 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
   // value labels at the vertices (optional): outward first, then to the sides; one with no free place stays out of the drawing and in the description
   if (s.values) s.series.forEach((x, k) => {
     x.values.forEach((v, i) => {
-      const p = polys[k][i], text = `${numText(v)}${s.unit}`, cs = Math.cos(ang(i)), sn = Math.sin(ang(i));
+      const p = must(polys[k])[i], text = `${numText(v)}${s.unit}`, cs = Math.cos(ang(i)), sn = Math.sin(ang(i));
       const cands = [14, 22, 32].flatMap(d => [
         {x: p.x + cs * d, y: p.y + sn * d + (sn > 0.3 ? S * 0.9 : sn < -0.3 ? -2 : S * 0.36), anchor: (cs > 0.3 ? 'start' : cs < -0.3 ? 'end' : 'middle') as 'start' | 'middle' | 'end'},
         {x: p.x + 10, y: p.y - 10, anchor: 'start' as const}, {x: p.x - 10, y: p.y - 10, anchor: 'end' as const}, {x: p.x + 10, y: p.y + S + 8, anchor: 'start' as const}, {x: p.x - 10, y: p.y + S + 8, anchor: 'end' as const},
       ]);
-      if (!c.place(text, cands, SERIES_STYLES[k].tone === 'muted' ? 'text' : SERIES_STYLES[k].tone, {bold: true, of: x.id ?? `#${k}`})) c.omitted.push(`${x.label} ${s.axes[i]} ${text}`);
+      if (!c.place(text, cands, must(SERIES_STYLES[k]).tone === 'muted' ? 'text' : must(SERIES_STYLES[k]).tone, {bold: true, of: x.id ?? `#${k}`})) c.omitted.push(`${x.label} ${s.axes[i]} ${text}`);
     });
   });
   // legend

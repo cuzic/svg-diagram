@@ -4,6 +4,7 @@ import {markOf} from './qc-table.ts';
 import type {MatrixMark} from './qc-table.ts';
 import type {TableCellSpec, TableColumn, TableOpts, TableRow, TextTone} from './types.ts';
 
+import {must} from './must.ts';
 type CommonOpts = Pick<TableOpts, 'title' | 'width' | 'dense' | 'id' | 'reveal' | 'until'>;
 export interface SemanticTableParts {columns: TableColumn[]; rows: TableRow[]; opts: TableOpts}
 
@@ -114,7 +115,7 @@ const qfdMark = (m: MatrixMark, where: string) => {
 export function qfdScores(demands: readonly QfdDemand[], relations: readonly (readonly MatrixMark[])[], characteristicCount: number): QfdScores {
   const normalized = relations.map((r, i) => r.map((m, j) => qfdMark(m, `the relation of "${demands[i]?.label}" x characteristic ${j + 1}`)));
   const value = {best: 9, ok: 3, mid: 1, ng: 0} as const;
-  const raw = Array.from({length: characteristicCount}, (_, j) => normalized.reduce((sum, row, i) => sum + (row[j] ? value[row[j]] : 0) * demands[i].importance, 0));
+  const raw = Array.from({length: characteristicCount}, (_, j) => normalized.reduce((sum, row, i) => sum + (row[j] ? value[row[j]] : 0) * must(demands[i]).importance, 0));
   const total = raw.reduce((a, b) => a + b, 0);
   return {raw, relative: raw.map(v => total ? v * 100 / total : 0)};
 }
@@ -123,9 +124,9 @@ export function qfdParts(demands: readonly QfdDemand[], characteristics: readonl
   if (!characteristics.length) throw new Error('qfd(demands, characteristics, relations) needs at least one characteristic');
   if (relations.length !== demands.length) throw new Error(`qfd(): relations has ${relations.length} rows for ${demands.length} demands`);
   demands.forEach((d, i) => { if (!d.label?.trim()) throw new Error(`qfd(): demand ${i + 1} needs a label`); if (!(Number.isFinite(d.importance) && d.importance >= 0)) throw new Error(`qfd(): importance of "${d.label}" must be a number >= 0`); });
-  const marks = relations.map((r, i) => { if (r.length !== characteristics.length) throw new Error(`qfd(): demand "${demands[i].label}" has ${r.length} relations for ${characteristics.length} characteristics`); return r.map((m, j) => qfdMark(m, `the relation of "${demands[i].label}" x "${characteristics[j]}"`)); });
+  const marks = relations.map((r, i) => { if (r.length !== characteristics.length) throw new Error(`qfd(): demand "${must(demands[i]).label}" has ${r.length} relations for ${characteristics.length} characteristics`); return r.map((m, j) => qfdMark(m, `the relation of "${must(demands[i]).label}" x "${characteristics[j]}"`)); });
   const scores = qfdScores(demands, relations, characteristics.length), top = Math.max(...scores.raw), unique = top > 0 && scores.raw.filter(x => x === top).length === 1;
-  const rows: TableRow[] = demands.map((d, i) => [d.label, d.importance, ...marks[i].map(m => m ? {text: '', mark: m, align: 'center' as const} : {text: '', align: 'center' as const})]);
+  const rows: TableRow[] = demands.map((d, i) => [d.label, d.importance, ...must(marks[i]).map(m => m ? {text: '', mark: m, align: 'center' as const} : {text: '', align: 'center' as const})]);
   // the top score is bold + accent, not ◎: ◎ already means a strong (9) relation in this table
   rows.push({cells: ['得点', '', ...scores.raw.map((n): TableCellSpec => unique && n === top && opts.highlight !== false ? {text: String(n), bold: true, tone: 'accent', align: 'center'} : {text: String(n), align: 'center'})], tone: 'muted'});
   rows.push({cells: ['相対 %', '', ...scores.relative.map(n => ({text: n.toFixed(1), align: 'center' as const}))], tone: 'muted'});

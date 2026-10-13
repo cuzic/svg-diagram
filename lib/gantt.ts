@@ -12,8 +12,8 @@ const ROW_H = 32, BAR_H = 18, HEAD_H = 44, PAD = 8, LABEL_MAX = 0.4, MS_DAY = 86
 /** Drops repeated points and the middle point of three on a line. */
 const simplifyPts = (pts: Pt[]): Pt[] => {
   const o: Pt[] = [];
-  for (const p of pts) if (!o.length || Math.abs(o[o.length - 1].x - p.x) > 0.01 || Math.abs(o[o.length - 1].y - p.y) > 0.01) o.push(p);
-  return o.filter((p, i) => i === 0 || i === o.length - 1 || !((o[i - 1].x === p.x && p.x === o[i + 1].x) || (o[i - 1].y === p.y && p.y === o[i + 1].y)));
+  for (const p of pts) if (!o.length || Math.abs(must(o[o.length - 1]).x - p.x) > 0.01 || Math.abs(must(o[o.length - 1]).y - p.y) > 0.01) o.push(p);
+  return o.filter((p, i) => i === 0 || i === o.length - 1 || !((must(o[i - 1]).x === p.x && p.x === must(o[i + 1]).x) || (must(o[i - 1]).y === p.y && p.y === must(o[i + 1]).y)));
 };
 
 const isSection = (r: GanttRow): r is {section: string} => 'section' in r;

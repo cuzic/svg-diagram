@@ -57,7 +57,7 @@ function routePoints(band: ConnectBand, from: Point, to: Point, fromSide: string
   } else {
     pts = [from, to];
   }
-  return pts.filter((p, i) => i === 0 || p.x !== pts[i - 1].x || p.y !== pts[i - 1].y);
+  return pts.filter((p, i) => i === 0 || p.x !== must(pts[i - 1]).x || p.y !== must(pts[i - 1]).y);
 }
 
 // The path's ink as a list of thin segment rects rather than one bounding
@@ -65,7 +65,7 @@ function routePoints(band: ConnectBand, from: Point, to: Point, fromSide: string
 // boxes legitimately occupy.
 function pathSegments(points: Point[]): Rect[] {
   const segs: Rect[] = [];
-  for (let i = 0; i < points.length - 1; i++) segs.push(segRect(points[i].x, points[i].y, points[i + 1].x, points[i + 1].y));
+  for (let i = 0; i < points.length - 1; i++) segs.push(segRect(must(points[i]).x, must(points[i]).y, must(points[i + 1]).x, must(points[i + 1]).y));
   return segs;
 }
 

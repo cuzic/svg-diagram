@@ -175,7 +175,7 @@ export function glyphFromBody(body: string, box: {width?: number | string; heigh
   const side = Math.max(w, h);
   const vb: [number, number, number] = [(box.left ?? 0) - (side - w) / 2, (box.top ?? 0) - (side - h) / 2, side];
   const clean = sanitizeBody(body, what, opts.color === true, opts.lenient === true);
-  const only = clean.tags.length === 2 && clean.tags[0].name === 'path' ? clean.tags[0].attrs : undefined;
+  const only = clean.tags.length === 2 && must(clean.tags[0]).name === 'path' ? must(clean.tags[0]).attrs : undefined;
   if (only && [...only.keys()].every(k => k === 'd' || k === 'fill' || k === 'fill-rule' || k === 'clip-rule') && only.get('d') && only.get('fill') !== 'none' && !clean.fixed) {
     return {d: must(only.get('d')), vb, ...(only.get('fill-rule') === 'evenodd' ? {rule: 'evenodd' as const} : {})};
   }

@@ -30,6 +30,7 @@ import crypto from 'node:crypto';
 import type {DiagramSource} from './lib/types.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import {register} from 'node:module';
+import {must} from './lib/must.ts';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 register(`./lib/resolve-hook.${EXT}`, import.meta.url);
@@ -50,7 +51,7 @@ const vals = (n: string) => args.flatMap((a, i) => (a === n && args[i + 1] !== u
 // --docs takes the path after it, and every following .md file / directory too (`--docs A.md B.md dir`): those are documents, never sources
 const isDocArg = (a: string) => !a.startsWith('--') && (a.toLowerCase().endsWith('.md') || (fs.existsSync(a) && fs.statSync(a).isDirectory()));
 const docsArgIdx = new Set<number>();
-args.forEach((a, i) => { if (a === '--docs') for (let j = i + 1; j < args.length && (j === i + 1 ? args[j] !== undefined && !args[j].startsWith('--') : isDocArg(args[j])); j++) docsArgIdx.add(j); });
+args.forEach((a, i) => { if (a === '--docs') for (let j = i + 1; j < args.length && (j === i + 1 ? args[j] !== undefined && !must(args[j]).startsWith('--') : isDocArg(args[j])); j++) docsArgIdx.add(j); });
 const strict = flag('--strict'), verbose = flag('--verbose'), drift = flag('--drift'), rebuild = flag('--rebuild');
 const mapMode = flag('--map');
 if (mapMode && (!val('--docs') || (val('--format') ?? 'text') !== 'text')) { console.error('--map は --docs と一緒に、--format text で使う（表を標準出力に出す）'); process.exit(2); }
@@ -81,7 +82,7 @@ const sha = (f: string) => crypto.createHash('sha256').update(fs.readFileSync(f)
 function embedded(svgPath: string): DiagramSource | null {
   const m = fs.readFileSync(svgPath, 'utf8').match(/<metadata id="svg-diagram">([^<]*)<\/metadata>/);
   if (!m) return null;
-  try { return JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')); } catch { return null; }
+  try { return JSON.parse(must(m[1]).replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')); } catch { return null; }
 }
 function walkMd(dir: string, out: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, {withFileTypes: true})) {

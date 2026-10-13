@@ -7,11 +7,12 @@ import {PALETTE, colorOf, luminance, paintOf} from './tokens.ts';
 import type {LaidOutChart} from './charts.ts';
 import type {LaidOutDiagram} from './types.ts';
 
+import {must} from './must.ts';
 const CONTRAST = 70; // the threshold verify.ts and lint-svg.ts use
 const hexOf = (h: string): [number, number, number] => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const mix = (base: string, over: string, a: number): string => {
   const [b, o] = [hexOf(base), hexOf(over)];
-  return `#${b.map((v, i) => Math.round(v * (1 - a) + o[i] * a).toString(16).padStart(2, '0')).join('')}`;
+  return `#${b.map((v, i) => Math.round(v * (1 - a) + must(o[i]) * a).toString(16).padStart(2, '0')).join('')}`;
 };
 
 export function checkChart(band: LaidOutChart, d: LaidOutDiagram): string[] {
@@ -35,7 +36,7 @@ export function checkChart(band: LaidOutChart, d: LaidOutDiagram): string[] {
       if (delta < CONTRAST) problems.push(`${who}: label "${b.label}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST})`);
     }
   }
-  for (const [i, s] of band.solids.entries()) for (let j = i + 1; j < band.solids.length; j++) if (overlaps(s, band.solids[j])) problems.push(`${who}: ${s.label} overlaps ${band.solids[j].label}`);
+  for (const [i, s] of band.solids.entries()) for (let j = i + 1; j < band.solids.length; j++) if (overlaps(s, band.solids[j])) problems.push(`${who}: ${s.label} overlaps ${must(band.solids[j]).label}`);
   return problems;
 }
 

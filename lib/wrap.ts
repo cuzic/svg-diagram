@@ -51,7 +51,7 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
   let curWidth = 0;
   let hardBreakBeforeLast = false; // the last line starts after an explicit \n: its length is the author's
   // phrase mode: atom i continues atom i-1 when both sit in one katakana / kanji run (until such a unit is wider than a line: then it breaks per character)
-  const runGlue = atoms.map((a, i) => wrapMode === 'phrase' && i > 0 && scriptRun(a.text) !== '' && scriptRun(a.text) === scriptRun(atoms[i - 1].text));
+  const runGlue = atoms.map((a, i) => wrapMode === 'phrase' && i > 0 && scriptRun(a.text) !== '' && scriptRun(a.text) === scriptRun(must(atoms[i - 1]).text));
 
   for (let i = 0; i < atoms.length; i++) {
     const atom = atoms[i];
@@ -66,14 +66,14 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
 
     let unit = [atom];
     let j = i;
-    while (j + 1 < atoms.length && (atoms[j + 1].glue || runGlue[j + 1])) unit.push(atoms[++j]);
+    while (j + 1 < atoms.length && (must(atoms[j + 1]).glue || runGlue[j + 1])) unit.push(atoms[++j]);
     let w = unit.reduce((s, a) => s + atomWidth(a), 0);
     if (w > maxWidth && j > i) {
       // too long for any line: fall back to the characters (span-glued pieces still stay together)
       for (let k = i + 1; k <= j; k++) runGlue[k] = false;
       j = i;
       unit = [atom];
-      while (j + 1 < atoms.length && atoms[j + 1].glue) unit.push(atoms[++j]);
+      while (j + 1 < atoms.length && must(atoms[j + 1]).glue) unit.push(atoms[++j]);
       w = unit.reduce((s, a) => s + atomWidth(a), 0);
     }
     i = j;
@@ -107,12 +107,12 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
   // character at a line start or end, or make the last line wider than the line.)
   if (lines.length >= 2 && !hardBreakBeforeLast) {
     const last = lines[lines.length - 1], prev = lines[lines.length - 2];
-    const solo = last.length === 1 && [...last[0].text].length === 1 && !isWhitespace(last[0].text) && !last[0].glue;
+    const solo = last.length === 1 && [...must(last[0]).text].length === 1 && !isWhitespace(must(last[0]).text) && !must(last[0]).glue;
     if (solo) {
       let at = prev.length - 1;
-      while (at >= 0 && isWhitespace(prev[at].text)) at--;
+      while (at >= 0 && isWhitespace(must(prev[at]).text)) at--;
       const moved = prev[at];
-      if (moved && at >= 2 && !moved.glue && !prev[at + 1]?.glue && !runGlued.has(moved) && !CANNOT_END_LINE.has(prev[at - 1].text) && !CANNOT_START_LINE.has(moved.text)
+      if (moved && at >= 2 && !moved.glue && !prev[at + 1]?.glue && !runGlued.has(moved) && !CANNOT_END_LINE.has(must(prev[at - 1]).text) && !CANNOT_START_LINE.has(moved.text)
         && atomWidth(moved) + atomWidth(last[0]) <= maxWidth) {
         prev.length = at;            // drops the moved atom and the white space after it
         last.unshift(moved);

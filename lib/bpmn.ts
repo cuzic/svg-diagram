@@ -94,7 +94,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   const gap = flowRoom === null ? COL_GAP : Math.max(COL_GAP, widestFlow + flowRoom);
   const colX: number[] = [];
   colW.reduce((a, cw, i) => (colX[i] = a, a + cw + gap), x + LABEL_COL + gap / 2);
-  const total = colX[nLayers - 1] + colW[nLayers - 1] + gap / 2 - x;
+  const total = must(colX[nLayers - 1]) + must(colW[nLayers - 1]) + gap / 2 - x;
   if (total > w + 0.5) {
     if (!final) return null;
     throw new Error(`bpmn(): the figure is ${Math.ceil(total)}px wide but it has ${Math.round(w)}px (${band.fit === 'shrink' ? 'even shrunk; ' : "set fit: 'shrink', "}merge steps, shorten labels, or split the flow into two figures)`);
@@ -106,14 +106,14 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   for (const n of band.nodes) { const k = `${laneIdx.get(n.lane)}:${lay.layers.get(n.id)}`; stacks.set(k, [...(stacks.get(k) ?? []), n.id]); }
   const laneLines = band.lanes.map(l => wrapText(l.label, {maxWidth: LABEL_COL - 16, atomWidth: a => widthOf(a, B, 700, 'sans')}));
   const laneH = band.lanes.map((_, li) => {
-    let h = laneLines[li].length * lineH(B) + 2 * PAD_Y; // the lane's name must fit its row
+    let h = must(laneLines[li]).length * lineH(B) + 2 * PAD_Y; // the lane's name must fit its row
     for (const [k, list] of stacks) {
       if (!k.startsWith(`${li}:`)) continue;
       // a lone shape sits on the lane's centre line (so a flow between lone shapes is straight); its label hangs below
       if (list.length === 1) { const id = list[0], m = must(meas.get(id)), block = m.extent - m.h; h = Math.max(h, 2 * (m.h / 2 + block)); }
       else h = Math.max(h, list.reduce((s, id, i) => s + must(meas.get(id)).extent + (i ? 16 : 0), 0));
     }
-    return Math.max(88, h + 2 * PAD_Y, laneLines[li].length * lineH(B) + 2 * PAD_Y);
+    return Math.max(88, h + 2 * PAD_Y, must(laneLines[li]).length * lineH(B) + 2 * PAD_Y);
   });
   const laneTop: number[] = [];
   laneH.reduce((a, h, i) => (laneTop[i] = a, a + h), y);
@@ -124,7 +124,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   band.lanes.forEach((l, i) => {
     out.lanes.push({x, y: laneTop[i], w: width, h: laneH[i], labelW: LABEL_COL, tone: l.tone ?? 'plain'});
     const lines = laneLines[i];
-    const top = laneTop[i] + laneH[i] / 2 - (lines.length * lineH(B)) / 2;
+    const top = must(laneTop[i]) + must(laneH[i]) / 2 - (lines.length * lineH(B)) / 2;
     lines.forEach((ln, k) => out.texts.push({text: ln, x: x + LABEL_COL / 2, y: top + k * lineH(B) + B, size: B, bold: true, muted: false, anchor: 'middle'}));
   });
 
@@ -166,8 +166,8 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   const through = (pts: Pt[], skip: string[]): boolean => pts.slice(1).some((q, i) => [...rect].some(([id, r]) => !skip.includes(id) && hit(segBox(pts[i], q), r)));
   const simplify = (pts: Pt[]): Pt[] => {
     const o: Pt[] = [];
-    for (const p of pts) if (!o.length || Math.abs(o[o.length - 1].x - p.x) > 0.01 || Math.abs(o[o.length - 1].y - p.y) > 0.01) o.push(p);
-    return o.filter((p, i) => i === 0 || i === o.length - 1 || !((o[i - 1].x === p.x && p.x === o[i + 1].x) || (o[i - 1].y === p.y && p.y === o[i + 1].y)));
+    for (const p of pts) if (!o.length || Math.abs(must(o[o.length - 1]).x - p.x) > 0.01 || Math.abs(must(o[o.length - 1]).y - p.y) > 0.01) o.push(p);
+    return o.filter((p, i) => i === 0 || i === o.length - 1 || !((must(o[i - 1]).x === p.x && p.x === must(o[i + 1]).x) || (must(o[i - 1]).y === p.y && p.y === must(o[i + 1]).y)));
   };
   const lane = (id: string): number => must(laneIdx.get(must(band.nodes.find(n => n.id === id)).lane));
   const colOf = (id: string): number => must(lay.layers.get(id));
@@ -189,8 +189,8 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
       pts = simplify(pts);
       if (through(pts, [f.from, f.to])) { // something stands in the way: run along a lane's edge, turning in a gap between columns
         const cf = colOf(f.from), ct = colOf(f.to), start = {x: A.x + A.w, y: ca.y};
-        const channels = [laneTop[lane(f.to)] + 8, laneTop[lane(f.to)] + laneH[lane(f.to)] - 8, laneTop[lane(f.from)] + 8, laneTop[lane(f.from)] + laneH[lane(f.from)] - 8];
-        const outs = [A.x + A.w + STUB, colX[cf] + colW[cf] + gap / 2], ins = [Bx.x - STUB, colX[ct] - gap / 2];
+        const channels = [must(laneTop[lane(f.to)]) + 8, must(laneTop[lane(f.to)]) + must(laneH[lane(f.to)]) - 8, must(laneTop[lane(f.from)]) + 8, must(laneTop[lane(f.from)]) + must(laneH[lane(f.from)]) - 8];
+        const outs = [A.x + A.w + STUB, must(colX[cf]) + must(colW[cf]) + gap / 2], ins = [Bx.x - STUB, must(colX[ct]) - gap / 2];
         const tries = channels.flatMap(ch => outs.flatMap(xo => ins.map(xi => simplify([start, {x: xo, y: ca.y}, {x: xo, y: ch}, {x: xi, y: ch}, {x: xi, y: cb.y}, end]))));
         pts = tries.find(t => !through(t, [f.from, f.to])) ?? tries[0];
       }
@@ -214,7 +214,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
       const near: Pt[] = self ? [{x: A.x + A.w + 26 + lw / 2, y: ca.y}, {x: A.x + A.w + 26 + lw / 2, y: ca.y - 24}]
         : horiz ? [{x: p0.x + 8 + (Math.abs(p1.x - p0.x) - 8) / 2, y: p0.y - 14}, {x: (p0.x + pn.x) / 2, y: p0.y - 14}, {x: p0.x + 8 + (Math.abs(p1.x - p0.x) - 8) / 2, y: p0.y + 14}]
         : [{x: p0.x + 40, y: p1.y > p0.y ? p0.y + 18 : p0.y - 18}, {x: p0.x - 40, y: p1.y > p0.y ? p0.y + 18 : p0.y - 18}, {x: p0.x + 30, y: (p0.y + p1.y) / 2}];
-      const more = pts.slice(1).flatMap((q, i) => { const m = {x: (pts[i].x + q.x) / 2, y: (pts[i].y + q.y) / 2}; return [[0, -16], [0, 16], [lw / 2 + 8, 0], [-(lw / 2 + 8), 0], [lw / 2 + 8, -16], [-(lw / 2 + 8), 16]].map(([ox, oy]) => ({x: m.x + ox, y: m.y + oy})); });
+      const more = pts.slice(1).flatMap((q, i) => { const m = {x: (must(pts[i]).x + q.x) / 2, y: (must(pts[i]).y + q.y) / 2}; return [[0, -16], [0, 16], [lw / 2 + 8, 0], [-(lw / 2 + 8), 0], [lw / 2 + 8, -16], [-(lw / 2 + 8), 16]].map(([ox, oy]) => ({x: m.x + ox, y: m.y + oy})); });
       chip(own, must(f.label), [...near, ...more]);
     });
   });

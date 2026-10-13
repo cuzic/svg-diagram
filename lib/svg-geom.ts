@@ -43,8 +43,8 @@ export function flattenPath(d: string): {pts: Point[]; closed: boolean; extrema:
     must(cur).extrema.push(...curveExtrema(pts));
     for (let k = 1; k <= n; k++) {
       const t = k / n, u = 1 - t;
-      if (pts.length === 4) line(u ** 3 * pts[0][0] + 3 * u * u * t * pts[1][0] + 3 * u * t * t * pts[2][0] + t ** 3 * pts[3][0], u ** 3 * pts[0][1] + 3 * u * u * t * pts[1][1] + 3 * u * t * t * pts[2][1] + t ** 3 * pts[3][1]);
-      else line(u * u * pts[0][0] + 2 * u * t * pts[1][0] + t * t * pts[2][0], u * u * pts[0][1] + 2 * u * t * pts[1][1] + t * t * pts[2][1]);
+      if (pts.length === 4) line(u ** 3 * must(pts[0])[0] + 3 * u * u * t * must(pts[1])[0] + 3 * u * t * t * must(pts[2])[0] + t ** 3 * must(pts[3])[0], u ** 3 * must(pts[0])[1] + 3 * u * u * t * must(pts[1])[1] + 3 * u * t * t * must(pts[2])[1] + t ** 3 * must(pts[3])[1]);
+      else line(u * u * must(pts[0])[0] + 2 * u * t * must(pts[1])[0] + t * t * must(pts[2])[0], u * u * must(pts[0])[1] + 2 * u * t * must(pts[1])[1] + t * t * must(pts[2])[1]);
     }
   };
   while (true) {
@@ -60,10 +60,10 @@ export function flattenPath(d: string): {pts: Point[]; closed: boolean; extrema:
       case 'L': { x = ox + num(); y = oy + num(); line(x, y); break; }
       case 'H': { x = ox + num(); line(x, y); break; }
       case 'V': { y = oy + num(); line(x, y); break; }
-      case 'C': { const p: Point[] = [[x, y], [ox + num(), oy + num()], [ox + num(), oy + num()], [ox + num(), oy + num()]]; bez(p, 24); x = p[3][0]; y = p[3][1]; cx = p[2][0]; cy = p[2][1]; break; }
-      case 'S': { const c1: Point = /[CcSs]/.test(prev) ? [2 * x - cx, 2 * y - cy] : [x, y]; const p: Point[] = [[x, y], c1, [ox + num(), oy + num()], [ox + num(), oy + num()]]; bez(p, 24); x = p[3][0]; y = p[3][1]; cx = p[2][0]; cy = p[2][1]; break; }
-      case 'Q': { const p: Point[] = [[x, y], [ox + num(), oy + num()], [ox + num(), oy + num()]]; bez(p, 16); x = p[2][0]; y = p[2][1]; cx = p[1][0]; cy = p[1][1]; break; }
-      case 'T': { const c1: Point = /[QqTt]/.test(prev) ? [2 * x - cx, 2 * y - cy] : [x, y]; const p: Point[] = [[x, y], c1, [ox + num(), oy + num()]]; bez(p, 16); x = p[2][0]; y = p[2][1]; cx = c1[0]; cy = c1[1]; break; }
+      case 'C': { const p: Point[] = [[x, y], [ox + num(), oy + num()], [ox + num(), oy + num()], [ox + num(), oy + num()]]; bez(p, 24); x = must(p[3])[0]; y = must(p[3])[1]; cx = must(p[2])[0]; cy = must(p[2])[1]; break; }
+      case 'S': { const c1: Point = /[CcSs]/.test(prev) ? [2 * x - cx, 2 * y - cy] : [x, y]; const p: Point[] = [[x, y], c1, [ox + num(), oy + num()], [ox + num(), oy + num()]]; bez(p, 24); x = must(p[3])[0]; y = must(p[3])[1]; cx = must(p[2])[0]; cy = must(p[2])[1]; break; }
+      case 'Q': { const p: Point[] = [[x, y], [ox + num(), oy + num()], [ox + num(), oy + num()]]; bez(p, 16); x = must(p[2])[0]; y = must(p[2])[1]; cx = must(p[1])[0]; cy = must(p[1])[1]; break; }
+      case 'T': { const c1: Point = /[QqTt]/.test(prev) ? [2 * x - cx, 2 * y - cy] : [x, y]; const p: Point[] = [[x, y], c1, [ox + num(), oy + num()]]; bez(p, 16); x = must(p[2])[0]; y = must(p[2])[1]; cx = c1[0]; cy = c1[1]; break; }
       case 'A': {
         let rx = Math.abs(num()), ry = Math.abs(num()); const phi = num() * Math.PI / 180, fa = flag(), fs = flag();
         const x2 = ox + num(), y2 = oy + num();
@@ -104,19 +104,19 @@ function curveExtrema(p: Point[]): Point[] {
   const at = (t: number): Point => {
     const u = 1 - t;
     return p.length === 4
-      ? [u ** 3 * p[0][0] + 3 * u * u * t * p[1][0] + 3 * u * t * t * p[2][0] + t ** 3 * p[3][0], u ** 3 * p[0][1] + 3 * u * u * t * p[1][1] + 3 * u * t * t * p[2][1] + t ** 3 * p[3][1]]
-      : [u * u * p[0][0] + 2 * u * t * p[1][0] + t * t * p[2][0], u * u * p[0][1] + 2 * u * t * p[1][1] + t * t * p[2][1]];
+      ? [u ** 3 * must(p[0])[0] + 3 * u * u * t * must(p[1])[0] + 3 * u * t * t * must(p[2])[0] + t ** 3 * must(p[3])[0], u ** 3 * must(p[0])[1] + 3 * u * u * t * must(p[1])[1] + 3 * u * t * t * must(p[2])[1] + t ** 3 * must(p[3])[1]]
+      : [u * u * must(p[0])[0] + 2 * u * t * must(p[1])[0] + t * t * must(p[2])[0], u * u * must(p[0])[1] + 2 * u * t * must(p[1])[1] + t * t * must(p[2])[1]];
   };
   const ts: number[] = [];
   for (const axis of [0, 1]) {
     const v = p.map(q => q[axis]);
     if (p.length === 4) {
-      const A = v[3] - 3 * v[2] + 3 * v[1] - v[0], B = 2 * (v[2] - 2 * v[1] + v[0]), C = v[1] - v[0];
+      const A = must(v[3]) - 3 * must(v[2]) + 3 * must(v[1]) - must(v[0]), B = 2 * (must(v[2]) - 2 * must(v[1]) + must(v[0])), C = must(v[1]) - must(v[0]);
       if (Math.abs(A) < 1e-12) { if (Math.abs(B) > 1e-12) ts.push(-C / B); }
       else { const disc = B * B - 4 * A * C; if (disc >= 0) { ts.push((-B + Math.sqrt(disc)) / (2 * A), (-B - Math.sqrt(disc)) / (2 * A)); } }
     } else {
-      const den = v[0] - 2 * v[1] + v[2];
-      if (Math.abs(den) > 1e-12) ts.push((v[0] - v[1]) / den);
+      const den = must(v[0]) - 2 * must(v[1]) + must(v[2]);
+      if (Math.abs(den) > 1e-12) ts.push((must(v[0]) - must(v[1])) / den);
     }
   }
   return ts.filter(t => t > 0 && t < 1).map(at);
@@ -180,7 +180,7 @@ export function sampleAlong(polyline: Point[], step: number): Point[] {
 
 /** The font family kind a CSS font-family list resolves to for measuring. */
 export function familyKind(fontFamily: string): FontFamily {
-  const first = fontFamily.split(',')[0].trim().replace(/^['"]|['"]$/g, '').toLowerCase();
+  const first = must(fontFamily.split(',')[0]).trim().replace(/^['"]|['"]$/g, '').toLowerCase();
   const names = (k: FontFamily) => FONT_STACKS[k].split(',').map(s => s.trim().replace(/^['"]|['"]$/g, '').toLowerCase());
   if (names('emoji').includes(first) && first !== 'sans-serif') return 'emoji';
   if (names('mono').includes(first) || first === 'monospace') return 'mono';
@@ -227,10 +227,10 @@ export function placeRuns(text: El, styles: Map<El, Style>, specs?: FontSpecs): 
   };
   walk(text);
   if (!keep) for (let k = chunks.length - 1; k >= 0; k--) { // the whole text's trailing space is dropped
-    const rs = chunks[k].runs;
+    const rs = must(chunks[k]).runs;
     if (!rs.length) continue;
-    rs[rs.length - 1].s = rs[rs.length - 1].s.replace(/ $/, '');
-    if (rs[rs.length - 1].s) break;
+    must(rs[rs.length - 1]).s = must(rs[rs.length - 1]).s.replace(/ $/, '');
+    if (must(rs[rs.length - 1]).s) break;
     rs.pop();
   }
   const placed: PlacedRun[] = [];

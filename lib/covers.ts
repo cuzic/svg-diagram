@@ -7,6 +7,7 @@
 
 import {parseXml, elements, textOf} from './svg-dom.ts';
 
+import {must} from './must.ts';
 export interface Cell {text: string; line: number}
 export interface Uncovered {cell: Cell; missing: string[]}
 
@@ -78,9 +79,9 @@ function mdRows(text: string): {row: string[]; line: number}[] {
   for (let i = 0; i < lines.length; i++) {
     if (FENCE.test(lines[i])) { fence = !fence; continue; }
     // a header needs a pipe and a rule with as many columns ("Title\n---" is a heading, not a table)
-    if (fence || !lines[i].includes('|') || !DELIM.test(lines[i + 1] ?? '') || mdRow(lines[i + 1]).length !== mdRow(lines[i]).length) continue;
+    if (fence || !must(lines[i]).includes('|') || !DELIM.test(lines[i + 1] ?? '') || mdRow(lines[i + 1]).length !== mdRow(lines[i]).length) continue;
     rows.push({row: mdRow(lines[i]), line: i + 1});
-    for (i += 2; i < lines.length && lines[i].trim() && lines[i].includes('|') && !FENCE.test(lines[i]); i++) rows.push({row: mdRow(lines[i]), line: i + 1});
+    for (i += 2; i < lines.length && must(lines[i]).trim() && must(lines[i]).includes('|') && !FENCE.test(lines[i]); i++) rows.push({row: mdRow(lines[i]), line: i + 1});
     i--;
   }
   return rows;

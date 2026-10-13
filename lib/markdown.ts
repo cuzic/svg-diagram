@@ -104,16 +104,16 @@ export async function expandMarkdown(text: string, opts: ExpandOptions): Promise
     // a fence opens and closes inside quotes and list items; outside them only with 0-3 spaces of indent, and a backtick fence's info has no backtick
     const m = /^([ \t>]*)(?:(?:[-*+]|\d+[.)])[ \t]+)?(`{3,}|~{3,})/.exec(ln);
     const nested = !!m && /[>\-*+\d]/.test(m[0].replace(m[2], '')) || inList;
-    const isFence = !!m && (nested || m[1].replace(/\t/g, '    ').length < 4);
-    if (fence) { if (isFence && must(m)[2][0] === fence[0] && must(m)[2].length >= fence.length && !ln.slice(must(m)[0].length).trim()) { fence = undefined; afterBlock = true; } continue; }
+    const isFence = !!m && (nested || must(m[1]).replace(/\t/g, '    ').length < 4);
+    if (fence) { if (isFence && must(must(m)[2])[0] === fence[0] && must(must(m)[2]).length >= fence.length && !ln.slice(must(m)[0].length).trim()) { fence = undefined; afterBlock = true; } continue; }
     if (comment) { if (ln.includes('-->')) comment = false; continue; }
-    if (isFence && !(must(m)[2][0] === '`' && ln.slice(must(m)[0].length).includes('`'))) { fence = must(m)[2]; continue; }
+    if (isFence && !(must(must(m)[2])[0] === '`' && ln.slice(must(m)[0].length).includes('`'))) { fence = must(m)[2]; continue; }
     if (/^\s*(?:[-*+]|\d+[.)])[ \t]/.test(ln)) inList = true;
     else if (ln.trim() && !/^\s/.test(ln)) inList = false;
     const indented = /^( {4,}|\t)/.test(ln);
     const wasBlock = afterBlock;
     afterBlock = /^ {0,3}#{1,6}(\s|$)/.test(ln);
-    if (indented && !inList && (i === 0 || !lines[i - 1].trim() || /^( {4,}|\t)/.test(lines[i - 1]) || wasBlock)) continue;
+    if (indented && !inList && (i === 0 || !must(lines[i - 1]).trim() || /^( {4,}|\t)/.test(lines[i - 1]) || wasBlock)) continue;
     let masked = maskCode(ln);
     const cut = masked.indexOf('<!--'); // a comment that opens here and ends on a later line
     if (cut >= 0) { comment = true; masked = masked.slice(0, cut); }

@@ -33,7 +33,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
   const styles = computeStyles(root);
 
   const vbm = /^\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*$/.exec(root.attrs['viewBox'] ?? '');
-  const vb = vbm ? {x: +vbm[1], y: +vbm[2], w: +vbm[3], h: +vbm[4]} : null;
+  const vb = vbm ? {x: +must(vbm[1]), y: +must(vbm[2]), w: +must(vbm[3]), h: +must(vbm[4])} : null;
   const attrPx = (n: string) => { const m = /^\s*([\d.]+)(px)?\s*$/.exec(root.attrs[n] ?? ''); return m ? parseFloat(m[1]) : 0; };
   const W = vb?.w || attrPx('width'), H = vb?.h || attrPx('height');
   // the viewBox → viewport mapping (preserveAspectRatio "xMidYMid meet"): the identity when the two sizes agree
@@ -106,11 +106,11 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
   const labelled = items.filter(i => i.tag === 'text' && i.screen && i.screen.w && i.screen.h && textOf(i.el).trim())
     .map(i => ({txt: textOf(i.el).trim().slice(0, 30), bb: must(i.screen)}));
   for (let i = 0; i < labelled.length; i++) for (let j = i + 1; j < labelled.length; j++) {
-    const a = labelled[i].bb, b = labelled[j].bb;
+    const a = must(labelled[i]).bb, b = must(labelled[j]).bb;
     const ix = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), iy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
     if (ix <= 0 || iy <= 0) continue;
     const ratio = (ix * iy) / Math.min(a.w * a.h, b.w * b.h);
-    if (ratio > 0.3) result.textOverlap.push({a: labelled[i].txt, b: labelled[j].txt, ratio: fixed(ratio, 2)});
+    if (ratio > 0.3) result.textOverlap.push({a: must(labelled[i]).txt, b: must(labelled[j]).txt, ratio: fixed(ratio, 2)});
   }
 
   // 4. text out of the smallest box that holds its centre (rects, and badge groups as one box)

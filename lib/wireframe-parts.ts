@@ -409,7 +409,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
     drawCamera(ctx, x, y, w, hh);
     if (n.kind === 'map') { for (let k = 1; k < 4; k++) line(ctx, x + w * k / 4, y + 8, x + w * k / 4, y + hh - 8, {stroke: 'border', sw: 1.5}); }
     for (const d of n.diff ?? []) rect(ctx, x + w * d.x, y + hh * d.y, w * d.w, hh * d.h, {r: 4, stroke: 'danger', sw: 2.5, dash: '6,4'});
-    if (n.diff?.length) part(ctx, n, 'diff', x + w * n.diff[0].x, y + hh * n.diff[0].y);
+    if (n.diff?.length) part(ctx, n, 'diff', x + w * must(n.diff[0]).x, y + hh * must(n.diff[0]).y);
     line(ctx, sx, y, sx, y + hh, {stroke: 'text', sw: 3});
     circle(ctx, sx, y + hh / 2, 14, {fill: 'bg', stroke: 'text', sw: 2.5});
     path(ctx, pts([[sx - 3, y + hh / 2 - 6], [sx - 9, y + hh / 2], [sx - 3, y + hh / 2 + 6]]), {stroke: 'text', sw: 2});

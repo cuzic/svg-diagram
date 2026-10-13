@@ -23,7 +23,7 @@ const BOOLEAN = new Set(['color', 'accept-terms', 'all', 'list', 'skip-missing']
 const flags = new Map<string, string>();
 const args: string[] = [];
 for (let i = 0; i < rest.length; i++) {
-  if (rest[i].startsWith('--')) flags.set(rest[i].slice(2), BOOLEAN.has(rest[i].slice(2)) ? '1' : rest[++i] ?? '');
+  if (must(rest[i]).startsWith('--')) flags.set(must(rest[i]).slice(2), BOOLEAN.has(must(rest[i]).slice(2)) ? '1' : rest[++i] ?? '');
   else args.push(rest[i]);
 }
 const usage = () => { console.error(['usage: svg-diagram icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX] [--color] [--skip-missing]', '       svg-diagram icons sets                      (list the recommended sets)', '       svg-diagram icons add-set <accounting|office|infra> [--allow-license SPDX] [--color]', '       svg-diagram icons remove <name>...', '       svg-diagram icons list [regex]', '       svg-diagram icons search <word> [--set mdi] [--limit N]', '       svg-diagram icons find <word>... [--style fill|line|color] [--set mdi,lucide] [--limit N] [--color] [--png sheet.png]', '       svg-diagram icons main [set|-]', '       svg-diagram icons add-pack <dir|vendor.zip> --prefix aws --terms <url> --accept-terms [--match REGEX] [--exclude REGEX] [--all] [--list]', '       svg-diagram icons notice'].join('\n')); process.exit(2); };
@@ -67,7 +67,7 @@ try {
       const m = readManifest(file);
       const names = Object.keys(m.icons).filter(n => !args[0] || new RegExp(args[0], 'i').test(n));
       if (!names.length) console.log(`インストール済みのアイコンは無い（${file}）。svg-diagram icons add mdi:key-variant=key`);
-      for (const n of names) console.log(`${n.padEnd(20)} ${m.icons[n].from.padEnd(34)} ${m.icons[n].license}${m.icons[n].fixed ? '  【固定色】' : ''}`);
+      for (const n of names) console.log(`${n.padEnd(20)} ${must(m.icons[n]).from.padEnd(34)} ${must(m.icons[n]).license}${must(m.icons[n]).fixed ? '  【固定色】' : ''}`);
       break;
     }
     case 'search': {

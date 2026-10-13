@@ -32,15 +32,15 @@ const FIG = '図\\s*(\\d+)\\s*[-－ー−‐]\\s*(\\d+)';
 // a caption is 図N-M in the alt text, or at the start of the nearest non-blank line before/after the image (a mention inside a sentence is a reference, not a caption)
 function captionOf(lines: string[], i: number, alt: string): DocCaption | undefined {
   const a = new RegExp(FIG).exec(alt);
-  if (a) return {ch: +a[1], no: +a[2], line: i + 1};
+  if (a) return {ch: +must(a[1]), no: +must(a[2]), line: i + 1};
   // 図N-M then a separator (space, colon, closing mark): "図3-1と同じく…" starts a sentence, it is not a caption
   const at = (j: number): DocCaption | undefined => {
     const m = new RegExp(`^[\\s*_>]*${FIG}(?=$|[\\s:：.．、。*_)）\\]】」])`).exec(lines[j]);
-    return m ? {ch: +m[1], no: +m[2], line: j + 1} : undefined;
+    return m ? {ch: +must(m[1]), no: +must(m[2]), line: j + 1} : undefined;
   };
   const near = (from: number, dir: number): number => {
     let j = from + dir;
-    while (j >= 0 && j < lines.length && lines[j].trim() === '') j += dir;
+    while (j >= 0 && j < lines.length && must(lines[j]).trim() === '') j += dir;
     return j >= 0 && j < lines.length ? j : -1;
   };
   const isImg = (j: number) => j >= 0 && new RegExp(IMG.source).test(lines[j]);
@@ -58,7 +58,7 @@ function listAfter(lines: string[], i: number): DocNoteItem[] {
     const l = lines[j];
     if (/^#{1,6}\s/.test(l) || new RegExp(IMG.source).test(l)) break;
     const m = /^\s*(\d+)\.\s+(.*)$/.exec(l);
-    if (m) { items.push({n: +m[1], ...parseItem(m[2])}); continue; }
+    if (m) { items.push({n: +must(m[1]), ...parseItem(m[2])}); continue; }
     if (!items.length) continue;                       // still looking for the list ("図中の番号に対応する注釈：")
     if (l.trim() === '') { if (!/^\s*\d+\.\s/.test(lines.slice(j + 1).find(x => x.trim()) ?? '')) break; continue; }
     if (!/^\s{2,}\S/.test(l)) break;                   // a line that is not part of the item ends the list
@@ -105,7 +105,7 @@ export function formatNotes(notes: WfNote[]): string {
 // the chapter number a file name carries: "03-intro.md", "ch3.md", "chapter-03_x.md" -> 3
 export function chapterOf(file: string): number | null {
   const m = /^(?:ch(?:apter)?[-_]?)?0*(\d{1,3})(?!\d)/i.exec(file.replace(/^.*[\\/]/, ''));
-  return m ? +m[1] : null;
+  return m ? +must(m[1]) : null;
 }
 
 const PLACEHOLDER_ALT = /^(image|img|diagram|figure|fig\d*|picture|図|画像|図表|図解)$/i;
@@ -140,8 +140,8 @@ export function checkFigures(text: string, figs: DocImage[], chapter: number | n
       if (/^\s*(```|~~~)/.test(ln)) { fence = !fence; return; }
       if (fence || capLines.has(k + 1)) return;
       for (const m of ln.replace(/`[^`]*`/g, '').matchAll(new RegExp(FIG, 'g'))) {   // `図3-9` in inline code is an example, not a reference
-        const ch = +m[1], key = `${m[1]}-${m[2]}`;
-        if (ch === (chapter ?? must(caps[0].caption).ch) && !have.has(key)) out.push({line: k + 1, rule: 'doc-fig-ref-missing', severity: 'warn', message: `本文の「図${m[1]}-${m[2]}」に対応する図がこの文書にない`});
+        const ch = +must(m[1]), key = `${m[1]}-${m[2]}`;
+        if (ch === (chapter ?? must(must(caps[0]).caption).ch) && !have.has(key)) out.push({line: k + 1, rule: 'doc-fig-ref-missing', severity: 'warn', message: `本文の「図${m[1]}-${m[2]}」に対応する図がこの文書にない`});
       }
     });
   }
@@ -167,9 +167,9 @@ export function formatMap(rows: MapRow[]): string {
   const cell = (s: string) => (s ? `\`${s}\`` : '—');
   const lines = ['| 図 | 図のソース | SVG | 使っている文書 |', '|---|---|---|---|'];
   for (const svg of [...new Set(rows.map(r => r.svg))].sort()) { // by path: two figures with the same file name in different folders stay apart
-    const rs = rows.filter(r => r.svg === svg), name = rs[0].name;
+    const rs = rows.filter(r => r.svg === svg), name = must(rs[0]).name;
     const docs = rs.map(r => r.doc).filter(Boolean);
-    lines.push(`| ${name} | ${cell(rs[0].src)} | ${cell(rs[0].svg)} | ${docs.length ? docs.map(d => `\`${d}\``).join('<br>') : '（参照なし）'} |`);
+    lines.push(`| ${name} | ${cell(must(rs[0]).src)} | ${cell(must(rs[0]).svg)} | ${docs.length ? docs.map(d => `\`${d}\``).join('<br>') : '（参照なし）'} |`);
   }
   return lines.join('\n');
 }

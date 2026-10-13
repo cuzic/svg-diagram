@@ -8,6 +8,7 @@ import type {LaidOutFlowShape} from './flow-shapes.ts';
 import {snap4, escapeXml, emojiSpan, resolveTextColor, lineAttrs, arrowPath, resolveBoxStyle} from './emit-common.ts';
 import {renderBoxRect} from './emit-boxes.ts';
 
+import {must} from './must.ts';
 // plane(): axes (with arrowheads), ticks, guides, points, dimension lines with their label chips, then every text.
 export function renderPlane(b: LaidOutPlane, day: Theme, stage?: number): string {
   const col = (t: PlaneTone) => resolveTextColor(t, day);
@@ -38,7 +39,7 @@ export function renderPlane(b: LaidOutPlane, day: Theme, stage?: number): string
     const full = k >= total;
     const d = `M${r(pa.pts[0])} ` + (pa.curves.length ? pa.curves.slice(0, k).map(([c1, c2, e]) => `C${r(c1)} ${r(c2)} ${r(e)}`) : pa.pts.slice(1, k + 1).map(q => `L${r(q)}`)).join(' ');
     out.push(`<path d="${d}" fill="none" stroke="${c}" stroke-width="2"${pa.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
-    if (pa.arrow && full) out.push(head(pa.pts[pa.pts.length - 1].x, pa.pts[pa.pts.length - 1].y, pa.tip.dx, pa.tip.dy, c));
+    if (pa.arrow && full) out.push(head(must(pa.pts[pa.pts.length - 1]).x, must(pa.pts[pa.pts.length - 1]).y, pa.tip.dx, pa.tip.dy, c));
   }
   for (const dm of b.dims.filter(dm => visibleAt(dm, stage))) {
     const c = col(dm.tone);
@@ -157,7 +158,7 @@ export function renderQuadrant(b: LaidOutQuadrant, day: Theme): string {
   for (const q of b.bubbles) out.push(marker(q.shape, q.x, q.y, q.r, ink(q.tone, q.dim), q.hollow));
   for (const m of b.marks) out.push(m.ring ? shapeSvg(m.shape, m.x, m.y, m.r, 'none', ink(m.tone, b.dim), 2) : marker(m.shape, m.x, m.y, m.r, ink(m.tone, b.dim), m.hollow));
   for (const t of b.texts) {
-    const dim = b.dim || (t.item !== undefined && b.bubbles[t.item].dim);
+    const dim = b.dim || (t.item !== undefined && must(b.bubbles[t.item]).dim);
     out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t.fill, dim)}">${emojiSpan(t.text)}</text>`);
   }
   return out.join('\n  ');
@@ -263,7 +264,7 @@ export function renderStates(b: LaidOutStates, day: Theme): string {
     return colorOf(toneStyle(n?.tone).text, day);
   };
   for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}" text-anchor="middle" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t)}">${emojiSpan(t.text)}</text>`);
-  for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : colorOf(toneStyle(b.nodes[ic.node].tone).text, day), dim: b.dim, labelled: true}));
+  for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : colorOf(toneStyle(must(b.nodes[ic.node]).tone).text, day), dim: b.dim, labelled: true}));
   for (const l of b.labels) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${PALETTE.bg}"/>`);
     out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty)}" text-anchor="middle" font-size="${l.size}" fill="${stroke}">${emojiSpan(l.text)}</text>`);
@@ -410,7 +411,7 @@ export function renderBpmn(b: LaidOutBpmn, day: Theme): string {
     const n = b.nodes.find(r => r.kind === 'task' && t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
     out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : t.anchor === 'end' ? ' text-anchor="end"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : t.muted ? (n && toneStyle(n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted) : colorOf(toneStyle(n?.tone).text, day)}">${emojiSpan(t.text)}</text>`);
   }
-  for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : ic.tone ? textColorOf(ic.tone, day) : colorOf(toneStyle(b.nodes[ic.node].tone).text, day), dim: b.dim, labelled: true}));
+  for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : ic.tone ? textColorOf(ic.tone, day) : colorOf(toneStyle(must(b.nodes[ic.node]).tone).text, day), dim: b.dim, labelled: true}));
   for (const l of b.labels) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${bg}"/>`);
     out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty)}" text-anchor="middle" font-size="${l.size}" fill="${ink}">${emojiSpan(l.text)}</text>`);

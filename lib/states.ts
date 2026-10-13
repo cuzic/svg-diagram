@@ -23,11 +23,11 @@ const swap = (p: Pt): Pt => ({x: p.y, y: p.x});
 
 /** The point a fraction t of the way along a polyline's length. */
 function pointAt(pts: Pt[], t: number): Pt {
-  const len = pts.slice(1).map((p, i) => Math.abs(p.x - pts[i].x) + Math.abs(p.y - pts[i].y));
+  const len = pts.slice(1).map((p, i) => Math.abs(p.x - must(pts[i]).x) + Math.abs(p.y - must(pts[i]).y));
   let half = len.reduce((a, b) => a + b, 0) * t;
   for (let i = 0; i < len.length; i++) {
-    if (half <= len[i] || i === len.length - 1) { const t = len[i] ? half / len[i] : 0; return {x: pts[i].x + (pts[i + 1].x - pts[i].x) * t, y: pts[i].y + (pts[i + 1].y - pts[i].y) * t}; }
-    half -= len[i];
+    if (half <= must(len[i]) || i === len.length - 1) { const t = len[i] ? half / must(len[i]) : 0; return {x: must(pts[i]).x + (must(pts[i + 1]).x - must(pts[i]).x) * t, y: must(pts[i]).y + (must(pts[i + 1]).y - must(pts[i]).y) * t}; }
+    half -= must(len[i]);
   }
   return pts[0];
 }
@@ -110,7 +110,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   const addLabel = (own: number, text: string, at: (t: number) => Pt, on: Pt[] = []): void => {
     const lw = labelW(text), lh = S + 8;
     const boxAt = (c: Pt) => ({x: c.x - lw / 2, y: c.y - lh / 2, w: lw, h: lh});
-    const tip = on.length ? {x: on[on.length - 1].x - ARROW, y: on[on.length - 1].y - ARROW, w: 2 * ARROW, h: 2 * ARROW} : null; // the arrowhead
+    const tip = on.length ? {x: must(on[on.length - 1]).x - ARROW, y: must(on[on.length - 1]).y - ARROW, w: 2 * ARROW, h: 2 * ARROW} : null; // the arrowhead
     // a chip is white: on another arrow it would cut that arrow, so it keeps off every arrow but its own
     const onOther = (b: ReturnType<typeof boxAt>): boolean => out.edges.some((e, k) => k !== own && e.points.slice(1).some((q, m) => {
       const p = e.points[m];

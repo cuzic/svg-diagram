@@ -186,7 +186,7 @@ function tableData(n: Extract<WfNode, {t: 'table'}>, w: number, ctx: WfCtx) {
   const rows = n.rows.map(r => {
     const cells = r.map((cell, i) => {
       const c: WfTableCellSpec = typeof cell === 'string' || typeof cell === 'number' ? {text: String(cell)} : cell;
-      const lines = c.badge ? [] : wrapT(ctx, c.text ?? '', S, c.bold ? 700 : 400, cw[i] - 16);
+      const lines = c.badge ? [] : wrapT(ctx, c.text ?? '', S, c.bold ? 700 : 400, must(cw[i]) - 16);
       return {...c, lines};
     });
     return {cells, h: Math.max(cells.some(c => c.badge) ? 32 : 28, Math.max(...cells.map(c => c.lines.length)) * lh(S) + 8)};
@@ -248,7 +248,7 @@ function placeCol(children: WfNode[], x: number, y: number, w: number, h: number
   const extra = flexSum ? Math.max(0, h - total) : 0;
   let cy = y;
   children.forEach((c, i) => {
-    const ch = natH[i] + (flexSum ? extra * flexOf(c) / flexSum : 0);
+    const ch = must(natH[i]) + (flexSum ? extra * flexOf(c) / flexSum : 0);
     place(c, x, cy, w, ch, ctx);
     cy += ch + gap;
   });
@@ -272,7 +272,7 @@ const DRAW: WfDrawTable = {
       const own = nat(c, ws[i], ctx);
       const dy = n.align === 'center' && flexOf(c) === 0 ? (ch - own) / 2 : 0;
       place(c, cx, y + p + dy, ws[i], flexOf(c) || VISUAL.has(c.t) || CONTAINER.has(c.t) ? ch : own, ctx);
-      cx += ws[i] + gap;
+      cx += must(ws[i]) + gap;
     });
     return {w, h};
   },
@@ -412,7 +412,7 @@ const DRAW: WfDrawTable = {
     const total = nat(n, w, ctx);
     rect(ctx, x, y, w, 28, {fill: 'soft'});
     let cx = x;
-    d.cols.forEach((c, i) => { text(ctx, c.label, cx + 8, mid(y + 14), {weight: 700}); cx += d.cw[i]; });
+    d.cols.forEach((c, i) => { text(ctx, c.label, cx + 8, mid(y + 14), {weight: 700}); cx += must(d.cw[i]); });
     let cy = y + 28;
     for (const r of d.rows) {
       line(ctx, x, cy, x + w, cy, {stroke: 'border', sw: 1.5});
@@ -421,7 +421,7 @@ const DRAW: WfDrawTable = {
         if (c.badge) drawChip(ctx, c.badge, cx + 8, cy + (r.h - 24) / 2, c.tone);
         else if (ctx.skeleton && !c.keep) bars(ctx, c.lines.map(l => tw(ctx, l, S, 400)), cx + 8, cy + (r.h - lh(S) * c.lines.length) / 2 - 6);
         else c.lines.forEach((l, k) => text(ctx, l, cx + 8, cy + (r.h - lh(S) * c.lines.length) / 2 + S + k * lh(S), {weight: c.bold ? 700 : 400, fill: toneFill(toneOf(c.tone))}));
-        cx += d.cw[i];
+        cx += must(d.cw[i]);
       });
       cy += r.h;
     }

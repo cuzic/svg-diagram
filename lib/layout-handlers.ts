@@ -115,7 +115,7 @@ function registerRowSlots(ctx: LayoutCtx, id: string | undefined, band: RowLike,
   } else {
     const put = (key: string, r: Rect) => { if (ctx.anchors.has(key)) ctx.claimed(key, 'a row column collides with an existing id'); ctx.anchors.set(key, r); ctx.areaIds.add(key); };
     placed.forEach((r, i) => put(`${id}#${i + 1}`, {x: r.x, y: rowTop, w: r.w, h: rowHeight}));
-    for (let a = 0; a < placed.length; a++) for (let b = a + 1; b < placed.length; b++) put(`${id}#${a + 1}-${b + 1}`, {x: placed[a].x, y: rowTop, w: placed[b].x + placed[b].w - placed[a].x, h: rowHeight});
+    for (let a = 0; a < placed.length; a++) for (let b = a + 1; b < placed.length; b++) put(`${id}#${a + 1}-${b + 1}`, {x: must(placed[a]).x, y: rowTop, w: must(placed[b]).x + must(placed[b]).w - must(placed[a]).x, h: rowHeight});
   }
 }
 
@@ -292,7 +292,7 @@ function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: nu
   let rowHeight = 0;
   band.children.forEach((child, i) => {
     ctx.y = rowTop;
-    const x = padX + xOffsets[i];
+    const x = padX + must(xOffsets[i]);
     if (child.type === 'box') {
       const c = ctx.placeBoxLike(child, x, rowTop, widths[i], true);
       const rw: LaidOutRow = {type: 'row', x, y: rowTop, w: widths[i], h: c.h, children: [c], arrows: []};
@@ -308,7 +308,7 @@ function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: nu
     }
   });
   stretch.forEach(s => s(rowHeight));
-  registerRowSlots(ctx, band.id, band, rowTop, rowHeight, padX, cw, rowGap, widths.map((w, i) => ({x: padX + xOffsets[i], y: rowTop, w, h: rowHeight})));
+  registerRowSlots(ctx, band.id, band, rowTop, rowHeight, padX, cw, rowGap, widths.map((w, i) => ({x: padX + must(xOffsets[i]), y: rowTop, w, h: rowHeight})));
   ctx.y = rowTop + rowHeight + d.gap;
 }
 
@@ -317,7 +317,7 @@ function layoutRow(band: RowBand, ctx: LayoutCtx, padX: number, cw: number): voi
   const rowGap = ctx.gapForLabels(band, cw);
   const {widths, xOffsets} = rowChildGeometry({...band, gap: rowGap}, cw);
   const placedChildren = band.children.map((child, i) =>
-    ctx.placeBoxLike(child, padX + xOffsets[i], ctx.y, widths[i], true));
+    ctx.placeBoxLike(child, padX + must(xOffsets[i]), ctx.y, widths[i], true));
   const rowHeight = Math.max(...placedChildren.map(c => c.h));
   for (const c of placedChildren) { c.h = rowHeight; if (c.id) ctx.setBox(c.id, c as never, rowHeight); }
 
@@ -340,7 +340,7 @@ function layoutCanvasGrid(band: GridBand & {canvas: NonNullable<GridBand['canvas
   const cv = band.canvas, gap = band.gap, top0 = ctx.y;
   // a region's pill sits on its top edge, half above it: the rows under the first keep it clear of the box above
   // (and of the caption above the first row)
-  const tagged = (row: (r: number) => boolean): boolean => band.children.some((c, i) => c.tag && row(cv.place[i].row));
+  const tagged = (row: (r: number) => boolean): boolean => band.children.some((c, i) => c.tag && row(must(cv.place[i]).row));
   const rowGap = tagged(r => r > 0) ? Math.max(gap, TAG_H / 2 + 4) : gap;
   if (cv.title) {
     const t = ctx.placeBoxLike({type: 'caption', text: cv.title, align: 'left', role: 'title', bold: true, tone: 'text', mono: false} as CaptionBand, padX, ctx.y, cw, false);
@@ -367,15 +367,15 @@ function layoutCanvasGrid(band: GridBand & {canvas: NonNullable<GridBand['canvas
   const total = rows.reduce((a, b) => a + b, 0) + rowGap * (rows.length - 1);
   if (cv.h !== undefined && total > cv.h + 0.5) throw new Error(`canvas("${cv.template}"): the regions need ${Math.ceil(total)}px of height but h is ${cv.h}px (shorten the text, widen the figure, or leave h out)`);
   const rowY = [top];
-  rows.forEach((v, r) => rowY.push(rowY[r] + Math.ceil(v / 4 - 1e-6) * 4 + rowGap));
+  rows.forEach((v, r) => rowY.push(must(rowY[r]) + Math.ceil(v / 4 - 1e-6) * 4 + rowGap));
   placed.forEach((p, i) => {
-    const pl = cv.place[i], h = rowY[pl.row + pl.rs] - rowGap - rowY[pl.row];
+    const pl = cv.place[i], h = must(rowY[pl.row + pl.rs]) - rowGap - must(rowY[pl.row]);
     p.y = rowY[pl.row]; p.h = h;
     if (p.tagBox) p.tagBox.y = p.y - p.tagBox.h / 2;
     if (p.id) ctx.setBox(p.id, p as never, h);
   });
   ctx.laidOut.push({type: 'grid', x: padX, y: top0, w: cw, children: placed});
-  ctx.y = rowY[rows.length] - rowGap + d.gap;
+  ctx.y = must(rowY[rows.length]) - rowGap + d.gap;
 }
 
 function layoutPlainGrid(band: GridBand, ctx: LayoutCtx, padX: number, cw: number): void {
@@ -426,7 +426,7 @@ function layoutPyramid(band: PyramidBand, ctx: LayoutCtx, padX: number, cw: numb
     // so the label can never spill past the trapezoid's slanted sides.
     const wrapWidth = Math.max(40, topW - 24);
     const atomW = (atom: string) => widthOf(atom, roles.title, 700, 'sans');
-    const lines = wrapAtoms(splitAtoms(band.layers[i].text), {maxWidth: wrapWidth, atomWidth: atomW});
+    const lines = wrapAtoms(splitAtoms(must(band.layers[i]).text), {maxWidth: wrapWidth, atomWidth: atomW});
     const midY = (topY + bottomY) / 2;
     const lineGap = roles.title * LINE_HEIGHT_EM;
     const textYs = lines.map((_, li) => Math.round(midY + (li - (lines.length - 1) / 2) * lineGap + roles.title * 0.35));

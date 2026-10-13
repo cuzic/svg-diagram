@@ -108,7 +108,7 @@ export function layoutFishbone(root: TreeNode, opts: {gap?: number} = {}): TreeL
   // each row (the categories above the spine, the ones below) runs left to right: a category sits where its causes (to the left of
   // its bone) and its own box clear the one before; the bone leans toward the spine
   const rows: TreeNode[][] = [[], []];
-  cats.forEach((c, i) => rows[i % 2].push(c));
+  cats.forEach((c, i) => must(rows[i % 2]).push(c));
   let spineEnd = 120;
   rows.forEach((row, ri) => {
     const top = ri === 0;

@@ -72,7 +72,7 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
 
   const heads = p.actors.map((a, i): LaidOutSeqHead => {
     const lines = wrap(a.label, roles.title, 700, 'sans', aw - 2 * SEQ.headPadX, widthOf);
-    return {id: a.id, tone: a.tone, lines, x: cx[i] - aw / 2, w: aw, cx: cx[i], y: 0, h: 0, textDy: SEQ.headPadY};
+    return {id: a.id, tone: a.tone, lines, x: must(cx[i]) - aw / 2, w: aw, cx: cx[i], y: 0, h: 0, textDy: SEQ.headPadY};
   });
   // every head is as tall as the tallest; when any head has an icon, each head's stack (icon, then label) sits in the middle of the room
   const anyIcon = p.actors.some(a => a.icon), textH = Math.max(...heads.map(h => h.lines.length)) * lineH(roles.title);
@@ -92,22 +92,22 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
     if (s.kind === 'msg') {
       const i = at(s.from, 'from'), j = at(s.to, 'to');
       if (i === j) throw new Error(`sequence(): message "${s.label}" has from === to; use {self: id}`);
-      const span = Math.abs(cx[j] - cx[i]);
+      const span = Math.abs(must(cx[j]) - must(cx[i]));
       // a label may run across neighbouring lifelines (as in UML); it only has to stay on the canvas
-      const mid = (cx[i] + cx[j]) / 2;
+      const mid = (must(cx[i]) + must(cx[j])) / 2;
       const room = Math.min(2 * (mid - x), 2 * (x + w - mid)) - 8;
       const lines = wrap(s.text, roles.note, 400, 'sans', Math.min(room, Math.max(span - 20, 320)), widthOf);
       const labelH = lines.length * lineH(roles.note);
       const ay = top + labelH + SEQ.labelGap;
-      steps.push({kind: 'msg', x1: cx[i], x2: cx[j], y: ay, lines, labelTop: top, lx: (cx[i] + cx[j]) / 2, line: s.line ?? 'solid', arrow: s.arrow ?? 'end', tone: s.tone});
+      steps.push({kind: 'msg', x1: cx[i], x2: cx[j], y: ay, lines, labelTop: top, lx: (must(cx[i]) + must(cx[j])) / 2, line: s.line ?? 'solid', arrow: s.arrow ?? 'end', tone: s.tone});
       cursor = ay + SEQ.stepGap;
     } else if (s.kind === 'self') {
       const i = at(s.self, 'self');
       // The loop and its label go on the right of the lifeline, unless the label does not fit there at its natural
       // width and the left side has more room (the last actor): then both mirror to the left, inside the frame.
-      const rightRoom = x + w - (cx[i] + SEQ.selfW + 8) - 4, leftRoom = cx[i] - SEQ.selfW - 8 - x - 4;
+      const rightRoom = x + w - (must(cx[i]) + SEQ.selfW + 8) - 4, leftRoom = must(cx[i]) - SEQ.selfW - 8 - x - 4;
       const side = textW(s.text, roles.note, 400, 'sans', widthOf) > rightRoom && leftRoom > rightRoom ? 'left' : 'right';
-      const lx = side === 'left' ? cx[i] - SEQ.selfW - 8 : cx[i] + SEQ.selfW + 8;
+      const lx = side === 'left' ? must(cx[i]) - SEQ.selfW - 8 : must(cx[i]) + SEQ.selfW + 8;
       const lines = wrap(s.text, roles.note, 400, 'sans', Math.max(40, side === 'left' ? leftRoom : rightRoom), widthOf);
       const labelH = lines.length * lineH(roles.note);
       const loopH = 22;
@@ -118,8 +118,8 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
       const ids = s.over.map(id => at(id, 'note.over'));
       const lo = Math.min(...ids), hi = Math.max(...ids);
       let left: number, right: number;
-      if (lo === hi) { const nw = Math.min(aw + 40, 260); left = cx[lo] - nw / 2; right = cx[lo] + nw / 2; }
-      else { left = Math.max(x, cx[lo] - 60); right = Math.min(x + w, cx[hi] + 60); }
+      if (lo === hi) { const nw = Math.min(aw + 40, 260); left = must(cx[lo]) - nw / 2; right = must(cx[lo]) + nw / 2; }
+      else { left = Math.max(x, must(cx[lo]) - 60); right = Math.min(x + w, must(cx[hi]) + 60); }
       const lines = wrap(s.text, roles.note, 400, 'sans', right - left - 24, widthOf);
       const h = lines.length * lineH(roles.note) + 16;
       steps.push({kind: 'note', x: left, y: top, w: right - left, h, lines, tone: s.tone ?? 'muted'});
@@ -172,7 +172,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
       const c: ResolvedCell = header ? {text: (cell as TableColumn).label ?? '', bold: true, mono: false, align: (cell as TableColumn).align ?? 'left'} : cellOf(cell as TableCell, cols[i]);
       if (band.rowHeader && !header && i === 0) c.bold = true;
       const size = roles.body;
-      const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', colW[i] - 2 * TBL.padX - (c.icon ? TBL.iconSize + TBL.iconGap : 0), widthOf);
+      const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', must(colW[i]) - 2 * TBL.padX - (c.icon ? TBL.iconSize + TBL.iconGap : 0), widthOf);
       // an icon beside centred / right-aligned text sits just before its first line (left-aligned: at the cell's left edge)
       const lineW = c.icon && lines.length && c.align !== 'left' ? textWidth(widthOf, lines[0], size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans') : undefined;
       return {...c, lines, x: colX[i], w: colW[i], top: 0, ...(lineW !== undefined ? {lineW} : {})};
@@ -208,7 +208,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     const span = band.rowCurve.max - band.rowCurve.min;
     const yOf = (v: number) => bottom - (v - must(band.rowCurve).min) / span * (bottom - top);
     rowCurve = {
-      points: band.rowCurve.values.map((v, i) => ({x: colX[i + 1] + colW[i + 1] / 2, y: yOf(v)})),
+      points: band.rowCurve.values.map((v, i) => ({x: must(colX[i + 1]) + must(colW[i + 1]) / 2, y: yOf(v)})),
       midY: yOf((band.rowCurve.min + band.rowCurve.max) / 2), top, bottom,
     };
   }

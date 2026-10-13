@@ -99,12 +99,12 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
   const goesDown = (i: number): boolean => { const e = lay.edges[i], A = must(lay.nodes.get(e.from)), B = must(lay.nodes.get(e.to)); return B.y + B.h / 2 >= A.y + A.h / 2; };
   // forward arrows (tail in the earlier layer) take lanes counted from the gap's left side, backward arrows (a return) from its right side,
   // so the two kinds never land on one lane (the gap is sized for all of them together, see gapFor)
-  const forward = (i: number): boolean => layerOf(lay.edges[i].from) < layerOf(lay.edges[i].to);
+  const forward = (i: number): boolean => layerOf(must(lay.edges[i]).from) < layerOf(must(lay.edges[i]).to);
   for (const all of corridors.values()) {
     for (const group of [all.filter(forward), all.filter(i => !forward(i))]) {
       let k = 0;
       for (const list of [group.filter(goesDown), group.filter(i => !goesDown(i))]) {
-        const fanIn = new Set(list.map(i => lay.edges[i].to)).size === 1 && new Set(list.map(i => lay.edges[i].from)).size > 1;
+        const fanIn = new Set(list.map(i => must(lay.edges[i]).to)).size === 1 && new Set(list.map(i => must(lay.edges[i]).from)).size > 1;
         for (const i of [...list].sort((p, q) => (fanIn ? dy(p) - dy(q) : dy(q) - dy(p)) || p - q)) laneOf.set(i, k++ * LANE);
       }
     }

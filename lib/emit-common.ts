@@ -1,6 +1,7 @@
 import {PALETTE, EMOJI_RE, STRONG_TRIM, colorOf, textColorOf, toneStyle, runColorOf} from './tokens.ts';
 import type {Point, WrappedRun, Theme, EmphasisTone, LineStyle, Arrow, Align, Span} from './types.ts';
 
+import {must} from './must.ts';
 export const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
 
 
@@ -76,7 +77,7 @@ export function renderTextRuns(
     const runW = w - indent;
     const lx = align === 'center' ? runOriginX + runW / 2 : align === 'right' ? runOriginX + runW : runOriginX;
     run.lines.forEach((line, i) => {
-      const y = originY + run.lineYs[i];
+      const y = originY + must(run.lineYs[i]);
       const content = run.lineSpans ? spanTspans(run.lineSpans[i], run, color, day, dim) : emojiSpan(line);
       parts.push(`<text x="${lx}" y="${y}"${anchor}${cls} font-size="${run.size}" font-weight="${run.weight}" fill="${color}">${content}</text>`);
     });

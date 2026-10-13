@@ -8,6 +8,7 @@ import {isSolidTone} from './tokens.ts';
 import {BOX_INNER_GAP, ICON_INDENT, LINE_HEIGHT_EM, STEP_INDENT, topIcon} from './layout-util.ts';
 import type {Band, FontWeight, Roles, Span, TextRun, TextTone, WidthOf, WrappedRun} from './types.ts';
 
+import {must} from './must.ts';
 /** `run` with the pieces of its text attached, when it has any (a plain run stays exactly as it was). */
 export function withSpans(run: TextRun, spans: Span[] | undefined): TextRun {
   if (!spans) return run;
@@ -93,7 +94,7 @@ function lineSpans(run: TextRun, atoms: StyledAtom[]): Span[] {
 export function lineWidth(widthOf: WidthOf, run: WrappedRun, i: number): number {
   const font = run.mono ? 'mono' : 'sans';
   return run.lineSpans
-    ? run.lineSpans[i].reduce((w, sp) => w + textWidth(widthOf, sp.text, run.size, sp.bold ? 700 : run.weight, font), 0)
+    ? must(run.lineSpans[i]).reduce((w, sp) => w + textWidth(widthOf, sp.text, run.size, sp.bold ? 700 : run.weight, font), 0)
     : textWidth(widthOf, run.lines[i], run.size, run.weight, font);
 }
 

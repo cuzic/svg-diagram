@@ -93,7 +93,7 @@ export function parseColor(value: string, current?: string): RGBA | null {
   let m = /^#([0-9a-f]{3,8})$/.exec(v);
   if (m) {
     const h = m[1];
-    if (h.length === 3 || h.length === 4) return {r: parseInt(h[0] + h[0], 16), g: parseInt(h[1] + h[1], 16), b: parseInt(h[2] + h[2], 16), a: h.length === 4 ? parseInt(h[3] + h[3], 16) / 255 : 1};
+    if (h.length === 3 || h.length === 4) return {r: parseInt(must(h[0]) + must(h[0]), 16), g: parseInt(must(h[1]) + must(h[1]), 16), b: parseInt(must(h[2]) + must(h[2]), 16), a: h.length === 4 ? parseInt(must(h[3]) + must(h[3]), 16) / 255 : 1};
     if (h.length === 6 || h.length === 8) return {r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16), a: h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1};
     return null;
   }
@@ -121,7 +121,7 @@ export function parseTransform(value: string | undefined): Matrix {
   let m = IDENTITY;
   if (!value) return m;
   for (const t of value.matchAll(/([a-zA-Z]+)\s*\(([^)]*)\)/g)) {
-    const a = t[2].split(/[\s,]+/).filter(Boolean).map(Number);
+    const a = must(t[2]).split(/[\s,]+/).filter(Boolean).map(Number);
     const rad = (d: number) => d * Math.PI / 180;
     let n: Matrix | null = null;
     switch (t[1]) {
@@ -159,7 +159,7 @@ function compound(sel: string): {test: (e: El) => boolean; spec: number} | null 
   const m = /^(\*|[a-zA-Z][\w-]*)?((?:[.#][\w-]+)*)$/.exec(sel);
   if (!m) return null;
   const tag = m[1] && m[1] !== '*' ? m[1] : null;
-  const parts = [...m[2].matchAll(/([.#])([\w-]+)/g)].map(x => [x[1], x[2]] as const);
+  const parts = [...must(m[2]).matchAll(/([.#])([\w-]+)/g)].map(x => [x[1], x[2]] as const);
   return {
     spec: (tag ? 1 : 0) + parts.filter(p => p[0] === '.').length * 10 + parts.filter(p => p[0] === '#').length * 100,
     test: e => (!tag || e.tag === tag) && parts.every(([k, v]) => k === '.' ? (e.attrs['class'] ?? '').split(/\s+/).includes(v) : e.attrs['id'] === v),
@@ -173,15 +173,15 @@ function rulesOf(root: El): Rule[] {
     const css = textOf(st).replace(/\/\*[\s\S]*?\*\//g, '');
     for (const r of css.matchAll(/([^{}@]+)\{([^{}]*)\}/g)) {
       const decls: Record<string, string> = {};
-      for (const d of r[2].split(';')) { const i = d.indexOf(':'); if (i > 0) decls[d.slice(0, i).trim().toLowerCase()] = d.slice(i + 1).trim().replace(/\s*!important$/, ''); }
-      for (const selText of r[1].split(',')) {
+      for (const d of must(r[2]).split(';')) { const i = d.indexOf(':'); if (i > 0) decls[d.slice(0, i).trim().toLowerCase()] = d.slice(i + 1).trim().replace(/\s*!important$/, ''); }
+      for (const selText of must(r[1]).split(',')) {
         const chain = selText.trim().split(/\s+/).map(compound);
         if (!chain.length || chain.some(c => !c)) continue;
         const last = must(chain[chain.length - 1]);
         const ancestors = chain.slice(0, -1) as NonNullable<(typeof chain)[number]>[];
         rules.push({
           specificity: chain.reduce((s, c) => s + must(c).spec, 0), order: order++, decls,
-          sel: e => last.test(e) && (() => { let a = e.parent, i = ancestors.length - 1; while (a && i >= 0) { if (ancestors[i].test(a)) i--; a = a.parent; } return i < 0; })(),
+          sel: e => last.test(e) && (() => { let a = e.parent, i = ancestors.length - 1; while (a && i >= 0) { if (must(ancestors[i]).test(a)) i--; a = a.parent; } return i < 0; })(),
         });
       }
     }

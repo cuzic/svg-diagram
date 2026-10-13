@@ -28,6 +28,7 @@ import {CHECK_PHASES, collectRects, contrastProblems, runCheckPhase, type Verify
 import {labelOf, neverTogether, rectOverlap} from './verify-base.ts';
 import type {CheckRect, LaidOutCaption, LaidOutConnect, LaidOutDiagram, Rect, Verdict} from './types.ts';
 
+import {must} from './must.ts';
 function checkOverlaps(rects: CheckRect[]): string[] {
   const problems: string[] = [];
   for (let i = 0; i < rects.length; i++) {
@@ -36,7 +37,7 @@ function checkOverlaps(rects: CheckRect[]): string[] {
       if (a.holds?.some(h => h.startsWith('@intentional-overlap:') && b.holds?.includes(h))) continue;
       if ((a.life || b.life) && neverTogether(a.life ?? {}, b.life ?? {})) continue;
       const o = rectOverlap(a, b);
-      if (o) problems.push(`"${rects[i].label}" overlaps "${rects[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
+      if (o) problems.push(`"${must(rects[i]).label}" overlaps "${must(rects[j]).label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
     }
   }
   return problems;

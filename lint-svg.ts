@@ -31,6 +31,7 @@ import {loadConfig} from './lib/config.ts';
 import fs from 'node:fs';
 import {ALLOWED_COLORS, DARK_COLORS, EMOJI_RE} from './lib/tokens.ts';
 
+import {must} from './lib/must.ts';
 const strict = process.argv.includes('--strict');
 const engineIdx = process.argv.indexOf('--engine');
 const engine = engineIdx === -1 ? 'geometry' : process.argv[engineIdx + 1];
@@ -70,7 +71,7 @@ for (const f of files) {
   }
   for (const m of src.matchAll(/<text\b([^>]*)>/g)) {
     if (!/\by=/.test(m[1])) {
-      staticFindings.push({file: f, check: 'text-missing-y', detail: `<text ${m[1].trim().slice(0, 60)}...> has no y= attribute — collapses to y=0`});
+      staticFindings.push({file: f, check: 'text-missing-y', detail: `<text ${must(m[1]).trim().slice(0, 60)}...> has no y= attribute — collapses to y=0`});
       break;
     }
   }
@@ -79,7 +80,7 @@ for (const f of files) {
   }
   const styleBlock = /<style>([\s\S]*?)<\/style>/.exec(src);
   if (styleBlock) {
-    for (const rule of styleBlock[1].matchAll(/\.([\w-]+)\s*\{([^}]*)\}/g)) {
+    for (const rule of must(styleBlock[1]).matchAll(/\.([\w-]+)\s*\{([^}]*)\}/g)) {
       const [, name, body] = rule;
       if (/(?<!-)color\s*:/.test(body) && !/(?<!-)fill\s*:/.test(body)) {
         staticFindings.push({file: f, check: 'css-color-not-fill', detail: `.${name} sets color: instead of fill: — has no effect on SVG text`});
@@ -92,8 +93,8 @@ for (const f of files) {
     }
   }
   const smallSizes = new Set<number>();
-  for (const m of src.matchAll(/font-size="(\d+(?:\.\d+)?)"/g)) if (+m[1] < 14) smallSizes.add(+m[1]);
-  for (const m of src.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)) if (+m[1] < 14) smallSizes.add(+m[1]);
+  for (const m of src.matchAll(/font-size="(\d+(?:\.\d+)?)"/g)) if (+must(m[1]) < 14) smallSizes.add(+must(m[1]));
+  for (const m of src.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)) if (+must(m[1]) < 14) smallSizes.add(+must(m[1]));
   if (smallSizes.size) {
     if (fix) {
       src = src
@@ -107,7 +108,7 @@ for (const f of files) {
   }
 
   const usedColors = new Set<string>();
-  for (const m of src.matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) usedColors.add('#' + m[1].toLowerCase());
+  for (const m of src.matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) usedColors.add('#' + must(m[1]).toLowerCase());
   // a diagram that says it is dark (data-appearance) may also use the dark tokens and its own dark set (data-palette); a light one may not
   const dark = /<svg[^>]*\sdata-appearance="dark"/.test(src);
   // data-tone-colors: the colours diagram({tones}) / the config's tones put in (light or dark), allowed in either appearance
@@ -161,7 +162,7 @@ for (const f of files) {
   const coords = [];
   for (const [, attrs] of src.matchAll(/<(?:rect|circle|ellipse|line)\b([^>]*)>/g)) {
     for (const m of attrs.matchAll(/\b(?:x|y|x1|y1|x2|y2|cx|cy|width|height)="(-?[\d.]+)"/g)) {
-      coords.push(+m[1]);
+      coords.push(+must(m[1]));
     }
   }
   if (coords.length >= 8) {

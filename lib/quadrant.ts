@@ -151,7 +151,7 @@ const RISK_RATING = [['低', '低', '中'], ['低', '中', '高'], ['中', '高'
 const RISK_TONE: Record<string, QuadrantTone> = {低: 'plain', 中: 'changed', 高: 'accent', 重大: 'danger'};
 const RISK_NOTE = ['低', '中', '高'], RISK_IMPACT = ['小', '中', '大'];
 const riskCells = (): QuadrantCell[][] => [2, 1, 0].map(l => [0, 1, 2].map(i => {
-  const rating = RISK_RATING[l][i];
+  const rating = must(RISK_RATING[l])[i];
   return c(`リスク ${rating}`, `発生 ${RISK_NOTE[l]} × 影響 ${RISK_IMPACT[i]}`, RISK_TONE[rating]);
 }));
 
@@ -281,12 +281,12 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
   if ((opts.sizeTitle !== undefined || opts.sizeUnit !== undefined) && !sizes.length) throw new Error('quadrant(): sizeTitle / sizeUnit describe the bubble sizes, but no item has a size');
   // a bubble without a size would read as a small value: either every item has a size or none has
   const unsized = items.findIndex(i => i.size === undefined);
-  if (sizes.length && unsized >= 0) throw new Error(`quadrant() item ${unsized + 1} "${items[unsized].label}": has no size, but other items do — give every item a size (its bubble would read as a small value), or none`);
+  if (sizes.length && unsized >= 0) throw new Error(`quadrant() item ${unsized + 1} "${must(items[unsized]).label}": has no size, but other items do — give every item a size (its bubble would read as a small value), or none`);
   const groups = [...(opts.groups ?? [])];
   if (new Set(groups).size !== groups.length) throw new Error(`quadrant(): groups lists a name twice (${groups.join(', ')})`);
   // an item without a group would look like the first group's marker
   const ungrouped = items.findIndex(i => i.group === undefined);
-  if (items.some(i => i.group !== undefined) && ungrouped >= 0) throw new Error(`quadrant() item ${ungrouped + 1} "${items[ungrouped].label}": has no group, but other items do — give every item a group (it would look like the first group's marker), or none`);
+  if (items.some(i => i.group !== undefined) && ungrouped >= 0) throw new Error(`quadrant() item ${ungrouped + 1} "${must(items[ungrouped]).label}": has no group, but other items do — give every item a group (it would look like the first group's marker), or none`);
   for (const it of items) if (it.group !== undefined && !groups.includes(it.group)) groups.push(it.group);
   if (groups.length > SHAPES.length * 2) throw new Error(`quadrant(): ${groups.length} groups — at most ${SHAPES.length * 2} can be told apart by shape and colour`);
   if (opts.allowEmpty !== undefined && opts.allowEmpty !== true && !Array.isArray(opts.allowEmpty)) throw new Error(`quadrant(): allowEmpty must be true or a list of [col, row] cells (got ${JSON.stringify(opts.allowEmpty)})`);
@@ -445,12 +445,12 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   // ---- one attempt at a layout with the rows grown by `grow`
   const attempt = (grow: number, moveLimit: number) => {
     const plotH0 = Math.max(band.height ?? (rows === 2 ? 340 : 120 * rows + 90), rows * (Math.max(...hdr) + 90));
-    const rowH = Array.from({length: rows}, (_r, r) => Math.max(plotH0 / rows * grow, hdr[r] + 90, hdr[r] + flowNeed[r]));
+    const rowH = Array.from({length: rows}, (_r, r) => Math.max(plotH0 / rows * grow, must(hdr[r]) + 90, must(hdr[r]) + must(flowNeed[r])));
     const plotT = y + PAD, plotH = rowH.reduce((a, b) => a + b, 0) + gap * (rows - 1), plotB = plotT + plotH;
     const rowTop = rowH.map((_h, r) => plotT + rowH.slice(0, r).reduce((a, b) => a + b, 0) + gap * r);
     const cellX = (k: number) => plotL + k * (cw + gap);
     const cellRect = (k: number, r: number): Rect => ({x: cellX(k), y: rowTop[r], w: cw, h: rowH[r]});
-    const bodyRect = (k: number, r: number): Rect => ({x: cellX(k), y: rowTop[r] + hdr[r], w: cw, h: rowH[r] - hdr[r]});
+    const bodyRect = (k: number, r: number): Rect => ({x: cellX(k), y: must(rowTop[r]) + must(hdr[r]), w: cw, h: must(rowH[r]) - must(hdr[r])});
     const plot: Rect = {x: plotL, y: plotT, w: plotW, h: plotH};
 
     // value space -> pixels (a value is mapped into the body of the cell it falls in, so a caption never sits on an item)
@@ -466,7 +466,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
 
     // ---- captions
     band.cells.forEach((rowCells, r) => rowCells.forEach((cell, k) => {
-      const cap = caps[r][k], cr0 = cellRect(k, r);
+      const cap = must(caps[r])[k], cr0 = cellRect(k, r);
       const ink: QuadrantInk = cell.tone === 'accent' ? 'accent' : cell.tone === 'danger' ? 'danger' : 'text';
       let top = cr0.y + 8;
       for (const line of cap.t) { texts.push({text: line, x: cr0.x + 10, y: top + tSize, anchor: 'start', size: tSize, bold: true, fill: ink}); top += lineT; }
@@ -554,7 +554,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
           if (!s) throw new Grow(`"${u.item.label}" has no free spot in its cell`);
           placed.push({u, spot: s});
         }
-        top += rowHs[fi] + 10;
+        top += must(rowHs[fi]) + 10;
       });
     }
     return {rowH, plotT, plotB, plot, placed, moved, texts, labelBoxes, headers, cellRect, toCell, inPlot, free, labelAt};
@@ -579,7 +579,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   const endOf = (e: QuadrantEnd): {x: number; y: number; cr: number} => {
     if (typeof e !== 'string') { const t = toCell(e[0], e[1]); return {x: t.x, y: t.y, cr: 0}; }
     const i = band.items.findIndex(it => it.id === e);
-    return {x: bubbles[i].x, y: bubbles[i].y, cr: bubbles[i].cr};
+    return {x: must(bubbles[i]).x, y: must(bubbles[i]).y, cr: must(bubbles[i]).cr};
   };
   const arrows: LaidOutQuadrant['arrows'] = [], chips: Rect[] = [];
   const arrowLabels: {text: string; seg: number}[] = [];
@@ -600,7 +600,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
       const cands = SIDES.filter(s => s !== spot.side).map(side => ({side, box: must(result).labelAt(u, side, spot.cx, spot.cy)}));
       const ok = cands.find(cd => must(result).free(u, spot.cx, spot.cy, cd.box, arrows.map(s => ({s}))));
       placed.splice(0, placed.length, ...save);
-      if (ok) placed[pi].spot = {...spot, side: ok.side, box: ok.box};
+      if (ok) must(placed[pi]).spot = {...spot, side: ok.side, box: ok.box};
     });
   }
 
@@ -631,7 +631,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   if (band.crosshair) {
     for (let k = 1; k < cols; k++) lines.push({x1: plotL + k * cw, y1: plotT, x2: plotL + k * cw, y2: plotB});
     let acc = plotT;
-    for (let r = 0; r < rows - 1; r++) { acc += rowH[r]; lines.push({x1: plotL, y1: acc, x2: plotR, y2: acc}); }
+    for (let r = 0; r < rows - 1; r++) { acc += must(rowH[r]); lines.push({x1: plotL, y1: acc, x2: plotR, y2: acc}); }
   }
   const axisBox = (text: string, sz: number, weight: number, anchor: 'start' | 'middle' | 'end', ax: number, base: number) => {
     const wd = tw(text, sz, weight);

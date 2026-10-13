@@ -167,7 +167,7 @@ export async function measureAll(requests: Map<string, MeasureRequest>): Promise
       return out;
     }, entries.length);
     entries.forEach(([key, r], i) => {
-      const m = {w: dims[i][0], h: dims[i][1]};
+      const m = {w: must(dims[i])[0], h: must(dims[i])[1]};
       memo.set(memoKey(r), m);
       result.set(key, m);
     });

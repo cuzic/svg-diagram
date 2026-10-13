@@ -81,7 +81,7 @@ export function layoutTree(root: TreeNode, opts: TreeOpts = {}): TreeLayout {
     }
   };
   link(root);
-  const total = must(span.get(root)), depth = levelAt[levelAt.length - 1] + levelDepth[levelDepth.length - 1];
+  const total = must(span.get(root)), depth = must(levelAt[levelAt.length - 1]) + must(levelDepth[levelDepth.length - 1]);
   return {nodes, edges, w: dir === 'down' ? total : depth, h: dir === 'down' ? depth : total};
 }
 
@@ -98,13 +98,13 @@ export function layoutBalanced(root: TreeNode, opts: Omit<TreeOpts, 'dir'> & {si
   const load = {left: 0, right: 0};
   kids.forEach((k, i) => { if (opts.sides?.[k.id]) load[side[i]] += heights[i]; });
   // unpinned children: in the order written, the first half of what is left (by height) goes right, the rest left; each side reads top to bottom
-  const free = kids.map((_, i) => i).filter(i => !opts.sides?.[kids[i].id]);
-  const freeTotal = free.reduce((s, i) => s + heights[i], 0);
+  const free = kids.map((_, i) => i).filter(i => !opts.sides?.[must(kids[i]).id]);
+  const freeTotal = free.reduce((s, i) => s + must(heights[i]), 0);
   let acc = 0;
   for (const i of free) {
-    const mid = acc + heights[i] / 2;
+    const mid = acc + must(heights[i]) / 2;
     side[i] = load.right + mid <= (load.left + load.right + freeTotal) / 2 ? 'right' : 'left';
-    acc += heights[i];
+    acc += must(heights[i]);
   }
   const half = (which: 'left' | 'right'): TreeLayout | null => {
     const ks = kids.filter((_, i) => side[i] === which);
@@ -226,7 +226,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
   const nLayers = Math.max(0, ...[...slots.values()].map(s => s.layer)) + 1;
   const rank = (id: string): number => id.startsWith('\u0000') ? 1e6 + (order.get(id) ?? 0) : order.get(id) ?? 0;
   const rows: string[][] = Array.from({length: nLayers}, () => []);
-  for (const s of [...slots.values()].sort((p, q) => rank(p.id) - rank(q.id) || (p.id < q.id ? -1 : 1))) rows[s.layer].push(s.id);
+  for (const s of [...slots.values()].sort((p, q) => rank(p.id) - rank(q.id) || (p.id < q.id ? -1 : 1))) must(rows[s.layer]).push(s.id);
 
   // 4. barycentre sweeps, down then up, keeping the order of nodes with no neighbour
   const pos = new Map<string, number>();
@@ -261,10 +261,10 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     // left to right push-apart, then right to left, so the result is the closest non-overlapping arrangement to `want`
     const w = r.map(id => across(must(slots.get(id)).size));
     const c = want.slice();
-    for (let i = 1; i < r.length; i++) c[i] = Math.max(c[i], c[i - 1] + (w[i - 1] + w[i]) / 2 + gap);
-    const shift = (want.reduce((s, v, i) => s + v - c[i], 0)) / Math.max(1, r.length);
+    for (let i = 1; i < r.length; i++) c[i] = Math.max(c[i], must(c[i - 1]) + (must(w[i - 1]) + must(w[i])) / 2 + gap);
+    const shift = (want.reduce((s, v, i) => s + v - must(c[i]), 0)) / Math.max(1, r.length);
     for (let i = 0; i < r.length; i++) c[i] += shift;
-    for (let i = 1; i < r.length; i++) c[i] = Math.max(c[i], c[i - 1] + (w[i - 1] + w[i]) / 2 + gap);
+    for (let i = 1; i < r.length; i++) c[i] = Math.max(c[i], must(c[i - 1]) + (must(w[i - 1]) + must(w[i])) / 2 + gap);
     r.forEach((id, i) => cross.set(id, c[i]));
   };
   for (let s = 0; s < 3; s++) {
@@ -276,7 +276,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
   const hi = Math.max(0, ...[...slots.values()].map(s => (cross.get(s.id) ?? 0) + across(s.size) / 2));
 
   const centre = (id: string): Pt => {
-    const s = must(slots.get(id)), a = at[s.layer] + thick[s.layer] / 2, c = must(cross.get(id));
+    const s = must(slots.get(id)), a = must(at[s.layer]) + must(thick[s.layer]) / 2, c = must(cross.get(id));
     return dir === 'down' ? {x: c, y: a} : {x: a, y: c};
   };
   const placed = new Map<string, Placed>();
@@ -291,6 +291,6 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     const pts = (c.rev ? [...c.ids].reverse() : c.ids).map(centre);
     edgesOut.push({from: c.e.from, to: c.e.to, index: c.index, points: pts, reversed: c.rev, self: false});
   }
-  const total = at[nLayers - 1] + thick[nLayers - 1];
+  const total = must(at[nLayers - 1]) + must(thick[nLayers - 1]);
   return {nodes: placed, edges: edgesOut, layers: layer, w: dir === 'down' ? hi : total, h: dir === 'down' ? total : hi};
 }

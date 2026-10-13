@@ -37,7 +37,7 @@ const LAYOUT_FILES = ['slides.md', 'style.css', 'uno.config.ts', 'global-bottom.
 
 function slideMarkdown(pageFile: string, heading: string): string {
   const segs = fs.readFileSync(pageFile, 'utf8').split(/\n---\n/);
-  const i = segs.findIndex(s => /^# (.+)$/m.test(s) && must(s.match(/^# (.+)$/m))[1].includes(heading));
+  const i = segs.findIndex(s => /^# (.+)$/m.test(s) && must(must(s.match(/^# (.+)$/m))[1]).includes(heading));
   if (i < 0) throw new Error(`heading "${heading}" not found in ${pageFile}`);
   const prev = i > 0 && !/^# /m.test(segs[i - 1]) ? segs[i - 1] : ''; // frontmatter segment
   return prev + '\n---\n' + segs[i];

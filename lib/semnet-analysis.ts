@@ -82,7 +82,7 @@ export function analyzeCausalLoops(nodes: readonly string[], links: readonly Cau
     const visit = (at: string): void => {
       for (const e of must(out.get(at))) {
         if (e.to === start) {
-          const linkIndexes = [...edges, e.edge], negativeLinks = linkIndexes.filter(i => ['-', 'opposite'].includes(links[i].polarity)).length;
+          const linkIndexes = [...edges, e.edge], negativeLinks = linkIndexes.filter(i => ['-', 'opposite'].includes(must(links[i]).polarity)).length;
           cycles.push({nodes: [...path], linkIndexes, negativeLinks, kind: negativeLinks % 2 ? 'B' : 'R'});
         } else if (!seen.has(e.to) && must(index.get(e.to)) >= si) {
           seen.add(e.to); path.push(e.to); edges.push(e.edge); visit(e.to); edges.pop(); path.pop(); seen.delete(e.to);

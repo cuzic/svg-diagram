@@ -2,6 +2,7 @@ import {textWidth} from './atoms.ts';
 import {fmt, ticksOf} from './plane.ts';
 import type {BarDatum, BarsBand, BarsInk, BarsLine, ColorKey, FontFamily, LaidOutBars, WidthOf, Roles} from './types.ts';
 
+import {must} from './must.ts';
 const SERIES: Record<NonNullable<BarDatum['series']>, ColorKey> = {a: 'accent', b: 'text', c: 'muted'};
 const TICK = 6, BAR = 28, GAP = 18, STACK_GAP = 2;
 
@@ -89,7 +90,7 @@ function verticalValues(band: BarsBand, plotL: number, plotR: number, plotT: num
   const cumSegs: {x1: number; y1: number; x2: number; y2: number}[] = [];
   if (band.cumulative) {
     const pts = [{x: plotL, y: plotB}, ...cumulativeOf(band.data).map((p, k) => ({x: plotL + (k + 1) * slot, y: plotB - p / 100 * (plotB - plotT)}))];
-    pts.slice(1).forEach((q, k) => cumSegs.push({x1: pts[k].x, y1: pts[k].y, x2: q.x, y2: q.y}));
+    pts.slice(1).forEach((q, k) => cumSegs.push({x1: must(pts[k]).x, y1: must(pts[k]).y, x2: q.x, y2: q.y}));
     if (band.cumulative.guide !== undefined) { const gy = plotB - band.cumulative.guide / 100 * (plotB - plotT); cumSegs.push({x1: plotL, y1: gy, x2: plotR, y2: gy}); }
   }
   for (const l of band.lines ?? []) cumSegs.push({x1: plotL, y1: yOf(l.at), x2: plotR, y2: yOf(l.at)});
@@ -103,9 +104,9 @@ function verticalValues(band: BarsBand, plotL: number, plotR: number, plotT: num
   };
   return band.data.map((d, i) => {
     if (band.hideZero && d.value === 0) return undefined;
-    const bh = d.value / band.max * (plotB - plotT), bx = plotL + slots[i] * slot + (slot - bw) / 2, rY = plotB - bh;
+    const bh = d.value / band.max * (plotB - plotT), bx = plotL + must(slots[i]) * slot + (slot - bw) / 2, rY = plotB - bh;
     const tw = textWidth(widthOf, valueText(d, band), S, 700);
-    const cx = dodge(bx + bw / 2, tw, bx, bx + bw), cxOut = dodge(bx + bw / 2, tw, plotL + slots[i] * slot, plotL + (slots[i] + 1) * slot);
+    const cx = dodge(bx + bw / 2, tw, bx, bx + bw), cxOut = dodge(bx + bw / 2, tw, plotL + must(slots[i]) * slot, plotL + (must(slots[i]) + 1) * slot);
     const cut = (at: number, base: number): boolean => cumSegs.some(sg => segHitsRect(sg, {x: at - tw / 2, y: base - S + 2, w: tw, h: S}));
     const fitsIn = (base: number) => bw >= tw + 12 && base - S >= rY && base <= rY + bh && cx - tw / 2 >= bx - 0.5 && cx + tw / 2 <= bx + bw + 0.5;
     const places: {base: number; inside: boolean}[] = [];
@@ -147,7 +148,7 @@ function putText(
   out: LaidOutBars, S: number, text: string, x: number, y: number, anchor: 'start' | 'middle' | 'end', fill: ColorKey,
   widthOf: WidthOf, bold = false, background?: ColorKey, bar?: number,
 ): void {
-  out.texts.push({text, x, y, anchor, fill, size: S, bold, reveal: bar === undefined ? undefined : out.bars[bar].reveal, ...(bar === undefined || out.bars[bar].until === undefined ? {} : {until: out.bars[bar].until}), bar});
+  out.texts.push({text, x, y, anchor, fill, size: S, bold, reveal: bar === undefined ? undefined : must(out.bars[bar]).reveal, ...(bar === undefined || must(out.bars[bar]).until === undefined ? {} : {until: must(out.bars[bar]).until}), bar});
   const w = textWidth(widthOf, text, S, bold ? 700 : 400);
   out.labelBoxes.push({label: text, x: anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x, y: y - S, w, h: S + 4, background, bar});
 }
@@ -185,8 +186,8 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
   const ticks = f.axis ? ticksOf({max: band.max}, 'bars') : [];
   const labelW = band.stack || !f.showCats ? 0 : Math.max(...band.data.map(d => textWidth(widthOf, d.label, S, 400))) + 12;
   const valueW = band.stack || !f.showValues ? 0 : Math.max(...band.data.map(d => textWidth(widthOf, valueText(d, band), S, 700))) + 12;
-  const tickPadL = band.stack && f.axis ? textWidth(widthOf, ticks[0].label, S, 400) / 2 : 0;
-  const tickPadR = band.stack && f.axis ? textWidth(widthOf, ticks[ticks.length - 1].label, S, 400) / 2 : 0;
+  const tickPadL = band.stack && f.axis ? textWidth(widthOf, must(ticks[0]).label, S, 400) / 2 : 0;
+  const tickPadR = band.stack && f.axis ? textWidth(widthOf, must(ticks[ticks.length - 1]).label, S, 400) / 2 : 0;
   const plotL = x + labelW + tickPadL, plotR = x + w - valueW - tickPadR, plotW = plotR - plotL;
   if (plotW < (f.axis || f.labels !== 'none' ? 80 : 20)) throw new Error('bars(): the figure is too narrow for its labels');
   const segs = band.data.map(d => segmentOf(d, band, f.labels));
@@ -217,7 +218,7 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
       at += rawW;
     });
   } else band.data.forEach((d, i) => {
-    const by = y + slots[i] * (bh + gp), bw = d.value / band.max * plotW;
+    const by = y + must(slots[i]) * (bh + gp), bw = d.value / band.max * plotW;
     const r = addBar(out, d, {x: plotL, y: by, w: bw, h: bh});
     const bar = out.bars.length - 1;
     if (f.showCats) putText(out, S, d.label, plotL - 8, by + bh / 2 + S * .36, 'end', 'text', widthOf, false, undefined, bar);
@@ -235,7 +236,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
   const h = band.height ?? 280;
   const ticks = f.axis ? ticksOf({max: band.max}, 'bars') : [];
   // a Pareto's left axis also has the total, where its 100% is
-  if (f.axis && band.cumulative && band.max - ticks[ticks.length - 1].at > band.max * 0.08) ticks.push({at: band.max, label: fmt(band.max)});
+  if (f.axis && band.cumulative && band.max - must(ticks[ticks.length - 1]).at > band.max * 0.08) ticks.push({at: band.max, label: fmt(band.max)});
   const tickW = Math.max(0, ...ticks.map(t => textWidth(widthOf, t.label, S, 400)));
   const cumW = band.cumulative ? Math.max(...CUM_TICKS.map(p => textWidth(widthOf, `${p}%`, S, 400))) + TICK + 10 : 0;
   // the edge labels are centred on the edges, so the first and the last stick out half their width
@@ -286,7 +287,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
   } else {
     const values = f.showValues ? verticalValues(band, plotL, plotR, plotT, plotB, S, widthOf, slots, slot, bw, yOf) : [];
     band.data.forEach((d, i) => {
-      const bh = d.value / band.max * (plotB - plotT), bx = plotL + slots[i] * slot + (slot - bw) / 2;
+      const bh = d.value / band.max * (plotB - plotT), bx = plotL + must(slots[i]) * slot + (slot - bw) / 2;
       const r = addBar(out, d, {x: bx, y: plotB - bh, w: bw, h: bh});
       const bar = out.bars.length - 1;
       if (f.showCats && !band.edges) putText(out, S, d.label, bx + bw / 2, plotB + S + 10, 'middle', 'text', widthOf, false, undefined, bar);
@@ -340,7 +341,7 @@ function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: nu
     const pts = [{x: plotL, y: plotB}, ...cum.map((p, i) => ({x: xOf(i + 1), y: yPct(p)}))];
     ink.polylines.push({pts, fill: 'danger', dashed: false});
     // each percent sits at the first of four places that touches neither another label nor a line (the line, the guide, the bars' own values)
-    const segs = [...ink.lines.filter(l => !l.soft), ...ink.polylines.filter(l => !l.soft).flatMap(l => l.pts.slice(1).map((q, k) => ({x1: l.pts[k].x, y1: l.pts[k].y, x2: q.x, y2: q.y})))];
+    const segs = [...ink.lines.filter(l => !l.soft), ...ink.polylines.filter(l => !l.soft).flatMap(l => l.pts.slice(1).map((q, k) => ({x1: must(l.pts[k]).x, y1: must(l.pts[k]).y, x2: q.x, y2: q.y})))];
     for (const [i, p] of pts.slice(1).entries()) {
       ink.dots.push({x: p.x, y: p.y, fill: 'danger'});
       const text = cumText(cum[i]), tw = textWidth(widthOf, text, S, 700);
