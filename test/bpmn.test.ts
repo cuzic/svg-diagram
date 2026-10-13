@@ -6,7 +6,7 @@ import type {LaidOutBpmn} from '../lib/types.ts';
 
 test.after(() => closeMeasurer());
 
-const flow = () => bpmn(
+const flow = (opts: {fit?: 'shrink'} = {}) => bpmn(
   [{id: 'a', label: '顧客'}, {id: 'b', label: '店舗'}, {id: 'c', label: '倉庫'}],
   [
     {id: 's', lane: 'a', kind: 'start', label: '注文'}, {id: 'chk', lane: 'b', label: '在庫を確認'}, {id: 'g', lane: 'b', kind: 'xor', label: '在庫'},
@@ -16,6 +16,7 @@ const flow = () => bpmn(
     {from: 's', to: 'chk'}, {from: 'chk', to: 'g'}, {from: 'g', to: 'ship', label: 'あり'}, {from: 'g', to: 'sorry', label: 'なし'},
     {from: 'ship', to: 'e1', line: 'dashed'}, {from: 'sorry', to: 'e2', line: 'dashed'},
   ],
+  opts,
 );
 
 const laid = async (...bands: unknown[]) => {
@@ -145,4 +146,37 @@ test('bpmn(): a connector that ends on the whole figure (its id) is not stopped 
   const b = bpmn(L2, [{id: 's', lane: 'a', kind: 'start'}, {id: 't', lane: 'b', label: '確認'}, {id: 'e', lane: 'b', kind: 'end'}], [{from: 's', to: 't'}, {from: 't', to: 'e'}], {id: 'P'});
   const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(b, box({id: 'ext', title: '外部'}), connect('P', 'ext', {route: 'elbow'})));
   assert.deepEqual(verdict.problems, []);
+});
+
+const expense = (fit?: 'shrink') => bpmn(
+  [{id: 'a', label: '申請者'}, {id: 'm', label: '上長'}, {id: 'f', label: '経理'}],
+  [
+    {id: 's', lane: 'a', kind: 'start', label: '出張から戻る'}, {id: 'w', lane: 'a', label: '精算書を作成', sub: '領収書を添付'},
+    {id: 'ap', lane: 'm', label: '内容を承認'}, {id: 'g', lane: 'm', kind: 'xor', label: '承認'},
+    {id: 'ck', lane: 'f', label: '領収書を照合'}, {id: 'pay', lane: 'f', label: '振込を手配', sub: '月末締め翌月払い'}, {id: 'e', lane: 'a', kind: 'end', label: '入金'},
+  ],
+  [
+    {from: 's', to: 'w'}, {from: 'w', to: 'ap'}, {from: 'ap', to: 'g'}, {from: 'g', to: 'ck', label: '承認'}, {from: 'g', to: 'w', label: '却下'},
+    {from: 'ck', to: 'pay'}, {from: 'pay', to: 'e', line: 'dashed'},
+  ],
+  fit ? {fit} : {},
+);
+
+test("bpmn({fit: 'shrink'}): a 3-lane expense flow that overflows 940px by default fits when opted in", async () => {
+  await assert.rejects(() => laid(expense()), /wide but it has .*fit: 'shrink'/);
+  const {t, verdict} = await laid(expense('shrink'));
+  assert.deepEqual(verdict.problems, []);
+  assert.ok(t.nodes.every(n => n.x >= t.x && n.x + n.w <= t.x + t.w), 'every node is inside the figure');
+});
+
+test("bpmn({fit: 'shrink'}) leaves a figure that already fits exactly as it was", async () => {
+  const [plain, shrunk] = await Promise.all([laid(flow()), laid(flow({fit: 'shrink'}))]);
+  assert.deepEqual(shrunk.t, plain.t);
+});
+
+test("bpmn(): fit other than 'shrink' throws; a flow too wide even shrunk still throws", async () => {
+  assert.throws(() => bpmn([{id: 'a', label: 'a'}], [{id: 'x', lane: 'a', label: 'x'}], [], {fit: 'auto' as never}), /fit must be 'shrink'/);
+  const ids = Array.from({length: 14}, (_, i) => `n${i}`);
+  const long = bpmn([{id: 'a', label: '担当'}], ids.map(id => ({id, lane: 'a', label: '長めの作業名'})), ids.slice(1).map((id, i) => ({from: ids[i], to: id})), {fit: 'shrink'});
+  await assert.rejects(() => laid(long), /even shrunk/);
 });

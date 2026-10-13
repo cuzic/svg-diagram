@@ -1198,7 +1198,11 @@ export interface BpmnFlow {
   /** 'dashed': a message flow between lanes (default: a sequence flow, solid). */
   line?: 'solid' | 'dashed';
 }
-export interface BpmnOpts extends RevealOpts {id?: string}
+export interface BpmnOpts extends RevealOpts {
+  id?: string;
+  /** 'shrink': when the figure is wider than the diagram, narrow the lane-name column, the column gaps and the task boxes step by step until it fits (default: throw). */
+  fit?: 'shrink';
+}
 export interface BpmnBand extends BpmnOpts {
   type: 'bpmn';
   lanes: BpmnLane[];
@@ -1469,6 +1473,8 @@ export interface SwimlaneOpts extends RevealOpts {
   /** Width of the lane-label column (default 128). */
   labelW?: number;
   colGap?: number;
+  /** 'shrink': when the columns come out narrower than ~112px, narrow the lane-label column and the column gaps (down to 88 / 12px) to give them room. Default: the sizes above, as given. */
+  fit?: 'shrink';
   id?: string;
 }
 /** A step after swimlane() placed it in a column. */
@@ -1487,6 +1493,7 @@ export interface SwimlaneBand {
   phases?: SwimlanePhase[];
   labelW?: number;
   colGap?: number;
+  fit?: 'shrink';
   id?: string;
   reveal?: number;
   until?: number;

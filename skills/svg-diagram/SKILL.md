@@ -68,7 +68,8 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | TOC のクラウド（対立解消図） | `cloud({a, b, c, d, d2}, {assumptions})` | 共通目的 A・必要条件 B/C・対立する要望 D/D'。前提 `{on: 'ab'｜'ac'｜'bd'｜'cd'｜'dd', text, injection?}` は番号が矢印に載り、一覧は図の下 |
 | スケジュール | `gantt(rows, {today})` | タスク `{label, start, end｜days, after?, progress?, milestone?}`（日付は `YYYY-MM-DD`、`today` は必ず書く） |
 | UML クラス図 | `classDiagram(classes, relations, {dir})` | クラス `{id, attrs?, methods?, stereotype?}` と関係 `{from, to, kind, label?, fromMult?, toMult?}` |
-| 業務フロー（BPMN 風） | `bpmn(lanes, nodes, flows)` | レーン・ノード（task / start / end / xor / and / or）・フロー（`line: 'dashed'` はメッセージ） |
+| 業務フロー（BPMN 風） | `bpmn(lanes, nodes, flows, {fit})` | レーン・ノード（task / start / end / xor / and / or）・フロー（`line: 'dashed'` はメッセージ）。940px に収まらず throw するときは `fit: 'shrink'`（スイムレーン `swimlane({fit: 'shrink'})` も同様） |
+| 章の頭の 1 枚 | `hero({banner, stat, flow, caption, note})` | 大きな数字 `stat` + 流れの `box()` の列 `flow` + 一言・出典。帯は任意 |
 
 - 節に `id` を付けると、`connect()` の端点（`t.anchors.<id>` でも取れる）。図に `id` を付けると、図全体が端点・spotlight の対象になる（節の id は spotlight できない）。
 - **検査は 2 つの形で止まる**: 幅が足りない（`dir: 'right'` / `maxNodeW` / ラベルを短く）、矢印やラベルが何かに重なる（どれとどれかが書いてある。並びを替える・`dir` を変える・ラベルを短くする）。エラーを読んで直す。

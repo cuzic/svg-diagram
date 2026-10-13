@@ -16,7 +16,7 @@
   <text x="241" y="198" text-anchor="middle" font-size="56" font-weight="700" fill="#f05252">76%</text>
   <text x="241" y="242.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#94a3b8">導入前</text>
 
-  <rect x="480" y="128" width="444" height="140" rx="8" fill="#0b1220" stroke="#ffffff" stroke-width="2.5"/>
+  <rect x="480" y="128" width="440" height="140" rx="8" fill="#0b1220" stroke="#ffffff" stroke-width="2.5"/>
   <text x="699" y="198" text-anchor="middle" font-size="56" font-weight="700" fill="#60a5fa">31%</text>
   <text x="699" y="242.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#94a3b8">導入後</text>
 

@@ -24,7 +24,27 @@ export function bpmnTexts(band: BpmnBand, roles: Roles): [string, number, number
   return out;
 }
 
+/** fit: 'shrink' tries these in order until the figure fits: narrower lane-name column, tighter column gaps, narrower task boxes. */
+const SHRINK_STEPS: BpmnMetrics[] = [
+  {labelCol: LABEL_COL, colGap: COL_GAP, taskMax: TASK_MAX, flowRoom: 2 * STUB},
+  {labelCol: 96, colGap: 36, taskMax: 140, flowRoom: STUB},
+  {labelCol: 80, colGap: 28, taskMax: 116, flowRoom: 0},
+  {labelCol: 64, colGap: 22, taskMax: 96, flowRoom: null},
+  {labelCol: 64, colGap: 16, taskMax: 80, flowRoom: null},
+];
+/** flowRoom: the extra width a column gap keeps beside the widest flow label; null keeps none (a label then sits wherever beside its flow is free). */
+interface BpmnMetrics {labelCol: number; colGap: number; taskMax: number; flowRoom: number | null}
+
 export function layoutBpmn(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBpmn {
+  const steps = band.fit === 'shrink' ? SHRINK_STEPS : SHRINK_STEPS.slice(0, 1);
+  for (const m of steps.slice(0, -1)) { const out = layoutBpmnAt(band, x, y, w, widthOf, roles, m, false); if (out) return out; }
+  return layoutBpmnAt(band, x, y, w, widthOf, roles, steps[steps.length - 1], true)!;
+}
+
+function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, metrics: BpmnMetrics, final: true): LaidOutBpmn;
+function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, metrics: BpmnMetrics, final: boolean): LaidOutBpmn | null;
+function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, metrics: BpmnMetrics, final: boolean): LaidOutBpmn | null {
+  const {labelCol: LABEL_COL, colGap: COL_GAP, taskMax: TASK_MAX, flowRoom} = metrics;
   const B = roles.body, S = roles.note;
   const laneIdx = new Map(band.lanes.map((l, i) => [l.id, i]));
   if (laneIdx.size !== band.lanes.length) throw new Error('bpmn(): duplicate lane id');
@@ -67,11 +87,14 @@ export function layoutBpmn(band: BpmnBand, x: number, y: number, w: number, widt
   const colW = Array.from({length: nLayers}, () => 0);
   for (const n of band.nodes) { const c = lay.layers.get(n.id)!, m = meas.get(n.id)!; colW[c] = Math.max(colW[c], labelWidth(m)); }
   const widestFlow = Math.max(0, ...band.flows.map(f => f.label ? Math.ceil(textWidth(widthOf, f.label, S, 400)) + 2 * CHIP_PAD : 0));
-  const gap = Math.max(COL_GAP, widestFlow + 2 * STUB);
+  const gap = flowRoom === null ? COL_GAP : Math.max(COL_GAP, widestFlow + flowRoom);
   const colX: number[] = [];
   colW.reduce((a, cw, i) => (colX[i] = a, a + cw + gap), x + LABEL_COL + gap / 2);
   const total = colX[nLayers - 1] + colW[nLayers - 1] + gap / 2 - x;
-  if (total > w + 0.5) throw new Error(`bpmn(): the figure is ${Math.ceil(total)}px wide but it has ${Math.round(w)}px (merge steps, shorten labels, or split the flow into two figures)`);
+  if (total > w + 0.5) {
+    if (!final) return null;
+    throw new Error(`bpmn(): the figure is ${Math.ceil(total)}px wide but it has ${Math.round(w)}px (${band.fit === 'shrink' ? 'even shrunk; ' : "set fit: 'shrink', "}merge steps, shorten labels, or split the flow into two figures)`);
+  }
   const width = w;
 
   // rows: each lane is as tall as its tallest stack of nodes that share a column

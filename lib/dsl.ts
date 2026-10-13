@@ -67,7 +67,9 @@ export {icon} from './icon-registry.ts';
 export type {IconName, EmojiName} from './icons.ts';
 import type {IconName} from './icons.ts';
 export {versus} from './versus.ts';
+export {hero} from './hero.ts';
 export {em} from './rich.ts';
+export type {HeroOpts, HeroStat} from './hero.ts';
 export type {VersusConnectLabels, VersusOpts, VersusPart, VersusSharedOpts} from './versus.ts';
 // Every public type (WfNode, TableCell, TextTone, RawColorTone, ...) so project code never has to spell Parameters<typeof wf.col>[0].
 export type * from './types.ts';
@@ -376,7 +378,8 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
     const k = slot.get(b.col) ?? 0; slot.set(b.col, k + 1);
     return connectBand(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone}, false);
   });
-  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, id: opts.id, ...revealOf(opts)};
+  if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`swimlane(): fit must be 'shrink' (got ${String(opts.fit)})`);
+  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...revealOf(opts)};
   return withAnchors([block, ...flows], placed.map(st => st.id));
 }
 
@@ -1314,7 +1317,8 @@ export function bpmn(lanes: readonly BpmnLane[], nodes: readonly BpmnNode[], flo
     if (!['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(n.tone)) throw new Error(`bpmn(): node "${n.id}" has tone ${String(n.tone)}`);
   }
   for (const f of flows) if (f.line !== undefined && f.line !== 'solid' && f.line !== 'dashed') throw new Error(`bpmn(): flow ${f.from} -> ${f.to} has line ${String(f.line)}`);
-  const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: [...nodes], flows: [...flows], ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`bpmn(): fit must be 'shrink' (got ${String(opts.fit)})`);
+  const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: [...nodes], flows: [...flows], ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.fit === undefined ? {} : {fit: opts.fit}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
 }
 

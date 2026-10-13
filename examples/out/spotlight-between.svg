@@ -22,7 +22,7 @@
   <text x="40" y="86.6" font-size="15" font-weight="700" fill="#6f6659">候補を集める</text>
   <text x="40" y="114.6" font-size="14" font-weight="400" fill="#6f6659">前段の処理</text>
 
-  <rect x="324" y="56" width="288" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="324" y="56" width="292" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <text x="345.3333333333333" y="86.6" font-size="15" font-weight="700" fill="#22201b">判断する</text>
   <text x="345.3333333333333" y="114.6" font-size="14" font-weight="400" fill="#22201b">今回の主役</text>
 
