@@ -43,8 +43,10 @@ export function readManifest(file: string): IconManifest {
 export function writeManifest(file: string, m: IconManifest): void {
   const icons = Object.fromEntries(Object.entries(m.icons).sort(([a], [b]) => a.localeCompare(b)));
   const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify({version: 1, ...(m.mainSet ? {mainSet: m.mainSet} : {}), ...(m.packs && Object.keys(m.packs).length ? {packs: m.packs} : {}), icons}, null, 2) + '\n');
-  fs.renameSync(tmp, file); // atomic: a reader sees the old or the new file, never half of one
+  try {
+    fs.writeFileSync(tmp, JSON.stringify({version: 1, ...(m.mainSet ? {mainSet: m.mainSet} : {}), ...(m.packs && Object.keys(m.packs).length ? {packs: m.packs} : {}), icons}, null, 2) + '\n');
+    fs.renameSync(tmp, file); // atomic: a reader sees the old or the new file, never half of one
+  } catch (e) { try { fs.unlinkSync(tmp); } catch { /* never made */ } throw e; }
 }
 
 const LOCK_STALE_MS = 30_000;
@@ -59,15 +61,23 @@ function lockIsStale(lock: string): boolean {
     return false;
   } catch { return false; } // gone already (or half-written): the next try finds out
 }
+/** Remove a stale lock. Two runs may both judge the same lock stale; a plain unlink by the slower one would delete the lock the faster one has
+ *  just made, and both would go on. So the lock is first renamed aside (atomic — only one run gets it) and judged again there: a live lock
+ *  caught by mistake is linked back. */
+function takeOver(lock: string): void {
+  const aside = `${lock}.${process.pid}.${Math.random().toString(36).slice(2)}.stale`;
+  try { fs.renameSync(lock, aside); } catch { return; } // someone else took it over already
+  try { if (!lockIsStale(aside)) fs.linkSync(aside, lock); } catch { /* a new lock is there already: its maker holds it */ } finally { try { fs.unlinkSync(aside); } catch { /* gone */ } }
+}
 /** Run `fn` holding an exclusive lock (<manifest>.lock, created with O_EXCL) so that read-modify-write cycles of parallel runs do not lose each other's updates. A lock left by a dead process is taken over. */
 export function withManifestLock<T>(file: string, fn: () => T): T {
   const lock = `${file}.lock`;
   const start = Date.now();
   fs.mkdirSync(path.dirname(file), {recursive: true});
   for (;;) {
-    try { fs.closeSync(fs.openSync(lock, 'wx')); fs.writeFileSync(lock, `${process.pid}\n`); break; } catch (e) {
+    try { const fd = fs.openSync(lock, 'wx'); try { fs.writeSync(fd, `${process.pid}\n`); } finally { fs.closeSync(fd); } break; } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
-      if (lockIsStale(lock)) { try { fs.unlinkSync(lock); } catch { /* someone else took it over */ } continue; }
+      if (lockIsStale(lock)) { takeOver(lock); continue; }
       if (Date.now() - start > LOCK_TIMEOUT_MS) throw new Error(`${lock} is held by another svg-diagram run for over ${LOCK_TIMEOUT_MS / 1000}s — if none is running, delete that file`);
       sleep(20 + Math.random() * 40);
     }
