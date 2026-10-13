@@ -23,3 +23,15 @@ test('a categorical axis puts the names at 1..n', () => {
   const laid = layoutPlane({type: 'plane', x: {max: 10}, y: {max: 4, categories: ['営業', '開発', '品質']}, height: 300}, 0, 0, 800, widthOf, ROLES);
   assert.ok(['営業', '開発', '品質'].every(n => laid.texts.some(t => t.s === n)));
 });
+
+test('plane() rejects a categorical axis it cannot draw', async () => {
+  const {plane} = await import('../lib/dsl.ts');
+  const y = (a: object) => () => plane({x: {max: 10}, y: {max: 4, ...a}});
+  assert.throws(y({categories: []}), /non-empty list/);
+  assert.throws(y({categories: ['営業', '']}), /non-empty list/);
+  assert.throws(y({categories: ['営業'], ticks: [1]}), /not both/);
+  assert.throws(y({categories: ['営業'], step: 1}), /not both/);
+  assert.throws(() => plane({x: {max: 10}, y: {max: 2, categories: ['営業', '開発', '品質']}}), /max: 4/);
+  assert.throws(() => plane({x: {max: 10}, y: {min: 1, max: 4, categories: ['営業', '開発', '品質']}}), /min < 1/);
+  assert.doesNotThrow(y({categories: ['営業', '開発', '品質']}));
+});
