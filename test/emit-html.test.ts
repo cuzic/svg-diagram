@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {box, caption, diagram, closeMeasurer, renderDiagram, table, raw} from '../lib/dsl.ts';
+import {box, caption, diagram, closeMeasurer, renderDiagram, row, table, raw} from '../lib/dsl.ts';
 import {configureMeasure} from '../lib/measure.ts';
 import {textBox} from '../lib/font-metrics.ts';
 import {PALETTE} from '../lib/tokens.ts';
@@ -174,4 +174,13 @@ test('shapes CSS can draw become boxes; what it cannot (a filter, a gradient) st
   assert.equal((html.match(/clip-path:polygon/g) ?? []).length, 5, 'a 50px dashed line is 5 dashes');
   assert.match(html, /<svg class="sd-ov"[^>]*><rect[^>]*url\(#g\)/);
   assert.ok(html.indexOf('<svg') > html.lastIndexOf('clip-path'), 'paint order is kept');
+});
+
+test('a frame in HTML has the width of the SVG rect (the right edge snaps, not the width)', async () => {
+  const d = diagram({theme: 'blue'}).add(row([box({title: '左'}), box({title: '中'}), box({title: '右'})]));
+  const {svg, html} = await renderDiagram(d, {name: 't.svg', budget: 'cacheOnly', html: true});
+  const svgW = [...svg.matchAll(/<rect x="[\d.]+" y="[\d.]+" width="([\d.]+)" height="[\d.]+" rx="8"/g)].map(m => Number(m[1]) + 2.5);
+  const htmlW = [...html!.matchAll(/class="sd-b" style="left:[\d.-]+px;top:[\d.-]+px;width:([\d.]+)px/g)].map(m => Number(m[1]));
+  assert.ok(svgW.length >= 3);
+  assert.deepEqual(htmlW, svgW);
 });

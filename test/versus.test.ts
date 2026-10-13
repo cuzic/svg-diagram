@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {box, checkDiagram, closeMeasurer, connect, diagram, group, renderDiagram, row, spacer, versus} from '../lib/dsl.ts';
+import {banner, box, checkDiagram, closeMeasurer, connect, diagram, group, renderDiagram, row, spacer, versus} from '../lib/dsl.ts';
 
 test.after(() => closeMeasurer());
 
@@ -73,3 +73,10 @@ export function versusTypeCases(): void {
   // @ts-expect-error shared connections require a left id
   versus({children: box({title: 'L'})}, {id: 'r', children: box({title: 'R'})}, {shared: {id: 's', children: box({title: 'S'})}});
 }
+
+test('versus() ends on the same right edge as a banner above it (snapping the right edge, not the width)', async () => {
+  const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(banner({headline: '見出し'}), versus(left(), right())), {name: 'versus.svg', budget: 'cacheOnly'});
+  const rects = [...svg.matchAll(/<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)" height="[\d.]+" rx="8"/g)].map(m => [Number(m[1]), Number(m[2])]);
+  const edges = rects.map(([x, w]) => x + w);
+  assert.equal(Math.max(...edges), rects[0][0] + rects[0][1], 'no frame reaches past the banner');
+});

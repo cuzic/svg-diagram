@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {splitAtoms} from '../lib/measure.ts';
-import {wrapAtoms, wrapStyledAtoms} from '../lib/wrap.ts';
+import {setWrapMode, wrapAtoms, wrapStyledAtoms} from '../lib/wrap.ts';
 
 // The wrapper as it was before wrapStyledAtoms existed: wrapAtoms must still produce exactly this.
 const CANNOT_START_LINE = new Set('、。，．・：；！？」』）〕】〉》ゝゞーぁぃぅぇぉっゃゅょァィゥェォッャュョ'.split(''));
@@ -42,7 +42,9 @@ const ALPHABET = ['a', 'B', 'api', 'Claude', '12', '/', '*', '**', '{', '}', ' '
 const randomText = (r: () => number): string => Array.from({length: Math.floor(r() * 40)}, () => ALPHABET[Math.floor(r() * ALPHABET.length)]).join('');
 const width = (a: string): number => [...a].reduce((s, ch) => s + (ch.codePointAt(0)! > 0x2000 ? 14 : /\s/.test(ch) ? 4 : 8), 0);
 
-test('wrapAtoms is unchanged by the styled-atom wrapper (random text, several widths)', () => {
+test('wrapAtoms is unchanged by the styled-atom wrapper (random text, several widths; char mode, the reference breaks anywhere)', t => {
+  const prevMode = setWrapMode('char');
+  t.after(() => setWrapMode(prevMode));
   const r = rng(7);
   for (let n = 0; n < 600; n++) {
     const text = randomText(r), maxWidth = 20 + Math.floor(r() * 160);

@@ -127,6 +127,7 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
 
 // ---- table ------------------------------------------------------------------
 export const TBL = {padX: 12, padY: 8, padYDense: 4, iconSize: 18, iconGap: 6};
+const CURVE_MIN = 30;
 
 // A cell is a string or {text, tone?, bold?, mono?}; column defaults apply underneath.
 export function cellOf(cell: TableCell, col: TableColumn = {}): ResolvedCell {
@@ -135,7 +136,7 @@ export function cellOf(cell: TableCell, col: TableColumn = {}): ResolvedCell {
   if (c.mark && !mark) throw new Error(`table cell: unknown mark "${c.mark}" (use ${Object.keys(CELL_MARKS).join(' | ')})`);
   const text = mark ? (c.text ? `${mark.glyph} ${c.text}` : mark.glyph) : c.text ?? '';
   const icon = c.icon !== undefined ? {name: c.icon, glyph: c.iconGlyph as NonNullable<typeof c.iconGlyph>, ...(c.iconTone ? {tone: c.iconTone} : {})} : undefined;
-  return {text, tone: c.tone ?? mark?.tone, bold: c.bold ?? mark?.bold ?? col.bold ?? false, mono: c.mono ?? col.mono ?? false, align: c.align ?? col.align ?? 'left', ...(icon ? {icon} : {})};
+  return {text, tone: c.tone ?? mark?.tone, bold: c.bold ?? mark?.bold ?? col.bold ?? false, mono: c.mono ?? col.mono ?? false, align: c.align ?? col.align ?? 'left', vAlign: c.vAlign, ...(icon ? {icon} : {})};
 }
 
 export function layoutTable(band: TableBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutTable {
@@ -156,7 +157,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     titleBar = {y: cy, h, lines};
     cy += h;
   }
-  const rowOf = (cells: readonly (TableColumn | TableCell)[], header: boolean, tone?: BoxTone, rowH?: number): LaidOutTableRow => {
+  const rowOf = (cells: readonly (TableColumn | TableCell)[], header: boolean, tone?: BoxTone, rowH?: number, curve = false): LaidOutTableRow => {
     const placed = cells.map((cell, i): LaidOutTableCell => {
       // header rows pass the column specs themselves (see the call below)
       const c: ResolvedCell = header ? {text: (cell as TableColumn).label ?? '', bold: true, mono: false, align: (cell as TableColumn).align ?? 'left'} : cellOf(cell as TableCell, cols[i]);
@@ -169,9 +170,11 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     const need = nLines * lineH(roles.body) + 2 * padY;
     const fixed = rowH ?? (header ? band.headerH : undefined) ?? band.cellH;
     if (fixed !== undefined && fixed < need) throw new Error(`table(): ${rowH !== undefined ? 'h' : header && band.headerH !== undefined ? 'headerH' : 'cellH'} ${fixed} is too small for a row that needs ${Math.ceil(need)}px (${nLines} line(s) of ${roles.body}px text). Raise it or shorten the text`);
-    const h = fixed ?? need;
+    // a rowCurve row grows so its curve (at least CURVE_MIN tall) fits under the tallest data value
+    const dataLines = Math.max(0, ...placed.slice(1).map(c => c.lines.length));
+    const h = Math.max(fixed ?? need, curve ? padY + dataLines * lineH(roles.body) + 8 + CURVE_MIN + 10 : 0);
     // fixed-height rows centre their text; content-height rows keep it top-aligned (the output before cellH existed)
-    for (const c of placed) c.top = fixed === undefined ? cy + padY : cy + (h - c.lines.length * lineH(roles.body)) / 2;
+    for (const c of placed) c.top = fixed === undefined || c.vAlign === 'top' ? cy + padY : cy + (h - c.lines.length * lineH(roles.body)) / 2;
     const row: LaidOutTableRow = {y: cy, h, cells: placed, header, tone};
     cy += h;
     return row;
@@ -179,9 +182,24 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
   const rows: LaidOutTableRow[] = [];
   const hasHeader = cols.some(c => c.label) && band.header !== false;
   if (hasHeader) rows.push(rowOf(cols, true));
-  for (const r of band.rows) {
+  for (const [i, r] of band.rows.entries()) {
     const cells = 'cells' in r ? r.cells : r;
-    rows.push(rowOf(cells, false, 'cells' in r ? r.tone : undefined, 'cells' in r ? r.h : undefined));
+    rows.push(rowOf(cells, false, 'cells' in r ? r.tone : undefined, 'cells' in r ? r.h : undefined, band.rowCurve?.row === i));
   }
-  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone, rowHeader: band.rowHeader || undefined, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), bodySize: roles.body};
+  let rowCurve: LaidOutTable['rowCurve'];
+  if (band.rowCurve) {
+    const body = rows.filter(r => !r.header), row = body[band.rowCurve.row];
+    if (!row) throw new Error(`table(): rowCurve row ${band.rowCurve.row} does not exist`);
+    if (band.rowCurve.values.length !== cols.length - 1) throw new Error(`table(): rowCurve has ${band.rowCurve.values.length} values for ${cols.length - 1} data columns`);
+    // below the data cells' own text (a wrapped value would otherwise run into the curve)
+    const textBottom = Math.max(row.y, ...row.cells.slice(1).map(c => c.top + c.lines.length * lineH(roles.body)));
+    const top = Math.max(row.y + row.h * 0.5, textBottom + 8), bottom = row.y + row.h - 10;
+    const span = band.rowCurve.max - band.rowCurve.min;
+    const yOf = (v: number) => bottom - (v - band.rowCurve!.min) / span * (bottom - top);
+    rowCurve = {
+      points: band.rowCurve.values.map((v, i) => ({x: colX[i + 1] + colW[i + 1] / 2, y: yOf(v)})),
+      midY: yOf((band.rowCurve.min + band.rowCurve.max) / 2), top, bottom,
+    };
+  }
+  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone, rowHeader: band.rowHeader || undefined, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), bodySize: roles.body, ...(rowCurve ? {rowCurve} : {})};
 }

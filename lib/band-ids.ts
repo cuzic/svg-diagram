@@ -2,6 +2,7 @@
 // written (before layout). reveal.ts gives each the band's own stage, so a connect() to a node appears with the figure.
 import {treeItems} from './tree.ts';
 import {quadrantIds} from './quadrant.ts';
+import {flowShapeIds} from './flow-shapes.ts';
 import type {Band} from './types.ts';
 
 export function nodeIdsOf(b: Band): string[] {
@@ -15,6 +16,7 @@ export function nodeIdsOf(b: Band): string[] {
     case 'classes': return b.classes.map(c => c.id);
     case 'bpmn': return b.nodes.map(n => n.id);
     case 'quadrant': return quadrantIds(b);
+    case 'chevron': case 'funnel': case 'cycle': case 'venn': case 'concentric': return flowShapeIds(b);
     default: return [];
   }
 }

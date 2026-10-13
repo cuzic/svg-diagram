@@ -16,7 +16,7 @@
 // anchor (any box/child with an explicit `id`) has a known rect.
 
 import {splitAtoms, textWidth} from './atoms.ts';
-import {wrapAtoms, wrapStyledAtoms} from './wrap.ts';
+import {setWrapMode, wrapAtoms, wrapStyledAtoms} from './wrap.ts';
 import {assertSpans} from './rich.ts';
 import {collectTextRequests, layoutSequence, layoutTable} from './seq-table.ts';
 import {layoutPlane, planeTexts} from './plane.ts';
@@ -25,6 +25,7 @@ import {barsTexts, layoutBars} from './bars.ts';
 import {dotsTexts, layoutDots, layoutPeople, peopleTexts} from './people.ts';
 import {layoutTimeline, timelineTexts} from './timeline.ts';
 import {layoutQuadrant, quadrantTexts} from './quadrant.ts';
+import {flowShapeTexts, layoutFlowShape} from './flow-shapes.ts';
 import {canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
 import {layoutTreeBand, treeTexts} from './tree.ts';
 import {layoutStatesBand, statesTexts} from './states.ts';
@@ -224,6 +225,9 @@ function colSlots(children: SlotSizing[]): {col: number; span: number}[] {
 // Structural width distribution for row()/grid() — pure arithmetic, no text
 // metrics needed, so this can run in the same pass that registers measure
 // requests (a child's wrap width must be known before we know what to wrap).
+/** swimlane({fit: 'shrink'}) leaves the lane label / gap sizes alone while every column is at least this wide. */
+const SWIMLANE_COMFY_COL = 112;
+
 function rowChildGeometry(band: Pick<RowBand, 'cols' | 'gap' | 'justify' | 'itemWidth'> & {children: {span?: number; col?: number; flex?: number; width?: number; title?: string; id?: string}[]}, contentWidth: number) {
   const n = band.children.length;
   const gap = band.gap;
@@ -321,6 +325,8 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
       for (const [text, size, weight, font] of planeTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'quadrant') {
       for (const [text, size, weight, font] of quadrantTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
+    } else if (band.type === 'chevron' || band.type === 'funnel' || band.type === 'cycle' || band.type === 'venn' || band.type === 'concentric') {
+      for (const [text, size, weight, font] of flowShapeTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
     } else if (band.type === 'image') {
       for (const [text, size, weight, font] of imageTexts(band, roles)) registerAtoms(requests, text, size, weight, font);
       for (const child of band.children ?? []) registerBand(child);
@@ -380,6 +386,11 @@ export function widthOfMeasured(measured: Map<string, Measured>, strict: boolean
 
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
 export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
+  const prev = setWrapMode(data.wrap ?? 'phrase');
+  try { return layoutBands(data, roles, widthOf); } finally { setWrapMode(prev); }
+}
+
+function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
   const d = withSourceLine(data);
   const contentWidth = d.width - 2 * d.pad;
 
@@ -709,9 +720,17 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
     }
 
     if (band.type === 'swimlane') {
-      const labelW = band.labelW ?? 128, colGap = band.colGap ?? 28, padY = 14, padX2 = 14;
+      let labelW = band.labelW ?? 128, colGap = band.colGap ?? 28, padX2 = 14;
+      const padY = 14;
+      const colWAt = (): number => (cw - labelW - 2 * padX2 - (band.cols - 1) * colGap) / band.cols;
+      if (band.fit === 'shrink' && colWAt() < SWIMLANE_COMFY_COL) { // free room for the columns: lane labels and gaps give way first, a step at a time
+        for (const [lw, cg, px] of [[104, 20, 12], [88, 12, 8]]) {
+          labelW = Math.min(labelW, lw); colGap = Math.min(colGap, cg); padX2 = Math.min(padX2, px);
+          if (colWAt() >= SWIMLANE_COMFY_COL) break;
+        }
+      }
       const bodyX = padX + labelW, bodyW = cw - labelW;
-      const colW = (bodyW - 2 * padX2 - (band.cols - 1) * colGap) / band.cols;
+      const colW = colWAt();
       if (colW < 60) throw new Error(`swimlane(): ${band.cols} columns leave only ${Math.round(colW)}px each — widen the diagram, shrink labelW, or use fewer columns`);
       const startY = cursorY;
       const wrapLines = (text: string, size: number, weight: number, maxW: number) => wrapAtoms(splitAtoms(text), {maxWidth: Math.max(20, maxW), atomWidth: (a: string) => widthOf(a, size, weight, 'sans')});
@@ -1018,6 +1037,13 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
       laidOut.push(placed);
       cursorY += placed.h + d.gap;
       continue;
+    }
+
+    if (band.type === 'chevron' || band.type === 'funnel' || band.type === 'cycle' || band.type === 'venn' || band.type === 'concentric') {
+      const placed = layoutFlowShape(band, padX, cursorY, cw, widthOf, roles);
+      if (band.id) { if (anchors.has(band.id)) claimed(band.id, `a ${band.type} takes an id that another anchor already has`); anchors.set(band.id, placed); }
+      for (const a of placed.anchors) { if (anchors.has(a.id)) claimed(a.id, `a ${band.type} item takes an id that another anchor already has`); anchors.set(a.id, a); }
+      laidOut.push(placed); cursorY += placed.h + d.gap; continue;
     }
 
     if (band.type === 'curve') {
