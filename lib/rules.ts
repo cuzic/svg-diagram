@@ -9,6 +9,7 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
+import {nestedBandsOf} from './band-children.ts';
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
 import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, withTones} from './tokens.ts';
@@ -87,10 +88,7 @@ export const DEFAULT_LEGEND_LABELS = {
 export function walkBands(bands: Band[], out: Band[] = []): Band[] {
   for (const b of bands) {
     out.push(b);
-    if (b.type === 'group' || b.type === 'image') walkBands(b.children ?? [], out);
-    else if (b.type === 'grouprow') walkBands(b.children, out);
-    else if (b.type === 'row' || b.type === 'grid') out.push(...b.children);
-    else if (b.type === 'swimlane') out.push(...b.steps);
+    walkBands(nestedBandsOf(b), out);
   }
   return out;
 }
