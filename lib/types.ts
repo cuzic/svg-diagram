@@ -2559,4 +2559,6 @@ export interface ChangeExplanation {identical: boolean; visual: boolean; lines: 
 /** One numbered item of a Markdown page's notes list. */
 export interface DocNoteItem {n: number; title: string; text: string}
 /** One `![alt](x.svg)` found in a Markdown page, with the numbered list after it. */
-export interface DocImage {line: number; alt: string; ref: string; items: DocNoteItem[]}
+export interface DocImage {line: number; alt: string; ref: string; items: DocNoteItem[]; caption?: DocCaption}
+/** A 「図N-M」 caption tied to a figure: in its alt text, or on the line just before/after it. */
+export interface DocCaption {ch: number; no: number; line: number}

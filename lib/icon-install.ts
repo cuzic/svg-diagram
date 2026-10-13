@@ -5,6 +5,7 @@ import path from 'node:path';
 import {emptyManifest, glyphFromBody, glyphFromSvg, MANIFEST_FILE, parseManifest, parseSpec, PERMISSIVE} from './icon-store.ts';
 import type {IconManifest, IconSpec, InstalledIcon} from './icon-store.ts';
 import {findManifest} from './icon-registry.ts';
+import {setArgs} from './icon-sets.ts';
 
 export type Fetch = (url: string) => Promise<{ok: boolean; status: number; json(): Promise<unknown>}>;
 export interface InstallOpts {
@@ -41,7 +42,47 @@ export function readManifest(file: string): IconManifest {
 }
 export function writeManifest(file: string, m: IconManifest): void {
   const icons = Object.fromEntries(Object.entries(m.icons).sort(([a], [b]) => a.localeCompare(b)));
-  fs.writeFileSync(file, JSON.stringify({version: 1, ...(m.mainSet ? {mainSet: m.mainSet} : {}), ...(m.packs && Object.keys(m.packs).length ? {packs: m.packs} : {}), icons}, null, 2) + '\n');
+  const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
+  try {
+    fs.writeFileSync(tmp, JSON.stringify({version: 1, ...(m.mainSet ? {mainSet: m.mainSet} : {}), ...(m.packs && Object.keys(m.packs).length ? {packs: m.packs} : {}), icons}, null, 2) + '\n');
+    fs.renameSync(tmp, file); // atomic: a reader sees the old or the new file, never half of one
+  } catch (e) { try { fs.unlinkSync(tmp); } catch { /* never made */ } throw e; }
+}
+
+const LOCK_STALE_MS = 30_000;
+const LOCK_TIMEOUT_MS = 15_000;
+const sleep = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+function lockIsStale(lock: string): boolean {
+  try {
+    const st = fs.statSync(lock);
+    const pid = Number(fs.readFileSync(lock, 'utf8').split(/\s/)[0]);
+    if (Date.now() - st.mtimeMs > LOCK_STALE_MS) return true;
+    if (pid > 0) { try { process.kill(pid, 0); } catch (e) { return (e as NodeJS.ErrnoException).code === 'ESRCH'; } }
+    return false;
+  } catch { return false; } // gone already (or half-written): the next try finds out
+}
+/** Remove a stale lock. Two runs may both judge the same lock stale; a plain unlink by the slower one would delete the lock the faster one has
+ *  just made, and both would go on. So the lock is first renamed aside (atomic — only one run gets it) and judged again there: a live lock
+ *  caught by mistake is linked back. */
+function takeOver(lock: string): void {
+  const aside = `${lock}.${process.pid}.${Math.random().toString(36).slice(2)}.stale`;
+  try { fs.renameSync(lock, aside); } catch { return; } // someone else took it over already
+  try { if (!lockIsStale(aside)) fs.linkSync(aside, lock); } catch { /* a new lock is there already: its maker holds it */ } finally { try { fs.unlinkSync(aside); } catch { /* gone */ } }
+}
+/** Run `fn` holding an exclusive lock (<manifest>.lock, created with O_EXCL) so that read-modify-write cycles of parallel runs do not lose each other's updates. A lock left by a dead process is taken over. */
+export function withManifestLock<T>(file: string, fn: () => T): T {
+  const lock = `${file}.lock`;
+  const start = Date.now();
+  fs.mkdirSync(path.dirname(file), {recursive: true});
+  for (;;) {
+    try { const fd = fs.openSync(lock, 'wx'); try { fs.writeSync(fd, `${process.pid}\n`); } finally { fs.closeSync(fd); } break; } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
+      if (lockIsStale(lock)) { takeOver(lock); continue; }
+      if (Date.now() - start > LOCK_TIMEOUT_MS) throw new Error(`${lock} is held by another svg-diagram run for over ${LOCK_TIMEOUT_MS / 1000}s — if none is running, delete that file`);
+      sleep(20 + Math.random() * 40);
+    }
+  }
+  try { return fn(); } finally { try { fs.unlinkSync(lock); } catch { /* already gone */ } }
 }
 
 /** Fetch and convert the icons for `specs`. Nothing is written; any failure throws, so one bad pick installs none. */
@@ -82,14 +123,18 @@ export async function resolveSpecs(specs: IconSpec[], opts: InstallOpts = {}): P
   return out;
 }
 
-export async function addIcons(args: string[], opts: InstallOpts = {}): Promise<{file: string; added: string[]; replaced: string[]; warnings: string[]}> {
+export async function addIcons(args: string[], opts: InstallOpts & {keepExisting?: boolean} = {}): Promise<{file: string; added: string[]; replaced: string[]; kept: string[]; warnings: string[]}> {
   const cwd = opts.cwd ?? process.cwd();
   const specs = args.map(parseSpec);
   const dup = specs.find((s, i) => specs.findIndex(t => t.name === s.name) !== i);
   if (dup) throw new Error(`the name "${dup.name}" is given twice — rename one with =name`);
   const got = await resolveSpecs(specs, {...opts, cwd});
   const file = manifestPath(cwd);
+  return withManifestLock(file, () => {
   const m = readManifest(file);
+  // keepExisting (add-set): a name the project already has stays as it is — the set's pick does not overwrite the user's own
+  const kept = opts.keepExisting ? Object.keys(got).filter(n => n in m.icons) : [];
+  for (const n of kept) delete got[n];
   const replaced = Object.keys(got).filter(n => n in m.icons);
   // the first Iconify set a project installs from becomes its main set; later ones from another set are said to look different
   const warnings: string[] = [];
@@ -98,17 +143,23 @@ export async function addIcons(args: string[], opts: InstallOpts = {}): Promise<
   for (const p of sets) if (m.mainSet && p !== m.mainSet) warnings.push(`主セットは ${m.mainSet}。${p} のアイコンは線の太さや絵柄が揃わないことがある（主セットを変えるなら: svg-diagram icons main ${p}）`);
   Object.assign(m.icons, got);
   writeManifest(file, m);
-  return {file, added: Object.keys(got).filter(n => !replaced.includes(n)), replaced, warnings};
+  return {file, added: Object.keys(got).filter(n => !replaced.includes(n)), replaced, kept, warnings};
+  });
 }
+
+/** Install a recommended set (see icon-sets.ts) through the ordinary `icons add` path. Names already installed are kept, not overwritten. */
+export function addSet(name: string, opts: InstallOpts = {}) { return addIcons(setArgs(name), {...opts, keepExisting: true}); }
 
 export function removeIcons(names: string[], cwd: string = process.cwd()): {file: string; removed: string[]} {
   const file = manifestPath(cwd);
+  return withManifestLock(file, () => {
   const m = readManifest(file);
   const missing = names.filter(n => !(n in m.icons));
   if (missing.length) throw new Error(`not installed: ${missing.join(', ')}`);
   for (const n of names) delete m.icons[n];
   writeManifest(file, m);
   return {file, removed: names};
+  });
 }
 
 export async function searchIcons(query: string, opts: InstallOpts & {set?: string; limit?: number} = {}): Promise<string[]> {
@@ -132,8 +183,10 @@ export function noticeText(m: IconManifest): string {
 export function setMainSet(prefix: string | undefined, cwd: string = process.cwd()): {file: string; mainSet?: string} {
   if (prefix !== undefined && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(prefix)) throw new Error(`"${prefix}" is not an Iconify set prefix (like mdi, lucide, material-symbols)`);
   const file = manifestPath(cwd);
-  const m = readManifest(file);
-  if (prefix) m.mainSet = prefix; else delete m.mainSet;
-  writeManifest(file, m);
-  return {file, mainSet: prefix};
+  return withManifestLock(file, () => {
+    const m = readManifest(file);
+    if (prefix) m.mainSet = prefix; else delete m.mainSet;
+    writeManifest(file, m);
+    return {file, mainSet: prefix};
+  });
 }
