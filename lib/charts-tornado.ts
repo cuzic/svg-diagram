@@ -97,10 +97,11 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
     const geom = bars.map((b, j) => {
       const x1 = Math.min(xb, xOf(b.v)), x2 = Math.max(xb, xOf(b.v)), by = same ? cy - barH - 2 + j * (barH + 4) : top;
       // a result equal to the base has no bar (its number is still written)
-      if (x2 - x1 >= 1) c.rect(r1(x1), r1(by), r1(x2 - x1), r1(barH), {fill: b.tone, solid: `${it.label} ${b.name}`, ...(it.id && j === 0 ? {id: it.id} : {}), of: it.id ?? `#${k}`});
-      else if (it.id && j === 0) c.anchors.push({id: it.id, x: xb - 1, y: by, w: 2, h: barH});
+      if (x2 - x1 >= 1) c.rect(r1(x1), r1(by), r1(x2 - x1), r1(barH), {fill: b.tone, solid: `${it.label} ${b.name}`, of: it.id ?? `#${k}`});
       return {x1, x2, by};
     });
+    // the row's anchor holds both its bars (a connector or a spotlight on the row means the whole row, not its low bar)
+    if (it.id) { const x1 = Math.min(xb - 1, ...geom.map(q => q.x1)), x2 = Math.max(xb + 1, ...geom.map(q => q.x2)), y1 = Math.min(...geom.map(q => q.by)), y2 = Math.max(...geom.map(q => q.by)) + barH; c.anchors.push({id: it.id, x: r1(x1), y: r1(y1), w: r1(x2 - x1), h: r1(y2 - y1)}); }
     bars.forEach((b, j) => {
       const {x1, x2, by} = geom[j], right = xOf(b.v) >= xb, text = vText(b.v);
       const out = right ? {x: x2 + 6, y: c.mid(by + barH / 2), anchor: 'start' as const} : {x: x1 - 6, y: c.mid(by + barH / 2), anchor: 'end' as const};

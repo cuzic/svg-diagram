@@ -143,6 +143,17 @@ test('tornado(): a result above the base in both cases is drawn as two thin bars
 
 // ---- heatmap -------------------------------------------------------------------------------------------------------------------
 
+test('tornado(): a row id is an anchor over both of its bars (it used to be the low bar only, 2px at the base when low = base)', async () => {
+  const {chart, problems} = await chartOf(tornado([{label: '単価', low: 100, high: 160, id: 'p'}, {label: '為替', low: 80, high: 130, id: 'fx'}], {base: 100}));
+  assert.deepEqual(problems, []);
+  const p = chart.anchors.find(a => a.id === 'p')!, hi = chart.solids.find(s => s.label === '単価 高ケース')!;
+  assert.ok(p.w > 2 && p.x <= hi.x + 1.5 && p.x + p.w >= hi.x + hi.w - 0.5, 'the high bar is inside the anchor');
+  const fx = chart.anchors.find(a => a.id === 'fx')!, lo = chart.solids.find(s => s.label === '為替 低ケース')!, hi2 = chart.solids.find(s => s.label === '為替 高ケース')!;
+  assert.ok(fx.x <= lo.x + 0.5 && fx.x + fx.w >= hi2.x + hi2.w - 0.5, 'both bars');
+  const {verdict} = await checkDiagram(diagram({theme: 'blue', spotlight: 'p'}).add(tornado([{label: '単価', low: 100, high: 160, id: 'p'}, {label: '為替', low: 80, high: 130}], {base: 100})));
+  assert.deepEqual(verdict.problems, []);
+});
+
 test('tornado(): long case names wrap the legend to a second row; a base at the edge keeps its name in the figure (both used to run outside)', async () => {
   const L = '非常に長い名前がここに入ってしまったケースを想定しています';
   const a = await chartOf(tornado([{label: 'a', low: 90, high: 110}], {base: 100, lowLabel: L + L, highLabel: L}));
