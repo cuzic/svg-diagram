@@ -173,6 +173,10 @@ test('paginate and pageName split a set into numbered sheets', () => {
   assert.deepEqual(paginate(xs), [xs]);
   assert.deepEqual(paginate(xs, {perPage: 2}), [[1, 2], [3, 4], [5]]);
   assert.deepEqual(paginate(xs, {pages: 2}), [[1, 2, 3], [4, 5]]);
+  assert.deepEqual(paginate(xs, {pages: 4}), [[1, 2], [3], [4], [5]]); // exactly 4 sheets, not ceil(5/4)=2 per sheet -> 3
+  assert.equal(paginate([1, 2, 3, 4, 5, 6, 7, 8, 9], {pages: 4}).length, 4);
+  assert.deepEqual(paginate(xs, {pages: 9}), [[1], [2], [3], [4], [5]]);
+  assert.deepEqual(paginate(xs, {perPage: 5}), [xs]);
   assert.equal(pageName('s.png', 0, 1), 's.png');
   assert.equal(pageName('d/s.png', 1, 3), 'd/s-2.png');
 });
