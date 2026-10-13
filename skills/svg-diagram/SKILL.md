@@ -168,6 +168,18 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 
 4 部品とも `title / width / dense / id / reveal / until` が使え、結果は通常の `table` band（ハンドルも同じ）。色だけに頼らず、RACI 文字・評価記号・数値を消さない。例は `examples/raci-project.ts`、`fmea-basic.ts`、`qfd-basic.ts`、`journey-map.ts`。
 
+## 意味付きネットワーク
+
+座標を手で書かず、意味をデータに持たせるネットワークは次を使う。方向はすべて `direction: 'LR' | 'TB'`、ノード `id` は `connect()` の端点になる。
+
+| 図 | 書き方 | 自動で行うこと |
+|---|---|---|
+| PERT（作業を箱にする activity-on-node。作業を矢印にするなら `arrowDiagram`） | `pert([{id, label, duration, predecessors}], {unit})` | ES / EF / LS / LF / slack とクリティカルパス。循環・未知の先行タスクを拒否 |
+| 因果ループ図 | `causalLoop(nodes, [{from, to, polarity, delay?}])` | `+` / `-`、遅延 `||`、単純ループの R / B 分類 |
+| 関連図 / 依存ネットワーク | `dependencyNetwork([{id, label, kind?}], [{from, to, type, weight?}], opts)` | kind / type の表現、重みの線幅と数値、使用した記法の凡例 |
+
+PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `analyzeCausalLoops`。長い日本語ラベルでは `width` を広げ、層が多いときは LR、並列が多いときは TB を試す。描いた後は必ず `check` とプレビューを通す。
+
 ## ワイヤーフレーム・画面遷移図で、見て直すこと（実際に効いた点）
 
 画面ごとに `wireframe(root, {title, tag, h, notes})` を書き、`n:` で番号の丸を付けて右の注釈欄と対応させる。
