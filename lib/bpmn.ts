@@ -11,6 +11,7 @@ import {wrapText} from './wrap.ts';
 import type {BpmnBand, BpmnNodeKind, FontFamily, LaidOutBpmn, Roles, WidthOf} from './types.ts';
 
 const LABEL_COL = 120, PAD_Y = 22, COL_GAP = 52, EVENT = 36, GATE = 44, TASK_MAX = 168, LABEL_MAX = 120, STUB = 16, CHIP_PAD = 5, ARROW = 12;
+const TASK_ICON = 20, ICON_H = TASK_ICON + 4; // an icon above a task's label: its size and the room it takes
 const lineH = (s: number): number => Math.round(s * 1.4);
 const isEvent = (k: BpmnNodeKind): boolean => k === 'start' || k === 'end';
 const isGate = (k: BpmnNodeKind): boolean => k === 'xor' || k === 'and' || k === 'or';
@@ -57,6 +58,8 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
     const k = n.kind ?? 'task';
     if (!(BPMN_KINDS as readonly string[]).includes(k)) throw new Error(`bpmn(): node "${n.id}" has kind ${String(k)} (use ${BPMN_KINDS.join(' | ')})`);
     if (k === 'task' && !(n.label ?? '').trim()) throw new Error(`bpmn(): task "${n.id}" needs a label`);
+    if ((n.icon !== undefined || n.iconTone !== undefined) && k !== 'task') throw new Error(`bpmn(): node "${n.id}" is a ${k} event/gateway; only a task takes an icon`);
+    if (n.iconTone !== undefined && n.icon === undefined) throw new Error(`bpmn(): node "${n.id}" has iconTone but no icon`);
   }
   for (const f of band.flows) for (const e of [f.from, f.to]) if (!ids.has(e)) throw new Error(`bpmn(): flow ${f.from} -> ${f.to} names unknown node "${e}"`);
   const kindOf = new Map(band.nodes.map(n => [n.id, n.kind ?? 'task' as BpmnNodeKind]));
@@ -70,7 +73,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   const meas = new Map<string, M>();
   for (const n of band.nodes) {
     const k = kindOf.get(n.id)!;
-    if (k === 'task') { const m = measureNode(n.label!, n.sub, TASK_MAX, widthOf, roles); meas.set(n.id, {w: m.w, h: m.h, lines: m, label: [], extent: m.h}); continue; }
+    if (k === 'task') { const m = measureNode(n.label!, n.sub, TASK_MAX, widthOf, roles); const h = m.h + (n.icon ? ICON_H : 0); meas.set(n.id, {w: m.w, h, lines: m, label: [], extent: h}); continue; }
     const size = isEvent(k) ? EVENT : GATE;
     const label = n.label ? wrapText(n.label, {maxWidth: LABEL_MAX, atomWidth: a => widthOf(a, B, 400, 'sans')}) : [];
     meas.set(n.id, {w: size, h: size, label, extent: size + (label.length ? 4 + label.length * lineH(B) : 0)});
@@ -115,7 +118,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   laneH.reduce((a, h, i) => (laneTop[i] = a, a + h), y);
   const out: LaidOutBpmn = {
     type: 'bpmn', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w: width, h: laneH.reduce((a, b) => a + b, 0),
-    lanes: [], nodes: [], edges: [], texts: [], labels: [], anchors: [], labelBoxes: [],
+    lanes: [], nodes: [], icons: [], edges: [], texts: [], labels: [], anchors: [], labelBoxes: [],
   };
   band.lanes.forEach((l, i) => {
     out.lanes.push({x, y: laneTop[i], w: width, h: laneH[i], labelW: LABEL_COL, tone: l.tone ?? 'plain'});
@@ -146,7 +149,9 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
     const nb = {label: n.label ?? n.id, x: r.x, y: r.y, w: r.w, h: r.h};
     out.labelBoxes.push(nb);
     labelOfNode.add(nb);
-    if (m.lines) out.texts.push(...nodeRuns(r, m.lines, roles).map(t => ({...t, anchor: 'middle' as const})));
+    const iconH = n.icon ? ICON_H : 0;
+    if (n.icon) out.icons.push({node: out.nodes.length - 1, name: n.icon, glyph: n.iconGlyph!, x: r.x + (r.w - TASK_ICON) / 2, y: r.y + 8, size: TASK_ICON, ...(n.iconTone ? {tone: n.iconTone} : {})});
+    if (m.lines) out.texts.push(...nodeRuns({...r, y: r.y + iconH}, m.lines, roles).map(t => ({...t, anchor: 'middle' as const})));
     else if (!isGate(k)) m.label.forEach((ln, i) => { // an event's label hangs below it (a gateway's is placed after the flows are known)
       const tw = Math.ceil(textWidth(widthOf, ln, B, 400)), ty = r.y + r.h + 4 + i * lineH(B) + B;
       out.texts.push({text: ln, x: r.x + r.w / 2, y: ty, size: B, bold: false, muted: false, anchor: 'middle'});

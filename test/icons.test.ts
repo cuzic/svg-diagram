@@ -1,7 +1,7 @@
 import test from 'node:test';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-import {box, cell, checkDiagram, closeMeasurer, connect, diagram, icon, iconRow, node, renderDiagram, row, sankey, stateDiagram, swimlane, table} from '../lib/dsl.ts';
+import {bpmn, box, cell, checkDiagram, closeMeasurer, connect, diagram, icon, iconRow, node, renderDiagram, row, sankey, sequence, stateDiagram, swimlane, table} from '../lib/dsl.ts';
 import {EMOJIS} from '../lib/icons.ts';
 import type {EmojiName, IconName} from '../lib/icons.ts';
 import {parseManifest} from '../lib/icon-store.ts';
@@ -241,4 +241,44 @@ test('a table icon beside centred / right-aligned text sits just before the text
   const tx = (s: string) => Number(new RegExp(`<text x="([\\d.]+)"[^>]*>${s}<`).exec(svg)![1]);
   assert.ok(tx('済') - at('key') < 50, `centred: icon ${at('key')} near text ${tx('済')}`);
   assert.ok(tx('1,000') - at('lock') < 90, `right: icon ${at('lock')} near text end ${tx('1,000')}`);
+});
+
+// ---- icons on bpmn tasks and sequence participants ----
+const bpmnWith = (opts: object = {}) => bpmn(
+  [{id: 'a', label: '顧客'}, {id: 'b', label: '店舗'}],
+  [{id: 's', lane: 'a', kind: 'start', label: '注文'}, {id: 't', lane: 'a', label: '支払う', icon: 'key', sub: 'カード'}, {id: 'u', lane: 'b', label: '確認する', icon: 'lock', iconTone: 'danger', tone: 'accent'}, {id: 'e', lane: 'b', kind: 'end', label: '完了'}],
+  [{from: 's', to: 't'}, {from: 't', to: 'u', line: 'dashed'}, {from: 'u', to: 'e'}], opts);
+
+test('a bpmn task takes an icon above its label; the task grows to hold it', async () => {
+  const {svg, verdict} = await renderDiagram(diagram({theme: 'blue'}).add(bpmnWith()), {name: 'bpmn-icon.svg', budget: 'cacheOnly'});
+  assert.deepEqual(verdict.problems, []);
+  assert.deepEqual(iconMarks(svg), ['key', 'lock']);
+  assert.match(svg, /aria-hidden="true" data-icon="key"/, 'a task has a label, so its icon is decoration');
+  const h = async (icon?: 'key') => ((await checkDiagram(diagram({theme: 'blue'}).add(bpmn([{id: 'a', label: 'x'}], [{id: 't', lane: 'a', label: '支払う', ...(icon ? {icon} : {})}], [])))).laidOut.laidOut[0] as unknown as {nodes: {h: number}[]}).nodes[0].h;
+  assert.equal(await h('key') - await h(), 24);
+});
+
+test("bpmn icons survive fit: 'shrink'", async () => {
+  const {verdict} = await renderDiagram(diagram({theme: 'blue'}).add(bpmnWith({fit: 'shrink'})), {name: 'bpmn-icon-shrink.svg', budget: 'cacheOnly'});
+  assert.deepEqual(verdict.problems, []);
+});
+
+test('bpmn icon errors: not installed, on an event', async () => {
+  const lanes = [{id: 'a', label: 'x'}];
+  assert.throws(() => bpmn(lanes, [{id: 't', lane: 'a', label: 'T', icon: 'nope' as IconName}], []), /not installed/);
+  await assert.rejects(checkDiagram(diagram({theme: 'blue'}).add(bpmn(lanes, [{id: 't', lane: 'a', kind: 'start', label: 'T', icon: 'key'}], []))), /only a task takes an icon/);
+});
+
+test('a sequence participant takes an icon above its label; heads stay one height', async () => {
+  const mk = () => diagram({theme: 'blue'}).add(sequence(
+    [{id: 'u', label: '利用者', icon: 'person'}, {id: 's', label: 'サーバ', icon: 'database', iconTone: 'accent', tone: 'accent'}, {id: 'p', label: '外部'}],
+    [{from: 'u', to: 's', label: '依頼'}, {from: 's', to: 'p', label: '照会'}, {self: 's', label: '検証'}]));
+  const {svg, verdict} = await renderDiagram(mk(), {name: 'seq-icon.svg', budget: 'cacheOnly'});
+  assert.deepEqual(verdict.problems, []);
+  assert.deepEqual(iconMarks(svg), ['person', 'database']);
+  const heads = ((await checkDiagram(mk())).laidOut.laidOut[0] as unknown as {heads: {h: number; textDy: number}[]}).heads;
+  assert.equal(new Set(heads.map(x => x.h)).size, 1);
+  assert.ok(heads[2].textDy > 12 && heads[2].textDy < heads[0].textDy, 'a head without an icon keeps its label in the middle');
+  assert.throws(() => sequence([{id: 'a', label: 'A', icon: 'nope' as IconName}, {id: 'b', label: 'B'}], []), /not installed/);
+  assert.throws(() => sequence([{id: 'a', label: 'A', iconTone: 'accent'}, {id: 'b', label: 'B'}], []), /iconTone but no icon/);
 });
