@@ -232,6 +232,13 @@ test('stackedBars(): a crowded chart widens its columns for their numbers instea
   assert.ok(w.every(x => Math.abs(x - w[0]) < 0.2), 'every column is as wide as the others');
 });
 
+test('stackedBars(): totals too wide to stand side by side are an error that names the fix (they used to overlap each other)', async () => {
+  const cols = Array.from({length: 20}, (_, i) => ({label: `${i}`, parts: [{label: 'x', value: 1234567 + i}, {label: 'y', value: 7654321}]}));
+  await assert.rejects(laid(stackedBars(cols)), /column totals .* do not fit side by side/);
+  const {problems} = await chartOf(stackedBars(cols.slice(0, 6)));
+  assert.deepEqual(problems, []);
+});
+
 test('stackedBars(): a part too thin for its label inside the column is written beside the column; a mekko leaves it out', async () => {
   const cols = [{label: '甲', parts: [{label: '大', value: 100}, {label: '小', value: 6}]}, {label: '乙', parts: [{label: '大', value: 90}, {label: '小', value: 4}]}];
   const st = await chartOf(stackedBars(cols));

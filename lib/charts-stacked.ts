@@ -85,6 +85,7 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
   // that would fit in a wider column is not left out of the drawing for want of a few pixels
   const slotW0 = (plotR - plotL) / n;
   const numW = Math.max(0, ...s.columns.flatMap(k => k.values.flatMap(v => v > 0 ? [c.tw(segText(s, v, k.total), true) + 8] : [])));
+  if (s.mode === 'stacked') { const totW = Math.max(...s.columns.map(k => c.tw(`${numText(k.total)}${s.unit}`, true))); if (totW + 6 > slotW0) fail('stackedBars', `the column totals (up to ${Math.ceil(totW)}px) do not fit side by side in columns ${Math.floor(slotW0)}px apart (raise width, use fewer columns, or a larger unit)`); }
   const barW = Math.min(Math.max(Math.min(96, slotW0 * 0.6), numW), slotW0 - 12);
   const widths = s.columns.map(k => s.mode === 'mekko' ? avail * k.total / total : Math.max(barW, Math.min(96, slotW0 * 0.6)));
   if (widths.some(w => w < 1)) fail(s.mode === 'mekko' ? 'mekko' : 'stackedBars', `a column is less than 1px wide (raise width, drop the smallest columns, or fold them together)`);
