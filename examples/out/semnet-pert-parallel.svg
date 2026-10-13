@@ -1,0 +1,43 @@
+<svg data-appearance="dark" xmlns="http://www.w3.org/2000/svg" width="940" height="400" viewBox="0 0 940 400" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">並行するクリティカルパス</title>
+  <desc id="svg-desc">PERT network. Project duration 8日. Critical path: s → a → c. 開始: duration 0, ES 0, EF 0, LS 0, LF 0, slack 0; 基盤構築: duration 5, ES 0, EF 5, LS 0, LF 5, slack 0; 運用設計: duration 5, ES 0, EF 5, LS 0, LF 5, slack 0; 統合試験: duration 3, ES 5, EF 8, LS 5, LF 8, slack 0</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/semnet-pert-parallel.ts","sourceSha256":"4f3e0f6ba41f824c7cc7a1c6b97bf98b31f261cdbfbf985c7cc0335a8643fd07"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="400" fill="#1b1a17"/>
+
+  <path d="M463,92 L463,124" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M463,124 L393,124" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M393,124 L393,168" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M393,168 L387,157 L399.1,157 Z" fill="#f05252"/>
+  <path d="M477,92 L477,110" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M477,110 L547,110" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M547,110 L547,168" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M547,168 L541,157 L553.1,157 Z" fill="#f05252"/>
+  <path d="M393,232 L393,250" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M393,250 L470,250" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M470,250 L470,308" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M470,308 L464,297 L476.1,297 Z" fill="#f05252"/>
+  <path d="M547,232 L547,264" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M547,264 L484,264" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M484,264 L484,308" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M484,308 L478,297 L490.1,297 Z" fill="#f05252"/>
+  <path d="M407,28 H533 V92 H407 Z" fill="#1b1a17"/>
+  <path d="M407,28 H533 V92 H407 Z" fill="#5fc1c6" fill-opacity="0.16" stroke="#f05252" stroke-width="4"/>
+  <text x="470" y="50" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">開始</text>
+  <text x="470" y="82" text-anchor="middle" font-size="14" fill="#f05252">0日 / 余裕 0</text>
+  <path d="M330,168 H456 V232 H330 Z" fill="#1b1a17"/>
+  <path d="M330,168 H456 V232 H330 Z" fill="#5fc1c6" fill-opacity="0.16" stroke="#f05252" stroke-width="4"/>
+  <text x="393" y="190" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">基盤構築</text>
+  <text x="393" y="222" text-anchor="middle" font-size="14" fill="#f05252">5日 / 余裕 0</text>
+  <path d="M484,168 H610 V232 H484 Z" fill="#1b1a17"/>
+  <path d="M484,168 H610 V232 H484 Z" fill="#5fc1c6" fill-opacity="0.16" stroke="#f05252" stroke-width="4"/>
+  <text x="547" y="190" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">運用設計</text>
+  <text x="547" y="222" text-anchor="middle" font-size="14" fill="#f05252">5日 / 余裕 0</text>
+  <path d="M407,308 H533 V372 H407 Z" fill="#1b1a17"/>
+  <path d="M407,308 H533 V372 H407 Z" fill="#5fc1c6" fill-opacity="0.16" stroke="#f05252" stroke-width="4"/>
+  <text x="470" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">統合試験</text>
+  <text x="470" y="362" text-anchor="middle" font-size="14" fill="#f05252">3日 / 余裕 0</text>
+</svg>
