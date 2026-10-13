@@ -48,16 +48,16 @@
   <text x="650" y="132" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+90百万円</text>
   <text x="755" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+40百万円</text>
   <text x="860" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">910百万円</text>
-  <text x="125" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">前期の営業</text>
-  <text x="125" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">利益</text>
+  <text x="125" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">前期の</text>
+  <text x="125" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">営業利益</text>
   <text x="230" y="334" text-anchor="middle" font-size="14" fill="#22201b">価格改定</text>
   <text x="335" y="334" text-anchor="middle" font-size="14" fill="#22201b">販売数量</text>
   <text x="440" y="334" text-anchor="middle" font-size="14" fill="#22201b">原材料費</text>
   <text x="545" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">小計</text>
   <text x="650" y="334" text-anchor="middle" font-size="14" fill="#22201b">販促費の削減</text>
   <text x="755" y="334" text-anchor="middle" font-size="14" fill="#22201b">為替</text>
-  <text x="860" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">今期の営業</text>
-  <text x="860" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">利益</text>
+  <text x="860" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">今期の</text>
+  <text x="860" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">営業利益</text>
 
   <path d="M332.5,380 L332.5,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
   <text x="333" y="594" text-anchor="middle" font-size="14" fill="#6f6659">-100</text>

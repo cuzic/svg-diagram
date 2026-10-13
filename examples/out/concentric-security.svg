@@ -12,7 +12,7 @@
   <circle cx="472" cy="248" r="73.3" fill="#b91c1c" fill-opacity="0.1" stroke="#b91c1c" stroke-width="2"/>
   <text x="472" y="70.3" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">境界 — 入口を守る</text>
   <text x="472" y="143.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">アプリ — 権限を絞る</text>
-  <text x="472" y="207.5" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">データ — 暗</text>
-  <text x="472" y="226.4" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">号化</text>
+  <text x="472" y="207.5" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">データ —</text>
+  <text x="472" y="226.4" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">暗号化</text>
   <text x="472" y="253.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">重要情報</text>
 </svg>
