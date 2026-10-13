@@ -268,9 +268,37 @@ test('init makes a project that typechecks its type setting, and never overwrite
   fs.writeFileSync(path.join(dir, 'pnpm-workspace.yaml'), 'packages: []\n');
   assert.match(out(spawnSync(BIN, ['init'], {cwd: dir, encoding: 'utf8'})), /playwright-chromium/);
   assert.equal(fs.readFileSync(path.join(dir, 'pnpm-workspace.yaml'), 'utf8'), 'packages: []\n'); // left alone
-  const t = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8'});
-  assert.equal(t.status, 2); // no typescript in a bare temp project: says how to install it
+  const noTsc = (process.env.PATH ?? '').split(path.delimiter).filter(d => !fs.existsSync(path.join(d, 'tsc'))).join(path.delimiter);
+  const t = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8', env: {...process.env, PATH: noTsc}});
+  assert.equal(t.status, 2); // no typescript in a bare temp project, none on PATH: says how to install it
   assert.match(out(t), /typescript/);
+});
+
+test('typecheck works with this tool run globally: a tsc on PATH, `svg-diagram` and node types resolved from the tool, not the project', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'svgd-tc-'));
+  fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"x"}\n');
+  assert.equal(spawnSync(BIN, ['init'], {cwd: dir, encoding: 'utf8'}).status, 0);
+  fs.mkdirSync(path.join(dir, 'diagrams'));
+  const src = (extra: string) => `${GOOD_TS}\n${extra}`;
+  const tscBin = path.join(ROOT, 'node_modules', '.bin', 'tsc');
+  const wrap = path.join(dir, 'bin');
+  fs.mkdirSync(wrap);
+  fs.writeFileSync(path.join(wrap, 'tsc'), `#!/bin/sh\nexec "${tscBin}" "$@"\n`, {mode: 0o755});
+  const env = {...process.env, PATH: `${wrap}${path.delimiter}${process.env.PATH}`};
+  // the project's own type packages stay visible next to the tool's @types/node, and the `svg-diagram/render` entry resolves too
+  fs.mkdirSync(path.join(dir, 'node_modules', '@types', 'foo'), {recursive: true});
+  fs.writeFileSync(path.join(dir, 'node_modules', '@types', 'foo', 'index.d.ts'), 'declare const FOO: number;\n');
+  const tsconfig = JSON.parse(fs.readFileSync(path.join(dir, 'tsconfig.json'), 'utf8'));
+  tsconfig.compilerOptions.types = ['foo', 'node'];
+  fs.writeFileSync(path.join(dir, 'tsconfig.json'), JSON.stringify(tsconfig));
+  fs.writeFileSync(path.join(dir, 'diagrams', 'a.ts'), src("import {renderSource} from 'svg-diagram/render';\nconsole.log(process.argv.length + FOO, typeof renderSource);\n"));
+  const ok = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8', env});
+  assert.equal(ok.status, 0, out(ok));
+  assert.equal(fs.existsSync(path.join(dir, '.svg-diagram-tsconfig.json')), false); // the temporary config is removed
+  fs.writeFileSync(path.join(dir, 'diagrams', 'a.ts'), src('const n: number = "x";\n'));
+  const bad = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8', env});
+  assert.equal(bad.status, 1, out(bad));
+  assert.match(out(bad), /TS2322/);
 });
 
 test('build: --no-lint skips the lint pass but still writes the SVG', () => {

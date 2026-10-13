@@ -6,7 +6,7 @@
 // computed (usually off-grid) position, same as every hand-authored diagram
 // in this deck.
 
-import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf, recolor, customColors, mapOf} from './tokens.ts';
+import {PALETTE, FONT_STACKS, EMOJI_RE, CONNECT_LABEL_SIZE, STRONG_STROKE, STRONG_HEAD, STRONG_HEAD_REF_X, STRONG_TRIM, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf, recolor, customColors, mapOf, withTones, toneColors} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {
   LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow,
@@ -510,6 +510,9 @@ function renderTimeline(b: LaidOutTimeline, day: Theme): string {
     const x1 = snap4(b.span.x1), y1 = snap4(b.span.y - 12);
     out.unshift(`<rect x="${x1}" y="${y1}" width="${snap4(b.span.x2) - x1}" height="24" fill="${b.span.tone === 'accent' && !b.dim ? PALETTE[day].soft : PALETTE.border}"/>`);
   } else if (b.span) out.push(`<path d="M${snap4(b.span.x1)},${snap4(b.span.y)} H${snap4(b.span.x2)}" fill="none" stroke="${col(b.span.tone)}" stroke-width="8"/>`);
+  for (const g of b.guides ?? []) out.push(`<path d="M${snap4(g.x1)},${snap4(g.y)} H${snap4(g.x2)}" fill="none" stroke="${PALETTE.border}" stroke-width="1"/>`);
+  for (const r of b.bars ?? []) out.push(`<rect x="${snap4(r.x)}" y="${snap4(r.y)}" width="${snap4(r.x + r.w) - snap4(r.x)}" height="${r.h}" fill="${col(r.tone)}" fill-opacity="0.18" stroke="${col(r.tone)}" stroke-width="2"/>`);
+  for (const d of b.dims ?? []) out.push(`<path d="M${snap4(d.x1)},${snap4(d.y)} H${snap4(d.x2)} M${snap4(d.x1)},${snap4(d.y - 5)} V${snap4(d.y + 5)} M${snap4(d.x2)},${snap4(d.y - 5)} V${snap4(d.y + 5)}" fill="none" stroke="${col(d.tone)}" stroke-width="2"/>`);
   if (b.fullLine) out.push(`<path d="M${snap4(b.fullLine.x)},${snap4(b.fullLine.y1)} V${snap4(b.fullLine.y2)}" fill="none" stroke="${col('danger')}" stroke-width="2"/>`);
   for (const t of b.ticks) out.push(`<path d="M${snap4(t.x)},${snap4(t.y1)} V${snap4(t.y2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
   for (const s of b.stems) out.push(`<path d="M${snap4(s.x)},${snap4(s.y1)} V${snap4(s.y2)}" fill="none" stroke="${col(s.tone)}" stroke-width="2"/>`);
@@ -564,11 +567,14 @@ function renderStates(b: LaidOutStates, day: Theme): string {
       continue;
     }
     out.push(renderBoxRect({...n, dim: b.dim}, day, 'plain'));
-    if (n.final) out.push(renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, 'plain').replace('rx="8"', 'rx="5"'));
+    // the inner outline of an end state: on a solid fill its stroke would be the fill colour, so it is drawn in the text colour (white)
+    const inner = renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, 'plain').replace('rx="8"', 'rx="5"');
+    if (n.final) out.push(!b.dim && isSolidTone(n.tone) ? inner.replace(/stroke="[^"]*"/, `stroke="${colorOf(toneStyle(n.tone).text, day)}"`) : inner);
   }
   const ink = (t: LaidOutStates['texts'][number]): string => {
     if (b.dim) return PALETTE.muted;
     const n = b.nodes.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
+    if (n && isSolidTone(n.tone)) return colorOf(toneStyle(n.tone).text, day); // white on the fill, the sub line too
     if (t.muted) return n && toneStyle(n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted; // muted on a soft fill is 4.48:1, under 4.5
     return colorOf(toneStyle(n?.tone).text, day);
   };
@@ -985,6 +991,9 @@ function bandRuns(b: LaidOutBand): (WrappedRun | LaidOutBox)[] {
 }
 
 export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noRecolor?: boolean} = {}): string {
+  return withTones(laidOutDiagram.tones, () => emitSvgWith(laidOutDiagram, opts));
+}
+function emitSvgWith(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noRecolor?: boolean}): string {
   const {width, canvasHeight, day, laidOut, connects, roles} = laidOutDiagram;
   const usesMono = laidOut.some(b => bandRuns(b).some(x => (x as WrappedRun).mono || (('wrappedRuns' in x ? x.wrappedRuns : undefined) ?? []).some(r => r.mono)))
     || laidOut.some(b => b.type === 'table' && b.rows.some(r => r.cells.some(c => c.mono && c.lines.length)));
@@ -1039,7 +1048,7 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; 
   // transparent: no page rectangle; the root says which page colour the checks assume (lint-svg reads it as the starting background)
   const bgRect = laidOutDiagram.transparent ? '' : `\n  <rect x="0" y="0" width="${width}" height="${canvasHeight}" fill="${PALETTE.bg}"/>`;
   const assumed = laidOutDiagram.transparent ? ` data-assumed-bg="${PALETTE.bg}"` : '';
-  const palette = customColors(laidOutDiagram.appearance), paletteAttr = palette.length ? ` data-palette="${[...new Set(palette)].join(' ')}"` : '';
+  const palette = customColors(laidOutDiagram.appearance), paletteAttr = palette.length ? ` data-palette="${[...new Set(palette)].join(' ')}"` : '', tonesAttr = toneColors().length ? ` data-tone-colors="${[...new Set(toneColors())].join(' ')}"` : '';
   const svgText = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${canvasHeight}" viewBox="0 0 ${width} ${canvasHeight}"${assumed}${a11y}>${head}${defs}
   <style>${style}
   </style>${bgRect}
@@ -1050,5 +1059,5 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; 
   // the attribute is added after the recolouring: its values are final colours (a custom white must not be recoloured as a light token)
   const out = opts.noRecolor ? svgText : recolor(svgText, laidOutDiagram.appearance);
   const darkAttr = mapOf(laidOutDiagram.appearance) ? ' data-appearance="dark"' : '';
-  return paletteAttr || darkAttr ? out.replace('<svg ', `<svg${darkAttr}${paletteAttr} `) : out;
+  return paletteAttr || darkAttr || tonesAttr ? out.replace('<svg ', `<svg${darkAttr}${paletteAttr}${tonesAttr} `) : out;
 }

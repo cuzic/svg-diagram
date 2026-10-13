@@ -13,7 +13,7 @@ import {wf} from './wireframe.ts';
 import {resolveIcon} from './icon-registry.ts';
 import {readImage} from './image-file.ts';
 import {layoutDiagram} from './layout-measured.ts';
-import {mapOf} from './tokens.ts';
+import {mapOf, checkTones} from './tokens.ts';
 import {timelineDay} from './timeline.ts';
 import {emitSvg} from './emit.ts';
 import {emitHtml} from './emit-html.ts';
@@ -58,7 +58,7 @@ import {chevronBand, concentricBand, cycleBand, funnelBand, vennBand} from './fl
 import type {ChevronBand, ChevronOpts, ConcentricBand, ConcentricOpts, ConcentricRing, CycleBand, CycleOpts, FlowStep, FunnelBand, FunnelOpts, FunnelStage, VennBand, VennOpts, VennSet} from './flow-shapes.ts';
 import {SLIDE_CANVAS, canvasFontScale, canvasRoles, MIN_FONT_SIZE, ROLES, THEMES, HEADLINE_ROLES, LABEL_ROLES, OPT_IN_TEXT_MAX, isSolidTone, scaleRoles} from './tokens.ts';
 import type {
-  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsLine, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts, CloudBand, CloudBox, CloudOpts, GanttBand, GanttOpts, GanttRow, GanttTask, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
+  Roles, Band, BandInput, BannerBand, BannerOpts, BarDatum, BarsBand, BarsLine, BarsOpts, ImageBand, ImageMark, ImageOpts, ImageRect, TimelineBand, TimelineOpts, NumericTimelineBand, NumericTimelineOpts, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts, CloudBand, CloudBox, CloudOpts, GanttBand, GanttOpts, GanttRow, GanttTask, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow, BoxBand, BoxOpts, BranchTarget, BuildResult, RenderResult, Verdict, CaptionBand, CaptionOpts, CheckResult,
   ConnectBand, ConnectDefaults, PlaneBand, PlaneOpts, ConnectOpts, CurveBand, CurveOpts, Diagram, DiagramData, DiagramOpts, GridBand, GridOpts, GroupBand, GroupOpts,
   LaidOutDiagram, LegendBand, LegendItem, PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum, LegendOpts, PyramidBand, PyramidLayer, PyramidOpts, RawBand, RawOpts, RowBand, RowOpts, BoxTone, TextTone,
   ScreensBand, ScreensItem, ScreensOpts, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SlideBudget, SpacerBand,
@@ -73,7 +73,10 @@ export {wf} from './wireframe.ts';
 export {icon} from './icon-registry.ts';
 export type {IconName, EmojiName} from './icons.ts';
 import type {IconName} from './icons.ts';
+import type {RevealOpts} from './types.ts';
 export {versus} from './versus.ts';
+export {steps} from './steps.ts';
+export type {StepItem, StepsOpts} from './steps.ts';
 export {hero} from './hero.ts';
 export {em} from './rich.ts';
 export type {HeroOpts, HeroStat} from './hero.ts';
@@ -112,6 +115,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     title: opts.title, desc: opts.desc,            // exposed as the SVG's <title> / <desc> (doc medium)
     accept: opts.accept, // {'rule-id': 'why this finding is fine'} — shown as info instead of a warning
     wrap: opts.wrap,
+    tones: opts.tones === undefined ? undefined : checkTones(opts.tones, 'diagram({tones})'),
     legend: opts.legend, legendLabels: opts.legendLabels, // legend: 'auto' adds entries for every notation used but not listed
     width: opts.width ?? canvas?.width ?? 940,
     canvas,
@@ -264,6 +268,7 @@ export function banner(opts: BannerOpts): BannerBand {
 export function group<C extends Band | Band[], const Id extends string = never>(children: C, opts?: GroupOpts & {id?: Id}): GroupBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & HandleOf<Id>;
 export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
   assertBoxTone(opts.tone, 'group()');
+  if ('gap' in opts && (opts as {gap?: unknown}).gap !== undefined) throw new Error('group(): there is no gap option — the space between boxes is the gap of the row() they sit in (row([...], {gap})), or diagram({gap}) between bands');
   const title = richField(opts.title, {field: 'group() title', bold: true, tone: opts.titleTone ?? (opts.tone === 'accent' ? 'accent' : 'text')});
   if (opts.frame === false && (title.text || opts.dashed || opts.tone)) throw new Error('group({frame: false}) draws no frame, so it takes no title, tone or dashed');
   return withHandle({type: 'group', children: [children].flat(), title: title.text, ...(title.spans ? {spans: {title: title.spans}} : {}), titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad ?? (opts.frame === false ? 0 : undefined), frame: opts.frame, stamp: opts.stamp, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col, ...revealOf(opts)}, opts.id);
@@ -555,8 +560,18 @@ function assertBoxChildren(what: 'row' | 'grid', children: readonly {type?: stri
 // in a row cannot be combined with `arrows: 'between'`.
 export function row<C extends BoxBand, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): RowBand & Declares<IdsOf<C> | Id> & RowHandleOf<Id>;
 export function row<C extends BoxBand | GroupBand, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): GroupRowBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & RowHandleOf<Id>;
-export function row(children: (BoxBand | GroupBand)[], opts: RowOpts = {}): RowBand | GroupRowBand {
+export function row<C extends BoxBand | GroupBand | Exclude<Band, ConnectBand | SpacerBand | RowBand | GroupRowBand | GridBand>, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): GroupRowBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & RowHandleOf<Id>;
+export function row(rawChildren: Band[], opts: RowOpts = {}): RowBand | GroupRowBand {
   assertNoReveal(opts, 'row()'); // a row is shown with its children: give each child its own reveal
+  // caption / stat / banner / table ... in a row: each goes into a frameless group (the same as writing group([x], {frame: false}) by hand)
+  const wrappable = (c: Band) => c?.type !== undefined && !['box', 'group', 'connect', 'spacer', 'row', 'grouprow', 'grid'].includes(c.type);
+  // the row placement (flex / width / span / col) moves to the wrapper, where the row reads it
+  const wrap = (c: Band): GroupBand => {
+    const {flex, width, span, col} = c as {flex?: number; width?: number; span?: number; col?: number};
+    const place = Object.fromEntries(Object.entries({flex, width, span, col}).filter(([, v]) => v !== undefined));
+    return group(c, {frame: false, ...place});
+  };
+  const children = rawChildren.map(c => wrappable(c) ? wrap(c) : c) as (BoxBand | GroupBand)[];
   const hasGroup = children.some(c => c?.type === 'group');
   if (hasGroup) {
     if (opts.arrows === 'between') throw new Error("row(): arrows: 'between' cannot be used when a child is a group()");
@@ -759,6 +774,40 @@ function connectBand(from: string, to: string, opts: ConnectOpts, trackGiven = t
   return trackGiven ? Object.defineProperty(band, GIVEN, {value: opts, configurable: true}) : band;
 }
 
+export interface BracketOpts extends RevealOpts {
+  label?: string;
+  /** Which side of the span the bracket sits on (default 'below'). */
+  side?: 'below' | 'above';
+  tone?: TextTone;
+}
+/**
+ * A bracket under (or over) a span of boxes: `bracket(a.left, b.right, {label: 'この区間だけが対象'})`. It runs from the x of the first ref
+ * to the x of the second, just outside the lower (or upper) edge of the two boxes; the label sits outside the bracket.
+ */
+export function bracket<const F extends string, const T extends string>(from: Ok<F>, to: Ok<T>, opts?: BracketOpts): ConnectBand & Refers<F | T>;
+export function bracket(from: string, to: string, opts: BracketOpts = {}): ConnectBand {
+  const side = opts.side ?? 'below';
+  if (side !== 'below' && side !== 'above') throw new Error(`bracket(): side must be 'below' or 'above' (got ${JSON.stringify(side)})`);
+  if (opts.label !== undefined && (typeof opts.label !== 'string' || !opts.label.trim())) throw new Error('bracket(): label must not be empty (leave it out for none)');
+  return {...connectBand(from, to, {arrow: 'none', tone: opts.tone, label: opts.label, reveal: opts.reveal, until: opts.until}, false), annot: {kind: 'bracket', side}};
+}
+
+export interface CalloutOpts extends RevealOpts {
+  /** The text of the bubble (one line). */
+  text: string;
+  /** Which side of the target the bubble is on (default 'above'). */
+  side?: 'above' | 'below' | 'left' | 'right';
+  tone?: TextTone;
+}
+/** A bubble with a leader line pointing at a box: `callout('slow', {text: '344ms かかる', side: 'below'})`. Put the target's id or 'id:side'. */
+export function callout<const T extends string>(target: Ok<T>, opts: CalloutOpts): ConnectBand & Refers<T>;
+export function callout(target: string, opts: CalloutOpts): ConnectBand {
+  const side = opts?.side ?? 'above';
+  if (!['above', 'below', 'left', 'right'].includes(side)) throw new Error(`callout(): side must be above | below | left | right (got ${JSON.stringify(side)})`);
+  if (typeof opts?.text !== 'string' || !opts.text.trim()) throw new Error('callout(): text is required');
+  return {...connectBand(target, target, {arrow: 'end', tone: opts.tone, label: opts.text, chip: true, reveal: opts.reveal, until: opts.until}, false), annot: {kind: 'callout', side}};
+}
+
 // One box fanning out to several targets (a decision). `targets`:
 // [{to, label?, tone?, dashed?}]; opts as connect() (route defaults to
 // 'elbow'). Returns an array — d.add() flattens it.
@@ -824,6 +873,12 @@ export function plane(opts: PlaneOpts): PlaneBand {
     if (a && a.step !== undefined && !(a.step > 0 && Number.isFinite(a.step))) throw new Error(`plane(): axis ${k} step must be a number > 0 (got ${a.step})`);
     if (!a || typeof a.max !== 'number') throw new Error(`plane(): "${k}" needs an axis, e.g. {max: 100}`);
     if (a.max <= (a.min ?? 0)) throw new Error(`plane(): axis ${k} needs max > min`);
+    if (a.categories !== undefined) {
+      const c = a.categories;
+      if (!Array.isArray(c) || !c.length || c.some(s => typeof s !== 'string' || !s)) throw new Error(`plane(): axis ${k} categories must be a non-empty list of names, e.g. ['営業', '開発']`);
+      if (a.ticks !== undefined || a.step !== undefined) throw new Error(`plane(): axis ${k} takes categories or ticks / step, not both (the categories are its ticks)`);
+      if ((a.min ?? 0) >= 1 || a.max < c.length) throw new Error(`plane(): axis ${k} puts its ${c.length} categories at 1..${c.length}, so it needs min < 1 and max >= ${c.length} (use max: ${c.length + 1})`);
+    }
   }
   return withHandle({type: 'plane', ...opts, height: opts.height ?? 300}, opts.id);
 }
@@ -1051,6 +1106,7 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   if (opts.labels !== undefined && !['all', 'category', 'none'].includes(opts.labels)) throw new Error(`bars(): labels must be 'all', 'category' or 'none' (got ${opts.labels})`);
   for (const k of ['axis', 'grid', 'baseline'] as const) if (opts[k] !== undefined && typeof opts[k] !== 'boolean') throw new Error(`bars(): ${k} must be true or false (got ${opts[k]})`);
   if (opts.axis === false && opts.grid === true) throw new Error('bars(): grid needs axis (axis: false removes the ticks the grid lines belong to)');
+  if (opts.valueFormat !== undefined && opts.valueFormat !== 'exact' && typeof opts.valueFormat !== 'function' && !(Number.isInteger(opts.valueFormat) && opts.valueFormat >= 0 && opts.valueFormat <= 6)) throw new Error(`bars(): valueFormat must be 'exact', a number of decimals (0-6) or a function (got ${opts.valueFormat})`);
   if (opts.barRatio !== undefined && !(opts.barRatio > 0 && opts.barRatio <= 1)) throw new Error(`bars(): barRatio must be a number > 0 and <= 1 (got ${opts.barRatio})`);
   if (opts.barRatio !== undefined && opts.stack) throw new Error('bars(): barRatio does not apply to stack');
   const stack = !!opts.stack;
@@ -1065,7 +1121,7 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   if (new Set(ids).size !== ids.length) throw new Error('bars(): each id must be unique');
   if (opts.id !== undefined && ids.includes(opts.id)) throw new Error(`bars(): the band's id "${opts.id}" is also a bar's id — each id must be unique`);
   const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height, ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
-  for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole', 'hideZero', 'lines', 'vlines', 'curve', 'cumulative', 'edges'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
+  for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole', 'hideZero', 'lines', 'vlines', 'curve', 'cumulative', 'edges', 'valueFormat'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
   return withHandle(withAnchors(band, data.map(d => d.id)), opts.id);
 }
 
@@ -1449,7 +1505,7 @@ export function stateDiagram(states: readonly StateItem[], transitions: readonly
   if (opts.dir !== undefined && opts.dir !== 'right' && opts.dir !== 'down') throw new Error(`stateDiagram(): dir must be 'right' or 'down' (got ${String(opts.dir)})`);
   if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`stateDiagram(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
   for (const t of transitions) if (t.line !== undefined && !['solid', 'dashed', 'dotted'].includes(t.line)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} has line ${String(t.line)}`);
-  for (const s of states) if (s.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(s.tone)) throw new Error(`stateDiagram(): state "${s.id}" has tone ${String(s.tone)}`);
+  for (const s of states) if (s.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger', 'solid', 'solid-danger'].includes(s.tone)) throw new Error(`stateDiagram(): state "${s.id}" has tone ${String(s.tone)} (use plain, accent, new, changed, removed, muted, danger, solid or solid-danger)`);
   for (const s of states) if (s.shape !== undefined && s.shape !== 'box' && s.shape !== 'circle') throw new Error(`stateDiagram(): state "${s.id}" has shape ${String(s.shape)} (use 'box' or 'circle')`);
   for (const t of transitions) if (t.tone !== undefined && !['danger', 'accent', 'muted'].includes(t.tone)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} has tone ${String(t.tone)} (use danger, accent or muted)`);
   const band: StatesBand = {type: 'states', states: states.map(s => s.icon === undefined ? s : {...s, iconGlyph: resolveIcon(s.icon, 'stateDiagram() state "' + s.id + '" icon')}), transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
@@ -1654,8 +1710,12 @@ export function mindmap(root: TreeItem, opts: MindmapOpts = {}): TreeBand {
  * A horizontal time axis with a deadline: the axis (`from` - `to`), today (`now`), the deadline and the span between them
  * ("あと 1 年 3 か月"), plus optional marks. Dates are 'YYYY' | 'YYYY-MM' | 'YYYY-MM-DD'; `now` is always written out, never read from the clock.
  */
+/** A numeric axis (`unit: 'ms'`, `from: 0`, `to: 700`) with lanes, events (dots with labels) and spans (bars, or dimension lines with `dim: true`). */
+export function timeline<const Id extends string = never>(opts: NumericTimelineOpts & {id?: Id}): NumericTimelineBand & Declares<Id> & HandleOf<Id>;
 export function timeline<const Id extends string = never>(opts: TimelineOpts & {id?: Id}): TimelineBand & Declares<Id> & HandleOf<Id>;
-export function timeline(opts: TimelineOpts): TimelineBand {
+export function timeline(arg: TimelineOpts | NumericTimelineOpts): TimelineBand | NumericTimelineBand {
+  if (typeof arg?.from === 'number' || 'unit' in (arg ?? {})) return numericTimeline(arg as NumericTimelineOpts);
+  const opts = arg as TimelineOpts;
   const day = (v: unknown, what: string): number => timelineDay(v as string, what);
   const from = day(opts?.from, 'from'), to = day(opts?.to, 'to');
   if (!(from < to)) throw new Error(`timeline(): from (${opts.from}) must be before to (${opts.to})`);
@@ -1880,3 +1940,31 @@ export type {BurndownSpec, BurnupSpec, LineSeries, LinesAnnotation, LinesAxis, L
 export type {SankeyLink, SankeyNode, SankeyOpts} from './charts-sankey.ts';
 export type {TreemapNode, TreemapOpts} from './charts-treemap.ts';
 export type {StackColumn, StackPart, StackedOpts} from './charts-stacked.ts';
+
+function numericTimeline(o: NumericTimelineOpts): NumericTimelineBand {
+  const num = (v: unknown, what: string): number => { if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`timeline(): ${what} must be a number (got ${JSON.stringify(v)})`); return v; };
+  if (typeof o.unit !== 'string') throw new Error("timeline(): unit is required for a numeric axis ('ms', 's', ...; '' for none)");
+  const from = num(o.from, 'from'), to = num(o.to, 'to');
+  if (!(from < to)) throw new Error(`timeline(): from (${from}) must be less than to (${to})`);
+  if (o.step !== undefined && !(num(o.step, 'step') > 0 && (to - from) / o.step <= 40)) throw new Error('timeline(): step must be > 0 and give at most 40 ticks');
+  const lanes = o.lanes ?? [];
+  if (o.lanes !== undefined && (!Array.isArray(lanes) || !lanes.length || lanes.some(l => typeof l !== 'string' || !l.trim()) || new Set(lanes).size !== lanes.length)) throw new Error('timeline(): lanes must be a list of distinct, non-empty names');
+  const tones = ['accent', 'danger', 'muted'];
+  const laneOk = (l: string | undefined, what: string) => { if (l !== undefined && !lanes.includes(l)) throw new Error(`timeline(): ${what}.lane "${l}" is not one of lanes (${lanes.join(', ') || 'none declared'})`); };
+  (o.events ?? []).forEach((e, i) => {
+    const at = num(e?.at, `events[${i}].at`);
+    if (at < from || at > to) throw new Error(`timeline(): events[${i}].at (${at}) is outside the axis (${from} - ${to})`);
+    if (typeof e.label !== 'string' || !e.label.trim()) throw new Error(`timeline(): events[${i}].label is required`);
+    if (e.tone !== undefined && !tones.includes(e.tone)) throw new Error(`timeline(): events[${i}].tone must be accent, danger or muted (got ${e.tone})`);
+    laneOk(e.lane, `events[${i}]`);
+  });
+  (o.spans ?? []).forEach((sp, i) => {
+    const a = num(sp?.from, `spans[${i}].from`), b = num(sp?.to, `spans[${i}].to`);
+    if (!(a < b)) throw new Error(`timeline(): spans[${i}].from (${a}) must be less than to (${b})`);
+    if (a < from || b > to) throw new Error(`timeline(): spans[${i}] (${a} - ${b}) is outside the axis (${from} - ${to})`);
+    if (sp.tone !== undefined && !tones.includes(sp.tone)) throw new Error(`timeline(): spans[${i}].tone must be accent, danger or muted (got ${sp.tone})`);
+    if (sp.label !== undefined && (typeof sp.label !== 'string' || !sp.label.trim())) throw new Error(`timeline(): spans[${i}].label must not be empty`);
+    laneOk(sp.lane, `spans[${i}]`);
+  });
+  return withHandle({type: 'timeline', unit: o.unit, from, to, ...(o.step === undefined ? {} : {step: o.step}), ...(o.lanes ? {lanes: o.lanes} : {}), ...(o.events ? {events: o.events} : {}), ...(o.spans ? {spans: o.spans} : {}), ...(o.id === undefined ? {} : {id: o.id}), ...revealOf(o)}, o.id);
+}

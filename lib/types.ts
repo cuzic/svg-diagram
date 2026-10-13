@@ -20,6 +20,7 @@ import type {ChartBand, LaidOutChart} from './charts.ts';
 import type {ConnectInput, DeclaredIds, RefIn, ValidateBands} from './strict.ts';
 import type {RULE_DOCS, DEFAULT_LEGEND_LABELS} from './rules.ts';
 import type {RICH} from './rich.ts';
+import type {ToneOverrides} from './tokens.ts';
 import type {LaidOutQuadrant, QuadrantBand} from './quadrant.ts';
 import type {FlowShapeBand, LaidOutFlowShape} from './flow-shapes.ts';
 
@@ -42,7 +43,7 @@ export interface ThemeColors {accent: string; soft: string}
 export type PlainColorKey = 'bg' | 'text' | 'muted' | 'border' | 'code' | 'danger';
 export type Palette = Record<PlainColorKey, string> & Record<Theme, ThemeColors>;
 /** Token key a wireframe primitive carries; emit.ts resolves it against the diagram theme ('accent' | 'soft' are theme colours). */
-export type ColorKey = PlainColorKey | 'accent' | 'soft';
+export type ColorKey = PlainColorKey | 'accent' | 'soft' | `#${string}`; // a #rrggbb only comes from a tone override (tokens.ts withTones)
 
 /** font-size role (tokens.ts ROLES). */
 export type Role = 'title' | 'label' | 'body' | 'note' | 'banner' | 'stat' | 'display';
@@ -141,6 +142,8 @@ export interface DiagramOpts {
   /** 'auto' adds a legend entry for every notation used but not listed. false: this diagram needs no legend (legend-missing / legend-incomplete are not reported). */
   legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
+  /** Replace colours of tones for this diagram: `{accent: {fill: '#e6d3bd', dark: {fill: '#4a3a28'}}}`. Per tone: fill / stroke / text / ink (#rrggbb), and `dark` for the same under appearance 'dark'. Checked like the built-in colours (text-contrast, gray-tone-collision). The project's `tones` apply under it. */
+  tones?: ToneOverrides;
   /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
   wrap?: 'phrase' | 'char';
   width?: number;
@@ -185,6 +188,7 @@ export interface DiagramData {
   accept?: Partial<Record<RuleId, string>>;
   legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
+  tones?: ToneOverrides;
   /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
   wrap?: 'phrase' | 'char';
   width: number;
@@ -579,8 +583,12 @@ export interface ConnectBand {
   labelAt: number;
   tone?: TextTone;
   label?: string;
+  /** bracket() / callout(): an annotation connector (the path is a bracket under / over a span, or a leader line to a bubble). */
+  annot?: {kind: 'bracket' | 'callout'; side: 'below' | 'above' | 'left' | 'right'};
   reveal?: number;
   until?: number;
+  /** Internal (versus()): the end on a top / bottom side takes the start's x (kept inside that side), so the line drops plumb. */
+  plumb?: boolean;
 }
 /** branch() target: connect() options plus the target ref. */
 export interface BranchTarget extends ConnectOpts {to: string}
@@ -760,6 +768,8 @@ export interface PlaneAxis {
   step?: number;
   /** Explicit ticks instead of `step`: a value, or a value with its own label. */
   ticks?: (number | {at: number; label: string})[];
+  /** A categorical axis: the names (lane names, stages) are the ticks, at 1, 2, 3 … (give `max` as the count + 1). Not with `ticks` / `step`. */
+  categories?: string[];
 }
 export interface PlanePoint {
   id?: string;
@@ -879,6 +889,8 @@ export interface BarsOpts extends RevealOpts {
   labelRole?: LabelRole;
   max?: number;
   unit?: string;
+  /** How a bar's value is written. Default: whole numbers exactly (1055 stays 1055), others to 3 significant digits but keeping the whole part (1055.5 is 1056). 'exact' writes the number as given; a number is the decimals; a function formats it yourself. */
+  valueFormat?: 'exact' | number | ((value: number) => string);
   dir?: 'h' | 'v';
   stack?: boolean;
   /** Figure height. Vertical bars default to 280; horizontal bars derive it from their count. */
@@ -952,6 +964,38 @@ export interface TimelineBand extends TimelineOpts {
   type: 'timeline';
 }
 
+/** An event on a numeric axis (a dot with its label and value). */
+export interface NumericTimelineEvent {at: number; label: string; /** One of `lanes` (default: the first). */ lane?: string; /** Default 'muted'. */ tone?: TimelineTone}
+/** A stretch of the numeric axis: a bar (default) or, with `dim`, a dimension line with its length written above ("344ms"). */
+export interface NumericTimelineSpan {
+  from: number;
+  to: number;
+  /** Default for a dimension line: the length with the unit ("344ms"); none for a bar. */
+  label?: string;
+  lane?: string;
+  /** Default 'accent'. */
+  tone?: TimelineTone;
+  /** A dimension line (two end ticks, the length above) instead of a bar. */
+  dim?: boolean;
+}
+/** timeline({unit, from, to, ...}): a time axis of plain numbers (ms, s, steps) with lanes, events and spans. */
+export interface NumericTimelineOpts extends RevealOpts {
+  /** 'ms', 's', '分'...: written after every tick and event value. */
+  unit: string;
+  from: number;
+  to: number;
+  /** Tick spacing (default: 1, 2 or 5 times a power of ten, at most 8 ticks). */
+  step?: number;
+  /** Rows, top to bottom, each with its name at the left. Without it: one unnamed row. */
+  lanes?: string[];
+  events?: NumericTimelineEvent[];
+  spans?: NumericTimelineSpan[];
+  id?: string;
+}
+export interface NumericTimelineBand extends NumericTimelineOpts {
+  type: 'timeline';
+}
+
 // ============================================================================================
 // DSL input + band: tree (org chart / hierarchy)
 // ============================================================================================
@@ -1012,7 +1056,8 @@ export interface StateItem {
   label: string;
   /** A second, muted line (an entry action, a note). */
   sub?: string;
-  tone?: BoxTone;
+  /** Default 'plain'. 'solid' / 'solid-danger' fill the state (white text): the lead state of the figure / the failure. */
+  tone?: EmphasisTone;
   /** An end state: drawn with a double outline. */
   final?: boolean;
   /** 'circle': a round node that holds a short text (an event of an arrow diagram). Default a rounded box. */
@@ -1654,7 +1699,7 @@ export interface ScreensBand extends ScreensOpts {
 export type Band =
   | ChartBand
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | ImageBand | QuadrantBand | FlowShapeBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | NumericTimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | ImageBand | QuadrantBand | FlowShapeBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -2314,6 +2359,10 @@ export interface LaidOutTimeline extends Rect, Dimmed {
   /** The bracket under the ticks that carries the remaining-span label. */
   bracket?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'};
   ticks: {x: number; y1: number; y2: number}[];
+  /** Numeric timeline: thin lines (lane baselines and separators), bars and dimension lines. */
+  guides?: {x1: number; x2: number; y: number}[];
+  bars?: (Rect & {tone: 'accent' | 'danger' | 'muted'})[];
+  dims?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger' | 'muted'}[];
   stems: {x: number; y1: number; y2: number; tone: 'accent' | 'danger' | 'muted'}[];
   dots: {x: number; y: number; r: number; tone: 'accent' | 'danger' | 'muted'}[];
   texts: TimelineText[];
@@ -2342,7 +2391,7 @@ export interface LaidOutStates extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone; final?: boolean; circle?: boolean})[];
+  nodes: (Rect & {tone: EmphasisTone; final?: boolean; circle?: boolean})[];
   initial?: {x: number; y: number; r: number};
   /** Orthogonal polylines from the tail state's box edge to the head's; the arrowhead is at the last point. */
   edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; tone?: 'danger' | 'accent' | 'muted'; strong?: boolean}[];
@@ -2572,6 +2621,12 @@ export interface CheckResult {laidOut: LaidOutDiagram; verdict: Verdict}
 export interface Config {
   accept?: Partial<Record<RuleId, string>>;
   maxWidth?: number;
+  /** The default for every diagram's `legend` (a diagram's own wins): false = no legend needed, 'auto' = add the missing entries. */
+  legend?: 'auto' | false;
+  /** Legend wording for every diagram, e.g. {"tone:accent": "注意"} (a diagram's own legendLabels win per key). */
+  legendLabels?: Partial<Record<NotationKey, string>>;
+  /** Tone colours for every diagram, e.g. {"accent": {"fill": "#e6d3bd", "dark": {"fill": "#4a3a28"}}} (a diagram's own `tones` win per colour). */
+  tones?: ToneOverrides;
   /** How text is measured: 'font' (default) from the font files, no browser (see `fonts`); 'chromium' in a headless browser. */
   measure?: 'chromium' | 'font';
   /** Font files to measure with when `measure` is 'font': per family, the regular and the bold (weight >= 600) one, as `path` or `path#faceIndex`. Unset: found with fontconfig. */
