@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="582" viewBox="0 0 940 582" role="img" aria-labelledby="svg-title">
   <title id="svg-title">プロジェクトのリスクマトリクス</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/quadrant-risk.ts","sourceSha256":"ff5a60be2e88d176bb3dcfe27bb521e13772813cc720d992fc8ffbb37e6dcf71"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/quadrant-risk.ts","sourceSha256":"b70f393c74200abf47fa541af09eced74f003c41c5ff061b988f4a6eed62a242"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
