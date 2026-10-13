@@ -133,6 +133,10 @@ test('checkFigures: captions must run 図N-1, N-2 ... in the file chapter; refer
   assert.deepEqual(page('![図3-1 画面](a.svg)\n\n図3-4 を参照。図2-9 は別章。\n'), ['doc-fig-ref-missing@3'], 'alt caption; dangling reference');
   assert.deepEqual(page('![a](a.svg)\n図3-1 a\n\n```\n図3-7\n```\n'), [], 'fenced code is ignored');
   assert.deepEqual(page('![image](a.svg)\n![a](a.svg)\n1. x\n3. y\n'), ['doc-alt-placeholder@1', 'doc-notes-number@2']);
+  assert.deepEqual(page('![構成図](a.svg)\n\n図3-1と同じく…\n\n![流れ](b.svg)\n*図3-1 流れ*\n'), [], 'a sentence starting with 図N-M is not a caption');
+  assert.deepEqual(page('図3-1 構成\n\n![a](a.svg)\n\n図3-2 流れ\n\n![b](b.svg)\n'), [], 'captions above the figures');
+  assert.deepEqual(page('![a](a.svg)\n*図3-1 a*\n\n1. **a**：x\n1. **b**：y\n\n`図3-9` と書く。\n'), [], 'lazy 1. numbering; inline code');
+  assert.equal(chapterOf('2026-10-13-post.md'), null);
   assert.deepEqual([3, 12, 7, null].map((_, i) => chapterOf(['03-a.md', 'ch12.md', 'chapter-7_x.md', 'intro.md'][i])), [3, 12, 7, null]);
   assert.ok(globToRegExp('docs/**/03-*.md').test('docs/a/b/03-x.md') && !globToRegExp('docs/*.md').test('docs/a/x.md'));
   assert.ok(matchesAny([globToRegExp('03-*.md')], 'docs/03-x.md') && matchesAny([], 'any.md'));
@@ -151,6 +155,8 @@ test('check --docs: one chapter alone (file or --only), several --docs, and orph
   const all = run(root, '--strict');
   assert.equal(all.status, 1); assert.match(all.stdout, /lonely\.svg \[doc-orphan-svg\]/);
   fs.writeFileSync(path.join(root, 'docs', '02-other.md'), '# O\n\n![別の図](../svg/orphan.svg)\n図2-2 別\n');
+  const none = run(root, '--only', 'docs/nope-*.md');
+  assert.equal(none.status, 2); assert.match(none.stderr, /合う文書がない/);
   const bad = run(root, '--strict', '--only', '02-*.md');
   assert.equal(bad.status, 1); assert.match(bad.stdout, /02-other\.md:4 \[doc-fig-number\]/);
 });

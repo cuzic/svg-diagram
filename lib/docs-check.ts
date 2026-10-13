@@ -21,16 +21,22 @@ const FIG = '図\\s*(\\d+)\\s*[-－ー−‐]\\s*(\\d+)';
 function captionOf(lines: string[], i: number, alt: string): DocCaption | undefined {
   const a = new RegExp(FIG).exec(alt);
   if (a) return {ch: +a[1], no: +a[2], line: i + 1};
+  // 図N-M then a separator (space, colon, closing mark): "図3-1と同じく…" starts a sentence, it is not a caption
   const at = (j: number): DocCaption | undefined => {
-    const m = new RegExp(`^[\\s*_>]*${FIG}`).exec(lines[j]);
+    const m = new RegExp(`^[\\s*_>]*${FIG}(?=$|[\\s:：.．、。*_)）\\]】」])`).exec(lines[j]);
     return m ? {ch: +m[1], no: +m[2], line: j + 1} : undefined;
   };
-  for (const dir of [1, -1]) {
-    let j = i + dir;
+  const near = (from: number, dir: number): number => {
+    let j = from + dir;
     while (j >= 0 && j < lines.length && lines[j].trim() === '') j += dir;
-    if (j >= 0 && j < lines.length && !new RegExp(IMG.source).test(lines[j])) { const c = at(j); if (c) return c; }
-  }
-  return undefined;
+    return j >= 0 && j < lines.length ? j : -1;
+  };
+  const isImg = (j: number) => j >= 0 && new RegExp(IMG.source).test(lines[j]);
+  const after = near(i, 1), before = near(i, -1);
+  const ca = after >= 0 && !isImg(after) ? at(after) : undefined, cb = before >= 0 && !isImg(before) ? at(before) : undefined;
+  // captions above the figures: the line after this image sits right above the next image, so it is that image's caption
+  if (ca && cb && isImg(near(after, 1))) return cb;
+  return ca ?? cb;
 }
 
 // the first numbered list after line i, stopping at the next heading or image (at most 40 lines on)
@@ -86,7 +92,7 @@ export function formatNotes(notes: WfNote[]): string {
 
 // the chapter number a file name carries: "03-intro.md", "ch3.md", "chapter-03_x.md" -> 3
 export function chapterOf(file: string): number | null {
-  const m = /^(?:ch(?:apter)?[-_]?)?0*(\d+)(?!\d)/i.exec(file.replace(/^.*[\\/]/, ''));
+  const m = /^(?:ch(?:apter)?[-_]?)?0*(\d{1,3})(?!\d)/i.exec(file.replace(/^.*[\\/]/, ''));
   return m ? +m[1] : null;
 }
 
@@ -113,7 +119,7 @@ export function checkFigures(text: string, figs: DocImage[], chapter: number | n
   }
   for (const f of figs) {                         // the numbered notes under a figure count 1, 2, 3 ... (a gap hides a deleted note)
     const ns = f.items.map(i => i.n);
-    if (ns.length && ns.some((n, k) => n !== k + 1)) out.push({line: f.line, rule: 'doc-notes-number', severity: 'warn', message: `図の下の注釈の番号が 1 から順でない（${ns.join(', ')}）`});
+    if (ns.length && ns.some((n, k) => n !== k + 1) && !ns.every(n => n === 1)) out.push({line: f.line, rule: 'doc-notes-number', severity: 'warn', message: `図の下の注釈の番号が 1 から順でない（${ns.join(', ')}）`});
   }
   if (caps.length) {                              // 図N-M in a sentence must name a figure that has a caption in this page (references to other chapters are not checked)
     const have = new Set(caps.map(f => `${f.caption!.ch}-${f.caption!.no}`)), capLines = new Set(caps.map(f => f.caption!.line));
@@ -121,7 +127,7 @@ export function checkFigures(text: string, figs: DocImage[], chapter: number | n
     text.split('\n').forEach((ln, k) => {
       if (/^\s*(```|~~~)/.test(ln)) { fence = !fence; return; }
       if (fence || capLines.has(k + 1)) return;
-      for (const m of ln.matchAll(new RegExp(FIG, 'g'))) {
+      for (const m of ln.replace(/`[^`]*`/g, '').matchAll(new RegExp(FIG, 'g'))) {   // `図3-9` in inline code is an example, not a reference
         const ch = +m[1], key = `${m[1]}-${m[2]}`;
         if (ch === (chapter ?? caps[0].caption!.ch) && !have.has(key)) out.push({line: k + 1, rule: 'doc-fig-ref-missing', severity: 'warn', message: `本文の「図${m[1]}-${m[2]}」に対応する図がこの文書にない`});
       }
