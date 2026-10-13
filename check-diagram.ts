@@ -14,6 +14,10 @@
 //       Do the Markdown pages under DIR and the diagrams still agree? Referenced SVGs exist, alt text is short and present,
 //       no SVG is left unreferenced (--svg-dir), and the numbered notes under a figure match the figure's own notes (--src-dir).
 //       --map prints the figure <-> document table (Markdown) on stdout instead; the findings go to stderr.
+//   svg-diagram check --covers TABLE.md|TABLE.csv [--svg-dir DIR] <source.ts|file.svg>...
+//       Does the figure that replaces a table still carry the table's cells? Each cell is looked up in the figure's <text>
+//       (width, case, spaces and punctuation ignored); a cell that is not there whole is judged by its proper-noun and number tokens,
+//       and the missing ones are listed. A source is read through its committed SVG (DIR defaults to ./svg).
 //   Any mode:  --format text|json|github   (github = ::warning annotations for a pull request)
 //   Project settings (accepted rules, max width) come from .svg-diagram.json, found by walking up from the current directory.
 
@@ -33,19 +37,26 @@ const {scanMarkdown, compareNotes, notesOf, formatMap} = await import('./lib/doc
 const {explainChange} = await import('./lib/svg-diff.ts');
 const {loadConfig} = await import('./lib/config.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
+const {readTable, figureText, checkCovers} = await import('./lib/covers.ts');
 
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
 const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1]; };
-const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--format'];
+const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--covers', '--format'];
 const strict = flag('--strict'), verbose = flag('--verbose'), drift = flag('--drift'), rebuild = flag('--rebuild');
 const mapMode = flag('--map');
 if (mapMode && (!val('--docs') || (val('--format') ?? 'text') !== 'text')) { console.error('--map は --docs と一緒に、--format text で使う（表を標準出力に出す）'); process.exit(2); }
-const svgDir = val('--svg-dir'), srcDir = val('--src-dir'), docsDir = val('--docs'), format = val('--format') ?? 'text';
+const svgDir = val('--svg-dir'), srcDir = val('--src-dir'), docsDir = val('--docs'), coversFile = val('--covers'), format = val('--format') ?? 'text';
 const sources = args.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1]));
 if (!['text', 'json', 'github'].includes(format)) { console.error(`--format must be text, json or github (got "${format}")`); process.exit(2); }
-if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs DIR [--svg-dir DIR] [--src-dir DIR] [--map]] [--format text|json|github] <source.ts>...'); process.exit(2); }
+if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs DIR [--svg-dir DIR] [--src-dir DIR] [--map]] [--covers TABLE.md|TABLE.csv [--svg-dir DIR]] [--format text|json|github] <source.ts>...'); process.exit(2); }
 const config = loadConfig();
+let coverCells: ReturnType<typeof readTable> = [];
+if (coversFile) {
+  if (!fs.existsSync(coversFile)) { console.error(`--covers: ${coversFile} がない`); process.exit(2); }
+  coverCells = readTable(fs.readFileSync(coversFile, 'utf8'), coversFile.toLowerCase().endsWith('.csv') ? 'csv' : 'md');
+  if (!coverCells.length) { console.error(`--covers: ${coversFile} に表がない（Markdown は見出し行と |---| の行が要る）`); process.exit(2); }
+}
 
 const say = (...a: unknown[]) => { if (format === 'text') (mapMode ? console.error : console.log)(...a); };
 const complain = (...a: unknown[]) => { if (format === 'text') console.error(...a); };
@@ -112,6 +123,16 @@ try {
   for (const src of sources) {
     const abs = path.resolve(src);
     const name = path.parse(src).name;
+    if (coversFile) {
+      const svg = src.endsWith('.svg') ? src : path.join(svgDir ?? 'svg', `${name}.svg`);
+      if (!fs.existsSync(svg)) { add({file: src, rule: 'covers-missing-svg', severity: 'error', message: `${svg} がない（未生成）`}); complain(`✗ ${src}: ${svg} がない（未生成）`); continue; }
+      const cells = coverCells;
+      const lost = checkCovers(cells, figureText(fs.readFileSync(svg, 'utf8')));
+      for (const u of lost) add({file: coversFile, line: u.cell.line, rule: 'covers-missing', severity: 'warn', message: `${name}: 「${u.cell.text}」が図にない（欠けた語: ${u.missing.join('、')}）`});
+      say(`${lost.length ? '△' : '✓'} ${src}: 表のセル ${cells.length} 件中 ${lost.length} 件が図にない`);
+      for (const u of lost) say(`   ⚠ ${coversFile}:${u.cell.line} [covers-missing] 「${u.cell.text}」（欠けた語: ${u.missing.join('、')}）`);
+      continue;
+    }
     if (drift) {
       const svg = path.join(svgDir ?? 'svg', `${name}.svg`);
       if (!fs.existsSync(svg)) { add({file: src, rule: 'drift-missing', severity: 'error', message: `${svg} がない（未生成）`}); complain(`✗ ${src}: ${svg} がない（未生成）`); continue; }

@@ -47,6 +47,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 4. **目で見る**: `svg-diagram preview out.svg out.png 2` で PNG にし、画像として読んで確認する（`svg-diagram show x.ts --png out.png` なら SVG を書かずにソースから直接 PNG にできる。`show` を `--png` なしで使うのは人が sixel 対応の端末で見るとき用で、エージェントの実行環境では端末がないためエラーになる）。**検査を通っても、レイアウトの良し悪しは目で見ないと分からない**。
 5. **ズレ検査**: `svg-diagram check --drift --svg-dir <SVG の置き場> src.ts`（SVG が最新のソースから生成されたものか）
    - `--rebuild` を付けると、違いを言葉で説明する（「見た目は変わらない」ならそのまま再生成してよい）。
+   表を図に置き換えたときは `svg-diagram check --covers <表.md|csv> <ソース.ts|図.svg>` で、表の語・数値が図から落ちていないか確かめる
 6. **文書との整合**: `svg-diagram check --docs <docs> --svg-dir <SVG の置き場> --src-dir <ソースの置き場>`（参照先、代替テキスト、孤立した図、図の注釈と文書のリストの一致）
 7. **まとめて目視**: `svg-diagram contact a.svg b.svg ... --out sheet.png`（余白や釣り合いは検査では分からない）
 

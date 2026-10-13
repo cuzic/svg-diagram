@@ -47,6 +47,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram build <source.ts> --html                 # <name>.html も書く（文字・箱・表・線・矢印・曲線を HTML/CSS で。docs/adr/0006）
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
+    svg-diagram check --covers 表.md|表.csv [--svg-dir DIR] <ソース.ts|図.svg>...   # 表を図に置き換えたとき、表のセルの語・数値が図に残っているか
     svg-diagram check --docs DIR [--svg-dir DIR] [--src-dir DIR] [--map]   # 文書（Markdown）と図が食い違っていないか（--map: 図・ソース・SVG・文書の対応表を Markdown で出す）
     svg-diagram notes <source.ts>                        # 図の番号つき注釈を Markdown のリスト（1. **題名**：本文）で出す。文書に貼る
     svg-diagram diff old.svg new.svg                     # 2 つの SVG の違いを言葉で（見た目が変わるか）
@@ -841,6 +842,14 @@ build は通常の最終形 `name.svg` に加え、段階表示を使う図だ�
 - 図に `notes` があるとき、画像の直後の**番号つきリスト**（`1. **題名**：本文`）と、題名・本文が一致するか（`doc-notes-mismatch` / `doc-notes-missing`）。図と文書の**二重管理**で、片方の直し忘れを見つける。
 - `--map` で、図 / 図のソース / SVG / 使っている文書の**対応表**（Markdown）を標準出力に出す（参照のない SVG は「（参照なし）」）。手で書いた表の代わりに貼る。注釈の文は `svg-diagram notes <ソース>` で出せる（複数の画面に注釈があれば `<!-- 画面 N -->` で区切る）。
 - `--format json`（機械可読）、`--format github`（PR の注釈 `::warning file=…,line=…`）。
+
+## 表と図の突き合わせ（`check --covers`）
+`svg-diagram check --covers table.md --svg-dir svg diagrams/flow.ts` は、本文の Markdown 表（または CSV）を図に置き換えたとき、表のセルの文字列が図の `<text>` に残っているかを調べ、欠けたセルを `covers-missing`（警告）で一覧する。
+- 全角/半角・大文字小文字・空白・句読点・桁区切りの違いは無視する（`ＡＢＣ１２３` = `abc123`、`1,200 円` = `1200円`）。
+- 数値は数値として比べる（`30` は `300` の一部とみなさない。`3.5` と `35` は別）。
+- Markdown は見出し行と `|---|` の行がある GFM の表を読む（外側の `|` は省略可、コードブロックの中は読まない）。CSV は引用符の中のカンマ・改行・`""` を扱う。表が見つからなければ終了コード 2。
+- セルがそのまま見つからなければ、固有名詞と数値のトークン（英単語、カタカナ語、漢字 2 字以上の語、数値）で判定し、欠けたトークンを示す。ひらがなの助詞や言い換えでは警告しない。
+- ソース（`.ts`）は、`--svg-dir`（既定 `./svg`）の生成済み SVG を読む。`.svg` を直接渡してもよい。
 
 ## 図の違いの説明（`--rebuild`、`diff`）
 `check --drift --rebuild` は、再生成した SVG が違うとき、**何が変わったか**を示す（メタデータのみ / 不可視の下地 / 文字の移動 / 図形の増減 / キャンバスの大きさ）。
