@@ -47,7 +47,9 @@
     "node": ">=22.18"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.2.0",
     "@types/node": "^26.6.4",
+    "markdown-it": "^14.3.2",
     "playwright-chromium": "1.62.1",
     "typescript": "^7.0.2"
   },
@@ -56,6 +58,10 @@
     ".": {
       "types": "./dist/lib/dsl.d.ts",
       "default": "./dist/lib/dsl.js"
+    },
+    "./markdown-it": {
+      "types": "./dist/lib/markdown-it.d.ts",
+      "default": "./dist/lib/markdown-it.js"
     },
     "./markdown": {
       "types": "./dist/lib/markdown.d.ts",

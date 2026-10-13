@@ -40,6 +40,8 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 **Markdown から使う**: 図のソースを画像として書く（`![流れ図](./diagrams/flow.ts)`。パスは Markdown ファイルからの相対）。`svg-diagram md page.md --out out/page.md` が、ソースを描いて `out/svg/flow.svg` に書き、`![流れ図](svg/flow.svg)` に差し替えた普通の Markdown を出す（GitHub・VitePress・markdown-it など、どの描画系でもそのまま読める）。コードブロックとインラインコードの中は触らない。検査に通らない図があれば、何も書かずに終了コード 1。プログラムからは `import {expandMarkdown} from 'svg-diagram/markdown'`（文字列と `{file}` を渡すと、変換後の Markdown と描いた SVG の一覧が返る。書き出しは呼び出し側）。
 
+**HTML に描画するプラグイン（markdown-it）**: `import svgDiagram from 'svg-diagram/markdown-it'; new MarkdownIt().use(svgDiagram)`。`![流れ図](./flow.ts)` が、その場で `<svg role="img" aria-label="流れ図">` になる。VitePress は `markdown: {config: md => md.use(svgDiagram)}`。パスはページからの相対（`env.path`、なければオプション `baseDir`、なければ cwd）。markdown-it の描画は同期で、図の描画は非同期なので、図は子プロセスで描いて待つ（ソースと import 先が変わるまでキャッシュ）。検査に通らない図は既定で例外を投げてビルドを止める（`{strict: false}` で、描いたうえでページにエラーを出す）。
+
 ## 使い方
 
     svg-diagram init [dir]                               # 案件の初期設定（package.json の type、tsconfig.json）
