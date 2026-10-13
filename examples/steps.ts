@@ -9,7 +9,7 @@ export default function define() {
     {title: '4回目', body: '同じ原因と判明', tag: '気づく'},
     {title: '5回目', body: '自動で遮断', icon: 'shield'},
   ], {numbered: true, highlight: 5, id: 's'});
-  return diagram({theme: 'blue', title: '再発から遮断まで'}).add(
+  return diagram({theme: 'blue', title: '再発から遮断まで', legend: 'auto'}).add(
     caption('4回の再発のあと、5回目で遮断する', {bold: true, tone: 'text'}),
     s,
     bracket(s.col(2).left, s.col(4).right, {label: '手で復旧していた区間'}),

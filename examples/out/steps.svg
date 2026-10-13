@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="188" viewBox="0 0 940 188" role="img" aria-labelledby="svg-title svg-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="228" viewBox="0 0 940 228" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">再発から遮断まで</title>
   <desc id="svg-desc">要素: 1回目、2回目、3回目、4回目、5回目</desc>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/steps.ts","sourceSha256":"e59f6ece59cf5146f2a6745218b8fda3a7aab29f84a370c5c2729688d53e6538"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/steps.ts","sourceSha256":"fba973ddab3523e687788d9b98031ac15bbf9c2c6341067bcbee7ebbdd61ad18"}</metadata>
   <defs>
     <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
@@ -11,7 +11,7 @@
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
   </style>
-  <rect x="0" y="0" width="940" height="188" fill="#ffffff"/>
+  <rect x="0" y="0" width="940" height="228" fill="#ffffff"/>
 
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">4回の再発のあと、5回目で遮断する</text>
 
@@ -62,6 +62,9 @@
   <path d="M372,96 L388,96" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
   <path d="M552,96 L568,96" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
   <path d="M736,96 L752,96" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+
+  <rect x="416" y="188" width="28" height="16" rx="4" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <text x="457" y="201" font-size="14" fill="#22201b">異常・注意</text>
 
   <path d="M203,140 L203,152 L737,152 L737,140" fill="none" stroke="#22201b" stroke-width="2"/>
   <text x="470" y="172" text-anchor="middle" font-size="14" fill="#22201b">手で復旧していた区間</text>
