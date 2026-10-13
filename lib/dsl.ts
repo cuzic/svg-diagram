@@ -15,16 +15,11 @@ import {readImage} from './image-file.ts';
 import {layoutDiagram} from './layout-measured.ts';
 import {mapOf, checkTones} from './tokens.ts';
 import {timelineDay} from './timeline.ts';
-import {emitSvg} from './emit.ts';
-import {emitHtml} from './emit-html.ts';
-import {xmlProblems} from './xml-check.ts';
-import {verifyDiagram} from './verify.ts';
-import {applyAutoLegend, walkBands} from './rules.ts';
+import {walkBands} from './rules.ts';
 import {analyzeFit} from './fit.ts';
 import {getSlideBudget, readSlideBudgetCache} from './slide-budget.ts';
 import {closeMeasurer} from './measure.ts';
-import {applySpotlight} from './spotlight.ts';
-import {prepareReveal} from './reveal.ts';
+import {emitOutputs, emitRevealStage, runChecked} from './pipeline.ts';
 import {CAUSE_ROLES} from './toc.ts';
 import {criticalPath, decimalsOf, exact, histogramBins, mean, niceUp, normalCount, num, paretoOrder, sd} from './qc.ts';
 import type {ArrowActivity} from './qc.ts';
@@ -1789,64 +1784,61 @@ export async function build(d: Diagram, outPath: string, opts: {lint?: boolean; 
 // dev server, writes the cache); 'cacheOnly' reads the cache and falls back to the default sizes with a note.
 export async function renderDiagram(input: Diagram, opts: {name: string; budget: 'measure' | 'cacheOnly'; html?: boolean}): Promise<RenderResult> {
   const d = detach(input); // the passes below write into bands (reveal, legend items) and into d (width, ...): never into the caller's
-  const maxReveal = prepareReveal(d);
-  applyAutoLegend(d);
   const notes: string[] = [];
-  // A diagram that names its slide gets a measured height budget and width
-  // (cached) instead of fit.ts's defaults.
   let budget: SlideBudget | null = null;
   let budgetSource: RenderResult['budgetSource'] = null;
-  if (d.slide) {
-    const key = {...d.slide, svg: opts.name};
-    if (opts.budget === 'measure') {
-      budget = await getSlideBudget(key);
-      budgetSource = budget.cached ? 'cache' : 'measured';
-    } else {
-      budget = readSlideBudgetCache(key);
-      budgetSource = budget ? 'cache' : 'default';
-      if (!budget) notes.push(`スライドの空き寸法が未計測(キャッシュなし)なので既定の寸法で描いた。\`svg-diagram build\` で一度実測すると正確になる`);
+  // pre-layout passes (reveal, auto-legend) -> layout (below) -> spotlight -> verify; see lib/pipeline.ts for why that order
+  const {laidOut, verdict} = await runChecked(d, async (d): Promise<LaidOutDiagram> => {
+    // A diagram that names its slide gets a measured height budget and width
+    // (cached) instead of fit.ts's defaults.
+    if (d.slide) {
+      const key = {...d.slide, svg: opts.name};
+      if (opts.budget === 'measure') {
+        budget = await getSlideBudget(key);
+        budgetSource = budget.cached ? 'cache' : 'measured';
+      } else {
+        budget = readSlideBudgetCache(key);
+        budgetSource = budget ? 'cache' : 'default';
+        if (!budget) notes.push(`スライドの空き寸法が未計測(キャッシュなし)なので既定の寸法で描いた。\`svg-diagram build\` で一度実測すると正確になる`);
+      }
+      if (budget) {
+        d.maxDisplayHeight = budget.maxHeight;
+        d.usableWidth = budget.contentWidth;
+      }
     }
-    if (budget) {
-      d.maxDisplayHeight = budget.maxHeight;
-      d.usableWidth = budget.contentWidth;
+    // fill: true (fit-figure slides) — the <img> is stretched to the slide's free
+    // area, so draw for that area: canvas as wide as the slot, and the largest
+    // font/pad/gap scale (>= 1) whose laid-out height still fits the slot's
+    // height. Without this a short diagram leaves the slot half empty and its
+    // 14px text is as small as it was at 940px wide.
+    let fontScale = 1;
+    // Every scale is its own value (scaleRoles): measured with, laid out with and drawn with the same roles, which travel in the result.
+    const layoutAt = async (s: number): Promise<LaidOutDiagram> => {
+      const roles = d.canvas ? canvasRoles(s) : scaleRoles(ROLES, s);
+      return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}, {roles});
+    };
+    if (d.fill && budget) {
+      d.width = budget.contentWidth;
+      let lo = 1, hi = fillScaleLimit(d.bands);
+      if ((await layoutAt(1)).canvasHeight > budget.maxHeight) hi = 1; // doesn't even fit at 1x: report via fit warnings
+      for (let i = 0; i < 7 && hi - lo > 0.01; i++) {
+        const mid = (lo + hi) / 2;
+        if ((await layoutAt(mid)).canvasHeight <= budget.maxHeight) lo = mid; else hi = mid;
+      }
+      fontScale = Math.floor(lo * 100) / 100;
+    } else if (d.canvas) {
+      // a whole-slide canvas is drawn 1:1, so everything is scaled until the smallest text is the canvas's minimum
+      fontScale = canvasFontScale(d.canvas.minText);
+    } else if (d.fill) {
+      if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
+      notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
     }
-  }
-  // fill: true (fit-figure slides) — the <img> is stretched to the slide's free
-  // area, so draw for that area: canvas as wide as the slot, and the largest
-  // font/pad/gap scale (>= 1) whose laid-out height still fits the slot's
-  // height. Without this a short diagram leaves the slot half empty and its
-  // 14px text is as small as it was at 940px wide.
-  let fontScale = 1;
-  let laidOut: LaidOutDiagram;
-  let verdict: Verdict, svg: string, html: string | undefined;
-  // Every scale is its own value (scaleRoles): measured with, laid out with and drawn with the same roles, which travel in the result.
-  const layoutAt = async (s: number): Promise<LaidOutDiagram> => {
-    const roles = d.canvas ? canvasRoles(s) : scaleRoles(ROLES, s);
-    return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}, {roles});
-  };
-  if (d.fill && budget) {
-    d.width = budget.contentWidth;
-    let lo = 1, hi = fillScaleLimit(d.bands);
-    if ((await layoutAt(1)).canvasHeight > budget.maxHeight) hi = 1; // doesn't even fit at 1x: report via fit warnings
-    for (let i = 0; i < 7 && hi - lo > 0.01; i++) {
-      const mid = (lo + hi) / 2;
-      if ((await layoutAt(mid)).canvasHeight <= budget.maxHeight) lo = mid; else hi = mid;
-    }
-    fontScale = Math.floor(lo * 100) / 100;
-  } else if (d.canvas) {
-    // a whole-slide canvas is drawn 1:1, so everything is scaled until the smallest text is the canvas's minimum
-    fontScale = canvasFontScale(d.canvas.minText);
-  } else if (d.fill) {
-    if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
-    notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
-  }
-  laidOut = await layoutAt(fontScale);
-  laidOut.fontScale = fontScale;
-  applySpotlight(laidOut);
-  verdict = verifyDiagram(laidOut);
-  svg = emitSvg(laidOut, maxReveal ? {reveal: maxReveal} : {});
-  if (opts.html) html = emitHtml(laidOut, maxReveal ? {reveal: maxReveal} : {});
-  return {svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml: xmlProblems(svg), notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget, budgetSource, fontScale: laidOut.fontScale};
+    const laidOut = await layoutAt(fontScale);
+    laidOut.fontScale = fontScale;
+    return laidOut;
+  });
+  const emitted = emitOutputs(laidOut, {html: opts.html, reveal: d.maxReveal});
+  return {svg: emitted.svg, ...(emitted.html !== undefined ? {html: emitted.html} : {}), laidOut, verdict, xml: emitted.xml, notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget: budget as SlideBudget | null, budgetSource: budgetSource as RenderResult['budgetSource'], fontScale: laidOut.fontScale};
 }
 
 /** What the passes may write into: the bands are copied, so a band shared by two diagrams (or drawn twice) is never changed by a render. */
@@ -1881,14 +1873,12 @@ function cloneData<T>(v: T, seen = new WeakMap<object, unknown>()): T {
 
 // Layout + verification + rules, without writing any file: the engine behind `svg-diagram check`.
 export async function checkDiagram(input: DiagramData): Promise<CheckResult> {
-  const d = detach(input);
-  prepareReveal(d);
-  applyAutoLegend(d);
-  // a canvas diagram is drawn at its font scale, so it is checked at that scale too
-  const s = d.canvas ? canvasFontScale(d.canvas.minText) : 1;
-  const laidOut = await layoutDiagram(d.canvas ? {...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)} : d, d.canvas ? {roles: canvasRoles(s)} : {});
-  applySpotlight(laidOut);
-  return {laidOut, verdict: verifyDiagram(laidOut)};
+  // same stages as renderDiagram (lib/pipeline.ts), minus the slide budget and the fill search
+  return runChecked(detach(input), prepared => {
+    // a canvas diagram is drawn at its font scale, so it is checked at that scale too
+    const s = prepared.canvas ? canvasFontScale(prepared.canvas.minText) : 1;
+    return layoutDiagram(prepared.canvas ? {...prepared, pad: Math.round(prepared.pad * s), gap: Math.round(prepared.gap * s)} : prepared, prepared.canvas ? {roles: canvasRoles(s)} : {});
+  });
 }
 
 async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Promise<BuildResult> {
@@ -1909,7 +1899,7 @@ async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Pro
     const ext = path.extname(outPath), stem = outPath.slice(0, -ext.length);
     for (let stage = 0; stage <= r.laidOut.maxReveal; stage++) {
       const revealPath = `${stem}.reveal${stage}${ext}`;
-      fs.writeFileSync(revealPath, emitSvg(r.laidOut, {reveal: stage}));
+      fs.writeFileSync(revealPath, emitRevealStage(r.laidOut, stage));
       revealPaths.push(revealPath);
     }
   }
