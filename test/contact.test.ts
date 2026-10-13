@@ -119,7 +119,9 @@ test('preview: usage errors exit 2; a missing or malformed file exits 1 and name
   const dir = tmp();
   fs.writeFileSync(path.join(dir, 'broken.svg'), figure(10, 10, '<g>'));
   assert.equal(run(dir, 'preview').status, 2);
-  assert.equal(run(dir, 'preview', 'a.svg').status, 2);
+  const noOut = run(dir, 'preview', 'a.svg'); // out.png is optional now: this reads a.svg, which is missing
+  assert.equal(noOut.status, 1);
+  assert.match(out(noOut), /a\.svg/);
   assert.equal(run(dir, 'preview', 'a.svg', 'o.png', '0').status, 2);
   assert.equal(run(dir, 'preview', 'a.svg', 'o.png', '--engine', 'nope').status, 2);
   const missing = run(dir, 'preview', 'nope.svg', 'o.png');
