@@ -1378,7 +1378,7 @@ export interface LaidOutImage extends Rect, Dimmed {
 
 export interface SequenceActor {
   id: string; label: string; tone?: BoxTone;
-  /** An installed SVG icon (see `icon`) above the label in the header, 20px, in `iconTone` (default: the box's text tone). The label carries the meaning, so the icon is `aria-hidden`. */
+  /** An installed SVG icon (see `icon`) above the label in the header, 20px, in `iconTone` (default: the label's text colour). The label carries the meaning, so the icon is `aria-hidden`. */
   icon?: IconName;
   iconTone?: TextTone;
   /** Internal: the installed path of `icon`, resolved by sequence(). */

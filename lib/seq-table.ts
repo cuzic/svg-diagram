@@ -74,14 +74,15 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
     const lines = wrap(a.label, roles.title, 700, 'sans', aw - 2 * SEQ.headPadX, widthOf);
     return {id: a.id, tone: a.tone, lines, x: cx[i] - aw / 2, w: aw, cx: cx[i], y: 0, h: 0, textDy: SEQ.headPadY};
   });
-  // every head is as tall as the tallest; one with an icon has it above its label, one without keeps its label in the middle of the room
+  // every head is as tall as the tallest; when any head has an icon, each head's stack (icon, then label) sits in the middle of the room
   const anyIcon = p.actors.some(a => a.icon), textH = Math.max(...heads.map(h => h.lines.length)) * lineH(roles.title);
   const headH = textH + (anyIcon ? SEQ_ICON_H : 0) + 2 * SEQ.headPadY;
   heads.forEach((h, i) => {
     const a = p.actors[i];
     h.y = y; h.h = headH;
-    h.textDy = SEQ.headPadY + (a.icon ? SEQ_ICON_H : anyIcon ? Math.round(SEQ_ICON_H / 2) : 0);
-    if (a.icon) h.icon = {name: a.icon, glyph: a.iconGlyph!, x: h.cx - SEQ_ICON / 2, y: y + SEQ.headPadY, size: SEQ_ICON, ...(a.iconTone ? {tone: a.iconTone} : {})};
+    const top = SEQ.headPadY + (anyIcon ? Math.round((headH - 2 * SEQ.headPadY - h.lines.length * lineH(roles.title) - (a.icon ? SEQ_ICON_H : 0)) / 2) : 0);
+    h.textDy = top + (a.icon ? SEQ_ICON_H : 0);
+    if (a.icon) h.icon = {name: a.icon, glyph: a.iconGlyph!, x: h.cx - SEQ_ICON / 2, y: y + top, size: SEQ_ICON, ...(a.iconTone ? {tone: a.iconTone} : {})};
   });
 
   let cursor = y + headH;
