@@ -45,7 +45,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 2. **ビルド**: `svg-diagram build src.ts --out out.svg`（重なり検査と lint --strict まで走る。失敗するとエラー文が出る）
    - PNG も要るとき（Word・チャット・PNG しか貼れない所）は `--png <dir> [--scale N]` を足す。同じビルドの SVG から `<dir>/<名前>.png` を書く（既定の倍率 2。段階表示の各段の SVG も PNG になる）。`--stale` と併用すると、PNG がない・SVG より古いときは作り直す。
 3. **ルール検査**: `svg-diagram check --strict src.ts`（コントラスト、凡例、線の交差、幅、密度、題名）
-   - `gray-tone-collision`（警告）: 使っている 2 つのトーンの塗りが白黒で見分けにくい（CIE L* の差が 10 未満。典型は plain の白と accent / new の soft）。どちらかを `solid` / `muted` にするか、ラベル・太字・破線など色以外の手がかりを足す。破線の有無が違う組、塗りが同じ組、muted / removed、canvas() のピルで言葉にした領域は数えない。カラーでしか使わない図は `diagram({accept: {'gray-tone-collision': '理由'}})`。
+   - `gray-tone-collision`（警告）: 使っている 2 つのトーンの塗りが白黒で見分けにくい（CIE L* の差が 10 未満。典型は plain の白と accent / new の soft）。直し方は 2 つ。(1) トーンの色を変えて明度差を付ける: `diagram({tones: {accent: {fill: '#e6d3bd'}}})`（案件全体なら `.svg-diagram.json` の `"tones"`。README「トーンの色を上書きする」）か、片方を `solid` / `muted` にする。(2) ラベル・太字・破線など色以外の手がかりを足して `accept` で許容する。破線の有無が違う組、塗りが同じ組、muted / removed、canvas() のピルで言葉にした領域は数えない。カラーでしか使わない図は `diagram({accept: {'gray-tone-collision': '理由'}})`。
    - 凡例は、使った線種・トーンに必要な分だけ足す（`legend: 'auto'`）。記法が少なくて凡例が要らない図は、凡例を足さずに `diagram({legend: false})` で宣言する（`legend-missing` / `legend-incomplete` が出なくなる）。
 4. **目で見る**: `svg-diagram preview out.svg out.png 2` で PNG にし（並列で動かすときは出力名を省くと、一時ディレクトリに重ならない名前で書いてパスを表示する）、画像として読んで確認する（`svg-diagram show x.ts --png out.png` なら SVG を書かずにソースから直接 PNG にできる。`show` を `--png` なしで使うのは人が sixel 対応の端末で見るとき用で、エージェントの実行環境では端末がないためエラーになる）。**検査を通っても、レイアウトの良し悪しは目で見ないと分からない**。
    - 白黒印刷や色覚の違う読者にどう見えるかは `svg-diagram preview out.svg out.png --gray`（明度だけにして描く）。

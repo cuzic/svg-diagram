@@ -40,7 +40,7 @@ import type {
   LaidOutSwimlane, LaidOutPyramidLayer, LaidOutRow, RowArrow, Band, CaptionBand, BoxBand, BannerBand, RowBand, GridBand, GroupBand,
   ConnectBand, ConnectRef, Bend, BoxChrome, TextRun, WrappedRun, WidthOf, FontFamily, FontWeight, MeasureRequest, Measured, Point, Rect, Side, Span, TextTone,
 } from './types.ts';
-import {PALETTE, SHADES, isSolidTone, CONNECT_LABEL_SIZE, TAG_SIZE, blendLuminance, bestTextColor, paintOf} from './tokens.ts';
+import {PALETTE, SHADES, isSolidTone, CONNECT_LABEL_SIZE, TAG_SIZE, blendLuminance, bestTextColor, paintOf, withTones} from './tokens.ts';
 
 export const LINE_HEIGHT_EM = 1.4;   // vertical spacing between wrapped lines within one text block
 export const BOX_PAD_X = 20;
@@ -387,7 +387,7 @@ export function widthOfMeasured(measured: Map<string, Measured>, strict: boolean
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
 export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
   const prev = setWrapMode(data.wrap ?? 'phrase');
-  try { return layoutBands(data, roles, widthOf); } finally { setWrapMode(prev); }
+  try { return withTones(data.tones, () => layoutBands(data, roles, widthOf)); } finally { setWrapMode(prev); }
 }
 
 function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {

@@ -7,7 +7,7 @@
 //
 // See docs/diagram-tone-and-manner.md for the narrative rules this encodes.
 
-import type {ColorKey, Palette, Role, Roles, Theme, TextTone, Appearance} from './types.ts';
+import type {ColorKey, PlainColorKey, Palette, Role, Roles, Theme, TextTone, Appearance} from './types.ts';
 
 export const PALETTE: Palette = {
   bg: '#ffffff',
@@ -48,6 +48,14 @@ const HEX6 = /^#[0-9a-fA-F]{6}$/;
 /** The light→dark map of an appearance (null: light). An object appearance replaces the named tokens of the built-in dark set. */
 const MAPS = new Map<string, Record<string, string>>();
 export function mapOf(appearance: Appearance | undefined): Record<string, string> | null {
+  const m = baseMapOf(appearance);
+  if (!m || !activeTones || !Object.keys(activeTones.pairs).length) return m;
+  const merged = (activeTones.merged ??= new Map()); // a tone override's dark colour joins the dark set
+  let out = merged.get(m);
+  if (!out) { out = {...m, ...activeTones.pairs}; merged.set(m, out); }
+  return out;
+}
+function baseMapOf(appearance: Appearance | undefined): Record<string, string> | null {
   if (appearance === undefined || appearance === 'light') return null;
   if (appearance === 'dark') return DARK_OF;
   const key = JSON.stringify(appearance.dark);
@@ -120,8 +128,81 @@ export const TONE_ALIAS: Record<string, ToneName> = {ok: 'accent', warn: 'danger
 /** The style of a tone name (aliases resolved; an unknown or missing tone is 'plain'). */
 export function toneStyle(tone: string | undefined): ToneStyle {
   const name = tone == null ? 'plain' : TONE_ALIAS[tone] ?? tone;
-  return TONES[name as ToneName] ?? TONES.plain;
+  return activeTones?.styles[name as ToneName] ?? TONES[name as ToneName] ?? TONES.plain;
 }
+
+// ---- tone overrides ---------------------------------------------------------------------------------------------------
+// diagram({tones: {accent: {fill: '#e6d3bd', dark: {fill: '#4a3a28'}}}}) and .svg-diagram.json "tones" replace single colours of a
+// tone. toneStyle() is the one door every consumer (emit, rules, verify) goes through, so the overridden colours are what is drawn AND
+// what the contrast / gray-tone-collision checks see. Like the wrap mode, the active set is module state that the pipeline entry
+// points (layoutWith / emitSvg / emitHtml / lintDiagram / verifyDiagram) set with withTones() for the diagram they handle.
+export type ToneColorKey = 'fill' | 'stroke' | 'text' | 'ink';
+const TONE_COLOR_KEYS: readonly ToneColorKey[] = ['fill', 'stroke', 'text', 'ink'];
+export type ToneColors = Partial<Record<ToneColorKey, string>>;
+/** One tone's replacement colours (#rrggbb). `dark` is what the same colour becomes under appearance 'dark' (unset: it stays as is). */
+export interface ToneOverride extends ToneColors {dark?: ToneColors}
+export type ToneOverrides = Partial<Record<ToneName, ToneOverride>>;
+interface ActiveTones {styles: Partial<Record<ToneName, ToneStyle>>; pairs: Record<string, string>; colors: string[]; merged?: Map<Record<string, string>, Record<string, string>>}
+let activeTones: ActiveTones | undefined;
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const checkColors = (c: unknown, where: string): ToneColors => {
+  if (typeof c !== 'object' || c === null || Array.isArray(c)) throw new Error(`${where} must be an object like {fill: '#e6d3bd'}`);
+  const out: ToneColors = {};
+  for (const [k, v] of Object.entries(c)) {
+    if (!(TONE_COLOR_KEYS as readonly string[]).includes(k)) throw new Error(`${where}: unknown colour "${k}" (one of ${TONE_COLOR_KEYS.join(', ')})`);
+    if (typeof v !== 'string' || !HEX.test(v)) throw new Error(`${where}.${k} must be a #rrggbb colour (got ${JSON.stringify(v)})`);
+    out[k as ToneColorKey] = v.toLowerCase();
+  }
+  return out;
+};
+/** Validate a `tones` value (a diagram option or the config's): tone names must exist, colours are #rrggbb. Returns it normalised (lower-case hex). */
+export function checkTones(input: unknown, where: string): ToneOverrides {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) throw new Error(`${where} must be an object like {accent: {fill: '#e6d3bd'}}`);
+  const out: ToneOverrides = {};
+  for (const [name, v] of Object.entries(input)) {
+    if (!(name in TONES)) throw new Error(`${where}: unknown tone "${name}" (one of ${Object.keys(TONES).join(', ')}${name in TONE_ALIAS ? `; "${name}" is an alias of "${TONE_ALIAS[name]}"` : ''})`);
+    if (typeof v !== 'object' || v === null || Array.isArray(v)) throw new Error(`${where}.${name} must be an object like {fill: '#e6d3bd'}`);
+    const {dark, ...light} = v as Record<string, unknown>;
+    const o: ToneOverride = checkColors(light, `${where}.${name}`);
+    if (dark !== undefined) o.dark = checkColors(dark, `${where}.${name}.dark`);
+    out[name as ToneName] = o;
+  }
+  return out;
+}
+/** The project's tones with a diagram's own on top, colour by colour. */
+export function mergeTones(base: ToneOverrides | undefined, own: ToneOverrides | undefined): ToneOverrides | undefined {
+  if (!base) return own;
+  if (!own) return base;
+  const out: ToneOverrides = {...base};
+  for (const [n, o] of Object.entries(own) as [ToneName, ToneOverride][]) out[n] = {...base[n], ...o, ...(base[n]?.dark || o.dark ? {dark: {...base[n]?.dark, ...o.dark}} : {})};
+  return out;
+}
+function activate(ov: ToneOverrides): ActiveTones {
+  const styles: Partial<Record<ToneName, ToneStyle>> = {}, pairs: Record<string, string> = {}, colors: string[] = [];
+  for (const [name, o] of Object.entries(ov) as [ToneName, ToneOverride][]) {
+    const s: ToneStyle = {...TONES[name]};
+    for (const k of TONE_COLOR_KEYS) {
+      const c = o[k];
+      if (!c) continue;
+      (s as unknown as Record<string, string>)[k] = c;
+      if (k === 'stroke') delete s.slideStroke; // the override is the outline in the slide decks too
+      colors.push(c);
+      const dk = o.dark?.[k];
+      if (dk) { pairs[c] = dk; colors.push(dk); }
+    }
+    styles[name] = s;
+  }
+  return {styles, pairs, colors};
+}
+/** Run `fn` with a diagram's tone overrides in force (an empty or missing set changes nothing). */
+export function withTones<T>(ov: ToneOverrides | undefined, fn: () => T): T {
+  if (!ov || !Object.keys(ov).length) return fn();
+  const prev = activeTones;
+  activeTones = activate(ov);
+  try { return fn(); } finally { activeTones = prev; }
+}
+/** Every colour the active overrides use, light and dark (lint-svg reads them from the root's data-tone-colors). */
+export const toneColors = (): string[] => activeTones?.colors ?? [];
 /** The colour key text in this tone uses ('text' unless the tone is one text can be set in). */
 export const textKeyOf = (tone: string | undefined): ColorKey => { const t = toneStyle(tone); return t.asText ? t.ink : 'text'; };
 /** A filled emphasis tone: the box is an accent / danger fill, so its text is white unless a run says otherwise (it may not). */
@@ -132,7 +213,8 @@ export function runColorOf(runTone: TextTone | undefined, boxTone: string | unde
 }
 /** A colour key resolved against a theme ('accent' and 'soft' are theme colours). */
 export function colorOf(key: ColorKey, theme: Theme): string {
-  return key === 'accent' || key === 'soft' ? PALETTE[theme][key] : PALETTE[key];
+  if (key.startsWith('#')) return key;
+  return key === 'accent' || key === 'soft' ? PALETTE[theme][key] : PALETTE[key as PlainColorKey];
 }
 /** The colour of a TextTone (a text run, a connector line) in a theme. */
 export const textColorOf = (tone: TextTone | undefined, theme: Theme): string => colorOf(textKeyOf(tone), theme);
