@@ -581,6 +581,8 @@ export interface ConnectBand {
   label?: string;
   reveal?: number;
   until?: number;
+  /** Internal (versus()): the end on a top / bottom side takes the start's x (kept inside that side), so the line drops plumb. */
+  plumb?: boolean;
 }
 /** branch() target: connect() options plus the target ref. */
 export interface BranchTarget extends ConnectOpts {to: string}

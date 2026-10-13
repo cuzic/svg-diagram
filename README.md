@@ -71,7 +71,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | row / grid | 横並び（row は cols:N の共有列グリッド、span/col。`cols: [6, 6]` と span を並べて書ける。`id` を付けると、`r.col(5).top` で N 列目を接続点にできる） |
 | node({icon, label, sub, size, frame}) | 構成図の 1 点: アイコンを大きく（既定 48px）中央に置き、名前を下に付ける。枠は付けない（`frame: true` で付く）。`row()` / `grid()` に並べ、`group()` でネットワーク・VPC・ゾーンの境界を作り、`connect()` で結ぶ（下の「構成図（クラウド・ネットワーク）」） |
 | group(children, {title, tone, titleAlign, flex, width, span, col}) | ラベル付きの枠。**入れ子可**（ホスト > コンテナ > プロセス）。`row([group(...), group(...)])` で横に並べると、枠の高さは一番高いものにそろう（`flex` / `width` / `span` / `col` は box と同じ。`arrows: 'between'` は不可）。中の box の id も、`connect()` の参照先になる |
-| versus(left, right, {shared, connectLabels}) | 左右の `group()` を 12 列の半分ずつに並べる対比。各部は `{title, children, tone, id}`。`shared` を付けると、その共通部を下に置いて左右から接続する（3 部すべてに `id` が必要）。接続ラベルは `connectLabels.left` / `.right` |
+| versus(left, right, {shared, connectLabels}) | 左右の `group()` を 12 列の半分ずつに並べる対比。各部は `{title, children, tone, id}`。`shared` を付けると、その共通部を下に置いて左右から接続する（3 部すべてに `id` が必要）。接続ラベルは `connectLabels.left` / `.right`、接続線は各部の中央から共通部へ垂直に降りる（`connectRoute` は `'straight'` 既定 / `'elbow'`、`connectArrow: 'none'` で矢頭なし）。各部の `children` は配列（縦積み）で、`direction: 'row'` なら横並び |
 | hero({banner, stat, flow, caption, note}) | 章の頭に置く 1 枚: 帯（任意）の下に、流れの箱（`flow: [box(...), ...]`、矢印でつなぐ）とその行き着く大きな数字（`stat: {value, label, tone}`）を 1 行に並べ、その下に一言（`caption`）と出典・注（`note`）。箱が 5 つ以上なら数字を上に置く（`layout: 'stack'`）。既存の部品を並べるだけ。下の「章の頭の 1 枚」 |
 | connect / branch | 矢印。route(straight/elbow/loop-under)、arrow(end/both/start/none)、line(solid/dashed/dotted/double)、weight(strong)、chip、labelAt、アンカー `id:side@0.2` |
 | legend(items) | 線種・トーンの凡例 |
@@ -799,6 +799,8 @@ versus(
 )
 ```
 
+- **children と接続線**: `children` は箱 1 つでも配列でもよい（配列は縦に積む。`direction: 'row'` で横に等幅で並べる）。接続線は左右の枠の中央から共通部へ垂直に降り（以前は共通部の 1/4・3/4 に向かい、数 px 斜めだった）、ラベルは線の右に置く。`connectArrow: 'none'` で矢頭なし。`row()` の子には `box()` / `group()` のほか `caption()` / `banner()` などの帯も置ける（枠なしの `group()` に自動で包まれる）。
+- **PNG の矢頭**: `svg-diagram preview` などの PNG（resvg）は、矢頭を線の向きに回して描く（以前は向きを無視して、下向きの線でも右向きに描いていた）。縦の直線に付けた（chip でない）ラベルは、線に貫かれないよう線の右に置く。
 - **帯と幅がそろう**: 枠の右端は、帯と同じ位置で 4px の格子に丸める（以前は幅だけを丸めていたので、`versus()` の右の枠が帯より最大 4px はみ出すことがあった）。
 - `group()` に `gap` は無い（書くと throw）。箱の間は、入っている `row([...], {gap})`、帯の間は `diagram({gap})`。グループを並べた行の `gap` はそのまま効く。
 - **12 列の行**: `row([a, b], {cols: [6, 6]})`（子ごとの幅だけを並べる。`col` を手で数えない）。`span` を各子に書く形では、`col` は前の子の次の列から自動で進む。`cols` を指定した行は、ラベルつきの接続線のために隙間が広がるとき、**同じ `cols` と `gap` の行すべて**で広がり、列の縁はそろったまま。

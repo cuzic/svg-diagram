@@ -556,8 +556,18 @@ function assertBoxChildren(what: 'row' | 'grid', children: readonly {type?: stri
 // in a row cannot be combined with `arrows: 'between'`.
 export function row<C extends BoxBand, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): RowBand & Declares<IdsOf<C> | Id> & RowHandleOf<Id>;
 export function row<C extends BoxBand | GroupBand, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): GroupRowBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & RowHandleOf<Id>;
-export function row(children: (BoxBand | GroupBand)[], opts: RowOpts = {}): RowBand | GroupRowBand {
+export function row<C extends BoxBand | GroupBand | Exclude<Band, ConnectBand | SpacerBand | RowBand | GroupRowBand | GridBand>, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): GroupRowBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & RowHandleOf<Id>;
+export function row(rawChildren: Band[], opts: RowOpts = {}): RowBand | GroupRowBand {
   assertNoReveal(opts, 'row()'); // a row is shown with its children: give each child its own reveal
+  // caption / stat / banner / table ... in a row: each goes into a frameless group (the same as writing group([x], {frame: false}) by hand)
+  const wrappable = (c: Band) => c?.type !== undefined && !['box', 'group', 'connect', 'spacer', 'row', 'grouprow', 'grid'].includes(c.type);
+  // the row placement (flex / width / span / col) moves to the wrapper, where the row reads it
+  const wrap = (c: Band): GroupBand => {
+    const {flex, width, span, col} = c as {flex?: number; width?: number; span?: number; col?: number};
+    const place = Object.fromEntries(Object.entries({flex, width, span, col}).filter(([, v]) => v !== undefined));
+    return group(c, {frame: false, ...place});
+  };
+  const children = rawChildren.map(c => wrappable(c) ? wrap(c) : c) as (BoxBand | GroupBand)[];
   const hasGroup = children.some(c => c?.type === 'group');
   if (hasGroup) {
     if (opts.arrows === 'between') throw new Error("row(): arrows: 'between' cannot be used when a child is a group()");
