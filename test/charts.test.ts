@@ -168,6 +168,15 @@ test('heatmap(): white numbers sit only on dark shades (contrast is verified), a
   assert.throws(() => heatmap(['a'], ['b'], [[1]], {levels: 9}), /levels/);
 });
 
+test('heatmap(): a row label wider than its column wraps and the rows grow to hold it (it used to run over the cells)', async () => {
+  const long = 'とても長い行の見出しがここに入るのでどうなるかを確かめる';
+  const {chart, problems} = await chartOf(heatmap([long, '短い'], ['x', 'y'], [[1, 2], [3, 4]]));
+  assert.deepEqual(problems, []);
+  assert.ok(!texts(chart).includes(long), 'wrapped');
+  assert.equal(texts(chart).filter(t => long.includes(t) && t.length > 1).join(''), long, 'every part of it is written');
+  await assert.rejects(laid(heatmap([long, '短い'], ['x', 'y'], [[1, 2], [3, 4]], {cellH: 30})), /cellH 30 is too small/);
+});
+
 test('heatmap(): a number too wide for its cell fails at layout with the fix named', async () => {
   await assert.rejects(laid(heatmap(['a'], Array.from({length: 24}, (_, i) => `c${i}`), [Array.from({length: 24}, () => 1234567.891)], {width: 400})), /do not fit in cells/);
 });

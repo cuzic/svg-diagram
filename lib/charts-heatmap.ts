@@ -81,8 +81,13 @@ export function layoutHeatmap(s: HeatmapSpec, g: ChartGeom): LaidOutChartPart {
   const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf);
   const rowW = Math.min(Math.max(...s.rows.map(r => c.tw(r, s.rowHeader)), s.corner ? c.tw(s.corner, true) / 2 : 0) + 20, g.w * 0.3);
   const plotL = g.x + rowW, cellW = (g.x + g.w - plotL) / s.cols.length;
-  const cellH = s.cellH ?? Math.max(S + 16, 32), lh = c.lineH();
-  if (!(s.cellH === undefined || s.cellH >= S + 8)) fail('heatmap', `cellH ${s.cellH} is too small for ${S}px text (at least ${S + 8})`);
+  const lh = c.lineH();
+  // a row label wider than its column (at most 30% of the figure) wraps, and the rows grow to hold it
+  const rowLs = s.rows.map(r => c.wrap(r, rowW - 8, s.rowHeader));
+  for (const [i, ls] of rowLs.entries()) for (const l of ls) if (c.tw(l, s.rowHeader) > rowW - 4) fail('heatmap', `the row label "${s.rows[i]}" is too long for its column ${Math.floor(rowW)}px wide (shorten it, or raise width)`);
+  const rowNeed = Math.max(...rowLs.map(ls => ls.length)) * lh + 8;
+  const cellH = s.cellH ?? Math.max(S + 16, 32, rowNeed);
+  if (!(s.cellH === undefined || s.cellH >= Math.max(S + 8, rowNeed))) fail('heatmap', `cellH ${s.cellH} is too small for the ${S}px text of its rows (at least ${Math.max(S + 8, rowNeed)})`);
   const texts = s.values.map(r => r.map(v => v === null ? '–' : cellText(v, s)));
   const widest = Math.max(...texts.flat().map(t => c.tw(t, true)));
   if (widest > cellW - 8) fail('heatmap', `the numbers (up to ${Math.ceil(widest)}px) do not fit in cells ${Math.floor(cellW)}px wide (raise width, use fewer columns, or drop the unit)`);
@@ -111,7 +116,7 @@ export function layoutHeatmap(s: HeatmapSpec, g: ChartGeom): LaidOutChartPart {
   heads.forEach((h, i) => c.lines(h, plotL + (i + 0.5) * cellW, g.y + headH - 8 - (h.length - 1) * lh, 'middle', 'text', {bold: true}));
   s.rows.forEach((r, i) => {
     const y = bodyT + i * cellH, cy = y + cellH / 2;
-    c.text(r, g.x + 4, c.mid(cy), 'start', 'text', {bold: s.rowHeader});
+    c.lines(rowLs[i], g.x + 4, c.mid(cy) - (rowLs[i].length - 1) * lh / 2, 'start', 'text', {bold: s.rowHeader});
     s.values[i].forEach((v, j) => {
       const x = plotL + j * cellW, t = texts[i][j];
       if (v === null) {
