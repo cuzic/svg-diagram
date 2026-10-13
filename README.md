@@ -40,12 +40,20 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 `svg-diagram show` は人が端末で見るためのコマンド（Windows Terminal 1.22 以降、WezTerm、foot など sixel 対応の端末）。文書の `<img>` と同じ読み方（XML）で描くので、整形式でない SVG はエラーになる。`.ts` は検証に落ちても描き、問題を stderr に出して終了コード 1 にする。tmux 3.4 未満は sixel を通さないので、`--passthrough`（`set -g allow-passthrough on` が要る）か `--png FILE` を使う。端末のない環境（エージェントなど）は `--png FILE` で書いて画像として読む。
 動作確認: `pnpm test`、`svg-diagram build examples/inventory-wireframe.ts --out /tmp/x.svg`。
 
-**Markdown から使う**: 図のソースを画像として書く（`![流れ図](./diagrams/flow.diagram.ts)`。パスは Markdown ファイルからの相対）。**対象は `.diagram.ts` で終わるファイルだけ**で、ほかの `.ts` や外部 URL の画像には触らない（対象はソースとして `import` されて実行されるので、信頼できない Markdown には使わない）。出力は SVG（既定）か HTML/CSS（`build --html` と同じ。文字を選択でき、CSS から触れる）で、どのプラグインも `render: 'svg' | 'html'` で選ぶ。1 枚だけ変えるときは、画像の対象の後ろに `#html` / `#svg` を付ける（`![](flow.diagram.ts#html)`。こちらが優先）。コードブロックとインラインコードの中は触らない。検査に通らない図は、既定でエラーにして止める。
+**Markdown から使う**: 図のソースを画像として書く（`![流れ図](./diagrams/flow.diagram.ts)`。パスは Markdown ファイルからの相対）。
 
-- **`svg-diagram md page.md --out out/page.md`**: ソースを描いて `out/svg/flow.svg` に書き、`![流れ図](svg/flow.svg)` に差し替えた普通の Markdown を出す（どの描画系でも読める）。`--inline` は `<svg>` を、`--html` は HTML/CSS を Markdown に埋め込む（`--html` は埋め込みのみ）。1 つでも失敗すれば何も書かず終了コード 1。プログラムからは `import {expandMarkdown} from 'svg-diagram/markdown'`（`{file, mode, render}`）。
-- **markdown-it**: `import svgDiagram from 'svg-diagram/markdown-it'; new MarkdownIt().use(svgDiagram, {render: 'svg'})`。図だけの段落は `<p>` に入れずブロックにする（HTML 版は `<div>` なので）。パスはページからの相対（`env.path`、なければ `baseDir`、なければ cwd）。markdown-it の描画は同期で、図の描画は非同期なので、図は子プロセスで描いて待つ（ソースと import 先が変わるまでキャッシュ）。`{strict: false}` なら、検査に通らない図も描き、読めない図はページにエラーを出す。
-- **VitePress**: `.vitepress/config.ts` に `import svgDiagram from 'svg-diagram/vitepress'` と `markdown: {config: svgDiagram({render: 'html'})}`（中身は markdown-it プラグイン）。図のソースと import 先は VitePress の `env.includes` に登録するので、`vitepress dev` で編集するとページが描き直される（`vitepress build` は実物で確かめた。dev の再描画は、VitePress の監視の仕組みに載せただけで、実ブラウザでは確認していない）。
-- **remark**: `import svgDiagram from 'svg-diagram/remark'`、`unified().use(remarkParse).use(svgDiagram, {render: 'svg'}).use(remarkRehype).use(rehypeStringify)`。図は生の `html` ノードではなく本物の要素（hast）になるので、`allowDangerousHtml` も `rehype-raw` も要らず、`rehype-sanitize` などからも見える（MDX・Astro・Docusaurus の remark 設定にも入る）。HTML 版は `<div class="svg-diagram">` に入る。remark の変換は非同期にできるので、子プロセスは使わず同じプロセスで描く。
+- **対象は `.diagram.ts` で終わるファイルだけ**で、ほかの `.ts` や外部 URL の画像には触らない。対象はソースとして `import` されて実行されるので、**信頼できない Markdown（ユーザー投稿など）には使わない**。絶対パス（`/…`、`//host/…`、`C:/…`）は拒否し、ソースは `root`（既定は作業フォルダ。`md` は `--root`）の中にあるものだけ読む。
+- 出力は SVG（既定）か HTML/CSS（`build --html` と同じ。文字を選択でき、CSS から触れる）で、どのプラグインも `render: 'svg' | 'html'` で選ぶ。1 枚だけ変えるときは、画像の対象の後ろに `#html` / `#svg` を付ける（`![](flow.diagram.ts#html)`。こちらが優先）。**HTML 版は `<div>` でできているので、段落に図だけがある場合のみ**（文中の画像は、HTML を選んでいても SVG で描く。`<div>` は開いている `<p>` を閉じてしまう）。
+- 画像の `alt` が図の名前（`aria-label`）になる。SVG は、ページに 2 枚置いても id が重ならないよう図ごとに接頭辞を付け、`<style>` はその図だけに効かせ、幅は本文に収める（`max-width:100%`）。
+- 検査に通らない図は、既定でエラーにして止める。コードブロック（フェンス・インデント）、インラインコード、HTML コメントの中は触らない。`![alt][ref]` の参照形式は対象外。
+
+**`svg-diagram md page.md --out out/page.md`**: ソースを描いて `out/svg/<名前>-<パスのハッシュ>.svg` に書き、`![流れ図](svg/….svg)` に差し替えた普通の Markdown を出す（どの描画系でも読める。名前にハッシュを付けるので、複数のページが 1 つの `svg/` を共有しても上書きしない）。`--inline` は `<svg>` を、`--html` は HTML/CSS を Markdown に埋め込む。埋め込みは行を単独で占める図だけで、リスト・引用・表の中の `--inline` は SVG ファイルへの画像に戻し（`!` で知らせる）、`--html` はエラーにする。1 つでも失敗すれば何も書かず終了コード 1。プログラムからは `import {expandMarkdown} from 'svg-diagram/markdown'`（`{file, mode, render, root}`）。
+
+**markdown-it**: `import svgDiagram from 'svg-diagram/markdown-it'; new MarkdownIt().use(svgDiagram, {render: 'svg'})`。図だけの段落は `<p>` に入れずブロックにする。パスはページからの相対（`env.path`、なければ `baseDir`、なければ cwd）。markdown-it の描画は同期で、図の描画は非同期なので、図は子プロセスで 1 枚ずつ描いて待つ（1 枚 1〜2 秒。`timeout` 既定 120 秒。ソース・import 先・`.svg-diagram.json`・アイコンの JSON が変わるまでキャッシュ）。図のソースが標準出力に何か書いても、結果には混ざらない。`{strict: false}` なら、検査に通らない図も描き、読めない図はページにエラーを出す。すでに描いた後に作った `.svg-diagram.json` は、次にそのソース（か import 先）を編集するまで気づかない。
+
+**VitePress**: `.vitepress/config.ts` に `import svgDiagram from 'svg-diagram/vitepress'` と `markdown: {config: svgDiagram({render: 'html'})}`（中身は markdown-it プラグイン）。VitePress はページを Vue のテンプレートとして読み、`{{ }}` を式として評価し、`<style>` をクライアント側のビルドから落とし、ハイドレーションで DOM が食い違うので、図は Vue の `v-html` の値として出す（SSR・クライアントとも同じ文字列で、`{{ }}` は文字のまま）。図のソースと import 先・設定ファイルは VitePress の `env.includes` に登録するので、`vitepress dev` で編集するとページが描き直される（この再描画は VitePress の監視の仕組みを読んで確かめ、`createServer` での実測は レビューで確認。`vitepress build` と、ブラウザでのハイドレーション・SPA 遷移後の見た目は実物で確認した）。
+
+**remark**: `import svgDiagram from 'svg-diagram/remark'`、`unified().use(remarkParse).use(svgDiagram, {render: 'svg'}).use(remarkRehype).use(rehypeStringify)`。図は生の `html` ノードではなく本物の要素（hast。`className` `strokeWidth` など hast のプロパティ名）になるので、`allowDangerousHtml` も `rehype-raw` も要らない（`rehype-sanitize` を使うなら、svg と style を許すスキーマが要る）。図だけの段落は段落ごと置き換える。HTML 版は `<div class="svg-diagram">`。MDX・Astro・Docusaurus の remark 設定にも入る（それらでの動作は未確認）。remark の変換は非同期にできるので子プロセスは使わず同じプロセスで描き、同じプロセスでソースを編集すれば描き直す。使った図のファイルは `file.data.svgDiagramDeps` に入る。
 
 ## 使い方
 

@@ -9,6 +9,7 @@ import {register} from 'node:module';
 import {loadConfig} from './config.ts';
 import {loadDiagram} from './load-source.ts';
 import {depsOf} from './source-deps.ts';
+import {findManifest} from './icon-registry.ts';
 import {renderDiagram, closeMeasurer} from './dsl.ts';
 
 let hooked = false;
@@ -40,7 +41,7 @@ export interface RenderSourceResult {
   notes: string[];
   width: number;
   height: number;
-  /** The source and the local files it imports, absolute — what a watcher should rebuild on. */
+  /** The source, the local files it imports, and the settings (.svg-diagram.json, svg-diagram.icons.json) it was drawn with, absolute — what a watcher should rebuild on. */
   deps: string[];
 }
 
@@ -51,7 +52,7 @@ export async function renderSource(file: string, opts: RenderSourceOptions = {})
   const d = await loadDiagram(abs, config, {fresh: opts.fresh});
   const r = await renderDiagram(d, {name: path.basename(abs, path.extname(abs)) + '.svg', budget: opts.budget ?? 'cacheOnly', html: opts.html});
   const problems = [...r.verdict.problems, ...r.xml];
-  return {svg: r.svg, ...(r.html !== undefined ? {html: r.html} : {}), ok: problems.length === 0, problems, warnings: r.verdict.warnings, notes: r.notes, width: r.width, height: r.height, deps: [abs, ...depsOf(abs).files]};
+  return {svg: r.svg, ...(r.html !== undefined ? {html: r.html} : {}), ok: problems.length === 0, problems, warnings: r.verdict.warnings, notes: r.notes, width: r.width, height: r.height, deps: [...new Set([abs, ...depsOf(abs).files, ...[config._file, findManifest(path.dirname(abs))].filter((f): f is string => !!f)])]};
 }
 
 /** Stops the Chromium that text measurement started. Call once when done (a long-lived dev server may leave it open). */
