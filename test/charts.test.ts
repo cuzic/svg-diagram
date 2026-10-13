@@ -211,6 +211,17 @@ test('mekko(): a segment too small for its number is left out of the drawing (an
   assert.ok(chart.alt.includes('B 10（1%）'));
 });
 
+test('stackedBars(): a crowded chart widens its columns for their numbers instead of leaving every number out', async () => {
+  // 12 columns at 60% of the slot were narrower than "60.2%": every segment's number used to be left out (and verify passed)
+  const cols = Array.from({length: 12}, (_, i) => ({label: `Q${i + 1}`, parts: [{label: '国内', value: 50 + i}, {label: '海外', value: 30}, {label: 'その他', value: 3}]}));
+  const {chart, problems} = await chartOf(stackedBars(cols, {percent: true}));
+  assert.deepEqual(problems, []);
+  assert.ok(!chart.omitted.some(o => o.startsWith('国内') || o.startsWith('海外')), `left out: ${chart.omitted.slice(0, 3).join(' | ')}`);
+  assert.ok(texts(chart).includes('60.2%') || texts(chart).includes('国内 60.2%'));
+  const w = chart.solids.filter(s => s.label.startsWith('"国内"')).map(s => s.w);
+  assert.ok(w.every(x => Math.abs(x - w[0]) < 0.2), 'every column is as wide as the others');
+});
+
 test('stackedBars(): a part too thin for its label inside the column is written beside the column; a mekko leaves it out', async () => {
   const cols = [{label: '甲', parts: [{label: '大', value: 100}, {label: '小', value: 6}]}, {label: '乙', parts: [{label: '大', value: 90}, {label: '小', value: 4}]}];
   const st = await chartOf(stackedBars(cols));

@@ -81,7 +81,12 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
   const legendH = ly + S + 12;
   // column widths and labels
   const total = s.columns.reduce((a, b) => a + b.total, 0), avail = plotR - plotL - gap * (n - 1) - (s.mode === 'mekko' ? 0 : gap);
-  const widths = s.columns.map(k => s.mode === 'mekko' ? avail * k.total / total : Math.min(96, (plotR - plotL) / n * 0.6));
+  // a column of stackedBars is 60% of its slot (at most 96px), and wider when its numbers need it (up to the slot less a gap): a number
+  // that would fit in a wider column is not left out of the drawing for want of a few pixels
+  const slotW0 = (plotR - plotL) / n;
+  const numW = Math.max(0, ...s.columns.flatMap(k => k.values.flatMap(v => v > 0 ? [c.tw(segText(s, v, k.total), true) + 8] : [])));
+  const barW = Math.min(Math.max(Math.min(96, slotW0 * 0.6), numW), slotW0 - 12);
+  const widths = s.columns.map(k => s.mode === 'mekko' ? avail * k.total / total : Math.max(barW, Math.min(96, slotW0 * 0.6)));
   if (widths.some(w => w < 1)) fail(s.mode === 'mekko' ? 'mekko' : 'stackedBars', `a column is less than 1px wide (raise width, drop the smallest columns, or fold them together)`);
   const xs: number[] = [];
   if (s.mode === 'mekko') { let x = plotL; for (const w of widths) { xs.push(x); x += w + gap; } }
