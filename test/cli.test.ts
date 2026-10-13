@@ -384,6 +384,11 @@ test('check --docs A.md B.md: every following .md is a document; a .md given as 
   fs.writeFileSync(path.join(root, 'B.md'), '# b\n');
   const r = node(root, CHECK, '--docs', 'A.md', 'B.md');
   assert.equal(r.status, 0, r.stderr);
+  fs.writeFileSync(path.join(root, 'B.md'), '# b\n\n![x](svg/gone.svg)\n');
+  const scanned = node(root, CHECK, '--docs', 'A.md', 'B.md');
+  assert.equal(scanned.status, 1, 'B.md is read as a document: its missing image is found');
+  assert.match(scanned.stdout + scanned.stderr, /B\.md:3 \[doc-image-missing\]/);
+  fs.writeFileSync(path.join(root, 'B.md'), '# b\n');
   const bad = node(root, CHECK, 'B.md');
   assert.equal(bad.status, 2);
   assert.match(bad.stderr, /図のソース/);

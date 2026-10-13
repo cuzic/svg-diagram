@@ -56,7 +56,7 @@ export function parseManifest(text: string, where: string): IconManifest {
   let m: unknown;
   try { m = JSON.parse(text); } catch (e) { throw new Error(`${where}: ${(e as Error).message}`); }
   const o = m as Partial<IconManifest> | null;
-  if (!o || o.version !== 1 || typeof o.icons !== 'object' || o.icons === null) throw new Error(`${where}: not an svg-diagram icon file. The smallest valid file is {"version": 1, "icons": {}} (an empty {} is not enough; svg-diagram icons add ... creates it)`);
+  if (!o || o.version !== 1 || typeof o.icons !== 'object' || o.icons === null) throw new Error(`${where}: not an svg-diagram icon file. The smallest valid file is {"version": 1, "icons": {}} (an empty {} is not enough). Write that, or delete the file and let "svg-diagram icons add ..." create it`);
   for (const [k, pk] of Object.entries(o.packs ?? {})) if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(k) || typeof pk?.terms !== 'string' || !pk.terms || typeof pk.source !== 'string' || typeof pk.acceptedAt !== 'string') throw new Error(`${where}: bad pack "${k}" (needs terms, source and acceptedAt)`);
   if (o.mainSet !== undefined && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(o.mainSet)) throw new Error(`${where}: bad mainSet "${o.mainSet}"`);
   for (const [name, ic] of Object.entries(o.icons)) {
