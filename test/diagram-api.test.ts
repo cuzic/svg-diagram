@@ -158,4 +158,5 @@ test('legend: false declares that no legend is needed: legend-missing / legend-i
   assert.ok(bare.has('legend-missing'), [...bare].join());
   const off = await rulesOf(mk(false));
   assert.ok(!off.has('legend-missing') && !off.has('legend-incomplete'), [...off].join());
+  assert.throws(() => diagram({theme: 'blue', legend: true as never}), /diagram\(\{legend\}\) must be 'auto' or false/);
 });
