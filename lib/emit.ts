@@ -489,12 +489,19 @@ function renderQuadrant(b: LaidOutQuadrant, day: Theme): string {
 export function renderFlowShape(b: LaidOutFlowShape, day: Theme): string {
   const out: string[] = [], n = (v: number) => Math.round(v * 10) / 10;
   for (const p of b.primitives) {
-    if (p.k === 'polygon') { const s = resolveBoxStyle(p.tone, day); out.push(`<polygon points="${p.points.map(q => `${n(q[0])},${n(q[1])}`).join(' ')}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="2"${s.dashed ? ' stroke-dasharray="6,4"' : ''}/>`); }
-    else if (p.k === 'circle') { const c = colorOf(p.tone, day); out.push(`<circle cx="${n(p.cx)}" cy="${n(p.cy)}" r="${n(p.r)}" fill="${c}" fill-opacity="${p.opacity ?? .16}" stroke="${c}" stroke-width="2"${p.dashed ? ' stroke-dasharray="7,5"' : ''}/>`); }
-    else if (p.k === 'rect') { const c=colorOf(p.tone,day); out.push(`<rect x="${n(p.x)}" y="${n(p.y)}" width="${n(p.w)}" height="${n(p.h)}" rx="8" fill="none" stroke="${c}" stroke-width="2"/>`); if(p.label) out.push(`<text x="${n(p.x+10)}" y="${n(p.y+20)}" font-size="14" fill="${c}">${emojiSpan(p.label)}</text>`); }
-    else { const c=colorOf(p.tone,day); out.push(`<path d="${p.d}" fill="none" stroke="${c}" stroke-width="2"${p.arrow ? ' marker-end="url(#dsl-arrow)"' : ''}/>`); }
+    if (p.k === 'polygon') {
+      const s = resolveBoxStyle(p.tone, day);
+      out.push(`<polygon points="${p.points.map(q => `${n(q[0])},${n(q[1])}`).join(' ')}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${p.strong ? 3.5 : 2}"${s.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
+    } else if (p.k === 'circle') {
+      const c = colorOf(p.tone, day);
+      out.push(`<circle cx="${n(p.cx)}" cy="${n(p.cy)}" r="${n(p.r)}" fill="${c}" fill-opacity="${p.opacity ?? .16}" stroke="${c}" stroke-width="2"${p.dash ? ` stroke-dasharray="${p.dash}"` : ''}/>`);
+    } else if (p.k === 'rect') {
+      out.push(`<rect x="${n(p.x)}" y="${n(p.y)}" width="${n(p.w)}" height="${n(p.h)}" rx="8" fill="none" stroke="${colorOf(p.tone, day)}" stroke-width="2"/>`);
+    } else {
+      out.push(`<path d="${p.d}" fill="none" stroke="${colorOf(p.tone, day)}" stroke-width="${p.thin ? 1.5 : 2}"${p.arrow ? ' marker-end="url(#dsl-arrow)"' : ''}/>`);
+    }
   }
-  for (const t of b.texts) out.push(`<text x="${n(t.tx)}" y="${n(t.ty)}" text-anchor="${t.anchor}" font-size="${t.size}" font-weight="${t.weight}" fill="${colorOf(t.tone,day)}">${emojiSpan(t.text)}</text>`);
+  for (const t of b.texts) out.push(`<text x="${n(t.tx)}" y="${n(t.ty)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${t.size}" font-weight="${t.weight}" fill="${colorOf(t.tone, day)}">${emojiSpan(t.text)}</text>`);
   return out.join('\n  ');
 }
 
@@ -972,6 +979,7 @@ export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; 
     b.type === 'row' && b.arrows.length > 0
     || b.type === 'legend' && b.items.some(i => i.line && (i.arrow ?? 'end') !== 'none')
     || b.type === 'sequence' && b.steps.some(x => x.kind === 'self' || x.kind === 'msg' && x.arrow !== 'none')
+    || b.type === 'cycle'
   ));
 
   // strong arrows have markers of their own (a fixed size, so a thick line does not scale its head)

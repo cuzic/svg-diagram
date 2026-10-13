@@ -407,6 +407,11 @@ function checkFlowShapes(d: LaidOutDiagram): string[] {
   for (const band of d.laidOut) {
     if (band.type !== 'chevron' && band.type !== 'funnel' && band.type !== 'cycle' && band.type !== 'venn' && band.type !== 'concentric') continue;
     for (const t of band.labelBoxes) if (t.x < band.x - .5 || t.y < band.y - .5 || t.x + t.w > band.x + band.w + .5 || t.y + t.h > band.y + band.h + .5) problems.push(`${band.type}: label "${t.label}" runs outside the figure`);
+    const boxes = band.labelBoxes;
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const o = rectOverlap(boxes[i], boxes[j]);
+      if (o && o.dx > 1 && o.dy > 1) problems.push(`${band.type}: label "${boxes[i].label}" overlaps label "${boxes[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
+    }
   }
   return problems;
 }
