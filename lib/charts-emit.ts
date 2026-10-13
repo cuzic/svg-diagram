@@ -2,6 +2,7 @@
 // before). Spotlight: an element whose anchor is dimmed is drawn outline-only in the muted colour; the rest of the figure stays.
 import {PALETTE, colorOf} from './tokens.ts';
 import {visibleAt} from './reveal.ts';
+import {iconSvg} from './icon-svg.ts';
 import type {LaidOutChart} from './charts.ts';
 import type {ColorKey, Theme} from './types.ts';
 
@@ -33,6 +34,9 @@ export function renderChart(b: LaidOutChart, day: Theme, emojiSpan: (s: string) 
       const fill = it.fill === 'none' ? 'none' : dim ? PALETTE.muted : col(it.fill), op = it.op !== undefined && it.fill !== 'none' ? ` fill-opacity="${dim ? 0.15 : it.op}"` : '';
       const stroke = it.stroke ? ` stroke="${dim ? PALETTE.muted : col(it.stroke)}" stroke-width="${it.sw ?? 2}" stroke-linejoin="round"${it.dash ? ` stroke-dasharray="${it.dash}"` : ''}` : '';
       out.push(`<path d="${it.d}" fill="${fill}"${op}${stroke}/>`);
+    } else if (it.k === 'icon') {
+      if (it.of !== undefined && !visibleAt(b, stage)) continue;
+      out.push(iconSvg({glyph: it.glyph, name: it.name, x: it.x, y: it.y, size: it.size, color: dim ? PALETTE.muted : col(it.fill), dim, labelled: true}));
     } else {
       if (it.of !== undefined && !visibleAt(b, stage)) continue;
       const anchor = it.anchor === 'start' ? '' : ` text-anchor="${it.anchor}"`;

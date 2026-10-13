@@ -1,7 +1,7 @@
 import test from 'node:test';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-import {box, checkDiagram, closeMeasurer, connect, diagram, icon, iconRow, node, renderDiagram, row} from '../lib/dsl.ts';
+import {box, cell, checkDiagram, closeMeasurer, connect, diagram, icon, iconRow, node, renderDiagram, row, sankey, stateDiagram, swimlane, table} from '../lib/dsl.ts';
 import {EMOJIS} from '../lib/icons.ts';
 import type {EmojiName, IconName} from '../lib/icons.ts';
 import {parseManifest} from '../lib/icon-store.ts';
@@ -68,10 +68,6 @@ test('icon.has says which set has a name; unknown names throw', () => {
   assert.throws(() => box({icon: 'nope' as IconName, title: 'x'}), /icon "nope" is not installed/);
   assert.throws(() => iconRow([{icon: 'nope' as IconName, label: 'x'}]), /not installed/);
   assert.throws(() => iconRow([]), /at least one/);
-});
-
-test('box({icon}) and box({step}) cannot be combined', () => {
-  assert.throws(() => box({icon: 'key', step: 1, title: 'x'} as never), /icon.*step|step.*icon/);
 });
 
 test('an emoji inside a title is drawn with class="emoji" and passes the check', async () => {
@@ -158,4 +154,91 @@ test('node(): the icon is centred above its label with no box around it; connect
   assert.throws(() => node({icon: 'key', label: 'x', size: 4}), /between 16 and 96/);
   assert.throws(() => box({iconAt: 'top', title: 'x'} as never), /needs an icon/);
   assert.throws(() => box({icon: 'key', iconAt: 'middle', title: 'x'} as never), /'left' or 'top'/);
+});
+
+// ---- icon coverage: swimlane steps, table cells, states, sankey nodes; step + icon; iconRow label position ----
+
+const iconMarks = (svg: string): string[] => [...svg.matchAll(/data-icon="(\w+)"/g)].map(m => m[1]);
+
+test('a swimlane step takes an icon (and step too); an unknown icon throws with the install hint', async () => {
+  const lanes = [{id: 'a', label: '営業'}, {id: 'b', label: '経理'}];
+  const d = diagram({theme: 'blue'}).add(swimlane(lanes, [
+    {id: 's1', lane: 'a', title: '受注', icon: 'key', step: 1},
+    {id: 's2', lane: 'b', title: '請求', icon: 'lock'},
+  ], {flows: [{from: 's1', to: 's2'}]}));
+  const {svg, verdict} = await renderDiagram(d, {name: 'swim-icon.svg', budget: 'cacheOnly'});
+  assert.deepEqual(verdict.problems, []);
+  assert.deepEqual(iconMarks(svg), ['key', 'lock']);
+  assert.throws(() => swimlane(lanes, [{id: 's', lane: 'a', title: 'x', icon: 'nope' as IconName}]), /not installed/);
+});
+
+test('box({step, icon}) draws both: the badge to the right of the icon, the title clear of both', async () => {
+  const d = diagram({theme: 'blue'}).add(box({id: 'b', icon: 'key', step: 2, title: '鍵の管理', body: '発行と失効'}));
+  const r = await checkDiagram(d);
+  assert.deepEqual(r.verdict.problems, []);
+  const {svg} = await renderDiagram(d, {name: 'step-icon.svg', budget: 'cacheOnly'});
+  assert.deepEqual(iconMarks(svg), ['key']);
+  assert.match(svg, /aria-label="手順 2"/);
+  const iconX = Number(/<path d="[^"]+" transform="translate\(([\d.-]+) /.exec(svg)![1]);
+  const badgeX = Number(/<circle cx="([\d.]+)"/.exec(svg)![1]);
+  const titleX = Number(/<text x="([\d.]+)"[^>]*font-weight="700"/.exec(svg)![1]);
+  assert.ok(badgeX - 15 >= iconX + 32 - 1 && titleX >= badgeX + 15, `icon ${iconX}, badge ${badgeX}, title ${titleX}`);
+});
+
+test('a table cell takes an icon before its text, or alone', async () => {
+  const d = diagram({theme: 'blue'}).add(table([{label: '項目'}, {label: '状態', align: 'center'}], [
+    [cell('鍵', {icon: 'key'}), cell('', {icon: 'lock', iconTone: 'danger', align: 'center'})],
+    [cell('人', {icon: 'person', tone: 'accent', bold: true}), '済'],
+  ]));
+  const {svg, verdict} = await renderDiagram(d, {name: 'table-icon.svg', budget: 'cacheOnly'});
+  assert.deepEqual(verdict.problems, []);
+  assert.deepEqual(iconMarks(svg), ['key', 'lock', 'person']);
+  assert.match(svg, /role="img" aria-label="lock"/, 'an icon with no text carries its name');
+  assert.throws(() => table([{label: 'a'}], [[cell('x', {icon: 'nope' as IconName})]]), /not installed/);
+});
+
+test('a state takes an icon above its label (box and circle)', async () => {
+  const d = diagram({theme: 'blue'}).add(stateDiagram(
+    [{id: 'a', label: '施錠', icon: 'lock'}, {id: 'b', label: '開錠', icon: 'key', tone: 'accent'}, {id: 'c', label: '見張り', icon: 'person', shape: 'circle'}],
+    [{from: 'a', to: 'b', label: '鍵'}, {from: 'b', to: 'c'}], {initial: 'a'}));
+  const {svg, verdict} = await renderDiagram(d, {name: 'state-icon.svg', budget: 'cacheOnly'});
+  assert.deepEqual(verdict.problems, []);
+  assert.deepEqual(iconMarks(svg), ['lock', 'key', 'person']);
+});
+
+test('a sankey node takes an icon before its label', async () => {
+  const d = diagram({theme: 'blue'}).add(sankey([{id: '広告', icon: 'person'}, '訪問', {id: '購入', icon: 'key'}], [{from: '広告', to: '訪問', value: 60}, {from: '訪問', to: '購入', value: 15}], {unit: '千人'}));
+  const {svg, verdict} = await renderDiagram(d, {name: 'sankey-icon.svg', budget: 'cacheOnly'});
+  assert.deepEqual(verdict.problems, []);
+  assert.deepEqual(iconMarks(svg), ['person', 'key']);
+});
+
+test('iconRow: the label is centred beside the icon, not hung from the top', async () => {
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(iconRow([{icon: 'key', label: '鍵'}])));
+  const b = (laidOut.laidOut[0] as unknown as {bands?: unknown[]}).bands ?? laidOut.laidOut;
+  const box0 = JSON.stringify(b);
+  const m = /"lineYs":\[([\d.]+)\]/.exec(box0)!;
+  const base = Number(m[1]);
+  const plain = await checkDiagram(diagram({theme: 'blue'}).add(box({title: '鍵'})));
+  const base0 = Number(/"lineYs":\[([\d.]+)\]/.exec(JSON.stringify(plain.laidOut.laidOut))![1]);
+  assert.ok(base > base0, `baseline ${base} is lower than a plain box's ${base0}: the label is centred on the 32px icon`);
+});
+
+test('step badge: uses the box padding (swimlane steps) and sits just before a centred title (iconAt top)', async () => {
+  const lanes = [{id: 'a', label: '営業'}];
+  const sw = await renderDiagram(diagram({theme: 'blue'}).add(swimlane(lanes, [{id: 's1', lane: 'a', title: '受注', icon: 'key', step: 1}])), {name: 'swim-step.svg', budget: 'cacheOnly'});
+  const badge = /<circle cx="([\d.]+)" cy="([\d.]+)"/.exec(sw.svg)!, title = /<text x="([\d.]+)" y="([\d.]+)"[^>]*font-weight="700"[^>]*>受注/.exec(sw.svg)!;
+  assert.ok(Math.abs(Number(title[1]) - (Number(badge[1]) + 15 + 10)) <= 4, `badge ${badge[1]} / title ${title[1]}: the title follows the badge`);
+  assert.ok(Number(badge[2]) < Number(title[2]), 'the badge is centred on the title line, not below it');
+  const top = await renderDiagram(diagram({theme: 'blue'}).add(box({icon: 'person', iconAt: 'top', step: 3, title: '利用者'})), {name: 'top-step.svg', budget: 'cacheOnly'});
+  const cx = Number(/<circle cx="([\d.]+)"/.exec(top.svg)![1]), iconX = Number(/data-icon="person"/.test(top.svg) && /translate\(([\d.-]+) /.exec(top.svg)![1]);
+  assert.ok(cx > iconX - 40, `badge ${cx} is beside the centred title, not at the box's left edge (icon at ${iconX})`);
+});
+
+test('a table icon beside centred / right-aligned text sits just before the text', async () => {
+  const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(table([{label: 'a', align: 'center'}, {label: 'b', align: 'right'}], [[cell('済', {icon: 'key'}), cell('1,000', {icon: 'lock'})]])), {name: 'table-align.svg', budget: 'cacheOnly'});
+  const at = (n: string) => Number(new RegExp(`translate\\(([\\d.-]+) [^"]*"[^>]*data-icon="${n}"`).exec(svg)![1]);
+  const tx = (s: string) => Number(new RegExp(`<text x="([\\d.]+)"[^>]*>${s}<`).exec(svg)![1]);
+  assert.ok(tx('済') - at('key') < 50, `centred: icon ${at('key')} near text ${tx('済')}`);
+  assert.ok(tx('1,000') - at('lock') < 90, `right: icon ${at('lock')} near text end ${tx('1,000')}`);
 });

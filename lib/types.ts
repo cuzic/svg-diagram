@@ -326,7 +326,7 @@ export interface BoxStyleOpts extends BoxChrome {
   noteTone?: TextTone;
   /** Number/string badge on the title's baseline. Requires `title`. */
   step?: number | string;
-  /** An SVG pictogram at the box's left edge (32px); the text is indented to clear it. Not with `step`. Put a label beside it: the icon alone is hidden from screen readers. */
+  /** An SVG pictogram at the box's left edge (32px); the text is indented to clear it. With `step` the badge sits right of the icon. Put a label beside it: the icon alone is hidden from screen readers. */
   icon?: IconName;
   /** Colour of the icon (default 'text'); a dimmed box draws it muted. */
   iconTone?: TextTone;
@@ -1017,6 +1017,10 @@ export interface StateItem {
   final?: boolean;
   /** 'circle': a round node that holds a short text (an event of an arrow diagram). Default a rounded box. */
   shape?: 'box' | 'circle';
+  /** An installed SVG icon (see `icon`), 24px, centred above the label. */
+  icon?: IconName;
+  /** Internal: the installed path of `icon`, resolved by stateDiagram(). */
+  iconGlyph?: IconGlyph;
 }
 export interface Transition {
   from: string;
@@ -1402,6 +1406,11 @@ export interface TableCellSpec {
   vAlign?: 'top' | 'center';
   /** Draws the symbol + a default tone before `text` (an explicit `tone` / `bold` wins); without `text` the cell is the symbol alone. */
   mark?: CellMark;
+  /** An installed SVG icon (see `icon`) before the text, 18px, in the text's tone (or `iconTone`). Alone (no text) it is the cell's content: it gets `role="img"`. */
+  icon?: IconName;
+  iconTone?: TextTone;
+  /** Internal: the installed path of `icon`, resolved by table(). */
+  iconGlyph?: IconGlyph;
 }
 export type TableCell = string | number | TableCellSpec;
 /** `h`: this row's fixed height (wins over `cellH`; text centred vertically; throws when a cell needs more). */
@@ -1445,7 +1454,9 @@ export interface TableBand {
   rowCurve?: {row: number; values: readonly number[]; min: number; max: number};
 }
 /** cellOf(): a cell with column defaults applied. */
-export interface ResolvedCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; vAlign?: 'top' | 'center'}
+export interface ResolvedCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; vAlign?: 'top' | 'center'; icon?: CellIcon}
+/** The icon of a table cell: what to draw and in which tone. */
+export interface CellIcon {name: string; glyph: IconGlyph; tone?: TextTone}
 
 // ============================================================================================
 // DSL input + band: swimlane
@@ -2124,7 +2135,7 @@ export interface LaidOutCaption extends CaptionBand, Rect, Dimmed {
   /** group() titles only: the rect the title's text really covers (the caption itself spans the whole frame width). */
   inkBox?: Rect;
 }
-export interface LaidOutBox extends BoxBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number; nowrapOverflow?: string[]}
+export interface LaidOutBox extends BoxBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number; nowrapOverflow?: string[]; /** With `step` and a centred / right-aligned title: its first line's width (the badge sits just before it). */ titleW?: number}
 export interface LaidOutBanner extends BannerBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number}
 /** The frame of a group; its children are laid out as separate bands after it. */
 export interface LaidOutGroup extends Rect, Dimmed {type: 'group'; tone: BoxTone; dashed?: boolean; frame?: false; stamp?: string; stampW?: number; id?: string; reveal?: number}
@@ -2195,7 +2206,7 @@ export interface LaidOutSequence extends Rect {
   lifeBottom: number;
 }
 
-export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; vAlign?: 'top' | 'center'; lines: string[]; x: number; w: number; top: number}
+export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; vAlign?: 'top' | 'center'; lines: string[]; x: number; w: number; top: number; icon?: CellIcon; /** With an icon and centred / right-aligned text: the first line's width (the icon goes just before it). */ lineW?: number}
 export interface LaidOutTableRow {y: number; h: number; cells: LaidOutTableCell[]; header?: boolean; tone?: BoxTone}
 export interface LaidOutTable extends Rect, Dimmed {
   type: 'table';
@@ -2336,6 +2347,8 @@ export interface LaidOutStates extends Rect, Dimmed {
   /** Orthogonal polylines from the tail state's box edge to the head's; the arrowhead is at the last point. */
   edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; tone?: 'danger' | 'accent' | 'muted'; strong?: boolean}[];
   texts: TreeNodeText[];
+  /** The icons of the states that have one (24px, above the label); `node` indexes `nodes`. */
+  icons: {node: number; name: string; glyph: IconGlyph; x: number; y: number; size: number}[];
   /** Transition labels: a white chip (x, y, w, h) with its text baseline at (tx, ty), in `size` px. */
   labels: (Rect & {text: string; tx: number; ty: number; size: number; /** index of its arrow in `edges` */ edge: number})[];
   anchors: Anchor[];

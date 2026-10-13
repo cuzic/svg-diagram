@@ -157,7 +157,7 @@ type FillRule = {fill?: false; slide?: SlideRef} | {fill: true; slide: SlideRef}
 export type DiagramInput = DiagramOpts & ThemeRule & FillRule;
 
 /** box({step}) needs a title (the badge aligns to the title's first line). */
-type StepRule = {step?: undefined} | {step: number | string; title: RichText; icon?: undefined};
+type StepRule = {step?: undefined} | {step: number | string; title: RichText};
 /** box() options: BoxOpts + the step rule, with the id type captured as `Id`. */
 export type BoxInput<Id extends string = string> = Omit<BoxOpts, 'size'> & {id?: Id; /** @deprecated Has no effect (see BoxStyleOpts.size): use a role. */ size?: FontSize} & StepRule;
 
