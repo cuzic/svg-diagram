@@ -1,0 +1,47 @@
+<svg data-appearance="dark" xmlns="http://www.w3.org/2000/svg" width="940" height="350" viewBox="0 0 940 350" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">リリース阻害関係</title>
+  <desc id="svg-desc">Dependency network. security blocks release, weight 4; legal blocks release, weight 2; docs depends release</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/semnet-deps-blocks.ts","sourceSha256":"e96767bc63eeb0abb144bfc621fcc6682e768e112e671cefe246a6c99d37ed8d","configSha256":"688d3ef287b787fab7567d00de30c32c8b97a91b5093dcbe3849582e932f5109"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="350" fill="#1b1a17"/>
+
+  <path d="M326,80 L326,98" fill="none" stroke="#f05252" stroke-width="3.5" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
+  <path d="M326,98 L471,98" fill="none" stroke="#f05252" stroke-width="3.5" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
+  <path d="M471,98 L471,160" fill="none" stroke="#f05252" stroke-width="3.5" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
+  <path d="M471,160 L465.2,149.5 L476.8,149.5 Z" fill="#f05252"/>
+  <path d="M369.27,106 H428.73 V124 H369.27 Z" fill="#1b1a17"/>
+  <text x="399" y="120" text-anchor="middle" font-size="14" fill="#ece6da">未承認 4</text>
+  <path d="M482,80 L482,112" fill="none" stroke="#f05252" stroke-width="2.914213562373095" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
+  <path d="M482,112 L485,112" fill="none" stroke="#f05252" stroke-width="2.914213562373095" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
+  <path d="M485,112 L485,160" fill="none" stroke="#f05252" stroke-width="2.914213562373095" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
+  <path d="M485,160 L479.5,150.1 L490.5,150.1 Z" fill="#f05252"/>
+  <path d="M454.27,92 H513.73 V110 H454.27 Z" fill="#1b1a17"/>
+  <text x="484" y="106" text-anchor="middle" font-size="14" fill="#ece6da">未承認 2</text>
+  <path d="M626,80 L626,126" fill="none" stroke="#f05252" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M626,126 L499,126" fill="none" stroke="#f05252" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M499,126 L499,160" fill="none" stroke="#f05252" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M499,160 L494.1,151 L504,151 Z" fill="#f05252"/>
+  <path d="M540,106 H586 V124 H540 Z" fill="#1b1a17"/>
+  <text x="563" y="120" text-anchor="middle" font-size="14" fill="#ece6da">完成後</text>
+  <path d="M420,160 H536 V212 H420 Z" fill="#1b1a17" stroke="#5fc1c6" stroke-width="2"/>
+  <text x="478" y="191" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">製品リリース</text>
+  <path d="M256,28 H396 V80 H256 Z" fill="#1b1a17" stroke="#f05252" stroke-width="2"/>
+  <text x="326" y="59" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">セキュリティ審査</text>
+  <path d="M424,28 H540 V80 H424 Z" fill="#1b1a17" stroke="#f05252" stroke-width="2"/>
+  <text x="482" y="59" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">法務確認</text>
+  <path d="M568,28 H684 V80 H568 Z" fill="#1b1a17" stroke="#a79e8e" stroke-width="2"/>
+  <text x="626" y="59" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">利用ガイド</text>
+  <path d="M24,313 H38 V323 H24 Z" fill="#1b1a17" stroke="#5fc1c6" stroke-width="2"/>
+  <text x="44" y="325" font-size="14" fill="#ece6da">節目</text>
+  <path d="M90,313 H104 V323 H90 Z" fill="#1b1a17" stroke="#f05252" stroke-width="2"/>
+  <text x="110" y="325" font-size="14" fill="#ece6da">審査</text>
+  <path d="M156,313 H170 V323 H156 Z" fill="#1b1a17" stroke="#a79e8e" stroke-width="2"/>
+  <text x="176" y="325" font-size="14" fill="#ece6da">成果物</text>
+  <path d="M236,321 L258,321" fill="none" stroke="#f05252" stroke-width="2" stroke-linejoin="round"/>
+  <text x="264" y="325" font-size="14" fill="#ece6da">阻害</text>
+  <path d="M310,321 L332,321" fill="none" stroke="#f05252" stroke-width="2" stroke-linejoin="round"/>
+  <text x="338" y="325" font-size="14" fill="#ece6da">依存</text>
+</svg>

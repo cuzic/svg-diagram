@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="290" viewBox="0 0 940 290" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">顧客体験の因果ループ</title>
+  <desc id="svg-desc">Causal loop diagram. B1: quality → satisfaction → orders → load</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/semnet-causal.ts","sourceSha256":"fc36adf4cb8a5fcea1ec737ca5acbb8dbb75847b79900f6485ef3726e09f0236","configSha256":"688d3ef287b787fab7567d00de30c32c8b97a91b5093dcbe3849582e932f5109"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="290" fill="#ffffff"/>
+
+  <path d="M240,71.3 L258,71.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M258,71.3 L258,52" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M258,52 L316,52" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M316,52 L307,57 L307,47.1 Z" fill="#22201b"/>
+  <path d="M250.17,42 H265.83 V60 H250.17 Z" fill="#ffffff"/>
+  <text x="258" y="56" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M432,52 L508,52" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M508,52 L499,57 L499,47.1 Z" fill="#22201b"/>
+  <path d="M462.17,32 H477.83 V50 H462.17 Z" fill="#ffffff"/>
+  <text x="470" y="46" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M461,60 H479 V78 H461 Z" fill="#ffffff"/>
+  <text x="470" y="74" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
+  <path d="M624,52 L642,52" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M642,52 L642,78.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M642,78.3 L700,78.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M700,78.3 L691,83.2 L691,73.3 Z" fill="#22201b"/>
+  <path d="M634.17,45 H649.83 V63 H634.17 Z" fill="#ffffff"/>
+  <text x="642" y="59" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M700,92.3 L633,92.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M633,92.3 L633,104.5" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M633,104.5 L307,104.5" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M307,104.5 L307,85.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M307,85.3 L240,85.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M240,85.3 L249,80.3 L249,90.2 Z" fill="#22201b"/>
+  <path d="M464.73,85 H475.27 V103 H464.73 Z" fill="#ffffff"/>
+  <text x="470" y="99" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
+  <path d="M124,54.25 H240 V102.25 H124 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="182" y="83" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">サービス品質</text>
+  <path d="M316,28 H432 V76 H316 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="374" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客満足</text>
+  <path d="M508,28 H624 V76 H508 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="566" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">受注量</text>
+  <path d="M700,54.25 H816 V102.25 H700 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="758" y="83" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">業務負荷</text>
+  <path d="M458.14,108 H481.86 V126 H458.14 Z" fill="#ffffff"/>
+  <text x="470" y="122" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B1</text>
+</svg>
