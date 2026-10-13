@@ -40,6 +40,7 @@ export function resolveWaterfall(steps: readonly WaterfallStep[], opts: Waterfal
     const kind = s.kind ?? (i === 0 ? 'start' : 'delta');
     if (!KINDS.includes(kind)) fail('waterfall', `step "${label}": kind must be one of ${KINDS.join(', ')} (got ${String(kind)})`);
     if (kind === 'start' && i !== 0) fail('waterfall', `step "${label}": only the first step can be the 'start'`);
+    if ((kind === 'subtotal' || kind === 'total') && i === 0) fail('waterfall', `step "${label}": a ${kind} adds up the steps before it, so it cannot be the first step`);
     if (s.tone !== undefined && !['accent', 'danger', 'muted', 'text'].includes(s.tone)) fail('waterfall', `step "${label}": tone must be accent, danger, muted or text`);
     if (kind === 'delta' || kind === 'start') {
       const v = finiteNum('waterfall', `step "${label}"'s value`, s.value);

@@ -88,6 +88,7 @@ test('waterfall(): bad input is named', () => {
   assert.throws(() => waterfall([{label: 'a', value: 1}, {label: 'b', kind: 'start', value: 2}]), /only the first step can be the 'start'/);
   assert.throws(() => waterfall([{label: 'a', value: 1}, {label: 'b', value: Number.NaN}]), /"b"'s value must be a finite number/);
   assert.throws(() => waterfall([{label: 'a', value: 1, id: 'x'}, {label: 'b', value: 2, id: 'x'}]), /^Error: waterfall\(\): each id must be unique/);
+  assert.throws(() => waterfall([{label: 'a', kind: 'total'}, {label: 'b', value: 1}]), /a total adds up the steps before it, so it cannot be the first step/);
   assert.throws(() => waterfall([{label: 'a', value: 1}, {label: '', value: 2}]), /label must be a non-empty string/);
   assert.throws(() => waterfall([{label: 'a', value: 1}, {label: 'b', value: 2}], {labelRole: 'huge' as never}), /labelRole/);
 });
