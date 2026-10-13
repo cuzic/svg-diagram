@@ -233,3 +233,14 @@ test('walkBands / usedNotation / legendKeys / diagramTitle / diagramDesc over ne
   assert.equal(diagramTitle(diagram({theme: 'blue'})), '');
   assert.ok(caption('x'));
 });
+
+test('applyConfig: project legend fills only when the diagram has none; legendLabels merge under the diagram own', () => {
+  const cfg = {legend: false as const, legendLabels: {'tone:accent': '注意', 'tone:solid': '結論'}};
+  const d = applyConfig({} as never, cfg) as {legend?: unknown; legendLabels: Record<string, string>};
+  assert.equal(d.legend, false);
+  assert.deepEqual(d.legendLabels, {'tone:accent': '注意', 'tone:solid': '結論'});
+  const own = applyConfig({legend: 'auto', legendLabels: {'tone:accent': '要点'}} as never, cfg) as {legend?: unknown; legendLabels: Record<string, string>};
+  assert.equal(own.legend, 'auto');
+  assert.deepEqual(own.legendLabels, {'tone:accent': '要点', 'tone:solid': '結論'});
+  assert.equal((applyConfig({} as never, {}) as {legend?: unknown}).legend, undefined);
+});

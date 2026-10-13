@@ -17,6 +17,8 @@ export interface InstallOpts {
   /** Accept icons with colours of their own (they do not follow the tone / dark theme). */
   color?: boolean;
   cwd?: string;
+  /** A name the set does not have is left out (and listed in `skipped`) instead of failing the whole add. Licence / colour / format errors still fail. */
+  skipMissing?: boolean;
 }
 export const DEFAULT_API = 'https://api.iconify.design';
 
@@ -86,11 +88,12 @@ export function withManifestLock<T>(file: string, fn: () => T): T {
 }
 
 /** Fetch and convert the icons for `specs`. Nothing is written; any failure throws, so one bad pick installs none. */
-export async function resolveSpecs(specs: IconSpec[], opts: InstallOpts = {}): Promise<Record<string, InstalledIcon>> {
+export async function resolveSpecs(specs: IconSpec[], opts: InstallOpts = {}, skipped: string[] = []): Promise<Record<string, InstalledIcon>> {
   const f: Fetch = opts.fetch ?? (url => fetch(url) as never);
   const api = (opts.api ?? process.env.SVG_DIAGRAM_ICONIFY_API ?? DEFAULT_API).replace(/\/$/, '');
   const allow = new Set([...PERMISSIVE, ...(opts.allowLicense ?? [])]);
   const out: Record<string, InstalledIcon> = {};
+  const missing: string[] = []; // every name the set lacks, reported together (one typo should not hide the others)
   const byPrefix = new Map<string, Extract<IconSpec, {kind: 'iconify'}>[]>();
   for (const s of specs) {
     if (s.kind === 'file') {
@@ -113,22 +116,28 @@ export async function resolveSpecs(specs: IconSpec[], opts: InstallOpts = {}): P
       const direct = set.icons?.[s.icon];
       const alias = set.aliases?.[s.icon];
       const base = direct ?? (alias ? set.icons?.[alias.parent] : undefined);
-      if (!base) throw new Error(`${what}: not in the set (svg-diagram icons search ${s.icon.split('-')[0]} --set ${prefix})`);
+      if (!base) {
+        if (opts.skipMissing) skipped.push(what);
+        else missing.push(`${what}: not in the set (svg-diagram icons search ${s.icon.split('-')[0]} --set ${prefix})`);
+        continue;
+      }
       const t = direct ?? {...base, ...alias};
       if (t.rotate || t.hFlip || t.vFlip) throw new Error(`${what}: is a rotated / flipped alias — install ${alias?.parent ?? 'its parent'} instead`);
       const g = glyphFromBody(t.body, {width: t.width ?? set.width ?? 16, height: t.height ?? set.height ?? t.width ?? set.width ?? 16, left: t.left, top: t.top}, what, {color: opts.color});
       out[s.name] = {...g, from: what, license: lic.spdx, ...(lic.url ? {licenseUrl: lic.url} : {}), ...(col.info?.author?.name ? {author: col.info.author.name} : {})};
     }
   }
+  if (missing.length) throw new Error(`${missing.join('\n')}${missing.length > 1 ? '\n(nothing was installed. --skip-missing installs the others and lists these)' : ''}`);
   return out;
 }
 
-export async function addIcons(args: string[], opts: InstallOpts & {keepExisting?: boolean} = {}): Promise<{file: string; added: string[]; replaced: string[]; kept: string[]; warnings: string[]}> {
+export async function addIcons(args: string[], opts: InstallOpts & {keepExisting?: boolean} = {}): Promise<{file: string; added: string[]; replaced: string[]; kept: string[]; skipped: string[]; warnings: string[]}> {
   const cwd = opts.cwd ?? process.cwd();
   const specs = args.map(parseSpec);
   const dup = specs.find((s, i) => specs.findIndex(t => t.name === s.name) !== i);
   if (dup) throw new Error(`the name "${dup.name}" is given twice — rename one with =name`);
-  const got = await resolveSpecs(specs, {...opts, cwd});
+  const skipped: string[] = [];
+  const got = await resolveSpecs(specs, {...opts, cwd}, skipped);
   const file = manifestPath(cwd);
   return withManifestLock(file, () => {
   const m = readManifest(file);
@@ -143,7 +152,7 @@ export async function addIcons(args: string[], opts: InstallOpts & {keepExisting
   for (const p of sets) if (m.mainSet && p !== m.mainSet) warnings.push(`主セットは ${m.mainSet}。${p} のアイコンは線の太さや絵柄が揃わないことがある（主セットを変えるなら: svg-diagram icons main ${p}）`);
   Object.assign(m.icons, got);
   writeManifest(file, m);
-  return {file, added: Object.keys(got).filter(n => !replaced.includes(n)), replaced, kept, warnings};
+  return {file, added: Object.keys(got).filter(n => !replaced.includes(n)), replaced, kept, skipped, warnings};
   });
 }
 

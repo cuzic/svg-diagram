@@ -383,3 +383,16 @@ test('parallel runs that all find a stale lock take it over one at a time and lo
     assert.deepEqual(fs.readdirSync(dir).filter(f => /\.(lock|tmp|stale)$/.test(f)), []);
   } finally { fs.rmSync(dir, {recursive: true}); }
 });
+
+test('icons add: every missing name is reported together; --skip-missing installs the rest and lists the skipped', async () => {
+  const srv = await iconify();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'icons-'));
+  try {
+    await assert.rejects(addIcons(['mdi:key', 'mdi:nope', 'mdi:nada'], {api: srv.api, cwd: dir}), (e: Error) => /mdi:nope: not in the set/.test(e.message) && /mdi:nada: not in the set/.test(e.message) && /--skip-missing/.test(e.message));
+    assert.equal(fs.existsSync(path.join(dir, 'svg-diagram.icons.json')), false, 'nothing written');
+    const r = await addIcons(['mdi:key', 'mdi:nope', 'mdi:nada'], {api: srv.api, cwd: dir, skipMissing: true});
+    assert.deepEqual(r.added, ['key']);
+    assert.deepEqual(r.skipped, ['mdi:nope', 'mdi:nada']);
+    await assert.rejects(addIcons(['mdi:flipped', 'mdi:nope'], {api: srv.api, cwd: dir, skipMissing: true}), /rotated \/ flipped/);
+  } finally { srv.close(); fs.rmSync(dir, {recursive: true}); }
+});
