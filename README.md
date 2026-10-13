@@ -64,6 +64,8 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram build <source.ts> --html                 # <name>.html も書く（文字・箱・表・線・矢印・曲線を HTML/CSS で。docs/adr/0006）
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
+    svg-diagram check --rules | --explain RULE   # ルールの一覧 / 1 つの意味と許容の書き方
+    svg-diagram check [--baseline FILE | --write-baseline FILE] [--format text|json|github|sarif] <source.ts>...   # 既存の警告を凍結して、新しい警告だけ見る / SARIF 出力
     svg-diagram check --covers 表.md|表.csv [--svg-dir DIR] <ソース.ts|図.svg>...   # 表を図に置き換えたとき、表のセルの語・数値が図に残っているか
     svg-diagram check --docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]   # 文書（Markdown）と図が食い違っていないか（--map: 図・ソース・SVG・文書の対応表を Markdown で出す）
     svg-diagram md <page.md> [--out FILE] [--svg-dir DIR] [--inline | --html]   # Markdown の ![alt](flow.diagram.ts) を図に展開（SVG を書いて画像に差し替える。--inline は <svg>、--html は HTML/CSS を埋め込む）
@@ -930,6 +932,12 @@ build は通常の最終形 `name.svg` に加え、段階表示を使う図だ�
 - **一章だけ検査する**: `--docs` は**ディレクトリでも .md ファイルでもよく、何度でも**書ける（`--docs A.md B.md dir` のように空白で並べてもよい。後ろの .md とディレクトリはすべて文書で、図のソースではない。.ts / .mjs 以外をソースに渡すと分かるエラーで終わる）。`--only 'docs/03-*.md'`（繰り返し可。`**` はフォルダをまたぎ、`*` `?` は 1 階層内。カレントからの相対パスかファイル名に合わせる）で、対象のページを絞る。**絞ったとき（.md 指定または `--only`）は、孤立 SVG（`doc-orphan-svg`）の検査をしない**（全ページを見ないと「参照されていない」とは言えないため）。その旨を 1 行出す。全体を見るときは、ディレクトリだけを指定する。
 - `--map` で、図 / 図のソース / SVG / 使っている文書の**対応表**（Markdown）を標準出力に出す（参照のない SVG は「（参照なし）」）。手で書いた表の代わりに貼る。注釈の文は `svg-diagram notes <ソース>` で出せる（複数の画面に注釈があれば `<!-- 画面 N -->` で区切る）。
 - `--format json`（機械可読）、`--format github`（PR の注釈 `::warning file=…,line=…`）。
+
+## ルールの説明・ベースライン・SARIF（`check`）
+- `svg-diagram check --rules` はルール ID の一覧、`svg-diagram check --explain edge-crossings` は 1 つのルールの意味と、`accept`（案件全体は `.svg-diagram.json`、1 つの図は `diagram({accept})`）の書き方を出す。
+- **ベースライン**: 警告が多い案件に段階導入する。`check --write-baseline .svg-diagram.baseline.json diagrams/*.ts` で今ある警告を記録し、以後 `check --strict --baseline .svg-diagram.baseline.json diagrams/*.ts` は、**記録にない新しい警告**だけを失敗にする（記録済みは info になり「ベースライン済み」と添える）。照合はファイル・ルール・メッセージで、行番号は見ない。エラーはベースラインに入らない。
+- `--format sarif` は SARIF 2.1.0 を標準出力に出す（GitHub Code Scanning などへ）。
+- **つながりの検査**（`graph-orphan-node` / `graph-disconnected`）: 矢印が 3 本以上ある図で、`id` を持つ箱がどの矢印にもつながっていない、または矢印が互いにつながらない 2 つ以上のかたまりに分かれていると警告する（行・列を端にした矢印は、その中の箱を含む）。注記の箱は `id` を付けなければ対象外。意図した形なら `accept` に理由を書く。
 
 ## 表と図の突き合わせ（`check --covers`）
 `svg-diagram check --covers table.md --svg-dir svg diagrams/flow.ts` は、本文の Markdown 表（または CSV）を図に置き換えたとき、表のセルの文字列が図の `<text>` に残っているかを調べ、欠けたセルを `covers-missing`（警告）で一覧する。
