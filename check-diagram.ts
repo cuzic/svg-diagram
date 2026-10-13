@@ -36,7 +36,7 @@ register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
 const {depsSha256} = await import('./lib/source-deps.ts');
 const {RULE_DOCS} = await import('./lib/rules.ts');
-const {scanMarkdown, compareNotes, notesOf, formatMap, checkFigures, chapterOf, globToRegExp, matchesAny} = await import('./lib/docs-check.ts');
+const {scanPngRefs, scanMarkdown, compareNotes, notesOf, formatMap, checkFigures, chapterOf, globToRegExp, matchesAny} = await import('./lib/docs-check.ts');
 const {explainChange} = await import('./lib/svg-diff.ts');
 const {loadConfig} = await import('./lib/config.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
@@ -89,6 +89,7 @@ try {
   if (docsDir) {
     const referenced = new Set<string>();
     const mapRows: MapRow[] = [];
+    const pngReferenced = new Set<string>(), pngDirs = new Set<string>();
     const pages = new Set<string>();
     let scoped = only.length > 0;
     for (const p of docsDirs) {
@@ -104,6 +105,16 @@ try {
       const text = fs.readFileSync(md, 'utf8');
       const figs = scanMarkdown(text);
       for (const f of checkFigures(text, figs, chapterOf(path.basename(md)))) add({file: rel, ...f});
+      for (const png of scanPngRefs(text)) {
+        if (/^(https?:|data:)/.test(png.ref)) continue;
+        const abs = path.resolve(path.dirname(md), decodeURI(png.ref)), name = path.basename(abs, '.png');
+        if (!fs.existsSync(abs)) { add({file: rel, line: png.line, rule: 'doc-image-missing', severity: 'error', message: `${png.ref} がない`}); continue; }
+        pngReferenced.add(abs); pngDirs.add(path.dirname(abs));
+        // a raster copy of a figure has a source or an SVG of the same name; one with neither is a hand-made or stale picture
+        const hasSrc = srcDir && ['.ts', '.mjs'].some(ext => fs.existsSync(path.join(srcDir, name + ext))), hasSvg = svgDir && fs.existsSync(path.join(svgDir, name + '.svg'));
+        if ((srcDir || svgDir) && !hasSrc && !hasSvg) add({file: rel, line: png.line, rule: 'doc-png-no-source', severity: 'warn', message: `${name}.png に対応する図のソース${srcDir ? `（${srcDir}/${name}.ts）` : ''}も SVG${svgDir ? `（${svgDir}/${name}.svg）` : ''}もない`});
+        if (!png.alt.trim()) add({file: rel, line: png.line, rule: 'doc-alt-empty', severity: 'warn', message: `${name}.png: 代替テキストが空`});
+      }
       let n = 0;
       for (const fig of figs) {
         if (/^https?:/.test(fig.ref)) continue;
@@ -131,6 +142,9 @@ try {
         if (!referenced.has(path.resolve(svgDir, f))) mapRows.push({name: path.parse(f).name, svg: path.join(svgDir, f), doc: '', src: ''});
         if (!referenced.has(path.resolve(svgDir, f))) add({file: path.join(svgDir, f), rule: 'doc-orphan-svg', severity: 'warn', message: 'どの文書からも参照されていない'});
       }
+    }
+    if (!scoped) for (const dir of [...pngDirs].sort()) for (const f of fs.readdirSync(dir).filter(x => x.toLowerCase().endsWith('.png')).sort()) {
+      if (!pngReferenced.has(path.join(dir, f))) add({file: path.relative(process.cwd(), path.join(dir, f)), rule: 'doc-orphan-png', severity: 'warn', message: 'どの文書からも参照されていない PNG'});
     }
     if (mapMode) console.log(formatMap(mapRows));
     for (const f of findings) say(`   ${f.severity === 'error' ? '✗' : f.severity === 'warn' ? '⚠' : 'ℹ'} ${f.file}${f.line ? `:${f.line}` : ''} [${f.rule}] ${f.message}`);

@@ -160,3 +160,14 @@ test('legend: false declares that no legend is needed: legend-missing / legend-i
   assert.ok(!off.has('legend-missing') && !off.has('legend-incomplete'), [...off].join());
   assert.throws(() => diagram({theme: 'blue', legend: true as never}), /diagram\(\{legend\}\) must be 'auto' or false/);
 });
+
+test('cjk-line-long: a long title or banner headline line is flagged, a short or line-broken one is not', async () => {
+  const {fullWidthUnits} = await import('../lib/rules.ts');
+  assert.equal(fullWidthUnits('あいabc'), 3.5);
+  const f = (...bands: any[]) => { const d = diagram({theme: 'blue', title: 't'}); for (const b of bands) d.add(b); return lintDiagram({...d, laidOut: [], connects: []}).filter(x => x.rule === 'cjk-line-long'); };
+  assert.equal(f(caption('あ'.repeat(41), {role: 'title'})).length, 1);
+  assert.equal(f(caption('あ'.repeat(40), {role: 'title'})).length, 0);
+  assert.equal(f(caption('あ'.repeat(30) + '\n' + 'い'.repeat(30), {role: 'title'})).length, 0);
+  assert.equal(f(banner({headline: 'あ'.repeat(38)})).length, 1);
+  assert.equal(f(banner({headline: '短い見出し'})).length, 0);
+});

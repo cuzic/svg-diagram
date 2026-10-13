@@ -35,6 +35,7 @@ export const RULE_DOCS = {
   'bars-values-hidden': '値ラベルも目盛りも出さない bars があるのに、図の題名（SVG の <title>）がなく、値を読み上げる <desc> が届かない（doc 媒体）',
   'bars-thin-bar': '棒が 1px 以下（値は 0 でない）。図の高さ・幅を上げるか max を見直す',
   'image-large': '埋め込んだ画像が大きい（300 KB 超）。ファイルがそのまま SVG に入り、段階表示の各ファイルにも入る。縮小・圧縮してから使う',
+  'cjk-line-long': '見出し（caption の title / display / stat と banner の headline）の 1 行が、全角で数えて長すぎる（本文幅 600px に収まる字数の目安を超える。短くするか改行する）',
   'source-wraps': '出典行（diagram({sourceLine})）が 1 行に収まらず折り返している（短くする）',
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える。凡例が要らない図は diagram({legend: false})）',
@@ -70,6 +71,8 @@ export const RULE_DOCS = {
   'doc-alt-long': '代替テキストが長い（155 文字以内にして、詳しい説明は本文に）',
   'doc-notes-missing': '図に注釈があるのに、文書に番号つきの注釈のリストがない',
   'doc-notes-mismatch': '文書の注釈のリストが、図の注釈と違う（片方を直し忘れている）',
+  'doc-png-no-source': '文書が参照している PNG に、同じ名前の図のソース（--src-dir）も SVG（--svg-dir）もない（手作りの絵か、図を消したあとの残り）',
+  'doc-orphan-png': '文書が参照している PNG と同じフォルダにある、どの文書からも参照されていない PNG',
   'doc-orphan-svg': 'どの文書からも参照されていない SVG',
 };
 
@@ -420,6 +423,31 @@ export function lintDiagram(d: LintTarget): Finding[] {
   return out.map(f => (d.accept && d.accept[f.rule as RuleId] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule as RuleId]}）`} : f));
 }
 
+// the width of a line in full-width characters (CJK and fullwidth forms count 1, everything else 0.5)
+export function fullWidthUnits(line: string): number {
+  let n = 0;
+  for (const ch of line) { const c = ch.codePointAt(0)!; n += (c >= 0x3000 && c <= 0x30ff) || (c >= 0x3400 && c <= 0x9fff) || (c >= 0xf900 && c <= 0xfaff) || (c >= 0xff00 && c <= 0xffef) ? 1 : 0.5; }
+  return n;
+}
+export const HEADLINE_BUDGET_PX = 600;
+// the role sizes (tokens ROLES), kept here because the rendering core must not import that global table
+const HEADLINE_PX: Record<string, number> = {title: 15, banner: 16, stat: 34, display: 56};
+const HEADLINE_ROLES = new Set(Object.keys(HEADLINE_PX));
+function headlineLength(d: LintTarget, out: Finding[]): void {
+  const seen = new Set<string>();
+  const check = (text: string, role: string): void => {
+    const budget = Math.floor(HEADLINE_BUDGET_PX / (HEADLINE_PX[role]  ?? 15));
+    for (const line of text.split('\n')) {
+      const u = fullWidthUnits(line.trim());
+      if (u > budget && !seen.has(line)) { seen.add(line); out.push({rule: 'cjk-line-long', severity: 'warn', message: `見出しの 1 行が全角 ${Math.ceil(u)} 字ぶんで、${budget} 字の目安（${role}）を超える（はみ出す・折り返す）: 「${line.trim().slice(0, 16)}…」。短くするか、改行して分ける`}); }
+    }
+  };
+  for (const b of walkBands(d.bands)) {
+    if (b.type === 'caption' && !b.sourceLine && HEADLINE_ROLES.has(b.role)) check(b.text, b.role);
+    else if (b.type === 'banner') check(b.headline, b.headlineRole ?? 'banner');
+  }
+}
+
 function lintAll(d: LintTarget): Finding[] {
   const out: Finding[] = [];
   textContrast(d, out);
@@ -451,6 +479,7 @@ function lintAll(d: LintTarget): Finding[] {
   if (d.medium === 'doc' && !diagramTitle(d) && allBars.some(barsValuesHidden)) out.push({rule: 'bars-values-hidden', severity: 'warn', message: '値を隠した bars があるが、図に題名がなく <desc> も出ない。diagram({title}) を指定する（値の列は自動で <desc> に入る）'});
   for (const b of walkBands(d.bands)) if (b.type === 'image' && b.bytes > IMAGE_WARN_BYTES) out.push({rule: 'image-large', severity: 'warn', message: `画像（${Math.round(b.bytes / 1024)} KB）が大きい。SVG に埋め込まれ、段階表示の各ファイルにも入る。解像度を下げるか圧縮する（${IMAGE_WARN_BYTES / 1024} KB 以下が目安）`});
   for (const b of d.laidOut ?? []) if (b.type === 'bars' && b.bars.some(r => (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0))) { out.push({rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す'}); break; }
+  headlineLength(d, out);
   for (const b of d.laidOut ?? []) if (b.type === 'caption' && b.sourceLine && b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0) > 1) out.push({rule: 'source-wraps', severity: 'warn', message: `出典行が ${b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0)} 行に折り返している。1 行に収まる長さにする（出典の細部は本文へ）`});
   for (const b of d.laidOut ?? []) if (b.type === 'quadrant') {
     const far = b.moved.filter(m => m.px >= 16);
