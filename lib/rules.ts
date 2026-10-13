@@ -294,23 +294,25 @@ function rowHeaderRules(d: LintTarget, out: Finding[]): void {
 // In grayscale (a mono print, a colour-blind reader) only lightness is left. The fill of every tone a diagram uses (boxes, table rows),
 // in the diagram's own theme and appearance, goes to CIE L* (0 black .. 100 white); two fills closer than GRAY_MIN_DL cannot be told apart.
 // 10 is about where two flat greys stop reading as "different" on paper: it flags soft (L* ~93) next to plain white (100), and passes accent-soft against solid (~50). The de-emphasis tones (muted / removed: the pale code fill, grey text) are meant to sit back and are left out. Tones that differ in their dashed outline are told apart by shape; tones
-// with the same fill and outline colour (new / accent) are the same in colour too, so that is not a grayscale matter.
+// with the same fill (new / accent, changed / plain) are not told apart by their fill in colour either (the outline or nothing does it), so that is not this rule's matter.
 export const GRAY_MIN_DL = 10;
 const lightnessOf = (hex: string): number => { const y = relativeLuminance(hex); return y > 0.008856 ? 116 * Math.cbrt(y) - 16 : 903.3 * y; };
 
 function grayToneRules(d: LintTarget, out: Finding[]): void {
-  const used = new Set<string>();
-  for (const b of walkBands(d.bands)) if (b.type === 'box') used.add(b.tone ?? 'plain');
+  const used = new Set<string>(), all = walkBands(d.bands);
+  // a canvas() region with a pill (重点 / 中心 / 結論) says its tone in words, as for the legend (usedNotation): not a grayscale matter
+  const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => b.canvas!.worded[i]) : []));
+  for (const b of all) if (b.type === 'box' && !worded.has(b)) used.add(b.tone ?? 'plain');
   for (const b of d.laidOut ?? []) if (b.type === 'table') for (const r of b.rows) if (!r.header && r.tone) used.add(r.tone);
   const p = paintOf(d.appearance);
   const tones = [...used].map(name => {
     const t = toneStyle(name), box = resolveBoxStyle(name as EmphasisTone, d.day);
-    return {name, key: `${t.fill}/${t.stroke}`, dashed: box.dashed, l: lightnessOf(p(box.fill)), quiet: t.fill === 'code'};
+    return {name, fill: p(box.fill).toLowerCase(), dashed: box.dashed, l: lightnessOf(p(box.fill)), quiet: t.fill === 'code'};
   });
   const seen = new Set<string>(), hits: string[] = [];
   for (let i = 0; i < tones.length; i++) for (let j = i + 1; j < tones.length; j++) {
     const a = tones[i], b = tones[j];
-    if (a.key === b.key || a.quiet || b.quiet || a.dashed !== b.dashed || Math.abs(a.l - b.l) >= GRAY_MIN_DL) continue;
+    if (a.fill === b.fill || a.quiet || b.quiet || a.dashed !== b.dashed || Math.abs(a.l - b.l) >= GRAY_MIN_DL) continue;
     const pair = `${a.name}・${b.name}`;
     if (!seen.has(pair)) { seen.add(pair); hits.push(`${pair}（L* ${Math.round(a.l)} と ${Math.round(b.l)}）`); }
   }
