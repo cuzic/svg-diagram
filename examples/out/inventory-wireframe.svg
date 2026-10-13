@@ -167,7 +167,7 @@
   <text x="668" y="517" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
   </g>
   <text x="692" y="518" font-size="14" font-weight="700" fill="#22201b">確認ダイアログ</text>
-  <text x="692" y="538" font-size="14" font-weight="400" fill="#6f6659">取り消せない操作の前に出す。背</text>
-  <text x="692" y="557" font-size="14" font-weight="400" fill="#6f6659">景は暗くし、操作できるのは</text>
+  <text x="692" y="538" font-size="14" font-weight="400" fill="#6f6659">取り消せない操作の前に出す。</text>
+  <text x="692" y="557" font-size="14" font-weight="400" fill="#6f6659">背景は暗くし、操作できるのは</text>
   <text x="692" y="577" font-size="14" font-weight="400" fill="#6f6659">ダイアログだけにする。</text>
 </svg>

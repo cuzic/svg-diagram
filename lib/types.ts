@@ -21,6 +21,7 @@ import type {ConnectInput, DeclaredIds, RefIn, ValidateBands} from './strict.ts'
 import type {RULE_DOCS, DEFAULT_LEGEND_LABELS} from './rules.ts';
 import type {RICH} from './rich.ts';
 import type {LaidOutQuadrant, QuadrantBand} from './quadrant.ts';
+import type {FlowShapeBand, LaidOutFlowShape} from './flow-shapes.ts';
 
 // ============================================================================================
 // Tokens, tones, lines
@@ -137,9 +138,11 @@ export interface DiagramOpts {
   desc?: string;
   /** {'rule-id': 'why this finding is fine'}: shown as info instead of a warning. */
   accept?: Partial<Record<RuleId, string>>;
-  /** 'auto' adds a legend entry for every notation used but not listed. */
-  legend?: 'auto';
+  /** 'auto' adds a legend entry for every notation used but not listed. false: this diagram needs no legend (legend-missing / legend-incomplete are not reported). */
+  legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
+  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
+  wrap?: 'phrase' | 'char';
   width?: number;
   pad?: number;
   gap?: number;
@@ -180,8 +183,10 @@ export interface DiagramData {
   title?: string;
   desc?: string;
   accept?: Partial<Record<RuleId, string>>;
-  legend?: 'auto';
+  legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
+  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
+  wrap?: 'phrase' | 'char';
   width: number;
   pad: number;
   gap: number;
@@ -1198,7 +1203,11 @@ export interface BpmnFlow {
   /** 'dashed': a message flow between lanes (default: a sequence flow, solid). */
   line?: 'solid' | 'dashed';
 }
-export interface BpmnOpts extends RevealOpts {id?: string}
+export interface BpmnOpts extends RevealOpts {
+  id?: string;
+  /** 'shrink': when the figure is wider than the diagram, narrow the lane-name column, the column gaps and the task boxes step by step until it fits (default: throw). */
+  fit?: 'shrink';
+}
 export interface BpmnBand extends BpmnOpts {
   type: 'bpmn';
   lanes: BpmnLane[];
@@ -1389,6 +1398,8 @@ export interface TableColumn {
 export type CellMark = 'ok' | 'mid' | 'ng' | 'best';
 export interface TableCellSpec {
   text?: string; tone?: TextTone; bold?: boolean; mono?: boolean; align?: Align;
+  /** Vertical alignment in a fixed-height row. The default is center. */
+  vAlign?: 'top' | 'center';
   /** Draws the symbol + a default tone before `text` (an explicit `tone` / `bold` wins); without `text` the cell is the symbol alone. */
   mark?: CellMark;
 }
@@ -1428,9 +1439,13 @@ export interface TableBand {
   id?: string;
   reveal?: number;
   until?: number;
+  /** Domain warnings attached by a semantic table constructor and reported by svg-diagram check. */
+  semanticWarnings?: readonly string[];
+  /** A small score curve drawn in the lower part of one body row (used by journeyMap's emotion lane). */
+  rowCurve?: {row: number; values: readonly number[]; min: number; max: number};
 }
 /** cellOf(): a cell with column defaults applied. */
-export interface ResolvedCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align}
+export interface ResolvedCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; vAlign?: 'top' | 'center'}
 
 // ============================================================================================
 // DSL input + band: swimlane
@@ -1469,6 +1484,8 @@ export interface SwimlaneOpts extends RevealOpts {
   /** Width of the lane-label column (default 128). */
   labelW?: number;
   colGap?: number;
+  /** 'shrink': when the columns come out narrower than ~112px, narrow the lane-label column and the column gaps (down to 88 / 12px) to give them room. Default: the sizes above, as given. */
+  fit?: 'shrink';
   id?: string;
 }
 /** A step after swimlane() placed it in a column. */
@@ -1487,6 +1504,7 @@ export interface SwimlaneBand {
   phases?: SwimlanePhase[];
   labelW?: number;
   colGap?: number;
+  fit?: 'shrink';
   id?: string;
   reveal?: number;
   until?: number;
@@ -1625,7 +1643,7 @@ export interface ScreensBand extends ScreensOpts {
 export type Band =
   | ChartBand
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | ImageBand | QuadrantBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | ImageBand | QuadrantBand | FlowShapeBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 
 // ============================================================================================
@@ -2177,7 +2195,7 @@ export interface LaidOutSequence extends Rect {
   lifeBottom: number;
 }
 
-export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; lines: string[]; x: number; w: number; top: number}
+export interface LaidOutTableCell {text: string; tone?: TextTone; bold: boolean; mono: boolean; align: Align; vAlign?: 'top' | 'center'; lines: string[]; x: number; w: number; top: number}
 export interface LaidOutTableRow {y: number; h: number; cells: LaidOutTableCell[]; header?: boolean; tone?: BoxTone}
 export interface LaidOutTable extends Rect, Dimmed {
   type: 'table';
@@ -2194,6 +2212,8 @@ export interface LaidOutTable extends Rect, Dimmed {
   until?: number;
   /** font-size of the cell text at layout time (the smallest text of the table; fit.ts counts it). */
   bodySize: number;
+  /** Curve points and its neutral-score guide (the middle of the range, where the marks switch), wholly inside a reserved table row. */
+  rowCurve?: {points: {x: number; y: number}[]; midY: number; top: number; bottom: number};
 }
 
 /** wireframe() as laid out: flat primitives + the callouts drawn (for the order rule). */
@@ -2410,7 +2430,7 @@ export interface LaidOutBpmn extends Rect, Dimmed {
 export type LaidOutBand = (
   | LaidOutChart
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutQuadrant | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutCause | LaidOutCloud | LaidOutGantt | LaidOutClasses | LaidOutBpmn | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutQuadrant | LaidOutFlowShape | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutCause | LaidOutCloud | LaidOutGantt | LaidOutClasses | LaidOutBpmn | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;
 
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */
@@ -2550,4 +2570,6 @@ export interface ChangeExplanation {identical: boolean; visual: boolean; lines: 
 /** One numbered item of a Markdown page's notes list. */
 export interface DocNoteItem {n: number; title: string; text: string}
 /** One `![alt](x.svg)` found in a Markdown page, with the numbered list after it. */
-export interface DocImage {line: number; alt: string; ref: string; items: DocNoteItem[]}
+export interface DocImage {line: number; alt: string; ref: string; items: DocNoteItem[]; caption?: DocCaption}
+/** A 「図N-M」 caption tied to a figure: in its alt text, or on the line just before/after it. */
+export interface DocCaption {ch: number; no: number; line: number}

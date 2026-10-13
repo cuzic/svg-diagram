@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
-import {buildSheet} from '../lib/contact.ts';
+import {buildSheet, paginate, pageName} from '../lib/contact.ts';
 import {rasterize, svgSize} from '../lib/raster.ts';
 import {resolveFontFile} from '../lib/font-metrics.ts';
 
@@ -119,7 +119,9 @@ test('preview: usage errors exit 2; a missing or malformed file exits 1 and name
   const dir = tmp();
   fs.writeFileSync(path.join(dir, 'broken.svg'), figure(10, 10, '<g>'));
   assert.equal(run(dir, 'preview').status, 2);
-  assert.equal(run(dir, 'preview', 'a.svg').status, 2);
+  const noOut = run(dir, 'preview', 'a.svg'); // out.png is optional now: this reads a.svg, which is missing
+  assert.equal(noOut.status, 1);
+  assert.match(out(noOut), /a\.svg/);
   assert.equal(run(dir, 'preview', 'a.svg', 'o.png', '0').status, 2);
   assert.equal(run(dir, 'preview', 'a.svg', 'o.png', '--engine', 'nope').status, 2);
   const missing = run(dir, 'preview', 'nope.svg', 'o.png');
@@ -149,7 +151,7 @@ test('show --png: draws a source and a file, with no browser available; a bad --
 test('the usage text lists contact, preview and show with their options', () => {
   const r = spawnSync(BIN, [], {encoding: 'utf8'});
   assert.match(out(r), /contact a\.svg b\.svg/);
-  assert.match(out(r), /preview <in\.svg> <out\.png>/);
+  assert.match(out(r), /preview <in\.svg> \[out\.png\]/);
   assert.match(out(r), /show <file\.svg\|file\.ts>.*--engine/);
 });
 
@@ -166,4 +168,47 @@ test('--engine chromium reaches the renderer in contact, preview and show: with 
     assert.match(out(r), NO_BROWSER, args[0]);
   }
   fs.rmSync(dir, {recursive: true});
+});
+
+test('paginate and pageName split a set into numbered sheets', () => {
+  const xs = [1, 2, 3, 4, 5];
+  assert.deepEqual(paginate(xs), [xs]);
+  assert.deepEqual(paginate(xs, {perPage: 2}), [[1, 2], [3, 4], [5]]);
+  assert.deepEqual(paginate(xs, {pages: 2}), [[1, 2, 3], [4, 5]]);
+  assert.deepEqual(paginate(xs, {pages: 4}), [[1, 2], [3], [4], [5]]); // exactly 4 sheets, not ceil(5/4)=2 per sheet -> 3
+  assert.equal(paginate([1, 2, 3, 4, 5, 6, 7, 8, 9], {pages: 4}).length, 4);
+  assert.deepEqual(paginate(xs, {pages: 9}), [[1], [2], [3], [4], [5]]);
+  assert.deepEqual(paginate(xs, {perPage: 5}), [xs]);
+  assert.equal(pageName('s.png', 0, 1), 's.png');
+  assert.equal(pageName('d/s.png', 1, 3), 'd/s-2.png');
+});
+
+test('contact --per-page writes several sheets and lists them; default stays one file', { skip: !haveFont }, () => {
+  const d = tmp();
+  for (const n of ['a', 'b', 'c']) fs.writeFileSync(path.join(d, `${n}.svg`), figure(200, 100));
+  const one = run(d, 'contact', 'a.svg', 'b.svg', 'c.svg', '--out', 's.png');
+  assert.equal(one.status, 0, out(one));
+  assert.ok(fs.existsSync(path.join(d, 's.png')));
+  const r = run(d, 'contact', 'a.svg', 'b.svg', 'c.svg', '--out', 'p.png', '--per-page', '2');
+  assert.equal(r.status, 0, out(r));
+  assert.ok(fs.existsSync(path.join(d, 'p-1.png')) && fs.existsSync(path.join(d, 'p-2.png')));
+  assert.ok(!fs.existsSync(path.join(d, 'p-3.png')));
+  assert.match(r.stdout, /2 sheets: p-1\.png p-2\.png/);
+  assert.notEqual(run(d, 'contact', 'a.svg', '--per-page', '2', '--pages', '2').status, 0);
+  assert.equal(run(d, 'contact', 'a.svg', '--out', 'q.png', '--per-page').status, 2); // a missing value is an error, not ignored
+  assert.equal(run(d, 'contact', 'a.svg', '--out', 'q.png', '--pages', '0').status, 2);
+});
+
+test('preview without an output name writes a fresh temp file each time', { skip: !haveFont }, () => {
+  const d = tmp();
+  fs.writeFileSync(path.join(d, 'x.svg'), figure(100, 50));
+  const paths = [1, 2].map(() => {
+    const r = run(d, 'preview', 'x.svg');
+    assert.equal(r.status, 0, out(r));
+    const m = r.stdout.match(/wrote (\S+\.png)/);
+    assert.ok(m, r.stdout);
+    return m![1];
+  });
+  assert.notEqual(paths[0], paths[1]);
+  for (const p of paths) { assert.ok(path.basename(p).startsWith('x-') && fs.existsSync(p)); fs.rmSync(p); }
 });

@@ -36,3 +36,24 @@ export function buildSheet(figures: [string, string][], {cols = 2, width = 1400}
   const height = (cells.length ? y - GAP : y) + PAD;
   return {svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#ffffff"/>${body.join('')}</svg>`, width, height};
 }
+
+/** Splits `items` into pages of `perPage` (the last may be short), or into exactly `pages` pages (at most one per item)
+ *  whose sizes differ by at most one, the larger first; neither given: one page. */
+export function paginate<T>(items: T[], {perPage, pages}: {perPage?: number; pages?: number} = {}): T[][] {
+  const out: T[][] = [];
+  if (perPage && Math.floor(perPage) >= 1) {
+    const size = Math.floor(perPage);
+    for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  } else if (pages && Math.floor(pages) >= 1 && items.length) {
+    const n = Math.min(Math.floor(pages), items.length), base = Math.floor(items.length / n), extra = items.length % n;
+    for (let p = 0, i = 0; p < n; p++) { const k = base + (p < extra ? 1 : 0); out.push(items.slice(i, i + k)); i += k; }
+  }
+  return out.length ? out : [items];
+}
+
+/** `sheet.png` -> `sheet-1.png`, `sheet-2.png`, ... (1-based); a single page keeps the name as given. */
+export function pageName(out: string, index: number, total: number): string {
+  if (total <= 1) return out;
+  const ext = path.extname(out);
+  return `${out.slice(0, out.length - ext.length)}-${index + 1}${ext}`;
+}

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="496" viewBox="0 0 940 496" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">多層防御</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/concentric-security.ts","sourceSha256":"62f6d7807b28ff743f9cc3abfecec451e78da81baae973c78089f20acd6971ce"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="496" fill="#ffffff"/>
+
+  <circle cx="472" cy="248" r="220" fill="#1d5fa8" fill-opacity="0.1" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="472" cy="248" r="146.7" fill="#6f6659" fill-opacity="0.15000000000000002" stroke="#6f6659" stroke-width="2" stroke-dasharray="7,5"/>
+  <circle cx="472" cy="248" r="73.3" fill="#b91c1c" fill-opacity="0.1" stroke="#b91c1c" stroke-width="2"/>
+  <text x="472" y="70.3" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">境界 — 入口を守る</text>
+  <text x="472" y="143.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">アプリ — 権限を絞る</text>
+  <text x="472" y="207.5" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">データ —</text>
+  <text x="472" y="226.4" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">暗号化</text>
+  <text x="472" y="253.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">重要情報</text>
+</svg>
