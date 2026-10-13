@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="536" viewBox="0 0 940 536" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">競合比較（5 段階評価）</title>
+  <desc id="svg-desc">レーダーチャート（軸: 品質、価格、納期、サポート、機能の幅、導入のしやすさ）。自社: 品質 4、価格 3、納期 5、サポート 4、機能の幅 3、導入のしやすさ 4。A 社: 品質 5、価格 2、納期 3、サポート 3、機能の幅 5、導入のしやすさ 2。B 社: 品質 2、価格 5、納期 3、サポート 2、機能の幅 2、導入のしやすさ 5</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-radar.ts","sourceSha256":"392de40d540975e3768b088a79660b809aea96436cc3345e343db23e27309b52"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="536" fill="#ffffff"/>
+
+  <path d="M470,199.2 L500.1,216.6 L500.1,251.4 L470,268.8 L439.9,251.4 L439.9,216.6 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,164.4 L530.3,199.2 L530.3,268.8 L470,303.6 L409.7,268.8 L409.7,199.2 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,129.6 L560.4,181.8 L560.4,286.2 L470,338.4 L379.6,286.2 L379.6,181.8 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,94.8 L590.6,164.4 L590.6,303.6 L470,373.2 L349.4,303.6 L349.4,164.4 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,60 L620.7,147 L620.7,321 L470,408 L319.3,321 L319.3,147 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,234 L470,60" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,234 L620.7,147" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,234 L620.7,321" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,234 L470,408" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,234 L319.3,321" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,234 L319.3,147" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,94.8 L560.4,181.8 L620.7,321 L470,373.2 L379.6,286.2 L349.4,164.4 Z" fill="none" stroke="#1d5fa8" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M470,60 L530.3,199.2 L560.4,286.2 L470,338.4 L319.3,321 L409.7,199.2 Z" fill="none" stroke="#22201b" stroke-width="3" stroke-linejoin="round" stroke-dasharray="8,5"/>
+  <path d="M470,164.4 L620.7,147 L560.4,286.2 L470,303.6 L409.7,268.8 L319.3,147 Z" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linejoin="round" stroke-dasharray="2,5"/>
+  <path d="M465,94.8 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M555.4,181.8 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M615.7,321 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M465,373.2 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M374.6,286.2 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M344.4,164.4 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M465,55 H475 V65 H465 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M525.3,194.2 H535.3 V204.2 H525.3 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M555.4,281.2 H565.4 V291.2 H555.4 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M465,333.4 H475 V343.4 H465 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M314.3,316 H324.3 V326 H314.3 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M404.7,194.2 H414.7 V204.2 H404.7 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M470,158.4 L476,164.4 L470,170.4 L464,164.4 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M620.7,141 L626.7,147 L620.7,153 L614.7,147 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M560.4,280.2 L566.4,286.2 L560.4,292.2 L554.4,286.2 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M470,297.6 L476,303.6 L470,309.6 L464,303.6 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M409.7,262.8 L415.7,268.8 L409.7,274.8 L403.7,268.8 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M319.3,141 L325.3,147 L319.3,153 L313.3,147 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="470" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">品質</text>
+  <text x="633" y="136" font-size="14" font-weight="700" fill="#22201b">価格</text>
+  <text x="633" y="342" font-size="14" font-weight="700" fill="#22201b">納期</text>
+  <text x="470" y="436" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">サポート</text>
+  <text x="307" y="342" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">機能の幅</text>
+  <text x="307" y="136" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">導入のしやすさ</text>
+  <path d="M474,190 H485.79 V208 H474 Z" fill="#ffffff"/>
+  <text x="476" y="204" font-size="14" fill="#6f6659">1</text>
+  <path d="M474,155 H485.79 V173 H474 Z" fill="#ffffff"/>
+  <text x="476" y="169" font-size="14" fill="#6f6659">2</text>
+  <path d="M474,121 H485.79 V139 H474 Z" fill="#ffffff"/>
+  <text x="476" y="135" font-size="14" fill="#6f6659">3</text>
+  <path d="M474,86 H485.79 V104 H474 Z" fill="#ffffff"/>
+  <text x="476" y="100" font-size="14" fill="#6f6659">4</text>
+  <path d="M474,51 H485.79 V69 H474 Z" fill="#ffffff"/>
+  <text x="476" y="65" font-size="14" fill="#6f6659">5</text>
+  <text x="573" y="173" font-size="14" font-weight="700" fill="#1d5fa8">3</text>
+  <text x="631" y="311" font-size="14" font-weight="700" fill="#1d5fa8">5</text>
+  <text x="470" y="400" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">4</text>
+  <text x="367" y="306" text-anchor="end" font-size="14" font-weight="700" fill="#1d5fa8">3</text>
+  <text x="359" y="186" font-size="14" font-weight="700" fill="#1d5fa8">4</text>
+  <text x="542" y="190" font-size="14" font-weight="700" fill="#22201b">2</text>
+  <text x="573" y="306" font-size="14" font-weight="700" fill="#22201b">3</text>
+  <text x="460" y="328" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">3</text>
+  <text x="309" y="311" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">5</text>
+  <text x="398" y="190" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">2</text>
+  <text x="470" y="148" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">2</text>
+  <text x="611" y="137" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">5</text>
+  <text x="550" y="276" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">3</text>
+  <text x="470" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">2</text>
+  <text x="398" y="288" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">2</text>
+  <text x="329" y="137" font-size="14" font-weight="700" fill="#b91c1c">5</text>
+  <path d="M341.7,462 L371.7,462" fill="none" stroke="#1d5fa8" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M351.7,462 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="380" y="467" font-size="14" fill="#22201b">自社</text>
+  <path d="M435.7,462 L465.7,462" fill="none" stroke="#22201b" stroke-width="3" stroke-linejoin="round" stroke-dasharray="8,5"/>
+  <path d="M445.7,457 H455.7 V467 H445.7 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="474" y="467" font-size="14" fill="#22201b">A 社</text>
+  <path d="M528.8,462 L558.8,462" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linejoin="round" stroke-dasharray="2,5"/>
+  <path d="M543.8,456 L549.8,462 L543.8,468 L537.8,462 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="567" y="467" font-size="14" fill="#22201b">B 社</text>
+
+  <text x="20" y="510" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

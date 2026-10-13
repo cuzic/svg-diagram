@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="658" viewBox="0 0 940 658" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">営業利益の増減要因（前期 → 今期）</title>
+  <desc id="svg-desc">ウォーターフォール図: 前期の営業利益 1,000百万円、価格改定 +220百万円、販売数量 -130百万円、原材料費 -310百万円、小計 780百万円、販促費の削減 +90百万円、為替 +40百万円、今期の営業利益 910百万円。ウォーターフォール図: 期首の現金 120百万円、営業活動によるキャッシュフロー +340百万円、設備投資 -280百万円、借入金の返済 -240百万円、期末の現金 -60百万円</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-waterfall.ts","sourceSha256":"c589b5e1d17d54a5bfff1f1ce0ed49f29022d2501824fe283651ec4021337bd0"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="658" fill="#ffffff"/>
+
+  <path d="M66.8,286 L912,286" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="291" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <path d="M66.8,252.3 L912,252.3" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="257" text-anchor="end" font-size="14" fill="#6f6659">200</text>
+  <path d="M66.8,218.6 L912,218.6" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="224" text-anchor="end" font-size="14" fill="#6f6659">400</text>
+  <path d="M66.8,184.9 L912,184.9" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="190" text-anchor="end" font-size="14" fill="#6f6659">600</text>
+  <path d="M66.8,151.1 L912,151.1" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="156" text-anchor="end" font-size="14" fill="#6f6659">800</text>
+  <path d="M66.8,117.4 L912,117.4" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="122" text-anchor="end" font-size="14" fill="#6f6659">1,000</text>
+  <path d="M66.8,83.7 L912,83.7" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="89" text-anchor="end" font-size="14" fill="#6f6659">1,200</text>
+  <path d="M66.8,50 L912,50" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="55" text-anchor="end" font-size="14" fill="#6f6659">1,400</text>
+  <path d="M72.8,50 L72.8,286" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M92.7,117.4 H157.7 V286 H92.7 Z" fill="#22201b"/>
+  <path d="M197.6,80.3 H262.6 V117.4 H197.6 Z" fill="#1d5fa8"/>
+  <path d="M302.5,80.3 H367.5 V102.2 H302.5 Z" fill="#b91c1c"/>
+  <path d="M407.4,102.3 H472.4 V154.6 H407.4 Z" fill="#b91c1c"/>
+  <path d="M512.3,154.5 H577.3 V286 H512.3 Z" fill="#6f6659"/>
+  <path d="M617.2,139.3 H682.2 V154.5 H617.2 Z" fill="#1d5fa8"/>
+  <path d="M722.1,132.6 H787.1 V139.3 H722.1 Z" fill="#1d5fa8"/>
+  <path d="M827,132.6 H892 V286 H827 Z" fill="#22201b"/>
+  <path d="M157.7,117.4 L197.6,117.4" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M262.6,80.3 L302.5,80.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M367.5,102.3 L407.4,102.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M472.4,154.5 L512.3,154.5" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M577.3,154.5 L617.2,154.5" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M682.2,139.3 L722.1,139.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M787.1,132.6 L827,132.6" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <text x="125" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">1,000百万円</text>
+  <text x="230" y="73" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+220百万円</text>
+  <text x="335" y="121" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-130百万円</text>
+  <text x="440" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-310百万円</text>
+  <text x="545" y="148" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">780百万円</text>
+  <text x="650" y="132" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+90百万円</text>
+  <text x="755" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+40百万円</text>
+  <text x="860" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">910百万円</text>
+  <text x="125" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">前期の営業</text>
+  <text x="125" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">利益</text>
+  <text x="230" y="334" text-anchor="middle" font-size="14" fill="#22201b">価格改定</text>
+  <text x="335" y="334" text-anchor="middle" font-size="14" fill="#22201b">販売数量</text>
+  <text x="440" y="334" text-anchor="middle" font-size="14" fill="#22201b">原材料費</text>
+  <text x="545" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">小計</text>
+  <text x="650" y="334" text-anchor="middle" font-size="14" fill="#22201b">販促費の削減</text>
+  <text x="755" y="334" text-anchor="middle" font-size="14" fill="#22201b">為替</text>
+  <text x="860" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">今期の営業</text>
+  <text x="860" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">利益</text>
+
+  <path d="M332.5,380 L332.5,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="333" y="594" text-anchor="middle" font-size="14" fill="#6f6659">-100</text>
+  <path d="M414.3,380 L414.3,576" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="414" y="594" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
+  <path d="M496.2,380 L496.2,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="496" y="594" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
+  <path d="M578,380 L578,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="578" y="594" text-anchor="middle" font-size="14" fill="#6f6659">200</text>
+  <path d="M659.8,380 L659.8,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="660" y="594" text-anchor="middle" font-size="14" fill="#6f6659">300</text>
+  <path d="M741.7,380 L741.7,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="742" y="594" text-anchor="middle" font-size="14" fill="#6f6659">400</text>
+  <path d="M823.5,380 L823.5,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="824" y="594" text-anchor="middle" font-size="14" fill="#6f6659">500</text>
+  <path d="M414.3,387 H512.5 V411 H414.3 Z" fill="#22201b"/>
+  <text x="234" y="404" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">期首の現金</text>
+  <path d="M512.5,425 H790.8 V449 H512.5 Z" fill="#1d5fa8"/>
+  <text x="234" y="442" text-anchor="end" font-size="14" fill="#22201b">営業活動によるキャッシュフロー</text>
+  <path d="M561.6,463 H790.8 V487 H561.6 Z" fill="#b91c1c"/>
+  <text x="234" y="480" text-anchor="end" font-size="14" fill="#22201b">設備投資</text>
+  <path d="M365.2,501 H561.6 V525 H365.2 Z" fill="#b91c1c"/>
+  <text x="234" y="518" text-anchor="end" font-size="14" fill="#22201b">借入金の返済</text>
+  <path d="M365.2,539 H414.3 V563 H365.2 Z" fill="#22201b"/>
+  <text x="234" y="556" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">期末の現金</text>
+  <path d="M512.5,411 L512.5,425" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M790.8,449 L790.8,463" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M561.6,487 L561.6,501" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M365.2,525 L365.2,539" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <text x="520" y="404" font-size="14" font-weight="700" fill="#22201b">120百万円</text>
+  <text x="798" y="442" font-size="14" font-weight="700" fill="#1d5fa8">+340百万円</text>
+  <text x="555" y="480" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">-280百万円</text>
+  <text x="358" y="518" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">-240百万円</text>
+  <text x="358" y="556" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">-60百万円</text>
+
+  <text x="20" y="632" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

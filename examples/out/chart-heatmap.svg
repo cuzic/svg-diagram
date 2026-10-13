@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="360" viewBox="0 0 940 360" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">登録月別の継続率</title>
+  <desc id="svg-desc">ヒートマップ（列: 0か月、1か月、2か月、3か月、4か月、5か月）。4月登録: 100% / 62% / 48% / 41% / 38% / 36%。5月登録: 100% / 66% / 51% / 44% / 40% / -。6月登録: 100% / 59% / 45% / 37% / - / -。7月登録: 100% / 71% / 56% / - / - / -。8月登録: 100% / 74% / - / - / - / -。9月登録: 100% / - / - / - / - / -</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-heatmap.ts","sourceSha256":"00d30adbf05b92fbff0453b92f759458b9f7593152e07f2b467685668c84907b"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="360" fill="#ffffff"/>
+
+  <text x="24" y="40" font-size="14" font-weight="700" fill="#6f6659">登録月 ＼</text>
+  <text x="24" y="58" font-size="14" font-weight="700" fill="#6f6659">経過月</text>
+  <text x="162" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">0か月</text>
+  <text x="300" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">1か月</text>
+  <text x="438" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">2か月</text>
+  <text x="575" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">3か月</text>
+  <text x="713" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">4か月</text>
+  <text x="851" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">5か月</text>
+  <text x="24" y="87" font-size="14" font-weight="700" fill="#22201b">4月登録</text>
+  <path d="M94,67 H229.8 V97 H94 Z" fill="#ffffff"/>
+  <path d="M94,67 H229.8 V97 H94 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="162" y="87" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">100%</text>
+  <path d="M231.8,67 H367.6 V97 H231.8 Z" fill="#ffffff"/>
+  <path d="M231.8,67 H367.6 V97 H231.8 Z" fill="#1d5fa8" fill-opacity="0.6"/>
+  <text x="300" y="87" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">62%</text>
+  <path d="M369.7,67 H505.5 V97 H369.7 Z" fill="#ffffff"/>
+  <path d="M369.7,67 H505.5 V97 H369.7 Z" fill="#1d5fa8" fill-opacity="0.35"/>
+  <text x="438" y="87" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">48%</text>
+  <path d="M507.5,67 H643.3 V97 H507.5 Z" fill="#ffffff"/>
+  <path d="M507.5,67 H643.3 V97 H507.5 Z" fill="#1d5fa8" fill-opacity="0.35"/>
+  <text x="575" y="87" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">41%</text>
+  <path d="M645.3,67 H781.1 V97 H645.3 Z" fill="#ffffff"/>
+  <path d="M645.3,67 H781.1 V97 H645.3 Z" fill="#1d5fa8" fill-opacity="0.12"/>
+  <text x="713" y="87" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">38%</text>
+  <path d="M783.2,67 H919 V97 H783.2 Z" fill="#ffffff"/>
+  <path d="M783.2,67 H919 V97 H783.2 Z" fill="#1d5fa8" fill-opacity="0.12"/>
+  <text x="851" y="87" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">36%</text>
+  <text x="24" y="119" font-size="14" font-weight="700" fill="#22201b">5月登録</text>
+  <path d="M94,99 H229.8 V129 H94 Z" fill="#ffffff"/>
+  <path d="M94,99 H229.8 V129 H94 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="162" y="119" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">100%</text>
+  <path d="M231.8,99 H367.6 V129 H231.8 Z" fill="#ffffff"/>
+  <path d="M231.8,99 H367.6 V129 H231.8 Z" fill="#1d5fa8" fill-opacity="0.6"/>
+  <text x="300" y="119" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">66%</text>
+  <path d="M369.7,99 H505.5 V129 H369.7 Z" fill="#ffffff"/>
+  <path d="M369.7,99 H505.5 V129 H369.7 Z" fill="#1d5fa8" fill-opacity="0.35"/>
+  <text x="438" y="119" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">51%</text>
+  <path d="M507.5,99 H643.3 V129 H507.5 Z" fill="#ffffff"/>
+  <path d="M507.5,99 H643.3 V129 H507.5 Z" fill="#1d5fa8" fill-opacity="0.35"/>
+  <text x="575" y="119" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">44%</text>
+  <path d="M645.3,99 H781.1 V129 H645.3 Z" fill="#ffffff"/>
+  <path d="M645.3,99 H781.1 V129 H645.3 Z" fill="#1d5fa8" fill-opacity="0.35"/>
+  <text x="713" y="119" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">40%</text>
+  <path d="M783.2,99 H919 V129 H783.2 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="851" y="119" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <text x="24" y="151" font-size="14" font-weight="700" fill="#22201b">6月登録</text>
+  <path d="M94,131 H229.8 V161 H94 Z" fill="#ffffff"/>
+  <path d="M94,131 H229.8 V161 H94 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="162" y="151" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">100%</text>
+  <path d="M231.8,131 H367.6 V161 H231.8 Z" fill="#ffffff"/>
+  <path d="M231.8,131 H367.6 V161 H231.8 Z" fill="#1d5fa8" fill-opacity="0.35"/>
+  <text x="300" y="151" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">59%</text>
+  <path d="M369.7,131 H505.5 V161 H369.7 Z" fill="#ffffff"/>
+  <path d="M369.7,131 H505.5 V161 H369.7 Z" fill="#1d5fa8" fill-opacity="0.35"/>
+  <text x="438" y="151" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">45%</text>
+  <path d="M507.5,131 H643.3 V161 H507.5 Z" fill="#ffffff"/>
+  <path d="M507.5,131 H643.3 V161 H507.5 Z" fill="#1d5fa8" fill-opacity="0.12"/>
+  <text x="575" y="151" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">37%</text>
+  <path d="M645.3,131 H781.1 V161 H645.3 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="713" y="151" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <path d="M783.2,131 H919 V161 H783.2 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="851" y="151" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <text x="24" y="183" font-size="14" font-weight="700" fill="#22201b">7月登録</text>
+  <path d="M94,163 H229.8 V193 H94 Z" fill="#ffffff"/>
+  <path d="M94,163 H229.8 V193 H94 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="162" y="183" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">100%</text>
+  <path d="M231.8,163 H367.6 V193 H231.8 Z" fill="#ffffff"/>
+  <path d="M231.8,163 H367.6 V193 H231.8 Z" fill="#1d5fa8" fill-opacity="0.6"/>
+  <text x="300" y="183" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">71%</text>
+  <path d="M369.7,163 H505.5 V193 H369.7 Z" fill="#ffffff"/>
+  <path d="M369.7,163 H505.5 V193 H369.7 Z" fill="#1d5fa8" fill-opacity="0.35"/>
+  <text x="438" y="183" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">56%</text>
+  <path d="M507.5,163 H643.3 V193 H507.5 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="575" y="183" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <path d="M645.3,163 H781.1 V193 H645.3 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="713" y="183" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <path d="M783.2,163 H919 V193 H783.2 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="851" y="183" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <text x="24" y="215" font-size="14" font-weight="700" fill="#22201b">8月登録</text>
+  <path d="M94,195 H229.8 V225 H94 Z" fill="#ffffff"/>
+  <path d="M94,195 H229.8 V225 H94 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="162" y="215" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">100%</text>
+  <path d="M231.8,195 H367.6 V225 H231.8 Z" fill="#ffffff"/>
+  <path d="M231.8,195 H367.6 V225 H231.8 Z" fill="#1d5fa8" fill-opacity="0.6"/>
+  <text x="300" y="215" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">74%</text>
+  <path d="M369.7,195 H505.5 V225 H369.7 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="438" y="215" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <path d="M507.5,195 H643.3 V225 H507.5 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="575" y="215" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <path d="M645.3,195 H781.1 V225 H645.3 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="713" y="215" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <path d="M783.2,195 H919 V225 H783.2 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="851" y="215" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <text x="24" y="247" font-size="14" font-weight="700" fill="#22201b">9月登録</text>
+  <path d="M94,227 H229.8 V257 H94 Z" fill="#ffffff"/>
+  <path d="M94,227 H229.8 V257 H94 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="162" y="247" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">100%</text>
+  <path d="M231.8,227 H367.6 V257 H231.8 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="300" y="247" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <path d="M369.7,227 H505.5 V257 H369.7 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="438" y="247" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <path d="M507.5,227 H643.3 V257 H507.5 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="575" y="247" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <path d="M645.3,227 H781.1 V257 H645.3 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="713" y="247" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <path d="M783.2,227 H919 V257 H783.2 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-dasharray="3,3"/>
+  <text x="851" y="247" text-anchor="middle" font-size="14" fill="#6f6659">–</text>
+  <path d="M91,66 L91,258" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="20" y="284" font-size="14" fill="#6f6659">凡例</text>
+  <path d="M62,272 H84 V286 H62 Z" fill="#ffffff"/>
+  <path d="M62,272 H84 V286 H62 Z" fill="#1d5fa8" fill-opacity="0.12" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="90" y="284" font-size="14" fill="#22201b">〜40</text>
+  <path d="M137.6,272 H159.6 V286 H137.6 Z" fill="#ffffff"/>
+  <path d="M137.6,272 H159.6 V286 H137.6 Z" fill="#1d5fa8" fill-opacity="0.35" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="166" y="284" font-size="14" fill="#22201b">40〜60</text>
+  <path d="M228.7,272 H250.7 V286 H228.7 Z" fill="#ffffff"/>
+  <path d="M228.7,272 H250.7 V286 H228.7 Z" fill="#1d5fa8" fill-opacity="0.6" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="257" y="284" font-size="14" fill="#22201b">60〜80</text>
+  <path d="M319.9,272 H341.9 V286 H319.9 Z" fill="#ffffff"/>
+  <path d="M319.9,272 H341.9 V286 H319.9 Z" fill="#1d5fa8" fill-opacity="0.85" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="348" y="284" font-size="14" fill="#22201b">80〜</text>
+
+  <text x="20" y="334" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

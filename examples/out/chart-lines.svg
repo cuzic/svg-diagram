@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="436" viewBox="0 0 940 436" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">戦略キャンバス: 業界平均と自社の差</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-lines.ts","sourceSha256":"96b9a0406dc1755a2bd93b580c2ce47d62e9e09cd926e75bd84f5ee2d97d311d"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="436" fill="#ffffff"/>
+
+  <path d="M135,54 L135,340 M268,54 L268,340 M401,54 L401,340 M534,54 L534,340 M667,54 L667,340 M800,54 L800,340 M68,340 L867,340 M68,54 L867,54" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M68,340 L867,340 M68,340 L68,54" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="867,340 857,345 857,335" fill="#22201b"/>
+  <polygon points="68,54 73,64 63,64" fill="#22201b"/>
+  <path d="M135,340 L135,346 M268,340 L268,346 M401,340 L401,346 M534,340 L534,346 M667,340 L667,346 M800,340 L800,346 M68,340 L62,340 M68,54 L62,54" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M135,111 L268,54 L401,226 L534,168 L667,54 L800,111" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M135,226 L268,226 L401,54 L534,226 L667,226 L800,283" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M135,283 L268,168 L401,54 L534,54 L667,168 L800,111" fill="none" stroke="#b91c1c" stroke-width="2"/>
+  <path d="M129,111 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="#1d5fa8"/>
+  <path d="M262,54 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="#1d5fa8"/>
+  <path d="M395,226 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="#1d5fa8"/>
+  <path d="M528,168 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="#1d5fa8"/>
+  <path d="M661,54 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="#1d5fa8"/>
+  <path d="M794,111 a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0 Z" fill="#1d5fa8"/>
+  <path d="M129,220 H141 V232 H129 Z" fill="#22201b"/>
+  <path d="M262,220 H274 V232 H262 Z" fill="#22201b"/>
+  <path d="M395,48 H407 V60 H395 Z" fill="#22201b"/>
+  <path d="M528,220 H540 V232 H528 Z" fill="#22201b"/>
+  <path d="M661,220 H673 V232 H661 Z" fill="#22201b"/>
+  <path d="M794,277 H806 V289 H794 Z" fill="#22201b"/>
+  <path d="M135,275 L143,283 L135,291 L127,283 Z" fill="#b91c1c"/>
+  <path d="M268,160 L276,168 L268,176 L260,168 Z" fill="#b91c1c"/>
+  <path d="M401,46 L409,54 L401,62 L393,54 Z" fill="#b91c1c"/>
+  <path d="M534,46 L542,54 L534,62 L526,54 Z" fill="#b91c1c"/>
+  <path d="M667,160 L675,168 L667,176 L659,168 Z" fill="#b91c1c"/>
+  <path d="M800,103 L808,111 L800,119 L792,111 Z" fill="#b91c1c"/>
+  <circle cx="536" cy="56" r="6" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <text x="135" y="362" text-anchor="middle" font-size="14" fill="#6f6659">価格</text>
+  <text x="268" y="362" text-anchor="middle" font-size="14" fill="#6f6659">機能の数</text>
+  <text x="401" y="362" text-anchor="middle" font-size="14" fill="#6f6659">導入の手軽さ</text>
+  <text x="534" y="362" text-anchor="middle" font-size="14" fill="#6f6659">サポート</text>
+  <text x="667" y="362" text-anchor="middle" font-size="14" fill="#6f6659">ブランド力</text>
+  <text x="800" y="362" text-anchor="middle" font-size="14" fill="#6f6659">カスタマイズ性</text>
+  <text x="56" y="345" text-anchor="end" font-size="14" fill="#6f6659">低い</text>
+  <text x="56" y="59" text-anchor="end" font-size="14" fill="#6f6659">高い</text>
+  <text x="64" y="40" font-size="14" font-weight="700" fill="#6f6659">提供価値の水準</text>
+  <text x="812" y="116" font-size="14" font-weight="700" fill="#1d5fa8">競合 A</text>
+  <text x="812" y="288" font-size="14" font-weight="700" fill="#22201b">競合 B</text>
+  <text x="812" y="138" font-size="14" font-weight="700" fill="#b91c1c">自社</text>
+  <text x="534" y="40" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">差別化の軸</text>
+
+  <text x="20" y="410" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

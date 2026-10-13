@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="496" viewBox="0 0 940 496" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">サイト訪問から購入までの流れ</title>
+  <desc id="svg-desc">サンキー図: 広告 → サイト訪問 520人、自然検索 → サイト訪問 380人、SNS → サイト訪問 160人、サイト訪問 → カート投入 280人、サイト訪問 → 離脱 750人、カート投入 → 購入 120人、サイト訪問 → 購入 30人、カート投入 → カート放棄 160人</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-sankey.ts","sourceSha256":"878e4d6f916c81d40699b509705a62ac2ea153a55a3187bf8318db8ad4beffc0"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="496" fill="#ffffff"/>
+
+  <path d="M38,24.2 C157,24.2 157,35.4 276,35.4 L276,226.3 C157,226.3 157,215.1 38,215.1 Z" fill="#1d5fa8" fill-opacity="0.22"/>
+  <path d="M38,226.3 C157,226.3 157,226.3 276,226.3 L276,365.9 C157,365.9 157,365.9 38,365.9 Z" fill="#1d5fa8" fill-opacity="0.22"/>
+  <path d="M38,377.1 C157,377.1 157,365.9 276,365.9 L276,424.6 C157,424.6 157,435.8 38,435.8 Z" fill="#1d5fa8" fill-opacity="0.22"/>
+  <path d="M290,310.8 C409,310.8 409,178.6 528,178.6 L528,281.4 C409,281.4 409,413.6 290,413.6 Z" fill="#1d5fa8" fill-opacity="0.22"/>
+  <path d="M290,35.4 C535,35.4 535,24.2 779.9,24.2 L779.9,299.6 C535,299.6 535,310.8 290,310.8 Z" fill="#b91c1c" fill-opacity="0.22" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6,4"/>
+  <path d="M542,178.6 C660.9,178.6 660.9,310.8 779.9,310.8 L779.9,354.8 C660.9,354.8 660.9,222.7 542,222.7 Z" fill="#1d5fa8" fill-opacity="0.22"/>
+  <path d="M290,413.6 C535,413.6 535,354.8 779.9,354.8 L779.9,365.9 C535,365.9 535,424.6 290,424.6 Z" fill="#1d5fa8" fill-opacity="0.22"/>
+  <path d="M542,222.7 C660.9,222.7 660.9,377.1 779.9,377.1 L779.9,435.8 C660.9,435.8 660.9,281.4 542,281.4 Z" fill="#b91c1c" fill-opacity="0.22" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6,4"/>
+  <path d="M24,24.2 H38 V215.1 H24 Z" fill="#22201b"/>
+  <path d="M44,111 H118.07 V129 H44 Z" fill="#ffffff"/>
+  <text x="46" y="125" font-size="14" font-weight="700" fill="#22201b">広告 520人</text>
+  <path d="M24,226.3 H38 V365.8 H24 Z" fill="#22201b"/>
+  <path d="M44,287 H146.07 V305 H44 Z" fill="#ffffff"/>
+  <text x="46" y="301" font-size="14" font-weight="700" fill="#22201b">自然検索 380人</text>
+  <path d="M24,377.1 H38 V435.8 H24 Z" fill="#22201b"/>
+  <path d="M44,397 H119.46 V415 H44 Z" fill="#ffffff"/>
+  <text x="46" y="411" font-size="14" font-weight="700" fill="#22201b">SNS 160人</text>
+  <path d="M276,35.4 H290 V424.6 H276 Z" fill="#22201b"/>
+  <path d="M296,221 H424 V239 H296 Z" fill="#ffffff"/>
+  <text x="298" y="235" font-size="14" font-weight="700" fill="#22201b">サイト訪問 1,060人</text>
+  <path d="M528,178.6 H542 V281.4 H528 Z" fill="#22201b"/>
+  <path d="M548,221 H664.07 V239 H548 Z" fill="#ffffff"/>
+  <text x="550" y="235" font-size="14" font-weight="700" fill="#22201b">カート投入 280人</text>
+  <path d="M779.9,24.2 H793.9 V299.6 H779.9 Z" fill="#6f6659"/>
+  <path d="M800,153 H874.07 V171 H800 Z" fill="#ffffff"/>
+  <text x="802" y="167" font-size="14" font-weight="700" fill="#22201b">離脱 750人</text>
+  <path d="M779.9,310.8 H793.9 V365.9 H779.9 Z" fill="#22201b"/>
+  <path d="M800,329 H874.07 V347 H800 Z" fill="#ffffff"/>
+  <text x="802" y="343" font-size="14" font-weight="700" fill="#22201b">購入 150人</text>
+  <path d="M779.9,377.1 H793.9 V435.8 H779.9 Z" fill="#6f6659"/>
+  <path d="M800,397 H916.07 V415 H800 Z" fill="#ffffff"/>
+  <text x="802" y="411" font-size="14" font-weight="700" fill="#22201b">カート放棄 160人</text>
+  <path d="M639.96,258 H682.04 V276 H639.96 Z" fill="#ffffff"/>
+  <text x="661" y="272" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">120人</text>
+
+  <text x="20" y="470" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

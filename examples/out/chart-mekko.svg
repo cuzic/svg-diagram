@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="456" viewBox="0 0 940 456" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">地域別の市場規模とメーカー別シェア</title>
+  <desc id="svg-desc">マリメッコ図: 北米（計 1,200億円）: A 社 520億円（43.3%）、B 社 310億円（25.8%）、C 社 190億円（15.8%）、その他 180億円（15%）。欧州（計 750億円）: A 社 240億円（32%）、B 社 280億円（37.3%）、C 社 90億円（12%）、その他 140億円（18.7%）。日本（計 450億円）: A 社 100億円（22.2%）、B 社 60億円（13.3%）、C 社 220億円（48.9%）、その他 70億円（15.6%）。東南アジア（計 132億円）: A 社 40億円（30.3%）、B 社 20億円（15.2%）、C 社 12億円（9.1%）、その他 60億円（45.5%）</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-mekko.ts","sourceSha256":"bd84bf198e27cd90a0ebb51bbe5f8bd7efc3c519a56afff4436451a1bffff136"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="456" fill="#ffffff"/>
+
+  <path d="M70.58,22 H84.58 V36 H70.58 Z" fill="#ffffff"/>
+  <path d="M70.58,22 H84.58 V36 H70.58 Z" fill="#1d5fa8" fill-opacity="0.85" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="91" y="34" font-size="14" fill="#22201b">A 社</text>
+  <path d="M139.66,22 H153.66 V36 H139.66 Z" fill="#ffffff"/>
+  <path d="M139.66,22 H153.66 V36 H139.66 Z" fill="#1d5fa8" fill-opacity="0.6" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="160" y="34" font-size="14" fill="#22201b">B 社</text>
+  <path d="M209.16,22 H223.16 V36 H209.16 Z" fill="#ffffff"/>
+  <path d="M209.16,22 H223.16 V36 H209.16 Z" fill="#1d5fa8" fill-opacity="0.35" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="229" y="34" font-size="14" fill="#22201b">C 社</text>
+  <path d="M278.7,22 H292.7 V36 H278.7 Z" fill="#ffffff"/>
+  <path d="M278.7,22 H292.7 V36 H278.7 Z" fill="#1d5fa8" fill-opacity="0.12" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="299" y="34" font-size="14" fill="#22201b">その他</text>
+  <path d="M64.6,323 L912,323" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="328" text-anchor="end" font-size="14" fill="#6f6659">0%</text>
+  <path d="M64.6,270 L912,270" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="275" text-anchor="end" font-size="14" fill="#6f6659">20%</text>
+  <path d="M64.6,217 L912,217" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="222" text-anchor="end" font-size="14" fill="#6f6659">40%</text>
+  <path d="M64.6,164 L912,164" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="169" text-anchor="end" font-size="14" fill="#6f6659">60%</text>
+  <path d="M64.6,111 L912,111" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="116" text-anchor="end" font-size="14" fill="#6f6659">80%</text>
+  <path d="M64.6,58 L912,58" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="63" text-anchor="end" font-size="14" fill="#6f6659">100%</text>
+  <path d="M70.6,58 L70.6,323" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M70.6,210.2 H465.1 V323 H70.6 Z" fill="#ffffff"/>
+  <path d="M70.6,210.2 H465.1 V323 H70.6 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="268" y="272" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">A 社 43.3%</text>
+  <path d="M70.6,141.7 H465.1 V208.2 H70.6 Z" fill="#ffffff"/>
+  <path d="M70.6,141.7 H465.1 V208.2 H70.6 Z" fill="#1d5fa8" fill-opacity="0.6"/>
+  <text x="268" y="180" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">B 社 25.8%</text>
+  <path d="M70.6,99.8 H465.1 V139.8 H70.6 Z" fill="#ffffff"/>
+  <path d="M70.6,99.8 H465.1 V139.8 H70.6 Z" fill="#1d5fa8" fill-opacity="0.35"/>
+  <text x="268" y="125" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">C 社 15.8%</text>
+  <path d="M70.6,60 H465.1 V97.8 H70.6 Z" fill="#ffffff"/>
+  <path d="M70.6,60 H465.1 V97.8 H70.6 Z" fill="#1d5fa8" fill-opacity="0.12"/>
+  <text x="268" y="84" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">その他 15%</text>
+  <path d="M468.1,240.2 H714.7 V323 H468.1 Z" fill="#ffffff"/>
+  <path d="M468.1,240.2 H714.7 V323 H468.1 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="591" y="287" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">A 社 32%</text>
+  <path d="M468.1,141.3 H714.7 V238.2 H468.1 Z" fill="#ffffff"/>
+  <path d="M468.1,141.3 H714.7 V238.2 H468.1 Z" fill="#1d5fa8" fill-opacity="0.6"/>
+  <text x="591" y="195" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">B 社 37.3%</text>
+  <path d="M468.1,109.5 H714.7 V139.3 H468.1 Z" fill="#ffffff"/>
+  <path d="M468.1,109.5 H714.7 V139.3 H468.1 Z" fill="#1d5fa8" fill-opacity="0.35"/>
+  <text x="591" y="129" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">C 社 12%</text>
+  <path d="M468.1,60 H714.7 V107.5 H468.1 Z" fill="#ffffff"/>
+  <path d="M468.1,60 H714.7 V107.5 H468.1 Z" fill="#1d5fa8" fill-opacity="0.12"/>
+  <text x="591" y="89" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">その他 18.7%</text>
+  <path d="M717.7,266.1 H865.6 V323 H717.7 Z" fill="#ffffff"/>
+  <path d="M717.7,266.1 H865.6 V323 H717.7 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="792" y="300" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">A 社 22.2%</text>
+  <path d="M717.7,230.8 H865.6 V264.1 H717.7 Z" fill="#ffffff"/>
+  <path d="M717.7,230.8 H865.6 V264.1 H717.7 Z" fill="#1d5fa8" fill-opacity="0.6"/>
+  <text x="792" y="252" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">B 社 13.3%</text>
+  <path d="M717.7,101.2 H865.6 V228.8 H717.7 Z" fill="#ffffff"/>
+  <path d="M717.7,101.2 H865.6 V228.8 H717.7 Z" fill="#1d5fa8" fill-opacity="0.35"/>
+  <text x="792" y="170" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">C 社 48.9%</text>
+  <path d="M717.7,60 H865.6 V99.2 H717.7 Z" fill="#ffffff"/>
+  <path d="M717.7,60 H865.6 V99.2 H717.7 Z" fill="#1d5fa8" fill-opacity="0.12"/>
+  <text x="792" y="85" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">その他 15.6%</text>
+  <path d="M868.6,244.7 H912 V323 H868.6 Z" fill="#ffffff"/>
+  <path d="M868.6,244.7 H912 V323 H868.6 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <path d="M868.6,204.5 H912 V242.7 H868.6 Z" fill="#ffffff"/>
+  <path d="M868.6,204.5 H912 V242.7 H868.6 Z" fill="#1d5fa8" fill-opacity="0.6"/>
+  <path d="M868.6,180.5 H912 V202.6 H868.6 Z" fill="#ffffff"/>
+  <path d="M868.6,180.5 H912 V202.6 H868.6 Z" fill="#1d5fa8" fill-opacity="0.35"/>
+  <text x="890" y="197" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">9.1%</text>
+  <path d="M868.6,60 H912 V178.5 H868.6 Z" fill="#ffffff"/>
+  <path d="M868.6,60 H912 V178.5 H868.6 Z" fill="#1d5fa8" fill-opacity="0.12"/>
+  <text x="268" y="348" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">北米</text>
+  <text x="268" y="366" text-anchor="middle" font-size="14" fill="#6f6659">計 1,200億円</text>
+  <text x="268" y="384" text-anchor="middle" font-size="14" fill="#6f6659">（47.4%）</text>
+  <text x="591" y="348" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">欧州</text>
+  <text x="591" y="366" text-anchor="middle" font-size="14" fill="#6f6659">計 750億円</text>
+  <text x="591" y="384" text-anchor="middle" font-size="14" fill="#6f6659">（29.6%）</text>
+  <text x="792" y="348" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">日本</text>
+  <text x="792" y="366" text-anchor="middle" font-size="14" fill="#6f6659">計 450億円</text>
+  <text x="792" y="384" text-anchor="middle" font-size="14" fill="#6f6659">（17.8%）</text>
+  <text x="884" y="348" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">東南アジア</text>
+  <text x="884" y="366" text-anchor="middle" font-size="14" fill="#6f6659">計 132億円</text>
+  <text x="884" y="384" text-anchor="middle" font-size="14" fill="#6f6659">（5.2%）</text>
+
+  <text x="20" y="430" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>
