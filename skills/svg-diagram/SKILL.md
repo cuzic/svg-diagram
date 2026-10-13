@@ -43,9 +43,12 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
    - **接続点は、`const list = box({id: 'list'})` のハンドルで書く**: `connect(list.right, detail.at('top', 0.25))`（screens / swimlane は `flow.anchors.a.right`）。id を文字列で打ち直さないので、別の文にまたがっても未宣言の id や辺の綴り違いが作れない。`accept` のキー（ルール ID）や `legendLabels` のキー、`tone` / `line` / `route` なども閉じた文字列の型で、綴り違いは型エラーになる。
    - 型エラーは `check` の警告より前に直す。型を通っても、重なり・コントラスト・見た目は下のビルド・検査・目視で確かめる。
 2. **ビルド**: `svg-diagram build src.ts --out out.svg`（重なり検査と lint --strict まで走る。失敗するとエラー文が出る）
+   - PNG も要るとき（Word・チャット・PNG しか貼れない所）は `--png <dir> [--scale N]` を足す。同じビルドの SVG から `<dir>/<名前>.png` を書く（既定の倍率 2。段階表示の各段の SVG も PNG になる）。`--stale` と併用すると、PNG がない・SVG より古いときは作り直す。
 3. **ルール検査**: `svg-diagram check --strict src.ts`（コントラスト、凡例、線の交差、幅、密度、題名）
+   - `gray-tone-collision`（警告）: 使っている 2 つのトーンの塗りが白黒で見分けにくい（CIE L* の差が 10 未満。典型は plain の白と accent / new の soft）。どちらかを `solid` / `muted` にするか、ラベル・太字・破線など色以外の手がかりを足す。破線の有無が違う組、塗りが同じ組、muted / removed、canvas() のピルで言葉にした領域は数えない。カラーでしか使わない図は `diagram({accept: {'gray-tone-collision': '理由'}})`。
    - 凡例は、使った線種・トーンに必要な分だけ足す（`legend: 'auto'`）。記法が少なくて凡例が要らない図は、凡例を足さずに `diagram({legend: false})` で宣言する（`legend-missing` / `legend-incomplete` が出なくなる）。
 4. **目で見る**: `svg-diagram preview out.svg out.png 2` で PNG にし（並列で動かすときは出力名を省くと、一時ディレクトリに重ならない名前で書いてパスを表示する）、画像として読んで確認する（`svg-diagram show x.ts --png out.png` なら SVG を書かずにソースから直接 PNG にできる。`show` を `--png` なしで使うのは人が sixel 対応の端末で見るとき用で、エージェントの実行環境では端末がないためエラーになる）。**検査を通っても、レイアウトの良し悪しは目で見ないと分からない**。
+   - 白黒印刷や色覚の違う読者にどう見えるかは `svg-diagram preview out.svg out.png --gray`（明度だけにして描く）。
 5. **ズレ検査**: `svg-diagram check --drift --svg-dir <SVG の置き場> src.ts`（SVG が最新のソースから生成されたものか）
    - `--rebuild` を付けると、違いを言葉で説明する（「見た目は変わらない」ならそのまま再生成してよい）。
    表を図に置き換えたときは `svg-diagram check --covers <表.md|csv> <ソース.ts|図.svg>` で、表の語・数値が図から落ちていないか確かめる
