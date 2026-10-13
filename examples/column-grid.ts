@@ -4,7 +4,7 @@
 import {diagram, caption, box, row, connect} from 'svg-diagram';
 
 export default function define() {
-  const d = diagram({theme: 'blue', width: 940, gap: 28, title: '取り込み処理の構成（例）: 6 列グリッドの 3 段', legend: 'auto', connectDefaults: {chip: true, route: 'elbow'}});
+  const d = diagram({theme: 'blue', width: 940, gap: 28, title: '取り込み処理の構成（例）: 6 列グリッドの 3 段', legend: 'auto', connectDefaults: {chip: true, route: 'elbow'}, accept: {'gray-tone-collision': '入力（accent）と処理（plain）は段の位置と名前で読める。色は補助'}});
 
   const sources = row([
     box({id: 'cam', title: 'カメラ', body: '映像', tone: 'accent'}),

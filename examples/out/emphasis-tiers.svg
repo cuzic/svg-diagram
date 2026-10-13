@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="541" viewBox="0 0 940 541" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">施策の優先度(3 段階)</title>
   <desc id="svg-desc">要素: 検索改善、オンボーディング、レポート刷新、その他の改善</desc>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/emphasis-tiers.ts","sourceSha256":"379c80c10eb16e264713011258d0b8109918b48682ba6796ee39e97715f0d6e1"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/emphasis-tiers.ts","sourceSha256":"0d655a944e07fc82ddb8fe2101d51621a111368ce8534a523637b2d38ac499d6"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
