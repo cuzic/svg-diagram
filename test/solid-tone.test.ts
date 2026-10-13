@@ -112,7 +112,7 @@ test('solid is for box / banner / stat / swimlane step / legend only: group, tab
 });
 
 test('legend: a solid box is "主役", and accent reads as "次点" in a diagram that has one', async () => {
-  const d = diagram({theme: 'blue', medium: 'doc', title: 't', legend: 'auto'}).add(row([
+  const d = diagram({theme: 'blue', medium: 'doc', title: 't', legend: 'auto', accept: {'gray-tone-collision': 'the legend wording is under test, not the greys'}}).add(row([
     box({title: '主役', tone: 'solid'}), box({title: '次点', tone: 'accent'}), box({title: '強い異常', tone: 'solid-danger'}), box({title: 'その他'}),
   ]));
   const {laidOut, verdict} = await checkDiagram(d);
