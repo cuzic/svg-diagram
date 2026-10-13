@@ -132,6 +132,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
 | quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
 | chevron / funnel / cycle / venn / concentric | 流れ・絞り込み・循環・集合・階層を表す flowShapes。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 |
+| wordart(text, {style, writing, size, tone, gradient, outline, shadow, glow, bevel, extrude, reflection, arc, rotate, flip, font, plate, limit}) | 太字・縁取り・影・光彩・立体・反射・グラデーション・弧・回転の飾り文字と**縦書き**を band 1 つで。下の「ワードアート・縦書き」 |
 | plane({x, y, points, lines, dims, labels}) | 座標平面。軸・目盛り・点・補助線・**寸法線**・ラベルを、座標の単位のまま宣言する（地図 ↔ 画像の座標変換、位置の誤差）。`yDown: true` で画像座標。ラベルが、他のラベル・軸と矢印・目盛り・点・補助線・寸法線に重なる、または図からはみ出すと検査で止まる（寸法線の文字は、その線の上に載るのが正） 。`paths: [{through: [点の id か座標…], smooth?, dashed?, tone?, arrow?, reveal?}]` で複数点を通る線を引く（実線が既定。`smooth: true` は点を必ず通る曲線で、x が増える道筋は単調な 3 次補間（値を行き過ぎない）、そうでない道筋は centripetal Catmull-Rom。`smooth` なしは折れ線。曲線が軸の外に出る・ラベルに重なると検査で止まる。`examples/plane-paths.ts`）。`grow: true` を付けた path は、段階（`reveal`）ごとに、出ている点までの曲線を同じ形のまま伸ばす（`examples/plane-grow.ts`）。点のラベルは `labelAt` を書かなければ右に置き、線や他のラベルと重なるときは空いている側（左・上・下・斜め）へ自動で移る。`labelAt` で側を書くとそのまま、`labelOffset: [dx, dy]` で位置をずらせる。自動の置き場は寸法線（延長線を含む）・補助線・軸・目盛りも避ける。軸に `categories: ['営業', '開発', …]` を書くと、レーン名・段階名が 1, 2, 3 … の位置の目盛りになる（`max` は個数 + 1） |
 
 `wf.*`: col / row / card / spacer、text / btn / input / select / chip / tabs / appbar / seek、kv / stat / list / table / alert、map / video / heat / pointcloud / chart / image。
@@ -360,6 +361,38 @@ concentric([{label: '境界'}, {label: 'アプリ'}, {label: 'データ'}], {cen
 - `concentric`: 同心円。`order: 'outer-first' | 'inner-first'`（`rings` を書く順）、`centre`。`labels: 'inside'`（既定）は各層の帯の上部に、`'side'` は右の凡例に出して引き出し線で層につなぐ。`description` は「ラベル — 説明」で続く。
 - ラベルが図からはみ出す・ラベル同士が重なると検査で止まる。
 - 例: `examples/chevron-*.ts`、`funnel-*.ts`、`cycle-*.ts`、`venn-*.ts`、`concentric-*.ts`。
+
+### ワードアート・縦書き（`wordart`）
+
+見出し・表紙・縦長の飾りに使う飾り文字。水平でも縦書きでも同じ飾りが使える。色は token の鍵（`text | accent | muted | danger | bg | soft`）だけで、生の色は持たない。ぼかしフィルタも使わない（光彩は半透明の縁を重ねて作るので、描画器による差が出ない）。
+
+```ts
+wordart('新製品発表会', {style: 'sticker', size: 64})
+wordart('SALE 50% OFF', {style: 'outline', size: 56})
+wordart('虹形の見出し', {style: 'gradient', arc: 120})
+wordart('縦書きの見出し、「括弧」も整う。', {writing: 'vertical', size: 32, limit: 300})
+```
+
+| 機能 | 書き方 |
+|---|---|
+| スタイル | `style`: `plain`（細字）｜`bold`（既定）｜`outline`（白抜き + 濃い縁）｜`shadow`｜`sticker`（白い縁 + 濃い縁 + 影）｜`glow`｜`emboss`｜`3d`｜`gradient`｜`reflect`。以下のオプションで個別に上書きする |
+| フォント | `font: 'sans' | 'mono'`、`weight: 'normal' | 'bold'`、`spacing`（字間 px） |
+| 塗りつぶし | `tone`（token）。`tone: 'none'` は中抜き（縁取りが要る）。`gradient: {from, to, angle?}` は 2 色のグラデーション（`angle` は度、既定 90 = 上から下） |
+| 輪郭（縁取り） | `outline`: `true`、`{tone, width}`、または配列（内側から外側へ二重・三重）。`width` は px（省略は文字サイズの 6%） |
+| 影 | `shadow`: `true` か `{tone, dx, dy}`（ぼかしなしのずらし影） |
+| 光彩 | `glow`: `true` か `{tone, radius}` |
+| 面取り | `bevel: true`（左上に明るい縁、右下に暗い縁） |
+| 立体 | `extrude`: `true` か `{tone, depth}`（斜め右下へ奥行きを引く） |
+| 反射 | `reflection`: `true` か `{opacity, gap}`（文字の下に薄い鏡像） |
+| 変形 | `arc: 度`（正は上に反る虹形、負は下に垂れる笑顔形。1 行の横書きだけ。内側で文字が重なるほどきつい曲げは throw） |
+| 回転・反転 | `rotate: 度`（時計回り。帯は回した形の外接箱になる）、`flip: 'horizontal' | 'vertical' | 'both'`（回転より先に適用） |
+| サイズ・配置 | `size`（役割名、既定 `display`、または px で 14 以上）、`align`（`start｜center｜end`）、`limit`（横書き: 幅の上限で折り返す / 縦書き: 列の高さ） |
+| 板 | `plate`: 文字の下に敷く板の色（白い文字を濃い板に載せる） |
+
+- 縦書き（`writing: 'vertical'`）: 列は右から左、`\n` で列を替える。`limit`（px）を書くと、列がそれを超える手前で次の列へ移る（行頭禁則: `、。）」ー` や小さい仮名は前の列に残す。開き括弧は列末に残さない）。句読点は右上へ寄り、`ー`・`…`・`～`・括弧は縦組みの字形（90° 回転）、1〜2 桁の数字は縦中横、それ以外の英数字（`SVG`・`2026`）は右へ倒して 1 まとまりで置く。1 文字ずつ位置を決めるので、描画器による差が出ない。
+- 検査: 文字（グラデーションは両端の色）が背景（板があれば板）と 3:1 に満たず、縁取りでも読めない指定（白い文字を縁取りなしで白い紙に置く、中抜きに縁取りがない、など）は `verifyDiagram` が止める。影・光彩・立体・面取り・鏡像・外側の縁取りは `aria-hidden` の複製で、読み上げ・コピーでは本文が 1 回だけ出る（lint もそれを装飾として扱う）。
+- 遠近のある 3-D 回転は持たない（`extrude` の斜めの奥行きで立体感を出す）。今は band として縦に積むだけで、行の中で箱と並べる・箱の中を縦書きにする、は未対応。設計は `docs/adr/0009-vertical-text-and-wordart.md`。
+- 例: `examples/wordart.ts`。
 
 ### 象限図・分類マトリクス（`quadrant`）
 
@@ -893,6 +926,7 @@ versus(
 | `versus` の左・右・共通部 | 各 part の `reveal`（枠と中身。共通部への矢印は両端の大きい方） |
 | `quadrant` の band | opts の `reveal` / `until`（項目・矢印は図と一緒。項目単位の reveal はない。項目の id は図の段階で `connect` に出る） |
 | `chevron` / `funnel` / `cycle` / `venn` / `concentric` の band | opts の `reveal` / `until`（各項目の id は図と同じ段階で `connect` に出る） |
+| `wordart` の band | opts の `reveal` / `until`（`id` は図と同じ段階で `connect` に出る） |
 | `plane` の `points` / `lines` / `paths` / `dims` / `labels` | 要素の `reveal`（点のラベルは点と一緒）。未指定は plane 自身と、`id` で指した点の大きい方（座標で指した端点は 0）。端点より早い明示は警告 |
 | `connect` / `branch` | `reveal`（未指定は両端の大きい方） |
 | **受けない** | `legend` / `spacer` / `raw` / `pyramid` / `curve` / `wireframe` / `screens` / `stateMatrix` / `row` / `grid` / `iconRow` の opts。`reveal` を渡すと構築時に throw する |
