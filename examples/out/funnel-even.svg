@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="296" viewBox="0 0 940 296" role="img" aria-labelledby="svg-title">
   <title id="svg-title">候補の絞り込み</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/funnel-even.ts","sourceSha256":"02de9214915ff9ba7f65e99b3ef6b2c74c5d6153a4be2d1602c2ec28750ebd53","depsSha256":"a48cfa5c878f2658022bb0e0d6737fda82ae592cde8b7fc461c24bdd93d938f1"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/funnel-even.ts","sourceSha256":"04624f3d55d3652254676f5a776ab46891eb847ce541d770f72facf433b0bf03"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
@@ -11,8 +11,8 @@
   <polygon points="117.5,84 822.5,84 725,144 215,144" fill="#f6f8fa" stroke="#6f6659" stroke-width="2"/>
   <polygon points="215,148 725,148 627.5,208 312.5,208" fill="#f1e3d3" stroke="#a8632b" stroke-width="2"/>
   <polygon points="312.5,212 627.5,212 596,272 344,272" fill="#f6f8fa" stroke="#6f6659" stroke-width="2"/>
-  <text x="470" y="52.9" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">全候補</text>
-  <text x="470" y="116.9" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">一次選考</text>
-  <text x="470" y="180.9" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">最終候補</text>
-  <text x="470" y="244.9" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">採用</text>
+  <text x="470" y="55.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">全候補</text>
+  <text x="470" y="119.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">一次選考</text>
+  <text x="470" y="183.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">最終候補</text>
+  <text x="470" y="247.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">採用</text>
 </svg>

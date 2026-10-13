@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="296" viewBox="0 0 940 296" role="img" aria-labelledby="svg-title">
   <title id="svg-title">営業ファネル</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/funnel-sales.ts","sourceSha256":"d7107a18c09b2129b285c854d3dc2254e4658d77668016fe2f26958129fca034","depsSha256":"a48cfa5c878f2658022bb0e0d6737fda82ae592cde8b7fc461c24bdd93d938f1"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/funnel-sales.ts","sourceSha256":"b5e6d6efa64cdb31032e5a693cd86ac26360bcfac47f76124d6d5b5b76bef955"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
@@ -8,14 +8,14 @@
   <rect x="0" y="0" width="940" height="296" fill="#ffffff"/>
 
   <polygon points="20,20 920,20 627.5,80 312.5,80" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
-  <polygon points="312.5,84 627.5,84 537.5,144 402.5,144" fill="#f6f8fa" stroke="#6f6659" stroke-width="2"/>
-  <polygon points="395,148 545,148 537.5,208 402.5,208" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
+  <polygon points="312.5,84 627.5,84 545,144 395,144" fill="#f6f8fa" stroke="#6f6659" stroke-width="2"/>
+  <polygon points="395,148 545,148 545,208 395,208" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
   <polygon points="395,212 545,212 530,272 410,272" fill="#f6f8fa" stroke="#6f6659" stroke-width="2"/>
-  <text x="470" y="52.9" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">訪問  1200</text>
-  <text x="697.5" y="116.9" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">問い合わせ  420</text>
-  <text x="62" y="118.9" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">35%</text>
-  <text x="615" y="180.9" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">商談  160</text>
-  <text x="62" y="182.9" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">38%</text>
-  <text x="615" y="244.9" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">成約  52</text>
-  <text x="62" y="246.9" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">33%</text>
+  <text x="470" y="55.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">訪問  1200</text>
+  <text x="470" y="119.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">問い合わせ  420</text>
+  <text x="298.5" y="119.6" text-anchor="end" font-size="14" font-weight="400" fill="#6f6659">35%</text>
+  <text x="470" y="183.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">商談  160</text>
+  <text x="381" y="183.6" text-anchor="end" font-size="14" font-weight="400" fill="#6f6659">38%</text>
+  <text x="470" y="247.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">成約  52</text>
+  <text x="381" y="247.6" text-anchor="end" font-size="14" font-weight="400" fill="#6f6659">33%</text>
 </svg>
