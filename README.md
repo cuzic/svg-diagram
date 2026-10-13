@@ -53,7 +53,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram check --docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]   # 文書（Markdown）と図が食い違っていないか（--map: 図・ソース・SVG・文書の対応表を Markdown で出す）
     svg-diagram notes <source.ts>                        # 図の番号つき注釈を Markdown のリスト（1. **題名**：本文）で出す。文書に貼る
     svg-diagram diff old.svg new.svg                     # 2 つの SVG の違いを言葉で（見た目が変わるか）
-    svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX] [--per-page N | --pages N]  # 図の集まりを 1 枚に並べて、一度に目視する
+    svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX] [--per-page N | --pages N]  # 図の集まりを 1 枚に並べて、一度に目視する（--out の置き場が無ければ作る）
     svg-diagram lint  [file.svg ...] [--strict] [--fix] [--engine geometry|browser]   # 描画後の検査も、既定は SVG の幾何から（ブラウザなし）
     svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray]   # 既定の倍率 2。--gray: 白黒で描く。out を省くと一時ディレクトリに重ならない名前で書き、パスを表示
     svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium]   # ターミナルに sixel で直接表示（.ts は SVG を書かずに作って描く）
@@ -714,6 +714,7 @@ svg-diagram icons notice                        # 入れたアイコンのクレ
 ```
 
 - **`icons find <英単語>...`**: 検索結果から、ライセンスと形が合うものだけを残し、**プロジェクトの主セットを先頭**に出す（`--style fill|line|color`、`--set mdi,lucide`、`--limit N`）。各候補に `icons add` の行が付く。`--png sheet.png` で、`box({icon})` で描いた候補の一覧画像を作る（主セットの枠は色つき）。日本語は英語に直して渡す（Iconify の検索は英語。`svg-diagram` スキルがその手順を持つ）。
+- **書き込み先**: `add` / `add-set` / `remove` は、書いた `svg-diagram.icons.json` の絶対パスを毎回出す（親ディレクトリのファイルを遡って書いたときは、その旨も付く）。形式エラーには最小の正しい例 `{"version": 1, "icons": {}}` が付く（空の `{}` は不可）。
 - **用途別セット**: `icons sets` で一覧、`icons add-set <名前>` で入れる。`accounting`（領収書・請求書・銀行・承認・印鑑・財布・硬貨・電卓・契約書など 61 個）、`office`（人・会議・文書・メール・予定など）、`infra`（サーバー・DB・ネットワーク・クラウド・コンテナ・監視など）。名前は図のソースでそのまま使う（`box({icon: 'receipt'})`）。すでに入っている名前は上書きしない（自分で入れたアイコンはそのまま）。一覧は `lib/icon-sets.ts`（Iconify の id と短い名前の表）。
 - **名前がセットに無いとき**: 既定では、無い名前を**全部まとめて**報告して何も入れない（1 つの綴り違いで他が隠れない）。`icons add ... --skip-missing` なら、あるものだけ入れて、無かった名前を「飛ばした」と一覧する（ライセンス・形式のエラーは従来どおり中断。どれも無かったときは何も書かず終了コード 1。全部飛ばされたセットは主セットにならない）。
 - **並行実行**: `icons add` / `remove` / `add-pack` / `main` は `svg-diagram.icons.json.lock` で排他し、一時ファイル + rename で書く。複数のプロセスから同時に実行しても更新は失われない（落ちたプロセスのロックは自動で引き継ぐ）。
@@ -910,7 +911,7 @@ build は通常の最終形 `name.svg` に加え、段階表示を使う図だ�
 - 参照先の SVG がない（`doc-image-missing`、エラー）、代替テキストが空・155 文字超（`doc-alt-empty` / `doc-alt-long`）、どの文書からも参照されていない SVG（`doc-orphan-svg`）。`![alt](images/x.png)` の PNG 参照も見る: ファイルがない（`doc-image-missing`）、同じ名前の図のソース（`--src-dir`）も SVG（`--svg-dir`）もない（`doc-png-no-source`）、参照された PNG と同じフォルダにある、どこからも参照されていない PNG（`doc-orphan-png`。文書を絞ると行わない）。
 - 図に `notes` があるとき、画像の直後の**番号つきリスト**（`1. **題名**：本文`）と、題名・本文が一致するか（`doc-notes-mismatch` / `doc-notes-missing`）。図と文書の**二重管理**で、片方の直し忘れを見つける。
 - **図番号と本文**（警告）: キャプション `図N-M`（代替テキスト、または画像の前後の行の**行頭**）が章内で 1 から連番か・重複や順序の入れ替えがないか・章番号がファイル名の章（`03-x.md` / `ch3.md`）と合うか（`doc-fig-number`）、本文の `図N-M` が、この文書にない図を指していないか（`doc-fig-ref-missing`。別の章への参照とコードブロックは見ない）、代替テキストが `image` / `図` / ファイル名のままでないか（`doc-alt-placeholder`。空は従来どおり `doc-alt-empty`）、図の下の注釈の番号が 1 から順か（`doc-notes-number`）。
-- **一章だけ検査する**: `--docs` は**ディレクトリでも .md ファイルでもよく、何度でも**書ける。`--only 'docs/03-*.md'`（繰り返し可。`**` はフォルダをまたぎ、`*` `?` は 1 階層内。カレントからの相対パスかファイル名に合わせる）で、対象のページを絞る。**絞ったとき（.md 指定または `--only`）は、孤立 SVG（`doc-orphan-svg`）の検査をしない**（全ページを見ないと「参照されていない」とは言えないため）。その旨を 1 行出す。全体を見るときは、ディレクトリだけを指定する。
+- **一章だけ検査する**: `--docs` は**ディレクトリでも .md ファイルでもよく、何度でも**書ける（`--docs A.md B.md dir` のように空白で並べてもよい。後ろの .md とディレクトリはすべて文書で、図のソースではない。.ts / .mjs 以外をソースに渡すと分かるエラーで終わる）。`--only 'docs/03-*.md'`（繰り返し可。`**` はフォルダをまたぎ、`*` `?` は 1 階層内。カレントからの相対パスかファイル名に合わせる）で、対象のページを絞る。**絞ったとき（.md 指定または `--only`）は、孤立 SVG（`doc-orphan-svg`）の検査をしない**（全ページを見ないと「参照されていない」とは言えないため）。その旨を 1 行出す。全体を見るときは、ディレクトリだけを指定する。
 - `--map` で、図 / 図のソース / SVG / 使っている文書の**対応表**（Markdown）を標準出力に出す（参照のない SVG は「（参照なし）」）。手で書いた表の代わりに貼る。注釈の文は `svg-diagram notes <ソース>` で出せる（複数の画面に注釈があれば `<!-- 画面 N -->` で区切る）。
 - `--format json`（機械可読）、`--format github`（PR の注釈 `::warning file=…,line=…`）。
 

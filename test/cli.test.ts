@@ -376,3 +376,22 @@ test('init leaves the workspace file to an enclosing pnpm workspace; --map needs
   assert.equal(bin(root, 'check', '--map', 'x.ts').status, 2);
   assert.equal(bin(root, 'check', '--docs', '.', '--map', '--format', 'json').status, 2);
 });
+
+// ---- check --docs A.md B.md (space-separated) and a non-source argument -------------------------------
+test('check --docs A.md B.md: every following .md is a document; a .md given as a source is a clear error, not a crash', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-docs2-'));
+  fs.writeFileSync(path.join(root, 'A.md'), '# a\n');
+  fs.writeFileSync(path.join(root, 'B.md'), '# b\n');
+  const r = node(root, CHECK, '--docs', 'A.md', 'B.md');
+  assert.equal(r.status, 0, r.stderr);
+  fs.writeFileSync(path.join(root, 'B.md'), '# b\n\n![x](svg/gone.svg)\n');
+  const scanned = node(root, CHECK, '--docs', 'A.md', 'B.md');
+  assert.equal(scanned.status, 1, 'B.md is read as a document: its missing image is found');
+  assert.match(scanned.stdout + scanned.stderr, /B\.md:3 \[doc-image-missing\]/);
+  fs.writeFileSync(path.join(root, 'B.md'), '# b\n');
+  const bad = node(root, CHECK, 'B.md');
+  assert.equal(bad.status, 2);
+  assert.match(bad.stderr, /図のソース/);
+  assert.doesNotMatch(bad.stderr, /ERR_UNKNOWN_FILE_EXTENSION/);
+  fs.rmSync(root, {recursive: true});
+});
