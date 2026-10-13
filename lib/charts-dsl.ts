@@ -20,6 +20,10 @@ import {distAlt, resolveDist} from './charts-dist.ts';
 import type {DistGroup, DistKind, DistOpts} from './charts-dist.ts';
 import {multiAlt, resolveMulti} from './charts-multi.ts';
 import type {MultiMode, MultiOpts, XY} from './charts-multi.ts';
+import {regAlt, resolveReg} from './charts-reg.ts';
+import type {RegData, RegOpts} from './charts-reg.ts';
+import {clusterAlt, resolveCluster} from './charts-cluster.ts';
+import type {ClusterOpts} from './charts-cluster.ts';
 import {fail} from './charts-base.ts';
 import {resolveIcon} from './icon-registry.ts';
 import type {ChartBand} from './charts.ts';
@@ -87,4 +91,14 @@ export function distBand(who: string, data: readonly number[] | readonly DistGro
 export function multiBand(who: string, mode: MultiMode, data: XY | Readonly<Record<string, readonly number[]>>, opts: MultiOpts): ChartBand {
   const spec = resolveMulti(who, mode, data, opts);
   return {type: 'chart', kind: 'multiplot', spec, alt: opts.alt ?? multiAlt(spec), ids: [], ...common(who, opts)};
+}
+
+export function regBand(who: string, resid: boolean, data: RegData, opts: RegOpts): ChartBand {
+  const spec = resolveReg(who, resid, data, opts);
+  return {type: 'chart', kind: 'regplot', spec, alt: opts.alt ?? regAlt(spec), ids: [], ...common(who, opts)};
+}
+
+export function clusterBand(rows: readonly string[], cols: readonly string[], values: readonly (readonly number[])[], opts: ClusterOpts): ChartBand {
+  const spec = resolveCluster(rows, cols, values, opts);
+  return {type: 'chart', kind: 'clustermap', spec, alt: opts.alt ?? clusterAlt(spec), ids: [], ...common('clustermap', opts)};
 }

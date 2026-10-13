@@ -27,10 +27,13 @@ export interface DistOpts extends ChartOpts {
   element?: 'bars' | 'step';
   /** KDE: the bandwidth, as a multiple of Scott's (default 1; smaller follows the data more closely). */
   bw?: number;
+  /** Widen the axes to cover at least this range [min, max] — the same range on every panel of a facet() makes their axes the same. */
+  xRange?: readonly [number, number];
+  yRange?: readonly [number, number];
 }
 export interface DistSpec {
   groups: {label: string; id?: string; values: number[]}[];
-  kinds: DistKind[]; label: string; unit: string; stat: DistStat; element: 'bars' | 'step'; bw: number; bins?: number; binWidth?: number;
+  kinds: DistKind[]; label: string; unit: string; stat: DistStat; element: 'bars' | 'step'; bw: number; bins?: number; binWidth?: number; xRange?: [number, number]; yRange?: [number, number];
   /** The shared classes of the histogram. */
   edges?: number[];
 }
@@ -67,7 +70,8 @@ export function resolveDist(who: string, data: readonly number[] | readonly Dist
   if (kinds.includes('hist')) {
     try { edges = histogramBins(groups.flatMap(g => g.values), {bins: opts.bins, width: opts.binWidth}).edges; } catch (e) { fail(who, (e as Error).message.replace(/^histogram\(\): /, '')); }
   }
-  return {groups, kinds, label: opts.label ?? '', unit: opts.unit ?? '', stat, element, bw, ...(opts.bins === undefined ? {} : {bins: opts.bins}), ...(opts.binWidth === undefined ? {} : {binWidth: opts.binWidth}), ...(edges ? {edges} : {})};
+  const range = (k: 'xRange' | 'yRange') => { const r = opts[k]; if (r === undefined) return {}; if (!Array.isArray(r) || r.length !== 2 || !r.every(Number.isFinite) || !(r[0] < r[1])) fail(who, `${k} must be [min, max] with min < max (got ${JSON.stringify(r)})`); return {[k]: [r[0], r[1]]}; };
+  return {...range('xRange'), ...range('yRange'), groups, kinds, label: opts.label ?? '', unit: opts.unit ?? '', stat, element, bw, ...(opts.bins === undefined ? {} : {bins: opts.bins}), ...(opts.binWidth === undefined ? {} : {binWidth: opts.binWidth}), ...(edges ? {edges} : {})};
 }
 
 const ecdfStat = (s: DistSpec): string => s.stat === 'count' ? 'count' : s.stat === 'percent' ? 'percent' : 'proportion';
@@ -92,6 +96,7 @@ function plan(s: DistSpec): Plan {
   const bws = s.kinds.includes('kde') ? s.groups.map(g => kde(g.values, [0], s.bw).bw) : [];
   if (s.edges) { lo = Math.min(lo, s.edges[0]); hi = Math.max(hi, s.edges[s.edges.length - 1]); }
   if (bws.length) { lo = Math.min(lo, ...s.groups.map((g, i) => Math.min(...g.values) - 2 * bws[i])); hi = Math.max(hi, ...s.groups.map((g, i) => Math.max(...g.values) + 2 * bws[i])); }
+  if (s.xRange) { lo = Math.min(lo, s.xRange[0]); hi = Math.max(hi, s.xRange[1]); }
   const xs = niceScale(lo, hi);
   const bars = s.edges ? s.groups.map(g => binCounts(g.values, s.edges as number[]).map((c, i) => ({x0: (s.edges as number[])[i], x1: (s.edges as number[])[i + 1], y: heightOf(s.stat, c, g.values.length, classW(s))}))) : [];
   const curves = s.kinds.includes('kde') ? s.groups.map(g => {
@@ -100,7 +105,7 @@ function plan(s: DistSpec): Plan {
   }) : [];
   const top = s.kinds.includes('ecdf') ? (s.stat === 'count' ? Math.max(...s.groups.map(g => g.values.length)) : s.stat === 'percent' ? 100 : 1)
     : Math.max(0, ...bars.flat().map(b => b.y), ...curves.flat().map(p => p.y));
-  return {xs, ys: niceScale(0, top > 0 ? top : 1), curves, bars};
+  return {xs, ys: niceScale(0, Math.max(top > 0 ? top : 1, s.yRange?.[1] ?? 0)), curves, bars};
 }
 
 export function distTexts(s: DistSpec): [string, number][] {

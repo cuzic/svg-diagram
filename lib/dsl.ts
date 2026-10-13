@@ -31,7 +31,7 @@ import type {ArrowActivity} from './qc.ts';
 import {controlChartOpts, scatterOpts} from './qc-plane.ts';
 import {burndownOpts, burnupOpts, linesOpts, strategyCanvasOpts} from './charts-lines.ts';
 import type {BurndownSpec, BurnupSpec, LineSeries, LinesOpts, StrategyCanvasOpts} from './charts-lines.ts';
-import {catBand, distBand, multiBand, heatmapBand, radarBand, sankeyBand, treemapBand, stackedBand, tornadoBand, waterfallBand} from './charts-dsl.ts';
+import {catBand, clusterBand, distBand, multiBand, regBand, heatmapBand, radarBand, sankeyBand, treemapBand, stackedBand, tornadoBand, waterfallBand} from './charts-dsl.ts';
 import type {RadarOpts, RadarSeries} from './charts-radar.ts';
 import type {SankeyLink, SankeyNode, SankeyOpts} from './charts-sankey.ts';
 import type {TreemapNode, TreemapOpts} from './charts-treemap.ts';
@@ -41,6 +41,8 @@ import type {TornadoItem, TornadoOpts} from './charts-tornado.ts';
 import type {CatGroup, CatKind, CatOpts} from './charts-cat.ts';
 import type {DistGroup, DistKind, DistOpts} from './charts-dist.ts';
 import type {MultiOpts, XY} from './charts-multi.ts';
+import type {RegData, RegOpts} from './charts-reg.ts';
+import type {ClusterOpts} from './charts-cluster.ts';
 import type {ChartBand} from './charts.ts';
 import type {WaterfallOpts, WaterfallStep} from './charts-waterfall.ts';
 import {causalBand, dependencyBand, pertBand} from './semnet-dsl.ts';
@@ -1145,13 +1147,50 @@ export const ecdfplot = distOne('ecdf', 'ecdfplot') as typeof histplot;
 /** ラグプロット (seaborn rugplot): a tick for every value. */
 export const rugplot = distOne('rug', 'rugplot') as typeof histplot;
 
-const multiOne = (who: string, mode: 'hist2d' | 'joint' | 'pair') => <const Id extends string = never>(data: XY | Readonly<Record<string, readonly number[]>>, opts: MultiOpts & {id?: Id} = {}): ChartBand & Declares<Id> & HandleOf<Id> => withHandle(multiBand(who, mode, data, opts), opts.id) as never;
+const multiOne = (who: string, mode: 'hist2d' | 'kde2d' | 'joint' | 'pair') => <const Id extends string = never>(data: XY | Readonly<Record<string, readonly number[]>>, opts: MultiOpts & {id?: Id} = {}): ChartBand & Declares<Id> & HandleOf<Id> => withHandle(multiBand(who, mode, data, opts), opts.id) as never;
 /** 2次元ヒストグラム (seaborn histplot(x=, y=)): the points counted in round-sized cells, the count written in each and shaded. `hist2d({x: [..], y: [..]})` */
 export const hist2d = multiOne('hist2d', 'hist2d');
 /** ジョイントプロット (seaborn jointplot): a scatter with the histogram of each variable beside it. `jointplot({x: [..], y: [..], group?: [..]})` */
 export const jointplot = multiOne('jointplot', 'joint');
+/** 2次元密度 (seaborn kdeplot(x=, y=)): a Gaussian density over the plane as five filled bands with their contour lines. `kde2d({x: [..], y: [..]})` */
+export const kde2d = multiOne('kde2d', 'kde2d');
 /** 散布図行列 (seaborn pairplot): every pair of 2 to 6 variables as a scatter, each variable's histogram on the diagonal. `pairplot({身長: [..], 体重: [..]}, {groups: [..]})` */
 export const pairplot = multiOne('pairplot', 'pair');
+
+const regOne = (who: string, resid: boolean) => <const Id extends string = never>(data: RegData, opts: RegOpts & {id?: Id} = {}): ChartBand & Declares<Id> & HandleOf<Id> => withHandle(regBand(who, resid, data, opts), opts.id) as never;
+/** 回帰つき散布図 (seaborn regplot / lmplot): the points, the least-squares line (`order: 2 | 3` for a curve) and its 95% confidence band, one fit per group. `regplot({x: [..], y: [..], group?: [..]}, {stats: true})` */
+export const regplot = regOne('regplot', false);
+/** 残差プロット (seaborn residplot): the residuals around the same fit, with the zero line. */
+export const residplot = regOne('residplot', true);
+
+/**
+ * クラスタ付きヒートマップ (seaborn clustermap): a table whose rows and columns are put in the order of a hierarchical clustering (average linkage),
+ * with the two dendrograms beside it. `scale: 'row' | 'col'` scales each row / column to 0..1 before clustering and shading.
+ *   clustermap(['A 店', 'B 店', 'C 店'], ['朝', '昼', '夜'], [[3, 9, 4], [8, 2, 9], [4, 8, 3]], {unit: '件'})
+ */
+export function clustermap<const Id extends string = never>(rows: readonly string[], cols: readonly string[], values: readonly (readonly number[])[], opts: ClusterOpts & {id?: Id} = {}): ChartBand & Declares<Id> & HandleOf<Id> {
+  return withHandle(clusterBand(rows, cols, values, opts), opts.id) as never;
+}
+export interface FacetOpts {
+  /** Panels per row (default 2). The last row keeps the same column width. */
+  cols?: number;
+  /** Draw a frame (with the panel's name as its title) around each panel (default true; false: only the name above). */
+  frame?: boolean;
+}
+/**
+ * パネル分割 (seaborn FacetGrid / relplot / catplot's col=): one panel per key of `data`, each drawn by `make`, titled with the key, laid out in rows.
+ * Each panel scales itself, widening only to its own data: give the charts the same `xRange` / `yRange` (histplot / displot / regplot) to share the axes.
+ *   .add(...facet({東京: a, 大阪: b, 名古屋: c}, (name, values) => histplot(values, {xRange: [40, 100], yRange: [0, 8]}), {cols: 3}))
+ */
+export function facet<T>(data: Readonly<Record<string, T>>, make: (key: string, value: T, index: number) => Band, opts: FacetOpts = {}): RowBand[] {
+  const entries = Object.entries(data), cols = opts.cols ?? 2;
+  if (entries.length === 0) throw new Error('facet(data) needs at least one panel');
+  if (!Number.isInteger(cols) || cols < 1) throw new Error(`facet(): cols must be a whole number >= 1 (got ${opts.cols})`);
+  const panels = entries.map(([key, value], i) => group(make(key, value, i) as never, {title: key, span: 1, ...(opts.frame === false ? {frame: false} : {})}));
+  const rows: RowBand[] = [];
+  for (let i = 0; i < panels.length; i += cols) rows.push(row(panels.slice(i, i + cols) as never, {cols}) as never);
+  return rows;
+}
 
 type BarIds<D extends readonly BarDatum[]> = Extract<D[number]['id'], string>;
 export function bars<const D extends readonly BarDatum[], const Id extends string = never>(data: D, opts?: BarsOpts & {id?: Id}): BarsBand & Declares<Id | BarIds<D>> & HandleOf<Id> & AnchorsOf<BarIds<D>>;
@@ -2004,6 +2043,8 @@ export type {TornadoItem, TornadoOpts} from './charts-tornado.ts';
 export type {CatGroup, CatKind, CatOpts} from './charts-cat.ts';
 export type {DistGroup, DistKind, DistOpts, DistStat} from './charts-dist.ts';
 export type {MultiOpts, XY} from './charts-multi.ts';
+export type {RegData, RegOpts} from './charts-reg.ts';
+export type {ClusterOpts} from './charts-cluster.ts';
 export type {HeatmapOpts} from './charts-heatmap.ts';
 export type {RadarOpts, RadarSeries} from './charts-radar.ts';
 export type {BurndownSpec, BurnupSpec, LineSeries, LinesAnnotation, LinesAxis, LinesOpts, StrategyCanvasOpts} from './charts-lines.ts';

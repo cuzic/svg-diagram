@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="394" viewBox="0 0 940 394" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">店舗×商品の販売数（クラスタ付きヒートマップ）</title>
+  <desc id="svg-desc">クラスタ付きヒートマップ（行 渋谷・梅田・新宿・栄・池袋・名駅・難波・天王寺 / 列 コーヒー・ラテ・スープ・紅茶・サンド・ケーキ、値 10〜90個）</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-clustermap.ts","sourceSha256":"d22a4138abe7a0fe9f5c2d2f8c4a50af90a06ccc2547caefc6fa04e400b62ec5"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="394" fill="#ffffff"/>
+
+  <path d="M106,90 H232 V112 H106 Z" fill="#ffffff"/>
+  <path d="M106,90 H232 V112 H106 Z" fill="#1d5fa8" fill-opacity="0.9" stroke="#ffffff" stroke-width="1"/>
+  <text x="169" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">90個</text>
+  <path d="M232,90 H358 V112 H232 Z" fill="#ffffff"/>
+  <path d="M232,90 H358 V112 H232 Z" fill="#1d5fa8" fill-opacity="0.8" stroke="#ffffff" stroke-width="1"/>
+  <text x="295" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">80個</text>
+  <path d="M358,90 H484 V112 H358 Z" fill="#ffffff"/>
+  <path d="M358,90 H484 V112 H358 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#ffffff" stroke-width="1"/>
+  <text x="421" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">40個</text>
+  <path d="M484,90 H610 V112 H484 Z" fill="#ffffff"/>
+  <path d="M484,90 H610 V112 H484 Z" fill="#1d5fa8" fill-opacity="0.2" stroke="#ffffff" stroke-width="1"/>
+  <text x="547" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">20個</text>
+  <path d="M610,90 H736 V112 H610 Z" fill="#ffffff"/>
+  <path d="M610,90 H736 V112 H610 Z" fill="#1d5fa8" fill-opacity="0.2" stroke="#ffffff" stroke-width="1"/>
+  <text x="673" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">15個</text>
+  <path d="M736,90 H862 V112 H736 Z" fill="#ffffff"/>
+  <path d="M736,90 H862 V112 H736 Z" fill="#1d5fa8" fill-opacity="0.1" stroke="#ffffff" stroke-width="1"/>
+  <text x="799" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">12個</text>
+  <path d="M106,112 H232 V134 H106 Z" fill="#ffffff"/>
+  <path d="M106,112 H232 V134 H106 Z" fill="#1d5fa8" fill-opacity="0.9" stroke="#ffffff" stroke-width="1"/>
+  <text x="169" y="128" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">88個</text>
+  <path d="M232,112 H358 V134 H232 Z" fill="#ffffff"/>
+  <path d="M232,112 H358 V134 H232 Z" fill="#1d5fa8" fill-opacity="0.8" stroke="#ffffff" stroke-width="1"/>
+  <text x="295" y="128" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">78個</text>
+  <path d="M358,112 H484 V134 H358 Z" fill="#ffffff"/>
+  <path d="M358,112 H484 V134 H358 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#ffffff" stroke-width="1"/>
+  <text x="421" y="128" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">42個</text>
+  <path d="M484,112 H610 V134 H484 Z" fill="#ffffff"/>
+  <path d="M484,112 H610 V134 H484 Z" fill="#1d5fa8" fill-opacity="0.2" stroke="#ffffff" stroke-width="1"/>
+  <text x="547" y="128" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">22個</text>
+  <path d="M610,112 H736 V134 H610 Z" fill="#ffffff"/>
+  <path d="M610,112 H736 V134 H610 Z" fill="#1d5fa8" fill-opacity="0.2" stroke="#ffffff" stroke-width="1"/>
+  <text x="673" y="128" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">18個</text>
+  <path d="M736,112 H862 V134 H736 Z" fill="#ffffff"/>
+  <path d="M736,112 H862 V134 H736 Z" fill="#1d5fa8" fill-opacity="0.1" stroke="#ffffff" stroke-width="1"/>
+  <text x="799" y="128" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">10個</text>
+  <path d="M106,134 H232 V156 H106 Z" fill="#ffffff"/>
+  <path d="M106,134 H232 V156 H106 Z" fill="#1d5fa8" fill-opacity="0.9" stroke="#ffffff" stroke-width="1"/>
+  <text x="169" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">85個</text>
+  <path d="M232,134 H358 V156 H232 Z" fill="#ffffff"/>
+  <path d="M232,134 H358 V156 H232 Z" fill="#1d5fa8" fill-opacity="0.8" stroke="#ffffff" stroke-width="1"/>
+  <text x="295" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">75個</text>
+  <path d="M358,134 H484 V156 H358 Z" fill="#ffffff"/>
+  <path d="M358,134 H484 V156 H358 Z" fill="#1d5fa8" fill-opacity="0.5" stroke="#ffffff" stroke-width="1"/>
+  <text x="421" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">45個</text>
+  <path d="M484,134 H610 V156 H484 Z" fill="#ffffff"/>
+  <path d="M484,134 H610 V156 H484 Z" fill="#1d5fa8" fill-opacity="0.3" stroke="#ffffff" stroke-width="1"/>
+  <text x="547" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">25個</text>
+  <path d="M610,134 H736 V156 H610 Z" fill="#ffffff"/>
+  <path d="M610,134 H736 V156 H610 Z" fill="#1d5fa8" fill-opacity="0.2" stroke="#ffffff" stroke-width="1"/>
+  <text x="673" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">20個</text>
+  <path d="M736,134 H862 V156 H736 Z" fill="#ffffff"/>
+  <path d="M736,134 H862 V156 H736 Z" fill="#1d5fa8" fill-opacity="0.2" stroke="#ffffff" stroke-width="1"/>
+  <text x="799" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">15個</text>
+  <path d="M106,156 H232 V178 H106 Z" fill="#ffffff"/>
+  <path d="M106,156 H232 V178 H106 Z" fill="#1d5fa8" fill-opacity="0.6" stroke="#ffffff" stroke-width="1"/>
+  <text x="169" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">60個</text>
+  <path d="M232,156 H358 V178 H232 Z" fill="#ffffff"/>
+  <path d="M232,156 H358 V178 H232 Z" fill="#1d5fa8" fill-opacity="0.6" stroke="#ffffff" stroke-width="1"/>
+  <text x="295" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">55個</text>
+  <path d="M358,156 H484 V178 H358 Z" fill="#ffffff"/>
+  <path d="M358,156 H484 V178 H358 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#ffffff" stroke-width="1"/>
+  <text x="421" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">35個</text>
+  <path d="M484,156 H610 V178 H484 Z" fill="#ffffff"/>
+  <path d="M484,156 H610 V178 H484 Z" fill="#1d5fa8" fill-opacity="0.5" stroke="#ffffff" stroke-width="1"/>
+  <text x="547" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">50個</text>
+  <path d="M610,156 H736 V178 H610 Z" fill="#ffffff"/>
+  <path d="M610,156 H736 V178 H610 Z" fill="#1d5fa8" fill-opacity="0.5" stroke="#ffffff" stroke-width="1"/>
+  <text x="673" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">45個</text>
+  <path d="M736,156 H862 V178 H736 Z" fill="#ffffff"/>
+  <path d="M736,156 H862 V178 H736 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#ffffff" stroke-width="1"/>
+  <text x="799" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">40個</text>
+  <path d="M106,178 H232 V200 H106 Z" fill="#ffffff"/>
+  <path d="M106,178 H232 V200 H106 Z" fill="#1d5fa8" fill-opacity="0.3" stroke="#ffffff" stroke-width="1"/>
+  <text x="169" y="194" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">30個</text>
+  <path d="M232,178 H358 V200 H232 Z" fill="#ffffff"/>
+  <path d="M232,178 H358 V200 H232 Z" fill="#1d5fa8" fill-opacity="0.3" stroke="#ffffff" stroke-width="1"/>
+  <text x="295" y="194" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">25個</text>
+  <path d="M358,178 H484 V200 H358 Z" fill="#ffffff"/>
+  <path d="M358,178 H484 V200 H358 Z" fill="#1d5fa8" fill-opacity="0.2" stroke="#ffffff" stroke-width="1"/>
+  <text x="421" y="194" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">20個</text>
+  <path d="M484,178 H610 V200 H484 Z" fill="#ffffff"/>
+  <path d="M484,178 H610 V200 H484 Z" fill="#1d5fa8" fill-opacity="0.8" stroke="#ffffff" stroke-width="1"/>
+  <text x="547" y="194" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">80個</text>
+  <path d="M610,178 H736 V200 H610 Z" fill="#ffffff"/>
+  <path d="M610,178 H736 V200 H610 Z" fill="#1d5fa8" fill-opacity="0.7" stroke="#ffffff" stroke-width="1"/>
+  <text x="673" y="194" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">70個</text>
+  <path d="M736,178 H862 V200 H736 Z" fill="#ffffff"/>
+  <path d="M736,178 H862 V200 H736 Z" fill="#1d5fa8" fill-opacity="0.7" stroke="#ffffff" stroke-width="1"/>
+  <text x="799" y="194" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">65個</text>
+  <path d="M106,200 H232 V222 H106 Z" fill="#ffffff"/>
+  <path d="M106,200 H232 V222 H106 Z" fill="#1d5fa8" fill-opacity="0.3" stroke="#ffffff" stroke-width="1"/>
+  <text x="169" y="216" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">32個</text>
+  <path d="M232,200 H358 V222 H232 Z" fill="#ffffff"/>
+  <path d="M232,200 H358 V222 H232 Z" fill="#1d5fa8" fill-opacity="0.3" stroke="#ffffff" stroke-width="1"/>
+  <text x="295" y="216" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">28個</text>
+  <path d="M358,200 H484 V222 H358 Z" fill="#ffffff"/>
+  <path d="M358,200 H484 V222 H358 Z" fill="#1d5fa8" fill-opacity="0.2" stroke="#ffffff" stroke-width="1"/>
+  <text x="421" y="216" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">22個</text>
+  <path d="M484,200 H610 V222 H484 Z" fill="#ffffff"/>
+  <path d="M484,200 H610 V222 H484 Z" fill="#1d5fa8" fill-opacity="0.8" stroke="#ffffff" stroke-width="1"/>
+  <text x="547" y="216" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">82個</text>
+  <path d="M610,200 H736 V222 H610 Z" fill="#ffffff"/>
+  <path d="M610,200 H736 V222 H610 Z" fill="#1d5fa8" fill-opacity="0.7" stroke="#ffffff" stroke-width="1"/>
+  <text x="673" y="216" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">74個</text>
+  <path d="M736,200 H862 V222 H736 Z" fill="#ffffff"/>
+  <path d="M736,200 H862 V222 H736 Z" fill="#1d5fa8" fill-opacity="0.7" stroke="#ffffff" stroke-width="1"/>
+  <text x="799" y="216" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">68個</text>
+  <path d="M106,222 H232 V244 H106 Z" fill="#ffffff"/>
+  <path d="M106,222 H232 V244 H106 Z" fill="#1d5fa8" fill-opacity="0.3" stroke="#ffffff" stroke-width="1"/>
+  <text x="169" y="238" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">28個</text>
+  <path d="M232,222 H358 V244 H232 Z" fill="#ffffff"/>
+  <path d="M232,222 H358 V244 H232 Z" fill="#1d5fa8" fill-opacity="0.3" stroke="#ffffff" stroke-width="1"/>
+  <text x="295" y="238" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">30個</text>
+  <path d="M358,222 H484 V244 H358 Z" fill="#ffffff"/>
+  <path d="M358,222 H484 V244 H358 Z" fill="#1d5fa8" fill-opacity="0.2" stroke="#ffffff" stroke-width="1"/>
+  <text x="421" y="238" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">18個</text>
+  <path d="M484,222 H610 V244 H484 Z" fill="#ffffff"/>
+  <path d="M484,222 H610 V244 H484 Z" fill="#1d5fa8" fill-opacity="0.8" stroke="#ffffff" stroke-width="1"/>
+  <text x="547" y="238" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">78個</text>
+  <path d="M610,222 H736 V244 H610 Z" fill="#ffffff"/>
+  <path d="M610,222 H736 V244 H610 Z" fill="#1d5fa8" fill-opacity="0.7" stroke="#ffffff" stroke-width="1"/>
+  <text x="673" y="238" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">72個</text>
+  <path d="M736,222 H862 V244 H736 Z" fill="#ffffff"/>
+  <path d="M736,222 H862 V244 H736 Z" fill="#1d5fa8" fill-opacity="0.6" stroke="#ffffff" stroke-width="1"/>
+  <text x="799" y="238" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">60個</text>
+  <path d="M106,244 H232 V266 H106 Z" fill="#ffffff"/>
+  <path d="M106,244 H232 V266 H106 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#ffffff" stroke-width="1"/>
+  <text x="169" y="260" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">35個</text>
+  <path d="M232,244 H358 V266 H232 Z" fill="#ffffff"/>
+  <path d="M232,244 H358 V266 H232 Z" fill="#1d5fa8" fill-opacity="0.2" stroke="#ffffff" stroke-width="1"/>
+  <text x="295" y="260" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">22個</text>
+  <path d="M358,244 H484 V266 H358 Z" fill="#ffffff"/>
+  <path d="M358,244 H484 V266 H358 Z" fill="#1d5fa8" fill-opacity="0.3" stroke="#ffffff" stroke-width="1"/>
+  <text x="421" y="260" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">25個</text>
+  <path d="M484,244 H610 V266 H484 Z" fill="#ffffff"/>
+  <path d="M484,244 H610 V266 H484 Z" fill="#1d5fa8" fill-opacity="0.8" stroke="#ffffff" stroke-width="1"/>
+  <text x="547" y="260" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">75個</text>
+  <path d="M610,244 H736 V266 H610 Z" fill="#ffffff"/>
+  <path d="M610,244 H736 V266 H610 Z" fill="#1d5fa8" fill-opacity="0.7" stroke="#ffffff" stroke-width="1"/>
+  <text x="673" y="260" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">68個</text>
+  <path d="M736,244 H862 V266 H736 Z" fill="#ffffff"/>
+  <path d="M736,244 H862 V266 H736 Z" fill="#1d5fa8" fill-opacity="0.7" stroke="#ffffff" stroke-width="1"/>
+  <text x="799" y="260" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">70個</text>
+  <text x="870" y="106" font-size="14" fill="#22201b">渋谷</text>
+  <text x="870" y="128" font-size="14" fill="#22201b">梅田</text>
+  <text x="870" y="150" font-size="14" fill="#22201b">新宿</text>
+  <text x="870" y="172" font-size="14" fill="#22201b">栄</text>
+  <text x="870" y="194" font-size="14" fill="#22201b">池袋</text>
+  <text x="870" y="216" font-size="14" fill="#22201b">名駅</text>
+  <text x="870" y="238" font-size="14" fill="#22201b">難波</text>
+  <text x="870" y="260" font-size="14" fill="#22201b">天王寺</text>
+  <text x="169" y="286" text-anchor="middle" font-size="14" fill="#22201b">コーヒー</text>
+  <text x="295" y="286" text-anchor="middle" font-size="14" fill="#22201b">ラテ</text>
+  <text x="421" y="286" text-anchor="middle" font-size="14" fill="#22201b">スープ</text>
+  <text x="547" y="286" text-anchor="middle" font-size="14" fill="#22201b">紅茶</text>
+  <text x="673" y="286" text-anchor="middle" font-size="14" fill="#22201b">サンド</text>
+  <text x="799" y="286" text-anchor="middle" font-size="14" fill="#22201b">ケーキ</text>
+  <path d="M673,84 L673,75.8 M799,84 L799,75.8 M673,75.8 L799,75.8 M169,84 L169,73.5 M295,84 L295,73.5 M169,73.5 L295,73.5 M547,84 L547,72.1 M736,75.8 L736,72.1 M547,72.1 L736,72.1 M421,84 L421,49.8 M232,73.5 L232,49.8 M421,49.8 L232,49.8 M641.5,72.1 L641.5,24 M326.5,49.8 L326.5,24 M641.5,24 L326.5,24" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M100,101 L96.4,101 M100,123 L96.4,123 M96.4,101 L96.4,123 M100,189 L95.5,189 M100,211 L95.5,211 M95.5,189 L95.5,211 M100,233 L93.7,233 M95.5,200 L93.7,200 M93.7,233 L93.7,200 M100,145 L93.5,145 M96.4,112 L93.5,112 M93.5,145 L93.5,112 M100,255 L91.2,255 M93.7,216.5 L91.2,216.5 M91.2,255 L91.2,216.5 M100,167 L60,167 M93.5,128.5 L60,128.5 M60,167 L60,128.5 M91.2,235.8 L28,235.8 M60,147.8 L28,147.8 M28,235.8 L28,147.8" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <text x="20" y="314" font-size="14" fill="#6f6659">最小 10個</text>
+  <path d="M89.56,302 H107.56 V316 H89.56 Z" fill="#ffffff"/>
+  <path d="M89.56,302 H107.56 V316 H89.56 Z" fill="#1d5fa8" fill-opacity="0.1" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M107.56,302 H125.56 V316 H107.56 Z" fill="#ffffff"/>
+  <path d="M107.56,302 H125.56 V316 H107.56 Z" fill="#1d5fa8" fill-opacity="0.3" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M125.56,302 H143.56 V316 H125.56 Z" fill="#ffffff"/>
+  <path d="M125.56,302 H143.56 V316 H125.56 Z" fill="#1d5fa8" fill-opacity="0.5" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M143.56,302 H161.56 V316 H143.56 Z" fill="#ffffff"/>
+  <path d="M143.56,302 H161.56 V316 H143.56 Z" fill="#1d5fa8" fill-opacity="0.7" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M161.56,302 H179.56 V316 H161.56 Z" fill="#ffffff"/>
+  <path d="M161.56,302 H179.56 V316 H161.56 Z" fill="#1d5fa8" fill-opacity="0.9" stroke="#e0d6c5" stroke-width="1"/>
+  <text x="188" y="314" font-size="14" fill="#6f6659">最大 90個</text>
+
+  <text x="20" y="368" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>
