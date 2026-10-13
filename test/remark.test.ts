@@ -21,7 +21,7 @@ test('a diagram source renders inline, relative to the file; other images and co
   const dir = tmp();
   fs.writeFileSync(path.join(dir, 'flow.ts'), ok('流れ'));
   const out = String(await html().process({path: path.join(dir, 'page.md'), value: '![流れ図](flow.ts)\n\n![x](a.png) `![y](flow.ts)`\n\n```md\n![z](flow.ts)\n```\n'}));
-  assert.match(out, /<svg role="img" aria-label="流れ図"[^]*<\/svg>/);
+  assert.match(out, /<svg [^>]*role="img" aria-label="流れ図"[^]*<\/svg>/);
   assert.match(out, /<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"[^>]* viewBox="0 0 \d+ \d+"/);
   assert.match(out, /<text\b[^>]*>[^<]*流れ/);
   assert.match(out, /<img src="a\.png" alt="x">/);
