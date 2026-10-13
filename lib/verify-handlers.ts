@@ -8,6 +8,7 @@ import {checkChart} from './charts-verify.ts';
 import {PALETTE, colorOf, luminance as lightLuminance, runColorOf, paintOf} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 import {spotlightDim} from './spotlight.ts';
+import {legibilityProblem} from './wordart.ts';
 import {CONTRAST_THRESHOLD, dxdy, eachOverlap, labelOf, neverTogether, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import type {EmphasisTone, CheckRect, LaidOutBanner, LaidOutBox, LaidOutCaption, LaidOutDiagram, Rect} from './types.ts';
@@ -19,7 +20,7 @@ export interface VerifyOut {problems: string[]; warnings: string[]}
  * The order the figure checks run in: every phase goes over all the bands, then the next one starts, so the findings of one kind
  * stay together (and in band order) whichever band types produce them.
  */
-export const CHECK_PHASES = ['plane', 'quadrant', 'flow', 'bars', 'chart', 'image', 'timeline', 'states', 'cause', 'cloud', 'gantt', 'classes', 'bpmn', 'nowrap'] as const;
+export const CHECK_PHASES = ['plane', 'quadrant', 'flow', 'wordart', 'bars', 'chart', 'image', 'timeline', 'states', 'cause', 'cloud', 'gantt', 'classes', 'bpmn', 'nowrap'] as const;
 export type CheckPhase = typeof CHECK_PHASES[number];
 
 export interface VerifyHandler<B> {
@@ -246,6 +247,13 @@ const checkFlowShape = (band: LaidOutOf<'chevron' | 'funnel' | 'cycle' | 'venn' 
   eachOverlap(band.labelBoxes, (a, b, o) => { if (o.dx > 1 && o.dy > 1) problems.push(`${band.type}: label "${a.label}" overlaps label "${b.label}" by ${dxdy(o)}`); });
 };
 
+// wordart(): the letters must read against what is behind them (see legibilityProblem), and stay inside the figure.
+const checkWordArt = (band: LaidOutOf<'wordart'>, d: LaidOutDiagram, {problems}: VerifyOut): void => {
+  const why = legibilityProblem(band.look, d.day);
+  if (why) problems.push(`wordart "${band.text.slice(0, 20)}": ${why}`);
+  for (const t of band.labelBoxes) if (outsideBox(t, band)) problems.push(`wordart "${band.text.slice(0, 20)}": a ${band.writing} run reaches outside the figure`);
+};
+
 // plane(): every label it placed must stay inside the figure and clear of the other labels.
 const checkPlane = (band: LaidOutOf<'plane'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
   const boxes = band.labelBoxes, fig = band.bounds;
@@ -346,6 +354,7 @@ export const VERIFY_HANDLERS = {
   dots: {rects: ownRect},
   quadrant: {rects: figureRects, check: {phase: 'quadrant', run: checkQuadrant}},
   chevron: {rects: figureRects, check: flowCheck},
+  wordart: {rects: ownRect, check: {phase: 'wordart', run: checkWordArt}},
   funnel: {rects: figureRects, check: flowCheck},
   cycle: {rects: figureRects, check: flowCheck},
   venn: {rects: overlappingFigureRects, check: flowCheck},

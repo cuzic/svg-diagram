@@ -13,6 +13,7 @@ import {dotsTexts, peopleTexts} from './people.ts';
 import {timelineTexts} from './timeline.ts';
 import {quadrantTexts} from './quadrant.ts';
 import {flowShapeTexts} from './flow-shapes.ts';
+import {wordArtTexts} from './wordart.ts';
 import {treeTexts} from './tree.ts';
 import {statesTexts} from './states.ts';
 import {causeTexts, cloudTexts} from './toc.ts';
@@ -101,6 +102,7 @@ export const MEASURE_HANDLERS = {
   plane: fromTuples(planeTexts),
   quadrant: fromTuples(quadrantTexts),
   chevron: fromTuples(flowShapeTexts),
+  wordart: fromTuples(wordArtTexts),
   funnel: fromTuples(flowShapeTexts),
   cycle: fromTuples(flowShapeTexts),
   venn: fromTuples(flowShapeTexts),
