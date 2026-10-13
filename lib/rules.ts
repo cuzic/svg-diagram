@@ -37,7 +37,7 @@ export const RULE_DOCS = {
   'image-large': '埋め込んだ画像が大きい（300 KB 超）。ファイルがそのまま SVG に入り、段階表示の各ファイルにも入る。縮小・圧縮してから使う',
   'source-wraps': '出典行（diagram({sourceLine})）が 1 行に収まらず折り返している（短くする）',
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
-  'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える）',
+  'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える。凡例が要らない図は diagram({legend: false})）',
   'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる',
   'rowheader-tone-collides': '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある',
   'swimlane-lanes': 'レーンが多い（6 本まで）',
@@ -45,6 +45,7 @@ export const RULE_DOCS = {
   'edge-crossings': '線どうしの交差・重なりがある',
   'quadrant-item-moved': 'quadrant() の項目が、重なりを避けるため指定した座標から 16px 以上動いた（座標は目安として読まれる）',
   'quadrant-size-floor': 'quadrant() の項目の size が小さすぎ、最小の円で描いた（面積が値より大きく見える）',
+  'quadrant-empty-cell': 'quadrant() のマスに項目が 1 つもない（「該当なし」の空の枠が残っている。意図した空きは allowEmpty で示す）',
   'quadrant-tone-only': 'quadrant() の項目の色（tone）だけで種類を分けている（group を使うと形と凡例でも伝わる）',
   'arrow-labels': '一部にだけラベルがあり、ラベルのない矢印が多い',
   'canvas-region-empty': 'canvas() の領域に内容がない（requireAll: 全領域を埋める指定）',
@@ -226,6 +227,7 @@ function nonTextContrast(d: LintTarget, out: Finding[]): void {
 }
 
 function legendRules(d: LintTarget, out: Finding[]): void {
+  if (d.legend === false) return; // the author declared that this diagram needs no legend
   const used = usedNotation(d.bands, dimmedBands(d)), have = legendKeys(d.bands);
   if (!used.size) return;
   const hasLegend = walkBands(d.bands).some(b => b.type === 'legend');
@@ -420,6 +422,7 @@ function lintAll(d: LintTarget): Finding[] {
   for (const b of d.laidOut ?? []) if (b.type === 'quadrant') {
     const far = b.moved.filter(m => m.px >= 16);
     if (far.length) out.push({rule: 'quadrant-item-moved', severity: 'warn', message: `quadrant() の項目 ${far.map(m => `「${m.label}」(${Math.round(m.px)}px)`).join('、')} が、他の項目やラベルを避けて座標から離れた。座標を離すか、図を大きくする`});
+    if (b.emptyCells.length) out.push({rule: 'quadrant-empty-cell', severity: 'warn', message: `quadrant() のマス ${b.emptyCells.map(l => `「${l}」`).join('、')} に項目がない（空の枠が残っている）。項目を入れるか、マスを減らす。意図した空きなら quadrant({allowEmpty: [[col, row]]}) （全部なら true）`});
     if (b.floored.length) out.push({rule: 'quadrant-size-floor', severity: 'warn', message: `quadrant() の項目 ${b.floored.map(l => `「${l}」`).join('、')} の size が最大の値に比べて小さすぎ、最小の円で描いた（面積が値より大きく見える）。値の差が大きすぎるなら、大きさではなく文字で示す`});
   }
   for (const b of walkBands(d.bands)) if (b.type === 'quadrant' && !b.groups.length && new Set(b.items.flatMap(i => i.tone ? [i.tone] : [])).size >= 2) out.push({rule: 'quadrant-tone-only', severity: 'warn', message: 'quadrant() の項目を tone（色）だけで分けている。色だけでは意味が伝わらない。group を指定する（形と凡例が付く）'});

@@ -44,6 +44,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
    - 型エラーは `check` の警告より前に直す。型を通っても、重なり・コントラスト・見た目は下のビルド・検査・目視で確かめる。
 2. **ビルド**: `svg-diagram build src.ts --out out.svg`（重なり検査と lint --strict まで走る。失敗するとエラー文が出る）
 3. **ルール検査**: `svg-diagram check --strict src.ts`（コントラスト、凡例、線の交差、幅、密度、題名）
+   - 凡例は、使った線種・トーンに必要な分だけ足す（`legend: 'auto'`）。記法が少なくて凡例が要らない図は、凡例を足さずに `diagram({legend: false})` で宣言する（`legend-missing` / `legend-incomplete` が出なくなる）。
 4. **目で見る**: `svg-diagram preview out.svg out.png 2` で PNG にし、画像として読んで確認する（`svg-diagram show x.ts --png out.png` なら SVG を書かずにソースから直接 PNG にできる。`show` を `--png` なしで使うのは人が sixel 対応の端末で見るとき用で、エージェントの実行環境では端末がないためエラーになる）。**検査を通っても、レイアウトの良し悪しは目で見ないと分からない**。
 5. **ズレ検査**: `svg-diagram check --drift --svg-dir <SVG の置き場> src.ts`（SVG が最新のソースから生成されたものか）
    - `--rebuild` を付けると、違いを言葉で説明する（「見た目は変わらない」ならそのまま再生成してよい）。
@@ -124,6 +125,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | 矢印 | `arrows: [{from: id, to: id｜[x, y], label?}]`（ポートフォリオの移動） |
 
 - 評価は色だけにしない。マスの見出し・説明を文字で書き、項目の種類は `tone` ではなく `group` で分ける（`quadrant-tone-only`）。
+- 項目のないマスは `quadrant-empty-cell`（警告）。項目を入れるか、意図した空きなら `allowEmpty: [[col, row]]` / `true` で示す。
 - 項目は重ならず、混めば行が伸びる。座標から大きく動いた項目は `quadrant-item-moved` が知らせるので、座標か図の大きさを見直す。矢印が項目やラベルを横切るときは項目の位置を替える。
 - 座標は値の空間（BCG のように x を高い→低い向きに描いても、シェアが高ければ x は 1 に近い）。マスの境目（0.5 など）の項目は、高い側のマスに入る。
 - 描いたら `svg-diagram preview` で見る。例は `examples/quadrant-*.ts`。

@@ -350,6 +350,7 @@ quadrant({x: {title: '価格', low: '安い', high: '高い'}, y: {title: '携�
 - **重ならない**: 項目と項目、項目と他のラベル・マスの見出し・矢印は重ならない。項目の印とラベルは自分のマスの枠の中に収まる（枠をまたぐと別のマスに見える）。`cell` の項目が多いと、その行が伸びる。座標が近い項目は、同じマスの中で最も近い空きへ動く（動かせないほど混むと、行の高さ（`height` は最小値）を伸ばす。それでも置けなければ、どの項目か書いて throw）。座標から 16px 以上動いた項目は `quadrant-item-moved`（警告）で知らせる。
 - **大きさ**: `size` を書くと円の**面積**が値に比例する。1 つに書いたら全部の項目に書く（書かない項目は小さな値に見えるので throw）。図の下に「円の面積 = {sizeTitle}」と基準の円（切りのよい値、`sizeUnit` 付き）が付く。最大の 1/50 ほどより小さい値は最小の円（半径 6px）で描き、`quadrant-size-floor`（警告）で知らせる（面積が値より大きく見える）。
 - **色だけにしない**: マスの評価は常に見出し・説明の文字で書く（色・破線は補助）。項目の種類は `group` で分ける（円・四角・ひし形・三角と色の組み合わせ、5 つ目からは中抜きの形。凡例付き。8 グループまで）。1 つに書いたら全部の項目に書く（書かない項目は 1 つ目のグループと同じ印に見えるので throw）。`tone` だけで分けると `quadrant-tone-only`（警告）。凡例の順は `groups: [...]`。
+- **空のマス**: 項目が 1 つもないマスは「空の枠」が残るので `quadrant-empty-cell`（警告。マスは「見出し (列, 行)」で示す）。項目を入れるか、意図した空きなら `allowEmpty: [[col, row]]`（上から数えた 0 始まり。全部なら `allowEmpty: true`）で示す。図ごとに理由を残すなら `accept: {'quadrant-empty-cell': '理由'}`（情報に下がる）。
 - **矢印**（ポートフォリオの移動）: `arrows: [{from: 項目の id｜[x, y], to: 同左, label?, dashed?}]`。円の縁から縁へ引き、ラベルは線上の白い札。矢印が項目やラベルを横切ると検査で止まる。
 - **id**: 項目の `id` は `connect()` と spotlight の対象（図全体の `id` も）。段階表示は図ごと（項目単位の reveal はない）。
 - **幅**: x 軸の名前（低・タイトル・高）が 1 行で入らない、1 マスが 90px 未満（列が多すぎる）、1 つのラベルがマスより広いときは throw。
@@ -813,7 +814,7 @@ build は通常の最終形 `name.svg` に加え、段階表示を使う図だ�
 Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Gothic）は幅 1px・高さ 1px 以内、mono（Consolas など hinting の効くフォント）は Chromium が advance を整数ピクセルに丸める（切り上げることもある）ため、1 字あたり 1px 以内。例の図 3 つは、どちらの方式でも SVG がバイト単位で同じだった。フォントに無い字は emoji → sans のフォントで測り、どれにも無ければ 1em（全角）か 0.5em。`lint-svg` と `show` と `preview` は引き続き Chromium を使う。
 
 ## check のルール（lib/rules.ts）
-`legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
+`legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える。記法が少なく凡例が要らない図は `diagram({legend: false})` で「凡例は要らない」と宣言する。凡例を足すためだけに足さない）、`quadrant-empty-cell`（`quadrant()` に項目のないマスがある。意図した空きは `allowEmpty`）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
 `a11y-no-title`、`source-wraps`（出典行が折り返している）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、
 `image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
 `lint-svg`（描画後の検査: コントラスト・キャンバスのはみ出し・文字の重なり・枠からのはみ出し・図形が文字に被る）は、SVG の幾何と文字の箱（レイアウトと同じフォントファイル）から調べる。`--engine browser` は同じ検査を実ブラウザで行う（`test/svg-lint-browser.test.ts` が両方を同じ SVG に当てて比べる。丸めの境界で 1px 違うことと、回転したグループの中のコントラストの比べ方（ブラウザ版は文字と図形を別々の座標系で比べていた）だけが違う）。

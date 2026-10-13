@@ -150,3 +150,12 @@ test('legendLabels flow through checkDiagram: with legend auto there is no legen
   const l = (laidOut.bands.find(b => b.type === 'legend') as LegendBand).items;
   assert.ok(l.some(i => i.label === '非同期'));
 });
+
+test('legend: false declares that no legend is needed: legend-missing / legend-incomplete are not reported', async () => {
+  const mk = (legendOpt?: false) => diagram({theme: 'blue', title: 't', ...(legendOpt === undefined ? {} : {legend: legendOpt})}).add(box({id: 'a', title: 'a', tone: 'danger'}), box({id: 'b', title: 'b', tone: 'accent'}), connect('a', 'b', {line: 'dashed'}));
+  const rulesOf = async (d: ReturnType<typeof mk>) => new Set((await checkDiagram(d)).verdict.findings.map(f => f.rule));
+  const bare = await rulesOf(mk());
+  assert.ok(bare.has('legend-missing'), [...bare].join());
+  const off = await rulesOf(mk(false));
+  assert.ok(!off.has('legend-missing') && !off.has('legend-incomplete'), [...off].join());
+});

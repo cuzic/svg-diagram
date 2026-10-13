@@ -71,6 +71,8 @@ export interface QuadrantOpts extends RevealOpts {
   /** Least height of the plot (px); the rows grow when the items need more room. */
   height?: number;
   width?: number;
+  /** Cells [col, row] (from the top-left as drawn) that are empty on purpose, or true for all: quadrant-empty-cell does not report them. */
+  allowEmpty?: true | readonly (readonly [col: number, row: number])[];
 }
 
 export interface QuadrantBand {
@@ -92,6 +94,7 @@ export interface QuadrantBand {
   crosshair: boolean;
   height?: number;
   width?: number;
+  allowEmpty?: true | [number, number][];
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -132,6 +135,8 @@ export interface LaidOutQuadrant extends Rect, Dimmed {
   moved: {id?: string; label: string; px: number}[];
   /** Items whose size is so small that the bubble is drawn at the least radius (its area is then larger than the value says). */
   floored: string[];
+  /** Cells that hold no item and are not listed in allowEmpty: "title (col, row)", 1-based from the top-left. */
+  emptyCells: string[];
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -283,12 +288,16 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
   if (items.some(i => i.group !== undefined) && ungrouped >= 0) throw new Error(`quadrant() item ${ungrouped + 1} "${items[ungrouped].label}": has no group, but other items do — give every item a group (it would look like the first group's marker), or none`);
   for (const it of items) if (it.group !== undefined && !groups.includes(it.group)) groups.push(it.group);
   if (groups.length > SHAPES.length * 2) throw new Error(`quadrant(): ${groups.length} groups — at most ${SHAPES.length * 2} can be told apart by shape and colour`);
+  if (opts.allowEmpty !== undefined && opts.allowEmpty !== true) for (const e of opts.allowEmpty) {
+    if (!Array.isArray(e) || !Number.isInteger(e[0]) || !Number.isInteger(e[1]) || e[0] < 0 || e[1] < 0 || e[0] >= cols || e[1] >= rows) throw new Error(`quadrant(): allowEmpty cell ${JSON.stringify(e)} is outside the ${cols} x ${rows} grid (columns 0..${cols - 1}, rows 0..${rows - 1}, from the top-left), or use true`);
+  }
   for (const [k, v] of [['height', opts.height], ['width', opts.width]] as const) if (v !== undefined && !(typeof v === 'number' && v > 0 && Number.isFinite(v))) throw new Error(`quadrant(): ${k} must be a finite number > 0 (got ${v})`);
   return {
     type: 'quadrant', ...(opts.id ? {id: opts.id} : {}), ...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until}),
     x, y, cols, rows, cells, items, arrows, groups, crosshair: opts.crosshair ?? p?.crosshair ?? false,
     ...(opts.sizeTitle === undefined ? {} : {sizeTitle: opts.sizeTitle}), ...(opts.sizeUnit === undefined ? {} : {sizeUnit: opts.sizeUnit}),
     height: opts.height ?? p?.height, ...(opts.width === undefined ? {} : {width: opts.width}),
+    ...(opts.allowEmpty === undefined ? {} : {allowEmpty: opts.allowEmpty === true ? true : opts.allowEmpty.map(([c, r]) => [c, r] as [number, number])}),
   };
 }
 
@@ -675,8 +684,13 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   }
   const h = cursorY - y + PAD - (mx > 0 || band.groups.length ? 6 : 14);
 
+  const taken = new Set(bubbles.map(b => b.cell));
+  const allowed = band.allowEmpty;
+  const emptyCells = allowed === true ? [] : band.cells.flatMap((rowCells, r) => rowCells.flatMap((cell, k) =>
+    taken.has(r * cols + k) || allowed?.some(([c, rr]) => c === k && rr === r) ? [] : [`${cell.title ? `${cell.title} ` : ''}(${k + 1}, ${r + 1})`]));
+
   return {
     type: 'quadrant', ...(band.id ? {id: band.id} : {}), x, y, w, h, ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until}),
-    plot, crosshair: band.crosshair, cells, lines, texts, bubbles, arrows, chips, marks, anchors, labelBoxes, moved, floored,
+    plot, crosshair: band.crosshair, cells, lines, texts, bubbles, arrows, chips, marks, anchors, labelBoxes, moved, floored, emptyCells,
   };
 }

@@ -220,7 +220,7 @@ test('every preset passes verify, the rules without a single warning, and the st
     eisenhower: [{label: '障害対応', cell: [0, 0]}, {label: '勉強', cell: [1, 0]}, {label: '雑務', cell: [0, 1]}],
   };
   for (const name of QUADRANT_PRESETS) {
-    const d = diagram({theme: 'blue', title: name}).add(quadrant.preset(name, {items: items[name], sizeTitle: items[name].some(i => i.size) ? '値' : undefined}));
+    const d = diagram({theme: 'blue', title: name}).add(quadrant.preset(name, {items: items[name], allowEmpty: true, sizeTitle: items[name].some(i => i.size) ? '値' : undefined}));
     const {verdict} = await checkDiagram(d);
     assert.deepEqual(verdict.problems, [], name);
     assert.deepEqual(verdict.warnings, [], name);
@@ -358,4 +358,30 @@ test('nineBox reads like the usual talent grid: performance across, potential up
   assert.equal(q.cells[2][2].title, '専門人材'); // high performance, low potential
   assert.equal(q.cells[2][0].title, '要対応');
   q.cells.forEach((row, r) => row.forEach((c, k) => assert.equal(c.note, `業績 ${['低', '中', '高'][k]} × 潜在 ${['高', '中', '低'][r]}`)));
+});
+
+// ---- quadrant-empty-cell ----------------------------------------------------------------------------------------------------
+
+const AX = {x: {title: 'X', low: '低', high: '高'}, y: {title: 'Y', low: '低', high: '高'}};
+const emptyRule = async (q: unknown) => (await checkDiagram(diagram({theme: 'blue', title: 't'}).add(q as never))).verdict.findings.filter(f => f.rule === 'quadrant-empty-cell');
+
+test('quadrant-empty-cell: a cell with no item is reported by name; allowEmpty opts a cell (or all) out', async () => {
+  const items = [{label: 'a', cell: [0, 0]}, {label: 'b', at: [0.9, 0.1]}] as QuadrantItem[];
+  const f = await emptyRule(quadrant.preset('bcg', {items}));
+  assert.equal(f.length, 1);
+  assert.equal(f[0]!.severity, 'warn');
+  assert.match(f[0]!.message, /「[^」]+」、「[^」]+」/); // two of the four cells are empty, named by their captions
+  assert.deepEqual(await emptyRule(quadrant.preset('bcg', {items, allowEmpty: true})), []);
+  const all = await emptyRule(quadrant({...AX, items: [{label: 'a', cell: [0, 0]}]}));
+  assert.equal(all.length, 1);
+  assert.match(all[0]!.message, /\(2, 1\)|\(1, 2\)|\(2, 2\)/);
+  assert.deepEqual(await emptyRule(quadrant({...AX, items: [{label: 'a', cell: [0, 0]}], allowEmpty: [[1, 0], [0, 1], [1, 1]]})), []);
+  assert.equal((await emptyRule(quadrant({...AX, items: [{label: 'a', cell: [0, 0]}], allowEmpty: [[1, 0]]}))).length, 1);
+  assert.throws(() => quadrant({...AX, items, allowEmpty: [[5, 0]]}), /allowEmpty/);
+});
+
+test('quadrant-empty-cell: accept turns it into info', async () => {
+  const d = diagram({theme: 'blue', title: 't', accept: {'quadrant-empty-cell': '空きが答え'}}).add(quadrant({...AX, items: [{label: 'a', cell: [0, 0]}]}));
+  const f = (await checkDiagram(d)).verdict.findings.filter(x => x.rule === 'quadrant-empty-cell');
+  assert.ok(f.length === 1 && f[0]!.severity === 'info');
 });
