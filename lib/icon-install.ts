@@ -123,7 +123,7 @@ export async function resolveSpecs(specs: IconSpec[], opts: InstallOpts = {}): P
   return out;
 }
 
-export async function addIcons(args: string[], opts: InstallOpts = {}): Promise<{file: string; added: string[]; replaced: string[]; warnings: string[]}> {
+export async function addIcons(args: string[], opts: InstallOpts & {keepExisting?: boolean} = {}): Promise<{file: string; added: string[]; replaced: string[]; kept: string[]; warnings: string[]}> {
   const cwd = opts.cwd ?? process.cwd();
   const specs = args.map(parseSpec);
   const dup = specs.find((s, i) => specs.findIndex(t => t.name === s.name) !== i);
@@ -132,6 +132,9 @@ export async function addIcons(args: string[], opts: InstallOpts = {}): Promise<
   const file = manifestPath(cwd);
   return withManifestLock(file, () => {
   const m = readManifest(file);
+  // keepExisting (add-set): a name the project already has stays as it is — the set's pick does not overwrite the user's own
+  const kept = opts.keepExisting ? Object.keys(got).filter(n => n in m.icons) : [];
+  for (const n of kept) delete got[n];
   const replaced = Object.keys(got).filter(n => n in m.icons);
   // the first Iconify set a project installs from becomes its main set; later ones from another set are said to look different
   const warnings: string[] = [];
@@ -140,12 +143,12 @@ export async function addIcons(args: string[], opts: InstallOpts = {}): Promise<
   for (const p of sets) if (m.mainSet && p !== m.mainSet) warnings.push(`主セットは ${m.mainSet}。${p} のアイコンは線の太さや絵柄が揃わないことがある（主セットを変えるなら: svg-diagram icons main ${p}）`);
   Object.assign(m.icons, got);
   writeManifest(file, m);
-  return {file, added: Object.keys(got).filter(n => !replaced.includes(n)), replaced, warnings};
+  return {file, added: Object.keys(got).filter(n => !replaced.includes(n)), replaced, kept, warnings};
   });
 }
 
-/** Install a recommended set (see icon-sets.ts) through the ordinary `icons add` path. */
-export function addSet(name: string, opts: InstallOpts = {}) { return addIcons(setArgs(name), opts); }
+/** Install a recommended set (see icon-sets.ts) through the ordinary `icons add` path. Names already installed are kept, not overwritten. */
+export function addSet(name: string, opts: InstallOpts = {}) { return addIcons(setArgs(name), {...opts, keepExisting: true}); }
 
 export function removeIcons(names: string[], cwd: string = process.cwd()): {file: string; removed: string[]} {
   const file = manifestPath(cwd);

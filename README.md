@@ -671,7 +671,7 @@ svg-diagram icons notice                        # 入れたアイコンのクレ
 ```
 
 - **`icons find <英単語>...`**: 検索結果から、ライセンスと形が合うものだけを残し、**プロジェクトの主セットを先頭**に出す（`--style fill|line|color`、`--set mdi,lucide`、`--limit N`）。各候補に `icons add` の行が付く。`--png sheet.png` で、`box({icon})` で描いた候補の一覧画像を作る（主セットの枠は色つき）。日本語は英語に直して渡す（Iconify の検索は英語。`svg-diagram` スキルがその手順を持つ）。
-- **用途別セット**: `icons sets` で一覧、`icons add-set <名前>` で入れる。`accounting`（領収書・請求書・銀行・承認・印鑑・財布・硬貨・電卓・契約書など 61 個）、`office`（人・会議・文書・メール・予定など）、`infra`（サーバー・DB・ネットワーク・クラウド・コンテナ・監視など）。名前は図のソースでそのまま使う（`box({icon: 'receipt'})`）。一覧は `lib/icon-sets.ts`（Iconify の id と短い名前の表）。
+- **用途別セット**: `icons sets` で一覧、`icons add-set <名前>` で入れる。`accounting`（領収書・請求書・銀行・承認・印鑑・財布・硬貨・電卓・契約書など 61 個）、`office`（人・会議・文書・メール・予定など）、`infra`（サーバー・DB・ネットワーク・クラウド・コンテナ・監視など）。名前は図のソースでそのまま使う（`box({icon: 'receipt'})`）。すでに入っている名前は上書きしない（自分で入れたアイコンはそのまま）。一覧は `lib/icon-sets.ts`（Iconify の id と短い名前の表）。
 - **並行実行**: `icons add` / `remove` / `add-pack` / `main` は `svg-diagram.icons.json.lock` で排他し、一時ファイル + rename で書く。複数のプロセスから同時に実行しても更新は失われない（落ちたプロセスのロックは自動で引き継ぐ）。
 - **主セット**: 最初に `icons add` した Iconify のセットが `svg-diagram.icons.json` の `mainSet` になり、`find` はそれを優先する（図の中のアイコンの見た目が揃う）。別のセットから入れると警告が出る。`icons main lucide` で変更、`icons main -` で解除。
 - 入った先は**カレントかその親の `svg-diagram.icons.json`**（`.svg-diagram.json` と同じ探し方。無ければカレントに作る）。コミットする。図のビルドはネットワークを使わない。

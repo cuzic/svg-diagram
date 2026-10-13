@@ -47,7 +47,7 @@ try {
       if (args.length !== 1) usage();
       const r = await addSet(args[0], {allowLicense: flags.get('allow-license')?.split(',').filter(Boolean), color: flags.has('color')});
       if (r.added.length) console.log(`✓ 追加 ${r.added.length} 個: ${r.added.join(', ')}`);
-      if (r.replaced.length) console.log(`✓ 置き換え: ${r.replaced.join(', ')}`);
+      if (r.kept.length) console.log(`・入っている名前はそのまま（上書きしない）: ${r.kept.join(', ')}`);
       for (const w of r.warnings) console.log(`⚠ ${w}`);
       console.log(`→ ${r.file}（図のソースでは box({icon: '<名前>'})。このファイルをコミットする）`);
       break;
