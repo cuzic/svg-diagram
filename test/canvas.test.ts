@@ -135,11 +135,23 @@ test('content: an array is bullets, a string is a paragraph; a wrong key or temp
   assert.throws(() => canvas('swot', {}, {titles: {x: 'a'}} as never), /titles key "x"/);
   assert.throws(() => canvas('swot', {}, {emphasis: ['x']} as never), /emphasis region "x"/);
   assert.throws(() => canvas('swot', {}, {tone: {x: 'accent'}} as never), /tone key "x"/);
-  assert.throws(() => canvas('swot', {}, {pestle: true}), /'pest' template only/);
+  assert.throws(() => canvas('swot', {}, {pestle: true} as never), /'pest' template only/);
   assert.throws(() => canvas('swot', {}, {h: -1}), /canvas\(\{h\}\) must be a number > 0/);
   assert.throws(() => canvas('swot', {}, {id: 'a b'}), /letters, digits/);
   assert.throws(() => canvas('swot', {}, {title: ' '}), /title/);
   assert.throws(() => canvas('swot', {}, {reveal: {strengths: 0}}), /whole stage/);
+});
+
+test('options are checked: an unknown option, a tone that is not one, emphasis that is not an array, a pestle: false that PESTLE content contradicts', () => {
+  assert.throws(() => canvas('swot', {}, {titel: 'x'} as never), /unknown option "titel" \(options: title, titles/);
+  assert.throws(() => canvas('swot', {}, {width: 600} as never), /unknown option "width"/);
+  assert.throws(() => canvas('swot', {}, {tone: {strengths: 'pink'}} as never), /tone\}\): strengths is "pink", not one of plain, accent/);
+  assert.throws(() => canvas('swot', {}, {emphasis: 'strengths'} as never), /emphasis\}\) is an array of region ids/);
+  assert.throws(() => canvas('swot', {}, {titles: ['a']} as never), /titles\}\) is an object/);
+  assert.throws(() => canvas('swot', {}, {requireAll: 'yes'} as never), /requireAll\}\) is true or false/);
+  assert.throws(() => canvas('pest', {legal: ['a']}, {pestle: false}), /pestle is false but legal has content/);
+  assert.throws(() => canvas('swot', {}, 'x' as never), /opts is an object/);
+  assert.doesNotThrow(() => canvas('swot', {}, {tone: {strengths: 'solid', weaknesses: undefined}}));
 });
 
 test('a bullet that already has a mark keeps one mark; text is trimmed', async () => {

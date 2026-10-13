@@ -155,7 +155,7 @@ export interface CanvasOpts<T extends CanvasTemplate = CanvasTemplate> {
   /** Every region needs content: a missing one is reported as canvas-region-empty. */
   requireAll?: boolean;
   /** pest only: add 法律 (Legal) and 環境 (Environment): PESTLE. Also on when `legal` or `environmental` has content. */
-  pestle?: boolean;
+  pestle?: T extends 'pest' ? boolean : never;
   /** Click stage per region (see diagram({reveal})): {value: 1, segments: 2}. */
   reveal?: {[K in CanvasKey<T>]?: number};
   /** An anchor id: each region is then `${id}-${region}` for connect(), reveal and spotlight. */
@@ -178,16 +178,23 @@ const TONES: readonly string[] = ['plain', 'accent', 'danger', 'muted', 'new', '
 const OPT_KEYS: readonly string[] = ['title', 'titles', 'tone', 'emphasis', 'stamp', 'h', 'gap', 'requireAll', 'pestle', 'reveal', 'id'];
 
 /** CanvasOpts with the region ids as plain strings: what canvasBand() validates. */
-export type LooseCanvasOpts = Omit<CanvasOpts, 'titles' | 'tone' | 'reveal' | 'emphasis'> & {titles?: Record<string, string | undefined>; tone?: Record<string, EmphasisTone | undefined>; reveal?: Record<string, number | undefined>; emphasis?: readonly string[]};
+export type LooseCanvasOpts = Omit<CanvasOpts, 'titles' | 'tone' | 'reveal' | 'emphasis' | 'pestle'> & {pestle?: boolean; titles?: Record<string, string | undefined>; tone?: Record<string, EmphasisTone | undefined>; reveal?: Record<string, number | undefined>; emphasis?: readonly string[]};
 /** The grid() a canvas is: one box per region, in the template's order, with its cell. */
 export function canvasBand(template: string, content: Record<string, string | readonly string[] | undefined>, opts: LooseCanvasOpts = {}): GridBand {
   if (!Object.hasOwn(TEMPLATES, template)) throw new Error(`canvas(template): unknown template ${JSON.stringify(template)} (use ${canvasTemplates().join(' | ')})`);
   const t = TEMPLATES[template as CanvasTemplate] as Template;
   if (!content || typeof content !== 'object' || Array.isArray(content)) throw new Error(`canvas("${template}", content): content is an object of region id -> text(s)`);
+  if (!opts || typeof opts !== 'object' || Array.isArray(opts)) throw new Error(`canvas("${template}", content, opts): opts is an object`);
+  for (const k of Object.keys(opts)) if (!OPT_KEYS.includes(k)) throw new Error(`canvas("${template}"): unknown option "${k}" (options: ${OPT_KEYS.join(', ')})`);
+  for (const k of ['titles', 'tone', 'reveal'] as const) if (opts[k] !== undefined && (typeof opts[k] !== 'object' || opts[k] === null || Array.isArray(opts[k]))) throw new Error(`canvas({${k}}) is an object of region id -> value`);
+  if (opts.emphasis !== undefined && !Array.isArray(opts.emphasis)) throw new Error(`canvas({emphasis}) is an array of region ids (got ${JSON.stringify(opts.emphasis)})`);
+  if (opts.requireAll !== undefined && typeof opts.requireAll !== 'boolean') throw new Error('canvas({requireAll}) is true or false');
   const given = Object.keys(content).filter(k => content[k] !== undefined);
-  const pestle = template === 'pest' && (opts.pestle === true || given.some(k => (['legal', 'environmental'] as string[]).includes(k)));
+  const pestleKeys = given.filter(k => (['legal', 'environmental'] as string[]).includes(k));
   if (opts.pestle !== undefined && typeof opts.pestle !== 'boolean') throw new Error('canvas({pestle}) is true or false');
   if (opts.pestle && template !== 'pest') throw new Error(`canvas({pestle}) is for the 'pest' template only`);
+  if (opts.pestle === false && pestleKeys.length) throw new Error(`canvas("pest"): pestle is false but ${pestleKeys.join(' / ')} has content (drop pestle: false to draw PESTLE)`);
+  const pestle = template === 'pest' && (opts.pestle === true || pestleKeys.length > 0);
   const regions: Region[] = [...t.regions, ...(pestle ? PESTLE_EXTRA : [])];
   const valid = regions.map(r => r.id);
   const known = (k: string, what: string): void => { if (!valid.includes(k)) throw new Error(`canvas("${template}"): ${what} "${k}" is not a region of this template (regions: ${valid.join(', ')})`); };
@@ -196,6 +203,7 @@ export function canvasBand(template: string, content: Record<string, string | re
   for (const k of Object.keys(opts.tone ?? {})) known(k, 'tone key');
   for (const k of Object.keys(opts.reveal ?? {})) known(k, 'reveal key');
   for (const k of opts.emphasis ?? []) known(k, 'emphasis region');
+  for (const [k, v] of Object.entries(opts.tone ?? {})) if (v !== undefined && !TONES.includes(v)) throw new Error(`canvas({tone}): ${k} is ${JSON.stringify(v)}, not one of ${TONES.join(', ')}`);
   if (opts.h !== undefined && !(Number.isFinite(opts.h) && opts.h > 0)) throw new Error(`canvas({h}) must be a number > 0 (got ${opts.h})`);
   if (opts.gap !== undefined && !(Number.isFinite(opts.gap) && opts.gap >= 0)) throw new Error(`canvas({gap}) must be a number >= 0 (got ${opts.gap})`);
   if (opts.id !== undefined && !/^[A-Za-z][A-Za-z0-9_-]*$/.test(opts.id)) throw new Error(`canvas({id}) is letters, digits, _ and - (got ${JSON.stringify(opts.id)})`);

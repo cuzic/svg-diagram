@@ -17,6 +17,12 @@ export function canvasCases(): void {
   d.add(canvas('swot', {}, {emphasis: ['value']}));
   // @ts-expect-error  titles keys are regions too
   d.add(canvas('swot', {}, {titles: {value: 'x'}}));
+  // @ts-expect-error  pestle is for the 'pest' template only
+  d.add(canvas('swot', {}, {pestle: true}));
+  // @ts-expect-error  a tone is one of the box tones
+  d.add(canvas('swot', {}, {tone: {strengths: 'pink'}}));
+  // @ts-expect-error  an unknown option
+  d.add(canvas('swot', {}, {width: 600}));
   // @ts-expect-error  a region's content is a string or strings, not a number
   d.add(canvas('swot', {strengths: 3}));
 
