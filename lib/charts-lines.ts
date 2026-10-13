@@ -5,6 +5,7 @@
 import {niceScale, fail, finiteNum, checkText, numText} from './charts-base.ts';
 import type {PlaneBand, PlaneOpts, PlanePoint, PlanePath, PlaneTone, PlaneLine, PlaneLabel} from './types.ts';
 import type {ChartOpts} from './charts-base.ts';
+import {ROLES} from './tokens.ts';
 
 export interface LineSeries {
   label: string;
@@ -131,7 +132,9 @@ export function linesOpts(series: readonly LineSeries[], opts: LinesOpts = {}): 
   if (opts.target) {
     finiteNum(who, 'target.at', opts.target.at);
     lines.push({from: [x.min ?? 0, opts.target.at], to: [x.max, opts.target.at], tone: 'danger', dashed: true});
-    if (opts.target.label) extra.push({at: [x.max, opts.target.at], text: opts.target.label, anchor: 'end', tone: 'danger', bold: true, offset: [-6, -10]});
+    // above the line, clear of it: a plane label's box reaches 6px under its baseline and the line's ink 2px over it
+    const size = ROLES[opts.labelRole ?? 'note'], lift = Math.round(size * 5 / 14) + 9;
+    if (opts.target.label) extra.push({at: [x.max, opts.target.at], text: opts.target.label, anchor: 'end', tone: 'danger', bold: true, offset: [-6, -lift]});
   }
   return {x, y, points, paths, ...(lines.length ? {lines} : {}), ...(extra.length ? {labels: extra} : {}), grid: opts.grid !== false, height: opts.height ?? 340, endLabels: named,
     ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.width === undefined ? {} : {width: opts.width}), ...(opts.labelRole === undefined ? {} : {labelRole: opts.labelRole}),

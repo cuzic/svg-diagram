@@ -376,6 +376,13 @@ test('lines(): categories need one value each, numeric x needs [x, y] pairs with
   assert.throws(() => lines([{label: 'a', values: [1, 2]}], {x: {categories: ['p', 'q']}, annotate: [{at: {series: 'zz', index: 0}, label: 'x'}]}), /no series "zz"/);
 });
 
+test('lines(): the target label stands clear of its own line (it used to touch it: a verify problem in the default use)', async () => {
+  for (const labelRole of ['note', 'banner'] as const) {
+    const {verdict} = await laid(lines([{label: '自社', values: [3, 4, 5, 2]}, {label: '競合', values: [2, 3, 3, 1]}], {x: {categories: ['a', 'b', 'c', 'd']}, target: {at: 4.5, label: '目標'}, labelRole}));
+    assert.deepEqual(verdict.problems, [], labelRole);
+  }
+});
+
 test('strategyCanvas() / burndown() / burnup(): presets on lines()', async () => {
   const sc = strategyCanvas(['価格', '品質', '速さ'], [{label: '自社', values: [2, 4, 5]}, {label: '競合', values: [4, 3, 1]}]);
   assert.equal(sc.y.max, 5);
