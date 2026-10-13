@@ -28,8 +28,10 @@ import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx, Placed, RowLike} 
 import {PALETTE, SHADES, blendLuminance, bestTextColor, paintOf} from './tokens.ts';
 import {
   BOX_PAD_X, LINE_HEIGHT_EM, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL, STAMP_GAP, STAMP_H, TAG_H,
-  groupTitleBand, gridChildGeometry, lineWidth, parseRef, resolveConnect, rowChildGeometry, stampChipW,
-} from './layout.ts';
+  groupTitleBand, gridChildGeometry, rowChildGeometry, stampChipW,
+} from './layout-util.ts';
+import {lineWidth} from './layout-text.ts';
+import {parseRef, resolveConnect} from './layout-connect.ts';
 
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
 const rectOf = (p: Rect): Rect => ({x: p.x, y: p.y, w: p.w, h: p.h});

@@ -12,7 +12,7 @@ import {currentFontSpecs} from './measure.ts';
 import {emitSvg, resolveBoxStyle} from './emit.ts';
 import {shapesToCss} from './svg-to-css.ts';
 import {visibleAt} from './reveal.ts';
-import {BOX_PAD_X, BOX_PAD_Y} from './layout.ts';
+import {BOX_PAD_X, BOX_PAD_Y} from './layout-util.ts';
 import type {LaidOutTable, LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutBanner, LaidOutCaption, LaidOutGroup, WrappedRun, Theme, Align, EmphasisTone, Rect, Span, Roles} from './types.ts';
 
 // like SVG text, runs of white space are one space (XML white space only: U+3000 and NBSP are characters, not white space)
