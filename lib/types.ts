@@ -2200,8 +2200,8 @@ export interface LaidOutTable extends Rect, Dimmed {
   until?: number;
   /** font-size of the cell text at layout time (the smallest text of the table; fit.ts counts it). */
   bodySize: number;
-  /** Curve points and its neutral-score guide, wholly inside a reserved table row. */
-  rowCurve?: {points: {x: number; y: number}[]; zeroY?: number; top: number; bottom: number};
+  /** Curve points and its neutral-score guide (the middle of the range, where the marks switch), wholly inside a reserved table row. */
+  rowCurve?: {points: {x: number; y: number}[]; midY: number; top: number; bottom: number};
 }
 
 /** wireframe() as laid out: flat primitives + the callouts drawn (for the order rule). */

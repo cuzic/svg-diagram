@@ -1,82 +1,80 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="238" viewBox="0 0 940 238" role="img" aria-labelledby="svg-title svg-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="199" viewBox="0 0 940 199" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">搬送設備 FMEA</title>
-  <desc id="svg-desc">表「故障モード影響解析」: 列 項目、故障モード、影響、原因、対策、深刻度 S、発生度 O、検出度 D、RPN、改善後 S、改善後 O、改善後 D、改善後 RPN</desc>
+  <desc id="svg-desc">表「故障モード影響解析」: 列 項目、故障 モード、影響、原因、対策、S 深刻、O 発生、D 検出、RPN、改善 S、改善 O、改善 D、改善 RPN</desc>
   <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/fmea-basic.ts","sourceSha256":"e310c26d7c4fb4bc409ac246bc309939800f11a34e19045ebd6d6620f23fd061"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
   </style>
-  <rect x="0" y="0" width="940" height="238" fill="#ffffff"/>
+  <rect x="0" y="0" width="940" height="199" fill="#ffffff"/>
 
   <path d="M28,20 H912 A8,8 0 0 1 920,28 V57  H20  V28 A8,8 0 0 1 28,20 Z" fill="#1d5fa8"/>
   <text x="32" y="43" font-size="15" font-weight="700" fill="#ffffff">故障モード影響解析</text>
-  <path d="M20,57 H920  V124  H20  V57  Z" fill="#dce9f7"/>
+  <path d="M20,57 H920  V104  H20  V57  Z" fill="#dce9f7"/>
   <path d="M20,57 H920" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M20,124 H920  V171  H20  V124  Z" fill="#ffffff"/>
-  <path d="M20,124 H920" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M20,171 H920  V210 A8,8 0 0 1 912,218 H28 A8,8 0 0 1 20,210 V171  Z" fill="#ffffff"/>
-  <path d="M20,171 H920" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M107,57 V218" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M194,57 V218" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M281,57 V218" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M368,57 V218" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M455,57 V218" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M514,57 V218" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M572,57 V218" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M630,57 V218" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M688,57 V218" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M746,57 V218" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M804,57 V218" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M862,57 V218" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,104 H920  V132  H20  V104  Z" fill="#ffffff"/>
+  <path d="M20,104 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,132 H920  V171 A8,8 0 0 1 912,179 H28 A8,8 0 0 1 20,171 V132  Z" fill="#ffffff"/>
+  <path d="M20,132 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M107,57 V179" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M194,57 V179" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M281,57 V179" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M368,57 V179" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M455,57 V179" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M514,57 V179" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M572,57 V179" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M630,57 V179" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M688,57 V179" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M746,57 V179" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M804,57 V179" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M862,57 V179" stroke="#e0d6c5" stroke-width="2"/>
   <text x="32" y="75" font-size="14" font-weight="700" fill="#22201b">項目</text>
-  <text x="119" y="75" font-size="14" font-weight="700" fill="#22201b">故障モー</text>
-  <text x="119" y="95" font-size="14" font-weight="700" fill="#22201b">ド</text>
+  <text x="119" y="75" font-size="14" font-weight="700" fill="#22201b">故障</text>
+  <text x="119" y="95" font-size="14" font-weight="700" fill="#22201b">モード</text>
   <text x="206" y="75" font-size="14" font-weight="700" fill="#22201b">影響</text>
   <text x="293" y="75" font-size="14" font-weight="700" fill="#22201b">原因</text>
   <text x="380" y="75" font-size="14" font-weight="700" fill="#22201b">対策</text>
-  <text x="485" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">深刻</text>
-  <text x="485" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">度 S</text>
-  <text x="543" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">発生</text>
-  <text x="543" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">度 O</text>
-  <text x="601" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">検出</text>
-  <text x="601" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">度 D</text>
+  <text x="485" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">S</text>
+  <text x="485" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">深刻</text>
+  <text x="543" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">O</text>
+  <text x="543" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">発生</text>
+  <text x="601" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">D</text>
+  <text x="601" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">検出</text>
   <text x="659" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">RPN</text>
   <text x="717" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">改善</text>
-  <text x="717" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">後 S</text>
+  <text x="717" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">S</text>
   <text x="775" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">改善</text>
-  <text x="775" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">後 O</text>
+  <text x="775" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">O</text>
   <text x="833" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">改善</text>
-  <text x="833" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">後 D</text>
+  <text x="833" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">D</text>
   <text x="891" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">改善</text>
-  <text x="891" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">後</text>
-  <text x="891" y="114" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">RPN</text>
-  <text x="32" y="142" font-size="14" font-weight="400" fill="#22201b">駆動軸</text>
-  <text x="119" y="142" font-size="14" font-weight="400" fill="#22201b">摩耗</text>
-  <text x="206" y="142" font-size="14" font-weight="400" fill="#22201b">搬送停止</text>
-  <text x="293" y="142" font-size="14" font-weight="400" fill="#22201b">潤滑不足</text>
-  <text x="380" y="142" font-size="14" font-weight="400" fill="#22201b">定期給油</text>
-  <text x="485" y="142" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">8</text>
-  <text x="543" y="142" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">5</text>
-  <text x="601" y="142" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">4</text>
-  <text x="659" y="142" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">◎</text>
-  <text x="659" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">160</text>
-  <text x="717" y="142" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">8</text>
-  <text x="775" y="142" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">2</text>
-  <text x="833" y="142" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">2</text>
-  <text x="891" y="142" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">32</text>
-  <text x="32" y="189" font-size="14" font-weight="400" fill="#22201b">センサー</text>
-  <text x="119" y="189" font-size="14" font-weight="400" fill="#22201b">誤検知</text>
-  <text x="206" y="189" font-size="14" font-weight="400" fill="#22201b">一時停止</text>
-  <text x="293" y="189" font-size="14" font-weight="400" fill="#22201b">汚れ</text>
-  <text x="380" y="189" font-size="14" font-weight="400" fill="#22201b">清掃周期</text>
-  <text x="380" y="209" font-size="14" font-weight="400" fill="#22201b">短縮</text>
-  <text x="485" y="189" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">5</text>
-  <text x="543" y="189" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">4</text>
-  <text x="601" y="189" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">3</text>
-  <text x="659" y="189" text-anchor="middle" font-size="14" font-weight="400" fill="#1d5fa8">60</text>
-  <text x="717" y="189" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">5</text>
-  <text x="775" y="189" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">2</text>
-  <text x="833" y="189" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">2</text>
-  <text x="891" y="189" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">20</text>
-  <path d="M28,20 H912 A8,8 0 0 1 920,28 V210 A8,8 0 0 1 912,218 H28 A8,8 0 0 1 20,210 V28 A8,8 0 0 1 28,20 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
+  <text x="891" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">RPN</text>
+  <text x="32" y="122" font-size="14" font-weight="400" fill="#22201b">駆動軸</text>
+  <text x="119" y="122" font-size="14" font-weight="400" fill="#22201b">摩耗</text>
+  <text x="206" y="122" font-size="14" font-weight="400" fill="#22201b">搬送停止</text>
+  <text x="293" y="122" font-size="14" font-weight="400" fill="#22201b">潤滑不足</text>
+  <text x="380" y="122" font-size="14" font-weight="400" fill="#22201b">定期給油</text>
+  <text x="485" y="122" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">8</text>
+  <text x="543" y="122" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">5</text>
+  <text x="601" y="122" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">4</text>
+  <text x="659" y="122" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">160</text>
+  <text x="717" y="122" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">8</text>
+  <text x="775" y="122" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">2</text>
+  <text x="833" y="122" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">2</text>
+  <text x="891" y="122" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">32</text>
+  <text x="32" y="150" font-size="14" font-weight="400" fill="#22201b">センサー</text>
+  <text x="119" y="150" font-size="14" font-weight="400" fill="#22201b">誤検知</text>
+  <text x="206" y="150" font-size="14" font-weight="400" fill="#22201b">一時停止</text>
+  <text x="293" y="150" font-size="14" font-weight="400" fill="#22201b">汚れ</text>
+  <text x="380" y="150" font-size="14" font-weight="400" fill="#22201b">清掃周期</text>
+  <text x="380" y="169" font-size="14" font-weight="400" fill="#22201b">短縮</text>
+  <text x="485" y="150" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">5</text>
+  <text x="543" y="150" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">4</text>
+  <text x="601" y="150" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">3</text>
+  <text x="659" y="150" text-anchor="middle" font-size="14" font-weight="400" fill="#1d5fa8">60</text>
+  <text x="717" y="150" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">5</text>
+  <text x="775" y="150" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">2</text>
+  <text x="833" y="150" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">2</text>
+  <text x="891" y="150" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">20</text>
+  <path d="M28,20 H912 A8,8 0 0 1 920,28 V171 A8,8 0 0 1 912,179 H28 A8,8 0 0 1 20,171 V28 A8,8 0 0 1 28,20 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
 </svg>

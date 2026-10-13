@@ -819,7 +819,7 @@ function renderTable(band: LaidOutTable, day: Theme, roles: Roles): string {
   }
   if (band.rowCurve && band.rowCurve.points.length) {
     const c = band.rowCurve;
-    if (c.zeroY !== undefined) parts.push(`<path d="M${snap4(band.colX[1] + 8)},${snap4(c.zeroY)} H${snap4(band.x + band.w - 8)}" fill="none" stroke="${PALETTE.muted}" stroke-width="1.5" stroke-dasharray="4,4"/>`);
+    parts.push(`<path d="M${snap4(band.colX[1] + 8)},${snap4(c.midY)} H${snap4(band.x + band.w - 8)}" fill="none" stroke="${PALETTE.muted}" stroke-width="1.5" stroke-dasharray="4,4"/>`);
     if (c.points.length > 1) parts.push(`<polyline points="${c.points.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' ')}" fill="none" stroke="${PALETTE[day].accent}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`);
     for (const p of c.points) { const x = snap4(p.x), y = snap4(p.y); parts.push(`<path d="M${x - 4},${y} A4,4 0 1 0 ${x + 4},${y} A4,4 0 1 0 ${x - 4},${y}" fill="${PALETTE.bg}" stroke="${PALETTE[day].accent}" stroke-width="2.5"/>`); }
   }

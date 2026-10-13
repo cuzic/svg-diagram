@@ -16,6 +16,8 @@ test('raci validates responsibility/accountability and reports an empty role col
   assert.throws(() => raci(['設計'], ['担当'], [['A']]), /^Error: raci\(\):.*at least one R/);
   assert.throws(() => raci(['設計'], ['担当'], [['X']]), /^Error: raci\(\):.*unknown letter/);
   assert.doesNotThrow(() => raci(['設計'], ['担当'], [['R']], {allowNoA: true}));
+  const narrow = raci(['設計'], ['担当', '責任者'], [['R', 'A']], {legend: true});
+  assert.deepEqual((narrow.rows.at(-1) as {cells: readonly string[]}).cells, ['凡例', 'R: 実行責任\nA: 説明責任', 'C: 相談先\nI: 報告先'], 'all four letters survive with two roles');
 });
 
 test('fmea validates ratings, computes/sorts RPN and adds after-action RPN', () => {
@@ -25,7 +27,9 @@ test('fmea validates ratings, computes/sorts RPN and adds after-action RPN', () 
   ], {sort: 'rpn'});
   assert.deepEqual(p.computed.map(r => r.rpn), [160, 12]);
   assert.equal(p.computed[0].afterRpn, 24);
-  assert.equal(p.columns.at(-1)?.label, '改善後 RPN');
+  assert.equal(p.columns.at(-1)?.label, '改善\nRPN');
+  const top = (p.rows[0] as readonly ({text?: string; bold?: boolean; mark?: string} | string | number)[])[8];
+  assert.deepEqual(typeof top === 'object' && [top.text, top.bold, top.mark], ['160', true, undefined], 'the worst RPN is bold, never ◎');
   assert.throws(() => fmea([{item: '', mode: '', effect: '', cause: '', action: '', s: 11, o: 1, d: 1}]), /^Error: fmea\(\):.*1 to 10/);
 });
 
@@ -33,7 +37,9 @@ test('qfd computes weighted raw/relative scores and marks the unique best charac
   const p = qfdParts([{label: '速い', importance: 5}, {label: '静か', importance: 3}], ['速度', '騒音'], [['◎', '△'], ['○', '◎']]);
   assert.deepEqual(p.scores.raw, [54, 32]);
   assert.ok(Math.abs(p.scores.relative.reduce((a, b) => a + b, 0) - 100) < 1e-9);
-  assert.equal((p.rows[2] as {cells: readonly unknown[]}).cells[2] && ((p.rows[2] as {cells: readonly {mark?: string}[]}).cells[2].mark), 'best');
+  const raw = (p.rows[2] as {cells: readonly (string | {text?: string; bold?: boolean; mark?: string})[]}).cells;
+  assert.deepEqual(raw.slice(2).map(c => typeof c === 'string' ? c : [c.text, c.bold ?? false, c.mark]), [['54', true, undefined], ['32', false, undefined]], 'top score bold, no ◎ (◎ means a 9 relation here)');
+  assert.ok(!qfdParts([{label: 'x', importance: 1}], ['a'], [['×']]).rows.some(r => 'cells' in r && r.cells.some(c => typeof c === 'object' && c !== null && 'bold' in c && c.bold)), 'an all-zero score is not highlighted');
   assert.throws(() => qfd([{label: 'x', importance: 1}], ['a'], [['?' as never]]), /^Error: qfd\(\):.*mark/);
 });
 
@@ -71,4 +77,15 @@ test('all semantic tables render valid SVG and pass structural verification', as
       assert.ok(table.rowCurve.top > Math.max(...emotion.cells.slice(1).map(c => c.top + c.lines.length * table.bodySize * 1.4)));
     }
   }
+});
+
+test('journey emotion curve stays below a wrapped value and its guide marks the middle of the range', async () => {
+  const stages = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+  const d = diagram({theme: 'blue', title: 'journey'}).add(journeyMap(stages, [{id: 'emotion', label: '感情', cells: [1, 2, 3, 4, 5, 1, 2, 3, 4, 5]}], {emotionRange: [1, 5], width: 420}));
+  const table = (await checkDiagram(d)).laidOut.laidOut.find(x => x.type === 'table');
+  assert.ok(table?.type === 'table' && table.rowCurve);
+  const emotion = table.rows.find(r => !r.header)!;
+  assert.ok(emotion.cells.slice(1).some(c => c.lines.length > 1), 'the narrow columns wrap the values');
+  assert.ok(table.rowCurve.top >= Math.max(...emotion.cells.slice(1).map(c => c.top + c.lines.length * table.bodySize * 1.4)));
+  assert.equal(table.rowCurve.midY, table.rowCurve.points[2].y, 'value 3 sits on the guide');
 });

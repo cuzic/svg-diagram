@@ -48,7 +48,11 @@ export function raciParts(tasks: readonly string[], roles: readonly string[], as
       return {text, align: 'center' as const, bold: xs.includes('A') || xs.includes('R'), tone: RACI_TONE[key]};
     })];
   });
-  if (opts.legend) rows.push({cells: ['凡例', 'R: 実行責任', 'A: 説明責任', 'C: 相談先', 'I: 報告先', ...Array(Math.max(0, roles.length - 4)).fill('')].slice(0, roles.length + 1), tone: 'muted'});
+  if (opts.legend) {
+    // all four letters always appear: with fewer than four role columns, several entries share a cell
+    const entries = ['R: 実行責任', 'A: 説明責任', 'C: 相談先', 'I: 報告先'], per = Math.ceil(entries.length / roles.length);
+    rows.push({cells: ['凡例', ...roles.map((_, j) => entries.slice(j * per, (j + 1) * per).join('\n'))], tone: 'muted'});
+  }
   const {corner, allowNoA: _a, legend: _l, ...rest} = opts;
   return {columns: [{label: corner ?? 'タスク ＼ 役割', flex: 2, bold: true}, ...roles.map(label => ({label, align: 'center' as const}))], rows, opts: {...rest, rowHeader: true}, emptyRoles: roles.filter((_, i) => !used[i])};
 }
@@ -88,8 +92,10 @@ export function fmeaParts(input: readonly FmeaRow[], opts: FmeaOpts = {}): Seman
   if (opts.sort === 'rpn') computed = [...computed].sort((a, b) => b.rpn - a.rpn);
   const highest = Math.max(...computed.map(r => r.rpn));
   const hasAfter = computed.some(r => r.after !== undefined);
-  const lab = {item: '項目', mode: '故障モード', effect: '影響', cause: '原因', action: '対策', s: '深刻度 S', o: '発生度 O', d: '検出度 D', rpn: 'RPN', afterS: '改善後 S', afterO: '改善後 O', afterD: '改善後 D', afterRpn: '改善後 RPN', ...opts.labels};
-  const riskCell = (n: number, top = false): TableCellSpec => ({text: String(n), align: 'center', bold: top || n >= threshold, tone: n >= threshold ? 'danger' : n >= mid ? 'accent' : 'muted', ...(top ? {mark: 'best'} : {})});
+  // numeric columns are narrow (about two full-width characters with the after-action group), so their labels break by hand
+  const lab = {item: '項目', mode: '故障\nモード', effect: '影響', cause: '原因', action: '対策', s: 'S\n深刻', o: 'O\n発生', d: 'D\n検出', rpn: 'RPN', afterS: '改善\nS', afterO: '改善\nO', afterD: '改善\nD', afterRpn: '改善\nRPN', ...opts.labels};
+  // the highest RPN is the worst row: bold only (◎ would read as "excellent")
+  const riskCell = (n: number, top = false): TableCellSpec => ({text: String(n), align: 'center', bold: top || n >= threshold, tone: n >= threshold ? 'danger' : n >= mid ? 'accent' : 'muted'});
   const rows: TableRow[] = computed.map(r => [r.item, r.mode, r.effect, r.cause, r.action, r.s, r.o, r.d, riskCell(r.rpn, r.rpn === highest), ...(hasAfter ? [r.after?.s ?? '', r.after?.o ?? '', r.after?.d ?? '', r.afterRpn === undefined ? '' : riskCell(r.afterRpn)] : [])]);
   const columns: TableColumn[] = [lab.item, lab.mode, lab.effect, lab.cause, lab.action].map(label => ({label, flex: 1.5}));
   columns.push(...[lab.s, lab.o, lab.d, lab.rpn].map(label => ({label, align: 'center' as const})));
@@ -118,9 +124,10 @@ export function qfdParts(demands: readonly QfdDemand[], characteristics: readonl
   if (relations.length !== demands.length) throw new Error(`qfd(): relations has ${relations.length} rows for ${demands.length} demands`);
   demands.forEach((d, i) => { if (!d.label?.trim()) throw new Error(`qfd(): demand ${i + 1} needs a label`); if (!(Number.isFinite(d.importance) && d.importance >= 0)) throw new Error(`qfd(): importance of "${d.label}" must be a number >= 0`); });
   const marks = relations.map((r, i) => { if (r.length !== characteristics.length) throw new Error(`qfd(): demand "${demands[i].label}" has ${r.length} relations for ${characteristics.length} characteristics`); return r.map((m, j) => qfdMark(m, `the relation of "${demands[i].label}" x "${characteristics[j]}"`)); });
-  const scores = qfdScores(demands, relations, characteristics.length), top = Math.max(...scores.raw), unique = scores.raw.filter(x => x === top).length === 1;
+  const scores = qfdScores(demands, relations, characteristics.length), top = Math.max(...scores.raw), unique = top > 0 && scores.raw.filter(x => x === top).length === 1;
   const rows: TableRow[] = demands.map((d, i) => [d.label, d.importance, ...marks[i].map(m => m ? {text: '', mark: m, align: 'center' as const} : {text: '', align: 'center' as const})]);
-  rows.push({cells: ['原点', '', ...scores.raw.map((n, i) => unique && n === top && opts.highlight !== false ? {text: String(n), mark: 'best', bold: true, align: 'center'} as TableCellSpec : {text: String(n), align: 'center'} as TableCellSpec)], tone: 'muted'});
+  // the top score is bold + accent, not ◎: ◎ already means a strong (9) relation in this table
+  rows.push({cells: ['得点', '', ...scores.raw.map((n): TableCellSpec => unique && n === top && opts.highlight !== false ? {text: String(n), bold: true, tone: 'accent', align: 'center'} : {text: String(n), align: 'center'})], tone: 'muted'});
   rows.push({cells: ['相対 %', '', ...scores.relative.map(n => ({text: n.toFixed(1), align: 'center' as const}))], tone: 'muted'});
   const {corner, highlight: _h, ...rest} = opts;
   return {columns: [{label: corner ?? '要求品質', flex: 2, bold: true}, {label: '重要度', align: 'center'}, ...characteristics.map(label => ({label, align: 'center' as const}))], rows, opts: {...rest, rowHeader: true}, scores};

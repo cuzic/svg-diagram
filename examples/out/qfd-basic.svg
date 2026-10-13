@@ -52,8 +52,8 @@
   <text x="545" y="186" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">△</text>
   <text x="695" y="186" text-anchor="middle" font-size="14" font-weight="400" fill="#1d5fa8">○</text>
   <text x="845" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">◎</text>
-  <text x="32" y="221" font-size="14" font-weight="700" fill="#22201b">原点</text>
-  <text x="545" y="221" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">◎ 63</text>
+  <text x="32" y="221" font-size="14" font-weight="700" fill="#22201b">得点</text>
+  <text x="545" y="221" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">63</text>
   <text x="695" y="221" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">59</text>
   <text x="845" y="221" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">47</text>
   <text x="32" y="257" font-size="14" font-weight="700" fill="#22201b">相対 %</text>
