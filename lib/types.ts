@@ -760,6 +760,8 @@ export interface PlaneAxis {
   step?: number;
   /** Explicit ticks instead of `step`: a value, or a value with its own label. */
   ticks?: (number | {at: number; label: string})[];
+  /** A categorical axis: the names (lane names, stages) are the ticks, at 1, 2, 3 … (give `max` as the count + 1). Overrides `ticks` / `step`. */
+  categories?: string[];
 }
 export interface PlanePoint {
   id?: string;
