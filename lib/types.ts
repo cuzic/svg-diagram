@@ -138,8 +138,8 @@ export interface DiagramOpts {
   desc?: string;
   /** {'rule-id': 'why this finding is fine'}: shown as info instead of a warning. */
   accept?: Partial<Record<RuleId, string>>;
-  /** 'auto' adds a legend entry for every notation used but not listed. */
-  legend?: 'auto';
+  /** 'auto' adds a legend entry for every notation used but not listed. false: this diagram needs no legend (legend-missing / legend-incomplete are not reported). */
+  legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
   width?: number;
   pad?: number;
@@ -181,7 +181,7 @@ export interface DiagramData {
   title?: string;
   desc?: string;
   accept?: Partial<Record<RuleId, string>>;
-  legend?: 'auto';
+  legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
   width: number;
   pad: number;
