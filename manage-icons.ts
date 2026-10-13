@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // svg-diagram icons <add|remove|list|search|notice> — the project's own icon set (svg-diagram.icons.json). svg-diagram ships no icons.
-//   icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX] [--color]   install (e.g. mdi:key-variant=key, ./logo.svg)
+//   icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX] [--color] [--skip-missing]   install (e.g. mdi:key-variant=key, ./logo.svg)
 //   icons sets / icons add-set <name>                                        recommended use-case sets (accounting, office, infra), all mdi
 //   icons remove <name>...
 //   icons list
@@ -18,23 +18,25 @@ import {findIcons} from './lib/icon-find.ts';
 import type {Candidate} from './lib/icon-find.ts';
 
 const [sub, ...rest] = process.argv.slice(2);
-const BOOLEAN = new Set(['color', 'accept-terms', 'all', 'list']);
+const BOOLEAN = new Set(['color', 'accept-terms', 'all', 'list', 'skip-missing']);
 const flags = new Map<string, string>();
 const args: string[] = [];
 for (let i = 0; i < rest.length; i++) {
   if (rest[i].startsWith('--')) flags.set(rest[i].slice(2), BOOLEAN.has(rest[i].slice(2)) ? '1' : rest[++i] ?? '');
   else args.push(rest[i]);
 }
-const usage = () => { console.error(['usage: svg-diagram icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX] [--color]', '       svg-diagram icons sets                      (list the recommended sets)', '       svg-diagram icons add-set <accounting|office|infra> [--allow-license SPDX] [--color]', '       svg-diagram icons remove <name>...', '       svg-diagram icons list [regex]', '       svg-diagram icons search <word> [--set mdi] [--limit N]', '       svg-diagram icons find <word>... [--style fill|line|color] [--set mdi,lucide] [--limit N] [--color] [--png sheet.png]', '       svg-diagram icons main [set|-]', '       svg-diagram icons add-pack <dir|vendor.zip> --prefix aws --terms <url> --accept-terms [--match REGEX] [--exclude REGEX] [--all] [--list]', '       svg-diagram icons notice'].join('\n')); process.exit(2); };
+const usage = () => { console.error(['usage: svg-diagram icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX] [--color] [--skip-missing]', '       svg-diagram icons sets                      (list the recommended sets)', '       svg-diagram icons add-set <accounting|office|infra> [--allow-license SPDX] [--color]', '       svg-diagram icons remove <name>...', '       svg-diagram icons list [regex]', '       svg-diagram icons search <word> [--set mdi] [--limit N]', '       svg-diagram icons find <word>... [--style fill|line|color] [--set mdi,lucide] [--limit N] [--color] [--png sheet.png]', '       svg-diagram icons main [set|-]', '       svg-diagram icons add-pack <dir|vendor.zip> --prefix aws --terms <url> --accept-terms [--match REGEX] [--exclude REGEX] [--all] [--list]', '       svg-diagram icons notice'].join('\n')); process.exit(2); };
 
 try {
   switch (sub) {
     case 'add': {
       if (!args.length) usage();
-      const r = await addIcons(args, {allowLicense: flags.get('allow-license')?.split(',').filter(Boolean), color: flags.has('color')});
+      const r = await addIcons(args, {allowLicense: flags.get('allow-license')?.split(',').filter(Boolean), color: flags.has('color'), skipMissing: flags.has('skip-missing')});
       if (r.added.length) console.log(`✓ 追加: ${r.added.join(', ')}`);
       if (r.replaced.length) console.log(`✓ 置き換え: ${r.replaced.join(', ')}`);
+      if (r.skipped.length) console.log(`・セットに無いので飛ばした: ${r.skipped.join(', ')}`);
       for (const w of r.warnings) console.log(`⚠ ${w}`);
+      if (!r.added.length && !r.replaced.length) { console.log('何も入れていない（指定した名前がどれもセットに無い）'); process.exitCode = 1; break; }
       console.log(`→ ${r.file}（図のソースでは box({icon: '<名前>'})。このファイルをコミットする）`);
       break;
     }
@@ -49,6 +51,7 @@ try {
       if (r.added.length) console.log(`✓ 追加 ${r.added.length} 個: ${r.added.join(', ')}`);
       if (r.kept.length) console.log(`・入っている名前はそのまま（上書きしない）: ${r.kept.join(', ')}`);
       for (const w of r.warnings) console.log(`⚠ ${w}`);
+      if (!r.added.length && !r.replaced.length) { console.log('何も入れていない（指定した名前がどれもセットに無い）'); process.exitCode = 1; break; }
       console.log(`→ ${r.file}（図のソースでは box({icon: '<名前>'})。このファイルをコミットする）`);
       break;
     }

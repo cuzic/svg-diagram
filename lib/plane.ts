@@ -40,6 +40,7 @@ function niceStep(range: number): number {
   return mag * (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10);
 }
 export function ticksOf(axis: PlaneBand['x'], caller = 'plane'): {at: number; label: string}[] {
+  if (axis.categories) return axis.categories.map((label, i) => ({at: i + 1, label}));
   if (axis.ticks) return axis.ticks.map(t => typeof t === 'number' ? {at: t, label: fmt(t)} : t);
   const min = axis.min ?? 0, step = axis.step ?? niceStep(axis.max - min), out: {at: number; label: string}[] = [];
   if (!(step > 0) || !Number.isFinite(step)) throw new Error(`${caller}(): an axis step must be a number > 0 (got ${axis.step})`);
@@ -263,10 +264,10 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     addText(l.text, q.x + (l.offset?.[0] ?? 0), q.y + half + (l.offset?.[1] ?? 0), l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold, l.reveal);
   }
 
-  // An automatic point label that sits on the plane's ink or on another label moves to the first side that is free (all taken: stays).
+  // An automatic point label that sits on the plane's ink (a dimension line and its extension lines included) or on another label moves to the first side that is free (all taken: stays).
   const hits = (b: Rect, self: number): boolean =>
     b.x < left - 0.5 || b.x + b.w > left + width + 0.5 || b.y < y - 0.5 || b.y + b.h > y + h + 0.5
-    || obstacles.some(ob => ob.dim === undefined && overlapsRect(b, ob))
+    || obstacles.some(ob => overlapsRect(b, ob))
     || boxes.some((o, i) => i !== self && overlapsRect(b, o));
   for (const a of autoLabels) {
     if (!hits(boxes[a.box], a.box)) continue;

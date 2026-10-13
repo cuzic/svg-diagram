@@ -36,9 +36,9 @@
   <rect x="36" y="280" width="868" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <text x="56" y="309.6" font-size="15" font-weight="700" fill="#22201b">操作ログと聞き取り</text>
 
-  <path d="M241,170 L245,234" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
-  <text x="243" y="196" text-anchor="middle" font-size="14" fill="#22201b">照合</text>
+  <path d="M241,170 L241,234" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <text x="263" y="207" text-anchor="middle" font-size="14" fill="#22201b">照合</text>
 
-  <path d="M699,170 L695,234" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
-  <text x="697" y="196" text-anchor="middle" font-size="14" fill="#22201b">裏づけ</text>
+  <path d="M699,170 L699,234" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <text x="728" y="207" text-anchor="middle" font-size="14" fill="#22201b">裏づけ</text>
 </svg>

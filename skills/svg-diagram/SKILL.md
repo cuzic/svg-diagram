@@ -40,7 +40,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
    - 文書向けは `theme: 'blue' | 'teal' | 'amber'`。`title` は必須（`check` が見る）。幅は 940px 以下（文書に埋めると縮むため）。
    - **ソースは `.ts` で書き、ビルドの前に `npx tsc -p .`（またはエディタの型エラー）を通す**。型が保証すること: `connect()` の参照先 id と `:side[@t]` の書式、swimlane の `lane` / flow の `from`・`to` / step の id の重複 / レーン 6 本まで、`stateMatrix()` の `required` と「1 行のセルの数 = 列の数」（未設計にするなら `undefined` を明示）、`box({step})` に `title`、`connect()` の `dip`・`bend`・`chip` の組み合わせ、14px 未満の `size`、`grid` の `cols`、`pyramid` / `curve` の個数。
    - **`connect()` の id の検査を効かせるには、関係する box と `connect()` を 1 回の `d.add(...)` にまとめるか、`d.add(a).add(b)` とつなぐ**（別々の文では、前の id を型が知らず検査されない。つないだ `add()` をまたぐ前方参照は型エラーになる）。
-   - **接続点は、`const list = box({id: 'list'})` のハンドルで書く**: `connect(list.right, detail.at('top', 0.25))`（screens / swimlane は `flow.anchors.a.right`）。id を文字列で打ち直さないので、別の文にまたがっても未宣言の id や辺の綴り違いが作れない。`accept` のキー（ルール ID）や `legendLabels` のキー、`tone` / `line` / `route` なども閉じた文字列の型で、綴り違いは型エラーになる。
+   - **接続点は、`const list = box({id: 'list'})` のハンドルで書く**: `connect(list.right, detail.at('top', 0.25))`（screens / swimlane は `flow.anchors.a.right`）。id を文字列で打ち直さないので、別の文にまたがっても未宣言の id や辺の綴り違いが作れない。凡例を全図で既定オフにする・文言を揃えるなら `.svg-diagram.json` に `"legend": false` / `"legendLabels": {"tone:accent": "注意"}`（図ごとの指定が優先）。`accept` のキー（ルール ID）や `legendLabels` のキー、`tone` / `line` / `route` なども閉じた文字列の型で、綴り違いは型エラーになる。
    - 型エラーは `check` の警告より前に直す。型を通っても、重なり・コントラスト・見た目は下のビルド・検査・目視で確かめる。
 2. **ビルド**: `svg-diagram build src.ts --out out.svg`（重なり検査と lint --strict まで走る。失敗するとエラー文が出る）
    - PNG も要るとき（Word・チャット・PNG しか貼れない所）は `--png <dir> [--scale N]` を足す。同じビルドの SVG から `<dir>/<名前>.png` を書く（既定の倍率 2。段階表示の各段の SVG も PNG になる）。`--stale` と併用すると、PNG がない・SVG より古いときは作り直す。
@@ -68,7 +68,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 |---|---|---|
 | 組織図・階層 | `tree(root, {dir})` | 節 `{label, sub?, id?, tone?, children?}` |
 | マインドマップ | `mindmap(root, {layout, edges})` | 節（`tree` と同じ）。`layout`: radial（既定。中央から左右へ）/ right・left / down・up / org / list / brace / fishbone（特性要因図。大骨=子、中骨=孫、小骨=その下）/ timeline。`edges`: elbow・curve・straight（ツリー系の形だけ） |
-| 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?}` と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
+| 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?, tone?}`（`tone` は `'solid'` / `'solid-danger'` も可）と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
 | TOC の因果の図（現状・未来現実・前提条件・移行ツリー） | `causeTree(nodes, links, {dir})` | 実体 `{id, label, role?}`（role: ude / root / de / injection / goal / obstacle / io / action）と `{from, to}`（`from` を配列にすると AND）。下が原因・上が結果 |
 | TOC のクラウド（対立解消図） | `cloud({a, b, c, d, d2}, {assumptions})` | 共通目的 A・必要条件 B/C・対立する要望 D/D'。前提 `{on: 'ab'｜'ac'｜'bd'｜'cd'｜'dd', text, injection?}` は番号が矢印に載り、一覧は図の下 |
 | スケジュール | `gantt(rows, {today})` | タスク `{label, start, end｜days, after?, progress?, milestone?}`（日付は `YYYY-MM-DD`、`today` は必ず書く） |
@@ -140,11 +140,12 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 ## くり返しは、まとめて書く
 
 - 12 列の行: `row([a, b], {cols: [6, 6]})`（`col:` を手で数えない）。`row([a, b, c], {cols: 12})` のように子に `span` を書かなければ、12/n 列ずつの等分（3 個なら 4+4+4）。
+- `row()` の子は `box()` / `group()` のほか `caption()` / `banner()` なども可（枠なし `group()` に自動で包まれる）。`versus()` の `children` は配列（縦積み）、`direction: 'row'` で横並び。共通部への接続線は垂直（矢頭なしは `connectArrow: 'none'`）。
 - 折り返しは文節単位（既定 `wrap: 'phrase'`）: カタカナ・漢字の連続は割れない。1 文字ずつ折りたいときだけ `diagram({wrap: 'char'})`。別の行の N 列目への矢印は、`row({id: 'top'})` の `top.col(5).top`。
 - 接続線: `diagram({connectDefaults: {chip: true, route: 'elbow'}})` と `d.connect(from, to, {label})`。
 - ワイヤーフレームの外枠: `diagram({wireframeDefaults: {appbar: {title, nav}}})` と、画面ごとの `shell: {active: '在庫'}`。
 - 状態の一覧: `stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', 空: {na: '理由'}})`。
-- 表の記号セル: `cell('通る', {mark: 'ok' | 'mid' | 'ng' | 'best'})`。座標平面（軸・点・寸法線）は `plane()`。`raw()` で SVG を手書きする前に、これらを探す。
+- 表の記号セル: `cell('通る', {mark: 'ok' | 'mid' | 'ng' | 'best'})`。座標平面（軸・点・寸法線）は `plane()`。点ラベルは `labelAt` を省くと寸法線・補助線・他ラベルを避けて自動で置く。軸の `categories: [...]` でレーン名を目盛りにできる（`max` は個数 + 1）。`raw()` で SVG を手書きする前に、これらを探す。
 
 ## コンサル系のチャート
 
@@ -222,6 +223,7 @@ PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `
 2. **候補を出す**: `svg-diagram icons find key bridge --png sheet.png`。ライセンスが許すセットだけが並び、**主セット**（最初に入れたセット）が先頭に出る。`--style fill|line` で塗り／線画を絞れる。
 3. **目で選ぶ**: `sheet.png` を見る（枠が色つきのものが主セット）。図の中のアイコンは見た目を揃える（塗りと線画を混ぜない・太さが違うセットを混ぜない）。迷ったら主セットのものを選ぶ。主セットに無い時だけ他のセットから選び、揃わないことを伝える。
 4. **入れる**: 候補の下に出る行をそのまま実行する（`svg-diagram icons add mdi:key-variant=key`）。1 回で複数入れられる。名前は図のソースで使う短い名前。
+   セットに無い名前が混じるときは `--skip-missing`（あるものだけ入れて、無い名前を一覧する）。無いまま既定で実行すると、無い名前を全部まとめて報告して何も入れない。
    経理・業務の図なら、まず `svg-diagram icons add-set accounting`（`icons sets` で `office` / `infra` も）で用途別のセットを一括で入れられる。個別の `find` はその後の不足分だけ。
 5. **使う**: `box({icon: 'key', title: '鍵の管理'})`。`icon` は box のほか、swimlane の step、`cell('鍵', {icon: 'key'})`（table のセル）、stateDiagram の状態 `{id, label, icon}`、sankey のノード `{id, icon}` にも付く。`step`（丸番号）とも併用できる（アイコン→番号→タイトルの順）。入っていない名前は、入れ方つきのエラーで教えてくれる。
 
@@ -238,7 +240,8 @@ PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `
 - **線は必ず辺を指す**（`:right` `:left` `:top` `:bottom`）。省略すると中心同士を結び、枠のない node ではアイコンを貫く。`:bottom` は名前の下に付く。
 - 線が見出しや別の node にかかって `build` が止まったら、node の並び（同じ行・同じ列に寄せる）か、`route: 'elbow'` の `bend` で直す。ゾーンや層ごとに行を分け、線は隣の行へだけ引くと素直に収まる。
 - アイコンは汎用なら `icons find`（carbon が構成図向き）。**AWS / Azure / GCP / Kubernetes の公式アイコンは Iconify に無い**ので、ユーザーに各社の配布ページから zip を DL してもらい、`icons add-pack <zip> --prefix aws --terms <規約の URL> --accept-terms --match "..."` で入れる。**規約を読んだかはユーザーに確認してから** `--accept-terms` を付ける（勝手に付けない）。
-- PNG プレビューで曲がる線の矢じりが横向きに見えるのは resvg の癖。確かめるなら `--engine chromium`。
+- PNG プレビュー（resvg）でも曲がる線の矢じりは線の向きに合う（描くときだけマーカーを置き換えて直してある）。実ブラウザで確かめたいときは `--engine chromium`。
+- グローバル運用（案件に `svg-diagram` を入れない）でも `svg-diagram typecheck` は動く（PATH 上の `tsc` と、このツールの型定義を使う）。
 
 ## 公開してよい内容か
 

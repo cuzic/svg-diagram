@@ -171,8 +171,8 @@ test('row() takes boxes and groups; grid() takes boxes only; anything else is re
   const {row, grid, group, box, banner} = await import('../lib/dsl.ts');
   const g = group([box({title: 'x'})], {title: 'g'});
   const ban = banner({headline: 'h'}) as never;
-  assert.throws(() => row([ban]), /row\(\): child 0 is a banner\(\)/);
-  assert.throws(() => row([box({title: 'a'}), g, ban]), /row\(\): child 2 is a banner\(\)/);
+  assert.equal(row([ban]).type, 'grouprow'); // a banner / caption is wrapped in a frameless group
+  assert.throws(() => row([grid([box({title: 'a'})], {cols: 1}) as never]), /row\(\): child 0 is a grid\(\)/);
   assert.throws(() => grid([box({title: 'a'}), g as never], {cols: 2}), /grid\(\): child 1 is a group\(\)/);
   assert.throws(() => row([g], {arrows: 'between'}), /arrows: 'between' cannot be used/);
   assert.doesNotThrow(() => row([box({title: 'a'})]));

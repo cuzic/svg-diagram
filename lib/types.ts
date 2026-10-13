@@ -581,6 +581,8 @@ export interface ConnectBand {
   label?: string;
   reveal?: number;
   until?: number;
+  /** Internal (versus()): the end on a top / bottom side takes the start's x (kept inside that side), so the line drops plumb. */
+  plumb?: boolean;
 }
 /** branch() target: connect() options plus the target ref. */
 export interface BranchTarget extends ConnectOpts {to: string}
@@ -760,6 +762,8 @@ export interface PlaneAxis {
   step?: number;
   /** Explicit ticks instead of `step`: a value, or a value with its own label. */
   ticks?: (number | {at: number; label: string})[];
+  /** A categorical axis: the names (lane names, stages) are the ticks, at 1, 2, 3 … (give `max` as the count + 1). Not with `ticks` / `step`. */
+  categories?: string[];
 }
 export interface PlanePoint {
   id?: string;
@@ -879,6 +883,8 @@ export interface BarsOpts extends RevealOpts {
   labelRole?: LabelRole;
   max?: number;
   unit?: string;
+  /** How a bar's value is written. Default: whole numbers exactly (1055 stays 1055), others to 3 significant digits but keeping the whole part (1055.5 is 1056). 'exact' writes the number as given; a number is the decimals; a function formats it yourself. */
+  valueFormat?: 'exact' | number | ((value: number) => string);
   dir?: 'h' | 'v';
   stack?: boolean;
   /** Figure height. Vertical bars default to 280; horizontal bars derive it from their count. */
@@ -1012,7 +1018,8 @@ export interface StateItem {
   label: string;
   /** A second, muted line (an entry action, a note). */
   sub?: string;
-  tone?: BoxTone;
+  /** Default 'plain'. 'solid' / 'solid-danger' fill the state (white text): the lead state of the figure / the failure. */
+  tone?: EmphasisTone;
   /** An end state: drawn with a double outline. */
   final?: boolean;
   /** 'circle': a round node that holds a short text (an event of an arrow diagram). Default a rounded box. */
@@ -2342,7 +2349,7 @@ export interface LaidOutStates extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone; final?: boolean; circle?: boolean})[];
+  nodes: (Rect & {tone: EmphasisTone; final?: boolean; circle?: boolean})[];
   initial?: {x: number; y: number; r: number};
   /** Orthogonal polylines from the tail state's box edge to the head's; the arrowhead is at the last point. */
   edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; tone?: 'danger' | 'accent' | 'muted'; strong?: boolean}[];
@@ -2572,6 +2579,10 @@ export interface CheckResult {laidOut: LaidOutDiagram; verdict: Verdict}
 export interface Config {
   accept?: Partial<Record<RuleId, string>>;
   maxWidth?: number;
+  /** The default for every diagram's `legend` (a diagram's own wins): false = no legend needed, 'auto' = add the missing entries. */
+  legend?: 'auto' | false;
+  /** Legend wording for every diagram, e.g. {"tone:accent": "注意"} (a diagram's own legendLabels win per key). */
+  legendLabels?: Partial<Record<NotationKey, string>>;
   /** How text is measured: 'font' (default) from the font files, no browser (see `fonts`); 'chromium' in a headless browser. */
   measure?: 'chromium' | 'font';
   /** Font files to measure with when `measure` is 'font': per family, the regular and the bold (weight >= 600) one, as `path` or `path#faceIndex`. Unset: found with fontconfig. */
