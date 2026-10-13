@@ -863,6 +863,26 @@ d.add(flow, connect(flow.anchors.a.right, flow.anchors.b.left));   // screens() 
 型の仕組みは `lib/strict.ts`、保証の一覧は `test/types/*.ts`（`@ts-expect-error` つきの型テスト。`npx tsc -p .` で検査される）。
 **型で検出できないもの**: 番号つき注釈と `n:` の対応（`wf-callout-*`。`n: true` の自動採番と、`wf.*` の入れ子・関数での組み立てを型で数えるのは割に合わない）、コントラスト・凡例・線の交差・幅・密度などの描画結果に依存するルール、`row({cols})` の `col` / `span` が枠をはみ出すこと。これらは従来どおり `build` / `check` が見つける。
 
+## 意味付き表（RACI / FMEA / QFD / カスタマージャーニー）
+
+`table()` と同じレイアウト・段階表示・ハンドルを使いながら、セルの値を検証し、集計値と意味のある印を自動で付ける。どれも `{title, width, dense, id, reveal, until}` を受ける。
+
+| 部品 | 入力と自動処理 |
+|---|---|
+| `raci(tasks, roles, assignments, opts)` | 行ごとの `R` / `A` / `C` / `I`（`A/R` も可）。各タスクは A がちょうど 1 つ、R が 1 つ以上。A が不要な表だけ `allowNoA: true`。`legend: true` で凡例行。空の役割列は check の警告になる |
+| `fmea(rows, opts)` | `{item, mode, effect, cause, action, s, o, d, after?}`。S/O/D は 1〜10 の整数で、RPN = S×O×D を自動計算。`sort: 'rpn'`、`threshold` / `midThreshold` で段階、`after: {s,o,d}` で改善後 RPN |
+| `qfd(demands, characteristics, relations, opts)` | 要求 `{label, importance}` × 品質特性に `◎`(9) / `○`(3) / `△`(1) / `×`(0)。下段に原点と相対 %、単独首位には ◎ |
+| `journeyMap(stages, lanes, opts)` | レーン `{id, label, cells}` をステージ横断で表示。`id: 'emotion'` は数値範囲（既定 -2〜+2）を検証し、行の下半分に折れ線と点、上半分に値と記号を描く。範囲は `emotionRange: [min, max]` |
+
+```ts
+fmea([
+  {item: '駆動軸', mode: '摩耗', effect: '停止', cause: '潤滑不足', action: '定期給油', s: 8, o: 5, d: 4,
+   after: {s: 8, o: 2, d: 2}},
+], {sort: 'rpn', threshold: 100});
+```
+
+色は補助で、RACI の文字、FMEA/QFD/感情の数値・記号を常に残す。感情曲線は専用の高さを確保した行の下側だけに描き、上側のスコア文字とは重ならない。
+
 ## 例
 `examples/` に架空の在庫管理アプリの例がある（生成済みの SVG は `examples/out/`）。
 
@@ -878,6 +898,7 @@ d.add(flow, connect(flow.anchors.a.right, flow.anchors.b.left));   // screens() 
 | `dark-theme.ts` | 暗い背景＋背景なし（`appearance: 'dark'`、`transparent: true`） |
 | `dark-bars-wall.ts` | 濃い背景の資料の色＋濃い赤の danger で描く棒グラフ（透明） |
 | `chart-waterfall.ts` ほか `chart-*.ts` | コンサル系のチャート（ウォーターフォール・レーダー・ヒートマップ・戦略キャンバス・バーンダウン・積み上げ・マリメッコ・ツリーマップ・サンキー・トルネード） |
+| `raci-project.ts` / `fmea-basic.ts` / `qfd-basic.ts` / `journey-map.ts` | 意味付き表（責任分担、故障リスク、品質機能展開、顧客体験） |
 | `emphasis-tiers.ts` | 主役（solid）/ 次点（accent）/ その他（plain）の 3 段階と、凡例の「次点」 |
 
 ## Claude Code のスキル

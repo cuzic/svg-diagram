@@ -134,7 +134,7 @@ export function cellOf(cell: TableCell, col: TableColumn = {}): ResolvedCell {
   const mark = c.mark ? CELL_MARKS[c.mark] : undefined;
   if (c.mark && !mark) throw new Error(`table cell: unknown mark "${c.mark}" (use ${Object.keys(CELL_MARKS).join(' | ')})`);
   const text = mark ? (c.text ? `${mark.glyph} ${c.text}` : mark.glyph) : c.text ?? '';
-  return {text, tone: c.tone ?? mark?.tone, bold: c.bold ?? mark?.bold ?? col.bold ?? false, mono: c.mono ?? col.mono ?? false, align: c.align ?? col.align ?? 'left'};
+  return {text, tone: c.tone ?? mark?.tone, bold: c.bold ?? mark?.bold ?? col.bold ?? false, mono: c.mono ?? col.mono ?? false, align: c.align ?? col.align ?? 'left', vAlign: c.vAlign};
 }
 
 export function layoutTable(band: TableBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutTable {
@@ -170,7 +170,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     if (fixed !== undefined && fixed < need) throw new Error(`table(): ${rowH !== undefined ? 'h' : header && band.headerH !== undefined ? 'headerH' : 'cellH'} ${fixed} is too small for a row that needs ${Math.ceil(need)}px (${nLines} line(s) of ${roles.body}px text). Raise it or shorten the text`);
     const h = fixed ?? need;
     // fixed-height rows centre their text; content-height rows keep it top-aligned (the output before cellH existed)
-    for (const c of placed) c.top = fixed === undefined ? cy + padY : cy + (h - c.lines.length * lineH(roles.body)) / 2;
+    for (const c of placed) c.top = fixed === undefined || c.vAlign === 'top' ? cy + padY : cy + (h - c.lines.length * lineH(roles.body)) / 2;
     const row: LaidOutTableRow = {y: cy, h, cells: placed, header, tone};
     cy += h;
     return row;
@@ -182,5 +182,19 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     const cells = 'cells' in r ? r.cells : r;
     rows.push(rowOf(cells, false, 'cells' in r ? r.tone : undefined, 'cells' in r ? r.h : undefined));
   }
-  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone, rowHeader: band.rowHeader || undefined, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), bodySize: roles.body};
+  let rowCurve: LaidOutTable['rowCurve'];
+  if (band.rowCurve) {
+    const body = rows.filter(r => !r.header), row = body[band.rowCurve.row];
+    if (!row) throw new Error(`table(): rowCurve row ${band.rowCurve.row} does not exist`);
+    if (band.rowCurve.values.length !== cols.length - 1) throw new Error(`table(): rowCurve has ${band.rowCurve.values.length} values for ${cols.length - 1} data columns`);
+    const top = row.y + Math.max(36, row.h * 0.5), bottom = row.y + row.h - 10;
+    if (bottom - top < 16) throw new Error('table(): rowCurve row is too short; use h of at least 62');
+    const span = band.rowCurve.max - band.rowCurve.min;
+    const yOf = (v: number) => bottom - (v - band.rowCurve!.min) / span * (bottom - top);
+    rowCurve = {
+      points: band.rowCurve.values.map((v, i) => ({x: colX[i + 1] + colW[i + 1] / 2, y: yOf(v)})),
+      ...(band.rowCurve.min <= 0 && band.rowCurve.max >= 0 ? {zeroY: yOf(0)} : {}), top, bottom,
+    };
+  }
+  return {type: 'table', id: band.id, x: left, y, w: tw, h: cy - y, titleBar, rows, colX, colW, tone: band.tone, rowHeader: band.rowHeader || undefined, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), bodySize: roles.body, ...(rowCurve ? {rowCurve} : {})};
 }

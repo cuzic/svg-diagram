@@ -40,6 +40,7 @@ export const RULE_DOCS = {
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える）',
   'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる',
   'rowheader-tone-collides': '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある',
+  'semantic-table-warning': '意味付き表の入力に注意点がある（例: RACI の空の役割列）',
   'swimlane-lanes': 'レーンが多い（6 本まで）',
   'swimlane-hand-offs': 'レーンをまたぐ引き継ぎの数（情報）',
   'edge-crossings': '線どうしの交差・重なりがある',
@@ -276,6 +277,7 @@ function permutations<T>(a: T[]): T[][] {
 
 // rowHeader: true paints the row-heading cell `soft`; a row whose own tone also fills `soft` (accent / new) loses the difference.
 function rowHeaderRules(d: LintTarget, out: Finding[]): void {
+  for (const b of walkBands(d.bands)) if (b.type === 'table') for (const message of b.semanticWarnings ?? []) out.push({rule: 'semantic-table-warning', severity: 'warn', message});
   for (const b of d.laidOut ?? []) {
     if (b.type !== 'table' || !b.rowHeader) continue;
     const rows = b.rows.filter(r => !r.header && toneStyle(r.tone).fill === 'soft');
