@@ -1,7 +1,7 @@
 // wordart(): what to measure, and where everything goes (docs/adr/0009). Pure; widths come from the measured atoms.
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
-import type {Rect, Roles, WidthOf} from './types.ts';
+import type {Rect, Roles, WidthOf} from './types/core.ts';
 import {inkReach, REFLECTION_SHARE, resolveLook, sizeOf} from './wordart-look.ts';
 import {BASELINE, COLUMN_PITCH, graphemes, tcySize, tokenizeColumn, verticalColumns} from './wordart-vertical.ts';
 import {translateItem} from './wordart-types.ts';

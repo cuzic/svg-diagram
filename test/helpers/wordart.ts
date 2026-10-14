@@ -1,7 +1,7 @@
 // Shared by the wordart tests: a rough text width (no font files needed), a placer, and a box check.
 import {layoutWordArt, wordartBand} from '../../lib/wordart.ts';
 import {ROLES} from '../../lib/tokens.ts';
-import type {Rect} from '../../lib/types.ts';
+import type {Rect} from '../../lib/types/core.ts';
 
 /** A rough width (0.58 em per character): enough to check the geometry without measuring fonts. */
 export const rough = (atom: string, size: number): number => Array.from(atom).length * size * .58;

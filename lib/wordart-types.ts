@@ -1,5 +1,5 @@
 // wordart(): the types of the band — its options, the resolved look, and what the layout places (docs/adr/0009).
-import type {Anchor, Dimmed, Rect, RevealOpts, Role, TextTone} from './types.ts';
+import type {Anchor, Dimmed, Rect, RevealOpts, Role, TextTone} from './types/core.ts';
 
 /** A colour a wordart may use: a text tone, the page colour (a knocked-out letter) or the theme's pale colour. */
 export type ArtTone = TextTone | 'bg' | 'soft';

@@ -2,7 +2,7 @@ import {snap4, emojiSpan} from './emit-common.ts';
 import {colorOf} from './tokens.ts';
 import {figureTransform, gradientOf, paintLayers, translateItem} from './wordart.ts';
 import type {ArtItem, LaidOutWordArt} from './wordart.ts';
-import type {Rect, Theme} from './types.ts';
+import type {Rect, Theme} from './types/core.ts';
 
 // wordart(): the plate, then the layers from the bottom up (paintLayers: mirror image, shadow, glow, depth, outer outlines, bevel) and the
 // text itself on top. Every layer but the last is a copy of the text marked aria-hidden (decoration: read aloud and linted once).
