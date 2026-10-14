@@ -167,8 +167,8 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | ツリーマップ | `treemap(tree)` | 葉 `{label, value}`、グループ `{label, children}` |
 | サンキー | `sankey(nodes, links)` | ノード（文字列か `{id, label}`）と `{from, to, value}`。層・並び・太さは自動 |
 | トルネード | `tornado(items, {base})` | `{label, low, high}`（その入力が低い・高いときの結果）。幅の大きい順 |
-| 回帰・残差 | `regplot({x, y, group}, {order, stats})` / `residplot({x, y})` | 生の値。直線（`order: 2` で曲線）と 95% 信頼帯、R² は自動 |
-| パネル分割 | `...facet({名前: 値}, (名前, 値) => 図, {cols})` | 軸を揃えるなら各図に同じ `xRange` / `yRange` |
+| 回帰・残差 | `regplot({x, y, group}, {order, stats, lowess})` / `residplot({x, y})` | 生の値。直線（`order: 2` で曲線）と 95% 信頼帯、R² は自動。`lowess: true` は局所回帰の曲線 |
+| パネル分割 | `...facet({名前: 値}, (名前, 値, _i, axes) => 図(値, {...axes}), {cols, share})` | 軸は既定で全パネル共通（`axes` を図の opts に展開）。`share: 'none'` で個別 |
 | 2次元密度・クラスタ付きヒートマップ | `kde2d({x, y})` / `clustermap(行名, 列名, 表, {scale})` | クラスタリングと並べ替え・樹形図は自動 |
 | 2次元ヒストグラム・ジョイント・散布図行列 | `hist2d({x, y})` / `jointplot({x, y, group})` / `pairplot({変数: [..]}, {groups})` | 列ごとの**生の値**。度数・周辺分布は自動。グループは印の形と輪郭の線の種類で見分ける |
 | ヒストグラム・KDE・ECDF・ラグ | `histplot` / `kdeplot` / `ecdfplot` / `rugplot(values｜groups, {label, stat, binWidth})` / `displot(values, {kind: [..]})` | **生の値**（配列か `{男性: [..], 女性: [..]}`）。階級・密度・累積は自動。グループは色と線の種類で見分ける |

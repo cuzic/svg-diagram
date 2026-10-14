@@ -64,6 +64,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram build <source.ts> --html                 # <name>.html も書く（文字・箱・表・線・矢印・曲線を HTML/CSS で。docs/adr/0006）
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
+    svg-diagram check --changed[=REF] <source.ts>...   # 変わった図だけ検査
     svg-diagram check --rules | --explain RULE   # ルールの一覧 / 1 つの意味と許容の書き方
     svg-diagram check [--baseline FILE | --write-baseline FILE] [--format text|json|github|sarif] <source.ts>...   # 既存の警告を凍結して、新しい警告だけ見る / SARIF 出力
     svg-diagram check --covers 表.md|表.csv [--svg-dir DIR] <ソース.ts|図.svg>...   # 表を図に置き換えたとき、表のセルの語・数値が図に残っているか
@@ -525,7 +526,7 @@ bpmn(
 | サンキー図 | `sankey(nodes, links)` | `examples/chart-sankey.ts` |
 | トルネード図 | `tornado(items, {base})` | `examples/chart-tornado.ts` |
 | 回帰つき散布図 / 残差プロット（seaborn の `regplot` / `lmplot` / `residplot`） | `regplot({x, y, group?}, {order, stats})` / `residplot({x, y})` | `examples/chart-reg.ts` |
-| パネル分割（seaborn の `FacetGrid` / `col=`） | `...facet({東京: a, 大阪: b}, (名前, 値) => histplot(値, {xRange, yRange}), {cols: 3})` | `examples/facet.ts` |
+| パネル分割（seaborn の `FacetGrid` / `col=`） | `...facet({東京: a, 大阪: b}, (名前, 値, _i, axes) => histplot(値, {...axes}), {cols: 3})` | `examples/facet.ts` |
 | 2次元の密度（等高線） | `kde2d({x, y})` | `examples/chart-kde2d.ts` |
 | クラスタ付きヒートマップ（seaborn の `clustermap`） | `clustermap(行名, 列名, 値の表, {scale, unit})` | `examples/chart-clustermap.ts` |
 | 2次元ヒストグラム / ジョイントプロット / 散布図行列（seaborn の `histplot(x, y)` / `jointplot` / `pairplot`） | `hist2d({x, y})` / `jointplot({x, y, group?})` / `pairplot({変数: [..], ...}, {groups, corner})` | `examples/chart-multi.ts` |
@@ -555,8 +556,8 @@ catplot([{label: '第1四半期', hues: [{name: '新規', values: [32, 35, 41]},
 - **`treemap`**: 葉は `{label, value}`、グループは `children`（4 階層まで。グループの値は子の合計で、書くなら一致が必要）。葉の `tone: 'accent'｜'danger'` は塗りつぶし。グループの名前が入らないときも `<desc>` に残る。グループの枠と見出しの帯が子の場所を取る分は重みを補正するので、葉の面積はグループの中でも外でも値に比例する。`percent: true` で全体に対する割合を添える。
 - **`sankey`**: ノードは文字列か `{id, label?, tone?}`（どのリンクにも出てこないノードはエラー）。層は最長経路で決まり（循環は止まる）、出ていかないノードは最後の層に寄る（`align: 'left'` で寄せない）。ノードの並びは交差が少なくなるように入れ替える。ノードの高さが値に比例するので、名前が収まらないほど低いノードでも、名前の高さ分の場所は空ける。リボンには、両端のどちらの名前にも載っていない値（分岐・合流の途中）だけ数字が入る。`tone: 'danger'` のリボンは赤の破線で縁取る。
 - **`tornado`**: `low` / `high` は「その入力が低い / 高いときの結果」（結果が低いとは限らない）。結果が基準と同じならその棒は描かず数字だけ書く。両方が基準の同じ側に出るときは、棒を 2 段に分ける。
-- **`regplot` / `residplot`**: `{x: [..], y: [..], group?: [..]}`（生の値）。最小二乗の直線（`order: 2｜3` で多項式の曲線）と、平均の 95% 信頼帯（解析解。t 分布）を描き、`band: false` で帯なし、`stats: true` で凡例に式（直線のとき）と R²。グループごとに別の回帰（印・線の種類・色が違う）。x の異なる値が `order + 1` 個、点が `order + 2` 個ないと止まる。`residplot` は同じ当てはめからの残差と、破線の 0 の線（曲がりが残っていれば形に出る）。
-- **`facet(data, make, {cols})`**: `data` のキーごとに 1 枚、`make(キー, 値)` が返す図を枠つき（キーが見出し）で並べる（`cols` 列ずつ、最後の行も同じ列幅）。パネルの軸は各自のデータに合わせて決まるので、揃えたいときは `histplot` / `displot` / `regplot` の `xRange` / `yRange`（軸を少なくともこの範囲まで広げる）を全パネルに同じ値で渡す。`...facet()` で `.add()` に展開する。
+- **`regplot` / `residplot`**: `{x: [..], y: [..], group?: [..]}`（生の値）。最小二乗の直線（`order: 2｜3` で多項式の曲線）と、平均の 95% 信頼帯（解析解。t 分布）を描き（`lowess: true` は多項式の代わりに LOWESS = 局所回帰の曲線。外れ値に強い反復つきで、`frac`（各点の当てはめに使う点の割合、既定 2/3）が小さいほど細かく追う。帯・式・R² はない（`stats` と併用すると止まる）。`order` とも併用できない）、`band: false` で帯なし、`stats: true` で凡例に式（直線のとき）と R²。グループごとに別の回帰（印・線の種類・色が違う）。x の異なる値が `order + 1` 個、点が `order + 2` 個ないと止まる。`residplot` は同じ当てはめからの残差と、破線の 0 の線（曲がりが残っていれば形に出る）。`lowess: true` は残差の LOWESS 曲線を重ね、直線が取りこぼした形を見せる。
+- **`facet(data, make, {cols, share})`**: `data` のキーごとに 1 枚、`make(キー, 値, 番号, axes)` が返す図を枠つき（キーが見出し）で並べる（`cols` 列ずつ、最後の行も同じ列幅）。**軸は既定で全パネル共通**（seaborn の sharex / sharey）: 一度ふつうに描いて各パネルの軸を調べ、全体の範囲を `axes`（`{xRange, yRange}`）として渡して描き直すので、`make` は `axes` をそのまま図の opts に展開する（`histplot(値, {...axes})`）。`share: 'x'｜'y'｜'xy'｜'none'`。共有できるのは `histplot` / `kdeplot` / `ecdfplot` / `displot` / `regplot` / `residplot` のパネル（ほかの図は何もされず、そういうパネルしかないのに `share` を明示すると止まる）。`...facet()` で `.add()` に展開する。
 - **`kde2d`**: 2 変数のガウス KDE（各軸 Scott の帯域幅）を、最大密度の 10・30・50・70・90% の 5 段の塗りと等高線（marching squares）で。点を小さく重ねる（400 点まで）。
 - **`clustermap`**: 行×列の数の表（40×40 まで）。行と列を平均連結法（ユークリッド距離）で並べ替え、樹形図を上と左に付ける（`rows: false` / `cols: false` でその向きは並べ替えない）。`scale: 'row'｜'col'` は行（列）ごとに 0〜1 にしてからクラスタリングと濃淡を決める（セルの数字は元の値）。`values: false` で数字を省く。木は決まった順で作るので、同じ表は同じ並びになる。
 - **`hist2d` / `jointplot` / `pairplot`**: 列ごとの**生の値**を渡す（`{x: [..], y: [..]}`、`pairplot` は `{身長: [..], 体重: [..]}` で 2〜6 変数）。`hist2d` は切りのよい幅の升に点を数え、度数を升に書いて濃淡にする（入らない度数は書かず、凡例の 5 段階に最大値と 0）。`jointplot` は散布図と、上・右に各変数のヒストグラム。`pairplot` は全組の散布図と、対角線にその変数のヒストグラム（`corner: true` は対角線の下だけ）。目盛りは下と左（1 行目だけ右）に 1 回ずつ。`group`（`pairplot` は `groups`）は行ごとのラベルで、4 グループまで。印の形（● ◆ ■ ▲）と、ヒストグラムの輪郭の線の種類（実線・破線…）で見分け、凡例が付く。`bins` は階級数の目安、`xLabel` / `yLabel` は軸名。乱数は使わない。
@@ -974,6 +975,12 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 - **ベースライン**: 警告が多い案件に段階導入する。`check --write-baseline .svg-diagram.baseline.json diagrams/*.ts` で今ある警告を記録し、以後 `check --strict --baseline .svg-diagram.baseline.json diagrams/*.ts` は、**記録にない新しい警告**だけを失敗にする（記録済みは info になり「ベースライン済み」と添える）。照合はファイル・ルール・メッセージで、行番号は見ない。エラーはベースラインに入らない。
 - `--format sarif` は SARIF 2.1.0 を標準出力に出す（GitHub Code Scanning などへ）。
 - **つながりの検査**（`graph-orphan-node` / `graph-disconnected`）: 矢印が 3 本以上ある図で、`id` を持つ箱がどの矢印にもつながっていない、または矢印が互いにつながらない 2 つ以上のかたまりに分かれていると警告する（行・列を端にした矢印は、その中の箱を含む）。注記の箱は `id` を付けなければ対象外。意図した形なら `accept` に理由を書く。
+
+## 表記・数値の整合と差分だけの検査（`check`）
+- **表記の揺れ**（`term-variant`）: 1 つの図の中で、同じ語が `ユーザ` / `ユーザー`（末尾の長音）や `API` / `Api`（大文字・大小混在）のように揺れていると警告する。`Server` と `server` のような文頭の大文字だけの差、数字や `-` `_` を含む ID は見ない。
+- **用語集**（`term-avoid`）: `.svg-diagram.json`（または `diagram({terms})`）に `"terms": {"ユーザー": ["利用者", "ユザー"]}` と書くと、右の語が図に出たとき「ユーザーに統一」と警告する（用語集が決めている揺れは `term-variant` で二重に出さない）。
+- **表の合計**（`table-sum-mismatch`）: 表の「合計」「小計」「計」の行・列が、並ぶ値の和と合わないと警告する（小計をはさんだ合計、`%` の丸めは許す）。`table-share-not-100`: 「構成比」「割合」の列が、合計行なしで 100% にならないとき。
+- **`--changed[=REF]`**: 図のソースと一緒に使うと、変わったものだけを検査する。ソース自身・`import` しているファイル・（`--drift` のとき）コミット済みの SVG のどれかが、作業ツリーと REF 以降のコミットで変わったもの。REF の既定は `origin/main`（なければ `main`）との共通祖先で、`.svg-diagram.json` が変わったときは全部を検査する。変わったものがなければ何も検査せず終了コード 0。編集中の速い確認と、図が多い案件の PR の検査に。
 
 ## 表と図の突き合わせ（`check --covers`）
 `svg-diagram check --covers table.md --svg-dir svg diagrams/flow.ts` は、本文の Markdown 表（または CSV）を図に置き換えたとき、表のセルの文字列が図の `<text>` に残っているかを調べ、欠けたセルを `covers-missing`（警告）で一覧する。

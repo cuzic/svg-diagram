@@ -18,6 +18,7 @@ import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, c
 const wcagIn = (d: LintTarget) => { const p = paintOf(d.appearance); return (a: string, b: string): number => lightWcag(p(a), p(b)); };
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {budgetWarnings} from './budget.ts';
+import {termFindings, tableFindings} from './consistency.ts';
 import {barsValuesHidden} from './bars.ts';
 import {fmt} from './plane.ts';
 import {dimmedBands} from './spotlight.ts';
@@ -59,6 +60,10 @@ export const RULE_DOCS = {
   'funnel-values-rise': 'funnel({scale: "value"}) の値が下の段で増えている（漏斗として読むなら、値と段の順を確認する）',
   'graph-orphan-node': '矢印でつないだ図の中に、どの矢印にもつながっていない箱がある（つなぎ忘れか、図に要らない箱。意図した注記なら id を付けない）',
   'graph-disconnected': '矢印でつないだ図が、互いにつながらない 2 つ以上のかたまりに分かれている（1 図 1 話なら、つなぎ忘れか、図を分ける）',
+  'term-variant': '同じ語の表記が 1 つの図の中で揺れている（ユーザ / ユーザー、API / Api など）。1 つに揃える',
+  'term-avoid': '用語集（.svg-diagram.json の "terms"）で、別の語に統一すると決めた語が使われている',
+  'table-sum-mismatch': '表の「合計」行・列の値が、並ぶ値の和と合わない（丸めで説明できる差は除く）',
+  'table-share-not-100': '表の「構成比」「割合」の列が、合計 100% にならない',
   'arrow-labels': '一部にだけラベルがあり、ラベルのない矢印が多い',
   'canvas-region-empty': 'canvas() の領域に内容がない（requireAll: 全領域を埋める指定）',
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
@@ -512,6 +517,7 @@ function lintAll(d: LintTarget): Finding[] {
   rowHeaderRules(d, out);
   grayToneRules(d, out);
   graphRules(d, out);
+  out.push(...termFindings(d.bands, d.terms), ...tableFindings(walkBands(d.bands)));
 
   const connects = d.connects ?? [];
   if (connects.length) {

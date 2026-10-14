@@ -43,6 +43,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     // 'slide' (legacy day: 1|2 diagrams) gets slide-fit warnings; 'doc' (theme: ...) does not.
     medium: (opts.medium ?? (opts.theme === undefined ? 'slide' : 'doc')) as Medium,
     title: opts.title, desc: opts.desc,            // exposed as the SVG's <title> / <desc> (doc medium)
+    terms: opts.terms,
     accept: opts.accept, // {'rule-id': 'why this finding is fine'} — shown as info instead of a warning
     wrap: opts.wrap,
     tones: opts.tones === undefined ? undefined : checkTones(opts.tones, 'diagram({tones})'),

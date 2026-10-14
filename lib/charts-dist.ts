@@ -108,6 +108,8 @@ function plan(s: DistSpec): Plan {
   return {xs, ys: niceScale(0, Math.max(top > 0 ? top : 1, s.yRange?.[1] ?? 0)), curves, bars};
 }
 
+/** The axes the figure ends up with (what a facet shares between panels). */
+export function distAxes(s: DistSpec): {x: [number, number]; y: [number, number]} { const p = plan(s); return {x: [p.xs.min, p.xs.max], y: [p.ys.min, p.ys.max]}; }
 export function distTexts(s: DistSpec): [string, number][] {
   const p = plan(s), out: [string, number][] = [];
   for (const g of s.groups) if (g.label) out.push([g.label, 400]);
