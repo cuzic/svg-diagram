@@ -15,6 +15,12 @@ export interface GroupOpts extends RevealOpts {
   pad?: number;
   /** Chip at the bottom-right corner inside the frame (see box({stamp})). */
   stamp?: string;
+  /**
+   * Where the content sits when a row() stretches the frame taller than it (ADR 0014): 'center' (default) puts the content
+   * below the title in the middle of the room (the gaps between its parts grow by up to 16px first); 'top' keeps it at the top;
+   * 'stretch' makes a single box fill the room. Under 16px of room nothing moves. No effect outside a row, or with `frame: false`.
+   */
+  valign?: 'top' | 'center' | 'stretch';
   /** false draws no frame (and takes no title): a plain container, so a table / plane / banner can sit in a row() without a doubled outline. */
   frame?: false;
   id?: string;
@@ -37,6 +43,8 @@ export interface GroupBand {
   pad?: number;
   frame?: false;
   stamp?: string;
+  /** See GroupOpts. */
+  valign?: 'top' | 'center' | 'stretch';
   id?: string;
   flex?: number;
   width?: number;

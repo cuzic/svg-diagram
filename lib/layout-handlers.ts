@@ -130,7 +130,29 @@ function registerRowSlots(ctx: LayoutCtx, id: string | undefined, band: RowLike,
   }
 }
 
+/** A group stretched taller than its content by a row (ADR 0014 D2): the room to hand to the content, and where it goes. */
+interface GroupFill { slack: number; valign: 'center' | 'stretch' }
+
+/** Least room (px) a row's stretch must leave a group's content before the content is moved: under it, the content stays at the top. */
+export const GROUP_FILL_MIN = 16;
+const GROUP_FILL_GRID = 4;
+const GROUP_GAP_GROW_MAX = 16;
+
+/**
+ * How `slack` px are shared inside a group of `n` children: each of the n-1 gaps grows by up to 16px (in 4px steps), and what is
+ * still left is split above and below, the top part on the grid.
+ */
+export function groupFillPlan(n: number, slack: number): {top: number; gap: number} {
+  const floor4 = (v: number): number => Math.floor(v / GROUP_FILL_GRID) * GROUP_FILL_GRID;
+  const gap = n > 1 ? Math.min(GROUP_GAP_GROW_MAX, floor4(slack / (n - 1))) : 0;
+  return {gap, top: floor4((slack - gap * (n - 1)) / 2)};
+}
+
 function layoutGroup(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number): void {
+  layoutGroupAt(band, ctx, padX, cw);
+}
+
+function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number, fill?: GroupFill): void {
   const {d, roles, widthOf} = ctx;
   const gp = band.pad ?? 16;
   const startY = ctx.y;
@@ -145,7 +167,19 @@ function layoutGroup(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number):
     ctx.laidOut.push(t);
     ctx.y += t.h + d.gap / 2;
   }
-  ctx.stack(band.children, padX + gp, cw - 2 * gp);
+  const only = band.children.length === 1 ? band.children[0] : undefined;
+  const stretchOnly = fill?.valign === 'stretch' && only?.type === 'box';
+  const plan = fill && !stretchOnly ? groupFillPlan(band.children.length, fill.slack) : {top: 0, gap: 0};
+  ctx.y += plan.top;
+  band.children.forEach((c, i) => {
+    ctx.stack([c], padX + gp, cw - 2 * gp);
+    if (i < band.children.length - 1) ctx.y += plan.gap;
+  });
+  if (fill && stretchOnly) { // the single box takes the whole room
+    const box = ctx.laidOut[ctx.laidOut.length - 1] as unknown as {id?: string; h: number};
+    box.h += fill.slack; ctx.y += fill.slack;
+    if (box.id) ctx.setBox(box.id, box as never, box.h);
+  }
   ctx.y = ctx.y - d.gap + gp;
   if (band.stamp) {
     frame.stamp = band.stamp;
@@ -154,6 +188,8 @@ function layoutGroup(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number):
     ctx.y += STAMP_H + STAMP_GAP;
   }
   frame.h = ctx.y - startY;
+  if (fill) frame.h += fill.slack - (stretchOnly ? fill.slack : plan.top + plan.gap * (band.children.length - 1)); // what is left goes under the content
+  ctx.y = startY + frame.h;
   if (band.id) {
     if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a group takes an id that another box, group or row already has');
     ctx.anchors.set(band.id, {x: frame.x, y: frame.y, w: frame.w, h: frame.h});
@@ -295,29 +331,51 @@ function layoutConnect(band: ConnectBand, ctx: LayoutCtx, padX: number, cw: numb
 function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d} = ctx;
   // Each child is laid out as if stacked alone at its own x / width, all starting at the row's top; afterwards every
-  // frame / box is stretched to the tallest one (a group's inner content keeps its natural height).
+  // frame / box is stretched to the tallest one. A framed group left GROUP_FILL_MIN px or more of room by that stretch is laid
+  // out again with the room handed to its content (centred by default; group({valign}) changes it: ADR 0014 D2).
   const rowGap = ctx.gapForLabels(band, cw);
   const {widths, xOffsets} = rowChildGeometry({...band, gap: rowGap}, cw);
   const rowTop = ctx.y;
-  const stretch: ((h: number) => void)[] = [];
-  let rowHeight = 0;
-  band.children.forEach((child, i) => {
-    ctx.y = rowTop;
-    const x = padX + xOffsets[i];
-    if (child.type === 'box') {
-      const c = ctx.placeBoxLike(child, x, rowTop, widths[i], true);
-      const rw: LaidOutRow = {type: 'row', x, y: rowTop, w: widths[i], h: c.h, children: [c], arrows: []};
-      ctx.laidOut.push(rw);
-      rowHeight = Math.max(rowHeight, c.h);
-      stretch.push(h => { c.h = rw.h = h; if (c.id) ctx.setBox(c.id, c as never, h); });
-    } else {
-      const frame = ctx.laidOut.length;
-      ctx.stack([child], x, widths[i]);
-      const f = ctx.laidOut[frame] as LaidOutGroup; // ctx.stack() pushes a group's frame first
-      rowHeight = Math.max(rowHeight, f.h);
-      stretch.push(h => { f.h = h; if (child.id) ctx.anchors.set(child.id, {x: f.x, y: f.y, w: f.w, h}); });
-    }
+  const before = {n: ctx.laidOut.length, anchors: new Map(ctx.anchors), nodeBottoms: new Map(ctx.nodeBottoms), areaIds: new Set(ctx.areaIds), connects: ctx.connects.length, deferred: ctx.deferred.length};
+  const place = (fills: (GroupFill | undefined)[]) => {
+    const stretch: ((h: number) => void)[] = [], natural: number[] = [];
+    let rowHeight = 0;
+    band.children.forEach((child, i) => {
+      ctx.y = rowTop;
+      const x = padX + xOffsets[i];
+      if (child.type === 'box') {
+        const c = ctx.placeBoxLike(child, x, rowTop, widths[i], true);
+        const rw: LaidOutRow = {type: 'row', x, y: rowTop, w: widths[i], h: c.h, children: [c], arrows: []};
+        ctx.laidOut.push(rw);
+        natural.push(c.h);
+        rowHeight = Math.max(rowHeight, c.h);
+        stretch.push(h => { c.h = rw.h = h; if (c.id) ctx.setBox(c.id, c as never, h); });
+      } else {
+        const frame = ctx.laidOut.length, fill = fills[i];
+        if (fill) layoutGroupAt(child, ctx, x, widths[i], fill); else ctx.stack([child], x, widths[i]);
+        const f = ctx.laidOut[frame] as LaidOutGroup; // ctx.stack() pushes a group's frame first
+        natural.push(f.h);
+        rowHeight = Math.max(rowHeight, f.h);
+        stretch.push(h => { f.h = h; if (child.id) ctx.anchors.set(child.id, {x: f.x, y: f.y, w: f.w, h}); });
+      }
+    });
+    return {rowHeight, natural, stretch};
+  };
+  let placed = place([]);
+  const fills = band.children.map((c, i): GroupFill | undefined => {
+    if (c.type !== 'group' || c.frame === false || c.valign === 'top') return undefined;
+    const slack = placed.rowHeight - placed.natural[i];
+    return slack >= GROUP_FILL_MIN ? {slack, valign: c.valign ?? 'center'} : undefined;
   });
+  if (fills.some(Boolean)) { // start the row over: take back what the first pass registered (ids, connectors), then lay it out with the room
+    ctx.laidOut.length = before.n;
+    ctx.anchors.clear(); before.anchors.forEach((v, k) => ctx.anchors.set(k, v));
+    ctx.nodeBottoms.clear(); before.nodeBottoms.forEach((v, k) => ctx.nodeBottoms.set(k, v));
+    ctx.areaIds.clear(); before.areaIds.forEach(k => ctx.areaIds.add(k));
+    ctx.connects.length = before.connects; ctx.deferred.length = before.deferred;
+    placed = place(fills);
+  }
+  const {rowHeight, stretch} = placed;
   stretch.forEach(s => s(rowHeight));
   registerRowSlots(ctx, band.id, band, rowTop, rowHeight, padX, cw, rowGap, widths.map((w, i) => ({x: padX + xOffsets[i], y: rowTop, w, h: rowHeight})));
   ctx.y = rowTop + rowHeight + d.gap;

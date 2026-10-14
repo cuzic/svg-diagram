@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="397" viewBox="0 0 940 397" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">部門ごとの確認項目</title>
+  <desc id="svg-desc">要素: 申請内容の確認、添付書類の確認、金額の確認、期限の確認、総合判断</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/group-row-fill.ts","sourceSha256":"560ab1282f8945227f370bda72506ced211e7e6377f3571b543b425f520efe0e"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="397" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">部門ごとの確認項目</text>
+
+  <rect x="20" y="56" width="440" height="320" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+
+  <text x="36" y="86.6" font-size="15" font-weight="700" fill="#22201b">経理部</text>
+
+  <rect x="36" y="100" width="408" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="56" y="131.6" font-size="15" font-weight="700" fill="#22201b">申請内容の確認</text>
+
+  <rect x="36" y="168" width="408" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="56" y="200.6" font-size="15" font-weight="700" fill="#22201b">添付書類の確認</text>
+
+  <rect x="36" y="240" width="408" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="56" y="269.6" font-size="15" font-weight="700" fill="#22201b">金額の確認</text>
+
+  <rect x="36" y="308" width="408" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="56" y="338.6" font-size="15" font-weight="700" fill="#22201b">期限の確認</text>
+
+  <rect x="480" y="56" width="440" height="320" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+
+  <text x="496" y="86.6" font-size="15" font-weight="700" fill="#22201b">承認者</text>
+
+  <rect x="496" y="200" width="408" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="516" y="231.6" font-size="15" font-weight="700" fill="#22201b">総合判断</text>
+</svg>
