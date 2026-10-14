@@ -35,9 +35,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 import {execFileSync} from 'node:child_process';
-import type {DiagramSource} from './lib/types/core.ts';
 import type {FindingData} from './lib/types/verdicts.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import {register} from 'node:module';
@@ -53,6 +51,8 @@ const {explainChange} = await import('./lib/svg-diff.ts');
 const {loadConfig} = await import('./lib/config.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
 const {readTable, figureText, checkCovers} = await import('./lib/covers.ts');
+const {formatBuildError, errorMessage} = await import('./lib/error-format.ts');
+const {readProvenance, sha256File: sha} = await import('./lib/freshness.ts');
 
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
@@ -133,6 +133,15 @@ if (changedArg) {
 type CheckFinding = {file: string; line?: number; rule: string; severity: 'error' | 'warn' | 'info'; message: string; /* --format json only: what was measured against which threshold, and how to fix it */ data?: FindingData};
 const findings: CheckFinding[] = [];
 let bad = 0, warned = 0;
+// a source that does not load is one finding, however many times it is reached (named as an argument and behind a figure): counted once
+const failedSources = new Set<string>();
+const reportBuildError = (file: string, err: unknown) => {
+  const key = path.resolve(file);
+  if (failedSources.has(key)) return;
+  failedSources.add(key);
+  add({file, rule: 'build-error', severity: 'error', message: errorMessage(err)});
+  complain(formatBuildError(file, err));
+};
 // --baseline: warnings recorded in the baseline file become info (errors never do), so --strict fails only on new ones
 const fingerprint = (f: {file: string; rule: string; message: string}) => `${f.file}\u0000${f.rule}\u0000${f.message}`;
 const baselineFile = val('--baseline'), writeBaseline = val('--write-baseline');
@@ -147,12 +156,6 @@ const applyBaseline = <T extends {rule: string; severity: string; message: strin
   f.severity === 'warn' && baselined.has(fingerprint({file, rule: f.rule, message: f.message})) ? {...f, severity: 'info', message: `${f.message}（ベースライン済み）`} : f;
 const add = (f0: CheckFinding) => { const f = applyBaseline(f0.file, f0); findings.push(f); if (f.severity === 'error') bad++; else if (f.severity === 'warn') warned++; };
 
-const sha = (f: string) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
-function embedded(svgPath: string): DiagramSource | null {
-  const m = fs.readFileSync(svgPath, 'utf8').match(/<metadata id="svg-diagram">([^<]*)<\/metadata>/);
-  if (!m) return null;
-  try { return JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')); } catch { return null; }
-}
 function walkMd(dir: string, out: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, {withFileTypes: true})) {
     if (['html', 'node_modules', '.git'].includes(e.name)) continue;
@@ -209,10 +212,14 @@ try {
         const srcFile = srcDir && ['.ts', '.mjs'].map(ext => path.join(srcDir, name + ext)).find(f => fs.existsSync(f));
         mapRows.push({name, svg: path.relative(process.cwd(), abs), doc: where, src: srcFile ? path.relative(process.cwd(), srcFile) : ''});
         if (srcFile) {
-          const d = await loadDiagram(path.resolve(srcFile), config);
-          const sets = notesOf(d.bands);
-          if (sets.length === 1) for (const f of compareNotes(fig.items, sets[0], name)) add({file: rel, line: fig.line, ...f});
-          else if (sets.length > 1) add({file: rel, line: fig.line, rule: 'doc-notes-mismatch', severity: 'info', message: `${name}: 注釈つきのワイヤーフレームが ${sets.length} 枚あり、突き合わせない`});
+          try {
+            const d = await loadDiagram(path.resolve(srcFile), config);
+            const sets = notesOf(d.bands);
+            if (sets.length === 1) for (const f of compareNotes(fig.items, sets[0], name)) add({file: rel, line: fig.line, ...f});
+            else if (sets.length > 1) add({file: rel, line: fig.line, rule: 'doc-notes-mismatch', severity: 'info', message: `${name}: 注釈つきのワイヤーフレームが ${sets.length} 枚あり、突き合わせない`});
+          } catch (err) { // the source behind this figure does not load: say so, and go on with the other figures and pages
+            reportBuildError(path.relative(process.cwd(), path.resolve(srcFile)), err);
+          }
         }
         n++;
       }
@@ -233,26 +240,27 @@ try {
   }
 
   // ---- per-diagram checks -----------------------------------------------------------------------
-  for (const src of sources) {
+  // a source that cannot be loaded or laid out is one finding, not a stack trace, and the rest are still checked (ADR 0013)
+  const checkOne = async (src: string): Promise<void> => {
     const abs = path.resolve(src);
     const name = path.parse(src).name;
     if (coversFile) {
       const svg = src.endsWith('.svg') ? src : path.join(svgDir ?? 'svg', `${name}.svg`);
-      if (!fs.existsSync(svg)) { add({file: src, rule: 'covers-missing-svg', severity: 'error', message: `${svg} がない（未生成）`}); complain(`✗ ${src}: ${svg} がない（未生成）`); continue; }
+      if (!fs.existsSync(svg)) { add({file: src, rule: 'covers-missing-svg', severity: 'error', message: `${svg} がない（未生成）`}); complain(`✗ ${src}: ${svg} がない（未生成）`); return; }
       const cells = coverCells;
       const lost = checkCovers(cells, figureText(fs.readFileSync(svg, 'utf8')));
       for (const u of lost) add({file: coversFile, line: u.cell.line, rule: 'covers-missing', severity: 'warn', message: `${name}: 「${u.cell.text}」が図にない（欠けた語: ${u.missing.join('、')}）`});
       say(`${lost.length ? '△' : '✓'} ${src}: 表のセル ${cells.length} 件中 ${lost.length} 件が図にない`);
       for (const u of lost) say(`   ⚠ ${coversFile}:${u.cell.line} [covers-missing] 「${u.cell.text}」（欠けた語: ${u.missing.join('、')}）`);
-      continue;
+      return;
     }
     if (drift) {
       const svg = path.join(svgDir ?? 'svg', `${name}.svg`);
-      if (!fs.existsSync(svg)) { add({file: src, rule: 'drift-missing', severity: 'error', message: `${svg} がない（未生成）`}); complain(`✗ ${src}: ${svg} がない（未生成）`); continue; }
-      const meta = embedded(svg);
-      if (!meta) { add({file: src, rule: 'drift-no-provenance', severity: 'error', message: `${svg} に生成元の情報がない。再生成する`}); complain(`✗ ${src}: ${svg} に生成元の情報（<metadata id="svg-diagram">）がない。再生成する`); continue; }
-      if (meta.sourceSha256 !== sha(abs)) { add({file: src, rule: 'drift-stale', severity: 'error', message: `ソースが変わっているのに ${svg} が再生成されていない`}); complain(`✗ ${src}: ソースが変わっているのに ${svg} が再生成されていない`); continue; }
-      if ((meta.depsSha256 ?? '') !== depsSha256(abs)) { add({file: src, rule: 'drift-stale-deps', severity: 'error', message: `ソースが import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`}); complain(`✗ ${src}: import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`); continue; }
+      if (!fs.existsSync(svg)) { add({file: src, rule: 'drift-missing', severity: 'error', message: `${svg} がない（未生成）`}); complain(`✗ ${src}: ${svg} がない（未生成）`); return; }
+      const meta = readProvenance(svg);
+      if (!meta) { add({file: src, rule: 'drift-no-provenance', severity: 'error', message: `${svg} に生成元の情報がない。再生成する`}); complain(`✗ ${src}: ${svg} に生成元の情報（<metadata id="svg-diagram">）がない。再生成する`); return; }
+      if (meta.sourceSha256 !== sha(abs)) { add({file: src, rule: 'drift-stale', severity: 'error', message: `ソースが変わっているのに ${svg} が再生成されていない`}); complain(`✗ ${src}: ソースが変わっているのに ${svg} が再生成されていない`); return; }
+      if ((meta.depsSha256 ?? '') !== depsSha256(abs)) { add({file: src, rule: 'drift-stale-deps', severity: 'error', message: `ソースが import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`}); complain(`✗ ${src}: import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`); return; }
       if (rebuild) {
         const d = await loadDiagram(abs, config);
         d.source = meta; // same provenance → byte-comparable
@@ -264,7 +272,7 @@ try {
           const why = String((e as Error).message).split('\n').filter(l => l.trim() && !/^Scanned|^─/.test(l)).slice(0, 3).join(' / ');
           add({file: src, rule: 'drift-rebuild-failed', severity: 'error', message: `再生成した SVG が自分の検査に通らない: ${why}`});
           complain(`✗ ${src}: 再生成した SVG が自分の検査に通らない: ${why}`);
-          continue;
+          return;
         }
         const pairs = [[svg, tmp], ...rebuilt.revealPaths.map((p, stage) => [path.join(path.dirname(svg), `${name}.reveal${stage}.svg`), p])];
         const orphaned = fs.readdirSync(path.dirname(svg)).filter(f => {
@@ -276,7 +284,7 @@ try {
           for (const [, p] of pairs) fs.rmSync(p, {force: true});
           add({file: src, rule: 'drift-orphan-reveal', severity: 'error', message: `古い reveal ファイルが残っている: ${orphaned.join(', ')}`});
           complain(`✗ ${src}: 古い reveal ファイルが残っている: ${orphaned.join(', ')}`);
-          continue;
+          return;
         }
         if (changed) {
           const [beforePath, afterPath] = changed;
@@ -284,7 +292,7 @@ try {
             for (const [, p] of pairs) fs.rmSync(p, {force: true});
             add({file: src, rule: 'drift-missing', severity: 'error', message: `${beforePath} がない（未生成）`});
             complain(`✗ ${src}: ${beforePath} がない（未生成）`);
-            continue;
+            return;
           }
           const before = fs.readFileSync(beforePath, 'utf8'), after = fs.readFileSync(afterPath, 'utf8');
           for (const [, p] of pairs) fs.rmSync(p, {force: true});
@@ -293,22 +301,27 @@ try {
           complain(`✗ ${src}: 再生成した SVG が ${beforePath} と一致しない（ツールの版が違う、または手で編集された）`);
           for (const l of ex.lines) complain(`     ↳ ${l}`);
           complain(`     ↳ ${ex.visual ? '見た目が変わる。再生成して、目で確かめる' : '見た目は変わらない。再生成してよい'}`);
-          continue;
+          return;
         }
         for (const [, p] of pairs) fs.rmSync(p, {force: true});
       }
       say(`✓ ${src}: ${svg} は最新（ツール ${meta.toolVersion}）`);
-      continue;
+      return;
     }
     const d = await loadDiagram(abs, config);
     const {verdict} = await checkDiagram(d);
-    if (!verdict.ok) { for (const p of verdict.problems) add({file: src, rule: 'layout', severity: 'error', message: p}); complain(`✗ ${src}:\n  ${verdict.problems.join('\n  ')}`); continue; }
+    if (!verdict.ok) { for (const p of verdict.problems) add({file: src, rule: 'layout', severity: 'error', message: p}); complain(`✗ ${src}:\n  ${verdict.problems.join('\n  ')}`); return; }
     const shown = verdict.findings.map(f => applyBaseline(src, f));
     for (const f of shown) add({file: src, rule: f.rule, severity: f.severity, message: f.message, ...(f.data ? {data: f.data} : {})});
     const w = shown.filter(f => f.severity === 'warn').length;
     say(`${w ? '△' : '✓'} ${src}${w ? `（警告 ${w}）` : ''}`);
     for (const f of shown.filter(f => verbose || f.severity === 'warn')) say(`   ${f.severity === 'warn' ? '⚠' : 'ℹ'} [${f.rule}] ${f.message}`);
+  };
+  for (const src of sources) {
+    try { await checkOne(src); }
+    catch (err) { reportBuildError(src, err); }
   }
+  if (failedSources.size) complain(`${new Set([...sources.map(x => path.resolve(x)), ...failedSources]).size} 件中 ${failedSources.size} 件が検査できなかった`);
 } finally {
   await closeMeasurer();
 }

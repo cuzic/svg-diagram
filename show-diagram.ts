@@ -9,6 +9,7 @@
 //
 // Options: --png FILE (one input; writes a PNG, no sixel, no terminal needed)   --scale N   --width PX (the cap, else the terminal's width)
 //          --engine resvg|chromium (default: resvg, no browser)
+//          --require-fresh (an SVG older than its source, by the hashes in its metadata, is warned about; with this flag it also exits 1)
 //          --colors N (sixel palette, default 256)   --force (write sixel although stdout is not a terminal / sixel is not announced)
 //          --passthrough (wrap sixel for tmux; needs `set -g allow-passthrough on`)
 //
@@ -27,19 +28,21 @@ register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {renderDiagram, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
 const {loadConfig} = await import('./lib/config.ts');
-const {rasterize, svgSize} = await import('./lib/raster.ts');
+const {rasterize, svgSize, staleBannerSvg} = await import('./lib/raster.ts');
 const {xmlProblems} = await import('./lib/xml-check.ts');
+const {freshness, staleNotice} = await import('./lib/freshness.ts');
+const {formatBuildError} = await import('./lib/error-format.ts');
 const {queryTerminal, supportsSixel, isTmux, fitBox, fitScale, tmuxPassthrough} = await import('./lib/terminal.ts');
 const {image2sixel} = await import('sixel');
 
-const USAGE = 'Usage: svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--colors N] [--engine resvg|chromium] [--force] [--passthrough]';
+const USAGE = 'Usage: svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--colors N] [--engine resvg|chromium] [--force] [--passthrough] [--require-fresh]';
 const args = process.argv.slice(2);
 const VALUE = ['--png', '--scale', '--width', '--colors', '--engine'];
 const flag = (n: string) => args.includes(n);
 const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1] ?? null; };
 const num = (n: string) => { const v = val(n); if (v === null) return null; const x = Number(v); if (!(x > 0)) { console.error(`✗ ${n} needs a positive number (got ${v})\n${USAGE}`); process.exit(2); } return x; };
 const files = args.filter((a, i) => !a.startsWith('--') && !VALUE.includes(args[i - 1]));
-for (const a of args) if (a.startsWith('--') && ![...VALUE, '--force', '--passthrough'].includes(a)) { console.error(`✗ unknown option ${a}\n${USAGE}`); process.exit(2); }
+for (const a of args) if (a.startsWith('--') && ![...VALUE, '--force', '--passthrough', '--require-fresh'].includes(a)) { console.error(`✗ unknown option ${a}\n${USAGE}`); process.exit(2); }
 if (!files.length) { console.error(USAGE); process.exit(2); }
 const pngOut = val('--png'), scaleOpt = num('--scale'), widthOpt = num('--width'), colors = num('--colors') ?? 256;
 const engineOpt = val('--engine') ?? 'auto';
@@ -100,6 +103,13 @@ try {
         svg = fs.readFileSync(abs, 'utf8');
         const xml = xmlProblems(svg);
         if (xml.length) { console.error(`  ✗ ${file}: not well-formed XML:\n    ${xml.join('\n    ')}`); failed = true; }
+        const fresh = freshness(abs); // ADR 0013: out of date by the hashes in the SVG's metadata (a hand-made SVG is never judged)
+        if (fresh.state === 'stale') {
+          const notice = staleNotice(fresh, file);
+          console.error(`  ${notice.long}`);
+          if (flag('--require-fresh')) failed = true;
+          if (pngOut) svg = staleBannerSvg(svg, notice.banner); // the PNG carries the warning; the sixel does not
+        }
       } else {
         if (path.relative(process.cwd(), abs).startsWith('..')) console.error(`  ⚠ ${file}: outside the current directory, so .svg-diagram.json and the slide cache are looked up from here, not from the source's project (run from the project root to match \`build\`)`);
         const d = await loadDiagram(abs, config);
@@ -125,7 +135,7 @@ try {
       if (files.length > 1) process.stdout.write(`${file}\n`);
       process.stdout.write(seq + '\n');
     } catch (e) {
-      console.error(`✗ ${file}: ${(e as Error).message}`);
+      console.error(formatBuildError(file, e));
       failed = true;
     }
   }
