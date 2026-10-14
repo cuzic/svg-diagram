@@ -9,8 +9,8 @@
 # svg-diagram diff old.svg new.svg                       (what changed, in words)
 # svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX] [--per-page N | --pages N]   (a whole set on one picture)
 # svg-diagram lint  [file.svg ...] [--strict] [--fix] [--engine geometry|browser]   (default: ./svg/*.svg; geometry needs no browser)
-# svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium]   (draw it in the terminal as sixel)
-# svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium]
+# svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium] [--require-fresh]   (draw it in the terminal as sixel)
+# svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray] [--no-stale-banner] [--require-fresh]   (warns when the SVG is older than its source)
 # Diagram sources import the DSL as:  import {diagram, box, ...} from 'svg-diagram'
 set -euo pipefail
 ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"

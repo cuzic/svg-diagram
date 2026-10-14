@@ -68,3 +68,14 @@ export function ownsOutput(svgPath: string, sourcePath: string, cwd: string = pr
   const want = path.resolve(cwd, sourcePath);
   return candidates(prov, svgPath, cwd).some(f => f === want);
 }
+
+/** The words for a stale figure (preview, show): what is out of date, and the command that fixes it. */
+export function staleNotice(f: Freshness, svgPath: string, cwd: string = process.cwd()): {short: string; banner: string; long: string} {
+  const src = f.source ? path.relative(cwd, f.source) || f.source : '';
+  const what = f.reason === 'deps' ? 'import しているファイルが変わっている' : 'ソースが変わっている';
+  return {
+    short: `古い: ${what}`,
+    banner: `古い: ${f.reason === 'deps' ? 'import 先が変わっています' : 'ソースが変わっています'}`,
+    long: `⚠ ${svgPath} は古い: ${what}(${src})。svg-diagram build ${src} で作り直す`,
+  };
+}

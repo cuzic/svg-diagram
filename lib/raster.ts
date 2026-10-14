@@ -51,6 +51,20 @@ export function grayscaleSvg(svg: string): string {
   return `${svg.slice(0, at)}${filter}<g filter="url(#svg-diagram-gray)">${svg.slice(at, end)}</g>${svg.slice(end)}`;
 }
 
+/** The SVG with a thin red band along its top edge saying `message` (ADR 0013: a PNG of an out-of-date figure shows it). Added just before the closing tag, so
+ *  the band is drawn over the figure; the file on disk is not touched. Text is drawn with the sheet's own fonts: where there are none, the band is still there. */
+export function staleBannerSvg(svg: string, message: string): string {
+  const open = /<svg\b[^>]*>/.exec(svg);
+  const end = svg.lastIndexOf('</svg>');
+  if (!open || end === -1) return svg;
+  const vb = /\sviewBox="\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*"/.exec(open[0])?.slice(1).map(Number), size = svgSize(svg);
+  const [x, y, w] = vb ?? (size ? [0, 0, size.w] : [0, 0, 0]);
+  if (!(w > 0)) return svg;
+  const text = message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const band = `<g id="svg-diagram-stale-banner"><rect x="${x}" y="${y}" width="${w}" height="22" fill="#c0392b"/><text x="${x + 8}" y="${y + 15}" font-size="13" font-weight="bold" fill="#ffffff" font-family="'Noto Sans JP','Yu Gothic',sans-serif">${text}</text></g>`;
+  return `${svg.slice(0, end)}${band}${svg.slice(end)}`;
+}
+
 /** resvg points an `orient="auto-start-reverse"` end marker along the wrong segment at a corner (an elbow ending downward gets a sideways head), while `orient="auto"` is right.
  *  So each such marker becomes two for resvg: the same marker with `auto` (for marker-end / marker-mid), and a copy for marker-start whose content is turned 180 degrees about the ref point. */
 export function resvgMarkers(svg: string): string {
