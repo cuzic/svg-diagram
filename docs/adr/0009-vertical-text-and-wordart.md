@@ -49,7 +49,7 @@ wordart('SALE', {weight: 'bold', outline: {tone: 'text'}, shadow: true})
 
 SVG の `writing-mode` は resvg と Chromium で差が出るので使わず、**1 文字ずつ位置を決めて**描く。
 
-- 列は右から左へ、行送り `size × 1.4`。1 文字の送り幅 = `size`(全角)。`\n` で列を替える。`height`(px)を指定すると、それを超える手前で列を替える(禁則: 行頭に来てはいけない `、。，．）」』】〕！？ー ぁぃぅぇぉっゃゅょ…` は前の列に残す(ぶら下げ)、行末に来てはいけない開き括弧は次の列へ送る)。
+- 列は右から左へ、行送り `size × 1.4`。1 文字の送り幅 = `size`(全角)。`\n` で列を替える。`limit`(px)を指定すると、それを超える手前で列を替える(禁則: 行頭に来てはいけない `、。，．）」』】〕！？ー ぁぃぅぇぉっゃゅょ…` は前の列に残す(ぶら下げ)、行末に来てはいけない開き括弧は次の列へ送る)。
 - 句読点 `、。，．` は右上へ寄せる、小書きのかな(`ぁっゃ` など)は右上へ少し寄せる。
 - 長音・ダッシュ・波ダッシュ・括弧(`ー ― … ～ （）「」『』【】〔〕`)は 90° 回転(縦組みの字形)。
 - 半角の英数字: 1〜2 桁の数字だけの連なりは縦中横(正立、横並びで 1 マス)、それ以外の英数字の連なりは 1 まとまりで 90° 回転(右へ倒す)。回転する連なりの高さは測定幅(`widthOf`)。縦中横は幅が 1 マスに収まらなければ回転に回す。
@@ -57,7 +57,7 @@ SVG の `writing-mode` は resvg と Chromium で差が出るので使わず、*
 
 ### 6. 接続点
 
-`type: 'wordart'` を、flow-shapes と同じ場所に足す(`layout.ts` の登録と配置、`emit.ts`、`verify.ts`、`fit.ts` の最小文字サイズ、`spotlight.ts`、`rules.ts` の図の説明、`types.ts` の `Band` / `LaidOutBand`)。`id` を持てば anchor になり、`connect()` / spotlight / reveal の対象になる。
+`type: 'wordart'` を、flow-shapes と同じ場所に足す(`layout.ts` の登録と配置、`emit.ts`、`verify.ts`、`fit.ts` の最小文字サイズ、`spotlight.ts`、`rules.ts` の図の説明、`types.ts` の `Band` / `LaidOutBand`)。`spotlight.ts` は汎用の経路(`inside(b, r)`)で動く。`id` を持てば anchor になり、`connect()` / spotlight / reveal の対象になる。
 
 ## しないこと
 
@@ -83,3 +83,17 @@ SVG の `writing-mode` は resvg と Chromium で差が出るので使わず、*
 - `wordart-vertical.ts` 縦組み(分割・禁則・列)。縦中横が 1 マスに入らないかどうかは、ここで決めて `side` に倒す(配置側は判断しない)。
 - `wordart-layout.ts` 測るもの(`wordArtTexts`)と配置。組み方ごとの `setArc` / `setVertical` / `setHorizontal` が、図の左上を原点にした `Figure` を返し、`layoutWordArt` が余白・反射・回転・位置づけだけをする。
 - `wordart.ts` コンストラクタ(検査は `check(名前, 値, 述語, 説明)` の表)と、上の再エクスポート。外からは今までどおり `./wordart.ts` だけを import する。
+
+## 改訂 4: PR #143 のレビュー(Opus)を受けた修正
+
+- **HTML 出力**(`emit-html.ts`): wordart は `raw` と同じく SVG のまま出す(overlay は `<text>` の属性を `x y font-size font-weight fill text-anchor` しか残さず、縁・回転・グラデーション・縦書きの tspan を落とす)。
+- **spotlight で暗くする**: `selfDimming`。暗い wordart は「muted 1 層」だけ(装飾・グラデーション・板・鏡像なし。中抜きは縁だけ muted)。汎用の正規表現による置換は、グラデーションの stop を暗くせず、白い縁を灰色にして字を潰していた。
+- **板**は図の一部として回転・反転する。
+- **読めるかの検査**は、描かれる色(`paintOf(appearance)` を通した色)で、グラデーションは 11 点で見る。縁は `minRim = max(1px, 文字の 3%)` 以上でなければ「縁で読める」と認めない(lint も同じ基準: 外側の半分が 3% / 1px 以上で、不透明度 0.9 以上)。
+- **lint の装飾の除外**は `data-decor` の印に限る(作者の `aria-hidden` では除外されない)。はみ出しの判定には装飾の複製も含める。
+- **インクの届く範囲**は、影・立体の負の `dx` / `dy` で左・上にも広がる。`dx` / `dy` / `gap` / `spacing` は有限の数、`gap` と `spacing` は 0 以上。「帯の外へ出る」検査(構造上必ず通る)は削除した。
+- **中抜き**に縁を 2 本以上付けるのは拒否(外側の縁の複製が字の中を塗る)。縦書きに反射は付けない(列の長さが違い、鏡像が短い列に付かない)。
+- **縦書き**: 開き括弧の繰り越しで空の列を作らない・limit は字間も数える・ぶら下げは `、。，．` の 1 セルまで、行頭禁則の字(`ー` ・小さい仮名・閉じ括弧など)はその前の字ごと次の列へ送る・書記素(絵文字の連なり)を 1 マスにする。
+- **defs の id** は「中身 + 位置」のハッシュ(位置だけでは、別々に埋め込んだ SVG の def がぶつかる)。
+- **装飾の既定色**は塗りと同じにならない(text の塗りの立体は muted、muted の塗りの影は text)。
+- **既知の限界**: `bevel` の明暗は token(`text` / `bg`)の固定で、`appearance: 'dark'`(描いた後に色を置き換える)では明暗が逆になる。横書きの `letter-spacing` は、Chromium では最後の字の後にも字間が付き、中央・右揃えで spacing/2〜spacing だけずれる(resvg ではずれない)。
