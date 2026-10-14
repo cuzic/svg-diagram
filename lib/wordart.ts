@@ -8,7 +8,7 @@
 import {MIN_FONT_SIZE} from './tokens.ts';
 import {ART_TONE_NAMES, PRESETS, WEIGHT_OF, asList, isArtTone, resolveLook} from './wordart-look.ts';
 import {graphemes} from './wordart-vertical.ts';
-import type {Role} from './types.ts';
+import type {Role} from './types/core.ts';
 import type {WordArtBand, WordArtOpts} from './wordart-types.ts';
 
 export * from './wordart-types.ts';

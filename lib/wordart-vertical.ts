@@ -1,7 +1,7 @@
 // wordart(): vertical text (縦書き) — splits a column of text into units and sets them in columns, right to left (docs/adr/0009). Pure.
 import {textWidth} from './atoms.ts';
 import {MIN_FONT_SIZE} from './tokens.ts';
-import type {FontFamily, WidthOf} from './types.ts';
+import type {FontFamily, WidthOf} from './types/core.ts';
 
 // ---------------------------------------------------------------------------------------------------------------------------
 // vertical text
