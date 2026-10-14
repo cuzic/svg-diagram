@@ -79,7 +79,7 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
         const tc = parseColor(fill);
         if (!tc) continue;
         const d = Math.abs(luminance(tc) - luminance(bg));
-        const rim = parseColor(getComputedStyle(t).stroke), rimReads = rim && parseFloat(getComputedStyle(t).strokeWidth) > 0 && Math.abs(luminance(rim) - luminance(bg)) >= 70; // an outlined letter reads by its rim
+        const rim = parseColor(getComputedStyle(t).stroke), cs = getComputedStyle(t), seen = parseFloat(cs.strokeWidth) / 2 >= Math.max(1, 0.03 * parseFloat(cs.fontSize)) && parseFloat(cs.opacity) * parseFloat(cs.strokeOpacity || '1') >= 0.9, rimReads = rim && seen && Math.abs(luminance(rim) - luminance(bg)) >= 70; // an outlined letter reads by its rim
         if (d < 70 && !rimReads) {
           contrast.push({txt: (parts.length > 1 ? g.trim() : txt).slice(0, 40), delta: +d.toFixed(0), fg: fill, bg: `rgb(${bg.r | 0},${bg.g | 0},${bg.b | 0})`});
         }

@@ -342,3 +342,14 @@ test('a figure shown at twice its viewBox is measured as shown: how far a text s
   assert.ok(Math.abs(twice.containerOverflow[0].over - (2 * 20 + pad - 2 * 10)) < 0.01, String(twice.containerOverflow[0].over));
   assert.deepEqual(twice.overflow, once.overflow);
 });
+
+// ---- outlined text: a rim has to be seen to make a letter read ----
+
+test('a white letter on a white page reads by a rim that is thick and opaque enough, and not by a hairline or a faint stroke', { skip }, () => {
+  const txt = (attrs: string) => `<text x="20" y="80" font-size="40" fill="#ffffff" ${attrs}>SALE</text>`;
+  assert.deepEqual(check(txt('stroke="#22201b" stroke-width="3"')).contrast, [], 'a 1.5px visible rim');
+  assert.equal(check(txt('stroke="#22201b" stroke-width="0.2"')).contrast.length, 1, 'a hairline');
+  assert.equal(check(txt('stroke="#22201b" stroke-width="3" opacity="0.5"')).contrast.length, 1, 'a faint stroke');
+  assert.equal(check(txt('stroke="#fafafa" stroke-width="3"')).contrast.length, 1, 'a rim as pale as the page');
+  assert.equal(check(txt('')).contrast.length, 1, 'no rim at all');
+});
