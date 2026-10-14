@@ -21,6 +21,7 @@ import {budgetWarnings} from './budget.ts';
 import {termFindings, tableFindings} from './consistency.ts';
 import {barsValuesHidden} from './bars.ts';
 import {fmt} from './plane.ts';
+import {layoutMetrics} from './layout-metrics.ts';
 import {dimmedBands} from './spotlight.ts';
 import {visibleAt} from './reveal.ts';
 import type {BarsBand} from './types/bars.ts';
@@ -79,6 +80,13 @@ export const RULE_DOCS = {
   'wf-states-required': '状態の一覧に、必須の状態の列がない',
   'wf-states-ragged': '状態の一覧の行に、列より多い欄がある',
   'wf-callout-order': '図の番号が、読む順（上から下、左から右）に並んでいない（情報）',
+  'layout-sibling-size': '横に並ぶ枠の幅が 1〜4px だけ違う（等分の行で 4px の格子に丸めた結果。cols / flex で揃える）。diagram({layoutCheck: "strict"}) で warn',
+  'layout-edge-misalign': '隣り合う枠の縁（左端・右端・上端）が 1〜4px ずれている（0 は一致、5px 以上は別物として扱う）。diagram({layoutCheck: "strict"}) で warn',
+  'layout-gutter-uneven': '横に並ぶ 3 枠以上の間隔が 2px 以上不均一。diagram({layoutCheck: "strict"}) で warn',
+  'layout-unused-space': '枠の中身の下に 48px 以上かつ枠の高さの 40% 以上の空きがある（行の高さ揃え・canvas の床の結果）。diagram({layoutCheck: "strict"}) で warn',
+  'layout-figure-offset': '内容（ラベル込み、題・凡例・出典行を除く）の左右の余白が 48px 以上違う（図が片側に寄っている）。diagram({layoutCheck: "strict"}) で warn',
+  'layout-figure-narrow': '内容の幅が図の幅の 50% 未満（diagram({width}) で内容に合わせて狭められる）。diagram({layoutCheck: "strict"}) で warn',
+  'layout-align-mixed': '横に並ぶ箱で文字の揃え（左・中央）が混在している（意図なら accept で許容する）。diagram({layoutCheck: "strict"}) で warn',
   'doc-image-missing': '文書が参照している SVG がない',
   'doc-alt-empty': '文書の画像に代替テキストがない',
   'doc-alt-long': '代替テキストが長い（155 文字以内にして、詳しい説明は本文に）',
@@ -435,6 +443,16 @@ function wireframeRules(d: LintTarget, out: Finding[]): void {
   }
 }
 
+/** The severity of the layout-quality findings (`layout-*`, and ADR 0009's `edge-bends`): info, or warn for a diagram that asked for diagram({layoutCheck: 'strict'}). */
+export const layoutSeverity = (d: Pick<DiagramData, 'layoutCheck'>): 'warn' | 'info' => d.layoutCheck === 'strict' ? 'warn' : 'info';
+
+// Alignment and whitespace (ADR 0014): measured on the laid-out bands (lib/layout-metrics.ts), reported at layoutSeverity(d).
+function layoutQualityRules(d: LintTarget, out: Finding[]): void {
+  if (!d.laidOut) return;
+  const severity = layoutSeverity(d);
+  for (const m of layoutMetrics(d.laidOut, {width: d.width, slideCanvas: !!d.canvas})) out.push({rule: m.rule, severity, message: m.message, data: m.data});
+}
+
 export function lintDiagram(d: LintTarget): Finding[] {
   const out = withTones(d.tones, () => lintAll(d));
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
@@ -507,6 +525,7 @@ function graphRules(d: LintTarget, out: Finding[]): void {
 }
 function lintAll(d: LintTarget): Finding[] {
   const out: Finding[] = [];
+  layoutQualityRules(d, out);
   textContrast(d, out);
   colourOnlyEmphasis(d, out);
   nonTextContrast(d, out);
