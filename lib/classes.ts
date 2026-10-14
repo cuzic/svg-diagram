@@ -3,7 +3,7 @@
 // marks: hollow triangle (inherit / implement), diamond on the whole (compose / aggregate), open arrow (arrow / depend).
 import {textWidth} from './atoms.ts';
 import type {Pt} from './graph-layout.ts';
-import {gapFor, layoutWithLanes, routeLayered} from './layered-route.ts';
+import {gapFor, layeredAttempt} from './layered-route.ts';
 import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {ClassesBand, LaidOutClasses} from './types/diagrams.ts';
 
@@ -57,17 +57,17 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
   const widestLabel = Math.max(0, ...band.relations.map(r => r.label ? labelW(r.label) : 0));
   const degree = Math.max(1, ...band.classes.map(c => Math.max(band.relations.filter(r => r.from === c.id && r.from !== r.to).length, band.relations.filter(r => r.to === c.id && r.from !== r.to).length)));
   const loopRows = dir === 'right' && band.relations.some(r => r.from === r.to) ? LOOP + S + 8 + 4 : 0; // a loop above a class (dir right) needs room above it, between rows too
-  const lay = layoutWithLanes(nodes, edges, {dir: 'right', gap: GAP + loopRows, levelGap: Math.max(dir === 'down' ? LEVEL_GAP + 16 : LEVEL_GAP, gapFor(degree, dir === 'right' ? widestLabel : 0))});
   const swap = (p: Pt): Pt => ({x: p.y, y: p.x});
-  const total = {w: dir === 'down' ? lay.h : lay.w, h: dir === 'down' ? lay.w : lay.h};
   const hasLoop = band.relations.some(r => r.from === r.to);
   const loopLabelW = Math.max(0, ...band.relations.filter(r => r.from === r.to).map(r => r.label ? labelW(r.label) : 0));
   // a loop sits to the right of its class when the flow runs down (its arrows leave through the bottom), above it when the flow runs right
   const reserve = hasLoop && dir === 'down' ? LOOP + 8 + Math.max(loopLabelW, 40) : 0;
   const top = hasLoop && dir === 'right' ? LOOP + S + 8 + 8 : 0;
+  const placeIn = (size: {w: number; h: number}) => (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + x + (w - size.w - reserve) / 2, y: q.y + y + top}; };
+  const {lay, routes, size: total} = layeredAttempt(nodes, edges, {dir: 'right', gap: GAP + loopRows, levelGap: Math.max(dir === 'down' ? LEVEL_GAP + 16 : LEVEL_GAP, gapFor(degree, dir === 'right' ? widestLabel : 0))},
+    {portStep: 22, transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn}); // wide steps: two hollow triangles on one side do not touch
   if (total.w + reserve > w + 0.5) throw new Error(`classDiagram(): the figure is ${Math.ceil(total.w + reserve)}px wide but it has ${Math.round(w)}px (use dir: 'right', shorter member lines, or fewer classes on one level)`);
   const dx = x + (w - total.w - reserve) / 2, dy = y + top;
-  const place = (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + dx, y: q.y + dy}; };
   const out: LaidOutClasses = {
     type: 'classes', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + top,
     nodes: [], edges: [], texts: [], labels: [], anchors: [], labelBoxes: [],
@@ -92,7 +92,6 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
       ty += lineH(B);
     }
   }
-  const routes = routeLayered(lay, place, 22); // wide steps: two hollow triangles on one side do not touch
   const hit = (a: {x: number; y: number; w: number; h: number}, b: {x: number; y: number; w: number; h: number}): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   const at = (pts: Pt[], t: number): Pt => {
     const len = pts.slice(1).map((p, i) => Math.abs(p.x - pts[i].x) + Math.abs(p.y - pts[i].y));
