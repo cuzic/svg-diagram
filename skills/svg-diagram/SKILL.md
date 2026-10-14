@@ -208,7 +208,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | 図 | 書き方 | 自動で行うこと |
 |---|---|---|
 | PERT（作業を箱にする activity-on-node。作業を矢印にするなら `arrowDiagram`） | `pert([{id, label, duration, predecessors}], {unit})` | ES / EF / LS / LF / slack とクリティカルパス。循環・未知の先行タスクを拒否 |
-| 因果ループ図 | `causalLoop(nodes, [{from, to, polarity, delay?}])` | `+` / `-`、遅延 `||`、単純ループの R / B 分類 |
+| 因果ループ図 | `causalLoop(nodes, [{from, to, polarity, delay?}])` (`interventions` は検査まで、描画は未実装) | `+` / `-`、遅延 `||`、単純ループの R / B 分類 |
 | 関連図 / 依存ネットワーク | `dependencyNetwork([{id, label, kind?}], [{from, to, type, weight?}], opts)` | kind / type の表現、重みの線幅と数値、使用した記法の凡例 |
 
 PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `analyzeCausalLoops`。長い日本語ラベルでは `width` を広げ、層が多いときは LR、並列が多いときは TB を試す。描いた後は必ず `check` とプレビューを通す。

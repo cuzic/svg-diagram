@@ -634,7 +634,7 @@ dependencyNetwork([{id: 'web', label: 'Web', kind: 'app'}, {id: 'api', label: 'A
 ```
 
 - `pert`: activity-on-node の PERT（作業を矢印で描く activity-on-arrow は `arrowDiagram`）。ES / EF / LS / LF / slack を計算し、slack 0 のノードとリンクを強調する。未知の先行タスクと循環はエラー。`compact: true` は小さい箱。純粋関数 `analyzeCriticalPath(tasks)` も公開。
-- `causalLoop`: `polarity` は `'+' | '-' | 'same' | 'opposite'`。`delay: true` は `||`。単純ループの負リンクが偶数なら Reinforcing (`R1`)、奇数なら Balancing (`B1`)。番号は R / B それぞれで 1 から振る。純粋関数 `analyzeCausalLoops(nodeIds, links)` も公開。
+- `causalLoop`: `polarity` は `'+' | '-' | 'same' | 'opposite'`。`delay: true` は `||`。単純ループの負リンクが偶数なら Reinforcing (`R1`)、奇数なら Balancing (`B1`)。番号は R / B それぞれで 1 から振る。純粋関数 `analyzeCausalLoops(nodeIds, links)` も公開。`interventions: [{id, label, to, polarity, delay?}]`（ループの外の介入点。`to` は node id か配列、`polarity` は必須）は、検査・alt・アンカー（`connect` / `spotlight` の対象）まで入っている。R / B の分類は変わらない。**描画は未実装**（ADR 0011 の C）で、指定すると `not drawn yet` で止まる。
 - `dependencyNetwork`: ノードの `kind` は色と枠、リンクの `type` は線種、`weight` は線幅と数値に対応する。使用した kind / type の凡例を自動で描き、表示名を `nodeKinds` / `edgeTypes` で指定できる。`blocks` は danger、`relates` は矢じりなし。
 - 例は `examples/semnet-pert*.ts`、`examples/semnet-causal*.ts`、`examples/semnet-deps*.ts`。
 
