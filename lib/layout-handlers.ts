@@ -8,6 +8,7 @@ import {layoutPlane} from './plane.ts';
 import {IMAGE_PAD, layoutImage} from './image.ts';
 import {layoutBars} from './bars.ts';
 import {layoutDots, layoutPeople} from './people.ts';
+import {layoutMath} from './math.ts';
 import {layoutTimeline} from './timeline.ts';
 import {layoutQuadrant} from './quadrant.ts';
 import {layoutFlowShape} from './flow-shapes.ts';
@@ -479,6 +480,7 @@ const layoutBarsBand = placedBand((band: BandOf<'bars'>, x, y, w, ctx) => layout
 const layoutChartBand = placedBand((band: BandOf<'chart'>, x, y, w, ctx) => layoutChart(band, x, y, w, ctx.widthOf, ctx.roles), 'a chart takes an id that another anchor already has', 'a chart element takes an id that another anchor already has');
 const layoutPeopleOrDots = placedBand((band: Band & {type: 'people' | 'dots'}, x, y, w, ctx) => band.type === 'people' ? layoutPeople(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles) : layoutDots(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles),
   band => `a ${band.type} band takes an id that another anchor already has`);
+const layoutMathBand = placedBand((band: BandOf<'math'>, x, y, w, ctx) => layoutMath(band, x, y, w, ctx.roles[band.role], ctx.d.day), 'a math band takes an id that another anchor already has');
 const layoutPlaneBand = placedBand((band: BandOf<'plane'>, x, y, w, ctx) => layoutPlane(band, x, y, w, ctx.widthOf, ctx.roles), 'a plane takes an id that another anchor already has');
 const layoutQuadrantBand = placedBand((band: BandOf<'quadrant'>, x, y, w, ctx) => layoutQuadrant(band, x, y, w, ctx.widthOf, ctx.roles), 'a quadrant takes an id that another anchor already has', 'a quadrant item takes an id that another anchor already has');
 
@@ -509,6 +511,7 @@ export const LAYOUT_HANDLERS = {
   chart: layoutChartBand,
   people: layoutPeopleOrDots,
   dots: layoutPeopleOrDots,
+  math: layoutMathBand,
   wireframe: layoutWireframeBand,
   screens: layoutWireframeBand,
   swimlane: layoutSwimlane,

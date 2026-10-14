@@ -12,6 +12,7 @@ import type {DiagramInput} from '../strict.ts';
 import {connect} from './connect.ts';
 import {applyConnectDefaults, connectBand} from './defaults.ts';
 import {fillScaleLimit} from './text-bands.ts';
+import {MathTooWideError} from '../math.ts';
 import {applyWireframeDefaults} from './wireframe-numbering.ts';
 
 //
@@ -114,11 +115,16 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
     };
     if (d.fill && budget) {
       d.width = budget.contentWidth;
+      // a formula is as wide as its size makes it: past some scale it no longer fits the column, which only means "too big" here (at 1x it still throws)
+      const maxHeight = budget.maxHeight;
+      const fits = async (s: number): Promise<boolean> => {
+        try { return (await layoutAt(s)).canvasHeight <= maxHeight; } catch (e) { if (e instanceof MathTooWideError) return false; throw e; }
+      };
       let lo = 1, hi = fillScaleLimit(d.bands);
       if ((await layoutAt(1)).canvasHeight > budget.maxHeight) hi = 1; // doesn't even fit at 1x: report via fit warnings
       for (let i = 0; i < 7 && hi - lo > 0.01; i++) {
         const mid = (lo + hi) / 2;
-        if ((await layoutAt(mid)).canvasHeight <= budget.maxHeight) lo = mid; else hi = mid;
+        if (await fits(mid)) lo = mid; else hi = mid;
       }
       fontScale = Math.floor(lo * 100) / 100;
     } else if (d.canvas) {

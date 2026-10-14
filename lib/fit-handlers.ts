@@ -44,6 +44,7 @@ export const FIT_HANDLERS = {
   image: band => sizesOf(band.plates),
   people: none,
   dots: none,
+  math: none,
   timeline: texts,
   tree: texts,
   states: textsAndLabels,
