@@ -24,7 +24,6 @@
 
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {register} from 'node:module';
@@ -35,6 +34,8 @@ const {build, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadConfig} = await import('./lib/config.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
 const {depsSha256, depsOf} = await import('./lib/source-deps.ts');
+const {readProvenance, ownsOutput, sha256: sha} = await import('./lib/freshness.ts');
+const {formatBuildError} = await import('./lib/error-format.ts');
 const config = loadConfig();
 
 // --fit: ソースを書き換えずに、この図を使っているスライドを pages/*.md から探し、
@@ -87,14 +88,6 @@ if (outOverride && outDir) {
   process.exit(2);
 }
 
-// provenance of an existing SVG (the <metadata id="svg-diagram"> that build() embeds)
-function embeddedSource(svgPath: string): Record<string, string> | null {
-  try {
-    const m = fs.readFileSync(svgPath, 'utf8').match(/<metadata id="svg-diagram">([^<]*)<\/metadata>/);
-    return m ? JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')) : null;
-  } catch { return null; }
-}
-const sha = (s: string | Buffer) => crypto.createHash('sha256').update(s).digest('hex');
 // the project config changes what a build produces, so it takes part in "is this SVG current?"
 const configSha256 = config._file ? sha(fs.readFileSync(config._file)) : '';
 
@@ -104,21 +97,26 @@ let skipped = 0;
 try {
   for (const modPath of modules) {
     const abs = path.resolve(modPath);
-    const mod = await import(abs);
-    const define = mod.default;
-    if (typeof define !== 'function') {
-      console.error(`✗ ${modPath}: no default export function — see the header comment for the expected shape`);
+    const outPath = outOverride ?? path.join(outDir ?? 'svg', path.parse(modPath).name + '.svg');
+    // ADR 0013: a failed build never touches the old SVG, but says so when that file is this source's own output (it is now out of date)
+    const failedBuild = (message: unknown) => {
+      console.error(formatBuildError(modPath, message));
+      if (ownsOutput(outPath, abs)) console.error(`  ⚠ 前回の ${outPath} が残っている(ソースと一致しない古い絵)`);
       failed = true;
+    };
+    let define: unknown;
+    try { define = (await import(abs)).default; } catch (err) { failedBuild(err); continue; }
+    if (typeof define !== 'function') {
+      failedBuild(new Error('no default export function — see the header comment for the expected shape'));
       continue;
     }
-    const outPath = outOverride ?? path.join(outDir ?? 'svg', path.parse(modPath).name + '.svg');
     const srcSha = sha(fs.readFileSync(abs));
     for (const f of depsOf(abs).unfollowable) console.warn(`  ⚠ ${path.relative(process.cwd(), f)}: 変数で組み立てた import() は、変更の検出（--stale / check --drift）の対象にならない`);
     const depsSha = depsSha256(abs); // local files the source imports (shared parts): a change there makes the SVG stale too
     const pngPath = pngDir && path.join(pngDir, path.parse(outPath).name + '.png');
     const pngCurrent = () => !pngPath || (fs.existsSync(pngPath) && fs.statSync(pngPath).mtimeMs >= fs.statSync(outPath).mtimeMs);
     if (STALE && !FIT && !DARK && !TRANSPARENT && fs.existsSync(outPath) && pngCurrent()) { // --png: a missing or older PNG is not up to date either
-      const meta = embeddedSource(outPath);
+      const meta = readProvenance(outPath);
       if (meta && meta.sourceSha256 === srcSha && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256 && (meta.depsSha256 ?? '') === depsSha) {
         console.log(`· ${outPath} は最新（スキップ）`);
         skipped++;
@@ -149,8 +147,7 @@ try {
       if (result.budget) console.log(`  budget: ${result.budget.maxHeight}px high x ${result.budget.contentWidth}px wide (slide ${result.budget.index}, ${result.budget.cached ? 'cached' : 'measured'})`);
       for (const w of [...result.fit.warnings, ...result.warnings]) console.warn(`  ⚠ ${w}`);
     } catch (err) {
-      console.error(`✗ ${modPath}: ${(err as Error).message}`);
-      failed = true;
+      failedBuild(err);
     }
   }
 } finally {
