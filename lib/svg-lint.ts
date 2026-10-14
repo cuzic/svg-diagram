@@ -98,7 +98,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
       const d = Math.abs(luminance(tc) - luminance(bg));
       // an outlined letter reads by its rim when its fill is too close to the ground (a white letter with a dark outline)
       // (a hairline or a faint stroke is not a rim: the outer half of the stroke must be at least 3% of the text, and 1px)
-      const seen = t.style.strokeWidth / 2 >= Math.max(1, 0.03 * t.style.fontSize) && t.style.opacity >= 0.9;
+      const seen = t.style.strokeWidth / 2 >= Math.max(1, 0.03 * t.style.fontSize) && t.style.opacity * t.style.strokeOpacity >= 0.9;
       const rim = t.style.stroke !== 'none' && seen ? parseColor(t.style.stroke, t.style.color) : null;
       if (d < 70 && !(rim && Math.abs(luminance(rim) - luminance(bg)) >= 70)) result.contrast.push({txt: (groups.length > 1 ? g.txt.trim() : txt).slice(0, 40), delta: fixed(d, 0), fg: css(tc), bg: `rgb(${bg.r | 0},${bg.g | 0},${bg.b | 0})`});
     }

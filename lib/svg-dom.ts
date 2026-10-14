@@ -143,12 +143,12 @@ export function parseTransform(value: string | undefined): Matrix {
 // ---- the cascade ----
 
 export interface Style {
-  fill: string; stroke: string; strokeWidth: number; opacity: number; fillOpacity: number;
+  fill: string; stroke: string; strokeWidth: number; opacity: number; fillOpacity: number; strokeOpacity: number;
   fontSize: number; fontWeight: number; fontFamily: string; textAnchor: string; color: string;
 }
-const INITIAL: Style = {fill: 'black', stroke: 'none', strokeWidth: 1, opacity: 1, fillOpacity: 1, fontSize: 16, fontWeight: 400, fontFamily: 'serif', textAnchor: 'start', color: 'black'};
+const INITIAL: Style = {fill: 'black', stroke: 'none', strokeWidth: 1, opacity: 1, fillOpacity: 1, strokeOpacity: 1, fontSize: 16, fontWeight: 400, fontFamily: 'serif', textAnchor: 'start', color: 'black'};
 const PROPS: Record<string, keyof Style> = {
-  'fill': 'fill', 'stroke': 'stroke', 'stroke-width': 'strokeWidth', 'opacity': 'opacity', 'fill-opacity': 'fillOpacity',
+  'fill': 'fill', 'stroke': 'stroke', 'stroke-width': 'strokeWidth', 'opacity': 'opacity', 'fill-opacity': 'fillOpacity', 'stroke-opacity': 'strokeOpacity',
   'font-size': 'fontSize', 'font-weight': 'fontWeight', 'font-family': 'fontFamily', 'text-anchor': 'textAnchor', 'color': 'color',
 };
 
@@ -201,7 +201,7 @@ function setProp(s: Style, parent: Style, name: string, value: string) {
   switch (key) {
     case 'strokeWidth': s.strokeWidth = length(value, parent.strokeWidth, s.strokeWidth); break;
     case 'fontSize': s.fontSize = length(value, parent.fontSize, s.fontSize); break;
-    case 'opacity': case 'fillOpacity': { const n = parseFloat(value); if (Number.isFinite(n)) s[key] = value.trim().endsWith('%') ? n / 100 : n; break; }
+    case 'opacity': case 'fillOpacity': case 'strokeOpacity': { const n = parseFloat(value); if (Number.isFinite(n)) s[key] = value.trim().endsWith('%') ? n / 100 : n; break; }
     case 'fontWeight': s.fontWeight = value === 'bold' ? 700 : value === 'normal' ? 400 : value === 'bolder' ? Math.min(900, parent.fontWeight + 300) : value === 'lighter' ? Math.max(100, parent.fontWeight - 300) : Number(value) || s.fontWeight; break;
     default: (s[key] as string) = value.trim();
   }
