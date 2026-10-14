@@ -50,9 +50,12 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
    - `gray-tone-collision`（警告）: 使っている 2 つのトーンの塗りが白黒で見分けにくい（CIE L* の差が 10 未満。典型は plain の白と accent / new の soft）。直し方は 2 つ。(1) トーンの色を変えて明度差を付ける: `diagram({tones: {accent: {fill: '#e6d3bd'}}})`（案件全体なら `.svg-diagram.json` の `"tones"`。README「トーンの色を上書きする」）か、片方を `solid` / `muted` にする。(2) ラベル・太字・破線など色以外の手がかりを足して `accept` で許容する。破線の有無が違う組、塗りが同じ組、muted / removed、canvas() のピルで言葉にした領域は数えない。カラーでしか使わない図は `diagram({accept: {'gray-tone-collision': '理由'}})`。
    - 凡例は、使った線種・トーンに必要な分だけ足す（`legend: 'auto'`）。記法が少なくて凡例が要らない図は、凡例を足さずに `diagram({legend: false})` で宣言する（`legend-missing` / `legend-incomplete` が出なくなる）。
 4. **目で見る**: `svg-diagram preview out.svg out.png 2` で PNG にし（並列で動かすときは出力名を省くと、一時ディレクトリに重ならない名前で書いてパスを表示する）、画像として読んで確認する（`svg-diagram show x.ts --png out.png` なら SVG を書かずにソースから直接 PNG にできる。`show` を `--png` なしで使うのは人が sixel 対応の端末で見るとき用で、エージェントの実行環境では端末がないためエラーになる）。**検査を通っても、レイアウトの良し悪しは目で見ないと分からない**。
+   - `preview` / `show` は、SVG が生成元のソースより古い（SVG に埋め込んだハッシュが今のソースと違う）と、stderr に警告し、PNG の上端に赤い帯を描く。**帯が出たら、その PNG は直前のソースの絵ではない**。`svg-diagram build <ソース>` で作り直してから見る。自動の手順では `--require-fresh` で古いときに exit 1 にできる。
+   - **`build` が失敗しても、前回の SVG は消えない**（手置きの SVG を巻き込まないため）。失敗の `✗` の行と `⚠ 前回の ... が残っている` を見落とさない。複数ファイルの `build` や `--stale` の「N 件を生成」だけを見て、直ったと思わない。`lint` で落ちて exit 1 のときは、新しい SVG は書かれている。
    - 白黒印刷や色覚の違う読者にどう見えるかは `svg-diagram preview out.svg out.png --gray`（明度だけにして描く）。
 5. **ズレ検査**: `svg-diagram check --drift --svg-dir <SVG の置き場> src.ts`（SVG が最新のソースから生成されたものか）
    - `--rebuild` を付けると、違いを言葉で説明する（「見た目は変わらない」ならそのまま再生成してよい）。
+   - `check` は、読み込めない・レイアウトで throw するソースがあっても、`✗ <ソース>: <メッセージ>`（スタックなし）を出して**残りのファイルを検査し続け**、最後に `N 件中 M 件が検査できなかった` を出す（exit 1。`--format json` / `github` にも `build-error` として載る）。
    表を図に置き換えたときは `svg-diagram check --covers <表.md|csv> <ソース.ts|図.svg>` で、表の語・数値が図から落ちていないか確かめる
 6. **文書との整合**: `svg-diagram check --docs <docs> --svg-dir <SVG の置き場> --src-dir <ソースの置き場>`（参照先、代替テキスト、孤立した図、図の注釈と文書のリストの一致、キャプション `図N-M` の連番と本文中の参照）。`--docs` は .md ファイルや複数指定（`--docs A.md B.md` も可）もでき、`--only <glob>` で一章だけ検査できる（絞ると孤立 SVG の検査はしない） PNG 参照（`![alt](x.png)`）の参照切れ・対応する図のない PNG・孤児 PNG も見る（`doc-png-no-source` / `doc-orphan-png`）。見出しの 1 行が全角で長すぎると `cjk-line-long`。
 7. **まとめて目視**: `svg-diagram contact a.svg b.svg ... --out sheet.png`（多いときは `--per-page 12` か `--pages 4` で sheet-1.png, sheet-2.png … に分ける。--out の置き場は無ければ作る。1 枚に詰めると縮んで読めない。余白や釣り合いは検査では分からない）

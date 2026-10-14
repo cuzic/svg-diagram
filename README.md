@@ -36,6 +36,10 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 反復の作業中は `--no-lint` で lint を省ける（仕上げの build や `svg-diagram check` で通す）。
 `--stale` を付けると、SVG が今のソース・ツールの版・`.svg-diagram.json` から作られたものならスキップする。判定に使うのは SVG に埋め込んだ生成元の情報（ソース・import しているローカルファイル・ツールの版・設定の各ハッシュ）。共通部品を直せば、それを使う図は古いと判定される。import は静的に読むだけなので、相対パスの import だけが対象（`tsconfig` の `paths` の別名や、変数で組み立てた `import()` は追えない。後者は build が警告する）。
 
+**ビルドが失敗したとき（古い SVG）**: `build` は、失敗しても既存の SVG（`.html`、`name.revealN.svg` も）を**消さず、書き換えない**。出力先には手で置いた SVG や他のツールの SVG があり、`<img src>` で参照されていることもあるので、削除はしない。そのため前回の成功時の SVG がそのまま残る。失敗した出力が**そのソース自身の前回の出力**（SVG に埋め込んだ `source` が一致する）なら、`✗` の行の次に `⚠ 前回の svg/flow.svg が残っている(ソースと一致しない古い絵)` を出す。手置きの SVG や別のソース由来の SVG、初回の失敗では出ない。
+`lint-svg --strict` で落ちた `build` は exit 1 を返すが、その SVG は**新しい内容で既に書かれている**（古い絵ではない）。直すまで、`--no-lint` なしの `build` は exit 1 のまま。
+**古さの警告**: `svg-diagram preview x.svg` と `show x.svg` は、SVG の生成元の情報（`<metadata id="svg-diagram">` のソースと import 先のハッシュ。ファイルの時刻は使わない）を今のソースと比べ、違えば古いと警告する（stderr に理由と `svg-diagram build <ソース>` の直し方。`preview` は stdout の `wrote ...` の行にも ` (古い: ソースが変わっている)` を足し、PNG の上端に赤い帯を描く。`show` は `--png` のときだけ帯）。ソースが見つからない SVG と、メタデータのない SVG（手置き・他ツール）は判定しない。exit code は 0 のまま。`--no-stale-banner`（`preview` のみ）で帯だけ消せる。`--require-fresh` を付けると古いときに exit 1（CI やエージェントの自動手順用）。SVG ファイルは書き換えない。
+
 `svg-diagram preview` / `contact` / `show` は SVG をブラウザなしで描く（Rust 製の resvg。フォントは、文字幅の測定に使うのと同じファイルを、その図で使う字だけに切り詰めて渡す。resvg は描くたびにフォントを丸ごと解析し直すので、14MB の日本語フォントだと 1 枚 3 秒かかるが、切り詰めると 50〜100ms で、画素は同じ）。`--engine chromium` を付けると、実ブラウザが `<img>` として描いた絵になる（`playwright-chromium` が要る）。resvg が読めない環境（ビルド済みバイナリがない）では、`--engine` を省くと自動でブラウザに切り替わる。
 `svg-diagram show` は人が端末で見るためのコマンド（Windows Terminal 1.22 以降、WezTerm、foot など sixel 対応の端末）。文書の `<img>` と同じ読み方（XML）で描くので、整形式でない SVG はエラーになる。`.ts` は検証に落ちても描き、問題を stderr に出して終了コード 1 にする。tmux 3.4 未満は sixel を通さないので、`--passthrough`（`set -g allow-passthrough on` が要る）か `--png FILE` を使う。端末のない環境（エージェントなど）は `--png FILE` で書いて画像として読む。
 動作確認: `pnpm test`、`svg-diagram build examples/inventory-wireframe.ts --out /tmp/x.svg`。
@@ -74,7 +78,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram diff old.svg new.svg                     # 2 つの SVG の違いを言葉で（見た目が変わるか）
     svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX] [--per-page N | --pages N]  # 図の集まりを 1 枚に並べて、一度に目視する（--out の置き場が無ければ作る）
     svg-diagram lint  [file.svg ...] [--strict] [--fix] [--engine geometry|browser]   # 描画後の検査も、既定は SVG の幾何から（ブラウザなし）
-    svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray]   # 既定の倍率 2。--gray: 白黒で描く。out を省くと一時ディレクトリに重ならない名前で書き、パスを表示
+    svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray] [--no-stale-banner] [--require-fresh]   # 既定の倍率 2。--gray: 白黒で描く。ソースより古い SVG は警告と赤い帯（--require-fresh: exit 1）。out を省くと一時ディレクトリに重ならない名前で書き、パスを表示
     svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium]   # ターミナルに sixel で直接表示（.ts は SVG を書かずに作って描く）
 
 型もすべて同じ所から取れる: `import type {WfNode, TableCell, TextTone, RawColorTone} from 'svg-diagram'`。変数に切り出した表のセルは `cell('通る', {tone: 'accent'})` で作ると、tone が文字列に広がらない（`as const` でも可）。`row()` に入れられるのは `box()` と `group()`、`grid()` は `box()` だけ（違うものを入れると実行時エラー）。
@@ -1023,6 +1027,7 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 - `--format json`（機械可読）、`--format github`（PR の注釈 `::warning file=…,line=…`）。
 
 ## ルールの説明・ベースライン・SARIF（`check`）
+- **ソースが読み込めない・レイアウトで throw するとき**: `build` と同じ `✗ <ソース>: <メッセージ>` の 1 行（スタックなし。`SVG_DIAGRAM_DEBUG=1` でスタックも出す）を出し、**残りのファイルも検査して**、最後に `N 件中 M 件が検査できなかった` を出す。exit は 1（`--strict` なしでも）。`--format json` では規則名 `build-error` の `error` として `findings` に入り、`--format github` では `::error file=...` になる。`--drift --rebuild` と `--docs --src-dir` の中で読み込めないソースも同じ扱い。
 - `svg-diagram check --rules` はルール ID の一覧、`svg-diagram check --explain edge-crossings` は 1 つのルールの意味と、`accept`（案件全体は `.svg-diagram.json`、1 つの図は `diagram({accept})`）の書き方を出す。
 - **ベースライン**: 警告が多い案件に段階導入する。`check --write-baseline .svg-diagram.baseline.json diagrams/*.ts` で今ある警告を記録し、以後 `check --strict --baseline .svg-diagram.baseline.json diagrams/*.ts` は、**記録にない新しい警告**だけを失敗にする（記録済みは info になり「ベースライン済み」と添える）。照合はファイル・ルール・メッセージで、行番号は見ない。エラーはベースラインに入らない。
 - `--format sarif` は SARIF 2.1.0 を標準出力に出す（GitHub Code Scanning などへ）。
