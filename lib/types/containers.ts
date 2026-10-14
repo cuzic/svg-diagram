@@ -129,13 +129,17 @@ export interface CanvasLayout {
   place: {col: number; row: number; cs: number; rs: number}[];
   colW: number[];
   rowW: number[];
-  /** Least height / width of the canvas. */
+  /** Least height / width of the canvas (only with fit 'aspect'). */
   aspect: number;
+  /** 'content': every row is as tall as its regions need; 'aspect': the template's height / width is a floor. */
+  fit: 'content' | 'aspect';
   /** The least height (px) the user asked for: more content than fits throws. */
   h?: number;
   title?: string;
   /** One per child: its tone (if any) is said in words by its pill, so it needs no legend entry. */
   worded: boolean[];
+  /** One per child: it is meant to be filled, so it is at least CANVAS_MIN_ROW_H tall (a label cell and an optional region left empty are not). */
+  floor: boolean[];
   /** Regions without content, and whether the author wanted every one filled (rule canvas-region-empty). */
   empty: string[];
   requireAll: boolean;
