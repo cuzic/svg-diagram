@@ -21,11 +21,12 @@
 **build(`build-diagram.ts`、`lib/dsl.ts` の `finishBuild`)**
 
 - 入力ごとに `try/catch` があり、1 つ失敗しても次へ進む。失敗は `✗ <ソース>: <message>`(スタックなし)で出て、最後に exit 1。ここは既に整形されている。
-- 失敗の種類は 4 つ。どれも**既存の SVG には触らない**。
+- 失敗の種類は 5 つ。どれも**既存の SVG には触らない**。
   1. 既定エクスポートが関数でない(`✗ ...: no default export function`)。
   2. `define()` やレイアウトが throw した。
   3. 検証(`verdict.ok` が偽)で `finishBuild` が「SVG を書く前に」throw した。
   4. 出力の XML が壊れている。これも書く前に throw する。
+  5. ソースの `import` 自体が throw する(構文エラーなど)。実装時に判明: `build` のループの try の外にあり、ビルド全体がスタックトレースで落ちていた。try の内側に入れて他の失敗と同じ扱いにする。
 - 書いたあとに失敗する経路が 1 つある。`--no-lint` なしのとき、全部を書いてから `lint-svg.ts --strict` を 1 回走らせ、通らなければ exit 1。このとき SVG は**新しい内容で書かれたまま**残る。これは古い絵ではない(ソースと一致している)ので E1 の対象外。
 - したがって E1 の原因は単純で、1〜4 で失敗すると前回の成功時の SVG がそのまま残る。ビルドログを見落とす(複数ファイルのビルド、`--stale` の「N 件を生成」だけを見る、エディタの保存フックで流れる、など)と、ディスク上には「直ったように見える」ファイルしかない。
 - `--stale` という名前は**既にある**。意味は「SVG が今のソース・ツール版・設定・import 先に一致していれば再生成を飛ばす」で、要望の「`.stale` の印」とは別物。印の名前に `stale` を使うと紛らわしい。
@@ -100,7 +101,7 @@
 - ソースごとの処理(`--drift`、`--rebuild`、`--covers`、通常の検査、`--docs` 内の `loadDiagram` を含む)を `try/catch` で包み、throw を 1 件の `error` の所見にする(規則名 `build-error`、メッセージは `build` と同じく `err.message` のみ)。`add({file, rule: 'build-error', severity: 'error', message})`、text では `✗ <ソース>: <message>`。スタックは出さない。`SVG_DIAGRAM_DEBUG=1` のときだけスタックも出す。
 - 続けて残りのファイルを検査する。最後に 1 行の集計を出す(`3 件中 1 件が検査できなかった`)。exit は、`error` が 1 件でもあれば 1(`--strict` でなくても。layout の失敗と同じ扱い)。
 - `--format json` では `findings` に載る(`errors` に数える)。`--format github` では `::error file=...` になる。
-- 整形は `build-diagram.ts` と共有する。`lib/error-format.ts`(新規)に `formatBuildError(src, err)`(1 行目はメッセージ、`lint-svg` や検証の複数行メッセージは字下げして保持)を置き、`build`・`check`・`show` が同じ関数を使う。`build` の現在の表示と同じ文面になることをテストで固定する。
+- 整形は `build-diagram.ts` と共有する。`lib/error-format.ts`(新規)に `formatBuildError(src, err)`(1 行目はメッセージ、`lint-svg` や検証の複数行メッセージはそのまま保持。現在の `build` は字下げしない)を置き、`build`・`check`・`show` が同じ関数を使う。`build` の現在の表示と同じ文面になることをテストで固定する。
 
 ## 代替案
 
