@@ -1,4 +1,4 @@
-// chart bands: waterfall, radar, heatmap, stacked bars / mekko, treemap, sankey, tornado. Each is worked out from its data into a
+// chart bands: waterfall, radar, heatmap, stacked bars / mekko, treemap, sankey, tornado, bubble, butterfly, combo, harvey. Each is worked out from its data into a
 // list of rects / paths / texts (charts-base.ts); this file is the one place bands, layout and the description meet them.
 import {sizeOf} from './charts-base.ts';
 import type {ChartKind, ChartOpts, LaidOutChartPart} from './charts-base.ts';
@@ -16,6 +16,14 @@ import {layoutTreemap, treemapTexts} from './charts-treemap.ts';
 import type {TreemapSpec} from './charts-treemap.ts';
 import {layoutSankey, sankeyTexts} from './charts-sankey.ts';
 import type {SankeySpec} from './charts-sankey.ts';
+import {bubbleTexts, layoutBubble} from './charts-bubble.ts';
+import type {BubbleSpec} from './charts-bubble.ts';
+import {butterflyTexts, layoutButterfly} from './charts-butterfly.ts';
+import type {ButterflySpec} from './charts-butterfly.ts';
+import {comboTexts, layoutCombo} from './charts-combo.ts';
+import type {ComboSpec} from './charts-combo.ts';
+import {harveyTexts, layoutHarvey} from './charts-harvey.ts';
+import type {HarveySpec} from './charts-harvey.ts';
 import {catTexts, layoutCat} from './charts-cat.ts';
 import {distAxes, distTexts, layoutDist} from './charts-dist.ts';
 import {layoutMulti, multiTexts} from './charts-multi.ts';
@@ -31,7 +39,7 @@ import type {CausalSpec, DependencySpec, PertSpec} from './semnet.ts';
 import type {FontFamily, Rect, Dimmed, Roles, WidthOf} from './types/core.ts';
 import type {RevealOpts} from './types/core.ts';
 
-export type ChartSpec = {kind: 'waterfall'; spec: WaterfallSpec} | {kind: 'tornado'; spec: TornadoSpec} | {kind: 'heatmap'; spec: HeatmapSpec} | {kind: 'stacked'; spec: StackedSpec} | {kind: 'radar'; spec: RadarSpec} | {kind: 'treemap'; spec: TreemapSpec} | {kind: 'sankey'; spec: SankeySpec} | {kind: 'catplot'; spec: CatSpec} | {kind: 'distplot'; spec: DistSpec} | {kind: 'multiplot'; spec: MultiSpec} | {kind: 'regplot'; spec: RegSpec} | {kind: 'clustermap'; spec: ClusterSpec} | {kind: 'pert'; spec: PertSpec} | {kind: 'causal'; spec: CausalSpec} | {kind: 'dependency'; spec: DependencySpec};
+export type ChartSpec = {kind: 'waterfall'; spec: WaterfallSpec} | {kind: 'tornado'; spec: TornadoSpec} | {kind: 'heatmap'; spec: HeatmapSpec} | {kind: 'stacked'; spec: StackedSpec} | {kind: 'radar'; spec: RadarSpec} | {kind: 'treemap'; spec: TreemapSpec} | {kind: 'sankey'; spec: SankeySpec} | {kind: 'catplot'; spec: CatSpec} | {kind: 'distplot'; spec: DistSpec} | {kind: 'multiplot'; spec: MultiSpec} | {kind: 'regplot'; spec: RegSpec} | {kind: 'clustermap'; spec: ClusterSpec} | {kind: 'bubble'; spec: BubbleSpec} | {kind: 'butterfly'; spec: ButterflySpec} | {kind: 'combo'; spec: ComboSpec} | {kind: 'harvey'; spec: HarveySpec} | {kind: 'pert'; spec: PertSpec} | {kind: 'causal'; spec: CausalSpec} | {kind: 'dependency'; spec: DependencySpec};
 
 export interface ChartBand extends RevealOpts {
   type: 'chart';
@@ -69,6 +77,10 @@ export function chartTexts(band: ChartBand, roles: Roles): [string, number, numb
       case 'radar': return radarTexts(band.spec as RadarSpec);
       case 'treemap': return treemapTexts(band.spec as TreemapSpec);
       case 'sankey': return sankeyTexts(band.spec as SankeySpec);
+      case 'bubble': return bubbleTexts(band.spec as BubbleSpec);
+      case 'butterfly': return butterflyTexts(band.spec as ButterflySpec);
+      case 'combo': return comboTexts(band.spec as ComboSpec);
+      case 'harvey': return harveyTexts(band.spec as HarveySpec);
       case 'clustermap': return clusterTexts(band.spec as ClusterSpec);
       case 'regplot': return regTexts(band.spec as RegSpec);
       case 'multiplot': return multiTexts(band.spec as MultiSpec);
@@ -93,6 +105,10 @@ export function layoutChart(band: ChartBand, x: number, y: number, w: number, wi
       case 'radar': return layoutRadar(band.spec as RadarSpec, g);
       case 'treemap': return layoutTreemap(band.spec as TreemapSpec, g);
       case 'sankey': return layoutSankey(band.spec as SankeySpec, g);
+      case 'bubble': return layoutBubble(band.spec as BubbleSpec, g);
+      case 'butterfly': return layoutButterfly(band.spec as ButterflySpec, g);
+      case 'combo': return layoutCombo(band.spec as ComboSpec, g);
+      case 'harvey': return layoutHarvey(band.spec as HarveySpec, g);
       case 'clustermap': return layoutCluster(band.spec as ClusterSpec, g);
       case 'regplot': return layoutReg(band.spec as RegSpec, g);
       case 'multiplot': return layoutMulti(band.spec as MultiSpec, g);
