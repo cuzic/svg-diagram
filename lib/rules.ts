@@ -18,15 +18,20 @@ import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, c
 const wcagIn = (d: LintTarget) => { const p = paintOf(d.appearance); return (a: string, b: string): number => lightWcag(p(a), p(b)); };
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {budgetWarnings} from './budget.ts';
+import {termFindings, tableFindings} from './consistency.ts';
 import {barsValuesHidden} from './bars.ts';
 import {fmt} from './plane.ts';
 import {dimmedBands} from './spotlight.ts';
 import {visibleAt} from './reveal.ts';
-import type {
-  ArrowWeight, Band, BarsBand, BoxBand, EmphasisTone, DiagramData, Finding, LaidOutBand, LaidOutBox, LaidOutConnect, LegendBand, LegendItem,
-  LineStyle, Point, RuleId, SwimlaneBand, WfCallout,
-} from './types.ts';
-import type {LintTarget} from './types.ts';
+import type {BarsBand} from './types/bars.ts';
+import type {LaidOutConnect, LegendBand, LegendItem} from './types/containers.ts';
+import type {ArrowWeight, EmphasisTone, DiagramData, LineStyle, Point, Rect, RuleId} from './types/core.ts';
+import type {Band, LaidOutBand} from './types/index.ts';
+import type {SwimlaneBand} from './types/sequence-table-swimlane.ts';
+import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
+import type {Finding} from './types/verdicts.ts';
+import type {WfCallout} from './types/wireframe-nodes.ts';
+import type {LintTarget} from './types/verdicts.ts';
 
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
@@ -53,6 +58,12 @@ export const RULE_DOCS = {
   'quadrant-empty-cell': 'quadrant() のマスに項目が 1 つもない（「該当なし」の空の枠が残っている。意図した空きは allowEmpty で示す）',
   'quadrant-tone-only': 'quadrant() の項目の色（tone）だけで種類を分けている（group を使うと形と凡例でも伝わる）',
   'funnel-values-rise': 'funnel({scale: "value"}) の値が下の段で増えている（漏斗として読むなら、値と段の順を確認する）',
+  'graph-orphan-node': '矢印でつないだ図の中に、どの矢印にもつながっていない箱がある（つなぎ忘れか、図に要らない箱。意図した注記なら id を付けない）',
+  'graph-disconnected': '矢印でつないだ図が、互いにつながらない 2 つ以上のかたまりに分かれている（1 図 1 話なら、つなぎ忘れか、図を分ける）',
+  'term-variant': '同じ語の表記が 1 つの図の中で揺れている（ユーザ / ユーザー、API / Api など）。1 つに揃える',
+  'term-avoid': '用語集（.svg-diagram.json の "terms"）で、別の語に統一すると決めた語が使われている',
+  'table-sum-mismatch': '表の「合計」行・列の値が、並ぶ値の和と合わない（丸めで説明できる差は除く）',
+  'table-share-not-100': '表の「構成比」「割合」の列が、合計 100% にならない',
   'arrow-labels': '一部にだけラベルがあり、ラベルのない矢印が多い',
   'canvas-region-empty': 'canvas() の領域に内容がない（requireAll: 全領域を埋める指定）',
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
@@ -469,6 +480,31 @@ function headlineLength(d: LintTarget, out: Finding[]): void {
   }
 }
 
+// a connected diagram (3+ arrows) should read as one graph: a box with an id that no arrow touches is a forgotten link,
+// and arrows that split into separate clumps are probably two stories in one picture
+function graphRules(d: LintTarget, out: Finding[]): void {
+  const connects = d.connects ?? [];
+  if (connects.length < 3) return;
+  const parent = new Map<string, string>();
+  const find = (x: string): string => { let r = x; while (parent.get(r) !== r) r = parent.get(r)!; parent.set(x, r); return r; };
+  const add = (x: string) => { if (!parent.has(x)) parent.set(x, x); };
+  // a row / column end (sources.col(1)) stands for the boxes inside it
+  const placed = (d.laidOut ?? []).flatMap(b => b.type === 'box' ? [b] : b.type === 'row' || b.type === 'grid' ? b.children : []).filter(b => !!b.id);
+  const inside = (b: Rect, a: Rect) => Math.min(b.x + b.w, a.x + a.w) - Math.max(b.x, a.x) > 0.5 && Math.min(b.y + b.h, a.y + a.h) - Math.max(b.y, a.y) > 0.5; // even partly, as layout counts it
+  const endIds = (id: string, area?: Rect): string[] => [id, ...(area ? placed.filter(b => inside(b, area)).map(b => b.id!) : [])];
+  for (const c of connects) {
+    if (!c.fromId || !c.toId) continue;
+    const ids = [...endIds(c.fromId, c.fromArea), ...endIds(c.toId, c.toArea)];
+    for (const id of ids) add(id);
+    for (const id of ids) parent.set(find(id), find(ids[0]));
+  }
+  const boxes = walkBands(d.bands).filter((b): b is BoxBand => b.type === 'box' && !!b.id && !!b.title);
+  const orphans = boxes.filter(b => !parent.has(b.id!));
+  if (orphans.length) out.push({rule: 'graph-orphan-node', severity: 'warn', message: `どの矢印にもつながっていない箱: ${orphans.map(b => `「${oneLine(b.title)}」(${b.id})`).join('、')}。矢印を足すか、箱を消す（注記なら id を付けない）`});
+  const groups = new Map<string, string[]>();
+  for (const id of parent.keys()) { const r = find(id); groups.set(r, [...(groups.get(r) ?? []), id]); }
+  if (groups.size > 1) out.push({rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${[...groups.values()].map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
+}
 function lintAll(d: LintTarget): Finding[] {
   const out: Finding[] = [];
   textContrast(d, out);
@@ -480,6 +516,8 @@ function lintAll(d: LintTarget): Finding[] {
   wireframeRules(d, out);
   rowHeaderRules(d, out);
   grayToneRules(d, out);
+  graphRules(d, out);
+  out.push(...termFindings(d.bands, d.terms), ...tableFindings(walkBands(d.bands)));
 
   const connects = d.connects ?? [];
   if (connects.length) {
@@ -531,6 +569,7 @@ export function diagramTitle(d: DiagramData): string {
     if (b.type === 'funnel') return oneLine(b.stages[0]?.label);
     if (b.type === 'venn') return oneLine(b.sets.map(s => s.label ?? s.name).join('・'));
     if (b.type === 'concentric') return oneLine(b.centre ?? b.rings[0]?.label);
+    if (b.type === 'wordart') return oneLine(b.text);
   }
   return '';
 }
@@ -552,6 +591,7 @@ export function diagramDesc(d: DiagramData, stage?: number): string {
     if (titles.length) parts.push(`要素: ${titles.slice(0, 16).join('、')}${titles.length > 16 ? ' ほか' : ''}`);
   }
   for (const b of walkBands(d.bands)) if (b.type === 'image' && b.alt) parts.push(`画像: ${oneLine(b.alt)}`);
+  for (const b of walkBands(d.bands)) if (b.type === 'math') parts.push(`数式: ${oneLine(b.alt)}`);
   // outside the fallback above, so boxes and hidden-value bars can share one description
   for (const b of bands) if (b.type === 'bars' && barsValuesHidden(b)) parts.push(`値: ${b.data.filter(x => visibleAt(x, stage)).map(x => `${oneLine(x.label)} ${fmt(x.value)}${b.unit ?? ''}`).join('、')}`);
   for (const b of bands) if (b.type === 'chart') parts.push(oneLine(b.alt));

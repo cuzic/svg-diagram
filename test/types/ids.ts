@@ -2,7 +2,8 @@
 // Positive cases must compile; every `@ts-expect-error` must be a real error (an unused one fails tsc).
 // Nothing here executes: the cases live in a function that is never called.
 import {diagram, build, box, banner, row, grid, group, connect, branch, screens, wireframe, table, sequence, swimlane, wf} from '../../lib/dsl.ts';
-import type {Band, Diagram} from '../../lib/types.ts';
+import type {Diagram} from '../../lib/types/core.ts';
+import type {Band} from '../../lib/types/index.ts';
 
 export function idCases(): void {
   const d = diagram({theme: 'blue'});

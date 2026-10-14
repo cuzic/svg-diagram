@@ -1,6 +1,11 @@
 import {PALETTE, CONNECT_LABEL_SIZE, STRONG_STROKE, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
-import type {LaidOutBox, LaidOutCaption, LaidOutBanner, LaidOutGroup, LaidOutLegend, LaidOutRow, LaidOutGrid, LaidOutRaw, LaidOutPyramid, LaidOutCurve, LaidOutPeople, LaidOutDots, LaidOutSwimlane, LaidOutConnect, Theme, EmphasisTone, Align, Rect, RawColorTone, Roles} from './types.ts';
+import type {LaidOutGroup, LaidOutLegend, LaidOutRow, LaidOutGrid, LaidOutRaw, LaidOutConnect, RawColorTone} from './types/containers.ts';
+import type {Theme, EmphasisTone, Align, Rect, Roles} from './types/core.ts';
+import type {LaidOutPyramid, LaidOutCurve} from './types/figures.ts';
+import type {LaidOutPeople, LaidOutDots} from './types/people-dots.ts';
+import type {LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
+import type {LaidOutBox, LaidOutCaption, LaidOutBanner} from './types/text-bands.ts';
 import {iconSvg} from './icon-svg.ts';
 import {ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout-util.ts';
 import {visibleAt} from './reveal.ts';

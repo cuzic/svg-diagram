@@ -6,7 +6,7 @@ import {layoutFlowShape} from '../lib/flow-shapes.ts';
 import {renderFlowShape} from '../lib/emit.ts';
 import {ROLES} from '../lib/tokens.ts';
 import type {FlowShapeBand, LaidOutFlowShape} from '../lib/flow-shapes.ts';
-import type {Rect} from '../lib/types.ts';
+import type {Rect} from '../lib/types/core.ts';
 
 // a rough width (0.58 em per character) is enough to check the geometry without measuring fonts
 const roughWidth = (atom: string, size: number) => Array.from(atom).length * size * .58;

@@ -1,5 +1,6 @@
 import {textWidth} from './atoms.ts';
-import type {FontFamily, LaidOutTimeline, NumericTimelineBand, Roles, TimelineBand, TimelineTone, WidthOf} from './types.ts';
+import type {FontFamily, Roles, WidthOf} from './types/core.ts';
+import type {LaidOutTimeline, NumericTimelineBand, TimelineBand, TimelineTone} from './types/timeline.ts';
 
 const FLAG_GAP = 6, STEM_MIN = 16, DOT = 8, TICK = 6, MAX_LEVELS = 5, MS_DAY = 86400000;
 const TONE_COLOR: Record<TimelineTone, 'accent' | 'danger' | 'muted'> = {accent: 'accent', danger: 'danger', muted: 'muted'};

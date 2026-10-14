@@ -5,7 +5,8 @@ import {gapFor, layoutWithLanes, routeLayered, STUB} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
-import type {FontFamily, LaidOutStates, Roles, StatesBand, WidthOf} from './types.ts';
+import type {FontFamily, Roles, WidthOf} from './types/core.ts';
+import type {LaidOutStates, StatesBand} from './types/diagrams.ts';
 
 export const STATE_ICON = 24;
 const ICON_H = STATE_ICON + 4; // an icon above the label: its size and a gap

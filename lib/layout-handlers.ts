@@ -8,9 +8,11 @@ import {layoutPlane} from './plane.ts';
 import {IMAGE_PAD, layoutImage} from './image.ts';
 import {layoutBars} from './bars.ts';
 import {layoutDots, layoutPeople} from './people.ts';
+import {layoutMath} from './math.ts';
 import {layoutTimeline} from './timeline.ts';
 import {layoutQuadrant} from './quadrant.ts';
 import {layoutFlowShape} from './flow-shapes.ts';
+import {layoutWordArt} from './wordart.ts';
 import {canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
 import {layoutTreeBand, narrowField} from './tree.ts';
 import {layoutStatesBand} from './states.ts';
@@ -20,10 +22,13 @@ import {layoutClassesBand} from './classes.ts';
 import {layoutBpmn} from './bpmn.ts';
 import {layoutChart} from './charts.ts';
 import {layoutWireframe, layoutScreens} from './wireframe.ts';
-import type {
-  Band, BoxBand, CaptionBand, BannerBand, GroupBand, ImageBand, SwimlaneBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, PyramidBand,
-  CurveBand, RawBand, SpacerBand, LaidOutBand, LaidOutGroup, LaidOutLane, LaidOutLegendItem, LaidOutPhase, LaidOutPyramidLayer, LaidOutRow, LaidOutSwimlane, RowArrow, Rect,
-} from './types.ts';
+import type {GroupBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, RawBand, SpacerBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow, RowArrow} from './types/containers.ts';
+import type {Rect} from './types/core.ts';
+import type {PyramidBand, CurveBand, LaidOutPyramidLayer} from './types/figures.ts';
+import type {ImageBand} from './types/image.ts';
+import type {Band, LaidOutBand} from './types/index.ts';
+import type {SwimlaneBand, LaidOutLane, LaidOutPhase, LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
+import type {BoxBand, CaptionBand, BannerBand} from './types/text-bands.ts';
 import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
 import {PALETTE, SHADES, blendLuminance, bestTextColor, paintOf} from './tokens.ts';
 import {
@@ -87,6 +92,12 @@ function layoutFlowShapeBand(band: Band & {type: 'chevron' | 'funnel' | 'cycle' 
   if (band.id) { if (ctx.anchors.has(band.id)) ctx.claimed(band.id, `a ${band.type} takes an id that another anchor already has`); ctx.anchors.set(band.id, placed); }
   for (const a of placed.anchors) { if (ctx.anchors.has(a.id)) ctx.claimed(a.id, `a ${band.type} item takes an id that another anchor already has`); ctx.anchors.set(a.id, a); }
   ctx.laidOut.push(placed); ctx.y += placed.h + d.gap;
+}
+
+function layoutWordArtBand(band: Band & {type: 'wordart'}, ctx: LayoutCtx, padX: number, cw: number): void {
+  const placed = layoutWordArt(band, padX, ctx.y, cw, ctx.widthOf, ctx.roles);
+  if (band.id) { if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a wordart takes an id that another anchor already has'); ctx.anchors.set(band.id, placed); }
+  ctx.laidOut.push(placed); ctx.y += placed.h + ctx.d.gap;
 }
 
 /** caption / box / banner (and, as before, anything a handler does not claim). */
@@ -476,6 +487,7 @@ const layoutBarsBand = placedBand((band: BandOf<'bars'>, x, y, w, ctx) => layout
 const layoutChartBand = placedBand((band: BandOf<'chart'>, x, y, w, ctx) => layoutChart(band, x, y, w, ctx.widthOf, ctx.roles), 'a chart takes an id that another anchor already has', 'a chart element takes an id that another anchor already has');
 const layoutPeopleOrDots = placedBand((band: Band & {type: 'people' | 'dots'}, x, y, w, ctx) => band.type === 'people' ? layoutPeople(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles) : layoutDots(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles),
   band => `a ${band.type} band takes an id that another anchor already has`);
+const layoutMathBand = placedBand((band: BandOf<'math'>, x, y, w, ctx) => layoutMath(band, x, y, w, ctx.roles[band.role], ctx.d.day), 'a math band takes an id that another anchor already has');
 const layoutPlaneBand = placedBand((band: BandOf<'plane'>, x, y, w, ctx) => layoutPlane(band, x, y, w, ctx.widthOf, ctx.roles), 'a plane takes an id that another anchor already has');
 const layoutQuadrantBand = placedBand((band: BandOf<'quadrant'>, x, y, w, ctx) => layoutQuadrant(band, x, y, w, ctx.widthOf, ctx.roles), 'a quadrant takes an id that another anchor already has', 'a quadrant item takes an id that another anchor already has');
 
@@ -506,6 +518,7 @@ export const LAYOUT_HANDLERS = {
   chart: layoutChartBand,
   people: layoutPeopleOrDots,
   dots: layoutPeopleOrDots,
+  math: layoutMathBand,
   wireframe: layoutWireframeBand,
   screens: layoutWireframeBand,
   swimlane: layoutSwimlane,
@@ -519,6 +532,7 @@ export const LAYOUT_HANDLERS = {
   plane: layoutPlaneBand,
   quadrant: layoutQuadrantBand,
   chevron: layoutFlowShapeBand,
+  wordart: layoutWordArtBand,
   funnel: layoutFlowShapeBand,
   cycle: layoutFlowShapeBand,
   venn: layoutFlowShapeBand,

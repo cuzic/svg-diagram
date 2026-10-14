@@ -2,7 +2,8 @@
 // One entry per band type, each checked against its own band type; a band type without one fails to compile.
 
 import type {LaidOutType, LaidOutOf} from './band-table.ts';
-import type {LaidOutBand, WrappedRun} from './types.ts';
+import type {LaidOutBand} from './types/index.ts';
+import type {WrappedRun} from './types/text-bands.ts';
 
 export type TextSizes<B> = (band: B) => Iterable<number>;
 
@@ -34,6 +35,7 @@ export const FIT_HANDLERS = {
   plane: band => [band.labelSize],
   quadrant: texts,
   chevron: texts,
+  wordart: band => [band.size],
   funnel: texts,
   cycle: texts,
   venn: texts,
@@ -43,6 +45,7 @@ export const FIT_HANDLERS = {
   image: band => sizesOf(band.plates),
   people: none,
   dots: none,
+  math: none,
   timeline: texts,
   tree: texts,
   states: textsAndLabels,

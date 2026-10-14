@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import {wf, layoutWireframe, layoutScreens, collectTextRequests} from '../lib/wireframe.ts';
 import {wireframe, stateMatrix, screens, diagram} from '../lib/dsl.ts';
 import {lintDiagram} from '../lib/rules.ts';
-import type {PrimRect, PrimText, WfCol, WfInsight, WfNote, WfRobotOpts, WfRoot, WfRow, WireframeOpts} from '../lib/types.ts';
+import type {PrimRect, PrimText, WfCol, WfInsight, WfRobotOpts, WfRow} from '../lib/types/wireframe-nodes.ts';
+import type {WfNote, WfRoot, WireframeOpts} from '../lib/types/wireframe.ts';
 
 const widthOf = (atom: string, size: number) => [...atom].length * size * 0.6;
 const wfLayout = (root: WfRoot, opts: Partial<WireframeOpts> = {}, w = 900) => layoutWireframe({type: 'wireframe', root, h: 420, ...opts}, 0, 0, w, widthOf);

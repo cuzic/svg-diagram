@@ -6,7 +6,8 @@ import {CHILD_BANDS, STACK_WIDTH, childrenOf, nestedBandsOf, stackWidthOf} from 
 import {MEASURE_HANDLERS, collectMeasures} from '../lib/layout-measure.ts';
 import {TEXT_RUNS} from '../lib/layout-text.ts';
 import {ROLES} from '../lib/tokens.ts';
-import type {Band, DiagramData} from '../lib/types.ts';
+import type {DiagramData} from '../lib/types/core.ts';
+import type {Band} from '../lib/types/index.ts';
 
 // The compile-time half is each table's `satisfies` over Band['type']; this is the run-time half: the tables cover the same types.
 test('every per-band-type registry has an entry for every band type', () => {

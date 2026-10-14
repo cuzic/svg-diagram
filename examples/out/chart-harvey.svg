@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="368" viewBox="0 0 940 368" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">ベンダー比較</title>
+  <desc id="svg-desc">ハーベイボール（0/4 = なし、1/4 = 一部、2/4 = 半分、3/4 = ほぼ、4/4 = 十分）: 機能の充足度: A 社 十分、B 社 ほぼ、C 社 半分 / 導入コスト: A 社 半分、B 社 十分、C 社 ほぼ / 運用のしやすさ: A 社 ほぼ、B 社 半分、C 社 十分 / サポート体制: A 社 十分、B 社 一部、C 社 半分 / 拡張性: A 社 ほぼ、B 社 半分、C 社 未評価</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-harvey.ts","sourceSha256":"7480a40ee867307b332432e5069c0143fb067dcfd3ac83695a5e7e0e0b732960"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="368" fill="#ffffff"/>
+
+  <path d="M136,20 H394 V260 H136 Z" fill="#ffffff"/>
+  <path d="M136,20 H394 V260 H136 Z" fill="#1d5fa8" fill-opacity="0.08" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="24" y="42" font-size="14" fill="#6f6659">評価基準</text>
+  <text x="265" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">A 社</text>
+  <text x="527" y="42" text-anchor="middle" font-size="14" fill="#22201b">B 社</text>
+  <text x="789" y="42" text-anchor="middle" font-size="14" fill="#22201b">C 社</text>
+  <path d="M20,50 L920,50" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="24" y="76" font-size="14" font-weight="700" fill="#22201b">機能の充足度</text>
+  <path d="M252,71 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M252,71 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M514,71 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M527,71 L527,58 A13,13 0 1,1 514,71 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M776,71 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M789,71 L789,58 A13,13 0 0,1 789,84 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M20,92 L920,92" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="24" y="118" font-size="14" font-weight="700" fill="#22201b">導入コスト</text>
+  <path d="M252,113 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M265,113 L265,100 A13,13 0 0,1 265,126 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M514,113 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M514,113 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M776,113 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M789,113 L789,100 A13,13 0 1,1 776,113 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M20,134 L920,134" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="24" y="160" font-size="14" font-weight="700" fill="#22201b">運用のしやすさ</text>
+  <path d="M252,155 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M265,155 L265,142 A13,13 0 1,1 252,155 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M514,155 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M527,155 L527,142 A13,13 0 0,1 527,168 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M776,155 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M776,155 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M20,176 L920,176" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="24" y="202" font-size="14" font-weight="700" fill="#22201b">サポート体制</text>
+  <path d="M252,197 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M252,197 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M514,197 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M527,197 L527,184 A13,13 0 0,1 540,197 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M776,197 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M789,197 L789,184 A13,13 0 0,1 789,210 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M20,218 L920,218" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="24" y="244" font-size="14" font-weight="700" fill="#22201b">拡張性</text>
+  <path d="M252,239 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M265,239 L265,226 A13,13 0 1,1 252,239 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M514,239 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M527,239 L527,226 A13,13 0 0,1 527,252 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="789" y="244" text-anchor="middle" font-size="14" fill="#6f6659">—</text>
+  <path d="M20,260 L920,260" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M24,280 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="46" y="285" font-size="14" fill="#22201b">なし</text>
+  <path d="M94,280 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M102,280 L102,272 A8,8 0 0,1 110,280 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="116" y="285" font-size="14" fill="#22201b">一部</text>
+  <path d="M164,280 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M172,280 L172,272 A8,8 0 0,1 172,288 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="186" y="285" font-size="14" fill="#22201b">半分</text>
+  <path d="M234,280 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M242,280 L242,272 A8,8 0 1,1 234,280 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="256" y="285" font-size="14" fill="#22201b">ほぼ</text>
+  <path d="M304,280 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0 Z" fill="#ffffff" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M304,280 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0 Z" fill="#22201b" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="326" y="285" font-size="14" fill="#22201b">十分</text>
+
+  <text x="20" y="342" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

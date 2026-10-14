@@ -4,7 +4,7 @@ import {PALETTE, colorOf} from './tokens.ts';
 import {visibleAt} from './reveal.ts';
 import {iconSvg} from './icon-svg.ts';
 import type {LaidOutChart} from './charts.ts';
-import type {ColorKey, Theme} from './types.ts';
+import type {ColorKey, Theme} from './types/core.ts';
 
 const r2 = (n: number): number => Math.round(n * 100) / 100;
 export function renderChart(b: LaidOutChart, day: Theme, emojiSpan: (s: string) => string, stage?: number, dimFill = false): string {

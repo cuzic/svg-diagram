@@ -4,7 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {diagram, box, banner, group, table, sequence, wireframe, screens, swimlane, row, connect, branch, wf, checkDiagram, closeMeasurer} from '../lib/dsl.ts';
 import {emitSvg} from '../lib/emit.ts';
-import type {Band, ConnectBand, LaidOutConnect} from '../lib/types.ts';
+import type {ConnectBand, LaidOutConnect} from '../lib/types/containers.ts';
+import type {Band} from '../lib/types/index.ts';
 
 test.after(() => closeMeasurer());
 

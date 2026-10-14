@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {measureWithFonts, resolveFontFile} from '../lib/font-metrics.ts';
-import type {FontFamily, FontSpecs, MeasureRequest} from '../lib/types.ts';
+import type {FontFamily, MeasureRequest} from '../lib/types/core.ts';
+import type {FontSpecs} from '../lib/types/project.ts';
 
 const have = resolveFontFile('sans') !== null;
 const t = (name: string, fn: () => void | Promise<void>) => test(name, {skip: have ? false : 'no sans font file found'}, fn);

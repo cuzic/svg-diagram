@@ -4,7 +4,7 @@
 // (UnrevealedBandTypes), and test/reveal-handlers.test.ts checks the table at run time.
 
 import {childrenOf} from './band-children.ts';
-import type {Band} from './types.ts';
+import type {Band} from './types/index.ts';
 
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
 
@@ -165,6 +165,7 @@ export const REVEAL_HANDLERS = {
   chart: plain,
   people: plain,
   dots: plain,
+  math: plain,
   wireframe: plain,
   screens: plain,
   swimlane: setEach('swimlane() step', (b: BandOf<'swimlane'>) => b.steps),
@@ -184,6 +185,7 @@ export const REVEAL_HANDLERS = {
   plane: {stage: true, visit: revealPlane},
   quadrant: plain,
   chevron: plain,
+  wordart: plain,
   funnel: plain,
   cycle: plain,
   venn: plain,

@@ -10,7 +10,7 @@ import path from 'node:path';
 const LIB = path.resolve(import.meta.dirname, '../lib');
 // versus.ts is not here either: it is an authoring helper that builds bands with dsl.ts's constructors (group, row, connect), and dsl.ts is the shell.
 // emit-html.ts is not here: it reads font metrics (font-metrics.ts → textBox) while it draws.
-const CORE = ['atoms', 'bars', 'emit', 'fit', 'layout', 'plane', 'reveal', 'rich', 'rules', 'seq-table', 'spotlight', 'timeline', 'tokens', 'types', 'verify', 'icons', 'wrap', 'wireframe'];
+const CORE = ['atoms', 'bars', 'emit', 'fit', 'layout', 'plane', 'reveal', 'rich', 'rules', 'seq-table', 'spotlight', 'timeline', 'tokens', 'types/index', 'verify', 'icons', 'wrap', 'wireframe', 'math'];
 const FORBIDDEN = /^(node:)?(fs|fs\/promises|child_process|net|http|https|os|worker_threads|crypto|process|module|vm|dns|tty|readline|zlib)$|^playwright|^@resvg|^harfbuzzjs|^sixel$/;
 
 function importsOf(file: string): {local: string[]; external: string[]; usesEnv: boolean} {

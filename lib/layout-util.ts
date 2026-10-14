@@ -2,7 +2,9 @@
 // box padding, icon / step-badge sizes, the row() / grid() width distribution and the group title caption. No text metrics, no state.
 
 import {textWidth} from './atoms.ts';
-import type {DiagramData, Roles, WidthOf, Rect, CaptionBand, GroupBand, RowBand, GridBand} from './types.ts';
+import type {GroupBand, RowBand, GridBand} from './types/containers.ts';
+import type {DiagramData, Roles, WidthOf, Rect} from './types/core.ts';
+import type {CaptionBand} from './types/text-bands.ts';
 
 export const LINE_HEIGHT_EM = 1.4;   // vertical spacing between wrapped lines within one text block
 export const BOX_PAD_X = 20;

@@ -3,7 +3,8 @@
 
 import {textWidth} from './atoms.ts';
 import {CONNECT_LABEL_SIZE} from './tokens.ts';
-import type {Bend, ConnectBand, ConnectRef, LaidOutConnect, Point, Rect, Roles, WidthOf} from './types.ts';
+import type {ConnectBand, LaidOutConnect} from './types/containers.ts';
+import type {Bend, ConnectRef, Point, Rect, Roles, WidthOf} from './types/core.ts';
 
 // 'id', 'id:side', or 'id:side@t' — t (0..1) slides the anchor along that side
 // (default 0.5) so several connectors can leave/enter the same side in parallel.

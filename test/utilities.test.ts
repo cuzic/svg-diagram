@@ -13,7 +13,9 @@ import {scanMarkdown, parseItem, compareNotes, notesOf} from '../lib/docs-check.
 import {loadConfig, applyConfig} from '../lib/config.ts';
 import {edgeStats, walkBands, usedNotation, legendKeys, diagramTitle, diagramDesc} from '../lib/rules.ts';
 import {diagram, box, banner, caption, group, row, grid, swimlane, table, sequence, wireframe, wf, legend} from '../lib/dsl.ts';
-import type {LaidOutConnect, Point, Band} from '../lib/types.ts';
+import type {LaidOutConnect} from '../lib/types/containers.ts';
+import type {Point} from '../lib/types/core.ts';
+import type {Band} from '../lib/types/index.ts';
 
 // ---- tokens --------------------------------------------------------------------------------------------
 test('luminance: BT.601 weights; black 0, white 255, pure channels', () => {

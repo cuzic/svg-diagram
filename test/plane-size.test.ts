@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {layoutPlane, planeTexts} from '../lib/plane.ts';
 import {ROLES, scaleRoles} from '../lib/tokens.ts';
-import type {PlaneBand} from '../lib/types.ts';
+import type {PlaneBand} from '../lib/types/figures.ts';
 
 const band: PlaneBand = {type: 'plane', x: {max: 10, label: 'X'}, y: {max: 10, label: 'Y'}, height: 400, points: [{id: 'p', at: [5, 5], label: 'Point'}]};
 const widthOf = (_atom: string, size: number) => size * 0.5; // width follows the size it is asked for

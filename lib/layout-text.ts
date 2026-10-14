@@ -6,7 +6,9 @@ import {wrapStyledAtoms} from './wrap.ts';
 import {assertSpans} from './rich.ts';
 import {isSolidTone} from './tokens.ts';
 import {BOX_INNER_GAP, ICON_INDENT, LINE_HEIGHT_EM, STEP_INDENT, topIcon} from './layout-util.ts';
-import type {Band, FontWeight, Roles, Span, TextRun, TextTone, WidthOf, WrappedRun} from './types.ts';
+import type {FontWeight, Roles, TextTone, WidthOf} from './types/core.ts';
+import type {Band} from './types/index.ts';
+import type {Span, TextRun, WrappedRun} from './types/text-bands.ts';
 
 /** `run` with the pieces of its text attached, when it has any (a plain run stays exactly as it was). */
 export function withSpans(run: TextRun, spans: Span[] | undefined): TextRun {

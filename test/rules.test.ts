@@ -3,7 +3,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {wcagRatio} from '../lib/tokens.ts';
 import {usedNotation, legendKeys, applyAutoLegend, edgeStats, lintDiagram, diagramTitle} from '../lib/rules.ts';
-import type {LaidOutConnect, LegendBand, Point} from '../lib/types.ts';
+import type {LaidOutConnect, LegendBand} from '../lib/types/containers.ts';
+import type {Point} from '../lib/types/core.ts';
 import {diagram, caption, box, connect, legend, swimlane} from '../lib/dsl.ts';
 
 test('wcagRatio: black on white is 21:1, same colour is 1:1', () => {
@@ -75,4 +76,17 @@ test('arrow-labels: none labelled is a convention; some labelled and most not is
   assert.equal(run([c(), c(), c(), c(), c()]), false);
   assert.equal(run([c('x'), c(), c(), c(), c()]), true);
   assert.equal(run([c('x'), c('y'), c('z'), c(), c()]), false);
+});
+
+test('graph rules: a box no arrow touches, and arrows that split into separate clumps', () => {
+  const c = (fromId: string, toId: string) => ({fromId, toId, points: [{x: 0, y: 0}, {x: 10, y: 0}], pathSegments: []}) as unknown as LaidOutConnect;
+  const bands = [box({id: 'a', title: 'A'}), box({id: 'b', title: 'B'}), box({id: 'c', title: 'C'}), box({id: 'd', title: 'D'}), box({id: 'lonely', title: '孤立'}), box({title: '注記'})];
+  const d = {...diagram({theme: 'blue'}), bands, connects: [c('a', 'b'), c('b', 'c'), c('c', 'd')]};
+  const f = lintDiagram(d as never);
+  assert.match(f.find(x => x.rule === 'graph-orphan-node')!.message, /孤立.*lonely/);
+  assert.ok(!f.find(x => x.rule === 'graph-orphan-node')!.message.includes('「注記」'), 'a box without an id is a note, not an orphan');
+  assert.ok(!f.some(x => x.rule === 'graph-disconnected'));
+  const split = lintDiagram({...d, connects: [c('a', 'b'), c('b', 'c'), c('x', 'y')]} as never);
+  assert.ok(split.some(x => x.rule === 'graph-disconnected'));
+  assert.ok(!lintDiagram({...d, connects: [c('a', 'b'), c('x', 'y')]} as never).some(x => x.rule.startsWith('graph-')), 'fewer than 3 arrows: not a flow yet');
 });

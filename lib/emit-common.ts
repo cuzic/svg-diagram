@@ -1,5 +1,6 @@
 import {PALETTE, EMOJI_RE, STRONG_TRIM, colorOf, textColorOf, toneStyle, runColorOf} from './tokens.ts';
-import type {Point, WrappedRun, Theme, EmphasisTone, LineStyle, Arrow, Align, Span} from './types.ts';
+import type {Point, Theme, EmphasisTone, LineStyle, Arrow, Align} from './types/core.ts';
+import type {WrappedRun, Span} from './types/text-bands.ts';
 
 export const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
 

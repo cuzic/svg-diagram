@@ -26,9 +26,10 @@ import {
   BOX_PAD_X, BOX_PAD_Y, ICON_H, STAMP_GAP, STAMP_H, TAG_H, TAG_PAD_X, TOP_ICON_GAP, TOP_ICON_SIZE,
   anchorRect, colSlots, rowChildGeometry, stampChipW, topIcon, withSourceLine,
 } from './layout-util.ts';
-import type {
-  DiagramData, Roles, LaidOutDiagram, LaidOutBand, LaidOutConnect, Band, CaptionBand, BoxBand, BannerBand, ConnectBand, BoxChrome, WidthOf, Rect,
-} from './types.ts';
+import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
+import type {DiagramData, Roles, WidthOf, Rect} from './types/core.ts';
+import type {LaidOutDiagram, LaidOutBand, Band} from './types/index.ts';
+import type {CaptionBand, BoxBand, BannerBand, BoxChrome} from './types/text-bands.ts';
 import {CONNECT_LABEL_SIZE, TAG_SIZE, withTones} from './tokens.ts';
 
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */

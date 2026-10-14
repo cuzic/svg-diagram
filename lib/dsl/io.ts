@@ -2,12 +2,17 @@ import fs from 'fs';
 import path from 'path';
 import {execFileSync} from 'child_process';
 import {readImage} from '../image-file.ts';
+import {texToSvg} from '../math-tex.ts';
 import {emitRevealStage} from '../pipeline.ts';
-import {LABEL_ROLES} from '../tokens.ts';
-import type {Band, ImageBand, ImageMark, ImageOpts, ImageRect, BuildResult, RenderResult, Diagram} from '../types.ts';
+import {LABEL_ROLES, ROLES} from '../tokens.ts';
+import type {Diagram} from '../types/core.ts';
+import type {MathBand, MathOpts} from '../types/math.ts';
+import type {ImageBand, ImageMark, ImageOpts, ImageRect} from '../types/image.ts';
+import type {Band} from '../types/index.ts';
+import type {BuildResult, RenderResult} from '../types/verdicts.ts';
 import type {AnchorsOf, Declares, IdsOf, HandleOf, Refers, RefsOf} from '../strict.ts';
 import {renderDiagram} from './render.ts';
-import {assertTextRole, revealOf, withAnchors, withHandle} from './shared.ts';
+import {assertNoReveal, assertTextRole, revealOf, withAnchors, withHandle} from './shared.ts';
 
 type MarkIds<M extends readonly ImageMark[]> = Extract<M[number]['id'], string>;
 const IMAGE_TONES = ['plain', 'accent', 'danger', 'muted', 'new', 'changed', 'removed', 'solid', 'solid-danger'];
@@ -113,4 +118,17 @@ async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Pro
     throw new Error(`build(${outPath}) produced an SVG that fails lint-svg.ts --strict:\n${out}`);
   }
   return {outPath, ...(htmlPath ? {htmlPath} : {}), revealPaths, width: r.width, height: r.height, fit: r.fit, budget: r.budget, fontScale: r.fontScale, warnings: verdict.warnings, findings: verdict.findings};
+}
+
+// A TeX formula, drawn as outlines (MathJax): math(String.raw`\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}`). Use String.raw so the
+// backslashes stay. Display style by default; `inline: true` sets it as it would be inside a sentence. No reveal (it is one picture).
+// Here, not with the pure builders: the formula is converted now (MathJax is loaded on the first call).
+export function math<const Id extends string = never>(tex: string, opts?: MathOpts & {id?: Id}): MathBand & Declares<Id> & HandleOf<Id>;
+export function math(tex: string, opts: MathOpts = {}): MathBand {
+  assertNoReveal(opts, 'math()');
+  if (typeof tex !== 'string' || !tex.trim()) throw new Error('math(tex) needs the TeX source of the formula (a non-empty string)');
+  if (opts.align !== undefined && !['left', 'center', 'right'].includes(opts.align)) throw new Error(`math(): align must be 'left', 'center' or 'right' (got ${opts.align})`);
+  if (opts.tone !== undefined && !['text', 'accent', 'muted', 'danger'].includes(opts.tone)) throw new Error(`math(): tone must be 'text', 'accent', 'muted' or 'danger' (got ${opts.tone})`);
+  if (opts.role !== undefined && !(opts.role in ROLES)) throw new Error(`math(): role must be one of ${Object.keys(ROLES).join(', ')} (got ${opts.role})`);
+  return withHandle({type: 'math', tex, drawing: texToSvg(tex, !opts.inline), role: opts.role ?? 'body', align: opts.align ?? 'center', tone: opts.tone ?? 'text', alt: opts.alt?.trim() || tex, ...(opts.id === undefined ? {} : {id: opts.id})}, opts.id);
 }

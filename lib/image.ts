@@ -9,7 +9,8 @@
 // has no opaque shape behind it as a finding (svg-lint.ts).
 import {textWidth} from './atoms.ts';
 import {toneStyle} from './tokens.ts';
-import type {FontFamily, ImageBand, ImageLabel, ImageMark, LabelRole, LaidOutImage, Roles, WidthOf} from './types.ts';
+import type {FontFamily, LabelRole, Roles, WidthOf} from './types/core.ts';
+import type {ImageBand, ImageLabel, ImageMark, LaidOutImage} from './types/image.ts';
 
 /** Larger than this and rules.ts warns (`image-large`): the whole file travels inside every SVG, and again in every reveal stage. */
 export const IMAGE_WARN_BYTES = 300 * 1024;

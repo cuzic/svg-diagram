@@ -1,5 +1,6 @@
 import {textWidth} from './atoms.ts';
-import type {DotsBand, DotTone, FontFamily, LaidOutDots, LaidOutPeople, PeopleBand, Theme, WidthOf, Roles} from './types.ts';
+import type {FontFamily, Theme, WidthOf, Roles} from './types/core.ts';
+import type {DotsBand, DotTone, LaidOutDots, LaidOutPeople, PeopleBand} from './types/people-dots.ts';
 
 const DOT_GAP = 3, LABEL_GAP = 6, BAR_H = 8, AXIS_GAP = 4;
 // every shape coordinate sits on the 4px grid (the lint's coordinate-grid advisory fails a build), so the piles are packed on it

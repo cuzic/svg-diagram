@@ -1,7 +1,7 @@
 // scatter() and controlChart(): the QC tools that are points and lines on a coordinate plane. Both only work out a plane() — axes that
 // fit the data, the points, the lines, the labels — so layout, verify and every other check treat them as any plane.
 import {niceUp, num} from './qc.ts';
-import type {PlaneAxis, PlaneLabel, PlaneLine, PlaneOpts, PlanePath, PlanePoint, PlanePos, PlaneTone} from './types.ts';
+import type {PlaneAxis, PlaneLabel, PlaneLine, PlaneOpts, PlanePath, PlanePoint, PlanePos, PlaneTone} from './types/figures.ts';
 
 /** How wide a text is, roughly (before layout knows the fonts): full-width characters take the whole size, the others 0.6 of it. */
 const estimate = (s: string, size = 14): number => [...s].reduce((n, c) => n + (c.charCodeAt(0) > 0x2e80 ? size : size * 0.6), 0);

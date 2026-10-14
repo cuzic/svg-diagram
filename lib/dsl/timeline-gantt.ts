@@ -1,6 +1,6 @@
 import {timelineDay} from '../timeline.ts';
 import {num} from '../qc.ts';
-import type {TimelineBand, TimelineOpts, NumericTimelineBand, NumericTimelineOpts, GanttBand, GanttOpts, GanttRow} from '../types.ts';
+import type {TimelineBand, TimelineOpts, NumericTimelineBand, NumericTimelineOpts, GanttBand, GanttOpts, GanttRow} from '../types/timeline.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
 import {revealOf, withAnchors, withHandle} from './shared.ts';
 

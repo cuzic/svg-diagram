@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import {bars, checkDiagram, closeMeasurer, controlChart, diagram, histogram, pareto, renderDiagram, scatter, xbarR} from '../lib/dsl.ts';
 import {capability, histogramBins, mean, niceNear, paretoOrder, sd} from '../lib/qc.ts';
 import {controlSignals, controlStats, correlation} from '../lib/qc-plane.ts';
-import type {LaidOutBars, LaidOutPlane} from '../lib/types.ts';
+import type {LaidOutBars} from '../lib/types/bars.ts';
+import type {LaidOutPlane} from '../lib/types/figures.ts';
 
 test.after(() => closeMeasurer());
 
@@ -316,7 +317,7 @@ test('every QC figure renders to an SVG without a problem', async () => {
 
 import {checkSheet, matrix, tally} from '../lib/dsl.ts';
 import {matrixScores} from '../lib/qc-table.ts';
-import type {LaidOutTable} from '../lib/types.ts';
+import type {LaidOutTable} from '../lib/types/sequence-table-swimlane.ts';
 
 test('tally(): 一 丅 下 止 are 1 to 4 strokes, 正 is 5, and a sixth starts again', () => {
   assert.deepEqual([0, 1, 2, 3, 4, 5, 6, 7, 12, 25].map(tally), ['', '一', '丅', '下', '止', '正', '正一', '正丅', '正正丅', '正正正正正']);
@@ -385,7 +386,7 @@ test('matrix(): no weights, no score unless total; bad input is named', async ()
 
 import {affinity, arrowDiagram, pdpc, relationDiagram, stateDiagram} from '../lib/dsl.ts';
 import {criticalPath} from '../lib/qc.ts';
-import type {LaidOutCause, LaidOutStates} from '../lib/types.ts';
+import type {LaidOutCause, LaidOutStates} from '../lib/types/diagrams.ts';
 
 const NET = [
   {from: 1, to: 2, name: 'A', days: 5}, {from: 2, to: 3, name: 'B', days: 8}, {from: 2, to: 4, name: 'C', days: 6},

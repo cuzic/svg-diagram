@@ -18,7 +18,8 @@ import fs from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import * as hb from 'harfbuzzjs';
 import {FONT_STACKS} from './tokens.ts';
-import type {FontFamily, FontSpecs, MeasureRequest, Measured} from './types.ts';
+import type {FontFamily, MeasureRequest, Measured} from './types/core.ts';
+import type {FontSpecs} from './types/project.ts';
 
 interface Loaded {file: string; index: number; name: string; face: hb.Face; font: hb.Font; upem: number; covered: Set<number>; ascender: number; descender: number}
 

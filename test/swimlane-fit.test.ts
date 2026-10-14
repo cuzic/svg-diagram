@@ -2,7 +2,8 @@ import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {checkDiagram, closeMeasurer, diagram, swimlane} from '../lib/dsl.ts';
-import type {LaidOutBox, LaidOutSwimlane} from '../lib/types.ts';
+import type {LaidOutSwimlane} from '../lib/types/sequence-table-swimlane.ts';
+import type {LaidOutBox} from '../lib/types/text-bands.ts';
 
 test.after(() => closeMeasurer());
 

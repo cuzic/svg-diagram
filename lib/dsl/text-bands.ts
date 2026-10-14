@@ -2,7 +2,10 @@ import {resolveIcon} from '../icon-registry.ts';
 import {walkBands} from '../rules.ts';
 import {assertSolidText, richBoxFields, richField} from '../rich.ts';
 import {ROLES, HEADLINE_ROLES, OPT_IN_TEXT_MAX, isSolidTone} from '../tokens.ts';
-import type {Band, BandInput, BannerBand, BannerOpts, BoxBand, BoxOpts, CaptionBand, CaptionOpts, GroupBand, GroupOpts, LegendBand, LegendItem, LegendOpts, RawBand, RawOpts, TextTone, RichText, StatOpts} from '../types.ts';
+import type {GroupBand, GroupOpts, LegendBand, LegendItem, LegendOpts, RawBand, RawOpts} from '../types/containers.ts';
+import type {BandInput, TextTone} from '../types/core.ts';
+import type {Band} from '../types/index.ts';
+import type {BannerBand, BannerOpts, BoxBand, BoxOpts, CaptionBand, CaptionOpts, RichText, StatOpts} from '../types/text-bands.ts';
 import type {BoxInput, Declares, IdsOf, HandleOf, Refers, RefsOf} from '../strict.ts';
 import {assertBoxTone, assertFontSize, assertNoReveal, assertTextRole, revealOf, withHandle} from './shared.ts';
 

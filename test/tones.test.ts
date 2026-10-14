@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {PALETTE, THEMES, TONES, TONE_ALIAS, colorOf, textKeyOf, toneStyle, wcagRatio} from '../lib/tokens.ts';
 import {resolveBoxStyle, resolveTextColor} from '../lib/emit.ts';
-import type {Theme} from '../lib/types.ts';
+import type {Theme} from '../lib/types/core.ts';
 
 const themes = THEMES.map(t => (/^\d$/.test(t) ? Number(t) : t) as Theme);
 

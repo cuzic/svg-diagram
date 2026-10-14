@@ -7,7 +7,9 @@ import type {CanvasContent, CanvasKey, CanvasOpts, CanvasTemplate, LooseCanvasOp
 import type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from '../qc-table.ts';
 import type {FmeaOpts, FmeaRow, JourneyLane, JourneyMapOpts, JourneyStage, QfdDemand, QfdOpts, RaciAssignment, RaciOpts} from '../semantic-table.ts';
 import type {AttributeSample, ControlChartOpts, ControlType} from '../qc-plane.ts';
-import type {PlaneBand, PlaneOpts, GridBand, TableBand} from '../types.ts';
+import type {GridBand} from '../types/containers.ts';
+import type {PlaneBand, PlaneOpts} from '../types/figures.ts';
+import type {TableBand} from '../types/sequence-table-swimlane.ts';
 import type {Declares, HandleOf} from '../strict.ts';
 import {plane} from './figures.ts';
 import {table} from './sequence-table-swimlane.ts';

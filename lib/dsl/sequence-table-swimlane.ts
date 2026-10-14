@@ -1,6 +1,9 @@
 import {resolveIcon} from '../icon-registry.ts';
 import {assertSolidText, richBoxFields} from '../rich.ts';
-import type {ConnectBand, ScreensBand, SequenceActor, SequenceBand, SequenceOpts, SequenceStep, StateMatrixOpts, StateMatrixRow, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand, PartRow, StateCellIn, StateMatrixCell, TableCell, TableCellSpec, TableColumn, TableOpts, TableRow, WfNode} from '../types.ts';
+import type {ConnectBand} from '../types/containers.ts';
+import type {SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, TableBand, TableCell, TableCellSpec, TableColumn, TableOpts, TableRow} from '../types/sequence-table-swimlane.ts';
+import type {WfNode} from '../types/wireframe-nodes.ts';
+import type {ScreensBand, StateMatrixOpts, StateMatrixRow, PartRow, StateCellIn, StateMatrixCell} from '../types/wireframe.ts';
 import type {ActorIn, AnchorsOf, Declares, FlowCheck, FlowIn, LaneCheck, HandleOf, SeqStepIn, StateRowLoose, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn} from '../strict.ts';
 import {connectBand} from './defaults.ts';
 import {assertBoxTone, assertFontSize, assertNoReveal, revealOf, withAnchors, withHandle} from './shared.ts';

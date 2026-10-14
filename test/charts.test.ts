@@ -7,7 +7,7 @@ import {layersOf, resolveSankey} from '../lib/charts-sankey.ts';
 import {heatLevel} from '../lib/charts-heatmap.ts';
 import {niceScale, numText, signedText} from '../lib/charts-base.ts';
 import type {LaidOutChart} from '../lib/charts.ts';
-import type {LaidOutPlane} from '../lib/types.ts';
+import type {LaidOutPlane} from '../lib/types/figures.ts';
 
 test.after(() => closeMeasurer());
 

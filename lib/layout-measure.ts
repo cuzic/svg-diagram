@@ -13,6 +13,7 @@ import {dotsTexts, peopleTexts} from './people.ts';
 import {timelineTexts} from './timeline.ts';
 import {quadrantTexts} from './quadrant.ts';
 import {flowShapeTexts} from './flow-shapes.ts';
+import {wordArtTexts} from './wordart.ts';
 import {treeTexts} from './tree.ts';
 import {statesTexts} from './states.ts';
 import {causeTexts, cloudTexts} from './toc.ts';
@@ -22,7 +23,8 @@ import {bpmnTexts} from './bpmn.ts';
 import {chartTexts} from './charts.ts';
 import {collectTextRequests} from './seq-table.ts';
 import {collectTextRequests as wfTextRequests} from './wireframe.ts';
-import type {Band, DiagramData, FontFamily, MeasureRequest, Measured, Roles, WidthOf} from './types.ts';
+import type {DiagramData, FontFamily, MeasureRequest, Measured, Roles, WidthOf} from './types/core.ts';
+import type {Band} from './types/index.ts';
 
 export type Requests = Map<string, MeasureRequest>;
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
@@ -101,6 +103,7 @@ export const MEASURE_HANDLERS = {
   plane: fromTuples(planeTexts),
   quadrant: fromTuples(quadrantTexts),
   chevron: fromTuples(flowShapeTexts),
+  wordart: fromTuples(wordArtTexts),
   funnel: fromTuples(flowShapeTexts),
   cycle: fromTuples(flowShapeTexts),
   venn: fromTuples(flowShapeTexts),
@@ -109,6 +112,7 @@ export const MEASURE_HANDLERS = {
   chart: fromTuples(chartTexts),
   people: fromTuples(peopleTexts),
   dots: fromTuples(dotsTexts),
+  math: () => undefined,
   timeline: fromTuples(timelineTexts),
   bpmn: fromTuples(bpmnTexts),
   classes: fromTuples(classesTexts),

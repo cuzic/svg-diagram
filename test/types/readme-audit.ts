@@ -1,7 +1,7 @@
 // Type-level tests that close gaps found when auditing README's 「コンパイル時に検出されるもの」 table against the other
 // files in this directory: every row has at least one case that compiles and one `@ts-expect-error` case. Never executed.
 import {diagram, box, banner, image, table, wireframe, sequence, group, grid, row, connect, branch, pyramid, curve, plane, swimlane, screens, stateMatrix, wf} from '../../lib/dsl.ts';
-import type {Band} from '../../lib/types.ts';
+import type {Band} from '../../lib/types/index.ts';
 
 export function readmeAuditCases(): void {
   const d = diagram({theme: 'blue'});

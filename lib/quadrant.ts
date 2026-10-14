@@ -9,7 +9,8 @@
 // has a legend: colour is never the only carrier of meaning.
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
-import type {Anchor, BoxTone, Dimmed, FontFamily, Rect, RevealOpts, Roles, WidthOf} from './types.ts';
+import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, Roles, WidthOf} from './types/core.ts';
+import type {BoxTone} from './types/text-bands.ts';
 
 // ---------------------------------------------------------------------------------------------------------------------------
 // input types

@@ -2,7 +2,8 @@
 // computes table() parts; layout and rendering remain the ordinary table band.
 import {markOf} from './qc-table.ts';
 import type {MatrixMark} from './qc-table.ts';
-import type {TableCellSpec, TableColumn, TableOpts, TableRow, TextTone} from './types.ts';
+import type {TextTone} from './types/core.ts';
+import type {TableCellSpec, TableColumn, TableOpts, TableRow} from './types/sequence-table-swimlane.ts';
 
 type CommonOpts = Pick<TableOpts, 'title' | 'width' | 'dense' | 'id' | 'reveal' | 'until'>;
 export interface SemanticTableParts {columns: TableColumn[]; rows: TableRow[]; opts: TableOpts}

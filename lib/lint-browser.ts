@@ -39,6 +39,7 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
     const page = am ? {r: parseInt(am[1], 16), g: parseInt(am[2], 16), b: parseInt(am[3], 16), a: 1} : {r: 255, g: 255, b: 255, a: 1};
     const contrast: {txt: string; delta: number; fg: string; bg: string}[] = [];
     for (const t of svg.querySelectorAll('text')) {
+      if (t.closest('[data-decor]')) continue; // decoration (a wordart's shadow / outer outlines), not a label
       let bb: DOMRect;
       try { bb = t.getBBox(); } catch { continue; }
       if (!bb.width) continue;
@@ -78,7 +79,8 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
         const tc = parseColor(fill);
         if (!tc) continue;
         const d = Math.abs(luminance(tc) - luminance(bg));
-        if (d < 70) {
+        const rim = parseColor(getComputedStyle(t).stroke), cs = getComputedStyle(t), seen = parseFloat(cs.strokeWidth) / 2 >= Math.max(1, 0.03 * parseFloat(cs.fontSize)) && parseFloat(cs.opacity) * parseFloat(cs.strokeOpacity || '1') >= 0.9, rimReads = rim && seen && Math.abs(luminance(rim) - luminance(bg)) >= 70; // an outlined letter reads by its rim
+        if (d < 70 && !rimReads) {
           contrast.push({txt: (parts.length > 1 ? g.trim() : txt).slice(0, 40), delta: +d.toFixed(0), fg: fill, bg: `rgb(${bg.r | 0},${bg.g | 0},${bg.b | 0})`});
         }
       }
@@ -91,6 +93,7 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
       : null;
 
     const texts = [...svg.querySelectorAll('text')].map(t => {
+      if (t.closest('[data-decor]')) return null;
       const bb = t.getBoundingClientRect();
       const txt = (t.textContent || '').trim();
       if (!txt || !bb.width || !bb.height) return null;

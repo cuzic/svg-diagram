@@ -8,7 +8,7 @@ import {spawnSync} from 'node:child_process';
 import {scanPngRefs, scanMarkdown, parseItem, compareNotes, formatNotes, formatMap, checkFigures, chapterOf, globToRegExp, matchesAny} from '../lib/docs-check.ts';
 import {explainChange} from '../lib/svg-diff.ts';
 import {loadConfig, applyConfig} from '../lib/config.ts';
-import type {DiagramData} from '../lib/types.ts';
+import type {DiagramData} from '../lib/types/core.ts';
 
 const CHECK = new URL('../check-diagram.ts', import.meta.url).pathname;
 

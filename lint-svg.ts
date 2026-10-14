@@ -151,7 +151,9 @@ for (const f of files) {
   }
 
   // (box({icon}) draws a line / colour icon as one <g transform> around the set's own shapes: that group is the icon)
-  if (/<g(?![^>]*\bdata-icon=)[^>]*\btransform\s*=/.test(src)) {
+  // (math() draws a formula as outlines inside nested transformed groups: they are the formula's own, not shapes an author placed)
+  const shapes = src.replace(/<g data-math=""[\s\S]*?<\/g><!--\/math-->/g, '');
+  if (/<g(?![^>]*\bdata-icon=)[^>]*\btransform\s*=/.test(shapes)) {
     advisoryFindings.push({file: f, check: 'group-transform', detail: '<g transform="..."> wrapping children — bake the offset into each child\'s own coordinates instead'});
   }
 
@@ -163,7 +165,7 @@ for (const f of files) {
   // including them just made this check fire on nearly every file regardless of
   // real layout care (see docs/diagram-tone-and-manner.md review notes, 2026-08).
   const coords = [];
-  for (const [, attrs] of src.matchAll(/<(?:rect|circle|ellipse|line)\b([^>]*)>/g)) {
+  for (const [, attrs] of shapes.matchAll(/<(?:rect|circle|ellipse|line)\b([^>]*)>/g)) {
     for (const m of attrs.matchAll(/\b(?:x|y|x1|y1|x2|y2|cx|cy|width|height)="(-?[\d.]+)"/g)) {
       coords.push(+m[1]);
     }

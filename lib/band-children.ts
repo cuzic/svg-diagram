@@ -3,7 +3,7 @@
 // entry fails to compile (ChildBandsOf below), and test/band-registries.test.ts checks the tables at run time.
 
 import {IMAGE_PAD, imageSize} from './image.ts';
-import type {Band} from './types.ts';
+import type {Band} from './types/index.ts';
 
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
 /** One entry per band type: the bands it holds as its `children` (group, row, grouprow, grid, and an image's `over` parts). */
@@ -29,6 +29,7 @@ export const CHILD_BANDS = {
   chart: none,
   people: none,
   dots: none,
+  math: none,
   wireframe: none,
   screens: none,
   swimlane: none,
@@ -42,6 +43,7 @@ export const CHILD_BANDS = {
   plane: none,
   quadrant: none,
   chevron: none,
+  wordart: none,
   funnel: none,
   cycle: none,
   venn: none,
@@ -88,6 +90,7 @@ export const STACK_WIDTH = {
   chart: noStack,
   people: noStack,
   dots: noStack,
+  math: noStack,
   wireframe: noStack,
   screens: noStack,
   swimlane: noStack,
@@ -101,6 +104,7 @@ export const STACK_WIDTH = {
   plane: noStack,
   quadrant: noStack,
   chevron: noStack,
+  wordart: noStack,
   funnel: noStack,
   cycle: noStack,
   venn: noStack,

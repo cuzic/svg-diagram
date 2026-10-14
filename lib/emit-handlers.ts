@@ -1,8 +1,11 @@
 import {PALETTE} from './tokens.ts';
-import type {LaidOutBand, Theme, Roles} from './types.ts';
+import type {Theme, Roles} from './types/core.ts';
+import type {LaidOutBand} from './types/index.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import {renderChart} from './charts-emit.ts';
 import {emojiSpan} from './emit-common.ts';
+import {renderWordArt} from './emit-wordart.ts';
+import {renderMath} from './emit-figures.ts';
 import {renderCaption, renderBox, renderGroup, renderLegend, renderBanner, renderRow, renderGrid, renderPyramid, renderPeople, renderDots, renderCurve, renderRaw, renderSwimlane} from './emit-boxes.ts';
 import {renderPlane, renderBars, renderImage, renderQuadrant, renderFlowShape, renderTimeline, renderTree, renderStates, renderCause, renderCloud, renderGantt, renderClasses, renderBpmn} from './emit-figures.ts';
 import {renderSequence, renderTable, renderPrims} from './emit-tables.ts';
@@ -32,6 +35,7 @@ export const EMIT_HANDLERS = {
   curve: {render: (b, day) => renderCurve(b, day)},
   plane: {render: (b, day, _roles, stage) => renderPlane(b, day, stage)},
   quadrant: {render: (b, day) => renderQuadrant(b, day), selfDimming: true},
+  wordart: {render: (b, day) => renderWordArt(b, day, !!b.dim), selfDimming: true},
   chevron: {render: (b, day) => renderFlowShape(b, day)},
   funnel: {render: (b, day) => renderFlowShape(b, day)},
   cycle: {render: (b, day) => renderFlowShape(b, day)},
@@ -42,6 +46,7 @@ export const EMIT_HANDLERS = {
   image: {render: (b, day, _roles, stage) => renderImage(b, day, stage), selfDimming: true},
   people: {render: (b, day) => renderPeople(b, day)},
   dots: {render: (b, day) => renderDots(b, day)},
+  math: {render: b => renderMath(b)},
   timeline: {render: (b, day) => renderTimeline(b, day), selfDimming: true},
   tree: {render: (b, day) => renderTree(b, day), selfDimming: true},
   states: {render: (b, day) => renderStates(b, day), selfDimming: true},

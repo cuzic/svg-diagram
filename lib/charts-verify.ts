@@ -5,7 +5,7 @@ import {segHitsRect} from './bars.ts';
 import {overlaps} from './charts-base.ts';
 import {PALETTE, colorOf, luminance, paintOf} from './tokens.ts';
 import type {LaidOutChart} from './charts.ts';
-import type {LaidOutDiagram} from './types.ts';
+import type {LaidOutDiagram} from './types/index.ts';
 
 const CONTRAST = 70; // the threshold verify.ts and lint-svg.ts use
 const hexOf = (h: string): [number, number, number] => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];

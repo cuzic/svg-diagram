@@ -4,7 +4,8 @@
 import {textWidth} from './atoms.ts';
 import type {Pt} from './graph-layout.ts';
 import {gapFor, layoutWithLanes, routeLayered} from './layered-route.ts';
-import type {ClassesBand, FontFamily, LaidOutClasses, Roles, WidthOf} from './types.ts';
+import type {FontFamily, Roles, WidthOf} from './types/core.ts';
+import type {ClassesBand, LaidOutClasses} from './types/diagrams.ts';
 
 const PAD_X = 12, PAD_Y = 6, MIN_W = 110, GAP = 36, LEVEL_GAP = 72, LOOP = 26, CHIP_PAD = 5;
 const lineH = (s: number): number => Math.round(s * 1.4);

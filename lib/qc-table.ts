@@ -1,6 +1,6 @@
 // The QC tools that are a table: the check sheet (チェックシート) with its tally marks, and the matrix diagram (マトリックス図) with its
 // ◎ ○ △ symbols and the scores they add up to. Both only work out the columns, rows and options of a table().
-import type {CellMark, TableCellSpec, TableColumn, TableOpts, TableRow} from './types.ts';
+import type {CellMark, TableCellSpec, TableColumn, TableOpts, TableRow} from './types/sequence-table-swimlane.ts';
 
 /** The tally marks of the Japanese check sheet: 一 丅 下 止 are 1 to 4 strokes, 正 is 5 (and is written again for the next five). */
 export function tally(n: number): string {

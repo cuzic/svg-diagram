@@ -4,11 +4,15 @@ import {analyzeFit} from '../fit.ts';
 import {getSlideBudget, readSlideBudgetCache} from '../slide-budget.ts';
 import {emitOutputs, runChecked} from '../pipeline.ts';
 import {SLIDE_CANVAS, canvasFontScale, canvasRoles, ROLES, THEMES, scaleRoles} from '../tokens.ts';
-import type {BandInput, RenderResult, CheckResult, ConnectOpts, Diagram, DiagramData, DiagramOpts, LaidOutDiagram, SlideBudget, Theme, Medium} from '../types.ts';
+import type {ConnectOpts} from '../types/containers.ts';
+import type {BandInput, Diagram, DiagramData, DiagramOpts, Theme, Medium} from '../types/core.ts';
+import type {LaidOutDiagram} from '../types/index.ts';
+import type {RenderResult, CheckResult, SlideBudget} from '../types/verdicts.ts';
 import type {DiagramInput} from '../strict.ts';
 import {connect} from './connect.ts';
 import {applyConnectDefaults, connectBand} from './defaults.ts';
 import {fillScaleLimit} from './text-bands.ts';
+import {MathTooWideError} from '../math.ts';
 import {applyWireframeDefaults} from './wireframe-numbering.ts';
 
 //
@@ -39,6 +43,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     // 'slide' (legacy day: 1|2 diagrams) gets slide-fit warnings; 'doc' (theme: ...) does not.
     medium: (opts.medium ?? (opts.theme === undefined ? 'slide' : 'doc')) as Medium,
     title: opts.title, desc: opts.desc,            // exposed as the SVG's <title> / <desc> (doc medium)
+    terms: opts.terms,
     accept: opts.accept, // {'rule-id': 'why this finding is fine'} — shown as info instead of a warning
     wrap: opts.wrap,
     tones: opts.tones === undefined ? undefined : checkTones(opts.tones, 'diagram({tones})'),
@@ -111,11 +116,16 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
     };
     if (d.fill && budget) {
       d.width = budget.contentWidth;
+      // a formula is as wide as its size makes it: past some scale it no longer fits the column, which only means "too big" here (at 1x it still throws)
+      const maxHeight = budget.maxHeight;
+      const fits = async (s: number): Promise<boolean> => {
+        try { return (await layoutAt(s)).canvasHeight <= maxHeight; } catch (e) { if (e instanceof MathTooWideError) return false; throw e; }
+      };
       let lo = 1, hi = fillScaleLimit(d.bands);
       if ((await layoutAt(1)).canvasHeight > budget.maxHeight) hi = 1; // doesn't even fit at 1x: report via fit warnings
       for (let i = 0; i < 7 && hi - lo > 0.01; i++) {
         const mid = (lo + hi) / 2;
-        if ((await layoutAt(mid)).canvasHeight <= budget.maxHeight) lo = mid; else hi = mid;
+        if (await fits(mid)) lo = mid; else hi = mid;
       }
       fontScale = Math.floor(lo * 100) / 100;
     } else if (d.canvas) {

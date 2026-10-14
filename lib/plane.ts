@@ -5,7 +5,8 @@
 // The layout also boxes every label it places (labelBoxes), so verify.ts can report two labels that sit on each other or a
 // label that leaves the figure — the kind of thing a hand-drawn raw() SVG cannot be checked for.
 import {textWidth} from './atoms.ts';
-import type {FontFamily, LaidOutPlane, PlaneBand, PlanePos, PlaneRef, PlaneText, PlaneTone, Rect, WidthOf, Roles} from './types.ts';
+import type {FontFamily, Rect, WidthOf, Roles} from './types/core.ts';
+import type {LaidOutPlane, PlaneBand, PlanePos, PlaneRef, PlaneText, PlaneTone} from './types/figures.ts';
 
 // the same tolerance verify.ts's rectOverlap uses, so what layout avoids is what verification would report
 const overlapsRect = (a: Rect, b: Rect): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5;
