@@ -53,7 +53,7 @@ export type {ChartBand} from './charts.ts';
 export type {WaterfallOpts, WaterfallStep} from './charts-waterfall.ts';
 export type {PertTask, PertAnalysis, PertResult, CausalLink, CausalLoop, CausalPolarity} from './semnet-analysis.ts';
 export {analyzeCriticalPath, analyzeCausalLoops} from './semnet-analysis.ts';
-export type {PertOpts, CausalNode, CausalOpts, DependencyNode, DependencyEdge, DependencyEdgeType, DependencyOpts, SemnetDirection} from './semnet.ts';
+export type {PertOpts, CausalNode, CausalOpts, CausalIntervention, DependencyNode, DependencyEdge, DependencyEdgeType, DependencyOpts, SemnetDirection} from './semnet.ts';
 export type {TornadoItem, TornadoOpts} from './charts-tornado.ts';
 export type {BubbleAxis, BubbleOpts, BubblePoint} from './charts-bubble.ts';
 export type {ButterflyOpts, ButterflyRow} from './charts-butterfly.ts';

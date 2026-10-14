@@ -9,7 +9,7 @@ import {causalTexts} from './semnet-causal.ts';
 import type {CausalSpec} from './semnet-causal.ts';
 
 export {causalAlt, layoutCausal, resolveCausal} from './semnet-causal.ts';
-export type {CausalSpec, CausalNode, CausalOpts} from './semnet-causal.ts';
+export type {CausalSpec, CausalNode, CausalOpts, CausalIntervention} from './semnet-causal.ts';
 export type {SemnetDirection} from './semnet-common.ts';
 
 export interface PertOpts extends SemnetOpts {unit?: string; compact?: boolean}
