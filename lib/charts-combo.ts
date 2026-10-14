@@ -3,7 +3,7 @@
 // description. The bars are light so a line and its numbers can run over them.
 import {Canvas, checkIds, checkText, fail, finiteNum, niceScale, numText, thinTicks} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
-import type {ColorKey} from './types.ts';
+import type {ColorKey} from './types/core.ts';
 
 export interface ComboSeries {
   label: string;
