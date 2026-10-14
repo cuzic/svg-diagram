@@ -521,6 +521,9 @@ bpmn(
 | ツリーマップ | `treemap(tree)` | `examples/chart-treemap.ts` |
 | サンキー図 | `sankey(nodes, links)` | `examples/chart-sankey.ts` |
 | トルネード図 | `tornado(items, {base})` | `examples/chart-tornado.ts` |
+| 2次元ヒストグラム / ジョイントプロット / 散布図行列（seaborn の `histplot(x, y)` / `jointplot` / `pairplot`） | `hist2d({x, y})` / `jointplot({x, y, group?})` / `pairplot({変数: [..], ...}, {groups, corner})` | `examples/chart-multi.ts` |
+| ヒストグラム / KDE / ECDF / ラグ（seaborn の `displot`） | `histplot` / `kdeplot` / `ecdfplot` / `rugplot(values｜groups, {label, stat, binWidth})`、重ねるなら `displot(values, {kind: ['hist', 'kde', 'rug']})` | `examples/chart-dist.ts` |
+| 箱ひげ図 / バイオリン / ストリップ / スウォーム / ポイント / 誤差つき棒（seaborn の `catplot`） | `boxplot` / `violinplot` / `stripplot` / `swarmplot` / `pointplot` / `barplot(groups, {label, dir, hues})`、重ねるなら `catplot(groups, {kind: ['violin', 'strip']})` | `examples/chart-cat.ts` |
 
 ```ts
 waterfall([{label: '前期', value: 1000}, {label: '価格', value: 220}, {label: '数量', value: -130}, {label: '小計', kind: 'subtotal'}, {label: '今期', kind: 'total'}], {unit: '百万円'})
@@ -531,6 +534,10 @@ mekko([{label: '北米', parts: [{label: 'A 社', value: 520}, {label: 'B 社', 
 treemap([{label: 'クラウド', children: [{label: 'ストレージ', value: 420}, {label: '計算基盤', value: 310}]}, {label: 'その他', value: 40}], {unit: '億円'})
 sankey(['広告', '訪問', '購入', '離脱'], [{from: '広告', to: '訪問', value: 100}, {from: '訪問', to: '購入', value: 15}, {from: '訪問', to: '離脱', value: 85}], {unit: '人'})
 tornado([{label: '販売単価', low: 640, high: 1360}, {label: '為替', low: 880, high: 1130}], {base: 1000, unit: '百万円'})
+histplot([62, 65, 70, 71, 72, 74, 80], {label: '体重（kg）', stat: 'probability'})
+displot({男性: [62, 70, 74, 80], 女性: [48, 55, 58, 66]}, {kind: ['hist', 'kde', 'rug']})
+boxplot({東京: [52, 58, 61, 63, 96], 大阪: [41, 47, 50, 55, 71]}, {label: '売上（百万円）', counts: true, values: 'median'})
+catplot([{label: '第1四半期', hues: [{name: '新規', values: [32, 35, 41]}, {name: '既存', values: [51, 56, 66]}]}], {kind: ['violin', 'swarm']})
 ```
 
 - **`waterfall`**: 最初の段は開始（`value` が水準）、ほかは増減（`value` が差）。`kind: 'subtotal'｜'total'` は 0 から立つ棒で（先頭には置けない）、`value` を書かなければ累計、書けば累計と合わなければ止まる。水準が 0 をまたいでも、負の合計でも描ける（0 の線が太い）。`dir: 'h'` は横向き（段の名前が長いとき）。棒の色は開始・合計が濃い色、小計が灰色、増加がアクセント、減少が赤（`tone` で変える）。
@@ -541,6 +548,9 @@ tornado([{label: '販売単価', low: 640, high: 1360}, {label: '為替', low: 8
 - **`treemap`**: 葉は `{label, value}`、グループは `children`（4 階層まで。グループの値は子の合計で、書くなら一致が必要）。葉の `tone: 'accent'｜'danger'` は塗りつぶし。グループの名前が入らないときも `<desc>` に残る。グループの枠と見出しの帯が子の場所を取る分は重みを補正するので、葉の面積はグループの中でも外でも値に比例する。`percent: true` で全体に対する割合を添える。
 - **`sankey`**: ノードは文字列か `{id, label?, tone?}`（どのリンクにも出てこないノードはエラー）。層は最長経路で決まり（循環は止まる）、出ていかないノードは最後の層に寄る（`align: 'left'` で寄せない）。ノードの並びは交差が少なくなるように入れ替える。ノードの高さが値に比例するので、名前が収まらないほど低いノードでも、名前の高さ分の場所は空ける。リボンには、両端のどちらの名前にも載っていない値（分岐・合流の途中）だけ数字が入る。`tone: 'danger'` のリボンは赤の破線で縁取る。
 - **`tornado`**: `low` / `high` は「その入力が低い / 高いときの結果」（結果が低いとは限らない）。結果が基準と同じならその棒は描かず数字だけ書く。両方が基準の同じ側に出るときは、棒を 2 段に分ける。
+- **`hist2d` / `jointplot` / `pairplot`**: 列ごとの**生の値**を渡す（`{x: [..], y: [..]}`、`pairplot` は `{身長: [..], 体重: [..]}` で 2〜6 変数）。`hist2d` は切りのよい幅の升に点を数え、度数を升に書いて濃淡にする（入らない度数は書かず、凡例の 5 段階に最大値と 0）。`jointplot` は散布図と、上・右に各変数のヒストグラム。`pairplot` は全組の散布図と、対角線にその変数のヒストグラム（`corner: true` は対角線の下だけ）。目盛りは下と左（1 行目だけ右）に 1 回ずつ。`group`（`pairplot` は `groups`）は行ごとのラベルで、4 グループまで。印の形（● ◆ ■ ▲）と、ヒストグラムの輪郭の線の種類（実線・破線…）で見分け、凡例が付く。`bins` は階級数の目安、`xLabel` / `yLabel` は軸名。乱数は使わない。
+- **`histplot` ほか（seaborn の distribution plots）**: **生の値**（数の配列、または `{男性: [..], 女性: [..]}` で 4 グループまで）を渡す。`kind` は関数名で決まる 1 層か、描く順の配列（`['hist', 'kde', 'rug']`。`ecdf` は別の軸なので `hist` / `kde` とは重ねられず、`rug` とだけ）。`hist` の階級幅は切りのよい数（`bins` で個数の目安、`binWidth` で幅。グループは階級を共有する）で、`stat` は `count`（既定）／`density`／`probability`／`percent`。`element: 'step'` は棒を輪郭の 1 本線にする（グループが重なるとき見やすい）。`kde` は Scott の帯域幅のガウス KDE（`bw` はその倍率）で、データの両端から帯域幅 2 つ分まで伸ばし、`hist` と重ねると `stat` に合わせて高さが揃う（`kde` だけなら密度）。`ecdf` の `stat` は `probability`（累積割合、既定）／`count`／`percent`。グループは色と線の種類（実線・破線・点線・一点鎖線）の両方で見分け、凡例が付く。乱数は使わない。`id` はグループの端点。
+- **`boxplot` ほか（seaborn の categorical plots）**: 集計済みの数字ではなく**生の値**を渡す（`{東京: [..], 大阪: [..]}`、または `[{label, values, id?}]`）。四分位・カーネル密度・信頼区間・ビースウォームは `lib/stats.ts` が計算し、乱数を使わないので同じ値は同じ図になる。`kind` は 1 層（`boxplot` などの関数名で決まる）か、描く順の配列（`['box', 'strip']` は箱の上に点）。`box` はひげが 1.5 IQR 以内の最も遠い値までで、外れ値は○（`strip` / `swarm` を重ねると点が示すので省く）。`violin` は Scott の帯域幅のガウス KDE を、データの範囲で切って（seaborn の `cut=0`）左右対称に描き、中に四分位の太線と中央値の点。`scale: 'area'`（既定。面積が揃う）／`'width'`（どれも幅いっぱい）。`strip` は決まった順の揺らし、`swarm` は点が重ならない配置（入らなければ、幅・高さを上げるか `stripplot` に、と止まる）。`point` は平均と誤差の棒を、hue ごとの線（実線・破線・点線）でつなぐ。`bar` は 0 から平均まで。誤差は `error: 'ci'`（既定。t 分布の 95% 信頼区間）／`'sd'`／`'se'`／`'range'`／`'none'`。`hues: [{name, values}]`（`label` と `values` の代わり）で第二のカテゴリを横に並べる（4 つまで。凡例つき、濃淡と ● ◆ ■ ▲ で見分ける）。`dir: 'h'` は横向き、`values: 'median'｜'mean'` は各グループの値を添える（`bar` は平均が既定）、`counts: true` は `n = …`。`id` はグループの端点。
 - 全部の検査（重なり・はみ出し・コントラスト）は `check` で、描画後の確認は `svg-diagram preview`。入らないラベル・列は、エラーに直し方（幅・高さ・省略）が書いてある。
 - 計算だけ取り出したいときは、`lib/charts-treemap.ts`（`squarify`）、`lib/charts-sankey.ts`（`layersOf`）、`lib/charts-heatmap.ts`（`heatLevel`）、`lib/charts-base.ts`（`niceScale`）が純粋な関数。
 - **`plane` の追加**: 点の `shape` は `dot` / `ring` / `cross`（4px の格子に載る）のほか、頂点にぴったり載る `disc` / `hole` / `square` / `diamond` / `triangle`。`endLabels: true` は `labelAt: 'right'` の点の名前を図の右端に集めて縦にずらす。`labelLeader: true` の点は、空いた側がないとき名前を右端へ移して点線でつなぐ。`labels` の `offset: [dx, dy]` で位置をずらせる。
@@ -1044,7 +1054,7 @@ fmea([
 | `text-roles.ts` | 大きい文字: `banner` の `headlineRole: 'display'` と、`bars` / `plane` の `labelRole` |
 | `dark-theme.ts` | 暗い背景＋背景なし（`appearance: 'dark'`、`transparent: true`） |
 | `dark-bars-wall.ts` | 濃い背景の資料の色＋濃い赤の danger で描く棒グラフ（透明） |
-| `chart-waterfall.ts` ほか `chart-*.ts` | コンサル系のチャート（ウォーターフォール・レーダー・ヒートマップ・戦略キャンバス・バーンダウン・積み上げ・マリメッコ・ツリーマップ・サンキー・トルネード） |
+| `chart-waterfall.ts` ほか `chart-*.ts` | コンサル系のチャート（ウォーターフォール・レーダー・ヒートマップ・戦略キャンバス・バーンダウン・積み上げ・マリメッコ・ツリーマップ・サンキー・トルネード・ヒストグラム／KDE／ECDF・2次元ヒストグラム／ジョイント／散布図行列・箱ひげ／バイオリン／スウォーム） |
 | `raci-project.ts` / `fmea-basic.ts` / `qfd-basic.ts` / `journey-map.ts` | 意味付き表（責任分担、故障リスク、品質機能展開、顧客体験） |
 | `semnet-*.ts` | 意味付きネットワーク（PERT、因果ループ、型付き・重み付き依存関係） |
 | `emphasis-tiers.ts` | 主役（solid）/ 次点（accent）/ その他（plain）の 3 段階と、凡例の「次点」 |

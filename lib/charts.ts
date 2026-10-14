@@ -16,12 +16,18 @@ import {layoutTreemap, treemapTexts} from './charts-treemap.ts';
 import type {TreemapSpec} from './charts-treemap.ts';
 import {layoutSankey, sankeyTexts} from './charts-sankey.ts';
 import type {SankeySpec} from './charts-sankey.ts';
+import {catTexts, layoutCat} from './charts-cat.ts';
+import {distTexts, layoutDist} from './charts-dist.ts';
+import {layoutMulti, multiTexts} from './charts-multi.ts';
+import type {MultiSpec} from './charts-multi.ts';
+import type {DistSpec} from './charts-dist.ts';
+import type {CatSpec} from './charts-cat.ts';
 import {layoutCausal, layoutDependency, layoutPert, semnetTexts} from './semnet.ts';
 import type {CausalSpec, DependencySpec, PertSpec} from './semnet.ts';
 import type {FontFamily, Rect, Dimmed, Roles, WidthOf} from './types.ts';
 import type {RevealOpts} from './types.ts';
 
-export type ChartSpec = {kind: 'waterfall'; spec: WaterfallSpec} | {kind: 'tornado'; spec: TornadoSpec} | {kind: 'heatmap'; spec: HeatmapSpec} | {kind: 'stacked'; spec: StackedSpec} | {kind: 'radar'; spec: RadarSpec} | {kind: 'treemap'; spec: TreemapSpec} | {kind: 'sankey'; spec: SankeySpec} | {kind: 'pert'; spec: PertSpec} | {kind: 'causal'; spec: CausalSpec} | {kind: 'dependency'; spec: DependencySpec};
+export type ChartSpec = {kind: 'waterfall'; spec: WaterfallSpec} | {kind: 'tornado'; spec: TornadoSpec} | {kind: 'heatmap'; spec: HeatmapSpec} | {kind: 'stacked'; spec: StackedSpec} | {kind: 'radar'; spec: RadarSpec} | {kind: 'treemap'; spec: TreemapSpec} | {kind: 'sankey'; spec: SankeySpec} | {kind: 'catplot'; spec: CatSpec} | {kind: 'distplot'; spec: DistSpec} | {kind: 'multiplot'; spec: MultiSpec} | {kind: 'pert'; spec: PertSpec} | {kind: 'causal'; spec: CausalSpec} | {kind: 'dependency'; spec: DependencySpec};
 
 export interface ChartBand extends RevealOpts {
   type: 'chart';
@@ -59,6 +65,9 @@ export function chartTexts(band: ChartBand, roles: Roles): [string, number, numb
       case 'radar': return radarTexts(band.spec as RadarSpec);
       case 'treemap': return treemapTexts(band.spec as TreemapSpec);
       case 'sankey': return sankeyTexts(band.spec as SankeySpec);
+      case 'multiplot': return multiTexts(band.spec as MultiSpec);
+      case 'distplot': return distTexts(band.spec as DistSpec);
+      case 'catplot': return catTexts(band.spec as CatSpec);
       case 'pert': case 'causal': case 'dependency': return semnetTexts(band.kind, band.spec as PertSpec | CausalSpec | DependencySpec);
       default: return [];
     }
@@ -78,6 +87,9 @@ export function layoutChart(band: ChartBand, x: number, y: number, w: number, wi
       case 'radar': return layoutRadar(band.spec as RadarSpec, g);
       case 'treemap': return layoutTreemap(band.spec as TreemapSpec, g);
       case 'sankey': return layoutSankey(band.spec as SankeySpec, g);
+      case 'multiplot': return layoutMulti(band.spec as MultiSpec, g);
+      case 'distplot': return layoutDist(band.spec as DistSpec, g);
+      case 'catplot': return layoutCat(band.spec as CatSpec, g);
       case 'pert': return layoutPert(band.spec as PertSpec, g);
       case 'causal': return layoutCausal(band.spec as CausalSpec, g);
       case 'dependency': return layoutDependency(band.spec as DependencySpec, g);
