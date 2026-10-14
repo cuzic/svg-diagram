@@ -272,3 +272,8 @@
 - `layout-align-mixed` は hero の 1 件だけで、誤検出はなかった。
 - U1 は ADR の予告になかった図も動かした(`chart-*`、`facet`、`hero`、`small-constraints`、`quadrant-*`)。理由は PR #156 に書いた。
 - (レビュー反映, PR #153)`layout-figure-offset` の「図の内容の範囲」は、題と凡例を除いた全体とする(caption と banner を一律に除く案はやめた)。README とコードが同じ定義に揃った。`layout-align-mixed` は書き手が明示した `align` だけを読み、`hero` のようにテンプレートが決める揃えでは出さない。slide の図(`day:`)に `layoutCheck: 'strict'` を付けると、検査が走らないので throw する。
+
+## 実装での補足(U2 = PR #162、U3 = PR #160)
+
+- U3: `canvas` の既定は `fit: 'content'`。各行は、その行の領域が必要とする高さになる。「領域の必要な高さ + 余白」の余白は足さない(箱の高さが内側の余白を含むため)。最小行高 96px は「記入する領域」(内容のある領域と、任意でない空の領域)にだけ課す。見出しだけのセルと空の任意領域には課さない(課すと `vpc` の見出し帯が膨らむ)。`fit: 'aspect'` は縦横比の床に戻す。「`aspect` で従来と byte 同一」は、フォント依存になるため採らず、`aspect` が縦横比の床を守ることを相対テストで縛った。変わった図は `canvas-bmc` / `empathy` / `five-forces` / `seven-s` / `swot` / `vpc` の 6 枚。`fit` の型は U9 を待たず U3 に入れた。
+- U2: `group({valign: 'top' | 'center' | 'stretch'})` を足した。既定は `'center'`。余りが 16px 以上ある枠付きの group だけが動く。箱が複数のときは、箱の間隔を 4px 刻みで最大 +16px 広げ、なお余るぶんを上下に分ける(上は 4px の格子に切り下げ、残りは下)。`examples/` には余りが 16px 以上出る group の行が無く、既存の 134 図は byte 同一。再現用に `examples/group-row-fill.ts` を足した。`row({valign})` と `box({valign})` は opt-in の別 PR に回した。
