@@ -1,7 +1,7 @@
 import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
-import {checkDiagram, closeMeasurer, diagram, facet, histplot, regplot} from '../lib/dsl.ts';
+import {boxplot, checkDiagram, closeMeasurer, diagram, facet, histplot, regplot} from '../lib/dsl.ts';
 import type {LaidOutChart} from '../lib/charts.ts';
 
 test.after(() => closeMeasurer());
@@ -23,20 +23,34 @@ test('facet(): one panel per key, titled, `cols` per row; an incomplete last row
   assert.equal(found.length, 3);
 });
 
-test('xRange / yRange make the axes of different panels the same', async () => {
-  const own = await charts(...facet({a: A, b: B}, (_k, v) => histplot(v, {binWidth: 10}), {cols: 2}));
+test('share (default xy): the axes of every panel are the combined range; share none leaves each its own; x / y share one axis', async () => {
+  const mk = (share?: 'xy' | 'x' | 'y' | 'none') => facet({a: A, b: B}, (_k, v, _i, axes) => histplot(v, {binWidth: 10, ...axes}), {cols: 2, ...(share ? {share} : {})});
+  const own = await charts(...mk('none'));
   assert.notEqual(ticks(own.found[0]), ticks(own.found[1]));
-  const shared = await charts(...facet({a: A, b: B}, (_k, v) => histplot(v, {binWidth: 10, xRange: [40, 80], yRange: [0, 8]}), {cols: 2}));
-  assert.deepEqual(shared.problems, []);
   const xs = (c: LaidOutChart) => c.items.flatMap(i => i.k === 'text' && /^(40|50|60|70|80)$/.test(i.s) ? [i.s] : []).join(' ');
-  assert.equal(xs(shared.found[0]), xs(shared.found[1]));
-  const r = await charts(...facet({a: 1, b: 3}, (_k, s) => regplot({x: [0, 1, 2, 3, 4], y: [0, 1, 2, 3, 4].map(v => s * v + (v % 2))}, {xRange: [0, 5], yRange: [-5, 20]}), {cols: 2}));
+  const ys = (c: LaidOutChart) => c.items.flatMap(i => i.k === 'text' && /^[0-9]$/.test(i.s) ? [i.s] : []).join(' ');
+  for (const share of [undefined, 'xy'] as const) {
+    const shared = await charts(...mk(share));
+    assert.deepEqual(shared.problems, []);
+    assert.equal(xs(shared.found[0]), xs(shared.found[1]));
+    assert.equal(ys(shared.found[0]), ys(shared.found[1]));
+  }
+  const onlyX = await charts(...mk('x'));
+  assert.equal(xs(onlyX.found[0]), xs(onlyX.found[1]));
+  const r = await charts(...facet({a: 1, b: 3}, (_k, s, _i, axes) => regplot({x: [0, 1, 2, 3, 4], y: [0, 1, 2, 3, 4].map(v => s * v + (v % 2))}, {...axes}), {cols: 2}));
   assert.deepEqual(r.problems, []);
   assert.equal(ticks(r.found[0]), ticks(r.found[1]));
+});
+
+test('panels with no axis to share are left alone by default; an explicit share with none of them is an error', async () => {
+  const {problems} = await charts(...facet({a: A, b: B}, () => boxplot({x: A})));
+  assert.deepEqual(problems, []);
+  assert.throws(() => facet({a: A}, () => boxplot({x: A}), {share: 'xy'}), /share needs histplot/);
 });
 
 test('errors', () => {
   assert.throws(() => facet({}, () => histplot(A)), /at least one panel/);
   assert.throws(() => facet({a: A}, () => histplot(A), {cols: 0}), /cols must be a whole number/);
+  assert.throws(() => facet({a: A}, () => histplot(A), {share: 'z' as never}), /share must be/);
   assert.throws(() => histplot(A, {xRange: [5, 1]}), /xRange must be \[min, max\]/);
 });

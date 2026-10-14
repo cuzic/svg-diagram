@@ -2,7 +2,7 @@ import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {checkDiagram, closeMeasurer, diagram, regplot, residplot} from '../lib/dsl.ts';
-import {polyFit} from '../lib/stats.ts';
+import {lowessFit, polyFit} from '../lib/stats.ts';
 import type {LaidOutChart} from '../lib/charts.ts';
 
 test.after(() => closeMeasurer());
@@ -57,4 +57,33 @@ test('errors name the call', () => {
   assert.throws(() => residplot({x: [1, 1, 1, 1], y: [1, 2, 3, 4]}), /residplot\(\): .*different values/);
   assert.throws(() => regplot({x: [1, 2, 3], y: [1, 2, NaN]}), /y value 3 must be a finite number/);
   assert.throws(() => regplot({x: [1, 2, 3], y: [1, 2, 3], group: ['a']}), /groups has 1 labels for 3 rows/);
+});
+
+test('lowessFit: follows a curve a line cannot, is exact on a line, and a robust fit shrugs off an outlier', () => {
+  const xs = Array.from({length: 40}, (_q, i) => i), line = xs.map(v => 3 * v + 2);
+  const f = lowessFit(xs, line);
+  for (const x of [0, 10.5, 39]) near(f(x), 3 * x + 2, 1e-6);
+  const sine = xs.map(v => Math.sin(v / 6) * 10), g = lowessFit(xs, sine, 0.3);
+  for (const x of [5, 15, 25, 35]) assert.ok(Math.abs(g(x) - Math.sin(x / 6) * 10) < 1.5, `x=${x}`);
+  const bad = line.map((v, i) => i === 20 ? v + 500 : v), r = lowessFit(xs, bad);
+  assert.ok(Math.abs(r(20) - 62) < 5, `the outlier does not drag the curve (${r(20)})`);
+  assert.ok(Math.abs(lowessFit(xs, bad, 2 / 3, 0)(20) - 62) > 10, 'without the robust rounds it does');
+});
+
+test('regplot(lowess) / residplot(lowess): a curve instead of the polynomial (no band), the curve of the residuals over the points; verify passes and is stable', async () => {
+  const sine = x.map(v => Math.sin(v / 4) * 10 + v / 3), g = x.map((_v, i) => (i % 2 ? 'a' : 'b'));
+  for (const make of [() => regplot({x, y: sine}, {lowess: true}), () => regplot({x, y: sine, group: g}, {lowess: true, frac: 0.4}), () => residplot({x, y: sine}, {lowess: true})]) {
+    const {chart, problems} = await chartOf(make());
+    assert.deepEqual(problems, [], problems.join('; '));
+    assert.deepEqual(chart.items, (await chartOf(make())).chart.items);
+  }
+  const a = await chartOf(regplot({x, y: sine}, {lowess: true}));
+  assert.match(a.chart.alt, /LOWESS/);
+  assert.equal(a.chart.items.filter(i => i.k === 'path' && i.fill === 'accent' && i.op === 0.14).length, 0, 'no confidence band');
+  const r = await chartOf(residplot({x, y: sine}, {lowess: true}));
+  assert.match(r.chart.alt, /残差プロットとLOWESS/);
+  assert.ok(r.chart.items.some(i => i.k === 'path' && i.sw === 2.5), 'the curve of the residuals');
+  assert.throws(() => regplot({x, y: sine}, {lowess: true, stats: true}), /not defined for lowess/);
+  assert.throws(() => regplot({x, y: sine}, {lowess: true, order: 2}), /give one/);
+  assert.throws(() => regplot({x, y: sine}, {lowess: true, frac: 0}), /frac must be/);
 });

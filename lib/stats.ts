@@ -156,3 +156,36 @@ export function dendrogramOrder(merges: readonly Merge[], n: number): {order: nu
   void leaves;
   return {order, pos};
 }
+
+/**
+ * LOWESS (locally weighted linear regression, Cleveland 1979) as a function of x: at x0 the nearest `frac` of the points are fitted by a
+ * weighted line (tricube weights), and `iterations` rounds of bisquare weights on the residuals make it robust to outliers (statsmodels'
+ * defaults: frac 2/3, 3 iterations). Evaluated at any x, so a smooth curve can be drawn without interpolating between data points.
+ */
+export function lowessFit(xs: readonly number[], ys: readonly number[], frac = 2 / 3, iterations = 3): (x0: number) => number {
+  const n = xs.length, k = Math.max(2, Math.min(n, Math.ceil(frac * n)));
+  let rw = new Array<number>(n).fill(1);
+  const at = (x0: number, w: readonly number[]): number => {
+    const d = xs.map(x => Math.abs(x - x0)), h = Math.max([...d].sort((a, b) => a - b)[k - 1], 1e-12);
+    let sw = 0, swx = 0, swy = 0, swxx = 0, swxy = 0;
+    d.forEach((di, i) => {
+      const u = di / h;
+      if (u >= 1) return;
+      const wi = w[i] * (1 - u ** 3) ** 3;
+      sw += wi; swx += wi * xs[i]; swy += wi * ys[i]; swxx += wi * xs[i] ** 2; swxy += wi * xs[i] * ys[i];
+    });
+    if (sw <= 0) return meanOf(ys);
+    const den = sw * swxx - swx * swx;
+    // a window whose points share (nearly) one x has no slope: use the weighted mean
+    if (Math.abs(den) < 1e-12 * Math.max(1, sw * swxx)) return swy / sw;
+    const slope = (sw * swxy - swx * swy) / den;
+    return (swy - slope * swx) / sw + slope * x0;
+  };
+  for (let it = 0; it < iterations; it++) {
+    const res = xs.map((x, i) => ys[i] - at(x, rw)), s = [...res.map(Math.abs)].sort((a, b) => a - b), mid = s.length >> 1, med = s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+    if (med < 1e-12) break;
+    rw = res.map(r => { const u = Math.abs(r) / (6 * med); return u < 1 ? (1 - u * u) ** 2 : 0; });
+  }
+  const final = rw;
+  return x0 => at(x0, final);
+}
