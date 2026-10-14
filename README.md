@@ -123,7 +123,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | controlChart(type, data, {limits, at, rules}) / xbarR(subgroups) | 管理図。`'x'｜'mr'｜'xbar'｜'r'｜'p'｜'np'｜'c'｜'u'`。中心線と 3σ の管理限界を計算し、外れた点（✕）・連と傾向（○）を赤にする（`plane` を返す） |
 | checkSheet(items, columns, {as, total, boxes}) | チェックシート。件数は「正」の字、計の行と列は自動。`counts` なし・`boxes: true` で手書き用の空の用紙（`table` を返す） |
 | matrix(rows, cols, cells, {weights, values, total}) | マトリックス図（L 型）。◎ ○ △ × の記号、重み付きの評価点と最高点の印（`table` を返す） |
-| canvas(template, content, {title, emphasis, id, h}) | 枠が決まったキャンバス。`bmc`（ビジネスモデルキャンバス）・`lean`・`vpc`・`swot`・`tows`・`errc`・`pest`（`pestle: true` で PESTLE）・`threeC`・`sevenS`・`fiveForces`・`empathy`・`persona`・`a3`。内容は領域ごとの箇条書き（`grid` を返す） |
+| canvas(template, content, {title, emphasis, id, h, fit}) | 枠が決まったキャンバス。`bmc`（ビジネスモデルキャンバス）・`lean`・`vpc`・`swot`・`tows`・`errc`・`pest`（`pestle: true` で PESTLE）・`threeC`・`sevenS`・`fiveForces`・`empathy`・`persona`・`a3`。内容は領域ごとの箇条書き（`grid` を返す） |
 | affinity(groups, {cols, cardCols}) | 親和図。カードを表札付きのグループに、グループの中にグループを入れ子にできる（`group` と `row` を返す） |
 | relationDiagram(nodes, links, {problem, counts}) | 連関図。要因と因果の矢印（戻る矢印も可）。出る矢印・入る矢印の数を書き、出る矢印が最多の要因を主原因に（`causeTree` を返す） |
 | pdpc(nodes, links, {dir}) | PDPC 法。道筋（実線）と、懸念（六角形）・対策（点線）。`role`: start / step / risk / measure / goal（`causeTree` を返す） |
@@ -477,9 +477,9 @@ canvas('swot', {
 | `a3` | `background` `current` `goal` `cause` / `countermeasures` `plan` `followup` | 左に現状把握、右に対策と計画 |
 
 - 内容は文字列（1 文）か文字列の配列（箇条書き。先頭の `・` や、後ろに空白のある `- ` `* ` は 1 つの `・` に揃う。`-5%` のように空白のない `-` は文の一部として残る）。テンプレートにない id は型エラーで、実行時にも有効な id の一覧つきで止まる。
-- オプション: `title`（上の見出し）、`titles`（領域の見出しの差し替え）、`tone`（領域ごとのトーン）、`emphasis`（重点の領域。アクセント色に「重点」のタグが付き、色だけに頼らない）、`stamp`、`h`（領域部分の最小の高さ。`title` の見出しは含まない。内容が収まらないと、必要な高さを示して止まる。省略すると内容に合わせて伸びる）、`gap`（4px 単位に丸める。領域の縁は 4px の格子に乗り、隙間はどこも同じ幅。2 行目以降の領域にタグがあるときは、上下の隙間を 16px 以上とってタグが上の領域に重ならないようにする）、`requireAll`、`reveal`（領域ごとの段階）、`id`。
+- オプション: `fit`（`'content'` 既定 / `'aspect'`）、`title`（上の見出し）、`titles`（領域の見出しの差し替え）、`tone`（領域ごとのトーン）、`emphasis`（重点の領域。アクセント色に「重点」のタグが付き、色だけに頼らない）、`stamp`、`h`（領域部分の最小の高さ。`title` の見出しは含まない。内容が収まらないと、必要な高さを示して止まる。省略すると内容に合わせて伸びる）、`gap`（4px 単位に丸める。領域の縁は 4px の格子に乗り、隙間はどこも同じ幅。2 行目以降の領域にタグがあるときは、上下の隙間を 16px 以上とってタグが上の領域に重ならないようにする）、`requireAll`、`reveal`（領域ごとの段階）、`id`。
 - 幅は `diagram({width})` で決まる。領域の幅が 96px 未満になる幅・`gap` は、狭すぎる領域の名前を示して止まる。空白で区切れない長い語（URL など）が領域より広いときも、その語と領域を示して止まる（箱からはみ出させない）。
-- `diagram({canvas: 'slide'})` では、テンプレートの縦横比よりスライドの高さ（720px）を優先する（内容が多いときだけ伸び、`slide-canvas-overflow` になる）。
+- 高さは内容で決まる（既定 `fit: 'content'`）。各行は、その行の領域が必要とする高さまでで、記入する領域（内容のある領域と、任意でない空の領域）は 96px を下回らない。見出しだけのセル（`vpc` の上の帯など）と、空の任意の領域には下限がない。書き込み用紙のように広い枠が要るときは `canvas(..., {fit: 'aspect'})`（テンプレートの縦横比を床にする従来の見た目）か `h`。`diagram({canvas: 'slide'})` で `fit: 'aspect'` のときは、縦横比よりスライドの高さ（720px）を優先する（内容が多いときだけ伸び、`slide-canvas-overflow` になる）。
 - `id: 'bmc'` を付けると、各領域が `bmc-value` のようなアンカーになる（`connect('bmc-value:right', ...)`、`diagram({spotlight})`、`reveal` がそのまま効く。型でも `bmc-` の後ろは領域の id だけ通る）。
 - `requireAll: true` のとき、内容のない領域は `canvas-region-empty`（警告）。任意の領域（`person` / `insight` ほか）は数えない。
 - 各領域は `box` なので、はみ出し・コントラスト・密度などの検査は他の部品と同じ。`tone` を自分で選んだ領域は、`legend` が必要（タグで言葉にした既定のトーンは要らない）。
@@ -634,7 +634,7 @@ dependencyNetwork([{id: 'web', label: 'Web', kind: 'app'}, {id: 'api', label: 'A
 ```
 
 - `pert`: activity-on-node の PERT（作業を矢印で描く activity-on-arrow は `arrowDiagram`）。ES / EF / LS / LF / slack を計算し、slack 0 のノードとリンクを強調する。未知の先行タスクと循環はエラー。`compact: true` は小さい箱。純粋関数 `analyzeCriticalPath(tasks)` も公開。
-- `causalLoop`: `polarity` は `'+' | '-' | 'same' | 'opposite'`。`delay: true` は `||`。単純ループの負リンクが偶数なら Reinforcing (`R1`)、奇数なら Balancing (`B1`)。番号は R / B それぞれで 1 から振る。純粋関数 `analyzeCausalLoops(nodeIds, links)` も公開。`layout: 'ring'` は、**閉路がちょうど 1 つの図**（全ノードが長さ 2〜8 のそのループの上にあり、ループの辺以外に辺がない。自己ループは可）を楕円の円周に時計回り（先頭が上）に置き、辺を弧で結ぶ。ループ名は中央。満たさない図（8 の字・弦・ループ外のノード・9 ノード以上）と `direction` との併用は、`causalLoop({layout: 'ring'}): the graph must be one loop (...)` で止まる。ループの外のノードは介入点（`interventions`）に回す。`height` が足りないと必要な高さを書いて止まる。既定は `'layered'`（今のまま）。例は `examples/semnet-causal-ring.ts`。
+- `causalLoop`: `polarity` は `'+' | '-' | 'same' | 'opposite'`。`delay: true` は `||`。単純ループの負リンクが偶数なら Reinforcing (`R1`)、奇数なら Balancing (`B1`)。番号は R / B それぞれで 1 から振る。純粋関数 `analyzeCausalLoops(nodeIds, links)` も公開。`interventions: [{id, label, to, polarity, delay?}]`（ループの外の介入点。`to` は node id か配列、`polarity` は必須）は、検査・alt・アンカー（`connect` / `spotlight` の対象）まで入っている。R / B の分類は変わらない。**描画は未実装**（ADR 0011 の C）で、指定すると `not drawn yet` で止まる。`layout: 'ring'` は、**閉路がちょうど 1 つの図**（全ノードが長さ 2〜8 のそのループの上にあり、ループの辺以外に辺がない。自己ループは可）を楕円の円周に時計回り（先頭が上）に置き、辺を弧で結ぶ。ループ名は中央。満たさない図（8 の字・弦・ループ外のノード・9 ノード以上）と `direction` との併用は、`causalLoop({layout: 'ring'}): the graph must be one loop (...)` で止まる。ループの外のノードは介入点（`interventions`）に回す。`height` が足りないと必要な高さを書いて止まる。既定は `'layered'`（今のまま）。例は `examples/semnet-causal-ring.ts`。
 - `dependencyNetwork`: ノードの `kind` は色と枠、リンクの `type` は線種、`weight` は線幅と数値に対応する。使用した kind / type の凡例を自動で描き、表示名を `nodeKinds` / `edgeTypes` で指定できる。`blocks` は danger、`relates` は矢じりなし。
 - 例は `examples/semnet-pert*.ts`、`examples/semnet-causal*.ts`、`examples/semnet-deps*.ts`。
 

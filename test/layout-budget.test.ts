@@ -10,11 +10,8 @@ import {spawnSync} from 'node:child_process';
 const BUDGET: Record<string, Record<string, number>> = {
   'bracket-callout': {'layout-sibling-size': 1},
   'canvas-bmc': {'layout-sibling-size': 1, 'layout-unused-space': 3},
-  'canvas-empathy': {'layout-unused-space': 7},
-  'canvas-five-forces': {'layout-unused-space': 5},
-  'canvas-seven-s': {'layout-unused-space': 7},
-  'canvas-swot': {'layout-unused-space': 3},
-  'canvas-vpc': {'layout-unused-space': 4},
+  'canvas-empathy': {'layout-unused-space': 1},
+  'canvas-seven-s': {'layout-unused-space': 2},
   'chevron-vertical': {'layout-figure-narrow': 1},
   'emphasis-tiers': {'layout-sibling-size': 2},
   'facet': {'layout-sibling-size': 1},
