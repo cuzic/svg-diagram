@@ -24,7 +24,6 @@
 
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {register} from 'node:module';
@@ -35,7 +34,7 @@ const {build, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadConfig} = await import('./lib/config.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
 const {depsSha256, depsOf} = await import('./lib/source-deps.ts');
-const {readProvenance, ownsOutput} = await import('./lib/freshness.ts');
+const {readProvenance, ownsOutput, sha256: sha} = await import('./lib/freshness.ts');
 const {formatBuildError} = await import('./lib/error-format.ts');
 const config = loadConfig();
 
@@ -89,7 +88,6 @@ if (outOverride && outDir) {
   process.exit(2);
 }
 
-const sha = (s: string | Buffer) => crypto.createHash('sha256').update(s).digest('hex');
 // the project config changes what a build produces, so it takes part in "is this SVG current?"
 const configSha256 = config._file ? sha(fs.readFileSync(config._file)) : '';
 

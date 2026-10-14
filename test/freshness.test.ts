@@ -93,3 +93,22 @@ test('formatBuildError: one "✗ source: message" line, no stack; multi-line mes
   assert.match(formatBuildError('src/x.ts', err, {SVG_DIAGRAM_DEBUG: '1'}), /\n\s+at /);
   assert.equal(formatBuildError('s', 'plain string', {}), '✗ s: plain string');
 });
+
+test('freshness: any candidate that hashes as recorded makes it fresh; stale only when every existing candidate differs', () => {
+  const {root, w} = project();
+  const text = 'export default 1;\n';
+  const mine = w('A/src/a.ts', text);
+  w('B/src/a.ts', 'something else\n'); // another project, same relative path, found first from the cwd
+  const svg = w('A/svg/a.svg', svgWith({source: 'src/a.ts', sourceSha256: sha(mine)}));
+  assert.deepEqual(freshness(svg, path.join(root, 'B')), {state: 'fresh', source: mine});
+  fs.writeFileSync(mine, 'edited\n');
+  assert.equal(freshness(svg, path.join(root, 'B')).state, 'stale');
+});
+
+test('freshness: a failure while reading is no claim (unknown), not an exception', () => {
+  const {root, w} = project();
+  const src = w('src/a.ts', 'x');
+  const svg = w('svg/a.svg', svgWith({source: 'src/a.ts', sourceSha256: sha(src)}));
+  fs.chmodSync(src, 0o000);
+  try { assert.ok(['unknown', 'fresh'].includes(freshness(svg, root).state)); } finally { fs.chmodSync(src, 0o644); }
+});

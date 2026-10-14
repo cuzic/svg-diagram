@@ -33,10 +33,19 @@ function candidates(prov: DiagramSource, svgPath: string, cwd: string): string[]
   return [...new Set(list)];
 }
 
-/** The source file an SVG was built from, found on disk; null when it cannot be found (then nothing is judged). */
+const isFile = (f: string) => { try { return fs.statSync(f).isFile(); } catch { return false; } };
+
+/** Every candidate that exists on disk, in search order. */
+function existing(prov: DiagramSource, svgPath: string, cwd: string): string[] { return candidates(prov, svgPath, cwd).filter(isFile); }
+
+/** The first source file on disk the SVG may have been built from; null when there is none (then nothing is judged). */
 export function locateSource(prov: DiagramSource, {svgPath, cwd = process.cwd()}: {svgPath: string; cwd?: string}): string | null {
-  return candidates(prov, svgPath, cwd).find(f => { try { return fs.statSync(f).isFile(); } catch { return false; } }) ?? null;
+  return existing(prov, svgPath, cwd)[0] ?? null;
 }
+
+/** sha256 hex of a string or buffer: the one hash definition build, check and freshness share. */
+export function sha256(data: string | Buffer): string { return crypto.createHash('sha256').update(data).digest('hex'); }
+export function sha256File(file: string): string { return sha256(fs.readFileSync(file)); }
 
 export interface Freshness {
   state: 'fresh' | 'stale' | 'unknown';
@@ -52,13 +61,21 @@ export interface Freshness {
  * compared: a tool upgrade must not turn every figure "stale" (`build --stale` and `check --drift --rebuild` do look at them).
  */
 export function freshness(svgPath: string, cwd: string = process.cwd()): Freshness {
-  const prov = readProvenance(svgPath);
-  if (!prov || typeof prov.sourceSha256 !== 'string') return {state: 'unknown'};
-  const source = locateSource(prov, {svgPath, cwd});
-  if (!source) return {state: 'unknown'};
-  if (crypto.createHash('sha256').update(fs.readFileSync(source)).digest('hex') !== prov.sourceSha256) return {state: 'stale', reason: 'source', source};
-  if ((prov.depsSha256 ?? '') !== depsSha256(source)) return {state: 'stale', reason: 'deps', source};
-  return {state: 'fresh', source};
+  try {
+    const prov = readProvenance(svgPath);
+    if (!prov || typeof prov.sourceSha256 !== 'string') return {state: 'unknown'};
+    const found = existing(prov, svgPath, cwd);
+    if (!found.length) return {state: 'unknown'};
+    // a same-named file of another project may sit at one candidate: any candidate that hashes as recorded makes the SVG fresh;
+    // stale only when every candidate that exists differs (a false alarm is worse than a miss)
+    let first: Freshness | null = null;
+    for (const source of found) {
+      if (sha256File(source) !== prov.sourceSha256) { first ??= {state: 'stale', reason: 'source', source}; continue; }
+      if ((prov.depsSha256 ?? '') !== depsSha256(source)) { first ??= {state: 'stale', reason: 'deps', source}; continue; }
+      return {state: 'fresh', source};
+    }
+    return first as Freshness;
+  } catch { return {state: 'unknown'}; } // unreadable source, a failing import scan: no claim, and preview / show go on drawing
 }
 
 /** Did this SVG come from `sourcePath`? By the embedded source path only (the hash of a failed build never matches). */

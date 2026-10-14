@@ -58,10 +58,13 @@ export function staleBannerSvg(svg: string, message: string): string {
   const end = svg.lastIndexOf('</svg>');
   if (!open || end === -1) return svg;
   const vb = /\sviewBox="\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*"/.exec(open[0])?.slice(1).map(Number), size = svgSize(svg);
-  const [x, y, w] = vb ?? (size ? [0, 0, size.w] : [0, 0, 0]);
-  if (!(w > 0)) return svg;
+  const [x, y, w, h] = vb ?? (size ? [0, 0, size.w, size.h] : [0, 0, 0, 0]);
+  if (!(w > 0 && h > 0 && size)) return svg;
+  // the band is about 22 drawn pixels high, but at most a quarter of the picture: a figure with a big viewBox drawn small, or a tiny one, stays readable
+  const unit = size.w / w; // drawn pixels per user unit
+  const bandPx = Math.min(22, size.h * 0.25), bandH = bandPx / unit, fontSize = bandH * 0.6;
   const text = message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const band = `<g id="svg-diagram-stale-banner"><rect x="${x}" y="${y}" width="${w}" height="22" fill="#c0392b"/><text x="${x + 8}" y="${y + 15}" font-size="13" font-weight="bold" fill="#ffffff" font-family="'Noto Sans JP','Yu Gothic',sans-serif">${text}</text></g>`;
+  const band = `<g id="svg-diagram-stale-banner"><rect x="${x}" y="${y}" width="${w}" height="${bandH}" fill="#c0392b"/><text x="${x + bandH * 0.35}" y="${y + bandH * 0.7}" font-size="${fontSize}" font-weight="bold" fill="#ffffff" font-family="'Noto Sans JP','Yu Gothic',sans-serif">${text}</text></g>`;
   return `${svg.slice(0, end)}${band}${svg.slice(end)}`;
 }
 

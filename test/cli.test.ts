@@ -501,6 +501,10 @@ test('check: a throw during layout is formatted too, and --format json / github 
   assert.match(t.stderr, /✗ src\/layout\.ts: /);
   assert.doesNotMatch(t.stderr, STACK_LINE);
   assert.match(t.stdout, /✓ src\/flow\.ts/);
+  // the throw comes from the layout (checkDiagram), not from define(): the source file is not in the stack, the tool's layout code is
+  const dbg = spawnSync(process.execPath, [CHECK, 'src/layout.ts'], {cwd: p, encoding: 'utf8', env: {...process.env, SVG_DIAGRAM_DEBUG: '1'}});
+  assert.match(dbg.stderr, /\n\s+at .*lib\//);
+  assert.doesNotMatch(dbg.stderr.split('\n').filter(l => /^\s+at /.test(l)).join('\n'), /src\/layout\.ts/);
   const j = JSON.parse(node(p, CHECK, '--format', 'json', 'src/throws.ts', 'src/flow.ts').stdout);
   assert.equal(j.errors, 1);
   assert.deepEqual(j.findings.filter((f: {rule: string}) => f.rule === 'build-error').map((f: {file: string; message: string}) => [f.file, f.message]), [['src/throws.ts', 'boom from define']]);
@@ -547,5 +551,23 @@ test('check --docs: a source behind a figure that does not load is reported and 
   assert.match(r.stderr, /✗ src\/throws\.ts: boom from define/);
   assert.doesNotMatch(r.stderr, STACK_LINE);
   assert.match(out(r), /B\.md:3 \[doc-image-missing\]/);
+  fs.rmSync(p, {recursive: true});
+});
+
+test('check --docs: a source behind a figure that also is an argument is one build-error, named like the argument, and counted', () => {
+  const p = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-chk-'));
+  fs.mkdirSync(path.join(p, 'src')); fs.mkdirSync(path.join(p, 'svg'));
+  fs.writeFileSync(path.join(p, 'src/throws.ts'), `export default () => { throw new Error('boom from define'); };\n`);
+  fs.writeFileSync(path.join(p, 'src/flow.ts'), GOOD_TS);
+  fs.writeFileSync(path.join(p, 'svg/throws.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>');
+  fs.writeFileSync(path.join(p, 'A.md'), '# a\n\n![図](svg/throws.svg)\n');
+  const j = JSON.parse(node(p, CHECK, '--docs', 'A.md', '--src-dir', './src', '--format', 'json', 'src/throws.ts', 'src/flow.ts').stdout);
+  const be = j.findings.filter((f: {rule: string}) => f.rule === 'build-error');
+  assert.deepEqual(be.map((f: {file: string}) => f.file), ['src/throws.ts']);
+  assert.equal(j.errors, 1);
+  const t = node(p, CHECK, '--docs', 'A.md', '--src-dir', 'src', 'src/throws.ts', 'src/flow.ts');
+  assert.match(t.stderr, /2 件中 1 件が検査できなかった/);
+  const only = node(p, CHECK, '--docs', 'A.md', '--src-dir', 'src');
+  assert.match(only.stderr, /1 件中 1 件が検査できなかった/);
   fs.rmSync(p, {recursive: true});
 });

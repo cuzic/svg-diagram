@@ -85,6 +85,8 @@ test('preview: a changed import is stale too; --gray still works with the band',
   const r = run(dir, 'preview', 'svg/a.svg', 'g.png', '1', '--gray');
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /import しているファイルが変わっている/);
+  assert.equal(run(dir, 'preview', 'svg/a.svg', 'gn.png', '1', '--gray', '--no-stale-banner').status, 0);
+  assert.notDeepEqual(png(dir, 'g.png'), png(dir, 'gn.png'), 'the band is on the grayscale PNG too');
 });
 
 test('show <file.svg> --png: warns on stderr, puts the band on the PNG, --require-fresh exits 1; an unknown option is still refused', () => {
@@ -99,4 +101,34 @@ test('show <file.svg> --png: warns on stderr, puts the band on the PNG, --requir
   assert.notDeepEqual(png(dir, 'stale.png'), png(dir, 'fresh.png'));
   assert.equal(run(dir, 'show', 'svg/a.svg', '--png', 'req.png', '--require-fresh').status, 1);
   assert.equal(run(dir, 'show', 'svg/a.svg', '--png', 'x.png', '--no-such').status, 2);
+});
+
+test('staleBannerSvg: the band follows the drawn size (big viewBox drawn small, tiny viewBox), never the whole picture', async () => {
+  const draw = async (vbW: number, vbH: number, w: number, h: number) => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${vbW} ${vbH}"><rect width="${vbW}" height="${vbH}" fill="#ffffff"/></svg>`;
+    const r = await rasterize(staleBannerSvg(svg, '古い'), {png: true});
+    let red = 0;
+    for (let y = 0; y < r.height; y++) if (r.rgba[(y * r.width + r.width - 1) * 4 + 1] < 100) red++;
+    return {red, height: r.height};
+  };
+  const big = await draw(4000, 1000, 400, 100);
+  assert.ok(big.red >= 15 && big.red <= 25, `about 22px of 100, got ${big.red}`);
+  const tiny = await draw(40, 10, 40, 10);
+  assert.ok(tiny.red <= 3 && tiny.red >= 1, `a quarter of 10px at most, got ${tiny.red}`);
+});
+
+test('preview: the same-named source of another project in the cwd does not make a fresh SVG stale; if every candidate differs it is stale', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'preview-two-'));
+  const a = path.join(root, 'A'), b = path.join(root, 'B');
+  for (const d of [a, b]) fs.mkdirSync(path.join(d, 'src'), {recursive: true});
+  fs.mkdirSync(path.join(a, 'svg'));
+  const text = 'export default () => "A";\n';
+  fs.writeFileSync(path.join(a, 'src/a.ts'), text);
+  fs.writeFileSync(path.join(b, 'src/a.ts'), 'export default () => "B, something else";\n');
+  fs.writeFileSync(path.join(a, 'svg/a.svg'), svgWith({source: 'src/a.ts', sourceSha256: sha(text)}));
+  const r = run(b, 'preview', '../A/svg/a.svg', 'x.png', '1', '--require-fresh');
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stdout + r.stderr, /古い/);
+  fs.writeFileSync(path.join(a, 'src/a.ts'), 'export default () => "A edited";\n');
+  assert.equal(run(b, 'preview', '../A/svg/a.svg', 'x.png', '1', '--require-fresh').status, 1);
 });

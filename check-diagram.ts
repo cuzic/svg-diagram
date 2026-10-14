@@ -35,9 +35,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 import {execFileSync} from 'node:child_process';
-import type {DiagramSource} from './lib/types/core.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import {register} from 'node:module';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
@@ -53,6 +51,7 @@ const {loadConfig} = await import('./lib/config.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
 const {readTable, figureText, checkCovers} = await import('./lib/covers.ts');
 const {formatBuildError, errorMessage} = await import('./lib/error-format.ts');
+const {readProvenance, sha256File: sha} = await import('./lib/freshness.ts');
 
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
@@ -133,6 +132,15 @@ if (changedArg) {
 type CheckFinding = {file: string; line?: number; rule: string; severity: 'error' | 'warn' | 'info'; message: string};
 const findings: CheckFinding[] = [];
 let bad = 0, warned = 0;
+// a source that does not load is one finding, however many times it is reached (named as an argument and behind a figure): counted once
+const failedSources = new Set<string>();
+const reportBuildError = (file: string, err: unknown) => {
+  const key = path.resolve(file);
+  if (failedSources.has(key)) return;
+  failedSources.add(key);
+  add({file, rule: 'build-error', severity: 'error', message: errorMessage(err)});
+  complain(formatBuildError(file, err));
+};
 // --baseline: warnings recorded in the baseline file become info (errors never do), so --strict fails only on new ones
 const fingerprint = (f: {file: string; rule: string; message: string}) => `${f.file}\u0000${f.rule}\u0000${f.message}`;
 const baselineFile = val('--baseline'), writeBaseline = val('--write-baseline');
@@ -147,12 +155,6 @@ const applyBaseline = <T extends {rule: string; severity: string; message: strin
   f.severity === 'warn' && baselined.has(fingerprint({file, rule: f.rule, message: f.message})) ? {...f, severity: 'info', message: `${f.message}（ベースライン済み）`} : f;
 const add = (f0: CheckFinding) => { const f = applyBaseline(f0.file, f0); findings.push(f); if (f.severity === 'error') bad++; else if (f.severity === 'warn') warned++; };
 
-const sha = (f: string) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
-function embedded(svgPath: string): DiagramSource | null {
-  const m = fs.readFileSync(svgPath, 'utf8').match(/<metadata id="svg-diagram">([^<]*)<\/metadata>/);
-  if (!m) return null;
-  try { return JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')); } catch { return null; }
-}
 function walkMd(dir: string, out: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, {withFileTypes: true})) {
     if (['html', 'node_modules', '.git'].includes(e.name)) continue;
@@ -215,8 +217,7 @@ try {
             if (sets.length === 1) for (const f of compareNotes(fig.items, sets[0], name)) add({file: rel, line: fig.line, ...f});
             else if (sets.length > 1) add({file: rel, line: fig.line, rule: 'doc-notes-mismatch', severity: 'info', message: `${name}: 注釈つきのワイヤーフレームが ${sets.length} 枚あり、突き合わせない`});
           } catch (err) { // the source behind this figure does not load: say so, and go on with the other figures and pages
-            add({file: srcFile, rule: 'build-error', severity: 'error', message: errorMessage(err)});
-            complain(formatBuildError(srcFile, err));
+            reportBuildError(path.relative(process.cwd(), path.resolve(srcFile)), err);
           }
         }
         n++;
@@ -239,7 +240,6 @@ try {
 
   // ---- per-diagram checks -----------------------------------------------------------------------
   // a source that cannot be loaded or laid out is one finding, not a stack trace, and the rest are still checked (ADR 0013)
-  let unchecked = 0;
   const checkOne = async (src: string): Promise<void> => {
     const abs = path.resolve(src);
     const name = path.parse(src).name;
@@ -256,7 +256,7 @@ try {
     if (drift) {
       const svg = path.join(svgDir ?? 'svg', `${name}.svg`);
       if (!fs.existsSync(svg)) { add({file: src, rule: 'drift-missing', severity: 'error', message: `${svg} がない（未生成）`}); complain(`✗ ${src}: ${svg} がない（未生成）`); return; }
-      const meta = embedded(svg);
+      const meta = readProvenance(svg);
       if (!meta) { add({file: src, rule: 'drift-no-provenance', severity: 'error', message: `${svg} に生成元の情報がない。再生成する`}); complain(`✗ ${src}: ${svg} に生成元の情報（<metadata id="svg-diagram">）がない。再生成する`); return; }
       if (meta.sourceSha256 !== sha(abs)) { add({file: src, rule: 'drift-stale', severity: 'error', message: `ソースが変わっているのに ${svg} が再生成されていない`}); complain(`✗ ${src}: ソースが変わっているのに ${svg} が再生成されていない`); return; }
       if ((meta.depsSha256 ?? '') !== depsSha256(abs)) { add({file: src, rule: 'drift-stale-deps', severity: 'error', message: `ソースが import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`}); complain(`✗ ${src}: import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`); return; }
@@ -318,13 +318,9 @@ try {
   };
   for (const src of sources) {
     try { await checkOne(src); }
-    catch (err) {
-      unchecked++;
-      add({file: src, rule: 'build-error', severity: 'error', message: errorMessage(err)});
-      complain(formatBuildError(src, err));
-    }
+    catch (err) { reportBuildError(src, err); }
   }
-  if (unchecked) complain(`${sources.length} 件中 ${unchecked} 件が検査できなかった`);
+  if (failedSources.size) complain(`${new Set([...sources.map(x => path.resolve(x)), ...failedSources]).size} 件中 ${failedSources.size} 件が検査できなかった`);
 } finally {
   await closeMeasurer();
 }
