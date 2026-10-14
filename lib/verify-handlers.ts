@@ -249,7 +249,7 @@ const checkFlowShape = (band: LaidOutOf<'chevron' | 'funnel' | 'cycle' | 'venn' 
 
 // wordart(): the letters must read against what is behind them (see legibilityProblem), and stay inside the figure.
 const checkWordArt = (band: LaidOutOf<'wordart'>, d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  const why = legibilityProblem(band.look, d.day);
+  const why = legibilityProblem(band.look, d.day, paintOf(d.appearance));
   if (why) problems.push(`wordart "${band.text.slice(0, 20)}": ${why}`);
   for (const t of band.labelBoxes) if (outsideBox(t, band)) problems.push(`wordart "${band.text.slice(0, 20)}": a ${band.writing} run reaches outside the figure`);
 };

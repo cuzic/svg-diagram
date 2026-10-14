@@ -2,7 +2,8 @@ import test from 'node:test';
 import './helpers/strict-width.ts'; // a text the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
 import {wordart} from '../lib/dsl.ts';
-import {GLOW_RINGS, gradientOf, legibilityProblem, paintLayers, resolveLook} from '../lib/wordart.ts';
+import {GLOW_RINGS, gradientOf, gradientSteps, legibilityProblem, minRim, paintLayers, resolveLook} from '../lib/wordart.ts';
+import {paintOf} from '../lib/tokens.ts';
 import {place} from './helpers/wordart.ts';
 
 test('looks are values: a preset, then each option on top of it', () => {
@@ -84,4 +85,21 @@ test('hollow and gradient letters are judged like the rest', () => {
   assert.match(legibilityProblem(resolveLook({tone: 'none', outline: {tone: 'bg'}}, 40), 'blue')!, /hollow/);
   assert.equal(legibilityProblem(resolveLook({style: 'gradient'}, 40), 'blue'), null);
   assert.match(legibilityProblem(resolveLook({gradient: {from: 'text', to: 'bg'}}, 40), 'blue')!, /barely differ/);
+});
+
+test('legibility is judged on the colours as drawn, along the whole gradient, and a hairline is not a rim', () => {
+  const paintDark = paintOf('dark');
+  // amber: accent on a text-coloured plate reads in the light set (3.48) but not in the dark one (1.80)
+  const sign = resolveLook({tone: 'accent', plate: 'text'}, 40);
+  assert.equal(legibilityProblem(sign, 'amber'), null);
+  assert.match(legibilityProblem(sign, 'amber', paintDark)!, /barely differ/);
+  // both ends read against the plate, the middle melts into it
+  const grad = resolveLook({gradient: {from: 'bg', to: 'text', angle: 0}, plate: 'accent'}, 40);
+  assert.match(legibilityProblem(grad, 'amber')!, /gradient from bg to text/);
+  assert.ok(gradientSteps('#000000', '#ffffff').length === 11 && gradientSteps('#000000', '#ffffff')[5] === '#808080');
+  // a 0.2px rim does not make a white letter read; a proper one does
+  assert.match(legibilityProblem(resolveLook({tone: 'bg', outline: {tone: 'text', width: 0.2}}, 40), 'blue')!, /hairline/);
+  assert.equal(legibilityProblem(resolveLook({tone: 'bg', outline: {tone: 'text', width: 2}}, 40), 'blue'), null);
+  assert.match(legibilityProblem(resolveLook({tone: 'none', outline: {tone: 'text', width: 0.2}}, 40), 'blue')!, /hairline/);
+  assert.ok(minRim(100) === 3 && minRim(20) === 1);
 });

@@ -61,6 +61,8 @@ export interface WordArtBand extends RevealOpts {
 
 /** The look of a wordart once the preset and the options are settled (sizes in px). */
 export interface WordArtLook {
+  /** px (the outline widths are judged against it). */
+  size: number;
   weight: 400 | 700;
   font: 'sans' | 'mono';
   fill: ArtTone | 'none';

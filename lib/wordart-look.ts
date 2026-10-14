@@ -58,6 +58,7 @@ export function resolveLook(opts: WordArtBand['opts'], size: number): WordArtLoo
   const shift = Math.max(2, Math.round(size * SHADOW_REL)), depth = ex?.depth ?? Math.max(3, Math.round(size * EXTRUDE_REL)), grad = opts.gradient ?? (opts.tone === undefined ? p.gradient : undefined);
   const rot = opts.rotate ?? 0, flip = opts.flip;
   return {
+    size,
     weight: opts.weight ? WEIGHT_OF[opts.weight] : p.weight,
     font: opts.font ?? 'sans',
     fill: opts.tone ?? p.tone,
@@ -83,25 +84,41 @@ export function inkReach(look: WordArtLook): {left: number; top: number; right: 
   return {left: o, top: o, right: o + Math.max(0, look.shadow?.dx ?? 0, look.extrude?.dx ?? 0), bottom: o + Math.max(0, look.shadow?.dy ?? 0, look.extrude?.dy ?? 0)};
 }
 
+/** An outline thinner than this (px, for letters of `size`) is not a rim: it is a hairline, and does not make a letter read. */
+export const minRim = (size: number): number => Math.max(1, size * 0.03);
+
+const rgbOf = (hex: string): [number, number, number] => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
+const hexOf = (c: number[]): string => '#' + c.map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+/** The colours a two-colour gradient passes through (sRGB, the SVG default), end to end. */
+export function gradientSteps(from: string, to: string, n = 10): string[] {
+  const a = rgbOf(from), b = rgbOf(to);
+  return Array.from({length: n + 1}, (_v, i) => hexOf(a.map((v, k) => v + (b[k] - v) * i / n)));
+}
+
 /**
- * Whether the letters read: their fill (every colour of a gradient) against what is behind them (the plate, else the page) with 3:1
- * (large text), or — when the fill is too close to the ground, as a white letter on a white page — the fill against the innermost
- * outline and the outermost outline against the ground, both with 3:1. Hollow letters read by their outline alone. Returns the reason
- * it does not, or null.
+ * Whether the letters read: their fill (every colour a gradient passes through) against what is behind them (the plate, else the page)
+ * with 3:1 (large text), or — when the fill is too close to the ground, as a white letter on a white page — the fill against the
+ * innermost outline and the outermost outline against the ground, both with 3:1, and both outlines thick enough to be seen (`minRim`).
+ * Hollow letters read by their outline alone. `paint` is how the diagram recolours a token hex (its dark appearance): the colours are
+ * judged as drawn. Returns the reason it does not, or null.
  */
-export function legibilityProblem(look: WordArtLook, day: Theme): string | null {
-  const c = (t: ArtTone): string => colorOf(t, day), where = look.plate ? 'their plate' : 'the page', ground = c(look.plate ?? 'bg');
-  const inner = look.outlines[0], outer = look.outlines[look.outlines.length - 1];
+export function legibilityProblem(look: WordArtLook, day: Theme, paint: (hex: string) => string = h => h): string | null {
+  const c = (t: ArtTone): string => paint(colorOf(t, day)), where = look.plate ? 'their plate' : 'the page', ground = c(look.plate ?? 'bg');
+  const inner = look.outlines[0], outer = look.outlines[look.outlines.length - 1], thin = look.outlines.find(o => o.width < minRim(look.size));
+  const readsAgainst = (hex: string, other: string): boolean => wcagRatio(hex, other) >= 3;
   if (look.fill === 'none' && !look.gradient) {
     if (!inner) return 'hollow letters (tone: none) need an outline';
-    return wcagRatio(c(inner.tone), ground) >= 3 ? null : `the outline (${inner.tone}) of hollow letters barely differs from ${where}`;
+    if (inner.width < minRim(look.size)) return `the outline (${inner.width}px) of hollow letters is a hairline: make it at least ${Math.ceil(minRim(look.size) * 10) / 10}px`;
+    return readsAgainst(c(inner.tone), ground) ? null : `the outline (${inner.tone}) of hollow letters barely differs from ${where}`;
   }
-  const fills = look.gradient ? [look.gradient.from, look.gradient.to] : [look.fill as ArtTone];
-  if (fills.every(f => wcagRatio(c(f), ground) >= 3)) return null;
-  const bad = fills.find(f => wcagRatio(c(f), ground) < 3)!;
-  if (!inner) return `the letters (${bad}) barely differ from ${where} — pick another tone, add an outline, or put them on a plate`;
-  if (fills.some(f => wcagRatio(c(f), c(inner.tone)) < 3)) return `the letters (${bad}) barely differ from their outline (${inner.tone}) — pick other tones`;
-  if (wcagRatio(c(outer.tone), ground) < 3) return `the outline (${outer.tone}) barely differs from ${where} — add an outer outline of a darker tone`;
+  const fills = look.gradient ? gradientSteps(c(look.gradient.from), c(look.gradient.to)) : [c(look.fill as ArtTone)];
+  if (fills.every(f => readsAgainst(f, ground))) return null;
+  const barely = look.gradient ? 'barely differs' : 'barely differ';
+  const bad = look.gradient ? `the gradient from ${look.gradient.from} to ${look.gradient.to}` : `the letters (${look.fill})`;
+  if (!inner) return `${bad} ${barely} from ${where} — pick another tone, add an outline, or put them on a plate`;
+  if (thin) return `${bad} ${barely} from ${where}, and the outline (${thin.width}px) is a hairline: make it at least ${Math.ceil(minRim(look.size) * 10) / 10}px`;
+  if (fills.some(f => !readsAgainst(f, c(inner.tone)))) return `${bad} ${barely} from its outline (${inner.tone}) — pick other tones`;
+  if (!readsAgainst(c(outer.tone), ground)) return `the outline (${outer.tone}) barely differs from ${where} — add an outer outline of a darker tone`;
   return null;
 }
 
