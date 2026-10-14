@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {pathToFileURL} from 'node:url';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const BUILD = path.join(ROOT, 'build-diagram.ts'), CHECK = path.join(ROOT, 'check-diagram.ts'), BIN = path.join(ROOT, 'bin', 'svg-diagram');
@@ -394,4 +395,73 @@ test('check --docs A.md B.md: every following .md is a document; a .md given as 
   assert.match(bad.stderr, /図のソース/);
   assert.doesNotMatch(bad.stderr, /ERR_UNKNOWN_FILE_EXTENSION/);
   fs.rmSync(root, {recursive: true});
+});
+
+// ---- ADR 0013 U2: a failed build leaves the old SVG alone, and says it is out of date ----------------------
+function stalePrj() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-stale-'));
+  const put = (rel: string, body: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), {recursive: true}); fs.writeFileSync(f, body); return f; };
+  return {root, put, read: (rel: string) => fs.readFileSync(path.join(root, rel), 'utf8')};
+}
+const STALE_NOTICE = /⚠ 前回の svg\/flow\.svg が残っている/;
+const THROWS = `export default () => { throw new Error('boom from define'); };\n`;
+
+test('build failure: the previous SVG stays unchanged, and a notice says it is out of date', () => {
+  const p = stalePrj();
+  p.put('src/flow.ts', GOOD_TS);
+  assert.equal(node(p.root, BUILD, 'src/flow.ts').status, 0);
+  const before = p.read('svg/flow.svg');
+  p.put('src/flow.ts', THROWS);
+  const r = node(p.root, BUILD, 'src/flow.ts');
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /✗ src\/flow\.ts: boom from define/);
+  assert.match(r.stderr, STALE_NOTICE);
+  assert.equal(p.read('svg/flow.svg'), before, 'the old SVG is untouched');
+  assert.deepEqual(fs.readdirSync(path.join(p.root, 'svg')), ['flow.svg'], 'no marker file next to it');
+  // no default export: the same notice
+  p.put('src/flow.ts', `export const x = 1;\n`);
+  const r2 = node(p.root, BUILD, 'src/flow.ts');
+  assert.match(r2.stderr, /no default export function/);
+  assert.match(r2.stderr, STALE_NOTICE);
+  // a source that does not even load (syntax error) is one line too, and the remaining sources still build
+  p.put('src/flow.ts', `export default (\n`);
+  p.put('src/other.ts', GOOD_TS);
+  const r3 = node(p.root, BUILD, 'src/flow.ts', 'src/other.ts');
+  assert.equal(r3.status, 1);
+  assert.match(r3.stderr, /✗ src\/flow\.ts:/);
+  assert.match(r3.stderr, STALE_NOTICE);
+  assert.ok(fs.existsSync(path.join(p.root, 'svg/other.svg')), 'the next source was still built');
+  assert.equal(p.read('svg/flow.svg'), before);
+});
+
+test('build failure: no notice on a first failure, for a hand-made SVG of the same name, or for another source\'s SVG', () => {
+  const p = stalePrj();
+  p.put('src/flow.ts', THROWS);
+  const first = node(p.root, BUILD, 'src/flow.ts');
+  assert.equal(first.status, 1);
+  assert.doesNotMatch(first.stderr, /⚠ 前回/);
+  const hand = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>';
+  p.put('svg/flow.svg', hand);
+  assert.doesNotMatch(node(p.root, BUILD, 'src/flow.ts').stderr, /⚠ 前回/);
+  assert.equal(p.read('svg/flow.svg'), hand);
+  // an SVG of the same name built from a different source
+  p.put('src/other.ts', GOOD_TS);
+  assert.equal(node(p.root, BUILD, 'src/other.ts', '--out', 'svg/flow.svg').status, 0);
+  const foreign = p.read('svg/flow.svg');
+  assert.doesNotMatch(node(p.root, BUILD, 'src/flow.ts').stderr, /⚠ 前回/);
+  assert.equal(p.read('svg/flow.svg'), foreign);
+  assert.deepEqual(fs.readdirSync(path.join(p.root, 'svg')), ['flow.svg']);
+});
+
+test('build: a lint failure after writing leaves the NEW svg on disk, exits 1, and adds no out-of-date notice', () => {
+  const p = stalePrj();
+  p.put('src/flow.ts', GOOD_TS);
+  assert.equal(node(p.root, BUILD, 'src/flow.ts').status, 0);
+  p.put('src/flow.ts', GOOD_TS.replace('試験図', '別の題'));
+  const stub = pathToFileURL(path.join(ROOT, 'test', 'helpers', 'fail-lint.ts')).href;
+  const r = spawnSync(process.execPath, [BUILD, 'src/flow.ts'], {cwd: p.root, encoding: 'utf8', env: {...process.env, NODE_OPTIONS: `--import ${stub}`}});
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /lint-svg\.ts --strict が通らない/);
+  assert.match(p.read('svg/flow.svg'), /別の題/, 'the new SVG was written and stays');
+  assert.doesNotMatch(r.stderr, /⚠ 前回/);
 });
