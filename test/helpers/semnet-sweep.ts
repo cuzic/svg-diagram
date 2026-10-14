@@ -37,5 +37,29 @@ export async function drawAndCheck(band: ChartBand): Promise<SweepResult> {
   const g = geometryChecks(svg, loadConfig().fonts)!;
   return {problems: (await checkDiagram(d)).verdict.problems, lint: [...g.covered.map(c => `"${c.txt}" is ${c.how === 'crosses' ? 'crossed by' : 'covered by'} a ${c.by}`), ...g.textOverlap.map(t => `text "${t.a}" overlaps "${t.b}"`), ...g.containerOverflow.map(t => `"${t.txt}" overflows its box`)], svg};
 }
+/** A denser causal figure: 3-6 nodes, about twice as many links, 40% with a delay and 40% with a free text label. */
+export function denseCausalCase(seed: number): {nodes: CausalNode[]; links: CausalLink[]} {
+  const rand = rng(seed), k = 3 + Math.floor(rand() * 4), nodes = Array.from({length: k}, (_, i) => ({id: `n${i}`, label: `要素${i}`}));
+  const links: CausalLink[] = [];
+  for (let i = 0; i < k * 2; i++) {
+    const a = Math.floor(rand() * k), b = Math.floor(rand() * k);
+    if (a !== b && !links.some(l => l.from === `n${a}` && l.to === `n${b}`)) links.push({from: `n${a}`, to: `n${b}`, polarity: rand() < .5 ? '+' : '-', ...(rand() < .4 ? {delay: true} : {}), ...(rand() < .4 ? {label: '短期的な効果'} : {})});
+  }
+  return {nodes, links};
+}
+
+interface Bx {x: number; y: number; w: number; h: number}
+const boxesOf = (svg: string, re: RegExp, pick: (m: RegExpExecArray) => number[]): Bx[] => [...svg.matchAll(re)].map(m => { const n = pick(m), xs = n.filter((_, i) => i % 2 === 0), ys = n.filter((_, i) => i % 2 === 1); return {x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)}; });
+const inter = (a: Bx, b: Bx): number => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+/**
+ * What a label plate hides. `heads`: arrow heads at least half under plates; `nodes`: plates that reach a node box (its edge is cut).
+ * (lint-svg rule 5 only sees a line drawn after a text, so a plate that hides a line or a head is invisible to it.)
+ */
+export function plateDamage(svg: string): {heads: number; nodes: number} {
+  const num = '(-?[\\d.]+)', plates = boxesOf(svg, new RegExp(`<path d="M${num},${num} H${num} V${num} H${num} Z" fill="#ffffff"/>`, 'g'), m => [+m[1], +m[2], +m[3], +m[4]]);
+  const nodes = boxesOf(svg, new RegExp(`<path d="M${num},${num} H${num} V${num} H${num} Z" fill="#ffffff" stroke=`, 'g'), m => [+m[1], +m[2], +m[3], +m[4]]);
+  const heads = boxesOf(svg, new RegExp(`<path d="M${num},${num} L${num},${num} L${num},${num} Z" fill="#[0-9a-f]{6}"/>`, 'g'), m => [+m[1], +m[2], +m[3], +m[4], +m[5], +m[6]]);
+  return {heads: heads.filter(h => h.w * h.h > 0 && plates.reduce((a, p) => a + inter(h, p), 0) >= .5 * h.w * h.h).length, nodes: plates.filter(p => nodes.some(n => inter(p, n) > 1)).length};
+}
 /** Number of drawn `<text>` elements whose content is exactly `s`. */
 export const countText = (svg: string, s: string): number => [...svg.matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)].filter(m => m[1] === s).length;

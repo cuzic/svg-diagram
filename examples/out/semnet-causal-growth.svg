@@ -44,12 +44,12 @@
   <text x="405" y="244" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
   <path d="M462.8,160 H477.2 V178 H462.8 Z" fill="#ffffff"/>
   <text x="470" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
-  <path d="M462.35,188 H477.65 V206 H462.35 Z" fill="#ffffff"/>
-  <text x="470" y="202" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
   <path d="M520.8,102 H535.2 V120 H520.8 Z" fill="#ffffff"/>
   <text x="528" y="116" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
   <path d="M536.99,118 H547.01 V136 H536.99 Z" fill="#ffffff"/>
   <text x="542" y="132" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
+  <path d="M462.35,188 H477.65 V206 H462.35 Z" fill="#ffffff"/>
+  <text x="470" y="202" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
   <path d="M423.09,338 H444.91 V356 H423.09 Z" fill="#ffffff"/>
   <text x="434" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">R1</text>
   <path d="M513.02,210 H534.98 V228 H513.02 Z" fill="#ffffff"/>

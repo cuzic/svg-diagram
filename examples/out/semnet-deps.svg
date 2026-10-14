@@ -33,8 +33,8 @@
   <text x="758" y="86" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客 DB</text>
   <path d="M256.11,61 H299.89 V79 H256.11 Z" fill="#ffffff"/>
   <text x="278" y="75" text-anchor="middle" font-size="14" fill="#22201b">利用 3</text>
-  <path d="M460,44 H503.78 V62 H460 Z" fill="#ffffff"/>
-  <text x="462" y="58" font-size="14" fill="#22201b">依存 2</text>
+  <path d="M438.11,34 H481.89 V52 H438.11 Z" fill="#ffffff"/>
+  <text x="460" y="48" text-anchor="middle" font-size="14" fill="#22201b">依存 2</text>
   <path d="M544.11,89 H587.89 V107 H544.11 Z" fill="#ffffff"/>
   <text x="566" y="103" text-anchor="middle" font-size="14" fill="#22201b">依存 5</text>
   <path d="M626,48 H658 V66 H626 Z" fill="#ffffff"/>

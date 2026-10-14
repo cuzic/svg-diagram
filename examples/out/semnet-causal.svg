@@ -36,12 +36,12 @@
   <text x="258" y="56" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
   <path d="M462.8,32 H477.2 V50 H462.8 Z" fill="#ffffff"/>
   <text x="470" y="46" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M462.35,60 H477.65 V78 H462.35 Z" fill="#ffffff"/>
-  <text x="470" y="74" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
   <path d="M634.8,45 H649.2 V63 H634.8 Z" fill="#ffffff"/>
   <text x="642" y="59" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
   <path d="M464.99,85 H475.01 V103 H464.99 Z" fill="#ffffff"/>
   <text x="470" y="99" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
+  <path d="M462.35,60 H477.65 V78 H462.35 Z" fill="#ffffff"/>
+  <text x="470" y="74" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
   <path d="M459.02,108 H480.98 V126 H459.02 Z" fill="#ffffff"/>
   <text x="470" y="122" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B1</text>
 </svg>
