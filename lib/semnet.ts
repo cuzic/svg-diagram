@@ -1,4 +1,4 @@
-import type {ChartOpts, LaidOutChartPart, ChartGeom} from './charts-base.ts';
+import type {Cand, ChartBox, ChartOpts, LaidOutChartPart, ChartGeom} from './charts-base.ts';
 import {Canvas, checkIds, checkText, fail, finiteNum, numText} from './charts-base.ts';
 import {layoutWithLanes} from './layered-route.ts';
 import {routeLayered} from './layered-route.ts';
@@ -72,7 +72,21 @@ export const pathOf = (paths: Map<number, Pt[]>, i: number, e: {from: string; to
   const n = positions.get(e.from)!; // self loop (routeLayered deliberately leaves these to the caller)
   return [{x: n.x + n.w, y: n.y + n.h * .7}, {x: n.x + n.w + 24, y: n.y + n.h * .7}, {x: n.x + n.w + 24, y: n.y - 18}, {x: n.x + n.w * .7, y: n.y - 18}, {x: n.x + n.w * .7, y: n.y}];
 };
-const kindTone = (i: number): 'accent' | 'danger' | 'muted' | 'text' => (['accent', 'danger', 'muted', 'text'] as const)[i % 4];
+/** Points along a polyline at fractions of its length. */
+const alongPath = (p: Pt[], fracs: readonly number[]): Pt[] => {
+  const lens = p.slice(1).map((b, i) => Math.hypot(b.x - p[i].x, b.y - p[i].y)), total = lens.reduce((a, b) => a + b, 0);
+  return fracs.map(f => {
+    let d = f * total, i = 0;
+    while (i < lens.length - 1 && d > lens[i]) d -= lens[i++];
+    const t = lens[i] ? d / lens[i] : 0;
+    return {x: p[i].x + (p[i + 1].x - p[i].x) * t, y: p[i].y + (p[i + 1].y - p[i].y) * t};
+  });
+};
+/** Candidates for a label centred on the edge itself, from the middle outwards to both sides. Used last: the label's plate hides the line under it. */
+export const onEdge = (p: Pt[], c: Canvas): Cand[] => alongPath(p, [.5, .42, .58, .34, .66, .26, .74, .18]).map(q => ({x: q.x, y: c.mid(q.y), anchor: 'middle' as const}));
+/** The second stage of an edge label: the usual candidates beside the edge, then 8 points on it. The labels are drawn after every line, so a plate may cover one. */
+export const placeEdgeLabel = (c: Canvas, text: string, p: Pt[], beside: Cand[], fill: Parameters<Canvas['place']>[2], o: Parameters<Canvas['place']>[3]): ChartBox | undefined => c.place(text, beside, fill, o) ?? c.place(text, onEdge(p, c), fill, o);
+const kindTone =(i: number): 'accent' | 'danger' | 'muted' | 'text' => (['accent', 'danger', 'muted', 'text'] as const)[i % 4];
 /** How an edge type is drawn; the legend uses the same style. */
 const edgeStyle = (type: string, ti: number): {stroke: 'accent' | 'danger' | 'muted' | 'text'; dash?: string} => ({stroke: type === 'blocks' ? 'danger' : kindTone(ti), dash: type === 'uses' ? '8,5' : type === 'relates' ? '2,5' : type === 'blocks' ? '10,4,2,4' : ti > 3 ? (ti % 2 ? '8,5' : '2,5') : undefined});
 
@@ -127,14 +141,19 @@ export function layoutDependency(s: DependencySpec, g: ChartGeom): LaidOutChartP
   }
   const legendH = rows.length ? 34 + (rows.length - 1) * rowH : 0;
   const ns = s.nodes.map(n => ({...n, w: Math.max(116, textWidth(g.widthOf, n.label, g.size, 700) + 28), h: 52})), {c, positions, paths} = networkCanvas(g, ns, s.edges, s.direction, legendH);
-  s.edges.forEach((e, i) => {
+  // two stages: every line and box first, then the labels over them (a label drawn before a later edge's line would be struck through)
+  const drawn = s.edges.map((e, i) => {
     const sw = e.weight === undefined ? 2 : Math.min(7, 1.5 + Math.sqrt(e.weight));
     const path = pathOf(paths, i, e, positions);
     arrow(c, path, {...edgeStyle(e.type, types.indexOf(e.type)), sw}, e.type !== 'relates');
-    const text = [e.label ?? s.edgeTypes[e.type] ?? e.type, e.weight === undefined ? '' : numText(e.weight)].filter(Boolean).join(' '), m = edgeMid(path);
-    c.place(text, [{x: m.x, y: m.y - 6, anchor: 'middle'}, {x: m.x, y: m.y + g.size + 8, anchor: 'middle'}, {x: m.x + 12, y: m.y - 6, anchor: 'start'}], 'text', {plate: true});
+    return {e, path};
   });
   for (const n of s.nodes) { const p = positions.get(n.id)!, ki = n.kind ? kinds.indexOf(n.kind) : -1, tone = ki < 0 ? 'text' : kindTone(ki), host = nodeBox(c, p, n.id, n.label, tone); c.text(n.label, p.x + p.w / 2, c.mid(p.y + p.h / 2), 'middle', 'text', {bold: true, host, of: n.id}); }
+  for (const {e, path} of drawn) {
+    const text = [e.label ?? s.edgeTypes[e.type] ?? e.type, e.weight === undefined ? '' : numText(e.weight)].filter(Boolean).join(' '), m = edgeMid(path);
+    // (a label with no room is still left out, as before: the figure's meaning does not hang on it the way a polarity does, and stopping would break charts that draw today)
+    placeEdgeLabel(c, text, path, [{x: m.x, y: m.y - 6, anchor: 'middle'}, {x: m.x, y: m.y + g.size + 8, anchor: 'middle'}, {x: m.x + 12, y: m.y - 6, anchor: 'start'}], 'text', {plate: true});
+  }
   rows.forEach((row, r) => {
     let x = c.x + 4;
     const base = c.y + c.h - 5 - (rows.length - 1 - r) * rowH;
