@@ -101,7 +101,7 @@ export async function exportAndCheck(index: number, opts: ExportAndCheckOpts = {
 // ---- CLI ----
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
 if (isMain) {
-  const index = parseInt(process.argv[2], 10);
+  const index = parseInt(process.argv[2] ?? '', 10);
   if (!Number.isFinite(index)) {
     console.error('Usage: node scripts/svg-diagram/lib/export-and-check.ts <slide-index>');
     process.exit(2);

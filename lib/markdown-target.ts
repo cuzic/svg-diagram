@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
+import {must} from './must.ts';
 export type Render = 'svg' | 'html';
 
 const TARGET = /^(.+\.diagram\.ts)(?:#(svg|html))?$/;
@@ -12,7 +13,7 @@ const TARGET = /^(.+\.diagram\.ts)(?:#(svg|html))?$/;
 export function diagramTarget(target: string): {file: string; render?: Render} | undefined {
   if (/^[a-z][a-z0-9+.-]+:/i.test(target)) return undefined; // a URL; `C:/x` (one letter) is a drive, and resolveSource refuses it
   const m = TARGET.exec(target);
-  return m ? {file: m[1], ...(m[2] ? {render: m[2] as Render} : {})} : undefined;
+  return m ? {file: must(m[1]), ...(m[2] ? {render: m[2] as Render} : {})} : undefined;
 }
 
 /** A markdown target is percent-encoded; a lone `%` (`100%.diagram.ts`) is read as it is. */
@@ -52,7 +53,7 @@ export function inlineSvg(svg: string, alt: string | undefined, seen: Map<string
   const n = (seen.get(hash) ?? 0) + 1;
   seen.set(hash, n);
   const pre = `sd${hash}${n > 1 ? `-${n}` : ''}`;
-  const ids = new Set([...s.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]));
+  const ids = new Set([...s.matchAll(/\sid="([^"]+)"/g)].map(m => must(m[1])));
   const re = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   for (const id of ids) {
     s = s.replace(new RegExp(`(\\sid=")${re(id)}(")`, 'g'), `$1${pre}-${id}$2`)

@@ -152,7 +152,7 @@ export function applyAutoLegend(d: DiagramData): void {
   const items = missing.map((k): LegendItem => {
     const [kind, v] = k.split(':');
     // v comes from our own `tone:<tone>` / `line:<style>` keys (usedNotation), so the casts hold
-    if (kind === 'tone') return allDashed(v) ? {tone: v as EmphasisTone, dashed: true, label: labelOf(k)} : {tone: v as EmphasisTone, label: labelOf(k)};
+    if (kind === 'tone') return allDashed(must(v)) ? {tone: v as EmphasisTone, dashed: true, label: labelOf(k)} : {tone: v as EmphasisTone, label: labelOf(k)};
     if (kind === 'arrow') return {line: 'solid', arrow: 'both', label: labelOf(k)};
     if (kind === 'weight') return {line: 'solid', weight: v as ArrowWeight, label: labelOf(k)};
     return {line: v as LineStyle, label: labelOf(k)};
@@ -247,7 +247,7 @@ function legendRules(d: LintTarget, out: Finding[]): void {
 interface Seg {i: number; c: LaidOutConnect; a: Point; b: Point}
 function segsOf(connects: LaidOutConnect[]): Seg[] {
   const out: Seg[] = [];
-  connects.forEach((c, i) => { for (let k = 0; k < c.points.length - 1; k++) out.push({i, c, a: c.points[k], b: c.points[k + 1]}); });
+  connects.forEach((c, i) => { for (let k = 0; k < c.points.length - 1; k++) out.push({i, c, a: must(c.points[k]), b: must(c.points[k + 1])}); });
   return out;
 }
 const horiz = (s: Seg) => Math.abs(s.a.y - s.b.y) < 0.5;
@@ -260,7 +260,7 @@ export function edgeStats(connects: LaidOutConnect[]): {crossings: number; overl
   const segs = segsOf(connects);
   let crossings = 0, overlaps = 0;
   for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
-    const s = segs[i], t = segs[j];
+    const s = must(segs[i]), t = must(segs[j]);
     if (s.i === t.i) continue;
     // two lines this close (centre to centre) look like one: the normal width gives the usual 3, a strong line widens it
     const near = (strokeOf(s.c) + strokeOf(t.c)) / 2 + 1;
@@ -314,7 +314,7 @@ function grayToneRules(d: LintTarget, out: Finding[]): void {
   });
   const seen = new Set<string>(), hits: string[] = [];
   for (let i = 0; i < tones.length; i++) for (let j = i + 1; j < tones.length; j++) {
-    const a = tones[i], b = tones[j];
+    const a = must(tones[i]), b = must(tones[j]);
     if (a.fill === b.fill || a.quiet || b.quiet || a.dashed !== b.dashed || Math.abs(a.l - b.l) >= GRAY_MIN_DL) continue;
     const pair = `${a.name}・${b.name}`;
     if (!seen.has(pair)) { seen.add(pair); hits.push(`${pair}（L* ${Math.round(a.l)} と ${Math.round(b.l)}）`); }
@@ -349,7 +349,7 @@ function swimlaneRules(d: LintTarget, out: Finding[]): void {
       const free = cur.filter(i => !must(sl.lanes[i]).fixed);
       let best = cur, bestD = curD;
       for (const p of permutations(free)) {
-        const order = cur.map(i => (must(sl.lanes[i]).fixed ? i : p[free.indexOf(i)]));
+        const order = cur.map(i => (must(sl.lanes[i]).fixed ? i : must(p[free.indexOf(i)])));
         const x = dist(order);
         if (x < bestD) { best = order; bestD = x; }
       }
@@ -386,7 +386,7 @@ function calloutOrder(d: LintTarget, out: Finding[]): void {
     for (const c of b.callouts) if (!first.has(c.n)) first.set(c.n, c);
     const nums = [...first.keys()].sort((x, y) => x - y), bad = [];
     for (let i = 0; i + 1 < nums.length; i++) {
-      const a = first.get(nums[i]) as WfCallout, c = first.get(nums[i + 1]) as WfCallout;
+      const a = must(first.get(must(nums[i]))), c = must(first.get(must(nums[i + 1])));
       const leftOfIt = c.x < a.x - ORDER_COL && c.y < a.y + ORDER_ROW;       // not on a later row, yet to the left
       const aboveIt = c.y < a.y - ORDER_ROW && c.x < a.x + ORDER_COL;        // higher up, and not in a column further right
       if (leftOfIt || aboveIt) bad.push(`${nums[i]}→${nums[i + 1]}`);
@@ -466,7 +466,7 @@ function headlineLength(d: LintTarget, out: Finding[]): void {
     const run = head != null ? (b as {wrappedRuns: {text: string; lines: string[]}[]}).wrappedRuns[0] : undefined;
     if (head == null || !run) continue;
     const given = head.split('\n');
-    if (run.lines.length > given.length && !given.some(l => seen.has(l))) flag(head, `見出しが幅に収まらず、${run.lines.length} 行に自動で折り返している: 「${quote(given[0])}」。短くするか、区切りのよいところで改行する`);
+    if (run.lines.length > given.length && !given.some(l => seen.has(l))) flag(head, `見出しが幅に収まらず、${run.lines.length} 行に自動で折り返している: 「${quote(must(given[0]))}」。短くするか、区切りのよいところで改行する`);
   }
 }
 

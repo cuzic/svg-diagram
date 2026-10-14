@@ -32,7 +32,7 @@ export function withColorEmoji(svg: string, specs?: FontSpecs): string {
   const palette = ef.face.hasColorPalettes() ? ef.face.getColorPalettes()[0]?.colors ?? [] : [];
   let out = '', at = 0, changed = false;
   texts.forEach((text, k) => {
-    const m = spans[k];
+    const m = must(spans[k]);
     const runs = placeRuns(text, styles).filter(r => familyKind(r.style.fontFamily) === 'emoji' && /\P{ASCII}/u.test(r.s));
     const pictures: string[] = [];
     const drawn = new Set<string>();

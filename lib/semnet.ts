@@ -77,7 +77,7 @@ const pathOf = (paths: Map<number, Pt[]>, i: number, e: {from: string; to: strin
   const n = must(positions.get(e.from)); // self loop (routeLayered deliberately leaves these to the caller)
   return [{x: n.x + n.w, y: n.y + n.h * .7}, {x: n.x + n.w + 24, y: n.y + n.h * .7}, {x: n.x + n.w + 24, y: n.y - 18}, {x: n.x + n.w * .7, y: n.y - 18}, {x: n.x + n.w * .7, y: n.y}];
 };
-const kindTone = (i: number): 'accent' | 'danger' | 'muted' | 'text' => (['accent', 'danger', 'muted', 'text'] as const)[i % 4];
+const kindTone = (i: number): 'accent' | 'danger' | 'muted' | 'text' => must((['accent', 'danger', 'muted', 'text'] as const)[i % 4]);
 /** How an edge type is drawn; the legend uses the same style. */
 const edgeStyle = (type: string, ti: number): {stroke: 'accent' | 'danger' | 'muted' | 'text'; dash?: string} => ({stroke: type === 'blocks' ? 'danger' : kindTone(ti), dash: type === 'uses' ? '8,5' : type === 'relates' ? '2,5' : type === 'blocks' ? '10,4,2,4' : ti > 3 ? (ti % 2 ? '8,5' : '2,5') : undefined});
 
@@ -132,7 +132,7 @@ export function layoutCausal(s: CausalSpec, g: ChartGeom): LaidOutChartPart {
   const names = loopNames(s.loops);
   s.loops.forEach((l, i) => {
     const ps = l.nodes.map(id => must(positions.get(id))), x = ps.reduce((a, p) => a + p.x + p.w / 2, 0) / ps.length, bottom = Math.max(...ps.map(p => p.y + p.h));
-    c.text(names[i], x, Math.min(c.y + c.h - 5, bottom + g.size + 6), 'middle', l.kind === 'R' ? 'accent' : 'danger', {bold: true, plate: true});
+    c.text(must(names[i]), x, Math.min(c.y + c.h - 5, bottom + g.size + 6), 'middle', l.kind === 'R' ? 'accent' : 'danger', {bold: true, plate: true});
   });
   return c.done();
 }

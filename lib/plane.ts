@@ -52,27 +52,27 @@ export function ticksOf(axis: PlaneBand['x'], caller = 'plane'): {at: number; la
 type XY = {x: number; y: number};
 
 /** Monotone cubic (Fritsch-Carlson) through points whose x strictly increases: [control 1, control 2, end] per piece. */
-function monotoneCurves(p: XY[]): XY[][] {
+function monotoneCurves(p: XY[]): [XY, XY, XY][] {
   const n = p.length, dx: number[] = [], sec: number[] = [];
   for (let i = 0; i < n - 1; i++) { dx.push(must(p[i + 1]).x - must(p[i]).x); sec.push((must(p[i + 1]).y - must(p[i]).y) / must(dx[i])); }
-  const m: number[] = [sec[0]];
+  const m: number[] = [sec[0] ?? 0]; // (with fewer than two points there are no pieces, so m is never read)
   for (let i = 1; i < n - 1; i++) m.push(must(sec[i - 1]) * must(sec[i]) <= 0 ? 0 : 2 / (1 / must(sec[i - 1]) + 1 / must(sec[i])));
-  m.push(sec[n - 2]);
+  m.push(sec[n - 2] ?? 0);
   for (let i = 0; i < n - 1; i++) { // a flat piece stays flat; a tangent never exceeds 3x the secant
     if (sec[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
     const a = must(m[i]) / must(sec[i]), b = must(m[i + 1]) / must(sec[i]), h = Math.hypot(a, b);
     if (h > 3) { m[i] = 3 * a / h * must(sec[i]); m[i + 1] = 3 * b / h * must(sec[i]); }
   }
-  return dx.map((d, i) => [{x: must(p[i]).x + d / 3, y: must(p[i]).y + must(m[i]) * d / 3}, {x: must(p[i + 1]).x - d / 3, y: must(p[i + 1]).y - must(m[i + 1]) * d / 3}, p[i + 1]]);
+  return dx.map((d, i): [XY, XY, XY] => [{x: must(p[i]).x + d / 3, y: must(p[i]).y + must(m[i]) * d / 3}, {x: must(p[i + 1]).x - d / 3, y: must(p[i + 1]).y - must(m[i + 1]) * d / 3}, must(p[i + 1])]);
 }
 
 /** Centripetal Catmull-Rom (alpha 0.5) as cubic pieces; the ends use a mirrored phantom neighbour. */
-function centripetalCurves(p: XY[]): XY[][] {
-  const n = p.length, at = (i: number): XY => i < 0 ? {x: 2 * must(p[0]).x - must(p[1]).x, y: 2 * must(p[0]).y - must(p[1]).y} : i >= n ? {x: 2 * must(p[n - 1]).x - must(p[n - 2]).x, y: 2 * must(p[n - 1]).y - must(p[n - 2]).y} : p[i];
+function centripetalCurves(p: XY[]): [XY, XY, XY][] {
+  const n = p.length, at = (i: number): XY => i < 0 ? {x: 2 * must(p[0]).x - must(p[1]).x, y: 2 * must(p[0]).y - must(p[1]).y} : i >= n ? {x: 2 * must(p[n - 1]).x - must(p[n - 2]).x, y: 2 * must(p[n - 1]).y - must(p[n - 2]).y} : must(p[i]);
   const d = (a: XY, b: XY) => Math.hypot(b.x - a.x, b.y - a.y) ** 0.5;
-  const out: XY[][] = [];
+  const out: [XY, XY, XY][] = [];
   for (let i = 0; i < n - 1; i++) {
-    const p0 = at(i - 1), p1 = p[i], p2 = p[i + 1], p3 = at(i + 2);
+    const p0 = at(i - 1), p1 = must(p[i]), p2 = must(p[i + 1]), p3 = at(i + 2);
     const d1 = d(p0, p1), d2 = d(p1, p2), d3 = d(p2, p3);
     const c = (k: number, a: XY, b: XY, e: XY, f: number, g: number): XY => ({ // (k²e − f²a + (2k²+3kf+f²)b) / (3k(k+f)) written once for x and y
       x: (k * k * e.x - g * g * a.x + (2 * k * k + 3 * k * f + f * f) * b.x) / (3 * k * (k + f)),
@@ -147,14 +147,16 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   const ticks: LaidOutPlane['ticks'] = [];
   for (const t of xTicks) {
     const tx = px(t.at);
-    ticks.push({x1: tx, y1: axisY, x2: tx, y2: axisY + (yDown ? -TICK : TICK)});
-    inkSeg('a tick mark', ticks[ticks.length - 1]);
+    const tick = {x1: tx, y1: axisY, x2: tx, y2: axisY + (yDown ? -TICK : TICK)};
+    ticks.push(tick);
+    inkSeg('a tick mark', tick);
     addText(t.label, tx, yDown ? axisY - TICK - 8 : axisY + TICK + g + 2, 'middle', 'muted');
   }
   for (const t of yTicks) {
     const ty = py(t.at);
-    ticks.push({x1: axisX, y1: ty, x2: axisX - TICK, y2: ty});
-    inkSeg('a tick mark', ticks[ticks.length - 1]);
+    const tick = {x1: axisX, y1: ty, x2: axisX - TICK, y2: ty};
+    ticks.push(tick);
+    inkSeg('a tick mark', tick);
     addText(t.label, axisX - TICK - 6, ty + half, 'end', 'muted');
   }
   // the axes (lines and arrowheads)
@@ -217,17 +219,17 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     const raw = pa.through.map(pt), kept = raw.map((q, i) => i === 0 || q.x !== must(raw[i - 1]).x || q.y !== must(raw[i - 1]).y);
     const pts = raw.filter((_q, i) => kept[i]);
     // a growing path's pieces, one per kept segment: the stage of the segment that ends at that point
-    const segReveal = pa.segReveal ? raw.map((_q, i) => i).filter(i => i > 0 && kept[i]).map(i => (pa.segReveal as number[])[i - 1]) : undefined;
+    const sr = pa.segReveal, segReveal = sr ? raw.map((_q, i) => i).filter(i => i > 0 && kept[i]).map(i => must(sr[i - 1])) : undefined;
     if (pts.length < 2) throw new Error('plane(): a path needs at least 2 different points in `through`');
     const curves = !pa.smooth ? [] : pts.every((q, i) => i === 0 || q.x > must(pts[i - 1]).x) ? monotoneCurves(pts) : centripetalCurves(pts);
-    const samples: XY[] = [pts[0]];
+    const samples: XY[] = [must(pts[0])];
     if (curves.length) curves.forEach(([c1, c2, e], i) => {
-      const a = pts[i], n = Math.max(8, Math.ceil(Math.hypot(e.x - a.x, e.y - a.y) / 6));
+      const a = must(pts[i]), n = Math.max(8, Math.ceil(Math.hypot(e.x - a.x, e.y - a.y) / 6));
       for (let k = 1; k <= n; k++) samples.push(bez(a, c1, c2, e, k / n));
     });
     else samples.push(...pts.slice(1));
     for (let i = 1; i < samples.length; i++) inkSeg('a path', {x1: must(samples[i - 1]).x, y1: must(samples[i - 1]).y, x2: must(samples[i]).x, y2: must(samples[i]).y});
-    const end = pts[pts.length - 1], from = curves.length ? must(curves[curves.length - 1])[1] : pts[pts.length - 2];
+    const end = must(pts[pts.length - 1]), from = curves.length ? must(curves[curves.length - 1])[1] : must(pts[pts.length - 2]);
     let ux = end.x - from.x, uy = end.y - from.y;
     if (Math.hypot(ux, uy) < 1e-6) { ux = end.x - must(pts[pts.length - 2]).x; uy = end.y - must(pts[pts.length - 2]).y; }
     const len = Math.hypot(ux, uy) || 1;
@@ -271,7 +273,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     || obstacles.some(ob => overlapsRect(b, ob))
     || boxes.some((o, i) => i !== self && overlapsRect(b, o));
   for (const a of autoLabels) {
-    if (!hits(boxes[a.box], a.box)) continue;
+    if (!hits(must(boxes[a.box]), a.box)) continue;
     let moved = false;
     const tww = tw(a.label, 700);
     for (const side of SIDES) {
@@ -279,16 +281,16 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
       const sp = spot(side, a.q);
       const box = {x: sp.anchor === 'middle' ? sp.x - tww / 2 : sp.anchor === 'end' ? sp.x - tww : sp.x, y: sp.base - size, w: tww, h: labelH};
       if (hits(box, a.box)) continue;
-      texts[a.text] = {...texts[a.text], x: sp.x, y: sp.base, anchor: sp.anchor};
-      boxes[a.box] = {...boxes[a.box], ...box};
+      texts[a.text] = {...must(texts[a.text]), x: sp.x, y: sp.base, anchor: sp.anchor};
+      boxes[a.box] = {...must(boxes[a.box]), ...box};
       moved = true;
       break;
     }
     // no side is free: to the margin column, on a leader (it is spread with the end labels below)
     if (!moved && a.leader) {
       const x0 = plotR + 8, base = a.q.y + half, tww2 = tw(a.label, 700);
-      texts[a.text] = {...texts[a.text], x: x0, y: base, anchor: 'start'};
-      boxes[a.box] = {...boxes[a.box], x: x0, y: base - size, w: tww2, h: labelH};
+      texts[a.text] = {...must(texts[a.text]), x: x0, y: base, anchor: 'start'};
+      boxes[a.box] = {...must(boxes[a.box]), x: x0, y: base - size, w: tww2, h: labelH};
       endLabels.push({text: a.text, box: a.box, y: a.q.y, from: a.q});
     }
   }
@@ -298,11 +300,11 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     const sorted = [...endLabels].sort((a, b) => a.y - b.y), pitch = labelH + 2;
     const lo = plotT + size - 2, hi = plotB - 18; // a label's baseline stays inside the plot, off the axis
     let ys = sorted.map(e => Math.min(hi, Math.max(lo, e.y + half)));
-    for (let i = 1; i < ys.length; i++) ys[i] = Math.max(ys[i], must(ys[i - 1]) + pitch);
-    if (must(ys[ys.length - 1]) > hi) { ys[ys.length - 1] = hi; for (let i = ys.length - 2; i >= 0; i--) ys[i] = Math.min(ys[i], must(ys[i + 1]) - pitch); }
+    for (let i = 1; i < ys.length; i++) ys[i] = Math.max(must(ys[i]), must(ys[i - 1]) + pitch);
+    if (must(ys[ys.length - 1]) > hi) { ys[ys.length - 1] = hi; for (let i = ys.length - 2; i >= 0; i--) ys[i] = Math.min(must(ys[i]), must(ys[i + 1]) - pitch); }
     ys = ys.map(v => v - half);
     sorted.forEach((e, i) => {
-      const base = must(ys[i]) + half; texts[e.text] = {...texts[e.text], y: base}; boxes[e.box] = {...boxes[e.box], y: base - size};
+      const base = must(ys[i]) + half; texts[e.text] = {...must(texts[e.text]), y: base}; boxes[e.box] = {...must(boxes[e.box]), y: base - size};
       if (e.from) lines.push({x1: e.from.x, y1: e.from.y, x2: plotR + 4, y2: base - half, tone: 'muted', dashed: true, arrow: false});
     });
   }

@@ -15,7 +15,7 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
     type RGBA = {r: number; g: number; b: number; a: number};
     const parseColor = (c: string): RGBA | null => {
       const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?/.exec(c);
-      return m ? {r: +m[1], g: +m[2], b: +m[3], a: m[4] === undefined ? 1 : +m[4]} : null;
+      return m ? {r: +m[1]!, g: +m[2]!, b: +m[3]!, a: m[4] === undefined ? 1 : +m[4]} : null;
     };
     const luminance = (c: RGBA) => 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
     const compositeOver = (fg: RGBA, bg: RGBA): RGBA => ({
@@ -36,7 +36,7 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
     }).filter((x): x is {bb: DOMRect; c: RGBA} => x !== null);
 
     const am = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(svg.getAttribute('data-assumed-bg') ?? '');
-    const page = am ? {r: parseInt(am[1], 16), g: parseInt(am[2], 16), b: parseInt(am[3], 16), a: 1} : {r: 255, g: 255, b: 255, a: 1};
+    const page = am ? {r: parseInt(am[1]!, 16), g: parseInt(am[2]!, 16), b: parseInt(am[3]!, 16), a: 1} : {r: 255, g: 255, b: 255, a: 1};
     const contrast: {txt: string; delta: number; fg: string; bg: string}[] = [];
     for (const t of svg.querySelectorAll('text')) {
       let bb: DOMRect;
@@ -100,14 +100,14 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
     const textOverlap: {a: string; b: string; ratio: number}[] = [];
     for (let i = 0; i < texts.length; i++) {
       for (let j = i + 1; j < texts.length; j++) {
-        const a = texts[i].bb, b = texts[j].bb;
+        const a = texts[i]!.bb, b = texts[j]!.bb;
         const ix = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
         const iy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
         if (ix <= 0 || iy <= 0) continue;
         const minArea = Math.min(a.width * a.height, b.width * b.height);
         const ratio = (ix * iy) / minArea;
         if (ratio > 0.3) {
-          textOverlap.push({a: texts[i].txt, b: texts[j].txt, ratio: +ratio.toFixed(2)});
+          textOverlap.push({a: texts[i]!.txt, b: texts[j]!.txt, ratio: +ratio.toFixed(2)});
         }
       }
     }
@@ -156,7 +156,7 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
       info.forEach((t, i) => {
         if (t.tag !== 'text' || !t.bb.width || !t.e.textContent!.trim()) return;
         for (let j = i + 1; j < info.length; j++) {
-          const sh = info[j];
+          const sh = info[j]!;
           if (sh.tag === 'text' || !sh.bb.width && !sh.bb.height || sh.e.closest('[data-allow-cover]')) continue;
           const ow = Math.min(t.bb.right, sh.bb.right) - Math.max(t.bb.left, sh.bb.left);
           const oh = Math.min(t.bb.bottom, sh.bb.bottom) - Math.max(t.bb.top, sh.bb.top);

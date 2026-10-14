@@ -50,7 +50,7 @@ const checkTimeline = (band: LaidOutOf<'timeline'>, _d: LaidOutDiagram, {problem
     if (line && rectOverlap(b, line)) problems.push(`timeline: label "${b.label}" is crossed by the deadline line (move the mark or change the axis range)`);
     if (outsideX(b, band)) problems.push(`timeline: label "${b.label}" runs outside the figure (shorten it or widen the figure)`);
     for (let j = i + 1; j < band.labelBoxes.length; j++) {
-      const o = rectOverlap(b, band.labelBoxes[j]);
+      const o = rectOverlap(b, must(band.labelBoxes[j]));
       if (o) problems.push(`timeline: label "${b.label}" overlaps label "${must(band.labelBoxes[j]).label}" by ${dxdy(o)}`);
     }
   }
@@ -66,7 +66,7 @@ const checkStates = (band: LaidOutOf<'states'>, _d: LaidOutDiagram, {problems}: 
       if (k !== l.edge && routeHits(e.points, l)) problems.push(`states: label "${l.text}" sits on the arrow ${e.from} -> ${e.to} (it belongs to another arrow)`);
     });
     for (let j = i + 1; j < band.labels.length; j++) {
-      const o = rectOverlap(l, band.labels[j]);
+      const o = rectOverlap(l, must(band.labels[j]));
       if (o) problems.push(`states: label "${l.text}" overlaps label "${must(band.labels[j]).text}" by ${dxdy(o)}`);
     }
   }
@@ -83,7 +83,7 @@ const checkGantt = (band: LaidOutOf<'gantt'>, _d: LaidOutDiagram, {problems}: Ve
   for (const [i, b] of band.labelBoxes.entries()) {
     if (outsideX(b, band)) problems.push(`gantt: label "${b.label}" runs outside the figure (shorten it or widen the figure)`);
     for (let j = i + 1; j < band.labelBoxes.length; j++) {
-      const o = rectOverlap(b, band.labelBoxes[j]);
+      const o = rectOverlap(b, must(band.labelBoxes[j]));
       if (o) problems.push(`gantt: label "${b.label}" overlaps label "${must(band.labelBoxes[j]).label}" by ${dxdy(o)}`);
     }
   }
@@ -99,7 +99,7 @@ const checkClasses = (band: LaidOutOf<'classes'>, _d: LaidOutDiagram, {problems}
       if (k !== l.edge && routeHits(e.points, l)) problems.push(`classes: label "${l.text}" sits on the relation ${e.from} -> ${e.to} (it belongs to another relation)`);
     });
     for (let j = i + 1; j < band.labels.length; j++) {
-      const o = rectOverlap(l, band.labels[j]);
+      const o = rectOverlap(l, must(band.labels[j]));
       if (o) problems.push(`classes: label "${l.text}" overlaps label "${must(band.labels[j]).text}" by ${dxdy(o)}`);
     }
   }
@@ -121,7 +121,7 @@ const checkBpmn = (band: LaidOutOf<'bpmn'>, _d: LaidOutDiagram, {problems}: Veri
     });
     for (const n of band.anchors) if (rectOverlap(l, n)) problems.push(`bpmn: label "${l.text}" overlaps "${n.id}"`);
     for (let j = i + 1; j < band.labels.length; j++) {
-      const o = rectOverlap(l, band.labels[j]);
+      const o = rectOverlap(l, must(band.labels[j]));
       if (o) problems.push(`bpmn: label "${l.text}" overlaps label "${must(band.labels[j]).text}" by ${dxdy(o)}`);
     }
   }
@@ -133,24 +133,24 @@ const checkCause = (band: LaidOutOf<'cause'>, _d: LaidOutDiagram, {problems, war
   // an AND's arc must cover only its own arrows, and must not touch another arc
   for (const [i, a] of band.ands.entries()) {
     const span = (p: {x: number; y: number}): number => Math.abs(a.p0.y - a.p1.y) < 1 ? p.x : p.y; // along the arc's length
-    const [u0, u1] = [span(a.p0), span(a.p1)].sort((p, q) => p - q);
+    const us = [span(a.p0), span(a.p1)].sort((p, q) => p - q), u0 = must(us[0]), u1 = must(us[1]);
     for (const e of band.edges) {
       if (e.to !== a.to) continue;
-      const tip = e.points[e.points.length - 1], u = span(tip);
+      const tip = must(e.points.at(-1)), u = span(tip);
       const inside = u > u0 + 0.5 && u < u1 - 0.5;
       if (inside && !a.from.includes(e.from)) problems.push(`cause: the AND arc into "${a.to}" also covers the arrow from "${e.from}" (it reads as part of the AND)`);
     }
     for (let j = i + 1; j < band.ands.length; j++) {
-      const b = band.ands[j];
+      const b = must(band.ands[j]);
       if (b.to !== a.to) continue;
-      const [v0, v1] = [span(b.p0), span(b.p1)].sort((p, q) => p - q);
+      const vs = [span(b.p0), span(b.p1)].sort((p, q) => p - q), v0 = must(vs[0]), v1 = must(vs[1]);
       if (Math.min(u1, v1) - Math.max(u0, v0) > -8) problems.push(`cause: two AND arcs into "${a.to}" touch (they read as one AND; give them more room)`);
     }
   }
   // arrows into an effect that has an AND: two of them should not cross (a warning: it can be unavoidable) and must not run together
   // (which arrow belongs to the AND would be unclear). A crossing elsewhere is left alone: many cause graphs cannot be drawn without one.
   const andTo = new Set(band.ands.map(x => x.to));
-  const segs = band.edges.flatMap((e, k) => andTo.has(e.to) ? e.points.slice(1).map((q, m) => ({k, p: e.points[m], q})) : []);
+  const segs = band.edges.flatMap((e, k) => andTo.has(e.to) ? e.points.slice(1).map((q, m) => ({k, p: must(e.points[m]), q})) : []);
   const cross = (a: typeof segs[number], b: typeof segs[number]): boolean => {
     const aH = a.p.y === a.q.y, bH = b.p.y === b.q.y;
     if (aH === bH) return false;
@@ -166,10 +166,10 @@ const checkCause = (band: LaidOutOf<'cause'>, _d: LaidOutDiagram, {problems, war
   };
   const flagged = new Set<string>();
   for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
-    const a = band.edges[must(segs[i]).k], b = band.edges[must(segs[j]).k];
-    if (must(segs[i]).k === must(segs[j]).k || a.to !== b.to) continue;
-    const how = cross(segs[i], segs[j]) ? 'crosses' : together(segs[i], segs[j]) ? 'runs together with' : '';
-    const key = `${Math.min(must(segs[i]).k, must(segs[j]).k)}:${Math.max(must(segs[i]).k, must(segs[j]).k)}`;
+    const si = must(segs[i]), sj = must(segs[j]), a = must(band.edges[si.k]), b = must(band.edges[sj.k]);
+    if (si.k === sj.k || a.to !== b.to) continue;
+    const how = cross(si, sj) ? 'crosses' : together(si, sj) ? 'runs together with' : '';
+    const key = `${Math.min(si.k, sj.k)}:${Math.max(si.k, sj.k)}`;
     if (!how || flagged.has(key)) continue;
     flagged.add(key);
     // a crossing may be unavoidable (an AND's causes in different layers around an OR cause), and long arrows can share a run: warnings
@@ -184,7 +184,7 @@ const checkCloud = (band: LaidOutOf<'cloud'>, _d: LaidOutDiagram, {problems}: Ve
     if (outsideX(c, band)) problems.push(`cloud: the number "${c.text}" on the ${c.arrow} arrow runs outside the figure`);
     for (const n of band.nodes) if (rectOverlap(c, n)) problems.push(`cloud: the number "${c.text}" on the ${c.arrow} arrow overlaps box ${n.key.toUpperCase()} (fewer assumptions on one arrow, or a wider figure)`);
     for (const e of band.edges) if (e.arrow !== c.arrow && routeHits(e.points, c)) problems.push(`cloud: ${c.conflict ? 'the conflict label' : `the number "${c.text}"`} sits on the ${e.arrow} arrow (shorten it)`);
-    for (let j = i + 1; j < band.chips.length; j++) if (rectOverlap(c, band.chips[j])) problems.push(`cloud: ${c.conflict || must(band.chips[j]).conflict ? 'the conflict label and the numbers' : `the numbers on the ${c.arrow} and ${must(band.chips[j]).arrow} arrows`} overlap`);
+    for (let j = i + 1; j < band.chips.length; j++) if (rectOverlap(c, must(band.chips[j]))) problems.push(`cloud: ${c.conflict || must(band.chips[j]).conflict ? 'the conflict label and the numbers' : `the numbers on the ${c.arrow} and ${must(band.chips[j]).arrow} arrows`} overlap`);
   }
 };
 
@@ -199,10 +199,10 @@ const checkBars = (band: LaidOutOf<'bars'>, _d: LaidOutDiagram, {problems}: Veri
     if (hit) problems.push(`bars: a reference line (a limit, a target, the guide or the cumulative line) runs through the label "${b.label}" (move the line, or hide the values with labels: 'category')`);
   }
   for (let i = 0; i < band.labelBoxes.length; i++) for (let j = i + 1; j < band.labelBoxes.length; j++) {
-    const [a, b] = [band.labelBoxes[i], band.labelBoxes[j]];
-    if (a.bar !== undefined && b.bar !== undefined && neverTogether(band.bars[a.bar], band.bars[b.bar])) continue; // one replaces the other
+    const [a, b] = [must(band.labelBoxes[i]), must(band.labelBoxes[j])];
+    if (a.bar !== undefined && b.bar !== undefined && neverTogether(must(band.bars[a.bar]), must(band.bars[b.bar]))) continue; // one replaces the other
     const o = rectOverlap(a, b);
-    if (o) problems.push(`bars: value label "${must(band.labelBoxes[i]).label}" overlaps value label "${must(band.labelBoxes[j]).label}" by ${dxdy(o)}`);
+    if (o) problems.push(`bars: value label "${a.label}" overlaps value label "${b.label}" by ${dxdy(o)}`);
   }
 };
 
@@ -227,8 +227,8 @@ const checkQuadrant = (band: LaidOutOf<'quadrant'>, _d: LaidOutDiagram, {problem
   eachOverlap(boxes, (a, b, o) => problems.push(`quadrant: label "${a.label}" overlaps label "${b.label}" by ${dxdy(o)}`));
   // an item (its mark and its label) stays inside its own cell: one on a border reads as the other cell's
   const within = (r: Rect, c: Rect) => r.x >= c.x - 0.5 && r.y >= c.y - 0.5 && r.x + r.w <= c.x + c.w + 0.5 && r.y + r.h <= c.y + c.h + 0.5;
-  bs.forEach(q => { if (!within({x: q.x - q.cr, y: q.y - q.cr, w: 2 * q.cr, h: 2 * q.cr}, band.cells[q.cell])) problems.push(`quadrant: item "${q.label}" crosses the border of its cell`); });
-  for (const b of boxes) if (b.kind === 'item' && b.item !== undefined && !within(b, band.cells[must(bs[b.item]).cell])) problems.push(`quadrant: the label of "${b.label}" runs out of its cell`);
+  bs.forEach(q => { if (!within({x: q.x - q.cr, y: q.y - q.cr, w: 2 * q.cr, h: 2 * q.cr}, must(band.cells[q.cell]))) problems.push(`quadrant: item "${q.label}" crosses the border of its cell`); });
+  for (const b of boxes) if (b.kind === 'item' && b.item !== undefined && !within(b, must(band.cells[must(bs[b.item]).cell]))) problems.push(`quadrant: the label of "${b.label}" runs out of its cell`);
   bs.forEach((q, i) => {
     for (let j = i + 1; j < bs.length; j++) if (Math.hypot(q.x - must(bs[j]).x, q.y - must(bs[j]).y) < q.cr + must(bs[j]).cr - 1) problems.push(`quadrant: item "${q.label}" overlaps item "${must(bs[j]).label}" (move one, or give the cell more room)`);
     for (const b of boxes) if (nearRect(q.x, q.y, q.cr, b)) problems.push(`quadrant: item "${q.label}" sits on the label "${b.label}"`);

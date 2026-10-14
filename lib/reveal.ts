@@ -1,4 +1,5 @@
 import {nodeIdsOf} from './band-ids.ts';
+import {must} from './must.ts';
 import type {Band, DiagramData} from './types.ts';
 
 type Revealed = {reveal?: number; until?: number; id?: string};
@@ -12,7 +13,7 @@ function checked(value: number | undefined, where: string): number | undefined {
 // `until`: the click an element vanishes at (a group's until takes its children with it). It must come after the reveal it ends up with.
 const earlier = (a: number | undefined, b: number | undefined): number | undefined => a === undefined ? b : b === undefined ? a : Math.min(a, b);
 
-const refId = (ref: string): string => ref.split(':')[0];
+const refId = (ref: string): string => must(ref.split(':')[0]);
 
 /** Resolve inheritance once, before the one full layout shared by every stage. */
 export function prepareReveal(d: DiagramData): number {
@@ -63,7 +64,7 @@ export function prepareReveal(d: DiagramData): number {
       const lv = pa.through.map(r => typeof r === 'string' ? lvl.get(r) ?? 0 : 0);
       const explicit = own(pa, `plane() path ${i + 1}`) ?? 0;
       let run = Math.max(n, explicit, lv[0] ?? 0);
-      pa.segReveal = pa.through.slice(1).map((_r, k) => (run = Math.max(run, lv[k + 1])));
+      pa.segReveal = pa.through.slice(1).map((_r, k) => (run = Math.max(run, must(lv[k + 1]))));
       if (pa.segReveal[0]) pa.reveal = pa.segReveal[0]; else delete pa.reveal;
       max = Math.max(max, ...pa.segReveal);
     }
@@ -92,10 +93,10 @@ export function prepareReveal(d: DiagramData): number {
             let next = 1;
             b.children.forEach((c, i) => {
               const span = c.span ?? 1, col = c.col ?? next;
-              for (let a = col; a < col + span; a++) cell(`${b.id}#${a}`, childLevels[i], c.until);
+              for (let a = col; a < col + span; a++) cell(`${b.id}#${a}`, must(childLevels[i]), c.until);
               next = col + span;
             });
-          } else b.children.forEach((c, i) => cell(`${b.id}#${i + 1}`, childLevels[i], c.until));
+          } else b.children.forEach((c, i) => cell(`${b.id}#${i + 1}`, must(childLevels[i]), c.until));
           for (const [key, u] of slotUntil) if (!stays.has(key)) untils.set(key, u);
         }
       } else if (b.type === 'plane') planeElements(b, n);

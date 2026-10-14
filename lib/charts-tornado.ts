@@ -65,7 +65,7 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
   const barH = Math.max(24, S + 10), pitch = barH + 12, lineH = c.lineH();
   const wrapped = s.items.map(i => c.wrap(i.label, labelW - 14));
   const sameSide = (i: TornadoItem) => (i.low - s.base) * (i.high - s.base) > 0;
-  const rowH = wrapped.map((l, k) => Math.max(sameSide(s.items[k]) ? 2 * pitch - 8 : pitch, l.length * lineH + 8));
+  const rowH = wrapped.map((l, k) => Math.max(sameSide(must(s.items[k])) ? 2 * pitch - 8 : pitch, l.length * lineH + 8));
   // legend: two swatches with the names of the cases, from the plot's left edge; the second goes on a row of its own when the two do not fit
   const sw = 14, itemW = (t: string) => sw + 6 + c.tw(t);
   for (const t of [s.lowLabel, s.highLabel]) if (itemW(t) > g.w) fail('tornado', `the legend name "${t}" is wider than the figure (shorten lowLabel / highLabel, or raise width)`);
@@ -80,7 +80,7 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
   const bodyB = y0 + rowH.reduce((a, b) => a + b, 0);
   const r1 = (v: number) => Math.round(v * 10) / 10;
   ([[s.lowTone, s.lowLabel], [s.highTone, s.highLabel]] as const).forEach(([tone, text], i) => {
-    const {x: lx, row} = legendAt[i];
+    const {x: lx, row} = must(legendAt[i]);
     const cy = g.y + row * (S + 12) + Math.max(4 + sw / 2, Math.ceil(S * 0.64)); // the text's top stays in the figure at a large label size (a canvas)
     c.rect(lx, cy - sw / 2, sw, sw, {fill: tone});
     c.text(text, lx + sw + 6, c.mid(cy), 'start', 'text');
@@ -92,7 +92,7 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
   let y = y0;
   s.items.forEach((it, k) => {
     const cy = y + must(rowH[k]) / 2, top = cy - barH / 2;
-    c.lines(wrapped[k], g.x + labelW - 10, cy - (must(wrapped[k]).length - 1) * lineH / 2 + S * 0.36, 'end', 'text', {of: it.id ?? `#${k}`});
+    c.lines(must(wrapped[k]), g.x + labelW - 10, cy - (must(wrapped[k]).length - 1) * lineH / 2 + S * 0.36, 'end', 'text', {of: it.id ?? `#${k}`});
     const xb = xOf(s.base), same = sameSide(it);
     const bars = [{v: it.low, tone: s.lowTone, name: s.lowLabel}, {v: it.high, tone: s.highTone, name: s.highLabel}];
     const geom = bars.map((b, j) => {
@@ -104,7 +104,7 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
     // the row's anchor holds both its bars (a connector or a spotlight on the row means the whole row, not its low bar)
     if (it.id) { const x1 = Math.min(xb - 1, ...geom.map(q => q.x1)), x2 = Math.max(xb + 1, ...geom.map(q => q.x2)), y1 = Math.min(...geom.map(q => q.by)), y2 = Math.max(...geom.map(q => q.by)) + barH; c.anchors.push({id: it.id, x: r1(x1), y: r1(y1), w: r1(x2 - x1), h: r1(y2 - y1)}); }
     bars.forEach((b, j) => {
-      const {x1, x2, by} = geom[j], right = xOf(b.v) >= xb, text = vText(b.v);
+      const {x1, x2, by} = must(geom[j]), right = xOf(b.v) >= xb, text = vText(b.v);
       const out = right ? {x: x2 + 6, y: c.mid(by + barH / 2), anchor: 'start' as const} : {x: x1 - 6, y: c.mid(by + barH / 2), anchor: 'end' as const};
       const alt = right ? {x: x1 - 6, y: out.y, anchor: 'end' as const} : {x: x2 + 6, y: out.y, anchor: 'start' as const};
       if (!c.place(text, [out, alt], b.tone === 'muted' ? 'text' : b.tone, {bold: true, of: it.id ?? `#${k}`})) fail('tornado', `the value "${text}" of "${it.label}" has no room`);

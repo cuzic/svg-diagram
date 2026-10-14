@@ -104,9 +104,10 @@ if (isMain) {
 
   let pageArg: string, heading: string;
   if (args.length === 1 && must(args[0]).includes(':')) {
-    [pageArg, heading] = must(args[0]).split(/:(.+)/s);
+    const [pa, hd] = must(args[0]).split(/:(.+)/s);
+    pageArg = must(pa); heading = must(hd);
   } else if (args.length === 2) {
-    [pageArg, heading] = args;
+    pageArg = must(args[0]); heading = must(args[1]);
   } else {
     console.error('Usage: node scripts/svg-diagram/lib/slide-index.ts <page.md> "<heading substring>"');
     console.error('       node scripts/svg-diagram/lib/slide-index.ts "day2-10:ArchUnitとは"');

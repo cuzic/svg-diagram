@@ -54,7 +54,7 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
   const runGlue = atoms.map((a, i) => wrapMode === 'phrase' && i > 0 && scriptRun(a.text) !== '' && scriptRun(a.text) === scriptRun(must(atoms[i - 1]).text));
 
   for (let i = 0; i < atoms.length; i++) {
-    const atom = atoms[i];
+    const atom = must(atoms[i]);
     if (atom.text === '\n') { lines.push(cur); cur = []; curWidth = 0; hardBreakBeforeLast = true; continue; } // explicit line break
     if (isWhitespace(atom.text)) {
       if (cur.length === 0) continue; // don't start a line with whitespace
@@ -66,14 +66,14 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
 
     let unit = [atom];
     let j = i;
-    while (j + 1 < atoms.length && (must(atoms[j + 1]).glue || runGlue[j + 1])) unit.push(atoms[++j]);
+    while (j + 1 < atoms.length && (must(atoms[j + 1]).glue || runGlue[j + 1])) unit.push(must(atoms[++j]));
     let w = unit.reduce((s, a) => s + atomWidth(a), 0);
     if (w > maxWidth && j > i) {
       // too long for any line: fall back to the characters (span-glued pieces still stay together)
       for (let k = i + 1; k <= j; k++) runGlue[k] = false;
       j = i;
       unit = [atom];
-      while (j + 1 < atoms.length && must(atoms[j + 1]).glue) unit.push(atoms[++j]);
+      while (j + 1 < atoms.length && must(atoms[j + 1]).glue) unit.push(must(atoms[++j]));
       w = unit.reduce((s, a) => s + atomWidth(a), 0);
     }
     i = j;
@@ -106,14 +106,14 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
   // line above down with it, so the last line has two. (Not after an explicit line break; not when it would put a prohibited
   // character at a line start or end, or make the last line wider than the line.)
   if (lines.length >= 2 && !hardBreakBeforeLast) {
-    const last = lines[lines.length - 1], prev = lines[lines.length - 2];
+    const last = must(lines[lines.length - 1]), prev = must(lines[lines.length - 2]);
     const solo = last.length === 1 && [...must(last[0]).text].length === 1 && !isWhitespace(must(last[0]).text) && !must(last[0]).glue;
     if (solo) {
       let at = prev.length - 1;
       while (at >= 0 && isWhitespace(must(prev[at]).text)) at--;
       const moved = prev[at];
       if (moved && at >= 2 && !moved.glue && !prev[at + 1]?.glue && !runGlued.has(moved) && !CANNOT_END_LINE.has(must(prev[at - 1]).text) && !CANNOT_START_LINE.has(moved.text)
-        && atomWidth(moved) + atomWidth(last[0]) <= maxWidth) {
+        && atomWidth(moved) + atomWidth(must(last[0])) <= maxWidth) {
         prev.length = at;            // drops the moved atom and the white space after it
         last.unshift(moved);
       }
@@ -123,7 +123,7 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
   // Second pass: an opening bracket stranded at a line's end gets pulled
   // forward onto the next line's start instead.
   for (let i = 0; i < lines.length - 1; i++) {
-    const line = lines[i];
+    const line = must(lines[i]);
     const last = line.at(-1);
     if (last && line.length > 1 && CANNOT_END_LINE.has(last.text)) {
       line.pop();

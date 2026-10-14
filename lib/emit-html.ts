@@ -53,7 +53,7 @@ function textRuns(runs: WrappedRun[], o: {originX: number; originY: number; w: n
     const {ascent, descent} = metrics(run.size, run.weight, run.mono);
     run.lines.forEach((line, i) => {
       const top = o.originY + must(run.lineYs[i]) - ascent;
-      const content = run.lineSpans ? spans(run.lineSpans[i], run, color, o.day, o.dim) : esc(line).trim();
+      const content = run.lineSpans ? spans(must(run.lineSpans[i]), run, color, o.day, o.dim) : esc(line).trim();
       out.push(`<div class="sd-t${run.mono ? ' sd-m' : ''}" style="left:${px(o.originX + indent)};top:${px(top)};width:${px(o.w - indent)};text-align:${o.align};font-size:${run.size}px;font-weight:${run.weight};line-height:${ascent + descent}px;color:${color}">${content}</div>`);
     });
   }
@@ -105,7 +105,7 @@ function table(b: LaidOutTable, day: Theme, roles: Roles): string {
 
 function tablePlain(b: LaidOutTable, day: Theme, roles: Roles): string {
   const R = 8, LH = 1.4;
-  const first = b.rows[0];
+  const first = must(b.rows[0]);
   const y0 = first.y, y1 = must(b.rows[b.rows.length - 1]).y + must(b.rows[b.rows.length - 1]).h;
   const firstBody = b.rows.findIndex(r => !r.header);
   const rule = `2px solid ${PALETTE.border}`;
@@ -226,9 +226,9 @@ function emitHtmlWith(d: LaidOutDiagram, opts: {reveal?: number; id?: string}): 
   const kindOf = (b: LaidOutBand) => native(b) ? 'html' : b.type === 'raw' ? 'raw' : 'svg';
   let body = '';
   for (let i = 0; i < visible.length;) {
-    const kind = kindOf(visible[i]);
+    const kind = kindOf(must(visible[i]));
     let j = i;
-    while (j < visible.length && kindOf(visible[j]) === kind) j++;
+    while (j < visible.length && kindOf(must(visible[j])) === kind) j++;
     const run = visible.slice(i, j);
     if (kind === 'html') body += run.map(b => render(b, day, d.roles, opts.reveal)).join('');
     else if (kind === 'raw') body += strip(emitSvg({...d, laidOut: run, connects: []}, {reveal: opts.reveal, noRecolor: true}), 'sd-ov sd-raw');

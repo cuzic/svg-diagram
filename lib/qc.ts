@@ -82,7 +82,7 @@ export function histogramBins(values: readonly number[], opts: {bins?: number; w
   if (start + n * width <= hi - 1e-9) n++;
   const edges = Array.from({length: n + 1}, (_, i) => parseFloat((start + i * width).toPrecision(12)));
   const counts = new Array<number>(n).fill(0);
-  for (const v of values) counts[Math.min(n - 1, Math.max(0, Math.floor((v - start) / width + 1e-9)))]++;
+  for (const v of values) { const k = Math.min(n - 1, Math.max(0, Math.floor((v - start) / width + 1e-9))); counts[k] = must(counts[k]) + 1; }
   return {edges, counts, width};
 }
 
@@ -160,7 +160,7 @@ export function criticalPath(input: readonly ArrowActivity[]): ArrowResult {
   if (order.length !== ids.length) throw new Error(`arrowDiagram(): the arrows go round in a circle (events ${ids.filter(id => !order.includes(id)).join(', ')}); an activity cannot wait for itself`);
   const early = new Map<string, number>(), late = new Map<string, number>();
   for (const id of order) early.set(id, Math.max(0, ...must(incoming.get(id)).map(a => must(early.get(a.from)) + a.days)));
-  const length = must(early.get(ends[0]));
+  const length = must(early.get(must(ends[0])));
   for (const id of [...order].reverse()) late.set(id, must(outgoing.get(id)).length ? Math.min(...must(outgoing.get(id)).map(a => must(late.get(a.to)) - a.days)) : length);
   const rounded = (v: number) => Math.abs(v) < 1e-9 ? 0 : parseFloat(v.toPrecision(12));
   const activities = acts.map(a => { const float = rounded(must(late.get(a.to)) - must(early.get(a.from)) - a.days); return {...a, float, critical: float < 1e-9}; });

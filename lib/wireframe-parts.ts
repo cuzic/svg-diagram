@@ -125,7 +125,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
     hideUnder(ctx, x, y, w, hh);
     rect(ctx, x, y, w, hh, {r: 6, fill: 'bg', stroke: 'border', sw: 2});
     if (n.state === 'loading' && !visual) { // skeleton bars where the content will be
-      for (let k = 0, by = y + 42; by + 12 < y + hh - 8 && k < 5; k++, by += 22) rect(ctx, x + 12, by, (w - 24) * [0.85, 0.6, 0.75, 0.45, 0.65][k], 10, {r: 5, fill: 'border'});
+      for (let k = 0, by = y + 42; by + 12 < y + hh - 8 && k < 5; k++, by += 22) rect(ctx, x + 12, by, (w - 24) * must([0.85, 0.6, 0.75, 0.45, 0.65][k]), 10, {r: 5, fill: 'border'});
       const lab = n.stateTitle ?? st.title, cw = chipW(ctx, lab);
       drawChip(ctx, lab, x + w - 8 - Math.min(cw, w - 16), y + 8, 'muted');
       return;
@@ -221,7 +221,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
   };
 
   const batteryText = (n: {level: number}) => `${pct(n.level)}${n.level < 0.2 ? ' 低下' : ''}`;
-  const signalText = (n: {level?: number; text?: string}) => n.text ?? ['途絶', '弱い', 'やや弱い', '良好'][Math.max(0, Math.min(3, n.level ?? 3))];
+  const signalText = (n: {level?: number; text?: string}) => n.text ?? must(['途絶', '弱い', 'やや弱い', '良好'][Math.max(0, Math.min(3, n.level ?? 3))]);
 
   // ---- robot status card -----------------------------------------------------------------
   // narrow frames (a cell in a state matrix, a side rail) stack the card's rows instead of laying them side by side
@@ -355,7 +355,8 @@ export function installParts(h: WfHelpers): WfPartsApi {
   }
   function drawThermal(ctx: WfCtx, x: number, y: number, w: number, hh: number, label?: string) {
     const b = sceneBox(x, y, w, hh), hx = b.bx + b.bw * 0.55, hy = b.by + b.bh * 0.28;
-    [[0.34, 0.12], [0.22, 0.25], [0.11, 0.5]].forEach(([r, op]) => circle(ctx, hx, hy, Math.min(w, hh) * r * 0.55, {fill: 'danger', op}));
+    const halos: [number, number][] = [[0.34, 0.12], [0.22, 0.25], [0.11, 0.5]];
+    halos.forEach(([r, op]) => circle(ctx, hx, hy, Math.min(w, hh) * r * 0.55, {fill: 'danger', op}));
     line(ctx, hx - 12, hy, hx + 12, hy, {stroke: 'text', sw: 2}); line(ctx, hx, hy - 12, hx, hy + 12, {stroke: 'text', sw: 2});
     if (label) {
       const lw = tw(ctx, label, S, 700) + 12;

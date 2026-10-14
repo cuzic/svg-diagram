@@ -116,7 +116,7 @@ function verticalValues(band: BarsBand, plotL: number, plotR: number, plotT: num
     places.push({base: rY - 6 - S - 6, inside: false});
     if (bh < S + 10 && cumSegs.length) places.push({base: rY + S + 2, inside: true});
     const ok = places.filter(p => !p.inside || fitsIn(p.base));
-    const pick = (cumSegs.length ? ok.find(p => !cut(p.inside ? cx : cxOut, p.base)) : undefined) ?? ok[0] ?? places[1];
+    const pick = must((cumSegs.length ? ok.find(p => !cut(p.inside ? cx : cxOut, p.base)) : undefined) ?? ok[0] ?? places[1]);
     const at = pick.inside ? cx : cxOut;
     return {cx: at, base: pick.base, inside: pick.inside, box: {x: at - tw / 2, y: pick.base - S, w: tw, h: S + 4}};
   });
@@ -166,8 +166,9 @@ export function slotsOf(data: readonly BarDatum[]): {slots: number[]; count: num
   let count = 0;
   for (const d of data) {
     const slot = d.replaces !== undefined ? at.get(d.replaces) : undefined;
-    slots.push(slot ?? count++);
-    if (d.id) at.set(d.id, slots[slots.length - 1]);
+    const mine = slot ?? count++;
+    slots.push(mine);
+    if (d.id) at.set(d.id, mine);
   }
   return {slots, count};
 }
@@ -212,7 +213,7 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
       const rawW = d.value / band.max * plotW, bw = Math.max(0, rawW - (i < band.data.length - 1 ? STACK_GAP : 0));
       const r = addBar(out, d, {x: at, y, w: bw, h: BARH});
       const bar = out.bars.length - 1;
-      const text = segs[i], tw = textWidth(widthOf, text, S, 700);
+      const text = must(segs[i]), tw = textWidth(widthOf, text, S, 700);
       if (text && bw >= tw + 12) putText(out, S, text, r.x + r.w / 2, r.y + BARH / 2 + S * .36, 'middle', 'bg', widthOf, true, r.fill, bar);
       else if (text) putText(out, S, text, r.x + r.w / 2, r.y + BARH + S + 4, 'middle', r.fill, widthOf, true, undefined, bar);
       at += rawW;
@@ -240,7 +241,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
   const tickW = Math.max(0, ...ticks.map(t => textWidth(widthOf, t.label, S, 400)));
   const cumW = band.cumulative ? Math.max(...CUM_TICKS.map(p => textWidth(widthOf, `${p}%`, S, 400))) + TICK + 10 : 0;
   // the edge labels are centred on the edges, so the first and the last stick out half their width
-  const edgeHalf = (i: number) => band.edges ? textWidth(widthOf, band.edges[i], S, 400) / 2 : 0;
+  const edgeHalf = (i: number) => band.edges ? textWidth(widthOf, band.edges[i] ?? '', S, 400) / 2 : 0;
   const plotL = Math.max(x + (f.axis ? tickW + TICK + 10 : 4), x + edgeHalf(0)), plotR = Math.min(x + w - (band.cumulative ? cumW : 8), x + w - edgeHalf(band.edges ? band.edges.length - 1 : 0) - 2);
   const {slots, count} = slotsOf(band.data), slot = (plotR - plotL) / count;
   const bw = band.barRatio === undefined ? Math.min(64, slot * .62) : slot * band.barRatio;
@@ -344,11 +345,11 @@ function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: nu
     const segs = [...ink.lines.filter(l => !l.soft), ...ink.polylines.filter(l => !l.soft).flatMap(l => l.pts.slice(1).map((q, k) => ({x1: must(l.pts[k]).x, y1: must(l.pts[k]).y, x2: q.x, y2: q.y})))];
     for (const [i, p] of pts.slice(1).entries()) {
       ink.dots.push({x: p.x, y: p.y, fill: 'danger'});
-      const text = cumText(cum[i]), tw = textWidth(widthOf, text, S, 700);
+      const text = cumText(must(cum[i])), tw = textWidth(widthOf, text, S, 700);
       const places: ['start' | 'middle' | 'end', number, number][] = [['end', p.x - 6, p.y - 7], ['middle', p.x, p.y - 12], ['start', p.x + 6, p.y - 7], ['end', p.x - 6, p.y + S + 4], ['start', p.x + 6, p.y + S + 4]];
       const boxOf = (a: 'start' | 'middle' | 'end', lx: number, ly: number) => ({x: a === 'middle' ? lx - tw / 2 : a === 'end' ? lx - tw : lx, y: ly - S, w: tw, h: S + 4});
       const clear = (b: {x: number; y: number; w: number; h: number}): boolean => b.x >= out.x && b.x + b.w <= out.x + out.w && b.y >= out.y && !out.labelBoxes.some(o => hitRect(b, o)) && !segs.some(sg => segHitsRect(sg, b));
-      const at = places.find(([a, lx, ly]) => clear(boxOf(a, lx, ly))) ?? places[0];
+      const at = places.find(([a, lx, ly]) => clear(boxOf(a, lx, ly))) ?? must(places[0]);
       putText(out, S, text, at[1], at[2], at[0], 'danger', widthOf, true);
     }
   }

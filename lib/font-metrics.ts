@@ -50,7 +50,7 @@ function load(file: string, index: number): Loaded {
 
 function parseSpec(spec: string): {file: string; index: number} {
   const m = /^(.*)#(\d+)$/.exec(spec);
-  return m ? {file: m[1], index: Number(m[2])} : {file: spec, index: 0};
+  return m ? {file: must(m[1]), index: Number(m[2])} : {file: spec, index: 0};
 }
 
 /** The first family of the stack that is installed, at this weight; null when there is no fontconfig or none of them is. */
@@ -62,7 +62,7 @@ function discover(family: FontFamily, weight: number): {file: string; index: num
     catch { return null; }
     const [file, index, fam] = out.split('\t');
     if (!file) continue;
-    if (GENERIC.has(name) || fam.split(',').some(f => f.trim().toLowerCase() === name.toLowerCase())) return {file, index: Number(index) & 0xffff};
+    if (GENERIC.has(name) || must(fam).split(',').some(f => f.trim().toLowerCase() === name.toLowerCase())) return {file, index: Number(index) & 0xffff};
   }
   return null;
 }

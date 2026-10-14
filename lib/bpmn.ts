@@ -40,7 +40,7 @@ interface BpmnMetrics {labelCol: number; colGap: number; taskMax: number; flowRo
 export function layoutBpmn(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBpmn {
   const steps = band.fit === 'shrink' ? SHRINK_STEPS : SHRINK_STEPS.slice(0, 1);
   for (const m of steps.slice(0, -1)) { const out = layoutBpmnAt(band, x, y, w, widthOf, roles, m, false); if (out) return out; }
-  return must(layoutBpmnAt(band, x, y, w, widthOf, roles, steps[steps.length - 1], true));
+  return must(layoutBpmnAt(band, x, y, w, widthOf, roles, must(steps[steps.length - 1]), true));
 }
 
 function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, metrics: BpmnMetrics, final: true): LaidOutBpmn;
@@ -89,7 +89,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   );
   const nLayers = Math.max(...[...lay.layers.values()]) + 1;
   const colW = Array.from({length: nLayers}, () => 0);
-  for (const n of band.nodes) { const c = must(lay.layers.get(n.id)), m = must(meas.get(n.id)); colW[c] = Math.max(colW[c], labelWidth(m)); }
+  for (const n of band.nodes) { const c = must(lay.layers.get(n.id)), m = must(meas.get(n.id)); colW[c] = Math.max(must(colW[c]), labelWidth(m)); }
   const widestFlow = Math.max(0, ...band.flows.map(f => f.label ? Math.ceil(textWidth(widthOf, f.label, S, 400)) + 2 * CHIP_PAD : 0));
   const gap = flowRoom === null ? COL_GAP : Math.max(COL_GAP, widestFlow + flowRoom);
   const colX: number[] = [];
@@ -110,7 +110,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
     for (const [k, list] of stacks) {
       if (!k.startsWith(`${li}:`)) continue;
       // a lone shape sits on the lane's centre line (so a flow between lone shapes is straight); its label hangs below
-      if (list.length === 1) { const id = list[0], m = must(meas.get(id)), block = m.extent - m.h; h = Math.max(h, 2 * (m.h / 2 + block)); }
+      if (list.length === 1) { const id = must(list[0]), m = must(meas.get(id)), block = m.extent - m.h; h = Math.max(h, 2 * (m.h / 2 + block)); }
       else h = Math.max(h, list.reduce((s, id, i) => s + must(meas.get(id)).extent + (i ? 16 : 0), 0));
     }
     return Math.max(88, h + 2 * PAD_Y, must(laneLines[li]).length * lineH(B) + 2 * PAD_Y);
@@ -122,8 +122,8 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
     lanes: [], nodes: [], icons: [], edges: [], texts: [], labels: [], anchors: [], labelBoxes: [],
   };
   band.lanes.forEach((l, i) => {
-    out.lanes.push({x, y: laneTop[i], w: width, h: laneH[i], labelW: LABEL_COL, tone: l.tone ?? 'plain'});
-    const lines = laneLines[i];
+    out.lanes.push({x, y: must(laneTop[i]), w: width, h: must(laneH[i]), labelW: LABEL_COL, tone: l.tone ?? 'plain'});
+    const lines = must(laneLines[i]);
     const top = must(laneTop[i]) + must(laneH[i]) / 2 - (lines.length * lineH(B)) / 2;
     lines.forEach((ln, k) => out.texts.push({text: ln, x: x + LABEL_COL / 2, y: top + k * lineH(B) + B, size: B, bold: true, muted: false, anchor: 'middle'}));
   });
@@ -131,11 +131,11 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   // place nodes: column centre, stacked and centred in the lane
   const rect = new Map<string, {x: number; y: number; w: number; h: number}>();
   for (const [k, list] of stacks) {
-    const [li, c] = k.split(':').map(Number);
+    const li = Number(k.split(':')[0]), c = Number(k.split(':')[1]), first = must(list[0]), top0 = must(laneTop[li]), high = must(laneH[li]);
     const sum = list.reduce((s, id, i) => s + must(meas.get(id)).extent + (i ? 16 : 0), 0);
-    let ty = list.length === 1 ? laneTop[li] + laneH[li] / 2 - must(meas.get(list[0])).h / 2 : laneTop[li] + (laneH[li] - sum) / 2;
-    if (list.length > 1 && isGate(must(kindOf.get(list[0])))) ty += must(meas.get(list[0])).extent - must(meas.get(list[0])).h; // a gateway's label sits above it
-    const cx = colX[c] + colW[c] / 2;
+    let ty = list.length === 1 ? top0 + high / 2 - must(meas.get(first)).h / 2 : top0 + (high - sum) / 2;
+    if (list.length > 1 && isGate(must(kindOf.get(first)))) ty += must(meas.get(first)).extent - must(meas.get(first)).h; // a gateway's label sits above it
+    const cx = must(colX[c]) + must(colW[c]) / 2;
     for (const id of list) {
       const m = must(meas.get(id));
       rect.set(id, {x: cx - m.w / 2, y: ty, w: m.w, h: m.h});
@@ -163,7 +163,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   // flows
   const hit = (a: {x: number; y: number; w: number; h: number}, b: {x: number; y: number; w: number; h: number}): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   const segBox = (p: Pt, q: Pt) => ({x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2});
-  const through = (pts: Pt[], skip: string[]): boolean => pts.slice(1).some((q, i) => [...rect].some(([id, r]) => !skip.includes(id) && hit(segBox(pts[i], q), r)));
+  const through = (pts: Pt[], skip: string[]): boolean => pts.slice(1).some((q, i) => [...rect].some(([id, r]) => !skip.includes(id) && hit(segBox(must(pts[i]), q), r)));
   const simplify = (pts: Pt[]): Pt[] => {
     const o: Pt[] = [];
     for (const p of pts) if (!o.length || Math.abs(must(o[o.length - 1]).x - p.x) > 0.01 || Math.abs(must(o[o.length - 1]).y - p.y) > 0.01) o.push(p);
@@ -192,7 +192,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
         const channels = [must(laneTop[lane(f.to)]) + 8, must(laneTop[lane(f.to)]) + must(laneH[lane(f.to)]) - 8, must(laneTop[lane(f.from)]) + 8, must(laneTop[lane(f.from)]) + must(laneH[lane(f.from)]) - 8];
         const outs = [A.x + A.w + STUB, must(colX[cf]) + must(colW[cf]) + gap / 2], ins = [Bx.x - STUB, must(colX[ct]) - gap / 2];
         const tries = channels.flatMap(ch => outs.flatMap(xo => ins.map(xi => simplify([start, {x: xo, y: ca.y}, {x: xo, y: ch}, {x: xi, y: ch}, {x: xi, y: cb.y}, end]))));
-        pts = tries.find(t => !through(t, [f.from, f.to])) ?? tries[0];
+        pts = tries.find(t => !through(t, [f.from, f.to])) ?? must(tries[0]);
       }
     } else { // back (or into the same column): out of the bottom, along under the lane's content, into the bottom
       // under both ends, and under any node that the run passes beneath and that reaches below them (a tall task between the two)
@@ -208,13 +208,13 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
     out.edges.push({from: f.from, to: f.to, line, points: pts});
     const own = out.edges.length - 1;
     if (f.label) pending.push(() => {
-      const p0 = pts[0], p1 = pts[1], pn = pts[pts.length - 1], lw = Math.ceil(textWidth(widthOf, must(f.label), S, 400)) + 2 * CHIP_PAD;
+      const p0 = must(pts[0]), p1 = must(pts[1]), pn = must(pts[pts.length - 1]), lw = Math.ceil(textWidth(widthOf, must(f.label), S, 400)) + 2 * CHIP_PAD;
       const horiz = p0.y === p1.y, self = f.from === f.to;
       // a condition belongs at the start of the flow, beside its first run; then anywhere beside the flow, nearest first
       const near: Pt[] = self ? [{x: A.x + A.w + 26 + lw / 2, y: ca.y}, {x: A.x + A.w + 26 + lw / 2, y: ca.y - 24}]
         : horiz ? [{x: p0.x + 8 + (Math.abs(p1.x - p0.x) - 8) / 2, y: p0.y - 14}, {x: (p0.x + pn.x) / 2, y: p0.y - 14}, {x: p0.x + 8 + (Math.abs(p1.x - p0.x) - 8) / 2, y: p0.y + 14}]
         : [{x: p0.x + 40, y: p1.y > p0.y ? p0.y + 18 : p0.y - 18}, {x: p0.x - 40, y: p1.y > p0.y ? p0.y + 18 : p0.y - 18}, {x: p0.x + 30, y: (p0.y + p1.y) / 2}];
-      const more = pts.slice(1).flatMap((q, i) => { const m = {x: (must(pts[i]).x + q.x) / 2, y: (must(pts[i]).y + q.y) / 2}; return [[0, -16], [0, 16], [lw / 2 + 8, 0], [-(lw / 2 + 8), 0], [lw / 2 + 8, -16], [-(lw / 2 + 8), 16]].map(([ox, oy]) => ({x: m.x + ox, y: m.y + oy})); });
+      const more = pts.slice(1).flatMap((q, i) => { const m = {x: (must(pts[i]).x + q.x) / 2, y: (must(pts[i]).y + q.y) / 2}; const offs: [number, number][] = [[0, -16], [0, 16], [lw / 2 + 8, 0], [-(lw / 2 + 8), 0], [lw / 2 + 8, -16], [-(lw / 2 + 8), 16]]; return offs.map(([ox, oy]) => ({x: m.x + ox, y: m.y + oy})); });
       chip(own, must(f.label), [...near, ...more]);
     });
   });
@@ -223,8 +223,8 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
     const lw = Math.ceil(textWidth(widthOf, text, S, 400)) + 2 * CHIP_PAD, lh = S + 8;
     const box = (c: Pt) => ({x: c.x - lw / 2, y: c.y - lh / 2, w: lw, h: lh});
     const free = (b: ReturnType<typeof box>): boolean => !out.labels.some(o => hit(b, o)) && ![...rect.values()].some(r => hit(b, r)) && !out.labelBoxes.some(o => hit(b, o) && !labelOfNode.has(o))
-      && !out.edges.some((e, k) => k !== own && e.points.slice(1).some((q, m) => hit(b, segBox(e.points[m], q)))) && b.x >= x + LABEL_COL && b.x + b.w <= x + width;
-    const c = cands.find(p => free(box(p))) ?? cands[0], b = box(c);
+      && !out.edges.some((e, k) => k !== own && e.points.slice(1).some((q, m) => hit(b, segBox(must(e.points[m]), q)))) && b.x >= x + LABEL_COL && b.x + b.w <= x + width;
+    const c = must(cands.find(p => free(box(p))) ?? cands[0]), b = box(c);
     out.labels.push({text, ...b, tx: c.x, ty: b.y + S + 2, size: S, edge: own});
     out.labelBoxes.push({label: text, ...b});
   };
@@ -242,9 +242,9 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
     const free = (s: {x: number; y: number}): boolean => {
       const b = {x: s.x, y: s.y, w: bw, h: bh};
       return s.x >= x + LABEL_COL + 2 && s.x + bw <= x + width && s.y >= y && s.y + bh <= y + out.h
-        && ![...rect.values()].some(q => hit(b, q)) && !out.labels.some(q => hit(b, q)) && !out.labelBoxes.some(q => hit(b, q) && !labelOfNode.has(q)) && !out.edges.some(e => e.points.slice(1).some((q2, i) => hit(b, segBox(e.points[i], q2))));
+        && ![...rect.values()].some(q => hit(b, q)) && !out.labels.some(q => hit(b, q)) && !out.labelBoxes.some(q => hit(b, q) && !labelOfNode.has(q)) && !out.edges.some(e => e.points.slice(1).some((q2, i) => hit(b, segBox(must(e.points[i]), q2))));
     };
-    const s = spots.find(free) ?? spots[0];
+    const s = spots.find(free) ?? must(spots[0]);
     m.label.forEach((ln, i) => {
       const tw = Math.ceil(textWidth(widthOf, ln, B, 400)), ty = s.y + i * lh + B;
       out.texts.push({text: ln, x: s.a === 'end' ? cx : cx, y: ty, size: B, bold: false, muted: false, anchor: s.a});

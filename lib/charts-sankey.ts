@@ -97,7 +97,7 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
     for (const dir of ['in', 'out'] as const) {
       const order = dir === 'in' ? cols.map((_, i) => i) : cols.map((_, i) => L - 1 - i);
       for (const li of order) {
-        const col = cols[li];
+        const col = must(cols[li]);
         const before = new Map(col.map((id, i) => [id, i]));
         col.sort((a, b) => bary(a, dir) - bary(b, dir) || must(before.get(a)) - must(before.get(b)));
         col.forEach((id, i) => pos.set(id, i));

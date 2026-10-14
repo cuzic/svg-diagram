@@ -178,7 +178,8 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
   const padY = 14;
   const colWAt = (): number => (cw - labelW - 2 * padX2 - (band.cols - 1) * colGap) / band.cols;
   if (band.fit === 'shrink' && colWAt() < SWIMLANE_COMFY_COL) { // free room for the columns: lane labels and gaps give way first, a step at a time
-    for (const [lw, cg, px] of [[104, 20, 12], [88, 12, 8]]) {
+    const steps: [number, number, number][] = [[104, 20, 12], [88, 12, 8]];
+    for (const [lw, cg, px] of steps) {
       labelW = Math.min(labelW, lw); colGap = Math.min(colGap, cg); padX2 = Math.min(padX2, px);
       if (colWAt() >= SWIMLANE_COMFY_COL) break;
     }
@@ -225,7 +226,7 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
     ctx.anchors.set(band.id, {x: frame.x, y: frame.y, w: frame.w, h: frame.h});
   }
   for (const st of stepsPlaced) {
-    const ln = lanes[laneIndex.get(st.lane) as number]; // an unknown lane id throws here, as before
+    const ln = must(lanes[laneIndex.get(st.lane) as number]); // an unknown lane id throws here, as before
     st.y = ln.blockTop + (st.row ?? 0) * (ln.maxStep + rowGap) + (ln.maxStep - st.h) / 2;
     if (st.id) ctx.anchors.set(st.id, {x: st.x, y: st.y, w: st.w, h: st.h});
     if (st.tagBox) st.tagBox.y = st.y - st.tagBox.h / 2;
@@ -294,14 +295,14 @@ function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: nu
     ctx.y = rowTop;
     const x = padX + must(xOffsets[i]);
     if (child.type === 'box') {
-      const c = ctx.placeBoxLike(child, x, rowTop, widths[i], true);
-      const rw: LaidOutRow = {type: 'row', x, y: rowTop, w: widths[i], h: c.h, children: [c], arrows: []};
+      const c = ctx.placeBoxLike(child, x, rowTop, must(widths[i]), true);
+      const rw: LaidOutRow = {type: 'row', x, y: rowTop, w: must(widths[i]), h: c.h, children: [c], arrows: []};
       ctx.laidOut.push(rw);
       rowHeight = Math.max(rowHeight, c.h);
       stretch.push(h => { c.h = rw.h = h; if (c.id) ctx.setBox(c.id, c as never, h); });
     } else {
       const frame = ctx.laidOut.length;
-      ctx.stack([child], x, widths[i]);
+      ctx.stack([child], x, must(widths[i]));
       const f = ctx.laidOut[frame] as LaidOutGroup; // ctx.stack() pushes a group's frame first
       rowHeight = Math.max(rowHeight, f.h);
       stretch.push(h => { f.h = h; if (child.id) ctx.anchors.set(child.id, {x: f.x, y: f.y, w: f.w, h}); });
@@ -317,14 +318,14 @@ function layoutRow(band: RowBand, ctx: LayoutCtx, padX: number, cw: number): voi
   const rowGap = ctx.gapForLabels(band, cw);
   const {widths, xOffsets} = rowChildGeometry({...band, gap: rowGap}, cw);
   const placedChildren = band.children.map((child, i) =>
-    ctx.placeBoxLike(child, padX + must(xOffsets[i]), ctx.y, widths[i], true));
+    ctx.placeBoxLike(child, padX + must(xOffsets[i]), ctx.y, must(widths[i]), true));
   const rowHeight = Math.max(...placedChildren.map(c => c.h));
   for (const c of placedChildren) { c.h = rowHeight; if (c.id) ctx.setBox(c.id, c as never, rowHeight); }
 
   const arrows: RowArrow[] = [];
   if (band.arrows === 'between') {
     for (let i = 0; i < placedChildren.length - 1; i++) {
-      const a = placedChildren[i], b = placedChildren[i + 1];
+      const a = must(placedChildren[i]), b = must(placedChildren[i + 1]);
       const y = ctx.y + rowHeight / 2;
       arrows.push({x1: a.x + a.w, y1: y, x2: b.x, y2: y});
     }
@@ -350,7 +351,7 @@ function layoutCanvasGrid(band: GridBand & {canvas: NonNullable<GridBand['canvas
   // every edge on the 4px grid the emitter snaps shapes to, so neighbouring regions keep one straight edge and even gutters
   const top = Math.ceil(ctx.y / 4 - 1e-6) * 4, cols = canvasColumns(cv, padX, cw, gap);
   const placed = band.children.map((child, i) => {
-    const s = canvasSpan(cols, cv.place[i]);
+    const s = canvasSpan(cols, must(cv.place[i]));
     const name = child.title ?? `region ${i + 1}`;
     if (s.w < CANVAS_MIN_REGION_W) throw new Error(`canvas("${cv.template}"): region "${name}" is only ${Math.max(0, Math.round(s.w))}px wide (at least ${CANVAS_MIN_REGION_W}px): widen the figure (diagram({width})) or use a smaller gap`);
     const p = ctx.placeBoxLike(child, s.x, top, s.w, true);
@@ -369,8 +370,8 @@ function layoutCanvasGrid(band: GridBand & {canvas: NonNullable<GridBand['canvas
   const rowY = [top];
   rows.forEach((v, r) => rowY.push(must(rowY[r]) + Math.ceil(v / 4 - 1e-6) * 4 + rowGap));
   placed.forEach((p, i) => {
-    const pl = cv.place[i], h = must(rowY[pl.row + pl.rs]) - rowGap - must(rowY[pl.row]);
-    p.y = rowY[pl.row]; p.h = h;
+    const pl = must(cv.place[i]), h = must(rowY[pl.row + pl.rs]) - rowGap - must(rowY[pl.row]);
+    p.y = must(rowY[pl.row]); p.h = h;
     if (p.tagBox) p.tagBox.y = p.y - p.tagBox.h / 2;
     if (p.id) ctx.setBox(p.id, p as never, h);
   });
@@ -415,7 +416,7 @@ function layoutPyramid(band: PyramidBand, ctx: LayoutCtx, padX: number, cw: numb
     // Opacity climbs bottom->top using SHADES (see tokens.ts) — the
     // apex (i = n-1) always gets SHADES[0] = fully opaque, matching
     // every hand-authored pyramid/funnel in this deck.
-    const opacity = SHADES[Math.min(SHADES.length - 1, n - 1 - i)];
+    const opacity = must(SHADES[Math.min(SHADES.length - 1, n - 1 - i)]);
     // bg luminance is a real alpha-blend against white, so the text
     // color choice is provably safe (see tokens.ts's bestTextColor
     // doc comment) without needing a Playwright-rendered check.

@@ -56,7 +56,7 @@ export function numText(n: number): string {
   if (!Number.isFinite(n)) return String(n);
   let s = String(parseFloat(n.toPrecision(12)));
   if (/e/i.test(s)) s = n.toFixed(6).replace(/\.?0+$/, '');
-  const neg = s.startsWith('-'), [int, dec] = s.replace('-', '').split('.');
+  const neg = s.startsWith('-'), [int = '', dec] = s.replace('-', '').split('.');
   return `${neg ? '-' : ''}${int.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}${dec ? `.${dec}` : ''}`;
 }
 /** A signed delta: +120 / -45 (0 is +0). */
@@ -180,7 +180,7 @@ export function checkIds(who: string, ids: (string | undefined)[], bandId: strin
 /** Opacity of the accent for the n-th of `count` shades, light to dark (the ladder pyramid() uses, spread over `count` steps). */
 export function shadeOps(count: number): number[] {
   const ladder: Record<number, number[]> = {1: [0.5], 2: [0.25, 0.7], 3: [0.15, 0.5, 0.85], 4: [0.12, 0.35, 0.6, 0.85], 5: [0.1, 0.3, 0.5, 0.7, 0.9], 6: [0.1, 0.25, 0.4, 0.55, 0.7, 0.9]};
-  return ladder[count] ?? ladder[6];
+  return ladder[count] ?? must(ladder[6]);
 }
 /** The text colour that reads on the accent at this opacity. */
 export const inkOnShade = (op: number): ColorKey => op >= 0.6 ? 'bg' : 'text';

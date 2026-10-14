@@ -22,7 +22,7 @@ export function checkChart(band: LaidOutChart, d: LaidOutDiagram): string[] {
   for (const [i, b] of band.boxes.entries()) {
     if (b.x < band.x - 0.5 || b.x + b.w > band.x + band.w + 0.5 || b.y < band.y - 0.5 || b.y + b.h > band.y + band.h + 0.5) problems.push(`${who}: label "${b.label}" runs outside the figure (raise width / height, or shorten it)`);
     for (let j = i + 1; j < band.boxes.length; j++) {
-      const o = band.boxes[j];
+      const o = must(band.boxes[j]);
       if (overlaps(b, o)) problems.push(`${who}: label "${b.label}" overlaps label "${o.label}"`);
     }
     band.solids.forEach((s, k) => {
@@ -36,7 +36,7 @@ export function checkChart(band: LaidOutChart, d: LaidOutDiagram): string[] {
       if (delta < CONTRAST) problems.push(`${who}: label "${b.label}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST})`);
     }
   }
-  for (const [i, s] of band.solids.entries()) for (let j = i + 1; j < band.solids.length; j++) if (overlaps(s, band.solids[j])) problems.push(`${who}: ${s.label} overlaps ${must(band.solids[j]).label}`);
+  for (const [i, s] of band.solids.entries()) for (let j = i + 1; j < band.solids.length; j++) if (overlaps(s, must(band.solids[j]))) problems.push(`${who}: ${s.label} overlaps ${must(band.solids[j]).label}`);
   return problems;
 }
 

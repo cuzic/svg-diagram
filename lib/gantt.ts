@@ -125,7 +125,7 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
     const every = Math.max(1, Math.ceil(widest / (7 * perDay)));
     const days = mondays(from, to);
     if (!days.length) tickDays.push({day: from, label: fmtDay(from)}); // a short axis with no Monday: at least its first day
-    for (let k = 0; k < days.length; k += every) tickDays.push({day: days[k], label: fmtDay(days[k])});
+    for (let k = 0; k < days.length; k += every) tickDays.push({day: must(days[k]), label: fmtDay(must(days[k]))});
   } else tickDays.push(...ticksOf(from, to));
   for (const t of tickDays) {
     const tx = px(t.day);
@@ -153,7 +153,7 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
     out.bars.push({...rect, tone: r.tone ?? 'accent', label: r.label, ...(r.progress === undefined ? {} : {progress: r.progress})});
     if (r.id) out.anchors.push({id: r.id, ...rect});
   });
-  const rectOf = (t: GanttTask) => out.bars[tasks.indexOf(t)];
+  const rectOf = (t: GanttTask) => must(out.bars[tasks.indexOf(t)]);
   for (const t of tasks) for (const a of [t.after ?? []].flat()) {
     const p = rectOf(must(ids.get(a))), q = rectOf(t);
     const x1 = p.x + p.w, y1 = p.y + p.h / 2, x2 = q.x, y2 = q.y + q.h / 2;
@@ -170,7 +170,7 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
       const lo = out.plot.x1 + 4, hi = out.plot.x2 - 4;
       const cols = bT === bH ? [x1 + 8] : Array.from({length: Math.floor((hi - lo) / 6) + 1}, (_, k) => lo + k * 6).filter(free).sort((u, v) => Math.abs(u - (x1 + x2) / 2) - Math.abs(v - (x1 + x2) / 2));
       if (!cols.length) cols.push(x1 + 8); // nothing is free (verify will say which bar): still a route that ends on the head
-      pts = [{x: x1, y: y1}, {x: x1 + 8, y: y1}, {x: x1 + 8, y: bT}, {x: cols[0], y: bT}, {x: cols[0], y: bH}, {x: x2 - 8, y: bH}, {x: x2 - 8, y: y2}, {x: x2, y: y2}];
+      pts = [{x: x1, y: y1}, {x: x1 + 8, y: y1}, {x: x1 + 8, y: bT}, {x: must(cols[0]), y: bT}, {x: must(cols[0]), y: bH}, {x: x2 - 8, y: bH}, {x: x2 - 8, y: y2}, {x: x2, y: y2}];
     }
     out.deps.push({from: tasks.indexOf(must(ids.get(a))), to: tasks.indexOf(t), points: simplifyPts(pts)});
   }

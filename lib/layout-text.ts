@@ -69,9 +69,9 @@ export function styledAtoms(run: TextRun): StyledAtom[] {
   let at = 0;
   for (const atom of atoms) {
     for (let from = 0, to = 1; from < atom.length; from = to, to = from + 1) {
-      const i = spanAt[at + from];
+      const i = must(spanAt[at + from]);
       while (to < atom.length && spanAt[at + to] === i) to++;
-      const sp = run.spans[i];
+      const sp = must(run.spans[i]);
       out.push({text: atom.slice(from, to), weight: sp.bold ? 700 : run.weight, tone: sp.tone, ...(from > 0 ? {glue: true} : {})});
     }
     at += atom.length;
@@ -95,7 +95,7 @@ export function lineWidth(widthOf: WidthOf, run: WrappedRun, i: number): number 
   const font = run.mono ? 'mono' : 'sans';
   return run.lineSpans
     ? must(run.lineSpans[i]).reduce((w, sp) => w + textWidth(widthOf, sp.text, run.size, sp.bold ? 700 : run.weight, font), 0)
-    : textWidth(widthOf, run.lines[i], run.size, run.weight, font);
+    : textWidth(widthOf, must(run.lines[i]), run.size, run.weight, font);
 }
 
 // Wraps a box-like band's text runs at `wrapWidth` (content width, i.e.

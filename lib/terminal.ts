@@ -27,7 +27,7 @@ export function parseReplies(raw: string): Omit<TermInfo, 'cols' | 'rows'> & {co
   return {
     da1: da1 ? must(da1[1]).split(';').filter(Boolean).map(Number) : null,
     windowPx: px(4), cellPx: px(6),
-    version: ver ? ver[1] : null,
+    version: ver ? must(ver[1]) : null,
     complete: !!da1,
   };
 }

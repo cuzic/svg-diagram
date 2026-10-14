@@ -66,7 +66,7 @@ function baseMapOf(appearance: Appearance | undefined): Record<string, string> |
     for (const [k, v] of Object.entries(o)) if (!['bg', 'text', 'muted', 'border', 'code', 'danger', 'accent', 'soft'].includes(k) || !HEX6.test(String(v))) throw new Error(`diagram({appearance: {dark: {${k}}}}): keys are bg, text, muted, border, code, danger, accent, soft, with a #rrggbb value (got ${String(v)})`);
     const get = (k: keyof typeof o, fallback: string) => (o[k] ?? fallback).toLowerCase();
     m = {...DARK_OF};
-    for (const k of ['bg', 'text', 'muted', 'border', 'code', 'danger'] as const) m[PALETTE[k]] = get(k, DARK_OF[PALETTE[k]]);
+    for (const k of ['bg', 'text', 'muted', 'border', 'code', 'danger'] as const) m[PALETTE[k]] = get(k, must(DARK_OF[PALETTE[k]]));
     for (const t of ['amber', 'teal', 'blue'] as const) for (const k of ['accent', 'soft'] as const) if (o[k]) m[PALETTE[t][k]] = must(o[k]).toLowerCase();
     MAPS.set(key, m);
   }

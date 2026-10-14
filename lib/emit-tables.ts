@@ -58,16 +58,16 @@ export function renderTable(band: LaidOutTable, day: Theme, roles: Roles): strin
     const fill = row.header ? PALETTE[day].soft : row.tone ? resolveBoxStyle(row.tone, day).fill : PALETTE.bg;
     parts.push(`<path d="${rrPath(band.x, row.y, band.w, row.h, corners)}" fill="${fill}"/>`);
     // row-heading cell: always soft, whatever the row's tone; only the outer left corners round
-    if (band.rowHeader && !row.header) parts.push(`<path d="${rrPath(band.x, row.y, band.colW[0], row.h, {tl: corners.tl, bl: corners.bl})}" fill="${PALETTE[day].soft}"/>`);
+    if (band.rowHeader && !row.header) parts.push(`<path d="${rrPath(band.x, row.y, must(band.colW[0]), row.h, {tl: corners.tl, bl: corners.bl})}" fill="${PALETTE[day].soft}"/>`);
     if (i > 0 || titled) parts.push(`<path d="M${Math.round(band.x)},${Math.round(row.y)} H${Math.round(band.x + band.w)}" stroke="${PALETTE.border}" stroke-width="2"/>`);
   });
   const y0 = must(band.rows[0]).y, y1 = must(band.rows[last]).y + must(band.rows[last]).h;
   for (let i = 1; i < band.colX.length; i++) {
-    parts.push(`<path d="M${Math.round(band.colX[i])},${Math.round(y0)} V${Math.round(y1)}" stroke="${PALETTE.border}" stroke-width="2"/>`);
+    parts.push(`<path d="M${Math.round(must(band.colX[i]))},${Math.round(y0)} V${Math.round(y1)}" stroke="${PALETTE.border}" stroke-width="2"/>`);
   }
   const firstBody = band.rows.findIndex(r => !r.header);
   if (band.rowHeader && firstBody >= 0) {
-    parts.push(`<path d="M${Math.round(band.colX[1])},${Math.round(must(band.rows[firstBody]).y)} V${Math.round(y1)}" stroke="${PALETTE.text}" stroke-width="3"/>`);
+    parts.push(`<path d="M${Math.round(must(band.colX[1]))},${Math.round(must(band.rows[firstBody]).y)} V${Math.round(y1)}" stroke="${PALETTE.text}" stroke-width="3"/>`);
   }
   if (band.rowCurve?.points.length) {
     const c = band.rowCurve;

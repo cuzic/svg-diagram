@@ -32,8 +32,8 @@ export function flattenPath(d: string): {pts: Point[]; closed: boolean; extrema:
   const out: {pts: Point[]; closed: boolean; extrema: Point[]}[] = [];
   let i = 0, cmd = '', x = 0, y = 0, sx = 0, sy = 0, cx = 0, cy = 0, prev = '', fx = 0, fy = 0; // fx, fy: where the command being read starts
   let cur = null as {pts: Point[]; closed: boolean; extrema: Point[]} | null;
-  const ws = () => { while (i < d.length && /[\s,]/.test(d[i])) i++; };
-  const more = () => { ws(); return i < d.length && /[-+.\d]/.test(d[i]); };
+  const ws = () => { while (i < d.length && /[\s,]/.test(d.charAt(i))) i++; };
+  const more = () => { ws(); return i < d.length && /[-+.\d]/.test(d.charAt(i)); };
   const num = () => { ws(); NUM.lastIndex = i; const m = NUM.exec(d); if (!m) throw new Error(`path data: a number was expected at ${i}`); i += m[0].length; return parseFloat(m[0]); };
   const flag = () => { ws(); const c = d[i++]; if (c !== '0' && c !== '1') throw new Error(`path data: an arc flag was expected at ${i - 1}`); return c === '1'; };
   const start = (px: number, py: number) => { cur = {pts: [[px, py]], closed: false, extrema: []}; out.push(cur); };
@@ -50,7 +50,7 @@ export function flattenPath(d: string): {pts: Point[]; closed: boolean; extrema:
   while (true) {
     ws();
     if (i >= d.length) break;
-    if (/[A-Za-z]/.test(d[i])) { cmd = d[i++]; if (cmd === 'Z' || cmd === 'z') { if (cur) cur.closed = true; x = sx; y = sy; cur = null; prev = 'z'; continue; } }
+    if (/[A-Za-z]/.test(d.charAt(i))) { cmd = d.charAt(i++); if (cmd === 'Z' || cmd === 'z') { if (cur) cur.closed = true; x = sx; y = sy; cur = null; prev = 'z'; continue; } }
     else if (!cmd || !more()) throw new Error(`path data: unexpected "${d[i]}" at ${i}`);
     const rel = cmd === cmd.toLowerCase(), C = cmd.toUpperCase();
     const ox = rel ? x : 0, oy = rel ? y : 0;
@@ -135,7 +135,7 @@ export function outlineOf(el: El, vp: {w: number; h: number}): Outline {
     const v = el.attrs[name];
     if (v === undefined) return d;
     const m = /^\s*(-?[\d.]+(?:e[-+]?\d+)?)(%|px)?/.exec(v);
-    return m ? (m[2] === '%' ? parseFloat(m[1]) * ref / 100 : parseFloat(m[1])) : d;
+    return m ? (m[2] === '%' ? parseFloat(must(m[1])) * ref / 100 : parseFloat(must(m[1]))) : d;
   };
   let polylines: Point[][] = [], extra: Point[] = [];
   switch (el.tag) {
@@ -150,12 +150,12 @@ export function outlineOf(el: El, vp: {w: number; h: number}): Outline {
     case 'polyline': case 'polygon': {
       const nums = (el.attrs['points'] ?? '').split(/[\s,]+/).filter(Boolean).map(Number);
       const pts: Point[] = [];
-      for (let k = 0; k + 1 < nums.length; k += 2) pts.push([nums[k], nums[k + 1]]);
-      if (pts.length && el.tag === 'polygon') pts.push(pts[0]);
+      for (let k = 0; k + 1 < nums.length; k += 2) pts.push([must(nums[k]), must(nums[k + 1])]);
+      if (pts.length && el.tag === 'polygon') pts.push(must(pts[0]));
       polylines = pts.length ? [pts] : [];
       break;
     }
-    case 'path': { const sub = flattenPath(el.attrs['d'] ?? ''); polylines = sub.map(s => s.closed ? [...s.pts, s.pts[0]] : s.pts); extra = sub.flatMap(s => s.extrema); break; }
+    case 'path': { const sub = flattenPath(el.attrs['d'] ?? ''); polylines = sub.map(s => s.closed ? [...s.pts, ...s.pts.slice(0, 1)] : s.pts); extra = sub.flatMap(s => s.extrema); break; }
   }
   // the box of a circle/ellipse is exact (a 65-gon through the extreme points has them), of a rect/line/polygon the points', of a curve the flattened one's
   const points = [...polylines.flat(), ...extra];
@@ -164,15 +164,15 @@ export function outlineOf(el: El, vp: {w: number; h: number}): Outline {
 
 /** Points along a polyline every `step` (and its end), for asking whether it passes through a box. */
 export function sampleAlong(polyline: Point[], step: number): Point[] {
-  const out: Point[] = polyline.length ? [polyline[0]] : [];
+  const out: Point[] = polyline.slice(0, 1);
   let carry = 0;
   for (let k = 1; k < polyline.length; k++) {
-    const [ax, ay] = polyline[k - 1], [bx, by] = polyline[k];
+    const [ax, ay] = must(polyline[k - 1]), [bx, by] = must(polyline[k]);
     const len = Math.hypot(bx - ax, by - ay);
     for (let at = step - carry; at <= len; at += step) out.push([ax + (bx - ax) * at / len, ay + (by - ay) * at / len]);
     carry = (carry + len) % step;
   }
-  if (polyline.length > 1) out.push(polyline[polyline.length - 1]);
+  if (polyline.length > 1) out.push(must(polyline[polyline.length - 1]));
   return out;
 }
 
@@ -187,7 +187,7 @@ export function familyKind(fontFamily: string): FontFamily {
   return 'sans';
 }
 
-const num1 = (v: string | undefined) => { if (v === undefined) return null; const f = parseFloat(v.trim().split(/[\s,]+/)[0]); return Number.isFinite(f) ? f : null; };
+const num1 = (v: string | undefined) => { if (v === undefined) return null; const f = parseFloat(v.trim().split(/[\s,]+/)[0] ?? ''); return Number.isFinite(f) ? f : null; };
 
 /** One run of a <text> (the text of one tspan, or of the <text> itself) as it is laid out: where its pen starts and how big it is. */
 export interface PlacedRun {s: string; style: Style; x: number; y: number; w: number; ascent: number; descent: number}
@@ -241,7 +241,7 @@ export function placeRuns(text: El, styles: Map<El, Style>, specs?: FontSpecs): 
     if (!parts.length || total === 0) continue;
     const anchor = ch.runs[0]?.style.textAnchor ?? 'start';
     let x = ch.x - (anchor === 'middle' ? total / 2 : anchor === 'end' ? total : 0);
-    parts.forEach((p, i) => { placed.push({...runs[i], x, y: ch.y, ...p}); x += p.w; });
+    parts.forEach((p, i) => { placed.push({...must(runs[i]), x, y: ch.y, ...p}); x += p.w; });
   }
   return placed;
 }

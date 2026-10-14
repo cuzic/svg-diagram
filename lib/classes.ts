@@ -98,31 +98,31 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
     const len = pts.slice(1).map((p, i) => Math.abs(p.x - must(pts[i]).x) + Math.abs(p.y - must(pts[i]).y));
     let d = len.reduce((a, b) => a + b, 0) * t;
     for (let i = 0; i < len.length; i++) { if (d <= must(len[i]) || i === len.length - 1) { const f = len[i] ? d / must(len[i]) : 0; return {x: must(pts[i]).x + (must(pts[i + 1]).x - must(pts[i]).x) * f, y: must(pts[i]).y + (must(pts[i + 1]).y - must(pts[i]).y) * f}; } d -= must(len[i]); }
-    return pts[0];
+    return must(pts[0]);
   };
   const chip = (own: number, text: string, cands: Pt[]): void => {
     const lw = labelW(text), lh = S + 8;
     const box = (c: Pt) => ({x: c.x - lw / 2, y: c.y - lh / 2, w: lw, h: lh});
     // a chip is white: on another relation it would cut that line, so it keeps off every line but its own
     const onOther = (b: ReturnType<typeof box>): boolean => out.edges.some((e, k) => k !== own && e.points.slice(1).some((q, m) => {
-      const p = e.points[m];
+      const p = must(e.points[m]);
       return hit(b, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2});
     }));
     const free = (b: ReturnType<typeof box>): boolean => !out.labels.some(o => hit(b, o)) && !out.nodes.some(n => hit(b, n)) && !onOther(b);
-    const c = cands.find(p => free(box(p))) ?? cands[0];
+    const c = cands.find(p => free(box(p))) ?? must(cands[0]);
     const b = box(c);
     out.labels.push({text, ...b, tx: c.x, ty: b.y + S + 2, size: S, edge: own});
     out.labelBoxes.push({label: text, ...b});
   };
   /** A point `along` px from the end of a polyline (end 0: the start) and `side` px to its left of the direction of travel. */
   const near = (pts: Pt[], end: 0 | 1, along: number, side: number): Pt => {
-    const p = end === 0 ? pts[0] : pts[pts.length - 1], q = end === 0 ? pts[1] : pts[pts.length - 2];
+    const p = must(end === 0 ? pts[0] : pts[pts.length - 1]), q = must(end === 0 ? pts[1] : pts[pts.length - 2]);
     const ux = Math.sign(q.x - p.x), uy = Math.sign(q.y - p.y);
     return {x: p.x + ux * along - uy * side, y: p.y + uy * along + ux * side};
   };
   const pending: (() => void)[] = [];
   lay.edges.forEach((e, i) => {
-    const r = band.relations[e.index], kind = r.kind ?? 'assoc';
+    const r = must(band.relations[e.index]), kind = r.kind ?? 'assoc';
     const line = kind === 'implement' || kind === 'depend' ? 'dashed' : 'solid';
     if (e.self) {
       const a = must(rects.get(r.from)), cy = a.y + a.h / 2, cx = a.x + a.w / 2, lh = S + 8;
@@ -153,8 +153,9 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
     if (r.toMult) pending.push(() => chip(own, must(r.toMult), [near(pts, 1, 22, 12), near(pts, 1, 22, -12), near(pts, 1, 34, 12), near(pts, 1, 34, -12)]));
     if (r.label) pending.push(() => {
       const lw = labelW(must(r.label)), along = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8].map(t => at(pts, t));
+      const offsets: [number, number][] = [[lw / 2 + 8, 0], [-(lw / 2 + 8), 0], [0, -22], [0, 22], [lw / 2 + 8, 22], [-(lw / 2 + 8), 22], [lw / 2 + 8, -22], [-(lw / 2 + 8), -22], [0, 44], [0, -44]];
       // on the line first; else beside it (a vertical run takes the chip to its side, a horizontal one above or below), nearest first
-      chip(own, must(r.label), [...along, ...[[lw / 2 + 8, 0], [-(lw / 2 + 8), 0], [0, -22], [0, 22], [lw / 2 + 8, 22], [-(lw / 2 + 8), 22], [lw / 2 + 8, -22], [-(lw / 2 + 8), -22], [0, 44], [0, -44]].flatMap(([ox, oy]) => along.map(p => ({x: p.x + ox, y: p.y + oy})))]);
+      chip(own, must(r.label), [...along, ...offsets.flatMap(([ox, oy]) => along.map(p => ({x: p.x + ox, y: p.y + oy})))]);
     });
   });
   for (const p of pending) p(); // every relation is routed first: a chip must know where the other lines run

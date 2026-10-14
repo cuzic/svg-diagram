@@ -74,9 +74,9 @@ export function squarify(items: {n: TreemapNode; v: number}[], x: number, y: num
   let i = 0, rx = x, ry = y, rw = w, rh = h;
   const worst = (row: number[], side: number): number => { const s = row.reduce((a, b) => a + b, 0), mx = Math.max(...row), mn = Math.min(...row); return Math.max(side * side * mx / (s * s), s * s / (side * side * mn)); };
   while (i < list.length) {
-    const side = Math.min(rw, rh), row: number[] = [areas[i]];
+    const side = Math.min(rw, rh), row: number[] = [must(areas[i])];
     let j = i + 1;
-    while (j < list.length && worst([...row, areas[j]], side) <= worst(row, side)) { row.push(areas[j]); j++; }
+    while (j < list.length && worst([...row, must(areas[j])], side) <= worst(row, side)) { row.push(must(areas[j])); j++; }
     const rs = row.reduce((a, b) => a + b, 0), thick = rs / side;
     let off = 0;
     for (let k = i; k < j; k++) {
@@ -125,7 +125,7 @@ export function layoutTreemap(s: TreemapSpec, g: ChartGeom): LaidOutChartPart {
       squarify(s.nodes.map(n => ({n, v: wOf(n)})), g.x, g.y, g.w, h).forEach((r, i) => lay(r.n, r, i));
       for (const n of s.nodes) if (wOf(n) === 0) out.push({k: 'gone', n});
     }
-    else lay(s.nodes[0], {x: g.x, y: g.y, w: g.w, h}, 0);
+    else lay(must(s.nodes[0]), {x: g.x, y: g.y, w: g.w, h}, 0);
     return out;
   };
   const leaves: TreemapNode[] = [];
@@ -149,7 +149,7 @@ export function layoutTreemap(s: TreemapSpec, g: ChartGeom): LaidOutChartPart {
   placed = best.placed;
 
   const small: string[] = [];
-  const shadeOf = (gi: number): number => [0.1, 0.2, 0.3][gi % 3];
+  const shadeOf = (gi: number): number => must([0.1, 0.2, 0.3][gi % 3]);
   const label = (cell: {n: TreemapNode; x: number; y: number; w: number; h: number}, host: number, ink: ColorKey, on: {fill: 'accent' | 'danger'; op?: number; ink: ColorKey}, id?: string): boolean => {
     const n = cell.n, val = valueText(n.value ?? 0, s), inner = {w: cell.w - 10, h: cell.h - 6};
     // name above value; the value wrapped too when the cell is narrow; both on one line; the value alone

@@ -62,7 +62,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
       const f = parseRef(c.from), t = parseRef(c.to);
       const i = kids.findIndex(k => k.has(f.id)), j = kids.findIndex(k => k.has(t.id));
       if (i < 0 || j < 0 || Math.abs(i - j) !== 1 || !((i < j && f.side === 'right' && t.side === 'left') || (i > j && f.side === 'left' && t.side === 'right'))) continue;
-      if (slots) { const [a, b] = i < j ? [slots[i], slots[j]] : [slots[j], slots[i]]; if (b.col !== a.col + a.span) continue; } // empty columns between them already leave room
+      if (slots) { const [a, b] = i < j ? [must(slots[i]), must(slots[j])] : [must(slots[j]), must(slots[i])]; if (b.col !== a.col + a.span) continue; } // empty columns between them already leave room
       gap = Math.max(gap, Math.ceil(textWidth(widthOf, c.label as string, (roles.connectLabel ?? CONNECT_LABEL_SIZE), 400) + (c.chip ? 16 : 0) + 2 * LABEL_MARGIN));
     }
     return gap;
@@ -99,7 +99,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
     };
     walk(d.bands, contentWidth);
     for (const [key, g] of grids) {
-      const [cols, base] = key.split('/').map(Number);
+      const [colsN, baseN] = key.split('/').map(Number), cols = must(colsN), base = must(baseN);
       const width = (cw: number, span: number, gap: number) => span * ((cw - (cols - 1) * gap) / cols) + (span - 1) * gap;
       // growing must not squeeze a box: each child keeps >= 70% of its width (and >= 40px) or the gap stays as declared (verify reports the label)
       const fits = g.need === base || g.rows.every(r => r.spans.every(sp => width(r.cw, sp, g.need) >= Math.min(width(r.cw, sp, base), Math.max(40, 0.7 * width(r.cw, sp, base)))));
@@ -138,7 +138,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
     const placed = {...band, x, y, w, h, wrappedRuns} as unknown as Placed<B>; // spreading a generic loses the intersection
     if (stampW !== undefined) (placed as Placed<B> & {stampW?: number}).stampW = stampW;
     // a centred / right-aligned title: the step badge sits just before its first line, so emit needs that line's width
-    if (band.type === 'box' && band.step != null && band.title && (band.align ?? (topIcon(band) ? 'center' : 'left')) !== 'left') (placed as Placed<B> & {titleW?: number}).titleW = lineWidth(widthOf, wrappedRuns[0], 0);
+    if (band.type === 'box' && band.step != null && band.title && (band.align ?? (topIcon(band) ? 'center' : 'left')) !== 'left') (placed as Placed<B> & {titleW?: number}).titleW = lineWidth(widthOf, must(wrappedRuns[0]), 0);
     if (band.type === 'box') {
       const overflow = wrappedRuns.filter(r => r.nowrap && textWidth(widthOf, r.text, r.size, r.weight, r.mono ? 'mono' : 'sans') > wrapWidth - (r.indent ?? 0) + 0.5).map(r => r.text);
       if (overflow.length) (placed as Placed<BoxBand> & {nowrapOverflow?: string[]}).nowrapOverflow = overflow;

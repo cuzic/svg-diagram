@@ -151,8 +151,8 @@ const RISK_RATING = [['低', '低', '中'], ['低', '中', '高'], ['中', '高'
 const RISK_TONE: Record<string, QuadrantTone> = {低: 'plain', 中: 'changed', 高: 'accent', 重大: 'danger'};
 const RISK_NOTE = ['低', '中', '高'], RISK_IMPACT = ['小', '中', '大'];
 const riskCells = (): QuadrantCell[][] => [2, 1, 0].map(l => [0, 1, 2].map(i => {
-  const rating = must(RISK_RATING[l])[i];
-  return c(`リスク ${rating}`, `発生 ${RISK_NOTE[l]} × 影響 ${RISK_IMPACT[i]}`, RISK_TONE[rating]);
+  const rating = must(must(RISK_RATING[l])[i]);
+  return c(`リスク ${rating}`, `発生 ${RISK_NOTE[l]} × 影響 ${RISK_IMPACT[i]}`, must(RISK_TONE[rating]));
 }));
 
 const PRESETS: Record<QuadrantPreset, PresetDef> = {
@@ -214,7 +214,7 @@ const HOLD: Record<QuadrantShape, number> = {circle: 1, square: 1.26, diamond: 1
 
 /** The marker of the n-th group: a shape and a colour, and from the fifth group on a hollow shape, so that no two groups differ
  *  by colour alone (up to 8). */
-const groupStyle = (gi: number): {shape: QuadrantShape; tone: QuadrantInk; hollow: boolean} => ({shape: SHAPES[gi % SHAPES.length], tone: GROUP_TONES[(gi + Math.floor(gi / SHAPES.length)) % GROUP_TONES.length], hollow: gi >= SHAPES.length});
+const groupStyle = (gi: number): {shape: QuadrantShape; tone: QuadrantInk; hollow: boolean} => ({shape: must(SHAPES[gi % SHAPES.length]), tone: must(GROUP_TONES[(gi + Math.floor(gi / SHAPES.length)) % GROUP_TONES.length]), hollow: gi >= SHAPES.length});
 
 const defined = <T extends object>(o: T | undefined): Partial<T> => Object.fromEntries(Object.entries(o ?? {}).filter(([, v]) => v !== undefined)) as Partial<T>;
 
@@ -434,7 +434,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     const flowRows: Unit[][] = [[]];
     let used = 0;
     for (const u of mine) {
-      const cur = flowRows[flowRows.length - 1];
+      const cur = must(flowRows[flowRows.length - 1]);
       if (cur.length && used + 12 + uw(u) > flowW) { flowRows.push([u]); used = uw(u); } else { used += (cur.length ? 12 : 0) + uw(u); cur.push(u); }
     }
     const heights = flowRows.map(fr => Math.max(...fr.map(uh)));
@@ -449,7 +449,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     const plotT = y + PAD, plotH = rowH.reduce((a, b) => a + b, 0) + gap * (rows - 1), plotB = plotT + plotH;
     const rowTop = rowH.map((_h, r) => plotT + rowH.slice(0, r).reduce((a, b) => a + b, 0) + gap * r);
     const cellX = (k: number) => plotL + k * (cw + gap);
-    const cellRect = (k: number, r: number): Rect => ({x: cellX(k), y: rowTop[r], w: cw, h: rowH[r]});
+    const cellRect = (k: number, r: number): Rect => ({x: cellX(k), y: must(rowTop[r]), w: cw, h: must(rowH[r])});
     const bodyRect = (k: number, r: number): Rect => ({x: cellX(k), y: must(rowTop[r]) + must(hdr[r]), w: cw, h: must(rowH[r]) - must(hdr[r])});
     const plot: Rect = {x: plotL, y: plotT, w: plotW, h: plotH};
 
@@ -466,7 +466,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
 
     // ---- captions
     band.cells.forEach((rowCells, r) => rowCells.forEach((cell, k) => {
-      const cap = must(caps[r])[k], cr0 = cellRect(k, r);
+      const cap = must(must(caps[r])[k]), cr0 = cellRect(k, r);
       const ink: QuadrantInk = cell.tone === 'accent' ? 'accent' : cell.tone === 'danger' ? 'danger' : 'text';
       let top = cr0.y + 8;
       for (const line of cap.t) { texts.push({text: line, x: cr0.x + 10, y: top + tSize, anchor: 'start', size: tSize, bold: true, fill: ink}); top += lineT; }
@@ -539,7 +539,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
       if (Math.hypot(s.cx - ideal.x, s.cy - ideal.y) > 3) moved.push({id: u.item.id, label: u.item.label, px});
     }
     for (const [key, flow] of flows) {
-      const [k, r] = key.split(',').map(Number), body = bodyRect(k, r);
+      const k = Number(key.split(',')[0]), r = Number(key.split(',')[1]), body = bodyRect(k, r);
       const {rows: flowRows, heights: rowHs, total} = flow;
       const n = flowRows.reduce((a, fr) => a + fr.length, 0);
       if (total > body.h - 10) throw new Grow(`the cell [${k}, ${r}] cannot hold ${n} item${n > 1 ? 's' : ''}`);
@@ -612,7 +612,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   });
   const chipsBusy = (r: Rect): boolean => placed.some(({u, spot}) => circleRect(spot.cx, spot.cy, u.cr, r, 2) || rectsMeet(r, spot.box, 2)) || chips.some(o => rectsMeet(r, o, 2)) || must(result).headers.some(hd => rectsMeet(r, hd, 2)) || !inside(r, must(result).inPlot);
   for (const al of arrowLabels) {
-    const s = arrows[al.seg], lw = tw(al.text, size, 400), cw2 = lw + 10, ch = size + 6;
+    const s = must(arrows[al.seg]), lw = tw(al.text, size, 400), cw2 = lw + 10, ch = size + 6;
     let chip: Rect | undefined;
     for (const t of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]) {
       const r: Rect = {x: s.x1 + (s.x2 - s.x1) * t - cw2 / 2, y: s.y1 + (s.y2 - s.y1) * t - ch / 2, w: cw2, h: ch};

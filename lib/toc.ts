@@ -130,7 +130,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   // an AND: an arc across the last run of each of its arrows, a little before the arrowheads. It needs the arrows to arrive on
   // one side of the effect, all heading the same way, with room before the head for the arc
   for (const g of groups) {
-    const ends = g.arrows.map(k => must(out.edges[must(drawn.get(k))]).points).map(p => ({tip: p[p.length - 1], prev: p[p.length - 2]}));
+    const ends = g.arrows.map(k => must(out.edges[must(drawn.get(k))]).points).map(p => ({tip: must(p[p.length - 1]), prev: must(p[p.length - 2])}));
     const sgn = (v: number): number => Math.abs(v) < 0.5 ? 0 : Math.sign(v); // a last run a hair off the straight (float noise) is still straight
     const d = {x: sgn(must(ends[0]).tip.x - must(ends[0]).prev.x), y: sgn(must(ends[0]).tip.y - must(ends[0]).prev.y)};
     const along = (p: Pt): number => d.x ? p.x : p.y, cross = (p: Pt): number => d.x ? p.y : p.x;
@@ -139,7 +139,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     if (!aligned || room < AND_END + 1) { out.loose.push(g.to); continue; }
     const us = ends.map(e => cross(e.tip)), tip = must(ends[0]).tip;
     // the arc ends short of the nearest other arrow into this effect (another AND's arc, or an arrow of its own), so two arcs never touch
-    const others = out.edges.filter((e, k) => e.to === g.to && !g.arrows.some(a => drawn.get(a) === k)).map(e => cross(e.points[e.points.length - 1]));
+    const others = out.edges.filter((e, k) => e.to === g.to && !g.arrows.some(a => drawn.get(a) === k)).map(e => cross(must(e.points[e.points.length - 1])));
     const reachTo = (u: number, sign: 1 | -1): number => Math.min(AND_REACH, ...others.filter(o => (o - u) * sign > 0).map(o => Math.abs(o - u) / 2 - 5));
     const lo = Math.min(...us) - reachTo(Math.min(...us), -1), hi = Math.max(...us) + reachTo(Math.max(...us), 1);
     const at = (u: number, dist: number): Pt => d.x ? {x: tip.x - d.x * dist, y: u} : {x: u, y: tip.y - d.y * dist};

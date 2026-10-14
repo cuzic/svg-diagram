@@ -104,11 +104,12 @@ export default function svgDiagram(md: MdLike, opts: SvgDiagramPluginOptions = {
   md.core.ruler.after('inline', 'svg_diagram_block', (state: State) => {
     const {tokens} = state;
     for (let i = 0; i + 2 < tokens.length; i++) {
-      const [open, inline, close] = [tokens[i], tokens[i + 1], tokens[i + 2]];
+      const [open, inline, close] = [must(tokens[i]), must(tokens[i + 1]), must(tokens[i + 2])];
       if (open.type !== 'paragraph_open' || inline.type !== 'inline' || close.type !== 'paragraph_close') continue;
       const kids = (inline.children ?? []).filter(c => !(c.type === 'text' && !c.content.trim()) && c.type !== 'softbreak');
-      if (kids.length !== 1 || must(kids[0]).type !== 'image') continue;
-      const html = figure(kids[0], state.env, false);
+      const kid = kids[0];
+      if (kids.length !== 1 || !kid || kid.type !== 'image') continue;
+      const html = figure(kid, state.env, false);
       if (html === undefined) continue;
       const block = new state.Token('html_block', '', 0);
       block.content = html + '\n';

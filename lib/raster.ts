@@ -30,9 +30,9 @@ export interface Raster {
 /** The SVG's own width and height (the root's attributes, or its viewBox). */
 export function svgSize(svg: string): {w: number; h: number} | null {
   const root = /<svg\b[^>]*>/.exec(svg)?.[0] ?? '';
-  const num = (n: string) => { const m = new RegExp(`\\s${n}="([0-9.]+)(?:px)?"`).exec(root); return m ? parseFloat(m[1]) : NaN; };
+  const num = (n: string) => { const m = new RegExp(`\\s${n}="([0-9.]+)(?:px)?"`).exec(root); return m ? parseFloat(must(m[1])) : NaN; };
   let w = num('width'), h = num('height');
-  if (!(w > 0 && h > 0)) { const vb = /viewBox="[-0-9.]+[ ,]+[-0-9.]+[ ,]+([0-9.]+)[ ,]+([0-9.]+)"/.exec(root); if (vb) { w = parseFloat(vb[1]); h = parseFloat(vb[2]); } }
+  if (!(w > 0 && h > 0)) { const vb = /viewBox="[-0-9.]+[ ,]+[-0-9.]+[ ,]+([0-9.]+)[ ,]+([0-9.]+)"/.exec(root); if (vb) { w = parseFloat(must(vb[1])); h = parseFloat(must(vb[2])); } }
   return w > 0 && h > 0 ? {w, h} : null;
 }
 
@@ -44,7 +44,7 @@ export function grayscaleSvg(svg: string): string {
   const end = svg.lastIndexOf('</svg>');
   if (!open || end === -1) return svg;
   const vb = /\sviewBox="\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*"/.exec(open[0])?.slice(1).map(Number), size = svgSize(svg);
-  const [x, y, w, h] = vb ?? (size ? [0, 0, size.w, size.h] : [0, 0, 0, 0]);
+  const [x = 0, y = 0, w = 0, h = 0] = vb ?? (size ? [0, 0, size.w, size.h] : [0, 0, 0, 0]);
   const region = w > 0 && h > 0 ? ` filterUnits="userSpaceOnUse" x="${x - w}" y="${y - h}" width="${3 * w}" height="${3 * h}"` : '';
   const filter = `<filter id="svg-diagram-gray"${region} color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/></filter>`;
   const at = open.index + open[0].length;
@@ -107,7 +107,7 @@ export function prepareResvgFonts(svg: string, specs?: FontSpecs): {options: Res
   for (const cp of chars) if (EMOJI_RE.test(String.fromCodePoint(cp))) roles.add('emoji:400');
   const drawn = [...chars].some(cp => cp > 0x20); // any character to draw at all (a figure of shapes needs no font)
 
-  const resolve = (role: string) => { const [family, weight] = role.split(':'); return {role, r: resolveFontFile(family as FontFamily, +weight, specs), cov: fontCoverage(family as FontFamily, +weight, specs)}; };
+  const resolve = (role: string) => { const [family, weight] = role.split(':'); return {role, r: resolveFontFile(family as FontFamily, Number(weight), specs), cov: fontCoverage(family as FontFamily, Number(weight), specs)}; };
   const loaded = [...roles].map(resolve).filter(x => x.r);
   // a character none of the needed fonts has may be in another of the layout's fonts (a symbol only the emoji font draws): take that one too
   const missing = (list: typeof loaded) => [...chars].filter(cp => cp > 0x20 && cp !== 0xfe0f && cp !== 0x200d && !list.some(x => must(x.cov).has(cp)));
@@ -188,7 +188,7 @@ export function embedSvg(svg: string, box: {x: number; y: number; w: number; h: 
   const ns = /\sxmlns="([^"]*)"/.exec(open[0])?.[1] ?? 'http://www.w3.org/2000/svg';
   const extra = [...open[0].matchAll(/\s(xmlns:[\w-]+="[^"]*")/g)].map(m => m[1]).join(' ');
   let inner = svg.slice(must(open.index) + open[0].length, svg.lastIndexOf('</svg>'));
-  const ids = [...new Set([...inner.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]))];
+  const ids = [...new Set([...inner.matchAll(/\sid="([^"]+)"/g)].map(m => must(m[1])))];
   for (const id of ids) {
     const re = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     inner = inner.replace(new RegExp(`(\\sid=")${re}(")`, 'g'), `$1${idPrefix}${id}$2`)

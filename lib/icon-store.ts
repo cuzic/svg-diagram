@@ -108,7 +108,7 @@ export function sanitizeBody(body: string, what: string, allowColor: boolean, le
   if (bad) throw new Error(`${what}: <${bad[1]}> is not supported (shapes, groups, gradients and clip paths only — no styles, scripts, masks, filters, text, images or references)`);
   const tags: {name: string; attrs: Map<string, string>; close: boolean}[] = [];
   const rest = body.replace(/<(\/?)([A-Za-z][\w:-]*)((?:\s+[\w:-]+\s*=\s*"[^"]*")*)\s*(\/?)>/g, (_m, slash: string, name: string, attrs: string, self: string) => {
-    tags.push({name, attrs: new Map([...attrs.matchAll(/([\w:-]+)\s*=\s*"([^"]*)"/g)].map(a => [a[1], a[2]])), close: slash === '/'});
+    tags.push({name, attrs: new Map([...attrs.matchAll(/([\w:-]+)\s*=\s*"([^"]*)"/g)].map((a): [string, string] => [must(a[1]), must(a[2])])), close: slash === '/'});
     if (self) tags.push({name, attrs: new Map(), close: true});
     return '';
   });
@@ -121,7 +121,7 @@ export function sanitizeBody(body: string, what: string, allowColor: boolean, le
     for (const [k, v] of t.attrs) {
       if (k === 'id' && SAFE_ID.test(v)) defined.add(v);
       const m = REF.exec(v);
-      if (m) used.add(m[1]);
+      if (m) used.add(must(m[1]));
       else if ((k === 'href' || k === 'xlink:href') && v.startsWith('#')) used.add(v.slice(1));
     }
   }
@@ -186,14 +186,14 @@ export function glyphFromBody(body: string, box: {width?: number | string; heigh
 export function glyphFromSvg(svg: string, what: string, opts: {color?: boolean} = {}): IconGlyph {
   const root = /<svg\b([^>]*)>([\s\S]*)<\/svg>/.exec(cleanSvgFile(svg));
   if (!root) throw new Error(`${what}: not an <svg> file`);
-  const attr = (n: string) => new RegExp(`\\s${n}\\s*=\\s*"([^"]+)"`).exec(root[1])?.[1];
+  const attr = (n: string) => new RegExp(`\\s${n}\\s*=\\s*"([^"]+)"`).exec(must(root[1]))?.[1];
   let vb = attr('viewBox')?.trim().split(/[\s,]+/).map(Number);
   if (vb?.length !== 4 || !vb.every(Number.isFinite)) {
     const w = num(attr('width')), h = num(attr('height'));
     if (!w || !h) throw new Error(`${what}: needs a viewBox`);
     vb = [0, 0, w, h];
   }
-  return glyphFromBody(root[2], {width: vb[2], height: vb[3], left: vb[0], top: vb[1]}, what, {...opts, lenient: true});
+  return glyphFromBody(must(root[2]), {width: vb[2], height: vb[3], left: vb[0], top: vb[1]}, what, {...opts, lenient: true});
 }
 
 /** `mdi:key-variant=key` → {set, icon, name}; `./logo.svg` → {file, name}. */
@@ -207,7 +207,7 @@ export function parseSpec(arg: string): IconSpec {
   }
   const m = /^([a-z0-9]+(?:-[a-z0-9]+)*):([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(src);
   if (!m) throw new Error(`"${arg}": write an Iconify id like mdi:key-variant (optionally =name), or a path to an .svg file`);
-  return finish({kind: 'iconify', prefix: m[1], icon: m[2], name: as ?? m[2]});
+  return finish({kind: 'iconify', prefix: must(m[1]), icon: must(m[2]), name: as ?? must(m[2])});
 }
 function finish<S extends IconSpec>(s: S): S {
   if (!ICON_NAME_RE.test(s.name)) throw new Error(`"${s.name}" is not a usable icon name (letters, digits, - and _; starting with a letter) — give one with =name`);

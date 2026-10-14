@@ -27,8 +27,8 @@ const NUM = new RegExp(`[0-9${DOT}]`);
 /** `needle` occurs in `hay` and, where it starts or ends with a digit, is not part of a longer number there (30 is not in 300) */
 function contains(hay: string, needle: string): boolean {
   for (let i = hay.indexOf(needle); i !== -1; i = hay.indexOf(needle, i + 1)) {
-    const before = NUM.test(needle[0]) && i > 0 && NUM.test(hay[i - 1]);
-    const after = NUM.test(needle[needle.length - 1]) && NUM.test(hay[i + needle.length] ?? '');
+    const before = NUM.test(needle[0] ?? '') && i > 0 && NUM.test(must(hay[i - 1]));
+    const after = NUM.test(needle[needle.length - 1] ?? '') && NUM.test(hay[i + needle.length] ?? '');
     if (!before && !after) return true;
   }
   return false;
@@ -77,11 +77,11 @@ function mdRows(text: string): {row: string[]; line: number}[] {
   const lines = text.split(/\r?\n/), rows: {row: string[]; line: number}[] = [];
   let fence = false;
   for (let i = 0; i < lines.length; i++) {
-    if (FENCE.test(lines[i])) { fence = !fence; continue; }
+    if (FENCE.test(must(lines[i]))) { fence = !fence; continue; }
     // a header needs a pipe and a rule with as many columns ("Title\n---" is a heading, not a table)
-    if (fence || !must(lines[i]).includes('|') || !DELIM.test(lines[i + 1] ?? '') || mdRow(lines[i + 1]).length !== mdRow(lines[i]).length) continue;
-    rows.push({row: mdRow(lines[i]), line: i + 1});
-    for (i += 2; i < lines.length && must(lines[i]).trim() && must(lines[i]).includes('|') && !FENCE.test(lines[i]); i++) rows.push({row: mdRow(lines[i]), line: i + 1});
+    if (fence || !must(lines[i]).includes('|') || !DELIM.test(lines[i + 1] ?? '') || mdRow(must(lines[i + 1])).length !== mdRow(must(lines[i])).length) continue;
+    rows.push({row: mdRow(must(lines[i])), line: i + 1});
+    for (i += 2; i < lines.length && must(lines[i]).trim() && must(lines[i]).includes('|') && !FENCE.test(must(lines[i])); i++) rows.push({row: mdRow(must(lines[i])), line: i + 1});
     i--;
   }
   return rows;

@@ -36,6 +36,7 @@ export function styleOf(g: IconGlyph): IconStyle {
 }
 
 const NAME_OK = /^[A-Za-z][A-Za-z0-9_-]*$/;
+const splitId = (id: string): [string, string] => { const [prefix = '', name = ''] = id.split(':'); return [prefix, name]; }; // an iconify id is `prefix:name`
 
 export async function findIcons(words: string[], opts: FindOpts = {}): Promise<{word: string; candidates: Candidate[]; skipped: string[]}[]> {
   const f: Fetch = opts.fetch ?? (url => fetch(url) as never);
@@ -58,7 +59,7 @@ export async function findIcons(words: string[], opts: FindOpts = {}): Promise<{
     const skipped: string[] = [];
     const usable = new Map<string, string[]>();
     for (const id of ids) {
-      const [prefix, name] = id.split(':');
+      const [prefix, name] = splitId(id);
       const lic = infos[prefix]?.license?.spdx;
       if (!lic || !allow.has(lic)) { if (!skipped.includes(`${prefix} (${lic ?? 'no licence'})`)) skipped.push(`${prefix} (${lic ?? 'no licence'})`); continue; }
       if (infos[prefix]?.palette && !opts.color) continue;
@@ -66,29 +67,29 @@ export async function findIcons(words: string[], opts: FindOpts = {}): Promise<{
     }
     // best first: the main set, then names that are the word itself, then the search's own order
     const rank = (id: string) => {
-      const [prefix, name] = id.split(':');
+      const [prefix, name] = splitId(id);
       return (prefix === opts.mainSet ? 0 : 4) + (name === q ? 0 : name.startsWith(q + '-') || name.startsWith(q) ? 1 : 2);
     };
-    const ordered = ids.filter(id => usable.get(id.split(':')[0])?.includes(id.split(':')[1])).map((id, i) => ({id, i})).sort((a, b) => rank(a.id) - rank(b.id) || a.i - b.i).map(x => x.id);
+    const ordered = ids.filter(id => usable.get(splitId(id)[0])?.includes(splitId(id)[1])).map((id, i) => ({id, i})).sort((a, b) => rank(a.id) - rank(b.id) || a.i - b.i).map(x => x.id);
     // bodies, one request per set, only for the icons that may be shown (a few more than `limit`: some will not convert)
     const wanted = new Map<string, string[]>();
-    for (const id of ordered.slice(0, limit * 4)) { const [p, n] = id.split(':'); wanted.set(p, [...(wanted.get(p) ?? []), n]); }
+    for (const id of ordered.slice(0, limit * 4)) { const [p, n] = splitId(id); wanted.set(p, [...(wanted.get(p) ?? []), n]); }
     const sets = new Map<string, IconifySet>();
     for (const [p, names] of wanted) sets.set(p, await getJson<IconifySet>(f, `${api}/${p}.json?icons=${encodeURIComponent(names.join(','))}`));
     const candidates: Candidate[] = [];
     for (const id of ordered) {
       if (candidates.length >= limit) break;
-      const [prefix, name] = id.split(':');
+      const [prefix, name] = splitId(id);
       const set = sets.get(prefix);
       const direct = set?.icons?.[name];
       const alias = set?.aliases?.[name];
-      const t = direct ?? (alias && set?.icons?.[alias.parent] ? {...set.icons[alias.parent], ...alias} : undefined);
+      const aliased = alias && set?.icons?.[alias.parent], t = direct ?? (alias && aliased ? {...aliased, ...alias, body: alias.body ?? aliased.body} : undefined);
       if (!set || !t || t.rotate || t.hFlip || t.vFlip) continue;
       let glyph: IconGlyph;
       try { glyph = glyphFromBody(t.body, {width: t.width ?? set.width ?? 16, height: t.height ?? set.height ?? t.width ?? set.width ?? 16, left: t.left, top: t.top}, id, {color: opts.color}); } catch { continue; }
       const style = styleOf(glyph);
       if (opts.style && opts.style !== 'any' && style !== opts.style) continue;
-      candidates.push({id, prefix, name, style, license: must(must(infos[prefix].license).spdx), mainSet: prefix === opts.mainSet, glyph, add: `${id}=${NAME_OK.test(q) ? q : name}`});
+      candidates.push({id, prefix, name, style, license: must(must(must(infos[prefix]).license).spdx), mainSet: prefix === opts.mainSet, glyph, add: `${id}=${NAME_OK.test(q) ? q : name}`});
     }
     out.push({word: q, candidates, skipped});
   }

@@ -47,16 +47,16 @@ const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
 const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1]; };
 const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--covers', '--format', '--only'];
-const vals = (n: string) => args.flatMap((a, i) => (a === n && args[i + 1] !== undefined ? [args[i + 1]] : []));
+const vals = (n: string) => args.flatMap((a, i) => { const v = args[i + 1]; return a === n && v !== undefined ? [v] : []; });
 // --docs takes the path after it, and every following .md file / directory too (`--docs A.md B.md dir`): those are documents, never sources
 const isDocArg = (a: string) => !a.startsWith('--') && (a.toLowerCase().endsWith('.md') || (fs.existsSync(a) && fs.statSync(a).isDirectory()));
 const docsArgIdx = new Set<number>();
-args.forEach((a, i) => { if (a === '--docs') for (let j = i + 1; j < args.length && (j === i + 1 ? args[j] !== undefined && !must(args[j]).startsWith('--') : isDocArg(args[j])); j++) docsArgIdx.add(j); });
+args.forEach((a, i) => { if (a === '--docs') for (let j = i + 1; j < args.length && (j === i + 1 ? args[j] !== undefined && !must(args[j]).startsWith('--') : isDocArg(must(args[j]))); j++) docsArgIdx.add(j); });
 const strict = flag('--strict'), verbose = flag('--verbose'), drift = flag('--drift'), rebuild = flag('--rebuild');
 const mapMode = flag('--map');
 if (mapMode && (!val('--docs') || (val('--format') ?? 'text') !== 'text')) { console.error('--map は --docs と一緒に、--format text で使う（表を標準出力に出す）'); process.exit(2); }
 const svgDir = val('--svg-dir'), srcDir = val('--src-dir'), docsDirs = args.filter((_, i) => docsArgIdx.has(i)), docsDir = docsDirs[0], coversFile = val('--covers'), only = vals('--only').map(globToRegExp), format = val('--format') ?? 'text';
-const sources = args.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1]) && !docsArgIdx.has(i));
+const sources = args.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1] ?? '') && !docsArgIdx.has(i));
 for (const s of sources) {
   const ok = coversFile && s.toLowerCase().endsWith('.svg') ? true : /\.(ts|mts|cts|js|mjs|cjs)$/i.test(s);
   if (!ok) { console.error(`✗ ${s}: 図のソース（.ts / .mjs）ではない。${/\.md$/i.test(s) ? '文書は --docs ' + s + ' で渡す' : '図のソースを指定する'}`); process.exit(2); }
@@ -142,7 +142,7 @@ try {
         if (srcFile) {
           const d = await loadDiagram(path.resolve(srcFile), config);
           const sets = notesOf(d.bands);
-          if (sets.length === 1) for (const f of compareNotes(fig.items, sets[0], name)) add({file: rel, line: fig.line, ...f});
+          if (sets.length === 1) for (const f of compareNotes(fig.items, must(sets[0]), name)) add({file: rel, line: fig.line, ...f});
           else if (sets.length > 1) add({file: rel, line: fig.line, rule: 'doc-notes-mismatch', severity: 'info', message: `${name}: 注釈つきのワイヤーフレームが ${sets.length} 枚あり、突き合わせない`});
         }
         n++;
@@ -197,7 +197,7 @@ try {
           complain(`✗ ${src}: 再生成した SVG が自分の検査に通らない: ${why}`);
           continue;
         }
-        const pairs = [[svg, tmp], ...rebuilt.revealPaths.map((p, stage) => [path.join(path.dirname(svg), `${name}.reveal${stage}.svg`), p])];
+        const pairs: [string, string][] = [[svg, tmp], ...rebuilt.revealPaths.map((p, stage): [string, string] => [path.join(path.dirname(svg), `${name}.reveal${stage}.svg`), p])];
         const orphaned = fs.readdirSync(path.dirname(svg)).filter(f => {
           const m = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.reveal(\\d+)\\.svg$`).exec(f);
           return m && Number(m[1]) >= rebuilt.revealPaths.length;

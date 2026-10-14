@@ -72,13 +72,13 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
 
   const heads = p.actors.map((a, i): LaidOutSeqHead => {
     const lines = wrap(a.label, roles.title, 700, 'sans', aw - 2 * SEQ.headPadX, widthOf);
-    return {id: a.id, tone: a.tone, lines, x: must(cx[i]) - aw / 2, w: aw, cx: cx[i], y: 0, h: 0, textDy: SEQ.headPadY};
+    return {id: a.id, tone: a.tone, lines, x: must(cx[i]) - aw / 2, w: aw, cx: must(cx[i]), y: 0, h: 0, textDy: SEQ.headPadY};
   });
   // every head is as tall as the tallest; when any head has an icon, each head's stack (icon, then label) sits in the middle of the room
   const anyIcon = p.actors.some(a => a.icon), textH = Math.max(...heads.map(h => h.lines.length)) * lineH(roles.title);
   const headH = textH + (anyIcon ? SEQ_ICON_H : 0) + 2 * SEQ.headPadY;
   heads.forEach((h, i) => {
-    const a = p.actors[i];
+    const a = must(p.actors[i]);
     h.y = y; h.h = headH;
     const top = SEQ.headPadY + (anyIcon ? Math.round((headH - 2 * SEQ.headPadY - h.lines.length * lineH(roles.title) - (a.icon ? SEQ_ICON_H : 0)) / 2) : 0);
     h.textDy = top + (a.icon ? SEQ_ICON_H : 0);
@@ -99,7 +99,7 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
       const lines = wrap(s.text, roles.note, 400, 'sans', Math.min(room, Math.max(span - 20, 320)), widthOf);
       const labelH = lines.length * lineH(roles.note);
       const ay = top + labelH + SEQ.labelGap;
-      steps.push({kind: 'msg', x1: cx[i], x2: cx[j], y: ay, lines, labelTop: top, lx: (must(cx[i]) + must(cx[j])) / 2, line: s.line ?? 'solid', arrow: s.arrow ?? 'end', tone: s.tone});
+      steps.push({kind: 'msg', x1: must(cx[i]), x2: must(cx[j]), y: ay, lines, labelTop: top, lx: (must(cx[i]) + must(cx[j])) / 2, line: s.line ?? 'solid', arrow: s.arrow ?? 'end', tone: s.tone});
       cursor = ay + SEQ.stepGap;
     } else if (s.kind === 'self') {
       const i = at(s.self, 'self');
@@ -112,7 +112,7 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
       const labelH = lines.length * lineH(roles.note);
       const loopH = 22;
       const rowH = Math.max(labelH, loopH + 12);
-      steps.push({kind: 'self', cx: cx[i], y: top + 6, loopH, lines, lx, side, labelTop: top, line: s.line ?? 'solid', tone: s.tone});
+      steps.push({kind: 'self', cx: must(cx[i]), y: top + 6, loopH, lines, lx, side, labelTop: top, line: s.line ?? 'solid', tone: s.tone});
       cursor = top + rowH + SEQ.stepGap / 2;
     } else if (s.kind === 'note') {
       const ids = s.over.map(id => at(id, 'note.over'));
@@ -174,8 +174,8 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
       const size = roles.body;
       const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', must(colW[i]) - 2 * TBL.padX - (c.icon ? TBL.iconSize + TBL.iconGap : 0), widthOf);
       // an icon beside centred / right-aligned text sits just before its first line (left-aligned: at the cell's left edge)
-      const lineW = c.icon && lines.length && c.align !== 'left' ? textWidth(widthOf, lines[0], size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans') : undefined;
-      return {...c, lines, x: colX[i], w: colW[i], top: 0, ...(lineW !== undefined ? {lineW} : {})};
+      const lineW = c.icon && lines.length && c.align !== 'left' ? textWidth(widthOf, must(lines[0]), size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans') : undefined;
+      return {...c, lines, x: must(colX[i]), w: must(colW[i]), top: 0, ...(lineW !== undefined ? {lineW} : {})};
     });
     const nLines = Math.max(1, ...placed.map(c => c.lines.length));
     const need = nLines * lineH(roles.body) + 2 * padY;

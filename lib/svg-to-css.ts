@@ -18,7 +18,7 @@ const px = (n: number): string => `${num(n)}px`;
 
 function attrsOf(s: string): Attrs {
   const a: Attrs = {};
-  for (const m of s.matchAll(/([\w:-]+)="([^"]*)"/g)) a[m[1]] = m[2];
+  for (const m of s.matchAll(/([\w:-]+)="([^"]*)"/g)) a[must(m[1])] = must(m[2]);
   return a;
 }
 
@@ -79,14 +79,15 @@ export function parsePath(d: string): Sub[] | null {
   };
   const open = (p: Pt) => { cur = {pts: [p], closed: false}; subs.push(cur); };
   while (i < tokens.length) {
-    if (isCmd(tokens[i])) cmd = tokens[i++];
+    const tk = must(tokens[i]);
+    if (isCmd(tk)) { cmd = tk; i++; }
     else if (!cmd) return null;
     const rel = cmd === cmd.toLowerCase(), C = cmd.toUpperCase();
     const ox = rel ? pos.x : 0, oy = rel ? pos.y : 0;
     if (C === 'Z') {
       if (cur) (cur as Sub).closed = true;
       pos = start; cur = null; lastCtl = null; lastCmd = 'Z';
-      if (i < tokens.length && !isCmd(tokens[i])) return null;
+      if (i < tokens.length && !isCmd(must(tokens[i]))) return null;
       continue;
     }
     const need = {M: 2, L: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, T: 2, A: 7}[C as 'M'];
@@ -114,7 +115,7 @@ export function parsePath(d: string): Sub[] | null {
         flattenCubic(must(sub).pts, pos, {x: pos.x + 2 / 3 * (q.x - pos.x), y: pos.y + 2 / 3 * (q.y - pos.y)}, {x: p.x + 2 / 3 * (q.x - p.x), y: p.y + 2 / 3 * (q.y - p.y)}, p);
         lastCtl = q; break;
       }
-      default: p = {x: must(v[5]) + ox, y: must(v[6]) + oy}; flattenArc(must(sub).pts, pos, v[0], v[1], v[2], v[3] !== 0, v[4] !== 0, p); lastCtl = null;
+      default: p = {x: must(v[5]) + ox, y: must(v[6]) + oy}; flattenArc(must(sub).pts, pos, must(v[0]), must(v[1]), must(v[2]), v[3] !== 0, v[4] !== 0, p); lastCtl = null;
     }
     pos = p; lastCmd = C;
   }
@@ -152,20 +153,20 @@ function ribbon(raw: Pt[], hw: number, cap: string): Pt[] | null {
   const pts = dedupe(raw);
   if (pts.length < 2) return null;
   const dirs: Pt[] = [];
-  for (let i = 0; i < pts.length - 1; i++) dirs.push(unit(sub2(pts[i + 1], pts[i])));
+  for (let i = 0; i < pts.length - 1; i++) dirs.push(unit(sub2(must(pts[i + 1]), must(pts[i]))));
   const n = (d: Pt): Pt => ({x: d.y, y: -d.x});
   const left: Pt[] = [], right: Pt[] = [];
   const last = pts.length - 1;
   for (let i = 0; i <= last; i++) {
-    const p = pts[i];
+    const p = must(pts[i]);
     if (i === 0 || i === last) {
-      const d = i === 0 ? dirs[0] : dirs[last - 1], nn = n(d);
+      const d = must(i === 0 ? dirs[0] : dirs[last - 1]), nn = n(d);
       const e = cap === 'square' ? (i === 0 ? -hw : hw) : 0;
       const b = {x: p.x + d.x * e, y: p.y + d.y * e};
       left.push({x: b.x + nn.x * hw, y: b.y + nn.y * hw}); right.push({x: b.x - nn.x * hw, y: b.y - nn.y * hw});
       continue;
     }
-    const n0 = n(dirs[i - 1]), n1 = n(dirs[i]), dot = n0.x * n1.x + n0.y * n1.y;
+    const n0 = n(must(dirs[i - 1])), n1 = n(must(dirs[i])), dot = n0.x * n1.x + n0.y * n1.y;
     if (dot > -0.5) { // a miter
       const k = hw / (1 + dot);
       left.push({x: p.x + (n0.x + n1.x) * k, y: p.y + (n0.y + n1.y) * k}); right.push({x: p.x - (n0.x + n1.x) * k, y: p.y - (n0.y + n1.y) * k});
@@ -183,8 +184,8 @@ function ribbon(raw: Pt[], hw: number, cap: string): Pt[] | null {
     }
     return out;
   };
-  const startCap = cap === 'round' ? half(pts[0], n(dirs[0]), dirs[0], false) : [];   // right side -> around the back -> left side
-  const endCap = cap === 'round' ? half(pts[last], n(dirs[last - 1]), dirs[last - 1], true) : [];
+  const startCap = cap === 'round' ? half(must(pts[0]), n(must(dirs[0])), must(dirs[0]), false) : [];   // right side -> around the back -> left side
+  const endCap = cap === 'round' ? half(must(pts[last]), n(must(dirs[last - 1])), must(dirs[last - 1]), true) : [];
   return [...startCap, ...left, ...endCap, ...right.reverse()];
 }
 
@@ -195,14 +196,14 @@ function ringStroke(raw: Pt[], hw: number): Pt[] | null {
   if (pts.length < 3) return null;
   const m = pts.length, a: Pt[] = [], b: Pt[] = [];
   for (let i = 0; i < m; i++) {
-    const p0 = pts[(i + m - 1) % m], p = pts[i], p1 = pts[(i + 1) % m];
+    const p0 = must(pts[(i + m - 1) % m]), p = must(pts[i]), p1 = must(pts[(i + 1) % m]);
     const d0 = unit(sub2(p, p0)), d1 = unit(sub2(p1, p));
     const n0 = {x: d0.y, y: -d0.x}, n1 = {x: d1.y, y: -d1.x}, dot = n0.x * n1.x + n0.y * n1.y;
     const k = hw / Math.max(1 + dot, 0.25);
     const mv = {x: (n0.x + n1.x) * k, y: (n0.y + n1.y) * k};
     a.push({x: p.x + mv.x, y: p.y + mv.y}); b.push({x: p.x - mv.x, y: p.y - mv.y});
   }
-  return [...a, a[0], ...b, b[0], a[0]];
+  return [...a, must(a[0]), ...b, must(b[0]), must(a[0])];
 }
 
 /** The pieces of a polyline that a dash pattern paints (arclength based, one run through the whole polyline). */
@@ -211,18 +212,18 @@ function dashPieces(pts: Pt[], dash: number[], offset = 0): Pt[][] | null {
   const period = pat.reduce((s, v) => s + v, 0);
   if (!(period > 0)) return null;
   const pieces: Pt[][] = [];
-  let idx = 0, left = pat[0], on = true, piece: Pt[] = [pts[0]];
+  let idx = 0, left = must(pat[0]), on = true, piece: Pt[] = [must(pts[0])];
   let o = ((offset % period) + period) % period;
-  while (o > 0) { const t = Math.min(o, left); left -= t; o -= t; if (left <= 1e-9) { idx = (idx + 1) % pat.length; left = pat[idx]; on = !on; piece = on ? [pts[0]] : []; } }
+  while (o > 0) { const t = Math.min(o, left); left -= t; o -= t; if (left <= 1e-9) { idx = (idx + 1) % pat.length; left = must(pat[idx]); on = !on; piece = on ? [must(pts[0])] : []; } }
   for (let i = 0; i < pts.length - 1; i++) {
-    let a = pts[i];
-    const b = pts[i + 1];
+    let a = must(pts[i]);
+    const b = must(pts[i + 1]);
     let seg = Math.hypot(b.x - a.x, b.y - a.y);
     const d = unit(sub2(b, a));
     while (seg > left) {
       const q = {x: a.x + d.x * left, y: a.y + d.y * left};
       if (on) { piece.push(q); pieces.push(piece); piece = []; } else piece = [q];
-      seg -= left; a = q; idx = (idx + 1) % pat.length; left = pat[idx]; on = !on;
+      seg -= left; a = q; idx = (idx + 1) % pat.length; left = must(pat[idx]); on = !on;
       if (pieces.length > 400) return null;
     }
     left -= seg;
@@ -244,7 +245,7 @@ function rgba(color: string, opacity: number): string {
   if (opacity >= 1) return color;
   const m = /^#([0-9a-f]{6})$/i.exec(color);
   if (!m) return color;
-  const v = parseInt(m[1], 16);
+  const v = parseInt(must(m[1]), 16);
   return `rgba(${v >> 16},${(v >> 8) & 255},${v & 255},${num(opacity)})`;
 }
 
@@ -258,8 +259,8 @@ function clipBox(pts: Pt[], color: string, rule: 'nonzero' | 'evenodd', extra = 
 function joined(subs: Pt[][]): Pt[] {
   const out: Pt[] = [];
   subs.forEach((s, k) => {
-    out.push(...s, s[0]);
-    if (k > 0) out.push(must(subs[0])[0]);
+    out.push(...s, must(s[0]));
+    if (k > 0) out.push(must(must(subs[0])[0]));
   });
   return out;
 }
@@ -271,9 +272,9 @@ interface Marker {w: number; h: number; vb: number[]; refX: number; refY: number
 function parseMarkers(svg: string): Map<string, Marker> {
   const out = new Map<string, Marker>();
   for (const m of svg.matchAll(/<marker\b([^>]*)>([\s\S]*?)<\/marker>/g)) {
-    const a = attrsOf(m[1]), p = /<path\b([^>]*)\/?>/.exec(m[2]);
+    const a = attrsOf(must(m[1])), p = /<path\b([^>]*)\/?>/.exec(must(m[2]));
     if (!a['id'] || !p) continue;
-    const pa = attrsOf(p[1]), sub = parsePath(pa['d'] ?? '');
+    const pa = attrsOf(must(p[1])), sub = parsePath(pa['d'] ?? '');
     if (!sub) continue;
     out.set(a['id'], {w: Number(a['markerWidth'] ?? 3), h: Number(a['markerHeight'] ?? 3), vb: (a['viewBox'] ?? '0 0 10 10').split(/[\s,]+/).map(Number), refX: Number(a['refX'] ?? 0), refY: Number(a['refY'] ?? 0), userSpace: a['markerUnits'] === 'userSpaceOnUse', fill: pa['fill'] ?? '#000000', sub});
   }
@@ -317,8 +318,8 @@ function convert(tag: string, a: Attrs, markers: Map<string, Marker>): string | 
     const nums = (a['points'] ?? '').split(/[\s,]+/).filter(Boolean).map(Number);
     if (nums.length < 6 || nums.length % 2 || nums.some(n => !Number.isFinite(n))) return null;
     const pts: Pt[] = [];
-    for (let i = 0; i < nums.length; i += 2) pts.push({x: nums[i], y: nums[i + 1]});
-    return clipBox(pts, rgba(a['fill'], Number(a['fill-opacity'] ?? 1)), 'nonzero', opacityStyle(a));
+    for (let i = 0; i < nums.length; i += 2) pts.push({x: must(nums[i]), y: must(nums[i + 1])});
+    return clipBox(pts, rgba(must(a['fill']), Number(a['fill-opacity'] ?? 1)), 'nonzero', opacityStyle(a));
   }
   if (tag !== 'path') return null;
   const f = parseTransform(a['transform']);
@@ -334,32 +335,32 @@ function convert(tag: string, a: Attrs, markers: Map<string, Marker>): string | 
   }
   if (sw && a['transform'] && Math.abs(f({x: 1, y: 0}).x - f({x: 0, y: 0}).x) !== 1) return null; // a scaled stroke
   if (sw) {
-    const hw = sw / 2, cap = a['stroke-linecap'] ?? 'butt';
+    const hw = sw / 2, cap = a['stroke-linecap'] ?? 'butt', stroke = must(a['stroke']);
     const dash = a['stroke-dasharray'] ? a['stroke-dasharray'].split(/[\s,]+/).map(Number) : null;
     if (dash?.some(n => !Number.isFinite(n))) return null;
     for (const s of maps) {
       if (dash) {
-        const pts = s.closed ? [...s.pts, s.pts[0]] : s.pts;
+        const pts = s.closed ? [...s.pts, must(s.pts[0])] : s.pts;
         const pieces = dashPieces(pts, dash);
         if (!pieces) return null;
         // a round cap grows each dash by half the width at both ends, which the pattern's lengths do not count
-        for (const pc of pieces) { const poly = ribbon(pc, hw, cap); if (poly) parts.push(clipBox(poly, a['stroke'], 'nonzero', op)); }
+        for (const pc of pieces) { const poly = ribbon(pc, hw, cap); if (poly) parts.push(clipBox(poly, stroke, 'nonzero', op)); }
       } else if (s.closed) {
         const poly = ringStroke(s.pts, hw);
-        if (poly) parts.push(clipBox(poly, a['stroke'], 'evenodd', op));
+        if (poly) parts.push(clipBox(poly, stroke, 'evenodd', op));
       } else {
         const poly = ribbon(s.pts, hw, cap);
-        if (poly) parts.push(clipBox(poly, a['stroke'], 'nonzero', op));
+        if (poly) parts.push(clipBox(poly, stroke, 'nonzero', op));
       }
     }
     // arrowheads: along the first / last segment of the whole path
-    const mkOf = (v: string | undefined) => { const m = /url\(#([^)]+)\)/.exec(v ?? ''); return m ? markers.get(m[1]) : undefined; };
+    const mkOf = (v: string | undefined) => { const m = /url\(#([^)]+)\)/.exec(v ?? ''); return m ? markers.get(must(m[1])) : undefined; };
     const ms = mkOf(a['marker-start']), me = mkOf(a['marker-end']);
     if ((a['marker-start'] && !ms) || (a['marker-end'] && !me)) return null;
     const first = maps[0]?.pts ?? [], lastPts = maps[maps.length - 1]?.pts ?? [];
     const fp = dedupe(first), lp = dedupe(lastPts);
-    if (ms && fp.length >= 2) { const d = unit(sub2(fp[0], fp[1])); parts.push(arrowHead(ms, fp[0], d, sw)); } // auto-start-reverse: points away from the line
-    if (me && lp.length >= 2) parts.push(arrowHead(me, lp[lp.length - 1], unit(sub2(lp[lp.length - 1], lp[lp.length - 2])), sw));
+    if (ms && fp.length >= 2) { const d = unit(sub2(must(fp[0]), must(fp[1]))); parts.push(arrowHead(ms, must(fp[0]), d, sw)); } // auto-start-reverse: points away from the line
+    if (me && lp.length >= 2) parts.push(arrowHead(me, must(lp[lp.length - 1]), unit(sub2(must(lp[lp.length - 1]), must(lp[lp.length - 2]))), sw));
   }
   return parts.join('');
 }
@@ -371,8 +372,8 @@ function convertGroup(el: string, a: Attrs, markers: Map<string, Marker>): strin
   const parts: string[] = [];
   for (const child of topLevel(inner)) {
     const m = /^<([\w:-]+)([^>]*?)\/?>/.exec(child);
-    if (!m || !['rect', 'circle', 'polygon', 'path'].includes(m[1])) return null;
-    const css = convert(m[1], attrsOf(m[2]), markers);
+    if (!m || !['rect', 'circle', 'polygon', 'path'].includes(must(m[1]))) return null;
+    const css = convert(must(m[1]), attrsOf(must(m[2])), markers);
     if (css === null) return null;
     parts.push(css);
   }
@@ -401,7 +402,7 @@ export function shapesToCss(svg: string, cls: string): string {
   if (!open) return svg;
   const inner = svg.slice(open[0].length, svg.lastIndexOf('</svg>'));
   const markers = parseMarkers(inner);
-  const a = attrsOf(open[1]);
+  const a = attrsOf(must(open[1]));
   const wrap = (body: string) => `<svg class="${cls}" xmlns="http://www.w3.org/2000/svg" width="${a['width']}" height="${a['height']}" viewBox="${a['viewBox']}"${/role="img"/.test(body) ? '' : ' aria-hidden="true"'}>${body}</svg>`;
   const out: string[] = [];
   let pending: string[] = [];
@@ -410,11 +411,11 @@ export function shapesToCss(svg: string, cls: string): string {
   for (const el of topLevel(inner)) {
     const m = /^<([\w:-]+)([^>]*?)\/?>/.exec(el);
     if (!m) continue;
-    const tag = m[1];
+    const tag = must(m[1]);
     if (tag === 'defs' || tag === 'style' || tag === 'title' || tag === 'desc' || tag === 'metadata') { if (tag === 'defs') defs.push(el); continue; }
     let css: string | null = null;
-    if (['rect', 'circle', 'polygon', 'path'].includes(tag)) css = convert(tag, attrsOf(m[2]), markers);
-    else if (tag === 'g' && el.endsWith('</g>')) css = convertGroup(el, attrsOf(m[2]), markers);
+    if (['rect', 'circle', 'polygon', 'path'].includes(tag)) css = convert(tag, attrsOf(must(m[2])), markers);
+    else if (tag === 'g' && el.endsWith('</g>')) css = convertGroup(el, attrsOf(must(m[2])), markers);
     if (css === null) pending.push(el); else { flush(); if (css) out.push(css); }
   }
   flush();

@@ -91,11 +91,11 @@ export function scatterOpts(points: readonly ScatterPoint[], opts: ScatterOpts):
   const xMin = x.min ?? 0, yTop = y.max - head, rowY = (i: number) => y.max - unitsFor(18 + 22 * i, y.max - (y.min ?? 0), PLOT_H(height));
   const {labelRole, id, reveal, until, width} = opts as PlaneOpts;
   const pts: PlanePoint[] = points.map(p => {
-    const s = p.group === undefined ? STRATA[0] : STRATA[groups.indexOf(p.group)];
+    const s = must(p.group === undefined ? STRATA[0] : STRATA[groups.indexOf(p.group)]);
     return {at: [p.x, p.y] as PlanePos, ...(p.id ? {id: p.id} : {}), ...(p.label ? {label: p.label} : {}), tone: s.tone, shape: s.shape};
   });
   const lines: PlaneLine[] = [], labels: PlaneLabel[] = [];
-  if (groups.length > 1) labels.push(...legendRow(groups.map((g, i) => ({text: g, ...STRATA[i]})), xMin + (x.max - xMin) * 0.01, x.max - xMin, rowY(0)));
+  if (groups.length > 1) labels.push(...legendRow(groups.map((g, i) => ({text: g, ...must(STRATA[i])})), xMin + (x.max - xMin) * 0.01, x.max - xMin, rowY(0)));
   if (opts.regression) {
     const sgn = (v: number): string => v < 0 ? '−' : '';
     const rText = `r = ${sgn(r)}${Math.abs(Math.round(r * 100) / 100).toFixed(2)}　y = ${sgn(slope)}${num(Math.abs(slope))}x ${intercept < 0 ? '−' : '+'} ${num(Math.abs(intercept))}　n = ${points.length}`;
@@ -181,7 +181,7 @@ export function controlStats(type: ControlType, data: readonly (number | number[
       ucl = new Array<number>(values.length).fill(D4_MR * cl); lcl = new Array<number>(values.length).fill(0); break;
     }
     case 'xbar': case 'r': {
-      const g = groups(), n = must(g[0]).length, f = FACTORS[n];
+      const g = groups(), n = must(g[0]).length, f = must(FACTORS[n]);
       const means = g.map(s => sum(s) / n), ranges = g.map(s => Math.max(...s) - Math.min(...s)), rBar = sum(ranges) / N;
       if (type === 'xbar') { values = means; cl = sum(means) / N; ({ucl, lcl} = same(cl, f.A2 * rBar)); }
       else { values = ranges; cl = fixed.cl ?? rBar; ucl = new Array<number>(N).fill(f.D4 * cl); lcl = new Array<number>(N).fill(f.D3 * cl); } // the limits are multiples of the centre line, a given one included
@@ -265,16 +265,16 @@ export function controlChartOpts(type: ControlType, data: readonly (number | num
   // every k-th number gets its text; k grows with the count and with the width of the labels (dates), so neighbours never touch
   const widest = opts.at ? Math.max(...opts.at.map(t => estimate(t, 14))) : estimate(String(N), 14);
   const every = Math.max(N > 30 ? 5 : N > 16 ? 2 : 1, Math.ceil((widest + 12) / (PLOT_W / (N + 1 + room))));
-  const xTicks = Array.from({length: N}, (_, i) => i + 1).filter(i => (i - 1) % every === 0).map(i => opts.at ? {at: i, label: opts.at[i - 1]} : i);
+  const xTicks = Array.from({length: N}, (_, i) => i + 1).filter(i => (i - 1) % every === 0).map(i => opts.at ? {at: i, label: must(opts.at[i - 1])} : i);
   const x: PlaneAxis = {label: opts.xLabel ?? 'サンプル', min: 0, max: N + 1 + room, ticks: xTicks};
   // as many decimals as it takes to tell the limits from the centre line (about 3 digits of the spread between them)
   const spread = Math.max(...s.ucl) - Math.min(s.cl, ...s.lcl), places = opts.digits ?? (spread > 0 ? Math.max(0, 1 - Math.floor(Math.log10(spread))) : 2);
   const fmt = (v: number) => v.toFixed(places);
-  const pt = (i: number): PlanePos => [i + 1 + offset, s.values[i]];
+  const pt = (i: number): PlanePos => [i + 1 + offset, must(s.values[i])];
   const points: PlanePoint[] = s.values.map((_, i) => ({at: pt(i), tone: flagged.outside.has(i) || flagged.pattern.has(i) ? 'danger' : 'accent', shape: flagged.outside.has(i) ? 'cross' : flagged.pattern.has(i) ? 'ring' : 'dot'}));
   const edge = (arr: number[]): PlanePos[] => {
     // constant limits are one line; limits that vary with n step from sample to sample
-    if (arr.every(v => Math.abs(v - must(arr[0])) < 1e-12)) return [[0.5 + offset, arr[0]], [N + 0.5, arr[0]]];
+    if (arr.every(v => Math.abs(v - must(arr[0])) < 1e-12)) return [[0.5 + offset, must(arr[0])], [N + 0.5, must(arr[0])]];
     const out: PlanePos[] = [];
     arr.forEach((v, i) => { out.push([i + 0.5 + offset, v], [i + 1.5 + offset, v]); });
     return out;
@@ -286,20 +286,20 @@ export function controlChartOpts(type: ControlType, data: readonly (number | num
   // the lower limit is drawn unless it is 0 all along (a line on the axis); its number is left out where it is 0 or changes with n
   const hasLcl = s.lcl.some(v => v > 1e-12 || type === 'x' || type === 'xbar');
   const lclLabeled = hasLcl && (type === 'x' || type === 'xbar' || must(s.lcl[n - 1]) > 1e-12);
-  const rows: {text: string; at: number}[] = [{text: stepped ? 'UCL（n による）' : `UCL ${fmt(s.ucl[n - 1])}`, at: s.ucl[n - 1]}, {text: `CL ${fmt(s.cl)}`, at: s.cl}];
-  if (lclLabeled) rows.push({text: stepped ? 'LCL（n による）' : `LCL ${fmt(s.lcl[n - 1])}`, at: s.lcl[n - 1]});
+  const rows: {text: string; at: number}[] = [{text: stepped ? 'UCL（n による）' : `UCL ${fmt(must(s.ucl[n - 1]))}`, at: must(s.ucl[n - 1])}, {text: `CL ${fmt(s.cl)}`, at: s.cl}];
+  if (lclLabeled) rows.push({text: stepped ? 'LCL（n による）' : `LCL ${fmt(must(s.lcl[n - 1]))}`, at: must(s.lcl[n - 1])});
   for (const [name, arr] of [['ucl', s.ucl], ['lcl', s.lcl]] as const) {
     if (name === 'lcl' && !hasLcl) continue;
     const e = edge(arr);
-    if (e.length === 2) lines.push({from: e[0], to: e[1], tone: 'danger', dashed: true});
+    if (e.length === 2) lines.push({from: must(e[0]), to: must(e[1]), tone: 'danger', dashed: true});
     else paths.push({through: e, tone: 'danger', dashed: true});
   }
   // labels of lines that sit closer than a text's height are pushed apart, so none of them touches another
   const placed = rows.sort((a, b) => b.at - a.at);
-  for (let i = 1; i < placed.length; i++) if (must(placed[i - 1]).at - must(placed[i]).at < gapY) placed[i] = {...placed[i], at: must(placed[i - 1]).at - gapY};
+  for (let i = 1; i < placed.length; i++) if (must(placed[i - 1]).at - must(placed[i]).at < gapY) placed[i] = {...must(placed[i]), at: must(placed[i - 1]).at - gapY};
   // a label that went down to the axis is lifted off it, and the ones above it make room (the labels sit a little above their lines then)
   const floor = (y.min ?? 0) + gapY * 1.15;
-  for (let i = placed.length - 1, lowest = floor; i >= 0; i--) { if (must(placed[i]).at < lowest) placed[i] = {...placed[i], at: lowest}; lowest = must(placed[i]).at + gapY; }
+  for (let i = placed.length - 1, lowest = floor; i >= 0; i--) { if (must(placed[i]).at < lowest) placed[i] = {...must(placed[i]), at: lowest}; lowest = must(placed[i]).at + gapY; }
   for (const r of placed) labels.push({at: [labelX, r.at], text: r.text, anchor: 'start', tone: r.text.startsWith('CL') ? 'accent' : 'danger', bold: true});
   const flagLabels = legend.length ? legendRow(legend, 0.5, x.max, y.max - head * 0.45) : [];
   const {labelRole, id, reveal, until, width} = opts as PlaneOpts;

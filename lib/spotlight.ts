@@ -47,7 +47,7 @@ export function dimmedBands(d: Pick<DiagramData, 'bands' | 'spotlight'>): Set<Ba
   for (const b of focused) if ('id' in b && b.id) focusedIds.add(b.id);
   const between = spotlightEdges(d) === 'between';
   for (const b of allBands(d.bands)) if (b.type === 'connect') {
-    const from = focusedIds.has(b.from.split(':')[0]), to = focusedIds.has(b.to.split(':')[0]);
+    const from = focusedIds.has(must(b.from.split(':')[0])), to = focusedIds.has(must(b.to.split(':')[0]));
     if (between ? from && to : from || to) focused.add(b);
   }
   return new Set(d.bands.length && targets.size ? allBands(d.bands).filter(b => !focused.has(b)) : []);
@@ -72,7 +72,8 @@ function targetRects(d: LaidOutDiagram, ids: string[]): Rect[] {
       if (b.id && ids.includes(b.id)) out.push(b);
       for (const id of ids) {
         const m = b.id && id.match(new RegExp(`^${b.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}#(\\d+)$`));
-        if (m && b.children[Number(m[1]) - 1]) out.push(b.children[Number(m[1]) - 1]);
+        const child = m ? b.children[Number(m[1]) - 1] : undefined;
+        if (child) out.push(child);
       }
       for (const c of b.children) if (c.id && ids.includes(c.id)) out.push(c);
     } else if (b.type === 'grid') {

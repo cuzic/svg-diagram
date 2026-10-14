@@ -16,7 +16,7 @@ export const ringed = (band: LaidOutBox): boolean => !band.dim && isSolidTone(ba
 
 
 export function renderStepBadge(band: LaidOutBox, day: Theme): string {
-  const titleRun = band.wrappedRuns[0];
+  const titleRun = must(band.wrappedRuns[0]);
   // the same padding the text and the icon use (a swimlane step has its own)
   const px = band.padX ?? BOX_PAD_X, titleBaselineY = band.y + (band.padY ?? BOX_PAD_Y) + must(titleRun.lineYs[0]);
   // a centred / right-aligned title: the badge goes just before its first line (titleW, from layout); else at the left edge, after a left icon
@@ -128,7 +128,7 @@ export function renderBanner(band: LaidOutBanner, day: Theme, roles: Roles): str
 
 export function renderRow(band: LaidOutRow, day: Theme, roles: Roles, stage?: number): string {
   const boxes = band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day, roles)).join('\n\n  ');
-  const arrows = band.arrows.filter((_, i) => visibleAt(band.children[i], stage) && visibleAt(band.children[i + 1], stage)).map(a =>
+  const arrows = band.arrows.filter((_, i) => visibleAt(must(band.children[i]), stage) && visibleAt(must(band.children[i + 1]), stage)).map(a =>
     `<path d="M${snap4(a.x1)},${Math.round(a.y1)} L${snap4(a.x2)},${Math.round(a.y2)}" fill="none" stroke="${band.dim ? PALETTE.muted : PALETTE.text}" stroke-width="2.5" marker-end="url(#${band.dim ? 'dsl-arrow-dim' : 'dsl-arrow'})"/>`,
   ).join('\n  ');
   return arrows ? `${boxes}\n\n  ${arrows}` : boxes;

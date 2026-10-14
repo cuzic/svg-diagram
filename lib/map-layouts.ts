@@ -55,7 +55,7 @@ export function layoutHanging(root: TreeNode, opts: {rowFirst?: boolean; gap?: n
   }
   const w = Math.max(kids.length ? cx - colGap : 0, root.size.w);
   const first = cols[0], last = cols[cols.length - 1];
-  const rootX = kids.length ? (first.x + first.w / 2 + last.x + last.w / 2) / 2 - root.size.w / 2 : 0;
+  const rootX = first && last ? (first.x + first.w / 2 + last.x + last.w / 2) / 2 - root.size.w / 2 : 0;
   const shift = Math.max(0, -rootX);
   if (shift) { for (const [id, p] of nodes) nodes.set(id, {...p, x: p.x + shift}); for (const e of edges) e.points = e.points.map(p => ({x: p.x + shift, y: p.y})); for (const c of cols) c.x += shift; }
   nodes.set(root.id, {x: rootX + shift, y: 0, ...root.size});
@@ -72,7 +72,7 @@ export function layoutBrace(root: TreeNode, opts: {gap?: number} = {}): TreeLayo
     const p = must(t.nodes.get(n.id)), kids = (n.children ?? []).map(c => ({c, p: must(t.nodes.get(c.id))}));
     if (!kids.length) return;
     if (kids.length === 1) { // one child: nothing to gather, a plain line
-      const k = kids[0], cy = k.p.y + k.p.h / 2;
+      const k = must(kids[0]), cy = k.p.y + k.p.h / 2;
       edges.push({from: n.id, to: k.c.id, points: [{x: p.x + p.w, y: p.y + p.h / 2}, {x: k.p.x, y: cy}]});
       walk(k.c);
       return;
@@ -157,7 +157,7 @@ export function layoutTimelineMap(root: TreeNode, opts: {gap?: number} = {}): Tr
   let cx = root.size.w + 36;
   const stems: number[] = [];
   kids.forEach((k, i) => {
-    const sub = lists[i], up = i % 2 === 0, x = cx;
+    const sub = must(lists[i]), up = i % 2 === 0, x = cx;
     const dy = up ? axisY - stub - sub.h : axisY + stub;
     // an upper list is read upward from the axis: it is placed flipped, so the child sits next to the axis and its list grows away
     const placed = up ? mirror(sub, 'y') : sub;

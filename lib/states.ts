@@ -29,7 +29,7 @@ function pointAt(pts: Pt[], t: number): Pt {
     if (half <= must(len[i]) || i === len.length - 1) { const t = len[i] ? half / must(len[i]) : 0; return {x: must(pts[i]).x + (must(pts[i + 1]).x - must(pts[i]).x) * t, y: must(pts[i]).y + (must(pts[i + 1]).y - must(pts[i]).y) * t}; }
     half -= must(len[i]);
   }
-  return pts[0];
+  return must(pts[0]);
 }
 
 export function layoutStatesBand(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutStates {
@@ -113,14 +113,14 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
     const tip = on.length ? {x: must(on[on.length - 1]).x - ARROW, y: must(on[on.length - 1]).y - ARROW, w: 2 * ARROW, h: 2 * ARROW} : null; // the arrowhead
     // a chip is white: on another arrow it would cut that arrow, so it keeps off every arrow but its own
     const onOther = (b: ReturnType<typeof boxAt>): boolean => out.edges.some((e, k) => k !== own && e.points.slice(1).some((q, m) => {
-      const p = e.points[m];
+      const p = must(e.points[m]);
       return hit(b, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2});
     }));
     const free = (b: ReturnType<typeof boxAt>): boolean => !out.labels.some(o => hit(b, o)) && !out.nodes.some(n => hit(b, n)) && !(tip && hit(b, tip)) && !onOther(b);
     // first choice: beside the arrow's straight runs, last run first (above a horizontal one, to the right of a vertical one)
     const runs: Pt[] = [];
     for (let k = on.length - 2; k >= 0; k--) {
-      const p = on[k], q = on[k + 1], last = k === on.length - 2, trim = last ? ARROW : 0;
+      const p = must(on[k]), q = must(on[k + 1]), last = k === on.length - 2, trim = last ? ARROW : 0;
       if (dir === 'right' && p.y === q.y) {
         const len = Math.abs(q.x - p.x) - trim;
         if (len >= lw) runs.push({x: p.x + Math.sign(q.x - p.x) * (len / 2), y: p.y - lh / 2 - 3});
@@ -134,7 +134,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
     const cands: {p: Pt; cost: number}[] = runs.map(p => ({p, cost: -1}));
     for (let f = 0.05; f < 0.96; f += 0.05) for (const [ox, oy] of offs) { const q = at(f); cands.push({p: {x: q.x + ox, y: q.y + oy}, cost: Math.hypot(ox, oy) + Math.abs(f - 0.5) * 30}); }
     cands.sort((u, v) => u.cost - v.cost);
-    const c = (cands.find(k => free(boxAt(k.p))) ?? cands[0]).p;
+    const c = must(cands.find(k => free(boxAt(k.p))) ?? cands[0]).p;
     const b = boxAt(c);
     out.labels.push({text, ...b, tx: c.x, ty: b.y + S + 2, size: S, edge: own});
     out.labelBoxes.push({label: text, ...b});

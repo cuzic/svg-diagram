@@ -91,7 +91,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     : kind === 'brace' ? layoutBrace(laidRoot) : kind === 'fishbone' ? layoutFishbone(laidRoot) : layoutTimelineMap(laidRoot);
   // the line style: straight or smooth instead of the elbow (the first and last point of each line, the smooth one along the way the tree grows)
   const along: 'x' | 'y' = kind === 'down' || kind === 'up' ? 'y' : 'x';
-  const tree: TreeLayout = !styled ? raw : {...raw, edges: raw.edges.map(e => ({...e, points: [e.points[0], e.points[e.points.length - 1]], ...(band.edges === 'curve' ? {curve: along} : {})}))};
+  const tree: TreeLayout = !styled ? raw : {...raw, edges: raw.edges.map(e => ({...e, points: [must(e.points[0]), must(e.points[e.points.length - 1])], ...(band.edges === 'curve' ? {curve: along} : {})}))};
   if (tree.w > w + 0.5) throw new Error(`tree(): the chart is ${Math.ceil(tree.w)}px wide but the figure has ${Math.round(w)}px (${band.balanced ? (kind === 'org' || kind === 'timeline' || kind === 'fishbone' || kind === 'down' || kind === 'up' ? "use layout: 'list', 'right' or 'left', a smaller maxNodeW, or fewer branches" : 'use a smaller maxNodeW or fewer branches') : "use dir: 'right', a smaller maxNodeW, or fewer siblings on one level"})`);
   const dx = x + (w - tree.w) / 2, dy = y;
   const out: LaidOutTree = {

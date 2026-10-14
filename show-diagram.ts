@@ -39,7 +39,7 @@ const VALUE = ['--png', '--scale', '--width', '--colors', '--engine'];
 const flag = (n: string) => args.includes(n);
 const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1] ?? null; };
 const num = (n: string) => { const v = val(n); if (v === null) return null; const x = Number(v); if (!(x > 0)) { console.error(`✗ ${n} needs a positive number (got ${v})\n${USAGE}`); process.exit(2); } return x; };
-const files = args.filter((a, i) => !a.startsWith('--') && !VALUE.includes(args[i - 1]));
+const files = args.filter((a, i) => !a.startsWith('--') && !VALUE.includes(args[i - 1] ?? ''));
 for (const a of args) if (a.startsWith('--') && ![...VALUE, '--force', '--passthrough'].includes(a)) { console.error(`✗ unknown option ${a}\n${USAGE}`); process.exit(2); }
 if (!files.length) { console.error(USAGE); process.exit(2); }
 const pngOut = val('--png'), scaleOpt = num('--scale'), widthOpt = num('--width'), colors = num('--colors') ?? 256;

@@ -16,7 +16,7 @@ export function scanPngRefs(text: string): {line: number; alt: string; ref: stri
   let fence = false;
   text.split('\n').forEach((ln, i) => {
     if (/^\s*(```|~~~)/.test(ln)) { fence = !fence; return; }
-    if (!fence) for (const m of ln.matchAll(PNG)) out.push({line: i + 1, alt: m[1], ref: m[2]});
+    if (!fence) for (const m of ln.matchAll(PNG)) out.push({line: i + 1, alt: must(m[1]), ref: must(m[2])});
   });
   return out;
 }
@@ -24,7 +24,7 @@ const norm = (s: unknown): string => String(s ?? '').replace(/\s+/g, '').replace
 
 export function scanMarkdown(text: string): DocImage[] {
   const lines = text.split('\n'), out: DocImage[] = [];
-  lines.forEach((ln, i) => { for (const m of ln.matchAll(IMG)) out.push({line: i + 1, alt: m[1], ref: m[2], items: listAfter(lines, i), caption: captionOf(lines, i, m[1])}); });
+  lines.forEach((ln, i) => { for (const m of ln.matchAll(IMG)) out.push({line: i + 1, alt: must(m[1]), ref: must(m[2]), items: listAfter(lines, i), caption: captionOf(lines, i, must(m[1]))}); });
   return out;
 }
 
@@ -35,7 +35,7 @@ function captionOf(lines: string[], i: number, alt: string): DocCaption | undefi
   if (a) return {ch: +must(a[1]), no: +must(a[2]), line: i + 1};
   // 図N-M then a separator (space, colon, closing mark): "図3-1と同じく…" starts a sentence, it is not a caption
   const at = (j: number): DocCaption | undefined => {
-    const m = new RegExp(`^[\\s*_>]*${FIG}(?=$|[\\s:：.．、。*_)）\\]】」])`).exec(lines[j]);
+    const m = new RegExp(`^[\\s*_>]*${FIG}(?=$|[\\s:：.．、。*_)）\\]】」])`).exec(must(lines[j]));
     return m ? {ch: +must(m[1]), no: +must(m[2]), line: j + 1} : undefined;
   };
   const near = (from: number, dir: number): number => {
@@ -43,7 +43,7 @@ function captionOf(lines: string[], i: number, alt: string): DocCaption | undefi
     while (j >= 0 && j < lines.length && must(lines[j]).trim() === '') j += dir;
     return j >= 0 && j < lines.length ? j : -1;
   };
-  const isImg = (j: number) => j >= 0 && new RegExp(IMG.source).test(lines[j]);
+  const isImg = (j: number) => j >= 0 && new RegExp(IMG.source).test(must(lines[j]));
   const after = near(i, 1), before = near(i, -1);
   const ca = after >= 0 && !isImg(after) ? at(after) : undefined, cb = before >= 0 && !isImg(before) ? at(before) : undefined;
   // captions above the figures: the line after this image sits right above the next image, so it is that image's caption
@@ -55,10 +55,10 @@ function captionOf(lines: string[], i: number, alt: string): DocCaption | undefi
 function listAfter(lines: string[], i: number): DocNoteItem[] {
   const items: DocNoteItem[] = [];
   for (let j = i + 1; j < Math.min(lines.length, i + 40); j++) {
-    const l = lines[j];
+    const l = must(lines[j]);
     if (/^#{1,6}\s/.test(l) || new RegExp(IMG.source).test(l)) break;
     const m = /^\s*(\d+)\.\s+(.*)$/.exec(l);
-    if (m) { items.push({n: +must(m[1]), ...parseItem(m[2])}); continue; }
+    if (m) { items.push({n: +must(m[1]), ...parseItem(must(m[2]))}); continue; }
     if (!items.length) continue;                       // still looking for the list ("図中の番号に対応する注釈：")
     if (l.trim() === '') { if (!/^\s*\d+\.\s/.test(lines.slice(j + 1).find(x => x.trim()) ?? '')) break; continue; }
     if (!/^\s{2,}\S/.test(l)) break;                   // a line that is not part of the item ends the list
@@ -68,7 +68,7 @@ function listAfter(lines: string[], i: number): DocNoteItem[] {
 
 export function parseItem(raw: string): {title: string; text: string} {
   const m = /^\*\*(.+?)\*\*\s*[：:]\s*(.*)$/.exec(raw);
-  return m ? {title: m[1], text: m[2]} : {title: '', text: raw};
+  return m ? {title: must(m[1]), text: must(m[2])} : {title: '', text: raw};
 }
 
 // notes: the figure's own  [string | {title?, text, n?}]
@@ -152,7 +152,7 @@ export function checkFigures(text: string, figs: DocImage[], chapter: number | n
 export function globToRegExp(glob: string): RegExp {
   let re = '';
   for (let i = 0; i < glob.length; i++) {
-    const c = glob[i];
+    const c = must(glob[i]);
     if (c === '*') { if (glob[i + 1] === '*') { i++; if (glob[i + 1] === '/') { i++; re += '(?:.*/)?'; } else re += '.*'; } else re += '[^/]*'; }
     else if (c === '?') re += '[^/]';
     else re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');

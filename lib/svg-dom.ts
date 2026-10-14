@@ -42,7 +42,7 @@ export function parseXmlFragment(src: string): El {
     if (!name) throw new Error('a "<" that starts no tag');
     const el: El = {tag: name[0], attrs: {}, children: [], parent: cur, order: order++};
     let p = lt + 1 + name[0].length;
-    for (;;) { ATTR.lastIndex = p; const a = ATTR.exec(src); if (!a) break; el.attrs[a[1]] = decode(a[2] ?? a[3]); p += a[0].length; }
+    for (;;) { ATTR.lastIndex = p; const a = ATTR.exec(src); if (!a) break; el.attrs[must(a[1])] = decode(must(a[2] ?? a[3])); p += a[0].length; }
     const tail = /\s*(\/?)>/y; tail.lastIndex = p;
     const t = tail.exec(src);
     if (!t) throw new Error(`<${name[0]}> has an attribute without a quoted value`);
@@ -92,7 +92,7 @@ export function parseColor(value: string, current?: string): RGBA | null {
   if (v === 'transparent') return {r: 0, g: 0, b: 0, a: 0};
   let m = /^#([0-9a-f]{3,8})$/.exec(v);
   if (m) {
-    const h = m[1];
+    const h = must(m[1]);
     if (h.length === 3 || h.length === 4) return {r: parseInt(must(h[0]) + must(h[0]), 16), g: parseInt(must(h[1]) + must(h[1]), 16), b: parseInt(must(h[2]) + must(h[2]), 16), a: h.length === 4 ? parseInt(must(h[3]) + must(h[3]), 16) / 255 : 1};
     if (h.length === 6 || h.length === 8) return {r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16), a: h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1};
     return null;
@@ -100,7 +100,7 @@ export function parseColor(value: string, current?: string): RGBA | null {
   m = /^rgba?\(\s*([\d.]+%?)[\s,]+([\d.]+%?)[\s,]+([\d.]+%?)(?:[\s,/]+([\d.]+%?))?\s*\)$/.exec(v);
   if (m) {
     const ch = (s: string) => s.endsWith('%') ? parseFloat(s) * 255 / 100 : parseFloat(s);
-    return {r: ch(m[1]), g: ch(m[2]), b: ch(m[3]), a: m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4])};
+    return {r: ch(must(m[1])), g: ch(must(m[2])), b: ch(must(m[3])), a: m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4])};
   }
   const n = NAMED[v];
   return n ? {r: n[0], g: n[1], b: n[2], a: 1} : null;
@@ -159,7 +159,7 @@ function compound(sel: string): {test: (e: El) => boolean; spec: number} | null 
   const m = /^(\*|[a-zA-Z][\w-]*)?((?:[.#][\w-]+)*)$/.exec(sel);
   if (!m) return null;
   const tag = m[1] && m[1] !== '*' ? m[1] : null;
-  const parts = [...must(m[2]).matchAll(/([.#])([\w-]+)/g)].map(x => [x[1], x[2]] as const);
+  const parts = [...must(m[2]).matchAll(/([.#])([\w-]+)/g)].map(x => [must(x[1]), must(x[2])] as const);
   return {
     spec: (tag ? 1 : 0) + parts.filter(p => p[0] === '.').length * 10 + parts.filter(p => p[0] === '#').length * 100,
     test: e => (!tag || e.tag === tag) && parts.every(([k, v]) => k === '.' ? (e.attrs['class'] ?? '').split(/\s+/).includes(v) : e.attrs['id'] === v),
@@ -192,7 +192,7 @@ function rulesOf(root: El): Rule[] {
 function length(v: string, parent: number, fallback: number): number {
   const m = /^\s*(-?[\d.]+)(px|pt|em|rem|%)?\s*$/.exec(v);
   if (!m) return fallback;
-  const n = parseFloat(m[1]);
+  const n = parseFloat(must(m[1]));
   return m[2] === 'em' ? n * parent : m[2] === 'rem' ? n * 16 : m[2] === '%' ? n * parent / 100 : m[2] === 'pt' ? n * 4 / 3 : n;
 }
 

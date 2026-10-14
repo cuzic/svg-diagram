@@ -35,7 +35,7 @@ export function raciParts(tasks: readonly string[], roles: readonly string[], as
   const used = roles.map(() => false);
   const rows: TableRow[] = tasks.map((task, i) => {
     if (typeof task !== 'string' || !task.trim()) throw new Error(`raci(): task ${i + 1} needs a non-empty label`);
-    const row = assignments[i];
+    const row = must(assignments[i]);
     if (row.length !== roles.length) throw new Error(`raci(): task "${task}" has ${row.length} assignments for ${roles.length} roles`);
     const parsed = row.map((v, j) => raciLetters(v, task, roles[j]));
     parsed.forEach((v, j) => { if (v.length) used[j] = true; });

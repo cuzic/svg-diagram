@@ -47,7 +47,7 @@ const pct = (v: number, total: number): string => `${numText(Math.round(v / tota
 const segText = (s: StackedSpec, v: number, total: number): string => s.mode === 'stacked' ? `${numText(v)}${s.unit}` : pct(v, total);
 export function stackedAlt(s: StackedSpec): string {
   const name = s.mode === 'mekko' ? 'マリメッコ図' : s.mode === 'percent' ? '100%積み上げ棒グラフ' : '積み上げ棒グラフ';
-  const body = s.columns.map(c => `${c.label}（計 ${numText(c.total)}${s.unit}）: ${s.series.flatMap((n, i) => must(c.values[i]) > 0 || s.mode === 'stacked' ? [`${n} ${numText(c.values[i])}${s.unit}${s.mode === 'stacked' ? '' : `（${pct(c.values[i], c.total)}）`}`] : []).join('、')}`);
+  const body = s.columns.map(c => `${c.label}（計 ${numText(c.total)}${s.unit}）: ${s.series.flatMap((n, i) => must(c.values[i]) > 0 || s.mode === 'stacked' ? [`${n} ${numText(must(c.values[i]))}${s.unit}${s.mode === 'stacked' ? '' : `（${pct(must(c.values[i]), c.total)}）`}`] : []).join('、')}`);
   return `${name}: ${body.join('。')}`;
 }
 export function stackedTexts(s: StackedSpec): [string, number][] {
@@ -56,7 +56,7 @@ export function stackedTexts(s: StackedSpec): [string, number][] {
   for (const c of s.columns) {
     out.push([c.label, 400], [c.label, 700], [`計 ${numText(c.total)}${s.unit}`, 400], [`${numText(c.total)}${s.unit}`, 700]);
     if (s.mode === 'mekko') out.push([`（${pct(c.total, s.columns.reduce((a, b) => a + b.total, 0))}）`, 400]);
-    s.series.forEach((n, i) => { if (must(c.values[i]) > 0) out.push([segText(s, c.values[i], c.total), 700], [`${n} ${segText(s, c.values[i], c.total)}`, 700]); });
+    s.series.forEach((n, i) => { if (must(c.values[i]) > 0) out.push([segText(s, must(c.values[i]), c.total), 700], [`${n} ${segText(s, must(c.values[i]), c.total)}`, 700]); });
   }
   const top = s.mode === 'stacked' ? niceScale(0, Math.max(...s.columns.map(c => c.total))) : undefined;
   if (top) for (const t of top.ticks) out.push([numText(t), 400]);
@@ -71,7 +71,7 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
   const tickW = Math.max(...ticks.map(t => c.tw(t.s)));
   const plotL = g.x + tickW + 16, plotR = g.x + g.w - 8, gap = s.mode === 'mekko' ? 3 : 14;
   // legend: the parts in the order they stack (the first at the bottom), a swatch with each
-  const ops = shadeOps(s.series.length), opOf = (i: number) => ops[s.series.length - 1 - i];
+  const ops = shadeOps(s.series.length), opOf = (i: number) => must(ops[s.series.length - 1 - i]);
   const legend: {x: number; y: number; i: number}[] = [];
   let lx = plotL, ly = 0;
   s.series.forEach((nm, i) => {
@@ -101,7 +101,7 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
     const second = s.mode === 'stacked' ? [] : s.mode === 'mekko' ? [`計 ${numText(k.total)}${s.unit}`, `（${pct(k.total, total)}）`] : [`計 ${numText(k.total)}${s.unit}`];
     const natural = Math.max(c.tw(k.label, true), ...second.map(t => c.tw(t)));
     const slotW = (plotR - plotL) / n - 8;
-    const tries = s.mode === 'mekko' ? [Math.max(widths[i], Math.min(natural, 128)), Math.max(must(widths[i]) + 24, 60), Math.max(widths[i], 40), 72] : [slotW];
+    const tries = s.mode === 'mekko' ? [Math.max(must(widths[i]), Math.min(natural, 128)), Math.max(must(widths[i]) + 24, 60), Math.max(must(widths[i]), 40), 72] : [slotW];
     let best: (typeof catLines)[number] | undefined;
     for (let row = 0; row < 3 && !best; row++) for (const maxW of tries) {
       const main = c.wrap(k.label, maxW, true), sec = second.flatMap(t => c.wrap(t, maxW));
@@ -122,7 +122,7 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
     // the row's centre low enough for the text's top to stay in the figure at a large label size (a canvas)
     const cy = g.y + l.y + Math.max(9, Math.ceil(S * 0.64));
     c.rect(l.x, cy - 7, 14, 14, {fill: 'accent', op: opOf(l.i), stroke: 'accent', sw: 2});
-    c.text(s.series[l.i], l.x + 20, c.mid(cy), 'start', 'text');
+    c.text(must(s.series[l.i]), l.x + 20, c.mid(cy), 'start', 'text');
   });
   for (const t of ticks) { c.line(plotL - 6, yOf(t.f), plotR, yOf(t.f), {stroke: t.v === 0 ? 'text' : 'border'}); c.text(t.s, plotL - 10, c.mid(yOf(t.f)), 'end', 'muted'); }
   c.line(plotL, r1(yOf(1)), plotL, r1(yOf(0)), {stroke: 'border'});
@@ -131,13 +131,13 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
     let acc = 0;
     const top = k.total;
     s.series.forEach((nm, si) => {
-      const v = k.values[si];
+      const v = k.values[si] ?? 0;
       if (!(v > 0)) return;
       const f0 = (s.mode === 'stacked' ? acc / must(scale).max : acc / top), f1 = (s.mode === 'stacked' ? (acc + v) / must(scale).max : (acc + v) / top);
       acc += v;
       const y1 = yOf(f1), y0 = yOf(f0), full = y0 - y1, gp = Math.min(2, full * 0.3), h = full - gp, op = opOf(si), ink = inkOnShade(op);
       if (h < 0.5) { omitted.push(`${nm} ${segText(s, v, k.total)}（${k.label}）`); return; } // thinner than half a pixel: nothing to draw
-      const host = c.rect(r1(xs[ci]), r1(y1 + gp), r1(widths[ci]), r1(h), {fill: 'accent', op, solid: `"${nm}" in "${k.label}"`, of: k.id ?? `#${ci}`});
+      const host = c.rect(r1(must(xs[ci])), r1(y1 + gp), r1(must(widths[ci])), r1(h), {fill: 'accent', op, solid: `"${nm}" in "${k.label}"`, of: k.id ?? `#${ci}`});
       const whole = `${nm} ${segText(s, v, k.total)}`, short = segText(s, v, k.total);
       const room = h >= S + 6, cx = must(xs[ci]) + must(widths[ci]) / 2, cy = y1 + gp + h / 2;
       const pick = room && c.tw(whole, true) <= must(widths[ci]) - 8 ? whole : room && c.tw(short, true) <= must(widths[ci]) - 6 ? short : undefined;
@@ -146,13 +146,13 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
       else if (s.mode === 'mekko') omitted.push(`${nm} ${short}（${k.label}）`);
       else beside.push({text: whole, x: must(xs[ci]) + must(widths[ci]) + 8, y: c.mid(cy), key: k.id ?? `#${ci}`, left: `${nm} ${short}（${k.label}）`});
     });
-    if (k.id) c.anchors.push({id: k.id, x: xs[ci], y: yOf(s.mode === 'stacked' ? k.total / must(scale).max : 1), w: widths[ci], h: yOf(0) - yOf(s.mode === 'stacked' ? k.total / must(scale).max : 1)});
+    if (k.id) c.anchors.push({id: k.id, x: must(xs[ci]), y: yOf(s.mode === 'stacked' ? k.total / must(scale).max : 1), w: must(widths[ci]), h: yOf(0) - yOf(s.mode === 'stacked' ? k.total / must(scale).max : 1)});
     if (s.mode === 'stacked') c.text(`${numText(k.total)}${s.unit}`, must(xs[ci]) + must(widths[ci]) / 2, yOf(k.total / must(scale).max) - 7, 'middle', 'text', {bold: true, of: k.id ?? `#${ci}`});
   });
   for (const b of beside) if (!c.place(b.text, [{x: b.x, y: b.y, anchor: 'start'}], 'text', {bold: true, of: b.key})) omitted.push(b.left);
   // column labels, the second line (the total) lighter
   s.columns.forEach((k, ci) => {
-    const m = catLines[ci], cx = m.cx;
+    const m = must(catLines[ci]), cx = m.cx;
     const top = plotB + S + 11 + m.row * blockH;
     c.lines(m.main, cx, top, 'middle', 'text', {bold: true, of: k.id ?? `#${ci}`});
     c.lines(m.second, cx, top + m.main.length * lh, 'middle', 'muted', {of: k.id ?? `#${ci}`});

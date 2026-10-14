@@ -98,7 +98,7 @@ const KATA = /^[\u30A0-\u30FF]+$/;
 function atomsOf(s: string | number): string[] {
   const out: string[] = [];
   for (const a of splitAtoms(String(s))) {
-    if (out.length && KATA.test(a) && KATA.test(out[out.length - 1])) out[out.length - 1] += a;
+    if (out.length && KATA.test(a) && KATA.test(must(out[out.length - 1]))) out[out.length - 1] += a;
     else out.push(a);
   }
   return out;
@@ -217,7 +217,7 @@ function natBase(n: WfNode, w: number, ctx: WfCtx): number {
     case 'table': { const d = tableData(n, w, ctx); return 28 + d.rows.reduce((s, r) => s + r.h, 0); }
     case 'alert': return Math.max(36, wrapT(ctx, n.text, S, 700, w - 44).length * lh(S) + 16);
     case 'col': { const p = n.pad ?? 0; return colNat(n.children, w - 2 * p, n.gap ?? GAP, ctx) + 2 * p; }
-    case 'row': { const p = n.pad ?? 0; const ws = rowWidths(n, w - 2 * p, ctx); return Math.max(0, ...n.children.map((c, i) => nat(c, ws[i], ctx))) + 2 * p; }
+    case 'row': { const p = n.pad ?? 0; const ws = rowWidths(n, w - 2 * p, ctx); return Math.max(0, ...n.children.map((c, i) => nat(c, must(ws[i]), ctx))) + 2 * p; }
     case 'card': { const p = n.pad ?? 10; return (n.title ? 28 : 0) + colNat(n.children, w - 2 * p, n.gap ?? GAP, ctx) + 2 * p; }
     default: return n.min ?? (n.t === 'chart' ? 100 : 80);
   }
@@ -269,10 +269,10 @@ const DRAW: WfDrawTable = {
     let cx = x + p;
     n.children.forEach((c, i) => {
       const ch = h - 2 * p;
-      const own = nat(c, ws[i], ctx);
+      const wi = must(ws[i]), own = nat(c, wi, ctx);
       const dy = n.align === 'center' && flexOf(c) === 0 ? (ch - own) / 2 : 0;
-      place(c, cx, y + p + dy, ws[i], flexOf(c) || VISUAL.has(c.t) || CONTAINER.has(c.t) ? ch : own, ctx);
-      cx += must(ws[i]) + gap;
+      place(c, cx, y + p + dy, wi, flexOf(c) || VISUAL.has(c.t) || CONTAINER.has(c.t) ? ch : own, ctx);
+      cx += wi + gap;
     });
     return {w, h};
   },
@@ -464,7 +464,8 @@ const DRAW: WfDrawTable = {
     rect(ctx, x, y, w, h, {r: 6, fill: 'code', stroke: 'border'});
     const base = Math.min(w, h), hx = x + w * (n.probe?.x ?? 0.46), hy = y + h * (n.probe?.y ?? 0.5);
     circle(ctx, x + w * 0.2, y + h * 0.66, base * 0.16, {fill: 'accent', op: 0.15});
-    [[0.3, 0.12], [0.2, 0.25], [0.1, 0.5]].forEach(([r, op]) => circle(ctx, hx, hy, base * r, {fill: 'danger', op}));
+    const rings: [number, number][] = [[0.3, 0.12], [0.2, 0.25], [0.1, 0.5]];
+    rings.forEach(([r, op]) => circle(ctx, hx, hy, base * r, {fill: 'danger', op}));
     line(ctx, hx - 14, hy, hx + 14, hy, {stroke: 'text', sw: 2});
     line(ctx, hx, hy - 14, hx, hy + 14, {stroke: 'text', sw: 2});
     [0.6, 0.45, 0.3, 0.2, 0.12].forEach((op, i) => rect(ctx, x + w - 24, y + h * 0.2 + i * (h * 0.12), 12, h * 0.12, {fill: i < 2 ? 'danger' : 'accent', op}));
@@ -526,8 +527,8 @@ const DRAW: WfDrawTable = {
       vals.forEach((v, i) => circle(ctx, px(i), py(v), i === n.alertAt ? 7 : 4, {fill: i === n.alertAt ? 'danger' : 'accent'}));
     }
     if (n.xLabels) {
-      text(ctx, n.xLabels[0], x0, y + h - 10, {fill: 'muted'});
-      text(ctx, n.xLabels[n.xLabels.length - 1], x1, y + h - 10, {fill: 'muted', anchor: 'end'});
+      text(ctx, must(n.xLabels[0]), x0, y + h - 10, {fill: 'muted'});
+      text(ctx, must(n.xLabels[n.xLabels.length - 1]), x1, y + h - 10, {fill: 'muted', anchor: 'end'});
     }
     return {w, h};
   },
@@ -540,12 +541,14 @@ const DRAW: WfDrawTable = {
     const plan = n.plan ?? 'floor';
     if (plan === 'floor') {
       rect(ctx, bx, by, bw, bh, {fill: 'bg', stroke: 'muted'});
-      for (const [a, b, c, d] of [[0.38, 0, 0.38, 0.4], [0.38, 0.58, 0.38, 1], [0, 0.55, 0.38, 0.55], [0.38, 0.5, 1, 0.5]]) {
+      const walls: [number, number, number, number][] = [[0.38, 0, 0.38, 0.4], [0.38, 0.58, 0.38, 1], [0, 0.55, 0.38, 0.55], [0.38, 0.5, 1, 0.5]];
+      for (const [a, b, c, d] of walls) {
         const [p, q] = [F(a, b), F(c, d)];
         line(ctx, p[0], p[1], q[0], q[1], {stroke: 'muted'});
       }
     } else if (plan === 'site') {
-      for (const [a, b, c, d] of [[0.06, 0.14, 0.32, 0.42], [0.46, 0.08, 0.24, 0.32], [0.54, 0.5, 0.36, 0.38]]) {
+      const lots: [number, number, number, number][] = [[0.06, 0.14, 0.32, 0.42], [0.46, 0.08, 0.24, 0.32], [0.54, 0.5, 0.36, 0.38]];
+      for (const [a, b, c, d] of lots) {
         const [p] = [F(a, b)];
         rect(ctx, p[0], p[1], c * bw, d * bh, {r: 4, fill: 'bg', stroke: 'muted'});
       }

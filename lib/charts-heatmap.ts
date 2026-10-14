@@ -117,15 +117,15 @@ export function layoutHeatmap(s: HeatmapSpec, g: ChartGeom): LaidOutChartPart {
   heads.forEach((h, i) => c.lines(h, plotL + (i + 0.5) * cellW, g.y + headH - 8 - (h.length - 1) * lh, 'middle', 'text', {bold: true}));
   s.rows.forEach((r, i) => {
     const y = bodyT + i * cellH, cy = y + cellH / 2;
-    c.lines(rowLs[i], g.x + 4, c.mid(cy) - (must(rowLs[i]).length - 1) * lh / 2, 'start', 'text', {bold: s.rowHeader});
+    c.lines(must(rowLs[i]), g.x + 4, c.mid(cy) - (must(rowLs[i]).length - 1) * lh / 2, 'start', 'text', {bold: s.rowHeader});
     must(s.values[i]).forEach((v, j) => {
-      const x = plotL + j * cellW, t = must(texts[i])[j];
+      const x = plotL + j * cellW, t = must(must(texts[i])[j]);
       if (v === null) {
         const host = c.rect(r1(x + gap / 2), r1(y + gap / 2), r1(cellW - gap), r1(cellH - gap), {fill: 'none', stroke: 'border', sw: 2, dash: '3,3', solid: `cell ${r} x ${s.cols[j]}`});
         c.text(t, x + cellW / 2, c.mid(cy), 'middle', 'muted', {host});
         return;
       }
-      const op = ops[heatLevel(v, s)], ink = inkOnShade(op);
+      const op = must(ops[heatLevel(v, s)]), ink = inkOnShade(op);
       const host = c.rect(r1(x + gap / 2), r1(y + gap / 2), r1(cellW - gap), r1(cellH - gap), {fill: 'accent', op, solid: `cell ${r} x ${s.cols[j]}`});
       c.text(t, x + cellW / 2, c.mid(cy), 'middle', ink, {bold: true, host, on: {fill: 'accent', op, ink}});
     });

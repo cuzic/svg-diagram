@@ -34,7 +34,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
 
   const vbm = /^\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*$/.exec(root.attrs['viewBox'] ?? '');
   const vb = vbm ? {x: +must(vbm[1]), y: +must(vbm[2]), w: +must(vbm[3]), h: +must(vbm[4])} : null;
-  const attrPx = (n: string) => { const m = /^\s*([\d.]+)(px)?\s*$/.exec(root.attrs[n] ?? ''); return m ? parseFloat(m[1]) : 0; };
+  const attrPx = (n: string) => { const m = /^\s*([\d.]+)(px)?\s*$/.exec(root.attrs[n] ?? ''); return m ? parseFloat(must(m[1])) : 0; };
   const W = vb?.w || attrPx('width'), H = vb?.h || attrPx('height');
   // the viewBox → viewport mapping (preserveAspectRatio "xMidYMid meet"): the identity when the two sizes agree
   let view: Matrix = IDENTITY;
@@ -67,7 +67,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
 
   // a transparent diagram has no page rectangle: it is judged against the page colour it was drawn for (data-assumed-bg), else white
   const am = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(root.attrs['data-assumed-bg'] ?? '');
-  const page: RGBA = am ? {r: parseInt(am[1], 16), g: parseInt(am[2], 16), b: parseInt(am[3], 16), a: 1} : {r: 255, g: 255, b: 255, a: 1};
+  const page: RGBA = am ? {r: parseInt(must(am[1]), 16), g: parseInt(must(am[2]), 16), b: parseInt(must(am[3]), 16), a: 1} : {r: 255, g: 255, b: 255, a: 1};
   // 1. contrast: the colour behind a text's centre is the page colour with every filled shape that holds the centre painted over it, in order
   const shapes = items.filter(i => ['rect', 'circle', 'ellipse', 'polygon', 'path'].includes(i.tag) && i.user && i.style.fill !== 'none')
     .map(i => { const c = parseColor(i.style.fill, i.style.color); return c ? {box: must(i.user), c: {...c, a: c.a * i.style.fillOpacity * i.style.opacity}} : null; })
@@ -142,7 +142,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
     if (t.tag !== 'text' || !t.screen || !t.screen.w || !textOf(t.el).trim()) return;
     const tb = t.screen, tr = tb.x + tb.w, tbm = tb.y + tb.h;
     for (let j = i + 1; j < items.length; j++) {
-      const sh = items[j];
+      const sh = must(items[j]);
       if (sh.tag === 'text' || !sh.screen || (!sh.screen.w && !sh.screen.h) || closest(sh.el, e => e.attrs['data-allow-cover'] !== undefined)) continue;
       const sr = sh.screen.x + sh.screen.w, sb = sh.screen.y + sh.screen.h;
       const ow = Math.min(tr, sr) - Math.max(tb.x, sh.screen.x), oh = Math.min(tbm, sb) - Math.max(tb.y, sh.screen.y);

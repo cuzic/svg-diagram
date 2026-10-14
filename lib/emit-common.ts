@@ -13,7 +13,7 @@ export function snap4(n: number): number {
 export const XML_ESC: Record<string, string> = {'&': '&amp;', '<': '&lt;', '>': '&gt;'};
 
 export function escapeXml(s: string): string {
-  return s.replace(/[&<>]/g, (c: string) => XML_ESC[c]);
+  return s.replace(/[&<>]/g, (c: string) => XML_ESC[c] ?? c);
 }
 
 
@@ -78,7 +78,7 @@ export function renderTextRuns(
     const lx = align === 'center' ? runOriginX + runW / 2 : align === 'right' ? runOriginX + runW : runOriginX;
     run.lines.forEach((line, i) => {
       const y = originY + must(run.lineYs[i]);
-      const content = run.lineSpans ? spanTspans(run.lineSpans[i], run, color, day, dim) : emojiSpan(line);
+      const content = run.lineSpans ? spanTspans(must(run.lineSpans[i]), run, color, day, dim) : emojiSpan(line);
       parts.push(`<text x="${lx}" y="${y}"${anchor}${cls} font-size="${run.size}" font-weight="${run.weight}" fill="${color}">${content}</text>`);
     });
   }
@@ -113,8 +113,8 @@ export function trimPoints(points: Point[], arrow: Arrow): Point[] {
     tip.x -= (tip.x - prev.x) / len * STRONG_TRIM;
     tip.y -= (tip.y - prev.y) / len * STRONG_TRIM;
   };
-  if (arrow === 'end' || arrow === 'both') pull(pts[pts.length - 1], pts[pts.length - 2]);
-  if (arrow === 'start' || arrow === 'both') pull(pts[0], pts[1]);
+  if (arrow === 'end' || arrow === 'both') pull(must(pts[pts.length - 1]), must(pts[pts.length - 2]));
+  if (arrow === 'start' || arrow === 'both') pull(must(pts[0]), must(pts[1]));
   return pts;
 }
 
@@ -129,8 +129,8 @@ export function arrowPath(points: {x: number; y: number}[], color: string, line:
     return {x: tip.x - dx * (L - 2), y: tip.y - dy * (L - 2)};
   };
   const n = pts.length;
-  pts[n - 1] = head(points[n - 1], points[n - 2]);
-  if (headAt === 'both') pts[0] = head(points[0], points[1]);
+  pts[n - 1] = head(must(points[n - 1]), must(points[n - 2]));
+  if (headAt === 'both') pts[0] = head(must(points[0]), must(points[1]));
   return `<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${color}" stroke-width="${width}"${lineAttrs(line === 'solid' ? undefined : line)}/>\n  ${heads.join('\n  ')}`;
 }
 

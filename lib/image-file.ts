@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {must} from './must.ts';
 
 /** A hard limit: a bigger file is almost certainly a photo that should be resized first. */
 export const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
@@ -25,7 +26,7 @@ export function sniffImage(b: Buffer): {mime: string; w: number; h: number} | nu
     let i = 2;
     while (i + 9 < b.length) {
       if (b[i] !== 0xff) { i++; continue; }
-      const m = b[i + 1];
+      const m = must(b[i + 1]);
       if (m === 0xff) { i++; continue; }
       if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return {mime: 'image/jpeg', h: b.readUInt16BE(i + 5), w: b.readUInt16BE(i + 7)};
       if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { i += 2; continue; }
@@ -48,7 +49,7 @@ export function readImage(src: string | URL): ImageFile {
   if (typeof src === 'string' && src.startsWith('data:')) {
     const m = /^data:image\/(?:png|jpeg|gif|webp);base64,([A-Za-z0-9+/=]+)$/.exec(src);
     if (!m) throw new Error('image(): a data URI must be data:image/png|jpeg|gif|webp;base64,…');
-    buf = Buffer.from(m[1], 'base64');
+    buf = Buffer.from(must(m[1]), 'base64');
   } else {
     const file = src instanceof URL ? fileURLToPath(src) : typeof src === 'string' && src.startsWith('file:') ? fileURLToPath(src) : path.resolve(sourceDir ?? process.cwd(), String(src));
     try { buf = fs.readFileSync(file); } catch (e) { throw new Error(`image(): cannot read ${file} (${(e as NodeJS.ErrnoException).code ?? (e as Error).message})`); }

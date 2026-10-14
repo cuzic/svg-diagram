@@ -193,7 +193,7 @@ function layoutChevron(b: ChevronBand, out: LaidOutFlowShape, t: Texts, anchor: 
       : [[xx, yy], [xx + cellW - tip, yy], [xx + cellW, yy + cellH / 2], [xx + cellW - tip, yy + cellH], [xx, yy + cellH], ...notch];
     out.primitives.push({k: 'polygon', points, tone: current === i ? 'accent' : s.tone ?? 'plain', ...(current === i ? {strong: true} : {})});
     anchor(s.id, {x: xx, y: yy, w: cellW, h: cellH});
-    const k = blocks[i], top = yy + (cellH - (vertical ? tip : 0) - textH(k)) / 2;
+    const k = must(blocks[i]), top = yy + (cellH - (vertical ? tip : 0) - textH(k)) / 2;
     t.place(k.label, xx + cellW / 2, top);
     if (k.sub) t.place(k.sub, xx + cellW / 2, top + k.label.h, 'muted');
   });
@@ -203,21 +203,21 @@ function layoutFunnel(b: FunnelBand, out: LaidOutFlowShape, t: Texts, anchor: An
   const n = b.stages.length, w = out.w, cx = out.x + w / 2, minW = Math.min(150, w * .3), max = Math.max(...b.stages.map(s => s.value ?? 0), 1);
   const frac = (i: number) => b.scale === 'value' ? (must(b.stages[i]).value ?? 0) / max : n === 1 ? 1 : 1 - i * .65 / (n - 1);
   const tops = b.stages.map((_, i) => Math.max(minW, w * frac(i)));
-  const bottoms = tops.map((top, i) => i < n - 1 ? tops[i + 1] : Math.max(minW * .8, top * .8)); // each stage ends where the next begins
+  const bottoms = tops.map((top, i) => i < n - 1 ? must(tops[i + 1]) : Math.max(minW * .8, top * .8)); // each stage ends where the next begins
   const lh = roles.note * LINE;
   const plans = b.stages.map((s, i) => {
-    const text = funnelLabel(s), inner = Math.min(tops[i], bottoms[i]) - 24, sideLeft = cx + Math.max(tops[i], bottoms[i]) / 2 + 14, sideW = out.x + w - sideLeft;
+    const text = funnelLabel(s), ti = must(tops[i]), bi = must(bottoms[i]), inner = Math.min(ti, bi) - 24, sideLeft = cx + Math.max(ti, bi) / 2 + 14, sideW = out.x + w - sideLeft;
     const beside = t.width(text) > inner && sideW >= 80; // too wide for the stage: to its right, when there is room
     const label = t.wrap(text, beside ? sideW : inner);
     const rateText = b.showRate && i ? funnelRate(must(b.stages[i - 1]).value, s.value) : undefined;
     const rate = rateText ? t.wrap(rateText, w, 400) : undefined;
-    const rateLeft = rate !== undefined && cx - Math.max(tops[i], bottoms[i]) / 2 - 14 - rate.w >= out.x; // else under the label
+    const rateLeft = rate !== undefined && cx - Math.max(ti, bi) / 2 - 14 - rate.w >= out.x; // else under the label
     return {label, beside, sideLeft, rate, rateLeft};
   });
   const rowH = Math.max(64, ...plans.map(p => p.label.h + (p.rate && !p.rateLeft ? p.rate.h : 0) + 20));
   out.h = n * rowH;
   b.stages.forEach((s, i) => {
-    const yy = out.y + i * rowH, a = tops[i], z = bottoms[i], p = plans[i];
+    const yy = out.y + i * rowH, a = must(tops[i]), z = must(bottoms[i]), p = must(plans[i]);
     out.primitives.push({k: 'polygon', points: [[cx - a / 2, yy], [cx + a / 2, yy], [cx + z / 2, yy + rowH - 4], [cx - z / 2, yy + rowH - 4]], tone: s.tone ?? (i % 2 ? 'muted' : 'accent')});
     anchor(s.id, {x: cx - Math.max(a, z) / 2, y: yy, w: Math.max(a, z), h: rowH - 4});
     const blockH = p.label.h + (p.rate && !p.rateLeft ? p.rate.h : 0), top = yy + (rowH - 4 - blockH) / 2;
@@ -244,7 +244,7 @@ function layoutCycle(b: CycleBand, out: LaidOutFlowShape, t: Texts, anchor: Anch
     out.primitives.push({k: 'path', d: `M${r1(p[0])},${r1(p[1])} A${r1(R)},${r1(R)} 0 0 ${sign > 0 ? 1 : 0} ${r1(q[0])},${r1(q[1])}`, tone: 'text', arrow: true});
   });
   b.steps.forEach((s, i) => {
-    const [nx, ny] = at(angle(i)).map(g4);
+    const [ax, ay] = at(angle(i)), nx = g4(ax), ny = g4(ay);
     const tone: TextTone = s.tone === 'danger' || s.tone === 'removed' ? 'danger' : s.tone === 'muted' ? 'muted' : 'accent';
     out.primitives.push({k: 'circle', cx: nx, cy: ny, r: nr, tone});
     anchor(s.id, {x: nx - nr, y: ny - nr, w: 2 * nr, h: 2 * nr});
@@ -272,8 +272,8 @@ function layoutVenn(b: VennBand, out: LaidOutFlowShape, t: Texts, anchor: Anchor
   const DASH = ['', '7,5', '2,4'], TONES: TextTone[] = ['accent', 'danger', 'muted'];
   const centred = (text: string, [px, py]: Pt, maxW: number) => { const k = t.wrap(text, maxW); t.place(k, px, py - k.h / 2); };
   b.sets.forEach((s, i) => {
-    const [px, py] = pos[i], dx = px - mid[0], dy = py - mid[1], d = Math.hypot(dx, dy) || 1, k = three ? .5 : .42;
-    out.primitives.push({k: 'circle', cx: px, cy: py, r, tone: s.tone ?? TONES[i], opacity: .22, ...(DASH[i] ? {dash: DASH[i]} : {})});
+    const [px, py] = must(pos[i]), dx = px - mid[0], dy = py - mid[1], d = Math.hypot(dx, dy) || 1, k = three ? .5 : .42;
+    out.primitives.push({k: 'circle', cx: px, cy: py, r, tone: s.tone ?? must(TONES[i]), opacity: .22, ...(DASH[i] ? {dash: DASH[i]} : {})});
     anchor(s.id, {x: px - r, y: py - r, w: 2 * r, h: 2 * r});
     centred(s.label ?? s.name, [px + dx / d * k * r, py + dy / d * k * r], .8 * r); // in the part only this set covers
   });
@@ -281,7 +281,7 @@ function layoutVenn(b: VennBand, out: LaidOutFlowShape, t: Texts, anchor: Anchor
     const idx = o.sets.map(name => b.sets.findIndex(s => s.name === name));
     if (idx.length === b.sets.length) { centred(o.label, mid, (three ? .55 : .7) * r); continue; }
     // a pair of three: the middle of the part only these two share, on the side away from the third circle
-    const [p, q] = [pos[idx[0]], pos[idx[1]]], third = pos[must([0, 1, 2].find(j => !idx.includes(j)))];
+    const [p, q] = [must(pos[must(idx[0])]), must(pos[must(idx[1])])], third = must(pos[must([0, 1, 2].find(j => !idx.includes(j)))]);
     const m: Pt = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], D = Math.hypot(m[0] - third[0], m[1] - third[1]);
     const half = Math.sqrt(r * r - (Math.hypot(p[0] - q[0], p[1] - q[1]) / 2) ** 2), reach = (r + D + half) / 2;
     centred(o.label, [third[0] + (m[0] - third[0]) / D * reach, third[1] + (m[1] - third[1]) / D * reach], .5 * r);
@@ -301,14 +301,14 @@ function layoutConcentric(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, an
   const TONES: TextTone[] = ['accent', 'muted', 'danger', 'text'];
   ordered.forEach((ring, i) => {
     const rr = radius(i);
-    out.primitives.push({k: 'circle', cx, cy, r: rr, tone: ring.tone ?? TONES[i % 4], opacity: .10 + (i % 2) * .05, ...(i % 2 ? {dash: '7,5'} : {})});
+    out.primitives.push({k: 'circle', cx, cy, r: rr, tone: ring.tone ?? must(TONES[i % 4]), opacity: .10 + (i % 2) * .05, ...(i % 2 ? {dash: '7,5'} : {})});
     anchor(ring.id, {x: cx - rr, y: cy - rr, w: 2 * rr, h: 2 * rr});
   });
   if (side) {
     // the key, top to bottom from the outermost ring; each entry has a leader to a dot in its ring (on the ray to the upper right)
     const slot = (out.h - 16) / n;
     ordered.forEach((ring, i) => {
-      const k = keys[i], top = out.y + 8 + i * slot + (slot - k.h) / 2, ly = top + Math.min(k.h, lh) / 2;
+      const k = must(keys[i]), top = out.y + 8 + i * slot + (slot - k.h) / 2, ly = top + Math.min(k.h, lh) / 2;
       const rm = (radius(i) + (i < n - 1 ? radius(i + 1) : 0)) / 2, a = -Math.PI / 6, dot: Pt = [g4(cx + rm * Math.cos(a)), g4(cy + rm * Math.sin(a))];
       out.primitives.push({k: 'path', d: `M${dot[0].toFixed(1)},${dot[1].toFixed(1)} L${(keyLeft - 8).toFixed(1)},${ly.toFixed(1)}`, tone: 'muted', thin: true});
       out.primitives.push({k: 'circle', cx: dot[0], cy: dot[1], r: 3.5, tone: 'text', opacity: 1});

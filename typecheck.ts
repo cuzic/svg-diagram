@@ -33,7 +33,7 @@ const here = import.meta.dirname;
 const root = fs.existsSync(path.join(here, 'lib', 'dsl.ts')) ? here : path.dirname(here);
 const own = (f: string) => [path.join(root, 'dist', 'lib', `${f}.d.ts`), path.join(root, 'lib', `${f}.ts`)].find(x => fs.existsSync(x));
 const paths: Record<string, string[]> = {};
-for (const [spec, f] of [['svg-diagram', 'dsl'], ['svg-diagram/render', 'render-source']]) {
+for (const [spec, f] of [['svg-diagram', 'dsl'], ['svg-diagram/render', 'render-source']] as const) {
   const file = own(f);
   if (file && !resolves(spec)) paths[spec] = [file];
 }

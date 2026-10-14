@@ -14,10 +14,10 @@ const same = (a: Pt, b: Pt): boolean => Math.abs(a.x - b.x) < 0.01 && Math.abs(a
 /** Drops repeated points and the middle point of three on a line, so a polyline has only its corners. */
 export function simplify(pts: Pt[]): Pt[] {
   const out: Pt[] = [];
-  for (const p of pts) if (!out.length || !same(out[out.length - 1], p)) out.push(p);
+  for (const p of pts) { const last = out.at(-1); if (!last || !same(last, p)) out.push(p); }
   return out.filter((p, i) => {
     if (i === 0 || i === out.length - 1) return true;
-    const a = out[i - 1], b = out[i + 1];
+    const a = must(out[i - 1]), b = must(out[i + 1]);
     return !((a.x === p.x && p.x === b.x) || (a.y === p.y && p.y === b.y));
   });
 }
@@ -27,9 +27,9 @@ export function simplify(pts: Pt[]): Pt[] {
  * between its two layers, from routeLayered); the others turn half-way between their points.
  */
 export function elbows(pts: Pt[], turn?: number, lastTurn?: number): Pt[] {
-  const out: Pt[] = [pts[0]];
+  const out: Pt[] = pts.slice(0, 1);
   for (let i = 0; i + 1 < pts.length; i++) {
-    const p = pts[i], q = pts[i + 1];
+    const p = must(pts[i]), q = must(pts[i + 1]);
     if (p.y !== q.y) {
       const mx = pts.length === 2 && turn !== undefined ? turn : i + 2 === pts.length && lastTurn !== undefined ? lastTurn : (p.x + q.x) / 2;
       out.push({x: mx, y: p.y}, {x: mx, y: q.y});
@@ -82,7 +82,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     const key = (en: typeof list[number]): number => (en.end === 1 && groupOf && groupOf(en.edge) !== undefined ? must(mean.get(must(groupOf(en.edge)))) : en.other);
     list.sort((p, q) => key(p) - key(q) || (p.end === 1 && groupOf ? (groupOf(p.edge) ?? -1) - (groupOf(q.edge) ?? -1) : 0) || p.other - q.other || p.edge - q.edge);
     list.forEach((en, k) => {
-      const e = lay.edges[en.edge], id = en.end === 0 ? e.from : e.to, h = must(lay.nodes.get(id)).h;
+      const e = must(lay.edges[en.edge]), id = en.end === 0 ? e.from : e.to, h = must(lay.nodes.get(id)).h;
       const step = list.length > 1 ? Math.min(portStep, (h - 12) / (list.length - 1)) : 0;
       // the ports of one side keep an even step (a tail and a head on one side are never closer than a step). The ports of every box's
       // left side sit half a step lower than those of its right side: a tail port of one box and a head port of the next (same layer
@@ -94,9 +94,9 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
   }
   // fan-out (one tail): the arrow that goes farthest turns first (the lane nearest the tail), so no vertical run crosses another arrow's
   // last run. fan-in (one head, several tails): the other way round, the nearest tail turns first.
-  const dy = (i: number): number => { const e = lay.edges[i], A = must(lay.nodes.get(e.from)), B = must(lay.nodes.get(e.to)); return Math.abs((B.y + B.h / 2) - (A.y + A.h / 2)); };
+  const dy = (i: number): number => { const e = must(lay.edges[i]), A = must(lay.nodes.get(e.from)), B = must(lay.nodes.get(e.to)); return Math.abs((B.y + B.h / 2) - (A.y + A.h / 2)); };
   // arrows that go down and arrows that go up through the same gap are told apart too: the up group takes the lanes after the down group's
-  const goesDown = (i: number): boolean => { const e = lay.edges[i], A = must(lay.nodes.get(e.from)), B = must(lay.nodes.get(e.to)); return B.y + B.h / 2 >= A.y + A.h / 2; };
+  const goesDown = (i: number): boolean => { const e = must(lay.edges[i]), A = must(lay.nodes.get(e.from)), B = must(lay.nodes.get(e.to)); return B.y + B.h / 2 >= A.y + A.h / 2; };
   // forward arrows (tail in the earlier layer) take lanes counted from the gap's left side, backward arrows (a return) from its right side,
   // so the two kinds never land on one lane (the gap is sized for all of them together, see gapFor)
   const forward = (i: number): boolean => layerOf(must(lay.edges[i]).from) < layerOf(must(lay.edges[i]).to);

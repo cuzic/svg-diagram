@@ -65,7 +65,7 @@ export function layoutTree(root: TreeNode, opts: TreeOpts = {}): TreeLayout {
   const nodes = new Map<string, Placed>();
   const index = (n: TreeNode): void => {
     const c = must(centres.get(n.id)), l = must(levels.get(n.id));
-    nodes.set(n.id, dir === 'down' ? {x: c - n.size.w / 2, y: levelAt[l], ...n.size} : {x: levelAt[l], y: c - n.size.h / 2, ...n.size});
+    nodes.set(n.id, dir === 'down' ? {x: c - n.size.w / 2, y: must(levelAt[l]), ...n.size} : {x: must(levelAt[l]), y: c - n.size.h / 2, ...n.size});
     for (const k of n.children ?? []) index(k);
   };
   index(root);
@@ -96,7 +96,7 @@ export function layoutBalanced(root: TreeNode, opts: Omit<TreeOpts, 'dir'> & {si
   const heights = kids.map(heightOf);
   const side: ('left' | 'right')[] = kids.map(k => opts.sides?.[k.id] ?? 'right');
   const load = {left: 0, right: 0};
-  kids.forEach((k, i) => { if (opts.sides?.[k.id]) load[side[i]] += heights[i]; });
+  kids.forEach((k, i) => { if (opts.sides?.[k.id]) load[must(side[i])] += must(heights[i]); });
   // unpinned children: in the order written, the first half of what is left (by height) goes right, the rest left; each side reads top to bottom
   const free = kids.map((_, i) => i).filter(i => !opts.sides?.[must(kids[i]).id]);
   const freeTotal = free.reduce((s, i) => s + must(heights[i]), 0);
@@ -220,7 +220,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     chains.push({e: d.e, index: d.index, ids: chain, rev: d.rev});
     // links always run from the lower layer to the higher one
     const asc = la < lb ? chain : [...chain].reverse();
-    for (let k = 0; k + 1 < asc.length; k++) link(asc[k], asc[k + 1]);
+    for (let k = 0; k + 1 < asc.length; k++) link(must(asc[k]), must(asc[k + 1]));
   });
 
   const nLayers = Math.max(0, ...[...slots.values()].map(s => s.layer)) + 1;
@@ -241,8 +241,8 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     r.forEach((id, i) => pos.set(id, i));
   };
   for (let s = 0; s < sweeps; s++) {
-    for (let l = 1; l < nLayers; l++) sortBy(rows[l], pred);
-    for (let l = nLayers - 2; l >= 0; l--) sortBy(rows[l], succ);
+    for (let l = 1; l < nLayers; l++) sortBy(must(rows[l]), pred);
+    for (let l = nLayers - 2; l >= 0; l--) sortBy(must(rows[l]), succ);
   }
 
   // 5. coordinates: layers along one axis, each layer centred on the widest, then relaxed toward the neighbours without overlap
@@ -261,15 +261,15 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     // left to right push-apart, then right to left, so the result is the closest non-overlapping arrangement to `want`
     const w = r.map(id => across(must(slots.get(id)).size));
     const c = want.slice();
-    for (let i = 1; i < r.length; i++) c[i] = Math.max(c[i], must(c[i - 1]) + (must(w[i - 1]) + must(w[i])) / 2 + gap);
+    for (let i = 1; i < r.length; i++) c[i] = Math.max(must(c[i]), must(c[i - 1]) + (must(w[i - 1]) + must(w[i])) / 2 + gap);
     const shift = (want.reduce((s, v, i) => s + v - must(c[i]), 0)) / Math.max(1, r.length);
-    for (let i = 0; i < r.length; i++) c[i] += shift;
-    for (let i = 1; i < r.length; i++) c[i] = Math.max(c[i], must(c[i - 1]) + (must(w[i - 1]) + must(w[i])) / 2 + gap);
-    r.forEach((id, i) => cross.set(id, c[i]));
+    for (let i = 0; i < r.length; i++) c[i] = must(c[i]) + shift;
+    for (let i = 1; i < r.length; i++) c[i] = Math.max(must(c[i]), must(c[i - 1]) + (must(w[i - 1]) + must(w[i])) / 2 + gap);
+    r.forEach((id, i) => cross.set(id, must(c[i])));
   };
   for (let s = 0; s < 3; s++) {
-    for (let l = 1; l < nLayers; l++) settle(rows[l], pred);
-    for (let l = nLayers - 2; l >= 0; l--) settle(rows[l], succ);
+    for (let l = 1; l < nLayers; l++) settle(must(rows[l]), pred);
+    for (let l = nLayers - 2; l >= 0; l--) settle(must(rows[l]), succ);
   }
   const lo = Math.min(...[...slots.values()].map(s => (cross.get(s.id) ?? 0) - across(s.size) / 2));
   for (const [id, c] of cross) cross.set(id, c - lo);

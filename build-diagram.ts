@@ -70,7 +70,7 @@ const HTML = args.includes('--html'); // also write <name>.html (boxes and text 
 const DARK = args.includes('--dark'); // draw with the dark token set (overrides diagram({appearance}))
 const TRANSPARENT = args.includes('--transparent'); // no page-colour background rectangle
 const STALE = args.includes('--stale'); // skip diagrams whose SVG already matches this source, tool version and project config
-const modules = args.filter((a, i) => !['--out', '--out-dir', '--png', '--scale', '--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent'].includes(a) && !['--out', '--out-dir', '--png', '--scale'].includes(args[i - 1]));
+const modules = args.filter((a, i) => !['--out', '--out-dir', '--png', '--scale', '--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent'].includes(a) && !(i > 0 && ['--out', '--out-dir', '--png', '--scale'].includes(must(args[i - 1]))));
 
 if (modules.length === 0) {
   console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--png <dir> [--scale N]] [--stale] [--no-lint] [--fit] [--html] [--dark] [--transparent]');

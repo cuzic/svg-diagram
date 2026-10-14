@@ -725,7 +725,7 @@ function applyWireframeDefaults(bands: Band[], defaults: WireframeDefaults): Ban
       content = [wf.appbar(props.title ?? title, {nav, right, active}), ...content];
     }
     if (defaults.shell) content = [defaults.shell(content, props)].flat() as WfNode[];
-    screen.root = content.length === 1 ? content[0] : content;
+    screen.root = content.length === 1 ? must(content[0]) : content;
     if (numbering) {
       const shellNumbers = collectNumbering(own, [screen.root]);
       if (shellNumbers.todo.length) assignNumbers(Math.max(numbering.max, shellNumbers.max), shellNumbers.todo, numbering.todo);
@@ -1199,7 +1199,7 @@ export function histogram<const Id extends string = never>(values: readonly numb
   if (showMean !== false) lines.push({at: slot(m), label: `平均 ${m.toFixed(decimalsOf(width) + 1)}`, tone: 'accent'});
   const every = labelEvery(edges.map(exact));
   const curve = normal && s > 0 ? {through: Array.from({length: 41}, (_, i) => { const sx = i / 40 * counts.length; return [sx, normalCount(must(edges[0]) + sx * width, m, s, n, width)] as [number, number]; }), tone: 'text' as const} : undefined;
-  return bars(counts.map((c, k) => ({label: `${exact(edges[k])}-${exact(edges[k + 1])}`, value: c, ...(out(k) ? {tone: 'danger' as const} : {})})), {...rest, dir: 'v', barRatio: 1, max, edges: edges.map((e, i) => edgeShown(i, edges.length - 1, every) ? exact(e) : ''), hideZero: true, vlines: lines.sort((a, b) => a.at - b.at), ...(curve ? {curve} : {})}) as never;
+  return bars(counts.map((c, k) => ({label: `${exact(must(edges[k]))}-${exact(must(edges[k + 1]))}`, value: c, ...(out(k) ? {tone: 'danger' as const} : {})})), {...rest, dir: 'v', barRatio: 1, max, edges: edges.map((e, i) => edgeShown(i, edges.length - 1, every) ? exact(e) : ''), hideZero: true, vlines: lines.sort((a, b) => a.at - b.at), ...(curve ? {curve} : {})}) as never;
 }
 /** Whether boundary i (of 0..last) is written: every k-th one, and always the last (the one before it gives way when they would be closer than k/2). */
 function edgeShown(i: number, last: number, every: number): boolean {

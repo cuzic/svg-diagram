@@ -165,12 +165,12 @@ function layoutWaterfallH(spec: WaterfallSpec, g: ChartGeom): LaidOutChartPart {
   const bars = spec.steps.map((s, i) => {
     const cy = y0 + (i + 0.5) * pitch, key = s.id ?? `#${i}`, x1 = xOf(Math.min(s.from, s.to)), x2 = xOf(Math.max(s.from, s.to)), w = Math.max(2, x2 - x1);
     const solid = c.rect(r1(Math.abs(x2 - x1) < 2 ? x1 - 1 : x1), r1(cy - barH / 2), r1(w), barH, {fill: fillOf(s), id: s.id, of: key, solid: s.id ?? `bar "${s.label}"`});
-    c.lines(cats[i], g.x + labelW - 10 + 0, cy - (must(cats[i]).length - 1) * lh / 2 + S * 0.36, 'end', 'text', {bold: s.kind !== 'delta', of: key});
+    c.lines(must(cats[i]), g.x + labelW - 10 + 0, cy - (must(cats[i]).length - 1) * lh / 2 + S * 0.36, 'end', 'text', {bold: s.kind !== 'delta', of: key});
     return {s, i, cy, x1, x2, solid, key, fill: fillOf(s)};
   });
   if (spec.connectors) for (const [i, b] of bars.entries()) { if (i === n - 1) break; const x = r1(xOf(b.s.to)); c.line(x, b.cy + barH / 2, x, must(bars[i + 1]).cy - barH / 2, {stroke: 'muted', dash: '4,3', avoid: true}); }
   for (const b of bars) {
-    const text = texts[b.i], right = b.s.kind === 'delta' ? b.s.value >= 0 : b.s.value >= 0;
+    const text = must(texts[b.i]), right = b.s.kind === 'delta' ? b.s.value >= 0 : b.s.value >= 0;
     const r = {x: b.x2 + 7, y: c.mid(b.cy), anchor: 'start' as const}, l = {x: b.x1 - 7, y: c.mid(b.cy), anchor: 'end' as const};
     const fits = c.tw(text, true) <= Math.abs(b.x2 - b.x1) - 10;
     const on = {fill: b.fill};
