@@ -24,7 +24,8 @@ import {svgSize} from './raster.ts';
 import type {Raster} from './raster.ts';
 import {FONT_STACKS} from './tokens.ts';
 import {splitAtoms, textWidth} from './atoms.ts';
-import type {Config, FontFamily, FontSpecs, MeasureRequest, Measured, WidthOf} from './types.ts';
+import type {FontFamily, MeasureRequest, Measured, WidthOf} from './types/core.ts';
+import type {Config, FontSpecs} from './types/project.ts';
 import {loadConfig} from './config.ts';
 
 // splitAtoms / textWidth live in atoms.ts (pure); re-exported so existing imports keep working.

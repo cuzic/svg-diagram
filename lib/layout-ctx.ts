@@ -2,7 +2,10 @@
 // Handlers (lib/layout-handlers.ts) take the band, this context and the x / width they are placed at; they push what they lay
 // out to `ctx.laidOut`, register anchors, and advance `ctx.y`.
 
-import type {BannerBand, Band, BoxBand, CaptionBand, DiagramData, LaidOutBand, LaidOutConnect, Rect, Roles, WidthOf, WrappedRun, ConnectBand} from './types.ts';
+import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
+import type {DiagramData, Rect, Roles, WidthOf} from './types/core.ts';
+import type {Band, LaidOutBand} from './types/index.ts';
+import type {BannerBand, BoxBand, CaptionBand, WrappedRun} from './types/text-bands.ts';
 
 /** A band after placeBoxLike(): its own fields plus geometry, wrapped text and (maybe) the tag pill. */
 export type Placed<B> = B & Rect & {wrappedRuns: WrappedRun[]; tagBox?: Rect; inkBox?: Rect};

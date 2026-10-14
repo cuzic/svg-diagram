@@ -23,7 +23,8 @@ import {bpmnTexts} from './bpmn.ts';
 import {chartTexts} from './charts.ts';
 import {collectTextRequests} from './seq-table.ts';
 import {collectTextRequests as wfTextRequests} from './wireframe.ts';
-import type {Band, DiagramData, FontFamily, MeasureRequest, Measured, Roles, WidthOf} from './types.ts';
+import type {DiagramData, FontFamily, MeasureRequest, Measured, Roles, WidthOf} from './types/core.ts';
+import type {Band} from './types/index.ts';
 
 export type Requests = Map<string, MeasureRequest>;
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;

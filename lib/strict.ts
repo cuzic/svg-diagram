@@ -18,10 +18,11 @@
 // everywhere: every check below degrades to "ok" for `string` and for template-literal patterns.
 
 import type {MIN_FONT_SIZE} from './tokens.ts';
-import type {
-  Arrow, ArrowWeight, Bend, BoxOpts, PartRow, CurvePoint, DiagramOpts, LineStyle, ScreensItem, SeqDivider, SeqNote, SequenceActor, SeqMessage, SeqSelf,
-  RichText, SlideRef, StateMatrixCell, SwimlaneFlow, SwimlaneStep, TextTone, Theme,
-} from './types.ts';
+import type {Arrow, ArrowWeight, Bend, DiagramOpts, LineStyle, SlideRef, TextTone, Theme} from './types/core.ts';
+import type {CurvePoint} from './types/figures.ts';
+import type {SeqDivider, SeqNote, SequenceActor, SeqMessage, SeqSelf, SwimlaneFlow, SwimlaneStep} from './types/sequence-table-swimlane.ts';
+import type {BoxOpts, RichText} from './types/text-bands.ts';
+import type {PartRow, ScreensItem, StateMatrixCell} from './types/wireframe.ts';
 
 // ============================================================================================
 // Phantom carriers and their readers

@@ -1,6 +1,7 @@
 import {banner, caption, stat} from './dsl/text-bands.ts';
 import {row} from './dsl/containers.ts';
-import type {BannerBand, BannerOpts, BoxBand, CaptionBand, RichText, RowBand, StatOpts} from './types.ts';
+import type {RowBand} from './types/containers.ts';
+import type {BannerBand, BannerOpts, BoxBand, CaptionBand, RichText, StatOpts} from './types/text-bands.ts';
 import type {Declares, IdsOf} from './strict.ts';
 
 /** The big number of a hero(): stat()'s value and label, and its own options (size defaults to 'display'). */

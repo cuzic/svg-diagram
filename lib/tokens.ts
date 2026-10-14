@@ -7,7 +7,7 @@
 //
 // See docs/diagram-tone-and-manner.md for the narrative rules this encodes.
 
-import type {ColorKey, PlainColorKey, Palette, Role, Roles, Theme, TextTone, Appearance} from './types.ts';
+import type {ColorKey, PlainColorKey, Palette, Role, Roles, Theme, TextTone, Appearance} from './types/core.ts';
 
 export const PALETTE: Palette = {
   bg: '#ffffff',

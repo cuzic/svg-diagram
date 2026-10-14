@@ -6,7 +6,7 @@ import {Canvas, checkIds, checkText, fail, finiteNum, niceScale, numText, shadeO
 import type {ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
 import {boxStats, errorBar, kde, meanOf, swarmOffsets} from './stats.ts';
 import type {BoxStats, ErrorKind} from './stats.ts';
-import type {ColorKey} from './types.ts';
+import type {ColorKey} from './types/core.ts';
 
 export type CatKind = 'box' | 'violin' | 'strip' | 'swarm' | 'point' | 'bar';
 const KINDS: readonly CatKind[] = ['box', 'violin', 'strip', 'swarm', 'point', 'bar'];

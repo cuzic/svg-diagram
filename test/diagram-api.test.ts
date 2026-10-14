@@ -4,7 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {diagram, box, banner, caption, row, grid, group, table, sequence, wireframe, screens, swimlane, connect, branch, legend, wf, checkDiagram, closeMeasurer} from '../lib/dsl.ts';
 import {lintDiagram, applyAutoLegend, legendKeys, DEFAULT_LEGEND_LABELS, RULE_DOCS, walkBands} from '../lib/rules.ts';
-import type {LegendBand, LegendItem, Finding} from '../lib/types.ts';
+import type {LegendBand, LegendItem} from '../lib/types/containers.ts';
+import type {Finding} from '../lib/types/verdicts.ts';
 
 test.after(() => closeMeasurer());
 

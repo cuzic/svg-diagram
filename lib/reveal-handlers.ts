@@ -4,7 +4,7 @@
 // (UnrevealedBandTypes), and test/reveal-handlers.test.ts checks the table at run time.
 
 import {childrenOf} from './band-children.ts';
-import type {Band} from './types.ts';
+import type {Band} from './types/index.ts';
 
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
 

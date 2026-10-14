@@ -8,7 +8,7 @@ import * as hb from 'harfbuzzjs';
 import {emojiFontFace} from './font-metrics.ts';
 import {computeStyles, elements, parseXml, type El} from './svg-dom.ts';
 import {familyKind, placeRuns} from './svg-geom.ts';
-import type {FontSpecs} from './types.ts';
+import type {FontSpecs} from './types/project.ts';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const hex = (n: number) => Math.round(n).toString(16).padStart(2, '0');

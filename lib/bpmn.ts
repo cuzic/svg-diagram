@@ -8,7 +8,8 @@ import type {Pt} from './graph-layout.ts';
 import {measureNode, narrowField, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
 import {wrapText} from './wrap.ts';
-import type {BpmnBand, BpmnNodeKind, FontFamily, LaidOutBpmn, Roles, WidthOf} from './types.ts';
+import type {FontFamily, Roles, WidthOf} from './types/core.ts';
+import type {BpmnBand, BpmnNodeKind, LaidOutBpmn} from './types/diagrams.ts';
 
 const LABEL_COL = 120, PAD_Y = 22, COL_GAP = 52, EVENT = 36, GATE = 44, TASK_MAX = 168, LABEL_MAX = 120, STUB = 16, CHIP_PAD = 5, ARROW = 12;
 const TASK_ICON = 20, ICON_H = TASK_ICON + 4; // an icon above a task's label: its size and the room it takes

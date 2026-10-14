@@ -5,7 +5,8 @@
 //
 //   box({body: ['許可は ', em.danger(em.b('ユーザー')), ' が決める']})
 import {isSolidTone, textKeyOf} from './tokens.ts';
-import type {BoxBand, BoxLine, BoxOpts, RichSpans, RichText, Span, Styled, TextTone} from './types.ts';
+import type {TextTone} from './types/core.ts';
+import type {BoxBand, BoxLine, BoxOpts, RichSpans, RichText, Span, Styled} from './types/text-bands.ts';
 
 /** The brand of a Styled part. */
 export const RICH = Symbol('svg-diagram.rich');

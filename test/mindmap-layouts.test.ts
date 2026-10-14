@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import {box, checkDiagram, closeMeasurer, connect, diagram, mindmap, renderDiagram} from '../lib/dsl.ts';
-import type {LaidOutTree, MindmapLayout} from '../lib/types.ts';
+import type {LaidOutTree, MindmapLayout} from '../lib/types/diagrams.ts';
 
 test.after(() => closeMeasurer());
 

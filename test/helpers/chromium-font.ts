@@ -4,7 +4,7 @@ import {execFileSync} from 'node:child_process';
 import {getBrowser} from '../../lib/measure.ts';
 import {resolveFontFile} from '../../lib/font-metrics.ts';
 import {FONT_STACKS} from '../../lib/tokens.ts';
-import type {FontFamily} from '../../lib/types.ts';
+import type {FontFamily} from '../../lib/types/core.ts';
 
 export async function chromiumUsesOurFont(family: FontFamily, weight: number): Promise<boolean> {
   const file = resolveFontFile(family, weight);

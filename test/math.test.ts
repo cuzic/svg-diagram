@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import {caption, checkDiagram, closeMeasurer, diagram, math, renderDiagram} from '../lib/dsl.ts';
-import type {LaidOutMath} from '../lib/types.ts';
+import type {LaidOutMath} from '../lib/types/math.ts';
 
 test.after(() => closeMeasurer());
 

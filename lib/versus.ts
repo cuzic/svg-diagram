@@ -1,7 +1,10 @@
 import {group} from './dsl/text-bands.ts';
 import {row, spacer} from './dsl/containers.ts';
 import {connect} from './dsl/connect.ts';
-import type {Arrow, Band, BandInput, BoxTone, Route, ConnectBand, GroupBand, GroupRowBand, SpacerBand} from './types.ts';
+import type {ConnectBand, GroupBand, GroupRowBand, SpacerBand} from './types/containers.ts';
+import type {Arrow, BandInput, Route} from './types/core.ts';
+import type {Band} from './types/index.ts';
+import type {BoxTone} from './types/text-bands.ts';
 import type {Declares, IdsOf, Refers, RefsOf} from './strict.ts';
 
 export interface VersusPart<C extends BandInput = BandInput, Id extends string = string> {

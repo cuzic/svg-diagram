@@ -25,7 +25,7 @@ import crypto from 'crypto';
 import {spawn} from 'child_process';
 import {launchChromium} from './browser.ts';
 import {computeSlideIndex} from './slide-index.ts';
-import type {SlideBudget} from './types.ts';
+import type {SlideBudget} from './types/verdicts.ts';
 
 const SLIDE_W = 980, SLIDE_H = 552;
 // Content may extend to here; matches what check-slide-overflow.ts tolerates

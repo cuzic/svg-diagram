@@ -4,7 +4,7 @@
 // `lint --engine browser` and as the reference this is tested against (test/svg-lint.test.ts).
 import {apply, closest, colourGroups, computeStyles, elements, IDENTITY, multiply, parseColor, parseTransform, parseXml, textOf, type El, type Matrix, type RGBA, type Style} from './svg-dom.ts';
 import {boxOf, isShape, outlineOf, sampleAlong, textBoxOf, transformBox, unionBox, type Box, type Outline} from './svg-geom.ts';
-import type {FontSpecs} from './types.ts';
+import type {FontSpecs} from './types/project.ts';
 
 export interface RenderChecks {
   contrast: {txt: string; delta: number; fg: string; bg: string}[];

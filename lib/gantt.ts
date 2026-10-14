@@ -4,7 +4,8 @@
 import {textWidth} from './atoms.ts';
 import type {Pt} from './graph-layout.ts';
 import {ticksOf, timelineDay} from './timeline.ts';
-import type {FontFamily, GanttBand, GanttRow, GanttTask, LaidOutGantt, Roles, WidthOf} from './types.ts';
+import type {FontFamily, Roles, WidthOf} from './types/core.ts';
+import type {GanttBand, GanttRow, GanttTask, LaidOutGantt} from './types/timeline.ts';
 
 const ROW_H = 32, BAR_H = 18, HEAD_H = 44, PAD = 8, LABEL_MAX = 0.4, MS_DAY = 86400000, ARROW = 8;
 

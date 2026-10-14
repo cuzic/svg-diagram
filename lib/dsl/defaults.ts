@@ -1,4 +1,6 @@
-import type {Band, ConnectBand, ConnectDefaults, ConnectOpts} from '../types.ts';
+import type {ConnectBand, ConnectOpts} from '../types/containers.ts';
+import type {ConnectDefaults} from '../types/core.ts';
+import type {Band} from '../types/index.ts';
 import {mapBands, revealOf} from './shared.ts';
 
 // The options a connector was written with, kept (non-enumerable) so diagram({connectDefaults}) can tell "not given" from "given as the default".

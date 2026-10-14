@@ -16,7 +16,7 @@
 // line start, don't strand opening punctuation at a line end.
 
 import {splitAtoms} from './atoms.ts';
-import type {WrapOptions} from './types.ts';
+import type {WrapOptions} from './types/core.ts';
 
 const CANNOT_START_LINE = new Set(
   '、。，．・：；！？」』）〕】〉》ゝゞーぁぃぅぇぉっゃゅょァィゥェォッャュョ'.split(''),

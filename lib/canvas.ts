@@ -2,7 +2,9 @@
 // boxes sit in the cells of the template (columns / rows they span), so every region is an ordinary box: it can be an anchor,
 // be revealed, spotlighted, linted and checked like one. This file holds the templates, the validation and the pure geometry;
 // layout.ts only places the boxes.
-import type {BoxBand, CanvasLayout, EmphasisTone, GridBand} from './types.ts';
+import type {CanvasLayout, GridBand} from './types/containers.ts';
+import type {EmphasisTone} from './types/core.ts';
+import type {BoxBand} from './types/text-bands.ts';
 
 interface Region {
   id: string;

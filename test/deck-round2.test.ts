@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 import {bars, checkDiagram, closeMeasurer, diagram, plane, renderDiagram} from '../lib/dsl.ts';
 import {EMOJIS} from '../lib/icons.ts';
 import {icon} from '../lib/dsl.ts';
-import type {SpotlightOpt} from '../lib/types.ts';
+import type {SpotlightOpt} from '../lib/types/core.ts';
 
 process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
 test.after(() => closeMeasurer());

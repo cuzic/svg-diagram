@@ -16,7 +16,7 @@ import type {WaterfallOpts, WaterfallStep} from '../charts-waterfall.ts';
 import {causalBand, dependencyBand, pertBand} from '../semnet-dsl.ts';
 import type {CausalLink, PertTask} from '../semnet-analysis.ts';
 import type {CausalNode, CausalOpts, DependencyEdge, DependencyNode, DependencyOpts, PertOpts} from '../semnet.ts';
-import type {PlaneBand} from '../types.ts';
+import type {PlaneBand} from '../types/figures.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
 import {plane} from './figures.ts';
 import {withAnchors, withHandle} from './shared.ts';

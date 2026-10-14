@@ -12,7 +12,8 @@ import {subsetFont} from './font-subset.ts';
 import {computeStyles, elements, parseXml, type El} from './svg-dom.ts';
 import {familyKind} from './svg-geom.ts';
 import {EMOJI_RE} from './tokens.ts';
-import type {FontFamily, FontSpecs} from './types.ts';
+import type {FontFamily} from './types/core.ts';
+import type {FontSpecs} from './types/project.ts';
 import {xmlProblems} from './xml-check.ts';
 
 export type RasterEngine = 'auto' | 'resvg' | 'chromium';

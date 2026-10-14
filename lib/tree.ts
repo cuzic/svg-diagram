@@ -5,7 +5,8 @@ import {layoutBalanced, layoutTree} from './graph-layout.ts';
 import type {TreeLayout, TreeNode} from './graph-layout.ts';
 import {layoutBrace, layoutFishbone, layoutHanging, layoutTimelineMap, mirror} from './map-layouts.ts';
 import {wrapText} from './wrap.ts';
-import type {FontFamily, LaidOutTree, Roles, TreeBand, TreeItem, TreeNodeText, WidthOf} from './types.ts';
+import type {FontFamily, Roles, WidthOf} from './types/core.ts';
+import type {LaidOutTree, TreeBand, TreeItem, TreeNodeText} from './types/diagrams.ts';
 
 const PAD_X = 14, PAD_Y = 8, MIN_W = 88, DEFAULT_MAX_W = 200, GAP = 24, LEVEL_GAP = 44;
 

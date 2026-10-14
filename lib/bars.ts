@@ -1,6 +1,7 @@
 import {textWidth} from './atoms.ts';
 import {fmt, ticksOf} from './plane.ts';
-import type {BarDatum, BarsBand, BarsInk, BarsLine, ColorKey, FontFamily, LaidOutBars, WidthOf, Roles} from './types.ts';
+import type {BarDatum, BarsBand, BarsInk, BarsLine, LaidOutBars} from './types/bars.ts';
+import type {ColorKey, FontFamily, WidthOf, Roles} from './types/core.ts';
 
 const SERIES: Record<NonNullable<BarDatum['series']>, ColorKey> = {a: 'accent', b: 'text', c: 'muted'};
 const TICK = 6, BAR = 28, GAP = 18, STACK_GAP = 2;

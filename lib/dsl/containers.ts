@@ -1,4 +1,7 @@
-import type {Band, BoxBand, ConnectBand, GridBand, GridOpts, GroupBand, RowBand, RowOpts, BoxTone, TextTone, SpacerBand, GroupRowBand} from '../types.ts';
+import type {ConnectBand, GridBand, GridOpts, GroupBand, RowBand, RowOpts, SpacerBand, GroupRowBand} from '../types/containers.ts';
+import type {TextTone} from '../types/core.ts';
+import type {Band} from '../types/index.ts';
+import type {BoxBand, BoxTone} from '../types/text-bands.ts';
 import type {Declares, IdsOf, HandleOf, Refers, RefsOf, RowHandleOf} from '../strict.ts';
 import type {IconName} from '../icons.ts';
 import {assertNoReveal, handleFor, withHandle} from './shared.ts';
@@ -103,7 +106,7 @@ export interface NodeOpts {
   tone?: BoxTone;
   iconTone?: TextTone;
   tag?: string;
-  tagTone?: import('../types.ts').TagTone;
+  tagTone?: import('../types/core.ts').TagTone;
   flex?: number;
   width?: number;
   col?: number;

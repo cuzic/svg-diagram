@@ -23,11 +23,15 @@ import {barsValuesHidden} from './bars.ts';
 import {fmt} from './plane.ts';
 import {dimmedBands} from './spotlight.ts';
 import {visibleAt} from './reveal.ts';
-import type {
-  ArrowWeight, Band, BarsBand, BoxBand, EmphasisTone, DiagramData, Finding, LaidOutBand, LaidOutBox, LaidOutConnect, LegendBand, LegendItem,
-  LineStyle, Point, Rect, RuleId, SwimlaneBand, WfCallout,
-} from './types.ts';
-import type {LintTarget} from './types.ts';
+import type {BarsBand} from './types/bars.ts';
+import type {LaidOutConnect, LegendBand, LegendItem} from './types/containers.ts';
+import type {ArrowWeight, EmphasisTone, DiagramData, LineStyle, Point, Rect, RuleId} from './types/core.ts';
+import type {Band, LaidOutBand} from './types/index.ts';
+import type {SwimlaneBand} from './types/sequence-table-swimlane.ts';
+import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
+import type {Finding} from './types/verdicts.ts';
+import type {WfCallout} from './types/wireframe-nodes.ts';
+import type {LintTarget} from './types/verdicts.ts';
 
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',

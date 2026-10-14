@@ -1,5 +1,6 @@
 // math(): the layout of a formula that lib/math-tex.ts has already converted to outlines. Pure, so the rendering core can use it.
-import type {LaidOutMath, MathBand, Theme} from './types.ts';
+import type {Theme} from './types/core.ts';
+import type {LaidOutMath, MathBand} from './types/math.ts';
 import {colorOf, textKeyOf} from './tokens.ts';
 
 /** MathJax's SVG output is drawn in 1000 units per em. */

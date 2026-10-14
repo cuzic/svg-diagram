@@ -1,6 +1,7 @@
-import type {BranchTarget, ConnectBand, ConnectOpts, TextTone} from '../types.ts';
+import type {BranchTarget, ConnectBand, ConnectOpts} from '../types/containers.ts';
+import type {TextTone} from '../types/core.ts';
 import type {BranchInput, ConnectInput, Ok, Refers} from '../strict.ts';
-import type {RevealOpts} from '../types.ts';
+import type {RevealOpts} from '../types/core.ts';
 import {connectBand} from './defaults.ts';
 
 // Draws an arrow/line between two named anchors — any box()/row()-child/

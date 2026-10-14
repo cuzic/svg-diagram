@@ -1,6 +1,8 @@
 // Type-level tests for rich text (ADR 0003): which fields take em.* parts, and that a band never holds them. Never executed (see ids.ts).
 import {banner, box, caption, diagram, em, group, row, stat, swimlane, wf} from '../../lib/dsl.ts';
-import type {BannerBand, BoxBand, BoxLine, CaptionBand, GroupBand, RichText, Styled, SwimlaneStepBand} from '../../lib/types.ts';
+import type {GroupBand} from '../../lib/types/containers.ts';
+import type {SwimlaneStepBand} from '../../lib/types/sequence-table-swimlane.ts';
+import type {BannerBand, BoxBand, BoxLine, CaptionBand, RichText, Styled} from '../../lib/types/text-bands.ts';
 
 export function richCases(): void {
   // ---- positive: the fields in scope take a string or an array with em.* parts ----

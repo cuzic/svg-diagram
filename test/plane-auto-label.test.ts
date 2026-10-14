@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {layoutPlane, ticksOf} from '../lib/plane.ts';
 import {ROLES} from '../lib/tokens.ts';
-import type {PlaneBand} from '../lib/types.ts';
+import type {PlaneBand} from '../lib/types/figures.ts';
 
 const widthOf = (_atom: string, size: number) => size * 0.6;
 const hit = (a: {x: number; y: number; w: number; h: number}, b: {x: number; y: number; w: number; h: number}) =>

@@ -3,7 +3,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {wcagRatio} from '../lib/tokens.ts';
 import {usedNotation, legendKeys, applyAutoLegend, edgeStats, lintDiagram, diagramTitle} from '../lib/rules.ts';
-import type {LaidOutConnect, LegendBand, Point} from '../lib/types.ts';
+import type {LaidOutConnect, LegendBand} from '../lib/types/containers.ts';
+import type {Point} from '../lib/types/core.ts';
 import {diagram, caption, box, connect, legend, swimlane} from '../lib/dsl.ts';
 
 test('wcagRatio: black on white is 21:1, same colour is 1:1', () => {

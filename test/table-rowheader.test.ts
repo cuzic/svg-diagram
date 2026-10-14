@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {checkDiagram, closeMeasurer, diagram, renderDiagram, table} from '../lib/dsl.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import {PALETTE} from '../lib/tokens.ts';
-import type {LaidOutTable, TableBand} from '../lib/types.ts';
+import type {LaidOutTable, TableBand} from '../lib/types/sequence-table-swimlane.ts';
 
 test.after(() => closeMeasurer());
 

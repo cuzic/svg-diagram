@@ -5,7 +5,10 @@
 //   parseItem(raw)                "**title**：text"  ->  {title, text}
 //   compareNotes(items, notes)    the list in the page vs the figure's own notes  ->  findings
 
-import type {DocImage, DocCaption, DocNoteItem, Finding, WfNote, Band} from './types.ts';
+import type {Band} from './types/index.ts';
+import type {DocImage, DocCaption, DocNoteItem} from './types/project.ts';
+import type {Finding} from './types/verdicts.ts';
+import type {WfNote} from './types/wireframe.ts';
 
 const IMG = /!\[([^\]]*)\]\(([^)\s]+\.svg)\)/g;
 const PNG = /!\[([^\]]*)\]\(([^)\s]+\.png)\)/gi;

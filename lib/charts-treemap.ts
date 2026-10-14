@@ -2,7 +2,7 @@
 // Every cell prints its name and value when they fit; a cell too small for them is drawn without a label and listed in the description
 // (strict: true makes it an error instead).
 import {Canvas, checkIds, checkText, fail, finiteNum, inkOnShade, numText} from './charts-base.ts';
-import type {ColorKey} from './types.ts';
+import type {ColorKey} from './types/core.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 
 export interface TreemapNode {

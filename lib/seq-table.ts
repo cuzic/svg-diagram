@@ -9,11 +9,9 @@
 import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapAtoms} from './wrap.ts';
 import {CELL_MARKS} from './tokens.ts';
-import type {
-  SequenceBand, PreparedSequence, PreparedStep, TableBand, TableCell, TableColumn, TableRow, ResolvedCell, TextRequest,
-  WidthOf, FontFamily, LaidOutSequence, LaidOutSeqStep, LaidOutSeqHead, LaidOutTable, LaidOutTableRow, LaidOutTableCell,
-  TextTone, BoxTone, Roles,
-} from './types.ts';
+import type {TextRequest, WidthOf, FontFamily, TextTone, Roles} from './types/core.ts';
+import type {SequenceBand, PreparedSequence, PreparedStep, TableBand, TableCell, TableColumn, TableRow, ResolvedCell, LaidOutSequence, LaidOutSeqStep, LaidOutSeqHead, LaidOutTable, LaidOutTableRow, LaidOutTableCell} from './types/sequence-table-swimlane.ts';
+import type {BoxTone} from './types/text-bands.ts';
 
 const LH = 1.4;
 export const lineH = (size: number) => size * LH;

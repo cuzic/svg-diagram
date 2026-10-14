@@ -1,5 +1,6 @@
 import {PALETTE} from './tokens.ts';
-import type {LaidOutBand, Theme, Roles} from './types.ts';
+import type {Theme, Roles} from './types/core.ts';
+import type {LaidOutBand} from './types/index.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import {renderChart} from './charts-emit.ts';
 import {emojiSpan} from './emit-common.ts';

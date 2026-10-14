@@ -1,6 +1,6 @@
 // Geometry helpers the per-band-type checks of verify-handlers.ts share.
 
-import type {Rect} from './types.ts';
+import type {Rect} from './types/core.ts';
 
 export const CONTRAST_THRESHOLD = 70; // same threshold lint-svg.ts's own contrast check uses
 

@@ -2,7 +2,8 @@
 // One entry per band type, each checked against its own band type; a band type without one fails to compile.
 
 import type {LaidOutType, LaidOutOf} from './band-table.ts';
-import type {LaidOutBand, WrappedRun} from './types.ts';
+import type {LaidOutBand} from './types/index.ts';
+import type {WrappedRun} from './types/text-bands.ts';
 
 export type TextSizes<B> = (band: B) => Iterable<number>;
 

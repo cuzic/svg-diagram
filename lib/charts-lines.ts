@@ -3,7 +3,7 @@
 // series named at the end of its line instead of in a legend, an optional target / ideal line, annotated points. Presets for the
 // usual consulting charts follow (strategyCanvas, burndown, burnup).
 import {niceScale, fail, finiteNum, checkText, numText} from './charts-base.ts';
-import type {PlaneBand, PlaneOpts, PlanePoint, PlanePath, PlaneTone, PlaneLine, PlaneLabel} from './types.ts';
+import type {PlaneBand, PlaneOpts, PlanePoint, PlanePath, PlaneTone, PlaneLine, PlaneLabel} from './types/figures.ts';
 import type {ChartOpts} from './charts-base.ts';
 import {ROLES} from './tokens.ts';
 

@@ -5,7 +5,7 @@ import type {ChevronBand, ChevronOpts, ConcentricBand, ConcentricOpts, Concentri
 import {wordartBand} from '../wordart.ts';
 import type {WordArtBand, WordArtOpts} from '../wordart.ts';
 import {LABEL_ROLES} from '../tokens.ts';
-import type {PlaneBand, PlaneOpts, CurveBand, CurveOpts, PyramidBand, PyramidLayer, PyramidOpts} from '../types.ts';
+import type {PlaneBand, PlaneOpts, CurveBand, CurveOpts, PyramidBand, PyramidLayer, PyramidOpts} from '../types/figures.ts';
 import type {CurvePoints, Declares, HandleOf, PyramidLayers} from '../strict.ts';
 import {assertNoReveal, assertTextRole, withHandle} from './shared.ts';
 

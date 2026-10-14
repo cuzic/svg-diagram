@@ -1,6 +1,6 @@
 // Type-level tests for swimlane() and sequence(). Never executed (see ids.ts).
 import {swimlane, sequence} from '../../lib/dsl.ts';
-import type {SwimlaneLane} from '../../lib/types.ts';
+import type {SwimlaneLane} from '../../lib/types/sequence-table-swimlane.ts';
 
 export function swimlaneCases(): void {
   // ---- positive ----

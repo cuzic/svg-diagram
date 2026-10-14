@@ -2,7 +2,9 @@
 // emit-handlers.ts is the table that picks one per band type.
 
 import {PALETTE, FONT_STACKS, STRONG_HEAD, STRONG_HEAD_REF_X, recolor, customColors, mapOf, withTones, toneColors} from './tokens.ts';
-import type {LaidOutDiagram, LaidOutBand, LaidOutBox, LaidOutConnect, LaidOutLegendItem, WrappedRun} from './types.ts';
+import type {LaidOutConnect, LaidOutLegendItem} from './types/containers.ts';
+import type {LaidOutDiagram, LaidOutBand} from './types/index.ts';
+import type {LaidOutBox, WrappedRun} from './types/text-bands.ts';
 import {diagramTitle, diagramDesc} from './rules.ts';
 import {visibleAt} from './reveal.ts';
 import {spotlightDim} from './spotlight.ts';

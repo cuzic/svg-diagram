@@ -1,7 +1,9 @@
 // Consistency rules that read the words and numbers a diagram's author typed: spelling variants of one term
 // (ユーザ / ユーザー, API / Api), project-glossary terms to avoid (.svg-diagram.json "terms"), and tables whose
 // 合計 row / column does not add up. Pure: bands in, findings out.
-import type {Band, Finding, TableBand, TableCell, TableRow} from './types.ts';
+import type {Band} from './types/index.ts';
+import type {TableBand, TableCell, TableRow} from './types/sequence-table-swimlane.ts';
+import type {Finding} from './types/verdicts.ts';
 
 // string fields that are text a reader sees (a connect()'s from / to and every id are not)
 const TEXT_KEYS = new Set(['title', 'body', 'label', 'text', 'caption', 'note', 'name', 'headline', 'sub', 'subtitle', 'tag', 'heading', 'lead', 'stamp', 'sourceLine', 'items', 'cells', 'rows', 'detail', 'desc']);

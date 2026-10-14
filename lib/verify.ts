@@ -26,7 +26,11 @@ import {withTones} from './tokens.ts';
 import {lintDiagram, walkBands} from './rules.ts';
 import {CHECK_PHASES, collectRects, contrastProblems, runCheckPhase, type VerifyOut} from './verify-handlers.ts';
 import {labelOf, neverTogether, rectOverlap} from './verify-base.ts';
-import type {CheckRect, LaidOutCaption, LaidOutConnect, LaidOutDiagram, Rect, Verdict} from './types.ts';
+import type {LaidOutConnect} from './types/containers.ts';
+import type {Rect} from './types/core.ts';
+import type {LaidOutDiagram} from './types/index.ts';
+import type {LaidOutCaption} from './types/text-bands.ts';
+import type {CheckRect, Verdict} from './types/verdicts.ts';
 
 function checkOverlaps(rects: CheckRect[]): string[] {
   const problems: string[] = [];
