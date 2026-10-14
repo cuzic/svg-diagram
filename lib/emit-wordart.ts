@@ -17,7 +17,7 @@ export function renderWordArt(band: LaidOutWordArt, day: Theme): string {
   const figure = figureTransform(band);
   for (const p of paintLayers(band, day)) {
     const stroke = p.stroke ? ` stroke="${p.stroke}" stroke-width="${p.sw}" stroke-linejoin="round"${p.text && p.fill !== 'none' ? ' paint-order="stroke"' : ''}` : '';
-    const paint = `fill="${p.fill}"${stroke}${p.opacity !== undefined ? ` opacity="${p.opacity}"` : ''}${p.hidden ? ' aria-hidden="true"' : ''}${p.mirror ? ` clip-path="url(#${band.uid}-c)"` : ''}`;
+    const paint = `fill="${p.fill}"${stroke}${p.opacity !== undefined ? ` opacity="${p.opacity}"` : ''}${p.hidden ? ' aria-hidden="true" data-decor=""' : ''}${p.mirror ? ` clip-path="url(#${band.uid}-c)"` : ''}`;
     // a mirror image is flipped about the axis and pushed down by the gap; the figure's own turn / flip comes first in the list
     const mirror = p.mirror && band.reflection ? `matrix(1 0 0 -1 0 ${f(2 * band.reflection.axis + look.reflection!.gap)})` : '';
     const tf = [figure, mirror].filter(Boolean).join(' ');

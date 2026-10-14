@@ -39,7 +39,7 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
     const page = am ? {r: parseInt(am[1], 16), g: parseInt(am[2], 16), b: parseInt(am[3], 16), a: 1} : {r: 255, g: 255, b: 255, a: 1};
     const contrast: {txt: string; delta: number; fg: string; bg: string}[] = [];
     for (const t of svg.querySelectorAll('text')) {
-      if (t.closest('[aria-hidden="true"]')) continue; // decoration (a wordart's shadow / outer outlines), not a label
+      if (t.closest('[data-decor]')) continue; // decoration (a wordart's shadow / outer outlines), not a label
       let bb: DOMRect;
       try { bb = t.getBBox(); } catch { continue; }
       if (!bb.width) continue;
@@ -93,7 +93,7 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
       : null;
 
     const texts = [...svg.querySelectorAll('text')].map(t => {
-      if (t.closest('[aria-hidden="true"]')) return null;
+      if (t.closest('[data-decor]')) return null;
       const bb = t.getBoundingClientRect();
       const txt = (t.textContent || '').trim();
       if (!txt || !bb.width || !bb.height) return null;

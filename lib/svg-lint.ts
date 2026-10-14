@@ -62,8 +62,9 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
   walk(root, IDENTITY, true);
 
   const result: RenderChecks = {contrast: [], overflow: null, textOverlap: [], containerOverflow: [], covered: []};
-  // a copy of a text drawn for decoration (the shadow / outer outlines of a wordart) is aria-hidden: it is not a label, so it is not judged as one
-  const decorative = (el: El): boolean => !!closest(el, e => e.attrs['aria-hidden'] === 'true');
+  // a copy of a text drawn for decoration (the shadow / outer outlines of a wordart) is marked data-decor: it is not a label, so it is not
+  // judged as one for contrast and overlap (it still counts for overflow); an author's aria-hidden does not buy that exemption
+  const decorative = (el: El): boolean => !!closest(el, e => e.attrs['data-decor'] !== undefined);
   const texts = items.filter(i => i.tag === 'text' && i.user && i.user.w > 0 && !decorative(i.el));
 
   // a transparent diagram has no page rectangle: it is judged against the page colour it was drawn for (data-assumed-bg), else white

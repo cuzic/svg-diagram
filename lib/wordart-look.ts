@@ -131,7 +131,7 @@ export interface PaintLayer {
   fill: string; stroke?: string; sw?: number;
   /** Where the copy of the text is drawn, relative to the text. */
   dx: number; dy: number; opacity?: number;
-  /** Decoration: a copy that is not the text (aria-hidden; read aloud and linted once, by the top layer). */
+  /** Decoration: a copy that is not the text (aria-hidden and data-decor: read aloud and linted once, by the top layer). */
   hidden: boolean;
   /** Drawn flipped about the reflection axis. */
   mirror?: boolean;

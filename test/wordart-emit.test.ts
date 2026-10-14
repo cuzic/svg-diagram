@@ -8,10 +8,10 @@ import {place} from './helpers/wordart.ts';
 
 test.after(() => closeMeasurer());
 
-test('emission: one readable text per run, the rest aria-hidden; a rim is the text\'s own stroke', () => {
+test('emission: one readable text per run, the rest aria-hidden and data-decor; a rim is the text\'s own stroke', () => {
   const svg = renderWordArtForTest(place('縁取り', {style: 'sticker', size: 40}), 'blue');
   assert.equal((svg.match(/<text /g) ?? []).length, 3, 'the shadow, the outer rim, and the text (whose own stroke is the inner halo)');
-  assert.equal((svg.match(/aria-hidden="true"/g) ?? []).length, 2);
+  assert.equal((svg.match(/aria-hidden="true" data-decor=""/g) ?? []).length, 2);
   assert.match(svg, /paint-order="stroke"/);
   const plain = renderWordArtForTest(place('太字', {style: 'bold', size: 40}), 'blue');
   assert.equal((plain.match(/<text /g) ?? []).length, 1);
