@@ -29,7 +29,7 @@ test('timeline({unit: "ms"}): lanes, events, a dimension line that reads its own
   assert.equal(t.dots.length, 2);
   // x is proportional to the value
   const [a, b] = t.dots.map(d => d.x);
-  assert.ok(Math.abs((b - a) / (t.axis.x2 - t.axis.x1) - 344 / 700) < 1e-6);
+  assert.ok(Math.abs((b! - a!) / (t.axis.x2 - t.axis.x1) - 344 / 700) < 1e-6);
   const r = await renderDiagram(diagram({theme: 'blue', title: 't'}).add(timeline(MS)), {name: 't', budget: 'measure'});
   assert.deepEqual(r.xml, []);
   assert.match(r.svg, /344ms/);
@@ -64,12 +64,12 @@ test('steps(): numbered badges, one highlighted step, arrows between, an ordinar
   assert.equal(s.arrows, 'between');
   assert.deepEqual(s.children.map(c => c.step), [1, 2, 3]);
   assert.deepEqual(s.children.map(c => c.tone), [undefined, undefined, 'danger']);
-  assert.equal(s.children[1].tag, 't');
-  assert.ok(s.children[1].iconGlyph);
+  assert.equal(s.children[1]!.tag, 't');
+  assert.ok(s.children[1]!.iconGlyph);
   assert.equal(s.col(2).id, 'st#2');
   const plain = steps([{title: 'a'}, {title: 'b'}], {arrows: false});
   assert.equal(plain.arrows, 'none');
-  assert.equal(plain.children[0].step, undefined);
+  assert.equal(plain.children[0]!.step, undefined);
 });
 
 test('steps(): bad input stops', () => {
@@ -94,8 +94,8 @@ test('bracket(): runs under the two boxes from the left of one to the right of t
   assert.equal(c.annot!.kind, 'bracket');
   assert.equal(c.points.length, 4);
   const rowBox = r.laidOut.laidOut.find(x => x.type === 'row')!;
-  assert.ok(c.points[1].y > rowBox.y + rowBox.h, 'the bar is under the boxes');
-  assert.equal(c.points[0].x, c.points[1].x);
+  assert.ok(c.points[1]!.y > rowBox.y + rowBox.h, 'the bar is under the boxes');
+  assert.equal(c.points[0]!.x, c.points[1]!.x);
   const next = r.laidOut.laidOut.find(x => x.type === 'box')!;
   assert.ok(next.y >= c.labelBox!.y + c.labelBox!.h, 'the next band starts under the label');
   assert.match((await renderDiagram(d, {name: 't', budget: 'measure'})).svg, /この区間だけ/);
@@ -104,7 +104,7 @@ test('bracket(): runs under the two boxes from the left of one to the right of t
 test('bracket(side: above): over the boxes; a bad side or an empty label stops', async () => {
   const r = await checkDiagram(diagram({theme: 'blue', title: 't'}).add(two(), bracket('b:left', 'c:right', {side: 'above', label: 'x'})));
   const c = r.laidOut.connects.find(x => x.annot)!;
-  assert.ok(c.points[1].y < r.laidOut.laidOut.find(x => x.type === 'row')!.y);
+  assert.ok(c.points[1]!.y < r.laidOut.laidOut.find(x => x.type === 'row')!.y);
   assert.throws(() => bracket('a:left', 'b:right', {side: 'left' as never}), /side/);
   assert.throws(() => bracket('a:left', 'b:right', {label: ' '}), /label/);
 });
@@ -117,7 +117,7 @@ test('callout(): a bubble with a leader to the target, on each side', async () =
     assert.equal(c.points.length, 2, side);
     const b = r.laidOut.laidOut.find(x => x.type === 'row')!.children[1];
     const end = c.points[1];
-    assert.ok(end.x >= b.x - 6 && end.x <= b.x + b.w + 6 && end.y >= b.y - 6 && end.y <= b.y + b.h + 6, `${side}: the leader ends at the target`);
+    assert.ok(end!.x >= b!.x - 6 && end!.x <= b!.x + b!.w + 6 && end!.y >= b!.y - 6 && end!.y <= b!.y + b!.h + 6, `${side}: the leader ends at the target`);
     assert.ok(c.chipBox, side);
     assert.match((await renderDiagram(d, {name: 't', budget: 'measure'})).svg, /344ms かかる/);
   }

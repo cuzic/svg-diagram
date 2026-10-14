@@ -50,7 +50,7 @@ test('build: .ts and .mjs sources both build to svg/<basename without extension>
     // provenance embedded for `check --drift`
     const meta = /<metadata id="svg-diagram">([^<]*)<\/metadata>/.exec(svg);
     assert.ok(meta, 'metadata present');
-    const j = JSON.parse(meta[1].replace(/&quot;/g, '"'));
+    const j = JSON.parse(meta[1]!.replace(/&quot;/g, '"'));
     assert.equal(j.generator, 'svg-diagram');
     assert.match(j.source, new RegExp(`src/${n === 'flow' ? 'flow\\.ts' : 'legacy\\.mjs'}$`));
     assert.match(j.sourceSha256, /^[0-9a-f]{64}$/);

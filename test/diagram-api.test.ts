@@ -44,7 +44,7 @@ test('every kind of id-carrying band is a connect() anchor at run time (ids are 
     swimlane([{id: 'dev', label: 'D'}], [{id: 'st1', lane: 'dev', title: 'a'}, {id: 'st2', lane: 'dev', title: 'b'}], {flows: [{from: 'st1', to: 'st2'}]}),
   );
   const ids = ['ban', 'r1', 'r2', 'g1', 'g2', 'in1', 'zone', 'tbl', 'wire', 'seq', 'sc1', 'sc2', 'st1', 'st2'];
-  for (let i = 1; i < ids.length; i++) d.add(connect(ids[i - 1], ids[i]));
+  for (let i = 1; i < ids.length; i++) d.add(connect(ids[i - 1]!, ids[i]!));
   d.add(branch('ban', [{to: 'tbl'}, {to: 'wire', label: 'w'}]));
   const r = await checkDiagram(d);
   // 13 chained + 2 branch + 1 swimlane flow

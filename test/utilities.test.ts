@@ -37,7 +37,7 @@ test('bestTextColor: white on dark backgrounds, PALETTE.text on light ones, and 
   assert.equal(bestTextColor(255), PALETTE.text);
   assert.equal(bestTextColor(luminance(PALETTE.text)), '#ffffff');
   for (const t of THEMES) {
-    const accent = (PALETTE as unknown as Record<string, {accent: string}>)[t].accent;
+    const accent = (PALETTE as unknown as Record<string, {accent: string}>)[t]!.accent;
     const fg = bestTextColor(luminance(accent));
     assert.ok(wcagRatio(fg, accent) >= 3, `${t}: ${fg} on ${accent}`);
   }
@@ -83,11 +83,11 @@ test('wrapAtoms: breaks at the width, honours explicit \\n, drops leading whites
 test('wrapAtoms kinsoku: closing punctuation never starts a line, opening brackets never end one', () => {
   const lines = wrapText('あいう。えお', {maxWidth: 3, atomWidth: w1});
   assert.deepEqual(lines, ['あいう。', 'えお']);
-  assert.ok(lines.every(l => !'、。」）'.includes(l[0])));
+  assert.ok(lines.every(l => !'、。」）'.includes(l[0]!)));
   const open = wrapText('あい「うえ」', {maxWidth: 3, atomWidth: w1});
   assert.ok(open.every(l => !'「'.includes(l.at(-1)!)), JSON.stringify(open));
   assert.equal(open.join(''), 'あい「うえ」');
-  assert.deepEqual(wrapText('あいうーえ', {maxWidth: 3, atomWidth: w1})[1][0] !== 'ー', true, 'the long vowel mark does not start a line');
+  assert.deepEqual(wrapText('あいうーえ', {maxWidth: 3, atomWidth: w1})[1]![0] !== 'ー', true, 'the long vowel mark does not start a line');
   assert.deepEqual(splitAtoms('ab 日本c'), ['ab', ' ', '日', '本', 'c']);
 });
 
@@ -121,17 +121,17 @@ test('scanMarkdown: several images on one line, a list ended by a heading or ano
 
   const md = ['![a](a.svg)', '', '1. **一**：甲', '   続きの行', '2. **二**：乙', '', '3. **三**：丙', '', '## 見出し', '1. **別**：無関係'].join('\n');
   const [fig] = scanMarkdown(md);
-  assert.deepEqual(fig.items.map(i => [i.n, i.title]), [[1, '一'], [2, '二'], [3, '三']], 'a blank line between items does not end the list; a heading does');
+  assert.deepEqual(fig!.items.map(i => [i.n, i.title]), [[1, '一'], [2, '二'], [3, '三']], 'a blank line between items does not end the list; a heading does');
 
   const md2 = ['![a](a.svg)', '1. **一**：甲', '![b](b.svg)', '1. **二**：乙'].join('\n');
   const [f1, f2] = scanMarkdown(md2);
-  assert.deepEqual([f1.items.length, f2.items.length], [1, 1], 'the next image ends the first list');
-  assert.equal(f1.items[0].title, '一');
+  assert.deepEqual([f1!.items.length, f2!.items.length], [1, 1], 'the next image ends the first list');
+  assert.equal(f1!.items[0]!.title, '一');
 
   const para = scanMarkdown(['![a](a.svg)', '', '1. **一**：甲', '', '普通の段落', '1. **関係ない**：x'].join('\n'))[0];
-  assert.equal(para.items.length, 1, 'a paragraph after a blank line ends the list');
+  assert.equal(para!.items.length, 1, 'a paragraph after a blank line ends the list');
   assert.deepEqual(scanMarkdown('no images here'), []);
-  assert.equal(scanMarkdown('![x](a.svg)\n1. text')[0].items[0].n, 1, 'a list without bold keeps the whole text');
+  assert.equal(scanMarkdown('![x](a.svg)\n1. text')[0]!.items[0]!.n, 1, 'a list without bold keeps the whole text');
 });
 
 test('parseItem: ASCII or full-width colon, missing bold, extra spaces, colon inside the text, empty text', () => {
@@ -147,7 +147,7 @@ test('compareNotes: string notes, explicit n, extra items in the page, and notes
   assert.deepEqual(compareNotes([{n: 1, title: '', text: '説明'}], ['説明'], 'f'), []);
   const extra = compareNotes([{n: 1, title: '', text: 'a'}, {n: 2, title: '', text: 'b'}], ['a'], 'f');
   assert.equal(extra.length, 1);
-  assert.match(extra[0].message, /文書 2 件 \/ 図 1 件/);
+  assert.match(extra[0]!.message, /文書 2 件 \/ 図 1 件/);
   const byN = compareNotes([{n: 3, title: 'T', text: 'x'}], [{n: 3, title: 'T', text: 'x'}], 'f');
   assert.deepEqual(byN, [], 'explicit n is matched by number, not position');
   assert.match(compareNotes([{n: 1, title: 'T', text: 'x'}], [{n: 2, title: 'T', text: 'x'}], 'f').map(f => f.message).join(), /図の注釈 2「T」が文書にない/);

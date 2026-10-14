@@ -24,14 +24,14 @@ test('gantt() places bars by date, rows in order, and passes verify', async () =
   assert.deepEqual(verdict.problems, []);
   assert.equal(t.bars.length, 4);
   const [req, ui, impl, ms] = t.bars;
-  assert.ok(ui.x > req.x && ui.x < req.x + req.w, 'the 10/12 start is inside the 10/5 - 10/16 bar');
-  assert.ok(Math.abs(req.w / 12 - ui.w / 10) < 0.5, 'one day is one width');
-  assert.ok(req.y < ui.y && ui.y < impl.y && impl.y < ms.y);
-  assert.equal(ms.milestone, true);
-  assert.equal(ui.progress, 0.5);
-  assert.equal(impl.tone, 'danger');
+  assert.ok(ui!.x > req!.x && ui!.x < req!.x + req!.w, 'the 10/12 start is inside the 10/5 - 10/16 bar');
+  assert.ok(Math.abs(req!.w / 12 - ui!.w / 10) < 0.5, 'one day is one width');
+  assert.ok(req!.y < ui!.y && ui!.y < impl!.y && impl!.y < ms!.y);
+  assert.equal(ms!.milestone, true);
+  assert.equal(ui!.progress, 0.5);
+  assert.equal(impl!.tone, 'danger');
   assert.equal(t.deps.length, 3);
-  assert.ok(t.today && t.today.x > req.x && t.today.x < impl.x);
+  assert.ok(t.today && t.today.x > req!.x && t.today.x < impl!.x);
   assert.equal(t.sections.length, 1);
 });
 
@@ -47,8 +47,8 @@ test('gantt() draws bars, progress, diamond, today and dependency heads in the S
   assert.match(svg, />今日</);
   assert.equal(svg.match(/<rect [^>]*rx="4"/g)?.length, 5); // 3 plain bars + 1 bar with progress 0.5 (outline + done part) ... the milestone is a path
   const t = (await checkDiagram(diagram({theme: 'blue'}).add(plan()))).laidOut.laidOut.find(b => b.type === 'gantt') as LaidOutGantt;
-  const ui = t.bars[1], widths = [...svg.matchAll(/<rect [^>]*width="([\d.]+)"[^>]*rx="4" fill="#1d5fa8"\/>/g)].map(m => +m[1]);
-  assert.ok(widths.some(w => Math.abs(w - ui.w * 0.5) <= 4), `the done part is half of the bar, to the pixel grid (${ui.w}): ${widths}`);
+  const ui = t.bars[1], widths = [...svg.matchAll(/<rect [^>]*width="([\d.]+)"[^>]*rx="4" fill="#1d5fa8"\/>/g)].map(m => +m[1]!);
+  assert.ok(widths.some(w => Math.abs(w - ui!.w * 0.5) <= 4), `the done part is half of the bar, to the pixel grid (${ui!.w}): ${widths}`);
   assert.match(svg, /M[\d.]+,[\d.]+ L[\d.]+,[\d.]+ L[\d.]+,[\d.]+ L[\d.]+,[\d.]+ z/); // the diamond
 });
 
@@ -82,13 +82,13 @@ test('gantt(): the weekly ticks and every other label are registered for measuri
   }
   const narrow = await checkDiagram(diagram({theme: 'blue', width: 520}).add(gantt([{label: 'A', start: '2026-01-05', days: 133}])));
   const ticks = (narrow.laidOut.laidOut.find(b => b.type === 'gantt') as LaidOutGantt).texts.filter(x => /^\d+\/\d+$/.test(x.text));
-  for (let i = 1; i < ticks.length; i++) assert.ok(ticks[i].x - ticks[i - 1].x >= 30, 'ticks of a narrow figure do not pile up');
+  for (let i = 1; i < ticks.length; i++) assert.ok(ticks[i]!.x - ticks[i - 1]!.x >= 30, 'ticks of a narrow figure do not pile up');
 });
 
 test('gantt(): today on the last day keeps its label inside; a short axis with no Monday still has a date; the last milestone stays inside', async () => {
   const {t, verdict} = await laid(gantt([{label: 'A', start: '2026-12-01', end: '2026-12-31'}, {label: 'M', start: '2026-12-31', milestone: true}], {today: '2026-12-31', todayLabel: '本日'}));
   assert.deepEqual(verdict.problems, []);
-  assert.ok(t.bars[1].x + t.bars[1].w <= t.plot.x2 + 12 && t.bars[1].x + t.bars[1].w <= t.x + t.w);
+  assert.ok(t.bars[1]!.x + t.bars[1]!.w <= t.plot.x2 + 12 && t.bars[1]!.x + t.bars[1]!.w <= t.x + t.w);
   const short = (await laid(gantt([{label: 'A', start: '2026-10-13', end: '2026-10-16'}]))).t;
   assert.ok(short.texts.some(x => /^\d+\/\d+$/.test(x.text)), 'a date on the axis');
 });
@@ -124,7 +124,7 @@ test('gantt() rejects loose dates, milestone with a length, and an after that lo
 test('gantt(): task ids come with the figure (reveal); a task id cannot be spotlighted', async () => {
   const g = gantt([{id: 'a', label: 'A', start: '2026-10-05', days: 3}], {reveal: 2});
   const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(g, box({id: 'ext', title: '外部', reveal: 2}), connect('a', 'ext', {route: 'elbow'})));
-  assert.equal(laidOut.connects[0].reveal, 2);
+  assert.equal(laidOut.connects[0]!.reveal, 2);
   await assert.rejects(() => checkDiagram(diagram({theme: 'blue', spotlight: 'a'}).add(gantt([{id: 'a', label: 'A', start: '2026-10-05', days: 3}]))), /node inside a figure/);
 });
 
@@ -141,6 +141,6 @@ test('gantt(): even when nothing is free, the arrow still ends on the head bar (
   ], {from: '2026-10-05', to: '2026-10-30'})));
   const t = laidOut.laidOut.find(b => b.type === 'gantt') as LaidOutGantt;
   assert.ok(verdict.problems.some(p => /runs through the bar/.test(p)));
-  const end = t.deps[0].points[t.deps[0].points.length - 1], head = t.bars[3];
-  assert.ok(Math.abs(end.x - head.x) < 0.5 && end.y >= head.y && end.y <= head.y + head.h, 'the arrow ends on the left edge of B');
+  const end = t.deps[0]!.points[t.deps[0]!.points.length - 1], head = t.bars[3];
+  assert.ok(Math.abs(end!.x - head!.x) < 0.5 && end!.y >= head!.y && end!.y <= head!.y + head!.h, 'the arrow ends on the left edge of B');
 });

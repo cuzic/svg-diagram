@@ -71,7 +71,7 @@ test('the face index of a collection picks the face; the cut is a single face', 
     assert.ok(open(cut).face.collectUnicodes().length <= 1);
   }
   assert.ok(names.size >= 1);
-  assert.equal([...names][0].split('/')[0], open(bytes, sans!.index).face.getName(1, 'en'));
+  assert.equal([...names][0]!.split('/')[0], open(bytes, sans!.index).face.getName(1, 'en'));
 });
 
 test('data that is not a font is refused, not turned into something', () => {

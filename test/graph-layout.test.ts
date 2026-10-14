@@ -7,7 +7,7 @@ const n = (id: string, children?: TreeNode[], w = 80, h = 30): TreeNode => ({id,
 const overlap = (a: Placed, b: Placed): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 const noOverlaps = (m: Map<string, Placed>): void => {
   const all = [...m.entries()];
-  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) assert.ok(!overlap(all[i][1], all[j][1]), `${all[i][0]} overlaps ${all[j][0]}`);
+  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) assert.ok(!overlap(all[i]![1], all[j]![1]), `${all[i]![0]} overlaps ${all[j]![0]}`);
 };
 const inside = (m: Map<string, Placed>, w: number, h: number): void => {
   for (const [id, p] of m) assert.ok(p.x >= -0.01 && p.y >= -0.01 && p.x + p.w <= w + 0.01 && p.y + p.h <= h + 0.01, `${id} is outside ${w}x${h}`);
@@ -72,7 +72,7 @@ const box = (id: string): {id: string; size: {w: number; h: number}} => ({id, si
 
 test('layoutLayered: edges point forward in layers, nothing overlaps, long edges get a path through the gap', () => {
   const nodes = ['idle', 'running', 'paused', 'done', 'failed'].map(box);
-  const edges = [['idle', 'running'], ['running', 'paused'], ['paused', 'running'], ['running', 'done'], ['running', 'failed'], ['idle', 'done']].map(([from, to]) => ({from, to}));
+  const edges = [['idle', 'running'], ['running', 'paused'], ['paused', 'running'], ['running', 'done'], ['running', 'failed'], ['idle', 'done']].map(([from, to]) => ({from: from!, to: to!}));
   const t = layoutLayered(nodes, edges, {start: ['idle']});
   noOverlaps(t.nodes);
   inside(t.nodes, t.w, t.h);

@@ -99,7 +99,7 @@ t('a character the mono font lacks is measured by the sans font, not guessed as 
 
 t('mono text is monospaced', () => {
   const widths = ['i', 'm', 'W', '0', '.'].map(c => w(c, 20, 400, 'mono'));
-  for (const x of widths) assert.ok(Math.abs(x - widths[0]) < 0.5, widths.join(' '));
+  for (const x of widths) assert.ok(Math.abs(x - widths[0]!) < 0.5, widths.join(' '));
 });
 
 t('resolveFontFile finds a readable file for each family it can, bold included', () => {

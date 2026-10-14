@@ -19,7 +19,7 @@ const dark = (r: {width: number; height: number; rgba: Buffer}, box = {x: 0, y: 
   let n = 0;
   for (let y = Math.max(0, box.y); y < Math.min(r.height, box.y + box.h); y++) for (let x = Math.max(0, box.x); x < Math.min(r.width, box.x + box.w); x++) {
     const i = 4 * (y * r.width + x);
-    if (r.rgba[i] < 128 && r.rgba[i + 1] < 128 && r.rgba[i + 2] < 128) n++;
+    if (r.rgba[i]! < 128 && r.rgba[i + 1]! < 128 && r.rgba[i + 2]! < 128) n++;
   }
   return n;
 };
@@ -106,7 +106,7 @@ test('the real browser and resvg draw the same example figures to within anti-al
     let differ = 0, strongly = 0;
     const n = a.width * a.height;
     for (let i = 0; i < n; i++) {
-      const d = Math.max(Math.abs(a.rgba[4 * i] - b.rgba[4 * i]), Math.abs(a.rgba[4 * i + 1] - b.rgba[4 * i + 1]), Math.abs(a.rgba[4 * i + 2] - b.rgba[4 * i + 2]));
+      const d = Math.max(Math.abs(a.rgba[4 * i]! - b.rgba[4 * i]!), Math.abs(a.rgba[4 * i + 1]! - b.rgba[4 * i + 1]!), Math.abs(a.rgba[4 * i + 2]! - b.rgba[4 * i + 2]!));
       if (d > 0) differ++;
       if (d > 64) strongly++;
     }

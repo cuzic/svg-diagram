@@ -14,17 +14,17 @@ const rule = async (d: ReturnType<typeof diagram>) => (await checkDiagram(d)).ve
 
 const chain = (n: number, fit?: 'shrink') => {
   const ids = Array.from({length: n}, (_, i) => `n${i}`);
-  return bpmn([{id: 'a', label: '担当'}], ids.map(id => ({id, lane: 'a', label: '在庫を確認する'})), ids.slice(1).map((id, i) => ({from: ids[i], to: id})), fit ? {fit} : {});
+  return bpmn([{id: 'a', label: '担当'}], ids.map(id => ({id, lane: 'a', label: '在庫を確認する'})), ids.slice(1).map((id, i) => ({from: ids[i]!, to: id})), fit ? {fit} : {});
 };
 
 test("bpmn fit:'shrink' that squeezes tasks warns; a roomy one does not", async () => {
   const d = diagram({theme: 'blue'}); d.add(chain(8, 'shrink'));
   const narrow = await rule(d);
   assert.equal(narrow.length, 1);
-  assert.match(narrow[0].message, /字ずつ/);
+  assert.match(narrow[0]!.message, /字ずつ/);
   // eight tasks with the same label are named once, not eight times
-  assert.equal(narrow[0].message.match(/「在庫を確認する」/g)?.length, 1);
-  assert.doesNotMatch(narrow[0].message, /ほか/);
+  assert.equal(narrow[0]!.message.match(/「在庫を確認する」/g)?.length, 1);
+  assert.doesNotMatch(narrow[0]!.message, /ほか/);
   const ok = diagram({theme: 'blue'}); ok.add(chain(3, 'shrink'));
   assert.deepEqual(await rule(ok), []);
 });

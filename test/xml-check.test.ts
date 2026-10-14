@@ -7,9 +7,9 @@ test('well-formed SVG passes', () => {
 });
 
 test('what an <img> rejects is reported: valueless attribute, bare &, bad nesting, duplicate attribute, unclosed tag', () => {
-  assert.match(xmlProblems('<svg><g data-badge></g></svg>')[0], /without a quoted value/);
-  assert.match(xmlProblems('<svg><text>a & b</text></svg>')[0], /bare "&"/);
-  assert.match(xmlProblems('<svg><g></svg>')[0], /closes <g>/);
-  assert.match(xmlProblems('<svg a="1" a="2"/>')[0], /repeats the attribute/);
-  assert.match(xmlProblems('<svg><g>')[0], /never closed/);
+  assert.match(xmlProblems('<svg><g data-badge></g></svg>')[0]!, /without a quoted value/);
+  assert.match(xmlProblems('<svg><text>a & b</text></svg>')[0]!, /bare "&"/);
+  assert.match(xmlProblems('<svg><g></svg>')[0]!, /closes <g>/);
+  assert.match(xmlProblems('<svg a="1" a="2"/>')[0]!, /repeats the attribute/);
+  assert.match(xmlProblems('<svg><g>')[0]!, /never closed/);
 });

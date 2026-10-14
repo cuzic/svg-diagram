@@ -27,7 +27,7 @@ test('box({size}) warns that it has no effect; the px check stays', () => {
     box({title: 'y', size: 30});
   } finally { console.warn = orig; }
   assert.equal(warned.length, 1, 'once per process');
-  assert.match(warned[0], /box\(\{size\}\) は効果がない/);
+  assert.match(warned[0]!, /box\(\{size\}\) は効果がない/);
   assert.throws(() => box({title: 'x', size: 10 as 14}), /below the 14px floor/);
 });
 
@@ -35,7 +35,7 @@ test('banner({headlineRole}) sets the headline size and grows the banner', async
   const sizeOf = async (role?: 'banner' | 'stat' | 'display') => {
     const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(banner({headline: '見出し', ...(role ? {headlineRole: role} : {})})));
     const b = laidOut.laidOut[0] as LaidOutBanner;
-    return {size: b.wrappedRuns[0].size, h: b.h};
+    return {size: b.wrappedRuns[0]!.size, h: b.h};
   };
   const base = await sizeOf(), stat = await sizeOf('stat'), display = await sizeOf('display');
   assert.equal(base.size, ROLES.banner);
@@ -53,7 +53,7 @@ test('bars / plane labelRole: measured, laid out and drawn at one size', async (
   assert.ok(laid.texts.every(t => t.size === ROLES.stat));
   assert.ok(laid.bars.every(r => r.h >= ROLES.stat + 14), 'bars are as thick as their labels');
   const plain = layoutBars(bars([{label: 'A', value: 3}], {max: 6}), 0, 0, 800, widthOf, ROLES);
-  assert.ok(plain.texts.every(t => t.size === ROLES.note) && plain.bars[0].h === 28);
+  assert.ok(plain.texts.every(t => t.size === ROLES.note) && plain.bars[0]!.h === 28);
 
   const p = plane({labelRole: 'banner', x: {label: 'X', max: 10}, y: {label: 'Y', max: 10}, height: 400, points: [{id: 'p', at: [5, 5], label: 'Point'}]});
   assert.ok(planeTexts(p, ROLES).every(([, size]) => size === ROLES.banner));
@@ -104,5 +104,5 @@ test('fit counts plane and table text in the smallest size', async () => {
 
 test('caption({role: "display"}) already works', async () => {
   const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(caption('大きい', {role: 'display'})));
-  assert.equal((laidOut.laidOut[0] as {wrappedRuns: {size: number}[]}).wrappedRuns[0].size, ROLES.display);
+  assert.equal((laidOut.laidOut[0] as {wrappedRuns: {size: number}[]}).wrappedRuns[0]!.size, ROLES.display);
 });

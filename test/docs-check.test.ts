@@ -15,9 +15,9 @@ const CHECK = new URL('../check-diagram.ts', import.meta.url).pathname;
 test('scanMarkdown: finds figures, their alt text and the numbered list that follows', () => {
   const md = ['# T', '', '![概要](../a/x.svg)', '', '図中の番号に対応する注釈：', '', '1. **題名一**：本文一', '2. **題名二**：本文二', '', '次の段落', '![](y.svg)', '- 箇条書き'].join('\n');
   const [a, b] = scanMarkdown(md);
-  assert.deepEqual([a.line, a.alt, a.ref], [3, '概要', '../a/x.svg']);
-  assert.deepEqual(a.items, [{n: 1, title: '題名一', text: '本文一'}, {n: 2, title: '題名二', text: '本文二'}]);
-  assert.deepEqual([b.alt, b.items.length], ['', 0]);
+  assert.deepEqual([a!.line, a!.alt, a!.ref], [3, '概要', '../a/x.svg']);
+  assert.deepEqual(a!.items, [{n: 1, title: '題名一', text: '本文一'}, {n: 2, title: '題名二', text: '本文二'}]);
+  assert.deepEqual([b!.alt, b!.items.length], ['', 0]);
   assert.deepEqual(parseItem('**A**: b'), {title: 'A', text: 'b'});
 });
 
@@ -26,10 +26,10 @@ test('compareNotes: a figure note that is missing, reworded or renamed in the pa
   const same = [{n: 1, title: '検索', text: '品名で絞る。'}, {n: 2, title: '一覧', text: '結果を出す。'}];
   assert.deepEqual(compareNotes(same, notes, 'f'), []);
   assert.deepEqual(compareNotes(same.map(i => ({...i, text: i.text.replace('。', ' 。')})), notes, 'f'), [], 'spacing does not matter');
-  assert.match(compareNotes([same[0], {...same[1], text: '違う本文。'}], notes, 'f')[0].message, /注釈 2「一覧」の本文が違う/);
-  assert.match(compareNotes([same[0], {...same[1], title: '別名'}], notes, 'f')[0].message, /題名が違う/);
-  assert.match(compareNotes([same[0]], notes, 'f').map(f => f.message).join(), /数が違う/);
-  assert.equal(compareNotes([], notes, 'f')[0].rule, 'doc-notes-missing');
+  assert.match(compareNotes([same[0]!, {...same[1]!, text: '違う本文。'}], notes, 'f')[0]!.message, /注釈 2「一覧」の本文が違う/);
+  assert.match(compareNotes([same[0]!, {...same[1]!, title: '別名'}], notes, 'f')[0]!.message, /題名が違う/);
+  assert.match(compareNotes([same[0]!], notes, 'f').map(f => f.message).join(), /数が違う/);
+  assert.equal(compareNotes([], notes, 'f')[0]!.rule, 'doc-notes-missing');
 });
 
 test('explainChange: metadata-only and invisible-backing changes are not visual; moved text and new shapes are', () => {
@@ -99,7 +99,7 @@ test('formatNotes writes the list that compareNotes accepts', () => {
   const notes = ['題名なし', {title: '検索', text: '品名で絞る。'}, {n: 5, title: '保存', text: '右下に出す。'}];
   const md = formatNotes(notes);
   assert.equal(md, '1. 題名なし\n2. **検索**：品名で絞る。\n5. **保存**：右下に出す。');
-  const items = scanMarkdown(`![a](x.svg)\n\n${md}\n`)[0].items;
+  const items = scanMarkdown(`![a](x.svg)\n\n${md}\n`)[0]!.items;
   assert.deepEqual(compareNotes(items, notes, 'x'), []);
 });
 
@@ -111,8 +111,8 @@ test('formatMap lists each figure once with its documents, and marks the unrefer
   ]);
   const rows = t.split('\n');
   assert.equal(rows.length, 4);
-  assert.match(rows[2], /^\| a \| — \| `svg\/a.svg` \| （参照なし） \|$/);
-  assert.match(rows[3], /`d\/1.md:3`<br>`d\/2.md:9`/);
+  assert.match(rows[2]!, /^\| a \| — \| `svg\/a.svg` \| （参照なし） \|$/);
+  assert.match(rows[3]!, /`d\/1.md:3`<br>`d\/2.md:9`/);
 });
 
 test('formatNotes keeps an item on one line; formatMap keeps same-named figures in different folders apart', () => {
@@ -137,7 +137,7 @@ test('checkFigures: captions must run 図N-1, N-2 ... in the file chapter; refer
   assert.deepEqual(page('図3-1 構成\n\n![a](a.svg)\n\n図3-2 流れ\n\n![b](b.svg)\n'), [], 'captions above the figures');
   assert.deepEqual(page('![a](a.svg)\n*図3-1 a*\n\n1. **a**：x\n1. **b**：y\n\n`図3-9` と書く。\n'), [], 'lazy 1. numbering; inline code');
   assert.equal(chapterOf('2026-10-13-post.md'), null);
-  assert.deepEqual([3, 12, 7, null].map((_, i) => chapterOf(['03-a.md', 'ch12.md', 'chapter-7_x.md', 'intro.md'][i])), [3, 12, 7, null]);
+  assert.deepEqual([3, 12, 7, null].map((_, i) => chapterOf(['03-a.md', 'ch12.md', 'chapter-7_x.md', 'intro.md'][i]!)), [3, 12, 7, null]);
   assert.ok(globToRegExp('docs/**/03-*.md').test('docs/a/b/03-x.md') && !globToRegExp('docs/*.md').test('docs/a/x.md'));
   assert.ok(matchesAny([globToRegExp('03-*.md')], 'docs/03-x.md') && matchesAny([], 'any.md'));
 });

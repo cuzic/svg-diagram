@@ -30,7 +30,7 @@ test('ticks split: axis on + grid off draws short ticks, the combined line is th
   assert.deepEqual(vg.b.ticks.slice(0, 2).map(t => t.x2 - t.x1), [6, 6]);
   const h = await laid({max: 50});
   const hg = await laid({max: 50, grid: false});
-  assert.ok(h.b.ticks[0].y2 - h.b.ticks[0].y1 > 30 && hg.b.ticks[0].y2 - hg.b.ticks[0].y1 === 6);
+  assert.ok(h.b.ticks[0]!.y2 - h.b.ticks[0]!.y1 > 30 && hg.b.ticks[0]!.y2 - hg.b.ticks[0]!.y1 === 6);
   assert.equal(hg.b.ticks.at(-1)!.y1, hg.b.ticks.at(-1)!.y2, 'the value axis stays');
 });
 
@@ -46,10 +46,10 @@ test('labels: category keeps the labels and drops the values; none drops both', 
 test('axis: false drops numbers, ticks and the value axis but keeps a baseline (also on horizontal bars)', async () => {
   const v = await laid({dir: 'v', axis: false, labels: 'none'});
   assert.equal(v.b.ticks.length, 1);
-  assert.equal(v.b.ticks[0].y1, v.b.ticks[0].y2, 'a horizontal ground line');
+  assert.equal(v.b.ticks[0]!.y1, v.b.ticks[0]!.y2, 'a horizontal ground line');
   const h = await laid({axis: false, labels: 'none'});
   assert.equal(h.b.ticks.length, 1);
-  assert.equal(h.b.ticks[0].x1, h.b.ticks[0].x2, 'a vertical line at the bars start');
+  assert.equal(h.b.ticks[0]!.x1, h.b.ticks[0]!.x2, 'a vertical line at the bars start');
   assert.equal((await laid({dir: 'v', axis: false, labels: 'none', baseline: false})).b.ticks.length, 0);
   assert.equal((await laid({axis: false, labels: 'none', baseline: false})).b.ticks.length, 0);
 });
@@ -57,14 +57,14 @@ test('axis: false drops numbers, ticks and the value axis but keeps a baseline (
 test('horizontal bars: axis and labels free their space', async () => {
   const full = (await laid({max: 50})).b.h, bare = (await laid({max: 50, axis: false, labels: 'none'})).b;
   assert.ok(bare.h < full - 30);
-  assert.equal(bare.bars[0].x, bare.x, 'no label column');
-  assert.ok(bare.bars[1].w > (await laid({max: 50})).b.bars[1].w);
+  assert.equal(bare.bars[0]!.x, bare.x, 'no label column');
+  assert.ok(bare.bars[1]!.w > (await laid({max: 50})).b.bars[1]!.w);
 });
 
 test('a hurdle at height 60 has a plot of 50px or more and does not throw', async () => {
   const {b, verdict} = await laid({dir: 'v', labels: 'none', axis: false, grid: false, height: 60});
   assert.deepEqual(verdict.problems, []);
-  assert.ok(b.bars[1].h >= 50, `tallest bar ${b.bars[1].h}`);
+  assert.ok(b.bars[1]!.h >= 50, `tallest bar ${b.bars[1]!.h}`);
   // with axis / labels the old floor stays
   await assert.rejects(laid({dir: 'v', height: 100}), /too small/);
   await assert.rejects(laid({dir: 'v', height: 100, axis: false}), /too small/);
@@ -82,11 +82,11 @@ test('barRatio: omitted keeps the cap, given lifts it, 1 makes bars touch', asyn
   const wide = (o: object) => bars(DATA, {dir: 'v', max: 50, ...o});
   const widthOf = async (o: object) => (await checkDiagram(diagram({theme: 'blue', width: 1200}).add(wide(o)))).laidOut.laidOut.find((x): x is LaidOutBars => x.type === 'bars')!;
   const none = await widthOf({}), r62 = await widthOf({barRatio: 0.62}), r1 = await widthOf({barRatio: 1});
-  assert.equal(none.bars[0].w, 64);
-  assert.ok(r62.bars[0].w > 64);
-  assert.ok(Math.abs(r1.bars[0].x + r1.bars[0].w - r1.bars[1].x) < 1e-6);
+  assert.equal(none.bars[0]!.w, 64);
+  assert.ok(r62.bars[0]!.w > 64);
+  assert.ok(Math.abs(r1.bars[0]!.x + r1.bars[0]!.w - r1.bars[1]!.x) < 1e-6);
   const h = (await laid({barRatio: 1})).b, d = (await laid({})).b;
-  assert.ok(Math.abs(h.bars[0].y + h.bars[0].h - h.bars[1].y) < 1e-6, 'horizontal rows touch');
+  assert.ok(Math.abs(h.bars[0]!.y + h.bars[0]!.h - h.bars[1]!.y) < 1e-6, 'horizontal rows touch');
   assert.ok(h.h > d.h);
 });
 

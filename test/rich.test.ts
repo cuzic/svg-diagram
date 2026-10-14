@@ -32,7 +32,7 @@ test('richOf: random strings and arrays of strings are plain text with no spans'
   const rnd = () => { s = (s * 1103515245 + 12345) >>> 0; return s / 2 ** 32; };
   const alphabet = ['*', '**', '{', '}', 'a', 'API', ' ', '\n', 'あ', '(', ':', 'lib/**/*.ts'];
   for (let n = 0; n < 300; n++) {
-    const parts = Array.from({length: Math.floor(rnd() * 6)}, () => alphabet[Math.floor(rnd() * alphabet.length)]);
+    const parts = Array.from({length: Math.floor(rnd() * 6)}, () => alphabet[Math.floor(rnd() * alphabet.length)]!);
     const r = richOf(parts, {field: 'f', bold: false});
     assert.equal(r.text, parts.join(''));
     assert.equal(r.spans, undefined);
@@ -112,8 +112,8 @@ test('the boxes that use rich text: banner, caption, group, stat, swimlane step,
   const st = stat('76%', ['導入', em.b('前')]);
   assert.deepEqual(st.lines![1], {text: '導入前', tone: 'muted', spans: [{text: '導入'}, {text: '前', bold: true}]});
   const [sw] = swimlane([{id: 'a', label: 'A'}], [{lane: 'a', title: ['t ', em.accent('u')], body: ['b ', em.b('c')]}]) as unknown as [{steps: BoxBand[]}];
-  assert.equal(sw.steps[0].title, 't u');
-  assert.deepEqual(sw.steps[0].spans, {title: [{text: 't '}, {text: 'u', tone: 'accent'}], body: [{text: 'b '}, {text: 'c', bold: true}]});
+  assert.equal(sw.steps[0]!.title, 't u');
+  assert.deepEqual(sw.steps[0]!.spans, {title: [{text: 't '}, {text: 'u', tone: 'accent'}], body: [{text: 'b '}, {text: 'c', bold: true}]});
   assert.equal(box({step: 1, title: ['a ', em.accent('b')]}).title, 'a b');
 });
 
@@ -176,7 +176,7 @@ test('a word that a span cuts in two is never broken between lines', async () =>
   for (const width of [200, 210, 220, 230, 240, 250, 260, 270, 280]) {
     const d = diagram({theme: 'blue', width}).add(box({body: ['あいうえおかきくけこ ', em.b('API'), 's を呼ぶ']}));
     const {laidOut} = await checkDiagram(d);
-    const lines = boxesOf(laidOut)[0].wrappedRuns[0].lines;
+    const lines = boxesOf(laidOut)[0]!.wrappedRuns[0]!.lines;
     assert.ok(!lines.some(l => /API$/.test(l)) || !lines.some(l => /^s/.test(l)), `width ${width}: ${JSON.stringify(lines)}`);
   }
 });
@@ -184,7 +184,7 @@ test('a word that a span cuts in two is never broken between lines', async () =>
 test('leading spaces dropped, a bracket moved to the next line and \\n do not shift the spans', async () => {
   const text = ['一二三四五六七八九十（', em.b('括弧'), '）と', em.danger('赤'), '\n', '  次の行 ', em.b('太字')];
   const {laidOut} = await checkDiagram(diagram({theme: 'blue', width: 220}).add(box({body: text})));
-  const run = boxesOf(laidOut)[0].wrappedRuns[0] as WrappedRun;
+  const run = boxesOf(laidOut)[0]!.wrappedRuns[0] as WrappedRun;
   assert.ok(run.lines.length >= 3);
   assert.deepEqual(run.lineSpans!.map(sp => sp.map(x => x.text).join('')), run.lines); // every line's pieces are exactly that line
   const first = run.lineSpans!.flat();
@@ -243,8 +243,8 @@ test('the tspan widths are the layout widths (left / centre / right, spaces at t
     let checked = 0;
     lines.forEach(({run, i}, k) => {
       if (!run.lineSpans) return;
-      const layoutW = run.lineSpans[i].reduce((w, sp) => w + splitAtoms(sp.text).reduce((s, a) => s + widthOf(a, run.size, sp.bold ? 700 : run.weight, 'sans'), 0), 0);
-      const box = textBoxOf(drawn[k], styles)!;
+      const layoutW = run.lineSpans[i]!.reduce((w, sp) => w + splitAtoms(sp.text).reduce((s, a) => s + widthOf(a, run.size, sp.bold ? 700 : run.weight, 'sans'), 0), 0);
+      const box = textBoxOf(drawn[k]!, styles)!;
       assert.ok(Math.abs(box.w - layoutW) <= 0.5, `${align} line "${run.lines[i]}": drawn ${box.w} vs layout ${layoutW}`);
       checked++;
     });
@@ -319,7 +319,7 @@ test('a group title keeps its pieces (the caption made from the group carries th
   const {laidOut} = await checkDiagram(d);
   const cap = laidOut.laidOut.find(b => b.type === 'caption');
   assert.ok(cap && cap.type === 'caption' && cap.inkBox);
-  assert.deepEqual(cap.wrappedRuns[0].lineSpans, [[{text: '記録と '}, {text: '責任', tone: 'danger'}, {text: ' Chrome'}]]);
+  assert.deepEqual(cap.wrappedRuns[0]!.lineSpans, [[{text: '記録と '}, {text: '責任', tone: 'danger'}, {text: ' Chrome'}]]);
   const svg = (await render(d)).svg;
   assert.match(svg, /記録と <tspan fill="#b91c1c">責任<\/tspan> Chrome<\/text>/);
   const root = parseXml(svg);

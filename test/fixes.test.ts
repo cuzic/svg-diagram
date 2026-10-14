@@ -59,8 +59,8 @@ test('a self-call on the last actor puts its loop and label on the left, inside 
   d.add(sequence([{id: 'A', label: 'A'}, {id: 'B', label: 'B'}], [{self: 'B', label: '自己呼び出しのラベルがかなり長いとき'}, {self: 'A', label: '左端'}]));
   const seq = (await checkDiagram(d)).laidOut.laidOut.find(b => b.type === 'sequence');
   const [last, first] = (seq as {steps: {side: string}[]}).steps;
-  assert.equal(last.side, 'left');
-  assert.equal(first.side, 'right');
+  assert.equal(last!.side, 'left');
+  assert.equal(first!.side, 'right');
 });
 
 test('a widget whose state replaces its content grows to hold the state box (video + loading in a short cell)', async () => {
@@ -80,12 +80,12 @@ test('row() of groups: side by side, frames stretched to the tallest, nested gro
   assert.ok(r.verdict.ok, r.verdict.problems.join('\n'));
   const frames = r.laidOut.laidOut.filter(b => b.type === 'group') as {x: number; y: number; w: number; h: number}[];
   assert.equal(frames.length, 2);
-  assert.equal(frames[0].h, frames[1].h);
-  assert.equal(frames[0].y, frames[1].y);
-  assert.ok(frames[0].x + frames[0].w < frames[1].x);
-  assert.ok(Math.abs(frames[0].w / frames[1].w - 3) < 0.1 || frames[0].w > 2 * frames[1].w);
+  assert.equal(frames[0]!.h, frames[1]!.h);
+  assert.equal(frames[0]!.y, frames[1]!.y);
+  assert.ok(frames[0]!.x + frames[0]!.w < frames[1]!.x);
+  assert.ok(Math.abs(frames[0]!.w / frames[1]!.w - 3) < 0.1 || frames[0]!.w > 2 * frames[1]!.w);
   const c = r.laidOut.connects[0];
-  assert.ok(c.points[0].y <= frames[0].y + frames[0].h);
+  assert.ok(c!.points[0]!.y <= frames[0]!.y + frames[0]!.h);
 });
 
 test('a label between side-by-side groups gets room: the chip clears both frame lines and both boxes', async () => {
@@ -96,8 +96,8 @@ test('a label between side-by-side groups gets room: the chip clears both frame 
   );
   const {laidOut} = await checkDiagram(d);
   const frames = laidOut.laidOut.filter(b => b.type === 'group') as unknown as {x: number; w: number}[];
-  const chip = laidOut.connects[0].chipBox!;
-  const gapL = frames[0].x + frames[0].w, gapR = frames[1].x;
+  const chip = laidOut.connects[0]!.chipBox!;
+  const gapL = frames[0]!.x + frames[0]!.w, gapR = frames[1]!.x;
   assert.ok(chip.x >= gapL + 4 && chip.x + chip.w <= gapR - 4, `chip ${chip.x}..${chip.x + chip.w} must sit inside the gap ${gapL}..${gapR}`);
 });
 
@@ -111,5 +111,5 @@ test('a fixed-width row keeps its gap (growing it would overflow the canvas)', a
   const d = diagram({theme: 'blue'});
   d.add(row([box({id: 'a', title: '左'}), box({id: 'b', title: '右'})], {justify: 'start', gap: 8}), connect('a:right', 'b:left', {label: '長めのラベルです', chip: true}));
   const r = (await checkDiagram(d)).laidOut.laidOut.find(b => b.type === 'row') as unknown as {children: {x: number; w: number}[]};
-  assert.equal(r.children[1].x - (r.children[0].x + r.children[0].w), 8);
+  assert.equal(r.children[1]!.x - (r.children[0]!.x + r.children[0]!.w), 8);
 });

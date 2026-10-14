@@ -33,7 +33,7 @@ test('rasterize: SVG that is not well-formed XML is an error (an <img> would not
 });
 
 test('xmlProblems: a control character in a label is reported', () => {
-  assert.match(xmlProblems(svgOf(20, 20, '<text>a\x0Bb</text>'))[0], /control character U\+000B/);
+  assert.match(xmlProblems(svgOf(20, 20, '<text>a\x0Bb</text>'))[0]!, /control character U\+000B/);
 });
 
 test('the golden SVGs are all well-formed', () => {

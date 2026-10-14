@@ -43,7 +43,7 @@ test('contrast: dark text on white, and light text on a dark shape, are fine', {
 test('contrast: the threshold is a luminance difference of 70, strictly less', {skip}, () => {
   const on = (grey: string) => check(`<rect x="0" y="0" width="400" height="100" fill="${grey}"/><text x="10" y="40" font-size="20" fill="#000000">t</text>`).contrast;
   assert.equal(on('#444444').length, 1); // 68
-  assert.equal(on('#444444')[0].delta, 68);
+  assert.equal(on('#444444')[0]!.delta, 68);
   assert.equal(on('#464646').length, 0); // 70
 });
 
@@ -51,7 +51,7 @@ test('contrast: the text is judged against the shapes that hold its centre, pain
   // black at half opacity over white is 127.5 grey; grey text on it is 0.5 away
   const r = check('<rect x="0" y="0" width="400" height="100" fill="#000000" fill-opacity="0.5"/><text x="10" y="40" font-size="20" fill="#808080">t</text>');
   assert.equal(r.contrast.length, 1);
-  assert.equal(r.contrast[0].bg, 'rgb(127,127,127)');
+  assert.equal(r.contrast[0]!.bg, 'rgb(127,127,127)');
   // a later white shape hides the earlier dark one
   assert.deepEqual(check('<rect x="0" y="0" width="400" height="100" fill="#000000"/><rect x="0" y="0" width="400" height="100" fill="#ffffff"/><text x="10" y="40" font-size="20" fill="#ffffff">t</text>').contrast.map(c => c.delta), [0]);
   // opacity="" counts as well as fill-opacity
@@ -88,12 +88,12 @@ test('contrast: the default fill is black, which is fine on white', {skip}, () =
 
 test('contrast: a translucent text colour is printed as rgba, and judged on its colour alone', {skip}, () => {
   const r = check('<text x="10" y="40" font-size="20" fill="rgba(255,255,255,0.5)">t</text>');
-  assert.equal(r.contrast[0].fg, 'rgba(255, 255, 255, 0.5)');
+  assert.equal(r.contrast[0]!.fg, 'rgba(255, 255, 255, 0.5)');
 });
 
 test('contrast: text of 41+ characters is cut at 40; empty and whitespace-only text is skipped', {skip}, () => {
   const long = 'a'.repeat(60);
-  assert.equal(check(`<text x="0" y="40" font-size="14" fill="#ffffff">${long}</text>`).contrast[0].txt, 'a'.repeat(40));
+  assert.equal(check(`<text x="0" y="40" font-size="14" fill="#ffffff">${long}</text>`).contrast[0]!.txt, 'a'.repeat(40));
   assert.deepEqual(check('<text x="10" y="40" font-size="20" fill="#ffffff">   </text><text x="10" y="80" font-size="20" fill="#ffffff"></text>').contrast, []);
 });
 
@@ -161,8 +161,8 @@ test('overflow: a rect of 100% is the canvas, not an overflow', () => {
 test('text overlap: two texts that cover each other are reported, with the share of the smaller box', {skip}, () => {
   const r = check('<text x="20" y="45" font-size="20">Overlapping</text><text x="24" y="50" font-size="20">Overlapping</text>');
   assert.equal(r.textOverlap.length, 1);
-  assert.deepEqual([r.textOverlap[0].a, r.textOverlap[0].b], ['Overlapping', 'Overlapping']);
-  assert.ok(r.textOverlap[0].ratio > 0.5 && r.textOverlap[0].ratio <= 1);
+  assert.deepEqual([r.textOverlap[0]!.a, r.textOverlap[0]!.b], ['Overlapping', 'Overlapping']);
+  assert.ok(r.textOverlap[0]!.ratio > 0.5 && r.textOverlap[0]!.ratio <= 1);
 });
 
 test('text overlap: apart, and touching, are fine; barely overlapping is under the 30% line', {skip}, () => {
@@ -192,7 +192,7 @@ test('text overlap: rotated text is compared by where it really is', {skip}, () 
 
 test('text overlap: labels are cut at 30 characters', {skip}, () => {
   const long = 'b'.repeat(50);
-  assert.equal(check(`<text x="10" y="40" font-size="14">${long}</text><text x="10" y="40" font-size="14">${long}</text>`).textOverlap[0].a, 'b'.repeat(30));
+  assert.equal(check(`<text x="10" y="40" font-size="14">${long}</text><text x="10" y="40" font-size="14">${long}</text>`).textOverlap[0]!.a, 'b'.repeat(30));
 });
 
 // ---- 4. text out of its box ----
@@ -201,8 +201,8 @@ test('container overflow: text past the edge of its box is reported by how far',
   const w = T('a long label', 16).w;
   const r = check(`<rect x="20" y="20" width="${Math.ceil(w) + 40}" height="80" fill="#fff" stroke="#000"/><text x="${20 + Math.ceil(w) + 40 - w + 10}" y="60" font-size="16">a long label</text>`);
   assert.equal(r.containerOverflow.length, 1);
-  assert.equal(r.containerOverflow[0].txt, 'a long label');
-  assert.ok(Math.abs(r.containerOverflow[0].over - 14) < 0.2, String(r.containerOverflow[0].over)); // 10 past the edge, plus the 4px padding
+  assert.equal(r.containerOverflow[0]!.txt, 'a long label');
+  assert.ok(Math.abs(r.containerOverflow[0]!.over - 14) < 0.2, String(r.containerOverflow[0]!.over)); // 10 past the edge, plus the 4px padding
 });
 
 test('container overflow: more than 3px into the padding is reported, exactly 3 is not', {skip}, () => {
@@ -338,7 +338,7 @@ test('a figure shown at twice its viewBox is measured as shown: how far a text s
   assert.equal(once.containerOverflow.length, 1);
   // the box edge and the text start are 2x as far apart on screen; the padding is a screen measure and does not scale
   const pad = 4;
-  assert.ok(Math.abs(once.containerOverflow[0].over - (20 + pad - 10)) < 0.01);
-  assert.ok(Math.abs(twice.containerOverflow[0].over - (2 * 20 + pad - 2 * 10)) < 0.01, String(twice.containerOverflow[0].over));
+  assert.ok(Math.abs(once.containerOverflow[0]!.over - (20 + pad - 10)) < 0.01);
+  assert.ok(Math.abs(twice.containerOverflow[0]!.over - (2 * 20 + pad - 2 * 10)) < 0.01, String(twice.containerOverflow[0]!.over));
   assert.deepEqual(twice.overflow, once.overflow);
 });

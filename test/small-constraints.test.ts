@@ -39,7 +39,7 @@ test('table({cellH}) throws when a cell needs more room, and leaves tables witho
   const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(table([{label: 'a'}], [['x']])));
   const t = laidOut.laidOut.find(b => b.type === 'table');
   assert.ok(t && t.type === 'table');
-  assert.equal(t.rows[1].cells[0].top, t.rows[1].y + 8); // top-aligned as before
+  assert.equal(t.rows[1]!.cells[0]!.top, t.rows[1]!.y + 8); // top-aligned as before
 });
 
 test('stamp reserves a strip under the content and is drawn bottom-right of box, group and banner', async () => {

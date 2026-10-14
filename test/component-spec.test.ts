@@ -15,7 +15,7 @@ const robot = (o: Partial<WfRobotOpts> = {}) => wf.robot({name: 'A', battery: 0.
 test('robot card: the signal never overlaps the battery text, whatever its length', () => {
   const b = wfLayout(wf.col([robot({battery: 0.12, compact: false})]), {}, 400);
   const bat = b.prims.find((p): p is PrimText => p.k === 'text' && p.s.startsWith('12%')), sigBars = b.prims.filter((p): p is PrimRect => p.k === 'rect' && p.w === 6 && p.h === 6)[0];
-  assert.ok(sigBars.x > bat!.x + widthOf(bat!.s, 14) - 1, 'the signal starts after the battery text');
+  assert.ok(sigBars!.x > bat!.x + widthOf(bat!.s, 14) - 1, 'the signal starts after the battery text');
 });
 
 test('robot card: a narrow frame stacks its rows (nothing sticks out)', () => {
@@ -106,8 +106,8 @@ test('check: callout numbers and notes must match one to one', () => {
 test('autoNumber: n: true numbers callouts in reading order, after explicit ones', () => {
   const root: WfCol = wf.col([wf.row([wf.btn('a', {n: true}), wf.btn('b', {n: 1})]), wf.btn('c', {n: true}), wf.insight({title: 'T', evidence: [{kind: 'k', at: 't'}], parts: {level: true}})]);
   wireframe(root, {});
-  assert.equal((root.children[0] as WfRow).children[0].n, 2);
-  assert.equal(root.children[1].n, 3);
+  assert.equal((root.children[0] as WfRow).children[0]!.n, 2);
+  assert.equal(root.children[1]!.n, 3);
   assert.equal((root.children[2] as WfInsight).parts!.level, 4);
 });
 

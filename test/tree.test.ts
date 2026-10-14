@@ -23,7 +23,7 @@ test('tree() places every node, passes verify, and keeps nodes apart', async () 
   assert.equal(t.edges.length, 4);
   for (let i = 0; i < t.nodes.length; i++) for (let j = i + 1; j < t.nodes.length; j++) {
     const a = t.nodes[i], b = t.nodes[j];
-    assert.ok(!(a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h), `nodes ${i} and ${j} overlap`);
+    assert.ok(!(a!.x < b!.x + b!.w && b!.x < a!.x + a!.w && a!.y < b!.y + b!.h && b!.y < a!.y + a!.h), `nodes ${i} and ${j} overlap`);
   }
   for (const n of t.nodes) assert.ok(n.x >= t.x && n.x + n.w <= t.x + t.w);
 });
@@ -52,7 +52,7 @@ test('tree() dir right makes a deep chain shorter than dir down does', async () 
 test('tree() wraps a long label inside maxNodeW and rejects what cannot fit', async () => {
   const {t} = await laid(tree({label: 'とても長い部署の名前がここに入ります。これも折り返されます', children: [{label: 'x'}]}, {maxNodeW: 120}));
   assert.ok(t.nodes.every(n => n.w <= 120 + 14)); // a trailing 。 may hang past the width
-  assert.ok(t.nodes[0].h > t.nodes[1].h);
+  assert.ok(t.nodes[0]!.h > t.nodes[1]!.h);
   const wide = tree({label: 'r', children: Array.from({length: 12}, (_, i) => ({label: `部署${i}`}))});
   await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(wide)), /use dir: 'right'/);
 });
@@ -69,7 +69,7 @@ test('tree() with reveal: a connector to one of its nodes appears with the figur
   const t = tree({label: 'r', children: [{label: 'x', id: 'x'}]}, {reveal: 2});
   const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(t, box({id: 'ext', title: '外部', reveal: 2}), connect('x', 'ext', {route: 'elbow'})));
   assert.equal((laidOut.laidOut.find(b => b.type === 'tree') as LaidOutTree).reveal, 2);
-  assert.equal(laidOut.connects[0].reveal, 2);
+  assert.equal(laidOut.connects[0]!.reveal, 2);
 });
 
 test('tree(): spotlight on a node id says to spotlight the figure; on the figure id it works', async () => {
@@ -108,15 +108,15 @@ test('mindmap() puts the root in the middle with branches on both sides, and pas
   assert.deepEqual(verdict.problems, []);
   assert.equal(t.nodes.length, 11);
   const root = t.nodes[0];
-  assert.ok(t.nodes.some(n => n.x + n.w <= root.x) && t.nodes.some(n => n.x >= root.x + root.w));
-  assert.ok(Math.abs((root.x + root.w / 2) - (t.x + t.w / 2)) < t.w * 0.35, 'the root is near the middle');
+  assert.ok(t.nodes.some(n => n.x + n.w <= root!.x) && t.nodes.some(n => n.x >= root!.x + root!.w));
+  assert.ok(Math.abs((root!.x + root!.w / 2) - (t.x + t.w / 2)) < t.w * 0.35, 'the root is near the middle');
   assert.equal(t.edges.length, 10);
 });
 
 test('mindmap() sides pins a branch; bad sides are rejected', async () => {
   const {t} = await laid(mindmap({label: 'r', children: [{label: 'a', id: 'a'}, {label: 'b', id: 'b'}]}, {sides: {a: 'left', b: 'left'}}));
   const root = t.nodes[0];
-  assert.ok(t.nodes.slice(1).every(n => n.x + n.w <= root.x));
+  assert.ok(t.nodes.slice(1).every(n => n.x + n.w <= root!.x));
   assert.throws(() => mindmap({label: 'r'}, {sides: {a: 'up' as never}}), /must be 'left' or 'right'/);
   await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(mindmap({label: 'r', children: [{label: 'a'}]}, {sides: {zz: 'left'}}))), /unknown node id "zz"/);
   await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(mindmap({label: 'r', children: [{label: 'a', children: [{label: 'b', id: 'deep'}]}]}, {sides: {deep: 'left'}}))), /only a child of the root/);

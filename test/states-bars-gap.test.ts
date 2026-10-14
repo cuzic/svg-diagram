@@ -48,6 +48,6 @@ test('group: the gap of the row between groups is honoured; group({gap}) is an e
   const {svg} = await renderDiagram(d, {name: 't', budget: 'measure'});
   const frames = [...svg.matchAll(/<rect x="(\d+)" y="\d+" width="(\d+)" height="\d+" rx="8" fill="#f6f8fa"/g)].map(m => [Number(m[1]), Number(m[2])]);
   assert.equal(frames.length, 2);
-  assert.equal(frames[1][0] - (frames[0][0] + frames[0][1]), 80);
+  assert.equal(frames[1]![0]! - (frames[0]![0]! + frames[0]![1]!), 80);
   assert.throws(() => group([box({title: 'A'})], {gap: 40} as never), /no gap option/);
 });

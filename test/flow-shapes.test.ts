@@ -50,8 +50,8 @@ test('cycle: arrows run between the nodes, never into one', () => {
   const nodes = f.primitives.flatMap(p => p.k === 'circle' ? [p] : []);
   for (const p of f.primitives) {
     if (p.k !== 'path') continue;
-    const ends = [...p.d.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map(m => [+m[1], +m[2]]).filter((_, i) => i !== 1); // skip the arc radii
-    for (const [x, y] of ends) for (const c of nodes) assert.ok(Math.hypot(x - c.cx, y - c.cy) > c.r, `an arrow end (${x}, ${y}) is inside a node`);
+    const ends = [...p.d.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map(m => [+m[1]!, +m[2]!]).filter((_, i) => i !== 1); // skip the arc radii
+    for (const [x, y] of ends) for (const c of nodes) assert.ok(Math.hypot(x! - c.cx, y! - c.cy) > c.r, `an arrow end (${x}, ${y}) is inside a node`);
   }
 });
 
@@ -74,7 +74,7 @@ test('venn: the three outlines differ in dash pattern, not only in colour', () =
 test('funnel: each stage starts as wide as the one above ends', () => {
   const f = figure(funnel([{label: 'a', value: 1000}, {label: 'b', value: 400}, {label: 'c', value: 20}, {label: 'd', value: 10}], {scale: 'value'}));
   const polys = f.primitives.flatMap(p => p.k === 'polygon' ? [p.points] : []);
-  for (let i = 1; i < polys.length; i++) assert.equal(polys[i][1][0] - polys[i][0][0], polys[i - 1][2][0] - polys[i - 1][3][0]);
+  for (let i = 1; i < polys.length; i++) assert.equal(polys[i]![1]![0] - polys[i]![0]![0], polys[i - 1]![2]![0] - polys[i - 1]![3]![0]);
 });
 
 test('concentric side key: one leader per ring, from the key into its ring', () => {

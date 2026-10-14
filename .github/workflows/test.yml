@@ -22,7 +22,6 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm typecheck
       - run: pnpm lint
-      - run: pnpm typecheck:index
       - run: pnpm test
       - name: examples build and pass the rule check
         run: |

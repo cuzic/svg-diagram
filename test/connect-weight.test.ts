@@ -26,7 +26,7 @@ test('weight: the line stops short so the arrowhead tip lands on the box edge', 
   const c = laidOut.connects[0];
   const svg = await svgOf(two({weight: 'strong'}));
   const x2 = Number(/ L([\d.-]+),/.exec(svg.slice(svg.indexOf('stroke-width="5"') - 80))![1]);
-  assert.ok(c.to.x - x2 > 4 && c.to.x - x2 < 8, `line ends ${c.to.x - x2}px before the edge`);
+  assert.ok(c!.to.x - x2 > 4 && c!.to.x - x2 < 8, `line ends ${c!.to.x - x2}px before the edge`);
 });
 
 test('weight combines with dashed / dotted, and with arrow: none (no marker)', async () => {
@@ -64,7 +64,7 @@ test("legend: a used weight is a notation key; legend: 'auto' adds 強い流れ 
 });
 
 test('legend({weight}) fills in the solid line', () => {
-  assert.equal(legend([{weight: 'strong', label: 'x'}]).items[0].line, 'solid');
+  assert.equal(legend([{weight: 'strong', label: 'x'}]).items[0]!.line, 'solid');
 });
 
 test('edgeStats: parallel lines count as overlapping at a wider distance when strong', () => {

@@ -45,7 +45,7 @@ test('readImage embeds the file; a path, a file URL and a data URI give the same
   assert.equal(a.w, 240); assert.equal(a.h, 160);
   assert.equal(a.href, b.href); assert.equal(a.href, c.href);
   assert.equal(withSourceDir(dir, () => readImage('./kitchen.png')).href, a.href);
-  assert.equal(crypto.createHash('sha1').update(Buffer.from(a.href.split(',')[1], 'base64')).digest('hex'), crypto.createHash('sha1').update(fs.readFileSync(kitchen)).digest('hex'));
+  assert.equal(crypto.createHash('sha1').update(Buffer.from(a.href.split(',')[1]!, 'base64')).digest('hex'), crypto.createHash('sha1').update(fs.readFileSync(kitchen)).digest('hex'));
 });
 
 test('image() refuses what it cannot embed or describe', () => {
@@ -94,7 +94,7 @@ test('the lint finds no contrast problem on plates, and flags a text on the bare
   const bare = svg.replace(/<rect [^>]*rx="[\d.]+"[^>]*\/>(\s*<text)/g, '$1');
   const found = geometryChecks(bare)!.contrast;
   assert.deepEqual(found.map(f => f.txt).sort(), ['台所', '火の元', '窓']);
-  assert.match(found[0].bg, /image/);
+  assert.match(found[0]!.bg, /image/);
   // a plate that does not hold the whole text is no plate
   const small = svg.replace(/width="\d+"(?= height="\d+" rx=)/g, 'width="6"');
   assert.ok(geometryChecks(small)!.contrast.length > 0);
@@ -138,7 +138,7 @@ test('reveal: a mark and a plate appear at their stage, and a connector follows 
   const k = image(kitchen, {alt: 'x', width: 480, marks: [{id: 'pot', rect: [0.16, 0.42, 0.24, 0.3], label: '火の元', reveal: 2}], labels: [{text: '台所', at: [0.02, 0.06], reveal: 1}]});
   const d = diagram({theme: 'blue'}).add(k, row([box({id: 'n', title: 'n'})]), connect(k.anchors.pot.bottom, 'n:top'));
   const {laidOut} = await checkDiagram(d);
-  assert.equal(laidOut.connects[0].reveal, 2);
+  assert.equal(laidOut.connects[0]!.reveal, 2);
   const at = (n: number) => emitSvg(laidOut, {reveal: n});
   assert.doesNotMatch(at(0), /台所|火の元/);
   assert.match(at(1), /台所/); assert.doesNotMatch(at(1), /火の元/);
@@ -178,7 +178,7 @@ test('raster: resvg draws the embedded picture, with the plate over it', async (
   const r = await rasterize(svg, {engine: 'resvg'});
   const px = (x: number, y: number) => [...r.rgba.subarray(4 * (Math.round(y) * r.width + Math.round(x)), 4 * (Math.round(y) * r.width + Math.round(x)) + 3)];
   // the wall (235,228,210) near the top-right, the counter (90,70,50) at the bottom; the file's colours, not white
-  const near = (a: number[], b: number[]) => a.every((v, i) => Math.abs(v - b[i]) < 6);
+  const near = (a: number[], b: number[]) => a.every((v, i) => Math.abs(v - b[i]!) < 6);
   assert.ok(near(px(img.x + img.w - 6, img.y + 6), [235, 228, 210]), `wall: ${px(img.x + img.w - 6, img.y + 6)}`);
   assert.ok(near(px(img.x + 6, img.y + img.h - 6), [90, 70, 50]), `counter: ${px(img.x + 6, img.y + img.h - 6)}`);
   // the solid plate (the theme's accent) sits over the top-left of the picture
@@ -193,10 +193,10 @@ test('a label position is a fraction of the picture: it follows the picture when
     return {img, p: img.plates[0]};
   };
   const small = await plate(240), big = await plate(480);
-  assert.ok(Math.abs((small.p.x - small.img.x) / small.img.w - (big.p.x - big.img.x) / big.img.w) < 0.05);
+  assert.ok(Math.abs((small.p!.x - small.img.x) / small.img.w - (big.p!.x - big.img.x) / big.img.w) < 0.05);
   const mid = await plate(480, 'middle'), end = await plate(480, 'end');
-  assert.ok(Math.abs(mid.p.x + mid.p.w / 2 - (mid.img.x + mid.img.w / 2)) <= 1);
-  assert.ok(Math.abs(end.p.x + end.p.w - (end.img.x + end.img.w / 2)) <= 1);
+  assert.ok(Math.abs(mid.p!.x + mid.p!.w / 2 - (mid.img.x + mid.img.w / 2)) <= 1);
+  assert.ok(Math.abs(end.p!.x + end.p!.w - (end.img.x + end.img.w / 2)) <= 1);
 });
 
 test('a label role sets the text size, the plate follows it, and a plate that would leave the picture is pulled back', async () => {
@@ -207,9 +207,9 @@ test('a label role sets the text size, the plate follows it, and a plate that wo
     return {img, p: img.plates[0], verdict};
   };
   const note = await lay({}), banner = await lay({labelRole: 'banner'}), stat = await lay({}, {role: 'stat'}), own = await lay({labelRole: 'stat'}, {role: 'note'});
-  assert.deepEqual([note.p.size, banner.p.size, stat.p.size, own.p.size], [14, 16, 34, 14]);
-  assert.ok(banner.p.w > note.p.w && stat.p.w > banner.p.w && stat.p.h > note.p.h, 'the plate grows with the text');
-  assert.ok(stat.p.x + stat.p.w <= stat.img.x + stat.img.w && stat.p.y + stat.p.h <= stat.img.y + stat.img.h, 'pulled back inside');
+  assert.deepEqual([note.p!.size, banner.p!.size, stat.p!.size, own.p!.size], [14, 16, 34, 14]);
+  assert.ok(banner.p!.w > note.p!.w && stat.p!.w > banner.p!.w && stat.p!.h > note.p!.h, 'the plate grows with the text');
+  assert.ok(stat.p!.x + stat.p!.w <= stat.img.x + stat.img.w && stat.p!.y + stat.p!.h <= stat.img.y + stat.img.h, 'pulled back inside');
   assert.deepEqual(stat.verdict.problems, []);
   const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(image(kitchen, {alt: 'x', width: 480, labelRole: 'banner', labels: [{text: '一品', at: [0.1, 0.1], role: 'stat'}]})), {name: 'k.svg', budget: 'cacheOnly'});
   assert.match(svg, /font-size="34"[^>]*>一品</);
@@ -237,7 +237,7 @@ test('backdrop: a bare caption on the picture is stopped by the lint; too much c
   assert.deepEqual(verdict.problems, []);
   const found = geometryChecks(svg)!.contrast;
   assert.deepEqual(found.map(f => f.txt), ['素の文字']);
-  assert.match(found[0].bg, /image/);
+  assert.match(found[0]!.bg, /image/);
   const tall = diagram({theme: 'blue'}).add(image(kitchen, {alt: 'x', width: 240, over: [box({title: 'a', body: 'とてもながい文章'.repeat(12)})]}));
   await assert.rejects(checkDiagram(tall), /need \d+px of height but the picture is 160px/);
   assert.throws(() => image(kitchen, {alt: 'x', over: [connect('a', 'b')]}), /connect/);

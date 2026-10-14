@@ -24,7 +24,7 @@ const figure = (w: number, h: number, body = '') => `<svg xmlns="http://www.w3.o
 const BIG_TEXT = figure(300, 100, '<text x="10" y="70" font-size="48" fill="#000000">在庫A</text>');
 const darkIn = (r: {width: number; rgba: Buffer}, x0: number, y0: number, x1: number, y1: number) => {
   let n = 0;
-  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = 4 * (y * r.width + x); if (r.rgba[i] < 128 && r.rgba[i + 1] < 128) n++; }
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = 4 * (y * r.width + x); if (r.rgba[i]! < 128 && r.rgba[i + 1]! < 128) n++; }
   return n;
 };
 
@@ -38,10 +38,10 @@ test('the sheet is as wide as asked and tall enough for its rows; cols changes t
 
 test('each figure keeps its aspect ratio and a short one does not stretch its row', () => {
   const s = buildSheet([['wide.svg', figure(400, 100)], ['tall.svg', figure(100, 400)]], {cols: 2, width: 1000});
-  const heights = [...s.svg.matchAll(/<svg [^>]*?\sx="[^"]+" y="[^"]+" width="([\d.]+)" height="([\d.]+)"/g)].map(m => [+m[1], +m[2]]);
+  const heights = [...s.svg.matchAll(/<svg [^>]*?\sx="[^"]+" y="[^"]+" width="([\d.]+)" height="([\d.]+)"/g)].map(m => [+m[1]!, +m[2]!]);
   assert.equal(heights.length, 2);
-  assert.ok(Math.abs(heights[0][0] / heights[0][1] - 4) < 0.05);
-  assert.ok(Math.abs(heights[1][0] / heights[1][1] - 0.25) < 0.05);
+  assert.ok(Math.abs(heights[0]![0]! / heights[0]![1]! - 4) < 0.05);
+  assert.ok(Math.abs(heights[1]![0]! / heights[1]![1]! - 0.25) < 0.05);
 });
 
 test('captions are the file names, escaped', () => {
@@ -162,10 +162,10 @@ test('the shell script that needed Chrome is gone', () => {
 test('--engine chromium reaches the renderer in contact, preview and show: with no browser available each says how to get one', () => {
   const dir = tmp();
   fs.writeFileSync(path.join(dir, 'a.svg'), figure(40, 30));
-  for (const args of [['contact', 'a.svg', '--out', 'c.png', '--engine', 'chromium'], ['preview', 'a.svg', 'p.png', '--engine', 'chromium'], ['show', 'a.svg', '--png', 's.png', '--engine', 'chromium']]) {
+  for (const args of [['contact', 'a.svg', '--out', 'c.png', '--engine', 'chromium'], ['preview', 'a.svg', 'p.png', '--engine', 'chromium'], ['show', 'a.svg', '--png', 's.png', '--engine', 'chromium']] as string[][]) {
     const r = run(dir, ...args);
     assert.equal(r.status, 1, `${args[0]}: ${out(r)}`);
-    assert.match(out(r), NO_BROWSER, args[0]);
+    assert.match(out(r), NO_BROWSER, args[0]!);
   }
   fs.rmSync(dir, {recursive: true});
 });
@@ -210,7 +210,7 @@ test('preview without an output name writes a fresh temp file each time', { skip
     return m![1];
   });
   assert.notEqual(paths[0], paths[1]);
-  for (const p of paths) { assert.ok(path.basename(p).startsWith('x-') && fs.existsSync(p)); fs.rmSync(p); }
+  for (const p of paths) { assert.ok(path.basename(p!).startsWith('x-') && fs.existsSync(p!)); fs.rmSync(p!); }
 });
 
 test('contact --out creates a missing output directory', () => {

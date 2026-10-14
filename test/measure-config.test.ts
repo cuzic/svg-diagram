@@ -147,7 +147,7 @@ test('measure unset, no font file: warns once and measures in Chromium; measure 
     const second = await measureAll(req('fallback text two', 15));
     assert.ok(first.get('k')!.w > 0 && second.get('k')!.w > 0);
     assert.equal(seen.length, 1, seen.join('\n'));
-    assert.match(seen[0], /measuring with Chromium instead/);
+    assert.match(seen[0]!, /measuring with Chromium instead/);
     assert.equal(currentMeasure().backend, 'chromium');
     configureMeasure({measure: 'font', fonts: bad});
     await assert.rejects(measureAll(req('hard error', 15)), /font\.ttf/);

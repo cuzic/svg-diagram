@@ -99,9 +99,9 @@ test('a table outside the spotlight is muted, as the SVG paints it', async () =>
   };
   const lit = (await htmlOf(mk())).split('class="sd-tbl"')[1];
   const dim = (await htmlOf(mk('a'))).split('class="sd-tbl"')[1];
-  assert.match(lit, new RegExp(PALETTE.text, 'i'));
-  assert.doesNotMatch(dim, new RegExp(`${PALETTE.text}|${PALETTE.border}`, 'i'), 'no text or border colour is left');
-  assert.match(dim, new RegExp(PALETTE.muted, 'i'));
+  assert.match(lit!, new RegExp(PALETTE.text, 'i'));
+  assert.doesNotMatch(dim!, new RegExp(`${PALETTE.text}|${PALETTE.border}`, 'i'), 'no text or border colour is left');
+  assert.match(dim!, new RegExp(PALETTE.muted, 'i'));
 });
 
 test('the id comes from the content, not from how many figures were built before', async () => {
@@ -152,14 +152,14 @@ import {parsePath, shapesToCss} from '../lib/svg-to-css.ts';
 
 test('parsePath flattens curves and arcs, reads relative and shorthand commands', () => {
   const [c] = parsePath('M0,0 C10,0 20,10 20,20')!;
-  assert.ok(c.pts.length > 4);
-  assert.deepEqual(c.pts[c.pts.length - 1], {x: 20, y: 20});
+  assert.ok(c!.pts.length > 4);
+  assert.deepEqual(c!.pts[c!.pts.length - 1], {x: 20, y: 20});
   const [a] = parsePath('M10,0 A10,10 0 0 1 0,10')!;
-  assert.ok(a.pts.every(p => Math.abs(Math.hypot(p.x, p.y) - 10) < 0.01));
-  assert.deepEqual(a.pts[a.pts.length - 1], {x: 0, y: 10});
+  assert.ok(a!.pts.every(p => Math.abs(Math.hypot(p.x, p.y) - 10) < 0.01));
+  assert.deepEqual(a!.pts[a!.pts.length - 1], {x: 0, y: 10});
   const [r] = parsePath('m1,1 h2 v2 h-2 z')!;
-  assert.deepEqual(r.pts, [{x: 1, y: 1}, {x: 3, y: 1}, {x: 3, y: 3}, {x: 1, y: 3}]);
-  assert.equal(r.closed, true);
+  assert.deepEqual(r!.pts, [{x: 1, y: 1}, {x: 3, y: 1}, {x: 3, y: 3}, {x: 1, y: 3}]);
+  assert.equal(r!.closed, true);
   assert.equal(parsePath('M0,0 X1,1'), null);
 });
 

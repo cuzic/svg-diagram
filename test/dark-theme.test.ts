@@ -135,7 +135,7 @@ test('a bad custom token is refused', () => {
 test('default dark danger is a saturated red that still reads as text on the page and on the code fill', () => {
   assert.ok(wcagRatio(DARK_PALETTE.danger, DARK_PALETTE.bg) >= 4.5);
   assert.ok(wcagRatio(DARK_PALETTE.danger, DARK_PALETTE.code) >= 4.5);
-  const [r, g, b] = [1, 3, 5].map(i => parseInt(DARK_PALETTE.danger.slice(i, i + 2), 16));
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(DARK_PALETTE.danger.slice(i, i + 2), 16)) as [number, number, number];
   assert.ok(Math.max(r, g, b) - Math.min(r, g, b) >= 150, 'not a pastel pink');
 });
 

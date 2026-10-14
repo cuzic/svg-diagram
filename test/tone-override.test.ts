@@ -44,8 +44,8 @@ test('an overridden fill is held to the text-contrast check', async () => {
 
 test('the gray-tone-collision message names both remedies', async () => {
   const [f] = await collisions();
-  assert.match(f.message, /tones/);
-  assert.match(f.message, /accept/);
+  assert.match(f!.message, /tones/);
+  assert.match(f!.message, /accept/);
 });
 
 test('dark appearance: the dark colour is drawn and judged, the light one is not', async () => {

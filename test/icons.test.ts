@@ -21,7 +21,7 @@ test('this repo\'s own svg-diagram.icons.json (what the examples and tests draw)
   assert.ok(names.length >= 20);
   for (const n of ['person', 'people', 'document', 'folder', 'key', 'lock', 'bridge', 'fence', 'stairs', 'warning', 'check', 'close', 'idea', 'search', 'gear', 'cloud', 'database', 'mail', 'shield', 'flag', 'clock']) assert.ok(icon.has(n).path, n);
   for (const n of names) {
-    const {d, body, from, license} = m.icons[n];
+    const {d, body, from, license} = m.icons[n]!;
     assert.ok((d ?? body)!.length > 20 && from.includes(':') && license, n);
     assert.deepEqual(xmlProblems(`<svg xmlns="http://www.w3.org/2000/svg">${d !== undefined ? `<path d="${d}"/>` : body}</svg>`), [], n);
   }
@@ -96,8 +96,8 @@ test('box({icon}) draws a path in a token colour, muted when dimmed, and iconRow
   assert.deepEqual(verdict.problems, []);
   const paths = [...svg.matchAll(/<path d="[^"]+" transform="translate\(([\d. -]+)\) scale\(([\d.]+)\)" fill="(#[0-9a-f]{6})" aria-hidden="true" data-icon="(\w+)"\/>/g)];
   assert.deepEqual(paths.map(m => m[4]), ['lock', 'person', 'bridge', 'fence', 'stairs']);
-  for (const m of paths) assert.ok(ALLOWED_COLORS.has(m[3]), `${m[4]} fill ${m[3]} is a token`);
-  assert.notEqual(paths[0][3], paths[1][3], 'the focused box keeps its tone, the dimmed one is muted');
+  for (const m of paths) assert.ok(ALLOWED_COLORS.has(m[3]!), `${m[4]} fill ${m[3]} is a token`);
+  assert.notEqual(paths[0]![3], paths[1]![3], 'the focused box keeps its tone, the dimmed one is muted');
 });
 
 test('line, duotone and colour icons draw as one <g> around the set\'s shapes: currentColor is the tone, fixed colours stay, a dimmed fixed icon fades', async () => {
@@ -115,11 +115,11 @@ test('line, duotone and colour icons draw as one <g> around the set\'s shapes: c
     const {svg, verdict} = await renderDiagram(d, {name: 'lines.svg', budget: 'cacheOnly'});
     assert.deepEqual(verdict.problems, []);
     const g = (n: string) => new RegExp(`<g transform="[^"]+" fill="(#[0-9a-f]{6})"([^>]*?) aria-hidden="true" data-icon="${n}">(.*?)</g>`).exec(svg)!;
-    assert.ok(ALLOWED_COLORS.has(g('line')[1]));
-    assert.ok(g('line')[3].includes(`stroke="${g('line')[1]}"`) && !g('line')[3].includes('currentColor'), 'currentColor became the tone colour');
-    assert.ok(g('duo')[3].includes('opacity=".3"') && g('duo')[3].includes(`fill="${g('duo')[1]}"`));
-    assert.ok(g('logo')[3].includes('fill="#e53935"'), 'the logo keeps its own colour');
-    assert.match(g('logo')[2], /data-icon-fixed="true" opacity="0\.35"/, 'dimmed by spotlight: faded, not recoloured');
+    assert.ok(ALLOWED_COLORS.has(g("line")[1]!));
+    assert.ok(g('line')[3]!.includes(`stroke="${g('line')[1]}"`) && !g('line')[3]!.includes('currentColor'), 'currentColor became the tone colour');
+    assert.ok(g('duo')[3]!.includes('opacity=".3"') && g('duo')[3]!.includes(`fill="${g('duo')[1]}"`));
+    assert.ok(g('logo')[3]!.includes('fill="#e53935"'), 'the logo keeps its own colour');
+    assert.match(g("logo")[2]!, /data-icon-fixed="true" opacity="0\.35"/, 'dimmed by spotlight: faded, not recoloured');
     assert.ok(!svg.includes('group-transform'));
   } finally { icon.use(undefined); }
 });
@@ -138,18 +138,18 @@ test('node(): the icon is centred above its label with no box around it; connect
     assert.deepEqual(verdict.problems, []);
     const find = (id: string) => (JSON.parse(JSON.stringify(laidOut.laidOut[0])) as {children: {id: string; x: number; y: number; w: number; h: number; wrappedRuns: {lineYs: number[]}[]}[]}).children.find(c => c.id === id)!;
     const a = find('a'), b = find('b');
-    assert.ok(a.wrappedRuns[0].lineYs[0] >= 48 + 8, 'the label starts below the 48px icon and its gap');
-    assert.ok(b.h > a.h - 20 && b.wrappedRuns[0].lineYs[0] >= 64 + 8, 'size: 64 pushes the label lower');
+    assert.ok(a.wrappedRuns[0]!.lineYs[0]! >= 48 + 8, 'the label starts below the 48px icon and its gap');
+    assert.ok(b.h > a.h - 20 && b.wrappedRuns[0]!.lineYs[0]! >= 64 + 8, 'size: 64 pushes the label lower');
     const {svg} = await renderDiagram(d, {name: 'nodes.svg', budget: 'cacheOnly'});
     assert.equal((svg.match(/<rect x="[\d.]+" y="[\d.]+" width="[\d.]+" height="[\d.]+" rx="8"/g) ?? []).length, 1, 'only the node with frame: true has a box');
-    const ids = [...svg.matchAll(/<linearGradient id="([^"]+)"/g)].map(m => m[1]);
+    const ids = [...svg.matchAll(/<linearGradient id="([^"]+)"/g)].map(m => m[1]!);
     assert.equal(ids.length, 2);
     assert.notEqual(ids[0], ids[1], 'the same gradient drawn twice does not share an id');
     for (const id of ids) assert.ok(svg.includes(`fill="url(#${id})"`), id);
     assert.ok(a.x + a.w / 2 > 0);
     const dpath = [...svg.matchAll(/<path d="(M[^"]+)" fill="none" stroke="#22201b"/g)].map(m => m[1]);
-    const first = dpath[0].split(' ');
-    assert.ok(Number(first[0].slice(1).split(',')[0]) > a.x + a.w / 2 && Number(first[0].slice(1).split(',')[0]) < a.x + a.w / 2 + 40, 'right: starts at the icon\'s edge, not the box\'s');
+    const first = dpath[0]!.split(' ');
+    assert.ok(Number(first[0]!.slice(1).split(',')[0]) > a.x + a.w / 2 && Number(first[0]!.slice(1).split(',')[0]) < a.x + a.w / 2 + 40, 'right: starts at the icon\'s edge, not the box\'s');
   } finally { icon.use(undefined); }
   assert.throws(() => node({icon: 'key', label: 'x', size: 4}), /between 16 and 96/);
   assert.throws(() => box({iconAt: 'top', title: 'x'} as never), /needs an icon/);
@@ -158,7 +158,7 @@ test('node(): the icon is centred above its label with no box around it; connect
 
 // ---- icon coverage: swimlane steps, table cells, states, sankey nodes; step + icon; iconRow label position ----
 
-const iconMarks = (svg: string): string[] => [...svg.matchAll(/data-icon="(\w+)"/g)].map(m => m[1]);
+const iconMarks = (svg: string): string[] => [...svg.matchAll(/data-icon="(\w+)"/g)].map(m => m[1]!);
 
 test('a swimlane step takes an icon (and step too); an unknown icon throws with the install hint', async () => {
   const lanes = [{id: 'a', label: '営業'}, {id: 'b', label: '経理'}];
@@ -254,7 +254,7 @@ test('a bpmn task takes an icon above its label; the task grows to hold it', asy
   assert.deepEqual(verdict.problems, []);
   assert.deepEqual(iconMarks(svg), ['key', 'lock']);
   assert.match(svg, /aria-hidden="true" data-icon="key"/, 'a task has a label, so its icon is decoration');
-  const h = async (icon?: 'key') => ((await checkDiagram(diagram({theme: 'blue'}).add(bpmn([{id: 'a', label: 'x'}], [{id: 't', lane: 'a', label: '支払う', ...(icon ? {icon} : {})}], [])))).laidOut.laidOut[0] as unknown as {nodes: {h: number}[]}).nodes[0].h;
+  const h = async (icon?: 'key') => ((await checkDiagram(diagram({theme: 'blue'}).add(bpmn([{id: 'a', label: 'x'}], [{id: 't', lane: 'a', label: '支払う', ...(icon ? {icon} : {})}], [])))).laidOut.laidOut[0] as unknown as {nodes: {h: number}[]}).nodes[0]!.h;
   assert.equal(await h('key') - await h(), 24);
 });
 
@@ -296,7 +296,7 @@ test('a sequence participant takes an icon above its label; heads stay one heigh
   assert.deepEqual(iconMarks(svg), ['person', 'database']);
   const heads = ((await checkDiagram(mk())).laidOut.laidOut[0] as unknown as {heads: {h: number; textDy: number}[]}).heads;
   assert.equal(new Set(heads.map(x => x.h)).size, 1);
-  assert.ok(heads[2].textDy > 12 && heads[2].textDy < heads[0].textDy, 'a head without an icon keeps its label in the middle');
+  assert.ok(heads[2]!.textDy > 12 && heads[2]!.textDy < heads[0]!.textDy, 'a head without an icon keeps its label in the middle');
   assert.throws(() => sequence([{id: 'a', label: 'A', icon: 'nope' as IconName}, {id: 'b', label: 'B'}], []), /not installed/);
   assert.throws(() => sequence([{id: 'a', label: 'A', iconTone: 'accent'}, {id: 'b', label: 'B'}], []), /iconTone but no icon/);
 });

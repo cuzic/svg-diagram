@@ -24,7 +24,6 @@
     "golden": "node --import ./test/helpers/strict-width.ts check-diagram.ts --drift --rebuild --svg-dir examples/out examples/*.ts",
     "typecheck": "tsc -p .",
     "lint": "biome lint .",
-    "typecheck:index": "node scripts/check-index-access.ts",
     "build": "tsc -p tsconfig.build.json",
     "release": "bash scripts/release.sh",
     "prepack": "rm -rf dist && tsc -p tsconfig.build.json"
