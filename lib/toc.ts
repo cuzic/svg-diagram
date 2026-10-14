@@ -5,7 +5,7 @@
 //  cloud():     the Evaporating Cloud: five boxes in a fixed place (A the common objective, B and C the needs, D and D' the
 //               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
 import {textWidth} from './atoms.ts';
-import {gapFor, layoutWithLanes, routeLayered} from './layered-route.ts';
+import {gapFor, layeredAttempt} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import {wrapText} from './wrap.ts';
@@ -92,15 +92,36 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   }));
   const nodes = ranked.map(n => ({id: n.id, size: vertical ? {w: real.get(n.id)!.h, h: real.get(n.id)!.w} : real.get(n.id)!}));
   // layered layout runs on a 'right' axis; a vertical figure is the same layout transposed, an upward / leftward one mirrored
-  const lay = layoutWithLanes(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree))});
-  const total = {w: vertical ? lay.h : lay.w, h: vertical ? lay.w : lay.h};
-  if (total.w > w + 0.5) throw new Error(`causeTree(): the figure is ${Math.ceil(total.w)}px wide but it has ${Math.round(w)}px (use a smaller maxNodeW, dir: 'right' or 'left', or fewer entities on one level)`);
-  const dx = x + (w - total.w) / 2, dy = y;
-  const place = (p: Pt): Pt => {
+  const groupIndex = new Map<number, number>();
+  groups.forEach((g, gi) => g.arrows.forEach(k => groupIndex.set(k, gi)));
+  // the figure's own point of a layout point: set once the size is known (a figure narrower than its band is centred in it)
+  const placeIn = (total: {w: number; h: number}) => (p: Pt): Pt => {
     const q = vertical ? swap(p) : {...p};
     if (flip) { if (vertical) q.y = total.h - q.y; else q.x = total.w - q.x; }
-    return {x: q.x + dx, y: q.y + dy};
+    return {x: q.x + x + (w - total.w) / 2, y: q.y + y};
   };
+  // the last run of each arrow of an AND, when they can carry one arc (see below): the arrows arrive on one side, all heading the
+  // same way, with room before the head for the arc
+  const andEnds = (g: {arrows: number[]}, pointsOf: (k: number) => Pt[]) => {
+    const ends = g.arrows.map(pointsOf).map(p => ({tip: p[p.length - 1], prev: p[p.length - 2]}));
+    const sgn = (v: number): number => Math.abs(v) < 0.5 ? 0 : Math.sign(v); // a last run a hair off the straight (float noise) is still straight
+    const d = {x: sgn(ends[0].tip.x - ends[0].prev.x), y: sgn(ends[0].tip.y - ends[0].prev.y)};
+    const along = (p: Pt): number => d.x ? p.x : p.y, cross = (p: Pt): number => d.x ? p.y : p.x;
+    const aligned = ends.every(e => sgn(e.tip.x - e.prev.x) === d.x && sgn(e.tip.y - e.prev.y) === d.y && Math.abs(along(e.tip) - along(ends[0].tip)) < 1);
+    const room = Math.min(...ends.map(e => Math.abs(along(e.tip) - along(e.prev))));
+    return {ends, d, along, cross, ok: aligned && room >= AND_END + 1};
+  };
+  const attempt = layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree))}, {
+    portStep: PORT, groupOf: k => groupIndex.get(k), transpose: vertical, maxAcross: w + 0.5, place: placeIn,
+    looseOf: (rts, ly) => {
+      const route = new Map<number, Pt[]>();
+      ly.edges.forEach((e, i) => { if (!e.self) route.set(e.index, rts.get(i)!); });
+      return groups.filter(g => !andEnds(g, k => route.get(k)!).ok).map(g => g.to);
+    },
+  });
+  const {lay, routes, size: total} = attempt;
+  if (!attempt.fits) throw new Error(`causeTree(): the figure is ${Math.ceil(total.w)}px wide but it has ${Math.round(w)}px (use a smaller maxNodeW, dir: 'right' or 'left', or fewer entities on one level)`);
+  const dx = x + (w - total.w) / 2, dy = y;
   const rectOf = (id: string) => {
     const p = lay.nodes.get(id)!, q = vertical ? {x: p.y, y: p.x, w: p.h, h: p.w} : {x: p.x, y: p.y, w: p.w, h: p.h};
     if (flip) { if (vertical) q.y = total.h - (q.y + q.h); else q.x = total.w - (q.x + q.w); }
@@ -109,7 +130,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
 
   const out: LaidOutCause = {
     type: 'cause', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h,
-    nodes: [], edges: [], ands: [], loose: [], texts: [], anchors: [], labelBoxes: [],
+    nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
   };
   for (const n of band.nodes) {
     const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
@@ -119,9 +140,6 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     out.texts.push(...nodeRuns({x: r.x + (r.w - l.w) / 2, y: r.y + (r.h - l.h) / 2, w: l.w}, l, roles));
     out.labelBoxes.push({label: n.label, ...r});
   }
-  const groupIndex = new Map<number, number>();
-  groups.forEach((g, gi) => g.arrows.forEach(k => groupIndex.set(k, gi)));
-  const routes = routeLayered(lay, place, PORT, i => groupIndex.get(lay.edges[i].index));
   const drawn = new Map<number, number>(); // arrow index -> index in out.edges
   for (const [i, e] of lay.edges.entries()) {
     if (e.self) continue;
@@ -131,13 +149,8 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   // an AND: an arc across the last run of each of its arrows, a little before the arrowheads. It needs the arrows to arrive on
   // one side of the effect, all heading the same way, with room before the head for the arc
   for (const g of groups) {
-    const ends = g.arrows.map(k => out.edges[drawn.get(k)!].points).map(p => ({tip: p[p.length - 1], prev: p[p.length - 2]}));
-    const sgn = (v: number): number => Math.abs(v) < 0.5 ? 0 : Math.sign(v); // a last run a hair off the straight (float noise) is still straight
-    const d = {x: sgn(ends[0].tip.x - ends[0].prev.x), y: sgn(ends[0].tip.y - ends[0].prev.y)};
-    const along = (p: Pt): number => d.x ? p.x : p.y, cross = (p: Pt): number => d.x ? p.y : p.x;
-    const aligned = ends.every(e => sgn(e.tip.x - e.prev.x) === d.x && sgn(e.tip.y - e.prev.y) === d.y && Math.abs(along(e.tip) - along(ends[0].tip)) < 1);
-    const room = Math.min(...ends.map(e => Math.abs(along(e.tip) - along(e.prev))));
-    if (!aligned || room < AND_END + 1) { out.loose.push(g.to); continue; }
+    const {ends, d, cross, ok} = andEnds(g, k => out.edges[drawn.get(k)!].points);
+    if (!ok) continue;
     const us = ends.map(e => cross(e.tip)), tip = ends[0].tip;
     // the arc ends short of the nearest other arrow into this effect (another AND's arc, or an arrow of its own), so two arcs never touch
     const others = out.edges.filter((e, k) => e.to === g.to && !g.arrows.some(a => drawn.get(a) === k)).map(e => cross(e.points[e.points.length - 1]));

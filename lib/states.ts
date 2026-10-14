@@ -1,7 +1,7 @@
 // stateDiagram(): states and transitions that place themselves (graph-layout.ts layoutLayered). A state is a box like a tree
 // node; a transition is an orthogonal arrow routed through the layers it skips; a label sits on the arrow in a white chip.
 import {textWidth} from './atoms.ts';
-import {gapFor, layoutWithLanes, routeLayered, STUB} from './layered-route.ts';
+import {gapFor, layeredAttempt, STUB} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
@@ -62,19 +62,19 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   if (band.initial) { nodes.unshift({id: INIT, size: {w: 2 * DOT, h: 2 * DOT}}); edges.push({from: INIT, to: band.initial}); }
   const swapSize = (s: {w: number; h: number}): {w: number; h: number} => ({w: s.h, h: s.w});
   // layered layout runs on a 'right' axis; a 'down' diagram is the same layout transposed
-  const lay = layoutWithLanes(dir === 'down' ? nodes.map(n => ({id: n.id, size: swapSize(n.size)})) : nodes, edges, {
+  const reserve = dir === 'down' && loops.length ? LOOP + 4 + Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0;
+  const loopLabelH = loops.some(t => t.label) ? S + 10 : 0;
+  const top = loops.length && dir === 'right' ? LOOP + loopLabelH + 6 : 0;
+  const placeIn = (total: {w: number; h: number}) => (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + x + (w - total.w - reserve) / 2, y: q.y + y + top}; };
+  const {lay, routes, size: total} = layeredAttempt(dir === 'down' ? nodes.map(n => ({id: n.id, size: swapSize(n.size)})) : nodes, edges, {
     // a loop needs room beside its state (down) or between rows (right), so states do not crowd it
     dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : GAP,
     levelGap: Math.max(dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, gapFor(degree)), ...(band.initial ? {start: [INIT]} : {}),
-  });
+  }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn});
   const at = (id: string) => { const p = lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
 
   // a loop sits above its state when the flow runs right (room is made at the top), and to its right when the flow runs down
-  const loopLabelH = loops.some(t => t.label) ? S + 10 : 0;
-  const top = loops.length && dir === 'right' ? LOOP + loopLabelH + 6 : 0;
-  const total = {w: dir === 'down' ? lay.h : lay.w, h: dir === 'down' ? lay.w : lay.h};
-  // dir down: the loop and its label stick out to the right of the rightmost state
-  const reserve = dir === 'down' && loops.length ? LOOP + 4 + Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0;
+  // dir down: the loop and its label stick out to the right of the rightmost state (`reserve`)
   if (total.w + reserve > w + 0.5) throw new Error(`stateDiagram(): the figure is ${Math.ceil(total.w + reserve)}px wide but it has ${Math.round(w)}px (use dir: 'right', a smaller maxNodeW, or fewer states on one level)`);
   const dx = x + (w - total.w - reserve) / 2, dy = y + top;
   const out: LaidOutStates = {
@@ -97,8 +97,6 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   if (band.initial) { const p = at(INIT); out.initial = {x: p.x + dx + DOT, y: p.y + dy + DOT, r: DOT}; }
 
   // transitions: routed in the layout's own ('right') axes, then transposed for dir down and moved into the figure
-  const place = (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + dx, y: q.y + dy}; };
-  const routes = routeLayered(lay, place);
   const used = new Set<number>();
   const pickTransition = (from: string, to: string) => {
     const k = band.transitions.findIndex((tr, i) => !used.has(i) && tr.from === from && tr.to === to);

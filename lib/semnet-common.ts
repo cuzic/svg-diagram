@@ -1,7 +1,7 @@
 // What pert, causalLoop and dependencyNetwork share: the layered canvas, arrows, node boxes and the labels placed beside edges.
 import type {Cand, ChartBox, ChartGeom, ChartOpts} from './charts-base.ts';
 import {Canvas, checkIds, checkText, fail} from './charts-base.ts';
-import {layoutWithLanes, routeLayered} from './layered-route.ts';
+import {layeredAttempt} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 
 export type SemnetDirection = 'LR' | 'TB';
@@ -79,13 +79,15 @@ export const touchesAny = (b: Rect, boxes: readonly Rect[]): boolean => boxes.so
 export function networkCanvas(g: ChartGeom, nodes: {id: string; label: string; w: number; h: number}[], edges: {from: string; to: string}[], dir: SemnetDirection, legendH = 0): {c: Canvas; positions: Map<string, {x: number; y: number; w: number; h: number}>; paths: Map<number, Pt[]>} {
   // Orthogonal routing works in the layout's right-running axes; TB is that geometry transposed.
   const vertical = dir === 'TB';
-  const lay = layoutWithLanes(nodes.map(n => ({id: n.id, size: vertical ? {w: n.h, h: n.w} : {w: n.w, h: n.h}})), edges, {dir: 'right', gap: 28, levelGap: 76});
-  const naturalW = vertical ? lay.h : lay.w, naturalH = vertical ? lay.w : lay.h;
-  const scale = Math.min(1, (g.w - 8) / Math.max(1, naturalW)), ox = g.x + (g.w - naturalW * scale) / 2, oy = g.y + 8;
-  const place = (p: Pt): Pt => vertical ? {x: ox + p.y * scale, y: oy + p.x * scale} : {x: ox + p.x * scale, y: oy + p.y * scale};
+  // the figure is scaled down to the width it has, so the way a layout point lands depends on the layout's size
+  const scaleOf = (size: {w: number; h: number}): number => Math.min(1, (g.w - 8) / Math.max(1, size.w));
+  const oxOf = (size: {w: number; h: number}): number => g.x + (g.w - size.w * scaleOf(size)) / 2;
+  const oy = g.y + 8;
+  const placeIn = (size: {w: number; h: number}) => (p: Pt): Pt => { const scale = scaleOf(size), ox = oxOf(size); return vertical ? {x: ox + p.y * scale, y: oy + p.x * scale} : {x: ox + p.x * scale, y: oy + p.y * scale}; };
+  const {lay, routes: paths, size: natural} = layeredAttempt(nodes.map(n => ({id: n.id, size: vertical ? {w: n.h, h: n.w} : {w: n.w, h: n.h}})), edges, {dir: 'right', gap: 28, levelGap: 76}, {transpose: vertical, place: placeIn});
+  const naturalH = natural.h, scale = scaleOf(natural), ox = oxOf(natural);
   const positions = new Map<string, {x: number; y: number; w: number; h: number}>();
   for (const [id, p] of lay.nodes) positions.set(id, vertical ? {x: ox + p.y * scale, y: oy + p.x * scale, w: p.h * scale, h: p.w * scale} : {x: ox + p.x * scale, y: oy + p.y * scale, w: p.w * scale, h: p.h * scale});
-  const paths = routeLayered(lay, place);
   const h = Math.max(g.height ?? 0, naturalH * scale + 16 + legendH), c = new Canvas(g.x, g.y, g.w, h, g.size, g.widthOf);
   for (const n of nodes) { const p = positions.get(n.id)!; c.solids.push({...p, id: n.id, label: `node "${n.label}"`}); }
   return {c, positions, paths};

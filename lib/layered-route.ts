@@ -157,3 +157,62 @@ export function layoutWithLanes(nodes: LayeredNode[], edges: LayeredEdge[], opts
   const need = gapFor(corridorLoad(first), chip);
   return need > (opts.levelGap ?? 0) ? layoutLayered(nodes, edges, {...opts, levelGap: need}) : first;
 }
+
+// ---- one attempt ------------------------------------------------------------------------------------------------------------
+
+/** What the callers of layeredAttempt decide: how a point of the layout's own axes lands in the figure, and what counts as a width. */
+export interface AttemptOpts {
+  /** The step between arrows that meet one side of a box (routeLayered's `portStep`). */
+  portStep?: number;
+  /** The group of an input edge (by its index in `edges`): the arrows of one group (an AND) get one corridor (routeLayered's `groupOf`). */
+  groupOf?: (edge: number) => number | undefined;
+  /** The figure is the layout transposed (a vertical one): `size` swaps width and height. */
+  transpose?: boolean;
+  /** The widest the figure may be; `fits` says whether it is. Nothing is thrown here: the caller decides what a miss means. */
+  maxAcross?: number;
+  /** Moves a point of the layout's own axes into the figure; it may depend on the figure's size, hence a function of it. */
+  place: (size: {w: number; h: number}) => (p: Pt) => Pt;
+  /** Ids of the ANDs (or other groups) the routes leave undrawable. */
+  looseOf?: (routes: Map<number, Pt[]>, lay: LayeredLayout) => string[];
+}
+
+export interface Attempt {
+  lay: LayeredLayout;
+  routes: Map<number, Pt[]>;
+  /** Corners and crossings of the routed arrows (placed points); lower is better. */
+  score: {crossings: number; bends: number};
+  /** The figure's width and height (transposed back when `transpose`). */
+  size: {w: number; h: number};
+  /** Whether `size.w` is within `maxAcross` (true when none is given). */
+  fits: boolean;
+  loose: string[];
+}
+
+/** Corners of every route, and the places two routes properly cross (a right-angle crossing; touching and overlapping do not count). */
+export function scoreRoutes(routes: Map<number, Pt[]>): {crossings: number; bends: number} {
+  const list = [...routes.values()];
+  let bends = 0, crossings = 0;
+  for (const r of list) bends += Math.max(0, simplify(r).length - 2);
+  const segs = list.map(r => r.slice(1).map((q, i) => [r[i], q] as const));
+  const cross = (a: readonly [Pt, Pt], b: readonly [Pt, Pt]): boolean => {
+    const aH = a[0].y === a[1].y, bH = b[0].y === b[1].y;
+    if (aH === bH) return false;
+    const [h, v] = aH ? [a, b] : [b, a];
+    const x = v[0].x, y = h[0].y;
+    return x > Math.min(h[0].x, h[1].x) && x < Math.max(h[0].x, h[1].x) && y > Math.min(v[0].y, v[1].y) && y < Math.max(v[0].y, v[1].y);
+  };
+  for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) for (const a of segs[i]) for (const b of segs[j]) if (cross(a, b)) crossings++;
+  return {crossings, bends};
+}
+
+/**
+ * One layered layout with its routes, score, size and undrawable groups: the unit the callers (causeTree, stateDiagram, classDiagram,
+ * the semantic networks) build a figure from. A candidate selection and width fitting later wrap or live in this one function.
+ */
+export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layoutOpts: LayeredOpts & {start?: string[]}, o: AttemptOpts): Attempt {
+  const lay = layoutWithLanes(nodes, edges, layoutOpts);
+  const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
+  const groupOf = o.groupOf;
+  const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)));
+  return {lay, routes, score: scoreRoutes(routes), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
+}
