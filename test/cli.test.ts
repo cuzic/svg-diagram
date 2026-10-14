@@ -61,6 +61,41 @@ test('build: .ts and .mjs sources both build to svg/<basename without extension>
   assert.equal(fs.existsSync(path.join(proj, 'svg', 'flow.ts.svg')), false);
 });
 
+test('build --id-prefix: ids and references are prefixed in the SVG and the HTML, <metadata> stays, check --drift still reads it; without it nothing changes', () => {
+  const plain = path.join(proj, 'idp-plain.svg'), pre = path.join(proj, 'idp-pre.svg');
+  assert.equal(node(proj, BUILD, 'src/flow.ts', '--out', plain, '--no-lint').status, 0);
+  const r = node(proj, BUILD, 'src/flow.ts', '--out', pre, '--no-lint', '--html', '--id-prefix', 's1');
+  assert.equal(r.status, 0, out(r));
+  const svg = fs.readFileSync(pre, 'utf8'), base = fs.readFileSync(plain, 'utf8');
+  assert.match(base, /<title id="svg-title"/); // the default is untouched
+  assert.match(svg, /<title id="s1-svg-title"/);
+  assert.match(svg, /aria-labelledby="s1-svg-title/);
+  assert.match(svg, /<metadata id="svg-diagram">/);
+  assert.equal(svg.replace(/s1-/g, ''), base); // the only difference is the prefix
+  const html = fs.readFileSync(path.join(proj, 'idp-pre.html'), 'utf8');
+  assert.match(html, /<div id="s1" class="sd"/);
+  assert.doesNotMatch(html, /\sid="(?!s1)/);
+  // a second figure with another prefix on the same page: no id twice
+  const other = path.join(proj, 'idp-other.svg');
+  assert.equal(node(proj, BUILD, 'src/flow.ts', '--out', other, '--no-lint', '--id-prefix', 's2').status, 0);
+  const ids = (t: string) => [...t.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]).filter(i => i !== 'svg-diagram');
+  assert.deepEqual(ids(svg).filter(i => ids(fs.readFileSync(other, 'utf8')).includes(i)), []);
+});
+
+test('build --id-prefix: several sources get <p>-<basename>; auto is a content hash; a bad prefix is a usage error', () => {
+  const dir = path.join(proj, 'idp-multi');
+  const r = node(proj, BUILD, 'src/flow.ts', 'src/legacy.mjs', '--out-dir', dir, '--no-lint', '--id-prefix', 'p');
+  assert.equal(r.status, 0, out(r));
+  assert.match(fs.readFileSync(path.join(dir, 'flow.svg'), 'utf8'), /id="p-flow-svg-title"/);
+  assert.match(fs.readFileSync(path.join(dir, 'legacy.svg'), 'utf8'), /id="p-legacy-svg-title"/);
+  const auto = path.join(proj, 'idp-auto.svg');
+  assert.equal(node(proj, BUILD, 'src/flow.ts', '--out', auto, '--no-lint', '--id-prefix', 'auto').status, 0);
+  assert.match(fs.readFileSync(auto, 'utf8'), /id="sd[0-9a-f]{8}-svg-title"/);
+  assert.equal(node(proj, BUILD, 'src/flow.ts', '--out', auto, '--id-prefix', '1bad').status, 2);
+  const drift = node(proj, CHECK, '--drift', '--svg-dir', dir, 'src/flow.ts');
+  assert.equal(drift.status, 0, out(drift));
+});
+
 test('build: --out overrides the output path (and creates directories); the default path is then not written', () => {
   const target = path.join(proj, 'elsewhere', 'deep', 'custom.svg');
   const r = node(proj, BUILD, 'src/legacy.mjs', '--out', target);

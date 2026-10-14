@@ -66,6 +66,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint] [--png DIR [--scale N]]   # 既定の出力: ./svg/<name>.svg。--png: SVG と同時に PNG も DIR に書く（既定の倍率 2）
     svg-diagram build <source.ts> --dark --transparent   # 暗い配色／背景の矩形なしで描く（図の appearance / transparent を上書き）
     svg-diagram build <source.ts> --html                 # <name>.html も書く（文字・箱・表・線・矢印・曲線を HTML/CSS で。docs/adr/0006）
+    svg-diagram build <source.ts>... --id-prefix <p|auto>   # 複数の図を 1 つの HTML に貼るとき、SVG/HTML の内側の id（svg-title・dsl-arrow など）と参照に <p>-<id> を付ける。ソースが複数なら <p>-<ソース名>-<id>、auto は内容ハッシュ（sd<8 桁>）。<metadata id="svg-diagram"> は書き換えない（check --drift・--stale が読む）。付けなければ出力は 1 バイトも変わらない。--stale とは併用しても毎回作り直す（docs/adr/0012 D2）
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
     svg-diagram check --changed[=REF] <source.ts>...   # 変わった図だけ検査

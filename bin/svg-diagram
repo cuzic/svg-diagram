@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint] [--html]   (default out: ./svg/<name>.svg)
+# svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint] [--html] [--id-prefix <p|auto>]   (default out: ./svg/<name>.svg)
 # svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] <source.ts>...
 # svg-diagram init [dir]                                 (package.json + tsconfig.json for a diagram project)
 # svg-diagram icons add|remove|list|search|notice ...   (the project's own icons: svg-diagram.icons.json; add mdi:key-variant=key)
