@@ -5,9 +5,9 @@ import {Canvas, checkIds, checkText, fail, finiteNum, inkOnShade, niceScale, num
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 import {markerPath, SHAPES} from './charts-cat.ts';
 import {histogramBins} from './qc.ts';
-import {binCounts, binIndex} from './stats.ts';
+import {binCounts, binIndex, kde2d} from './stats.ts';
 
-export type MultiMode = 'hist2d' | 'joint' | 'pair';
+export type MultiMode = 'hist2d' | 'kde2d' | 'joint' | 'pair';
 export interface MultiOpts extends ChartOpts {
   /** The axis names (hist2d / jointplot). */
   xLabel?: string;
@@ -59,7 +59,7 @@ export function resolveMulti(who: string, mode: MultiMode, data: XY | Readonly<R
   if (d === null || typeof d !== 'object' || !('x' in d) || !('y' in d)) fail(who, 'needs columns: {x: [..], y: [..]}');
   const x = col(who, 'x', d.x), y = col(who, 'y', d.y);
   if (x.length !== y.length) fail(who, `x has ${x.length} values and y has ${y.length}`);
-  const {gi, names} = mode === 'hist2d' ? {gi: new Array<number>(x.length).fill(0), names: []} : groupsOf(who, d.group ?? opts.groups, x.length);
+  const {gi, names} = mode === 'hist2d' || mode === 'kde2d' ? {gi: new Array<number>(x.length).fill(0), names: []} : groupsOf(who, d.group ?? opts.groups, x.length);
   return {...base, ...bins, x, y, gi, names};
 }
 
@@ -68,8 +68,16 @@ const classes = (v: readonly number[], bins?: number) => histogramBins(v, {bins:
 export function multiAlt(s: MultiSpec): string {
   const r = (v: readonly number[]) => `${numText(Math.min(...v))}〜${numText(Math.max(...v))}`;
   if (s.mode === 'pair') return `散布図行列（${s.vars.map(v => `${v.name} ${r(v.values)}`).join('、')}、n=${s.vars[0].values.length}）`;
-  return `${s.mode === 'hist2d' ? '2次元ヒストグラム' : 'ジョイントプロット'}（${s.xLabel || 'x'} ${r(s.x)}、${s.yLabel || 'y'} ${r(s.y)}、n=${s.x.length}）`;
+  return `${s.mode === 'hist2d' ? '2次元ヒストグラム' : s.mode === 'kde2d' ? '2次元密度（KDE）' : 'ジョイントプロット'}（${s.xLabel || 'x'} ${r(s.x)}、${s.yLabel || 'y'} ${r(s.y)}、n=${s.x.length}）`;
 }
+/** The grid the 2-D density is worked out on: the data widened by 1.5 bandwidths each way, to round limits. */
+function density2d(s: MultiSpec) {
+  const probe = kde2d(s.x, s.y, [0], [0]), xs = niceScale(Math.min(...s.x) - 1.5 * probe.bwx, Math.max(...s.x) + 1.5 * probe.bwx), ys = niceScale(Math.min(...s.y) - 1.5 * probe.bwy, Math.max(...s.y) + 1.5 * probe.bwy);
+  const gx = Array.from({length: 61}, (_q, i) => xs.min + (xs.max - xs.min) * i / 60), gy = Array.from({length: 61}, (_q, j) => ys.min + (ys.max - ys.min) * j / 60);
+  const z = kde2d(s.x, s.y, gx, gy).z;
+  return {xs, ys, gx, gy, z, max: Math.max(...z.flat())};
+}
+const LEVELS = [0.1, 0.3, 0.5, 0.7, 0.9];
 function grid2d(s: MultiSpec) {
   const bx = classes(s.x, s.bins), by = classes(s.y, s.bins);
   const cells = by.edges.slice(0, -1).map(() => new Array<number>(bx.edges.length - 1).fill(0));
@@ -82,6 +90,7 @@ export function multiTexts(s: MultiSpec): [string, number][] {
   if (s.xLabel) out.push([s.xLabel, 700]);
   if (s.yLabel) out.push([s.yLabel, 700]);
   const ticks = (v: readonly number[]) => ax(v).ticks.forEach(t => out.push([numText(t), 400]));
+  if (s.mode === 'kde2d') { const d = density2d(s); d.xs.ticks.forEach(t => out.push([numText(t), 400])); d.ys.ticks.forEach(t => out.push([numText(t), 400])); out.push(['密度', 700], ['低', 400], ['高', 400]); return out; }
   if (s.mode === 'pair') for (const v of s.vars) { out.push([v.name, 700]); ticks(v.values); }
   else { ticks(s.x); ticks(s.y); }
   if (s.mode === 'hist2d') {
@@ -94,7 +103,7 @@ export function multiTexts(s: MultiSpec): [string, number][] {
 }
 
 export function layoutMulti(s: MultiSpec, g: ChartGeom): LaidOutChartPart {
-  const who = s.mode === 'hist2d' ? 'hist2d' : s.mode === 'joint' ? 'jointplot' : 'pairplot';
+  const who = s.mode === 'hist2d' ? 'hist2d' : s.mode === 'kde2d' ? 'kde2d' : s.mode === 'joint' ? 'jointplot' : 'pairplot';
   const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), r1 = (v: number) => Math.round(v * 10) / 10;
   const many = s.names.length > 1, tone = (i: number) => TONES[i] as 'accent';
   // legend of the groups: marker shape + dash + the name
@@ -135,7 +144,49 @@ export function layoutMulti(s: MultiSpec, g: ChartGeom): LaidOutChartPart {
     return {sx, sy};
   };
 
-  if (s.mode === 'hist2d') {
+  if (s.mode === 'kde2d') {
+    const d = density2d(s), tickW = Math.max(...d.ys.ticks.map(t => c.tw(numText(t)))), headH = S + 10 + (s.yLabel ? S + 10 : 0);
+    const plotL = g.x + tickW + 16, plotR = g.x + g.w - 110, axisH = S + 20 + (s.xLabel ? S + 10 : 0);
+    c.h = g.height ?? 360 + headH;
+    const plotT = g.y + headH + Math.ceil(S / 2), plotB = g.y + c.h - axisH - 6;
+    if (plotR - plotL < 120 || plotB - plotT < 120) fail(who, 'the figure is too small (raise width / height)');
+    const sx = (v: number) => plotL + (v - d.xs.min) / (d.xs.max - d.xs.min) * (plotR - plotL), sy = (v: number) => plotB - (v - d.ys.min) / (d.ys.max - d.ys.min) * (plotB - plotT);
+    const lvl = (v: number) => LEVELS.filter(f => v >= f * d.max).length, opOf = (l: number) => r1(0.1 + 0.15 * l);
+    // filled bands: each node is a cell, a run of equal level along a row is one rect
+    const dx = (plotR - plotL) / 60, dy = (plotB - plotT) / 60;
+    for (let j = 0; j <= 60; j++) {
+      let i = 0;
+      while (i <= 60) {
+        const l = lvl(d.z[j][i]); let k = i;
+        while (k + 1 <= 60 && lvl(d.z[j][k + 1]) === l) k++;
+        if (l > 0) { const x0 = Math.max(plotL, sx(d.gx[i]) - dx / 2), x1 = Math.min(plotR, sx(d.gx[k]) + dx / 2), y0 = Math.max(plotT, sy(d.gy[j]) - dy / 2), y1 = Math.min(plotB, sy(d.gy[j]) + dy / 2); c.rect(r1(x0), r1(y0), r1(x1 - x0) + 0.4, r1(y1 - y0) + 1.2, {fill: 'accent', op: opOf(l)}); }
+        i = k + 1;
+      }
+    }
+    for (const t of d.xs.ticks) { c.line(sx(t), plotB, sx(t), plotB + 6, {stroke: 'border'}); c.text(numText(t), sx(t), plotB + S + 14, 'middle', 'muted'); }
+    for (const t of d.ys.ticks) { c.line(plotL - 6, sy(t), plotL, sy(t), {stroke: 'border'}); c.text(numText(t), plotL - 10, c.mid(sy(t)), 'end', 'muted'); }
+    // iso-lines (marching squares) over the fill
+    for (const f of LEVELS) {
+      const th = f * d.max, segs: string[] = [], P = (i: number, j: number) => ({x: sx(d.gx[i]), y: sy(d.gy[j]), v: d.z[j][i]});
+      const lerp = (a: ReturnType<typeof P>, b: ReturnType<typeof P>) => { const t = (th - a.v) / (b.v - a.v); return `${r1(a.x + (b.x - a.x) * t)},${r1(a.y + (b.y - a.y) * t)}`; };
+      for (let j = 0; j < 60; j++) for (let i = 0; i < 60; i++) {
+        const v0 = P(i, j), v1 = P(i + 1, j), v2 = P(i + 1, j + 1), v3 = P(i, j + 1), code = (v0.v >= th ? 1 : 0) | (v1.v >= th ? 2 : 0) | (v2.v >= th ? 4 : 0) | (v3.v >= th ? 8 : 0);
+        const e = [() => lerp(v0, v1), () => lerp(v1, v2), () => lerp(v3, v2), () => lerp(v0, v3)];
+        const table: Record<number, number[][]> = {1: [[3, 0]], 2: [[0, 1]], 3: [[3, 1]], 4: [[1, 2]], 5: [[3, 0], [1, 2]], 6: [[0, 2]], 7: [[3, 2]], 8: [[2, 3]], 9: [[0, 2]], 10: [[0, 1], [2, 3]], 11: [[1, 2]], 12: [[1, 3]], 13: [[0, 1]], 14: [[3, 0]]};
+        for (const [a, b] of table[code] ?? []) segs.push(`M${e[a]()} L${e[b]()}`);
+      }
+      if (segs.length) c.path(segs.join(' '), {fill: 'none', stroke: 'accent', sw: 1.5});
+    }
+    c.line(plotL, plotB, plotR, plotB, {stroke: 'text'}); c.line(plotL, plotT, plotL, plotB, {stroke: 'text'});
+    if (s.yLabel) c.text(s.yLabel, plotL - 4, g.y + S + 2, 'start', 'muted', {bold: true});
+    if (s.xLabel) c.text(s.xLabel, (plotL + plotR) / 2, plotB + 2 * S + 26, 'middle', 'muted', {bold: true});
+    const lgx = plotR + 24;
+    c.text('密度', lgx, plotT + S, 'start', 'muted', {bold: true});
+    for (let k = 0; k < 6; k++) c.rect(lgx, plotT + S + 10 + k * 22, 22, 18, {fill: 'accent', op: opOf(5 - k), stroke: 'border', sw: 1});
+    c.text('高', lgx + 30, c.mid(plotT + S + 19), 'start', 'text');
+    c.text('低', lgx + 30, c.mid(plotT + S + 10 + 5 * 22 + 9), 'start', 'text');
+    if (s.x.length <= 400) for (let i = 0; i < s.x.length; i++) { c.path(markerPath('disc', sx(s.x[i]), sy(s.y[i]), 2), {fill: 'text', op: 0.5}); }
+  } else if (s.mode === 'hist2d') {
     const {bx, by, cells} = grid2d(s), xs = {min: bx.edges[0], max: bx.edges[bx.edges.length - 1], ticks: bx.edges}, ys = {min: by.edges[0], max: by.edges[by.edges.length - 1], ticks: by.edges};
     const max = Math.max(...cells.flat());
     const tickW = Math.max(...by.edges.map(t => c.tw(numText(t)))), headH = S + 10 + (s.yLabel ? S + 10 : 0);

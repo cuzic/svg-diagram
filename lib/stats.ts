@@ -80,3 +80,79 @@ export function binIndex(v: number, edges: readonly number[]): number {
   const n = edges.length - 1;
   return Math.min(n - 1, Math.max(0, Math.floor((v - edges[0]) / ((edges[n] - edges[0]) / n) + 1e-9)));
 }
+
+export interface PolyFit {order: number; coef: number[]; r2: number; n: number; /** The fitted value at x. */ at: (x: number) => number; /** The half-width of the confidence band of the mean at x (undefined without degrees of freedom to spare). */ half?: (x: number) => number; rss: number}
+/**
+ * A least-squares polynomial of `order` 1..3 (the x values are centred and scaled first, so a high order stays well conditioned) with the
+ * analytic 95% confidence band of the fitted mean: t(n - p) * s * sqrt(v' (X'X)^-1 v).
+ */
+export function polyFit(xs: readonly number[], ys: readonly number[], order: number): PolyFit {
+  const n = xs.length, p = order + 1, mx = meanOf(xs), sx = sdOf(xs) || 1;
+  const row = (x: number): number[] => { const z = (x - mx) / sx; return Array.from({length: p}, (_q, k) => z ** k); };
+  const X = xs.map(row);
+  const A = Array.from({length: p}, (_q, i) => Array.from({length: p}, (_r, j) => sum(X.map(r => r[i] * r[j]))));
+  const b = Array.from({length: p}, (_q, i) => sum(X.map((r, k) => r[i] * ys[k])));
+  // Gauss-Jordan on [A | I | b]: the solution and the inverse together
+  const M = A.map((r, i) => [...r, ...Array.from({length: p}, (_q, j) => i === j ? 1 : 0), b[i]]);
+  for (let c = 0; c < p; c++) {
+    let piv = c;
+    for (let r = c + 1; r < p; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
+    [M[c], M[piv]] = [M[piv], M[c]];
+    const d = M[c][c];
+    if (Math.abs(d) < 1e-12) throw new Error('polyFit: the x values do not determine a polynomial of this order');
+    M[c] = M[c].map(v => v / d);
+    for (let r = 0; r < p; r++) if (r !== c) { const f = M[r][c]; M[r] = M[r].map((v, k) => v - f * M[c][k]); }
+  }
+  const beta = M.map(r => r[2 * p]), inv = M.map(r => r.slice(p, 2 * p));
+  const at = (x: number) => sum(row(x).map((v, k) => v * beta[k]));
+  const my = meanOf(ys), rss = sum(xs.map((x, i) => (ys[i] - at(x)) ** 2)), tss = sum(ys.map(y => (y - my) ** 2));
+  const df = n - p, s = df > 0 ? Math.sqrt(rss / df) : NaN, t = tCritical95(df);
+  const half = df > 0 ? (x: number) => { const v = row(x); return t * s * Math.sqrt(Math.max(0, sum(v.map((vi, i) => vi * sum(inv[i].map((q, j) => q * v[j])))))); } : undefined;
+  return {order, coef: beta, r2: tss > 0 ? 1 - rss / tss : 1, n, at, rss, ...(half ? {half} : {})};
+}
+
+/**
+ * A 2-D Gaussian kernel density estimate on the grid gx × gy (z[j][i] is at gx[i], gy[j]); each axis has Scott's bandwidth for two dimensions
+ * (the standard deviation times n^(-1/6)).
+ */
+export function kde2d(xs: readonly number[], ys: readonly number[], gx: readonly number[], gy: readonly number[]): {z: number[][]; bwx: number; bwy: number} {
+  const n = xs.length, bwx = Math.max(sdOf(xs) * n ** (-1 / 6), 1e-12), bwy = Math.max(sdOf(ys) * n ** (-1 / 6), 1e-12), k = 1 / (n * 2 * Math.PI * bwx * bwy);
+  const ex = gx.map(g => xs.map(x => Math.exp(-0.5 * ((g - x) / bwx) ** 2))), ey = gy.map(g => ys.map(y => Math.exp(-0.5 * ((g - y) / bwy) ** 2)));
+  return {bwx, bwy, z: gy.map((_q, j) => gx.map((_r, i) => k * sum(xs.map((_s, m) => ex[i][m] * ey[j][m]))))};
+}
+
+export interface Merge {a: number; b: number; height: number; size: number}
+/**
+ * Agglomerative clustering with average linkage (UPGMA) on the Euclidean distances between the rows of `data`. Leaves are 0..n-1, the k-th merge
+ * makes node n + k. Ties go to the pair with the smaller indices, so the same data always gives the same tree.
+ */
+export function averageLinkage(data: readonly (readonly number[])[]): Merge[] {
+  const n = data.length, dist = (a: readonly number[], b: readonly number[]) => Math.sqrt(sum(a.map((v, i) => (v - b[i]) ** 2)));
+  const live = new Map<number, {size: number}>(data.map((_r, i) => [i, {size: 1}]));
+  const d = new Map<string, number>(), key = (a: number, b: number) => a < b ? `${a},${b}` : `${b},${a}`;
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) d.set(key(i, j), dist(data[i], data[j]));
+  const out: Merge[] = [];
+  for (let step = 0; step < n - 1; step++) {
+    let best: [number, number] | undefined, bd = Infinity;
+    const ids = [...live.keys()].sort((x, y) => x - y);
+    for (let x = 0; x < ids.length; x++) for (let y = x + 1; y < ids.length; y++) { const v = d.get(key(ids[x], ids[y])) as number; if (v < bd - 1e-12) { bd = v; best = [ids[x], ids[y]]; } }
+    const [a, b] = best as [number, number], sa = live.get(a)!.size, sb = live.get(b)!.size, id = n + step;
+    for (const o of ids) if (o !== a && o !== b) d.set(key(id, o), (sa * (d.get(key(a, o)) as number) + sb * (d.get(key(b, o)) as number)) / (sa + sb));
+    live.delete(a); live.delete(b); live.set(id, {size: sa + sb});
+    out.push({a, b, height: bd, size: sa + sb});
+  }
+  return out;
+}
+/** The leaves of a tree from averageLinkage in dendrogram order (the child holding the smaller leaf first), and where each node sits (the mean of its children's positions). */
+export function dendrogramOrder(merges: readonly Merge[], n: number): {order: number[]; pos: number[]} {
+  const leaves = (id: number): number[] => id < n ? [id] : [...leaves(merges[id - n].a), ...leaves(merges[id - n].b)];
+  const min = (id: number): number => id < n ? id : Math.min(min(merges[id - n].a), min(merges[id - n].b));
+  const kids = (id: number): [number, number] => { const m = merges[id - n]; return min(m.a) <= min(m.b) ? [m.a, m.b] : [m.b, m.a]; };
+  const seq = (id: number): number[] => id < n ? [id] : kids(id).flatMap(seq);
+  const order = n === 1 ? [0] : seq(n + merges.length - 1), at = new Map(order.map((leaf, i) => [leaf, i]));
+  const pos = new Array<number>(n + merges.length).fill(0);
+  for (let i = 0; i < n; i++) pos[i] = at.get(i) as number;
+  merges.forEach((m, k) => { pos[n + k] = (pos[m.a] + pos[m.b]) / 2; });
+  void leaves;
+  return {order, pos};
+}

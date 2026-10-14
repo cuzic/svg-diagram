@@ -523,6 +523,10 @@ bpmn(
 | ツリーマップ | `treemap(tree)` | `examples/chart-treemap.ts` |
 | サンキー図 | `sankey(nodes, links)` | `examples/chart-sankey.ts` |
 | トルネード図 | `tornado(items, {base})` | `examples/chart-tornado.ts` |
+| 回帰つき散布図 / 残差プロット（seaborn の `regplot` / `lmplot` / `residplot`） | `regplot({x, y, group?}, {order, stats})` / `residplot({x, y})` | `examples/chart-reg.ts` |
+| パネル分割（seaborn の `FacetGrid` / `col=`） | `...facet({東京: a, 大阪: b}, (名前, 値) => histplot(値, {xRange, yRange}), {cols: 3})` | `examples/facet.ts` |
+| 2次元の密度（等高線） | `kde2d({x, y})` | `examples/chart-kde2d.ts` |
+| クラスタ付きヒートマップ（seaborn の `clustermap`） | `clustermap(行名, 列名, 値の表, {scale, unit})` | `examples/chart-clustermap.ts` |
 | 2次元ヒストグラム / ジョイントプロット / 散布図行列（seaborn の `histplot(x, y)` / `jointplot` / `pairplot`） | `hist2d({x, y})` / `jointplot({x, y, group?})` / `pairplot({変数: [..], ...}, {groups, corner})` | `examples/chart-multi.ts` |
 | ヒストグラム / KDE / ECDF / ラグ（seaborn の `displot`） | `histplot` / `kdeplot` / `ecdfplot` / `rugplot(values｜groups, {label, stat, binWidth})`、重ねるなら `displot(values, {kind: ['hist', 'kde', 'rug']})` | `examples/chart-dist.ts` |
 | 箱ひげ図 / バイオリン / ストリップ / スウォーム / ポイント / 誤差つき棒（seaborn の `catplot`） | `boxplot` / `violinplot` / `stripplot` / `swarmplot` / `pointplot` / `barplot(groups, {label, dir, hues})`、重ねるなら `catplot(groups, {kind: ['violin', 'strip']})` | `examples/chart-cat.ts` |
@@ -550,6 +554,10 @@ catplot([{label: '第1四半期', hues: [{name: '新規', values: [32, 35, 41]},
 - **`treemap`**: 葉は `{label, value}`、グループは `children`（4 階層まで。グループの値は子の合計で、書くなら一致が必要）。葉の `tone: 'accent'｜'danger'` は塗りつぶし。グループの名前が入らないときも `<desc>` に残る。グループの枠と見出しの帯が子の場所を取る分は重みを補正するので、葉の面積はグループの中でも外でも値に比例する。`percent: true` で全体に対する割合を添える。
 - **`sankey`**: ノードは文字列か `{id, label?, tone?}`（どのリンクにも出てこないノードはエラー）。層は最長経路で決まり（循環は止まる）、出ていかないノードは最後の層に寄る（`align: 'left'` で寄せない）。ノードの並びは交差が少なくなるように入れ替える。ノードの高さが値に比例するので、名前が収まらないほど低いノードでも、名前の高さ分の場所は空ける。リボンには、両端のどちらの名前にも載っていない値（分岐・合流の途中）だけ数字が入る。`tone: 'danger'` のリボンは赤の破線で縁取る。
 - **`tornado`**: `low` / `high` は「その入力が低い / 高いときの結果」（結果が低いとは限らない）。結果が基準と同じならその棒は描かず数字だけ書く。両方が基準の同じ側に出るときは、棒を 2 段に分ける。
+- **`regplot` / `residplot`**: `{x: [..], y: [..], group?: [..]}`（生の値）。最小二乗の直線（`order: 2｜3` で多項式の曲線）と、平均の 95% 信頼帯（解析解。t 分布）を描き、`band: false` で帯なし、`stats: true` で凡例に式（直線のとき）と R²。グループごとに別の回帰（印・線の種類・色が違う）。x の異なる値が `order + 1` 個、点が `order + 2` 個ないと止まる。`residplot` は同じ当てはめからの残差と、破線の 0 の線（曲がりが残っていれば形に出る）。
+- **`facet(data, make, {cols})`**: `data` のキーごとに 1 枚、`make(キー, 値)` が返す図を枠つき（キーが見出し）で並べる（`cols` 列ずつ、最後の行も同じ列幅）。パネルの軸は各自のデータに合わせて決まるので、揃えたいときは `histplot` / `displot` / `regplot` の `xRange` / `yRange`（軸を少なくともこの範囲まで広げる）を全パネルに同じ値で渡す。`...facet()` で `.add()` に展開する。
+- **`kde2d`**: 2 変数のガウス KDE（各軸 Scott の帯域幅）を、最大密度の 10・30・50・70・90% の 5 段の塗りと等高線（marching squares）で。点を小さく重ねる（400 点まで）。
+- **`clustermap`**: 行×列の数の表（40×40 まで）。行と列を平均連結法（ユークリッド距離）で並べ替え、樹形図を上と左に付ける（`rows: false` / `cols: false` でその向きは並べ替えない）。`scale: 'row'｜'col'` は行（列）ごとに 0〜1 にしてからクラスタリングと濃淡を決める（セルの数字は元の値）。`values: false` で数字を省く。木は決まった順で作るので、同じ表は同じ並びになる。
 - **`hist2d` / `jointplot` / `pairplot`**: 列ごとの**生の値**を渡す（`{x: [..], y: [..]}`、`pairplot` は `{身長: [..], 体重: [..]}` で 2〜6 変数）。`hist2d` は切りのよい幅の升に点を数え、度数を升に書いて濃淡にする（入らない度数は書かず、凡例の 5 段階に最大値と 0）。`jointplot` は散布図と、上・右に各変数のヒストグラム。`pairplot` は全組の散布図と、対角線にその変数のヒストグラム（`corner: true` は対角線の下だけ）。目盛りは下と左（1 行目だけ右）に 1 回ずつ。`group`（`pairplot` は `groups`）は行ごとのラベルで、4 グループまで。印の形（● ◆ ■ ▲）と、ヒストグラムの輪郭の線の種類（実線・破線…）で見分け、凡例が付く。`bins` は階級数の目安、`xLabel` / `yLabel` は軸名。乱数は使わない。
 - **`histplot` ほか（seaborn の distribution plots）**: **生の値**（数の配列、または `{男性: [..], 女性: [..]}` で 4 グループまで）を渡す。`kind` は関数名で決まる 1 層か、描く順の配列（`['hist', 'kde', 'rug']`。`ecdf` は別の軸なので `hist` / `kde` とは重ねられず、`rug` とだけ）。`hist` の階級幅は切りのよい数（`bins` で個数の目安、`binWidth` で幅。グループは階級を共有する）で、`stat` は `count`（既定）／`density`／`probability`／`percent`。`element: 'step'` は棒を輪郭の 1 本線にする（グループが重なるとき見やすい）。`kde` は Scott の帯域幅のガウス KDE（`bw` はその倍率）で、データの両端から帯域幅 2 つ分まで伸ばし、`hist` と重ねると `stat` に合わせて高さが揃う（`kde` だけなら密度）。`ecdf` の `stat` は `probability`（累積割合、既定）／`count`／`percent`。グループは色と線の種類（実線・破線・点線・一点鎖線）の両方で見分け、凡例が付く。乱数は使わない。`id` はグループの端点。
 - **`boxplot` ほか（seaborn の categorical plots）**: 集計済みの数字ではなく**生の値**を渡す（`{東京: [..], 大阪: [..]}`、または `[{label, values, id?}]`）。四分位・カーネル密度・信頼区間・ビースウォームは `lib/stats.ts` が計算し、乱数を使わないので同じ値は同じ図になる。`kind` は 1 層（`boxplot` などの関数名で決まる）か、描く順の配列（`['box', 'strip']` は箱の上に点）。`box` はひげが 1.5 IQR 以内の最も遠い値までで、外れ値は○（`strip` / `swarm` を重ねると点が示すので省く）。`violin` は Scott の帯域幅のガウス KDE を、データの範囲で切って（seaborn の `cut=0`）左右対称に描き、中に四分位の太線と中央値の点。`scale: 'area'`（既定。面積が揃う）／`'width'`（どれも幅いっぱい）。`strip` は決まった順の揺らし、`swarm` は点が重ならない配置（入らなければ、幅・高さを上げるか `stripplot` に、と止まる）。`point` は平均と誤差の棒を、hue ごとの線（実線・破線・点線）でつなぐ。`bar` は 0 から平均まで。誤差は `error: 'ci'`（既定。t 分布の 95% 信頼区間）／`'sd'`／`'se'`／`'range'`／`'none'`。`hues: [{name, values}]`（`label` と `values` の代わり）で第二のカテゴリを横に並べる（4 つまで。凡例つき、濃淡と ● ◆ ■ ▲ で見分ける）。`dir: 'h'` は横向き、`values: 'median'｜'mean'` は各グループの値を添える（`bar` は平均が既定）、`counts: true` は `n = …`。`id` はグループの端点。
@@ -1062,7 +1070,7 @@ fmea([
 | `text-roles.ts` | 大きい文字: `banner` の `headlineRole: 'display'` と、`bars` / `plane` の `labelRole` |
 | `dark-theme.ts` | 暗い背景＋背景なし（`appearance: 'dark'`、`transparent: true`） |
 | `dark-bars-wall.ts` | 濃い背景の資料の色＋濃い赤の danger で描く棒グラフ（透明） |
-| `chart-waterfall.ts` ほか `chart-*.ts` | コンサル系のチャート（ウォーターフォール・レーダー・ヒートマップ・戦略キャンバス・バーンダウン・積み上げ・マリメッコ・ツリーマップ・サンキー・トルネード・ヒストグラム／KDE／ECDF・2次元ヒストグラム／ジョイント／散布図行列・箱ひげ／バイオリン／スウォーム） |
+| `chart-waterfall.ts` ほか `chart-*.ts` | コンサル系のチャート（ウォーターフォール・レーダー・ヒートマップ・戦略キャンバス・バーンダウン・積み上げ・マリメッコ・ツリーマップ・サンキー・トルネード・ヒストグラム／KDE／ECDF・回帰・クラスタ付きヒートマップ・2次元ヒストグラム／ジョイント／散布図行列・箱ひげ／バイオリン／スウォーム） |
 | `raci-project.ts` / `fmea-basic.ts` / `qfd-basic.ts` / `journey-map.ts` | 意味付き表（責任分担、故障リスク、品質機能展開、顧客体験） |
 | `semnet-*.ts` | 意味付きネットワーク（PERT、因果ループ、型付き・重み付き依存関係） |
 | `emphasis-tiers.ts` | 主役（solid）/ 次点（accent）/ その他（plain）の 3 段階と、凡例の「次点」 |
