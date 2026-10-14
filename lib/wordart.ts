@@ -5,7 +5,7 @@
 //   wordart-vertical.ts  vertical text: tokens, kinsoku, columns
 //   wordart-layout.ts    what to measure and where everything goes
 // this file is the constructor (validation) and the one place the rest is imported from.
-import {MIN_FONT_SIZE, ROLES} from './tokens.ts';
+import {MIN_FONT_SIZE} from './tokens.ts';
 import {ART_TONE_NAMES, PRESETS, WEIGHT_OF, asList, isArtTone} from './wordart-look.ts';
 import {graphemes} from './wordart-vertical.ts';
 import type {WordArtBand, WordArtOpts} from './wordart-types.ts';
@@ -29,7 +29,7 @@ const positive = (v: unknown): boolean => typeof v === 'number' && v > 0;
 const finite = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v);
 const list = (xs: readonly string[]): string => xs.join(' | ');
 const TONES = ART_TONE_NAMES;
-const ROLE_NAMES: readonly string[] = ['title', 'label', 'body', 'note', 'banner', 'stat', 'display'].filter(r => r in ROLES);
+const ROLE_NAMES: readonly string[] = ['title', 'label', 'body', 'note', 'banner', 'stat', 'display']; // the Role type (the sizes come from the diagram's roles at layout)
 
 export function wordartBand(text: string, opts: WordArtOpts = {}): WordArtBand {
   if (typeof text !== 'string' || !text.replace(/[\s\u200b-\u200d\u2060\ufeff]/g, '')) throw new Error('wordart(): needs a non-empty text');
