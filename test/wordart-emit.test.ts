@@ -75,3 +75,14 @@ test('a diagram with every look builds clean, verifies, and the geometry lint fi
   assert.deepEqual(g.textOverlap, []);
   assert.deepEqual(g.contrast, []);
 });
+
+test('HTML output keeps a wordart as SVG: nothing of it becomes a text div', async () => {
+  const d = diagram({theme: 'blue', title: 'x'}).add(wordart('SALE', {style: 'outline', size: 56}), wordart('縦書き', {writing: 'vertical', size: 40}), wordart('回る', {rotate: 30, size: 40}), wordart('色', {style: 'gradient', size: 40}));
+  const r = await renderDiagram(d, {name: 'w.svg', budget: 'cacheOnly', html: true});
+  assert.ok(r.html);
+  assert.equal((r.html!.match(/class="sd-t/g) ?? []).length, 0, 'no wordart text is turned into an HTML div');
+  assert.match(r.html!, /paint-order="stroke"/);
+  assert.match(r.html!, /<tspan x="[\d.]+" y="[\d.]+"/);
+  assert.match(r.html!, /transform="rotate\(30 /);
+  assert.match(r.html!, /fill="url\(#wa/);
+});
