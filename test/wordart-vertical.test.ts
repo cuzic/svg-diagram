@@ -26,3 +26,21 @@ test('a column is as long as its cells, with the spacing between them', () => {
   const [d] = verticalColumns('AB 12', 20, 700, rough);
   assert.ok(Math.abs(d.cells[0].len - rough('AB 12', 20)) < 1e-6); // 'AB 12' is one run set on its side: its length is its measured width
 });
+
+test('limits hold: an opening bracket does not leave an empty column, spacing counts, a mark hangs one cell and no more', () => {
+  const lens = (text: string, limit: number, spacing = 0) => verticalColumns(text, 20, 700, rough, {limit, spacing}).map(c => Math.round(c.len));
+  // a long word after a bracket: refused, instead of an empty column and a 156px column under a 50px limit
+  assert.throws(() => verticalColumns('「ABCDEFGHIJ」', 20, 700, rough, {limit: 50}), /raise limit/);
+  assert.throws(() => verticalColumns('あ「ABCDEFGHIJ」', 20, 700, rough, {limit: 50}), /raise limit/);
+  for (const c of verticalColumns('あいう「うえお」', 20, 700, rough, {limit: 60})) assert.ok(c.cells.length > 0, 'no empty column');
+  // the gap between cells counts: 20 + 10 + 20 + 10 + 20 = 80 does not fit in 75
+  assert.ok(lens('あいうえお', 75, 10).every(n => n <= 75.5), `${lens('あいうえお', 75, 10)}`);
+  // a long vowel that may not start a column takes the cell before it along, and a run of them is not one ever-growing column
+  assert.ok(lens('あーーーーーーーーーー', 60).every(n => n <= 60.5), `${lens('あーーーーーーーーーー', 60)}`);
+  assert.ok(lens('あ……………………', 60).every(n => n <= 60.5));
+  // a comma hangs below the column (one cell), the second one does not
+  const hang = verticalColumns('あいう、え', 20, 700, rough, {limit: 60});
+  assert.deepEqual(hang.map(c => c.cells.length), [4, 1]);
+  assert.ok(Math.round(hang[0].len) === 80, 'the comma hangs past the limit');
+  assert.ok(verticalColumns('あいう、、え', 20, 700, rough, {limit: 60}).every(c => c.len <= 80.5));
+});

@@ -12,7 +12,10 @@ export const COLUMN_PITCH = 1.4;
 export const BASELINE = 0.36; // a glyph box centred on y has its baseline this many sizes below y
 
 const ROTATED = new Set(Array.from('ー―—‐－…‥⋯〜～（）［］｛｝「」『』【】〔〕〈〉《》〝〟'));
-const HANG = new Set(Array.from('、。，．）］｝」』】〕〉》！？!?ー〜～…‥ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ・：；'));
+/** Marks that hang below a full column rather than start the next one (one cell at most). */
+const HANG = new Set(Array.from('、。，．'));
+/** Characters that may not start a column: the cell before them goes with them to the next one. */
+const NO_START = new Set(Array.from('）］｝」』】〕〉》！？ー〜～…‥ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ・：；'));
 const NOT_LAST = new Set(Array.from('（［｛「『【〔〈《〝'));
 const PUNCT = new Set(Array.from('、。，．'));
 const SMALL = new Set(Array.from('ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ'));
@@ -71,24 +74,32 @@ export function verticalColumns(text: string, size: number, weight: number, widt
   };
   const nameOf = (t: VToken): string => t.kind === 'glyph' ? t.ch : t.kind === 'blank' ? ' ' : t.text;
   const columns: VColumn[] = [];
+  const end = (cells: VCell[]): number => cells.length ? cells[cells.length - 1].top + cells[cells.length - 1].len : 0;
+  const stacked = (tokens: {token: VToken; len: number}[]): VCell[] => { const cells: VCell[] = []; for (const t of tokens) cells.push({token: t.token, top: cells.length ? end(cells) + spacing : 0, len: t.len}); return cells; };
   for (const para of text.split('\n')) {
-    let cells: VCell[] = [], len = 0;
-    const flush = (carry?: VCell): void => { columns.push({cells, len}); cells = []; len = 0; if (carry) push(carry.token, carry.len); };
-    const push = (token: VToken, l: number): void => { cells.push({token, top: len, len: l}); len += l + spacing; };
+    let cells: VCell[] = [], hung = false;
+    const fits = (l: number): boolean => limit === undefined || (cells.length ? end(cells) + spacing : 0) + l <= limit + 0.5;
     for (const raw of tokenizeColumn(para)) {
       const {token, len: l} = settle(raw);
-      if (limit !== undefined && cells.length && len - spacing + l > limit + 0.5) {
-        const noStart = token.kind === 'glyph' && HANG.has(token.ch);
-        if (!noStart) {
-          const last = cells[cells.length - 1], opening = last.token.kind === 'glyph' && NOT_LAST.has(last.token.ch);
-          if (opening) { cells.pop(); len = last.top; flush(last); } else flush();
+      const glyph = token.kind === 'glyph' ? token.ch : '';
+      let hangs = false;
+      if (cells.length && !fits(l)) {
+        if (HANG.has(glyph) && !hung) hung = hangs = true; // a comma / full stop hangs below the column: one cell at most
+        else {
+          // break before the token; what may not end a column (an opening bracket), and the cell before a token that may not start one, go with it
+          const carry: VCell[] = [];
+          const lastOf = (): VToken => cells[cells.length - 1].token;
+          if ((NO_START.has(glyph) || HANG.has(glyph)) && cells.length > 1) carry.unshift(cells.pop()!);
+          while (cells.length > 1 && lastOf().kind === 'glyph' && NOT_LAST.has((lastOf() as {ch: string}).ch)) carry.unshift(cells.pop()!);
+          columns.push({cells, len: end(cells)});
+          cells = stacked(carry.map(c => ({token: c.token, len: c.len}))); hung = false;
         }
       }
-      if (limit !== undefined && !cells.length && l > limit + 0.5) throw new Error(`wordart(): "${nameOf(token)}" is ${Math.round(l)}px long but a column may be ${Math.round(limit)}px: raise limit or shorten the word`);
-      push(token, l);
+      if (!hangs && !fits(l)) throw new Error(`wordart(): "${nameOf(token)}" is ${Math.round(l)}px long but a column may be ${Math.round(limit!)}px${cells.length ? ` (with what goes before it, ${Math.round(end(cells) + spacing + l)}px)` : ''}: raise limit or shorten the word`);
+      cells.push({token, top: cells.length ? end(cells) + spacing : 0, len: l});
     }
-    flush();
+    columns.push({cells, len: end(cells)});
   }
-  return columns.map(c => ({cells: c.cells, len: Math.max(0, c.len - spacing)}));
+  return columns;
 }
 
