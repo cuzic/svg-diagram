@@ -22,7 +22,7 @@ interface Region {
 interface Template {
   cols: readonly number[];
   rows: readonly number[];
-  /** Height / width the canvas keeps at least (a canvas looks like a canvas, not a stack of notes). */
+  /** Height / width the canvas keeps with `fit: 'aspect'` (the old look: a canvas looks like a form, not a stack of notes). */
   aspect: number;
   gap?: number;
   regions: readonly Region[];
@@ -152,6 +152,9 @@ export interface CanvasOpts<T extends CanvasTemplate = CanvasTemplate> {
   stamp?: string;
   /** The regions (not the title above them) are at least this tall (px). Content that needs more throws (shorten it or leave `h` out: without it the canvas grows). */
   h?: number;
+  /** How tall the canvas is. 'content' (default): each row is as tall as its regions need (at least 96px for a region that is meant to be filled), so no region carries a blank
+   *  band under its text. 'aspect': the canvas keeps the template's height / width as a floor (the old look: a roomy form to write into). `h` works with both. */
+  fit?: 'content' | 'aspect';
   /** Gap between the regions (px, rounded to a multiple of 4; the rows under a tagged region keep at least 16px). */
   gap?: number;
   /** Every region needs content: a missing one is reported as canvas-region-empty. */
@@ -177,7 +180,7 @@ const item = (s: unknown, where: string): string => {
 // their sign and star)
 const BULLET = /^(?:[・･•]\s*|[-*]\s+)/;
 const TONES: readonly string[] = ['plain', 'accent', 'danger', 'muted', 'new', 'changed', 'removed', 'solid', 'solid-danger'];
-const OPT_KEYS: readonly string[] = ['title', 'titles', 'tone', 'emphasis', 'stamp', 'h', 'gap', 'requireAll', 'pestle', 'reveal', 'id'];
+const OPT_KEYS: readonly string[] = ['title', 'titles', 'tone', 'emphasis', 'stamp', 'h', 'fit', 'gap', 'requireAll', 'pestle', 'reveal', 'id'];
 
 /** CanvasOpts with the region ids as plain strings: what canvasBand() validates. */
 export type LooseCanvasOpts = Omit<CanvasOpts, 'titles' | 'tone' | 'reveal' | 'emphasis' | 'pestle'> & {pestle?: boolean; titles?: Record<string, string | undefined>; tone?: Record<string, EmphasisTone | undefined>; reveal?: Record<string, number | undefined>; emphasis?: readonly string[]};
@@ -206,12 +209,13 @@ export function canvasBand(template: string, content: Record<string, string | re
   for (const k of Object.keys(opts.reveal ?? {})) known(k, 'reveal key');
   for (const k of opts.emphasis ?? []) known(k, 'emphasis region');
   for (const [k, v] of Object.entries(opts.tone ?? {})) if (v !== undefined && !TONES.includes(v)) throw new Error(`canvas({tone}): ${k} is ${JSON.stringify(v)}, not one of ${TONES.join(', ')}`);
+  if (opts.fit !== undefined && opts.fit !== 'content' && opts.fit !== 'aspect') throw new Error(`canvas({fit}) is 'content' or 'aspect' (got ${JSON.stringify(opts.fit)})`);
   if (opts.h !== undefined && !(Number.isFinite(opts.h) && opts.h > 0)) throw new Error(`canvas({h}) must be a number > 0 (got ${opts.h})`);
   if (opts.gap !== undefined && !(Number.isFinite(opts.gap) && opts.gap >= 0)) throw new Error(`canvas({gap}) must be a number >= 0 (got ${opts.gap})`);
   if (opts.id !== undefined && !/^[A-Za-z][A-Za-z0-9_-]*$/.test(opts.id)) throw new Error(`canvas({id}) is letters, digits, _ and - (got ${JSON.stringify(opts.id)})`);
   if (opts.title !== undefined && (typeof opts.title !== 'string' || !opts.title.trim())) throw new Error('canvas({title}) must be a non-empty string');
 
-  const children: BoxBand[] = [], place: CanvasLayout['place'] = [], empty: string[] = [], worded: boolean[] = [];
+  const children: BoxBand[] = [], place: CanvasLayout['place'] = [], empty: string[] = [], worded: boolean[] = [], floor: boolean[] = [];
   const emphasis = new Set<string>(opts.emphasis ?? []);
   // 'tows': the SWOT headers hold facts too, so the 'person' / header cells are labels when they have no content
   regions.forEach(r => {
@@ -237,6 +241,7 @@ export function canvasBand(template: string, content: Record<string, string | re
     };
     if (opts.reveal?.[r.id] !== undefined && !(Number.isInteger(opts.reveal[r.id]) && (opts.reveal[r.id] as number) >= 1)) throw new Error(`canvas({reveal}): ${r.id} must be a whole stage >= 1`);
     children.push(box);
+    floor.push(items.length > 0 || !r.optional);
     worded.push(!!box.tag && (emphasis.has(r.id) || opts.tone?.[r.id] === undefined));
     place.push({col: r.col, row: r.row, cs: r.cs ?? 1, rs: r.rs ?? 1});
   });
@@ -245,6 +250,7 @@ export function canvasBand(template: string, content: Record<string, string | re
     if (!l.title) continue;
     children.push({type: 'box', title: l.title, tone: l.tone ?? 'muted', ...(l.tag ? {tag: l.tag, tagTone: 'muted' as const} : {})});
     worded.push(!!l.tag);
+    floor.push(false);
     place.push({col: l.col, row: l.row, cs: l.cs ?? 1, rs: l.rs ?? 1});
   }
   if (opts.stamp !== undefined) {
@@ -261,9 +267,12 @@ export function canvasBand(template: string, content: Record<string, string | re
   return {
     // the gap is a multiple of 4: the regions' edges stay on the 4px grid (see canvasColumns)
     type: 'grid', children, cols: colW.length, gap: Math.round((opts.gap ?? t.gap ?? 12) / 4) * 4,
-    canvas: {template, place, worded, colW, rowW, aspect: t.aspect, ...(opts.h === undefined ? {} : {h: opts.h}), ...(opts.title ? {title: opts.title.trim()} : {}), empty, requireAll: opts.requireAll === true},
+    canvas: {template, place, worded, floor, colW, rowW, aspect: t.aspect, fit: opts.fit ?? 'content', ...(opts.h === undefined ? {} : {h: opts.h}), ...(opts.title ? {title: opts.title.trim()} : {}), empty, requireAll: opts.requireAll === true},
   };
 }
+
+/** The least height of a region that is meant to be filled (fit 'content'): a row never collapses to its title and one line. Label cells and optional regions left empty have no floor. */
+export const CANVAS_MIN_ROW_H = 96;
 
 // ---- geometry (pure) -----------------------------------------------------------------------------------------------------------
 

@@ -13,7 +13,7 @@ import {layoutTimeline} from './timeline.ts';
 import {layoutQuadrant} from './quadrant.ts';
 import {layoutFlowShape} from './flow-shapes.ts';
 import {layoutWordArt} from './wordart.ts';
-import {canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
+import {CANVAS_MIN_ROW_H, canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
 import {layoutTreeBand, narrowField} from './tree.ts';
 import {layoutStatesBand} from './states.ts';
 import {layoutCauseBand, layoutCloudBand} from './toc.ts';
@@ -372,9 +372,11 @@ function layoutCanvasGrid(band: GridBand & {canvas: NonNullable<GridBand['canvas
     }
     return p;
   });
-  // the canvas keeps its aspect, except on a slide canvas, where it never grows past the slide's height for that alone
+  // fit 'content' (default): a row is as tall as its regions need, a region meant to be filled at least CANVAS_MIN_ROW_H; only h adds room.
+  // fit 'aspect': the template's height / width is a floor, except on a slide canvas, where it never grows past the slide's height for that alone
   const aspectH = cv.aspect * cw, slideRoom = d.canvas ? d.canvas.height - d.pad - top - 4 * cv.rowW.length /* the 4px grid */ : Infinity;
-  const rows = canvasRowHeights(cv, placed.map(p => p.h), rowGap, cv.h ?? Math.max(0, Math.min(aspectH, slideRoom)));
+  const needs = placed.map((p, i) => cv.fit === 'aspect' || cv.h !== undefined || !cv.floor[i] ? p.h : Math.max(p.h, CANVAS_MIN_ROW_H));
+  const rows = canvasRowHeights(cv, needs, rowGap, cv.h ?? (cv.fit === 'aspect' ? Math.max(0, Math.min(aspectH, slideRoom)) : 0));
   const total = rows.reduce((a, b) => a + b, 0) + rowGap * (rows.length - 1);
   if (cv.h !== undefined && total > cv.h + 0.5) throw new Error(`canvas("${cv.template}"): the regions need ${Math.ceil(total)}px of height but h is ${cv.h}px (shorten the text, widen the figure, or leave h out)`);
   const rowY = [top];
