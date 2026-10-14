@@ -31,6 +31,7 @@ const {loadConfig} = await import('./lib/config.ts');
 const {rasterize, svgSize, staleBannerSvg} = await import('./lib/raster.ts');
 const {xmlProblems} = await import('./lib/xml-check.ts');
 const {freshness, staleNotice} = await import('./lib/freshness.ts');
+const {formatBuildError} = await import('./lib/error-format.ts');
 const {queryTerminal, supportsSixel, isTmux, fitBox, fitScale, tmuxPassthrough} = await import('./lib/terminal.ts');
 const {image2sixel} = await import('sixel');
 
@@ -134,7 +135,7 @@ try {
       if (files.length > 1) process.stdout.write(`${file}\n`);
       process.stdout.write(seq + '\n');
     } catch (e) {
-      console.error(`✗ ${file}: ${(e as Error).message}`);
+      console.error(formatBuildError(file, e));
       failed = true;
     }
   }
