@@ -1,4 +1,5 @@
-import {banner, caption, row, stat} from './dsl.ts';
+import {banner, caption, stat} from './dsl/text-bands.ts';
+import {row} from './dsl/containers.ts';
 import type {BannerBand, BannerOpts, BoxBand, CaptionBand, RichText, RowBand, StatOpts} from './types.ts';
 import type {Declares, IdsOf} from './strict.ts';
 
