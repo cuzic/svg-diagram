@@ -53,8 +53,8 @@ test('emission: no <g transform> (every text carries its own); gradients and cli
   assert.ok(!/<g transform/.test(turned));
   assert.match(turned, /transform="rotate\(15 [\d.]+ [\d.]+\) translate\(/);
   const grad = renderWordArtForTest(place('色', {style: 'gradient', size: 40}), 'blue');
-  assert.match(grad, /<defs><linearGradient id="(wa[^"]+)-g" gradientUnits="userSpaceOnUse"/);
-  assert.match(grad, /fill="url\(#wa[^"]+-g\)"/);
+  assert.match(grad, /<defs><linearGradient id="wa[^"]+-g[0-9a-z]+" gradientUnits="userSpaceOnUse"/);
+  assert.match(grad, /fill="url\(#wa[^"]+-g[0-9a-z]+\)"/);
   const refl = renderWordArtForTest(place('映', {style: 'reflect', size: 40}), 'blue');
   assert.match(refl, /<clipPath id="wa[^"]+-c"><rect /);
   assert.match(refl, /matrix\(1 0 0 -1 0 [\d.]+\)/);
