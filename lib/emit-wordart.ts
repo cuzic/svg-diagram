@@ -5,17 +5,18 @@ import type {Rect, Theme} from './types.ts';
 
 // wordart(): the plate, then the layers from the bottom up (paintLayers: mirror image, shadow, glow, depth, outer outlines, bevel) and the
 // text itself on top. Every layer but the last is a copy of the text marked aria-hidden (decoration: read aloud and linted once).
-export function renderWordArt(band: LaidOutWordArt, day: Theme): string {
+export function renderWordArt(band: LaidOutWordArt, day: Theme, dim = false): string {
   const parts: string[] = [], {look} = band, f = (n: number): number => Math.round(n * 10) / 10;
   const snapped = (r: Rect): string => `x="${snap4(r.x)}" y="${snap4(r.y)}" width="${snap4(r.x + r.w) - snap4(r.x)}" height="${snap4(r.y + r.h) - snap4(r.y)}"`;
-  const g = gradientOf(band, day), defs = [
+  const g = dim ? undefined : gradientOf(band, day), defs = [
     ...(g ? [`<linearGradient id="${g.id}" gradientUnits="userSpaceOnUse" x1="${f(g.x1)}" y1="${f(g.y1)}" x2="${f(g.x2)}" y2="${f(g.y2)}"><stop offset="0" stop-color="${g.from}"/><stop offset="1" stop-color="${g.to}"/></linearGradient>`] : []),
-    ...(band.reflection ? [`<clipPath id="${band.uid}-c"><rect ${snapped(band.reflection.clip)}/></clipPath>`] : []),
+    ...(band.reflection && !dim ? [`<clipPath id="${band.uid}-c"><rect ${snapped(band.reflection.clip)}/></clipPath>`] : []),
   ];
   if (defs.length) parts.push(`<defs>${defs.join('')}</defs>`);
-  if (band.plate) parts.push(`<rect ${snapped(band.plate)} rx="${Math.round(band.size * 0.15)}" fill="${artColor(look.plate!, day)}"/>`);
   const figure = figureTransform(band);
-  for (const p of paintLayers(band, day)) {
+  // (a plate is part of the figure: it turns and flips with the letters; a dimmed wordart has none)
+  if (band.plate && !dim) parts.push(`<rect ${snapped(band.plate)} rx="${Math.round(band.size * 0.15)}" fill="${artColor(look.plate!, day)}"${figure ? ` transform="${figure}"` : ''}/>`);
+  for (const p of paintLayers(band, day, dim)) {
     const stroke = p.stroke ? ` stroke="${p.stroke}" stroke-width="${p.sw}" stroke-linejoin="round"${p.text && p.fill !== 'none' ? ' paint-order="stroke"' : ''}` : '';
     const paint = `fill="${p.fill}"${stroke}${p.opacity !== undefined ? ` opacity="${p.opacity}"` : ''}${p.hidden ? ' aria-hidden="true" data-decor=""' : ''}${p.mirror ? ` clip-path="url(#${band.uid}-c)"` : ''}`;
     // a mirror image is flipped about the axis and pushed down by the gap; the figure's own turn / flip comes first in the list

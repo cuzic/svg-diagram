@@ -1,6 +1,6 @@
 // wordart(): the look — presets as values, the options resolved on top of them, how far the ink reaches, whether the letters read,
 // and the layers a placed wordart is painted in (docs/adr/0009). Pure.
-import {colorOf, wcagRatio} from './tokens.ts';
+import {PALETTE, colorOf, wcagRatio} from './tokens.ts';
 import type {Roles, Theme} from './types.ts';
 import type {ArtTone, ExtrudeSpec, GlowSpec, GradientSpec, LaidOutWordArt, OutlineSpec, ReflectionSpec, ShadowSpec, WordArtBand, WordArtLook, WordArtOpts, WordArtPreset} from './wordart-types.ts';
 
@@ -150,8 +150,10 @@ export function gradientOf(art: LaidOutWordArt, day: Theme): {id: string; x1: nu
 }
 
 /** The layers of a placed wordart for a theme, bottom to top: mirror image, shadow, glow, depth, outer outlines, bevel, the text. Pure. */
-export function paintLayers(art: LaidOutWordArt, day: Theme): PaintLayer[] {
+export function paintLayers(art: LaidOutWordArt, day: Theme, dim = false): PaintLayer[] {
   const {look} = art, col = (t: ArtTone): string => colorOf(t, day), layers: PaintLayer[] = [];
+  // spotlight dims everything but the shape of the letters: one muted layer (a hollow letter keeps its rim), no decoration, no gradient
+  if (dim) return [{fill: look.fill === 'none' && !look.gradient ? 'none' : PALETTE.muted, ...(look.fill === 'none' && !look.gradient && look.outlines[0] ? {stroke: PALETTE.muted, sw: look.outlines[0].width} : {}), dx: 0, dy: 0, hidden: false, text: true}];
   const total = look.outlines.reduce((s, o) => s + o.width, 0), inner = look.outlines[0];
   const fill = look.gradient ? `url(#${art.uid}-g)` : look.fill === 'none' ? 'none' : col(look.fill);
   const hollow = fill === 'none';

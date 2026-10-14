@@ -1,7 +1,7 @@
 import test from 'node:test';
 import './helpers/strict-width.ts'; // a text the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
-import {banner, diagram, renderDiagram, wordart, closeMeasurer} from '../lib/dsl.ts';
+import {banner, box, diagram, renderDiagram, wordart, closeMeasurer} from '../lib/dsl.ts';
 import {geometryChecks} from '../lib/svg-lint.ts';
 import {renderWordArt as renderWordArtForTest} from '../lib/emit-wordart.ts';
 import {place} from './helpers/wordart.ts';
@@ -85,4 +85,24 @@ test('HTML output keeps a wordart as SVG: nothing of it becomes a text div', asy
   assert.match(r.html!, /<tspan x="[\d.]+" y="[\d.]+"/);
   assert.match(r.html!, /transform="rotate\(30 /);
   assert.match(r.html!, /fill="url\(#wa/);
+});
+
+test('a plate turns and flips with the letters', () => {
+  const svg = renderWordArtForTest(place('看板', {plate: 'text', tone: 'bg', rotate: 30, size: 48}), 'blue');
+  const plate = /<rect [^>]*transform="(rotate\(30 [^"]+\))"/.exec(svg);
+  assert.ok(plate, 'the plate carries the turn');
+  assert.ok(svg.includes(`<text `) && svg.split(plate![1]).length > 2, 'the same turn as the letters');
+  assert.doesNotMatch(renderWordArtForTest(place('看板', {plate: 'text', tone: 'bg'}), 'blue'), /<rect [^>]*transform/);
+});
+
+test('spotlight dims a wordart to one muted shape: no gradient, no rims, no decoration', async () => {
+  const d = diagram({theme: 'blue', spotlight: 'b'}).add(box({id: 'b', title: '主役'}), wordart('グラデ', {style: 'gradient', size: 40}), wordart('ステッカー', {style: 'sticker', size: 40}), wordart('中抜き', {tone: 'none', outline: {tone: 'accent', width: 2}, size: 40}), wordart('鏡', {style: 'reflect', size: 40}));
+  const r = await renderDiagram(d, {name: 'w.svg', budget: 'cacheOnly'});
+  const part = r.svg.slice(r.svg.indexOf('主役</text>'));
+  assert.ok(!/stop-color|linearGradient|clipPath|data-decor|aria-hidden="true" data-decor/.test(part), 'nothing of the decoration is drawn');
+  assert.ok(!part.includes('url(#wa'), 'no paint server');
+  assert.equal((part.match(/<text /g) ?? []).length, 4, 'one text per dimmed wordart');
+  assert.match(part, /fill="#6f6659"/);
+  assert.match(part, /fill="none" stroke="#6f6659" stroke-width="2"/, 'a hollow letter keeps its rim, muted');
+  assert.deepEqual(r.verdict.problems, []);
 });
