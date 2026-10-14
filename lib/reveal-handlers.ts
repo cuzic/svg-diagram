@@ -177,6 +177,8 @@ export const REVEAL_HANDLERS = {
   raw: plain,
   grouprow: {stage: true, visit: revealRow},
   row: {stage: true, visit: revealRow},
+  // grid() takes box() children only (its constructor rejects a group), and a box holds no bands: nothing nested to walk, so each
+  // cell is just set (test/grid-reveal-nested.test.ts pins this)
   grid: setEach('grid() child', (b: BandOf<'grid'>) => b.children),
   pyramid: plain,
   plane: {stage: true, visit: revealPlane},

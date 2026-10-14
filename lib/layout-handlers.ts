@@ -61,7 +61,7 @@ function layoutSpacer(band: SpacerBand, ctx: LayoutCtx): void { ctx.y += band.h;
 function layoutSeqTable(band: Band & {type: 'sequence' | 'table'}, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
   const placed = band.type === 'sequence' ? layoutSequence(band, padX, ctx.y, cw, widthOf, roles) : layoutTable(band, padX, ctx.y, cw, widthOf, roles);
-  if (band.id) ctx.anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+  if (band.id) ctx.register(band.id, rectOf(placed), `a ${band.type} takes an id that another anchor already has`);
   ctx.laidOut.push(placed);
   ctx.y += placed.h + d.gap;
 }
@@ -69,14 +69,14 @@ function layoutSeqTable(band: Band & {type: 'sequence' | 'table'}, ctx: LayoutCt
 function layoutWireframeBand(band: Band & {type: 'wireframe' | 'screens'}, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, widthOf} = ctx;
   const placed = band.type === 'wireframe' ? layoutWireframe(band, padX, ctx.y, cw, widthOf) : layoutScreens(band, padX, ctx.y, cw, widthOf);
-  for (const a of placed.anchors) ctx.anchors.set(a.id, {x: a.x, y: a.y, w: a.w, h: a.h});
+  for (const a of placed.anchors) if (a.id) ctx.register(a.id, rectOf(a), `a ${band.type} takes an id that another anchor already has`);
   ctx.laidOut.push(placed);
   ctx.y += placed.h + d.gap;
 }
 
 function layoutRaw(band: RawBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const placed = {...band, x: padX, y: ctx.y, w: cw};
-  if (band.id) ctx.anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
+  if (band.id) ctx.register(band.id, rectOf(placed), 'a raw band takes an id that another anchor already has');
   ctx.laidOut.push(placed);
   ctx.y += band.h + (band.h > 0 ? ctx.d.gap : 0);
 }
@@ -226,7 +226,7 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
   for (const st of stepsPlaced) {
     const ln = lanes[laneIndex.get(st.lane) as number]; // an unknown lane id throws here, as before
     st.y = ln.blockTop + (st.row ?? 0) * (ln.maxStep + rowGap) + (ln.maxStep - st.h) / 2;
-    if (st.id) ctx.anchors.set(st.id, {x: st.x, y: st.y, w: st.w, h: st.h});
+    if (st.id) ctx.anchors.set(st.id, {x: st.x, y: st.y, w: st.w, h: st.h}); // placeBoxLike already claimed (and checked) the id; this moves it to the lane row
     if (st.tagBox) st.tagBox.y = st.y - st.tagBox.h / 2;
     ctx.laidOut.push(st);
   }
