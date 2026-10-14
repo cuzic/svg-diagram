@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="456" viewBox="0 0 940 456" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">地域別売上と営業利益率</title>
+  <desc id="svg-desc">コンボチャート: 棒 国内（2022 620億円、2023 660億円、2024 700億円、2025 740億円）、棒 海外（2022 180億円、2023 260億円、2024 340億円、2025 430億円）、折れ線 営業利益率（2022 7%、2023 9%、2024 11%、2025 13%）</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-combo-stack.ts","sourceSha256":"5636059c1dacc2ddeff3741c27ccdd70c8db22e7202b5710e51bc344434862ba"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="456" fill="#ffffff"/>
+
+  <path d="M68.75,24 H82.75 V38 H68.75 Z" fill="#ffffff"/>
+  <path d="M68.75,24 H82.75 V38 H68.75 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#1d5fa8" stroke-width="1"/>
+  <text x="89" y="36" font-size="14" fill="#22201b">国内</text>
+  <path d="M138.75,24 H152.75 V38 H138.75 Z" fill="#ffffff"/>
+  <path d="M138.75,24 H152.75 V38 H138.75 Z" fill="#22201b" fill-opacity="0.4" stroke="#22201b" stroke-width="1"/>
+  <text x="159" y="36" font-size="14" fill="#22201b">海外</text>
+  <path d="M208.8,31 L232.8,31" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M216.8,31 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" fill="#b91c1c" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/>
+  <text x="239" y="36" font-size="14" fill="#22201b">営業利益率</text>
+  <path d="M62.8,364 L896.4,364" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="369" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <path d="M62.8,317.5 L896.4,317.5" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="323" text-anchor="end" font-size="14" fill="#6f6659">200</text>
+  <path d="M62.8,271 L896.4,271" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="276" text-anchor="end" font-size="14" fill="#6f6659">400</text>
+  <path d="M62.8,224.5 L896.4,224.5" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="230" text-anchor="end" font-size="14" fill="#6f6659">600</text>
+  <path d="M62.8,178 L896.4,178" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="183" text-anchor="end" font-size="14" fill="#6f6659">800</text>
+  <path d="M62.8,131.5 L896.4,131.5" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="137" text-anchor="end" font-size="14" fill="#6f6659">1,000</text>
+  <path d="M62.8,85 L896.4,85" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="59" y="90" text-anchor="end" font-size="14" fill="#6f6659">1,200</text>
+  <path d="M890.4,364 L896.4,364" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="900" y="369" font-size="14" fill="#6f6659">0</text>
+  <path d="M890.4,294.3 L896.4,294.3" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="900" y="299" font-size="14" fill="#6f6659">5</text>
+  <path d="M890.4,224.5 L896.4,224.5" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="900" y="230" font-size="14" fill="#6f6659">10</text>
+  <path d="M890.4,154.8 L896.4,154.8" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="900" y="160" font-size="14" fill="#6f6659">15</text>
+  <path d="M890.4,85 L896.4,85" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="900" y="90" font-size="14" fill="#6f6659">20</text>
+  <text x="20" y="68" font-size="14" font-weight="700" fill="#22201b">億円</text>
+  <text x="920" y="68" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">%</text>
+  <path d="M135.5,219.9 H207.5 V364.1 H135.5 Z" fill="#ffffff"/>
+  <path d="M135.5,219.9 H207.5 V364.1 H135.5 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#1d5fa8" stroke-width="1"/>
+  <path d="M340.9,210.6 H412.9 V364.1 H340.9 Z" fill="#ffffff"/>
+  <path d="M340.9,210.6 H412.9 V364.1 H340.9 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#1d5fa8" stroke-width="1"/>
+  <path d="M546.3,201.3 H618.3 V364.1 H546.3 Z" fill="#ffffff"/>
+  <path d="M546.3,201.3 H618.3 V364.1 H546.3 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#1d5fa8" stroke-width="1"/>
+  <path d="M751.7,192 H823.7 V364.1 H751.7 Z" fill="#ffffff"/>
+  <path d="M751.7,192 H823.7 V364.1 H751.7 Z" fill="#1d5fa8" fill-opacity="0.4" stroke="#1d5fa8" stroke-width="1"/>
+  <path d="M135.5,178 H207.5 V219.8 H135.5 Z" fill="#ffffff"/>
+  <path d="M135.5,178 H207.5 V219.8 H135.5 Z" fill="#22201b" fill-opacity="0.4" stroke="#22201b" stroke-width="1"/>
+  <path d="M340.9,150.1 H412.9 V210.5 H340.9 Z" fill="#ffffff"/>
+  <path d="M340.9,150.1 H412.9 V210.5 H340.9 Z" fill="#22201b" fill-opacity="0.4" stroke="#22201b" stroke-width="1"/>
+  <path d="M546.3,122.2 H618.3 V201.3 H546.3 Z" fill="#ffffff"/>
+  <path d="M546.3,122.2 H618.3 V201.3 H546.3 Z" fill="#22201b" fill-opacity="0.4" stroke="#22201b" stroke-width="1"/>
+  <path d="M751.7,92 H823.7 V192 H751.7 Z" fill="#ffffff"/>
+  <path d="M751.7,92 H823.7 V192 H751.7 Z" fill="#22201b" fill-opacity="0.4" stroke="#22201b" stroke-width="1"/>
+  <path d="M171.5,266.4 L376.9,238.5 L582.3,210.6 L787.7,182.7" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M167.5,266.4 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" fill="#b91c1c" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M372.9,238.5 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" fill="#b91c1c" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M578.3,210.6 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" fill="#b91c1c" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M783.7,182.7 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" fill="#b91c1c" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/>
+  <text x="171" y="297" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">620億円</text>
+  <text x="377" y="292" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">660億円</text>
+  <text x="582" y="288" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">700億円</text>
+  <text x="788" y="283" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">740億円</text>
+  <text x="171" y="204" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">180億円</text>
+  <text x="377" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">260億円</text>
+  <text x="582" y="167" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">340億円</text>
+  <text x="788" y="147" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">430億円</text>
+  <text x="171" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">800億円</text>
+  <text x="377" y="144" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">920億円</text>
+  <text x="582" y="116" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">1,040億円</text>
+  <text x="171" y="256" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">7%</text>
+  <text x="377" y="228" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">9%</text>
+  <text x="582" y="201" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">11%</text>
+  <text x="788" y="173" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">13%</text>
+  <text x="171" y="392" text-anchor="middle" font-size="14" fill="#22201b">2022</text>
+  <text x="377" y="392" text-anchor="middle" font-size="14" fill="#22201b">2023</text>
+  <text x="582" y="392" text-anchor="middle" font-size="14" fill="#22201b">2024</text>
+  <text x="788" y="392" text-anchor="middle" font-size="14" fill="#22201b">2025</text>
+
+  <text x="20" y="430" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>
