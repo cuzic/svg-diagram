@@ -1,4 +1,4 @@
-// The shared ground of the consulting-style charts (waterfall, radar, heatmap, stacked bars / mekko, treemap, sankey, tornado, bubble, butterfly, combo, harvey):
+// The shared ground of the consulting-style charts (waterfall, radar, heatmap, stacked bars / mekko, treemap, sankey, tornado):
 // a small canvas that collects what a chart draws (rects, paths, texts), remembers where every label is, and finds a free spot for
 // a label — so that each chart only says WHAT goes WHERE and verify.ts can check the result the same way for all of them.
 import {segHitsRect} from './bars.ts';
@@ -8,7 +8,7 @@ import {niceNear} from './qc.ts';
 import type {IconGlyph} from './icon-store.ts';
 import type {ColorKey, Rect, RevealOpts, Roles, WidthOf, LabelRole} from './types.ts';
 
-export type ChartKind = 'waterfall' | 'radar' | 'heatmap' | 'stacked' | 'treemap' | 'sankey' | 'tornado' | 'bubble' | 'butterfly' | 'combo' | 'harvey' | 'pert' | 'causal' | 'dependency';
+export type ChartKind = 'waterfall' | 'radar' | 'heatmap' | 'stacked' | 'treemap' | 'sankey' | 'tornado' | 'bubble' | 'butterfly' | 'combo' | 'harvey' | 'catplot' | 'distplot' | 'multiplot' | 'regplot' | 'clustermap' | 'pert' | 'causal' | 'dependency';
 export type ChartTone = 'accent' | 'danger' | 'muted' | 'text';
 /** Options every chart has. */
 export interface ChartOpts extends RevealOpts {

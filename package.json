@@ -12,10 +12,14 @@
     "sixel": "^0.16.0"
   },
   "peerDependencies": {
-    "playwright-chromium": "^1.62.1"
+    "playwright-chromium": "^1.62.1",
+    "mathjax-full": "^3.2.2"
   },
   "peerDependenciesMeta": {
     "playwright-chromium": {
+      "optional": true
+    },
+    "mathjax-full": {
       "optional": true
     }
   },
@@ -47,15 +51,39 @@
     "node": ">=22.18"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.2.0",
     "@types/node": "^26.6.4",
+    "markdown-it": "^14.3.2",
+    "mathjax-full": "^3.2.2",
     "playwright-chromium": "1.62.1",
-    "typescript": "^7.0.2"
+    "rehype-stringify": "^10.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "typescript": "^7.0.2",
+    "unified": "^11.0.5",
+    "vitepress": "^1.6.4"
   },
   "types": "./dist/lib/dsl.d.ts",
   "exports": {
     ".": {
       "types": "./dist/lib/dsl.d.ts",
       "default": "./dist/lib/dsl.js"
+    },
+    "./markdown-it": {
+      "types": "./dist/lib/markdown-it.d.ts",
+      "default": "./dist/lib/markdown-it.js"
+    },
+    "./remark": {
+      "types": "./dist/lib/remark.d.ts",
+      "default": "./dist/lib/remark.js"
+    },
+    "./vitepress": {
+      "types": "./dist/lib/vitepress.d.ts",
+      "default": "./dist/lib/vitepress.js"
+    },
+    "./markdown": {
+      "types": "./dist/lib/markdown.d.ts",
+      "default": "./dist/lib/markdown.js"
     },
     "./render": {
       "types": "./dist/lib/render-source.d.ts",

@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {Config, DiagramData} from './types.ts';
-import {DEFAULT_LEGEND_LABELS} from './rules.ts';
+import {DEFAULT_LEGEND_LABELS, RULE_DOCS} from './rules.ts';
 import {checkTones, mergeTones} from './tokens.ts';
 
 export function loadConfig(from: string = process.cwd()): Config {
@@ -15,6 +15,8 @@ export function loadConfig(from: string = process.cwd()): Config {
       try { cfg = {...JSON.parse(fs.readFileSync(f, 'utf8')), _file: f}; }
       catch (e) { throw new Error(`${f}: ${(e as Error).message}`); }
       checkLegend(cfg, f);
+      checkAccept(cfg, f);
+      checkTerms(cfg, f);
       if (cfg.tones !== undefined) { try { cfg.tones = checkTones(cfg.tones, '"tones"'); } catch (e) { throw new Error(`${f}: ${(e as Error).message}`); } }
       return cfg;
     }
@@ -36,9 +38,29 @@ function checkLegend(cfg: Config, f: string): void {
   }
 }
 
+// a typo'd rule id would accept nothing, silently
+function checkAccept(cfg: Config, f: string): void {
+  const acc: unknown = cfg.accept;
+  if (acc === undefined) return;
+  if (typeof acc !== 'object' || acc === null || Array.isArray(acc)) throw new Error(`${f}: "accept" must be an object like {"gray-tone-collision": "why this is fine"}`);
+  for (const [k, v] of Object.entries(acc)) {
+    if (!Object.hasOwn(RULE_DOCS, k)) throw new Error(`${f}: accept: unknown rule "${k}" (see RULE_DOCS: ${Object.keys(RULE_DOCS).join(', ')})`);
+    if (typeof v !== 'string' || !v.trim()) throw new Error(`${f}: accept["${k}"] must be a non-empty reason string`);
+  }
+}
+
+// {"terms": {"ユーザー": ["利用者"]}}: a typo here (a string instead of a list) would otherwise match nothing, silently
+function checkTerms(cfg: Config, f: string): void {
+  const t: unknown = cfg.terms;
+  if (t === undefined) return;
+  if (typeof t !== 'object' || t === null || Array.isArray(t)) throw new Error(`${f}: "terms" must be an object like {"ユーザー": ["利用者", "ユザー"]}`);
+  for (const [k, v] of Object.entries(t)) if (!Array.isArray(v) || !v.length || v.some(x => typeof x !== 'string' || !x)) throw new Error(`${f}: terms["${k}"] must be a non-empty list of spellings to avoid`);
+}
+
 // a diagram's own accept / maxWidth / legend / legendLabels win over the project's
-export function applyConfig<D extends Pick<DiagramData, 'accept' | 'maxWidth' | 'legend' | 'legendLabels' | 'tones'>>(d: D, cfg: Config): D {
+export function applyConfig<D extends Pick<DiagramData, 'accept' | 'terms' | 'maxWidth' | 'legend' | 'legendLabels' | 'tones'>>(d: D, cfg: Config): D {
   d.accept = {...(cfg.accept ?? {}), ...(d.accept ?? {})};
+  if (cfg.terms) d.terms = {...cfg.terms, ...(d.terms ?? {})};
   if (cfg.maxWidth && d.maxWidth == null) d.maxWidth = cfg.maxWidth;
   if (d.legend === undefined && cfg.legend !== undefined) d.legend = cfg.legend;
   d.tones = mergeTones(cfg.tones, d.tones);

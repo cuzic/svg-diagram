@@ -10,7 +10,7 @@ import path from 'node:path';
 const LIB = path.resolve(import.meta.dirname, '../lib');
 // versus.ts is not here either: it is an authoring helper that builds bands with dsl.ts's constructors (group, row, connect), and dsl.ts is the shell.
 // emit-html.ts is not here: it reads font metrics (font-metrics.ts → textBox) while it draws.
-const CORE = ['atoms', 'bars', 'emit', 'fit', 'layout', 'plane', 'reveal', 'rich', 'rules', 'seq-table', 'spotlight', 'timeline', 'tokens', 'types', 'verify', 'icons', 'wrap', 'wireframe'];
+const CORE = ['atoms', 'bars', 'emit', 'fit', 'layout', 'plane', 'reveal', 'rich', 'rules', 'seq-table', 'spotlight', 'timeline', 'tokens', 'types', 'verify', 'icons', 'wrap', 'wireframe', 'math'];
 const FORBIDDEN = /^(node:)?(fs|fs\/promises|child_process|net|http|https|os|worker_threads|crypto|process|module|vm|dns|tty|readline|zlib)$|^playwright|^@resvg|^harfbuzzjs|^sixel$/;
 
 function importsOf(file: string): {local: string[]; external: string[]; usesEnv: boolean} {
@@ -56,4 +56,46 @@ test('nothing the rendering core reaches imports the global ROLES table', () => 
   };
   for (const name of CORE) walk(path.join(LIB, name + '.ts'));
   assert.deepEqual(offenders, []);
+});
+
+// lib/dsl/: the builders (caption, box, row, charts, ...) are pure; only render.ts (the measured layout, the slide budget) and io.ts
+// (build(), image(): fs / child_process / path) are shells. lib/dsl.ts stays the package entry point and just re-exports them all.
+// The one declared exception is icon-registry.ts: box({icon}) / iconRow() / sequence() ... resolve an installed glyph through it, and
+// it reads svg-diagram.icons.json from process.cwd() (the shell side of icons.ts). Its own imports are still walked.
+test('lib/dsl builders reach no I/O (everything but render.ts and io.ts)', () => {
+  const SHELLS = new Set(['render.ts', 'io.ts']);
+  const problems: string[] = [];
+  for (const name of fs.readdirSync(path.join(LIB, 'dsl')).filter(f => f.endsWith('.ts') && !SHELLS.has(f))) {
+    const seen = new Set<string>();
+    const walk = (file: string, via: string[]): void => {
+      if (seen.has(file)) return;
+      seen.add(file);
+      const {local, external, usesEnv} = importsOf(file);
+      const chain = [...via, path.basename(file)].join(' → ');
+      const declared = path.basename(file) === 'icon-registry.ts';
+      for (const e of external) if (!declared && FORBIDDEN.test(e)) problems.push(`dsl/${name}: ${chain} imports '${e}'`);
+      if (usesEnv && !declared) problems.push(`dsl/${name}: ${chain} uses process.*`);
+      for (const l of local) walk(path.resolve(path.dirname(file), l.replace(/\.js$/, '.ts')), [...via, path.basename(file)]);
+    };
+    walk(path.join(LIB, 'dsl', name), []);
+  }
+  assert.deepEqual(problems, []);
+});
+
+test('lib/dsl modules import each other without a cycle, and the builders never import render.ts or io.ts', () => {
+  const dir = path.join(LIB, 'dsl');
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.ts'));
+  const graph = new Map(files.map(f => [f, importsOf(path.join(dir, f)).local.filter(l => l.startsWith('./')).map(l => path.basename(l))]));
+  const cycles: string[] = [], state = new Map<string, number>();
+  const visit = (n: string, via: string[]): void => {
+    if (state.get(n) === 1) { cycles.push([...via, n].join(' → ')); return; }
+    if (state.get(n) === 2) return;
+    state.set(n, 1);
+    for (const m of graph.get(n) ?? []) visit(m, [...via, n]);
+    state.set(n, 2);
+  };
+  for (const f of files) visit(f, []);
+  assert.deepEqual(cycles, []);
+  const shellImports = files.filter(f => f !== 'render.ts' && f !== 'io.ts').flatMap(f => (graph.get(f) ?? []).filter(m => m === 'render.ts' || m === 'io.ts').map(m => `${f} → ${m}`));
+  assert.deepEqual(shellImports, []);
 });

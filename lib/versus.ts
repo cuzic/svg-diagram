@@ -1,4 +1,6 @@
-import {connect, group, row, spacer} from './dsl.ts';
+import {group} from './dsl/text-bands.ts';
+import {row, spacer} from './dsl/containers.ts';
+import {connect} from './dsl/connect.ts';
 import type {Arrow, Band, BandInput, BoxTone, Route, ConnectBand, GroupBand, GroupRowBand, SpacerBand} from './types.ts';
 import type {Declares, IdsOf, Refers, RefsOf} from './strict.ts';
 

@@ -202,3 +202,11 @@ export function setMainSet(prefix: string | undefined, cwd: string = process.cwd
     return {file, mainSet: prefix};
   });
 }
+
+/** One line naming the manifest file a command wrote (absolute), and saying so when it was found in a parent directory rather than the current one. */
+export function manifestNote(file: string, cwd: string = process.cwd()): string {
+  const abs = path.resolve(file);
+  const here = path.join(path.resolve(cwd), MANIFEST_FILE);
+  if (abs === here) return abs;
+  return `${abs}（親ディレクトリで見つけたファイル。今のディレクトリではない）`;
+}

@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {execFile} from 'node:child_process';
 import {ICON_NAME_RE, glyphFromBody, glyphFromSvg, parseManifest, parseSpec, prefixIds, sanitizeBody} from '../lib/icon-store.ts';
-import {addIcons, addSet, noticeText, readManifest, removeIcons, setMainSet, withManifestLock} from '../lib/icon-install.ts';
+import {addIcons, addSet, manifestNote, noticeText, readManifest, removeIcons, setMainSet, withManifestLock} from '../lib/icon-install.ts';
 import type {Fetch} from '../lib/icon-install.ts';
 import {ICON_SETS, setArgs} from '../lib/icon-sets.ts';
 import {findIcons, styleOf} from '../lib/icon-find.ts';
@@ -87,7 +87,7 @@ test('glyphFromSvg reads the viewBox (with an origin) and ignores <title>', () =
 });
 
 test('parseManifest refuses anything that is not the file this tool writes', () => {
-  assert.throws(() => parseManifest('{}', 'f'), /not an svg-diagram icon file/);
+  assert.throws(() => parseManifest('{}', 'f'), /not an svg-diagram icon file.*\{"version": 1, "icons": \{\}\}/);
   assert.throws(() => parseManifest('{"version":1,"icons":{"a b":{}}}', 'f'), /bad icon name/);
   assert.throws(() => parseManifest('{"version":1,"icons":{"a":{"d":"M\\"","vb":[0,0,24]}}}', 'f'), /usable path/);
 });
@@ -408,4 +408,14 @@ test('icons add --skip-missing: a set whose names were all skipped is not the ma
     assert.deepEqual([r.added, r.skipped, r.warnings], [['key'], ['ccby:nope'], []]);
     assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'svg-diagram.icons.json'), 'utf8')).mainSet, 'mdi');
   } finally { srv.close(); fs.rmSync(dir, {recursive: true}); }
+});
+
+test('manifestNote: the absolute path written, and a note when it was found in a parent', () => {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'note-')));
+  const sub = path.join(dir, 'a', 'b');
+  fs.mkdirSync(sub, {recursive: true});
+  const f = path.join(dir, 'svg-diagram.icons.json');
+  assert.equal(manifestNote(f, dir), f);
+  assert.match(manifestNote(f, sub), new RegExp(`^${f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.*親`));
+  fs.rmSync(dir, {recursive: true});
 });
