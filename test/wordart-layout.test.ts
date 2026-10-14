@@ -68,3 +68,12 @@ test('arcs: the letters follow the curve, and a bend that would crowd them is re
   assert.throws(() => place('笑顔形', {size: 40, arc: -120}), /too tight/);
   assert.deepEqual(wordArtTexts(wordartBand('ab', {arc: 30}), ROLES).map(t => t[0]), ['a', 'b']);
 });
+
+test('an emoji with its modifiers is one cell; the id of its defs depends on what it is and where', () => {
+  const v = place('👍🏽❤️👨‍👩‍👧', {writing: 'vertical', size: 30}), glyphs = v.items.flatMap(i => i.k === 'col' || i.k === 'rot' ? (i.k === 'col' ? i.glyphs.map(g => g.ch) : [i.text]) : []);
+  assert.deepEqual(glyphs, ['👍🏽', '❤️', '👨‍👩‍👧']);
+  assert.deepEqual(wordArtTexts(wordartBand('👍🏽❤️', {arc: 30}), ROLES).map(t => t[0]), ['👍🏽', '❤️']);
+  assert.equal(place('あ', {style: 'gradient'}).uid, place('あ', {style: 'gradient'}).uid);
+  assert.notEqual(place('あ', {style: 'gradient'}).uid, place('い', {style: 'gradient'}).uid);
+  assert.notEqual(place('あ', {style: 'gradient'}).uid, place('あ', {style: 'gradient', tone: 'danger', gradient: {from: 'text', to: 'danger'}}).uid);
+});

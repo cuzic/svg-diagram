@@ -25,7 +25,7 @@ test('the constructor says what is wrong', () => {
   assert.throws(() => wordart(''), /non-empty/);
   assert.throws(() => wordart('x', {style: 'neon' as never}), /style must be one of/);
   assert.throws(() => wordart('x', {tone: 'pink' as never}), /must be a tone/);
-  assert.throws(() => wordart('x', {size: 10}), /at least 14px/);
+  assert.throws(() => wordart('x', {size: 10}), /at least 14/);
   assert.throws(() => wordart('x', {writing: 'diagonal' as never}), /writing/);
   assert.throws(() => wordart('x', {outline: {width: 0}}), /outline width/);
   assert.throws(() => wordart('x', {shadow: {tone: 'red' as never}}), /shadow tone/);
@@ -122,4 +122,24 @@ test('a negative shadow is inside the band the layout makes', () => {
   const f = place('影', {shadow: {dx: -30, dy: -30}, size: 40});
   const text = f.labelBoxes[0];
   assert.ok(text.x - 30 >= f.x - .5 && text.y - 30 >= f.y - .5, 'the shadow copy (30px up and left) is within the rect');
+});
+
+test('the constructor refuses what would draw NaN or crash, and reads a Windows source', () => {
+  assert.throws(() => wordart('x', {style: 'constructor' as never}), /style must be one of/);
+  assert.throws(() => wordart('x', {weight: 'toString' as never}), /weight/);
+  assert.throws(() => wordart('x', {size: 'huge' as never}), /must be a role/);
+  assert.doesNotThrow(() => wordart('x', {size: 'display'}));
+  assert.throws(() => wordart('​​'), /non-empty/);
+  assert.equal(wordart('あ\r\nい').text, 'あ\nい');
+  assert.throws(() => wordart('A', {arc: 90}), /two letters or more/);
+  assert.throws(() => wordart('縦書き', {writing: 'vertical', reflection: true}), /reflection/);
+  assert.throws(() => wordart('縦書き', {writing: 'vertical', style: 'reflect'}), /reflection/);
+  assert.doesNotThrow(() => wordart('縦書き', {writing: 'vertical', style: 'reflect', reflection: false}));
+});
+
+test('a depth or a shadow does not default to the colour of the letters', () => {
+  assert.equal(resolveLook({extrude: true}, 40).extrude!.tone, 'muted', 'text letters: muted depth');
+  assert.equal(resolveLook({extrude: true, tone: 'accent'}, 40).extrude!.tone, 'text');
+  assert.equal(resolveLook({shadow: true, tone: 'muted'}, 40).shadow!.tone, 'text');
+  assert.equal(resolveLook({shadow: true}, 40).shadow!.tone, 'muted');
 });

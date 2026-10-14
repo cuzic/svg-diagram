@@ -20,6 +20,9 @@ const NOT_LAST = new Set(Array.from('（［｛「『【〔〈《〝'));
 const PUNCT = new Set(Array.from('、。，．'));
 const SMALL = new Set(Array.from('ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ'));
 
+/** The characters a person sees (an emoji with its modifiers, or a joined family, is one). */
+export const graphemes = (text: string): string[] => Array.from(new Intl.Segmenter(undefined, {granularity: 'grapheme'}).segment(text), x => x.segment);
+
 /** A unit of a vertical column, before any width is known. */
 export type VToken =
   | {kind: 'glyph'; ch: string; dx: number; dy: number; turn: boolean}
@@ -42,7 +45,7 @@ export function tokenizeColumn(text: string): VToken[] {
       rest = rest.slice(m[0].length);
       continue;
     }
-    const ch = Array.from(rest)[0];
+    const ch = graphemes(rest)[0];
     rest = rest.slice(ch.length);
     if (ch === ' ' || ch === '\u3000') out.push({kind: 'blank'});
     else if (ROTATED.has(ch)) out.push({kind: 'glyph', ch, dx: 0, dy: 0, turn: true});

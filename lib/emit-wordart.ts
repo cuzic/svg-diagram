@@ -1,5 +1,6 @@
 import {snap4, emojiSpan} from './emit-common.ts';
-import {artColor, figureTransform, gradientOf, paintLayers, translateItem} from './wordart.ts';
+import {colorOf} from './tokens.ts';
+import {figureTransform, gradientOf, paintLayers, translateItem} from './wordart.ts';
 import type {ArtItem, LaidOutWordArt} from './wordart.ts';
 import type {Rect, Theme} from './types.ts';
 
@@ -15,7 +16,7 @@ export function renderWordArt(band: LaidOutWordArt, day: Theme, dim = false): st
   if (defs.length) parts.push(`<defs>${defs.join('')}</defs>`);
   const figure = figureTransform(band);
   // (a plate is part of the figure: it turns and flips with the letters; a dimmed wordart has none)
-  if (band.plate && !dim) parts.push(`<rect ${snapped(band.plate)} rx="${Math.round(band.size * 0.15)}" fill="${artColor(look.plate!, day)}"${figure ? ` transform="${figure}"` : ''}/>`);
+  if (band.plate && !dim) parts.push(`<rect ${snapped(band.plate)} rx="${Math.round(band.size * 0.15)}" fill="${colorOf(look.plate!, day)}"${figure ? ` transform="${figure}"` : ''}/>`);
   for (const p of paintLayers(band, day, dim)) {
     const stroke = p.stroke ? ` stroke="${p.stroke}" stroke-width="${p.sw}" stroke-linejoin="round"${p.text && p.fill !== 'none' ? ' paint-order="stroke"' : ''}` : '';
     const paint = `fill="${p.fill}"${stroke}${p.opacity !== undefined ? ` opacity="${p.opacity}"` : ''}${p.hidden ? ' aria-hidden="true" data-decor=""' : ''}${p.mirror ? ` clip-path="url(#${band.uid}-c)"` : ''}`;

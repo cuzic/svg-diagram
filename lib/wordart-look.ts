@@ -8,8 +8,10 @@ import type {ArtTone, ExtrudeSpec, GlowSpec, GradientSpec, LaidOutWordArt, Outli
 // the look
 // ---------------------------------------------------------------------------------------------------------------------------
 
-export const ART_TONES = new Set<string>(['text', 'accent', 'muted', 'danger', 'bg', 'soft']);
-export const WEIGHT_OF = {normal: 400, bold: 700} as const;
+const ART_TONES = new Set<string>(['text', 'accent', 'muted', 'danger', 'bg', 'soft']);
+export const isArtTone = (v: unknown): boolean => ART_TONES.has(v as string);
+export const ART_TONE_NAMES: readonly string[] = Object.freeze([...ART_TONES]);
+export const WEIGHT_OF = Object.freeze({normal: 400, bold: 700} as const);
 const OUTLINE_REL = 0.06; // the default outline width, as a share of the size
 const SHADOW_REL = 0.06;
 const GLOW_REL = 0.25;
@@ -26,7 +28,7 @@ interface Preset {
   glow?: GlowSpec; bevel?: boolean; extrude?: ExtrudeSpec; reflection?: ReflectionSpec;
 }
 /** Presets as values: a look is data, not a code path. */
-export const PRESETS: Record<WordArtPreset, Preset> = {
+export const PRESETS: Readonly<Record<WordArtPreset, Preset>> = Object.freeze({
   plain: {weight: 400, tone: 'text'},
   bold: {weight: 700, tone: 'text'},
   // a knocked-out letter with a dark rim: reads on any page
@@ -40,7 +42,7 @@ export const PRESETS: Record<WordArtPreset, Preset> = {
   '3d': {weight: 700, tone: 'accent', extrude: {tone: 'text'}},
   gradient: {weight: 700, tone: 'accent', gradient: {from: 'accent', to: 'text'}},
   reflect: {weight: 700, tone: 'accent', reflection: {}},
-};
+});
 
 export const asList = (o: WordArtOpts['outline']): readonly OutlineSpec[] | undefined => o === undefined || o === false ? undefined : o === true ? [{}] : Array.isArray(o) ? o : [o as OutlineSpec];
 const specOf = <T extends object>(v: boolean | T | undefined, preset: T | undefined): T | undefined => v === false ? undefined : v === undefined ? preset : v === true ? {} as T : v;
@@ -56,18 +58,20 @@ export function resolveLook(opts: WordArtBand['opts'], size: number): WordArtLoo
   const sh = specOf<ShadowSpec>(opts.shadow, p.shadow), gl = specOf<GlowSpec>(opts.glow, p.glow), ex = specOf<ExtrudeSpec>(opts.extrude, p.extrude), rf = specOf<ReflectionSpec>(opts.reflection, p.reflection);
   const bevel = opts.bevel === undefined ? p.bevel : opts.bevel;
   const shift = Math.max(2, Math.round(size * SHADOW_REL)), depth = ex?.depth ?? Math.max(3, Math.round(size * EXTRUDE_REL)), grad = opts.gradient ?? (opts.tone === undefined ? p.gradient : undefined);
-  const rot = opts.rotate ?? 0, flip = opts.flip;
+  const rot = opts.rotate ?? 0, flip = opts.flip, fill = opts.tone ?? p.tone;
+  // a depth or a shadow in the colour of the letters melts into them: the default is the other one of text / muted
+  const apart = (tone: ArtTone | 'none', dflt: ArtTone): ArtTone => tone === dflt ? (dflt === 'text' ? 'muted' : 'text') : dflt;
   return {
     size,
     weight: opts.weight ? WEIGHT_OF[opts.weight] : p.weight,
     font: opts.font ?? 'sans',
-    fill: opts.tone ?? p.tone,
+    fill,
     ...(grad ? {gradient: {from: grad.from, to: grad.to, angle: grad.angle ?? 90}} : {}),
     outlines: outline,
-    ...(sh ? {shadow: {tone: sh.tone ?? 'muted', dx: sh.dx ?? shift, dy: sh.dy ?? shift}} : {}),
+    ...(sh ? {shadow: {tone: sh.tone ?? apart(fill, 'muted'), dx: sh.dx ?? shift, dy: sh.dy ?? shift}} : {}),
     ...(gl ? {glow: {tone: gl.tone ?? 'accent', radius: gl.radius ?? Math.max(3, Math.round(size * GLOW_REL))}} : {}),
     ...(bevel ? {bevel: {size: Math.max(1, Math.round(size * BEVEL_REL))}} : {}),
-    ...(ex ? {extrude: {tone: ex.tone ?? 'text', dx: Math.round(depth * 0.7), dy: Math.round(depth * 0.7)}} : {}),
+    ...(ex ? {extrude: {tone: ex.tone ?? apart(fill, 'text'), dx: Math.round(depth * 0.7), dy: Math.round(depth * 0.7)}} : {}),
     ...(rf ? {reflection: {opacity: rf.opacity ?? 0.3, gap: rf.gap ?? Math.max(2, Math.round(size * REFLECTION_GAP_REL))}} : {}),
     ...(opts.plate ? {plate: opts.plate} : {}),
     spacing: opts.spacing ?? 0,
@@ -180,7 +184,3 @@ export function figureTransform(art: LaidOutWordArt): string | null {
   const turn = look.rotate ? `rotate(${n(look.rotate)} ${n(cx)} ${n(cy)})` : '';
   return `${turn}${flip}`.trim() || null;
 }
-
-/** A wordart colour for a theme. */
-export const artColor = (t: ArtTone, day: Theme): string => colorOf(t, day);
-

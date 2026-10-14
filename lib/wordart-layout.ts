@@ -3,7 +3,7 @@ import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
 import type {Rect, Roles, WidthOf} from './types.ts';
 import {inkReach, REFLECTION_SHARE, resolveLook, sizeOf} from './wordart-look.ts';
-import {BASELINE, COLUMN_PITCH, tcySize, tokenizeColumn, verticalColumns} from './wordart-vertical.ts';
+import {BASELINE, COLUMN_PITCH, graphemes, tcySize, tokenizeColumn, verticalColumns} from './wordart-vertical.ts';
 import {translateItem} from './wordart-types.ts';
 import type {ArtItem, LaidOutWordArt, WordArtBand, WordArtLook} from './wordart-types.ts';
 
@@ -14,7 +14,7 @@ import type {ArtItem, LaidOutWordArt, WordArtBand, WordArtLook} from './wordart-
 /** [text, size, weight, font] of everything layoutWordArt() measures. */
 export function wordArtTexts(b: WordArtBand, roles: Roles): [string, number, number, 'sans' | 'mono'][] {
   const size = sizeOf(b.opts.size, roles), {weight, font} = resolveLook(b.opts, size), out: [string, number, number, 'sans' | 'mono'][] = [];
-  if (b.opts.arc) for (const ch of Array.from(b.text)) out.push([ch, size, weight, font]);
+  if (b.opts.arc) for (const ch of graphemes(b.text)) out.push([ch, size, weight, font]);
   else if (b.opts.writing === 'vertical') {
     for (const para of b.text.split('\n')) for (const t of tokenizeColumn(para)) {
       if (t.kind === 'side') out.push([t.text, size, weight, font]);
@@ -35,7 +35,7 @@ const ASCENT = 0.88, DESCENT = 0.2; // a glyph box, in sizes above / below the b
 
 /** Glyphs set along an arc: positions relative to the apex of the baseline, and the box they fill. */
 function arcGlyphs(text: string, size: number, arc: number, spacing: number, advance: (ch: string) => number): {glyphs: Extract<ArtItem, {k: 'arc'}>['glyphs']; w: number; h: number} {
-  const chars = Array.from(text), widths = chars.map(advance), total = widths.reduce((s, x) => s + x, 0) + spacing * (chars.length - 1);
+  const chars = graphemes(text), widths = chars.map(advance), total = widths.reduce((s, x) => s + x, 0) + spacing * (chars.length - 1);
   const theta = Math.abs(arc) * Math.PI / 180, R = total / theta, sign = arc > 0 ? 1 : -1;
   // on the inside of the bend the letters crowd each other: by the share of the radius their inner edge keeps
   const keep = (R - (sign > 0 ? DESCENT : ASCENT) * size) / R;
@@ -102,6 +102,16 @@ function setHorizontal(s: Setting): Figure {
   return {items, boxes, w, h, base};
 }
 
+/**
+ * The id of a wordart's gradient / clip: a hash of what it is and where it is. A position alone is not enough: two SVGs embedded in one page
+ * would each have a def of that name, and the second figure would paint with the first one's.
+ */
+function uidOf(text: string, look: WordArtLook, at: Rect): string {
+  let h = 5381;
+  for (const ch of JSON.stringify([text, look, Math.round(at.x), Math.round(at.y), Math.round(at.w), Math.round(at.h)])) h = (Math.imul(h, 33) ^ ch.codePointAt(0)!) >>> 0;
+  return `wa${h.toString(36)}`;
+}
+
 /** The box of a w x h figure turned by `deg` degrees. */
 function turnedBox(w: number, h: number, deg: number): {w: number; h: number} {
   if (deg % 180 === 0) return {w, h};
@@ -127,7 +137,7 @@ export function layoutWordArt(b: WordArtBand, x: number, y: number, cw: number, 
   // a turned or mirrored figure's boxes are the figure's own box (the unturned boxes would no longer be where they were)
   const unmoved = look.rotate % 180 === 0 && !look.flipH && !look.flipV;
   return {
-    type: 'wordart', id: b.id, reveal: b.reveal, until: b.until, uid: `wa${Math.round(ox)}-${Math.round(y)}`, text: label, size, writing: vertical ? 'vertical' : 'horizontal', look,
+    type: 'wordart', id: b.id, reveal: b.reveal, until: b.until, uid: uidOf(label, look, rect), text: label, size, writing: vertical ? 'vertical' : 'horizontal', look,
     items: fig.items.map(it => translateItem(it, offX, offY)), ...rect, local,
     ...(look.plate ? {plate: local} : {}),
     ...(look.reflection ? {reflection: {axis, clip: {x: lx, y: axis - refH, w, h: refH}}} : {}),
