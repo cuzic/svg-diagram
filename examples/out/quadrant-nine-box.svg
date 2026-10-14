@@ -26,24 +26,24 @@
   <circle cx="508" cy="120" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <circle cx="236" cy="432" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <circle cx="236" cy="120" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
-  <text x="112" y="51" font-size="15" font-weight="700" fill="#22201b">原石</text>
-  <text x="112" y="70" font-size="14" fill="#6f6659">業績 低 × 潜在 高</text>
-  <text x="384" y="51" font-size="15" font-weight="700" fill="#22201b">有望株</text>
-  <text x="384" y="70" font-size="14" fill="#6f6659">業績 中 × 潜在 高</text>
-  <text x="656" y="51" font-size="15" font-weight="700" fill="#1d5fa8">スター</text>
-  <text x="656" y="70" font-size="14" fill="#6f6659">業績 高 × 潜在 高</text>
-  <text x="112" y="207" font-size="15" font-weight="700" fill="#22201b">要改善</text>
-  <text x="112" y="226" font-size="14" fill="#6f6659">業績 低 × 潜在 中</text>
-  <text x="384" y="207" font-size="15" font-weight="700" fill="#22201b">堅実人材</text>
-  <text x="384" y="226" font-size="14" fill="#6f6659">業績 中 × 潜在 中</text>
-  <text x="656" y="207" font-size="15" font-weight="700" fill="#22201b">中核人材</text>
-  <text x="656" y="226" font-size="14" fill="#6f6659">業績 高 × 潜在 中</text>
-  <text x="112" y="363" font-size="15" font-weight="700" fill="#22201b">要対応</text>
-  <text x="112" y="382" font-size="14" fill="#6f6659">業績 低 × 潜在 低</text>
-  <text x="384" y="363" font-size="15" font-weight="700" fill="#22201b">貢献人材</text>
-  <text x="384" y="382" font-size="14" fill="#6f6659">業績 中 × 潜在 低</text>
-  <text x="656" y="363" font-size="15" font-weight="700" fill="#22201b">専門人材</text>
-  <text x="656" y="382" font-size="14" fill="#6f6659">業績 高 × 潜在 低</text>
+  <text x="114" y="51" font-size="15" font-weight="700" fill="#22201b">原石</text>
+  <text x="114" y="70" font-size="14" fill="#6f6659">業績 低 × 潜在 高</text>
+  <text x="386" y="51" font-size="15" font-weight="700" fill="#22201b">有望株</text>
+  <text x="386" y="70" font-size="14" fill="#6f6659">業績 中 × 潜在 高</text>
+  <text x="658" y="51" font-size="15" font-weight="700" fill="#1d5fa8">スター</text>
+  <text x="658" y="70" font-size="14" fill="#6f6659">業績 高 × 潜在 高</text>
+  <text x="114" y="207" font-size="15" font-weight="700" fill="#22201b">要改善</text>
+  <text x="114" y="226" font-size="14" fill="#6f6659">業績 低 × 潜在 中</text>
+  <text x="386" y="207" font-size="15" font-weight="700" fill="#22201b">堅実人材</text>
+  <text x="386" y="226" font-size="14" fill="#6f6659">業績 中 × 潜在 中</text>
+  <text x="658" y="207" font-size="15" font-weight="700" fill="#22201b">中核人材</text>
+  <text x="658" y="226" font-size="14" fill="#6f6659">業績 高 × 潜在 中</text>
+  <text x="114" y="363" font-size="15" font-weight="700" fill="#22201b">要対応</text>
+  <text x="114" y="382" font-size="14" fill="#6f6659">業績 低 × 潜在 低</text>
+  <text x="386" y="363" font-size="15" font-weight="700" fill="#22201b">貢献人材</text>
+  <text x="386" y="382" font-size="14" fill="#6f6659">業績 中 × 潜在 低</text>
+  <text x="658" y="363" font-size="15" font-weight="700" fill="#22201b">専門人材</text>
+  <text x="658" y="382" font-size="14" fill="#6f6659">業績 高 × 潜在 低</text>
   <text x="780" y="146" text-anchor="middle" font-size="14" fill="#22201b">田中</text>
   <text x="760" y="302" text-anchor="middle" font-size="14" fill="#22201b">佐藤</text>
   <text x="800" y="302" text-anchor="middle" font-size="14" fill="#22201b">鈴木</text>
@@ -54,10 +54,10 @@
   <text x="508" y="146" text-anchor="middle" font-size="14" fill="#22201b">中村</text>
   <text x="236" y="458" text-anchor="middle" font-size="14" fill="#22201b">小林</text>
   <text x="236" y="146" text-anchor="middle" font-size="14" fill="#22201b">加藤</text>
-  <text x="92" y="46" text-anchor="end" font-size="14" fill="#6f6659">高い</text>
-  <text x="92" y="484" text-anchor="end" font-size="14" fill="#6f6659">低い</text>
-  <text x="92" y="264" text-anchor="end" font-size="15" font-weight="700" fill="#22201b">潜在能力</text>
-  <text x="102" y="514" font-size="14" fill="#6f6659">低い</text>
+  <text x="94" y="46" text-anchor="end" font-size="14" fill="#6f6659">高い</text>
+  <text x="94" y="484" text-anchor="end" font-size="14" fill="#6f6659">低い</text>
+  <text x="94" y="264" text-anchor="end" font-size="15" font-weight="700" fill="#22201b">潜在能力</text>
+  <text x="104" y="514" font-size="14" fill="#6f6659">低い</text>
   <text x="912" y="514" text-anchor="end" font-size="14" fill="#6f6659">高い</text>
-  <text x="507" y="514" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">業績</text>
+  <text x="508" y="514" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">業績</text>
 </svg>

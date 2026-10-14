@@ -12,13 +12,13 @@
   <rect x="20" y="56" width="900" height="56" rx="8" fill="#60a5fa" stroke="#60a5fa" stroke-width="2.5"/>
   <text x="470" y="87.6" text-anchor="middle" font-size="16" font-weight="700" fill="#0b1220">離脱率は半分以下になった</text>
 
-  <rect x="20" y="128" width="444" height="140" rx="8" fill="#0b1220" stroke="#ffffff" stroke-width="2.5"/>
-  <text x="241" y="198" text-anchor="middle" font-size="56" font-weight="700" fill="#f05252">76%</text>
-  <text x="241" y="242.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#94a3b8">導入前</text>
+  <rect x="20" y="128" width="440" height="140" rx="8" fill="#0b1220" stroke="#ffffff" stroke-width="2.5"/>
+  <text x="240" y="198" text-anchor="middle" font-size="56" font-weight="700" fill="#f05252">76%</text>
+  <text x="240" y="242.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#94a3b8">導入前</text>
 
   <rect x="480" y="128" width="440" height="140" rx="8" fill="#0b1220" stroke="#ffffff" stroke-width="2.5"/>
-  <text x="699" y="198" text-anchor="middle" font-size="56" font-weight="700" fill="#60a5fa">31%</text>
-  <text x="699" y="242.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#94a3b8">導入後</text>
+  <text x="700" y="198" text-anchor="middle" font-size="56" font-weight="700" fill="#60a5fa">31%</text>
+  <text x="700" y="242.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#94a3b8">導入後</text>
 
   <rect x="20" y="280" width="900" height="80" rx="8" fill="#1e3a8a" stroke="#60a5fa" stroke-width="2.5"/>
   <text x="40" y="311" font-size="15" font-weight="700" fill="#ffffff">次の一手</text>

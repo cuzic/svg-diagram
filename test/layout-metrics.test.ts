@@ -76,7 +76,7 @@ test('layout-align-mixed: left and centre boxes in one row', () => {
   assert.ok(!rules([textBox(20, 20, 200, 60, {align: 'center'}), textBox(236, 20, 200, 60, {align: 'center'})]).includes('layout-align-mixed'));
 });
 
-const sample = (extra: object = {}) => diagram({theme: 'blue', title: 'two groups', ...extra}).add(row([group([box({title: 'a'})], {title: 'L'}), group([box({title: 'b'})], {title: 'R'})]));
+const sample = (extra: object = {}) => diagram({theme: 'blue', title: 'two groups', ...extra}).add(row([box({title: 'a'}), box({title: 'b'}), box({title: 'c'}), box({title: 'd'})])); // four equal columns of 900: 216 / 212 / 212 / 212 (one grid step cannot be shared)
 
 test('layoutCheck: info by default, warn for strict, info again when the rule is accepted; the SVG does not change', async () => {
   const sev = async (extra: object) => (await checkDiagram(sample(extra))).verdict.findings.filter(f => f.rule.startsWith('layout-')).map(f => `${f.rule}:${f.severity}`);
@@ -113,7 +113,7 @@ test('check CLI: layout-* never fails --strict by default; a layoutCheck: strict
     const f = path.join(dir, name);
     fs.writeFileSync(f, `import {diagram, box, group, row} from ${JSON.stringify(libDsl)};
 export default function define() {
-  return diagram({theme: 'blue', title: 't'${extra}}).add(row([group([box({title: 'a'})], {title: 'L'}), group([box({title: 'b'})], {title: 'R'})]));
+  return diagram({theme: 'blue', title: 't'${extra}}).add(row([box({title: 'a'}), box({title: 'b'}), box({title: 'c'}), box({title: 'd'})]));
 }
 `);
     return f;

@@ -18,17 +18,17 @@
   <polygon points="244.9,108.9 259.1,108.9 259.1,123.1 244.9,123.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
   <polygon points="324.9,168.9 339.1,168.9 339.1,183.1 324.9,183.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
   <polygon points="700.9,176.9 715.1,176.9 715.1,191.1 700.9,191.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
-  <polygon points="200.9,320.9 215.1,320.9 215.1,335.1 200.9,335.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
+  <polygon points="204.9,320.9 219.1,320.9 219.1,335.1 204.9,335.1" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
   <circle cx="96" cy="420" r="7" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <polygon points="161.8,413.8 174.2,413.8 174.2,426.2 161.8,426.2" fill="#22201b" stroke="#ffffff" stroke-width="1.5"/>
-  <text x="97" y="51" font-size="15" font-weight="700" fill="#22201b">満足させる</text>
-  <text x="97" y="70" font-size="14" fill="#6f6659">影響力は大。要望を先に聞く</text>
-  <text x="513" y="51" font-size="15" font-weight="700" fill="#1d5fa8">重点管理</text>
-  <text x="513" y="70" font-size="14" fill="#6f6659">影響力も関心も大。密に連携する</text>
-  <text x="97" y="227" font-size="15" font-weight="700" fill="#22201b">監視</text>
-  <text x="97" y="246" font-size="14" fill="#6f6659">最小限の労力で見守る</text>
-  <text x="513" y="227" font-size="15" font-weight="700" fill="#22201b">情報提供</text>
-  <text x="513" y="246" font-size="14" fill="#6f6659">関心は大。こまめに知らせる</text>
+  <text x="98" y="51" font-size="15" font-weight="700" fill="#22201b">満足させる</text>
+  <text x="98" y="70" font-size="14" fill="#6f6659">影響力は大。要望を先に聞く</text>
+  <text x="514" y="51" font-size="15" font-weight="700" fill="#1d5fa8">重点管理</text>
+  <text x="514" y="70" font-size="14" fill="#6f6659">影響力も関心も大。密に連携する</text>
+  <text x="98" y="227" font-size="15" font-weight="700" fill="#22201b">監視</text>
+  <text x="98" y="246" font-size="14" fill="#6f6659">最小限の労力で見守る</text>
+  <text x="514" y="227" font-size="15" font-weight="700" fill="#22201b">情報提供</text>
+  <text x="514" y="246" font-size="14" fill="#6f6659">関心は大。こまめに知らせる</text>
   <text x="760" y="109" font-size="14" fill="#22201b">CFO</text>
   <text x="820" y="169" text-anchor="end" font-size="14" fill="#22201b">情報システム部</text>
   <text x="680" y="297" font-size="14" fill="#22201b">営業本部</text>
@@ -36,13 +36,13 @@
   <text x="266" y="121" font-size="14" fill="#22201b">監督官庁</text>
   <text x="346" y="181" font-size="14" fill="#22201b">主要取引先</text>
   <text x="722" y="189" font-size="14" fill="#22201b">開発ベンダー</text>
-  <text x="222" y="333" font-size="14" fill="#22201b">株主</text>
-  <text x="77" y="46" text-anchor="end" font-size="14" fill="#6f6659">大きい</text>
-  <text x="77" y="368" text-anchor="end" font-size="14" fill="#6f6659">小さい</text>
-  <text x="77" y="206" text-anchor="end" font-size="15" font-weight="700" fill="#22201b">影響力</text>
-  <text x="87" y="398" font-size="14" fill="#6f6659">低い</text>
+  <text x="226" y="333" font-size="14" fill="#22201b">株主</text>
+  <text x="78" y="46" text-anchor="end" font-size="14" fill="#6f6659">大きい</text>
+  <text x="78" y="368" text-anchor="end" font-size="14" fill="#6f6659">小さい</text>
+  <text x="78" y="206" text-anchor="end" font-size="15" font-weight="700" fill="#22201b">影響力</text>
+  <text x="88" y="398" font-size="14" fill="#6f6659">低い</text>
   <text x="912" y="398" text-anchor="end" font-size="14" fill="#6f6659">高い</text>
   <text x="500" y="398" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">関心度</text>
-  <text x="109" y="424" font-size="14" fill="#22201b">社内</text>
-  <text x="181" y="424" font-size="14" fill="#22201b">社外</text>
+  <text x="110" y="424" font-size="14" fill="#22201b">社内</text>
+  <text x="182" y="424" font-size="14" fill="#22201b">社外</text>
 </svg>

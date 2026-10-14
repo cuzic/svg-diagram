@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {diagram, box, row, group, connect, branch, swimlane, table, cell, wireframe, screens, plane, stateMatrix, stateRow, wf, checkDiagram, closeMeasurer} from '../lib/dsl.ts';
+import {gridColumns} from '../lib/layout-util.ts';
 import type {LaidOutBox, LaidOutPlane, LaidOutRow, RowBand} from '../lib/dsl.ts';
 
 test.after(() => closeMeasurer());
@@ -137,13 +138,14 @@ test('row({id}).col(n): a column of a row is a connect() anchor (its top / botto
   assert.deepEqual(verdict.problems, []);
   const [r1, r2] = laidOut.laidOut.filter((b): b is LaidOutRow => b.type === 'row');
   const cs = laidOut.connects;
-  const colW = (r1.w - 11 * 16) / 12;
-  assert.equal(Math.round(cs[0].from.x), Math.round(r1.x + 4 * (colW + 16) + colW / 2), 'the middle of the 5th column of the top row');
-  assert.equal(Math.round(cs[0].to.x), Math.round(r2.x + 1 * (colW + 16) + colW / 2), 'the middle of the 2nd column of the bottom row');
+  const grid = gridColumns(r1.w, 12, 16, {centerGutter: true})!; // the shared 12-column edges (4px grid)
+  const colX = (a: number) => grid.x[a - 1], colEnd = (b: number) => grid.x[b - 1] + grid.w[b - 1], mid = (a: number, b = a) => (colX(a) + colEnd(b)) / 2;
+  assert.equal(Math.round(cs[0].from.x), Math.round(r1.x + mid(5)), 'the middle of the 5th column of the top row');
+  assert.equal(Math.round(cs[0].to.x), Math.round(r2.x + mid(2)), 'the middle of the 2nd column of the bottom row');
   assert.equal(Math.round(cs[0].from.y), Math.round(r1.y + r1.h));
-  assert.equal(Math.round(cs[1].from.x), Math.round(r2.x + 3 * (colW + 16) + (9 * colW + 8 * 16) / 2), 'columns 4..12 as one');
-  assert.equal(Math.round(cs[2].to.x), Math.round(r1.x + 6 * (colW + 16) + (6 * colW + 5 * 16) / 2), 'a span of columns too');
-  assert.equal(Math.round(cs[2].from.x), Math.round(r1.x + (6 * colW + 5 * 16) / 2));
+  assert.equal(Math.round(cs[1].from.x), Math.round(r2.x + mid(4, 12)), 'columns 4..12 as one');
+  assert.equal(Math.round(cs[2].to.x), Math.round(r1.x + mid(7, 12)), 'a span of columns too');
+  assert.equal(Math.round(cs[2].from.x), Math.round(r1.x + mid(1, 6)));
 });
 
 test('row({id}).col(n) on a row without cols is its n-th child; bad column numbers throw', async () => {

@@ -12,13 +12,13 @@
 
   
 
-  <path d="M28,56 H454 A8,8 0 0 1 462,64 V100  H20  V64 A8,8 0 0 1 28,56 Z" fill="#dce9f7"/>
-  <path d="M20,100 H462  V144  H20  V100  Z" fill="#ffffff"/>
-  <path d="M20,100 H462" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M20,144 H462  V188  H20  V144  Z" fill="#ffffff"/>
-  <path d="M20,144 H462" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M20,188 H462  V224 A8,8 0 0 1 454,232 H28 A8,8 0 0 1 20,224 V188  Z" fill="#ffffff"/>
-  <path d="M20,188 H462" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M28,56 H452 A8,8 0 0 1 460,64 V100  H20  V64 A8,8 0 0 1 28,56 Z" fill="#dce9f7"/>
+  <path d="M20,100 H460  V144  H20  V100  Z" fill="#ffffff"/>
+  <path d="M20,100 H460" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,144 H460  V188  H20  V144  Z" fill="#ffffff"/>
+  <path d="M20,144 H460" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,188 H460  V224 A8,8 0 0 1 452,232 H28 A8,8 0 0 1 20,224 V188  Z" fill="#ffffff"/>
+  <path d="M20,188 H460" stroke="#e0d6c5" stroke-width="2"/>
   <path d="M167,56 V232" stroke="#e0d6c5" stroke-width="2"/>
   <text x="32" y="82" font-size="14" font-weight="700" fill="#22201b">層</text>
   <text x="179" y="82" font-size="14" font-weight="700" fill="#22201b">役割</text>
@@ -28,11 +28,11 @@
   <text x="179" y="170" font-size="14" font-weight="400" fill="#22201b">規則を適用する</text>
   <text x="32" y="214" font-size="14" font-weight="400" fill="#22201b">データ</text>
   <text x="179" y="214" font-size="14" font-weight="400" fill="#22201b">保存する</text>
-  <path d="M28,56 H454 A8,8 0 0 1 462,64 V224 A8,8 0 0 1 454,232 H28 A8,8 0 0 1 20,224 V64 A8,8 0 0 1 28,56 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
+  <path d="M28,56 H452 A8,8 0 0 1 460,64 V224 A8,8 0 0 1 452,232 H28 A8,8 0 0 1 20,224 V64 A8,8 0 0 1 28,56 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
 
   <rect x="480" y="56" width="440" height="176" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="498" y="86.6" font-size="15" font-weight="700" fill="#22201b">画面の例</text>
-  <text x="498" y="114.6" font-size="14" font-weight="400" fill="#22201b">実際の画面ではない</text>
+  <text x="500" y="86.6" font-size="15" font-weight="700" fill="#22201b">画面の例</text>
+  <text x="500" y="114.6" font-size="14" font-weight="400" fill="#22201b">実際の画面ではない</text>
   <rect x="844" y="200" width="68" height="24" rx="4" fill="#ffffff" stroke="#e0d6c5" stroke-width="1"/>
   <text x="880" y="217" font-size="14" text-anchor="middle" fill="#6f6659">架空の例</text>
 

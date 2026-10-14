@@ -33,7 +33,7 @@ import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx, Placed, RowLike} 
 import {PALETTE, SHADES, blendLuminance, bestTextColor, paintOf} from './tokens.ts';
 import {
   BOX_PAD_X, LINE_HEIGHT_EM, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL, STAMP_GAP, STAMP_H, TAG_H,
-  groupTitleBand, gridChildGeometry, rowChildGeometry, stampChipW,
+  groupTitleBand, gridChildGeometry, gridColumns, rowChildGeometry, stampChipW,
 } from './layout-util.ts';
 import {lineWidth} from './layout-text.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
@@ -115,11 +115,12 @@ function registerRowSlots(ctx: LayoutCtx, id: string | undefined, band: RowLike,
   ctx.anchors.set(id, {x: padX, y: rowTop, w: cw, h: rowHeight});
   ctx.areaIds.add(id);
   if (band.cols) {
-    const cols = band.cols, colW = (cw - (cols - 1) * gap) / cols;
+    const cols = band.cols, colW = (cw - (cols - 1) * gap) / cols, grid = gridColumns(cw, cols, gap, {centerGutter: true}); // the same column edges the row's children sit on
+    const left = (c: number): number => grid ? grid.x[c] : c * (colW + gap), right = (c: number): number => grid ? grid.x[c] + grid.w[c] : c * (colW + gap) + colW;
     for (let a = 1; a <= cols; a++) for (let b = a; b <= cols; b++) {
       const key = b === a ? `${id}#${a}` : `${id}#${a}-${b}`;
       if (ctx.anchors.has(key)) ctx.claimed(key, 'a row column collides with an existing id');
-      ctx.anchors.set(key, {x: padX + (a - 1) * (colW + gap), y: rowTop, w: (b - a + 1) * colW + (b - a) * gap, h: rowHeight});
+      ctx.anchors.set(key, {x: padX + left(a - 1), y: rowTop, w: right(b - 1) - left(a - 1), h: rowHeight});
       ctx.areaIds.add(key);
     }
   } else {
@@ -391,13 +392,13 @@ function layoutCanvasGrid(band: GridBand & {canvas: NonNullable<GridBand['canvas
 function layoutPlainGrid(band: GridBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d} = ctx;
   const gridStartY = ctx.y;
-  const {cellWidth} = gridChildGeometry(band, cw);
+  const {xs, ws} = gridChildGeometry(band, cw);
   const cols = band.cols;
   const placedRows: Placed<BoxBand>[] = [];
   for (let i = 0; i < band.children.length; i += cols) {
     const rowChildren = band.children.slice(i, i + cols);
     const placed = rowChildren.map((child, j) =>
-      ctx.placeBoxLike(child, padX + j * (cellWidth + band.gap), ctx.y, cellWidth, true));
+      ctx.placeBoxLike(child, padX + xs[j], ctx.y, ws[j], true));
     const rowHeight = Math.max(...placed.map(c => c.h));
     for (const c of placed) { c.h = rowHeight; if (c.id) ctx.setBox(c.id, c as never, rowHeight); }
     placedRows.push(...placed);

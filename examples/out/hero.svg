@@ -20,21 +20,21 @@
   <text x="40" y="121.4" font-size="15" font-weight="700" fill="#22201b">申請</text>
   <text x="40" y="149.4" font-size="14" font-weight="400" fill="#22201b">フォームから 1 回</text>
 
-  <rect x="224" y="92" width="192" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="245.33333333333334" y="121.4" font-size="15" font-weight="700" fill="#22201b">一次承認</text>
-  <text x="245.33333333333334" y="149.4" font-size="14" font-weight="400" fill="#22201b">上長が当日中に</text>
+  <rect x="224" y="92" width="188" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="244" y="121.4" font-size="15" font-weight="700" fill="#22201b">一次承認</text>
+  <text x="244" y="149.4" font-size="14" font-weight="400" fill="#22201b">上長が当日中に</text>
 
-  <rect x="432" y="92" width="188" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="450.6666666666667" y="121.4" font-size="15" font-weight="700" fill="#22201b">決裁</text>
-  <text x="450.6666666666667" y="149.4" font-size="14" font-weight="400" fill="#22201b">経理が翌営業日に</text>
+  <rect x="428" y="92" width="188" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="448" y="121.4" font-size="15" font-weight="700" fill="#22201b">決裁</text>
+  <text x="448" y="149.4" font-size="14" font-weight="400" fill="#22201b">経理が翌営業日に</text>
 
-  <rect x="636" y="92" width="284" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="778" y="162.4" text-anchor="middle" font-size="56" font-weight="700" fill="#1d5fa8">-67%</text>
-  <text x="778" y="206.8" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">承認の待ち時間</text>
+  <rect x="632" y="92" width="288" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="776" y="162.4" text-anchor="middle" font-size="56" font-weight="700" fill="#1d5fa8">-67%</text>
+  <text x="776" y="206.8" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">承認の待ち時間</text>
 
   <path d="M208,159 L224,159" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
-  <path d="M416,159 L432,159" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
-  <path d="M620,159 L636,159" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+  <path d="M412,159 L428,159" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+  <path d="M616,159 L632,159" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
 
   <text x="470" y="258.4" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">差し戻しの往復をなくしたのが効いた</text>
 
