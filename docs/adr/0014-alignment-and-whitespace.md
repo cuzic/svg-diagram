@@ -271,3 +271,4 @@
 - `concentric-stakeholders` の左右の偏りは `layout-figure-offset` で出ない(flow-shape の外接矩形が全幅を取る)。U4 の中央寄せと一緒に直す。
 - `layout-align-mixed` は hero の 1 件だけで、誤検出はなかった。
 - U1 は ADR の予告になかった図も動かした(`chart-*`、`facet`、`hero`、`small-constraints`、`quadrant-*`)。理由は PR #156 に書いた。
+- (レビュー反映, PR #153)`layout-figure-offset` の「図の内容の範囲」は、題と凡例を除いた全体とする(caption と banner を一律に除く案はやめた)。README とコードが同じ定義に揃った。`layout-align-mixed` は書き手が明示した `align` だけを読み、`hero` のようにテンプレートが決める揃えでは出さない。slide の図(`day:`)に `layoutCheck: 'strict'` を付けると、検査が走らないので throw する。
