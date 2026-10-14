@@ -6,8 +6,9 @@
 //   wordart-layout.ts    what to measure and where everything goes
 // this file is the constructor (validation) and the one place the rest is imported from.
 import {MIN_FONT_SIZE} from './tokens.ts';
-import {ART_TONE_NAMES, PRESETS, WEIGHT_OF, asList, isArtTone} from './wordart-look.ts';
+import {ART_TONE_NAMES, PRESETS, WEIGHT_OF, asList, isArtTone, resolveLook} from './wordart-look.ts';
 import {graphemes} from './wordart-vertical.ts';
+import type {Role} from './types.ts';
 import type {WordArtBand, WordArtOpts} from './wordart-types.ts';
 
 export * from './wordart-types.ts';
@@ -29,7 +30,9 @@ const positive = (v: unknown): boolean => typeof v === 'number' && v > 0;
 const finite = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v);
 const list = (xs: readonly string[]): string => xs.join(' | ');
 const TONES = ART_TONE_NAMES;
-const ROLE_NAMES: readonly string[] = ['title', 'label', 'body', 'note', 'banner', 'stat', 'display']; // the Role type (the sizes come from the diagram's roles at layout)
+// the Role type's names (the sizes come from the diagram's roles at layout); a Role added to the type fails to compile here
+const ROLE_FLAGS: Record<Role, true> = {title: true, label: true, body: true, note: true, banner: true, stat: true, display: true};
+const ROLE_NAMES: readonly string[] = Object.keys(ROLE_FLAGS);
 
 export function wordartBand(text: string, opts: WordArtOpts = {}): WordArtBand {
   if (typeof text !== 'string' || !text.replace(/[\s\u200b-\u200d\u2060\ufeff]/g, '')) throw new Error('wordart(): needs a non-empty text');
@@ -58,7 +61,9 @@ export function wordartBand(text: string, opts: WordArtOpts = {}): WordArtBand {
   check('limit', o.limit, positive, 'must be > 0');
   check('rotate', o.rotate, finite, 'must be a number of degrees');
   check('arc', o.arc, v => finite(v) && v !== 0 && Math.abs(v) <= 300, 'must be a number of degrees, not 0, at most 300 either way');
-  if (o.tone === 'none' && (asList(o.outline)?.length ?? 0) > 1) throw new Error('wordart(): hollow letters (tone: none) take one outline; the outer ones would fill them in');
+  // (judged on the resolved look: a preset can bring two outlines of its own, as 'sticker' does)
+  const look = resolveLook(o, MIN_FONT_SIZE);
+  if (look.fill === 'none' && !look.gradient && look.outlines.length > 1) throw new Error(`wordart(): hollow letters (tone: none) take one outline, and style '${o.style ?? 'bold'}' with this outline has ${look.outlines.length}: the outer ones would fill the letters in (use outline: {tone, width}, or another style)`);
   if (o.arc !== undefined && o.writing === 'vertical') throw new Error('wordart(): arc bends a horizontal line; it cannot be combined with writing: vertical');
   if (o.arc !== undefined && graphemes(text).length < 2) throw new Error('wordart(): arc bends a line of two letters or more');
   if ((o.reflection || (o.style === 'reflect' && o.reflection !== false)) && o.writing === 'vertical') throw new Error('wordart(): a reflection is of horizontal text (the columns of vertical text have different lengths)');
