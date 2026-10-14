@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import {banner, box, caption, checkDiagram, closeMeasurer, diagram, em, group, renderDiagram, row, stat, swimlane} from '../lib/dsl.ts';
 import {richOf} from '../lib/rich.ts';
 import {measureAll, splitAtoms} from '../lib/measure.ts';
-import {styledAtoms} from '../lib/layout.ts';
+import {styledAtoms} from '../lib/layout-text.ts';
 import {parseXml, computeStyles, elements} from '../lib/svg-dom.ts';
 import {textBoxOf} from '../lib/svg-geom.ts';
 import {geometryChecks} from '../lib/svg-lint.ts';

@@ -5,7 +5,7 @@
 import {textWidth} from './atoms.ts';
 import {layoutLayered} from './graph-layout.ts';
 import type {Pt} from './graph-layout.ts';
-import {measureNode, nodeRuns} from './tree.ts';
+import {measureNode, narrowField, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
 import {wrapText} from './wrap.ts';
 import type {BpmnBand, BpmnNodeKind, FontFamily, LaidOutBpmn, Roles, WidthOf} from './types.ts';
@@ -117,7 +117,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   const laneTop: number[] = [];
   laneH.reduce((a, h, i) => (laneTop[i] = a, a + h), y);
   const out: LaidOutBpmn = {
-    type: 'bpmn', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w: width, h: laneH.reduce((a, b) => a + b, 0),
+    type: 'bpmn', ...(band.fit === 'shrink' ? narrowField(band.nodes.filter(n => kindOf.get(n.id) === 'task').map(n => meas.get(n.id)!.lines!.label)) : {}), id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w: width, h: laneH.reduce((a, b) => a + b, 0),
     lanes: [], nodes: [], icons: [], edges: [], texts: [], labels: [], anchors: [], labelBoxes: [],
   };
   band.lanes.forEach((l, i) => {

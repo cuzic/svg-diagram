@@ -9,6 +9,7 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
+import {nestedBandsOf} from './band-children.ts';
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
 import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, withTones} from './tokens.ts';
@@ -40,6 +41,7 @@ export const RULE_DOCS = {
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える。凡例が要らない図は diagram({legend: false})）',
   'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる',
+  'shrink-narrow-text': "fit: 'shrink' で bpmn / swimlane を詰めた結果、task / step の幅が狭すぎて本文が 2〜3 字ずつ折れる。縦向き・図の分割・文言の短縮を検討する",
   'gray-tone-collision': '使っている 2 つのトーンの塗りが、白黒（グレースケール）にすると見分けにくい（明度差 L* が 10 未満。破線などの形の手がかりがあれば除く）',
   'rowheader-tone-collides': '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある',
   'semantic-table-warning': '意味付き表の入力に注意点がある（例: RACI の空の役割列）',
@@ -86,10 +88,7 @@ export const DEFAULT_LEGEND_LABELS = {
 export function walkBands(bands: Band[], out: Band[] = []): Band[] {
   for (const b of bands) {
     out.push(b);
-    if (b.type === 'group' || b.type === 'image') walkBands(b.children ?? [], out);
-    else if (b.type === 'grouprow') walkBands(b.children, out);
-    else if (b.type === 'row' || b.type === 'grid') out.push(...b.children);
-    else if (b.type === 'swimlane') out.push(...b.steps);
+    walkBands(nestedBandsOf(b), out);
   }
   return out;
 }
@@ -322,6 +321,14 @@ function grayToneRules(d: LintTarget, out: Finding[]): void {
   if (hits.length) out.push({rule: 'gray-tone-collision', severity: 'warn', message: `白黒にすると塗りの明度が近く、見分けにくいトーンの組: ${hits.join('、')}。直し方は 2 つ: (1) トーンの塗りの明度差を L* 10 以上にする（diagram({tones: {accent: {fill: '#…'}}}) か .svg-diagram.json の \"tones\" で色を変える。または片方を solid / muted にする）、(2) 破線・太字・ラベルなど色以外の手がかりを足し、accept: {'gray-tone-collision': '理由'} で許容する（確認は preview --gray）`});
 }
 
+function shrinkRules(d: LintTarget, out: Finding[]): void {
+  for (const b of d.laidOut ?? []) {
+    if ((b.type !== 'bpmn' && b.type !== 'swimlane') || !b.narrow?.length) continue;
+    const what = b.type === 'bpmn' ? 'task' : 'step';
+    out.push({rule: 'shrink-narrow-text', severity: 'warn', message: `fit: 'shrink' で詰めた結果、${what} の本文が 2〜3 字ずつ折れている（${b.narrow.slice(0, 3).map(t => `「${t}」`).join('')}${b.narrow.length > 3 ? ` ほか ${b.narrow.length - 3} 件` : ''}）。直し方: 図を縦向きにする、列の多い図を 2 つに分ける、文言を短くする、図の幅（maxWidth）を広げる`});
+  }
+}
+
 function swimlaneRules(d: LintTarget, out: Finding[]): void {
   const lanesBands = d.bands.filter((b): b is SwimlaneBand => b.type === 'swimlane');
   if (lanesBands.length > 1) out.push({rule: 'one-story', severity: 'warn', message: `スイムレーンが ${lanesBands.length} つある。1 図 1 話にして、図を分けることを検討する`});
@@ -469,6 +476,7 @@ function lintAll(d: LintTarget): Finding[] {
   nonTextContrast(d, out);
   legendRules(d, out);
   swimlaneRules(d, out);
+  shrinkRules(d, out);
   wireframeRules(d, out);
   rowHeaderRules(d, out);
   grayToneRules(d, out);

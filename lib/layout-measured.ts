@@ -1,6 +1,7 @@
 // The shell around layout: measure what collectMeasures() asked for (the one await), then lay out synchronously.
 // layout.ts itself does no I/O and reads no environment; the strict-width switch is read here.
-import {collectMeasures, layoutWith, widthOfMeasured} from './layout.ts';
+import {layoutWith} from './layout.ts';
+import {collectMeasures, widthOfMeasured} from './layout-measure.ts';
 import {measureAll} from './measure.ts';
 import {ROLES} from './tokens.ts';
 import type {DiagramData, LaidOutDiagram, Roles} from './types.ts';
