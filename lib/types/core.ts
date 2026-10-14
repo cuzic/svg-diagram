@@ -99,6 +99,8 @@ export interface DiagramOpts {
   desc?: string;
   /** {'rule-id': 'why this finding is fine'}: shown as info instead of a warning. */
   accept?: Partial<Record<RuleId, string>>;
+  /** Glossary: {'ユーザー': ['利用者', 'ユザー']} — the word to use and the spellings that are reported (`term-avoid`). The project's `terms` apply too. */
+  terms?: Readonly<Record<string, readonly string[]>>;
   /** 'auto' adds a legend entry for every notation used but not listed. false: this diagram needs no legend (legend-missing / legend-incomplete are not reported). */
   legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
@@ -144,6 +146,8 @@ export interface DiagramData {
   title?: string;
   desc?: string;
   accept?: Partial<Record<RuleId, string>>;
+  /** Glossary: {'ユーザー': ['利用者', 'ユザー']} — the word to use and the spellings that are reported (`term-avoid`). The project's `terms` apply too. */
+  terms?: Readonly<Record<string, readonly string[]>>;
   legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
   tones?: ToneOverrides;

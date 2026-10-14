@@ -21,6 +21,10 @@
 //       Does the figure that replaces a table still carry the table's cells? Each cell is looked up in the figure's <text>
 //       (width, case, spaces and punctuation ignored); a cell that is not there whole is judged by its proper-noun and number tokens,
 //       and the missing ones are listed. A source is read through its committed SVG (DIR defaults to ./svg).
+//   svg-diagram check --changed[=REF] <source.ts>...   (with any per-diagram mode)
+//       Only the sources that changed: the source itself, a local file it imports, its committed SVG (--drift), or .svg-diagram.json
+//       (then all of them) — in the working tree and in the commits since REF (default: the merge-base with origin/main or main, else HEAD).
+//       Nothing changed → nothing to check, exit 0. A quick check while editing, and a fast pull-request check on a big diagram set.
 //   svg-diagram check --rules | --explain RULE
 //       List every rule id, or explain one (what it means, how to accept it in .svg-diagram.json).
 //   svg-diagram check --write-baseline FILE <...>   /   --baseline FILE <...>
@@ -32,6 +36,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import {execFileSync} from 'node:child_process';
 import type {DiagramSource} from './lib/types.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import {register} from 'node:module';
@@ -41,6 +46,7 @@ register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
 const {depsSha256} = await import('./lib/source-deps.ts');
 const {RULE_DOCS} = await import('./lib/rules.ts');
+const {selectChanged} = await import('./lib/changed.ts');
 const {scanPngRefs, scanMarkdown, compareNotes, notesOf, formatMap, checkFigures, chapterOf, globToRegExp, matchesAny} = await import('./lib/docs-check.ts');
 const {explainChange} = await import('./lib/svg-diff.ts');
 const {loadConfig} = await import('./lib/config.ts');
@@ -106,6 +112,23 @@ if (coversFile) {
 
 const say = (...a: unknown[]) => { if (format === 'text') (mapMode ? console.error : console.log)(...a); };
 const complain = (...a: unknown[]) => { if (format === 'text') console.error(...a); };
+const changedArg = args.find(a => a === '--changed' || a.startsWith('--changed='));
+if (changedArg && !sources.length) { console.error('--changed は図のソースと一緒に使う（変わったものだけを検査する）'); process.exit(2); }
+if (changedArg) {
+  const ref = changedArg.includes('=') ? changedArg.slice('--changed='.length) : null;
+  const git = (a: string[]) => { try { return execFileSync('git', a, {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']}); } catch (e) { console.error(`--changed: git が使えない（${String((e as {stderr?: Buffer}).stderr ?? e).trim().split('\n')[0]}）`); process.exit(2); } };
+  const top = git(['rev-parse', '--show-toplevel']).trim();
+  let base = ref;
+  if (!base) for (const b of ['origin/main', 'main']) { try { base = execFileSync('git', ['merge-base', b, 'HEAD'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim(); break; } catch { /* no such branch */ } }
+  const lines = (o: string) => o.split('\n').filter(Boolean).map(f => path.join(top, f));
+  const changed = new Set([...lines(git(['diff', '--name-only', base ?? 'HEAD', '--'])), ...lines(git(['ls-files', '--others', '--exclude-standard']))]);
+  const svgOf = (s: string) => drift ? path.join(svgDir ?? 'svg', `${path.parse(s).name}.svg`) : undefined;
+  const {selected, skipped, reason} = selectChanged(sources, {changed, svgOf});
+  say(`ℹ --changed（${base ? base.slice(0, 10) : 'HEAD'} から）: ${sources.length} 件中 ${selected.length} 件を検査、${skipped.length} 件は変わっていない`);
+  for (const s of selected) if (verbose) say(`   ${s}: ${reason.get(s)}`);
+  sources.splice(0, sources.length, ...selected);
+  if (!sources.length && !docsDir) { if (format === 'json') console.log(JSON.stringify({errors: 0, warnings: 0, findings: []}, null, 2)); if (format === 'sarif') console.log(JSON.stringify({version: '2.1.0', runs: [{tool: {driver: {name: 'svg-diagram check'}}, results: []}]})); process.exit(0); }
+}
 type CheckFinding = {file: string; line?: number; rule: string; severity: 'error' | 'warn' | 'info'; message: string};
 const findings: CheckFinding[] = [];
 let bad = 0, warned = 0;

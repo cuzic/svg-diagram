@@ -6,6 +6,8 @@ import type {FontFamily, NotationKey, RuleId} from './core.ts';
 export interface Config {
   accept?: Partial<Record<RuleId, string>>;
   maxWidth?: number;
+  /** Glossary for every diagram: {"ユーザー": ["利用者", "ユザー"]} — the word to use and the spellings `check` reports as `term-avoid`. */
+  terms?: Record<string, string[]>;
   /** The default for every diagram's `legend` (a diagram's own wins): false = no legend needed, 'auto' = add the missing entries. */
   legend?: 'auto' | false;
   /** Legend wording for every diagram, e.g. {"tone:accent": "注意"} (a diagram's own legendLabels win per key). */
