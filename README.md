@@ -64,6 +64,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram build <source.ts> --html                 # <name>.html も書く（文字・箱・表・線・矢印・曲線を HTML/CSS で。docs/adr/0006）
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
+    svg-diagram check --changed[=REF] <source.ts>...   # 変わった図だけ検査
     svg-diagram check --rules | --explain RULE   # ルールの一覧 / 1 つの意味と許容の書き方
     svg-diagram check [--baseline FILE | --write-baseline FILE] [--format text|json|github|sarif] <source.ts>...   # 既存の警告を凍結して、新しい警告だけ見る / SARIF 出力
     svg-diagram check --covers 表.md|表.csv [--svg-dir DIR] <ソース.ts|図.svg>...   # 表を図に置き換えたとき、表のセルの語・数値が図に残っているか
@@ -956,6 +957,12 @@ build は通常の最終形 `name.svg` に加え、段階表示を使う図だ�
 - **ベースライン**: 警告が多い案件に段階導入する。`check --write-baseline .svg-diagram.baseline.json diagrams/*.ts` で今ある警告を記録し、以後 `check --strict --baseline .svg-diagram.baseline.json diagrams/*.ts` は、**記録にない新しい警告**だけを失敗にする（記録済みは info になり「ベースライン済み」と添える）。照合はファイル・ルール・メッセージで、行番号は見ない。エラーはベースラインに入らない。
 - `--format sarif` は SARIF 2.1.0 を標準出力に出す（GitHub Code Scanning などへ）。
 - **つながりの検査**（`graph-orphan-node` / `graph-disconnected`）: 矢印が 3 本以上ある図で、`id` を持つ箱がどの矢印にもつながっていない、または矢印が互いにつながらない 2 つ以上のかたまりに分かれていると警告する（行・列を端にした矢印は、その中の箱を含む）。注記の箱は `id` を付けなければ対象外。意図した形なら `accept` に理由を書く。
+
+## 表記・数値の整合と差分だけの検査（`check`）
+- **表記の揺れ**（`term-variant`）: 1 つの図の中で、同じ語が `ユーザ` / `ユーザー`（末尾の長音）や `API` / `Api`（大文字・大小混在）のように揺れていると警告する。`Server` と `server` のような文頭の大文字だけの差、数字や `-` `_` を含む ID は見ない。
+- **用語集**（`term-avoid`）: `.svg-diagram.json`（または `diagram({terms})`）に `"terms": {"ユーザー": ["利用者", "ユザー"]}` と書くと、右の語が図に出たとき「ユーザーに統一」と警告する（用語集が決めている揺れは `term-variant` で二重に出さない）。
+- **表の合計**（`table-sum-mismatch`）: 表の「合計」「小計」「計」の行・列が、並ぶ値の和と合わないと警告する（小計をはさんだ合計、`%` の丸めは許す）。`table-share-not-100`: 「構成比」「割合」の列が、合計行なしで 100% にならないとき。
+- **`--changed[=REF]`**: 図のソースと一緒に使うと、変わったものだけを検査する。ソース自身・`import` しているファイル・（`--drift` のとき）コミット済みの SVG のどれかが、作業ツリーと REF 以降のコミットで変わったもの。REF の既定は `origin/main`（なければ `main`）との共通祖先で、`.svg-diagram.json` が変わったときは全部を検査する。変わったものがなければ何も検査せず終了コード 0。編集中の速い確認と、図が多い案件の PR の検査に。
 
 ## 表と図の突き合わせ（`check --covers`）
 `svg-diagram check --covers table.md --svg-dir svg diagrams/flow.ts` は、本文の Markdown 表（または CSV）を図に置き換えたとき、表のセルの文字列が図の `<text>` に残っているかを調べ、欠けたセルを `covers-missing`（警告）で一覧する。
