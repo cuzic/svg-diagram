@@ -21,12 +21,12 @@
   <text x="40" y="149.4" font-size="14" font-weight="400" fill="#22201b">フォームから 1 回</text>
 
   <rect x="224" y="92" width="192" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="245.33333333333334" y="121.4" font-size="15" font-weight="700" fill="#22201b">一次承認</text>
-  <text x="245.33333333333334" y="149.4" font-size="14" font-weight="400" fill="#22201b">上長が当日中に</text>
+  <text x="244" y="121.4" font-size="15" font-weight="700" fill="#22201b">一次承認</text>
+  <text x="244" y="149.4" font-size="14" font-weight="400" fill="#22201b">上長が当日中に</text>
 
   <rect x="432" y="92" width="188" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="450.6666666666667" y="121.4" font-size="15" font-weight="700" fill="#22201b">決裁</text>
-  <text x="450.6666666666667" y="149.4" font-size="14" font-weight="400" fill="#22201b">経理が翌営業日に</text>
+  <text x="452" y="121.4" font-size="15" font-weight="700" fill="#22201b">決裁</text>
+  <text x="452" y="149.4" font-size="14" font-weight="400" fill="#22201b">経理が翌営業日に</text>
 
   <rect x="636" y="92" width="284" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <text x="778" y="162.4" text-anchor="middle" font-size="56" font-weight="700" fill="#1d5fa8">-67%</text>

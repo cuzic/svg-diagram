@@ -27,12 +27,12 @@
   <text x="266" y="353" font-size="14" fill="#22201b">競合 Y</text>
   <text x="598" y="313" font-size="14" fill="#22201b">競合 Z</text>
   <text x="202" y="185" font-size="14" fill="#22201b">競合 W</text>
-  <text x="77" y="46" text-anchor="end" font-size="14" fill="#6f6659">軽い</text>
-  <text x="77" y="422" text-anchor="end" font-size="14" fill="#6f6659">重い</text>
-  <text x="77" y="233" text-anchor="end" font-size="15" font-weight="700" fill="#22201b">携帯性</text>
-  <text x="87" y="452" font-size="14" fill="#6f6659">安い</text>
+  <text x="78" y="46" text-anchor="end" font-size="14" fill="#6f6659">軽い</text>
+  <text x="78" y="422" text-anchor="end" font-size="14" fill="#6f6659">重い</text>
+  <text x="78" y="233" text-anchor="end" font-size="15" font-weight="700" fill="#22201b">携帯性</text>
+  <text x="88" y="452" font-size="14" fill="#6f6659">安い</text>
   <text x="912" y="452" text-anchor="end" font-size="14" fill="#6f6659">高い</text>
   <text x="500" y="452" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">価格</text>
-  <text x="109" y="480" font-size="14" fill="#22201b">自社</text>
-  <text x="181" y="480" font-size="14" fill="#22201b">競合</text>
+  <text x="110" y="480" font-size="14" fill="#22201b">自社</text>
+  <text x="182" y="480" font-size="14" fill="#22201b">競合</text>
 </svg>
