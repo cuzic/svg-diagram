@@ -44,3 +44,15 @@ test('limits hold: an opening bracket does not leave an empty column, spacing co
   assert.ok(Math.round(hang[0].len) === 80, 'the comma hangs past the limit');
   assert.ok(verticalColumns('あいう、、え', 20, 700, rough, {limit: 60}).every(c => c.len <= 80.5));
 });
+
+test('kinsoku hold in the corners: no column starts with a closing mark or ends with an opening bracket when it can be helped', () => {
+  const cols = (text: string) => verticalColumns(text, 20, 700, rough, {limit: 60}).map(c => c.cells.map(x => x.token.kind === 'glyph' ? x.token.ch : (x.token as {text: string}).text).join(''));
+  assert.deepEqual(cols('あ「ABC」'), ['あ', '「ABC」'], 'the bracket goes with its word, the closing one hangs');
+  assert.deepEqual(cols('あいう。。'), ['あい', 'う。。'], 'the second stop takes the first one and the cell before it along');
+  assert.deepEqual(cols('あいう。」'), ['あい', 'う。」']);
+  assert.deepEqual(cols('あい」」」'), ['あい', '」」」'], 'a run of marks takes two cells along, the rest stays together');
+  assert.deepEqual(cols('「「「「あ'), ['「「「', '「あ'], 'brackets only: nothing to carry them with');
+  assert.deepEqual(cols('あいうー'), ['あいうー'], 'a long vowel hangs');
+  assert.deepEqual(cols('あいうえーー'), ['あいう', 'えーー']);
+  assert.deepEqual(cols('éあ'), ['éあ'], 'a letter with its accent is one cell');
+});

@@ -12,8 +12,10 @@ export const COLUMN_PITCH = 1.4;
 export const BASELINE = 0.36; // a glyph box centred on y has its baseline this many sizes below y
 
 const ROTATED = new Set(Array.from('ー―—‐－…‥⋯〜～（）［］｛｝「」『』【】〔〕〈〉《》〝〟'));
-/** Marks that hang below a full column rather than start the next one (one cell at most). */
+/** Marks that hang below a full column rather than start the next one. */
 const HANG = new Set(Array.from('、。，．'));
+/** How many cells a run of marks that may not start a column takes along to the next column: the mark and the cell it follows (a longer run only hangs on). */
+const MAX_CARRY = 2;
 /** Characters that may not start a column: the cell before them goes with them to the next one. */
 const NO_START = new Set(Array.from('）］｝」』】〕〉》！？ー〜～…‥ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ・：；'));
 const NOT_LAST = new Set(Array.from('（［｛「『【〔〈《〝'));
@@ -32,7 +34,7 @@ export type VToken =
   | {kind: 'side'; text: string}
   | {kind: 'blank'};
 
-const ASCII_RUN = /^[\x21-\x7e]+(?: +[\x21-\x7e]+)*/; // words (and the single spaces between them) of half-width characters
+const ASCII_RUN = /^[\x21-\x7e]+(?: +[\x21-\x7e]+)*(?!\p{M})/u; // words (and the single spaces between them) of half-width characters
 
 /** Splits one column of text (no newline) into tokens. Pure; independent of any width. */
 export function tokenizeColumn(text: string): VToken[] {
@@ -82,23 +84,28 @@ export function verticalColumns(text: string, size: number, weight: number, widt
   for (const para of text.split('\n')) {
     let cells: VCell[] = [], hung = false;
     const fits = (l: number): boolean => limit === undefined || (cells.length ? end(cells) + spacing : 0) + l <= limit + 0.5;
+    const isGlyph = (t: VToken, set: ReadonlySet<string>): boolean => t.kind === 'glyph' && set.has(t.ch);
+    const noStart = (t: VToken): boolean => isGlyph(t, NO_START) || isGlyph(t, HANG);
     for (const raw of tokenizeColumn(para)) {
       const {token, len: l} = settle(raw);
-      const glyph = token.kind === 'glyph' ? token.ch : '';
       let hangs = false;
       if (cells.length && !fits(l)) {
-        if (HANG.has(glyph) && !hung) hung = hangs = true; // a comma / full stop hangs below the column: one cell at most
+        if (noStart(token) && !hung) hung = hangs = true; // a mark that may not start a column hangs below this one: one cell at most
         else {
-          // break before the token; what may not end a column (an opening bracket), and the cell before a token that may not start one, go with it
+          // break before the token; cells that may not end a column (an opening bracket) or whose follower may not start one (a closing mark)
+          // go with it, as many as it takes. A column that would be only opening brackets keeps them (nothing to carry them with).
           const carry: VCell[] = [];
-          const lastOf = (): VToken => cells[cells.length - 1].token;
-          if ((NO_START.has(glyph) || HANG.has(glyph)) && cells.length > 1) carry.unshift(cells.pop()!);
-          while (cells.length > 1 && lastOf().kind === 'glyph' && NOT_LAST.has((lastOf() as {ch: string}).ch)) carry.unshift(cells.pop()!);
+          while (cells.length > 1 && ((carry.length < MAX_CARRY && noStart(carry.length ? carry[0].token : token)) || isGlyph(cells[cells.length - 1].token, NOT_LAST))) carry.unshift(cells.pop()!);
+          if (cells.every(c => isGlyph(c.token, NOT_LAST))) { cells.push(...carry); carry.length = 0; }
           columns.push({cells, len: end(cells)});
           cells = stacked(carry.map(c => ({token: c.token, len: c.len}))); hung = false;
         }
       }
-      if (!hangs && !fits(l)) throw new Error(`wordart(): "${nameOf(token)}" is ${Math.round(l)}px long but a column may be ${Math.round(limit!)}px${cells.length ? ` (with what goes before it, ${Math.round(end(cells) + spacing + l)}px)` : ''}: raise limit or shorten the word`);
+      // (the carried cells and the token may not fit together: a closing mark hangs, anything else is too long for a column)
+      if (!hangs && !fits(l)) {
+        if (cells.length && noStart(token) && !hung) hung = true;
+        else throw new Error(`wordart(): "${nameOf(token)}" is ${Math.round(l)}px long but a column may be ${Math.round(limit!)}px${cells.length ? ` (with what goes before it, ${Math.round(end(cells) + spacing + l)}px)` : ''}: raise limit or shorten the word`);
+      }
       cells.push({token, top: cells.length ? end(cells) + spacing : 0, len: l});
     }
     columns.push({cells, len: end(cells)});
