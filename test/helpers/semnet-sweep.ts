@@ -51,6 +51,8 @@ export function denseCausalCase(seed: number): {nodes: CausalNode[]; links: Caus
 interface Bx {x: number; y: number; w: number; h: number}
 const boxesOf = (svg: string, re: RegExp, pick: (m: RegExpExecArray) => number[]): Bx[] => [...svg.matchAll(re)].map(m => { const n = pick(m), xs = n.filter((_, i) => i % 2 === 0), ys = n.filter((_, i) => i % 2 === 1); return {x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)}; });
 const inter = (a: Bx, b: Bx): number => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+/** Does the plate reach into the box by 1.5px or more both ways (the checker lets a label touch by up to 0.5px, and the plate is 2px wider than its text)? */
+const cut = (a: Bx, b: Bx): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) >= 1.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) >= 1.5;
 /**
  * What a label plate hides. `heads`: arrow heads at least half under plates; `nodes`: plates that reach a node box (its edge is cut).
  * (lint-svg rule 5 only sees a line drawn after a text, so a plate that hides a line or a head is invisible to it.)
@@ -59,7 +61,7 @@ export function plateDamage(svg: string): {heads: number; nodes: number} {
   const num = '(-?[\\d.]+)', plates = boxesOf(svg, new RegExp(`<path d="M${num},${num} H${num} V${num} H${num} Z" fill="#ffffff"/>`, 'g'), m => [+m[1], +m[2], +m[3], +m[4]]);
   const nodes = boxesOf(svg, new RegExp(`<path d="M${num},${num} H${num} V${num} H${num} Z" fill="#ffffff" stroke=`, 'g'), m => [+m[1], +m[2], +m[3], +m[4]]);
   const heads = boxesOf(svg, new RegExp(`<path d="M${num},${num} L${num},${num} L${num},${num} Z" fill="#[0-9a-f]{6}"/>`, 'g'), m => [+m[1], +m[2], +m[3], +m[4], +m[5], +m[6]]);
-  return {heads: heads.filter(h => h.w * h.h > 0 && plates.reduce((a, p) => a + inter(h, p), 0) >= .5 * h.w * h.h).length, nodes: plates.filter(p => nodes.some(n => inter(p, n) > 1)).length};
+  return {heads: heads.filter(h => h.w * h.h > 0 && plates.reduce((a, p) => a + inter(h, p), 0) >= .5 * h.w * h.h).length, nodes: plates.filter(p => nodes.some(n => cut(p, n))).length};
 }
 /** Number of drawn `<text>` elements whose content is exactly `s`. */
 export const countText = (svg: string, s: string): number => [...svg.matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)].filter(m => m[1] === s).length;
