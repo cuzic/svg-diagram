@@ -2,7 +2,7 @@ import test from 'node:test';
 import './helpers/strict-width.ts'; // a text the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
 import {wordart} from '../lib/dsl.ts';
-import {GLOW_RINGS, gradientOf, gradientSteps, legibilityProblem, minRim, paintLayers, resolveLook} from '../lib/wordart.ts';
+import {GLOW_RINGS, gradientOf, gradientSteps, inkReach, legibilityProblem, minRim, paintLayers, resolveLook} from '../lib/wordart.ts';
 import {paintOf} from '../lib/tokens.ts';
 import {place} from './helpers/wordart.ts';
 
@@ -102,4 +102,24 @@ test('legibility is judged on the colours as drawn, along the whole gradient, an
   assert.equal(legibilityProblem(resolveLook({tone: 'bg', outline: {tone: 'text', width: 2}}, 40), 'blue'), null);
   assert.match(legibilityProblem(resolveLook({tone: 'none', outline: {tone: 'text', width: 0.2}}, 40), 'blue')!, /hairline/);
   assert.ok(minRim(100) === 3 && minRim(20) === 1);
+});
+
+test('the ink reaches every side a shadow or a depth is pushed to; odd numbers are refused', () => {
+  const reach = (o: object) => inkReach(resolveLook(o, 40));
+  assert.deepEqual(reach({shadow: {dx: 4, dy: 6}}), {left: 0, top: 0, right: 4, bottom: 6});
+  assert.deepEqual(reach({shadow: {dx: -4, dy: -6}}), {left: 4, top: 6, right: 0, bottom: 0});
+  assert.deepEqual(reach({shadow: {dx: -4, dy: 6}, outline: {width: 2}}), {left: 6, top: 2, right: 2, bottom: 8});
+  assert.throws(() => wordart('x', {shadow: {dx: NaN}}), /shadow dx/);
+  assert.throws(() => wordart('x', {shadow: {dy: Infinity}}), /shadow dy/);
+  assert.throws(() => wordart('x', {reflection: {gap: -40}}), /reflection gap/);
+  assert.throws(() => wordart('x', {reflection: {gap: NaN}}), /reflection gap/);
+  assert.throws(() => wordart('x', {spacing: Infinity}), /spacing/);
+  assert.throws(() => wordart('x', {tone: 'none', outline: [{tone: 'accent'}, {tone: 'text'}]}), /one outline/);
+  assert.doesNotThrow(() => wordart('x', {tone: 'none', outline: {tone: 'accent'}}));
+});
+
+test('a negative shadow is inside the band the layout makes', () => {
+  const f = place('影', {shadow: {dx: -30, dy: -30}, size: 40});
+  const text = f.labelBoxes[0];
+  assert.ok(text.x - 30 >= f.x - .5 && text.y - 30 >= f.y - .5, 'the shadow copy (30px up and left) is within the rect');
 });

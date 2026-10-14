@@ -81,7 +81,9 @@ export function resolveLook(opts: WordArtBand['opts'], size: number): WordArtLoo
 /** How far the ink reaches past the glyph box: the outer outline, the glow, the bevel, and the shift of the shadow and of the depth. */
 export function inkReach(look: WordArtLook): {left: number; top: number; right: number; bottom: number} {
   const o = look.outlines.reduce((s, x) => s + x.width, 0) + (look.glow?.radius ?? 0) + (look.bevel?.size ?? 0);
-  return {left: o, top: o, right: o + Math.max(0, look.shadow?.dx ?? 0, look.extrude?.dx ?? 0), bottom: o + Math.max(0, look.shadow?.dy ?? 0, look.extrude?.dy ?? 0)};
+  // a shadow or a depth pushed up / left (a negative dx / dy) reaches past the top / left edge just as far
+  const dx = [look.shadow?.dx ?? 0, look.extrude?.dx ?? 0], dy = [look.shadow?.dy ?? 0, look.extrude?.dy ?? 0];
+  return {left: o + Math.max(0, ...dx.map(v => -v)), top: o + Math.max(0, ...dy.map(v => -v)), right: o + Math.max(0, ...dx), bottom: o + Math.max(0, ...dy)};
 }
 
 /** An outline thinner than this (px, for letters of `size`) is not a rim: it is a hairline, and does not make a letter read. */

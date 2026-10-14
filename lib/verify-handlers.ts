@@ -247,11 +247,11 @@ const checkFlowShape = (band: LaidOutOf<'chevron' | 'funnel' | 'cycle' | 'venn' 
   eachOverlap(band.labelBoxes, (a, b, o) => { if (o.dx > 1 && o.dy > 1) problems.push(`${band.type}: label "${a.label}" overlaps label "${b.label}" by ${dxdy(o)}`); });
 };
 
-// wordart(): the letters must read against what is behind them (see legibilityProblem), and stay inside the figure.
+// wordart(): the letters must read against what is behind them (see legibilityProblem). (The ink always stays inside the band: inkReach
+// widens the rect on every side, and a shadow or a mirror image cannot be placed outside it.)
 const checkWordArt = (band: LaidOutOf<'wordart'>, d: LaidOutDiagram, {problems}: VerifyOut): void => {
   const why = legibilityProblem(band.look, d.day, paintOf(d.appearance));
   if (why) problems.push(`wordart "${band.text.slice(0, 20)}": ${why}`);
-  for (const t of band.labelBoxes) if (outsideBox(t, band)) problems.push(`wordart "${band.text.slice(0, 20)}": a ${band.writing} run reaches outside the figure`);
 };
 
 // plane(): every label it placed must stay inside the figure and clear of the other labels.

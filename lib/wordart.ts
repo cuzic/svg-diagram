@@ -49,10 +49,13 @@ export function wordartBand(text: string, opts: WordArtOpts = {}): WordArtBand {
   check('glow radius', typeof o.glow === 'object' ? o.glow.radius : undefined, positive, 'must be > 0');
   check('extrude depth', typeof o.extrude === 'object' ? o.extrude.depth : undefined, positive, 'must be > 0');
   check('reflection opacity', typeof o.reflection === 'object' ? o.reflection.opacity : undefined, v => v > 0 && v <= 1, 'must be in (0, 1]');
-  check('spacing', o.spacing, v => v >= 0, 'must be >= 0');
+  check('spacing', o.spacing, v => finite(v) && v >= 0, 'must be a number >= 0');
+  if (typeof o.shadow === 'object') { check('shadow dx', o.shadow.dx, finite, 'must be a number'); check('shadow dy', o.shadow.dy, finite, 'must be a number'); }
+  check('reflection gap', typeof o.reflection === 'object' ? o.reflection.gap : undefined, v => finite(v) && v >= 0, 'must be a number >= 0');
   check('limit', o.limit, positive, 'must be > 0');
   check('rotate', o.rotate, finite, 'must be a number of degrees');
   check('arc', o.arc, v => finite(v) && v !== 0 && Math.abs(v) <= 300, 'must be a number of degrees, not 0, at most 300 either way');
+  if (o.tone === 'none' && (asList(o.outline)?.length ?? 0) > 1) throw new Error('wordart(): hollow letters (tone: none) take one outline; the outer ones would fill them in');
   if (o.arc !== undefined && o.writing === 'vertical') throw new Error('wordart(): arc bends a horizontal line; it cannot be combined with writing: vertical');
   if (o.arc !== undefined && text.includes('\n')) throw new Error('wordart(): arc bends one line; the text has a newline');
   return {type: 'wordart', text, ...(id ? {id} : {}), ...(reveal === undefined ? {} : {reveal}), ...(until === undefined ? {} : {until}), opts: o};
