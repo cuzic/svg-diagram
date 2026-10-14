@@ -1072,7 +1072,7 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 
 ### 整列と余白の指標（`layout-*`、情報）と `diagram({layoutCheck})`
 
-生成した図の整列・余白を測る規則です（`lib/layout-metrics.ts`。描かれる座標＝枠の縁を 4px の格子に丸めた後の値で測る）。**既定は情報（`info`）**なので、`check --strict` は落ちません。閾値は原則から固定しています（4px の格子、1 行 24px の 2 倍＝48px、40%）。図に合わせて動かしません。
+生成した図の整列・余白を測る規則である（`lib/layout-metrics.ts`。描かれる座標＝枠の縁を 4px の格子に丸めた後の値で測る）。**既定は情報（`info`）**なので、`check --strict` は落ちない。閾値は原則から固定している（4px の格子、1 行 24px の 2 倍＝48px、40%、50%）。図に合わせて動かさない。並びは同じ row / grid / quadrant（または同じ親の group）の中の同じ種類の枠だけを見る。
 
 | 規則 | 内容 |
 |---|---|
@@ -1084,9 +1084,9 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 | `layout-figure-narrow` | 内容の幅が図の幅の 50% 未満。`diagram({width})` で狭められる |
 | `layout-align-mixed` | 横に並ぶ箱で `align`（左・中央）が混在 |
 
-木・マインドマップ・層状の自動配置の帯、`raw` / ワイヤーフレーム / `plane` など座標を手で置く帯は測りません。`check --format json` の各所見には、`data: {band, measured, threshold, fix}`（測った値・閾値・直し方）が付きます（text の出力は 1 行のまま）。
+木・マインドマップ・層状の自動配置の帯、`raw` / ワイヤーフレーム / `plane` など座標を手で置く帯、画像の上に重ねた部品、枠のない箱は測らない。`flex` / `span` / `width` が違う兄弟は等分ではないので `layout-sibling-size` の対象外。`layout-align-mixed` は書き手が `align` を書いた箱だけを見る。`layout-figure-*` の内容の範囲は、題・凡例・出典行（caption と legend）を除いた全部の帯。`check --format json` の各所見には、`data: {band, measured, threshold, fix}`（測った値・閾値・直し方）が付く（text の出力は 1 行のまま）。
 
-**この図だけ warn にする**には `diagram({layoutCheck: 'strict'})`（既定は `'info'`。他の値は throw）。その図の `layout-*` が警告になり、`check --strict` が落ちます。描画（SVG）は 1 バイトも変わりません。意図した所見は規則ごとに理由つきで許容できます。
+**この図だけ warn にする**には `diagram({layoutCheck: 'strict'})`（既定は `'info'`。他の値は throw）。その図の `layout-*` が警告になり、`check --strict` が落ちる。描画（SVG）は 1 バイトも変わらない。意図した所見は規則ごとに理由つきで許容できる。
 
 ```ts
 diagram({
@@ -1095,6 +1095,9 @@ diagram({
   accept: {'layout-align-mixed': '数字の札は中央、説明の札は左（意図）'},
 })
 ```
+
+`layoutCheck: 'strict'` は文書向けの図（`theme:`）だけで使える。スライド向け（`day:`）の図は `density` 以外の規則を検査しないので、警告にならないまま素通りしないよう throw する。
+
 文書向けの図の SVG には `role="img"`・`<title>`・`<desc>`・生成元（ソースの SHA-256）が入る。`npm test` / `pnpm test` でルールの単体テスト。
 
 ## コンパイル時に検出されるもの
