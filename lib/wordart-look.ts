@@ -1,7 +1,7 @@
 // wordart(): the look — presets as values, the options resolved on top of them, how far the ink reaches, whether the letters read,
 // and the layers a placed wordart is painted in (docs/adr/0009). Pure.
 import {PALETTE, colorOf, wcagRatio} from './tokens.ts';
-import type {Roles, Theme} from './types.ts';
+import type {Roles, Theme} from './types/core.ts';
 import type {ArtTone, ExtrudeSpec, GlowSpec, GradientSpec, LaidOutWordArt, OutlineSpec, ReflectionSpec, ShadowSpec, WordArtBand, WordArtLook, WordArtOpts, WordArtPreset} from './wordart-types.ts';
 
 // ---------------------------------------------------------------------------------------------------------------------------
