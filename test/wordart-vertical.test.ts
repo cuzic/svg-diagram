@@ -56,3 +56,10 @@ test('kinsoku hold in the corners: no column starts with a closing mark or ends 
   assert.deepEqual(cols('あいうえーー'), ['あいう', 'えーー']);
   assert.deepEqual(cols('éあ'), ['éあ'], 'a letter with its accent is one cell');
 });
+
+test('a bracket carried to a word that fits only alone does not make the word too long', () => {
+  const cols = verticalColumns('あ「ABCDE」です', 20, 700, rough, {limit: 70});
+  assert.ok(cols.every(c => c.cells.length > 0));
+  assert.ok(cols.some(c => c.cells.some(x => x.token.kind === 'side' && (x.token as {text: string}).text === 'ABCDE')));
+  assert.throws(() => verticalColumns('あ「ABCDEFGHIJ」', 20, 700, rough, {limit: 70}), /raise limit/, 'a word that is too long alone still throws');
+});

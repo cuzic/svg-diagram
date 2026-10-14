@@ -104,6 +104,7 @@ export function verticalColumns(text: string, size: number, weight: number, widt
       // (the carried cells and the token may not fit together: a closing mark hangs, anything else is too long for a column)
       if (!hangs && !fits(l)) {
         if (cells.length && noStart(token) && !hung) hung = true;
+        else if (limit !== undefined && l <= limit + 0.5 && cells.length) { /* a carried bracket and a word that fits only alone: the column runs past the limit by the bracket */ }
         else throw new Error(`wordart(): "${nameOf(token)}" is ${Math.round(l)}px long but a column may be ${Math.round(limit!)}px${cells.length ? ` (with what goes before it, ${Math.round(end(cells) + spacing + l)}px)` : ''}: raise limit or shorten the word`);
       }
       cells.push({token, top: cells.length ? end(cells) + spacing : 0, len: l});
