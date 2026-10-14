@@ -262,3 +262,12 @@
 
 
 (解決済み: `canvas` の既定は内容駆動に決定(D2)。縦の格子化は U1b として一括で変えることに決定(D1 の注)。`layout-*` の warn は `diagram({layoutCheck: 'strict'})` の図だけ(D4)。)
+
+## 実装での補足(U0 = PR #153、U1 = PR #156)
+
+- D1-2 は列幅の差「0 か 4px」を許すが、D4 の `layout-sibling-size` は 1〜4px の差をすべて拾う。3・4・5 列などで余りの 1 格子は割れず、13 件(7 図)が残った。gap を +4px まで動かして吸収する案は、gap を行ごとに変えない決定と両立しないため採らなかった。`layout-sibling-size` は、余りの格子 1 つ分(4px)の差を許す閾値の見直しが要る。
+- `canvasColumns` はすでに格子上で一定間隔だったので、U1 では変更していない。`canvas-bmc` の 172 / 168 は重みの丸めで、U3 で扱う。
+- `layout-figure-narrow` の実測は 3 枚(見積もりは 20 枚)。`LaidOut` の外接矩形では、全幅の帯があると狭く見えない。
+- `concentric-stakeholders` の左右の偏りは `layout-figure-offset` で出ない(flow-shape の外接矩形が全幅を取る)。U4 の中央寄せと一緒に直す。
+- `layout-align-mixed` は hero の 1 件だけで、誤検出はなかった。
+- U1 は ADR の予告になかった図も動かした(`chart-*`、`facet`、`hero`、`small-constraints`、`quadrant-*`)。理由は PR #156 に書いた。
