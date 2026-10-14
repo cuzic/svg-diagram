@@ -344,6 +344,7 @@ export const VERIFY_HANDLERS = {
   },
   people: {rects: ownRect},
   dots: {rects: ownRect},
+  math: {rects: ownRect},
   quadrant: {rects: figureRects, check: {phase: 'quadrant', run: checkQuadrant}},
   chevron: {rects: figureRects, check: flowCheck},
   funnel: {rects: figureRects, check: flowCheck},

@@ -20,6 +20,7 @@ export * from './text-bands.ts';
 export * from './containers.ts';
 export * from './figures.ts';
 export * from './people-dots.ts';
+export * from './math.ts';
 export * from './bars.ts';
 export * from './timeline.ts';
 export * from './diagrams.ts';
@@ -38,6 +39,7 @@ import type {DiagramData, Dimmed, Roles} from './core.ts';
 import type {BpmnBand, CauseBand, ClassesBand, CloudBand, LaidOutBpmn, LaidOutCause, LaidOutClasses, LaidOutCloud, LaidOutStates, LaidOutTree, StatesBand, TreeBand} from './diagrams.ts';
 import type {CurveBand, LaidOutCurve, LaidOutPlane, LaidOutPyramid, PlaneBand, PyramidBand} from './figures.ts';
 import type {ImageBand, LaidOutImage} from './image.ts';
+import type {LaidOutMath, MathBand} from './math.ts';
 import type {DotsBand, LaidOutDots, LaidOutPeople, PeopleBand} from './people-dots.ts';
 import type {LaidOutSequence, LaidOutSwimlane, LaidOutTable, SequenceBand, SwimlaneBand, TableBand} from './sequence-table-swimlane.ts';
 import type {BannerBand, BoxBand, CaptionBand, LaidOutBanner, LaidOutBox, LaidOutCaption} from './text-bands.ts';
@@ -48,12 +50,12 @@ import type {LaidOutScreens, LaidOutWireframe, ScreensBand, WireframeBand} from 
 export type Band =
   | ChartBand
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | TimelineBand | NumericTimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | ImageBand | QuadrantBand | FlowShapeBand
+  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | MathBand | TimelineBand | NumericTimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | ImageBand | QuadrantBand | FlowShapeBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 export type LaidOutBand = (
   | LaidOutChart
   | LaidOutCaption | LaidOutBox | LaidOutBanner | LaidOutGroup | LaidOutLegend | LaidOutRow | LaidOutGrid
-  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutQuadrant | LaidOutFlowShape | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutCause | LaidOutCloud | LaidOutGantt | LaidOutClasses | LaidOutBpmn | LaidOutSwimlane | LaidOutSequence | LaidOutTable
+  | LaidOutRaw | LaidOutPyramid | LaidOutCurve | LaidOutPlane | LaidOutBars | LaidOutImage | LaidOutPeople | LaidOutDots | LaidOutMath | LaidOutQuadrant | LaidOutFlowShape | LaidOutTimeline | LaidOutTree | LaidOutStates | LaidOutCause | LaidOutCloud | LaidOutGantt | LaidOutClasses | LaidOutBpmn | LaidOutSwimlane | LaidOutSequence | LaidOutTable
   | LaidOutWireframe | LaidOutScreens) & Dimmed;
 /** layoutDiagram() output: the diagram data plus everything layout computed. */
 export interface LaidOutDiagram extends DiagramData {
