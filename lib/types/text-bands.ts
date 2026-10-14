@@ -118,7 +118,7 @@ export interface BoxBand extends BoxStyleOpts {
   statValue?: string;
 }
 export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col' | 'span' | 'reveal' | 'until'> {
-  /** The value's text colour; 'solid' / 'solid-danger' instead fill the whole box (white text) as in box({tone}). */
+  /** The value's text colour; 'accent' also fills the card with the accent tone's fill; 'solid' / 'solid-danger' instead fill the whole box (white text) as in box({tone}). */
   tone?: TextTone | 'solid' | 'solid-danger';
   size?: 'stat' | 'display';
 }

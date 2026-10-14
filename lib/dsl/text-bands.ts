@@ -60,12 +60,14 @@ export function stat(value: string | number, label: RichText, opts: StatOpts = {
   const text = String(value);
   // 'solid' / 'solid-danger' fill the box (white text, so no tone of its own on the value or the label); any other tone colours the value
   const solid = opts.tone === 'solid' || opts.tone === 'solid-danger' ? opts.tone : undefined;
-  const rich = richField(label, {field: 'stat() label', bold: false, tone: solid ? undefined : 'muted'});
+  // 'accent' also fills the card with the accent tone's fill (and outline), as a box of that tone does; the value stays accent text, the label is the normal text colour (muted is too faint on the fill)
+  const accent = opts.tone === 'accent' ? 'accent' : undefined;
+  const rich = richField(label, {field: 'stat() label', bold: false, tone: solid || accent ? undefined : 'muted'});
   return withHandle({
-    type: 'box', id: opts.id, ...(solid ? {tone: solid} : {}), flex: opts.flex, width: opts.width, col: opts.col, span: opts.span, ...revealOf(opts),
+    type: 'box', id: opts.id, ...(solid ? {tone: solid} : accent ? {tone: accent} : {}), flex: opts.flex, width: opts.width, col: opts.col, span: opts.span, ...revealOf(opts),
     align: 'center', lines: [
       {text, role: opts.size ?? 'stat', bold: true, tone: solid ? undefined : opts.tone as TextTone | undefined},
-      {text: rich.text ?? '', ...(solid ? {} : {tone: 'muted' as const}), ...(rich.spans ? {spans: rich.spans} : {})},
+      {text: rich.text ?? '', ...(solid || accent ? {} : {tone: 'muted' as const}), ...(rich.spans ? {spans: rich.spans} : {})},
     ], statValue: text,
   }, opts.id);
 }

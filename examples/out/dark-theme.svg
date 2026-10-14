@@ -1,7 +1,7 @@
-<svg data-appearance="dark" data-palette="#0b1220 #ffffff #94a3b8 #60a5fa #1e3a8a" xmlns="http://www.w3.org/2000/svg" width="940" height="421" viewBox="0 0 940 421" data-assumed-bg="#0b1220" role="img" aria-labelledby="svg-title svg-desc">
+<svg data-appearance="dark" data-palette="#0b1220 #ffffff #94a3b8 #60a5fa #1a3070" xmlns="http://www.w3.org/2000/svg" width="940" height="421" viewBox="0 0 940 421" data-assumed-bg="#0b1220" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">導入前後の離脱率（暗い背景）</title>
   <desc id="svg-desc">要素: 次の一手</desc>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/dark-theme.ts","sourceSha256":"fe348a64faadd8d63bcbb236bfb2d2671dfa0d17552762332d615902b0cba11f"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/dark-theme.ts","sourceSha256":"9362f24706b63d262cb27b09c4e90d9c06057ccb6934e1f2d244a721929e4fda"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
@@ -16,14 +16,14 @@
   <text x="241" y="198" text-anchor="middle" font-size="56" font-weight="700" fill="#f05252">76%</text>
   <text x="241" y="242.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#94a3b8">導入前</text>
 
-  <rect x="480" y="128" width="440" height="140" rx="8" fill="#0b1220" stroke="#ffffff" stroke-width="2.5"/>
+  <rect x="480" y="128" width="440" height="140" rx="8" fill="#1a3070" stroke="#60a5fa" stroke-width="2.5"/>
   <text x="699" y="198" text-anchor="middle" font-size="56" font-weight="700" fill="#60a5fa">31%</text>
-  <text x="699" y="242.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#94a3b8">導入後</text>
+  <text x="699" y="242.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#ffffff">導入後</text>
 
-  <rect x="20" y="280" width="900" height="80" rx="8" fill="#1e3a8a" stroke="#60a5fa" stroke-width="2.5"/>
+  <rect x="20" y="280" width="900" height="80" rx="8" fill="#1a3070" stroke="#60a5fa" stroke-width="2.5"/>
   <text x="40" y="311" font-size="15" font-weight="700" fill="#ffffff">次の一手</text>
   <text x="40" y="339" font-size="14" font-weight="400" fill="#ffffff">残りの 31% を新規ユーザーの初回画面で減らす</text>
 
-  <rect x="440" y="380" width="28" height="16" rx="4" fill="#1e3a8a" stroke="#60a5fa" stroke-width="2.5"/>
+  <rect x="440" y="380" width="28" height="16" rx="4" fill="#1a3070" stroke="#60a5fa" stroke-width="2.5"/>
   <text x="478" y="393.6" font-size="14" fill="#ffffff">強調</text>
 </svg>

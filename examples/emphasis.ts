@@ -2,7 +2,7 @@ import {banner, box, caption, diagram, em, group, row, stat} from 'svg-diagram';
 
 // 箱の文章の一部だけを太字・色にする。配列の中の文字列はそのままの文字で、強調は em.* の部品で書く。
 export default function define() {
-  return diagram({theme: 'blue', title: 'ブラウザ操作を任せるときの分担'}).add(
+  return diagram({theme: 'blue', title: 'ブラウザ操作を任せるときの分担', accept: {'legend-missing': '数値の色は意味でなく強調。値と見出しで読める', 'gray-tone-collision': '強調の枠線と太字の数値で、白黒でも読める'}}).add(
     caption(['ブラウザ操作を ', em.b('Claude in Chrome'), ' に任せる'], {tone: 'text', role: 'body'}),
     row([
       box({
