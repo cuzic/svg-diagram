@@ -43,6 +43,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
    - **接続点は、`const list = box({id: 'list'})` のハンドルで書く**: `connect(list.right, detail.at('top', 0.25))`（screens / swimlane は `flow.anchors.a.right`）。id を文字列で打ち直さないので、別の文にまたがっても未宣言の id や辺の綴り違いが作れない。凡例を全図で既定オフにする・文言を揃えるなら `.svg-diagram.json` に `"legend": false` / `"legendLabels": {"tone:accent": "注意"}`（図ごとの指定が優先）。`accept` のキー（ルール ID）や `legendLabels` のキー、`tone` / `line` / `route` なども閉じた文字列の型で、綴り違いは型エラーになる。
    - 型エラーは `check` の警告より前に直す。型を通っても、重なり・コントラスト・見た目は下のビルド・検査・目視で確かめる。
 2. **ビルド**: `svg-diagram build src.ts --out out.svg`（重なり検査と lint --strict まで走る。失敗するとエラー文が出る）
+   - 複数の SVG を 1 つの HTML に貼るなら `--id-prefix <p|auto>` を付ける（`svg-title`・`dsl-arrow` などの id と参照が `<p>-<id>` になり、重ならない。ソースが複数なら `<p>-<ソース名>-<id>`。`<metadata id="svg-diagram">` はそのまま残るので `check --drift` も読める）。
    - PNG も要るとき（Word・チャット・PNG しか貼れない所）は `--png <dir> [--scale N]` を足す。同じビルドの SVG から `<dir>/<名前>.png` を書く（既定の倍率 2。段階表示の各段の SVG も PNG になる）。`--stale` と併用すると、PNG がない・SVG より古いときは作り直す。
 3. **ルール検査**: `svg-diagram check --strict src.ts`（コントラスト、凡例、線の交差、幅、密度、題名）
    - `shrink-narrow-text`（警告）: `bpmn` / `swimlane` を `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。文言を短くする・図を 2 つに分ける・縦向きにする・`maxWidth` を広げる。
