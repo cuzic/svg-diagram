@@ -1069,6 +1069,32 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 `lint-svg`（描画後の検査: コントラスト・キャンバスのはみ出し・文字の重なり・枠からのはみ出し・図形が文字に被る）は、SVG の幾何と文字の箱（レイアウトと同じフォントファイル）から調べる。`--engine browser` は同じ検査を実ブラウザで行う（`test/svg-lint-browser.test.ts` が両方を同じ SVG に当てて比べる。丸めの境界で 1px 違うことと、回転したグループの中のコントラストの比べ方（ブラウザ版は文字と図形を別々の座標系で比べていた）だけが違う）。
 描画後の検査は、**後から描かれた図形が文字を覆う、または線が文字を貫く**ものも報告する（意図した重なりは、図形に `data-allow-cover`）。
 残す警告は `diagram({accept: {'rule-id': '理由'}})`。`theme:` の図（文書向け）だけが対象で、`day:` の図（スライド）は従来どおり。
+
+### 整列と余白の指標（`layout-*`、情報）と `diagram({layoutCheck})`
+
+生成した図の整列・余白を測る規則です（`lib/layout-metrics.ts`。描かれる座標＝枠の縁を 4px の格子に丸めた後の値で測る）。**既定は情報（`info`）**なので、`check --strict` は落ちません。閾値は原則から固定しています（4px の格子、1 行 24px の 2 倍＝48px、40%）。図に合わせて動かしません。
+
+| 規則 | 内容 |
+|---|---|
+| `layout-sibling-size` | 横に並ぶ枠の幅が 1〜4px だけ違う（等分の行で丸めた結果）。直し方は `cols` / `flex` |
+| `layout-edge-misalign` | 隣り合う枠の左端・右端・上端が 1〜4px ずれている（0 は一致、5px 以上は別物） |
+| `layout-gutter-uneven` | 横に並ぶ 3 枠以上の間隔が 2px 以上不均一 |
+| `layout-unused-space` | 枠の中身の下に 48px 以上かつ枠の高さの 40% 以上の空き（行の高さ揃え・canvas の床。stamp の帯は数えない） |
+| `layout-figure-offset` | 内容（題・凡例・出典行を除く）の左右の余白が 48px 以上違う（`diagram({canvas})` の図は対象外） |
+| `layout-figure-narrow` | 内容の幅が図の幅の 50% 未満。`diagram({width})` で狭められる |
+| `layout-align-mixed` | 横に並ぶ箱で `align`（左・中央）が混在 |
+
+木・マインドマップ・層状の自動配置の帯、`raw` / ワイヤーフレーム / `plane` など座標を手で置く帯は測りません。`check --format json` の各所見には、`data: {band, measured, threshold, fix}`（測った値・閾値・直し方）が付きます（text の出力は 1 行のまま）。
+
+**この図だけ warn にする**には `diagram({layoutCheck: 'strict'})`（既定は `'info'`。他の値は throw）。その図の `layout-*` が警告になり、`check --strict` が落ちます。描画（SVG）は 1 バイトも変わりません。意図した所見は規則ごとに理由つきで許容できます。
+
+```ts
+diagram({
+  theme: 'blue',
+  layoutCheck: 'strict',
+  accept: {'layout-align-mixed': '数字の札は中央、説明の札は左（意図）'},
+})
+```
 文書向けの図の SVG には `role="img"`・`<title>`・`<desc>`・生成元（ソースの SHA-256）が入る。`npm test` / `pnpm test` でルールの単体テスト。
 
 ## コンパイル時に検出されるもの

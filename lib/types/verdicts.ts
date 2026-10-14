@@ -5,7 +5,9 @@ import type {LaidOutBand, LaidOutDiagram} from './index.ts';
 
 export type Severity = 'warn' | 'info';
 /** One rule result (rules.ts). `rule` is a key of RULE_DOCS. */
-export interface Finding {rule: string; severity: Severity; message: string}
+/** What a machine reads about a finding (`check --format json`): the measured number against the threshold it was judged by, and how to fix it. */
+export interface FindingData {band?: string; measured: number; threshold: number; fix?: string}
+export interface Finding {rule: string; severity: Severity; message: string; data?: FindingData}
 /** What the lint rules read: the diagram's bands plus (optionally) layout results. */
 export interface LintTarget extends DiagramData {
   laidOut?: LaidOutBand[];

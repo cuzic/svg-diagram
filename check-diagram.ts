@@ -38,6 +38,7 @@ import path from 'path';
 import crypto from 'crypto';
 import {execFileSync} from 'node:child_process';
 import type {DiagramSource} from './lib/types/core.ts';
+import type {FindingData} from './lib/types/verdicts.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import {register} from 'node:module';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
@@ -129,7 +130,7 @@ if (changedArg) {
   sources.splice(0, sources.length, ...selected);
   if (!sources.length && !docsDir) { if (format === 'json') console.log(JSON.stringify({errors: 0, warnings: 0, findings: []}, null, 2)); if (format === 'sarif') console.log(JSON.stringify({version: '2.1.0', runs: [{tool: {driver: {name: 'svg-diagram check'}}, results: []}]})); process.exit(0); }
 }
-type CheckFinding = {file: string; line?: number; rule: string; severity: 'error' | 'warn' | 'info'; message: string};
+type CheckFinding = {file: string; line?: number; rule: string; severity: 'error' | 'warn' | 'info'; message: string; /* --format json only: what was measured against which threshold, and how to fix it */ data?: FindingData};
 const findings: CheckFinding[] = [];
 let bad = 0, warned = 0;
 // --baseline: warnings recorded in the baseline file become info (errors never do), so --strict fails only on new ones
@@ -303,7 +304,7 @@ try {
     const {verdict} = await checkDiagram(d);
     if (!verdict.ok) { for (const p of verdict.problems) add({file: src, rule: 'layout', severity: 'error', message: p}); complain(`✗ ${src}:\n  ${verdict.problems.join('\n  ')}`); continue; }
     const shown = verdict.findings.map(f => applyBaseline(src, f));
-    for (const f of shown) add({file: src, rule: f.rule, severity: f.severity, message: f.message});
+    for (const f of shown) add({file: src, rule: f.rule, severity: f.severity, message: f.message, ...(f.data ? {data: f.data} : {})});
     const w = shown.filter(f => f.severity === 'warn').length;
     say(`${w ? '△' : '✓'} ${src}${w ? `（警告 ${w}）` : ''}`);
     for (const f of shown.filter(f => verbose || f.severity === 'warn')) say(`   ${f.severity === 'warn' ? '⚠' : 'ℹ'} [${f.rule}] ${f.message}`);

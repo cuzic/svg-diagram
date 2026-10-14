@@ -127,7 +127,11 @@ export interface DiagramOpts {
   spotlight?: SpotlightOpt;
   /** A source / citation line pinned as the last line of the figure (left-aligned, muted, one line). See README. */
   sourceLine?: string;
+  /** 'strict': this diagram's `layout-*` findings (alignment and whitespace) are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
+  layoutCheck?: LayoutCheck;
 }
+/** diagram({layoutCheck}): the severity of the `layout-*` findings. */
+export type LayoutCheck = 'info' | 'strict';
 /**
  * What diagram({spotlight}) takes: the anchor id(s) to keep prominent, or an object with more.
  * `edges`: which connectors stay prominent ('touching': one end is a target; 'between': both are).
@@ -165,6 +169,7 @@ export interface DiagramData {
   wireframeDefaults?: WireframeDefaults;
   spotlight?: SpotlightOpt;
   sourceLine?: string;
+  layoutCheck?: LayoutCheck;
   bands: Band[];
   /** Set by build() from the measured slide (contentWidth). */
   usableWidth?: number;
