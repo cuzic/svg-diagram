@@ -2,7 +2,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {diagram, box, row, group, connect, branch, swimlane, table, cell, wireframe, screens, plane, stateMatrix, stateRow, wf, checkDiagram, closeMeasurer} from '../lib/dsl.ts';
-import {gridColumns} from '../lib/layout-util.ts';
 import type {LaidOutBox, LaidOutPlane, LaidOutRow, RowBand} from '../lib/dsl.ts';
 
 test.after(() => closeMeasurer());
@@ -138,8 +137,9 @@ test('row({id}).col(n): a column of a row is a connect() anchor (its top / botto
   assert.deepEqual(verdict.problems, []);
   const [r1, r2] = laidOut.laidOut.filter((b): b is LaidOutRow => b.type === 'row');
   const cs = laidOut.connects;
-  const grid = gridColumns(r1.w, 12, 16, {centerGutter: true})!; // the shared 12-column edges (4px grid)
-  const colX = (a: number) => grid.x[a - 1], colEnd = (b: number) => grid.x[b - 1] + grid.w[b - 1], mid = (a: number, b = a) => (colX(a) + colEnd(b)) / 2;
+  // 900 wide, gap 16: twelve 60px columns, 76px apart, the middle gutter 20 (a grid step more, so the two halves are equal)
+  assert.equal(r1.w, 900);
+  const colX = (a: number) => (a - 1) * 76 + (a > 6 ? 4 : 0), colEnd = (b: number) => colX(b) + 60, mid = (a: number, b = a) => (colX(a) + colEnd(b)) / 2;
   assert.equal(Math.round(cs[0].from.x), Math.round(r1.x + mid(5)), 'the middle of the 5th column of the top row');
   assert.equal(Math.round(cs[0].to.x), Math.round(r2.x + mid(2)), 'the middle of the 2nd column of the bottom row');
   assert.equal(Math.round(cs[0].from.y), Math.round(r1.y + r1.h));

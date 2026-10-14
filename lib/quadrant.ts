@@ -402,7 +402,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   const xLeft = (band.x.reversed ? band.x.high : band.x.low) ?? '', xRight = (band.x.reversed ? band.x.low : band.x.high) ?? '';
   if (tw(xLeft, size) + tw(band.x.title, tSize, 700) + tw(xRight, size) + 36 > plotW) throw new Error(`quadrant(): the x axis names do not fit under the plot (${Math.round(plotW)}px): shorten the title / low / high, or widen the figure`);
   const gap = band.crosshair ? 0 : 6; // between rows (unchanged)
-  const hgap = band.crosshair ? 0 : 8; // between columns: a multiple of 4
+  const hgap = band.crosshair ? 0 : 8; // between columns: a multiple of 4. It may grow by a step (anyGap) so the cells come out equal: the quadrant's gutter is its own, not a declared gap, and the row gap stays 6 (vertical placement is U1b's)
   const colGrid = gridColumns(plotW, cols, hgap, {fixedGap: band.crosshair, anyGap: true}) ?? (() => { const w = (plotW - hgap * (cols - 1)) / cols; return {x: Array.from({length: cols}, (_c, k) => k * (w + hgap)), w: new Array<number>(cols).fill(w), gap: hgap}; })();
   const cw = Math.min(...colGrid.w); // the narrowest cell: what the wrapping is measured against
   if (cw < 90) throw new Error(`quadrant(): ${cols} columns leave ${Math.round(cw)}px per cell — fewer columns or a wider figure`);

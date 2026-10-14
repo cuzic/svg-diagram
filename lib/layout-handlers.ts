@@ -115,7 +115,7 @@ function registerRowSlots(ctx: LayoutCtx, id: string | undefined, band: RowLike,
   ctx.anchors.set(id, {x: padX, y: rowTop, w: cw, h: rowHeight});
   ctx.areaIds.add(id);
   if (band.cols) {
-    const cols = band.cols, colW = (cw - (cols - 1) * gap) / cols, grid = gridColumns(cw, cols, gap, {centerGutter: true}); // the same column edges the row's children sit on
+    const cols = band.cols, colW = (cw - (cols - 1) * gap) / cols, grid = gridColumns(cw, cols, gap, {centerGutter: cols === 12}); // the same column edges the row's children sit on
     const left = (c: number): number => grid ? grid.x[c] : c * (colW + gap), right = (c: number): number => grid ? grid.x[c] + grid.w[c] : c * (colW + gap) + colW;
     for (let a = 1; a <= cols; a++) for (let b = a; b <= cols; b++) {
       const key = b === a ? `${id}#${a}` : `${id}#${a}-${b}`;

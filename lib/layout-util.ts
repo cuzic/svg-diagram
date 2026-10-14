@@ -74,11 +74,11 @@ const roundGrid = (n: number): number => Math.round(n / GRID) * GRID;
  * be shared out evenly:
  *  - exactly one step per gutter (and the gap is at least 16, so a step is a quarter at most): the gutters take it and the columns come out equal (900 wide, gap 16, 2 columns: 440 + 20 + 440, not 444 + 16 + 440);
  *  - otherwise the columns differ by at most one step, wider ones spread evenly and mirrored (the odd step goes to the middle column, or, with
- *    `centerGutter` and an even number of columns, to the middle gutter, so the two halves of a 12-column grid are equal).
+ *    `centerGutter` (the 12-column grid only) and an even number of columns, to the middle gutter, so the two halves are equal).
  * `anyGap`: the gap may be widened by a step whatever its size (a figure's own, undeclared gutter, as the quadrant's).
  * `null` when the width is too small to give every column a grid step: the caller keeps the plain split.
  */
-export function gridColumns(contentWidth: number, n: number, gap: number, opts: {fixedGap?: boolean; centerGutter?: boolean; anyGap?: boolean} = {}): {x: number[]; w: number[]; gap: number} | null {
+export function gridColumns(contentWidth: number, n: number, gap: number, opts: {fixedGap?: boolean; centerGutter?: boolean; anyGap?: boolean} = {}): {x: number[]; w: number[]} | null {
   const g0 = n > 1 ? (opts.fixedGap ? gap : ceilGrid(Math.max(gap, 0))) : 0;
   const units = Math.floor((contentWidth - (n - 1) * g0) / GRID + 1e-9);
   if (units < n) return null;
@@ -102,8 +102,8 @@ export function gridColumns(contentWidth: number, n: number, gap: number, opts: 
   const x: number[] = [];
   let at = 0;
   w.forEach((v, k) => { x.push(at); at += v + (k < n - 1 ? gutter[k] : 0); });
-  w[n - 1] += Math.max(0, contentWidth - at); // flush with the right edge (nothing when the width is a multiple of 4)
-  return {x, w, gap: g0};
+  // (a width that is not a multiple of 4 leaves under one step unused at the right: the columns stay equal and symmetric)
+  return {x, w};
 }
 
 export function rowChildGeometry(band: Pick<RowBand, 'cols' | 'gap' | 'justify' | 'itemWidth'> & {children: {span?: number; col?: number; flex?: number; width?: number; title?: string; id?: string}[]}, contentWidth: number) {
@@ -113,7 +113,7 @@ export function rowChildGeometry(band: Pick<RowBand, 'cols' | 'gap' | 'justify' 
     // Shared column grid: every row declaring the same `cols` + `gap` gets
     // identical column edges, so a box spanning columns 1-2 sits exactly
     // above two boxes in columns 1 and 2 of the next row.
-    const grid = gridColumns(contentWidth, band.cols, gap, {centerGutter: true});
+    const grid = gridColumns(contentWidth, band.cols, gap, {centerGutter: band.cols === 12});
     const cw = (contentWidth - (band.cols - 1) * gap) / band.cols;
     const colX = (c: number): number => grid ? grid.x[c] : c * (cw + gap);
     const colW = (c: number): number => grid ? grid.w[c] : cw;
@@ -141,9 +141,11 @@ export function rowChildGeometry(band: Pick<RowBand, 'cols' | 'gap' | 'justify' 
       const avail = contentWidth - (n - 1) * g;
       const flexSum = band.children.reduce((s, c) => s + (c.flex ?? 1), 0);
       const widths: number[] = [], xOffsets: number[] = [];
-      let x = 0, ok = avail > 0;
+      let x = 0, ok = avail > 0, cum = 0;
       band.children.forEach((c, i) => {
-        const right = i === n - 1 ? contentWidth : roundGrid(x + avail * (c.flex ?? 1) / flexSum);
+        cum += c.flex ?? 1;
+        // every boundary is rounded from its own cumulative position, so the rounding never builds up on the last child
+        const right = i === n - 1 ? Math.floor(contentWidth / GRID + 1e-9) * GRID : roundGrid(avail * cum / flexSum + i * g);
         if (right - x < GRID) ok = false;
         xOffsets.push(x); widths.push(right - x);
         x = right + g;
@@ -172,8 +174,8 @@ export function gridChildGeometry(band: GridBand, contentWidth: number) {
   const cols = band.cols;
   const gap = band.gap;
   const grid = gridColumns(contentWidth, cols, gap);
-  const cellWidth = (contentWidth - (cols - 1) * gap) / cols;
-  return {cellWidth, xs: grid ? grid.x : Array.from({length: cols}, (_, j) => j * (cellWidth + gap)), ws: grid ? grid.w : new Array<number>(cols).fill(cellWidth)};
+  const cellWidth = (contentWidth - (cols - 1) * gap) / cols; // (the plain split, when the width cannot give every column a grid step)
+  return {xs: grid ? grid.x : Array.from({length: cols}, (_, j) => j * (cellWidth + gap)), ws: grid ? grid.w : new Array<number>(cols).fill(cellWidth)};
 }
 
 /**
