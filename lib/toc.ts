@@ -9,7 +9,9 @@ import {gapFor, layoutWithLanes, routeLayered} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import {wrapText} from './wrap.ts';
-import type {BoxTone, CauseBand, CauseRole, CloudArrow, CloudBand, CloudBox, FontFamily, LaidOutCause, LaidOutCloud, Roles, WidthOf} from './types.ts';
+import type {FontFamily, Roles, WidthOf} from './types/core.ts';
+import type {CauseBand, CauseRole, CloudArrow, CloudBand, CloudBox, LaidOutCause, LaidOutCloud} from './types/diagrams.ts';
+import type {BoxTone} from './types/text-bands.ts';
 
 // ---- cause tree -------------------------------------------------------------------------------------------------------------
 

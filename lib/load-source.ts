@@ -7,7 +7,8 @@
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {withSourceDir} from './image-file.ts';
-import type {Config, Diagram} from './types.ts';
+import type {Diagram} from './types/core.ts';
+import type {Config} from './types/project.ts';
 import {applyConfig, loadConfig} from './config.ts';
 import {configureMeasure} from './measure.ts';
 import {FRESH_PARAM} from './resolve-hook.ts';

@@ -18,7 +18,8 @@
 // is the default; override per diagram when the slide has less body text.
 
 import {bandTextSizes} from './fit-handlers.ts';
-import type {FitReport, LaidOutDiagram} from './types.ts';
+import type {LaidOutDiagram} from './types/index.ts';
+import type {FitReport} from './types/verdicts.ts';
 
 export const SLIDE_USABLE_WIDTH = 860; // docs/diagram-tone-and-manner.md section 5
 

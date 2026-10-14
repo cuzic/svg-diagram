@@ -10,7 +10,10 @@ import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 import {spotlightDim} from './spotlight.ts';
 import {CONTRAST_THRESHOLD, dxdy, eachOverlap, labelOf, neverTogether, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
-import type {EmphasisTone, CheckRect, LaidOutBanner, LaidOutBox, LaidOutCaption, LaidOutDiagram, Rect} from './types.ts';
+import type {EmphasisTone, Rect} from './types/core.ts';
+import type {LaidOutDiagram} from './types/index.ts';
+import type {LaidOutBanner, LaidOutBox, LaidOutCaption} from './types/text-bands.ts';
+import type {CheckRect} from './types/verdicts.ts';
 
 /** Where a band's findings go: `problems` fail the build, `warnings` never do. */
 export interface VerifyOut {problems: string[]; warnings: string[]}

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {box, checkDiagram, closeMeasurer, diagram, dots, people, renderDiagram} from '../lib/dsl.ts';
-import type {DotsBand, LaidOutDots, LaidOutPeople, PeopleBand} from '../lib/types.ts';
+import type {DotsBand, LaidOutDots, LaidOutPeople, PeopleBand} from '../lib/types/people-dots.ts';
 
 test.after(() => closeMeasurer());
 

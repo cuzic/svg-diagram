@@ -1,4 +1,4 @@
-import type {PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum} from '../types.ts';
+import type {PeopleBand, PeopleOpts, DotsBand, DotsOpts, DotDatum} from '../types/people-dots.ts';
 import type {Declares, HandleOf} from '../strict.ts';
 import {assertNoReveal, withHandle} from './shared.ts';
 

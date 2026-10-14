@@ -1,5 +1,5 @@
 import {MIN_FONT_SIZE, isSolidTone} from '../tokens.ts';
-import type {Band} from '../types.ts';
+import type {Band} from '../types/index.ts';
 
 // `const list = box({id: 'list'})`: a band built with an id also works as a handle (`list.right`, `list.at('top', 0.25)`),
 // so connect() can name it without typing the id again. The helpers are NON-enumerable properties: spreading or

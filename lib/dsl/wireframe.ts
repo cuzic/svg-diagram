@@ -1,4 +1,4 @@
-import type {ScreensBand, ScreensItem, ScreensOpts, WfRoot, WireframeBand, WireframeOpts} from '../types.ts';
+import type {ScreensBand, ScreensItem, ScreensOpts, WfRoot, WireframeBand, WireframeOpts} from '../types/wireframe.ts';
 import type {AnchorsOf, Declares, HandleOf, ScreensItemInput} from '../strict.ts';
 import {assertNoReveal, withAnchors, withHandle} from './shared.ts';
 import {NUMBERING, autoNumber} from './wireframe-numbering.ts';

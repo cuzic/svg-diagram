@@ -37,7 +37,7 @@ export {em} from './rich.ts';
 export type {HeroOpts, HeroStat} from './hero.ts';
 export type {VersusConnectLabels, VersusOpts, VersusPart, VersusSharedOpts} from './versus.ts';
 // Every public type (WfNode, TableCell, TextTone, RawColorTone, ...) so project code never has to spell Parameters<typeof wf.col>[0].
-export type * from './types.ts';
+export type * from './types/index.ts';
 export type * from './semantic-table.ts';
 
 export type {QuadrantOpts, QuadrantItem, QuadrantPreset, QuadrantCell, QuadrantAxis, QuadrantArrow} from './quadrant.ts';

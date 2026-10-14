@@ -1,6 +1,8 @@
 import {wf} from '../wireframe.ts';
 import {num} from '../qc.ts';
-import type {Band, ScreensBand, WfNode, WfOverlay, WfPartKey, WfRoot, WfScreen, WfShellProps, WireframeBand, WireframeDefaults} from '../types.ts';
+import type {Band} from '../types/index.ts';
+import type {WfNode, WfOverlay, WfPartKey} from '../types/wireframe-nodes.ts';
+import type {ScreensBand, WfRoot, WfScreen, WfShellProps, WireframeBand, WireframeDefaults} from '../types/wireframe.ts';
 import {cloneBand, mapBands} from './shared.ts';
 
 // `n: true` (on a node, on a part in `parts: {...}`, or on a map marker) means "number me": such callouts get consecutive

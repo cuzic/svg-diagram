@@ -4,7 +4,10 @@ import test, {after} from 'node:test';
 import assert from 'node:assert/strict';
 import {diagram, wireframe, screens, wf, closeMeasurer} from '../lib/dsl.ts';
 import {layoutDiagram} from '../lib/layout-measured.ts';
-import type {Band, LaidOutScreens, LaidOutWireframe, PrimRect, PrimText, Prim, Rect} from '../lib/types.ts';
+import type {Rect} from '../lib/types/core.ts';
+import type {Band} from '../lib/types/index.ts';
+import type {PrimRect, PrimText, Prim} from '../lib/types/wireframe-nodes.ts';
+import type {LaidOutScreens, LaidOutWireframe} from '../lib/types/wireframe.ts';
 
 after(() => closeMeasurer());
 

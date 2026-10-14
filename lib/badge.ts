@@ -10,7 +10,7 @@
 //  - the SVG is a <g role="img" aria-label data-badge>: one accessible unit, and the lint treats the
 //    group as the label's own container.
 import {PALETTE, wcagRatio} from './tokens.ts';
-import type {ColorKey} from './types.ts';
+import type {ColorKey} from './types/core.ts';
 
 export type BadgeShape = 'circle' | 'square' | 'triangle';
 export interface BadgeBox {x: number; y: number; w: number; h: number}

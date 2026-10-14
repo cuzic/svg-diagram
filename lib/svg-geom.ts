@@ -4,7 +4,8 @@
 import {textBox} from './font-metrics.ts';
 import {FONT_STACKS} from './tokens.ts';
 import {apply, elements, textOf, type El, type Matrix, type Style} from './svg-dom.ts';
-import type {FontFamily, FontSpecs} from './types.ts';
+import type {FontFamily} from './types/core.ts';
+import type {FontSpecs} from './types/project.ts';
 
 export interface Box {x: number; y: number; w: number; h: number}
 export type Point = [number, number];

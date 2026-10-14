@@ -3,7 +3,7 @@ import type {QuadrantBand, QuadrantItem, QuadrantOpts, QuadrantPreset} from '../
 import {chevronBand, concentricBand, cycleBand, funnelBand, vennBand} from '../flow-shapes.ts';
 import type {ChevronBand, ChevronOpts, ConcentricBand, ConcentricOpts, ConcentricRing, CycleBand, CycleOpts, FlowStep, FunnelBand, FunnelOpts, FunnelStage, VennBand, VennOpts, VennSet} from '../flow-shapes.ts';
 import {LABEL_ROLES} from '../tokens.ts';
-import type {PlaneBand, PlaneOpts, CurveBand, CurveOpts, PyramidBand, PyramidLayer, PyramidOpts} from '../types.ts';
+import type {PlaneBand, PlaneOpts, CurveBand, CurveOpts, PyramidBand, PyramidLayer, PyramidOpts} from '../types/figures.ts';
 import type {CurvePoints, Declares, HandleOf, PyramidLayers} from '../strict.ts';
 import {assertNoReveal, assertTextRole, withHandle} from './shared.ts';
 

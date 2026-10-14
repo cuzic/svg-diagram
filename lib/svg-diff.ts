@@ -1,7 +1,7 @@
 // What changed between two generated SVGs? (e.g. after upgrading the tool, or editing a part)
 // A short, human summary — "metadata only" is very different from "the text moved".
 
-import type {ChangeExplanation} from './types.ts';
+import type {ChangeExplanation} from './types/project.ts';
 
 const strip = (s: string): string => s.replace(/<metadata[\s\S]*?<\/metadata>/g, '');
 const metaOf = (s: string): string => (s.match(/<metadata[^>]*>([\s\S]*?)<\/metadata>/) ?? [])[1] ?? '';

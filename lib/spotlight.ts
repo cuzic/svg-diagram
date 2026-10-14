@@ -1,5 +1,6 @@
 import {childrenOf, nestedBandsOf} from './band-children.ts';
-import type {Band, DiagramData, LaidOutBand, LaidOutDiagram, Rect} from './types.ts';
+import type {DiagramData, Rect} from './types/core.ts';
+import type {Band, LaidOutBand, LaidOutDiagram} from './types/index.ts';
 
 export function spotlightIds(d: Pick<DiagramData, 'spotlight'>): string[] {
   if (!d.spotlight) return [];

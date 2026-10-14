@@ -18,8 +18,8 @@ import {layoutSankey, sankeyTexts} from './charts-sankey.ts';
 import type {SankeySpec} from './charts-sankey.ts';
 import {layoutCausal, layoutDependency, layoutPert, semnetTexts} from './semnet.ts';
 import type {CausalSpec, DependencySpec, PertSpec} from './semnet.ts';
-import type {FontFamily, Rect, Dimmed, Roles, WidthOf} from './types.ts';
-import type {RevealOpts} from './types.ts';
+import type {FontFamily, Rect, Dimmed, Roles, WidthOf} from './types/core.ts';
+import type {RevealOpts} from './types/core.ts';
 
 export type ChartSpec = {kind: 'waterfall'; spec: WaterfallSpec} | {kind: 'tornado'; spec: TornadoSpec} | {kind: 'heatmap'; spec: HeatmapSpec} | {kind: 'stacked'; spec: StackedSpec} | {kind: 'radar'; spec: RadarSpec} | {kind: 'treemap'; spec: TreemapSpec} | {kind: 'sankey'; spec: SankeySpec} | {kind: 'pert'; spec: PertSpec} | {kind: 'causal'; spec: CausalSpec} | {kind: 'dependency'; spec: DependencySpec};
 

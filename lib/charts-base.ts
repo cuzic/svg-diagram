@@ -6,7 +6,7 @@ import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapAtoms} from './wrap.ts';
 import {niceNear} from './qc.ts';
 import type {IconGlyph} from './icon-store.ts';
-import type {ColorKey, Rect, RevealOpts, Roles, WidthOf, LabelRole} from './types.ts';
+import type {ColorKey, Rect, RevealOpts, Roles, WidthOf, LabelRole} from './types/core.ts';
 
 export type ChartKind = 'waterfall' | 'radar' | 'heatmap' | 'stacked' | 'treemap' | 'sankey' | 'tornado' | 'pert' | 'causal' | 'dependency';
 export type ChartTone = 'accent' | 'danger' | 'muted' | 'text';

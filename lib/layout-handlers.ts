@@ -20,10 +20,13 @@ import {layoutClassesBand} from './classes.ts';
 import {layoutBpmn} from './bpmn.ts';
 import {layoutChart} from './charts.ts';
 import {layoutWireframe, layoutScreens} from './wireframe.ts';
-import type {
-  Band, BoxBand, CaptionBand, BannerBand, GroupBand, ImageBand, SwimlaneBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, PyramidBand,
-  CurveBand, RawBand, SpacerBand, LaidOutBand, LaidOutGroup, LaidOutLane, LaidOutLegendItem, LaidOutPhase, LaidOutPyramidLayer, LaidOutRow, LaidOutSwimlane, RowArrow, Rect,
-} from './types.ts';
+import type {GroupBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, RawBand, SpacerBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow, RowArrow} from './types/containers.ts';
+import type {Rect} from './types/core.ts';
+import type {PyramidBand, CurveBand, LaidOutPyramidLayer} from './types/figures.ts';
+import type {ImageBand} from './types/image.ts';
+import type {Band, LaidOutBand} from './types/index.ts';
+import type {SwimlaneBand, LaidOutLane, LaidOutPhase, LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
+import type {BoxBand, CaptionBand, BannerBand} from './types/text-bands.ts';
 import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
 import {PALETTE, SHADES, blendLuminance, bestTextColor, paintOf} from './tokens.ts';
 import {

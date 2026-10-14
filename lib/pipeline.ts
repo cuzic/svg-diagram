@@ -14,7 +14,9 @@ import {verifyDiagram} from './verify.ts';
 import {emitSvg} from './emit.ts';
 import {emitHtml} from './emit-html.ts';
 import {xmlProblems} from './xml-check.ts';
-import type {DiagramData, LaidOutDiagram, Verdict} from './types.ts';
+import type {DiagramData} from './types/core.ts';
+import type {LaidOutDiagram} from './types/index.ts';
+import type {Verdict} from './types/verdicts.ts';
 
 /** A pass over the band tree before layout (it may mutate and returns the tree to hand on). */
 export interface PreLayoutStage {name: string; run(d: DiagramData): DiagramData}

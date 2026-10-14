@@ -5,7 +5,8 @@ import {canvas, checkDiagram, closeMeasurer, connect, diagram, group, renderDiag
 import {canvasKeys, canvasTemplates, TEMPLATES} from '../lib/canvas.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import {geometryChecks} from '../lib/svg-lint.ts';
-import type {LaidOutBox, LaidOutGrid} from '../lib/types.ts';
+import type {LaidOutGrid} from '../lib/types/containers.ts';
+import type {LaidOutBox} from '../lib/types/text-bands.ts';
 
 test.after(() => closeMeasurer());
 

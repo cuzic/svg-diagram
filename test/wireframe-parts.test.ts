@@ -3,7 +3,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {wf, collectTextRequests, layoutWireframe} from '../lib/wireframe.ts';
 import {wireframe} from '../lib/dsl.ts';
-import type {LaidOutWireframe, PrimRect, PrimText, WfEvidence, WfInsightOpts, WfRoot, WfState, WireframeOpts} from '../lib/types.ts';
+import type {PrimRect, PrimText, WfEvidence, WfInsightOpts, WfState} from '../lib/types/wireframe-nodes.ts';
+import type {LaidOutWireframe, WfRoot, WireframeOpts} from '../lib/types/wireframe.ts';
 
 // a stand-in for the browser measurer: every character is 0.6em wide
 const widthOf = (atom: string, size: number) => [...atom].length * size * 0.6;

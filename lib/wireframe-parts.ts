@@ -15,10 +15,8 @@
 // is shown by shape, hatching or words as well as colour (WCAG 1.4.1).
 
 import {toneStyle} from './tokens.ts';
-import type {
-  ColorKey, GlyphOpts, WfAutoWTable, WfBattery, WfBreadcrumb, WfCallout, WfCheckbox, WfCompare, WfCtx, WfFusion, WfFusionLayerSpec, WfHelpers, WfInsight,
-  WfInsightOpts, WfNode, WfPartKey, WfPartsApi, WfRadio, WfRegion, WfRobot, WfSignal, WfSlider, WfState, WfToggle, WfTone, WfType,
-} from './types.ts';
+import type {ColorKey} from './types/core.ts';
+import type {GlyphOpts, WfAutoWTable, WfBattery, WfBreadcrumb, WfCallout, WfCheckbox, WfCompare, WfCtx, WfFusion, WfFusionLayerSpec, WfHelpers, WfInsight, WfInsightOpts, WfNode, WfPartKey, WfPartsApi, WfRadio, WfRegion, WfRobot, WfSignal, WfSlider, WfState, WfToggle, WfTone, WfType} from './types/wireframe-nodes.ts';
 
 interface StateInfo {title: string; tone: ColorKey}
 interface FusionLayer extends WfFusionLayerSpec {kind: 'camera' | 'cloud' | 'thermal'; bad: WfState | undefined; on: boolean}

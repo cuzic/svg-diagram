@@ -2,7 +2,8 @@ import {decimalsOf, exact, histogramBins, mean, niceUp, normalCount, paretoOrder
 import {scatterOpts} from '../qc-plane.ts';
 import type {ScatterOpts, ScatterPoint} from '../qc-plane.ts';
 import {LABEL_ROLES} from '../tokens.ts';
-import type {BarDatum, BarsBand, BarsLine, BarsOpts, PlaneBand} from '../types.ts';
+import type {BarDatum, BarsBand, BarsLine, BarsOpts} from '../types/bars.ts';
+import type {PlaneBand} from '../types/figures.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
 import {plane} from './figures.ts';
 import {assertTextRole, revealOf, withAnchors, withHandle} from './shared.ts';

@@ -8,7 +8,8 @@
 // verify.ts checks that every label stays inside the figure and that no two labels overlap.
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
-import type {Anchor, BoxTone, Dimmed, FontFamily, Rect, RevealOpts, Roles, TextTone, WidthOf} from './types.ts';
+import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, Roles, TextTone, WidthOf} from './types/core.ts';
+import type {BoxTone} from './types/text-bands.ts';
 
 export interface FlowStep {label: string; sub?: string; id?: string; tone?: BoxTone}
 export interface ChevronOpts extends RevealOpts {id?: string; direction?: 'horizontal' | 'vertical'; first?: 'pentagon' | 'chevron'; gap?: number; current?: number; highlight?: number; width?: number}

@@ -10,7 +10,8 @@ import {configureMeasure, currentMeasure, measureAll, closeMeasurer} from '../li
 import {resolveFontFile} from '../lib/font-metrics.ts';
 import {loadConfig} from '../lib/config.ts';
 import {loadDiagram} from '../lib/load-source.ts';
-import type {FontSpecs, MeasureRequest} from '../lib/types.ts';
+import type {MeasureRequest} from '../lib/types/core.ts';
+import type {FontSpecs} from '../lib/types/project.ts';
 
 const sansFile = resolveFontFile('sans');
 const monoFile = resolveFontFile('mono');

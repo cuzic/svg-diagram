@@ -1,6 +1,9 @@
 import {PALETTE, colorOf, runColorOf} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
-import type {LaidOutSequence, LaidOutTable, Theme, ColorKey, Prim, LaidOutWireframe, LaidOutScreens, Roles} from './types.ts';
+import type {Theme, ColorKey, Roles} from './types/core.ts';
+import type {LaidOutSequence, LaidOutTable} from './types/sequence-table-swimlane.ts';
+import type {Prim} from './types/wireframe-nodes.ts';
+import type {LaidOutWireframe, LaidOutScreens} from './types/wireframe.ts';
 import {TBL, lineH} from './seq-table.ts';
 import {iconSvg} from './icon-svg.ts';
 import {snap4, escapeXml, emojiSpan, resolveTextColor, resolveLineColor, strokeLine, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';

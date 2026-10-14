@@ -2,7 +2,8 @@
 //   {"accept": {"rule-id": "why this is fine, for every diagram"}, "maxWidth": 940, "legend": false, "legendLabels": {"tone:accent": "注意"}, "tones": {"accent": {"fill": "#e6d3bd"}}}
 import fs from 'node:fs';
 import path from 'node:path';
-import type {Config, DiagramData} from './types.ts';
+import type {DiagramData} from './types/core.ts';
+import type {Config} from './types/project.ts';
 import {DEFAULT_LEGEND_LABELS, RULE_DOCS} from './rules.ts';
 import {checkTones, mergeTones} from './tokens.ts';
 

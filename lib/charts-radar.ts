@@ -3,7 +3,7 @@
 import {niceNear} from './qc.ts';
 import {Canvas, overlaps, checkIds, checkText, fail, finiteNum, niceScale, numText} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
-import type {Rect} from './types.ts';
+import type {Rect} from './types/core.ts';
 
 export interface RadarSeries {label: string; values: number[]; id?: string}
 export interface RadarOpts extends ChartOpts {

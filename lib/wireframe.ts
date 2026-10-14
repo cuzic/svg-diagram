@@ -23,12 +23,9 @@ import {wrapAtoms} from './wrap.ts';
 import {badgeBox, BADGE_R} from './badge.ts';
 import type {BadgeBox} from './badge.ts';
 import {installParts} from './wireframe-parts.ts';
-import type {
-  Wf, WfNode, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark,
-  WfChipSpec, WfChildren, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfBtn, WfScreen, WfKvPair,
-  WfListItemSpec, WfTableCellSpec, WireframeBand, ScreensBand, StateMatrixCell, LaidOutWireframe, LaidOutScreens,
-  BadgeOpts, DrawShapeOpts, DrawTextOpts, ColorKey, Anchor, Rect, WfAutoWFn, Prim, TextRequest, WidthOf,
-} from './types.ts';
+import type {ColorKey, Anchor, Rect, TextRequest, WidthOf} from './types/core.ts';
+import type {Wf, WfNode, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark, WfChipSpec, WfChildren, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfBtn, WfKvPair, WfListItemSpec, WfTableCellSpec, BadgeOpts, DrawShapeOpts, DrawTextOpts, WfAutoWFn, Prim} from './types/wireframe-nodes.ts';
+import type {WfScreen, WireframeBand, ScreensBand, StateMatrixCell, LaidOutWireframe, LaidOutScreens} from './types/wireframe.ts';
 
 const S = 14, T = 15, LHF = 1.4, GAP = 12;
 const lh = (s: number): number => s * LHF;

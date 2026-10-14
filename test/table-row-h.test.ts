@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {checkDiagram, closeMeasurer, diagram, table} from '../lib/dsl.ts';
-import type {LaidOutTable} from '../lib/types.ts';
+import type {LaidOutTable} from '../lib/types/sequence-table-swimlane.ts';
 
 test.after(() => closeMeasurer());
 

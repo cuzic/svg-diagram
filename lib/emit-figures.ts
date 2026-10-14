@@ -1,5 +1,10 @@
 import {PALETTE, colorOf, textColorOf, toneStyle, isSolidTone} from './tokens.ts';
-import type {LaidOutPlane, LaidOutBars, LaidOutImage, LaidOutTimeline, LaidOutTree, LaidOutStates, LaidOutCause, LaidOutCloud, LaidOutGantt, LaidOutClasses, LaidOutBpmn, PlaneTone, Theme, ColorKey} from './types.ts';
+import type {LaidOutBars} from './types/bars.ts';
+import type {Theme, ColorKey} from './types/core.ts';
+import type {LaidOutTree, LaidOutStates, LaidOutCause, LaidOutCloud, LaidOutClasses, LaidOutBpmn} from './types/diagrams.ts';
+import type {LaidOutPlane, PlaneTone} from './types/figures.ts';
+import type {LaidOutImage} from './types/image.ts';
+import type {LaidOutTimeline, LaidOutGantt} from './types/timeline.ts';
 import {iconSvg} from './icon-svg.ts';
 import {visibleAt} from './reveal.ts';
 import {MARK_STROKE, plateStyle} from './image.ts';

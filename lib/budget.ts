@@ -11,7 +11,9 @@
 // Thresholds sit just above the current maximum of the existing, accepted
 // diagrams, so this is a guard against NEW outliers, not a critique of old ones.
 // (A percentile cut would flag a fixed share of diagrams whatever their quality.)
-import type {BudgetLimits, BudgetMeasure, LaidOutBox, LaidOutDiagram} from './types.ts';
+import type {LaidOutDiagram} from './types/index.ts';
+import type {LaidOutBox} from './types/text-bands.ts';
+import type {BudgetLimits, BudgetMeasure} from './types/verdicts.ts';
 
 export const BUDGET: BudgetLimits = {
   boxBody: 100,  // display-width units in one box, title excluded

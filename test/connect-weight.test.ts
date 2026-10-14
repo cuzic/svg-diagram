@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {box, checkDiagram, closeMeasurer, connect, diagram, legend, renderDiagram, row} from '../lib/dsl.ts';
 import {applyAutoLegend, edgeStats, legendKeys, lintDiagram, usedNotation} from '../lib/rules.ts';
 import type {ConnectInput} from '../lib/strict.ts';
-import type {Diagram} from '../lib/types.ts';
-import type {LaidOutConnect, LegendBand, Point} from '../lib/types.ts';
+import type {Diagram} from '../lib/types/core.ts';
+import type {LaidOutConnect, LegendBand} from '../lib/types/containers.ts';
+import type {Point} from '../lib/types/core.ts';
 
 test.after(() => closeMeasurer());
 

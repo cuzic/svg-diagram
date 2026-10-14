@@ -3,7 +3,7 @@
 import {treeItems} from './tree.ts';
 import {quadrantIds} from './quadrant.ts';
 import {flowShapeIds} from './flow-shapes.ts';
-import type {Band} from './types.ts';
+import type {Band} from './types/index.ts';
 
 export function nodeIdsOf(b: Band): string[] {
   switch (b.type) {

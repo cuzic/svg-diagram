@@ -4,7 +4,8 @@ import {layoutWith} from './layout.ts';
 import {collectMeasures, widthOfMeasured} from './layout-measure.ts';
 import {measureAll} from './measure.ts';
 import {ROLES} from './tokens.ts';
-import type {DiagramData, LaidOutDiagram, Roles} from './types.ts';
+import type {DiagramData, Roles} from './types/core.ts';
+import type {LaidOutDiagram} from './types/index.ts';
 
 // Tests and the golden check run with SVG_DIAGRAM_STRICT_WIDTH=1 (test/helpers/strict-width.ts): an atom that was never
 // registered for measuring is then an error instead of a silent width of 0.

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {measureAll, configureMeasure, closeMeasurer, splitAtoms} from '../lib/measure.ts';
 import {chromiumUsesOurFont} from './helpers/chromium-font.ts';
 import {measureWithFonts, resolveFontFile} from '../lib/font-metrics.ts';
-import type {FontFamily, MeasureRequest} from '../lib/types.ts';
+import type {FontFamily, MeasureRequest} from '../lib/types/core.ts';
 
 test.after(() => closeMeasurer());
 

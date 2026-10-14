@@ -2,7 +2,7 @@
 // A table is satisfied against `{[T in LaidOutType]: Handler<LaidOutOf<T>>}`: each key is checked against its own band type,
 // and a missing key is a compile error.
 
-import type {LaidOutBand} from './types.ts';
+import type {LaidOutBand} from './types/index.ts';
 
 export type LaidOutType = LaidOutBand['type'];
 export type LaidOutOf<T extends LaidOutType> = Extract<LaidOutBand, {type: T}>;

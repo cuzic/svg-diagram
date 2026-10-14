@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {diagram, plane, checkDiagram, closeMeasurer} from '../lib/dsl.ts';
 import {emitSvg} from '../lib/emit.ts';
-import type {LaidOutPlane, PlaneOpts} from '../lib/types.ts';
+import type {LaidOutPlane, PlaneOpts} from '../lib/types/figures.ts';
 
 const base: PlaneOpts = {x: {max: 30, step: 10}, y: {max: 10, step: 5}, height: 300};
 async function laid(opts: PlaneOpts) {

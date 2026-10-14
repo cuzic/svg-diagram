@@ -1,7 +1,8 @@
 import {nodeIdsOf} from './band-ids.ts';
 import {checked, earlier, revealHandlerFor} from './reveal-handlers.ts';
 import type {Revealed, RevealCtx} from './reveal-handlers.ts';
-import type {Band, DiagramData} from './types.ts';
+import type {DiagramData} from './types/core.ts';
+import type {Band} from './types/index.ts';
 
 const refId = (ref: string): string => ref.split(':')[0];
 

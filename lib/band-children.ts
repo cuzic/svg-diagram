@@ -3,7 +3,7 @@
 // entry fails to compile (ChildBandsOf below), and test/band-registries.test.ts checks the tables at run time.
 
 import {IMAGE_PAD, imageSize} from './image.ts';
-import type {Band} from './types.ts';
+import type {Band} from './types/index.ts';
 
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
 /** One entry per band type: the bands it holds as its `children` (group, row, grouprow, grid, and an image's `over` parts). */

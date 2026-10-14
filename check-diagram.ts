@@ -27,7 +27,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import type {DiagramSource} from './lib/types.ts';
+import type {DiagramSource} from './lib/types/core.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import {register} from 'node:module';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
