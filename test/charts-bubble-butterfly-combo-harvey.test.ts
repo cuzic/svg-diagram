@@ -133,6 +133,28 @@ test('harvey(): values other than 0-4 and ragged tables are refused with a reaso
   assert.throws(() => harvey(['a'], ['x'], [[1]], {highlight: ['z']}), /not a column name/);
 });
 
+// ---- review fixes (PR #142) -----------------------------------------------------------------------------------------------------
+
+test('combo(): only lines draws on the left axis; a fixed axis that cuts the data, or a duplicate category, is refused', async () => {
+  const {chart, problems} = await chartOf(combo(['a', 'b'], [{label: 'x', type: 'line', values: [1, 2]}]));
+  assert.deepEqual(problems, []);
+  assert.ok(chart.items.every(i => i.k !== 'path' || !/NaN|Infinity/.test(i.d)), 'no NaN geometry');
+  assert.throws(() => combo(['a', 'b'], [{label: 'x', type: 'line', axis: 'right', values: [1, 2]}]), /on the left axis/);
+  const bar = [{label: 'x', type: 'bar' as const, values: [100, 200]}];
+  assert.throws(() => combo(['a', 'b'], bar, {y: {max: 50}}), /y\.max 50 is below the data/);
+  assert.throws(() => combo(['a', 'b'], bar, {y: {min: 80}}), /where bars start/);
+  assert.throws(() => combo(['a', 'b'], [...bar, {label: 'r', type: 'line' as const, values: [1, 9]}], {y2: {max: 5}}), /y2\.max 5/);
+  assert.throws(() => combo(['a', 'a'], bar), /own name/);
+});
+
+test('bubble(): a reference line far from the points still has its tick labels measured; harvey wraps a long corner text', async () => {
+  const b = await chartOf(bubble([{label: 'A', x: 1, y: 1, size: 5}, {label: 'B', x: 3, y: 2, size: 9}], {x: {line: 100}, y: {line: 40, lineLabel: '基準'}}).valueOf()).catch((e: Error) => e);
+  if (b instanceof Error) assert.match(b.message, /^bubble\(\): /); else assert.deepEqual(b.problems, []);
+  const cols = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliet'];
+  const h = await chartOf(harvey(['a'], cols, [cols.map(() => 2)], {corner: '評価基準と評価対象のとても長い見出しの文字列ですね'}));
+  assert.deepEqual(h.problems, []);
+});
+
 // ---- the whole ------------------------------------------------------------------------------------------------------------------
 
 test('the four charts render in the dark appearance and on a canvas, with a description; spotlight and connect reach their ids', async () => {

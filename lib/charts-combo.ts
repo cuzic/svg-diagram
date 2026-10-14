@@ -32,6 +32,7 @@ export function resolveCombo(categories: readonly string[], series: readonly Com
   if (categories.length > 24) fail('combo', `${categories.length} categories are too many for one figure (at most 24)`);
   categories.forEach((k, i) => checkText('combo', `category ${i + 1}`, k));
   if (!Array.isArray(series) || series.length === 0) fail('combo', 'needs at least one series');
+  if (new Set(categories).size !== categories.length) fail('combo', 'each category needs its own name');
   const bars = series.filter(s => s.type === 'bar'), lines = series.filter(s => s.type === 'line');
   if (bars.length + lines.length !== series.length) fail('combo', `each series' type must be 'bar' or 'line'`);
   if (bars.length > 3) fail('combo', `${bars.length} bar series are too many to tell apart (at most 3)`);
@@ -49,12 +50,21 @@ export function resolveCombo(categories: readonly string[], series: readonly Com
     const values = s.values.map((v, i) => v === null ? null : finiteNum('combo', `"${s.label}" value ${i + 1}`, v));
     if (values.every(v => v === null)) fail('combo', `"${s.label}" has no value`);
     const tone = s.tone ?? (s.type === 'bar' ? BAR_TONES[b++] : LINE_TONES[l++]);
-    return {label: s.label, type: s.type, axis: s.type === 'bar' ? 'left' as const : s.axis ?? 'right' as const, values, tone, ...(s.id === undefined ? {} : {id: s.id})};
+    return {label: s.label, type: s.type, axis: s.type === 'bar' ? 'left' as const : s.axis ?? (bars.length ? 'right' as const : 'left' as const), values, tone, ...(s.id === undefined ? {} : {id: s.id})};
   });
   for (const a of ['y', 'y2'] as const) {
     const ax = opts[a] ?? {};
     for (const f of ['min', 'max'] as const) if (ax[f] !== undefined) finiteNum('combo', `${a}.${f}`, ax[f]);
     if (ax.min !== undefined && ax.max !== undefined && !(ax.max > ax.min)) fail('combo', `${a}.max must be larger than ${a}.min`);
+  }
+  if (!out.some(s => s.axis === 'left')) fail('combo', 'needs a bar or a line on the left axis (the left axis is the one the figure is read from)');
+  // a fixed axis must hold its data: bars stand on 0, so a left axis that starts above 0 would cut them
+  for (const a of ['left', 'right'] as const) {
+    const ax = (a === 'left' ? opts.y : opts.y2) ?? {}, mine = out.filter(s => s.axis === a), v = mine.flatMap(s => s.values.flatMap(x => x === null ? [] : [x]));
+    const top = opts.stack && a === 'left' ? categories.map((_k, i) => mine.reduce((acc, s) => acc + (s.type === 'bar' ? s.values[i] ?? 0 : 0), 0)) : [];
+    const hasBar = a === 'left' && mine.some(s => s.type === 'bar'), name = a === 'left' ? 'y' : 'y2';
+    if (ax.max !== undefined && Math.max(...v, ...top, ...(hasBar ? [0] : [])) > ax.max) fail('combo', `${name}.max ${ax.max} is below the data (${Math.max(...v, ...top)}): raise it, or leave it out`);
+    if (ax.min !== undefined && Math.min(...v, ...(hasBar ? [0] : [])) < ax.min) fail('combo', `${name}.min ${ax.min} is above ${hasBar && ax.min > 0 ? 'zero, where bars start' : `the data (${Math.min(...v)})`}: lower it, or leave it out`);
   }
   if (opts.stack && bars.length < 2) fail('combo', 'stack needs at least two bar series');
   if (opts.stack) for (const s of out) if (s.type === 'bar' && s.values.some(v => v !== null && v < 0)) fail('combo', `"${s.label}": stacked bars cannot be negative`);

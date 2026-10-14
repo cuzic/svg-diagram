@@ -45,12 +45,17 @@ export function bubbleAlt(s: BubbleSpec): string {
   const u = (a: BubbleAxis) => a.unit ?? '';
   return `バブルチャート（横軸: ${s.x.title ?? ''}、縦軸: ${s.y.title ?? ''}、円の面積: ${s.sizeTitle}）: ${s.points.map(p => `${p.label}（${numText(p.x)}${u(s.x)}、${numText(p.y)}${u(s.y)}、${numText(p.size)}${s.sizeUnit}）`).join('、')}`;
 }
+/** The range an axis covers before it is rounded: the points and the reference line, unless the caller fixed an end. */
+function axisRange(s: BubbleSpec, k: 'x' | 'y'): {lo: number; hi: number} {
+  const a = s[k], vals = s.points.map(p => p[k]), ref = a.line === undefined ? [] : [a.line];
+  return {lo: a.min ?? Math.min(...vals, ...ref), hi: a.max ?? Math.max(...vals, ...ref)};
+}
 export function bubbleTexts(s: BubbleSpec): [string, number][] {
   const out: [string, number][] = [];
   for (const p of s.points) out.push([p.label, 400], [p.label, 700]);
   for (const k of ['x', 'y'] as const) {
     const a = s[k], vals = s.points.map(p => p[k]);
-    const sc = niceScale(a.min ?? Math.min(...vals), a.max ?? Math.max(...vals));
+    const r = axisRange(s, k), sc = niceScale(r.lo, r.hi);
     // an axis that is not fixed may be widened by up to MAX_WIDEN ticks on each side (the bubbles at its edge need room)
     for (let i = -MAX_WIDEN; i <= Math.round((sc.max - sc.min) / sc.step) + MAX_WIDEN; i++) { const v = parseFloat((sc.min + i * sc.step).toPrecision(12)); out.push([numText(v), 400], [`${numText(v)}${a.unit ?? ''}`, 400]); }
     if (a.title) out.push([a.title, 700]);
@@ -76,11 +81,7 @@ export function roundBelow(v: number): number {
 
 export function layoutBubble(s: BubbleSpec, g: ChartGeom): LaidOutChartPart {
   const S = g.size, c = new Canvas(g.x, g.y, g.w, g.height ?? 440, S, g.widthOf), r1 = (v: number) => Math.round(v * 10) / 10;
-  const span = (k: 'x' | 'y') => {
-    const a = s[k], vals = s.points.map(p => p[k]), ref = a.line === undefined ? [] : [a.line];
-    return {lo: a.min ?? Math.min(...vals, ...ref), hi: a.max ?? Math.max(...vals, ...ref)};
-  };
-  const xs = span('x'), ys = span('y');
+  const xs = axisRange(s, 'x'), ys = axisRange(s, 'y');
   let sx = niceScale(xs.lo, xs.hi), sy = niceScale(ys.lo, ys.hi);
 
   const tickText = (k: 'x' | 'y', v: number) => `${numText(v)}${s[k].unit ?? ''}`;

@@ -71,7 +71,8 @@ export function layoutHarvey(s: HarveySpec, g: ChartGeom): LaidOutChartPart {
   if (colW < 2 * R + 12) fail('harvey', `${s.cols.length} columns do not fit in ${Math.round(g.w)}px (raise width, or use fewer columns)`);
   const heads = s.cols.map(k => c.wrap(k, colW - 8, s.highlight.includes(k))), rowsW = s.rows.map(r => c.wrap(r, rowW - 16));
   for (const [i, ls] of heads.entries()) for (const l of ls) if (c.tw(l, s.highlight.includes(s.cols[i])) > colW - 4) fail('harvey', `the column name "${s.cols[i]}" is too long for ${Math.round(colW)}px (shorten it, or raise width)`);
-  const headH = Math.max(...heads.map(l => l.length)) * lh + 12;
+  const corner = s.corner ? c.wrap(s.corner, rowW - 8) : [];
+  const headH = Math.max(corner.length, ...heads.map(l => l.length)) * lh + 12;
   const rowH = rowsW.map(l => Math.max(cellH, l.length * lh + 10));
   const bodyT = g.y + headH, bodyB = bodyT + rowH.reduce((a, b) => a + b, 0), legendH = 2 * R + 18;
   c.h = g.height ?? headH + (bodyB - bodyT) + legendH + 8;
@@ -79,7 +80,7 @@ export function layoutHarvey(s: HarveySpec, g: ChartGeom): LaidOutChartPart {
   const left = g.x + rowW;
   // highlighted columns are boxed under everything else
   s.cols.forEach((k, j) => { if (s.highlight.includes(k)) c.rect(r1(left + j * colW + 2), g.y, r1(colW - 4), r1(bodyB - g.y), {fill: 'accent', op: 0.08, stroke: 'accent', sw: 2}); });
-  if (s.corner) c.text(s.corner, g.x + 4, g.y + headH - 8, 'start', 'muted');
+  if (corner.length) c.lines(corner, g.x + 4, g.y + headH - 8 - (corner.length - 1) * lh, 'start', 'muted');
   s.cols.forEach((k, j) => c.lines(heads[j], left + (j + 0.5) * colW, g.y + headH - 8 - (heads[j].length - 1) * lh, 'middle', 'text', {bold: s.highlight.includes(k)}));
   c.line(g.x, bodyT, g.x + g.w, bodyT, {stroke: 'text'});
   let y = bodyT;
@@ -96,7 +97,7 @@ export function layoutHarvey(s: HarveySpec, g: ChartGeom): LaidOutChartPart {
     y += rowH[i];
     c.line(g.x, y, g.x + g.w, y, {stroke: i === s.rows.length - 1 ? 'text' : 'border'});
   });
-  // legend: the five balls with their names, in a row (wrapping when the width is short)
+  // legend: the five balls with their names, in a row (it fails when the width is short)
   const lr = Math.round(R * 0.62), item = (t: string) => 2 * lr + 6 + c.tw(t), gap = 20;
   let lx = g.x + 4, ly = bodyB + 8 + lr + 4;
   const total = s.levels.reduce((a, t) => a + item(t) + gap, -gap);
