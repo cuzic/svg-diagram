@@ -165,6 +165,7 @@ export const REVEAL_HANDLERS = {
   chart: plain,
   people: plain,
   dots: plain,
+  math: plain,
   wireframe: plain,
   screens: plain,
   swimlane: setEach('swimlane() step', (b: BandOf<'swimlane'>) => b.steps),

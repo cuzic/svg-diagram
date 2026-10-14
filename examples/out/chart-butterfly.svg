@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="292" viewBox="0 0 940 292" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">顧客満足度: 自社と競合</title>
+  <desc id="svg-desc">バタフライチャート（左: 自社、右: 競合 A 社）: 品質 82点 対 74点、価格 58点 対 88点、納期 91点 対 65点、サポート体制 76点 対 79点、ブランド 44点 対 90点</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-butterfly.ts","sourceSha256":"09bea6bd954e74ac68d8c352c8c33cd2fb76fb525049322acfbbd4e685cf3f53"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="292" fill="#ffffff"/>
+
+  <path d="M216,24 H230 V38 H216 Z" fill="#22201b"/>
+  <text x="236" y="36" font-size="14" font-weight="700" fill="#22201b">自社</text>
+  <path d="M660.2,24 H674.2 V38 H660.2 Z" fill="#1d5fa8"/>
+  <text x="680" y="36" font-size="14" font-weight="700" fill="#22201b">競合 A 社</text>
+  <path d="M416,52 L416,232" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M524,52 L524,232" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="470" y="75" text-anchor="middle" font-size="14" fill="#22201b">品質</text>
+  <path d="M98.9,58 H416 V82 H98.9 Z" fill="#22201b"/>
+  <text x="93" y="75" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">82点</text>
+  <path d="M524,58 H810.2 V82 H524 Z" fill="#1d5fa8"/>
+  <text x="816" y="75" font-size="14" font-weight="700" fill="#1d5fa8">74点</text>
+  <text x="470" y="111" text-anchor="middle" font-size="14" fill="#22201b">価格</text>
+  <path d="M191.7,94 H416 V118 H191.7 Z" fill="#22201b"/>
+  <text x="186" y="111" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">58点</text>
+  <path d="M524,94 H864.3 V118 H524 Z" fill="#1d5fa8"/>
+  <text x="870" y="111" font-size="14" font-weight="700" fill="#1d5fa8">88点</text>
+  <text x="470" y="147" text-anchor="middle" font-size="14" fill="#22201b">納期</text>
+  <path d="M64.1,130 H416 V154 H64.1 Z" fill="#22201b"/>
+  <text x="58" y="147" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">91点</text>
+  <path d="M524,130 H775.4 V154 H524 Z" fill="#1d5fa8"/>
+  <text x="781" y="147" font-size="14" font-weight="700" fill="#1d5fa8">65点</text>
+  <text x="470" y="183" text-anchor="middle" font-size="14" fill="#22201b">サポート体制</text>
+  <path d="M122.1,166 H416 V190 H122.1 Z" fill="#22201b"/>
+  <text x="116" y="183" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">76点</text>
+  <path d="M524,166 H829.5 V190 H524 Z" fill="#1d5fa8"/>
+  <text x="836" y="183" font-size="14" font-weight="700" fill="#1d5fa8">79点</text>
+  <text x="470" y="219" text-anchor="middle" font-size="14" fill="#22201b">ブランド</text>
+  <path d="M245.8,202 H416 V226 H245.8 Z" fill="#22201b"/>
+  <text x="240" y="219" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">44点</text>
+  <path d="M524,202 H872.1 V226 H524 Z" fill="#1d5fa8"/>
+  <text x="878" y="219" font-size="14" font-weight="700" fill="#1d5fa8">90点</text>
+
+  <text x="20" y="266" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

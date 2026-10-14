@@ -14,6 +14,24 @@ import {resolveTreemap, treemapAlt} from './charts-treemap.ts';
 import type {TreemapNode, TreemapOpts} from './charts-treemap.ts';
 import {resolveSankey, sankeyAlt} from './charts-sankey.ts';
 import type {SankeyLink, SankeyNode, SankeyOpts} from './charts-sankey.ts';
+import {catAlt, resolveCat} from './charts-cat.ts';
+import type {CatGroup, CatKind, CatOpts} from './charts-cat.ts';
+import {distAlt, resolveDist} from './charts-dist.ts';
+import type {DistGroup, DistKind, DistOpts} from './charts-dist.ts';
+import {multiAlt, resolveMulti} from './charts-multi.ts';
+import type {MultiMode, MultiOpts, XY} from './charts-multi.ts';
+import {regAlt, resolveReg} from './charts-reg.ts';
+import type {RegData, RegOpts} from './charts-reg.ts';
+import {clusterAlt, resolveCluster} from './charts-cluster.ts';
+import type {ClusterOpts} from './charts-cluster.ts';
+import {bubbleAlt, resolveBubble} from './charts-bubble.ts';
+import type {BubbleOpts, BubblePoint} from './charts-bubble.ts';
+import {butterflyAlt, resolveButterfly} from './charts-butterfly.ts';
+import type {ButterflyOpts, ButterflyRow} from './charts-butterfly.ts';
+import {comboAlt, resolveCombo} from './charts-combo.ts';
+import type {ComboOpts, ComboSeries} from './charts-combo.ts';
+import {harveyAlt, resolveHarvey} from './charts-harvey.ts';
+import type {HarveyOpts, HarveyRow} from './charts-harvey.ts';
 import {fail} from './charts-base.ts';
 import {resolveIcon} from './icon-registry.ts';
 import type {ChartBand} from './charts.ts';
@@ -66,4 +84,49 @@ export function sankeyBand(nodes: readonly (SankeyNode | string)[], links: reado
   const placed = nodes.map(n => typeof n === 'string' || n.icon === undefined ? n : {...n, iconGlyph: resolveIcon(n.icon, 'sankey() node "' + n.id + '" icon')});
   const spec = resolveSankey(placed, links, opts);
   return {type: 'chart', kind: 'sankey', spec, alt: opts.alt ?? sankeyAlt(spec), ids: spec.nodes.map(n => n.id), ...common('sankey', opts)};
+}
+
+export function catBand(who: string, data: readonly CatGroup[] | Readonly<Record<string, readonly number[]>>, opts: CatOpts, kind?: CatKind): ChartBand {
+  const spec = resolveCat(who, data, opts, kind);
+  return {type: 'chart', kind: 'catplot', spec, alt: opts.alt ?? catAlt(spec), ids: spec.groups.flatMap(g => g.id ? [g.id] : []), ...common(who, opts)};
+}
+
+export function distBand(who: string, data: readonly number[] | readonly DistGroup[] | Readonly<Record<string, readonly number[]>>, opts: DistOpts, kind: DistKind): ChartBand {
+  const spec = resolveDist(who, data, opts, kind);
+  return {type: 'chart', kind: 'distplot', spec, alt: opts.alt ?? distAlt(spec), ids: spec.groups.flatMap(g => g.id ? [g.id] : []), ...common(who, opts)};
+}
+
+export function multiBand(who: string, mode: MultiMode, data: XY | Readonly<Record<string, readonly number[]>>, opts: MultiOpts): ChartBand {
+  const spec = resolveMulti(who, mode, data, opts);
+  return {type: 'chart', kind: 'multiplot', spec, alt: opts.alt ?? multiAlt(spec), ids: [], ...common(who, opts)};
+}
+
+export function regBand(who: string, resid: boolean, data: RegData, opts: RegOpts): ChartBand {
+  const spec = resolveReg(who, resid, data, opts);
+  return {type: 'chart', kind: 'regplot', spec, alt: opts.alt ?? regAlt(spec), ids: [], ...common(who, opts)};
+}
+
+export function clusterBand(rows: readonly string[], cols: readonly string[], values: readonly (readonly number[])[], opts: ClusterOpts): ChartBand {
+  const spec = resolveCluster(rows, cols, values, opts);
+  return {type: 'chart', kind: 'clustermap', spec, alt: opts.alt ?? clusterAlt(spec), ids: [], ...common('clustermap', opts)};
+}
+
+export function bubbleBand(points: readonly BubblePoint[], opts: BubbleOpts): ChartBand {
+  const spec = resolveBubble(points, opts);
+  return {type: 'chart', kind: 'bubble', spec, alt: opts.alt ?? bubbleAlt(spec), ids: points.flatMap(p => p.id ? [p.id] : []), ...common('bubble', opts)};
+}
+
+export function butterflyBand(rows: readonly ButterflyRow[], opts: ButterflyOpts): ChartBand {
+  const spec = resolveButterfly(rows, opts);
+  return {type: 'chart', kind: 'butterfly', spec, alt: opts.alt ?? butterflyAlt(spec), ids: spec.rows.flatMap(r => r.id ? [r.id] : []), ...common('butterfly', opts)};
+}
+
+export function comboBand(categories: readonly string[], series: readonly ComboSeries[], opts: ComboOpts): ChartBand {
+  const spec = resolveCombo(categories, series, opts);
+  return {type: 'chart', kind: 'combo', spec, alt: opts.alt ?? comboAlt(spec), ids: series.flatMap(s => s.id ? [s.id] : []), ...common('combo', opts)};
+}
+
+export function harveyBand(rows: readonly HarveyRow[], cols: readonly string[], values: readonly (readonly (number | null)[])[], opts: HarveyOpts): ChartBand {
+  const spec = resolveHarvey(rows, cols, values, opts);
+  return {type: 'chart', kind: 'harvey', spec, alt: opts.alt ?? harveyAlt(spec), ids: spec.rowIds.flatMap(i => i ? [i] : []), ...common('harvey', opts)};
 }

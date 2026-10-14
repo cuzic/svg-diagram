@@ -53,12 +53,13 @@ test('the entry points are in dist/ and are what the build produces from lib/', 
   assert.equal(pkg.types, pkg.exports['.'].types);
 });
 
-test('every package the shipped code imports is a dependency; playwright-chromium only on demand', () => {
+test('every package the shipped code imports is a dependency; playwright-chromium and mathjax-full only on demand', () => {
   const declared = new Set(Object.keys(pkg.dependencies));
   const optional = new Set(Object.keys(pkg.peerDependenciesMeta ?? {}).filter(k => pkg.peerDependenciesMeta[k].optional));
-  assert.deepEqual([...optional], ['playwright-chromium']);
-  assert.ok(pkg.peerDependencies['playwright-chromium']);
+  assert.deepEqual([...optional].sort(), ['mathjax-full', 'playwright-chromium']);
+  assert.ok(pkg.peerDependencies['playwright-chromium'] && pkg.peerDependencies['mathjax-full']);
   assert.equal(pkg.dependencies['playwright-chromium'], undefined);
+  assert.equal(pkg.dependencies['mathjax-full'], undefined); // loaded by lib/math-tex.ts with createRequire, on the first math()
   const seen = new Set<string>();
   for (const f of shipped) {
     const src = read(f);

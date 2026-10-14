@@ -19,6 +19,7 @@ export * from './dsl/connect.ts';
 export * from './dsl/figures.ts';
 export * from './dsl/people-dots.ts';
 export * from './dsl/charts.ts';
+export * from './dsl/charts-stats.ts';
 export * from './dsl/bars.ts';
 export * from './dsl/qc-semantic.ts';
 export * from './dsl/diagrams.ts';
@@ -54,6 +55,10 @@ export type {PertTask, PertAnalysis, PertResult, CausalLink, CausalLoop, CausalP
 export {analyzeCriticalPath, analyzeCausalLoops} from './semnet-analysis.ts';
 export type {PertOpts, CausalNode, CausalOpts, DependencyNode, DependencyEdge, DependencyEdgeType, DependencyOpts, SemnetDirection} from './semnet.ts';
 export type {TornadoItem, TornadoOpts} from './charts-tornado.ts';
+export type {BubbleAxis, BubbleOpts, BubblePoint} from './charts-bubble.ts';
+export type {ButterflyOpts, ButterflyRow} from './charts-butterfly.ts';
+export type {ComboAxis, ComboOpts, ComboSeries} from './charts-combo.ts';
+export type {HarveyOpts, HarveyRow} from './charts-harvey.ts';
 export type {HeatmapOpts} from './charts-heatmap.ts';
 export type {RadarOpts, RadarSeries} from './charts-radar.ts';
 export type {BurndownSpec, BurnupSpec, LineSeries, LinesAnnotation, LinesAxis, LinesOpts, StrategyCanvasOpts} from './charts-lines.ts';

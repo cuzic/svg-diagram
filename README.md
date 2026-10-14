@@ -64,6 +64,9 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram build <source.ts> --html                 # <name>.html も書く（文字・箱・表・線・矢印・曲線を HTML/CSS で。docs/adr/0006）
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
+    svg-diagram check --changed[=REF] <source.ts>...   # 変わった図だけ検査
+    svg-diagram check --rules | --explain RULE   # ルールの一覧 / 1 つの意味と許容の書き方
+    svg-diagram check [--baseline FILE | --write-baseline FILE] [--format text|json|github|sarif] <source.ts>...   # 既存の警告を凍結して、新しい警告だけ見る / SARIF 出力
     svg-diagram check --covers 表.md|表.csv [--svg-dir DIR] <ソース.ts|図.svg>...   # 表を図に置き換えたとき、表のセルの語・数値が図に残っているか
     svg-diagram check --docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]   # 文書（Markdown）と図が食い違っていないか（--map: 図・ソース・SVG・文書の対応表を Markdown で出す）
     svg-diagram md <page.md> [--out FILE] [--svg-dir DIR] [--inline | --html]   # Markdown の ![alt](flow.diagram.ts) を図に展開（SVG を書いて画像に差し替える。--inline は <svg>、--html は HTML/CSS を埋め込む）
@@ -128,8 +131,13 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | treemap(tree, {unit, percent, strict}) | ツリーマップ（squarified）。面積 ∝ 値（グループの枠と見出しの分も補正し、グループの中でも外でも同じ比）。名前と値が入らない小さなセルは描かず `<desc>` に残る（`strict: true` はエラー） |
 | sankey(nodes, links, {unit, align}) | サンキー図。層に分け、ノードの高さとリボンの太さは値に比例（目盛りは図全体で一つ）、ノードの名前に値、重ならない。リンクのないノードはエラー |
 | tornado(items, {base, unit}) | トルネード図（感度分析）。基準値から低ケース・高ケースの棒、幅の大きい順 |
+| bubble(points, {x, y, sizeTitle, sizeUnit}) | バブルチャート。x・y が数値軸、円の**面積**が 3 つ目の指標（凡例の円つき）。`x.line` / `y.line` で境目の破線。名前は円の中か横、軸は円がはみ出さないよう自動で広がる |
+| butterfly(rows, {leftLabel, rightLabel, unit}) | バタフライチャート。中央の項目名をはさんで、左右の群の棒を同じ目盛りで比べる。`sort: 'left'｜'right'` |
+| combo(categories, series, {y, y2}) | コンボチャート（棒 + 折れ線）。棒は左軸、折れ線は右軸（`axis: 'left'` で左）。値は単位つきで全部書き、入らないものは `<desc>` に残る |
+| harvey(rows, cols, values, {levels, highlight}) | ハーベイボールの評価表。値は 0〜4（四分円の数）、`null` は未評価。形（扇）で段階を示し、凡例つき |
 | pyramid / curve | ピラミッド、曲線 |
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
+| math(tex, {role, inline, align, tone, alt}) | TeX の数式（MathJax で輪郭にして SVG へ。Web フォント・foreignObject 不要）。下の「数式」 |
 | quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
 | chevron / funnel / cycle / venn / concentric | 流れ・絞り込み・循環・集合・階層を表す flowShapes。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 |
 | wordart(text, {style, writing, size, tone, gradient, outline, shadow, glow, bevel, extrude, reflection, arc, rotate, flip, font, plate, limit}) | 太字・縁取り・影・光彩・立体・反射・グラデーション・弧・回転の飾り文字と**縦書き**を band 1 つで。下の「ワードアート・縦書き」 |
@@ -531,7 +539,7 @@ bpmn(
 - 節の副題（`sub`）や «ステレオタイプ» の薄い文字は、`accent` / `new` の塗りの上でも 4.5:1 を保つよう、その塗りの上だけ通常の文字色になる。
 - ラベルの白いチップは、自分の矢印以外の矢印や、状態・クラス・ノードに乗らないよう置き場所を探す。見つからないときは `check` / `build` が、どれとどれが重なるかを書いて止まる。
 
-### コンサル系のチャート（`waterfall` / `radar` / `heatmap` / `lines` / `stackedBars` / `mekko` / `treemap` / `sankey` / `tornado`）
+### コンサル系のチャート（`waterfall` / `radar` / `heatmap` / `lines` / `stackedBars` / `mekko` / `treemap` / `sankey` / `tornado` / `bubble` / `butterfly` / `combo` / `harvey`）
 
 データを渡すと、軸・目盛り・配置・ラベルの避け方を計算して描く。座標は書かない。どれも次を満たす。
 
@@ -554,6 +562,17 @@ bpmn(
 | ツリーマップ | `treemap(tree)` | `examples/chart-treemap.ts` |
 | サンキー図 | `sankey(nodes, links)` | `examples/chart-sankey.ts` |
 | トルネード図 | `tornado(items, {base})` | `examples/chart-tornado.ts` |
+| 回帰つき散布図 / 残差プロット（seaborn の `regplot` / `lmplot` / `residplot`） | `regplot({x, y, group?}, {order, stats})` / `residplot({x, y})` | `examples/chart-reg.ts` |
+| パネル分割（seaborn の `FacetGrid` / `col=`） | `...facet({東京: a, 大阪: b}, (名前, 値, _i, axes) => histplot(値, {...axes}), {cols: 3})` | `examples/facet.ts` |
+| 2次元の密度（等高線） | `kde2d({x, y})` | `examples/chart-kde2d.ts` |
+| クラスタ付きヒートマップ（seaborn の `clustermap`） | `clustermap(行名, 列名, 値の表, {scale, unit})` | `examples/chart-clustermap.ts` |
+| 2次元ヒストグラム / ジョイントプロット / 散布図行列（seaborn の `histplot(x, y)` / `jointplot` / `pairplot`） | `hist2d({x, y})` / `jointplot({x, y, group?})` / `pairplot({変数: [..], ...}, {groups, corner})` | `examples/chart-multi.ts` |
+| ヒストグラム / KDE / ECDF / ラグ（seaborn の `displot`） | `histplot` / `kdeplot` / `ecdfplot` / `rugplot(values｜groups, {label, stat, binWidth})`、重ねるなら `displot(values, {kind: ['hist', 'kde', 'rug']})` | `examples/chart-dist.ts` |
+| 箱ひげ図 / バイオリン / ストリップ / スウォーム / ポイント / 誤差つき棒（seaborn の `catplot`） | `boxplot` / `violinplot` / `stripplot` / `swarmplot` / `pointplot` / `barplot(groups, {label, dir, hues})`、重ねるなら `catplot(groups, {kind: ['violin', 'strip']})` | `examples/chart-cat.ts` |
+| バブルチャート | `bubble(points, {x, y, sizeTitle, sizeUnit})` | `examples/chart-bubble.ts` |
+| バタフライチャート | `butterfly(rows, {leftLabel, rightLabel, unit})` | `examples/chart-butterfly.ts` |
+| コンボチャート（棒 + 折れ線） | `combo(categories, series, {y, y2})` | `examples/chart-combo.ts` |
+| ハーベイボール | `harvey(rows, cols, values, {levels, highlight})` | `examples/chart-harvey.ts` |
 
 ```ts
 waterfall([{label: '前期', value: 1000}, {label: '価格', value: 220}, {label: '数量', value: -130}, {label: '小計', kind: 'subtotal'}, {label: '今期', kind: 'total'}], {unit: '百万円'})
@@ -564,6 +583,15 @@ mekko([{label: '北米', parts: [{label: 'A 社', value: 520}, {label: 'B 社', 
 treemap([{label: 'クラウド', children: [{label: 'ストレージ', value: 420}, {label: '計算基盤', value: 310}]}, {label: 'その他', value: 40}], {unit: '億円'})
 sankey(['広告', '訪問', '購入', '離脱'], [{from: '広告', to: '訪問', value: 100}, {from: '訪問', to: '購入', value: 15}, {from: '訪問', to: '離脱', value: 85}], {unit: '人'})
 tornado([{label: '販売単価', low: 640, high: 1360}, {label: '為替', low: 880, high: 1130}], {base: 1000, unit: '百万円'})
+histplot([62, 65, 70, 71, 72, 74, 80], {label: '体重（kg）', stat: 'probability'})
+displot({男性: [62, 70, 74, 80], 女性: [48, 55, 58, 66]}, {kind: ['hist', 'kde', 'rug']})
+boxplot({東京: [52, 58, 61, 63, 96], 大阪: [41, 47, 50, 55, 71]}, {label: '売上（百万円）', counts: true, values: 'median'})
+catplot([{label: '第1四半期', hues: [{name: '新規', values: [32, 35, 41]}, {name: '既存', values: [51, 56, 66]}]}], {kind: ['violin', 'swarm']})
+bubble([{label: 'A 事業', x: 1.8, y: 6, size: 520}, {label: 'B 事業', x: 0.7, y: 18, size: 240}], {x: {title: '相対シェア', line: 1}, y: {title: '成長率', unit: '%', line: 10}, sizeTitle: '売上', sizeUnit: '億円'})
+butterfly([{label: '品質', left: 82, right: 74}, {label: '価格', left: 58, right: 88}], {leftLabel: '自社', rightLabel: '競合', unit: '点'})
+combo(['2024', '2025'], [{label: '売上', type: 'bar', values: [1180, 1330]}, {label: '営業利益率', type: 'line', values: [11, 13]}], {y: {unit: '億円'}, y2: {unit: '%'}})
+harvey(['価格', '品質'], ['A 社', 'B 社'], [[4, 2], [1, 3]], {highlight: ['A 社']})
+// 行を connect() / spotlight の対象にするなら、行を {label, id} で書く: harvey([{label: '価格', id: 'price'}, '品質'], ...)
 ```
 
 - **`waterfall`**: 最初の段は開始（`value` が水準）、ほかは増減（`value` が差）。`kind: 'subtotal'｜'total'` は 0 から立つ棒で（先頭には置けない）、`value` を書かなければ累計、書けば累計と合わなければ止まる。水準が 0 をまたいでも、負の合計でも描ける（0 の線が太い）。`dir: 'h'` は横向き（段の名前が長いとき）。棒の色は開始・合計が濃い色、小計が灰色、増加がアクセント、減少が赤（`tone` で変える）。
@@ -574,6 +602,18 @@ tornado([{label: '販売単価', low: 640, high: 1360}, {label: '為替', low: 8
 - **`treemap`**: 葉は `{label, value}`、グループは `children`（4 階層まで。グループの値は子の合計で、書くなら一致が必要）。葉の `tone: 'accent'｜'danger'` は塗りつぶし。グループの名前が入らないときも `<desc>` に残る。グループの枠と見出しの帯が子の場所を取る分は重みを補正するので、葉の面積はグループの中でも外でも値に比例する。`percent: true` で全体に対する割合を添える。
 - **`sankey`**: ノードは文字列か `{id, label?, tone?}`（どのリンクにも出てこないノードはエラー）。層は最長経路で決まり（循環は止まる）、出ていかないノードは最後の層に寄る（`align: 'left'` で寄せない）。ノードの並びは交差が少なくなるように入れ替える。ノードの高さが値に比例するので、名前が収まらないほど低いノードでも、名前の高さ分の場所は空ける。リボンには、両端のどちらの名前にも載っていない値（分岐・合流の途中）だけ数字が入る。`tone: 'danger'` のリボンは赤の破線で縁取る。
 - **`tornado`**: `low` / `high` は「その入力が低い / 高いときの結果」（結果が低いとは限らない）。結果が基準と同じならその棒は描かず数字だけ書く。両方が基準の同じ側に出るときは、棒を 2 段に分ける。
+- **`regplot` / `residplot`**: `{x: [..], y: [..], group?: [..]}`（生の値）。最小二乗の直線（`order: 2｜3` で多項式の曲線）と、平均の 95% 信頼帯（解析解。t 分布）を描き（`lowess: true` は多項式の代わりに LOWESS = 局所回帰の曲線。外れ値に強い反復つきで、`frac`（各点の当てはめに使う点の割合、既定 2/3）が小さいほど細かく追う。帯・式・R² はない（`stats` と併用すると止まる）。`order` とも併用できない）、`band: false` で帯なし、`stats: true` で凡例に式（直線のとき）と R²。グループごとに別の回帰（印・線の種類・色が違う）。x の異なる値が `order + 1` 個、点が `order + 2` 個ないと止まる。`residplot` は同じ当てはめからの残差と、破線の 0 の線（曲がりが残っていれば形に出る）。`lowess: true` は残差の LOWESS 曲線を重ね、直線が取りこぼした形を見せる。
+- **`facet(data, make, {cols, share})`**: `data` のキーごとに 1 枚、`make(キー, 値, 番号, axes)` が返す図を枠つき（キーが見出し）で並べる（`cols` 列ずつ、最後の行も同じ列幅）。**軸は既定で全パネル共通**（seaborn の sharex / sharey）: 一度ふつうに描いて各パネルの軸を調べ、全体の範囲を `axes`（`{xRange, yRange}`）として渡して描き直すので、`make` は `axes` をそのまま図の opts に展開する（`histplot(値, {...axes})`）。`share: 'x'｜'y'｜'xy'｜'none'`。共有できるのは `histplot` / `kdeplot` / `ecdfplot` / `displot` / `regplot` / `residplot` のパネル（ほかの図は何もされず、そういうパネルしかないのに `share` を明示すると止まる）。`...facet()` で `.add()` に展開する。
+- **`kde2d`**: 2 変数のガウス KDE（各軸 Scott の帯域幅）を、最大密度の 10・30・50・70・90% の 5 段の塗りと等高線（marching squares）で。点を小さく重ねる（400 点まで）。
+- **`clustermap`**: 行×列の数の表（40×40 まで）。行と列を平均連結法（ユークリッド距離）で並べ替え、樹形図を上と左に付ける（`rows: false` / `cols: false` でその向きは並べ替えない）。`scale: 'row'｜'col'` は行（列）ごとに 0〜1 にしてからクラスタリングと濃淡を決める（セルの数字は元の値）。`values: false` で数字を省く。木は決まった順で作るので、同じ表は同じ並びになる。
+- **`hist2d` / `jointplot` / `pairplot`**: 列ごとの**生の値**を渡す（`{x: [..], y: [..]}`、`pairplot` は `{身長: [..], 体重: [..]}` で 2〜6 変数）。`hist2d` は切りのよい幅の升に点を数え、度数を升に書いて濃淡にする（入らない度数は書かず、凡例の 5 段階に最大値と 0）。`jointplot` は散布図と、上・右に各変数のヒストグラム。`pairplot` は全組の散布図と、対角線にその変数のヒストグラム（`corner: true` は対角線の下だけ）。目盛りは下と左（1 行目だけ右）に 1 回ずつ。`group`（`pairplot` は `groups`）は行ごとのラベルで、4 グループまで。印の形（● ◆ ■ ▲）と、ヒストグラムの輪郭の線の種類（実線・破線…）で見分け、凡例が付く。`bins` は階級数の目安、`xLabel` / `yLabel` は軸名。乱数は使わない。
+- **`histplot` ほか（seaborn の distribution plots）**: **生の値**（数の配列、または `{男性: [..], 女性: [..]}` で 4 グループまで）を渡す。`kind` は関数名で決まる 1 層か、描く順の配列（`['hist', 'kde', 'rug']`。`ecdf` は別の軸なので `hist` / `kde` とは重ねられず、`rug` とだけ）。`hist` の階級幅は切りのよい数（`bins` で個数の目安、`binWidth` で幅。グループは階級を共有する）で、`stat` は `count`（既定）／`density`／`probability`／`percent`。`element: 'step'` は棒を輪郭の 1 本線にする（グループが重なるとき見やすい）。`kde` は Scott の帯域幅のガウス KDE（`bw` はその倍率）で、データの両端から帯域幅 2 つ分まで伸ばし、`hist` と重ねると `stat` に合わせて高さが揃う（`kde` だけなら密度）。`ecdf` の `stat` は `probability`（累積割合、既定）／`count`／`percent`。グループは色と線の種類（実線・破線・点線・一点鎖線）の両方で見分け、凡例が付く。乱数は使わない。`id` はグループの端点。
+- **`boxplot` ほか（seaborn の categorical plots）**: 集計済みの数字ではなく**生の値**を渡す（`{東京: [..], 大阪: [..]}`、または `[{label, values, id?}]`）。四分位・カーネル密度・信頼区間・ビースウォームは `lib/stats.ts` が計算し、乱数を使わないので同じ値は同じ図になる。`kind` は 1 層（`boxplot` などの関数名で決まる）か、描く順の配列（`['box', 'strip']` は箱の上に点）。`box` はひげが 1.5 IQR 以内の最も遠い値までで、外れ値は○（`strip` / `swarm` を重ねると点が示すので省く）。`violin` は Scott の帯域幅のガウス KDE を、データの範囲で切って（seaborn の `cut=0`）左右対称に描き、中に四分位の太線と中央値の点。`scale: 'area'`（既定。面積が揃う）／`'width'`（どれも幅いっぱい）。`strip` は決まった順の揺らし、`swarm` は点が重ならない配置（入らなければ、幅・高さを上げるか `stripplot` に、と止まる）。`point` は平均と誤差の棒を、hue ごとの線（実線・破線・点線）でつなぐ。`bar` は 0 から平均まで。誤差は `error: 'ci'`（既定。t 分布の 95% 信頼区間）／`'sd'`／`'se'`／`'range'`／`'none'`。`hues: [{name, values}]`（`label` と `values` の代わり）で第二のカテゴリを横に並べる（4 つまで。凡例つき、濃淡と ● ◆ ■ ▲ で見分ける）。`dir: 'h'` は横向き、`values: 'median'｜'mean'` は各グループの値を添える（`bar` は平均が既定）、`counts: true` は `n = …`。`id` はグループの端点。
+- **`bubble`**: 面積が値に比例（半径は √値）。`size` は 0 より大きい。軸は点と `x.line` / `y.line` に合わせて自動で、端の円がはみ出すときは目盛りを足して広げる（`x.min` / `x.max` を書いた軸は広げず、はみ出すなら止まる）。名前は円に収まれば中、だめなら右・左・上・下・斜めの順で、他の円・名前・軸の数字に重ならない場所へ（どこにも置けなければ止まる。点を減らすか、`width` / `height` を上げる）。重なる円は大きい方を先に描く。`tone` は円の色（`accent`｜`danger`｜`muted`｜`text`）。
+- **`butterfly`**: 左右の棒は同じ目盛り（長い方が半分の幅）。値は棒の外側に書き、0 は棒なしで数字だけ。群の名前は色見本つきで上に出る。行は 20 まで。
+- **`combo`**: 棒は 3 系列まで（横に並べる）、折れ線は 3 系列まで（実線・破線と ● ■ ◆）。棒は薄い塗りで、折れ線とその数字が上を通れる。右軸の目盛りは左軸の罫線に合わせた間隔にし、合わなければ罫線なしで右軸だけ書く。`null` は棒なし・線の途切れ。入らない値は描かず `<desc>` に残る（`values: false` で数字を全部消す）。
+- **`combo` の積み上げ**: `stack: true` で棒の系列を 1 本に積み、合計を上に書く（棒は 2 系列以上、値は 0 以上）。各区画の数字は区画に収まり、折れ線に重ならないものだけ書く（残りは `<desc>`）。
+- **`harvey`**: 値は 0〜4 の整数（0 = 空、4 = 全塗り）。色ではなく扇の形で示すので、白黒でも読める。`levels` で 5 段階の呼び名を変える（既定 なし / 一部 / 半分 / ほぼ / 十分）。表の中の `—` は未評価。<desc> に「行: 列 呼び名」の形で全部残る。
 - 全部の検査（重なり・はみ出し・コントラスト）は `check` で、描画後の確認は `svg-diagram preview`。入らないラベル・列は、エラーに直し方（幅・高さ・省略）が書いてある。
 - 計算だけ取り出したいときは、`lib/charts-treemap.ts`（`squarify`）、`lib/charts-sankey.ts`（`layersOf`）、`lib/charts-heatmap.ts`（`heatLevel`）、`lib/charts-base.ts`（`niceScale`）が純粋な関数。
 - **`plane` の追加**: 点の `shape` は `dot` / `ring` / `cross`（4px の格子に載る）のほか、頂点にぴったり載る `disc` / `hole` / `square` / `diamond` / `triangle`。`endLabels: true` は `labelAt: 'right'` の点の名前を図の右端に集めて縦にずらす。`labelLeader: true` の点は、空いた側がないとき名前を右端へ移して点線でつなぐ。`labels` の `offset: [dx, dy]` で位置をずらせる。
@@ -956,6 +996,23 @@ d.add(
 
 build は通常の最終形 `name.svg` に加え、段階表示を使う図だけ `name.reveal0.svg`（クリック前）から `name.revealN.svg`（累積）までを生成する。全ファイルは同じレイアウトとキャンバス寸法で、段数を減らして再 build すると古い段階ファイルは削除される。`check --drift` は全段階を再生成して比べ、残った古い段階ファイルも報告する。`doc-orphan-svg` は `*.revealN.svg` を数えない。スライドの高さ計測（`slide-budget`）は `name.svg` でも `name.revealN.svg` でも同じ値になる。
 
+## 数式
+
+`math(tex, opts)` は TeX の数式を 1 つの部品として置く。MathJax（tex → svg、ブラウザ不要）が式を**輪郭（`<path>`）**に変換するので、SVG は自己完結で、フォントがなくても、`<img>` でも、どのビューアでも同じ見た目になる（`<text>` も `<foreignObject>` も使わない）。変換は `math()` を呼んだときに 1 回だけで、MathJax は最初の `math()` で読み込まれる（数式のない図は読み込まない）。
+
+```ts
+math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat', alt: 'e の -x 二乗乗を全実数で積分すると √π'})
+```
+
+- バックスラッシュが残るよう **`String.raw`** で書く。`\frac` `\sqrt` `\sum` `\mathbf` `\begin{pmatrix}` など MathJax の標準パッケージ一式が使える。
+- 大きさは文字の `role`（既定 `'body'`。`'banner'` `'stat'` `'display'` など）で決まり、`fill` モードでは他の文字と一緒に拡大される。段落中の式のように分数や和の添え字を小さく組むときは `inline: true`。
+- `align`（`'center'` 既定 / `'left'` / `'right'`）、`tone`（`'text'` 既定 / `'accent'` / `'muted'` / `'danger'`）、`id`（`connect` の端点にできる）。`reveal` は付けられない。
+- 使えない TeX は throw する: 読めない式（閉じていない `{`、未定義のコマンド）、MathJax のフォントにない文字（日本語など。`<text>` になり幅が当てにならない。言葉は隣の `caption()` に置く）、式番号と相互参照（`\tag` `\ref` `\eqref`。同じく caption で。`\label` は無視される）、列より幅が広い式。式は赤字で図に残らない。`fill` モードでは、列に収まる範囲までしか拡大しない（`canvas` は倍率が決まっているので、収まらなければ throw する）。
+- 許可リスト方式のパッケージだけが使える。`\href` `\style` `\class`（属性を図に直接書き込む）、`\color` `\textcolor` `\bbox` `\mmlToken` の色（テーマ・暗色・spotlight に追従しない）、`\unicode` は使えない。出力に属性・リンク・独自の色が混じる式（`\rule` を含む）や、MathJax のフォントにない字（`\upalpha` など）は throw する。色は `tone` で付ける。
+- `\def` `\newcommand` は、その `math()` の中だけで効く（次の式にも別の図にも漏れない）。
+- MathJax は任意の peer 依存。数式を使う案件で `pnpm add mathjax-full` する（初回の変換に数秒かかる）。
+- `alt` の既定は TeX のソースそのもの。読み上げ向けに言葉で書くのが望ましい（`examples/math-formula.ts`）。
+
 ## 文書と図の整合（`check --docs`）
 `svg-diagram check --docs docs --svg-dir docs/assets/diagrams/svg --src-dir docs/diagrams` は、Markdown の画像参照と、図のソースを突き合わせる。
 - 参照先の SVG がない（`doc-image-missing`、エラー）、代替テキストが空・155 文字超（`doc-alt-empty` / `doc-alt-long`）、どの文書からも参照されていない SVG（`doc-orphan-svg`）。`![alt](images/x.png)` の PNG 参照も見る: ファイルがない（`doc-image-missing`）、同じ名前の図のソース（`--src-dir`）も SVG（`--svg-dir`）もない（`doc-png-no-source`）、参照された PNG と同じフォルダにある、どこからも参照されていない PNG（`doc-orphan-png`。文書を絞ると行わない）。
@@ -964,6 +1021,18 @@ build は通常の最終形 `name.svg` に加え、段階表示を使う図だ�
 - **一章だけ検査する**: `--docs` は**ディレクトリでも .md ファイルでもよく、何度でも**書ける（`--docs A.md B.md dir` のように空白で並べてもよい。後ろの .md とディレクトリはすべて文書で、図のソースではない。.ts / .mjs 以外をソースに渡すと分かるエラーで終わる）。`--only 'docs/03-*.md'`（繰り返し可。`**` はフォルダをまたぎ、`*` `?` は 1 階層内。カレントからの相対パスかファイル名に合わせる）で、対象のページを絞る。**絞ったとき（.md 指定または `--only`）は、孤立 SVG（`doc-orphan-svg`）の検査をしない**（全ページを見ないと「参照されていない」とは言えないため）。その旨を 1 行出す。全体を見るときは、ディレクトリだけを指定する。
 - `--map` で、図 / 図のソース / SVG / 使っている文書の**対応表**（Markdown）を標準出力に出す（参照のない SVG は「（参照なし）」）。手で書いた表の代わりに貼る。注釈の文は `svg-diagram notes <ソース>` で出せる（複数の画面に注釈があれば `<!-- 画面 N -->` で区切る）。
 - `--format json`（機械可読）、`--format github`（PR の注釈 `::warning file=…,line=…`）。
+
+## ルールの説明・ベースライン・SARIF（`check`）
+- `svg-diagram check --rules` はルール ID の一覧、`svg-diagram check --explain edge-crossings` は 1 つのルールの意味と、`accept`（案件全体は `.svg-diagram.json`、1 つの図は `diagram({accept})`）の書き方を出す。
+- **ベースライン**: 警告が多い案件に段階導入する。`check --write-baseline .svg-diagram.baseline.json diagrams/*.ts` で今ある警告を記録し、以後 `check --strict --baseline .svg-diagram.baseline.json diagrams/*.ts` は、**記録にない新しい警告**だけを失敗にする（記録済みは info になり「ベースライン済み」と添える）。照合はファイル・ルール・メッセージで、行番号は見ない。エラーはベースラインに入らない。
+- `--format sarif` は SARIF 2.1.0 を標準出力に出す（GitHub Code Scanning などへ）。
+- **つながりの検査**（`graph-orphan-node` / `graph-disconnected`）: 矢印が 3 本以上ある図で、`id` を持つ箱がどの矢印にもつながっていない、または矢印が互いにつながらない 2 つ以上のかたまりに分かれていると警告する（行・列を端にした矢印は、その中の箱を含む）。注記の箱は `id` を付けなければ対象外。意図した形なら `accept` に理由を書く。
+
+## 表記・数値の整合と差分だけの検査（`check`）
+- **表記の揺れ**（`term-variant`）: 1 つの図の中で、同じ語が `ユーザ` / `ユーザー`（末尾の長音）や `API` / `Api`（大文字・大小混在）のように揺れていると警告する。`Server` と `server` のような文頭の大文字だけの差、数字や `-` `_` を含む ID は見ない。
+- **用語集**（`term-avoid`）: `.svg-diagram.json`（または `diagram({terms})`）に `"terms": {"ユーザー": ["利用者", "ユザー"]}` と書くと、右の語が図に出たとき「ユーザーに統一」と警告する（用語集が決めている揺れは `term-variant` で二重に出さない）。
+- **表の合計**（`table-sum-mismatch`）: 表の「合計」「小計」「計」の行・列が、並ぶ値の和と合わないと警告する（小計をはさんだ合計、`%` の丸めは許す）。`table-share-not-100`: 「構成比」「割合」の列が、合計行なしで 100% にならないとき。
+- **`--changed[=REF]`**: 図のソースと一緒に使うと、変わったものだけを検査する。ソース自身・`import` しているファイル・（`--drift` のとき）コミット済みの SVG のどれかが、作業ツリーと REF 以降のコミットで変わったもの。REF の既定は `origin/main`（なければ `main`）との共通祖先で、`.svg-diagram.json` が変わったときは全部を検査する。変わったものがなければ何も検査せず終了コード 0。編集中の速い確認と、図が多い案件の PR の検査に。
 
 ## 表と図の突き合わせ（`check --covers`）
 `svg-diagram check --covers table.md --svg-dir svg diagrams/flow.ts` は、本文の Markdown 表（または CSV）を図に置き換えたとき、表のセルの文字列が図の `<text>` に残っているかを調べ、欠けたセルを `covers-missing`（警告）で一覧する。
@@ -1078,7 +1147,7 @@ fmea([
 | `text-roles.ts` | 大きい文字: `banner` の `headlineRole: 'display'` と、`bars` / `plane` の `labelRole` |
 | `dark-theme.ts` | 暗い背景＋背景なし（`appearance: 'dark'`、`transparent: true`） |
 | `dark-bars-wall.ts` | 濃い背景の資料の色＋濃い赤の danger で描く棒グラフ（透明） |
-| `chart-waterfall.ts` ほか `chart-*.ts` | コンサル系のチャート（ウォーターフォール・レーダー・ヒートマップ・戦略キャンバス・バーンダウン・積み上げ・マリメッコ・ツリーマップ・サンキー・トルネード） |
+| `chart-waterfall.ts` ほか `chart-*.ts` | コンサル系のチャート（ウォーターフォール・レーダー・ヒートマップ・戦略キャンバス・バーンダウン・積み上げ・マリメッコ・ツリーマップ・サンキー・トルネード・ヒストグラム／KDE／ECDF・回帰・クラスタ付きヒートマップ・2次元ヒストグラム／ジョイント／散布図行列・箱ひげ／バイオリン／スウォーム） |
 | `raci-project.ts` / `fmea-basic.ts` / `qfd-basic.ts` / `journey-map.ts` | 意味付き表（責任分担、故障リスク、品質機能展開、顧客体験） |
 | `semnet-*.ts` | 意味付きネットワーク（PERT、因果ループ、型付き・重み付き依存関係） |
 | `emphasis-tiers.ts` | 主役（solid）/ 次点（accent）/ その他（plain）の 3 段階と、凡例の「次点」 |
