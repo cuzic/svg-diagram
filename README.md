@@ -132,6 +132,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | tornado(items, {base, unit}) | トルネード図（感度分析）。基準値から低ケース・高ケースの棒、幅の大きい順 |
 | pyramid / curve | ピラミッド、曲線 |
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
+| math(tex, {role, inline, align, tone, alt}) | TeX の数式（MathJax で輪郭にして SVG へ。Web フォント・foreignObject 不要）。下の「数式」 |
 | quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
 | chevron / funnel / cycle / venn / concentric | 流れ・絞り込み・循環・集合・階層を表す flowShapes。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 |
 | plane({x, y, points, lines, dims, labels}) | 座標平面。軸・目盛り・点・補助線・**寸法線**・ラベルを、座標の単位のまま宣言する（地図 ↔ 画像の座標変換、位置の誤差）。`yDown: true` で画像座標。ラベルが、他のラベル・軸と矢印・目盛り・点・補助線・寸法線に重なる、または図からはみ出すと検査で止まる（寸法線の文字は、その線の上に載るのが正） 。`paths: [{through: [点の id か座標…], smooth?, dashed?, tone?, arrow?, reveal?}]` で複数点を通る線を引く（実線が既定。`smooth: true` は点を必ず通る曲線で、x が増える道筋は単調な 3 次補間（値を行き過ぎない）、そうでない道筋は centripetal Catmull-Rom。`smooth` なしは折れ線。曲線が軸の外に出る・ラベルに重なると検査で止まる。`examples/plane-paths.ts`）。`grow: true` を付けた path は、段階（`reveal`）ごとに、出ている点までの曲線を同じ形のまま伸ばす（`examples/plane-grow.ts`）。点のラベルは `labelAt` を書かなければ右に置き、線や他のラベルと重なるときは空いている側（左・上・下・斜め）へ自動で移る。`labelAt` で側を書くとそのまま、`labelOffset: [dx, dy]` で位置をずらせる。自動の置き場は寸法線（延長線を含む）・補助線・軸・目盛りも避ける。軸に `categories: ['営業', '開発', …]` を書くと、レーン名・段階名が 1, 2, 3 … の位置の目盛りになる（`max` は個数 + 1） |
@@ -941,6 +942,23 @@ d.add(
 `group` の子は親と自分の大きい方を継承する。`connect` は未指定なら両端の大きい方になり、端点が `row#N` の場合はその列の子を使う。端点より早い `reveal` を明示した矢印は警告になる。
 
 build は通常の最終形 `name.svg` に加え、段階表示を使う図だけ `name.reveal0.svg`（クリック前）から `name.revealN.svg`（累積）までを生成する。全ファイルは同じレイアウトとキャンバス寸法で、段数を減らして再 build すると古い段階ファイルは削除される。`check --drift` は全段階を再生成して比べ、残った古い段階ファイルも報告する。`doc-orphan-svg` は `*.revealN.svg` を数えない。スライドの高さ計測（`slide-budget`）は `name.svg` でも `name.revealN.svg` でも同じ値になる。
+
+## 数式
+
+`math(tex, opts)` は TeX の数式を 1 つの部品として置く。MathJax（tex → svg、ブラウザ不要）が式を**輪郭（`<path>`）**に変換するので、SVG は自己完結で、フォントがなくても、`<img>` でも、どのビューアでも同じ見た目になる（`<text>` も `<foreignObject>` も使わない）。変換は `math()` を呼んだときに 1 回だけで、MathJax は最初の `math()` で読み込まれる（数式のない図は読み込まない）。
+
+```ts
+math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat', alt: 'e の -x 二乗乗を全実数で積分すると √π'})
+```
+
+- バックスラッシュが残るよう **`String.raw`** で書く。`\frac` `\sqrt` `\sum` `\mathbf` `\begin{pmatrix}` など MathJax の標準パッケージ一式が使える。
+- 大きさは文字の `role`（既定 `'body'`。`'banner'` `'stat'` `'display'` など）で決まり、`fill` モードでは他の文字と一緒に拡大される。段落中の式のように分数や和の添え字を小さく組むときは `inline: true`。
+- `align`（`'center'` 既定 / `'left'` / `'right'`）、`tone`（`'text'` 既定 / `'accent'` / `'muted'` / `'danger'`）、`id`（`connect` の端点にできる）。`reveal` は付けられない。
+- 使えない TeX は throw する: 読めない式（閉じていない `{`、未定義のコマンド）、MathJax のフォントにない文字（日本語など。`<text>` になり幅が当てにならない。言葉は隣の `caption()` に置く）、式番号と相互参照（`\tag` `\ref` `\eqref`。同じく caption で。`\label` は無視される）、列より幅が広い式。式は赤字で図に残らない。`fill` モードでは、列に収まる範囲までしか拡大しない（`canvas` は倍率が決まっているので、収まらなければ throw する）。
+- 許可リスト方式のパッケージだけが使える。`\href` `\style` `\class`（属性を図に直接書き込む）、`\color` `\textcolor` `\bbox` `\mmlToken` の色（テーマ・暗色・spotlight に追従しない）、`\unicode` は使えない。出力に属性・リンク・独自の色が混じる式（`\rule` を含む）や、MathJax のフォントにない字（`\upalpha` など）は throw する。色は `tone` で付ける。
+- `\def` `\newcommand` は、その `math()` の中だけで効く（次の式にも別の図にも漏れない）。
+- MathJax は任意の peer 依存。数式を使う案件で `pnpm add mathjax-full` する（初回の変換に数秒かかる）。
+- `alt` の既定は TeX のソースそのもの。読み上げ向けに言葉で書くのが望ましい（`examples/math-formula.ts`）。
 
 ## 文書と図の整合（`check --docs`）
 `svg-diagram check --docs docs --svg-dir docs/assets/diagrams/svg --src-dir docs/diagrams` は、Markdown の画像参照と、図のソースを突き合わせる。

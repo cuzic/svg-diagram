@@ -109,6 +109,7 @@ export const MEASURE_HANDLERS = {
   chart: fromTuples(chartTexts),
   people: fromTuples(peopleTexts),
   dots: fromTuples(dotsTexts),
+  math: () => undefined,
   timeline: fromTuples(timelineTexts),
   bpmn: fromTuples(bpmnTexts),
   classes: fromTuples(classesTexts),

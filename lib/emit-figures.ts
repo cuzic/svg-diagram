@@ -1,5 +1,5 @@
 import {PALETTE, colorOf, textColorOf, toneStyle, isSolidTone} from './tokens.ts';
-import type {LaidOutPlane, LaidOutBars, LaidOutImage, LaidOutTimeline, LaidOutTree, LaidOutStates, LaidOutCause, LaidOutCloud, LaidOutGantt, LaidOutClasses, LaidOutBpmn, PlaneTone, Theme, ColorKey} from './types.ts';
+import type {LaidOutMath, LaidOutPlane, LaidOutBars, LaidOutImage, LaidOutTimeline, LaidOutTree, LaidOutStates, LaidOutCause, LaidOutCloud, LaidOutGantt, LaidOutClasses, LaidOutBpmn, PlaneTone, Theme, ColorKey} from './types.ts';
 import {iconSvg} from './icon-svg.ts';
 import {visibleAt} from './reveal.ts';
 import {MARK_STROKE, plateStyle} from './image.ts';
@@ -418,3 +418,11 @@ export function renderBpmn(b: LaidOutBpmn, day: Theme): string {
   return out.join('\n  ');
 }
 
+
+// math(): the formula's outlines, scaled to the band's font size. The group is marked (data-math ... <!--/math-->) so lint-svg.ts can tell the
+// formula's own nested groups from shapes an author placed.
+export function renderMath(band: LaidOutMath): string {
+  const n = (v: number) => +v.toFixed(2);
+  const top = band.y + (band.h - band.drawnH) / 2;
+  return `<g data-math="" role="img" aria-label="${escapeXml(band.alt)}" transform="translate(${n(band.x)} ${n(top)}) scale(${+band.scale.toFixed(6)})" fill="${band.color}" stroke="${band.color}" stroke-width="0">${band.inner}</g><!--/math-->`;
+}
