@@ -183,6 +183,7 @@ export const REVEAL_HANDLERS = {
   plane: {stage: true, visit: revealPlane},
   quadrant: plain,
   chevron: plain,
+  wordart: plain,
   funnel: plain,
   cycle: plain,
   venn: plain,

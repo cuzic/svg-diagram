@@ -130,6 +130,8 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 
 流れや構造の定型図は flowShapes を使う。工程は `chevron(steps)`、段階的な減少は `funnel(stages, {scale: 'value', showRate: true})`、閉じた改善は `cycle(steps)`、2〜3 集合は `venn(sets, {overlaps})`、入れ子の層は `concentric(rings)`。各項目の `id` は connect / spotlight の対象。cycle は 3〜8 個、venn は 2〜3 集合に限る。色だけにせず、venn は自動の線種の違い、他は文字ラベルを必ず残す（concentric の `labels: 'side'` は引き出し線で層につながる）。venn の `centre` は全集合の重なり（全集合の overlap と同時には書けない）。例は `examples/chevron-*` など。
 
+飾り文字と縦書きは `wordart(text, {style, writing, size, tone, gradient, outline, shadow, glow, bevel, extrude, reflection, arc, rotate, flip, font, plate, limit})`。`style` は `plain｜bold｜outline｜shadow｜sticker｜glow｜emboss｜3d｜gradient｜reflect`、色は token の鍵だけ（`tone: 'none'` は中抜き）。縦書きは `writing: 'vertical'`（列は右から左、`\n` か `limit`(px) で列を替え、禁則・句読点・長音・縦中横は自動）。`arc`（度）は 1 行を弧に沿わせる。読めない配色（白い文字を縁取りなしで白い紙に）は検査が止める。band として縦に積むだけで、箱と並べたり箱の中を縦書きにはできない。例は `examples/wordart.ts`。
+
 | 書くもの | 書き方 |
 |---|---|
 | 型から始める | `quadrant.preset('bcg' \| 'ge' \| 'ansoff' \| 'nineBox' \| 'impactEffort' \| 'risk' \| 'stakeholder' \| 'positioning' \| 'eisenhower', {items})`。軸・見出し・色は日本語で入る。書いたものだけ上書き |

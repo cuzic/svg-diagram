@@ -12,6 +12,7 @@ import {layoutMath} from './math.ts';
 import {layoutTimeline} from './timeline.ts';
 import {layoutQuadrant} from './quadrant.ts';
 import {layoutFlowShape} from './flow-shapes.ts';
+import {layoutWordArt} from './wordart.ts';
 import {canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
 import {layoutTreeBand, narrowField} from './tree.ts';
 import {layoutStatesBand} from './states.ts';
@@ -88,6 +89,12 @@ function layoutFlowShapeBand(band: Band & {type: 'chevron' | 'funnel' | 'cycle' 
   if (band.id) { if (ctx.anchors.has(band.id)) ctx.claimed(band.id, `a ${band.type} takes an id that another anchor already has`); ctx.anchors.set(band.id, placed); }
   for (const a of placed.anchors) { if (ctx.anchors.has(a.id)) ctx.claimed(a.id, `a ${band.type} item takes an id that another anchor already has`); ctx.anchors.set(a.id, a); }
   ctx.laidOut.push(placed); ctx.y += placed.h + d.gap;
+}
+
+function layoutWordArtBand(band: Band & {type: 'wordart'}, ctx: LayoutCtx, padX: number, cw: number): void {
+  const placed = layoutWordArt(band, padX, ctx.y, cw, ctx.widthOf, ctx.roles);
+  if (band.id) { if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a wordart takes an id that another anchor already has'); ctx.anchors.set(band.id, placed); }
+  ctx.laidOut.push(placed); ctx.y += placed.h + ctx.d.gap;
 }
 
 /** caption / box / banner (and, as before, anything a handler does not claim). */
@@ -522,6 +529,7 @@ export const LAYOUT_HANDLERS = {
   plane: layoutPlaneBand,
   quadrant: layoutQuadrantBand,
   chevron: layoutFlowShapeBand,
+  wordart: layoutWordArtBand,
   funnel: layoutFlowShapeBand,
   cycle: layoutFlowShapeBand,
   venn: layoutFlowShapeBand,

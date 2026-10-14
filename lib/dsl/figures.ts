@@ -2,6 +2,8 @@ import {quadrantBand} from '../quadrant.ts';
 import type {QuadrantBand, QuadrantItem, QuadrantOpts, QuadrantPreset} from '../quadrant.ts';
 import {chevronBand, concentricBand, cycleBand, funnelBand, vennBand} from '../flow-shapes.ts';
 import type {ChevronBand, ChevronOpts, ConcentricBand, ConcentricOpts, ConcentricRing, CycleBand, CycleOpts, FlowStep, FunnelBand, FunnelOpts, FunnelStage, VennBand, VennOpts, VennSet} from '../flow-shapes.ts';
+import {wordartBand} from '../wordart.ts';
+import type {WordArtBand, WordArtOpts} from '../wordart.ts';
 import {LABEL_ROLES} from '../tokens.ts';
 import type {PlaneBand, PlaneOpts, CurveBand, CurveOpts, PyramidBand, PyramidLayer, PyramidOpts} from '../types.ts';
 import type {CurvePoints, Declares, HandleOf, PyramidLayers} from '../strict.ts';
@@ -102,3 +104,13 @@ export function cycle<const Id extends string = never, const I extends readonly 
 export function venn<const Id extends string = never, const I extends readonly VennSet[] = readonly VennSet[]>(sets: I, opts?: VennOpts & {id?: Id}): ShapeExtra<VennBand, Id, I> { return withHandle(vennBand(sets, opts), opts?.id) as ShapeExtra<VennBand, Id, I>; }
 /** Nested rings, ordered from the outside or inside, with labels in the rings or in a side key. */
 export function concentric<const Id extends string = never, const I extends readonly ConcentricRing[] = readonly ConcentricRing[]>(rings: I, opts?: ConcentricOpts & {id?: Id}): ShapeExtra<ConcentricBand, Id, I> { return withHandle(concentricBand(rings, opts), opts?.id) as ShapeExtra<ConcentricBand, Id, I>; }
+/**
+ * Decorated headline text (ワードアート): bold, outlined (縁取り), shadowed, glowing, bent, turned ..., set horizontally or vertically
+ * (縦書き), as one band.
+ *   wordart('新製品発表', {style: 'sticker', writing: 'vertical', size: 'display'})
+ *   wordart('SALE', {style: 'outline', size: 72})
+ * `style` picks a look ('plain' | 'bold' | 'outline' | 'shadow' | 'sticker' | 'glow' | 'emboss' | '3d' | 'gradient' | 'reflect'); `tone`,
+ * `gradient`, `outline`, `shadow`, `glow`, `bevel`, `extrude`, `reflection`, `arc`, `rotate`, `flip`, `font`, `plate` adjust it.
+ * Colours are tone keys. verifyDiagram() rejects letters that would not read (a white letter with no dark outline on a white page).
+ */
+export function wordart<const Id extends string = never>(text: string, opts?: WordArtOpts & {id?: Id}): WordArtBand & Declares<Id> & HandleOf<Id> { return withHandle(wordartBand(text, opts), opts?.id) as WordArtBand & Declares<Id> & HandleOf<Id>; }

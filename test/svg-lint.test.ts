@@ -342,3 +342,24 @@ test('a figure shown at twice its viewBox is measured as shown: how far a text s
   assert.ok(Math.abs(twice.containerOverflow[0].over - (2 * 20 + pad - 2 * 10)) < 0.01, String(twice.containerOverflow[0].over));
   assert.deepEqual(twice.overflow, once.overflow);
 });
+
+// ---- outlined text: a rim has to be seen to make a letter read ----
+
+test('a white letter on a white page reads by a rim that is thick and opaque enough, and not by a hairline or a faint stroke', { skip }, () => {
+  const txt = (attrs: string) => `<text x="20" y="80" font-size="40" fill="#ffffff" ${attrs}>SALE</text>`;
+  assert.deepEqual(check(txt('stroke="#22201b" stroke-width="3"')).contrast, [], 'a 1.5px visible rim');
+  assert.equal(check(txt('stroke="#22201b" stroke-width="0.2"')).contrast.length, 1, 'a hairline');
+  assert.equal(check(txt('stroke="#22201b" stroke-width="3" opacity="0.5"')).contrast.length, 1, 'a faint stroke');
+  assert.equal(check(txt('stroke="#fafafa" stroke-width="3"')).contrast.length, 1, 'a rim as pale as the page');
+  assert.equal(check(txt('')).contrast.length, 1, 'no rim at all');
+});
+
+test('only a data-decor text is exempt from the contrast / overlap checks; aria-hidden alone is not', { skip }, () => {
+  const base = `<text x="20" y="80" font-size="40" fill="#22201b">SALE</text>`;
+  const copy = (attrs: string) => `<text x="22" y="82" font-size="40" fill="#22201b" ${attrs}>SALE</text>`;
+  assert.equal(check(base + copy('aria-hidden="true"')).textOverlap.length, 1, 'aria-hidden is an author\'s own business');
+  assert.deepEqual(check(base + copy('aria-hidden="true" data-decor=""')).textOverlap, [], 'a decorative copy');
+  assert.deepEqual(check(`<g data-decor="">${copy('')}</g>` + base).textOverlap, [], 'decoration marked on a group');
+  assert.equal(check(`<text x="20" y="80" font-size="40" fill="#fafafa" data-decor="">SALE</text>`).contrast.length, 0, 'not judged for contrast');
+  assert.ok(check(`<text x="380" y="80" font-size="40" fill="#22201b" data-decor="">SALE</text>`).overflow, 'but still counts for overflow');
+});

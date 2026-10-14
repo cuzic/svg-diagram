@@ -34,6 +34,7 @@ export const FIT_HANDLERS = {
   plane: band => [band.labelSize],
   quadrant: texts,
   chevron: texts,
+  wordart: band => [band.size],
   funnel: texts,
   cycle: texts,
   venn: texts,

@@ -222,7 +222,8 @@ function emitHtmlWith(d: LaidOutDiagram, opts: {reveal?: number; id?: string}): 
     const t = textsToHtml(strip(emitSvg({...d, laidOut: bands, connects}, {reveal: opts.reveal, noRecolor: true}), 'sd-ov'));
     return shapesToCss(t.svg, 'sd-ov') + t.html;
   };
-  const kindOf = (b: LaidOutBand) => native(b) ? 'html' : b.type === 'raw' ? 'raw' : 'svg';
+  // raw() is the author's SVG and wordart() is SVG-only art (outlines, turns, gradients, vertical glyphs: none of it is a CSS box): both stay whole
+  const kindOf = (b: LaidOutBand) => native(b) ? 'html' : b.type === 'raw' || b.type === 'wordart' ? 'raw' : 'svg';
   let body = '';
   for (let i = 0; i < visible.length;) {
     const kind = kindOf(visible[i]);

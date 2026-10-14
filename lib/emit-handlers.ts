@@ -3,6 +3,7 @@ import type {LaidOutBand, Theme, Roles} from './types.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import {renderChart} from './charts-emit.ts';
 import {emojiSpan} from './emit-common.ts';
+import {renderWordArt} from './emit-wordart.ts';
 import {renderMath} from './emit-figures.ts';
 import {renderCaption, renderBox, renderGroup, renderLegend, renderBanner, renderRow, renderGrid, renderPyramid, renderPeople, renderDots, renderCurve, renderRaw, renderSwimlane} from './emit-boxes.ts';
 import {renderPlane, renderBars, renderImage, renderQuadrant, renderFlowShape, renderTimeline, renderTree, renderStates, renderCause, renderCloud, renderGantt, renderClasses, renderBpmn} from './emit-figures.ts';
@@ -33,6 +34,7 @@ export const EMIT_HANDLERS = {
   curve: {render: (b, day) => renderCurve(b, day)},
   plane: {render: (b, day, _roles, stage) => renderPlane(b, day, stage)},
   quadrant: {render: (b, day) => renderQuadrant(b, day), selfDimming: true},
+  wordart: {render: (b, day) => renderWordArt(b, day, !!b.dim), selfDimming: true},
   chevron: {render: (b, day) => renderFlowShape(b, day)},
   funnel: {render: (b, day) => renderFlowShape(b, day)},
   cycle: {render: (b, day) => renderFlowShape(b, day)},
