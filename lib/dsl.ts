@@ -19,6 +19,7 @@ export * from './dsl/connect.ts';
 export * from './dsl/figures.ts';
 export * from './dsl/people-dots.ts';
 export * from './dsl/charts.ts';
+export * from './dsl/charts-stats.ts';
 export * from './dsl/bars.ts';
 export * from './dsl/qc-semantic.ts';
 export * from './dsl/diagrams.ts';

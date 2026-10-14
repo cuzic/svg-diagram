@@ -167,6 +167,12 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | ツリーマップ | `treemap(tree)` | 葉 `{label, value}`、グループ `{label, children}` |
 | サンキー | `sankey(nodes, links)` | ノード（文字列か `{id, label}`）と `{from, to, value}`。層・並び・太さは自動 |
 | トルネード | `tornado(items, {base})` | `{label, low, high}`（その入力が低い・高いときの結果）。幅の大きい順 |
+| 回帰・残差 | `regplot({x, y, group}, {order, stats})` / `residplot({x, y})` | 生の値。直線（`order: 2` で曲線）と 95% 信頼帯、R² は自動 |
+| パネル分割 | `...facet({名前: 値}, (名前, 値) => 図, {cols})` | 軸を揃えるなら各図に同じ `xRange` / `yRange` |
+| 2次元密度・クラスタ付きヒートマップ | `kde2d({x, y})` / `clustermap(行名, 列名, 表, {scale})` | クラスタリングと並べ替え・樹形図は自動 |
+| 2次元ヒストグラム・ジョイント・散布図行列 | `hist2d({x, y})` / `jointplot({x, y, group})` / `pairplot({変数: [..]}, {groups})` | 列ごとの**生の値**。度数・周辺分布は自動。グループは印の形と輪郭の線の種類で見分ける |
+| ヒストグラム・KDE・ECDF・ラグ | `histplot` / `kdeplot` / `ecdfplot` / `rugplot(values｜groups, {label, stat, binWidth})` / `displot(values, {kind: [..]})` | **生の値**（配列か `{男性: [..], 女性: [..]}`）。階級・密度・累積は自動。グループは色と線の種類で見分ける |
+| 箱ひげ・バイオリン・ストリップ・スウォーム・ポイント・誤差つき棒 | `boxplot` / `violinplot` / `stripplot` / `swarmplot` / `pointplot` / `barplot(groups, {label, dir})` / `catplot(groups, {kind: [..]})` | **生の値**を渡す（`{東京: [..], 大阪: [..]}`）。四分位・密度・95% 信頼区間は自動。`hues: [{name, values}]` で第二のカテゴリ、`kind: ['box', 'strip']` で重ねる |
 
 - どれも `id`（図全体）と、要素の `id` が `connect()` / `spotlight` の端点になり、`labelRole` で文字を大きくできる。`lines` 系は `plane` を返す。
 - 入らない値のラベル（狭い列・小さなセル）はエラーに直し方が書いてある。幅・高さを上げるか、小さいものを「その他」にまとめる。
