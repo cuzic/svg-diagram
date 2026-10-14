@@ -52,7 +52,8 @@ export function sizeOf(size: WordArtOpts['size'], roles: Roles): number { return
 /** The look of a wordart of `size` px: the preset, then each option on top of it. Pure; widths without a px value are shares of the size. */
 export function resolveLook(opts: WordArtBand['opts'], size: number): WordArtLook {
   const p = PRESETS[opts.style ?? 'bold'];
-  const px = (share: number): number => Math.max(1.5, Math.round(size * share * 2) / 2);
+  // (rounded up to half a pixel: rounding down could take a rim under minRim)
+  const px = (share: number): number => Math.max(1.5, Math.ceil(size * share * 2) / 2);
   const outline = opts.outline === false ? [] : opts.outline === undefined ? (p.outline ?? []).map(o => ({tone: o.tone, width: px(o.share)}))
     : (asList(opts.outline) ?? []).map(o => ({tone: o.tone ?? 'text', width: o.width ?? px(OUTLINE_REL)}));
   const sh = specOf<ShadowSpec>(opts.shadow, p.shadow), gl = specOf<GlowSpec>(opts.glow, p.glow), ex = specOf<ExtrudeSpec>(opts.extrude, p.extrude), rf = specOf<ReflectionSpec>(opts.reflection, p.reflection);
@@ -146,11 +147,22 @@ export interface PaintLayer {
 }
 
 /** The gradient a fill refers to, in the figure's own coordinates (the same for every run, so a vertical text's columns share one). */
+/**
+ * The id of a wordart's gradient: the figure's own id and the two colours it is drawn with. The colours are what a theme changes, and a
+ * page with two SVGs of one figure in two themes would otherwise have two defs of one name.
+ */
+export function gradientId(art: LaidOutWordArt, day: Theme): string {
+  const g = art.look.gradient, ends = g ? colorOf(g.from, day) + colorOf(g.to, day) : '';
+  let h = 5381;
+  for (const ch of ends) h = (Math.imul(h, 33) ^ ch.charCodeAt(0)) >>> 0;
+  return `${art.uid}-g${h.toString(36)}`;
+}
+
 export function gradientOf(art: LaidOutWordArt, day: Theme): {id: string; x1: number; y1: number; x2: number; y2: number; from: string; to: string} | undefined {
   const g = art.look.gradient;
   if (!g) return undefined;
   const a = g.angle * Math.PI / 180, {x, y, w, h} = art.local, cx = x + w / 2, cy = y + h / 2, L = (Math.abs(w * Math.cos(a)) + Math.abs(h * Math.sin(a))) / 2;
-  return {id: `${art.uid}-g`, x1: cx - L * Math.cos(a), y1: cy - L * Math.sin(a), x2: cx + L * Math.cos(a), y2: cy + L * Math.sin(a), from: colorOf(g.from, day), to: colorOf(g.to, day)};
+  return {id: gradientId(art, day), x1: cx - L * Math.cos(a), y1: cy - L * Math.sin(a), x2: cx + L * Math.cos(a), y2: cy + L * Math.sin(a), from: colorOf(g.from, day), to: colorOf(g.to, day)};
 }
 
 /** The layers of a placed wordart for a theme, bottom to top: mirror image, shadow, glow, depth, outer outlines, bevel, the text. Pure. */
@@ -159,7 +171,7 @@ export function paintLayers(art: LaidOutWordArt, day: Theme, dim = false): Paint
   // spotlight dims everything but the shape of the letters: one muted layer (a hollow letter keeps its rim), no decoration, no gradient
   if (dim) return [{fill: look.fill === 'none' && !look.gradient ? 'none' : PALETTE.muted, ...(look.fill === 'none' && !look.gradient && look.outlines[0] ? {stroke: PALETTE.muted, sw: look.outlines[0].width} : {}), dx: 0, dy: 0, hidden: false, text: true}];
   const total = look.outlines.reduce((s, o) => s + o.width, 0), inner = look.outlines[0];
-  const fill = look.gradient ? `url(#${art.uid}-g)` : look.fill === 'none' ? 'none' : col(look.fill);
+  const fill = look.gradient ? `url(#${gradientId(art, day)})` : look.fill === 'none' ? 'none' : col(look.fill);
   const hollow = fill === 'none';
   const silhouette = (tone: ArtTone, width: number, extra: Partial<PaintLayer> = {}): PaintLayer => ({fill: col(tone), ...(width > 0 ? {stroke: col(tone), sw: 2 * width} : {}), dx: 0, dy: 0, hidden: true, ...extra});
   const own: Partial<PaintLayer> = inner ? {stroke: col(inner.tone), sw: hollow ? inner.width : 2 * inner.width} : {};

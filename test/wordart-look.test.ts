@@ -2,7 +2,7 @@ import test from 'node:test';
 import './helpers/strict-width.ts'; // a text the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
 import {wordart} from '../lib/dsl.ts';
-import {GLOW_RINGS, gradientOf, gradientSteps, inkReach, legibilityProblem, minRim, paintLayers, resolveLook} from '../lib/wordart.ts';
+import {GLOW_RINGS, PRESETS, gradientId, gradientOf, gradientSteps, inkReach, legibilityProblem, minRim, paintLayers, resolveLook} from '../lib/wordart.ts';
 import {paintOf} from '../lib/tokens.ts';
 import {place} from './helpers/wordart.ts';
 
@@ -142,4 +142,26 @@ test('a depth or a shadow does not default to the colour of the letters', () => 
   assert.equal(resolveLook({extrude: true, tone: 'accent'}, 40).extrude!.tone, 'text');
   assert.equal(resolveLook({shadow: true, tone: 'muted'}, 40).shadow!.tone, 'text');
   assert.equal(resolveLook({shadow: true}, 40).shadow!.tone, 'muted');
+});
+
+test('every preset reads at every size from 14px to 160px (the outline is rounded up, never under minRim)', () => {
+  for (const style of Object.keys(PRESETS) as (keyof typeof PRESETS)[]) for (let size = 14; size <= 160; size++) {
+    const look = resolveLook({style}, size);
+    assert.equal(legibilityProblem(look, 'blue'), null, `${style} at ${size}px`);
+    for (const o of look.outlines) assert.ok(o.width >= minRim(size), `${style} at ${size}px: a ${o.width}px outline`);
+  }
+});
+
+test('hollow letters with two outlines are refused, also when a preset brings them', () => {
+  assert.throws(() => wordart('中抜き', {style: 'sticker', tone: 'none', plate: 'accent'}), /one outline, and style 'sticker'/);
+  assert.doesNotThrow(() => wordart('中抜き', {style: 'sticker', tone: 'none', outline: {tone: 'accent'}}));
+  assert.doesNotThrow(() => wordart('中抜き', {style: 'outline', tone: 'none'}));
+});
+
+test('the id of a gradient follows its colours: one figure in two themes has two defs', () => {
+  const art = place('同じ', {style: 'gradient'});
+  assert.notEqual(gradientId(art, 'blue'), gradientId(art, 'amber'));
+  assert.equal(gradientId(art, 'blue'), gradientId(art, 'blue'));
+  assert.ok(gradientId(art, 'blue').startsWith(art.uid));
+  assert.equal(paintLayers(art, 'amber')[0].fill, `url(#${gradientId(art, 'amber')})`);
 });
