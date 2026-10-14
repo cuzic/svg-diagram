@@ -4,7 +4,7 @@
 import {Canvas, checkIds, checkText, fail, finiteNum, niceScale, numText} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 import {markerPath, SHAPES} from './charts-cat.ts';
-import {meanOf, polyFit} from './stats.ts';
+import {lowessFit, meanOf, polyFit} from './stats.ts';
 import type {PolyFit} from './stats.ts';
 
 export interface RegOpts extends ChartOpts {
@@ -16,6 +16,10 @@ export interface RegOpts extends ChartOpts {
   band?: boolean;
   /** Write the equation (a line) and R² of each fit in the legend. */
   stats?: boolean;
+  /** Draw a LOWESS curve (locally weighted line, robust to outliers) instead of the polynomial: no band, no equation. For `residplot`: a LOWESS curve of the residuals over the points, to show what the fit missed. */
+  lowess?: boolean;
+  /** LOWESS: the share of the points each local fit uses (0 to 1, default 2/3; smaller follows the data more closely). */
+  frac?: number;
   /** One label per row: each label is a group with a fit of its own (up to 4). */
   groups?: readonly string[];
   /** Widen the axes to cover at least this range [min, max] — the same range on every panel of a facet() makes their axes the same. */
@@ -26,14 +30,19 @@ export interface RegData {x: readonly number[]; y: readonly number[]; group?: re
 export interface RegSpec {
   xRange?: [number, number]; yRange?: [number, number];
   resid: boolean; xLabel: string; yLabel: string; order: 1 | 2 | 3; band: boolean; stats: boolean;
-  groups: {name: string; x: number[]; y: number[]; fit: PolyFit}[];
+  lowess: boolean;
+  groups: {name: string; x: number[]; y: number[]; fit: PolyFit; /** The LOWESS curve (of the data, or of the residuals for residplot). */ smooth?: (x: number) => number}[];
 }
 const TONES: ChartTone[] = ['accent', 'danger', 'text', 'muted'], DASH = ['', '6,4', '2,4', '10,4,2,4'];
 
 export function resolveReg(who: string, resid: boolean, data: RegData, opts: RegOpts): RegSpec {
   checkIds(who, [], opts.id);
   if (data === null || typeof data !== 'object' || !('x' in data) || !('y' in data)) fail(who, 'needs columns: {x: [..], y: [..]}');
-  const order = opts.order ?? 1;
+  const order = opts.order ?? 1, lowess = !!opts.lowess;
+  const frac = opts.frac ?? 2 / 3;
+  if (!(frac > 0 && frac <= 1)) fail(who, `frac must be a number in (0, 1] (got ${String(opts.frac)})`);
+  if (lowess && !resid && opts.stats) fail(who, 'stats (an equation and R²) needs a polynomial fit: it is not defined for lowess');
+  if (lowess && !resid && opts.order !== undefined) fail(who, 'order and lowess are two ways to draw the curve: give one');
   if (![1, 2, 3].includes(order)) fail(who, `order must be 1, 2 or 3 (got ${String(opts.order)})`);
   const num = (what: string, v: readonly number[]) => { if (!Array.isArray(v) || v.length < 2) fail(who, `${what} needs at least two values`); return (v as number[]).map((q, i) => finiteNum(who, `${what} value ${i + 1}`, q)); };
   const x = num('x', data.x), y = num('y', data.y);
@@ -48,10 +57,11 @@ export function resolveReg(who: string, resid: boolean, data: RegData, opts: Reg
     const label = name ? `"${name}"` : 'the data';
     if (gx.length < order + 2) fail(who, `${label}: a fit of order ${order} needs at least ${order + 2} points (got ${gx.length})`);
     if (new Set(gx).size < order + 1) fail(who, `${label}: the x values need at least ${order + 1} different values for a fit of order ${order}`);
-    return {name, x: gx, y: gy, fit: polyFit(gx, gy, order)};
+    const fit = polyFit(gx, gy, order);
+    return {name, x: gx, y: gy, fit, ...(lowess ? {smooth: lowessFit(gx, resid ? gy.map((v, i) => v - fit.at(gx[i])) : gy, frac)} : {})};
   });
   const range = (k: 'xRange' | 'yRange') => { const v = opts[k]; if (v === undefined) return {}; if (!Array.isArray(v) || v.length !== 2 || !v.every(Number.isFinite) || !(v[0] < v[1])) fail(who, `${k} must be [min, max] with min < max (got ${JSON.stringify(v)})`); return {[k]: [v[0], v[1]]}; };
-  return {...range('xRange'), ...range('yRange'), resid, xLabel: opts.xLabel ?? '', yLabel: opts.yLabel ?? '', order, band: opts.band ?? true, stats: !!opts.stats, groups};
+  return {...range('xRange'), ...range('yRange'), resid, xLabel: opts.xLabel ?? '', yLabel: opts.yLabel ?? '', order, band: opts.band ?? true, stats: !!opts.stats, lowess, groups};
 }
 
 const sgn = (v: number): string => `${v < 0 ? '−' : '+'} ${numText(Math.abs(parseFloat(v.toPrecision(3))))}`;
@@ -65,7 +75,7 @@ function statText(s: RegSpec, fit: PolyFit, xs: number[], ys: number[]): string 
 const legendText = (s: RegSpec, g: RegSpec['groups'][number]): string => `${g.name}${g.name && s.stats ? ' ' : ''}${s.stats ? statText(s, g.fit, g.x, g.y) : ''}`;
 
 export function regAlt(s: RegSpec): string {
-  return `${s.resid ? '残差プロット' : s.order === 1 ? '散布図と回帰直線' : `散布図と${s.order}次の回帰曲線`}（${s.xLabel || 'x'}・${s.yLabel || 'y'}）: ${s.groups.map(g => `${g.name ? g.name + ' ' : ''}n=${g.x.length} R²=${numText(parseFloat(g.fit.r2.toPrecision(2)))}`).join('、')}`;
+  return `${s.resid ? (s.lowess ? '残差プロットとLOWESS平滑線' : '残差プロット') : s.lowess ? '散布図とLOWESS平滑線' : s.order === 1 ? '散布図と回帰直線' : `散布図と${s.order}次の回帰曲線`}（${s.xLabel || 'x'}・${s.yLabel || 'y'}）: ${s.groups.map(g => `${g.name ? g.name + ' ' : ''}n=${g.x.length} R²=${numText(parseFloat(g.fit.r2.toPrecision(2)))}`).join('、')}`;
 }
 
 interface Pts {x: number; y: number}
@@ -73,15 +83,18 @@ function curves(s: RegSpec, xs: {min: number; max: number}) {
   return s.groups.map(g => {
     const lo = Math.min(...g.x), hi = Math.max(...g.x);
     const grid = Array.from({length: 61}, (_q, i) => lo + (hi - lo) * i / 60);
-    return {fit: grid.map(x => ({x, y: s.resid ? 0 : g.fit.at(x)})), up: grid.map(x => ({x, y: g.fit.at(x) + (g.fit.half?.(x) ?? 0)})), dn: grid.map(x => ({x, y: g.fit.at(x) - (g.fit.half?.(x) ?? 0)})), pts: g.x.map((x, i) => ({x, y: s.resid ? g.y[i] - g.fit.at(x) : g.y[i]}))};
+    if (g.smooth && !s.resid) { const line = grid.map(x => ({x, y: (g.smooth as (x: number) => number)(x)})); return {fit: line, up: line, dn: line, pts: g.x.map((x, i) => ({x, y: g.y[i]}))}; }
+    return {fit: grid.map(x => ({x, y: s.resid ? (g.smooth ? g.smooth(x) : 0) : g.fit.at(x)})), up: grid.map(x => ({x, y: g.fit.at(x) + (g.fit.half?.(x) ?? 0)})), dn: grid.map(x => ({x, y: g.fit.at(x) - (g.fit.half?.(x) ?? 0)})), pts: g.x.map((x, i) => ({x, y: s.resid ? g.y[i] - g.fit.at(x) : g.y[i]}))};
   }).map(c => ({...c, xs}));
 }
 function scales(s: RegSpec) {
   const all = s.groups.flatMap(g => g.x), xs = niceScale(Math.min(...all, s.xRange?.[0] ?? Infinity), Math.max(...all, s.xRange?.[1] ?? -Infinity)), cv = curves(s, xs);
-  const ys = s.groups.flatMap((_g, i) => [...cv[i].pts.map(p => p.y), ...(s.resid ? [0] : s.band ? [...cv[i].up, ...cv[i].dn].map(p => p.y) : cv[i].fit.map(p => p.y))]);
+  const ys = s.groups.flatMap((_g, i) => [...cv[i].pts.map(p => p.y), ...(s.resid ? [0, ...(s.lowess ? cv[i].fit.map(p => p.y) : [])] : s.band ? [...cv[i].up, ...cv[i].dn].map(p => p.y) : cv[i].fit.map(p => p.y))]);
   const top = Math.max(...ys.map(Math.abs)), yscale = s.resid ? niceScale(Math.min(-top, s.yRange?.[0] ?? 0), Math.max(top, s.yRange?.[1] ?? 0)) : niceScale(Math.min(...ys, s.yRange?.[0] ?? Infinity), Math.max(...ys, s.yRange?.[1] ?? -Infinity));
   return {xs, ys: yscale, cv};
 }
+/** The axes the figure ends up with (what a facet shares between panels). */
+export function regAxes(s: RegSpec): {x: [number, number]; y: [number, number]} { const sc = scales(s); return {x: [sc.xs.min, sc.xs.max], y: [sc.ys.min, sc.ys.max]}; }
 export function regTexts(s: RegSpec): [string, number][] {
   const sc = scales(s), out: [string, number][] = [];
   if (s.groups.length > 1 || s.stats) for (const g of s.groups) { const t = legendText(s, g); if (t) out.push([t, 400]); }
@@ -125,7 +138,7 @@ export function layoutReg(s: RegSpec, g: ChartGeom): LaidOutChartPart {
     const cv = sc.cv[i];
     if (s.band && !s.resid && cv.up[0].y !== cv.fit[0].y) c.path(`${line(cv.up)} L${line([...cv.dn].reverse()).slice(1)} Z`, {fill: tone(i), op: 0.14});
     for (const p of cv.pts) { c.path(markerPath(SHAPES[i], xOf(p.x), yOf(p.y), 3.5), {fill: tone(i), op: 0.75, stroke: 'bg', sw: 1}); marks.push({x: xOf(p.x), y: yOf(p.y)}); }
-    if (!s.resid) c.path(line(cv.fit), {fill: 'none', stroke: tone(i), sw: 2.5, dash: DASH[i] || undefined});
+    if (!s.resid || s.lowess) c.path(line(cv.fit), {fill: 'none', stroke: tone(i), sw: 2.5, dash: DASH[i] || undefined});
   });
   for (const m of marks) c.marks.push({x: m.x - 4, y: m.y - 4, w: 8, h: 8});
   if (s.resid) c.line(plotL, yOf(0), plotR, yOf(0), {stroke: 'text', sw: 2, dash: '6,4'});

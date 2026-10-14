@@ -17,9 +17,9 @@ import type {TreemapSpec} from './charts-treemap.ts';
 import {layoutSankey, sankeyTexts} from './charts-sankey.ts';
 import type {SankeySpec} from './charts-sankey.ts';
 import {catTexts, layoutCat} from './charts-cat.ts';
-import {distTexts, layoutDist} from './charts-dist.ts';
+import {distAxes, distTexts, layoutDist} from './charts-dist.ts';
 import {layoutMulti, multiTexts} from './charts-multi.ts';
-import {layoutReg, regTexts} from './charts-reg.ts';
+import {layoutReg, regAxes, regTexts} from './charts-reg.ts';
 import {clusterTexts, layoutCluster} from './charts-cluster.ts';
 import type {ClusterSpec} from './charts-cluster.ts';
 import type {RegSpec} from './charts-reg.ts';
@@ -105,4 +105,13 @@ export function layoutChart(band: ChartBand, x: number, y: number, w: number, wi
     }
   })();
   return {type: 'chart', kind: band.kind, id: band.id, alt: band.alt, size, x: left, y, w: width, ...part, ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until})};
+}
+
+/** The value axes a chart band has when it is drawn, for the kinds that can be told to share them (xRange / yRange); undefined for the others. */
+export function chartAxes(band: ChartBand): {x: [number, number]; y: [number, number]} | undefined {
+  switch (band.kind) {
+    case 'distplot': return distAxes(band.spec as DistSpec);
+    case 'regplot': return regAxes(band.spec as RegSpec);
+    default: return undefined;
+  }
 }
