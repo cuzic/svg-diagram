@@ -203,6 +203,12 @@ export interface DiagramSource {
   reveal?: number;
   until?: number;
 }
+/**
+ * ADR 0012: `scope` on a self-placing band (tree, mindmap, stateDiagram, causeTree, gantt, classDiagram, bpmn, quadrant, chart, bars,
+ * image, swimlane, chevron / funnel / cycle / venn / concentric) registers its items as `<scope>.<id>`. connect() and spotlight
+ * name one with the qualified name; the bare id works while only one item has it, and is an error when several do.
+ */
+export interface ScopeOpts {scope?: string}
 export interface RevealOpts {reveal?: number; /** The click this element vanishes at (it is shown from `reveal` up to, not including, `until`). */ until?: number}
 /**
  * What diagram() returns. `add()` accepts bands and arrays of bands (swimlane() / branch() return arrays).

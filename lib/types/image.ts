@@ -1,5 +1,5 @@
 // Types: image.
-import type {Anchor, Dimmed, EmphasisTone, LabelRole, Rect, RevealOpts} from './core.ts';
+import type {Anchor, Dimmed, EmphasisTone, LabelRole, Rect, RevealOpts, ScopeOpts} from './core.ts';
 import type {Band} from './index.ts';
 
 /** A position as fractions of the picture: [0, 0] is its top-left corner, [1, 1] its bottom-right. */
@@ -34,7 +34,7 @@ export interface ImageLabel {
   reveal?: number;
   until?: number;
 }
-export interface ImageOpts extends RevealOpts {
+export interface ImageOpts extends RevealOpts, ScopeOpts {
   /** A spotlight target and a connect() endpoint (the whole picture). May not repeat a mark's id. */
   id?: string;
   /** What the picture shows, for readers who cannot see it (the SVG's <desc> and the <image>'s label). Required: pass `decorative: true` instead when it adds nothing. */

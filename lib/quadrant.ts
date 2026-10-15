@@ -7,10 +7,11 @@
 //     is too crowded the rows grow (a `height` is a minimum), and when growing does not help the layout throws and says which item.
 // The rating of a cell is always written (its title / note), the groups are told apart by shape AND colour, and the size of a bubble
 // has a legend: colour is never the only carrier of meaning.
+import {assertScope} from './scope-name.ts';
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
 import {gridColumns} from './layout-util.ts';
-import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, Roles, WidthOf} from './types/core.ts';
+import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, ScopeOpts, Roles, WidthOf} from './types/core.ts';
 import type {BoxTone} from './types/text-bands.ts';
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -51,7 +52,7 @@ export interface QuadrantItem {
 export type QuadrantEnd = string | [x: number, y: number];
 /** A movement (portfolio shift): from → to. */
 export interface QuadrantArrow {from: QuadrantEnd; to: QuadrantEnd; label?: string; dashed?: boolean}
-export interface QuadrantOpts extends RevealOpts {
+export interface QuadrantOpts extends RevealOpts, ScopeOpts {
   /** A spotlight target and a connect() endpoint (the whole figure); each item's id is an anchor too. */
   id?: string;
   /** Fills the axes, grid, captions and tones of a named framework; anything given here overrides it. */
@@ -295,8 +296,9 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
     if (!Array.isArray(e) || !Number.isInteger(e[0]) || !Number.isInteger(e[1]) || e[0] < 0 || e[1] < 0 || e[0] >= cols || e[1] >= rows) throw new Error(`quadrant(): allowEmpty cell ${JSON.stringify(e)} is outside the ${cols} x ${rows} grid (columns 0..${cols - 1}, rows 0..${rows - 1}, from the top-left), or use true`);
   }
   for (const [k, v] of [['height', opts.height], ['width', opts.width]] as const) if (v !== undefined && !(typeof v === 'number' && v > 0 && Number.isFinite(v))) throw new Error(`quadrant(): ${k} must be a finite number > 0 (got ${v})`);
+  assertScope(opts.scope, 'quadrant()');
   return {
-    type: 'quadrant', ...(opts.id ? {id: opts.id} : {}), ...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until}),
+    type: 'quadrant', ...(opts.id ? {id: opts.id} : {}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until}),
     x, y, cols, rows, cells, items, arrows, groups, crosshair: opts.crosshair ?? p?.crosshair ?? false,
     ...(opts.sizeTitle === undefined ? {} : {sizeTitle: opts.sizeTitle}), ...(opts.sizeUnit === undefined ? {} : {sizeUnit: opts.sizeUnit}),
     height: opts.height ?? p?.height, ...(opts.width === undefined ? {} : {width: opts.width}),

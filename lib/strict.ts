@@ -75,9 +75,13 @@ export type RefIn<Ids extends string, R extends string> =
 
 type UnknownId<Id extends string, Known extends string> =
   `unknown anchor id "${Id}" — declare it with {id: '${Id}'} (declared ids: ${Join<Known>})`;
-/** Refs among R whose id is not in Known (messages); never for non-literal refs. */
+/**
+ * Refs among R whose id is not in Known (messages); never for non-literal refs. A qualified name (`plan.p0`, a band built with
+ * `scope`: ADR 0012) is passed on its shape alone (an `@` in it is a misplaced offset, as in 'a@0.5', and stays an error): the constructors do not declare qualified names yet, so a misspelt one is
+ * caught when the diagram is laid out ("unknown anchor id", with the names that have the same item), not by the types.
+ */
 type IdProblem<R extends string, Known extends string> = R extends string
-  ? (R extends HandleRef ? never : IsPattern<IdOf<R>> extends true ? never : IdOf<R> extends Known ? never : UnknownId<IdOf<R>, Known>)
+  ? (R extends HandleRef ? never : IsPattern<IdOf<R>> extends true ? never : IdOf<R> extends Known ? never : IdOf<R> extends `${string}@${string}` ? UnknownId<IdOf<R>, Known> : IdOf<R> extends `${string}.${string}` ? never : UnknownId<IdOf<R>, Known>)
   : never;
 
 type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;

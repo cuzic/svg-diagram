@@ -1,4 +1,5 @@
 import {MIN_FONT_SIZE, isSolidTone} from '../tokens.ts';
+import {assertScope, scopeOf} from '../scope-name.ts';
 import type {Band} from '../types/index.ts';
 
 // `const list = box({id: 'list'})`: a band built with an id also works as a handle (`list.right`, `list.at('top', 0.25)`),
@@ -16,11 +17,18 @@ export function withHandle<T extends object>(band: T, id: string | undefined): T
   return band;
 }
 // screens() / swimlane(): `.anchors.<id>` is the handle of each item / step that has an id.
+// A band built with {scope} registers its items as `<scope>.<id>` (ADR 0012), so the handle names the item that way: `.anchors.p0.right` is 'plan.p0:right'.
 export function withAnchors<T extends object>(band: T, ids: (string | undefined)[]): T {
   const anchors: Record<string, object> = {};
-  for (const id of ids) if (id) anchors[id] = Object.defineProperties({id}, handleFor(id));
+  const scope = scopeOf(Array.isArray(band) ? band[0] ?? {} : band);
+  for (const id of ids) if (id) { const name = scope ? `${scope}.${id}` : id; anchors[id] = Object.defineProperties({id: name}, handleFor(name)); }
   return Object.defineProperty(band, 'anchors', {value: anchors});
 }
+// `scope` goes onto a band only when it was given (ADR 0012), so a band built without it is byte-for-byte what it was.
+export const scopeOpt = (opts: {scope?: string} | undefined, what: string): {scope?: string} => {
+  assertScope(opts?.scope, what);
+  return opts?.scope === undefined ? {} : {scope: opts.scope};
+};
 // `reveal` goes onto a band only when it was given, so a band built without it is byte-for-byte what it was.
 export const revealOf = (opts: {reveal?: number; until?: number}): {reveal?: number; until?: number} => ({...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until})});
 // A constructor with no `reveal` (legend, spacer, raw, ...) refuses one instead of dropping it: the types already do, a JS caller is told here.

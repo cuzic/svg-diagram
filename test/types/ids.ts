@@ -1,7 +1,7 @@
 // Type-level tests (checked by `tsc -p .`, never run by `node --test`): connect() refs against declared ids.
 // Positive cases must compile; every `@ts-expect-error` must be a real error (an unused one fails tsc).
 // Nothing here executes: the cases live in a function that is never called.
-import {diagram, build, box, banner, row, grid, group, connect, branch, screens, wireframe, table, sequence, swimlane, wf} from '../../lib/dsl.ts';
+import {diagram, build, box, banner, row, grid, group, connect, branch, screens, wireframe, table, sequence, swimlane, wf, chevron, gantt} from '../../lib/dsl.ts';
 import type {Diagram} from '../../lib/types/core.ts';
 import type {Band} from '../../lib/types/index.ts';
 
@@ -80,4 +80,14 @@ export function idCases(): void {
   connect('a:', 'b');
   // @ts-expect-error the offset needs a side: 'a@0.5' is read as an id, which does not exist
   d.add(box({id: 'a'}), connect('a@0.5', 'a:top'));
+
+  // ---- ADR 0012: a qualified name (`scope.id`, a band built with {scope}) passes on its shape; the handle of a scoped band types as usual ----
+  d.add(chevron([{id: 'p0', label: 'a'}], {scope: 'plan'}), gantt([{id: 'p0', label: 'a', start: '2026-10-05', end: '2026-10-16'}], {scope: 'sched'}), connect('plan.p0', 'sched.p0:top'), connect('plan.p0:right@0.25', 'sched.p0'));
+  d.add(box({id: 'a'})).add(connect('a', 'other.item')); // not declared by any constructor: a misspelt qualified name is found at run time, with a hint
+  const sched = gantt([{id: 'p0', label: 'a', start: '2026-10-05', end: '2026-10-16'}], {scope: 'sched'});
+  d.add(sched, connect(sched.anchors.p0.right, 'sched.p0:left'));
+  // @ts-expect-error a bare id still has to be declared
+  d.add(chevron([{id: 'p0', label: 'a'}], {scope: 'plan'}), connect('p1', 'p0'));
+  // @ts-expect-error the side of a qualified name is checked like any other
+  connect('plan.p0:lft', 'b');
 }

@@ -12,7 +12,7 @@ import type {Band} from '../types/index.ts';
 import type {BuildResult, RenderResult} from '../types/verdicts.ts';
 import type {AnchorsOf, Declares, IdsOf, HandleOf, Refers, RefsOf} from '../strict.ts';
 import {renderDiagram} from './render.ts';
-import {assertNoReveal, assertTextRole, revealOf, withAnchors, withHandle} from './shared.ts';
+import {assertNoReveal, assertTextRole, revealOf, scopeOpt, withAnchors, withHandle} from './shared.ts';
 
 type MarkIds<M extends readonly ImageMark[]> = Extract<M[number]['id'], string>;
 const IMAGE_TONES = ['plain', 'accent', 'danger', 'muted', 'new', 'changed', 'removed', 'solid', 'solid-danger'];
@@ -54,7 +54,7 @@ export function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
   const file = readImage(src);
   const band: ImageBand = {
     type: 'image', href: file.href, naturalW: file.w, naturalH: file.h, bytes: file.bytes, alt: opts.alt?.trim() ?? '',
-    ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts),
+    ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'image()'), ...revealOf(opts),
     ...(opts.width === undefined ? {} : {width: opts.width}), ...(opts.height === undefined ? {} : {height: opts.height}), ...(opts.align === undefined ? {} : {align: opts.align}), ...(opts.labelRole === undefined ? {} : {labelRole: opts.labelRole}),
     ...(opts.marks?.length ? {marks: opts.marks.map(m => ({...m, rect: [...m.rect] as unknown as ImageRect}))} : {}),
     ...(opts.labels?.length ? {labels: opts.labels.map(l => ({...l}))} : {}),

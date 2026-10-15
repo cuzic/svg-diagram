@@ -6,21 +6,22 @@
 //   * venn labels sit in their own region (a pair's label in the part only that pair shares, not in the middle),
 //   * a side key of concentric() is tied to its ring by a leader line, so the key does not depend on colour.
 // verify.ts checks that every label stays inside the figure and that no two labels overlap.
+import {assertScope} from './scope-name.ts';
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
-import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, Roles, TextTone, WidthOf} from './types/core.ts';
+import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, ScopeOpts, Roles, TextTone, WidthOf} from './types/core.ts';
 import type {BoxTone} from './types/text-bands.ts';
 
 export interface FlowStep {label: string; sub?: string; id?: string; tone?: BoxTone}
-export interface ChevronOpts extends RevealOpts {id?: string; direction?: 'horizontal' | 'vertical'; first?: 'pentagon' | 'chevron'; gap?: number; current?: number; highlight?: number; width?: number}
+export interface ChevronOpts extends RevealOpts, ScopeOpts {id?: string; direction?: 'horizontal' | 'vertical'; first?: 'pentagon' | 'chevron'; gap?: number; current?: number; highlight?: number; width?: number}
 export interface FunnelStage {label: string; value?: number; id?: string; tone?: BoxTone}
-export interface FunnelOpts extends RevealOpts {id?: string; scale?: 'value' | 'even'; showRate?: boolean; width?: number}
-export interface CycleOpts extends RevealOpts {id?: string; centre?: string; direction?: 'cw' | 'ccw'; width?: number}
+export interface FunnelOpts extends RevealOpts, ScopeOpts {id?: string; scale?: 'value' | 'even'; showRate?: boolean; width?: number}
+export interface CycleOpts extends RevealOpts, ScopeOpts {id?: string; centre?: string; direction?: 'cw' | 'ccw'; width?: number}
 export interface VennSet {name: string; label?: string; id?: string; tone?: TextTone}
 export interface VennOverlap {sets: readonly string[]; label: string}
-export interface VennOpts extends RevealOpts {id?: string; overlaps?: readonly VennOverlap[]; centre?: string; universe?: string | boolean; width?: number}
+export interface VennOpts extends RevealOpts, ScopeOpts {id?: string; overlaps?: readonly VennOverlap[]; centre?: string; universe?: string | boolean; width?: number}
 export interface ConcentricRing {label: string; description?: string; id?: string; tone?: TextTone}
-export interface ConcentricOpts extends RevealOpts {id?: string; order?: 'outer-first' | 'inner-first'; labels?: 'inside' | 'side'; centre?: string; width?: number}
+export interface ConcentricOpts extends RevealOpts, ScopeOpts {id?: string; order?: 'outer-first' | 'inner-first'; labels?: 'inside' | 'side'; centre?: string; width?: number}
 
 export interface ChevronBand extends ChevronOpts {type: 'chevron'; steps: FlowStep[]; direction: 'horizontal' | 'vertical'; first: 'pentagon' | 'chevron'; gap: number}
 export interface FunnelBand extends FunnelOpts {type: 'funnel'; stages: FunnelStage[]; scale: 'value' | 'even'; showRate: boolean}
@@ -59,6 +60,7 @@ function checkTones(name: string, xs: readonly {tone?: string}[], allowed: Set<s
 
 export function chevronBand(steps: readonly FlowStep[], opts: ChevronOpts = {}): ChevronBand {
   common('chevron', steps, opts.id);
+  assertScope(opts.scope, 'chevron()');
   checkTones('chevron', steps, BOX_TONES);
   const current = opts.current ?? opts.highlight;
   if (current !== undefined && (!Number.isInteger(current) || current < 0 || current >= steps.length)) throw new Error(`chevron(): current/highlight must be a zero-based step index (0..${steps.length - 1})`);
@@ -67,6 +69,7 @@ export function chevronBand(steps: readonly FlowStep[], opts: ChevronOpts = {}):
 }
 export function funnelBand(stages: readonly FunnelStage[], opts: FunnelOpts = {}): FunnelBand {
   common('funnel', stages, opts.id);
+  assertScope(opts.scope, 'funnel()');
   checkTones('funnel', stages, BOX_TONES);
   stages.forEach((s, i) => { if (s.value !== undefined && (!Number.isFinite(s.value) || s.value < 0)) throw new Error(`funnel(): stage ${i + 1} value must be a finite number >= 0`); });
   const scale = opts.scale ?? 'even';
@@ -76,12 +79,14 @@ export function funnelBand(stages: readonly FunnelStage[], opts: FunnelOpts = {}
 export function cycleBand(steps: readonly FlowStep[], opts: CycleOpts = {}): CycleBand {
   if (steps.length < 3 || steps.length > 8) throw new Error(`cycle(): needs 3..8 steps (got ${steps.length})`);
   common('cycle', steps, opts.id);
+  assertScope(opts.scope, 'cycle()');
   checkTones('cycle', steps, BOX_TONES);
   return {...opts, type: 'cycle', steps: [...steps], direction: opts.direction ?? 'cw'};
 }
 export function vennBand(sets: readonly VennSet[], opts: VennOpts = {}): VennBand {
   if (sets.length < 2 || sets.length > 3) throw new Error(`venn(): needs 2 or 3 sets (got ${sets.length})`);
   common('venn', sets.map(s => ({label: s.name, id: s.id})), opts.id);
+  assertScope(opts.scope, 'venn()');
   checkTones('venn', sets, TEXT_TONES);
   const names = new Set(sets.map(s => s.name));
   if (names.size !== sets.length) throw new Error('venn(): set names must be unique');
@@ -99,6 +104,7 @@ export function vennBand(sets: readonly VennSet[], opts: VennOpts = {}): VennBan
 }
 export function concentricBand(rings: readonly ConcentricRing[], opts: ConcentricOpts = {}): ConcentricBand {
   common('concentric', rings, opts.id);
+  assertScope(opts.scope, 'concentric()');
   checkTones('concentric', rings, TEXT_TONES);
   return {...opts, type: 'concentric', rings: [...rings], order: opts.order ?? 'outer-first', labels: opts.labels ?? 'inside'};
 }

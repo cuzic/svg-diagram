@@ -1,7 +1,7 @@
 // Types: tree, states, cause / cloud (TOC), classes and bpmn.
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
-import type {Anchor, Dimmed, EmphasisTone, Rect, RevealOpts, TextTone} from './core.ts';
+import type {Anchor, Dimmed, EmphasisTone, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
 import type {BoxTone} from './text-bands.ts';
 import type {GanttText} from './timeline.ts';
 
@@ -14,7 +14,7 @@ export interface TreeItem {
   tone?: BoxTone;
   children?: TreeItem[];
 }
-export interface TreeOpts extends RevealOpts {
+export interface TreeOpts extends RevealOpts, ScopeOpts {
   /** 'down' (default): levels run top to bottom. 'right': left to right, which fits more siblings in a narrow figure.
    *  'auto' (and leaving it out) lets the layout narrow the nodes and turn to the other direction when the figure is wider than the diagram
    *  (a warning when left out, a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
@@ -42,7 +42,7 @@ export interface TreeBand extends TreeOpts {
  * fishbone: cause and effect, the root is the head | timeline: children along an axis, alternately above and below.
  */
 export type MindmapLayout = 'radial' | 'right' | 'left' | 'down' | 'up' | 'org' | 'list' | 'brace' | 'fishbone' | 'timeline';
-export interface MindmapOpts extends RevealOpts {
+export interface MindmapOpts extends RevealOpts, ScopeOpts {
   /** How the branches are laid out (default 'radial'): see MindmapLayout. */
   layout?: MindmapLayout;
   /** How a branch's line is drawn: 'elbow' (default), 'curve' or 'straight'. For radial / right / left / down / up. */
@@ -80,7 +80,7 @@ export interface Transition {
   /** A thick arrow. */
   strong?: boolean;
 }
-export interface StatesOpts extends RevealOpts {
+export interface StatesOpts extends RevealOpts, ScopeOpts {
   /** 'right' (default): the flow runs left to right. 'down': top to bottom.
    *  'auto' (and leaving it out) lets the layout narrow the states and turn to the other direction when the figure is wider than the diagram
    *  (a warning when left out, a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
@@ -130,7 +130,7 @@ export interface CauseLink {
    *  depend on the order the entities are written in, and it is drawn bold. One cause only (not with an array `from`); one per cycle. */
   back?: true;
 }
-export interface CauseOpts extends RevealOpts {
+export interface CauseOpts extends RevealOpts, ScopeOpts {
   /** Which way the arrows run: 'up' (default: causes at the bottom, effects at the top), 'down', 'right' or 'left'.
    *  'auto' (and leaving it out) lets the layout narrow the nodes when the figure is wider than the diagram (a warning when left out, a note for 'auto');
    *  a cause tree never changes its axis. Writing a direction fixes it: the figure that does not fit is an error that lists what was tried. */
@@ -176,7 +176,7 @@ export interface CloudAssumption {
   /** A change that makes the assumption false (drawn under it, in the accent colour). */
   injection?: string;
 }
-export interface CloudOpts extends RevealOpts {
+export interface CloudOpts extends RevealOpts, ScopeOpts {
   assumptions?: CloudAssumption[];
   /** A word on the conflict arrow (default none). */
   conflictLabel?: string;
@@ -212,7 +212,7 @@ export interface ClassRelation {
   fromMult?: string;
   toMult?: string;
 }
-export interface ClassesOpts extends RevealOpts {
+export interface ClassesOpts extends RevealOpts, ScopeOpts {
   /** 'down' (default): parents on top. 'right': left to right.
    *  'auto' (and leaving it out) lets the layout turn to the other direction when the figure is wider than the diagram (a warning when left out,
    *  a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
@@ -252,7 +252,7 @@ export interface BpmnFlow {
   /** 'dashed': a message flow between lanes (default: a sequence flow, solid). */
   line?: 'solid' | 'dashed';
 }
-export interface BpmnOpts extends RevealOpts {
+export interface BpmnOpts extends RevealOpts, ScopeOpts {
   id?: string;
   /** 'shrink': when the figure is wider than the diagram, narrow the lane-name column, the column gaps and the task boxes step by step until it fits (default: throw). */
   fit?: 'shrink';

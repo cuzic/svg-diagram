@@ -6,12 +6,12 @@ import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapAtoms} from './wrap.ts';
 import {niceNear} from './qc.ts';
 import type {IconGlyph} from './icon-store.ts';
-import type {ColorKey, Rect, RevealOpts, Roles, WidthOf, LabelRole} from './types/core.ts';
+import type {ColorKey, Rect, RevealOpts, ScopeOpts, Roles, WidthOf, LabelRole} from './types/core.ts';
 
 export type ChartKind = 'waterfall' | 'radar' | 'heatmap' | 'stacked' | 'treemap' | 'sankey' | 'tornado' | 'bubble' | 'butterfly' | 'combo' | 'harvey' | 'catplot' | 'distplot' | 'multiplot' | 'regplot' | 'clustermap' | 'pert' | 'causal' | 'dependency';
 export type ChartTone = 'accent' | 'danger' | 'muted' | 'text';
 /** Options every chart has. */
-export interface ChartOpts extends RevealOpts {
+export interface ChartOpts extends RevealOpts, ScopeOpts {
   /** A spotlight target and a connect() endpoint (the whole figure). The elements with an id of their own are anchors too. */
   id?: string;
   /** The text role of every label of the figure. Default 'note' (14px). */

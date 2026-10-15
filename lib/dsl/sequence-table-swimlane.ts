@@ -6,7 +6,7 @@ import type {WfNode} from '../types/wireframe-nodes.ts';
 import type {ScreensBand, StateMatrixOpts, StateMatrixRow, PartRow, StateCellIn, StateMatrixCell} from '../types/wireframe.ts';
 import type {ActorIn, AnchorsOf, Declares, FlowCheck, FlowIn, LaneCheck, HandleOf, SeqStepIn, StateRowLoose, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn} from '../strict.ts';
 import {connectBand} from './defaults.ts';
-import {assertBoxTone, assertFontSize, assertNoReveal, revealOf, withAnchors, withHandle} from './shared.ts';
+import {assertBoxTone, assertFontSize, assertNoReveal, revealOf, scopeOpt, withAnchors, withHandle} from './shared.ts';
 
 // UML-style sequence diagram. actors: [{id, label, tone?}]. steps (in time order):
 //   {from, to, label, line?: 'solid'|'dashed'|'dotted'|'double', arrow?, tone?, number?: false}
@@ -123,7 +123,7 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
     return connectBand(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone}, false);
   });
   if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`swimlane(): fit must be 'shrink' (got ${String(opts.fit)})`);
-  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...revealOf(opts)};
+  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
   return withAnchors([block, ...flows], placed.map(st => st.id));
 }
 // A component's states as a grid: one row per part, one column per state.

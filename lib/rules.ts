@@ -9,6 +9,7 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
+import {qualify, scopeOf} from './anchor-scope.ts';
 import {nestedBandsOf} from './band-children.ts';
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
@@ -383,7 +384,7 @@ function swimlaneRules(d: LintTarget, out: Finding[]): void {
   for (const sl of lanesBands) {
     const n = sl.lanes.length;
     if (n > 6) out.push({rule: 'swimlane-lanes', severity: 'warn', message: `レーンが ${n} 本ある（6 本までが目安）`});
-    const ids = new Map<string, number>(sl.steps.filter(s => s.id).map((s): [string, number] => [s.id as string, sl.lanes.findIndex(l => l.id === s.lane)]));
+    const ids = new Map<string, number>(sl.steps.filter(s => s.id).map((s): [string, number] => [qualify(scopeOf(sl), s.id as string), sl.lanes.findIndex(l => l.id === s.lane)]));
     const flows = (d.connects ?? []).filter(c => ids.has(c.fromId) && ids.has(c.toId));
     if (!flows.length) continue;
     const dist = (order: number[]) => { const pos = new Map(order.map((l, i) => [l, i])); return flows.reduce((s, c) => s + Math.abs((pos.get(ids.get(c.fromId) as number) as number) - (pos.get(ids.get(c.toId) as number) as number)), 0); };
