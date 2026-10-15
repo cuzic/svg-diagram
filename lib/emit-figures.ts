@@ -13,6 +13,7 @@ import type {LaidOutQuadrant} from './quadrant.ts';
 import type {LaidOutFlowShape} from './flow-shapes.ts';
 import {snap4, escapeXml, emojiSpan, resolveTextColor, lineAttrs, arrowPath, resolveBoxStyle} from './emit-common.ts';
 import {renderBoxRect} from './emit-boxes.ts';
+import {CORE_BADGE_H, CORE_BADGE_GAP} from './toc.ts';
 
 // plane(): axes (with arrowheads), ticks, guides, points, dimension lines with their label chips, then every text.
 export function renderPlane(b: LaidOutPlane, day: Theme, stage?: number): string {
@@ -278,13 +279,14 @@ export function renderStates(b: LaidOutStates, day: Theme): string {
 }
 
 
-// The core driver (ADR 0015 D4): a thick frame and a small 中核 badge astride the side of the box away from the arrows that leave it
-const CORE_STROKE = 3.5, BADGE_W = 44, BADGE_H = 22;
+// The core driver (ADR 0015 D4): a thick frame and a small 中核 badge just outside the side of the box away from the arrows that leave it
+const CORE_STROKE = 3.5, BADGE_W = 44, BADGE_H = CORE_BADGE_H, BADGE_GAP = CORE_BADGE_GAP;
 function coreBadge(n: LaidOutCause['nodes'][number], id: string, b: LaidOutCause, day: Theme): string {
   const leave = b.edges.find(e => e.from === id)?.points[0], eps = 1;
   const side = !leave ? 'top' : Math.abs(leave.y - n.y) < eps ? 'bottom' : Math.abs(leave.y - n.y - n.h) < eps ? 'top' : Math.abs(leave.x - n.x) < eps ? 'right' : 'left';
-  const x = side === 'left' ? n.x - BADGE_W / 2 : side === 'right' ? n.x + n.w - BADGE_W / 2 : n.x + 6;
-  const y = side === 'top' ? n.y - BADGE_H / 2 : side === 'bottom' ? n.y + n.h - BADGE_H / 2 : n.y + 6;
+  // wholly outside the frame, so it never covers the label (H7)
+  const x = side === 'left' ? n.x - BADGE_W - BADGE_GAP : side === 'right' ? n.x + n.w + BADGE_GAP : n.x + 6;
+  const y = side === 'top' ? n.y - BADGE_H - BADGE_GAP : side === 'bottom' ? n.y + n.h + BADGE_GAP : n.y + 6;
   const fill = b.dim ? PALETTE.muted : colorOf('accent', day);
   return `<rect x="${snap4(x)}" y="${snap4(y)}" width="${BADGE_W}" height="${BADGE_H}" rx="8" fill="${fill}"/>\n  <text x="${snap4(x + BADGE_W / 2)}" y="${snap4(y + 16)}" text-anchor="middle" font-size="14" font-weight="700" fill="${PALETTE.bg}">中核</text>`;
 }

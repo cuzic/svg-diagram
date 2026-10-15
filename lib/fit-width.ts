@@ -22,7 +22,7 @@ export interface FitAttempt<R extends FitResult> {
 export interface FitOpts<R extends FitResult> {
   /** first: the first attempt that fits (a figure that already fits is never touched). best: of the attempts that fit (and are not too tall), the best score; a tie goes to the earlier one. */
   mode: 'first' | 'best';
-  /** The tallest a figure may be (best mode; a canvas height or the slide's `maxDisplayHeight`). None: width only. */
+  /** The tallest a figure may be (a canvas height or the slide's `maxDisplayHeight`; both modes skip an attempt taller than it). None: width only. */
   heightBudget?: number;
   /** The width an attempt takes up when that is not `size.w` (a state diagram's loops hang out beside it). */
   widthOf?: (r: R) => number;
@@ -67,8 +67,10 @@ export function fitWidth<R extends FitResult>(w: number, attempts: readonly FitA
  *     not tried: dir 'right' (dir is explicit; write dir: 'auto' to let it change)
  *     fix: dir: 'auto', or widen the figure (diagram({width: 1100}))
  */
-export function fitFailure(who: string, w: number, tried: readonly Tried[], fix: string, notTried: readonly string[] = []): string {
-  const lines = [`${who}: the figure does not fit ${Math.round(w)}px.`];
+export function fitFailure(who: string, w: number, tried: readonly Tried[], fix: string, notTried: readonly string[] = [], heightBudget?: number): string {
+  // a figure that fits the width but is too tall is a height failure: say so (ADR 0019 D2)
+  const tooTall = heightBudget !== undefined && tried.some(t => t.w <= w + 0.5);
+  const lines = [tooTall ? `${who}: the figure does not fit ${Math.round(w)}px wide by ${Math.round(heightBudget)}px tall (every attempt that fits the width is too tall).` : `${who}: the figure does not fit ${Math.round(w)}px.`];
   if (tried.length) lines.push(`  tried: ${tried.map(t => `${t.label} ${t.w}px wide, ${t.h}px tall`).join('; ')}`);
   if (notTried.length) lines.push(`  not tried: ${notTried.join('; ')}`);
   lines.push(`  fix: ${fix}`);
@@ -177,7 +179,8 @@ export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPla
   if (!plan.explicitDir && alt === undefined && plan.axisKept) notTried.push(plan.axisKept);
   if (plan.foldable && plan.fold === false) notTried.push('folding a layer into rows (fold is written: false)');
   notTried.push(...(plan.notTried ?? []));
+  const tooTall = plan.heightBudget !== undefined && fitted.tried.some(t => t.w <= plan.w + 0.5);
   const wider = widerThan(fitted.tried, 40);
-  const fix = plan.explicitDir ? `dir: 'auto', ${canFold && plan.fold === undefined ? 'or fold: true (a layer wider than the figure is cut into rows, the direction stays), ' : ''}or widen the figure (diagram({width: ${wider}}))` : plan.fix ?? (wider > 1400 ? 'split the figure in two (fewer entities on one level)' : `widen the figure (diagram({width: ${wider}}))`);
-  throw new Error(fitFailure(plan.who, plan.w, fitted.tried, fix, notTried));
+  const fix = tooTall ? 'split the figure in two (fewer entities or fewer layers), or give the canvas more height' : plan.explicitDir ? `dir: 'auto', ${canFold && plan.fold === undefined ? 'or fold: true (a layer wider than the figure is cut into rows, the direction stays), ' : ''}or widen the figure (diagram({width: ${wider}}))` : plan.fix ?? (wider > 1400 ? 'split the figure in two (fewer entities on one level)' : `widen the figure (diagram({width: ${wider}}))`);
+  throw new Error(fitFailure(plan.who, plan.w, fitted.tried, fix, notTried, plan.heightBudget));
 }

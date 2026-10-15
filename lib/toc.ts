@@ -18,6 +18,8 @@ import type {BoxTone} from './types/text-bands.ts';
 
 const MAX_W = 200, GAP = 28, LEVEL = 64, PORT = 22; // PORT: the step between the arrows that meet one side of an entity (the arrowheads of an AND stay apart)
 /** The arc across the arrows of an AND: where its ends and its middle are, as distances from the arrowheads' tips. */
+/** The 中核 badge (ADR 0015 D4): its height and its gap to the frame; emit-figures draws it, the layout keeps the room. */
+export const CORE_BADGE_H = 22, CORE_BADGE_GAP = 2;
 const AND_END = 21, AND_PEAK = 15, AND_REACH = 10;
 
 /** What a role looks like when the node gives no tone. `double`: the box has a second outline (the finding of the figure). */
@@ -95,8 +97,12 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   // ALAP (ADR 0019 D1): the entities where a cause starts stay on the first layer; the input side (preconditions, obstacles, actions) moves up to its effects
   const layerMode = band.layer ?? (band.tree === 'prt' || band.tree === 'frt' || band.tree === 'tt' ? 'alap' : 'asap');
   const alap = layerMode === 'alap' ? {keep: band.nodes.filter(n => n.role === 'root' || n.role === 'injection' || n.role === 'start').map(n => n.id)} : undefined;
+  // the 中核 badge sits outside the frame, at the end of the axis the arrows run along: the figure keeps that room free at both ends (H7)
+  const badgeRoom = band.nodes.some(n => n.core) ? CORE_BADGE_H + CORE_BADGE_GAP : 0;
+  const padOf = (vertical: boolean): {x: number; y: number} => ({x: vertical ? 0 : badgeRoom, y: vertical ? badgeRoom : 0});
   const build = (dir: CauseDir, maxW: number, fold?: number) => {
     const vertical = dir === 'up' || dir === 'down', flip = dir === 'up' || dir === 'left';
+    const iw = w - 2 * padOf(vertical).x; // the width the figure itself has: the badge room at both ends of the arrows' axis is kept free
     const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles)]));
     // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
     const order: string[] = [], put = (id: string): void => { if (!order.includes(id)) order.push(id); };
@@ -119,13 +125,13 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     const placeIn = (total: {w: number; h: number}) => (p: Pt): Pt => {
       const q = vertical ? swap(p) : {...p};
       if (flip) { if (vertical) q.y = total.h - q.y; else q.x = total.w - q.x; }
-      return {x: q.x + x + (w - total.w) / 2, y: q.y + y};
+      return {x: q.x + x + padOf(vertical).x + (iw - total.w) / 2, y: q.y + y + padOf(vertical).y};
     };
     const declared = arrows.flatMap((a, k) => a.back ? [k] : []); // the returns the author named: laid out as the way back (index into `arrows`)
     // the returns that skip layers run in an outer lane: all of them when `returns: 'outer'` (or pdpc's default), the declared ones (`back`) when nothing is written
     const wanted: 'all' | 'declared' | undefined = band.returns === 'inline' ? undefined : (band.returns ?? band.returnsDefault) === 'outer' ? 'all' : declared.length ? 'declared' : undefined;
     const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {}), ...(alap ? {alap} : {}), ...(fold === undefined ? {} : {fold})}, {
-      portStep: PORT, groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: w + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}),
+      portStep: PORT, groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: iw + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}),
       looseOf: (rts, ly) => {
         const route = new Map<number, Pt[]>();
         ly.edges.forEach((e, i) => { if (!e.self) route.set(e.index, rts.get(i)!); });
@@ -149,12 +155,12 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   const fitted = fitLayout<CauseDir, ReturnType<typeof build>>({
     who: 'causeTree()', w, start, ...(band.base !== undefined ? {alt: 'right' as const} : {axisKept: `another axis (a cause tree keeps its direction: ${start})`}),
     explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined ? {} : {maxNodeW: band.maxNodeW}),
-    build, ...(band.base === undefined ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget}),
+    build, ...(band.base === undefined ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget: heightBudget - 2 * badgeRoom}), // the badge room is not in an attempt's size
     ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
   });
   const attempt = fitted.result, {lines, vertical, flip} = attempt, fitApplied = fitted.applied;
   const {lay, routes, size: total} = attempt;
-  const dx = x + (w - total.w) / 2, dy = y;
+  const pad = padOf(vertical), dx = x + pad.x + (w - 2 * pad.x - total.w) / 2, dy = y + pad.y;
   const rectOf = (id: string) => {
     const p = lay.nodes.get(id)!, q = vertical ? {x: p.y, y: p.x, w: p.h, h: p.w} : {x: p.x, y: p.y, w: p.w, h: p.h};
     if (flip) { if (vertical) q.y = total.h - (q.y + q.h); else q.x = total.w - (q.x + q.w); }
@@ -162,7 +168,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   };
 
   const out: LaidOutCause = {
-    type: 'cause', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h,
+    type: 'cause', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + 2 * pad.y,
     nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
     ...(fitApplied.length ? {fitApplied} : {}),
   };
