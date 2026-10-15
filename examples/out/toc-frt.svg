@@ -7,38 +7,38 @@
   </style>
   <rect x="0" y="0" width="940" height="576" fill="#ffffff"/>
 
-  <path d="M432,484 L432,416" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M432,404 L437,416 L427,416 z" fill="#22201b"/>
-  <path d="M456,368 L456,300" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M456,288 L461,300 L451,300 z" fill="#22201b"/>
-  <path d="M504,252 L504,236 L388,236 L388,184" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M388,172 L393,184 L383,184 z" fill="#22201b"/>
-  <path d="M260,484 L260,436 L272,436 L272,200 L364,200 L364,184" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M364,172 L369,184 L359,184 z" fill="#22201b"/>
-  <path d="M648,484 L648,316 L536,316 L536,300" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M536,288 L541,300 L531,300 z" fill="#22201b"/>
-  <path d="M472,484 L472,436 L504,436 L504,328 L512,328 L512,300" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M512,288 L517,300 L507,300 z" fill="#22201b"/>
-  <path d="M364,136 L364,68" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M364,56 L369,68 L359,68 z" fill="#22201b"/>
-  <path d="M388,56 L388,76 L760,76 L760,452 L284,452 L284,476" fill="none" stroke="#22201b" stroke-width="3"/>
-  <path d="M284,484 L279,472 L289,472 z" fill="#22201b"/>
-  <path d="M356,192 Q376,180 396,192" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M504,308 Q524,296 544,308" fill="none" stroke="#22201b" stroke-width="2"/>
-  <rect x="308" y="136" width="112" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="288" y="20" width="156" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="360" y="368" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="432" y="252" width="140" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="392" y="484" width="140" height="36" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="560" y="484" width="180" height="36" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="6,4"/>
-  <rect x="180" y="484" width="184" height="36" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="6,4"/>
-  <text x="366" y="158" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">納期を守れる</text>
-  <text x="366" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客の信頼が増える</text>
-  <text x="418" y="390" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仕掛りが減る</text>
-  <text x="502" y="274" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">1 つずつ仕上げる</text>
-  <text x="460" y="506" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">着手の枠を決める</text>
-  <text x="649" y="506" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">受注の量は変えられない</text>
-  <text x="271" y="506" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">営業が納期を相談できる</text>
+  <path d="M316,484 L316,416" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M316,404 L321,416 L311,416 z" fill="#22201b"/>
+  <path d="M344,368 L344,300" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M344,288 L349,300 L339,300 z" fill="#22201b"/>
+  <path d="M396,252 L396,236 L492,236 L492,184" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M492,172 L497,184 L487,184 z" fill="#22201b"/>
+  <path d="M572,252 L572,220 L512,220 L512,184" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M512,172 L517,184 L507,184 z" fill="#22201b"/>
+  <path d="M504,368 L504,336 L428,336 L428,300" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M428,288 L433,300 L423,300 z" fill="#22201b"/>
+  <path d="M352,484 L352,436 L384,436 L384,316 L408,316 L408,300" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M408,288 L413,300 L403,300 z" fill="#22201b"/>
+  <path d="M492,136 L492,68" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M492,56 L497,68 L487,68 z" fill="#22201b"/>
+  <path d="M512,56 L512,76 L692,76 L692,208 L596,208 L596,244" fill="none" stroke="#22201b" stroke-width="3"/>
+  <path d="M596,252 L591,240 L601,240 z" fill="#22201b"/>
+  <path d="M480,192 Q500,180 524,192" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M396,308 Q420,296 440,308" fill="none" stroke="#22201b" stroke-width="2"/>
+  <rect x="436" y="136" width="112" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="412" y="20" width="156" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="244" y="368" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="328" y="252" width="136" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="272" y="484" width="140" height="36" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="412" y="368" width="184" height="36" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="492" y="252" width="184" height="36" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <text x="491" y="158" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">納期を守れる</text>
+  <text x="491" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客の信頼が増える</text>
+  <text x="300" y="390" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仕掛りが減る</text>
+  <text x="396" y="274" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">1 つずつ仕上げる</text>
+  <text x="342" y="506" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">着手の枠を決める</text>
+  <text x="504" y="390" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">受注の量は変えられない</text>
+  <text x="585" y="274" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">営業が納期を相談できる</text>
 
   <text x="20" y="550" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>

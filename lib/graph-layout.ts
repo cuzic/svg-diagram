@@ -152,6 +152,9 @@ export interface LayeredOpts {
   dir?: Dir; gap?: number; levelGap?: number; /** crossing-reduction sweeps (default 4) */ sweeps?: number;
   /** Pull a node that only has edges going out (no edge into it, not a `start`) down to just before its nearest target, so its edges stop being long (default false: the longest-path layer, layer 0). */
   tighten?: boolean;
+  /** ALAP (ADR 0019 D1): every node of the input side (no edge into it, or only edges from other such nodes) moves down to just before its nearest target, in turn from the targets back,
+   *  so a chain of inputs (obstacle → action → goal) is short too. `keep` ids stay on their longest-path layer (and so do `start` nodes). Layers only grow; the cycle breaking is not changed. Default: off. */
+  alap?: {keep: readonly string[]};
   /** Keep the order with the fewest crossings seen in the sweeps, then swap neighbours in a layer while that cuts crossings (default false: the order the last sweep left). */
   transpose?: boolean;
   /** How the across coordinates are found: 'relax' (default: centre each layer, then pull toward the neighbours) or 'bk' (Brandes-Köpf: long edges and chains come out straight). */
@@ -350,6 +353,20 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     const nearest = new Map<string, number>();
     for (const d of dag) nearest.set(d.a, Math.min(nearest.get(d.a) ?? Infinity, layer.get(d.b)!));
     for (const [u, l] of nearest) if (!preds.get(u)!.length && !starts.includes(u) && l - 1 > layer.get(u)!) layer.set(u, l - 1);
+  }
+  if (opts.alap) {
+    const keep = new Set([...opts.alap.keep, ...starts]), movers = new Set<string>(), succs = new Map<string, string[]>(nodes.map(n => [n.id, []]));
+    for (const d of dag) succs.get(d.a)!.push(d.b);
+    // the input side, from the first layer on (a node's predecessors lie on lower layers): all of a node's in-edges come from the input side
+    const byLayer = [...layer.keys()].sort((p, q) => layer.get(p)! - layer.get(q)!);
+    for (const u of byLayer) if (!keep.has(u) && preds.get(u)!.every(p => movers.has(p))) movers.add(u);
+    // then from the last layer back, so a mover's targets (movers too) have already moved
+    for (const u of [...byLayer].reverse()) {
+      const ts = succs.get(u)!;
+      if (!movers.has(u) || !ts.length) continue;
+      const l = Math.min(...ts.map(t => layer.get(t)!)) - 1;
+      if (l > layer.get(u)!) layer.set(u, l);
+    }
   }
 
   // 2b. fold: a layer wider than `fold` becomes rows, each its own layer (ADR 0010 D7). The order is not known yet, so the nodes go to the rows in input order.

@@ -15,11 +15,12 @@ export default function define() {
         {id: 'a1', label: '1 枚に絞った版を作る', role: 'action'},
         {id: 'a2', label: '負担の少ない運用例を示す', role: 'action'},
         {id: 'a3', label: '提案の窓口と締め切りを決める', role: 'action'},
+        {id: 'i4', label: '提案の様式が決まる', role: 'io'},
       ],
       [
         {from: 'o1', to: 'a1'}, {from: 'a1', to: 'i1'},
         {from: 'o2', to: 'a2'}, {from: 'a2', to: 'i2'},
-        {from: 'a3', to: 'i3'},
+        {from: 'a3', to: 'i4'}, {from: 'i4', to: 'i3'},
         {from: 'i1', to: 'goal'}, {from: 'i2', to: 'goal'}, {from: 'i3', to: 'i2'},
       ],
       {tree: 'prt'},
