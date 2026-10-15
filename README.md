@@ -1116,7 +1116,7 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
   - `frt` + `mirrors`: `toc-mirror`（`mirrors` の id が UDE でない・UDE に対応する望む結果が無い・同じ UDE を複数が `mirrors` している、の 3 つを 1 つの規則で。部分図は `accept` で理由を書く）。
 
 - **原因分析の図の検査の重大度**（`diagram({rcaCheck: 'strict'})`）: 故障の木・IS/IS NOT・なぜなぜ・ボウタイの検査（ADR 0025 / 0026）を warn にする。既定は info。`tocCheck` / `layoutCheck` とは別に指定でき、絵は変わらない。検査そのものは各図の実装で足す（今は枠だけ）。
-  - 故障の木: `fta-gate-one-input`（AND / OR / vote の入力が 1 つ）、`fta-vote-degenerate`（k が 1 か入力の数。OR / AND と同じ）、`fta-top-is-leaf`（頂上にゲートが無い）、`fta-undeveloped-left`（展開していない事象が残っている。常に info）。
+  - 故障の木: `fta-gate-one-input`（AND / OR / vote の入力が 1 つ）、`fta-vote-degenerate`（k が 1 か入力の数。OR / AND と同じ）、`fta-top-is-leaf`（頂上にゲートが無い）、`fta-undeveloped-left`（展開していない事象が残っている。常に info）、`fta-single-point`（単独で頂上を起こす事象がある。常に info）。
 ## 表記・数値の整合と差分だけの検査（`check`）
 - **表記の揺れ**（`term-variant`）: 1 つの図の中で、同じ語が `ユーザ` / `ユーザー`（末尾の長音）や `API` / `Api`（大文字・大小混在）のように揺れていると警告する。`Server` と `server` のような文頭の大文字だけの差、数字や `-` `_` を含む ID は見ない。
 - **用語集**（`term-avoid`）: `.svg-diagram.json`（または `diagram({terms})`）に `"terms": {"ユーザー": ["利用者", "ユザー"]}` と書くと、右の語が図に出たとき「ユーザーに統一」と警告する（用語集が決めている揺れは `term-variant` で二重に出さない）。

@@ -6,6 +6,7 @@ import type {Theme} from './types/core.ts';
 import type {LaidOutFta} from './types/diagrams.ts';
 import {snap4, emojiSpan} from './emit-common.ts';
 import {renderBoxRect} from './emit-boxes.ts';
+import {pillSvg} from './badge.ts';
 
 type R = {x: number; y: number; w: number; h: number};
 
@@ -34,7 +35,9 @@ export function renderFta(b: LaidOutFta, day: Theme): string {
     out.push(`<path d="${gatePath(g.gate, g)}" fill="${PALETTE.bg}" stroke="${ink}" stroke-width="2"/>`);
     if (g.label) out.push(`<text x="${Math.round(g.x + g.w / 2)}" y="${Math.round(g.y + g.h * 0.72)}" text-anchor="middle" font-size="${g.label.size}" fill="${ink}">${emojiSpan(g.label.text)}</text>`);
   }
-  for (const m of b.marks) out.push(`<path d="${markPath(m.kind, m)}" fill="${PALETTE.bg}" stroke="${ink}" stroke-width="2"/>`);
+  const alert = b.dim ? PALETTE.muted : PALETTE.danger;
+  for (const m of b.marks) out.push(`<path d="${markPath(m.kind, m)}" fill="${PALETTE.bg}" stroke="${m.single ? alert : ink}" stroke-width="${m.single ? 4 : 2}"/>`);
+  for (const t of b.badges) out.push(pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.x + t.w) - snap4(t.x), h: t.h, fill: alert, cx: t.x + t.w / 2, baseline: t.y + t.h / 2 + t.size * 0.36, text: PALETTE.bg, size: t.size, labelHtml: emojiSpan(t.text)}));
   for (const n of b.nodes) out.push(renderBoxRect({...n, tone: 'plain', dim: b.dim}, day, 'plain'));
   for (const t of b.texts) {
     const fill = b.dim ? PALETTE.muted : t.muted ? PALETTE.muted : colorOf(toneStyle('plain').text, day);

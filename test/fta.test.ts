@@ -107,7 +107,7 @@ test('faultTree() width: shrunk with a warning when left out, a note for auto, n
 });
 
 test('fta rules: findings of the tree, and their severity in check', async () => {
-  const rules = (top: FtaEvent) => ftaFindings({root: top}).map(f => f.rule);
+  const rules = (top: FtaEvent) => ftaFindings({root: top}).map(f => f.rule).filter(r => r !== 'fta-single-point'); // the single-point rule has its own test
   assert.deepEqual(rules(tree()), ['fta-undeveloped-left']);
   assert.deepEqual(rules({label: 'a', gate: 'and', children: [B('b')]}), ['fta-gate-one-input']);
   assert.deepEqual(rules({label: 'a', gate: 'inhibit', children: [B('b')], condition: {label: 'c'}}), [], 'an inhibit gate has one input by definition');
@@ -115,12 +115,101 @@ test('fta rules: findings of the tree, and their severity in check', async () =>
   assert.deepEqual(rules({label: 'a', gate: 'vote', k: 2, children: [B('b'), B('c')]}), ['fta-vote-degenerate']);
   assert.deepEqual(rules({label: 'a', gate: 'vote', k: 2, children: [B('b'), B('c'), B('d')]}), []);
   assert.deepEqual(rules({label: 'a', kind: 'basic'}), ['fta-top-is-leaf']);
-  const sev = async (opts: object, top: FtaEvent) => (await checkDiagram(diagram({theme: 'blue', ...opts}).add(faultTree(top)))).verdict.findings.filter(f => f.rule.startsWith('fta-'));
+  const sev = async (opts: object, top: FtaEvent) => (await checkDiagram(diagram({theme: 'blue', ...opts}).add(faultTree(top)))).verdict.findings.filter(f => f.rule.startsWith('fta-') && f.rule !== 'fta-single-point');
   const one: FtaEvent = {label: 'a', gate: 'and', children: [B('b')]};
   assert.ok((await sev({}, one)).every(f => f.severity === 'info'));
   assert.ok((await sev({rcaCheck: 'strict'}, one)).every(f => f.severity === 'warn'));
   const undeveloped = await sev({rcaCheck: 'strict'}, tree());
   assert.ok(undeveloped.length === 1 && undeveloped[0].severity === 'info', 'fta-undeveloped-left stays info under strict');
+  const single = (await checkDiagram(diagram({theme: 'blue', rcaCheck: 'strict'}).add(faultTree(one)))).verdict.findings.filter(f => f.rule === 'fta-single-point');
+  assert.ok(single.length === 1 && single[0].severity === 'info', 'fta-single-point stays info under strict');
   const acc = await sev({rcaCheck: 'strict', accept: {'fta-gate-one-input': '1 入力の例'}}, one);
   assert.ok(acc.every(f => f.severity === 'info'));
+});
+
+// ---- U2: minimal cut sets, single points of failure ----
+import {minimalCutSets, CUT_SET_LIMIT} from '../lib/fta-analysis.ts';
+
+const cuts = (top: FtaEvent) => minimalCutSets(ftaResolve(top).root);
+const names = (top: FtaEvent) => cuts(top).sets.map(s => s.join('+'));
+const leaf = (id: string): FtaEvent => ({id, label: id, kind: 'basic'});
+
+test('minimalCutSets(): AND / OR / absorption', () => {
+  assert.deepEqual(names({label: 't', gate: 'or', children: [{label: 'g', gate: 'and', children: [leaf('a'), leaf('b')]}, leaf('c')]}), ['c', 'a+b']);
+  // a OR (a AND b) = a
+  assert.deepEqual(names({label: 't', gate: 'or', children: [leaf('a'), {label: 'g', gate: 'and', children: [{ref: 'a'}, leaf('b')]}]}), ['a']);
+});
+
+test('minimalCutSets(): a shared event is one variable', () => {
+  // (a AND b) OR (a AND c): both sets contain the same a
+  const t: FtaEvent = {label: 't', gate: 'or', children: [{label: 'g1', gate: 'and', children: [leaf('a'), leaf('b')]}, {label: 'g2', gate: 'and', children: [{ref: 'a'}, leaf('c')]}]};
+  assert.deepEqual(names(t), ['a+b', 'a+c']);
+  // a AND a = a: the repeat adds nothing
+  assert.deepEqual(names({label: 't', gate: 'and', children: [leaf('a'), {label: 'x', gate: 'or', children: [{ref: 'a'}, leaf('b')]}]}), ['a']);
+});
+
+test('minimalCutSets(): vote(k, n) is the AND of every k-subset', () => {
+  assert.deepEqual(names({label: 't', gate: 'vote', k: 2, children: [leaf('a'), leaf('b'), leaf('c')]}), ['a+b', 'a+c', 'b+c']);
+});
+
+test('minimalCutSets(): inhibit is an AND with its condition; a house event is a constant', () => {
+  const inh: FtaEvent = {label: 't', gate: 'inhibit', children: [leaf('a')], condition: {id: 'c', label: 'c'}};
+  assert.deepEqual(names(inh), ['a+c']);
+  assert.deepEqual(names({label: 't', gate: 'and', children: [leaf('a'), {label: 'h', kind: 'house', state: true}]}), ['a']);
+  assert.deepEqual(names({label: 't', gate: 'or', children: [leaf('a'), {label: 'h', kind: 'house', state: false}]}), ['a']);
+  assert.deepEqual(names({label: 't', gate: 'and', children: [leaf('a'), {label: 'h', kind: 'house', state: false}]}), []);
+});
+
+test('minimalCutSets(): stops past the limit and says so', () => {
+  const m = Math.ceil(Math.sqrt(CUT_SET_LIMIT)) + 1; // an AND of (m-input ORs) twice: more than the limit
+  const or = (p: string): FtaEvent => ({label: p, gate: 'or', children: Array.from({length: m}, (_, i) => leaf(`${p}${i}`))});
+  const big: FtaEvent = {label: 't', gate: 'and', children: [or('x'), or('y')]};
+  const r = cuts(big);
+  assert.equal(r.truncated, true);
+  assert.deepEqual(r.sets, []);
+  assert.throws(() => faultTree(big, {cutSets: true}), /too many cut sets/);
+  assert.doesNotThrow(() => faultTree(big));
+  const f = ftaFindings({root: big}).find(x => x.rule === 'fta-single-point')!;
+  assert.equal(f.severity, 'info');
+  assert.match(f.message, /多すぎて/);
+});
+
+const svc: FtaEvent = {
+  label: 'サービス停止', gate: 'or',
+  children: [
+    {label: 'DB 全体停止', gate: 'and', children: [B('主系停止'), B('待機系へ切替不能')]},
+    {label: 'アプリ全台停止', kind: 'undeveloped'},
+  ],
+};
+
+test('cutSets: true badges the single points, and tells an undeveloped event from a basic one', async () => {
+  const {t} = await laid(faultTree(svc, {cutSets: true}));
+  assert.equal(t.badges.length, 1);
+  assert.equal(t.badges[0].text, '未展開・単独で頂上へ');
+  assert.equal(t.marks.filter(m => m.single).length, 1);
+  const basic = JSON.parse(JSON.stringify(svc)) as FtaEvent;
+  basic.children![1] = B('アプリ全台停止');
+  const {t: t2} = await laid(faultTree(basic, {cutSets: true}));
+  assert.deepEqual(t2.badges.map(b => b.text), ['単一故障点']);
+  const {t: t3} = await laid(faultTree(svc));
+  assert.equal(t3.badges.length, 0, 'without cutSets nothing is badged');
+});
+
+test('a badge sits under its event symbol, inside the band, and the check stays clean', async () => {
+  const {t, verdict} = await laid(faultTree(svc, {cutSets: true}));
+  assert.equal(verdict.problems.length, 0, verdict.problems.join('\n'));
+  const m = t.marks.find(x => x.single)!, b = t.badges[0];
+  assert.ok(b.y >= m.y + m.h, 'under the symbol');
+  assert.ok(Math.abs(b.x + b.w / 2 - (m.x + m.w / 2)) < 1, 'centred on it');
+  assert.ok(b.y + b.h <= t.y + t.h + 0.5, 'inside the band');
+  const svg = (await renderDiagram(diagram({theme: 'blue'}).add(faultTree(svc, {cutSets: true})) as never, {name: 'x.svg', budget: 'cacheOnly'})).svg;
+  assert.match(svg, /未展開・単独で頂上へ/);
+});
+
+test('fta-single-point: reported (info) with or without cutSets; a tree with none says nothing', () => {
+  const f = ftaFindings({root: svc}).filter(x => x.rule === 'fta-single-point');
+  assert.equal(f.length, 1);
+  assert.equal(f[0].severity, 'info');
+  assert.match(f[0].message, /アプリ全台停止.*未展開/);
+  assert.equal(ftaFindings({root: {label: 't', gate: 'and', children: [B('a'), B('b')]}}).filter(x => x.rule === 'fta-single-point').length, 0);
 });

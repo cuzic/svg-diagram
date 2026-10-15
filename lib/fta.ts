@@ -7,6 +7,8 @@ import type {TreeNode} from './graph-layout.ts';
 import {fitLayout} from './fit-width.ts';
 import type {FitResult} from './fit-width.ts';
 import {measureNode, nodeRuns} from './tree.ts';
+import {textWidth} from './atoms.ts';
+import {ftaVar, minimalCutSets, singlePoints} from './fta-analysis.ts';
 import type {NodeLines} from './tree.ts';
 import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {FtaBand, FtaEvent, FtaGate, FtaKind, LaidOutFta} from './types/diagrams.ts';
@@ -131,17 +133,33 @@ export function ftaResolve(top: FtaEvent): {root: FtaNode; nodes: FtaNode[]} {
   return {root, nodes};
 }
 
+/** The label under a single point of failure: an event that was never developed is not called a failure point. */
+const SINGLE_TEXT = {basic: '単一故障点', undeveloped: '未展開・単独で頂上へ'} as const;
+const singleText = (n: FtaNode): string | undefined => n.gate === undefined && (n.kind === 'basic' || n.kind === 'undeveloped') ? SINGLE_TEXT[n.kind] : undefined;
+
+/** The variables that alone bring the top event about. Throws when the tree has too many cut sets to find them (a tree with `cutSets: true` is never analysed by guessing). */
+export function ftaSinglePoints(root: FtaNode): Set<string> {
+  const cuts = minimalCutSets(root);
+  if (cuts.truncated) throw new Error('faultTree({cutSets: true}): the tree has too many cut sets to find the single points of failure; simplify the tree (fewer vote gates, fewer events under an AND of ORs)');
+  return singlePoints(cuts);
+}
+
 export function ftaTexts(band: FtaBand, roles: Roles): [string, number, number, FontFamily][] {
   const out: [string, number, number, FontFamily][] = [];
-  for (const n of ftaResolve(band.root).nodes) {
+  const {root, nodes} = ftaResolve(band.root);
+  const single = band.cutSets ? ftaSinglePoints(root) : new Set<string>();
+  for (const n of nodes) {
     out.push([n.label, roles.body, 700, 'sans']);
     const sub = stateSub(n);
     if (sub) out.push([sub, roles.note, 400, 'sans']);
+    const bt = single.has(ftaVar(n)) ? singleText(n) : undefined;
+    if (bt) out.push([bt, roles.note, 700, 'sans']);
   }
   return out;
 }
 
 // sizes of the parts of a compound node
+const BADGE_GAP = 6, BADGE_PAD_X = 10, BADGE_H = 22;
 const STEM = 10, GATE_W = 40, GATE_H = 36, MARK_W = 26, MARK_H = 26, COND_MARK_W = 40, COND_MARK_H = 24, COND_GAP = 22, GAP = 24, LEVEL_GAP = 36;
 const NODE_MAX = 200;
 
@@ -151,6 +169,8 @@ interface Comp {
   /** The rectangle's size and the whole compound node's. */
   rect: {w: number; h: number};
   cond?: {node: FtaNode; lines: NodeLines; w: number; h: number};
+  /** A single point of failure's label, under its symbol. */
+  badge?: {text: string; w: number};
   w: number;
   h: number;
   /** The height down to the bottom of the gate (the point the children's lines leave from). */
@@ -165,6 +185,7 @@ interface Attempt extends FitResult {
 
 export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutFta {
   const {root} = ftaResolve(band.root);
+  const single = band.cutSets ? ftaSinglePoints(root) : new Set<string>();
   const attempt = (maxW: number): Attempt => {
     const comps = new Map<string, Comp>();
     const measure = (n: FtaNode): Comp => {
@@ -184,6 +205,12 @@ export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthO
       } else {
         c.w = Math.max(c.w, MARK_W);
         c.h = c.outY = c.rect.h + STEM + MARK_H;
+        const bt = single.has(ftaVar(n)) ? singleText(n) : undefined;
+        if (bt) {
+          c.badge = {text: bt, w: Math.ceil(textWidth(widthOf, bt, roles.note, 700)) + 2 * BADGE_PAD_X};
+          c.w = Math.max(c.w, c.badge.w);
+          c.h += BADGE_GAP + BADGE_H;
+        }
       }
       comps.set(n.key, c);
       for (const k of n.children) measure(k);
@@ -205,7 +232,7 @@ export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthO
   const dx = x + (w - tree.w) / 2, dy = y;
   const out: LaidOutFta = {
     type: 'fta', ...(band.id === undefined ? {} : {id: band.id}), ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until}),
-    x, y, w, h: tree.h, nodes: [], marks: [], gates: [], edges: [], texts: [], anchors: [], labelBoxes: [],
+    x, y, w, h: tree.h, nodes: [], marks: [], badges: [], gates: [], edges: [], texts: [], anchors: [], labelBoxes: [],
     ...(fitted.applied.length ? {fitApplied: fitted.applied} : {}),
   } as LaidOutFta;
   const place = (n: FtaNode, px: number, py: number, pw: number, cl: NodeLines, rw: number, rh: number): {x: number; y: number; w: number; h: number} => {
@@ -223,8 +250,9 @@ export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthO
     const r = place(n, px, py, p.w, c.lines, c.rect.w, c.rect.h);
     if (n.gate === undefined) {
       const m = {x: mid - MARK_W / 2, y: r.y + r.h + STEM, w: MARK_W, h: MARK_H};
-      out.marks.push({...m, kind: n.kind});
+      out.marks.push({...m, kind: n.kind, ...(c.badge ? {single: true as const} : {})});
       seg({x: mid, y: r.y + r.h}, {x: mid, y: m.y});
+      if (c.badge) out.badges.push({x: mid - c.badge.w / 2, y: m.y + m.h + BADGE_GAP, w: c.badge.w, h: BADGE_H, text: c.badge.text, size: roles.note});
       continue;
     }
     const g = {x: mid - GATE_W / 2, y: r.y + r.h + STEM, w: GATE_W, h: GATE_H};

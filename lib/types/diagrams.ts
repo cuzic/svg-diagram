@@ -426,6 +426,8 @@ export interface FtaOpts extends RevealOpts, ScopeOpts {
   /** The widest an event box grows (default 200). Left out, it is narrowed (to 110) when the tree is wider than the diagram (a warning);
    *  'auto' does the same as a note; a number is never narrowed (a tree that does not fit is an error). */
   maxNodeW?: number | 'auto';
+  /** Mark the events that alone bring the top event about (the minimal cut sets of size 1) with a heavy outline and a badge. Throws when the tree has too many cut sets to find them. */
+  cutSets?: boolean;
   id?: string;
 }
 export interface FtaBand extends FtaOpts {
@@ -442,7 +444,9 @@ export interface LaidOutFta extends Rect, Dimmed {
   /** The box of each event drawn (a `ref` draws its event again; only the first has `id`). */
   nodes: (Rect & {kind: FtaKind; id?: string})[];
   /** The symbol under a basic / undeveloped / house / condition event. */
-  marks: (Rect & {kind: FtaKind})[];
+  marks: (Rect & {kind: FtaKind; single?: true})[];
+  /** The label under a single point of failure (opts `cutSets`). */
+  badges: (Rect & {text: string; size: number})[];
   gates: (Rect & {gate: FtaGate; label?: {text: string; size: number}})[];
   /** Gate output to event, gate input to its children, inhibit gate to its condition. */
   edges: {points: {x: number; y: number}[]}[];
