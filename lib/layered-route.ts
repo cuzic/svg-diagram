@@ -340,6 +340,8 @@ export interface Attempt {
   /** Whether `size.w` is within `maxAcross` (true when none is given). */
   fits: boolean;
   loose: string[];
+  /** ADR 0016 D12/D13 moved side-by-side runs aside in this candidate. */
+  asided?: true;
 }
 
 /** How many arrows run through the inside of a box that is not one of their two ends (the boxes and routes are in the placed figure). */
@@ -401,7 +403,9 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     const before = parallels(a);
     if (!before) return a;
     const {opts, laneShare} = optsOf.get(a)!, b = build(opts, laneShare, true);
-    return parallels(b) >= before || worse(a, b) || andCrossings(b) > andCrossings(a) ? a : b;
+    if (parallels(b) >= before || worse(a, b) || andCrossings(b) > andCrossings(a)) return a;
+    b.asided = true;
+    return b;
   };
   const sharing = (a: Attempt): Attempt => {
     if (!o.groupOf) return a;

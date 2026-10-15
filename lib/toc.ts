@@ -58,6 +58,9 @@ export const causesOf = (l: {from: string | readonly string[]}): string[] => typ
 
 type CauseDir = 'up' | 'down' | 'right' | 'left';
 
+/** Figures whose side-by-side runs were moved aside (ADR 0016 D12/D13): only these can have had an AND crossing cleared that way. */
+const movedAside = new WeakSet<object>();
+
 /**
  * A cause tree. When the arrows into an effect with an AND cross each other, the order the entities are written in is tried again in a few fixed
  * ways (ADR 0019 D4); a figure with no such crossing is never touched. Only a cause tree (not pdpc() / relationDiagram()).
@@ -65,7 +68,7 @@ type CauseDir = 'up' | 'down' | 'right' | 'left';
 export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number, canvasBound = false): LaidOutCause {
   const first = layoutCauseBandOnce(band, x, y, w, widthOf, roles, heightBudget, canvasBound);
   // the search is for a figure whose AND arrows cross as first laid out: judged before the side-by-side runs are moved aside (ADR 0016 D12/D13), which also clears crossings
-  if (band.base !== undefined || (crossingsOf_(first) === 0 && crossingsOf_(layoutCauseBandOnce(band, x, y, w, widthOf, roles, heightBudget, canvasBound, undefined, true)) === 0)) return first;
+  if (band.base !== undefined || (crossingsOf_(first) === 0 && (!movedAside.has(first) || crossingsOf_(layoutCauseBandOnce(band, x, y, w, widthOf, roles, heightBudget, canvasBound, undefined, true)) === 0))) return first;
   const ids = band.nodes.map(n => n.id);
   // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
   const orders = [[...ids].reverse(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
@@ -208,6 +211,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
     nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
     ...(fitApplied.length ? {fitApplied} : {}),
   };
+  if (attempt.asided) movedAside.add(out);
   for (const n of band.nodes) {
     const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
     out.nodes.push({...r, tone: n.tone ?? role.tone, ...(role.double ? {double: true} : {}), ...(role.dashed ? {dashed: true} : {}), ...(n.core ? {core: true} : {}), ...(n.role === 'obstacle' || n.role === 'risk' ? {hex: true} : {})});

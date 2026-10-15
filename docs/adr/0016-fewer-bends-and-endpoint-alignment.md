@@ -215,7 +215,7 @@ D12 のあとに残る並走の多くは、直接の矢印 A の尾からの最�
 
 曲がりの x は ±14px(LANE)を先に、±6px を後に試す(±6 は相手の縦の run と 6px 間隔で並びうる)。隙間の境界は矢じり側に 22px を残す(順方向は `gl+4 < x < gr-22`、戻りは `gl+22 < x < gr-4`)。相手が曲がらない(まっすぐな)ときは寄せない。「AND の頭へ入る矢印」には、同じ頭へ入る AND でない単独の矢印も含む(verify の数え方と同じ)。
 
-**並び順の探索の入口(Opus レビュー)**: D12・D13 は最初の並び順の AND の交差も消すので、そのまま `crossingsOf_(first) === 0` で探索の入口を判定すると、探索が走らず、main では低い別の並び順が選ばれていた図が高くなる(D13 だけで FRT left 120 が +25px、CRT left 3 が +40px)。`layoutCauseBand` は、D12/D13 を当てない最初の並び順(`layoutCauseBandOnce` の `plainRoutes`、`layeredAttempt` の `aside: false`)でも AND の交差が無いときだけ探索を省く。
+**並び順の探索の入口(Opus レビュー)**: D12・D13 は最初の並び順の AND の交差も消すので、そのまま `crossingsOf_(first) === 0` で探索の入口を判定すると、探索が走らず、main では低い別の並び順が選ばれていた図が高くなる(D13 だけで FRT left 120 が +25px、CRT left 3 が +40px)。`layoutCauseBand` は、D12/D13 が動かした図(`Attempt.asided`)に限り、D12/D13 を当てない最初の並び順(`layoutCauseBandOnce` の `plainRoutes`、`layeredAttempt` の `aside: false`)でも AND の交差が無いときだけ探索を省く(動かしていない図は余分なレイアウトをしない。CPU 時間は main 比 +4%)。探索は全体の交差・曲がりで並び順を選ぶので、AND でない並走が増える図がまれにある(CRT+戻りの矢印 up 10 で 5→7)。矢印ごとの条件は、同じ頭の並走が 1 本から別の 1 本へ入れ替わるだけの場合も許す。
 
 実測(D12 のあと、同じ無作為な木、main との比較): FRT up 20→5、left 9→3、CRT+混在 up 8→5、left 7→2、returns:'outer' up 9→3。AND の頭へ入る矢印どうしの交差と並走の合計が増えた図、帯の外へ出た図、箱へ近づいた図は 0 件。高さが変わった図は FRT left に 2 件(120 は +25px: 探索は走るが、低い並び順は曲がりか交差が多く、選ばれない。206 は -3.75px)。
 
