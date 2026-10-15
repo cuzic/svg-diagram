@@ -77,8 +77,8 @@ export interface LegendItem {
   dashed?: boolean;
   /** A cause-tree entity sample: the box of that role (colour, double outline, hexagon). legend: 'auto' writes these for a causeTree(). */
   role?: CauseRole;
-  /** A cause-tree arrow sample: 'and' = arrows joined by an arc (together sufficient). */
-  edge?: 'and';
+  /** A cause-tree arrow sample: 'and' = arrows joined by an arc (together sufficient), 'back' = a declared return (bold), 'blocks' = a cutting arrow (dashed, ends in a bar). */
+  edge?: 'and' | 'back' | 'blocks';
   /** A cause-tree mark sample: 'core' = the thick frame of the core driver. */
   mark?: 'core';
 }

@@ -66,6 +66,24 @@ test("legend: the SVG draws the role boxes (a double outline for a root, a hexag
   assert.equal(svg.match(/<polygon /g)?.length, 2, 'the obstacle: in the figure and in the legend');
 });
 
+test("legend: a back: true return and a blocks arrow each get an edge entry; none without them", async () => {
+  const nodes = [N('r', 'root'), N('a'), N('u', 'ude'), N('fix', 'injection')];
+  const links = [{from: 'r', to: 'a'}, {from: 'a', to: 'u'}];
+  const {items: both} = await items(causeTree(nodes, [...links, {from: 'u', to: 'r', back: true}, {from: 'fix', to: 'u', kind: 'blocks'}]));
+  assert.deepEqual(both.filter(i => i.edge).map(describe), ['edge:back', 'edge:blocks']);
+  const {items: none} = await items(causeTree(nodes, links));
+  assert.ok(!none.some(i => i.edge));
+  const {items: hand} = await items(causeTree(nodes, [...links, {from: 'u', to: 'r', back: true}]), legend([{edge: 'back', label: '悪循環'}]));
+  assert.equal(hand.filter(i => i.edge === 'back').length, 1);
+});
+
+test('legend: the SVG draws the blocks sample with a bar and no extra arrowhead, the back sample bold', async () => {
+  const d = diagram({theme: 'blue'}).add(causeTree([N('a'), N('b')], [{from: 'a', to: 'b'}]), legend([{edge: 'blocks', label: '断つ'}, {edge: 'back', label: '戻り'}]));
+  const svg = (await renderDiagram(d, {name: 'e.svg', budget: 'cacheOnly'})).svg;
+  assert.equal(svg.match(/<path d="M[^"]* z" fill=/g)?.length, 2, 'the figure arrow and the back sample have a head; the blocks sample has none');
+  assert.equal(svg.match(/stroke-width="3"/g)?.length, 2, 'the bar and the bold back line');
+});
+
 test('legend(): rejects an unknown role, edge or mark', () => {
   assert.throws(() => legend([{label: 'x', role: 'villain' as never}]), /has role villain/);
   assert.throws(() => legend([{label: 'x', edge: 'or' as never}]), /has edge or/);

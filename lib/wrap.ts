@@ -25,11 +25,38 @@ const CANNOT_END_LINE = new Set('「『（〔【〈《'.split(''));
 
 const isWhitespace = (atom: string): boolean => /^\s+$/.test(atom);
 
-/** 'phrase' (default): a katakana run and a kanji run are one unit for breaking ('アプリ' is never ア/プ/リ); 'char': any CJK character may end a line. */
-export type WrapMode = 'phrase' | 'char';
+/** 'phrase' (default): a katakana run and a kanji run are one unit for breaking ('アプリ' is never ア/プ/リ); 'char': any CJK character may end a line;
+ *  'bunsetsu': like 'phrase', and a hiragana sticks to the character before it too, so a line breaks only after a hiragana that is followed by a non-hiragana, or after 、 / 。 ("評価されるため | 仕掛りが"). */
+export type WrapMode = 'phrase' | 'char' | 'bunsetsu';
 let wrapMode: WrapMode = 'phrase';
 /** Sets the mode for the wrapping that follows (layoutWith sets it from diagram({wrap}) and restores it); returns the previous one. */
 export function setWrapMode(mode: WrapMode): WrapMode { const prev = wrapMode; wrapMode = mode; return prev; }
+export const getWrapMode = (): WrapMode => wrapMode;
+
+const isHiragana = (atom: string): boolean => { if ([...atom].length !== 1) return false; const c = atom.codePointAt(0)!; return c >= 0x3041 && c <= 0x309f; };
+const CLAUSE_END = new Set('、。，．！？'.split(''));
+
+/** Per atom: does it continue the atom before it (one unit for breaking) because of the script runs ('phrase' / 'bunsetsu') or, in 'bunsetsu', a hiragana that follows a character? */
+function runGlueOf(atoms: {text: string}[]): boolean[] {
+  const phrase = wrapMode === 'phrase' || wrapMode === 'bunsetsu';
+  return atoms.map((a, i) => {
+    if (!phrase || i === 0) return false;
+    const prev = atoms[i - 1].text;
+    if (scriptRun(a.text) !== '' && scriptRun(a.text) === scriptRun(prev)) return true;
+    return wrapMode === 'bunsetsu' && isHiragana(a.text) && !isWhitespace(prev) && prev !== '\n' && !CLAUSE_END.has(prev);
+  });
+}
+
+/** The widest unit a text can be broken into under the current mode (at least one atom), for sizing a box that should not split a word; 0 for an empty text. */
+export function longestUnitWidth(atoms: string[], atomWidth: (atom: string) => number): number {
+  const glue = runGlueOf(atoms.map(text => ({text})));
+  let best = 0, cur = 0;
+  atoms.forEach((a, i) => {
+    if (isWhitespace(a) || a === '\n') { best = Math.max(best, cur); cur = 0; return; }
+    cur = glue[i] ? cur + atomWidth(a) : (best = Math.max(best, cur), atomWidth(a));
+  });
+  return Math.max(best, cur);
+}
 
 // The script run a one-character atom belongs to: 'k' katakana (with ー ・ and half-width kana), 'h' kanji; '' for anything else.
 function scriptRun(atom: string): 'k' | 'h' | '' {
@@ -50,7 +77,7 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
   let curWidth = 0;
   let hardBreakBeforeLast = false; // the last line starts after an explicit \n: its length is the author's
   // phrase mode: atom i continues atom i-1 when both sit in one katakana / kanji run (until such a unit is wider than a line: then it breaks per character)
-  const runGlue = atoms.map((a, i) => wrapMode === 'phrase' && i > 0 && scriptRun(a.text) !== '' && scriptRun(a.text) === scriptRun(atoms[i - 1].text));
+  const runGlue = runGlueOf(atoms);
 
   for (let i = 0; i < atoms.length; i++) {
     const atom = atoms[i];

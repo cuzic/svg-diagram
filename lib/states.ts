@@ -67,11 +67,12 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   const loopLabelH = loops.some(t => t.label) ? S + 10 : 0;
   const top = loops.length && dir === 'right' ? LOOP + loopLabelH + 6 : 0;
   const placeIn = (total: {w: number; h: number}) => (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + x + (w - total.w - reserve) / 2, y: q.y + y + top}; };
-  const {lay, routes, size: total} = layeredAttempt(dir === 'down' ? nodes.map(n => ({id: n.id, size: swapSize(n.size)})) : nodes, edges, {
+  const run = layeredAttempt(dir === 'down' ? nodes.map(n => ({id: n.id, size: swapSize(n.size)})) : nodes, edges, {
     // a loop needs room beside its state (down) or between rows (right), so states do not crowd it
     dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : GAP,
     levelGap: Math.max(dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, gapFor(degree)), ...(band.initial ? {start: [INIT]} : {}),
-  }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, round: id => circles.has(id)});
+  }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, round: id => circles.has(id), ...(band.straighten === false ? {straighten: false} : {}), ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
+  const {lay, routes, size: total} = run;
   const at = (id: string) => { const p = lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
 
   // a loop sits above its state when the flow runs right (room is made at the top), and to its right when the flow runs down
