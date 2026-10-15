@@ -127,8 +127,11 @@ export interface CauseLink {
   back?: true;
 }
 export interface CauseOpts extends RevealOpts {
-  /** Which way the arrows run: 'up' (default: causes at the bottom, effects at the top), 'down', 'right' or 'left'. */
-  dir?: 'up' | 'down' | 'right' | 'left';
+  /** Which way the arrows run: 'up' (default: causes at the bottom, effects at the top), 'down', 'right' or 'left'.
+   *  'auto' (and leaving it out) lets the layout narrow the nodes when the figure is wider than the diagram (a warning when left out, a note for 'auto');
+   *  a cause tree never changes its axis. Writing a direction fixes it: the figure that does not fit is an error that lists what was tried. */
+  dir?: 'up' | 'down' | 'right' | 'left' | 'auto';
+  /** The widest a node grows (default 200px). Written, it is never narrowed to make the figure fit. */
   maxNodeW?: number;
   /** Mark the core driver: the starting entity (nothing causes it) whose arrows bring about the most `ude` entities, 2 or more (a tie: all).
    *  Every starting entity gets the number it reaches under its text (`到達 UDE n`) unless `counts` is false. `role` is not changed. */
@@ -152,6 +155,10 @@ export interface CauseBand extends CauseOpts {
   type: 'cause';
   nodes: CauseNode[];
   links: CauseLink[];
+  /** The direction when `dir` is left out, if not 'up' (pdpc and relationDiagram run 'down'): they may also turn to 'right' to fit. Set by the DSL, not by the author. */
+  base?: 'down';
+  /** `dir` was left out and the DSL wrote `base` into it: it counts as left out (may change), not as written. */
+  dirLeftOut?: true;
 }
 export type CloudBox = string | {text: string; id?: string; tone?: BoxTone};
 /** The arrow an assumption sits on: ab = B to A, ac = C to A, bd = D to B, cd = D' to C, dd = the conflict between D and D'. */

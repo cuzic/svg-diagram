@@ -84,3 +84,8 @@ export function describeApplied(a: FitApplied): string {
   if (a.what === 'fold') return `folded layer ${a.to}${was}`;
   return `${a.what} from ${a.from} to ${a.to}${was}`;
 }
+
+/** What an attempt changed, with the widths filled in: the figure as first tried (`tried[0]`) against the one chosen. */
+export function withWidths(applied: readonly FitApplied[], tried: readonly Tried[], index: number): FitApplied[] {
+  return applied.map(a => ({...a, wasW: tried[0].w, nowW: tried[index].w}));
+}
