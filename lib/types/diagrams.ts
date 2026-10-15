@@ -106,6 +106,8 @@ export interface CauseNode {
   role?: CauseRole;
   /** Overrides the tone the role gives. */
   tone?: BoxTone;
+  /** The core driver mark: a thick frame and a 中核 badge. causeTree({coreDriver: true}) sets it; it is not a role. */
+  core?: boolean;
 }
 export interface CauseLink {
   /** The cause. An array is an AND: the causes together are sufficient (or needed), joined by an arc across their arrows. */
@@ -121,6 +123,11 @@ export interface CauseOpts extends RevealOpts {
   /** Which way the arrows run: 'up' (default: causes at the bottom, effects at the top), 'down', 'right' or 'left'. */
   dir?: 'up' | 'down' | 'right' | 'left';
   maxNodeW?: number;
+  /** Mark the core driver: the starting entity (nothing causes it) whose arrows bring about the most `ude` entities, 2 or more (a tie: all).
+   *  Every starting entity gets the number it reaches under its text (`到達 UDE n`) unless `counts` is false. `role` is not changed. */
+  coreDriver?: boolean;
+  /** With coreDriver: write `到達 UDE n` under each starting entity (default true). */
+  counts?: boolean;
   id?: string;
 }
 export interface CauseBand extends CauseOpts {
@@ -258,7 +265,7 @@ export interface LaidOutCause extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone; double?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean})[];
+  nodes: (Rect & {tone: BoxTone; double?: boolean; /** the core driver: a thick frame and a badge */ core?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean})[];
   /** Orthogonal polylines from the cause's box edge to the effect's; the arrowhead is at the last point. */
   edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; /** only a cutting arrow has it */ kind?: 'blocks'}[];
   /** The arc across the arrows of an AND: a quadratic curve p0 - c - p1. */
