@@ -203,6 +203,8 @@ export interface DiagramSource {
   configSha256?: string;
   /** sha256 over the local files the source imports (lib/source-deps.ts), when there are any. */
   depsSha256?: string;
+  /** `build --no-source-line` (ADR 0023): the SVG was drawn without diagram({sourceLine}); a rebuild (check --drift --rebuild) and --stale read it. Absent when not used. */
+  noSourceLine?: boolean;
   /** Cumulative reveal stage represented by this file. */
   reveal?: number;
   until?: number;
