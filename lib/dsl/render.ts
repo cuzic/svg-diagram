@@ -12,6 +12,7 @@ import type {DiagramInput} from '../strict.ts';
 import {connect} from './connect.ts';
 import {applyConnectDefaults, connectBand} from './defaults.ts';
 import {fillScaleLimit} from './text-bands.ts';
+import {contentBox} from '../layout-metrics.ts';
 import {MathTooWideError} from '../math.ts';
 import {applyWireframeDefaults} from './wireframe-numbering.ts';
 
@@ -40,6 +41,8 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (opts.maxWidth !== undefined && !(typeof opts.maxWidth === 'number' && Number.isFinite(opts.maxWidth) && opts.maxWidth > 0)) throw new Error(`diagram({maxWidth}) must be a positive number (got ${JSON.stringify(opts.maxWidth)})`);
   if (opts.legend !== undefined && opts.legend !== 'auto' && opts.legend !== false) throw new Error(`diagram({legend}) must be 'auto' or false (got ${JSON.stringify(opts.legend)})`);
   if (opts.canvas !== undefined && (opts.slide || opts.fill)) throw new Error('diagram({canvas}) is a whole slide drawn 1:1; it cannot be combined with `slide` / `fill` (those fit a figure into a measured slot of a Slidev slide)');
+  if (opts.width !== undefined && opts.width !== 'fit' && !(typeof opts.width === 'number' && Number.isFinite(opts.width) && opts.width > 0)) throw new Error(`diagram({width}) must be a positive number or 'fit' (got ${JSON.stringify(opts.width)})`);
+  if (opts.width === 'fit' && (opts.canvas !== undefined || opts.fill || opts.slide)) throw new Error("diagram({width: 'fit'}) is for a document figure: a `canvas` is drawn 1:1, and `fill` / `slide` fit a measured slot");
   const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...(opts.canvas === 'slide' ? {} : opts.canvas)};
   const d: DiagramData = {
     day: theme as Theme,
@@ -52,7 +55,8 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     wrap: opts.wrap,
     tones: opts.tones === undefined ? undefined : checkTones(opts.tones, 'diagram({tones})'),
     legend: opts.legend, legendLabels: opts.legendLabels, // legend: 'auto' adds entries for every notation used but not listed
-    width: opts.width ?? canvas?.width ?? 940,
+    width: opts.width === 'fit' ? 940 : opts.width ?? canvas?.width ?? 940,
+    ...(opts.width === 'fit' ? {fitWidth: true} : {}),
     ...(opts.maxWidth === undefined ? {} : {maxWidth: opts.maxWidth}), // the doc-width threshold (not the layout width), the project's maxWidth is used only when this is left out
     canvas,
     pad: opts.pad ?? 20,
@@ -142,7 +146,7 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
       if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
       notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
     }
-    const laidOut = await layoutAt(fontScale);
+    const laidOut = await layoutFitted(d, () => layoutAt(fontScale));
     laidOut.fontScale = fontScale;
     return laidOut;
   });
@@ -184,6 +188,31 @@ export async function checkDiagram(input: DiagramData): Promise<CheckResult> {
   return runChecked(detach(input), prepared => {
     // a canvas diagram is drawn at its font scale, so it is checked at that scale too
     const s = prepared.canvas ? canvasFontScale(prepared.canvas.minText) : 1;
-    return layoutDiagram(prepared.canvas ? {...prepared, pad: Math.round(prepared.pad * s), gap: Math.round(prepared.gap * s)} : prepared, prepared.canvas ? {roles: canvasRoles(s)} : {});
+    return layoutFitted(prepared, () => layoutDiagram(prepared.canvas ? {...prepared, pad: Math.round(prepared.pad * s), gap: Math.round(prepared.gap * s)} : prepared, prepared.canvas ? {roles: canvasRoles(s)} : {}));
   });
+}
+
+/**
+ * The layout, and for diagram({width: 'fit'}) once more at the width the content needs (`d.width` is set to it). The content may re-flow as it
+ * narrows, so up to 3 rounds; a round that does not fit is dropped. check and build both come through here, so they judge the same figure.
+ */
+async function layoutFitted(d: DiagramData, layout: () => Promise<LaidOutDiagram>): Promise<LaidOutDiagram> {
+  let laidOut = await layout();
+  for (let i = 0; d.fitWidth && i < 3; i++) {
+    const next = fitWidthOf(laidOut.laidOut, d.pad);
+    if (next === undefined || next >= d.width) break;
+    const before = d.width;
+    d.width = next;
+    const again = await layout();
+    const need = fitWidthOf(again.laidOut, d.pad);
+    if (need !== undefined && need > next) { d.width = before; break; }
+    laidOut = again;
+  }
+  return laidOut;
+}
+
+/** The width a figure needs: its content (titles and legends aside) plus the padding on both sides, on the 4px grid; undefined for no content. */
+function fitWidthOf(bands: LaidOutDiagram['laidOut'], pad: number): number | undefined {
+  const box = contentBox(bands, true);
+  return box ? Math.max(320, Math.ceil((box.w + 2 * pad) / 4) * 4) : undefined;
 }
