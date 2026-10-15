@@ -1,6 +1,7 @@
 // stateDiagram(): states and transitions that place themselves (graph-layout.ts layoutLayered). A state is a box like a tree
 // node; a transition is an orthogonal arrow routed through the layers it skips; a label sits on the arrow in a white chip.
 import {textWidth} from './atoms.ts';
+import {fitLayout} from './fit-width.ts';
 import {gapFor, layeredAttempt, STUB} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
@@ -10,7 +11,7 @@ import type {LaidOutStates, StatesBand} from './types/diagrams.ts';
 
 export const STATE_ICON = 24;
 const ICON_H = STATE_ICON + 4; // an icon above the label: its size and a gap
-const ARROW = 14, MAX_W = 200, GAP = 28, DOT = 8, LOOP = 26, LOOP_W = 12, CHIP_PAD = 6, INIT = '\u0000init';
+const ARROW = 14, GAP = 28, DOT = 8, LOOP = 26, LOOP_W = 12, CHIP_PAD = 6, INIT = '\u0000init';
 
 export function statesTexts(band: StatesBand, roles: Roles): [string, number, number, FontFamily][] {
   const out: [string, number, number, FontFamily][] = [];
@@ -32,8 +33,8 @@ function pointAt(pts: Pt[], t: number): Pt {
   return pts[0];
 }
 
-export function layoutStatesBand(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutStates {
-  const dir = band.dir ?? 'right', S = roles.note, maxW = band.maxNodeW ?? MAX_W;
+export function layoutStatesBand(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number): LaidOutStates {
+  const S = roles.note;
   const ids = new Set<string>();
   for (const s of band.states) {
     if (typeof s.id !== 'string' || !s.id || s.id === INIT) throw new Error('stateDiagram(): every state needs an id');
@@ -44,43 +45,56 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   for (const t of band.transitions) for (const e of [t.from, t.to]) if (!ids.has(e)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} names unknown state "${e}"`);
   if (band.initial !== undefined && !ids.has(band.initial)) throw new Error(`stateDiagram(): initial names unknown state "${band.initial}"`);
 
-  // a round node is as wide as its text needs and as tall as it is wide
-  const lines = new Map<string, NodeLines>(band.states.map(s => {
-    const l = measureNode(s.label, s.sub, maxW, widthOf, roles), iconH = s.icon ? ICON_H : 0;
-    if (s.shape !== 'circle') return [s.id, {...l, h: l.h + iconH}];
-    const text = Math.max(...l.label.map(t => textWidth(widthOf, t, roles.body, 700)), ...l.sub.map(t => textWidth(widthOf, t, roles.note, 400))), inner = l.h - 16 + iconH;
-    const d = Math.max(44, Math.ceil((Math.hypot(text, inner) + 10) / 8) * 8); // a multiple of 8: the radius sits on the 4px grid
-    return [s.id, {...l, w: d, h: d}];
-  }));
   const labelW = (t: string): number => Math.ceil(textWidth(widthOf, t, S, 400)) + 2 * CHIP_PAD;
   const widest = Math.max(0, ...band.transitions.map(t => t.label ? labelW(t.label) : 0));
-  const nodes = band.states.map(s => ({id: s.id, size: {w: lines.get(s.id)!.w, h: lines.get(s.id)!.h}}));
   const edges = band.transitions.map(t => ({from: t.from, to: t.to}));
   const loops = band.transitions.filter(t => t.from === t.to);
   // the most arrows that meet one state (each needs its own lane in the gap beside it)
   const degree = Math.max(1, ...band.states.map(s => Math.max(band.transitions.filter(t => t.from === s.id && t.from !== t.to).length, band.transitions.filter(t => t.to === s.id && t.from !== t.to).length)));
-  if (band.initial) { nodes.unshift({id: INIT, size: {w: 2 * DOT, h: 2 * DOT}}); edges.push({from: INIT, to: band.initial}); }
+  if (band.initial) edges.push({from: INIT, to: band.initial});
   const swapSize = (s: {w: number; h: number}): {w: number; h: number} => ({w: s.h, h: s.w});
-  // layered layout runs on a 'right' axis; a 'down' diagram is the same layout transposed
-  const reserve = dir === 'down' && loops.length ? LOOP + 4 + Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0;
   const loopLabelH = loops.some(t => t.label) ? S + 10 : 0;
-  const top = loops.length && dir === 'right' ? LOOP + loopLabelH + 6 : 0;
-  const placeIn = (total: {w: number; h: number}) => (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + x + (w - total.w - reserve) / 2, y: q.y + y + top}; };
-  const run = layeredAttempt(dir === 'down' ? nodes.map(n => ({id: n.id, size: swapSize(n.size)})) : nodes, edges, {
-    // a loop needs room beside its state (down) or between rows (right), so states do not crowd it
-    dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : GAP,
-    levelGap: Math.max(dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, gapFor(degree)), ...(band.initial ? {start: [INIT]} : {}),
-  }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
-  const {lay, routes, size: total} = run;
-  const at = (id: string) => { const p = lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
+  // One whole attempt: the text wrapped at maxW, laid out running `dir`. Everything that depends on either is in here.
+  const build = (dir: 'right' | 'down', maxW: number) => {
+    // a round node is as wide as its text needs and as tall as it is wide
+    const lines = new Map<string, NodeLines>(band.states.map(s => {
+      const l = measureNode(s.label, s.sub, maxW, widthOf, roles), iconH = s.icon ? ICON_H : 0;
+      if (s.shape !== 'circle') return [s.id, {...l, h: l.h + iconH}];
+      const text = Math.max(...l.label.map(t => textWidth(widthOf, t, roles.body, 700)), ...l.sub.map(t => textWidth(widthOf, t, roles.note, 400))), inner = l.h - 16 + iconH;
+      const d = Math.max(44, Math.ceil((Math.hypot(text, inner) + 10) / 8) * 8); // a multiple of 8: the radius sits on the 4px grid
+      return [s.id, {...l, w: d, h: d}];
+    }));
+    const nodes = band.states.map(s => ({id: s.id, size: {w: lines.get(s.id)!.w, h: lines.get(s.id)!.h}}));
+    if (band.initial) nodes.unshift({id: INIT, size: {w: 2 * DOT, h: 2 * DOT}});
+    // layered layout runs on a 'right' axis; a 'down' diagram is the same layout transposed
+    const reserve = dir === 'down' && loops.length ? LOOP + 4 + Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0;
+    const top = loops.length && dir === 'right' ? LOOP + loopLabelH + 6 : 0;
+    const placeIn = (total: {w: number; h: number}) => (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + x + (w - total.w - reserve) / 2, y: q.y + y + top}; };
+    const run = layeredAttempt(dir === 'down' ? nodes.map(n => ({id: n.id, size: swapSize(n.size)})) : nodes, edges, {
+      // a loop needs room beside its state (down) or between rows (right), so states do not crowd it
+      dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : GAP,
+      levelGap: Math.max(dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, gapFor(degree)), ...(band.initial ? {start: [INIT]} : {}),
+    }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
+    const at = (id: string) => { const p = run.lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
+    return {...run, dir, lines, reserve, top, at};
+  };
+
+  const explicitDir = band.dir !== undefined && band.dir !== 'auto';
+  const start: 'right' | 'down' = band.dir === 'down' ? 'down' : 'right';
+  const fitted = fitLayout({
+    who: 'stateDiagram()', w, start, alt: start === 'right' ? 'down' : 'right', explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted',
+    ...(band.maxNodeW === undefined ? {} : {maxNodeW: band.maxNodeW}), build, widthOf: r => r.size.w + r.reserve, best: band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget}),
+    ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
+  });
+  const {dir, lines, reserve, top, at, lay, routes, size: total} = fitted.result, fitApplied = fitted.applied;
 
   // a loop sits above its state when the flow runs right (room is made at the top), and to its right when the flow runs down
   // dir down: the loop and its label stick out to the right of the rightmost state (`reserve`)
-  if (total.w + reserve > w + 0.5) throw new Error(`stateDiagram(): the figure is ${Math.ceil(total.w + reserve)}px wide but it has ${Math.round(w)}px (use dir: 'right', a smaller maxNodeW, or fewer states on one level)`);
   const dx = x + (w - total.w - reserve) / 2, dy = y + top;
   const out: LaidOutStates = {
     type: 'states', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + top,
     nodes: [], edges: [], texts: [], icons: [], labels: [], anchors: [], labelBoxes: [],
+    ...(fitApplied.length ? {fitApplied} : {}),
   };
   const rects = new Map<string, {x: number; y: number; w: number; h: number}>();
   for (const s of band.states) {

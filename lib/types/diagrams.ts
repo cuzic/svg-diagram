@@ -79,8 +79,10 @@ export interface Transition {
   strong?: boolean;
 }
 export interface StatesOpts extends RevealOpts {
-  /** 'right' (default): the flow runs left to right. 'down': top to bottom. */
-  dir?: 'right' | 'down';
+  /** 'right' (default): the flow runs left to right. 'down': top to bottom.
+   *  'auto' (and leaving it out) lets the layout narrow the states and turn to the other direction when the figure is wider than the diagram
+   *  (a warning when left out, a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
+  dir?: 'right' | 'down' | 'auto';
   /** The state that starts: a filled dot with an arrow into it. */
   initial?: string;
   maxNodeW?: number;
@@ -202,8 +204,10 @@ export interface ClassRelation {
   toMult?: string;
 }
 export interface ClassesOpts extends RevealOpts {
-  /** 'down' (default): parents on top. 'right': left to right. */
-  dir?: 'down' | 'right';
+  /** 'down' (default): parents on top. 'right': left to right.
+   *  'auto' (and leaving it out) lets the layout turn to the other direction when the figure is wider than the diagram (a warning when left out,
+   *  a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
+  dir?: 'down' | 'right' | 'auto';
   id?: string;
 }
 export interface ClassesBand extends ClassesOpts {
