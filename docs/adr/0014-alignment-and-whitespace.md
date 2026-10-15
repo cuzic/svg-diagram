@@ -277,3 +277,12 @@
 
 - U3: `canvas` の既定は `fit: 'content'`。各行は、その行の領域が必要とする高さになる。「領域の必要な高さ + 余白」の余白は足さない(箱の高さが内側の余白を含むため)。最小行高 96px は「記入する領域」(内容のある領域と、任意でない空の領域)にだけ課す。見出しだけのセルと空の任意領域には課さない(課すと `vpc` の見出し帯が膨らむ)。`fit: 'aspect'` は縦横比の床に戻す。「`aspect` で従来と byte 同一」は、フォント依存になるため採らず、`aspect` が縦横比の床を守ることを相対テストで縛った。変わった図は `canvas-bmc` / `empathy` / `five-forces` / `seven-s` / `swot` / `vpc` の 6 枚。`fit` の型は U9 を待たず U3 に入れた。
 - U2: `group({valign: 'top' | 'center' | 'stretch'})` を足した。既定は `'center'`。余りが 16px 以上ある枠付きの group だけが動く。箱が複数のときは、箱の間隔を 4px 刻みで最大 +16px 広げ、なお余るぶんを上下に分ける(上は 4px の格子に切り下げ、残りは下)。`examples/` には余りが 16px 以上出る group の行が無く、既存の 134 図は byte 同一。再現用に `examples/group-row-fill.ts` を足した。`row({valign})` と `box({valign})` は opt-in の別 PR に回した。
+
+## 実装での補足(U1b = 縦の格子化)
+
+- **方式は「配置で上端を格子に置く。カーソルは丸めない」**。`placeBoxLike`(box / banner / caption / group の題)、row / grid / grouprow の行の上端、group の枠、および `placedBand` が包む帯(bars / chart / table / sequence / legend / pyramid / curve / flow-shape / swimlane / image など)の上端を、`snapGrid(カーソル)` で置く。縦のカーソル `ctx.y` は丸めた高さでなく実の高さで進める(丸めた高さを足すと、下の帯ほどずれが溜まる)。枠の下端は `上端 + snap4(高さ)` で、emit の `snap4` と同じ式なので、**枠は 1 本も動かない**(emit の `snap4` は恒等)。動くのは、その枠の中の文字と、枠に付く部品だけで、最大 2px。
+- **対象外**: plane / quadrant / timeline / wireframe / screens / wordart。内側の座標が 4px の格子に乗っておらず、格子の上端から置くと、emit が丸める図形が 1 段(4px)飛ぶ(実測: `coordinate-plane`、`quadrant-*`、`timeline`、`inventory-*` で 4px)。丸め前の位置から置く従来のまま(`OFF_GRID_BANDS`)。内側を格子に乗せる作業は別の PR。
+- **見積もりとの食い違い**: 「ほぼ全図(約 120 枚)が動く」と見積もったが、実測は 136 図中 52 図(段階表示の派生を含むファイルで 152 中 60)。枠を動かさず文字だけを枠に合わせる方式なので、文字がたまたま枠と同じ丸めに乗る図は byte 同一のままである。最大の動きは 2px(下の 1 件を除く)。
+- **2px を超える動き(1 図)**: `small-constraints` の stamp(架空の例 / イメージ / 要確認の札)が 4px。札の位置は `snap4(枠の上端 + 高さ - 30)` で、`- 30` が格子の中間なので、枠の上端が 2px 動くと 4px 飛ぶ(以前は枠の位置によって枠の下端から 4px か 8px の所に出ていた)。上端が格子に乗ったので、札は枠の高さだけで決まり、位置によって振れない。
+- カーソルが枠の位置(アンカー)から決まる `connect()`(bracket / loop-under)のあとだけ、アンカーが格子の上端から出るので、後続が最大 2px ずれうる(`steps` の高さ 228 → 229)。
+- `row({arrows: 'between'})` の矢印の y は、行の上端(格子)+ 高さ / 2。
