@@ -23,7 +23,8 @@ export const validateNodes = (who: string, nodes: readonly {id: string; label: s
 };
 
 const r = (n: number): number => Math.round(n * 10) / 10;
-export function arrow(c: Canvas, points: Pt[], o: {stroke: 'accent' | 'danger' | 'muted' | 'text'; sw?: number; dash?: string; of?: string}, mark = true): void {
+export function arrow(c: Canvas, points: Pt[], {edge, ...o}: {stroke: 'accent' | 'danger' | 'muted' | 'text'; sw?: number; dash?: string; of?: string; /** the edge this arrow draws: recorded in the chart's `edges` (a self-loop is not) */ edge?: {from: string; to: string}}, mark = true): void {
+  if (edge && edge.from !== edge.to) c.edges.push({from: edge.from, to: edge.to, points: points.map(p => ({x: p.x, y: p.y}))});
   for (let i = 1; i < points.length; i++) c.line(points[i - 1].x, points[i - 1].y, points[i].x, points[i].y, {...o, avoid: true});
   if (!mark || points.length < 2) return;
   const b = points.at(-1)!, a = points.at(-2)!, dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, px = -uy, py = ux, z = 7 + (o.sw ?? 2);

@@ -54,7 +54,7 @@ const edgeStyle = (type: string, ti: number): {stroke: 'accent' | 'danger' | 'mu
 export function layoutPert(s: PertSpec, g: ChartGeom): LaidOutChartPart {
   const w = s.compact ? 126 : 154, h = s.compact ? 64 : 104, ns = s.analysis.tasks.map(t => ({id: t.id, label: t.label, w: Math.max(w, textWidth(g.widthOf, t.label, g.size, 700) + 24), h}));
   const es = s.analysis.tasks.flatMap(t => t.predecessors.map(p => ({from: p, to: t.id}))), {c, positions, paths} = networkCanvas(g, ns, es, s.direction, 0, s.straighten);
-  es.forEach((e, i) => { const critical = s.analysis.criticalEdges.some(x => x.from === e.from && x.to === e.to); arrow(c, pathOf(paths, i, e, positions), {stroke: critical ? 'danger' : 'muted', sw: critical ? 4 : 2}); });
+  es.forEach((e, i) => { const critical = s.analysis.criticalEdges.some(x => x.from === e.from && x.to === e.to); arrow(c, pathOf(paths, i, e, positions), {stroke: critical ? 'danger' : 'muted', sw: critical ? 4 : 2, edge: e}); });
   for (const t of s.analysis.tasks) {
     const p = positions.get(t.id)!, host = nodeBox(c, p, t.id, t.label, t.critical ? 'danger' : 'text', t.critical), cx = p.x + p.w / 2;
     c.text(t.label, cx, p.y + g.size + 8, 'middle', 'text', {bold: true, host, of: t.id});
@@ -86,7 +86,7 @@ export function layoutDependency(s: DependencySpec, g: ChartGeom): LaidOutChartP
   const drawn = s.edges.map((e, i) => {
     const sw = e.weight === undefined ? 2 : Math.min(7, 1.5 + Math.sqrt(e.weight));
     const path = pathOf(paths, i, e, positions);
-    arrow(c, path, {...edgeStyle(e.type, types.indexOf(e.type)), sw}, e.type !== 'relates');
+    arrow(c, path, {...edgeStyle(e.type, types.indexOf(e.type)), sw, edge: e}, e.type !== 'relates');
     return {e, path, head: e.type === 'relates' ? [] : [headBox(path, sw)]};
   });
   const heads = drawn.flatMap(d => d.head);

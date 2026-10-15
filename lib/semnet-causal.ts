@@ -88,7 +88,7 @@ export function layoutCausal(s: CausalSpec, g: ChartGeom): LaidOutChartPart {
   }
   const {c, positions, paths, centre} = laid;
   // Stage 1: every line and every box. Stage 2: the signs and names, over the finished lines (a sign placed between two edges' lines would be struck through by the later one).
-  const edges = s.links.map((e, i) => { const p = pathOf(paths, i, e, positions); arrow(c, p, {stroke: 'text', dash: undefined}); return {e, p}; });
+  const edges = s.links.map((e, i) => { const p = pathOf(paths, i, e, positions); arrow(c, p, {stroke: 'text', dash: undefined, ...(s.layout === 'ring' ? {} : {edge: e})}); return {e, p}; });
   for (const n of s.nodes) { const p = positions.get(n.id)!, host = nodeBox(c, p, n.id, n.label, 'text'); c.text(n.label, p.x + p.w / 2, c.mid(p.y + p.h / 2), 'middle', 'text', {bold: true, host, of: n.id}); }
   // the interventions: a dashed box (an anchor, like a node) and a dashed arrow to each target
   const ivEdges: {e: CausalLink; p: Pt[]}[] = [];

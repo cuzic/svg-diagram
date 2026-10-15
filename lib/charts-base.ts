@@ -40,6 +40,8 @@ export interface LaidOutChartPart {
   /** Lines a label must not be crossed by. */
   segs: ChartSeg[];
   anchors: {id: string; x: number; y: number; w: number; h: number}[];
+  /** The arrows of a network chart (pert, dependency, a causal loop that is not a ring), each from `from` to `to` as the polyline that was drawn (the placed points). Self-loops are not listed. The `edge-bends` check reads these. */
+  edges?: {from: string; to: string; points: {x: number; y: number}[]}[];
   /** What the figure leaves out of its drawing (labels too small for their cell): listed in the description instead. */
   omitted: string[];
   h: number;
@@ -89,6 +91,8 @@ export class Canvas {
   readonly segs: ChartSeg[] = [];
   readonly anchors: {id: string; x: number; y: number; w: number; h: number}[] = [];
   readonly omitted: string[] = [];
+  /** The arrows drawn between two different nodes (semnet-common's arrow()), for LaidOutChartPart.edges. */
+  readonly edges: {from: string; to: string; points: {x: number; y: number}[]}[] = [];
   /** Small marks (a line chart's markers) a label placed by place() keeps off; verify does not check them (two may share a spot). */
   readonly marks: Rect[] = [];
   readonly x: number; readonly y: number; readonly w: number; h: number; readonly size: number; readonly widthOf: WidthOf;
@@ -153,7 +157,7 @@ export class Canvas {
   }
   lineH(): number { return Math.round(this.size * 1.25); }
   done(): LaidOutChartPart {
-    return {items: this.items, boxes: this.boxes, solids: this.solids, segs: this.segs, anchors: this.anchors, omitted: this.omitted, h: this.h};
+    return {items: this.items, boxes: this.boxes, solids: this.solids, segs: this.segs, anchors: this.anchors, ...(this.edges.length ? {edges: this.edges} : {}), omitted: this.omitted, h: this.h};
   }
 }
 
