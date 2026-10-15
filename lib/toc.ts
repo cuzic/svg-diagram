@@ -134,7 +134,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   };
   for (const n of band.nodes) {
     const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
-    out.nodes.push({...r, tone: n.tone ?? role.tone, ...(role.double ? {double: true} : {}), ...(n.role === 'obstacle' || n.role === 'risk' ? {hex: true} : {})});
+    out.nodes.push({...r, tone: n.tone ?? role.tone, ...(role.double ? {double: true} : {}), ...(n.core ? {core: true} : {}), ...(n.role === 'obstacle' || n.role === 'risk' ? {hex: true} : {})});
     out.anchors.push({id: n.id, ...r});
     const l = lines.get(n.id)!;
     out.texts.push(...nodeRuns({x: r.x + (r.w - l.w) / 2, y: r.y + (r.h - l.h) / 2, w: l.w}, l, roles));
