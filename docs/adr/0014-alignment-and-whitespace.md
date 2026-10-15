@@ -3,7 +3,7 @@
 - 状態: 提案
 - 日付: 2026-10-13
 - 基点: `main`(4e58744、PR #124 まで)
-- 関連: ADR 0009(折れ・端点整列。自動配置の線)、ADR 0010(幅の自動調整・非連結成分)、ADR 0008(同じ依頼元)、ADR 0005 #8(文字を 4px の格子に丸める案の見送り)
+- 関連: ADR 0016(折れ・端点整列。自動配置の線)、ADR 0010(幅の自動調整・非連結成分)、ADR 0008(同じ依頼元)、ADR 0005 #8(文字を 4px の格子に丸める案の見送り)
 
 ## 背景
 
@@ -14,7 +14,7 @@
 方針は次のとおり(ユーザーの確認済み)。
 
 - **理想は、最初から美しい配置が出ること。** 主役は生成側の既定。`check` は補助で、(a) 生成側を直したかを測る物差しと、(b) 手書き座標や `connect` など生成側で直せない所の取りこぼしの網にする。
-- 依頼の原文(medius 資料づくり)の C2(`row` の中の `group` の高さ揃えで空白)、B3(非連結成分の空白)、A2(端点の整列)のうち、B3 と A2 は ADR 0009 / 0010 の範囲。**本 ADR は、それらと重ならない「部品の既定の整列と余白」を扱う。**
+- 依頼の原文(medius 資料づくり)の C2(`row` の中の `group` の高さ揃えで空白)、B3(非連結成分の空白)、A2(端点の整列)のうち、B3 と A2 は ADR 0016 / 0010 の範囲。**本 ADR は、それらと重ならない「部品の既定の整列と余白」を扱う。**
 
 ## 観察(事実)
 
@@ -60,7 +60,7 @@
 | 箱の中の文字 | `lib/emit.ts:146-` `renderBoxText` | `y = band.y + padY` から。上詰め |
 | canvas の高さ | `lib/layout.ts:941-948` | `aspect * cw` が床。行は 4px の格子 |
 | 図の幅 | `lib/types.ts`(`DiagramOpts`、内部の `maxWidth`) | 既定 940 の固定。内容に合わせて狭めない |
-| `check` の整列・余白の規則 | `lib/rules.ts` | **無い**(`quadrant-empty-cell`、`canvas-region-empty` は「空のマス」だけ)。折れ数は ADR 0009 の `edge-bends`(提案) |
+| `check` の整列・余白の規則 | `lib/rules.ts` | **無い**(`quadrant-empty-cell`、`canvas-region-empty` は「空のマス」だけ)。折れ数は ADR 0016 の `edge-bends`(提案) |
 | `check` の出力 | `check-diagram.ts:75`, `:245`, `:253` | 所見は `{file, line, rule, severity, message}`。`info` は `--strict` でも落とさない。`--format json` あり |
 
 ## 指標を examples に当てた実測
@@ -85,7 +85,7 @@
 1. 整列の既定を、何にするか(格子・兄弟の等幅・等間隔・枠の余りの配分・内容の中央寄せ・テキストの揃え)。
 2. 既存の図の SVG が変わる範囲をどう制御するか(既定で変える / opt-in)と、golden の更新と承認の手順。
 3. `check` の指標をどう位置づけるか(補助。生成側が直ったら指標が良くなることを受け入れ条件にする)。
-4. 実装の分担と、ADR 0009 / 0010 とのファイル・関数の衝突。
+4. 実装の分担と、ADR 0016 / 0010 とのファイル・関数の衝突。
 
 ## 決定
 
@@ -118,7 +118,7 @@
 | `canvas: 'slide'` の縦 | `lib/layout.ts` の slide 周り | `diagram({canvas: 'slide', valign: 'center'})`(opt-in)。既定は上詰め | opt-in |
 | テキストの揃え | 既定は変えない | 部品の意味(数字・帯は中央、説明は左)が意図なので、既定は変えない。混在は `check`(`layout-align-mixed`、info)で知らせる | 変えない |
 | 表・`banner`・`stat`・`caption`・`column` | 今回は既定を変えない | 調査では、これらの単体に整列の欠陥は見つからなかった(表の cell は `vAlign` を持つ。`banner` の文字は中央)。行に入れたときの 4px(O1)は D2 の先頭の行で直る | - |
-| `causeTree` / `relationDiagram` / `pdpc` / `stateDiagram` / `classDiagram` | **ADR 0009 / 0010 に任せる** | 端点の整列(0009)、非連結成分の詰め(0010 → 0009 U2)、幅の自動調整(0010)。本 ADR は触らない。キャンバスの幅に対して細い(O3)のは `width: 'fit'` で対応 | - |
+| `causeTree` / `relationDiagram` / `pdpc` / `stateDiagram` / `classDiagram` | **ADR 0016 / 0010 に任せる** | 端点の整列(0016)、非連結成分の詰め(0010 → 0016 U2)、幅の自動調整(0010)。本 ADR は触らない。キャンバスの幅に対して細い(O3)のは `width: 'fit'` で対応 | - |
 
 ### D3. 既存の図の SVG が変わる範囲の制御
 
@@ -126,7 +126,7 @@
 
 1. **既定で変える(欠陥の修正)**: D2 の「既定で変える」の行。**変わる図を、実装の前に実測で列挙する**(下の「変更前後の比較表」)。見積もり: 横の列の区切り(O1、U1)は 18 枚前後(動くのは主に 2px)、`grouprow` の余りは `examples/` に現れない(再現の合成図で確かめる)、`canvas` は 6 枚(内容駆動の既定。**すべて大きく変わる**)、`semnet` は 2 枚、`concentric` は 1 枚、**縦の格子化(U1b)はほぼ全図(約 120 枚)が最大 2px**。
 2. **opt-in**: `valign`、`width: 'fit'`、`canvas: 'slide'` の `valign`、`group({valign: 'stretch'})`、`canvas({fit: 'aspect'})`(従来に戻す)、`diagram({layoutCheck: 'strict'})`(D4)。
-3. **変えない**: 木・マインドマップ・層状の配置の座標(0009 / 0010 の範囲)、表・banner・stat の既定の揃え。
+3. **変えない**: 木・マインドマップ・層状の配置の座標(0016 / 0010 の範囲)、表・banner・stat の既定の揃え。
 
 **golden の更新の手順(PR ごと)。**
 
@@ -136,7 +136,7 @@
 4. `contact-sheet.ts` で「変更前 / 変更後」を並べた画像を作り、PR に貼る。**目視で、悪化した図が無いことを書き手(担当エージェント)と、もう 1 人(レビューか別のエージェント)が確かめる。** 変更前の PNG は、同じ `contact-sheet.ts` を直前の `main` で実行して作る。
 5. `examples/out/` を再生成して同じ PR に含める(`golden` が通る状態でマージ)。
 
-**PR に載せる変更前後の指標比較表**(必須)。D4 の指標を、PR 直前の `main` と変更後で、`examples/` 全図に当てる。列は「図 / 規則 / 件数(前 → 後)/ 悪化の有無」。**悪化した図があれば通さない**(ADR 0009 と同じ基準。悪化 = 件数の増加、または枠の余りの増加)。生成側の PR は、**自分が直す対象の規則の件数が下がること**が受け入れ条件(指標が先ではなく、生成を直した結果として指標が良くなること)。
+**PR に載せる変更前後の指標比較表**(必須)。D4 の指標を、PR 直前の `main` と変更後で、`examples/` 全図に当てる。列は「図 / 規則 / 件数(前 → 後)/ 悪化の有無」。**悪化した図があれば通さない**(ADR 0016 と同じ基準。悪化 = 件数の増加、または枠の余りの増加)。生成側の PR は、**自分が直す対象の規則の件数が下がること**が受け入れ条件(指標が先ではなく、生成を直した結果として指標が良くなること)。
 
 **動いてはいけない図の固定**: 上の「変えない」に挙げた部品の図(木・マインドマップ・層状・表・banner・stat)で、格子に影響を受けない図は byte 同一であること(各 PR 直前の `main` と比較)。(**U1b を除く**。U1b はほぼ全図が動く。下の手順で承認する)
 
@@ -171,15 +171,15 @@
 - **初期は全部 info。** `--strict` を使う既存の CI は落ちない(`check-diagram.ts:253` は info で終了コードを変えない)。warn への格上げは、生成側の PR が入って examples で 0 件になった規則から、**別の PR で、一つずつ**。**いつ上げるか**は、その規則を全 examples と手元の依頼者の図で 0 件にしたあと。
 - **`diagram({layoutCheck: 'strict'})`(図ごとの opt-in)で、その図だけ `layout-*` を warn にする。**
   - 名前と型: `layoutCheck?: 'info' | 'strict'`(既定 `'info'`)。`DiagramOpts`(`lib/types.ts`)に足し、`lib/dsl.ts` の `diagram()` で検証する(他の値は throw)。`lib/strict.ts` の未知のオプション検査にも載せる。
-  - 効果: `'strict'` の図では、`layout-*` の所見(と、ADR 0009 D6 の `edge-bends`)の重大度が `warn` になる。**`check --strict` はその図で落ちる**(`info` の図は落ちない)。`accept`(理由つき)で、規則ごとの許容はできる。
+  - 効果: `'strict'` の図では、`layout-*` の所見(と、ADR 0016 D6 の `edge-bends`)の重大度が `warn` になる。**`check --strict` はその図で落ちる**(`info` の図は落ちない)。`accept`(理由つき)で、規則ごとの許容はできる。
   - **SVG への影響は無い。** `layoutCheck` は検査の設定なので、描画(座標・属性・`<metadata id="svg-diagram">`)には出さない。したがって、このオプションを足しても既存の SVG は byte 同一で、`--drift` の差分も出ない。`check` はソースから図を組み立てて規則を評価するので、SVG に埋めなくても読める。SVG だけを見て検査する経路(`--svg-dir` だけの検査)が将来必要になったら、そのときに別の ADR で `metadata` への追記を決める(全 SVG が変わるので今は入れない)。
-  - **ADR 0009 D6 の `edge-bends` も、同じ仕組みに乗る**(`layoutCheck: 'strict'` の図では warn)。0009 側の記述は別途更新される。重大度を決める関数は 1 つ(`lib/rules.ts` の `layoutSeverity(d)`)にして、`layout-*` と `edge-bends` の両方がそれを呼ぶ。
+  - **ADR 0016 D6 の `edge-bends` も、同じ仕組みに乗る**(`layoutCheck: 'strict'` の図では warn)。0016 側の記述は別途更新される。重大度を決める関数は 1 つ(`lib/rules.ts` の `layoutSeverity(d)`)にして、`layout-*` と `edge-bends` の両方がそれを呼ぶ。
   - 実装は U0 に含める(`lib/types.ts` / `lib/dsl.ts` / `lib/strict.ts` の 1 項目と、`lib/rules.ts` の重大度の関数。**「型は最後」の例外**。`DiagramOpts` に 1 行足すだけで、0010 U4 の `maxWidth` と同じ型の別の行)。docs: README の `check` の規則の一覧と `diagram()` のオプションの表に、`layoutCheck` と、`'strict'` にしたときに `--strict` で落ちること、`accept` の書き方を例つきで足す。
   - テスト(U0): 既定で `layout-*` が info、`'strict'` で warn、`check --strict` の終了コードが `'strict'` の図だけ 1 になる、不正な値で throw、`'strict'` を付けても SVG が byte 同一。
 - **所見は、どの要素がどれだけずれたか・空いているか、直し方つき**にする。例: `layout-unused-space: group「役割」の下に 224px(70%)の空き。row({valign: 'center'}) か、group({valign: 'center'}) を使う`。`LaidOut` の帯から、帯の id・位置・寸法を取り出す。
-- **ADR 0009 の `edge-bends` と共通化する。** `edge-bends`(折れの数)も、本 ADR の規則も、「図の品質の物差し」。実装は次のようにまとめる。
-  - 新規 `lib/layout-metrics.ts`(`LaidOut` の帯を入力にして、各指標の生の数を返す純関数。ADR 0007 の純粋な核)。ADR 0009 U1 の `lib/polyline-metrics.ts`(折れ・交差)とは**別ファイル**にして、`lib/rules.ts` の `layoutQualityRules()` から両方を呼ぶ。
-  - 規則名の接頭辞は、本 ADR は `layout-`。`edge-bends`(0009)は名前を変えない。
+- **ADR 0016 の `edge-bends` と共通化する。** `edge-bends`(折れの数)も、本 ADR の規則も、「図の品質の物差し」。実装は次のようにまとめる。
+  - 新規 `lib/layout-metrics.ts`(`LaidOut` の帯を入力にして、各指標の生の数を返す純関数。ADR 0007 の純粋な核)。ADR 0016 U1 の `lib/polyline-metrics.ts`(折れ・交差)とは**別ファイル**にして、`lib/rules.ts` の `layoutQualityRules()` から両方を呼ぶ。
+  - 規則名の接頭辞は、本 ADR は `layout-`。`edge-bends`(0016)は名前を変えない。
   - 重大度・`accept` の扱い・出力の形は同じ。
 
 ### D5. 出力の形(`--format json` / `--verbose`)
@@ -204,9 +204,9 @@
 
 ## 影響
 
-- 既定で変える図: 横の列の区切りで約 18 枚(動くのは主に 2px)、`canvas` 6 枚(大きく変わる)、`semnet-causal` / `semnet-pert`、`concentric-stakeholders`、縦の格子化でほぼ全図(約 120 枚、最大 2px)。`pnpm golden` の差分として出る。**ADR 0009 / 0010 の PR が先に入ると、基準が動く**ので、各 PR は直前の `main` と比べる(0009 の方式と同じ)。
+- 既定で変える図: 横の列の区切りで約 18 枚(動くのは主に 2px)、`canvas` 6 枚(大きく変わる)、`semnet-causal` / `semnet-pert`、`concentric-stakeholders`、縦の格子化でほぼ全図(約 120 枚、最大 2px)。`pnpm golden` の差分として出る。**ADR 0016 / 0010 の PR が先に入ると、基準が動く**ので、各 PR は直前の `main` と比べる(0016 の方式と同じ)。
 - **縦の格子化(U1b)は、U1 とは別の PR。** 上端・下端・文字の原点 y を配置で格子に乗せる。ほぼ全図が最大 2px 動く(ADR 0005 #8 / 0008 #11 で見送った案と同規模。乗り越えた理由は D1 の注、ユーザー承認済み)。golden の大差分は、動く図の全リストと、視覚上同一と言える根拠(D3)を条件にして通す。
-- 公開 API の追加(すべて省略可能): `group({valign})`、`box({valign})`、`row({valign})`、`canvas({fit})`、`diagram({width: 'fit', valign, layoutCheck})`。`lib/types.ts` / `lib/strict.ts` / `lib/dsl.ts` の型の追加は、0009 U8 と同じく**最後にまとめる**(下の順序)。**例外: `layoutCheck` だけは U0 に含める**(`check` の重大度が読むため。D4)。
+- 公開 API の追加(すべて省略可能): `group({valign})`、`box({valign})`、`row({valign})`、`canvas({fit})`、`diagram({width: 'fit', valign, layoutCheck})`。`lib/types.ts` / `lib/strict.ts` / `lib/dsl.ts` の型の追加は、0016 U8 と同じく**最後にまとめる**(下の順序)。**例外: `layoutCheck` だけは U0 に含める**(`check` の重大度が読むため。D4)。
 - `check` に `layout-*` の規則(info)が増える。`--strict` の既存の CI は落ちない。`accept` に規則名を書けば許容できる。
 - 並びの変更の副作用: 列の区切りが最大 ±4px 動くので、`connect` の経路が動く図がある(`loop-under` などの位置は箱の位置から出るので追従する)。
 
@@ -221,25 +221,25 @@
 | U1b(縦の格子化) | 上端・下端・文字の原点 y を配置で格子に乗せる(`cursorY` の積み上げ、`padY`・行の間隔・文字の baseline の出し方を、4 の倍数の座標から出す)。ほぼ全図が最大 2px 動く。**条件(D3): 動く図の全リスト、視覚上同一の根拠(自動比較と目視)、ADR 0005 #8 の再現ソースが `padY` の迂回なしで通ること** | `lib/layout.ts`(縦の積み上げ全般)、`lib/emit.ts`(`snap4` は恒等になる。安全網として残す)、`examples/out/*.svg` の再生成、`test/layout-vgrid.test.ts`(新規) | **U1 のあと**(別の PR。U1 の `main` を基準にする)。U2 / U3 とは同じ `layout.ts` を触るので、U2・U3 が入ったあとか、U2・U3 が rebase して先に入れる(担当を 1 人にする) |
 | U2(row / group) | D2: `grouprow` の余りの配分、`group({valign})`、`row({valign})`、`box({valign})` の描画 | `lib/layout.ts`(`grouprow`: `:862-890`)、`lib/emit.ts`(`renderBoxText`)、`test/layout-grid.test.ts`(新規) | U1 のあと(同じファイルの別の領域) |
 | U3(canvas) | D2: 内容駆動の高さ(既定)、`fit: 'aspect'`(従来へ戻す) | `lib/layout.ts`(`:941-948`)、`lib/canvas.ts`(`canvasRowHeights`)、`examples/canvas-*.ts` の見直し、`test/canvas.test.ts` | U1 のあと。U2 とは別の領域なので並行してよい。**条件: 変更前後の指標比較表と、`contact-sheet` の前後画像での目視承認(canvas の図は全部 SVG が変わる)** |
-| U4(semnet / 図形) | `networkCanvas` の縦中央、`concentric` の塊の中央寄せ | `lib/semnet.ts`(`:88`)、`lib/flow-shapes.ts`、`lib/layout.ts`(`:328`、`:1046`) | **ADR 0009 U0 / U4 のあと**(`networkCanvas` を `layeredAttempt` の形にする PR と同じ関数)。ADR 0011 C のあとでもよい |
+| U4(semnet / 図形) | `networkCanvas` の縦中央、`concentric` の塊の中央寄せ | `lib/semnet.ts`(`:88`)、`lib/flow-shapes.ts`、`lib/layout.ts`(`:328`、`:1046`) | **ADR 0016 U0 / U4 のあと**(`networkCanvas` を `layeredAttempt` の形にする PR と同じ関数)。ADR 0011 C のあとでもよい |
 | U5(`width: 'fit'` と `valign`) | `diagram({width: 'fit'})`、`diagram({canvas: 'slide', valign})` | `lib/layout.ts`(図の幅の確定)、`lib/emit.ts`、`lib/dsl.ts`(`diagram`) | **ADR 0010 U4 のあと**(`DiagramOpts` の `maxWidth` と同じ型・同じ関数) |
 | U6(部品ごとの確認) | 表・banner・stat・column・chevron・quadrant・causeTree 系の画像を、U1〜U4 の後に目視で確認。直す点が出たら、単位を足す | なし(確認)。見つかった点は PR か ADR の追記 | U1〜U5 |
 | U9(型と文書) | `lib/types.ts` / `lib/strict.ts` / `lib/dsl.ts` の新しい opts の型と検証(`layoutCheck` は U0)。README(整列の既定、`valign`、`width: 'fit'`、`layout-*` の規則、`layoutCheck`)、`skills/` の該当記述、この ADR の状態と「実装」の表 | `lib/types.ts`、`lib/strict.ts`、`lib/dsl.ts`、`README.md`、`skills/` | U1〜U5 のあと(各単位は opts の名前と型をコメントで宣言) |
 
-**並列の進め方。** U0 と U1 を同時に始める(別のファイル)。U1 が入ったら、U2 と U3 を同時に(同じ `lib/layout.ts` の別の領域。マージ時の衝突は小さい)。U4 は 0009 の後。U5 は 0010 の後。U9 は最後。
+**並列の進め方。** U0 と U1 を同時に始める(別のファイル)。U1 が入ったら、U2 と U3 を同時に(同じ `lib/layout.ts` の別の領域。マージ時の衝突は小さい)。U4 は 0016 の後。U5 は 0010 の後。U9 は最後。
 
-### ADR 0009 / 0010 との衝突とマージ順
+### ADR 0016 / 0010 との衝突とマージ順
 
-| ファイル・関数 | 本 ADR | 0009 / 0010 | 扱い |
+| ファイル・関数 | 本 ADR | 0016 / 0010 | 扱い |
 |---|---|---|---|
-| `lib/semnet.ts`(`networkCanvas`、`:83-95`) | U4(`oy` の縦中央) | 0009 U0(`layeredAttempt` の形に揃える)、0009 U4(候補の選択)、0011 C(inset) | **0009 U4 と 0011 C のあと**。`oy` の 1 行なので衝突は小さいが、同じ関数 |
+| `lib/semnet.ts`(`networkCanvas`、`:83-95`) | U4(`oy` の縦中央) | 0016 U0(`layeredAttempt` の形に揃える)、0016 U4(候補の選択)、0011 C(inset) | **0016 U4 と 0011 C のあと**。`oy` の 1 行なので衝突は小さいが、同じ関数 |
 | `lib/layout.ts` | U1 / U2 / U3(row、grouprow、canvas の領域) | 0010 U1〜U3 は `toc.ts` / `states.ts` / `tree.ts` が中心で `layout.ts` は触らない。0012 B(`scope` の接続)が `layout.ts` の `claimed()` 周りを触る | 0012 B と領域が別。0012 B が先に入るなら、そのあとで rebase |
-| `lib/rules.ts` | U0(`layoutQualityRules`、`RULE_DOCS`) | 0009 U1(`edgeStats` の作り直し)、0009 U6(`edge-bends`)、0010 U4(`auto-fit-applied`) | 同じファイル。**`RULE_DOCS` の追加と `README.md` の規則の一覧が衝突しやすい**。U0 は `layoutQualityRules` を別の関数として足し、`RULE_DOCS` の行は最後にまとめて追記する。0009 U6 と 0010 U4 のあとに入れると楽 |
-| `lib/types.ts` / `lib/dsl.ts` | U9(最後) | 0009 U8、0010 U4(`DiagramOpts.maxWidth`)、0011 B、0012 | 「型は最後」。U5 の `width: 'fit'` は 0010 U4 の `maxWidth` と同じ `DiagramOpts` に項目を足すので、0010 U4 のあと |
+| `lib/rules.ts` | U0(`layoutQualityRules`、`RULE_DOCS`) | 0016 U1(`edgeStats` の作り直し)、0016 U6(`edge-bends`)、0010 U4(`auto-fit-applied`) | 同じファイル。**`RULE_DOCS` の追加と `README.md` の規則の一覧が衝突しやすい**。U0 は `layoutQualityRules` を別の関数として足し、`RULE_DOCS` の行は最後にまとめて追記する。0016 U6 と 0010 U4 のあとに入れると楽 |
+| `lib/types.ts` / `lib/dsl.ts` | U9(最後) | 0016 U8、0010 U4(`DiagramOpts.maxWidth`)、0011 B、0012 | 「型は最後」。U5 の `width: 'fit'` は 0010 U4 の `maxWidth` と同じ `DiagramOpts` に項目を足すので、0010 U4 のあと |
 | `check-diagram.ts` | U0(`data`、`layout` の出力) | 0013(`lib/error-format.ts`、`check-diagram.ts` のループ) | 0013 のあと。同じファイルの別の領域(出力の整形とエラー) |
-| `lib/graph-layout.ts`、`lib/layered-route.ts`、`lib/toc.ts`、`lib/states.ts`、`lib/classes.ts`、`lib/tree.ts` | **触らない** | 0009 / 0010 | 衝突なし |
+| `lib/graph-layout.ts`、`lib/layered-route.ts`、`lib/toc.ts`、`lib/states.ts`、`lib/classes.ts`、`lib/tree.ts` | **触らない** | 0016 / 0010 | 衝突なし |
 
-**マージ順。** 全体の順序は **ADR 0009 の「実装順序」節に 0014 を追記する**(そちらが正)。0014 側は、次の対応だけを示す: U0(測定)と U1(横の列の区切り)は**最初の組**(0009 U0 より前でよい。別のファイルだが、全図の基準が動くので、0009 U0 の PR は U1 が入った `main` で再生成してから比べる)。**U4 は 0009 U4 と 0011 C の「後に必ず」**入れる(`networkCanvas` の同じ関数)。**U1b(縦の格子化)は U1 の次の別 PR**で、U2・U3 と同じ `lib/layout.ts` を触るため担当を 1 人にして順に入れる(全図が動くので、0009 の本体より前か、0010 のあとの静かな時期に入れ、基準を動かす回数を減らす)。U5 は 0010 U4 のあと。U9 は最後。
+**マージ順。** 全体の順序は **ADR 0016 の「実装順序」節に 0014 を追記する**(そちらが正)。0014 側は、次の対応だけを示す: U0(測定)と U1(横の列の区切り)は**最初の組**(0016 U0 より前でよい。別のファイルだが、全図の基準が動くので、0016 U0 の PR は U1 が入った `main` で再生成してから比べる)。**U4 は 0016 U4 と 0011 C の「後に必ず」**入れる(`networkCanvas` の同じ関数)。**U1b(縦の格子化)は U1 の次の別 PR**で、U2・U3 と同じ `lib/layout.ts` を触るため担当を 1 人にして順に入れる(全図が動くので、0016 の本体より前か、0010 のあとの静かな時期に入れ、基準を動かす回数を減らす)。U5 は 0010 U4 のあと。U9 は最後。
 
 ### テスト方針
 
@@ -256,7 +256,7 @@
 
 1. `group` の余りの配分(中央 / 間隔を広げる)の細部(間隔の上限 +16px など)は、再現の図と実例で見て決める。
 2. `--format github` で info を `::notice` で出すか。
-3. `qc-relation` の上端の 4px 差(24 と 20)の原因(層状レイアウトか、丸めか)。U1 の後に再測定して、0009 に渡すか決める。
+3. `qc-relation` の上端の 4px 差(24 と 20)の原因(層状レイアウトか、丸めか)。U1 の後に再測定して、0016 に渡すか決める。
 4. `inventory-*` の 4px の差が、手書き座標か丸めか。U1 の後に再測定。
 5. `layout-align-mixed` の測定(未測定)。
 

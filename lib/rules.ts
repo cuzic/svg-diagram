@@ -443,7 +443,7 @@ function wireframeRules(d: LintTarget, out: Finding[]): void {
   }
 }
 
-/** The severity of the layout-quality findings (`layout-*`, and ADR 0009's `edge-bends`): info, or warn for a diagram that asked for diagram({layoutCheck: 'strict'}). */
+/** The severity of the layout-quality findings (`layout-*`, and ADR 0016's `edge-bends`): info, or warn for a diagram that asked for diagram({layoutCheck: 'strict'}). */
 export const layoutSeverity = (d: Pick<DiagramData, 'layoutCheck'>): 'warn' | 'info' => d.layoutCheck === 'strict' ? 'warn' : 'info';
 
 // Alignment and whitespace (ADR 0014): measured on the laid-out bands (lib/layout-metrics.ts), reported at layoutSeverity(d).

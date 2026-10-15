@@ -3,7 +3,7 @@
 - 状態: 提案
 - 日付: 2026-10-14
 - 基点: `main`(54f0784、PR #162 まで)
-- 関連: ADR 0009(戻り辺・循環の AND・AND の並走。G1 / G2 / G6 はそちらに追記)、ADR 0010(幅と向き・日本語の折り返し。G5 / G10 はそちらに追記)、ADR 0014(`layoutCheck` の仕組み)、ADR 0008(同じ依頼元)。要望の原文は `medius-research/svg-diagram-feature-requests.md` の G 節(G1〜G10)
+- 関連: ADR 0016(戻り辺・循環の AND・AND の並走。G1 / G2 / G6 はそちらに追記)、ADR 0010(幅と向き・日本語の折り返し。G5 / G10 はそちらに追記)、ADR 0014(`layoutCheck` の仕組み)、ADR 0008(同じ依頼元)。要望の原文は `medius-research/svg-diagram-feature-requests.md` の G 節(G1〜G10)
 
 ## 背景
 
@@ -11,12 +11,12 @@
 
 | ID | 要望 | 扱う ADR |
 |---|---|---|
-| G1 | 戻り辺(`back: true`)を層の決定から外す | **0009 D9** |
-| G2 | 循環の途中の AND を描く | **0009 D10** |
+| G1 | 戻り辺(`back: true`)を層の決定から外す | **0016 D9** |
+| G2 | 循環の途中の AND を描く | **0016 D10** |
 | G3 | `role: 'precondition'`、root と Action の区別 | **本 ADR D1** |
 | G4 | TOC の検査(UDE の数、根本原因に先行、一本鎖、FRT の部品、孤立) | **本 ADR D2・D3** |
 | G5 | 上向きのまま段組み・幅 | **0010 D7** |
-| G6 | AND の矢印の並走・順序の指定 | **0009 D11** |
+| G6 | AND の矢印の並走・順序の指定 | **0016 D11** |
 | G7 | 中核ドライバーの自動の強調 | **本 ADR D4** |
 | G8 | `kind: 'blocks'`(断つ辺)、ネガティブブランチ | **本 ADR D5** |
 | G9 | 凡例 `auto` が FRT で出ない | **本 ADR D6** |
@@ -61,7 +61,7 @@ FRT 風の `inj → tool`、`[tool, trust] → use`、`use → result`、`result
 
 6〜8 節の AND を含む乱数のグラフ(種固定)18 個のうち 3 個で `[cause-parallel]` が出た。1 つを取ると(7 節、`[n0, n2, n3] -> n5` を含む)、節の並びを 5 通り試して、**4 通りで同じ警告が残り**、並びを逆にしたときだけ消えた。「節の順序を替える」という直し方は、確実な手段ではない。
 
-並走の原因は経路にある。並走した 2 本は、AND の頭 `n5` に入る直接の矢印(`n2 -> n5`、隣り合う層)と長い矢印(`n3 -> n5`、層を飛ぶ)。直接の矢印の最後の縦の run(座標 470)と、長い矢印がダミーの列で最後の曲がりまで通る縦の run(座標 474)が、y 方向 22px にわたって 4px 隔てて並ぶ。直接の矢印の曲がり(`lib/layered-route.ts:124`)と長い矢印の最後の曲がり(`:132`)が別々に決まるため。詳細と直し方は ADR 0009 D11。
+並走の原因は経路にある。並走した 2 本は、AND の頭 `n5` に入る直接の矢印(`n2 -> n5`、隣り合う層)と長い矢印(`n3 -> n5`、層を飛ぶ)。直接の矢印の最後の縦の run(座標 470)と、長い矢印がダミーの列で最後の曲がりまで通る縦の run(座標 474)が、y 方向 22px にわたって 4px 隔てて並ぶ。直接の矢印の曲がり(`lib/layered-route.ts:124`)と長い矢印の最後の曲がり(`:132`)が別々に決まるため。詳細と直し方は ADR 0016 D11。
 
 ### G9 の調査(凡例 `auto` が出ない原因)
 
@@ -105,7 +105,7 @@ FRT 風の `inj → tool`、`[tool, trust] → use`、`use → result`、`result
 | `toc-source-has-cause` | 全部 | `root`(`crt`)・`injection`(`frt`)・`precondition`(全部)に、先行する(入る)辺がある |
 | `toc-chain-only` | `crt` / `frt` | 分岐も合流も AND も無い 1 本鎖(どの節も、入る辺・出る辺が各 1 本以下で、AND が 0) |
 | `toc-orphan` | 全部 | どのリンクにも出てこない節(`graph-orphan-node`(`lib/rules.ts:521`)は `connect()` の線しか見ないので、`causeTree` の節には効かない) |
-| `toc-cycle-undeclared` | 全部 | 循環があるのに、戻り辺に `back: true` が付いていない(ADR 0009 D9。どの辺が戻りとして扱われたかを書く) |
+| `toc-cycle-undeclared` | 全部 | 循環があるのに、戻り辺に `back: true` が付いていない(ADR 0016 D9。どの辺が戻りとして扱われたかを書く) |
 
 - 例: 依頼の最初の図(5 節の 1 本鎖、UDE 1 つ、AND なし、根本原因が循環に取り込まれている)は、`toc-ude-count`(UDE 1 つ)・`toc-chain-only`(分岐・AND なし)・`toc-cycle-undeclared`(循環に `back` が無い)で気づける。`back: true` を付けたうえで根本原因に入る辺が残っていれば、`toc-source-has-cause` も出る。
 - `prt` / `tt` の規則は、第 1 段では足さない(`prt` は障害と中間目標の対、`tt` は 3 点セットが約束で、依頼に無い)。`tree: 'prt' | 'tt'` は予約し、`toc-orphan` と `toc-cycle-undeclared` だけが掛かる。
@@ -133,7 +133,7 @@ FRT 風の `inj → tool`、`[tool, trust] → use`、`use → result`、`result
 
 ### D6. 役割と AND の弧を、凡例の自動生成(`legend: 'auto'`)の単位に入れる(G9)
 
-- **単位は役割**。`usedNotation`(`lib/rules.ts:116`)が、`cause` バンドの節の役割を `role:<役割>` のキーとして集める(意味を持たない `effect` / `step` は除く)。辺の側は `edge:and`(AND の弧が描かれた)、`edge:back`(ADR 0009 D9)、`edge:blocks`(D5)。`cause` のリンクの `line`(`line:dashed` など)は集めない(`pdpc` の破線は、`risk` / `measure` の役割が既に意味を持つ)。
+- **単位は役割**。`usedNotation`(`lib/rules.ts:116`)が、`cause` バンドの節の役割を `role:<役割>` のキーとして集める(意味を持たない `effect` / `step` は除く)。辺の側は `edge:and`(AND の弧が描かれた)、`edge:back`(ADR 0016 D9)、`edge:blocks`(D5)。`cause` のリンクの `line`(`line:dashed` など)は集めない(`pdpc` の破線は、`risk` / `measure` の役割が既に意味を持つ)。
 - 凡例の項目 `LegendItem`(`lib/types/containers.ts:69`)に `role?: CauseRole` と `edge?: 'and' | 'back' | 'blocks'` を足す。見本は、役割なら `CAUSE_ROLES` のトーン・二重枠・六角形を縮めた箱、`edge` なら矢印の見本(AND は弧つき、`back` は太線、`blocks` は棒の端)。手書きの `legend([{role: 'ude', label: '…'}])` でも使える(`legendKeys` が同じキーに直すので、自動と二重にならない)。
 - ラベルの既定(`DEFAULT_LEGEND_LABELS`、`lib/rules.ts:97`)に追加: `ude` 好ましくない現象(UDE)、`root` 根本原因、`de` 望む結果(DE)、`injection` 施策、`precondition` 現状の事実、`goal` 目標、`io` 中間目標、`obstacle` 障害、`action` 行動、`start` 開始、`risk` 懸念、`measure` 対策、`edge:and` 合わせて原因(AND)、`edge:back` 戻り(フィードバック)、`edge:blocks` 断つ、`mark:core` 中核ドライバー。`legendLabels` で上書きできる(`lib/config.ts:37` の検査は、この表のキーを読むので自動で通る)。
 - **既存の図に警告を増やさない**: 役割のキーを集めるのは `applyAutoLegend` からの呼び出し(`legend: 'auto'`)だけで、`legendRules`(`legend-missing` / `legend-incomplete`、`:261`)は従来のまま(集めない)。`legend: 'auto'` を書いた図で `cause` バンドがあるものだけが変わる(`examples/` には無い。`legend: 'auto'` と `causeTree` / `relationDiagram` / `pdpc` を両方使う図は 0 件)。
@@ -146,7 +146,7 @@ FRT 風の `inj → tool`、`[tool, trust] → use`、`use → result`、`result
 - **TOC の検査を、`causeTree` の全部の図に掛ける**。却下。`relationDiagram` / `pdpc` / `arrowDiagram` は TOC の図ではなく、UDE の数や根本原因の規則が意味を持たない。`tree` を書いた図だけにする(D2)。
 - **`tree` を役割から推測する**。却下。推測が外れた図に、誤った指摘が出る。
 - **`layoutCheck` を流用して `layoutCheck: 'strict'` で TOC の検査も warn にする**。却下(D3)。内容の約束と配置の良し悪しを 1 つにすると、片方だけ厳しくできない。
-- **検査の既定を warn にする**。却下。`check --strict` が利用者の CI を勝手に落とす(ADR 0009 D6 と同じ理由)。
+- **検査の既定を warn にする**。却下。`check --strict` が利用者の CI を勝手に落とす(ADR 0016 D6 と同じ理由)。
 - **到達数を `relationDiagram` と同じ「出る辺の本数」にする**。却下。要望は「間接的に引き起こす UDE の数」。直接の数だと、中間の節が多い現状ツリーで主役がずれる。
 - **`blocks` を辺への辺にする**。却下(D5)。
 - **凡例を `tone` から作る**。却下(現状の調査)。`de` と `io`、`effect` と `obstacle` が区別できず、二重枠と六角形が落ちる。
@@ -156,8 +156,8 @@ FRT 風の `inj → tool`、`[tool, trust] → use`、`use → result`、`result
 
 - **SVG**: 新しい opts / 役割 / 辺の種類を使った図だけが変わる。既存の `examples/out/*.svg` は byte 同一(`legend: 'auto'` と `cause` を併用する例は無い)。`tree` / `coreDriver` を書かない図、`precondition` / `blocks` を使わない図、`legend: 'auto'` と `cause` を併用しない図は 1 バイトも変わらない。
 - **検査**: 規則 6 個(`toc-*`)を `RULE_DOCS` と README の規則の一覧(`README.md:962` 付近)に足す。既定 info で、`check --strict` の結果は変わらない。
-- **API**: 追加のみ(すべて省略可能): `CauseRole` の `'precondition'`、`CauseOpts.tree` / `coreDriver`、`CauseLink.kind`、`DiagramOpts.tocCheck`、`LegendItem.role` / `edge`。`relationDiagram` / `pdpc` のリンクの型にも `kind`(と ADR 0009 の `back`)は通す。
-- **ADR 0009 との関係**: `toc-cycle-undeclared` は 0009 D9 の `back` の導入後に出せる。D6 の `edge:back` も同じ。0009 の U11 が先。
+- **API**: 追加のみ(すべて省略可能): `CauseRole` の `'precondition'`、`CauseOpts.tree` / `coreDriver`、`CauseLink.kind`、`DiagramOpts.tocCheck`、`LegendItem.role` / `edge`。`relationDiagram` / `pdpc` のリンクの型にも `kind`(と ADR 0016 の `back`)は通す。
+- **ADR 0016 との関係**: `toc-cycle-undeclared` は 0016 D9 の `back` の導入後に出せる。D6 の `edge:back` も同じ。0016 の U11 が先。
 - **リスク**: (1) `toc-chain-only` と `toc-ude-count` の閾値は、TOC の流派でずれる。info なので害は小さく、`accept` で外せる。(2) 役割の凡例の項目が増えると、凡例の行が増える(`layoutLegend` は折り返す、`lib/layout-handlers.ts:284`)。(3) `coreDriver` の `到達 UDE n` は日本語固定。`legendLabels` のような差し替えは作らない(文言の一般化は別の要望)。
 
 ## 実装計画
@@ -171,16 +171,16 @@ FRT 風の `inj → tool`、`[tool, trust] → use`、`use → result`、`result
 | U1 | `role: 'precondition'`(D1)。型・`CAUSE_ROLES`・検証の文言・README の役割の説明と skills の役割の列挙(`skills/svg-diagram/SKILL.md:82`) | `lib/types/diagrams.ts`(`CauseRole`)、`lib/toc.ts`(`CAUSE_ROLES`)、`README.md`、`skills/svg-diagram/SKILL.md`、`test/toc.test.ts` | なし |
 | U2 | 中核ドライバー(D4)。`reachCounts`(純関数)と `causeTree` の `coreDriver` | 新規 `lib/toc-analysis.ts`、`lib/dsl/diagrams.ts`(`causeTree()` の中)、`lib/types/diagrams.ts`(`CauseOpts.coreDriver`、`LaidOutCause.nodes[].core`)、`lib/emit-figures.ts`(`renderCause` の枠の太さとバッジ)、新規 `test/toc-analysis.test.ts`、`test/toc.test.ts` | なし(U1 とは別の行を足すだけ) |
 | U3 | TOC の検査(D2・D3)。`tree` と `tocCheck`、`lib/toc-rules.ts`、`RULE_DOCS`、`lintAll` への接続、README の規則の一覧。`toc-cycle-undeclared` は除く(U7) | 新規 `lib/toc-rules.ts`、`lib/rules.ts`(`tocSeverity`・`RULE_DOCS`・`lintAll` の 1 行)、`lib/types/diagrams.ts`・`lib/types/core.ts`(`tree`・`tocCheck`)、`lib/dsl/diagrams.ts`・`lib/dsl/render.ts`(検証・保存)、`lib/strict.ts`、`README.md`、新規 `test/toc-rules.test.ts`、`test/rules.test.ts` | U1(役割の一覧が確定してから)、U2 の `lib/toc-analysis.ts`(辺の集計を共有) |
-| U4 | 凡例の自動生成(D6)。`usedNotation` の `cause` 対応、`LegendItem.role` / `edge`、見本の描画、ラベルの既定 | `lib/rules.ts`(`usedNotation`・`applyAutoLegend`・`DEFAULT_LEGEND_LABELS`)、`lib/types/containers.ts`(`LegendItem`)、`lib/layout-handlers.ts`(`layoutLegend`)、`lib/emit-boxes.ts`(`renderLegend`)、`lib/config.ts`(キー検査は表から自動)、`README.md`(`:298`・`:305` の直し)、`test/rules.test.ts`、`test/toc.test.ts` | U1(役割が確定してから)。`edge:back` は 0009 U11 の後、`edge:blocks` は U5 の後に足す(それまでは項目を出さない) |
+| U4 | 凡例の自動生成(D6)。`usedNotation` の `cause` 対応、`LegendItem.role` / `edge`、見本の描画、ラベルの既定 | `lib/rules.ts`(`usedNotation`・`applyAutoLegend`・`DEFAULT_LEGEND_LABELS`)、`lib/types/containers.ts`(`LegendItem`)、`lib/layout-handlers.ts`(`layoutLegend`)、`lib/emit-boxes.ts`(`renderLegend`)、`lib/config.ts`(キー検査は表から自動)、`README.md`(`:298`・`:305` の直し)、`test/rules.test.ts`、`test/toc.test.ts` | U1(役割が確定してから)。`edge:back` は 0016 U11 の後、`edge:blocks` は U5 の後に足す(それまでは項目を出さない) |
 | U5 | `kind: 'blocks'`(D5)。型・検証・配置への受け渡し・棒の端の描画 | `lib/types/diagrams.ts`(`CauseLink.kind`、`LaidOutCause.edges[].kind`)、`lib/toc.ts`(辺の種類を持たせる)、`lib/dsl/diagrams.ts`(検証)、`lib/emit-common.ts`(`arrowPath` の `end`)、`lib/emit-figures.ts`(`renderCause`)、`README.md`、`test/toc.test.ts` | なし(優先度は低い) |
 | U6 | 文書。README(TOC の節の役割・`tree`・`coreDriver`・凡例・`blocks`、`precondition`)、`skills/`、この ADR の状態と「実装」の表。`examples/` に FRT の例(`precondition`・`blocks`・`legend: 'auto'` を使う)を追加 | `README.md`、`skills/svg-diagram/SKILL.md`、新規 `examples/toc-frt.ts`(+ `examples/out/`)、この ADR | U1〜U5 のあと |
-| U7 | `toc-cycle-undeclared`(D2)。0009 の `breakCycles`(DFS の結果を返す関数)を使って、戻りとして扱われた辺を書く | `lib/toc-rules.ts`、`test/toc-rules.test.ts` | U3、ADR 0009 U11 |
+| U7 | `toc-cycle-undeclared`(D2)。0016 の `breakCycles`(DFS の結果を返す関数)を使って、戻りとして扱われた辺を書く | `lib/toc-rules.ts`、`test/toc-rules.test.ts` | U3、ADR 0016 U11 |
 
-進める順番: U1・U2・U5 は同時に着手できる。U3 は U1・U2 のあと。U4 は U1 のあと。U6 は最後。U7 は 0009 U11 のあと。この ADR の単位は `lib/graph-layout.ts` と `lib/layered-route.ts` に**触らない**(配置は変えない)ので、ADR 0009 の本体の前後どちらでもマージでき、0009 の byte 比較の基準(直前の `main`)に影響しない。型の追加は、`lib/types/diagrams.ts` の `CauseLink` / `CauseOpts` に集中する(`back`・`kind`・`tree`・`coreDriver`・`fold`・`straighten`・`returns`・`dir: 'auto'`)。**各単位は自分の項目の行だけを足し**、他の単位の行・並びは触らない。衝突は rebase で解く。
+進める順番: U1・U2・U5 は同時に着手できる。U3 は U1・U2 のあと。U4 は U1 のあと。U6 は最後。U7 は 0016 U11 のあと。この ADR の単位は `lib/graph-layout.ts` と `lib/layered-route.ts` に**触らない**(配置は変えない)ので、ADR 0016 の本体の前後どちらでもマージでき、0016 の byte 比較の基準(直前の `main`)に影響しない。型の追加は、`lib/types/diagrams.ts` の `CauseLink` / `CauseOpts` に集中する(`back`・`kind`・`tree`・`coreDriver`・`fold`・`straighten`・`returns`・`dir: 'auto'`)。**各単位は自分の項目の行だけを足し**、他の単位の行・並びは触らない。衝突は rebase で解く。
 
-### マージ順(全体の順序は ADR 0009「実装順序」の節が正)
+### マージ順(全体の順序は ADR 0016「実装順序」の節が正)
 
-0009 の節に、この ADR の単位を組み込んだ(U1・U2・U5 は早い組、U3・U4 はその後、U7 は 0009 U11 の後、U6 は最後)。
+0016 の節に、この ADR の単位を組み込んだ(U1・U2・U5 は早い組、U3・U4 はその後、U7 は 0016 U11 の後、U6 は最後)。
 
 ### テスト方針(フォントに依存する絶対値を使わない)
 
@@ -201,5 +201,5 @@ FRT 風の `inj → tool`、`[tool, trust] → use`、`use → result`、`result
 
 - `toc-ude-count` の 5〜10 の範囲と `toc-chain-only` の定義は、TOC の指針(Dettmer)に合わせた初期値。依頼者(medius-research)の図で、誤検知が無いかを確かめる。
 - `tree: 'prt'` / `'tt'` の規則(障害に中間目標が対になっているか、`tt` の 3 点セット)。依頼に無いので第 2 段階。
-- 循環の戻り辺に付ける注釈(`label`。Flying Logic のループの印 `R` / `B`)。G1 は「太く、注釈を付けられる」と言うが、`CauseLink` に `label` が無く、ラベルの置き場所(辺の脇)の設計は ADR 0011(`causalLoop` のループの印)と合わせたい。本 ADR は太さだけ(0009 D9)。
+- 循環の戻り辺に付ける注釈(`label`。Flying Logic のループの印 `R` / `B`)。G1 は「太く、注釈を付けられる」と言うが、`CauseLink` に `label` が無く、ラベルの置き場所(辺の脇)の設計は ADR 0011(`causalLoop` のループの印)と合わせたい。本 ADR は太さだけ(0016 D9)。
 - `coreDriver` の `到達 UDE n` の文言の差し替え(`legendLabels` のような設定)。
