@@ -17,6 +17,8 @@ import type {BoxTone} from './types/text-bands.ts';
 
 const MAX_W = 200, GAP = 28, LEVEL = 64, PORT = 22; // PORT: the step between the arrows that meet one side of an entity (the arrowheads of an AND stay apart)
 /** The arc across the arrows of an AND: where its ends and its middle are, as distances from the arrowheads' tips. */
+/** The 中核 badge (ADR 0015 D4): its height and its gap to the frame; emit-figures draws it, the layout keeps the room. */
+export const CORE_BADGE_H = 22, CORE_BADGE_GAP = 2;
 const AND_END = 21, AND_PEAK = 15, AND_REACH = 10;
 
 /** What a role looks like when the node gives no tone. `double`: the box has a second outline (the finding of the figure). */
@@ -48,9 +50,12 @@ const swap = (p: Pt): Pt => ({x: p.y, y: p.x});
 /** The ids a link's `from` names, as a list. */
 export const causesOf = (l: {from: string | readonly string[]}): string[] => typeof l.from === 'string' ? [l.from] : [...l.from];
 
-export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutCause {
+export function layoutCauseBand(band: CauseBand, bandX: number, bandY: number, bandW: number, widthOf: WidthOf, roles: Roles): LaidOutCause {
   const dir = band.dir ?? 'up', maxW = band.maxNodeW ?? MAX_W;
   const vertical = dir === 'up' || dir === 'down', flip = dir === 'up' || dir === 'left';
+  // the 中核 badge sits outside the frame, at the end of the axis the arrows run along: the figure keeps that room free at both ends (H7)
+  const pad = band.nodes.some(n => n.core) ? CORE_BADGE_H + CORE_BADGE_GAP : 0, padX = vertical ? 0 : pad, padY = vertical ? pad : 0;
+  const x = bandX + padX, y = bandY + padY, w = bandW - 2 * padX;
   const ids = new Set<string>();
   for (const n of band.nodes) {
     if (typeof n.id !== 'string' || !n.id) throw new Error('causeTree(): every node needs an id');
@@ -132,7 +137,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   };
 
   const out: LaidOutCause = {
-    type: 'cause', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h,
+    type: 'cause', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x: bandX, y: bandY, w: bandW, h: total.h + 2 * padY,
     nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
   };
   for (const n of band.nodes) {
