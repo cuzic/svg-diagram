@@ -92,7 +92,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     return {ends, d, along, cross, ok: aligned && room >= AND_END + 1};
   };
   // One whole attempt: the node text wrapped at maxW and the layout turned to dir. Everything that depends on either is in here.
-  const build = (dir: CauseDir, maxW: number) => {
+  const build = (dir: CauseDir, maxW: number, fold?: number) => {
     const vertical = dir === 'up' || dir === 'down', flip = dir === 'up' || dir === 'left';
     const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles)]));
     // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
@@ -121,7 +121,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     const declared = arrows.flatMap((a, k) => a.back ? [k] : []); // the returns the author named: laid out as the way back (index into `arrows`)
     // the returns that skip layers run in an outer lane: all of them when `returns: 'outer'` (or pdpc's default), the declared ones (`back`) when nothing is written
     const wanted: 'all' | 'declared' | undefined = band.returns === 'inline' ? undefined : (band.returns ?? band.returnsDefault) === 'outer' ? 'all' : declared.length ? 'declared' : undefined;
-    const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {})}, {
+    const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {}), ...(fold === undefined ? {} : {fold})}, {
       portStep: PORT, groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: w + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}),
       looseOf: (rts, ly) => {
         const route = new Map<number, Pt[]>();
@@ -146,7 +146,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   const fitted = fitLayout<CauseDir, ReturnType<typeof build>>({
     who: 'causeTree()', w, start, ...(band.base !== undefined ? {alt: 'right' as const} : {axisKept: `another axis (a cause tree keeps its direction: ${start})`}),
     explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined ? {} : {maxNodeW: band.maxNodeW}),
-    build, best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget}),
+    build, ...(band.base === undefined ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget}),
     ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
   });
   const attempt = fitted.result, {lines, vertical, flip} = attempt, fitApplied = fitted.applied;

@@ -184,7 +184,8 @@ test('causeTree() rejects bad input', async () => {
   await assert.rejects(() => bad([N('a'), N('b')], [{from: 'a', to: 'b'}, {from: ['a'], to: 'b'}]), /written twice/);
   await assert.rejects(() => bad([N('a'), N('b')], [{from: [], to: 'b'}]), /has no cause/);
   await assert.rejects(() => bad([{id: 'a', label: ' '}], []), /needs a label/);
-  await assert.rejects(() => bad(Array.from({length: 12}, (_, i) => N(`n${i}`)), []), /does not fit/);
+  // twelve entities on one level: too wide, and a figure that writes its direction (without fold: true) is not changed (ADR 0010 D1); left to itself it folds (D7)
+  await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(causeTree(Array.from({length: 12}, (_, i) => N(`n${i}`)), [], {dir: 'up'}))), /does not fit/);
 });
 
 // ---- cloud ----
