@@ -165,5 +165,5 @@ export interface LaidOutCaption extends CaptionBand, Rect, Dimmed {
   /** group() titles only: the rect the title's text really covers (the caption itself spans the whole frame width). */
   inkBox?: Rect;
 }
-export interface LaidOutBox extends BoxBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number; nowrapOverflow?: string[]; /** stat() values drawn smaller than their role's size so they fit (ADR 0024). */ statShrunk?: {value: string; from: number; to: number}[]; /** With `step` and a centred / right-aligned title: its first line's width (the badge sits just before it). */ titleW?: number}
+export interface LaidOutBox extends BoxBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number; nowrapOverflow?: {value: string; width: number; avail: number; min: number}[]; /** stat() values drawn smaller than their role's size so they fit (ADR 0024). */ statShrunk?: {value: string; from: number; to: number}[]; /** With `step` and a centred / right-aligned title: its first line's width (the badge sits just before it). */ titleW?: number}
 export interface LaidOutBanner extends BannerBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number}
