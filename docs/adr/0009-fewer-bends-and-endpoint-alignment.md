@@ -3,7 +3,7 @@
 - 状態: 提案
 - 日付: 2026-10-13
 - 基点: `main`(4e58744、PR #124 まで)
-- 関連: ADR 0008(同じ依頼元の第 3 巡)。依頼の原文は「Medius への AI・DX 提案資料」の図づくりで挙がった要望の A 節(A1〜A5)
+- 関連: ADR 0008(同じ依頼元の第 3 巡)。依頼の原文は「Medius への AI・DX 提案資料」の図づくりで挙がった要望の A 節(A1〜A5)。追補(2026-10-14): 同じ依頼元の G 節のうち G1・G2・G6(下の D9〜D11。TOC の他の要望は ADR 0015、G5・G10 は ADR 0010)
 
 ## 背景
 
@@ -158,6 +158,43 @@
 - **U2 への含意**: D8 の方針(同じ成分を連続して並べ、成分ごとに座標を決めて詰める)で原因が消える。ただし「初期の中央寄せをやめる」だけでは直らず、**`settle` の行ごとの平均のずらしを成分の中に閉じる**ことが必須(行の中の別の成分を平均に入れない)。D8 のテスト(d)には、成分の並び順を入れ替えても空白が `gap` になる(上の B のあとに A の入力を使う)を加えるとよい。
 - 依頼者のソース・本物のフォントでの再現は未実施(配置は箱の大きさだけで決まり、フォントは箱の幅を通してしか効かないため、上の結論は変わらない見込み)。
 
+### D9. 戻り辺を宣言する: `back: true` は層の決定から外す。宣言した戻り辺は外周のレーンを既定にする(G1)
+
+依頼 G1: CRT に悪循環の戻り矢印を足すと、UDE が最下段に落ち、線が何度も折れる(FRT の好循環も同じ)。要確認の「`back: true` の記法は既にあるか」は、**無い**(`CauseLink` は `{from, to, line}` だけ、`lib/types/diagrams.ts:109-114`)。
+
+**再現と原因(測定、フォントに依存しない)**: `examples/toc-crt.ts` の 7 節に `late -> kpi`(UDE → 根本原因の悪循環)を足すと、`late`(UDE)が `kpi` より**下**の最下段に落ち、折れは 10 → 14。`kpi` を最初の節に並べ替えると層は正しいが、折れは 16。原因は `layoutLayered` の手順 1(`graph-layout.ts:168-182`)で、**戻り辺を DFS が選ぶ**こと。DFS は節の並びの先頭からたどり、`late → kpi → … → switch → late` と回って、**順方向の辺 `switch -> late` を戻り辺として逆向きにする**。意味上の戻り辺(`late -> kpi`)ではない。つまり、同じグラフが節の並びで違う図になる。
+
+- `CauseLink` に `back?: true`(既定なし)を足す。`from` は 1 つの節(配列と併用すると throw。戻り辺は 1 本ごとの宣言)。`relationDiagram` / `pdpc` のリンクにも通す。
+- **層の決定から外す**: `layoutLayered` に `back?: readonly number[]`(宣言された辺の、入力の辺の添字)を足す。手順 1 は、宣言された辺を最初から「戻り辺」(`reversed: true`)にし、**DFS はそれ以外の辺だけに掛ける**(宣言された辺をたどらない)。宣言のあとにまだ循環が残るときだけ、残りを今までの DFS で切る(宣言が不足している図でも止まらない。D2 の検査 `toc-cycle-undeclared`(ADR 0015)が知らせる)。手順 1 の DFS の結果(どの辺を戻りにしたか)は、純粋な関数 `breakCycles(nodes, edges, declared)` に切り出して `layoutLayered` と検査が共有する。
+  - 宣言した図では、層が**節の並びに依存しなくなる**(宣言を除いたグラフは非循環で、最長経路の層は並びに依らない)。
+- **既存の図は 1 バイトも変わらない**: `back` を書いた図だけが対象で、書かない図は手順 1 が今と同じ DFS を同じ入力で走らせる(`declared` が空なら分岐しない)。`relationDiagram` の「戻る矢印も可」(README)・`stateDiagram` の戻る遷移は、宣言が無いので今のまま。
+- **D7(外周の戻り辺)との関係**: D7 は「層を 2 つ以上飛ぶ戻り辺(`reversed` で層の差が 2 以上)だけ、ダミーを作らず外周の専用レーンに回す」。D9 は「**どの辺が戻り辺か**」を宣言で決める話で、D7 は「戻り辺をどう通すか」の話。つながり方は次のとおり。
+  1. 戻り辺の集合の決め方が変わる(DFS → 宣言)。D7 の条件(`reversed` と層の差)は同じ式で使える。
+  2. **宣言した戻り辺は、`returns` の既定に関係なく外周を既定にする**(層を 2 つ以上飛ぶ場合)。`returns` の既定('inline')は、**DFS が見つけた**戻り辺(宣言の無い循環)の話で、SVG を動かさないために残す。宣言した図は新しい書き方なので、既存の SVG に影響しない。`returns: 'inline'` を明示すれば、宣言した戻り辺も図の中を通る。層を 1 つだけ戻る辺は、今のとおり隣り合う層の別の帯(D7 の最初の項目)。
+  3. 外周のレーンを足して幅がはみ出す図は、D7 の自動で `'inline'` に戻る処理に従う(宣言した戻り辺も同じ)。
+  4. 実装の順序: 宣言(U11)が先で、そのときの戻り辺は今の戻り辺の経路(隣り合う層の別の帯、層を飛ぶものはダミーを通る)で描かれる。外周のレーン(U7)が入った時点で、宣言した戻り辺が外周へ回る(U7 は `reversed` を読むだけで、宣言の有無は区別しない。宣言したものは `returns` の既定を無視する、の 1 点だけを U7 に足す)。
+- **D1(候補の選択)との関係**: 宣言は入力の意味(どの辺が戻りか)で、最適化の候補ではない。従来の候補・新しい候補の**どちらも宣言を尊重する**(足切りの比べ方は変えない)。`straighten: false` でも宣言は効く。
+- 見た目: 宣言した戻り辺は、通常の辺より太く描く(`arrowPath` の `width` を 3 に。`lib/emit-common.ts:123` が `width` 引数を持つので描画の変更は小さい)。`LaidOutCause.edges[]` に `back` を持たせる。注釈(ラベル)は ADR 0015 の未決。
+- 凡例: 宣言した戻り辺は、`legend: 'auto'` の項目(`edge:back`、ADR 0015 D6)になる。
+
+### D10. 循環の途中の AND(G2): 戻り辺の宣言で大半が解け、残りは理由つきで止める(G2)
+
+**再現(測定)**: FRT 風の `inj → tool`、`[tool, trust] → use`、`use → result`、`result → trust`(成果が信頼を生む循環)で、`loose: ['use']` になり verify が止まる。原因は D9 と同じ。`inj` から DFS すると `result → trust → use` と回り、**AND の一員 `trust -> use` が戻り辺にされ**、`trust` が `use` より上の層に置かれて、`use` への 2 本が反対側から着く。意味上の戻り辺は `result -> trust` で、そこに `back: true` を付ければ AND の 2 本は同じ側から着き、弧が描ける(依頼の「AND を 2 本の独立した矢印に分けて回避した」は不要になる)。
+
+- **戻り辺が AND の一員ではない場合**(上の例。依頼の例の大半): D9 だけで解ける。実装は足さない。
+- **戻り辺そのものが AND の一員の場合**(`[tool, result] -> use` で `use -> result` が戻る、のように、AND の原因が結果より下流にある): 原因の矢印が結果に**反対側から着く**ことは、層の構造から避けられない(測定では並びを変えても止まる)。第 1 段階は、**止め方を直す**: verify の文面(`lib/verify-handlers.ts:181`)が、どの AND か(結果と原因の一覧)と、どの原因が反対側から着くか(最後の run の向きが他と逆の矢印)を名指しし、直し方を 1 つ指す(「`result -> use` を AND から外して別のリンクにする(OR)」「`back: true` を付ける(その辺は戻りで、AND の一員にしない)」のうち、該当するもの)。
+- 第 2 段階(別の PR、必要なら): 戻り辺である AND の一員を、外周のレーンから AND の他の矢印と同じ側(原因側の辺)へ回して着ける。`routeLayered` の端の割り当てと D7 の外周の帯に依存し、折れが 4 以上になる。第 1 段階で止まる図が実際に多いかを測ってから決める。
+- 既存の図は変わらない(止まる図が止まる文面が変わるだけ)。
+
+### D11. AND の矢印の並走(G6): 隙間のレーンを、直接の矢印と長い矢印で共有する。順序の指定は D5 の `order`(G6)
+
+**再現(測定)**: 6〜8 節の AND を含む乱数のグラフ(種固定)18 個のうち 3 個で `[cause-parallel]` が出た。1 つを取ると、節の並びを 5 通り試して 4 通りで警告が残り、**「節の順序を替える」は確実な直し方ではない**(原因が並びではないため)。
+
+**原因(経路の座標で確かめた)**: 並走している 2 本は、AND の頭 `n5` に入る「直接の矢印」(`n2 -> n5`、隣り合う層)と「長い矢印」(`n3 -> n5`、層を飛ぶ)。直接の矢印は、頭の端へ入る最後の縦の run(座標 470)を、隙間の尾の側の曲がり(`STUB + レーン`、`lib/layered-route.ts:124`)から頭まで伸ばす。長い矢印は、ダミーの列(座標 474)を通り、頭の手前の最後の曲がり(`lastTurn`、`:132`)で自分の端(492)へ移る。**`lastTurn` が直接の矢印の曲がりより頭に近い**ので、2 本の縦の run が、その間(再現では y 方向 22px)を **4px 隔てて並ぶ**。AND の頭の端の間隔(`PORT`)は十分で、並走は経路の中ほどに起きる。2 つの曲がりは別々に決まり(`:129` の注釈は「重ならない」前提)、同じ隙間の中で互いを見ない。
+
+- **直し方**: 同じ隙間の曲がりを 1 つのレーンの表から取り、**長い矢印の `lastTurn` を、同じ頭に入る直接の矢印の曲がりより尾に近い側に置く**(長い矢印が先に自分の端の列へ移り、直接の矢印の最後の run と並ばない)。隙間は、そのぶんのレーンを持つ幅にする(`corridorLoad` は直接の矢印だけを数える、`:140` 付近)。ただし隙間が広がると、いまは並走していない図の SVG も動く。**動かさないために、候補の選択(D1)に乗せる**: 並走の数(`runsTogether`。verify の `together`(`lib/verify-handlers.ts:164`)と同じ定義)を、**`toc` のときだけ**点数の先頭に置く `(並走, 交差, 折れ)`。従来の候補が並走 0 なら従来のまま。並走があるときだけ、レーンを共有する新しい候補を作り、並走が厳密に減るなら採る(足切りは D1 と同じ)。`runsTogether` は U1 の `lib/polyline-metrics.ts` に置き、`verify-handlers.ts` と共有する(定義がずれない)。レーンの表の実装は、再現の入力(下のテスト)で並走が 0 になることを確かめながら詰める(上は、経路の座標から立てた設計で、実装で確かめる)。
+- 順序の指定: 「AND の矢印の入り口を少しずらす」は、頭の端(`PORT`)で既にずれている。並走は経路の中ほどの話なので、ずらしで直る問題ではない。**手動の `order`(D5 第 2 段)を、G6 の要望として優先度を上げる**(U10 の中身は変えない。`causeTree` の `order: [['a', 'b'], ...]` が、同じ層の並びを固定する)。verify の警告の文面は、「節の順序を替える」から「`order` で並びを指定する(U10 の後)、`dir` を変える」に直す(U10 の前は、並びを変えても直らないことがあるので、`dir` / `maxNodeW` を先に挙げる)。
+
 ## 代替案
 
 - **`routing: 'min-bends'` の切り替えを足す**(要望の案)。却下。折れが少ない方が悪い図は無い。切り替えが要るのは「従来の SVG を保つ」ときだけで、それは `straighten: false` で足りる。
@@ -166,6 +203,9 @@
 - **折れ数を座標の段階の目的関数に直接入れる(焼きなましなど)**。却下。決定性と実行時間の見積もりが難しい。候補を数個作って選ぶ(D1)で、改善の大半が取れる見込み。
 - **A3 の 4 つのヒントを全部入れる**。却下(D5)。`align` と `rank` は、`straight` / `start` と重なるか、辺の向きの意味を壊す。
 - **A5 の戻り辺を全部外周に回す**。却下。隣り合う層の戻りまで外周に出すと、折れが増えるだけで読みやすくならない。`stateDiagram` の既定が変わり、SVG が大きく動く。
+- **戻り辺を、DFS の起点を変えるだけで直す**(`causeTree` が `start` に根本原因を渡す)。却下(D9)。どの節が根本原因かは役割で分かるが、悪循環は UDE から根本原因へ戻るので、起点を根本原因にしても、FRT の好循環(成果 → 信頼 → 利用)では起点が決まらない。起点で決まる戻り辺は、並びが変わると変わる。宣言した辺を層から外す方が、入力の意味を直接に写す。
+- **`back` を宣言なしで自動推定する**(フィードバック辺集合の最小化)。却下。最小の辺集合は 1 つに決まらず、どれが「戻り」かは意味の問題(悪循環の戻りか、順方向か)。推定が外れると層が崩れる原因が見えなくなる。宣言を書かない循環は今のまま(DFS)にして、ADR 0015 の検査で気づけるようにする。
+- **AND の長い矢印を、必ず専用レーンに回す**(G6)。却下。隙間が広がり、並走していない図の SVG も動く。候補の選択(D1)で、並走があるときだけ採る。
 - **`edge-bends` を `edge-crossings` に統合する**。却下。`edge-crossings` は `connect()` の線の規則で、`accept` の理由も別になる。折れは、数える対象(帯の辺)も、直し方(座標・ヒント)も違う。
 
 ## 影響
@@ -178,6 +218,7 @@
 - **ADR 0010 との関係**: `layeredAttempt`(U0)を両 ADR の共通の土台にする。ADR 0010 の B3 は D8 でこの ADR が引き取る(0010 の D4 は取り下げ)。
 - **`check --strict`**: `edge-bends` は info なので、利用者の CI の結果は変わらない。
 - **`tree` / `mindmap`**: 変えない。
+- **G 節(D9〜D11)**: `back` を書かない図は 1 バイトも変わらない(D9)。D10 は止まる図の文面だけ。D11 は並走のある図だけが、候補の選択で動く(並走が厳密に減るときだけ)。`CauseLink.back` は `lib/types/diagrams.ts` に足す(ADR 0015 の `kind` と同じ型の別の行)。
 
 ## 実装計画
 
@@ -210,22 +251,26 @@ layeredAttempt(nodes, edges, opts, {portStep, groupOf, transpose, maxAcross})
 | U4 | 候補の選択(D1)。`layeredAttempt` の中で、従来の候補 + 新しい候補(`coord: 'bk'`、U3 の層)を作り、足切り → 選択。`straighten` の opts を通す | `lib/layered-route.ts`(`layeredAttempt`)、`lib/toc.ts`・`states.ts`・`classes.ts`・`semnet.ts`(`straighten` を渡す 1 行) | U0、U1、U2、U3 |
 | U5 | 端点を直線にする(D3)。`routeLayered` の端点の割り当て(`:60-93`) | `lib/layered-route.ts`(`routeLayered`)、`test/toc.test.ts`・`states.test.ts` に追加 | U0 のあと(同じファイルの別の関数) |
 | U6 | `edge-bends` の規則(D6)。帯の辺を集める関数(`cause` / `states` / `bpmn` / `classes` / `semnet`)、`semnet` の辺ごとの折れ線の型、`RULE_DOCS`、README の規則の一覧、**0014 の `layoutCheck` との接続**(図の指定が `strict` なら `edge-bends` を warn にする。0014 の共通の仕組みを使い、`edge-bends` 用に別の指定は作らない。0014 が先に決まっていなければ、この接続だけ後から足す) | `lib/rules.ts`、`lib/semnet.ts`(辺ごとの `points` を出す)、`lib/types.ts`(`LaidOutNetwork` の辺の型)、`README.md`(`:962` 付近)、`test/rules.test.ts` | U1 |
-| U7 | 外周の戻り辺(D7)。層を 2 つ以上飛ぶ戻り辺はダミーを作らない(`layoutLayered` の新しい引数)、`routeLayered` に外周の帯、幅の見積もり、はみ出したら `'inline'` に自動で戻す、`pdpc` の既定 | `lib/graph-layout.ts`(ダミーの段 `:199-223`)、`lib/layered-route.ts`、`lib/toc.ts`、`lib/states.ts`、`lib/dsl.ts`(`pdpc`)、`test/toc.test.ts`、`test/states.test.ts` | U2 のあと(`graph-layout.ts` の担当は同じ人) |
+| U7 | 外周の戻り辺(D7)。層を 2 つ以上飛ぶ戻り辺はダミーを作らない(`layoutLayered` の新しい引数)、`routeLayered` に外周の帯、幅の見積もり、はみ出したら `'inline'` に自動で戻す、`pdpc` の既定。**D9 の宣言した戻り辺(`back`)は `returns` の既定に関係なく外周を既定にする**(U11 の `reversed` + 宣言の印を読む) | `lib/graph-layout.ts`(ダミーの段 `:199-223`)、`lib/layered-route.ts`、`lib/toc.ts`、`lib/states.ts`、`lib/dsl.ts`(`pdpc`)、`test/toc.test.ts`、`test/states.test.ts` | U2 のあと(`graph-layout.ts` の担当は同じ人) |
+| U11 | 戻り辺の宣言(D9、G1)。`CauseLink.back`、`layoutLayered` の `back` 引数、手順 1 の `breakCycles` の切り出し(宣言した辺を先に戻り辺にし、DFS は残りだけ)、太線の描画。`relationDiagram` / `pdpc` のリンクの型 | `lib/graph-layout.ts`(手順 1 だけ。`breakCycles` を export)、`lib/toc.ts`(宣言を `layeredAttempt` に渡す)、`lib/dsl/diagrams.ts`(検証: `back` は 1 つの節、`from` が配列なら throw)、`lib/types/diagrams.ts`(`CauseLink.back`、`LaidOutCause.edges[].back`)、`lib/emit-figures.ts`(`renderCause` の太さ)、`test/graph-layout.test.ts`、`test/toc.test.ts` | U0(済み)。**`lib/graph-layout.ts` の担当は U11 → U3 → U2 → U7 の順**(U11 は手順 1 だけの小さな変更で、先に入れて U3 の手順 2・4 と衝突させない)。ADR 0015 U7(`toc-cycle-undeclared`)と U4 の `edge:back` が、これに依存する |
+| U12 | 循環の途中の AND の止め方(D10、G2)。verify の文面が、どの AND のどの原因が反対側から着くかと、直し方を名指しする | `lib/verify-handlers.ts`(`checkCause` の `band.loose` の部分)、`lib/types/diagrams.ts`(`LaidOutCause.loose` の型は変えず、`edges` から求める)、`test/toc.test.ts` | なし(他の単位と独立。早く入れてよい) |
+| U13 | AND の矢印の並走(D11、G6)。`runsTogether` を U1 の `lib/polyline-metrics.ts` に足して verify と共有、`routeLayered` の曲がりのレーンの表(長い矢印の `lastTurn` を直接の矢印の曲がりより尾に近い側へ)、`layeredAttempt` の候補に `(並走, 交差, 折れ)` を `toc` だけに。verify の警告の文面 | `lib/polyline-metrics.ts`、`lib/layered-route.ts`(`routeLayered` のレーンの部分、`layeredAttempt` の候補)、`lib/verify-handlers.ts`(`together` を共有に置き換える、文面)、`test/toc.test.ts`、`test/polyline-metrics.test.ts` | U1、U4、U5、U7(`lib/layered-route.ts` は **U5 → U7 → U13 の順の 1 人**) |
 | U8 | 型。`straighten` / `returns` を `CauseOpts` / `StatesOpts` と `classDiagram` / `semnet` の opts に。`strict.ts` と `dsl.ts` の検査 | `lib/types.ts`、`lib/strict.ts`、`lib/dsl.ts` | **最後**(ADR 0010 の `dir: 'auto'` / `fit`、ADR 0012 の `scope` と同じ型に項目を足すだけで、各 ADR が自分の項目だけ足す) |
 | U9 | 文書。README(`stateDiagram`・TOC・自動配置の共通の注意・`check` の規則)、`skills/` の該当記述があれば、この ADR の状態と「実装」の表 | `README.md`、`skills/`、この ADR | U1〜U8 のあと |
-| U10(第 2 段、別の PR) | `straight` / `order`(D5) | `lib/graph-layout.ts`、`lib/toc.ts`・`states.ts`、型 | U2・U4 のあと。D1〜D4 の効果を測ってから着手するか決める |
+| U10(第 2 段、別の PR) | `straight` / `order`(D5) | `lib/graph-layout.ts`、`lib/toc.ts`・`states.ts`、型 | U2・U4 のあと。D1〜D4 の効果を測ってから着手するか決める。`order` は G6(D11)の要望でもあるので、`straight` より先に出してよい |
 
-進める順番: U0 のあと、U0-b・U1・U3・U5・U6 は同時に着手できる。U2 は U3 のあと(同じファイル)、U7 は U2 のあと。U4 は U0・U1・U2・U3 の結合。U8 は最後、U9 はそのあと。
+進める順番: U0 のあと、U0-b・U1・U3・U5・U6・**U11・U12** は同時に着手できる(U3 と U11 は同じファイルだが、U11 は手順 1 だけなので、U11 を先にマージする)。U2 は U3 のあと(同じファイル)、U7 は U2 のあと。U4 は U0・U1・U2・U3 の結合。**U13 は U4・U5・U7 のあと**。U8 は最後、U9 はそのあと。U8 の型は、`CauseLink.back`(U11)を除く(U11 が自分で足す)。
 
 ### 実装順序(マージ順)
 
 ADR 0010〜0013 と合わせた全体のマージ順は次のとおり。
 
 1. **ADR 0013**(ビルド失敗後の古い出力)、**ADR 0012 の E**(他と独立)、**ADR 0014 の U0(指標の測定)と U1(横の列区切りの共有)**。この 3 つが最初の組。
+   - 同じ組に、**ADR 0015 の U1・U2・U5**(`precondition`・中核ドライバー・`blocks`。配置を変えず、`graph-layout.ts` / `layered-route.ts` に触らないので、どの順でもよい)と、**この ADR の U12**(verify の文面だけ)を入れてよい。
 2. **ADR 0011 の U0 / A**(因果ループ図。`networkCanvas` に触る基準を先に固める)。
-3. **共通の前提 PR(U0。この ADR)**。
-4. **ADR 0009**(この ADR の U1〜U9)。
-5. **ADR 0010**(`fitWidth` が `layeredAttempt` を包む)。
+3. **共通の前提 PR(U0。この ADR)**(済み)。
+4. **ADR 0009**(この ADR の U1〜U9 と U11・U13)。`lib/graph-layout.ts` の順は **U11 → U3 → U2 → U7**、`lib/layered-route.ts` の順は **U5 → U7 → U13**。U11 は 0009 の本体より前に入れてよい(手順 1 だけ)。**ADR 0015 の U3・U4**(TOC の検査・凡例。配置に触らない)も、ここまでの間のどこで入れてもよい。**ADR 0015 の U7**(`toc-cycle-undeclared`)と U4 の `edge:back` は U11 のあと。
+5. **ADR 0010**(`fitWidth` が `layeredAttempt` を包む)。0010 の `fold`(D7)は `lib/graph-layout.ts` の手順 3 の前後に触るので、**0009 の U7 のあと**(上の担当の列の最後)。0010 の `wrap: 'bunsetsu'`(D8、`lib/wrap.ts`)は配置に触らず、どこでもよい。
 6. **ADR 0012 の A〜D**(型は最後)。
 7. **ADR 0014** の残り。U4 は 0009 の U4 と 0011 の C のあと、U5 は 0010 の U4 のあと。U2・U3 は U1 のあとで、互いに並行してよい(上の組の U0・U1 が入っていれば、1〜6 の途中でも着手できる)。
 
@@ -245,6 +290,9 @@ ADR 0010〜0013 と合わせた全体のマージ順は次のとおり。
 - **SVG の差分の扱い**: 動いた図は `pnpm golden`(`--drift --rebuild`)が差分として報告するので、再生成して `examples/out/` を更新する。再生成した図は、`diff-svg.ts`(`lib/svg-diff.ts`)で説明を付け、`contact-sheet.ts` で並べて目で確かめる。**動いてはいけない図**を固定するのは、(a) `tree` / `mindmap` / `bpmn`(座標を変えない)と、(b) `straighten: false` の図(`returns` の影響を除く)だけ。これが 1 バイトでも変われば、足切りか比べ方か、`false` の分岐が壊れている。`toc-crt`(折れ 8)・`semnet-*`(4 / 6)・戻り辺のない `returns: 'inline'` の図は、Brandes-Köpf で厳密に改善するなら**正しく動く**ので、固定しない。動いたかどうかの判定は、性質 ④(動いたなら `(交差数, 折れ数)` が従来より辞書式で厳密に良い)と、PR の比較表(悪化 0)で行う。`qc-pdpc` は D7 でも動く(`straighten: false` でも)。
 - **`straighten: false`** の図が、`returns` の影響を除いて、PR 直前の `main` と byte 同一であることを、`examples/` のうち 3 図で固定する。
 - **幅**: `pdpc` の既定 `'outer'` で、今は収まっている図がはみ出さない(自動で `'inline'` に戻る)ことを、幅いっぱいの `pdpc` で確かめる。
+- **戻り辺の宣言(U11)**: (a) 宣言した辺の集合 `F`(`F` を除くと非循環)を持つ小さなグラフ 200 個程度(種固定)で、**節の並びを入れ替えても層が同じ**(宣言した辺は全部 `reversed`、それ以外の辺は層が増える向き)。DFS 任せ(宣言なし)では同じ性質が成り立たないことも、1 つの固定の入力で示す(再現: `toc-crt` の 7 節 + `late -> kpi`。UDE `late` が `kpi` より上、を**層の順**で見る)。(b) 宣言なしの図は、`examples/` の自動配置の図の全部で、変更前と byte 同一。(c) `back` と配列の `from` の併用は throw。(d) 宣言のあとに循環が残る入力でも止まらない。(e) 宣言した戻り辺が層を 2 つ以上飛ぶとき、U7 のあと外周を通る(U7 のテスト)。層の絶対座標は使わない。
+- **循環の途中の AND(U12)**: (a) `[tool, trust] -> use`、`result -> trust`(`back: true`)で `loose` が空になり弧が描かれる(D9 の効果)。(b) `[tool, result] -> use`、`use -> result` で verify が止まり、文面に結果の id と、反対側から着く原因の id が含まれる(文面全体は固定しない)。
+- **AND の並走(U13)**: 乱数のグラフ(種固定、6〜8 節、AND あり)200 個程度で、(a) 変更前に `cause-parallel` が出たものが、変更後は減る(厳密に増えない・性質 ④ と同じ)、(b) 変更前に出なかった図は byte 同一、(c) 選ばれた候補が従来と違うなら `(並走, 交差, 折れ)` が辞書式で厳密に良い、(d) verify が通る、(e) 決定性。再現の 1 例(7 節、`[n0, n2, n3] -> n5`)を、並走の数が 0 になる固定の入力としてテストに入れる。座標の値は固定せず、`runsTogether` の数で見る。
 - **検査**: `test/rules.test.ts` に、折れが多い図で `edge-bends` が出る(info)・`accept` で外せる・`connect()` の線・自己ループ・曲線は数えない、を足す。
 - すべて `pnpm test` と `pnpm typecheck` を通す。
 
@@ -253,3 +301,4 @@ ADR 0010〜0013 と合わせた全体のマージ順は次のとおり。
 - `qc-relation`(再生成後)が、D6 の閾値 ①②(1 辺の折れ 5 以上、平均 3 超)に当たらない。これは、固定した閾値で効果を確かめるもので、閾値を図に合わせて動かさない。折れの合計は、実装後の実測を PR に書く(目標は「半分以下」だが、基準には使わない)。
 - `qc-pdpc` の戻り辺が外周を通る(折れは 4 まで)。折れの合計の数値目標は置かず、**悪化した図が 0**(`(交差数, 折れ数)` の辞書式)であること、動かない図が動いていないことを基準にする。
 - `edge-bends` は info なので、完了後の `examples/` に対して `check --strict` が通る。
+- (G 節)循環を含む CRT(`late -> kpi` の悪循環つき)に `back: true` を付けると、UDE が根本原因より上に置かれ、**節の並びを変えても層が同じ**。FRT の循環の途中の AND(`[tool, trust] -> use` と `result -> trust`)が、`back: true` で止まらずに描かれる。依頼の並走の例(`cause-parallel`)が減る。`back` を書かない既存の図は byte 同一。
