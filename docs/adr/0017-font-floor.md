@@ -66,7 +66,7 @@ ADR 0008 #7 の `canvas: 'slide'` は「会場の後ろ(約 20m)から読める�
 
 - 絶対の下限は **10px**(`lib/tokens.ts` に `MIN_TEXT_ABSOLUTE = 10` を足す。依頼の「10px でも」)。`canvas.minText` が 10 未満・有限でない・数でないなら throw。`fontFloor` も同じ範囲(10 以上 14 以下の数。14 超は意味がないので throw)。
 - **既定は動かさない**: `canvas: 'slide'` は 24px、`fontFloor` の既定は 14。10 は、**宣言した図だけ**。
-- 10 は、スライド上の実効の下限 12(`minEffectiveFont`)より小さい。`canvas` は 1:1 表示の前提なので矛盾しないが、縮めて見せる場合は著者が換算する(下の未決 1)。
+- **前提(ユーザー決定)**: 10 は「**投影しない手元・配布用の稠密な `canvas` の図**」が対象。`slide` / `fill` の実効 12px(`lib/fit.ts:37`)とは**別の層**で、そちらは変えない。`canvas` は 1:1 表示の前提なので矛盾しない。縮めて見せる場合は著者が換算する(下の未決 1)。README の `canvas` の節にも、この前提(投影には向かない)を書く。
 
 ### D3. 緩めても残す検査
 
@@ -85,18 +85,20 @@ ADR 0008 #7 の `canvas: 'slide'` は「会場の後ろ(約 20m)から読める�
 
 ### D5. 検査(`check` / lint)への出し方
 
-- `check` の新しい規則 **`font-floor-lowered`(info)**: `canvas.minText < 14` の図で、「文字の下限を 14px から Npx に下げている(最小の文字 Mpx)。キャンバスは 1:1 で読まれる前提」と知らせる。`RULE_DOCS` に登録するので、`accept` でも許容できる(`lib/rules.ts:527-531` の仕組み)。`diagram({canvas, ...})` を読んだ人に見える info で、警告にはしない(宣言した本人の意図なので)。出す場所は `slide-min-text` の隣(`lib/rules.ts:634-637`)。
+- `check` の新しい規則 **`font-floor-lowered`(info)**: `canvas.minText < 14` の図で、「文字の下限を 14px から Npx に下げている(最小の文字 Mpx)。キャンバスは 1:1 で読まれる前提。投影には向かない」と知らせる。`RULE_DOCS` に登録するので、`accept` でも許容できる(`lib/rules.ts:527-531` の仕組み)。`diagram({canvas, ...})` を読んだ人に見える info で、警告にはしない(宣言した本人の意図なので)。出す場所は `slide-min-text` の隣(`lib/rules.ts:634-637`)。
+- **`build` 自身が 1 行出す**: `canvas.minText < 14` の図を書き出すたびに、`⚠ <out>: 文字の下限を Npx に下げている(fontFloor M。投影には向かない)` を標準エラーに出す。`build` は図のデータを持つので、lint の出力を読まない(終了 0 のときは出力を捨てる現行の作りのまま)。実装は U3b。
 - lint-svg:
   - 床 = ルートの `data-min-text`(あれば)、なければ 14。`font-size-too-small` はその床に対して今と同じエラー。`--fix` は床まで引き上げる。
   - **許可の突き合わせ**: `loadConfig().fontFloor ?? 14` より小さい `data-min-text` を宣言した SVG は、新しいエラー `font-floor-not-permitted` にする(古い SVG や、案件の許可なしに生成した SVG が、静かに通らない)。
-  - 緩めた事実は、**失敗しない「お知らせ」の階層**で 1 行出す(`font-floor-lowered: minText Npx(案件の fontFloor M)`)。`lint-svg.ts` には今、エラー(`staticFindings`)と助言(`advisoryFindings`。`--strict` で失敗。`build` は `--strict` なので助言でも失敗する)しかない。`build` を失敗させずに出すため、第 3 の階層(失敗に数えない)を足す。
+  - 緩めた事実は、**失敗しない「お知らせ」の階層**で 1 行出す(**lint-svg を単独で走らせたとき用**。build では見えない)(`font-floor-lowered: minText Npx(案件の fontFloor M)`)。`lint-svg.ts` には今、エラー(`staticFindings`)と助言(`advisoryFindings`。`--strict` で失敗。`build` は `--strict` なので助言でも失敗する)しかない。`build` を失敗させずに出すため、第 3 の階層(失敗に数えない)を足す。
+  - **設定の探し方**: lint-svg は `.svg-diagram.json` を、cwd ではなく**検査する SVG のあるディレクトリ**から上へ探す(ファイルごと)。`--config <path>` で明示もできる。`build` / `check` は cwd から探すが、md と remark の経路(`lib/render-source.ts:52`)はソースのディレクトリから探すため、別ディレクトリから lint すると `font-floor-not-permitted` になる食い違いを避ける。
 - `--stale`(README:37)は、設定のハッシュを見るので、`fontFloor` を変えると図は古いと判定される(追加の対応は不要)。
 
 ### D6. 誤用の防ぎ方(黙って下げない)
 
 1. 下げるには、**図のソースに `canvas: {minText: N}`(N < 14)と、案件の `.svg-diagram.json` の `fontFloor ≤ N` の 2 つ**が要る。どちらか片方では throw(図 → 設定の順)か、lint-svg のエラー(SVG → 設定)になる。
 2. 設定の `fontFloor` が既定の 14 のままなら、今と挙動は同じ。`fontFloor` を書く人は、コミットに残る形で許可を出している。
-3. 下げた図は `font-floor-lowered`(info)と lint-svg のお知らせに、**毎回出る**。`accept` で消せるが、理由が要る(`accept` は理由を空にできない: `lib/config.ts:43-50`)。
+3. 下げた図は、`check` の `font-floor-lowered`(info)と、**`build` 自身が出す 1 行**(D5)に、毎回出る。`build` は lint の出力を、終了コードが 0 でないときだけ表示する(`build-diagram.ts:182-185`)ので、lint の「お知らせ」は build では見えない。`accept` で消せるのは `check` の info だけで、理由が要る(`lib/config.ts:43-50`)。
 4. 10 未満は throw。`size:` の 14 の下限は変えない。
 5. 文書の図(940 幅)と `slide` / `fill` の図は、手段が無い。
 6. コントラスト・はみ出し・重なりは緩めない(D3)。
@@ -117,6 +119,7 @@ ADR 0008 #7 の `canvas: 'slide'` は「会場の後ろ(約 20m)から読める�
 - 既存の図: `minText ≥ 14` の `canvas` の図と、`canvas` を使わない図の SVG は byte 同一(D4)。`lint-svg` の挙動も、`data-min-text` の無い SVG は同じ。
 - 新しい設定項目は `fontFloor` 1 つ。`Config`(`lib/types/project.ts`)、`loadConfig` の検査(`lib/config.ts` の `check*` と同じ流儀で、数でなければ throw)、README の「共通設定」(README:1113)に載せる。
 - 新しい `check` の規則は 1 つ(`font-floor-lowered`、info)。lint-svg の新しい検査は 1 つ(`font-floor-not-permitted`、エラー)と、お知らせの階層。
+- **互換**: `--no-lint` で `minText < 14` の図を作っていた案件は、今後 `applyConfig` で throw する(`.svg-diagram.json` に `fontFloor` を足す必要がある)。
 - `--html`(ADR 0006)の出力は、文字サイズの検査を SVG にしか持たないので、今回の対象外。`minText < 14` の図を `--html` で描くと文字は小さくなるが、案件の許可の検査(`applyConfig`)は共通で効く。
 - 読みにくい図が増える危険は残る。ただし、**図・設定・出力の 3 か所に、下げた事実が毎回残る**。
 
@@ -128,9 +131,10 @@ ADR 0008 #7 の `canvas: 'slide'` は「会場の後ろ(約 20m)から読める�
 |---|---|---|---|
 | U1 | 定数と検査: `MIN_TEXT_ABSOLUTE = 10`。`canvas.minText` の範囲検査(数・有限・10 以上)。`Config.fontFloor` の型と `loadConfig` の検査(10〜14 の数)。`applyConfig` で、図の `minText` が `fontFloor ?? 14` 未満なら throw(`canvas` の図だけ) | `lib/tokens.ts`、`lib/dsl/render.ts`(`:46` 付近)、`lib/types/core.ts`(`SlideCanvas` の注)、`lib/types/project.ts`、`lib/config.ts`、`test/config.test.ts`(無ければ新規 `test/font-floor-config.test.ts`) | なし(最初) |
 | U2 | 出力: `canvas.minText < 14` のときだけ、ルートに `data-min-text` を足す。それ以外は byte 同一 | `lib/emit.ts`(`:105-106`)、`test/font-floor-emit.test.ts`(新規) | U1 |
-| U3 | lint-svg: 床 = `data-min-text` ?? 14(14 の直書きを 1 か所の定数に)。`--fix` の引き上げ先を床に。`font-floor-not-permitted`(エラー)。失敗に数えない「お知らせ」の階層と `font-floor-lowered` の 1 行 | `lint-svg.ts`(`:56-57` の階層、`:98-110`、出力の整形)、`test/lint-cli.test.ts` に追加(または新規 `test/lint-font-floor.test.ts`) | U1(`fontFloor` の読み取り) |
+| U3 | lint-svg: 床 = `data-min-text` ?? 14(14 の直書きを 1 か所の定数に)。`--fix` の引き上げ先を床に。`font-floor-not-permitted`(エラー)。失敗に数えない「お知らせ」の階層と `font-floor-lowered` の 1 行(単独実行用)。設定は SVG のあるディレクトリから探す・`--config` | `lint-svg.ts`(`:56-57` の階層、`:98-110`、出力の整形)、`test/lint-cli.test.ts` に追加(または新規 `test/lint-font-floor.test.ts`) | U1(`fontFloor` の読み取り) |
+| U3b | `build` が `canvas.minText < 14` の図に 1 行出す(`⚠ <out>: 文字の下限を Npx に下げている(fontFloor M。投影には向かない)`)。`build` は図のデータを持つので lint の出力に頼らない | `build-diagram.ts`(`:140-180` の書き出しの付近)、`test/cli.test.ts` に追加(標準エラーに行がある・`minText ≥ 14` では無い) | U1 |
 | U4 | `check` の規則 `font-floor-lowered`(info)。`RULE_DOCS` の登録、`slide-min-text` の隣で出す。`--rules` / `--explain` の文面 | `lib/rules.ts`(`:83-84`、`:633-637`)、`test/slide-canvas.test.ts` に追加 | U1(定数) |
-| U5 | 文書: README の `canvas` の節(`:1001-1010`)に「下げる場合」、共通設定(`:1113`)に `fontFloor`、14px 未満の行(`:1181`)の注、`check` の規則の一覧、`skills/svg-diagram/SKILL.md`(`:41` の 14px の記述)。この ADR の状態と「実装」の表 | `README.md`、`skills/svg-diagram/SKILL.md`、この ADR | U2〜U4 のあと |
+| U5 | 文書: README の `canvas` の節(`:1001-1010`)に「下げる場合」(投影しない手元・配布用が対象、`slide` / `fill` の実効 12px とは別の層)、共通設定(`:1113`)に `fontFloor`、14px 未満の行(`:1181`)の注、`check` の規則の一覧、`skills/svg-diagram/SKILL.md`(`:41` の 14px の記述)。この ADR の状態と「実装」の表 | `README.md`、`skills/svg-diagram/SKILL.md`、この ADR | U2〜U4 のあと |
 
 U2・U3・U4 は互いに別ファイルなので、U1 のあとに並行できる。型の追加は U1 に集める(各単位は型を触らない)。
 
@@ -148,7 +152,7 @@ U2・U3・U4 は互いに別ファイルなので、U1 のあとに並行でき�
 ## 未決
 
 1. **縮めて見せるキャンバスの換算**。`minText` はキャンバスの単位で、実効の大きさ(縮尺をかけたもの)ではない。2304×1296 のキャンバスを 1280 幅に縮めて見せるなら、実効 10px は `minText ≈ 18`。`canvas: {displayWidth}` を足し、実効で検査するか(`slide` / `fill` の `minEffectiveFont` と同じ考え方)、著者の換算に任せるか。今回は後者(`canvas` は 1:1 の前提を変えない)。
-2. **10 という絶対の下限**。依頼の値を採ったが、スライド上の実効の下限 12(`lib/fit.ts:37`)より小さい。12 にそろえるか。
+2. (解決済み)**10 という絶対の下限**: ユーザー決定により 10px のまま。投影しない手元・配布用の稠密な `canvas` の図が対象で、`slide` / `fill` の実効 12px とは別の層(D2)。
 3. **`density` の糖衣**。`minText` に展開する名前(`'dense'` = 14 など)を後から足すか。要望者に、数のほうが良いかを聞く。
 4. **`--html`(ADR 0006)の `minText < 14`**。HTML 出力に lint-svg 相当の許可の検査が無い。`applyConfig` で足りるか。
 5. **`slide` / `fill` の図で実効 12px 未満を許す手段**(要望の範囲外)。必要なら、`minEffectiveFont` の設定化として別の ADR で扱う。
