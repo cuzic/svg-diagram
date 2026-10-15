@@ -104,7 +104,7 @@ export function renderLegend(band: LaidOutLegend, day: Theme, roles: Roles): str
   for (const it of band.items) {
     const cy = it.y + 12;
     if (it.swatch || it.mark) { // a cause-tree entity (its role's box) or the core driver mark (a thick frame)
-      const style = resolveBoxStyle(it.swatch?.tone ?? 'plain', day, undefined), x = it.x + 4, y = cy - 8;
+      const style = resolveBoxStyle(it.swatch?.tone ?? 'plain', day, it.swatch?.dashed), x = it.x + 4, y = cy - 8;
       if (it.swatch?.hex) {
         const pts = [[x + 6, y], [x + 22, y], [x + 28, cy], [x + 22, y + 16], [x + 6, y + 16], [x, cy]].map(([px, py]) => `${snap4(px)},${snap4(py)}`).join(' ');
         parts.push(`<polygon points="${pts}" fill="${style.fill}" stroke="${style.stroke}" stroke-width="2"${style.dashed ? ' stroke-dasharray="6,4"' : ''} stroke-linejoin="round"/>`);

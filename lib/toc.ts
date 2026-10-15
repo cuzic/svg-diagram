@@ -25,7 +25,7 @@ export const CORE_BADGE_H = 22, CORE_BADGE_GAP = 2;
 const AND_END = 21, AND_PEAK = 15, AND_REACH = 10;
 
 /** What a role looks like when the node gives no tone. `double`: the box has a second outline (the finding of the figure). */
-export const CAUSE_ROLES: Record<CauseRole, {tone: BoxTone; double?: boolean}> = {
+export const CAUSE_ROLES: Record<CauseRole, {tone: BoxTone; double?: boolean; dashed?: boolean}> = {
   effect: {tone: 'plain'},
   ude: {tone: 'danger'},
   root: {tone: 'accent', double: true},
@@ -40,6 +40,8 @@ export const CAUSE_ROLES: Record<CauseRole, {tone: BoxTone; double?: boolean}> =
   risk: {tone: 'danger'}, // drawn as a hexagon
   measure: {tone: 'changed'},
   precondition: {tone: 'removed'}, // a fact of the present nobody controls: the grey dashed box
+  tipping: {tone: 'danger', double: true}, // where a negative branch tips over (ADR 0020 D1)
+  trim: {tone: 'changed', dashed: true}, // the injection that cuts a negative branch: a dashed box
 };
 
 export function causeTexts(band: CauseBand, roles: Roles): [string, number, number, FontFamily][] {
@@ -126,7 +128,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   };
   // One whole attempt: the node text wrapped at maxW and the layout turned to dir. Everything that depends on either is in here.
   // ALAP (ADR 0019 D1): the entities where a cause starts stay on the first layer; the input side (preconditions, obstacles, actions) moves up to its effects
-  const layerMode = band.layer ?? (band.tree === 'prt' || band.tree === 'frt' || band.tree === 'tt' ? 'alap' : 'asap');
+  const layerMode = band.layer ?? (band.tree === 'prt' || band.tree === 'frt' || band.tree === 'tt' || band.tree === 'nbr' ? 'alap' : 'asap');
   const alap = layerMode === 'alap' ? {keep: band.nodes.filter(n => n.role === 'root' || n.role === 'injection' || n.role === 'start').map(n => n.id)} : undefined;
   // the 中核 badge sits outside the frame, at the end of the axis the arrows run along: the figure keeps that room free at both ends (H7)
   const badgeRoom = band.nodes.some(n => n.core) ? CORE_BADGE_H + CORE_BADGE_GAP : 0;
@@ -206,7 +208,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   };
   for (const n of band.nodes) {
     const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
-    out.nodes.push({...r, tone: n.tone ?? role.tone, ...(role.double ? {double: true} : {}), ...(n.core ? {core: true} : {}), ...(n.role === 'obstacle' || n.role === 'risk' ? {hex: true} : {})});
+    out.nodes.push({...r, tone: n.tone ?? role.tone, ...(role.double ? {double: true} : {}), ...(role.dashed ? {dashed: true} : {}), ...(n.core ? {core: true} : {}), ...(n.role === 'obstacle' || n.role === 'risk' ? {hex: true} : {})});
     out.anchors.push({id: n.id, ...r});
     const l = lines.get(n.id)!;
     out.texts.push(...nodeRuns({x: r.x + (r.w - l.w) / 2, y: r.y + (r.h - l.h) / 2, w: l.w}, l, roles));

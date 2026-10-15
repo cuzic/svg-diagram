@@ -100,7 +100,7 @@ export interface StatesBand extends StatesOpts {
   transitions: Transition[];
 }
 /** What an entity is. It sets the default tone and, for the two that name the finding, a double outline. */
-export type CauseRole = 'effect' | 'ude' | 'root' | 'de' | 'injection' | 'goal' | 'obstacle' | 'io' | 'action' | 'start' | 'step' | 'risk' | 'measure' | 'precondition';
+export type CauseRole = 'effect' | 'ude' | 'root' | 'de' | 'injection' | 'goal' | 'obstacle' | 'io' | 'action' | 'start' | 'step' | 'risk' | 'measure' | 'precondition' | 'tipping' | 'trim';
 export interface CauseNode {
   /** Required: links name it, and connect() can reach it. */
   id: string;
@@ -110,12 +110,15 @@ export interface CauseNode {
   /** ude = undesirable effect (danger), root = root cause (accent, double outline), de = desirable effect, injection = the change put in,
    *  goal = the goal of a prerequisite tree (double outline), obstacle, io = intermediate objective, action = a step of a transition tree,
    *  precondition = a fact of the present nobody controls (grey, dashed box; AND it with an injection's result in a future reality tree).
+   *  tipping = the tipping point of a negative branch (danger tone, double outline), trim = the injection that cuts a negative branch (dashed box; `kind: 'blocks'` to what it cuts).
    *  For a PDPC (pdpc()): start, step, risk (what could go wrong: a danger hexagon), measure (what to do then), goal. */
   role?: CauseRole;
   /** Overrides the tone the role gives. */
   tone?: BoxTone;
   /** The core driver mark: a thick frame and a 中核 badge. causeTree({coreDriver: true}) sets it; it is not a role. */
   core?: boolean;
+  /** For a `trim` entity of a negative branch tree: the injection it is folded into ("施策 1"). Drawn as a line under the label (→ 施策 1 に組み込む); the injection need not be in the figure. */
+  foldsInto?: string;
 }
 export interface CauseLink {
   /** The cause. An array is an AND: the causes together are sufficient (or needed), joined by an arc across their arrows. */
@@ -141,9 +144,9 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
   /** Mark the core driver: the starting entity (nothing causes it) whose arrows bring about the most `ude` entities, 2 or more (a tie: all).
    *  Every starting entity gets the number it reaches under its text (`到達 UDE n`) unless `counts` is false. `role` is not changed. */
   coreDriver?: boolean;
-  /** Which Theory of Constraints tree this is: 'crt' (current reality), 'frt' (future reality), 'prt' (prerequisite), 'tt' (transition).
+  /** Which Theory of Constraints tree this is: 'crt' (current reality), 'frt' (future reality), 'prt' (prerequisite), 'tt' (transition), 'nbr' (negative branch).
    *  Only a figure that says it is checked (the `toc-*` rules of `check`); not written, nothing is checked. It never changes the drawing. */
-  tree?: 'crt' | 'frt' | 'prt' | 'tt';
+  tree?: 'crt' | 'frt' | 'prt' | 'tt' | 'nbr';
   /** Where an entity that nothing causes goes (ADR 0019 D1): 'asap' the first layer, 'alap' just before its nearest effect (a chain of such entities too; root, injection and start entities stay
    *  on the first layer). Default: 'alap' when `tree` is 'prt', 'frt' or 'tt', else 'asap' (the picture as it was). */
   layer?: 'asap' | 'alap';
@@ -323,7 +326,7 @@ export interface LaidOutCause extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone; double?: boolean; /** the core driver: a thick frame and a badge */ core?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean})[];
+  nodes: (Rect & {tone: BoxTone; double?: boolean; /** the core driver: a thick frame and a badge */ core?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean; /** a dashed frame (a trim) */ dashed?: boolean})[];
   /** Orthogonal polylines from the cause's box edge to the effect's; the arrowhead is at the last point. */
   edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; /** a declared return (`back: true`): drawn bold */ back?: true; /** runs in a lane outside the figure (a return that skips two layers or more, see `returns`) */ outer?: true; /** only a cutting arrow has it */ kind?: 'blocks'}[];
   /** The arc across the arrows of an AND: a quadratic curve p0 - c - p1. */

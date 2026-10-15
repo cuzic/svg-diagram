@@ -214,7 +214,7 @@ export interface ConnectBand {
 export interface BranchTarget extends ConnectOpts {to: string}
 /** The frame of a group; its children are laid out as separate bands after it. */
 export interface LaidOutGroup extends Rect, Dimmed {type: 'group'; tone: BoxTone; dashed?: boolean; frame?: false; stamp?: string; stampW?: number; id?: string; reveal?: number}
-export interface LaidOutLegendItem extends LegendItem {textW: number; w: number; x: number; y: number; /** a `role` item's box, resolved by layout */ swatch?: {tone: BoxTone; double?: boolean; hex?: boolean}}
+export interface LaidOutLegendItem extends LegendItem {textW: number; w: number; x: number; y: number; /** a `role` item's box, resolved by layout */ swatch?: {tone: BoxTone; double?: boolean; hex?: boolean; dashed?: boolean}}
 export interface LaidOutLegend extends Rect {type: 'legend'; items: LaidOutLegendItem[]}
 export interface RowArrow {x1: number; y1: number; x2: number; y2: number}
 export interface LaidOutRow extends Rect, Dimmed {type: 'row'; id?: string; children: LaidOutBox[]; arrows: RowArrow[]}

@@ -102,3 +102,36 @@ test('tocCheck and tree reject bad values', () => {
   assert.throws(() => diagram({theme: 'blue', tocCheck: 'loud' as never}), /tocCheck/);
   assert.throws(() => causeTree([N('a')] as never, [], {tree: 'xyz' as never}), /tree must be/);
 });
+
+// a negative branch tree (ADR 0020 D1): a plan (inj) leads, with a precondition, to a tipping point and on to a bad result; a trim cuts at the tipping point
+const goodNbr = {
+  nodes: [N('inj', 'injection'), N('fact', 'precondition'), N('step'), N('tip', 'tipping'), N('bad', 'ude'), N('trim', 'trim')],
+  links: [{from: 'inj', to: 'step'}, {from: ['step', 'fact'], to: 'tip'}, {from: 'tip', to: 'bad'}, {from: 'trim', to: 'tip', kind: 'blocks'}],
+};
+test('toc-nbr-*: a clean negative branch tree raises nothing; each part is checked', () => {
+  assert.deepEqual(rules(goodNbr.nodes, goodNbr.links, 'nbr'), []);
+  assert.ok(rules(goodNbr.nodes.filter(n => n.id !== 'trim'), goodNbr.links.filter(l => l.from !== 'trim'), 'nbr').includes('toc-nbr-parts'), 'no trim');
+  assert.ok(rules(goodNbr.nodes.filter(n => n.id !== 'bad'), goodNbr.links.filter(l => l.from !== 'tip'), 'nbr').includes('toc-nbr-parts'), 'no bad result');
+});
+
+test('toc-nbr-no-tipping: a cause path to the bad result that does not pass a tipping point (a cut check, any source, not only an injection)', () => {
+  const second = [...goodNbr.nodes, N('src'), N('other')], links = [...goodNbr.links, {from: 'src', to: 'other'}, {from: 'other', to: 'bad'}];
+  assert.deepEqual(rules(second, links, 'nbr'), ['toc-nbr-no-tipping']);
+  const viaBack = [...goodNbr.links, {from: 'bad', to: 'inj', back: true}];
+  assert.deepEqual(rules(goodNbr.nodes, viaBack, 'nbr'), [], 'a declared return is not a cause path');
+});
+
+test('toc-nbr-tipping-not-and: a tipping point is the result of an AND', () => {
+  const notAnd = [...goodNbr.links.map(l => Array.isArray(l.from) ? {from: 'step', to: 'tip'} : l), {from: 'fact', to: 'step'}];
+  assert.deepEqual(rules(goodNbr.nodes, notAnd, 'nbr'), ['toc-nbr-tipping-not-and']);
+});
+
+test('toc-nbr-trim-too-late: the trim cuts at the tipping point or before it, not what lies after', () => {
+  assert.deepEqual(rules(goodNbr.nodes, goodNbr.links.map(l => l.kind ? {...l, to: 'step'} : l), 'nbr'), [], 'before it');
+  assert.deepEqual(rules(goodNbr.nodes, goodNbr.links.map(l => l.kind ? {...l, to: 'bad'} : l), 'nbr'), ['toc-nbr-trim-too-late'], 'after it');
+});
+
+test('toc-source-has-cause: an injection and a trim of a negative branch tree are not caused by anything', () => {
+  assert.ok(rules(goodNbr.nodes, [...goodNbr.links, {from: 'step', to: 'inj'}], 'nbr').includes('toc-source-has-cause'));
+  assert.ok(rules(goodNbr.nodes, [...goodNbr.links, {from: 'fact', to: 'trim'}], 'nbr').includes('toc-source-has-cause'));
+});
