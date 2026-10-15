@@ -18,6 +18,8 @@ export interface Config {
   measure?: 'chromium' | 'font';
   /** Font files to measure with when `measure` is 'font': per family, the regular and the bold (weight >= 600) one, as `path` or `path#faceIndex`. Unset: found with fontconfig. */
   fonts?: FontSpecs;
+  /** The lowest `canvas.minText` a diagram may declare (10 to 14, default 14). A canvas diagram below it throws; a figure still has to declare its own `minText`. */
+  fontFloor?: number;
   _file?: string;
 }
 export type FontSpecs = Partial<Record<FontFamily, {regular?: string; bold?: string}>>;

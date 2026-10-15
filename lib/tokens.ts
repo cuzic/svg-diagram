@@ -243,6 +243,13 @@ export const FONT_STACKS: Record<'sans' | 'mono' | 'emoji', string> = {
 };
 
 export const MIN_FONT_SIZE = 14;
+/** The lowest `canvas.minText` a diagram may declare (px): for a dense canvas figure read 1:1 on screen or paper, never projected (ADR 0017). */
+export const MIN_TEXT_ABSOLUTE = 10;
+/** `value` as a `canvas.minText` / `fontFloor`: a finite number from MIN_TEXT_ABSOLUTE up. Throws with `what` named. */
+export function checkMinText(value: unknown, what: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < MIN_TEXT_ABSOLUTE) throw new Error(`${what} must be a number >= ${MIN_TEXT_ABSOLUTE} (got ${JSON.stringify(value)})`);
+  return value;
+}
 
 /** The roles an opt-in text size (banner headlineRole, bars / plane labelRole) may name. */
 export const HEADLINE_ROLES = ['banner', 'stat', 'display'] as const;
