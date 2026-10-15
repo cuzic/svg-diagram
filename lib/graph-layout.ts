@@ -148,7 +148,13 @@ export function layoutBalanced(root: TreeNode, opts: Omit<TreeOpts, 'dir'> & {si
 
 export interface LayeredNode {id: string; size: Size}
 export interface LayeredEdge {from: string; to: string}
-export interface LayeredOpts {dir?: Dir; gap?: number; levelGap?: number; /** crossing-reduction sweeps (default 4) */ sweeps?: number}
+export interface LayeredOpts {
+  dir?: Dir; gap?: number; levelGap?: number; /** crossing-reduction sweeps (default 4) */ sweeps?: number;
+  /** Pull a node that only has edges going out (no edge into it, not a `start`) down to just before its nearest target, so its edges stop being long (default false: the longest-path layer, layer 0). */
+  tighten?: boolean;
+  /** Keep the order with the fewest crossings seen in the sweeps, then swap neighbours in a layer while that cuts crossings (default false: the order the last sweep left). */
+  transpose?: boolean;
+}
 export interface LayeredEdgeOut {from: string; to: string; /** index of this edge in the input list */ index: number; /** centre to centre, through the layers it skips; reversed edges are drawn from `from` anyway */ points: Pt[]; reversed: boolean; self: boolean}
 export interface LayeredLayout {nodes: Map<string, Placed>; edges: LayeredEdgeOut[]; /** layer index of each node (0 = first) */ layers: Map<string, number>; w: number; h: number}
 
@@ -246,6 +252,12 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     return l;
   };
   for (const n of nodes) depth(n.id, new Set());
+  if (opts.tighten) {
+    // a node with edges only going out moves up to its nearest target - 1 (one pass: a mover has no edge into it, so no layer it reads moves)
+    const nearest = new Map<string, number>();
+    for (const d of dag) nearest.set(d.a, Math.min(nearest.get(d.a) ?? Infinity, layer.get(d.b)!));
+    for (const [u, l] of nearest) if (!preds.get(u)!.length && !starts.includes(u) && l - 1 > layer.get(u)!) layer.set(u, l - 1);
+  }
 
   // 3. dummies for edges that skip layers
   interface Slot {id: string; real: boolean; size: Size; layer: number}
@@ -290,9 +302,35 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     r.sort((a, b) => key.get(a)! - key.get(b)! || pos.get(a)! - pos.get(b)!);
     r.forEach((id, i) => pos.set(id, i));
   };
+  // crossings of the links between layer l and l + 1 (two links cross when their ends are in opposite orders)
+  const crossingsAt = (l: number): number => {
+    const ls: [number, number][] = [];
+    for (const u of rows[l]) for (const v of succ.get(u)!) ls.push([pos.get(u)!, pos.get(v)!]);
+    let c = 0;
+    for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) if ((ls[i][0] - ls[j][0]) * (ls[i][1] - ls[j][1]) < 0) c++;
+    return c;
+  };
+  const allCrossings = (): number => { let c = 0; for (let l = 0; l + 1 < nLayers; l++) c += crossingsAt(l); return c; };
+  let best = opts.transpose ? {rows: rows.map(r => [...r]), cross: allCrossings()} : undefined;
   for (let s = 0; s < sweeps; s++) {
     for (let l = 1; l < nLayers; l++) sortBy(rows[l], pred);
     for (let l = nLayers - 2; l >= 0; l--) sortBy(rows[l], succ);
+    if (best) { const c = allCrossings(); if (c < best.cross) best = {rows: rows.map(r => [...r]), cross: c}; }
+  }
+  if (best) {
+    best.rows.forEach((r, l) => rows[l].splice(0, rows[l].length, ...r));
+    reindex();
+    const local = (l: number): number => (l > 0 ? crossingsAt(l - 1) : 0) + (l + 1 < nLayers ? crossingsAt(l) : 0);
+    for (let pass = 0, improved = true; improved && pass < 20; pass++) {
+      improved = false;
+      for (let l = 0; l < nLayers; l++) for (let i = 0; i + 1 < rows[l].length; i++) {
+        const before = local(l), r = rows[l];
+        [r[i], r[i + 1]] = [r[i + 1], r[i]];
+        pos.set(r[i], i); pos.set(r[i + 1], i + 1);
+        if (local(l) < before) improved = true;
+        else { [r[i], r[i + 1]] = [r[i + 1], r[i]]; pos.set(r[i], i); pos.set(r[i + 1], i + 1); }
+      }
+    }
   }
 
   // 5. coordinates: layers along one axis, each layer centred on the widest, then relaxed toward the neighbours without overlap
