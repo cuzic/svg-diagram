@@ -92,7 +92,7 @@ export interface StatesBand extends StatesOpts {
   transitions: Transition[];
 }
 /** What an entity is. It sets the default tone and, for the two that name the finding, a double outline. */
-export type CauseRole = 'effect' | 'ude' | 'root' | 'de' | 'injection' | 'goal' | 'obstacle' | 'io' | 'action' | 'start' | 'step' | 'risk' | 'measure';
+export type CauseRole = 'effect' | 'ude' | 'root' | 'de' | 'injection' | 'goal' | 'obstacle' | 'io' | 'action' | 'start' | 'step' | 'risk' | 'measure' | 'precondition';
 export interface CauseNode {
   /** Required: links name it, and connect() can reach it. */
   id: string;
@@ -100,7 +100,8 @@ export interface CauseNode {
   /** A second, muted line (a measure, a note). */
   sub?: string;
   /** ude = undesirable effect (danger), root = root cause (accent, double outline), de = desirable effect, injection = the change put in,
-   *  goal = the goal of a prerequisite tree (double outline), obstacle, io = intermediate objective, action = a step of a transition tree.
+   *  goal = the goal of a prerequisite tree (double outline), obstacle, io = intermediate objective, action = a step of a transition tree,
+   *  precondition = a fact of the present nobody controls (grey, dashed box; AND it with an injection's result in a future reality tree).
    *  For a PDPC (pdpc()): start, step, risk (what could go wrong: a danger hexagon), measure (what to do then), goal. */
   role?: CauseRole;
   /** Overrides the tone the role gives. */
