@@ -90,10 +90,12 @@ export function networkCanvas(g: ChartGeom, nodes: {id: string; label: string; w
   const top = inset?.top ?? 0, left = inset?.left ?? 0;
   const scaleOf = (size: {w: number; h: number}): number => Math.min(1, (g.w - left - 8) / Math.max(1, size.w));
   const oxOf = (size: {w: number; h: number}): number => g.x + left + (g.w - left - size.w * scaleOf(size)) / 2;
-  const oy = g.y + 8 + top;
-  const placeIn = (size: {w: number; h: number}) => (p: Pt): Pt => { const scale = scaleOf(size), ox = oxOf(size); return vertical ? {x: ox + p.y * scale, y: oy + p.x * scale} : {x: ox + p.x * scale, y: oy + p.y * scale}; };
+  // a `height` taller than the content leaves room: the layout sits in the middle of it (between the intervention band above and the legend below), on the 4px grid; no room, no move
+  const contentH = (size: {w: number; h: number}): number => size.h * scaleOf(size) + 16 + legendH + top;
+  const oyOf = (size: {w: number; h: number}): number => g.y + 8 + top + Math.floor(Math.max(0, (g.height ?? 0) - contentH(size)) / 2 / 4) * 4;
+  const placeIn = (size: {w: number; h: number}) => (p: Pt): Pt => { const scale = scaleOf(size), ox = oxOf(size), oy = oyOf(size); return vertical ? {x: ox + p.y * scale, y: oy + p.x * scale} : {x: ox + p.x * scale, y: oy + p.y * scale}; };
   const {lay, routes: paths, size: natural} = layeredAttempt(nodes.map(n => ({id: n.id, size: vertical ? {w: n.h, h: n.w} : {w: n.w, h: n.h}})), edges, {dir: 'right', gap: 28, levelGap: 76}, {transpose: vertical, place: placeIn, tighten: true, straighten});
-  const naturalH = natural.h, scale = scaleOf(natural), ox = oxOf(natural);
+  const naturalH = natural.h, scale = scaleOf(natural), ox = oxOf(natural), oy = oyOf(natural);
   const positions = new Map<string, {x: number; y: number; w: number; h: number}>();
   for (const [id, p] of lay.nodes) positions.set(id, vertical ? {x: ox + p.y * scale, y: oy + p.x * scale, w: p.h * scale, h: p.w * scale} : {x: ox + p.x * scale, y: oy + p.y * scale, w: p.w * scale, h: p.h * scale});
   const h = Math.max(g.height ?? 0, naturalH * scale + 16 + legendH + top), c = new Canvas(g.x, g.y, g.w, h, g.size, g.widthOf);

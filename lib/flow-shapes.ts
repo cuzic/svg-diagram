@@ -293,11 +293,13 @@ function layoutConcentric(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, an
   const w = out.w, side = b.labels === 'side', n = b.rings.length, lh = roles.note * LINE;
   const ordered = b.order === 'outer-first' ? b.rings : [...b.rings].reverse(); // outermost first
   const R = side ? Math.min(200, w * .3) : Math.min(220, w * .42), radius = (i: number) => R * (n - i) / n;
-  const keyLeft = out.x + 2 * R + 64, keyW = out.x + w - keyLeft;
+  const keyW = w - 2 * R - 64;
   const keys = side ? ordered.map(r => t.wrap(ringLabel(r), keyW)) : [];
+  // side keys: the rings and their keys are one block, set in the middle of the width (the circle's left edge was always 16px from the band's)
+  const left = side ? Math.max(out.x + 8, g4(out.x + (w - (2 * R + 48 + Math.max(...keys.map(k => k.w)))) / 2)) : out.x + 16, keyLeft = left + 2 * R + 48;
   const keyH = keys.reduce((a, k) => a + k.h + 12, 0);
   out.h = Math.max(2 * R + 16, keyH + 16);
-  const cx = g4(side ? out.x + R + 16 : out.x + w / 2), cy = g4(out.y + out.h / 2);
+  const cx = g4(side ? left + R : out.x + w / 2), cy = g4(out.y + out.h / 2);
   const TONES: TextTone[] = ['accent', 'muted', 'danger', 'text'];
   ordered.forEach((ring, i) => {
     const rr = radius(i);
