@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 [ -z "$(git status --porcelain)" ] || { echo "working tree not clean" >&2; exit 1; }
 V="v$(node -p "require('./package.json').version")"
-rm -rf dist && node_modules/.bin/tsc -p tsconfig.build.json
+rm -rf dist && node_modules/.bin/tsc -p tsconfig.build.json && pnpm run build:assets
 git add -f dist
 git commit -q -m "release $V (with dist/)"
 git tag "$V"

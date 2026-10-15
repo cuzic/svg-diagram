@@ -1,24 +1,24 @@
-// The viewer's CSS and script as `buildDeck` embeds them (ADR 0018). The contract is `viewerAssets(opts): {css, js}`.
-// This is the minimal form that unit D (`svg-diagram deck`) needs on its own: slides one under the other — what the document
-// looks like without script, in print, and when a Content-Security-Policy stops the script — and an empty script block. Unit C replaces
-// the body of this file with the real viewer (assets read from lib/deck-viewer/*), keeping the signature.
+// The viewer's CSS and script as `buildDeck` embeds them (ADR 0018, unit C). The contract is `viewerAssets(opts): {css, js}`.
+// The assets are plain files read from lib/deck-viewer/ (state.js, viewer.js, viewer.css) — not TS functions turned into text with
+// Function#toString, which breaks once tsc has rewritten them. The files sit next to this one in dist/ too (the build copies them).
+// The script is state.js and viewer.js joined into one <script>: the `export` keywords and viewer.js's one `import` line are cut out.
+import fs from 'node:fs';
 
 export interface ViewerOptions {
-  /** Reserved for the real viewer (overview columns etc. are passed to buildDeck as `cols`). */
+  /** Reserved (the overview's columns are passed to buildDeck as `cols`). */
   [key: string]: unknown;
 }
 
-const CSS = `:root { color-scheme: light dark }
-body { margin: 0; font-family: system-ui, sans-serif }
-#deck { display: block }
-.slide { box-sizing: border-box; padding: 16px; background: #ffffff; margin: 0 0 16px }
-.slide-dark { background: #1a1a1a }
-.slide svg { display: block; max-width: 100%; height: auto; margin: 0 auto }
-@media print { .slide { margin: 0; padding: 0; break-after: page } }
-`;
+const asset = (name: string): string => fs.readFileSync(new URL(`./deck-viewer/${name}`, import.meta.url), 'utf8');
 
-const JS = '/* the viewer script: unit C (state.js + viewer.js) */\n';
+/** The one script: state.js (its `export`s dropped) followed by viewer.js (its `import` of state.js dropped), in a function scope. Exported for the tests. */
+export function joinScript(state: string, viewer: string): string {
+  const s = state.replace(/^export (?=function|const|let)/gm, '');
+  const v = viewer.replace(/^import\s[^;]*from\s+'\.\/state\.js';?[ \t]*\r?\n/m, '');
+  if (/^\s*(import|export)\s/m.test(s + v)) throw new Error('the viewer script must be free of import / export once joined');
+  return `(function () {\n'use strict';\n${s}\n${v}})();\n`;
+}
 
 export function viewerAssets(_opts: ViewerOptions = {}): {css: string; js: string} {
-  return {css: CSS, js: JS};
+  return {css: asset('viewer.css'), js: joinScript(asset('state.js'), asset('viewer.js'))};
 }
