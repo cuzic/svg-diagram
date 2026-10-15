@@ -106,8 +106,8 @@ export interface DiagramOpts {
   legendLabels?: Partial<Record<NotationKey, string>>;
   /** Replace colours of tones for this diagram: `{accent: {fill: '#e6d3bd', dark: {fill: '#4a3a28'}}}`. Per tone: fill / stroke / text / ink (#rrggbb), and `dark` for the same under appearance 'dark'. Checked like the built-in colours (text-contrast, gray-tone-collision). The project's `tones` apply under it. */
   tones?: ToneOverrides;
-  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
-  wrap?: 'phrase' | 'char';
+  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line; 'bunsetsu' also keeps a hiragana with the character before it (breaks only after a hiragana that a non-hiragana follows, or after 、。) and widens tree-like boxes to their longest unit. */
+  wrap?: 'phrase' | 'char' | 'bunsetsu';
   width?: number;
   pad?: number;
   gap?: number;
@@ -159,8 +159,8 @@ export interface DiagramData {
   legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
   tones?: ToneOverrides;
-  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
-  wrap?: 'phrase' | 'char';
+  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line; 'bunsetsu' also keeps a hiragana with the character before it (breaks only after a hiragana that a non-hiragana follows, or after 、。) and widens tree-like boxes to their longest unit. */
+  wrap?: 'phrase' | 'char' | 'bunsetsu';
   width: number;
   pad: number;
   gap: number;
