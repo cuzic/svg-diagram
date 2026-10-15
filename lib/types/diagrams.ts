@@ -115,6 +115,12 @@ export interface CauseLink {
   /** The effect (or, in a prerequisite tree, what the cause is needed for). */
   to: string;
   line?: 'solid' | 'dashed' | 'dotted';
+  /** 'cause' (default) or 'blocks': this entity cuts that one (trimming; the negative branch). Drawn dashed and ending in a bar instead of an
+   *  arrowhead; `from` is one entity; it is not an AND, and it is not counted as a cause (coreDriver). */
+  kind?: 'cause' | 'blocks';
+  /** This arrow is the return of a loop (a vicious circle's UDE back to its root cause): it is laid out as the way back, so the layers do not
+   *  depend on the order the entities are written in, and it is drawn bold. One cause only (not with an array `from`); one per cycle. */
+  back?: true;
 }
 export interface CauseOpts extends RevealOpts {
   /** Which way the arrows run: 'up' (default: causes at the bottom, effects at the top), 'down', 'right' or 'left'. */
@@ -123,6 +129,9 @@ export interface CauseOpts extends RevealOpts {
   /** Mark the core driver: the starting entity (nothing causes it) whose arrows bring about the most `ude` entities, 2 or more (a tie: all).
    *  Every starting entity gets the number it reaches under its text (`到達 UDE n`) unless `counts` is false. `role` is not changed. */
   coreDriver?: boolean;
+  /** Which Theory of Constraints tree this is: 'crt' (current reality), 'frt' (future reality), 'prt' (prerequisite), 'tt' (transition).
+   *  Only a figure that says it is checked (the `toc-*` rules of `check`); not written, nothing is checked. It never changes the drawing. */
+  tree?: 'crt' | 'frt' | 'prt' | 'tt';
   /** With coreDriver: write `到達 UDE n` under each starting entity (default true). */
   counts?: boolean;
   id?: string;
@@ -264,7 +273,7 @@ export interface LaidOutCause extends Rect, Dimmed {
   until?: number;
   nodes: (Rect & {tone: BoxTone; double?: boolean; /** the core driver: a thick frame and a badge */ core?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean})[];
   /** Orthogonal polylines from the cause's box edge to the effect's; the arrowhead is at the last point. */
-  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'}[];
+  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; /** a declared return (`back: true`): drawn bold */ back?: true; /** only a cutting arrow has it */ kind?: 'blocks'}[];
   /** The arc across the arrows of an AND: a quadratic curve p0 - c - p1. */
   ands: {to: string; /** the causes it joins */ from: string[]; p0: {x: number; y: number}; c: {x: number; y: number}; p1: {x: number; y: number}}[];
   /** Effects whose AND arrows could not be joined by an arc (they do not arrive on one side of the effect). */

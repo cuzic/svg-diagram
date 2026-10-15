@@ -12,18 +12,14 @@
   <path d="M215,95.7 L204,101.7 L204,89.6 Z" fill="#b91c1c"/>
   <path d="M151.9,156.3 L215,156.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
   <path d="M215,156.3 L206,161.3 L206,151.4 Z" fill="#6f6659"/>
-  <path d="M342.9,71.2 L357.9,71.2" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M357.9,71.2 L357.9,92.6" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M357.9,92.6 L406,92.6" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M406,92.6 L395,98.6 L395,86.5 Z" fill="#b91c1c"/>
-  <path d="M342.9,180.8 L406.5,180.8" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M406.5,180.8 L406.5,159.4" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M406.5,159.4 L533.5,159.4" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M533.5,159.4 L533.5,137.6" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M342.9,71.2 L406,71.2" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M406,71.2 L395,77.2 L395,65.1 Z" fill="#b91c1c"/>
+  <path d="M342.9,180.8 L533.5,180.8" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M533.5,180.8 L533.5,137.6" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
   <path d="M533.5,137.6 L597.1,137.6" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
   <path d="M597.1,137.6 L588.1,142.6 L588.1,132.7 Z" fill="#6f6659"/>
-  <path d="M534,109.3 L597.1,109.3" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M597.1,109.3 L586.1,115.3 L586.1,103.2 Z" fill="#b91c1c"/>
+  <path d="M534,98.6 L597.1,98.6" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M597.1,98.6 L586.1,104.6 L586.1,92.5 Z" fill="#b91c1c"/>
   <path d="M725,126 L788.1,126" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
   <path d="M788.1,126 L777.1,132.1 L777.1,120 Z" fill="#b91c1c"/>
   <path d="M24,82.82 H151.9 V169.19 H24 Z" fill="#ffffff"/>
@@ -49,14 +45,14 @@
   <text x="224" y="198" font-size="14" fill="#6f6659">LS 11</text>
   <text x="334" y="198" text-anchor="end" font-size="14" fill="#6f6659">LF 13</text>
   <text x="279" y="216" text-anchor="middle" font-size="14" fill="#22201b">期間 2日 ・ 余裕 8</text>
-  <path d="M406.05,49.39 H533.95 V135.76 H406.05 Z" fill="#ffffff"/>
-  <path d="M406.05,49.39 H533.95 V135.76 H406.05 Z" fill="#1d5fa8" fill-opacity="0.16" stroke="#b91c1c" stroke-width="4"/>
-  <text x="470" y="71" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">実装</text>
-  <text x="415" y="91" font-size="14" fill="#6f6659">ES 7</text>
-  <text x="525" y="91" text-anchor="end" font-size="14" fill="#6f6659">EF 13</text>
-  <text x="415" y="109" font-size="14" fill="#6f6659">LS 7</text>
-  <text x="525" y="109" text-anchor="end" font-size="14" fill="#6f6659">LF 13</text>
-  <text x="470" y="128" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">期間 6日 ・ 余裕 0</text>
+  <path d="M406.05,28 H533.95 V114.38 H406.05 Z" fill="#ffffff"/>
+  <path d="M406.05,28 H533.95 V114.38 H406.05 Z" fill="#1d5fa8" fill-opacity="0.16" stroke="#b91c1c" stroke-width="4"/>
+  <text x="470" y="50" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">実装</text>
+  <text x="415" y="70" font-size="14" fill="#6f6659">ES 7</text>
+  <text x="525" y="70" text-anchor="end" font-size="14" fill="#6f6659">EF 13</text>
+  <text x="415" y="88" font-size="14" fill="#6f6659">LS 7</text>
+  <text x="525" y="88" text-anchor="end" font-size="14" fill="#6f6659">LF 13</text>
+  <text x="470" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">期間 6日 ・ 余裕 0</text>
   <path d="M597.07,82.82 H724.98 V169.19 H597.07 Z" fill="#ffffff"/>
   <path d="M597.07,82.82 H724.98 V169.19 H597.07 Z" fill="#1d5fa8" fill-opacity="0.16" stroke="#b91c1c" stroke-width="4"/>
   <text x="661" y="105" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">レビュー</text>

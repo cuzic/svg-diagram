@@ -8,48 +8,46 @@
   </style>
   <rect x="0" y="0" width="940" height="388" fill="#ffffff"/>
 
-  <path d="M470.6,76 L470.6,108" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M470.6,108 L383.5,108" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M506.5,76 L506.5,108" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M506.5,108 L383.5,108" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M383.5,108 L383.5,156" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M383.5,156 L378.6,147 L388.5,147 Z" fill="#22201b"/>
-  <path d="M405.1,204 L405.1,284" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M405.1,284 L400.2,275 L410.1,275 Z" fill="#22201b"/>
-  <path d="M440.8,284 L440.8,232" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M440.8,232 L470,232" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M470,232 L470,128" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M470,128 L484.6,128" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M484.6,128 L484.6,76" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M484.6,76 L489.6,85 L479.7,85 Z" fill="#22201b"/>
-  <path d="M498.6,76 L498.6,94" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M498.6,94 L556.5,94" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M556.5,94 L556.5,156" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M556.5,156 L551.6,147 L561.5,147 Z" fill="#22201b"/>
-  <path d="M570.5,156 L570.5,138" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M570.5,138 L512.6,138" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M512.6,138 L512.6,76" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M512.6,76 L517.6,85 L507.7,85 Z" fill="#22201b"/>
-  <path d="M433.63,28 H549.63 V76 H433.63 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="492" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">練習量</text>
+  <path d="M383.5,204 L383.5,222" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M383.5,222 L498.8,222" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M498.8,222 L498.8,284" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M498.8,284 L493.8,275 L503.7,275 Z" fill="#22201b"/>
+  <path d="M512.8,284 L512.8,232" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M512.8,232 L614,232" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M614,232 L614,128" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M614,128 L548.5,128" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M548.5,128 L548.5,76" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M548.5,76 L553.5,85 L543.6,85 Z" fill="#22201b"/>
+  <path d="M520.5,76 L520.5,156" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M520.5,156 L515.6,147 L525.5,147 Z" fill="#22201b"/>
+  <path d="M534.5,156 L534.5,76" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M534.5,76 L539.5,85 L529.6,85 Z" fill="#22201b"/>
+  <path d="M469.5,28 H585.5 V76 H469.5 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="528" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">練習量</text>
   <path d="M325.5,156 H441.5 V204 H325.5 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
   <text x="384" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">技能</text>
-  <path d="M368.75,284 H484.75 V332 H368.75 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="427" y="313" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">成果</text>
-  <path d="M498.5,156 H614.5 V204 H498.5 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="557" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">疲労</text>
-  <path d="M419.8,88 H434.2 V106 H419.8 Z" fill="#ffffff"/>
-  <text x="427" y="102" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
-  <path d="M397.8,224 H412.2 V242 H397.8 Z" fill="#ffffff"/>
-  <text x="405" y="238" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
-  <path d="M462.8,160 H477.2 V178 H462.8 Z" fill="#ffffff"/>
-  <text x="470" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
-  <path d="M520.8,102 H535.2 V120 H520.8 Z" fill="#ffffff"/>
-  <text x="528" y="116" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
-  <path d="M536.99,118 H547.01 V136 H536.99 Z" fill="#ffffff"/>
-  <text x="542" y="132" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
-  <path d="M462.35,188 H477.65 V206 H462.35 Z" fill="#ffffff"/>
-  <text x="470" y="202" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
-  <path d="M423.09,338 H444.91 V356 H423.09 Z" fill="#ffffff"/>
-  <text x="434" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">R1</text>
-  <path d="M513.02,210 H534.98 V228 H513.02 Z" fill="#ffffff"/>
-  <text x="524" y="224" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B1</text>
+  <path d="M440.75,284 H556.75 V332 H440.75 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="499" y="313" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">成果</text>
+  <path d="M469.5,156 H585.5 V204 H469.5 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="528" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">疲労</text>
+  <path d="M437.8,88 H452.2 V106 H437.8 Z" fill="#ffffff"/>
+  <text x="445" y="102" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
+  <path d="M433.8,230 H448.2 V248 H433.8 Z" fill="#ffffff"/>
+  <text x="441" y="244" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
+  <path d="M606.8,160 H621.2 V178 H606.8 Z" fill="#ffffff"/>
+  <text x="614" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
+  <path d="M513.8,96 H528.2 V114 H513.8 Z" fill="#ffffff"/>
+  <text x="521" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
+  <path d="M529.99,96 H540.01 V114 H529.99 Z" fill="#ffffff"/>
+  <text x="535" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
+  <path d="M606.35,188 H621.65 V206 H606.35 Z" fill="#ffffff"/>
+  <text x="614" y="202" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
+  <path d="M459.09,338 H480.91 V356 H459.09 Z" fill="#ffffff"/>
+  <text x="470" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">R1</text>
+  <path d="M517.02,210 H538.98 V228 H517.02 Z" fill="#ffffff"/>
+  <text x="528" y="224" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B1</text>
 </svg>

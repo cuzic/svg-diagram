@@ -55,7 +55,7 @@
   <text x="692" y="310" font-size="14" font-weight="400" fill="#6f6659">の「在庫インサイト」の構成を</text>
   <text x="692" y="330" font-size="14" font-weight="400" fill="#6f6659">参照。</text>
 
-  <text x="470" y="421.6" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">2 在庫インサイトの構成</text>
+  <text x="470" y="422" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">2 在庫インサイトの構成</text>
 
   <text x="20" y="475" font-size="15" font-weight="700" fill="#22201b">在庫インサイト</text>
   <rect x="20" y="488" width="608" height="152" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
@@ -112,7 +112,7 @@
   <text x="692" y="696" font-size="14" font-weight="700" fill="#22201b">参考表示</text>
   <text x="692" y="716" font-size="14" font-weight="400" fill="#6f6659">判断の根拠にはしない。</text>
 
-  <text x="470" y="767.6000000000003" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">3 部品の状態の一覧</text>
+  <text x="470" y="766" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">3 部品の状態の一覧</text>
 
   <text x="217" y="821" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">通常</text>
   <text x="374" y="821" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">読み込み中</text>

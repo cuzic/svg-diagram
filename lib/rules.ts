@@ -33,6 +33,8 @@ import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
 import type {Finding} from './types/verdicts.ts';
 import type {WfCallout} from './types/wireframe-nodes.ts';
 import type {LintTarget} from './types/verdicts.ts';
+import type {CauseRole} from './types/diagrams.ts';
+import {tocFindings} from './toc-rules.ts';
 
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
@@ -59,6 +61,11 @@ export const RULE_DOCS = {
   'quadrant-empty-cell': 'quadrant() のマスに項目が 1 つもない（「該当なし」の空の枠が残っている。意図した空きは allowEmpty で示す）',
   'quadrant-tone-only': 'quadrant() の項目の色（tone）だけで種類を分けている（group を使うと形と凡例でも伝わる）',
   'funnel-values-rise': 'funnel({scale: "value"}) の値が下の段で増えている（漏斗として読むなら、値と段の順を確認する）',
+  'toc-ude-count': '現状ツリー(causeTree({tree: "crt"}))の UDE が 5〜10 個の範囲の外。部分図なら accept で許容する。diagram({tocCheck: "strict"}) で warn',
+  'toc-parts': 'TOC のツリーの部品が足りない・違う(crt に根本原因 root が無い、frt に施策 injection か望む結果 de が無い、frt に root がある)。diagram({tocCheck: "strict"}) で warn',
+  'toc-source-has-cause': '原因を持たない役割(crt の root、frt の injection、precondition)の実体に、入る矢印がある。diagram({tocCheck: "strict"}) で warn',
+  'toc-chain-only': 'crt / frt が分岐も合流も AND も無い 1 本鎖(途中の原因を飛ばしている可能性)。diagram({tocCheck: "strict"}) で warn',
+  'toc-orphan': 'causeTree({tree}) の実体のうち、どのリンクにも出てこないものがある(graph-orphan-node は connect() の線しか見ない)。diagram({tocCheck: "strict"}) で warn',
   'graph-orphan-node': '矢印でつないだ図の中に、どの矢印にもつながっていない箱がある（つなぎ忘れか、図に要らない箱。意図した注記なら id を付けない）',
   'graph-disconnected': '矢印でつないだ図が、互いにつながらない 2 つ以上のかたまりに分かれている（1 図 1 話なら、つなぎ忘れか、図を分ける）',
   'term-variant': '同じ語の表記が 1 つの図の中で揺れている（ユーザ / ユーザー、API / Api など）。1 つに揃える',
@@ -101,7 +108,11 @@ export const DEFAULT_LEGEND_LABELS = {
   'line:solid': '実線', 'line:dashed': '破線', 'line:dotted': '点線', 'line:double': '二重線', 'arrow:both': '双方向', 'weight:strong': '強い流れ',
   'tone:new': '新規', 'tone:changed': '変更・改修', 'tone:removed': '対象外', 'tone:danger': '異常・注意',
   'tone:muted': '補助・任意', 'tone:accent': '強調', 'tone:solid': '主役', 'tone:solid-danger': '異常(強)',
-} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}`, string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
+  // a causeTree() figure (ADR 0015 D6): an entity role, an arrow joined by an arc, the core driver mark
+  'role:ude': '好ましくない現象(UDE)', 'role:root': '根本原因', 'role:de': '望む結果(DE)', 'role:injection': '施策', 'role:precondition': '現状の事実',
+  'role:goal': '目標', 'role:io': '中間目標', 'role:obstacle': '障害', 'role:action': '行動', 'role:start': '開始', 'role:risk': '懸念', 'role:measure': '対策',
+  'edge:and': '合わせて原因(AND)', 'mark:core': '中核ドライバー',
+} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}` | `role:${Exclude<CauseRole, 'effect' | 'step'>}` | 'edge:and' | 'mark:core', string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
 
 // every band, including those nested in groups, rows, grids and swimlanes
 export function walkBands(bands: Band[], out: Band[] = []): Band[] {
@@ -113,7 +124,7 @@ export function walkBands(bands: Band[], out: Band[] = []): Band[] {
 }
 
 // notation keys a diagram uses: 'line:dashed', 'arrow:both', 'weight:strong', 'tone:new', ...
-export function usedNotation(bands: Band[], dimmed = new Set<Band>()): Set<string> {
+export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause = false): Set<string> {
   const all = walkBands(bands);
   const used = new Set<string>(), lines = new Set<string>();
   // a canvas() region with a pill (重点 / 中心 / ソフト) says its tone in words: that tone needs no legend entry
@@ -125,6 +136,11 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>()): Set<strin
       if (b.arrow === 'both') used.add('arrow:both');
       if (b.weight) used.add(`weight:${b.weight}`);
     } else if (b.type === 'box' && b.tone && b.tone !== 'plain') used.add(`tone:${b.tone}`);
+    else if (b.type === 'cause' && withCause) { // only legend: 'auto' reads these (the legend-* checks keep their old count)
+      for (const n of b.nodes) if (n.role && n.role !== 'effect' && n.role !== 'step') used.add(`role:${n.role}`);
+      if (b.links.some(l => typeof l.from !== 'string' && l.from.length > 1)) used.add('edge:and');
+      if (b.nodes.some(n => n.core)) used.add('mark:core');
+    }
   }
   const nonSolid = [...lines].filter(l => l !== 'solid');
   for (const l of nonSolid) used.add(`line:${l}`);
@@ -137,7 +153,10 @@ export function legendKeys(bands: Band[]): Set<string> {
   for (const b of walkBands(bands)) {
     if (b.type !== 'legend') continue;
     for (const it of b.items) {
-      if (it.tone) keys.add(`tone:${it.tone}`);
+      if (it.role) keys.add(`role:${it.role}`);
+      else if (it.edge) keys.add(`edge:${it.edge}`);
+      else if (it.mark) keys.add(`mark:${it.mark}`);
+      else if (it.tone) keys.add(`tone:${it.tone}`);
       else if (it.weight) keys.add(`weight:${it.weight}`);
       else if (it.arrow === 'both') keys.add('arrow:both');
       else keys.add(`line:${it.line ?? 'solid'}`);
@@ -155,7 +174,7 @@ export function legendLabelsFor(used: ReadonlySet<string>, custom?: Partial<Reco
 // diagram({legend: 'auto'}): add a legend entry for every notation used but not listed.
 export function applyAutoLegend(d: DiagramData): void {
   if (d.legend !== 'auto') return;
-  const used = usedNotation(d.bands, dimmedBands(d)), have = legendKeys(d.bands);
+  const used = usedNotation(d.bands, dimmedBands(d), true), have = legendKeys(d.bands);
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return;
   const labels = legendLabelsFor(used, d.legendLabels);
@@ -171,6 +190,9 @@ export function applyAutoLegend(d: DiagramData): void {
     const [kind, v] = k.split(':');
     // v comes from our own `tone:<tone>` / `line:<style>` keys (usedNotation), so the casts hold
     if (kind === 'tone') return allDashed(v) ? {tone: v as EmphasisTone, dashed: true, label: labelOf(k)} : {tone: v as EmphasisTone, label: labelOf(k)};
+    if (kind === 'role') return {role: v as CauseRole, label: labelOf(k)};
+    if (kind === 'edge') return {edge: v as 'and', label: labelOf(k)};
+    if (kind === 'mark') return {mark: v as 'core', label: labelOf(k)};
     if (kind === 'arrow') return {line: 'solid', arrow: 'both', label: labelOf(k)};
     if (kind === 'weight') return {line: 'solid', weight: v as ArrowWeight, label: labelOf(k)};
     return {line: v as LineStyle, label: labelOf(k)};
@@ -446,6 +468,14 @@ function wireframeRules(d: LintTarget, out: Finding[]): void {
 /** The severity of the layout-quality findings (`layout-*`, and ADR 0016's `edge-bends`): info, or warn for a diagram that asked for diagram({layoutCheck: 'strict'}). */
 export const layoutSeverity = (d: Pick<DiagramData, 'layoutCheck'>): 'warn' | 'info' => d.layoutCheck === 'strict' ? 'warn' : 'info';
 
+/** The severity of the `toc-*` findings (ADR 0015 D3): info, or warn for a diagram that asked for diagram({tocCheck: 'strict'}). */
+export const tocSeverity = (d: Pick<DiagramData, 'tocCheck'>): 'warn' | 'info' => d.tocCheck === 'strict' ? 'warn' : 'info';
+
+function tocRules(d: LintTarget, out: Finding[]): void {
+  const severity = tocSeverity(d);
+  for (const b of walkBands(d.bands)) if (b.type === 'cause') for (const f of tocFindings(b)) out.push({rule: f.rule, severity, message: f.message});
+}
+
 // Alignment and whitespace (ADR 0014): measured on the laid-out bands (lib/layout-metrics.ts), reported at layoutSeverity(d).
 function layoutQualityRules(d: LintTarget, out: Finding[]): void {
   if (!d.laidOut) return;
@@ -526,6 +556,7 @@ function graphRules(d: LintTarget, out: Finding[]): void {
 function lintAll(d: LintTarget): Finding[] {
   const out: Finding[] = [];
   layoutQualityRules(d, out);
+  tocRules(d, out);
   textContrast(d, out);
   colourOnlyEmphasis(d, out);
   nonTextContrast(d, out);

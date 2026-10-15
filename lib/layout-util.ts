@@ -66,6 +66,8 @@ export const SWIMLANE_COMFY_COL = 112;
 export const GRID = 4;
 const ceilGrid = (n: number): number => Math.ceil(n / GRID - 1e-9) * GRID;
 const roundGrid = (n: number): number => Math.round(n / GRID) * GRID;
+/** The nearest 4px grid line: where a band / box top is placed (ADR 0014 D1, U1b), so the emitter's snap never moves it. */
+export const snapGrid = roundGrid;
 
 /**
  * Column edges for `n` equal columns across `contentWidth`, decided ONCE per (width, n, gap) and shared by every row that uses it (ADR 0014 D1).

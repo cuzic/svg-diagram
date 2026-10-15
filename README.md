@@ -1037,6 +1037,7 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 - **ベースライン**: 警告が多い案件に段階導入する。`check --write-baseline .svg-diagram.baseline.json diagrams/*.ts` で今ある警告を記録し、以後 `check --strict --baseline .svg-diagram.baseline.json diagrams/*.ts` は、**記録にない新しい警告**だけを失敗にする（記録済みは info になり「ベースライン済み」と添える）。照合はファイル・ルール・メッセージで、行番号は見ない。エラーはベースラインに入らない。
 - `--format sarif` は SARIF 2.1.0 を標準出力に出す（GitHub Code Scanning などへ）。
 - **つながりの検査**（`graph-orphan-node` / `graph-disconnected`）: 矢印が 3 本以上ある図で、`id` を持つ箱がどの矢印にもつながっていない、または矢印が互いにつながらない 2 つ以上のかたまりに分かれていると警告する（行・列を端にした矢印は、その中の箱を含む）。注記の箱は `id` を付けなければ対象外。意図した形なら `accept` に理由を書く。
+- **TOC の図の検査**（`toc-ude-count` / `toc-parts` / `toc-source-has-cause` / `toc-chain-only` / `toc-orphan`）: `causeTree(..., {tree: 'crt' | 'frt' | 'prt' | 'tt'})` と種類を書いた図だけが対象（書かなければ何も検査しない。`relationDiagram` / `pdpc` は対象外）。`crt` の UDE が 5〜10 個の外（部分図なら `accept` で許容）、`crt` に `root` が無い・`frt` に `injection` か `de` が無い・`frt` に `root` がある、`root`（crt）/ `injection`（frt）/ `precondition` に入る矢印がある、`crt` / `frt` が分岐も合流も AND も無い 1 本鎖、どのリンクにも出てこない実体。数える辺は `kind: 'blocks'` を除く。既定は info（`check --verbose`）で、`diagram({tocCheck: 'strict'})` の図だけ warn（`check --strict` が落ちる）。`layoutCheck` とは別の指定で、描画は変わらない。
 
 ## 表記・数値の整合と差分だけの検査（`check`）
 - **表記の揺れ**（`term-variant`）: 1 つの図の中で、同じ語が `ユーザ` / `ユーザー`（末尾の長音）や `API` / `Api`（大文字・大小混在）のように揺れていると警告する。`Server` と `server` のような文頭の大文字だけの差、数字や `-` `_` を含む ID は見ない。

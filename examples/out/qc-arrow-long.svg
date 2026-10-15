@@ -7,68 +7,68 @@
   </style>
   <rect x="0" y="0" width="940" height="1159" fill="#ffffff"/>
 
-  <path d="M480,76 L480,136" fill="none" stroke="#b91c1c" stroke-width="4"/>
-  <path d="M480,148 L472,132 L484,132 z" fill="#b91c1c"/>
-  <path d="M472,204 L472,224 L444,224 L444,264" fill="none" stroke="#b91c1c" stroke-width="4"/>
-  <path d="M444,276 L440,260 L452,260 z" fill="#b91c1c"/>
-  <path d="M484,204 L484,260 L512,260 L512,368 L508,368 L508,412" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M508,420 L504,408 L512,408 z" fill="#22201b"/>
-  <path d="M440,348 L440,404 L428,404 L428,656 L444,656 L444,696" fill="none" stroke="#b91c1c" stroke-width="4"/>
-  <path d="M444,708 L440,692 L452,692 z" fill="#b91c1c"/>
-  <path d="M496,492 L496,556" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M496,564 L488,552 L500,552 z" fill="#22201b"/>
-  <path d="M452,348 L452,368 L496,368 L496,412" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
-  <path d="M496,420 L488,408 L500,408 z" fill="#22201b"/>
-  <path d="M444,780 L444,800 L480,800 L480,840" fill="none" stroke="#b91c1c" stroke-width="4"/>
-  <path d="M480,852 L472,836 L484,836 z" fill="#b91c1c"/>
-  <path d="M500,636 L500,692 L512,692 L512,800 L492,800 L492,844" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M492,852 L488,840 L496,840 z" fill="#22201b"/>
-  <path d="M488,636 L488,656 L460,656 L460,700" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
-  <path d="M460,708 L456,696 L464,696 z" fill="#22201b"/>
-  <path d="M480,924 L480,984" fill="none" stroke="#b91c1c" stroke-width="4"/>
-  <path d="M480,996 L472,980 L484,980 z" fill="#b91c1c"/>
-  <circle cx="480" cy="48" r="28" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
-  <circle cx="480" cy="176" r="28" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
-  <circle cx="444" cy="312" r="36" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
-  <circle cx="496" cy="456" r="36" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <circle cx="444" cy="744" r="36" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
-  <circle cx="496" cy="600" r="36" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <circle cx="480" cy="888" r="36" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
-  <circle cx="480" cy="1032" r="36" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
-  <text x="478" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">1</text>
-  <text x="478" y="62" text-anchor="middle" font-size="14" fill="#6f6659">0/0</text>
-  <text x="478" y="170" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">2</text>
-  <text x="478" y="190" text-anchor="middle" font-size="14" fill="#6f6659">5/5</text>
-  <text x="446" y="306" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">3</text>
-  <text x="446" y="326" text-anchor="middle" font-size="14" fill="#6f6659">13/13</text>
-  <text x="494" y="450" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">4</text>
-  <text x="494" y="470" text-anchor="middle" font-size="14" fill="#6f6659">13/21</text>
-  <text x="446" y="738" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">5</text>
-  <text x="446" y="758" text-anchor="middle" font-size="14" fill="#6f6659">25/25</text>
-  <text x="494" y="594" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">6</text>
-  <text x="494" y="614" text-anchor="middle" font-size="14" fill="#6f6659">17/25</text>
-  <text x="478" y="882" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">7</text>
-  <text x="478" y="902" text-anchor="middle" font-size="14" fill="#6f6659">31/31</text>
-  <text x="478" y="1026" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">8</text>
-  <text x="478" y="1046" text-anchor="middle" font-size="14" fill="#6f6659">32/32</text>
-  <rect x="484" y="96" width="80" height="22" fill="#ffffff"/>
-  <text x="524" y="110" text-anchor="middle" font-size="14" fill="#22201b">要件定義 5</text>
-  <rect x="388" y="232" width="52" height="22" fill="#ffffff"/>
-  <text x="414" y="247" text-anchor="middle" font-size="14" fill="#22201b">設計 8</text>
-  <rect x="516" y="376" width="168" height="22" fill="#ffffff"/>
-  <text x="597" y="391" text-anchor="middle" font-size="14" fill="#22201b">契約手続き 6（余裕10）</text>
-  <rect x="380" y="664" width="60" height="22" fill="#ffffff"/>
-  <text x="410" y="679" text-anchor="middle" font-size="14" fill="#22201b">開発 12</text>
-  <rect x="500" y="512" width="144" height="22" fill="#ffffff"/>
-  <text x="572" y="526" text-anchor="middle" font-size="14" fill="#22201b">環境準備 4（余裕8）</text>
-  <rect x="408" y="808" width="68" height="22" fill="#ffffff"/>
-  <text x="439" y="823" text-anchor="middle" font-size="14" fill="#22201b">テスト 6</text>
-  <rect x="500" y="808" width="152" height="22" fill="#ffffff"/>
-  <text x="574" y="823" text-anchor="middle" font-size="14" fill="#22201b">教育資料 3（余裕11）</text>
-  <rect x="484" y="944" width="52" height="22" fill="#ffffff"/>
-  <text x="510" y="958" text-anchor="middle" font-size="14" fill="#22201b">公開 1</text>
+  <path d="M472,76 L472,136" fill="none" stroke="#b91c1c" stroke-width="4"/>
+  <path d="M472,148 L464,132 L476,132 z" fill="#b91c1c"/>
+  <path d="M464,204 L464,224 L436,224 L436,264" fill="none" stroke="#b91c1c" stroke-width="4"/>
+  <path d="M436,276 L432,260 L444,260 z" fill="#b91c1c"/>
+  <path d="M476,204 L476,260 L504,260 L504,368 L516,368 L516,412" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M516,420 L512,408 L520,408 z" fill="#22201b"/>
+  <path d="M432,348 L432,404 L436,404 L436,696" fill="none" stroke="#b91c1c" stroke-width="4"/>
+  <path d="M436,708 L432,692 L444,692 z" fill="#b91c1c"/>
+  <path d="M504,492 L504,556" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M504,564 L496,552 L508,552 z" fill="#22201b"/>
+  <path d="M444,348 L444,368 L504,368 L504,412" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M504,420 L496,408 L508,408 z" fill="#22201b"/>
+  <path d="M436,780 L436,800 L472,800 L472,840" fill="none" stroke="#b91c1c" stroke-width="4"/>
+  <path d="M472,852 L464,836 L476,836 z" fill="#b91c1c"/>
+  <path d="M508,636 L508,692 L504,692 L504,800 L484,800 L484,844" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M484,852 L480,840 L488,840 z" fill="#22201b"/>
+  <path d="M496,636 L496,656 L452,656 L452,700" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M452,708 L448,696 L456,696 z" fill="#22201b"/>
+  <path d="M472,924 L472,984" fill="none" stroke="#b91c1c" stroke-width="4"/>
+  <path d="M472,996 L464,980 L476,980 z" fill="#b91c1c"/>
+  <circle cx="472" cy="48" r="28" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <circle cx="472" cy="176" r="28" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <circle cx="436" cy="312" r="36" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <circle cx="504" cy="456" r="36" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <circle cx="436" cy="744" r="36" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <circle cx="504" cy="600" r="36" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <circle cx="472" cy="888" r="36" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <circle cx="472" cy="1032" r="36" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
+  <text x="470" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">1</text>
+  <text x="470" y="62" text-anchor="middle" font-size="14" fill="#6f6659">0/0</text>
+  <text x="470" y="170" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">2</text>
+  <text x="470" y="190" text-anchor="middle" font-size="14" fill="#6f6659">5/5</text>
+  <text x="438" y="306" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">3</text>
+  <text x="438" y="326" text-anchor="middle" font-size="14" fill="#6f6659">13/13</text>
+  <text x="502" y="450" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">4</text>
+  <text x="502" y="470" text-anchor="middle" font-size="14" fill="#6f6659">13/21</text>
+  <text x="438" y="738" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">5</text>
+  <text x="438" y="758" text-anchor="middle" font-size="14" fill="#6f6659">25/25</text>
+  <text x="502" y="594" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">6</text>
+  <text x="502" y="614" text-anchor="middle" font-size="14" fill="#6f6659">17/25</text>
+  <text x="470" y="882" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">7</text>
+  <text x="470" y="902" text-anchor="middle" font-size="14" fill="#6f6659">31/31</text>
+  <text x="470" y="1026" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">8</text>
+  <text x="470" y="1046" text-anchor="middle" font-size="14" fill="#6f6659">32/32</text>
+  <rect x="476" y="96" width="80" height="22" fill="#ffffff"/>
+  <text x="516" y="110" text-anchor="middle" font-size="14" fill="#22201b">要件定義 5</text>
+  <rect x="380" y="232" width="52" height="22" fill="#ffffff"/>
+  <text x="406" y="247" text-anchor="middle" font-size="14" fill="#22201b">設計 8</text>
+  <rect x="524" y="376" width="168" height="22" fill="#ffffff"/>
+  <text x="605" y="391" text-anchor="middle" font-size="14" fill="#22201b">契約手続き 6（余裕10）</text>
+  <rect x="372" y="536" width="60" height="22" fill="#ffffff"/>
+  <text x="402" y="553" text-anchor="middle" font-size="14" fill="#22201b">開発 12</text>
+  <rect x="508" y="512" width="144" height="22" fill="#ffffff"/>
+  <text x="580" y="526" text-anchor="middle" font-size="14" fill="#22201b">環境準備 4（余裕8）</text>
+  <rect x="400" y="808" width="68" height="22" fill="#ffffff"/>
+  <text x="431" y="823" text-anchor="middle" font-size="14" fill="#22201b">テスト 6</text>
+  <rect x="492" y="808" width="152" height="22" fill="#ffffff"/>
+  <text x="566" y="823" text-anchor="middle" font-size="14" fill="#22201b">教育資料 3（余裕11）</text>
+  <rect x="476" y="944" width="52" height="22" fill="#ffffff"/>
+  <text x="502" y="958" text-anchor="middle" font-size="14" fill="#22201b">公開 1</text>
 
   <text x="20" y="1098" font-size="14" font-weight="400" fill="#6f6659">全体で 32日　クリティカルパス: 要件定義 → 設計 → 開発 → テスト → 公開</text>
 
-  <text x="20" y="1133.6" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+  <text x="20" y="1134" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>

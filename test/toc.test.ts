@@ -112,6 +112,34 @@ test('causeTree(): a link may be a feedback loop (a cycle), drawn from its real 
   assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause: arrow')), []);
 });
 
+test("causeTree(): a 'blocks' link is an ordinary edge for the layers, carries its kind, is never part of an AND, and verify passes", async () => {
+  const nodes = [N('inj', {role: 'injection'}), N('bad', {role: 'ude'}), N('step'), N('de', {role: 'de'})];
+  const links = [{from: 'inj', to: 'step'}, {from: 'step', to: 'de'}, {from: 'step', to: 'bad'}, {from: 'inj', to: 'bad', kind: 'blocks' as const}];
+  const {t, verdict} = await laidCause(causeTree(nodes, links));
+  const by = (id: string) => t.anchors.find(a => a.id === id)!;
+  assert.deepEqual(t.edges.filter(e => e.kind).map(e => `${e.from}->${e.to}:${e.kind}:${e.line}`), ['inj->bad:blocks:dashed']);
+  assert.ok(by('bad').y < by('inj').y, 'the cut entity lies on the effect side of the one that cuts it');
+  assert.deepEqual(t.ands, []);
+  assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause')), []);
+  const plain = await laidCause(causeTree(nodes, links.slice(0, 3)));
+  assert.ok(plain.t.edges.every(e => e.kind === undefined), 'a cause edge carries no kind');
+});
+
+test("causeTree(): a 'blocks' edge is drawn dashed, with a bar instead of an arrowhead", async () => {
+  const d = (kind?: 'blocks') => diagram({theme: 'blue'}).add(causeTree([N('a'), N('b')], [{from: 'a', to: 'b', ...(kind ? {kind} : {})}]));
+  const cut = (await renderDiagram(d('blocks'), {name: 'k.svg', budget: 'cacheOnly'})).svg, cause = (await renderDiagram(d(), {name: 'k.svg', budget: 'cacheOnly'})).svg;
+  const arrowheads = (svg: string) => svg.match(/<path d="M[^"]* z" fill=/g)?.length ?? 0;
+  assert.equal(arrowheads(cause), 1);
+  assert.equal(arrowheads(cut), 0, 'no triangle');
+  assert.equal(cut.match(/<path [^>]*stroke-width="3"/g)?.length, 1, 'the bar');
+  assert.ok(/<path d="M[^"]*" fill="none" stroke="[^"]*" stroke-width="2" stroke-dasharray=/.test(cut), 'the line is dashed');
+});
+
+test("causeTree(): a 'blocks' link needs one entity and a known kind", () => {
+  assert.throws(() => causeTree([N('a'), N('b'), N('c')], [{from: ['a', 'b'], to: 'c', kind: 'blocks'}]), /needs one entity/);
+  assert.throws(() => causeTree([N('a'), N('b')], [{from: 'a', to: 'b', kind: 'cuts' as never}]), /has kind cuts/);
+});
+
 test('causeTree({coreDriver}): the root that reaches the most ude gets the core mark; role is unchanged; counts are written', async () => {
   const bands = (opts: object) => causeTree(
     [N('u1', {role: 'ude'}), N('u2', {role: 'ude'}), N('u3', {role: 'ude'}), N('m'), N('big', {role: 'root'}), N('small', {role: 'root'})],
@@ -373,4 +401,33 @@ test('causeTree() fuzz: random acyclic graphs with ANDs lay out with no hard pro
     }
   }
   assert.ok(laidOutCount > 150);
+});
+
+// ---- declared returns (ADR 0016 D9) ----
+test('causeTree() back: a declared return keeps its layer whatever the order of the entities, and is drawn bold', async () => {
+  const links = [{from: 'kpi', to: 'start'}, {from: 'start', to: 'wip'}, {from: 'wip', to: 'switch'}, {from: 'switch', to: 'late'}, {from: 'late', to: 'kpi', back: true as const}];
+  const ids = ['late', 'switch', 'wip', 'start', 'kpi'];
+  const rows = async (order: string[]) => {
+    const {t, verdict} = await laidCause(causeTree(order.map(id => N(id)), links, {dir: 'down', maxNodeW: 170}));
+    assert.deepEqual(verdict.problems, []);
+    const y = (id: string) => t.anchors.find(a => a.id === id)!.y;
+    return {order: ids.map(id => y(id)), bold: t.edges.filter(e => e.back).map(e => `${e.from}>${e.to}`)};
+  };
+  const a = await rows(ids), b = await rows([...ids].reverse());
+  assert.deepEqual(a.order, b.order);
+  assert.ok(a.order[0] > a.order[4], 'late (the UDE) lies below kpi in a figure that runs down');
+  assert.deepEqual(a.bold, ['late>kpi']);
+  const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(causeTree(ids.map(id => N(id)), links, {dir: 'down'})), {name: 'b.svg', budget: 'cacheOnly'});
+  assert.equal(svg.split('stroke-width="3"').length - 1, 1);
+  const plain = await renderDiagram(diagram({theme: 'blue'}).add(causeTree(ids.map(id => N(id)), links.map(({back: _b, ...l}) => l), {dir: 'down'})), {name: 'p.svg', budget: 'cacheOnly'});
+  assert.ok(!plain.svg.includes('stroke-width="3"'));
+});
+
+test('causeTree() back: not with an AND, not on an arrow that closes no loop, not twice on a loop; a loop left undeclared still lays out', async () => {
+  assert.throws(() => causeTree([N('a'), N('b'), N('c')], [{from: ['a', 'b'], to: 'c', back: true}]), /AND.*back: true/);
+  await assert.rejects(() => laidCause(causeTree([N('a'), N('b')], [{from: 'a', to: 'b', back: true}])), /a -> b closes no cycle/);
+  await assert.rejects(() => laidCause(causeTree([N('a'), N('b')], [{from: 'a', to: 'b', back: true}, {from: 'b', to: 'a', back: true}])), /on one cycle/);
+  const {t, verdict} = await laidCause(causeTree([N('a'), N('b'), N('c'), N('d')], [{from: 'a', to: 'b'}, {from: 'b', to: 'a', back: true}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'}, {from: 'd', to: 'c'}]));
+  assert.equal(t.edges.length, 5);
+  assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause: arrow')), []);
 });

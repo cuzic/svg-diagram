@@ -16,7 +16,7 @@ import {layoutWordArt} from './wordart.ts';
 import {CANVAS_MIN_ROW_H, canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
 import {layoutTreeBand, narrowField} from './tree.ts';
 import {layoutStatesBand} from './states.ts';
-import {layoutCauseBand, layoutCloudBand} from './toc.ts';
+import {CAUSE_ROLES, layoutCauseBand, layoutCloudBand} from './toc.ts';
 import {layoutGantt} from './gantt.ts';
 import {layoutClassesBand} from './classes.ts';
 import {layoutBpmn} from './bpmn.ts';
@@ -33,13 +33,21 @@ import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx, Placed, RowLike} 
 import {PALETTE, SHADES, blendLuminance, bestTextColor, paintOf} from './tokens.ts';
 import {
   BOX_PAD_X, LINE_HEIGHT_EM, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL, STAMP_GAP, STAMP_H, TAG_H,
-  groupTitleBand, gridChildGeometry, gridColumns, rowChildGeometry, stampChipW,
+  groupTitleBand, gridChildGeometry, gridColumns, rowChildGeometry, snapGrid, stampChipW,
 } from './layout-util.ts';
 import {lineWidth} from './layout-text.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
 
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
 const rectOf = (p: Rect): Rect => ({x: p.x, y: p.y, w: p.w, h: p.h});
+
+/**
+ * Band types whose insides are not on the 4px grid yet (a plot's fractional scale, the wireframe parts' own sizes): placed from the
+ * cursor as it is, because a grid origin would move some of their shapes by a whole step (4px) when the emitter snaps them.
+ */
+const OFF_GRID_BANDS: ReadonlySet<string> = new Set(['plane', 'quadrant', 'timeline', 'wireframe', 'screens', 'wordart']);
+/** Where a band of `type` is placed when the cursor is at `y` (U1b: on the 4px grid, so its frames and its text start from the same line). */
+const originOf = (type: string, y: number): number => OFF_GRID_BANDS.has(type) ? y : snapGrid(y);
 
 /**
  * A band laid out by one call (`layout`) that returns its own placement: its id (and its marks' ids, when `anchorWhat` is given)
@@ -53,7 +61,7 @@ function placedBand<B extends Band & {id?: string}, P extends LaidOutBand & Rect
   anchorWhat?: Describe<B>,
 ): BandLayoutHandler<B> {
   return (band, ctx, padX, cw) => {
-    const placed = layout(band, padX, ctx.y, cw, ctx);
+    const placed = layout(band, padX, originOf(band.type, ctx.y), cw, ctx); // placed on the grid; the cursor stays where it was (no drift)
     if (band.id) ctx.register(band.id, rectOf(placed), say(what, band));
     if (anchorWhat !== undefined) for (const a of (placed as unknown as {anchors: (Rect & {id: string})[]}).anchors) ctx.register(a.id, rectOf(a), say(anchorWhat, band));
     ctx.laidOut.push(placed);
@@ -65,7 +73,7 @@ function layoutSpacer(band: SpacerBand, ctx: LayoutCtx): void { ctx.y += band.h;
 
 function layoutSeqTable(band: Band & {type: 'sequence' | 'table'}, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
-  const placed = band.type === 'sequence' ? layoutSequence(band, padX, ctx.y, cw, widthOf, roles) : layoutTable(band, padX, ctx.y, cw, widthOf, roles);
+  const placed = band.type === 'sequence' ? layoutSequence(band, padX, snapGrid(ctx.y), cw, widthOf, roles) : layoutTable(band, padX, snapGrid(ctx.y), cw, widthOf, roles);
   if (band.id) ctx.register(band.id, rectOf(placed), `a ${band.type} takes an id that another anchor already has`);
   ctx.laidOut.push(placed);
   ctx.y += placed.h + d.gap;
@@ -73,14 +81,14 @@ function layoutSeqTable(band: Band & {type: 'sequence' | 'table'}, ctx: LayoutCt
 
 function layoutWireframeBand(band: Band & {type: 'wireframe' | 'screens'}, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, widthOf} = ctx;
-  const placed = band.type === 'wireframe' ? layoutWireframe(band, padX, ctx.y, cw, widthOf) : layoutScreens(band, padX, ctx.y, cw, widthOf);
+  const placed = band.type === 'wireframe' ? layoutWireframe(band, padX, originOf(band.type, ctx.y), cw, widthOf) : layoutScreens(band, padX, originOf(band.type, ctx.y), cw, widthOf);
   for (const a of placed.anchors) if (a.id) ctx.register(a.id, rectOf(a), `a ${band.type} takes an id that another anchor already has`);
   ctx.laidOut.push(placed);
   ctx.y += placed.h + d.gap;
 }
 
 function layoutRaw(band: RawBand, ctx: LayoutCtx, padX: number, cw: number): void {
-  const placed = {...band, x: padX, y: ctx.y, w: cw};
+  const placed = {...band, x: padX, y: snapGrid(ctx.y), w: cw};
   if (band.id) ctx.register(band.id, rectOf(placed), 'a raw band takes an id that another anchor already has');
   ctx.laidOut.push(placed);
   ctx.y += band.h + (band.h > 0 ? ctx.d.gap : 0);
@@ -88,14 +96,14 @@ function layoutRaw(band: RawBand, ctx: LayoutCtx, padX: number, cw: number): voi
 
 function layoutFlowShapeBand(band: Band & {type: 'chevron' | 'funnel' | 'cycle' | 'venn' | 'concentric'}, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
-  const placed = layoutFlowShape(band, padX, ctx.y, cw, widthOf, roles);
+  const placed = layoutFlowShape(band, padX, snapGrid(ctx.y), cw, widthOf, roles);
   if (band.id) { if (ctx.anchors.has(band.id)) ctx.claimed(band.id, `a ${band.type} takes an id that another anchor already has`); ctx.anchors.set(band.id, placed); }
   for (const a of placed.anchors) { if (ctx.anchors.has(a.id)) ctx.claimed(a.id, `a ${band.type} item takes an id that another anchor already has`); ctx.anchors.set(a.id, a); }
   ctx.laidOut.push(placed); ctx.y += placed.h + d.gap;
 }
 
 function layoutWordArtBand(band: Band & {type: 'wordart'}, ctx: LayoutCtx, padX: number, cw: number): void {
-  const placed = layoutWordArt(band, padX, ctx.y, cw, ctx.widthOf, ctx.roles);
+  const placed = layoutWordArt(band, padX, originOf(band.type, ctx.y), cw, ctx.widthOf, ctx.roles);
   if (band.id) { if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a wordart takes an id that another anchor already has'); ctx.anchors.set(band.id, placed); }
   ctx.laidOut.push(placed); ctx.y += placed.h + ctx.d.gap;
 }
@@ -155,7 +163,7 @@ function layoutGroup(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number):
 function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number, fill?: GroupFill): void {
   const {d, roles, widthOf} = ctx;
   const gp = band.pad ?? 16;
-  const startY = ctx.y;
+  const top0 = ctx.y, startY = snapGrid(top0); // the frame sits on the grid; the cursor moves on from where it was (no drift)
   const frame: LaidOutGroup = {type: 'group', x: padX, y: startY, w: cw, h: 0, tone: band.tone, dashed: band.dashed, frame: band.frame, id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
   ctx.laidOut.push(frame); // pushed first so the frame is drawn under its children
   ctx.y += gp;
@@ -187,9 +195,9 @@ function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number
     if (frame.stampW > cw - 16) throw new Error(`stamp "${band.stamp}" is wider than its group (${Math.round(cw)}px): shorten it or widen the group`);
     ctx.y += STAMP_H + STAMP_GAP;
   }
-  frame.h = ctx.y - startY;
+  frame.h = ctx.y - top0;
   if (fill) frame.h += fill.slack - (stretchOnly ? fill.slack : plan.top + plan.gap * (band.children.length - 1)); // what is left goes under the content
-  ctx.y = startY + frame.h;
+  ctx.y = top0 + frame.h; // (the contents were laid out from the cursor itself, not from the snapped top: only the frame is placed on the grid)
   if (band.id) {
     if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a group takes an id that another box, group or row already has');
     ctx.anchors.set(band.id, {x: frame.x, y: frame.y, w: frame.w, h: frame.h});
@@ -199,7 +207,7 @@ function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number
 
 function layoutImageBand(band: ImageBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
-  const placed = layoutImage(band, padX, ctx.y, cw, widthOf, roles);
+  const top = ctx.y, placed = layoutImage(band, padX, snapGrid(top), cw, widthOf, roles);
   if (band.id) {
     if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'an image takes an id that another anchor already has');
     ctx.anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
@@ -216,7 +224,7 @@ function layoutImageBand(band: ImageBand, ctx: LayoutCtx, padX: number, cw: numb
     const bottom = ctx.y - d.gap, room = placed.y + placed.h - pad;
     if (bottom > room + 0.5) throw new Error(`image(): the parts over it need ${Math.round(bottom - placed.y + pad)}px of height but the picture is ${placed.h}px high (make the picture bigger with width / height, or use less content)`);
   }
-  ctx.y = placed.y + placed.h + d.gap;
+  ctx.y = top + placed.h + d.gap;
 }
 
 function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: number): void {
@@ -233,7 +241,7 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
   const bodyX = padX + labelW, bodyW = cw - labelW;
   const colW = colWAt();
   if (colW < 60) throw new Error(`swimlane(): ${band.cols} columns leave only ${Math.round(colW)}px each — widen the diagram, shrink labelW, or use fewer columns`);
-  const startY = ctx.y;
+  const top0 = ctx.y, startY = snapGrid(top0); // on the grid; the cursor moves on from where it was (no drift)
   const wrapLines = (text: string, size: number, weight: number, maxW: number) => wrapAtoms(splitAtoms(text), {maxWidth: Math.max(20, maxW), atomWidth: (a: string) => widthOf(a, size, weight, 'sans')});
   // column-group headers across the top
   let phaseH = 0;
@@ -273,19 +281,20 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
   }
   for (const st of stepsPlaced) {
     const ln = lanes[laneIndex.get(st.lane) as number]; // an unknown lane id throws here, as before
-    st.y = ln.blockTop + (st.row ?? 0) * (ln.maxStep + rowGap) + (ln.maxStep - st.h) / 2;
+    st.y = snapGrid(ln.blockTop + (st.row ?? 0) * (ln.maxStep + rowGap) + (ln.maxStep - st.h) / 2);
     if (st.id) ctx.anchors.set(st.id, {x: st.x, y: st.y, w: st.w, h: st.h}); // placeBoxLike already claimed (and checked) the id; this moves it to the lane row
     if (st.tagBox) st.tagBox.y = st.y - st.tagBox.h / 2;
     ctx.laidOut.push(st);
   }
-  ctx.y = y + d.gap;
+  ctx.y = top0 + (y - startY) + d.gap;
 }
 
 function layoutLegend(band: LegendBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
   const items = band.items.map(item => {
     const tw = textWidth(widthOf, item.label, roles.note, 400);
-    return {...item, textW: tw, w: LEGEND_SWATCH_W + 8 + tw};
+    const swatch = item.role ? {tone: CAUSE_ROLES[item.role].tone, ...(CAUSE_ROLES[item.role].double ? {double: true} : {}), ...(item.role === 'obstacle' || item.role === 'risk' ? {hex: true} : {})} : undefined;
+    return {...item, ...(swatch ? {swatch} : {}), textW: tw, w: LEGEND_SWATCH_W + 8 + tw};
   });
   const rows: (typeof items)[] = [[]];
   let rowW = 0;
@@ -299,10 +308,10 @@ function layoutLegend(band: LegendBand, ctx: LayoutCtx, padX: number, cw: number
   rows.forEach((r, ri) => {
     const total = r.reduce((a, it) => a + it.w, 0) + (r.length - 1) * LEGEND_ITEM_GAP;
     let x = band.align === 'left' ? padX : padX + (cw - total) / 2;
-    for (const it of r) { placedItems.push({...it, x, y: ctx.y + ri * (LEGEND_ROW_H + 8)}); x += it.w + LEGEND_ITEM_GAP; }
+    for (const it of r) { placedItems.push({...it, x, y: snapGrid(ctx.y) + ri * (LEGEND_ROW_H + 8)}); x += it.w + LEGEND_ITEM_GAP; }
   });
   const h = rows.length * LEGEND_ROW_H + (rows.length - 1) * 8;
-  ctx.laidOut.push({type: 'legend', x: padX, y: ctx.y, w: cw, h, items: placedItems});
+  ctx.laidOut.push({type: 'legend', x: padX, y: snapGrid(ctx.y), w: cw, h, items: placedItems});
   ctx.y += h + d.gap;
 }
 
@@ -335,13 +344,13 @@ function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: nu
   // out again with the room handed to its content (centred by default; group({valign}) changes it: ADR 0014 D2).
   const rowGap = ctx.gapForLabels(band, cw);
   const {widths, xOffsets} = rowChildGeometry({...band, gap: rowGap}, cw);
-  const rowTop = ctx.y;
+  const top0 = ctx.y, rowTop = snapGrid(top0); // on the grid; the cursor moves on from where it was (no drift)
   const before = {n: ctx.laidOut.length, anchors: new Map(ctx.anchors), nodeBottoms: new Map(ctx.nodeBottoms), areaIds: new Set(ctx.areaIds), connects: ctx.connects.length, deferred: ctx.deferred.length};
   const place = (fills: (GroupFill | undefined)[]) => {
     const stretch: ((h: number) => void)[] = [], natural: number[] = [];
     let rowHeight = 0;
     band.children.forEach((child, i) => {
-      ctx.y = rowTop;
+      ctx.y = top0;
       const x = padX + xOffsets[i];
       if (child.type === 'box') {
         const c = ctx.placeBoxLike(child, x, rowTop, widths[i], true);
@@ -378,15 +387,15 @@ function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: nu
   const {rowHeight, stretch} = placed;
   stretch.forEach(s => s(rowHeight));
   registerRowSlots(ctx, band.id, band, rowTop, rowHeight, padX, cw, rowGap, widths.map((w, i) => ({x: padX + xOffsets[i], y: rowTop, w, h: rowHeight})));
-  ctx.y = rowTop + rowHeight + d.gap;
+  ctx.y = top0 + rowHeight + d.gap;
 }
 
 function layoutRow(band: RowBand, ctx: LayoutCtx, padX: number, cw: number): void {
-  const {d} = ctx;
+  const {d} = ctx, top = snapGrid(ctx.y); // the row sits on the grid; the cursor moves on from where it was
   const rowGap = ctx.gapForLabels(band, cw);
   const {widths, xOffsets} = rowChildGeometry({...band, gap: rowGap}, cw);
   const placedChildren = band.children.map((child, i) =>
-    ctx.placeBoxLike(child, padX + xOffsets[i], ctx.y, widths[i], true));
+    ctx.placeBoxLike(child, padX + xOffsets[i], top, widths[i], true));
   const rowHeight = Math.max(...placedChildren.map(c => c.h));
   for (const c of placedChildren) { c.h = rowHeight; if (c.id) ctx.setBox(c.id, c as never, rowHeight); }
 
@@ -394,13 +403,13 @@ function layoutRow(band: RowBand, ctx: LayoutCtx, padX: number, cw: number): voi
   if (band.arrows === 'between') {
     for (let i = 0; i < placedChildren.length - 1; i++) {
       const a = placedChildren[i], b = placedChildren[i + 1];
-      const y = ctx.y + rowHeight / 2;
+      const y = top + rowHeight / 2;
       arrows.push({x1: a.x + a.w, y1: y, x2: b.x, y2: y});
     }
   }
 
-  registerRowSlots(ctx, band.id, band, ctx.y, rowHeight, padX, cw, rowGap, placedChildren);
-  ctx.laidOut.push({type: 'row', id: band.id, x: padX, y: ctx.y, w: cw, h: rowHeight, children: placedChildren, arrows});
+  registerRowSlots(ctx, band.id, band, top, rowHeight, padX, cw, rowGap, placedChildren);
+  ctx.laidOut.push({type: 'row', id: band.id, x: padX, y: top, w: cw, h: rowHeight, children: placedChildren, arrows});
   ctx.y += rowHeight + d.gap;
 }
 
@@ -451,7 +460,7 @@ function layoutCanvasGrid(band: GridBand & {canvas: NonNullable<GridBand['canvas
 
 function layoutPlainGrid(band: GridBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d} = ctx;
-  const gridStartY = ctx.y;
+  const gridStartY = snapGrid(ctx.y);
   const {xs, ws} = gridChildGeometry(band, cw);
   const cols = band.cols;
   const placedRows: Placed<BoxBand>[] = [];
@@ -479,7 +488,7 @@ function layoutPyramid(band: PyramidBand, ctx: LayoutCtx, padX: number, cw: numb
   const cx = padX + cw / 2;
   const layersOut: LaidOutPyramidLayer[] = [];
   for (let i = 0; i < n; i++) { // i=0 is the bottom (widest) layer
-    const bottomY = ctx.y + totalH - i * layerH;
+    const bottomY = snapGrid(ctx.y) + totalH - i * layerH;
     const topY = bottomY - layerH;
     const bottomW = baseWidth - (baseWidth - apexWidth) * (i / n);
     const topW = baseWidth - (baseWidth - apexWidth) * ((i + 1) / n);
@@ -506,7 +515,7 @@ function layoutPyramid(band: PyramidBand, ctx: LayoutCtx, padX: number, cw: numb
       opacity, textColor, lines, textYs, cx,
     });
   }
-  ctx.laidOut.push({type: 'pyramid', x: cx - baseWidth / 2, y: ctx.y, w: baseWidth, h: totalH, day: d.day, layers: layersOut});
+  ctx.laidOut.push({type: 'pyramid', x: cx - baseWidth / 2, y: snapGrid(ctx.y), w: baseWidth, h: totalH, day: d.day, layers: layersOut});
   ctx.y += totalH + d.gap;
 }
 
@@ -515,7 +524,7 @@ function layoutCurve(band: CurveBand, ctx: LayoutCtx, padX: number, cw: number):
   const w = band.width ?? cw;
   const h = band.height;
   const x = padX + (cw - w) / 2;
-  const y = ctx.y;
+  const y = snapGrid(ctx.y);
   const AXIS_LABEL_W = 44, AXIS_BOTTOM_GAP = 28, TOP_PAD = 14, RIGHT_PAD = 8;
   const axisX = x + AXIS_LABEL_W;
   const axisRight = x + w - RIGHT_PAD;
