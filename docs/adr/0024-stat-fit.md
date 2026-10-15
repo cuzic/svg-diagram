@@ -1,6 +1,6 @@
 # ADR 0024: `stat()` の値が幅に収まらないとき、値の文字を自動で縮める
 
-- 状態: 提案
+- 状態: 実装済み(U1〜U3: #237、U4〜U6: #240)
 - 日付: 2026-10-15
 - 基点: `origin/main`(4f70b45、PR #226 まで)
 - 関連: ADR 0002(量・強調の部品。`stat()` の出どころ)、ADR 0003(`stat` の値に spans を許さない)、ADR 0008(#7 スライド用キャンバス)、ADR 0014(byte 同一の扱い)、ADR 0016(実装計画の書き方)、ADR 0017(文字サイズの下限 `canvas.minText`)
@@ -156,3 +156,10 @@ stat: value "3割未満" does not fit its box even at the smallest size (24px: n
 3. **`wf.stat` と `people({side})`**: 同じ縮め方を入れるか。`wf.stat` は別実装、`people()` は列の寸法の throw(別の文面)。今回は触らない。
 4. **下限 24 の妥当性**: ADR 0008 #7 の 24 を流用した。ラベルの 14 との比、`display` を使った強い見せ場(56 → 24 は 4 割)が許せるか。実物(要望者の図)で見て、不自然なら `display` だけ下限を上げる(例 34 = `stat` の既定)。
 5. **`minText` が大きいとき**: `stat` の既定の大きさ(34 × s)を超える `minText` では、縮める余地が無い(`fit.min = run.size`、D4)。その場合は縮めず検査に回す。現行の `slide-min-text` との整合を、実装時にテストで確かめる。
+
+## 実装での補足(PR #237・#240)
+
+- **`fit.min` の `canvas.minText` の項は、`statFitMin` の引数では受けるが、呼び出し側は 0 を渡す**(U1): canvas のロール倍率 s から `round(24 × s)` が、最小ロール相当の `minText` を常に上回るため、`textRuns(band, roles)` に `minText` を通す配線は足していない。倍率 s は `roles.stat / ROLES.stat` から復元する。未決事項 5(`minText` が大きいとき)は、この範囲では起きない。
+- **`nowrapOverflow` の型は `{value, width, avail, min}[]`**(U5): throw の文面は下限と実測の幅を出し、`fix:` の行が付く。先頭の `stat: value "…" does not fit` は保っている。
+- **D4 の lint の記述を書き換えた**(#240): 「lint の床は図が宣言した `minText`(案件の `fontFloor` で許可したもの)で、縮めた値はそれを下回らない」。
+- **U6 の例**: `examples/stat.ts` に細い列(`flex: 0.5` の「3割未満」、`display`)を足した。縮んで 37px になる。

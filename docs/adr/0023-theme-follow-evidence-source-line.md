@@ -1,6 +1,6 @@
 # ADR 0023: ダークモードへの追従(F2)・数字の根拠の強さ(F3)・`--no-source-line`
 
-- 状態: 提案
+- 状態: 実装済み(F2: #236・#238、F3: #243・#244、`--no-source-line`: #235)
 - 日付: 2026-10-15
 - 基点: `origin/main`(ADR 0020 までと、#226 の TOC 修正を含む `4f70b45`)
 - 関連: ADR 0002(`stat()`)、ADR 0008 #1(`appearance`・`transparent`)・#8(`sourceLine`)、ADR 0013(古い出力・`<metadata>` のハッシュ)、ADR 0017(文字の下限 14px)、ADR 0018(deck ビューア。F2 は「別件」とされていた)、ADR 0020(H10 取り下げ後の代替案として `--no-source-line` を将来の候補にした)
@@ -191,3 +191,16 @@ U1 と U2 は `lib/tokens.ts` と `build-diagram.ts` で、U3〜U4 は `lib/type
 - F3: プロジェクト全体の既定(`.svg-diagram.json` の `evidenceCheck`)を足すか。依頼元の文書では全図に掛けたいはず。
 - F3: ラベルの文言(「報道・二次資料」)は依頼元の表(◎一次資料、○報道、△未確認)に合わせたが、差し替えを許すか。
 - `--no-source-line`: 同じ要望が「見出しのキャプション」にも広がるか(H10 は図に題名が描かれない前提の誤りだった)。広がるなら、フラグを一般化せず、別の ADR にする。
+
+## 実装での補足(F2 = PR #236・#238、F3 = PR #243・#244、`--no-source-line` = PR #235)
+
+- **`{auto: {…}}` は入れていない**(U1): `'auto'` だけで始めた(未決事項の 1 つめ)。後から足せる(`baseMapOf` の分岐を 1 つ足すだけ)。
+- **暗い側の SVG は `recolor(svg, 'dark')` ではなく、`@media` ブロックの色をそのまま当てた**(U2): `{tones}` の dark 対はトークン表に無く(`lint-svg` は単体で動くので表を持てない)、ブロックにだけある。ブラウザが暗い設定で実際に描く色と一致する。トーンの上書きが無い図では `recolor(…, 'dark')` と同じ文字列になる(テストで確認)。
+- **`emulateMedia` は使っていない**(U2): 現在の `lint-svg` に `emulateMedia` は無い。`auto` の SVG を文字列 2 つ(明側 = `@media` ブロックを外したもの、暗側 = それにブロックの置換を当てたもの)に分け、geometry と browser の両エンジンにかける。暗側の指摘は `file (暗い配色)` で出る。許す色は側ごと(明側は明るいトークンと `data-tone-colors`、暗側は暗いトークン・`data-palette`・`data-tone-colors`)。
+- **`scopeRules` は、`svg` で始まるセレクタに `#id svg` と `svg#id` の両方を出す**(U1): deck は section に id、`inlineSvg` はルートの svg に id が付くため。`@media` を含まない CSS は従来と同じ文字列。
+- **`lint-svg` は暗い側の `@media` の色を `off-token-color` の対象から外した**(U1): 明側の色だけを読む。暗い側の検査は U2 で入った。
+- **resvg は `@media (prefers-color-scheme)` を評価しない**(U1。未決事項の 3 つめの確認結果): PNG は明るい側で描かれる。`[fill="#ffffff" i]` の `i` フラグも resvg は未対応で、規則ごと無視される。どちらも明るい図に戻るだけで壊れない(`test/appearance-auto.test.ts`)。
+- **`--html` との併用は `renderDiagram` で throw**(U1): `build --html` と `renderSource({html})` が対象。deck の `--render html` は未提供で、入れるときに同じ関数を通る。
+- **`stat` の 3 行目(出典行)は muted で、`tone` を付けない**(F3 U3): 値の `tone` は引き継がない。`solid` / `accent` の箱では、ラベルと同じく `tone` なしで箱の文字色になる。縮小(ADR 0024)の対象は値(1 行目)だけで、3 行目は縮めない。
+- **`.svg-diagram.json` の `evidenceCheck` は未実装**(F3 U4。未決事項)。
+- **`--no-source-line` の範囲**(U5): `preview` / `show` と環境変数にフラグは無い(D12)。`deck` は `.ts` にだけ効き、`.svg` が入力にあれば警告する。使ったときだけ `<metadata>` に `noSourceLine: true` が残る。
