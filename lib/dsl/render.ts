@@ -36,6 +36,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (opts.sourceLine !== undefined && (typeof opts.sourceLine !== 'string' || !opts.sourceLine.trim() || /[\r\n]/.test(opts.sourceLine))) throw new Error('diagram({sourceLine}) must be a non-empty single-line string (e.g. "出典: 総務省 2025")');
   if (opts.layoutCheck === 'strict' && (opts.medium ?? (opts.theme === undefined ? 'slide' : 'doc')) === 'slide') throw new Error("diagram({layoutCheck: 'strict'}) needs a document figure (theme: ...): slide figures (day: ...) are not given the layout-* checks, so it would never warn");
   if (opts.layoutCheck !== undefined && opts.layoutCheck !== 'info' && opts.layoutCheck !== 'strict') throw new Error(`diagram({layoutCheck}) must be 'info' or 'strict' (got ${JSON.stringify(opts.layoutCheck)})`);
+  if (opts.tocCheck !== undefined && opts.tocCheck !== 'info' && opts.tocCheck !== 'strict') throw new Error(`diagram({tocCheck}) must be 'info' or 'strict' (got ${JSON.stringify(opts.tocCheck)})`);
   if (opts.legend !== undefined && opts.legend !== 'auto' && opts.legend !== false) throw new Error(`diagram({legend}) must be 'auto' or false (got ${JSON.stringify(opts.legend)})`);
   if (opts.canvas !== undefined && (opts.slide || opts.fill)) throw new Error('diagram({canvas}) is a whole slide drawn 1:1; it cannot be combined with `slide` / `fill` (those fit a figure into a measured slot of a Slidev slide)');
   const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...(opts.canvas === 'slide' ? {} : opts.canvas)};
@@ -61,6 +62,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     spotlight: opts.spotlight,
     sourceLine: opts.sourceLine,
     layoutCheck: opts.layoutCheck, // check only: the severity of the layout-* findings; never reaches the drawing
+    tocCheck: opts.tocCheck, // check only: the severity of the toc-* findings; never reaches the drawing
     fill: !!opts.fill, // fit-figure slide: build to the measured width/height, growing fonts to use the slack (see build())
     bands: [],
   };

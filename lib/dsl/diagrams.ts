@@ -120,10 +120,11 @@ export function causeTree(nodes: readonly CauseNode[], links: readonly CauseLink
     if (n.role !== undefined && !(n.role in CAUSE_ROLES)) throw new Error(`causeTree(): node "${n.id}" has role ${String(n.role)} (use ${Object.keys(CAUSE_ROLES).join(', ')})`);
     if (n.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(n.tone)) throw new Error(`causeTree(): node "${n.id}" has tone ${String(n.tone)}`);
   }
+  if (opts.tree !== undefined && !['crt', 'frt', 'prt', 'tt'].includes(opts.tree)) throw new Error(`causeTree(): tree must be 'crt', 'frt', 'prt' or 'tt' (got ${String(opts.tree)})`);
   if (opts.coreDriver !== undefined && typeof opts.coreDriver !== 'boolean') throw new Error(`causeTree(): coreDriver must be true or false (got ${String(opts.coreDriver)})`);
   const counted = opts.coreDriver ? reachCounts(nodes, links) : undefined, core = new Set(counted ? coreDrivers(counted) : []);
   const marked = counted ? nodes.map(n => !counted.has(n.id) ? n : {...n, ...(core.has(n.id) ? {core: true} : {}), ...(opts.counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}到達 UDE ${counted.get(n.id)}`})}) : nodes;
-  const band: CauseBand = {type: 'cause', nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  const band: CauseBand = {type: 'cause', nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.tree === undefined ? {} : {tree: opts.tree}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
 }
 export interface ArrowDiagramOpts extends Omit<StatesOpts, 'initial' | 'dir'> {
