@@ -39,5 +39,5 @@
   <text x="889" y="102" font-size="14" fill="#6f6659">2028</text>
   <text x="414" y="134" font-size="14" font-weight="700" fill="#1d5fa8">あと 4 か月</text>
 
-  <text x="20" y="168" font-size="14" font-weight="400" fill="#6f6659">出典: AWS 公式ドキュメント(RDS MySQL 5.7 のサポート終了予定)</text>
+  <text x="20" y="170" font-size="14" font-weight="400" fill="#6f6659">出典: AWS 公式ドキュメント(RDS MySQL 5.7 のサポート終了予定)</text>
 </svg>

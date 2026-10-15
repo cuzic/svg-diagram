@@ -15,7 +15,7 @@ import type {ChartBand} from '../charts.ts';
 import type {WaterfallOpts, WaterfallStep} from '../charts-waterfall.ts';
 import {causalBand, dependencyBand, pertBand} from '../semnet-dsl.ts';
 import type {CausalLink, PertTask} from '../semnet-analysis.ts';
-import type {CausalNode, CausalOpts, DependencyEdge, DependencyNode, DependencyOpts, PertOpts} from '../semnet.ts';
+import type {CausalIntervention, CausalNode, CausalOpts, DependencyEdge, DependencyNode, DependencyOpts, PertOpts} from '../semnet.ts';
 import type {PlaneBand} from '../types/figures.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
 import {plane} from './figures.ts';
@@ -37,7 +37,7 @@ export function waterfall(steps: readonly WaterfallStep[], opts: WaterfallOpts =
 export function pert<const T extends readonly PertTask[], const Id extends string = never>(tasks: T, opts?: PertOpts & {id?: Id}): ChartBand & Declares<Id | ChartIds<T>> & HandleOf<Id> & AnchorsOf<ChartIds<T>>;
 export function pert(tasks: readonly PertTask[], opts: PertOpts = {}): ChartBand { const band = pertBand(tasks, opts); return withHandle(withAnchors(band, band.ids), opts.id); }
 /** A causal-loop diagram. Link signs and delays are drawn; simple loops are classified R/B. */
-export function causalLoop<const N extends readonly CausalNode[], const Id extends string = never>(nodes: N, links: readonly CausalLink[], opts?: CausalOpts & {id?: Id}): ChartBand & Declares<Id | ChartIds<N>> & HandleOf<Id> & AnchorsOf<ChartIds<N>>;
+export function causalLoop<const N extends readonly CausalNode[], const I extends readonly CausalIntervention[] = readonly [], const Id extends string = never>(nodes: N, links: readonly CausalLink[], opts?: Omit<CausalOpts, 'interventions'> & {id?: Id; interventions?: I}): ChartBand & Declares<Id | ChartIds<N> | ChartIds<I>> & HandleOf<Id> & AnchorsOf<ChartIds<N> | ChartIds<I>>;
 export function causalLoop(nodes: readonly CausalNode[], links: readonly CausalLink[], opts: CausalOpts = {}): ChartBand { const band = causalBand(nodes, links, opts); return withHandle(withAnchors(band, band.ids), opts.id); }
 /** A typed / weighted dependency network with an automatic notation legend. */
 export function dependencyNetwork<const N extends readonly DependencyNode[], const Id extends string = never>(nodes: N, edges: readonly DependencyEdge[], opts?: DependencyOpts & {id?: Id}): ChartBand & Declares<Id | ChartIds<N>> & HandleOf<Id> & AnchorsOf<ChartIds<N>>;

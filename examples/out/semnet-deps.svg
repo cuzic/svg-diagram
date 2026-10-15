@@ -8,37 +8,33 @@
   </style>
   <rect x="0" y="0" width="940" height="300" fill="#ffffff"/>
 
-  <path d="M240,81.3 L316,81.3" fill="none" stroke="#1d5fa8" stroke-width="3.232050807568877" stroke-linejoin="round" stroke-dasharray="8,5"/>
-  <path d="M316,81.3 L305.8,86.9 L305.8,75.6 Z" fill="#1d5fa8"/>
-  <path d="M256.11,61 H299.89 V79 H256.11 Z" fill="#ffffff"/>
-  <text x="278" y="75" text-anchor="middle" font-size="14" fill="#22201b">利用 3</text>
-  <path d="M432,74.3 L450,74.3" fill="none" stroke="#b91c1c" stroke-width="2.914213562373095" stroke-linejoin="round"/>
-  <path d="M450,74.3 L450,54" fill="none" stroke="#b91c1c" stroke-width="2.914213562373095" stroke-linejoin="round"/>
-  <path d="M450,54 L508,54" fill="none" stroke="#b91c1c" stroke-width="2.914213562373095" stroke-linejoin="round"/>
-  <path d="M508,54 L498.1,59.5 L498.1,48.5 Z" fill="#b91c1c"/>
-  <path d="M460,44 H503.78 V62 H460 Z" fill="#ffffff"/>
-  <text x="462" y="58" font-size="14" fill="#22201b">依存 2</text>
-  <path d="M432,88.3 L499,88.3" fill="none" stroke="#b91c1c" stroke-width="3.73606797749979" stroke-linejoin="round"/>
-  <path d="M499,88.3 L499,108.5" fill="none" stroke="#b91c1c" stroke-width="3.73606797749979" stroke-linejoin="round"/>
-  <path d="M499,108.5 L633,108.5" fill="none" stroke="#b91c1c" stroke-width="3.73606797749979" stroke-linejoin="round"/>
-  <path d="M633,108.5 L633,95.3" fill="none" stroke="#b91c1c" stroke-width="3.73606797749979" stroke-linejoin="round"/>
-  <path d="M633,95.3 L700,95.3" fill="none" stroke="#b91c1c" stroke-width="3.73606797749979" stroke-linejoin="round"/>
-  <path d="M700,95.3 L689.3,101.2 L689.3,89.3 Z" fill="#b91c1c"/>
-  <path d="M544.11,89 H587.89 V107 H544.11 Z" fill="#ffffff"/>
-  <text x="566" y="103" text-anchor="middle" font-size="14" fill="#22201b">依存 5</text>
-  <path d="M624,54 L642,54" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="2,5"/>
-  <path d="M642,54 L642,81.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="2,5"/>
-  <path d="M642,81.3 L700,81.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="2,5"/>
-  <path d="M626,48 H658 V66 H626 Z" fill="#ffffff"/>
-  <text x="642" y="62" text-anchor="middle" font-size="14" fill="#22201b">関連</text>
-  <path d="M124,55.25 H240 V107.25 H124 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2"/>
-  <text x="182" y="86" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">Web アプリ</text>
-  <path d="M316,55.25 H432 V107.25 H316 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2"/>
-  <text x="374" y="86" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">API</text>
-  <path d="M508,28 H624 V80 H508 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2"/>
-  <text x="566" y="59" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">認証</text>
-  <path d="M700,55.25 H816 V107.25 H700 Z" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
-  <text x="758" y="86" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客 DB</text>
+  <path d="M240,145.3 L316,145.3" fill="none" stroke="#1d5fa8" stroke-width="3.232050807568877" stroke-linejoin="round" stroke-dasharray="8,5"/>
+  <path d="M316,145.3 L305.8,150.9 L305.8,139.6 Z" fill="#1d5fa8"/>
+  <path d="M432,128.1 L508,128.1" fill="none" stroke="#b91c1c" stroke-width="2.914213562373095" stroke-linejoin="round"/>
+  <path d="M508,128.1 L498.1,133.6 L498.1,122.7 Z" fill="#b91c1c"/>
+  <path d="M432,152.3 L499,152.3" fill="none" stroke="#b91c1c" stroke-width="3.73606797749979" stroke-linejoin="round"/>
+  <path d="M499,152.3 L499,172.5" fill="none" stroke="#b91c1c" stroke-width="3.73606797749979" stroke-linejoin="round"/>
+  <path d="M499,172.5 L633,172.5" fill="none" stroke="#b91c1c" stroke-width="3.73606797749979" stroke-linejoin="round"/>
+  <path d="M633,172.5 L633,159.3" fill="none" stroke="#b91c1c" stroke-width="3.73606797749979" stroke-linejoin="round"/>
+  <path d="M633,159.3 L700,159.3" fill="none" stroke="#b91c1c" stroke-width="3.73606797749979" stroke-linejoin="round"/>
+  <path d="M700,159.3 L689.3,165.2 L689.3,153.3 Z" fill="#b91c1c"/>
+  <path d="M624,131.6 L700,131.6" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="2,5"/>
+  <path d="M124,119.25 H240 V171.25 H124 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="182" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">Web アプリ</text>
+  <path d="M316,119.25 H432 V171.25 H316 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2"/>
+  <text x="374" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">API</text>
+  <path d="M508,92 H624 V144 H508 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2"/>
+  <text x="566" y="123" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">認証</text>
+  <path d="M700,119.25 H816 V171.25 H700 Z" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <text x="758" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客 DB</text>
+  <path d="M256.11,125 H299.89 V143 H256.11 Z" fill="#ffffff"/>
+  <text x="278" y="139" text-anchor="middle" font-size="14" fill="#22201b">利用 3</text>
+  <path d="M448.11,108 H491.89 V126 H448.11 Z" fill="#ffffff"/>
+  <text x="470" y="122" text-anchor="middle" font-size="14" fill="#22201b">依存 2</text>
+  <path d="M544.11,153 H587.89 V171 H544.11 Z" fill="#ffffff"/>
+  <text x="566" y="167" text-anchor="middle" font-size="14" fill="#22201b">依存 5</text>
+  <path d="M646,112 H678 V130 H646 Z" fill="#ffffff"/>
+  <text x="662" y="126" text-anchor="middle" font-size="14" fill="#22201b">関連</text>
   <path d="M24,263 H38 V273 H24 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2"/>
   <text x="44" y="275" font-size="14" fill="#22201b">アプリ</text>
   <path d="M104,263 H118 V273 H104 Z" fill="#ffffff" stroke="#b91c1c" stroke-width="2"/>

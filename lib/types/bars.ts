@@ -1,5 +1,5 @@
 // Types: bars.
-import type {Anchor, ColorKey, Dimmed, LabelRole, Rect, RevealOpts} from './core.ts';
+import type {Anchor, ColorKey, Dimmed, LabelRole, Rect, RevealOpts, ScopeOpts} from './core.ts';
 
 export type BarSeries = 'a' | 'b' | 'c';
 export type BarTone = 'accent' | 'danger' | 'muted';
@@ -13,7 +13,7 @@ export interface BarDatum extends RevealOpts {
   /** The id of an earlier bar of this band to take the place of: this bar sits in that bar's row / column, which vanishes (`until`) when this one appears (`reveal`, required). Not with `stack`. */
   replaces?: string;
 }
-export interface BarsOpts extends RevealOpts {
+export interface BarsOpts extends RevealOpts, ScopeOpts {
   /** A spotlight target (the bars inside it too) and a connect() endpoint (the whole band); it may not repeat a bar's id. */
   id?: string;
   /** The text role of every label of the figure (category, value, tick). Default 'note' (14px). Bars and the row pitch grow with it. */

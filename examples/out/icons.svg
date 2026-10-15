@@ -12,142 +12,142 @@
 
   <rect x="20" y="56" width="900" height="444" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
 
-  <text x="36" y="86.6" font-size="15" font-weight="700" fill="#22201b">box({icon}) / iconRow() — 図形として出す（色はトーン）</text>
+  <text x="36" y="87" font-size="15" font-weight="700" fill="#22201b">box({icon}) / iconRow() — 図形として出す（色はトーン）</text>
 
   <rect x="36" y="100" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="100" y="137.6" font-size="15" font-weight="700" fill="#22201b">bridge</text>
-  <path d="M7 14v-3.09c-.72-.33-1.39-.73-2-1.2V14zm-2 4H3v-2H1v-2h2V7h2v1.43C6.8 10 9.27 11 12 11s5.2-1 7-2.57V7h2v7h2v2h-2v2h-2v-2H5zm12-7.09V14h2V9.71c-.61.47-1.28.87-2 1.2M16 14v-2.68c-.64.23-1.31.4-2 .52V14zm-3 0v-2.04L12 12l-1-.04V14zm-3 0v-2.16c-.69-.12-1.36-.29-2-.52V14z" transform="translate(56 116.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="bridge"/>
+  <text x="100" y="137" font-size="15" font-weight="700" fill="#22201b">bridge</text>
+  <path d="M7 14v-3.09c-.72-.33-1.39-.73-2-1.2V14zm-2 4H3v-2H1v-2h2V7h2v1.43C6.8 10 9.27 11 12 11s5.2-1 7-2.57V7h2v7h2v2h-2v2h-2v-2H5zm12-7.09V14h2V9.71c-.61.47-1.28.87-2 1.2M16 14v-2.68c-.64.23-1.31.4-2 .52V14zm-3 0v-2.04L12 12l-1-.04V14zm-3 0v-2.16c-.69-.12-1.36-.29-2-.52V14z" transform="translate(56 116) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="bridge"/>
 
   <rect x="212" y="100" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="276.8" y="137.6" font-size="15" font-weight="700" fill="#22201b">check</text>
-  <path d="M21 7L9 19l-5.5-5.5l1.41-1.41L9 16.17L19.59 5.59z" transform="translate(232.8 116.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="check"/>
+  <text x="276" y="137" font-size="15" font-weight="700" fill="#22201b">check</text>
+  <path d="M21 7L9 19l-5.5-5.5l1.41-1.41L9 16.17L19.59 5.59z" transform="translate(232 116) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="check"/>
 
   <rect x="388" y="100" width="164" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="453.6" y="137.6" font-size="15" font-weight="700" fill="#22201b">clock</text>
-  <path d="M12 20a8 8 0 0 0 8-8a8 8 0 0 0-8-8a8 8 0 0 0-8 8a8 8 0 0 0 8 8m0-18a10 10 0 0 1 10 10a10 10 0 0 1-10 10C6.47 22 2 17.5 2 12A10 10 0 0 1 12 2m.5 5v5.25l4.5 2.67l-.75 1.23L11 13V7z" transform="translate(409.6 116.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="clock"/>
+  <text x="452" y="137" font-size="15" font-weight="700" fill="#22201b">clock</text>
+  <path d="M12 20a8 8 0 0 0 8-8a8 8 0 0 0-8-8a8 8 0 0 0-8 8a8 8 0 0 0 8 8m0-18a10 10 0 0 1 10 10a10 10 0 0 1-10 10C6.47 22 2 17.5 2 12A10 10 0 0 1 12 2m.5 5v5.25l4.5 2.67l-.75 1.23L11 13V7z" transform="translate(408 116) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="clock"/>
 
   <rect x="568" y="100" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="630.4000000000001" y="137.6" font-size="15" font-weight="700" fill="#22201b">close</text>
-  <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z" transform="translate(586.4 116.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="close"/>
+  <text x="632" y="137" font-size="15" font-weight="700" fill="#22201b">close</text>
+  <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z" transform="translate(588 116) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="close"/>
 
   <rect x="744" y="100" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="807.2" y="137.6" font-size="15" font-weight="700" fill="#22201b">cloud</text>
-  <path d="M6.5 20q-2.28 0-3.89-1.57Q1 16.85 1 14.58q0-1.95 1.17-3.48q1.18-1.53 3.08-1.95q.63-2.3 2.5-3.72Q9.63 4 12 4q2.93 0 4.96 2.04Q19 8.07 19 11q1.73.2 2.86 1.5q1.14 1.28 1.14 3q0 1.88-1.31 3.19T18.5 20Z" transform="translate(763.2 116.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="cloud"/>
+  <text x="808" y="137" font-size="15" font-weight="700" fill="#22201b">cloud</text>
+  <path d="M6.5 20q-2.28 0-3.89-1.57Q1 16.85 1 14.58q0-1.95 1.17-3.48q1.18-1.53 3.08-1.95q.63-2.3 2.5-3.72Q9.63 4 12 4q2.93 0 4.96 2.04Q19 8.07 19 11q1.73.2 2.86 1.5q1.14 1.28 1.14 3q0 1.88-1.31 3.19T18.5 20Z" transform="translate(764 116) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="cloud"/>
 
   <rect x="36" y="180" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="100" y="217.6" font-size="15" font-weight="700" fill="#22201b">container</text>
-  <g transform="translate(56 196.6) scale(1)" fill="#22201b" aria-hidden="true" data-icon="container"><path fill="#22201b" d="M30 24v-2h-2.1c-.1-.6-.4-1.2-.7-1.8l1.5-1.5l-1.4-1.4l-1.5 1.5c-.5-.3-1.1-.6-1.8-.7V16h-2v2.1c-.6.1-1.2.4-1.8.7l-1.5-1.5l-1.4 1.4l1.5 1.5c-.3.5-.6 1.1-.7 1.8H16v2h2.1c.1.6.4 1.2.7 1.8l-1.5 1.5l1.4 1.4l1.5-1.5c.5.3 1.1.6 1.8.7V30h2v-2.1c.6-.1 1.2-.4 1.8-.7l1.5 1.5l1.4-1.4l-1.5-1.5c.3-.5.6-1.1.7-1.8zm-7 2c-1.7 0-3-1.3-3-3s1.3-3 3-3s3 1.3 3 3s-1.3 3-3 3"/><path fill="#22201b" d="M14 28H6c-1.103 0-2-.897-2-2V6c0-1.103.897-2 2-2h20c1.103 0 2 .897 2 2v8h-2V6H6v20h8z"/></g>
+  <text x="100" y="217" font-size="15" font-weight="700" fill="#22201b">container</text>
+  <g transform="translate(56 196) scale(1)" fill="#22201b" aria-hidden="true" data-icon="container"><path fill="#22201b" d="M30 24v-2h-2.1c-.1-.6-.4-1.2-.7-1.8l1.5-1.5l-1.4-1.4l-1.5 1.5c-.5-.3-1.1-.6-1.8-.7V16h-2v2.1c-.6.1-1.2.4-1.8.7l-1.5-1.5l-1.4 1.4l1.5 1.5c-.3.5-.6 1.1-.7 1.8H16v2h2.1c.1.6.4 1.2.7 1.8l-1.5 1.5l1.4 1.4l1.5-1.5c.5.3 1.1.6 1.8.7V30h2v-2.1c.6-.1 1.2-.4 1.8-.7l1.5 1.5l1.4-1.4l-1.5-1.5c.3-.5.6-1.1.7-1.8zm-7 2c-1.7 0-3-1.3-3-3s1.3-3 3-3s3 1.3 3 3s-1.3 3-3 3"/><path fill="#22201b" d="M14 28H6c-1.103 0-2-.897-2-2V6c0-1.103.897-2 2-2h20c1.103 0 2 .897 2 2v8h-2V6H6v20h8z"/></g>
 
   <rect x="212" y="180" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="276.8" y="217.6" font-size="15" font-weight="700" fill="#22201b">database</text>
-  <path d="M12 3C7.58 3 4 4.79 4 7s3.58 4 8 4s8-1.79 8-4s-3.58-4-8-4M4 9v3c0 2.21 3.58 4 8 4s8-1.79 8-4V9c0 2.21-3.58 4-8 4s-8-1.79-8-4m0 5v3c0 2.21 3.58 4 8 4s8-1.79 8-4v-3c0 2.21-3.58 4-8 4s-8-1.79-8-4" transform="translate(232.8 196.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="database"/>
+  <text x="276" y="217" font-size="15" font-weight="700" fill="#22201b">database</text>
+  <path d="M12 3C7.58 3 4 4.79 4 7s3.58 4 8 4s8-1.79 8-4s-3.58-4-8-4M4 9v3c0 2.21 3.58 4 8 4s8-1.79 8-4V9c0 2.21-3.58 4-8 4s-8-1.79-8-4m0 5v3c0 2.21 3.58 4 8 4s8-1.79 8-4v-3c0 2.21-3.58 4-8 4s-8-1.79-8-4" transform="translate(232 196) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="database"/>
 
   <rect x="388" y="180" width="164" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="453.6" y="217.6" font-size="15" font-weight="700" fill="#22201b">dns</text>
-  <g transform="translate(409.6 196.6) scale(1)" fill="#22201b" aria-hidden="true" data-icon="dns"><path fill="#22201b" d="M20 20h10v2H20zm0 4h6v2h-6z"/><path fill="#22201b" d="M30 17v-1a13.987 13.987 0 1 0-10.77 13.625l-.46-1.946A12 12 0 0 1 16 28c-.19 0-.375-.019-.563-.027A20.3 20.3 0 0 1 12.026 17Zm-2.041-2h-5.984a24.3 24.3 0 0 0-2.774-10.559A12.02 12.02 0 0 1 27.96 15M16.563 4.027A20.3 20.3 0 0 1 19.974 15h-7.948a20.3 20.3 0 0 1 3.411-10.973C15.625 4.02 15.81 4 16 4s.375.019.563.027m-3.764.414A24.3 24.3 0 0 0 10.025 15H4.042a12.02 12.02 0 0 1 8.757-10.559m0 23.118A12.02 12.02 0 0 1 4.042 17h5.983a24.3 24.3 0 0 0 2.774 10.559"/></g>
+  <text x="452" y="217" font-size="15" font-weight="700" fill="#22201b">dns</text>
+  <g transform="translate(408 196) scale(1)" fill="#22201b" aria-hidden="true" data-icon="dns"><path fill="#22201b" d="M20 20h10v2H20zm0 4h6v2h-6z"/><path fill="#22201b" d="M30 17v-1a13.987 13.987 0 1 0-10.77 13.625l-.46-1.946A12 12 0 0 1 16 28c-.19 0-.375-.019-.563-.027A20.3 20.3 0 0 1 12.026 17Zm-2.041-2h-5.984a24.3 24.3 0 0 0-2.774-10.559A12.02 12.02 0 0 1 27.96 15M16.563 4.027A20.3 20.3 0 0 1 19.974 15h-7.948a20.3 20.3 0 0 1 3.411-10.973C15.625 4.02 15.81 4 16 4s.375.019.563.027m-3.764.414A24.3 24.3 0 0 0 10.025 15H4.042a12.02 12.02 0 0 1 8.757-10.559m0 23.118A12.02 12.02 0 0 1 4.042 17h5.983a24.3 24.3 0 0 0 2.774 10.559"/></g>
 
   <rect x="568" y="180" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="630.4000000000001" y="217.6" font-size="15" font-weight="700" fill="#22201b">document</text>
-  <path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm0 2h7v5h5v11H6zm2 8v2h8v-2zm0 4v2h5v-2z" transform="translate(586.4 196.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="document"/>
+  <text x="632" y="217" font-size="15" font-weight="700" fill="#22201b">document</text>
+  <path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm0 2h7v5h5v11H6zm2 8v2h8v-2zm0 4v2h5v-2z" transform="translate(588 196) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="document"/>
 
   <rect x="744" y="180" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="807.2" y="217.6" font-size="15" font-weight="700" fill="#22201b">fence</text>
-  <path d="M9 9v2H7V9H5v2H3V9H1v12h2v-2h2v2h2v-2h2v2h2v-2h2v2h2v-2h2v2h2v-2h2v2h2V9h-2v2h-2V9h-2v2h-2V9h-2v2h-2V9zm-6 4h2v4H3zm4 0h2v4H7zm4 0h2v4h-2zm4 0h2v4h-2zm4 0h2v4h-2z" transform="translate(763.2 196.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="fence"/>
+  <text x="808" y="217" font-size="15" font-weight="700" fill="#22201b">fence</text>
+  <path d="M9 9v2H7V9H5v2H3V9H1v12h2v-2h2v2h2v-2h2v2h2v-2h2v2h2v-2h2v2h2v-2h2v2h2V9h-2v2h-2V9h-2v2h-2V9h-2v2h-2V9zm-6 4h2v4H3zm4 0h2v4H7zm4 0h2v4h-2zm4 0h2v4h-2zm4 0h2v4h-2z" transform="translate(764 196) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="fence"/>
 
   <rect x="36" y="260" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="100" y="297.6" font-size="15" font-weight="700" fill="#22201b">flag</text>
-  <path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z" transform="translate(56 276.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="flag"/>
+  <text x="100" y="297" font-size="15" font-weight="700" fill="#22201b">flag</text>
+  <path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z" transform="translate(56 276) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="flag"/>
 
   <rect x="212" y="260" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="276.8" y="297.6" font-size="15" font-weight="700" fill="#22201b">folder</text>
-  <path d="M20 18H4V8h16m0-2h-8l-2-2H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2" transform="translate(232.8 276.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="folder"/>
+  <text x="276" y="297" font-size="15" font-weight="700" fill="#22201b">folder</text>
+  <path d="M20 18H4V8h16m0-2h-8l-2-2H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2" transform="translate(232 276) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="folder"/>
 
   <rect x="388" y="260" width="164" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="453.6" y="297.6" font-size="15" font-weight="700" fill="#22201b">fw</text>
-  <g transform="translate(409.6 276.6) scale(1)" fill="#22201b" aria-hidden="true" data-icon="fw"><path fill="#22201b" d="M27 20.397v3c-1 0-2-1.5-2-4v-3c-4 5-5 7-5 9A5 5 0 0 0 23.046 30A7.53 7.53 0 0 1 25 26.397A7.53 7.53 0 0 1 26.954 30A5 5 0 0 0 30 25.397c0-2-1.125-3.571-3-5M17 28H4v-4h13v-2H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h13Z"/><path fill="#22201b" d="M28 12H7a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h10v-2H7v-4h21l.001 2H30v-2a2 2 0 0 0-2-2m-3-2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h21a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2M4 4v4h21V4Z"/></g>
+  <text x="452" y="297" font-size="15" font-weight="700" fill="#22201b">fw</text>
+  <g transform="translate(408 276) scale(1)" fill="#22201b" aria-hidden="true" data-icon="fw"><path fill="#22201b" d="M27 20.397v3c-1 0-2-1.5-2-4v-3c-4 5-5 7-5 9A5 5 0 0 0 23.046 30A7.53 7.53 0 0 1 25 26.397A7.53 7.53 0 0 1 26.954 30A5 5 0 0 0 30 25.397c0-2-1.125-3.571-3-5M17 28H4v-4h13v-2H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h13Z"/><path fill="#22201b" d="M28 12H7a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h10v-2H7v-4h21l.001 2H30v-2a2 2 0 0 0-2-2m-3-2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h21a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2M4 4v4h21V4Z"/></g>
 
   <rect x="568" y="260" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="630.4000000000001" y="297.6" font-size="15" font-weight="700" fill="#22201b">gear</text>
-  <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97s-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1s.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64z" transform="translate(586.4 276.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="gear"/>
+  <text x="632" y="297" font-size="15" font-weight="700" fill="#22201b">gear</text>
+  <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97s-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1s.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64z" transform="translate(588 276) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="gear"/>
 
   <rect x="744" y="260" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="807.2" y="297.6" font-size="15" font-weight="700" fill="#22201b">idea</text>
-  <path d="M20 11h3v2h-3zM1 11h3v2H1zM13 1v3h-2V1zM4.92 3.5l2.13 2.14l-1.42 1.41L3.5 4.93zm12.03 2.13l2.12-2.13l1.43 1.43l-2.13 2.12zM12 6a6 6 0 0 1 6 6c0 2.22-1.21 4.16-3 5.2V19a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-1.8c-1.79-1.04-3-2.98-3-5.2a6 6 0 0 1 6-6m2 15v1a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-1zm-3-3h2v-2.13c1.73-.44 3-2.01 3-3.87a4 4 0 0 0-4-4a4 4 0 0 0-4 4c0 1.86 1.27 3.43 3 3.87z" transform="translate(763.2 276.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="idea"/>
+  <text x="808" y="297" font-size="15" font-weight="700" fill="#22201b">idea</text>
+  <path d="M20 11h3v2h-3zM1 11h3v2H1zM13 1v3h-2V1zM4.92 3.5l2.13 2.14l-1.42 1.41L3.5 4.93zm12.03 2.13l2.12-2.13l1.43 1.43l-2.13 2.12zM12 6a6 6 0 0 1 6 6c0 2.22-1.21 4.16-3 5.2V19a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-1.8c-1.79-1.04-3-2.98-3-5.2a6 6 0 0 1 6-6m2 15v1a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-1zm-3-3h2v-2.13c1.73-.44 3-2.01 3-3.87a4 4 0 0 0-4-4a4 4 0 0 0-4 4c0 1.86 1.27 3.43 3 3.87z" transform="translate(764 276) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="idea"/>
 
   <rect x="36" y="340" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="100" y="377.6" font-size="15" font-weight="700" fill="#22201b">key</text>
-  <path d="M22 18v4h-4v-3h-3v-3h-3l-2.26-2.26c-.55.17-1.13.26-1.74.26a6 6 0 0 1-6-6a6 6 0 0 1 6-6a6 6 0 0 1 6 6c0 .61-.09 1.19-.26 1.74zM7 5a2 2 0 0 0-2 2a2 2 0 0 0 2 2a2 2 0 0 0 2-2a2 2 0 0 0-2-2" transform="translate(56 356.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="key"/>
+  <text x="100" y="377" font-size="15" font-weight="700" fill="#22201b">key</text>
+  <path d="M22 18v4h-4v-3h-3v-3h-3l-2.26-2.26c-.55.17-1.13.26-1.74.26a6 6 0 0 1-6-6a6 6 0 0 1 6-6a6 6 0 0 1 6 6c0 .61-.09 1.19-.26 1.74zM7 5a2 2 0 0 0-2 2a2 2 0 0 0 2 2a2 2 0 0 0 2-2a2 2 0 0 0-2-2" transform="translate(56 356) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="key"/>
 
   <rect x="212" y="340" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="276.8" y="377.6" font-size="15" font-weight="700" fill="#22201b">lb</text>
-  <path d="M8 30H2v-6h6Zm-4-2h2v-2H4Zm15 2h-6v-6h6Zm-4-2h2v-2h-2Zm15 2h-6v-6h6Zm-4-2h2v-2h-2ZM16 10a4 4 0 1 1 4-4a4.005 4.005 0 0 1-4 4m0-6a2 2 0 1 0 2 2a2 2 0 0 0-2-2m10 12h-5a4.005 4.005 0 0 1-4-4h-2a4.005 4.005 0 0 1-4 4H6a2 2 0 0 0-2 2v4h2v-4h5a5.97 5.97 0 0 0 4-1.54V22h2v-5.54A5.97 5.97 0 0 0 21 18h5v4h2v-4a2 2 0 0 0-2-2" transform="translate(232.8 356.6) scale(1)" fill="#22201b" aria-hidden="true" data-icon="lb"/>
+  <text x="276" y="377" font-size="15" font-weight="700" fill="#22201b">lb</text>
+  <path d="M8 30H2v-6h6Zm-4-2h2v-2H4Zm15 2h-6v-6h6Zm-4-2h2v-2h-2Zm15 2h-6v-6h6Zm-4-2h2v-2h-2ZM16 10a4 4 0 1 1 4-4a4.005 4.005 0 0 1-4 4m0-6a2 2 0 1 0 2 2a2 2 0 0 0-2-2m10 12h-5a4.005 4.005 0 0 1-4-4h-2a4.005 4.005 0 0 1-4 4H6a2 2 0 0 0-2 2v4h2v-4h5a5.97 5.97 0 0 0 4-1.54V22h2v-5.54A5.97 5.97 0 0 0 21 18h5v4h2v-4a2 2 0 0 0-2-2" transform="translate(232 356) scale(1)" fill="#22201b" aria-hidden="true" data-icon="lb"/>
 
   <rect x="388" y="340" width="164" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="453.6" y="377.6" font-size="15" font-weight="700" fill="#22201b">link</text>
-  <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0-5 5a5 5 0 0 0 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1M8 13h8v-2H8zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 5-5a5 5 0 0 0-5-5" transform="translate(409.6 356.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="link"/>
+  <text x="452" y="377" font-size="15" font-weight="700" fill="#22201b">link</text>
+  <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0-5 5a5 5 0 0 0 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1M8 13h8v-2H8zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 5-5a5 5 0 0 0-5-5" transform="translate(408 356) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="link"/>
 
   <rect x="568" y="340" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="630.4000000000001" y="377.6" font-size="15" font-weight="700" fill="#22201b">lock</text>
-  <path d="M12 17a2 2 0 0 0 2-2a2 2 0 0 0-2-2a2 2 0 0 0-2 2a2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5a5 5 0 0 1 5 5v2zm-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3" transform="translate(586.4 356.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="lock"/>
+  <text x="632" y="377" font-size="15" font-weight="700" fill="#22201b">lock</text>
+  <path d="M12 17a2 2 0 0 0 2-2a2 2 0 0 0-2-2a2 2 0 0 0-2 2a2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5a5 5 0 0 1 5 5v2zm-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3" transform="translate(588 356) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="lock"/>
 
   <rect x="744" y="340" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="807.2" y="377.6" font-size="15" font-weight="700" fill="#22201b">mail</text>
-  <path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2zm-2 0l-8 5l-8-5zm0 12H4V8l8 5l8-5z" transform="translate(763.2 356.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="mail"/>
+  <text x="808" y="377" font-size="15" font-weight="700" fill="#22201b">mail</text>
+  <path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2zm-2 0l-8 5l-8-5zm0 12H4V8l8 5l8-5z" transform="translate(764 356) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="mail"/>
 
   <rect x="36" y="420" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="100" y="457.6" font-size="15" font-weight="700" fill="#22201b">monitor</text>
-  <g transform="translate(56 436.6) scale(1)" fill="#22201b" aria-hidden="true" data-icon="monitor"><path fill="#22201b" d="M28 16v6H4V6h7V4H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8v4H8v2h16v-2h-4v-4h8a2 2 0 0 0 2-2v-6ZM18 28h-4v-4h4Z"/><path fill="#22201b" d="M18 18h-.01a1 1 0 0 1-.951-.725L15.246 11H11V9h5a1 1 0 0 1 .962.725l1.074 3.76l3.009-9.78A1.01 1.01 0 0 1 22 3a.98.98 0 0 1 .949.684L24.72 9H30v2h-6a1 1 0 0 1-.949-.684l-1.013-3.04l-3.082 10.018A1 1 0 0 1 18 18"/></g>
+  <text x="100" y="457" font-size="15" font-weight="700" fill="#22201b">monitor</text>
+  <g transform="translate(56 436) scale(1)" fill="#22201b" aria-hidden="true" data-icon="monitor"><path fill="#22201b" d="M28 16v6H4V6h7V4H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8v4H8v2h16v-2h-4v-4h8a2 2 0 0 0 2-2v-6ZM18 28h-4v-4h4Z"/><path fill="#22201b" d="M18 18h-.01a1 1 0 0 1-.951-.725L15.246 11H11V9h5a1 1 0 0 1 .962.725l1.074 3.76l3.009-9.78A1.01 1.01 0 0 1 22 3a.98.98 0 0 1 .949.684L24.72 9H30v2h-6a1 1 0 0 1-.949-.684l-1.013-3.04l-3.082 10.018A1 1 0 0 1 18 18"/></g>
 
   <rect x="212" y="420" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="276.8" y="457.6" font-size="15" font-weight="700" fill="#22201b">objects</text>
-  <g transform="translate(232.8 436.6) scale(1)" fill="#22201b" aria-hidden="true" data-icon="objects"><path fill="#22201b" d="M28 20h-2v2h2v6H4v-6h10v-2H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h24a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2"/><circle cx="7" cy="25" r="1" fill="#22201b"/><path fill="#22201b" d="M30 8h-8v6h-6v8h8v-6h6Zm-8 12h-4v-4h4Zm6-6h-4v-4h4Zm-10-4h-8V2h8Zm-6-2h4V4h-4Z"/></g>
+  <text x="276" y="457" font-size="15" font-weight="700" fill="#22201b">objects</text>
+  <g transform="translate(232 436) scale(1)" fill="#22201b" aria-hidden="true" data-icon="objects"><path fill="#22201b" d="M28 20h-2v2h2v6H4v-6h10v-2H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h24a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2"/><circle cx="7" cy="25" r="1" fill="#22201b"/><path fill="#22201b" d="M30 8h-8v6h-6v8h8v-6h6Zm-8 12h-4v-4h4Zm6-6h-4v-4h4Zm-10-4h-8V2h8Zm-6-2h4V4h-4Z"/></g>
 
   <rect x="388" y="420" width="164" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="453.6" y="457.6" font-size="15" font-weight="700" fill="#22201b">people</text>
-  <path d="M16 17v2H2v-2s0-4 7-4s7 4 7 4m-3.5-9.5A3.5 3.5 0 1 0 9 11a3.5 3.5 0 0 0 3.5-3.5m3.44 5.5A5.32 5.32 0 0 1 18 17v2h4v-2s0-3.63-6.06-4M15 4a3.4 3.4 0 0 0-1.93.59a5 5 0 0 1 0 5.82A3.4 3.4 0 0 0 15 11a3.5 3.5 0 0 0 0-7" transform="translate(409.6 436.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="people"/>
+  <text x="452" y="457" font-size="15" font-weight="700" fill="#22201b">people</text>
+  <path d="M16 17v2H2v-2s0-4 7-4s7 4 7 4m-3.5-9.5A3.5 3.5 0 1 0 9 11a3.5 3.5 0 0 0 3.5-3.5m3.44 5.5A5.32 5.32 0 0 1 18 17v2h4v-2s0-3.63-6.06-4M15 4a3.4 3.4 0 0 0-1.93.59a5 5 0 0 1 0 5.82A3.4 3.4 0 0 0 15 11a3.5 3.5 0 0 0 0-7" transform="translate(408 436) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="people"/>
 
   <rect x="568" y="420" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="630.4000000000001" y="457.6" font-size="15" font-weight="700" fill="#22201b">person</text>
-  <path d="M12 4a4 4 0 0 1 4 4a4 4 0 0 1-4 4a4 4 0 0 1-4-4a4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4" transform="translate(586.4 436.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="person"/>
+  <text x="632" y="457" font-size="15" font-weight="700" fill="#22201b">person</text>
+  <path d="M12 4a4 4 0 0 1 4 4a4 4 0 0 1-4 4a4 4 0 0 1-4-4a4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4" transform="translate(588 436) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="person"/>
 
   <rect x="744" y="420" width="160" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="807.2" y="457.6" font-size="15" font-weight="700" fill="#22201b">queue</text>
-  <g transform="translate(763.2 436.6) scale(1)" fill="#22201b" aria-hidden="true" data-icon="queue"><path fill="#22201b" d="M28 28H4a2 2 0 0 1-2-2v-5h2v5h24v-5h2v5a2 2 0 0 1-2 2"/><path fill="#22201b" d="M7 21h18v2H7zm0-5h18v2H7zm0-5h18v2H7zm0-5h18v2H7z"/></g>
+  <text x="808" y="457" font-size="15" font-weight="700" fill="#22201b">queue</text>
+  <g transform="translate(764 436) scale(1)" fill="#22201b" aria-hidden="true" data-icon="queue"><path fill="#22201b" d="M28 28H4a2 2 0 0 1-2-2v-5h2v5h24v-5h2v5a2 2 0 0 1-2 2"/><path fill="#22201b" d="M7 21h18v2H7zm0-5h18v2H7zm0-5h18v2H7zm0-5h18v2H7z"/></g>
 
   <rect x="20" y="516" width="900" height="196" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
 
-  <text x="36" y="547.6" font-size="15" font-weight="700" fill="#22201b">icon.emoji(name) — 文字列の中で使う（見た目は環境の絵文字フォント）</text>
+  <text x="36" y="547" font-size="15" font-weight="700" fill="#22201b">icon.emoji(name) — 文字列の中で使う（見た目は環境の絵文字フォント）</text>
 
-  <text x="470" y="575.6" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b"><tspan class="emoji">🧑</tspan> person   <tspan class="emoji">👥</tspan> people   <tspan class="emoji">📄</tspan> document   <tspan class="emoji">📁</tspan> folder   <tspan class="emoji">🔑</tspan> key   <tspan class="emoji">🔒</tspan> lock   <tspan class="emoji">🌉</tspan> bridge   <tspan class="emoji">🚧</tspan> fence   <tspan class="emoji">🪜</tspan> ladder</text>
+  <text x="470" y="574" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b"><tspan class="emoji">🧑</tspan> person   <tspan class="emoji">👥</tspan> people   <tspan class="emoji">📄</tspan> document   <tspan class="emoji">📁</tspan> folder   <tspan class="emoji">🔑</tspan> key   <tspan class="emoji">🔒</tspan> lock   <tspan class="emoji">🌉</tspan> bridge   <tspan class="emoji">🚧</tspan> fence   <tspan class="emoji">🪜</tspan> ladder</text>
 
-  <text x="470" y="611.2" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b"><tspan class="emoji">💡</tspan> idea   <tspan class="emoji">🔍</tspan> search   <tspan class="emoji">🔧</tspan> tool   <tspan class="emoji">🌐</tspan> globe   <tspan class="emoji">💾</tspan> database   <tspan class="emoji">📧</tspan> mail   <tspan class="emoji">🚨</tspan> warning   <tspan class="emoji">🎯</tspan> target   <tspan class="emoji">🔗</tspan> link   <tspan class="emoji">🍚</tspan> rice   <tspan class="emoji">🌾</tspan> riceplant   <tspan class="emoji">🍙</tspan> onigiri   <tspan class="emoji">🍱</tspan></text>
-  <text x="470" y="630.8000000000001" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">bento   <tspan class="emoji">🍜</tspan> noodles   <tspan class="emoji">🍞</tspan> bread   <tspan class="emoji">🥗</tspan> salad   <tspan class="emoji">🥕</tspan> carrot   <tspan class="emoji">🍎</tspan> apple   <tspan class="emoji">🥩</tspan> meat   <tspan class="emoji">🐟</tspan> fish   <tspan class="emoji">🥚</tspan> egg   <tspan class="emoji">🥛</tspan> milk   <tspan class="emoji">🍳</tspan> cooking   <tspan class="emoji">🧊</tspan> ice   <tspan class="emoji">📦</tspan> package</text>
-  <text x="470" y="650.4000000000001" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b"><tspan class="emoji">🔨</tspan> hammer   <tspan class="emoji">🧰</tspan> toolbox   <tspan class="emoji">🏠</tspan> house   <tspan class="emoji">🏢</tspan> office   <tspan class="emoji">🚀</tspan> rocket   <tspan class="emoji">🔔</tspan> bell   <tspan class="emoji">🔥</tspan> fire   <tspan class="emoji">💰</tspan> money   <tspan class="emoji">📅</tspan> calendar   <tspan class="emoji">📝</tspan> memo   <tspan class="emoji">🕐</tspan> clock   <tspan class="emoji">📊</tspan> chart</text>
-  <text x="470" y="670" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b"><tspan class="emoji">📈</tspan> growth   <tspan class="emoji">📉</tspan> decline   <tspan class="emoji">💬</tspan> speech   <tspan class="emoji">😀</tspan> smile   <tspan class="emoji">🤔</tspan> thinking   <tspan class="emoji">😅</tspan> sweat   <tspan class="emoji">😢</tspan> sad   <tspan class="emoji">😠</tspan> angry   <tspan class="emoji">😴</tspan> sleepy   <tspan class="emoji">👍</tspan> thumbsup   <tspan class="emoji">👏</tspan> clap   <tspan class="emoji">🙏</tspan></text>
-  <text x="470" y="689.6" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">pray   <tspan class="emoji">👀</tspan> eyes   <tspan class="emoji">🧠</tspan> brain   <tspan class="emoji">🤝</tspan> handshake   <tspan class="emoji">🏃</tspan> runner</text>
+  <text x="470" y="610" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b"><tspan class="emoji">💡</tspan> idea   <tspan class="emoji">🔍</tspan> search   <tspan class="emoji">🔧</tspan> tool   <tspan class="emoji">🌐</tspan> globe   <tspan class="emoji">💾</tspan> database   <tspan class="emoji">📧</tspan> mail   <tspan class="emoji">🚨</tspan> warning   <tspan class="emoji">🎯</tspan> target   <tspan class="emoji">🔗</tspan> link   <tspan class="emoji">🍚</tspan> rice   <tspan class="emoji">🌾</tspan> riceplant   <tspan class="emoji">🍙</tspan> onigiri   <tspan class="emoji">🍱</tspan></text>
+  <text x="470" y="629.6" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">bento   <tspan class="emoji">🍜</tspan> noodles   <tspan class="emoji">🍞</tspan> bread   <tspan class="emoji">🥗</tspan> salad   <tspan class="emoji">🥕</tspan> carrot   <tspan class="emoji">🍎</tspan> apple   <tspan class="emoji">🥩</tspan> meat   <tspan class="emoji">🐟</tspan> fish   <tspan class="emoji">🥚</tspan> egg   <tspan class="emoji">🥛</tspan> milk   <tspan class="emoji">🍳</tspan> cooking   <tspan class="emoji">🧊</tspan> ice   <tspan class="emoji">📦</tspan> package</text>
+  <text x="470" y="649.2" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b"><tspan class="emoji">🔨</tspan> hammer   <tspan class="emoji">🧰</tspan> toolbox   <tspan class="emoji">🏠</tspan> house   <tspan class="emoji">🏢</tspan> office   <tspan class="emoji">🚀</tspan> rocket   <tspan class="emoji">🔔</tspan> bell   <tspan class="emoji">🔥</tspan> fire   <tspan class="emoji">💰</tspan> money   <tspan class="emoji">📅</tspan> calendar   <tspan class="emoji">📝</tspan> memo   <tspan class="emoji">🕐</tspan> clock   <tspan class="emoji">📊</tspan> chart</text>
+  <text x="470" y="668.8" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b"><tspan class="emoji">📈</tspan> growth   <tspan class="emoji">📉</tspan> decline   <tspan class="emoji">💬</tspan> speech   <tspan class="emoji">😀</tspan> smile   <tspan class="emoji">🤔</tspan> thinking   <tspan class="emoji">😅</tspan> sweat   <tspan class="emoji">😢</tspan> sad   <tspan class="emoji">😠</tspan> angry   <tspan class="emoji">😴</tspan> sleepy   <tspan class="emoji">👍</tspan> thumbsup   <tspan class="emoji">👏</tspan> clap   <tspan class="emoji">🙏</tspan></text>
+  <text x="470" y="688.4" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">pray   <tspan class="emoji">👀</tspan> eyes   <tspan class="emoji">🧠</tspan> brain   <tspan class="emoji">🤝</tspan> handshake   <tspan class="emoji">🏃</tspan> runner</text>
 
-  <text x="470" y="741.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">例: 認証の橋渡し</text>
+  <text x="470" y="742" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">例: 認証の橋渡し</text>
 
   <rect x="20" y="764" width="288" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="84" y="793.8000000000001" font-size="15" font-weight="700" fill="#22201b">利用者</text>
-  <text x="84" y="821.8000000000001" font-size="14" font-weight="400" fill="#22201b">社内の誰か</text>
-  <path d="M12 4a4 4 0 0 1 4 4a4 4 0 0 1-4 4a4 4 0 0 1-4-4a4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4" transform="translate(40 778.8) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="person"/>
+  <text x="84" y="795" font-size="15" font-weight="700" fill="#22201b">利用者</text>
+  <text x="84" y="823" font-size="14" font-weight="400" fill="#22201b">社内の誰か</text>
+  <path d="M12 4a4 4 0 0 1 4 4a4 4 0 0 1-4 4a4 4 0 0 1-4-4a4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4" transform="translate(40 780) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="person"/>
 
   <rect x="324" y="764" width="292" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="389.3333333333333" y="793.8000000000001" font-size="15" font-weight="700" fill="#22201b">認証ゲート</text>
-  <text x="389.3333333333333" y="821.8000000000001" font-size="14" font-weight="400" fill="#22201b">通れるのは鍵を持つ人だけ</text>
-  <path d="M9 9v2H7V9H5v2H3V9H1v12h2v-2h2v2h2v-2h2v2h2v-2h2v2h2v-2h2v2h2v-2h2v2h2V9h-2v2h-2V9h-2v2h-2V9h-2v2h-2V9zm-6 4h2v4H3zm4 0h2v4H7zm4 0h2v4h-2zm4 0h2v4h-2zm4 0h2v4h-2z" transform="translate(345.3333 778.8) scale(1.3333)" fill="#b91c1c" aria-hidden="true" data-icon="fence"/>
+  <text x="388" y="795" font-size="15" font-weight="700" fill="#22201b">認証ゲート</text>
+  <text x="388" y="823" font-size="14" font-weight="400" fill="#22201b">通れるのは鍵を持つ人だけ</text>
+  <path d="M9 9v2H7V9H5v2H3V9H1v12h2v-2h2v2h2v-2h2v2h2v-2h2v2h2v-2h2v2h2v-2h2v2h2V9h-2v2h-2V9h-2v2h-2V9h-2v2h-2V9zm-6 4h2v4H3zm4 0h2v4H7zm4 0h2v4h-2zm4 0h2v4h-2zm4 0h2v4h-2z" transform="translate(344 780) scale(1.3333)" fill="#b91c1c" aria-hidden="true" data-icon="fence"/>
 
   <rect x="632" y="764" width="288" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="694.6666666666666" y="793.8000000000001" font-size="15" font-weight="700" fill="#22201b">顧客データ</text>
-  <text x="694.6666666666666" y="821.8000000000001" font-size="14" font-weight="400" fill="#22201b">鍵がないと開けない</text>
-  <path d="M12 3C7.58 3 4 4.79 4 7s3.58 4 8 4s8-1.79 8-4s-3.58-4-8-4M4 9v3c0 2.21 3.58 4 8 4s8-1.79 8-4V9c0 2.21-3.58 4-8 4s-8-1.79-8-4m0 5v3c0 2.21 3.58 4 8 4s8-1.79 8-4v-3c0 2.21-3.58 4-8 4s-8-1.79-8-4" transform="translate(650.6667 778.8) scale(1.3333)" fill="#1d5fa8" aria-hidden="true" data-icon="database"/>
+  <text x="696" y="795" font-size="15" font-weight="700" fill="#22201b">顧客データ</text>
+  <text x="696" y="823" font-size="14" font-weight="400" fill="#22201b">鍵がないと開けない</text>
+  <path d="M12 3C7.58 3 4 4.79 4 7s3.58 4 8 4s8-1.79 8-4s-3.58-4-8-4M4 9v3c0 2.21 3.58 4 8 4s8-1.79 8-4V9c0 2.21-3.58 4-8 4s-8-1.79-8-4m0 5v3c0 2.21 3.58 4 8 4s8-1.79 8-4v-3c0 2.21-3.58 4-8 4s-8-1.79-8-4" transform="translate(652 780) scale(1.3333)" fill="#1d5fa8" aria-hidden="true" data-icon="database"/>
 
-  <rect x="20" y="860" width="444" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="40" y="890.4000000000001" font-size="15" font-weight="700" fill="#22201b"><tspan class="emoji">🔑</tspan> 鍵の管理</text>
-  <text x="40" y="918.4000000000001" font-size="14" font-weight="400" fill="#22201b">発行・失効・ローテーションを一か所で</text>
+  <rect x="20" y="860" width="440" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="40" y="891" font-size="15" font-weight="700" fill="#22201b"><tspan class="emoji">🔑</tspan> 鍵の管理</text>
+  <text x="40" y="919" font-size="14" font-weight="400" fill="#22201b">発行・失効・ローテーションを一か所で</text>
 
   <rect x="480" y="860" width="440" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="498" y="890.4000000000001" font-size="15" font-weight="700" fill="#22201b"><tspan class="emoji">🌉</tspan> 移行の橋</text>
-  <text x="498" y="918.4000000000001" font-size="14" font-weight="400" fill="#22201b">旧システムと新システムを並行運用でつなぐ</text>
+  <text x="500" y="891" font-size="15" font-weight="700" fill="#22201b"><tspan class="emoji">🌉</tspan> 移行の橋</text>
+  <text x="500" y="919" font-size="14" font-weight="400" fill="#22201b">旧システムと新システムを並行運用でつなぐ</text>
 </svg>

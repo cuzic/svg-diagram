@@ -36,9 +36,24 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 反復の作業中は `--no-lint` で lint を省ける（仕上げの build や `svg-diagram check` で通す）。
 `--stale` を付けると、SVG が今のソース・ツールの版・`.svg-diagram.json` から作られたものならスキップする。判定に使うのは SVG に埋め込んだ生成元の情報（ソース・import しているローカルファイル・ツールの版・設定の各ハッシュ）。共通部品を直せば、それを使う図は古いと判定される。import は静的に読むだけなので、相対パスの import だけが対象（`tsconfig` の `paths` の別名や、変数で組み立てた `import()` は追えない。後者は build が警告する）。
 
+**ビルドが失敗したとき（古い SVG）**: `build` は、失敗しても既存の SVG（`.html`、`name.revealN.svg` も）を**消さず、書き換えない**。出力先には手で置いた SVG や他のツールの SVG があり、`<img src>` で参照されていることもあるので、削除はしない。そのため前回の成功時の SVG がそのまま残る。失敗した出力が**そのソース自身の前回の出力**（SVG に埋め込んだ `source` が一致する）なら、`✗` の行の次に `⚠ 前回の svg/flow.svg が残っている(ソースと一致しない古い絵)` を出す。手置きの SVG や別のソース由来の SVG、初回の失敗では出ない。
+`lint-svg --strict` で落ちた `build` は exit 1 を返すが、その SVG は**新しい内容で既に書かれている**（古い絵ではない）。直すまで、`--no-lint` なしの `build` は exit 1 のまま。
+**古さの警告**: `svg-diagram preview x.svg` と `show x.svg` は、SVG の生成元の情報（`<metadata id="svg-diagram">` のソースと import 先のハッシュ。ファイルの時刻は使わない）を今のソースと比べ、違えば古いと警告する（stderr に理由と `svg-diagram build <ソース>` の直し方。`preview` は stdout の `wrote ...` の行にも ` (古い: ソースが変わっている)` を足し、PNG の上端に赤い帯を描く。`show` は `--png` のときだけ帯）。ソースが見つからない SVG と、メタデータのない SVG（手置き・他ツール）は判定しない。exit code は 0 のまま。`--no-stale-banner`（`preview` のみ）で帯だけ消せる。`--require-fresh` を付けると古いときに exit 1（CI やエージェントの自動手順用）。SVG ファイルは書き換えない。
+
 `svg-diagram preview` / `contact` / `show` は SVG をブラウザなしで描く（Rust 製の resvg。フォントは、文字幅の測定に使うのと同じファイルを、その図で使う字だけに切り詰めて渡す。resvg は描くたびにフォントを丸ごと解析し直すので、14MB の日本語フォントだと 1 枚 3 秒かかるが、切り詰めると 50〜100ms で、画素は同じ）。`--engine chromium` を付けると、実ブラウザが `<img>` として描いた絵になる（`playwright-chromium` が要る）。resvg が読めない環境（ビルド済みバイナリがない）では、`--engine` を省くと自動でブラウザに切り替わる。
 `svg-diagram show` は人が端末で見るためのコマンド（Windows Terminal 1.22 以降、WezTerm、foot など sixel 対応の端末）。文書の `<img>` と同じ読み方（XML）で描くので、整形式でない SVG はエラーになる。`.ts` は検証に落ちても描き、問題を stderr に出して終了コード 1 にする。tmux 3.4 未満は sixel を通さないので、`--passthrough`（`set -g allow-passthrough on` が要る）か `--png FILE` を使う。端末のない環境（エージェントなど）は `--png FILE` で書いて画像として読む。
+`canvas.minText` を 14 未満に下げた図は、`build` が書き出すたびに標準エラーへ 1 行出す（`⚠ svg/x.svg: 文字の下限を 10px に下げている(fontFloor 10。投影には向かない)`。ビルドは失敗しない。`lint-svg` のお知らせは、`build` が呼ぶときは終了コード 0 で捨てられるので、別に出す）。`build` が `lint-svg` を呼ぶときは、自分が読んだ `.svg-diagram.json` を `--config` で渡すので、出力先の近くに別の設定があっても、許可が食い違わない。詳しくは「スライド 1 枚のキャンバス」と「共通設定」。
 動作確認: `pnpm test`、`svg-diagram build examples/inventory-wireframe.ts --out /tmp/x.svg`。
+
+**複数の図をまとめて見る（`svg-diagram deck`）**: `svg-diagram deck a.ts b.svg --out deck.html` は、複数の図を、前へ・次へで見られる 1 つの自己完結 HTML にする（`--out` の既定は `deck.html`）。人が見る・人に渡す用の完成品で、図 1 枚の断片を書く `build --html` や、文書に埋める `md` の代わりではない。
+- 入力は `.ts` と `.svg` を混ぜてよく、**引数の順がスライドの順**。`.ts` はメモリ上で描く（中間ファイルを作らない）。`deck` は `lint-svg` を走らせない: `build` / `check` を通した図を見る道で、検査の代わりではない。
+- `--title TEXT` は文書の題、`--cols N`（1 以上の整数）は一覧の列数（既定は幅で自動）、`--csp` は `style-src` / `script-src` を SHA-256 で名指しする `<meta http-equiv="Content-Security-Policy">` を埋める（既定は出さない）。`--render svg` が既定で、`--render html` はまだない（終了コード 2）。
+- 操作: `←` `→` / `PageUp` `PageDown` / `Space`（`Shift+Space` で戻る）/ `Home` `End`、`g` で一覧（`Esc` で閉じる。一覧は SVG を複製せず、同じ図を格子に縮める。縮小のボタンで 1 枚に移る）、`z` または図のクリックで等倍（一覧では効かない）。`input` や `Ctrl` / `Alt` / `Meta` 付きのキー、ボタン・リンクにフォーカスがある間の `Space` は奪わない。
+- URL ハッシュで 1 枚を指せる: `#3`（1 始まり）、`#<名前>`（拡張子を除いたファイル名）、`#grid`（一覧）。スライドの読み上げ名と一覧のボタンの名前は、図の `<title>`（文書向けの図）、なければファイル名。移動のたびに `replaceState` で更新する（戻るボタンで 1 枚ずつ遡らない）。
+- 印刷は 1 枚 1 ページ（`@page` の大きさは最大の図の論理サイズ）で、枠・ボタン・一覧は出ない。JS が使えなくても（無効、または CSP で止まったとき）全スライドが縦に並んで読める。ビューアの枠はダーク設定に追従し、図は図自身の `appearance` に従う。
+- 外部への参照は出さない（外部 URL の `<image>` などは `⚠` の warning）。図の id は `s<番号>-<名前>-…` になり、`<metadata>`（ソースのパスとハッシュ）は取り除く。同じ入力から同じバイト列になる（CI で差分を見られる）。
+- **1 つでも入力が失敗**（検証、`define` / レイアウトの例外、壊れた XML、ファイルなし）したら、失敗を全部表示して**何も書かず**終了コード 1。既存の `deck.html` は削除も書き換えもせず、前回の deck なら「the previous deck.html is still there, untouched」と知らせる。使い方の誤り（入力なし、未知の旗、`--cols` が整数でない、`.ts` / `.svg` 以外）は終了コード 2。
+- まだない（第 2 段）: `--lazy`（大きい図の遅延描画）、全画面（`f`）、図ごとの名前付き `@page`、`--render html`、reveal の段階表示（最終の段階だけを見せる）。
 
 **Markdown から使う**: 図のソースを画像として書く（`![流れ図](./diagrams/flow.diagram.ts)`。パスは Markdown ファイルからの相対）。
 
@@ -62,6 +77,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint] [--png DIR [--scale N]]   # 既定の出力: ./svg/<name>.svg。--png: SVG と同時に PNG も DIR に書く（既定の倍率 2）
     svg-diagram build <source.ts> --dark --transparent   # 暗い配色／背景の矩形なしで描く（図の appearance / transparent を上書き）
     svg-diagram build <source.ts> --html                 # <name>.html も書く（文字・箱・表・線・矢印・曲線を HTML/CSS で。docs/adr/0006）
+    svg-diagram build <source.ts>... --id-prefix <p|auto>   # 複数の図を 1 つの HTML に貼るとき、SVG/HTML の内側の id（svg-title・dsl-arrow など）と参照に <p>-<id> を付ける。ソースが複数なら <p>-<ソース名>-<id>、auto は内容ハッシュ（sd<8 桁>）。<metadata id="svg-diagram"> は書き換えない（check --drift・--stale が読む）。付けなければ出力は 1 バイトも変わらない。--stale とは併用しても毎回作り直す（docs/adr/0012 D2）
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
     svg-diagram check --changed[=REF] <source.ts>...   # 変わった図だけ検査
@@ -73,8 +89,9 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram notes <source.ts>                        # 図の番号つき注釈を Markdown のリスト（1. **題名**：本文）で出す。文書に貼る
     svg-diagram diff old.svg new.svg                     # 2 つの SVG の違いを言葉で（見た目が変わるか）
     svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX] [--per-page N | --pages N]  # 図の集まりを 1 枚に並べて、一度に目視する（--out の置き場が無ければ作る）
-    svg-diagram lint  [file.svg ...] [--strict] [--fix] [--engine geometry|browser]   # 描画後の検査も、既定は SVG の幾何から（ブラウザなし）
-    svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray]   # 既定の倍率 2。--gray: 白黒で描く。out を省くと一時ディレクトリに重ならない名前で書き、パスを表示
+    svg-diagram lint  [file.svg ...] [--strict] [--fix] [--engine geometry|browser] [--config .svg-diagram.json]   # 描画後の検査も、既定は SVG の幾何から（ブラウザなし）。設定は SVG のあるディレクトリから探す（--config で明示）
+    svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray] [--no-stale-banner] [--require-fresh]   # 既定の倍率 2。--gray: 白黒で描く。ソースより古い SVG は警告と赤い帯（--require-fresh: exit 1）。out を省くと一時ディレクトリに重ならない名前で書き、パスを表示
+    svg-diagram deck <a.ts|a.svg>... [--out deck.html] [--title TEXT] [--cols N] [--csp]   # 複数の図を、前へ・次へで見られる 1 つの自己完結 HTML に（一覧・拡大・印刷つき）
     svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium]   # ターミナルに sixel で直接表示（.ts は SVG を書かずに作って描く）
 
 型もすべて同じ所から取れる: `import type {WfNode, TableCell, TextTone, RawColorTone} from 'svg-diagram'`。変数に切り出した表のセルは `cell('通る', {tone: 'accent'})` で作ると、tone が文字列に広がらない（`as const` でも可）。`row()` に入れられるのは `box()` と `group()`、`grid()` は `box()` だけ（違うものを入れると実行時エラー）。
@@ -89,7 +106,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | caption / box / banner / spacer / raw | 基本。box は tag・tagAt・tone(new/changed/removed/accent/muted/danger/plain、box / banner / stat は solid / solid-danger も) |
 | row / grid | 横並び（row は cols:N の共有列グリッド、span/col。`cols: [6, 6]` と span を並べて書ける。`id` を付けると、`r.col(5).top` で N 列目を接続点にできる） |
 | node({icon, label, sub, size, frame}) | 構成図の 1 点: アイコンを大きく（既定 48px）中央に置き、名前を下に付ける。枠は付けない（`frame: true` で付く）。`row()` / `grid()` に並べ、`group()` でネットワーク・VPC・ゾーンの境界を作り、`connect()` で結ぶ（下の「構成図（クラウド・ネットワーク）」） |
-| group(children, {title, tone, titleAlign, flex, width, span, col}) | ラベル付きの枠。**入れ子可**（ホスト > コンテナ > プロセス）。`row([group(...), group(...)])` で横に並べると、枠の高さは一番高いものにそろう（`flex` / `width` / `span` / `col` は box と同じ。`arrows: 'between'` は不可）。中の box の id も、`connect()` の参照先になる |
+| group(children, {title, tone, titleAlign, valign, flex, width, span, col}) | ラベル付きの枠。**入れ子可**（ホスト > コンテナ > プロセス）。`row([group(...), group(...)])` で横に並べると、枠の高さは一番高いものにそろい、低いほうの中身は余りの中で縦中央に寄る（余りが 16px 未満なら動かない。`valign: 'top'` で上詰め、`'stretch'` で箱 1 つが余りを埋める。`flex` / `width` / `span` / `col` は box と同じ。`arrows: 'between'` は不可）。中の box の id も、`connect()` の参照先になる |
 | versus(left, right, {shared, connectLabels}) | 左右の `group()` を 12 列の半分ずつに並べる対比。各部は `{title, children, tone, id}`。`shared` を付けると、その共通部を下に置いて左右から接続する（3 部すべてに `id` が必要）。接続ラベルは `connectLabels.left` / `.right`、接続線は各部の中央から共通部へ垂直に降りる（`connectRoute` は `'straight'` 既定 / `'elbow'`、`connectArrow: 'none'` で矢頭なし）。各部の `children` は配列（縦積み）で、`direction: 'row'` なら横並び |
 | hero({banner, stat, flow, caption, note}) | 章の頭に置く 1 枚: 帯（任意）の下に、流れの箱（`flow: [box(...), ...]`、矢印でつなぐ）とその行き着く大きな数字（`stat: {value, label, tone}`）を 1 行に並べ、その下に一言（`caption`）と出典・注（`note`）。箱が 5 つ以上なら数字を上に置く（`layout: 'stack'`）。既存の部品を並べるだけ。下の「章の頭の 1 枚」 |
 | connect / branch | 矢印。route(straight/elbow/loop-under)、arrow(end/both/start/none)、line(solid/dashed/dotted/double)、weight(strong)、chip、labelAt、アンカー `id:side@0.2` |
@@ -118,7 +135,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | controlChart(type, data, {limits, at, rules}) / xbarR(subgroups) | 管理図。`'x'｜'mr'｜'xbar'｜'r'｜'p'｜'np'｜'c'｜'u'`。中心線と 3σ の管理限界を計算し、外れた点（✕）・連と傾向（○）を赤にする（`plane` を返す） |
 | checkSheet(items, columns, {as, total, boxes}) | チェックシート。件数は「正」の字、計の行と列は自動。`counts` なし・`boxes: true` で手書き用の空の用紙（`table` を返す） |
 | matrix(rows, cols, cells, {weights, values, total}) | マトリックス図（L 型）。◎ ○ △ × の記号、重み付きの評価点と最高点の印（`table` を返す） |
-| canvas(template, content, {title, emphasis, id, h}) | 枠が決まったキャンバス。`bmc`（ビジネスモデルキャンバス）・`lean`・`vpc`・`swot`・`tows`・`errc`・`pest`（`pestle: true` で PESTLE）・`threeC`・`sevenS`・`fiveForces`・`empathy`・`persona`・`a3`。内容は領域ごとの箇条書き（`grid` を返す） |
+| canvas(template, content, {title, emphasis, id, h, fit}) | 枠が決まったキャンバス。`bmc`（ビジネスモデルキャンバス）・`lean`・`vpc`・`swot`・`tows`・`errc`・`pest`（`pestle: true` で PESTLE）・`threeC`・`sevenS`・`fiveForces`・`empathy`・`persona`・`a3`。内容は領域ごとの箇条書き（`grid` を返す） |
 | affinity(groups, {cols, cardCols}) | 親和図。カードを表札付きのグループに、グループの中にグループを入れ子にできる（`group` と `row` を返す） |
 | relationDiagram(nodes, links, {problem, counts}) | 連関図。要因と因果の矢印（戻る矢印も可）。出る矢印・入る矢印の数を書き、出る矢印が最多の要因を主原因に（`causeTree` を返す） |
 | pdpc(nodes, links, {dir}) | PDPC 法。道筋（実線）と、懸念（六角形）・対策（点線）。`role`: start / step / risk / measure / goal（`causeTree` を返す） |
@@ -239,7 +256,7 @@ tree({
 
 - 座標は書かない。親は子の列の中央に、同じ階層は同じ高さ（`dir: 'right'` なら同じ左端）に並び、重ならない。配置の計算は `lib/graph-layout.ts`（ほかの自動配置の図と共通）。
 - 節は、太字の `label` と、薄い `sub`（役職・人数など）。`maxNodeW`（既定 200px）を超えると折り返す（句読点はぶら下がることがある）。`tone` は `box` と同じ。
-- 兄弟が多くて図の幅を超えるときは、何が足りないかを書いて止まる（`dir: 'right'`、`maxNodeW` を小さく、階層を分ける）。
+- 兄弟が多くて図の幅を超えるとき、`dir` を省略するか `dir: 'auto'` にすると、節を狭め（`maxNodeW` 200 → 110）、`right` に回して収める（`mindmap` は `layout` を変えず、`maxNodeW` を省略したときだけ狭める）。`dir` / `maxNodeW` を書いた図は変えず、試した案を書いて止まる（`dir: 'right'`、`maxNodeW` を小さく、階層を分ける。`mindmap` は `layout: 'list'`）。詳しくは「幅に収まらない自動配置の図」。
 - `id` を付けた節は、`connect()` の端点（`connect('pf', '外部')`）。`tree()` 自身の `id` は、図全体の端点と spotlight の対象。`reveal` は図全体に付く。例は `examples/org-chart.ts`、`examples/org-chart-right.ts`。
 
 `mindmap(root, {layout, edges, sides})` は同じ節の書き方で、`layout` を替えるだけで形が変わる（既定は `radial`）。
@@ -269,6 +286,7 @@ stateDiagram(
 
 - 座標は書かない。状態を、遷移の向きに沿って層に分け（循環は、戻る遷移として逆向きに扱う）、交差が減るように並べる。`dir: 'right'`（既定）は左から右、`'down'` は上から下。
 - `initial` は、黒い点と、そこから入る矢印。`final: true` の状態は二重の枠。`tone` は箱と同じ（`danger` のほか、主役の `'solid'` と異常の `'solid-danger'` は、塗りつぶして白い文字になる）。戻る遷移は同じ層の間で別の帯を通り、絡まない。
+- 幅を超えるとき、`dir` を省略するか `dir: 'auto'` にすると、状態を狭め、`right` ⇄ `down` を替えて収める（書いた `dir` / `maxNodeW` は変えない。「幅に収まらない自動配置の図」）。層を 2 つ以上飛ぶ戻りの遷移は、`returns: 'outer'`（既定 `'inline'`）で状態の外側のレーンに回せる（`dir: 'down'` で自己ループがあると、レーンと重なることがある）。
 - 遷移は、直角に折れる矢印で、層を飛ばすものは間の状態を避けて迂回する。同じ 2 状態の間の行き来や、同じ側に出入りする矢印は、位置をずらして重ならないようにする（1 つから出る矢印は遠い行き先ほど先に、1 つへ入る矢印は近い尾ほど先に曲がり、互いに交差しない）。自己ループは、`dir: 'right'` では状態の上、`'down'` では右に出る。
 - ラベルは、矢印の直線部分の脇に置く。矢印の先や、状態・ほかのラベルに重なるときは、矢印に沿って場所を探し、それでも入らなければ矢印の脇に動かす。それも無理なら `check` / `build` が、どのラベルが何に重なるかを書いて止まる。矢印が無関係の状態を貫くときも止まる。ラベルが長いと層の間隔が広がるので、図の幅を超えたら、幅と直し方（`dir: 'down'`、`maxNodeW`、ラベルを短く）を書いて止まる。
 - 矢じりはマーカーではなく図形で描く（resvg は、左向きの終端マーカーを回さないため）。状態の `id` は `connect()` の端点で、`t.anchors.<id>` でも取れる。例は `examples/state-diagram.ts`。
@@ -290,17 +308,32 @@ cloud({a: '製品を成功させる', b: '品質を確保する', c: '市場機�
 | 図 | 書き方 |
 |---|---|
 | 現状ツリー（CRT） | `causeTree`。好ましくない現象は `role: 'ude'`、根本原因は `role: 'root'`（二重枠） |
-| 未来現実ツリー（FRT） | `causeTree`。入れる施策は `role: 'injection'`、望む結果は `role: 'de'`。凡例を添える |
+| 未来現実ツリー（FRT） | `causeTree`。入れる施策は `role: 'injection'`、望む結果は `role: 'de'`。凡例は `diagram({legend: 'auto'})` で出る |
 | 前提条件ツリー（PRT） | `causeTree`。目標 `role: 'goal'`（二重枠）、中間目標 `role: 'io'`、障害 `role: 'obstacle'`（六角形）。中間目標は「〜が得られている」と、障害を越えた状態で書く |
-| 移行ツリー（TT） | `causeTree`。行動は `role: 'action'`。現在の状態と行動を `from: [...]`（AND）で束ねて、次の状態へ |
+| 移行ツリー（TT） | `causeTree`。行動は `role: 'action'`、ニーズは `role: 'need'`（塗りつぶし）。現在の状態・ニーズ・行動を `from: [...]`（AND）で束ねて、次の状態へ。単位ごとの書き方は `transitionUnits()` |
+| ネガティブブランチ（NBR） | `causeTree(…, {tree: 'nbr'})`。施策 `role: 'injection'`、転換点 `role: 'tipping'`（危険色の二重枠）、悪い結果 `role: 'ude'`、転換点を断つ施策 `role: 'trim'`（破線の枠。`kind: 'blocks'` の辺で転換点へ） |
 | クラウド | `cloud`。矢印は「A のために B が必要、B のために D が必要」と読む向き（目的へ向かう）。D と D' の間の赤いジグザグが対立 |
 
 - `causeTree` は座標を書かない。`dir: 'up'`（既定。原因が下、結果が上）・`'down'`・`'right'`・`'left'`。`from` が配列のリンク（AND）は、矢じりの手前にまたがる弧で束ねる。束ねずに別々に書いたリンクは、それぞれ独立に十分な原因（OR）。矢印は十分原因・必要条件のどちらでも同じ描き方なので、どちらの論理かは見出しに書く。
-- `role` は箱の色・形を決める（`tone` を書けば上書き）。`ude`=赤の破線、`root`/`goal`=アクセント色の二重枠、`de`/`io`=薄いアクセント、`injection`/`action`=アクセントの枠、`obstacle`=六角形。ふつうの実体は `role` なし。
+- 悪循環・好循環の戻りの矢印（UDE → 根本原因、成果 → 信頼）には `back: true` を付ける（`{from: 'late', to: 'kpi', back: true}`。`from` は 1 つの節で、AND の配列とは併用できない）。宣言した矢印は、層を決めるときに最初から「戻り」として外すので、**節を書く順を変えても層（UDE が根本原因より結果側）が変わらない**。戻りの矢印は太く描く。付けないと、DFS が節の並びの先頭からたどって見つけた辺を戻りにするため、順方向の辺が戻り扱いになり、UDE が根本原因の側へ落ちることがある。付ける辺は、`b` から他の辺をたどって `a` に戻れる辺（循環を閉じる辺）で、1 つの循環に 1 本まで（違うと理由と直し方つきで止まる）。`relationDiagram` / `pdpc` のリンクにも書ける。`back` を書かない図の配置は変わらない。
+- `role` は箱の色・形を決める（`tone` を書けば上書き）。`ude`=赤の破線、`root`/`goal`=アクセント色の二重枠、`de`/`io`=薄いアクセント、`injection`/`action`=アクセントの枠、`obstacle`=六角形、`precondition`=灰色の破線（統制できない現状の事実。FRT で `from: ['施策の結果', 'precondition の節']` と AND にする）、`tipping`=危険色の二重枠、`trim`=変更色の破線の枠、`need`=塗りつぶし（`io` の薄い箱と見分けるため）。ふつうの実体は `role` なし。
+  統制できるかは役割で分かれる: 統制できる行動は `injection`（FRT の施策）・`action`（移行ツリーの行動）、CRT の根本原因は `root`（二重枠）、統制できない現状の事実は `precondition`。
+- リンクに `kind: 'blocks'` を書くと、その実体がその実体を**断つ**（トリミング）辺になる。破線で、矢じりの代わりに横棒（T 字の端）で止まるので、因果の矢印と形で区別できる。ネガティブブランチは、悪い結果を `role: 'ude'` で書き、施策から `blocks` の辺を引く。`from` は 1 つの実体（配列にした AND は書けない）。層の決め方は通常の辺と同じ（断つ側が下、断たれる側が上）。`coreDriver` の到達数には数えない（防ぐ辺は引き起こさない）。辺そのものを断つ（辺への辺）書き方は無い。例は `examples/toc-blocks.ts`。
+- **ネガティブブランチ（NBR。`tree: 'nbr'`）**: 施策が招く悪い結果の道と、それを断つ手を 1 枚に描く。道の途中の「複数の条件が揃って越える節」は `role: 'tipping'`（AND の結果で書く）、断つ施策は `role: 'trim'` で、`{from: 'cut', to: 'tip', kind: 'blocks'}` と転換点（またはその手前）へ引く。`trim` の実体には `foldsInto: '施策 1'` を書ける（文字列。`trim` 以外に書くと throw）。辺ではなく、箱の下に「→ 施策 1 に組み込む」の 1 行が付く（組み込み先の節は図に無くてよい。`sub` に足すので文字の幅も測られる）。`coreDriver` は `trim` を数えない。`tree: 'nbr'` は `layer` の既定が `'alap'`。検査は 4 つ（下の「`check` の規則」の TOC の項）。例は `examples/toc-nbr.ts`（`legend: 'auto'`・`tocCheck: 'strict'` で警告なし）。
+- **移行ツリーの単位（`transitionUnits(units)`）**: 単位 `{id, current?, need, action, result, resultRole?}` の並びから、3 入力の AND（現状 + ニーズ + 行動 → 結果）の `{nodes, links}` を作り、`causeTree(nodes, links, {tree: 'tt'})` に渡す。`id` は結果の節の id で、ニーズ・行動は `<id>.need`・`<id>.action`、最初の単位の現状は `<id>.current`（`precondition`）になる。2 つ目以降の単位は前の結果から始まるので `current` を書かない（書くと throw。最初の単位は `current` が必須）。結果の役割は既定は `io` で、`resultRole: 'goal'` のように上書きできる。文字が空・`id` の重複も throw。例は `examples/toc-tt.ts`。
+- **FRT の望む結果と CRT の UDE の対応（`mirrors`）**: `causeTree(nodes, links, {tree: 'frt', mirrors: crt})` の `crt` は、`tree: 'crt'` の `causeTree` が返した帯。FRT の `role: 'de'` / `'goal'` の節に `mirrors: 'u3'`（CRT の UDE の id）を書くと、`check` が対応を見る（`toc-mirror`）。FRT が持つのは CRT の節の id と UDE の id だけで、ラベルは読まない（`consistency` の用語の揺れにも入らない）。`mirrors` に `tree: 'crt'` でない帯を渡す、`de` / `goal` 以外の節に `mirrors` を書く、と throw。
+- **入力側の層（`layer: 'asap' | 'alap'`）**: 原因が入らない実体（と、そこから入る辺だけでできた連鎖。PRT の障害 → 行動 → 中間目標）を、**行き先の 1 つ手前の層**に置くか（`'alap'`）、最初の層に置くか（`'asap'`）。**既定は `tree` が `'prt'` / `'frt'` / `'tt'` / `'nbr'` のとき `'alap'`**、それ以外（`'crt'`、`tree` を書かない図、`pdpc` / `relationDiagram`）は `'asap'`（従来の図のまま）。`'alap'` では長い矢印が消え、入力側が行き先の手前に並ぶ。`root` / `injection` / `start` の役割の実体は最初の層に残る。`tree: 'prt' | 'frt' | 'tt'` を書いた図は配置も変わるので、戻すなら `layer: 'asap'`。例は `examples/toc-prt.ts` / `toc-frt.ts` / `toc-tt.ts`。
+- `causeTree(nodes, links, {coreDriver: true})` は、起点の実体（原因が入らない実体）ごとに、矢印をたどって届く `ude` の数を数え（AND の各原因も届く。自分は数えない）、最も多く、かつ 2 以上の起点（同数なら全部）に**中核ドライバーの印**を付ける: 太い枠と「中核」のバッジ。`role` は変えない（根本原因は `root` の二重枠のまま）。起点の全部に `到達 UDE n` が下の行に書かれる（`counts: false` で消す）。「中核」のバッジは箱の**外**に置かれ（端の文字に重ならない）、`coreDriver` を使う図だけ、矢印の向きの軸の両端（`dir` が `up` / `down` なら上下、`left` / `right` なら左右）にバッジの分の余白が付く。`relationDiagram` の「出る矢印の本数」と違い、間接に届く UDE の数。例は `examples/toc-core.ts`。
+- **FRT の最終のゴール**は、`role: 'de'` でも `role: 'goal'` でもよい（`toc-parts` は `goal` を `de` と同じに数える。どちらも無いときのエラーは「望む結果（role: 'de'。最終のゴールを 'goal' で書いてもよい）」）。
 - PRT の障害は、書き方の流派が分かれる。ここでは `role: 'obstacle'` の六角形から中間目標へ矢印を引く。この矢印だけは、ほかの矢印（尾が頭の十分原因・必要条件）と違い、「この障害を、その中間目標が越える」と読む。障害を矢印の脇に付ける描き方と、矢じりの無い線は、まだ無い。
-- 色（`role` / `tone`）は凡例の自動生成（`legend: 'auto'`、`legend-missing` の規則）にまだ入らない。役割の意味は、図の見出しか手書きの `legend()` で添える。
+- `diagram({legend: 'auto'})` は、`causeTree` / `relationDiagram` / `pdpc` で使った**役割**（`ude` 好ましくない現象、`root` 根本原因、`de` 望む結果、`injection` 施策、`precondition` 現状の事実、`goal` 目標、`io` 中間目標、`obstacle` 障害、`action` 行動、`tipping` 転換点、`trim` トリミング(施策)、`need` ニーズ、`start` 開始、`risk` 懸念、`measure` 対策。`effect` と `step` は除く）の見本の箱、AND の弧（`edge:and`）、戻りの矢印（`edge:back`。太い矢印）、断つ辺（`edge:blocks`。破線と横棒）、中核の印（`mark:core`。バッジの無い太枠）を凡例に足す。使っていない役割は出ない。文言は `legendLabels: {'role:precondition': '与件'}` のように差し替える。手書きの `legend([{role: 'ude', label: '…'}, {edge: 'and', label: '…'}, {mark: 'core', label: '…'}])` も書け、自動と二重にならない。`legend-missing` / `legend-incomplete` は従来どおり `role` を数えない。`tone` を直接書いた実体の色は凡例に入らない。例は `examples/toc-legend.ts`。
+- 幅に収まらないとき（`dir` は `'up'` が既定）: `dir` を省略するか `dir: 'auto'` にすると、`causeTree` は向きを変えずに、まず `maxNodeW` を 200 → 160 → 130 → 110 と狭め、それでも収まらなければ幅を超える層を**行に折り返す**（`fold`。1 行は図の幅の 100 / 85 / 70 / 55% の順に試す）。折ると層をまたぐ矢印が行を通るので、折れが増える。`pdpc()` / `relationDiagram()`（既定は `down`）は、省略・`'auto'` のとき `right` に回ることもある（`fold` はしない）。`dir` や `maxNodeW` を**書いた図は変えない**: `dir` を書いた図の折り返しは `fold: true` を書いたときだけ（`fold: false` で折らない）。収まらなければ、試した案（幅と高さ）・試さなかった案とその理由・直し方 1 つを書いて止まる（高さだけが予算を超えるときは、幅を広げる案ではなく、図を分ける・`canvas` の高さを増やす案を書く。末尾に `split:` の提案が付く: 下の `split:` の箇条）。変えたことは `check` の `auto-fit-applied`（`dir` を省略したときは warn、`dir: 'auto'` は info）が知らせる。
+- **`maxNodeW: 'auto'`**: 箱の幅を、260 から 100 まで 10px 刻み（広い方から）で試し、**幅と高さの予算の両方に収まる最初の値**を選ぶ（最も広い箱。行数が減る）。`dir` を書いた図にも効く（幅の軸だけを自動にする宣言。向きは変えない）。全部だめなら `fold` が最後の手段（`'auto'` では `dir` を書いていても折り返す）。余裕のある図でも 200 より広い箱（最大 260px）になる。高さの予算は、`canvas.height` があれば、バンドの上端 y を引いた値（近似）。`maxDisplayHeight` だけのときは従来どおり（好み扱いで throw しない換算は、まだない）。変えたことは `auto-fit-applied`（info）に、`maxNodeW` / `fold` が `'auto'` による、と書かれる。数値の `maxNodeW` と省略の図は変わらない。
+- **収まらないときの `split:`**: `causeTree` が幅にも高さにも収まらず止まるとき、エラーに `split:` の 1 行が付く（図は自動では分けない）。高さの失敗では、幅に収まった最初の案の層のうち、両側が高さの予算に収まる境界で、またぐ矢印が最少（同数なら両側の節数の差が最小）のものを、またぐ矢印の名前つきで書く（戻りの辺は数えない。収まる切り方がなければ「3 つ以上に分ける」）。幅の失敗では、最も狭い案で最も広い層とその節を挙げ、節を 2 つの図に分けるよう書く（層の間で切っても幅は減らない）。`states` / `classes` / `tree` の失敗の文面は変わらない。
+- **`cause-crossing` の再探索**: AND のある結果へ入る矢印どうしが交差するとき、`causeTree` は節を書いた順を決定的に変え（逆順、1〜6 個ずらし。最大 7 回の再レイアウト）、**層・高さ・AND の弧が描けること・自動で収めた内容が増えず、点数（AND の矢印の交差、交差、折れ）が厳密に良くなるときだけ**採る。交差が無い図、`pdpc` / `relationDiagram` は 1 回のレイアウトのまま（出力は変わらない）。並走（`cause-parallel`）は経路の問題なので、この再探索では直らない。
+- 層を 2 つ以上飛ぶ戻りの矢印は、`returns: 'outer'` で図の外側（右または下）の専用レーン（14px 間隔、長いものほど外。折れは 4 まで）に回せる。`causeTree` / `relationDiagram` の既定は、`back: true` の辺だけ外周、付けない循環は図の中。`pdpc` の既定は全部外周（幅がはみ出すときは自動で図の中に戻す。`returns: 'outer'` と書いて収まらないと、`returns: 'inline'` を案に止まる）。`'inline'` は全部図の中。例は `examples/toc-crt-loop.ts`（CRT の悪循環）。座標は `straighten: false` で従来のままにできる（下の「自動配置の図の共通の注意」）。
 - 同じ実体に着く矢印が多いと、その辺が足りなくなる前に実体の方が大きくなる（矢じりが重ならないように）。AND の弧は自分の矢印だけにまたがり、別の AND や OR の矢印には触れない（触れるときは `check` が止める）。
-- 循環（フィードバックループ）も書ける（戻る矢印として描く）。AND の矢印が実体の同じ側に着かないときは、弧を描けないので `check` / `build` がそう書いて止まる。幅を超えるときは、`maxNodeW` を小さくするか `dir: 'right'` にする。
+- 循環（フィードバックループ）も書ける（戻る矢印として描く）。AND の矢印が実体の同じ側に着かないときは、弧を描けないので `check` / `build` がそう書いて止まる。幅を超えるときの自動の収め方は、上の「幅に収まらないとき」の箇条を参照（書いた `dir` で収まらなければ、`dir: 'auto'`、`fold: true`、`maxNodeW` を小さくする、のどれかを案に止まる）。
 - `cloud` の箱は文字列か `{text, id?, tone?}`。箱の文頭に `A：` `B：` `C：` `D：` `D'：` が付く。`assumptions` は書いた順に 1, 2, … と番号が付き、その番号が `on` の矢印（`ab` `ac` `bd` `cd`、`dd` は対立そのもの）の上に載り、一覧は図の下に出る。`injection` は前提を崩す変更で、一覧の下にアクセント色で出る。`conflictLabel` で対立の矢印に一言添えられる。
 - 矢じりは図形で描く。実体・箱の `id` は `connect()` の端点。例は `examples/toc-crt.ts`、`examples/toc-cloud.ts`。
 
@@ -366,7 +399,7 @@ concentric([{label: '境界'}, {label: 'アプリ'}, {label: 'データ'}], {cen
 - `funnel`: 下ほど狭い漏斗。各段は上の段の下端と同じ幅で始まる。`scale: 'value'` は全段の `value` が必要で、幅が値に比例する（下の段で値が増えると警告 `funnel-values-rise`）。`showRate` は前段からの率を段の左に出す（左に余地がなければ段の文字の下）。段に入らない文字は段の右へ出す。
 - `cycle`: 3〜8 個の節を、円周に沿った矢印で閉じる（矢印は節の間だけを通り、節や文字に重ならない）。`direction: 'cw' | 'ccw'`、`centre`、各節の `sub`。
 - `venn`: 2 または 3 集合。色に加えて線種（実線・破線・点線）を変え、色だけに頼らない。集合の名前はその集合だけの部分に、`overlaps` の 2 集合のラベルはその 2 つだけが重なる部分に、`centre` は全集合が重なる部分に入る（`centre` と全集合の overlap を両方書くと throw）。`universe` で全体の枠（文字列ならその名前）。
-- `concentric`: 同心円。`order: 'outer-first' | 'inner-first'`（`rings` を書く順）、`centre`。`labels: 'inside'`（既定）は各層の帯の上部に、`'side'` は右の凡例に出して引き出し線で層につなぐ。`description` は「ラベル — 説明」で続く。
+- `concentric`: 同心円。`order: 'outer-first' | 'inner-first'`（`rings` を書く順）、`centre`。`labels: 'inside'`（既定）は各層の帯の上部に、`'side'` は右の凡例に出して引き出し線で層につなぐ（円とキーは 1 つの塊として帯の幅の中央に置く）。`description` は「ラベル — 説明」で続く。
 - ラベルが図からはみ出す・ラベル同士が重なると検査で止まる。
 - 例: `examples/chevron-*.ts`、`funnel-*.ts`、`cycle-*.ts`、`venn-*.ts`、`concentric-*.ts`。
 
@@ -472,9 +505,9 @@ canvas('swot', {
 | `a3` | `background` `current` `goal` `cause` / `countermeasures` `plan` `followup` | 左に現状把握、右に対策と計画 |
 
 - 内容は文字列（1 文）か文字列の配列（箇条書き。先頭の `・` や、後ろに空白のある `- ` `* ` は 1 つの `・` に揃う。`-5%` のように空白のない `-` は文の一部として残る）。テンプレートにない id は型エラーで、実行時にも有効な id の一覧つきで止まる。
-- オプション: `title`（上の見出し）、`titles`（領域の見出しの差し替え）、`tone`（領域ごとのトーン）、`emphasis`（重点の領域。アクセント色に「重点」のタグが付き、色だけに頼らない）、`stamp`、`h`（領域部分の最小の高さ。`title` の見出しは含まない。内容が収まらないと、必要な高さを示して止まる。省略すると内容に合わせて伸びる）、`gap`（4px 単位に丸める。領域の縁は 4px の格子に乗り、隙間はどこも同じ幅。2 行目以降の領域にタグがあるときは、上下の隙間を 16px 以上とってタグが上の領域に重ならないようにする）、`requireAll`、`reveal`（領域ごとの段階）、`id`。
+- オプション: `fit`（`'content'` 既定 / `'aspect'`）、`title`（上の見出し）、`titles`（領域の見出しの差し替え）、`tone`（領域ごとのトーン）、`emphasis`（重点の領域。アクセント色に「重点」のタグが付き、色だけに頼らない）、`stamp`、`h`（領域部分の最小の高さ。`title` の見出しは含まない。内容が収まらないと、必要な高さを示して止まる。省略すると内容に合わせて伸びる）、`gap`（4px 単位に丸める。領域の縁は 4px の格子に乗り、隙間はどこも同じ幅。2 行目以降の領域にタグがあるときは、上下の隙間を 16px 以上とってタグが上の領域に重ならないようにする）、`requireAll`、`reveal`（領域ごとの段階）、`id`。
 - 幅は `diagram({width})` で決まる。領域の幅が 96px 未満になる幅・`gap` は、狭すぎる領域の名前を示して止まる。空白で区切れない長い語（URL など）が領域より広いときも、その語と領域を示して止まる（箱からはみ出させない）。
-- `diagram({canvas: 'slide'})` では、テンプレートの縦横比よりスライドの高さ（720px）を優先する（内容が多いときだけ伸び、`slide-canvas-overflow` になる）。
+- 高さは内容で決まる（既定 `fit: 'content'`）。各行は、その行の領域が必要とする高さまでで、記入する領域（内容のある領域と、任意でない空の領域）は 96px を下回らない。見出しだけのセル（`vpc` の上の帯など）と、空の任意の領域には下限がない。書き込み用紙のように広い枠が要るときは `canvas(..., {fit: 'aspect'})`（テンプレートの縦横比を床にする従来の見た目）か `h`。`diagram({canvas: 'slide'})` で `fit: 'aspect'` のときは、縦横比よりスライドの高さ（720px）を優先する（内容が多いときだけ伸び、`slide-canvas-overflow` になる）。
 - `id: 'bmc'` を付けると、各領域が `bmc-value` のようなアンカーになる（`connect('bmc-value:right', ...)`、`diagram({spotlight})`、`reveal` がそのまま効く。型でも `bmc-` の後ろは領域の id だけ通る）。
 - `requireAll: true` のとき、内容のない領域は `canvas-region-empty`（警告）。任意の領域（`person` / `insight` ほか）は数えない。
 - 各領域は `box` なので、はみ出し・コントラスト・密度などの検査は他の部品と同じ。`tone` を自分で選んだ領域は、`legend` が必要（タグで言葉にした既定のトーンは要らない）。
@@ -535,9 +568,54 @@ bpmn(
 ### 自動配置の図の共通の注意（`tree` / `mindmap` / `stateDiagram` / `causeTree` / `cloud` / `gantt` / `classDiagram` / `bpmn` / `relationDiagram` / `pdpc` / `arrowDiagram`）
 
 - 図の中の節（`id` を付けたもの）は、`connect()` の端点になり、`reveal` では図と一緒に出る。ただし spotlight は図ごと（図の `id`）で、節の `id` を指すと、そう書いて止まる。
-- `check` の「自動の凡例」（`legend: 'auto'`）と、色だけに頼る強調の検査は、これらの図の `tone`・破線・点線を数えない。`new` / `changed` / `removed` や破線の遷移・メッセージを使うときは、自分で `legend()` を置く。
+- `check` の「自動の凡例」（`legend: 'auto'`）と、色だけに頼る強調の検査は、これらの図の `tone`・破線・点線を数えない（`causeTree` 系の `role`・AND の弧・戻り・断つ辺・中核の印は例外で、凡例に入る）。`new` / `changed` / `removed` や破線の遷移・メッセージを使うときは、自分で `legend()` を置く。
 - 節の副題（`sub`）や «ステレオタイプ» の薄い文字は、`accent` / `new` の塗りの上でも 4.5:1 を保つよう、その塗りの上だけ通常の文字色になる。
 - ラベルの白いチップは、自分の矢印以外の矢印や、状態・クラス・ノードに乗らないよう置き場所を探す。見つからないときは `check` / `build` が、どれとどれが重なるかを書いて止まる。
+
+### 幅に収まらない自動配置の図（`dir: 'auto'` / `fold` / `maxWidth` / `width: 'fit'`）
+
+自動配置の図が `diagram({width})`（既定 940）より広くなるとき、**`dir` を書かなかった図と `dir: 'auto'` の図だけ**、レイアウトが自分で収める。書いた `dir` と `maxNodeW` は変えない（収まらなければ、試した案とその幅・高さ、試さなかった案とその理由、直し方 1 つを書いて throw する）。最初に収まった案を採るので、もともと収まる図は変わらない。
+
+| 部品 | 試す順 |
+|---|---|
+| `causeTree` | 向きは変えず、`maxNodeW` を 200 → 160 → 130 → 110、最後に層の行への折り返し（`fold`。上の「TOC の思考プロセス」）。`maxNodeW: 'auto'` は 260 → 100 を 10px 刻みで、幅と高さの両方に収まる最初の値 |
+| `pdpc` / `relationDiagram` | `down`・`right` の両方を、`maxNodeW` の各幅で（down@200、right@200、down@160 …）。`fold` はしない |
+| `stateDiagram` | `right`・`down` の両方を、`maxNodeW` の各幅で。ループ辺のための幅（`reserve`）も判定に含める |
+| `classDiagram` | `down` ⇄ `right` だけ（狭める幅が無い） |
+| `tree` | `down`・`right` の両方を、`maxNodeW` の各幅で。以前は throw していた図が `right` に回る |
+| `mindmap` | `layout` は変えず、`maxNodeW` を省略したときだけ狭める。収まらなければ `layout: 'list'` などを勧めて止まる |
+
+- `dir` を**省略**した図が変わると、`check` の `auto-fit-applied` が **warn**（`check --strict` が落ち、`build` の警告にも載る。`dir を up から right に変えた(1460→880px)` のように何が変わったかを書く）。`dir: 'auto'` と書くと **info**（変えてよいと宣言した図）。`accept: {'auto-fit-applied': '理由'}` でも外せる。
+- `'auto'` のときは、収まる案の中で（交差, 折れ）が最良のものを選ぶ（高さが `canvas.height ?? maxDisplayHeight` を超える案は除く）。省略のときは最初に収まった案。
+- `diagram({maxWidth: 1200})` は、その図だけ `doc-width` の閾値を上げる（案件全体は `.svg-diagram.json` の `maxWidth`。図の指定が勝つ。正の有限数でなければ throw。`canvas` の図は検査しない）。**図の幅は広がらない**ので、広い図にするなら `width: 1200` も書く。
+- `diagram({width: 'fit'})` は、細い図（`concentric`、縦の `chevron`、`cycle`、`venn`、`funnel`）の幅を内容 + 左右の余白（4px の格子、下限 320px）に縮める。文字の大きさは変わらない。既定の 940 は変えない（文書での図の大きさが変わるので opt-in）。縮むのは flow-shape の帯だけで、box / banner / 表など全幅の帯を持つ図は 940 のまま。`canvas` / `fill` / `slide` とは併用できない（throw）。`layout-figure-narrow`（info）の直し方になる。例は `examples/width-fit.ts`。
+
+### 折れの少ない配置（`straighten` / `returns` / 直線の矢印）と `edge-bends`
+
+層状の自動配置の図（`stateDiagram` / `arrowDiagram` / `causeTree` 系 / `classDiagram` / `pert` / `dependencyNetwork` / `causalLoop`）は、矢印の折れ・交差を減らすために次をする。`tree` / `mindmap` / `bpmn` は変わらない。
+
+- **座標の候補を 2 つ作る**: 従来の座標と、Brandes-Köpf 法で層を飛ぶ長い矢印の鎖を揃えた座標。**（交差, 折れ）が辞書式で厳密に良いときだけ**新しいほうを採る（従来が幅に収まらず新しいほうが収まるときも採る）。描けない AND の弧が増える、無関係な箱を矢印が通る、従来が収まる幅に収まらない候補は捨てる。だから図が悪くなることはない。連関図 `qc-relation` は折れが 64 → 36、交差が 4 → 2 になった。独立した複数の塊は、並びに依らず `gap` で詰めて並ぶ（新しい座標のとき）。
+- `straighten: false`（`causeTree` / `relationDiagram` / `pdpc` / `stateDiagram` / `arrowDiagram` / `classDiagram` / `pert` / `dependencyNetwork` / `causalLoop`）は、従来の座標のままにする（過去の SVG を動かしたくないとき。既定は `true`。ほかの値は throw）。`returns` とは独立（`straighten: false` でも戻り辺の外周は変わる）。
+- **高さの重なる箱への矢印は 1 本の直線にする**: 隣り合う層の 2 つの箱が高さ（`dir: 'right'` なら縦、`'down'` なら横）で重なるとき、端点を同じ高さにそろえて折れずに引く。条件は、箱の辺から 6px 内側、同じ辺のほかの矢印と間隔を保つ、（交差, 折れ）が増えない、ほかの矢印の線と 1 本に見えない。円（`shape: 'circle'`）・六角形（`obstacle` / `risk`）の端と AND の矢印は動かさない。満たせないときは従来どおり肘。
+- 層を 2 つ以上飛ぶ戻りの矢印は `returns: 'outer'` で外周の専用レーンに回せる（`causeTree` / `relationDiagram` / `pdpc` / `stateDiagram`。既定は部品ごとに違う。上の「TOC の思考プロセス」）。層を 1 つだけ戻る矢印は、今までどおり同じ層の間で別の帯を通る。
+- `check` の `edge-bends`（info）が、折れの多い図を知らせる。条件は、1 本の矢印が 5 回以上折れる、または帯ごとの「折れの合計 ÷ 矢印の数」が 3 を超える（閾値は原則から固定で、図に合わせて動かさない）。数える対象は上の層状の帯と `bpmn`（`causalLoop` の `layout: 'ring'` は曲線なので数えない）。`connect()` の線・自己ループ・曲線は数えない。`check --verbose` で出て、`diagram({layoutCheck: 'strict'})` の図だけ warn になる。`accept: {'edge-bends': '理由'}` で許容できる。直し方は、層を飛ぶ矢印・戻る矢印を減らす（節の分け方・辺の向きを見直す）。SVG は変わらない。
+
+### 同じ id を別の帯で使う（`scope`）
+
+自己配置の帯は、中の項目に `id` を持てる。その id は図全体で 1 つなので、別々の帯が同じ id（`p0` など）を持つと `duplicate anchor id` で止まる。帯の opts に `scope` を書くと、項目が `scope.id` の名前で登録され、帯をまたいで同じ素の id を使える。
+
+```ts
+chevron([{label: '設計', id: 'p0'}, {label: '実装', id: 'p1'}], {scope: 'plan'})
+gantt(rows, {today: '2026-04-01', scope: 'sched'})   // rows の中にも id: 'p0' がある
+connect('plan.p0:right', 'sched.p0:left')
+```
+
+- `scope` を付けられるのは、`tree` / `mindmap` / `stateDiagram` / `causeTree`（`relationDiagram`・`pdpc` を含む）/ `cloud` / `gantt` / `classDiagram` / `bpmn` / `quadrant` / チャート（`causalLoop` / `pert` / `dependencyNetwork` を含む）/ `bars` / `image` / `swimlane` / `chevron` / `funnel` / `cycle` / `venn` / `concentric`。`group` と、トップレベルの `box` / `row` の `id` は対象外。帯自身の `id`（図全体の名前）も scope の対象外。scope の名前に空白と `:` `@` `#` `.` は使えない。
+- 参照は**修飾名** `plan.p0`（常に通る）。素の `p0` は、その名前に決まるものが 1 つのときだけ通る。2 つ以上あると `ambiguous anchor id "p0": plan.p0, sched.p0 — write one of them` で止まり、未知の名前は `did you mean "plan.p0"?` の候補を添える。`connect()` / `reveal` / `until` / `diagram({spotlight: 'plan.p1'})` が修飾名を読む。scope なしの箱 `p0` と scope 付きの `plan.p0` が共存すると素の `p0` は曖昧になるので、片方を scope で書き分ける。
+- `resolveAnchor(table, id, has)`（`lib/anchor-scope.ts`。純関数）が、完全一致 → 素の名前が 1 つ → 曖昧（error）→ なし（error）の 4 段で決める。
+- ハンドル `.anchors.p0` は、scope 付きの帯では修飾名（`sched.p0:right`）を返すので、同じ素の id が複数あっても使える。型は、`.` を含む参照を形だけで通す（綴り間違いは実行時の候補つきエラーで捕まる。素の id が曖昧かどうかも実行時）。`@` を含む id は従来どおり型エラー。
+- `reveal` の段階は項目ごとに記録され、同じ素の id を持つ別の帯と混ざらない（`connect` の `reveal` の自動導出は、参照した側の段階になる）。spotlight は、gantt の task と tree の node を直接は指せない（scope があっても変わらない。図全体の `id` で指す）。
+- 複数の SVG を 1 つの HTML に貼るときの内部 id の衝突は、`build --id-prefix`（上の「使い方」）が別に防ぐ。
 
 ### コンサル系のチャート（`waterfall` / `radar` / `heatmap` / `lines` / `stackedBars` / `mekko` / `treemap` / `sankey` / `tornado` / `bubble` / `butterfly` / `combo` / `harvey`）
 
@@ -620,7 +698,7 @@ harvey(['価格', '品質'], ['A 社', 'B 社'], [[4, 2], [1, 3]], {highlight: [
 
 ### 意味付きネットワーク（`pert` / `causalLoop` / `dependencyNetwork`）
 
-ノードとリンクに業務上の意味を持たせたネットワークを、既存の階層型レイアウトで自動配置する。`direction: 'LR' | 'TB'`（既定 LR）、`width` / `height`、`labelRole`、図とノードの `id`、dark theme はチャートと共通。
+ノードとリンクに業務上の意味を持たせたネットワークを、既存の階層型レイアウトで自動配置する。`direction: 'LR' | 'TB'`（既定 LR）、`width` / `height`、`labelRole`、図とノードの `id`、dark theme はチャートと共通。`height` を内容より大きく指定すると、図は縦中央に置かれる（介入点の帯と凡例の間。上詰めに戻す指定は無い）。
 
 ```ts
 pert([{id: 'design', label: '設計', duration: 4}, {id: 'build', label: '実装', duration: 6, predecessors: ['design']}], {unit: '日'})
@@ -629,7 +707,7 @@ dependencyNetwork([{id: 'web', label: 'Web', kind: 'app'}, {id: 'api', label: 'A
 ```
 
 - `pert`: activity-on-node の PERT（作業を矢印で描く activity-on-arrow は `arrowDiagram`）。ES / EF / LS / LF / slack を計算し、slack 0 のノードとリンクを強調する。未知の先行タスクと循環はエラー。`compact: true` は小さい箱。純粋関数 `analyzeCriticalPath(tasks)` も公開。
-- `causalLoop`: `polarity` は `'+' | '-' | 'same' | 'opposite'`。`delay: true` は `||`。単純ループの負リンクが偶数なら Reinforcing (`R1`)、奇数なら Balancing (`B1`)。番号は R / B それぞれで 1 から振る。純粋関数 `analyzeCausalLoops(nodeIds, links)` も公開。
+- `causalLoop`: `polarity` は `'+' | '-' | 'same' | 'opposite'`。`delay: true` は `||`。単純ループの負リンクが偶数なら Reinforcing (`R1`)、奇数なら Balancing (`B1`)。番号は R / B それぞれで 1 から振る。純粋関数 `analyzeCausalLoops(nodeIds, links)` も公開。`interventions: [{id, label, to, polarity, delay?}]`（ループの外の介入点。`to` は node id か配列、`polarity` は必須）は、ループの**外側の帯**に描かれる: LR は上、TB は左、`layout: 'ring'` は円の上下（対象が上半分なら上、下半分なら下。上下に分かれる対象を 1 つの介入点に書くと矢印が円を横切るので、箱を貫けば止まる）。箱も矢印も破線で、`+` / `-` と遅延 `||` は矢印に付く。帯の中は対象の中心の順に並び、16px 以上離れる。置けないときは帯を 8px ずつ最大 3 回厚くしてやり直し、それでも駄目なら、どの介入点のどの矢印が何に当たるかを書いて止まる（ラベルを短くする、`to` を減らす、リンクかノードを減らす）。介入点の `id` は `connect()` / `spotlight` の対象になる。alt には `Interventions: …` が入る。R / B の分類とループ名は変わらない。`height` は最小値で、介入点があると図は帯の分だけ高くなる（TB は箱の列の分）。例は `examples/semnet-causal-intervene.ts`。`layout: 'ring'` は、**閉路がちょうど 1 つの図**（全ノードが長さ 2〜8 のそのループの上にあり、ループの辺以外に辺がない。自己ループは可）を楕円の円周に時計回り（先頭が上）に置き、辺を弧で結ぶ。ループ名は中央。満たさない図（8 の字・弦・ループ外のノード・9 ノード以上）と `direction` との併用は、`causalLoop({layout: 'ring'}): the graph must be one loop (...)` で止まる。ループの外のノードは介入点（`interventions`）に回す（介入点つきの輪は、外側の上下の帯に置く）。`height` が足りないと必要な高さを書いて止まる。既定は `'layered'`（今のまま）。例は `examples/semnet-causal-ring.ts`。
 - `dependencyNetwork`: ノードの `kind` は色と枠、リンクの `type` は線種、`weight` は線幅と数値に対応する。使用した kind / type の凡例を自動で描き、表示名を `nodeKinds` / `edgeTypes` で指定できる。`blocks` は danger、`relates` は矢じりなし。
 - 例は `examples/semnet-pert*.ts`、`examples/semnet-causal*.ts`、`examples/semnet-deps*.ts`。
 
@@ -700,7 +778,7 @@ const s = steps([{title: '1回目', body: '原因は不明'}, {title: '4回目',
 
 `labelRole` を付けると、図の余白・目盛りの間隔・寸法線の離れ・横棒の太さも文字に合わせて広がる（指定しない図は 1 ピクセルも変わらない）。`plane` の `height` が足りなければ throw する。`fill: true` の拡大（最大 1.8 倍）は、`headlineRole` / `labelRole` を付けた文字が **72px を超えない**ところで止まる（`display` の見出しは約 1.28 倍まで。`stat` のラベル 34px は 61px で上限内）。指定のない図は従来どおり 1.8 倍まで。
 
-**`padY` を小さくするとき**: 図形は 4px の格子に丸めて描くが、文字の位置は丸めない(文字も丸める案は、実測して見送った: ADR 0005 の追記)。そのため `padY` が小さい箱・banner は、図の中の位置によって、字面の上端が枠から出て、lint が「枠からはみ出す」（枠の内側 4px を要求）と言うことがある（`padY: 0` の 16px の見出しで 4px）。16px の見出しなら `padY` を 9 以上にすれば、どの位置でも通る（大きい文字は、字面が baseline の上に出る分、比例して増やす）。
+**縦の位置は 4px の格子に乗る**(ADR 0014 U1b): 箱・banner・見出し・group の枠の上端は、配置の段階で 4px の格子に置く(emit で丸め直さない)。枠の下端は上端 + 高さの 4px への丸めなので、上端も下端も格子に乗り、**枠の上端から文字の baseline までの距離は、図の中の位置によらず一定**になる。以前は枠だけを丸めて文字を丸めなかったので、その距離が位置によって最大 4px 振れ、`padY` が小さい箱・banner では、字面の上端が枠の内側 4px を割って lint が「枠からはみ出す」と言うことがあった(`padY: 0` の 16px の見出しで 4px)。今は `padY` を足さなくても、この振れでは出ない。縦の位置の累積は、丸めた高さではなく実の高さで進めるので、下の帯ほど少しずつずれていくことはない。plane・quadrant・timeline・wireframe・screens・wordart は、内側の座標がまだ格子に乗っていないので、従来どおり丸め前の位置から置く(縦の格子化の対象外)。
 
 **破壊的変更**: `Role` 型と `ROLES` から `hero`（18px）を削除した（どこでも使われていなかった。ADR 0002 の「hero は触らない」を覆す）。`box({size})` は以前から layout も emit も読まない**何もしない引数**で、使うと「効果がない」と warn する（14〜72 の検証はそのまま。次の版で throw にする）。大きい文字は上の表のロールを使う。例は `examples/text-roles.ts`。
 
@@ -945,6 +1023,8 @@ versus(
 
 `diagram({canvas: 'slide'})` は、スライド 1 枚ぶんの図を **16:9（1280×720）で、拡大縮小なしに** 描く。文字は、最小のもの（既定の 14px の role・矢印のラベル・タグ）が 24px になる倍率（1.72 倍）で全体を拡大し、余白・間隔も同じ倍率にする。高さは 720px に固定で、内容が足りなければ下を空ける。`{canvas: {width, height, minText}}` で寸法と最小文字を変えられる（`minText: 30` なら 30px 以上）。
 
+**文字の下限を 14px 未満に下げる（`minText` と `fontFloor`）**: 投影しない、手元・配布用の稠密な `canvas` の図（キャンバスを 1:1 で読む）に限り、`diagram({canvas: {width: 2304, height: 1296, minText: 10}})` のように `minText` を 14 未満（**最小 10**）にできる。10 未満・有限でない値・数でない値は throw する（`canvas.minText must be a number >= 10`）。これは `slide` / `fill` の「実効 12px」（縮小後の文字の下限）とは**別の層**で、`canvas` の図の、キャンバスの単位での下限である。下げるには、案件の `.svg-diagram.json` が許可する必要がある（「共通設定」の `fontFloor`）。許可がない案件では、図の `minText` が 14 未満だと throw する（`canvas: {minText: 10} is below the project's fontFloor (14). Lower "fontFloor" in .svg-diagram.json (10 at the lowest) or raise minText`）。下げた図は、出力の SVG のルートに `data-min-text="10"` が付く（`minText` が 14 以上の図、`canvas: 'slide'`、`canvas` なしの図は 1 バイトも変わらない）。`lint-svg` はこれを `font-size-too-small` の床として読む。`check` は `font-floor-lowered`（info）で知らせ、`build` は 1 行出す。縮めて見せるキャンバスの換算（2304 幅を 1280 に縮めて見せるなら、実効 10px は `minText` 約 18）は著者が行う。
+
 | 検査 | 内容 |
 |---|---|
 | `slide-min-text`（warn） | `minText` より小さい文字がある。倍率で届かない、固定サイズの文字（`size` を直接指定したもの）で出る |
@@ -1023,10 +1103,16 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 - `--format json`（機械可読）、`--format github`（PR の注釈 `::warning file=…,line=…`）。
 
 ## ルールの説明・ベースライン・SARIF（`check`）
+- **ソースが読み込めない・レイアウトで throw するとき**: `build` と同じ `✗ <ソース>: <メッセージ>` の 1 行（スタックなし。`SVG_DIAGRAM_DEBUG=1` でスタックも出す）を出し、**残りのファイルも検査して**、最後に `N 件中 M 件が検査できなかった` を出す。exit は 1（`--strict` なしでも）。`--format json` では規則名 `build-error` の `error` として `findings` に入り、`--format github` では `::error file=...` になる。`--drift --rebuild` と `--docs --src-dir` の中で読み込めないソースも同じ扱い。
 - `svg-diagram check --rules` はルール ID の一覧、`svg-diagram check --explain edge-crossings` は 1 つのルールの意味と、`accept`（案件全体は `.svg-diagram.json`、1 つの図は `diagram({accept})`）の書き方を出す。
 - **ベースライン**: 警告が多い案件に段階導入する。`check --write-baseline .svg-diagram.baseline.json diagrams/*.ts` で今ある警告を記録し、以後 `check --strict --baseline .svg-diagram.baseline.json diagrams/*.ts` は、**記録にない新しい警告**だけを失敗にする（記録済みは info になり「ベースライン済み」と添える）。照合はファイル・ルール・メッセージで、行番号は見ない。エラーはベースラインに入らない。
 - `--format sarif` は SARIF 2.1.0 を標準出力に出す（GitHub Code Scanning などへ）。
 - **つながりの検査**（`graph-orphan-node` / `graph-disconnected`）: 矢印が 3 本以上ある図で、`id` を持つ箱がどの矢印にもつながっていない、または矢印が互いにつながらない 2 つ以上のかたまりに分かれていると警告する（行・列を端にした矢印は、その中の箱を含む）。注記の箱は `id` を付けなければ対象外。意図した形なら `accept` に理由を書く。
+- **TOC の図の検査**（`toc-ude-count` / `toc-parts` / `toc-source-has-cause` / `toc-chain-only` / `toc-orphan` / `toc-cycle-undeclared`、NBR・TT・PRT・FRT の `toc-nbr-*` / `toc-tt-unit` / `toc-prt-*` / `toc-obstacle-phrase` / `toc-mirror`）: `causeTree(..., {tree: 'crt' | 'frt' | 'prt' | 'tt' | 'nbr'})` と種類を書いた図だけが対象（書かなければ何も検査しない。`relationDiagram` / `pdpc` は対象外）。`crt` の UDE が 5〜10 個の外（部分図なら `accept` で許容）、`crt` に `root` が無い・`frt` に `injection` か `de` が無い・`frt` に `root` がある、`root`（crt）/ `injection`（frt）/ `precondition` に入る矢印がある、`crt` / `frt` が分岐も合流も AND も無い 1 本鎖、どのリンクにも出てこない実体、`back: true` の戻り・`kind: 'blocks'` を除いた因果の辺に循環が残るのに戻りの矢印に `back: true` が付いていない（`toc-cycle-undeclared`。配置が戻りとして扱った矢印を名指しする）。数える辺は `back` と `kind: 'blocks'` を除く。既定は info（`check --verbose`）で、`diagram({tocCheck: 'strict'})` の図だけ warn（`check --strict` が落ちる）。`layoutCheck` とは別の指定で、描画は変わらない。
+  - `nbr`: `toc-nbr-parts`（`trim` か `ude` が無い）、`toc-nbr-no-tipping`（`tipping` を通らずに、原因を持たない実体から `ude` へ至る因果の道がある。たどるのは因果の辺だけで、`blocks` と `back` は通らない）、`toc-nbr-tipping-not-and`（`tipping` が AND の結果でない）、`toc-nbr-trim-too-late`（`trim` の `blocks` が、転換点より結果側を断つ。転換点そのものを断つのは可）。`toc-source-has-cause` は `nbr` の `injection` と `trim` にも効く。
+  - `tt`: `toc-tt-unit`（AND の結果が、ニーズ（`need` または `precondition`）と行動（`action`）の両方を原因に持たない。OR は単位でないので対象外）。
+  - `prt`: `toc-prt-bottom-not-action`（中間目標の鎖の底、つまり入る辺に `io` が無い `io` に、`action` がつながっていない。障害は入る辺の無い節で書くことが多いので、「入る辺が無い節」では見ない）、`toc-prt-one-to-one`（`io` が 2 つ以上で、障害と中間目標が全部 1 対 1 だけ）、`toc-obstacle-phrase`（障害のラベルが「ない」「無い」「不足」で終わる。末尾の句読点・閉じ括弧は除く。**常に info**で、`tocCheck: 'strict'` でも warn にならない。日本語の文末の判定なので偽陽性は `accept` で外す）。
+  - `frt` + `mirrors`: `toc-mirror`（`mirrors` の id が UDE でない・UDE に対応する望む結果が無い・同じ UDE を複数が `mirrors` している、の 3 つを 1 つの規則で。部分図は `accept` で理由を書く）。
 
 ## 表記・数値の整合と差分だけの検査（`check`）
 - **表記の揺れ**（`term-variant`）: 1 つの図の中で、同じ語が `ユーザ` / `ユーザー`（末尾の長音）や `API` / `Api`（大文字・大小混在）のように揺れていると警告する。`Server` と `server` のような文頭の大文字だけの差、数字や `-` `_` を含む ID は見ない。
@@ -1047,10 +1133,14 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 「見た目は変わらない。再生成してよい」か「見た目が変わる。再生成して、目で確かめる」かが分かる。`pnpm golden` は、`examples/out/` の SVG が、今のコードの再生成と一致するかを調べる。
 
 ## 日本語の折り返し（`diagram({wrap})`）
-ラベルは文節に近い単位で折り返す（既定 `wrap: 'phrase'`）。**カタカナの連続**と**漢字の連続**は 1 語として扱い、「アプリ」が「ア / プ / リ」に割れない。英数字の連続は以前から割らない。禁則（行頭に句読点・小書きかな、行末に開き括弧を置かない）はそのまま。語が 1 行より長いときだけ、その語を 1 文字ずつ折る。従来どおり 1 文字ごとに折るなら `diagram({wrap: 'char'})`。外部の分かち書きライブラリは使わず、文字種で決める簡易な方式（ひらがなの中の助詞では切らない）。
+ラベルは文節に近い単位で折り返す（既定 `wrap: 'phrase'`）。**カタカナの連続**と**漢字の連続**は 1 語として扱い、「アプリ」が「ア / プ / リ」に割れない。英数字の連続は以前から割らない。禁則（行頭に句読点・小書きかな、行末に開き括弧を置かない）はそのまま。語が 1 行より長いときだけ、その語を 1 文字ずつ折る。従来どおり 1 文字ごとに折るなら `diagram({wrap: 'char'})`。外部の分かち書きライブラリは使わず、文字種で決める簡易な方式（ひらがなの中の助詞では切らない）。`'phrase'` と `'char'` は辞書を持たず、`'bunsetsu'` も形態素解析（`Intl.Segmenter`）は使わない（ICU の版で切れ目が変わり、出力が環境で変わるため）。
+
+日本語の長い文を**文節で**折るなら `diagram({wrap: 'bunsetsu'})`。ひらがなは直前の文字（漢字・カタカナ・英数字・ひらがな）に付き、折るのは「ひらがなの直後で、次がひらがな以外（漢字・カタカナ・英数字・記号）」のときと、`、` `。` の後だけ（「評価されるため / 仕掛りが」）。禁則・1 文字だけの最終行の直し・単位が 1 行より長いときの文字ごとの折り返しは `'phrase'` と同じ。`tree` / `mindmap` / `causeTree` / `stateDiagram` などの箱は、最も長い単位に合わせて広がる（`maxNodeW` の 1.5 倍まで。`maxNodeW` は語を割らない範囲での目安になる）。`wrap` は図全体の指定で、帯ごとには変えられない。既定は `'phrase'` のまま。
 
 ## 共通設定（`.svg-diagram.json`）
-カレントディレクトリから上へたどって見つかる。`{"accept": {"rule-id": "理由"}, "maxWidth": 940}`。図ごとの `accept` が優先される。`accept` のキーはルール ID（`RULE_DOCS` にある名前）で、知らない ID・空の理由はファイル名つきのエラー（綴り違いで何も許容されないのを防ぐ）。許容された指摘は info に下がり、理由が添えられる。
+カレントディレクトリから上へたどって見つかる。`{"accept": {"rule-id": "理由"}, "maxWidth": 940}`。図ごとの `accept` が優先される。`maxWidth` も図ごとに `diagram({maxWidth: 1200})` で変えられる（`doc-width` の閾値だけで、図の幅は変えない。広い図にするなら `width: 1200` も書く。図の値が設定ファイルに勝つ）。`accept` のキーはルール ID（`RULE_DOCS` にある名前）で、知らない ID・空の理由はファイル名つきのエラー（綴り違いで何も許容されないのを防ぐ）。許容された指摘は info に下がり、理由が添えられる。
+
+**文字の下限（`fontFloor`）**: `"fontFloor": 10` のように、**`diagram({canvas: {minText}})` を 14 未満に下げてよい下限**を案件として許可する（10〜14 の数。既定は 14。範囲外・数でない値はファイル名つきのエラー）。`fontFloor` だけでは図は小さくならない（許可であって、文字を縮める設定ではない）。図の `minText` が `fontFloor ?? 14` 未満だと、描画の時点で throw する（`canvas` の図だけが対象。文書向けの図、`canvas: 'slide'` / `fill`、`size` の直接指定の下限 14 は変わらない）。対象は、投影しない手元・配布用の稠密な `canvas` の図で、`slide` / `fill` の実効 12px とは別の層（「スライド 1 枚のキャンバス」）。`lint-svg` も同じ設定を、SVG のあるディレクトリから探して読む。
 
 **gray-tone-collision と solid × solid-danger**: `solid` は accent、`solid-danger` は danger の色で塗る。danger は全テーマ共通の赤（L* 約 40）、accent はテーマごとに違うので、テーマに依らず明度差を付ける既定色は作れない（danger を変えると danger を使う全図の見た目が変わる）。出たら `diagram({tones: {'solid-danger': {fill: '#7f1d1d'}}})`（案件全体なら `"tones"`）で濃くするか、`accept` で許容する。
 
@@ -1065,10 +1155,40 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 ## check のルール（lib/rules.ts）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える。記法が少なく凡例が要らない図は `diagram({legend: false})` で「凡例は要らない」と宣言する。凡例を足すためだけに足さない）、`quadrant-empty-cell`（`quadrant()` に項目のないマスがある。意図した空きは `allowEmpty`）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
 `a11y-no-title`、`source-wraps`（出典行が折り返している）、`cjk-line-long`（見出し＝caption の title / display / stat と banner の headline の 1 行が、全角換算で本文幅 600px に収まる字数 — title 40・banner 37・stat 17・display 10 字 — を超える。半角は 0.5 字。目安以内でも、図が狭くて見出しが自動で折り返したときも出す。改行で分けるか短くする）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、`shrink-narrow-text`（`bpmn` / `swimlane` の `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。図を縦向きにする・2 つに分ける・文言を短くする・`maxWidth` を広げる）、`gray-tone-collision`（使っている 2 つのトーンの塗りが、白黒にすると見分けにくい。塗りを CIE L* にして、差が 10 未満なら警告。10 は、紙の白黒印刷で 2 つの平らな灰色が「違う」と読めなくなるあたり。soft（L* 約 93）と plain の白（100）が当たり、solid との組は当たらない。控えめにするトーン（muted / removed）は除く。破線の有無が違う組と、塗りが同じ組（new と accent、changed と plain。色でも塗りでは見分けていない）は除く。canvas() の、ピル（重点・中心など）で言葉にした領域は数えない。`diagram({accept})` で許容できる。`preview --gray` で目でも確かめる）、
-`image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
+`image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`edge-bends`（情報: 自動配置の図の矢印が 5 回以上折れる、または帯の平均が 3 回超。下の `layoutCheck` の節の隣）、`auto-fit-applied`（`dir` を省略した自動配置の図を、幅に収めるためにレイアウトが変えた。warn。`dir: 'auto'` は info）、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`font-floor-lowered`（情報: `canvas.minText` が 14 未満の図。「文字の下限を 14px から Npx に下げている（最小の文字 Mpx）。キャンバスは 1:1 で読まれる前提。投影には向かない」。`accept` で理由つきの info のまま許容できる）、`doc-width`（940px 以下。`maxWidth` で変更。図ごとは `diagram({maxWidth})`）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
 `lint-svg`（描画後の検査: コントラスト・キャンバスのはみ出し・文字の重なり・枠からのはみ出し・図形が文字に被る）は、SVG の幾何と文字の箱（レイアウトと同じフォントファイル）から調べる。`--engine browser` は同じ検査を実ブラウザで行う（`test/svg-lint-browser.test.ts` が両方を同じ SVG に当てて比べる。丸めの境界で 1px 違うことと、回転したグループの中のコントラストの比べ方（ブラウザ版は文字と図形を別々の座標系で比べていた）だけが違う）。
+`lint-svg` の文字の下限（`font-size-too-small`）は 14px。ただし図のルートに `data-min-text="N"`（`canvas.minText` を 14 未満にした図）があれば、それが下限になる（`--fix` も N まで引き上げる）。案件の `fontFloor ?? 14` より小さい値、または 10 以上の数でない値だと、`font-floor-not-permitted`（**エラー**）。許可された図には、失敗に数えない第 3 の階層「お知らせ」に `font-floor-lowered`（`minText Npx(案件の fontFloor M)`）を 1 行出す（`--strict` でも失敗しない）。設定は、cwd ではなく**各 SVG のあるディレクトリから上へ**探し、`--config <path>` で明示できる（`fonts` の設定も同じ設定から読む）。`data-min-text` のない SVG の挙動は変わらない。
 描画後の検査は、**後から描かれた図形が文字を覆う、または線が文字を貫く**ものも報告する（意図した重なりは、図形に `data-allow-cover`）。
 残す警告は `diagram({accept: {'rule-id': '理由'}})`。`theme:` の図（文書向け）だけが対象で、`day:` の図（スライド）は従来どおり。
+
+### 整列と余白の指標（`layout-*`、情報）と `diagram({layoutCheck})`
+
+生成した図の整列・余白を測る規則である（`lib/layout-metrics.ts`。描かれる座標＝枠の縁を 4px の格子に丸めた後の値で測る）。**既定は情報（`info`）**なので、`check --strict` は落ちない。閾値は原則から固定している（4px の格子、1 行 24px の 2 倍＝48px、40%、50%）。図に合わせて動かさない。並びは同じ row / grid / quadrant（または同じ親の group）の中の同じ種類の枠だけを見る。
+
+| 規則 | 内容 |
+|---|---|
+| `layout-sibling-size` | 横に並ぶ枠の幅が 1〜4px だけ違う（等分の行で丸めた結果）。直し方は `cols` / `flex` |
+| `layout-edge-misalign` | 隣り合う枠の左端・右端・上端が 1〜4px ずれている（0 は一致、5px 以上は別物） |
+| `layout-gutter-uneven` | 横に並ぶ 3 枠以上の間隔が 2px 以上不均一 |
+| `layout-unused-space` | 枠の中身の下に 48px 以上かつ枠の高さの 40% 以上の空き（行の高さ揃え・canvas の床。stamp の帯は数えない） |
+| `layout-figure-offset` | 内容（題・凡例・出典行を除く）の左右の余白が 48px 以上違う（`diagram({canvas})` の図は対象外） |
+| `layout-figure-narrow` | 内容の幅が図の幅の 50% 未満。`diagram({width})` で狭められる。細い図（`concentric`・縦の `chevron`・`cycle` など）は `diagram({width: 'fit'})` |
+| `layout-align-mixed` | 横に並ぶ箱で `align`（左・中央）が混在 |
+
+木・マインドマップ・層状の自動配置の帯、`raw` / ワイヤーフレーム / `plane` など座標を手で置く帯、画像の上に重ねた部品、枠のない箱は測らない。`flex` / `span` / `width` が違う兄弟は等分ではないので `layout-sibling-size` の対象外。`layout-align-mixed` は書き手が `align` を書いた箱だけを見る。`layout-figure-*` の内容の範囲は、題・凡例・出典行（caption と legend）を除いた全部の帯。`check --format json` の各所見には、`data: {band, measured, threshold, fix}`（測った値・閾値・直し方）が付く（text の出力は 1 行のまま）。
+
+**この図だけ warn にする**には `diagram({layoutCheck: 'strict'})`（既定は `'info'`。他の値は throw）。その図の `layout-*` と `edge-bends`（矢印の折れ。上の「折れの少ない配置」）が警告になり、`check --strict` が落ちる。描画（SVG）は 1 バイトも変わらない。意図した所見は規則ごとに理由つきで許容できる。
+
+```ts
+diagram({
+  theme: 'blue',
+  layoutCheck: 'strict',
+  accept: {'layout-align-mixed': '数字の札は中央、説明の札は左（意図）'},
+})
+```
+
+`layoutCheck: 'strict'` は文書向けの図（`theme:`）だけで使える。スライド向け（`day:`）の図は `density` 以外の規則を検査しないので、警告にならないまま素通りしないよう throw する。
+
 文書向けの図の SVG には `role="img"`・`<title>`・`<desc>`・生成元（ソースの SHA-256）が入る。`npm test` / `pnpm test` でルールの単体テスト。
 
 ## コンパイル時に検出されるもの
@@ -1088,7 +1208,7 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 | `grid()` に `cols` がない | `grid(children, {cols}) needs cols` | `opts` と `cols` が必須 | |
 | `pyramid()` の段が 2 未満、`curve()` の点が 2 未満・`y` が数でない | `pyramid(layers) needs at least 2 layers` ほか | 2 要素以上のタプル型。`y` は `number` | 配列変数（`string[]`）は渡せない。リテラルで書く |
 | `raw()` に `draw` がない | `raw({draw}) needs a draw(ctx) function` | `draw` が必須の関数 | |
-| 14px 未満の文字 | `font-size N is below the 14px floor` | `size` は 14〜72 の整数のリテラル型（`MIN_FONT_SIZE` から導出） | |
+| 14px 未満の文字 | `font-size N is below the 14px floor` | `size` は 14〜72 の整数のリテラル型（`MIN_FONT_SIZE` から導出） | 下限を下げるのは `canvas` の `minText`（案件の `fontFloor` が許すときだけ。「スライド 1 枚のキャンバス」） |
 | 状態の一覧の `required` が列にない | `wf-states-required` | `required` の要素は `cols` のいずれか | 列を `string[]` で渡すと検査されない |
 | 状態の一覧の行のセルが列より多い | `wf-states-ragged`（`N cells for M columns`） | `cells` の長さは列の数と**ちょうど同じ** | |
 | 状態の一覧の行のセルが列より少ない（「未設計」が黙って出る） | `wf-states-todo` | 同上。未設計にするなら、明示的に `undefined` を書く。`'na'` / `{na: '理由'}` は今までどおり | |

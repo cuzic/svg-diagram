@@ -1,7 +1,7 @@
 // Types: tree, states, cause / cloud (TOC), classes and bpmn.
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
-import type {Anchor, Dimmed, EmphasisTone, Rect, RevealOpts, TextTone} from './core.ts';
+import type {Anchor, Dimmed, EmphasisTone, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
 import type {BoxTone} from './text-bands.ts';
 import type {GanttText} from './timeline.ts';
 
@@ -14,9 +14,11 @@ export interface TreeItem {
   tone?: BoxTone;
   children?: TreeItem[];
 }
-export interface TreeOpts extends RevealOpts {
-  /** 'down' (default): levels run top to bottom. 'right': left to right, which fits more siblings in a narrow figure. */
-  dir?: 'down' | 'right';
+export interface TreeOpts extends RevealOpts, ScopeOpts {
+  /** 'down' (default): levels run top to bottom. 'right': left to right, which fits more siblings in a narrow figure.
+   *  'auto' (and leaving it out) lets the layout narrow the nodes and turn to the other direction when the figure is wider than the diagram
+   *  (a warning when left out, a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
+  dir?: 'down' | 'right' | 'auto';
   /** The widest a node grows before its text wraps (default 200px). */
   maxNodeW?: number;
   /** A spotlight target and a connect() endpoint (the whole figure). */
@@ -40,7 +42,7 @@ export interface TreeBand extends TreeOpts {
  * fishbone: cause and effect, the root is the head | timeline: children along an axis, alternately above and below.
  */
 export type MindmapLayout = 'radial' | 'right' | 'left' | 'down' | 'up' | 'org' | 'list' | 'brace' | 'fishbone' | 'timeline';
-export interface MindmapOpts extends RevealOpts {
+export interface MindmapOpts extends RevealOpts, ScopeOpts {
   /** How the branches are laid out (default 'radial'): see MindmapLayout. */
   layout?: MindmapLayout;
   /** How a branch's line is drawn: 'elbow' (default), 'curve' or 'straight'. For radial / right / left / down / up. */
@@ -78,12 +80,18 @@ export interface Transition {
   /** A thick arrow. */
   strong?: boolean;
 }
-export interface StatesOpts extends RevealOpts {
-  /** 'right' (default): the flow runs left to right. 'down': top to bottom. */
-  dir?: 'right' | 'down';
+export interface StatesOpts extends RevealOpts, ScopeOpts {
+  /** 'right' (default): the flow runs left to right. 'down': top to bottom.
+   *  'auto' (and leaving it out) lets the layout narrow the states and turn to the other direction when the figure is wider than the diagram
+   *  (a warning when left out, a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
+  dir?: 'right' | 'down' | 'auto';
   /** The state that starts: a filled dot with an arrow into it. */
   initial?: string;
   maxNodeW?: number;
+  /** A transition back to an earlier layer that skips two layers or more: 'inline' (default, through the figure) or 'outer' (in a lane outside the figure). */
+  returns?: 'inline' | 'outer';
+  /** Lay the figure out with the plain coordinates only (default true: a straightened layout is used when it has strictly fewer crossings, then bends). `false` keeps the older picture. */
+  straighten?: boolean;
   id?: string;
 }
 export interface StatesBand extends StatesOpts {
@@ -92,7 +100,7 @@ export interface StatesBand extends StatesOpts {
   transitions: Transition[];
 }
 /** What an entity is. It sets the default tone and, for the two that name the finding, a double outline. */
-export type CauseRole = 'effect' | 'ude' | 'root' | 'de' | 'injection' | 'goal' | 'obstacle' | 'io' | 'action' | 'start' | 'step' | 'risk' | 'measure';
+export type CauseRole = 'effect' | 'ude' | 'root' | 'de' | 'injection' | 'goal' | 'obstacle' | 'io' | 'action' | 'start' | 'step' | 'risk' | 'measure' | 'precondition' | 'tipping' | 'trim' | 'need';
 export interface CauseNode {
   /** Required: links name it, and connect() can reach it. */
   id: string;
@@ -100,11 +108,20 @@ export interface CauseNode {
   /** A second, muted line (a measure, a note). */
   sub?: string;
   /** ude = undesirable effect (danger), root = root cause (accent, double outline), de = desirable effect, injection = the change put in,
-   *  goal = the goal of a prerequisite tree (double outline), obstacle, io = intermediate objective, action = a step of a transition tree.
+   *  goal = the goal of a prerequisite tree (double outline), obstacle, io = intermediate objective, action = a step of a transition tree,
+   *  precondition = a fact of the present nobody controls (grey, dashed box; AND it with an injection's result in a future reality tree).
+   *  tipping = the tipping point of a negative branch (danger tone, double outline), trim = the injection that cuts a negative branch (dashed box; `kind: 'blocks'` to what it cuts),
+   *  need = the need a transition tree's action answers (a filled box).
    *  For a PDPC (pdpc()): start, step, risk (what could go wrong: a danger hexagon), measure (what to do then), goal. */
   role?: CauseRole;
   /** Overrides the tone the role gives. */
   tone?: BoxTone;
+  /** The core driver mark: a thick frame and a 中核 badge. causeTree({coreDriver: true}) sets it; it is not a role. */
+  core?: boolean;
+  /** For a `trim` entity of a negative branch tree: the injection it is folded into ("施策 1"). Drawn as a line under the label (→ 施策 1 に組み込む); the injection need not be in the figure. */
+  foldsInto?: string;
+  /** For a `de` or `goal` entity of a future reality tree given `mirrors` (see CauseOpts): the id of the undesirable effect of the current reality tree it answers. */
+  mirrors?: string;
 }
 export interface CauseLink {
   /** The cause. An array is an AND: the causes together are sufficient (or needed), joined by an arc across their arrows. */
@@ -112,17 +129,58 @@ export interface CauseLink {
   /** The effect (or, in a prerequisite tree, what the cause is needed for). */
   to: string;
   line?: 'solid' | 'dashed' | 'dotted';
+  /** 'cause' (default) or 'blocks': this entity cuts that one (trimming; the negative branch). Drawn dashed and ending in a bar instead of an
+   *  arrowhead; `from` is one entity; it is not an AND, and it is not counted as a cause (coreDriver). */
+  kind?: 'cause' | 'blocks';
+  /** This arrow is the return of a loop (a vicious circle's UDE back to its root cause): it is laid out as the way back, so the layers do not
+   *  depend on the order the entities are written in, and it is drawn bold. One cause only (not with an array `from`); one per cycle. */
+  back?: true;
 }
-export interface CauseOpts extends RevealOpts {
-  /** Which way the arrows run: 'up' (default: causes at the bottom, effects at the top), 'down', 'right' or 'left'. */
-  dir?: 'up' | 'down' | 'right' | 'left';
-  maxNodeW?: number;
+export interface CauseOpts extends RevealOpts, ScopeOpts {
+  /** Which way the arrows run: 'up' (default: causes at the bottom, effects at the top), 'down', 'right' or 'left'.
+   *  'auto' (and leaving it out) lets the layout narrow the nodes when the figure is wider than the diagram (a warning when left out, a note for 'auto');
+   *  a cause tree never changes its axis. Writing a direction fixes it: the figure that does not fit is an error that lists what was tried. */
+  dir?: 'up' | 'down' | 'right' | 'left' | 'auto';
+  /** The widest a node grows (default 200px). Written as a number, it is never narrowed to make the figure fit. 'auto' (ADR 0019 D2) looks for the widest value from 260 down to 100
+   *  that fits the figure's width and the canvas height (also when `dir` is written; a layer that is still too wide is folded). The height is approximate: the band's top is taken off the canvas height. */
+  maxNodeW?: number | 'auto';
+  /** Mark the core driver: the starting entity (nothing causes it) whose arrows bring about the most `ude` entities, 2 or more (a tie: all).
+   *  Every starting entity gets the number it reaches under its text (`到達 UDE n`) unless `counts` is false. `role` is not changed. */
+  coreDriver?: boolean;
+  /** Which Theory of Constraints tree this is: 'crt' (current reality), 'frt' (future reality), 'prt' (prerequisite), 'tt' (transition), 'nbr' (negative branch).
+   *  Only a figure that says it is checked (the `toc-*` rules of `check`); not written, nothing is checked. It never changes the drawing. */
+  tree?: 'crt' | 'frt' | 'prt' | 'tt' | 'nbr';
+  /** Where an entity that nothing causes goes (ADR 0019 D1): 'asap' the first layer, 'alap' just before its nearest effect (a chain of such entities too; root, injection and start entities stay
+   *  on the first layer). Default: 'alap' when `tree` is 'prt', 'frt' or 'tt', else 'asap' (the picture as it was). */
+  layer?: 'asap' | 'alap';
+  /** The current reality tree (the band causeTree() returned for tree: 'crt') this future reality tree answers: its `de` / `goal` entities name the `ude` they mirror (node `mirrors`), and `check`
+   *  finds an unknown or doubled one and a `ude` nothing answers (`toc-mirror`). Only its ids are kept; its text is not read as part of this figure. */
+  mirrors?: CauseBand;
+  /** What `mirrors` leaves in the band: the ids of the current reality tree and of its undesirable effects. Set by causeTree(), not by the author. */
+  mirrorOf?: {ids: string[]; udes: string[]};
+  /** With coreDriver: write `到達 UDE n` under each starting entity (default true). */
+  counts?: boolean;
+  /** Where a return (an arrow back to an earlier layer) that skips two layers or more runs: 'inline' (through the figure, over dummies) or 'outer' (in a lane
+   *  outside the figure, 14px apart, the longest outermost). Default: the arrows written `back: true` run outside, the others inline; `pdpc` runs all of them outside
+   *  (falling back to inline when that does not fit the width). Written explicitly, 'outer' that does not fit is an error. */
+  returns?: 'inline' | 'outer';
+  /** Lay the figure out with the plain coordinates only (default true: a straightened layout is used when it has strictly fewer crossings, then bends). `false` keeps the older picture. */
+  straighten?: boolean;
+  /** Cut a layer that is wider than the figure into rows, one above the other, and keep the direction (ADR 0010 D7). Only a figure that does not fit is changed.
+   *  Default: tried last when `dir` is left out or 'auto' (after narrowing the nodes); `true` also when `dir` is written; `false` never. Only for 'up' and 'down'. */
+  fold?: boolean;
   id?: string;
 }
 export interface CauseBand extends CauseOpts {
+  /** What a band's maker (`pdpc()`) wants when `returns` is not written; like an explicit 'outer', but it falls back to inline when the lanes do not fit. */
+  returnsDefault?: 'outer';
   type: 'cause';
   nodes: CauseNode[];
   links: CauseLink[];
+  /** The direction when `dir` is left out, if not 'up' (pdpc and relationDiagram run 'down'): they may also turn to 'right' to fit. Set by the DSL, not by the author. */
+  base?: 'down';
+  /** `dir` was left out and the DSL wrote `base` into it: it counts as left out (may change), not as written. */
+  dirLeftOut?: true;
 }
 export type CloudBox = string | {text: string; id?: string; tone?: BoxTone};
 /** The arrow an assumption sits on: ab = B to A, ac = C to A, bd = D to B, cd = D' to C, dd = the conflict between D and D'. */
@@ -133,7 +191,7 @@ export interface CloudAssumption {
   /** A change that makes the assumption false (drawn under it, in the accent colour). */
   injection?: string;
 }
-export interface CloudOpts extends RevealOpts {
+export interface CloudOpts extends RevealOpts, ScopeOpts {
   assumptions?: CloudAssumption[];
   /** A word on the conflict arrow (default none). */
   conflictLabel?: string;
@@ -169,9 +227,13 @@ export interface ClassRelation {
   fromMult?: string;
   toMult?: string;
 }
-export interface ClassesOpts extends RevealOpts {
-  /** 'down' (default): parents on top. 'right': left to right. */
-  dir?: 'down' | 'right';
+export interface ClassesOpts extends RevealOpts, ScopeOpts {
+  /** 'down' (default): parents on top. 'right': left to right.
+   *  'auto' (and leaving it out) lets the layout turn to the other direction when the figure is wider than the diagram (a warning when left out,
+   *  a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
+  dir?: 'down' | 'right' | 'auto';
+  /** Lay the figure out with the plain coordinates only (default true: a straightened layout is used when it has strictly fewer crossings, then bends). `false` keeps the older picture. */
+  straighten?: boolean;
   id?: string;
 }
 export interface ClassesBand extends ClassesOpts {
@@ -205,7 +267,7 @@ export interface BpmnFlow {
   /** 'dashed': a message flow between lanes (default: a sequence flow, solid). */
   line?: 'solid' | 'dashed';
 }
-export interface BpmnOpts extends RevealOpts {
+export interface BpmnOpts extends RevealOpts, ScopeOpts {
   id?: string;
   /** 'shrink': when the figure is wider than the diagram, narrow the lane-name column, the column gaps and the task boxes step by step until it fits (default: throw). */
   fit?: 'shrink';
@@ -216,9 +278,23 @@ export interface BpmnBand extends BpmnOpts {
   nodes: BpmnNode[];
   flows: BpmnFlow[];
 }
+/** One thing the layout changed on its own to make a figure fit its width (ADR 0010); the `auto-fit-applied` rule reads it. */
+export interface FitApplied {
+  /** What changed: the direction, the node width, or a layer folded into rows. */
+  what: 'dir' | 'maxNodeW' | 'fold';
+  from: string | number;
+  to: string | number;
+  /** The figure's width before and after, in px. */
+  wasW?: number;
+  nowW?: number;
+  /** How the author asked for it: `dir` left out (a warning) or `dir: 'auto'` (a note), or the change was asked for (`fold: true`). */
+  mode: 'omitted' | 'auto' | 'written';
+}
 export interface TreeNodeText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean}
 export interface LaidOutTree extends Rect, Dimmed {
   type: 'tree';
+  /** What the layout changed on its own to fit the width (none: the figure is as written). */
+  fitApplied?: FitApplied[];
   id?: string;
   reveal?: number;
   until?: number;
@@ -234,6 +310,8 @@ export interface LaidOutTree extends Rect, Dimmed {
 }
 export interface LaidOutStates extends Rect, Dimmed {
   type: 'states';
+  /** What the layout changed on its own to fit the width (none: the figure is as written). */
+  fitApplied?: FitApplied[];
   id?: string;
   reveal?: number;
   until?: number;
@@ -251,12 +329,14 @@ export interface LaidOutStates extends Rect, Dimmed {
 }
 export interface LaidOutCause extends Rect, Dimmed {
   type: 'cause';
+  /** What the layout changed on its own to fit the width (none: the figure is as written). */
+  fitApplied?: FitApplied[];
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone; double?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean})[];
+  nodes: (Rect & {tone: EmphasisTone; double?: boolean; /** the core driver: a thick frame and a badge */ core?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean; /** a dashed frame (a trim) */ dashed?: boolean})[];
   /** Orthogonal polylines from the cause's box edge to the effect's; the arrowhead is at the last point. */
-  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'}[];
+  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; /** a declared return (`back: true`): drawn bold */ back?: true; /** runs in a lane outside the figure (a return that skips two layers or more, see `returns`) */ outer?: true; /** only a cutting arrow has it */ kind?: 'blocks'}[];
   /** The arc across the arrows of an AND: a quadratic curve p0 - c - p1. */
   ands: {to: string; /** the causes it joins */ from: string[]; p0: {x: number; y: number}; c: {x: number; y: number}; p1: {x: number; y: number}}[];
   /** Effects whose AND arrows could not be joined by an arc (they do not arrive on one side of the effect). */
@@ -282,6 +362,8 @@ export interface LaidOutCloud extends Rect, Dimmed {
 }
 export interface LaidOutClasses extends Rect, Dimmed {
   type: 'classes';
+  /** What the layout changed on its own to fit the width (none: the figure is as written). */
+  fitApplied?: FitApplied[];
   id?: string;
   reveal?: number;
   until?: number;

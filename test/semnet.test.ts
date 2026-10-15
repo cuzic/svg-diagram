@@ -73,3 +73,25 @@ test('a long dependency legend wraps into rows instead of running off the figure
   const checked = await checkDiagram(diagram({theme: 'blue'}).add(band));
   assert.deepEqual(checked.verdict.problems, []);
 });
+
+test('causal interventions are validated, are anchors, and do not change loop classification', () => {
+  const nodes = [{id: 'a', label: '需要'}, {id: 'b', label: '供給'}], links = [{from: 'a', to: 'b', polarity: '+' as const}, {from: 'b', to: 'a', polarity: '-' as const}];
+  const iv = {id: 'fix', label: '標準の合意', to: 'a', polarity: '-' as const};
+  const band = causalLoop(nodes, links, {interventions: [iv, {...iv, id: 'fix2', to: ['a', 'b'], polarity: 'opposite', delay: true}]});
+  assert.deepEqual(band.ids, ['a', 'b', 'fix', 'fix2']);
+  assert.deepEqual(Object.keys((band as unknown as {anchors: object}).anchors).sort(), ['a', 'b', 'fix', 'fix2']);
+  assert.match(band.alt ?? '', /Interventions: 標準の合意 -> 需要 \(-\); 標準の合意 -> 需要, 供給 \(-, delayed\)/);
+  assert.equal(causalLoop(nodes, links).alt, causalLoop(nodes, links, {interventions: []}).alt);
+  assert.deepEqual((band as unknown as {spec: {loops: {kind: string}[]}}).spec.loops.map(l => l.kind), ['B']);
+  const bad = (v: object, re: RegExp): void => assert.throws(() => causalLoop(nodes, links, {interventions: [{...iv, ...v} as never]}), re);
+  bad({to: 'zzz'}, /to names unknown node "zzz"/);
+  bad({to: []}, /at least one node/);
+  bad({to: ['a', 'a']}, /twice/);
+  bad({polarity: 'x'}, /invalid polarity/);
+  bad({polarity: undefined}, /invalid polarity/);
+  bad({delay: 'yes'}, /delay must be/);
+  bad({label: ''}, /label/);
+  bad({id: 'a'}, /must be unique/);
+  assert.throws(() => causalLoop(nodes, links, {interventions: [iv, {...iv, id: 'g', to: 'fix'}]}), /cannot act on the intervention "fix"/);
+  assert.throws(() => causalLoop(nodes, links, {id: 'fix', interventions: [iv]}), /fix/);
+});

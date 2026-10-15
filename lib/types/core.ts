@@ -63,7 +63,7 @@ export interface Dimmed {/** Set on laid-out elements outside diagram({spotlight
 export interface Anchor extends Rect {id: string}
 /** Result of parsing a connect() ref 'id', 'id:side' or 'id:side@t'. */
 export interface ConnectRef {id: string; side: string; at: number}
-/** diagram({canvas}): the fixed slide canvas the diagram is drawn on. `minText` is the smallest text size (px, in the canvas's own units) the lint accepts. */
+/** diagram({canvas}): the fixed slide canvas the diagram is drawn on. `minText` is the smallest text size (px, in the canvas's own units) the lint accepts. Below 14 (down to 10) only for a dense figure read 1:1, not projected, and only when the project's `fontFloor` allows it. */
 export interface SlideCanvas {width: number; height: number; minText: number}
 /** Slide the diagram will be shown on (slide-budget.ts measures its free area). */
 export interface SlideRef {page: string; heading: string}
@@ -106,9 +106,14 @@ export interface DiagramOpts {
   legendLabels?: Partial<Record<NotationKey, string>>;
   /** Replace colours of tones for this diagram: `{accent: {fill: '#e6d3bd', dark: {fill: '#4a3a28'}}}`. Per tone: fill / stroke / text / ink (#rrggbb), and `dark` for the same under appearance 'dark'. Checked like the built-in colours (text-contrast, gray-tone-collision). The project's `tones` apply under it. */
   tones?: ToneOverrides;
-  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
-  wrap?: 'phrase' | 'char';
-  width?: number;
+  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line; 'bunsetsu' also keeps a hiragana with the character before it (breaks only after a hiragana that a non-hiragana follows, or after 、。) and widens tree-like boxes to their longest unit. */
+  wrap?: 'phrase' | 'char' | 'bunsetsu';
+  /** The figure's width in px (default 940). 'fit' narrows it to what the figure shows plus the padding (text sizes do not change; a figure whose content already spans the width stays 940).
+   *  For a thin figure (a concentric, a vertical chevron, a few people). It changes the figure's size in the document, so it is never the default. Not with `canvas`, `fill` or `slide`. */
+  width?: number | 'fit';
+  /** The widest this figure may be before `check` warns `doc-width` (default 940, or the project's `maxWidth`). It does not make the figure wider: that is `width`.
+   *  Writing `maxWidth: 1200` alone leaves the width at 940; write `width: 1200` too. Not for `canvas` figures. */
+  maxWidth?: number;
   pad?: number;
   gap?: number;
   /** Slide room for the <img> (fit.ts). */
@@ -127,7 +132,15 @@ export interface DiagramOpts {
   spotlight?: SpotlightOpt;
   /** A source / citation line pinned as the last line of the figure (left-aligned, muted, one line). See README. */
   sourceLine?: string;
+  /** 'strict': this diagram's `layout-*` findings (alignment and whitespace) are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
+  layoutCheck?: LayoutCheck;
+  /** 'strict': the `toc-*` findings of this diagram's causeTree({tree}) figures are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
+  tocCheck?: TocCheck;
 }
+/** diagram({tocCheck}): the severity of the `toc-*` findings. */
+export type TocCheck = 'info' | 'strict';
+/** diagram({layoutCheck}): the severity of the `layout-*` findings. */
+export type LayoutCheck = 'info' | 'strict';
 /**
  * What diagram({spotlight}) takes: the anchor id(s) to keep prominent, or an object with more.
  * `edges`: which connectors stay prominent ('touching': one end is a target; 'between': both are).
@@ -151,9 +164,11 @@ export interface DiagramData {
   legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
   tones?: ToneOverrides;
-  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
-  wrap?: 'phrase' | 'char';
+  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line; 'bunsetsu' also keeps a hiragana with the character before it (breaks only after a hiragana that a non-hiragana follows, or after 、。) and widens tree-like boxes to their longest unit. */
+  wrap?: 'phrase' | 'char' | 'bunsetsu';
   width: number;
+  /** diagram({width: 'fit'}): renderDiagram narrows `width` to the content. */
+  fitWidth?: boolean;
   pad: number;
   gap: number;
   maxDisplayHeight?: number;
@@ -165,6 +180,8 @@ export interface DiagramData {
   wireframeDefaults?: WireframeDefaults;
   spotlight?: SpotlightOpt;
   sourceLine?: string;
+  layoutCheck?: LayoutCheck;
+  tocCheck?: TocCheck;
   bands: Band[];
   /** Set by build() from the measured slide (contentWidth). */
   usableWidth?: number;
@@ -190,6 +207,12 @@ export interface DiagramSource {
   reveal?: number;
   until?: number;
 }
+/**
+ * ADR 0012: `scope` on a self-placing band (tree, mindmap, stateDiagram, causeTree, gantt, classDiagram, bpmn, quadrant, chart, bars,
+ * image, swimlane, chevron / funnel / cycle / venn / concentric) registers its items as `<scope>.<id>`. connect() and spotlight
+ * name one with the qualified name; the bare id works while only one item has it, and is an error when several do.
+ */
+export interface ScopeOpts {scope?: string}
 export interface RevealOpts {reveal?: number; /** The click this element vanishes at (it is shown from `reveal` up to, not including, `until`). */ until?: number}
 /**
  * What diagram() returns. `add()` accepts bands and arrays of bands (swimlane() / branch() return arrays).

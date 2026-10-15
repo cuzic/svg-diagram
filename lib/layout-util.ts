@@ -62,6 +62,52 @@ export function colSlots(children: SlotSizing[]): {col: number; span: number}[] 
 /** swimlane({fit: 'shrink'}) leaves the lane label / gap sizes alone while every column is at least this wide. */
 export const SWIMLANE_COMFY_COL = 112;
 
+/** The grid the emitter snaps box and group edges to (emit-boxes.ts snap4). */
+export const GRID = 4;
+const ceilGrid = (n: number): number => Math.ceil(n / GRID - 1e-9) * GRID;
+const roundGrid = (n: number): number => Math.round(n / GRID) * GRID;
+/** The nearest 4px grid line: where a band / box top is placed (ADR 0014 D1, U1b), so the emitter's snap never moves it. */
+export const snapGrid = roundGrid;
+
+/**
+ * Column edges for `n` equal columns across `contentWidth`, decided ONCE per (width, n, gap) and shared by every row that uses it (ADR 0014 D1).
+ * Every edge is a multiple of 4 from the left edge, so the emitter's snap never moves one. The gap is raised to the next multiple of 4 (a
+ * label-driven gap is never lowered; `fixedGap` keeps it as given: a crosshair has none). Left over are `extra` grid steps (< n), that cannot
+ * be shared out evenly:
+ *  - exactly one step per gutter (and the gap is at least 16, so a step is a quarter at most): the gutters take it and the columns come out equal (900 wide, gap 16, 2 columns: 440 + 20 + 440, not 444 + 16 + 440);
+ *  - otherwise the columns differ by at most one step, wider ones spread evenly and mirrored (the odd step goes to the middle column, or, with
+ *    `centerGutter` (the 12-column grid only) and an even number of columns, to the middle gutter, so the two halves are equal).
+ * `anyGap`: the gap may be widened by a step whatever its size (a figure's own, undeclared gutter, as the quadrant's).
+ * `null` when the width is too small to give every column a grid step: the caller keeps the plain split.
+ */
+export function gridColumns(contentWidth: number, n: number, gap: number, opts: {fixedGap?: boolean; centerGutter?: boolean; anyGap?: boolean} = {}): {x: number[]; w: number[]} | null {
+  const g0 = n > 1 ? (opts.fixedGap ? gap : ceilGrid(Math.max(gap, 0))) : 0;
+  const units = Math.floor((contentWidth - (n - 1) * g0) / GRID + 1e-9);
+  if (units < n) return null;
+  const base = Math.floor(units / n);
+  let extra = units - base * n; // columns that get one more grid step
+  const gutter = new Array<number>(Math.max(n - 1, 0)).fill(g0);
+  const add = new Array<number>(n).fill(0);
+  if (n > 1 && extra === n - 1 && !opts.fixedGap && (opts.anyGap || GRID <= 0.25 * g0)) { for (let k = 0; k < n - 1; k++) gutter[k] += GRID; extra = 0; }
+  const odd = extra % 2 === 1;
+  extra -= odd ? 1 : 0;
+  // the rest in mirrored pairs, spread evenly over the left half
+  const pairs = extra / 2, half = Math.floor(n / 2);
+  for (let j = 0; j < pairs; j++) { const i = Math.min(half - 1, Math.floor((j + 0.5) * half / pairs)); add[i]++; add[n - 1 - i]++; }
+  if (odd) { // the odd step: the middle column, else (with centerGutter) the middle gutter, else the first column that has no step yet
+    const mid = (n - 1) / 2;
+    if (n % 2 === 1 && add[mid] === 0) add[mid]++;
+    else if (n % 2 === 0 && opts.centerGutter && !opts.fixedGap && (opts.anyGap || GRID <= 0.25 * g0)) gutter[n / 2 - 1] += GRID;
+    else add[add.findIndex(v => v === 0)]++;
+  }
+  const w = add.map(v => (base + v) * GRID);
+  const x: number[] = [];
+  let at = 0;
+  w.forEach((v, k) => { x.push(at); at += v + (k < n - 1 ? gutter[k] : 0); });
+  // (a width that is not a multiple of 4 leaves under one step unused at the right: the columns stay equal and symmetric)
+  return {x, w};
+}
+
 export function rowChildGeometry(band: Pick<RowBand, 'cols' | 'gap' | 'justify' | 'itemWidth'> & {children: {span?: number; col?: number; flex?: number; width?: number; title?: string; id?: string}[]}, contentWidth: number) {
   const n = band.children.length;
   const gap = band.gap;
@@ -69,20 +115,45 @@ export function rowChildGeometry(band: Pick<RowBand, 'cols' | 'gap' | 'justify' 
     // Shared column grid: every row declaring the same `cols` + `gap` gets
     // identical column edges, so a box spanning columns 1-2 sits exactly
     // above two boxes in columns 1 and 2 of the next row.
+    const grid = gridColumns(contentWidth, band.cols, gap, {centerGutter: band.cols === 12});
     const cw = (contentWidth - (band.cols - 1) * gap) / band.cols;
+    const colX = (c: number): number => grid ? grid.x[c] : c * (cw + gap);
+    const colW = (c: number): number => grid ? grid.w[c] : cw;
     let next = 1;
     const widths: number[] = [], xOffsets: number[] = [];
     for (const c of band.children) {
       const span = c.span ?? 1;
       const col = c.col ?? next;
       if (col < 1 || col + span - 1 > band.cols) throw new Error(`row({cols: ${band.cols}}): child "${c.title ?? c.id ?? '(box)'}" at col ${col} span ${span} falls outside the ${band.cols} columns`);
-      widths.push(span * cw + (span - 1) * gap);
-      xOffsets.push((col - 1) * (cw + gap));
+      const first = col - 1, last = col + span - 2;
+      widths.push(colX(last) + colW(last) - colX(first));
+      xOffsets.push(colX(first));
       next = col + span;
     }
     return {widths, xOffsets};
   }
   if (band.justify === 'stretch') {
+    const equal = band.children.every(c => (c.flex ?? 1) === (band.children[0].flex ?? 1));
+    if (equal && n > 0) {
+      const grid = gridColumns(contentWidth, n, gap);
+      if (grid) return {widths: grid.w, xOffsets: grid.x};
+    } else if (n > 0) {
+      // unequal flex: split by the ratio, then round every boundary to the grid from the left (the gutter is a multiple of 4)
+      const g = n > 1 ? ceilGrid(Math.max(gap, 0)) : 0;
+      const avail = contentWidth - (n - 1) * g;
+      const flexSum = band.children.reduce((s, c) => s + (c.flex ?? 1), 0);
+      const widths: number[] = [], xOffsets: number[] = [];
+      let x = 0, ok = avail > 0, cum = 0;
+      band.children.forEach((c, i) => {
+        cum += c.flex ?? 1;
+        // every boundary is rounded from its own cumulative position, so the rounding never builds up on the last child
+        const right = i === n - 1 ? Math.floor(contentWidth / GRID + 1e-9) * GRID : roundGrid(avail * cum / flexSum + i * g);
+        if (right - x < GRID) ok = false;
+        xOffsets.push(x); widths.push(right - x);
+        x = right + g;
+      });
+      if (ok) return {widths, xOffsets};
+    }
     const avail = contentWidth - (n - 1) * gap;
     const flexSum = band.children.reduce((s, c) => s + (c.flex ?? 1), 0);
     const widths = band.children.map(c => avail * (c.flex ?? 1) / flexSum);
@@ -104,8 +175,9 @@ export function rowChildGeometry(band: Pick<RowBand, 'cols' | 'gap' | 'justify' 
 export function gridChildGeometry(band: GridBand, contentWidth: number) {
   const cols = band.cols;
   const gap = band.gap;
-  const cellWidth = (contentWidth - (cols - 1) * gap) / cols;
-  return {cellWidth};
+  const grid = gridColumns(contentWidth, cols, gap);
+  const cellWidth = (contentWidth - (cols - 1) * gap) / cols; // (the plain split, when the width cannot give every column a grid step)
+  return {xs: grid ? grid.x : Array.from({length: cols}, (_, j) => j * (cellWidth + gap)), ws: grid ? grid.w : new Array<number>(cols).fill(cellWidth)};
 }
 
 /**

@@ -27,9 +27,10 @@
     "test": "node --test \"test/*.test.ts\"",
     "golden": "node --import ./test/helpers/strict-width.ts check-diagram.ts --drift --rebuild --svg-dir examples/out examples/*.ts",
     "typecheck": "tsc -p .",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && pnpm run build:assets",
+    "build:assets": "mkdir -p dist/lib/deck-viewer && cp lib/deck-viewer/*.js lib/deck-viewer/*.css dist/lib/deck-viewer/",
     "release": "bash scripts/release.sh",
-    "prepack": "rm -rf dist && tsc -p tsconfig.build.json"
+    "prepack": "rm -rf dist && tsc -p tsconfig.build.json && pnpm run build:assets"
   },
   "license": "MIT",
   "repository": {

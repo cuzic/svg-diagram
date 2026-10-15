@@ -5,26 +5,30 @@ import path from 'node:path';
 import type {DiagramData} from './types/core.ts';
 import type {Config} from './types/project.ts';
 import {DEFAULT_LEGEND_LABELS, RULE_DOCS} from './rules.ts';
-import {checkTones, mergeTones} from './tokens.ts';
+import {checkMinText, checkTones, MIN_FONT_SIZE, mergeTones} from './tokens.ts';
 
 export function loadConfig(from: string = process.cwd()): Config {
   let dir = path.resolve(from);
   for (;;) {
     const f = path.join(dir, '.svg-diagram.json');
-    if (fs.existsSync(f)) {
-      let cfg: Config;
-      try { cfg = {...JSON.parse(fs.readFileSync(f, 'utf8')), _file: f}; }
-      catch (e) { throw new Error(`${f}: ${(e as Error).message}`); }
-      checkLegend(cfg, f);
-      checkAccept(cfg, f);
-      checkTerms(cfg, f);
-      if (cfg.tones !== undefined) { try { cfg.tones = checkTones(cfg.tones, '"tones"'); } catch (e) { throw new Error(`${f}: ${(e as Error).message}`); } }
-      return cfg;
-    }
+    if (fs.existsSync(f)) return readConfigFile(f);
     const up = path.dirname(dir);
     if (up === dir) return {};
     dir = up;
   }
+}
+
+/** One .svg-diagram.json, read and checked (`--config <path>` names it directly). */
+export function readConfigFile(f: string): Config {
+  let cfg: Config;
+  try { cfg = {...JSON.parse(fs.readFileSync(f, 'utf8')), _file: f}; }
+  catch (e) { throw new Error(`${f}: ${(e as Error).message}`); }
+  checkLegend(cfg, f);
+  checkAccept(cfg, f);
+  checkTerms(cfg, f);
+  checkFontFloor(cfg, f);
+  if (cfg.tones !== undefined) { try { cfg.tones = checkTones(cfg.tones, '"tones"'); } catch (e) { throw new Error(`${f}: ${(e as Error).message}`); } }
+  return cfg;
 }
 
 // JSON has no types: a typo in legend / legendLabels would otherwise be dropped without a word (a diagram's own are checked by tsc / diagram())
@@ -58,8 +62,17 @@ function checkTerms(cfg: Config, f: string): void {
   for (const [k, v] of Object.entries(t)) if (!Array.isArray(v) || !v.length || v.some(x => typeof x !== 'string' || !x)) throw new Error(`${f}: terms["${k}"] must be a non-empty list of spellings to avoid`);
 }
 
+// {"fontFloor": 10}: how low a canvas diagram may declare minText (ADR 0017); above 14 would mean nothing
+function checkFontFloor(cfg: Config, f: string): void {
+  if (cfg.fontFloor === undefined) return;
+  try { checkMinText(cfg.fontFloor, '"fontFloor"'); } catch (e) { throw new Error(`${f}: ${(e as Error).message}`); }
+  if (cfg.fontFloor > MIN_FONT_SIZE) throw new Error(`${f}: "fontFloor" must be at most ${MIN_FONT_SIZE} (the default; it only lowers what a diagram may declare) (got ${cfg.fontFloor})`);
+}
+
 // a diagram's own accept / maxWidth / legend / legendLabels win over the project's
-export function applyConfig<D extends Pick<DiagramData, 'accept' | 'terms' | 'maxWidth' | 'legend' | 'legendLabels' | 'tones'>>(d: D, cfg: Config): D {
+export function applyConfig<D extends Pick<DiagramData, 'accept' | 'terms' | 'maxWidth' | 'legend' | 'legendLabels' | 'tones' | 'canvas'>>(d: D, cfg: Config): D {
+  const floor = cfg.fontFloor ?? MIN_FONT_SIZE;
+  if (d.canvas && d.canvas.minText < floor) throw new Error(`canvas: {minText: ${d.canvas.minText}} is below the project's fontFloor (${floor}). Lower "fontFloor" in .svg-diagram.json (10 at the lowest) or raise minText`);
   d.accept = {...(cfg.accept ?? {}), ...(d.accept ?? {})};
   if (cfg.terms) d.terms = {...cfg.terms, ...(d.terms ?? {})};
   if (cfg.maxWidth && d.maxWidth == null) d.maxWidth = cfg.maxWidth;

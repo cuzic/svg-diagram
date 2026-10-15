@@ -26,8 +26,8 @@
   <text x="262" y="79" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">台所</text>
 
   <rect x="20" y="392" width="900" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="40" y="422.6" font-size="15" font-weight="700" fill="#22201b">見る所</text>
-  <text x="40" y="450.6" font-size="14" font-weight="400" fill="#22201b">鍋の火の元を確認する</text>
+  <text x="40" y="423" font-size="15" font-weight="700" fill="#22201b">見る所</text>
+  <text x="40" y="451" font-size="14" font-weight="400" fill="#22201b">鍋の火の元を確認する</text>
 
   <path d="M365,286 L470,392" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
 </svg>

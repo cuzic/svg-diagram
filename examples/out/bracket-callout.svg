@@ -15,24 +15,24 @@
 
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">審査と承認の区間だけが対象</text>
 
-  <rect x="20" y="56" width="212" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="40" y="86.6" font-size="15" font-weight="700" fill="#22201b">受付</text>
+  <rect x="20" y="56" width="216" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="40" y="87" font-size="15" font-weight="700" fill="#22201b">受付</text>
 
-  <rect x="248" y="56" width="216" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="269" y="86.6" font-size="15" font-weight="700" fill="#22201b">審査</text>
+  <rect x="252" y="56" width="212" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="272" y="87" font-size="15" font-weight="700" fill="#22201b">審査</text>
 
   <rect x="480" y="56" width="212" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="498" y="86.6" font-size="15" font-weight="700" fill="#22201b">承認</text>
+  <text x="500" y="87" font-size="15" font-weight="700" fill="#22201b">承認</text>
 
   <rect x="708" y="56" width="212" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="727" y="86.6" font-size="15" font-weight="700" fill="#22201b">通知</text>
+  <text x="728" y="87" font-size="15" font-weight="700" fill="#22201b">通知</text>
 
-  <path d="M232,82 L248,82" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
-  <path d="M464,82 L480,82" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
-  <path d="M692,82 L708,82" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+  <path d="M236,83 L252,83" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+  <path d="M464,83 L480,83" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+  <path d="M692,83 L708,83" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
 
-  <path d="M249,113 L249,125 L691,125 L691,113" fill="none" stroke="#22201b" stroke-width="2"/>
-  <text x="470" y="145" text-anchor="middle" font-size="14" fill="#22201b">対象の区間</text>
+  <path d="M252,113 L252,125 L692,125 L692,113" fill="none" stroke="#22201b" stroke-width="2"/>
+  <text x="472" y="145" text-anchor="middle" font-size="14" fill="#22201b">対象の区間</text>
 
   <path d="M814,141 L814,113" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
   <rect x="744" y="140" width="144" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>

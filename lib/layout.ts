@@ -22,9 +22,10 @@ import {setWrapMode} from './wrap.ts';
 import {childrenOf, stackWidthOf} from './band-children.ts';
 import {layoutBoxContent, lineWidth} from './layout-text.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
+import {addScoped, qualify, scopesOf} from './anchor-scope.ts';
 import {
   BOX_PAD_X, BOX_PAD_Y, ICON_H, STAMP_GAP, STAMP_H, TAG_H, TAG_PAD_X, TOP_ICON_GAP, TOP_ICON_SIZE,
-  anchorRect, colSlots, rowChildGeometry, stampChipW, topIcon, withSourceLine,
+  anchorRect, colSlots, rowChildGeometry, snapGrid, stampChipW, topIcon, withSourceLine,
 } from './layout-util.ts';
 import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
 import type {DiagramData, Roles, WidthOf, Rect} from './types/core.ts';
@@ -119,7 +120,9 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
   const connects: LaidOutConnect[] = [];
   const deferred: ConnectBand[] = []; // connect()s that came before the boxes they name
 
-  const placeBoxLike = <B extends CaptionBand | BoxBand | BannerBand>(band: B, x: number, y: number, w: number, isBoxLike: boolean): Placed<B> => {
+  const scopes = scopesOf(d.bands); // every scoped item, read before layout: a bare id is ambiguous whatever order the bands came in
+  const placeBoxLike = <B extends CaptionBand | BoxBand | BannerBand>(band: B, x: number, y0: number, w: number, isBoxLike: boolean, scope?: string): Placed<B> => {
+    const y = snapGrid(y0); // the top sits on the grid, so its text (y + padY + line offset) is always the same distance below the frame the emitter draws
     const chrome = band as BoxChrome; // caption has no padX / padY / tag / id: they read as undefined (its `tone` is a TextTone, unused here)
     const wrapWidth = isBoxLike ? w - 2 * (chrome.padX ?? BOX_PAD_X) : w;
     const content = layoutBoxContent(band, wrapWidth, widthOf, roles);
@@ -147,24 +150,27 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
       const tw = textWidth(widthOf, chrome.tag, (roles.tag ?? TAG_SIZE), 700) + 2 * TAG_PAD_X;
       placed.tagBox = {x: chrome.tagAt === undefined ? x + w - tw - 12 : x + w * chrome.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
     }
-    if (chrome.id && (areaIds.has(chrome.id) || anchors.has(chrome.id))) claimed(chrome.id, 'a box takes an id that another box, group or row already has');
-    if (chrome.id) setBox(chrome.id, {...band, x, y, w, h} as never, h);
+    const name = chrome.id ? qualify(scope, chrome.id) : undefined;
+    if (chrome.id && (areaIds.has(name!) || anchors.has(name!))) claimed(name!, 'a box takes an id that another box, group or row already has');
+    if (chrome.id) { setBox(name!, {...band, x, y, w, h} as never, h); if (scope) addScoped(scopes, scope, chrome.id); }
     return placed;
   };
 
-  const register = (id: string, rect: Rect, what: string): void => {
-    if (anchors.has(id)) claimed(id, what);
-    anchors.set(id, rect);
+  const register = (id: string, rect: Rect, what: string, scope?: string): void => {
+    const name = qualify(scope, id);
+    if (anchors.has(name)) claimed(name, what);
+    anchors.set(name, rect);
+    if (scope) addScoped(scopes, scope, id);
   };
   const ctx: LayoutCtx = {
-    d, roles, widthOf, y: d.pad, laidOut, anchors, nodeBottoms, areaIds, connects, deferred,
+    d, roles, widthOf, y: d.pad, laidOut, anchors, nodeBottoms, areaIds, connects, deferred, scopes,
     setBox, claimed, register, placeBoxLike, gapForLabels,
     stack: (bands, padX, cw) => {
       for (const band of bands) layoutHandlerFor(band.type)(band as never, ctx, padX, cw);
     },
   };
   ctx.stack(d.bands, d.pad, contentWidth);
-  for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms)); // throws "unknown anchor id" if it never appears
+  for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms, scopes)); // throws "unknown anchor id" if it never appears
 
   const contentHeight = Math.round(ctx.y - d.gap + d.pad);
   const canvasHeight = d.canvas ? Math.max(contentHeight, d.canvas.height) : contentHeight;

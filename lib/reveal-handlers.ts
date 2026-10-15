@@ -33,6 +33,10 @@ export interface RevealCtx {
   connects: BandOf<'connect'>[];
   /** the largest stage (or until) seen so far */
   max: number;
+  /** The `scope` of the band whose items are being visited (ADR 0012); undefined for the band itself and for unscoped bands. */
+  scope?: string;
+  /** The name an item id is registered under: `scope.id` inside a scoped band, the id itself elsewhere. */
+  name(id: string): string;
   /** Resolve one element: max(inherited, own) reveal, earliest until; records its id. Returns its stage. */
   set(x: Revealed, inherited: number, where: string, inheritedUntil?: number): number;
   /** Walk nested bands with an inherited stage / until. */
@@ -62,7 +66,7 @@ function revealPlane(p: BandOf<'plane'>, n: number, _u: number | undefined, ctx:
   for (const [i, pt] of (p.points ?? []).entries()) {
     const r = Math.max(n, own(pt, `plane() point ${i + 1}`) ?? 0);
     if (r) pt.reveal = r;
-    if (pt.id) lvl.set(pt.id, r);
+    if (pt.id) lvl.set(pt.id, r); // a plane's points are its own: the lines and dims of the same plane name them
     ctx.max = Math.max(ctx.max, r);
   }
   const ends = (refs: unknown[]): number => Math.max(0, ...refs.map(r => typeof r === 'string' ? lvl.get(r) ?? 0 : 0));
@@ -111,7 +115,7 @@ function revealRow(b: BandOf<'row'> | BandOf<'grouprow'>, n: number, u: number |
 }
 
 function revealImage(b: BandOf<'image'>, n: number, u: number | undefined, ctx: RevealCtx): void {
-  for (const [i, m] of (b.marks ?? []).entries()) { const r = ctx.set(m, n, `image() mark ${i + 1}`, u); if (m.id) ctx.ids.set(m.id, r); }
+  for (const [i, m] of (b.marks ?? []).entries()) { const r = ctx.set(m, n, `image() mark ${i + 1}`, u); if (m.id) ctx.ids.set(ctx.name(m.id), r); }
   for (const [i, l] of (b.labels ?? []).entries()) ctx.set(l, n, `image() label ${i + 1}`, u);
   ctx.walk(childrenOf(b), n, u);
 }
@@ -125,16 +129,16 @@ function revealBars(b: BandOf<'bars'>, n: number, u: number | undefined, ctx: Re
       const old = b.data.slice(0, i).find(d => d.id === bar.replaces);
       if (!old) throw new Error(`bars() value ${i + 1}: replaces "${bar.replaces}" must name the id of an earlier bar of the same band`);
       if (bar.reveal === undefined) throw new Error(`bars() value ${i + 1}: a bar that replaces another needs a reveal (the click it takes the place at)`);
-      if (ctx.replaced.has(bar.replaces)) throw new Error(`bars() value ${i + 1}: "${bar.replaces}" is already replaced by another bar`);
-      ctx.replaced.add(bar.replaces);
+      if (ctx.replaced.has(ctx.name(bar.replaces))) throw new Error(`bars() value ${i + 1}: "${bar.replaces}" is already replaced by another bar`);
+      ctx.replaced.add(ctx.name(bar.replaces));
       const oldOwn = ctx.ownUntils.get(old);
       if (oldOwn !== undefined && oldOwn !== bar.reveal) throw new Error(`bars() value ${i + 1}: replaces "${bar.replaces}", which already vanishes at ${oldOwn}, not at this bar's reveal ${bar.reveal}`);
       if (bar.reveal <= (old.reveal ?? 0)) throw new Error(`bars() value ${i + 1}: replaces "${bar.replaces}" but is revealed (${bar.reveal}) no later than it (${old.reveal ?? 0})`);
-      if (old.id) ctx.untils.set(old.id, bar.reveal);
+      if (old.id) ctx.untils.set(ctx.name(old.id), bar.reveal);
       old.until = bar.reveal; // the replaced bar goes at the very click its replacement comes
     }
     const r = ctx.set(bar, n, `bars() value ${i + 1}`, u);
-    if (bar.id) ctx.ids.set(bar.id, r);
+    if (bar.id) ctx.ids.set(ctx.name(bar.id), r);
   }
 }
 

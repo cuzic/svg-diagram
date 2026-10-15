@@ -2,7 +2,7 @@ import {timelineDay} from '../timeline.ts';
 import {num} from '../qc.ts';
 import type {TimelineBand, TimelineOpts, NumericTimelineBand, NumericTimelineOpts, GanttBand, GanttOpts, GanttRow} from '../types/timeline.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
-import {revealOf, withAnchors, withHandle} from './shared.ts';
+import {revealOf, scopeOpt, withAnchors, withHandle} from './shared.ts';
 
 type GanttIds<R extends readonly GanttRow[]> = Extract<(R[number] extends infer T ? T extends {readonly id: infer I} ? I : never : never), string>;
 /**
@@ -18,7 +18,7 @@ export function gantt(rows: readonly GanttRow[], opts: GanttOpts = {}): GanttBan
     if ('section' in r) { if (typeof r.section !== 'string' || !r.section.trim()) throw new Error('gantt(): a section needs a title'); continue; }
     if (r.tone !== undefined && !['accent', 'danger', 'muted'].includes(r.tone)) throw new Error(`gantt(): "${r.label}" tone must be accent, danger or muted (got ${String(r.tone)})`);
   }
-  const band: GanttBand = {type: 'gantt', rows: [...rows], ...(opts.from === undefined ? {} : {from: opts.from}), ...(opts.to === undefined ? {} : {to: opts.to}), ...(opts.today === undefined ? {} : {today: opts.today}), ...(opts.todayLabel === undefined ? {} : {todayLabel: opts.todayLabel}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  const band: GanttBand = {type: 'gantt', rows: [...rows], ...(opts.from === undefined ? {} : {from: opts.from}), ...(opts.to === undefined ? {} : {to: opts.to}), ...(opts.today === undefined ? {} : {today: opts.today}), ...(opts.todayLabel === undefined ? {} : {todayLabel: opts.todayLabel}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'gantt()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), rows.map(r => 'id' in r ? r.id : undefined));
 }
 /**

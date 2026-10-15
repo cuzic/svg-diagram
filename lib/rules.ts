@@ -9,10 +9,11 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
+import {qualify, scopeOf} from './anchor-scope.ts';
 import {nestedBandsOf} from './band-children.ts';
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
-import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, withTones} from './tokens.ts';
+import {PALETTE, MIN_FONT_SIZE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, withTones} from './tokens.ts';
 
 // contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
 const wcagIn = (d: LintTarget) => { const p = paintOf(d.appearance); return (a: string, b: string): number => lightWcag(p(a), p(b)); };
@@ -21,17 +22,22 @@ import {budgetWarnings} from './budget.ts';
 import {termFindings, tableFindings} from './consistency.ts';
 import {barsValuesHidden} from './bars.ts';
 import {fmt} from './plane.ts';
+import {layoutMetrics} from './layout-metrics.ts';
 import {dimmedBands} from './spotlight.ts';
 import {visibleAt} from './reveal.ts';
 import type {BarsBand} from './types/bars.ts';
 import type {LaidOutConnect, LegendBand, LegendItem} from './types/containers.ts';
 import type {ArrowWeight, EmphasisTone, DiagramData, LineStyle, Point, Rect, RuleId} from './types/core.ts';
+import {bendsOf, crossingsOf} from './polyline-metrics.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {SwimlaneBand} from './types/sequence-table-swimlane.ts';
 import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
 import type {Finding} from './types/verdicts.ts';
 import type {WfCallout} from './types/wireframe-nodes.ts';
 import type {LintTarget} from './types/verdicts.ts';
+import type {CauseRole} from './types/diagrams.ts';
+import {describeApplied} from './fit-width.ts';
+import {tocFindings} from './toc-rules.ts';
 
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
@@ -53,11 +59,27 @@ export const RULE_DOCS = {
   'swimlane-lanes': 'レーンが多い（6 本まで）',
   'swimlane-hand-offs': 'レーンをまたぐ引き継ぎの数（情報）',
   'edge-crossings': '線どうしの交差・重なりがある',
+  'edge-bends': '自動配置の図（cause / states / bpmn / classes / semnet）で、1 本の矢印が 5 回以上折れる、または折れの合計 ÷ 矢印の数が 3 を超える。既定は情報、diagram({layoutCheck: "strict"}) で warn',
   'quadrant-item-moved': 'quadrant() の項目が、重なりを避けるため指定した座標から 16px 以上動いた（座標は目安として読まれる）',
   'quadrant-size-floor': 'quadrant() の項目の size が小さすぎ、最小の円で描いた（面積が値より大きく見える）',
   'quadrant-empty-cell': 'quadrant() のマスに項目が 1 つもない（「該当なし」の空の枠が残っている。意図した空きは allowEmpty で示す）',
   'quadrant-tone-only': 'quadrant() の項目の色（tone）だけで種類を分けている（group を使うと形と凡例でも伝わる）',
   'funnel-values-rise': 'funnel({scale: "value"}) の値が下の段で増えている（漏斗として読むなら、値と段の順を確認する）',
+  'toc-ude-count': '現状ツリー(causeTree({tree: "crt"}))の UDE が 5〜10 個の範囲の外。部分図なら accept で許容する。diagram({tocCheck: "strict"}) で warn',
+  'toc-parts': 'TOC のツリーの部品が足りない・違う(crt に根本原因 root が無い、frt に施策 injection か望む結果 de が無い、frt に root がある)。diagram({tocCheck: "strict"}) で warn',
+  'toc-nbr-parts': 'ネガティブブランチ(causeTree({tree: "nbr"}))に、トリミングの施策(role: trim)か、悪い結果(role: ude)が無い。diagram({tocCheck: "strict"}) で warn',
+  'toc-nbr-no-tipping': 'ネガティブブランチで、転換点(role: tipping)を通らずに、原因を持たない実体から ude へ至る因果の道が残っている(転換点の無い枝)。diagram({tocCheck: "strict"}) で warn',
+  'toc-nbr-tipping-not-and': 'ネガティブブランチの転換点(role: tipping)が、AND(複数の原因が揃って越える)の結果になっていない。diagram({tocCheck: "strict"}) で warn',
+  'toc-nbr-trim-too-late': 'トリミングの施策(role: trim)が断つ(kind: blocks)先が、転換点より結果側(下流)にある。転換点そのもの、またはその手前を断つ。diagram({tocCheck: "strict"}) で warn',
+  'toc-tt-unit': '移行ツリー(causeTree({tree: "tt"}))の AND の結果が、ニーズ(role: need または precondition)と行動(role: action)の両方を原因に持たない(現状 + ニーズ + 行動 → 新しい現実の単位の形でない)。diagram({tocCheck: "strict"}) で warn',
+  'toc-prt-bottom-not-action': '前提条件ツリー(causeTree({tree: "prt"}))の最下部の中間目標(中間目標の鎖の底)に、行動(role: action)がつながっていない(最下部は、実行できる行動)。diagram({tocCheck: "strict"}) で warn',
+  'toc-prt-one-to-one': '前提条件ツリーの障害と中間目標が、全部 1 対 1 だけ(1 つの中間目標に複数の障害、または 1 つの障害が複数の中間目標を妨げる形が PRT らしい)。diagram({tocCheck: "strict"}) で warn',
+  'toc-obstacle-phrase': '前提条件ツリーの障害のラベルが「ない」「無い」「不足」で終わる(障害は、無いことではなく、そこにある事実で書く指針。日本語の文末の判定なので偽陽性がある。常に info)',
+  'toc-mirror': '未来現実ツリー(causeTree({tree: "frt", mirrors: crt}))の望む結果(de / goal)の mirrors が、現状ツリーの ude の id でない、ude に対応する望む結果が無い、同じ ude を複数が mirrors している(1 対 1 でない)。diagram({tocCheck: "strict"}) で warn',
+  'toc-source-has-cause': '原因を持たない役割(crt の root、frt・nbr の injection、nbr の trim、precondition)の実体に、入る矢印がある。diagram({tocCheck: "strict"}) で warn',
+  'toc-chain-only': 'crt / frt が分岐も合流も AND も無い 1 本鎖(途中の原因を飛ばしている可能性)。diagram({tocCheck: "strict"}) で warn',
+  'toc-orphan': 'causeTree({tree}) の実体のうち、どのリンクにも出てこないものがある(graph-orphan-node は connect() の線しか見ない)。diagram({tocCheck: "strict"}) で warn',
+  'toc-cycle-undeclared': 'causeTree({tree}) に循環があるのに、戻りの矢印に back: true が付いていない(配置が戻りとして扱った矢印を示す)。diagram({tocCheck: "strict"}) で warn',
   'graph-orphan-node': '矢印でつないだ図の中に、どの矢印にもつながっていない箱がある（つなぎ忘れか、図に要らない箱。意図した注記なら id を付けない）',
   'graph-disconnected': '矢印でつないだ図が、互いにつながらない 2 つ以上のかたまりに分かれている（1 図 1 話なら、つなぎ忘れか、図を分ける）',
   'term-variant': '同じ語の表記が 1 つの図の中で揺れている（ユーザ / ユーザー、API / Api など）。1 つに揃える',
@@ -68,8 +90,10 @@ export const RULE_DOCS = {
   'canvas-region-empty': 'canvas() の領域に内容がない（requireAll: 全領域を埋める指定）',
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
   'slide-min-text': 'スライド用キャンバスの最小文字サイズ(既定 24px)より小さい文字がある',
+  'font-floor-lowered': 'canvas の図が文字の下限を 14px から下げている(canvas.minText < 14。1:1 で読む前提で、投影には向かない)',
   'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
-  'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む',
+  'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）',
+  'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
   'density': '文字量・箱の数が多い',
   'wf-callout-no-note': '図の番号に対応する注釈がない',
   'wf-note-no-callout': '注釈に対応する番号が図にない',
@@ -79,6 +103,13 @@ export const RULE_DOCS = {
   'wf-states-required': '状態の一覧に、必須の状態の列がない',
   'wf-states-ragged': '状態の一覧の行に、列より多い欄がある',
   'wf-callout-order': '図の番号が、読む順（上から下、左から右）に並んでいない（情報）',
+  'layout-sibling-size': '横に並ぶ枠の幅が 1〜4px だけ違う（等分の行で 4px の格子に丸めた結果。cols / flex で揃える）。diagram({layoutCheck: "strict"}) で warn',
+  'layout-edge-misalign': '隣り合う枠の縁（左端・右端・上端）が 1〜4px ずれている（0 は一致、5px 以上は別物として扱う）。diagram({layoutCheck: "strict"}) で warn',
+  'layout-gutter-uneven': '横に並ぶ 3 枠以上の間隔が 2px 以上不均一。diagram({layoutCheck: "strict"}) で warn',
+  'layout-unused-space': '枠の中身の下に 48px 以上かつ枠の高さの 40% 以上の空きがある（行の高さ揃え・canvas の床の結果）。diagram({layoutCheck: "strict"}) で warn',
+  'layout-figure-offset': '内容（ラベル込み、題・凡例・出典行を除く）の左右の余白が 48px 以上違う（図が片側に寄っている）。diagram({layoutCheck: "strict"}) で warn',
+  'layout-figure-narrow': '内容の幅が図の幅の 50% 未満（diagram({width}) で内容に合わせて狭められる）。diagram({layoutCheck: "strict"}) で warn',
+  'layout-align-mixed': '横に並ぶ箱で文字の揃え（左・中央）が混在している（意図なら accept で許容する）。diagram({layoutCheck: "strict"}) で warn',
   'doc-image-missing': '文書が参照している SVG がない',
   'doc-alt-empty': '文書の画像に代替テキストがない',
   'doc-alt-long': '代替テキストが長い（155 文字以内にして、詳しい説明は本文に）',
@@ -93,7 +124,11 @@ export const DEFAULT_LEGEND_LABELS = {
   'line:solid': '実線', 'line:dashed': '破線', 'line:dotted': '点線', 'line:double': '二重線', 'arrow:both': '双方向', 'weight:strong': '強い流れ',
   'tone:new': '新規', 'tone:changed': '変更・改修', 'tone:removed': '対象外', 'tone:danger': '異常・注意',
   'tone:muted': '補助・任意', 'tone:accent': '強調', 'tone:solid': '主役', 'tone:solid-danger': '異常(強)',
-} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}`, string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
+  // a causeTree() figure (ADR 0015 D6): an entity role, an arrow joined by an arc, the core driver mark
+  'role:ude': '好ましくない現象(UDE)', 'role:root': '根本原因', 'role:de': '望む結果(DE)', 'role:injection': '施策', 'role:precondition': '現状の事実', 'role:tipping': '転換点', 'role:trim': 'トリミング(施策)', 'role:need': 'ニーズ',
+  'role:goal': '目標', 'role:io': '中間目標', 'role:obstacle': '障害', 'role:action': '行動', 'role:start': '開始', 'role:risk': '懸念', 'role:measure': '対策',
+  'edge:and': '合わせて原因(AND)', 'edge:back': '戻り(フィードバック)', 'edge:blocks': '断つ', 'mark:core': '中核ドライバー',
+} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}` | `role:${Exclude<CauseRole, 'effect' | 'step'>}` | 'edge:and' | 'edge:back' | 'edge:blocks' | 'mark:core', string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
 
 // every band, including those nested in groups, rows, grids and swimlanes
 export function walkBands(bands: Band[], out: Band[] = []): Band[] {
@@ -105,7 +140,7 @@ export function walkBands(bands: Band[], out: Band[] = []): Band[] {
 }
 
 // notation keys a diagram uses: 'line:dashed', 'arrow:both', 'weight:strong', 'tone:new', ...
-export function usedNotation(bands: Band[], dimmed = new Set<Band>()): Set<string> {
+export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause = false): Set<string> {
   const all = walkBands(bands);
   const used = new Set<string>(), lines = new Set<string>();
   // a canvas() region with a pill (重点 / 中心 / ソフト) says its tone in words: that tone needs no legend entry
@@ -117,6 +152,13 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>()): Set<strin
       if (b.arrow === 'both') used.add('arrow:both');
       if (b.weight) used.add(`weight:${b.weight}`);
     } else if (b.type === 'box' && b.tone && b.tone !== 'plain') used.add(`tone:${b.tone}`);
+    else if (b.type === 'cause' && withCause) { // only legend: 'auto' reads these (the legend-* checks keep their old count)
+      for (const n of b.nodes) if (n.role && n.role !== 'effect' && n.role !== 'step') used.add(`role:${n.role}`);
+      if (b.links.some(l => typeof l.from !== 'string' && l.from.length > 1)) used.add('edge:and');
+      if (b.links.some(l => l.back)) used.add('edge:back');
+      if (b.links.some(l => l.kind === 'blocks')) used.add('edge:blocks');
+      if (b.nodes.some(n => n.core)) used.add('mark:core');
+    }
   }
   const nonSolid = [...lines].filter(l => l !== 'solid');
   for (const l of nonSolid) used.add(`line:${l}`);
@@ -129,7 +171,10 @@ export function legendKeys(bands: Band[]): Set<string> {
   for (const b of walkBands(bands)) {
     if (b.type !== 'legend') continue;
     for (const it of b.items) {
-      if (it.tone) keys.add(`tone:${it.tone}`);
+      if (it.role) keys.add(`role:${it.role}`);
+      else if (it.edge) keys.add(`edge:${it.edge}`);
+      else if (it.mark) keys.add(`mark:${it.mark}`);
+      else if (it.tone) keys.add(`tone:${it.tone}`);
       else if (it.weight) keys.add(`weight:${it.weight}`);
       else if (it.arrow === 'both') keys.add('arrow:both');
       else keys.add(`line:${it.line ?? 'solid'}`);
@@ -147,7 +192,7 @@ export function legendLabelsFor(used: ReadonlySet<string>, custom?: Partial<Reco
 // diagram({legend: 'auto'}): add a legend entry for every notation used but not listed.
 export function applyAutoLegend(d: DiagramData): void {
   if (d.legend !== 'auto') return;
-  const used = usedNotation(d.bands, dimmedBands(d)), have = legendKeys(d.bands);
+  const used = usedNotation(d.bands, dimmedBands(d), true), have = legendKeys(d.bands);
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return;
   const labels = legendLabelsFor(used, d.legendLabels);
@@ -163,6 +208,9 @@ export function applyAutoLegend(d: DiagramData): void {
     const [kind, v] = k.split(':');
     // v comes from our own `tone:<tone>` / `line:<style>` keys (usedNotation), so the casts hold
     if (kind === 'tone') return allDashed(v) ? {tone: v as EmphasisTone, dashed: true, label: labelOf(k)} : {tone: v as EmphasisTone, label: labelOf(k)};
+    if (kind === 'role') return {role: v as CauseRole, label: labelOf(k)};
+    if (kind === 'edge') return {edge: v as 'and' | 'back' | 'blocks', label: labelOf(k)};
+    if (kind === 'mark') return {mark: v as 'core', label: labelOf(k)};
     if (kind === 'arrow') return {line: 'solid', arrow: 'both', label: labelOf(k)};
     if (kind === 'weight') return {line: 'solid', weight: v as ArrowWeight, label: labelOf(k)};
     return {line: v as LineStyle, label: labelOf(k)};
@@ -267,18 +315,18 @@ const lo = (a: number, b: number) => Math.min(a, b), hi = (a: number, b: number)
 const strokeOf = (c: LaidOutConnect) => c.weight === 'strong' ? STRONG_STROKE : 2;
 
 export function edgeStats(connects: LaidOutConnect[]): {crossings: number; overlaps: number} {
+  // crossings: right-angle crossings inside the other line's span by 2px (polyline-metrics, shared with the layered layout's score)
+  const crossings = crossingsOf(connects.map(c => c.points), {margin: 2, tol: 0.5});
   const segs = segsOf(connects);
-  let crossings = 0, overlaps = 0;
+  let overlaps = 0;
   for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
     const s = segs[i], t = segs[j];
     if (s.i === t.i) continue;
     // two lines this close (centre to centre) look like one: the normal width gives the usual 3, a strong line widens it
     const near = (strokeOf(s.c) + strokeOf(t.c)) / 2 + 1;
     const share = s.c.fromId === t.c.fromId || s.c.toId === t.c.toId || s.c.fromId === t.c.toId || s.c.toId === t.c.fromId;
-    if (horiz(s) && vert(t) || vert(s) && horiz(t)) {
-      const h = horiz(s) ? s : t, v = horiz(s) ? t : s;
-      if (v.a.x > lo(h.a.x, h.b.x) + 2 && v.a.x < hi(h.a.x, h.b.x) - 2 && h.a.y > lo(v.a.y, v.b.y) + 2 && h.a.y < hi(v.a.y, v.b.y) - 2) crossings++;
-    } else if (!share && horiz(s) && horiz(t) && Math.abs(s.a.y - t.a.y) < near) {
+    if (horiz(s) && vert(t) || vert(s) && horiz(t)) continue;
+    if (!share && horiz(s) && horiz(t) && Math.abs(s.a.y - t.a.y) < near) {
       if (Math.min(hi(s.a.x, s.b.x), hi(t.a.x, t.b.x)) - Math.max(lo(s.a.x, s.b.x), lo(t.a.x, t.b.x)) > 12) overlaps++;
     } else if (!share && vert(s) && vert(t) && Math.abs(s.a.x - t.a.x) < near) {
       if (Math.min(hi(s.a.y, s.b.y), hi(t.a.y, t.b.y)) - Math.max(lo(s.a.y, s.b.y), lo(t.a.y, t.b.y)) > 12) overlaps++;
@@ -346,7 +394,7 @@ function swimlaneRules(d: LintTarget, out: Finding[]): void {
   for (const sl of lanesBands) {
     const n = sl.lanes.length;
     if (n > 6) out.push({rule: 'swimlane-lanes', severity: 'warn', message: `レーンが ${n} 本ある（6 本までが目安）`});
-    const ids = new Map<string, number>(sl.steps.filter(s => s.id).map((s): [string, number] => [s.id as string, sl.lanes.findIndex(l => l.id === s.lane)]));
+    const ids = new Map<string, number>(sl.steps.filter(s => s.id).map((s): [string, number] => [qualify(scopeOf(sl), s.id as string), sl.lanes.findIndex(l => l.id === s.lane)]));
     const flows = (d.connects ?? []).filter(c => ids.has(c.fromId) && ids.has(c.toId));
     if (!flows.length) continue;
     const dist = (order: number[]) => { const pos = new Map(order.map((l, i) => [l, i])); return flows.reduce((s, c) => s + Math.abs((pos.get(ids.get(c.fromId) as number) as number) - (pos.get(ids.get(c.toId) as number) as number)), 0); };
@@ -435,6 +483,57 @@ function wireframeRules(d: LintTarget, out: Finding[]): void {
   }
 }
 
+/** The severity of the layout-quality findings (`layout-*`, and ADR 0016's `edge-bends`): info, or warn for a diagram that asked for diagram({layoutCheck: 'strict'}). */
+export const layoutSeverity = (d: Pick<DiagramData, 'layoutCheck'>): 'warn' | 'info' => d.layoutCheck === 'strict' ? 'warn' : 'info';
+
+/** The severity of the `toc-*` findings (ADR 0015 D3): info, or warn for a diagram that asked for diagram({tocCheck: 'strict'}). */
+export const tocSeverity = (d: Pick<DiagramData, 'tocCheck'>): 'warn' | 'info' => d.tocCheck === 'strict' ? 'warn' : 'info';
+
+function tocRules(d: LintTarget, out: Finding[]): void {
+  const severity = tocSeverity(d);
+  for (const b of walkBands(d.bands)) if (b.type === 'cause') for (const f of tocFindings(b)) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
+}
+
+// Alignment and whitespace (ADR 0014): measured on the laid-out bands (lib/layout-metrics.ts), reported at layoutSeverity(d).
+function layoutQualityRules(d: LintTarget, out: Finding[]): void {
+  if (!d.laidOut) return;
+  const severity = layoutSeverity(d);
+  for (const m of layoutMetrics(d.laidOut, {width: d.width, slideCanvas: !!d.canvas})) out.push({rule: m.rule, severity, message: m.message, data: m.data});
+}
+
+// ---- edge-bends (ADR 0016 D6) ------------------------------------------------------------------------------------------------
+// A band whose edges the layout routed: cause / states / bpmn / classes, and the network charts (pert, dependency, a causal loop that is
+// not a ring). The lines a person drew with connect() are not counted, nor are self-loops. The thresholds come from the principle, not from
+// the examples: a layered edge should turn no more than twice (one elbow) and a figure about 2 times on average, so 5 bends on one edge
+// (two layers skipped at a bend each) and an average over 3 are what a reader sees as tangled.
+export const EDGE_BENDS_MAX = 5, EDGE_BENDS_MEAN = 3;
+
+interface RoutedEdges {name: string; edges: {from: string; to: string; points: {x: number; y: number}[]}[]}
+function routedBands(bands: LaidOutBand[], out: RoutedEdges[] = []): RoutedEdges[] {
+  for (const b of bands) {
+    if (b.type === 'cause' || b.type === 'states' || b.type === 'bpmn' || b.type === 'classes') out.push({name: `${b.type}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
+    else if (b.type === 'chart' && b.edges) out.push({name: `${b.kind}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
+    else if (b.type === 'row' || b.type === 'grid') routedBands(b.children, out);
+  }
+  return out;
+}
+
+function edgeBendsRules(d: LintTarget, out: Finding[]): void {
+  if (!d.laidOut) return;
+  const severity = layoutSeverity(d);
+  for (const band of routedBands(d.laidOut)) {
+    const counted = band.edges.filter(e => e.from !== e.to && e.points.length >= 2).map(e => ({e, bends: bendsOf(e.points)}));
+    if (!counted.length) continue;
+    const total = counted.reduce((n, c) => n + c.bends, 0), mean = total / counted.length;
+    const worst = counted.filter(c => c.bends >= EDGE_BENDS_MAX).sort((p, q) => q.bends - p.bends);
+    const parts: string[] = [];
+    if (worst.length) parts.push(`${worst.length} 本が ${EDGE_BENDS_MAX} 回以上折れる（${worst.slice(0, 3).map(c => `${c.e.from} → ${c.e.to} が ${c.bends} 回`).join('、')}${worst.length > 3 ? ' ほか' : ''}）`);
+    if (mean > EDGE_BENDS_MEAN) parts.push(`矢印 ${counted.length} 本の折れの合計 ${total}（平均 ${mean.toFixed(1)} 回、${EDGE_BENDS_MEAN} 回以下が目安）`);
+    if (!parts.length) continue;
+    out.push({rule: 'edge-bends', severity, message: `${band.name}: ${parts.join('。')}。層を飛ぶ矢印・戻る矢印を減らす（辺の向き・節の分け方を見直す）`, data: {band: band.name, measured: worst.length ? worst[0].bends : Math.round(mean * 10) / 10, threshold: worst.length ? EDGE_BENDS_MAX : EDGE_BENDS_MEAN, fix: '層を飛ぶ辺・戻る辺を減らす（節の分け方・辺の向きを見直す）。意図した形なら accept で許容する'}});
+  }
+}
+
 export function lintDiagram(d: LintTarget): Finding[] {
   const out = withTones(d.tones, () => lintAll(d));
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
@@ -505,8 +604,23 @@ function graphRules(d: LintTarget, out: Finding[]): void {
   for (const id of parent.keys()) { const r = find(id); groups.set(r, [...(groups.get(r) ?? []), id]); }
   if (groups.size > 1) out.push({rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${[...groups.values()].map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
 }
+const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()'} as const;
+// what the layout changed on its own to make a figure fit its width (ADR 0010 D3): left out is a warning, `dir: 'auto'` is the author's own choice
+function fitRules(d: LintTarget, out: Finding[]): void {
+  for (const b of d.laidOut ?? []) {
+    if ((b.type !== 'cause' && b.type !== 'states' && b.type !== 'classes' && b.type !== 'tree') || !b.fitApplied?.length) continue;
+    const what = b.fitApplied.map(describeApplied).join('、'), auto = b.fitApplied.every(a => a.mode === 'auto');
+    out.push({rule: 'auto-fit-applied', severity: auto ? 'info' : 'warn', message: auto
+      ? `${FIT_WHO[b.type]}: dir / maxNodeW を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
+      : `${FIT_WHO[b.type]}: dir / maxNodeW を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら dir: 'auto' と書く（info になる）。固定したいなら dir / maxNodeW を明示する（収まらなければ試した案つきで止まる）`});
+  }
+}
 function lintAll(d: LintTarget): Finding[] {
   const out: Finding[] = [];
+  layoutQualityRules(d, out);
+  edgeBendsRules(d, out);
+  tocRules(d, out);
+  fitRules(d, out);
   textContrast(d, out);
   colourOnlyEmphasis(d, out);
   nonTextContrast(d, out);
@@ -529,6 +643,7 @@ function lintAll(d: LintTarget): Finding[] {
   }
   if (d.canvas && d.laidOut) {
     const min = minTextSize(d);
+    if (d.canvas.minText < MIN_FONT_SIZE) out.push({rule: 'font-floor-lowered', severity: 'info', message: `文字の下限を ${MIN_FONT_SIZE}px から ${d.canvas.minText}px に下げている(最小の文字 ${min}px)。キャンバスは 1:1 で読まれる前提。投影には向かない`});
     if (min < d.canvas.minText) out.push({rule: 'slide-min-text', severity: 'warn', message: `最小の文字が ${min}px。スライド用キャンバスは ${d.canvas.minText}px 以上(その文字を大きくするか、減らす)`});
     if (d.contentHeight !== undefined && d.contentHeight > d.canvas.height) out.push({rule: 'slide-canvas-overflow', severity: 'warn', message: `内容の高さ ${d.contentHeight}px が、キャンバスの高さ ${d.canvas.height}px を超える。行・文字を減らすか、図を分ける`});
   }

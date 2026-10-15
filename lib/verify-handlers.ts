@@ -2,6 +2,7 @@
 // (`rects`), the figure-internal checks it runs (`check`, in the `phase` it belongs to) and its text-contrast check (`contrast`).
 // One entry per laid-out band type, each checked against its own band type; a band type without one fails to compile.
 
+import {qualify, scopeOf} from './anchor-scope.ts';
 import {plateStyle} from './image.ts';
 import {segHitsRect} from './bars.ts';
 import {checkChart} from './charts-verify.ts';
@@ -9,6 +10,7 @@ import {PALETTE, colorOf, luminance as lightLuminance, runColorOf, paintOf} from
 import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 import {spotlightDim} from './spotlight.ts';
 import {legibilityProblem} from './wordart.ts';
+import {andClashes} from './cause-clash.ts';
 import {CONTRAST_THRESHOLD, dxdy, eachOverlap, labelOf, neverTogether, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import type {EmphasisTone, Rect} from './types/core.ts';
@@ -137,9 +139,14 @@ const checkCause = (band: LaidOutOf<'cause'>, _d: LaidOutDiagram, {problems, war
   for (const [i, a] of band.ands.entries()) {
     const span = (p: {x: number; y: number}): number => Math.abs(a.p0.y - a.p1.y) < 1 ? p.x : p.y; // along the arc's length
     const [u0, u1] = [span(a.p0), span(a.p1)].sort((p, q) => p - q);
+    // an arrow that ends on another side of the box (a return) is not under the arc, whatever its coordinate along it: compare the other coordinate with the AND's tips
+    const across = (p: {x: number; y: number}): number => Math.abs(a.p0.y - a.p1.y) < 1 ? p.y : p.x;
+    const member = band.edges.find(m => m.to === a.to && a.from.includes(m.from));
+    const memberAt = member ? across(member.points[member.points.length - 1]) : undefined;
     for (const e of band.edges) {
       if (e.to !== a.to) continue;
       const tip = e.points[e.points.length - 1], u = span(tip);
+      if (memberAt !== undefined && Math.abs(across(tip) - memberAt) > 1) continue;
       const inside = u > u0 + 0.5 && u < u1 - 0.5;
       if (inside && !a.from.includes(e.from)) problems.push(`cause: the AND arc into "${a.to}" also covers the arrow from "${e.from}" (it reads as part of the AND)`);
     }
@@ -152,29 +159,7 @@ const checkCause = (band: LaidOutOf<'cause'>, _d: LaidOutDiagram, {problems, war
   }
   // arrows into an effect that has an AND: two of them should not cross (a warning: it can be unavoidable) and must not run together
   // (which arrow belongs to the AND would be unclear). A crossing elsewhere is left alone: many cause graphs cannot be drawn without one.
-  const andTo = new Set(band.ands.map(x => x.to));
-  const segs = band.edges.flatMap((e, k) => andTo.has(e.to) ? e.points.slice(1).map((q, m) => ({k, p: e.points[m], q})) : []);
-  const cross = (a: typeof segs[number], b: typeof segs[number]): boolean => {
-    const aH = a.p.y === a.q.y, bH = b.p.y === b.q.y;
-    if (aH === bH) return false;
-    const h = aH ? a : b, v = aH ? b : a;
-    return v.p.x > Math.min(h.p.x, h.q.x) + 0.5 && v.p.x < Math.max(h.p.x, h.q.x) - 0.5 && h.p.y > Math.min(v.p.y, v.q.y) + 0.5 && h.p.y < Math.max(v.p.y, v.q.y) - 0.5;
-  };
-  // runs of two arrows side by side (under 4px apart, over 4px long together) read as one line
-  const together = (a: typeof segs[number], b: typeof segs[number]): boolean => {
-    const aH = a.p.y === a.q.y;
-    if (aH !== (b.p.y === b.q.y)) return false;
-    const [c, d] = aH ? ['x', 'y'] as const : ['y', 'x'] as const;
-    return Math.abs(a.p[d] - b.p[d]) < 4 && Math.min(Math.max(a.p[c], a.q[c]), Math.max(b.p[c], b.q[c])) - Math.max(Math.min(a.p[c], a.q[c]), Math.min(b.p[c], b.q[c])) > 4;
-  };
-  const flagged = new Set<string>();
-  for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
-    const a = band.edges[segs[i].k], b = band.edges[segs[j].k];
-    if (segs[i].k === segs[j].k || a.to !== b.to) continue;
-    const how = cross(segs[i], segs[j]) ? 'crosses' : together(segs[i], segs[j]) ? 'runs together with' : '';
-    const key = `${Math.min(segs[i].k, segs[j].k)}:${Math.max(segs[i].k, segs[j].k)}`;
-    if (!how || flagged.has(key)) continue;
-    flagged.add(key);
+  for (const {a, b, how} of andClashes(band.edges, band.ands)) {
     // a crossing may be unavoidable (an AND's causes in different layers around an OR cause), and long arrows can share a run: warnings
     warnings.push(`[cause-${how === 'crosses' ? 'crossing' : 'parallel'}] cause: arrow ${a.from} -> ${a.to} ${how} arrow ${b.from} -> ${b.to} (reorder the nodes, or change dir)`);
   }
@@ -386,7 +371,17 @@ const handlerOf = (band: LaidOutDiagram['laidOut'][number]): VerifyHandler<LaidO
 
 /** Every checkable rect, in band order. */
 export function collectRects(d: LaidOutDiagram): CheckRect[] {
-  return d.laidOut.flatMap(band => handlerOf(band).rects?.(band) ?? []);
+  return d.laidOut.flatMap(band => {
+    const rects = handlerOf(band).rects?.(band) ?? [], scope = scopeOf(band);
+    return scope ? rects.map(r => scopedRect(band, scope, r)) : rects;
+  });
+}
+
+/** A rect of a scoped band answers to the names a connect() holds (`plan.p0`), not the bare ids the band's own output keeps (ADR 0012). The band's own id is a name of the whole figure. */
+function scopedRect(band: {type: string; id?: string}, scope: string, r: CheckRect): CheckRect {
+  const own = band.type === 'box' ? undefined : band.id; // a swimlane step is a box: its id is the item's
+  const name = (id: string): string => id === own || id.startsWith('@') ? id : qualify(scope, id);
+  return {...r, id: r.id === null ? null : name(r.id), ...(r.holds ? {holds: r.holds.map(name)} : {})};
 }
 
 /** The figure checks of one phase, over every band in order. */

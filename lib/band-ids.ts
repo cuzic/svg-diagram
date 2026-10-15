@@ -3,9 +3,26 @@
 import {treeItems} from './tree.ts';
 import {quadrantIds} from './quadrant.ts';
 import {flowShapeIds} from './flow-shapes.ts';
+import {qualify} from './scope-name.ts';
 import type {Band} from './types/index.ts';
 
-export function nodeIdsOf(b: Band): string[] {
+const qual = (b: Band, ids: string[]): string[] => { const s = (b as {scope?: string}).scope; return s ? ids.map(id => qualify(s, id)) : ids; };
+
+/** The names a self-placing band's nodes are registered under (qualified with the band's `scope`, when it has one). */
+export function nodeIdsOf(b: Band): string[] { return qual(b, bareNodeIds(b)); }
+
+/** Every item id a band gives (bare): its nodes, and the bars / marks / steps that layout registers one by one. */
+export function itemIdsOf(b: Band): string[] {
+  const own = (xs: readonly {id?: string}[]): string[] => xs.flatMap(x => x.id ? [x.id] : []);
+  switch (b.type) {
+    case 'bars': return own(b.data);
+    case 'image': return own(b.marks ?? []);
+    case 'swimlane': return own(b.steps);
+    default: return bareNodeIds(b);
+  }
+}
+
+function bareNodeIds(b: Band): string[] {
   switch (b.type) {
     case 'chart': return b.ids;
     case 'tree': return treeItems(b.root).flatMap(n => n.id ? [n.id] : []);

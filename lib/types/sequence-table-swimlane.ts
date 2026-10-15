@@ -1,7 +1,7 @@
 // Types: sequence, table and swimlane.
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
-import type {Align, Arrow, Bend, Dimmed, LineStyle, Rect, RevealOpts, TextTone} from './core.ts';
+import type {Align, Arrow, Bend, Dimmed, LineStyle, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
 import type {BoxBand, BoxOpts, BoxTone, LaidOutBox} from './text-bands.ts';
 
 export interface SequenceActor {
@@ -161,7 +161,7 @@ export interface SwimlaneFlow {
 }
 /** Column group named across the top (a stage, a sprint). */
 export interface SwimlanePhase {label: string; from: number; to: number}
-export interface SwimlaneOpts extends RevealOpts {
+export interface SwimlaneOpts extends RevealOpts, ScopeOpts {
   flows?: SwimlaneFlow[];
   phases?: SwimlanePhase[];
   /** Width of the lane-label column (default 128). */

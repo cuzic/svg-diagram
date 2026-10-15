@@ -1,5 +1,6 @@
 import {resolveIcon} from '../icon-registry.ts';
 import {walkBands} from '../rules.ts';
+import {CAUSE_ROLES} from '../toc.ts';
 import {assertSolidText, richBoxFields, richField} from '../rich.ts';
 import {ROLES, HEADLINE_ROLES, OPT_IN_TEXT_MAX, isSolidTone} from '../tokens.ts';
 import type {GroupBand, GroupOpts, LegendBand, LegendItem, LegendOpts, RawBand, RawOpts} from '../types/containers.ts';
@@ -92,9 +93,10 @@ export function group<C extends Band | Band[], const Id extends string = never>(
 export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
   assertBoxTone(opts.tone, 'group()');
   if ('gap' in opts && (opts as {gap?: unknown}).gap !== undefined) throw new Error('group(): there is no gap option — the space between boxes is the gap of the row() they sit in (row([...], {gap})), or diagram({gap}) between bands');
+  if (opts.valign !== undefined && !['top', 'center', 'stretch'].includes(opts.valign)) throw new Error(`group(): valign must be 'top', 'center' or 'stretch', got ${JSON.stringify(opts.valign)}`);
   const title = richField(opts.title, {field: 'group() title', bold: true, tone: opts.titleTone ?? (opts.tone === 'accent' ? 'accent' : 'text')});
   if (opts.frame === false && (title.text || opts.dashed || opts.tone)) throw new Error('group({frame: false}) draws no frame, so it takes no title, tone or dashed');
-  return withHandle({type: 'group', children: [children].flat(), title: title.text, ...(title.spans ? {spans: {title: title.spans}} : {}), titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad ?? (opts.frame === false ? 0 : undefined), frame: opts.frame, stamp: opts.stamp, id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col, ...revealOf(opts)}, opts.id);
+  return withHandle({type: 'group', children: [children].flat(), title: title.text, ...(title.spans ? {spans: {title: title.spans}} : {}), titleTone: opts.titleTone, titleAlign: opts.titleAlign, tone: opts.tone ?? 'muted', dashed: opts.dashed ?? (opts.tone === 'plain' ? true : undefined), pad: opts.pad ?? (opts.frame === false ? 0 : undefined), frame: opts.frame, stamp: opts.stamp, ...(opts.valign ? {valign: opts.valign} : {}), id: opts.id, flex: opts.flex, width: opts.width, span: opts.span, col: opts.col, ...revealOf(opts)}, opts.id);
 }
 // Key for line styles / tones used in the diagram. items:
 //   {line: 'solid'|'dashed'|'dotted'|'double', arrow?: 'end'|'both'|'none', weight?: 'strong', label}
@@ -102,6 +104,11 @@ export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
 export function legend(items: LegendItem[], opts: LegendOpts = {}): LegendBand {
   assertNoReveal(opts, 'legend()');
   for (const it of items) if (it.weight && it.line === 'double') throw new Error(`legend(): weight '${it.weight}' cannot go with line 'double' ("${it.label}")`);
+  for (const it of items) {
+    if (it.role !== undefined && !(it.role in CAUSE_ROLES)) throw new Error(`legend(): item "${it.label}" has role ${String(it.role)} (use ${Object.keys(CAUSE_ROLES).join(', ')})`);
+    if (it.edge !== undefined && !['and', 'back', 'blocks'].includes(it.edge)) throw new Error(`legend(): item "${it.label}" has edge ${String(it.edge)} (use 'and', 'back' or 'blocks')`);
+    if (it.mark !== undefined && it.mark !== 'core') throw new Error(`legend(): item "${it.label}" has mark ${String(it.mark)} (use 'core')`);
+  }
   // a weight sample is a line sample: the plain line unless `line` says otherwise
   return {type: 'legend', items: items.map(it => it.weight && !it.line ? {...it, line: 'solid'} : it), align: opts.align ?? 'center'};
 }

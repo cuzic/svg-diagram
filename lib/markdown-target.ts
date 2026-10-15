@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
+import {scopeRules} from './scope-style.ts';
 export type Render = 'svg' | 'html';
 
 const TARGET = /^(.+\.diagram\.ts)(?:#(svg|html))?$/;
@@ -61,7 +62,7 @@ export function inlineSvg(svg: string, alt: string | undefined, seen: Map<string
   }
   s = s.replace(/(\saria-(?:labelledby|describedby)=")([^"]*)(")/g, (_, a, v: string, c) => a + v.split(/\s+/).map(t => ids.has(t) ? `${pre}-${t}` : t).join(' ') + c);
   s = s.replace(/<style>([\s\S]*?)<\/style>/g, (_, css: string) =>
-    `<style>${css.replace(/(^|\})\s*([^{}@]+)\{/g, (_m, a: string, sel: string) => `${a}\n#${pre} ${sel.split(',').map(x => x.trim()).join(`, #${pre} `)} {`)}</style>`);
+    `<style>${scopeRules(css, pre)}</style>`);
   const end = s.indexOf('>');
   let root = s.slice(0, end);
   if (alt) root = root.replace(/\saria-labelledby="[^"]*"/, '').replace(/\saria-label="[^"]*"/, '');

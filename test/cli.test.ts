@@ -4,8 +4,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {pathToFileURL} from 'node:url';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const BUILD = path.join(ROOT, 'build-diagram.ts'), CHECK = path.join(ROOT, 'check-diagram.ts'), BIN = path.join(ROOT, 'bin', 'svg-diagram');
@@ -57,6 +59,41 @@ test('build: .ts and .mjs sources both build to svg/<basename without extension>
     assert.equal(j.toolVersion, JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version);
   }
   assert.equal(fs.existsSync(path.join(proj, 'svg', 'flow.ts.svg')), false);
+});
+
+test('build --id-prefix: ids and references are prefixed in the SVG and the HTML, <metadata> stays, check --drift still reads it; without it nothing changes', () => {
+  const plain = path.join(proj, 'idp-plain.svg'), pre = path.join(proj, 'idp-pre.svg');
+  assert.equal(node(proj, BUILD, 'src/flow.ts', '--out', plain, '--no-lint').status, 0);
+  const r = node(proj, BUILD, 'src/flow.ts', '--out', pre, '--no-lint', '--html', '--id-prefix', 's1');
+  assert.equal(r.status, 0, out(r));
+  const svg = fs.readFileSync(pre, 'utf8'), base = fs.readFileSync(plain, 'utf8');
+  assert.match(base, /<title id="svg-title"/); // the default is untouched
+  assert.match(svg, /<title id="s1-svg-title"/);
+  assert.match(svg, /aria-labelledby="s1-svg-title/);
+  assert.match(svg, /<metadata id="svg-diagram">/);
+  assert.equal(svg.replace(/s1-/g, ''), base); // the only difference is the prefix
+  const html = fs.readFileSync(path.join(proj, 'idp-pre.html'), 'utf8');
+  assert.match(html, /<div id="s1" class="sd"/);
+  assert.doesNotMatch(html, /\sid="(?!s1)/);
+  // a second figure with another prefix on the same page: no id twice
+  const other = path.join(proj, 'idp-other.svg');
+  assert.equal(node(proj, BUILD, 'src/flow.ts', '--out', other, '--no-lint', '--id-prefix', 's2').status, 0);
+  const ids = (t: string) => [...t.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]).filter(i => i !== 'svg-diagram');
+  assert.deepEqual(ids(svg).filter(i => ids(fs.readFileSync(other, 'utf8')).includes(i)), []);
+});
+
+test('build --id-prefix: several sources get <p>-<basename>; auto is a content hash; a bad prefix is a usage error', () => {
+  const dir = path.join(proj, 'idp-multi');
+  const r = node(proj, BUILD, 'src/flow.ts', 'src/legacy.mjs', '--out-dir', dir, '--no-lint', '--id-prefix', 'p');
+  assert.equal(r.status, 0, out(r));
+  assert.match(fs.readFileSync(path.join(dir, 'flow.svg'), 'utf8'), /id="p-flow-svg-title"/);
+  assert.match(fs.readFileSync(path.join(dir, 'legacy.svg'), 'utf8'), /id="p-legacy-svg-title"/);
+  const auto = path.join(proj, 'idp-auto.svg');
+  assert.equal(node(proj, BUILD, 'src/flow.ts', '--out', auto, '--no-lint', '--id-prefix', 'auto').status, 0);
+  assert.match(fs.readFileSync(auto, 'utf8'), /id="sd[0-9a-f]{8}-svg-title"/);
+  assert.equal(node(proj, BUILD, 'src/flow.ts', '--out', auto, '--id-prefix', '1bad').status, 2);
+  const drift = node(proj, CHECK, '--drift', '--svg-dir', dir, 'src/flow.ts');
+  assert.equal(drift.status, 0, out(drift));
 });
 
 test('build: --out overrides the output path (and creates directories); the default path is then not written', () => {
@@ -230,7 +267,16 @@ test('bin/svg-diagram: no arguments or an unknown command prints the usage and e
     assert.equal(r.status, 2);
     assert.match(r.stdout, /svg-diagram build <source\.ts>/);
     assert.match(r.stdout, /svg-diagram check/);
+    assert.match(r.stdout, /svg-diagram deck <a\.ts\|a\.svg>/);
   }
+});
+
+test('bin/svg-diagram deck: dispatches to deck-diagram (a source and an svg make one deck.html)', () => {
+  const outFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'cli-deck-')), 'd.html');
+  const r = bin(proj, 'deck', path.join(proj, 'svg', 'flow.svg'), 'src/wide.ts', '--out', outFile);
+  assert.equal(r.status, 0, out(r));
+  assert.equal([...fs.readFileSync(outFile, 'utf8').matchAll(/<section\b/g)].length, 2);
+  assert.equal(bin(proj, 'deck').status, 2);
 });
 
 test('bin/svg-diagram: build and check dispatch to the scripts (also through a symlink), passing arguments and exit codes on', () => {
@@ -394,4 +440,178 @@ test('check --docs A.md B.md: every following .md is a document; a .md given as 
   assert.match(bad.stderr, /図のソース/);
   assert.doesNotMatch(bad.stderr, /ERR_UNKNOWN_FILE_EXTENSION/);
   fs.rmSync(root, {recursive: true});
+});
+
+// ---- ADR 0013 U2: a failed build leaves the old SVG alone, and says it is out of date ----------------------
+function stalePrj() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-stale-'));
+  const put = (rel: string, body: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), {recursive: true}); fs.writeFileSync(f, body); return f; };
+  return {root, put, read: (rel: string) => fs.readFileSync(path.join(root, rel), 'utf8')};
+}
+const STALE_NOTICE = /⚠ 前回の svg\/flow\.svg が残っている/;
+const THROWS = `export default () => { throw new Error('boom from define'); };\n`;
+
+test('build failure: the previous SVG stays unchanged, and a notice says it is out of date', () => {
+  const p = stalePrj();
+  p.put('src/flow.ts', GOOD_TS);
+  assert.equal(node(p.root, BUILD, 'src/flow.ts').status, 0);
+  const before = p.read('svg/flow.svg');
+  p.put('src/flow.ts', THROWS);
+  const r = node(p.root, BUILD, 'src/flow.ts');
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /✗ src\/flow\.ts: boom from define/);
+  assert.match(r.stderr, STALE_NOTICE);
+  assert.equal(p.read('svg/flow.svg'), before, 'the old SVG is untouched');
+  assert.deepEqual(fs.readdirSync(path.join(p.root, 'svg')), ['flow.svg'], 'no marker file next to it');
+  // no default export: the same notice
+  p.put('src/flow.ts', `export const x = 1;\n`);
+  const r2 = node(p.root, BUILD, 'src/flow.ts');
+  assert.match(r2.stderr, /no default export function/);
+  assert.match(r2.stderr, STALE_NOTICE);
+  // a source that does not even load (syntax error) is one line too, and the remaining sources still build
+  p.put('src/flow.ts', `export default (\n`);
+  p.put('src/other.ts', GOOD_TS);
+  const r3 = node(p.root, BUILD, 'src/flow.ts', 'src/other.ts');
+  assert.equal(r3.status, 1);
+  assert.match(r3.stderr, /✗ src\/flow\.ts:/);
+  assert.match(r3.stderr, STALE_NOTICE);
+  assert.ok(fs.existsSync(path.join(p.root, 'svg/other.svg')), 'the next source was still built');
+  assert.equal(p.read('svg/flow.svg'), before);
+});
+
+test('build failure: no notice on a first failure, for a hand-made SVG of the same name, or for another source\'s SVG', () => {
+  const p = stalePrj();
+  p.put('src/flow.ts', THROWS);
+  const first = node(p.root, BUILD, 'src/flow.ts');
+  assert.equal(first.status, 1);
+  assert.doesNotMatch(first.stderr, /⚠ 前回/);
+  const hand = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>';
+  p.put('svg/flow.svg', hand);
+  assert.doesNotMatch(node(p.root, BUILD, 'src/flow.ts').stderr, /⚠ 前回/);
+  assert.equal(p.read('svg/flow.svg'), hand);
+  // an SVG of the same name built from a different source
+  p.put('src/other.ts', GOOD_TS);
+  assert.equal(node(p.root, BUILD, 'src/other.ts', '--out', 'svg/flow.svg').status, 0);
+  const foreign = p.read('svg/flow.svg');
+  assert.doesNotMatch(node(p.root, BUILD, 'src/flow.ts').stderr, /⚠ 前回/);
+  assert.equal(p.read('svg/flow.svg'), foreign);
+  assert.deepEqual(fs.readdirSync(path.join(p.root, 'svg')), ['flow.svg']);
+});
+
+test('build: a lint failure after writing leaves the NEW svg on disk, exits 1, and adds no out-of-date notice', () => {
+  const p = stalePrj();
+  p.put('src/flow.ts', GOOD_TS);
+  assert.equal(node(p.root, BUILD, 'src/flow.ts').status, 0);
+  p.put('src/flow.ts', GOOD_TS.replace('試験図', '別の題'));
+  const stub = pathToFileURL(path.join(ROOT, 'test', 'helpers', 'fail-lint.ts')).href;
+  const r = spawnSync(process.execPath, [BUILD, 'src/flow.ts'], {cwd: p.root, encoding: 'utf8', env: {...process.env, NODE_OPTIONS: `--import ${stub}`}});
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /lint-svg\.ts --strict が通らない/);
+  assert.match(p.read('svg/flow.svg'), /別の題/, 'the new SVG was written and stays');
+  assert.doesNotMatch(r.stderr, /⚠ 前回/);
+});
+
+// ---- ADR 0013 U4: check formats a throw like build does, and goes on with the other files -------------------
+const STACK_LINE = /^\s+at /m;
+// layout throws (checkDiagram, not define): a connector to an id that is not in the diagram
+const BAD_LAYOUT_TS = GOOD_TS.replace("connect(a.right, b.left)", "connect(a.right, 'nowhere:left')");
+
+test('check: a source that throws is one "✗ source: message" line without a stack, the rest are checked, exit 1', () => {
+  const r = node(proj, CHECK, '--strict', 'src/throws.ts', 'src/flow.ts');
+  assert.equal(r.status, 1, out(r));
+  assert.match(r.stderr, /✗ src\/throws\.ts: boom from define/);
+  assert.doesNotMatch(r.stderr, STACK_LINE);
+  assert.match(r.stdout, /✓ src\/flow\.ts/, 'the next file was still checked');
+  assert.match(r.stderr, /2 件中 1 件が検査できなかった/);
+  assert.equal(node(proj, CHECK, 'src/throws.ts', 'src/flow.ts').status, 1, 'an error, with or without --strict');
+});
+
+test('check: the "✗" line is the same text as build prints for the same source', () => {
+  const b = node(proj, BUILD, 'src/throws.ts', '--out', path.join(os.tmpdir(), 'unused-throws.svg'));
+  const c = node(proj, CHECK, 'src/throws.ts');
+  const line = (s: string) => s.split('\n').find(l => l.startsWith('✗ src/throws.ts'));
+  assert.ok(line(b.stderr));
+  assert.equal(line(c.stderr), line(b.stderr));
+});
+
+test('check: a throw during layout is formatted too, and --format json / github carry it as build-error', () => {
+  const p = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-chk-'));
+  fs.mkdirSync(path.join(p, 'src'));
+  fs.writeFileSync(path.join(p, 'src/layout.ts'), BAD_LAYOUT_TS);
+  fs.writeFileSync(path.join(p, 'src/flow.ts'), GOOD_TS);
+  fs.writeFileSync(path.join(p, 'src/throws.ts'), `export default () => { throw new Error('boom from define'); };\n`);
+  const t = node(p, CHECK, 'src/layout.ts', 'src/flow.ts');
+  assert.equal(t.status, 1, out(t));
+  assert.match(t.stderr, /✗ src\/layout\.ts: /);
+  assert.doesNotMatch(t.stderr, STACK_LINE);
+  assert.match(t.stdout, /✓ src\/flow\.ts/);
+  // the throw comes from the layout (checkDiagram), not from define(): the source file is not in the stack, the tool's layout code is
+  const dbg = spawnSync(process.execPath, [CHECK, 'src/layout.ts'], {cwd: p, encoding: 'utf8', env: {...process.env, SVG_DIAGRAM_DEBUG: '1'}});
+  assert.match(dbg.stderr, /\n\s+at .*lib\//);
+  assert.doesNotMatch(dbg.stderr.split('\n').filter(l => /^\s+at /.test(l)).join('\n'), /src\/layout\.ts/);
+  const j = JSON.parse(node(p, CHECK, '--format', 'json', 'src/throws.ts', 'src/flow.ts').stdout);
+  assert.equal(j.errors, 1);
+  assert.deepEqual(j.findings.filter((f: {rule: string}) => f.rule === 'build-error').map((f: {file: string; message: string}) => [f.file, f.message]), [['src/throws.ts', 'boom from define']]);
+  assert.match(node(p, CHECK, '--format', 'github', 'src/throws.ts').stdout, /^::error file=src\/throws\.ts,title=build-error::boom from define/m);
+  fs.rmSync(p, {recursive: true});
+});
+
+test('check --drift --rebuild: a source that no longer loads is reported and the rest are still compared', () => {
+  const p = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-chk-'));
+  fs.mkdirSync(path.join(p, 'src'));
+  fs.writeFileSync(path.join(p, 'src/a.ts'), GOOD_TS);
+  fs.writeFileSync(path.join(p, 'src/b.ts'), GOOD_TS.replace('試験図', '別の題'));
+  assert.equal(node(p, BUILD, 'src/a.ts', 'src/b.ts', '--no-lint').status, 0);
+  // b's source is replaced by one that throws, and the committed SVG is kept in step with the new hash so the failure is in the rebuild
+  const svg = fs.readFileSync(path.join(p, 'svg/b.svg'), 'utf8');
+  const broken = `export default () => { throw new Error('boom from define'); };\n`;
+  fs.writeFileSync(path.join(p, 'src/b.ts'), broken);
+  const patched = svg.replace(/(sourceSha256\W+)[0-9a-f]{64}/, `$1${crypto.createHash('sha256').update(broken).digest('hex')}`);
+  assert.notEqual(patched, svg);
+  fs.writeFileSync(path.join(p, 'svg/b.svg'), patched);
+  const r = node(p, CHECK, '--drift', '--rebuild', 'src/b.ts', 'src/a.ts');
+  assert.equal(r.status, 1, out(r));
+  assert.match(r.stderr, /✗ src\/b\.ts: boom from define/);
+  assert.doesNotMatch(r.stderr, STACK_LINE);
+  assert.match(r.stdout, /✓ src\/a\.ts: svg\/a\.svg は最新/);
+  fs.rmSync(p, {recursive: true});
+});
+
+test('check: SVG_DIAGRAM_DEBUG=1 adds the stack', () => {
+  const r = spawnSync(process.execPath, [CHECK, 'src/throws.ts'], {cwd: proj, encoding: 'utf8', env: {...process.env, SVG_DIAGRAM_DEBUG: '1'}});
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, STACK_LINE);
+});
+
+test('check --docs: a source behind a figure that does not load is reported and the other pages are still read', () => {
+  const p = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-chk-'));
+  fs.mkdirSync(path.join(p, 'src')); fs.mkdirSync(path.join(p, 'svg'));
+  fs.writeFileSync(path.join(p, 'src/throws.ts'), `export default () => { throw new Error('boom from define'); };\n`);
+  fs.writeFileSync(path.join(p, 'svg/throws.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>');
+  fs.writeFileSync(path.join(p, 'A.md'), '# a\n\n![図](svg/throws.svg)\n');
+  fs.writeFileSync(path.join(p, 'B.md'), '# b\n\n![x](svg/gone.svg)\n');
+  const r = node(p, CHECK, '--docs', 'A.md', 'B.md', '--src-dir', 'src');
+  assert.equal(r.status, 1, out(r));
+  assert.match(r.stderr, /✗ src\/throws\.ts: boom from define/);
+  assert.doesNotMatch(r.stderr, STACK_LINE);
+  assert.match(out(r), /B\.md:3 \[doc-image-missing\]/);
+  fs.rmSync(p, {recursive: true});
+});
+
+test('check --docs: a source behind a figure that also is an argument is one build-error, named like the argument, and counted', () => {
+  const p = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-chk-'));
+  fs.mkdirSync(path.join(p, 'src')); fs.mkdirSync(path.join(p, 'svg'));
+  fs.writeFileSync(path.join(p, 'src/throws.ts'), `export default () => { throw new Error('boom from define'); };\n`);
+  fs.writeFileSync(path.join(p, 'src/flow.ts'), GOOD_TS);
+  fs.writeFileSync(path.join(p, 'svg/throws.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>');
+  fs.writeFileSync(path.join(p, 'A.md'), '# a\n\n![図](svg/throws.svg)\n');
+  const j = JSON.parse(node(p, CHECK, '--docs', 'A.md', '--src-dir', './src', '--format', 'json', 'src/throws.ts', 'src/flow.ts').stdout);
+  const be = j.findings.filter((f: {rule: string}) => f.rule === 'build-error');
+  assert.deepEqual(be.map((f: {file: string}) => f.file), ['src/throws.ts']);
+  assert.equal(j.errors, 1);
+  const t = node(p, CHECK, '--docs', 'A.md', '--src-dir', 'src', 'src/throws.ts', 'src/flow.ts');
+  assert.match(t.stderr, /2 件中 1 件が検査できなかった/);
+  const only = node(p, CHECK, '--docs', 'A.md', '--src-dir', 'src');
+  assert.match(only.stderr, /1 件中 1 件が検査できなかった/);
+  fs.rmSync(p, {recursive: true});
 });

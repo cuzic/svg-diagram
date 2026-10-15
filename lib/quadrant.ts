@@ -7,9 +7,11 @@
 //     is too crowded the rows grow (a `height` is a minimum), and when growing does not help the layout throws and says which item.
 // The rating of a cell is always written (its title / note), the groups are told apart by shape AND colour, and the size of a bubble
 // has a legend: colour is never the only carrier of meaning.
+import {assertScope} from './scope-name.ts';
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
-import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, Roles, WidthOf} from './types/core.ts';
+import {gridColumns} from './layout-util.ts';
+import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, ScopeOpts, Roles, WidthOf} from './types/core.ts';
 import type {BoxTone} from './types/text-bands.ts';
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -50,7 +52,7 @@ export interface QuadrantItem {
 export type QuadrantEnd = string | [x: number, y: number];
 /** A movement (portfolio shift): from → to. */
 export interface QuadrantArrow {from: QuadrantEnd; to: QuadrantEnd; label?: string; dashed?: boolean}
-export interface QuadrantOpts extends RevealOpts {
+export interface QuadrantOpts extends RevealOpts, ScopeOpts {
   /** A spotlight target and a connect() endpoint (the whole figure); each item's id is an anchor too. */
   id?: string;
   /** Fills the axes, grid, captions and tones of a named framework; anything given here overrides it. */
@@ -294,8 +296,9 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
     if (!Array.isArray(e) || !Number.isInteger(e[0]) || !Number.isInteger(e[1]) || e[0] < 0 || e[1] < 0 || e[0] >= cols || e[1] >= rows) throw new Error(`quadrant(): allowEmpty cell ${JSON.stringify(e)} is outside the ${cols} x ${rows} grid (columns 0..${cols - 1}, rows 0..${rows - 1}, from the top-left), or use true`);
   }
   for (const [k, v] of [['height', opts.height], ['width', opts.width]] as const) if (v !== undefined && !(typeof v === 'number' && v > 0 && Number.isFinite(v))) throw new Error(`quadrant(): ${k} must be a finite number > 0 (got ${v})`);
+  assertScope(opts.scope, 'quadrant()');
   return {
-    type: 'quadrant', ...(opts.id ? {id: opts.id} : {}), ...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until}),
+    type: 'quadrant', ...(opts.id ? {id: opts.id} : {}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until}),
     x, y, cols, rows, cells, items, arrows, groups, crosshair: opts.crosshair ?? p?.crosshair ?? false,
     ...(opts.sizeTitle === undefined ? {} : {sizeTitle: opts.sizeTitle}), ...(opts.sizeUnit === undefined ? {} : {sizeUnit: opts.sizeUnit}),
     height: opts.height ?? p?.height, ...(opts.width === undefined ? {} : {width: opts.width}),
@@ -396,11 +399,14 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   const gutterMax = Math.max(80, Math.min(150, width * 0.2));
   const yTitle = wrap(band.y.title, tSize, 700, gutterMax);
   const gutterW = Math.ceil(Math.max(widest(yTitle, tSize, 700), tw(band.y.high ?? '', size), tw(band.y.low ?? '', size))) + 14;
-  const plotL = left + PAD + gutterW, plotR = left + width - PAD, plotW = plotR - plotL;
+  // the plot's edges are on the 4px grid the emitter snaps to, and so are the cells (ADR 0014 D1): equal columns, even gutters
+  const plotL = Math.ceil((left + PAD + gutterW) / 4 - 1e-9) * 4, plotR = Math.floor((left + width - PAD) / 4 + 1e-9) * 4, plotW = plotR - plotL;
   const xLeft = (band.x.reversed ? band.x.high : band.x.low) ?? '', xRight = (band.x.reversed ? band.x.low : band.x.high) ?? '';
   if (tw(xLeft, size) + tw(band.x.title, tSize, 700) + tw(xRight, size) + 36 > plotW) throw new Error(`quadrant(): the x axis names do not fit under the plot (${Math.round(plotW)}px): shorten the title / low / high, or widen the figure`);
-  const gap = band.crosshair ? 0 : 6;
-  const cw = (plotW - gap * (cols - 1)) / cols;
+  const gap = band.crosshair ? 0 : 6; // between rows (unchanged)
+  const hgap = band.crosshair ? 0 : 8; // between columns: a multiple of 4. It may grow by a step (anyGap) so the cells come out equal: the quadrant's gutter is its own, not a declared gap, and the row gap stays 6 (vertical placement is U1b's)
+  const colGrid = gridColumns(plotW, cols, hgap, {fixedGap: band.crosshair, anyGap: true}) ?? (() => { const w = (plotW - hgap * (cols - 1)) / cols; return {x: Array.from({length: cols}, (_c, k) => k * (w + hgap)), w: new Array<number>(cols).fill(w), gap: hgap}; })();
+  const cw = Math.min(...colGrid.w); // the narrowest cell: what the wrapping is measured against
   if (cw < 90) throw new Error(`quadrant(): ${cols} columns leave ${Math.round(cw)}px per cell — fewer columns or a wider figure`);
 
   // ---- captions: a header strip per row
@@ -448,9 +454,9 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     const rowH = Array.from({length: rows}, (_r, r) => Math.max(plotH0 / rows * grow, hdr[r] + 90, hdr[r] + flowNeed[r]));
     const plotT = y + PAD, plotH = rowH.reduce((a, b) => a + b, 0) + gap * (rows - 1), plotB = plotT + plotH;
     const rowTop = rowH.map((_h, r) => plotT + rowH.slice(0, r).reduce((a, b) => a + b, 0) + gap * r);
-    const cellX = (k: number) => plotL + k * (cw + gap);
-    const cellRect = (k: number, r: number): Rect => ({x: cellX(k), y: rowTop[r], w: cw, h: rowH[r]});
-    const bodyRect = (k: number, r: number): Rect => ({x: cellX(k), y: rowTop[r] + hdr[r], w: cw, h: rowH[r] - hdr[r]});
+    const cellX = (k: number) => plotL + colGrid.x[k];
+    const cellRect = (k: number, r: number): Rect => ({x: cellX(k), y: rowTop[r], w: colGrid.w[k], h: rowH[r]});
+    const bodyRect = (k: number, r: number): Rect => ({x: cellX(k), y: rowTop[r] + hdr[r], w: colGrid.w[k], h: rowH[r] - hdr[r]});
     const plot: Rect = {x: plotL, y: plotT, w: plotW, h: plotH};
 
     // value space -> pixels (a value is mapped into the body of the cell it falls in, so a caption never sits on an item)
@@ -629,7 +635,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   const cells = band.cells.flatMap((rowCells, r) => rowCells.map((cell, k) => ({...cellRect(k, r), tone: cell.tone ?? 'plain'})));
   const lines: LaidOutQuadrant['lines'] = [];
   if (band.crosshair) {
-    for (let k = 1; k < cols; k++) lines.push({x1: plotL + k * cw, y1: plotT, x2: plotL + k * cw, y2: plotB});
+    for (let k = 1; k < cols; k++) lines.push({x1: plotL + colGrid.x[k], y1: plotT, x2: plotL + colGrid.x[k], y2: plotB});
     let acc = plotT;
     for (let r = 0; r < rows - 1; r++) { acc += rowH[r]; lines.push({x1: plotL, y1: acc, x2: plotR, y2: acc}); }
   }

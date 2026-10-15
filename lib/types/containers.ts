@@ -1,5 +1,6 @@
 // Types: group / legend / spacer / raw, row / grid / connect.
 import type {Align, Arrow, ArrowWeight, Bend, Dimmed, EmphasisTone, LineStyle, PlainColorKey, Point, Rect, RevealOpts, Route, TextTone, Theme} from './core.ts';
+import type {CauseRole} from './diagrams.ts';
 import type {Band} from './index.ts';
 import type {BoxBand, BoxTone, LaidOutBox, RichSpans, RichText} from './text-bands.ts';
 
@@ -15,6 +16,12 @@ export interface GroupOpts extends RevealOpts {
   pad?: number;
   /** Chip at the bottom-right corner inside the frame (see box({stamp})). */
   stamp?: string;
+  /**
+   * Where the content sits when a row() stretches the frame taller than it (ADR 0014): 'center' (default) puts the content
+   * below the title in the middle of the room (the gaps between its parts grow by up to 16px first); 'top' keeps it at the top;
+   * 'stretch' makes a single box fill the room. Under 16px of room nothing moves. No effect outside a row, or with `frame: false`.
+   */
+  valign?: 'top' | 'center' | 'stretch';
   /** false draws no frame (and takes no title): a plain container, so a table / plane / banner can sit in a row() without a doubled outline. */
   frame?: false;
   id?: string;
@@ -37,6 +44,8 @@ export interface GroupBand {
   pad?: number;
   frame?: false;
   stamp?: string;
+  /** See GroupOpts. */
+  valign?: 'top' | 'center' | 'stretch';
   id?: string;
   flex?: number;
   width?: number;
@@ -66,6 +75,12 @@ export interface LegendItem {
   weight?: ArrowWeight;
   tone?: EmphasisTone;
   dashed?: boolean;
+  /** A cause-tree entity sample: the box of that role (colour, double outline, hexagon). legend: 'auto' writes these for a causeTree(). */
+  role?: CauseRole;
+  /** A cause-tree arrow sample: 'and' = arrows joined by an arc (together sufficient), 'back' = a declared return (bold), 'blocks' = a cutting arrow (dashed, ends in a bar). */
+  edge?: 'and' | 'back' | 'blocks';
+  /** A cause-tree mark sample: 'core' = the thick frame of the core driver. */
+  mark?: 'core';
 }
 export interface LegendOpts {align?: 'left' | 'center'}
 export interface LegendBand {
@@ -129,13 +144,17 @@ export interface CanvasLayout {
   place: {col: number; row: number; cs: number; rs: number}[];
   colW: number[];
   rowW: number[];
-  /** Least height / width of the canvas. */
+  /** Least height / width of the canvas (only with fit 'aspect'). */
   aspect: number;
+  /** 'content': every row is as tall as its regions need; 'aspect': the template's height / width is a floor. */
+  fit: 'content' | 'aspect';
   /** The least height (px) the user asked for: more content than fits throws. */
   h?: number;
   title?: string;
   /** One per child: its tone (if any) is said in words by its pill, so it needs no legend entry. */
   worded: boolean[];
+  /** One per child: it is meant to be filled, so it is at least CANVAS_MIN_ROW_H tall (a label cell and an optional region left empty are not). */
+  floor: boolean[];
   /** Regions without content, and whether the author wanted every one filled (rule canvas-region-empty). */
   empty: string[];
   requireAll: boolean;
@@ -195,7 +214,7 @@ export interface ConnectBand {
 export interface BranchTarget extends ConnectOpts {to: string}
 /** The frame of a group; its children are laid out as separate bands after it. */
 export interface LaidOutGroup extends Rect, Dimmed {type: 'group'; tone: BoxTone; dashed?: boolean; frame?: false; stamp?: string; stampW?: number; id?: string; reveal?: number}
-export interface LaidOutLegendItem extends LegendItem {textW: number; w: number; x: number; y: number}
+export interface LaidOutLegendItem extends LegendItem {textW: number; w: number; x: number; y: number; /** a `role` item's box, resolved by layout */ swatch?: {tone: EmphasisTone; double?: boolean; hex?: boolean; dashed?: boolean}}
 export interface LaidOutLegend extends Rect {type: 'legend'; items: LaidOutLegendItem[]}
 export interface RowArrow {x1: number; y1: number; x2: number; y2: number}
 export interface LaidOutRow extends Rect, Dimmed {type: 'row'; id?: string; children: LaidOutBox[]; arrows: RowArrow[]}

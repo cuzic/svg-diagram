@@ -13,6 +13,7 @@ import type {LaidOutQuadrant} from './quadrant.ts';
 import type {LaidOutFlowShape} from './flow-shapes.ts';
 import {snap4, escapeXml, emojiSpan, resolveTextColor, lineAttrs, arrowPath, resolveBoxStyle} from './emit-common.ts';
 import {renderBoxRect} from './emit-boxes.ts';
+import {CORE_BADGE_H, CORE_BADGE_GAP} from './toc.ts';
 
 // plane(): axes (with arrowheads), ticks, guides, points, dimension lines with their label chips, then every text.
 export function renderPlane(b: LaidOutPlane, day: Theme, stage?: number): string {
@@ -278,21 +279,35 @@ export function renderStates(b: LaidOutStates, day: Theme): string {
 }
 
 
+// The core driver (ADR 0015 D4): a thick frame and a small 中核 badge just outside the side of the box away from the arrows that leave it
+const CORE_STROKE = 3.5, BADGE_W = 44, BADGE_H = CORE_BADGE_H, BADGE_GAP = CORE_BADGE_GAP;
+function coreBadge(n: LaidOutCause['nodes'][number], id: string, b: LaidOutCause, day: Theme): string {
+  const leave = b.edges.find(e => e.from === id)?.points[0], eps = 1;
+  const side = !leave ? 'top' : Math.abs(leave.y - n.y) < eps ? 'bottom' : Math.abs(leave.y - n.y - n.h) < eps ? 'top' : Math.abs(leave.x - n.x) < eps ? 'right' : 'left';
+  // wholly outside the frame, so it never covers the label (H7)
+  const x = side === 'left' ? n.x - BADGE_W - BADGE_GAP : side === 'right' ? n.x + n.w + BADGE_GAP : n.x + 6;
+  const y = side === 'top' ? n.y - BADGE_H - BADGE_GAP : side === 'bottom' ? n.y + n.h + BADGE_GAP : n.y + 6;
+  const fill = b.dim ? PALETTE.muted : colorOf('accent', day);
+  return `<rect x="${snap4(x)}" y="${snap4(y)}" width="${BADGE_W}" height="${BADGE_H}" rx="8" fill="${fill}"/>\n  <text x="${snap4(x + BADGE_W / 2)}" y="${snap4(y + 16)}" text-anchor="middle" font-size="14" font-weight="700" fill="${PALETTE.bg}">中核</text>`;
+}
 export function renderCause(b: LaidOutCause, day: Theme): string {
   const out: string[] = [];
   const stroke = b.dim ? PALETTE.muted : PALETTE.text;
-  for (const e of b.edges) out.push(arrowPath(e.points, stroke, e.line));
+  for (const e of b.edges) out.push(e.kind === 'blocks' ? arrowPath(e.points, stroke, e.line, 2, 'end', 'bar') : e.back ? arrowPath(e.points, stroke, e.line, 3) : arrowPath(e.points, stroke, e.line));
   // the AND arc: across the arrows of one effect, just before their heads
   for (const a of b.ands) out.push(`<path d="M${snap4(a.p0.x)},${snap4(a.p0.y)} Q${snap4(a.c.x)},${snap4(a.c.y)} ${snap4(a.p1.x)},${snap4(a.p1.y)}" fill="none" stroke="${stroke}" stroke-width="2"/>`);
-  for (const n of b.nodes) {
+  for (const [i, n] of b.nodes.entries()) {
     if (n.hex) { // an obstacle: a hexagon (pointed left and right), in its tone's colours
-      const st = b.dim ? {fill: PALETTE.bg, stroke: PALETTE.muted, dashed: false} : resolveBoxStyle(n.tone, day), k = Math.min(16, n.h / 2), cy = n.y + n.h / 2;
+      const st = b.dim ? {fill: PALETTE.bg, stroke: PALETTE.muted, dashed: false} : resolveBoxStyle(n.tone, day, n.dashed), k = Math.min(16, n.h / 2), cy = n.y + n.h / 2;
       const pts = [[n.x + k, n.y], [n.x + n.w - k, n.y], [n.x + n.w, cy], [n.x + n.w - k, n.y + n.h], [n.x + k, n.y + n.h], [n.x, cy]].map(([px, py]) => `${snap4(px)},${snap4(py)}`).join(' ');
-      out.push(`<polygon points="${pts}" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2"${st.dashed ? ' stroke-dasharray="6,4"' : ''} stroke-linejoin="round"/>`);
+      out.push(`<polygon points="${pts}" fill="${st.fill}" stroke="${st.stroke}" stroke-width="${n.core ? CORE_STROKE : 2}"${st.dashed ? ' stroke-dasharray="6,4"' : ''} stroke-linejoin="round"/>`);
+      if (n.core) out.push(coreBadge(n, b.anchors[i].id, b, day));
       continue;
     }
-    out.push(renderBoxRect({...n, dim: b.dim}, day, 'plain'));
+    const rect = renderBoxRect({...n, dim: b.dim}, day, 'plain');
+    out.push(n.core ? rect.replace('stroke-width="2.5"', `stroke-width="${CORE_STROKE}"`) : rect);
     if (n.double) out.push(renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, 'plain').replace('rx="8"', 'rx="5"'));
+    if (n.core) out.push(coreBadge(n, b.anchors[i].id, b, day));
   }
   const ink = (t: LaidOutCause['texts'][number]): string => {
     if (b.dim) return PALETTE.muted;

@@ -242,3 +242,19 @@ test('stateDiagram(): the arrows that meet one side of a state keep an even step
     }
   }
 });
+
+for (const dir of ['right', 'down'] as const) {
+  test(`stateDiagram() returns: outer runs a return that skips layers in a lane outside the states (dir ${dir}); the default stays inside`, async () => {
+    const make = (opts: object) => stateDiagram([S('a'), S('b'), S('c'), S('d')], [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'}, {from: 'd', to: 'a', label: 'again'}], {initial: 'a', dir, ...opts});
+    const beyond = (t: LaidOutStates): number => {
+      const e = t.edges.find(x => x.from === 'd' && x.to === 'a')!;
+      return dir === 'right' ? Math.max(...e.points.map(p => p.y)) - Math.max(...t.nodes.map(n => n.y + n.h)) : Math.max(...e.points.map(p => p.x)) - Math.max(...t.nodes.map(n => n.x + n.w));
+    };
+    const outer = await laid(make({returns: 'outer'})), inline = await laid(make({}));
+    assert.deepEqual(outer.verdict.problems, []);
+    assert.ok(beyond(outer.t) > 10, `the lane is outside (${beyond(outer.t)})`);
+    assert.ok(beyond(inline.t) <= 10);
+    assert.deepEqual((await laid(make({returns: 'inline'}))).t.edges, inline.t.edges);
+    assert.throws(() => make({returns: 'x'}), /returns must be/);
+  });
+}
