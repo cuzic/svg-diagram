@@ -4,8 +4,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {packPptx} from '../../../lib/pptx/emit.ts';
-import {fitConnector, maxDeviation, simplify, EMU, type Pt} from '../../../lib/pptx/geom.ts';
+import {packSlide} from '../../../lib/pptx/emit.ts';
+import {fitConnector, maxDeviation, simplify, type Pt} from '../../../lib/pptx/geom.ts';
+import {EMU} from '../../../lib/pptx/xml.ts';
 
 const out = process.argv[2]!;
 fs.mkdirSync(out, {recursive: true});
@@ -53,7 +54,7 @@ cases.forEach((c, i) => {
 const rows = Math.ceil(cases.length / COLS);
 const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${shapes.join('')}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
 const pptx = path.join(out, 'judge.pptx');
-fs.writeFileSync(pptx, packPptx(xml, COLS * CELL * EMU, rows * CELL * EMU));
+fs.writeFileSync(pptx, packSlide({xml, cx: COLS * CELL * EMU, cy: rows * CELL * EMU, pictures: []}));
 execFileSync('soffice', ['--headless', '--convert-to', 'pdf', '--outdir', out, pptx], {stdio: 'ignore', timeout: 120000});
 execFileSync('pdftocairo', ['-svg', path.join(out, 'judge.pdf'), path.join(out, 'judge.svg')]);
 const svg = fs.readFileSync(path.join(out, 'judge.svg'), 'utf8');

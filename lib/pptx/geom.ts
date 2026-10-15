@@ -1,9 +1,10 @@
 // Fit a PowerPoint connector (prstGeom + xfrm + adj) to an orthogonal polyline, and evaluate one back.
 // The evaluator follows ECMA-376 presetShapeDefinitions (bentConnector2..5, straightConnector1) and the DrawingML
 // transform order (flip about the box centre, then rotate clockwise about the box centre).
+import {EMU, emu} from './xml.ts';
+
 export interface Pt {x: number; y: number}
 
-export const EMU = 9525; // 1px at 96dpi
 const MIN_EXT = 12700; // 1pt: the smallest ext a degenerate (zero-width) U shape gets
 
 export interface ConnXfrm {
@@ -66,12 +67,9 @@ export function fitConnector(raw: Pt[]): FitResult {
     const seg = {x: d[i]!.x - d[i - 1]!.x, y: d[i]!.y - d[i - 1]!.y};
     if (alongX ? !near(seg.y, 0) : !near(seg.x, 0)) return {ok: false, why: 'segments do not alternate'};
   }
-  const emu = (v: number): number => Math.round(v * EMU);
   let W = emu(d[n]!.x), H = emu(d[n]!.y);
-  let degenerate = false;
-  if (W < MIN_EXT && n >= 3) { W = MIN_EXT; degenerate = true; }
-  if (H < MIN_EXT && n >= 4) { H = MIN_EXT; degenerate = true; }
-  void degenerate;
+  if (W < MIN_EXT && n >= 3) W = MIN_EXT;
+  if (H < MIN_EXT && n >= 4) H = MIN_EXT;
   const frac = (v: number, total: number): number => Math.round((emu(v) / total) * 100000);
   const adj: number[] = [];
   if (n === 3) adj.push(frac(d[1]!.x, W));
@@ -112,4 +110,14 @@ export function maxDeviation(a: Pt[], b: Pt[]): number {
   const sa = simplify(a), sb = simplify(b);
   if (sa.length !== sb.length) return Infinity;
   return Math.max(...sa.map((p, i) => Math.hypot(p.x - sb[i]!.x, p.y - sb[i]!.y)));
+}
+
+const SIDE_IDX: Record<string, number> = {top: 0, left: 1, bottom: 2, right: 3};
+
+/** The connection site (0 top, 1 left, 2 bottom, 3 right) of a rectangle a route end belongs to: the side named in the label (`"id:top"`), else the nearest. */
+export function siteIndex(box: {x: number; y: number; w: number; h: number}, p: Pt, label: string): number {
+  const side = /^[^:]+:(top|left|bottom|right)/.exec(label)?.[1];
+  if (side !== undefined) return SIDE_IDX[side]!;
+  const sites = [{x: box.x + box.w / 2, y: box.y}, {x: box.x, y: box.y + box.h / 2}, {x: box.x + box.w / 2, y: box.y + box.h}, {x: box.x + box.w, y: box.y + box.h / 2}];
+  return sites.map((c, idx) => ({idx, dist: Math.hypot(c.x - p.x, c.y - p.y)})).sort((a, b) => a.dist - b.dist)[0]!.idx;
 }

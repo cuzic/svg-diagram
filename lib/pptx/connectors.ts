@@ -3,27 +3,16 @@ import {PALETTE, textColorOf} from '../tokens.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutConnect} from '../types/containers.ts';
 import type {ConnXfrm, Pt} from './geom.ts';
-import {emu, hex, type Rect} from './xml.ts';
+import {emu, hex} from './xml.ts';
 
-export interface Site {idx: number; dist: number}
-const SIDE_IDX: Record<string, number> = {top: 0, left: 1, bottom: 2, right: 3};
-
-/** The connection site (0 top, 1 left, 2 bottom, 3 right) of a rectangle a route end belongs to: the side named in the label, else the nearest. */
-export function siteOf(box: Rect, p: Pt, label: string): Site {
-  const side = /^[^:]+:(top|left|bottom|right)/.exec(label)?.[1];
-  const cand = [{idx: 0, x: box.x + box.w / 2, y: box.y}, {idx: 1, x: box.x, y: box.y + box.h / 2}, {idx: 2, x: box.x + box.w / 2, y: box.y + box.h}, {idx: 3, x: box.x + box.w, y: box.y + box.h / 2}];
-  const all = cand.map(c => ({idx: c.idx, dist: Math.hypot(c.x - p.x, c.y - p.y)}));
-  return (side !== undefined ? all.find(c => c.idx === SIDE_IDX[side]) : undefined) ?? all.sort((a, b) => a.dist - b.dist)[0]!;
-}
-
-export interface Glue {id: number; site: Site}
+export interface Glue {id: number; idx: number}
 function cxnXfrm(x: ConnXfrm, withRot: boolean): string {
   const rot = withRot && x.rot ? ` rot="${x.rot}"` : '';
   return `<a:xfrm${rot}${x.flipH ? ' flipH="1"' : ''}${x.flipV ? ' flipV="1"' : ''}><a:off x="${x.offX}" y="${x.offY}"/><a:ext cx="${x.extX}" cy="${x.extY}"/></a:xfrm>`;
 }
 
 const glueXml = (start?: Glue, end?: Glue): string =>
-  `${start ? `<a:stCxn id="${start.id}" idx="${start.site.idx}"/>` : ''}${end ? `<a:endCxn id="${end.id}" idx="${end.site.idx}"/>` : ''}`;
+  `${start ? `<a:stCxn id="${start.id}" idx="${start.idx}"/>` : ''}${end ? `<a:endCxn id="${end.id}" idx="${end.idx}"/>` : ''}`;
 
 /** A straight arrow between two boxes of a `row` band. */
 export function rowArrowXml(id: number, name: string, x: ConnXfrm, start?: Glue, end?: Glue): string {

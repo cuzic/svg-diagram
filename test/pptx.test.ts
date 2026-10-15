@@ -8,8 +8,8 @@ import {register} from 'node:module';
 import test from 'node:test';
 import {fitConnector, evalConnector, maxDeviation, type Pt} from '../lib/pptx/geom.ts';
 import {zipStore} from '../lib/pptx/zip.ts';
-import {emitPptx} from '../lib/pptx/emit.ts';
-import {PPTX_CHART_HANDLERS, PPTX_HANDLERS} from '../lib/pptx/handlers.ts';
+import {emitPptx, fontFilesOf} from '../lib/pptx/emit.ts';
+import {BAND_HANDLERS} from '../lib/pptx/bands.ts';
 import {loadConfig} from '../lib/config.ts';
 import {loadDiagram} from '../lib/load-source.ts';
 import {renderDiagram} from '../lib/dsl/render.ts';
@@ -53,11 +53,10 @@ test('zip writer is byte deterministic and ignores wall clock', () => {
   assert.equal(a.readUInt16LE(12), ((2026 - 1980) << 9) | (1 << 5) | 1);
 });
 
-test('PPTX handler registries explicitly classify bands and chart kinds', () => {
-  assert.equal(PPTX_HANDLERS.table.mode, 'native');
-  assert.equal(PPTX_HANDLERS.chart.mode, 'image');
-  assert.ok(Object.keys(PPTX_HANDLERS).length >= 30);
-  assert.ok(Object.keys(PPTX_CHART_HANDLERS).length >= 19);
+test('every band type is either native (a function) or an image', () => {
+  assert.equal(typeof BAND_HANDLERS.table, 'function');
+  assert.equal(BAND_HANDLERS.chart, 'image');
+  assert.ok(Object.keys(BAND_HANDLERS).length >= 30);
 });
 
 const has = (command: string): boolean => { try { execFileSync('sh', ['-c', `command -v ${command}`], {stdio: 'ignore'}); return true; } catch { return false; } };
@@ -70,9 +69,11 @@ test('example PPTX files have sound slide relationships', async t => {
   for (const source of ['examples/arrow-weight.ts', 'examples/table-row-header.ts', 'examples/bars-bare.ts']) await t.test(source, async () => {
     const abs = path.resolve(source), config = loadConfig(path.dirname(abs));
     const regular = '/home/cuzic/.local/share/fonts/BIZ-UDGothicR.ttc', bold = '/home/cuzic/.local/share/fonts/BIZ-UDGothicB.ttc';
-    const diagram = await loadDiagram(abs, fs.existsSync(regular) && fs.existsSync(bold) ? {...config, measure: 'font', fonts: {sans: {regular: `${regular}#1`, bold: `${bold}#1`}, mono: {regular: `${regular}#0`, bold: `${bold}#0`}}} : config);
+    const measured = fs.existsSync(regular) && fs.existsSync(bold) ? {...config, measure: 'font' as const, fonts: {sans: {regular: `${regular}#1`, bold: `${bold}#1`}, mono: {regular: `${regular}#0`, bold: `${bold}#0`}}} : config;
+    const diagram = await loadDiagram(abs, measured);
     const rendered = await renderDiagram(diagram, {name: path.basename(source, '.ts') + '.svg', budget: 'cacheOnly'});
-    const a = emitPptx(rendered.laidOut, {name: source}), b = emitPptx(rendered.laidOut, {name: source});
+    const opts = {rasterFonts: fontFilesOf(measured.fonts)};
+    const a = emitPptx(rendered.laidOut, opts), b = emitPptx(rendered.laidOut, opts);
     assert.deepEqual(a, b);
     const xml = unzipEntry(a, 'ppt/slides/slide1.xml').toString();
     assert.deepEqual(xmlProblems(xml), []);

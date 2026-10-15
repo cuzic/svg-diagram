@@ -15,7 +15,7 @@ SVG を PowerPoint に貼って「図形に変換」すれば、矩形・線・�
 
 ### D1: 元は SVG ではなく `LaidOutDiagram`。全バンドに「ネイティブ / 画像」の表
 
-`emitSvg` の出力を読み戻して変換することはしない。`layoutDiagram()` の結果(`laidOut: LaidOutBand[]`、`connects: LaidOutConnect[]`)から、**バンドの種類ごとの PPTX 用ハンドラ**で作る。`lib/emit-handlers.ts` の `EMIT_HANDLERS`(`satisfies {[T in LaidOutType]: …}`)と同じく、全バンド種に「ネイティブ」か「画像」の宣言がないとコンパイルが通らない形にする。chart は band 種ではなく **kind ごと**に宣言する(sankey・treemap・heatmap などは chart の kind)。この表が段階の計画を兼ねる(D2・D3)。
+`emitSvg` の出力を読み戻して変換することはしない。`layoutDiagram()` の結果(`laidOut: LaidOutBand[]`、`connects: LaidOutConnect[]`)から、**バンドの種類ごとの PPTX 用ハンドラ**で作る。`lib/emit-handlers.ts` の `EMIT_HANDLERS`(`satisfies {[T in LaidOutType]: …}`)と同じく、全バンド種に「ネイティブ」か「画像」の宣言がないとコンパイルが通らない形にする。いまの実装では chart は全 kind が画像なので、kind ごとの宣言は持たない(ネイティブのチャートを作るときに足す)。この表が段階の計画を兼ねる(D2・D3)。
 
 ### D2: 意味を写す対応表(第 1 段)
 
@@ -47,7 +47,7 @@ SVG を PowerPoint に貼って「図形に変換」すれば、矩形・線・�
 ### D4: パッケージもスライドも自前で書く(`pptxgenjs` は使わない)
 
 - スライドの XML(`p:sp` / `p:cxnSp` / `p:grpSp` / `p:pic` / 表の `graphicFrame`)は、レイアウト結果から自前で書く。
-- パッケージの骨組み(`[Content_Types].xml`、マスター、レイアウト、テーマ、`presentation.xml` など 18 ファイル、約 30KB)は、**PowerPoint で開けると実績のある pptxgenjs の出力をそのまま雛形**としてリポジトリに置く(`spike/pptx/template/`)。変えるのはスライド本体、スライドの関係、スライドの大きさ、`[Content_Types].xml` の拡張子の宣言だけ。削る(ノート関連など)のは、PowerPoint 実機で確かめてから。
+- パッケージの骨組み(`[Content_Types].xml`、マスター、レイアウト、テーマ、`presentation.xml` など 18 ファイル、約 30KB)は、**PowerPoint で開けると実績のある pptxgenjs の出力をそのまま雛形**としてリポジトリに置く(`lib/pptx/template/`)。変えるのはスライド本体、スライドの関係、スライドの大きさ、`[Content_Types].xml` の拡張子の宣言だけ。削る(ノート関連など)のは、PowerPoint 実機で確かめてから。
 - zip は `node:zlib` による自前の書き出し(`zip.ts`、約 30 行)。順序・日時・圧縮を固定し、フォルダ項目を作らない。
 - **pptxgenjs と JSZip の依存は入れない**。pptxgenjs はグループ・接続コネクタが無く、表と図形の id が衝突し、Node では SVG の PNG フォールバックが壊れる(SVG のバイト列が `.png` に入る)。決定論を崩す要素(日時、UUID、`Math.random`、入れ子の xlsx)も多い。後処理で補うより自前のほうが短かった(スパイクで確認)。
 - **チャートは第 1 段では画像**(D3)。ネイティブチャートは XML と埋め込みの xlsx が要る。その時点で、チャートの部分だけ pptxgenjs の出力を雛形にするか自前で書くかを選ぶ。waterfall と treemap は chartex(`cx:chart`)で、pptxgenjs にも無い。
@@ -69,7 +69,7 @@ SVG を PowerPoint に貼って「図形に変換」すれば、矩形・線・�
 ### D7: コネクタの経路(スパイクで確かめた)
 
 - PowerPoint は**開いたときに経路を計算し直さない**(保存された `xfrm` と `prstGeom` と `adj` のとおりに描く)。違う形になるのは、ユーザーがつながった図形を最初に動かしたとき。
-- 直交折れ線は 1 区間 = `straightConnector1`、2〜5 区間 = `bentConnector2〜5` と回転・反転・`adj` で表す(`spike/pptx/geom.ts`)。縮退(始点と終点が同じ軸の U 字・C 字)は、最小の ext(1pt)と大きな `adj` で表し、1pt ずれる。6 区間以上と斜め線は、画像にするか freeform にする(gantt の依存線 4 本、cloud の斜め 1 本)。
+- 直交折れ線は 1 区間 = `straightConnector1`、2〜5 区間 = `bentConnector2〜5` と回転・反転・`adj` で表す(`lib/pptx/geom.ts`)。縮退(始点と終点が同じ軸の U 字・C 字)は、最小の ext(1pt)と大きな `adj` で表し、1pt ずれる。6 区間以上と斜め線は、画像にするか freeform にする(gantt の依存線 4 本、cloud の斜め 1 本)。
 - 接続点は、矩形・角丸矩形で 上・左・下・右 = 0〜3。**端が乗っている辺**(`fromLabel` / `toLabel` の side)で選び、辺の上の位置は無視する(最も近い辺の中央で選ぶと、`column-grid.ts` の `fuse` が違う辺につながる)。端の 34% は辺の中央になく、最初に動かすと中央へ跳ぶ。
 
 ### D8: `check` が保証する範囲
@@ -100,7 +100,7 @@ pptx では、図形と線の幾何は保証する(layout のまま)。文字は
 - **EMF に変換して埋め込む**: Inkscape / LibreOffice という外部依存が要り、グラデーション・破線・日本語フォントが崩れやすい。PowerPoint 2016 以降では SVG のほうが忠実。必要になったら任意の旗として足す。
 - **python-pptx / pptxgenjs / Rust のライブラリ**: D4。
 
-## スパイクの結果(`spike/pptx/`)
+## スパイクの結果(コミット de02f08 の `spike/pptx/`。昇格後に削除した)
 
 実装: `geom.ts`(コネクタの当てはめと評価器)、`run.ts`(`LaidOutDiagram` → 箱・caption・グループ・接続コネクタ・ラベルの pptx。自前の XML、骨組みは `template/`、zip は `zip.ts`)、`batch.ts`(全 examples)、`edges.ts`(バンド内の辺)、`svgblip.ts`、`lines.ts`、`judge-geom.ts` と `judge-glue.ts`(評価器とは独立の判定役)。型検査は `spike/tsconfig.json`(本体の `tsconfig.json` の対象外)。PowerPoint は無いので、判定は仕様の式による評価器と LibreOffice 7.4(参考)による。**LibreOffice での合格は、PowerPoint での合格を意味しない**。
 
@@ -118,7 +118,7 @@ pptx では、図形と線の幾何は保証する(layout のまま)。文字は
 | svgBlip | 自前の書き出しで、SVG + resvg の PNG フォールバックの pptx が作れ、LibreOffice で描ける。pptxgenjs を Node で使うと PNG に SVG のバイト列が入る(確認済み)。バンド単位の切り出しは未試行。 |
 | 出力できたバンド | box / banner / caption / row / grid / group / connect(ラベル込み)。chart(50)・tree・cause・table・wordart などは未対応(スパイクの範囲外)。 |
 
-スパイク自体の誤りも見つかり、直した(2〜3 巡目のレビューで): 太字の判定が常に偽だった(weight は 400 / 700 の数値)、余白の既定値が layout と違っていた(16/12 でなく `BOX_PAD_X` / `BOX_PAD_Y`)、`spike/` が型検査の対象外だったこと(`spike/tsconfig.json` を追加)、mono の run を等幅にしていなかったこと、`indent` を 1 行目だけと思い込んだこと、`judge-glue.ts` がずらしていなかったこと(ADR の記述と実装が食い違っていた)、`judge-geom.ts` が相対座標・逆向き許容で甘かったこと。最初に出した「行数一致 143/146」は、この誤りで合格側に偏っていたので採らない。
+スパイク自体の誤りも見つかり、直した(2〜3 巡目のレビューで): 太字の判定が常に偽だった(weight は 400 / 700 の数値)、余白の既定値が layout と違っていた(16/12 でなく `BOX_PAD_X` / `BOX_PAD_Y`)、`spike/` が型検査の対象外だったこと、mono の run を等幅にしていなかったこと、`indent` を 1 行目だけと思い込んだこと、`judge-glue.ts` がずらしていなかったこと(ADR の記述と実装が食い違っていた)、`judge-geom.ts` が相対座標・逆向き許容で甘かったこと。最初に出した「行数一致 143/146」は、この誤りで合格側に偏っていたので採らない。
 
 ### PoC の最初に入れるもの(PowerPoint が無くてもできる)
 
@@ -136,7 +136,7 @@ pptx では、図形と線の幾何は保証する(layout のまま)。文字は
 
 ## PoC の実装(`lib/pptx/`、`svg-diagram pptx`)
 
-スパイクを昇格して実装した(Codex が実装し、レビューと検証は別に行った)。入口は `emitPptx(laidOut, opts): Buffer`(`lib/pptx/emit.ts`)、CLI は `svg-diagram pptx <source.ts>... [--out FILE | --out-dir DIR] [--png-scale N] [--font NAME]`。全 `LaidOutType` と chart の kind を「ネイティブ / 画像」に分ける表は `lib/pptx/handlers.ts`(網羅していないとコンパイルが通らない)。雛形は `lib/pptx/template/`(`pnpm run build` で `dist/` にも入る)。`./pptx` の公開エクスポートは付けていない。
+スパイクを昇格して実装した(Codex が実装し、レビューと検証は別に行った)。入口は `emitPptx(laidOut, opts): Buffer`(`lib/pptx/emit.ts`)、CLI は `svg-diagram pptx <source.ts>... [--out FILE | --out-dir DIR] [--png-scale N] [--font NAME]`。全 `LaidOutType` を「ネイティブ(帯を XML にする関数)/ 画像」に分ける表は `lib/pptx/bands.ts` の `BAND_HANDLERS`(網羅していないとコンパイルが通らず、ネイティブの帯は関数そのものなので、宣言と実装が食い違わない)。構成は FCIS(ADR 0007)に沿い、核は純粋関数 `planSlide`(`slide.ts`、帯 → スライド XML)と `packageEntries`(`package.ts`)、殻は `emit.ts`(雛形の読み込み、resvg での PNG 化、zip)。PNG に使うフォントは `rasterFonts` で呼び出し側が明示する(測定器のグローバルを読まない)。雛形は `lib/pptx/template/`(`pnpm run build` で `dist/` にも入る)。`./pptx` の公開エクスポートは付けていない。
 
 `examples/*.ts` の 146 本を通した結果:
 

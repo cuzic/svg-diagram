@@ -3,7 +3,9 @@ import {runColorOf, textColorOf} from '../tokens.ts';
 import {LINE_HEIGHT_EM} from '../layout-util.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutBox} from '../types/text-bands.ts';
+import type {FontWeight} from '../types/core.ts';
 import {emu, hex, type Fonts, type Rect} from './xml.ts';
+import type {TextBox} from './shapes.ts';
 
 type Run = LaidOutBox['wrappedRuns'][number];
 
@@ -33,7 +35,7 @@ export function paragraphsOf(runs: Run[], boxTone: string | undefined, day: Laid
   }).join('');
 }
 
-/** A one-run text box body for the badges and labels the layout does not carry as boxes (tag, stamp, step, connector label). */
-export function plainBox(rect: Rect, text: string, size: number, weight: number, lineY: number, tone: LaidOutBox['tone']): LaidOutBox {
-  return {...rect, tone, align: 'center', wrappedRuns: [{text, size, weight, mono: false, lines: [text], lineYs: [lineY]}]} as unknown as LaidOutBox;
+/** The text-only box of a badge or label the layout does not carry as a box: one centred run, no wrapping room needed. */
+export function plainBox(rect: Rect, text: string, size: number, weight: FontWeight, lineY: number, tone: LaidOutBox['tone'], frame: {frame: boolean; padX: number; padY: number}): TextBox {
+  return {...rect, ...(frame.frame ? {} : {frame: false as const}), padX: frame.padX, padY: frame.padY, tone, align: 'center', wrappedRuns: [{text, size, weight, mono: false, lines: [text], lineYs: [lineY]}]};
 }

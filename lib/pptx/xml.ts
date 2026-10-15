@@ -1,8 +1,7 @@
-import {EMU} from './geom.ts';
-
 export interface Rect {x: number; y: number; w: number; h: number}
 export interface Fonts {sans: string; mono: string}
 
+export const EMU = 9525; // 1px at 96dpi
 export const emu = (px: number): number => Math.round(px * EMU);
 export const hex = (c: string): string => c.replace('#', '').toUpperCase();
 

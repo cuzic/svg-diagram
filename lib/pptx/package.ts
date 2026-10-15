@@ -1,26 +1,30 @@
-import fs from 'node:fs';
-import {zipStore} from './zip.ts';
+// The files of the .pptx package, as data: the fixed template with the one slide and its pictures added. Reading the template, drawing
+// the PNGs and zipping are the shell's (emit.ts).
+import type {Picture} from './image-band.ts';
 
-const TEMPLATE = new URL('./template/', import.meta.url);
+export interface Entry {name: string; data: Buffer}
+/** The one slide: its XML, its size (EMU) and the pictures it places (picture i is media/image{i+1}.png / .svg). */
+export interface SlidePlan {xml: string; cx: number; cy: number; pictures: Picture[]}
 
-function templateFiles(dir = TEMPLATE, prefix = ''): {name: string; data: Buffer}[] {
-  return fs.readdirSync(dir, {withFileTypes: true}).flatMap(e => e.isDirectory() ? templateFiles(new URL(e.name + '/', dir), prefix + e.name + '/') : [{name: prefix + e.name, data: fs.readFileSync(new URL(e.name, dir))}]);
-}
+const IMAGE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image';
+/** Relationship ids of picture i in the slide's rels (the template uses the ids below 12). */
+export const imageRids = (i: number): {png: string; svg: string} => ({png: `rId${12 + i * 2}`, svg: `rId${13 + i * 2}`});
 
-export interface Extra {files: Record<string, Buffer>; slideRels: string; defaults: {ext: string; type: string}[]}
+const slideRels = (count: number): string => Array.from({length: count}, (_, i) => {
+  const {png, svg} = imageRids(i);
+  return `<Relationship Id="${png}" Type="${IMAGE_REL}" Target="../media/image${i + 1}.png"/><Relationship Id="${svg}" Type="${IMAGE_REL}" Target="../media/image${i + 1}.svg"/>`;
+}).join('');
 
-/** One slide on the fixed package template; only the slide, its relationships, size and content types change. */
-export function packPptx(slideXml: string, widthEmu: number, heightEmu: number, extra?: Extra): Buffer {
-  const entries = templateFiles().map(({name, data}) => {
-    let d = data;
-    if (name === 'ppt/presentation.xml') d = Buffer.from(data.toString().replace(/<p:sldSz[^>]*\/>/, `<p:sldSz cx="${widthEmu}" cy="${heightEmu}"/>`));
-    else if (name === 'ppt/slides/_rels/slide1.xml.rels' && extra) d = Buffer.from(data.toString().replace('</Relationships>', extra.slideRels + '</Relationships>'));
-    else if (name === '[Content_Types].xml' && extra) d = Buffer.from(data.toString().replace(/<Types[^>]*>/, m => m + extra.defaults.filter(x => !data.toString().includes(`Extension="${x.ext}"`)).map(x => `<Default Extension="${x.ext}" ContentType="${x.type}"/>`).join('')));
-    return {name, data: d};
+/** The template with the slide size and rels filled in, plus the slide and its media; `[Content_Types].xml` first, the rest sorted by name. The template already declares png and svg. */
+export function packageEntries(template: readonly Entry[], plan: SlidePlan, pngs: readonly Buffer[]): Entry[] {
+  const entries = template.map(({name, data}) => {
+    if (name === 'ppt/presentation.xml') return {name, data: Buffer.from(data.toString().replace(/<p:sldSz[^>]*\/>/, `<p:sldSz cx="${plan.cx}" cy="${plan.cy}"/>`))};
+    if (name === 'ppt/slides/_rels/slide1.xml.rels') return {name, data: Buffer.from(data.toString().replace('</Relationships>', slideRels(plan.pictures.length) + '</Relationships>'))};
+    return {name, data};
   });
-  entries.push({name: 'ppt/slides/slide1.xml', data: Buffer.from(slideXml)});
-  for (const [name, data] of Object.entries(extra?.files ?? {})) entries.push({name, data});
-  // [Content_Types].xml first (the convention), then sorted by name
-  entries.sort((a, b) => (a.name === '[Content_Types].xml' ? -1 : b.name === '[Content_Types].xml' ? 1 : a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-  return zipStore(entries);
+  entries.push({name: 'ppt/slides/slide1.xml', data: Buffer.from(plan.xml)});
+  plan.pictures.forEach((p, i) => {
+    entries.push({name: `ppt/media/image${i + 1}.png`, data: pngs[i]!}, {name: `ppt/media/image${i + 1}.svg`, data: Buffer.from(p.svg)});
+  });
+  return entries.sort((a, b) => (a.name === '[Content_Types].xml' ? -1 : b.name === '[Content_Types].xml' ? 1 : a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }

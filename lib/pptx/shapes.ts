@@ -5,15 +5,16 @@ import type {LaidOutBox} from '../types/text-bands.ts';
 import {emu, hex, xfrm, solidFill, roundRectAdj, type Rect, type Fonts} from './xml.ts';
 import {paragraphsOf, pitchOf} from './text.ts';
 
-export interface BoxOpts {frame?: boolean; padX?: number; padY?: number; defaultAlign?: 'left' | 'center' | 'right'; noWrap?: boolean; fonts: Fonts}
+/** What `boxXml` reads of a box: a layout box passes as is, a badge or label is built by `plainBox`. */
+export type TextBox = Rect & Pick<LaidOutBox, 'tone' | 'dashed' | 'frame' | 'padX' | 'padY' | 'align' | 'wrappedRuns'>;
 
-export function boxXml(id: number, name: string, b: LaidOutBox, day: LaidOutDiagram['day'], opts: BoxOpts): string {
+export function boxXml(id: number, name: string, b: TextBox, day: LaidOutDiagram['day'], fonts: Fonts, noWrap = false): string {
   const style = resolveBoxStyle(b.tone, day, b.dashed);
-  const px = opts.padX ?? b.padX ?? BOX_PAD_X, py = opts.padY ?? b.padY ?? BOX_PAD_Y;
-  const frame = opts.frame ?? b.frame !== false;
-  const al = b.align ?? opts.defaultAlign ?? 'left';
+  const px = b.padX ?? BOX_PAD_X, py = b.padY ?? BOX_PAD_Y;
+  const frame = b.frame !== false;
+  const al = b.align ?? 'left';
   const align = al === 'center' ? 'ctr' : al === 'right' ? 'r' : 'l';
-  const paras = paragraphsOf(b.wrappedRuns, b.tone, day, align, opts.fonts);
+  const paras = paragraphsOf(b.wrappedRuns, b.tone, day, align, fonts);
   // the first baseline is lineYs[0] below the content top (the svg puts text at band.y + padY + lineYs[i]); with exact line spacing the
   // baseline sits ~0.8 of the pitch below the line's top -- that factor is what S2 measures on a real PowerPoint
   const first = b.wrappedRuns[0];
@@ -21,7 +22,7 @@ export function boxXml(id: number, name: string, b: LaidOutBox, day: LaidOutDiag
   const dash = style.dashed ? '<a:prstDash val="dash"/>' : '';
   const fill = frame ? `${solidFill(style.fill)}<a:ln w="${emu(2.5)}">${solidFill(style.stroke)}${dash}</a:ln>` : '<a:noFill/><a:ln><a:noFill/></a:ln>';
   // the text area is wider than the layout's wrap width by 2px on the right (a rounding difference must not push a word to the next line)
-  return `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${escapeXml(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${xfrm(b)}<a:prstGeom prst="${frame ? 'roundRect' : 'rect'}"><a:avLst>${frame ? `<a:gd name="adj" fmla="val ${roundRectAdj(b)}"/>` : ''}</a:avLst></a:prstGeom>${fill}</p:spPr><p:txBody><a:bodyPr wrap="${opts.noWrap ? 'none' : 'square'}" lIns="${emu(px)}" tIns="${emu(topInset)}" rIns="${emu(Math.max(0, px - 2))}" bIns="${emu(py)}" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paras || '<a:p><a:endParaRPr lang="ja-JP"/></a:p>'}</p:txBody></p:sp>`;
+  return `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${escapeXml(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${xfrm(b)}<a:prstGeom prst="${frame ? 'roundRect' : 'rect'}"><a:avLst>${frame ? `<a:gd name="adj" fmla="val ${roundRectAdj(b)}"/>` : ''}</a:avLst></a:prstGeom>${fill}</p:spPr><p:txBody><a:bodyPr wrap="${noWrap ? 'none' : 'square'}" lIns="${emu(px)}" tIns="${emu(topInset)}" rIns="${emu(Math.max(0, px - 2))}" bIns="${emu(py)}" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paras || '<a:p><a:endParaRPr lang="ja-JP"/></a:p>'}</p:txBody></p:sp>`;
 }
 
 /** The frame of a `group` band: an empty rounded rectangle the boxes inside sit on. */

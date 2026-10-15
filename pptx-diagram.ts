@@ -7,7 +7,7 @@ import {loadConfig} from './lib/config.ts';
 import {loadDiagram} from './lib/load-source.ts';
 import {renderDiagram} from './lib/dsl/render.ts';
 import {closeMeasurer} from './lib/measure.ts';
-import {emitPptx} from './lib/pptx/emit.ts';
+import {emitPptx, fontFilesOf} from './lib/pptx/emit.ts';
 import {formatBuildError} from './lib/error-format.ts';
 
 register(import.meta.url.endsWith('.ts') ? './lib/resolve-hook.ts' : './lib/resolve-hook.js', import.meta.url);
@@ -35,7 +35,7 @@ try {
       const diagram = await loadDiagram(abs, cfg);
       const rendered = await renderDiagram(diagram, {name: path.basename(abs, '.ts') + '.svg', budget: 'cacheOnly'});
       const out = value('--out') ?? path.join(value('--out-dir') ?? '.', path.basename(abs, '.ts') + '.pptx');
-      outputs.push({file: out, data: emitPptx(rendered.laidOut, {name: path.basename(source), pngScale, ...(value('--font') ? {font: value('--font')} : {})})});
+      outputs.push({file: out, data: emitPptx(rendered.laidOut, {pngScale, rasterFonts: fontFilesOf(cfg.fonts), ...(value('--font') ? {font: value('--font')} : {})})});
       for (const warning of rendered.verdict.warnings) console.error(`⚠ ${source}: ${warning}`);
     } catch (error) { failures.push(formatBuildError(source, error)); }
   }
