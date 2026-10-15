@@ -295,7 +295,7 @@ cloud({a: '製品を成功させる', b: '品質を確保する', c: '市場機�
 | 図 | 書き方 |
 |---|---|
 | 現状ツリー（CRT） | `causeTree`。好ましくない現象は `role: 'ude'`、根本原因は `role: 'root'`（二重枠） |
-| 未来現実ツリー（FRT） | `causeTree`。入れる施策は `role: 'injection'`、望む結果は `role: 'de'`。凡例を添える |
+| 未来現実ツリー（FRT） | `causeTree`。入れる施策は `role: 'injection'`、望む結果は `role: 'de'`。凡例は `diagram({legend: 'auto'})` で出る |
 | 前提条件ツリー（PRT） | `causeTree`。目標 `role: 'goal'`（二重枠）、中間目標 `role: 'io'`、障害 `role: 'obstacle'`（六角形）。中間目標は「〜が得られている」と、障害を越えた状態で書く |
 | 移行ツリー（TT） | `causeTree`。行動は `role: 'action'`。現在の状態と行動を `from: [...]`（AND）で束ねて、次の状態へ |
 | クラウド | `cloud`。矢印は「A のために B が必要、B のために D が必要」と読む向き（目的へ向かう）。D と D' の間の赤いジグザグが対立 |
@@ -305,7 +305,7 @@ cloud({a: '製品を成功させる', b: '品質を確保する', c: '市場機�
   統制できるかは役割で分かれる: 統制できる行動は `injection`（FRT の施策）・`action`（移行ツリーの行動）、CRT の根本原因は `root`（二重枠）、統制できない現状の事実は `precondition`。
 - `causeTree(nodes, links, {coreDriver: true})` は、起点の実体（原因が入らない実体）ごとに、矢印をたどって届く `ude` の数を数え（AND の各原因も届く。自分は数えない）、最も多く、かつ 2 以上の起点（同数なら全部）に**中核ドライバーの印**を付ける: 太い枠と「中核」のバッジ。`role` は変えない（根本原因は `root` の二重枠のまま）。起点の全部に `到達 UDE n` が下の行に書かれる（`counts: false` で消す）。`relationDiagram` の「出る矢印の本数」と違い、間接に届く UDE の数。例は `examples/toc-core.ts`。
 - PRT の障害は、書き方の流派が分かれる。ここでは `role: 'obstacle'` の六角形から中間目標へ矢印を引く。この矢印だけは、ほかの矢印（尾が頭の十分原因・必要条件）と違い、「この障害を、その中間目標が越える」と読む。障害を矢印の脇に付ける描き方と、矢じりの無い線は、まだ無い。
-- 色（`role` / `tone`）は凡例の自動生成（`legend: 'auto'`、`legend-missing` の規則）にまだ入らない。役割の意味は、図の見出しか手書きの `legend()` で添える。
+- `diagram({legend: 'auto'})` は、`causeTree` / `relationDiagram` / `pdpc` の使った**役割**（`ude` 好ましくない現象、`root` 根本原因、`injection` 施策、`precondition` 現状の事実、…。意味を持たない `effect` / `step` は除く）、AND の弧（`edge:and` 合わせて原因）、中核ドライバーの印（`mark:core`）を凡例に足す。使っていない役割は出ない。文言は `legendLabels: {'role:precondition': '与件'}` のように差し替える。手書きの `legend([{role: 'ude', label: '…'}, {edge: 'and', label: '…'}, {mark: 'core', label: '…'}])` も書け、同じ項目は二重にならない。`legend-missing` / `legend-incomplete`（警告）は、従来どおり `role` を数えない（`legend: 'auto'` を書いた図だけが変わる）。`tone` を直接書いた実体の色は凡例に入らない。例は `examples/toc-legend.ts`。
 - 同じ実体に着く矢印が多いと、その辺が足りなくなる前に実体の方が大きくなる（矢じりが重ならないように）。AND の弧は自分の矢印だけにまたがり、別の AND や OR の矢印には触れない（触れるときは `check` が止める）。
 - 循環（フィードバックループ）も書ける（戻る矢印として描く）。AND の矢印が実体の同じ側に着かないときは、弧を描けないので `check` / `build` がそう書いて止まる。幅を超えるときは、`maxNodeW` を小さくするか `dir: 'right'` にする。
 - `cloud` の箱は文字列か `{text, id?, tone?}`。箱の文頭に `A：` `B：` `C：` `D：` `D'：` が付く。`assumptions` は書いた順に 1, 2, … と番号が付き、その番号が `on` の矢印（`ab` `ac` `bd` `cd`、`dd` は対立そのもの）の上に載り、一覧は図の下に出る。`injection` は前提を崩す変更で、一覧の下にアクセント色で出る。`conflictLabel` で対立の矢印に一言添えられる。
