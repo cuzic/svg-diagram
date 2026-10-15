@@ -291,7 +291,7 @@ function coreBadge(n: LaidOutCause['nodes'][number], id: string, b: LaidOutCause
 export function renderCause(b: LaidOutCause, day: Theme): string {
   const out: string[] = [];
   const stroke = b.dim ? PALETTE.muted : PALETTE.text;
-  for (const e of b.edges) out.push(e.kind === 'blocks' ? arrowPath(e.points, stroke, e.line, 2, 'end', 'bar') : arrowPath(e.points, stroke, e.line));
+  for (const e of b.edges) out.push(e.kind === 'blocks' ? arrowPath(e.points, stroke, e.line, 2, 'end', 'bar') : e.back ? arrowPath(e.points, stroke, e.line, 3) : arrowPath(e.points, stroke, e.line));
   // the AND arc: across the arrows of one effect, just before their heads
   for (const a of b.ands) out.push(`<path d="M${snap4(a.p0.x)},${snap4(a.p0.y)} Q${snap4(a.c.x)},${snap4(a.c.y)} ${snap4(a.p1.x)},${snap4(a.p1.y)}" fill="none" stroke="${stroke}" stroke-width="2"/>`);
   for (const [i, n] of b.nodes.entries()) {

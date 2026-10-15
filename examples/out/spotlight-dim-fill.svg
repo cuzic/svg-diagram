@@ -16,9 +16,9 @@
   <path d="M725,56 L725,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
   <path d="M880,56 L880,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
   <path d="M102,176 L880,176" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M102,55.6 H693.4 V83.6 H102 Z" fill="#b91c1c"/>
-  <path d="M102,101.6 H343.23 V129.6 H102 Z" fill="#e0d6c5"/>
-  <path d="M102,147.6 H242.07 V175.6 H102 Z" fill="#e0d6c5"/>
+  <path d="M102,56 H693.4 V84 H102 Z" fill="#b91c1c"/>
+  <path d="M102,102 H343.23 V130 H102 Z" fill="#e0d6c5"/>
+  <path d="M102,148 H242.07 V176 H102 Z" fill="#e0d6c5"/>
   <text x="102" y="198" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
   <text x="258" y="198" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
   <text x="413" y="198" text-anchor="middle" font-size="14" fill="#6f6659">40</text>

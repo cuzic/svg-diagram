@@ -59,20 +59,21 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     ids.add(n.id);
   }
   // one arrow per cause of a link; an AND (several causes) is a group, remembered by its effect
-  const arrows: {from: string; to: string; line: 'solid' | 'dashed' | 'dotted'; blocks?: true}[] = [];
+  const arrows: {from: string; to: string; line: 'solid' | 'dashed' | 'dotted'; back?: true; blocks?: true}[] = [];
   const groups: {to: string; arrows: number[]}[] = [];
   const pairs = new Set<string>();
   for (const l of band.links) {
     const froms = causesOf(l);
     if (!froms.length) throw new Error(`causeTree(): a link to "${l.to}" has no cause`);
     if (!ids.has(l.to)) throw new Error(`causeTree(): a link names unknown node "${l.to}"`);
+    if (l.back !== undefined && (l.back !== true || typeof l.from !== 'string')) throw new Error(`causeTree(): link to "${l.to}" has back: true with ${typeof l.from === 'string' ? `back ${String(l.back)}` : 'a list of causes (an AND)'}; a return is one arrow from one cause`);
     const group = froms.length > 1 ? {to: l.to, arrows: [] as number[]} : undefined;
     for (const f of froms) {
       if (!ids.has(f)) throw new Error(`causeTree(): link ${f} -> ${l.to} names unknown node "${f}"`);
       if (f === l.to) throw new Error(`causeTree(): "${f}" cannot be its own cause`);
       if (pairs.has(`${f}\u0000${l.to}`)) throw new Error(`causeTree(): link ${f} -> ${l.to} is written twice`);
       pairs.add(`${f}\u0000${l.to}`);
-      const k = arrows.push({from: f, to: l.to, line: l.kind === 'blocks' ? 'dashed' : l.line ?? 'solid', ...(l.kind === 'blocks' ? {blocks: true as const} : {})}) - 1;
+      const k = arrows.push({from: f, to: l.to, line: l.kind === 'blocks' ? 'dashed' : l.line ?? 'solid', ...(l.back ? {back: true as const} : {}), ...(l.kind === 'blocks' ? {blocks: true as const} : {})}) - 1;
       group?.arrows.push(k);
     }
     if (group) groups.push(group);
@@ -112,7 +113,8 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     const room = Math.min(...ends.map(e => Math.abs(along(e.tip) - along(e.prev))));
     return {ends, d, along, cross, ok: aligned && room >= AND_END + 1};
   };
-  const attempt = layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree))}, {
+  const declared = arrows.flatMap((a, k) => a.back ? [k] : []); // the returns the author named: laid out as the way back (index into `arrows`)
+  const attempt = layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {})}, {
     portStep: PORT, groupOf: k => groupIndex.get(k), transpose: vertical, maxAcross: w + 0.5, place: placeIn,
     looseOf: (rts, ly) => {
       const route = new Map<number, Pt[]>();
@@ -145,7 +147,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   for (const [i, e] of lay.edges.entries()) {
     if (e.self) continue;
     drawn.set(e.index, out.edges.length);
-    out.edges.push({from: e.from, to: e.to, points: routes.get(i)!, line: arrows[e.index].line, ...(arrows[e.index].blocks ? {kind: 'blocks' as const} : {})});
+    out.edges.push({from: e.from, to: e.to, points: routes.get(i)!, line: arrows[e.index].line, ...(arrows[e.index].back ? {back: true as const} : {}), ...(arrows[e.index].blocks ? {kind: 'blocks' as const} : {})});
   }
   // an AND: an arc across the last run of each of its arrows, a little before the arrowheads. It needs the arrows to arrive on
   // one side of the effect, all heading the same way, with room before the head for the arc

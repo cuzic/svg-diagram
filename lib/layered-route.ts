@@ -152,7 +152,7 @@ export function corridorLoad(lay: LayeredLayout): number {
  * layoutLayered, with the gap between layers wide enough for the arrows that share it: laid out once to see how many arrows go
  * through each gap (layers do not depend on the gap), then again with a gap that gives each its own lane.
  */
-export function layoutWithLanes(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]}, chip = 0): LayeredLayout {
+export function layoutWithLanes(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]}, chip = 0): LayeredLayout {
   const first = layoutLayered(nodes, edges, opts);
   const need = gapFor(corridorLoad(first), chip);
   return need > (opts.levelGap ?? 0) ? layoutLayered(nodes, edges, {...opts, levelGap: need}) : first;
@@ -209,7 +209,7 @@ export function scoreRoutes(routes: Map<number, Pt[]>): {crossings: number; bend
  * One layered layout with its routes, score, size and undrawable groups: the unit the callers (causeTree, stateDiagram, classDiagram,
  * the semantic networks) build a figure from. A candidate selection and width fitting later wrap or live in this one function.
  */
-export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layoutOpts: LayeredOpts & {start?: string[]}, o: AttemptOpts): Attempt {
+export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layoutOpts: LayeredOpts & {start?: string[]; back?: readonly number[]}, o: AttemptOpts): Attempt {
   const lay = layoutWithLanes(nodes, edges, layoutOpts);
   const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
   const groupOf = o.groupOf;

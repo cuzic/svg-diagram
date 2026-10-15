@@ -40,8 +40,8 @@
     <circle cx="732" cy="96" r="10" fill="#1d5fa8"/>
     <circle cx="820" cy="96" r="10" fill="#1d5fa8"/>
   </g>
-  <text x="34" y="137.6" text-anchor="middle" font-size="14" fill="#22201b">遅い</text>
-  <text x="906" y="137.6" text-anchor="middle" font-size="14" fill="#22201b">速い</text>
-  <text x="163.4" y="137.6" text-anchor="middle" font-size="14" fill="#22201b">ついてこれない人</text>
-  <text x="601.4" y="137.6" text-anchor="middle" font-size="14" fill="#22201b">ついてこれる人</text>
+  <text x="34" y="138" text-anchor="middle" font-size="14" fill="#22201b">遅い</text>
+  <text x="906" y="138" text-anchor="middle" font-size="14" fill="#22201b">速い</text>
+  <text x="163.4" y="138" text-anchor="middle" font-size="14" fill="#22201b">ついてこれない人</text>
+  <text x="601.4" y="138" text-anchor="middle" font-size="14" fill="#22201b">ついてこれる人</text>
 </svg>

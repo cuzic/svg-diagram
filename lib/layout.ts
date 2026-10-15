@@ -24,7 +24,7 @@ import {layoutBoxContent, lineWidth} from './layout-text.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
 import {
   BOX_PAD_X, BOX_PAD_Y, ICON_H, STAMP_GAP, STAMP_H, TAG_H, TAG_PAD_X, TOP_ICON_GAP, TOP_ICON_SIZE,
-  anchorRect, colSlots, rowChildGeometry, stampChipW, topIcon, withSourceLine,
+  anchorRect, colSlots, rowChildGeometry, snapGrid, stampChipW, topIcon, withSourceLine,
 } from './layout-util.ts';
 import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
 import type {DiagramData, Roles, WidthOf, Rect} from './types/core.ts';
@@ -119,7 +119,8 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
   const connects: LaidOutConnect[] = [];
   const deferred: ConnectBand[] = []; // connect()s that came before the boxes they name
 
-  const placeBoxLike = <B extends CaptionBand | BoxBand | BannerBand>(band: B, x: number, y: number, w: number, isBoxLike: boolean): Placed<B> => {
+  const placeBoxLike = <B extends CaptionBand | BoxBand | BannerBand>(band: B, x: number, y0: number, w: number, isBoxLike: boolean): Placed<B> => {
+    const y = snapGrid(y0); // the top sits on the grid, so its text (y + padY + line offset) is always the same distance below the frame the emitter draws
     const chrome = band as BoxChrome; // caption has no padX / padY / tag / id: they read as undefined (its `tone` is a TextTone, unused here)
     const wrapWidth = isBoxLike ? w - 2 * (chrome.padX ?? BOX_PAD_X) : w;
     const content = layoutBoxContent(band, wrapWidth, widthOf, roles);
