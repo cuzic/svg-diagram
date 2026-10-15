@@ -35,7 +35,8 @@ import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
 import type {Finding} from './types/verdicts.ts';
 import type {WfCallout} from './types/wireframe-nodes.ts';
 import type {LintTarget} from './types/verdicts.ts';
-import type {CauseRole} from './types/diagrams.ts';
+import type {CauseRole, FtaGate, FtaKind} from './types/diagrams.ts';
+import {ftaResolve} from './fta.ts';
 import {describeApplied} from './fit-width.ts';
 import {tocFindings} from './toc-rules.ts';
 import {ftaFindings} from './fta-rules.ts';
@@ -134,7 +135,10 @@ export const DEFAULT_LEGEND_LABELS = {
   'role:ude': '好ましくない現象(UDE)', 'role:root': '根本原因', 'role:de': '望む結果(DE)', 'role:injection': '施策', 'role:precondition': '現状の事実', 'role:tipping': '転換点', 'role:trim': 'トリミング(施策)', 'role:need': 'ニーズ',
   'role:goal': '目標', 'role:io': '中間目標', 'role:obstacle': '障害', 'role:action': '行動', 'role:start': '開始', 'role:risk': '懸念', 'role:measure': '対策',
   'edge:and': '合わせて原因(AND)', 'edge:back': '戻り(フィードバック)', 'edge:blocks': '断つ', 'mark:core': '中核ドライバー',
-} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}` | `role:${Exclude<CauseRole, 'effect' | 'step'>}` | 'edge:and' | 'edge:back' | 'edge:blocks' | 'mark:core', string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
+  // a faultTree() figure (ADR 0025 D6): the symbol of each kind of event and of each gate
+  'fta-event:basic': '基本事象', 'fta-event:undeveloped': '未展開の事象', 'fta-event:house': '家形事象(常に起きる/起きない)', 'fta-event:condition': '条件事象',
+  'fta-gate:and': 'AND ゲート', 'fta-gate:or': 'OR ゲート', 'fta-gate:vote': '多数決ゲート(k/n)', 'fta-gate:inhibit': '禁止ゲート',
+} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}` | `role:${Exclude<CauseRole, 'effect' | 'step'>}` | 'edge:and' | 'edge:back' | 'edge:blocks' | 'mark:core' | `fta-event:${Exclude<FtaKind, 'event'>}` | `fta-gate:${FtaGate}`, string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
 
 // every band, including those nested in groups, rows, grids and swimlanes
 export function walkBands(bands: Band[], out: Band[] = []): Band[] {
@@ -164,6 +168,11 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause 
       if (b.links.some(l => l.back)) used.add('edge:back');
       if (b.links.some(l => l.kind === 'blocks')) used.add('edge:blocks');
       if (b.nodes.some(n => n.core)) used.add('mark:core');
+    } else if (b.type === 'fta' && withCause) { // likewise: only legend: 'auto' reads the symbols of a fault tree
+      for (const n of ftaResolve(b.root).nodes) {
+        if (n.kind !== 'event') used.add(`fta-event:${n.kind}`);
+        if (n.gate) used.add(`fta-gate:${n.gate}`);
+      }
     }
   }
   const nonSolid = [...lines].filter(l => l !== 'solid');
@@ -180,6 +189,8 @@ export function legendKeys(bands: Band[]): Set<string> {
       if (it.role) keys.add(`role:${it.role}`);
       else if (it.edge) keys.add(`edge:${it.edge}`);
       else if (it.mark) keys.add(`mark:${it.mark}`);
+      else if (it.ftaEvent) keys.add(`fta-event:${it.ftaEvent}`);
+      else if (it.ftaGate) keys.add(`fta-gate:${it.ftaGate}`);
       else if (it.tone) keys.add(`tone:${it.tone}`);
       else if (it.weight) keys.add(`weight:${it.weight}`);
       else if (it.arrow === 'both') keys.add('arrow:both');
@@ -217,6 +228,8 @@ export function applyAutoLegend(d: DiagramData): void {
     if (kind === 'role') return {role: v as CauseRole, label: labelOf(k)};
     if (kind === 'edge') return {edge: v as 'and' | 'back' | 'blocks', label: labelOf(k)};
     if (kind === 'mark') return {mark: v as 'core', label: labelOf(k)};
+    if (kind === 'fta-event') return {ftaEvent: v as 'basic', label: labelOf(k)};
+    if (kind === 'fta-gate') return {ftaGate: v as 'and', label: labelOf(k)};
     if (kind === 'arrow') return {line: 'solid', arrow: 'both', label: labelOf(k)};
     if (kind === 'weight') return {line: 'solid', weight: v as ArrowWeight, label: labelOf(k)};
     return {line: v as LineStyle, label: labelOf(k)};

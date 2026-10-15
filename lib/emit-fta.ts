@@ -27,6 +27,13 @@ export function markPath(kind: 'basic' | 'undeveloped' | 'house' | 'condition' |
   return `M${n(cx - rx)},${n(cy)} A${n(rx)},${n(ry)} 0 1 0 ${n(cx + rx)},${n(cy)} A${n(rx)},${n(ry)} 0 1 0 ${n(cx - rx)},${n(cy)} Z`;
 }
 
+/** A legend sample of a fault-tree symbol (an event's or a gate's), 28 x 20, at the left of an item whose line is at `cy`. */
+export function ftaLegendSwatch(it: {x: number; ftaEvent?: 'basic' | 'undeveloped' | 'house' | 'condition'; ftaGate?: 'and' | 'or' | 'vote' | 'inhibit'}, cy: number): string {
+  const r = {x: it.x + 4, y: cy - 10, w: 28, h: 20};
+  const d = it.ftaGate ? gatePath(it.ftaGate, r) : markPath(it.ftaEvent as 'basic', {...r, x: r.x + (it.ftaEvent === 'condition' ? 0 : 4), w: it.ftaEvent === 'condition' ? 28 : 20});
+  return `<path d="${d}" fill="${PALETTE.bg}" stroke="${PALETTE.text}" stroke-width="2"/>`;
+}
+
 export function renderFta(b: LaidOutFta, day: Theme): string {
   const out: string[] = [];
   const ink = b.dim ? PALETTE.muted : PALETTE.text;

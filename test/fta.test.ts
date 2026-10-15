@@ -213,3 +213,37 @@ test('fta-single-point: reported (info) with or without cutSets; a tree with non
   assert.match(f[0].message, /アプリ全台停止.*未展開/);
   assert.equal(ftaFindings({root: {label: 't', gate: 'and', children: [B('a'), B('b')]}}).filter(x => x.rule === 'fta-single-point').length, 0);
 });
+
+// ---- U3: legend ----
+import {legend} from '../lib/dsl.ts';
+
+const legendOf = async (opts: object, ...bands: unknown[]) => {
+  let d = diagram({theme: 'blue', ...opts});
+  for (const b of bands) d = d.add(b as never);
+  const {laidOut, verdict} = await checkDiagram(d);
+  return {items: laidOut.laidOut.filter(b => b.type === 'legend').flatMap(b => (b as {items: {label: string}[]}).items.map(i => i.label)), verdict};
+};
+
+test("legend: 'auto' lists only the event symbols and gates the tree uses", async () => {
+  const {items, verdict} = await legendOf({legend: 'auto'}, faultTree(svc));
+  assert.deepEqual([...items].sort(), ['AND ゲート', 'OR ゲート', '基本事象', '未展開の事象'].sort());
+  assert.equal(verdict.problems.length, 0, verdict.problems.join('\n'));
+  const full = await legendOf({legend: 'auto'}, faultTree({label: 't', gate: 'inhibit', children: [{label: 'x', gate: 'vote', k: 2, children: [B('a'), {label: 'h', kind: 'house', state: true}, {label: 'u', kind: 'undeveloped'}]}], condition: {label: 'c'}}));
+  assert.deepEqual([...full.items].sort(), ['基本事象', '多数決ゲート(k/n)', '家形事象(常に起きる/起きない)', '条件事象', '禁止ゲート', '未展開の事象'].sort());
+});
+
+test('legend: a tree without legend: auto adds no legend and no warning', async () => {
+  const {items, verdict} = await legendOf({}, faultTree(svc));
+  assert.deepEqual(items, []);
+  assert.deepEqual(verdict.findings.filter(f => f.rule.startsWith('legend-')), []);
+});
+
+test('legend: a hand-written fault-tree entry is not added twice; the symbols draw', async () => {
+  const hand = legend([{ftaGate: 'and', label: '全部そろうと起きる'}]);
+  const {items} = await legendOf({legend: 'auto'}, faultTree(svc), hand);
+  assert.ok(items.includes('全部そろうと起きる') && !items.includes('AND ゲート'));
+  const svg = (await renderDiagram(diagram({theme: 'blue', legend: 'auto'}).add(faultTree(svc)) as never, {name: 'x.svg', budget: 'cacheOnly'})).svg;
+  assert.match(svg, /基本事象/);
+  assert.throws(() => legend([{ftaGate: 'xor' as never, label: 'x'}]), /ftaGate/);
+  assert.throws(() => legend([{ftaEvent: 'event' as never, label: 'x'}]), /ftaEvent/);
+});
