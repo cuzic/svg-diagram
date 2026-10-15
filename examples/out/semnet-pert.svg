@@ -8,24 +8,18 @@
   </style>
   <rect x="0" y="0" width="940" height="370" fill="#ffffff"/>
 
-  <path d="M151.9,120.2 L178.5,120.2" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M178.5,120.2 L178.5,71.2" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M178.5,71.2 L215,71.2" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M215,71.2 L204,77.2 L204,65.1 Z" fill="#b91c1c"/>
-  <path d="M151.9,131.8 L166.9,131.8" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M166.9,131.8 L166.9,180.8" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M166.9,180.8 L215,180.8" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M215,180.8 L206,185.8 L206,175.9 Z" fill="#6f6659"/>
+  <path d="M151.9,95.7 L215,95.7" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M215,95.7 L204,101.7 L204,89.6 Z" fill="#b91c1c"/>
+  <path d="M151.9,156.3 L215,156.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M215,156.3 L206,161.3 L206,151.4 Z" fill="#6f6659"/>
   <path d="M342.9,71.2 L406,71.2" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
   <path d="M406,71.2 L395,77.2 L395,65.1 Z" fill="#b91c1c"/>
   <path d="M342.9,180.8 L533.5,180.8" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
   <path d="M533.5,180.8 L533.5,137.6" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
   <path d="M533.5,137.6 L597.1,137.6" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
   <path d="M597.1,137.6 L588.1,142.6 L588.1,132.7 Z" fill="#6f6659"/>
-  <path d="M534,71.2 L548.9,71.2" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M548.9,71.2 L548.9,126" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M548.9,126 L597.1,126" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M597.1,126 L586.1,132.1 L586.1,120 Z" fill="#b91c1c"/>
+  <path d="M534,98.6 L597.1,98.6" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M597.1,98.6 L586.1,104.6 L586.1,92.5 Z" fill="#b91c1c"/>
   <path d="M725,126 L788.1,126" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
   <path d="M788.1,126 L777.1,132.1 L777.1,120 Z" fill="#b91c1c"/>
   <path d="M24,82.82 H151.9 V169.19 H24 Z" fill="#ffffff"/>

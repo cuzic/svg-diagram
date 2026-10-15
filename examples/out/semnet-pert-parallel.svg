@@ -8,22 +8,14 @@
   </style>
   <rect x="0" y="0" width="940" height="400" fill="#1b1a17"/>
 
-  <path d="M463,92 L463,124" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M463,124 L393,124" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M393,124 L393,168" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M393,168 L387,157 L399.1,157 Z" fill="#f05252"/>
-  <path d="M477,92 L477,110" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M477,110 L547,110" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M547,110 L547,168" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M547,168 L541,157 L553.1,157 Z" fill="#f05252"/>
-  <path d="M393,232 L393,250" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M393,250 L470,250" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M470,250 L470,308" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M470,308 L464,297 L476.1,297 Z" fill="#f05252"/>
-  <path d="M547,232 L547,264" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M547,264 L484,264" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M484,264 L484,308" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M484,308 L478,297 L490.1,297 Z" fill="#f05252"/>
+  <path d="M428,92 L428,168" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M428,168 L422,157 L434.1,157 Z" fill="#f05252"/>
+  <path d="M512,92 L512,168" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M512,168 L506,157 L518.1,157 Z" fill="#f05252"/>
+  <path d="M431.5,232 L431.5,308" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M431.5,308 L425.5,297 L437.6,297 Z" fill="#f05252"/>
+  <path d="M515.5,232 L515.5,308" fill="none" stroke="#f05252" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M515.5,308 L509.5,297 L521.6,297 Z" fill="#f05252"/>
   <path d="M407,28 H533 V92 H407 Z" fill="#1b1a17"/>
   <path d="M407,28 H533 V92 H407 Z" fill="#5fc1c6" fill-opacity="0.16" stroke="#f05252" stroke-width="4"/>
   <text x="470" y="50" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">開始</text>

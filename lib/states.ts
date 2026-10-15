@@ -45,6 +45,8 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   for (const t of band.transitions) for (const e of [t.from, t.to]) if (!ids.has(e)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} names unknown state "${e}"`);
   if (band.initial !== undefined && !ids.has(band.initial)) throw new Error(`stateDiagram(): initial names unknown state "${band.initial}"`);
 
+
+  const circles = new Set(band.states.filter(s => s.shape === 'circle').map(s => s.id)); // round nodes: arrows keep to the middle of their side (ADR 0016 D3)
   const labelW = (t: string): number => Math.ceil(textWidth(widthOf, t, S, 400)) + 2 * CHIP_PAD;
   const widest = Math.max(0, ...band.transitions.map(t => t.label ? labelW(t.label) : 0));
   const edges = band.transitions.map(t => ({from: t.from, to: t.to}));
@@ -74,7 +76,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
       // a loop needs room beside its state (down) or between rows (right), so states do not crowd it
       dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : GAP,
       levelGap: Math.max(dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, gapFor(degree)), ...(band.initial ? {start: [INIT]} : {}),
-    }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, ...(band.straighten === false ? {straighten: false} : {}), ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
+    }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, round: id => circles.has(id), ...(band.straighten === false ? {straighten: false} : {}), ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
     const at = (id: string) => { const p = run.lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
     return {...run, dir, lines, reserve, top, at};
   };
@@ -87,6 +89,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
     ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
   });
   const {dir, lines, reserve, top, at, lay, routes, size: total} = fitted.result, fitApplied = fitted.applied;
+
 
 
   // a loop sits above its state when the flow runs right (room is made at the top), and to its right when the flow runs down

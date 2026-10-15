@@ -107,6 +107,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
       const l = lines.get(n.id)!, need = 12 + (degreeOf(n.id) - 1) * PORT;
       return [n.id, vertical ? {w: Math.max(l.w, need), h: l.h} : {w: l.w, h: Math.max(l.h, need)}];
     }));
+    const hexIds = new Set(band.nodes.filter(n => n.role === 'obstacle' || n.role === 'risk').map(n => n.id)); // hexagons: arrows keep to the middle of their side (ADR 0016 D3)
     const nodes = ranked.map(n => ({id: n.id, size: vertical ? {w: real.get(n.id)!.h, h: real.get(n.id)!.w} : real.get(n.id)!}));
     // layered layout runs on a 'right' axis; a vertical figure is the same layout transposed, an upward / leftward one mirrored
     const groupIndex = new Map<number, number>();
@@ -121,7 +122,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     // the returns that skip layers run in an outer lane: all of them when `returns: 'outer'` (or pdpc's default), the declared ones (`back`) when nothing is written
     const wanted: 'all' | 'declared' | undefined = band.returns === 'inline' ? undefined : (band.returns ?? band.returnsDefault) === 'outer' ? 'all' : declared.length ? 'declared' : undefined;
     const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {})}, {
-      portStep: PORT, groupOf: k => groupIndex.get(k), transpose: vertical, maxAcross: w + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}),
+      portStep: PORT, groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: w + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}),
       looseOf: (rts, ly) => {
         const route = new Map<number, Pt[]>();
         ly.edges.forEach((e, i) => { if (!e.self) route.set(e.index, rts.get(i)!); });
