@@ -528,3 +528,25 @@ test('causeTree(): a return that ends on the other side of the box is not under 
     assert.deepEqual(verdict.problems.filter(p => p.includes('also covers')), [], `dir ${dir}`);
   }
 });
+
+test("causeTree({tree: 'nbr'}): tipping is a double danger box, trim a dashed one, foldsInto a line under the trim; alap is the default", async () => {
+  const nodes = [N('inj', {role: 'injection'}), N('fact', {role: 'precondition'}), N('tip', {role: 'tipping'}), N('bad', {role: 'ude'}), N('cut', {role: 'trim', foldsInto: '施策 1'})];
+  const links = [{from: ['inj', 'fact'], to: 'tip'}, {from: 'tip', to: 'bad'}, {from: 'cut', to: 'tip', kind: 'blocks' as const}];
+  const {t, verdict} = await laidCause(causeTree(nodes, links, {tree: 'nbr'}));
+  const by = (id: string) => t.nodes[t.anchors.findIndex(a => a.id === id)];
+  assert.ok(by('tip').double && by('tip').tone === 'danger');
+  assert.ok(by('cut').dashed && !by('tip').dashed);
+  assert.ok(t.texts.some(x => x.text.includes('施策 1 に組み込む')), 'the foldsInto line is drawn');
+  assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause')), []);
+  assert.throws(() => causeTree([N('a', {foldsInto: 'x'})], []), /only a role: 'trim' node takes it/);
+  assert.throws(() => causeTree([N('a', {role: 'trim', foldsInto: ' '})], []), /non-empty text/);
+  const counted = await laidCause(causeTree(nodes, links, {tree: 'nbr', coreDriver: true}));
+  assert.ok(!counted.t.texts.some(x => x.text.includes('到達 UDE 0')), 'a trim is not counted by coreDriver');
+});
+
+test("a trim box is drawn dashed in the SVG and in the legend", async () => {
+  const d = diagram({theme: 'blue', legend: 'auto'}).add(causeTree([N('a', {role: 'trim'}), N('b', {role: 'ude'})], [{from: 'a', to: 'b', kind: 'blocks'}], {tree: 'nbr'}));
+  const svg = (await renderDiagram(d, {name: 'n.svg', budget: 'cacheOnly'})).svg;
+  assert.ok((svg.match(/stroke-dasharray="6,4"/g)?.length ?? 0) >= 3, 'the box, the cutting arrow and the legend swatch');
+  assert.ok(svg.includes('トリミング(施策)'));
+});

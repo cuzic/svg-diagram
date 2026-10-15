@@ -131,11 +131,14 @@ function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opt
     if (n.role !== undefined && !(n.role in CAUSE_ROLES)) throw new Error(`causeTree(): node "${n.id}" has role ${String(n.role)} (use ${Object.keys(CAUSE_ROLES).join(', ')})`);
     if (n.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(n.tone)) throw new Error(`causeTree(): node "${n.id}" has tone ${String(n.tone)}`);
   }
-  if (opts.tree !== undefined && !['crt', 'frt', 'prt', 'tt'].includes(opts.tree)) throw new Error(`causeTree(): tree must be 'crt', 'frt', 'prt' or 'tt' (got ${String(opts.tree)})`);
+  if (opts.tree !== undefined && !['crt', 'frt', 'prt', 'tt', 'nbr'].includes(opts.tree)) throw new Error(`causeTree(): tree must be 'crt', 'frt', 'prt', 'tt' or 'nbr' (got ${String(opts.tree)})`);
   if (opts.layer !== undefined && opts.layer !== 'asap' && opts.layer !== 'alap') throw new Error(`causeTree(): layer must be 'asap' or 'alap' (got ${String(opts.layer)})`);
   if (opts.coreDriver !== undefined && typeof opts.coreDriver !== 'boolean') throw new Error(`causeTree(): coreDriver must be true or false (got ${String(opts.coreDriver)})`);
+  for (const n of nodes) if (n.foldsInto !== undefined && (n.role !== 'trim' || typeof n.foldsInto !== 'string' || !n.foldsInto.trim())) throw new Error(`causeTree(): node "${n.id}" has foldsInto ${JSON.stringify(n.foldsInto)} (foldsInto is a non-empty text, and only a role: 'trim' node takes it)`);
+  // foldsInto is a line under the label (the injection it is folded into need not be in the figure): added here, so that it is measured with the label
+  const noted = nodes.map(n => { if (n.foldsInto === undefined) return n; const {foldsInto, ...rest} = n; return {...rest, sub: `${n.sub ? `${n.sub}　` : ''}→ ${foldsInto} に組み込む`}; });
   const counted = opts.coreDriver ? reachCounts(nodes, links) : undefined, core = new Set(counted ? coreDrivers(counted) : []);
-  const marked = counted ? nodes.map(n => !counted.has(n.id) ? n : {...n, ...(core.has(n.id) ? {core: true} : {}), ...(opts.counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}到達 UDE ${counted.get(n.id)}`})}) : nodes;
+  const marked = counted ? noted.map(n => !counted.has(n.id) || n.role === 'trim' ? n : {...n, ...(core.has(n.id) ? {core: true} : {}), ...(opts.counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}到達 UDE ${counted.get(n.id)}`})}) : noted;
   const band: CauseBand = {type: 'cause', nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? (base === undefined ? {} : {dir: base, dirLeftOut: true as const}) : {dir: opts.dir}), ...(base === undefined ? {} : {base}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.tree === undefined ? {} : {tree: opts.tree}), ...(opts.layer === undefined ? {} : {layer: opts.layer}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.fold === undefined || base !== undefined ? {} : {fold: opts.fold}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'causeTree()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
 }

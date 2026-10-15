@@ -67,7 +67,11 @@ export const RULE_DOCS = {
   'funnel-values-rise': 'funnel({scale: "value"}) の値が下の段で増えている（漏斗として読むなら、値と段の順を確認する）',
   'toc-ude-count': '現状ツリー(causeTree({tree: "crt"}))の UDE が 5〜10 個の範囲の外。部分図なら accept で許容する。diagram({tocCheck: "strict"}) で warn',
   'toc-parts': 'TOC のツリーの部品が足りない・違う(crt に根本原因 root が無い、frt に施策 injection か望む結果 de が無い、frt に root がある)。diagram({tocCheck: "strict"}) で warn',
-  'toc-source-has-cause': '原因を持たない役割(crt の root、frt の injection、precondition)の実体に、入る矢印がある。diagram({tocCheck: "strict"}) で warn',
+  'toc-nbr-parts': 'ネガティブブランチ(causeTree({tree: "nbr"}))に、トリミングの施策(role: trim)か、悪い結果(role: ude)が無い。diagram({tocCheck: "strict"}) で warn',
+  'toc-nbr-no-tipping': 'ネガティブブランチで、転換点(role: tipping)を通らずに、原因を持たない実体から ude へ至る因果の道が残っている(転換点の無い枝)。diagram({tocCheck: "strict"}) で warn',
+  'toc-nbr-tipping-not-and': 'ネガティブブランチの転換点(role: tipping)が、AND(複数の原因が揃って越える)の結果になっていない。diagram({tocCheck: "strict"}) で warn',
+  'toc-nbr-trim-too-late': 'トリミングの施策(role: trim)が断つ(kind: blocks)先が、転換点より結果側(下流)にある。転換点そのもの、またはその手前を断つ。diagram({tocCheck: "strict"}) で warn',
+  'toc-source-has-cause': '原因を持たない役割(crt の root、frt・nbr の injection、nbr の trim、precondition)の実体に、入る矢印がある。diagram({tocCheck: "strict"}) で warn',
   'toc-chain-only': 'crt / frt が分岐も合流も AND も無い 1 本鎖(途中の原因を飛ばしている可能性)。diagram({tocCheck: "strict"}) で warn',
   'toc-orphan': 'causeTree({tree}) の実体のうち、どのリンクにも出てこないものがある(graph-orphan-node は connect() の線しか見ない)。diagram({tocCheck: "strict"}) で warn',
   'toc-cycle-undeclared': 'causeTree({tree}) に循環があるのに、戻りの矢印に back: true が付いていない(配置が戻りとして扱った矢印を示す)。diagram({tocCheck: "strict"}) で warn',
@@ -116,7 +120,7 @@ export const DEFAULT_LEGEND_LABELS = {
   'tone:new': '新規', 'tone:changed': '変更・改修', 'tone:removed': '対象外', 'tone:danger': '異常・注意',
   'tone:muted': '補助・任意', 'tone:accent': '強調', 'tone:solid': '主役', 'tone:solid-danger': '異常(強)',
   // a causeTree() figure (ADR 0015 D6): an entity role, an arrow joined by an arc, the core driver mark
-  'role:ude': '好ましくない現象(UDE)', 'role:root': '根本原因', 'role:de': '望む結果(DE)', 'role:injection': '施策', 'role:precondition': '現状の事実',
+  'role:ude': '好ましくない現象(UDE)', 'role:root': '根本原因', 'role:de': '望む結果(DE)', 'role:injection': '施策', 'role:precondition': '現状の事実', 'role:tipping': '転換点', 'role:trim': 'トリミング(施策)',
   'role:goal': '目標', 'role:io': '中間目標', 'role:obstacle': '障害', 'role:action': '行動', 'role:start': '開始', 'role:risk': '懸念', 'role:measure': '対策',
   'edge:and': '合わせて原因(AND)', 'edge:back': '戻り(フィードバック)', 'edge:blocks': '断つ', 'mark:core': '中核ドライバー',
 } satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}` | `role:${Exclude<CauseRole, 'effect' | 'step'>}` | 'edge:and' | 'edge:back' | 'edge:blocks' | 'mark:core', string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table

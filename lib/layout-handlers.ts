@@ -300,7 +300,7 @@ function layoutLegend(band: LegendBand, ctx: LayoutCtx, padX: number, cw: number
   const {d, roles, widthOf} = ctx;
   const items = band.items.map(item => {
     const tw = textWidth(widthOf, item.label, roles.note, 400);
-    const swatch = item.role ? {tone: CAUSE_ROLES[item.role].tone, ...(CAUSE_ROLES[item.role].double ? {double: true} : {}), ...(item.role === 'obstacle' || item.role === 'risk' ? {hex: true} : {})} : undefined;
+    const swatch = item.role ? {tone: CAUSE_ROLES[item.role].tone, ...(CAUSE_ROLES[item.role].double ? {double: true} : {}), ...(CAUSE_ROLES[item.role].dashed ? {dashed: true} : {}), ...(item.role === 'obstacle' || item.role === 'risk' ? {hex: true} : {})} : undefined;
     return {...item, ...(swatch ? {swatch} : {}), textW: tw, w: LEGEND_SWATCH_W + 8 + tw};
   });
   const rows: (typeof items)[] = [[]];

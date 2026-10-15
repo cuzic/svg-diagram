@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="612" viewBox="0 0 940 612" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">週次報告の義務づけのネガティブブランチ</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/toc-nbr.ts","sourceSha256":"f79ac5c0c150cb983ab559ba8e268468f8e7d04549f2b5bd8b405f93bf56b70e"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="612" fill="#ffffff"/>
+
+  <path d="M284,428 L284,348" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M284,340 L289,352 L279,352 z" fill="#22201b"/>
+  <path d="M284,284 L284,240 L460,240 L460,204" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M460,192 L465,204 L455,204 z" fill="#22201b"/>
+  <path d="M468,292 L468,256 L480,256 L480,204" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M480,192 L485,204 L475,204 z" fill="#22201b"/>
+  <path d="M468,156 L468,88" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M468,76 L473,88 L463,88 z" fill="#22201b"/>
+  <path d="M656,272 L656,228 L504,228 L504,196" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M514,196 L494,196" fill="none" stroke="#22201b" stroke-width="3"/>
+  <path d="M448,212 Q468,200 488,212" fill="none" stroke="#22201b" stroke-width="2"/>
+  <rect x="188" y="428" width="196" height="56" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="196" y="284" width="180" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="404" y="292" width="128" height="36" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="380" y="156" width="180" height="36" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="384" y="160" width="172" height="28" rx="5" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="372" y="20" width="196" height="56" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="560" y="272" width="192" height="76" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <text x="285" y="450" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">全拠点に週次報告を義務づ</text>
+  <text x="285" y="470" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">ける</text>
+  <text x="285" y="304" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">報告の作成に時間を取ら</text>
+  <text x="285" y="324" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">れる</text>
+  <text x="467" y="314" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">繁忙期と重なる</text>
+  <text x="469" y="178" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">現場の残業が常態になる</text>
+  <text x="469" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">人が辞めて、現場が回らな</text>
+  <text x="469" y="62" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">くなる</text>
+  <text x="656" y="294" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">報告を月次にして様式を 1</text>
+  <text x="656" y="314" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">枚にする</text>
+  <text x="656" y="334" text-anchor="middle" font-size="14" fill="#6f6659">→ 施策 1 に組み込む</text>
+
+  <rect x="108" y="504" width="28" height="16" rx="4" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="147" y="517" font-size="14" fill="#22201b">施策</text>
+  <rect x="208" y="504" width="28" height="16" rx="4" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <text x="247" y="517" font-size="14" fill="#22201b">現状の事実</text>
+  <rect x="348" y="504" width="28" height="16" rx="4" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="352" y="508" width="22" height="10" rx="2" fill="#ffffff" stroke="#b91c1c" stroke-width="1.5"/>
+  <text x="389" y="517" font-size="14" fill="#22201b">転換点</text>
+  <rect x="464" y="504" width="28" height="16" rx="4" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <text x="503" y="517" font-size="14" fill="#22201b">好ましくない現象(UDE)</text>
+  <rect x="688" y="504" width="28" height="16" rx="4" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <text x="728" y="517" font-size="14" fill="#22201b">トリミング(施策)</text>
+  <path d="M336,540 L360,540" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M372,540 L360,545 L360,535 z" fill="#22201b"/>
+  <path d="M336,548 L360,548" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M372,548 L360,553 L360,543 z" fill="#22201b"/>
+  <path d="M348,539 Q356,544 348,549" fill="none" stroke="#22201b" stroke-width="2"/>
+  <text x="380" y="549" font-size="14" fill="#22201b">合わせて原因(AND)</text>
+  <path d="M532,544 L564,544" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M564,554 L564,534" fill="none" stroke="#22201b" stroke-width="3"/>
+  <text x="576" y="549" font-size="14" fill="#22201b">断つ</text>
+
+  <text x="20" y="586" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

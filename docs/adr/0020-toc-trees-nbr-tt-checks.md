@@ -1,6 +1,6 @@
 # ADR 0020: TOC の残りの図(NBR・TT)と検査(H4・H5・H8)。H6 は検査の誤検知、H10 は取り下げ
 
-- 状態: 提案(Opus レビュー 2 巡。第 2 巡でブロッカー無し、不足 5 点を反映済み)
+- 状態: 一部実装済み(H6: #219、U1 NBR: 本 PR)。U2 TT・U3 PRT の検査と `mirrors` は未着手。Opus レビュー 2 巡(第 2 巡でブロッカー無し)。依頼元の返事(2026-10-15)を、下の「依頼元の返事」に反映
 - 日付: 2026-10-15
 - 基点: `main`(ADR 0019 の U0〜U4 マージ後)
 - 関連: ADR 0015(`tree`・`tocCheck`・`kind: 'blocks'`・凡例)、ADR 0019(ALAP・`maxNodeW: 'auto'`。H1〜H3)、ADR 0016(戻り辺・AND の弧)。要望の原文は `medius-research/docs/svg-diagram-feature-requests.md` の H 節(H4・H5・H6・H8・H10)。レビューで、H6 は検査の誤検知(#219 で修正)、H10 は前提が違う(図に題名は描かれない)と分かり、本 ADR の決定から外した
@@ -38,6 +38,12 @@ TOC の 6 つの図(CRT・FRT・PRT・TT・NBR・EC)のうち、NBR と TT だ�
 
 **タイトルと出典(H10)。** `diagram({title})` は SVG の `<title>` と `aria-labelledby` にだけ使われ、**図の中には描かれない**(描画して確かめた。`d.title` を読むのは `a11y-no-title` の検査だけ)。図に見えるのは `sourceLine`(出典の行。`layout-util.ts` の `withSourceLine`)だけで、これは書かなければ出ない。依頼元の TOC の図(`t4-prt.ts`・`t3b-nbr.ts`)に `caption()` は無い。
 
+## 依頼元の返事(2026-10-15)
+
+- **H10**: 取り下げでよい(依頼元の勘違い。title は図に描かれず、見えるのは `sourceLine` だけ)。本質は「文書用とスライド用で 1 つのソースを使い分けたい」。**将来**: `sourceLine` を書き換えずに、CLI の `build` / `preview` のフラグ(例: `--no-source-line`)か環境変数で、出典行だけ消す。優先度は低い。
+- **NBR の `foldsInto`**: 箱の注記の文字(「施策 3 に組み込む」)で足りる(辺にすると、図に施策の節を足すことになり、図が大きくなる)。あれば便利なのは、注記を箱の端に小さく出す専用の書式だけ(将来)。D1 の実装(U1)は、この方針のとおり。
+- **TT の実物で測った**(`toc/t5-tt.ts`・`poc/p5-tt.ts`・`toc/t4-prt.ts`・`toc/t3-frt.ts`。`canvas` を `width: 1920` に替えた写しを、現在の `main`(ADR 0019 の U0〜U5 を含む)で `build`。依頼元のファイルは変更していない。フォントは実行環境のもの。値は固定しない): 高さは `layer: 'asap'`(以前と同じ配置)→ 既定の ALAP の順に、`t5-tt` 1216 → 598、`p5-tt` 1276 → 719、`t4-prt` 1556 → 710、`t3-frt` 1158 → 1016(いずれも幅 1920)。以前の報告(1216 / 1276 / 1556)と一致し、**ADR 0019 の ALAP で、依頼元の実物の TT・PRT の大きさは解けた**(単位グループのレイアウトは要らない。D2 の未解決はこれで閉じる)。FRT の `cause-parallel`(e3→e4 と i5→e4)は、ADR 0016 D11 / U13(経路)の仕事として残る。
+
 ## 論点
 
 1. NBR の「転換点」「トリミング」「組み込み」を、新しい役割・辺で書くか、既存の `blocks` と箱のラベルで済ませるか。
@@ -65,7 +71,7 @@ TOC の 6 つの図(CRT・FRT・PRT・TT・NBR・EC)のうち、NBR と TT だ�
 
 - **`role: 'need'`**(ニーズ): 見た目は `{tone: 'accent'}`(二重枠なし)。`root`・`goal`・`start` と同じ色で、二重枠の有無だけが違う(凡例で区別する。色だけにしない)。TT の単位は `from: ['<現状 or 前の結果>', '<need>', '<action>']` の AND(いまのまま)。依頼元の `t5-tt2.ts` は、ニーズを `precondition` で書いている(移行は可。`need` は書き換えを強制しない)。
 - **補助 `transitionUnits()`**(DSL。レイアウトを持たない糖衣): `[{id, current?, need, action, result, resultRole?}, ...]` から `causeTree` の節と辺を作る。**id は単位ごとに 1 つ、書き手が与える**(その単位の `result` の id。`accept`・凡例・`mirrors` が使う)。ほかの節の id は、`<id>.need`・`<id>.action`、1 つ目の単位の現状は `<id>.current`(`current` に既存の節の id を書けば、それを使う)と決める。役割は既定で `current`: 1 つ目は `precondition`・2 つ目以降は前の `result`、`need`: `need`、`action`: `action`、`result`: `io`。**単位ごとに `resultRole` で上書きできる**(最後の結果を `goal` にするなど)。`test/fixtures/dsl-exports.json` に足す。
-- **専用のレイアウト(単位を詰めて積む)は、いま作らない**。ADR 0019 の U2・U3 の後に、6 単位の TT(現状 1 + 単位 6。結果が次の現状)を、固定幅のモックで測った: 短いラベルでは `layer: 'asap'`・`dir: 'up'`・`maxNodeW: 'auto'` が 1800x872、`alap` が 1800x732、`alap`・`dir: 'right'` が 1800x521。**ただし、実際の日本語のラベル(25 字ほど)では、`canvas` が 1800x1080 のとき 3 つとも収まらず throw した**(幅だけ 1800 で `canvas` 無しなら、`asap` 1760x1172、`alap` 1760x872、`alap`・右向き 1760x731。レビューでの実測)。ラベルの長さに依存するので、「ADR 0019 で H5 の大半は解けた」とは言わない。依頼元の `t5-tt2.ts` は、段に分けて通っている。**依頼元の元の 6 単位のソースで測ってから、H5 を閉じる**(未解決)。
+- **専用のレイアウト(単位を詰めて積む)は、いま作らない**。ADR 0019 の U2・U3 の後に、6 単位の TT(現状 1 + 単位 6。結果が次の現状)を、固定幅のモックで測った: 短いラベルでは `layer: 'asap'`・`dir: 'up'`・`maxNodeW: 'auto'` が 1800x872、`alap` が 1800x732、`alap`・`dir: 'right'` が 1800x521。**ただし、実際の日本語のラベル(25 字ほど)では、`canvas` が 1800x1080 のとき 3 つとも収まらず throw した**(幅だけ 1800 で `canvas` 無しなら、`asap` 1760x1172、`alap` 1760x872、`alap`・右向き 1760x731。レビューでの実測)。ラベルの長さに依存するので、「ADR 0019 で H5 の大半は解けた」とは言わない。依頼元の `t5-tt2.ts` は、段に分けて通っている。**依頼元の元の 6 単位のソースで測った(上の「依頼元の返事」): `canvas` 1920 幅で 1216 → 598px。単位グループのレイアウトは要らない**。
 - **検査**: `toc-tt-unit`(`tree: 'tt'`): AND の結果が、`need`(または `precondition`)と `action` を持たない。
 
 ### D3: FRT の DE と CRT の UDE の対応は、節の `mirrors` と、`causeTree` の opts の `mirrors: <CRT の band>`(H8 ③)
@@ -124,6 +130,5 @@ TOC の 6 つの図(CRT・FRT・PRT・TT・NBR・EC)のうち、NBR と TT だ�
 ## 未解決
 
 - D1 の `toc-nbr-tipping-not-and` が、実際の NBR(転換点が AND でない書き方)で偽陽性になるか。依頼元の NBR の実例で確かめる。
-- 依頼元の元の 6 単位の TT のソースで大きさを測り、単位グループのレイアウトが要るかを決める(D2)。
 - `mirrors` の CRT の band を、別ファイルから `import` する形が、`svg-diagram build` の単位(1 ファイル 1 図)で成り立つか(レビューでは `import()` で生きた値として届くと確認。実装時にテスト)。
-- H10: 依頼元に、図の中に題名が描かれているかを確かめる(`caption()` ではないか)。
+- H10 の将来: CLI の `--no-source-line` のようなフラグ(依頼元の返事。優先度は低い)。

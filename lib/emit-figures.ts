@@ -298,7 +298,7 @@ export function renderCause(b: LaidOutCause, day: Theme): string {
   for (const a of b.ands) out.push(`<path d="M${snap4(a.p0.x)},${snap4(a.p0.y)} Q${snap4(a.c.x)},${snap4(a.c.y)} ${snap4(a.p1.x)},${snap4(a.p1.y)}" fill="none" stroke="${stroke}" stroke-width="2"/>`);
   for (const [i, n] of b.nodes.entries()) {
     if (n.hex) { // an obstacle: a hexagon (pointed left and right), in its tone's colours
-      const st = b.dim ? {fill: PALETTE.bg, stroke: PALETTE.muted, dashed: false} : resolveBoxStyle(n.tone, day), k = Math.min(16, n.h / 2), cy = n.y + n.h / 2;
+      const st = b.dim ? {fill: PALETTE.bg, stroke: PALETTE.muted, dashed: false} : resolveBoxStyle(n.tone, day, n.dashed), k = Math.min(16, n.h / 2), cy = n.y + n.h / 2;
       const pts = [[n.x + k, n.y], [n.x + n.w - k, n.y], [n.x + n.w, cy], [n.x + n.w - k, n.y + n.h], [n.x + k, n.y + n.h], [n.x, cy]].map(([px, py]) => `${snap4(px)},${snap4(py)}`).join(' ');
       out.push(`<polygon points="${pts}" fill="${st.fill}" stroke="${st.stroke}" stroke-width="${n.core ? CORE_STROKE : 2}"${st.dashed ? ' stroke-dasharray="6,4"' : ''} stroke-linejoin="round"/>`);
       if (n.core) out.push(coreBadge(n, b.anchors[i].id, b, day));

@@ -3,7 +3,8 @@
 import {breakCycles} from './graph-layout.ts';
 import type {CauseBand} from './types/diagrams.ts';
 
-export type TocRule = 'toc-ude-count' | 'toc-parts' | 'toc-source-has-cause' | 'toc-chain-only' | 'toc-orphan' | 'toc-cycle-undeclared';
+export type TocRule = 'toc-ude-count' | 'toc-parts' | 'toc-source-has-cause' | 'toc-chain-only' | 'toc-orphan' | 'toc-cycle-undeclared'
+  | 'toc-nbr-parts' | 'toc-nbr-no-tipping' | 'toc-nbr-tipping-not-and' | 'toc-nbr-trim-too-late';
 export interface TocFinding {rule: TocRule; message: string}
 
 /** The range of undesirable effects a current reality tree is built from (the guidance of the method, not a measure of the examples). */
@@ -37,8 +38,9 @@ export function tocFindings(band: TocBand): TocFinding[] {
     const roots = withRole('root');
     if (roots.length) out.push({rule: 'toc-parts', message: at(`'root' は現状ツリーの根本原因の役割。未来現実ツリーの施策は 'injection' で書く: ${roots.join('、')}`)});
   }
+  if (tree === 'nbr') nbrFindings(band, links, causes, withRole, at, out);
   // an entity nobody controls the cause of: it must not be caused by anything
-  const sources = band.nodes.filter(n => (n.role === 'root' && tree === 'crt') || (n.role === 'injection' && tree === 'frt') || n.role === 'precondition');
+  const sources = band.nodes.filter(n => (n.role === 'root' && tree === 'crt') || (n.role === 'injection' && (tree === 'frt' || tree === 'nbr')) || (n.role === 'trim' && tree === 'nbr') || n.role === 'precondition');
   const caused = sources.filter(n => (into.get(n.id) ?? 0) > 0).map(n => `${n.id}（${n.role}）`);
   if (caused.length) out.push({rule: 'toc-source-has-cause', message: at(`原因を持たない役割の実体に、入る矢印がある: ${caused.join('、')}。根本原因・施策・現状の事実は、ほかの実体の結果として描かない`)});
 
@@ -54,4 +56,31 @@ export function tocFindings(band: TocBand): TocFinding[] {
   const orphans = band.nodes.filter(n => !linked.has(n.id)).map(n => n.id);
   if (orphans.length) out.push({rule: 'toc-orphan', message: at(`どのリンクにも出てこない実体: ${orphans.join('、')}`)});
   return out;
+}
+
+/** The negative branch tree (ADR 0020 D1): the branch is cut at a tipping point, and the trim acts at or before it. Walks cause arrows only (not `blocks`, not `back`). */
+function nbrFindings(band: TocBand, links: AnyLink[], causes: AnyLink[], withRole: (r: string) => string[], at: (m: string) => string, out: TocFinding[]): void {
+  const udes = withRole('ude'), trims = withRole('trim'), tippings = new Set(withRole('tipping'));
+  if (!trims.length || !udes.length) out.push({rule: 'toc-nbr-parts', message: at(`${[!trims.length ? "トリミングの施策（role: 'trim'）" : '', !udes.length ? "悪い結果（role: 'ude'）" : ''].filter(Boolean).join('と')}が無い`)});
+  const next = new Map<string, string[]>(), hasIn = new Set<string>();
+  for (const l of causes) for (const f of froms(l)) { next.set(f, [...(next.get(f) ?? []), l.to]); hasIn.add(l.to); }
+  const reach = (starts: string[], stop: ReadonlySet<string>): Set<string> => {
+    const seen = new Set<string>(), todo = [...starts];
+    while (todo.length) { const u = todo.pop()!; if (seen.has(u) || stop.has(u)) continue; seen.add(u); todo.push(...(next.get(u) ?? [])); }
+    return seen;
+  };
+  // a branch with no tipping point: from an entity nobody causes, a cause path to an undesirable effect that does not pass one
+  if (udes.length) {
+    const sources = band.nodes.filter(n => !hasIn.has(n.id) && n.role !== 'trim').map(n => n.id);
+    const open = reach(sources, tippings), loose = udes.filter(u => open.has(u) && !sources.includes(u));
+    if (loose.length) out.push({rule: 'toc-nbr-no-tipping', message: at(`転換点（role: 'tipping'）を通らずに、原因から悪い結果へ至る道がある: ${loose.join('、')}`)});
+  }
+  for (const t of tippings) {
+    if (!causes.some(l => l.to === t && typeof l.from !== 'string' && l.from.length > 1)) out.push({rule: 'toc-nbr-tipping-not-and', message: at(`転換点 ${t} が、AND（複数の原因が揃って越える）の結果になっていない`)});
+  }
+  // a trim cuts at the tipping point or before it: not at what lies downstream of one
+  const downstream = new Set<string>();
+  for (const t of tippings) for (const d of reach(next.get(t) ?? [], new Set())) downstream.add(d);
+  const late = links.filter(l => l.kind === 'blocks' && downstream.has(l.to) && !tippings.has(l.to)).map(l => `${froms(l)[0]} -> ${l.to}`);
+  if (late.length) out.push({rule: 'toc-nbr-trim-too-late', message: at(`トリミングが、転換点より結果側（越えた後）を断っている: ${late.join('、')}。転換点そのもの、またはその手前を断つ`)});
 }
