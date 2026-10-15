@@ -46,7 +46,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
    - 複数の SVG を 1 つの HTML に貼るなら `--id-prefix <p|auto>` を付ける（`svg-title`・`dsl-arrow` などの id と参照が `<p>-<id>` になり、重ならない。ソースが複数なら `<p>-<ソース名>-<id>`。`<metadata id="svg-diagram">` はそのまま残るので `check --drift` も読める）。
    - 出典行（`diagram({sourceLine})`）をスライドには出し、文書には出したくないとき: `--no-source-line`（ソースは変えない。`deck` も同じフラグ。`<metadata>` に `noSourceLine` が残り、`--stale` と `check --drift --rebuild` が読む）。
    - `gantt({today: 'auto'})` の日付は呼び出し側が渡す: `SVG_DIAGRAM_TODAY=$(date +%F) svg-diagram build x.ts`（`--today YYYY-MM-DD` が優先。`build` と `check` の両方で同じ日付にする）。限界: `--stale` は日付を見ないので、日付が変わっても fresh と出る。
-   - 下書きの図は `diagram({status: 'draft', statusLabel?: '仮説'})`（最上段に 1 段、右端に破線の札）。
+   - 下書きの図は `diagram({status: 'draft', statusLabel?: '仮説'})`（最上段に 1 段、右端に破線の札。`<desc>` の先頭に「(下書き)」、`<metadata>` に status。`check` は info の `draft-status`、公開ジョブでは `check --forbid-draft` で warn にして止める）。
    - ダーク設定に追従する 1 枚の SVG は `diagram({appearance: 'auto'})`（SVG だけ。`--html` との併用は throw。PNG・`preview` は明るい側。`check` / `lint-svg` は明暗の 2 回検査し、暗い側だけの指摘に `(暗い配色)` が付く。`<img>` では OS 設定に従い、`html.dark` には従わない）。
    - PNG も要るとき（Word・チャット・PNG しか貼れない所）は `--png <dir> [--scale N]` を足す。同じビルドの SVG から `<dir>/<名前>.png` を書く（既定の倍率 2。段階表示の各段の SVG も PNG になる）。`--stale` と併用すると、PNG がない・SVG より古いときは作り直す。
 3. **ルール検査**: `svg-diagram check --strict src.ts`（コントラスト、凡例、線の交差、幅、密度、題名）
