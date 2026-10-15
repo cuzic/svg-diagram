@@ -12,7 +12,7 @@ import {gapFor, layeredAttempt} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import {wrapText} from './wrap.ts';
-import type {FontFamily, Roles, WidthOf} from './types/core.ts';
+import type {EmphasisTone, FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {CauseBand, CauseRole, CloudArrow, CloudBand, CloudBox, LaidOutCause, LaidOutCloud} from './types/diagrams.ts';
 import type {BoxTone} from './types/text-bands.ts';
 
@@ -25,7 +25,7 @@ export const CORE_BADGE_H = 22, CORE_BADGE_GAP = 2;
 const AND_END = 21, AND_PEAK = 15, AND_REACH = 10;
 
 /** What a role looks like when the node gives no tone. `double`: the box has a second outline (the finding of the figure). */
-export const CAUSE_ROLES: Record<CauseRole, {tone: BoxTone; double?: boolean; dashed?: boolean}> = {
+export const CAUSE_ROLES: Record<CauseRole, {tone: EmphasisTone; double?: boolean; dashed?: boolean}> = {
   effect: {tone: 'plain'},
   ude: {tone: 'danger'},
   root: {tone: 'accent', double: true},
