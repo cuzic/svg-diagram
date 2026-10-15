@@ -85,6 +85,8 @@ export interface GanttOpts extends RevealOpts, ScopeOpts {
   /** Today, always written out (a build never reads the clock). A line through the chart. */
   today?: string;
   todayLabel?: string;
+  /** Widen the axis to include `today` when it is outside (only a side that `from` / `to` did not fix). Default false. */
+  extendToToday?: boolean;
   id?: string;
 }
 export interface GanttBand extends GanttOpts {

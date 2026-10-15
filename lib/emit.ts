@@ -11,6 +11,7 @@ import {spotlightDim} from './spotlight.ts';
 import {escapeXml} from './emit-common.ts';
 import {renderConnect} from './emit-boxes.ts';
 import {renderBand} from './emit-handlers.ts';
+import {autoBlock} from './appearance-auto.ts';
 
 export {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 export type {BoxStyle} from './emit-common.ts';
@@ -101,8 +102,10 @@ function emitSvgWith(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noR
 </svg>
 `;
   // the attribute is added after the recolouring: its values are final colours (a custom white must not be recoloured as a light token)
-  const out = opts.noRecolor ? svgText : recolor(svgText, laidOutDiagram.appearance);
-  const darkAttr = mapOf(laidOutDiagram.appearance) ? ' data-appearance="dark"' : '';
+  let out = opts.noRecolor ? svgText : recolor(svgText, laidOutDiagram.appearance);
+  const isAuto = laidOutDiagram.appearance === 'auto';
+  if (isAuto) out = out.replace('\n  </style>', `${autoBlock(out)}\n  </style>`); // ADR 0023 D2: the dark side, for the colours this figure uses
+  const darkAttr = isAuto ? ' data-appearance="auto"' : mapOf(laidOutDiagram.appearance) ? ' data-appearance="dark"' : '';
   // a canvas figure that lowered its text floor below 14px says so, for lint-svg (ADR 0017); every other figure is unchanged
   const minTextAttr = laidOutDiagram.canvas && laidOutDiagram.canvas.minText < MIN_FONT_SIZE ? ` data-min-text="${laidOutDiagram.canvas.minText}"` : '';
   return paletteAttr || darkAttr || tonesAttr || minTextAttr ? out.replace('<svg ', `<svg${darkAttr}${paletteAttr}${tonesAttr}${minTextAttr} `) : out;

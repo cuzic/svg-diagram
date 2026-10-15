@@ -4,7 +4,7 @@
 import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapStyledAtoms} from './wrap.ts';
 import {assertSpans} from './rich.ts';
-import {isSolidTone} from './tokens.ts';
+import {isSolidTone, statFitMin} from './tokens.ts';
 import {BOX_INNER_GAP, ICON_INDENT, LINE_HEIGHT_EM, STEP_INDENT, topIcon} from './layout-util.ts';
 import type {FontWeight, Roles, TextTone, WidthOf} from './types/core.ts';
 import type {Band} from './types/index.ts';
@@ -39,7 +39,8 @@ const boxRuns: TextRunsOf<BandOf<'box'>> = (band, roles) => {
   if (band.body) runs.push(withSpans({text: band.body, size: roles.body, weight: 400, mono: !!band.bodyMono, tone: band.bodyTone, ...iconIndent}, band.spans?.body));
   if (band.lines) for (const l of band.lines) {
     const line: Exclude<typeof l, string> = typeof l === 'string' ? {text: l} : l;
-    runs.push(withSpans({text: line.text, size: roles[line.role ?? 'body'], weight: line.bold ? 700 : 400, mono: !!line.mono, tone: line.tone, nowrap: band.statValue === line.text && runs.length === 0, ...iconIndent}, line.spans));
+    const size = roles[line.role ?? 'body'], nowrap = band.statValue === line.text && runs.length === 0;
+    runs.push(withSpans({text: line.text, size, weight: line.bold ? 700 : 400, mono: !!line.mono, tone: line.tone, nowrap, ...(nowrap ? {fit: {min: statFitMin(roles, size)}} : {}), ...iconIndent}, line.spans));
   }
   if (band.note) runs.push(withSpans({text: band.note, size: roles.note, weight: 400, mono: false, tone: band.noteTone ?? (isSolidTone(band.tone) ? undefined : 'muted'), ...iconIndent}, band.spans?.note));
   return runs;
@@ -99,6 +100,13 @@ export function lineWidth(widthOf: WidthOf, run: WrappedRun, i: number): number 
     : textWidth(widthOf, run.lines[i], run.size, run.weight, font);
 }
 
+/** The largest whole-pixel size from `run.size` down to `run.fit.min` at which the unbroken `run` fits `avail` (the same 0.5px slack as the overflow check); `fit.min` when none does. */
+function fittedSize(run: TextRun, avail: number, widthOf: WidthOf): number {
+  const font = run.mono ? 'mono' : 'sans', min = run.fit!.min;
+  for (let size = run.size; size > min; size--) if (textWidth(widthOf, run.text, size, run.weight, font) <= avail + 0.5) return size;
+  return Math.min(run.size, min);
+}
+
 // Wraps a box-like band's text runs at `wrapWidth` (content width, i.e.
 // already excluding BOX_PAD_X*2) and returns {wrappedRuns, textHeight}.
 export function layoutBoxContent(band: Band, wrapWidth: number, widthOf: WidthOf, roles: Roles): {wrappedRuns: WrappedRun[]; textHeight: number} {
@@ -106,16 +114,17 @@ export function layoutBoxContent(band: Band, wrapWidth: number, widthOf: WidthOf
   const wrappedRuns = textRuns(band, roles).map((run): WrappedRun => {
     const font = run.mono ? 'mono' : 'sans';
     const indent = run.indent ?? 0;
+    const size = run.fit && run.nowrap ? fittedSize(run, wrapWidth - indent, widthOf) : run.size; // the one size a stat value is drawn at
     const atomLines = run.nowrap ? null : wrapStyledAtoms(styledAtoms(run), {maxWidth: wrapWidth - indent, atomWidth: a => widthOf(a.text, run.size, a.weight, font)});
     const lines = atomLines ? atomLines.map(l => l.map(a => a.text).join('')) : [run.text];
     const lineYs = lines.map(() => {
-      relY += run.size;
+      relY += size;
       const y = relY;
-      relY += run.size * (LINE_HEIGHT_EM - 1);
+      relY += size * (LINE_HEIGHT_EM - 1);
       return y;
     });
     relY += BOX_INNER_GAP;
-    return {...run, lines, lineYs, ...(run.spans && atomLines ? {lineSpans: atomLines.map(l => lineSpans(run, l))} : {})};
+    return {...run, size, lines, lineYs, ...(size !== run.size ? {shrunkFrom: run.size} : {}), ...(run.spans && atomLines ? {lineSpans: atomLines.map(l => lineSpans(run, l))} : {})};
   });
   const textHeight = Math.max(0, relY - BOX_INNER_GAP);
   return {wrappedRuns, textHeight};
