@@ -344,3 +344,54 @@ test('layoutLayered transpose: crossed neighbours in a layer are swapped', () =>
   const nodes = ['a', 'b', 'd', 'c'].map(sq), e = [{from: 'a', to: 'd'}, {from: 'b', to: 'c'}];
   assert.equal(chainCrossings(layoutLayered(nodes, e, {transpose: true})), 0);
 });
+
+// ADR 0010 D7: fold. Small directed graphs from a fixed seed.
+
+const randomDag = (seed: number, n: number) => {
+  const r = rng(seed);
+  const nodes = Array.from({length: n}, (_, i) => ({id: `n${i}`, size: {w: 40 + Math.floor(r() * 50), h: 20}}));
+  const edges = [] as {from: string; to: string}[];
+  for (let i = 1; i < n; i++) { edges.push({from: `n${Math.floor(r() * i)}`, to: `n${i}`}); if (r() < 0.4) edges.push({from: `n${Math.floor(r() * i)}`, to: `n${i}`}); }
+  return {nodes, edges: edges.filter((e, k) => edges.findIndex(f => f.from === e.from && f.to === e.to) === k)};
+};
+
+test('layoutLayered fold: without it nothing changes; with a limit nothing needs, the same layout', () => {
+  for (const seed of [1, 2, 3]) {
+    const {nodes, edges} = randomDag(seed, 14);
+    const plain = layoutLayered(nodes, edges, {dir: 'right'});
+    assert.deepEqual(layoutLayered(nodes, edges, {dir: 'right', fold: 1e6}), plain);
+    assert.equal(plain.folded, undefined);
+  }
+});
+
+test('layoutLayered fold: rows keep the order of the layers, hold the limit, do not overlap, and keep every node', () => {
+  for (const seed of [1, 2, 3, 4, 5, 6]) {
+    const {nodes, edges} = randomDag(seed, 16);
+    const plain = layoutLayered(nodes, edges, {dir: 'right'});
+    const widest = Math.max(...nodes.map(n => n.size.h));
+    const limit = Math.max(widest * 3 + 24 * 2, (plain.h * 0.6)); // across is h in dir 'right'
+    const lay = layoutLayered(nodes, edges, {dir: 'right', fold: limit});
+    assert.equal(lay.nodes.size, nodes.length);
+    noOverlaps(lay.nodes);
+    // an edge still runs from a lower layer to a higher one, and a layer of the plain layout is a run of layers of the folded one, in order
+    for (const e of edges) assert.ok(lay.layers.get(e.to)! > lay.layers.get(e.from)!, `${e.from} -> ${e.to}`);
+    const ids = nodes.map(n => n.id);
+    for (const a of ids) for (const b of ids) if (plain.layers.get(a)! < plain.layers.get(b)!) assert.ok(lay.layers.get(a)! < lay.layers.get(b)!, 'a later layer stays later');
+    // every row, the real nodes with the dummies, fits the limit: the layout is no wider than the limit plus what the settling pushes (checked by the real nodes of one row)
+    const byLayer = new Map<number, number>();
+    for (const [id, l] of lay.layers) byLayer.set(l, (byLayer.get(l) ?? 0) + nodes.find(n => n.id === id)!.size.h);
+    for (const [l, sum] of byLayer) assert.ok(sum <= limit, `layer ${l}: ${sum} > ${limit}`);
+    if (lay.folded) assert.ok(lay.folded.every(f => f.rows >= 2));
+    assert.deepEqual(layoutLayered(nodes, edges, {dir: 'right', fold: limit}), lay, 'deterministic');
+  }
+});
+
+test('layoutLayered fold: a long layer is cut into rows in input order, and the later layers move down', () => {
+  const nodes = [{id: 'r', size: {w: 40, h: 20}}, ...[0, 1, 2, 3, 4, 5].map(i => ({id: `c${i}`, size: {w: 40, h: 20}})), {id: 't', size: {w: 40, h: 20}}];
+  const edges = [...[0, 1, 2, 3, 4, 5].map(i => ({from: 'r', to: `c${i}`})), ...[0, 1, 2, 3, 4, 5].map(i => ({from: `c${i}`, to: 't'}))];
+  const lay = layoutLayered(nodes, edges, {dir: 'right', gap: 10, fold: 100}); // three nodes would fit (80), but the arrows from r to the later rows and from the earlier rows to t pass each row as dummies, 10px each: two a row
+  const rows = [0, 1, 2, 3, 4, 5].map(i => lay.layers.get(`c${i}`)!);
+  assert.deepEqual(rows, [1, 1, 2, 2, 3, 3]);
+  assert.equal(lay.layers.get('t'), 4);
+  assert.deepEqual(lay.folded, [{layer: 1, rows: 3}]);
+});

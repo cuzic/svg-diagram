@@ -151,6 +151,9 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
   returns?: 'inline' | 'outer';
   /** Lay the figure out with the plain coordinates only (default true: a straightened layout is used when it has strictly fewer crossings, then bends). `false` keeps the older picture. */
   straighten?: boolean;
+  /** Cut a layer that is wider than the figure into rows, one above the other, and keep the direction (ADR 0010 D7). Only a figure that does not fit is changed.
+   *  Default: tried last when `dir` is left out or 'auto' (after narrowing the nodes); `true` also when `dir` is written; `false` never. Only for 'up' and 'down'. */
+  fold?: boolean;
   id?: string;
 }
 export interface CauseBand extends CauseOpts {
@@ -269,8 +272,8 @@ export interface FitApplied {
   /** The figure's width before and after, in px. */
   wasW?: number;
   nowW?: number;
-  /** How the author asked for it: `dir` left out (a warning) or `dir: 'auto'` (a note). */
-  mode: 'omitted' | 'auto';
+  /** How the author asked for it: `dir` left out (a warning) or `dir: 'auto'` (a note), or the change was asked for (`fold: true`). */
+  mode: 'omitted' | 'auto' | 'written';
 }
 export interface TreeNodeText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean}
 export interface LaidOutTree extends Rect, Dimmed {

@@ -8,65 +8,65 @@
   </style>
   <rect x="0" y="0" width="940" height="370" fill="#ffffff"/>
 
-  <path d="M151.9,95.7 L215,95.7" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M215,95.7 L204,101.7 L204,89.6 Z" fill="#b91c1c"/>
-  <path d="M151.9,156.3 L215,156.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M215,156.3 L206,161.3 L206,151.4 Z" fill="#6f6659"/>
-  <path d="M342.9,71.2 L406,71.2" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M406,71.2 L395,77.2 L395,65.1 Z" fill="#b91c1c"/>
-  <path d="M342.9,180.8 L533.5,180.8" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M533.5,180.8 L533.5,137.6" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M533.5,137.6 L597.1,137.6" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M597.1,137.6 L588.1,142.6 L588.1,132.7 Z" fill="#6f6659"/>
-  <path d="M534,98.6 L597.1,98.6" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M597.1,98.6 L586.1,104.6 L586.1,92.5 Z" fill="#b91c1c"/>
-  <path d="M725,126 L788.1,126" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M788.1,126 L777.1,132.1 L777.1,120 Z" fill="#b91c1c"/>
-  <path d="M24,82.82 H151.9 V169.19 H24 Z" fill="#ffffff"/>
-  <path d="M24,82.82 H151.9 V169.19 H24 Z" fill="#1d5fa8" fill-opacity="0.16" stroke="#b91c1c" stroke-width="4"/>
-  <text x="88" y="105" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">要件整理</text>
-  <text x="33" y="125" font-size="14" fill="#6f6659">ES 0</text>
-  <text x="143" y="125" text-anchor="end" font-size="14" fill="#6f6659">EF 3</text>
-  <text x="33" y="143" font-size="14" fill="#6f6659">LS 0</text>
-  <text x="143" y="143" text-anchor="end" font-size="14" fill="#6f6659">LF 3</text>
-  <text x="88" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">期間 3日 ・ 余裕 0</text>
-  <path d="M215.02,28 H342.93 V114.38 H215.02 Z" fill="#ffffff"/>
-  <path d="M215.02,28 H342.93 V114.38 H215.02 Z" fill="#1d5fa8" fill-opacity="0.16" stroke="#b91c1c" stroke-width="4"/>
-  <text x="279" y="50" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">設計</text>
-  <text x="224" y="70" font-size="14" fill="#6f6659">ES 3</text>
-  <text x="334" y="70" text-anchor="end" font-size="14" fill="#6f6659">EF 7</text>
-  <text x="224" y="88" font-size="14" fill="#6f6659">LS 3</text>
-  <text x="334" y="88" text-anchor="end" font-size="14" fill="#6f6659">LF 7</text>
-  <text x="279" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">期間 4日 ・ 余裕 0</text>
-  <path d="M215.02,137.63 H342.93 V224.01 H215.02 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="279" y="160" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">原稿作成</text>
-  <text x="224" y="180" font-size="14" fill="#6f6659">ES 3</text>
-  <text x="334" y="180" text-anchor="end" font-size="14" fill="#6f6659">EF 5</text>
-  <text x="224" y="198" font-size="14" fill="#6f6659">LS 11</text>
-  <text x="334" y="198" text-anchor="end" font-size="14" fill="#6f6659">LF 13</text>
-  <text x="279" y="216" text-anchor="middle" font-size="14" fill="#22201b">期間 2日 ・ 余裕 8</text>
-  <path d="M406.05,28 H533.95 V114.38 H406.05 Z" fill="#ffffff"/>
-  <path d="M406.05,28 H533.95 V114.38 H406.05 Z" fill="#1d5fa8" fill-opacity="0.16" stroke="#b91c1c" stroke-width="4"/>
-  <text x="470" y="50" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">実装</text>
-  <text x="415" y="70" font-size="14" fill="#6f6659">ES 7</text>
-  <text x="525" y="70" text-anchor="end" font-size="14" fill="#6f6659">EF 13</text>
-  <text x="415" y="88" font-size="14" fill="#6f6659">LS 7</text>
-  <text x="525" y="88" text-anchor="end" font-size="14" fill="#6f6659">LF 13</text>
-  <text x="470" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">期間 6日 ・ 余裕 0</text>
-  <path d="M597.07,82.82 H724.98 V169.19 H597.07 Z" fill="#ffffff"/>
-  <path d="M597.07,82.82 H724.98 V169.19 H597.07 Z" fill="#1d5fa8" fill-opacity="0.16" stroke="#b91c1c" stroke-width="4"/>
-  <text x="661" y="105" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">レビュー</text>
-  <text x="606" y="125" font-size="14" fill="#6f6659">ES 13</text>
-  <text x="716" y="125" text-anchor="end" font-size="14" fill="#6f6659">EF 15</text>
-  <text x="606" y="143" font-size="14" fill="#6f6659">LS 13</text>
-  <text x="716" y="143" text-anchor="end" font-size="14" fill="#6f6659">LF 15</text>
-  <text x="661" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">期間 2日 ・ 余裕 0</text>
-  <path d="M788.1,82.82 H916 V169.19 H788.1 Z" fill="#ffffff"/>
-  <path d="M788.1,82.82 H916 V169.19 H788.1 Z" fill="#1d5fa8" fill-opacity="0.16" stroke="#b91c1c" stroke-width="4"/>
-  <text x="852" y="105" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">公開</text>
-  <text x="797" y="125" font-size="14" fill="#6f6659">ES 15</text>
-  <text x="907" y="125" text-anchor="end" font-size="14" fill="#6f6659">EF 16</text>
-  <text x="797" y="143" font-size="14" fill="#6f6659">LS 15</text>
-  <text x="907" y="143" text-anchor="end" font-size="14" fill="#6f6659">LF 16</text>
-  <text x="852" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">期間 1日 ・ 余裕 0</text>
+  <path d="M151.9,151.7 L215,151.7" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M215,151.7 L204,157.7 L204,145.6 Z" fill="#b91c1c"/>
+  <path d="M151.9,212.3 L215,212.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M215,212.3 L206,217.3 L206,207.4 Z" fill="#6f6659"/>
+  <path d="M342.9,127.2 L406,127.2" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M406,127.2 L395,133.2 L395,121.1 Z" fill="#b91c1c"/>
+  <path d="M342.9,236.8 L533.5,236.8" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M533.5,236.8 L533.5,193.6" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M533.5,193.6 L597.1,193.6" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M597.1,193.6 L588.1,198.6 L588.1,188.7 Z" fill="#6f6659"/>
+  <path d="M534,154.6 L597.1,154.6" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M597.1,154.6 L586.1,160.6 L586.1,148.5 Z" fill="#b91c1c"/>
+  <path d="M725,182 L788.1,182" fill="none" stroke="#b91c1c" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M788.1,182 L777.1,188.1 L777.1,176 Z" fill="#b91c1c"/>
+  <path d="M24,138.82 H151.9 V225.19 H24 Z" fill="#ffffff"/>
+  <path d="M24,138.82 H151.9 V225.19 H24 Z" fill="#1d5fa8" fill-opacity="0.16" stroke="#b91c1c" stroke-width="4"/>
+  <text x="88" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">要件整理</text>
+  <text x="33" y="181" font-size="14" fill="#6f6659">ES 0</text>
+  <text x="143" y="181" text-anchor="end" font-size="14" fill="#6f6659">EF 3</text>
+  <text x="33" y="199" font-size="14" fill="#6f6659">LS 0</text>
+  <text x="143" y="199" text-anchor="end" font-size="14" fill="#6f6659">LF 3</text>
+  <text x="88" y="217" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">期間 3日 ・ 余裕 0</text>
+  <path d="M215.02,84 H342.93 V170.38 H215.02 Z" fill="#ffffff"/>
+  <path d="M215.02,84 H342.93 V170.38 H215.02 Z" fill="#1d5fa8" fill-opacity="0.16" stroke="#b91c1c" stroke-width="4"/>
+  <text x="279" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">設計</text>
+  <text x="224" y="126" font-size="14" fill="#6f6659">ES 3</text>
+  <text x="334" y="126" text-anchor="end" font-size="14" fill="#6f6659">EF 7</text>
+  <text x="224" y="144" font-size="14" fill="#6f6659">LS 3</text>
+  <text x="334" y="144" text-anchor="end" font-size="14" fill="#6f6659">LF 7</text>
+  <text x="279" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">期間 4日 ・ 余裕 0</text>
+  <path d="M215.02,193.63 H342.93 V280.01 H215.02 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="279" y="216" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">原稿作成</text>
+  <text x="224" y="236" font-size="14" fill="#6f6659">ES 3</text>
+  <text x="334" y="236" text-anchor="end" font-size="14" fill="#6f6659">EF 5</text>
+  <text x="224" y="254" font-size="14" fill="#6f6659">LS 11</text>
+  <text x="334" y="254" text-anchor="end" font-size="14" fill="#6f6659">LF 13</text>
+  <text x="279" y="272" text-anchor="middle" font-size="14" fill="#22201b">期間 2日 ・ 余裕 8</text>
+  <path d="M406.05,84 H533.95 V170.38 H406.05 Z" fill="#ffffff"/>
+  <path d="M406.05,84 H533.95 V170.38 H406.05 Z" fill="#1d5fa8" fill-opacity="0.16" stroke="#b91c1c" stroke-width="4"/>
+  <text x="470" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">実装</text>
+  <text x="415" y="126" font-size="14" fill="#6f6659">ES 7</text>
+  <text x="525" y="126" text-anchor="end" font-size="14" fill="#6f6659">EF 13</text>
+  <text x="415" y="144" font-size="14" fill="#6f6659">LS 7</text>
+  <text x="525" y="144" text-anchor="end" font-size="14" fill="#6f6659">LF 13</text>
+  <text x="470" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">期間 6日 ・ 余裕 0</text>
+  <path d="M597.07,138.82 H724.98 V225.19 H597.07 Z" fill="#ffffff"/>
+  <path d="M597.07,138.82 H724.98 V225.19 H597.07 Z" fill="#1d5fa8" fill-opacity="0.16" stroke="#b91c1c" stroke-width="4"/>
+  <text x="661" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">レビュー</text>
+  <text x="606" y="181" font-size="14" fill="#6f6659">ES 13</text>
+  <text x="716" y="181" text-anchor="end" font-size="14" fill="#6f6659">EF 15</text>
+  <text x="606" y="199" font-size="14" fill="#6f6659">LS 13</text>
+  <text x="716" y="199" text-anchor="end" font-size="14" fill="#6f6659">LF 15</text>
+  <text x="661" y="217" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">期間 2日 ・ 余裕 0</text>
+  <path d="M788.1,138.82 H916 V225.19 H788.1 Z" fill="#ffffff"/>
+  <path d="M788.1,138.82 H916 V225.19 H788.1 Z" fill="#1d5fa8" fill-opacity="0.16" stroke="#b91c1c" stroke-width="4"/>
+  <text x="852" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">公開</text>
+  <text x="797" y="181" font-size="14" fill="#6f6659">ES 15</text>
+  <text x="907" y="181" text-anchor="end" font-size="14" fill="#6f6659">EF 16</text>
+  <text x="797" y="199" font-size="14" fill="#6f6659">LS 15</text>
+  <text x="907" y="199" text-anchor="end" font-size="14" fill="#6f6659">LF 16</text>
+  <text x="852" y="217" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">期間 1日 ・ 余裕 0</text>
 </svg>
