@@ -79,7 +79,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | 区間を示す括弧・箱を指す吹き出し | `bracket(a.left, b.right, {label, side})` / `callout(id, {text, side})` | `connect()` の 2 本引きの代わり。bracket は箱の下（`side: 'above'` で上）、callout は 1 行の吹き出し |
 | 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?}` と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
 | 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?, tone?}`（`tone` は `'solid'` / `'solid-danger'` も可）と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
-| TOC の因果の図（現状・未来現実・前提条件・移行ツリー） | `causeTree(nodes, links, {dir, coreDriver})` | 実体 `{id, label, role?}`（role: ude / root / de / injection / goal / obstacle / io / action / precondition＝統制できない現状の事実）と `{from, to}`（`from` を配列にすると AND）。下が原因・上が結果。`coreDriver: true` で、届く UDE が最多の起点に太い枠と「中核」のバッジ（`counts: false` で `到達 UDE n` を消す） |
+| TOC の因果の図（現状・未来現実・前提条件・移行ツリー） | `causeTree(nodes, links, {dir, coreDriver})` | 実体 `{id, label, role?}`（role: ude / root / de / injection / goal / obstacle / io / action / precondition＝統制できない現状の事実）と `{from, to}`（`from` を配列にすると AND。循環の戻りの矢印には `back: true`: 節の並びで層が変わらず、太く描く）。下が原因・上が結果。`coreDriver: true` で、届く UDE が最多の起点に太い枠と「中核」のバッジ（`counts: false` で `到達 UDE n` を消す）。リンクの `kind: 'blocks'` は「断つ」辺（破線＋横棒の端。ネガティブブランチ） |
 | TOC のクラウド（対立解消図） | `cloud({a, b, c, d, d2}, {assumptions})` | 共通目的 A・必要条件 B/C・対立する要望 D/D'。前提 `{on: 'ab'｜'ac'｜'bd'｜'cd'｜'dd', text, injection?}` は番号が矢印に載り、一覧は図の下 |
 | スケジュール | `gantt(rows, {today})` | タスク `{label, start, end｜days, after?, progress?, milestone?}`（日付は `YYYY-MM-DD`、`today` は必ず書く） |
 | UML クラス図 | `classDiagram(classes, relations, {dir})` | クラス `{id, attrs?, methods?, stereotype?}` と関係 `{from, to, kind, label?, fromMult?, toMult?}` |
@@ -211,7 +211,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | 因果ループ図 | `causalLoop(nodes, [{from, to, polarity, delay?}], {layout?: 'ring'})` (`'ring'` は閉路が 1 つだけの図を円環に。ループ外のノード・弦・`direction` 併用は止まる。`interventions` は検査まで、描画は未実装) | `+` / `-`、遅延 `||`、単純ループの R / B 分類 |
 | 関連図 / 依存ネットワーク | `dependencyNetwork([{id, label, kind?}], [{from, to, type, weight?}], opts)` | kind / type の表現、重みの線幅と数値、使用した記法の凡例 |
 
-PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `analyzeCausalLoops`。長い日本語ラベルでは `width` を広げ、層が多いときは LR、並列が多いときは TB を試す。描いた後は必ず `check` とプレビューを通す。層状の自動配置の図では、高さが重なる隣の層の箱への矢印は、折れずに 1 本の直線で引かれる（円・六角形・AND の矢印は除く）。
+PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `analyzeCausalLoops`。長い日本語ラベルでは `width` を広げ、層が多いときは LR、並列が多いときは TB を試す。描いた後は必ず `check` とプレビューを通す。
 
 ## ワイヤーフレーム・画面遷移図で、見て直すこと（実際に効いた点）
 
