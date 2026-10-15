@@ -87,7 +87,7 @@ function emitSvgWith(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noR
       a11y = ` role="img" aria-labelledby="svg-title${desc ? ' svg-desc' : ''}"`;
       head = `\n  <title id="svg-title">${escapeXml(title)}</title>${desc ? `\n  <desc id="svg-desc">${escapeXml(desc)}</desc>` : ''}`;
     }
-    if (laidOutDiagram.source) head += `\n  <metadata id="svg-diagram">${escapeXml(JSON.stringify(opts.reveal === undefined ? laidOutDiagram.source : {...laidOutDiagram.source, reveal: opts.reveal}))}</metadata>`;
+    if (laidOutDiagram.source) head += `\n  <metadata id="svg-diagram">${escapeXml(JSON.stringify({...laidOutDiagram.source, ...(laidOutDiagram.status === undefined ? {} : {status: laidOutDiagram.status}), ...(opts.reveal === undefined ? {} : {reveal: opts.reveal})}))}</metadata>`;
   }
 
   // transparent: no page rectangle; the root says which page colour the checks assume (lint-svg reads it as the starting background)
