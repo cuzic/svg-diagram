@@ -78,6 +78,15 @@ test('causeTree(): roles set the tone and the double outline; a tone overrides t
   assert.equal(o.nodes[0].tone, 'muted');
 });
 
+test('causeTree(): a precondition is a grey dashed box with no double outline, apart from an injection and a root', async () => {
+  const {t} = await laidCause(causeTree([N('inj', {role: 'injection'}), N('fact', {role: 'precondition'}), N('de', {role: 'de'})], [{from: ['inj', 'fact'], to: 'de'}]));
+  const by = (i: number) => t.nodes[i];
+  assert.equal(by(1).tone, 'removed');
+  assert.ok(!by(1).double && !by(1).hex);
+  assert.notEqual(by(1).tone, by(0).tone);
+  assert.equal(t.ands.length, 1, 'a precondition joins an AND like any cause');
+});
+
 test('causeTree(): the SVG has the boxes, double outlines, arrowheads as shapes and the AND arc', async () => {
   const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(crt()), {name: 'c.svg', budget: 'cacheOnly'});
   assert.equal(svg.match(/<rect [^>]*rx="8"/g)?.length, 7, '7 entities');
