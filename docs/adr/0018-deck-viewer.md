@@ -1,6 +1,6 @@
 # ADR 0018: 複数の図をまとめたビューア(`svg-diagram deck`)
 
-- 状態: 提案
+- 状態: 実装済み(第 1 段: 単位 A〜E は PR #200・#201・#202・#212・#213。第 2 段の `--lazy`・全画面(`f`)・図ごとの名前付き `@page`・`--render html`・reveal の段階表示は未着手)
 - 日付: 2026-10-15
 - 基点: `origin/main`(479c188、PR #194 まで)
 - 関連: ADR 0006(`--html`), ADR 0007(結果が入力だけで決まること), ADR 0008(`appearance` / ダーク), ADR 0012(id の衝突と `--id-prefix`), ADR 0013(失敗したビルドの古い出力)。要望原文は medius-research の `docs/svg-diagram-feature-requests.md` の F1(優先度は中)
@@ -223,3 +223,16 @@ A、B、C、D は**別々のファイル**を触るので 4 人で並列にで�
 4. **ソースの切り替え**: 1 枚のスライドに、ソースのパスと「古い(freshness)」の表示を出すか(`preview` の赤い帯の考え方)。`.svg` 入力で `freshness()` が stale を返すとき、deck に警告を出す価値はあるか。
 5. **`.svg` と `.ts` の混在の順序**: 順序は引数順(ディレクトリやグロブの展開はシェルに任せる)。ディレクトリを渡す(`svg/*.svg` の自然順)入力は、第 1 段では扱わない。
 6. **F2(CSS 変数のダーク追従)**: D6 の「パネルの色を図の `appearance` に合わせる」は暫定。F2 の方式が決まったときに見直す。
+
+## 実装での補足
+
+実装(PR #200・#201・#202・#212・#213)と、この ADR の書き方との食い違い・補足。
+
+- **積み方**: D(#202)は B(#201)の上に積み、最小版の `viewerAssets()`(JS なし・印刷・縦並びの CSS と、空のスクリプトブロックだけ)を置いた。C(#212)が同じ署名のまま本体に差し替えた。E は配線だけ(#213。C とは独立にマージできる)で、文書(README / SKILL)はこの ADR の後続の文書 PR で追記した。
+- **A(状態)**: ADR が決めていなかった仕様を置いた。別のスライドに移ると `zoom` は解除、一覧を開くと `zoom` は解除、一覧中の `toggleZoom` は何もしない(D4 の「一覧では `z` 無効」)。一覧のサムネイルの押下は `goto` とは別の入力 `select`(移動して一覧を閉じる)。`#grid` は番号を持たないので、`parseHash` は直前に見ていた 1 枚(`current`)を引数に取る。範囲外・不正なハッシュは先頭。
+- **B(組み立て)**: 暗い図(`data-appearance="dark"`)の `<section>` に `slide-dark` クラスを付ける(D6 のパネル色。色の規則は C の CSS が持つ)。**`<noscript>` は出さない**(B の説明は出すと書いていたが): `no-js` クラスの CSS だけで JS なしでも全スライドが見え、`<noscript>` の中の `<style>` を足すと「`<style>` は文書にちょうど 1 ブロック」に反するため。`inlineSvg` から規則のスコープ化を `lib/scope-style.ts`(`scopeRules`)に取り出し、`lib/markdown-target.ts` はそれを呼ぶだけにした(出力は同一)。
+- **スライドの名前**: 読み上げ名(`aria-label`)と一覧のボタンの名前は、図の `<title>`(文書向きの図)、なければソースの basename。`diagram({title})` を `renderSource` から直接読む手段がないので SVG の `<title>` を使う(未決事項 2 と同じ制約)。URL ハッシュの `#<名前>` と `data-name` は、`<title>` ではなく**常に basename**(`slideHashName`)。スライド向きの図には `<title>` が付かないので、読み上げ名も basename になる。
+- **C(ビューア)**: 一覧を**閉じるときは、`pushState` した `#grid` を戻さず `replaceState(#N)`** にした(D4 は「戻るで一覧が閉じる」と書く。戻るボタンで同じスライドに戻る履歴が 1 つ余るだけ)。ボタンの `aria-label` は、`lang` が `ja` 以外のとき英語(Previous slide / Next slide / Overview)。ビューアの JS は `state.js` と `viewer.js` を読み、`export` と `import` の行を除いて 1 つの `<script>` に連結する(`Function#toString` は使わない)。`package.json` の `build` / `prepack` と `scripts/release.sh` は、`lib/deck-viewer/*.js`・`*.css` を `dist/lib/deck-viewer/` にコピーする(`build:assets`)。スクリプトは `style` 属性を一切設定しない(CSP のハッシュ 1 つで通る)。一覧の `inert` は前へ・次へのボタンだけ(`#deck` と `<section>` は対象外)。テストは jsdom を使わず、最小の DOM(`test/helpers/mini-dom.ts`)と、Chromium があるときだけ走るスモーク(`test/deck-browser.test.ts`。サイズ・座標は見ない)。
+- **D(コマンド)**: 使い方の誤り(入力なし、未知の旗、値のない旗、`--cols` が 1 以上の整数でない、`--render` が `svg` 以外、`.ts` / `.svg` 以外)は終了コード 2 と usage。`--render html` は「まだない」と言って終了コード 2。失敗時は全部の失敗を表示して終了コード 1、何も書かず、既存の出力は触らない。前回の deck(`<main id="deck"` を持つファイル)なら「the previous X is still there, untouched」と知らせ、deck でないファイルには何も言わない。`closeMeasurer()` の後始末をし、`--out` の親ディレクトリを作る。
+- **E(配線)**: `bin/svg-diagram` に `deck)` の 1 行と、冒頭のヘルプの 1 行を足した。ヘルプの切り出し(`sed -n 2,15p`)は変えていないので、行が 1 つ増えた分、これまでヘルプの末尾に出ていた `set -euo pipefail` の行が出なくなる(意図した副作用)。
+- **未着手**: 第 2 段(F): `--render html`、`--lazy`(D8)、全画面(`f`)、図ごとの名前付き `@page`、reveal の段階表示(v1 は最終の段階だけ。未決事項 1)、スライド向きの図への `<title>`(D7)。未決事項 3(ホストのヘッダの CSP)・4(古さの表示)は扱っていない。

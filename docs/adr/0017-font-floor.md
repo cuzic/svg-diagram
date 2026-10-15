@@ -1,6 +1,6 @@
 # ADR 0017: 稠密なスライド向けの文字サイズ下限の緩和(`canvas.minText` と `fontFloor`)
 
-- 状態: 提案
+- 状態: 実装済み(U1〜U4・U3b は PR #207〜#211、U5 の文書は README / SKILL への追記。未決 1・3〜6 は扱っていない)
 - 日付: 2026-10-15
 - 基点: `origin/main`(479c188、PR #194 まで)
 - 関連: ADR 0008(#7 スライド用キャンバス。最小文字 24px)、ADR 0006(`--html`。文字サイズの検査は SVG だけ)、ADR 0014(byte 同一の扱い。D3)、ADR 0016(実装計画の書き方)
@@ -157,3 +157,16 @@ U2・U3・U4 は互いに別ファイルなので、U1 のあとに並行でき�
 4. **`--html`(ADR 0006)の `minText < 14`**。HTML 出力に lint-svg 相当の許可の検査が無い。`applyConfig` で足りるか。
 5. **`slide` / `fill` の図で実効 12px 未満を許す手段**(要望の範囲外)。必要なら、`minEffectiveFont` の設定化として別の ADR で扱う。
 6. 要望者の元のソースで、`canvas: {minText: 10}` に直したとき、実際の見た目(1280×720、10px)が読めるかの確認。
+
+## 実装での補足
+
+実装(PR #207〜#211)と、この ADR の書き方との食い違い・補足。
+
+- **積み方**: U2〜U4 は U1 の上に、U3b は U2 をマージして含んだ上で U3 の上に積んだ(手元の通しの試験が `data-min-text` と lint の両方を要るため)。U2・U3・U4 は互いに順不同でマージできる。
+- **U1**: `fontFloor` の検査は `loadConfig`(`lib/config.ts`)で、数でない・10 未満・14 を超える値をファイル名つきで throw する(14 を超える値は「既定の 14 を下げるだけの設定」なので意味がない、という文言)。`canvas.minText` の検査は `checkMinText`(`lib/tokens.ts`)で、10 未満・非有限・数でない値を throw する。`applyConfig` の対象は `canvas` の図だけ(文書向けの図、`slide` / `fill`、明示の `size` は対象外)。`minText` を宣言しない図は byte 同一(`pnpm golden` 差分ゼロ)。
+- **U2**: `data-min-text` は `canvas.minText < 14` のときだけルートに付く。`minText` が 14 以上の図(`canvas: 'slide'` の 24 を含む)と `canvas` なしの図は 1 バイトも変わらない。
+- **U3**: `data-min-text` の値が**不正なとき(空・数でない・10 未満)も** `font-floor-not-permitted`(エラー)にした。ADR の (b) は「案件の `fontFloor` が許さない値」だけを書いていた。お知らせの階層は、失敗に数えず、`--strict` でも失敗しない(`font-floor-lowered` の 1 行。単独実行用)。**設定を SVG のあるディレクトリから探す**のは `fontFloor` だけでなく、`lint-svg` の **`fonts` の設定も同じ設定から読む**(設定の探し方が、cwd からの探索から SVG ごとの探索に変わる)。`--config <path>` は、探す代わりに明示する(ファイルごとの探索結果はキャッシュする)。ADR の「`readConfigFile`」は、`loadConfig` から**ファイルを 1 つ読んで検査する部分**を `lib/config.ts` に切り出したもので、`loadConfig` の挙動は変わらない。
+- **U3b**: テストは、ADR の「`test/cli.test.ts` に追加」ではなく、別ファイル `test/font-floor-build.test.ts`(1 行が標準エラーに出て終了コード 0・属性が付く、14 以上では出ない、`fontFloor` なしでは throw して何も書かない、出力先に `fontFloor` のない別の設定があっても `--config` で通る)。`build` が `lint-svg` に渡す `--config` は、設定が見つかったときだけ付く。
+- **U4**: テストは `test/slide-canvas.test.ts` に追加した(ADR どおり)。文面の N は `canvas.minText` から作る。出力 SVG は変わらない。
+- **U5**: README の `canvas` の節・共通設定・`check` のルール・`lint-svg` の説明・コマンドの使い方と、`skills/svg-diagram/SKILL.md` に反映した。
+- **未決のまま**: 1(縮めて見せるキャンバスの換算。著者に任せる)、3(`density` の糖衣)、4(`--html` の `minText < 14`)、5(`slide` / `fill` の実効 12px 未満)、6(要望者のソースでの見た目の確認)は、この実装では扱っていない。
