@@ -2,6 +2,7 @@
 // Handlers (lib/layout-handlers.ts) take the band, this context and the x / width they are placed at; they push what they lay
 // out to `ctx.laidOut`, register anchors, and advance `ctx.y`.
 
+import type {ScopeTable} from './anchor-scope.ts';
 import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
 import type {DiagramData, Rect, Roles, WidthOf} from './types/core.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
@@ -32,12 +33,14 @@ export interface LayoutCtx {
   readonly connects: LaidOutConnect[];
   /** connect()s that came before the boxes they name */
   readonly deferred: ConnectBand[];
+  /** Every scoped item of the figure (ADR 0012); empty when no band has a `scope`. */
+  readonly scopes: ScopeTable;
   setBox(id: string, c: AnchorSource, h: number): void;
   /** Throws the duplicate-id error. */
   claimed(id: string, what: string): never;
-  /** anchors.set(id, rect), after throwing claimed(id, what) when the id is taken. */
-  register(id: string, rect: Rect, what: string): void;
-  placeBoxLike<B extends CaptionBand | BoxBand | BannerBand>(band: B, x: number, y: number, w: number, isBoxLike: boolean): Placed<B>;
+  /** anchors.set(name, rect), after throwing claimed(name, what) when the name is taken. `scope`: the band's own (the name is `scope.id`). */
+  register(id: string, rect: Rect, what: string, scope?: string): void;
+  placeBoxLike<B extends CaptionBand | BoxBand | BannerBand>(band: B, x: number, y: number, w: number, isBoxLike: boolean, scope?: string): Placed<B>;
   /** Lays `bands` out one after the other at x / width, from the cursor on. */
   stack(bands: Band[], x: number, w: number): void;
   /** The gap a row's children are laid out with (grown to fit labelled connectors between them). */

@@ -1,5 +1,5 @@
 // Types: timeline and gantt.
-import type {Anchor, Dimmed, Rect, RevealOpts} from './core.ts';
+import type {Anchor, Dimmed, Rect, RevealOpts, ScopeOpts} from './core.ts';
 
 export type TimelineTone = 'accent' | 'danger' | 'muted';
 export interface TimelineMark {
@@ -78,7 +78,7 @@ export interface GanttTask {
   tone?: 'accent' | 'danger' | 'muted';
 }
 export type GanttRow = GanttTask | {section: string};
-export interface GanttOpts extends RevealOpts {
+export interface GanttOpts extends RevealOpts, ScopeOpts {
   /** The axis (default: the first start to the last end). 'YYYY-MM-DD'. */
   from?: string;
   to?: string;

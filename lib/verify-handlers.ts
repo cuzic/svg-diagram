@@ -2,6 +2,7 @@
 // (`rects`), the figure-internal checks it runs (`check`, in the `phase` it belongs to) and its text-contrast check (`contrast`).
 // One entry per laid-out band type, each checked against its own band type; a band type without one fails to compile.
 
+import {qualify, scopeOf} from './anchor-scope.ts';
 import {plateStyle} from './image.ts';
 import {segHitsRect} from './bars.ts';
 import {checkChart} from './charts-verify.ts';
@@ -386,7 +387,17 @@ const handlerOf = (band: LaidOutDiagram['laidOut'][number]): VerifyHandler<LaidO
 
 /** Every checkable rect, in band order. */
 export function collectRects(d: LaidOutDiagram): CheckRect[] {
-  return d.laidOut.flatMap(band => handlerOf(band).rects?.(band) ?? []);
+  return d.laidOut.flatMap(band => {
+    const rects = handlerOf(band).rects?.(band) ?? [], scope = scopeOf(band);
+    return scope ? rects.map(r => scopedRect(band, scope, r)) : rects;
+  });
+}
+
+/** A rect of a scoped band answers to the names a connect() holds (`plan.p0`), not the bare ids the band's own output keeps (ADR 0012). The band's own id is a name of the whole figure. */
+function scopedRect(band: {type: string; id?: string}, scope: string, r: CheckRect): CheckRect {
+  const own = band.type === 'box' ? undefined : band.id; // a swimlane step is a box: its id is the item's
+  const name = (id: string): string => id === own || id.startsWith('@') ? id : qualify(scope, id);
+  return {...r, id: r.id === null ? null : name(r.id), ...(r.holds ? {holds: r.holds.map(name)} : {})};
 }
 
 /** The figure checks of one phase, over every band in order. */

@@ -6,7 +6,7 @@ import type {BarDatum, BarsBand, BarsLine, BarsOpts} from '../types/bars.ts';
 import type {PlaneBand} from '../types/figures.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
 import {plane} from './figures.ts';
-import {assertTextRole, revealOf, withAnchors, withHandle} from './shared.ts';
+import {assertTextRole, revealOf, scopeOpt, withAnchors, withHandle} from './shared.ts';
 
 /** The overlay options of bars(): reference lines, the cumulative line, the curve and the edge labels. */
 function validateBarsOverlays(data: readonly BarDatum[], opts: BarsOpts, max: number): void {
@@ -68,7 +68,7 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   const ids = data.map(d => d.id).filter((id): id is string => !!id);
   if (new Set(ids).size !== ids.length) throw new Error('bars(): each id must be unique');
   if (opts.id !== undefined && ids.includes(opts.id)) throw new Error(`bars(): the band's id "${opts.id}" is also a bar's id — each id must be unique`);
-  const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height, ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height, ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'bars()'), ...revealOf(opts)};
   for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole', 'hideZero', 'lines', 'vlines', 'curve', 'cumulative', 'edges', 'valueFormat'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
   return withHandle(withAnchors(band, data.map(d => d.id)), opts.id);
 }

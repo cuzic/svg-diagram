@@ -2,6 +2,8 @@
 // bracket() / callout() annotations. Pure functions of the anchors laid out so far.
 
 import {textWidth} from './atoms.ts';
+import {resolveAnchor, unknownHint} from './anchor-scope.ts';
+import type {ScopeTable} from './anchor-scope.ts';
 import {CONNECT_LABEL_SIZE} from './tokens.ts';
 import type {ConnectBand, LaidOutConnect} from './types/containers.ts';
 import type {Bend, ConnectRef, Point, Rect, Roles, WidthOf} from './types/core.ts';
@@ -12,6 +14,16 @@ export function parseRef(ref: string): ConnectRef {
   const [id, sideAt] = ref.split(':');
   const [side, at] = (sideAt ?? 'center').split('@');
   return {id, side, at: at === undefined ? 0.5 : Number(at)};
+}
+
+/**
+ * A reference as written, with its id turned into the name the anchor is registered under (ADR 0012): a qualified name is itself,
+ * a bare id that only one scoped item answers to is that item's qualified name, and one several answer to throws. Without scoped
+ * items (the usual case) the reference comes back as it is.
+ */
+export function resolveRef(ref: string, anchors: ReadonlyMap<string, Rect>, scopes?: ScopeTable): ConnectRef {
+  const r = parseRef(ref);
+  return scopes?.byBare.size ? {...r, id: resolveAnchor(scopes, r.id, n => anchors.has(n)) ?? r.id} : r;
 }
 
 function anchorPoint(rect: Rect, side: string, at = 0.5): Point {
@@ -71,12 +83,12 @@ function pathSegments(points: Point[]): Rect[] {
 
 const ANNOT_LEG = 16, ANNOT_GAP = 4, CALLOUT_LEN = 28;
 /** bracket(): ⊔ (below) / ⊓ (above) from one anchor's x to the other's, label outside it. callout(): a leader line to the target, the text in a pill at its far end. */
-function resolveAnnotation(band: ConnectBand, anchors: Map<string, Rect>, widthOf: WidthOf, roles: Roles): LaidOutConnect {
+function resolveAnnotation(band: ConnectBand, anchors: Map<string, Rect>, widthOf: WidthOf, roles: Roles, scopes?: ScopeTable): LaidOutConnect {
   const {kind, side} = band.annot!, size = roles.connectLabel ?? CONNECT_LABEL_SIZE;
-  const fromRef = parseRef(band.from), toRef = parseRef(band.to);
+  const fromRef = resolveRef(band.from, anchors, scopes), toRef = resolveRef(band.to, anchors, scopes);
   const fromRect = anchors.get(fromRef.id), toRect = anchors.get(toRef.id);
-  if (!fromRect) throw new Error(`${kind}(): unknown anchor id "${fromRef.id}" (give the box an id)`);
-  if (!toRect) throw new Error(`${kind}(): unknown anchor id "${toRef.id}" (give the box an id)`);
+  if (!fromRect) throw new Error(`${kind}(): unknown anchor id "${fromRef.id}" (give the box an id)${scopes ? unknownHint(scopes, fromRef.id) : ''}`);
+  if (!toRect) throw new Error(`${kind}(): unknown anchor id "${toRef.id}" (give the box an id)${scopes ? unknownHint(scopes, toRef.id) : ''}`);
   const from = anchorPoint(fromRect, fromRef.side, fromRef.at), to = anchorPoint(toRect, toRef.side, toRef.at);
   const lw = band.label ? textWidth(widthOf, band.label, size, 400) : 0;
   let points: Point[], labelX: number | undefined, labelY: number | undefined, labelBox: Rect | undefined, chipBox: Rect | undefined;
@@ -109,13 +121,13 @@ function resolveAnnotation(band: ConnectBand, anchors: Map<string, Rect>, widthO
   return {...band, from: points[0], to: points[points.length - 1], fromId: fromRef.id, toId: toRef.id, fromLabel: band.from, toLabel: band.to, points, pathSegments: pathSegments(points), labelX, labelY, labelBox, chipBox};
 }
 
-export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf, roles: Roles, nodeBottoms: Map<string, number> = new Map()): LaidOutConnect {
-  if (band.annot) return resolveAnnotation(band, anchors, widthOf, roles);
-  const fromRef = parseRef(band.from), toRef = parseRef(band.to);
+export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf, roles: Roles, nodeBottoms: Map<string, number> = new Map(), scopes?: ScopeTable): LaidOutConnect {
+  if (band.annot) return resolveAnnotation(band, anchors, widthOf, roles, scopes);
+  const fromRef = resolveRef(band.from, anchors, scopes), toRef = resolveRef(band.to, anchors, scopes);
   const fromRect = anchors.get(fromRef.id);
   const toRect = anchors.get(toRef.id);
-  if (!fromRect) throw new Error(`connect(): unknown anchor id "${fromRef.id}" (give the source box an id: '${fromRef.id}')`);
-  if (!toRect) throw new Error(`connect(): unknown anchor id "${toRef.id}" (give the target box an id: '${toRef.id}')`);
+  if (!fromRect) throw new Error(`connect(): unknown anchor id "${fromRef.id}" (give the source box an id: '${fromRef.id}')${scopes ? unknownHint(scopes, fromRef.id) : ''}`);
+  if (!toRect) throw new Error(`connect(): unknown anchor id "${toRef.id}" (give the target box an id: '${toRef.id}')${scopes ? unknownHint(scopes, toRef.id) : ''}`);
   const from = anchorPoint(fromRect, fromRef.side, fromRef.at);
   const to = anchorPoint(toRect, toRef.side, toRef.at);
   // a node: left / right / top meet its icon, but bottom is under its label

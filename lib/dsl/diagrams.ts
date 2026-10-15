@@ -9,7 +9,7 @@ import type {Band} from '../types/index.ts';
 import type {CaptionBand} from '../types/text-bands.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
 import {grid, row} from './containers.ts';
-import {assertBoxTone, revealOf, withAnchors, withHandle} from './shared.ts';
+import {assertBoxTone, revealOf, scopeOpt, withAnchors, withHandle} from './shared.ts';
 import type {TreeIds} from './shared.ts';
 import {box, caption, group} from './text-bands.ts';
 
@@ -30,7 +30,7 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
     for (const c of n.children ?? []) walk(c);
   };
   walk(root);
-  const band: TreeBand = {type: 'tree', root, ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  const band: TreeBand = {type: 'tree', root, ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'tree()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), ids);
 }
 type BpmnIds<N extends readonly BpmnNode[]> = Extract<N[number]['id'], string>;
@@ -54,7 +54,7 @@ export function bpmn(lanes: readonly BpmnLane[], nodes: readonly BpmnNode[], flo
   const placedNodes = nodes.map(n => n.icon === undefined ? n : {...n, iconGlyph: resolveIcon(n.icon, `bpmn() task "${n.id}" icon`)});
   for (const f of flows) if (f.line !== undefined && f.line !== 'solid' && f.line !== 'dashed') throw new Error(`bpmn(): flow ${f.from} -> ${f.to} has line ${String(f.line)}`);
   if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`bpmn(): fit must be 'shrink' (got ${String(opts.fit)})`);
-  const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: placedNodes, flows: [...flows], ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.fit === undefined ? {} : {fit: opts.fit}), ...revealOf(opts)};
+  const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: placedNodes, flows: [...flows], ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.fit === undefined ? {} : {fit: opts.fit}), ...scopeOpt(opts, 'bpmn()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
 }
 type ClassIds<C extends readonly ClassItem[]> = Extract<C[number]['id'], string>;
@@ -72,7 +72,7 @@ export function classDiagram(classes: readonly ClassItem[], relations: readonly 
   if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right' && opts.dir !== 'auto') throw new Error(`classDiagram(): dir must be 'down', 'right' or 'auto' (got ${String(opts.dir)})`);
 
   for (const c of classes) if (c.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(c.tone)) throw new Error(`classDiagram(): class "${c.id}" has tone ${String(c.tone)}`);
-  const band: ClassesBand = {type: 'classes', classes: [...classes], relations: [...relations], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  const band: ClassesBand = {type: 'classes', classes: [...classes], relations: [...relations], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'classDiagram()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), classes.map(c => c.id));
 }
 type StateIds<S extends readonly StateItem[]> = Extract<S[number]['id'], string>;
@@ -93,7 +93,7 @@ export function stateDiagram(states: readonly StateItem[], transitions: readonly
   for (const s of states) if (s.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger', 'solid', 'solid-danger'].includes(s.tone)) throw new Error(`stateDiagram(): state "${s.id}" has tone ${String(s.tone)} (use plain, accent, new, changed, removed, muted, danger, solid or solid-danger)`);
   for (const s of states) if (s.shape !== undefined && s.shape !== 'box' && s.shape !== 'circle') throw new Error(`stateDiagram(): state "${s.id}" has shape ${String(s.shape)} (use 'box' or 'circle')`);
   for (const t of transitions) if (t.tone !== undefined && !['danger', 'accent', 'muted'].includes(t.tone)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} has tone ${String(t.tone)} (use danger, accent or muted)`);
-  const band: StatesBand = {type: 'states', states: states.map(s => s.icon === undefined ? s : {...s, iconGlyph: resolveIcon(s.icon, 'stateDiagram() state "' + s.id + '" icon')}), transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  const band: StatesBand = {type: 'states', states: states.map(s => s.icon === undefined ? s : {...s, iconGlyph: resolveIcon(s.icon, 'stateDiagram() state "' + s.id + '" icon')}), transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'stateDiagram()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), states.map(s => s.id));
 }
 type CauseIds<N extends readonly CauseNode[]> = Extract<N[number]['id'], string>;
@@ -134,7 +134,7 @@ function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opt
   if (opts.coreDriver !== undefined && typeof opts.coreDriver !== 'boolean') throw new Error(`causeTree(): coreDriver must be true or false (got ${String(opts.coreDriver)})`);
   const counted = opts.coreDriver ? reachCounts(nodes, links) : undefined, core = new Set(counted ? coreDrivers(counted) : []);
   const marked = counted ? nodes.map(n => !counted.has(n.id) ? n : {...n, ...(core.has(n.id) ? {core: true} : {}), ...(opts.counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}到達 UDE ${counted.get(n.id)}`})}) : nodes;
-  const band: CauseBand = {type: 'cause', nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? (base === undefined ? {} : {dir: base, dirLeftOut: true as const}) : {dir: opts.dir}), ...(base === undefined ? {} : {base}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.tree === undefined ? {} : {tree: opts.tree}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  const band: CauseBand = {type: 'cause', nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? (base === undefined ? {} : {dir: base, dirLeftOut: true as const}) : {dir: opts.dir}), ...(base === undefined ? {} : {base}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.tree === undefined ? {} : {tree: opts.tree}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'causeTree()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
 }
 export interface ArrowDiagramOpts extends Omit<StatesOpts, 'initial' | 'dir'> {
@@ -281,7 +281,7 @@ export function cloud(boxes: {a: CloudBox; b: CloudBox; c: CloudBox; d: CloudBox
     const t = typeof boxes[k] === 'string' ? undefined : (boxes[k] as {tone?: string}).tone;
     if (t !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(t)) throw new Error(`cloud(): box ${k} has tone ${String(t)}`);
   }
-  const band: CloudBand = {type: 'cloud', a: boxes.a, b: boxes.b, c: boxes.c, d: boxes.d, d2: boxes.d2, ...(opts.assumptions === undefined ? {} : {assumptions: opts.assumptions.map(a => ({...a}))}), ...(opts.conflictLabel === undefined ? {} : {conflictLabel: opts.conflictLabel}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  const band: CloudBand = {type: 'cloud', a: boxes.a, b: boxes.b, c: boxes.c, d: boxes.d, d2: boxes.d2, ...(opts.assumptions === undefined ? {} : {assumptions: opts.assumptions.map(a => ({...a}))}), ...(opts.conflictLabel === undefined ? {} : {conflictLabel: opts.conflictLabel}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'cloud()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), (['a', 'b', 'c', 'd', 'd2'] as const).map(k => { const v = boxes[k]; return typeof v === 'string' ? undefined : v.id; }));
 }
 /**
@@ -295,7 +295,7 @@ export function mindmap(root: TreeItem, opts: MindmapOpts = {}): TreeBand {
   const layouts = ['radial', 'right', 'left', 'down', 'up', 'org', 'list', 'brace', 'fishbone', 'timeline'];
   if (opts.layout !== undefined && !layouts.includes(opts.layout)) throw new Error(`mindmap(): layout must be ${layouts.join(' | ')} (got ${String(opts.layout)})`);
   if (opts.edges !== undefined && !['elbow', 'curve', 'straight'].includes(opts.edges)) throw new Error(`mindmap(): edges must be elbow | curve | straight (got ${String(opts.edges)})`);
-  const band = tree(root, {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)});
+  const band = tree(root, {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...revealOf(opts)});
   Object.assign(band, {balanced: true, ...(opts.sides ? {sides: opts.sides} : {}), ...(opts.layout ? {layout: opts.layout} : {}), ...(opts.edges ? {edges: opts.edges} : {})});
   return band as never;
 }
