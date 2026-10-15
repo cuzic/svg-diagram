@@ -1,4 +1,4 @@
-# ADR 0025: PowerPoint(.pptx)への書き出し(`svg-diagram pptx`)
+# ADR 0027: PowerPoint(.pptx)への書き出し(`svg-diagram pptx`)
 
 - 状態: 提案(Opus レビュー 3 巡目・スパイク・PoC 実装済み。PowerPoint 実機での確認が残る)
 - 日付: 2026-10-15

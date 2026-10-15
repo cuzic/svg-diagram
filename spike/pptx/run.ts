@@ -18,7 +18,7 @@ import {zipStore} from './zip.ts';
 import {BOX_PAD_X, BOX_PAD_Y, LINE_HEIGHT_EM} from '../../lib/layout-util.ts';
 import {fitConnector, evalConnector, maxDeviation, EMU, type Pt} from './geom.ts';
 
-// the font the text is measured with AND written with (ADR 0025: one font on both sides); BIZ UDPGothic ships with Windows 10 1809+
+// the font the text is measured with AND written with (ADR 0027: one font on both sides); BIZ UDPGothic ships with Windows 10 1809+
 const USE_BIZ = process.env.SPIKE_FONT !== 'noto';
 const FONT = USE_BIZ ? 'BIZ UDPGothic' : 'Noto Sans JP';
 const FONT_MONO = USE_BIZ ? 'BIZ UDGothic' : 'Noto Sans JP';
@@ -171,7 +171,7 @@ export function buildSlide(ld: LaidOutDiagram, name: string): Built {
     const av = x.adj.map((v, i) => `<a:gd name="adj${i + 1}" fmla="val ${v}"/>`).join('');
     parts.push(`<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="connect-${escapeXml(c.fromId)}-${escapeXml(c.toId)}"/><p:cNvCxnSpPr>${sFrom ? `<a:stCxn id="${from}" idx="${sFrom.idx}"/>` : ''}${sTo ? `<a:endCxn id="${to}" idx="${sTo.idx}"/>` : ''}</p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr><p:spPr><a:xfrm${x.rot ? ` rot="${x.rot}"` : ''}${x.flipH ? ' flipH="1"' : ''}${x.flipV ? ' flipV="1"' : ''}><a:off x="${x.offX}" y="${x.offY}"/><a:ext cx="${x.extX}" cy="${x.extY}"/></a:xfrm><a:prstGeom prst="${x.prst}"><a:avLst>${av}</a:avLst></a:prstGeom><a:ln w="${w}"${cmpd}><a:solidFill><a:srgbClr val="${color}"/></a:solidFill>${dash}${tail}${head}</a:ln></p:spPr></p:cxnSp>`);
   }
-  // connector labels: a text box of their own (a cxnSp cannot hold text), so they stay where they were when a box moves -- ADR 0025 known limit
+  // connector labels: a text box of their own (a cxnSp cannot hold text), so they stay where they were when a box moves -- ADR 0027 known limit
   for (const c of ld.connects as LaidOutConnect[]) {
     if (!c.label) continue;
     const r = c.labelBox ?? (c.labelX !== undefined && c.labelY !== undefined ? {x: c.labelX - 60, y: c.labelY - 12, w: 120, h: 24} : undefined);

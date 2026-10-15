@@ -14,7 +14,7 @@ import {BOX_PAD_X, BOX_PAD_Y, LINE_HEIGHT_EM} from '../layout-util.ts';
 import {fitConnector, evalConnector, maxDeviation, EMU, type Pt} from './geom.ts';
 import {PPTX_CHART_HANDLERS, PPTX_HANDLERS, type PptxMode} from './handlers.ts';
 
-// The font measured by the project and written here must match (ADR 0025); BIZ UDPGothic is the PPTX default.
+// The font measured by the project and written here must match (ADR 0027); BIZ UDPGothic is the PPTX default.
 const DEFAULT_FONT = 'BIZ UDPGothic';
 const DEFAULT_MONO_FONT = 'BIZ UDGothic';
 const emu = (px: number): number => Math.round(px * EMU);
@@ -172,7 +172,7 @@ export function buildSlide(ld: LaidOutDiagram, name: string, opts: PptxOptions =
     const extra: string[] = [];
     if (b.tag && b.tagBox) extra.push(component(b.tag, b.tagBox, `tag-${id}`));
     if (b.stamp) extra.push(component(b.stamp, {x: b.x + b.w - (b.stampW ?? 64) - 8, y: b.y + b.h - 22, w: b.stampW ?? 64, h: 18}, `stamp-${id}`));
-    // the icon glyph is not drawn yet (ADR 0025 follow-up): an empty frame in its place would read as a real shape
+    // the icon glyph is not drawn yet (ADR 0027 follow-up): an empty frame in its place would read as a real shape
     if (b.step !== undefined) extra.push(component(String(b.step), {x: b.x + 8 + (b.icon ? 34 : 0), y: b.y + 8, w: 24, h: 24}, `step-${id}`));
     const minY = Math.min(b.y, b.tagBox?.y ?? b.y), maxY = Math.max(b.y + b.h, (b.tagBox?.y ?? b.y) + (b.tagBox?.h ?? 0));
     return group(nextId++, `box-parts-${b.id ?? id}`, {x: b.x, y: minY, w: b.w, h: maxY - minY}, main + extra.join(''));
@@ -266,7 +266,7 @@ export function buildSlide(ld: LaidOutDiagram, name: string, opts: PptxOptions =
     const av = x.adj.map((v, i) => `<a:gd name="adj${i + 1}" fmla="val ${v}"/>`).join('');
     parts.push(`<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="connect-${escapeXml(c.fromId)}-${escapeXml(c.toId)}"/><p:cNvCxnSpPr>${sFrom ? `<a:stCxn id="${from}" idx="${sFrom.idx}"/>` : ''}${sTo ? `<a:endCxn id="${to}" idx="${sTo.idx}"/>` : ''}</p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr><p:spPr><a:xfrm${x.rot ? ` rot="${x.rot}"` : ''}${x.flipH ? ' flipH="1"' : ''}${x.flipV ? ' flipV="1"' : ''}><a:off x="${x.offX}" y="${x.offY}"/><a:ext cx="${x.extX}" cy="${x.extY}"/></a:xfrm><a:prstGeom prst="${x.prst}"><a:avLst>${av}</a:avLst></a:prstGeom><a:ln w="${w}"${cmpd}><a:solidFill><a:srgbClr val="${color}"/></a:solidFill>${dash}${tail}${head}</a:ln></p:spPr></p:cxnSp>`);
   }
-  // connector labels: a text box of their own (a cxnSp cannot hold text), so they stay where they were when a box moves -- ADR 0025 known limit
+  // connector labels: a text box of their own (a cxnSp cannot hold text), so they stay where they were when a box moves -- ADR 0027 known limit
   for (const c of ld.connects as LaidOutConnect[]) {
     if (!c.label) continue;
     const r = c.labelBox ?? (c.labelX !== undefined && c.labelY !== undefined ? {x: c.labelX - 60, y: c.labelY - 12, w: 120, h: 24} : undefined);
