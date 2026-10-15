@@ -120,7 +120,7 @@ export function trimPoints(points: Point[], arrow: Arrow): Point[] {
 
 
 // An arrow whose head is a shape, not a marker (a marker on a leftward end is not turned by every renderer). The line stops inside the head.
-export function arrowPath(points: {x: number; y: number}[], color: string, line: LineStyle | undefined, width = 2, headAt: 'end' | 'both' = 'end'): string {
+export function arrowPath(points: {x: number; y: number}[], color: string, line: LineStyle | undefined, width = 2, headAt: 'end' | 'both' = 'end', end: 'arrow' | 'bar' = 'arrow'): string {
   const pts = points.map(p => ({...p}));
   const heads: string[] = [];
   const head = (tip: {x: number; y: number}, from: {x: number; y: number}): {x: number; y: number} => {
@@ -129,6 +129,13 @@ export function arrowPath(points: {x: number; y: number}[], color: string, line:
     return {x: tip.x - dx * (L - 2), y: tip.y - dy * (L - 2)};
   };
   const n = pts.length;
+  if (end === 'bar') { // a cutting arrow: no head, a bar across the end, just short of the box it cuts
+    const tip = points[n - 1], from = points[n - 2], dx = Math.sign(tip.x - from.x), dy = Math.sign(tip.y - from.y), W = 10, off = 3;
+    const bx = snap4(tip.x - dx * off), by = snap4(tip.y - dy * off);
+    pts[n - 1] = {x: tip.x - dx * off, y: tip.y - dy * off};
+    heads.push(`<path d="M${bx - dy * W},${by + dx * W} L${bx + dy * W},${by - dx * W}" fill="none" stroke="${color}" stroke-width="3"/>`);
+    return `<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${color}" stroke-width="${width}"${lineAttrs(line === 'solid' ? undefined : line)}/>\n  ${heads.join('\n  ')}`;
+  }
   pts[n - 1] = head(points[n - 1], points[n - 2]);
   if (headAt === 'both') pts[0] = head(points[0], points[1]);
   return `<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${color}" stroke-width="${width}"${lineAttrs(line === 'solid' ? undefined : line)}/>\n  ${heads.join('\n  ')}`;
