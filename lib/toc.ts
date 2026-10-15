@@ -34,6 +34,7 @@ export const CAUSE_ROLES: Record<CauseRole, {tone: BoxTone; double?: boolean}> =
   step: {tone: 'plain'},
   risk: {tone: 'danger'}, // drawn as a hexagon
   measure: {tone: 'changed'},
+  precondition: {tone: 'removed'}, // a fact of the present nobody controls: the grey dashed box
 };
 
 export function causeTexts(band: CauseBand, roles: Roles): [string, number, number, FontFamily][] {
