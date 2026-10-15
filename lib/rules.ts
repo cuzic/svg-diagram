@@ -27,6 +27,7 @@ import {visibleAt} from './reveal.ts';
 import type {BarsBand} from './types/bars.ts';
 import type {LaidOutConnect, LegendBand, LegendItem} from './types/containers.ts';
 import type {ArrowWeight, EmphasisTone, DiagramData, LineStyle, Point, Rect, RuleId} from './types/core.ts';
+import {crossingsOf} from './polyline-metrics.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {SwimlaneBand} from './types/sequence-table-swimlane.ts';
 import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
@@ -300,18 +301,18 @@ const lo = (a: number, b: number) => Math.min(a, b), hi = (a: number, b: number)
 const strokeOf = (c: LaidOutConnect) => c.weight === 'strong' ? STRONG_STROKE : 2;
 
 export function edgeStats(connects: LaidOutConnect[]): {crossings: number; overlaps: number} {
+  // crossings: right-angle crossings inside the other line's span by 2px (polyline-metrics, shared with the layered layout's score)
+  const crossings = crossingsOf(connects.map(c => c.points), {margin: 2, tol: 0.5});
   const segs = segsOf(connects);
-  let crossings = 0, overlaps = 0;
+  let overlaps = 0;
   for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
     const s = segs[i], t = segs[j];
     if (s.i === t.i) continue;
     // two lines this close (centre to centre) look like one: the normal width gives the usual 3, a strong line widens it
     const near = (strokeOf(s.c) + strokeOf(t.c)) / 2 + 1;
     const share = s.c.fromId === t.c.fromId || s.c.toId === t.c.toId || s.c.fromId === t.c.toId || s.c.toId === t.c.fromId;
-    if (horiz(s) && vert(t) || vert(s) && horiz(t)) {
-      const h = horiz(s) ? s : t, v = horiz(s) ? t : s;
-      if (v.a.x > lo(h.a.x, h.b.x) + 2 && v.a.x < hi(h.a.x, h.b.x) - 2 && h.a.y > lo(v.a.y, v.b.y) + 2 && h.a.y < hi(v.a.y, v.b.y) - 2) crossings++;
-    } else if (!share && horiz(s) && horiz(t) && Math.abs(s.a.y - t.a.y) < near) {
+    if (horiz(s) && vert(t) || vert(s) && horiz(t)) continue;
+    if (!share && horiz(s) && horiz(t) && Math.abs(s.a.y - t.a.y) < near) {
       if (Math.min(hi(s.a.x, s.b.x), hi(t.a.x, t.b.x)) - Math.max(lo(s.a.x, s.b.x), lo(t.a.x, t.b.x)) > 12) overlaps++;
     } else if (!share && vert(s) && vert(t) && Math.abs(s.a.x - t.a.x) < near) {
       if (Math.min(hi(s.a.y, s.b.y), hi(t.a.y, t.b.y)) - Math.max(lo(s.a.y, s.b.y), lo(t.a.y, t.b.y)) > 12) overlaps++;

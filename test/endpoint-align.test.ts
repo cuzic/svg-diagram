@@ -2,7 +2,8 @@
 // ports can be moved to one height and the drawing does not get worse. Boxes have fixed sizes: nothing here depends on a font.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {layoutWithLanes, routeLayered, scoreRoutes} from '../lib/layered-route.ts';
+import {layoutWithLanes, routeLayered} from '../lib/layered-route.ts';
+import {scoreOf} from '../lib/polyline-metrics.ts';
 import type {LayeredEdge, LayeredNode} from '../lib/graph-layout.ts';
 import type {Pt} from '../lib/graph-layout.ts';
 
@@ -13,7 +14,7 @@ const route = (nodes: LayeredNode[], edges: LayeredEdge[], o: {straighten?: bool
   return {lay, routes: routeLayered(lay, p => p, 14, o.groupOf, o.round, o.straighten)};
 };
 const straight = (p: Pt[]): boolean => p.length === 2 && p[0].y === p[1].y;
-const metric = (r: Map<number, Pt[]>) => scoreRoutes(r);
+const metric = (r: Map<number, Pt[]>) => scoreOf([...r.values()]);
 /** Pairs of arrows whose horizontal runs lie on one line (within 3px) over more than a point: two arrows that read as one. */
 function lineUps(r: Map<number, Pt[]>): number {
   const runs = [...r].flatMap(([i, p]) => p.slice(1).flatMap((q, k) => p[k].y === q.y ? [{i, y: q.y, lo: Math.min(p[k].x, q.x), hi: Math.max(p[k].x, q.x)}] : []));

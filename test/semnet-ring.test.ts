@@ -78,10 +78,6 @@ test('what a ring does not take stops with a named error', () => {
   assert.throws(() => causalLoop(N('a', 'b'), L('ab', 'ba'), {layout: 'circle'} as never), /layout must be 'layered' or 'ring'/);
 });
 
-test('a ring with interventions is checked but, until unit C, stops as not drawn yet', async () => {
-  const {nodes, links} = ringCase(1, 4), r = await drawAndCheck(causalLoop(nodes, links, {layout: 'ring', interventions: [{id: 'fix', label: '対策', to: 'n0', polarity: '-'}]}));
-  assert.match(r.error ?? '', /not drawn yet/);
-});
 
 test('a height that is too small says how high the ring needs to be; the default layout is untouched', async () => {
   const {nodes, links} = ringCase(3, 4), band = causalLoop(nodes, links, {layout: 'ring', height: 100});

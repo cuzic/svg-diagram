@@ -3,24 +3,14 @@
 // it for a 'down' diagram).
 import {layoutLayered} from './graph-layout.ts';
 import type {LayeredEdge, LayeredLayout, LayeredNode, LayeredOpts, Pt} from './graph-layout.ts';
+import {scoreOf, simplify} from './polyline-metrics.ts';
+
+export {simplify};
 
 export const STUB = 18;
 export const LANE = 14;
 /** The gap two layers need so that `n` direct arrows through it each get a lane (and a label chip beside them has room). */
 export const gapFor = (n: number, chip = 0): number => Math.max(2 * STUB + LANE * Math.max(0, n - 1) + 16, chip + STUB + 26);
-const same = (a: Pt, b: Pt): boolean => Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y - b.y) < 0.01;
-
-/** Drops repeated points and the middle point of three on a line, so a polyline has only its corners. */
-export function simplify(pts: Pt[]): Pt[] {
-  const out: Pt[] = [];
-  for (const p of pts) if (!out.length || !same(out[out.length - 1], p)) out.push(p);
-  return out.filter((p, i) => {
-    if (i === 0 || i === out.length - 1) return true;
-    const a = out[i - 1], b = out[i + 1];
-    return !((a.x === p.x && p.x === b.x) || (a.y === p.y && p.y === b.y));
-  });
-}
-
 /**
  * Horizontal-vertical-horizontal elbows through the points (the layer axis is x here). A direct arrow turns at `turn` (an x in the gap
  * between its two layers, from routeLayered); the others turn half-way between their points.
@@ -212,11 +202,11 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
   };
   let routes = build();
   const direct = lay.edges.map((e, i) => i).filter(i => { const e = lay.edges[i]; return straighten && !e.self && !e.outer && e.points.length === 2 && groupOf?.(i) === undefined && !round?.(e.from) && !round?.(e.to) && (slotOf.get(`${i}:0`)!.list.length > 1 || slotOf.get(`${i}:1`)!.list.length > 1); });
-  let best = scoreRoutes(routes);
+  let best = scoreOf([...routes.values()]);
   for (const i of direct) {
     const undo = align(i);
     if (!undo) continue;
-    const trial = build(), score = scoreRoutes(trial);
+    const trial = build(), score = scoreOf([...trial.values()]);
     if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i)) { routes = trial; best = score; } else undo();
   }
   return new Map([...routes].map(([i, pts]) => [i, pts.map(place)]));
@@ -290,23 +280,6 @@ export interface Attempt {
   loose: string[];
 }
 
-/** Corners of every route, and the places two routes properly cross (a right-angle crossing; touching and overlapping do not count). */
-export function scoreRoutes(routes: Map<number, Pt[]>): {crossings: number; bends: number} {
-  const list = [...routes.values()];
-  let bends = 0, crossings = 0;
-  for (const r of list) bends += Math.max(0, simplify(r).length - 2);
-  const segs = list.map(r => r.slice(1).map((q, i) => [r[i], q] as const));
-  const cross = (a: readonly [Pt, Pt], b: readonly [Pt, Pt]): boolean => {
-    const aH = a[0].y === a[1].y, bH = b[0].y === b[1].y;
-    if (aH === bH) return false;
-    const [h, v] = aH ? [a, b] : [b, a];
-    const x = v[0].x, y = h[0].y;
-    return x > Math.min(h[0].x, h[1].x) && x < Math.max(h[0].x, h[1].x) && y > Math.min(v[0].y, v[1].y) && y < Math.max(v[0].y, v[1].y);
-  };
-  for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) for (const a of segs[i]) for (const b of segs[j]) if (cross(a, b)) crossings++;
-  return {crossings, bends};
-}
-
 /** How many arrows run through the inside of a box that is not one of their two ends (the boxes and routes are in the placed figure). */
 function piercings(a: Attempt, place: (p: Pt) => Pt): number {
   const rects = new Map<string, {x0: number; x1: number; y0: number; y1: number}>();
@@ -339,7 +312,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
     const groupOf = o.groupOf;
     const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)), o.round, o.straighten !== false);
-    return {lay, routes, score: scoreRoutes(routes), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
+    return {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
   };
   const plain = build(layoutOpts);
   if (o.straighten === false || !edges.some(e => e.from !== e.to)) return plain;

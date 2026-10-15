@@ -5,6 +5,8 @@ import {textWidth} from './atoms.ts';
 import {analyzeCausalLoops} from './semnet-analysis.ts';
 import type {CausalLink, CausalLoop, CausalPolarity} from './semnet-analysis.ts';
 import {checkRing, layoutRing} from './semnet-ring.ts';
+import {bandInset, planInterventions, ringSide} from './semnet-interventions.ts';
+import type {IvItem, Side} from './semnet-interventions.ts';
 import {arrow, direction, straightenOf, headBox, networkCanvas, nodeBox, pathOf, placeEdgeLabel, placePlated, touchesAny, validateNodes} from './semnet-common.ts';
 import type {SemnetDirection, SemnetOpts} from './semnet-common.ts';
 
@@ -69,12 +71,33 @@ export const causalAlt = (s: CausalSpec): string => {
 export const causalTexts = (s: CausalSpec): [string, number][] => [...s.nodes.map(n => [n.label, 700] as [string, number]), ...s.links.flatMap(e => [[e.polarity === 'same' ? '+' : e.polarity === 'opposite' ? '-' : e.polarity, 700] as [string, number], ...(e.delay ? [['||', 700] as [string, number]] : []), ...(e.label ? [[e.label, 400] as [string, number]] : [])]), ...loopNames(s.loops).map(n => [n, 700] as [string, number]), ...s.interventions.flatMap(v => [[v.label, 700] as [string, number], [signText(v.polarity), 700] as [string, number], ...(v.delay ? [['||', 700] as [string, number]] : [])])];
 
 export function layoutCausal(s: CausalSpec, g: ChartGeom): LaidOutChartPart {
-  if (s.interventions.length) fail('causalLoop', 'interventions are accepted and checked but not drawn yet (ADR 0011 unit C is placement); drop `interventions` until then');
-  const ns = s.nodes.map(n => ({...n, w: Math.max(116, textWidth(g.widthOf, n.label, g.size, 700) + 28), h: 48})), {c, positions, paths, centre} = s.layout === 'ring' ? layoutRing(g, ns, s.loops.find(l => l.nodes.length > 1)!, s.links.flatMap((e, index) => e.from === e.to ? [{index, node: e.from}] : [])) : {...networkCanvas(g, ns, s.links, s.direction, 28, s.straighten), centre: undefined};
+  const ns = s.nodes.map(n => ({...n, w: Math.max(116, textWidth(g.widthOf, n.label, g.size, 700) + 28), h: 48})), loop = s.layout === 'ring' ? s.loops.find(l => l.nodes.length > 1)! : undefined;
+  const selfs = s.links.flatMap((e, index) => e.from === e.to ? [{index, node: e.from}] : []);
+  const items: IvItem[] = s.interventions.map(v => ({id: v.id, label: v.label, to: v.to, w: textWidth(g.widthOf, v.label, g.size, 700) + 28}));
+  // the band is one edge: the top for LR, the left for TB, above and below a ring; the loop gets that much less room, and a thicker band when an arrow finds no way through
+  const sideOf = (it: IvItem): Side => loop ? ringSide(loop.nodes, it.to) : s.direction === 'TB' ? 'left' : 'top';
+  let laid: {c: Canvas; positions: Map<string, {x: number; y: number; w: number; h: number}>; paths: Map<number, Pt[]>; centre: Pt | undefined}, plan: ReturnType<typeof planInterventions> | undefined;
+  for (let attempt = 0; ; attempt++) {
+    const has = (side: Side): IvItem[] => items.filter(it => sideOf(it) === side), inset = (side: Side): number => has(side).length ? bandInset(side, has(side), attempt) : 0;
+    laid = loop ? layoutRing(g, ns, loop, selfs, items.length ? {top: inset('top'), bottom: inset('bottom')} : undefined)
+      : {...networkCanvas(g, ns, s.links, s.direction, 28, s.straighten, items.length ? {top: inset('top'), left: inset('left')} : undefined), centre: undefined};
+    if (!items.length) break;
+    plan = planInterventions(laid.c, items, laid.positions, sideOf);
+    if ('placed' in plan) break;
+    if (attempt === 3) fail('causalLoop', `${plan.problem} (even with a thicker band; shorten the intervention labels, name fewer targets, or give the loop more room with a larger width)`);
+  }
+  const {c, positions, paths, centre} = laid;
   // Stage 1: every line and every box. Stage 2: the signs and names, over the finished lines (a sign placed between two edges' lines would be struck through by the later one).
   const edges = s.links.map((e, i) => { const p = pathOf(paths, i, e, positions); arrow(c, p, {stroke: 'text', dash: undefined}); return {e, p}; });
   for (const n of s.nodes) { const p = positions.get(n.id)!, host = nodeBox(c, p, n.id, n.label, 'text'); c.text(n.label, p.x + p.w / 2, c.mid(p.y + p.h / 2), 'middle', 'text', {bold: true, host, of: n.id}); }
-  const heads = edges.map(({p}) => headBox(p));
+  // the interventions: a dashed box (an anchor, like a node) and a dashed arrow to each target
+  const ivEdges: {e: CausalLink; p: Pt[]}[] = [];
+  for (const {item, box, arrows} of plan && 'placed' in plan ? plan.placed : []) {
+    const v = s.interventions.find(x => x.id === item.id)!, host = c.rect(box.x, box.y, box.w, box.h, {fill: 'bg', stroke: 'accent', sw: 2, dash: '6,4', id: v.id, of: v.id, solid: `intervention "${v.label}"`});
+    c.text(v.label, box.x + box.w / 2, c.mid(box.y + box.h / 2), 'middle', 'text', {bold: true, host, of: v.id});
+    for (const a of arrows) { arrow(c, a.path, {stroke: 'accent', dash: '6,4'}); ivEdges.push({e: {from: v.id, to: a.to, polarity: v.polarity, ...(v.delay ? {delay: true} : {})}, p: a.path}); }
+  }
+  const heads = [...edges, ...ivEdges].map(({p}) => headBox(p));
   // what changes the meaning first (polarities, then delays), then the loop names, and the free text labels last
   // on a ring the first spots are straight out of / into the ring from the arc, where there is always room
   const radial = (m: Pt, text: string, bold = true): Cand[] => {
@@ -84,6 +107,8 @@ export function layoutCausal(s: CausalSpec, g: ChartGeom): LaidOutChartPart {
   };
   for (const {e, p} of edges) placePolarity(c, g, e, p, heads, radial);
   for (const {e, p} of edges) if (e.delay) placeDelay(c, g, e, p, heads, radial);
+  for (const {e, p} of ivEdges) placePolarity(c, g, e, p, heads, () => []);
+  for (const {e, p} of ivEdges) if (e.delay) placeDelay(c, g, e, p, heads, () => []);
   placeLoopNames(c, g, s.loops, positions, heads, centre);
   for (const {e, p} of edges) if (e.label) placeLabel(c, g, e.label, p, heads, radial);
   return c.done();
