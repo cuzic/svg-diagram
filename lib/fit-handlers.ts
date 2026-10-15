@@ -18,6 +18,7 @@ const textsAndLabels: TextSizes<{texts: readonly {size: number}[]; labels: reado
 
 export const FIT_HANDLERS = {
   caption: none,
+  status: band => [band.size],
   box: none,
   banner: none,
   group: none,

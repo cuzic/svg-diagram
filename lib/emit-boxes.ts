@@ -1,6 +1,6 @@
 import {PALETTE, CONNECT_LABEL_SIZE, STRONG_STROKE, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
-import type {LaidOutGroup, LaidOutLegend, LaidOutRow, LaidOutGrid, LaidOutRaw, LaidOutConnect, RawColorTone} from './types/containers.ts';
+import type {LaidOutGroup, LaidOutLegend, LaidOutRow, LaidOutGrid, LaidOutRaw, LaidOutStatus, LaidOutConnect, RawColorTone} from './types/containers.ts';
 import type {Theme, EmphasisTone, Align, Rect, Roles} from './types/core.ts';
 import type {LaidOutPyramid, LaidOutCurve} from './types/figures.ts';
 import type {LaidOutPeople, LaidOutDots} from './types/people-dots.ts';
@@ -250,6 +250,16 @@ export function renderCurve(band: LaidOutCurve, day: Theme): string {
   return parts.join('\n  ');
 }
 
+
+/**
+ * The status badge (diagram({status})): one accessible unit, a dashed outline (not colour alone says "draft"), bold text. Colours are
+ * tokens, so appearance: 'dark' recolours it like everything else; `danger` is not used (it means "an example not to follow").
+ */
+export function renderStatus(band: LaidOutStatus): string {
+  const p = band.pill;
+  const pill = pillSvg({x: snap4(p.x), y: snap4(p.y), w: snap4(p.w), h: p.h, fill: PALETTE.bg, stroke: PALETTE.muted, sw: 1.5, dash: '4 3', cx: p.x + p.w / 2, baseline: band.textY, text: PALETTE.text, size: band.size, labelHtml: emojiSpan(band.text)});
+  return `<g role="img" aria-label="${escapeXml(band.text).replace(/"/g, '&quot;')}" data-status="${band.status}">\n  ${pill}\n  </g>`;
+}
 
 export function renderRaw(band: LaidOutRaw, day: Theme): string {
   const ctx = {

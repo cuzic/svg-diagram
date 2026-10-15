@@ -102,6 +102,7 @@ function targetRects(d: LaidOutDiagram, ids: string[]): Rect[] {
 
 function dimBand(b: LaidOutBand, focus: Rect[]): void {
   if (b.type === 'caption' && b.sourceLine) return; // the pinned source line is furniture, never a spotlight subject
+  if (b.type === 'status') return; // the status badge is furniture too: it is not dimmed
   if (b.type === 'bars') {
     // the whole band focused (e.g. inside a focused group): nothing dims. Otherwise dim bar by bar, labels with their bar;
     // the axis dims only when no bar is a target.

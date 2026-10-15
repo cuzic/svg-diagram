@@ -67,12 +67,14 @@ export interface PillSvgOpts {
   /** The pill's rect, already snapped by the caller (each drawing context snaps its own way). */
   x: number; y: number; w: number; h: number;
   fill: string; stroke?: string | null; sw?: number;
+  /** stroke-dasharray of the outline (the status badge's dashed frame); none by default. */
+  dash?: string;
   /** Text: its centre x, baseline, colour, size / weight, and the markup (already escaped / emoji-spanned). */
   cx: number; baseline: number; text: string; size: number; weight?: number; labelHtml: string;
 }
 
 export function pillSvg(o: PillSvgOpts): string {
-  const st = o.stroke ? ` stroke="${o.stroke}" stroke-width="${o.sw ?? 2}"` : '';
+  const st = o.stroke ? ` stroke="${o.stroke}" stroke-width="${o.sw ?? 2}"${o.dash ? ` stroke-dasharray="${o.dash}"` : ''}` : '';
   return `<rect x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" rx="${o.h / 2}" fill="${o.fill}"${st}/>\n  <text x="${Math.round(o.cx)}" y="${Math.round(o.baseline)}" text-anchor="middle" font-size="${o.size}"${(o.weight ?? 700) === 400 ? '' : ` font-weight="${o.weight ?? 700}"`} fill="${o.text}">${o.labelHtml}</text>`;
 }
 

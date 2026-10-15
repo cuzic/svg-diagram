@@ -15,6 +15,7 @@
 // consume vertical space; they're resolved in a final pass once every named
 // anchor (any box/child with an explicit `id`) has a known rect.
 
+import {withStatus} from './status.ts';
 import {textWidth} from './atoms.ts';
 import {layoutHandlerFor} from './layout-handlers.ts';
 import type {LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
@@ -40,7 +41,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
 }
 
 function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
-  const d = withSourceLine(data);
+  const d = withStatus(withSourceLine(data));
   const contentWidth = d.width - 2 * d.pad;
 
   // A labelled straight connector between two side-by-side children (right side -> left side) needs room in the gap

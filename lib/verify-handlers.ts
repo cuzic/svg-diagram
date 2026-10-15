@@ -323,6 +323,7 @@ export const VERIFY_HANDLERS = {
   row: {rects: childRects, check: {phase: 'nowrap', run: (band, _d, out) => { for (const c of band.children) checkNoWrap(c, out); }}, contrast: (band, d) => band.children.flatMap(c => contrastFor(c, c.tone ?? 'plain', d))},
   grid: {rects: childRects, check: {phase: 'nowrap', run: (band, _d, out) => { for (const c of band.children) checkNoWrap(c, out); }}, contrast: (band, d) => band.children.flatMap(c => contrastFor(c, c.tone ?? 'plain', d))},
   raw: {rects: ownRect},
+  status: {rects: band => [{id: null, label: 'status badge', ...band.pill}]},
   pyramid: {rects: ownRect},
   curve: {rects: ownRect},
   plane: {rects: ownRect, check: {phase: 'plane', run: checkPlane}},
