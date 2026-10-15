@@ -69,8 +69,8 @@ test('fitFailure: the widths tried, what was not tried and why, one fix', () => 
 });
 
 test('describeApplied names what changed and the widths', () => {
-  assert.equal(describeApplied(dirChange), 'dir from up to right (1460→880px)');
-  assert.match(describeApplied({what: 'maxNodeW', from: 200, to: 130, mode: 'auto'}), /maxNodeW from 200 to 130/);
+  assert.equal(describeApplied(dirChange), 'dir を up から right に変えた(1460→880px)');
+  assert.match(describeApplied({what: 'maxNodeW', from: 200, to: 130, mode: 'auto'}), /maxNodeW を 200→130 に縮めた/);
 });
 
 test('fitWidth wraps layeredAttempt: a real layout fits by its own width, and the result is layeredAttempt\'s', () => {
