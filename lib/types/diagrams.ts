@@ -90,6 +90,8 @@ export interface StatesOpts extends RevealOpts {
   maxNodeW?: number;
   /** A transition back to an earlier layer that skips two layers or more: 'inline' (default, through the figure) or 'outer' (in a lane outside the figure). */
   returns?: 'inline' | 'outer';
+  /** Lay the figure out with the plain coordinates only (default true: a straightened layout is used when it has strictly fewer crossings, then bends). `false` keeps the older picture. */
+  straighten?: boolean;
   id?: string;
 }
 export interface StatesBand extends StatesOpts {
@@ -147,6 +149,8 @@ export interface CauseOpts extends RevealOpts {
    *  outside the figure, 14px apart, the longest outermost). Default: the arrows written `back: true` run outside, the others inline; `pdpc` runs all of them outside
    *  (falling back to inline when that does not fit the width). Written explicitly, 'outer' that does not fit is an error. */
   returns?: 'inline' | 'outer';
+  /** Lay the figure out with the plain coordinates only (default true: a straightened layout is used when it has strictly fewer crossings, then bends). `false` keeps the older picture. */
+  straighten?: boolean;
   id?: string;
 }
 export interface CauseBand extends CauseOpts {
@@ -210,6 +214,8 @@ export interface ClassesOpts extends RevealOpts {
    *  'auto' (and leaving it out) lets the layout turn to the other direction when the figure is wider than the diagram (a warning when left out,
    *  a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
   dir?: 'down' | 'right' | 'auto';
+  /** Lay the figure out with the plain coordinates only (default true: a straightened layout is used when it has strictly fewer crossings, then bends). `false` keeps the older picture. */
+  straighten?: boolean;
   id?: string;
 }
 export interface ClassesBand extends ClassesOpts {

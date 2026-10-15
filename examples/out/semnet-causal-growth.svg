@@ -22,13 +22,9 @@
   <path d="M614,128 L548.5,128" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M548.5,128 L548.5,76" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M548.5,76 L553.5,85 L543.6,85 Z" fill="#22201b"/>
-  <path d="M520.5,76 L520.5,94" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M520.5,94 L527.5,94" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M527.5,94 L527.5,156" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M527.5,156 L522.6,147 L532.5,147 Z" fill="#22201b"/>
-  <path d="M541.5,156 L541.5,138" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M541.5,138 L534.5,138" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M534.5,138 L534.5,76" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M520.5,76 L520.5,156" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M520.5,156 L515.6,147 L525.5,147 Z" fill="#22201b"/>
+  <path d="M534.5,156 L534.5,76" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M534.5,76 L539.5,85 L529.6,85 Z" fill="#22201b"/>
   <path d="M469.5,28 H585.5 V76 H469.5 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
   <text x="528" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">練習量</text>
@@ -44,10 +40,10 @@
   <text x="441" y="244" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
   <path d="M606.8,160 H621.2 V178 H606.8 Z" fill="#ffffff"/>
   <text x="614" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
-  <path d="M516.8,102 H531.2 V120 H516.8 Z" fill="#ffffff"/>
-  <text x="524" y="116" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
-  <path d="M532.99,118 H543.01 V136 H532.99 Z" fill="#ffffff"/>
-  <text x="538" y="132" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
+  <path d="M513.8,96 H528.2 V114 H513.8 Z" fill="#ffffff"/>
+  <text x="521" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
+  <path d="M529.99,96 H540.01 V114 H529.99 Z" fill="#ffffff"/>
+  <text x="535" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
   <path d="M606.35,188 H621.65 V206 H606.35 Z" fill="#ffffff"/>
   <text x="614" y="202" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
   <path d="M459.09,338 H480.91 V356 H459.09 Z" fill="#ffffff"/>

@@ -27,6 +27,7 @@ import {visibleAt} from './reveal.ts';
 import type {BarsBand} from './types/bars.ts';
 import type {LaidOutConnect, LegendBand, LegendItem} from './types/containers.ts';
 import type {ArrowWeight, EmphasisTone, DiagramData, LineStyle, Point, Rect, RuleId} from './types/core.ts';
+import {bendsOf, crossingsOf} from './polyline-metrics.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {SwimlaneBand} from './types/sequence-table-swimlane.ts';
 import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
@@ -57,6 +58,7 @@ export const RULE_DOCS = {
   'swimlane-lanes': 'レーンが多い（6 本まで）',
   'swimlane-hand-offs': 'レーンをまたぐ引き継ぎの数（情報）',
   'edge-crossings': '線どうしの交差・重なりがある',
+  'edge-bends': '自動配置の図（cause / states / bpmn / classes / semnet）で、1 本の矢印が 5 回以上折れる、または折れの合計 ÷ 矢印の数が 3 を超える。既定は情報、diagram({layoutCheck: "strict"}) で warn',
   'quadrant-item-moved': 'quadrant() の項目が、重なりを避けるため指定した座標から 16px 以上動いた（座標は目安として読まれる）',
   'quadrant-size-floor': 'quadrant() の項目の size が小さすぎ、最小の円で描いた（面積が値より大きく見える）',
   'quadrant-empty-cell': 'quadrant() のマスに項目が 1 つもない（「該当なし」の空の枠が残っている。意図した空きは allowEmpty で示す）',
@@ -302,18 +304,18 @@ const lo = (a: number, b: number) => Math.min(a, b), hi = (a: number, b: number)
 const strokeOf = (c: LaidOutConnect) => c.weight === 'strong' ? STRONG_STROKE : 2;
 
 export function edgeStats(connects: LaidOutConnect[]): {crossings: number; overlaps: number} {
+  // crossings: right-angle crossings inside the other line's span by 2px (polyline-metrics, shared with the layered layout's score)
+  const crossings = crossingsOf(connects.map(c => c.points), {margin: 2, tol: 0.5});
   const segs = segsOf(connects);
-  let crossings = 0, overlaps = 0;
+  let overlaps = 0;
   for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
     const s = segs[i], t = segs[j];
     if (s.i === t.i) continue;
     // two lines this close (centre to centre) look like one: the normal width gives the usual 3, a strong line widens it
     const near = (strokeOf(s.c) + strokeOf(t.c)) / 2 + 1;
     const share = s.c.fromId === t.c.fromId || s.c.toId === t.c.toId || s.c.fromId === t.c.toId || s.c.toId === t.c.fromId;
-    if (horiz(s) && vert(t) || vert(s) && horiz(t)) {
-      const h = horiz(s) ? s : t, v = horiz(s) ? t : s;
-      if (v.a.x > lo(h.a.x, h.b.x) + 2 && v.a.x < hi(h.a.x, h.b.x) - 2 && h.a.y > lo(v.a.y, v.b.y) + 2 && h.a.y < hi(v.a.y, v.b.y) - 2) crossings++;
-    } else if (!share && horiz(s) && horiz(t) && Math.abs(s.a.y - t.a.y) < near) {
+    if (horiz(s) && vert(t) || vert(s) && horiz(t)) continue;
+    if (!share && horiz(s) && horiz(t) && Math.abs(s.a.y - t.a.y) < near) {
       if (Math.min(hi(s.a.x, s.b.x), hi(t.a.x, t.b.x)) - Math.max(lo(s.a.x, s.b.x), lo(t.a.x, t.b.x)) > 12) overlaps++;
     } else if (!share && vert(s) && vert(t) && Math.abs(s.a.x - t.a.x) < near) {
       if (Math.min(hi(s.a.y, s.b.y), hi(t.a.y, t.b.y)) - Math.max(lo(s.a.y, s.b.y), lo(t.a.y, t.b.y)) > 12) overlaps++;
@@ -488,6 +490,39 @@ function layoutQualityRules(d: LintTarget, out: Finding[]): void {
   for (const m of layoutMetrics(d.laidOut, {width: d.width, slideCanvas: !!d.canvas})) out.push({rule: m.rule, severity, message: m.message, data: m.data});
 }
 
+// ---- edge-bends (ADR 0016 D6) ------------------------------------------------------------------------------------------------
+// A band whose edges the layout routed: cause / states / bpmn / classes, and the network charts (pert, dependency, a causal loop that is
+// not a ring). The lines a person drew with connect() are not counted, nor are self-loops. The thresholds come from the principle, not from
+// the examples: a layered edge should turn no more than twice (one elbow) and a figure about 2 times on average, so 5 bends on one edge
+// (two layers skipped at a bend each) and an average over 3 are what a reader sees as tangled.
+export const EDGE_BENDS_MAX = 5, EDGE_BENDS_MEAN = 3;
+
+interface RoutedEdges {name: string; edges: {from: string; to: string; points: {x: number; y: number}[]}[]}
+function routedBands(bands: LaidOutBand[], out: RoutedEdges[] = []): RoutedEdges[] {
+  for (const b of bands) {
+    if (b.type === 'cause' || b.type === 'states' || b.type === 'bpmn' || b.type === 'classes') out.push({name: `${b.type}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
+    else if (b.type === 'chart' && b.edges) out.push({name: `${b.kind}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
+    else if (b.type === 'row' || b.type === 'grid') routedBands(b.children, out);
+  }
+  return out;
+}
+
+function edgeBendsRules(d: LintTarget, out: Finding[]): void {
+  if (!d.laidOut) return;
+  const severity = layoutSeverity(d);
+  for (const band of routedBands(d.laidOut)) {
+    const counted = band.edges.filter(e => e.from !== e.to && e.points.length >= 2).map(e => ({e, bends: bendsOf(e.points)}));
+    if (!counted.length) continue;
+    const total = counted.reduce((n, c) => n + c.bends, 0), mean = total / counted.length;
+    const worst = counted.filter(c => c.bends >= EDGE_BENDS_MAX).sort((p, q) => q.bends - p.bends);
+    const parts: string[] = [];
+    if (worst.length) parts.push(`${worst.length} 本が ${EDGE_BENDS_MAX} 回以上折れる（${worst.slice(0, 3).map(c => `${c.e.from} → ${c.e.to} が ${c.bends} 回`).join('、')}${worst.length > 3 ? ' ほか' : ''}）`);
+    if (mean > EDGE_BENDS_MEAN) parts.push(`矢印 ${counted.length} 本の折れの合計 ${total}（平均 ${mean.toFixed(1)} 回、${EDGE_BENDS_MEAN} 回以下が目安）`);
+    if (!parts.length) continue;
+    out.push({rule: 'edge-bends', severity, message: `${band.name}: ${parts.join('。')}。層を飛ぶ矢印・戻る矢印を減らす（辺の向き・節の分け方を見直す）`, data: {band: band.name, measured: worst.length ? worst[0].bends : Math.round(mean * 10) / 10, threshold: worst.length ? EDGE_BENDS_MAX : EDGE_BENDS_MEAN, fix: '層を飛ぶ辺・戻る辺を減らす（節の分け方・辺の向きを見直す）。意図した形なら accept で許容する'}});
+  }
+}
+
 export function lintDiagram(d: LintTarget): Finding[] {
   const out = withTones(d.tones, () => lintAll(d));
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
@@ -572,6 +607,7 @@ function fitRules(d: LintTarget, out: Finding[]): void {
 function lintAll(d: LintTarget): Finding[] {
   const out: Finding[] = [];
   layoutQualityRules(d, out);
+  edgeBendsRules(d, out);
   tocRules(d, out);
   fitRules(d, out);
   textContrast(d, out);
