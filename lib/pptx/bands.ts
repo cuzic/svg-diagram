@@ -5,8 +5,7 @@ import type {LaidOutDiagram, LaidOutBand} from '../types/index.ts';
 import {escapeXml} from '../emit-common.ts';
 import {fitConnector, siteIndex} from './geom.ts';
 import {type Rect, type Fonts} from './xml.ts';
-import {boxXml, groupFrameXml, groupXml, anchorXml, picXml, type TextBox} from './shapes.ts';
-import {plainBox} from './text.ts';
+import {boxXml, plainBox, groupFrameXml, groupXml, anchorXml, picXml, type TextBox} from './shapes.ts';
 import {tableXml} from './table.ts';
 import {rowArrowXml, type Glue} from './connectors.ts';
 import {bandPicture, type Picture} from './image-band.ts';
@@ -20,6 +19,8 @@ export interface Ctx {
   glue: Map<string, {id: number; rect: Rect}>;
   pictures: Picture[];
 }
+/** The bands drawn as pictures: all have a height (`row` and `grid`, which do not, are native). */
+type DrawnBand = Extract<LaidOutBand, {h: number}>;
 type BandXml<B> = (band: B, ctx: Ctx, index: number) => string;
 /** A box or banner, with the parts a box may carry beside its frame. */
 type BoxLike = TextBox & Pick<LaidOutOf<'box'>, 'id' | 'tag' | 'tagBox' | 'stamp' | 'stampW' | 'step' | 'icon'>;
@@ -30,13 +31,13 @@ const register = (ctx: Ctx, dslId: string | undefined, id: number, rect: Rect): 
 /** Font size of the small badges (tag, stamp, step) a box carries beside its main shape. */
 const badgeSize = (r: Rect): number => Math.min(12, Math.max(8, r.h * 0.48));
 
-const boxBand: BandXml<BoxLike> = (b, ctx) => {
+const boxBand = (b: BoxLike, ctx: Ctx): string => {
   const id = ctx.next();
   register(ctx, b.id, id, b);
   const main = boxXml(id, b.id ?? `box-${id}`, b, ctx.ld.day, ctx.fonts);
   if (!b.tag && !b.stamp && b.step === undefined && !b.icon) return main;
   const badge = (text: string, r: Rect, name: string): string =>
-    boxXml(ctx.next(), name, plainBox(r, text, {size: badgeSize(r), weight: 700, tone: b.tone, frame: true, padX: 2, padY: 1}), ctx.ld.day, ctx.fonts, true);
+    boxXml(ctx.next(), name, plainBox(r, text, {size: badgeSize(r), weight: 700, tone: b.tone, frame: true, padX: 2, padY: 1}), ctx.ld.day, ctx.fonts);
   const extra: string[] = [];
   if (b.tag && b.tagBox) extra.push(badge(b.tag, b.tagBox, `tag-${id}`));
   if (b.stamp) extra.push(badge(b.stamp, {x: b.x + b.w - (b.stampW ?? 64) - 8, y: b.y + b.h - 22, w: b.stampW ?? 64, h: 18}, `stamp-${id}`));
@@ -46,7 +47,7 @@ const boxBand: BandXml<BoxLike> = (b, ctx) => {
   return groupXml(ctx.next(), `box-parts-${b.id ?? id}`, {x: b.x, y: minY, w: b.w, h: maxY - minY}, main + extra.join(''));
 };
 
-/** Text only: no frame, no padding (the svg writes it at band.x / band.y). */
+/** Text only: no frame, no padding (the svg writes it at band.x / band.y). Its `tone` colours the text, which the runs already carry, so it is not passed as the box's. */
 const captionBand: BandXml<LaidOutOf<'caption'>> = (band, ctx) => {
   const id = ctx.next();
   const text: TextBox = {...band, tone: undefined, frame: false, padX: 0, padY: 0, align: band.align ?? 'center'};
@@ -60,23 +61,23 @@ const verticalExtent = (children: Rect[]): {y: number; h: number} => {
 
 const rowBand: BandXml<LaidOutOf<'row'>> = (band, ctx) => {
   const gid = ctx.next();
-  const inner = band.children.map(c => boxBand(c, ctx, 0)).join('');
+  const inner = band.children.map(c => boxBand(c, ctx)).join('');
   const group = groupXml(gid, `row${band.id ? '-' + band.id : ''}`, band, inner);
   const nearest = (x: number, y: number) => band.children.map(c => ({c, d: Math.min(Math.abs(x - c.x), Math.abs(x - c.x - c.w), Math.abs(y - c.y), Math.abs(y - c.y - c.h))})).sort((u, v) => u.d - v.d)[0];
-  const glueOf = (x: number, y: number): Glue | undefined => {
+  const rowGlue = (x: number, y: number): Glue | undefined => {
     const n = nearest(x, y), shape = n?.c.id ? ctx.glue.get(n.c.id) : undefined;
     return n && shape && n.d <= 2 ? {id: shape.id, idx: siteIndex(n.c, {x, y}, '')} : undefined;
   };
   const arrows = band.arrows.flatMap((a, i) => {
     const fit = fitConnector([{x: a.x1, y: a.y1}, {x: a.x2, y: a.y2}]);
-    return fit.ok ? [rowArrowXml(ctx.next(), `row-arrow-${i}`, fit.x, glueOf(a.x1, a.y1), glueOf(a.x2, a.y2))] : [];
+    return fit.ok ? [rowArrowXml(ctx.next(), `row-arrow-${i}`, fit.x, rowGlue(a.x1, a.y1), rowGlue(a.x2, a.y2))] : [];
   });
   return group + arrows.join('');
 };
 
 const gridBand: BandXml<LaidOutOf<'grid'>> = (band, ctx) => {
   const gid = ctx.next();
-  const inner = band.children.map(c => boxBand(c, ctx, 0)).join('');
+  const inner = band.children.map(c => boxBand(c, ctx)).join('');
   return groupXml(gid, 'grid', {...verticalExtent(band.children), x: band.x, w: band.w}, inner);
 };
 
@@ -89,17 +90,17 @@ const groupFrameBand: BandXml<LaidOutOf<'group'>> = (band, ctx) => {
 const tableBand: BandXml<LaidOutOf<'table'>> = (band, ctx) => {
   const id = ctx.next();
   register(ctx, band.id, id, band);
-  return tableXml(id, band, ctx.ld, ctx.fonts);
+  return tableXml(id, band, ctx.ld.day, ctx.fonts);
 };
 
 /** A band with no native mapping: drawn alone as SVG + PNG and placed as one picture; an invisible anchor keeps its DSL id glue-able. */
-export const imageBand: BandXml<LaidOutBand> = (band, ctx, index) => {
+const imageBand: BandXml<DrawnBand> = (band, ctx, index) => {
   const {picture, rect} = bandPicture(ctx.ld, band, index);
   const rids = imageRids(ctx.pictures.length);
   ctx.pictures.push(picture);
   const pic = picXml(ctx.next(), `${band.type}-${index}`, rect, rids.png, rids.svg);
   if (!('id' in band && band.id)) return pic;
-  const anchor = {x: band.x, y: band.y, w: band.w, h: 'h' in band ? band.h : rect.h};
+  const anchor = {x: band.x, y: band.y, w: band.w, h: band.h};
   const anchorId = ctx.next();
   register(ctx, band.id, anchorId, anchor);
   return pic + anchorXml(anchorId, `anchor-${band.id}`, anchor);
@@ -117,5 +118,5 @@ export const BAND_HANDLERS = {
 export function bandXml(band: LaidOutBand, ctx: Ctx, index: number): string {
   // the one place the band type and its handler are correlated by hand (lib/emit.ts's EMIT_HANDLERS does the same)
   const handler = BAND_HANDLERS[band.type] as BandXml<LaidOutBand> | 'image';
-  return (handler === 'image' ? imageBand : handler)(band, ctx, index);
+  return handler === 'image' ? imageBand(band as DrawnBand, ctx, index) : handler(band, ctx, index);
 }

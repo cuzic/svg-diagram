@@ -3,9 +3,7 @@ import {runColorOf, textColorOf} from '../tokens.ts';
 import {LINE_HEIGHT_EM} from '../layout-util.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutBox} from '../types/text-bands.ts';
-import type {FontWeight} from '../types/core.ts';
-import {emu, hex, attr, type Fonts, type Rect} from './xml.ts';
-import type {TextBox} from './shapes.ts';
+import {emu, hex, attr, solidFill, type Fonts} from './xml.ts';
 
 type Run = LaidOutBox['wrappedRuns'][number];
 
@@ -14,7 +12,7 @@ export const pitchOf = (r: Run): number => r.lines.length > 1 ? r.lineYs[1]! - r
 
 export function runXml(text: string, size: number, bold: boolean, mono: boolean, color: string, fonts: Fonts): string {
   const face = mono ? fonts.mono : fonts.sans;
-  const rpr = `<a:rPr lang="ja-JP" sz="${Math.round(size * 75)}" b="${bold ? 1 : 0}" kern="0" dirty="0"><a:solidFill><a:srgbClr val="${color}"/></a:solidFill><a:latin typeface="${attr(face)}"/><a:ea typeface="${attr(face)}"/></a:rPr>`;
+  const rpr = `<a:rPr lang="ja-JP" sz="${Math.round(size * 75)}" b="${bold ? 1 : 0}" kern="0" dirty="0">${solidFill(color)}<a:latin typeface="${attr(face)}"/><a:ea typeface="${attr(face)}"/></a:rPr>`;
   return `<a:r>${rpr}<a:t>${escapeXml(text)}</a:t></a:r>`;
 }
 
@@ -33,9 +31,4 @@ export function paragraphsOf(runs: Run[], boxTone: string | undefined, day: Laid
     const ind = r.indent ? ` marL="${emu(r.indent)}"` : '';
     return `<a:p><a:pPr algn="${align}"${ind}><a:lnSpc><a:spcPts val="${Math.round(pitch * 75)}"/></a:lnSpc><a:spcBef><a:spcPts val="${Math.round(before * 75)}"/></a:spcBef></a:pPr>${lines}</a:p>`;
   }).join('');
-}
-
-/** The text-only box of a badge or label the layout does not carry as a box: one centred run on one line. */
-export function plainBox(rect: Rect, text: string, o: {size: number; weight: FontWeight; tone: LaidOutBox['tone']; frame: boolean; padX: number; padY: number}): TextBox {
-  return {...rect, ...(o.frame ? {} : {frame: false as const}), padX: o.padX, padY: o.padY, tone: o.tone, align: 'center', wrappedRuns: [{text, size: o.size, weight: o.weight, mono: false, lines: [text], lineYs: [o.size]}]};
 }

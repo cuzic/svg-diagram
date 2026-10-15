@@ -13,3 +13,15 @@ export const roundRectAdj = (r: Rect): number => Math.min(r.w, r.h) > 0 ? Math.r
 
 /** Escape for an attribute value (`escapeXml` leaves the quote alone). */
 export const attr = (s: string): string => escapeXml(s).replace(/"/g, '&quot;');
+
+/** The arrowheads of a line: `start` is the line's first point (`headEnd`), `end` its last (`tailEnd`). */
+export function arrowEnds(arrow: 'start' | 'end' | 'both' | 'none' | undefined, sized: boolean): string {
+  const size = sized ? ' w="med" len="med"' : '';
+  return `${arrow === 'start' || arrow === 'both' ? `<a:headEnd type="triangle"${size}/>` : ''}${arrow === 'end' || arrow === 'both' ? `<a:tailEnd type="triangle"${size}/>` : ''}`;
+}
+
+/** The `p:sp` / `p:cxnSp` wrappers every shape of the slide shares. */
+export const sp = (id: number, name: string, spPr: string, txBody: string): string =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${attr(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${spPr}</p:spPr><p:txBody>${txBody}</p:txBody></p:sp>`;
+export const cxnSp = (id: number, name: string, glue: string | undefined, spPr: string): string =>
+  `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="${attr(name)}"/>${glue === undefined ? '<p:cNvCxnSpPr/>' : `<p:cNvCxnSpPr>${glue}</p:cNvCxnSpPr>`}<p:nvPr/></p:nvCxnSpPr><p:spPr>${spPr}</p:spPr></p:cxnSp>`;

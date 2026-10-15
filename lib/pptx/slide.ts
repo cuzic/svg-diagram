@@ -3,8 +3,7 @@ import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutConnect} from '../types/containers.ts';
 import {fitConnector, siteIndex} from './geom.ts';
 import {emu, type Fonts} from './xml.ts';
-import {boxXml} from './shapes.ts';
-import {plainBox} from './text.ts';
+import {boxXml, plainBox} from './shapes.ts';
 import {connectorXml, freeformXml, type Glue} from './connectors.ts';
 import {bandXml, type Ctx} from './bands.ts';
 import type {SlidePlan} from './package.ts';
@@ -28,7 +27,7 @@ function labelXml(c: LaidOutConnect, ctx: Ctx): string {
   const r = c.labelBox ?? (c.labelX !== undefined && c.labelY !== undefined ? {x: c.labelX - 60, y: c.labelY - 12, w: 120, h: 24} : undefined);
   if (!c.label || !r) return '';
   const size = ctx.ld.roles.label;
-  return boxXml(ctx.next(), `label-${c.fromId}-${c.toId}`, plainBox(r, c.label, {size, weight: 400, tone: undefined, frame: false, padX: 0, padY: 0}), ctx.ld.day, ctx.fonts, true);
+  return boxXml(ctx.next(), `label-${c.fromId}-${c.toId}`, plainBox(r, c.label, {size, weight: 400, tone: undefined, frame: false, padX: 0, padY: 0}), ctx.ld.day, ctx.fonts);
 }
 
 export function planSlide(ld: LaidOutDiagram, fonts: Fonts): SlidePlan {

@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {inflateRawSync} from 'node:zlib';
 import {register} from 'node:module';
 import test from 'node:test';
 import {fitConnector, evalConnector, maxDeviation, type Pt} from '../lib/pptx/geom.ts';
@@ -16,20 +15,9 @@ import {loadDiagram} from '../lib/load-source.ts';
 import {renderDiagram} from '../lib/dsl/render.ts';
 import {closeMeasurer} from '../lib/measure.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
+import {unzipEntry} from './helpers/pptx/unzip.ts';
 
 register(new URL('../lib/resolve-hook.ts', import.meta.url));
-
-function unzipEntry(zip: Buffer, wanted: string): Buffer {
-  let off = 0;
-  while (off + 30 <= zip.length && zip.readUInt32LE(off) === 0x04034b50) {
-    const method = zip.readUInt16LE(off + 8), size = zip.readUInt32LE(off + 18), nameLen = zip.readUInt16LE(off + 26), extraLen = zip.readUInt16LE(off + 28);
-    const name = zip.subarray(off + 30, off + 30 + nameLen).toString();
-    const start = off + 30 + nameLen + extraLen, body = zip.subarray(start, start + size);
-    if (name === wanted) return method === 8 ? inflateRawSync(body) : body;
-    off = start + size;
-  }
-  throw new Error(`${wanted} not found in zip`);
-}
 
 test('connector fitter covers fixed 1..5-segment orthogonal cases', () => {
   const lengths = [37, -53, 79, -41, 61];
@@ -59,6 +47,21 @@ test('shape names are attribute-escaped and a zero-size group frame keeps a fini
   assert.ok(xml.includes('name="a&quot;b&amp;c"'));
   assert.ok(!xml.includes('Infinity') && !xml.includes('NaN'));
   assert.deepEqual(xmlProblems(`<r xmlns:p="p" xmlns:a="a">${xml}</r>`), []);
+});
+
+test('a font name with a quote cannot break the run attribute', async () => {
+  const {runXml} = await import('../lib/pptx/text.ts');
+  const xml = runXml('x', 14, false, false, 'FFFFFF', {sans: 'A"B', mono: 'M'});
+  assert.ok(xml.includes('typeface="A&quot;B"'));
+});
+
+test('the package template already declares png and svg (packageEntries adds no Default)', async () => {
+  const {packageEntries} = await import('../lib/pptx/package.ts');
+  const template = [{name: '[Content_Types].xml', data: fs.readFileSync(new URL('../lib/pptx/template/[Content_Types].xml', import.meta.url))}];
+  const types = packageEntries(template, {xml: '<x/>', cx: 1, cy: 1, pictures: []}, []).find(e => e.name === '[Content_Types].xml')!.data.toString();
+  assert.match(types, /Extension="png"/);
+  assert.match(types, /Extension="svg"/);
+  assert.throws(() => packageEntries(template, {xml: '<x/>', cx: 1, cy: 1, pictures: [{svg: '', pngSvg: ''}]}, []), /1 pictures but 0 PNGs/);
 });
 
 test('every band type is either native (a function) or an image', () => {

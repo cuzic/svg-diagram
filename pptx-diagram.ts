@@ -23,8 +23,8 @@ const files = args.filter((arg, i) => !arg.startsWith('--') && !values.includes(
 if (!files.length || files.some(f => !f.endsWith('.ts'))) usage('pptx takes one or more .ts diagram sources');
 if (value('--out') && value('--out-dir')) usage('--out and --out-dir cannot be used together');
 if (value('--out') && files.length !== 1) usage('--out can only be used with one source');
-const scaleText = value('--png-scale'), pngScale = scaleText === undefined ? 2 : Number(scaleText);
-if (!(Number.isFinite(pngScale) && pngScale > 0)) usage(`--png-scale needs a positive number (got ${scaleText})`);
+const scaleText = value('--png-scale'), pngScale = scaleText === undefined ? undefined : Number(scaleText);
+if (pngScale !== undefined && !(Number.isFinite(pngScale) && pngScale > 0)) usage(`--png-scale needs a positive number (got ${scaleText})`);
 
 try {
   const outputs: {file: string; data: Buffer}[] = [];

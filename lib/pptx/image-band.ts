@@ -20,10 +20,9 @@ function resvgMarkers(svg: string): string {
 }
 
 /** The picture of a band and the rectangle it covers on the slide. */
-export function bandPicture(ld: LaidOutDiagram, band: LaidOutBand, index: number): {picture: Picture; rect: Rect} {
-  const h = 'h' in band ? band.h : Math.max(...band.children.map(c => c.y + c.h)) - band.y;
+export function bandPicture(ld: LaidOutDiagram, band: LaidOutBand & {h: number}, index: number): {picture: Picture; rect: Rect} {
   const x = Math.max(0, band.x - INK_PAD), y = Math.max(0, band.y - INK_PAD);
-  const w = Math.min(ld.width, band.x + band.w + INK_PAD) - x, bh = Math.min(ld.canvasHeight, band.y + h + INK_PAD) - y;
+  const w = Math.min(ld.width, band.x + band.w + INK_PAD) - x, bh = Math.min(ld.canvasHeight, band.y + band.h + INK_PAD) - y;
   let svg = emitSvg({...ld, transparent: true, laidOut: [band], connects: []}, {noRecolor: false});
   svg = svg.replace(/width="[^"]+" height="[^"]+" viewBox="[^"]+"/, `width="${w}" height="${bh}" viewBox="${x} ${y} ${w} ${bh}"`);
   svg = prefixSvgIds(svg, `pptx-band-${index}`);

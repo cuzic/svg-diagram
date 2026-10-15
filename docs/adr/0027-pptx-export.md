@@ -138,7 +138,7 @@ pptx では、図形と線の幾何は保証する(layout のまま)。文字は
 
 スパイクを昇格して実装した(Codex が実装し、レビューと検証は別に行った)。入口は `emitPptx(laidOut, opts): Buffer`(`lib/pptx/emit.ts`)、CLI は `svg-diagram pptx <source.ts>... [--out FILE | --out-dir DIR] [--png-scale N] [--font NAME]`。全 `LaidOutType` を「ネイティブ(帯を XML にする関数)/ 画像」に分ける表は `lib/pptx/bands.ts` の `BAND_HANDLERS`(網羅していないとコンパイルが通らず、ネイティブの帯は関数そのものなので、宣言と実装が食い違わない)。構成は FCIS(ADR 0007)に沿い、核は純粋関数 `planSlide`(`slide.ts`、帯 → スライド XML)と `packageEntries`(`package.ts`)、殻は `emit.ts`(雛形の読み込み、resvg での PNG 化、zip)。PNG に使うフォントは `rasterFonts` で呼び出し側が明示する(測定器のグローバルを読まない)。雛形は `lib/pptx/template/`(`pnpm run build` で `dist/` にも入る)。`./pptx` の公開エクスポートは付けていない。
 
-`examples/*.ts` の 146 本を通した結果(以下の数値はスパイクの `batch.ts` と PoC の診断用 `Report` が数えたもので、リファクタで両方とも削除した。再現するなら、出力 zip の `slide1.xml` の `<p:cxnSp>` / `stCxn` / `endCxn` / `<p:pic>` を数える):
+`examples/*.ts` の 146 本を通した結果(以下の数値はスパイクの `batch.ts` と PoC の診断用 `Report` が数えたもので、リファクタで両方とも削除した。出力から数え直すには `test/helpers/pptx/census.ts <dir>`):
 
 - **全 146 本が生成でき**、zip は壊れず、スライド XML はすべて整形式(`xmllint`)。`dist/` から出したものとソースから出したものはバイト一致。
 - ネイティブ(283 バンド): caption 153、group 45、row 30、box 30、table 10、banner 9、grid 6。画像(166 バンド): tree 10、cause 11、wordart 12、bars 14、plane 11、quadrant 9、legend 8、timeline 5 ほか、chart は全 kind(sankey・treemap・heatmap を含む)。
@@ -150,3 +150,9 @@ PoC で未完のもの(後続):
 
 - icon の絵柄は描かない(空の枠は出さない)。画像バンドの透明アンカーは、画像と同じグループに入っていない。画像バンドの範囲はバンドの矩形に 12px の余白を足したもので、インクの範囲ではない。画像の中の文字のアウトライン化は未着手。
 - `.svg-diagram.json` の `fonts` と PowerPoint の書体名を自動で対応づけられないので、書体名は既定(BIZ UDPGothic)か `--font`。
+
+## リファクタ後の補足(PoC の構成)
+
+- 構成は FCIS(ADR 0007)に沿う。核は `planSlide` と `packageEntries`(`core-purity` の対象)、殻は `emitPptx`(雛形の読み込み、resvg、zip)。
+- PNG のバイト列が決定的なのは、`rasterFonts` に測定と同じフォントファイルを渡したときだけ。`[]` はシステムフォントで描くので、マシンに依存する。
+- 後続: 測定に使ったフォントを `LaidOutDiagram` に持たせ(`roles` と同じ形)、`rasterFonts` の引数をなくす。`emit-html.ts` が同じ `currentFontSpecs()` を読んでいるので、両方を一緒に直す。

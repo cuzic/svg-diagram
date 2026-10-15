@@ -1,7 +1,7 @@
 // Fit a PowerPoint connector (prstGeom + xfrm + adj) to an orthogonal polyline, and evaluate one back.
 // The evaluator follows ECMA-376 presetShapeDefinitions (bentConnector2..5, straightConnector1) and the DrawingML
 // transform order (flip about the box centre, then rotate clockwise about the box centre).
-import {EMU, emu} from './xml.ts';
+import {EMU, emu, type Rect} from './xml.ts';
 
 export interface Pt {x: number; y: number}
 
@@ -43,7 +43,7 @@ export function fitConnector(raw: Pt[]): FitResult {
   const p0 = pts[0]!, pn = pts[n]!;
   if (n === 1) {
     const dx = pn.x - p0.x, dy = pn.y - p0.y;
-    const x: ConnXfrm = {prst: 'straightConnector1', offX: Math.round(Math.min(p0.x, pn.x) * EMU), offY: Math.round(Math.min(p0.y, pn.y) * EMU), extX: Math.round(Math.abs(dx) * EMU), extY: Math.round(Math.abs(dy) * EMU), rot: 0, flipH: dx < 0, flipV: dy < 0, adj: []};
+    const x: ConnXfrm = {prst: 'straightConnector1', offX: emu(Math.min(p0.x, pn.x)), offY: emu(Math.min(p0.y, pn.y)), extX: emu(Math.abs(dx)), extY: emu(Math.abs(dy)), rot: 0, flipH: dx < 0, flipV: dy < 0, adj: []};
     return {ok: true, x};
   }
   if (n > 5) return {ok: false, why: `${n} segments (max 5)`};
@@ -112,12 +112,12 @@ export function maxDeviation(a: Pt[], b: Pt[]): number {
   return Math.max(...sa.map((p, i) => Math.hypot(p.x - sb[i]!.x, p.y - sb[i]!.y)));
 }
 
-const SIDE_IDX: Record<string, number> = {top: 0, left: 1, bottom: 2, right: 3};
+const SIDE_IDX = {top: 0, left: 1, bottom: 2, right: 3} as const;
 
 /** The connection site (0 top, 1 left, 2 bottom, 3 right) of a rectangle a route end belongs to: the side named in the label (`"id:top"`), else the nearest. */
-export function siteIndex(box: {x: number; y: number; w: number; h: number}, p: Pt, label: string): number {
-  const side = /^[^:]+:(top|left|bottom|right)/.exec(label)?.[1];
-  if (side !== undefined) return SIDE_IDX[side]!;
+export function siteIndex(box: Rect, p: Pt, label: string): number {
+  const side = /^[^:]+:(top|left|bottom|right)/.exec(label)?.[1] as keyof typeof SIDE_IDX | undefined;
+  if (side !== undefined) return SIDE_IDX[side];
   const sites = [{x: box.x + box.w / 2, y: box.y}, {x: box.x, y: box.y + box.h / 2}, {x: box.x + box.w / 2, y: box.y + box.h}, {x: box.x + box.w, y: box.y + box.h / 2}];
   return sites.map((c, idx) => ({idx, dist: Math.hypot(c.x - p.x, c.y - p.y)})).sort((a, b) => a.dist - b.dist)[0]!.idx;
 }
