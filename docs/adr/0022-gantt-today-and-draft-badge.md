@@ -1,6 +1,6 @@
 # ADR 0022: gantt の `today` が軸の外のとき(E3)と、下書きバッジ `diagram({status: 'draft'})`(E4)
 
-- 状態: 提案
+- 状態: 実装済み(U1: #231、U2: #234、U3: #239、U4: #241。U5 は PR #242)
 - 日付: 2026-10-15
 - 基点: `origin/main`(4f70b45、PR #226 まで)
 - 関連: ADR 0006(HTML/CSS 出力。SVG の部品は HTML にも写る)、ADR 0008(`diagram({sourceLine})`・ダーク・`canvas`)、ADR 0017(文字の下限・`canvas` の `minText`)。バッジの部品は `lib/badge.ts`(ADR 0007 の functional core の流儀)
@@ -134,3 +134,12 @@
 - **Q4**: 解決済み(`canvasRoles(s)` が `note` に倍率をかけるため、`roles.note` を使う札は 24px の下限を満たす)。
 - **Q5**: `status` の将来の値(`'review'`、`'final'`)と、それぞれの文言・色。今は `'draft'` だけ。
 - **Q6**: `draft-status` を、`status` の無い図にも「題に『仮説』『下書き』とある」ときに出す(手書きの検出)か。誤検知が多いので、本 ADR では入れない。
+
+## 実装での補足(U1〜U4 = PR #231・#234・#239・#241。U5 は PR #242)
+
+- **`BuildContext` という型は無い**(U2): `today` は `DiagramData.today` で運ぶ。`applyConfig` が `--today` > `SVG_DIAGRAM_TODAY` > `.svg-diagram.json` の `today` の順で決め、`detach()`(`build` と `check` が共有)が `today: 'auto'` の gantt に書き込む(`lib/today.ts`)。`freshness` は変えていない(Q2 のとおり)。
+- **`today: 'auto'` の図は、日付が違っても `freshness` で fresh と判定される**(既知の限界。D1・Q2): `changed` / `--stale` の判定は日付を見ない。解決した日付は `<metadata>` の `today` に残り、`check --drift --rebuild` はそれで作り直すので、環境変数の日付が違っても誤報しない。
+- **`status` は `emit-html` の `native()` に入れていない**(U4。D9 との差): 他の SVG だけの帯と同じく SVG オーバーレイで出る。札は `--html` の出力にも出るが、HTML/CSS への写しは未対応。
+- **札が図の幅に入らないときは throw**(U4): 文面に直し方(`statusLabel` を短く)が付く。
+- **lint に `data-status` の特別扱いは足していない**(U4・D8 との差): 札は塗り `bg`・文字 `text` の自前の矩形なので、既存の lint(`build` が走らせる `lint-svg --strict`)と `a11y-text-contrast` を、追加の変更なしで通る。
+- **U5(PR #242。マージ時に確定)**: `<desc>` の接頭辞は札の文言と同じ(`statusLabel` があれば、たとえば「(仮説)」)。`--forbid-draft` は、すでにある `accept` の文言(「（許容:」)で許容済みかを見分け、許容済みの `draft-status` は info のまま残す。
