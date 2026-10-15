@@ -1,9 +1,9 @@
-# ADR 0021: 故障の木(`faultTree`)を足す
+# ADR 0025: 故障の木(`faultTree`)を足す
 
-- 状態: 提案(未実装)。Opus レビューを 4 回まわし、収束した(第 1 回: blocker 2 / major 17 / minor 13、第 2 回: 1 / 8 / 10、第 3 回: 0 / 2 / 10、第 4 回: 0 / 0 / 6)。第 1 回の指摘で FTA だけに絞り直した。表の包み・なぜなぜ・ボウタイは ADR 0022
+- 状態: 提案(未実装)。Opus レビューを 4 回まわし、収束した(第 1 回: blocker 2 / major 17 / minor 13、第 2 回: 1 / 8 / 10、第 3 回: 0 / 2 / 10、第 4 回: 0 / 0 / 6)。第 1 回の指摘で FTA だけに絞り直した。表の包み・なぜなぜ・ボウタイは ADR 0026
 - 日付: 2026-10-15
 - 基点: `main`(d7b9f75、PR #224 まで)
-- 関連: ADR 0022(IS/IS NOT・なぜなぜ・ボウタイ。同じ調査から分けた)、ADR 0015 / 0020(TOC の検査。重大度の仕組みを借りる)、ADR 0010(幅)、ADR 0007(関数の芯とポート)
+- 関連: ADR 0026(IS/IS NOT・なぜなぜ・ボウタイ。同じ調査から分けた)、ADR 0015 / 0020(TOC の検査。重大度の仕組みを借りる)、ADR 0010(幅)、ADR 0007(関数の芯とポート)
 
 ## 背景
 
@@ -16,7 +16,7 @@
 | A3 | `canvas('a3')`(区画だけ。中身は他の図) | 足りている |
 | FMEA・パレート・親和図・連関図・PDPC・TOC の各ツリー | あり | 足りている |
 | **FTA(故障の木)** | 無い。`bpmn` のゲートと `causeTree` の AND の弧で似せるしかない | **本 ADR** |
-| KT 法の IS/IS NOT 表、なぜなぜ分析、ボウタイ | 表・mindmap で手書きはできるが、専用の形式と検査が無い。ボウタイは無い | ADR 0022 |
+| KT 法の IS/IS NOT 表、なぜなぜ分析、ボウタイ | 表・mindmap で手書きはできるが、専用の形式と検査が無い。ボウタイは無い | ADR 0026 |
 
 `causeTree` の AND(`from` が配列)は「原因が揃えば結果が起こる」の 1 種類で、OR は「別々のリンク」で表す。FTA は AND / OR をゲートの**記号として描き分ける**のが約束で、`causeTree` に足すと、役割・AND の弧・TOC の検査(`toc-*`)・凡例の意味が混ざる。
 
@@ -88,7 +88,7 @@ faultTree({
 
 ### D5. 検査: 純関数 + 既定 info、図ごとの opt-in で warn(`rcaCheck`)
 
-- `diagram({rcaCheck: 'strict'})` を新設(`DiagramOpts` と `DiagramData`、`lib/dsl/render.ts` の検証、`lib/types/core.ts`)。`tocCheck`(TOC の名前)も `layoutCheck`(配置の名前)も流用しない。重大度の決め方は `tocRules`(`lib/rules.ts`)と同じ形(`f.severity ?? severity`)で、`rcaRules()` を足す。`rcaRules()` は、`b.type === 'fta'` のバンド(0021 U1 が分岐を足す)と、ADR 0022 の `rca` 欄を持つ表・木・`bowtie`(0022 の U1 / U4 が分岐を足す)を拾う。**`rcaCheck`・`rcaSeverity`・空の `rcaRules()` は、小さな独立した単位 U0 として先に入れる**(ADR 0022 も U0 に依存する。どちらの ADR が先に U0 を入れてもよい)。
+- `diagram({rcaCheck: 'strict'})` を新設(`DiagramOpts` と `DiagramData`、`lib/dsl/render.ts` の検証、`lib/types/core.ts`)。`tocCheck`(TOC の名前)も `layoutCheck`(配置の名前)も流用しない。重大度の決め方は `tocRules`(`lib/rules.ts`)と同じ形(`f.severity ?? severity`)で、`rcaRules()` を足す。`rcaRules()` は、`b.type === 'fta'` のバンド(0025 U1 が分岐を足す)と、ADR 0026 の `rca` 欄を持つ表・木・`bowtie`(0026 の U1 / U4 が分岐を足す)を拾う。**`rcaCheck`・`rcaSeverity`・空の `rcaRules()` は、小さな独立した単位 U0 として先に入れる**(ADR 0026 も U0 に依存する。どちらの ADR が先に U0 を入れてもよい)。
 - 規則(`lib/fta-rules.ts`。ノードだけを見て、配置・フォントは見ない)。「常に info」は strict でも info(`accept` は warn を info に下げるだけなので、意味があるのは「strict で warn に上がる」規則):
 
 | 規則 | 出す条件 | 重大度 |
@@ -130,7 +130,7 @@ faultTree({
 
 | 単位 | 内容 | 触るファイル | 依存 |
 |---|---|---|---|
-| U0 | `diagram({rcaCheck})`(`DiagramOpts` / `DiagramData` / `lib/dsl/render.ts` の検証 / `lib/types/core.ts`)と、`rcaSeverity(d)`、空の `rcaRules()`(`lintAll` に繋ぐところまで。型の分岐は、`fta` の型が入る 0021 U1、`rca` の欄が入る 0022 U1、`bowtie` が入る 0022 U4 が、それぞれ足す。U0 の時点では `Band` に無い型は書けない) | `lib/types/core.ts`、`lib/dsl/render.ts`、`lib/rules.ts` | なし |
+| U0 | `diagram({rcaCheck})`(`DiagramOpts` / `DiagramData` / `lib/dsl/render.ts` の検証 / `lib/types/core.ts`)と、`rcaSeverity(d)`、空の `rcaRules()`(`lintAll` に繋ぐところまで。型の分岐は、`fta` の型が入る 0025 U1、`rca` の欄が入る 0026 U1、`bowtie` が入る 0026 U4 が、それぞれ足す。U0 の時点では `Band` に無い型は書けない) | `lib/types/core.ts`、`lib/dsl/render.ts`、`lib/rules.ts` | なし |
 | U1 | `fta` 本体: 型・検証(D2 の一覧)・複合ノード・`layoutTree` での配置・描画・アンカー・配線・`fta-gate-one-input` / `fta-vote-degenerate` / `fta-top-is-leaf` / `fta-undeveloped-left` | D1 の配線の一覧(`lib/fta.ts`、`lib/emit-fta.ts`、`lib/fta-rules.ts` ほか)、`lib/rules.ts`(`routedBands` など) | U0 |
 | U2 | `minimalCutSets`・`cutSets: true`(バッジ)・`fta-single-point` | `lib/fta-analysis.ts`、`lib/emit-fta.ts`、`lib/fta-rules.ts` | U1 |
 | U3 | 凡例(`usedNotation`・`DEFAULT_LEGEND_LABELS`・記号の見本) | `lib/rules.ts`(`usedNotation`・`legendKeys`)、`lib/types/containers.ts`(`LegendItem`)、配置(`lib/layout*.ts` の凡例の `swatch`)、`lib/emit-boxes.ts`(凡例の描画)、`lib/emit-fta.ts`(見本の描画を U1 の描画関数から借りる) | U1 |

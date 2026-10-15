@@ -1,13 +1,13 @@
-# ADR 0022: IS/IS NOT 表・なぜなぜ分析・ボウタイ図を足す(`isIsNot`・`whyWhy*`・`bowtie`)
+# ADR 0026: IS/IS NOT 表・なぜなぜ分析・ボウタイ図を足す(`isIsNot`・`whyWhy*`・`bowtie`)
 
-- 状態: 提案(未実装)。ADR 0021(故障の木)と同じ調査から分けた。Opus レビューを 4 回まわし、収束した(0021 と同じ経緯。第 4 回は blocker 0 / major 0 / minor 6)。第 1 回の指摘(表と木に検査を載せる手段、`mindmap` で真因の印と矢印が描けない、KT 法の仮説検定、ボウタイのハザード)を反映済み
+- 状態: 提案(未実装)。ADR 0025(故障の木)と同じ調査から分けた。Opus レビューを 4 回まわし、収束した(0025 と同じ経緯。第 4 回は blocker 0 / major 0 / minor 6)。第 1 回の指摘(表と木に検査を載せる手段、`mindmap` で真因の印と矢印が描けない、KT 法の仮説検定、ボウタイのハザード)を反映済み
 - 日付: 2026-10-15
 - 基点: `main`(d7b9f75、PR #224 まで)
-- 関連: ADR 0021(`diagram({rcaCheck})` と空の `rcaRules()` を、独立した小さな単位 U0 として足す。**本 ADR の検査は U0 に依存し、FTA 本体(0021 U1)は待たない**)、ADR 0015 / 0020(TOC の検査。`kind: 'blocks'`・`role: 'measure'`・`root`)、ADR 0007
+- 関連: ADR 0025(`diagram({rcaCheck})` と空の `rcaRules()` を、独立した小さな単位 U0 として足す。**本 ADR の検査は U0 に依存し、FTA 本体(0025 U1)は待たない**)、ADR 0015 / 0020(TOC の検査。`kind: 'blocks'`・`role: 'measure'`・`root`)、ADR 0007
 
 ## 背景
 
-ADR 0021 の背景の表のとおり、KT 法の IS/IS NOT 表・なぜなぜ分析・ボウタイ図は、今は表や `mindmap` で手書きはできるが、専用の形式(入力の型、読み方の約束、検査)が無い。
+ADR 0025 の背景の表のとおり、KT 法の IS/IS NOT 表・なぜなぜ分析・ボウタイ図は、今は表や `mindmap` で手書きはできるが、専用の形式(入力の型、読み方の約束、検査)が無い。
 
 2 つの事実が設計を決める。
 
@@ -26,7 +26,7 @@ ADR 0021 の背景の表のとおり、KT 法の IS/IS NOT 表・なぜなぜ分
 ### D1. 検査の手段: 構築時に純関数で作った `rca` の欄を、`TableBand` と `CauseBand` に足す
 
 - `TableBand` と `CauseBand` に、任意の欄 `rca?: {kind: RcaKind; findings: {rule: RcaRule; message: string; severity?: 'info'}[]}` を足す。`isIsNot()` などの関数が、**構築時に**純関数(`lib/rca-rules.ts`。表・木の入力だけを見て、配置もフォントも見ない)で `findings` を詰める。
-- `rcaRules()`(ADR 0021 U0 で、空の枠として足す)に、0022 U1 が `walkBands` で `rca` を持つ表・木を拾う分岐を足し(`bowtie` は自前のバンドなので、`b.type === 'bowtie'` の分岐を U4 が足す。D4)、`f.severity ?? severity`(`tocRules` と同じ形)で出す。**既定 info、`diagram({rcaCheck: 'strict'})` で warn**(`severity: 'info'` と書いた規則は strict でも info)。`accept` は規則名で効く。
+- `rcaRules()`(ADR 0025 U0 で、空の枠として足す)に、0026 U1 が `walkBands` で `rca` を持つ表・木を拾う分岐を足し(`bowtie` は自前のバンドなので、`b.type === 'bowtie'` の分岐を U4 が足す。D4)、`f.severity ?? severity`(`tocRules` と同じ形)で出す。**既定 info、`diagram({rcaCheck: 'strict'})` で warn**(`severity: 'info'` と書いた規則は strict でも info)。`accept` は規則名で効く。
 - **この欄は描画に渡さない**(`lib/emit-*` は読まない。`<title>` / `<desc>` / `data-*` にも出さない)。byte 同一の根拠として、テストで「`isIsNot()` の SVG が、同じ内容を手で `table()` に渡した SVG と byte 同一」を確かめる。
 - 既存の `semanticWarnings`(`semantic-table-warning`。入力の注意点が warn 固定で出る)は変えない。`rca` は別の欄で、入力の誤りは throw(`fmea()` と同じ)。
 - 変える共有の型は 2 つ(`lib/types/sequence-table-swimlane.ts` の `TableBand`、`lib/types/diagrams.ts` の `CauseBand`)。どちらも任意の欄の追加で、既存の図に影響しない。`CauseBand` にはもう 1 つ、作者は書かない内部の欄 `layerFrom: 'effect'`(D3。`lib/toc.ts` が読む)を足す。
@@ -64,7 +64,7 @@ ADR 0021 の背景の表のとおり、KT 法の IS/IS NOT 表・なぜなぜ分
 
 - 入力: `bowtie({hazard?: string, top: string, threats: {label: string; barriers?: string[]}[], consequences: {label: string; barriers?: string[]}[]})`。**`hazard`**(頂上事象の上の箱。何の制御を失ったのか)を第 1 段に入れる。劣化要因・バリアの種類の印・複数対複数の対応は第 1 段に入れない(追加のみ)。
 - 配置は単純な固定位置(`layoutLayered` / `layoutTree` は使わない): 行 = 脅威 / 結果。左から右へ、脅威 → 予防バリア(行ごとに直列)→ 頂上事象 → 低減バリア → 結果(**すべて右向き**。時間の向き)。脅威と結果の行数が違うときは、少ない側を縦の中央に均等に置く。頂上事象は、**説明を矩形(3 行まで)に書き、結び目の円を矩形の上に添える**(上から ハザードの箱 → 円 → 説明の矩形の順。ハザードが無ければ円から)(円の中に長い文を書くと直径が大きくなる)。円は `emit-bowtie.ts` で `<circle>` を直接描く(`lib/svg-geom.ts` は描き終えた SVG を測る検査用の幾何で、描画の部品ではない)。**FTA の描画(`emit-fta.ts`)は借りない**(FTA の楕円は「条件付き事象」で意味が違う)。矢じりは流れの終点に付ける。
-- バンド型の配線は ADR 0021 D1 の一覧から `routedBands` と凡例を除いたもの(凡例は第 2 段)。**`rcaRules()` に `b.type === 'bowtie'` の分岐を足す**(U4。`lib/rules.ts`、`lib/rca-rules.ts`)。幅が足りないときは `maxNodeW` を縮め、足りなければ throw。
+- バンド型の配線は ADR 0025 D1 の一覧から `routedBands` と凡例を除いたもの(凡例は第 2 段)。**`rcaRules()` に `b.type === 'bowtie'` の分岐を足す**(U4。`lib/rules.ts`、`lib/rca-rules.ts`)。幅が足りないときは `maxNodeW` を縮め、足りなければ throw。
 - 検査: `bowtie-barrier-missing`(脅威または結果にバリアが 1 つも無い。既定 info、strict で warn)。throw: `top` が空、脅威か結果が 0 個、文が空。
 
 ## 代替案
@@ -73,7 +73,7 @@ ADR 0021 の背景の表のとおり、KT 法の IS/IS NOT 表・なぜなぜ分
 - **表を返さず、新しいバンド `isisnot` を作る**。却下。表で足り、配線の費用が見合わない。ただし検査の欄は共有の型に足す必要があり、その費用は D1 に書いた。
 - **仮説の検定を `Mark`(◎○△×)で受ける**。却下(D2)。行ごとの 3 値と仮定の数を持てず、◎ の意味が QFD / `matrix()` と衝突する。
 - **`whyWhyTree` を `mindmap` で描く**。却下(D3)。真因の印も矢じりも描けない。`TreeItem` と tree の描画を変えると、mindmap の全出力に関わる。
-- **矢印の向きを「問題 → 原因」にして探索の向きを表す**。却下。`causeTree` と同じ形の線に逆の意味を載せ、「同じ形の線に別の意味を載せない」(ADR 0021 の背景)と衝突する。
+- **矢印の向きを「問題 → 原因」にして探索の向きを表す**。却下。`causeTree` と同じ形の線に逆の意味を載せ、「同じ形の線に別の意味を載せない」(ADR 0025 の背景)と衝突する。
 - **表の同じ原因を行の結合で表す**。却下(D3)。
 - **ボウタイの頂上事象を FTA の描画で描く**。却下(D4)。記号の意味がずれる。
 - **ボウタイに劣化要因まで入れる**。第 1 段は見送り。入力の型が複雑になり、需要も未確認。
@@ -82,7 +82,7 @@ ADR 0021 の背景の表のとおり、KT 法の IS/IS NOT 表・なぜなぜ分
 
 - **SVG**: 新しい関数を使った図だけが変わる。既存の `examples/out/*.svg` は byte 同一。`isIsNot()` の SVG が、同じ内容の手書きの `table()` と byte 同一(D1)。
 - **API**: 追加のみ。`isIsNot` / `isIsNotTests` / `whyWhyTable` / `whyWhyTree` / `bowtie`、`TableBand.rca` / `CauseBand.rca` / `CauseBand.layerFrom` / `CauseBand.anchors`(作者は書かない)。`dsl-exports.json` に関数名。
-- **検査**: 規則 8 個(`isisnot-no-isnot`、`isisnot-no-distinct-at-all`、`isisnot-no-hypothesis-stands`、`whywhy-no-root`、`whywhy-measure-without-root`、`whywhy-single-chain`、`whywhy-dig-below-root`、`bowtie-barrier-missing`)を `RULE_DOCS` と README の規則の一覧に足す。ADR 0021 の `fta-*` 5 個は別。
+- **検査**: 規則 8 個(`isisnot-no-isnot`、`isisnot-no-distinct-at-all`、`isisnot-no-hypothesis-stands`、`whywhy-no-root`、`whywhy-measure-without-root`、`whywhy-single-chain`、`whywhy-dig-below-root`、`bowtie-barrier-missing`)を `RULE_DOCS` と README の規則の一覧に足す。ADR 0025 の `fta-*` 5 個は別。
 - **ファイル**: `lib/rca-rules.ts`(新規)、`lib/semantic-table.ts`、`lib/dsl/qc-semantic.ts`、`lib/dsl/diagrams.ts`、`lib/types/sequence-table-swimlane.ts`、`lib/types/diagrams.ts`、`lib/toc.ts`(`layerFrom`)、`lib/band-ids.ts`(`anchors`)、`lib/rules.ts`、`lib/bowtie.ts`・`lib/emit-bowtie.ts`(新規)と配線。
 - **リスク**: (1) `whyWhyTree` の層の置き方(`layerFrom`。`lib/toc.ts` の変更)と `kind: 'blocks'` の棒が、`causeTree` の配置で期待どおりか(未決 1)。スライドの図では、7 層(なぜ 5 段 + 問題 + 対策)が高さ 740〜870px ほどになり `maxDisplayHeight` を超えやすいので、README に「スライドなら `whyWhyTable` か、段を減らす」と書く。(2) `rca` の欄が描画やハッシュに漏れる(D1 のテストで防ぐ)。(3) 規則の閾値が現場の流儀と合わない。info 既定と `accept` で外せる。
 
@@ -90,13 +90,13 @@ ADR 0021 の背景の表のとおり、KT 法の IS/IS NOT 表・なぜなぜ分
 
 | 単位 | 内容 | 触るファイル | 依存 |
 |---|---|---|---|
-| U1 | `rca` の欄と `rcaRules()` の接続・`isIsNot` / `isIsNotTests`・`isisnot-*` | `lib/types/sequence-table-swimlane.ts`、`lib/semantic-table.ts`、`lib/dsl/qc-semantic.ts`、`lib/rca-rules.ts`、`lib/rules.ts` | **ADR 0021 U0**(`rcaCheck`・空の `rcaRules()`) |
+| U1 | `rca` の欄と `rcaRules()` の接続・`isIsNot` / `isIsNotTests`・`isisnot-*` | `lib/types/sequence-table-swimlane.ts`、`lib/semantic-table.ts`、`lib/dsl/qc-semantic.ts`、`lib/rca-rules.ts`、`lib/rules.ts` | **ADR 0025 U0**(`rcaCheck`・空の `rcaRules()`) |
 | U2 | `whyWhyTable`・`whywhy-*`(表) | `lib/semantic-table.ts`、`lib/dsl/qc-semantic.ts`、`lib/rca-rules.ts` | U1 |
 | U3 | `whyWhyTree`(`causeTree` への変換・読む向きの注・`CauseBand.rca`・`whywhy-*`(木)) | `lib/dsl/diagrams.ts`、`lib/types/diagrams.ts`、`lib/toc.ts`(`layerFrom`)、`lib/rca-rules.ts` | U1 |
-| U4 | `bowtie`(固定配置・描画・配線・`bowtie-barrier-missing`) | `lib/bowtie.ts`、`lib/emit-bowtie.ts`、配線の一覧、`lib/rules.ts`、`lib/rca-rules.ts` | ADR 0021 U0 |
+| U4 | `bowtie`(固定配置・描画・配線・`bowtie-barrier-missing`) | `lib/bowtie.ts`、`lib/emit-bowtie.ts`、配線の一覧、`lib/rules.ts`、`lib/rca-rules.ts` | ADR 0025 U0 |
 | U5 | 文書: README、`skills/svg-diagram/SKILL.md`、`examples/` に `is-is-not.ts`・`why-why.ts`・`bowtie.ts`(+ golden)、この ADR の状態 | `README.md`、`skills/`、`examples/` | U1〜U4 |
 
-進める順番: ADR 0021 U0 → U1 → (U2・U3・U4 並行。U2 と U3 は `lib/rca-rules.ts` を共有するので、先にマージした方へ合わせる)→ U5。
+進める順番: ADR 0025 U0 → U1 → (U2・U3・U4 並行。U2 と U3 は `lib/rca-rules.ts` を共有するので、先にマージした方へ合わせる)→ U5。
 
 ### テスト方針(フォントに依存する絶対値を使わない)
 
