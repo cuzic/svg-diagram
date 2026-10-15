@@ -54,6 +54,9 @@ export const NARROWING = [200, 160, 130, 110];
 
 type CauseDir = 'up' | 'down' | 'right' | 'left';
 
+/** The widths a folded cause tree is cut to, as shares of the figure's width (the first that fits is kept). */
+const FOLD_SHARES = [1, 0.85, 0.7, 0.55];
+
 export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number): LaidOutCause {
   const ids = new Set<string>();
   for (const n of band.nodes) {
@@ -95,7 +98,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     return {ends, d, along, cross, ok: aligned && room >= AND_END + 1};
   };
   // One whole attempt: the node text wrapped at maxW and the layout turned to dir. Everything that depends on either is in here.
-  const build = (dir: CauseDir, maxW: number) => {
+  const build = (dir: CauseDir, maxW: number, fold?: number) => {
     const vertical = dir === 'up' || dir === 'down', flip = dir === 'up' || dir === 'left';
     const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles)]));
     // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
@@ -123,7 +126,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     const declared = arrows.flatMap((a, k) => a.back ? [k] : []); // the returns the author named: laid out as the way back (index into `arrows`)
     // the returns that skip layers run in an outer lane: all of them when `returns: 'outer'` (or pdpc's default), the declared ones (`back`) when nothing is written
     const wanted: 'all' | 'declared' | undefined = band.returns === 'inline' ? undefined : (band.returns ?? band.returnsDefault) === 'outer' ? 'all' : declared.length ? 'declared' : undefined;
-    const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {})}, {
+    const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {}), ...(fold === undefined ? {} : {fold})}, {
       portStep: PORT, groupOf: k => groupIndex.get(k), transpose: vertical, maxAcross: w + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}),
       looseOf: (rts, ly) => {
         const route = new Map<number, Pt[]>();
@@ -155,15 +158,33 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     if (mw !== widths[0]) applied.push({what: 'maxNodeW', from: widths[0], to: mw, mode: mode!});
     attempts.push({label: `dir '${d}', maxNodeW ${mw}${attempts.length ? '' : explicit || band.maxNodeW !== undefined ? ' (as written)' : ' (default)'}`, run: () => build(d, mw), applied});
   }
+  // Folding (ADR 0010 D7), the last resort of a cause tree, which keeps its axis: after the narrowing has not been enough, a layer wider than the figure is cut into
+  // rows, at the narrowest node width. `fold: true` asks for it also when `dir` or `maxNodeW` is written (the attempts as written still come first). Only a vertical figure
+  // has layers across its width; pdpc() and relationDiagram() keep their order of attempts.
+  const foldable = band.base === undefined && (startDir === 'up' || startDir === 'down') && band.fold !== false;
+  if (foldable && (band.fold === true || !explicit)) {
+    const mw = widths[widths.length - 1];
+    // the rows are cut to the width, but the settling of the rows between their neighbours can push the figure wider than one row: a tighter cut follows
+    for (const share of FOLD_SHARES) {
+      const applied: FitApplied[] = [];
+      if (mw !== widths[0]) applied.push({what: 'maxNodeW', from: widths[0], to: mw, mode: mode!});
+      attempts.push({label: `dir '${startDir}', maxNodeW ${mw}, fold${share < 1 ? ` ${Math.round(share * 100)}%` : ''}`, applied, run: () => {
+        const r = build(startDir, mw, w * share + 0.5);
+        for (const f of r.lay.folded ?? []) applied.push({what: 'fold', from: f.rows, to: f.layer + 1, mode: mode ?? 'written'});
+        return r;
+      }});
+    }
+  }
   const fitted = fitWidth(w, attempts, {mode: band.base !== undefined && mode === 'auto' ? 'best' : 'first', ...(heightBudget === undefined ? {} : {heightBudget})});
   if (!fitted.ok) {
     const notTried: string[] = [];
     if (explicit) notTried.push(`dir '${dirs.length > 1 ? 'right' : startDir}' and narrower nodes (dir is explicit; write dir: 'auto' to let them change)`);
     else if (band.maxNodeW !== undefined) notTried.push(`narrower nodes (maxNodeW is explicit: ${band.maxNodeW})`);
+    if (band.base === undefined && band.fold === false) notTried.push('folding a layer into rows (fold is written: false)');
     if (band.returns === 'outer') notTried.push("returns: 'inline' (returns is written: 'outer')");
     if (!explicit && band.base === undefined) notTried.push(`another axis (a cause tree keeps its direction: ${startDir})`);
     const wider = widerThan(fitted.tried, 40);
-    throw new Error(fitFailure('causeTree()', w, fitted.tried, explicit ? `dir: 'auto', or widen the figure (diagram({width: ${wider}}))` : wider > 1400 ? 'split the figure in two (fewer entities on one level)' : `widen the figure (diagram({width: ${wider}}))`, notTried));
+    throw new Error(fitFailure('causeTree()', w, fitted.tried, explicit && foldable && band.fold === undefined ? `dir: 'auto', or fold: true (a layer wider than the figure is cut into rows, the direction stays), or widen the figure (diagram({width: ${wider}}))` : explicit ? `dir: 'auto', or widen the figure (diagram({width: ${wider}}))` : wider > 1400 ? 'split the figure in two (fewer entities on one level)' : `widen the figure (diagram({width: ${wider}}))`, notTried));
   }
   const attempt = fitted.result, {lines, vertical, flip} = attempt;
   const fitApplied = withWidths(fitted.applied, fitted.tried, fitted.index);
