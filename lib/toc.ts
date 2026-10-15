@@ -5,7 +5,9 @@
 //  cloud():     the Evaporating Cloud: five boxes in a fixed place (A the common objective, B and C the needs, D and D' the
 //               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
 import {textWidth} from './atoms.ts';
+import {andClashes} from './cause-clash.ts';
 import {fitLayout} from './fit-width.ts';
+import {scoreOf} from './polyline-metrics.ts';
 import {gapFor, layeredAttempt} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
@@ -53,7 +55,36 @@ export const causesOf = (l: {from: string | readonly string[]}): string[] => typ
 
 type CauseDir = 'up' | 'down' | 'right' | 'left';
 
+/**
+ * A cause tree. When the arrows into an effect with an AND cross each other, the order the entities are written in is tried again in a few fixed
+ * ways (ADR 0019 D4); a figure with no such crossing is never touched. Only a cause tree (not pdpc() / relationDiagram()).
+ */
 export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number, canvasBound = false): LaidOutCause {
+  const first = layoutCauseBandOnce(band, x, y, w, widthOf, roles, heightBudget, canvasBound);
+  if (band.base !== undefined || crossingsOf_(first) === 0) return first;
+  const ids = band.nodes.map(n => n.id);
+  // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
+  const orders = [[...ids].reverse(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
+  const axisOf = (t: LaidOutCause): number[] => t.nodes.map(n => band.dir === 'left' || band.dir === 'right' ? n.x : n.y);
+  let best = first, bestScore = scoreOfCause(first);
+  for (const order of orders) {
+    let t: LaidOutCause;
+    try { t = layoutCauseBandOnce(band, x, y, w, widthOf, roles, heightBudget, canvasBound, order); } catch { continue; }
+    // the same layers (a different order must not change which edge of a cycle is cut, or fold the figure), the same size limits, no AND the first drew left undrawn
+    if (axisOf(t).some((v, i) => Math.abs(v - axisOf(first)[i]) > 0.5) || t.h > first.h + 0.5 || t.loose.length > first.loose.length) continue;
+    if (t.fitApplied?.length !== first.fitApplied?.length) continue;
+    const score = scoreOfCause(t);
+    if (lexLess(score, bestScore)) { best = t; bestScore = score; }
+  }
+  return best;
+}
+
+const crossingsOf_ = (t: LaidOutCause): number => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
+/** (arrows of an AND that cross, crossings, bends): smaller is better, in this order. */
+const scoreOfCause = (t: LaidOutCause): number[] => { const s = scoreOf(t.edges.map(e => e.points)); return [crossingsOf_(t), s.crossings, s.bends]; };
+const lexLess = (a: number[], b: number[]): boolean => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i]; return false; };
+
+export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[]): LaidOutCause {
   const ids = new Set<string>();
   for (const n of band.nodes) {
     if (typeof n.id !== 'string' || !n.id) throw new Error('causeTree(): every node needs an id');
@@ -106,7 +137,8 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles)]));
     // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
     const order: string[] = [], put = (id: string): void => { if (!order.includes(id)) order.push(id); };
-    for (const n of band.nodes) { put(n.id); for (const g of groups) if (g.arrows.some(k => arrows[k].from === n.id)) g.arrows.forEach(k => put(arrows[k].from)); }
+    const written = anotherOrder ? anotherOrder.map(id => band.nodes.find(n => n.id === id)!) : band.nodes; // ADR 0019 D4: another written order
+    for (const n of written) { put(n.id); for (const g of groups) if (g.arrows.some(k => arrows[k].from === n.id)) g.arrows.forEach(k => put(arrows[k].from)); }
     const ranked = order.map(id => band.nodes.find(n => n.id === id)!);
     // the most arrows that meet one node (each needs its own lane in the gap beside it)
     const degreeOf = (id: string): number => Math.max(arrows.filter(a => a.from === id).length, arrows.filter(a => a.to === id).length);

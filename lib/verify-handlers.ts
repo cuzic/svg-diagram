@@ -10,6 +10,7 @@ import {PALETTE, colorOf, luminance as lightLuminance, runColorOf, paintOf} from
 import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 import {spotlightDim} from './spotlight.ts';
 import {legibilityProblem} from './wordart.ts';
+import {andClashes} from './cause-clash.ts';
 import {CONTRAST_THRESHOLD, dxdy, eachOverlap, labelOf, neverTogether, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import type {EmphasisTone, Rect} from './types/core.ts';
@@ -153,29 +154,7 @@ const checkCause = (band: LaidOutOf<'cause'>, _d: LaidOutDiagram, {problems, war
   }
   // arrows into an effect that has an AND: two of them should not cross (a warning: it can be unavoidable) and must not run together
   // (which arrow belongs to the AND would be unclear). A crossing elsewhere is left alone: many cause graphs cannot be drawn without one.
-  const andTo = new Set(band.ands.map(x => x.to));
-  const segs = band.edges.flatMap((e, k) => andTo.has(e.to) ? e.points.slice(1).map((q, m) => ({k, p: e.points[m], q})) : []);
-  const cross = (a: typeof segs[number], b: typeof segs[number]): boolean => {
-    const aH = a.p.y === a.q.y, bH = b.p.y === b.q.y;
-    if (aH === bH) return false;
-    const h = aH ? a : b, v = aH ? b : a;
-    return v.p.x > Math.min(h.p.x, h.q.x) + 0.5 && v.p.x < Math.max(h.p.x, h.q.x) - 0.5 && h.p.y > Math.min(v.p.y, v.q.y) + 0.5 && h.p.y < Math.max(v.p.y, v.q.y) - 0.5;
-  };
-  // runs of two arrows side by side (under 4px apart, over 4px long together) read as one line
-  const together = (a: typeof segs[number], b: typeof segs[number]): boolean => {
-    const aH = a.p.y === a.q.y;
-    if (aH !== (b.p.y === b.q.y)) return false;
-    const [c, d] = aH ? ['x', 'y'] as const : ['y', 'x'] as const;
-    return Math.abs(a.p[d] - b.p[d]) < 4 && Math.min(Math.max(a.p[c], a.q[c]), Math.max(b.p[c], b.q[c])) - Math.max(Math.min(a.p[c], a.q[c]), Math.min(b.p[c], b.q[c])) > 4;
-  };
-  const flagged = new Set<string>();
-  for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
-    const a = band.edges[segs[i].k], b = band.edges[segs[j].k];
-    if (segs[i].k === segs[j].k || a.to !== b.to) continue;
-    const how = cross(segs[i], segs[j]) ? 'crosses' : together(segs[i], segs[j]) ? 'runs together with' : '';
-    const key = `${Math.min(segs[i].k, segs[j].k)}:${Math.max(segs[i].k, segs[j].k)}`;
-    if (!how || flagged.has(key)) continue;
-    flagged.add(key);
+  for (const {a, b, how} of andClashes(band.edges, band.ands)) {
     // a crossing may be unavoidable (an AND's causes in different layers around an OR cause), and long arrows can share a run: warnings
     warnings.push(`[cause-${how === 'crosses' ? 'crossing' : 'parallel'}] cause: arrow ${a.from} -> ${a.to} ${how} arrow ${b.from} -> ${b.to} (reorder the nodes, or change dir)`);
   }
