@@ -132,6 +132,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
   });
   // the routes for the ports as they stand (in the layout's own axes)
   const shiftOf = new Map<number, number>(); // a long arrow's way points moved across the layers (ADR 0016 D12)
+  const turnAt = new Map<number, number>(); // a direct arrow's turn moved to another x in its gap (ADR 0016 D13)
   const build = (): Map<number, Pt[]> => {
     const out = new Map<number, Pt[]>();
     const longInto = new Map<string, number>(); // long arrows into one head, each with its own last turn
@@ -153,7 +154,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
       if (e.points.length === 2) {
         const lo = Math.min(layerOf(e.from), layerOf(e.to)), gl = layerRight.get(lo)!, gr = layerLeft.get(lo + 1) ?? gl + 2 * STUB, gw = gr - gl;
         const d = Math.min(STUB + (laneOf.get(i) ?? 0), Math.max(gw / 2, gw - 22)); // the last run keeps room for the arrowhead
-        turn = forward(i) ? gl + d : gr - d;
+        turn = turnAt.get(i) ?? (forward(i) ? gl + d : gr - d);
       }
       // a long arrow into a grouped head (an AND) makes its last turn a fixed distance before the head, clear of the lanes of the direct arrows
       // (which are counted from the gap's left side), so the two kinds never run side by side
@@ -240,16 +241,28 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
       return segs(pts).some(({p, q}) => [...lay.nodes].some(([id, n]) => id !== e.from && id !== e.to && Math.max(p.x, q.x) > n.x + 1 && Math.min(p.x, q.x) < n.x + n.w - 1 && Math.max(p.y, q.y) > n.y + 1 && Math.min(p.y, q.y) < n.y + n.h - 1));
     };
     const inside = (pts: Pt[]): boolean => pts.every(p => p.y >= 0.5 && p.y <= lay.h - 0.5);
+    // ADR 0016 D13: a direct arrow's first run lies along the last run of another arrow into the same head (the other turned first): its turn moves to just
+    // before or after that arrow's last turn, so the two runs do not overlap along the layers.
+    const lastTurnOf = (r: Map<number, Pt[]>, j: number): number => { const q = r.get(j)!; return q.length >= 4 ? q[q.length - 3].x : q[0].x; };
     for (const i of [...routes.keys()]) {
       const e = lay.edges[i];
-      if (e.self || e.outer || e.points.length <= 2 || !heads.has(e.to)) continue;
+      if (e.self || e.outer || !heads.has(e.to)) continue;
       const now = beside(routes, i);
       if (!now.head) continue;
-      for (const dz of [8, -8, 16, -16]) {
-        shiftOf.set(i, dz);
+      const tries: (() => void)[] = [];
+      if (e.points.length > 2) for (const dz of [8, -8, 16, -16]) tries.push(() => shiftOf.set(i, dz));
+      else {
+        const lo = Math.min(layerOf(e.from), layerOf(e.to)), gl = layerRight.get(lo)!, gr = layerLeft.get(lo + 1) ?? gl + 2 * STUB;
+        for (const [j, o] of routes) {
+          if (j === i || lay.edges[j].to !== e.to || !segs(o).some(y => segs(routes.get(i)!).some(x => runsTogether(x, y)))) continue;
+          for (const x of [lastTurnOf(routes, j) - 6, lastTurnOf(routes, j) + 6, lastTurnOf(routes, j) - LANE, lastTurnOf(routes, j) + LANE]) if (x > gl + 4 && x < gr - 22) tries.push(() => turnAt.set(i, x));
+        }
+      }
+      for (const set of tries) {
+        set();
         const trial = build(), s = scoreOf([...trial.values()]), t = beside(trial, i);
         if (t.head < now.head && t.all <= now.all && s.crossings <= best.crossings && s.bends <= best.bends && inside(trial.get(i)!) && !pierces(trial.get(i)!, i)) { routes = trial; best = s; break; }
-        shiftOf.delete(i);
+        shiftOf.delete(i); turnAt.delete(i);
       }
     }
   }

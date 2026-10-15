@@ -252,3 +252,11 @@ test('causeTree(): moving a long arrow aside (ADR 0016 D12) neither brings back 
   assert.deepEqual(andClashes(b.edges, b.ands), [], 'the run beside another arrow into the AND is moved aside');
   for (const e of b.edges) for (const p of e.points) assert.ok(p.y >= b.y - 0.5 && p.y <= b.y + b.h + 0.5, `${e.from}->${e.to} stays in the band (y ${p.y})`);
 });
+
+// ADR 0016 D13: a direct arrow's first run along the last run of another arrow into the same AND (an 11-node tree that had one).
+test('causeTree(): a direct arrow into an AND turns beside the other, so its first run does not lie along the other\'s last run', () => {
+  const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":"n1","to":"n2"},{"from":["n0","n1"],"to":"n3"},{"from":["n2","n3"],"to":"n4"},{"from":"n3","to":"n5"},{"from":"n1","to":"n6"},{"from":"n6","to":"n7"},{"from":"n3","to":"n8"},{"from":["n8","n0"],"to":"n9"},{"from":"n0","to":"n10"}]');
+  const t = place(causeTree(Array.from({length: 11}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'frt', dir: 'up'}), 1800);
+  assert.deepEqual(andClashes(t.edges, t.ands), []);
+  assert.equal(t.loose.length, 0);
+});
