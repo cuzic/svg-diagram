@@ -601,7 +601,7 @@ function fitRules(d: LintTarget, out: Finding[]): void {
     if ((b.type !== 'cause' && b.type !== 'states' && b.type !== 'classes' && b.type !== 'tree') || !b.fitApplied?.length) continue;
     const what = b.fitApplied.map(describeApplied).join('、'), auto = b.fitApplied.every(a => a.mode === 'auto');
     out.push({rule: 'auto-fit-applied', severity: auto ? 'info' : 'warn', message: auto
-      ? `${FIT_WHO[b.type]}: dir: 'auto' で、幅に収まるようレイアウトが変えた: ${what}`
+      ? `${FIT_WHO[b.type]}: dir / maxNodeW を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
       : `${FIT_WHO[b.type]}: dir / maxNodeW を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら dir: 'auto' と書く（info になる）。固定したいなら dir / maxNodeW を明示する（収まらなければ試した案つきで止まる）`});
   }
 }

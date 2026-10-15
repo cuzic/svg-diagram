@@ -135,8 +135,9 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
    *  'auto' (and leaving it out) lets the layout narrow the nodes when the figure is wider than the diagram (a warning when left out, a note for 'auto');
    *  a cause tree never changes its axis. Writing a direction fixes it: the figure that does not fit is an error that lists what was tried. */
   dir?: 'up' | 'down' | 'right' | 'left' | 'auto';
-  /** The widest a node grows (default 200px). Written, it is never narrowed to make the figure fit. */
-  maxNodeW?: number;
+  /** The widest a node grows (default 200px). Written as a number, it is never narrowed to make the figure fit. 'auto' (ADR 0019 D2) looks for the widest value from 260 down to 100
+   *  that fits the figure's width and the canvas height (also when `dir` is written; a layer that is still too wide is folded). The height is approximate: the band's top is taken off the canvas height. */
+  maxNodeW?: number | 'auto';
   /** Mark the core driver: the starting entity (nothing causes it) whose arrows bring about the most `ude` entities, 2 or more (a tie: all).
    *  Every starting entity gets the number it reaches under its text (`到達 UDE n`) unless `counts` is false. `role` is not changed. */
   coreDriver?: boolean;
