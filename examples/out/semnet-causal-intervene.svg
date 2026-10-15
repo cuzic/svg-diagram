@@ -8,18 +8,14 @@
   </style>
   <rect x="0" y="0" width="940" height="246" fill="#ffffff"/>
 
-  <path d="M173,157.8 L190.4,157.8" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M190.4,157.8 L190.4,139.2" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M190.4,139.2 L246.5,139.2" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M246.5,139.2 L237.5,144.2 L237.5,134.3 Z" fill="#22201b"/>
+  <path d="M173,148.5 L246.5,148.5" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M246.5,148.5 L237.5,153.5 L237.5,143.6 Z" fill="#22201b"/>
   <path d="M358.7,139.2 L432.3,139.2" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M432.3,139.2 L423.3,144.2 L423.3,134.3 Z" fill="#22201b"/>
   <path d="M544.5,139.2 L618,139.2" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M618,139.2 L609,144.2 L609,134.3 Z" fill="#22201b"/>
-  <path d="M730.2,139.2 L747.7,139.2" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M747.7,139.2 L747.7,164.6" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M747.7,164.6 L803.8,164.6" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M803.8,164.6 L794.8,169.6 L794.8,159.7 Z" fill="#22201b"/>
+  <path d="M730.2,151.9 L803.8,151.9" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M803.8,151.9 L794.8,156.9 L794.8,147 Z" fill="#22201b"/>
   <path d="M803.8,178.2 L739,178.2" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M739,178.2 L739,190" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M739,190 L237.8,190" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
@@ -44,14 +40,14 @@
   <text x="303" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">標準の合意</text>
   <path d="M302.6,76 L302.6,116" fill="none" stroke="#1d5fa8" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6,4"/>
   <path d="M302.6,116 L297.7,107 L307.6,107 Z" fill="#1d5fa8"/>
-  <path d="M182.8,129 H197.2 V147 H182.8 Z" fill="#ffffff"/>
-  <text x="190" y="143" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M202.8,129 H217.2 V147 H202.8 Z" fill="#ffffff"/>
+  <text x="210" y="143" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
   <path d="M388.8,119 H403.2 V137 H388.8 Z" fill="#ffffff"/>
   <text x="396" y="133" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
   <path d="M573.8,119 H588.2 V137 H573.8 Z" fill="#ffffff"/>
   <text x="581" y="133" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M740.8,132 H755.2 V150 H740.8 Z" fill="#ffffff"/>
-  <text x="748" y="146" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M759.8,132 H774.2 V150 H759.8 Z" fill="#ffffff"/>
+  <text x="767" y="146" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
   <path d="M480.8,170 H495.2 V188 H480.8 Z" fill="#ffffff"/>
   <text x="488" y="184" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
   <path d="M388.35,147 H403.65 V165 H388.35 Z" fill="#ffffff"/>

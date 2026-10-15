@@ -50,8 +50,12 @@ test('dense causal loops with edge labels: a polarity or delay stops the build, 
 });
 
 test('the three outcomes, pinned: a stopped polarity / delay, a label left out, and a clean figure', async () => {
-  const stop = denseCausalCase(55), stopped = await drawAndCheck(causalLoop(stop.nodes, stop.links, {direction: 'TB'}));
-  assert.match(stopped.error ?? '', /the delay mark "\|\|" of n0 -> n2 has no room \(the figure is too dense around this link: drop a link or a node, or shorten the node labels; a larger height \/ width does not make room\)/);
+  // every node linked to every other, with long labels: it stops at some link, which one depends on the font and on how the arrows are routed
+  // (the case used to be denseCausalCase(55) 'TB', which stopped until straight arrows (ADR 0016 D3) gave its sign room)
+  const names = Array.from({length: 6}, (_, i) => ({id: `n${i}`, label: `要素${i}`.repeat(6)}));
+  const all = names.flatMap(a => names.filter(b => b !== a).map(b => ({from: a.id, to: b.id, polarity: '+' as const, delay: true})));
+  const stopped = await drawAndCheck(causalLoop(names, all, {direction: 'LR'}));
+  assert.match(stopped.error ?? '', /the (polarity "\+"|delay mark "\|\|") of n\d -> n\d has no room \(the figure is too dense around this link: drop a link or a node, or shorten the node labels; a larger height \/ width does not make room\)/);
   const omit = denseCausalCase(1), left = await drawAndCheck(causalLoop(omit.nodes, omit.links, {direction: 'LR'}));
   assert.equal(left.error, undefined);
   assert.ok(countText(left.svg, '短期的な効果') < omit.links.filter(l => l.label).length, 'a label with no room is left out');

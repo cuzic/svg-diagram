@@ -52,6 +52,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
     const d = Math.max(44, Math.ceil((Math.hypot(text, inner) + 10) / 8) * 8); // a multiple of 8: the radius sits on the 4px grid
     return [s.id, {...l, w: d, h: d}];
   }));
+  const circles = new Set(band.states.filter(s => s.shape === 'circle').map(s => s.id)); // round nodes: arrows keep to the middle of their side (ADR 0016 D3)
   const labelW = (t: string): number => Math.ceil(textWidth(widthOf, t, S, 400)) + 2 * CHIP_PAD;
   const widest = Math.max(0, ...band.transitions.map(t => t.label ? labelW(t.label) : 0));
   const nodes = band.states.map(s => ({id: s.id, size: {w: lines.get(s.id)!.w, h: lines.get(s.id)!.h}}));
@@ -70,7 +71,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
     // a loop needs room beside its state (down) or between rows (right), so states do not crowd it
     dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : GAP,
     levelGap: Math.max(dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, gapFor(degree)), ...(band.initial ? {start: [INIT]} : {}),
-  }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, ...(band.straighten === false ? {straighten: false} : {}), ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
+  }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, round: id => circles.has(id), ...(band.straighten === false ? {straighten: false} : {}), ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
   const {lay, routes, size: total} = run;
   const at = (id: string) => { const p = lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
 
