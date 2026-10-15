@@ -112,6 +112,9 @@ export interface CauseLink {
   /** The effect (or, in a prerequisite tree, what the cause is needed for). */
   to: string;
   line?: 'solid' | 'dashed' | 'dotted';
+  /** 'cause' (default) or 'blocks': this entity cuts that one (trimming; the negative branch). Drawn dashed and ending in a bar instead of an
+   *  arrowhead; `from` is one entity; it is not an AND, and it is not counted as a cause (coreDriver). */
+  kind?: 'cause' | 'blocks';
 }
 export interface CauseOpts extends RevealOpts {
   /** Which way the arrows run: 'up' (default: causes at the bottom, effects at the top), 'down', 'right' or 'left'. */
@@ -256,7 +259,7 @@ export interface LaidOutCause extends Rect, Dimmed {
   until?: number;
   nodes: (Rect & {tone: BoxTone; double?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean})[];
   /** Orthogonal polylines from the cause's box edge to the effect's; the arrowhead is at the last point. */
-  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'}[];
+  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; /** only a cutting arrow has it */ kind?: 'blocks'}[];
   /** The arc across the arrows of an AND: a quadratic curve p0 - c - p1. */
   ands: {to: string; /** the causes it joins */ from: string[]; p0: {x: number; y: number}; c: {x: number; y: number}; p1: {x: number; y: number}}[];
   /** Effects whose AND arrows could not be joined by an arc (they do not arrive on one side of the effect). */

@@ -58,7 +58,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     ids.add(n.id);
   }
   // one arrow per cause of a link; an AND (several causes) is a group, remembered by its effect
-  const arrows: {from: string; to: string; line: 'solid' | 'dashed' | 'dotted'}[] = [];
+  const arrows: {from: string; to: string; line: 'solid' | 'dashed' | 'dotted'; blocks?: true}[] = [];
   const groups: {to: string; arrows: number[]}[] = [];
   const pairs = new Set<string>();
   for (const l of band.links) {
@@ -71,7 +71,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
       if (f === l.to) throw new Error(`causeTree(): "${f}" cannot be its own cause`);
       if (pairs.has(`${f}\u0000${l.to}`)) throw new Error(`causeTree(): link ${f} -> ${l.to} is written twice`);
       pairs.add(`${f}\u0000${l.to}`);
-      const k = arrows.push({from: f, to: l.to, line: l.line ?? 'solid'}) - 1;
+      const k = arrows.push({from: f, to: l.to, line: l.kind === 'blocks' ? 'dashed' : l.line ?? 'solid', ...(l.kind === 'blocks' ? {blocks: true as const} : {})}) - 1;
       group?.arrows.push(k);
     }
     if (group) groups.push(group);
@@ -144,7 +144,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   for (const [i, e] of lay.edges.entries()) {
     if (e.self) continue;
     drawn.set(e.index, out.edges.length);
-    out.edges.push({from: e.from, to: e.to, points: routes.get(i)!, line: arrows[e.index].line});
+    out.edges.push({from: e.from, to: e.to, points: routes.get(i)!, line: arrows[e.index].line, ...(arrows[e.index].blocks ? {kind: 'blocks' as const} : {})});
   }
   // an AND: an arc across the last run of each of its arrows, a little before the arrowheads. It needs the arrows to arrive on
   // one side of the effect, all heading the same way, with room before the head for the arc

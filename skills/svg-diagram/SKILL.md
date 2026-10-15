@@ -79,7 +79,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | 区間を示す括弧・箱を指す吹き出し | `bracket(a.left, b.right, {label, side})` / `callout(id, {text, side})` | `connect()` の 2 本引きの代わり。bracket は箱の下（`side: 'above'` で上）、callout は 1 行の吹き出し |
 | 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?}` と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
 | 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?, tone?}`（`tone` は `'solid'` / `'solid-danger'` も可）と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
-| TOC の因果の図（現状・未来現実・前提条件・移行ツリー） | `causeTree(nodes, links, {dir})` | 実体 `{id, label, role?}`（role: ude / root / de / injection / goal / obstacle / io / action）と `{from, to}`（`from` を配列にすると AND）。下が原因・上が結果 |
+| TOC の因果の図（現状・未来現実・前提条件・移行ツリー） | `causeTree(nodes, links, {dir})` | 実体 `{id, label, role?}`（role: ude / root / de / injection / goal / obstacle / io / action）と `{from, to}`（`from` を配列にすると AND）。下が原因・上が結果。リンクの `kind: 'blocks'` は「断つ」辺（破線＋横棒の端。ネガティブブランチ） |
 | TOC のクラウド（対立解消図） | `cloud({a, b, c, d, d2}, {assumptions})` | 共通目的 A・必要条件 B/C・対立する要望 D/D'。前提 `{on: 'ab'｜'ac'｜'bd'｜'cd'｜'dd', text, injection?}` は番号が矢印に載り、一覧は図の下 |
 | スケジュール | `gantt(rows, {today})` | タスク `{label, start, end｜days, after?, progress?, milestone?}`（日付は `YYYY-MM-DD`、`today` は必ず書く） |
 | UML クラス図 | `classDiagram(classes, relations, {dir})` | クラス `{id, attrs?, methods?, stereotype?}` と関係 `{from, to, kind, label?, fromMult?, toMult?}` |
