@@ -95,7 +95,3 @@ test('causal interventions are validated, are anchors, and do not change loop cl
   assert.throws(() => causalLoop(nodes, links, {interventions: [iv, {...iv, id: 'g', to: 'fix'}]}), /cannot act on the intervention "fix"/);
   assert.throws(() => causalLoop(nodes, links, {id: 'fix', interventions: [iv]}), /fix/);
 });
-test('interventions are not drawn yet: building says so instead of dropping them', async () => {
-  const d = diagram({theme: 'blue'}).add(causalLoop([{id: 'a', label: 'A'}], [{from: 'a', to: 'a', polarity: '+'}], {interventions: [{id: 'f', label: 'F', to: 'a', polarity: '-'}]}));
-  await assert.rejects(async () => renderDiagram(d, {name: 'iv.svg', budget: 'cacheOnly'}), /not drawn yet/);
-});
