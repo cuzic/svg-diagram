@@ -27,10 +27,12 @@ export function markPath(kind: 'basic' | 'undeveloped' | 'house' | 'condition' |
   return `M${n(cx - rx)},${n(cy)} A${n(rx)},${n(ry)} 0 1 0 ${n(cx + rx)},${n(cy)} A${n(rx)},${n(ry)} 0 1 0 ${n(cx - rx)},${n(cy)} Z`;
 }
 
-/** A legend sample of a fault-tree symbol (an event's or a gate's), 28 x 20, at the left of an item whose line is at `cy`. */
+/** A legend sample of a fault-tree symbol (an event's or a gate's), at the left of an item whose line is at `cy`.
+ *  Sizes are multiples of 4 so the snapped arc radii still fit their chords (an arc radius below half its chord is scaled up, not drawn as asked). */
 export function ftaLegendSwatch(it: {x: number; ftaEvent?: 'basic' | 'undeveloped' | 'house' | 'condition'; ftaGate?: 'and' | 'or' | 'vote' | 'inhibit'}, cy: number): string {
-  const r = {x: it.x + 4, y: cy - 10, w: 28, h: 20};
-  const d = it.ftaGate ? gatePath(it.ftaGate, r) : markPath(it.ftaEvent as 'basic', {...r, x: r.x + (it.ftaEvent === 'condition' ? 0 : 4), w: it.ftaEvent === 'condition' ? 28 : 20});
+  const wide = it.ftaEvent === 'condition', w = wide || it.ftaGate ? 32 : 24;
+  const r = {x: it.x + 2 + (32 - w) / 2 + (it.ftaGate || wide ? 0 : 4), y: cy - 12, w, h: 24};
+  const d = it.ftaGate ? gatePath(it.ftaGate, r) : markPath(it.ftaEvent as 'basic', r);
   return `<path d="${d}" fill="${PALETTE.bg}" stroke="${PALETTE.text}" stroke-width="2"/>`;
 }
 
