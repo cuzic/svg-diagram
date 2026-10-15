@@ -489,7 +489,7 @@ export const layoutSeverity = (d: Pick<DiagramData, 'layoutCheck'>): 'warn' | 'i
 /** The severity of the `toc-*` findings (ADR 0015 D3): info, or warn for a diagram that asked for diagram({tocCheck: 'strict'}). */
 export const tocSeverity = (d: Pick<DiagramData, 'tocCheck'>): 'warn' | 'info' => d.tocCheck === 'strict' ? 'warn' : 'info';
 
-/** The severity of the cause-analysis findings (ADR 0021 D5 / ADR 0022 D1): info, or warn for a diagram that asked for diagram({rcaCheck: 'strict'}). A finding that carries its own `severity` keeps it. */
+/** The severity of the cause-analysis findings (ADR 0025 D5 / ADR 0026 D1): info, or warn for a diagram that asked for diagram({rcaCheck: 'strict'}). A finding that carries its own `severity` keeps it. */
 export const rcaSeverity = (d: Pick<DiagramData, 'rcaCheck'>): 'warn' | 'info' => d.rcaCheck === 'strict' ? 'warn' : 'info';
 
 /** The checks of the cause-analysis figures. Empty on purpose: each figure (faultTree, isIsNot, whyWhy*, bowtie) adds its own branch, reported at `f.severity ?? rcaSeverity(d)` like tocRules. */

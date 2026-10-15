@@ -136,7 +136,7 @@ export interface DiagramOpts {
   layoutCheck?: LayoutCheck;
   /** 'strict': the `toc-*` findings of this diagram's causeTree({tree}) figures are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
   tocCheck?: TocCheck;
-  /** 'strict': the findings of the cause-analysis figures (`fta-*`, `isisnot-*`, `whywhy-*`, `bowtie-*`: ADR 0021 / 0022) are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
+  /** 'strict': the findings of the cause-analysis figures (`fta-*`, `isisnot-*`, `whywhy-*`, `bowtie-*`: ADR 0025 / 0026) are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
   rcaCheck?: RcaCheck;
 }
 /** diagram({tocCheck}): the severity of the `toc-*` findings. */
