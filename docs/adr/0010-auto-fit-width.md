@@ -1,6 +1,6 @@
 # ADR 0010: 幅の超過を自動で収める(`dir: 'auto'`・段階的な縮め・非連結成分の詰め置き)
 
-- 状態: 提案
+- 状態: 実装済み(第1段。D1〜D8 と U0〜U6。tree / mindmap(fishbone)の折り返し(D2 の第2段)、states / classes / tree への fold は未着手。下の「実装での補足」を参照)
 - 日付: 2026-10-13
 - 基点: `main`(4e58744、PR #120 まで)
 - 関連: ADR 0008。要望の原文は「資料づくり(medius)からの要望」の B 節(B1 / B2 / B3)。追補(2026-10-14): 同じ依頼元の G 節のうち G5・G10(下の D7・D8。TOC の他の要望は ADR 0015、戻り辺・AND は ADR 0016 D9〜D11)
@@ -249,3 +249,16 @@ U1〜U4 は `types.ts` の同じ型に項目を足すので、各 PR が自分�
 - 0016 の `layeredAttempt` の最終的な型(D0。0010 は 0016 の後なので、着手時に合わせる)。
 - 依頼者の 1460px の実物が D1 の試行で収まるか。収まらなければ D2 の第 2 段階を別 ADR で起こす。
 - B3 の空白の原因の再現結果(D4。0016 U2 に渡す)。
+
+## 実装での補足(U0〜U6 = PR #182・#184・#185・#187・#188・#189・#181)
+
+- **fold の行の上限**: 折った行の `settle`(行の間の平均のずらし)で、1 行が上限を超えることがある。そこで `fitLayout`(`lib/fit-width.ts`)は、上限を図の幅の 100% / 85% / 70% / 55% に切った試行(`FOLD_SHARES`)を順に試し、最初に収まったものを採る。fold は試行の最後(`maxNodeW` を最も狭めた幅で、軸は変えない)に置く。
+- **fold の対象**: 層状の `causeTree` の上向き・下向き(縦の図)だけ。`pdpc` / `relationDiagram`(`CauseBand.base` を持つ)、`stateDiagram` / `classDiagram` / `tree` / `mindmap` への fold は範囲外(`foldable` を渡していない)。第 2 段(D2)と合わせて別 PR にする。
+- **`maxNodeW` を明示しても、`dir` を省略・`'auto'` にした図は fold する**(`maxNodeW` は狭めないが、折る)。`dir` を明示した図は `fold: true` を書いたときだけ折る。`fold: false` は無効にする。
+- **`fitApplied`**: `FitApplied.what` は `'dir' | 'maxNodeW' | 'fold'`、`mode` は `'omitted' | 'auto' | 'written'`。`'written'` は、`dir` を明示して `fold: true` で折ったとき(省略・`'auto'` の図が折ったときは、それぞれ `'omitted'` / `'auto'`)。fold の記録は `{what: 'fold', from: 行数, to: 層番号(1 始まり)}`。型は `lib/types/diagrams.ts`(`lib/types.ts` は `lib/types/*.ts` に分かれた)。
+- **`fitWidth`**: 呼び出し元が組んだ試行の列(`{label, run, applied?}`)を受ける。どの試行を作るか(明示した `dir` / `maxNodeW` は変えない)は、U1〜U3 の呼び出し側が決める。共通の計画は `fitLayout`。`tree` は `layeredAttempt` を通らないので、`layoutTree` の `{size, score}` をそのまま試行にする(score は 0。`'auto'` は幅と高さ予算内の最初)。
+- **`causeTree` は軸を変えない**(G5)。`dir` 省略も `'auto'` も同じ試行(200 → 160 → 130 → 110 → fold)。`pdpc` / `relationDiagram`(既定 down)は、`dir` 省略・`'auto'` で `right` にも回る(順は down@200、right@200、down@160 …)。`stateDiagram` は right@200、down@200、right@160 …、`classDiagram` は向きだけ(狭める幅が無い)。`stateDiagram` の幅の判定には、ループ辺の `reserve` を含める。`arrowDiagram()` は、省略した `dir` をそのまま通す(以前は `'right'` を書いていた)。
+- **`tree()` の挙動の変更**: `dir` を省略して `down` で収まらない `tree()` は、以前は throw したが、`right` に回る(throw していた図だけが変わる)。`mindmap()` は `layout` を変えず、`maxNodeW` を省略したときだけ狭める。収まらなければ `layout: 'list'` などを勧めて throw する。
+- **`auto-fit-applied`**: 省略時 warn、`'auto'` 時 info、`accept` で外せる。`verify.ts` は、スライド向け(`medium: 'slide'`)の図でもこの所見を通す(通さないと build の警告に載らない)。`describeApplied` の文面は日本語(例: `dir を up から right に変えた(1460→880px)`)。
+- **`diagram({maxWidth})`**: `doc-width` の閾値だけを図ごとに変える(正の有限数、他は throw)。レイアウトの幅(`width`、既定 940)は変えない。図の値が、設定ファイルの `maxWidth` に勝つ。`canvas` の図は検査しない。
+- **`wrap: 'bunsetsu'`**: 規則は D8 のとおり。箱の幅の上限は `maxNodeW` の 1.5 倍(内幅 + 2 * PAD_X の幅として実装)。`Intl.Segmenter` は使わない。`lib/wrap.ts` に `longestUnitWidth` / `getWrapMode` を足した。
