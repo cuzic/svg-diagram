@@ -234,3 +234,11 @@ test('causeTree(): arrows into an AND no longer run side by side (the long arrow
   assert.deepEqual(andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses'), [], 'no two arrows into an AND run side by side');
   assert.equal(t.loose.length, 0);
 });
+
+// ADR 0016 D12: the long arrow's run through the layers beside another arrow's last run into the same AND (a random 10-node tree that had one).
+test('causeTree(): a long arrow into an AND moves its way points aside when its run lies along another arrow into the same head', () => {
+  const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":["n0","n1"],"to":"n2"},{"from":"n0","to":"n3"},{"from":"n2","to":"n4"},{"from":["n0","n2","n4"],"to":"n5"},{"from":"n3","to":"n6"},{"from":["n4","n0","n1"],"to":"n7"},{"from":"n6","to":"n8"},{"from":["n5","n1"],"to":"n9"}]');
+  const t = place(causeTree(Array.from({length: 10}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'frt', dir: 'up'}), 1800);
+  assert.deepEqual(andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses'), []);
+  assert.equal(t.loose.length, 0);
+});

@@ -131,6 +131,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     });
   });
   // the routes for the ports as they stand (in the layout's own axes)
+  const shiftOf = new Map<number, number>(); // a long arrow's way points moved across the layers (ADR 0016 D12)
   const build = (): Map<number, Pt[]> => {
     const out = new Map<number, Pt[]>();
     const longInto = new Map<string, number>(); // long arrows into one head, each with its own last turn
@@ -161,7 +162,8 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
         const lo = layerOf(e.to) - 1, gl = layerRight.get(lo), gr = layerLeft.get(lo + 1);
         if (gl !== undefined && gr !== undefined) { const k = longInto.get(e.to) ?? 0; longInto.set(e.to, k + 1); lastTurn = laneShare && longLane.has(i) ? Math.min(gr - 26, gl + STUB + longLane.get(i)! * LANE) : Math.max(gl + STUB, gr - 26 - k * LANE); }
       }
-      out.set(i, elbows([start, ...e.points.slice(1, -1), end], turn, lastTurn));
+      const dz = shiftOf.get(i) ?? 0;
+      out.set(i, elbows([start, ...e.points.slice(1, -1).map(p => dz ? {x: p.x, y: p.y + dz} : p), end], turn, lastTurn));
     });
     return out;
   };
@@ -217,6 +219,35 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     if (!undo) continue;
     const trial = build(), score = scoreOf([...trial.values()]);
     if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i)) { routes = trial; best = score; } else undo();
+  }
+  // ADR 0016 D12: a long arrow into a grouped head (an AND) whose run through the layers lies along another arrow into the same head
+  // (the other's last run) moves its way points aside, when that makes no more crossings or bends and pierces no box.
+  if (groupOf) {
+    const segs = (pts: Pt[]) => pts.slice(1).map((q, k) => ({p: pts[k], q}));
+    const together = (r: Map<number, Pt[]>): number => {
+      let n = 0;
+      for (const [i, a] of r) for (const [j, b] of r) {
+        if (j <= i || groupOf(i) === undefined || lay.edges[i].to !== lay.edges[j].to) continue;
+        if (segs(a).some(x => segs(b).some(y => runsTogether(x, y)))) n++;
+      }
+      return n;
+    };
+    const pierces = (pts: Pt[], i: number): boolean => {
+      const e = lay.edges[i];
+      return segs(pts).some(({p, q}) => [...lay.nodes].some(([id, n]) => id !== e.from && id !== e.to && Math.max(p.x, q.x) > n.x + 1 && Math.min(p.x, q.x) < n.x + n.w - 1 && Math.max(p.y, q.y) > n.y + 1 && Math.min(p.y, q.y) < n.y + n.h - 1));
+    };
+    let clash = together(routes);
+    for (const i of routes.keys()) {
+      if (!clash) break;
+      const e = lay.edges[i];
+      if (e.self || e.outer || e.points.length <= 2 || groupOf(i) === undefined) continue;
+      for (const dz of [8, -8, 16, -16]) {
+        shiftOf.set(i, dz);
+        const trial = build(), s = scoreOf([...trial.values()]), t = together(trial);
+        if (t < clash && s.crossings <= best.crossings && s.bends <= best.bends && !pierces(trial.get(i)!, i)) { routes = trial; best = s; clash = t; break; }
+        shiftOf.delete(i);
+      }
+    }
   }
   return new Map([...routes].map(([i, pts]) => [i, pts.map(place)]));
 }
