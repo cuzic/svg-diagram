@@ -71,12 +71,15 @@
 - 大きさは**整数 px**(既存の `scaleRoles` が `Math.round` するのと同じく、SVG の `font-size` は整数)。`display` の 56 からでも、1px ずつ下げる。
 - 測定: 幅は登録済みの値しか引けないので、`registerRequests`(`lib/layout-measure.ts:56`)は `fit` のある run について、`fit.min` から `run.size` までの**全ての整数の大きさ**で登録する(1 つの値あたり、`display` で最大 33 通り。atom 数と同じ数だけ増える。キャッシュは(text, size, weight, font)でキーされるので、同じ値は 1 度だけ測る)。比例で割り算して近似する案は取らない(`getBBox()` の幅は、ヒンティングで大きさに比例しないことがあり、`lint-svg.ts` の container-overflow と食い違うと、レイアウトを通ったのに lint で落ちる。`lib/measure.ts:13-17` の方針)。
 
-### D4. 下限は固定の 24px(`fill` / `canvas` の倍率を掛ける)。lint の 14px と `minText` の両方を割らない
+### D4. 下限は round(24 × s)(s は `fill` / `canvas` の倍率)。稠密な canvas では、その倍率の分だけ小さく縮められる
 
-- `fit.min = max(round(24 × s), canvasMinText ?? 0)`。`s` は `fill` / `canvas` の倍率(`scaleRoles` と同じ。`s = ROLES[...]` の比で、倍率 1 なら 24)。`canvasMinText` は `diagram({canvas: {minText}})` の値(あれば。ADR 0017 の `minText` が 24 を超えるなら、それが下限)。
-- 24 の根拠: (1) 既に使っている数(`SLIDE_CANVAS.minText = 24`、ADR 0008 #7。会場の後ろから読める最小)で、新しい定数を作らない。(2) ラベル(14px)の 1.7 倍以上で、縮んでも「大きな数字」として読める。`stat` の 34px からは約 7 割まで縮められる。24 未満の値は、ラベルと区別が付かない(`banner` が 16px)。
-- `lint-svg.ts` の 14px 下限、`slide-min-text`(最小の文字が `minText` 未満)は**無関係に守られる**(24 ≧ 14、`minText` の上限は D4 の `max`)。`canvas.minText` を 10 に下げた図でも、`stat` の値は 24 未満にしない(ADR 0017 は「文字の下限を下げる」ものであり、`stat` を小さくしてよい理由にはならない)。
-- 縮める前の大きさが 24 以下の場合(`fill` なしで `stat` は 34。通常起こらないが、`canvas` の倍率が 1 未満のとき)は、縮めない(`fit.min = min(fit.min, run.size)`)。
+決定は **(a) 倍率をかけた下限**。「24px の絶対の下限」(b)にはしない。
+
+- `fit.min = min(run.size, max(round(24 × s), canvasMinText ?? 0))`。`s` は `scaleRoles` と同じ倍率(`canvasFontScale(minText)`、`lib/tokens.ts:274-276`。倍率 1 なら 24)。`canvasMinText` は `diagram({canvas: {minText}})` の値で、図が宣言した文字の下限を下回らないための保険(通常は `round(24 × s)` の方が大きい)。外側の `min(run.size, …)` は、縮める前の大きさが下限以下のとき縮めない(`fit.min = run.size`)ための式。
+- 理由: ADR 0017 の趣旨は「投影しない手元・配布用の稠密な canvas の図は、小さい文字を許す」。`canvas.minText: 10` の図は倍率が約 0.72 で、`stat` は 34 × 0.72 ≒ 24 で描かれる。ここで下限を絶対の 24 にすると、`stat` の通常の大きさがすでに下限で、「縮める余地が無い」うえに、他の文字より値だけが縮められない不ぞろいになる。倍率を掛ければ、稠密な図では `round(24 × 0.72)` = 17 まで縮められ、`stat` と他の文字の比(約 1.7 倍)が通常の図と同じになる。
+- 24 の根拠(倍率 1 のとき): (1) 既に使っている数(`SLIDE_CANVAS.minText = 24`、ADR 0008 #7)で、新しい定数を作らない。(2) ラベル(14px)の約 1.7 倍で、縮んでも「大きな数字」として読める。`stat` の 34px からは約 7 割まで縮められる。これを下回ると、ラベルと区別が付かない(`banner` が 16px)。下限は「ラベルとの比」なので、倍率に追従するのが自然。
+- 14px の下限との関係: 倍率 1 では 24 ≧ 14。倍率が小さい図(稠密な canvas)では、`max(…, minText)` が `font-floor-lowered`(info、`lib/rules.ts:646`)の宣言した下限を守る。`lint-svg.ts` の静的な 14px の下限は、そもそも `minText < 14` の図が通らないことが ADR 0017 の既存の問題(別の仕組み)で、本 ADR はそれを変えない(縮めた値は `minText` を下回らない、以上)。
+- 縮める前の大きさが下限以下(`fit.min = run.size`)なら縮めず、`nowrapOverflow` に回す(検査が止める)。
 
 ### D5. 縮めたことは info で知らせる(黙らない)。規則 `stat-fit-shrunk`
 
@@ -118,7 +121,7 @@ stat: value "3割未満" does not fit its box even at the smallest size (24px: n
 - 収まっている図の SVG は変わらない(D6)。
 - 測定の登録が `stat` の値 1 つあたり最大 33 通りの大きさ分増える(初回のみ。キャッシュあり)。
 - 触る型: `TextRun`(`lib/types/text-bands.ts:149 付近`)、`LaidOutBox`(`:164`)。`WrappedRun.size` は既存。
-- `stat()` の本体(`lib/dsl/text-bands.ts`)は触らない。PR #151 との衝突を避けるため、実装の PR は #151 のマージ後に出す。
+- `stat()` の本体(`lib/dsl/text-bands.ts`)は触らない。`stat()` に触る PR は 3 つ(#151 stat tone accent=別セッション・未マージ、本 ADR、ADR 0023 U3=本体に 3 行目を足す)。**順序は #151 → 0024 → 0023 U3**。
 
 ## 実装計画
 
@@ -139,7 +142,7 @@ stat: value "3割未満" does not fit its box even at the smallest size (24px: n
 
 1. **収まる図は変わらない**: 十分広い箱の `stat('76%', …)` の `wrappedRuns[0].size` が `ROLES.stat`(定数)と等しい、`statShrunk` が無い。既存の `examples/out` / ゴールデンの SVG が byte 同一(U3 の受け入れ)。
 2. **縮む**: 細い箱(幅を `textWidth` から逆算して決める。幅 = 「その値の 34px での幅」の 0.8 倍)で、`wrappedRuns[0].size < ROLES.stat` かつ `>= statFitMin(...)`、`textWidth(…, size) <= wrapWidth + 0.5`(収まっている)、かつ `size + 1` では収まらない(最大性)。幅から決めるので、フォントが変わっても成り立つ。
-3. **下限**: さらに細い箱(幅 = 24px での幅の 0.5 倍)で `verdict.problems` が出て、その文面に `fix:` の行がある。`canvas.minText` を 36 にした図では、`wrappedRuns[0].size >= 36`(下限が `minText` に追従する)。
+3. **下限**: さらに細い箱(幅 = 24px での幅の 0.5 倍)で `verdict.problems` が出て、その文面に `fix:` の行がある。`canvas.minText` を 36 にした図では、`wrappedRuns[0].size >= 36`(下限が `minText` に追従する)。**稠密な canvas**(`canvas: {minText: 10}`、倍率 s < 1)では、`wrappedRuns[0].size >= round(24 × s)` で、かつ絶対の 24 を下回る大きさまで縮められること(`24 × s < 24` なので、`size < 24` になる箱の幅を、幅の関係で作って確かめる)。同じ図の倍率 1 版では、`size >= 24`。
 4. **`display`**: `size: 'display'` の値が縮み、`size` の段が 2 つのままであること(`ROLES` のキーが変わらない)。
 5. **info**: 縮んだ図の `check` が `stat-fit-shrunk` を info で返す。`accept` で許容できる。縮んでいない図には出ない。
 6. **lint**: 縮めた図の SVG の `font-size` が 14 以上(`lint-svg.ts` が通る)。
@@ -152,4 +155,4 @@ stat: value "3割未満" does not fit its box even at the smallest size (24px: n
 2. **同じ行の `stat` の大きさをそろえるか**: 縮んだ 1 つだけが小さくなると不ぞろい(D5 の info で知らせるだけにした)。そろえる案は、`row` / `grid` が子の `stat` を見て、全員を最小の収まる大きさに縮める。ただし「収まっているのに縮む」ので D6(byte 同一)を破る。オプトインの `row({stats: 'same'})` なら破らない。要望が来たら別 ADR。
 3. **`wf.stat` と `people({side})`**: 同じ縮め方を入れるか。`wf.stat` は別実装、`people()` は列の寸法の throw(別の文面)。今回は触らない。
 4. **下限 24 の妥当性**: ADR 0008 #7 の 24 を流用した。ラベルの 14 との比、`display` を使った強い見せ場(56 → 24 は 4 割)が許せるか。実物(要望者の図)で見て、不自然なら `display` だけ下限を上げる(例 34 = `stat` の既定)。
-5. **`statFitMin` の `canvas.minText` が 24 を超えるとき**: 下限が `minText` に追従する(D4)ので、`stat` の既定の大きさ(34)を超える `minText`(例 36)では、縮める余地が無く、値が元から `minText` 未満かもしれない。その場合は縮めず、検査に回す(`fit.min = min(fit.min, run.size)`、D4 の最後)。現行の `slide-min-text` との整合を、実装時にテストで確かめる。
+5. **`minText` が大きいとき**: `stat` の既定の大きさ(34 × s)を超える `minText` では、縮める余地が無い(`fit.min = run.size`、D4)。その場合は縮めず検査に回す。現行の `slide-min-text` との整合を、実装時にテストで確かめる。
