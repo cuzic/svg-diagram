@@ -4,6 +4,7 @@ import {textWidth, splitAtoms} from './atoms.ts';
 import {layoutBalanced, layoutTree} from './graph-layout.ts';
 import type {TreeLayout, TreeNode} from './graph-layout.ts';
 import {layoutBrace, layoutFishbone, layoutHanging, layoutTimelineMap, mirror} from './map-layouts.ts';
+import {fitLayout} from './fit-width.ts';
 import {wrapText} from './wrap.ts';
 import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {LaidOutTree, TreeBand, TreeItem, TreeNodeText} from './types/diagrams.ts';
@@ -57,8 +58,7 @@ export function nodeRuns(r: {x: number; y: number; w: number}, l: NodeLines, rol
   return out;
 }
 
-export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutTree {
-  const maxW = band.maxNodeW ?? DEFAULT_MAX_W;
+export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number): LaidOutTree {
   const items = treeItems(band.root);
   const seen = new Set<string>();
   for (const n of items) {
@@ -67,36 +67,50 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   }
   // node i of `items` is "n<i>" in the layout (ids of the band are the user's; the layout needs unique keys for all)
   const key = new Map<TreeItem, string>(items.map((n, i) => [n, `n${i}`]));
-  const lines = new Map<TreeItem, NodeLines>();
-  const build = (n: TreeItem): TreeNode => {
-    const m = measureNode(n.label, n.sub, maxW, widthOf, roles);
-    lines.set(n, m);
-    return {id: key.get(n)!, size: {w: m.w, h: m.h}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
+  // One whole attempt: the text wrapped at maxW, a plain tree growing `dirNow` (a balanced mindmap keeps its layout).
+  const attemptWith = (dirNow: 'down' | 'right', maxW: number) => {
+    const lines = new Map<TreeItem, NodeLines>();
+    const build = (n: TreeItem): TreeNode => {
+      const m = measureNode(n.label, n.sub, maxW, widthOf, roles);
+      lines.set(n, m);
+      return {id: key.get(n)!, size: {w: m.w, h: m.h}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
+    };
+    const laidRoot = build(band.root);
+    const sides = Object.fromEntries(Object.entries(band.sides ?? {}).map(([id, side]) => {
+      const item = items.find(n => n.id === id);
+      if (!item) throw new Error(`mindmap(): sides names unknown node id "${id}"`);
+      if (!band.root.children?.includes(item)) throw new Error(`mindmap(): sides can pin only a child of the root ("${id}" is deeper)`);
+      return [key.get(item)!, side];
+    }));
+    const kind = band.balanced ? band.layout ?? 'radial' : dirNow;
+    if (band.sides && kind !== 'radial') throw new Error(`mindmap(): sides applies to the radial layout (this is layout: '${kind}')`);
+    const styled = band.edges !== undefined && band.edges !== 'elbow';
+    if (styled && !['radial', 'right', 'left', 'down', 'up'].includes(kind)) throw new Error(`mindmap(): edges: '${band.edges}' applies to the radial, right, left, down and up layouts (this is layout: '${kind}')`);
+    const grown = (dir: 'down' | 'right'): TreeLayout => layoutTree(laidRoot, {dir, gap: GAP, levelGap: LEVEL_GAP});
+    const raw: TreeLayout = kind === 'radial' ? layoutBalanced(laidRoot, {gap: GAP, levelGap: LEVEL_GAP, sides})
+      : kind === 'right' ? grown('right') : kind === 'left' ? mirror(grown('right'), 'x') : kind === 'down' ? grown('down') : kind === 'up' ? mirror(grown('down'), 'y')
+      : kind === 'org' ? layoutHanging(laidRoot, {rowFirst: true}) : kind === 'list' ? layoutHanging(laidRoot)
+      : kind === 'brace' ? layoutBrace(laidRoot) : kind === 'fishbone' ? layoutFishbone(laidRoot) : layoutTimelineMap(laidRoot);
+    // the line style: straight or smooth instead of the elbow (the first and last point of each line, the smooth one along the way the tree grows)
+    const along: 'x' | 'y' = kind === 'down' || kind === 'up' ? 'y' : 'x';
+    const tree: TreeLayout = !styled ? raw : {...raw, edges: raw.edges.map(e => ({...e, points: [e.points[0], e.points[e.points.length - 1]], ...(band.edges === 'curve' ? {curve: along} : {})}))};
+    return {size: {w: tree.w, h: tree.h}, score: {crossings: 0, bends: 0}, tree, lines, kind};
   };
-  const laidRoot = build(band.root);
-  const sides = Object.fromEntries(Object.entries(band.sides ?? {}).map(([id, side]) => {
-    const item = items.find(n => n.id === id);
-    if (!item) throw new Error(`mindmap(): sides names unknown node id "${id}"`);
-    if (!band.root.children?.includes(item)) throw new Error(`mindmap(): sides can pin only a child of the root ("${id}" is deeper)`);
-    return [key.get(item)!, side];
-  }));
-  const kind = band.balanced ? band.layout ?? 'radial' : band.dir === 'right' ? 'right' : 'down';
-  if (band.sides && kind !== 'radial') throw new Error(`mindmap(): sides applies to the radial layout (this is layout: '${kind}')`);
-  const styled = band.edges !== undefined && band.edges !== 'elbow';
-  if (styled && !['radial', 'right', 'left', 'down', 'up'].includes(kind)) throw new Error(`mindmap(): edges: '${band.edges}' applies to the radial, right, left, down and up layouts (this is layout: '${kind}')`);
-  const grown = (dir: 'down' | 'right'): TreeLayout => layoutTree(laidRoot, {dir, gap: GAP, levelGap: LEVEL_GAP});
-  const raw: TreeLayout = kind === 'radial' ? layoutBalanced(laidRoot, {gap: GAP, levelGap: LEVEL_GAP, sides})
-    : kind === 'right' ? grown('right') : kind === 'left' ? mirror(grown('right'), 'x') : kind === 'down' ? grown('down') : kind === 'up' ? mirror(grown('down'), 'y')
-    : kind === 'org' ? layoutHanging(laidRoot, {rowFirst: true}) : kind === 'list' ? layoutHanging(laidRoot)
-    : kind === 'brace' ? layoutBrace(laidRoot) : kind === 'fishbone' ? layoutFishbone(laidRoot) : layoutTimelineMap(laidRoot);
-  // the line style: straight or smooth instead of the elbow (the first and last point of each line, the smooth one along the way the tree grows)
-  const along: 'x' | 'y' = kind === 'down' || kind === 'up' ? 'y' : 'x';
-  const tree: TreeLayout = !styled ? raw : {...raw, edges: raw.edges.map(e => ({...e, points: [e.points[0], e.points[e.points.length - 1]], ...(band.edges === 'curve' ? {curve: along} : {})}))};
-  if (tree.w > w + 0.5) throw new Error(`tree(): the chart is ${Math.ceil(tree.w)}px wide but the figure has ${Math.round(w)}px (${band.balanced ? (kind === 'org' || kind === 'timeline' || kind === 'fishbone' || kind === 'down' || kind === 'up' ? "use layout: 'list', 'right' or 'left', a smaller maxNodeW, or fewer branches" : 'use a smaller maxNodeW or fewer branches') : "use dir: 'right', a smaller maxNodeW, or fewer siblings on one level"})`);
+  const explicitDir = !band.balanced && band.dir !== undefined && band.dir !== 'auto';
+  const start: 'down' | 'right' = band.dir === 'right' ? 'right' : 'down';
+  const balancedHint = band.balanced ? (['org', 'timeline', 'fishbone', 'down', 'up'].includes(band.layout ?? 'radial') ? "layout: 'list', 'right' or 'left'" : 'fewer branches') : undefined;
+  const fitted = fitLayout({
+    who: band.balanced ? 'mindmap()' : 'tree()', w, start, ...(band.balanced ? {noDir: true} : {}), ...(band.balanced ? {axisKept: `another layout (a mindmap keeps its layout: '${band.layout ?? 'radial'}')`} : {alt: start === 'down' ? 'right' as const : 'down' as const}),
+    explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined ? {} : {maxNodeW: band.maxNodeW}),
+    build: attemptWith, best: band.dir === 'auto' && !band.balanced, ...(heightBudget === undefined ? {} : {heightBudget}),
+    ...(balancedHint ? {fix: `write ${balancedHint}${balancedHint.startsWith('layout') ? '' : ', or a wider figure'}`} : {}),
+  });
+  const {tree, lines} = fitted.result, fitApplied = fitted.applied;
   const dx = x + (w - tree.w) / 2, dy = y;
   const out: LaidOutTree = {
     type: 'tree', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: tree.h,
     nodes: [], edges: [], texts: [], anchors: [], labelBoxes: [],
+    ...(fitApplied.length ? {fitApplied} : {}),
   };
   for (const n of items) {
     const p = tree.nodes.get(key.get(n)!)!, l = lines.get(n)!;

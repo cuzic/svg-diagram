@@ -112,6 +112,8 @@ export interface LayoutPlan<D extends string, R extends FitResult> {
   maxNodeW?: number;
   /** false: the component has no node width to narrow (a class diagram). */
   narrow?: boolean;
+  /** true: the figure has no `dir` (a mindmap): the labels leave it out. */
+  noDir?: boolean;
   /** The widest a node may grow by default (the first of NARROWING). */
   build: (dir: D, maxW: number) => R;
   widthOf?: (r: R) => number;
@@ -140,7 +142,7 @@ export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPla
     if (d !== plan.start) applied.push({what: 'dir', from: plan.start, to: d, mode: plan.mode});
     if (mw !== widths[0]) applied.push({what: 'maxNodeW', from: widths[0], to: mw, mode: plan.mode});
     const note = attempts.length ? '' : plan.explicitDir || plan.maxNodeW !== undefined ? ' (as written)' : ' (default)';
-    attempts.push({label: `dir '${d}'${narrow ? `, maxNodeW ${mw}` : ''}${note}`, run: () => plan.build(d, mw), applied});
+    attempts.push({label: `${plan.noDir ? '' : `dir '${d}'`}${narrow ? `${plan.noDir ? '' : ', '}maxNodeW ${mw}` : ''}${note}`, run: () => plan.build(d, mw), applied});
   }
   const fitted = fitWidth(plan.w, attempts, {mode: plan.best ? 'best' : 'first', ...(plan.heightBudget === undefined ? {} : {heightBudget: plan.heightBudget}), ...(plan.widthOf ? {widthOf: plan.widthOf} : {})});
   if (fitted.ok) return {result: fitted.result, applied: withWidths(fitted.applied, fitted.tried, fitted.index)};
