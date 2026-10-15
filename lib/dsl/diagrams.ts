@@ -109,6 +109,11 @@ export function causeTree(nodes: readonly CauseNode[], links: readonly CauseLink
   if (opts.dir !== undefined && !['up', 'down', 'right', 'left'].includes(opts.dir)) throw new Error(`causeTree(): dir must be 'up', 'down', 'right' or 'left' (got ${String(opts.dir)})`);
   if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`causeTree(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
   for (const l of links) if (l.line !== undefined && !['solid', 'dashed', 'dotted'].includes(l.line)) throw new Error(`causeTree(): link to ${l.to} has line ${String(l.line)}`);
+  for (const l of links) {
+    if (l.back === undefined) continue;
+    if (l.back !== true) throw new Error(`causeTree(): link to ${l.to} has back ${String(l.back)} (write back: true, or leave it out)`);
+    if (typeof l.from !== 'string') throw new Error(`causeTree(): a link to "${l.to}" is an AND (from is a list) and also back: true. A return is one arrow: write the link that returns on its own`);
+  }
   for (const n of nodes) {
     if (n.role !== undefined && !(n.role in CAUSE_ROLES)) throw new Error(`causeTree(): node "${n.id}" has role ${String(n.role)} (use ${Object.keys(CAUSE_ROLES).join(', ')})`);
     if (n.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(n.tone)) throw new Error(`causeTree(): node "${n.id}" has tone ${String(n.tone)}`);
@@ -230,8 +235,8 @@ export interface RelationOpts extends CauseOpts {
  * key cause: the one to act on. `problem` names the result (red). A node's own `role` wins.
  *   relationDiagram([{id: 'late', label: '納期遅れ'}, {id: 'rush', label: '急ぎ作業'}, ...], [{from: 'rush', to: 'late'}, ...], {problem: 'late'})
  */
-export function relationDiagram<const N extends readonly RelationNode[], const Id extends string = never>(nodes: N, links: readonly {from: string; to: string; line?: 'solid' | 'dashed' | 'dotted'}[], opts?: RelationOpts & {id?: Id}): CauseBand & Declares<Id | CauseIds<N>> & HandleOf<Id> & AnchorsOf<CauseIds<N>>;
-export function relationDiagram(nodes: readonly RelationNode[], links: readonly {from: string; to: string; line?: 'solid' | 'dashed' | 'dotted'}[], opts: RelationOpts = {}): CauseBand {
+export function relationDiagram<const N extends readonly RelationNode[], const Id extends string = never>(nodes: N, links: readonly {from: string; to: string; line?: 'solid' | 'dashed' | 'dotted'; back?: true}[], opts?: RelationOpts & {id?: Id}): CauseBand & Declares<Id | CauseIds<N>> & HandleOf<Id> & AnchorsOf<CauseIds<N>>;
+export function relationDiagram(nodes: readonly RelationNode[], links: readonly {from: string; to: string; line?: 'solid' | 'dashed' | 'dotted'; back?: true}[], opts: RelationOpts = {}): CauseBand {
   if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('relationDiagram(nodes, links) needs at least one node');
   const ids = new Set(nodes.map(n => n.id)), problems = new Set(opts.problem === undefined ? [] : typeof opts.problem === 'string' ? [opts.problem] : opts.problem);
   for (const p of problems) if (!ids.has(p)) throw new Error(`relationDiagram(): problem names unknown node "${p}"`);

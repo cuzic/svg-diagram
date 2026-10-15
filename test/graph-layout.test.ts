@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {layoutBalanced, layoutLayered, layoutTree} from '../lib/graph-layout.ts';
+import {breakCycles, layoutBalanced, layoutLayered, layoutTree} from '../lib/graph-layout.ts';
 import type {Placed, TreeNode} from '../lib/graph-layout.ts';
 
 const n = (id: string, children?: TreeNode[], w = 80, h = 30): TreeNode => ({id, size: {w, h}, ...(children ? {children} : {})});
@@ -117,4 +117,78 @@ test('layoutLayered: a start node with an edge into it is placed after its tail,
   for (const e of t.edges) assert.ok(t.layers.get(e.from)! < t.layers.get(e.to)!, `${e.from} -> ${e.to} runs forward`);
   const pinned = layoutLayered(['A', 'B'].map(box), [{from: 'A', to: 'B'}], {start: ['A']});
   assert.equal(pinned.layers.get('A'), 0);
+});
+
+// ---- declared back edges (ADR 0016 D9) ----
+const sq = (id: string) => ({id, size: {w: 80, h: 30}});
+const rng = (seed: number) => () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
+
+test('breakCycles: declared edges are reversed first; with none it is the DFS (the same edges as before)', () => {
+  const nodes = ['a', 'b', 'c'].map(id => ({id}));
+  const e = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'a'}];
+  assert.deepEqual([...breakCycles(nodes, e)], [2]);
+  assert.deepEqual([...breakCycles(nodes, e, [1])], [1]);
+  assert.deepEqual([...breakCycles(nodes, e, [])], [...breakCycles(nodes, e)]);
+});
+
+test('breakCycles: a declared edge that closes no cycle, or a second one on the same cycle, throws with a fix', () => {
+  const nodes = ['a', 'b', 'c'].map(id => ({id}));
+  assert.throws(() => breakCycles(nodes, [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}], [0]), /a -> b closes no cycle/);
+  const cyc = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'a'}];
+  assert.throws(() => breakCycles(nodes, cyc, [0, 2]), /a -> b and c -> a are on one cycle.*keep back on the one edge/);
+  assert.throws(() => breakCycles(nodes, cyc, [7]), /not one of the 3 edges/);
+  // two cycles that only share a node each take their own declared edge
+  const two = ['a', 'b', 'c', 'd', 'e'].map(id => ({id}));
+  const e = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'a'}, {from: 'c', to: 'd'}, {from: 'd', to: 'e'}, {from: 'e', to: 'c'}];
+  assert.deepEqual([...breakCycles(two, e, [2, 5])].sort(), [2, 5]);
+});
+
+test('layoutLayered back: the layers of a graph with declared returns do not depend on the order of the nodes (200 small graphs)', () => {
+  const rand = rng(7);
+  let tried = 0, checked = 0;
+  while (checked < 200 && tried < 5000) {
+    tried++;
+    const n = 4 + Math.floor(rand() * 5), names = Array.from({length: n}, (_, i) => `n${i}`);
+    const edges: {from: string; to: string}[] = [], back: number[] = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (rand() < 0.3) edges.push({from: names[i], to: names[j]});
+    for (let k = 0; k < 2; k++) {
+      const j = 1 + Math.floor(rand() * (n - 1)), i = Math.floor(rand() * j);
+      if (rand() < 0.6) { back.push(edges.length); edges.push({from: names[j], to: names[i]}); }
+    }
+    if (!back.length) continue;
+    try { breakCycles(names.map(id => ({id})), edges, back); } catch { continue; } // keep the inputs that are valid declarations
+    checked++;
+    const lay = (order: string[]) => layoutLayered(order.map(sq), edges, {back}).layers;
+    const base = lay(names);
+    for (let k = 0; k < 3; k++) {
+      const shuffled = [...names].sort(() => rand() - 0.5), l = lay(shuffled);
+      for (const id of names) assert.equal(l.get(id), base.get(id), `layer of ${id}`);
+    }
+    const out = layoutLayered(names.map(sq), edges, {back}).edges;
+    for (const o of out) {
+      if (back.includes(o.index)) assert.ok(o.reversed && base.get(o.from)! > base.get(o.to)!, `declared ${o.from} -> ${o.to} is a return`);
+      else if (!o.reversed) assert.ok(base.get(o.from)! < base.get(o.to)!, `${o.from} -> ${o.to} runs forward`);
+    }
+  }
+  assert.equal(checked, 200);
+});
+
+test('layoutLayered back: a CRT with a vicious circle puts the UDE above the root cause only when the return is declared', () => {
+  const ids = ['late', 'cost', 'switch', 'rush', 'wip', 'start', 'kpi'];
+  const e = [['kpi', 'start'], ['start', 'wip'], ['wip', 'switch'], ['wip', 'rush'], ['switch', 'late'], ['switch', 'cost'], ['rush', 'cost'], ['late', 'kpi']].map(([from, to]) => ({from, to}));
+  const undeclared = layoutLayered(ids.map(sq), e).layers;
+  assert.ok(undeclared.get('late')! <= undeclared.get('kpi')!, 'the DFS from the first node cuts switch -> late instead');
+  for (const order of [ids, [...ids].reverse()]) {
+    const l = layoutLayered(order.map(sq), e, {back: [7]}).layers;
+    assert.ok(l.get('late')! > l.get('kpi')!, 'late comes after kpi');
+    assert.deepEqual(ids.map(id => l.get(id)), ids.map(id => layoutLayered(ids.map(sq), e, {back: [7]}).layers.get(id)));
+  }
+});
+
+test('layoutLayered back: a cycle the declaration leaves is still cut, and no declaration is the plain DFS layout', () => {
+  const nodes = ['a', 'b', 'c', 'd'].map(sq);
+  const e = [{from: 'a', to: 'b'}, {from: 'b', to: 'a'}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'}, {from: 'd', to: 'c'}];
+  const t = layoutLayered(nodes, e, {back: [1]});
+  assert.equal(t.edges.filter(x => x.reversed).length, 2);
+  assert.deepEqual(layoutLayered(nodes, e, {back: []}), layoutLayered(nodes, e));
 });
