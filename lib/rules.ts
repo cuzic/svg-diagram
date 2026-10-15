@@ -10,6 +10,7 @@
 // a longer description (Google developer style guide).
 
 import {qualify, scopeOf} from './anchor-scope.ts';
+import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {nestedBandsOf} from './band-children.ts';
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
@@ -91,6 +92,7 @@ export const RULE_DOCS = {
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
   'slide-min-text': 'スライド用キャンバスの最小文字サイズ(既定 24px)より小さい文字がある',
   'font-floor-lowered': 'canvas の図が文字の下限を 14px から下げている(canvas.minText < 14。1:1 で読む前提で、投影には向かない)',
+  'stat-fit-shrunk': 'stat() の値が箱の幅に収まらないので、自動で小さい文字にした(隣の stat と大きさがそろわない。箱を広げるか、値を短くするとそろう)',
   'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
   'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）',
   'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
@@ -534,7 +536,20 @@ function edgeBendsRules(d: LintTarget, out: Finding[]): void {
   }
 }
 
+/** stat-fit-shrunk (ADR 0024 D5): a stat() value drawn smaller than its role's size to fit its box. Info: shrinking is the specified behaviour. */
+function statFitFindings(d: LintTarget, out: Finding[]): void {
+  const boxes: LaidOutBand[] = [];
+  for (const b of d.laidOut ?? []) { if (b.type === 'row' || b.type === 'grid') boxes.push(...b.children); else boxes.push(b); }
+  for (const b of boxes) if (b.type === 'box') for (const s of b.statShrunk ?? []) {
+    out.push({rule: 'stat-fit-shrunk', severity: 'info', message: `stat の値 "${s.value}" を ${s.from}px から ${s.to}px に縮めた(箱の幅 ${Math.round(b.w)}px に収めるため)。同じ列の stat と大きさがそろわない。箱を広げるか、値を短くすると、そろう`});
+  }
+}
+
 export function lintDiagram(d: LintTarget): Finding[] {
+  if (d.appearance === 'auto') { // ADR 0023 D4: both colour sides, the same finding once, a dark-only one marked
+    const side = (appearance: 'light' | 'dark') => lintDiagram({...d, appearance});
+    return mergeSides(side('light'), side('dark'), f => `${f.rule}\0${f.message}`, f => ({...f, message: `${f.message} (${DARK_NOTE})`}));
+  }
   const out = withTones(d.tones, () => lintAll(d));
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
   return out.map(f => (d.accept && d.accept[f.rule as RuleId] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule as RuleId]}）`} : f));
@@ -641,6 +656,7 @@ function lintAll(d: LintTarget): Finding[] {
     // no label at all is a convention (the arrows only mean "depends on" / "next"); some labelled and most not is the inconsistency to flag
     if (connects.length >= 4 && unlabeled < connects.length && unlabeled / connects.length > 0.6) out.push({rule: 'arrow-labels', severity: 'info', message: `矢印 ${connects.length} 本のうち ${unlabeled} 本にラベルがない。何が流れるか（成果物・プロトコル）を短く添える`});
   }
+  statFitFindings(d, out);
   if (d.canvas && d.laidOut) {
     const min = minTextSize(d);
     if (d.canvas.minText < MIN_FONT_SIZE) out.push({rule: 'font-floor-lowered', severity: 'info', message: `文字の下限を ${MIN_FONT_SIZE}px から ${d.canvas.minText}px に下げている(最小の文字 ${min}px)。キャンバスは 1:1 で読まれる前提。投影には向かない`});

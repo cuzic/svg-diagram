@@ -78,7 +78,7 @@
 - `fit.min = min(run.size, max(round(24 × s), canvasMinText ?? 0))`。`s` は `scaleRoles` と同じ倍率(`canvasFontScale(minText)`、`lib/tokens.ts:274-276`。倍率 1 なら 24)。`canvasMinText` は `diagram({canvas: {minText}})` の値で、図が宣言した文字の下限を下回らないための保険(通常は `round(24 × s)` の方が大きい)。外側の `min(run.size, …)` は、縮める前の大きさが下限以下のとき縮めない(`fit.min = run.size`)ための式。
 - 理由: ADR 0017 の趣旨は「投影しない手元・配布用の稠密な canvas の図は、小さい文字を許す」。`canvas.minText: 10` の図は倍率が約 0.72 で、`stat` は 34 × 0.72 ≒ 24 で描かれる。ここで下限を絶対の 24 にすると、`stat` の通常の大きさがすでに下限で、「縮める余地が無い」うえに、他の文字より値だけが縮められない不ぞろいになる。倍率を掛ければ、稠密な図では `round(24 × 0.72)` = 17 まで縮められ、`stat` と他の文字の比(約 1.7 倍)が通常の図と同じになる。
 - 24 の根拠(倍率 1 のとき): (1) 既に使っている数(`SLIDE_CANVAS.minText = 24`、ADR 0008 #7)で、新しい定数を作らない。(2) ラベル(14px)の約 1.7 倍で、縮んでも「大きな数字」として読める。`stat` の 34px からは約 7 割まで縮められる。これを下回ると、ラベルと区別が付かない(`banner` が 16px)。下限は「ラベルとの比」なので、倍率に追従するのが自然。
-- 14px の下限との関係: 倍率 1 では 24 ≧ 14。倍率が小さい図(稠密な canvas)では、`max(…, minText)` が `font-floor-lowered`(info、`lib/rules.ts:646`)の宣言した下限を守る。`lint-svg.ts` の静的な 14px の下限は、そもそも `minText < 14` の図が通らないことが ADR 0017 の既存の問題(別の仕組み)で、本 ADR はそれを変えない(縮めた値は `minText` を下回らない、以上)。
+- 14px の下限との関係: lint の床は、図が宣言した `minText`(案件の `fontFloor` で許可したもの。`minText` が 14 未満の図は SVG に `data-min-text` が出て、`lint-svg.ts` はそれを床として読む。ADR 0017)で、縮めた値はそれを下回らない。倍率 1 では 24 ≧ 14。稠密な canvas では `max(round(24 × s), minText)` が `minText` 以上を保つ(`font-floor-lowered`(info、`lib/rules.ts`)が宣言を知らせる)。
 - 縮める前の大きさが下限以下(`fit.min = run.size`)なら縮めず、`nowrapOverflow` に回す(検査が止める)。
 
 ### D5. 縮めたことは info で知らせる(黙らない)。規則 `stat-fit-shrunk`

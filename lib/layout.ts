@@ -29,7 +29,7 @@ import {
 } from './layout-util.ts';
 import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
 import type {DiagramData, Roles, WidthOf, Rect} from './types/core.ts';
-import type {LaidOutDiagram, LaidOutBand, Band} from './types/index.ts';
+import type {LaidOutDiagram, LaidOutBand, LaidOutBox, Band} from './types/index.ts';
 import type {CaptionBand, BoxBand, BannerBand, BoxChrome} from './types/text-bands.ts';
 import {CONNECT_LABEL_SIZE, TAG_SIZE, withTones} from './tokens.ts';
 
@@ -143,8 +143,15 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
     // a centred / right-aligned title: the step badge sits just before its first line, so emit needs that line's width
     if (band.type === 'box' && band.step != null && band.title && (band.align ?? (topIcon(band) ? 'center' : 'left')) !== 'left') (placed as Placed<B> & {titleW?: number}).titleW = lineWidth(widthOf, wrappedRuns[0], 0);
     if (band.type === 'box') {
-      const overflow = wrappedRuns.filter(r => r.nowrap && textWidth(widthOf, r.text, r.size, r.weight, r.mono ? 'mono' : 'sans') > wrapWidth - (r.indent ?? 0) + 0.5).map(r => r.text);
-      if (overflow.length) (placed as Placed<BoxBand> & {nowrapOverflow?: string[]}).nowrapOverflow = overflow;
+      const overflow: NonNullable<LaidOutBox['nowrapOverflow']> = [];
+      for (const r of wrappedRuns) {
+        if (!r.nowrap) continue;
+        const width = textWidth(widthOf, r.text, r.size, r.weight, r.mono ? 'mono' : 'sans'), avail = wrapWidth - (r.indent ?? 0);
+        if (width > avail + 0.5) overflow.push({value: r.text, width, avail, min: r.size}); // r.size: a value that may shrink is drawn at its floor by now
+      }
+      if (overflow.length) (placed as Placed<BoxBand> & {nowrapOverflow?: typeof overflow}).nowrapOverflow = overflow;
+      const shrunk = wrappedRuns.filter(r => r.shrunkFrom !== undefined).map(r => ({value: r.text, from: r.shrunkFrom!, to: r.size}));
+      if (shrunk.length) (placed as Placed<BoxBand> & {statShrunk?: typeof shrunk}).statShrunk = shrunk;
     }
     if (chrome.tag) {
       const tw = textWidth(widthOf, chrome.tag, (roles.tag ?? TAG_SIZE), 700) + 2 * TAG_PAD_X;

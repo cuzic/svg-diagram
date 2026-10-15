@@ -73,11 +73,12 @@ const NO_LINT = args.includes('--no-lint'); // iteration: skip the lint pass (ch
 const HTML = args.includes('--html'); // also write <name>.html (boxes and text as HTML/CSS, the rest as an inline SVG overlay)
 const DARK = args.includes('--dark'); // draw with the dark token set (overrides diagram({appearance}))
 const TRANSPARENT = args.includes('--transparent'); // no page-colour background rectangle
+const NO_SOURCE_LINE = args.includes('--no-source-line'); // ADR 0023 D11: draw without diagram({sourceLine}) (recorded in <metadata> as noSourceLine)
 const STALE = args.includes('--stale'); // skip diagrams whose SVG already matches this source, tool version and project config
-const modules = args.filter((a, i) => !['--out', '--out-dir', '--png', '--scale', '--id-prefix', '--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent', '--today'].includes(a) && !['--out', '--out-dir', '--png', '--scale', '--id-prefix', '--today'].includes(args[i - 1]));
+const modules = args.filter((a, i) => !['--out', '--out-dir', '--png', '--scale', '--id-prefix', '--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent', '--no-source-line', '--today'].includes(a) && !['--out', '--out-dir', '--png', '--scale', '--id-prefix', '--today'].includes(args[i - 1]));
 
 if (modules.length === 0) {
-  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--png <dir> [--scale N]] [--stale] [--no-lint] [--fit] [--html] [--dark] [--transparent] [--id-prefix <p|auto>] [--today YYYY-MM-DD]');
+  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--png <dir> [--scale N]] [--stale] [--no-lint] [--fit] [--html] [--dark] [--transparent] [--no-source-line] [--id-prefix <p|auto>] [--today YYYY-MM-DD]');
   process.exit(2);
 }
 if (outOverride && modules.length > 1) {
@@ -123,7 +124,7 @@ try {
     const pngCurrent = () => !pngPath || (fs.existsSync(pngPath) && fs.statSync(pngPath).mtimeMs >= fs.statSync(outPath).mtimeMs);
     if (STALE && idPrefixArg === null && !FIT && !DARK && !TRANSPARENT && fs.existsSync(outPath) && pngCurrent()) { // --png: a missing or older PNG is not up to date either
       const meta = readProvenance(outPath);
-      if (meta && meta.sourceSha256 === srcSha && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256 && (meta.depsSha256 ?? '') === depsSha) {
+      if (meta && meta.sourceSha256 === srcSha && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256 && (meta.depsSha256 ?? '') === depsSha && !!meta.noSourceLine === NO_SOURCE_LINE) {
         console.log(`· ${outPath} は最新（スキップ）`);
         skipped++;
         continue;
@@ -132,9 +133,10 @@ try {
     try {
       const d = await loadDiagram(abs, config); // .svg-diagram.json: project-wide accepted rules and max width
       // provenance for drift checks: which source (and which tool version) produced this SVG
-      d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source: path.relative(process.cwd(), abs), sourceSha256: srcSha, ...(configSha256 ? {configSha256} : {}), ...(depsSha ? {depsSha256: depsSha} : {})};
+      d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source: path.relative(process.cwd(), abs), sourceSha256: srcSha, ...(configSha256 ? {configSha256} : {}), ...(depsSha ? {depsSha256: depsSha} : {}), ...(NO_SOURCE_LINE ? {noSourceLine: true} : {})};
       if (DARK && typeof d.appearance !== 'object') d.appearance = 'dark'; // a custom dark set the diagram names stays
       if (TRANSPARENT) d.transparent = true;
+      if (NO_SOURCE_LINE) d.sourceLine = undefined; // before drawing, so the figure is the one the source would give without a sourceLine
       if (FIT) {
         const hits = locateSlide(path.basename(outPath));
         if (hits.length !== 1) throw new Error(`--fit: ${path.basename(outPath)} を使っているスライドが${hits.length}枚です(ちょうど1枚が必要)`);

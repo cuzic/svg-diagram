@@ -185,7 +185,7 @@ map・video 等は残りの高さを埋める。`overlay` / `overlayRight` で�
 
 ### 大きな数値と棒グラフ
 
-`stat(value, label, opts)` は、大きな値と補足ラベルを中央揃えにした plain の `box()` を返すため、そのまま `row()` に入れられる。`size` は `'stat'`（34px、既定）または `'display'`（56px）。`tone` は値の文字だけに付き、ラベルは muted、箱の見た目は変わらない。値は折り返さず、幅に収まらない図は検証エラーになる。
+`stat(value, label, opts)` は、大きな値と補足ラベルを中央揃えにした plain の `box()` を返すため、そのまま `row()` に入れられる。`size` は `'stat'`（34px、既定）または `'display'`（56px）。`tone` は値の文字色で、ラベルは muted。`'accent'` だけは箱も accent の塗り（`tones.accent.fill` の上書きに従う）にし、白黒でも plain の数値と見分けがつく。`'solid'` / `'solid-danger'` は箱全体を濃く塗り、文字は白。他の tone は箱の見た目を変えない。値は折り返さず、幅に収まらない図は検証エラーになる。
 
 ```ts
 row([

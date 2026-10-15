@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="214" viewBox="0 0 940 214" role="img" aria-labelledby="svg-title">
   <title id="svg-title">導入前後の離脱率</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/stat.ts","sourceSha256":"f7745cb7fc1e2f444ed4f3dcf7b5cfa417adec8037ed141c59a340795b8883a6"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/stat.ts","sourceSha256":"f299cf42ace88827af4cea71eaf98280c8eef4d1bce5813f082ec2aa4bc40479"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
@@ -9,11 +9,15 @@
 
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">導入前後の離脱率</text>
 
-  <rect x="20" y="56" width="440" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="240" y="128" text-anchor="middle" font-size="56" font-weight="700" fill="#b91c1c">76%</text>
-  <text x="240" y="172.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">導入前</text>
+  <rect x="20" y="56" width="348" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="194" y="128" text-anchor="middle" font-size="56" font-weight="700" fill="#b91c1c">76%</text>
+  <text x="194" y="172.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">導入前</text>
 
-  <rect x="480" y="56" width="440" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="700" y="128" text-anchor="middle" font-size="56" font-weight="700" fill="#1d5fa8">31%</text>
-  <text x="700" y="172.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">導入後</text>
+  <rect x="384" y="56" width="348" height="140" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="558" y="128" text-anchor="middle" font-size="56" font-weight="700" fill="#1d5fa8">31%</text>
+  <text x="558" y="172.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">導入後</text>
+
+  <rect x="748" y="56" width="172" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="834" y="109" text-anchor="middle" font-size="37" font-weight="700" fill="#22201b">3割未満</text>
+  <text x="834" y="145.8" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">目標</text>
 </svg>

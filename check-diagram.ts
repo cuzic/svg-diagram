@@ -266,6 +266,7 @@ try {
       if ((meta.depsSha256 ?? '') !== depsSha256(abs)) { add({file: src, rule: 'drift-stale-deps', severity: 'error', message: `ソースが import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`}); complain(`✗ ${src}: import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`); return; }
       if (rebuild) {
         const d = await loadDiagram(abs, config);
+        if (meta.noSourceLine) d.sourceLine = undefined; // ADR 0023 D13: rebuild the way the SVG was built
         d.source = meta; // same provenance → byte-comparable
         if (meta.today !== undefined) d.today = meta.today; // a today: 'auto' figure is drawn again with the day it was drawn with
         const tmp = path.join(path.dirname(svg), `.${name}.rebuild.svg`);
