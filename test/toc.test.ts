@@ -112,6 +112,36 @@ test('causeTree(): a link may be a feedback loop (a cycle), drawn from its real 
   assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause: arrow')), []);
 });
 
+test('causeTree({coreDriver}): the root that reaches the most ude gets the core mark; role is unchanged; counts are written', async () => {
+  const bands = (opts: object) => causeTree(
+    [N('u1', {role: 'ude'}), N('u2', {role: 'ude'}), N('u3', {role: 'ude'}), N('m'), N('big', {role: 'root'}), N('small', {role: 'root'})],
+    [{from: 'big', to: 'm'}, {from: 'm', to: 'u1'}, {from: 'm', to: 'u2'}, {from: 'small', to: 'u3'}], opts);
+  const {t, verdict} = await laidCause(bands({coreDriver: true}));
+  const idx = (id: string) => t.anchors.findIndex(a => a.id === id);
+  assert.deepEqual(t.nodes.flatMap((n, i) => n.core ? [t.anchors[i].id] : []), ['big']);
+  assert.ok(t.nodes[idx('big')].double && t.nodes[idx('small')].double, 'both stay roots (double outline)');
+  assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause')), []);
+  assert.equal(t.texts.filter(x => x.text.includes('到達 UDE')).length, 2, 'every starting entity gets its number');
+  const bare = await laidCause(bands({coreDriver: true, counts: false}));
+  assert.ok(!bare.t.texts.some(x => x.text.includes('到達')), 'counts: false writes no number');
+  assert.equal(bare.t.nodes.filter(n => n.core).length, 1);
+  const plain = await laidCause(bands({}));
+  assert.ok(!plain.t.nodes.some(n => n.core) && !plain.t.texts.some(x => x.text.includes('到達')), 'without coreDriver nothing changes');
+});
+
+test('causeTree({coreDriver}): the SVG has a thick frame and a badge for the core entity only', async () => {
+  const d = (core: boolean) => diagram({theme: 'blue'}).add(causeTree(
+    [N('u1', {role: 'ude'}), N('u2', {role: 'ude'}), N('r', {role: 'root'})], [{from: 'r', to: 'u1'}, {from: 'r', to: 'u2'}], core ? {coreDriver: true} : {}));
+  const on = (await renderDiagram(d(true), {name: 'c.svg', budget: 'cacheOnly'})).svg, off = (await renderDiagram(d(false), {name: 'c.svg', budget: 'cacheOnly'})).svg;
+  assert.equal(on.match(/stroke-width="3.5"/g)?.length, 1);
+  assert.equal(on.match(/中核/g)?.length, 1);
+  assert.ok(!off.includes('中核') && !off.includes('stroke-width="3.5"'));
+});
+
+test('causeTree(): coreDriver must be a boolean', () => {
+  assert.throws(() => causeTree([N('a')], [], {coreDriver: 'yes' as never}), /coreDriver must be/);
+});
+
 test('causeTree() rejects bad input', async () => {
   assert.throws(() => causeTree([], []), /at least one node/);
   assert.throws(() => causeTree([N('a')], [], {dir: 'sideways' as never}), /dir must be/);
