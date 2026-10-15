@@ -224,12 +224,13 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   // an AND: an arc across the last run of each of its arrows, a little before the arrowheads. It needs the arrows to arrive on
   // one side of the effect, all heading the same way, with room before the head for the arc
   for (const g of groups) {
-    const {ends, d, cross, ok} = andEnds(g, k => out.edges[drawn.get(k)!].points);
+    const {ends, d, along, cross, ok} = andEnds(g, k => out.edges[drawn.get(k)!].points);
     if (!ok) continue;
     const us = ends.map(e => cross(e.tip)), tip = ends[0].tip;
     // the arc ends short of the nearest other arrow into this effect (another AND's arc, or an arrow of its own), so two arcs never touch
-    const others = out.edges.filter((e, k) => e.to === g.to && !g.arrows.some(a => drawn.get(a) === k)).map(e => cross(e.points[e.points.length - 1]));
-    const reachTo = (u: number, sign: 1 | -1): number => Math.min(AND_REACH, ...others.filter(o => (o - u) * sign > 0).map(o => Math.abs(o - u) / 2 - 5));
+    // only an arrow that arrives on the same side: a return on the far side of the effect (or a blocks arrow) is nowhere near the arc, and measuring against it left the arc short of its own arrows
+    const others = out.edges.filter((e, k) => e.to === g.to && !g.arrows.some(a => drawn.get(a) === k) && Math.abs(along(e.points[e.points.length - 1]) - along(tip)) < 1).map(e => cross(e.points[e.points.length - 1]));
+    const reachTo = (u: number, sign: 1 | -1): number => Math.max(0, Math.min(AND_REACH, ...others.filter(o => (o - u) * sign > 0).map(o => Math.abs(o - u) / 2 - 5)));
     const lo = Math.min(...us) - reachTo(Math.min(...us), -1), hi = Math.max(...us) + reachTo(Math.max(...us), 1);
     const at = (u: number, dist: number): Pt => d.x ? {x: tip.x - d.x * dist, y: u} : {x: u, y: tip.y - d.y * dist};
     out.ands.push({to: g.to, from: g.arrows.map(k => arrows[k].from), p0: at(lo, AND_END), c: at((lo + hi) / 2, 2 * AND_PEAK - AND_END), p1: at(hi, AND_END)});
