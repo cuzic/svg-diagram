@@ -33,6 +33,7 @@ import type {Config} from './lib/types/project.ts';
 import path from 'path';
 import fs from 'fs';
 import {ALLOWED_COLORS, DARK_COLORS, EMOJI_RE, MIN_FONT_SIZE, MIN_TEXT_ABSOLUTE} from './lib/tokens.ts';
+import {stripAutoBlock} from './lib/appearance-auto.ts';
 
 const strict = process.argv.includes('--strict');
 const engineIdx = process.argv.indexOf('--engine');
@@ -144,7 +145,7 @@ for (const f of files) {
   }
 
   const usedColors = new Set<string>();
-  for (const m of src.matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) usedColors.add('#' + m[1].toLowerCase());
+  for (const m of stripAutoBlock(src).matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) usedColors.add('#' + m[1].toLowerCase());
   // a diagram that says it is dark (data-appearance) may also use the dark tokens and its own dark set (data-palette); a light one may not
   const dark = /<svg[^>]*\sdata-appearance="dark"/.test(src);
   // data-tone-colors: the colours diagram({tones}) / the config's tones put in (light or dark), allowed in either appearance

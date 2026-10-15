@@ -56,7 +56,7 @@ export function mapOf(appearance: Appearance | undefined): Record<string, string
   return out;
 }
 function baseMapOf(appearance: Appearance | undefined): Record<string, string> | null {
-  if (appearance === undefined || appearance === 'light') return null;
+  if (appearance === undefined || appearance === 'light' || appearance === 'auto') return null; // 'auto' is drawn light; its dark side is an @media block (lib/appearance-auto.ts)
   if (appearance === 'dark') return DARK_OF;
   const key = JSON.stringify(appearance.dark);
   let m = MAPS.get(key);

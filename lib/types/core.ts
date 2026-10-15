@@ -8,8 +8,8 @@ import type {WireframeDefaults} from './wireframe.ts';
 
 /** Palette keys diagram() accepts: 1 / 2 (the training deck's legacy day numbers) or a named theme. */
 export type Theme = 1 | 2 | 'blue' | 'teal' | 'amber';
-/** 'light' (default) | 'dark': which token set the diagram is drawn with (tokens.ts DARK_PALETTE). */
-export type Appearance = 'light' | 'dark' | {dark: Partial<DarkTokens>};
+/** 'light' (default) | 'dark': which token set the diagram is drawn with (tokens.ts DARK_PALETTE). 'auto': drawn light, plus a prefers-color-scheme: dark rule for each colour it uses (lib/appearance-auto.ts). */
+export type Appearance = 'light' | 'dark' | 'auto' | {dark: Partial<DarkTokens>};
 /** The dark token set, replaceable per diagram: `appearance: {dark: {bg: '#0b1220', text: '#ffffff', accent: '#60a5fa'}}`. accent / soft replace those of every theme. */
 export interface DarkTokens {bg: string; text: string; muted: string; border: string; code: string; danger: string; accent: string; soft: string}
 /** 'slide' (legacy `day:` diagrams, get slide-fit warnings) | 'doc' (`theme:` diagrams: title/desc metadata, full rule set). */
