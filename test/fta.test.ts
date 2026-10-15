@@ -247,3 +247,71 @@ test('legend: a hand-written fault-tree entry is not added twice; the symbols dr
   assert.throws(() => legend([{ftaGate: 'xor' as never, label: 'x'}]), /ftaGate/);
   assert.throws(() => legend([{ftaEvent: 'event' as never, label: 'x'}]), /ftaEvent/);
 });
+
+// ---- U4: probability ----
+import {topProbability, SHARED_LIMIT} from '../lib/fta-analysis.ts';
+
+const P = (id: string, p: number): FtaEvent => ({id, label: id, kind: 'basic', p});
+const prob = (top: FtaEvent) => topProbability(ftaResolve(top).root);
+const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-12, `${a} vs ${b}`);
+
+test('topProbability(): AND is a product, OR is 1 - product of (1 - p)', () => {
+  near(prob({label: 't', gate: 'and', children: [P('a', 0.1), P('b', 0.2)]}).p, 0.02);
+  near(prob({label: 't', gate: 'or', children: [P('a', 0.1), P('b', 0.2)]}).p, 0.28);
+  near(prob({label: 't', gate: 'inhibit', children: [P('a', 0.5)], condition: {id: 'c', label: 'c', p: 0.2}}).p, 0.1);
+});
+
+test('topProbability(): 2-out-of-3 with p = 0.1 is 0.028; unequal inputs agree with listing every case', () => {
+  near(prob({label: 't', gate: 'vote', k: 2, children: [P('a', 0.1), P('b', 0.1), P('c', 0.1)]}).p, 0.028);
+  const ps = [0.1, 0.3, 0.5];
+  let want = 0;
+  for (let m = 0; m < 8; m++) {
+    const on = ps.map((_, i) => (m >> i) & 1);
+    if (on.reduce((a, b) => a + b, 0) >= 2) want += ps.reduce((w, p, i) => w * (on[i] ? p : 1 - p), 1);
+  }
+  near(prob({label: 't', gate: 'vote', k: 2, children: ps.map((p, i) => P(`e${i}`, p))}).p, want);
+});
+
+test('topProbability(): a shared event is not counted as two independent ones', () => {
+  const [a, b, c] = [0.3, 0.2, 0.5];
+  const t: FtaEvent = {label: 't', gate: 'or', children: [{label: 'g1', gate: 'and', children: [P('a', a), P('b', b)]}, {label: 'g2', gate: 'and', children: [{ref: 'a'}, P('c', c)]}]};
+  const r = prob(t);
+  near(r.p, a * (1 - (1 - b) * (1 - c)));
+  assert.ok(Math.abs(r.p - (1 - (1 - a * b) * (1 - a * c))) > 1e-3, 'differs from treating the two a as independent');
+  assert.equal(r.bound, false);
+});
+
+test('topProbability(): house events are constants', () => {
+  near(prob({label: 't', gate: 'and', children: [P('a', 0.3), {label: 'h', kind: 'house', state: true}]}).p, 0.3);
+  near(prob({label: 't', gate: 'or', children: [P('a', 0.3), {label: 'h', kind: 'house', state: false}]}).p, 0.3);
+});
+
+test('topProbability(): past SHARED_LIMIT shared events it is the min-cut upper bound (>= exact, <= sum of cut probabilities)', () => {
+  const n = SHARED_LIMIT + 1;
+  const xs = Array.from({length: n}, (_, i) => P(`x${i}`, 0.1));
+  const t: FtaEvent = {label: 't', gate: 'or', children: [
+    {label: 'g1', gate: 'and', children: xs},
+    {label: 'g2', gate: 'or', children: xs.map((_, i) => ({label: `h${i}`, gate: 'and', children: [{ref: `x${i}`}, P(`y${i}`, 0.01)]}))},
+  ]};
+  const r = prob(t);
+  assert.equal(r.bound, true);
+  const sum = 0.1 ** n + n * 0.1 * 0.01;
+  assert.ok(r.p <= sum + 1e-15 && r.p > 0);
+  const exactLike = 1 - (1 - 0.1 ** n) * (1 - 0.001) ** n; // independent pairs: the bound is this when the cuts are disjoint
+  near(r.p, exactLike);
+});
+
+test('quant: true needs p on the events, names those without, and writes the note', async () => {
+  assert.throws(() => faultTree(svc, {quant: true}), /no p.*主系停止.*待機系へ切替不能.*アプリ全台停止/);
+  assert.throws(() => faultTree(svc, {quantPeriod: '1 年間'}), /goes with quant/);
+  const ok: FtaEvent = {label: 't', gate: 'or', children: [{label: 'g', gate: 'and', children: [P('a', 0.1), P('b', 0.2)]}, {label: 'u', kind: 'undeveloped', p: 0.01}]};
+  const {t, verdict} = await laid(faultTree(ok, {quant: true, quantPeriod: '1 年間'}));
+  assert.equal(verdict.problems.length, 0, verdict.problems.join('\n'));
+  assert.match(t.note!, /期間: 1 年間。頂上事象の確率 0\.03.*独立と仮定/);
+  assert.ok(t.texts.some(x => x.text.includes('頂上事象の確率')));
+  assert.ok(t.texts.some(x => x.text === 'p = 0.1'), 'each event shows its p');
+  assert.ok(t.h > 0 && t.texts.every(x => x.y <= t.y + t.h));
+  const noQuant = await laid(faultTree(ok));
+  assert.equal(noQuant.t.note, undefined);
+  assert.ok(!noQuant.t.texts.some(x => x.text.startsWith('p =')));
+});

@@ -428,6 +428,10 @@ export interface FtaOpts extends RevealOpts, ScopeOpts {
   maxNodeW?: number | 'auto';
   /** Mark the events that alone bring the top event about (the minimal cut sets of size 1) with a heavy outline and a badge. Throws when the tree has too many cut sets to find them. */
   cutSets?: boolean;
+  /** Work out the probability of the top event from the `p` of the events (independent events; every basic event needs `p`) and write it under the tree. */
+  quant?: boolean;
+  /** The period `p` is over, written in the note (`quant` only): '1 年間'. */
+  quantPeriod?: string;
   id?: string;
 }
 export interface FtaBand extends FtaOpts {
@@ -445,6 +449,8 @@ export interface LaidOutFta extends Rect, Dimmed {
   nodes: (Rect & {kind: FtaKind; id?: string})[];
   /** The symbol under a basic / undeveloped / house / condition event. */
   marks: (Rect & {kind: FtaKind; single?: true})[];
+  /** The note under the tree (opts `quant`): the probability of the top event and what it assumes. */
+  note?: string;
   /** The label under a single point of failure (opts `cutSets`). */
   badges: (Rect & {text: string; size: number})[];
   gates: (Rect & {gate: FtaGate; label?: {text: string; size: number}})[];
