@@ -63,7 +63,7 @@ export interface Dimmed {/** Set on laid-out elements outside diagram({spotlight
 export interface Anchor extends Rect {id: string}
 /** Result of parsing a connect() ref 'id', 'id:side' or 'id:side@t'. */
 export interface ConnectRef {id: string; side: string; at: number}
-/** diagram({canvas}): the fixed slide canvas the diagram is drawn on. `minText` is the smallest text size (px, in the canvas's own units) the lint accepts. */
+/** diagram({canvas}): the fixed slide canvas the diagram is drawn on. `minText` is the smallest text size (px, in the canvas's own units) the lint accepts. Below 14 (down to 10) only for a dense figure read 1:1, not projected, and only when the project's `fontFloor` allows it. */
 export interface SlideCanvas {width: number; height: number; minText: number}
 /** Slide the diagram will be shown on (slide-budget.ts measures its free area). */
 export interface SlideRef {page: string; heading: string}

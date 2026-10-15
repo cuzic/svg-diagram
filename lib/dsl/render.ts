@@ -3,7 +3,7 @@ import {mapOf, checkTones} from '../tokens.ts';
 import {analyzeFit} from '../fit.ts';
 import {getSlideBudget, readSlideBudgetCache} from '../slide-budget.ts';
 import {emitOutputs, runChecked} from '../pipeline.ts';
-import {SLIDE_CANVAS, canvasFontScale, canvasRoles, ROLES, THEMES, scaleRoles} from '../tokens.ts';
+import {SLIDE_CANVAS, checkMinText, canvasFontScale, canvasRoles, ROLES, THEMES, scaleRoles} from '../tokens.ts';
 import type {ConnectOpts} from '../types/containers.ts';
 import type {BandInput, Diagram, DiagramData, DiagramOpts, Theme, Medium} from '../types/core.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
@@ -43,6 +43,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (opts.canvas !== undefined && (opts.slide || opts.fill)) throw new Error('diagram({canvas}) is a whole slide drawn 1:1; it cannot be combined with `slide` / `fill` (those fit a figure into a measured slot of a Slidev slide)');
   if (opts.width !== undefined && opts.width !== 'fit' && !(typeof opts.width === 'number' && Number.isFinite(opts.width) && opts.width > 0)) throw new Error(`diagram({width}) must be a positive number or 'fit' (got ${JSON.stringify(opts.width)})`);
   if (opts.width === 'fit' && (opts.canvas !== undefined || opts.fill || opts.slide)) throw new Error("diagram({width: 'fit'}) is for a document figure: a `canvas` is drawn 1:1, and `fill` / `slide` fit a measured slot");
+  if (opts.canvas !== undefined && opts.canvas !== 'slide' && opts.canvas.minText !== undefined) checkMinText(opts.canvas.minText, 'diagram({canvas: {minText}})');
   const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...(opts.canvas === 'slide' ? {} : opts.canvas)};
   const d: DiagramData = {
     day: theme as Theme,
