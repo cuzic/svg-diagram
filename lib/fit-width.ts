@@ -89,3 +89,67 @@ export function describeApplied(a: FitApplied): string {
 export function withWidths(applied: readonly FitApplied[], tried: readonly Tried[], index: number): FitApplied[] {
   return applied.map(a => ({...a, wasW: tried[0].w, nowW: tried[index].w}));
 }
+
+/** The widths a node may grow to, widest first, when a figure has to be narrowed to fit (ADR 0010 D1). Below the last the text breaks into one or two characters a line. */
+export const NARROWING = [200, 160, 130, 110];
+
+export interface LayoutPlan<D extends string, R extends FitResult> {
+  /** `causeTree()`, `stateDiagram()`: the start of the failure message. */
+  who: string;
+  /** The width the figure has. */
+  w: number;
+  /** The direction as laid out when nothing changes (the written one, or the default). */
+  start: D;
+  /** The other axis, tried when the author left `dir` out or wrote 'auto'. None: the axis is kept (a cause tree). */
+  alt?: D;
+  /** Said when `alt` is none: why. */
+  axisKept?: string;
+  /** `dir` is written as a direction: nothing is changed. */
+  explicitDir: boolean;
+  /** How `dir` was not written: left out (a warning) or 'auto' (a note). */
+  mode: 'omitted' | 'auto';
+  /** A written maxNodeW is not narrowed. */
+  maxNodeW?: number;
+  /** false: the component has no node width to narrow (a class diagram). */
+  narrow?: boolean;
+  /** The widest a node may grow by default (the first of NARROWING). */
+  build: (dir: D, maxW: number) => R;
+  widthOf?: (r: R) => number;
+  heightBudget?: number;
+  /** 'best' (dir: 'auto' with an axis to choose): the best score; otherwise the first that fits. */
+  best?: boolean;
+  /** More lines for "not tried". */
+  notTried?: string[];
+  /** The one fix to name when the figure is not given as an explicit dir; default: a wider figure, or splitting it when that is a lot wider. */
+  fix?: string;
+}
+
+/**
+ * Lays a figure out in the ways ADR 0010 D1 allows and returns the first (or best) that fits `w`, with what was changed to get there.
+ * Throws, with what was tried and one fix, when none fits. A figure that fits as written is attempt 0 and changes nothing.
+ */
+export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPlan<D, R>): {result: R; applied: FitApplied[]} {
+  const narrow = plan.narrow !== false;
+  const alt = plan.alt !== plan.start ? plan.alt : undefined;
+  const free = !plan.explicitDir;
+  const dirs: D[] = free && alt !== undefined ? [plan.start, alt] : [plan.start];
+  const widths = narrow && free && plan.maxNodeW === undefined ? NARROWING : [plan.maxNodeW ?? NARROWING[0]];
+  const attempts: FitAttempt<R>[] = [];
+  for (const mw of widths) for (const d of dirs) {
+    const applied: FitApplied[] = [];
+    if (d !== plan.start) applied.push({what: 'dir', from: plan.start, to: d, mode: plan.mode});
+    if (mw !== widths[0]) applied.push({what: 'maxNodeW', from: widths[0], to: mw, mode: plan.mode});
+    const note = attempts.length ? '' : plan.explicitDir || plan.maxNodeW !== undefined ? ' (as written)' : ' (default)';
+    attempts.push({label: `dir '${d}'${narrow ? `, maxNodeW ${mw}` : ''}${note}`, run: () => plan.build(d, mw), applied});
+  }
+  const fitted = fitWidth(plan.w, attempts, {mode: plan.best ? 'best' : 'first', ...(plan.heightBudget === undefined ? {} : {heightBudget: plan.heightBudget}), ...(plan.widthOf ? {widthOf: plan.widthOf} : {})});
+  if (fitted.ok) return {result: fitted.result, applied: withWidths(fitted.applied, fitted.tried, fitted.index)};
+  const notTried: string[] = [];
+  if (plan.explicitDir) notTried.push(`${alt !== undefined ? `dir '${alt}'${narrow ? ' and ' : ''}` : ''}${narrow ? 'narrower nodes' : ''} (dir is explicit; write dir: 'auto' to let ${alt !== undefined || narrow ? 'them' : 'it'} change)`);
+  else if (narrow && plan.maxNodeW !== undefined) notTried.push(`narrower nodes (maxNodeW is explicit: ${plan.maxNodeW})`);
+  if (!plan.explicitDir && alt === undefined && plan.axisKept) notTried.push(plan.axisKept);
+  notTried.push(...(plan.notTried ?? []));
+  const wider = widerThan(fitted.tried, 40);
+  const fix = plan.explicitDir ? `dir: 'auto', or widen the figure (diagram({width: ${wider}}))` : plan.fix ?? (wider > 1400 ? 'split the figure in two (fewer entities on one level)' : `widen the figure (diagram({width: ${wider}}))`);
+  throw new Error(fitFailure(plan.who, plan.w, fitted.tried, fix, notTried));
+}
