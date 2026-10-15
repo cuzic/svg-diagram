@@ -104,7 +104,7 @@ export function legend(items: LegendItem[], opts: LegendOpts = {}): LegendBand {
   for (const it of items) if (it.weight && it.line === 'double') throw new Error(`legend(): weight '${it.weight}' cannot go with line 'double' ("${it.label}")`);
   for (const it of items) {
     if (it.role !== undefined && !(it.role in CAUSE_ROLES)) throw new Error(`legend(): item "${it.label}" has role ${String(it.role)} (use ${Object.keys(CAUSE_ROLES).join(', ')})`);
-    if (it.edge !== undefined && it.edge !== 'and') throw new Error(`legend(): item "${it.label}" has edge ${String(it.edge)} (use 'and')`);
+    if (it.edge !== undefined && !['and', 'back', 'blocks'].includes(it.edge)) throw new Error(`legend(): item "${it.label}" has edge ${String(it.edge)} (use 'and', 'back' or 'blocks')`);
     if (it.mark !== undefined && it.mark !== 'core') throw new Error(`legend(): item "${it.label}" has mark ${String(it.mark)} (use 'core')`);
   }
   // a weight sample is a line sample: the plain line unless `line` says otherwise

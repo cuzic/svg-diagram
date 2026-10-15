@@ -111,8 +111,8 @@ export const DEFAULT_LEGEND_LABELS = {
   // a causeTree() figure (ADR 0015 D6): an entity role, an arrow joined by an arc, the core driver mark
   'role:ude': '好ましくない現象(UDE)', 'role:root': '根本原因', 'role:de': '望む結果(DE)', 'role:injection': '施策', 'role:precondition': '現状の事実',
   'role:goal': '目標', 'role:io': '中間目標', 'role:obstacle': '障害', 'role:action': '行動', 'role:start': '開始', 'role:risk': '懸念', 'role:measure': '対策',
-  'edge:and': '合わせて原因(AND)', 'mark:core': '中核ドライバー',
-} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}` | `role:${Exclude<CauseRole, 'effect' | 'step'>}` | 'edge:and' | 'mark:core', string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
+  'edge:and': '合わせて原因(AND)', 'edge:back': '戻り(フィードバック)', 'edge:blocks': '断つ', 'mark:core': '中核ドライバー',
+} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}` | `role:${Exclude<CauseRole, 'effect' | 'step'>}` | 'edge:and' | 'edge:back' | 'edge:blocks' | 'mark:core', string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
 
 // every band, including those nested in groups, rows, grids and swimlanes
 export function walkBands(bands: Band[], out: Band[] = []): Band[] {
@@ -139,6 +139,8 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause 
     else if (b.type === 'cause' && withCause) { // only legend: 'auto' reads these (the legend-* checks keep their old count)
       for (const n of b.nodes) if (n.role && n.role !== 'effect' && n.role !== 'step') used.add(`role:${n.role}`);
       if (b.links.some(l => typeof l.from !== 'string' && l.from.length > 1)) used.add('edge:and');
+      if (b.links.some(l => l.back)) used.add('edge:back');
+      if (b.links.some(l => l.kind === 'blocks')) used.add('edge:blocks');
       if (b.nodes.some(n => n.core)) used.add('mark:core');
     }
   }
@@ -191,7 +193,7 @@ export function applyAutoLegend(d: DiagramData): void {
     // v comes from our own `tone:<tone>` / `line:<style>` keys (usedNotation), so the casts hold
     if (kind === 'tone') return allDashed(v) ? {tone: v as EmphasisTone, dashed: true, label: labelOf(k)} : {tone: v as EmphasisTone, label: labelOf(k)};
     if (kind === 'role') return {role: v as CauseRole, label: labelOf(k)};
-    if (kind === 'edge') return {edge: v as 'and', label: labelOf(k)};
+    if (kind === 'edge') return {edge: v as 'and' | 'back' | 'blocks', label: labelOf(k)};
     if (kind === 'mark') return {mark: v as 'core', label: labelOf(k)};
     if (kind === 'arrow') return {line: 'solid', arrow: 'both', label: labelOf(k)};
     if (kind === 'weight') return {line: 'solid', weight: v as ArrowWeight, label: labelOf(k)};
