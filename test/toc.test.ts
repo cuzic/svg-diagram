@@ -569,3 +569,13 @@ test('transitionUnits(): units become a chain of 3-input ANDs; the result of one
   assert.throws(() => transitionUnits([{id: 'a', current: 'c', need: ' ', action: 'x', result: 'r'}]), /needs a need text/);
   assert.throws(() => transitionUnits([{id: 'a', current: 'c', need: 'n', action: 'x', result: 'r'}, {id: 'a', need: 'n', action: 'x', result: 'r'}]), /duplicate unit id/);
 });
+
+test("causeTree({mirrors}): the current reality tree is kept as ids only; mirrors is checked", async () => {
+  const crt = causeTree([N('u1', {role: 'ude', label: '納期に遅れる'}), N('root', {role: 'root'})], [{from: 'root', to: 'u1'}], {tree: 'crt'});
+  const frt = causeTree([N('i', {role: 'injection'}), N('d1', {role: 'de', mirrors: 'u1'})], [{from: 'i', to: 'd1'}], {tree: 'frt', mirrors: crt});
+  assert.deepEqual(frt.mirrorOf, {ids: ['u1', 'root'], udes: ['u1']});
+  assert.ok(!JSON.stringify(frt).includes('納期に遅れる'), "the current reality tree's text is not in this figure");
+  assert.deepEqual(tocFindings(frt).map(f => f.rule), []);
+  assert.throws(() => causeTree([N('d', {role: 'de'})], [], {tree: 'frt', mirrors: frt}), /mirrors is the band causeTree\(\) made for tree: 'crt'/);
+  assert.throws(() => causeTree([N('d', {role: 'ude', mirrors: 'u1'})], [], {}), /only a role: 'de' or 'goal' node takes it/);
+});

@@ -120,6 +120,8 @@ export interface CauseNode {
   core?: boolean;
   /** For a `trim` entity of a negative branch tree: the injection it is folded into ("施策 1"). Drawn as a line under the label (→ 施策 1 に組み込む); the injection need not be in the figure. */
   foldsInto?: string;
+  /** For a `de` or `goal` entity of a future reality tree given `mirrors` (see CauseOpts): the id of the undesirable effect of the current reality tree it answers. */
+  mirrors?: string;
 }
 export interface CauseLink {
   /** The cause. An array is an AND: the causes together are sufficient (or needed), joined by an arc across their arrows. */
@@ -151,6 +153,11 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
   /** Where an entity that nothing causes goes (ADR 0019 D1): 'asap' the first layer, 'alap' just before its nearest effect (a chain of such entities too; root, injection and start entities stay
    *  on the first layer). Default: 'alap' when `tree` is 'prt', 'frt' or 'tt', else 'asap' (the picture as it was). */
   layer?: 'asap' | 'alap';
+  /** The current reality tree (the band causeTree() returned for tree: 'crt') this future reality tree answers: its `de` / `goal` entities name the `ude` they mirror (node `mirrors`), and `check`
+   *  finds an unknown or doubled one and a `ude` nothing answers (`toc-mirror`). Only its ids are kept; its text is not read as part of this figure. */
+  mirrors?: CauseBand;
+  /** What `mirrors` leaves in the band: the ids of the current reality tree and of its undesirable effects. Set by causeTree(), not by the author. */
+  mirrorOf?: {ids: string[]; udes: string[]};
   /** With coreDriver: write `到達 UDE n` under each starting entity (default true). */
   counts?: boolean;
   /** Where a return (an arrow back to an earlier layer) that skips two layers or more runs: 'inline' (through the figure, over dummies) or 'outer' (in a lane
