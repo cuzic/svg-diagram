@@ -92,7 +92,7 @@ export interface StatesBand extends StatesOpts {
   transitions: Transition[];
 }
 /** What an entity is. It sets the default tone and, for the two that name the finding, a double outline. */
-export type CauseRole = 'effect' | 'ude' | 'root' | 'de' | 'injection' | 'goal' | 'obstacle' | 'io' | 'action' | 'start' | 'step' | 'risk' | 'measure';
+export type CauseRole = 'effect' | 'ude' | 'root' | 'de' | 'injection' | 'goal' | 'obstacle' | 'io' | 'action' | 'start' | 'step' | 'risk' | 'measure' | 'precondition';
 export interface CauseNode {
   /** Required: links name it, and connect() can reach it. */
   id: string;
@@ -100,11 +100,14 @@ export interface CauseNode {
   /** A second, muted line (a measure, a note). */
   sub?: string;
   /** ude = undesirable effect (danger), root = root cause (accent, double outline), de = desirable effect, injection = the change put in,
-   *  goal = the goal of a prerequisite tree (double outline), obstacle, io = intermediate objective, action = a step of a transition tree.
+   *  goal = the goal of a prerequisite tree (double outline), obstacle, io = intermediate objective, action = a step of a transition tree,
+   *  precondition = a fact of the present nobody controls (grey, dashed box; AND it with an injection's result in a future reality tree).
    *  For a PDPC (pdpc()): start, step, risk (what could go wrong: a danger hexagon), measure (what to do then), goal. */
   role?: CauseRole;
   /** Overrides the tone the role gives. */
   tone?: BoxTone;
+  /** The core driver mark: a thick frame and a 中核 badge. causeTree({coreDriver: true}) sets it; it is not a role. */
+  core?: boolean;
 }
 export interface CauseLink {
   /** The cause. An array is an AND: the causes together are sufficient (or needed), joined by an arc across their arrows. */
@@ -112,11 +115,25 @@ export interface CauseLink {
   /** The effect (or, in a prerequisite tree, what the cause is needed for). */
   to: string;
   line?: 'solid' | 'dashed' | 'dotted';
+  /** 'cause' (default) or 'blocks': this entity cuts that one (trimming; the negative branch). Drawn dashed and ending in a bar instead of an
+   *  arrowhead; `from` is one entity; it is not an AND, and it is not counted as a cause (coreDriver). */
+  kind?: 'cause' | 'blocks';
+  /** This arrow is the return of a loop (a vicious circle's UDE back to its root cause): it is laid out as the way back, so the layers do not
+   *  depend on the order the entities are written in, and it is drawn bold. One cause only (not with an array `from`); one per cycle. */
+  back?: true;
 }
 export interface CauseOpts extends RevealOpts {
   /** Which way the arrows run: 'up' (default: causes at the bottom, effects at the top), 'down', 'right' or 'left'. */
   dir?: 'up' | 'down' | 'right' | 'left';
   maxNodeW?: number;
+  /** Mark the core driver: the starting entity (nothing causes it) whose arrows bring about the most `ude` entities, 2 or more (a tie: all).
+   *  Every starting entity gets the number it reaches under its text (`到達 UDE n`) unless `counts` is false. `role` is not changed. */
+  coreDriver?: boolean;
+  /** Which Theory of Constraints tree this is: 'crt' (current reality), 'frt' (future reality), 'prt' (prerequisite), 'tt' (transition).
+   *  Only a figure that says it is checked (the `toc-*` rules of `check`); not written, nothing is checked. It never changes the drawing. */
+  tree?: 'crt' | 'frt' | 'prt' | 'tt';
+  /** With coreDriver: write `到達 UDE n` under each starting entity (default true). */
+  counts?: boolean;
   id?: string;
 }
 export interface CauseBand extends CauseOpts {
@@ -254,9 +271,9 @@ export interface LaidOutCause extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone; double?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean})[];
+  nodes: (Rect & {tone: BoxTone; double?: boolean; /** the core driver: a thick frame and a badge */ core?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean})[];
   /** Orthogonal polylines from the cause's box edge to the effect's; the arrowhead is at the last point. */
-  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'}[];
+  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; /** a declared return (`back: true`): drawn bold */ back?: true; /** only a cutting arrow has it */ kind?: 'blocks'}[];
   /** The arc across the arrows of an AND: a quadratic curve p0 - c - p1. */
   ands: {to: string; /** the causes it joins */ from: string[]; p0: {x: number; y: number}; c: {x: number; y: number}; p1: {x: number; y: number}}[];
   /** Effects whose AND arrows could not be joined by an arc (they do not arrive on one side of the effect). */

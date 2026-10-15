@@ -12,24 +12,24 @@
 
   <rect x="20" y="56" width="440" height="320" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
 
-  <text x="36" y="86.6" font-size="15" font-weight="700" fill="#22201b">経理部</text>
+  <text x="36" y="87" font-size="15" font-weight="700" fill="#22201b">経理部</text>
 
   <rect x="36" y="100" width="408" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="56" y="131.6" font-size="15" font-weight="700" fill="#22201b">申請内容の確認</text>
+  <text x="56" y="131" font-size="15" font-weight="700" fill="#22201b">申請内容の確認</text>
 
   <rect x="36" y="168" width="408" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="56" y="200.6" font-size="15" font-weight="700" fill="#22201b">添付書類の確認</text>
+  <text x="56" y="199" font-size="15" font-weight="700" fill="#22201b">添付書類の確認</text>
 
   <rect x="36" y="240" width="408" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="56" y="269.6" font-size="15" font-weight="700" fill="#22201b">金額の確認</text>
+  <text x="56" y="271" font-size="15" font-weight="700" fill="#22201b">金額の確認</text>
 
   <rect x="36" y="308" width="408" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="56" y="338.6" font-size="15" font-weight="700" fill="#22201b">期限の確認</text>
+  <text x="56" y="339" font-size="15" font-weight="700" fill="#22201b">期限の確認</text>
 
   <rect x="480" y="56" width="440" height="320" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
 
-  <text x="496" y="86.6" font-size="15" font-weight="700" fill="#22201b">承認者</text>
+  <text x="496" y="87" font-size="15" font-weight="700" fill="#22201b">承認者</text>
 
   <rect x="496" y="200" width="408" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="516" y="231.6" font-size="15" font-weight="700" fill="#22201b">総合判断</text>
+  <text x="516" y="231" font-size="15" font-weight="700" fill="#22201b">総合判断</text>
 </svg>

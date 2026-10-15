@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="228" viewBox="0 0 940 228" role="img" aria-labelledby="svg-title svg-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="229" viewBox="0 0 940 229" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">再発から遮断まで</title>
   <desc id="svg-desc">要素: 1回目、2回目、3回目、4回目、5回目</desc>
   <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/steps.ts","sourceSha256":"fba973ddab3523e687788d9b98031ac15bbf9c2c6341067bcbee7ebbdd61ad18"}</metadata>
@@ -11,37 +11,37 @@
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
   </style>
-  <rect x="0" y="0" width="940" height="228" fill="#ffffff"/>
+  <rect x="0" y="0" width="940" height="229" fill="#ffffff"/>
 
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">4回の再発のあと、5回目で遮断する</text>
 
   <rect x="20" y="56" width="164" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="80" y="86.6" font-size="15" font-weight="700" fill="#22201b">1回目</text>
-  <text x="40" y="114.6" font-size="14" font-weight="400" fill="#22201b">原因は不明</text>
+  <text x="80" y="87" font-size="15" font-weight="700" fill="#22201b">1回目</text>
+  <text x="40" y="115" font-size="14" font-weight="400" fill="#22201b">原因は不明</text>
   <g role="img" aria-label="手順 1" data-badge="">
   <circle cx="56" cy="80" r="15" fill="#1d5fa8"/>
   <text x="55" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">1</text>
   </g>
 
   <rect x="204" y="56" width="164" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="264" y="86.6" font-size="15" font-weight="700" fill="#22201b">2回目</text>
-  <text x="224" y="114.6" font-size="14" font-weight="400" fill="#22201b">手で復旧</text>
+  <text x="264" y="87" font-size="15" font-weight="700" fill="#22201b">2回目</text>
+  <text x="224" y="115" font-size="14" font-weight="400" fill="#22201b">手で復旧</text>
   <g role="img" aria-label="手順 2" data-badge="">
   <circle cx="240" cy="80" r="15" fill="#1d5fa8"/>
   <text x="239" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">2</text>
   </g>
 
   <rect x="388" y="56" width="164" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="448" y="86.6" font-size="15" font-weight="700" fill="#22201b">3回目</text>
-  <text x="408" y="114.6" font-size="14" font-weight="400" fill="#22201b">手で復旧</text>
+  <text x="448" y="87" font-size="15" font-weight="700" fill="#22201b">3回目</text>
+  <text x="408" y="115" font-size="14" font-weight="400" fill="#22201b">手で復旧</text>
   <g role="img" aria-label="手順 3" data-badge="">
   <circle cx="424" cy="80" r="15" fill="#1d5fa8"/>
   <text x="423" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">3</text>
   </g>
 
   <rect x="572" y="56" width="164" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="632" y="86.6" font-size="15" font-weight="700" fill="#22201b">4回目</text>
-  <text x="592" y="114.6" font-size="14" font-weight="400" fill="#22201b">同じ原因と判明</text>
+  <text x="632" y="87" font-size="15" font-weight="700" fill="#22201b">4回目</text>
+  <text x="592" y="115" font-size="14" font-weight="400" fill="#22201b">同じ原因と判明</text>
   <g role="img" aria-label="手順 4" data-badge="">
   <circle cx="608" cy="80" r="15" fill="#1d5fa8"/>
   <text x="607" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">4</text>
@@ -50,13 +50,13 @@
   <text x="695" y="61" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">気づく</text>
 
   <rect x="756" y="56" width="164" height="80" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
-  <text x="860" y="86.6" font-size="15" font-weight="700" fill="#22201b">5回目</text>
-  <text x="820" y="114.6" font-size="14" font-weight="400" fill="#22201b">自動で遮断</text>
+  <text x="860" y="87" font-size="15" font-weight="700" fill="#22201b">5回目</text>
+  <text x="820" y="115" font-size="14" font-weight="400" fill="#22201b">自動で遮断</text>
   <g role="img" aria-label="手順 5" data-badge="">
   <circle cx="836" cy="80" r="15" fill="#1d5fa8"/>
   <text x="835" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">5</text>
   </g>
-  <path d="M21 11c0 5.55-3.84 10.74-9 12c-5.16-1.26-9-6.45-9-12V5l9-4l9 4zm-9 10c3.75-1 7-5.46 7-9.78V6.3l-7-3.12L5 6.3v4.92C5 15.54 8.25 20 12 21" transform="translate(776 71.6) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="shield"/>
+  <path d="M21 11c0 5.55-3.84 10.74-9 12c-5.16-1.26-9-6.45-9-12V5l9-4l9 4zm-9 10c3.75-1 7-5.46 7-9.78V6.3l-7-3.12L5 6.3v4.92C5 15.54 8.25 20 12 21" transform="translate(776 72) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="shield"/>
 
   <path d="M184,96 L204,96" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
   <path d="M368,96 L388,96" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
@@ -66,6 +66,6 @@
   <rect x="416" y="188" width="28" height="16" rx="4" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
   <text x="457" y="201" font-size="14" fill="#22201b">異常・注意</text>
 
-  <path d="M204,140 L204,152 L736,152 L736,140" fill="none" stroke="#22201b" stroke-width="2"/>
-  <text x="470" y="172" text-anchor="middle" font-size="14" fill="#22201b">手で復旧していた区間</text>
+  <path d="M204,141 L204,153 L736,153 L736,141" fill="none" stroke="#22201b" stroke-width="2"/>
+  <text x="470" y="173" text-anchor="middle" font-size="14" fill="#22201b">手で復旧していた区間</text>
 </svg>

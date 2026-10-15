@@ -11,16 +11,16 @@
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">ハードル：第 1 の壁は 20、第 2 は 35、第 3 は 60（高さは値に比例）</text>
 
   <path d="M24,150 L912,150" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M127.6,122.27 H216.4 V149.6 H127.6 Z" fill="#1d5fa8"/>
-  <path d="M423.6,101.77 H512.4 V149.6 H423.6 Z" fill="#1d5fa8"/>
-  <path d="M719.6,67.6 H808.4 V149.6 H719.6 Z" fill="#1d5fa8"/>
+  <path d="M127.6,122.67 H216.4 V150 H127.6 Z" fill="#1d5fa8"/>
+  <path d="M423.6,102.17 H512.4 V150 H423.6 Z" fill="#1d5fa8"/>
+  <path d="M719.6,68 H808.4 V150 H719.6 Z" fill="#1d5fa8"/>
 
-  <text x="470" y="191.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">階段：1 段ごとに 10 ずつ上がる（棒どうしが接する）</text>
+  <text x="470" y="190" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">階段：1 段ごとに 10 ずつ上がる（棒どうしが接する）</text>
 
-  <path d="M24,337 L912,337" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M24,314.8 H201.6 V337.2 H24 Z" fill="#1d5fa8"/>
-  <path d="M201.6,292.4 H379.2 V337.2 H201.6 Z" fill="#1d5fa8"/>
-  <path d="M379.2,270 H556.8 V337.2 H379.2 Z" fill="#1d5fa8"/>
-  <path d="M556.8,247.6 H734.4 V337.2 H556.8 Z" fill="#1d5fa8"/>
-  <path d="M734.4,225.2 H912 V337.2 H734.4 Z" fill="#1d5fa8"/>
+  <path d="M24,336 L912,336" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M24,313.6 H201.6 V336 H24 Z" fill="#1d5fa8"/>
+  <path d="M201.6,291.2 H379.2 V336 H201.6 Z" fill="#1d5fa8"/>
+  <path d="M379.2,268.8 H556.8 V336 H379.2 Z" fill="#1d5fa8"/>
+  <path d="M556.8,246.4 H734.4 V336 H556.8 Z" fill="#1d5fa8"/>
+  <path d="M734.4,224 H912 V336 H734.4 Z" fill="#1d5fa8"/>
 </svg>

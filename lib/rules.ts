@@ -34,6 +34,7 @@ import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
 import type {Finding} from './types/verdicts.ts';
 import type {WfCallout} from './types/wireframe-nodes.ts';
 import type {LintTarget} from './types/verdicts.ts';
+import {tocFindings} from './toc-rules.ts';
 
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
@@ -60,6 +61,11 @@ export const RULE_DOCS = {
   'quadrant-empty-cell': 'quadrant() のマスに項目が 1 つもない（「該当なし」の空の枠が残っている。意図した空きは allowEmpty で示す）',
   'quadrant-tone-only': 'quadrant() の項目の色（tone）だけで種類を分けている（group を使うと形と凡例でも伝わる）',
   'funnel-values-rise': 'funnel({scale: "value"}) の値が下の段で増えている（漏斗として読むなら、値と段の順を確認する）',
+  'toc-ude-count': '現状ツリー(causeTree({tree: "crt"}))の UDE が 5〜10 個の範囲の外。部分図なら accept で許容する。diagram({tocCheck: "strict"}) で warn',
+  'toc-parts': 'TOC のツリーの部品が足りない・違う(crt に根本原因 root が無い、frt に施策 injection か望む結果 de が無い、frt に root がある)。diagram({tocCheck: "strict"}) で warn',
+  'toc-source-has-cause': '原因を持たない役割(crt の root、frt の injection、precondition)の実体に、入る矢印がある。diagram({tocCheck: "strict"}) で warn',
+  'toc-chain-only': 'crt / frt が分岐も合流も AND も無い 1 本鎖(途中の原因を飛ばしている可能性)。diagram({tocCheck: "strict"}) で warn',
+  'toc-orphan': 'causeTree({tree}) の実体のうち、どのリンクにも出てこないものがある(graph-orphan-node は connect() の線しか見ない)。diagram({tocCheck: "strict"}) で warn',
   'graph-orphan-node': '矢印でつないだ図の中に、どの矢印にもつながっていない箱がある（つなぎ忘れか、図に要らない箱。意図した注記なら id を付けない）',
   'graph-disconnected': '矢印でつないだ図が、互いにつながらない 2 つ以上のかたまりに分かれている（1 図 1 話なら、つなぎ忘れか、図を分ける）',
   'term-variant': '同じ語の表記が 1 つの図の中で揺れている（ユーザ / ユーザー、API / Api など）。1 つに揃える',
@@ -447,6 +453,14 @@ function wireframeRules(d: LintTarget, out: Finding[]): void {
 /** The severity of the layout-quality findings (`layout-*`, and ADR 0016's `edge-bends`): info, or warn for a diagram that asked for diagram({layoutCheck: 'strict'}). */
 export const layoutSeverity = (d: Pick<DiagramData, 'layoutCheck'>): 'warn' | 'info' => d.layoutCheck === 'strict' ? 'warn' : 'info';
 
+/** The severity of the `toc-*` findings (ADR 0015 D3): info, or warn for a diagram that asked for diagram({tocCheck: 'strict'}). */
+export const tocSeverity = (d: Pick<DiagramData, 'tocCheck'>): 'warn' | 'info' => d.tocCheck === 'strict' ? 'warn' : 'info';
+
+function tocRules(d: LintTarget, out: Finding[]): void {
+  const severity = tocSeverity(d);
+  for (const b of walkBands(d.bands)) if (b.type === 'cause') for (const f of tocFindings(b)) out.push({rule: f.rule, severity, message: f.message});
+}
+
 // Alignment and whitespace (ADR 0014): measured on the laid-out bands (lib/layout-metrics.ts), reported at layoutSeverity(d).
 function layoutQualityRules(d: LintTarget, out: Finding[]): void {
   if (!d.laidOut) return;
@@ -527,6 +541,7 @@ function graphRules(d: LintTarget, out: Finding[]): void {
 function lintAll(d: LintTarget): Finding[] {
   const out: Finding[] = [];
   layoutQualityRules(d, out);
+  tocRules(d, out);
   textContrast(d, out);
   colourOnlyEmphasis(d, out);
   nonTextContrast(d, out);

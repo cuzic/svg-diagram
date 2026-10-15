@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {layoutBalanced, layoutLayered, layoutTree} from '../lib/graph-layout.ts';
+import {breakCycles, layoutBalanced, layoutLayered, layoutTree} from '../lib/graph-layout.ts';
 import type {Placed, TreeNode} from '../lib/graph-layout.ts';
 
 const n = (id: string, children?: TreeNode[], w = 80, h = 30): TreeNode => ({id, size: {w, h}, ...(children ? {children} : {})});
@@ -117,4 +117,189 @@ test('layoutLayered: a start node with an edge into it is placed after its tail,
   for (const e of t.edges) assert.ok(t.layers.get(e.from)! < t.layers.get(e.to)!, `${e.from} -> ${e.to} runs forward`);
   const pinned = layoutLayered(['A', 'B'].map(box), [{from: 'A', to: 'B'}], {start: ['A']});
   assert.equal(pinned.layers.get('A'), 0);
+});
+
+// ---- declared back edges (ADR 0016 D9) ----
+const sq = (id: string) => ({id, size: {w: 80, h: 30}});
+const rng = (seed: number) => () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
+
+test('breakCycles: declared edges are reversed first; with none it is the DFS (the same edges as before)', () => {
+  const nodes = ['a', 'b', 'c'].map(id => ({id}));
+  const e = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'a'}];
+  assert.deepEqual([...breakCycles(nodes, e)], [2]);
+  assert.deepEqual([...breakCycles(nodes, e, [1])], [1]);
+  assert.deepEqual([...breakCycles(nodes, e, [])], [...breakCycles(nodes, e)]);
+});
+
+test('breakCycles: a declared edge that closes no cycle, or a second one on the same cycle, throws with a fix', () => {
+  const nodes = ['a', 'b', 'c'].map(id => ({id}));
+  assert.throws(() => breakCycles(nodes, [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}], [0]), /a -> b closes no cycle/);
+  const cyc = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'a'}];
+  assert.throws(() => breakCycles(nodes, cyc, [0, 2]), /a -> b and c -> a are on one cycle.*keep back on the one edge/);
+  assert.throws(() => breakCycles(nodes, cyc, [7]), /not one of the 3 edges/);
+  // two cycles that only share a node each take their own declared edge
+  const two = ['a', 'b', 'c', 'd', 'e'].map(id => ({id}));
+  const e = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'a'}, {from: 'c', to: 'd'}, {from: 'd', to: 'e'}, {from: 'e', to: 'c'}];
+  assert.deepEqual([...breakCycles(two, e, [2, 5])].sort(), [2, 5]);
+});
+
+test('layoutLayered back: the layers of a graph with declared returns do not depend on the order of the nodes (200 small graphs)', () => {
+  const rand = rng(7);
+  let tried = 0, checked = 0;
+  while (checked < 200 && tried < 5000) {
+    tried++;
+    const n = 4 + Math.floor(rand() * 5), names = Array.from({length: n}, (_, i) => `n${i}`);
+    const edges: {from: string; to: string}[] = [], back: number[] = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (rand() < 0.3) edges.push({from: names[i], to: names[j]});
+    for (let k = 0; k < 2; k++) {
+      const j = 1 + Math.floor(rand() * (n - 1)), i = Math.floor(rand() * j);
+      if (rand() < 0.6) { back.push(edges.length); edges.push({from: names[j], to: names[i]}); }
+    }
+    if (!back.length) continue;
+    try { breakCycles(names.map(id => ({id})), edges, back); } catch { continue; } // keep the inputs that are valid declarations
+    checked++;
+    const lay = (order: string[]) => layoutLayered(order.map(sq), edges, {back}).layers;
+    const base = lay(names);
+    for (let k = 0; k < 3; k++) {
+      const shuffled = [...names].sort(() => rand() - 0.5), l = lay(shuffled);
+      for (const id of names) assert.equal(l.get(id), base.get(id), `layer of ${id}`);
+    }
+    const out = layoutLayered(names.map(sq), edges, {back}).edges;
+    for (const o of out) {
+      if (back.includes(o.index)) assert.ok(o.reversed && base.get(o.from)! > base.get(o.to)!, `declared ${o.from} -> ${o.to} is a return`);
+      else if (!o.reversed) assert.ok(base.get(o.from)! < base.get(o.to)!, `${o.from} -> ${o.to} runs forward`);
+    }
+  }
+  assert.equal(checked, 200);
+});
+
+test('layoutLayered back: a CRT with a vicious circle puts the UDE above the root cause only when the return is declared', () => {
+  const ids = ['late', 'cost', 'switch', 'rush', 'wip', 'start', 'kpi'];
+  const e = [['kpi', 'start'], ['start', 'wip'], ['wip', 'switch'], ['wip', 'rush'], ['switch', 'late'], ['switch', 'cost'], ['rush', 'cost'], ['late', 'kpi']].map(([from, to]) => ({from, to}));
+  const undeclared = layoutLayered(ids.map(sq), e).layers;
+  assert.ok(undeclared.get('late')! <= undeclared.get('kpi')!, 'the DFS from the first node cuts switch -> late instead');
+  for (const order of [ids, [...ids].reverse()]) {
+    const l = layoutLayered(order.map(sq), e, {back: [7]}).layers;
+    assert.ok(l.get('late')! > l.get('kpi')!, 'late comes after kpi');
+    assert.deepEqual(ids.map(id => l.get(id)), ids.map(id => layoutLayered(ids.map(sq), e, {back: [7]}).layers.get(id)));
+  }
+});
+
+test('layoutLayered back: a cycle the declaration leaves is still cut, and no declaration is the plain DFS layout', () => {
+  const nodes = ['a', 'b', 'c', 'd'].map(sq);
+  const e = [{from: 'a', to: 'b'}, {from: 'b', to: 'a'}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'}, {from: 'd', to: 'c'}];
+  const t = layoutLayered(nodes, e, {back: [1]});
+  assert.equal(t.edges.filter(x => x.reversed).length, 2);
+  assert.deepEqual(layoutLayered(nodes, e, {back: []}), layoutLayered(nodes, e));
+});
+
+// ---- tighten and transpose (ADR 0016 D4): opt-in, the default layout is the plain one ----
+const randomGraph = (rand: () => number): {names: string[]; edges: {from: string; to: string}[]; start: string[]} => {
+  const n = 4 + Math.floor(rand() * 6), names = Array.from({length: n}, (_, i) => `n${i}`);
+  const edges: {from: string; to: string}[] = [];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j && rand() < (i < j ? 0.28 : 0.05)) edges.push({from: names[i], to: names[j]});
+  return {names, edges, start: rand() < 0.3 ? [names[0]] : []};
+};
+/** Crossings of the drawn chains, read from their centre lines: two chains cross between two layers when their order flips. */
+const chainCrossings = (t: ReturnType<typeof layoutLayered>): number => {
+  const cs = t.edges.filter(e => !e.self);
+  let c = 0;
+  for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) {
+    const a = cs[i].points, b = cs[j].points;
+    for (let p = 0; p + 1 < a.length; p++) for (let q = 0; q + 1 < b.length; q++) {
+      const [a0, a1] = a[p].x <= a[p + 1].x ? [a[p], a[p + 1]] : [a[p + 1], a[p]], [b0, b1] = b[q].x <= b[q + 1].x ? [b[q], b[q + 1]] : [b[q + 1], b[q]];
+      if (a0.x !== b0.x || a1.x !== b1.x || a0.x === a1.x) continue; // the same two layers
+      if ((a0.y - b0.y) * (a1.y - b1.y) < 0) c++;
+    }
+  }
+  return c;
+};
+
+test('layoutLayered tighten: a node with only outgoing edges moves to just before its nearest target; the default is unchanged', () => {
+  const nodes = ['a', 'b', 'c', 'est'].map(sq);
+  const e = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'est', to: 'c'}];
+  const plain = layoutLayered(nodes, e), tight = layoutLayered(nodes, e, {tighten: true});
+  assert.equal(plain.layers.get('est'), 0);
+  assert.equal(tight.layers.get('est'), 1);
+  assert.deepEqual(layoutLayered(nodes, e, {tighten: false, transpose: false}), plain);
+  assert.ok(tight.edges.find(x => x.from === 'est')!.points.length < plain.edges.find(x => x.from === 'est')!.points.length);
+  assert.equal(layoutLayered(nodes, e, {tighten: true, start: ['est']}).layers.get('est'), 0, 'a start stays where it is');
+});
+
+test('layoutLayered tighten / transpose: 200 small graphs keep edge directions and starts, never add crossings, and are deterministic', () => {
+  const rand = rng(11);
+  for (let k = 0; k < 200; k++) {
+    const {names, edges, start} = randomGraph(rand), nodes = names.map(sq);
+    const plain = layoutLayered(nodes, edges, {start});
+    const tight = layoutLayered(nodes, edges, {start, tighten: true});
+    assert.deepEqual(tight.edges.map(x => x.reversed), plain.edges.map(x => x.reversed), 'the same edges are reversed');
+    for (const x of tight.edges) if (!x.self) {
+      const [lf, lt] = [tight.layers.get(x.from)!, tight.layers.get(x.to)!];
+      assert.ok(x.reversed ? lt < lf : lf < lt, `${x.from} -> ${x.to} keeps its direction`);
+    }
+    for (const s of start) assert.equal(tight.layers.get(s), plain.layers.get(s), 'a start does not move');
+    for (const [id, l] of tight.layers) assert.ok(l >= plain.layers.get(id)!, 'a node only moves toward its targets');
+    assert.deepEqual(layoutLayered(nodes, edges, {start, tighten: true}), tight);
+    for (const opts of [{}, {tighten: true}]) {
+      const base = layoutLayered(nodes, edges, {start, ...opts}), tr = layoutLayered(nodes, edges, {start, ...opts, transpose: true});
+      assert.ok(chainCrossings(tr) <= chainCrossings(base), `transpose does not add crossings (${chainCrossings(tr)} vs ${chainCrossings(base)})`);
+      assert.deepEqual(layoutLayered(nodes, edges, {start, ...opts, transpose: true}), tr);
+      assert.deepEqual([...tr.layers], [...base.layers]);
+    }
+  }
+});
+
+// ---- Brandes-Köpf coordinates and components (ADR 0016 D2, D8) ----
+test("layoutLayered coord 'bk': the dummies of a long edge line up, so the edge has no bend between layers", () => {
+  const nodes = ['a', 'b', 'c', 'd'].map(sq), e = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'}, {from: 'a', to: 'd'}];
+  const long = layoutLayered(nodes, e, {coord: 'bk'}).edges.find(x => x.from === 'a' && x.to === 'd')!;
+  assert.equal(long.points.length, 4);
+  assert.equal(long.points[1].y, long.points[2].y, 'the two dummies are on one line');
+});
+
+test("layoutLayered coord 'bk': 200 small graphs keep layers, never overlap, stay inside the size and are deterministic; 'relax' is the default", () => {
+  const rand = rng(21);
+  for (let k = 0; k < 200; k++) {
+    const {names, edges, start} = randomGraph(rand), nodes = names.map(sq);
+    const plain = layoutLayered(nodes, edges, {start}), bk = layoutLayered(nodes, edges, {start, coord: 'bk'});
+    assert.deepEqual(layoutLayered(nodes, edges, {start, coord: 'relax'}), plain);
+    assert.deepEqual([...bk.layers], [...plain.layers]);
+    noOverlaps(bk.nodes);
+    inside(bk.nodes, bk.w, bk.h);
+    assert.deepEqual(layoutLayered(nodes, edges, {start, coord: 'bk'}), bk);
+    // the nodes of one layer keep the order the sweeps gave them: a node never jumps over its neighbour
+    const byLayer = new Map<number, string[]>();
+    for (const [id, l] of bk.layers) byLayer.set(l, [...(byLayer.get(l) ?? []), id]);
+    for (const ids of byLayer.values()) {
+      const ys = ids.map(id => bk.nodes.get(id)!.y).sort((p, q) => p - q);
+      for (let i = 1; i < ys.length; i++) assert.ok(ys[i] - ys[i - 1] >= 30 + 24 - 0.01, 'gap kept inside a layer');
+    }
+  }
+});
+
+test("layoutLayered coord 'bk': separate components are packed one gap apart, whatever order they are written in", () => {
+  const big = (p: string) => ({nodes: [`${p}r`, ...[1, 2, 3, 4, 5].map(i => `${p}m${i}`), `${p}x`], edges: [1, 2, 3, 4, 5].flatMap(i => [{from: `${p}r`, to: `${p}m${i}`}, {from: `${p}m${i}`, to: `${p}x`}])});
+  const chain = (p: string) => ({nodes: [1, 2, 3, 4].map(i => `${p}${i}`), edges: [1, 2, 3].map(i => ({from: `${p}${i}`, to: `${p}${i + 1}`}))});
+  const box2 = (id: string) => ({id, size: {w: 120, h: 40}});
+  for (const parts of [[chain('b'), big('a')], [big('a'), chain('b')], [chain('b'), big('a'), big('c')], [big('a'), chain('b'), big('c')]]) {
+    const names = parts.flatMap(p => p.nodes), edges = parts.flatMap(p => p.edges);
+    const t = layoutLayered(names.map(box2), edges, {dir: 'right', gap: 24, levelGap: 60, coord: 'bk'});
+    const range = (p: {nodes: string[]}): [number, number] => [Math.min(...p.nodes.map(id => t.nodes.get(id)!.y)), Math.max(...p.nodes.map(id => t.nodes.get(id)!.y + 40))];
+    const rs = parts.map(range).sort((p, q) => p[0] - q[0]);
+    for (let i = 1; i < rs.length; i++) assert.equal(rs[i][0] - rs[i - 1][1], 24, 'one gap between two components');
+    assert.equal(rs[0][0], 0);
+    noOverlaps(t.nodes);
+  }
+});
+
+test("layoutLayered coord 'bk': a connected input has the one component's own range (no extra room)", () => {
+  const nodes = ['a', 'b', 'c', 'd'].map(sq), e = [{from: 'a', to: 'b'}, {from: 'a', to: 'c'}, {from: 'b', to: 'd'}, {from: 'c', to: 'd'}];
+  const t = layoutLayered(nodes, e, {coord: 'bk'});
+  assert.equal(Math.min(...[...t.nodes.values()].map(p => p.y)), 0);
+  assert.equal(Math.max(...[...t.nodes.values()].map(p => p.y + p.h)), t.h);
+});
+
+test('layoutLayered transpose: crossed neighbours in a layer are swapped', () => {
+  const nodes = ['a', 'b', 'd', 'c'].map(sq), e = [{from: 'a', to: 'd'}, {from: 'b', to: 'c'}];
+  assert.equal(chainCrossings(layoutLayered(nodes, e, {transpose: true})), 0);
 });

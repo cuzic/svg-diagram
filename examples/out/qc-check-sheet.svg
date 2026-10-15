@@ -73,5 +73,5 @@
   <text x="864" y="257" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">40</text>
   <path d="M28,20 H912 A8,8 0 0 1 920,28 V263 A8,8 0 0 1 912,271 H28 A8,8 0 0 1 20,263 V28 A8,8 0 0 1 28,20 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
 
-  <text x="20" y="300.59999999999997" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+  <text x="20" y="302" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>
