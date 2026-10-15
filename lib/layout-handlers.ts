@@ -20,6 +20,7 @@ import {CAUSE_ROLES, layoutCauseBand, layoutCloudBand} from './toc.ts';
 import {layoutGantt} from './gantt.ts';
 import {layoutClassesBand} from './classes.ts';
 import {layoutBpmn} from './bpmn.ts';
+import {layoutFta} from './fta.ts';
 import {layoutChart} from './charts.ts';
 import {layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {GroupBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, RawBand, SpacerBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow, RowArrow} from './types/containers.ts';
@@ -555,6 +556,7 @@ function layoutCurve(band: CurveBand, ctx: LayoutCtx, padX: number, cw: number):
 
 const layoutTimelineBand = placedBand((band: BandOf<'timeline'>, x, y, w, ctx) => layoutTimeline(band, x, y, w, ctx.widthOf, ctx.roles), 'a timeline takes an id that another anchor already has');
 const layoutBpmnBand = placedBand((band: BandOf<'bpmn'>, x, y, w, ctx) => layoutBpmn(band, x, y, w, ctx.widthOf, ctx.roles), 'a bpmn diagram takes an id that another anchor already has', 'a bpmn node takes an id that another anchor already has');
+const layoutFtaBand = placedBand((band: BandOf<'fta'>, x, y, w, ctx) => layoutFta(band, x, y, w, ctx.widthOf, ctx.roles), 'a fault tree takes an id that another anchor already has', 'a fault-tree event takes an id that another anchor already has');
 const layoutClasses = placedBand((band: BandOf<'classes'>, x, y, w, ctx) => layoutClassesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a class diagram takes an id that another anchor already has', 'a class takes an id that another anchor already has');
 const layoutGanttBand = placedBand((band: BandOf<'gantt'>, x, y, w, ctx) => layoutGantt(band, x, y, w, ctx.widthOf, ctx.roles), 'a gantt takes an id that another anchor already has', 'a gantt task takes an id that another anchor already has');
 const layoutCauseOrCloud = placedBand((band: Band & {type: 'cause' | 'cloud'}, x, y, w, ctx) => band.type === 'cause' ? layoutCauseBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, ctx.d.canvas?.height !== undefined) : layoutCloudBand(band, x, y, w, ctx.widthOf, ctx.roles),
@@ -587,6 +589,7 @@ export const LAYOUT_HANDLERS = {
   image: layoutImageBand,
   timeline: layoutTimelineBand,
   bpmn: layoutBpmnBand,
+  fta: layoutFtaBand,
   classes: layoutClasses,
   gantt: layoutGanttBand,
   cause: layoutCauseOrCloud,

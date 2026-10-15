@@ -7,6 +7,7 @@ import {emojiSpan} from './emit-common.ts';
 import {renderWordArt} from './emit-wordart.ts';
 import {renderMath} from './emit-figures.ts';
 import {renderCaption, renderBox, renderGroup, renderLegend, renderBanner, renderRow, renderGrid, renderPyramid, renderPeople, renderDots, renderCurve, renderRaw, renderSwimlane} from './emit-boxes.ts';
+import {renderFta} from './emit-fta.ts';
 import {renderPlane, renderBars, renderImage, renderQuadrant, renderFlowShape, renderTimeline, renderTree, renderStates, renderCause, renderCloud, renderGantt, renderClasses, renderBpmn} from './emit-figures.ts';
 import {renderSequence, renderTable, renderPrims} from './emit-tables.ts';
 
@@ -55,6 +56,7 @@ export const EMIT_HANDLERS = {
   gantt: {render: (b, day) => renderGantt(b, day), selfDimming: true},
   classes: {render: (b, day) => renderClasses(b, day), selfDimming: true},
   bpmn: {render: (b, day) => renderBpmn(b, day), selfDimming: true},
+  fta: {render: (b, day) => renderFta(b, day), selfDimming: true},
 } satisfies {[T in LaidOutType]: EmitHandler<LaidOutOf<T>>};
 
 /** Band types with no emitter in EMIT_HANDLERS: must be `never`. */

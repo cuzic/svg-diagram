@@ -396,3 +396,57 @@ export interface LaidOutBpmn extends Rect, Dimmed {
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];
 }
+
+/** What a fault tree event is (ADR 0025 D2): the output of a gate (a rectangle, the default), a basic event (a circle), one left undeveloped (a diamond), a house event (a house), or the condition of an inhibit gate (an ellipse). */
+export type FtaKind = 'event' | 'basic' | 'undeveloped' | 'house' | 'condition';
+export type FtaGate = 'and' | 'or' | 'vote' | 'inhibit';
+export interface FtaEvent {
+  /** Names the event: another place can repeat it with `{ref: id}`, and connect() / spotlight / reveal can reach it. */
+  id?: string;
+  /** The text of the event (not for a `{ref}`). */
+  label?: string;
+  /** A second, muted line. */
+  sub?: string;
+  kind?: FtaKind;
+  /** The gate under the event (`kind: 'event'` needs one, with `children`). */
+  gate?: FtaGate;
+  children?: FtaEvent[];
+  /** `vote`: the event happens when `k` of the inputs do (1 <= k <= number of inputs). */
+  k?: number;
+  /** `inhibit`: the condition event (one input in `children`, one condition here). */
+  condition?: FtaEvent;
+  /** The probability of a basic / undeveloped / condition event, 0 to 1. */
+  p?: number;
+  /** A house event: true = it always happens, false = it never does. */
+  state?: boolean;
+  /** Draw the event that has this `id` again (a basic, undeveloped, house or condition event only); no other field. */
+  ref?: string;
+}
+export interface FtaOpts extends RevealOpts, ScopeOpts {
+  /** The widest an event box grows (default 200). Left out, it is narrowed (to 110) when the tree is wider than the diagram (a warning);
+   *  'auto' does the same as a note; a number is never narrowed (a tree that does not fit is an error). */
+  maxNodeW?: number | 'auto';
+  id?: string;
+}
+export interface FtaBand extends FtaOpts {
+  type: 'fta';
+  /** The top event, with the tree under it (not `top`: a band with an id has the handle `.top`). */
+  root: FtaEvent;
+}
+export interface LaidOutFta extends Rect, Dimmed {
+  type: 'fta';
+  id?: string;
+  reveal?: number;
+  until?: number;
+  fitApplied?: FitApplied[];
+  /** The box of each event drawn (a `ref` draws its event again; only the first has `id`). */
+  nodes: (Rect & {kind: FtaKind; id?: string})[];
+  /** The symbol under a basic / undeveloped / house / condition event. */
+  marks: (Rect & {kind: FtaKind})[];
+  gates: (Rect & {gate: FtaGate; label?: {text: string; size: number}})[];
+  /** Gate output to event, gate input to its children, inhibit gate to its condition. */
+  edges: {points: {x: number; y: number}[]}[];
+  texts: TreeNodeText[];
+  anchors: Anchor[];
+  labelBoxes: (Rect & {label: string})[];
+}

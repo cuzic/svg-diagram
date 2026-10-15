@@ -1,10 +1,11 @@
 import {resolveIcon} from '../icon-registry.ts';
 import {CAUSE_ROLES} from '../toc.ts';
+import {ftaIds, ftaResolve} from '../fta.ts';
 import {coreDrivers, reachCounts} from '../toc-analysis.ts';
 import {criticalPath, exact} from '../qc.ts';
 import type {ArrowActivity} from '../qc.ts';
 import type {GroupBand, RowBand, GroupRowBand} from '../types/containers.ts';
-import type {TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseRole, CauseOpts, CloudBand, CloudBox, CloudOpts, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow} from '../types/diagrams.ts';
+import type {TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, FtaBand, FtaEvent, FtaOpts, CauseLink, CauseNode, CauseRole, CauseOpts, CloudBand, CloudBox, CloudOpts, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow} from '../types/diagrams.ts';
 import type {Band} from '../types/index.ts';
 import type {CaptionBand} from '../types/text-bands.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
@@ -344,4 +345,21 @@ export function mindmap(root: TreeItem, opts: MindmapOpts = {}): TreeBand {
   const band = tree(root, {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...revealOf(opts)});
   Object.assign(band, {balanced: true, ...(opts.sides ? {sides: opts.sides} : {}), ...(opts.layout ? {layout: opts.layout} : {}), ...(opts.edges ? {edges: opts.edges} : {})});
   return band as never;
+}
+
+type FtaIds<T> = TreeIds<T> | (T extends {readonly condition: infer C} ? TreeIds<C> : never);
+/**
+ * A fault tree (FTA): the top event, a gate under it (and / or / vote with k / inhibit) and the events that cause it, down to basic events (circle),
+ * undeveloped events (diamond) and house events. Each event's text is a rectangle with the symbol of its kind under it; `{ref: id}` draws a
+ * basic / undeveloped / house / condition event again. The lines have no arrowheads (they join a gate to its inputs: the tree reads downward).
+ *   faultTree({label: 'サービス停止', gate: 'or', children: [
+ *     {label: 'DB 全体停止', gate: 'and', children: [{label: '主系停止', kind: 'basic'}, {id: 'sw', label: '待機系へ切替不能', kind: 'basic'}]},
+ *     {label: 'アプリ全台停止', kind: 'undeveloped'}]})
+ */
+export function faultTree<const T extends FtaEvent, const Id extends string = never>(top: T, opts?: FtaOpts & {id?: Id}): FtaBand & Declares<Id | FtaIds<T>> & HandleOf<Id> & AnchorsOf<FtaIds<T>>;
+export function faultTree(top: FtaEvent, opts: FtaOpts = {}): FtaBand {
+  if (opts.maxNodeW !== undefined && opts.maxNodeW !== 'auto' && !(typeof opts.maxNodeW === 'number' && Number.isFinite(opts.maxNodeW) && opts.maxNodeW >= 80)) throw new Error(`faultTree(): maxNodeW must be a number >= 80 or 'auto' (got ${String(opts.maxNodeW)})`);
+  ftaResolve(top); // every mistake in the tree throws here, naming the event
+  const band: FtaBand = {type: 'fta', root: top, ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'faultTree()'), ...revealOf(opts)};
+  return withAnchors(withHandle(band, opts.id), ftaIds(top));
 }

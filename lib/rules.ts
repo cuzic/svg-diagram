@@ -38,6 +38,7 @@ import type {LintTarget} from './types/verdicts.ts';
 import type {CauseRole} from './types/diagrams.ts';
 import {describeApplied} from './fit-width.ts';
 import {tocFindings} from './toc-rules.ts';
+import {ftaFindings} from './fta-rules.ts';
 
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
@@ -76,6 +77,10 @@ export const RULE_DOCS = {
   'toc-prt-one-to-one': '前提条件ツリーの障害と中間目標が、全部 1 対 1 だけ(1 つの中間目標に複数の障害、または 1 つの障害が複数の中間目標を妨げる形が PRT らしい)。diagram({tocCheck: "strict"}) で warn',
   'toc-obstacle-phrase': '前提条件ツリーの障害のラベルが「ない」「無い」「不足」で終わる(障害は、無いことではなく、そこにある事実で書く指針。日本語の文末の判定なので偽陽性がある。常に info)',
   'toc-mirror': '未来現実ツリー(causeTree({tree: "frt", mirrors: crt}))の望む結果(de / goal)の mirrors が、現状ツリーの ude の id でない、ude に対応する望む結果が無い、同じ ude を複数が mirrors している(1 対 1 でない)。diagram({tocCheck: "strict"}) で warn',
+  'fta-gate-one-input': '故障の木(faultTree)の AND / OR / vote ゲートの入力が 1 つだけ。ゲートが意味を持たない。diagram({rcaCheck: "strict"}) で warn',
+  'fta-vote-degenerate': '故障の木の vote ゲートの k が 1(OR と同じ)または入力の数(AND と同じ)。diagram({rcaCheck: "strict"}) で warn',
+  'fta-top-is-leaf': '故障の木の頂上事象にゲートが無い(1 つの事象だけの木)。diagram({rcaCheck: "strict"}) で warn',
+  'fta-undeveloped-left': '故障の木に、展開していない事象(ひし形)が残っている(常に info。意図した省略なら無視してよい)',
   'toc-source-has-cause': '原因を持たない役割(crt の root、frt・nbr の injection、nbr の trim、precondition)の実体に、入る矢印がある。diagram({tocCheck: "strict"}) で warn',
   'toc-chain-only': 'crt / frt が分岐も合流も AND も無い 1 本鎖(途中の原因を飛ばしている可能性)。diagram({tocCheck: "strict"}) で warn',
   'toc-orphan': 'causeTree({tree}) の実体のうち、どのリンクにも出てこないものがある(graph-orphan-node は connect() の線しか見ない)。diagram({tocCheck: "strict"}) で warn',
@@ -493,7 +498,10 @@ export const tocSeverity = (d: Pick<DiagramData, 'tocCheck'>): 'warn' | 'info' =
 export const rcaSeverity = (d: Pick<DiagramData, 'rcaCheck'>): 'warn' | 'info' => d.rcaCheck === 'strict' ? 'warn' : 'info';
 
 /** The checks of the cause-analysis figures. Empty on purpose: each figure (faultTree, isIsNot, whyWhy*, bowtie) adds its own branch, reported at `f.severity ?? rcaSeverity(d)` like tocRules. */
-function rcaRules(_d: LintTarget, _out: Finding[]): void {}
+function rcaRules(d: LintTarget, out: Finding[]): void {
+  const severity = rcaSeverity(d);
+  for (const b of walkBands(d.bands)) if (b.type === 'fta') for (const f of ftaFindings(b)) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
+}
 
 function tocRules(d: LintTarget, out: Finding[]): void {
   const severity = tocSeverity(d);
@@ -610,15 +618,16 @@ function graphRules(d: LintTarget, out: Finding[]): void {
   for (const id of parent.keys()) { const r = find(id); groups.set(r, [...(groups.get(r) ?? []), id]); }
   if (groups.size > 1) out.push({rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${[...groups.values()].map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
 }
-const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()'} as const;
+const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()', fta: 'faultTree()'} as const;
 // what the layout changed on its own to make a figure fit its width (ADR 0010 D3): left out is a warning, `dir: 'auto'` is the author's own choice
 function fitRules(d: LintTarget, out: Finding[]): void {
   for (const b of d.laidOut ?? []) {
-    if ((b.type !== 'cause' && b.type !== 'states' && b.type !== 'classes' && b.type !== 'tree') || !b.fitApplied?.length) continue;
+    if ((b.type !== 'cause' && b.type !== 'states' && b.type !== 'classes' && b.type !== 'tree' && b.type !== 'fta') || !b.fitApplied?.length) continue;
     const what = b.fitApplied.map(describeApplied).join('、'), auto = b.fitApplied.every(a => a.mode === 'auto');
+    const knobs = b.type === 'fta' ? 'maxNodeW' : 'dir / maxNodeW', say = b.type === 'fta' ? "maxNodeW: 'auto'" : "dir: 'auto'"; // a fault tree has no `dir`
     out.push({rule: 'auto-fit-applied', severity: auto ? 'info' : 'warn', message: auto
-      ? `${FIT_WHO[b.type]}: dir / maxNodeW を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
-      : `${FIT_WHO[b.type]}: dir / maxNodeW を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら dir: 'auto' と書く（info になる）。固定したいなら dir / maxNodeW を明示する（収まらなければ試した案つきで止まる）`});
+      ? `${FIT_WHO[b.type]}: ${knobs} を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
+      : `${FIT_WHO[b.type]}: ${knobs} を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら ${say} と書く（info になる）。固定したいなら ${knobs} を明示する（収まらなければ試した案つきで止まる）`});
   }
 }
 function lintAll(d: LintTarget): Finding[] {

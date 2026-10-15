@@ -349,6 +349,7 @@ export const VERIFY_HANDLERS = {
   venn: {rects: overlappingFigureRects, check: flowCheck},
   concentric: {rects: overlappingFigureRects, check: flowCheck},
   timeline: {rects: ownRect, check: {phase: 'timeline', run: checkTimeline}},
+  fta: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'event', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
   tree: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
   states: {rects: figureRects, check: {phase: 'states', run: checkStates}},
   cause: {rects: figureRects, check: {phase: 'cause', run: checkCause}},
