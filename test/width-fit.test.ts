@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import './helpers/strict-width.ts';
-import {banner, box, concentric, closeMeasurer, diagram, renderDiagram} from '../lib/dsl.ts';
+import {banner, box, checkDiagram, concentric, closeMeasurer, diagram, renderDiagram} from '../lib/dsl.ts';
 
 test.after(() => closeMeasurer());
 const thin = () => concentric([{label: 'チーム'}, {label: '顧客と取引先'}, {label: '社会'}], {order: 'inner-first', labels: 'side', centre: '利用者'});
@@ -28,4 +28,9 @@ test("width: 'fit' is validated; a number or nothing is as before", async () => 
   assert.throws(() => diagram({day: 1, width: 'fit', fill: true} as never), /fit/);
   const r = await draw(diagram({theme: 'teal', width: 700}).add(thin()));
   assert.equal(r.width, 700);
+});
+
+test("check and build judge the same width (fit is applied by both)", async () => {
+  const built = await draw(diagram({theme: "teal", width: "fit"}).add(thin())), checked = await checkDiagram(diagram({theme: "teal", width: "fit"}).add(thin()));
+  assert.equal(checked.laidOut.width, built.width);
 });

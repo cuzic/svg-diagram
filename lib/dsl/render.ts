@@ -146,18 +146,7 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
       if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
       notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
     }
-    let laidOut = await layoutAt(fontScale);
-    // width: 'fit': lay out again at the width the content needs (the content may re-flow as it narrows, so up to 3 rounds; a round that does not fit is dropped)
-    for (let i = 0; d.fitWidth && i < 3; i++) {
-      const next = fitWidthOf(laidOut.laidOut, d.pad);
-      if (next === undefined || next >= d.width) break;
-      const before = d.width;
-      d.width = next;
-      const again = await layoutAt(fontScale);
-      const need = fitWidthOf(again.laidOut, d.pad);
-      if (need !== undefined && need > next) { d.width = before; break; }
-      laidOut = again;
-    }
+    const laidOut = await layoutFitted(d, () => layoutAt(fontScale));
     laidOut.fontScale = fontScale;
     return laidOut;
   });
@@ -199,8 +188,27 @@ export async function checkDiagram(input: DiagramData): Promise<CheckResult> {
   return runChecked(detach(input), prepared => {
     // a canvas diagram is drawn at its font scale, so it is checked at that scale too
     const s = prepared.canvas ? canvasFontScale(prepared.canvas.minText) : 1;
-    return layoutDiagram(prepared.canvas ? {...prepared, pad: Math.round(prepared.pad * s), gap: Math.round(prepared.gap * s)} : prepared, prepared.canvas ? {roles: canvasRoles(s)} : {});
+    return layoutFitted(prepared, () => layoutDiagram(prepared.canvas ? {...prepared, pad: Math.round(prepared.pad * s), gap: Math.round(prepared.gap * s)} : prepared, prepared.canvas ? {roles: canvasRoles(s)} : {}));
   });
+}
+
+/**
+ * The layout, and for diagram({width: 'fit'}) once more at the width the content needs (`d.width` is set to it). The content may re-flow as it
+ * narrows, so up to 3 rounds; a round that does not fit is dropped. check and build both come through here, so they judge the same figure.
+ */
+async function layoutFitted(d: DiagramData, layout: () => Promise<LaidOutDiagram>): Promise<LaidOutDiagram> {
+  let laidOut = await layout();
+  for (let i = 0; d.fitWidth && i < 3; i++) {
+    const next = fitWidthOf(laidOut.laidOut, d.pad);
+    if (next === undefined || next >= d.width) break;
+    const before = d.width;
+    d.width = next;
+    const again = await layout();
+    const need = fitWidthOf(again.laidOut, d.pad);
+    if (need !== undefined && need > next) { d.width = before; break; }
+    laidOut = again;
+  }
+  return laidOut;
 }
 
 /** The width a figure needs: its content (titles and legends aside) plus the padding on both sides, on the 4px grid; undefined for no content. */
