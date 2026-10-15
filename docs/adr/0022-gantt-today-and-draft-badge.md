@@ -31,7 +31,7 @@
 - 手書きで足りるか: 手書きの caption は `add()` の順に依存し、`sourceLine` に混ぜると出典と読み違える。`stamp` は部品ごとで、図全体の状態は表せない。つまり**図全体の状態の札は、既存では書けない**。
 - アクセシビリティとメタデータ: doc 媒体の SVG は `<title>`・`<desc>`・`<metadata id="svg-diagram">` を持つ(`lib/emit.ts:81-89`)。題は `diagramTitle`(`lib/rules.ts:675`)が `d.title` → 最初の caption → … の順で決める。つまり**札を caption として入れると、題の候補を奪う**恐れがある(`withSourceLine` の caption は `sourceLine: true` で、題の候補から外れているかを実装時に確かめる)。
 - ダーク・透明: 色は `PALETTE` のトークンで書けば、`recolor`(`lib/emit.ts:104`)が `appearance: 'dark'` で自動に置き換える(ADR 0008 #1)。`data-assumed-bg`(`:94`)により、透明背景のとき検査は `PALETTE.bg` を背景とみなす。`stamp` は塗り `PALETTE.bg`・枠 `PALETTE.border`・文字 `PALETTE.muted` で、同じ作法に乗っている。
-- `canvas`(ADR 0017): `diagram({canvas: 'slide'})` は最小文字 24px の検査(`slide-min-text`)を持つ。札の文字がこの下限に追従するかは**未確認**(下の未決事項 Q4)。
+- `canvas`(ADR 0017): `diagram({canvas: 'slide'})` は最小文字 24px の検査(`slide-min-text`)を持つ。`canvasRoles(s)` が `note` にも倍率をかけるので、札が `roles.note` を使えばこの下限を満たす(確認済み)。
 
 ## 論点
 
@@ -44,10 +44,11 @@
 ### E3
 
 **D1. ライブラリは時計を読まない。`today: 'auto'` は「呼び出し側が決めた日付」を指す。**
-`today: 'auto'` と書いた gantt は、ビルドの文脈(`BuildContext` の `today`)から日付を受け取る。供給元は優先順に、CLI の `--today <YYYY-MM-DD>`、環境変数 `SVG_DIAGRAM_TODAY`、`.svg-diagram.json` の `today`。**どれも無ければ throw**(「`today: 'auto'` には日付が要る。`--today YYYY-MM-DD` か `SVG_DIAGRAM_TODAY` を渡す」)。`--today now` と書いたときだけ、CLI が**その 1 回の呼び出しの冒頭**で時計を 1 度読んで日付に直す(1 回のビルドの中で全図が同じ日を使う。`lib/` の描画は時計を知らない)。
+`today: 'auto'` と書いた gantt は、ビルドの文脈(`BuildContext` の `today`)から日付を受け取る。供給元は優先順に、CLI の `--today <YYYY-MM-DD>`、環境変数 `SVG_DIAGRAM_TODAY`、`.svg-diagram.json` の `today`。**どれも無ければ throw**(「`today: 'auto'` には日付が要る。`--today YYYY-MM-DD` か `SVG_DIAGRAM_TODAY` を渡す」)。**`--today now`(時計を読む入口)は入れない**。時計を読む責任は呼び出し側に残し、必要なら `SVG_DIAGRAM_TODAY=$(date +%F)` と書かせる(`lib/` の描画も CLI も時計を知らない)。
   - 理由: 同じソースが日によって違う SVG になるのを、既定では起こさない(README:529 の約束を保つ)。CI やスライドの再ビルドで、日付を明示した人だけが日付で変わる図を得る。
   - 日付の渡し方が文脈なので、**解決した日付は SVG の `<metadata id="svg-diagram">` に `today` として残す**(後から「いつの日付で描いたか」が分かる。`lib/emit.ts:89` の `source` に 1 項目足す)。`freshness`(`lib/freshness.ts`)はソースのハッシュだけを見るので、`auto` の図は「日付が違っても fresh」と出る。これは**既知の限界として README に書く**(`changed` の判定は変えない。決定性を壊さない範囲で、判定に日付を混ぜるのは別の話)。
-  - 検査の層(`check` / `lint`)は `--today` を受けなくてよい。`check` が図を組み立てるときに同じ文脈を渡すので、同じ日付で検査する。
+  - **`check` にも `--today`(と同じ優先順の環境変数・設定)を足す**。`check` は別プロセスで、`build` の `--today` を受け取らないため、足さないと CLI で日付を渡した図が `check` で「日付が無い」と throw する。`--drift --rebuild`(フラグなしの素の `build` で作り直して比べる)も同じで、日付が無ければ throw し、環境変数の日付が違えば毎回「再生成と一致しない」と誤報する。そこで **`--rebuild` は SVG の `<metadata>` に `today` があれば、その日付で作り直す**(ADR 0023 の `noSourceLine` と同じ「metadata の値で作り直す」やり方。0023・0024 と `DiagramSource`・`build-diagram.ts` のフラグ・`--drift --rebuild` を触る行が重なるので、この方式は 0023 と揃える)。
+  - **`<metadata>` に `today` を書くのは `today: 'auto'` の図だけ**。日付を直接書いた図には足さない(byte 同一を保つ)。
   - `todayLabel` は従来どおり。
 
 **D2. 軸を今日まで広げるオプションを足す: `gantt(rows, {today, extendToToday: true})`。**
@@ -68,8 +69,9 @@
 **D6. 見た目と位置: 図の最上段に 1 段(約 28px)を確保し、その右端に札を置く。**
 - 札は `pillSvg`(`lib/badge.ts`)の角丸の札。**塗りは `PALETTE.bg`、枠は `PALETTE.muted` の破線 1.5px、文字は `PALETTE.text`・太字・`roles.note` の大きさ**。色だけに頼らず、**破線の枠(下書きらしさ)と文字**で伝える。ダークは `recolor` が置き換える(新しい色を作らない。`danger` は「してはいけない例」専用(`lib/tokens.ts:18` のコメント)なので使わない)。
 - 位置は **最上段の右端**: 左寄せの本文・下端の出典行(`withSourceLine`)と別の段にあるので、**構造上、重ならない**。上端に 1 段を確保する方式は、`withSourceLine` と同じ作り(帯を 1 つ足す)にでき、`stamp` のように内容の下に帯を確保するのと同じ考え方になる(`layout-handlers.ts:197-200`)。**角に重ねる(overlay)案は、衝突の検査が新しく要るので採らない**(代替案 A2)。
+- **新しい帯の型は、帯を見て回る処理すべてで扱う**: `spotlight` で暗くしない(`spotlight.ts:104` の出典行と同じ除外)。`layout-*` の物差しから除く(札が右端にあると `layout-figure-offset` などの値が変わるため)。`minTextSize` と `fit-handlers` には札の文字を含める。`diagramTitle` の候補にもしない。U4 の最初に、帯の型で分岐する処理を `grep` で洗い出す。
 - 実装は `withSourceLine`(`lib/layout-util.ts:187`)の隣に `withStatus(d)` を足し、**先頭**に内部の帯 `{type: 'status'}` を足す。新しい帯の型を作る(`caption` を流用しない)。理由: 流用すると `diagramTitle`(`lib/rules.ts:675-680`)の「最初の caption」が札の文言になり、題が「下書き」になる。`add()` した本文の帯の順(= 利用者が書いた順)は変えず、前に 1 段が増えるだけ。
-- スライド(`canvas: 'slide'`、`slide`、`fill`)でも同じ。`fill` / `slide` は測った枠に収めるので、1 段ぶんの高さが予算に入る(`slide-budget` が超えれば既存の検査が言う)。`canvas` の最小文字(24px)に札の文字が追従するかを、実装で確かめる(未決事項 Q4)。文書(`theme`)・スライドで寸法は変えない(文字の大きさ以外)。
+- スライド(`canvas: 'slide'`、`slide`、`fill`)でも同じ。`fill` / `slide` は測った枠に収めるので、1 段ぶんの高さが予算に入る(`slide-budget` が超えれば既存の検査が言う)。`canvas` の図では `canvasRoles(s)` が `note` にも倍率をかけるので、札が `roles.note` を使う限り最小文字 24px を満たす(解決済み)。文書(`theme`)・スライドで寸法は変えない(文字の大きさ以外)。
 
 **D7. アクセシビリティとメタデータ。**
 - 札は `<g role="img" aria-label="下書き" data-status="draft">`(`badgeSvg` の `data-badge` と同じ流儀)で、**読み上げに「下書き」が出る**。
@@ -77,7 +79,7 @@
 - `<metadata id="svg-diagram">` の `source` に `status: 'draft'` を足す(`lib/emit.ts:89`。DiagramSource に任意項目を 1 つ。`status` が無い図には出ない)。
 
 **D8. `check` への出し方。**
-- 新しい規則 `draft-status`(**info**)を足す。文言は「この図は下書き(status: 'draft')。公開前に外す」。`check` の一覧に出し、**`--strict` では失敗させない**(info は strict でも失敗しない)。公開前の確認用に、`check --no-draft`(新しいフラグ)で「下書きのまま」を**warn にする**。`--no-draft` は CI の公開ジョブだけが付ける。理由: 下書きの図を作る間は邪魔をしない、公開で止めたい。フラグを足さず `layoutCheck` のように図ごとの設定にする案(A5)も検討したが、「公開のとき」はソースでなく**実行の文脈**の話なので、CLI のフラグにした。
+- 新しい規則 `draft-status`(**info**)を足す。文言は「この図は下書き(status: 'draft')。公開前に外す」。`check` の一覧に出し、**`--strict` では失敗させない**(info は strict でも失敗しない)。公開前の確認用に、`check --forbid-draft`(新しいフラグ。「厳しくする」側なので `--no-*` にしない)で「下書きのまま」を**warn にする**。`--forbid-draft` は CI の公開ジョブだけが付ける。理由: 下書きの図を作る間は邪魔をしない、公開で止めたい。フラグを足さず `layoutCheck` のように図ごとの設定にする案(A5)も検討したが、「公開のとき」はソースでなく**実行の文脈**の話なので、CLI のフラグにした。
 - 札の文字は既存のコントラストの検査(`a11y-text-contrast`)に通す(札の矩形を「自分の容器」にし、`badge` と同じく、文字が自分の矩形の中で読まれるようにする。`data-status` のグループを lint が `data-badge` と同じに扱う)。
 - `accept: {'draft-status': '理由'}` は他の規則と同じに効く(`lib/rules.ts:540`)。
 
@@ -98,7 +100,7 @@
 ## 影響
 
 - **既存図**: `today` が日付のままで `extendToToday` が無い gantt、`status` の無い図は、**SVG・HTML・メタデータとも byte 同一**(D4・D10)。throw の文面は、先頭を保ったまま後ろに足す(D3)。
-- **公開 API**: `GanttOpts` に `extendToToday?: boolean`、`today` に `'auto'`。`DiagramOpts` に `status?: 'draft'`、`statusLabel?: string`。CLI に `--today` と `check --no-draft`。**`test/fixtures/dsl-exports.json` は変えない**(新しい関数を足さない。型と opts だけ)。
+- **公開 API**: `GanttOpts` に `extendToToday?: boolean`、`today` に `'auto'`。`DiagramOpts` に `status?: 'draft'`、`statusLabel?: string`。CLI に `--today` と `check --forbid-draft`。**`test/fixtures/dsl-exports.json` は変えない**(新しい関数を足さない。型と opts だけ)。
 - **検査**: 新しい規則 `draft-status`(`lib/rules.ts` の規則の表 `:46` 付近に足す。規則 ID の型と README の規則一覧(`README.md:1173` 付近の表)に足す)。
 - **README**: gantt の節(`:529`)に `today: 'auto'` / `extendToToday` / 既知の限界(`freshness` が日付を見ない)。`diagram` の opts の節に `status` / `statusLabel`、出典行の節(`:764`)の隣に「下書きバッジ」。
 - **スライド**: 最上段に 1 段(約 28px)増える。測った枠に収まらなければ、既存の `slide-budget` の検査が言う。
@@ -110,25 +112,25 @@
 | 単位 | 内容 | 触るファイル | 並列 |
 |---|---|---|---|
 | U1 | E3 の核: `axisOf` に today を渡す、`extendToToday`、throw の文面(D2・D3) | `lib/gantt.ts`(`axisOf`・`layoutGantt:97-101`・`ganttTexts:65`・日付の文字列化)、`lib/types/timeline.ts`(`GanttOpts`)、`lib/dsl/timeline-gantt.ts:21`(オプションの転送) | U2・U3 と並列 |
-| U2 | E3 の `'auto'`: ビルド文脈の `today`、`--today` / `SVG_DIAGRAM_TODAY` / config、`<metadata>` の `today`、`'auto'` を日付に直す段 | `build-diagram.ts` / `check-diagram.ts`(CLI のフラグ)、`lib/config.ts`、`lib/dsl/timeline-gantt.ts`(`'auto'` の受け取り)、`lib/emit.ts:89` と `DiagramSource`(`lib/types/core.ts`) | U1 の後(`today` の型を共有) |
+| U2 | E3 の `'auto'`: ビルド文脈の `today`、`--today` / `SVG_DIAGRAM_TODAY` / config、`<metadata>` の `today`、`'auto'` を日付に直す段 | `build-diagram.ts` / `check-diagram.ts`(CLI のフラグ。`check` にも `--today`、`--drift --rebuild` は metadata の `today` で作り直す)、`lib/config.ts`、`lib/dsl/timeline-gantt.ts`(`'auto'` の受け取り)、`lib/emit.ts:89` と `DiagramSource`(`lib/types/core.ts`) | U1 の後(`today` の型を共有) |
 | U3 | E4 の入口: `status` / `statusLabel` の型と検証、`withStatus` の骨組み(帯なしで通す) | `lib/types/core.ts`(`DiagramOpts`・`DiagramData`)、`lib/dsl/render.ts:37・70` | 先頭 |
 | U4 | E4 の描画: 内部帯 `status`、レイアウト、`pillSvg` の描画、HTML への写し | `lib/layout-util.ts`(`withStatus`)、`lib/layout.ts:43`・`lib/layout-measure.ts:128`(呼び出し)、`lib/emit*.ts`(帯の描画)、`lib/badge.ts`(必要なら `pillSvg` に破線の枠) | U3 の後 |
-| U5 | E4 のメタデータ・検査: `<desc>` の先頭、`<metadata>`、`draft-status`、`check --no-draft`、lint が `data-status` を札として扱う | `lib/emit.ts`、`lib/rules.ts`(`diagramDesc:693`・規則の表)、`check-diagram.ts`、`lint-svg.ts` | U4 と並列にできる(帯の型が決まれば) |
+| U5 | E4 のメタデータ・検査: `<desc>` の先頭、`<metadata>`、`draft-status`、`check --forbid-draft`、lint が `data-status` を札として扱う | `lib/emit.ts`、`lib/rules.ts`(`diagramDesc:693`・規則の表)、`check-diagram.ts`、`lint-svg.ts` | U4 と並列にできる(帯の型が決まれば) |
 | U6 | README とスキル(`skills/svg-diagram/`)の追記、`examples/` に 1 例ずつ | `README.md`、`examples/gantt-today-extend.ts`、`examples/status-draft.ts` | 最後 |
 
 ### テスト方針
 
-- **フォント依存の絶対値は使わない**。座標・幅・文字の位置を数値で固定しない。`today` の日付は**固定の文字列**(`'2026-10-19'`)で、`Date` も時計も呼ばない。`--today now` だけは時計を読むので、テストは時計を差し替えられる形(関数を注入)にするか、`--today <固定日>` だけを試す。
+- **フォント依存の絶対値は使わない**。座標・幅・文字の位置を数値で固定しない。`today` の日付は**固定の文字列**(`'2026-10-19'`)で、`Date` も時計も呼ばない。時計を読む入口は無いので、`--today <固定日>` と環境変数だけを試す。
 - E3(U1): ①`today` が軸の外 → throw、文面に軸の範囲と `extendToToday` が出る、先頭は従来の正規表現(`/today .* is outside the axis/`)に通る。②`extendToToday: true` で throw せず、`today` が過去・未来の両方で、線が描かれ、**`ganttTexts` と `layoutGantt` が同じ軸**を使う(目盛りのラベルの日付に `today` の日が含まれる、で確かめる)。③`from` / `to` を明示した側は広がらず throw する。④`extendToToday` と `today` の無い図が、前後で**同じ SVG**(既存の gantt のテストと `examples/gantt.ts` を、実装前後で `diff` する)。
-- E3(U2): `today: 'auto'` と日付の供給なし → throw。`--today 2026-10-19` と、同じ日付を直接書いた図が**同じ SVG**(`<metadata>` の `today` だけ違う)。日付を変えると線の位置だけが変わる。環境変数・config の優先順位(CLI > 環境変数 > config)。
-- E4(U3〜U5): ①`status` なしの図が、実装前の出力と同一(`examples/` 全部の出力を比べる回帰)。②`status: 'draft'` で、SVG に「下書き」の文字、`role="img"` と `aria-label`、`<desc>` の先頭が出る。`statusLabel: '仮説'` で差し替わる。空・複数行は throw。③札と出典行(`sourceLine`)が**重ならない**(両方の矩形が交差しないことを、座標の絶対値でなく**交差の有無**で確かめる)。④題(`diagramTitle`)が札の文言にならない。⑤`appearance: 'dark'` で札の色が置き換わり、コントラストの検査が通る。透明背景でも通る。⑥`check` に `draft-status`(info)が出る、`--no-draft` で warn、`--strict` だけでは失敗しない、`accept` で許容できる。⑦`--html` でも札が出る。⑧`canvas: 'slide'` で `slide-min-text` に引っかからない(Q4 の確認)。
+- E3(U2): `today: 'auto'` と日付の供給なし → throw。`--today 2026-10-19` と、同じ日付を直接書いた図が**同じ SVG**(`<metadata>` の `today` だけ違う)。日付を変えると線の位置だけが変わる。環境変数・config の優先順位(CLI > 環境変数 > config)。`check --today` で同じ図が通る。`--drift --rebuild` が、`today: 'auto'` の図を metadata の日付で作り直して一致する(環境変数の日付が違っても誤報しない)。`today` を直接書いた図の metadata に `today` が出ない。
+- E4(U3〜U5): ①`status` なしの図が、実装前の出力と同一(`examples/` 全部の出力を比べる回帰)。②`status: 'draft'` で、SVG に「下書き」の文字、`role="img"` と `aria-label`、`<desc>` の先頭が出る。`statusLabel: '仮説'` で差し替わる。空・複数行は throw。③札と出典行(`sourceLine`)が**重ならない**(両方の矩形が交差しないことを、座標の絶対値でなく**交差の有無**で確かめる)。④題(`diagramTitle`)が札の文言にならない。⑤`appearance: 'dark'` で札の色が置き換わり、コントラストの検査が通る。透明背景でも通る。⑥`check` に `draft-status`(info)が出る、`--forbid-draft` で warn、`--strict` だけでは失敗しない、`accept` で許容できる。⑦`--html` でも札が出る。⑧`canvas: 'slide'` で `slide-min-text` に引っかからない(Q4 の確認)。
 - 回帰: `pnpm test` 全体と `typecheck`。`test/fixtures/dsl-exports.json` が変わっていないこと。
 
 ## 未決事項
 
-- **Q1**: `--today now` を CLI に入れるか(時計を読む入口を 1 つ作ることになる)。入れないなら、`SVG_DIAGRAM_TODAY=$(date +%F)` を利用者に書かせる(より素直で、時計を読む責任が呼び出し側に残る)。本 ADR は入れない側に傾いている。
+- **Q1**: 解決済み。`--today now` は入れない(D1)。
 - **Q2**: `freshness` に `auto` の日付を混ぜるか。混ぜると毎日 stale になり、混ぜないと日付違いの SVG が fresh と出る。本 ADR は混ぜない(README に限界を書く)。
 - **Q3**: 札を最上段でなく、本文の最初の帯の右端に重ねない形で置けるか(高さを増やさないため)。現状は 1 段増やす案。
-- **Q4**: `canvas: 'slide'` の最小文字 24px に、札の文字(`roles.note`)がどう効くか。`roles` が `canvas` の `minText` に追従するか、`lib/layout.ts` と `lib/canvas.ts` を実装時に読む。追従しない場合は、札の文字の大きさを `canvas` のときだけ上げる。
+- **Q4**: 解決済み(`canvasRoles(s)` が `note` に倍率をかけるため、`roles.note` を使う札は 24px の下限を満たす)。
 - **Q5**: `status` の将来の値(`'review'`、`'final'`)と、それぞれの文言・色。今は `'draft'` だけ。
 - **Q6**: `draft-status` を、`status` の無い図にも「題に『仮説』『下書き』とある」ときに出す(手書きの検出)か。誤検知が多いので、本 ADR では入れない。
