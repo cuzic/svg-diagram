@@ -135,3 +135,12 @@ test('toc-source-has-cause: an injection and a trim of a negative branch tree ar
   assert.ok(rules(goodNbr.nodes, [...goodNbr.links, {from: 'step', to: 'inj'}], 'nbr').includes('toc-source-has-cause'));
   assert.ok(rules(goodNbr.nodes, [...goodNbr.links, {from: 'fact', to: 'trim'}], 'nbr').includes('toc-source-has-cause'));
 });
+
+test('toc-tt-unit: an AND of a transition tree is current reality (or a need) + action', () => {
+  const nodes = [N('c', 'precondition'), N('n', 'need'), N('a', 'action'), N('r', 'io'), N('a2', 'action'), N('r2', 'io')];
+  const unit = [{from: ['c', 'n', 'a'], to: 'r'}];
+  assert.deepEqual(rules(nodes.slice(0, 4), unit, 'tt'), []);
+  assert.deepEqual(rules(nodes, [...unit, {from: ['r', 'a2'], to: 'r2'}], 'tt'), ['toc-tt-unit'], 'no need in the second unit');
+  assert.deepEqual(rules(nodes, [...unit, {from: ['r', 'n'], to: 'r2'}, {from: 'a2', to: 'r2'}], 'tt'), ['toc-tt-unit'], 'an AND with no action');
+  assert.deepEqual(rules(nodes, [{from: 'c', to: 'r'}, {from: 'a', to: 'r'}, {from: 'n', to: 'r'}, {from: 'a2', to: 'r2'}, {from: 'r', to: 'r2'}], 'tt'), [], 'OR links are not units');
+});

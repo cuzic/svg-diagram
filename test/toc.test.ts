@@ -1,8 +1,9 @@
 import test from 'node:test';
 import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
-import {box, causeTree, checkDiagram, closeMeasurer, cloud, connect, diagram, pdpc, renderDiagram} from '../lib/dsl.ts';
+import {box, causeTree, checkDiagram, closeMeasurer, cloud, connect, diagram, pdpc, renderDiagram, transitionUnits} from '../lib/dsl.ts';
 import type {LaidOutCause, LaidOutCloud} from '../lib/types/diagrams.ts';
+import {tocFindings} from '../lib/toc-rules.ts';
 
 test.after(() => closeMeasurer());
 
@@ -549,4 +550,22 @@ test("a trim box is drawn dashed in the SVG and in the legend", async () => {
   const svg = (await renderDiagram(d, {name: 'n.svg', budget: 'cacheOnly'})).svg;
   assert.ok((svg.match(/stroke-dasharray="6,4"/g)?.length ?? 0) >= 3, 'the box, the cutting arrow and the legend swatch');
   assert.ok(svg.includes('トリミング(施策)'));
+});
+
+test('transitionUnits(): units become a chain of 3-input ANDs; the result of one is the current reality of the next', async () => {
+  const {nodes, links} = transitionUnits([
+    {id: 'u1', current: '受注順に着手している', need: '納期を守りたい', action: '着手の枠を決める', result: '仕掛りが見える'},
+    {id: 'u2', need: '待ちを減らしたい', action: '週次で枠を見直す', result: '納期を守れる', resultRole: 'goal'},
+  ]);
+  assert.deepEqual(nodes.map(n => `${n.id}:${n.role}`), ['u1.current:precondition', 'u1.need:need', 'u1.action:action', 'u1:io', 'u2.need:need', 'u2.action:action', 'u2:goal']);
+  assert.deepEqual(links, [{from: ['u1.current', 'u1.need', 'u1.action'], to: 'u1'}, {from: ['u1', 'u2.need', 'u2.action'], to: 'u2'}]);
+  const {t, verdict} = await laidCause(causeTree(nodes, links, {tree: 'tt'}));
+  assert.equal(t.ands.length, 2);
+  assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause')), []);
+  assert.deepEqual(tocFindings({nodes, links, tree: 'tt'}).map(f => f.rule), [], 'a clean transition tree');
+  assert.throws(() => transitionUnits([]), /at least one unit/);
+  assert.throws(() => transitionUnits([{id: 'a', need: 'n', action: 'x', result: 'r'}]), /needs the current reality/);
+  assert.throws(() => transitionUnits([{id: 'a', current: 'c', need: 'n', action: 'x', result: 'r'}, {id: 'b', current: 'c', need: 'n', action: 'x', result: 'r'}]), /leave current out/);
+  assert.throws(() => transitionUnits([{id: 'a', current: 'c', need: ' ', action: 'x', result: 'r'}]), /needs a need text/);
+  assert.throws(() => transitionUnits([{id: 'a', current: 'c', need: 'n', action: 'x', result: 'r'}, {id: 'a', need: 'n', action: 'x', result: 'r'}]), /duplicate unit id/);
 });

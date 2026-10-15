@@ -1,6 +1,6 @@
 # ADR 0020: TOC の残りの図(NBR・TT)と検査(H4・H5・H8)。H6 は検査の誤検知、H10 は取り下げ
 
-- 状態: 一部実装済み(H6: #219、U1 NBR: 本 PR)。U2 TT・U3 PRT の検査と `mirrors` は未着手。Opus レビュー 2 巡(第 2 巡でブロッカー無し)。依頼元の返事(2026-10-15)を、下の「依頼元の返事」に反映
+- 状態: 一部実装済み(H6: #219、U1 NBR: #221、U2 TT: #222)。U3 PRT の検査と `mirrors` は未着手。Opus レビュー 2 巡(第 2 巡でブロッカー無し)。依頼元の返事(2026-10-15)を、下の「依頼元の返事」に反映
 - 日付: 2026-10-15
 - 基点: `main`(ADR 0019 の U0〜U4 マージ後)
 - 関連: ADR 0015(`tree`・`tocCheck`・`kind: 'blocks'`・凡例)、ADR 0019(ALAP・`maxNodeW: 'auto'`。H1〜H3)、ADR 0016(戻り辺・AND の弧)。要望の原文は `medius-research/docs/svg-diagram-feature-requests.md` の H 節(H4・H5・H6・H8・H10)。レビューで、H6 は検査の誤検知(#219 で修正)、H10 は前提が違う(図に題名は描かれない)と分かり、本 ADR の決定から外した
@@ -69,7 +69,7 @@ TOC の 6 つの図(CRT・FRT・PRT・TT・NBR・EC)のうち、NBR と TT だ�
 
 ### D2: TT は役割 `need` と、単位を書く補助。専用のレイアウトは、測ってなお要るときだけ(H5)
 
-- **`role: 'need'`**(ニーズ): 見た目は `{tone: 'accent'}`(二重枠なし)。`root`・`goal`・`start` と同じ色で、二重枠の有無だけが違う(凡例で区別する。色だけにしない)。TT の単位は `from: ['<現状 or 前の結果>', '<need>', '<action>']` の AND(いまのまま)。依頼元の `t5-tt2.ts` は、ニーズを `precondition` で書いている(移行は可。`need` は書き換えを強制しない)。
+- **`role: 'need'`**(ニーズ): 見た目は `{tone: 'solid'}`(塗りつぶしの箱。実装で描いて確かめた: `accent` では、中間目標(`io`、`new`)と同じ淡い箱に見えて区別できないので、`solid` にした)。TT の単位は `from: ['<現状 or 前の結果>', '<need>', '<action>']` の AND(いまのまま)。依頼元の `t5-tt2.ts` は、ニーズを `precondition` で書いている(移行は可。`need` は書き換えを強制しない)。
 - **補助 `transitionUnits()`**(DSL。レイアウトを持たない糖衣): `[{id, current?, need, action, result, resultRole?}, ...]` から `causeTree` の節と辺を作る。**id は単位ごとに 1 つ、書き手が与える**(その単位の `result` の id。`accept`・凡例・`mirrors` が使う)。ほかの節の id は、`<id>.need`・`<id>.action`、1 つ目の単位の現状は `<id>.current`(`current` に既存の節の id を書けば、それを使う)と決める。役割は既定で `current`: 1 つ目は `precondition`・2 つ目以降は前の `result`、`need`: `need`、`action`: `action`、`result`: `io`。**単位ごとに `resultRole` で上書きできる**(最後の結果を `goal` にするなど)。`test/fixtures/dsl-exports.json` に足す。
 - **専用のレイアウト(単位を詰めて積む)は、いま作らない**。ADR 0019 の U2・U3 の後に、6 単位の TT(現状 1 + 単位 6。結果が次の現状)を、固定幅のモックで測った: 短いラベルでは `layer: 'asap'`・`dir: 'up'`・`maxNodeW: 'auto'` が 1800x872、`alap` が 1800x732、`alap`・`dir: 'right'` が 1800x521。**ただし、実際の日本語のラベル(25 字ほど)では、`canvas` が 1800x1080 のとき 3 つとも収まらず throw した**(幅だけ 1800 で `canvas` 無しなら、`asap` 1760x1172、`alap` 1760x872、`alap`・右向き 1760x731。レビューでの実測)。ラベルの長さに依存するので、「ADR 0019 で H5 の大半は解けた」とは言わない。依頼元の `t5-tt2.ts` は、段に分けて通っている。**依頼元の元の 6 単位のソースで測った(上の「依頼元の返事」): `canvas` 1920 幅で 1216 → 598px。単位グループのレイアウトは要らない**。
 - **検査**: `toc-tt-unit`(`tree: 'tt'`): AND の結果が、`need`(または `precondition`)と `action` を持たない。

@@ -4,7 +4,7 @@ import {coreDrivers, reachCounts} from '../toc-analysis.ts';
 import {criticalPath, exact} from '../qc.ts';
 import type {ArrowActivity} from '../qc.ts';
 import type {GroupBand, RowBand, GroupRowBand} from '../types/containers.ts';
-import type {TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts, CloudBand, CloudBox, CloudOpts, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow} from '../types/diagrams.ts';
+import type {TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseRole, CauseOpts, CloudBand, CloudBox, CloudOpts, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow} from '../types/diagrams.ts';
 import type {Band} from '../types/index.ts';
 import type {CaptionBand} from '../types/text-bands.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
@@ -109,6 +109,45 @@ type CauseIds<N extends readonly CauseNode[]> = Extract<N[number]['id'], string>
 export function causeTree<const N extends readonly CauseNode[], const Id extends string = never>(nodes: N, links: readonly CauseLink[], opts?: CauseOpts & {id?: Id}): CauseBand & Declares<Id | CauseIds<N>> & HandleOf<Id> & AnchorsOf<CauseIds<N>>;
 export function causeTree(nodes: readonly CauseNode[], links: readonly CauseLink[], opts: CauseOpts = {}): CauseBand {
   return causeBand(nodes, links, opts);
+}
+/** One unit of a transition tree: the current reality (the first unit; the next ones start from the result before), a need and an action make a new reality. */
+export interface TransitionUnit {
+  /** The id of the unit's result; the other entities are `<id>.need`, `<id>.action` and, in the first unit, `<id>.current`. */
+  id: string;
+  /** The current reality: the first unit only (it is a `precondition`); a later unit starts from the result of the one before. */
+  current?: string;
+  need: string;
+  action: string;
+  result: string;
+  /** The role of the result (default 'io'; the last one is often a 'goal'). */
+  resultRole?: CauseRole;
+}
+/**
+ * The entities and links of a transition tree written as units (current reality + need + action → new reality, the result being the next unit's current
+ * reality): a 3-input AND for each unit, to be given to causeTree(nodes, links, {tree: 'tt'}).
+ *   const {nodes, links} = transitionUnits([{id: 'u1', current: '受注順に着手している', need: '納期を守りたい', action: '着手の枠を決める', result: '仕掛りが見える'}, ...]);
+ */
+export function transitionUnits(units: readonly TransitionUnit[]): {nodes: CauseNode[]; links: CauseLink[]} {
+  if (!Array.isArray(units) || units.length === 0) throw new Error('transitionUnits(units) needs at least one unit');
+  const nodes: CauseNode[] = [], links: CauseLink[] = [], seen = new Set<string>();
+  const text = (u: TransitionUnit, key: 'need' | 'action' | 'result' | 'current'): string => {
+    const v = u[key];
+    if (typeof v !== 'string' || !v.trim()) throw new Error(`transitionUnits(): unit "${u.id}" needs a ${key} text`);
+    return v;
+  };
+  units.forEach((u, i) => {
+    if (typeof u.id !== 'string' || !u.id) throw new Error('transitionUnits(): every unit needs an id');
+    if (seen.has(u.id)) throw new Error(`transitionUnits(): duplicate unit id "${u.id}"`);
+    seen.add(u.id);
+    if (i === 0 && u.current === undefined) throw new Error(`transitionUnits(): the first unit "${u.id}" needs the current reality (current)`);
+    if (i > 0 && u.current !== undefined) throw new Error(`transitionUnits(): unit "${u.id}" starts from the result of the unit before it: leave current out`);
+    if (u.resultRole !== undefined && !(u.resultRole in CAUSE_ROLES)) throw new Error(`transitionUnits(): unit "${u.id}" has resultRole ${String(u.resultRole)}`);
+    const current = i === 0 ? `${u.id}.current` : units[i - 1].id;
+    if (i === 0) nodes.push({id: current, label: text(u, 'current'), role: 'precondition'});
+    nodes.push({id: `${u.id}.need`, label: text(u, 'need'), role: 'need'}, {id: `${u.id}.action`, label: text(u, 'action'), role: 'action'}, {id: u.id, label: text(u, 'result'), role: u.resultRole ?? 'io'});
+    links.push({from: [current, `${u.id}.need`, `${u.id}.action`], to: u.id});
+  });
+  return {nodes, links};
 }
 /** causeTree's body; pdpc() and relationDiagram() pass `base: 'down'` (their direction when `dir` is left out, from which they may also turn to 'right' to fit). */
 function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opts: CauseOpts, base?: 'down'): CauseBand {
