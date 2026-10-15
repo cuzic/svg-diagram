@@ -70,8 +70,8 @@ faultTree({
 ### D3. 配置: 「事象 + その下のゲート」を 1 つの複合ノードにして、`layoutTree` で置く
 
 - `ref` で複製するので、配置の時点で FTA は**純粋な木**。`layoutTree`(`lib/graph-layout.ts`。親を子の中央に置き、折れ線も返す)がそのまま合う。`layoutLayered`(Sugiyama 型)は選ばない: 交差を減らすための並べ替えとダミーのノードは木には要らず、**ゲートが出力事象の真下に来る保証が無い**。
-- 複合ノード = 事象の箱 + 短い縦線 + ゲートの記号(`gate` があるとき)。`inhibit` の条件の楕円は、ゲートの右に横線でつなぐ(複合ノードの幅に含める)。子の接続は、複合ノードの下端(ゲートの出力)から。
-- 折り返し(`fold`)は FTA では使わない: 層を折り返すと、ゲートから 2 行目の子への線が 1 行目の子の間を抜けて読めなくなる。幅が足りないときは、`maxNodeW`(既定 200)を 100 まで縮め、それでも足りなければ throw(「試した幅」を書く。`dir` を書かないので `causeTree` の自動の探索は無い)。**収まる大きさの目安**: `layoutTree` は輪郭を詰めない(図の幅 ≈ 葉の幅の合計 + 間隔 24 × (葉 − 1))ので、既定の内幅 900px では、葉が 7 個程度(幅 100)までで、それを超える木は `diagram({width})` を広げる。このときの throw の文面に「`diagram({width})` を広げる」を書く。
+- 複合ノード = 事象の箱 + 短い縦線 + ゲートの記号(`gate` があるとき)。`inhibit` の条件の楕円は、ゲートの右に横線でつなぐ。**複合ノードは左右対称に取る**(条件の分の余白を左にも同じ幅で取る)ので、`layoutTree` が引く「親の下端の中心」からの辺は、ゲートの出力(事象の中心の真下)と一致する(ゲートを持たない事象は親にならないので、`inhibit` 以外にずれは出ない)。子の接続は、複合ノードの下端(ゲートの出力)から。
+- 折り返し(`fold`)は FTA では使わない: 層を折り返すと、ゲートから 2 行目の子への線が 1 行目の子の間を抜けて読めなくなる。幅が足りないときの扱いは、ADR 0010 の表に揃えて **`maxNodeW?: number | 'auto'`** で決める: 省略 → 100 まで縮め、縮めたら `auto-fit-applied`(warn。`fitApplied` に `fta` を載せる)、`'auto'` → 同じ縮めを info で、数値 → 縮めずに、足りなければ throw。縮めても足りなければ、どれも throw(「試した幅」を書く。`dir` が無いので軸は変えない)。**収まる大きさの目安**: `layoutTree` は輪郭を詰めない(図の幅 ≈ 葉の幅の合計 + 間隔 24 × (葉 − 1))ので、既定の内幅 900px では、葉が 7 個程度(幅 100)までで、それを超える木は `diagram({width})` を広げる。このときの throw の文面に「`diagram({width})` を広げる」を書く。
 - **アンカー**: ノードの `id` を持つ元の事象だけが `connect()` / spotlight / reveal のアンカーになる(`lib/band-ids.ts` の `nodeIdsOf`)。`ref` の複製は `<id>~2`、`<id>~3` の内部の名前を持つが、**アンカーにしない**(どちらの記号に付くか決まらないため)。
 
 ### D4. 定量は 2 段階。第 1 段は最小カットセット、第 2 段は確率(いずれも coherent な木の前提)
@@ -88,7 +88,7 @@ faultTree({
 
 ### D5. 検査: 純関数 + 既定 info、図ごとの opt-in で warn(`rcaCheck`)
 
-- `diagram({rcaCheck: 'strict'})` を新設(`DiagramOpts` と `DiagramData`、`lib/dsl/render.ts` の検証、`lib/types/core.ts`)。`tocCheck`(TOC の名前)も `layoutCheck`(配置の名前)も流用しない。重大度の決め方は `tocRules`(`lib/rules.ts`)と同じ形(`f.severity ?? severity`)で、`rcaRules()` を足す。`rcaRules()` は `b.type === 'fta'` のバンド(型による分岐)と、ADR 0022 の `rca` 欄を持つ表・木・`bowtie` を拾う。**`rcaCheck` と空の `rcaRules()` は、小さな独立した単位 U0 として先に入れる**(ADR 0022 も U0 に依存する。どちらの ADR が先に U0 を入れてもよい)。
+- `diagram({rcaCheck: 'strict'})` を新設(`DiagramOpts` と `DiagramData`、`lib/dsl/render.ts` の検証、`lib/types/core.ts`)。`tocCheck`(TOC の名前)も `layoutCheck`(配置の名前)も流用しない。重大度の決め方は `tocRules`(`lib/rules.ts`)と同じ形(`f.severity ?? severity`)で、`rcaRules()` を足す。`rcaRules()` は、`b.type === 'fta'` のバンド(0021 U1 が分岐を足す)と、ADR 0022 の `rca` 欄を持つ表・木・`bowtie`(0022 の U1 / U4 が分岐を足す)を拾う。**`rcaCheck`・`rcaSeverity`・空の `rcaRules()` は、小さな独立した単位 U0 として先に入れる**(ADR 0022 も U0 に依存する。どちらの ADR が先に U0 を入れてもよい)。
 - 規則(`lib/fta-rules.ts`。ノードだけを見て、配置・フォントは見ない)。「常に info」は strict でも info(`accept` は warn を info に下げるだけなので、意味があるのは「strict で warn に上がる」規則):
 
 | 規則 | 出す条件 | 重大度 |
@@ -130,7 +130,7 @@ faultTree({
 
 | 単位 | 内容 | 触るファイル | 依存 |
 |---|---|---|---|
-| U0 | `diagram({rcaCheck})`(`DiagramOpts` / `DiagramData` / `lib/dsl/render.ts` の検証 / `lib/types/core.ts`)と、空の `rcaRules()`(`lib/rules.ts`。重大度の決め方と、`fta` / `rca` の欄 / `bowtie` を型で拾う枠) | `lib/types/core.ts`、`lib/dsl/render.ts`、`lib/rules.ts` | なし |
+| U0 | `diagram({rcaCheck})`(`DiagramOpts` / `DiagramData` / `lib/dsl/render.ts` の検証 / `lib/types/core.ts`)と、`rcaSeverity(d)`、空の `rcaRules()`(`lintAll` に繋ぐところまで。型の分岐は、`fta` の型が入る 0021 U1、`rca` の欄が入る 0022 U1、`bowtie` が入る 0022 U4 が、それぞれ足す。U0 の時点では `Band` に無い型は書けない) | `lib/types/core.ts`、`lib/dsl/render.ts`、`lib/rules.ts` | なし |
 | U1 | `fta` 本体: 型・検証(D2 の一覧)・複合ノード・`layoutTree` での配置・描画・アンカー・配線・`fta-gate-one-input` / `fta-vote-degenerate` / `fta-top-is-leaf` / `fta-undeveloped-left` | D1 の配線の一覧(`lib/fta.ts`、`lib/emit-fta.ts`、`lib/fta-rules.ts` ほか)、`lib/rules.ts`(`routedBands` など) | U0 |
 | U2 | `minimalCutSets`・`cutSets: true`(バッジ)・`fta-single-point` | `lib/fta-analysis.ts`、`lib/emit-fta.ts`、`lib/fta-rules.ts` | U1 |
 | U3 | 凡例(`usedNotation`・`DEFAULT_LEGEND_LABELS`・記号の見本) | `lib/rules.ts`(`usedNotation`・`legendKeys`)、`lib/types/containers.ts`(`LegendItem`)、配置(`lib/layout*.ts` の凡例の `swatch`)、`lib/emit-boxes.ts`(凡例の描画)、`lib/emit-fta.ts`(見本の描画を U1 の描画関数から借りる) | U1 |
@@ -145,7 +145,7 @@ faultTree({
 - **数値の基準**: 2-out-of-3 で `p = 0.1` が 3 つなら `3·0.1²·0.9 + 0.1³ = 0.028`。共有の例: `OR(AND(a, b), AND(a, c))` は `a·(1 − (1 − b)(1 − c))`(独立を誤って仮定した `1 − (1 − ab)(1 − ac)` とは違う)。
 - **配置は関係だけ**: 頂上が最上段、ゲートの子が 1 段下、**ゲートの記号の中心の x が、出力事象の中心の x と一致**し、ゲートが事象の下・子の群の上にある、`inhibit` の条件が同じ高さで右にある。
 - **描画**は SVG の性質で見る: AND と OR の `path` が異なる、基本事象に円・未展開にひし形、**ゲートの線の終点に `<marker>` も矢じり(多角形)も無い**(このリポジトリは矢じりを多角形でも描く)、`ref` の複製が別の記号として描かれる。
-- **幅**: 葉 12 個の木が `diagram({width: 1400})` で収まり、既定の 900 では試した幅を書いて throw する。
+- **幅**: 葉 12 個の木(幅 100 に縮めて 12×100 + 11×24 = 1464px)が `diagram({width: 1600})`(内幅 1560)で収まり、既定の 900 では試した幅を書いて throw する。`maxNodeW` の省略で縮めた図は `auto-fit-applied`(warn)、`'auto'` は info、数値は縮めずに throw。
 - **凡例**: `faultTree` を置いた既定の図(凡例なし)で `check --strict` が落ちない。
 - **検査**: カットセットが多すぎる木で、検査は throw せず info を出し、`cutSets: true` では throw する。
 - **byte 同一**: `examples/*.ts` の全部が、新しい例を除いて前後で同一。
