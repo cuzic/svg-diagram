@@ -226,3 +226,11 @@ test('causeTree(): a figure with no crossing into an AND, and a pdpc(), come out
   const plan = pdpc([{id: 's', label: 's', role: 'start'}, {id: 'g', label: 'g', role: 'goal'}], [{from: 's', to: 'g'}]);
   assert.deepEqual(place(plan, 900), layoutCauseBandOnce(plan, 0, 0, 900, fixedW as never, ROLES));
 });
+
+// ADR 0016 D11: the long arrow into an AND and the direct one that runs side by side with it. A 12-node tree that had a `cause-parallel` before the lanes were shared.
+test('causeTree(): arrows into an AND no longer run side by side (the long arrow turns on the tail side of the direct ones)', () => {
+  const links = JSON.parse('[{"from":["n1","n0"],"to":"n2"},{"from":"n0","to":"n3"},{"from":"n1","to":"n4"},{"from":"n2","to":"n4"},{"from":["n2","n0"],"to":"n5"},{"from":["n5","n2"],"to":"n6"},{"from":"n0","to":"n7"},{"from":"n5","to":"n7"},{"from":"n2","to":"n8"},{"from":["n2","n7"],"to":"n9"},{"from":"n8","to":"n10"},{"from":["n5","n3","n10"],"to":"n11"}]');
+  const t = place(causeTree(Array.from({length: 12}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'frt', dir: 'up'}), 1800);
+  assert.deepEqual(andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses'), [], 'no two arrows into an AND run side by side');
+  assert.equal(t.loose.length, 0);
+});

@@ -55,3 +55,11 @@ export function crossingsOf(paths: P[][], o: CrossOpts = {}): number {
 
 /** The candidate score of routed arrows: crossings and bends (lower is better; compared crossings first). */
 export const scoreOf = (paths: P[][]): {crossings: number; bends: number} => ({crossings: crossingsOf(paths), bends: paths.reduce((n, p) => n + bendsOf(p), 0)});
+
+/** Two runs of arrows side by side (under 4px apart, over 4px long together): they read as one line. Shared by the verifier (`cause-parallel`) and the router (ADR 0016 D11). */
+export function runsTogether(a: {p: P; q: P}, b: {p: P; q: P}): boolean {
+  const aH = a.p.y === a.q.y;
+  if (aH !== (b.p.y === b.q.y)) return false;
+  const [c, d] = aH ? ['x', 'y'] as const : ['y', 'x'] as const;
+  return Math.abs(a.p[d] - b.p[d]) < 4 && Math.min(Math.max(a.p[c], a.q[c]), Math.max(b.p[c], b.q[c])) - Math.max(Math.min(a.p[c], a.q[c]), Math.min(b.p[c], b.q[c])) > 4;
+}
