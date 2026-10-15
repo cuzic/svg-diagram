@@ -10,10 +10,10 @@
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">導入前後の離脱率</text>
 
   <rect x="20" y="56" width="440" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="240" y="127.6" text-anchor="middle" font-size="56" font-weight="700" fill="#b91c1c">76%</text>
-  <text x="240" y="172" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">導入前</text>
+  <text x="240" y="128" text-anchor="middle" font-size="56" font-weight="700" fill="#b91c1c">76%</text>
+  <text x="240" y="172.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">導入前</text>
 
   <rect x="480" y="56" width="440" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="700" y="127.6" text-anchor="middle" font-size="56" font-weight="700" fill="#1d5fa8">31%</text>
-  <text x="700" y="172" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">導入後</text>
+  <text x="700" y="128" text-anchor="middle" font-size="56" font-weight="700" fill="#1d5fa8">31%</text>
+  <text x="700" y="172.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">導入後</text>
 </svg>
