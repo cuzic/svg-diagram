@@ -125,6 +125,37 @@ test('the emitted SVG draws the shrunk size and stays above the 14px lint floor'
   assert.ok(sizes.some(n => n < ROLES.stat && n >= lo));
 });
 
+// ---- notification and the message when it still does not fit (ADR 0024 D5, D7) ----
+
+test('a shrunk stat raises the info rule stat-fit-shrunk; accept keeps it an info with the reason; a fitting stat raises nothing', async () => {
+  const avail = await availOf(mk), lo = statFitMin(ROLES, ROLES.stat);
+  const value = await valueBetween(avail, ROLES.stat, lo);
+  const {r, b} = await laidBox(mk().add(stat(value, 'ラベル')));
+  const f = r.verdict.findings.filter(x => x.rule === 'stat-fit-shrunk');
+  assert.equal(f.length, 1);
+  assert.equal(f[0].severity, 'info');
+  assert.ok(f[0].message.includes(`${ROLES.stat}px から ${b.wrappedRuns[0].size}px`));
+  const accepted = (await checkDiagram(diagram({theme: 'blue', accept: {'stat-fit-shrunk': '細い列に置く'}}).add(stat(value, 'ラベル')))).verdict.findings.filter(x => x.rule === 'stat-fit-shrunk');
+  assert.equal(accepted[0].severity, 'info');
+  assert.match(accepted[0].message, /許容: 細い列に置く/);
+  const fits = (await checkDiagram(mk().add(stat('76%', 'x')))).verdict.findings;
+  assert.deepEqual(fits.filter(x => x.rule === 'stat-fit-shrunk'), []);
+});
+
+test('when even the floor does not fit, the message names the floor, the measured width, the box and a fix line', async () => {
+  const avail = await availOf(mk), lo = statFitMin(ROLES, ROLES.stat);
+  let value = '8';
+  while (await widthAt(value, lo) <= avail) value += '8';
+  const {r} = await laidBox(mk().add(stat(value, 'ラベル')));
+  const msg = r.verdict.problems.find(p => /stat: value/.test(p))!;
+  const needs = Number(/needs (\d+)px/.exec(msg)![1]), has = Number(/the box has (\d+)px/.exec(msg)![1]);
+  assert.ok(msg.includes(`at the smallest size (${lo}px:`));
+  assert.ok(Math.abs(needs - await widthAt(value, lo)) <= 1, 'the measured width at the floor');
+  assert.ok(needs > has && Math.abs(has - avail) <= 1);
+  assert.match(msg, /\n  fix: widen the box .*shorten the value.*unit in the label/);
+  assert.ok(!msg.includes("size: 'stat'"));
+});
+
 test('other text is untouched: a long box title still wraps', async () => {
   const {b} = await laidBox(mk().add(box({title: '長い題'.repeat(30)})));
   assert.ok(b.wrappedRuns[0].lines.length > 1);
