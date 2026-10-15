@@ -75,6 +75,28 @@ test('toc rules do not run for a causeTree without tree, nor for relationDiagram
   assert.ok(!f.some(x => x.rule.startsWith('toc-')));
 });
 
+test('toc-cycle-undeclared: a cycle with no back: true is named; a declared return, a blocks arrow and a plain tree are not', () => {
+  const nodes = [N('root', 'root'), N('a'), N('late', 'ude'), N('kpi')];
+  const loop = [{from: 'root', to: 'a'}, {from: 'a', to: 'late'}, {from: 'late', to: 'root'}];
+  const found = tocFindings({nodes, links: loop, tree: 'crt'} as never).filter(f => f.rule === 'toc-cycle-undeclared');
+  assert.equal(found.length, 1);
+  assert.match(found[0].message, /->/, 'names the arrow the layout treated as the return');
+  assert.ok(!rules(nodes, [...loop.slice(0, 2), {from: 'late', to: 'root', back: true}], 'crt').includes('toc-cycle-undeclared'), 'declared');
+  assert.ok(!rules(nodes, [...loop.slice(0, 2), {from: 'late', to: 'root', kind: 'blocks'}], 'crt').includes('toc-cycle-undeclared'), 'blocks is not a cause');
+  assert.ok(!rules(nodes, loop.slice(0, 2), 'crt').includes('toc-cycle-undeclared'));
+  assert.ok(rules(nodes, loop, 'prt').includes('toc-cycle-undeclared'), 'any tree');
+  assert.equal(rules(nodes, loop, undefined).length, 0, 'no tree, no check');
+});
+
+test('the first figure the requester drew (a 5-entity chain, one ude, a return into the root) trips ude-count, cycle-undeclared and source-has-cause', () => {
+  const nodes = [N('root', 'root'), N('b'), N('c'), N('d'), N('late', 'ude')];
+  const links = [{from: 'root', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'}, {from: 'd', to: 'late'}, {from: 'late', to: 'root'}];
+  const r = rules(nodes, links, 'crt');
+  for (const id of ['toc-ude-count', 'toc-cycle-undeclared', 'toc-source-has-cause']) assert.ok(r.includes(id as never), id);
+  const declared = rules(nodes, links.map(l => l.to === 'root' ? {...l, back: true} : l), 'crt');
+  assert.ok(!declared.includes('toc-cycle-undeclared' as never) && declared.includes('toc-ude-count' as never) && declared.includes('toc-chain-only' as never), 'with back: true the chain itself is still named');
+});
+
 test('tocCheck and tree reject bad values', () => {
   assert.throws(() => diagram({theme: 'blue', tocCheck: 'loud' as never}), /tocCheck/);
   assert.throws(() => causeTree([N('a')] as never, [], {tree: 'xyz' as never}), /tree must be/);
