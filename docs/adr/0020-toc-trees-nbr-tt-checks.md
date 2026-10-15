@@ -1,6 +1,6 @@
 # ADR 0020: TOC の残りの図(NBR・TT)と検査(H4・H5・H8)。H6 は検査の誤検知、H10 は取り下げ
 
-- 状態: 一部実装済み(H6: #219、U1 NBR: #221、U2 TT: #222、U3 PRT の検査と `mirrors`: #223)。Opus レビュー 2 巡(第 2 巡でブロッカー無し)。依頼元の返事(2026-10-15)を、下の「依頼元の返事」に反映
+- 状態: 実装済み(H6: #219、U1 NBR: #221、U2 TT: #222、U3 PRT の検査と `mirrors`: #223。H10 は取り下げ、`--no-source-line` は将来の候補)。Opus レビュー 2 巡(第 2 巡でブロッカー無し)。依頼元の返事(2026-10-15)を、下の「依頼元の返事」に反映
 - 日付: 2026-10-15
 - 基点: `main`(ADR 0019 の U0〜U4 マージ後)
 - 関連: ADR 0015(`tree`・`tocCheck`・`kind: 'blocks'`・凡例)、ADR 0019(ALAP・`maxNodeW: 'auto'`。H1〜H3)、ADR 0016(戻り辺・AND の弧)。要望の原文は `medius-research/docs/svg-diagram-feature-requests.md` の H 節(H4・H5・H6・H8・H10)。レビューで、H6 は検査の誤検知(#219 で修正)、H10 は前提が違う(図に題名は描かれない)と分かり、本 ADR の決定から外した
@@ -121,11 +121,24 @@ TOC の 6 つの図(CRT・FRT・PRT・TT・NBR・EC)のうち、NBR と TT だ�
 | 単位 | 内容 | 依存 |
 |---|---|---|
 | (済) | H6: 検査の誤検知の修正(PR #219) | |
-| U1 | D1 NBR(`tree: 'nbr'`・役割・`dashed`・`foldsInto`・凡例・規則・`TocFinding.severity`) | なし |
+| U1 | D1 NBR(`tree: 'nbr'`・役割・`dashed`・`foldsInto`・凡例・規則) | なし |
 | U2 | D2 TT(`need`・`transitionUnits()`・`toc-tt-unit`) | U1 と独立 |
-| U3 | D4・D3 PRT の検査と `toc-mirror` | `TocFinding.severity` は U1 |
+| U3 | D4・D3 PRT の検査と `toc-mirror`(`TocFinding.severity` はここで足した) | U1・U2 の後(型・規則の表を同じファイルで触る) |
 
 依頼元の優先順(H4+H5 → H8)に合わせ、U1・U2 → U3。
+
+## 実装での補足(H6・U1〜U3 = PR #219・#221・#222・#223)
+
+- **`role: 'need'` は accent でなく `solid`**(U2): D2 は accent としたが、描いて確かめると中間目標(`io`)と同じ淡い箱に見えて区別できなかった。塗りつぶし(`solid`)にした。そのため `CAUSE_ROLES`・配置結果・凡例の見本の tone の型を `BoxTone` から `EmphasisTone` に広げた(利用者が書く `node.tone` は `BoxTone` のまま)。
+- **`CAUSE_ROLES` に `dashed` を足した**(U1): `trim` の破線の枠のため。箱・六角形・凡例の見本の描画に通した。
+- **`foldsInto` は DSL の層で `sub` に足す**(U1): 文字の幅が測られる。`trim` 以外・空の文字は throw。`coreDriver` は `trim` を数えない。
+- **`TocFinding.severity` は U3 で足した**(U1 には入れていない): `toc-obstacle-phrase` だけが使う(`rules.ts` で `f.severity ?? severity`)。上の実装計画の表で U1 に書いていたのは誤り。
+- **`toc-prt-bottom-not-action` は「中間目標の鎖の底」で見る**(U3): 「入る辺が無い節で `action` でない」と定義すると、依頼元の `t4-prt.ts`(障害を入る辺の無い節で書く)の障害 8 つが全部出てしまう(Opus レビューで確認)。入る辺に `io` が無い `io` を底とする。
+- **`toc-obstacle-phrase` は常に info**(U3): 依頼元の `t4-prt.ts` の障害 2 つに出る(許容する偽陽性。`accept` で外せる)。`t3-frt.ts`・`t5-tt.ts` では新しい規則は出ない。
+- **`mirrors`**(U3): FRT が持つのは CRT の節の id と UDE の id だけ(`mirrorOf`。ラベルは持たないので、`consistency` の用語の揺れに入らない。テストで固定)。`mirrors` の帯が `tree: 'crt'` でない、`de` / `goal` 以外に `mirrors` を書く、は throw。3 つの失敗(UDE でない id・対応の欠け・重複)は 1 つの規則 `toc-mirror` の 3 つの文面。
+- **H6 の誤検知は検査側だけ直した**(#219): `verify-handlers` の `checkCause` が、矢じりの弧に沿った座標だけを見て、箱のどの辺に着くかを見ていなかった。弧に垂直な座標が AND のメンバーの tip と 1px 以内でない矢印は見ない。SVG は変わらない。`toc.ts` の弧の長さ(`reach`)にも同じ辺の見落としがあるが、直すと既存図の弧が動きうるので触っていない。
+- **ALAP の効果**(U1 の実測。幅 1920 の図): t5-tt 1216→598、p5-tt 1276→719、t4-prt 1556→710、t3-frt 1158→1016。
+- 例: `examples/toc-nbr.ts`・`examples/toc-tt.ts`(`transitionUnits` で書き直し)。どちらも `legend: 'auto'`・`tocCheck: 'strict'` で警告なし。他の例は golden の差分なし。
 
 ## 未解決
 
