@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import './helpers/strict-width.ts';
 import {causeTree, checkDiagram, closeMeasurer, diagram, pdpc} from '../lib/dsl.ts';
-import {layoutCauseBand} from '../lib/toc.ts';
+import {layoutCauseBand, layoutCauseBandOnce} from '../lib/toc.ts';
+import {andClashes} from '../lib/cause-clash.ts';
 import type {CauseBand, LaidOutCause} from '../lib/types/diagrams.ts';
 
 // ADR 0010 U1: fitting the width. Font-free: layoutCauseBand with a fixed text width, and widths measured from the figure itself.
@@ -205,4 +206,23 @@ test('causeTree() that fits nowhere: the failure says where to split (ADR 0019 D
   assert.throws(() => place(chain, 900, natural - 20), /\n {2}split: after layer \d \(1 arrow crosses: [a-e]→[a-e]\)\. Draw the nodes up to that layer/, 'too tall: a cut between layers, both halves within the budget');
   assert.throws(() => place(chain, 900, 40), /split: no cut between two layers leaves both halves within the height/, 'nothing fits: three or more figures');
   assert.throws(() => place(wide({dir: 'up'}), 300), /\n {2}split: layer \d is the widest \(\d+ nodes: u\d/, 'too wide: the widest layer');
+});
+
+// ADR 0019 D4: the arrows into an effect with an AND cross; another written order is tried and kept only when it is strictly better
+const nine = () => causeTree(Array.from({length: 9}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), JSON.parse('[{"from":"n0","to":"n2"},{"from":["n0","n1"],"to":"n3"},{"from":"n1","to":"n4"},{"from":"n0","to":"n4"},{"from":"n2","to":"n5"},{"from":"n3","to":"n5"},{"from":"n0","to":"n6"},{"from":"n0","to":"n7"},{"from":"n6","to":"n7"},{"from":"n1","to":"n7"},{"from":"n1","to":"n8"}]'), {tree: 'frt'});
+const andCrossings = (t: LaidOutCause): number => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
+test('causeTree(): arrows into an AND that cross are searched again in another written order; the figure only gets better', () => {
+  const once = layoutCauseBandOnce(nine(), 0, 0, 1400, fixedW as never, ROLES), now = place(nine(), 1400);
+  assert.ok(andCrossings(once) >= 1, 'the written order leaves a crossing');
+  assert.equal(andCrossings(now), 0, 'the search removes it');
+  assert.equal(now.loose.length, 0);
+  assert.ok(now.h <= once.h + 0.5, 'no taller');
+  assert.deepEqual(place(nine(), 1400), now, 'deterministic');
+});
+
+test('causeTree(): a figure with no crossing into an AND, and a pdpc(), come out exactly as laid out once', () => {
+  const fine = causeTree([N('a'), N('b'), N('c')], [{from: ['a', 'b'], to: 'c'}]);
+  assert.deepEqual(place(fine, 900), layoutCauseBandOnce(fine, 0, 0, 900, fixedW as never, ROLES));
+  const plan = pdpc([{id: 's', label: 's', role: 'start'}, {id: 'g', label: 'g', role: 'goal'}], [{from: 's', to: 'g'}]);
+  assert.deepEqual(place(plan, 900), layoutCauseBandOnce(plan, 0, 0, 900, fixedW as never, ROLES));
 });
