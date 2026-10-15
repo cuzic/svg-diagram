@@ -144,3 +144,41 @@ test('toc-tt-unit: an AND of a transition tree is current reality (or a need) + 
   assert.deepEqual(rules(nodes, [...unit, {from: ['r', 'n'], to: 'r2'}, {from: 'a2', to: 'r2'}], 'tt'), ['toc-tt-unit'], 'an AND with no action');
   assert.deepEqual(rules(nodes, [{from: 'c', to: 'r'}, {from: 'a', to: 'r'}, {from: 'n', to: 'r'}, {from: 'a2', to: 'r2'}, {from: 'r', to: 'r2'}], 'tt'), [], 'OR links are not units');
 });
+
+// a prerequisite tree (ADR 0020 D4)
+const prtOf = (extra: object[] = [], links: {from: string; to: string}[] = []) => ({
+  nodes: [N('goal', 'goal'), N('ioA', 'io'), N('ioB', 'io'), N('act1', 'action'), N('o1', 'obstacle'), N('o2', 'obstacle'), N('o3', 'obstacle'), ...extra],
+  links: [{from: 'act1', to: 'ioA'}, {from: 'o1', to: 'ioA'}, {from: 'o2', to: 'ioA'}, {from: 'ioA', to: 'ioB'}, {from: 'o3', to: 'ioB'}, {from: 'ioB', to: 'goal'}, ...links],
+});
+test('toc-prt-bottom-not-action: the bottom of an io chain has an action (an obstacle with no cause is not a bottom)', () => {
+  const p = prtOf();
+  assert.deepEqual(rules(p.nodes, p.links, 'prt'), [], 'the requester\'s shape: obstacles are sources, the bottom io has an action');
+  assert.deepEqual(rules(p.nodes, p.links.filter(l => l.from !== 'act1'), 'prt').filter(r => r.startsWith('toc-prt')), ['toc-prt-bottom-not-action'], 'ioA has no action');
+});
+test('toc-prt-one-to-one: obstacles and intermediate objectives all paired one to one', () => {
+  const pairs = {nodes: [N('goal', 'goal'), N('i1', 'io'), N('i2', 'io'), N('a1', 'action'), N('a2', 'action'), N('b1', 'obstacle'), N('b2', 'obstacle')], links: [{from: 'a1', to: 'i1'}, {from: 'b1', to: 'i1'}, {from: 'a2', to: 'i2'}, {from: 'b2', to: 'i2'}, {from: 'i1', to: 'goal'}, {from: 'i2', to: 'goal'}]};
+  assert.deepEqual(rules(pairs.nodes, pairs.links, 'prt'), ['toc-prt-one-to-one']);
+  assert.deepEqual(rules(pairs.nodes, [...pairs.links, {from: 'b1', to: 'i2'}], 'prt'), [], 'one obstacle in the way of two objectives');
+  assert.ok(!rules(pairs.nodes.slice(0, 5), pairs.links.slice(0, 2).concat({from: 'i1', to: 'goal'}), 'prt').includes('toc-prt-one-to-one'), 'one objective: nothing to compare');
+});
+test('toc-obstacle-phrase: an obstacle ending in ない / 無い / 不足 (always info)', () => {
+  const nodes = [N('g', 'goal'), N('i', 'io'), N('a', 'action'), {id: 'o', label: '担当者に時間がない。', role: 'obstacle' as never}, {id: 'p', label: 'マスタが会社ごとに別々である', role: 'obstacle' as never}];
+  const links = [{from: 'a', to: 'i'}, {from: 'o', to: 'i'}, {from: 'p', to: 'i'}, {from: 'i', to: 'g'}];
+  const found = tocFindings({nodes, links, tree: 'prt'} as never).filter(f => f.rule === 'toc-obstacle-phrase');
+  assert.equal(found.length, 1);
+  assert.equal(found[0].severity, 'info');
+  assert.match(found[0].message, /: o。/);
+});
+
+test('toc-mirror: the de / goal of a future reality tree against the ude of the current one (1 to 1)', () => {
+  const mirrorOf = {ids: ['u1', 'u2', 'u3', 'r'], udes: ['u1', 'u2', 'u3']};
+  const frt = (mir: Record<string, string>) => ({
+    nodes: [N('i', 'injection'), ...Object.entries(mir).map(([id, m]) => ({...N(id, 'de'), mirrors: m}))], links: Object.keys(mir).map(id => ({from: 'i', to: id})), mirrorOf,
+  });
+  const run = (f: {nodes: object[]; links: object[]; mirrorOf: object}) => tocFindings({...f, tree: 'frt'} as never).filter(x => x.rule === 'toc-mirror').map(x => x.message);
+  assert.deepEqual(run(frt({d1: 'u1', d2: 'u2', d3: 'u3'})), []);
+  assert.match(run(frt({d1: 'u1', d2: 'u2'})).join(), /対応する望む結果が無い.*u3/);
+  assert.match(run(frt({d1: 'u1', d2: 'u1', d3: 'u2'})).join(), /同じ UDE を複数.*u1（d1、d2）/);
+  assert.match(run(frt({d1: 'u1', d2: 'u2', d3: 'r'})).join(), /UDE の id でない.*d3/);
+  assert.deepEqual(tocFindings({nodes: [N('i', 'injection'), N('d', 'de')], links: [{from: 'i', to: 'd'}], tree: 'frt'} as never).filter(x => x.rule === 'toc-mirror'), [], 'no mirrors given: nothing is compared');
+});
