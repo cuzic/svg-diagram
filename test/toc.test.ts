@@ -1,7 +1,7 @@
 import test from 'node:test';
 import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
-import {box, causeTree, checkDiagram, closeMeasurer, cloud, connect, diagram, renderDiagram} from '../lib/dsl.ts';
+import {box, causeTree, checkDiagram, closeMeasurer, cloud, connect, diagram, pdpc, renderDiagram} from '../lib/dsl.ts';
 import type {LaidOutCause, LaidOutCloud} from '../lib/types/diagrams.ts';
 
 test.after(() => closeMeasurer());
@@ -196,7 +196,8 @@ test('causeTree() rejects bad input', async () => {
   await assert.rejects(() => bad([N('a'), N('b')], [{from: 'a', to: 'b'}, {from: ['a'], to: 'b'}]), /written twice/);
   await assert.rejects(() => bad([N('a'), N('b')], [{from: [], to: 'b'}]), /has no cause/);
   await assert.rejects(() => bad([{id: 'a', label: ' '}], []), /needs a label/);
-  await assert.rejects(() => bad(Array.from({length: 12}, (_, i) => N(`n${i}`)), []), /wide but it has/);
+  // twelve entities on one level: too wide, and a figure that writes its direction (without fold: true) is not changed (ADR 0010 D1); left to itself it folds (D7)
+  await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(causeTree(Array.from({length: 12}, (_, i) => N(`n${i}`)), [], {dir: 'up'}))), /does not fit/);
 });
 
 // ---- cloud ----
@@ -409,7 +410,7 @@ test('causeTree() fuzz: random acyclic graphs with ANDs lay out with no hard pro
         const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(causeTree(ids.map(i => N(i)), links, {dir})));
         assert.deepEqual(verdict.problems, [], `${dir} ${JSON.stringify(links)}`);
         laidOutCount++;
-      } catch (e) { if (!/wide but it has/.test(String(e))) throw e; }
+      } catch (e) { if (!/does not fit/.test(String(e))) throw e; }
     }
   }
   assert.ok(laidOutCount > 150);
@@ -442,4 +443,66 @@ test('causeTree() back: not with an AND, not on an arrow that closes no loop, no
   const {t, verdict} = await laidCause(causeTree([N('a'), N('b'), N('c'), N('d')], [{from: 'a', to: 'b'}, {from: 'b', to: 'a', back: true}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'}, {from: 'd', to: 'c'}]));
   assert.equal(t.edges.length, 5);
   assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause: arrow')), []);
+});
+
+// ---- returns in an outer lane (ADR 0016 D7) ----
+const loop = (opts: object = {}, back = true) => causeTree(
+  back
+    ? [N('late', {role: 'ude'}), N('switch'), N('wip'), N('start'), N('kpi', {role: 'root'})]
+    : [N('kpi', {role: 'root'}), N('start'), N('wip'), N('switch'), N('late', {role: 'ude'})], // the first node starts the DFS, so late -> kpi is the edge it turns round
+  [{from: 'kpi', to: 'start'}, {from: 'start', to: 'wip'}, {from: 'wip', to: 'switch'}, {from: 'switch', to: 'late'}, back ? {from: 'late', to: 'kpi', back: true as const} : {from: 'late', to: 'kpi'}],
+  opts,
+);
+const reach = (t: LaidOutCause) => ({right: Math.max(...t.nodes.map(n => n.x + n.w)), left: Math.min(...t.nodes.map(n => n.x))});
+const bendsOf = (pts: {x: number; y: number}[]): number => pts.slice(1, -1).filter((p, i) => !((pts[i].x === p.x && p.x === pts[i + 2].x) || (pts[i].y === p.y && p.y === pts[i + 2].y))).length;
+const returnOf = (t: LaidOutCause, from: string, to: string) => t.edges.find(e => e.from === from && e.to === to)!;
+
+test('causeTree() returns: a declared return runs in a lane outside the figure, bold, in 4 bends or fewer; returns: inline keeps it in the layers', async () => {
+  const {t, verdict} = await laidCause(loop());
+  assert.deepEqual(verdict.problems, []);
+  const ret = returnOf(t, 'late', 'kpi');
+  assert.ok(ret.outer && ret.back);
+  assert.ok(ret.points.some(p => p.x > reach(t).right + 10), 'the lane is past every box');
+  assert.ok(bendsOf(ret.points) <= 4);
+  assert.equal(t.edges.filter(e => e.outer).length, 1);
+  const inline = await laidCause(loop({returns: 'inline'}));
+  assert.ok(!returnOf(inline.t, 'late', 'kpi').outer && returnOf(inline.t, 'late', 'kpi').back);
+  assert.deepEqual(inline.verdict.problems, []);
+});
+
+test('causeTree() returns: a return the DFS found stays inline unless returns: outer', async () => {
+  const dflt = await laidCause(loop({}, false)), outer = await laidCause(loop({returns: 'outer'}, false));
+  assert.ok(!returnOf(dflt.t, 'late', 'kpi').outer);
+  assert.ok(returnOf(outer.t, 'late', 'kpi').outer && !returnOf(outer.t, 'late', 'kpi').back);
+  assert.deepEqual(outer.verdict.problems, []);
+});
+
+test('causeTree() returns: pdpc runs its returns outside by default; the lanes give way to the width when not written, and stop the build when written', async () => {
+  const nodes0 = [{id: 's', label: 's', role: 'start' as const}, {id: 'a', label: 'a'}, {id: 't', label: 't'}, {id: 'r', label: 'r', role: 'risk' as const}, {id: 'm', label: 'm', role: 'measure' as const}, {id: 'g', label: 'g', role: 'goal' as const}];
+  const links0 = [{from: 's', to: 'a'}, {from: 'a', to: 't'}, {from: 't', to: 'g'}, {from: 't', to: 'r'}, {from: 'r', to: 'm'}, {from: 'm', to: 'a'}];
+  const d = await laidCause(pdpc(nodes0, links0, {maxNodeW: 150}));
+  assert.ok(returnOf(d.t, 'm', 'a').outer, 'the default is outer');
+  assert.ok(bendsOf(returnOf(d.t, 'm', 'a').points) <= 4);
+  const inline = await laidCause(pdpc(nodes0, links0, {maxNodeW: 150, returns: 'inline'}));
+  assert.ok(!returnOf(inline.t, 'm', 'a').outer);
+  // a width that the inline figure fits and the lanes do not (a chain p0..p3 with p3 -> p1, two leaves on p2: the lanes cost 20px more than the dummies)
+  const ids = ['p0', 'p1', 'p2', 'p3'];
+  const ns = [...ids.map((id, i) => ({id, label: id, ...(i === 0 ? {role: 'start' as const} : {})})), {id: 'w0', label: 'w0'}, {id: 'w1', label: 'w1'}];
+  const ls = [...ids.slice(1).map((id, i) => ({from: ids[i], to: id})), {from: 'p3', to: 'p1'}, {from: 'p2', to: 'w0'}, {from: 'p2', to: 'w1'}];
+  const make = (returns?: 'inline' | 'outer') => pdpc(ns, ls, {maxNodeW: 150, ...(returns ? {returns} : {})});
+  const fig = (b: unknown, width: number) => checkDiagram(diagram({theme: 'blue', width} as never).add(b as never));
+  const fits = async (b: unknown, width: number): Promise<boolean> => { try { await fig(b, width); return true; } catch { return false; } };
+  const narrowest = async (returns: 'inline' | 'outer'): Promise<number> => {
+    let lo = 60, hi = 1800; // lo does not fit, hi does
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (await fits(make(returns), mid)) hi = mid; else lo = mid; }
+    return hi;
+  };
+  const inlineMin = await narrowest('inline'), outerMin = await narrowest('outer');
+  assert.ok(outerMin > inlineMin, `the lanes need more width (${outerMin} vs ${inlineMin})`);
+  const tight = await fig(make(), inlineMin);
+  assert.ok(!(tight.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause).edges.some(e => e.outer), 'not written: fell back to inline');
+  assert.deepEqual(tight.verdict.problems, []);
+  await assert.rejects(() => fig(make('outer'), inlineMin), /returns: 'inline'/);
+  assert.ok((await fig(make(), outerMin)).laidOut.laidOut.some(b => b.type === 'cause' && (b as LaidOutCause).edges.some(e => e.outer)), 'with room, the default is outer');
+  assert.throws(() => causeTree([N('a')], [], {returns: 'sideways' as never}), /returns must be/);
 });

@@ -106,9 +106,14 @@ export interface DiagramOpts {
   legendLabels?: Partial<Record<NotationKey, string>>;
   /** Replace colours of tones for this diagram: `{accent: {fill: '#e6d3bd', dark: {fill: '#4a3a28'}}}`. Per tone: fill / stroke / text / ink (#rrggbb), and `dark` for the same under appearance 'dark'. Checked like the built-in colours (text-contrast, gray-tone-collision). The project's `tones` apply under it. */
   tones?: ToneOverrides;
-  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
-  wrap?: 'phrase' | 'char';
-  width?: number;
+  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line; 'bunsetsu' also keeps a hiragana with the character before it (breaks only after a hiragana that a non-hiragana follows, or after 、。) and widens tree-like boxes to their longest unit. */
+  wrap?: 'phrase' | 'char' | 'bunsetsu';
+  /** The figure's width in px (default 940). 'fit' narrows it to what the figure shows plus the padding (text sizes do not change; a figure whose content already spans the width stays 940).
+   *  For a thin figure (a concentric, a vertical chevron, a few people). It changes the figure's size in the document, so it is never the default. Not with `canvas`, `fill` or `slide`. */
+  width?: number | 'fit';
+  /** The widest this figure may be before `check` warns `doc-width` (default 940, or the project's `maxWidth`). It does not make the figure wider: that is `width`.
+   *  Writing `maxWidth: 1200` alone leaves the width at 940; write `width: 1200` too. Not for `canvas` figures. */
+  maxWidth?: number;
   pad?: number;
   gap?: number;
   /** Slide room for the <img> (fit.ts). */
@@ -159,9 +164,11 @@ export interface DiagramData {
   legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
   tones?: ToneOverrides;
-  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line. */
-  wrap?: 'phrase' | 'char';
+  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line; 'bunsetsu' also keeps a hiragana with the character before it (breaks only after a hiragana that a non-hiragana follows, or after 、。) and widens tree-like boxes to their longest unit. */
+  wrap?: 'phrase' | 'char' | 'bunsetsu';
   width: number;
+  /** diagram({width: 'fit'}): renderDiagram narrows `width` to the content. */
+  fitWidth?: boolean;
   pad: number;
   gap: number;
   maxDisplayHeight?: number;
@@ -200,6 +207,12 @@ export interface DiagramSource {
   reveal?: number;
   until?: number;
 }
+/**
+ * ADR 0012: `scope` on a self-placing band (tree, mindmap, stateDiagram, causeTree, gantt, classDiagram, bpmn, quadrant, chart, bars,
+ * image, swimlane, chevron / funnel / cycle / venn / concentric) registers its items as `<scope>.<id>`. connect() and spotlight
+ * name one with the qualified name; the bare id works while only one item has it, and is an error when several do.
+ */
+export interface ScopeOpts {scope?: string}
 export interface RevealOpts {reveal?: number; /** The click this element vanishes at (it is shown from `reveal` up to, not including, `until`). */ until?: number}
 /**
  * What diagram() returns. `add()` accepts bands and arrays of bands (swimlane() / branch() return arrays).

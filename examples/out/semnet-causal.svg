@@ -8,40 +8,36 @@
   </style>
   <rect x="0" y="0" width="940" height="290" fill="#ffffff"/>
 
-  <path d="M240,71.3 L258,71.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M258,71.3 L258,52" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M258,52 L316,52" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M316,52 L307,57 L307,47.1 Z" fill="#22201b"/>
-  <path d="M432,52 L508,52" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M508,52 L499,57 L499,47.1 Z" fill="#22201b"/>
-  <path d="M624,52 L642,52" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M642,52 L642,78.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M642,78.3 L700,78.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M700,78.3 L691,83.2 L691,73.3 Z" fill="#22201b"/>
-  <path d="M700,92.3 L633,92.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M633,92.3 L633,104.5" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M633,104.5 L307,104.5" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M307,104.5 L307,85.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M307,85.3 L240,85.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M240,85.3 L249,80.3 L249,90.2 Z" fill="#22201b"/>
-  <path d="M124,54.25 H240 V102.25 H124 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="182" y="83" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">サービス品質</text>
-  <path d="M316,28 H432 V76 H316 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="374" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客満足</text>
-  <path d="M508,28 H624 V76 H508 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="566" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">受注量</text>
-  <path d="M700,54.25 H816 V102.25 H700 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="758" y="83" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">業務負荷</text>
-  <path d="M250.8,42 H265.2 V60 H250.8 Z" fill="#ffffff"/>
-  <text x="258" y="56" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M462.8,32 H477.2 V50 H462.8 Z" fill="#ffffff"/>
-  <text x="470" y="46" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M634.8,45 H649.2 V63 H634.8 Z" fill="#ffffff"/>
-  <text x="642" y="59" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M464.99,85 H475.01 V103 H464.99 Z" fill="#ffffff"/>
-  <text x="470" y="99" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
-  <path d="M462.35,60 H477.65 V78 H462.35 Z" fill="#ffffff"/>
-  <text x="470" y="74" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
-  <path d="M459.02,108 H480.98 V126 H459.02 Z" fill="#ffffff"/>
-  <text x="470" y="122" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B1</text>
+  <path d="M240,125.6 L316,125.6" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M316,125.6 L307,130.6 L307,120.7 Z" fill="#22201b"/>
+  <path d="M432,116 L508,116" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M508,116 L499,121 L499,111.1 Z" fill="#22201b"/>
+  <path d="M624,129.1 L700,129.1" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M700,129.1 L691,134.1 L691,124.2 Z" fill="#22201b"/>
+  <path d="M700,156.3 L633,156.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M633,156.3 L633,168.5" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M633,168.5 L307,168.5" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M307,168.5 L307,149.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M307,149.3 L240,149.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M240,149.3 L249,144.3 L249,154.2 Z" fill="#22201b"/>
+  <path d="M124,118.25 H240 V166.25 H124 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="182" y="147" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">サービス品質</text>
+  <path d="M316,92 H432 V140 H316 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="374" y="121" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客満足</text>
+  <path d="M508,92 H624 V140 H508 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="566" y="121" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">受注量</text>
+  <path d="M700,118.25 H816 V166.25 H700 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="758" y="147" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">業務負荷</text>
+  <path d="M270.8,106 H285.2 V124 H270.8 Z" fill="#ffffff"/>
+  <text x="278" y="120" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M462.8,96 H477.2 V114 H462.8 Z" fill="#ffffff"/>
+  <text x="470" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M654.8,109 H669.2 V127 H654.8 Z" fill="#ffffff"/>
+  <text x="662" y="123" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M464.99,149 H475.01 V167 H464.99 Z" fill="#ffffff"/>
+  <text x="470" y="163" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
+  <path d="M462.35,124 H477.65 V142 H462.35 Z" fill="#ffffff"/>
+  <text x="470" y="138" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
+  <path d="M459.02,172 H480.98 V190 H459.02 Z" fill="#ffffff"/>
+  <text x="470" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B1</text>
 </svg>

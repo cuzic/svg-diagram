@@ -156,9 +156,21 @@ export interface LayeredOpts {
   transpose?: boolean;
   /** How the across coordinates are found: 'relax' (default: centre each layer, then pull toward the neighbours) or 'bk' (Brandes-Köpf: long edges and chains come out straight). */
   coord?: 'relax' | 'bk';
+  /**
+   * Returns (reversed edges) that skip two layers or more run in a lane outside the figure instead of through dummies: `which` is 'all'
+   * of them or only the `declared` ones (`back`). The first lane is `gap` beyond the boxes on the far across side, the next ones `step` further out,
+   * the longest return outermost. Such an edge comes out with `outer` set and four points (its two centres and two points on its lane); the router draws it.
+   */
+  outer?: {which: 'all' | 'declared'; gap: number; step: number};
+  /**
+   * The most a row may take on the across axis (ADR 0010 D7). A layer whose nodes (and the dummies of the arrows passing through it) add up to more is cut,
+   * in input order, into rows, and each row is a layer of its own (the later layers move down one number per row), so the corridors between layers still
+   * hold. A layer that fits is not touched; without `fold` nothing is added to the layering. `folded` in the result lists the layers that were cut.
+   */
+  fold?: number;
 }
-export interface LayeredEdgeOut {from: string; to: string; /** index of this edge in the input list */ index: number; /** centre to centre, through the layers it skips; reversed edges are drawn from `from` anyway */ points: Pt[]; reversed: boolean; self: boolean}
-export interface LayeredLayout {nodes: Map<string, Placed>; edges: LayeredEdgeOut[]; /** layer index of each node (0 = first) */ layers: Map<string, number>; w: number; h: number}
+export interface LayeredEdgeOut {from: string; to: string; /** index of this edge in the input list */ index: number; /** centre to centre, through the layers it skips; reversed edges are drawn from `from` anyway */ points: Pt[]; reversed: boolean; self: boolean; /** runs in an outer lane (see LayeredOpts.outer) */ outer?: true}
+export interface LayeredLayout {nodes: Map<string, Placed>; edges: LayeredEdgeOut[]; /** layer index of each node (0 = first) */ layers: Map<string, number>; w: number; h: number; /** only with `fold`, when a layer was cut: its number before the cut (from 0) and the rows it became */ folded?: {layer: number; rows: number}[]}
 
 /**
  * Which edges (by index in `edges`) a layering reverses to be acyclic. The `declared` ones (a return the author named, `back: true`)
@@ -340,10 +352,53 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     for (const [u, l] of nearest) if (!preds.get(u)!.length && !starts.includes(u) && l - 1 > layer.get(u)!) layer.set(u, l - 1);
   }
 
+  // 2b. fold: a layer wider than `fold` becomes rows, each its own layer (ADR 0010 D7). The order is not known yet, so the nodes go to the rows in input order.
+  const folded = opts.fold === undefined ? [] : foldLayers();
+  function foldLayers(): {layer: number; rows: number}[] {
+    const limit = opts.fold!, nOld = Math.max(0, ...layer.values()) + 1;
+    const outerEdge = (d: typeof dag[number]): boolean => !!opts.outer && d.rev && Math.abs(layer.get(d.b)! - layer.get(d.a)!) >= 2 && (opts.outer.which === 'all' || (opts.back ?? []).includes(d.index));
+    const through = dag.filter(d => layer.get(d.a)! !== layer.get(d.b)! && !outerEdge(d)); // the edges that get dummies
+    const skips = Array.from({length: nOld}, () => 0); // dummies of the arrows that pass over a whole layer: in every row of it
+    const inOf = new Map<string, number>(), outOf = new Map<string, number>(); // edges that begin / end at a node and go to another layer
+    for (const d of through) {
+      for (let l = layer.get(d.a)! + 1; l < layer.get(d.b)!; l++) skips[l]++;
+      outOf.set(d.a, (outOf.get(d.a) ?? 0) + 1); inOf.set(d.b, (inOf.get(d.b) ?? 0) + 1);
+    }
+    const members = Array.from({length: nOld}, () => [] as LayeredNode[]);
+    for (const n of nodes) members[layer.get(n.id)!].push(n);
+    const used = (ns: LayeredNode[], dummies: number): number => ns.reduce((t, n) => t + across(n.size), 0) + gap * (Math.max(0, ns.length - 1) + dummies);
+    const rowsOf: LayeredNode[][][] = [];
+    const cut: {layer: number; rows: number}[] = [];
+    members.forEach((ns, l) => {
+      if (ns.length < 2 || used(ns, skips[l]) <= limit) { rowsOf.push([ns]); return; }
+      // The dummies of a row depend on the cut: an arrow into a node of a later row passes the rows before it, an arrow out of a node of an earlier row the rows after it.
+      // So the cut is made, the dummies counted, and made again with those counted, until every row fits (the counts only grow).
+      let extra: number[] = [], rows: LayeredNode[][] = [];
+      for (let round = 0; round <= ns.length * 2; round++) {
+        rows = [[]];
+        for (const n of ns) {
+          const cur = rows[rows.length - 1];
+          if (cur.length && used([...cur, n], skips[l] + (extra[rows.length - 1] ?? 0)) > limit) rows.push([n]); else cur.push(n);
+        }
+        const counted = rows.map(() => 0);
+        rows.forEach((r, k) => { for (const n of r) { for (let j = 0; j < k; j++) counted[j] += inOf.get(n.id) ?? 0; for (let j = k + 1; j < rows.length; j++) counted[j] += outOf.get(n.id) ?? 0; } });
+        if (rows.every((r, k) => r.length < 2 || used(r, skips[l] + counted[k]) <= limit)) break;
+        extra = counted.map((c, k) => Math.max(c, extra[k] ?? 0));
+      }
+      rowsOf.push(rows);
+      cut.push({layer: l, rows: rows.length});
+    });
+    if (!cut.length) return cut;
+    let base = 0;
+    rowsOf.forEach(rows => { rows.forEach((r, k) => { for (const n of r) layer.set(n.id, base + k); }); base += rows.length; });
+    return cut;
+  }
+
   // 3. dummies for edges that skip layers
   interface Slot {id: string; real: boolean; size: Size; layer: number}
   const slots = new Map<string, Slot>(nodes.map(n => [n.id, {id: n.id, real: true, size: n.size, layer: layer.get(n.id)!}]));
-  const chains: {e: LayeredEdge; index: number; ids: string[]; rev: boolean}[] = [];
+  const chains: {e: LayeredEdge; index: number; ids: string[]; rev: boolean; outer?: true}[] = [];
+  const declaredSet = new Set(opts.back ?? []);
   const succ = new Map<string, string[]>(), pred = new Map<string, string[]>();
   for (const s of slots.keys()) { succ.set(s, []); pred.set(s, []); }
   const link = (a: string, b: string): void => { succ.get(a)!.push(b); pred.get(b)!.push(a); };
@@ -353,6 +408,8 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     // longest-path layering puts the head of every edge below its tail, so ends on one layer cannot happen; kept straight if it ever does
     const to = d.b, step = lb >= la ? 1 : -1;
     if (la === lb) { chain.push(d.b); chains.push({e: d.e, index: d.index, ids: chain, rev: d.rev}); return; }
+    // a return two layers or more long that runs outside the figure: no dummies, so it neither crosses the layers it skips nor widens them
+    if (opts.outer && d.rev && Math.abs(lb - la) >= 2 && (opts.outer.which === 'all' || declaredSet.has(d.index))) { chains.push({e: d.e, index: d.index, ids: [d.a, d.b], rev: true, outer: true}); return; }
     for (let l = la + step; l !== lb; l += step) {
       const id = `\u0000d${i}.${l}`;
       slots.set(id, {id, real: false, size: {w: 1, h: 1}, layer: l});
@@ -476,12 +533,23 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     placed.set(n.id, {x: p.x - n.size.w / 2, y: p.y - n.size.h / 2, ...n.size});
   }
   const edgesOut: LayeredEdgeOut[] = [];
+  // outer lanes: past the boxes on the far across side, the shortest return nearest
+  const laneOf = new Map<LayeredEdge, number>();
+  const outers = chains.filter(c => c.outer).sort((p, q) => Math.abs(layer.get(p.e.from)! - layer.get(p.e.to)!) - Math.abs(layer.get(q.e.from)! - layer.get(q.e.to)!) || p.index - q.index);
+  outers.forEach((c, k) => laneOf.set(c.e, hi + opts.outer!.gap + k * opts.outer!.step));
+  if (outers.length) hi = hi + opts.outer!.gap + (outers.length - 1) * opts.outer!.step + 2;
   edges.forEach((e, index) => { if (e.from === e.to) edgesOut.push({from: e.from, to: e.to, index, points: [centre(e.from)], reversed: false, self: true}); });
   for (const c of chains) {
+    if (c.outer) {
+      const a = centre(c.e.from), b = centre(c.e.to), lane = laneOf.get(c.e)!;
+      const at2 = (p: Pt, d: number): Pt => dir === 'down' ? {x: lane, y: p.y + d} : {x: p.x + d, y: lane};
+      edgesOut.push({from: c.e.from, to: c.e.to, index: c.index, points: [a, at2(a, -1), at2(b, 1), b], reversed: true, self: false, outer: true});
+      continue;
+    }
     // the chain runs in layering order; a reversed edge's real direction is the other way
     const pts = (c.rev ? [...c.ids].reverse() : c.ids).map(centre);
     edgesOut.push({from: c.e.from, to: c.e.to, index: c.index, points: pts, reversed: c.rev, self: false});
   }
   const total = at[nLayers - 1] + thick[nLayers - 1];
-  return {nodes: placed, edges: edgesOut, layers: layer, w: dir === 'down' ? hi : total, h: dir === 'down' ? total : hi};
+  return {nodes: placed, edges: edgesOut, layers: layer, w: dir === 'down' ? hi : total, h: dir === 'down' ? total : hi, ...(folded.length ? {folded} : {})};
 }

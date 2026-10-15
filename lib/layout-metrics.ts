@@ -196,8 +196,20 @@ function unusedSpace(laidOut: LaidOutBand[], out: LayoutMetric[]): void {
 }
 
 /** Everything the figure shows, as one rect (labels of shapes included). Captions (titles and the source line) and legends are furniture, not the figure. */
-function contentBox(laidOut: LaidOutBand[]): Rect | null {
-  return unionOf(laidOut.filter(b => b.type !== 'caption' && b.type !== 'legend').map(extentOf).filter((r): r is Rect => r !== null));
+export function contentBox(laidOut: LaidOutBand[], tight = false): Rect | null {
+  return unionOf(laidOut.filter(b => b.type !== 'caption' && b.type !== 'legend').map(b => (tight ? drawnExtent(b) : undefined) ?? extentOf(b)).filter((r): r is Rect => r !== null));
+}
+
+/** What a flow shape (chevron, funnel, cycle, venn, concentric) actually draws: its circles, rects, polygons and texts, not the band's full-width rect. undefined for any other band. */
+function drawnExtent(b: LaidOutBand): Rect | null | undefined {
+  if (b.type !== 'chevron' && b.type !== 'funnel' && b.type !== 'cycle' && b.type !== 'venn' && b.type !== 'concentric') return undefined;
+  const rs: Rect[] = [...b.texts];
+  for (const p of b.primitives) {
+    if (p.k === 'circle') rs.push({x: p.cx - p.r, y: p.cy - p.r, w: 2 * p.r, h: 2 * p.r});
+    else if (p.k === 'rect') rs.push({x: p.x, y: p.y, w: p.w, h: p.h});
+    else if (p.k === 'polygon' && p.points.length) { const xs = p.points.map(q => q[0]), ys = p.points.map(q => q[1]); rs.push({x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)}); }
+  }
+  return unionOf(rs);
 }
 
 function figureRules(laidOut: LaidOutBand[], width: number, out: LayoutMetric[]): void {

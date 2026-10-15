@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="246" viewBox="0 0 940 246" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">悪循環のループと介入点</title>
+  <desc id="svg-desc">Causal loop diagram. R1: pressure → shortcut → defects → rework → overtime Interventions: 標準の合意 -&gt; 手順の省略 (-); 早期の果実 -&gt; 納期のプレッシャー (-, delayed).</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/semnet-causal-intervene.ts","sourceSha256":"4cb144235fe0c517178cc10edd5bc2ccd200532e5f3b4c86dd26636e0bcd8a1b"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="246" fill="#ffffff"/>
+
+  <path d="M173,148.5 L246.5,148.5" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M246.5,148.5 L237.5,153.5 L237.5,143.6 Z" fill="#22201b"/>
+  <path d="M358.7,139.2 L432.3,139.2" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M432.3,139.2 L423.3,144.2 L423.3,134.3 Z" fill="#22201b"/>
+  <path d="M544.5,139.2 L618,139.2" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M618,139.2 L609,144.2 L609,134.3 Z" fill="#22201b"/>
+  <path d="M730.2,151.9 L803.8,151.9" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M803.8,151.9 L794.8,156.9 L794.8,147 Z" fill="#22201b"/>
+  <path d="M803.8,178.2 L739,178.2" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M739,178.2 L739,190" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M739,190 L237.8,190" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M237.8,190 L237.8,171.4" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M237.8,171.4 L173,171.4" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M173,171.4 L182,166.4 L182,176.3 Z" fill="#22201b"/>
+  <path d="M24,141.4 H172.99 V187.83 H24 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="98" y="170" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">納期のプレッシャー</text>
+  <path d="M246.52,116 H358.74 V162.44 H246.52 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="303" y="144" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手順の省略</text>
+  <path d="M432.27,116 H544.49 V162.44 H432.27 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="488" y="144" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">不具合の増加</text>
+  <path d="M618.02,116 H730.25 V162.44 H618.02 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="674" y="144" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手戻り作業</text>
+  <path d="M803.77,141.4 H916 V187.83 H803.77 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="860" y="170" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">残業の常態化</text>
+  <path d="M49.49,28 H147.49 V76 H49.49 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="98" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">早期の果実</text>
+  <path d="M98.5,76 L98.5,141.4" fill="none" stroke="#1d5fa8" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6,4"/>
+  <path d="M98.5,141.4 L93.5,132.4 L103.4,132.4 Z" fill="#1d5fa8"/>
+  <path d="M253.63,28 H351.63 V76 H253.63 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="303" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">標準の合意</text>
+  <path d="M302.6,76 L302.6,116" fill="none" stroke="#1d5fa8" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6,4"/>
+  <path d="M302.6,116 L297.7,107 L307.6,107 Z" fill="#1d5fa8"/>
+  <path d="M202.8,129 H217.2 V147 H202.8 Z" fill="#ffffff"/>
+  <text x="210" y="143" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M388.8,119 H403.2 V137 H388.8 Z" fill="#ffffff"/>
+  <text x="396" y="133" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M573.8,119 H588.2 V137 H573.8 Z" fill="#ffffff"/>
+  <text x="581" y="133" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M759.8,132 H774.2 V150 H759.8 Z" fill="#ffffff"/>
+  <text x="767" y="146" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M480.8,170 H495.2 V188 H480.8 Z" fill="#ffffff"/>
+  <text x="488" y="184" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M388.35,147 H403.65 V165 H388.35 Z" fill="#ffffff"/>
+  <text x="396" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
+  <path d="M92.99,89 H103.01 V107 H92.99 Z" fill="#ffffff"/>
+  <text x="98" y="103" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
+  <path d="M297.99,76 H308.01 V94 H297.99 Z" fill="#ffffff"/>
+  <text x="303" y="90" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
+  <path d="M110,117 H125.31 V135 H110 Z" fill="#ffffff"/>
+  <text x="112" y="131" font-size="14" font-weight="700" fill="#6f6659">||</text>
+  <path d="M474.09,194 H495.91 V212 H474.09 Z" fill="#ffffff"/>
+  <text x="485" y="208" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">R1</text>
+</svg>

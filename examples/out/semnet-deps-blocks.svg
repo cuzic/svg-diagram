@@ -8,32 +8,30 @@
   </style>
   <rect x="0" y="0" width="940" height="350" fill="#1b1a17"/>
 
-  <path d="M326,80 L326,98" fill="none" stroke="#f05252" stroke-width="3.5" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
-  <path d="M326,98 L471,98" fill="none" stroke="#f05252" stroke-width="3.5" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
-  <path d="M471,98 L471,160" fill="none" stroke="#f05252" stroke-width="3.5" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
-  <path d="M471,160 L465.2,149.5 L476.8,149.5 Z" fill="#f05252"/>
-  <path d="M482,80 L482,112" fill="none" stroke="#f05252" stroke-width="2.914213562373095" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
-  <path d="M482,112 L485,112" fill="none" stroke="#f05252" stroke-width="2.914213562373095" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
-  <path d="M485,112 L485,160" fill="none" stroke="#f05252" stroke-width="2.914213562373095" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
-  <path d="M485,160 L479.5,150.1 L490.5,150.1 Z" fill="#f05252"/>
-  <path d="M626,80 L626,126" fill="none" stroke="#f05252" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M626,126 L499,126" fill="none" stroke="#f05252" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M499,126 L499,160" fill="none" stroke="#f05252" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M499,160 L494.1,151 L504,151 Z" fill="#f05252"/>
-  <path d="M420,160 H536 V212 H420 Z" fill="#1b1a17" stroke="#5fc1c6" stroke-width="2"/>
-  <text x="478" y="191" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">製品リリース</text>
-  <path d="M256,28 H396 V80 H256 Z" fill="#1b1a17" stroke="#f05252" stroke-width="2"/>
-  <text x="326" y="59" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">セキュリティ審査</text>
-  <path d="M424,28 H540 V80 H424 Z" fill="#1b1a17" stroke="#f05252" stroke-width="2"/>
-  <text x="482" y="59" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">法務確認</text>
-  <path d="M568,28 H684 V80 H568 Z" fill="#1b1a17" stroke="#a79e8e" stroke-width="2"/>
-  <text x="626" y="59" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">利用ガイド</text>
-  <path d="M370.11,106 H427.89 V124 H370.11 Z" fill="#1b1a17"/>
-  <text x="399" y="120" text-anchor="middle" font-size="14" fill="#ece6da">未承認 4</text>
-  <path d="M455.11,92 H512.89 V110 H455.11 Z" fill="#1b1a17"/>
-  <text x="484" y="106" text-anchor="middle" font-size="14" fill="#ece6da">未承認 2</text>
-  <path d="M540,106 H586 V124 H540 Z" fill="#1b1a17"/>
-  <text x="563" y="120" text-anchor="middle" font-size="14" fill="#ece6da">完成後</text>
+  <path d="M326,116 L326,134" fill="none" stroke="#f05252" stroke-width="3.5" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
+  <path d="M326,134 L471,134" fill="none" stroke="#f05252" stroke-width="3.5" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
+  <path d="M471,134 L471,196" fill="none" stroke="#f05252" stroke-width="3.5" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
+  <path d="M471,196 L465.2,185.5 L476.8,185.5 Z" fill="#f05252"/>
+  <path d="M485,116 L485,196" fill="none" stroke="#f05252" stroke-width="2.914213562373095" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
+  <path d="M485,196 L479.5,186.1 L490.5,186.1 Z" fill="#f05252"/>
+  <path d="M626,116 L626,162" fill="none" stroke="#f05252" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M626,162 L499,162" fill="none" stroke="#f05252" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M499,162 L499,196" fill="none" stroke="#f05252" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M499,196 L494.1,187 L504,187 Z" fill="#f05252"/>
+  <path d="M420,196 H536 V248 H420 Z" fill="#1b1a17" stroke="#5fc1c6" stroke-width="2"/>
+  <text x="478" y="227" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">製品リリース</text>
+  <path d="M256,64 H396 V116 H256 Z" fill="#1b1a17" stroke="#f05252" stroke-width="2"/>
+  <text x="326" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">セキュリティ審査</text>
+  <path d="M424,64 H540 V116 H424 Z" fill="#1b1a17" stroke="#f05252" stroke-width="2"/>
+  <text x="482" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">法務確認</text>
+  <path d="M568,64 H684 V116 H568 Z" fill="#1b1a17" stroke="#a79e8e" stroke-width="2"/>
+  <text x="626" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">利用ガイド</text>
+  <path d="M370.11,142 H427.89 V160 H370.11 Z" fill="#1b1a17"/>
+  <text x="399" y="156" text-anchor="middle" font-size="14" fill="#ece6da">未承認 4</text>
+  <path d="M456.11,136 H513.89 V154 H456.11 Z" fill="#1b1a17"/>
+  <text x="485" y="150" text-anchor="middle" font-size="14" fill="#ece6da">未承認 2</text>
+  <path d="M540,142 H586 V160 H540 Z" fill="#1b1a17"/>
+  <text x="563" y="156" text-anchor="middle" font-size="14" fill="#ece6da">完成後</text>
   <path d="M24,313 H38 V323 H24 Z" fill="#1b1a17" stroke="#5fc1c6" stroke-width="2"/>
   <text x="44" y="325" font-size="14" fill="#ece6da">節目</text>
   <path d="M90,313 H104 V323 H90 Z" fill="#1b1a17" stroke="#f05252" stroke-width="2"/>

@@ -1,6 +1,6 @@
 # ADR 0012: id のスコープ化(band をまたぐ `duplicate anchor id`)と、複数 SVG の埋め込みでの内部 id 衝突
 
-- 状態: 提案
+- 状態: 実装済み(第1段。D1 の明示 `scope` と実行時の解決、reveal / spotlight の修飾名、D2 の `--id-prefix`。第2段の `idScope: 'auto'` と `Declares` の修飾名(単位 D)は未着手。下の「実装での補足」を参照)
 - 日付: 2026-10-13
 - 基点: `main`(4e58744、PR #120 まで)
 - 関連: ADR 0007(結果が入力だけで決まること), ADR 0008(`--html`)。要望原文は「ツール側の要望」の D1 / D2
@@ -192,3 +192,13 @@ diagram({theme: 'blue'})
 
 - `--id-prefix` と `--stale` を併用したときは、スキップせず毎回作り直す。来歴に接頭辞が入らず、前回の接頭辞の有無を判定できないため。
 - HTML の root id は、ADR の例(root は `s1`)に従い、`s1-sd-…` ではなく接頭辞そのものにした。
+
+## 実装での補足(第 1 段 = PR #192・#193)
+
+- **範囲**: 単位 A(`lib/anchor-scope.ts`: `resolveAnchor` の 4 段、`scopesOf` の表)、B(`lib/layout.ts` への接続。`LaidOutConnect.fromId` / `toId` は解決した完全名)、C(`lib/reveal.ts`: `ids` / `untils` を完全名のキーにした。`lib/reveal-handlers.ts`: image の mark・bars の値・swimlane の step を scope の名前で記録。`lib/spotlight.ts`: 修飾名で引く)。名前の部品は `lib/scope-name.ts`(`qualify` / `assertScope`)。scope に使えない文字は空白と `:` `@` `#` `.`。
+- **対象外(触っていない)**: plane の `lines` / `dims` / `paths.through`。引く先は同じ plane の点 id で、plane の中で閉じた名前(`anchors` に登録されない)なので、`resolveAnchor` を通す意味が無い。charts の `of` / `dimIds` も band の中で閉じた素の名前で、矩形で照合しているため、spotlight が修飾名を band の素の名前に戻して矩形を取る形にした(charts 側は無変更)。
+- **型の決定 (b) の補正**: 修飾名(`.` を含む参照)を形だけで通す分岐に、`@` を含む id は入れない。`connect('a@0.5', ...)`(`:side` を落としたオフセットの書き間違い)が `.` を含むため、素直に入れると通ってしまう。`@` を含む id は従来どおり型エラーのまま。
+- **spotlight の対象外**: gantt の task と tree の node は、`connect()` の端にはなれるが、spotlight の対象ではない(従来どおり「図全体を指す」エラー)。scope を付けても変わらない。
+- **素の名前の曖昧さ**: scope なしの箱 `p0` と scope 付きの `plan.p0` が共存すると、素の `p0` はどちらにも決まらず error になる(scope なしの側を指す書き方は無い。片方を scope で書き分ける)。ADR のとおりの挙動。
+- **未着手(第 2 段、単位 D)**: `diagram({idScope: 'auto'})`(自動の名前)と、`Declares` の修飾名(`${scope}.${id}` の綴り間違いを型で捕まえる)。第 1 段の綴り間違いは、実行時の `unknown anchor id`(`did you mean "plan.p0"?` の候補つき)で捕まる。素の id が曖昧かどうかは型では分からず、実行時の error になる。
+- `idsIn`(gap の計算)は box / group の id だけを持ち、band の項目の id は元から入っていないので変更なし。`.anchors.<id>` のハンドルは scope 付き band で実行時に修飾名(`sched.p0:right`)を返す(型は変えていない)。

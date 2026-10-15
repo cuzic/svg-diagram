@@ -1,3 +1,5 @@
+import {addScoped, emptyScopes, qualify, resolveAnchor, scopeOf} from './anchor-scope.ts';
+import type {ScopeTable} from './anchor-scope.ts';
 import {childrenOf, nestedBandsOf} from './band-children.ts';
 import type {DiagramData, Rect} from './types/core.ts';
 import type {Band, LaidOutBand, LaidOutDiagram} from './types/index.ts';
@@ -53,6 +55,18 @@ export function dimmedBands(d: Pick<DiagramData, 'bands' | 'spotlight'>): Set<Ba
   return new Set(d.bands.length && targets.size ? allBands(d.bands).filter(b => !focused.has(b)) : []);
 }
 
+/** The scoped items of a laid-out figure, by the bare id each answers to (the same table layout built from the bands as written). */
+function scopesOfLaidOut(d: LaidOutDiagram): ScopeTable {
+  const table = emptyScopes();
+  for (const b of d.laidOut) {
+    const scope = scopeOf(b);
+    if (!scope) continue;
+    if (b.type === 'box') { if (b.id) addScoped(table, scope, b.id); continue; } // a swimlane step
+    for (const a of (b as {anchors?: {id?: string}[]}).anchors ?? []) if (a.id) addScoped(table, scope, a.id);
+  }
+  return table;
+}
+
 function allBands(bands: Band[], out: Band[] = []): Band[] {
   for (const b of bands) {
     out.push(b);
@@ -66,8 +80,9 @@ const inside = (b: Rect, r: Rect): boolean => b.x >= r.x - 0.5 && b.y >= r.y - 0
 function targetRects(d: LaidOutDiagram, ids: string[]): Rect[] {
   const out: Rect[] = [];
   const add = (b: LaidOutBand): void => {
-    if (b.type === 'chart') for (const a of b.anchors) if (ids.includes(a.id)) out.push(a); // a chart's elements are targets (its own id is handled below)
-    if ('id' in b && 'h' in b && b.id && ids.includes(b.id)) out.push(b);
+    const scope = scopeOf(b), item = (id: string): boolean => ids.includes(qualify(scope, id)); // a scoped band's items answer to `scope.id` (its output keeps the bare ids)
+    if (b.type === 'chart') for (const a of b.anchors) if (item(a.id)) out.push(a); // a chart's elements are targets (its own id is handled below)
+    if ('id' in b && 'h' in b && b.id && (b.type === 'box' ? item(b.id) : ids.includes(b.id))) out.push(b); // a swimlane step is a box that carries its lane band's scope
     if (b.type === 'row') {
       if (b.id && ids.includes(b.id)) out.push(b);
       for (const id of ids) {
@@ -78,7 +93,7 @@ function targetRects(d: LaidOutDiagram, ids: string[]): Rect[] {
     } else if (b.type === 'grid') {
       for (const c of b.children) if (c.id && ids.includes(c.id)) out.push(c);
     } else if (b.type === 'bars' || b.type === 'image' || b.type === 'quadrant' || b.type === 'chevron' || b.type === 'funnel' || b.type === 'cycle' || b.type === 'venn' || b.type === 'concentric') {
-      for (const a of b.anchors) if (ids.includes(a.id)) out.push(a);
+      for (const a of b.anchors) if (item(a.id)) out.push(a);
     }
   };
   d.laidOut.forEach(add);
@@ -127,13 +142,16 @@ function dimBand(b: LaidOutBand, focus: Rect[]): void {
 
 /** Adds the internal dim flag after geometry is fixed; coordinates and existing diagrams stay untouched. */
 export function applySpotlight(d: LaidOutDiagram): void {
-  const ids = spotlightIds(d);
-  if (!ids.length) return;
+  const written = spotlightIds(d);
+  if (!written.length) return;
+  // ADR 0012: a scoped band's items are `scope.id`. A bare id that only one scoped item answers to means that item (and one several answer to throws).
+  const scopes = scopesOfLaidOut(d);
+  const ids = scopes.byBare.size ? written.map(id => resolveAnchor(scopes, id, n => targetRects(d, [n]).length > 0) ?? id) : written;
   const found = ids.map(id => targetRects(d, [id]));
-  const missing = ids.filter((_id, i) => !found[i].length);
+  const missing = written.filter((_id, i) => !found[i].length);
   if (missing.length) {
     // a node of a self-placing figure is an anchor for connect(), but the figure is dimmed or lit as a whole
-    const figureOf = (id: string): LaidOutBand | undefined => d.laidOut.find(b => b.type !== 'bars' && b.type !== 'image' && 'anchors' in b && (b.anchors as {id: string}[]).some(a => a.id === id));
+    const figureOf = (id: string): LaidOutBand | undefined => d.laidOut.find(b => b.type !== 'bars' && b.type !== 'image' && 'anchors' in b && (b.anchors as {id: string}[]).some(a => qualify(scopeOf(b), a.id) === id));
     const inFigure = missing.find(id => figureOf(id));
     if (inFigure) throw new Error(`diagram({spotlight}): "${inFigure}" is a node inside a figure; spotlight lights a whole figure, so give the figure an {id} and spotlight that`);
     throw new Error(`diagram({spotlight}): unknown anchor id${missing.length > 1 ? 's' : ''} "${missing.join('", "')}"`);
@@ -142,10 +160,11 @@ export function applySpotlight(d: LaidOutDiagram): void {
   d.laidOut.forEach(b => dimBand(b, focus));
   const findId = (id: string): Rect | undefined => {
     for (const b of d.laidOut) {
-      if ('id' in b && 'h' in b && b.id === id) return b;
-      if (b.type === 'chart') { const a = b.anchors.find(x => x.id === id); if (a) return a; }
+      const scope = scopeOf(b);
+      if ('id' in b && 'h' in b && (b.type === 'box' ? qualify(scope, b.id ?? '') : b.id) === id) return b;
+      if (b.type === 'chart') { const a = b.anchors.find(x => qualify(scope, x.id) === id); if (a) return a; }
       if (b.type === 'row' || b.type === 'grid') { const c = b.children.find(x => x.id === id); if (c) return c; }
-      if (b.type === 'bars' || b.type === 'image' || b.type === 'quadrant') { const a = b.anchors.find(x => x.id === id); if (a) return a; }
+      if (b.type === 'bars' || b.type === 'image' || b.type === 'quadrant') { const a = b.anchors.find(x => qualify(scope, x.id) === id); if (a) return a; }
     }
     return undefined;
   };

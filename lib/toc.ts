@@ -5,6 +5,7 @@
 //  cloud():     the Evaporating Cloud: five boxes in a fixed place (A the common objective, B and C the needs, D and D' the
 //               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
 import {textWidth} from './atoms.ts';
+import {fitLayout} from './fit-width.ts';
 import {gapFor, layeredAttempt} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
@@ -50,12 +51,9 @@ const swap = (p: Pt): Pt => ({x: p.y, y: p.x});
 /** The ids a link's `from` names, as a list. */
 export const causesOf = (l: {from: string | readonly string[]}): string[] => typeof l.from === 'string' ? [l.from] : [...l.from];
 
-export function layoutCauseBand(band: CauseBand, bandX: number, bandY: number, bandW: number, widthOf: WidthOf, roles: Roles): LaidOutCause {
-  const dir = band.dir ?? 'up', maxW = band.maxNodeW ?? MAX_W;
-  const vertical = dir === 'up' || dir === 'down', flip = dir === 'up' || dir === 'left';
-  // the 中核 badge sits outside the frame, at the end of the axis the arrows run along: the figure keeps that room free at both ends (H7)
-  const pad = band.nodes.some(n => n.core) ? CORE_BADGE_H + CORE_BADGE_GAP : 0, padX = vertical ? 0 : pad, padY = vertical ? pad : 0;
-  const x = bandX + padX, y = bandY + padY, w = bandW - 2 * padX;
+type CauseDir = 'up' | 'down' | 'right' | 'left';
+
+export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number): LaidOutCause {
   const ids = new Set<string>();
   for (const n of band.nodes) {
     if (typeof n.id !== 'string' || !n.id) throw new Error('causeTree(): every node needs an id');
@@ -84,29 +82,6 @@ export function layoutCauseBand(band: CauseBand, bandX: number, bandY: number, b
     if (group) groups.push(group);
   }
 
-  const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles)]));
-  // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
-  const order: string[] = [], put = (id: string): void => { if (!order.includes(id)) order.push(id); };
-  for (const n of band.nodes) { put(n.id); for (const g of groups) if (g.arrows.some(k => arrows[k].from === n.id)) g.arrows.forEach(k => put(arrows[k].from)); }
-  const ranked = order.map(id => band.nodes.find(n => n.id === id)!);
-  // the most arrows that meet one node (each needs its own lane in the gap beside it)
-  const degreeOf = (id: string): number => Math.max(arrows.filter(a => a.from === id).length, arrows.filter(a => a.to === id).length);
-  const degree = Math.max(1, ...band.nodes.map(n => degreeOf(n.id)));
-  // the side the arrows meet must be long enough to keep their heads apart: a box grows (its text stays centred)
-  const real = new Map(band.nodes.map(n => {
-    const l = lines.get(n.id)!, need = 12 + (degreeOf(n.id) - 1) * PORT;
-    return [n.id, vertical ? {w: Math.max(l.w, need), h: l.h} : {w: l.w, h: Math.max(l.h, need)}];
-  }));
-  const nodes = ranked.map(n => ({id: n.id, size: vertical ? {w: real.get(n.id)!.h, h: real.get(n.id)!.w} : real.get(n.id)!}));
-  // layered layout runs on a 'right' axis; a vertical figure is the same layout transposed, an upward / leftward one mirrored
-  const groupIndex = new Map<number, number>();
-  groups.forEach((g, gi) => g.arrows.forEach(k => groupIndex.set(k, gi)));
-  // the figure's own point of a layout point: set once the size is known (a figure narrower than its band is centred in it)
-  const placeIn = (total: {w: number; h: number}) => (p: Pt): Pt => {
-    const q = vertical ? swap(p) : {...p};
-    if (flip) { if (vertical) q.y = total.h - q.y; else q.x = total.w - q.x; }
-    return {x: q.x + x + (w - total.w) / 2, y: q.y + y};
-  };
   // the last run of each arrow of an AND, when they can carry one arc (see below): the arrows arrive on one side, all heading the
   // same way, with room before the head for the arc
   const andEnds = (g: {arrows: number[]}, pointsOf: (k: number) => Pt[]) => {
@@ -118,18 +93,71 @@ export function layoutCauseBand(band: CauseBand, bandX: number, bandY: number, b
     const room = Math.min(...ends.map(e => Math.abs(along(e.tip) - along(e.prev))));
     return {ends, d, along, cross, ok: aligned && room >= AND_END + 1};
   };
-  const declared = arrows.flatMap((a, k) => a.back ? [k] : []); // the returns the author named: laid out as the way back (index into `arrows`)
-  const attempt = layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {})}, {
-    portStep: PORT, groupOf: k => groupIndex.get(k), transpose: vertical, maxAcross: w + 0.5, place: placeIn,
-    looseOf: (rts, ly) => {
-      const route = new Map<number, Pt[]>();
-      ly.edges.forEach((e, i) => { if (!e.self) route.set(e.index, rts.get(i)!); });
-      return groups.filter(g => !andEnds(g, k => route.get(k)!).ok).map(g => g.to);
-    },
+  // One whole attempt: the node text wrapped at maxW and the layout turned to dir. Everything that depends on either is in here.
+  // the 中核 badge sits outside the frame, at the end of the axis the arrows run along: the figure keeps that room free at both ends (H7)
+  const badgeRoom = band.nodes.some(n => n.core) ? CORE_BADGE_H + CORE_BADGE_GAP : 0;
+  const padOf = (vertical: boolean): {x: number; y: number} => ({x: vertical ? 0 : badgeRoom, y: vertical ? badgeRoom : 0});
+  const build = (dir: CauseDir, maxW: number, fold?: number) => {
+    const vertical = dir === 'up' || dir === 'down', flip = dir === 'up' || dir === 'left';
+    const iw = w - 2 * padOf(vertical).x; // the width the figure itself has: the badge room at both ends of the arrows' axis is kept free
+    const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles)]));
+    // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
+    const order: string[] = [], put = (id: string): void => { if (!order.includes(id)) order.push(id); };
+    for (const n of band.nodes) { put(n.id); for (const g of groups) if (g.arrows.some(k => arrows[k].from === n.id)) g.arrows.forEach(k => put(arrows[k].from)); }
+    const ranked = order.map(id => band.nodes.find(n => n.id === id)!);
+    // the most arrows that meet one node (each needs its own lane in the gap beside it)
+    const degreeOf = (id: string): number => Math.max(arrows.filter(a => a.from === id).length, arrows.filter(a => a.to === id).length);
+    const degree = Math.max(1, ...band.nodes.map(n => degreeOf(n.id)));
+    // the side the arrows meet must be long enough to keep their heads apart: a box grows (its text stays centred)
+    const real = new Map(band.nodes.map(n => {
+      const l = lines.get(n.id)!, need = 12 + (degreeOf(n.id) - 1) * PORT;
+      return [n.id, vertical ? {w: Math.max(l.w, need), h: l.h} : {w: l.w, h: Math.max(l.h, need)}];
+    }));
+    const hexIds = new Set(band.nodes.filter(n => n.role === 'obstacle' || n.role === 'risk').map(n => n.id)); // hexagons: arrows keep to the middle of their side (ADR 0016 D3)
+    const nodes = ranked.map(n => ({id: n.id, size: vertical ? {w: real.get(n.id)!.h, h: real.get(n.id)!.w} : real.get(n.id)!}));
+    // layered layout runs on a 'right' axis; a vertical figure is the same layout transposed, an upward / leftward one mirrored
+    const groupIndex = new Map<number, number>();
+    groups.forEach((g, gi) => g.arrows.forEach(k => groupIndex.set(k, gi)));
+    // the figure's own point of a layout point: set once the size is known (a figure narrower than its band is centred in it)
+    const placeIn = (total: {w: number; h: number}) => (p: Pt): Pt => {
+      const q = vertical ? swap(p) : {...p};
+      if (flip) { if (vertical) q.y = total.h - q.y; else q.x = total.w - q.x; }
+      return {x: q.x + x + padOf(vertical).x + (iw - total.w) / 2, y: q.y + y + padOf(vertical).y};
+    };
+    const declared = arrows.flatMap((a, k) => a.back ? [k] : []); // the returns the author named: laid out as the way back (index into `arrows`)
+    // the returns that skip layers run in an outer lane: all of them when `returns: 'outer'` (or pdpc's default), the declared ones (`back`) when nothing is written
+    const wanted: 'all' | 'declared' | undefined = band.returns === 'inline' ? undefined : (band.returns ?? band.returnsDefault) === 'outer' ? 'all' : declared.length ? 'declared' : undefined;
+    const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {}), ...(fold === undefined ? {} : {fold})}, {
+      portStep: PORT, groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: iw + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}),
+      looseOf: (rts, ly) => {
+        const route = new Map<number, Pt[]>();
+        ly.edges.forEach((e, i) => { if (!e.self) route.set(e.index, rts.get(i)!); });
+        return groups.filter(g => !andEnds(g, k => route.get(k)!).ok).map(g => g.to);
+      },
+    });
+    let attempt = attemptWith(wanted);
+    // not written: the outer lanes give way when they do not fit the width or leave an AND undrawable that the inline run draws
+    if (wanted && band.returns === undefined && attempt.lay.edges.some(e => e.outer)) {
+      const inline = attemptWith(undefined);
+      if (!attempt.fits || attempt.loose.length > inline.loose.length) attempt = inline;
+    }
+    return {...attempt, dir, vertical, flip, lines};
+  };
+
+  // What may change to make the figure fit (ADR 0010 D1): only what the author left out (`dir`, `maxNodeW`) or gave as 'auto'. A figure
+  // made by pdpc() / relationDiagram() runs 'down' unless told otherwise (`base`) and may also turn to 'right'; a cause tree keeps its axis.
+  const base: CauseDir = band.base ?? 'up';
+  const explicitDir = band.dir !== undefined && band.dir !== 'auto' && !band.dirLeftOut;
+  const start: CauseDir = band.dir === undefined || band.dir === 'auto' ? base : band.dir;
+  const fitted = fitLayout<CauseDir, ReturnType<typeof build>>({
+    who: 'causeTree()', w, start, ...(band.base !== undefined ? {alt: 'right' as const} : {axisKept: `another axis (a cause tree keeps its direction: ${start})`}),
+    explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined ? {} : {maxNodeW: band.maxNodeW}),
+    build, ...(band.base === undefined ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget: heightBudget - 2 * badgeRoom}), // the badge room is not in an attempt's size
+    ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
   });
+  const attempt = fitted.result, {lines, vertical, flip} = attempt, fitApplied = fitted.applied;
   const {lay, routes, size: total} = attempt;
-  if (!attempt.fits) throw new Error(`causeTree(): the figure is ${Math.ceil(total.w)}px wide but it has ${Math.round(w)}px (use a smaller maxNodeW, dir: 'right' or 'left', or fewer entities on one level)`);
-  const dx = x + (w - total.w) / 2, dy = y;
+  const pad = padOf(vertical), dx = x + pad.x + (w - 2 * pad.x - total.w) / 2, dy = y + pad.y;
   const rectOf = (id: string) => {
     const p = lay.nodes.get(id)!, q = vertical ? {x: p.y, y: p.x, w: p.h, h: p.w} : {x: p.x, y: p.y, w: p.w, h: p.h};
     if (flip) { if (vertical) q.y = total.h - (q.y + q.h); else q.x = total.w - (q.x + q.w); }
@@ -137,8 +165,9 @@ export function layoutCauseBand(band: CauseBand, bandX: number, bandY: number, b
   };
 
   const out: LaidOutCause = {
-    type: 'cause', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x: bandX, y: bandY, w: bandW, h: total.h + 2 * padY,
+    type: 'cause', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + 2 * pad.y,
     nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
+    ...(fitApplied.length ? {fitApplied} : {}),
   };
   for (const n of band.nodes) {
     const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
@@ -152,7 +181,7 @@ export function layoutCauseBand(band: CauseBand, bandX: number, bandY: number, b
   for (const [i, e] of lay.edges.entries()) {
     if (e.self) continue;
     drawn.set(e.index, out.edges.length);
-    out.edges.push({from: e.from, to: e.to, points: routes.get(i)!, line: arrows[e.index].line, ...(arrows[e.index].back ? {back: true as const} : {}), ...(arrows[e.index].blocks ? {kind: 'blocks' as const} : {})});
+    out.edges.push({from: e.from, to: e.to, points: routes.get(i)!, line: arrows[e.index].line, ...(arrows[e.index].back ? {back: true as const} : {}), ...(e.outer ? {outer: true as const} : {}), ...(arrows[e.index].blocks ? {kind: 'blocks' as const} : {})});
   }
   // an AND: an arc across the last run of each of its arrows, a little before the arrowheads. It needs the arrows to arrive on
   // one side of the effect, all heading the same way, with room before the head for the arc

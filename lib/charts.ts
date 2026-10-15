@@ -37,11 +37,11 @@ import type {CatSpec} from './charts-cat.ts';
 import {layoutCausal, layoutDependency, layoutPert, semnetTexts} from './semnet.ts';
 import type {CausalSpec, DependencySpec, PertSpec} from './semnet.ts';
 import type {FontFamily, Rect, Dimmed, Roles, WidthOf} from './types/core.ts';
-import type {RevealOpts} from './types/core.ts';
+import type {RevealOpts, ScopeOpts} from './types/core.ts';
 
 export type ChartSpec = {kind: 'waterfall'; spec: WaterfallSpec} | {kind: 'tornado'; spec: TornadoSpec} | {kind: 'heatmap'; spec: HeatmapSpec} | {kind: 'stacked'; spec: StackedSpec} | {kind: 'radar'; spec: RadarSpec} | {kind: 'treemap'; spec: TreemapSpec} | {kind: 'sankey'; spec: SankeySpec} | {kind: 'catplot'; spec: CatSpec} | {kind: 'distplot'; spec: DistSpec} | {kind: 'multiplot'; spec: MultiSpec} | {kind: 'regplot'; spec: RegSpec} | {kind: 'clustermap'; spec: ClusterSpec} | {kind: 'bubble'; spec: BubbleSpec} | {kind: 'butterfly'; spec: ButterflySpec} | {kind: 'combo'; spec: ComboSpec} | {kind: 'harvey'; spec: HarveySpec} | {kind: 'pert'; spec: PertSpec} | {kind: 'causal'; spec: CausalSpec} | {kind: 'dependency'; spec: DependencySpec};
 
-export interface ChartBand extends RevealOpts {
+export interface ChartBand extends RevealOpts, ScopeOpts {
   type: 'chart';
   kind: ChartKind;
   spec: ChartSpec['spec'];

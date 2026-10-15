@@ -49,9 +49,10 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
    - `shrink-narrow-text`（警告）: `bpmn` / `swimlane` を `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。文言を短くする・図を 2 つに分ける・縦向きにする・`maxWidth` を広げる。
    - 案件全体で許容する rule は `.svg-diagram.json` の `"accept": {"rule-id": "理由"}`（図の `accept` が優先。知らない ID はエラー）。solid と solid-danger が白黒で同明度のときは `tones` で `solid-danger` の fill を濃くする（既定色はテーマ依存で一律には直せない）。
    - `gray-tone-collision`（警告）: 使っている 2 つのトーンの塗りが白黒で見分けにくい（CIE L* の差が 10 未満。典型は plain の白と accent / new の soft）。直し方は 2 つ。(1) トーンの色を変えて明度差を付ける: `diagram({tones: {accent: {fill: '#e6d3bd'}}})`（案件全体なら `.svg-diagram.json` の `"tones"`。README「トーンの色を上書きする」）か、片方を `solid` / `muted` にする。(2) ラベル・太字・破線など色以外の手がかりを足して `accept` で許容する。破線の有無が違う組、塗りが同じ組、muted / removed、canvas() のピルで言葉にした領域は数えない。カラーでしか使わない図は `diagram({accept: {'gray-tone-collision': '理由'}})`。
+   - `layout-*`（情報）: 横に並ぶ枠の幅・端・間隔の数 px のずれ、枠の下の大きな空き、内容の左右の偏り、細すぎる図（`diagram({width: 'fit'})`）を測る。既定は info（`check --verbose`）。この図だけ warn にするなら `diagram({layoutCheck: 'strict'})`（文書向けの図だけ）。意図したものは `accept`。直し方は `cols` / `flex` で列の比を揃える、など所見の `fix` に書いてある。
    - 凡例は、使った線種・トーンに必要な分だけ足す（`legend: 'auto'`）。記法が少なくて凡例が要らない図は、凡例を足さずに `diagram({legend: false})` で宣言する（`legend-missing` / `legend-incomplete` が出なくなる）。
 4. **目で見る**: `svg-diagram preview out.svg out.png 2` で PNG にし（並列で動かすときは出力名を省くと、一時ディレクトリに重ならない名前で書いてパスを表示する）、画像として読んで確認する（`svg-diagram show x.ts --png out.png` なら SVG を書かずにソースから直接 PNG にできる。`show` を `--png` なしで使うのは人が sixel 対応の端末で見るとき用で、エージェントの実行環境では端末がないためエラーになる）。**検査を通っても、レイアウトの良し悪しは目で見ないと分からない**。
-   - `preview` / `show` は、SVG が生成元のソースより古い（SVG に埋め込んだハッシュが今のソースと違う）と、stderr に警告し、PNG の上端に赤い帯を描く。**帯が出たら、その PNG は直前のソースの絵ではない**。`svg-diagram build <ソース>` で作り直してから見る。自動の手順では `--require-fresh` で古いときに exit 1 にできる。
+   - `preview` / `show` は、SVG が生成元のソースより古い（SVG に埋め込んだハッシュが今のソースと違う）と、stderr に警告し、PNG の上端に赤い帯を描く。**帯が出たら、その PNG は直前のソースの絵ではない**。`svg-diagram build <ソース>` で作り直してから見る。自動の手順では `--require-fresh` で古いときに exit 1 にできる（`preview` は `--no-stale-banner` で帯だけ消せる）。
    - **`build` が失敗しても、前回の SVG は消えない**（手置きの SVG を巻き込まないため）。失敗の `✗` の行と `⚠ 前回の ... が残っている` を見落とさない。複数ファイルの `build` や `--stale` の「N 件を生成」だけを見て、直ったと思わない。`lint` で落ちて exit 1 のときは、新しい SVG は書かれている。
    - 白黒印刷や色覚の違う読者にどう見えるかは `svg-diagram preview out.svg out.png --gray`（明度だけにして描く）。
 5. **ズレ検査**: `svg-diagram check --drift --svg-dir <SVG の置き場> src.ts`（SVG が最新のソースから生成されたものか）
@@ -77,9 +78,8 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | ms・秒などの数値の時間軸 | `timeline({unit: 'ms', from: 0, to: 700, lanes, events, spans})` | `events: [{at, label, lane?, tone?}]`、`spans: [{from, to, label?, lane?, dim?}]`（`dim` は寸法線で長さを自動表記）。日付の期限は従来の `timeline({from: '2026', now, deadline})` |
 | 日付のない順序だけの出来事 | `steps([{title, body?, icon?, tag?}], {numbered, highlight})` | 番号バッジ・矢印つきの `row()`。`highlight: n` で 1 つ強調。`id` を付けると `s.col(n)` が端点 |
 | 区間を示す括弧・箱を指す吹き出し | `bracket(a.left, b.right, {label, side})` / `callout(id, {text, side})` | `connect()` の 2 本引きの代わり。bracket は箱の下（`side: 'above'` で上）、callout は 1 行の吹き出し |
-| 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?}` と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
 | 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?, tone?}`（`tone` は `'solid'` / `'solid-danger'` も可）と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
-| TOC の因果の図（現状・未来現実・前提条件・移行ツリー） | `causeTree(nodes, links, {dir, coreDriver})` | 実体 `{id, label, role?}`（role: ude / root / de / injection / goal / obstacle / io / action / precondition＝統制できない現状の事実）と `{from, to}`（`from` を配列にすると AND。循環の戻りの矢印には `back: true`: 節の並びで層が変わらず、太く描く）。下が原因・上が結果。`coreDriver: true` で、届く UDE が最多の起点に太い枠と「中核」のバッジ（`counts: false` で `到達 UDE n` を消す）。リンクの `kind: 'blocks'` は「断つ」辺（破線＋横棒の端。ネガティブブランチ）。`tree: 'crt'｜'frt'｜'prt'｜'tt'` を書くと `check` が TOC の約束（UDE の数・根本原因・1 本鎖・孤立）を見る（既定 info、`diagram({tocCheck: 'strict'})` で warn） |
+| TOC の因果の図（現状・未来現実・前提条件・移行ツリー） | `causeTree(nodes, links, {dir, coreDriver})` | 実体 `{id, label, role?}`（role: ude / root / de / injection / goal / obstacle / io / action / precondition＝統制できない現状の事実）と `{from, to}`（`from` を配列にすると AND。循環の戻りの矢印には `back: true`: 節の並びで層が変わらず、太く描く）。下が原因・上が結果。`coreDriver: true` で、届く UDE が最多の起点に太い枠と「中核」のバッジ（`counts: false` で `到達 UDE n` を消す）。リンクの `kind: 'blocks'` は「断つ」辺（破線＋横棒の端。ネガティブブランチ）。`tree: 'crt'｜'frt'｜'prt'｜'tt'` を書くと `check` が TOC の約束（UDE の数・根本原因・1 本鎖・孤立・`back` の付け忘れ＝`toc-cycle-undeclared`）を見る（既定 info、`diagram({tocCheck: 'strict'})` で warn）。`diagram({legend: 'auto'})` は使った役割・AND の弧・戻り・断つ辺・中核の印を凡例にする（文言は `legendLabels: {'role:precondition': '与件'}`）。層を 2 つ以上飛ぶ戻りは `returns: 'outer'` で外周のレーンへ（既定は `back: true` の辺だけ外周。`pdpc` は全部外周） |
 | TOC のクラウド（対立解消図） | `cloud({a, b, c, d, d2}, {assumptions})` | 共通目的 A・必要条件 B/C・対立する要望 D/D'。前提 `{on: 'ab'｜'ac'｜'bd'｜'cd'｜'dd', text, injection?}` は番号が矢印に載り、一覧は図の下 |
 | スケジュール | `gantt(rows, {today})` | タスク `{label, start, end｜days, after?, progress?, milestone?}`（日付は `YYYY-MM-DD`、`today` は必ず書く） |
 | UML クラス図 | `classDiagram(classes, relations, {dir})` | クラス `{id, attrs?, methods?, stereotype?}` と関係 `{from, to, kind, label?, fromMult?, toMult?}` |
@@ -91,6 +91,10 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 - 凡例の自動付与と「色だけの区別」の検査は、これらの図の `tone`・破線を数えない。`new` / `removed` や破線を使うときは `legend()` を自分で置く。
 - BPMN は標準の一部だけ（サブプロセス、タイマー・メッセージのイベント、プール、データは対象外）。start に入るフロー・end から出るフローは書けない。
 - 描いたら `svg-diagram preview` で必ず目で見る（配置は検査を通っても、読みやすさは見ないと分からない）。
+- **幅に収まらないとき**: `dir` を省略するか `dir: 'auto'` にした図は、レイアウトが自分で収める（`causeTree` は向きを変えず `maxNodeW` 200 → 110、それでも駄目なら層を行に折り返す `fold`。`pdpc` / `relationDiagram` / `stateDiagram` / `classDiagram` / `tree` は向きも `right` ⇄ `down` で替える。`mindmap` は `layout` を変えない）。書いた `dir` / `maxNodeW` は変えず、試した案と直し方を書いて止まる（`dir: 'auto'`、`causeTree` は `fold: true`）。`dir` を省略して変わった図は `auto-fit-applied`（warn）、`dir: 'auto'` は info。`diagram({maxWidth: 1200})` は `doc-width` の閾値をその図だけ上げる（図の幅は `width` で別に決める）。細い図（`concentric`・縦の `chevron` など）は `diagram({width: 'fit'})` で幅を内容に縮める。
+- **折れの少ない配置**: 層状の図（`causeTree` 系 / `stateDiagram` / `arrowDiagram` / `classDiagram` / `pert` / `dependencyNetwork` / `causalLoop`）は、従来の座標と、折れ・交差が厳密に少なくなるときだけ採る新しい座標の 2 つを作る。高さが重なる隣の層の箱への矢印は 1 本の直線になる（円・六角形・AND は除く）。過去の SVG を動かしたくないときは `straighten: false`。折れが多い図は `edge-bends`（情報。1 本が 5 回以上、または平均 3 回超。直し方は層を飛ぶ矢印・戻る矢印を減らす。`diagram({layoutCheck: 'strict'})` で warn）。
+- **同じ id を別の帯で使う**: 自己配置の帯に `scope: 'plan'` を付けると項目が `plan.<id>` の名前になり、帯をまたいで同じ素の id を使える（`duplicate anchor id` にならない）。参照は修飾名 `connect('plan.p0:right', 'sched.p0:left')`、`diagram({spotlight: 'plan.p1'})`。素の `p0` は 1 つに決まるときだけ通り、2 つ以上だと `ambiguous anchor id` で止まる。ハンドル `.anchors.p0` は修飾名を返す。`group` とトップレベルの `box` / `row` の id は対象外。
+- 日本語の長い文を文節で折るなら `diagram({wrap: 'bunsetsu'})`（ひらがなは直前に付く。箱は最長の単位に合わせて `maxNodeW` の 1.5 倍まで広がる。既定は `'phrase'`）。
 
 ## 枠が決まったキャンバス（canvas）
 
@@ -100,7 +104,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 |---|---|---|
 | canvas | `canvas('bmc', {value: ['…'], segments: ['…']}, {title, emphasis, id})` | template: `bmc` `lean` `vpc` `swot` `tows` `errc` `pest` `threeC` `sevenS` `fiveForces` `empathy` `persona` `a3`。領域の id は README の表 |
 
-- 間違った領域 id は型エラー（実行時は有効な id を列挙して止まる）。`titles` で見出しを差し替え、`emphasis: ['value']` で重点（「重点」タグ付き）、`h` で最小の高さ、`requireAll: true` で未記入を `canvas-region-empty` に、`pestle: true` で PESTLE。
+- 間違った領域 id は型エラー（実行時は有効な id を列挙して止まる）。`titles` で見出しを差し替え、`emphasis: ['value']` で重点（「重点」タグ付き）、`h` で最小の高さ、`requireAll: true` で未記入を `canvas-region-empty` に、`pestle: true` で PESTLE。高さは内容で決まる（既定 `fit: 'content'`）。書き込み用紙のように広い枠が要るときは `fit: 'aspect'`（テンプレートの縦横比を床にする従来の見た目）か `h`。
 - `id: 'c'` で各領域が `c-<領域>` のアンカーになり、`connect` / `spotlight` / `reveal` が効く。矢印は描かない（必要なら `connect`）。
 - 書き方の全部は README の「枠が決まったキャンバス」。例: `examples/canvas-*.ts`。
 
@@ -154,6 +158,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 - 12 列の行: `row([a, b], {cols: [6, 6]})`（`col:` を手で数えない）。`row([a, b, c], {cols: 12})` のように子に `span` を書かなければ、12/n 列ずつの等分（3 個なら 4+4+4）。
 - `row()` の子は `box()` / `group()` のほか `caption()` / `banner()` なども可（枠なし `group()` に自動で包まれる）。`versus()` の `children` は配列（縦積み）、`direction: 'row'` で横並び。共通部への接続線は垂直（矢頭なしは `connectArrow: 'none'`）。
 - 折り返しは文節単位（既定 `wrap: 'phrase'`）: カタカナ・漢字の連続は割れない。1 文字ずつ折りたいときだけ `diagram({wrap: 'char'})`。別の行の N 列目への矢印は、`row({id: 'top'})` の `top.col(5).top`。
+- 枠付きの `group` を `row` に並べて高さがそろうと、低いほうの中身は余りの中で縦中央に寄る。`group({valign: 'top'})` で上詰め、`'stretch'` で箱 1 つが余りを埋める（余りが 16px 未満なら動かない）。
 - 接続線: `diagram({connectDefaults: {chip: true, route: 'elbow'}})` と `d.connect(from, to, {label})`。
 - ワイヤーフレームの外枠: `diagram({wireframeDefaults: {appbar: {title, nav}}})` と、画面ごとの `shell: {active: '在庫'}`。
 - 状態の一覧: `stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', 空: {na: '理由'}})`。
@@ -208,7 +213,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | 図 | 書き方 | 自動で行うこと |
 |---|---|---|
 | PERT（作業を箱にする activity-on-node。作業を矢印にするなら `arrowDiagram`） | `pert([{id, label, duration, predecessors}], {unit})` | ES / EF / LS / LF / slack とクリティカルパス。循環・未知の先行タスクを拒否 |
-| 因果ループ図 | `causalLoop(nodes, [{from, to, polarity, delay?}], {layout?: 'ring'})` (`'ring'` は閉路が 1 つだけの図を円環に。ループ外のノード・弦・`direction` 併用は止まる。`interventions` は検査まで、描画は未実装) | `+` / `-`、遅延 `||`、単純ループの R / B 分類 |
+| 因果ループ図 | `causalLoop(nodes, [{from, to, polarity, delay?}], {layout?: 'ring'})` (`'ring'` は閉路が 1 つだけの図を円環に。ループ外のノード・弦・`direction` 併用は止まる。`interventions: [{id, label, to, polarity, delay?}]` はループの外側の帯に破線で描かれ（LR は上、TB は左、ring は円の上下）、`id` は `connect()` / `spotlight` の対象。置けないと何が何に当たるかを書いて止まる) | `+` / `-`、遅延 `||`、単純ループの R / B 分類、介入点 |
 | 関連図 / 依存ネットワーク | `dependencyNetwork([{id, label, kind?}], [{from, to, type, weight?}], opts)` | kind / type の表現、重みの線幅と数値、使用した記法の凡例 |
 
 PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `analyzeCausalLoops`。長い日本語ラベルでは `width` を広げ、層が多いときは LR、並列が多いときは TB を試す。描いた後は必ず `check` とプレビューを通す。
