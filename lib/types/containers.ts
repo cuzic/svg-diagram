@@ -1,5 +1,6 @@
 // Types: group / legend / spacer / raw, row / grid / connect.
 import type {Align, Arrow, ArrowWeight, Bend, Dimmed, EmphasisTone, LineStyle, PlainColorKey, Point, Rect, RevealOpts, Route, TextTone, Theme} from './core.ts';
+import type {CauseRole} from './diagrams.ts';
 import type {Band} from './index.ts';
 import type {BoxBand, BoxTone, LaidOutBox, RichSpans, RichText} from './text-bands.ts';
 
@@ -74,6 +75,12 @@ export interface LegendItem {
   weight?: ArrowWeight;
   tone?: EmphasisTone;
   dashed?: boolean;
+  /** A cause-tree entity sample: the box of that role (colour, double outline, hexagon). legend: 'auto' writes these for a causeTree(). */
+  role?: CauseRole;
+  /** A cause-tree arrow sample: 'and' = arrows joined by an arc (together sufficient), 'back' = a declared return (bold), 'blocks' = a cutting arrow (dashed, ends in a bar). */
+  edge?: 'and' | 'back' | 'blocks';
+  /** A cause-tree mark sample: 'core' = the thick frame of the core driver. */
+  mark?: 'core';
 }
 export interface LegendOpts {align?: 'left' | 'center'}
 export interface LegendBand {
@@ -207,7 +214,7 @@ export interface ConnectBand {
 export interface BranchTarget extends ConnectOpts {to: string}
 /** The frame of a group; its children are laid out as separate bands after it. */
 export interface LaidOutGroup extends Rect, Dimmed {type: 'group'; tone: BoxTone; dashed?: boolean; frame?: false; stamp?: string; stampW?: number; id?: string; reveal?: number}
-export interface LaidOutLegendItem extends LegendItem {textW: number; w: number; x: number; y: number}
+export interface LaidOutLegendItem extends LegendItem {textW: number; w: number; x: number; y: number; /** a `role` item's box, resolved by layout */ swatch?: {tone: BoxTone; double?: boolean; hex?: boolean}}
 export interface LaidOutLegend extends Rect {type: 'legend'; items: LaidOutLegendItem[]}
 export interface RowArrow {x1: number; y1: number; x2: number; y2: number}
 export interface LaidOutRow extends Rect, Dimmed {type: 'row'; id?: string; children: LaidOutBox[]; arrows: RowArrow[]}

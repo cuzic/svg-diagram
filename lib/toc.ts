@@ -114,16 +114,24 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     return {ends, d, along, cross, ok: aligned && room >= AND_END + 1};
   };
   const declared = arrows.flatMap((a, k) => a.back ? [k] : []); // the returns the author named: laid out as the way back (index into `arrows`)
-  const attempt = layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {})}, {
-    portStep: PORT, groupOf: k => groupIndex.get(k), transpose: vertical, maxAcross: w + 0.5, place: placeIn,
+  // the returns that skip layers run in an outer lane: all of them when `returns: 'outer'` (or pdpc's default), the declared ones (`back`) when nothing is written
+  const wanted: 'all' | 'declared' | undefined = band.returns === 'inline' ? undefined : (band.returns ?? band.returnsDefault) === 'outer' ? 'all' : declared.length ? 'declared' : undefined;
+  const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {})}, {
+    portStep: PORT, groupOf: k => groupIndex.get(k), transpose: vertical, maxAcross: w + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}),
     looseOf: (rts, ly) => {
       const route = new Map<number, Pt[]>();
       ly.edges.forEach((e, i) => { if (!e.self) route.set(e.index, rts.get(i)!); });
       return groups.filter(g => !andEnds(g, k => route.get(k)!).ok).map(g => g.to);
     },
   });
+  let attempt = attemptWith(wanted);
+  // not written: the outer lanes give way when they do not fit the width or leave an AND undrawable that the inline run draws
+  if (wanted && band.returns === undefined && attempt.lay.edges.some(e => e.outer)) {
+    const inline = attemptWith(undefined);
+    if (!attempt.fits || attempt.loose.length > inline.loose.length) attempt = inline;
+  }
   const {lay, routes, size: total} = attempt;
-  if (!attempt.fits) throw new Error(`causeTree(): the figure is ${Math.ceil(total.w)}px wide but it has ${Math.round(w)}px (use a smaller maxNodeW, dir: 'right' or 'left', or fewer entities on one level)`);
+  if (!attempt.fits) throw new Error(`causeTree(): the figure is ${Math.ceil(total.w)}px wide but it has ${Math.round(w)}px (use a smaller maxNodeW, dir: 'right' or 'left', or fewer entities on one level${band.returns === 'outer' ? ", or returns: 'inline'" : ''})`);
   const dx = x + (w - total.w) / 2, dy = y;
   const rectOf = (id: string) => {
     const p = lay.nodes.get(id)!, q = vertical ? {x: p.y, y: p.x, w: p.h, h: p.w} : {x: p.x, y: p.y, w: p.w, h: p.h};
@@ -147,7 +155,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   for (const [i, e] of lay.edges.entries()) {
     if (e.self) continue;
     drawn.set(e.index, out.edges.length);
-    out.edges.push({from: e.from, to: e.to, points: routes.get(i)!, line: arrows[e.index].line, ...(arrows[e.index].back ? {back: true as const} : {}), ...(arrows[e.index].blocks ? {kind: 'blocks' as const} : {})});
+    out.edges.push({from: e.from, to: e.to, points: routes.get(i)!, line: arrows[e.index].line, ...(arrows[e.index].back ? {back: true as const} : {}), ...(e.outer ? {outer: true as const} : {}), ...(arrows[e.index].blocks ? {kind: 'blocks' as const} : {})});
   }
   // an AND: an arc across the last run of each of its arrows, a little before the arrowheads. It needs the arrows to arrive on
   // one side of the effect, all heading the same way, with room before the head for the arc

@@ -30,11 +30,11 @@ export interface RingLayout {c: Canvas; positions: Map<string, Rect>; paths: Map
  * `loop.nodes` go clockwise from the top. rx follows from the width; ry is the first of 60, 68, ... where neighbours keep GAP between their boxes,
  * no two boxes touch and no arc runs through a box that is not its end. The canvas is as high as that needs, unless `height` says more (and fails if it says less).
  */
-export function layoutRing(g: ChartGeom, ns: readonly {id: string; label: string; w: number; h: number}[], loop: CausalLoop, selfLinks: readonly {index: number; node: string}[]): RingLayout {
+export function layoutRing(g: ChartGeom, ns: readonly {id: string; label: string; w: number; h: number}[], loop: CausalLoop, selfLinks: readonly {index: number; node: string}[], inset: {top?: number; bottom?: number} = {}): RingLayout {
   const selfLoops = selfLinks.length > 0;
   const n = loop.nodes.length, byId = new Map(ns.map(x => [x.id, x])), order = loop.nodes.map(id => byId.get(id)!);
   const maxW = Math.max(...order.map(x => x.w)), maxH = Math.max(...order.map(x => x.h)), sidePad = selfLoops ? 60 : 0;
-  const rx = (g.w - maxW - 16 - sidePad) / 2, topPad = 16 + (selfLoops ? 22 : 0), botPad = topPad;
+  const rx = (g.w - maxW - 16 - sidePad) / 2, topPad = 16 + (selfLoops ? 22 : 0) + (inset.top ?? 0), botPad = 16 + (selfLoops ? 22 : 0) + (inset.bottom ?? 0);
   if (rx < 24) ringFail(`the figure is too narrow for ${n} nodes with these labels (${Math.round(g.w)}px wide; shorten the labels or use layout: 'layered')`);
   const theta = (i: number): number => -Math.PI / 2 + 2 * Math.PI * i / n, step = 2 * Math.PI / n;
   const at = (ry: number, t: number): Pt => ({x: rx * Math.cos(t), y: ry * Math.sin(t)});

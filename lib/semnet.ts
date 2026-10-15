@@ -3,7 +3,7 @@ import {checkIds, checkText, fail, finiteNum, numText} from './charts-base.ts';
 import {textWidth} from './atoms.ts';
 import {analyzeCriticalPath} from './semnet-analysis.ts';
 import type {PertAnalysis, PertTask} from './semnet-analysis.ts';
-import {arrow, direction, headBox, networkCanvas, nodeBox, pathOf, placeEdgeLabel, validateNodes} from './semnet-common.ts';
+import {arrow, direction, straightenOf, headBox, networkCanvas, nodeBox, pathOf, placeEdgeLabel, validateNodes} from './semnet-common.ts';
 import type {SemnetDirection, SemnetOpts} from './semnet-common.ts';
 import {causalTexts} from './semnet-causal.ts';
 import type {CausalSpec} from './semnet-causal.ts';
@@ -18,13 +18,13 @@ export type DependencyEdgeType = 'depends' | 'uses' | 'blocks' | 'relates' | (st
 export interface DependencyEdge {from: string; to: string; type: DependencyEdgeType; weight?: number; label?: string}
 export interface DependencyOpts extends SemnetOpts {nodeKinds?: Record<string, string>; edgeTypes?: Record<string, string>}
 
-export interface PertSpec {tasks: PertTask[]; analysis: PertAnalysis; direction: SemnetDirection; unit: string; compact: boolean}
-export interface DependencySpec {nodes: DependencyNode[]; edges: DependencyEdge[]; direction: SemnetDirection; nodeKinds: Record<string, string>; edgeTypes: Record<string, string>}
+export interface PertSpec {tasks: PertTask[]; analysis: PertAnalysis; direction: SemnetDirection; unit: string; compact: boolean; straighten: boolean}
+export interface DependencySpec {nodes: DependencyNode[]; edges: DependencyEdge[]; direction: SemnetDirection; nodeKinds: Record<string, string>; edgeTypes: Record<string, string>; straighten: boolean}
 
 export function resolvePert(tasks: readonly PertTask[], opts: PertOpts = {}): PertSpec {
   const analysis = analyzeCriticalPath(tasks);
   checkIds('pert', tasks.map(t => t.id), opts.id);
-  return {tasks: tasks.map(t => ({...t, predecessors: [...(t.predecessors ?? [])]})), analysis, direction: direction('pert', opts.direction), unit: opts.unit ?? '', compact: !!opts.compact};
+  return {tasks: tasks.map(t => ({...t, predecessors: [...(t.predecessors ?? [])]})), analysis, direction: direction('pert', opts.direction), unit: opts.unit ?? '', compact: !!opts.compact, straighten: straightenOf('pert', opts.straighten)};
 }
 export function resolveDependency(nodes: readonly DependencyNode[], edges: readonly DependencyEdge[], opts: DependencyOpts = {}): DependencySpec {
   validateNodes('dependencyNetwork', nodes, opts.id);
@@ -34,7 +34,7 @@ export function resolveDependency(nodes: readonly DependencyNode[], edges: reado
     checkText('dependencyNetwork', `edges[${i}].type`, e.type);
     if (e.weight !== undefined) finiteNum('dependencyNetwork', `edges[${i}].weight`, e.weight, {min: 0});
   });
-  return {nodes: nodes.map(n => ({...n})), edges: edges.map(e => ({...e})), direction: direction('dependencyNetwork', opts.direction), nodeKinds: {...(opts.nodeKinds ?? {})}, edgeTypes: {...(opts.edgeTypes ?? {})}};
+  return {nodes: nodes.map(n => ({...n})), edges: edges.map(e => ({...e})), direction: direction('dependencyNetwork', opts.direction), nodeKinds: {...(opts.nodeKinds ?? {})}, edgeTypes: {...(opts.edgeTypes ?? {})}, straighten: straightenOf('dependencyNetwork', opts.straighten)};
 }
 
 export const pertAlt = (s: PertSpec): string => `PERT network. Project duration ${numText(s.analysis.duration)}${s.unit}. Critical path: ${s.analysis.criticalPath.join(' → ')}. ${s.analysis.tasks.map(t => `${t.label}: duration ${numText(t.duration)}, ES ${numText(t.es)}, EF ${numText(t.ef)}, LS ${numText(t.ls)}, LF ${numText(t.lf)}, slack ${numText(t.slack)}`).join('; ')}`;
@@ -53,7 +53,7 @@ const kindTone =(i: number): 'accent' | 'danger' | 'muted' | 'text' => (['accent
 const edgeStyle = (type: string, ti: number): {stroke: 'accent' | 'danger' | 'muted' | 'text'; dash?: string} => ({stroke: type === 'blocks' ? 'danger' : kindTone(ti), dash: type === 'uses' ? '8,5' : type === 'relates' ? '2,5' : type === 'blocks' ? '10,4,2,4' : ti > 3 ? (ti % 2 ? '8,5' : '2,5') : undefined});
 export function layoutPert(s: PertSpec, g: ChartGeom): LaidOutChartPart {
   const w = s.compact ? 126 : 154, h = s.compact ? 64 : 104, ns = s.analysis.tasks.map(t => ({id: t.id, label: t.label, w: Math.max(w, textWidth(g.widthOf, t.label, g.size, 700) + 24), h}));
-  const es = s.analysis.tasks.flatMap(t => t.predecessors.map(p => ({from: p, to: t.id}))), {c, positions, paths} = networkCanvas(g, ns, es, s.direction);
+  const es = s.analysis.tasks.flatMap(t => t.predecessors.map(p => ({from: p, to: t.id}))), {c, positions, paths} = networkCanvas(g, ns, es, s.direction, 0, s.straighten);
   es.forEach((e, i) => { const critical = s.analysis.criticalEdges.some(x => x.from === e.from && x.to === e.to); arrow(c, pathOf(paths, i, e, positions), {stroke: critical ? 'danger' : 'muted', sw: critical ? 4 : 2, edge: e}); });
   for (const t of s.analysis.tasks) {
     const p = positions.get(t.id)!, host = nodeBox(c, p, t.id, t.label, t.critical ? 'danger' : 'text', t.critical), cx = p.x + p.w / 2;
@@ -81,7 +81,7 @@ export function layoutDependency(s: DependencySpec, g: ChartGeom): LaidOutChartP
     rows.at(-1)!.push(it); used += w;
   }
   const legendH = rows.length ? 34 + (rows.length - 1) * rowH : 0;
-  const ns = s.nodes.map(n => ({...n, w: Math.max(116, textWidth(g.widthOf, n.label, g.size, 700) + 28), h: 52})), {c, positions, paths} = networkCanvas(g, ns, s.edges, s.direction, legendH);
+  const ns = s.nodes.map(n => ({...n, w: Math.max(116, textWidth(g.widthOf, n.label, g.size, 700) + 28), h: 52})), {c, positions, paths} = networkCanvas(g, ns, s.edges, s.direction, legendH, s.straighten);
   // two stages: every line and box first, then the labels over them (a label drawn before a later edge's line would be struck through)
   const drawn = s.edges.map((e, i) => {
     const sw = e.weight === undefined ? 2 : Math.min(7, 1.5 + Math.sqrt(e.weight));

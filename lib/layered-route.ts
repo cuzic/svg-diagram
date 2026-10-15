@@ -98,6 +98,24 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
       }
     }
   }
+  // returns in an outer lane (graph-layout.ts `outer`): each turns in the gap before its tail's layer and in the gap after its head's layer,
+  // past the lanes of the direct arrows there (a tail counts from the gap's right side, a head from its left side)
+  const gapBack = new Map<number, number>(), gapFwd = new Map<number, number>(), tailAt = new Map<number, number>(), headAt = new Map<number, number>();
+  for (const e of lay.edges) {
+    if (e.self || e.points.length !== 2) continue;
+    const l1 = layerOf(e.from), l2 = layerOf(e.to), g = Math.min(l1, l2), m = l1 < l2 ? gapFwd : gapBack;
+    m.set(g, (m.get(g) ?? 0) + 1);
+  }
+  const outerTurns = new Map<number, {tail: number; head: number}>();
+  lay.edges.forEach((e, i) => {
+    if (!e.outer) return;
+    const gt = layerOf(e.from) - 1, gh = layerOf(e.to), kt = tailAt.get(gt) ?? 0, kh = headAt.get(gh) ?? 0;
+    tailAt.set(gt, kt + 1); headAt.set(gh, kh + 1);
+    outerTurns.set(i, {
+      tail: (layerLeft.get(gt + 1) ?? 0) - STUB - ((gapBack.get(gt) ?? 0) + kt) * LANE,
+      head: (layerRight.get(gh) ?? 0) + STUB + ((gapFwd.get(gh) ?? 0) + kh) * LANE,
+    });
+  });
   const out = new Map<number, Pt[]>();
   const longInto = new Map<string, number>(); // long arrows into one head, each with its own last turn
   lay.edges.forEach((e, i) => {
@@ -106,6 +124,12 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     const first = e.points[1] ?? cb, last = e.points[e.points.length - 2] ?? ca;
     const start = {x: first.x >= ca.x ? A.x + A.w : A.x, y: ca.y + (portOf.get(`${i}:0`) ?? 0)};
     const end = {x: last.x <= cb.x ? B.x : B.x + B.w, y: cb.y + (portOf.get(`${i}:1`) ?? 0)};
+    const turns = outerTurns.get(i);
+    if (turns) { // out of the tail's left side, out to the lane, back along it, into the head's right side
+      const lane = e.points[1].y;
+      out.set(i, simplify([start, {x: turns.tail, y: start.y}, {x: turns.tail, y: lane}, {x: turns.head, y: lane}, {x: turns.head, y: end.y}, end]).map(place));
+      return;
+    }
     // a direct arrow turns in a lane: a place in the gap between its two layers (from the left side for a forward arrow, from the right
     // side for a return), whatever the widths of the boxes it leaves and enters
     let turn: number | undefined;
@@ -135,7 +159,15 @@ export function corridorLoad(lay: LayeredLayout): number {
     const k = `${Math.round(Math.min(A.x + A.w / 2, B.x + B.w / 2))}:${Math.round(Math.max(A.x + A.w / 2, B.x + B.w / 2))}`; // the same key as routeLayered's corridors: layers by their centres
     load.set(k, (load.get(k) ?? 0) + 1);
   }
-  return Math.max(1, ...load.values());
+  // the turns of the returns in an outer lane sit in the gaps too, beside the direct arrows
+  const direct = new Map<number, number>(), outerIn = new Map<number, number>();
+  for (const e of lay.edges) {
+    if (e.self) continue;
+    const l1 = lay.layers.get(e.from)!, l2 = lay.layers.get(e.to)!;
+    if (e.outer) for (const g of [l1 - 1, l2]) outerIn.set(g, (outerIn.get(g) ?? 0) + 1);
+    else if (e.points.length === 2) direct.set(Math.min(l1, l2), (direct.get(Math.min(l1, l2)) ?? 0) + 1);
+  }
+  return Math.max(1, ...load.values(), ...[...outerIn].map(([g, n]) => n + (direct.get(g) ?? 0)));
 }
 
 /**
@@ -168,6 +200,8 @@ export interface AttemptOpts {
   straighten?: boolean;
   /** The second candidate also pulls source nodes toward their targets (graph-layout.ts `tighten`). Default false: a cause tree reads its causes at the first layer. */
   tighten?: boolean;
+  /** Returns two layers or more long run in lanes outside the figure: 'all' of them, or only the 'declared' ones (`back`). Default none (through the layers). */
+  returns?: 'all' | 'declared';
 }
 
 export interface Attempt {
@@ -210,7 +244,7 @@ function piercings(a: Attempt, place: (p: Pt) => Pt): number {
  */
 export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layoutOpts: LayeredOpts & {start?: string[]; back?: readonly number[]}, o: AttemptOpts): Attempt {
   const build = (opts: typeof layoutOpts): Attempt => {
-    const lay = layoutWithLanes(nodes, edges, opts);
+    const lay = layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: STUB, step: LANE}} : opts);
     const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
     const groupOf = o.groupOf;
     const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)));
