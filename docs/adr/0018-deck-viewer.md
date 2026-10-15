@@ -96,7 +96,7 @@ svg-diagram deck <a.ts|a.svg>... --out deck.html [--title <text>] [--cols N] [--
 |---|---|
 | 前・次 | `←` `→`、`PageUp` `PageDown`、`Space`(次)、`Shift+Space`(前)、`Home` `End`。画面の端に実体の `<button>`(前へ・次へ)も置く(タッチ・マウス用)。**`Space` と `Enter` は、`<button>`(一覧の縮小を含む)・`a`・`summary` にフォーカスがあるときは奪わない**(そのボタンの動作が先) |
 | 一覧 | `g`(または `Esc` でも閉じる)で、全スライドの縮小を格子(`--cols`、既定は幅で自動)で出す。**一覧は SVG を複製しない**。複製すると、実行時に id が重複し(`<metadata>` を消して守った一意性が崩れ、`aria-labelledby` は先の方を指す)、複製は `<section id="sN">` の外に置かれるので `#sN text` の規則が効かずフォントの指定を失う。代わりに、**同じ `<section>` 群を、`#deck` の `grid` クラス(CSS の grid)で並べ替えて縮小する**(全 `<section>` の `hidden` を外し、各図を列の幅に縮める。DOM の `<svg>` の数と id は変わらない)。各 `<section>` の中に、**全面を覆う透明な `<button aria-label="3 / 8: 名前">`** を 1 つ置く(通常表示では隠し、一覧のときだけ有効)。押すとその 1 枚に移って一覧を閉じる。`Tab` で巡れて、現在の 1 枚のボタンにフォーカスが当たって開く。`contact` の PNG とは別物で、PNG は作らない |
-| 拡大 | 通常は窓に収める(`viewBox` の縦横比のまま `max-width:100%;max-height:100%`。`inlineSvg` の `max-width:100%;height:auto` と同じ考え)。`z`(または図のクリック)で「等倍(論理サイズ)」に切り替え、はみ出すぶんはスクロールで見る。もう一度で戻る。ピンチ・ホイールの拡大は**やらない**(ブラウザの拡大に任せる) |
+| 拡大 | 通常は窓に収める(`viewBox` の縦横比のまま `max-width:100%;max-height:100%`。`inlineSvg` の `max-width:100%;height:auto` と同じ考え)。`z`(または図のクリック)で「等倍(論理サイズ)」に切り替え、はみ出すぶんはスクロールで見る。もう一度で戻る。ピンチ・ホイールの拡大は**やらない**(ブラウザの拡大に任せる)。**一覧のときは `z` とクリックでの拡大を無効にする**(有効だと一覧で等倍に切り替わり、`max-width` が外れて格子が崩れる) |
 | URL ハッシュ | `#3`(1 始まりの番号)と `#<名前>`(ソースの basename。`idPrefixFor` と同じ規則で安全にしたもの)を受ける。移動のたびに `history.replaceState` で更新(戻るボタンで 1 枚ずつ遡らず、deck を離れる)。`hashchange` と最初の読み込みで同期。一覧を開いている状態は `#grid`(これだけは `pushState` で、戻るで一覧が閉じる) |
 | 印刷 | `@media print`: 全スライドを出し、1 枚 1 ページ(`break-after: page`)、ビューアの枠・ボタン・一覧は隠す。`@page` の `size` は**最大の図の論理サイズ**に合わせた 1 つだけ(図ごとの名前付き `@page` は第 2 段) |
 
@@ -122,7 +122,7 @@ svg-diagram deck <a.ts|a.svg>... --out deck.html [--title <text>] [--cols N] [--
 - 各スライドは `<section role="group" aria-roledescription="slide" aria-label="N / M: <名前>">`。名前は、(1) ソースの `diagram({title})` またはその既定(`lib/emit.ts` の `diagramTitle`。doc 向きの図が `<title id="svg-title">` に入れるもの)、(2) なければソースの basename、の順。**スライド向きの図には `<title>` が付かない**(上記)ので、(2) に落ちることが多い。要望: スライド向きの図にも `title` を出せるようにする話は別件(未決事項)。
 - 図の中の `role="img"` + `aria-labelledby="svg-title svg-desc"` は、`prefixSvgIds` が接頭辞付きの id に直す(ADR 0012: `aria-labelledby` の複数 id を書き換える)ので、スライドごとに正しい名前が付く。`<title>` を持たない図は、`<section>` の `aria-label` が名前になる。
 - 表示していないスライドは `hidden`(`display:none`)にして、DOM とアクセシビリティの木から外す(`aria-hidden` ではなく、フォーカスもされないように)。**JS なし、または印刷では全部が見える**(D3)。
-- ビューアの枠(`#deck`)は `tabindex="0"` で、`:focus-visible` の輪郭を消さない。移動後は、枠にフォーカスを残す(スライドの中にフォーカスを移さない)。`<div aria-live="polite" class="sr-only">` に「3 / 8: <名前>」を入れて、移動を読み上げる。ボタンは実体の `<button>` で、`aria-label`(前のスライド / 次のスライド / 一覧)を持つ。一覧を開くとき、現在のスライドのボタンにフォーカスし、閉じるときは枠に戻す。一覧を開いている間、背面の枠は `inert`。
+- ビューアの枠(`#deck`)は `tabindex="0"` で、`:focus-visible` の輪郭を消さない。移動後は、枠にフォーカスを残す(スライドの中にフォーカスを移さない)。`<div aria-live="polite" class="sr-only">` に「3 / 8: <名前>」を入れて、移動を読み上げる。ボタンは実体の `<button>` で、`aria-label`(前のスライド / 次のスライド / 一覧)を持つ。一覧を開くとき、現在のスライドのボタンにフォーカスし、閉じるときは枠に戻す。一覧を開いている間に `inert` にするのは、**前へ・次へのボタンなど「枠の操作部品」だけ**。`#deck` と各 `<section>` は対象外(一覧のボタンは `#deck` の中の `<section>` にあるので、`#deck` を `inert` にすると押せずフォーカスも当たらない)。一覧のときだけ、各 `<svg>` に `aria-hidden="true"` を付ける(閉じたら外す)。付けないと `role="img"` + `aria-labelledby` の名前と、ボタンの `aria-label` が同じ名前を 2 回読み上げる。
 - 動き(アニメーション)は**入れない**。切り替えは即時。`prefers-reduced-motion` で変える必要がない。
 - 色だけに頼らない: 現在位置は「3 / 8」の文字と、一覧の現在の枠の太さ(色以外の差)で示す。
 
@@ -185,7 +185,7 @@ svg-diagram deck <a.ts|a.svg>... --out deck.html [--title <text>] [--cols N] [--
 
 - 触るファイル: `lib/deck-viewer/viewer.js` と `lib/deck-viewer/viewer.css`(新規。**素の `.js` / `.css` の資産ファイル**。`Function#toString` で TS の関数を文字列化して埋める方式は、`tsc` 後の `dist/` で壊れやすいので採らない。`viewer.js` は `state.js` を読み込んで文書に埋める際、1 つの `<script>` にまとめる)、`lib/deck-viewer.ts`(新規。資産を `fs.readFileSync(new URL(…, import.meta.url))` で読んで返すだけ)、`package.json` の `files` と `prepack` / `tsconfig.build.json` の資産コピー、`test/deck-viewer.test.ts`(新規)
 - 中身: キー入力 → A の状態 → `hidden` / `inert` / ハッシュ / `aria-live` の更新。`<button>`、一覧(`grid` クラスの付け外しと、各 `<section>` の透明なボタン)、等倍。
-- テスト: **DOM の模擬(最小の `document` / `window`)**で、キーイベントを流して `hidden` の付け替え・`location.hash` の更新・`aria-live` の文字・一覧を開いたときの `inert` を確かめる。実ブラウザを使う検証(キー、フォーカス、印刷)は、`playwright-chromium` が使える環境のときだけ走らせる 1 つのスモーク(`test/deck-browser.test.ts`。`lint-svg` の `--engine browser` と同じ前提で、なければ skip): 次へ → ハッシュが `#2`、`g` で一覧、`Esc` で戻る、印刷メディアでの全スライドの表示数(`page.emulateMedia({media: 'print'})` の `display` の数)。**文字や箱の絶対座標・寸法は見ない**。
+- テスト: **DOM の模擬(最小の `document` / `window`)**で、キーイベントを流して `hidden` の付け替え・`location.hash` の更新・`aria-live` の文字・一覧を開いたとき「各 `<section>` のボタンにフォーカスが当たり、前へ・次へのボタンは `inert`(`#deck` と `<section>` は `inert` でない)」「各 `<svg>` に `aria-hidden="true"` が付き、閉じると外れる」「一覧で `z` を押しても等倍にならない」を確かめる。実ブラウザを使う検証(キー、フォーカス、印刷)は、`playwright-chromium` が使える環境のときだけ走らせる 1 つのスモーク(`test/deck-browser.test.ts`。`lint-svg` の `--engine browser` と同じ前提で、なければ skip): 次へ → ハッシュが `#2`、`g` で一覧、`Esc` で戻る、印刷メディアでの全スライドの表示数(`page.emulateMedia({media: 'print'})` の `display` の数)。**文字や箱の絶対座標・寸法は見ない**。
 
 ### D. コマンド本体(入出力)
 
