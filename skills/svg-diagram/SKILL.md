@@ -211,7 +211,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | 因果ループ図 | `causalLoop(nodes, [{from, to, polarity, delay?}], {layout?: 'ring'})` (`'ring'` は閉路が 1 つだけの図を円環に。ループ外のノード・弦・`direction` 併用は止まる。`interventions` は検査まで、描画は未実装) | `+` / `-`、遅延 `||`、単純ループの R / B 分類 |
 | 関連図 / 依存ネットワーク | `dependencyNetwork([{id, label, kind?}], [{from, to, type, weight?}], opts)` | kind / type の表現、重みの線幅と数値、使用した記法の凡例 |
 
-PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `analyzeCausalLoops`。長い日本語ラベルでは `width` を広げ、層が多いときは LR、並列が多いときは TB を試す。描いた後は必ず `check` とプレビューを通す。
+PERT の計算だけなら `analyzeCriticalPath`、ループ検出だけなら `analyzeCausalLoops`。長い日本語ラベルでは `width` を広げ、層が多いときは LR、並列が多いときは TB を試す。描いた後は必ず `check` とプレビューを通す。層状の自動配置の図では、高さが重なる隣の層の箱への矢印は、折れずに 1 本の直線で引かれる（円・六角形・AND の矢印は除く）。
 
 ## ワイヤーフレーム・画面遷移図で、見て直すこと（実際に効いた点）
 

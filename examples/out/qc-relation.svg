@@ -7,18 +7,18 @@
   </style>
   <rect x="0" y="0" width="940" height="1202" fill="#ffffff"/>
 
-  <path d="M480,696 L480,716 L472,716 L472,780" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M472,792 L467,780 L477,780 z" fill="#22201b"/>
-  <path d="M448,848 L448,864 L480,864 L480,932" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M480,940 L475,928 L485,928 z" fill="#22201b"/>
-  <path d="M480,996 L480,1016 L508,1016 L508,1080" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M476,696 L476,780" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M476,792 L471,780 L481,780 z" fill="#22201b"/>
+  <path d="M464,848 L464,932" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M464,940 L459,928 L469,928 z" fill="#22201b"/>
+  <path d="M508,996 L508,1080" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M508,1092 L503,1080 L513,1080 z" fill="#22201b"/>
   <path d="M468,76 L468,136 L496,136 L496,464 L540,464 L540,480" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M540,492 L535,480 L545,480 z" fill="#22201b"/>
-  <path d="M508,548 L508,564 L480,564 L480,632" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M480,640 L475,628 L485,628 z" fill="#22201b"/>
-  <path d="M424,76 L424,96 L372,96 L372,160" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M372,172 L367,160 L377,160 z" fill="#22201b"/>
+  <path d="M496,548 L496,632" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M496,640 L491,628 L501,628 z" fill="#22201b"/>
+  <path d="M400,76 L400,160" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M400,172 L395,160 L405,160 z" fill="#22201b"/>
   <path d="M444,76 L444,136 L464,136 L464,440 L368,440 L368,592 L388,592 L388,764 L448,764 L448,780" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M448,792 L443,780 L453,780 z" fill="#22201b"/>
   <path d="M596,76 L596,136 L592,136 L592,440 L620,440 L620,592 L572,592 L572,744 L540,744 L540,916 L500,916 L500,932" fill="none" stroke="#22201b" stroke-width="2"/>

@@ -544,6 +544,7 @@ bpmn(
 - 図の中の節（`id` を付けたもの）は、`connect()` の端点になり、`reveal` では図と一緒に出る。ただし spotlight は図ごと（図の `id`）で、節の `id` を指すと、そう書いて止まる。
 - `check` の「自動の凡例」（`legend: 'auto'`）と、色だけに頼る強調の検査は、これらの図の `tone`・破線・点線を数えない。`new` / `changed` / `removed` や破線の遷移・メッセージを使うときは、自分で `legend()` を置く。
 - 節の副題（`sub`）や «ステレオタイプ» の薄い文字は、`accent` / `new` の塗りの上でも 4.5:1 を保つよう、その塗りの上だけ通常の文字色になる。
+- 層状の図（`stateDiagram` / `causeTree` 系 / `classDiagram` / `pert` / `dependencyNetwork` / `causalLoop`）で、隣り合う層の 2 つの箱が高さ（`dir: 'right'` なら縦、`down` なら横）で重なる矢印は、端点を同じ高さにそろえて**折れずに 1 本の直線**で引く。ただし、①端の点が箱の辺から 6px 内側に収まる、②同じ辺のほかの矢印と一定の間隔を保てる、③交差・折れが今より増えない、④ほかの矢印の線と 1 本に見えるほど近く並ばない、のときだけ。円（`shape: 'circle'`）・六角形（`obstacle` / `risk`）の端と、AND の矢印は動かさない。満たせないときは従来どおり端点を開いて肘で引く。
 - ラベルの白いチップは、自分の矢印以外の矢印や、状態・クラス・ノードに乗らないよう置き場所を探す。見つからないときは `check` / `build` が、どれとどれが重なるかを書いて止まる。
 
 ### コンサル系のチャート（`waterfall` / `radar` / `heatmap` / `lines` / `stackedBars` / `mekko` / `treemap` / `sankey` / `tornado` / `bubble` / `butterfly` / `combo` / `harvey`）

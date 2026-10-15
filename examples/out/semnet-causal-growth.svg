@@ -12,10 +12,8 @@
   <path d="M470.6,108 L383.5,108" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M383.5,108 L383.5,156" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M383.5,156 L378.6,147 L388.5,147 Z" fill="#22201b"/>
-  <path d="M383.5,204 L383.5,222" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M383.5,222 L426.8,222" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M426.8,222 L426.8,284" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M426.8,284 L421.8,275 L431.7,275 Z" fill="#22201b"/>
+  <path d="M405.1,204 L405.1,284" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M405.1,284 L400.2,275 L410.1,275 Z" fill="#22201b"/>
   <path d="M440.8,284 L440.8,232" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M440.8,232 L470,232" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
   <path d="M470,232 L470,128" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
@@ -40,8 +38,8 @@
   <text x="557" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">疲労</text>
   <path d="M419.8,88 H434.2 V106 H419.8 Z" fill="#ffffff"/>
   <text x="427" y="102" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
-  <path d="M397.8,230 H412.2 V248 H397.8 Z" fill="#ffffff"/>
-  <text x="405" y="244" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
+  <path d="M397.8,224 H412.2 V242 H397.8 Z" fill="#ffffff"/>
+  <text x="405" y="238" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
   <path d="M462.8,160 H477.2 V178 H462.8 Z" fill="#ffffff"/>
   <text x="470" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
   <path d="M520.8,102 H535.2 V120 H520.8 Z" fill="#ffffff"/>
