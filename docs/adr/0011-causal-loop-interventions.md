@@ -212,3 +212,8 @@ export interface CausalOpts extends SemnetOpts {
 全 ADR を通したマージ順は、**0013 と 0012-E(独立)→ 0011 の U0 と A → (0009 の共通 PR)→ 0009 → 0010 → 0012 の A〜D** 。0011 の残り(B、D、C)は、U0 と A のあと、B・D を並列に進める。**C(`networkCanvas` に `inset` を足す)は、0009 U4(`networkCanvas` の呼び出しの書き換え)の後**にマージする。型(`types.ts`・`dsl.ts` のオーバーロード)の変更は最後に寄せ、各 ADR は `opts` の項目を足すだけにする、という方針の**例外が B**(`dsl.ts` の `causalLoop` のオーバーロードに型パラメータを足す)で、B は **0012 より先に入れる**(0012 の型の変更は、その上に足す)。
 
 A・B・D は、触るファイルの重なりが `lib/semnet-causal.ts` の別の関数だけなので、各自が自分の関数を新ファイルに切り出し(`placeLoopNames`、`resolveIntervention`、`layoutRing`)、`layoutCausal` の本体には 1 行の呼び出しだけ足す。各ユニットは、別の worktree・ブランチ・PR。「byte 同一」の比較は、各 PR の直前の `main` を基準にする。`main` の更新が速いので、マージ前に `git fetch` して rebase する。
+
+## 実装での補足(B = PR #159、D = PR #161)
+
+- B: 介入点を描かないまま黙って通すのを避けるため、`interventions` があると build は「受け付けて検査はするが、まだ描かない(単位 C)」で止まる。C でこの停止を外す。
+- D: `layoutRing` の引数は `(g, ns, loop, selfLinks)`。ADR の `inset` は C で足す。ring と介入点の併用のテストも C に回した。自己ループは、入ってくる弧に重なったため、箱の外側の辺に出る小さな四角形にした。`analyzeCausalLoops` は自己ループも 1 ノードの閉路として数えるので、ring の条件では 1 ノードの閉路を無視している。
