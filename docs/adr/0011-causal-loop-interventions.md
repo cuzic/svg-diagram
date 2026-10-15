@@ -156,10 +156,10 @@ export interface CausalOpts extends SemnetOpts {
 - **既存の因果ループ図・依存ネットワークの SVG は、要素の順が変わる**(2 段にするため。線が先、記号とラベルが後)。見た目は同じか、衝突を避けた分だけ記号の位置が動く。したがって「衝突がない図は byte 同一」は成り立たない。`pnpm golden` で golden を更新し、**`diff-svg` で「要素の順だけが変わった(見た目は同じ)」と説明する**(PR に貼る)。見た目が変わった図は、個別に理由を書く。U0 の整理だけは、byte 同一を保つ(動作を変えないので)。
 - 記号が黙って消えていた図は、止まるようになる(破壊的だが、図の意味が壊れていた場合に限る)。止まったら、`height` / `width` を足す。実装前に件数を測る(決定 4)。
 - 公開 API の追加: 型 `CausalIntervention`、`CausalOpts` の 2 項目。`dsl-exports.json`(関数名の一覧)は変わらない(新しい関数がない)。`lib/dsl.ts:1940` の型の再エクスポートに `CausalIntervention` を足す。
-- `pert` / `dependencyNetwork` と共有のコード(`arrow`、`edgeMid`、`pathOf`)は、書き換えずに export して使う。`networkCanvas` だけは、C が省略可能の引数 `inset` を足す(省略時の出力は変わらない)ので、0009 U4 の書き換えと衝突する。そのため C は 0009 U4 の後に入れる(下の順序)。
+- `pert` / `dependencyNetwork` と共有のコード(`arrow`、`edgeMid`、`pathOf`)は、書き換えずに export して使う。`networkCanvas` だけは、C が省略可能の引数 `inset` を足す(省略時の出力は変わらない)ので、0016 U4 の書き換えと衝突する。そのため C は 0016 U4 の後に入れる(下の順序)。
 - 検査(`charts-verify.ts`)・`Canvas`(`charts-base.ts`)は変えない。
 - **ADR 0012(id のスコープ化)との関係**: 介入点の id は `band.ids` に入り、ノードの id と同じ扱いになる(スコープの修飾の対象、`spotlight` / `reveal` の照合も同じ)。0012 が決める「帯の出力のアンカーの素の名前への戻し」と同じ経路を、介入点もそのまま通る。`causalLoop` のオーバーロード(`lib/dsl.ts:990`)と `CausalOpts`(`lib/semnet.ts:14`)は、0011 と 0012 の両方が変える。0011 が先にマージされ、0012 の型の変更は、その上に足す(下の順序)。
-- **ADR 0009 との順序**: 0009 は `networkCanvas` / `layoutLayered` の呼び出しを書き換える。**0011 の U0 と A を先にマージし**、そのあとで 0009 を入れる。0011 の C(`inset`)と 0009 の変更が `networkCanvas` で衝突するので、C は 0009 U4 の後に回す。各 PR の「byte 同一」の比較は、その PR の直前の `main` を基準にする。
+- **ADR 0016 との順序**: 0016 は `networkCanvas` / `layoutLayered` の呼び出しを書き換える。**0011 の U0 と A を先にマージし**、そのあとで 0016 を入れる。0011 の C(`inset`)と 0016 の変更が `networkCanvas` で衝突するので、C は 0016 U4 の後に回す。各 PR の「byte 同一」の比較は、その PR の直前の `main` を基準にする。
 
 ### 未決・限界
 
@@ -192,7 +192,7 @@ export interface CausalOpts extends SemnetOpts {
 - 触る: `lib/semnet-causal.ts`(`CausalSpec` に `interventions`、`resolveCausal` の検査、`causalAlt`、texts)、`lib/semnet.ts` の型 `CausalOpts`、`lib/semnet-dsl.ts`(`causalBand` の `ids`)、`lib/dsl.ts`(`causalLoop` の型パラメータ、`CausalIntervention` の再エクスポート)、`test/types/semnet.ts`(介入点の id がアンカーになる、未知の id は `@ts-expect-error`)、`test/semnet.test.ts` に検査のテスト(`to` が未知、重複 id、介入点から介入点、極性が不正、`R1` の分類が介入点で変わらない)。
 - この ADR の `CausalIntervention` の型を契約にする。C は、B がマージされる前は、`CausalSpec.interventions` の型だけを先取りして進められる。
 
-**C. 介入点の配置(決定 3)** — B の型が必要。`networkCanvas` に `inset` を足すので、0009 U4 の後にマージする。
+**C. 介入点の配置(決定 3)** — B の型が必要。`networkCanvas` に `inset` を足すので、0016 U4 の後にマージする。
 - 触る: `lib/semnet-interventions.ts`(新: `placeInterventions(c, spec, layout, g)`。第 1 段で箱と矢印、第 2 段で記号を描く関数を分ける)、`lib/semnet-causal.ts`(呼び出しと `inset`)、`networkCanvas` の `inset` 引数、`test/semnet-interventions.test.ts`(新)。
 - テスト: 押し離しは単体で。図としては、介入点 1〜4 個 × 対象 1〜2 個 × LR / TB の掃引(種固定)で、`checkDiagram` が空か、置けないという明示のエラー、かつ `lint --strict` が通る。介入点の矢印がノードの箱を貫かないこと(`segHitsRect` で出力の線とノードの箱から再計算)。`height` 未指定で図が伸びること。介入点のアンカーが `connect()` の端点になること。
 - 例: `examples/semnet-causal-intervene.ts`(「標準の合意」「早期の果実」を入れた 5 ノードの悪循環)。
@@ -209,7 +209,7 @@ export interface CausalOpts extends SemnetOpts {
 
 ### 順序と統合
 
-全 ADR を通したマージ順は、**0013 と 0012-E(独立)→ 0011 の U0 と A → (0009 の共通 PR)→ 0009 → 0010 → 0012 の A〜D** 。0011 の残り(B、D、C)は、U0 と A のあと、B・D を並列に進める。**C(`networkCanvas` に `inset` を足す)は、0009 U4(`networkCanvas` の呼び出しの書き換え)の後**にマージする。型(`types.ts`・`dsl.ts` のオーバーロード)の変更は最後に寄せ、各 ADR は `opts` の項目を足すだけにする、という方針の**例外が B**(`dsl.ts` の `causalLoop` のオーバーロードに型パラメータを足す)で、B は **0012 より先に入れる**(0012 の型の変更は、その上に足す)。
+全 ADR を通したマージ順は、**0013 と 0012-E(独立)→ 0011 の U0 と A → (0016 の共通 PR)→ 0016 → 0010 → 0012 の A〜D** 。0011 の残り(B、D、C)は、U0 と A のあと、B・D を並列に進める。**C(`networkCanvas` に `inset` を足す)は、0016 U4(`networkCanvas` の呼び出しの書き換え)の後**にマージする。型(`types.ts`・`dsl.ts` のオーバーロード)の変更は最後に寄せ、各 ADR は `opts` の項目を足すだけにする、という方針の**例外が B**(`dsl.ts` の `causalLoop` のオーバーロードに型パラメータを足す)で、B は **0012 より先に入れる**(0012 の型の変更は、その上に足す)。
 
 A・B・D は、触るファイルの重なりが `lib/semnet-causal.ts` の別の関数だけなので、各自が自分の関数を新ファイルに切り出し(`placeLoopNames`、`resolveIntervention`、`layoutRing`)、`layoutCausal` の本体には 1 行の呼び出しだけ足す。各ユニットは、別の worktree・ブランチ・PR。「byte 同一」の比較は、各 PR の直前の `main` を基準にする。`main` の更新が速いので、マージ前に `git fetch` して rebase する。
 

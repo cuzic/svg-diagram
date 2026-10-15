@@ -3,7 +3,7 @@
 - 状態: 提案
 - 日付: 2026-10-13
 - 基点: `main`(4e58744、PR #120 まで)
-- 関連: ADR 0008。要望の原文は「資料づくり(medius)からの要望」の B 節(B1 / B2 / B3)。追補(2026-10-14): 同じ依頼元の G 節のうち G5・G10(下の D7・D8。TOC の他の要望は ADR 0015、戻り辺・AND は ADR 0009 D9〜D11)
+- 関連: ADR 0008。要望の原文は「資料づくり(medius)からの要望」の B 節(B1 / B2 / B3)。追補(2026-10-14): 同じ依頼元の G 節のうち G5・G10(下の D7・D8。TOC の他の要望は ADR 0015、戻り辺・AND は ADR 0016 D9〜D11)
 
 ## 背景
 
@@ -56,9 +56,9 @@
 
 ## 決定
 
-### D0: 前提(ADR 0009 の共通 PR)
+### D0: 前提(ADR 0016 の共通 PR)
 
-層状レイアウトの 1 回分の試行(配置、辺の経路、点数、大きさ、`loose`)は、ADR 0009 の共通 PR が `layeredAttempt(nodes, edges, opts, {portStep, groupOf, transpose, maxAcross})` として切り出す。呼び出し側に散っている `routeLayered` の `place` / `portStep` / `groupOf`、幅の判定、転置(`lib/toc.ts:93-122`、`lib/states.ts:64-77`、`lib/classes.ts:59-67`)はそこに集まる。**本 ADR はこれに依存し、`graph-layout.ts` / `layered-route.ts` の配置アルゴリズムは触らない**。B3 の成分配置も ADR 0009(層番号は全体で 1 つ、成分ごとに座標を決めて詰める。0009 U2 の手順 4・5)が引き取る(D4)。マージ順は ADR 0009「実装順序」節に従い、0013 / 0012-E → 0011 U0・A → 共通 PR → 0009 → **0010** → 0012 の順で、0010 は 0009 の後。
+層状レイアウトの 1 回分の試行(配置、辺の経路、点数、大きさ、`loose`)は、ADR 0016 の共通 PR が `layeredAttempt(nodes, edges, opts, {portStep, groupOf, transpose, maxAcross})` として切り出す。呼び出し側に散っている `routeLayered` の `place` / `portStep` / `groupOf`、幅の判定、転置(`lib/toc.ts:93-122`、`lib/states.ts:64-77`、`lib/classes.ts:59-67`)はそこに集まる。**本 ADR はこれに依存し、`graph-layout.ts` / `layered-route.ts` の配置アルゴリズムは触らない**。B3 の成分配置も ADR 0016(層番号は全体で 1 つ、成分ごとに座標を決めて詰める。0016 U2 の手順 4・5)が引き取る(D4)。マージ順は ADR 0016「実装順序」節に従い、0013 / 0012-E → 0011 U0・A → 共通 PR → 0016 → **0010** → 0012 の順で、0010 は 0016 の後。
 
 ### D1: 自動は「`dir` を省略した図」と `dir: 'auto'` だけ(B1)
 
@@ -79,9 +79,9 @@
 2. 軸を変えた向き(`up` → `right`。意味が反転する `up` → `down` は試さない)。
 3. 各向きで `maxNodeW`(`MAX_W`、`lib/toc.ts`)を 200 → 160 → 130 → 110 と狭める。下限は 100px で、ノード内の 1 行が 2 字未満(「支払/い」型)になる手前まで(`lib/rules.ts:330` の `shrink-narrow-text` の考え方)。文字サイズは下げない(`MIN_FONT_SIZE`、`lib/tokens.ts:245`)。
 
-**`dir: 'auto'` の定義(1 つに絞る)**: 試行の候補を上の順序で並べ、**幅に収まり、かつ高さがキャンバスの高さ予算内**の案のうち、`layeredAttempt` の点数(ADR 0009 の (交差, 折れ) の辞書式)が最良のもの。同点なら順序の早い方。高さ予算は、`diagram({canvas})` なら `canvas.height`、スライドの測定があれば `maxDisplayHeight`(`lib/fit.ts`)、どちらも無ければ予算なし(幅だけ判定)。縦にして高さが予算を超える案は候補から外す。**`dir` 省略時は「最初に収まった案」**(面積では選ばない。既存の出力との連続性を優先)。
+**`dir: 'auto'` の定義(1 つに絞る)**: 試行の候補を上の順序で並べ、**幅に収まり、かつ高さがキャンバスの高さ予算内**の案のうち、`layeredAttempt` の点数(ADR 0016 の (交差, 折れ) の辞書式)が最良のもの。同点なら順序の早い方。高さ予算は、`diagram({canvas})` なら `canvas.height`、スライドの測定があれば `maxDisplayHeight`(`lib/fit.ts`)、どちらも無ければ予算なし(幅だけ判定)。縦にして高さが予算を超える案は候補から外す。**`dir` 省略時は「最初に収まった案」**(面積では選ばない。既存の出力との連続性を優先)。
 
-**意味優先**: 候補にしてよい向きの切り替えは、causeTree なら `up` ⇄ `right`、states / classes / tree なら縦横の反対側だけ。ADR 0009 D7 の pdpc の既定 `'outer'` のように、0009 の変更で幅が増えて、いま収まっている図がはみ出す場合は、**0009 が「収まっていた図は収まる」を点数の足切りで保証する**(0009 の責務。0010 は「0009 の後の `main` で収まっている図は不変」を条件にする)。
+**意味優先**: 候補にしてよい向きの切り替えは、causeTree なら `up` ⇄ `right`、states / classes / tree なら縦横の反対側だけ。ADR 0016 D7 の pdpc の既定 `'outer'` のように、0016 の変更で幅が増えて、いま収まっている図がはみ出す場合は、**0016 が「収まっていた図は収まる」を点数の足切りで保証する**(0016 の責務。0010 は「0016 の後の `main` で収まっている図は不変」を条件にする)。
 
 **`causeTree` は軸を変えない**(G5): `causeTree` 本体(`relationDiagram` / `pdpc` / `arrowDiagram` を除く)は、「原因が下、結果が上」が TOC の書き方の約束なので、`dir` 省略・`'auto'` でも `up` → `right` を**常に試さない**。`tree`(ADR 0015)は検査にだけ使い、ここでは見ない(`tree` を書かない依頼者の現状ツリーも向きが変わらない)。試行は、(1) 既定の向き、(2) `maxNodeW` を狭める(上の 3)、(3) 折り返し(D7)の順で、向きは保つ。`dir: 'auto'` の `causeTree` は、したがって `dir` 省略と同じ試行になる。`relationDiagram` / `pdpc` は、上の順序のまま。
 
@@ -103,13 +103,13 @@ causeTree(): the figure does not fit 900px.
 
 新しい検査 `auto-fit-applied`。`dir` 省略で自動が働いたら **warn**(`build` が出す `warnings` に載り、書き手が必ず目にする。`build-diagram.ts:149` の経路は warnings のみ表示するため、info では見えない)。`dir: 'auto'` と書いた図は意図どおりなので **info**。内容は「`dir` を `up` から `right` に変えた(1460→1180px)」「`maxNodeW` を 200→130 に縮めた」。warn は `check --strict` を落とす(`check-diagram.ts:253`)ので、省略時の warn は書き手に「`dir: 'auto'` と明示すれば info に下がる」と案内する。`accept` で許容できる(`RULE_DOCS` に登録、`lib/config.ts:43`)。
 
-### D4: 非連結成分の詰め置き(B3)は ADR 0009 に移す
+### D4: 非連結成分の詰め置き(B3)は ADR 0016 に移す
 
-当初案(成分ごとに層を 0 から振り、`levelGap` も成分ごと)は、`routeLayered` が層番号で `layerRight` / `layerLeft` を引き、成分をまたいで最大・最小を取る実装(`lib/layered-route.ts:53-59,123`)と両立しない(折れる位置が別成分の隙間に出て箱を貫く)ので**捨てる**。ADR 0009 U2 の手順 4・5 が、**層番号は全体で 1 つのまま**、手順 4 で同じ成分を連続して並べ、手順 5 で成分ごとに座標を決めて詰める。本 ADR は B3 の受け入れだけを持つ。
+当初案(成分ごとに層を 0 から振り、`levelGap` も成分ごと)は、`routeLayered` が層番号で `layerRight` / `layerLeft` を引き、成分をまたいで最大・最小を取る実装(`lib/layered-route.ts:53-59,123`)と両立しない(折れる位置が別成分の隙間に出て箱を貫く)ので**捨てる**。ADR 0016 U2 の手順 4・5 が、**層番号は全体で 1 つのまま**、手順 4 で同じ成分を連続して並べ、手順 5 で成分ごとに座標を決めて詰める。本 ADR は B3 の受け入れだけを持つ。
 
-- 先に空白の原因を再現して確かめる(依頼者の現状ツリーを `dir: 'right'` にして、層ごとの中央揃え(`lib/graph-layout.ts:253-255`)と成分の層の共有のどちらが空白を作るかを測る)。結果は 0009 の U2 に渡す。
-- 成分が 1 つの図は現状と同一の出力。複数成分の既存の図は変わるので、ゴールデンの差分を個別に確認する(0009 の PR で)。
-- `bpmn` は層番号を使うので影響を受けない前提で、0009 側で確認する。
+- 先に空白の原因を再現して確かめる(依頼者の現状ツリーを `dir: 'right'` にして、層ごとの中央揃え(`lib/graph-layout.ts:253-255`)と成分の層の共有のどちらが空白を作るかを測る)。結果は 0016 の U2 に渡す。
+- 成分が 1 つの図は現状と同一の出力。複数成分の既存の図は変わるので、ゴールデンの差分を個別に確認する(0016 の PR で)。
+- `bpmn` は層番号を使うので影響を受けない前提で、0016 側で確認する。
 
 ### D5: 図ごとの `maxWidth`(B2)
 
@@ -122,7 +122,7 @@ causeTree(): the figure does not fit 900px.
 
 ### D6: semnet は対象から外す
 
-`networkCanvas`(`lib/semnet.ts:83`)は幅が超えても throw せず、`scale = min(1, (g.w - 8) / naturalW)`(同 88 行)で縮める。収まらない問題の形が違うので、`direction: 'auto'` は**今回入れない**。縦横の選択で文字を大きく保てる場合の扱い(縮小率が小さいときだけ向きを試す、など)は、別の要望として起こす。`pert` / `causalLoop` / `dependencyNetwork` の `networkCanvas` は ADR 0009 U4 と ADR 0011 C も触るため、本 ADR は触らない。
+`networkCanvas`(`lib/semnet.ts:83`)は幅が超えても throw せず、`scale = min(1, (g.w - 8) / naturalW)`(同 88 行)で縮める。収まらない問題の形が違うので、`direction: 'auto'` は**今回入れない**。縦横の選択で文字を大きく保てる場合の扱い(縮小率が小さいときだけ向きを試す、など)は、別の要望として起こす。`pert` / `causalLoop` / `dependencyNetwork` の `networkCanvas` は ADR 0016 U4 と ADR 0011 C も触るため、本 ADR は触らない。
 
 ### D7: 上向きのまま折り返す(`fold`)。TOC の図は向きを変えず、狭めてから折り返す(G5)
 
@@ -147,8 +147,8 @@ causeTree(): the figure does not fit 900px.
 - `layoutLayered` に `fold?: number`(1 行の across の上限)を足す。`causeTree` は、`fold` を `w`(図の内幅)から決めて渡す(縦の図は転置後の `h`)。`fold` が無ければ、今と同じ(手順 3 に何も足さない)。
 - **いつ使うか**: ① 明示 `fold: true`(`causeTree` の opts。幅に収まらないときだけ効く。収まる図は何もしない)。② `dir` 省略・`'auto'` の図では、D1 の試行の**最後の段階**(狭めても収まらなかったとき)。向きを変える試行(`tree` の無い図)のほうが先。③ `dir` を明示した図は、`fold: true` を書かない限り、変えずに throw(D1。throw の文面に `fold: true` を直し方の候補として足す)。
 - `fitApplied` に「折り返し(層 3 を 2 行に)」を記録する(D3 の検査 `auto-fit-applied`)。
-- 折り返した図は、行の間を層をまたぐ辺が通るので、折れが増える。従来の折れの数え方(ADR 0009 の点数)に載るだけで、特別扱いはしない。D1 の「最初に収まった案」の原則どおり、`fold` は収まらない図にだけ働く。
-- 実装は、`lib/graph-layout.ts`(手順 2 と 3 の間)と `lib/toc.ts` の `maxAcross` に触る。**ADR 0009 の `graph-layout.ts` の担当の列(U11 → U3 → U2 → U7)の最後**に入れる(D0 の「0010 は配置アルゴリズムに触らない」の例外。折り返しは層の割り当ての変更で、`fitWidth` の外では書けない)。
+- 折り返した図は、行の間を層をまたぐ辺が通るので、折れが増える。従来の折れの数え方(ADR 0016 の点数)に載るだけで、特別扱いはしない。D1 の「最初に収まった案」の原則どおり、`fold` は収まらない図にだけ働く。
+- 実装は、`lib/graph-layout.ts`(手順 2 と 3 の間)と `lib/toc.ts` の `maxAcross` に触る。**ADR 0016 の `graph-layout.ts` の担当の列(U11 → U3 → U2 → U7)の最後**に入れる(D0 の「0010 は配置アルゴリズムに触らない」の例外。折り返しは層の割り当ての変更で、`fitWidth` の外では書けない)。
 
 ### D8: 日本語の長い文を文節で折る(`wrap: 'bunsetsu'`)。長い箱は幅を広げる(G10)
 
@@ -172,7 +172,7 @@ causeTree(): the figure does not fit 900px.
 - **A3: 文字を縮めて収める。** 14px の下限と `slide-min-text` に反する。
 - **A4: `fit: 'strict'` で自動を止める。** 明示した指定が変わらなくなったので不要。既存の `fit: 'shrink'` / `--fit` と名前もぶつかる。
 - **A5: 最初から全案を試して最良を選ぶ。** 収まる図の出力も変わる。省略時は最初に収まった案で止める。
-- **A6: B3 を本 ADR の D4(成分ごとの層番号)で直す。** `routeLayered` と両立しない。0009 の全体で 1 つの層番号に統一した。
+- **A6: B3 を本 ADR の D4(成分ごとの層番号)で直す。** `routeLayered` と両立しない。0016 の全体で 1 つの層番号に統一した。
 - **A7: B2 の `maxWidth` をレイアウトの幅にする。** 既存の意味(検査の閾値)と矛盾する。
 - **A8: 段組みを最初から入れる。** D2 のとおり、測ってから。
 - **A9: semnet にも `'auto'` を入れる。** D6 のとおり、throw でなく縮小なので別の問題。
@@ -183,16 +183,16 @@ causeTree(): the figure does not fit 900px.
 
 ## 影響
 
-- **出力の互換**: 収まっている図は不変(省略時も明示時も)。変わるのは「いま throw している図で、`dir` 省略か `'auto'` のもの」。B3 の成分配置は 0009 の変更として別に差分が出る。
+- **出力の互換**: 収まっている図は不変(省略時も明示時も)。変わるのは「いま throw している図で、`dir` 省略か `'auto'` のもの」。B3 の成分配置は 0016 の変更として別に差分が出る。
 - **検査**: `auto-fit-applied`(省略時 warn、`'auto'` 時 info)を追加。README の検査一覧(`README.md:964` 付近)と `RULE_DOCS` を同期する。warn は `check --strict` で exit 1 になる点に注意(D3)。
-- **API**: 追加のみ。`dir: 'auto'`(causeTree / stateDiagram / classDiagram / tree)、`diagram({maxWidth})`。`fit: 'strict'` と semnet の `'auto'` は作らない。`CauseOpts` / `StatesOpts` には 0009(straighten, returns)と 0012(scope)も同時に項目が足されるので、`types.ts` は各 PR が自分の項目だけを足す(順序は D0)。
+- **API**: 追加のみ。`dir: 'auto'`(causeTree / stateDiagram / classDiagram / tree)、`diagram({maxWidth})`。`fit: 'strict'` と semnet の `'auto'` は作らない。`CauseOpts` / `StatesOpts` には 0016(straighten, returns)と 0012(scope)も同時に項目が足されるので、`types.ts` は各 PR が自分の項目だけを足す(順序は D0)。
 - **エラー文**: 4 か所の throw(`toc.ts:95`、`states.ts:77`、`tree.ts:94`、`classes.ts:67`)が、試した案つきの共通の文面になる。文言を検査している既存のテスト(`test/toc.test.ts`、`test/states.test.ts`、`test/tree.test.ts` で `wide but` を grep)を直す。
 - **G 節(D7・D8)**: `fold` は、書かない・幅に収まる図では何もしない(byte 同一)。`wrap: 'bunsetsu'` は新しい値で、既定('phrase')の図は変わらない。
-- **リスク**: (1) 0009 の `layeredAttempt` の形が本 ADR の想定と違う場合は、D1 の試行の呼び出しを合わせる(0010 は 0009 の後なので追従できる)。(2) 縦向きの候補が高さ予算を超える(D1 で除外)。(3) fishbone の幅は骨の数で決まり、`maxNodeW` の縮小では足りないことが多い(D2 の第 2 段階の対象)。
+- **リスク**: (1) 0016 の `layeredAttempt` の形が本 ADR の想定と違う場合は、D1 の試行の呼び出しを合わせる(0010 は 0016 の後なので追従できる)。(2) 縦向きの候補が高さ予算を超える(D1 で除外)。(3) fishbone の幅は骨の数で決まり、`maxNodeW` の縮小では足りないことが多い(D2 の第 2 段階の対象)。
 
 ## 実装計画
 
-前提: ADR 0009 の共通 PR(`layeredAttempt`)と 0009 が `main` に入った後に着手する(D0)。`byte` 比較の基準は、各 PR 直前の `main`。
+前提: ADR 0016 の共通 PR(`layeredAttempt`)と 0016 が `main` に入った後に着手する(D0)。`byte` 比較の基準は、各 PR 直前の `main`。
 
 ### U0: 試行の共通ヘルパ
 
@@ -222,17 +222,17 @@ U1〜U4 は `types.ts` の同じ型に項目を足すので、各 PR が自分�
 
 ### U5: 折り返し(D7、G5)
 
-- `lib/graph-layout.ts`(`fold` 引数。手順 2 の後、手順 3 の前に層を行に分ける)、`lib/toc.ts`(`fold` の上限を `w` から決める、`fold: true` の opts)、`lib/fit-width.ts`(試行の最後の段階に `fold` を足す。TOC の図は軸の試行を飛ばす)、`lib/types/diagrams.ts`(`CauseOpts.fold`)、`lib/dsl/diagrams.ts`(検証)、`README.md`。依存: 0009 の U7 まで(`graph-layout.ts` の担当の列の最後)、本 ADR の U0・U1。
+- `lib/graph-layout.ts`(`fold` 引数。手順 2 の後、手順 3 の前に層を行に分ける)、`lib/toc.ts`(`fold` の上限を `w` から決める、`fold: true` の opts)、`lib/fit-width.ts`(試行の最後の段階に `fold` を足す。TOC の図は軸の試行を飛ばす)、`lib/types/diagrams.ts`(`CauseOpts.fold`)、`lib/dsl/diagrams.ts`(検証)、`README.md`。依存: 0016 の U7 まで(`graph-layout.ts` の担当の列の最後)、本 ADR の U0・U1。
 - テスト(`test/graph-layout.test.ts`、`test/toc.test.ts`)は、フォントに依存しない形にする: **自然な幅を実測してから上限を決める**(先に幅を十分に取って 1 回レイアウトし、その幅の 6 割を図の幅にする)。(a) `fold` 無しで throw、`fold: true` で収まる、(b) どの行も across の合計が上限以下、(c) 節が重ならない・辺の向き(結果が原因より上)が保たれる・verify が通る、(d) 収まる図は `fold: true` を付けても byte 同一、(e) 折り返した層の節の数が、元の層と同じ、(f) 決定性、(g) `fold` 引数を渡さない `layoutLayered` が、今と同じ結果(`examples/` の自動配置の図で byte 同一)。
 
 ### U6: `wrap: 'bunsetsu'`(D8、G10)
 
-- `lib/wrap.ts`(単位の規則)、`lib/tree.ts`(`measureNode` の幅の拡張)、`lib/types/core.ts`・`lib/dsl/render.ts`(値の追加と検証)、`README.md`(`diagram({wrap})` の説明)、`test/wrap.test.ts`。0009・U0〜U4 と独立(配置に触らない。どの順でもよい)。
+- `lib/wrap.ts`(単位の規則)、`lib/tree.ts`(`measureNode` の幅の拡張)、`lib/types/core.ts`・`lib/dsl/render.ts`(値の追加と検証)、`README.md`(`diagram({wrap})` の説明)、`test/wrap.test.ts`。0016・U0〜U4 と独立(配置に触らない。どの順でもよい)。
 - テスト(フォントに依存しない): `wrapText` に、**1 文字の幅を固定した `atomWidth`**(`a => a.length * 10` のような)を渡す。(a) 依頼の 3 文(「現場が協力せず、形だけ使う」「稼働率で評価されるため仕掛りが増える」「PoCは成功するが指標が動かない」)を、いくつかの幅で折り、**折れ目が許す場所(ひらがなの直後で次がひらがな以外、句読点の後)にだけある**、(b) 行を連結すると元の文に戻る(欠落・重複なし)、(c) 単位が 1 行より長いとき文字ごとに折る、(d) `'phrase'` / `'char'` の結果が、変更前と同一(固定の入力の一覧で)、(e) 禁則(行頭の `、` など)が守られる、(f) 乱数の文字列(漢字・かな・英数字・句読点、種固定)の性質テスト: (a)(b)(e) が成り立つ。`measureNode` は、箱の幅が `maxNodeW` 以下か、または最も長い単位の幅以下であることを、**幅と単位の関係**で見る(絶対値を書かない)。`examples/` の全図が byte 同一(`wrap` を書かない図)。
 
 ### 順序と分担
 
-(0009 の共通 PR と 0009)→ U0 → (U1、U2、U3 を並列)→ U4。**U5(折り返し)は U1 と 0009 の U7 のあと**(`graph-layout.ts` の担当の列の最後)、**U6(`wrap: 'bunsetsu'`)は独立**(いつでも)。各 PR 前に `pnpm test` と `pnpm run typecheck`。ゴールデンは `pnpm run golden` で、直前の `main` との差分が U1〜U3 では「いま throw していた図が出るようになる」以外に無いことを確認する。
+(0016 の共通 PR と 0016)→ U0 → (U1、U2、U3 を並列)→ U4。**U5(折り返し)は U1 と 0016 の U7 のあと**(`graph-layout.ts` の担当の列の最後)、**U6(`wrap: 'bunsetsu'`)は独立**(いつでも)。各 PR 前に `pnpm test` と `pnpm run typecheck`。ゴールデンは `pnpm run golden` で、直前の `main` との差分が U1〜U3 では「いま throw していた図が出るようになる」以外に無いことを確認する。
 
 ### 受け入れ条件
 
@@ -246,6 +246,6 @@ U1〜U4 は `types.ts` の同じ型に項目を足すので、各 PR が自分�
 
 ### 未決(実装担当が確認して ADR に追記する)
 
-- 0009 の `layeredAttempt` の最終的な型(D0。0010 は 0009 の後なので、着手時に合わせる)。
+- 0016 の `layeredAttempt` の最終的な型(D0。0010 は 0016 の後なので、着手時に合わせる)。
 - 依頼者の 1460px の実物が D1 の試行で収まるか。収まらなければ D2 の第 2 段階を別 ADR で起こす。
-- B3 の空白の原因の再現結果(D4。0009 U2 に渡す)。
+- B3 の空白の原因の再現結果(D4。0016 U2 に渡す)。
