@@ -70,6 +70,7 @@
 }
 ```
 
+- **規則のセレクタは、出力のときに `svg[data-appearance="auto"]` で限定する**(`svg[data-appearance="auto"] [fill="#ffffff" i] { fill: … }`)。利用者が `build` の SVG をそのまま自分の HTML に貼っても、ダークモードのとき、ページ内の同じ色を持つ他の要素(他の SVG・アイコン)を塗り替えない。D3 の `scopeRules` の `@media` 対応は、deck / md の経路での二重の安全策として残す。
 - 規則は、**その図が実際に使っている明るい色だけ**を、`DARK_OF`(`{auto}` ならそのカスタム版。タイルの `tones` の `dark` 対も `mapOf` が持っている)で変換して並べる。`fill` / `stroke` / `stop-color` / `flood-color` / `color` の 5 属性。色の並びは昇順に固定し、同じ図は同じバイト列になる。
 - 理由(CSS 変数にしない): (1) 変数にすると、`fill="var(--sd-text)"` のように本文の属性を全部書き換えることになり、`auto` を使わない図との差が大きくなり、`lint-svg` の色の読み取り(`lint-svg.ts:146-152`)と衝突する。(2) 属性値の `var()` は、サポートが描画系(resvg、各種ビューア、Inkscape)で揺れる。属性セレクタの CSS 規則は、属性(詳細度 0)に勝ち、読めない環境では**明るい図に戻るだけ**で壊れない。(3) 明→暗は 1 対 1 で、暗い側の 16 進は明るい側と重ならない(`tokens.ts` の注釈)ので、セレクタが曖昧にならない。
 - ルートの `data-appearance` は `"auto"`。`deck-html.ts:80` の正規表現(`"dark"` だけ)には掛からないので、deck の `slide-dark`(枠を暗くする)は付かない。枠の追従はビューアの CSS(`viewer.css:4`)のまま。
@@ -82,10 +83,10 @@
 
 - `verifyDiagram` と `lintRules`(`lib/verify.ts`、`lib/rules.ts` の入口)で、`appearance` が `auto` のとき、**図のコピーを `appearance: 'light'` と `'dark'`(`{auto}` なら対応する `{dark}`)で 2 回検査**し、結果を結合する。`paintOf` を使う 7 か所(上の事実)を直さずに済む。色に依存する指摘だけが違うので、メッセージが同一のものは 1 つにまとめ、暗い側にだけ出たものには `(暗い配色)` を付ける。
 - `transparent: true` かつ `auto`: 背景の色が分からないので、明るい側は `PALETTE.bg`、暗い側は `DARK_PALETTE.bg`(カスタムならその `bg`)の**両方**を仮定して検査する(上の 2 回の検査が、そのまま `pageColorOf` の違いになる)。
-- `lint-svg`(描画後): `data-appearance="auto"` なら、許す色を明暗両方のトークン(`ALLOWED_COLORS` と `DARK_COLORS`、`data-palette`)にし、ブラウザを `colorScheme: 'light'` と `'dark'` の 2 回で描いて検査する(Playwright の `emulateMedia`)。
+- `lint-svg`: 既定の検査(`--engine geometry`)は SVG の文字列を読む `geometryChecks`(`lint-svg.ts:233`、`lib/svg-lint.ts`)で、`@media` を評価しない。`emulateMedia` の 2 回描画は `--engine browser` でしか働かず、既定では暗い側が検査されない。そこで、**暗い側の SVG を文字列で作る**: `auto` の SVG から `@media` のブロックを外し(`svg[data-appearance="auto"]` で限定した規則を削る)、`recolor(svg, 'dark')` をかけたものを、暗い側の入力にする。明るい側(ブロックを外しただけのもの)と暗い側を、**どちらの方式(geometry / browser)でも同じ検査にかける**(browser では、文字列で作った 2 つの SVG をそれぞれ描く。`emulateMedia` には頼らない)。許す色の集合も**側ごとに分ける**: 明るい側は明るいトークン(と `data-tone-colors`)、暗い側は暗いトークンと `data-palette`。両方を足し合わせると、明るい側に暗い色が混ざっても通ってしまい、緩くなる。
 - コントラストの全組み合わせは、`test/dark-theme.test.ts` が全テーマで見ている(既存)。
 
-**D5. HTML 形式(`--html`、`emit-html.ts`)は対応しない。** `auto` と `html: true` の組み合わせは、`diagram` の検証ではなく `build` で「`appearance: 'auto'` は SVG だけ」と throw する(黙って明るい図を出さない)。理由: HTML 形式の色は `style="…"` 属性 13 か所と `<style>` で、属性セレクタの上書きは `style` に負ける。要望も SVG。
+**D5. HTML 形式(`--html`、`emit-html.ts`)は対応しない。** `auto` と `html: true` の組み合わせは、`diagram` の検証ではなく `build` で(deck の `--render html`(第 2 段、ADR 0018)にも同じ条件で効く)「`appearance: 'auto'` は SVG だけ」と throw する(黙って明るい図を出さない)。理由: HTML 形式の色は `style="…"` 属性 13 か所と `<style>` で、属性セレクタの上書きは `style` に負ける。要望も SVG。
 
 **D6. CLI。** `--dark`(`build-diagram.ts:134`)は、`typeof d.appearance !== 'object'` のとき `'dark'` に上書きするので、`'auto'` も `'dark'` に上書きされる(明示のフラグが勝つ)。`{auto: {…}}` は、`{dark}` と同様に残す。`--auto` のフラグは作らない(図が自分で宣言する)。
 
@@ -123,7 +124,7 @@ stat('76%', '導入前の離脱率', {source: '総務省 通信利用動向調�
 
 ### `--no-source-line`
 
-**D11. 描く前のオプションにする(後処理にしない)。** `build-diagram.ts` で、`--dark` / `--transparent` と同じ位置に `if (NO_SOURCE_LINE) d.sourceLine = undefined` を足す(`:134-135` の隣)。出典行は図の最後の band で**高さを持つ**ので、描いたあとの SVG から行だけ消すと、空白(`pad` と行の高さ)が残り、`fill` / スライドの予算もずれる。描く前に消せば、**出力は、ソースに `sourceLine` を書かなかったときの SVG と同じバイト列**になる(テストの不変条件にする)。
+**D11. 描く前のオプションにする(後処理にしない)。** `build-diagram.ts` で、`--dark` / `--transparent` と同じ位置に `if (NO_SOURCE_LINE) d.sourceLine = undefined` を足す(`:134-135` の隣)。この代入は、**描画用に作ったコピーに対して行う**(`renderSource` の呼び出し側が同じ `Diagram` / データを使い回しても、元の `sourceLine` が消えない)。出典行は図の最後の band で**高さを持つ**ので、描いたあとの SVG から行だけ消すと、空白(`pad` と行の高さ)が残り、`fill` / スライドの予算もずれる。描く前に消せば、**出力は、ソースに `sourceLine` を書かなかったときの SVG と同じバイト列**になる(テストの不変条件にする)。
 
 **D12. 名前と範囲。**
 
@@ -138,12 +139,13 @@ stat('76%', '導入前の離脱率', {source: '総務省 通信利用動向調�
 - フラグを使ったときだけ、`DiagramSource` に `noSourceLine: true` を足す(`<metadata>` の JSON に 1 項目。**使わないときはキーを書かない**ので、既存の SVG と `<metadata>` は 1 バイトも変わらない)。
 - `check --drift --rebuild`(`check-diagram.ts:264-270`)は、`meta.noSourceLine` があれば `d.sourceLine = undefined` にして作り直す。ハッシュの比較(`:262-263`)は変えない。
 - `build --stale`(`build-diagram.ts:122-126`)は、`!!meta.noSourceLine === NO_SOURCE_LINE` も一致の条件に足す。`--dark` / `--transparent` のように「`--stale` を無視」にはしない(1 つの出力先で繰り返し同じフラグで作るのが、このフラグの使い方なので)。
+- ADR 0022 の `check --drift --rebuild` も、`<metadata>` の値で作り直す形にする。本 ADR の `noSourceLine` と同じやり方(メタデータに残した作り方を、再生成が読む)。
 - `lib/freshness.ts` の `fresh/stale` 判定(`preview` / `show` の古さの警告)は、ソースとインポートのハッシュだけなので変えない。
 
 ### やらない判断の推奨
 
 - F2 の CSS 変数方式(上記 D2 で却下)、F2 の HTML 形式、F3 の `unverified` の警告化、`--no-source-line` の環境変数・`preview` / `show` のフラグは、上に書いたとおり**作らない**。
-- 3 件の中で、費用に対する効きが最も小さいのは F3(既存機能でも「見せる」ことは書ける。足りないのは検査)。F2 は `scopeRules` の修正を含み、検査が両配色になるため最も大きいが、依頼元の「白いパネル」を外せる。`--no-source-line` は小さく、文書用とスライド用の 1 ソース化に直接効く。実装の順は、`--no-source-line` → F2 → F3 を勧める。F3 は、PR #151(`stat`)のマージ後。
+- 3 件の中で、費用に対する効きが最も小さいのは F3(既存機能でも「見せる」ことは書ける。足りないのは検査)。F2 は `scopeRules` の修正を含み、検査が両配色になるため最も大きいが、依頼元の「白いパネル」を外せる。`--no-source-line` は小さく、文書用とスライド用の 1 ソース化に直接効く。実装の順は、`--no-source-line` → F2 → F3 を勧める。`stat()` を触る PR は 3 つある(PR #151 = 別セッション・未マージ、ADR 0024 = 本体の外、本 ADR の U3 = 本体に 3 行目)ので、順序は **#151 → 0024 → 0023 U3** とする。
 
 ## 代替案
 
@@ -175,7 +177,7 @@ stat('76%', '導入前の離脱率', {source: '総務省 通信利用動向調�
 |---|---|---|---|
 | U1(F2 の中核) | `auto` / `{auto}` の型・検証・`mapOf` の分離(描画は明るい、暗い表は別関数)、`emit.ts` の `@media` ブロックとルートの `data-appearance="auto"`、`scopeRules` の `@media` 対応、`build` で `html` と併用したら throw | `lib/types/core.ts:13`、`lib/tokens.ts`、`lib/dsl/render.ts:34`、`lib/emit.ts:72-106`、`lib/scope-style.ts`、`build-diagram.ts`(throw)、README | 新規 `test/appearance-auto.test.ts`: (1) `auto` の SVG から `@media` ブロックと属性を取り除くと、`'light'` の SVG と一致する、(2) ブロックの規則が、本文に出る色の集合と `DARK_OF` から期待どおり(色の数・昇順・`i` フラグ)、(3) `undefined` / `'light'` / `'dark'` / `{dark}` の出力が変わらない(既存の `dark-theme.test.ts` が通る)、(4) `scopeRules` が `@media` の内側に `#id ` を付ける、deck・`inlineSvg` に貼った出力で他の図に漏れない |
 | U2(F2 の検査) | `auto` のとき、`verifyDiagram` と `lintRules` を明暗の 2 回行い結合(同一メッセージは 1 つ、暗い側のみは `(暗い配色)`)、`transparent` は両方の背景を仮定、`lint-svg` の許す色と `colorScheme` 2 回、`--dark` の上書き | `lib/verify.ts`、`lib/rules.ts`(入口のみ)、`lint-svg.ts:146-152,226`、`build-diagram.ts:134` | `test/appearance-auto.test.ts` に追加: 暗い側だけコントラストが足りない設定(`{auto: {text: '#333333'}}` など)で、暗い側の指摘が出る(比率の数字は `wcagRatio` で計算して比べる)。明るい側だけ足りない `tones` で明るい側が出る。`transparent` で両方の背景が使われる。`lint-svg` は、`auto` の SVG を通し、暗い側の許可色を使っても落ちない |
-| U3(F3 の表示) | `stat` の `source` / `confidence`、`evidence` の保持、3 行目の追加、`confidence` のみで throw、型 | `lib/dsl/text-bands.ts:58-72`、`lib/types/text-bands.ts:120`、`lib/hero.ts`(通すだけ)、README、`skills/` の該当記述。**PR #151 のマージ後に着手**(同じ `stat()` を触る) | `test/stat-bars.test.ts` に追加: 3 行目の文字列が `出典: …` と `◎ 一次資料` などを含む。`source` なしの `stat` の band が今までと同じ(`lines` の長さ 2)。`confidence` のみは throw。`hero` に通る。SVG の本文が読み上げの語(`一次資料`)を含む |
+| U3(F3 の表示) | `stat` の `source` / `confidence`、`evidence` の保持、3 行目の追加、`confidence` のみで throw、型 | `lib/dsl/text-bands.ts:58-72`、`lib/types/text-bands.ts:120`、`lib/hero.ts`(通すだけ)、README、`skills/` の該当記述。**#151 → 0024 → 0023 U3 の順**(同じ `stat()` を触る。#151 と 0024 のマージ後に着手) | `test/stat-bars.test.ts` に追加: 3 行目の文字列が `出典: …` と `◎ 一次資料` などを含む。`source` なしの `stat` の band が今までと同じ(`lines` の長さ 2)。`confidence` のみは throw。`hero` に通る。SVG の本文が読み上げの語(`一次資料`)を含む |
 | U4(F3 の検査) | `diagram({evidenceCheck})`、規則 `stat-no-source`、`RULE_DOCS`、`accept` 対応 | `lib/dsl/render.ts`、`lib/types/core.ts`(`DiagramOpts` / `DiagramData`)、`lib/rules.ts`(`RULE_DOCS` と規則)、`check-diagram.ts`(規則一覧に出る) | `test/rules.test.ts` に追加: `evidenceCheck` 無しなら出ない、`'info'` で `info`、`'strict'` で `warn`、`source` のある `stat` は出ない、`accept` で消せる。メッセージは数字を含む(座標は含めない) |
 | U5(`--no-source-line`) | `build` のフラグと `--stale` の比較、`DiagramSource.noSourceLine`、`check --drift --rebuild` の対応、`deck` のフラグと警告、`renderSource({noSourceLine})` | `build-diagram.ts:73-79,122-135`、`lib/types/core.ts:198-208`、`check-diagram.ts:264-270`、`deck-diagram.ts:21-50`、`lib/render-source.ts:25-52`、README(:957 付近) | 新規 `test/no-source-line.test.ts`: (1) フラグ有りの SVG が、ソースから `sourceLine` を除いた SVG と**同一**(`<metadata>` の `noSourceLine` を除く)、(2) フラグ無しの出力は変わらない、(3) 高さがフラグ有りのほうが低い(比較だけ)、(4) `check --drift --rebuild` が、フラグ付きの SVG を「一致」と判定し、フラグ無しで作り直した場合は不一致、(5) `--stale` が、フラグの有無が違えば再生成し、同じなら飛ばす、(6) `renderSource({noSourceLine: true})` の SVG に出典の文字列が無い、(7) `sourceLine` の無い図では何も変わらない |
 
