@@ -116,11 +116,19 @@ export interface BoxBand extends BoxStyleOpts {
   spans?: RichSpans;
   /** Internal: stat() keeps its first line on one line and verify reports overflow. */
   statValue?: string;
+  /** Internal: stat({source, confidence}) keeps what it printed on its third line; the stat-no-source check reads it (ADR 0023 D9). */
+  evidence?: {source: string; confidence?: StatConfidence};
 }
+/** How strong the evidence for a stat() number is (ADR 0023 D7). Drawn as a symbol plus a word, never as a colour. */
+export type StatConfidence = 'primary' | 'secondary' | 'unverified';
 export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col' | 'span' | 'reveal' | 'until'> {
   /** The value's text colour; 'accent' also fills the card with the accent tone's fill; 'solid' / 'solid-danger' instead fill the whole box (white text) as in box({tone}). */
   tone?: TextTone | 'solid' | 'solid-danger';
   size?: 'stat' | 'display';
+  /** Where the number comes from (one line, plain text). Printed as a third line `出典: <source>` (ADR 0023). */
+  source?: string;
+  /** How strong the source is: 'primary' ◎ 一次資料 / 'secondary' ○ 報道・二次資料 / 'unverified' △ 未確認. Needs `source`. */
+  confidence?: StatConfidence;
 }
 export interface BannerStyleOpts extends BoxChrome {
   headlineTone?: TextTone;
