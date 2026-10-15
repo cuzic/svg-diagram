@@ -1,6 +1,8 @@
 // fitWidth: try the ways a layered figure can be made to fit its width, in order, and say what was tried when none does (ADR 0010).
 // It wraps layeredAttempt (lib/layered-route.ts) and owns no placement or routing: each attempt is a function the caller supplies.
 import type {FitApplied} from './types/diagrams.ts';
+import type {LayeredLayout} from './graph-layout.ts';
+import {splitByHeight, splitWidest} from './fit-split.ts';
 
 /** What an attempt has to give back: the part of layeredAttempt's result that fitWidth reads. */
 /** The layers a result's layout folded (a result with a `lay`), if any. */
@@ -32,7 +34,7 @@ export interface Tried {label: string; w: number; h: number}
 
 export type Fitted<R extends FitResult> =
   | {ok: true; result: R; index: number; /** what the chosen attempt changed */ applied: FitApplied[]; tried: Tried[]}
-  | {ok: false; tried: Tried[]};
+  | {ok: false; tried: Tried[]; /** every attempt's result, in the order of `tried` */ results: R[]};
 
 /** Half a pixel of slack, as the layouts themselves allow (`maxAcross: w + 0.5`). */
 const SLACK = 0.5;
@@ -45,10 +47,11 @@ const lexLess = (a: FitResult['score'], b: FitResult['score']): boolean => a.cro
  */
 export function fitWidth<R extends FitResult>(w: number, attempts: readonly FitAttempt<R>[], opts: FitOpts<R>): Fitted<R> {
   const widthOf = opts.widthOf ?? ((r: R) => r.size.w);
-  const tried: Tried[] = [];
+  const tried: Tried[] = [], results: R[] = [];
   let best: {result: R; index: number} | undefined;
   for (const [index, a] of attempts.entries()) {
     const result = a.run();
+    results.push(result);
     const width = widthOf(result);
     tried.push({label: a.label, w: Math.ceil(width), h: Math.ceil(result.size.h)});
     if (width > w + SLACK) continue;
@@ -56,7 +59,7 @@ export function fitWidth<R extends FitResult>(w: number, attempts: readonly FitA
     if (opts.mode === 'first') return {ok: true, result, index, applied: a.applied ?? [], tried};
     if (!best || lexLess(result.score, best.result.score)) best = {result, index};
   }
-  if (!best) return {ok: false, tried};
+  if (!best) return {ok: false, tried, results};
   return {ok: true, result: best.result, index: best.index, applied: attempts[best.index].applied ?? [], tried};
 }
 
@@ -67,13 +70,14 @@ export function fitWidth<R extends FitResult>(w: number, attempts: readonly FitA
  *     not tried: dir 'right' (dir is explicit; write dir: 'auto' to let it change)
  *     fix: dir: 'auto', or widen the figure (diagram({width: 1100}))
  */
-export function fitFailure(who: string, w: number, tried: readonly Tried[], fix: string, notTried: readonly string[] = [], heightBudget?: number): string {
+export function fitFailure(who: string, w: number, tried: readonly Tried[], fix: string, notTried: readonly string[] = [], heightBudget?: number, split?: string): string {
   // a figure that fits the width but is too tall is a height failure: say so (ADR 0019 D2)
   const tooTall = heightBudget !== undefined && tried.some(t => t.w <= w + 0.5);
   const lines = [tooTall ? `${who}: the figure does not fit ${Math.round(w)}px wide by ${Math.round(heightBudget)}px tall (every attempt that fits the width is too tall).` : `${who}: the figure does not fit ${Math.round(w)}px.`];
   if (tried.length) lines.push(`  tried: ${tried.map(t => `${t.label} ${t.w}px wide, ${t.h}px tall`).join('; ')}`);
   if (notTried.length) lines.push(`  not tried: ${notTried.join('; ')}`);
   lines.push(`  fix: ${fix}`);
+  if (split) lines.push(`  split: ${split}`);
   return lines.join('\n');
 }
 
@@ -132,6 +136,8 @@ export interface LayoutPlan<D extends string, R extends FitResult> {
   build: (dir: D, maxW: number, fold?: number) => R;
   widthOf?: (r: R) => number;
   heightBudget?: number;
+  /** The layout of a result (a layered figure's `lay`, whose layers lie along the height when `vertical`): the failure message then says where to split the figure. */
+  layoutOf?: (r: R) => {lay: LayeredLayout; vertical: boolean};
   /** 'best' (dir: 'auto' with an axis to choose): the best score; otherwise the first that fits. */
   best?: boolean;
   /** More lines for "not tried". */
@@ -187,5 +193,18 @@ export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPla
   const tooTall = plan.heightBudget !== undefined && fitted.tried.some(t => t.w <= plan.w + 0.5);
   const wider = widerThan(fitted.tried, 40);
   const fix = tooTall ? 'split the figure in two (fewer entities or fewer layers), or give the canvas more height' : plan.explicitDir ? `dir: 'auto', ${canFold && plan.fold === undefined ? 'or fold: true (a layer wider than the figure is cut into rows, the direction stays), ' : ''}or widen the figure (diagram({width: ${wider}}))` : plan.fix ?? (wider > 1400 ? 'split the figure in two (fewer entities on one level)' : `widen the figure (diagram({width: ${wider}}))`);
-  throw new Error(fitFailure(plan.who, plan.w, fitted.tried, fix, notTried, plan.heightBudget));
+  // where to split (ADR 0019 D3): a height failure by the first attempt that fits the width, a width failure by the narrowest one that did not fold
+  let split: string | undefined;
+  if (plan.layoutOf) {
+    const results = fitted.results, lays = results.map(plan.layoutOf);
+    if (tooTall) {
+      const i = fitted.tried.findIndex(t => t.w <= plan.w + 0.5);
+      if (lays[i].vertical && plan.heightBudget !== undefined) split = splitByHeight(lays[i].lay, plan.heightBudget);
+    } else {
+      const unfolded = results.map((r, i) => ({r, i})).filter(({i}) => !fitted.tried[i].label.includes('fold'));
+      const narrowest = unfolded.sort((a, b) => fitted.tried[a.i].w - fitted.tried[b.i].w)[0];
+      if (narrowest) split = splitWidest(lays[narrowest.i].lay);
+    }
+  }
+  throw new Error(fitFailure(plan.who, plan.w, fitted.tried, fix, notTried, plan.heightBudget, split));
 }

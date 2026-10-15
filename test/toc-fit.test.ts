@@ -200,6 +200,14 @@ test("causeTree({maxNodeW: 'auto'}): the height budget picks a wider node (short
   assert.throws(() => place(wide({maxNodeW: 'auto'}), 6000, h(260) - 20), /does not fit 6000px wide by \d+px tall/);
 });
 
+test('causeTree() that fits nowhere: the failure says where to split (ADR 0019 D3)', () => {
+  const chain = causeTree(['a', 'b', 'c', 'd', 'e'].map(id => N(id)), [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'}, {from: 'd', to: 'e'}]);
+  const natural = place(chain, 900).h;
+  assert.throws(() => place(chain, 900, natural - 20), /\n {2}split: after layer \d \(1 arrow crosses: [a-e]→[a-e]\)\. Draw the nodes up to that layer/, 'too tall: a cut between layers, both halves within the budget');
+  assert.throws(() => place(chain, 900, 40), /split: no cut between two layers leaves both halves within the height/, 'nothing fits: three or more figures');
+  assert.throws(() => place(wide({dir: 'up'}), 300), /\n {2}split: layer \d is the widest \(\d+ nodes: u\d/, 'too wide: the widest layer');
+});
+
 // ADR 0019 D4: the arrows into an effect with an AND cross; another written order is tried and kept only when it is strictly better
 const nine = () => causeTree(Array.from({length: 9}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), JSON.parse('[{"from":"n0","to":"n2"},{"from":["n0","n1"],"to":"n3"},{"from":"n1","to":"n4"},{"from":"n0","to":"n4"},{"from":"n2","to":"n5"},{"from":"n3","to":"n5"},{"from":"n0","to":"n6"},{"from":"n0","to":"n7"},{"from":"n6","to":"n7"},{"from":"n1","to":"n7"},{"from":"n1","to":"n8"}]'), {tree: 'frt'});
 const andCrossings = (t: LaidOutCause): number => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
