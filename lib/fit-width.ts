@@ -78,11 +78,12 @@ export function widerThan(tried: readonly Tried[], margins = 0): number {
   return Math.ceil((least + margins) / 20) * 20;
 }
 
-/** One line for the `auto-fit-applied` rule: what changed and what it did to the width. */
+/** One phrase for the `auto-fit-applied` rule: what changed and what it did to the width. */
 export function describeApplied(a: FitApplied): string {
-  const was = a.wasW === undefined ? '' : ` (${a.wasW}→${a.nowW ?? '?'}px)`;
-  if (a.what === 'fold') return `folded layer ${a.to}${was}`;
-  return `${a.what} from ${a.from} to ${a.to}${was}`;
+  const was = a.wasW === undefined ? '' : `(${a.wasW}→${a.nowW ?? '?'}px)`;
+  if (a.what === 'fold') return `層 ${a.to} を折り返した${was}`;
+  if (a.what === 'maxNodeW') return `maxNodeW を ${a.from}→${a.to} に縮めた${was}`;
+  return `dir を ${a.from} から ${a.to} に変えた${was}`;
 }
 
 /** What an attempt changed, with the widths filled in: the figure as first tried (`tried[0]`) against the one chosen. */

@@ -34,6 +34,7 @@ import type {Finding} from './types/verdicts.ts';
 import type {WfCallout} from './types/wireframe-nodes.ts';
 import type {LintTarget} from './types/verdicts.ts';
 import type {CauseRole} from './types/diagrams.ts';
+import {describeApplied} from './fit-width.ts';
 import {tocFindings} from './toc-rules.ts';
 
 export const RULE_DOCS = {
@@ -78,7 +79,8 @@ export const RULE_DOCS = {
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
   'slide-min-text': 'スライド用キャンバスの最小文字サイズ(既定 24px)より小さい文字がある',
   'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
-  'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む',
+  'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）',
+  'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
   'density': '文字量・箱の数が多い',
   'wf-callout-no-note': '図の番号に対応する注釈がない',
   'wf-note-no-callout': '注釈に対応する番号が図にない',
@@ -556,10 +558,22 @@ function graphRules(d: LintTarget, out: Finding[]): void {
   for (const id of parent.keys()) { const r = find(id); groups.set(r, [...(groups.get(r) ?? []), id]); }
   if (groups.size > 1) out.push({rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${[...groups.values()].map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
 }
+const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()'} as const;
+// what the layout changed on its own to make a figure fit its width (ADR 0010 D3): left out is a warning, `dir: 'auto'` is the author's own choice
+function fitRules(d: LintTarget, out: Finding[]): void {
+  for (const b of d.laidOut ?? []) {
+    if ((b.type !== 'cause' && b.type !== 'states' && b.type !== 'classes' && b.type !== 'tree') || !b.fitApplied?.length) continue;
+    const what = b.fitApplied.map(describeApplied).join('、'), auto = b.fitApplied.every(a => a.mode === 'auto');
+    out.push({rule: 'auto-fit-applied', severity: auto ? 'info' : 'warn', message: auto
+      ? `${FIT_WHO[b.type]}: dir: 'auto' で、幅に収まるようレイアウトが変えた: ${what}`
+      : `${FIT_WHO[b.type]}: dir / maxNodeW を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら dir: 'auto' と書く（info になる）。固定したいなら dir / maxNodeW を明示する（収まらなければ試した案つきで止まる）`});
+  }
+}
 function lintAll(d: LintTarget): Finding[] {
   const out: Finding[] = [];
   layoutQualityRules(d, out);
   tocRules(d, out);
+  fitRules(d, out);
   textContrast(d, out);
   colourOnlyEmphasis(d, out);
   nonTextContrast(d, out);
