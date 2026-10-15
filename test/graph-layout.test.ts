@@ -192,3 +192,64 @@ test('layoutLayered back: a cycle the declaration leaves is still cut, and no de
   assert.equal(t.edges.filter(x => x.reversed).length, 2);
   assert.deepEqual(layoutLayered(nodes, e, {back: []}), layoutLayered(nodes, e));
 });
+
+// ---- tighten and transpose (ADR 0016 D4): opt-in, the default layout is the plain one ----
+const randomGraph = (rand: () => number): {names: string[]; edges: {from: string; to: string}[]; start: string[]} => {
+  const n = 4 + Math.floor(rand() * 6), names = Array.from({length: n}, (_, i) => `n${i}`);
+  const edges: {from: string; to: string}[] = [];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j && rand() < (i < j ? 0.28 : 0.05)) edges.push({from: names[i], to: names[j]});
+  return {names, edges, start: rand() < 0.3 ? [names[0]] : []};
+};
+/** Crossings of the drawn chains, read from their centre lines: two chains cross between two layers when their order flips. */
+const chainCrossings = (t: ReturnType<typeof layoutLayered>): number => {
+  const cs = t.edges.filter(e => !e.self);
+  let c = 0;
+  for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) {
+    const a = cs[i].points, b = cs[j].points;
+    for (let p = 0; p + 1 < a.length; p++) for (let q = 0; q + 1 < b.length; q++) {
+      const [a0, a1] = a[p].x <= a[p + 1].x ? [a[p], a[p + 1]] : [a[p + 1], a[p]], [b0, b1] = b[q].x <= b[q + 1].x ? [b[q], b[q + 1]] : [b[q + 1], b[q]];
+      if (a0.x !== b0.x || a1.x !== b1.x || a0.x === a1.x) continue; // the same two layers
+      if ((a0.y - b0.y) * (a1.y - b1.y) < 0) c++;
+    }
+  }
+  return c;
+};
+
+test('layoutLayered tighten: a node with only outgoing edges moves to just before its nearest target; the default is unchanged', () => {
+  const nodes = ['a', 'b', 'c', 'est'].map(sq);
+  const e = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'est', to: 'c'}];
+  const plain = layoutLayered(nodes, e), tight = layoutLayered(nodes, e, {tighten: true});
+  assert.equal(plain.layers.get('est'), 0);
+  assert.equal(tight.layers.get('est'), 1);
+  assert.deepEqual(layoutLayered(nodes, e, {tighten: false, transpose: false}), plain);
+  assert.ok(tight.edges.find(x => x.from === 'est')!.points.length < plain.edges.find(x => x.from === 'est')!.points.length);
+  assert.equal(layoutLayered(nodes, e, {tighten: true, start: ['est']}).layers.get('est'), 0, 'a start stays where it is');
+});
+
+test('layoutLayered tighten / transpose: 200 small graphs keep edge directions and starts, never add crossings, and are deterministic', () => {
+  const rand = rng(11);
+  for (let k = 0; k < 200; k++) {
+    const {names, edges, start} = randomGraph(rand), nodes = names.map(sq);
+    const plain = layoutLayered(nodes, edges, {start});
+    const tight = layoutLayered(nodes, edges, {start, tighten: true});
+    assert.deepEqual(tight.edges.map(x => x.reversed), plain.edges.map(x => x.reversed), 'the same edges are reversed');
+    for (const x of tight.edges) if (!x.self) {
+      const [lf, lt] = [tight.layers.get(x.from)!, tight.layers.get(x.to)!];
+      assert.ok(x.reversed ? lt < lf : lf < lt, `${x.from} -> ${x.to} keeps its direction`);
+    }
+    for (const s of start) assert.equal(tight.layers.get(s), plain.layers.get(s), 'a start does not move');
+    for (const [id, l] of tight.layers) assert.ok(l >= plain.layers.get(id)!, 'a node only moves toward its targets');
+    assert.deepEqual(layoutLayered(nodes, edges, {start, tighten: true}), tight);
+    for (const opts of [{}, {tighten: true}]) {
+      const base = layoutLayered(nodes, edges, {start, ...opts}), tr = layoutLayered(nodes, edges, {start, ...opts, transpose: true});
+      assert.ok(chainCrossings(tr) <= chainCrossings(base), `transpose does not add crossings (${chainCrossings(tr)} vs ${chainCrossings(base)})`);
+      assert.deepEqual(layoutLayered(nodes, edges, {start, ...opts, transpose: true}), tr);
+      assert.deepEqual([...tr.layers], [...base.layers]);
+    }
+  }
+});
+
+test('layoutLayered transpose: crossed neighbours in a layer are swapped', () => {
+  const nodes = ['a', 'b', 'd', 'c'].map(sq), e = [{from: 'a', to: 'd'}, {from: 'b', to: 'c'}];
+  assert.equal(chainCrossings(layoutLayered(nodes, e, {transpose: true})), 0);
+});

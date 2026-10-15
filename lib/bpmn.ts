@@ -85,7 +85,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   const lay = layoutLayered(
     band.nodes.map(n => ({id: n.id, size: {w: meas.get(n.id)!.w, h: meas.get(n.id)!.h}})),
     band.flows.map(f => ({from: f.from, to: f.to})),
-    {start: band.nodes.filter(n => kindOf.get(n.id) === 'start').map(n => n.id)},
+    {start: band.nodes.filter(n => kindOf.get(n.id) === 'start').map(n => n.id), tighten: false}, // the column is the layer: a node moving would move the whole figure
   );
   const nLayers = Math.max(...[...lay.layers.values()]) + 1;
   const colW = Array.from({length: nLayers}, () => 0);
