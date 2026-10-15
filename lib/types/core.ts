@@ -132,6 +132,10 @@ export interface DiagramOpts {
   spotlight?: SpotlightOpt;
   /** A source / citation line pinned as the last line of the figure (left-aligned, muted, one line). See README. */
   sourceLine?: string;
+  /** The state of the whole figure: 'draft' puts a "下書き" badge in a strip at the top (right end) and says so in <desc> / <metadata>. */
+  status?: DiagramStatus;
+  /** The badge's wording instead of "下書き" (e.g. "仮説", "仮置き"): one non-empty line. Only with `status`. */
+  statusLabel?: string;
   /** 'strict': this diagram's `layout-*` findings (alignment and whitespace) are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
   layoutCheck?: LayoutCheck;
   /** 'strict': the `toc-*` findings of this diagram's causeTree({tree}) figures are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
@@ -141,6 +145,8 @@ export interface DiagramOpts {
 export type TocCheck = 'info' | 'strict';
 /** diagram({layoutCheck}): the severity of the `layout-*` findings. */
 export type LayoutCheck = 'info' | 'strict';
+/** diagram({status}): the state of the whole figure. Only 'draft' for now. */
+export type DiagramStatus = 'draft';
 /**
  * What diagram({spotlight}) takes: the anchor id(s) to keep prominent, or an object with more.
  * `edges`: which connectors stay prominent ('touching': one end is a target; 'between': both are).
@@ -180,6 +186,8 @@ export interface DiagramData {
   wireframeDefaults?: WireframeDefaults;
   spotlight?: SpotlightOpt;
   sourceLine?: string;
+  status?: DiagramStatus;
+  statusLabel?: string;
   layoutCheck?: LayoutCheck;
   tocCheck?: TocCheck;
   bands: Band[];
