@@ -1,8 +1,9 @@
 // The checks of a TOC tree (ADR 0015 D2): pure functions of a cause band's nodes, links and `tree`; no layout, no fonts.
 // They run only for a band that says which tree it is (`causeTree(..., {tree: 'crt'})`): relationDiagram() / pdpc() are not TOC trees.
+import {breakCycles} from './graph-layout.ts';
 import type {CauseBand} from './types/diagrams.ts';
 
-export type TocRule = 'toc-ude-count' | 'toc-parts' | 'toc-source-has-cause' | 'toc-chain-only' | 'toc-orphan';
+export type TocRule = 'toc-ude-count' | 'toc-parts' | 'toc-source-has-cause' | 'toc-chain-only' | 'toc-orphan' | 'toc-cycle-undeclared';
 export interface TocFinding {rule: TocRule; message: string}
 
 /** The range of undesirable effects a current reality tree is built from (the guidance of the method, not a measure of the examples). */
@@ -45,6 +46,10 @@ export function tocFindings(band: TocBand): TocFinding[] {
     && band.nodes.every(n => (into.get(n.id) ?? 0) <= 1 && (outOf.get(n.id) ?? 0) <= 1)) {
     out.push({rule: 'toc-chain-only', message: at('分岐も合流も AND も無い 1 本鎖。TOC の因果ツリーは、複数の原因・結果が枝と合流でつながる（1 本の鎖は、途中の原因を飛ばしていることが多い）')});
   }
+  // a cycle the author did not declare: the arrows that stay (a declared `back` and a `blocks` arrow are not causes) still close a loop
+  const arrows = causes.flatMap(l => froms(l).map(f => ({from: f, to: l.to})));
+  const returned = [...breakCycles(band.nodes, arrows)].map(i => `${arrows[i].from} -> ${arrows[i].to}`);
+  if (returned.length) out.push({rule: 'toc-cycle-undeclared', message: at(`循環があるのに、戻りの矢印に back: true が付いていない。配置は次の矢印を戻りとして扱った(意味上の戻りと違うことがある): ${returned.join('、')}。悪循環の戻り(UDE から根本原因へ)のリンクに back: true を付ける`)});
   const linked = new Set(links.flatMap(l => [l.to, ...froms(l)]));
   const orphans = band.nodes.filter(n => !linked.has(n.id)).map(n => n.id);
   if (orphans.length) out.push({rule: 'toc-orphan', message: at(`どのリンクにも出てこない実体: ${orphans.join('、')}`)});
