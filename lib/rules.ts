@@ -33,6 +33,7 @@ import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
 import type {Finding} from './types/verdicts.ts';
 import type {WfCallout} from './types/wireframe-nodes.ts';
 import type {LintTarget} from './types/verdicts.ts';
+import type {CauseRole} from './types/diagrams.ts';
 import {tocFindings} from './toc-rules.ts';
 
 export const RULE_DOCS = {
@@ -107,7 +108,11 @@ export const DEFAULT_LEGEND_LABELS = {
   'line:solid': '実線', 'line:dashed': '破線', 'line:dotted': '点線', 'line:double': '二重線', 'arrow:both': '双方向', 'weight:strong': '強い流れ',
   'tone:new': '新規', 'tone:changed': '変更・改修', 'tone:removed': '対象外', 'tone:danger': '異常・注意',
   'tone:muted': '補助・任意', 'tone:accent': '強調', 'tone:solid': '主役', 'tone:solid-danger': '異常(強)',
-} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}`, string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
+  // a causeTree() figure (ADR 0015 D6): an entity role, an arrow joined by an arc, the core driver mark
+  'role:ude': '好ましくない現象(UDE)', 'role:root': '根本原因', 'role:de': '望む結果(DE)', 'role:injection': '施策', 'role:precondition': '現状の事実',
+  'role:goal': '目標', 'role:io': '中間目標', 'role:obstacle': '障害', 'role:action': '行動', 'role:start': '開始', 'role:risk': '懸念', 'role:measure': '対策',
+  'edge:and': '合わせて原因(AND)', 'mark:core': '中核ドライバー',
+} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}` | `role:${Exclude<CauseRole, 'effect' | 'step'>}` | 'edge:and' | 'mark:core', string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
 
 // every band, including those nested in groups, rows, grids and swimlanes
 export function walkBands(bands: Band[], out: Band[] = []): Band[] {
@@ -119,7 +124,7 @@ export function walkBands(bands: Band[], out: Band[] = []): Band[] {
 }
 
 // notation keys a diagram uses: 'line:dashed', 'arrow:both', 'weight:strong', 'tone:new', ...
-export function usedNotation(bands: Band[], dimmed = new Set<Band>()): Set<string> {
+export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause = false): Set<string> {
   const all = walkBands(bands);
   const used = new Set<string>(), lines = new Set<string>();
   // a canvas() region with a pill (重点 / 中心 / ソフト) says its tone in words: that tone needs no legend entry
@@ -131,6 +136,11 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>()): Set<strin
       if (b.arrow === 'both') used.add('arrow:both');
       if (b.weight) used.add(`weight:${b.weight}`);
     } else if (b.type === 'box' && b.tone && b.tone !== 'plain') used.add(`tone:${b.tone}`);
+    else if (b.type === 'cause' && withCause) { // only legend: 'auto' reads these (the legend-* checks keep their old count)
+      for (const n of b.nodes) if (n.role && n.role !== 'effect' && n.role !== 'step') used.add(`role:${n.role}`);
+      if (b.links.some(l => typeof l.from !== 'string' && l.from.length > 1)) used.add('edge:and');
+      if (b.nodes.some(n => n.core)) used.add('mark:core');
+    }
   }
   const nonSolid = [...lines].filter(l => l !== 'solid');
   for (const l of nonSolid) used.add(`line:${l}`);
@@ -143,7 +153,10 @@ export function legendKeys(bands: Band[]): Set<string> {
   for (const b of walkBands(bands)) {
     if (b.type !== 'legend') continue;
     for (const it of b.items) {
-      if (it.tone) keys.add(`tone:${it.tone}`);
+      if (it.role) keys.add(`role:${it.role}`);
+      else if (it.edge) keys.add(`edge:${it.edge}`);
+      else if (it.mark) keys.add(`mark:${it.mark}`);
+      else if (it.tone) keys.add(`tone:${it.tone}`);
       else if (it.weight) keys.add(`weight:${it.weight}`);
       else if (it.arrow === 'both') keys.add('arrow:both');
       else keys.add(`line:${it.line ?? 'solid'}`);
@@ -161,7 +174,7 @@ export function legendLabelsFor(used: ReadonlySet<string>, custom?: Partial<Reco
 // diagram({legend: 'auto'}): add a legend entry for every notation used but not listed.
 export function applyAutoLegend(d: DiagramData): void {
   if (d.legend !== 'auto') return;
-  const used = usedNotation(d.bands, dimmedBands(d)), have = legendKeys(d.bands);
+  const used = usedNotation(d.bands, dimmedBands(d), true), have = legendKeys(d.bands);
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return;
   const labels = legendLabelsFor(used, d.legendLabels);
@@ -177,6 +190,9 @@ export function applyAutoLegend(d: DiagramData): void {
     const [kind, v] = k.split(':');
     // v comes from our own `tone:<tone>` / `line:<style>` keys (usedNotation), so the casts hold
     if (kind === 'tone') return allDashed(v) ? {tone: v as EmphasisTone, dashed: true, label: labelOf(k)} : {tone: v as EmphasisTone, label: labelOf(k)};
+    if (kind === 'role') return {role: v as CauseRole, label: labelOf(k)};
+    if (kind === 'edge') return {edge: v as 'and', label: labelOf(k)};
+    if (kind === 'mark') return {mark: v as 'core', label: labelOf(k)};
     if (kind === 'arrow') return {line: 'solid', arrow: 'both', label: labelOf(k)};
     if (kind === 'weight') return {line: 'solid', weight: v as ArrowWeight, label: labelOf(k)};
     return {line: v as LineStyle, label: labelOf(k)};

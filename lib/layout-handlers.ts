@@ -16,7 +16,7 @@ import {layoutWordArt} from './wordart.ts';
 import {CANVAS_MIN_ROW_H, canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
 import {layoutTreeBand, narrowField} from './tree.ts';
 import {layoutStatesBand} from './states.ts';
-import {layoutCauseBand, layoutCloudBand} from './toc.ts';
+import {CAUSE_ROLES, layoutCauseBand, layoutCloudBand} from './toc.ts';
 import {layoutGantt} from './gantt.ts';
 import {layoutClassesBand} from './classes.ts';
 import {layoutBpmn} from './bpmn.ts';
@@ -293,7 +293,8 @@ function layoutLegend(band: LegendBand, ctx: LayoutCtx, padX: number, cw: number
   const {d, roles, widthOf} = ctx;
   const items = band.items.map(item => {
     const tw = textWidth(widthOf, item.label, roles.note, 400);
-    return {...item, textW: tw, w: LEGEND_SWATCH_W + 8 + tw};
+    const swatch = item.role ? {tone: CAUSE_ROLES[item.role].tone, ...(CAUSE_ROLES[item.role].double ? {double: true} : {}), ...(item.role === 'obstacle' || item.role === 'risk' ? {hex: true} : {})} : undefined;
+    return {...item, ...(swatch ? {swatch} : {}), textW: tw, w: LEGEND_SWATCH_W + 8 + tw};
   });
   const rows: (typeof items)[] = [[]];
   let rowW = 0;

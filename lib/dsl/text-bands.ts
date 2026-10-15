@@ -1,5 +1,6 @@
 import {resolveIcon} from '../icon-registry.ts';
 import {walkBands} from '../rules.ts';
+import {CAUSE_ROLES} from '../toc.ts';
 import {assertSolidText, richBoxFields, richField} from '../rich.ts';
 import {ROLES, HEADLINE_ROLES, OPT_IN_TEXT_MAX, isSolidTone} from '../tokens.ts';
 import type {GroupBand, GroupOpts, LegendBand, LegendItem, LegendOpts, RawBand, RawOpts} from '../types/containers.ts';
@@ -101,6 +102,11 @@ export function group(children: BandInput, opts: GroupOpts = {}): GroupBand {
 export function legend(items: LegendItem[], opts: LegendOpts = {}): LegendBand {
   assertNoReveal(opts, 'legend()');
   for (const it of items) if (it.weight && it.line === 'double') throw new Error(`legend(): weight '${it.weight}' cannot go with line 'double' ("${it.label}")`);
+  for (const it of items) {
+    if (it.role !== undefined && !(it.role in CAUSE_ROLES)) throw new Error(`legend(): item "${it.label}" has role ${String(it.role)} (use ${Object.keys(CAUSE_ROLES).join(', ')})`);
+    if (it.edge !== undefined && it.edge !== 'and') throw new Error(`legend(): item "${it.label}" has edge ${String(it.edge)} (use 'and')`);
+    if (it.mark !== undefined && it.mark !== 'core') throw new Error(`legend(): item "${it.label}" has mark ${String(it.mark)} (use 'core')`);
+  }
   // a weight sample is a line sample: the plain line unless `line` says otherwise
   return {type: 'legend', items: items.map(it => it.weight && !it.line ? {...it, line: 'solid'} : it), align: opts.align ?? 'center'};
 }
