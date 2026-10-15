@@ -200,6 +200,8 @@ export interface DiagramData {
   usableWidth?: number;
   /** Project / diagram max width for the doc-width rule (config.ts applyConfig). */
   maxWidth?: number;
+  /** The day for gantt({today: 'auto'}), given by the caller (config.ts applyConfig); the library never reads the clock. */
+  today?: string;
   /** Provenance embedded as <metadata> (build-diagram.ts / check-diagram.ts). */
   source?: DiagramSource;
   /** Internal reveal analysis, filled before layout. */
@@ -216,6 +218,8 @@ export interface DiagramSource {
   configSha256?: string;
   /** sha256 over the local files the source imports (lib/source-deps.ts), when there are any. */
   depsSha256?: string;
+  /** The day a gantt({today: 'auto'}) was drawn with (only then): check --drift --rebuild draws again with it. */
+  today?: string;
   /** `build --no-source-line` (ADR 0023): the SVG was drawn without diagram({sourceLine}); a rebuild (check --drift --rebuild) and --stale read it. Absent when not used. */
   noSourceLine?: boolean;
   /** Cumulative reveal stage represented by this file. */

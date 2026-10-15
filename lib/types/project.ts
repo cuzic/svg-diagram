@@ -20,6 +20,10 @@ export interface Config {
   fonts?: FontSpecs;
   /** The lowest `canvas.minText` a diagram may declare (10 to 14, default 14). A canvas diagram below it throws; a figure still has to declare its own `minText`. */
   fontFloor?: number;
+  /** The day for gantt({today: 'auto'}) when no --today / SVG_DIAGRAM_TODAY is given: 'YYYY-MM-DD'. */
+  today?: string;
+  /** Set by the CLIs from --today (never read from the file): wins over the environment and "today". */
+  _today?: string;
   _file?: string;
 }
 export type FontSpecs = Partial<Record<FontFamily, {regular?: string; bold?: string}>>;
