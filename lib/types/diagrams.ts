@@ -129,6 +129,9 @@ export interface CauseOpts extends RevealOpts {
   /** Mark the core driver: the starting entity (nothing causes it) whose arrows bring about the most `ude` entities, 2 or more (a tie: all).
    *  Every starting entity gets the number it reaches under its text (`到達 UDE n`) unless `counts` is false. `role` is not changed. */
   coreDriver?: boolean;
+  /** Which Theory of Constraints tree this is: 'crt' (current reality), 'frt' (future reality), 'prt' (prerequisite), 'tt' (transition).
+   *  Only a figure that says it is checked (the `toc-*` rules of `check`); not written, nothing is checked. It never changes the drawing. */
+  tree?: 'crt' | 'frt' | 'prt' | 'tt';
   /** With coreDriver: write `到達 UDE n` under each starting entity (default true). */
   counts?: boolean;
   id?: string;
