@@ -108,7 +108,9 @@ export interface DiagramOpts {
   tones?: ToneOverrides;
   /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line; 'bunsetsu' also keeps a hiragana with the character before it (breaks only after a hiragana that a non-hiragana follows, or after 、。) and widens tree-like boxes to their longest unit. */
   wrap?: 'phrase' | 'char' | 'bunsetsu';
-  width?: number;
+  /** The figure's width in px (default 940). 'fit' narrows it to what the figure shows plus the padding (text sizes do not change; a figure whose content already spans the width stays 940).
+   *  For a thin figure (a concentric, a vertical chevron, a few people). It changes the figure's size in the document, so it is never the default. Not with `canvas`, `fill` or `slide`. */
+  width?: number | 'fit';
   /** The widest this figure may be before `check` warns `doc-width` (default 940, or the project's `maxWidth`). It does not make the figure wider: that is `width`.
    *  Writing `maxWidth: 1200` alone leaves the width at 940; write `width: 1200` too. Not for `canvas` figures. */
   maxWidth?: number;
@@ -165,6 +167,8 @@ export interface DiagramData {
   /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line; 'bunsetsu' also keeps a hiragana with the character before it (breaks only after a hiragana that a non-hiragana follows, or after 、。) and widens tree-like boxes to their longest unit. */
   wrap?: 'phrase' | 'char' | 'bunsetsu';
   width: number;
+  /** diagram({width: 'fit'}): renderDiagram narrows `width` to the content. */
+  fitWidth?: boolean;
   pad: number;
   gap: number;
   maxDisplayHeight?: number;
