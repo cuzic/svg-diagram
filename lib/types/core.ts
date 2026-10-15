@@ -140,7 +140,11 @@ export interface DiagramOpts {
   layoutCheck?: LayoutCheck;
   /** 'strict': the `toc-*` findings of this diagram's causeTree({tree}) figures are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
   tocCheck?: TocCheck;
+  /** Turns on the `stat-no-source` check (a stat() number with no `source`): 'info', or 'strict' for warn. Unset: the check does not run. A check setting only: it never changes the drawing. */
+  evidenceCheck?: EvidenceCheck;
 }
+/** diagram({evidenceCheck}): the severity of `stat-no-source`; leave it out to skip the check. */
+export type EvidenceCheck = 'info' | 'strict';
 /** diagram({tocCheck}): the severity of the `toc-*` findings. */
 export type TocCheck = 'info' | 'strict';
 /** diagram({layoutCheck}): the severity of the `layout-*` findings. */
@@ -190,11 +194,14 @@ export interface DiagramData {
   statusLabel?: string;
   layoutCheck?: LayoutCheck;
   tocCheck?: TocCheck;
+  evidenceCheck?: EvidenceCheck;
   bands: Band[];
   /** Set by build() from the measured slide (contentWidth). */
   usableWidth?: number;
   /** Project / diagram max width for the doc-width rule (config.ts applyConfig). */
   maxWidth?: number;
+  /** The day for gantt({today: 'auto'}), given by the caller (config.ts applyConfig); the library never reads the clock. */
+  today?: string;
   /** Provenance embedded as <metadata> (build-diagram.ts / check-diagram.ts). */
   source?: DiagramSource;
   /** Internal reveal analysis, filled before layout. */
@@ -213,6 +220,8 @@ export interface DiagramSource {
   depsSha256?: string;
   /** The figure's status (diagram({status})); only written when it has one. */
   status?: DiagramStatus;
+  /** The day a gantt({today: 'auto'}) was drawn with (only then): check --drift --rebuild draws again with it. */
+  today?: string;
   /** `build --no-source-line` (ADR 0023): the SVG was drawn without diagram({sourceLine}); a rebuild (check --drift --rebuild) and --stale read it. Absent when not used. */
   noSourceLine?: boolean;
   /** Cumulative reveal stage represented by this file. */

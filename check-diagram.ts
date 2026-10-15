@@ -7,6 +7,7 @@
 //       or on any warning with --strict.
 //       --forbid-draft: a figure still marked diagram({status: 'draft'}) is a warning (else the info `draft-status`); for the publishing job only.
 //   svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...
+//   svg-diagram check [--today YYYY-MM-DD] ...   the day for gantt({today: 'auto'}) (else SVG_DIAGRAM_TODAY, else "today" in .svg-diagram.json)
 //       Compare each source's SHA-256 with the one embedded in the committed SVG (<metadata id="svg-diagram">),
 //       so an SVG that was not regenerated after its source — or a local file it imports — changed is caught. DIR defaults to ./svg.
 //       --rebuild also regenerates each SVG in memory and compares the bytes; a difference is explained
@@ -50,6 +51,7 @@ const {selectChanged} = await import('./lib/changed.ts');
 const {scanPngRefs, scanMarkdown, compareNotes, notesOf, formatMap, checkFigures, chapterOf, globToRegExp, matchesAny} = await import('./lib/docs-check.ts');
 const {explainChange} = await import('./lib/svg-diff.ts');
 const {loadConfig} = await import('./lib/config.ts');
+const {checkToday} = await import('./lib/today.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
 const {readTable, figureText, checkCovers} = await import('./lib/covers.ts');
 const {formatBuildError, errorMessage} = await import('./lib/error-format.ts');
@@ -58,7 +60,7 @@ const {readProvenance, sha256File: sha} = await import('./lib/freshness.ts');
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
 const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1]; };
-const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--covers', '--format', '--only', '--explain', '--baseline', '--write-baseline'];
+const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--covers', '--format', '--only', '--explain', '--baseline', '--write-baseline', '--today'];
 const vals = (n: string) => args.flatMap((a, i) => (a === n && args[i + 1] !== undefined ? [args[i + 1]] : []));
 // --docs takes the path after it, and every following .md file / directory too (`--docs A.md B.md dir`): those are documents, never sources
 const isDocArg = (a: string) => !a.startsWith('--') && (a.toLowerCase().endsWith('.md') || (fs.existsSync(a) && fs.statSync(a).isDirectory()));
@@ -103,8 +105,9 @@ for (const s of sources) {
   if (!ok) { console.error(`✗ ${s}: 図のソース（.ts / .mjs）ではない。${/\.md$/i.test(s) ? '文書は --docs ' + s + ' で渡す' : '図のソースを指定する'}`); process.exit(2); }
 }
 if (!['text', 'json', 'github', 'sarif'].includes(format)) { console.error(`--format must be text, json, github or sarif (got "${format}")`); process.exit(2); }
-if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--forbid-draft] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]] [--covers TABLE.md|TABLE.csv [--svg-dir DIR]] [--format text|json|github|sarif] [--baseline FILE | --write-baseline FILE] <source.ts>...\n       svg-diagram check --rules | --explain RULE'); process.exit(2); }
+if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--forbid-draft] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--today YYYY-MM-DD] [--docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]] [--covers TABLE.md|TABLE.csv [--svg-dir DIR]] [--format text|json|github|sarif] [--baseline FILE | --write-baseline FILE] <source.ts>...\n       svg-diagram check --rules | --explain RULE'); process.exit(2); }
 const config = loadConfig();
+try { const t = val('--today'); if (args.includes('--today') && (t == null || t.startsWith('--'))) throw new Error('--today needs a date (YYYY-MM-DD)'); if (t) config._today = checkToday(t, '--today'); } catch (e) { console.error(`✗ ${(e as Error).message}`); process.exit(2); } // the day for gantt({today: 'auto'}) (ADR 0022)
 let coverCells: ReturnType<typeof readTable> = [];
 if (coversFile) {
   if (!fs.existsSync(coversFile)) { console.error(`--covers: ${coversFile} がない`); process.exit(2); }
@@ -266,6 +269,7 @@ try {
         const d = await loadDiagram(abs, config);
         if (meta.noSourceLine) d.sourceLine = undefined; // ADR 0023 D13: rebuild the way the SVG was built
         d.source = meta; // same provenance → byte-comparable
+        if (meta.today !== undefined) d.today = meta.today; // a today: 'auto' figure is drawn again with the day it was drawn with
         const tmp = path.join(path.dirname(svg), `.${name}.rebuild.svg`);
         let rebuilt: Awaited<ReturnType<typeof build>>;
         try { rebuilt = await build(d, tmp, {lint: false, name: `${name}.svg`}); } // the committed SVG was linted when it was built; an identical rebuild needs no second render

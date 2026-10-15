@@ -94,6 +94,7 @@ export const RULE_DOCS = {
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
   'slide-min-text': 'スライド用キャンバスの最小文字サイズ(既定 24px)より小さい文字がある',
   'font-floor-lowered': 'canvas の図が文字の下限を 14px から下げている(canvas.minText < 14。1:1 で読む前提で、投影には向かない)',
+  'stat-no-source': 'stat() の数字に出典(source)が無い。diagram({evidenceCheck: "info" | "strict"}) を書いた図だけで検査する(strict で warn)。stat({source, confidence}) で足す',
   'stat-fit-shrunk': 'stat() の値が箱の幅に収まらないので、自動で小さい文字にした(隣の stat と大きさがそろわない。箱を広げるか、値を短くするとそろう)',
   'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
   'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）',
@@ -493,6 +494,13 @@ export const layoutSeverity = (d: Pick<DiagramData, 'layoutCheck'>): 'warn' | 'i
 /** The severity of the `toc-*` findings (ADR 0015 D3): info, or warn for a diagram that asked for diagram({tocCheck: 'strict'}). */
 export const tocSeverity = (d: Pick<DiagramData, 'tocCheck'>): 'warn' | 'info' => d.tocCheck === 'strict' ? 'warn' : 'info';
 
+/** stat-no-source (ADR 0023 D10): a stat() number with no source. Runs only for a diagram that wrote diagram({evidenceCheck}). */
+function evidenceRules(d: LintTarget, out: Finding[]): void {
+  if (d.evidenceCheck === undefined) return;
+  const severity = d.evidenceCheck === 'strict' ? 'warn' : 'info';
+  for (const b of walkBands(d.bands)) if (b.type === 'box' && b.statValue !== undefined && !b.evidence) out.push({rule: 'stat-no-source', severity, message: `数字 ${b.statValue} に出典がない(stat の source を足す)`});
+}
+
 function tocRules(d: LintTarget, out: Finding[]): void {
   const severity = tocSeverity(d);
   for (const b of walkBands(d.bands)) if (b.type === 'cause') for (const f of tocFindings(b)) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
@@ -659,6 +667,7 @@ function lintAll(d: LintTarget): Finding[] {
     if (connects.length >= 4 && unlabeled < connects.length && unlabeled / connects.length > 0.6) out.push({rule: 'arrow-labels', severity: 'info', message: `矢印 ${connects.length} 本のうち ${unlabeled} 本にラベルがない。何が流れるか（成果物・プロトコル）を短く添える`});
   }
   statFitFindings(d, out);
+  evidenceRules(d, out);
   if (d.canvas && d.laidOut) {
     const min = minTextSize(d);
     if (d.canvas.minText < MIN_FONT_SIZE) out.push({rule: 'font-floor-lowered', severity: 'info', message: `文字の下限を ${MIN_FONT_SIZE}px から ${d.canvas.minText}px に下げている(最小の文字 ${min}px)。キャンバスは 1:1 で読まれる前提。投影には向かない`});

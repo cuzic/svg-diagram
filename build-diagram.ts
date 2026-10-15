@@ -62,6 +62,7 @@ const TOOL_VERSION = JSON.parse(fs.readFileSync(new URL(EXT === 'ts' ? './packag
 const args = process.argv.slice(2);
 const valueOf = (flag: string) => { const i = args.indexOf(flag); return i === -1 ? null : args[i + 1]; };
 const outOverride = valueOf('--out');
+const todayArg = valueOf('--today'); // the day for gantt({today: 'auto'}); else SVG_DIAGRAM_TODAY, else "today" in .svg-diagram.json (ADR 0022)
 const outDir = valueOf('--out-dir');
 const pngDir = valueOf('--png'); // also write <name>.png (the rasters of lib/raster.ts) here
 const scaleArg = valueOf('--scale');
@@ -74,10 +75,10 @@ const DARK = args.includes('--dark'); // draw with the dark token set (overrides
 const TRANSPARENT = args.includes('--transparent'); // no page-colour background rectangle
 const NO_SOURCE_LINE = args.includes('--no-source-line'); // ADR 0023 D11: draw without diagram({sourceLine}) (recorded in <metadata> as noSourceLine)
 const STALE = args.includes('--stale'); // skip diagrams whose SVG already matches this source, tool version and project config
-const modules = args.filter((a, i) => !['--out', '--out-dir', '--png', '--scale', '--id-prefix', '--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent', '--no-source-line'].includes(a) && !['--out', '--out-dir', '--png', '--scale', '--id-prefix'].includes(args[i - 1]));
+const modules = args.filter((a, i) => !['--out', '--out-dir', '--png', '--scale', '--id-prefix', '--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent', '--no-source-line', '--today'].includes(a) && !['--out', '--out-dir', '--png', '--scale', '--id-prefix', '--today'].includes(args[i - 1]));
 
 if (modules.length === 0) {
-  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--png <dir> [--scale N]] [--stale] [--no-lint] [--fit] [--html] [--dark] [--transparent] [--no-source-line] [--id-prefix <p|auto>]');
+  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--png <dir> [--scale N]] [--stale] [--no-lint] [--fit] [--html] [--dark] [--transparent] [--no-source-line] [--id-prefix <p|auto>] [--today YYYY-MM-DD]');
   process.exit(2);
 }
 if (outOverride && modules.length > 1) {
@@ -87,6 +88,7 @@ if (outOverride && modules.length > 1) {
 if (pngDir !== null && (!pngDir || pngDir.startsWith('--'))) { console.error('--png needs a directory'); process.exit(2); }
 if (scaleArg !== null && pngDir === null) { console.error('--scale is the PNG scale: use it with --png <dir>'); process.exit(2); }
 if (!(PNG_SCALE > 0)) { console.error(`--scale is a positive number (got ${scaleArg})`); process.exit(2); }
+if (args.includes('--today')) { try { if (!todayArg || todayArg.startsWith('--')) throw new Error('--today needs a date (YYYY-MM-DD)'); config._today = (await import('./lib/today.ts')).checkToday(todayArg, '--today'); } catch (e) { console.error(`✗ ${(e as Error).message}`); process.exit(2); } }
 if (idPrefixArg !== null && !/^[A-Za-z_][\w.-]*$/.test(idPrefixArg)) { console.error(`--id-prefix is a name usable in an id (letters, digits, _ . -; not starting with a digit) or "auto" (got ${idPrefixArg})`); process.exit(2); }
 if (outOverride && outDir) {
   console.error('use either --out or --out-dir, not both');

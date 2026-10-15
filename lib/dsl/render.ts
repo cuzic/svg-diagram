@@ -15,6 +15,8 @@ import {fillScaleLimit} from './text-bands.ts';
 import {contentBox} from '../layout-metrics.ts';
 import {MathTooWideError} from '../math.ts';
 import {applyWireframeDefaults} from './wireframe-numbering.ts';
+import {fillAutoToday} from '../today.ts';
+import {walkBands} from '../rules.ts';
 
 //
 // Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
@@ -40,6 +42,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (opts.layoutCheck === 'strict' && (opts.medium ?? (opts.theme === undefined ? 'slide' : 'doc')) === 'slide') throw new Error("diagram({layoutCheck: 'strict'}) needs a document figure (theme: ...): slide figures (day: ...) are not given the layout-* checks, so it would never warn");
   if (opts.layoutCheck !== undefined && opts.layoutCheck !== 'info' && opts.layoutCheck !== 'strict') throw new Error(`diagram({layoutCheck}) must be 'info' or 'strict' (got ${JSON.stringify(opts.layoutCheck)})`);
   if (opts.tocCheck !== undefined && opts.tocCheck !== 'info' && opts.tocCheck !== 'strict') throw new Error(`diagram({tocCheck}) must be 'info' or 'strict' (got ${JSON.stringify(opts.tocCheck)})`);
+  if (opts.evidenceCheck !== undefined && opts.evidenceCheck !== 'info' && opts.evidenceCheck !== 'strict') throw new Error(`diagram({evidenceCheck}) must be 'info' or 'strict' (got ${JSON.stringify(opts.evidenceCheck)})`);
   if (opts.maxWidth !== undefined && !(typeof opts.maxWidth === 'number' && Number.isFinite(opts.maxWidth) && opts.maxWidth > 0)) throw new Error(`diagram({maxWidth}) must be a positive number (got ${JSON.stringify(opts.maxWidth)})`);
   if (opts.legend !== undefined && opts.legend !== 'auto' && opts.legend !== false) throw new Error(`diagram({legend}) must be 'auto' or false (got ${JSON.stringify(opts.legend)})`);
   if (opts.canvas !== undefined && (opts.slide || opts.fill)) throw new Error('diagram({canvas}) is a whole slide drawn 1:1; it cannot be combined with `slide` / `fill` (those fit a figure into a measured slot of a Slidev slide)');
@@ -73,6 +76,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     ...(opts.status === undefined ? {} : {status: opts.status, ...(opts.statusLabel === undefined ? {} : {statusLabel: opts.statusLabel})}), // a figure without a status is unchanged
     layoutCheck: opts.layoutCheck, // check only: the severity of the layout-* findings; never reaches the drawing
     tocCheck: opts.tocCheck, // check only: the severity of the toc-* findings; never reaches the drawing
+    evidenceCheck: opts.evidenceCheck, // check only: turns on stat-no-source; never reaches the drawing
     fill: !!opts.fill, // fit-figure slide: build to the measured width/height, growing fonts to use the slack (see build())
     bands: [],
   };
@@ -160,7 +164,10 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
 }
 /** What the passes may write into: the bands are copied, so a band shared by two diagrams (or drawn twice) is never changed by a render. */
 function detach<D extends DiagramData>(d: D): D {
-  return {...d, bands: cloneData(d.bands)};
+  const out = {...d, bands: cloneData(d.bands)};
+  // gantt({today: 'auto'}) takes the day the caller gave (never the clock); only then does the day go in the metadata
+  if (fillAutoToday(walkBands(out.bands), out.today) && out.source) out.source = {...out.source, today: out.today};
+  return out;
 }
 /**
  * A deep copy of plain data: arrays and plain objects (Object.prototype or null prototype) are copied; everything else is
