@@ -202,7 +202,9 @@ const checkImage = (band: LaidOutOf<'image'>, _d: LaidOutDiagram, {problems}: Ve
   eachOverlap(band.plates, (a, b, o) => problems.push(`image: label "${a.text}" overlaps label "${b.text}" by ${dxdy(o)} (move one: its position is a fraction of the picture)`));
 };
 
-const checkNoWrap = (b: LaidOutBox, out: VerifyOut): void => { for (const value of b.nowrapOverflow ?? []) out.problems.push(`stat: value "${value}" does not fit its box without wrapping (widen the box or use size: 'stat')`); };
+const checkNoWrap = (b: LaidOutBox, out: VerifyOut): void => {
+  for (const o of b.nowrapOverflow ?? []) out.problems.push(`stat: value "${o.value}" does not fit its box even at the smallest size (${o.min}px: needs ${Math.ceil(o.width)}px, the box has ${Math.floor(o.avail)}px).\n  fix: widen the box (span / flex / width), shorten the value, or put the unit in the label.`);
+};
 
 // quadrant(): items keep clear of each other, of every label and of the arrows; every label stays inside the figure.
 const checkQuadrant = (band: LaidOutOf<'quadrant'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {

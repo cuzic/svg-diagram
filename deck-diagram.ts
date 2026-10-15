@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// svg-diagram deck <a.ts|a.svg>... --out deck.html [--title TEXT] [--cols N] [--csp] [--render svg]
+// svg-diagram deck <a.ts|a.svg>... --out deck.html [--title TEXT] [--cols N] [--csp] [--no-source-line] [--render svg]
 // Several figures in one self-contained HTML document to look through (ADR 0018). A .ts source is drawn in memory (renderSource,
 // nothing is written); an .svg is read as it is. The order of the arguments is the order of the slides.
 //
@@ -16,10 +16,10 @@ import {buildDeck, externalRefs} from './lib/deck-html.ts';
 import type {DeckSlide} from './lib/deck-html.ts';
 import {viewerAssets} from './lib/deck-viewer.ts';
 
-const USAGE = 'Usage: svg-diagram deck <a.ts|a.svg>... [--out deck.html] [--title TEXT] [--cols N] [--csp] [--render svg]\n  (a deck views figures that build / check have passed; it does not lint them)';
+const USAGE = 'Usage: svg-diagram deck <a.ts|a.svg>... [--out deck.html] [--title TEXT] [--cols N] [--csp] [--no-source-line] [--render svg]\n  (a deck views figures that build / check have passed; it does not lint them)';
 const args = process.argv.slice(2);
 const VALUE = ['--out', '--title', '--cols', '--render'];
-const BOOL = ['--csp'];
+const BOOL = ['--csp', '--no-source-line'];
 const usage = (msg?: string): never => { console.error(msg ? `✗ ${msg}\n${USAGE}` : USAGE); process.exit(2); };
 
 for (const [i, a] of args.entries()) {
@@ -35,6 +35,7 @@ const out = val('--out') ?? 'deck.html';
 const colsArg = val('--cols');
 const cols = colsArg === undefined ? undefined : Number(colsArg);
 if (cols !== undefined && !(Number.isInteger(cols) && cols >= 1)) usage(`--cols needs a whole number of 1 or more (got ${colsArg})`);
+const noSourceLine = args.includes('--no-source-line');
 const render = val('--render') ?? 'svg';
 if (render === 'html') usage('--render html is not available yet (the SVG form is the one deck draws)');
 if (render !== 'svg') usage(`--render is svg (got ${render})`);
@@ -49,9 +50,10 @@ try {
       let problems: string[] = [];
       if (file.endsWith('.svg')) {
         svg = fs.readFileSync(file, 'utf8');
+        if (noSourceLine) console.error(`⚠ ${file}: .svg の出典行は消えない(.ts から描き直す)`);
         problems = xmlProblems(svg);
       } else {
-        const r = await renderSource(file, {fresh: false});
+        const r = await renderSource(file, {fresh: false, ...(noSourceLine ? {noSourceLine: true} : {})});
         svg = r.svg;
         problems = r.problems;
         for (const w of r.warnings) console.error(`⚠ ${file}: ${w}`);

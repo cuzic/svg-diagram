@@ -56,9 +56,12 @@ function registerRequests(requests: Requests, band: Band, roles: Roles): void {
   if ('stamp' in band && band.stamp) registerAtoms(requests, band.stamp, roles.note, 400);
   for (const run of textRuns(band, roles)) {
     const font = run.mono ? 'mono' : 'sans';
-    for (const {text, weight} of styledAtoms(run)) {
-      const key = `${text} ${run.size} ${weight} ${font}`;
-      if (!requests.has(key)) requests.set(key, {text, size: run.size, weight, font});
+    // a value that may shrink (ADR 0024) is measured at every whole size it may be drawn at: a width is only looked up, never scaled
+    for (let size = run.fit && run.nowrap ? run.fit.min : run.size; size <= run.size; size++) {
+      for (const {text, weight} of styledAtoms(run)) {
+        const key = `${text} ${size} ${weight} ${font}`;
+        if (!requests.has(key)) requests.set(key, {text, size, weight, font});
+      }
     }
   }
 }
