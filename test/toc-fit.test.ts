@@ -169,3 +169,10 @@ test('a current reality tree with eight UDEs at 60% of its natural width: fits u
   assert.ok(extent(await run({dir: 'up', fold: true}, W)) <= W - 40 + 0.5);
 });
 test.after(() => closeMeasurer());
+
+test('causeTree() narrow but too tall: the failure says the height, and does not tell to widen the figure', () => {
+  const chain = causeTree(['a', 'b', 'c', 'd', 'e'].map(id => N(id)), [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'}, {from: 'd', to: 'e'}]);
+  const natural = place(chain, 900).h;
+  assert.throws(() => place(chain, 900, natural - 20), (e: Error) => /does not fit 900px wide by \d+px tall/.test(e.message) && !/widen the figure/.test(e.message) && /split the figure/.test(e.message));
+  assert.doesNotThrow(() => place(chain, 900, natural + 20));
+});
