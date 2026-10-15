@@ -1,6 +1,6 @@
 # ADR 0025: PowerPoint(.pptx)への書き出し(`svg-diagram pptx`)
 
-- 状態: 提案(Opus レビュー 2 巡目とスパイク済み。PowerPoint 実機での確認が残る)
+- 状態: 提案(Opus レビュー 3 巡目・スパイク・PoC 実装済み。PowerPoint 実機での確認が残る)
 - 日付: 2026-10-15
 - 基点: `origin/main`(d7b9f75、PR #224 まで)
 - 関連: ADR 0007(結果が入力だけで決まること), ADR 0012(id の衝突), ADR 0017(最小の文字サイズ), ADR 0018(`deck`)
@@ -133,3 +133,20 @@ pptx では、図形と線の幾何は保証する(layout のまま)。文字は
 2. 文字の行数と縦位置(第一行の字下げ `indent` の解釈を含む)、受け手のフォント(游ゴシックなど)で置き換わったときのずれ。caption と接続線のラベルの位置。
 3. 「修復しますか」が出ないこと(Open XML SDK の検証器は dotnet が無く未実施)。表の行の伸び。
 4. svgBlip の描画(`marker orient`、`<style>`、日本語)と、バンド単位の切り出し。
+
+## PoC の実装(`lib/pptx/`、`svg-diagram pptx`)
+
+スパイクを昇格して実装した(Codex が実装し、レビューと検証は別に行った)。入口は `emitPptx(laidOut, opts): Buffer`(`lib/pptx/emit.ts`)、CLI は `svg-diagram pptx <source.ts>... [--out FILE | --out-dir DIR] [--png-scale N] [--font NAME]`。全 `LaidOutType` と chart の kind を「ネイティブ / 画像」に分ける表は `lib/pptx/handlers.ts`(網羅していないとコンパイルが通らない)。雛形は `lib/pptx/template/`(`pnpm run build` で `dist/` にも入る)。`./pptx` の公開エクスポートは付けていない。
+
+`examples/*.ts` の 146 本を通した結果:
+
+- **全 146 本が生成でき**、zip は壊れず、スライド XML はすべて整形式(`xmllint`)。`dist/` から出したものとソースから出したものはバイト一致。
+- ネイティブ(283 バンド): caption 153、group 45、row 30、box 30、table 10、banner 9、grid 6。画像(166 バンド): tree 10、cause 11、wordart 12、bars 14、plane 11、quadrant 9、legend 8、timeline 5 ほか、chart は全 kind(sankey・treemap・heatmap を含む)。
+- コネクタ: 両端接続 25、片端 3、接続なし 7。経路が当てはまらなかったバンド内の辺 5 本(gantt の依存線 4、cloud の斜め 1)は画像バンドの中に残る。
+- LibreOffice で描いた見た目は、表・箱・グラフ(画像)とも SVG と一致している(目視)。
+- 型検査と PPTX のテスト 9 件(判定役を含む)は通る。全体の `pnpm test`(1781 件)で落ちるのは既知のフォント差の 2 件(layout-budget、svg-lint-browser)のみ。
+
+PoC で未完のもの(後続):
+
+- icon の絵柄は描かない(空の枠は出さない)。画像バンドの透明アンカーは、画像と同じグループに入っていない。画像バンドの範囲はバンドの矩形に 12px の余白を足したもので、インクの範囲ではない。画像の中の文字のアウトライン化は未着手。
+- `.svg-diagram.json` の `fonts` と PowerPoint の書体名を自動で対応づけられないので、書体名は既定(BIZ UDPGothic)か `--font`。
