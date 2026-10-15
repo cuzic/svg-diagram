@@ -65,7 +65,7 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
   const top = hasLoop && dir === 'right' ? LOOP + S + 8 + 8 : 0;
   const placeIn = (size: {w: number; h: number}) => (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + x + (w - size.w - reserve) / 2, y: q.y + y + top}; };
   const {lay, routes, size: total} = layeredAttempt(nodes, edges, {dir: 'right', gap: GAP + loopRows, levelGap: Math.max(dir === 'down' ? LEVEL_GAP + 16 : LEVEL_GAP, gapFor(degree, dir === 'right' ? widestLabel : 0))},
-    {portStep: 22, transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true}); // wide steps: two hollow triangles on one side do not touch
+    {portStep: 22, transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, ...(band.straighten === false ? {straighten: false} : {})}); // wide steps: two hollow triangles on one side do not touch
   if (total.w + reserve > w + 0.5) throw new Error(`classDiagram(): the figure is ${Math.ceil(total.w + reserve)}px wide but it has ${Math.round(w)}px (use dir: 'right', shorter member lines, or fewer classes on one level)`);
   const dx = x + (w - total.w - reserve) / 2, dy = y + top;
   const out: LaidOutClasses = {
