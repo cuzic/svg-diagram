@@ -92,6 +92,9 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     return {ends, d, along, cross, ok: aligned && room >= AND_END + 1};
   };
   // One whole attempt: the node text wrapped at maxW and the layout turned to dir. Everything that depends on either is in here.
+  // ALAP (ADR 0019 D1): the entities where a cause starts stay on the first layer; the input side (preconditions, obstacles, actions) moves up to its effects
+  const layerMode = band.layer ?? (band.tree === 'prt' || band.tree === 'frt' || band.tree === 'tt' ? 'alap' : 'asap');
+  const alap = layerMode === 'alap' ? {keep: band.nodes.filter(n => n.role === 'root' || n.role === 'injection' || n.role === 'start').map(n => n.id)} : undefined;
   const build = (dir: CauseDir, maxW: number, fold?: number) => {
     const vertical = dir === 'up' || dir === 'down', flip = dir === 'up' || dir === 'left';
     const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles)]));
@@ -121,7 +124,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     const declared = arrows.flatMap((a, k) => a.back ? [k] : []); // the returns the author named: laid out as the way back (index into `arrows`)
     // the returns that skip layers run in an outer lane: all of them when `returns: 'outer'` (or pdpc's default), the declared ones (`back`) when nothing is written
     const wanted: 'all' | 'declared' | undefined = band.returns === 'inline' ? undefined : (band.returns ?? band.returnsDefault) === 'outer' ? 'all' : declared.length ? 'declared' : undefined;
-    const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {}), ...(fold === undefined ? {} : {fold})}, {
+    const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {}), ...(alap ? {alap} : {}), ...(fold === undefined ? {} : {fold})}, {
       portStep: PORT, groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: w + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}),
       looseOf: (rts, ly) => {
         const route = new Map<number, Pt[]>();

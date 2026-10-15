@@ -143,6 +143,9 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
   /** Which Theory of Constraints tree this is: 'crt' (current reality), 'frt' (future reality), 'prt' (prerequisite), 'tt' (transition).
    *  Only a figure that says it is checked (the `toc-*` rules of `check`); not written, nothing is checked. It never changes the drawing. */
   tree?: 'crt' | 'frt' | 'prt' | 'tt';
+  /** Where an entity that nothing causes goes (ADR 0019 D1): 'asap' the first layer, 'alap' just before its nearest effect (a chain of such entities too; root, injection and start entities stay
+   *  on the first layer). Default: 'alap' when `tree` is 'prt', 'frt' or 'tt', else 'asap' (the picture as it was). */
+  layer?: 'asap' | 'alap';
   /** With coreDriver: write `到達 UDE n` under each starting entity (default true). */
   counts?: boolean;
   /** Where a return (an arrow back to an earlier layer) that skips two layers or more runs: 'inline' (through the figure, over dummies) or 'outer' (in a lane

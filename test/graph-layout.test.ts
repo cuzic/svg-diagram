@@ -395,3 +395,31 @@ test('layoutLayered fold: a long layer is cut into rows in input order, and the 
   assert.equal(lay.layers.get('t'), 4);
   assert.deepEqual(lay.folded, [{layer: 1, rows: 3}]);
 });
+
+// ---- alap (ADR 0019 D1): the input side moves, a chain of inputs too ----
+test('layoutLayered alap: a chain of inputs moves to just before its target; keep ids and the default stay', () => {
+  const nodes = ['r', 'i1', 'i2', 'i3', 'i4', 'g', 'o', 'x'].map(sq);
+  const e = [['r', 'i1'], ['i1', 'i2'], ['i2', 'i3'], ['i3', 'i4'], ['i4', 'g'], ['o', 'x'], ['x', 'i4']].map(([from, to]) => ({from, to}));
+  const plain = layoutLayered(nodes, e), alap = layoutLayered(nodes, e, {alap: {keep: ['r']}});
+  assert.deepEqual([plain.layers.get('o'), plain.layers.get('x')], [0, 1]);
+  assert.deepEqual([alap.layers.get('x'), alap.layers.get('o')], [3, 2], 'the chain o -> x lies just before i4 (tighten alone leaves x on layer 1)');
+  assert.equal(alap.layers.get('r'), 0, 'a kept id stays');
+  assert.equal(layoutLayered(nodes, e, {tighten: true}).layers.get('x'), 1);
+  assert.deepEqual(layoutLayered(nodes, e, {alap: {keep: []}}).layers.get('r'), 0, 'r heads a chain of its own: i1 and the rest follow it, nothing earlier moves');
+  assert.deepEqual(layoutLayered(nodes, e), plain, 'without alap nothing changes');
+});
+
+test('layoutLayered alap: 200 small graphs keep edge directions, the reversed edges and never move a node earlier', () => {
+  const rand = rng(23);
+  for (let k = 0; k < 200; k++) {
+    const {names, edges, start} = randomGraph(rand), nodes = names.map(sq);
+    const plain = layoutLayered(nodes, edges, {start}), alap = layoutLayered(nodes, edges, {start, alap: {keep: names.slice(0, 1)}});
+    assert.deepEqual(alap.edges.map(x => x.reversed), plain.edges.map(x => x.reversed), 'the same edges are reversed (alap does not change the cycle breaking)');
+    for (const n of names) assert.ok(alap.layers.get(n)! >= plain.layers.get(n)!, `${n} does not move earlier`);
+    for (const x of alap.edges) if (!x.self) {
+      const [lf, lt] = [alap.layers.get(x.from)!, alap.layers.get(x.to)!];
+      assert.ok(x.reversed ? lt < lf : lf < lt, `${x.from} -> ${x.to} keeps its direction`);
+    }
+    for (const s of [...start, names[0]]) assert.equal(alap.layers.get(s), plain.layers.get(s), 'a start or kept node does not move');
+  }
+});

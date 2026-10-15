@@ -166,6 +166,19 @@ test('causeTree({coreDriver}): the SVG has a thick frame and a badge for the cor
   assert.ok(!off.includes('中核') && !off.includes('stroke-width="3.5"'));
 });
 
+test("causeTree({tree, layer}): prt / frt / tt put an input chain just before its target (alap); crt, no tree and layer: 'asap' keep the first layer (ADR 0019 D1)", async () => {
+  const nodes = [N('g', {role: 'goal'}), N('i1', {role: 'io'}), N('i2', {role: 'io'}), N('i3', {role: 'io'}), N('o', {role: 'obstacle'}), N('a', {role: 'action'}), N('r', {role: 'root'})];
+  const links = [{from: 'r', to: 'i1'}, {from: 'i1', to: 'i2'}, {from: 'i2', to: 'i3'}, {from: 'i3', to: 'g'}, {from: 'o', to: 'a'}, {from: 'a', to: 'i3'}];
+  const yOf = async (opts: object) => { const {t} = await laidCause(causeTree(nodes, links, opts)); const by = (id: string) => t.nodes[t.anchors.findIndex(a => a.id === id)]; return {o: by('o').y, a: by('a').y, r: by('r').y, i3: by('i3').y}; };
+  const asap = await yOf({}), prt = await yOf({tree: 'prt'});
+  assert.equal(asap.o, asap.r, 'asap: the obstacle sits on the first layer, with the root');
+  assert.ok(prt.o < prt.r && prt.a < prt.o, "alap: the obstacle and the action rise to just before i3 (the root is a cause's start and stays); up is a smaller y");
+  assert.deepEqual(await yOf({tree: 'crt'}), asap, 'a crt is not moved');
+  assert.deepEqual(await yOf({tree: 'prt', layer: 'asap'}), asap, "layer: 'asap' restores the picture");
+  assert.deepEqual(await yOf({layer: 'alap'}), prt, "layer: 'alap' without a tree");
+  assert.throws(() => causeTree(nodes, links, {layer: 'late' as never}), /layer must be/);
+});
+
 test('causeTree(): coreDriver must be a boolean', () => {
   assert.throws(() => causeTree([N('a')], [], {coreDriver: 'yes' as never}), /coreDriver must be/);
 });
