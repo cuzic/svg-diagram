@@ -129,7 +129,7 @@ test("group({valign: 'stretch'}): a single box fills the room", async () => {
   const l = await laid(pair(group([box({title: 'only', id: 'o'})], {title: 'R', valign: 'stretch'})));
   const [, g2] = frames(l), o = boxOf(l, 'o');
   assert.equal(o.y, boxOf(l, 'a').y);
-  assert.equal(o.y + o.h, g2.y + g2.h - 16, 'the box ends one pad above the frame bottom');
+  assert.equal(snap4(o.y) + snap4(o.h), snap4(g2.y) + snap4(g2.h) - 16, 'the box, as drawn, ends one pad above the frame bottom (laid-out tops sit on the grid now, so compare the drawn edges)');
 });
 
 test('no room (equal groups): nothing moves', async () => {
