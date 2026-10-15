@@ -11,21 +11,24 @@ export function loadConfig(from: string = process.cwd()): Config {
   let dir = path.resolve(from);
   for (;;) {
     const f = path.join(dir, '.svg-diagram.json');
-    if (fs.existsSync(f)) {
-      let cfg: Config;
-      try { cfg = {...JSON.parse(fs.readFileSync(f, 'utf8')), _file: f}; }
-      catch (e) { throw new Error(`${f}: ${(e as Error).message}`); }
-      checkLegend(cfg, f);
-      checkAccept(cfg, f);
-      checkTerms(cfg, f);
-      checkFontFloor(cfg, f);
-      if (cfg.tones !== undefined) { try { cfg.tones = checkTones(cfg.tones, '"tones"'); } catch (e) { throw new Error(`${f}: ${(e as Error).message}`); } }
-      return cfg;
-    }
+    if (fs.existsSync(f)) return readConfigFile(f);
     const up = path.dirname(dir);
     if (up === dir) return {};
     dir = up;
   }
+}
+
+/** One .svg-diagram.json, read and checked (`--config <path>` names it directly). */
+export function readConfigFile(f: string): Config {
+  let cfg: Config;
+  try { cfg = {...JSON.parse(fs.readFileSync(f, 'utf8')), _file: f}; }
+  catch (e) { throw new Error(`${f}: ${(e as Error).message}`); }
+  checkLegend(cfg, f);
+  checkAccept(cfg, f);
+  checkTerms(cfg, f);
+  checkFontFloor(cfg, f);
+  if (cfg.tones !== undefined) { try { cfg.tones = checkTones(cfg.tones, '"tones"'); } catch (e) { throw new Error(`${f}: ${(e as Error).message}`); } }
+  return cfg;
 }
 
 // JSON has no types: a typo in legend / legendLabels would otherwise be dropped without a word (a diagram's own are checked by tsc / diagram())

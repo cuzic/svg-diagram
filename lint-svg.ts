@@ -14,6 +14,7 @@
 //   node scripts/svg-diagram/lint-svg.ts public/svg/x.svg # one file
 //   node scripts/svg-diagram/lint-svg.ts --strict          # advisories also fail
 //   node scripts/svg-diagram/lint-svg.ts --engine browser  # the checks on the rendering in a real Chromium (needs playwright-chromium)
+//   node scripts/svg-diagram/lint-svg.ts --config .svg-diagram.json x.svg # the project settings to use (default: found from each SVG's own directory)
 //   node scripts/svg-diagram/lint-svg.ts --fix              # mechanically fix font-size-too-small, then re-lint
 //
 // --fix currently covers only font-size-too-small (bump below-14px sizes up to
@@ -27,16 +28,33 @@ import type {Browser, Page} from 'playwright-chromium';
 import {launchChromium} from './lib/browser.ts';
 import {browserChecks} from './lib/lint-browser.ts';
 import {geometryChecks, type RenderChecks} from './lib/svg-lint.ts';
-import {loadConfig} from './lib/config.ts';
+import {loadConfig, readConfigFile} from './lib/config.ts';
+import type {Config} from './lib/types/project.ts';
+import path from 'path';
 import fs from 'fs';
-import {ALLOWED_COLORS, DARK_COLORS, EMOJI_RE} from './lib/tokens.ts';
+import {ALLOWED_COLORS, DARK_COLORS, EMOJI_RE, MIN_FONT_SIZE, MIN_TEXT_ABSOLUTE} from './lib/tokens.ts';
 
 const strict = process.argv.includes('--strict');
 const engineIdx = process.argv.indexOf('--engine');
 const engine = engineIdx === -1 ? 'geometry' : process.argv[engineIdx + 1];
 if (engine !== 'geometry' && engine !== 'browser') { console.error(`✗ --engine is geometry or browser (got ${engine ?? 'nothing'})`); process.exit(2); }
 const fix = process.argv.includes('--fix');
-const given = process.argv.slice(2).filter((a, i, all) => a.endsWith('.svg') && all[i - 1] !== '--engine');
+const configIdx = process.argv.indexOf('--config');
+const explicitConfig = configIdx === -1 ? undefined : process.argv[configIdx + 1];
+if (configIdx !== -1 && !explicitConfig) { console.error('✗ --config needs a path to a .svg-diagram.json'); process.exit(2); }
+const given = process.argv.slice(2).filter((a, i, all) => a.endsWith('.svg') && all[i - 1] !== '--engine' && all[i - 1] !== '--config');
+// the project settings that apply to one SVG: --config, else the .svg-diagram.json found walking up from the SVG's own directory (not from the cwd)
+const configCache = new Map<string, Config>();
+function configFor(file: string): Config {
+  const key = explicitConfig ? path.resolve(explicitConfig) : path.dirname(path.resolve(file));
+  let cfg = configCache.get(key);
+  if (!cfg) {
+    try { cfg = explicitConfig ? readConfigFile(key) : loadConfig(key); }
+    catch (e) { console.error(`✗ ${(e as Error).message}`); process.exit(2); }
+    configCache.set(key, cfg);
+  }
+  return cfg;
+}
 let files;
 if (given.length) {
   files = given; // every .svg named on the command line (it used to look at the first one only)
@@ -56,6 +74,7 @@ if (files.length === 0) {
 const staticFindings = [];
 const advisoryFindings = [];
 const fixedFiles = [];
+const noticeFindings: {file: string; check: string; detail: string}[] = []; // told, never counted as a failure
 
 for (const f of files) {
   let src = fs.readFileSync(f, 'utf8');
@@ -95,18 +114,32 @@ for (const f of files) {
       staticFindings.push({file: f, check: 'undefined-marker', detail: `marker-end/start references #${ref} but no <marker id="${ref}"> is defined in this file`});
     }
   }
+  // the text floor: 14px, or what the figure declared (data-min-text, a canvas figure that lowered it) when the project's fontFloor allows that
+  let floor = MIN_FONT_SIZE;
+  const declared = /<svg[^>]*\sdata-min-text="([^"]*)"/.exec(src)?.[1];
+  if (declared !== undefined) {
+    const n = Number(declared), allowed = configFor(f).fontFloor ?? MIN_FONT_SIZE;
+    if (!declared.trim() || !Number.isFinite(n) || n < MIN_TEXT_ABSOLUTE) {
+      staticFindings.push({file: f, check: 'font-floor-not-permitted', detail: `data-min-text="${declared}" is not a number of ${MIN_TEXT_ABSOLUTE} or more`});
+    } else if (n < allowed) {
+      staticFindings.push({file: f, check: 'font-floor-not-permitted', detail: `data-min-text="${n}" is below the project's fontFloor (${allowed}): set "fontFloor" in .svg-diagram.json (${MIN_TEXT_ABSOLUTE} at the lowest), or raise the diagram's canvas minText`});
+    } else if (n < MIN_FONT_SIZE) {
+      floor = n;
+      noticeFindings.push({file: f, check: 'font-floor-lowered', detail: `minText ${n}px(案件の fontFloor ${allowed})。文字の下限を ${MIN_FONT_SIZE}px から下げた図(1:1 で読む前提。投影には向かない)`});
+    }
+  }
   const smallSizes = new Set<number>();
-  for (const m of src.matchAll(/font-size="(\d+(?:\.\d+)?)"/g)) if (+m[1] < 14) smallSizes.add(+m[1]);
-  for (const m of src.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)) if (+m[1] < 14) smallSizes.add(+m[1]);
+  for (const m of src.matchAll(/font-size="(\d+(?:\.\d+)?)"/g)) if (+m[1] < floor) smallSizes.add(+m[1]);
+  for (const m of src.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)) if (+m[1] < floor) smallSizes.add(+m[1]);
   if (smallSizes.size) {
     if (fix) {
       src = src
-        .replace(/font-size="(\d+(?:\.\d+)?)"/g, (m0, n) => (+n < 14 ? 'font-size="14"' : m0))
-        .replace(/font-size:\s*(\d+(?:\.\d+)?)px/g, (m0, n) => (+n < 14 ? 'font-size: 14px' : m0));
+        .replace(/font-size="(\d+(?:\.\d+)?)"/g, (m0, n) => (+n < floor ? `font-size="${floor}"` : m0))
+        .replace(/font-size:\s*(\d+(?:\.\d+)?)px/g, (m0, n) => (+n < floor ? `font-size: ${floor}px` : m0));
       fs.writeFileSync(f, src);
-      fixedFiles.push({file: f, check: 'font-size-too-small', detail: `bumped ${[...smallSizes].sort((a, b) => a - b).join(', ')}px → 14px`});
+      fixedFiles.push({file: f, check: 'font-size-too-small', detail: `bumped ${[...smallSizes].sort((a, b) => a - b).join(', ')}px → ${floor}px`});
     } else {
-      staticFindings.push({file: f, check: 'font-size-too-small', detail: `uses font-size below the 14px floor: ${[...smallSizes].sort((a, b) => a - b).join(', ')}px`});
+      staticFindings.push({file: f, check: 'font-size-too-small', detail: `uses font-size below the ${floor}px floor: ${[...smallSizes].sort((a, b) => a - b).join(', ')}px`});
     }
   }
 
@@ -197,7 +230,7 @@ if (engine === 'browser') {
 for (const f of files) {
   const src = fs.readFileSync(f, 'utf8');
   let result: RenderChecks | null;
-  try { result = page ? await browserChecks(page, src) : geometryChecks(src, loadConfig().fonts); }
+  try { result = page ? await browserChecks(page, src) : geometryChecks(src, configFor(f).fonts); }
   catch (e) {
     const msg = (e as Error).message;
     if (/^not well-formed XML/.test(msg)) { staticFindings.push({file: f, check: 'not-well-formed-xml', detail: `${msg} — an <img> would not load it, and the checks on the rendering cannot read it`}); continue; }
@@ -293,6 +326,12 @@ if (advisoryFindings.length) {
     console.log(`  [${check}] ${items.length}`);
     for (const it of items) console.log(`    ${it.file} — ${it.detail}`);
   }
+  console.log('');
+}
+
+if (noticeFindings.length) {
+  console.log(`── お知らせ(失敗に数えない): ${noticeFindings.length} ──`);
+  for (const it of noticeFindings) console.log(`  [${it.check}] ${it.file} — ${it.detail}`);
   console.log('');
 }
 
