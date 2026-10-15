@@ -519,3 +519,12 @@ test('causeTree() returns: pdpc runs its returns outside by default; the lanes g
   assert.ok((await fig(make(), outerMin)).laidOut.laidOut.some(b => b.type === 'cause' && (b as LaidOutCause).edges.some(e => e.outer)), 'with room, the default is outer');
   assert.throws(() => causeTree([N('a')], [], {returns: 'sideways' as never}), /returns must be/);
 });
+
+test('causeTree(): a return that ends on the other side of the box is not under the AND arc (H6)', async () => {
+  const nodes = ['e2', 'e4', 'e9', 'e10'].map(id => N(id));
+  const links = [{from: ['e4', 'e2'], to: 'e9'}, {from: 'e9', to: 'e10'}, {from: 'e10', to: 'e9', back: true as const}];
+  for (const dir of ['up', 'down', 'left', 'right'] as const) {
+    const {verdict} = await laidCause(causeTree(nodes, links, {tree: 'frt', dir}));
+    assert.deepEqual(verdict.problems.filter(p => p.includes('also covers')), [], `dir ${dir}`);
+  }
+});
