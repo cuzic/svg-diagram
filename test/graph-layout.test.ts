@@ -249,6 +249,56 @@ test('layoutLayered tighten / transpose: 200 small graphs keep edge directions a
   }
 });
 
+// ---- Brandes-Köpf coordinates and components (ADR 0016 D2, D8) ----
+test("layoutLayered coord 'bk': the dummies of a long edge line up, so the edge has no bend between layers", () => {
+  const nodes = ['a', 'b', 'c', 'd'].map(sq), e = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'}, {from: 'a', to: 'd'}];
+  const long = layoutLayered(nodes, e, {coord: 'bk'}).edges.find(x => x.from === 'a' && x.to === 'd')!;
+  assert.equal(long.points.length, 4);
+  assert.equal(long.points[1].y, long.points[2].y, 'the two dummies are on one line');
+});
+
+test("layoutLayered coord 'bk': 200 small graphs keep layers, never overlap, stay inside the size and are deterministic; 'relax' is the default", () => {
+  const rand = rng(21);
+  for (let k = 0; k < 200; k++) {
+    const {names, edges, start} = randomGraph(rand), nodes = names.map(sq);
+    const plain = layoutLayered(nodes, edges, {start}), bk = layoutLayered(nodes, edges, {start, coord: 'bk'});
+    assert.deepEqual(layoutLayered(nodes, edges, {start, coord: 'relax'}), plain);
+    assert.deepEqual([...bk.layers], [...plain.layers]);
+    noOverlaps(bk.nodes);
+    inside(bk.nodes, bk.w, bk.h);
+    assert.deepEqual(layoutLayered(nodes, edges, {start, coord: 'bk'}), bk);
+    // the nodes of one layer keep the order the sweeps gave them: a node never jumps over its neighbour
+    const byLayer = new Map<number, string[]>();
+    for (const [id, l] of bk.layers) byLayer.set(l, [...(byLayer.get(l) ?? []), id]);
+    for (const ids of byLayer.values()) {
+      const ys = ids.map(id => bk.nodes.get(id)!.y).sort((p, q) => p - q);
+      for (let i = 1; i < ys.length; i++) assert.ok(ys[i] - ys[i - 1] >= 30 + 24 - 0.01, 'gap kept inside a layer');
+    }
+  }
+});
+
+test("layoutLayered coord 'bk': separate components are packed one gap apart, whatever order they are written in", () => {
+  const big = (p: string) => ({nodes: [`${p}r`, ...[1, 2, 3, 4, 5].map(i => `${p}m${i}`), `${p}x`], edges: [1, 2, 3, 4, 5].flatMap(i => [{from: `${p}r`, to: `${p}m${i}`}, {from: `${p}m${i}`, to: `${p}x`}])});
+  const chain = (p: string) => ({nodes: [1, 2, 3, 4].map(i => `${p}${i}`), edges: [1, 2, 3].map(i => ({from: `${p}${i}`, to: `${p}${i + 1}`}))});
+  const box2 = (id: string) => ({id, size: {w: 120, h: 40}});
+  for (const parts of [[chain('b'), big('a')], [big('a'), chain('b')], [chain('b'), big('a'), big('c')], [big('a'), chain('b'), big('c')]]) {
+    const names = parts.flatMap(p => p.nodes), edges = parts.flatMap(p => p.edges);
+    const t = layoutLayered(names.map(box2), edges, {dir: 'right', gap: 24, levelGap: 60, coord: 'bk'});
+    const range = (p: {nodes: string[]}): [number, number] => [Math.min(...p.nodes.map(id => t.nodes.get(id)!.y)), Math.max(...p.nodes.map(id => t.nodes.get(id)!.y + 40))];
+    const rs = parts.map(range).sort((p, q) => p[0] - q[0]);
+    for (let i = 1; i < rs.length; i++) assert.equal(rs[i][0] - rs[i - 1][1], 24, 'one gap between two components');
+    assert.equal(rs[0][0], 0);
+    noOverlaps(t.nodes);
+  }
+});
+
+test("layoutLayered coord 'bk': a connected input has the one component's own range (no extra room)", () => {
+  const nodes = ['a', 'b', 'c', 'd'].map(sq), e = [{from: 'a', to: 'b'}, {from: 'a', to: 'c'}, {from: 'b', to: 'd'}, {from: 'c', to: 'd'}];
+  const t = layoutLayered(nodes, e, {coord: 'bk'});
+  assert.equal(Math.min(...[...t.nodes.values()].map(p => p.y)), 0);
+  assert.equal(Math.max(...[...t.nodes.values()].map(p => p.y + p.h)), t.h);
+});
+
 test('layoutLayered transpose: crossed neighbours in a layer are swapped', () => {
   const nodes = ['a', 'b', 'd', 'c'].map(sq), e = [{from: 'a', to: 'd'}, {from: 'b', to: 'c'}];
   assert.equal(chainCrossings(layoutLayered(nodes, e, {transpose: true})), 0);
