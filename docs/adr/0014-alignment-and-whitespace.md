@@ -1,6 +1,6 @@
 # ADR 0014: 整列と余白を、生成時の既定で美しくする(格子に乗った幅・間隔、枠の余りの配分、内容の中央寄せ。`check` は物差しと取りこぼしの網)
 
-- 状態: 提案
+- 状態: 実装済み(U0・U1・U1b・U2・U3・U4・U5 の `width: 'fit'`。U5 の `valign`(`row` / `box` / `diagram({canvas: 'slide', valign})`)は未実装。下の「実装での補足」を参照)
 - 日付: 2026-10-13
 - 基点: `main`(4e58744、PR #124 まで)
 - 関連: ADR 0016(折れ・端点整列。自動配置の線)、ADR 0010(幅の自動調整・非連結成分)、ADR 0008(同じ依頼元)、ADR 0005 #8(文字を 4px の格子に丸める案の見送り)
@@ -286,3 +286,12 @@
 - **2px を超える動き(1 図)**: `small-constraints` の stamp(架空の例 / イメージ / 要確認の札)が 4px。札の位置は `snap4(枠の上端 + 高さ - 30)` で、`- 30` が格子の中間なので、枠の上端が 2px 動くと 4px 飛ぶ(以前は枠の位置によって枠の下端から 4px か 8px の所に出ていた)。上端が格子に乗ったので、札は枠の高さだけで決まり、位置によって振れない。
 - カーソルが枠の位置(アンカー)から決まる `connect()`(bracket / loop-under)のあとだけ、アンカーが格子の上端から出るので、後続が最大 2px ずれうる(`steps` の高さ 228 → 229)。
 - `row({arrows: 'between'})` の矢印の y は、行の上端(格子)+ 高さ / 2。
+
+## 実装での補足(U1b の対象外・U4 = PR #190、U5 = PR #191)
+
+- **U1b の対象外 6 帯**: `lib/layout-handlers.ts` の `OFF_GRID_BANDS`(`plane` / `quadrant` / `timeline` / `wireframe` / `screens` / `wordart`)。これらは、上端を格子に置かず丸め前の位置から置く(内側の座標が格子に乗っていない)。動いた図の数は、136 図中 52 図(上のとおり。見積もりの約 120 枚より少ない)。
+- **U4**: 動いた図は 5 枚(`concentric-stakeholders`、`semnet-causal`・`semnet-pert`・`semnet-deps`・`semnet-deps-blocks`。`semnet-causal-growth` は内容のほうが高く不変)。ADR の見積もり(semnet 2 枚 + concentric 1 枚)より semnet が 2 枚多い(deps 系も `height` を持つ)。`networkCanvas` は、`height` が内容より高いとき、介入点の帯(`inset.top`)と依存先の凡例の間の余白の縦中央に置き(4px の格子に切り下げ)、余りが 0 以下なら動かない。`concentric({labels: 'side'})` は、円と右のキーを 1 つの塊として帯の幅の中央に置く。
+- **U4 の受け入れ条件の食い違い**: 「`layout-*` の件数が下がる」は、動いた 5 枚では測れない。もともと所見が 0 件(`layout-unused-space` の検出対象の帯に semnet / flow-shape が入らず、`concentric` は外接矩形が全幅で `layout-figure-offset` に出ない)で、examples 全図の合計は 24 件のまま(`layout-sibling-size` 13、`layout-unused-space` 8、`layout-figure-narrow` 2、`layout-figure-offset` 1)。代わりに `test/center-semnet.test.ts` が、余白の上下差 ≤ 12px と 4px の格子を縛る。
+- **U5(`width: 'fit'` だけ)**: `diagram({width: 'fit'})` は 940 で配置したあと、内容の外接矩形 + 左右の pad を 4px の格子に切り上げた幅(下限 320)で配置し直す。内容が再配置で動くので最大 3 回繰り返し、収まらなかった回は捨てて直前の幅に戻す(`layoutFitted`。`check` と `build` は同じ関数を通るので、同じ図を判定する)。`canvas` / `fill` / `slide` との併用は throw。
+- **縮むのは flow-shape(chevron / funnel / cycle / venn / concentric)だけ**。flow-shape の外接矩形は帯の全幅なので、そのままでは縮まない。そこで `contentBox` を、実際に描く円・矩形・多角形・文字で測る(`tight`)。それ以外で帯が全幅の矩形を持つ部品(box / banner / 表など)は 940 のまま縮まない(細い図向けの保守的な範囲)。`layout-*` の既存の測定は変えていない。例は `examples/width-fit.ts`(縦の chevron が 940 → 460)。concentric は、幅が狭いと R が 4px の格子に乗らず lint の `coordinate-grid` に掛かるので、例にしていない(別件)。
+- **U5 の `valign` は未実装**: `diagram({canvas: 'slide', valign})`、`row({valign})`、`box({valign})` は入れていない(`group({valign})` は U2 で実装済み)。スライドの canvas の縦の配分は別の設計になるため。`row` / `box` の `valign` は opt-in の別 PR として残る。
