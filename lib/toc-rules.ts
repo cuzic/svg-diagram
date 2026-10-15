@@ -4,7 +4,7 @@ import {breakCycles} from './graph-layout.ts';
 import type {CauseBand} from './types/diagrams.ts';
 
 export type TocRule = 'toc-ude-count' | 'toc-parts' | 'toc-source-has-cause' | 'toc-chain-only' | 'toc-orphan' | 'toc-cycle-undeclared'
-  | 'toc-nbr-parts' | 'toc-nbr-no-tipping' | 'toc-nbr-tipping-not-and' | 'toc-nbr-trim-too-late';
+  | 'toc-nbr-parts' | 'toc-nbr-no-tipping' | 'toc-nbr-tipping-not-and' | 'toc-nbr-trim-too-late' | 'toc-tt-unit';
 export interface TocFinding {rule: TocRule; message: string}
 
 /** The range of undesirable effects a current reality tree is built from (the guidance of the method, not a measure of the examples). */
@@ -37,6 +37,11 @@ export function tocFindings(band: TocBand): TocFinding[] {
     if (missing.length) out.push({rule: 'toc-parts', message: at(`${missing.join('と')}が無い`)});
     const roots = withRole('root');
     if (roots.length) out.push({rule: 'toc-parts', message: at(`'root' は現状ツリーの根本原因の役割。未来現実ツリーの施策は 'injection' で書く: ${roots.join('、')}`)});
+  }
+  if (tree === 'tt') { // a unit of a transition tree: the current reality (or the result before) + a need + an action make the new reality
+    const role = new Map(band.nodes.map(n => [n.id, n.role]));
+    const notUnit = causes.filter(l => typeof l.from !== 'string' && l.from.length > 1 && !(l.from.some(f => role.get(f) === 'action') && l.from.some(f => role.get(f) === 'need' || role.get(f) === 'precondition'))).map(l => l.to);
+    if (notUnit.length) out.push({rule: 'toc-tt-unit', message: at(`AND の結果が、ニーズ（role: 'need'）と行動（role: 'action'）の両方を原因に持たない: ${[...new Set(notUnit)].join('、')}。移行ツリーの単位は、現状 + ニーズ + 行動 → 新しい現実`)});
   }
   if (tree === 'nbr') nbrFindings(band, links, causes, withRole, at, out);
   // an entity nobody controls the cause of: it must not be caused by anything

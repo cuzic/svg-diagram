@@ -42,6 +42,7 @@ export const CAUSE_ROLES: Record<CauseRole, {tone: BoxTone; double?: boolean; da
   precondition: {tone: 'removed'}, // a fact of the present nobody controls: the grey dashed box
   tipping: {tone: 'danger', double: true}, // where a negative branch tips over (ADR 0020 D1)
   trim: {tone: 'changed', dashed: true}, // the injection that cuts a negative branch: a dashed box
+  need: {tone: 'solid'}, // an input of a transition tree's unit (current reality + need + action): the filled box, so that it is not the pale box of an io (ADR 0020 D2)
 };
 
 export function causeTexts(band: CauseBand, roles: Roles): [string, number, number, FontFamily][] {
