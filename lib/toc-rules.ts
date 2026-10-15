@@ -32,7 +32,7 @@ export function tocFindings(band: TocBand): TocFinding[] {
     if (!withRole('root').length) out.push({rule: 'toc-parts', message: at("根本原因（role: 'root'）が無い")});
   }
   if (tree === 'frt') {
-    const missing = [!withRole('injection').length ? "施策（role: 'injection'）" : '', !withRole('de').length ? "望む結果（role: 'de'）" : ''].filter(Boolean);
+    const missing = [!withRole('injection').length ? "施策（role: 'injection'）" : '', !withRole('de').length && !withRole('goal').length ? "望む結果（role: 'de'。最終のゴールを 'goal' で書いてもよい）" : ''].filter(Boolean);
     if (missing.length) out.push({rule: 'toc-parts', message: at(`${missing.join('と')}が無い`)});
     const roots = withRole('root');
     if (roots.length) out.push({rule: 'toc-parts', message: at(`'root' は現状ツリーの根本原因の役割。未来現実ツリーの施策は 'injection' で書く: ${roots.join('、')}`)});
