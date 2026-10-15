@@ -1,9 +1,8 @@
-import {escapeXml} from '../emit-common.ts';
 import {PALETTE} from '../tokens.ts';
 import {LINE_HEIGHT_EM} from '../layout-util.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutTable} from '../types/sequence-table-swimlane.ts';
-import {emu, hex, type Fonts} from './xml.ts';
+import {emu, hex, type Fonts, attr} from './xml.ts';
 import {runXml} from './text.ts';
 
 const TABLE_STYLE_ID = '{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}';
@@ -34,5 +33,5 @@ export function tableXml(id: number, b: LaidOutTable, ld: LaidOutDiagram, fonts:
     rows.push(`<a:tr h="${emu(row.h)}">${cells}</a:tr>`);
   }
   const y = b.titleBar?.y ?? b.y;
-  return `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${id}" name="${escapeXml(b.id ?? `table-${id}`)}"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="${emu(b.x)}" y="${emu(y)}"/><a:ext cx="${emu(b.w)}" cy="${emu(b.h)}"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr firstRow="1" bandRow="0"><a:tableStyleId>${TABLE_STYLE_ID}</a:tableStyleId></a:tblPr><a:tblGrid>${cols}</a:tblGrid>${rows.join('')}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`;
+  return `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${id}" name="${attr(b.id ?? `table-${id}`)}"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="${emu(b.x)}" y="${emu(y)}"/><a:ext cx="${emu(b.w)}" cy="${emu(b.h)}"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr firstRow="1" bandRow="0"><a:tableStyleId>${TABLE_STYLE_ID}</a:tableStyleId></a:tblPr><a:tblGrid>${cols}</a:tblGrid>${rows.join('')}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`;
 }

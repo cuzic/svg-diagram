@@ -10,6 +10,7 @@ import {fitConnector, evalConnector, maxDeviation, type Pt} from '../lib/pptx/ge
 import {zipStore} from '../lib/pptx/zip.ts';
 import {emitPptx, fontFilesOf} from '../lib/pptx/emit.ts';
 import {BAND_HANDLERS} from '../lib/pptx/bands.ts';
+import {groupFrameXml} from '../lib/pptx/shapes.ts';
 import {loadConfig} from '../lib/config.ts';
 import {loadDiagram} from '../lib/load-source.ts';
 import {renderDiagram} from '../lib/dsl/render.ts';
@@ -51,6 +52,13 @@ test('zip writer is byte deterministic and ignores wall clock', () => {
   assert.deepEqual(a, b);
   assert.equal(a.readUInt16LE(10), 0);
   assert.equal(a.readUInt16LE(12), ((2026 - 1980) << 9) | (1 << 5) | 1);
+});
+
+test('shape names are attribute-escaped and a zero-size group frame keeps a finite corner radius', () => {
+  const xml = groupFrameXml(2, 'a"b&c', {x: 0, y: 0, w: 0, h: 40}, undefined, undefined, 1);
+  assert.ok(xml.includes('name="a&quot;b&amp;c"'));
+  assert.ok(!xml.includes('Infinity') && !xml.includes('NaN'));
+  assert.deepEqual(xmlProblems(`<r xmlns:p="p" xmlns:a="a">${xml}</r>`), []);
 });
 
 test('every band type is either native (a function) or an image', () => {

@@ -4,7 +4,7 @@ import {LINE_HEIGHT_EM} from '../layout-util.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutBox} from '../types/text-bands.ts';
 import type {FontWeight} from '../types/core.ts';
-import {emu, hex, type Fonts, type Rect} from './xml.ts';
+import {emu, hex, attr, type Fonts, type Rect} from './xml.ts';
 import type {TextBox} from './shapes.ts';
 
 type Run = LaidOutBox['wrappedRuns'][number];
@@ -14,7 +14,7 @@ export const pitchOf = (r: Run): number => r.lines.length > 1 ? r.lineYs[1]! - r
 
 export function runXml(text: string, size: number, bold: boolean, mono: boolean, color: string, fonts: Fonts): string {
   const face = mono ? fonts.mono : fonts.sans;
-  const rpr = `<a:rPr lang="ja-JP" sz="${Math.round(size * 75)}" b="${bold ? 1 : 0}" kern="0" dirty="0"><a:solidFill><a:srgbClr val="${color}"/></a:solidFill><a:latin typeface="${face}"/><a:ea typeface="${face}"/></a:rPr>`;
+  const rpr = `<a:rPr lang="ja-JP" sz="${Math.round(size * 75)}" b="${bold ? 1 : 0}" kern="0" dirty="0"><a:solidFill><a:srgbClr val="${color}"/></a:solidFill><a:latin typeface="${attr(face)}"/><a:ea typeface="${attr(face)}"/></a:rPr>`;
   return `<a:r>${rpr}<a:t>${escapeXml(text)}</a:t></a:r>`;
 }
 

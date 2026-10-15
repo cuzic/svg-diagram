@@ -1,9 +1,8 @@
-import {escapeXml} from '../emit-common.ts';
 import {PALETTE, textColorOf} from '../tokens.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutConnect} from '../types/containers.ts';
 import type {ConnXfrm, Pt} from './geom.ts';
-import {emu, hex} from './xml.ts';
+import {emu, hex, attr} from './xml.ts';
 
 export interface Glue {id: number; idx: number}
 function cxnXfrm(x: ConnXfrm, withRot: boolean): string {
@@ -27,7 +26,7 @@ export function connectorXml(id: number, c: LaidOutConnect, x: ConnXfrm, day: La
   const head = c.arrow === 'end' || c.arrow === 'both' ? '<a:tailEnd type="triangle" w="med" len="med"/>' : '';
   const tail = c.arrow === 'start' || c.arrow === 'both' ? '<a:headEnd type="triangle" w="med" len="med"/>' : '';
   const av = x.adj.map((v, i) => `<a:gd name="adj${i + 1}" fmla="val ${v}"/>`).join('');
-  return `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="connect-${escapeXml(c.fromId)}-${escapeXml(c.toId)}"/><p:cNvCxnSpPr>${glueXml(start, end)}</p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr><p:spPr>${cxnXfrm(x, true)}<a:prstGeom prst="${x.prst}"><a:avLst>${av}</a:avLst></a:prstGeom><a:ln w="${emu(strong ? 5 : 2)}"${cmpd}><a:solidFill><a:srgbClr val="${hex(textColorOf(c.tone, day))}"/></a:solidFill>${dash}${tail}${head}</a:ln></p:spPr></p:cxnSp>`;
+  return `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="connect-${attr(c.fromId)}-${attr(c.toId)}"/><p:cNvCxnSpPr>${glueXml(start, end)}</p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr><p:spPr>${cxnXfrm(x, true)}<a:prstGeom prst="${x.prst}"><a:avLst>${av}</a:avLst></a:prstGeom><a:ln w="${emu(strong ? 5 : 2)}"${cmpd}><a:solidFill><a:srgbClr val="${hex(textColorOf(c.tone, day))}"/></a:solidFill>${dash}${tail}${head}</a:ln></p:spPr></p:cxnSp>`;
 }
 
 /** The fallback for a route no connector preset fits (and for annotations): a polyline, not glued. */
@@ -38,5 +37,5 @@ export function freeformXml(id: number, c: LaidOutConnect, day: LaidOutDiagram['
   const color = hex(textColorOf(c.tone, day));
   const head = c.arrow === 'start' || c.arrow === 'both' ? '<a:headEnd type="triangle"/>' : '';
   const tail = c.arrow === 'end' || c.arrow === 'both' ? '<a:tailEnd type="triangle"/>' : '';
-  return `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="freeform-${escapeXml(c.fromId)}-${escapeXml(c.toId)}"/><p:cNvCxnSpPr/><p:nvPr/></p:nvCxnSpPr><p:spPr><a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm><a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="l" t="t" r="r" b="b"/><a:pathLst><a:path w="${emu(w)}" h="${emu(h)}">${path}</a:path></a:pathLst></a:custGeom><a:ln w="${emu(c.weight === 'strong' ? 5 : 2)}"><a:solidFill><a:srgbClr val="${color}"/></a:solidFill>${head}${tail}</a:ln></p:spPr></p:cxnSp>`;
+  return `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="freeform-${attr(c.fromId)}-${attr(c.toId)}"/><p:cNvCxnSpPr/><p:nvPr/></p:nvCxnSpPr><p:spPr><a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm><a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="l" t="t" r="r" b="b"/><a:pathLst><a:path w="${emu(w)}" h="${emu(h)}">${path}</a:path></a:pathLst></a:custGeom><a:ln w="${emu(c.weight === 'strong' ? 5 : 2)}"><a:solidFill><a:srgbClr val="${color}"/></a:solidFill>${head}${tail}</a:ln></p:spPr></p:cxnSp>`;
 }
