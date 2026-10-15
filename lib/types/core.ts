@@ -136,9 +136,13 @@ export interface DiagramOpts {
   layoutCheck?: LayoutCheck;
   /** 'strict': the `toc-*` findings of this diagram's causeTree({tree}) figures are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
   tocCheck?: TocCheck;
+  /** 'strict': the findings of the cause-analysis figures (`fta-*`, `isisnot-*`, `whywhy-*`, `bowtie-*`: ADR 0021 / 0022) are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
+  rcaCheck?: RcaCheck;
 }
 /** diagram({tocCheck}): the severity of the `toc-*` findings. */
 export type TocCheck = 'info' | 'strict';
+/** diagram({rcaCheck}): the severity of the cause-analysis findings (fault tree, IS / IS NOT, why-why, bow-tie). */
+export type RcaCheck = 'info' | 'strict';
 /** diagram({layoutCheck}): the severity of the `layout-*` findings. */
 export type LayoutCheck = 'info' | 'strict';
 /**
@@ -182,6 +186,7 @@ export interface DiagramData {
   sourceLine?: string;
   layoutCheck?: LayoutCheck;
   tocCheck?: TocCheck;
+  rcaCheck?: RcaCheck;
   bands: Band[];
   /** Set by build() from the measured slide (contentWidth). */
   usableWidth?: number;
