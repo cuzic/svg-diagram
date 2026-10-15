@@ -140,7 +140,11 @@ export interface DiagramOpts {
   layoutCheck?: LayoutCheck;
   /** 'strict': the `toc-*` findings of this diagram's causeTree({tree}) figures are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
   tocCheck?: TocCheck;
+  /** Turns on the `stat-no-source` check (a stat() number with no `source`): 'info', or 'strict' for warn. Unset: the check does not run. A check setting only: it never changes the drawing. */
+  evidenceCheck?: EvidenceCheck;
 }
+/** diagram({evidenceCheck}): the severity of `stat-no-source`; leave it out to skip the check. */
+export type EvidenceCheck = 'info' | 'strict';
 /** diagram({tocCheck}): the severity of the `toc-*` findings. */
 export type TocCheck = 'info' | 'strict';
 /** diagram({layoutCheck}): the severity of the `layout-*` findings. */
@@ -190,6 +194,7 @@ export interface DiagramData {
   statusLabel?: string;
   layoutCheck?: LayoutCheck;
   tocCheck?: TocCheck;
+  evidenceCheck?: EvidenceCheck;
   bands: Band[];
   /** Set by build() from the measured slide (contentWidth). */
   usableWidth?: number;
