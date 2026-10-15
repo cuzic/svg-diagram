@@ -153,11 +153,73 @@ export interface LayeredEdgeOut {from: string; to: string; /** index of this edg
 export interface LayeredLayout {nodes: Map<string, Placed>; edges: LayeredEdgeOut[]; /** layer index of each node (0 = first) */ layers: Map<string, number>; w: number; h: number}
 
 /**
+ * Which edges (by index in `edges`) a layering reverses to be acyclic. The `declared` ones (a return the author named, `back: true`)
+ * are reversed first and the DFS only runs over the rest, so the layers no longer depend on the order the nodes are written in; with
+ * none declared it is the plain DFS (from `start`, then the nodes in input order; an edge to a node on the stack is reversed).
+ * A declared edge must close a cycle through the other edges, and one cycle takes one declared edge: otherwise it throws.
+ */
+export function breakCycles(nodes: readonly {id: string}[], edges: readonly LayeredEdge[], declared: readonly number[] = [], start: readonly string[] = []): Set<number> {
+  const decl = new Set<number>();
+  for (const i of declared) {
+    if (!Number.isInteger(i) || i < 0 || i >= edges.length) throw new Error(`graph layout: back edge index ${i} is not one of the ${edges.length} edges`);
+    if (edges[i].from !== edges[i].to) decl.add(i);
+  }
+  const name = (i: number): string => `${edges[i].from} -> ${edges[i].to}`;
+  const rest = new Map<string, string[]>(nodes.map(n => [n.id, []]));
+  edges.forEach((e, i) => { if (e.from !== e.to && !decl.has(i)) rest.get(e.from)?.push(e.to); });
+  const reach = (from: string, to: string, avoid: ReadonlySet<string> = new Set()): boolean => {
+    const seen = new Set<string>([from]), todo = [from];
+    while (todo.length) {
+      const u = todo.pop()!;
+      if (u === to) return true;
+      for (const v of rest.get(u) ?? []) if (!seen.has(v) && !avoid.has(v)) { seen.add(v); todo.push(v); }
+    }
+    return false;
+  };
+  const list = [...decl];
+  // two declared edges on one simple cycle: two vertex-disjoint ways d1.to => d2.from and d2.to => d1.from (search capped: a huge graph is not refused for it)
+  let budget = 20000;
+  const twoOnOneCycle = (d1: number, d2: number): boolean => {
+    const goal = edges[d2].from, onPath = new Set<string>();
+    const walk = (u: string): boolean => {
+      if (--budget < 0) return false;
+      onPath.add(u);
+      let found = false;
+      if (u === goal) found = reach(edges[d2].to, edges[d1].from, onPath) && !onPath.has(edges[d2].to);
+      else for (const v of rest.get(u) ?? []) if (!onPath.has(v) && walk(v)) { found = true; break; }
+      onPath.delete(u);
+      return found;
+    };
+    return walk(edges[d1].to);
+  };
+  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+    if (twoOnOneCycle(list[i], list[j])) throw new Error(`graph layout: back edges ${name(list[i])} and ${name(list[j])} are on one cycle. One back edge cuts a cycle: keep back on the one edge that is the return in meaning`);
+  }
+  for (const d of list) {
+    if (!reach(edges[d].to, edges[d].from)) throw new Error(`graph layout: back edge ${name(d)} closes no cycle: there is no way from ${edges[d].to} back to ${edges[d].from} along the other edges. Mark only the edge that returns to the start of a loop`);
+  }
+  const state = new Map<string, 0 | 1 | 2>(), backPairs = new Set<string>();
+  const dfs = (u: string): void => {
+    state.set(u, 1);
+    for (const v of rest.get(u)!) {
+      if (state.get(v) === 1) backPairs.add(`${u}\u0000${v}`);
+      else if (!state.get(v)) dfs(v);
+    }
+    state.set(u, 2);
+  };
+  const known = new Set(nodes.map(n => n.id));
+  for (const s of [...start.filter(s => known.has(s)), ...nodes.map(n => n.id)]) if (!state.get(s)) dfs(s);
+  const out = new Set<number>(decl);
+  edges.forEach((e, i) => { if (e.from !== e.to && !decl.has(i) && backPairs.has(`${e.from}\u0000${e.to}`)) out.add(i); });
+  return out;
+}
+
+/**
  * Layers by longest path after breaking cycles (a DFS back edge is reversed for layering, and drawn from its real tail).
  * Nodes keep input order inside a layer until barycentre sweeps cut crossings; an edge that skips layers goes through a
  * dummy slot per layer so it does not run over the nodes in between. `start` ids (the entry states) are pinned to layer 0.
  */
-export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]} = {}): LayeredLayout {
+export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]} = {}): LayeredLayout {
   const dir = opts.dir ?? 'right', gap = opts.gap ?? GAP, levelGap = opts.levelGap ?? LEVEL_GAP * 1.5, sweeps = opts.sweeps ?? 4;
   const ids = new Set<string>();
   for (const n of nodes) dupCheck(ids, n.id);
@@ -165,21 +227,10 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
   const order = new Map(nodes.map((n, i) => [n.id, i]));
   const across = (s: Size): number => dir === 'down' ? s.w : s.h, along = (s: Size): number => dir === 'down' ? s.h : s.w;
 
-  // 1. break cycles: DFS from the start nodes (then from the rest in input order); an edge to a node on the stack is reversed
-  const out = new Map<string, string[]>(nodes.map(n => [n.id, []]));
-  for (const e of edges) if (e.from !== e.to) out.get(e.from)!.push(e.to);
-  const state = new Map<string, 0 | 1 | 2>(), back = new Set<string>();
-  const dfs = (u: string): void => {
-    state.set(u, 1);
-    for (const v of out.get(u)!) {
-      if (state.get(v) === 1) back.add(`${u}\u0000${v}`);
-      else if (!state.get(v)) dfs(v);
-    }
-    state.set(u, 2);
-  };
+  // 1. break cycles: edges declared as returns first, then a DFS (from the start nodes, then the rest in input order) over the others
+  const reversedAt = breakCycles(nodes, edges, opts.back ?? [], opts.start);
   const starts = (opts.start ?? []).filter(s => ids.has(s));
-  for (const s of [...starts, ...nodes.map(n => n.id)]) if (!state.get(s)) dfs(s);
-  const dag = edges.map((e, index) => ({e, index})).filter(({e}) => e.from !== e.to).map(({e, index}) => back.has(`${e.from}\u0000${e.to}`) ? {a: e.to, b: e.from, e, index, rev: true} : {a: e.from, b: e.to, e, index, rev: false});
+  const dag = edges.map((e, index) => ({e, index})).filter(({e}) => e.from !== e.to).map(({e, index}) => reversedAt.has(index) ? {a: e.to, b: e.from, e, index, rev: true} : {a: e.from, b: e.to, e, index, rev: false});
 
   // 2. longest-path layering (a start node stays on layer 0)
   const layer = new Map<string, number>(), preds = new Map<string, string[]>(nodes.map(n => [n.id, []]));
