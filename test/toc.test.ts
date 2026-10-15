@@ -184,7 +184,7 @@ test('causeTree() rejects bad input', async () => {
   await assert.rejects(() => bad([N('a'), N('b')], [{from: 'a', to: 'b'}, {from: ['a'], to: 'b'}]), /written twice/);
   await assert.rejects(() => bad([N('a'), N('b')], [{from: [], to: 'b'}]), /has no cause/);
   await assert.rejects(() => bad([{id: 'a', label: ' '}], []), /needs a label/);
-  await assert.rejects(() => bad(Array.from({length: 12}, (_, i) => N(`n${i}`)), []), /wide but it has/);
+  await assert.rejects(() => bad(Array.from({length: 12}, (_, i) => N(`n${i}`)), []), /does not fit/);
 });
 
 // ---- cloud ----
@@ -397,7 +397,7 @@ test('causeTree() fuzz: random acyclic graphs with ANDs lay out with no hard pro
         const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(causeTree(ids.map(i => N(i)), links, {dir})));
         assert.deepEqual(verdict.problems, [], `${dir} ${JSON.stringify(links)}`);
         laidOutCount++;
-      } catch (e) { if (!/wide but it has/.test(String(e))) throw e; }
+      } catch (e) { if (!/does not fit/.test(String(e))) throw e; }
     }
   }
   assert.ok(laidOutCount > 150);
