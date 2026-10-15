@@ -17,12 +17,12 @@
   <text x="470" y="52" text-anchor="middle" font-size="16" font-weight="700" fill="#22201b">クリックで説明を積み上げる</text>
 
   <rect x="20" y="92" width="440" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="40" y="121.4" font-size="15" font-weight="700" fill="#22201b">全体像</text>
-  <text x="40" y="149.4" font-size="14" font-weight="400" fill="#22201b">最初から表示</text>
+  <text x="40" y="123" font-size="15" font-weight="700" fill="#22201b">全体像</text>
+  <text x="40" y="151" font-size="14" font-weight="400" fill="#22201b">最初から表示</text>
 
   <rect x="480" y="92" width="440" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="500" y="121.4" font-size="15" font-weight="700" fill="#22201b">詳細</text>
-  <text x="500" y="149.4" font-size="14" font-weight="400" fill="#22201b">1 回目で表示</text>
+  <text x="500" y="123" font-size="15" font-weight="700" fill="#22201b">詳細</text>
+  <text x="500" y="151" font-size="14" font-weight="400" fill="#22201b">1 回目で表示</text>
 
-  <path d="M460,131 L480,131" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M460,132 L480,132" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
 </svg>
