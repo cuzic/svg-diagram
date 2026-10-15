@@ -3,7 +3,7 @@
 // it for a 'down' diagram).
 import {layoutLayered} from './graph-layout.ts';
 import type {LayeredEdge, LayeredLayout, LayeredNode, LayeredOpts, Pt} from './graph-layout.ts';
-import {scoreOf, simplify} from './polyline-metrics.ts';
+import {runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
 
 export {simplify};
 
@@ -36,7 +36,7 @@ export function elbows(pts: Pt[], turn?: number, lastTurn?: number): Pt[] {
  * straightening (ADR 0016 D3): a direct arrow whose two boxes overlap across the layer axis becomes one straight line when that does not make
  * the drawing worse; `round` names the nodes that are not rectangles (a circle, a hexagon), whose arrows keep to the middle of the side.
  */
-export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true): Map<number, Pt[]> {
+export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false): Map<number, Pt[]> {
   // ports: the edges that meet one side of a state fan out along it (ordered by where the other end is, so they do not cross)
   // lanes: direct arrows through one gap between two layers take separate vertical runs
   const portOf = new Map<string, number>(), laneOf = new Map<number, number>();
@@ -94,9 +94,18 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
   // forward arrows (tail in the earlier layer) take lanes counted from the gap's left side, backward arrows (a return) from its right side,
   // so the two kinds never land on one lane (the gap is sized for all of them together, see gapFor)
   const forward = (i: number): boolean => layerOf(lay.edges[i].from) < layerOf(lay.edges[i].to);
+  // ADR 0016 D11: a long arrow into a grouped head (an AND) takes the first lanes of the gap before the head, so its last turn lies on the tail side of the direct arrows' turns
+  // and the two never run side by side; the direct arrows' lanes come after. Only when asked (the caller keeps it when the figure gets no worse).
+  const longLane = new Map<number, number>(), longIn = new Map<number, number>();
+  if (laneShare && groupOf) lay.edges.forEach((e, i) => {
+    if (e.self || e.points.length <= 2 || groupOf(i) === undefined || !forward(i)) return;
+    const lo = layerOf(e.to) - 1, k = longIn.get(lo) ?? 0;
+    longIn.set(lo, k + 1); longLane.set(i, k);
+  });
   for (const all of corridors.values()) {
+    const gapOf = Math.min(layerOf(lay.edges[all[0]].from), layerOf(lay.edges[all[0]].to));
     for (const group of [all.filter(forward), all.filter(i => !forward(i))]) {
-      let k = 0;
+      let k = group.length && forward(group[0]) ? longIn.get(gapOf) ?? 0 : 0;
       for (const list of [group.filter(goesDown), group.filter(i => !goesDown(i))]) {
         const fanIn = new Set(list.map(i => lay.edges[i].to)).size === 1 && new Set(list.map(i => lay.edges[i].from)).size > 1;
         for (const i of [...list].sort((p, q) => (fanIn ? dy(p) - dy(q) : dy(q) - dy(p)) || p - q)) laneOf.set(i, k++ * LANE);
@@ -150,7 +159,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
       let lastTurn: number | undefined;
       if (groupOf && e.points.length > 2 && forward(i)) {
         const lo = layerOf(e.to) - 1, gl = layerRight.get(lo), gr = layerLeft.get(lo + 1);
-        if (gl !== undefined && gr !== undefined) { const k = longInto.get(e.to) ?? 0; longInto.set(e.to, k + 1); lastTurn = Math.max(gl + STUB, gr - 26 - k * LANE); }
+        if (gl !== undefined && gr !== undefined) { const k = longInto.get(e.to) ?? 0; longInto.set(e.to, k + 1); lastTurn = laneShare && longLane.has(i) ? Math.min(gr - 26, gl + STUB + longLane.get(i)! * LANE) : Math.max(gl + STUB, gr - 26 - k * LANE); }
       }
       out.set(i, elbows([start, ...e.points.slice(1, -1), end], turn, lastTurn));
     });
@@ -307,21 +316,42 @@ function piercings(a: Attempt, place: (p: Pt) => Pt): number {
  * lexicographic order, or if the plain one does not fit the width and it does. Nothing else moves a figure.
  */
 export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layoutOpts: LayeredOpts & {start?: string[]; back?: readonly number[]}, o: AttemptOpts): Attempt {
-  const build = (opts: typeof layoutOpts): Attempt => {
+  const optsOf = new WeakMap<Attempt, typeof layoutOpts>();
+  const build = (opts: typeof layoutOpts, laneShare = false): Attempt => {
     const lay = layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: STUB, step: LANE}} : opts);
     const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
     const groupOf = o.groupOf;
-    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)), o.round, o.straighten !== false);
-    return {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
+    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)), o.round, o.straighten !== false, laneShare);
+    const made = {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
+    optsOf.set(made, opts);
+    return made;
+  };
+  // ADR 0016 D11: arrows into a grouped head that run side by side. A candidate that shares the gap's lanes between the long and the direct arrows replaces the figure only
+  // when it has strictly fewer of them and is no worse in (crossings, bends), loose groups, piercings and width: a figure with none is never touched.
+  const parallels = (a: Attempt): number => {
+    const heads = new Set<string>(), groupOf = o.groupOf!;
+    a.lay.edges.forEach(e => { if (!e.self && groupOf(e.index) !== undefined) heads.add(e.to); });
+    const segs = [...a.routes].filter(([i]) => heads.has(a.lay.edges[i].to)).map(([i, pts]) => ({i, to: a.lay.edges[i].to, s: pts.slice(1).map((q, m) => ({p: pts[m], q}))}));
+    let n = 0;
+    for (let x = 0; x < segs.length; x++) for (let y = x + 1; y < segs.length; y++) if (segs[x].to === segs[y].to && segs[x].s.some(p => segs[y].s.some(q => runsTogether(p, q)))) n++;
+    return n;
+  };
+  const sharing = (a: Attempt): Attempt => {
+    if (!o.groupOf) return a;
+    const before = parallels(a);
+    if (!before) return a;
+    const b = build(optsOf.get(a)!, true);
+    if (b.loose.length > a.loose.length || (a.fits && !b.fits) || parallels(b) >= before || better(a.score, b.score)) return a;
+    return piercings(b, o.place(b.size)) > piercings(a, o.place(a.size)) ? a : b;
   };
   const plain = build(layoutOpts);
-  if (o.straighten === false || !edges.some(e => e.from !== e.to)) return plain;
+  if (o.straighten === false || !edges.some(e => e.from !== e.to)) return sharing(plain);
   const cand = build({...layoutOpts, coord: 'bk', transpose: true, ...(o.tighten ? {tighten: true} : {})});
-  if (cand.loose.length > plain.loose.length) return plain;
-  if (piercings(cand, o.place(cand.size)) > piercings(plain, o.place(plain.size))) return plain;
-  if (!plain.fits) return cand.fits || cand.size.w < plain.size.w && better(cand.score, plain.score) ? cand : plain;
-  if (!cand.fits) return plain;
-  return better(cand.score, plain.score) ? cand : plain;
+  if (cand.loose.length > plain.loose.length) return sharing(plain);
+  if (piercings(cand, o.place(cand.size)) > piercings(plain, o.place(plain.size))) return sharing(plain);
+  if (!plain.fits) return sharing(cand.fits || cand.size.w < plain.size.w && better(cand.score, plain.score) ? cand : plain);
+  if (!cand.fits) return sharing(plain);
+  return sharing(better(cand.score, plain.score) ? cand : plain);
 }
 
 /** (crossings, bends) in lexicographic order: strictly better only. */

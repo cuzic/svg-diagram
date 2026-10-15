@@ -87,3 +87,12 @@ test('edgeStats counts crossings the way crossingsOf does (margin 2, tolerance 0
   assert.deepEqual(edgeStats([c('a', 'b', P(0, 5, 40, 5)), c('c', 'd', P(0, 6, 40, 6))]), {crossings: 0, overlaps: 1});
   assert.deepEqual(edgeStats([]), {crossings: 0, overlaps: 0});
 });
+
+test('runsTogether: two runs side by side (under 4px apart, over 4px long together)', async () => {
+  const {runsTogether} = await import('../lib/polyline-metrics.ts');
+  const h = (x0: number, x1: number, y: number) => ({p: {x: x0, y}, q: {x: x1, y}});
+  assert.equal(runsTogether(h(0, 100, 10), h(50, 150, 12)), true);
+  assert.equal(runsTogether(h(0, 100, 10), h(50, 150, 14)), false, '4px apart is enough');
+  assert.equal(runsTogether(h(0, 100, 10), h(98, 150, 10)), false, 'a touch of 2px');
+  assert.equal(runsTogether(h(0, 100, 10), {p: {x: 20, y: 0}, q: {x: 20, y: 50}}), false, 'one horizontal, one vertical');
+});

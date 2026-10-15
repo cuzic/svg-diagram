@@ -83,8 +83,8 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
 }
 
 const crossingsOf_ = (t: LaidOutCause): number => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
-/** (arrows of an AND that cross, crossings, bends): smaller is better, in this order. */
-const scoreOfCause = (t: LaidOutCause): number[] => { const s = scoreOf(t.edges.map(e => e.points)); return [crossingsOf_(t), s.crossings, s.bends]; };
+/** (arrows of an AND that cross, arrows of an AND that run side by side, crossings, bends): smaller is better, in this order. */
+const scoreOfCause = (t: LaidOutCause): number[] => { const s = scoreOf(t.edges.map(e => e.points)); return [crossingsOf_(t), andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses').length, s.crossings, s.bends]; };
 const lexLess = (a: number[], b: number[]): boolean => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i]; return false; };
 
 export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[]): LaidOutCause {
