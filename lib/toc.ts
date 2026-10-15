@@ -53,7 +53,7 @@ export const causesOf = (l: {from: string | readonly string[]}): string[] => typ
 
 type CauseDir = 'up' | 'down' | 'right' | 'left';
 
-export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number): LaidOutCause {
+export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number, canvasBound = false): LaidOutCause {
   const ids = new Set<string>();
   for (const n of band.nodes) {
     if (typeof n.id !== 'string' || !n.id) throw new Error('causeTree(): every node needs an id');
@@ -154,8 +154,8 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   const start: CauseDir = band.dir === undefined || band.dir === 'auto' ? base : band.dir;
   const fitted = fitLayout<CauseDir, ReturnType<typeof build>>({
     who: 'causeTree()', w, start, ...(band.base !== undefined ? {alt: 'right' as const} : {axisKept: `another axis (a cause tree keeps its direction: ${start})`}),
-    explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined ? {} : {maxNodeW: band.maxNodeW}),
-    build, ...(band.base === undefined ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget: heightBudget - 2 * badgeRoom}), // the badge room is not in an attempt's size
+    explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined || band.maxNodeW === 'auto' ? {} : {maxNodeW: band.maxNodeW}), ...(band.maxNodeW === 'auto' ? {autoWidth: true} : {}),
+    build, ...(band.base === undefined ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget: heightBudget - 2 * badgeRoom - (band.maxNodeW === 'auto' && canvasBound ? y : 0)}), // the badge room is not in an attempt's size
     ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
   });
   const attempt = fitted.result, {lines, vertical, flip} = attempt, fitApplied = fitted.applied;

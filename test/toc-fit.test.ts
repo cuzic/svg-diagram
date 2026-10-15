@@ -176,3 +176,25 @@ test('causeTree() narrow but too tall: the failure says the height, and does not
   assert.throws(() => place(chain, 900, natural - 20), (e: Error) => /does not fit 900px wide by \d+px tall/.test(e.message) && !/widen the figure/.test(e.message) && /split the figure/.test(e.message));
   assert.doesNotThrow(() => place(chain, 900, natural + 20));
 });
+
+// ADR 0019 D2: maxNodeW: 'auto' looks for the widest node width that fits the width and the height budget
+test("causeTree({maxNodeW: 'auto'}): the widest width that fits, also with dir written; a numeric maxNodeW is untouched", () => {
+  const w = tight();
+  assert.throws(() => place(wide({dir: 'up'}), w), /does not fit/, 'dir written, maxNodeW left out: nothing changes, so it throws (as before)');
+  const t = place(wide({dir: 'up', maxNodeW: 'auto'}), w);
+  assert.ok(extent(t) <= w + 0.5);
+  assert.ok(t.fitApplied?.every(a => a.what === 'maxNodeW' && a.mode === 'auto'), 'what auto changed is a note');
+  const roomy = place(wide({maxNodeW: 'auto'}), 6000), roomyDefault = place(wide(), 6000);
+  assert.ok(extent(roomy) >= extent(roomyDefault), 'with room to spare the nodes may be wider than the default');
+  assert.ok(extent(place(wide({maxNodeW: 'auto'}), w)) <= w + 0.5);
+  assert.equal(JSON.stringify(place(wide({maxNodeW: 200}), 6000)), JSON.stringify(roomyDefault), 'a written 200 is the default picture');
+});
+
+test("causeTree({maxNodeW: 'auto'}): the height budget picks a wider node (shorter figure); no value fits: the failure is about the height", () => {
+  const h = (maxNodeW: number) => place(wide({maxNodeW}), 6000).h;
+  assert.ok(h(260) < h(110), 'wider nodes make a shorter figure');
+  const budget = (h(200) + h(160)) / 2;
+  const t = place(wide({maxNodeW: 'auto'}), 6000, budget);
+  assert.ok(t.h <= budget + 0.5, 'the chosen figure fits the height budget');
+  assert.throws(() => place(wide({maxNodeW: 'auto'}), 6000, h(260) - 20), /does not fit 6000px wide by \d+px tall/);
+});
