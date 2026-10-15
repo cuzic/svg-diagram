@@ -112,6 +112,8 @@
 
 ### D5. A3 は 2 段階。第 1 段は入れない。第 2 段で `straight` と `order` だけ入れる(A3)
 
+> **決定(2026-10-15、ユーザー): 手動の整列ヒント(`straight` / `order`)は実装しない。** 以下の第 2 段の計画(U10)は取り下げる。`order` を前提にしていた D11 の「順序の指定」と、ADR 0019(H3)の `order` の口も、この決定に従い、自動の並べ替え(交差の再探索)で直す。
+
 - 第 1 段(この ADR の実装範囲)は、D1〜D4・D7・D8 だけ。自動配置が良くなってから、残った不満に対してヒントを設計する。
 - 第 2 段で入れるもの:
   - `straight: [['from', 'to'], ...]`。その辺を直線にする。Brandes-Köpf の整列で最優先の辺として扱う。直線にできないときは、直し方を書いて止まる。
@@ -258,7 +260,7 @@ layeredAttempt(nodes, edges, opts, {portStep, groupOf, transpose, maxAcross})
 | U13 | AND の矢印の並走(D11、G6)。`runsTogether` を U1 の `lib/polyline-metrics.ts` に足して verify と共有、`routeLayered` の曲がりのレーンの表(長い矢印の `lastTurn` を直接の矢印の曲がりより尾に近い側へ)、`layeredAttempt` の候補に「並走が減り `(交差, 折れ)` が悪くならない」条件を `toc` だけの採る条件として。verify の警告の文面 | `lib/polyline-metrics.ts`、`lib/layered-route.ts`(`routeLayered` のレーンの部分、`layeredAttempt` の候補)、`lib/verify-handlers.ts`(`together` を共有に置き換える、文面)、`test/toc.test.ts`、`test/polyline-metrics.test.ts` | U1、U4、U5、U7(`lib/layered-route.ts` は **U5 → U7 → U13 の順の 1 人**)、**U12 のあと**(同じ `checkCause` の文面) |
 | U8 | 型。`straighten` / `returns` を `CauseOpts` / `StatesOpts` と `classDiagram` / `semnet` の opts に。`strict.ts` と `dsl.ts` の検査 | `lib/types.ts`、`lib/strict.ts`、`lib/dsl.ts` | **最後**(ADR 0010 の `dir: 'auto'` / `fit`、ADR 0012 の `scope` と同じ型に項目を足すだけで、各 ADR が自分の項目だけ足す) |
 | U9 | 文書。README(`stateDiagram`・TOC・自動配置の共通の注意・`check` の規則)、`skills/` の該当記述があれば、この ADR の状態と「実装」の表 | `README.md`、`skills/`、この ADR | U1〜U8 のあと |
-| U10(第 2 段、別の PR) | `straight` / `order`(D5) | `lib/graph-layout.ts`、`lib/toc.ts`・`states.ts`、型 | U2・U4 のあと。D1〜D4 の効果を測ってから着手するか決める。`order` は G6(D11)の要望でもあるので、`straight` より先に出してよい |
+| ~~U10(第 2 段、別の PR)~~ 取り下げ(D5 の決定) | `straight` / `order`(D5) | `lib/graph-layout.ts`、`lib/toc.ts`・`states.ts`、型 | U2・U4 のあと。D1〜D4 の効果を測ってから着手するか決める。`order` は G6(D11)の要望でもあるので、`straight` より先に出してよい |
 
 進める順番: U0 のあと、U0-b・U1・U3・U5・U6・**U11・U12** は同時に着手できる(U3 と U11 は同じファイルだが、U11 は手順 1 だけなので、U11 を先にマージする)。U2 は U3 のあと(同じファイル)、U7 は U2 のあと。U4 は U0・U1・U2・U3 の結合。**U13 は U4・U5・U7 のあと**。U8 は最後、U9 はそのあと。U8 の型は、`CauseLink.back`(U11)を除く(U11 が自分で足す)。
 
