@@ -38,6 +38,7 @@ import type {LintTarget} from './types/verdicts.ts';
 import type {CauseRole} from './types/diagrams.ts';
 import {describeApplied} from './fit-width.ts';
 import {tocFindings} from './toc-rules.ts';
+import {statusText} from './status.ts';
 
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
@@ -48,6 +49,7 @@ export const RULE_DOCS = {
   'bars-thin-bar': '棒が 1px 以下（値は 0 でない）。図の高さ・幅を上げるか max を見直す',
   'image-large': '埋め込んだ画像が大きい（300 KB 超）。ファイルがそのまま SVG に入り、段階表示の各ファイルにも入る。縮小・圧縮してから使う',
   'cjk-line-long': '見出し（caption の title / display / stat と banner の headline）の 1 行が、全角で数えて長すぎる（本文幅 600px に収まる字数の目安を超える、または図の幅に収まらず自動で折り返した。短くするか改行する）',
+  'draft-status': '図が下書き（diagram({status: "draft"})）のまま。公開前に外す（check --forbid-draft で warn にできる）',
   'source-wraps': '出典行（diagram({sourceLine})）が 1 行に収まらず折り返している（短くする）',
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える。凡例が要らない図は diagram({legend: false})）',
@@ -655,6 +657,7 @@ function lintAll(d: LintTarget): Finding[] {
   for (const b of walkBands(d.bands)) if (b.type === 'image' && b.bytes > IMAGE_WARN_BYTES) out.push({rule: 'image-large', severity: 'warn', message: `画像（${Math.round(b.bytes / 1024)} KB）が大きい。SVG に埋め込まれ、段階表示の各ファイルにも入る。解像度を下げるか圧縮する（${IMAGE_WARN_BYTES / 1024} KB 以下が目安）`});
   for (const b of d.laidOut ?? []) if (b.type === 'bars' && b.bars.some(r => (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0))) { out.push({rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す'}); break; }
   headlineLength(d, out);
+  if (d.status !== undefined) out.push({rule: 'draft-status', severity: 'info', message: `この図は下書き(status: '${d.status}')。公開前に外す`});
   for (const b of d.laidOut ?? []) if (b.type === 'caption' && b.sourceLine && b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0) > 1) out.push({rule: 'source-wraps', severity: 'warn', message: `出典行が ${b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0)} 行に折り返している。1 行に収まる長さにする（出典の細部は本文へ）`});
   for (const b of d.laidOut ?? []) if (b.type === 'quadrant') {
     const far = b.moved.filter(m => m.px >= 16);
@@ -691,6 +694,11 @@ export function diagramTitle(d: DiagramData): string {
 
 /** `stage`: a click stage of a revealing diagram; only what is on screen then is listed (nothing is left out without it). */
 export function diagramDesc(d: DiagramData, stage?: number): string {
+  const text = descOf(d, stage);
+  // a figure with a status says so first, in the badge's own wording ("(下書き)"); one without is unchanged
+  return d.status === undefined ? text : `(${statusText(d)})${text ? ` ${text}` : ''}`;
+}
+function descOf(d: DiagramData, stage?: number): string {
   if (d.desc) return oneLine(d.desc);
   const parts: string[] = [];
   const bands = walkBands(d.bands).filter(b => visibleAt(b as {reveal?: number; until?: number}, stage));

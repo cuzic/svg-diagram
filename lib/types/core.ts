@@ -211,6 +211,8 @@ export interface DiagramSource {
   configSha256?: string;
   /** sha256 over the local files the source imports (lib/source-deps.ts), when there are any. */
   depsSha256?: string;
+  /** The figure's status (diagram({status})); only written when it has one. */
+  status?: DiagramStatus;
   /** Cumulative reveal stage represented by this file. */
   reveal?: number;
   until?: number;
