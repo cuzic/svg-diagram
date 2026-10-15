@@ -32,6 +32,7 @@ const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 register(`./lib/resolve-hook.${EXT}`, import.meta.url);
 const {build, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadConfig} = await import('./lib/config.ts');
+const {MIN_FONT_SIZE} = await import('./lib/tokens.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
 const {depsSha256, depsOf} = await import('./lib/source-deps.ts');
 const {readProvenance, ownsOutput, sha256: sha} = await import('./lib/freshness.ts');
@@ -157,6 +158,8 @@ try {
       }
       if (result.budget) console.log(`  budget: ${result.budget.maxHeight}px high x ${result.budget.contentWidth}px wide (slide ${result.budget.index}, ${result.budget.cached ? 'cached' : 'measured'})`);
       for (const w of [...result.fit.warnings, ...result.warnings]) console.warn(`  ⚠ ${w}`);
+      // ADR 0017: the lint's notice is not shown when it passes, so a figure that lowered the text floor says so here itself
+      if (d.canvas && d.canvas.minText < MIN_FONT_SIZE) console.error(`⚠ ${outPath}: 文字の下限を ${d.canvas.minText}px に下げている(fontFloor ${config.fontFloor ?? MIN_FONT_SIZE}。投影には向かない)`);
     } catch (err) {
       failedBuild(err);
     }
@@ -179,7 +182,7 @@ if (pngDir && written.length) { // the SVG and its PNG come from one build, so t
 }
 if (written.length && !NO_LINT) { // lint-svg.ts renders every file in a single Chromium (it used to start one per diagram)
   const lintScript = fileURLToPath(new URL(`./lint-svg.${EXT}`, import.meta.url));
-  const r = spawnSync(process.execPath, [lintScript, ...written, '--strict'], {encoding: 'utf8'});
+  const r = spawnSync(process.execPath, [lintScript, ...written, '--strict', ...(config._file ? ['--config', config._file] : [])], {encoding: 'utf8'});
   if (r.status !== 0) {
     console.error(`✗ lint-svg.ts --strict が通らない:\n${(r.stdout || '') + (r.stderr || '')}`);
     failed = true;
