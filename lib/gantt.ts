@@ -45,10 +45,18 @@ export function spanOf(t: GanttTask): [number, number] {
 
 /** The axis in days: [from, to) — the given range, else the first start to the last end. */
 function axisOf(band: GanttBand, spans: [number, number][]): [number, number] {
-  const from = band.from !== undefined ? dayOf(band.from, 'from') : Math.min(...spans.map(s => s[0]));
-  const to = band.to !== undefined ? dayOf(band.to, 'to') + 1 : Math.max(...spans.map(s => s[1]));
+  let from = band.from !== undefined ? dayOf(band.from, 'from') : Math.min(...spans.map(s => s[0]));
+  let to = band.to !== undefined ? dayOf(band.to, 'to') + 1 : Math.max(...spans.map(s => s[1]));
+  // extendToToday widens only the side that was not written out (an explicit from / to is the author's intent)
+  if (band.extendToToday && band.today !== undefined) {
+    const today = dayOf(band.today, 'today');
+    if (band.from === undefined && today < from) from = today;
+    if (band.to === undefined && today >= to) to = today + 1;
+  }
   return [from, to];
 }
+/** A day number back to 'YYYY-MM-DD'. */
+const ymd = (day: number): string => new Date(day * MS_DAY).toISOString().slice(0, 10);
 const SHORT_AXIS = 140; // days: up to this the ticks are weeks, above it months
 const mondays = (from: number, to: number): number[] => {
   const out: number[] = [];
@@ -98,7 +106,7 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
   if (!(from < to)) throw new Error('gantt(): from must be before to');
   for (const [t, [s, e]] of spans) if (s < from || e > to) throw new Error(`gantt(): "${t.label}" (${t.start}${t.end ? ` - ${t.end}` : ''}) is outside the axis (from / to)`);
   const today = band.today !== undefined ? dayOf(band.today, 'today') : undefined;
-  if (today !== undefined && (today < from || today >= to)) throw new Error(`gantt(): today (${band.today}) is outside the axis`);
+  if (today !== undefined && (today < from || today >= to)) throw new Error(`gantt(): today (${band.today}) is outside the axis (${ymd(from)} - ${ymd(to - 1)}): move today into it, set from / to, or pass extendToToday: true`);
 
   const labelW = Math.max(...band.rows.map(r => Math.ceil(textWidth(widthOf, isSection(r) ? r.section : r.label, S, isSection(r) ? 700 : 400)))) + 2 * PAD;
   const maxLabel = Math.floor(w * LABEL_MAX);

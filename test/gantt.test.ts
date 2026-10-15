@@ -144,3 +144,24 @@ test('gantt(): even when nothing is free, the arrow still ends on the head bar (
   const end = t.deps[0].points[t.deps[0].points.length - 1], head = t.bars[3];
   assert.ok(Math.abs(end.x - head.x) < 0.5 && end.y >= head.y && end.y <= head.y + head.h, 'the arrow ends on the left edge of B');
 });
+
+test('gantt(): the outside-the-axis throw names the axis and the fixes; extendToToday widens the side that was not fixed', async () => {
+  const rows = [{label: 'a', start: '2026-10-05', end: '2026-10-16'}];
+  const bad = (opts: object) => checkDiagram(diagram({theme: 'blue'}).add(gantt(rows as never, opts as never)));
+  await assert.rejects(() => bad({today: '2026-09-01'}), /today \(2026-09-01\) is outside the axis \(2026-10-05 - 2026-10-16\).*extendToToday: true/);
+  for (const today of ['2026-09-01', '2026-12-01']) {
+    const {t, verdict} = await laid(gantt(rows, {today, extendToToday: true}));
+    assert.deepEqual(verdict.problems, []);
+    assert.ok(t.today, 'the line is drawn');
+    assert.ok(t.today.x >= t.plot.x1 && t.today.x <= t.plot.x2);
+  }
+  // a side written out with from / to is not widened
+  await assert.rejects(() => bad({today: '2026-09-01', from: '2026-10-05', extendToToday: true}), /outside the axis/);
+  await assert.rejects(() => bad({today: '2026-12-01', to: '2026-10-16', extendToToday: true}), /outside the axis/);
+  // the other side still widens
+  await laid(gantt(rows, {today: '2026-12-01', from: '2026-10-05', extendToToday: true}));
+  // today inside the axis: same figure with or without the option
+  const a = await renderDiagram(diagram({theme: 'blue'}).add(gantt(rows, {today: '2026-10-10'})), {name: 'g.svg', budget: 'cacheOnly'});
+  const b = await renderDiagram(diagram({theme: 'blue'}).add(gantt(rows, {today: '2026-10-10', extendToToday: true})), {name: 'g.svg', budget: 'cacheOnly'});
+  assert.equal(a.svg, b.svg);
+});
