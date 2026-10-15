@@ -299,6 +299,47 @@ test("layoutLayered coord 'bk': a connected input has the one component's own ra
   assert.equal(Math.max(...[...t.nodes.values()].map(p => p.y + p.h)), t.h);
 });
 
+// ---- returns in an outer lane (ADR 0016 D7) ----
+const outerOpt = (which: 'all' | 'declared') => ({outer: {which, gap: 18, step: 14}});
+
+test('layoutLayered outer: a return that skips two layers or more runs in a lane past the boxes with no dummies; an adjacent return and forward edges do not', () => {
+  const nodes = ['a', 'b', 'c', 'd'].map(sq);
+  const e = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'}, {from: 'd', to: 'a'}, {from: 'c', to: 'b'}];
+  const plain = layoutLayered(nodes, e, {back: [3]}), outer = layoutLayered(nodes, e, {back: [3], ...outerOpt('declared')});
+  const long = outer.edges.find(x => x.index === 3)!;
+  assert.ok(long.outer && long.reversed);
+  assert.equal(long.points.length, 4);
+  assert.ok(long.points[1].y >= Math.max(...[...outer.nodes.values()].map(p => p.y + p.h)) + 18, 'the lane is past every box');
+  assert.equal(outer.edges.filter(x => x.outer).length, 1, 'the adjacent return c -> b stays inline');
+  assert.deepEqual([...outer.layers], [...plain.layers], 'layers do not change');
+  // without a declaration, "declared" leaves the DFS return inline; "all" moves it out
+  const dfs = layoutLayered(nodes, e.slice(0, 4), outerOpt('declared'));
+  assert.equal(dfs.edges.filter(x => x.outer).length, 0);
+  assert.equal(layoutLayered(nodes, e.slice(0, 4), outerOpt('all')).edges.filter(x => x.outer).length, 1);
+});
+
+test('layoutLayered outer: the longer return is the outer lane; no outer option is the plain layout', () => {
+  const nodes = ['a', 'b', 'c', 'd', 'e'].map(sq);
+  const e = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'}, {from: 'd', to: 'e'}, {from: 'd', to: 'b'}, {from: 'e', to: 'a'}];
+  const t = layoutLayered(nodes, e, {...outerOpt('all')});
+  const short = t.edges.find(x => x.index === 4)!, long = t.edges.find(x => x.index === 5)!;
+  assert.ok(short.outer && long.outer && long.points[1].y - short.points[1].y === 14, 'the long one is one step further out');
+  assert.deepEqual(layoutLayered(nodes, e), layoutLayered(nodes, e, {}));
+});
+
+test('layoutLayered outer: 200 small graphs keep the layers and the boxes apart, and an outer edge is a return of two layers or more (deterministic)', () => {
+  const rand = rng(31);
+  for (let k = 0; k < 200; k++) {
+    const {names, edges, start} = randomGraph(rand), nodes = names.map(sq);
+    const plain = layoutLayered(nodes, edges, {start}), t = layoutLayered(nodes, edges, {start, ...outerOpt('all')});
+    assert.deepEqual([...t.layers], [...plain.layers]);
+    noOverlaps(t.nodes);
+    for (const x of t.edges) if (x.outer) assert.ok(x.reversed && t.layers.get(x.from)! - t.layers.get(x.to)! >= 2);
+    for (const x of plain.edges) if (x.reversed && !x.self && plain.layers.get(x.from)! - plain.layers.get(x.to)! >= 2) assert.ok(t.edges.find(y => y.index === x.index)!.outer, 'every long return is outer');
+    assert.deepEqual(layoutLayered(nodes, edges, {start, ...outerOpt('all')}), t);
+  }
+});
+
 test('layoutLayered transpose: crossed neighbours in a layer are swapped', () => {
   const nodes = ['a', 'b', 'd', 'c'].map(sq), e = [{from: 'a', to: 'd'}, {from: 'b', to: 'c'}];
   assert.equal(chainCrossings(layoutLayered(nodes, e, {transpose: true})), 0);
