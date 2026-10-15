@@ -21,6 +21,7 @@ const tasksOf = (band: GanttBand): GanttTask[] => band.rows.filter((r): r is Gan
 
 const fmtDay = (day: number): string => { const d = new Date(day * MS_DAY); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; };
 const dayOf = (v: string, what: string): number => {
+  if (v === 'auto' && what === 'today') throw new Error(`gantt(): ${what}: 'auto' needs a date from the build (--today YYYY-MM-DD, SVG_DIAGRAM_TODAY or .svg-diagram.json \"today\"); it was not given one here`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(v))) throw new Error(`gantt(): ${what} must be 'YYYY-MM-DD' (got ${JSON.stringify(v)})`);
   try { return timelineDay(v, what); } catch { throw new Error(`gantt(): ${what} is not a real date (${v})`); }
 };

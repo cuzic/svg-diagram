@@ -15,6 +15,8 @@ import {fillScaleLimit} from './text-bands.ts';
 import {contentBox} from '../layout-metrics.ts';
 import {MathTooWideError} from '../math.ts';
 import {applyWireframeDefaults} from './wireframe-numbering.ts';
+import {fillAutoToday} from '../today.ts';
+import {walkBands} from '../rules.ts';
 
 //
 // Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
@@ -156,7 +158,10 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
 }
 /** What the passes may write into: the bands are copied, so a band shared by two diagrams (or drawn twice) is never changed by a render. */
 function detach<D extends DiagramData>(d: D): D {
-  return {...d, bands: cloneData(d.bands)};
+  const out = {...d, bands: cloneData(d.bands)};
+  // gantt({today: 'auto'}) takes the day the caller gave (never the clock); only then does the day go in the metadata
+  if (fillAutoToday(walkBands(out.bands), out.today) && out.source) out.source = {...out.source, today: out.today};
+  return out;
 }
 /**
  * A deep copy of plain data: arrays and plain objects (Object.prototype or null prototype) are copied; everything else is
