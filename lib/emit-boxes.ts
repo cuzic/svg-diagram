@@ -115,6 +115,10 @@ export function renderLegend(band: LaidOutLegend, day: Theme, roles: Roles): str
     } else if (it.edge === 'and') { // two arrows joined by an arc across them
       for (const dy of [-5, 5]) parts.push(arrowPath([{x: it.x, y: cy + dy}, {x: it.x + LEGEND_SWATCH_W, y: cy + dy}], PALETTE.text, undefined));
       parts.push(`<path d="M${snap4(it.x + 14)},${cy - 5} Q${snap4(it.x + 20)},${cy} ${snap4(it.x + 14)},${cy + 5}" fill="none" stroke="${PALETTE.text}" stroke-width="2"/>`);
+    } else if (it.edge === 'back') { // a declared return: one bold arrow
+      parts.push(arrowPath([{x: it.x, y: cy}, {x: it.x + LEGEND_SWATCH_W, y: cy}], PALETTE.text, undefined, 3));
+    } else if (it.edge === 'blocks') { // a cutting arrow: dashed, ending in a bar
+      parts.push(arrowPath([{x: it.x, y: cy}, {x: it.x + LEGEND_SWATCH_W, y: cy}], PALETTE.text, 'dashed', 2, 'end', 'bar'));
     } else if (it.line) {
       const strong = it.weight === 'strong', arrow = it.arrow ?? 'end';
       const [x1, x2] = strong ? trimEnds(it.x, it.x + LEGEND_SWATCH_W, arrow) : [it.x, it.x + LEGEND_SWATCH_W];
