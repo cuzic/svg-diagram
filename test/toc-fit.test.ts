@@ -198,3 +198,11 @@ test("causeTree({maxNodeW: 'auto'}): the height budget picks a wider node (short
   assert.ok(t.h <= budget + 0.5, 'the chosen figure fits the height budget');
   assert.throws(() => place(wide({maxNodeW: 'auto'}), 6000, h(260) - 20), /does not fit 6000px wide by \d+px tall/);
 });
+
+test('causeTree() that fits nowhere: the failure says where to split (ADR 0019 D3)', () => {
+  const chain = causeTree(['a', 'b', 'c', 'd', 'e'].map(id => N(id)), [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'}, {from: 'd', to: 'e'}]);
+  const natural = place(chain, 900).h;
+  assert.throws(() => place(chain, 900, natural - 20), /\n {2}split: after layer \d \(1 arrow crosses: [a-e]→[a-e]\)\. Draw the nodes up to that layer/, 'too tall: a cut between layers, both halves within the budget');
+  assert.throws(() => place(chain, 900, 40), /split: no cut between two layers leaves both halves within the height/, 'nothing fits: three or more figures');
+  assert.throws(() => place(wide({dir: 'up'}), 300), /\n {2}split: layer \d is the widest \(\d+ nodes: u\d/, 'too wide: the widest layer');
+});

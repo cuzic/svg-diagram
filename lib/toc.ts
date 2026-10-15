@@ -155,7 +155,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   const fitted = fitLayout<CauseDir, ReturnType<typeof build>>({
     who: 'causeTree()', w, start, ...(band.base !== undefined ? {alt: 'right' as const} : {axisKept: `another axis (a cause tree keeps its direction: ${start})`}),
     explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined || band.maxNodeW === 'auto' ? {} : {maxNodeW: band.maxNodeW}), ...(band.maxNodeW === 'auto' ? {autoWidth: true} : {}),
-    build, ...(band.base === undefined ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget: heightBudget - 2 * badgeRoom - (band.maxNodeW === 'auto' && canvasBound ? y : 0)}), // the badge room is not in an attempt's size
+    build, layoutOf: r => ({lay: r.lay, vertical: r.vertical}), ...(band.base === undefined ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget: heightBudget - 2 * badgeRoom - (band.maxNodeW === 'auto' && canvasBound ? y : 0)}), // the badge room is not in an attempt's size
     ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
   });
   const attempt = fitted.result, {lines, vertical, flip} = attempt, fitApplied = fitted.applied;
