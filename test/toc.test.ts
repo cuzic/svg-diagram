@@ -166,6 +166,18 @@ test('causeTree({coreDriver}): the SVG has a thick frame and a badge for the cor
   assert.ok(!off.includes('中核') && !off.includes('stroke-width="3.5"'));
 });
 
+test('causeTree({coreDriver}): the badge lies outside the frame and inside the figure, whichever way the arrows run (H7)', async () => {
+  for (const dir of ['up', 'down', 'left', 'right'] as const) {
+    const d = diagram({theme: 'blue'}).add(causeTree([N('u1', {role: 'ude'}), N('u2', {role: 'ude'}), N('r', {role: 'root'})], [{from: 'r', to: 'u1'}, {from: 'r', to: 'u2'}], {coreDriver: true, dir}));
+    const svg = (await renderDiagram(d, {name: 'c.svg', budget: 'cacheOnly'})).svg;
+    const rect = (re: RegExp) => { const m = re.exec(svg)!; return {x: +m[1], y: +m[2], w: +m[3], h: +m[4]}; };
+    const badge = rect(/<rect x="([\d.]+)" y="([\d.]+)" width="(44)" height="(22)" rx="8"/), frame = rect(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"[^>]*stroke-width="3.5"/);
+    const page = rect(/<rect x="(0)" y="(0)" width="([\d.]+)" height="([\d.]+)"/);
+    assert.ok(badge.x + badge.w <= frame.x || frame.x + frame.w <= badge.x || badge.y + badge.h <= frame.y || frame.y + frame.h <= badge.y, `${dir}: the badge does not cover the frame`);
+    assert.ok(badge.x >= 0 && badge.y >= 0 && badge.x + badge.w <= page.w && badge.y + badge.h <= page.h, `${dir}: the badge stays inside the figure`);
+  }
+});
+
 test('causeTree(): coreDriver must be a boolean', () => {
   assert.throws(() => causeTree([N('a')], [], {coreDriver: 'yes' as never}), /coreDriver must be/);
 });
