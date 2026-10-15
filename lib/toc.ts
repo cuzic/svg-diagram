@@ -64,7 +64,8 @@ type CauseDir = 'up' | 'down' | 'right' | 'left';
  */
 export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number, canvasBound = false): LaidOutCause {
   const first = layoutCauseBandOnce(band, x, y, w, widthOf, roles, heightBudget, canvasBound);
-  if (band.base !== undefined || crossingsOf_(first) === 0) return first;
+  // the search is for a figure whose AND arrows cross as first laid out: judged before the side-by-side runs are moved aside (ADR 0016 D12/D13), which also clears crossings
+  if (band.base !== undefined || (crossingsOf_(first) === 0 && crossingsOf_(layoutCauseBandOnce(band, x, y, w, widthOf, roles, heightBudget, canvasBound, undefined, true)) === 0)) return first;
   const ids = band.nodes.map(n => n.id);
   // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
   const orders = [[...ids].reverse(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
@@ -87,7 +88,7 @@ const crossingsOf_ = (t: LaidOutCause): number => andClashes(t.edges, t.ands).fi
 const scoreOfCause = (t: LaidOutCause): number[] => { const s = scoreOf(t.edges.map(e => e.points)); return [crossingsOf_(t), andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses').length, s.crossings, s.bends]; };
 const lexLess = (a: number[], b: number[]): boolean => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i]; return false; };
 
-export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[]): LaidOutCause {
+export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false): LaidOutCause {
   const ids = new Set<string>();
   for (const n of band.nodes) {
     if (typeof n.id !== 'string' || !n.id) throw new Error('causeTree(): every node needs an id');
@@ -166,7 +167,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
     // the returns that skip layers run in an outer lane: all of them when `returns: 'outer'` (or pdpc's default), the declared ones (`back`) when nothing is written
     const wanted: 'all' | 'declared' | undefined = band.returns === 'inline' ? undefined : (band.returns ?? band.returnsDefault) === 'outer' ? 'all' : declared.length ? 'declared' : undefined;
     const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {}), ...(alap ? {alap} : {}), ...(fold === undefined ? {} : {fold})}, {
-      portStep: PORT, groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: iw + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}),
+      portStep: PORT, groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: iw + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}), ...(plainRoutes ? {aside: false} : {}),
       looseOf: (rts, ly) => {
         const route = new Map<number, Pt[]>();
         ly.edges.forEach((e, i) => { if (!e.self) route.set(e.index, rts.get(i)!); });

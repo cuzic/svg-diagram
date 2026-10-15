@@ -221,7 +221,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     const trial = build(), score = scoreOf([...trial.values()]);
     if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i)) { routes = trial; best = score; } else undo();
   }
-  // ADR 0016 D12 (only when asked, after the candidate is chosen): a long arrow into a grouped head (an AND) whose run through the layers lies along another
+  // ADR 0016 D12 (only when asked, after the candidate is chosen; D13 for a direct arrow, below): a long arrow into a grouped head (an AND) whose run through the layers lies along another
   // arrow's run moves its way points aside. Taken only when that leaves no more arrows beside it (any head), makes no more crossings or bends, pierces no box and stays inside the band.
   if (aside && groupOf) {
     const heads = new Set<string>();
@@ -243,7 +243,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     const inside = (pts: Pt[]): boolean => pts.every(p => p.y >= 0.5 && p.y <= lay.h - 0.5);
     // ADR 0016 D13: a direct arrow's first run lies along the last run of another arrow into the same head (the other turned first): its turn moves to just
     // before or after that arrow's last turn, so the two runs do not overlap along the layers.
-    const lastTurnOf = (r: Map<number, Pt[]>, j: number): number => { const q = r.get(j)!; return q.length >= 4 ? q[q.length - 3].x : q[0].x; };
+    const lastTurnOf = (r: Map<number, Pt[]>, j: number): number | undefined => { const q = r.get(j)!; return q.length >= 4 ? q[q.length - 3].x : undefined; };
     for (const i of [...routes.keys()]) {
       const e = lay.edges[i];
       if (e.self || e.outer || !heads.has(e.to)) continue;
@@ -255,7 +255,10 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
         const lo = Math.min(layerOf(e.from), layerOf(e.to)), gl = layerRight.get(lo)!, gr = layerLeft.get(lo + 1) ?? gl + 2 * STUB;
         for (const [j, o] of routes) {
           if (j === i || lay.edges[j].to !== e.to || !segs(o).some(y => segs(routes.get(i)!).some(x => runsTogether(x, y)))) continue;
-          for (const x of [lastTurnOf(routes, j) - 6, lastTurnOf(routes, j) + 6, lastTurnOf(routes, j) - LANE, lastTurnOf(routes, j) + LANE]) if (x > gl + 4 && x < gr - 22) tries.push(() => turnAt.set(i, x));
+          const at = lastTurnOf(routes, j);
+          if (at === undefined) continue;
+          // the last run keeps room for the arrowhead, on the head's side of the gap (the right for a forward arrow, the left for a return)
+          for (const x of [at - LANE, at + LANE, at - 6, at + 6]) if (forward(i) ? x > gl + 4 && x < gr - 22 : x > gl + 22 && x < gr - 4) tries.push(() => turnAt.set(i, x));
         }
       }
       for (const set of tries) {
@@ -321,6 +324,8 @@ export interface AttemptOpts {
   straighten?: boolean;
   /** The second candidate also pulls source nodes toward their targets (graph-layout.ts `tighten`). Default false: a cause tree reads its causes at the first layer. */
   tighten?: boolean;
+  /** false: no ADR 0016 D12/D13 pass (side-by-side runs moved aside) on the chosen candidate. Default true. */
+  aside?: boolean;
   /** Returns two layers or more long run in lanes outside the figure: 'all' of them, or only the 'declared' ones (`back`). Default none (through the layers). */
   returns?: 'all' | 'declared';
 }
@@ -403,7 +408,8 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     const before = parallels(a);
     if (!before) return a;
     const b = build(optsOf.get(a)!.opts, true);
-    return aside(parallels(b) >= before || worse(a, b) ? a : b);
+    const chosen = parallels(b) >= before || worse(a, b) ? a : b;
+    return o.aside === false ? chosen : aside(chosen);
   };
   const plain = build(layoutOpts);
   if (o.straighten === false || !edges.some(e => e.from !== e.to)) return sharing(plain);

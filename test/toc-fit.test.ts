@@ -260,3 +260,11 @@ test('causeTree(): a direct arrow into an AND turns beside the other, so its fir
   assert.deepEqual(andClashes(t.edges, t.ands), []);
   assert.equal(t.loose.length, 0);
 });
+
+// ADR 0016 D13: the order search is entered by the AND crossings of the figure as first laid out, before the side-by-side runs are moved aside (CRT left, 10 nodes: it was 40px taller without that).
+test('causeTree(): clearing an AND crossing by moving a run aside does not keep the order search from finding a lower figure', () => {
+  const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":["n0","n1"],"to":"n2"},{"from":"n0","to":"n3"},{"from":"n2","to":"n4"},{"from":"n2","to":"n5"},{"from":["n1","n3","n4"],"to":"n6"},{"from":"n4","to":"n7"},{"from":"n6","to":"n8"},{"from":"n5","to":"n9"},{"from":["n9","n6","n2"],"to":"n10"}]');
+  const t = place(causeTree(Array.from({length: 11}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'crt', dir: 'left'}), 1800);
+  assert.ok(t.h < 230, `height ${t.h}`);
+  assert.deepEqual(andClashes(t.edges, t.ands), []);
+});
