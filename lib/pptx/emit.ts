@@ -44,6 +44,6 @@ export function emitPptx(laidOut: LaidOutDiagram, opts: PptxOptions): Buffer {
 }
 
 /** A slide plan and the PNGs of its pictures as the .pptx package (also how the judges wrap a hand-written slide). */
-export function packSlide(plan: SlidePlan, pngs: readonly Buffer[] = []): Buffer {
+export function packSlide(plan: SlidePlan, pngs: readonly Buffer[]): Buffer {
   return zipStore(packageEntries(template ??= readTemplate(), plan, pngs));
 }

@@ -37,7 +37,7 @@ for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) {
 }
 const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${shapes.join('')}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
 const pptx = path.join(out, 'glue.pptx');
-fs.writeFileSync(pptx, packSlide({xml, cx: 4 * CELL * EMU, cy: 4 * CELL * EMU, pictures: []}));
+fs.writeFileSync(pptx, packSlide({xml, cx: 4 * CELL * EMU, cy: 4 * CELL * EMU, pictures: []}, []));
 execFileSync('soffice', ['--headless', '--convert-to', 'pdf', '--outdir', out, pptx], {stdio: 'ignore', timeout: 120000});
 execFileSync('pdftocairo', ['-svg', path.join(out, 'glue.pdf'), path.join(out, 'glue.svg')]);
 const svg = fs.readFileSync(path.join(out, 'glue.svg'), 'utf8');

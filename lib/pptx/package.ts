@@ -17,6 +17,7 @@ const slideRels = (count: number): string => Array.from({length: count}, (_, i) 
 
 /** The template with the slide size and rels filled in, plus the slide and its media; `[Content_Types].xml` first, the rest sorted by name. The template already declares png and svg. */
 export function packageEntries(template: readonly Entry[], plan: SlidePlan, pngs: readonly Buffer[]): Entry[] {
+  if (pngs.length !== plan.pictures.length) throw new Error(`${plan.pictures.length} pictures but ${pngs.length} PNGs`);
   const entries = template.map(({name, data}) => {
     if (name === 'ppt/presentation.xml') return {name, data: Buffer.from(data.toString().replace(/<p:sldSz[^>]*\/>/, `<p:sldSz cx="${plan.cx}" cy="${plan.cy}"/>`))};
     if (name === 'ppt/slides/_rels/slide1.xml.rels') return {name, data: Buffer.from(data.toString().replace('</Relationships>', slideRels(plan.pictures.length) + '</Relationships>'))};

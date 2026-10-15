@@ -35,7 +35,7 @@ export function paragraphsOf(runs: Run[], boxTone: string | undefined, day: Laid
   }).join('');
 }
 
-/** The text-only box of a badge or label the layout does not carry as a box: one centred run, no wrapping room needed. */
-export function plainBox(rect: Rect, text: string, size: number, weight: FontWeight, lineY: number, tone: LaidOutBox['tone'], frame: {frame: boolean; padX: number; padY: number}): TextBox {
-  return {...rect, ...(frame.frame ? {} : {frame: false as const}), padX: frame.padX, padY: frame.padY, tone, align: 'center', wrappedRuns: [{text, size, weight, mono: false, lines: [text], lineYs: [lineY]}]};
+/** The text-only box of a badge or label the layout does not carry as a box: one centred run on one line. */
+export function plainBox(rect: Rect, text: string, o: {size: number; weight: FontWeight; tone: LaidOutBox['tone']; frame: boolean; padX: number; padY: number}): TextBox {
+  return {...rect, ...(o.frame ? {} : {frame: false as const}), padX: o.padX, padY: o.padY, tone: o.tone, align: 'center', wrappedRuns: [{text, size: o.size, weight: o.weight, mono: false, lines: [text], lineYs: [o.size]}]};
 }

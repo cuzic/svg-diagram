@@ -36,7 +36,7 @@ const boxBand: BandXml<BoxLike> = (b, ctx) => {
   const main = boxXml(id, b.id ?? `box-${id}`, b, ctx.ld.day, ctx.fonts);
   if (!b.tag && !b.stamp && b.step === undefined && !b.icon) return main;
   const badge = (text: string, r: Rect, name: string): string =>
-    boxXml(ctx.next(), name, plainBox(r, text, badgeSize(r), 700, badgeSize(r), b.tone, {frame: true, padX: 2, padY: 1}), ctx.ld.day, ctx.fonts, true);
+    boxXml(ctx.next(), name, plainBox(r, text, {size: badgeSize(r), weight: 700, tone: b.tone, frame: true, padX: 2, padY: 1}), ctx.ld.day, ctx.fonts, true);
   const extra: string[] = [];
   if (b.tag && b.tagBox) extra.push(badge(b.tag, b.tagBox, `tag-${id}`));
   if (b.stamp) extra.push(badge(b.stamp, {x: b.x + b.w - (b.stampW ?? 64) - 8, y: b.y + b.h - 22, w: b.stampW ?? 64, h: 18}, `stamp-${id}`));
