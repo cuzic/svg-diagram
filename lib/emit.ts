@@ -1,7 +1,7 @@
 // Serializes a layoutDiagram() result (see layout.ts) into an SVG string. The per-type renderers live in emit-*.ts;
 // emit-handlers.ts is the table that picks one per band type.
 
-import {PALETTE, FONT_STACKS, STRONG_HEAD, STRONG_HEAD_REF_X, recolor, customColors, mapOf, withTones, toneColors} from './tokens.ts';
+import {PALETTE, FONT_STACKS, STRONG_HEAD, STRONG_HEAD_REF_X, recolor, MIN_FONT_SIZE, customColors, mapOf, withTones, toneColors} from './tokens.ts';
 import type {LaidOutConnect, LaidOutLegendItem} from './types/containers.ts';
 import type {LaidOutDiagram, LaidOutBand} from './types/index.ts';
 import type {LaidOutBox, WrappedRun} from './types/text-bands.ts';
@@ -103,6 +103,8 @@ function emitSvgWith(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noR
   // the attribute is added after the recolouring: its values are final colours (a custom white must not be recoloured as a light token)
   const out = opts.noRecolor ? svgText : recolor(svgText, laidOutDiagram.appearance);
   const darkAttr = mapOf(laidOutDiagram.appearance) ? ' data-appearance="dark"' : '';
-  return paletteAttr || darkAttr || tonesAttr ? out.replace('<svg ', `<svg${darkAttr}${paletteAttr}${tonesAttr} `) : out;
+  // a canvas figure that lowered its text floor below 14px says so, for lint-svg (ADR 0017); every other figure is unchanged
+  const minTextAttr = laidOutDiagram.canvas && laidOutDiagram.canvas.minText < MIN_FONT_SIZE ? ` data-min-text="${laidOutDiagram.canvas.minText}"` : '';
+  return paletteAttr || darkAttr || tonesAttr || minTextAttr ? out.replace('<svg ', `<svg${darkAttr}${paletteAttr}${tonesAttr}${minTextAttr} `) : out;
 }
 
