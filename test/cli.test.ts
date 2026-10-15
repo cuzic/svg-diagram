@@ -267,7 +267,16 @@ test('bin/svg-diagram: no arguments or an unknown command prints the usage and e
     assert.equal(r.status, 2);
     assert.match(r.stdout, /svg-diagram build <source\.ts>/);
     assert.match(r.stdout, /svg-diagram check/);
+    assert.match(r.stdout, /svg-diagram deck <a\.ts\|a\.svg>/);
   }
+});
+
+test('bin/svg-diagram deck: dispatches to deck-diagram (a source and an svg make one deck.html)', () => {
+  const outFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'cli-deck-')), 'd.html');
+  const r = bin(proj, 'deck', path.join(proj, 'svg', 'flow.svg'), 'src/wide.ts', '--out', outFile);
+  assert.equal(r.status, 0, out(r));
+  assert.equal([...fs.readFileSync(outFile, 'utf8').matchAll(/<section\b/g)].length, 2);
+  assert.equal(bin(proj, 'deck').status, 2);
 });
 
 test('bin/svg-diagram: build and check dispatch to the scripts (also through a symlink), passing arguments and exit codes on', () => {
