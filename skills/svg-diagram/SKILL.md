@@ -47,7 +47,6 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
    - PNG も要るとき（Word・チャット・PNG しか貼れない所）は `--png <dir> [--scale N]` を足す。同じビルドの SVG から `<dir>/<名前>.png` を書く（既定の倍率 2。段階表示の各段の SVG も PNG になる）。`--stale` と併用すると、PNG がない・SVG より古いときは作り直す。
 3. **ルール検査**: `svg-diagram check --strict src.ts`（コントラスト、凡例、線の交差、幅、密度、題名）
    - `shrink-narrow-text`（警告）: `bpmn` / `swimlane` を `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。文言を短くする・図を 2 つに分ける・縦向きにする・`maxWidth` を広げる。
-   - `edge-bends`（情報。`--verbose` で出る）: 自動配置の図（`causeTree` / `stateDiagram` / `bpmn` / `classDiagram` / `pert` / `dependencyNetwork` / `causalLoop`）で、1 本の矢印が 5 回以上折れる、または折れの合計 ÷ 矢印の数が 3 超。層を飛ぶ矢印・戻る矢印を減らす（辺の向き・節の分け方を見直す）。`diagram({layoutCheck: 'strict'})` の図だけ warn。`connect()` の線・自己ループ・曲線は数えない。
    - 案件全体で許容する rule は `.svg-diagram.json` の `"accept": {"rule-id": "理由"}`（図の `accept` が優先。知らない ID はエラー）。solid と solid-danger が白黒で同明度のときは `tones` で `solid-danger` の fill を濃くする（既定色はテーマ依存で一律には直せない）。
    - `gray-tone-collision`（警告）: 使っている 2 つのトーンの塗りが白黒で見分けにくい（CIE L* の差が 10 未満。典型は plain の白と accent / new の soft）。直し方は 2 つ。(1) トーンの色を変えて明度差を付ける: `diagram({tones: {accent: {fill: '#e6d3bd'}}})`（案件全体なら `.svg-diagram.json` の `"tones"`。README「トーンの色を上書きする」）か、片方を `solid` / `muted` にする。(2) ラベル・太字・破線など色以外の手がかりを足して `accept` で許容する。破線の有無が違う組、塗りが同じ組、muted / removed、canvas() のピルで言葉にした領域は数えない。カラーでしか使わない図は `diagram({accept: {'gray-tone-collision': '理由'}})`。
    - 凡例は、使った線種・トーンに必要な分だけ足す（`legend: 'auto'`）。記法が少なくて凡例が要らない図は、凡例を足さずに `diagram({legend: false})` で宣言する（`legend-missing` / `legend-incomplete` が出なくなる）。

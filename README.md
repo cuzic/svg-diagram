@@ -1071,7 +1071,7 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 ## check のルール（lib/rules.ts）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える。記法が少なく凡例が要らない図は `diagram({legend: false})` で「凡例は要らない」と宣言する。凡例を足すためだけに足さない）、`quadrant-empty-cell`（`quadrant()` に項目のないマスがある。意図した空きは `allowEmpty`）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
 `a11y-no-title`、`source-wraps`（出典行が折り返している）、`cjk-line-long`（見出し＝caption の title / display / stat と banner の headline の 1 行が、全角換算で本文幅 600px に収まる字数 — title 40・banner 37・stat 17・display 10 字 — を超える。半角は 0.5 字。目安以内でも、図が狭くて見出しが自動で折り返したときも出す。改行で分けるか短くする）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、`shrink-narrow-text`（`bpmn` / `swimlane` の `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。図を縦向きにする・2 つに分ける・文言を短くする・`maxWidth` を広げる）、`gray-tone-collision`（使っている 2 つのトーンの塗りが、白黒にすると見分けにくい。塗りを CIE L* にして、差が 10 未満なら警告。10 は、紙の白黒印刷で 2 つの平らな灰色が「違う」と読めなくなるあたり。soft（L* 約 93）と plain の白（100）が当たり、solid との組は当たらない。控えめにするトーン（muted / removed）は除く。破線の有無が違う組と、塗りが同じ組（new と accent、changed と plain。色でも塗りでは見分けていない）は除く。canvas() の、ピル（重点・中心など）で言葉にした領域は数えない。`diagram({accept})` で許容できる。`preview --gray` で目でも確かめる）、
-`image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`edge-bends`（情報: 自動配置の図の矢印が 5 回以上折れる、または平均で 3 回超。下の節）、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
+`image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`doc-width`（940px 以下。`maxWidth` で変更）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
 `lint-svg`（描画後の検査: コントラスト・キャンバスのはみ出し・文字の重なり・枠からのはみ出し・図形が文字に被る）は、SVG の幾何と文字の箱（レイアウトと同じフォントファイル）から調べる。`--engine browser` は同じ検査を実ブラウザで行う（`test/svg-lint-browser.test.ts` が両方を同じ SVG に当てて比べる。丸めの境界で 1px 違うことと、回転したグループの中のコントラストの比べ方（ブラウザ版は文字と図形を別々の座標系で比べていた）だけが違う）。
 描画後の検査は、**後から描かれた図形が文字を覆う、または線が文字を貫く**ものも報告する（意図した重なりは、図形に `data-allow-cover`）。
 残す警告は `diagram({accept: {'rule-id': '理由'}})`。`theme:` の図（文書向け）だけが対象で、`day:` の図（スライド）は従来どおり。
@@ -1092,18 +1092,7 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 
 木・マインドマップ・層状の自動配置の帯、`raw` / ワイヤーフレーム / `plane` など座標を手で置く帯、画像の上に重ねた部品、枠のない箱は測らない。`flex` / `span` / `width` が違う兄弟は等分ではないので `layout-sibling-size` の対象外。`layout-align-mixed` は書き手が `align` を書いた箱だけを見る。`layout-figure-*` の内容の範囲は、題・凡例・出典行（caption と legend）を除いた全部の帯。`check --format json` の各所見には、`data: {band, measured, threshold, fix}`（測った値・閾値・直し方）が付く（text の出力は 1 行のまま）。
 
-### 矢印の折れ（`edge-bends`、情報）
-
-自動配置の図（`causeTree` 系 / `stateDiagram` / `bpmn` / `classDiagram` と、`pert` / `dependencyNetwork` / `causalLoop`）の矢印の折れを数える規則。次のどちらかに当たると出る（閾値は原則から固定しており、図に合わせて動かさない）。
-
-| 条件 | 内容 |
-|---|---|
-| 1 本が 5 回以上折れる | 層を飛ぶ矢印が層ごとに折れている形。出た所見には、最も折れる矢印の `from → to` と回数が入る |
-| 折れの合計 ÷ 矢印の数が 3 を超える | 帯（1 つの図）ごとの平均 |
-
-折れは、経路の途中で向きが変わる点（同じ向きに続く点・重なった点は数えない）。**自分で引いた `connect()` の線、自己ループ、曲線（`causalLoop` の `layout: 'ring'`、`mindmap` / `tree`）は数えない。** 重大度は `layout-*` と同じ（既定は情報で `check --verbose` のときだけ出る。`diagram({layoutCheck: 'strict'})` の図だけ warn で、`check --strict` が落ちる）。`accept: {'edge-bends': '理由'}` で許容できる。描画（SVG）は 1 バイトも変わらない。
-
-**この図だけ warn にする**には `diagram({layoutCheck: 'strict'})`（既定は `'info'`。他の値は throw）。その図の `layout-*` と `edge-bends` が警告になり、`check --strict` が落ちる。描画（SVG）は 1 バイトも変わらない。意図した所見は規則ごとに理由つきで許容できる。
+**この図だけ warn にする**には `diagram({layoutCheck: 'strict'})`（既定は `'info'`。他の値は throw）。その図の `layout-*` が警告になり、`check --strict` が落ちる。描画（SVG）は 1 バイトも変わらない。意図した所見は規則ごとに理由つきで許容できる。
 
 ```ts
 diagram({
