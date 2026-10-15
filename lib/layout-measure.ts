@@ -18,6 +18,7 @@ import {treeTexts} from './tree.ts';
 import {statesTexts} from './states.ts';
 import {causeTexts, cloudTexts} from './toc.ts';
 import {ganttTexts} from './gantt.ts';
+import {statusTexts, withStatus} from './status.ts';
 import {classesTexts} from './classes.ts';
 import {bpmnTexts} from './bpmn.ts';
 import {chartTexts} from './charts.ts';
@@ -73,6 +74,7 @@ const childrenOwn: MeasureHandler<Band> = (band, m) => { for (const child of chi
 
 export const MEASURE_HANDLERS = {
   caption: own, box: own, banner: own, spacer: own, raw: own,
+  status: fromTuples(statusTexts),
   group: (band, m) => {
     if (band.stamp) m.atoms(band.stamp, m.roles.note, 400);
     if (band.title) m.own(groupTitleBand(band));
@@ -125,7 +127,7 @@ export const MEASURE_HANDLERS = {
 
 /** Pass 1: every atom this diagram needs measured, at the font sizes of `roles`. Pure: no measuring happens here. */
 export function collectMeasures(data: DiagramData, roles: Roles): Requests {
-  const d = withSourceLine(data);
+  const d = withStatus(withSourceLine(data));
   const requests: Requests = new Map();
   const m: MeasureCtx = {
     roles,
