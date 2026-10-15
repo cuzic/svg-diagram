@@ -4,7 +4,7 @@ import {textWidth, splitAtoms} from './atoms.ts';
 import {layoutBalanced, layoutTree} from './graph-layout.ts';
 import type {TreeLayout, TreeNode} from './graph-layout.ts';
 import {layoutBrace, layoutFishbone, layoutHanging, layoutTimelineMap, mirror} from './map-layouts.ts';
-import {wrapText} from './wrap.ts';
+import {getWrapMode, longestUnitWidth, wrapText} from './wrap.ts';
 import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {LaidOutTree, TreeBand, TreeItem, TreeNodeText} from './types/diagrams.ts';
 
@@ -41,7 +41,12 @@ export function narrowField(texts: string[][]): {narrow?: string[]} { const n = 
 
 /** A node's text wrapped to maxW, and the box size it needs (bold label, muted sub line). Shared with states(). */
 export function measureNode(label: string, sub: string | undefined, maxW: number, widthOf: WidthOf, roles: Roles): NodeLines {
-  const L = roles.body, S = roles.note, inner = maxW - 2 * PAD_X;
+  const L = roles.body, S = roles.note;
+  let inner = maxW - 2 * PAD_X;
+  if (getWrapMode() === 'bunsetsu') { // a box wide enough for its longest unit (up to 1.5 x maxNodeW; a longer unit breaks per character)
+    const unit = Math.max(longestUnitWidth(splitAtoms(label), a => widthOf(a, L, 700, 'sans')), sub ? longestUnitWidth(splitAtoms(sub), a => widthOf(a, S, 400, 'sans')) : 0);
+    inner = Math.max(inner, Math.min(Math.ceil(unit), Math.floor(1.5 * maxW) - 2 * PAD_X));
+  }
   const lab = wrapText(label, {maxWidth: inner, atomWidth: a => widthOf(a, L, 700, 'sans')});
   const sb = sub ? wrapText(sub, {maxWidth: inner, atomWidth: a => widthOf(a, S, 400, 'sans')}) : [];
   const tw = Math.max(...lab.map(l => textWidth(widthOf, l, L, 700)), ...sb.map(l => textWidth(widthOf, l, S, 400)));

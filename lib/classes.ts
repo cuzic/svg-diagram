@@ -68,7 +68,7 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
     const top = hasLoop && dir === 'right' ? LOOP + S + 8 + 8 : 0;
     const placeIn = (size: {w: number; h: number}) => (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + x + (w - size.w - reserve) / 2, y: q.y + y + top}; };
     const run = layeredAttempt(nodes, edges, {dir: 'right', gap: GAP + loopRows, levelGap: Math.max(dir === 'down' ? LEVEL_GAP + 16 : LEVEL_GAP, gapFor(degree, dir === 'right' ? widestLabel : 0))},
-      {portStep: 22, transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true}); // wide steps: two hollow triangles on one side do not touch
+      {portStep: 22, transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, ...(band.straighten === false ? {straighten: false} : {})}); // wide steps: two hollow triangles on one side do not touch
     return {...run, dir, reserve, top};
   };
   const explicitDir = band.dir !== undefined && band.dir !== 'auto';
@@ -78,6 +78,7 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
     build: d => build(d), widthOf: r => r.size.w + r.reserve, best: band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget}),
   });
   const {dir, reserve, top, lay, routes, size: total} = fitted.result, fitApplied = fitted.applied;
+
   const dx = x + (w - total.w - reserve) / 2, dy = y + top;
   const out: LaidOutClasses = {
     type: 'classes', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + top,

@@ -74,7 +74,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
       // a loop needs room beside its state (down) or between rows (right), so states do not crowd it
       dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : GAP,
       levelGap: Math.max(dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, gapFor(degree)), ...(band.initial ? {start: [INIT]} : {}),
-    }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
+    }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, ...(band.straighten === false ? {straighten: false} : {}), ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
     const at = (id: string) => { const p = run.lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
     return {...run, dir, lines, reserve, top, at};
   };
@@ -87,6 +87,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
     ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
   });
   const {dir, lines, reserve, top, at, lay, routes, size: total} = fitted.result, fitApplied = fitted.applied;
+
 
   // a loop sits above its state when the flow runs right (room is made at the top), and to its right when the flow runs down
   // dir down: the loop and its label stick out to the right of the rightmost state (`reserve`)
