@@ -121,7 +121,7 @@ FRT 風の `inj → tool`、`[tool, trust] → use`、`use → result`、`result
 - 各「起点の節」(入る辺が無い節。`back` と `blocks` を除く)から、順方向の辺をたどって**到達できる `ude` の数**を数える。AND は、束ねた原因の全部が結果に到達するものとして数える(AND の一員も、結果が `ude` に至るなら到達する)。節自身は数えない。`blocks` の辺は通らない(防ぐ辺は、引き起こさない)。
 - 強調: 到達数が最多で 2 以上の起点に、**`role` とは別の印(`core`: 太い枠と「中核」のバッジ)**を付ける。同数なら全部。**`role` は変えない**(`toc-parts` が CRT に `root` を求めるので、普通の CRT では根本原因が全部 `root` で、`role` を印にすると中核が見た目で区別できない。`relationDiagram` の `role` 上書き(`lib/dsl/diagrams.ts:236-240`)には倣わない)。`LaidOutCause.nodes[]` に `core?: true` を持たせ、描画は枠を太く(3.5)してバッジを角に置く。凡例の項目 `edge:` の隣に `mark:core`(中核ドライバー)を 1 つ足す(D6)。到達数は箱の注記に `到達 UDE n` と書く(`counts: false` で消す。`relationDiagram` の `出 n・入 n` と同じ作法)。起点の全部に書くので、強調されなかった根本原因の数も見える。
 - **`relationDiagram` との違い**: あちらは出る辺の本数(直接の数)で、`ude` を見ない。こちらは間接を含む `ude` の数。`relationDiagram` は変えない。
-- 実装は DSL の層(`lib/dsl/diagrams.ts` の `causeTree()` が、役割と注記を足した節を返す)。配置・描画は変えない(注記の行が増えるぶん、箱が高くなるのは `coreDriver` を書いた図だけ)。数える純粋な関数は `lib/toc-analysis.ts`(新規。`reachCounts`)。`coreDriver` を書かない図は byte 同一。
+- 実装は DSL の層(`lib/dsl/diagrams.ts` の `causeTree()` が、注記と `core` の印を足した節を返す)。配置のアルゴリズムは変えない。描画は、`core` の節の枠の太さとバッジを足す(`renderCause`)。注記の行が増えるぶん箱が高くなるのも、`coreDriver` を書いた図だけ。数える純粋な関数は `lib/toc-analysis.ts`(新規。`reachCounts`)。`coreDriver` を書かない図は byte 同一。
 
 ### D5. `kind: 'blocks'`: 辺の種類を足す(G8)
 
@@ -169,7 +169,7 @@ FRT 風の `inj → tool`、`[tool, trust] → use`、`use → result`、`result
 | 単位 | 内容 | 触るファイル | 依存 |
 |---|---|---|---|
 | U1 | `role: 'precondition'`(D1)。型・`CAUSE_ROLES`・検証の文言・README の役割の説明と skills の役割の列挙(`skills/svg-diagram/SKILL.md:82`) | `lib/types/diagrams.ts`(`CauseRole`)、`lib/toc.ts`(`CAUSE_ROLES`)、`README.md`、`skills/svg-diagram/SKILL.md`、`test/toc.test.ts` | なし |
-| U2 | 中核ドライバー(D4)。`reachCounts`(純関数)と `causeTree` の `coreDriver` | 新規 `lib/toc-analysis.ts`、`lib/dsl/diagrams.ts`(`causeTree()` の中)、`lib/types/diagrams.ts`(`CauseOpts.coreDriver`)、新規 `test/toc-analysis.test.ts`、`test/toc.test.ts` | なし(U1 とは別の行を足すだけ) |
+| U2 | 中核ドライバー(D4)。`reachCounts`(純関数)と `causeTree` の `coreDriver` | 新規 `lib/toc-analysis.ts`、`lib/dsl/diagrams.ts`(`causeTree()` の中)、`lib/types/diagrams.ts`(`CauseOpts.coreDriver`、`LaidOutCause.nodes[].core`)、`lib/emit-figures.ts`(`renderCause` の枠の太さとバッジ)、新規 `test/toc-analysis.test.ts`、`test/toc.test.ts` | なし(U1 とは別の行を足すだけ) |
 | U3 | TOC の検査(D2・D3)。`tree` と `tocCheck`、`lib/toc-rules.ts`、`RULE_DOCS`、`lintAll` への接続、README の規則の一覧。`toc-cycle-undeclared` は除く(U7) | 新規 `lib/toc-rules.ts`、`lib/rules.ts`(`tocSeverity`・`RULE_DOCS`・`lintAll` の 1 行)、`lib/types/diagrams.ts`・`lib/types/core.ts`(`tree`・`tocCheck`)、`lib/dsl/diagrams.ts`・`lib/dsl/render.ts`(検証・保存)、`lib/strict.ts`、`README.md`、新規 `test/toc-rules.test.ts`、`test/rules.test.ts` | U1(役割の一覧が確定してから)、U2 の `lib/toc-analysis.ts`(辺の集計を共有) |
 | U4 | 凡例の自動生成(D6)。`usedNotation` の `cause` 対応、`LegendItem.role` / `edge`、見本の描画、ラベルの既定 | `lib/rules.ts`(`usedNotation`・`applyAutoLegend`・`DEFAULT_LEGEND_LABELS`)、`lib/types/containers.ts`(`LegendItem`)、`lib/layout-handlers.ts`(`layoutLegend`)、`lib/emit-boxes.ts`(`renderLegend`)、`lib/config.ts`(キー検査は表から自動)、`README.md`(`:298`・`:305` の直し)、`test/rules.test.ts`、`test/toc.test.ts` | U1(役割が確定してから)。`edge:back` は 0009 U11 の後、`edge:blocks` は U5 の後に足す(それまでは項目を出さない) |
 | U5 | `kind: 'blocks'`(D5)。型・検証・配置への受け渡し・棒の端の描画 | `lib/types/diagrams.ts`(`CauseLink.kind`、`LaidOutCause.edges[].kind`)、`lib/toc.ts`(辺の種類を持たせる)、`lib/dsl/diagrams.ts`(検証)、`lib/emit-common.ts`(`arrowPath` の `end`)、`lib/emit-figures.ts`(`renderCause`)、`README.md`、`test/toc.test.ts` | なし(優先度は低い) |
