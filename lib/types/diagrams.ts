@@ -241,9 +241,23 @@ export interface BpmnBand extends BpmnOpts {
   nodes: BpmnNode[];
   flows: BpmnFlow[];
 }
+/** One thing the layout changed on its own to make a figure fit its width (ADR 0010); the `auto-fit-applied` rule reads it. */
+export interface FitApplied {
+  /** What changed: the direction, the node width, or a layer folded into rows. */
+  what: 'dir' | 'maxNodeW' | 'fold';
+  from: string | number;
+  to: string | number;
+  /** The figure's width before and after, in px. */
+  wasW?: number;
+  nowW?: number;
+  /** How the author asked for it: `dir` left out (a warning) or `dir: 'auto'` (a note). */
+  mode: 'omitted' | 'auto';
+}
 export interface TreeNodeText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean}
 export interface LaidOutTree extends Rect, Dimmed {
   type: 'tree';
+  /** What the layout changed on its own to fit the width (none: the figure is as written). */
+  fitApplied?: FitApplied[];
   id?: string;
   reveal?: number;
   until?: number;
@@ -259,6 +273,8 @@ export interface LaidOutTree extends Rect, Dimmed {
 }
 export interface LaidOutStates extends Rect, Dimmed {
   type: 'states';
+  /** What the layout changed on its own to fit the width (none: the figure is as written). */
+  fitApplied?: FitApplied[];
   id?: string;
   reveal?: number;
   until?: number;
@@ -276,6 +292,8 @@ export interface LaidOutStates extends Rect, Dimmed {
 }
 export interface LaidOutCause extends Rect, Dimmed {
   type: 'cause';
+  /** What the layout changed on its own to fit the width (none: the figure is as written). */
+  fitApplied?: FitApplied[];
   id?: string;
   reveal?: number;
   until?: number;
@@ -307,6 +325,8 @@ export interface LaidOutCloud extends Rect, Dimmed {
 }
 export interface LaidOutClasses extends Rect, Dimmed {
   type: 'classes';
+  /** What the layout changed on its own to fit the width (none: the figure is as written). */
+  fitApplied?: FitApplied[];
   id?: string;
   reveal?: number;
   until?: number;
