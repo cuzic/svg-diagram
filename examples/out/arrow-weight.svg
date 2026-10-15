@@ -19,24 +19,24 @@
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">weight: 強い流れ(同じ力の 2 本)と通常の矢印</text>
 
   <rect x="20" y="104" width="236" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="40" y="134.6" font-size="15" font-weight="700" fill="#22201b">左のチーム</text>
-  <text x="40" y="162.6" font-size="14" font-weight="400" fill="#22201b">力 100</text>
+  <text x="40" y="135" font-size="15" font-weight="700" fill="#22201b">左のチーム</text>
+  <text x="40" y="163" font-size="14" font-weight="400" fill="#22201b">力 100</text>
 
   <rect x="352" y="104" width="236" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="372" y="134.6" font-size="15" font-weight="700" fill="#22201b">綱</text>
+  <text x="372" y="135" font-size="15" font-weight="700" fill="#22201b">綱</text>
 
   <rect x="684" y="104" width="236" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="704" y="134.6" font-size="15" font-weight="700" fill="#22201b">右のチーム</text>
-  <text x="704" y="162.6" font-size="14" font-weight="400" fill="#22201b">力 100</text>
+  <text x="704" y="135" font-size="15" font-weight="700" fill="#22201b">右のチーム</text>
+  <text x="704" y="163" font-size="14" font-weight="400" fill="#22201b">力 100</text>
 
   <rect x="20" y="248" width="900" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="40" y="279.2" font-size="15" font-weight="700" fill="#22201b">結果</text>
-  <text x="40" y="307.2" font-size="14" font-weight="400" fill="#22201b">動かない(つり合い)</text>
+  <text x="40" y="279" font-size="15" font-weight="700" fill="#22201b">結果</text>
+  <text x="40" y="307" font-size="14" font-weight="400" fill="#22201b">動かない(つり合い)</text>
 
-  <path d="M372,404.79999999999995 L400,404.79999999999995" fill="none" stroke="#22201b" stroke-width="5" marker-end="url(#dsl-arrow-strong)"/>
-  <text x="414" y="409.79999999999995" font-size="14" fill="#22201b">強い流れ</text>
-  <path d="M500,404.79999999999995 L536,404.79999999999995" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
-  <text x="542" y="409.79999999999995" font-size="14" fill="#22201b">実線</text>
+  <path d="M372,404 L400,404" fill="none" stroke="#22201b" stroke-width="5" marker-end="url(#dsl-arrow-strong)"/>
+  <text x="414" y="409" font-size="14" fill="#22201b">強い流れ</text>
+  <path d="M500,404 L536,404" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <text x="542" y="409" font-size="14" fill="#22201b">実線</text>
 
   <path d="M256,144 L346,144" fill="none" stroke="#22201b" stroke-width="5" marker-end="url(#dsl-arrow-strong)"/>
   <text x="304" y="138" text-anchor="middle" font-size="14" fill="#22201b">100</text>
@@ -44,5 +44,5 @@
   <path d="M684,144 L594,144" fill="none" stroke="#22201b" stroke-width="5" marker-end="url(#dsl-arrow-strong)"/>
   <text x="636" y="138" text-anchor="middle" font-size="14" fill="#22201b">100</text>
 
-  <path d="M470,184 L470,248" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M470,185 L470,248" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
 </svg>

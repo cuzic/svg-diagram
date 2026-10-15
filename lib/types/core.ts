@@ -129,7 +129,11 @@ export interface DiagramOpts {
   sourceLine?: string;
   /** 'strict': this diagram's `layout-*` findings (alignment and whitespace) are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
   layoutCheck?: LayoutCheck;
+  /** 'strict': the `toc-*` findings of this diagram's causeTree({tree}) figures are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
+  tocCheck?: TocCheck;
 }
+/** diagram({tocCheck}): the severity of the `toc-*` findings. */
+export type TocCheck = 'info' | 'strict';
 /** diagram({layoutCheck}): the severity of the `layout-*` findings. */
 export type LayoutCheck = 'info' | 'strict';
 /**
@@ -170,6 +174,7 @@ export interface DiagramData {
   spotlight?: SpotlightOpt;
   sourceLine?: string;
   layoutCheck?: LayoutCheck;
+  tocCheck?: TocCheck;
   bands: Band[];
   /** Set by build() from the measured slide (contentWidth). */
   usableWidth?: number;

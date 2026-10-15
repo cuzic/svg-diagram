@@ -49,3 +49,56 @@ test('layeredAttempt: groupOf is asked with the index of the input edge', () => 
   layeredAttempt(nodes, edges, opts, {place: () => p => p, groupOf: k => { asked.add(k); return undefined; }});
   assert.ok(asked.size > 0 && [...asked].every(k => k >= 0 && k < edges.length));
 });
+
+// ---- the candidate selection (ADR 0016 D1) ----
+const rngOf = (seed: number) => () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
+const lexBetter = (a: {crossings: number; bends: number}, b: {crossings: number; bends: number}): boolean => a.crossings < b.crossings || (a.crossings === b.crossings && a.bends < b.bends);
+
+test('layeredAttempt: straighten false is the plain layout; otherwise the plain layout unless the straightened one is strictly better (200 small graphs)', () => {
+  const rand = rngOf(5);
+  let moved = 0;
+  for (let k = 0; k < 200; k++) {
+    const n = 4 + Math.floor(rand() * 6), names = Array.from({length: n}, (_, i) => `n${i}`), nodes = names.map(box);
+    const edges: {from: string; to: string}[] = [];
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j && rand() < (i < j ? 0.3 : 0.04)) edges.push({from: names[i], to: names[j]});
+    const place = () => (p: Pt): Pt => p;
+    const plain = layeredAttempt(nodes, edges, opts, {portStep: 14, place, straighten: false});
+    assert.deepEqual(plain.lay, layoutWithLanes(nodes, edges, opts));
+    for (const tighten of [false, true]) {
+      // a width in the middle of the range sometimes makes the plain layout too wide for it, sometimes not
+      const maxAcross = plain.size.w * (0.8 + rand() * 0.5);
+      const got = layeredAttempt(nodes, edges, opts, {portStep: 14, place, maxAcross, tighten}), again = layeredAttempt(nodes, edges, opts, {portStep: 14, place, maxAcross, tighten});
+      assert.deepEqual(again, got, 'deterministic');
+      const base = layeredAttempt(nodes, edges, opts, {portStep: 14, place, maxAcross, straighten: false});
+      if (JSON.stringify(got.lay) === JSON.stringify(base.lay)) continue;
+      moved++;
+      assert.ok((!base.fits && got.fits) || lexBetter(got.score, base.score), `moved without being better: ${JSON.stringify(base.score)} -> ${JSON.stringify(got.score)}`);
+      if (base.fits) assert.ok(got.fits, 'a width the plain layout fits is still fit');
+      assert.ok(got.loose.length <= base.loose.length);
+    }
+  }
+  assert.ok(moved > 10, `the straightened candidate is chosen sometimes (${moved})`);
+});
+
+test('layeredAttempt: a straightened candidate that leaves a group undrawable (more loose than the plain one) is never chosen', () => {
+  const rand = rngOf(9);
+  for (let k = 0; k < 100; k++) {
+    const n = 5 + Math.floor(rand() * 5), names = Array.from({length: n}, (_, i) => `n${i}`), nodes = names.map(box);
+    const edges: {from: string; to: string}[] = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (rand() < 0.3) edges.push({from: names[i], to: names[j]});
+    const plain = layeredAttempt(nodes, edges, opts, {place: () => p => p, straighten: false});
+    const same = (lay: typeof plain.lay): boolean => JSON.stringify([...lay.nodes]) === JSON.stringify([...plain.lay.nodes]);
+    const got = layeredAttempt(nodes, edges, opts, {place: () => p => p, looseOf: (_r, lay) => same(lay) ? [] : ['x']});
+    assert.deepEqual(got.lay, plain.lay);
+  }
+});
+
+test('scoreOf over routes: counts corners and right-angle crossings, not touching or overlapping', () => {
+  const r = new Map<number, Pt[]>([
+    [0, [{x: 0, y: 5}, {x: 10, y: 5}]],
+    [1, [{x: 5, y: 0}, {x: 5, y: 10}]],
+    [2, [{x: 0, y: 0}, {x: 4, y: 0}, {x: 4, y: 3}]],
+    [3, [{x: 0, y: 5}, {x: 10, y: 5}]],
+  ]);
+  assert.deepEqual(scoreOf([...r.values()]), {crossings: 2, bends: 1});
+});

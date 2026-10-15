@@ -142,7 +142,7 @@ export function corridorLoad(lay: LayeredLayout): number {
  * layoutLayered, with the gap between layers wide enough for the arrows that share it: laid out once to see how many arrows go
  * through each gap (layers do not depend on the gap), then again with a gap that gives each its own lane.
  */
-export function layoutWithLanes(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]}, chip = 0): LayeredLayout {
+export function layoutWithLanes(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]}, chip = 0): LayeredLayout {
   const first = layoutLayered(nodes, edges, opts);
   const need = gapFor(corridorLoad(first), chip);
   return need > (opts.levelGap ?? 0) ? layoutLayered(nodes, edges, {...opts, levelGap: need}) : first;
@@ -164,6 +164,10 @@ export interface AttemptOpts {
   place: (size: {w: number; h: number}) => (p: Pt) => Pt;
   /** Ids of the ANDs (or other groups) the routes leave undrawable. */
   looseOf?: (routes: Map<number, Pt[]>, lay: LayeredLayout) => string[];
+  /** false: the plain layout only, no second candidate (the way back to the old figure). Default true. */
+  straighten?: boolean;
+  /** The second candidate also pulls source nodes toward their targets (graph-layout.ts `tighten`). Default false: a cause tree reads its causes at the first layer. */
+  tighten?: boolean;
 }
 
 export interface Attempt {
@@ -178,14 +182,49 @@ export interface Attempt {
   loose: string[];
 }
 
+/** How many arrows run through the inside of a box that is not one of their two ends (the boxes and routes are in the placed figure). */
+function piercings(a: Attempt, place: (p: Pt) => Pt): number {
+  const rects = new Map<string, {x0: number; x1: number; y0: number; y1: number}>();
+  for (const [id, n] of a.lay.nodes) {
+    const p = place({x: n.x, y: n.y}), q = place({x: n.x + n.w, y: n.y + n.h});
+    rects.set(id, {x0: Math.min(p.x, q.x) + 1, x1: Math.max(p.x, q.x) - 1, y0: Math.min(p.y, q.y) + 1, y1: Math.max(p.y, q.y) - 1});
+  }
+  let count = 0;
+  for (const [i, pts] of a.routes) {
+    const e = a.lay.edges[i];
+    for (const [id, r] of rects) {
+      if (id === e.from || id === e.to) continue;
+      if (pts.slice(1).some((q, k) => { const p = pts[k]; return Math.min(p.x, q.x) < r.x1 && Math.max(p.x, q.x) > r.x0 && Math.min(p.y, q.y) < r.y1 && Math.max(p.y, q.y) > r.y0; })) count++;
+    }
+  }
+  return count;
+}
+
 /**
  * One layered layout with its routes, score, size and undrawable groups: the unit the callers (causeTree, stateDiagram, classDiagram,
- * the semantic networks) build a figure from. A candidate selection and width fitting later wrap or live in this one function.
+ * the semantic networks) build a figure from. Two candidates are laid out: the plain one (centre each layer, relax toward the
+ * neighbours) and a straightened one (Brandes-Köpf coordinates, crossing-minimal order, optionally tightened layers). The straightened one
+ * is dropped when it leaves an AND undrawable that the plain one drew, runs an arrow through a box the plain one did not, or does
+ * not fit a width the plain one fits. Of what is left it replaces the plain one only if (crossings, bends) is strictly better in the
+ * lexicographic order, or if the plain one does not fit the width and it does. Nothing else moves a figure.
  */
-export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layoutOpts: LayeredOpts & {start?: string[]}, o: AttemptOpts): Attempt {
-  const lay = layoutWithLanes(nodes, edges, layoutOpts);
-  const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
-  const groupOf = o.groupOf;
-  const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)));
-  return {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
+export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layoutOpts: LayeredOpts & {start?: string[]; back?: readonly number[]}, o: AttemptOpts): Attempt {
+  const build = (opts: typeof layoutOpts): Attempt => {
+    const lay = layoutWithLanes(nodes, edges, opts);
+    const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
+    const groupOf = o.groupOf;
+    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)));
+    return {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
+  };
+  const plain = build(layoutOpts);
+  if (o.straighten === false || !edges.some(e => e.from !== e.to)) return plain;
+  const cand = build({...layoutOpts, coord: 'bk', transpose: true, ...(o.tighten ? {tighten: true} : {})});
+  if (cand.loose.length > plain.loose.length) return plain;
+  if (piercings(cand, o.place(cand.size)) > piercings(plain, o.place(plain.size))) return plain;
+  if (!plain.fits) return cand.fits || cand.size.w < plain.size.w && better(cand.score, plain.score) ? cand : plain;
+  if (!cand.fits) return plain;
+  return better(cand.score, plain.score) ? cand : plain;
 }
+
+/** (crossings, bends) in lexicographic order: strictly better only. */
+const better = (a: {crossings: number; bends: number}, b: {crossings: number; bends: number}): boolean => a.crossings < b.crossings || (a.crossings === b.crossings && a.bends < b.bends);

@@ -52,7 +52,7 @@
   <text x="496" y="335" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">50 m</text>
   <text x="616" y="123" text-anchor="middle" font-size="14" fill="#6f6659">地図の枠</text>
 
-  <text x="470" y="421.6" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">画像（画素、v は下向き）</text>
+  <text x="470" y="422" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">画像（画素、v は下向き）</text>
 
   <path d="M64,491 L852,491 M64,491 L64,735" fill="none" stroke="#22201b" stroke-width="2"/>
   <polygon points="852,491 842,496 842,486" fill="#22201b"/>

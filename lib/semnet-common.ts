@@ -85,7 +85,7 @@ export function networkCanvas(g: ChartGeom, nodes: {id: string; label: string; w
   const oxOf = (size: {w: number; h: number}): number => g.x + (g.w - size.w * scaleOf(size)) / 2;
   const oy = g.y + 8;
   const placeIn = (size: {w: number; h: number}) => (p: Pt): Pt => { const scale = scaleOf(size), ox = oxOf(size); return vertical ? {x: ox + p.y * scale, y: oy + p.x * scale} : {x: ox + p.x * scale, y: oy + p.y * scale}; };
-  const {lay, routes: paths, size: natural} = layeredAttempt(nodes.map(n => ({id: n.id, size: vertical ? {w: n.h, h: n.w} : {w: n.w, h: n.h}})), edges, {dir: 'right', gap: 28, levelGap: 76}, {transpose: vertical, place: placeIn});
+  const {lay, routes: paths, size: natural} = layeredAttempt(nodes.map(n => ({id: n.id, size: vertical ? {w: n.h, h: n.w} : {w: n.w, h: n.h}})), edges, {dir: 'right', gap: 28, levelGap: 76}, {transpose: vertical, place: placeIn, tighten: true});
   const naturalH = natural.h, scale = scaleOf(natural), ox = oxOf(natural);
   const positions = new Map<string, {x: number; y: number; w: number; h: number}>();
   for (const [id, p] of lay.nodes) positions.set(id, vertical ? {x: ox + p.y * scale, y: oy + p.x * scale, w: p.h * scale, h: p.w * scale} : {x: ox + p.x * scale, y: oy + p.y * scale, w: p.w * scale, h: p.h * scale});
