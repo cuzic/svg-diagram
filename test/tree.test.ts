@@ -54,7 +54,10 @@ test('tree() wraps a long label inside maxNodeW and rejects what cannot fit', as
   assert.ok(t.nodes.every(n => n.w <= 120 + 14)); // a trailing 。 may hang past the width
   assert.ok(t.nodes[0].h > t.nodes[1].h);
   const wide = tree({label: 'r', children: Array.from({length: 12}, (_, i) => ({label: `部署${i}`}))});
-  await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(wide)), /use dir: 'right'/);
+  // dir left out turns right to fit (ADR 0010); a written dir is not changed and the error says how to let it
+  const {t: turned} = await laid(wide);
+  assert.ok(turned.fitApplied?.some(a => a.what === 'dir' && a.to === 'right'));
+  await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(tree({label: 'r', children: Array.from({length: 12}, (_, i) => ({label: `部署${i}`}))}, {dir: 'down'}))), /does not fit[\s\S]*dir is explicit[\s\S]*fix: dir: 'auto'/);
 });
 
 test('tree() rejects bad input', async () => {

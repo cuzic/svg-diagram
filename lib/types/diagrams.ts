@@ -15,8 +15,10 @@ export interface TreeItem {
   children?: TreeItem[];
 }
 export interface TreeOpts extends RevealOpts {
-  /** 'down' (default): levels run top to bottom. 'right': left to right, which fits more siblings in a narrow figure. */
-  dir?: 'down' | 'right';
+  /** 'down' (default): levels run top to bottom. 'right': left to right, which fits more siblings in a narrow figure.
+   *  'auto' (and leaving it out) lets the layout narrow the nodes and turn to the other direction when the figure is wider than the diagram
+   *  (a warning when left out, a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
+  dir?: 'down' | 'right' | 'auto';
   /** The widest a node grows before its text wraps (default 200px). */
   maxNodeW?: number;
   /** A spotlight target and a connect() endpoint (the whole figure). */
@@ -79,8 +81,10 @@ export interface Transition {
   strong?: boolean;
 }
 export interface StatesOpts extends RevealOpts {
-  /** 'right' (default): the flow runs left to right. 'down': top to bottom. */
-  dir?: 'right' | 'down';
+  /** 'right' (default): the flow runs left to right. 'down': top to bottom.
+   *  'auto' (and leaving it out) lets the layout narrow the states and turn to the other direction when the figure is wider than the diagram
+   *  (a warning when left out, a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
+  dir?: 'right' | 'down' | 'auto';
   /** The state that starts: a filled dot with an arrow into it. */
   initial?: string;
   maxNodeW?: number;
@@ -209,8 +213,10 @@ export interface ClassRelation {
   toMult?: string;
 }
 export interface ClassesOpts extends RevealOpts {
-  /** 'down' (default): parents on top. 'right': left to right. */
-  dir?: 'down' | 'right';
+  /** 'down' (default): parents on top. 'right': left to right.
+   *  'auto' (and leaving it out) lets the layout turn to the other direction when the figure is wider than the diagram (a warning when left out,
+   *  a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
+  dir?: 'down' | 'right' | 'auto';
   /** Lay the figure out with the plain coordinates only (default true: a straightened layout is used when it has strictly fewer crossings, then bends). `false` keeps the older picture. */
   straighten?: boolean;
   id?: string;

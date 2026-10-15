@@ -109,6 +109,9 @@ export interface DiagramOpts {
   /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line; 'bunsetsu' also keeps a hiragana with the character before it (breaks only after a hiragana that a non-hiragana follows, or after 、。) and widens tree-like boxes to their longest unit. */
   wrap?: 'phrase' | 'char' | 'bunsetsu';
   width?: number;
+  /** The widest this figure may be before `check` warns `doc-width` (default 940, or the project's `maxWidth`). It does not make the figure wider: that is `width`.
+   *  Writing `maxWidth: 1200` alone leaves the width at 940; write `width: 1200` too. Not for `canvas` figures. */
+  maxWidth?: number;
   pad?: number;
   gap?: number;
   /** Slide room for the <img> (fit.ts). */
