@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {layeredAttempt, layoutWithLanes, routeLayered, scoreRoutes} from '../lib/layered-route.ts';
+import {layeredAttempt, layoutWithLanes, routeLayered} from '../lib/layered-route.ts';
+import {scoreOf} from '../lib/polyline-metrics.ts';
 import type {Pt} from '../lib/graph-layout.ts';
 
 // Fixed sizes: nothing here depends on a font.
@@ -25,7 +26,7 @@ for (const [name, g] of Object.entries(graphs)) {
       assert.deepEqual(got.lay, lay);
       assert.deepEqual([...got.routes], [...want]);
       assert.deepEqual(got.size, transpose ? {w: lay.h, h: lay.w} : {w: lay.w, h: lay.h});
-      assert.deepEqual(got.score, scoreRoutes(want));
+      assert.deepEqual(got.score, scoreOf([...want.values()]));
       assert.deepEqual(got.loose, []);
       assert.equal(got.fits, true);
     }
@@ -92,12 +93,12 @@ test('layeredAttempt: a straightened candidate that leaves a group undrawable (m
   }
 });
 
-test('scoreRoutes: counts corners and right-angle crossings, not touching or overlapping', () => {
+test('scoreOf over routes: counts corners and right-angle crossings, not touching or overlapping', () => {
   const r = new Map<number, Pt[]>([
     [0, [{x: 0, y: 5}, {x: 10, y: 5}]],
     [1, [{x: 5, y: 0}, {x: 5, y: 10}]],
     [2, [{x: 0, y: 0}, {x: 4, y: 0}, {x: 4, y: 3}]],
     [3, [{x: 0, y: 5}, {x: 10, y: 5}]],
   ]);
-  assert.deepEqual(scoreRoutes(r), {crossings: 2, bends: 1});
+  assert.deepEqual(scoreOf([...r.values()]), {crossings: 2, bends: 1});
 });
