@@ -154,6 +154,8 @@ export interface LayeredOpts {
   tighten?: boolean;
   /** Keep the order with the fewest crossings seen in the sweeps, then swap neighbours in a layer while that cuts crossings (default false: the order the last sweep left). */
   transpose?: boolean;
+  /** How the across coordinates are found: 'relax' (default: centre each layer, then pull toward the neighbours) or 'bk' (Brandes-Köpf: long edges and chains come out straight). */
+  coord?: 'relax' | 'bk';
 }
 export interface LayeredEdgeOut {from: string; to: string; /** index of this edge in the input list */ index: number; /** centre to centre, through the layers it skips; reversed edges are drawn from `from` anyway */ points: Pt[]; reversed: boolean; self: boolean}
 export interface LayeredLayout {nodes: Map<string, Placed>; edges: LayeredEdgeOut[]; /** layer index of each node (0 = first) */ layers: Map<string, number>; w: number; h: number}
@@ -218,6 +220,85 @@ export function breakCycles(nodes: readonly {id: string}[], edges: readonly Laye
   const out = new Set<number>(decl);
   edges.forEach((e, i) => { if (e.from !== e.to && !decl.has(i) && backPairs.has(`${e.from}\u0000${e.to}`)) out.add(i); });
   return out;
+}
+
+/**
+ * Brandes-Köpf coordinates for one connected component: rows of slot ids in order, `succ` / `pred` the links to the next / previous
+ * row. Four alignments (each long edge or chain lined up with its median neighbour, long edges between dummies first), each packed
+ * to the left or to the right, then the average of the two middle values per node. Returns the centre of each slot across the rows
+ * (any origin; the caller sets the range down).
+ */
+function brandesKoepf(rows: string[][], succ: Map<string, string[]>, pred: Map<string, string[]>, width: (id: string) => number, gap: number, dummy: (id: string) => boolean): Map<string, number> {
+  const ids = rows.flat(), layouts: Map<string, number>[] = [];
+  for (const up of [false, true]) for (const right of [false, true]) {
+    const view = (up ? [...rows].reverse() : rows).map(r => right ? [...r].reverse() : r);
+    const prev = up ? succ : pred; // the neighbours in the row before, in this view
+    const pos = new Map<string, number>(), rowOf = new Map<string, string[]>();
+    for (const r of view) r.forEach((id, i) => { pos.set(id, i); rowOf.set(id, r); });
+    const before = (v: string): string[] => [...prev.get(v)!].sort((a, b) => pos.get(a)! - pos.get(b)!);
+    // 1. a segment that crosses an inner one (dummy to dummy) never gets aligned
+    const conflict = new Set<string>();
+    for (let i = 0; i + 1 < view.length; i++) {
+      const high = view[i], low = view[i + 1];
+      let k0 = 0, l = 0;
+      for (let l1 = 0; l1 < low.length; l1++) {
+        const inner = dummy(low[l1]) ? prev.get(low[l1])!.find(dummy) : undefined;
+        if (l1 === low.length - 1 || inner !== undefined) {
+          const k1 = inner !== undefined ? pos.get(inner)! : high.length - 1;
+          for (; l <= l1; l++) for (const u of prev.get(low[l])!) { const k = pos.get(u)!; if (k < k0 || k > k1) conflict.add(`${u}\u0000${low[l]}`); }
+          k0 = k1;
+        }
+      }
+    }
+    // 2. vertical alignment with a median neighbour
+    const root = new Map(ids.map(id => [id, id])), align = new Map(ids.map(id => [id, id]));
+    for (const r of view.slice(1)) {
+      let last = -1;
+      for (const v of r) {
+        const ns = before(v), d = ns.length;
+        if (!d) continue;
+        for (const m of d % 2 ? [ns[(d - 1) / 2]] : [ns[d / 2 - 1], ns[d / 2]]) {
+          if (align.get(v) === v && !conflict.has(`${m}\u0000${v}`) && last < pos.get(m)!) {
+            align.set(m, v); root.set(v, root.get(m)!); align.set(v, root.get(v)!); last = pos.get(m)!;
+          }
+        }
+      }
+    }
+    // 3. horizontal compaction of the blocks (a block is a chain of aligned slots: one x)
+    const sink = new Map(ids.map(id => [id, id])), shift = new Map(ids.map(id => [id, Infinity])), x = new Map<string, number>();
+    const placeBlock = (v: string): void => {
+      if (x.has(v)) return;
+      x.set(v, 0);
+      let w = v;
+      do {
+        const i = pos.get(w)!;
+        if (i > 0) {
+          const p = rowOf.get(w)![i - 1], u = root.get(p)!, d = (width(p) + width(w)) / 2 + gap;
+          placeBlock(u);
+          if (sink.get(v) === v) sink.set(v, sink.get(u)!);
+          if (sink.get(v) !== sink.get(u)) shift.set(sink.get(u)!, Math.min(shift.get(sink.get(u)!)!, x.get(v)! - x.get(u)! - d));
+          else x.set(v, Math.max(x.get(v)!, x.get(u)! + d));
+        }
+        w = align.get(w)!;
+      } while (w !== v);
+    };
+    for (const id of ids) if (root.get(id) === id) placeBlock(id);
+    const out = new Map<string, number>();
+    for (const id of ids) {
+      const rt = root.get(id)!, sh = shift.get(sink.get(rt)!)!;
+      out.set(id, (x.get(rt)! + (sh < Infinity ? sh : 0)) * (right ? -1 : 1));
+    }
+    layouts.push(out);
+  }
+  // line the four up on the narrowest (the left ones by their left end, the right ones by their right end), then take the middle two
+  const lo = (m: Map<string, number>): number => Math.min(...ids.map(id => m.get(id)! - width(id) / 2)), hi = (m: Map<string, number>): number => Math.max(...ids.map(id => m.get(id)! + width(id) / 2));
+  const narrow = layouts.reduce((a, b) => hi(b) - lo(b) < hi(a) - lo(a) ? b : a);
+  const aligned = layouts.map((m, k) => { const d = k % 2 === 0 ? lo(narrow) - lo(m) : hi(narrow) - hi(m); return new Map(ids.map(id => [id, m.get(id)! + d] as const)); });
+  const result = new Map<string, number>();
+  for (const id of ids) { const v = aligned.map(m => m.get(id)!).sort((a, b) => a - b); result.set(id, (v[1] + v[2]) / 2); }
+  // averaging can leave two neighbours closer than they may be: push them apart, left to right
+  for (const r of rows) for (let i = 1; i < r.length; i++) result.set(r[i], Math.max(result.get(r[i])!, result.get(r[i - 1])! + (width(r[i - 1]) + width(r[i])) / 2 + gap));
+  return result;
 }
 
 /**
@@ -287,8 +368,17 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
 
   const nLayers = Math.max(0, ...[...slots.values()].map(s => s.layer)) + 1;
   const rank = (id: string): number => id.startsWith('\u0000') ? 1e6 + (order.get(id) ?? 0) : order.get(id) ?? 0;
+  // connected components of the slot graph, numbered by the earliest node written: with coord 'bk' each stays together in a row and is placed on its own (D8)
+  const parent = new Map<string, string>([...slots.keys()].map(k => [k, k]));
+  const find = (a: string): string => { while (parent.get(a) !== a) { parent.set(a, parent.get(parent.get(a)!)!); a = parent.get(a)!; } return a; };
+  for (const [a, bs] of succ) for (const b of bs) parent.set(find(a), find(b));
+  const byRank = [...slots.values()].sort((p, q) => rank(p.id) - rank(q.id) || (p.id < q.id ? -1 : 1));
+  const compIdx = new Map<string, number>(), compOfRoot = new Map<string, number>();
+  for (const sl of byRank) { const r = opts.coord === 'bk' ? find(sl.id) : ''; // the plain layout keeps one component: its sweeps and its settling are as they were
+     if (!compOfRoot.has(r)) compOfRoot.set(r, compOfRoot.size); compIdx.set(sl.id, compOfRoot.get(r)!); }
+  const nComp = compOfRoot.size;
   const rows: string[][] = Array.from({length: nLayers}, () => []);
-  for (const s of [...slots.values()].sort((p, q) => rank(p.id) - rank(q.id) || (p.id < q.id ? -1 : 1))) rows[s.layer].push(s.id);
+  for (const sl of [...byRank].sort((p, q) => compIdx.get(p.id)! - compIdx.get(q.id)!)) rows[sl.layer].push(sl.id); // stable: input order inside a component
 
   // 4. barycentre sweeps, down then up, keeping the order of nodes with no neighbour
   const pos = new Map<string, number>();
@@ -299,7 +389,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
       const ns = nb.get(id)!;
       return [id, ns.length ? ns.reduce((s, n) => s + pos.get(n)!, 0) / ns.length : i] as const;
     }));
-    r.sort((a, b) => key.get(a)! - key.get(b)! || pos.get(a)! - pos.get(b)!);
+    r.sort((a, b) => compIdx.get(a)! - compIdx.get(b)! || key.get(a)! - key.get(b)! || pos.get(a)! - pos.get(b)!);
     r.forEach((id, i) => pos.set(id, i));
   };
   // crossings of the links between layer l and l + 1 (two links cross when their ends are in opposite orders)
@@ -325,6 +415,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
       improved = false;
       for (let l = 0; l < nLayers; l++) for (let i = 0; i + 1 < rows[l].length; i++) {
         const before = local(l), r = rows[l];
+        if (compIdx.get(r[i]) !== compIdx.get(r[i + 1])) continue;
         [r[i], r[i + 1]] = [r[i + 1], r[i]];
         pos.set(r[i], i); pos.set(r[i + 1], i + 1);
         if (local(l) < before) improved = true;
@@ -338,30 +429,42 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
   const at: number[] = [];
   thick.reduce((a, t, i) => (at[i] = a, a + t + levelGap), 0);
   const cross = new Map<string, number>(); // centre on the across axis
-  const extent = (r: string[]): number => r.reduce((s, id, i) => s + across(slots.get(id)!.size) + (i ? gap : 0), 0);
-  const widest = Math.max(0, ...rows.map(extent));
-  for (const r of rows) {
-    let a = (widest - extent(r)) / 2;
-    for (const id of r) { const w = across(slots.get(id)!.size); cross.set(id, a + w / 2); a += w + gap; }
+  const wOf = (id: string): number => across(slots.get(id)!.size);
+  let packed = 0, hi = 0;
+  for (let c = 0; c < nComp; c++) {
+    const mine = rows.map(r => r.filter(id => compIdx.get(id) === c)), members = mine.flat();
+    if (opts.coord === 'bk') {
+      for (const [id, x] of brandesKoepf(mine, succ, pred, wOf, gap, id => !slots.get(id)!.real)) cross.set(id, x);
+    } else {
+      const extent = (r: string[]): number => r.reduce((t, id, i) => t + wOf(id) + (i ? gap : 0), 0);
+      const widest = Math.max(0, ...mine.map(extent));
+      for (const r of mine) {
+        let a = (widest - extent(r)) / 2;
+        for (const id of r) { const w = wOf(id); cross.set(id, a + w / 2); a += w + gap; }
+      }
+      const settle = (r: string[], nb: Map<string, string[]>): void => {
+        const want = r.map(id => { const ns = nb.get(id)!; return ns.length ? ns.reduce((t, n) => t + cross.get(n)!, 0) / ns.length : cross.get(id)!; });
+        // left to right push-apart, then right to left, so the result is the closest non-overlapping arrangement to `want`
+        const w = r.map(wOf);
+        const cs = want.slice();
+        for (let i = 1; i < r.length; i++) cs[i] = Math.max(cs[i], cs[i - 1] + (w[i - 1] + w[i]) / 2 + gap);
+        const shift = (want.reduce((t, v, i) => t + v - cs[i], 0)) / Math.max(1, r.length);
+        for (let i = 0; i < r.length; i++) cs[i] += shift;
+        for (let i = 1; i < r.length; i++) cs[i] = Math.max(cs[i], cs[i - 1] + (w[i - 1] + w[i]) / 2 + gap);
+        r.forEach((id, i) => cross.set(id, cs[i]));
+      };
+      // the rows of one component only: the average shift of a row must not be pulled by a node of another component
+      for (let t = 0; t < 3; t++) {
+        for (let l = 1; l < nLayers; l++) settle(mine[l], pred);
+        for (let l = nLayers - 2; l >= 0; l--) settle(mine[l], succ);
+      }
+    }
+    // the component's own range, set down after the previous one (the first starts at 0)
+    const lo = Math.min(...members.map(id => cross.get(id)! - wOf(id) / 2));
+    for (const id of members) cross.set(id, cross.get(id)! - lo + packed);
+    packed = Math.max(...members.map(id => cross.get(id)! + wOf(id) / 2)) + gap;
+    hi = packed - gap;
   }
-  const settle = (r: string[], nb: Map<string, string[]>): void => {
-    const want = r.map(id => { const ns = nb.get(id)!; return ns.length ? ns.reduce((s, n) => s + cross.get(n)!, 0) / ns.length : cross.get(id)!; });
-    // left to right push-apart, then right to left, so the result is the closest non-overlapping arrangement to `want`
-    const w = r.map(id => across(slots.get(id)!.size));
-    const c = want.slice();
-    for (let i = 1; i < r.length; i++) c[i] = Math.max(c[i], c[i - 1] + (w[i - 1] + w[i]) / 2 + gap);
-    const shift = (want.reduce((s, v, i) => s + v - c[i], 0)) / Math.max(1, r.length);
-    for (let i = 0; i < r.length; i++) c[i] += shift;
-    for (let i = 1; i < r.length; i++) c[i] = Math.max(c[i], c[i - 1] + (w[i - 1] + w[i]) / 2 + gap);
-    r.forEach((id, i) => cross.set(id, c[i]));
-  };
-  for (let s = 0; s < 3; s++) {
-    for (let l = 1; l < nLayers; l++) settle(rows[l], pred);
-    for (let l = nLayers - 2; l >= 0; l--) settle(rows[l], succ);
-  }
-  const lo = Math.min(...[...slots.values()].map(s => (cross.get(s.id) ?? 0) - across(s.size) / 2));
-  for (const [id, c] of cross) cross.set(id, c - lo);
-  const hi = Math.max(0, ...[...slots.values()].map(s => (cross.get(s.id) ?? 0) + across(s.size) / 2));
 
   const centre = (id: string): Pt => {
     const s = slots.get(id)!, a = at[s.layer] + thick[s.layer] / 2, c = cross.get(id)!;
