@@ -15,8 +15,10 @@ export interface TreeItem {
   children?: TreeItem[];
 }
 export interface TreeOpts extends RevealOpts {
-  /** 'down' (default): levels run top to bottom. 'right': left to right, which fits more siblings in a narrow figure. */
-  dir?: 'down' | 'right';
+  /** 'down' (default): levels run top to bottom. 'right': left to right, which fits more siblings in a narrow figure.
+   *  'auto' (and leaving it out) lets the layout narrow the nodes and turn to the other direction when the figure is wider than the diagram
+   *  (a warning when left out, a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
+  dir?: 'down' | 'right' | 'auto';
   /** The widest a node grows before its text wraps (default 200px). */
   maxNodeW?: number;
   /** A spotlight target and a connect() endpoint (the whole figure). */

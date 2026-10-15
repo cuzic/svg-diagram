@@ -21,7 +21,7 @@ import {box, caption, group} from './text-bands.ts';
 export function tree<const R extends TreeItem, const Id extends string = never>(root: R, opts?: TreeOpts & {id?: Id}): TreeBand & Declares<Id | TreeIds<R>> & HandleOf<Id> & AnchorsOf<TreeIds<R>>;
 export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
   if (!root || typeof root !== 'object' || typeof root.label !== 'string') throw new Error('tree(root) needs a root node: {label: "...", children: [...]}');
-  if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right') throw new Error(`tree(): dir must be 'down' or 'right' (got ${String(opts.dir)})`);
+  if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right' && opts.dir !== 'auto') throw new Error(`tree(): dir must be 'down', 'right' or 'auto' (got ${String(opts.dir)})`);
   if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`tree(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
   const ids: (string | undefined)[] = [];
   const walk = (n: TreeItem): void => {
