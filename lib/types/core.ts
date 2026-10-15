@@ -218,6 +218,8 @@ export interface DiagramSource {
   configSha256?: string;
   /** sha256 over the local files the source imports (lib/source-deps.ts), when there are any. */
   depsSha256?: string;
+  /** The figure's status (diagram({status})); only written when it has one. */
+  status?: DiagramStatus;
   /** The day a gantt({today: 'auto'}) was drawn with (only then): check --drift --rebuild draws again with it. */
   today?: string;
   /** `build --no-source-line` (ADR 0023): the SVG was drawn without diagram({sourceLine}); a rebuild (check --drift --rebuild) and --stale read it. Absent when not used. */
