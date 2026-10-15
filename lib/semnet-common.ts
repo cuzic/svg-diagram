@@ -5,7 +5,12 @@ import {layeredAttempt} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 
 export type SemnetDirection = 'LR' | 'TB';
-export interface SemnetOpts extends ChartOpts {direction?: SemnetDirection}
+export interface SemnetOpts extends ChartOpts {
+  direction?: SemnetDirection;
+  /** false: the plain coordinates only (default true: a straightened layout is used when it has strictly fewer crossings, then bends). */
+  straighten?: boolean;
+}
+export const straightenOf = (who: string, v: boolean | undefined): boolean => { if (v !== undefined && typeof v !== 'boolean') fail(who, `straighten must be true or false (got ${String(v)})`); return v !== false; };
 type Rect = ReturnType<Canvas['boxOf']>;
 type Fill = Parameters<Canvas['place']>[2];
 type PlaceOpts = NonNullable<Parameters<Canvas['place']>[3]>;
@@ -76,7 +81,7 @@ const overlapsRect = (a: Rect, b: Rect): boolean => Math.min(a.x + a.w, b.x + b.
 /** Does the box reach any of these (arrow heads, say)? */
 export const touchesAny = (b: Rect, boxes: readonly Rect[]): boolean => boxes.some(h => overlapsRect(b, h));
 
-export function networkCanvas(g: ChartGeom, nodes: {id: string; label: string; w: number; h: number}[], edges: {from: string; to: string}[], dir: SemnetDirection, legendH = 0): {c: Canvas; positions: Map<string, {x: number; y: number; w: number; h: number}>; paths: Map<number, Pt[]>} {
+export function networkCanvas(g: ChartGeom, nodes: {id: string; label: string; w: number; h: number}[], edges: {from: string; to: string}[], dir: SemnetDirection, legendH = 0, straighten = true): {c: Canvas; positions: Map<string, {x: number; y: number; w: number; h: number}>; paths: Map<number, Pt[]>} {
   // Orthogonal routing works in the layout's right-running axes; TB is that geometry transposed.
   const vertical = dir === 'TB';
   // the figure is scaled down to the width it has, so the way a layout point lands depends on the layout's size
@@ -84,7 +89,7 @@ export function networkCanvas(g: ChartGeom, nodes: {id: string; label: string; w
   const oxOf = (size: {w: number; h: number}): number => g.x + (g.w - size.w * scaleOf(size)) / 2;
   const oy = g.y + 8;
   const placeIn = (size: {w: number; h: number}) => (p: Pt): Pt => { const scale = scaleOf(size), ox = oxOf(size); return vertical ? {x: ox + p.y * scale, y: oy + p.x * scale} : {x: ox + p.x * scale, y: oy + p.y * scale}; };
-  const {lay, routes: paths, size: natural} = layeredAttempt(nodes.map(n => ({id: n.id, size: vertical ? {w: n.h, h: n.w} : {w: n.w, h: n.h}})), edges, {dir: 'right', gap: 28, levelGap: 76}, {transpose: vertical, place: placeIn, tighten: true});
+  const {lay, routes: paths, size: natural} = layeredAttempt(nodes.map(n => ({id: n.id, size: vertical ? {w: n.h, h: n.w} : {w: n.w, h: n.h}})), edges, {dir: 'right', gap: 28, levelGap: 76}, {transpose: vertical, place: placeIn, tighten: true, straighten});
   const naturalH = natural.h, scale = scaleOf(natural), ox = oxOf(natural);
   const positions = new Map<string, {x: number; y: number; w: number; h: number}>();
   for (const [id, p] of lay.nodes) positions.set(id, vertical ? {x: ox + p.y * scale, y: oy + p.x * scale, w: p.h * scale, h: p.w * scale} : {x: ox + p.x * scale, y: oy + p.y * scale, w: p.w * scale, h: p.h * scale});

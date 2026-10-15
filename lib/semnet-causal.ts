@@ -5,7 +5,7 @@ import {textWidth} from './atoms.ts';
 import {analyzeCausalLoops} from './semnet-analysis.ts';
 import type {CausalLink, CausalLoop, CausalPolarity} from './semnet-analysis.ts';
 import {checkRing, layoutRing} from './semnet-ring.ts';
-import {arrow, direction, headBox, networkCanvas, nodeBox, pathOf, placeEdgeLabel, placePlated, touchesAny, validateNodes} from './semnet-common.ts';
+import {arrow, direction, straightenOf, headBox, networkCanvas, nodeBox, pathOf, placeEdgeLabel, placePlated, touchesAny, validateNodes} from './semnet-common.ts';
 import type {SemnetDirection, SemnetOpts} from './semnet-common.ts';
 
 export interface CausalNode {id: string; label: string}
@@ -26,7 +26,7 @@ export interface CausalOpts extends SemnetOpts {
 }
 
 export interface ResolvedIntervention {id: string; label: string; to: string[]; polarity: CausalPolarity; delay: boolean}
-export interface CausalSpec {nodes: CausalNode[]; links: CausalLink[]; loops: CausalLoop[]; direction: SemnetDirection; interventions: ResolvedIntervention[]; layout: 'layered' | 'ring'}
+export interface CausalSpec {nodes: CausalNode[]; links: CausalLink[]; loops: CausalLoop[]; direction: SemnetDirection; interventions: ResolvedIntervention[]; layout: 'layered' | 'ring'; straighten: boolean}
 const POLARITIES = ['+', '-', 'same', 'opposite'];
 function resolveInterventions(list: readonly CausalIntervention[] | undefined, nodes: readonly CausalNode[], bandId: string | undefined): ResolvedIntervention[] {
   if (list === undefined) return [];
@@ -56,7 +56,7 @@ export function resolveCausal(nodes: readonly CausalNode[], links: readonly Caus
   const loops = analyzeCausalLoops(nodes.map(n => n.id), links), layout = opts.layout ?? 'layered';
   if (layout !== 'layered' && layout !== 'ring') fail('causalLoop', `layout must be 'layered' or 'ring' (got ${String(layout)})`);
   if (layout === 'ring') checkRing(nodes, links, loops, opts.direction);
-  return {nodes: nodes.map(n => ({...n})), links: links.map(e => ({...e})), loops, direction: direction('causalLoop', opts.direction), interventions: resolveInterventions(opts.interventions, nodes, opts.id), layout};
+  return {nodes: nodes.map(n => ({...n})), links: links.map(e => ({...e})), loops, direction: direction('causalLoop', opts.direction), interventions: resolveInterventions(opts.interventions, nodes, opts.id), layout, straighten: straightenOf('causalLoop', opts.straighten)};
 }
 /** R1, R2, B1, ...: loops are numbered within their kind. */
 const loopNames = (loops: readonly CausalLoop[]): string[] => { const n = {R: 0, B: 0}; return loops.map(l => `${l.kind}${++n[l.kind]}`); };
@@ -70,7 +70,7 @@ export const causalTexts = (s: CausalSpec): [string, number][] => [...s.nodes.ma
 
 export function layoutCausal(s: CausalSpec, g: ChartGeom): LaidOutChartPart {
   if (s.interventions.length) fail('causalLoop', 'interventions are accepted and checked but not drawn yet (ADR 0011 unit C is placement); drop `interventions` until then');
-  const ns = s.nodes.map(n => ({...n, w: Math.max(116, textWidth(g.widthOf, n.label, g.size, 700) + 28), h: 48})), {c, positions, paths, centre} = s.layout === 'ring' ? layoutRing(g, ns, s.loops.find(l => l.nodes.length > 1)!, s.links.flatMap((e, index) => e.from === e.to ? [{index, node: e.from}] : [])) : {...networkCanvas(g, ns, s.links, s.direction, 28), centre: undefined};
+  const ns = s.nodes.map(n => ({...n, w: Math.max(116, textWidth(g.widthOf, n.label, g.size, 700) + 28), h: 48})), {c, positions, paths, centre} = s.layout === 'ring' ? layoutRing(g, ns, s.loops.find(l => l.nodes.length > 1)!, s.links.flatMap((e, index) => e.from === e.to ? [{index, node: e.from}] : [])) : {...networkCanvas(g, ns, s.links, s.direction, 28, s.straighten), centre: undefined};
   // Stage 1: every line and every box. Stage 2: the signs and names, over the finished lines (a sign placed between two edges' lines would be struck through by the later one).
   const edges = s.links.map((e, i) => { const p = pathOf(paths, i, e, positions); arrow(c, p, {stroke: 'text', dash: undefined}); return {e, p}; });
   for (const n of s.nodes) { const p = positions.get(n.id)!, host = nodeBox(c, p, n.id, n.label, 'text'); c.text(n.label, p.x + p.w / 2, c.mid(p.y + p.h / 2), 'middle', 'text', {bold: true, host, of: n.id}); }
