@@ -1,6 +1,6 @@
 # ADR 0022: IS/IS NOT 表・なぜなぜ分析・ボウタイ図を足す(`isIsNot`・`whyWhy*`・`bowtie`)
 
-- 状態: 提案(未実装)。ADR 0021(故障の木)と同じ調査から分けた。第 1 回の Opus レビューの指摘(表と木に検査を載せる手段、`mindmap` で真因の印と矢印が描けない、KT 法の仮説検定、ボウタイのハザード)を反映済み
+- 状態: 提案(未実装)。ADR 0021(故障の木)と同じ調査から分けた。Opus レビューを 4 回まわし、収束した(0021 と同じ経緯。第 4 回は blocker 0 / major 0 / minor 6)。第 1 回の指摘(表と木に検査を載せる手段、`mindmap` で真因の印と矢印が描けない、KT 法の仮説検定、ボウタイのハザード)を反映済み
 - 日付: 2026-10-15
 - 基点: `main`(d7b9f75、PR #224 まで)
 - 関連: ADR 0021(`diagram({rcaCheck})` と空の `rcaRules()` を、独立した小さな単位 U0 として足す。**本 ADR の検査は U0 に依存し、FTA 本体(0021 U1)は待たない**)、ADR 0015 / 0020(TOC の検査。`kind: 'blocks'`・`role: 'measure'`・`root`)、ADR 0007
@@ -43,9 +43,9 @@ ADR 0021 の背景の表のとおり、KT 法の IS/IS NOT 表・なぜなぜ分
 ### D3. `whyWhy`: 表と木の 2 つ。木は `causeTree` で描く
 
 - **表** `whyWhyTable(problem, chains, opts?)` → `TableBand`。`chains: {whys: string[]; trueCause?: string; measure?: string}[]`(木の `trueCause` と名前を揃える)。列は 問題 | なぜ 1 … なぜ N(N は最も長い鎖)| 真因 | 対策。行は鎖 1 本。同じ原因を共有する鎖は**同じ文を繰り返す**(`TableBand` に行の結合は無く、足すと共有の描画の経路を変える)。
-- **木** `whyWhyTree(problem, whys, opts?)`。入力は入れ子 `{id?: string; why: string; because?: WhyNode[]; trueCause?: true; measure?: string}`(`trueCause: true`: その節が真因。表の `trueCause` は真因の文)。作る節の id は `<opts.id>.w1`、`<opts.id>.w1.m` のように接頭辞を付ける(1 つの図に 2 つ置いても、アンカーが衝突しない。作者は入力の `id?` で上書きできる。**`opts.id` が無ければ、節をアンカーに登録しない**(連番の `scope` をモジュールの変数で数えると、同じプロセスで先に作った図の数で名前が変わる)。`connect()` などで節を指したい図は `opts.id` を書く)。`causeTree` の節と辺に直して返す(**`mindmap` は使わない**: 真因の印と矢じりが描けない):
+- **木** `whyWhyTree(problem, whys, opts?)`。入力は入れ子 `{id?: string; why: string; because?: WhyNode[]; trueCause?: true; measure?: string}`(`trueCause: true`: その節が真因。表の `trueCause` は真因の文)。作る節の id は `<opts.id>.w1`、`<opts.id>.w1.m` のように接頭辞を付ける(1 つの図に 2 つ置いても、アンカーが衝突しない。作者は入力の `id?` で上書きできる。**`opts.id` が無く、入力の `id` も書かない節は、アンカーに登録しない**(`CauseBand` の内部の欄 `anchors: false`(作者は書かない)を `lib/band-ids.ts` が見る。連番の `scope` をモジュールの変数で数えると、同じプロセスで先に作った図の数で名前が変わる)。`connect()` などで節を指したい図は、`opts.id` か、節の `id` を書く)。`causeTree` の節と辺に直して返す(**`mindmap` は使わない**: 真因の印と矢じりが描けない):
   - 問題 = `role: 'effect'` に `tone: 'danger'`(`role: 'ude'` にしない: `legend: 'auto'` が「好ましくない現象(UDE)」と出し、TOC の言葉になる。cause ノードのトーンは `usedNotation` が読まない)。なぜの節 = 役割なし。`trueCause` の節 = `role: 'root'`(accent の二重枠)。`measure` の文を持つ節には、`role: 'measure'` の節(changed)を足し、`{from: <対策>, to: <`measure` を持つ節>, kind: 'blocks'}`(辺の終わりが棒)で結ぶ(`measure` は真因でない節にも書ける。それは `whywhy-measure-without-root` で知らせる)。凡例の自動生成では「根本原因」「対策」「断つ」が出る。この言い換えは受け入れ、README で `legendLabels: {'role:root': '真因'}` を案内する。
-  - 辺は**原因 → 結果**(`causeTree` と同じ向き)。矢印は問題へ向かう。**`dir: 'up'`(`causeTree` の既定)で、問題を上、なぜを下に並べる**(`dir: 'left'` は 5 段 + 対策の 7 層が、幅を 100 まで縮めても 7×100 + 6×64 = 1084px で内幅 900px を超えて throw し、`fold` も 'up' / 'down' だけ)。「なぜ?」は矢印をさかのぼる向き(下へ)に読む。
+  - 辺は**原因 → 結果**(`causeTree` と同じ向き)。矢印は問題へ向かう。**軸は `up`(`causeTree` の既定。渡す値は `dir: 'auto'`。下の「幅の調整」)で、問題を上、なぜを下に並べる**(`left` は 5 段 + 対策の 7 層が横に並び、内幅 900px を超える)。「なぜ?」は矢印をさかのぼる向き(下へ)に読む。
   - **層は問題からの深さで置く**: `causeTree` の層の既定は `asap`(入る矢印の無い節をすべて最下段に置く)で、浅い枝の「なぜ」が最下段に落ち、同じ「なぜ 2」が揃わない(`whyWhyTable` の列と食い違う)。`whyWhyTree` は `CauseBand` の内部の欄 `layerFrom: 'effect'`(作者は書かない。`base` / `returnsDefault` と同じ作法)を立て、`lib/toc.ts` が `alap` の「動かさない節(`keep`)」を空にして、すべての節(`root` も)を「最も近い結果の 1 層下」に置く。対策の節は、結んだ節の 1 層下になる。欄の無い図は従来どおり(byte 同一)。
   - **幅の調整**: 関数は内部で `dir: 'auto'` を渡す(軸は `up` のまま。ADR 0010 D1)。縮めと折り返しは `auto-fit-applied` の info になり、作者に直せない warn(`dir` の opts が無いので)を出さない。
   - `tree` は書かない(`toc-*` は掛からない)。読む向きの 1 行(「矢印は原因 → 結果。なぜ? は矢印をさかのぼって(下へ)読む」)は、関数が木と**`caption` バンドの 2 つの配列**を返して添える(`opts.readingNote: false` で外す。`diagram().add()` は `bands.flat()` し、`affinity` も配列を返すので、既存の作法に合う)。注には「**対策(破線の棒)は真因に打つ手で、なぜの答えではない**」も書く(下へ読み進めると対策に行き着き、最も深いなぜの答えに見えるため)。向きを反転する opts は作らない(読み方が図ごとに変わると、この約束が意味を失う)。
@@ -81,9 +81,9 @@ ADR 0021 の背景の表のとおり、KT 法の IS/IS NOT 表・なぜなぜ分
 ## 影響
 
 - **SVG**: 新しい関数を使った図だけが変わる。既存の `examples/out/*.svg` は byte 同一。`isIsNot()` の SVG が、同じ内容の手書きの `table()` と byte 同一(D1)。
-- **API**: 追加のみ。`isIsNot` / `isIsNotTests` / `whyWhyTable` / `whyWhyTree` / `bowtie`、`TableBand.rca` / `CauseBand.rca`(作者は書かない)。`dsl-exports.json` に関数名。
+- **API**: 追加のみ。`isIsNot` / `isIsNotTests` / `whyWhyTable` / `whyWhyTree` / `bowtie`、`TableBand.rca` / `CauseBand.rca` / `CauseBand.layerFrom` / `CauseBand.anchors`(作者は書かない)。`dsl-exports.json` に関数名。
 - **検査**: 規則 8 個(`isisnot-no-isnot`、`isisnot-no-distinct-at-all`、`isisnot-no-hypothesis-stands`、`whywhy-no-root`、`whywhy-measure-without-root`、`whywhy-single-chain`、`whywhy-dig-below-root`、`bowtie-barrier-missing`)を `RULE_DOCS` と README の規則の一覧に足す。ADR 0021 の `fta-*` 5 個は別。
-- **ファイル**: `lib/rca-rules.ts`(新規)、`lib/semantic-table.ts`、`lib/dsl/qc-semantic.ts`、`lib/dsl/diagrams.ts`、`lib/types/sequence-table-swimlane.ts`、`lib/types/diagrams.ts`、`lib/rules.ts`、`lib/bowtie.ts`・`lib/emit-bowtie.ts`(新規)と配線。
+- **ファイル**: `lib/rca-rules.ts`(新規)、`lib/semantic-table.ts`、`lib/dsl/qc-semantic.ts`、`lib/dsl/diagrams.ts`、`lib/types/sequence-table-swimlane.ts`、`lib/types/diagrams.ts`、`lib/toc.ts`(`layerFrom`)、`lib/band-ids.ts`(`anchors`)、`lib/rules.ts`、`lib/bowtie.ts`・`lib/emit-bowtie.ts`(新規)と配線。
 - **リスク**: (1) `whyWhyTree` の層の置き方(`layerFrom`。`lib/toc.ts` の変更)と `kind: 'blocks'` の棒が、`causeTree` の配置で期待どおりか(未決 1)。スライドの図では、7 層(なぜ 5 段 + 問題 + 対策)が高さ 740〜870px ほどになり `maxDisplayHeight` を超えやすいので、README に「スライドなら `whyWhyTable` か、段を減らす」と書く。(2) `rca` の欄が描画やハッシュに漏れる(D1 のテストで防ぐ)。(3) 規則の閾値が現場の流儀と合わない。info 既定と `accept` で外せる。
 
 ## 実装計画
@@ -103,7 +103,7 @@ ADR 0021 の背景の表のとおり、KT 法の IS/IS NOT 表・なぜなぜ分
 - **純関数**: `rca-rules`(入力だけで出る)。仮説の判定(`no` が 0 個の仮説の抽出、仮定の数が最少のもの、行ごとの数え)。`whyWhyTree` の変換(節と辺の数、`trueCause` が `root`、`measure` が `blocks` の辺、辺が原因 → 結果)。
 - **byte 同一**: `isIsNot()` の SVG = 同じ内容の手書きの `table()`。既存の全 example が前後で同一。
 - **既定の出力で `check --strict` が落ちない**(`isIsNot` の仮説の表を含む)。`rcaCheck: 'strict'` を付けると、D2・D3 の warn の規則が出る。
-- **配置は関係だけ**: `whyWhyTree` で問題が最も上、真因が下、`measure` の節が真因の側にある。**完了の基準の例で、なぜ 2 の 2 つの節(影響範囲が広かった / 不具合の発見が遅かった)が同じ層にある**。縮めが起きた木で `auto-fit-applied` が info で、`check --strict` が落ちない。**なぜ 5 段 + 対策 + 分岐 2 本の木が、既定の幅で throw しない**。同じ図に 2 つの `whyWhyTree`(`opts.id` 違い)を置いてもアンカーが衝突しない。`bowtie` で頂上事象が中央、脅威が左・結果が右、各行のバリアが左から右に並ぶ。
+- **配置は関係だけ**: `whyWhyTree` で問題が最も上、真因が下、`measure` の節が真因の側にある。**完了の基準の例で、なぜ 2 の 2 つの節(影響範囲が広かった / 不具合の発見が遅かった)が同じ層にある**。縮めが起きた木で `auto-fit-applied` が info で、`check --strict` が落ちない。**なぜ 5 段 + 対策 + 分岐 2 本の木が、既定の幅で throw しない**。同じ図に 2 つの `whyWhyTree`(`opts.id` 違い、または `opts.id` 無し)を置いてもアンカーが衝突しない。`bowtie` で頂上事象が中央、脅威が左・結果が右、各行のバリアが左から右に並ぶ。
 - **描画**: `blocks` の辺が破線で棒の端を持つ(`causeTree` の既存の性質)。`bowtie` の頂上事象が円(`circle`)で、FTA の楕円ではない。
 
 ### 完了の基準
