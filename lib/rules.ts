@@ -10,6 +10,7 @@
 // a longer description (Google developer style guide).
 
 import {qualify, scopeOf} from './anchor-scope.ts';
+import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {nestedBandsOf} from './band-children.ts';
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
@@ -535,6 +536,10 @@ function edgeBendsRules(d: LintTarget, out: Finding[]): void {
 }
 
 export function lintDiagram(d: LintTarget): Finding[] {
+  if (d.appearance === 'auto') { // ADR 0023 D4: both colour sides, the same finding once, a dark-only one marked
+    const side = (appearance: 'light' | 'dark') => lintDiagram({...d, appearance});
+    return mergeSides(side('light'), side('dark'), f => `${f.rule}\0${f.message}`, f => ({...f, message: `${f.message} (${DARK_NOTE})`}));
+  }
   const out = withTones(d.tones, () => lintAll(d));
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
   return out.map(f => (d.accept && d.accept[f.rule as RuleId] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule as RuleId]}）`} : f));
