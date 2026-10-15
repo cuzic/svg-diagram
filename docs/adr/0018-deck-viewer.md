@@ -52,7 +52,7 @@
 ### D1: 新しいサブコマンド `svg-diagram deck`(`build --deck` にはしない)
 
 ```
-svg-diagram deck <a.ts|a.svg>... --out deck.html [--title <text>] [--cols N] [--lazy] [--csp] [--render svg|html]
+svg-diagram deck <a.ts|a.svg>... --out deck.html [--title <text>] [--cols N] [--csp] [--render svg|html]
 ```
 
 - 入力は `.ts`(図のソース)と `.svg`(書き出し済み)を混ぜてよい。順序が表示順。`contact` が `.svg` だけ、`show` が両方を取る前例(`show-diagram.ts:1`)のうち、`show` に合わせる。
@@ -62,7 +62,7 @@ svg-diagram deck <a.ts|a.svg>... --out deck.html [--title <text>] [--cols N] [--
 
 ### D2: 描画は `renderSource` を使い、**何も中間ファイルに書かない**
 
-- `.ts` は `renderSource(file, {fresh: false})` で SVG を得る。`ok === false`(検証の失敗、または XML として壊れている)は、**1 つでもあれば全体を失敗(終了コード 1)にし、`--out` に書かない**(ADR 0013。古い `deck.html` を残さず、残っているときはそう言う)。warning は表示するだけ。
+- `.ts` は `renderSource(file, {fresh: false})` で SVG を得る。`ok === false`(検証の失敗、または XML として壊れている)は、**1 つでもあれば全体を失敗(終了コード 1)にし、`--out` に書かない**。既存の `deck.html` は**削除も書き換えもしない**(ADR 0013)。その `--out` が前回の deck の出力として残っているときは、「前回の `deck.html` が残っている(今の入力と一致しない古いもの)」と標準エラーに出す。warning は表示するだけ。
 - deck は **lint(Chromium での `lint-svg --strict`)を走らせない**。`build` / `check` を通した図を見る道で、`deck` はその検査の代わりではない(ヘルプに書く)。
 - `.svg` は読むだけ。XML として壊れていれば `lib/xml-check.ts` で止める。
 
@@ -87,28 +87,27 @@ svg-diagram deck <a.ts|a.svg>... --out deck.html [--title <text>] [--cols N] [--
 
 - **既定は SVG 形式**。理由は、(a) 検証と lint の対象になる絵そのもの(ADR 0006 の「SVG は従来どおり作る。drift・lint・検査は SVG のまま」)、(b) `style="` 属性がないので CSP を厳しくできる(上記)、(c) サイズが小さい、(d) 文字は `<text>` として選択・検索できる。HTML/CSS 形式(`--render html`)は第 2 段。必要になった理由が出るまで足さない(下の「実装計画」の単位 F)。
 - **外部依存なし**: `src` / `href` / `@import` / `url(http…)` / フォントの取得を**1 つも出さない**。フォントは `FONT_STACKS` の名前を指すだけ(閲覧する側の環境にあるもの)。図の中の画像(`image()`)は、ソースがデータ URI で持つもののみ。外部 URL を `href` に持つ `<image>` を見つけたら warning を出す(自己完結でなくなる)。
-- **CSP**: `--csp` を付けると `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-…'; script-src 'sha256-…'; img-src data:">` を出す。`<style>` と `<script>` はそれぞれ**ちょうど 1 つのブロック**で、内容が入力だけで決まる(ADR 0007)ので、ハッシュも決まる。SVG 形式なら `style` 属性がないので、この方針で通る。**既定では `--csp` を付けない**: メールの添付やファイルの直開きで `meta` の CSP が不要な副作用を起こさないため。ホストがヘッダで CSP を持つ場合は、同じハッシュを `--csp` が標準エラーに出す形にする(要確認)。`--render html` と `--csp` の併用は、`style-src-attr` が要るので第 2 段で決める。
+- **CSP**: `--csp` を付けると `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-…'; script-src 'sha256-…'; img-src data:">` を出す。**文書の `<style>` はちょうど 1 ブロック**にする。各図の SVG は自分の `<style>`(`lib/emit.ts:72`)を持つので、そのまま置くと `<style>` が「ビューアの 1 つ + 図の数」になり、`style-src` のハッシュ 1 つでは図の `<style>` が止まる。そこで **図の `<style>` を取り除き、規則を `#sN` でスコープ化してビューアの 1 つの `<style>` に合流させる**(D5)。図の規則は全図でほぼ同じなので、スコープ化した規則の本体が同じものは、セレクタを `,` でまとめて 1 回だけ書く(`#s1 text, #s2 text { … }`)。図ごとに違う規則が入っても、本体が違うものは別の規則として残るので壊れない。「CSP に全ブロックのハッシュを並べる」案は、ハッシュの数が図の数で増え、`meta` が膨らむので採らない。`<script>` もちょうど 1 ブロック。内容は入力だけで決まる(ADR 0007)ので、ハッシュも決まる。SVG 形式には `style` 属性がないので、この方針で通る。**既定では `--csp` を付けない**: メールの添付やファイルの直開きで `meta` の CSP が不要な副作用を起こさないため。ホストがヘッダで CSP を持つ場合の受け渡しは未決事項。`--render html` と `--csp` の併用は、`style-src-attr` が要るので第 2 段で決める。
 - **JS がなくても読める**: `<html class="no-js">` のとき、CSS だけで全スライドを縦に並べる(各図は幅に縮む)。スクリプトが動くと `no-js` を外して、1 枚表示に切り替える。CSP でスクリプトが止められた、印刷、検索エンジンやスクリーンリーダーの全文走査、のどれでも全図が見える。
 
 ### D4: 操作
 
 | 操作 | 内容 |
 |---|---|
-| 前・次 | `←` `→`、`PageUp` `PageDown`、`Space`(次)、`Shift+Space`(前)、`Home` `End`。画面の端に実体の `<button>`(前へ・次へ)も置く(タッチ・マウス用) |
+| 前・次 | `←` `→`、`PageUp` `PageDown`、`Space`(次)、`Shift+Space`(前)、`Home` `End`。画面の端に実体の `<button>`(前へ・次へ)も置く(タッチ・マウス用)。**`Space` と `Enter` は、`<button>`(一覧の縮小を含む)・`a`・`summary` にフォーカスがあるときは奪わない**(そのボタンの動作が先) |
 | 一覧 | `g`(または `Esc` でも閉じる)で、全スライドの縮小を格子(`--cols`、既定は幅で自動)で出す。縮小は同じインライン SVG を CSS で縮めたもの(`contact` の PNG とは別物。PNG は作らない)。各縮小は `<button>` で、押すとその 1 枚に移る。`Tab` で巡れて、現在の 1 枚にフォーカスが当たって開く |
 | 拡大 | 通常は窓に収める(`viewBox` の縦横比のまま `max-width:100%;max-height:100%`。`inlineSvg` の `max-width:100%;height:auto` と同じ考え)。`z`(または図のクリック)で「等倍(論理サイズ)」に切り替え、はみ出すぶんはスクロールで見る。もう一度で戻る。ピンチ・ホイールの拡大は**やらない**(ブラウザの拡大に任せる) |
 | URL ハッシュ | `#3`(1 始まりの番号)と `#<名前>`(ソースの basename。`idPrefixFor` と同じ規則で安全にしたもの)を受ける。移動のたびに `history.replaceState` で更新(戻るボタンで 1 枚ずつ遡らず、deck を離れる)。`hashchange` と最初の読み込みで同期。一覧を開いている状態は `#grid`(これだけは `pushState` で、戻るで一覧が閉じる) |
-| 全画面 | `f`(`requestFullscreen` が使えれば) |
-| 印刷 | `@media print`: 全スライドを出し、1 枚 1 ページ(`break-after: page`)、ビューアの枠・ボタン・一覧は隠す。`@page` の `size` は**最大の図の論理サイズ**に合わせる(図の大きさがそろっていれば 1 つの `@page`、違えば `@page` を図ごとに名前付きで出す: 未決)。遅延描画のときは、`beforeprint` で全部を実体にする |
+| 印刷 | `@media print`: 全スライドを出し、1 枚 1 ページ(`break-after: page`)、ビューアの枠・ボタン・一覧は隠す。`@page` の `size` は**最大の図の論理サイズ**に合わせた 1 つだけ(図ごとの名前付き `@page` は第 2 段) |
 
 ショートカットは、`input` / `textarea` / `select` にフォーカスがあるとき、および `Ctrl` `Alt` `Meta` を伴うときは**奪わない**。
 
 ### D5: id の衝突は `prefixSvgIds` の流用で解く
 
-- 各スライドの図に、`idPrefixFor('s', name)` のように**位置と名前**から決めた接頭辞(`s1-flow`、`s2-gap` …)を付けて `prefixSvgIds(svg, prefix)` を呼ぶ。同じ名前が 2 回出ても番号で区別される。`--id-prefix auto`(内容のハッシュ)は使わない: スライドの並びを変えても同じ図が同じ id になる利点より、**位置の番号が読めること(URL ハッシュ `#3` との対応、差分の読みやすさ)**を取る。内容が同じ図の 2 回目は、位置の番号が違うので衝突しない。
+- 各スライドの図に、`idPrefixFor(`s${n}`, name)`(`n` は 1 始まりの位置)のように**位置と名前**から決めた接頭辞(`s1-flow`、`s2-gap` …。`idPrefixFor('s', name)` は `s-name` を返すので、位置は第 1 引数に入れる)を付けて `prefixSvgIds(svg, prefix)` を呼ぶ。同じ名前が 2 回出ても番号で区別される。`--id-prefix auto`(内容のハッシュ)は使わない: スライドの並びを変えても同じ図が同じ id になる利点より、**位置の番号が読めること(URL ハッシュ `#3` との対応、差分の読みやすさ)**を取る。内容が同じ図の 2 回目は、位置の番号が違うので衝突しない。`<section>` の id は `sN`(図の内部の id は必ず `sN-…` になるので重ならない)。
 - **新しい接頭辞処理を足さない**。ADR 0012 が「3 つの別々の処理は寄せない」とした方針を守る: `md` の `inlineSvg` / `htmlFigure` / `raster.embedSvg` には触らない。deck は `prefixSvgIds` だけを呼ぶ。
-- **`<style>` のスコープ化**だけは `prefixSvgIds` が持たない。スライドの `<section id="s1">` の中に閉じ込めるため、各 `<style>` の規則の前に `#s1 ` を付ける小さな関数を、**`lib/markdown-target.ts` の `inlineSvg()` からそのまま取り出して** `lib/svg-ids.ts`(または新しい `lib/scope-style.ts`)に置き、`inlineSvg` からも呼ぶ(挙動を変えず、重複を作らない)。`md` の出力が 1 バイトも変わらないことを、既存の `markdown-target` のテストで確かめる。
-- 入力の `.svg` に、すでに `build --id-prefix` が付いていても、二重に付くだけで害はない。`<metadata id="svg-diagram">` は書き換えない(同じ id を持つ `<metadata>` が複数並ぶが、HTML のインライン SVG の中では検索の対象にならない。deck は drift の対象ではない)。
+- **`<style>` のスコープ化と合流**は `prefixSvgIds` が持たない。図の `<style>` を取り除き、各規則の前に `#sN ` を付けて、ビューアの 1 つの `<style>` に合流させる(D3 の CSP)。規則の前に `#<pre> ` を付ける部分は、**`lib/markdown-target.ts` の `inlineSvg()` からそのまま取り出して** `lib/scope-style.ts`(新規)に置き、`inlineSvg` からも呼ぶ(挙動を変えず、重複を作らない)。deck はそれに加えて「`<style>` を本文から抜く」「本体が同じ規則のセレクタをまとめる」を行う(これは `lib/deck-html.ts`)。`md` の出力が 1 バイトも変わらないことを、既存の `markdown-target` のテストで確かめる。
+- 入力の `.svg` に、すでに `build --id-prefix` が付いていても、二重に付くだけで害はない。**`<metadata id="svg-diagram">` は deck では取り除く**。`prefixSvgIds` は ADR 0012 のとおりこの id を書き換えないが、そのまま 1 つの HTML に並べると同じ id が図の数だけ出て HTML として不正になる(id の一意性の検査が落ちる)。また `.svg` 入力ではソースのパスとハッシュが HTML の外に出てしまう。deck の出力は `check --drift` / `build --stale` / `preview` の古さの警告の対象ではない(これらは `build` が書く SVG を見る)ので、取り除いて困ることはない。入力の `.svg` ファイル自体は書き換えない。
 - `--render html` のとき(第 2 段)は、`prefixSvgIds(html, prefix, {rootId})`(`build-diagram.ts:147-148` の呼び方)を使う。
 
 ### D6: ダークモード(F2)との関係 — ビューアの枠だけが追従し、図は図の指定に従う
@@ -127,12 +126,11 @@ svg-diagram deck <a.ts|a.svg>... --out deck.html [--title <text>] [--cols N] [--
 - 動き(アニメーション)は**入れない**。切り替えは即時。`prefers-reduced-motion` で変える必要がない。
 - 色だけに頼らない: 現在位置は「3 / 8」の文字と、一覧の現在の枠の太さ(色以外の差)で示す。
 
-### D8: 大きい図の遅延描画 — 既定は全部インライン、`--lazy` で `<template>`
+### D8: 大きい図の遅延描画 — v1 では入れない
 
-- 既定: 全スライドの SVG をインラインで置く(D3)。数十枚・数 MB までは、`hidden` の部分木は描画されないので、ページの初期表示のコストは構文解析だけ。
-- `--lazy`(または、合計が閾値を超えたときの自動。**閾値は測ってから決める**: 未決事項): 各スライドの SVG を `<template>` に入れ、**最初に表示する直前に**複製して `<section>` に入れる。`<template>` の内容は DOM に入らない(id が重ならず、描画も構文解析以外のコストもない)。一覧の縮小は、`IntersectionObserver` で見えたものから複製する。次のスライドを 1 枚先読みする。
-- `--lazy` のとき、JS が止まるか、`<noscript>` が見えるときは、全図が見えない。`<noscript>` に「このファイルは JavaScript が必要です。`--lazy` なしで作り直してください」と出す。印刷は `beforeprint` で全部を実体にする(D4)。`--lazy` を既定にしない理由は、D3 の「JS なしでも読める」を既定の約束にしたいから。
-- 重い図(数千要素の図)の 1 枚だけを遅らせる方針(図ごとに選ぶ)はやらない。
+- v1 は全スライドの SVG をインラインで置く(D3)。`hidden` の部分木は描画されないので、初期表示のコストは構文解析だけ。数十枚・数 MB まではこれで足りる見込みだが、**測っていない**。
+- `--lazy`(`<template>` に入れて最初の表示の直前に複製。一覧の縮小は `IntersectionObserver`。JS なしでは見えないので `<noscript>` と `beforeprint` の扱いが要る)は、測る前に作る機能ではないので**第 2 段**(単位 F)に回す。着手の条件は、実際の deck(`examples/` と medius-research の 8 枚、数十枚)で構文解析の時間と HTML の大きさを測り、問題が出ること。
+- 後から足せるように、各スライドは `<section>` 1 つに図 1 つ、という構造を保つ(`<template>` に差し替えやすい形)。
 
 ### D9: `build --html` との役割分担
 
@@ -154,7 +152,7 @@ svg-diagram deck <a.ts|a.svg>... --out deck.html [--title <text>] [--cols N] [--
 
 - **既存の出力は 1 バイトも変わらない**。`build`、`md`、`contact`、`check` の挙動に触らない。変わりうるのは `inlineSvg()` の内部を共有関数に抜く部分(D5)だけで、`md` の出力のバイト一致を既存のテストで固定する。
 - 新しいサブコマンドが増える(`bin/svg-diagram` の 1 行、README と `skills/svg-diagram` の一覧、ヘルプの文面)。
-- deck の出力は、`<style>` と `<script>` が各 1 ブロックで、日時や乱数を含まない(ADR 0007): 同じ入力から同じバイト列。CI で `deck.html` の差分を見られる。
+- deck の出力は、`<style>` と `<script>` が各 1 ブロック(図の `<style>` は合流させる)で、日時や乱数を含まない(ADR 0007): 同じ入力から同じバイト列。CI で `deck.html` の差分を見られる。
 - HTML は SVG の数だけ大きくなる(SVG 形式のスライド 1 枚は数十 KB のことが多い)。数十枚で数 MB の見込み。D8 の閾値で調整する。
 - ビューアの JS が新しい保守対象になる。**ブラウザなしで検査できる形**(純関数の状態遷移)に分け、DOM の薄い層は小さくする(下の実装計画)。
 - スライド向きの図に `<title>` が付かない(D7)のは、deck では「basename の名前」に落ちる。品質を上げるには別の変更が要る(未決事項)。
@@ -165,33 +163,34 @@ svg-diagram deck <a.ts|a.svg>... --out deck.html [--title <text>] [--cols N] [--
 
 ### A. ビューアの状態遷移(純関数)
 
-- 触るファイル: `lib/deck-state.ts`(新規)、`test/deck-state.test.ts`(新規)
+- 触るファイル: `lib/deck-viewer/state.js`(新規。素の ES モジュール。下の単位 C と同じ資産置き場)、`test/deck-state.test.ts`(新規。`state.js` を直接 import する)
 - 中身: 状態 `{index, total, grid, zoom}` と、入力(`next` / `prev` / `first` / `last` / `goto(n)` / `toggleGrid` / `toggleZoom`)から次の状態を返す関数。URL ハッシュの解釈(`#3`、`#<名前>`、`#grid`、範囲外・不正は先頭)と書き出し。キーの名前 → 入力の対応表(`Shift+Space` や、`Ctrl` 付きは無視、などの規則)。**DOM も `window` も使わない**(`test/core-purity.test.ts` を通す)。
 - テスト: 端で止まる(最後で `next` は動かない / 巻き戻さない)、範囲外のハッシュ、名前のハッシュ、`goto` の丸め、`Ctrl+←` は無視、`input` にフォーカス中は無視(「入力中か」は引数で渡す)。
 
 ### B. 文書の組み立て(純関数)
 
-- 触るファイル: `lib/deck-html.ts`(新規)、`lib/scope-style.ts`(新規。`inlineSvg` から `<style>` のスコープ化を取り出す)、`lib/markdown-target.ts`(`inlineSvg` が共有関数を呼ぶだけに)、`test/deck-html.test.ts`(新規)、`test/markdown-target.test.ts` など既存の `inlineSvg` のテスト(**無変更で通る**)
-- 中身: `buildDeck(slides: {name, svg, title?}[], opts): string`。`prefixSvgIds` の呼び出しと `<style>` のスコープ化、`<section>` の骨格、`<noscript>`、`--csp` のハッシュ計算(`node:crypto`)、印刷の `@page`、`<title>` と `lang`。ビューアの CSS と JS は、単位 A / C の成果物を文字列として受ける(この単位は A / C の中身に依存しない。ダミーの文字列でテストできる)。
+- 触るファイル: `lib/deck-html.ts`(新規)、`lib/scope-style.ts`(新規。`inlineSvg` から規則のスコープ化を取り出す)、`lib/markdown-target.ts`(`inlineSvg` が共有関数を呼ぶだけに)、`test/deck-html.test.ts`(新規)、`test/markdown-target.test.ts` など既存の `inlineSvg` のテスト(**無変更で通る**)
+- 中身: `buildDeck(slides: {name, svg, title?}[], opts): string`。`prefixSvgIds` の呼び出し、図の `<style>` の除去とスコープ化・合流、`<metadata>` の除去、`<section>` の骨格、`<noscript>`、`--csp` のハッシュ計算(`node:crypto`)、印刷の `@page`、`<title>` と `lang`。ビューアの CSS と JS は、単位 A / C の成果物を文字列として受ける(この単位は A / C の中身に依存しない。ダミーの文字列でテストできる)。
 - テスト(**HTML の構造で確かめる。フォントや寸法の絶対値は使わない**):
   - 全スライドの全 id が文書の中で**一意**(`id="…"` を集めて重複がない)。同じ図を 2 回渡しても。
   - すべての `url(#…)` / `href="#…"` / `aria-labelledby` が、文書の中の存在する id を指す。
-  - 各 `<style>` の全規則が、そのスライドの `#sN ` で始まる(素の `text {` が残らない)。
+  - 図の中に `<style>` が残らない。文書の `<style>` は**ちょうど 1 ブロック**。その全規則のセレクタが `#sN ` で始まる(素の `text {` が残らない)。本体が同じ規則はセレクタが `,` でまとまり 1 回だけ出る。本体が違う規則を持つ 2 つの図(テスト用に作る)では別々の規則として残る。
+  - 文書に `style="` 属性がない。`<metadata` が 1 つもない。
   - 外部参照がない: `src=` / `href="http…"` / `@import` / `url(http…)` を含まない(データ URI と `#fragment` だけ)。
-  - `<style>` と `<script>` がそれぞれ 1 ブロック、`--csp` のハッシュが、そのブロックの SHA-256 と一致する。
+  - `<script>` が 1 ブロック。`--csp` の `style-src` / `script-src` のハッシュが、それぞれそのブロックの SHA-256 と一致する。
   - `<section>` の数 = 入力の数、`aria-label` に「N / M」。`hidden` が付くのは、JS が入るまでの CSS 側ではなく `no-js` の規則で全部見える(クラスと規則の存在で確かめる)。
-  - 同じ入力でバイト一致(2 回呼んで同じ)。`<metadata id="svg-diagram">` が書き換わっていない。
+  - 同じ入力でバイト一致(2 回呼んで同じ)。`.svg` 入力のソースのパス・ハッシュ(`<metadata>` の中身)が出力に含まれない。
 
 ### C. ビューアの DOM の層(スクリプトと CSS)
 
-- 触るファイル: `lib/deck-viewer.ts`(新規。CSS 文字列と JS 文字列を返す。JS は単位 A の関数を**同じソースから**文字列化して埋める、または A を ES モジュールにして `Function#toString` を使う。どちらにするかは実装で決める。ビルド(`tsc`)後の `dist/` でも同じ動きになること)、`test/deck-viewer.test.ts`(新規)
-- 中身: キー入力 → A の状態 → `hidden` / `inert` / ハッシュ / `aria-live` の更新。`<button>`、一覧、等倍、全画面、`beforeprint`。`--lazy` の `<template>` の複製(`IntersectionObserver`)。
+- 触るファイル: `lib/deck-viewer/viewer.js` と `lib/deck-viewer/viewer.css`(新規。**素の `.js` / `.css` の資産ファイル**。`Function#toString` で TS の関数を文字列化して埋める方式は、`tsc` 後の `dist/` で壊れやすいので採らない。`viewer.js` は `state.js` を読み込んで文書に埋める際、1 つの `<script>` にまとめる)、`lib/deck-viewer.ts`(新規。資産を `fs.readFileSync(new URL(…, import.meta.url))` で読んで返すだけ)、`package.json` の `files` と `prepack` / `tsconfig.build.json` の資産コピー、`test/deck-viewer.test.ts`(新規)
+- 中身: キー入力 → A の状態 → `hidden` / `inert` / ハッシュ / `aria-live` の更新。`<button>`、一覧、等倍。
 - テスト: **DOM の模擬(最小の `document` / `window`)**で、キーイベントを流して `hidden` の付け替え・`location.hash` の更新・`aria-live` の文字・一覧を開いたときの `inert` を確かめる。実ブラウザを使う検証(キー、フォーカス、印刷)は、`playwright-chromium` が使える環境のときだけ走らせる 1 つのスモーク(`test/deck-browser.test.ts`。`lint-svg` の `--engine browser` と同じ前提で、なければ skip): 次へ → ハッシュが `#2`、`g` で一覧、`Esc` で戻る、印刷メディアでの全スライドの表示数(`page.emulateMedia({media: 'print'})` の `display` の数)。**文字や箱の絶対座標・寸法は見ない**。
 
 ### D. コマンド本体(入出力)
 
 - 触るファイル: `deck-diagram.ts`(新規)、`test/deck-cli.test.ts`(新規。`test/cli.test.ts` と同じく子プロセスで実行)
-- 中身: 引数の解釈(`--out`、`--title`、`--cols`、`--lazy`、`--csp`、`--render`、未知の旗はエラー)、`.ts` は `renderSource`、`.svg` は読み込み、失敗の集約(1 つでも失敗なら何も書かず終了コード 1)、`closeMeasurer()`(`contact-sheet.ts` と同じ後始末)、B と C を呼んで書く。ディレクトリを作る。
+- 中身: 引数の解釈(`--out`、`--title`、`--cols`、`--csp`、`--render`、未知の旗はエラー)、`.ts` は `renderSource`、`.svg` は読み込み、失敗の集約(1 つでも失敗なら何も書かず終了コード 1)、`closeMeasurer()`(`contact-sheet.ts` と同じ後始末)、B と C を呼んで書く。ディレクトリを作る。
 - テスト: 入力 2 つ(`.ts` 1 つと `.svg` 1 つ)で `deck.html` ができ、`section` が 2 つ。検証に失敗するソースを混ぜると**終了コード 1 で、既存の `deck.html` が書き換わらない**(ADR 0013)。入力なし・未知の旗・`--cols 0` は終了コード 2 とヘルプ。壊れた XML の `.svg`。
 
 ### E. 配線とドキュメント(最後に 1 人)
@@ -202,6 +201,7 @@ svg-diagram deck <a.ts|a.svg>... --out deck.html [--title <text>] [--cols N] [--
 ### F. 第 2 段(別 PR)
 
 - `--render html`(HTML/CSS 形式のスライド。D5 の `rootId` つきの接頭辞、`style-src-attr` の CSP の扱い)。
+- `--lazy`(D8)、全画面(`f`)、図ごとの名前付き `@page`。いずれも測る前・要望の前の機能なので v1 に入れない。
 - reveal の段階表示(`<name>.reveal<N>.svg` を 1 枚のスライドの中の段階として、`Space` / `→` で進める。`renderSource` が段階の SVG を返す入口が要る)。
 - スライド向きの図に `<title>` を出す(D7)。
 
@@ -219,9 +219,7 @@ A、B、C、D は**別々のファイル**を触るので 4 人で並列にで�
 
 1. **reveal のある図**: v1 は最終の段階だけ(`renderSource` が返す `svg`)を見せる。段階を `Space` で進める形(単位 F)にするか、別の図として並べるか。
 2. **スライド向きの図の名前**: `<title>` が付かない(`lib/emit.ts:84` は doc のみ)ので、deck は basename に落ちる。スライド向きの図にも `title` を出すか(SVG の出力が変わる別の ADR)、deck の側で `diagram({title})` を読むだけにするか。
-3. **印刷の `@page`**: 図の大きさがそろわないときの扱い(最大に合わせる / 名前付き `@page`)。
-4. **`--lazy` の自動の閾値**: 実際の deck(`examples/` と medius-research の 8 枚、数十枚)で、構文解析の時間と HTML の大きさを測ってから決める。測るまでは `--lazy` は明示のときだけ。
-5. **`--csp` のホスト側ヘッダ**: `meta` の CSP は `frame-ancestors` などを扱えない。ホストがヘッダで CSP を持つ場合の、ハッシュの受け渡しの形(標準エラー出力 / `--csp-hashes` の別旗)。
-6. **ソースの切り替え**: 1 枚のスライドに、ソースのパスと「古い(freshness)」の表示を出すか(`preview` の赤い帯の考え方)。`.svg` 入力で `freshness()` が stale を返すとき、deck に警告を出す価値はあるか。
-7. **`.svg` と `.ts` の混在の順序**: 順序は引数順(ディレクトリやグロブの展開はシェルに任せる)。ディレクトリを渡す(`svg/*.svg` の自然順)入力は、第 1 段では扱わない。
-8. **F2(CSS 変数のダーク追従)**: D6 の「パネルの色を図の `appearance` に合わせる」は暫定。F2 の方式が決まったときに見直す。
+3. **`--csp` のホスト側ヘッダ**: `meta` の CSP は `frame-ancestors` などを扱えない。ホストがヘッダで CSP を持つ場合の、ハッシュの受け渡しの形(標準エラー出力 / `--csp-hashes` の別旗)。
+4. **ソースの切り替え**: 1 枚のスライドに、ソースのパスと「古い(freshness)」の表示を出すか(`preview` の赤い帯の考え方)。`.svg` 入力で `freshness()` が stale を返すとき、deck に警告を出す価値はあるか。
+5. **`.svg` と `.ts` の混在の順序**: 順序は引数順(ディレクトリやグロブの展開はシェルに任せる)。ディレクトリを渡す(`svg/*.svg` の自然順)入力は、第 1 段では扱わない。
+6. **F2(CSS 変数のダーク追従)**: D6 の「パネルの色を図の `appearance` に合わせる」は暫定。F2 の方式が決まったときに見直す。
