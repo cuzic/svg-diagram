@@ -249,5 +249,6 @@ test('causeTree(): moving a long arrow aside (ADR 0016 D12) neither brings back 
   assert.deepEqual(andClashes(a.edges, a.ands).filter(c => c.how === 'crosses'), [], 'no AND crossing');
   const r94 = JSON.parse('[{"from":"n0","to":"n1"},{"from":["n1","n0"],"to":"n2"},{"from":"n0","to":"n3"},{"from":["n0","n1","n2"],"to":"n4"},{"from":"n0","to":"n5"},{"from":["n4","n5","n3"],"to":"n6"},{"from":"n6","to":"n7"},{"from":"n4","to":"n8"},{"from":["n8","n1","n2"],"to":"n9"},{"from":"n0","to":"n10"},{"from":"n2","to":"n11"},{"from":"n10","to":"n12"},{"from":"n6","to":"n8"}]');
   const b = place(causeTree(Array.from({length: 13}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), r94, {tree: 'crt', dir: 'right'}), 1800);
+  assert.deepEqual(andClashes(b.edges, b.ands), [], 'the run beside another arrow into the AND is moved aside');
   for (const e of b.edges) for (const p of e.points) assert.ok(p.y >= b.y - 0.5 && p.y <= b.y + b.h + 0.5, `${e.from}->${e.to} stays in the band (y ${p.y})`);
 });

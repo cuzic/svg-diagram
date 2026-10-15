@@ -239,10 +239,10 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
       const e = lay.edges[i];
       return segs(pts).some(({p, q}) => [...lay.nodes].some(([id, n]) => id !== e.from && id !== e.to && Math.max(p.x, q.x) > n.x + 1 && Math.min(p.x, q.x) < n.x + n.w - 1 && Math.max(p.y, q.y) > n.y + 1 && Math.min(p.y, q.y) < n.y + n.h - 1));
     };
-    const inside = (pts: Pt[]): boolean => pts.every(p => p.y >= 0 && p.y <= lay.h);
+    const inside = (pts: Pt[]): boolean => pts.every(p => p.y >= 0.5 && p.y <= lay.h - 0.5);
     for (const i of [...routes.keys()]) {
       const e = lay.edges[i];
-      if (e.self || e.outer || e.points.length <= 2 || !heads.has(e.to) || groupOf(i) === undefined) continue;
+      if (e.self || e.outer || e.points.length <= 2 || !heads.has(e.to)) continue;
       const now = beside(routes, i);
       if (!now.head) continue;
       for (const dz of [8, -8, 16, -16]) {
