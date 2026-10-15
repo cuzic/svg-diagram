@@ -84,6 +84,8 @@ export interface StatesOpts extends RevealOpts {
   /** The state that starts: a filled dot with an arrow into it. */
   initial?: string;
   maxNodeW?: number;
+  /** A transition back to an earlier layer that skips two layers or more: 'inline' (default, through the figure) or 'outer' (in a lane outside the figure). */
+  returns?: 'inline' | 'outer';
   id?: string;
 }
 export interface StatesBand extends StatesOpts {
@@ -134,9 +136,15 @@ export interface CauseOpts extends RevealOpts {
   tree?: 'crt' | 'frt' | 'prt' | 'tt';
   /** With coreDriver: write `到達 UDE n` under each starting entity (default true). */
   counts?: boolean;
+  /** Where a return (an arrow back to an earlier layer) that skips two layers or more runs: 'inline' (through the figure, over dummies) or 'outer' (in a lane
+   *  outside the figure, 14px apart, the longest outermost). Default: the arrows written `back: true` run outside, the others inline; `pdpc` runs all of them outside
+   *  (falling back to inline when that does not fit the width). Written explicitly, 'outer' that does not fit is an error. */
+  returns?: 'inline' | 'outer';
   id?: string;
 }
 export interface CauseBand extends CauseOpts {
+  /** What a band's maker (`pdpc()`) wants when `returns` is not written; like an explicit 'outer', but it falls back to inline when the lanes do not fit. */
+  returnsDefault?: 'outer';
   type: 'cause';
   nodes: CauseNode[];
   links: CauseLink[];
@@ -273,7 +281,7 @@ export interface LaidOutCause extends Rect, Dimmed {
   until?: number;
   nodes: (Rect & {tone: BoxTone; double?: boolean; /** the core driver: a thick frame and a badge */ core?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean})[];
   /** Orthogonal polylines from the cause's box edge to the effect's; the arrowhead is at the last point. */
-  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; /** a declared return (`back: true`): drawn bold */ back?: true; /** only a cutting arrow has it */ kind?: 'blocks'}[];
+  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; /** a declared return (`back: true`): drawn bold */ back?: true; /** runs in a lane outside the figure (a return that skips two layers or more, see `returns`) */ outer?: true; /** only a cutting arrow has it */ kind?: 'blocks'}[];
   /** The arc across the arrows of an AND: a quadratic curve p0 - c - p1. */
   ands: {to: string; /** the causes it joins */ from: string[]; p0: {x: number; y: number}; c: {x: number; y: number}; p1: {x: number; y: number}}[];
   /** Effects whose AND arrows could not be joined by an arc (they do not arrive on one side of the effect). */

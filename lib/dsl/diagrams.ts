@@ -85,11 +85,12 @@ export function stateDiagram(states: readonly StateItem[], transitions: readonly
   if (!Array.isArray(states) || states.length === 0) throw new Error('stateDiagram(states, transitions) needs at least one state');
   if (opts.dir !== undefined && opts.dir !== 'right' && opts.dir !== 'down') throw new Error(`stateDiagram(): dir must be 'right' or 'down' (got ${String(opts.dir)})`);
   if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`stateDiagram(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
+  if (opts.returns !== undefined && opts.returns !== 'inline' && opts.returns !== 'outer') throw new Error(`stateDiagram(): returns must be 'inline' or 'outer' (got ${String(opts.returns)})`);
   for (const t of transitions) if (t.line !== undefined && !['solid', 'dashed', 'dotted'].includes(t.line)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} has line ${String(t.line)}`);
   for (const s of states) if (s.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger', 'solid', 'solid-danger'].includes(s.tone)) throw new Error(`stateDiagram(): state "${s.id}" has tone ${String(s.tone)} (use plain, accent, new, changed, removed, muted, danger, solid or solid-danger)`);
   for (const s of states) if (s.shape !== undefined && s.shape !== 'box' && s.shape !== 'circle') throw new Error(`stateDiagram(): state "${s.id}" has shape ${String(s.shape)} (use 'box' or 'circle')`);
   for (const t of transitions) if (t.tone !== undefined && !['danger', 'accent', 'muted'].includes(t.tone)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} has tone ${String(t.tone)} (use danger, accent or muted)`);
-  const band: StatesBand = {type: 'states', states: states.map(s => s.icon === undefined ? s : {...s, iconGlyph: resolveIcon(s.icon, 'stateDiagram() state "' + s.id + '" icon')}), transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  const band: StatesBand = {type: 'states', states: states.map(s => s.icon === undefined ? s : {...s, iconGlyph: resolveIcon(s.icon, 'stateDiagram() state "' + s.id + '" icon')}), transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), states.map(s => s.id));
 }
 type CauseIds<N extends readonly CauseNode[]> = Extract<N[number]['id'], string>;
@@ -109,6 +110,7 @@ export function causeTree(nodes: readonly CauseNode[], links: readonly CauseLink
   if (opts.dir !== undefined && !['up', 'down', 'right', 'left'].includes(opts.dir)) throw new Error(`causeTree(): dir must be 'up', 'down', 'right' or 'left' (got ${String(opts.dir)})`);
   if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`causeTree(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
   for (const l of links) if (l.line !== undefined && !['solid', 'dashed', 'dotted'].includes(l.line)) throw new Error(`causeTree(): link to ${l.to} has line ${String(l.line)}`);
+  if (opts.returns !== undefined && opts.returns !== 'inline' && opts.returns !== 'outer') throw new Error(`causeTree(): returns must be 'inline' or 'outer' (got ${String(opts.returns)})`);
   for (const l of links) {
     if (l.kind !== undefined && l.kind !== 'cause' && l.kind !== 'blocks') throw new Error(`causeTree(): link to ${l.to} has kind ${String(l.kind)} (use 'cause' or 'blocks')`);
     if (l.kind === 'blocks' && typeof l.from !== 'string') throw new Error(`causeTree(): a 'blocks' link to ${l.to} needs one entity as its from (a string, not an AND)`);
@@ -124,7 +126,7 @@ export function causeTree(nodes: readonly CauseNode[], links: readonly CauseLink
   if (opts.coreDriver !== undefined && typeof opts.coreDriver !== 'boolean') throw new Error(`causeTree(): coreDriver must be true or false (got ${String(opts.coreDriver)})`);
   const counted = opts.coreDriver ? reachCounts(nodes, links) : undefined, core = new Set(counted ? coreDrivers(counted) : []);
   const marked = counted ? nodes.map(n => !counted.has(n.id) ? n : {...n, ...(core.has(n.id) ? {core: true} : {}), ...(opts.counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}到達 UDE ${counted.get(n.id)}`})}) : nodes;
-  const band: CauseBand = {type: 'cause', nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.tree === undefined ? {} : {tree: opts.tree}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
+  const band: CauseBand = {type: 'cause', nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.tree === undefined ? {} : {tree: opts.tree}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
 }
 export interface ArrowDiagramOpts extends Omit<StatesOpts, 'initial' | 'dir'> {
@@ -223,7 +225,8 @@ export function pdpc(nodes: readonly PdpcNode[], links: readonly PdpcLink[], opt
   if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('pdpc(nodes, links) needs at least one node');
   const side = new Set((Array.isArray(nodes) ? nodes : []).filter(n => n.role === 'risk' || n.role === 'measure').map(n => n.id));
   for (const n of nodes ?? []) if (n.role !== undefined && !['start', 'step', 'risk', 'measure', 'goal'].includes(n.role)) throw new Error(`pdpc(): node "${n.id}" has role ${String(n.role)} (use start, step, risk, measure or goal)`);
-  return causeTree(nodes.map(n => ({...n, role: n.role ?? 'step'})), (links ?? []).map(l => ({...l, line: l.line ?? (side.has(l.from) || side.has(l.to) ? 'dashed' : 'solid')} as CauseLink)), {...opts, dir: opts.dir ?? 'down'});
+  const band = causeTree(nodes.map(n => ({...n, role: n.role ?? 'step'})), (links ?? []).map(l => ({...l, line: l.line ?? (side.has(l.from) || side.has(l.to) ? 'dashed' : 'solid')} as CauseLink)), {...opts, dir: opts.dir ?? 'down'});
+  return opts.returns === undefined ? Object.assign(band, {returnsDefault: 'outer' as const}) : band;
 }
 export interface RelationNode extends CauseNode {}
 export interface RelationOpts extends CauseOpts {
