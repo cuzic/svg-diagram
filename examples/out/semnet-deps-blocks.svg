@@ -12,9 +12,7 @@
   <path d="M326,98 L471,98" fill="none" stroke="#f05252" stroke-width="3.5" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
   <path d="M471,98 L471,160" fill="none" stroke="#f05252" stroke-width="3.5" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
   <path d="M471,160 L465.2,149.5 L476.8,149.5 Z" fill="#f05252"/>
-  <path d="M482,80 L482,112" fill="none" stroke="#f05252" stroke-width="2.914213562373095" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
-  <path d="M482,112 L485,112" fill="none" stroke="#f05252" stroke-width="2.914213562373095" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
-  <path d="M485,112 L485,160" fill="none" stroke="#f05252" stroke-width="2.914213562373095" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
+  <path d="M485,80 L485,160" fill="none" stroke="#f05252" stroke-width="2.914213562373095" stroke-linejoin="round" stroke-dasharray="10,4,2,4"/>
   <path d="M485,160 L479.5,150.1 L490.5,150.1 Z" fill="#f05252"/>
   <path d="M626,80 L626,126" fill="none" stroke="#f05252" stroke-width="2" stroke-linejoin="round"/>
   <path d="M626,126 L499,126" fill="none" stroke="#f05252" stroke-width="2" stroke-linejoin="round"/>
@@ -30,8 +28,8 @@
   <text x="626" y="59" text-anchor="middle" font-size="14" font-weight="700" fill="#ece6da">利用ガイド</text>
   <path d="M370.11,106 H427.89 V124 H370.11 Z" fill="#1b1a17"/>
   <text x="399" y="120" text-anchor="middle" font-size="14" fill="#ece6da">未承認 4</text>
-  <path d="M455.11,92 H512.89 V110 H455.11 Z" fill="#1b1a17"/>
-  <text x="484" y="106" text-anchor="middle" font-size="14" fill="#ece6da">未承認 2</text>
+  <path d="M456.11,100 H513.89 V118 H456.11 Z" fill="#1b1a17"/>
+  <text x="485" y="114" text-anchor="middle" font-size="14" fill="#ece6da">未承認 2</text>
   <path d="M540,106 H586 V124 H540 Z" fill="#1b1a17"/>
   <text x="563" y="120" text-anchor="middle" font-size="14" fill="#ece6da">完成後</text>
   <path d="M24,313 H38 V323 H24 Z" fill="#1b1a17" stroke="#5fc1c6" stroke-width="2"/>
