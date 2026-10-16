@@ -1139,6 +1139,7 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 - **原因分析の図の検査の重大度**（`diagram({rcaCheck: 'strict'})`）: 故障の木・IS/IS NOT・なぜなぜ・ボウタイの検査（ADR 0025 / 0026）を warn にする。既定は info。`tocCheck` / `layoutCheck` とは別に指定でき、絵は変わらない。検査そのものは各図の実装で足す（今は故障の木の 5 規則だけ）。
   - 故障の木: `fta-gate-one-input`（AND / OR / vote の入力が 1 つ）、`fta-vote-degenerate`（k が 1 か入力の数。OR / AND と同じ）、`fta-top-is-leaf`（頂上にゲートが無い）、`fta-undeveloped-left`（展開していない事象が残っている。常に info）、`fta-single-point`（単独で頂上を起こす事象がある。常に info）。
   - IS/IS NOT 表: `isisnot-no-isnot`（IS NOT が空の行）、`isisnot-no-distinct-at-all`（「違い」が 1 つも無い）、`isisnot-no-hypothesis-stands`（説明できない行が 0 の仮説が無い。常に info）。
+  - なぜなぜ分析: `whywhy-no-root`（真因の無い鎖）、`whywhy-measure-without-root`（真因が無いのに対策がある）、`whywhy-single-chain`（鎖が 1 本だけ。常に info）、`whywhy-dig-below-root`（真因の下を掘っている。木のみ・常に info）。
 
 ## 表記・数値の整合と差分だけの検査（`check`）
 - **表記の揺れ**（`term-variant`）: 1 つの図の中で、同じ語が `ユーザ` / `ユーザー`（末尾の長音）や `API` / `Api`（大文字・大小混在）のように揺れていると警告する。`Server` と `server` のような文頭の大文字だけの差、数字や `-` `_` を含む ID は見ない。
@@ -1270,6 +1271,7 @@ d.add(flow, connect(flow.anchors.a.right, flow.anchors.b.left));   // screens() 
 | `raci(tasks, roles, assignments, opts)` | 行ごとの `R` / `A` / `C` / `I`（`A/R` も可）。各タスクは A がちょうど 1 つ、R が 1 つ以上。A が不要な表だけ `allowNoA: true`。`legend: true` で凡例行。空の役割列は check の警告になる |
 | `fmea(rows, opts)` | `{item, mode, effect, cause, action, s, o, d, after?}`。S/O/D は 1〜10 の整数で、RPN = S×O×D を自動計算。`sort: 'rpn'`（降順）、`threshold`（既定 100 以上が danger）/ `midThreshold`（既定その半分以上が accent）で段階、最大の RPN は太字、`after: {s,o,d}` で改善後 RPN。見出しは `labels` で変えられる |
 | `isIsNot(rows, opts)` / `isIsNotTests(rows, hypotheses, opts)` | KT 法の IS/IS NOT 表。`rows: {dim, is, isNot, distinct?, change?}[]`（`dim` は `'what'`〔何に〕/ `'where'` / `'when'` / `'extent'`、または自分の見出し）。**違い**（IS と IS NOT の差）と**変化**（その差に関わる最近の変更）は別の列。`isIsNotTests` は仮説ごとに、スペックの行ごとの `'yes'`（説明できる）/ `'ifAssumed'`（仮定すれば。`assumes` に仮定を書く）/ `'no'`（できない）を `results` に並べる。`no` が 0 個の仮説の行は太字、そのうち仮定が最少のものに「最少の仮定」と出る（図が原因を選ぶのではなく、手がかり。`◎○△×` は QFD の ◎ = 9 点と紛れるので使わない）。検査は `isisnot-*`（下の「`check` の規則」） |
+| `whyWhyTable(problem, chains, opts)` | なぜなぜ分析の表。`chains: {whys: string[], trueCause?, measure?}[]`（1 鎖 = 1 行）。列は 問題 | なぜ 1…N（最も長い鎖）| 真因 | 対策。同じ原因を共有する鎖は同じ文を繰り返す（表に行の結合は無い）。検査は `whywhy-*`。木で描く `whyWhyTree` は別の関数 |
 | `qfd(demands, characteristics, relations, opts)` | 要求 `{label, importance}` × 品質特性に `◎`(9) / `○`(3) / `△`(1) / `×`(0)。下段に得点（重要度 × 9 / 3 / 1 / 0 の列合計）と相対 %。単独首位の得点は太字（`highlight: false` で無効） |
 | `journeyMap(stages, lanes, opts)` | レーン `{id, label, cells}` をステージ横断で表示。`id: 'emotion'` は数値範囲（既定 -2〜+2）を検証し、行の上側に値と記号（中央より上 ◎、中央 △、下 ×）、その下に折れ線と点を描く。破線は範囲の中央。範囲は `emotionRange: [min, max]` |
 

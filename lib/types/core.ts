@@ -154,7 +154,7 @@ export type RcaCheck = 'info' | 'strict';
 /** Which cause-analysis figure a table or tree was built by (ADR 0026 D1). */
 export type RcaKind = 'isisnot' | 'whywhy-table' | 'whywhy-tree';
 /** One finding of a cause-analysis figure, worked out when the figure was built. `severity: 'info'` stays info under diagram({rcaCheck: 'strict'}). */
-export interface RcaFinding {rule: 'isisnot-no-isnot' | 'isisnot-no-distinct-at-all' | 'isisnot-no-hypothesis-stands'; message: string; severity?: 'info'}
+export interface RcaFinding {rule: 'isisnot-no-isnot' | 'isisnot-no-distinct-at-all' | 'isisnot-no-hypothesis-stands' | 'whywhy-no-root' | 'whywhy-measure-without-root' | 'whywhy-single-chain' | 'whywhy-dig-below-root'; message: string; severity?: 'info'}
 /** The `rca` field of a table or cause tree: its findings, read by rcaRules() and never by the drawing. */
 export interface RcaInfo {kind: RcaKind; findings: RcaFinding[]}
 /** diagram({layoutCheck}): the severity of the `layout-*` findings. */
