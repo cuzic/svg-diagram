@@ -9,6 +9,7 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
+import {midWordBreaksIn} from './text-rules.ts';
 import {qualify, scopeOf} from './anchor-scope.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {nestedBandsOf} from './band-children.ts';
@@ -57,6 +58,7 @@ export const RULE_DOCS = {
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える。凡例が要らない図は diagram({legend: false})）',
   'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる',
+  'text-mid-word-break': "レイアウトが、カタカナの語(「コンテキス/ト」)や英数字の語の途中で行を割っている。箱や列が最長の語より狭いときに起きる。箱の幅を広げる・向き(dir)や maxNodeW を変える・文言を短くする・語の前後で改行を書く。漢字どうしの途中の改行は対象外",
   'shrink-narrow-text': "fit: 'shrink' で bpmn / swimlane を詰めた結果、task / step の幅が狭すぎて本文が 2〜3 字ずつ折れる。縦向き・図の分割・文言の短縮を検討する",
   'gray-tone-collision': '使っている 2 つのトーンの塗りが、白黒（グレースケール）にすると見分けにくい（明度差 L* が 10 未満。破線などの形の手がかりがあれば除く）',
   'rowheader-tone-collides': '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある',
@@ -80,6 +82,7 @@ export const RULE_DOCS = {
   'toc-prt-bottom-not-action': '前提条件ツリー(causeTree({tree: "prt"}))の最下部の中間目標(中間目標の鎖の底)に、行動(role: action)がつながっていない(最下部は、実行できる行動)。diagram({tocCheck: "strict"}) で warn',
   'toc-prt-one-to-one': '前提条件ツリーの障害と中間目標が、全部 1 対 1 だけ(1 つの中間目標に複数の障害、または 1 つの障害が複数の中間目標を妨げる形が PRT らしい)。diagram({tocCheck: "strict"}) で warn',
   'toc-obstacle-phrase': '前提条件ツリーの障害のラベルが「ない」「無い」「不足」で終わる(障害は、無いことではなく、そこにある事実で書く指針。日本語の文末の判定なので偽陽性がある。常に info)',
+  'toc-injection-to-obstacle': '未来現実ツリー(causeTree({tree: "frt"}) など)で、施策(role: injection)から障害(role: obstacle)へ通常の矢印(kind が blocks でない)が引かれている。矢印は「原因が結果を生む」と読まれるので、施策が障害を生むと逆の因果に読まれる。施策が障害を断つ・防ぐ意味なら、そのリンクに kind: "blocks" を付ける(破線と横棒の止め方になる)。diagram({tocCheck: "strict"}) で warn。',
   'toc-mirror': '未来現実ツリー(causeTree({tree: "frt", mirrors: crt}))の望む結果(de / goal)の mirrors が、現状ツリーの ude の id でない、ude に対応する望む結果が無い、同じ ude を複数が mirrors している(1 対 1 でない)。diagram({tocCheck: "strict"}) で warn',
   'fta-gate-one-input': '故障の木(faultTree)の AND / OR / vote ゲートの入力が 1 つだけ。ゲートが意味を持たない。diagram({rcaCheck: "strict"}) で warn',
   'fta-vote-degenerate': '故障の木の vote ゲートの k が 1(OR と同じ)または入力の数(AND と同じ)。diagram({rcaCheck: "strict"}) で warn',
@@ -669,8 +672,15 @@ function fitRules(d: LintTarget, out: Finding[]): void {
       : `${FIT_WHO[b.type]}: ${knobs} を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら ${say} と書く（info になる）。固定したいなら ${knobs} を明示する（収まらなければ試した案つきで止まる）`});
   }
 }
+function midWordRules(d: LintTarget, out: Finding[]): void {
+  const breaks = midWordBreaksIn(d.laidOut);
+  if (!breaks.length) return;
+  const shown = [...new Set(breaks.map(b => `「${b.before}/${b.after}」`))];
+  out.push({rule: 'text-mid-word-break', severity: 'warn', message: `語の途中で行が割れている（${shown.slice(0, 4).join('')}${shown.length > 4 ? ` ほか ${shown.length - 4} 件` : ''}）。直し方: 箱の幅を広げる、dir や maxNodeW を変える、文言を短くする、語の前後で改行する`});
+}
 function lintAll(d: LintTarget): Finding[] {
   const out: Finding[] = [];
+  midWordRules(d, out);
   layoutQualityRules(d, out);
   edgeBendsRules(d, out);
   tocRules(d, out);
