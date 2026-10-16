@@ -5,7 +5,7 @@ import {layoutBalanced, layoutTree} from './graph-layout.ts';
 import type {TreeLayout, TreeNode} from './graph-layout.ts';
 import {layoutBrace, layoutFishbone, layoutHanging, layoutTimelineMap, mirror} from './map-layouts.ts';
 import {fitLayout} from './fit-width.ts';
-import {getWrapMode, longestUnitWidth, wrapText} from './wrap.ts';
+import {getWrapMode, keepingWords, longestUnitWidth, wrapText} from './wrap.ts';
 import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {LaidOutTree, TreeBand, TreeItem, TreeNodeText} from './types/diagrams.ts';
 
@@ -41,9 +41,21 @@ export function narrowTexts(texts: string[][]): string[] {
 export function narrowField(texts: string[][]): {narrow?: string[]} { const n = narrowTexts(texts); return n.length ? {narrow: n} : {}; }
 
 /** A node's text wrapped to maxW, and the box size it needs (bold label, muted sub line). Shared with states(). */
-export function measureNode(label: string, sub: string | undefined, maxW: number, widthOf: WidthOf, roles: Roles): NodeLines {
+/** The widest katakana word of a text: a run of the characters `phrase` keeps whole (wrap.ts scriptRun: katakana with ー and ・, and half-width kana). */
+function katakanaWidth(text: string, widthOf: WidthOf, size: number, weight: 400 | 700): number {
+  let widest = 0;
+  for (const run of text.match(/[\u30A1-\u30FF\uFF66-\uFF9F]+/g) ?? []) widest = Math.max(widest, splitAtoms(run).reduce((sum, a) => sum + widthOf(a, size, weight, 'sans'), 0));
+  return widest;
+}
+/** The widest a keepWords floor may make a box (inner width) unless the component gives its own: a word past this breaks anyway. */
+const KEEP_WORDS_CAP = 240;
+export function measureNode(label: string, sub: string | undefined, maxW: number, widthOf: WidthOf, roles: Roles, opts: {/** The widest inner width the keepWords floor may give this node (default 240): a task of a flow keeps to its own column width. */ keepWordsCap?: number; /** false: this node is not given the floor (a round node, a cloud's fixed column). */ keepWords?: boolean} = {}): NodeLines {
   const L = roles.body, S = roles.note;
   let inner = maxW - 2 * PAD_X;
+  if (keepingWords() && opts.keepWords !== false) { // keepWords (ADR 0029 D3): not narrower than the longest katakana word
+    const word = Math.max(katakanaWidth(label, widthOf, L, 700), sub ? katakanaWidth(sub, widthOf, S, 400) : 0);
+    inner = Math.max(inner, Math.min(Math.ceil(word), opts.keepWordsCap ?? KEEP_WORDS_CAP));
+  }
   if (getWrapMode() === 'bunsetsu') { // a box wide enough for its longest unit (up to 1.5 x maxNodeW; a longer unit breaks per character)
     const unit = Math.max(longestUnitWidth(splitAtoms(label), a => widthOf(a, L, 700, 'sans')), sub ? longestUnitWidth(splitAtoms(sub), a => widthOf(a, S, 400, 'sans')) : 0);
     inner = Math.max(inner, Math.min(Math.ceil(unit), Math.floor(1.5 * maxW) - 2 * PAD_X));

@@ -14,6 +14,8 @@ export interface Config {
   legendLabels?: Partial<Record<NotationKey, string>>;
   /** Tone colours for every diagram, e.g. {"accent": {"fill": "#e6d3bd", "dark": {"fill": "#4a3a28"}}} (a diagram's own `tones` win per colour). */
   tones?: ToneOverrides;
+  /** The default for every diagram's `keepWords` (a diagram's own wins): never break a katakana word across lines. */
+  keepWords?: boolean;
   /** How text is measured: 'font' (default) from the font files, no browser (see `fonts`); 'chromium' in a headless browser. */
   measure?: 'chromium' | 'font';
   /** Font files to measure with when `measure` is 'font': per family, the regular and the bold (weight >= 600) one, as `path` or `path#faceIndex`. Unset: found with fontconfig. */

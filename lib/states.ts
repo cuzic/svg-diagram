@@ -60,7 +60,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   const build = (dir: 'right' | 'down', maxW: number) => {
     // a round node is as wide as its text needs and as tall as it is wide
     const lines = new Map<string, NodeLines>(band.states.map(s => {
-      const l = measureNode(s.label, s.sub, maxW, widthOf, roles), iconH = s.icon ? ICON_H : 0;
+      const l = measureNode(s.label, s.sub, maxW, widthOf, roles, {keepWords: s.shape !== 'circle'}), iconH = s.icon ? ICON_H : 0;
       if (s.shape !== 'circle') return [s.id, {...l, h: l.h + iconH}];
       const text = Math.max(...l.label.map(t => textWidth(widthOf, t, roles.body, 700)), ...l.sub.map(t => textWidth(widthOf, t, roles.note, 400))), inner = l.h - 16 + iconH;
       const d = Math.max(44, Math.ceil((Math.hypot(text, inner) + 10) / 8) * 8); // a multiple of 8: the radius sits on the 4px grid

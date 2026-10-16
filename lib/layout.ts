@@ -19,7 +19,7 @@ import {withStatus} from './status.ts';
 import {textWidth} from './atoms.ts';
 import {layoutHandlerFor} from './layout-handlers.ts';
 import type {LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
-import {setWrapMode} from './wrap.ts';
+import {setWrapMode, setKeepWords} from './wrap.ts';
 import {childrenOf, stackWidthOf} from './band-children.ts';
 import {layoutBoxContent, lineWidth} from './layout-text.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
@@ -36,8 +36,8 @@ import {CONNECT_LABEL_SIZE, TAG_SIZE, withTones} from './tokens.ts';
 
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
 export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
-  const prev = setWrapMode(data.wrap ?? 'phrase');
-  try { return withTones(data.tones, () => layoutBands(data, roles, widthOf)); } finally { setWrapMode(prev); }
+  const prev = setWrapMode(data.wrap ?? 'phrase'), prevKeep = setKeepWords(data.keepWords === true);
+  try { return withTones(data.tones, () => layoutBands(data, roles, widthOf)); } finally { setWrapMode(prev); setKeepWords(prevKeep); }
 }
 
 function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {

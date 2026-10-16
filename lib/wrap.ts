@@ -33,6 +33,22 @@ let wrapMode: WrapMode = 'phrase';
 export function setWrapMode(mode: WrapMode): WrapMode { const prev = wrapMode; wrapMode = mode; return prev; }
 export const getWrapMode = (): WrapMode => wrapMode;
 
+// `keepWords` (ADR 0029 D3): a box is never narrower than its longest katakana word. Set once at the layout's entry like the wrap mode (the layout is
+// synchronous, so nothing else runs while it is set); `withKeepWords` lets the fit try a figure with and without the floor.
+let keepWordsSetting = false, keepWordsNow = false;
+export function setKeepWords(on: boolean): boolean { const prev = keepWordsSetting; keepWordsSetting = on; keepWordsNow = on; return prev; }
+/** Whether the diagram asked for it (the fit tries both when it did). */
+export const keepWordsRequested = (): boolean => keepWordsSetting;
+/** Whether the floor applies to the node being measured now. */
+export const keepingWords = (): boolean => keepWordsNow;
+/** Run `f` with the floor on or off (a diagram that did not ask for it is never affected). */
+export function withKeepWords<T>(on: boolean, f: () => T): T {
+  if (!keepWordsSetting) return f();
+  const prev = keepWordsNow;
+  keepWordsNow = on;
+  try { return f(); } finally { keepWordsNow = prev; }
+}
+
 const isHiragana = (atom: string): boolean => { if ([...atom].length !== 1) return false; const c = atom.codePointAt(0)!; return c >= 0x3041 && c <= 0x309f; };
 const CLAUSE_END = new Set('、。，．！？'.split(''));
 

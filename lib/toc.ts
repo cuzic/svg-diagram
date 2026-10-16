@@ -293,7 +293,7 @@ export function layoutCloudBand(band: CloudBand, x: number, y: number, w: number
   }
   const colW = Math.min(maxW, Math.floor((w - 2 * CLOUD_GAP_MIN) / 3));
   if (colW < 120) throw new Error(`cloud(): the figure has ${Math.round(w)}px, too narrow for five boxes and the arrows between them (needs ${3 * 120 + 2 * CLOUD_GAP_MIN}px)`);
-  const lines = Object.fromEntries(KEYS.map(k => [k, measureNode(boxText(k, band[k]), undefined, colW, widthOf, roles)])) as Record<typeof KEYS[number], ReturnType<typeof measureNode>>;
+  const lines = Object.fromEntries(KEYS.map(k => [k, measureNode(boxText(k, band[k]), undefined, colW, widthOf, roles, {keepWords: false})])) as Record<typeof KEYS[number], ReturnType<typeof measureNode>>;
   const boxW = Math.max(...KEYS.map(k => lines[k].w)), H = Math.max(lines.b.h, lines.c.h, lines.d.h, lines.d2.h), hA = lines.a.h;
   const gap = Math.min(CLOUD_GAP_MAX, Math.floor((w - 3 * boxW) / 2)), figW = 3 * boxW + 2 * gap, rowsH = 2 * H + ROW_GAP;
   const figH = Math.max(rowsH, hA), top = (figH - rowsH) / 2; // a tall A makes the figure taller; the rows stay centred beside it
