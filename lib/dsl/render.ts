@@ -15,6 +15,8 @@ import {fillScaleLimit} from './text-bands.ts';
 import {contentBox} from '../layout-metrics.ts';
 import {MathTooWideError} from '../math.ts';
 import {applyWireframeDefaults} from './wireframe-numbering.ts';
+import {fillAutoToday} from '../today.ts';
+import {walkBands} from '../rules.ts';
 
 //
 // Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
@@ -31,13 +33,17 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (!THEMES.map(String).includes(String(theme))) throw new Error(`diagram({theme}) must be one of ${THEMES.join(', ')} (or legacy day: 1|2)`);
   if (typeof opts.spotlight === 'object' && opts.spotlight.mutedOk !== undefined && typeof opts.spotlight.mutedOk !== 'boolean') throw new Error(`diagram({spotlight: {mutedOk}}) must be true or false (got ${String(opts.spotlight.mutedOk)})`);
   if (typeof opts.spotlight === 'object' && opts.spotlight.dim !== undefined && !['outline', 'fill'].includes(opts.spotlight.dim)) throw new Error(`diagram({spotlight: {dim}}) must be 'outline' or 'fill' (got ${String(opts.spotlight.dim)})`);
-  if (opts.appearance !== undefined && !['light', 'dark'].includes(opts.appearance as string) && !(typeof opts.appearance === 'object' && opts.appearance && typeof opts.appearance.dark === 'object')) throw new Error(`diagram({appearance}) must be 'light', 'dark' or {dark: {bg, text, ...}} (got ${JSON.stringify(opts.appearance)})`);
+  if (opts.appearance !== undefined && !['light', 'dark', 'auto'].includes(opts.appearance as string) && !(typeof opts.appearance === 'object' && opts.appearance && typeof opts.appearance.dark === 'object')) throw new Error(`diagram({appearance}) must be 'light', 'dark', 'auto' or {dark: {bg, text, ...}} (got ${JSON.stringify(opts.appearance)})`);
   if (opts.wrap !== undefined && opts.wrap !== 'phrase' && opts.wrap !== 'char' && opts.wrap !== 'bunsetsu') throw new Error(`diagram({wrap}) must be 'phrase', 'char' or 'bunsetsu' (got ${JSON.stringify(opts.wrap)})`);
   mapOf(opts.appearance); // a custom dark set is validated here
   if (opts.sourceLine !== undefined && (typeof opts.sourceLine !== 'string' || !opts.sourceLine.trim() || /[\r\n]/.test(opts.sourceLine))) throw new Error('diagram({sourceLine}) must be a non-empty single-line string (e.g. "出典: 総務省 2025")');
+  if (opts.status !== undefined && opts.status !== 'draft') throw new Error(`diagram({status}) must be 'draft' (got ${JSON.stringify(opts.status)})`);
+  if (opts.statusLabel !== undefined && (opts.status === undefined || typeof opts.statusLabel !== 'string' || !opts.statusLabel.trim() || /[\r\n]/.test(opts.statusLabel))) throw new Error('diagram({statusLabel}) must be a non-empty single-line string and goes with diagram({status}) (e.g. "仮説")');
   if (opts.layoutCheck === 'strict' && (opts.medium ?? (opts.theme === undefined ? 'slide' : 'doc')) === 'slide') throw new Error("diagram({layoutCheck: 'strict'}) needs a document figure (theme: ...): slide figures (day: ...) are not given the layout-* checks, so it would never warn");
   if (opts.layoutCheck !== undefined && opts.layoutCheck !== 'info' && opts.layoutCheck !== 'strict') throw new Error(`diagram({layoutCheck}) must be 'info' or 'strict' (got ${JSON.stringify(opts.layoutCheck)})`);
   if (opts.tocCheck !== undefined && opts.tocCheck !== 'info' && opts.tocCheck !== 'strict') throw new Error(`diagram({tocCheck}) must be 'info' or 'strict' (got ${JSON.stringify(opts.tocCheck)})`);
+  if (opts.rcaCheck !== undefined && opts.rcaCheck !== 'info' && opts.rcaCheck !== 'strict') throw new Error(`diagram({rcaCheck}) must be 'info' or 'strict' (got ${JSON.stringify(opts.rcaCheck)})`);
+  if (opts.evidenceCheck !== undefined && opts.evidenceCheck !== 'info' && opts.evidenceCheck !== 'strict') throw new Error(`diagram({evidenceCheck}) must be 'info' or 'strict' (got ${JSON.stringify(opts.evidenceCheck)})`);
   if (opts.maxWidth !== undefined && !(typeof opts.maxWidth === 'number' && Number.isFinite(opts.maxWidth) && opts.maxWidth > 0)) throw new Error(`diagram({maxWidth}) must be a positive number (got ${JSON.stringify(opts.maxWidth)})`);
   if (opts.legend !== undefined && opts.legend !== 'auto' && opts.legend !== false) throw new Error(`diagram({legend}) must be 'auto' or false (got ${JSON.stringify(opts.legend)})`);
   if (opts.canvas !== undefined && (opts.slide || opts.fill)) throw new Error('diagram({canvas}) is a whole slide drawn 1:1; it cannot be combined with `slide` / `fill` (those fit a figure into a measured slot of a Slidev slide)');
@@ -68,8 +74,11 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     connectDefaults: opts.connectDefaults, wireframeDefaults: opts.wireframeDefaults,
     spotlight: opts.spotlight,
     sourceLine: opts.sourceLine,
+    ...(opts.status === undefined ? {} : {status: opts.status, ...(opts.statusLabel === undefined ? {} : {statusLabel: opts.statusLabel})}), // a figure without a status is unchanged
     layoutCheck: opts.layoutCheck, // check only: the severity of the layout-* findings; never reaches the drawing
     tocCheck: opts.tocCheck, // check only: the severity of the toc-* findings; never reaches the drawing
+    rcaCheck: opts.rcaCheck, // check only: the severity of the cause-analysis findings (fta-* etc.); never reaches the drawing
+    evidenceCheck: opts.evidenceCheck, // check only: turns on stat-no-source; never reaches the drawing
     fill: !!opts.fill, // fit-figure slide: build to the measured width/height, growing fonts to use the slack (see build())
     bands: [],
   };
@@ -151,12 +160,16 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
     laidOut.fontScale = fontScale;
     return laidOut;
   });
+  if (opts.html && d.appearance === 'auto') throw new Error("diagram({appearance: 'auto'}) is SVG only: the HTML form paints with style attributes, which a media rule cannot override (drop html / --html, or use 'dark')");
   const emitted = emitOutputs(laidOut, {html: opts.html, reveal: d.maxReveal});
   return {svg: emitted.svg, ...(emitted.html !== undefined ? {html: emitted.html} : {}), laidOut, verdict, xml: emitted.xml, notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget: budget as SlideBudget | null, budgetSource: budgetSource as RenderResult['budgetSource'], fontScale: laidOut.fontScale};
 }
 /** What the passes may write into: the bands are copied, so a band shared by two diagrams (or drawn twice) is never changed by a render. */
 function detach<D extends DiagramData>(d: D): D {
-  return {...d, bands: cloneData(d.bands)};
+  const out = {...d, bands: cloneData(d.bands)};
+  // gantt({today: 'auto'}) takes the day the caller gave (never the clock); only then does the day go in the metadata
+  if (fillAutoToday(walkBands(out.bands), out.today) && out.source) out.source = {...out.source, today: out.today};
+  return out;
 }
 /**
  * A deep copy of plain data: arrays and plain objects (Object.prototype or null prototype) are copied; everything else is

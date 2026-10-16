@@ -3,6 +3,7 @@ import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {causeTree, checkDiagram, closeMeasurer, diagram, renderDiagram} from '../lib/dsl.ts';
 import {tocFindings} from '../lib/toc-rules.ts';
+import {rcaSeverity} from '../lib/rules.ts';
 
 test.after(() => closeMeasurer());
 
@@ -181,4 +182,14 @@ test('toc-mirror: the de / goal of a future reality tree against the ude of the 
   assert.match(run(frt({d1: 'u1', d2: 'u1', d3: 'u2'})).join(), /同じ UDE を複数.*u1（d1、d2）/);
   assert.match(run(frt({d1: 'u1', d2: 'u2', d3: 'r'})).join(), /UDE の id でない.*d3/);
   assert.deepEqual(tocFindings({nodes: [N('i', 'injection'), N('d', 'de')], links: [{from: 'i', to: 'd'}], tree: 'frt'} as never).filter(x => x.rule === 'toc-mirror'), [], 'no mirrors given: nothing is compared');
+});
+
+test('rcaCheck: validated, never reaches the drawing, and rcaSeverity follows tocSeverity', async () => {
+  assert.throws(() => diagram({theme: 'blue', rcaCheck: 'loud' as never}), /rcaCheck/);
+  assert.equal(rcaSeverity({}), 'info');
+  assert.equal(rcaSeverity({rcaCheck: 'info'}), 'info');
+  assert.equal(rcaSeverity({rcaCheck: 'strict'}), 'warn');
+  const render = async (d: unknown) => (await renderDiagram(d as never, {name: 'x.svg', budget: 'cacheOnly'})).svg;
+  const band = causeTree([N('a', 'root'), N('b', 'ude')] as never, [{from: 'a', to: 'b'}]);
+  assert.equal(await render(diagram({theme: 'blue', rcaCheck: 'strict'}).add(band)), await render(diagram({theme: 'blue'}).add(band)));
 });

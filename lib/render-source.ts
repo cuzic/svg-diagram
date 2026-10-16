@@ -27,6 +27,8 @@ export interface RenderSourceOptions {
   fresh?: boolean;
   /** Also return the figure as HTML/CSS (`html`), as `svg-diagram build --html` writes it. */
   html?: boolean;
+  /** Draw without diagram({sourceLine}) (ADR 0023; `build --no-source-line`). The source is not changed. */
+  noSourceLine?: boolean;
   /** Where to look for .svg-diagram.json (default: the source's directory). */
   configFrom?: string;
 }
@@ -51,6 +53,7 @@ export async function renderSource(file: string, opts: RenderSourceOptions = {})
   const abs = path.resolve(file);
   const config = loadConfig(opts.configFrom ?? path.dirname(abs));
   const d = await loadDiagram(abs, config, {fresh: opts.fresh});
+  if (opts.noSourceLine) d.sourceLine = undefined; // d is this call's own Diagram (define() ran just now)
   const r = await renderDiagram(d, {name: path.basename(abs, path.extname(abs)) + '.svg', budget: opts.budget ?? 'cacheOnly', html: opts.html});
   const problems = [...r.verdict.problems, ...r.xml];
   return {svg: r.svg, ...(r.html !== undefined ? {html: r.html} : {}), ok: problems.length === 0, problems, warnings: r.verdict.warnings, notes: r.notes, width: r.width, height: r.height, deps: [...new Set([abs, ...depsOf(abs).files, ...[config._file, findManifest(path.dirname(abs))].filter((f): f is string => !!f)])]};

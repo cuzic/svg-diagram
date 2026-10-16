@@ -13,12 +13,14 @@ const none = (): Band[] => [];
 
 export const CHILD_BANDS = {
   spacer: none,
+  status: none,
   group: band => band.children,
   sequence: none,
   table: none,
   image: band => band.children ?? [],
   timeline: none,
   bpmn: none,
+  fta: none,
   classes: none,
   gantt: none,
   cause: none,
@@ -74,12 +76,14 @@ const noStack = (): null => null;
 
 export const STACK_WIDTH = {
   spacer: noStack,
+  status: noStack,
   group: (band, cw) => cw - 2 * (band.pad ?? 16),
   sequence: noStack,
   table: noStack,
   image: (band, cw) => band.children ? imageSize(band, cw).w - 2 * (band.pad ?? IMAGE_PAD) : null,
   timeline: noStack,
   bpmn: noStack,
+  fta: noStack,
   classes: noStack,
   gantt: noStack,
   cause: noStack,

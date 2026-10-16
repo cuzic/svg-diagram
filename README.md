@@ -76,9 +76,12 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram typecheck                                # 図のソースの型検査
     svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint] [--png DIR [--scale N]]   # 既定の出力: ./svg/<name>.svg。--png: SVG と同時に PNG も DIR に書く（既定の倍率 2）
     svg-diagram build <source.ts> --dark --transparent   # 暗い配色／背景の矩形なしで描く（図の appearance / transparent を上書き）
+    svg-diagram build <source.ts> --no-source-line       # diagram({sourceLine}) を描かない（スライド用と文書用を 1 つのソースで使い分ける。ソースは変えない。deck も同じフラグを受ける）
+    svg-diagram build|check [--today YYYY-MM-DD] <source.ts>...   # gantt({today: 'auto'}) の日付を渡す（環境変数 SVG_DIAGRAM_TODAY、.svg-diagram.json の "today" でも可。「ガントチャート」の節）
     svg-diagram build <source.ts> --html                 # <name>.html も書く（文字・箱・表・線・矢印・曲線を HTML/CSS で。docs/adr/0006）
     svg-diagram build <source.ts>... --id-prefix <p|auto>   # 複数の図を 1 つの HTML に貼るとき、SVG/HTML の内側の id（svg-title・dsl-arrow など）と参照に <p>-<id> を付ける。ソースが複数なら <p>-<ソース名>-<id>、auto は内容ハッシュ（sd<8 桁>）。<metadata id="svg-diagram"> は書き換えない（check --drift・--stale が読む）。付けなければ出力は 1 バイトも変わらない。--stale とは併用しても毎回作り直す（docs/adr/0012 D2）
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
+    svg-diagram check --forbid-draft <source.ts>...      # diagram({status: 'draft'}) の図を warn にする（公開ジョブだけが付ける。「下書きバッジ」の節）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
     svg-diagram check --changed[=REF] <source.ts>...   # 変わった図だけ検査
     svg-diagram check --rules | --explain RULE   # ルールの一覧 / 1 つの意味と許容の書き方
@@ -129,6 +132,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | gantt(rows, {from, to, today, id}) | ガントチャート。行は、タスク `{label, start, end｜days, id?, progress?, after?, tone?, milestone?}` と、見出し `{section}`。日付は `'YYYY-MM-DD'`（`end` はその日を含む。`'2026-10'` のような略記は止まる）。軸・目盛り・今日の線・依存の矢印・進捗は自動。詳細は下の「ガントチャート（`gantt`）」 |
 | classDiagram(classes, relations, {dir, id}) | UML クラス図。クラス `{id, name?, stereotype?, abstract?, attrs?, methods?, tone?}` と関係 `{from, to, kind?, label?, fromMult?, toMult?}`。親が上になる層に自動配置し、矢印の端の記号は `kind` で決まる。詳細は下の「クラス図（`classDiagram`）」 |
 | bpmn(lanes, nodes, flows, {id, fit}) | BPMN 風の業務フロー。レーン（担当）に、タスク・開始/終了イベント・ゲートウェイ（排他 `xor`・並行 `and`・包括 `or`）を置き、矢印で結ぶ。列は流れから、行はレーンから決まる。破線は、レーンをまたぐメッセージ。詳細は下の「業務フロー（`bpmn`）」 |
+| faultTree(top, {id, maxNodeW, cutSets, quant, quantPeriod}) | 故障の木（FTA）。頂上事象から、ゲート（`and` / `or` / `vote`（`k`）/ `inhibit`（`condition`））で原因をたどり、基本事象（円）・未展開（ひし形）・家（`state`）で終わる。`inhibit` の `condition` は楕円（条件事象）。事象の文は矩形、記号はその下。同じ基本事象は `{ref: id}` で描き直す（線は飛ばさない）。線に矢じりは無い（下へ読む）。幅が足りないとき `maxNodeW` を省略すると縮めて警告、`'auto'` なら注、数値なら縮めず止まる。`ref` は葉の事象だけ。`cutSets: true` は単独で頂上を起こす事象（大きさ 1 の最小カットセット）に太枠とバッジ（基本事象は「単一故障点」、未展開は「未展開・単独で頂上へ」）。カットセットが多すぎる木（途中 5000 超）は止まる。`quant: true` は各葉の `p`（0〜1、ある期間の確率。家形以外の葉はすべて必須。ゲートのある事象と家形には書けない）から頂上の確率を求め、注に書く（`quantPeriod: '1 年間'` で期間も）。独立を仮定し、`ref` で共有した事象は場合分けで厳密に、共有が 12 個を超えると min-cut upper bound の上限（概算）。頻度（/年）は扱わない。`diagram({legend: 'auto'})` は使った事象と**ゲートの記号**の凡例を足す（`legend([{ftaEvent: 'basic', label}, {ftaGate: 'and', label}])` も可）。例は `examples/fta.ts` |
 | pareto(items, {top, other, guide, highlight, unit}) | パレート図（QC 七つ道具）。項目 `{label, value}` を大きい順の棒にし、右の 0〜100% の軸に累積比率の折れ線。80% に届くまでの項目だけ色が付く。詳細は下の「QC 七つ道具と新 QC 七つ道具」 |
 | histogram(values, {bins, width, lsl, usl, target, normal}) | ヒストグラム。測定値をそのまま渡す。区間の幅は切りのよい数、棒は接し、区間の境目が下に付く。規格の上下限・平均・正規分布の曲線 |
 | scatter(points, {x, y, regression}) | 散布図。軸は点に合わせて自動。`group` で層別（色と形が変わる）、`regression: true` で回帰直線と相関係数 r（`plane` を返す） |
@@ -185,7 +189,7 @@ map・video 等は残りの高さを埋める。`overlay` / `overlayRight` で�
 
 ### 大きな数値と棒グラフ
 
-`stat(value, label, opts)` は、大きな値と補足ラベルを中央揃えにした plain の `box()` を返すため、そのまま `row()` に入れられる。`size` は `'stat'`（34px、既定）または `'display'`（56px）。`tone` は値の文字だけに付き、ラベルは muted、箱の見た目は変わらない。値は折り返さず、幅に収まらない図は検証エラーになる。
+`stat(value, label, opts)` は、大きな値と補足ラベルを中央揃えにした plain の `box()` を返すため、そのまま `row()` に入れられる。`size` は `'stat'`（34px、既定）または `'display'`（56px）。`tone` は値の文字色で、ラベルは muted。`'accent'` だけは箱も accent の塗り（`tones.accent.fill` の上書きに従う）にし、白黒でも plain の数値と見分けがつく。`'solid'` / `'solid-danger'` は箱全体を濃く塗り、文字は白。他の tone は箱の見た目を変えない。値は折り返さない。箱の幅に収まらなければ、1px 刻みで 24px（canvas / fill では `round(24 × 倍率)`。下限は `min(run.size, max(round(24 × 倍率), minText))`）まで自動で縮め、縮めたら info の `stat-fit-shrunk` を出す（同じ列の `stat` と大きさがそろわない。`accept` で許容できる。箱を広げるか値を短くするとそろう）。それでも収まらなければ検証エラーで、下限・実測の幅・箱の幅と `fix:` の行（箱を広げる / 値を短くする / 単位をラベルへ）が出る。`size` の語彙は `'stat'` / `'display'` の 2 段のまま。収まっている図の出力は変わらない。
 
 ```ts
 row([
@@ -193,6 +197,9 @@ row([
   stat('31%', '導入後', {tone: 'accent', size: 'display'}),
 ])
 ```
+
+**数字の出典と根拠の強さ**: `stat(value, label, {source, confidence})` は、箱の 3 行目に `出典: <source>  ◎ 一次資料` を足す（14px・muted・中央。`solid` / `accent` の箱では色を付けず箱の文字色）。`confidence` は `'primary'`（◎ 一次資料）/ `'secondary'`（○ 報道・二次資料）/ `'unverified'`（△ 未確認）で、記号と語で伝え、色は使わない（ラベルの差し替えは不可）。`source` は必須で、`confidence` だけを書く・`source` が空や複数行だと throw。`hero({stat: {...}})` でも同じオプションが使える。箱の高さは 3 行目のぶん増え、出典が長いと箱の中で折り返す（長い出典は本文へ）。縮小（上）の対象は値だけで、3 行目は縮めない。`source` を書かない `stat` の出力は変わらない。
+`diagram({evidenceCheck: 'info' | 'strict'})` を書いた図だけ、`source` の無い `stat`（`row` / `hero` の中も）ごとに `stat-no-source`（`数字 76% に出典がない`）を出す。`'strict'` で warn（`check --strict` で落とすならこちら）。書かなければ検査は出ない。描画は変わらない。許容する数字は `accept: {'stat-no-source': '理由'}`。`.svg-diagram.json` での既定は未実装。
 
 `bars(data, opts)` は横棒（既定）、縦棒（`dir: 'v'`）、積み上げ（`stack: true`）を描く。`series` は `a | b | c` で、それぞれ accent / text / muted。棒ごとに `tone: 'accent' | 'danger' | 'muted'` も選べる（`danger` が赤。`series` とは併用できない。`examples/spotlight-dim-fill.ts`）。`max` を省くと通常は最大値、積み上げでは合計値になる。値ラベルは必ず描かれ、`unit` は値の後ろに付く。各項目の `id` は `connect()` のアンカーとして使える。
 
@@ -310,19 +317,23 @@ cloud({a: '製品を成功させる', b: '品質を確保する', c: '市場機�
 | 現状ツリー（CRT） | `causeTree`。好ましくない現象は `role: 'ude'`、根本原因は `role: 'root'`（二重枠） |
 | 未来現実ツリー（FRT） | `causeTree`。入れる施策は `role: 'injection'`、望む結果は `role: 'de'`。凡例は `diagram({legend: 'auto'})` で出る |
 | 前提条件ツリー（PRT） | `causeTree`。目標 `role: 'goal'`（二重枠）、中間目標 `role: 'io'`、障害 `role: 'obstacle'`（六角形）。中間目標は「〜が得られている」と、障害を越えた状態で書く |
-| 移行ツリー（TT） | `causeTree`。行動は `role: 'action'`。現在の状態と行動を `from: [...]`（AND）で束ねて、次の状態へ |
+| 移行ツリー（TT） | `causeTree`。行動は `role: 'action'`、ニーズは `role: 'need'`（塗りつぶし）。現在の状態・ニーズ・行動を `from: [...]`（AND）で束ねて、次の状態へ。単位ごとの書き方は `transitionUnits()` |
+| ネガティブブランチ（NBR） | `causeTree(…, {tree: 'nbr'})`。施策 `role: 'injection'`、転換点 `role: 'tipping'`（危険色の二重枠）、悪い結果 `role: 'ude'`、転換点を断つ施策 `role: 'trim'`（破線の枠。`kind: 'blocks'` の辺で転換点へ） |
 | クラウド | `cloud`。矢印は「A のために B が必要、B のために D が必要」と読む向き（目的へ向かう）。D と D' の間の赤いジグザグが対立 |
 
 - `causeTree` は座標を書かない。`dir: 'up'`（既定。原因が下、結果が上）・`'down'`・`'right'`・`'left'`。`from` が配列のリンク（AND）は、矢じりの手前にまたがる弧で束ねる。束ねずに別々に書いたリンクは、それぞれ独立に十分な原因（OR）。矢印は十分原因・必要条件のどちらでも同じ描き方なので、どちらの論理かは見出しに書く。
 - 悪循環・好循環の戻りの矢印（UDE → 根本原因、成果 → 信頼）には `back: true` を付ける（`{from: 'late', to: 'kpi', back: true}`。`from` は 1 つの節で、AND の配列とは併用できない）。宣言した矢印は、層を決めるときに最初から「戻り」として外すので、**節を書く順を変えても層（UDE が根本原因より結果側）が変わらない**。戻りの矢印は太く描く。付けないと、DFS が節の並びの先頭からたどって見つけた辺を戻りにするため、順方向の辺が戻り扱いになり、UDE が根本原因の側へ落ちることがある。付ける辺は、`b` から他の辺をたどって `a` に戻れる辺（循環を閉じる辺）で、1 つの循環に 1 本まで（違うと理由と直し方つきで止まる）。`relationDiagram` / `pdpc` のリンクにも書ける。`back` を書かない図の配置は変わらない。
-- `role` は箱の色・形を決める（`tone` を書けば上書き）。`ude`=赤の破線、`root`/`goal`=アクセント色の二重枠、`de`/`io`=薄いアクセント、`injection`/`action`=アクセントの枠、`obstacle`=六角形、`precondition`=灰色の破線（統制できない現状の事実。FRT で `from: ['施策の結果', 'precondition の節']` と AND にする）。ふつうの実体は `role` なし。
+- `role` は箱の色・形を決める（`tone` を書けば上書き）。`ude`=赤の破線、`root`/`goal`=アクセント色の二重枠、`de`/`io`=薄いアクセント、`injection`/`action`=アクセントの枠、`obstacle`=六角形、`precondition`=灰色の破線（統制できない現状の事実。FRT で `from: ['施策の結果', 'precondition の節']` と AND にする）、`tipping`=危険色の二重枠、`trim`=変更色の破線の枠、`need`=塗りつぶし（`io` の薄い箱と見分けるため）。ふつうの実体は `role` なし。
   統制できるかは役割で分かれる: 統制できる行動は `injection`（FRT の施策）・`action`（移行ツリーの行動）、CRT の根本原因は `root`（二重枠）、統制できない現状の事実は `precondition`。
 - リンクに `kind: 'blocks'` を書くと、その実体がその実体を**断つ**（トリミング）辺になる。破線で、矢じりの代わりに横棒（T 字の端）で止まるので、因果の矢印と形で区別できる。ネガティブブランチは、悪い結果を `role: 'ude'` で書き、施策から `blocks` の辺を引く。`from` は 1 つの実体（配列にした AND は書けない）。層の決め方は通常の辺と同じ（断つ側が下、断たれる側が上）。`coreDriver` の到達数には数えない（防ぐ辺は引き起こさない）。辺そのものを断つ（辺への辺）書き方は無い。例は `examples/toc-blocks.ts`。
-- **入力側の層（`layer: 'asap' | 'alap'`）**: 原因が入らない実体（と、そこから入る辺だけでできた連鎖。PRT の障害 → 行動 → 中間目標）を、**行き先の 1 つ手前の層**に置くか（`'alap'`）、最初の層に置くか（`'asap'`）。**既定は `tree` が `'prt'` / `'frt'` / `'tt'` のとき `'alap'`**、それ以外（`'crt'`、`tree` を書かない図、`pdpc` / `relationDiagram`）は `'asap'`（従来の図のまま）。`'alap'` では長い矢印が消え、入力側が行き先の手前に並ぶ。`root` / `injection` / `start` の役割の実体は最初の層に残る。`tree: 'prt' | 'frt' | 'tt'` を書いた図は配置も変わるので、戻すなら `layer: 'asap'`。例は `examples/toc-prt.ts` / `toc-frt.ts` / `toc-tt.ts`。
+- **ネガティブブランチ（NBR。`tree: 'nbr'`）**: 施策が招く悪い結果の道と、それを断つ手を 1 枚に描く。道の途中の「複数の条件が揃って越える節」は `role: 'tipping'`（AND の結果で書く）、断つ施策は `role: 'trim'` で、`{from: 'cut', to: 'tip', kind: 'blocks'}` と転換点（またはその手前）へ引く。`trim` の実体には `foldsInto: '施策 1'` を書ける（文字列。`trim` 以外に書くと throw）。辺ではなく、箱の下に「→ 施策 1 に組み込む」の 1 行が付く（組み込み先の節は図に無くてよい。`sub` に足すので文字の幅も測られる）。`coreDriver` は `trim` を数えない。`tree: 'nbr'` は `layer` の既定が `'alap'`。検査は 4 つ（下の「`check` の規則」の TOC の項）。例は `examples/toc-nbr.ts`（`legend: 'auto'`・`tocCheck: 'strict'` で警告なし）。
+- **移行ツリーの単位（`transitionUnits(units)`）**: 単位 `{id, current?, need, action, result, resultRole?}` の並びから、3 入力の AND（現状 + ニーズ + 行動 → 結果）の `{nodes, links}` を作り、`causeTree(nodes, links, {tree: 'tt'})` に渡す。`id` は結果の節の id で、ニーズ・行動は `<id>.need`・`<id>.action`、最初の単位の現状は `<id>.current`（`precondition`）になる。2 つ目以降の単位は前の結果から始まるので `current` を書かない（書くと throw。最初の単位は `current` が必須）。結果の役割は既定は `io` で、`resultRole: 'goal'` のように上書きできる。文字が空・`id` の重複も throw。例は `examples/toc-tt.ts`。
+- **FRT の望む結果と CRT の UDE の対応（`mirrors`）**: `causeTree(nodes, links, {tree: 'frt', mirrors: crt})` の `crt` は、`tree: 'crt'` の `causeTree` が返した帯。FRT の `role: 'de'` / `'goal'` の節に `mirrors: 'u3'`（CRT の UDE の id）を書くと、`check` が対応を見る（`toc-mirror`）。FRT が持つのは CRT の節の id と UDE の id だけで、ラベルは読まない（`consistency` の用語の揺れにも入らない）。`mirrors` に `tree: 'crt'` でない帯を渡す、`de` / `goal` 以外の節に `mirrors` を書く、と throw。
+- **入力側の層（`layer: 'asap' | 'alap'`）**: 原因が入らない実体（と、そこから入る辺だけでできた連鎖。PRT の障害 → 行動 → 中間目標）を、**行き先の 1 つ手前の層**に置くか（`'alap'`）、最初の層に置くか（`'asap'`）。**既定は `tree` が `'prt'` / `'frt'` / `'tt'` / `'nbr'` のとき `'alap'`**、それ以外（`'crt'`、`tree` を書かない図、`pdpc` / `relationDiagram`）は `'asap'`（従来の図のまま）。`'alap'` では長い矢印が消え、入力側が行き先の手前に並ぶ。`root` / `injection` / `start` の役割の実体は最初の層に残る。`tree: 'prt' | 'frt' | 'tt'` を書いた図は配置も変わるので、戻すなら `layer: 'asap'`。例は `examples/toc-prt.ts` / `toc-frt.ts` / `toc-tt.ts`。
 - `causeTree(nodes, links, {coreDriver: true})` は、起点の実体（原因が入らない実体）ごとに、矢印をたどって届く `ude` の数を数え（AND の各原因も届く。自分は数えない）、最も多く、かつ 2 以上の起点（同数なら全部）に**中核ドライバーの印**を付ける: 太い枠と「中核」のバッジ。`role` は変えない（根本原因は `root` の二重枠のまま）。起点の全部に `到達 UDE n` が下の行に書かれる（`counts: false` で消す）。「中核」のバッジは箱の**外**に置かれ（端の文字に重ならない）、`coreDriver` を使う図だけ、矢印の向きの軸の両端（`dir` が `up` / `down` なら上下、`left` / `right` なら左右）にバッジの分の余白が付く。`relationDiagram` の「出る矢印の本数」と違い、間接に届く UDE の数。例は `examples/toc-core.ts`。
 - **FRT の最終のゴール**は、`role: 'de'` でも `role: 'goal'` でもよい（`toc-parts` は `goal` を `de` と同じに数える。どちらも無いときのエラーは「望む結果（role: 'de'。最終のゴールを 'goal' で書いてもよい）」）。
 - PRT の障害は、書き方の流派が分かれる。ここでは `role: 'obstacle'` の六角形から中間目標へ矢印を引く。この矢印だけは、ほかの矢印（尾が頭の十分原因・必要条件）と違い、「この障害を、その中間目標が越える」と読む。障害を矢印の脇に付ける描き方と、矢じりの無い線は、まだ無い。
-- `diagram({legend: 'auto'})` は、`causeTree` / `relationDiagram` / `pdpc` で使った**役割**（`ude` 好ましくない現象、`root` 根本原因、`de` 望む結果、`injection` 施策、`precondition` 現状の事実、`goal` 目標、`io` 中間目標、`obstacle` 障害、`action` 行動、`start` 開始、`risk` 懸念、`measure` 対策。`effect` と `step` は除く）の見本の箱、AND の弧（`edge:and`）、戻りの矢印（`edge:back`。太い矢印）、断つ辺（`edge:blocks`。破線と横棒）、中核の印（`mark:core`。バッジの無い太枠）を凡例に足す。使っていない役割は出ない。文言は `legendLabels: {'role:precondition': '与件'}` のように差し替える。手書きの `legend([{role: 'ude', label: '…'}, {edge: 'and', label: '…'}, {mark: 'core', label: '…'}])` も書け、自動と二重にならない。`legend-missing` / `legend-incomplete` は従来どおり `role` を数えない。`tone` を直接書いた実体の色は凡例に入らない。例は `examples/toc-legend.ts`。
+- `diagram({legend: 'auto'})` は、`causeTree` / `relationDiagram` / `pdpc` で使った**役割**（`ude` 好ましくない現象、`root` 根本原因、`de` 望む結果、`injection` 施策、`precondition` 現状の事実、`goal` 目標、`io` 中間目標、`obstacle` 障害、`action` 行動、`tipping` 転換点、`trim` トリミング(施策)、`need` ニーズ、`start` 開始、`risk` 懸念、`measure` 対策。`effect` と `step` は除く）の見本の箱、AND の弧（`edge:and`）、戻りの矢印（`edge:back`。太い矢印）、断つ辺（`edge:blocks`。破線と横棒）、中核の印（`mark:core`。バッジの無い太枠）を凡例に足す。使っていない役割は出ない。文言は `legendLabels: {'role:precondition': '与件'}` のように差し替える。手書きの `legend([{role: 'ude', label: '…'}, {edge: 'and', label: '…'}, {mark: 'core', label: '…'}])` も書け、自動と二重にならない。`legend-missing` / `legend-incomplete` は従来どおり `role` を数えない。`tone` を直接書いた実体の色は凡例に入らない。例は `examples/toc-legend.ts`。
 - 幅に収まらないとき（`dir` は `'up'` が既定）: `dir` を省略するか `dir: 'auto'` にすると、`causeTree` は向きを変えずに、まず `maxNodeW` を 200 → 160 → 130 → 110 と狭め、それでも収まらなければ幅を超える層を**行に折り返す**（`fold`。1 行は図の幅の 100 / 85 / 70 / 55% の順に試す）。折ると層をまたぐ矢印が行を通るので、折れが増える。`pdpc()` / `relationDiagram()`（既定は `down`）は、省略・`'auto'` のとき `right` に回ることもある（`fold` はしない）。`dir` や `maxNodeW` を**書いた図は変えない**: `dir` を書いた図の折り返しは `fold: true` を書いたときだけ（`fold: false` で折らない）。収まらなければ、試した案（幅と高さ）・試さなかった案とその理由・直し方 1 つを書いて止まる（高さだけが予算を超えるときは、幅を広げる案ではなく、図を分ける・`canvas` の高さを増やす案を書く。末尾に `split:` の提案が付く: 下の `split:` の箇条）。変えたことは `check` の `auto-fit-applied`（`dir` を省略したときは warn、`dir: 'auto'` は info）が知らせる。
 - **`maxNodeW: 'auto'`**: 箱の幅を、260 から 100 まで 10px 刻み（広い方から）で試し、**幅と高さの予算の両方に収まる最初の値**を選ぶ（最も広い箱。行数が減る）。`dir` を書いた図にも効く（幅の軸だけを自動にする宣言。向きは変えない）。全部だめなら `fold` が最後の手段（`'auto'` では `dir` を書いていても折り返す）。余裕のある図でも 200 より広い箱（最大 260px）になる。高さの予算は、`canvas.height` があれば、バンドの上端 y を引いた値（近似）。`maxDisplayHeight` だけのときは従来どおり（好み扱いで throw しない換算は、まだない）。変えたことは `auto-fit-applied`（info）に、`maxNodeW` / `fold` が `'auto'` による、と書かれる。数値の `maxNodeW` と省略の図は変わらない。
 - **収まらないときの `split:`**: `causeTree` が幅にも高さにも収まらず止まるとき、エラーに `split:` の 1 行が付く（図は自動では分けない）。高さの失敗では、幅に収まった最初の案の層のうち、両側が高さの予算に収まる境界で、またぐ矢印が最少（同数なら両側の節数の差が最小）のものを、またぐ矢印の名前つきで書く（戻りの辺は数えない。収まる切り方がなければ「3 つ以上に分ける」）。幅の失敗では、最も狭い案で最も広い層とその節を挙げ、節を 2 つの図に分けるよう書く（層の間で切っても幅は減らない）。`states` / `classes` / `tree` の失敗の文面は変わらない。
@@ -522,7 +533,9 @@ gantt([
 ```
 
 - 日付だけを書く。軸は最初の開始から最後の終了まで（`from` / `to` で広げられる）。7 日あたりの幅が足りるだけ、週（月曜）の目盛り、約 20 週を超えると月の目盛り。
-- `today` は必ず書く（ビルドは時計を読まない）。軸の外だと止まる。`todayLabel` で「今日」を変えられる。
+- `today` は必ず書く（ビルドは時計を読まない）。軸の外だと止まる（文面に軸の範囲と直し方が出る）。`todayLabel` で「今日」を変えられる。
+- **今日が軸の外のとき**: `gantt(rows, {today, extendToToday: true})` は、`from` / `to` を書いていない側だけ軸を今日まで広げる（計画の開始日を今日に合わせなくてよい）。`from` / `to` を明示した側は広げず、止まる。書かない図の出力は変わらない。
+- **日付をビルドに渡す**: `today: 'auto'` と書くと、ビルドが日付を受け取る。優先順は `--today <YYYY-MM-DD>`（`build` と `check`）、環境変数 `SVG_DIAGRAM_TODAY`、`.svg-diagram.json` の `"today"`。どれも無いと、直し方つきで止まる。実在しない日付はどれも拒否する。時計は読まない（`--today now` は無い）ので、`SVG_DIAGRAM_TODAY=$(date +%F) svg-diagram build gantt.ts` のように呼び出し側が渡す。解決した日付は `<metadata>` の `today` に残り（`today: 'auto'` の図だけ。日付を直接書いた図は変わらない）、`check --drift --rebuild` はそれで作り直す（環境変数の日付が違っても誤報しない）。**限界**: `changed` / `--stale` の判定は日付を見ないので、`today: 'auto'` の図は日付が違っても fresh と出る。日付を進めたら `build` を `--stale` なしで回す。
 - `progress`（0〜1）は、バーの塗りつぶしの割合。`milestone: true` は 1 日の菱形（`end` / `days` は要らない）。`tone` は `accent`（既定）/ `danger` / `muted`。
 - `after: 'id'`（または id の配列）で、先行タスクの終わりから、このタスクの始まりへ矢印を引く。縦の線は、間の行のバーを避けた最初の空き（先行タスクの終わりのすぐ右から）を通る。そこが空いていない（後続が先に始まる、間のバーが長い）ときは、行と行のあいだの線に沿って、バーのない列まで回る（後ろ向き・上向きの依存も同じ）。軸のどこにも空きがない（間の行のバーが軸いっぱい）ときだけ、どのバーを貫くかを書いて `check` / `build` が止まる（行の並びを替えるか、`from` / `to` で軸を広げる）。`after` が自分自身や輪になると止まる。
 - 行のラベルは図の幅の 4 割までの 1 行（超えると、短くするよう書いて止まる）。`id` を付けたタスクは `connect()` の端点で、`g.anchors.<id>` でも取れる。例は `examples/gantt.ts`。
@@ -591,6 +604,7 @@ bpmn(
 層状の自動配置の図（`stateDiagram` / `arrowDiagram` / `causeTree` 系 / `classDiagram` / `pert` / `dependencyNetwork` / `causalLoop`）は、矢印の折れ・交差を減らすために次をする。`tree` / `mindmap` / `bpmn` は変わらない。
 
 - **座標の候補を 2 つ作る**: 従来の座標と、Brandes-Köpf 法で層を飛ぶ長い矢印の鎖を揃えた座標。**（交差, 折れ）が辞書式で厳密に良いときだけ**新しいほうを採る（従来が幅に収まらず新しいほうが収まるときも採る）。描けない AND の弧が増える、無関係な箱を矢印が通る、従来が収まる幅に収まらない候補は捨てる。だから図が悪くなることはない。連関図 `qc-relation` は折れが 64 → 36、交差が 4 → 2 になった。独立した複数の塊は、並びに依らず `gap` で詰めて並ぶ（新しい座標のとき）。
+- **戻りの矢印が他の線を横切る箇所の見せ方（`hop: true`。`causeTree` / `relationDiagram` / `pdpc`。ADR 0028）**: 並びの探索で直らない交差（外周のレーンを走る戻りが図を横切る箇所など）は、`hop: true` を書くと、戻りの線が**層の流れに逆らう側へ小さな弧を描いて、他の線を飛び越す**（判定はレイアウトで一度だけ。経路の点は変えない）。付けない箇所: 戻り自身や相手の折れ・矢じり・`blocks` のバーの近く、別の交点が近い箇所、AND の弧の近く、帯や箱の外へ弧が出る箇所、弧の隣に平行な線がある箇所、破線・点線の戻り。`blocks` と、戻りでない線どうしの交差は対象外。既定は off（書かない図の SVG は変わらない）。例は `examples/toc-hop.ts`。
 - `straighten: false`（`causeTree` / `relationDiagram` / `pdpc` / `stateDiagram` / `arrowDiagram` / `classDiagram` / `pert` / `dependencyNetwork` / `causalLoop`）は、従来の座標のままにする（過去の SVG を動かしたくないとき。既定は `true`。ほかの値は throw）。`returns` とは独立（`straighten: false` でも戻り辺の外周は変わる）。
 - **高さの重なる箱への矢印は 1 本の直線にする**: 隣り合う層の 2 つの箱が高さ（`dir: 'right'` なら縦、`'down'` なら横）で重なるとき、端点を同じ高さにそろえて折れずに引く。条件は、箱の辺から 6px 内側、同じ辺のほかの矢印と間隔を保つ、（交差, 折れ）が増えない、ほかの矢印の線と 1 本に見えない。円（`shape: 'circle'`）・六角形（`obstacle` / `risk`）の端と AND の矢印は動かさない。満たせないときは従来どおり肘。
 - 層を 2 つ以上飛ぶ戻りの矢印は `returns: 'outer'` で外周の専用レーンに回せる（`causeTree` / `relationDiagram` / `pdpc` / `stateDiagram`。既定は部品ごとに違う。上の「TOC の思考プロセス」）。層を 1 つだけ戻る矢印は、今までどおり同じ層の間で別の帯を通る。
@@ -760,6 +774,12 @@ const s = steps([{title: '1回目', body: '原因は不明'}, {title: '4回目',
 ### 出典行（`sourceLine`）
 
 `diagram({sourceLine: '出典: 総務省 2025'})` は、出典を**図の最後の 1 行**（左寄せ・muted・14px）に固定する。`add()` の順や他の部品に関係なく、いつも一番下にあるので、本文の部品と重ならない。キャンバスの高さに含まれる。空・複数行の文字列は throw。1 行に収まらず折り返すと `source-wraps` を warn する（出典の細部は本文へ）。文字のコントラストは、他の caption と同じ検査（`a11y-text-contrast`、verify）に通る。`sourceLine` を使わない図の出力は変わらない。例は `examples/timeline.ts`。
+
+**出典行を描かない（`build --no-source-line`）**: `svg-diagram build x.ts --no-source-line` は、`diagram({sourceLine})` を描かずに作る（スライド用と文書用を 1 つのソースで使い分ける。ソースは変えず、`sourceLine` が無い図では何も起きない）。使ったときだけ `<metadata>` に `noSourceLine: true` が残り、`check --drift --rebuild` と `build --stale` はそれを読む（`--stale` は同じフラグで繰り返し作る使い方を想定）。`deck --no-source-line` は `.ts` にだけ効き、入力に `.svg` があれば `⚠ <file>: .svg の出典行は消えない(.ts から描き直す)` を出す。`renderSource({noSourceLine: true})` も同じ。`preview` / `show` にフラグは無い（描画済みの SVG を読むだけ）ので、出典行なしを見たいときは `build --no-source-line --out-dir <別の場所>` の SVG を渡す。環境変数は無い。
+
+### 下書きバッジ（`status`）
+
+`diagram({status: 'draft'})` は、最上段に 1 段（約 28px）足し、右端に破線の札「下書き」を描く（塗りは背景色・枠は muted の破線 1.5px・文字は太字の `note`。`<g role="img" aria-label data-status>`）。`statusLabel: '仮説'` で「仮説」「仮置き」などに差し替える（単一行・非空・`status` と一緒に。`status` は `'draft'` だけで、ほかは throw）。出典行の隣の固定位置なので、本文の部品と重ならず、題にはならない。スライド（`canvas`）では 1 段ぶんの高さが予算に入る。spotlight で暗くならず、ダークでは自動で色が替わる。札が図の幅に入らないと、`statusLabel` を短くするよう書いて止まる。`--html` の出力にも札は出るが、HTML/CSS への写しは未対応（SVG のオーバーレイ）。`<desc>` の先頭に札と同じ文言の「(下書き)」（`statusLabel: '仮説'` なら「(仮説)」）が付き、`desc` を自分で書いていても足される。`<title>` は変わらない。`<metadata>` には `"status":"draft"` が残る。`check` は info の `draft-status`（図が下書きのまま。`--strict` でも失敗しない）を出し、公開ジョブで `check --forbid-draft` を付けると warn になる（`accept` で許容済みのものは info のまま）。`status` を書かない図の出力は変わらない。
 
 ### 大きい文字（ロールで選ぶ）
 
@@ -948,6 +968,12 @@ svg-diagram icons list aws                       # 入った名前（aws-lambda,
 
 ### 暗い背景と透明背景（`appearance` / `transparent`）
 `diagram({theme: 'teal', appearance: 'dark'})` で、暗い配色（文字は明るく、背景は暗い）で描く。トークンは明るい版と 1 対 1 に対応し（`DARK_PALETTE`）、レイアウト・トーン・文字の大きさは変わらない。明るい版の色（`#ffffff` など）を暗い版の色に置き換えるだけなので、新しいトーンに暗い版を別に書く必要はない。`raw()` の中の色はトークンでなければそのまま。
+**ダークモードに追従する（`appearance: 'auto'`）**: 1 枚の SVG が、埋め込み先の `prefers-color-scheme` に追従する。図は明るい色で描かれ（背景の矩形も）、`<style>` の末尾に `@media (prefers-color-scheme: dark)` を 1 ブロック足して、**図が実際に使っている色だけ**を暗い版に替える（`svg[data-appearance="auto"] [fill="#ffffff" i] { fill: … }` の形。CSS 変数は使わない）。ルートは `data-appearance="auto"`。`transparent: true` なら背景の矩形が無く、埋め込み先の色に重なる。deck や `inlineSvg` に入れても、規則は自分の図に閉じる。`auto` を使わない図の出力は変わらない。
+- SVG だけ。`--html` / `html: true` との併用は throw（`'dark'` を使う）。`build --dark` は `'auto'` も `'dark'` に上書きする。
+- `<img src>` の追従は、ページの `class="dark"` ではなく OS / ブラウザの設定に従う。Slidev の `html.dark` に追従させたいときは `<object>` かインライン SVG にする（それでも判定は `prefers-color-scheme`）。
+- `preview` / `show` / PNG（resvg）は明るい側で描かれる（resvg は `@media (prefers-color-scheme)` を評価しない）。
+- **検査は明暗の 2 回**: `check`（`verifyDiagram` と `lintDiagram`）と `lint-svg`（既定の geometry でも `--engine browser` でも）は、明るい配色と暗い配色の両方で検査する。暗い側にだけ出た指摘は末尾に ` (暗い配色)` が付く（`lint-svg` は `file (暗い配色)`）。許す色も側ごとで、明側に暗い色が混ざると `off-token-color`。`transparent: true` の `auto` は、明るい側は白、暗い側は暗い版の背景の上に置かれたものとして検査する。
+
 `transparent: true` は、背景の矩形を描かない（スライドや Web ページの背景の上にそのまま置く）。`appearance` と組み合わせられる（`HTML` 出力も同じ）。
 **コントラスト検査**: `check` / `lint-svg` は、`appearance` の色（暗い図なら暗い版）で比べる。透明の図は、背景色が分からないので、**その図が想定する背景（明るい図は白、暗い図は暗い版の背景）の上に置かれたもの**として検査する（SVG のルートに `data-assumed-bg` として残る）。想定と違う背景に置くと、検査の外になる。
 CLI は `svg-diagram build x.ts --dark --transparent`（図の指定を上書きする。`--stale` は無視して再生成する）。`show` / `preview` は図の指定どおりに描く。
@@ -1104,7 +1130,16 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 - **ベースライン**: 警告が多い案件に段階導入する。`check --write-baseline .svg-diagram.baseline.json diagrams/*.ts` で今ある警告を記録し、以後 `check --strict --baseline .svg-diagram.baseline.json diagrams/*.ts` は、**記録にない新しい警告**だけを失敗にする（記録済みは info になり「ベースライン済み」と添える）。照合はファイル・ルール・メッセージで、行番号は見ない。エラーはベースラインに入らない。
 - `--format sarif` は SARIF 2.1.0 を標準出力に出す（GitHub Code Scanning などへ）。
 - **つながりの検査**（`graph-orphan-node` / `graph-disconnected`）: 矢印が 3 本以上ある図で、`id` を持つ箱がどの矢印にもつながっていない、または矢印が互いにつながらない 2 つ以上のかたまりに分かれていると警告する（行・列を端にした矢印は、その中の箱を含む）。注記の箱は `id` を付けなければ対象外。意図した形なら `accept` に理由を書く。
-- **TOC の図の検査**（`toc-ude-count` / `toc-parts` / `toc-source-has-cause` / `toc-chain-only` / `toc-orphan` / `toc-cycle-undeclared`）: `causeTree(..., {tree: 'crt' | 'frt' | 'prt' | 'tt'})` と種類を書いた図だけが対象（書かなければ何も検査しない。`relationDiagram` / `pdpc` は対象外）。`crt` の UDE が 5〜10 個の外（部分図なら `accept` で許容）、`crt` に `root` が無い・`frt` に `injection` か `de` が無い・`frt` に `root` がある、`root`（crt）/ `injection`（frt）/ `precondition` に入る矢印がある、`crt` / `frt` が分岐も合流も AND も無い 1 本鎖、どのリンクにも出てこない実体、`back: true` の戻り・`kind: 'blocks'` を除いた因果の辺に循環が残るのに戻りの矢印に `back: true` が付いていない（`toc-cycle-undeclared`。配置が戻りとして扱った矢印を名指しする）。数える辺は `back` と `kind: 'blocks'` を除く。既定は info（`check --verbose`）で、`diagram({tocCheck: 'strict'})` の図だけ warn（`check --strict` が落ちる）。`layoutCheck` とは別の指定で、描画は変わらない。
+- **TOC の図の検査**（`toc-ude-count` / `toc-parts` / `toc-source-has-cause` / `toc-chain-only` / `toc-orphan` / `toc-cycle-undeclared`、NBR・TT・PRT・FRT の `toc-nbr-*` / `toc-tt-unit` / `toc-prt-*` / `toc-obstacle-phrase` / `toc-mirror`）: `causeTree(..., {tree: 'crt' | 'frt' | 'prt' | 'tt' | 'nbr'})` と種類を書いた図だけが対象（書かなければ何も検査しない。`relationDiagram` / `pdpc` は対象外）。`crt` の UDE が 5〜10 個の外（部分図なら `accept` で許容）、`crt` に `root` が無い・`frt` に `injection` か `de` が無い・`frt` に `root` がある、`root`（crt）/ `injection`（frt）/ `precondition` に入る矢印がある、`crt` / `frt` が分岐も合流も AND も無い 1 本鎖、どのリンクにも出てこない実体、`back: true` の戻り・`kind: 'blocks'` を除いた因果の辺に循環が残るのに戻りの矢印に `back: true` が付いていない（`toc-cycle-undeclared`。配置が戻りとして扱った矢印を名指しする）。数える辺は `back` と `kind: 'blocks'` を除く。既定は info（`check --verbose`）で、`diagram({tocCheck: 'strict'})` の図だけ warn（`check --strict` が落ちる）。`layoutCheck` とは別の指定で、描画は変わらない。
+  - `nbr`: `toc-nbr-parts`（`trim` か `ude` が無い）、`toc-nbr-no-tipping`（`tipping` を通らずに、原因を持たない実体から `ude` へ至る因果の道がある。たどるのは因果の辺だけで、`blocks` と `back` は通らない）、`toc-nbr-tipping-not-and`（`tipping` が AND の結果でない）、`toc-nbr-trim-too-late`（`trim` の `blocks` が、転換点より結果側を断つ。転換点そのものを断つのは可）。`toc-source-has-cause` は `nbr` の `injection` と `trim` にも効く。
+  - `tt`: `toc-tt-unit`（AND の結果が、ニーズ（`need` または `precondition`）と行動（`action`）の両方を原因に持たない。OR は単位でないので対象外）。
+  - `prt`: `toc-prt-bottom-not-action`（中間目標の鎖の底、つまり入る辺に `io` が無い `io` に、`action` がつながっていない。障害は入る辺の無い節で書くことが多いので、「入る辺が無い節」では見ない）、`toc-prt-one-to-one`（`io` が 2 つ以上で、障害と中間目標が全部 1 対 1 だけ）、`toc-obstacle-phrase`（障害のラベルが「ない」「無い」「不足」で終わる。末尾の句読点・閉じ括弧は除く。**常に info**で、`tocCheck: 'strict'` でも warn にならない。日本語の文末の判定なので偽陽性は `accept` で外す）。
+  - `frt` + `mirrors`: `toc-mirror`（`mirrors` の id が UDE でない・UDE に対応する望む結果が無い・同じ UDE を複数が `mirrors` している、の 3 つを 1 つの規則で。部分図は `accept` で理由を書く）。
+
+- **原因分析の図の検査の重大度**（`diagram({rcaCheck: 'strict'})`）: 故障の木・IS/IS NOT・なぜなぜ・ボウタイの検査（ADR 0025 / 0026）を warn にする。既定は info。`tocCheck` / `layoutCheck` とは別に指定でき、絵は変わらない。検査そのものは各図の実装で足す（今は故障の木の 5 規則だけ）。
+  - 故障の木: `fta-gate-one-input`（AND / OR / vote の入力が 1 つ）、`fta-vote-degenerate`（k が 1 か入力の数。OR / AND と同じ）、`fta-top-is-leaf`（頂上にゲートが無い）、`fta-undeveloped-left`（展開していない事象が残っている。常に info）、`fta-single-point`（単独で頂上を起こす事象がある。常に info）。
+  - IS/IS NOT 表: `isisnot-no-isnot`（IS NOT が空の行）、`isisnot-no-distinct-at-all`（「違い」が 1 つも無い）、`isisnot-no-hypothesis-stands`（説明できない行が 0 の仮説が無い。常に info）。
+  - なぜなぜ分析: `whywhy-no-root`（真因の無い鎖）、`whywhy-measure-without-root`（真因が無いのに対策がある）、`whywhy-single-chain`（鎖が 1 本だけ。常に info）、`whywhy-dig-below-root`（真因の下を掘っている。木のみ・常に info）。
 
 ## 表記・数値の整合と差分だけの検査（`check`）
 - **表記の揺れ**（`term-variant`）: 1 つの図の中で、同じ語が `ユーザ` / `ユーザー`（末尾の長音）や `API` / `Api`（大文字・大小混在）のように揺れていると警告する。`Server` と `server` のような文頭の大文字だけの差、数字や `-` `_` を含む ID は見ない。
@@ -1122,7 +1157,7 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 
 ## 図の違いの説明（`--rebuild`、`diff`）
 `check --drift --rebuild` は、再生成した SVG が違うとき、**何が変わったか**を示す（メタデータのみ / 不可視の下地 / 文字の移動 / 図形の増減 / キャンバスの大きさ）。
-「見た目は変わらない。再生成してよい」か「見た目が変わる。再生成して、目で確かめる」かが分かる。`pnpm golden` は、`examples/out/` の SVG が、今のコードの再生成と一致するかを調べる。
+「見た目は変わらない。再生成してよい」か「見た目が変わる。再生成して、目で確かめる」かが分かる。`<metadata>` に残した `today`（`gantt` の `today: 'auto'`）と `noSourceLine`（`build --no-source-line`）も読んで、同じ条件で作り直す。`pnpm golden` は、`examples/out/` の SVG が、今のコードの再生成と一致するかを調べる。
 
 ## 日本語の折り返し（`diagram({wrap})`）
 ラベルは文節に近い単位で折り返す（既定 `wrap: 'phrase'`）。**カタカナの連続**と**漢字の連続**は 1 語として扱い、「アプリ」が「ア / プ / リ」に割れない。英数字の連続は以前から割らない。禁則（行頭に句読点・小書きかな、行末に開き括弧を置かない）はそのまま。語が 1 行より長いときだけ、その語を 1 文字ずつ折る。従来どおり 1 文字ごとに折るなら `diagram({wrap: 'char'})`。外部の分かち書きライブラリは使わず、文字種で決める簡易な方式（ひらがなの中の助詞では切らない）。`'phrase'` と `'char'` は辞書を持たず、`'bunsetsu'` も形態素解析（`Intl.Segmenter`）は使わない（ICU の版で切れ目が変わり、出力が環境で変わるため）。
@@ -1131,6 +1166,8 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 
 ## 共通設定（`.svg-diagram.json`）
 カレントディレクトリから上へたどって見つかる。`{"accept": {"rule-id": "理由"}, "maxWidth": 940}`。図ごとの `accept` が優先される。`maxWidth` も図ごとに `diagram({maxWidth: 1200})` で変えられる（`doc-width` の閾値だけで、図の幅は変えない。広い図にするなら `width: 1200` も書く。図の値が設定ファイルに勝つ）。`accept` のキーはルール ID（`RULE_DOCS` にある名前）で、知らない ID・空の理由はファイル名つきのエラー（綴り違いで何も許容されないのを防ぐ）。許容された指摘は info に下がり、理由が添えられる。
+
+**今日の日付（`today`）**: `"today": "2026-10-19"` は、`gantt({today: 'auto'})` の日付になる（`--today` と環境変数 `SVG_DIAGRAM_TODAY` が優先。実在しない日付はファイル名つきのエラー）。「ガントチャート」の節。
 
 **文字の下限（`fontFloor`）**: `"fontFloor": 10` のように、**`diagram({canvas: {minText}})` を 14 未満に下げてよい下限**を案件として許可する（10〜14 の数。既定は 14。範囲外・数でない値はファイル名つきのエラー）。`fontFloor` だけでは図は小さくならない（許可であって、文字を縮める設定ではない）。図の `minText` が `fontFloor ?? 14` 未満だと、描画の時点で throw する（`canvas` の図だけが対象。文書向けの図、`canvas: 'slide'` / `fill`、`size` の直接指定の下限 14 は変わらない）。対象は、投影しない手元・配布用の稠密な `canvas` の図で、`slide` / `fill` の実効 12px とは別の層（「スライド 1 枚のキャンバス」）。`lint-svg` も同じ設定を、SVG のあるディレクトリから探して読む。
 
@@ -1146,7 +1183,7 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 
 ## check のルール（lib/rules.ts）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える。記法が少なく凡例が要らない図は `diagram({legend: false})` で「凡例は要らない」と宣言する。凡例を足すためだけに足さない）、`quadrant-empty-cell`（`quadrant()` に項目のないマスがある。意図した空きは `allowEmpty`）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
-`a11y-no-title`、`source-wraps`（出典行が折り返している）、`cjk-line-long`（見出し＝caption の title / display / stat と banner の headline の 1 行が、全角換算で本文幅 600px に収まる字数 — title 40・banner 37・stat 17・display 10 字 — を超える。半角は 0.5 字。目安以内でも、図が狭くて見出しが自動で折り返したときも出す。改行で分けるか短くする）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、`shrink-narrow-text`（`bpmn` / `swimlane` の `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。図を縦向きにする・2 つに分ける・文言を短くする・`maxWidth` を広げる）、`gray-tone-collision`（使っている 2 つのトーンの塗りが、白黒にすると見分けにくい。塗りを CIE L* にして、差が 10 未満なら警告。10 は、紙の白黒印刷で 2 つの平らな灰色が「違う」と読めなくなるあたり。soft（L* 約 93）と plain の白（100）が当たり、solid との組は当たらない。控えめにするトーン（muted / removed）は除く。破線の有無が違う組と、塗りが同じ組（new と accent、changed と plain。色でも塗りでは見分けていない）は除く。canvas() の、ピル（重点・中心など）で言葉にした領域は数えない。`diagram({accept})` で許容できる。`preview --gray` で目でも確かめる）、
+`a11y-no-title`、`source-wraps`（出典行が折り返している）、`stat-fit-shrunk`（情報: `stat()` の値が箱に収まらず、自動で縮めた。`accept` で許容）、`draft-status`（情報: `diagram({status: 'draft'})` のまま。`check --forbid-draft` で warn。`accept` で許容）、`stat-no-source`（`diagram({evidenceCheck})` を書いた図だけ。出典のない `stat()` の数字。info、`'strict'` で warn）、`cjk-line-long`（見出し＝caption の title / display / stat と banner の headline の 1 行が、全角換算で本文幅 600px に収まる字数 — title 40・banner 37・stat 17・display 10 字 — を超える。半角は 0.5 字。目安以内でも、図が狭くて見出しが自動で折り返したときも出す。改行で分けるか短くする）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、`shrink-narrow-text`（`bpmn` / `swimlane` の `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。図を縦向きにする・2 つに分ける・文言を短くする・`maxWidth` を広げる）、`gray-tone-collision`（使っている 2 つのトーンの塗りが、白黒にすると見分けにくい。塗りを CIE L* にして、差が 10 未満なら警告。10 は、紙の白黒印刷で 2 つの平らな灰色が「違う」と読めなくなるあたり。soft（L* 約 93）と plain の白（100）が当たり、solid との組は当たらない。控えめにするトーン（muted / removed）は除く。破線の有無が違う組と、塗りが同じ組（new と accent、changed と plain。色でも塗りでは見分けていない）は除く。canvas() の、ピル（重点・中心など）で言葉にした領域は数えない。`diagram({accept})` で許容できる。`preview --gray` で目でも確かめる）、
 `image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`edge-bends`（情報: 自動配置の図の矢印が 5 回以上折れる、または帯の平均が 3 回超。下の `layoutCheck` の節の隣）、`auto-fit-applied`（`dir` を省略した自動配置の図を、幅に収めるためにレイアウトが変えた。warn。`dir: 'auto'` は info）、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`font-floor-lowered`（情報: `canvas.minText` が 14 未満の図。「文字の下限を 14px から Npx に下げている（最小の文字 Mpx）。キャンバスは 1:1 で読まれる前提。投影には向かない」。`accept` で理由つきの info のまま許容できる）、`doc-width`（940px 以下。`maxWidth` で変更。図ごとは `diagram({maxWidth})`）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
 `lint-svg`（描画後の検査: コントラスト・キャンバスのはみ出し・文字の重なり・枠からのはみ出し・図形が文字に被る）は、SVG の幾何と文字の箱（レイアウトと同じフォントファイル）から調べる。`--engine browser` は同じ検査を実ブラウザで行う（`test/svg-lint-browser.test.ts` が両方を同じ SVG に当てて比べる。丸めの境界で 1px 違うことと、回転したグループの中のコントラストの比べ方（ブラウザ版は文字と図形を別々の座標系で比べていた）だけが違う）。
 `lint-svg` の文字の下限（`font-size-too-small`）は 14px。ただし図のルートに `data-min-text="N"`（`canvas.minText` を 14 未満にした図）があれば、それが下限になる（`--fix` も N まで引き上げる）。案件の `fontFloor ?? 14` より小さい値、または 10 以上の数でない値だと、`font-floor-not-permitted`（**エラー**）。許可された図には、失敗に数えない第 3 の階層「お知らせ」に `font-floor-lowered`（`minText Npx(案件の fontFloor M)`）を 1 行出す（`--strict` でも失敗しない）。設定は、cwd ではなく**各 SVG のあるディレクトリから上へ**探し、`--config <path>` で明示できる（`fonts` の設定も同じ設定から読む）。`data-min-text` のない SVG の挙動は変わらない。
@@ -1233,6 +1270,9 @@ d.add(flow, connect(flow.anchors.a.right, flow.anchors.b.left));   // screens() 
 |---|---|
 | `raci(tasks, roles, assignments, opts)` | 行ごとの `R` / `A` / `C` / `I`（`A/R` も可）。各タスクは A がちょうど 1 つ、R が 1 つ以上。A が不要な表だけ `allowNoA: true`。`legend: true` で凡例行。空の役割列は check の警告になる |
 | `fmea(rows, opts)` | `{item, mode, effect, cause, action, s, o, d, after?}`。S/O/D は 1〜10 の整数で、RPN = S×O×D を自動計算。`sort: 'rpn'`（降順）、`threshold`（既定 100 以上が danger）/ `midThreshold`（既定その半分以上が accent）で段階、最大の RPN は太字、`after: {s,o,d}` で改善後 RPN。見出しは `labels` で変えられる |
+| `isIsNot(rows, opts)` / `isIsNotTests(rows, hypotheses, opts)` | KT 法の IS/IS NOT 表。`rows: {dim, is, isNot, distinct?, change?}[]`（`dim` は `'what'`〔何に〕/ `'where'` / `'when'` / `'extent'`、または自分の見出し）。**違い**（IS と IS NOT の差）と**変化**（その差に関わる最近の変更）は別の列。`isIsNotTests` は仮説ごとに、スペックの行ごとの `'yes'`（説明できる）/ `'ifAssumed'`（仮定すれば。`assumes` に仮定を書く）/ `'no'`（できない）を `results` に並べる。`no` が 0 個の仮説の行は太字、そのうち仮定が最少のものに「最少の仮定」と出る（図が原因を選ぶのではなく、手がかり。`◎○△×` は QFD の ◎ = 9 点と紛れるので使わない）。検査は `isisnot-*`（下の「`check` の規則」） |
+| `whyWhyTable(problem, chains, opts)` | なぜなぜ分析の表。`chains: {whys: string[], trueCause?, measure?}[]`（1 鎖 = 1 行）。列は 問題 | なぜ 1…N（最も長い鎖）| 真因 | 対策。同じ原因を共有する鎖は同じ文を繰り返す（表に行の結合は無い）。検査は `whywhy-*`。木で描く `whyWhyTree` は別の関数 |
+| `whyWhyTree(problem, whys, {id, maxNodeW, readingNote})` | なぜなぜ分析の木（`causeTree` で描く）。`whys: {why, because?, trueCause?: true, measure?, id?}[]`（`because` は「なぜ?」の答え）。問題を上に、答えを下へ並べ（辺は原因 → 結果で、矢印は問題へ向かう）、**なぜ n は枝が変わっても同じ段**。真因（`trueCause: true`）は二重枠（役割 `root`）、`measure` は破線の箱で真因を「断つ」辺（棒）で結ぶ。`legend: 'auto'` では「根本原因」「対策」「断つ」が出る（`legendLabels: {'role:root': '真因'}` で言い換える）。返り値は木と、読む向きの 1〜2 行（`.add()` に渡す。`readingNote: false` で外す）。`opts.id` を付けると節は `<id>.w1` / `<id>.w1.1` / `<id>.w1.m`（対策）のアンカーになる。付けない図では、自分で `id` を書いた節だけがアンカー（同じ図に 2 つ置いても衝突しない）。段が多いとスライドの高さを超えやすい（スライドなら `whyWhyTable`、または段を減らす）。例は `examples/why-why.ts` |
 | `qfd(demands, characteristics, relations, opts)` | 要求 `{label, importance}` × 品質特性に `◎`(9) / `○`(3) / `△`(1) / `×`(0)。下段に得点（重要度 × 9 / 3 / 1 / 0 の列合計）と相対 %。単独首位の得点は太字（`highlight: false` で無効） |
 | `journeyMap(stages, lanes, opts)` | レーン `{id, label, cells}` をステージ横断で表示。`id: 'emotion'` は数値範囲（既定 -2〜+2）を検証し、行の上側に値と記号（中央より上 ◎、中央 △、下 ×）、その下に折れ線と点を描く。破線は範囲の中央。範囲は `emotionRange: [min, max]` |
 

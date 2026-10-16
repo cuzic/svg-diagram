@@ -4,6 +4,7 @@ import './helpers/strict-width.ts';
 import {causeTree, checkDiagram, closeMeasurer, diagram, pdpc} from '../lib/dsl.ts';
 import {layoutCauseBand, layoutCauseBandOnce} from '../lib/toc.ts';
 import {andClashes} from '../lib/cause-clash.ts';
+import {scoreOf} from '../lib/polyline-metrics.ts';
 import type {CauseBand, LaidOutCause} from '../lib/types/diagrams.ts';
 
 // ADR 0010 U1: fitting the width. Font-free: layoutCauseBand with a fixed text width, and widths measured from the figure itself.
@@ -233,4 +234,50 @@ test('causeTree(): arrows into an AND no longer run side by side (the long arrow
   const t = place(causeTree(Array.from({length: 12}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'frt', dir: 'up'}), 1800);
   assert.deepEqual(andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses'), [], 'no two arrows into an AND run side by side');
   assert.equal(t.loose.length, 0);
+});
+
+// ADR 0016 D12: the long arrow's run through the layers beside another arrow's last run into the same AND (a random 10-node tree that had one).
+test('causeTree(): a long arrow into an AND moves its way points aside when its run lies along another arrow into the same head', () => {
+  const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":["n0","n1"],"to":"n2"},{"from":"n0","to":"n3"},{"from":"n2","to":"n4"},{"from":["n0","n2","n4"],"to":"n5"},{"from":"n3","to":"n6"},{"from":["n4","n0","n1"],"to":"n7"},{"from":"n6","to":"n8"},{"from":["n5","n1"],"to":"n9"}]');
+  const t = place(causeTree(Array.from({length: 10}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'frt', dir: 'up'}), 1800);
+  assert.deepEqual(andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses'), []);
+  assert.equal(t.loose.length, 0);
+});
+
+test('causeTree(): moving a long arrow aside (ADR 0016 D12) neither brings back an AND crossing nor leaves the band', () => {
+  const up8 = JSON.parse('[{"from":"n0","to":"n1"},{"from":["n0","n1"],"to":"n2"},{"from":["n0","n2","n1"],"to":"n3"},{"from":"n3","to":"n4"},{"from":"n1","to":"n5"},{"from":"n1","to":"n6"},{"from":"n1","to":"n7"},{"from":["n0","n7","n4"],"to":"n8"},{"from":["n7","n1"],"to":"n9"},{"from":"n3","to":"n10"},{"from":"n4","to":"n11"},{"from":"n7","to":"n12"},{"from":"n3","to":"n13"}]');
+  const a = place(causeTree(Array.from({length: 14}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), up8, {tree: 'frt', dir: 'up'}), 1800);
+  assert.deepEqual(andClashes(a.edges, a.ands).filter(c => c.how === 'crosses'), [], 'no AND crossing');
+  const r94 = JSON.parse('[{"from":"n0","to":"n1"},{"from":["n1","n0"],"to":"n2"},{"from":"n0","to":"n3"},{"from":["n0","n1","n2"],"to":"n4"},{"from":"n0","to":"n5"},{"from":["n4","n5","n3"],"to":"n6"},{"from":"n6","to":"n7"},{"from":"n4","to":"n8"},{"from":["n8","n1","n2"],"to":"n9"},{"from":"n0","to":"n10"},{"from":"n2","to":"n11"},{"from":"n10","to":"n12"},{"from":"n6","to":"n8"}]');
+  const b = place(causeTree(Array.from({length: 13}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), r94, {tree: 'crt', dir: 'right'}), 1800);
+  assert.deepEqual(andClashes(b.edges, b.ands), [], 'the run beside another arrow into the AND is moved aside');
+  for (const e of b.edges) for (const p of e.points) assert.ok(p.y >= b.y - 0.5 && p.y <= b.y + b.h + 0.5, `${e.from}->${e.to} stays in the band (y ${p.y})`);
+});
+
+// ADR 0016 D13: a direct arrow's first run along the last run of another arrow into the same AND (an 11-node tree that had one).
+test('causeTree(): a direct arrow into an AND turns beside the other, so its first run does not lie along the other\'s last run', () => {
+  const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":"n1","to":"n2"},{"from":["n0","n1"],"to":"n3"},{"from":["n2","n3"],"to":"n4"},{"from":"n3","to":"n5"},{"from":"n1","to":"n6"},{"from":"n6","to":"n7"},{"from":"n3","to":"n8"},{"from":["n8","n0"],"to":"n9"},{"from":"n0","to":"n10"}]');
+  const t = place(causeTree(Array.from({length: 11}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'frt', dir: 'up'}), 1800);
+  assert.deepEqual(andClashes(t.edges, t.ands), []);
+  assert.equal(t.loose.length, 0);
+});
+
+// ADR 0016 D13: the order search is entered by the AND crossings of the figure as first laid out, before the side-by-side runs are moved aside (CRT left, 10 nodes: it was 40px taller without that).
+test('causeTree(): clearing an AND crossing by moving a run aside does not keep the order search from finding a lower figure', () => {
+  const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":["n0","n1"],"to":"n2"},{"from":"n0","to":"n3"},{"from":"n2","to":"n4"},{"from":"n2","to":"n5"},{"from":["n1","n3","n4"],"to":"n6"},{"from":"n4","to":"n7"},{"from":"n6","to":"n8"},{"from":"n5","to":"n9"},{"from":["n9","n6","n2"],"to":"n10"}]');
+  const t = place(causeTree(Array.from({length: 11}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'crt', dir: 'left'}), 1800);
+  assert.ok(t.h < 230, `height ${t.h}`);
+  assert.deepEqual(andClashes(t.edges, t.ands), []);
+});
+
+// ADR 0019 D4 (widened): the search is entered by any crossing, not only an AND's. An 8-node tree with no AND (so none to cross) had 2 crossings in the written order.
+test('causeTree(): a figure whose arrows cross with no AND involved is searched again too; the crossings only go down', () => {
+  const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":"n1","to":"n2"},{"from":"n1","to":"n3"},{"from":"n0","to":"n4"},{"from":"n4","to":"n5"},{"from":"n1","to":"n6"},{"from":"n2","to":"n7"},{"from":"n1","to":"n7"}]');
+  const band = (): CauseBand => causeTree(Array.from({length: 8}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'frt', dir: 'up'});
+  const crossings = (t: LaidOutCause): number => scoreOf(t.edges.map(e => e.points)).crossings;
+  const once = layoutCauseBandOnce(band(), 0, 0, 1800, fixedW as never, ROLES), now = place(band(), 1800);
+  assert.ok(crossings(once) >= 1, `the written order leaves a crossing (${crossings(once)})`);
+  assert.ok(crossings(now) < crossings(once), `the search lowers it (${crossings(once)} -> ${crossings(now)})`);
+  assert.ok(now.h <= once.h + 0.5, 'no taller');
+  assert.equal(now.loose.length, 0);
 });

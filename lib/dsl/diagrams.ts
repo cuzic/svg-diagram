@@ -1,10 +1,12 @@
 import {resolveIcon} from '../icon-registry.ts';
 import {CAUSE_ROLES} from '../toc.ts';
+import {ftaIds, ftaResolve, ftaSinglePoints, ftaQuant} from '../fta.ts';
 import {coreDrivers, reachCounts} from '../toc-analysis.ts';
+import {whyWhyTreeFindings} from '../rca-rules.ts';
 import {criticalPath, exact} from '../qc.ts';
 import type {ArrowActivity} from '../qc.ts';
 import type {GroupBand, RowBand, GroupRowBand} from '../types/containers.ts';
-import type {TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseRole, CauseOpts, CloudBand, CloudBox, CloudOpts, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow} from '../types/diagrams.ts';
+import type {WhyNode, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, FtaBand, FtaEvent, FtaOpts, CauseLink, CauseNode, CauseRole, CauseOpts, CloudBand, CloudBox, CloudOpts, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow} from '../types/diagrams.ts';
 import type {Band} from '../types/index.ts';
 import type {CaptionBand} from '../types/text-bands.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
@@ -156,6 +158,7 @@ function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opt
   if (opts.dir !== undefined && !['up', 'down', 'right', 'left', 'auto'].includes(opts.dir)) throw new Error(`causeTree(): dir must be 'up', 'down', 'right', 'left' or 'auto' (got ${String(opts.dir)})`);
   if (opts.maxNodeW !== undefined && opts.maxNodeW !== 'auto' && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`causeTree(): maxNodeW must be a number >= 80 or 'auto' (got ${String(opts.maxNodeW)})`);
   for (const l of links) if (l.line !== undefined && !['solid', 'dashed', 'dotted'].includes(l.line)) throw new Error(`causeTree(): link to ${l.to} has line ${String(l.line)}`);
+  if (opts.hop !== undefined && typeof opts.hop !== 'boolean') throw new Error(`causeTree(): hop must be true or false (got ${String(opts.hop)})`);
   if (opts.fold !== undefined && typeof opts.fold !== 'boolean') throw new Error(`causeTree(): fold must be true or false (got ${String(opts.fold)})`);
   if (opts.straighten !== undefined && typeof opts.straighten !== 'boolean') throw new Error(`causeTree(): straighten must be true or false (got ${String(opts.straighten)})`);
   if (opts.returns !== undefined && opts.returns !== 'inline' && opts.returns !== 'outer') throw new Error(`causeTree(): returns must be 'inline' or 'outer' (got ${String(opts.returns)})`);
@@ -180,8 +183,61 @@ function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opt
   const noted = nodes.map(n => { if (n.foldsInto === undefined) return n; const {foldsInto, ...rest} = n; return {...rest, sub: `${n.sub ? `${n.sub}　` : ''}→ ${foldsInto} に組み込む`}; });
   const counted = opts.coreDriver ? reachCounts(nodes, links) : undefined, core = new Set(counted ? coreDrivers(counted) : []);
   const marked = counted ? noted.map(n => !counted.has(n.id) || n.role === 'trim' ? n : {...n, ...(core.has(n.id) ? {core: true} : {}), ...(opts.counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}到達 UDE ${counted.get(n.id)}`})}) : noted;
-  const band: CauseBand = {type: 'cause', nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? (base === undefined ? {} : {dir: base, dirLeftOut: true as const}) : {dir: opts.dir}), ...(base === undefined ? {} : {base}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.tree === undefined ? {} : {tree: opts.tree}), ...(opts.mirrors === undefined ? {} : {mirrorOf: {ids: opts.mirrors.nodes.map(n => n.id), udes: opts.mirrors.nodes.filter(n => n.role === 'ude').map(n => n.id)}}), ...(opts.layer === undefined ? {} : {layer: opts.layer}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.fold === undefined || base !== undefined ? {} : {fold: opts.fold}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'causeTree()'), ...revealOf(opts)};
+  const band: CauseBand = {type: 'cause', nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? (base === undefined ? {} : {dir: base, dirLeftOut: true as const}) : {dir: opts.dir}), ...(base === undefined ? {} : {base}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.tree === undefined ? {} : {tree: opts.tree}), ...(opts.mirrors === undefined ? {} : {mirrorOf: {ids: opts.mirrors.nodes.map(n => n.id), udes: opts.mirrors.nodes.filter(n => n.role === 'ude').map(n => n.id)}}), ...(opts.layer === undefined ? {} : {layer: opts.layer}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.hop === undefined ? {} : {hop: opts.hop}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.fold === undefined || base !== undefined ? {} : {fold: opts.fold}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'causeTree()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
+}
+export interface WhyWhyTreeOpts extends Pick<CauseOpts, 'id' | 'maxNodeW' | 'reveal' | 'until' | 'scope'> {
+  /** Leave out the lines under the tree that say how to read it (default: they are there). */
+  readingNote?: boolean;
+}
+/**
+ * A why-why analysis (なぜなぜ分析) as a tree, drawn by causeTree(): the problem at the top, each "なぜ?" answer below the one it explains, the root cause
+ * (`trueCause: true`) in a double frame, and what is done about it (`measure`) as a dashed box that cuts it. Arrows run cause -> effect (up to the problem);
+ * "なぜ?" reads against them, downward. Returns the tree and two lines that say so: pass them to add(). Written as a table: whyWhyTable().
+ *   whyWhyTree('リリースが遅れた', [{why: '修正に時間がかかった', because: [
+ *     {why: '影響範囲が広かった', because: [{why: '検証が最後に集中していた', trueCause: true, measure: '結合テストを毎週回す'}]},
+ *     {why: '不具合の発見が遅かった'}]}])
+ */
+export function whyWhyTree(problem: string, whys: readonly WhyNode[], opts?: WhyWhyTreeOpts): (CauseBand | CaptionBand)[];
+export function whyWhyTree(problem: string, whys: readonly WhyNode[], opts: WhyWhyTreeOpts = {}): (CauseBand | CaptionBand)[] {
+  if (typeof problem !== 'string' || !problem.trim()) throw new Error('whyWhyTree(problem, whys) needs the problem as text');
+  if (!Array.isArray(whys) || whys.length === 0) throw new Error('whyWhyTree(problem, whys) needs at least one answer to "なぜ?"');
+  if (opts.readingNote !== undefined && typeof opts.readingNote !== 'boolean') throw new Error(`whyWhyTree(): readingNote is true or false (got ${String(opts.readingNote)})`);
+  const prefix = opts.id === undefined ? '' : `${opts.id}.`, nodes: CauseNode[] = [], links: CauseLink[] = [], seen = new Set<string>();
+  const add = (n: CauseNode): void => {
+    if (seen.has(n.id)) throw new Error(`whyWhyTree(): the id "${n.id}" is used twice`);
+    seen.add(n.id); nodes.push(n);
+  };
+  const problemId = `${prefix}problem`;
+  add({id: problemId, label: problem, role: 'effect', tone: 'danger'});
+  const walk = (n: WhyNode, path: string, effect: string): void => {
+    if (!n || typeof n.why !== 'string' || !n.why.trim()) throw new Error(`whyWhyTree(): "${path}" needs a why (the answer to "なぜ?" as text)`);
+    if (n.trueCause !== undefined && n.trueCause !== true) throw new Error(`whyWhyTree(): "${n.why}": trueCause is true (or leave it out)`);
+    if (n.measure !== undefined && (typeof n.measure !== 'string' || !n.measure.trim())) throw new Error(`whyWhyTree(): "${n.why}": measure is the text of what is done`);
+    if (n.because !== undefined && !Array.isArray(n.because)) throw new Error(`whyWhyTree(): "${n.why}": because is a list of whys`);
+    const id = n.id ?? `${prefix}w${path}`;
+    add({id, label: n.why, ...(n.trueCause ? {role: 'root' as const} : {})});
+    links.push({from: id, to: effect});
+    if (n.measure !== undefined) {
+      const m = `${id}.m`;
+      add({id: m, label: n.measure, role: 'measure'});
+      links.push({from: m, to: id, kind: 'blocks'});
+    }
+    (n.because ?? []).forEach((c, i) => walk(c, `${path}.${i + 1}`, id));
+  };
+  whys.forEach((w, i) => walk(w, String(i + 1), problemId));
+  const band = causeBand(nodes, links, {dir: 'auto', ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...revealOf(opts), ...scopeOpt(opts, 'whyWhyTree()')});
+  band.layerFrom = 'effect';
+  if (opts.id === undefined) band.unanchored = nodes.filter(n => !userIds(whys).has(n.id)).map(n => n.id);
+  band.rca = {kind: 'whywhy-tree', findings: whyWhyTreeFindings(whys)};
+  if (opts.readingNote === false) return [band];
+  const notes = [caption('矢印は原因 → 結果。「なぜ?」は矢印をさかのぼって（下へ）読む')];
+  if (nodes.some(n => n.role === 'measure')) notes.push(caption('対策（破線の棒）は真因に打つ手で、なぜの答えではない'));
+  return [band, ...notes];
+}
+function userIds(whys: readonly WhyNode[], out = new Set<string>()): Set<string> {
+  for (const w of whys) { if (w.id !== undefined) out.add(w.id); userIds(w.because ?? [], out); }
+  return out;
 }
 export interface ArrowDiagramOpts extends Omit<StatesOpts, 'initial' | 'dir'> {
   /** 'right' (default): the network runs left to right; 'down': top to bottom, for a long chain of events that does not fit the width. */
@@ -344,4 +400,27 @@ export function mindmap(root: TreeItem, opts: MindmapOpts = {}): TreeBand {
   const band = tree(root, {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...revealOf(opts)});
   Object.assign(band, {balanced: true, ...(opts.sides ? {sides: opts.sides} : {}), ...(opts.layout ? {layout: opts.layout} : {}), ...(opts.edges ? {edges: opts.edges} : {})});
   return band as never;
+}
+
+/** The ids of a fault tree's events: its own, and those of every input and every inhibit condition below it. */
+type FtaIds<T> = (T extends {readonly id: infer I extends string} ? I : never) | (T extends {readonly children: readonly (infer C)[]} ? FtaIds<C> : never) | (T extends {readonly condition: infer C} ? FtaIds<C> : never);
+/**
+ * A fault tree (FTA): the top event, a gate under it (and / or / vote with k / inhibit) and the events that cause it, down to basic events (circle),
+ * undeveloped events (diamond) and house events. Each event's text is a rectangle with the symbol of its kind under it; `{ref: id}` draws a
+ * basic / undeveloped / house / condition event again. The lines have no arrowheads (they join a gate to its inputs: the tree reads downward).
+ *   faultTree({label: 'サービス停止', gate: 'or', children: [
+ *     {label: 'DB 全体停止', gate: 'and', children: [{label: '主系停止', kind: 'basic'}, {id: 'sw', label: '待機系へ切替不能', kind: 'basic'}]},
+ *     {label: 'アプリ全台停止', kind: 'undeveloped'}]})
+ */
+export function faultTree<const T extends FtaEvent, const Id extends string = never>(top: T, opts?: FtaOpts & {id?: Id}): FtaBand & Declares<Id | FtaIds<T>> & HandleOf<Id> & AnchorsOf<FtaIds<T>>;
+export function faultTree(top: FtaEvent, opts: FtaOpts = {}): FtaBand {
+  if (opts.maxNodeW !== undefined && opts.maxNodeW !== 'auto' && !(typeof opts.maxNodeW === 'number' && Number.isFinite(opts.maxNodeW) && opts.maxNodeW >= 80)) throw new Error(`faultTree(): maxNodeW must be a number >= 80 or 'auto' (got ${String(opts.maxNodeW)})`);
+  if (opts.cutSets !== undefined && typeof opts.cutSets !== 'boolean') throw new Error(`faultTree(): cutSets is true or false (got ${String(opts.cutSets)})`);
+  const {root} = ftaResolve(top); // every mistake in the tree throws here, naming the event
+  if (opts.cutSets) ftaSinglePoints(root); // throws when the tree has too many cut sets to find them
+  if (opts.quant !== undefined && typeof opts.quant !== 'boolean') throw new Error(`faultTree(): quant is true or false (got ${String(opts.quant)})`);
+  if (opts.quantPeriod !== undefined && (typeof opts.quantPeriod !== 'string' || !opts.quantPeriod.trim() || !opts.quant)) throw new Error('faultTree(): quantPeriod is a non-empty string, and goes with quant: true');
+  if (opts.quant) ftaQuant(root, opts.quantPeriod); // throws for an event without p
+  const band: FtaBand = {type: 'fta', root: top, ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.cutSets === undefined ? {} : {cutSets: opts.cutSets}), ...(opts.quant === undefined ? {} : {quant: opts.quant}), ...(opts.quantPeriod === undefined ? {} : {quantPeriod: opts.quantPeriod}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'faultTree()'), ...revealOf(opts)};
+  return withAnchors(withHandle(band, opts.id), ftaIds(top));
 }

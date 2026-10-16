@@ -195,9 +195,9 @@ function unusedSpace(laidOut: LaidOutBand[], out: LayoutMetric[]): void {
   });
 }
 
-/** Everything the figure shows, as one rect (labels of shapes included). Captions (titles and the source line) and legends are furniture, not the figure. */
+/** Everything the figure shows, as one rect (labels of shapes included). Captions (titles and the source line), the status strip and legends are furniture, not the figure. */
 export function contentBox(laidOut: LaidOutBand[], tight = false): Rect | null {
-  return unionOf(laidOut.filter(b => b.type !== 'caption' && b.type !== 'legend').map(b => (tight ? drawnExtent(b) : undefined) ?? extentOf(b)).filter((r): r is Rect => r !== null));
+  return unionOf(laidOut.filter(b => b.type !== 'caption' && b.type !== 'legend' && b.type !== 'status').map(b => (tight ? drawnExtent(b) : undefined) ?? extentOf(b)).filter((r): r is Rect => r !== null));
 }
 
 /** What a flow shape (chevron, funnel, cycle, venn, concentric) actually draws: its circles, rects, polygons and texts, not the band's full-width rect. undefined for any other band. */

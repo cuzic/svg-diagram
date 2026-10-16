@@ -18,6 +18,7 @@ const textsAndLabels: TextSizes<{texts: readonly {size: number}[]; labels: reado
 
 export const FIT_HANDLERS = {
   caption: none,
+  status: band => [band.size],
   box: none,
   banner: none,
   group: none,
@@ -54,6 +55,7 @@ export const FIT_HANDLERS = {
   gantt: texts,
   classes: textsAndLabels,
   bpmn: textsAndLabels,
+  fta: texts,
 } satisfies {[T in LaidOutType]: TextSizes<LaidOutOf<T>>};
 
 /** Band types with no entry in FIT_HANDLERS: must be `never`. */

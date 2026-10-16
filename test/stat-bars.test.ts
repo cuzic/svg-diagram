@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {bars, box, checkDiagram, closeMeasurer, connect, diagram, group, renderDiagram, row, stat} from '../lib/dsl.ts';
 import {verifyDiagram} from '../lib/verify.ts';
+import {toneStyle} from '../lib/tokens.ts';
 import type {LaidOutBars, LaidOutRow} from '../lib/dsl.ts';
 
 test.after(() => closeMeasurer());
@@ -141,4 +142,19 @@ test('bars SVG includes value labels and token series colours', async () => {
   const {svg} = await renderDiagram(d, {name: 'bars.svg', budget: 'cacheOnly'});
   assert.match(svg, />76%<\/text>/);
   assert.match(svg, /fill="#1d5fa8"/);
+});
+
+test('stat({tone: accent}) fills the card with the accent tone fill, honours a tones.accent.fill override; plain and solid are unchanged', async () => {
+  const svgOf = async (tone?: 'accent' | 'solid', tones?: {accent: {fill: string}}) =>
+    (await renderDiagram(diagram({theme: 'blue', ...(tones ? {tones} : {})}).add(stat('+12%', '完了率', tone ? {tone} : {})), {name: 's.svg', budget: 'cacheOnly'})).svg;
+  const fills = (svg: string) => [...svg.matchAll(/<rect[^>]*\sfill="(#[0-9a-fA-F]{6})"/g)].map(m => m[1].toLowerCase());
+  const soft = toneStyle('accent').fill, plain = fills(await svgOf());
+  const accentFills = fills(await svgOf('accent'));
+  assert.notDeepEqual(accentFills, plain, 'the accent stat is not drawn like the plain one');
+  const overridden = fills(await svgOf('accent', {accent: {fill: '#b8cfe8'}}));
+  assert.ok(overridden.includes('#b8cfe8'), 'tones.accent.fill is what the card is filled with');
+  assert.ok(!fills(await svgOf(undefined, {accent: {fill: '#b8cfe8'}})).includes('#b8cfe8'), 'a plain stat ignores the override');
+  assert.ok(soft && fills(await svgOf('solid')).length > 0);
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(stat('+12%', '完了率', {tone: 'accent'})));
+  assert.deepEqual(verdict.problems, []);
 });

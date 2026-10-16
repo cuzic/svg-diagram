@@ -202,7 +202,9 @@ const checkImage = (band: LaidOutOf<'image'>, _d: LaidOutDiagram, {problems}: Ve
   eachOverlap(band.plates, (a, b, o) => problems.push(`image: label "${a.text}" overlaps label "${b.text}" by ${dxdy(o)} (move one: its position is a fraction of the picture)`));
 };
 
-const checkNoWrap = (b: LaidOutBox, out: VerifyOut): void => { for (const value of b.nowrapOverflow ?? []) out.problems.push(`stat: value "${value}" does not fit its box without wrapping (widen the box or use size: 'stat')`); };
+const checkNoWrap = (b: LaidOutBox, out: VerifyOut): void => {
+  for (const o of b.nowrapOverflow ?? []) out.problems.push(`stat: value "${o.value}" does not fit its box even at the smallest size (${o.min}px: needs ${Math.ceil(o.width)}px, the box has ${Math.floor(o.avail)}px).\n  fix: widen the box (span / flex / width), shorten the value, or put the unit in the label.`);
+};
 
 // quadrant(): items keep clear of each other, of every label and of the arrows; every label stays inside the figure.
 const checkQuadrant = (band: LaidOutOf<'quadrant'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
@@ -321,6 +323,7 @@ export const VERIFY_HANDLERS = {
   row: {rects: childRects, check: {phase: 'nowrap', run: (band, _d, out) => { for (const c of band.children) checkNoWrap(c, out); }}, contrast: (band, d) => band.children.flatMap(c => contrastFor(c, c.tone ?? 'plain', d))},
   grid: {rects: childRects, check: {phase: 'nowrap', run: (band, _d, out) => { for (const c of band.children) checkNoWrap(c, out); }}, contrast: (band, d) => band.children.flatMap(c => contrastFor(c, c.tone ?? 'plain', d))},
   raw: {rects: ownRect},
+  status: {rects: band => [{id: null, label: 'status badge', ...band.pill}]},
   pyramid: {rects: ownRect},
   curve: {rects: ownRect},
   plane: {rects: ownRect, check: {phase: 'plane', run: checkPlane}},
@@ -349,6 +352,7 @@ export const VERIFY_HANDLERS = {
   venn: {rects: overlappingFigureRects, check: flowCheck},
   concentric: {rects: overlappingFigureRects, check: flowCheck},
   timeline: {rects: ownRect, check: {phase: 'timeline', run: checkTimeline}},
+  fta: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'event', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
   tree: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
   states: {rects: figureRects, check: {phase: 'states', run: checkStates}},
   cause: {rects: figureRects, check: {phase: 'cause', run: checkCause}},

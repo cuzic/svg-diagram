@@ -33,6 +33,7 @@ import type {Config} from './lib/types/project.ts';
 import path from 'path';
 import fs from 'fs';
 import {ALLOWED_COLORS, DARK_COLORS, EMOJI_RE, MIN_FONT_SIZE, MIN_TEXT_ABSOLUTE} from './lib/tokens.ts';
+import {stripAutoBlock, isAuto, autoSides, DARK_NOTE} from './lib/appearance-auto.ts';
 
 const strict = process.argv.includes('--strict');
 const engineIdx = process.argv.indexOf('--engine');
@@ -144,7 +145,7 @@ for (const f of files) {
   }
 
   const usedColors = new Set<string>();
-  for (const m of src.matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) usedColors.add('#' + m[1].toLowerCase());
+  for (const m of stripAutoBlock(src).matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) usedColors.add('#' + m[1].toLowerCase());
   // a diagram that says it is dark (data-appearance) may also use the dark tokens and its own dark set (data-palette); a light one may not
   const dark = /<svg[^>]*\sdata-appearance="dark"/.test(src);
   // data-tone-colors: the colours diagram({tones}) / the config's tones put in (light or dark), allowed in either appearance
@@ -152,6 +153,16 @@ for (const f of files) {
   const offToken = [...usedColors].filter(c => !ALLOWED_COLORS.has(c) && !(dark && DARK_COLORS.has(c)) && !custom.has(c));
   if (offToken.length) {
     advisoryFindings.push({file: f, check: 'off-token-color', detail: `uses color(s) outside the token set: ${offToken.join(', ')}`});
+  }
+  // appearance: 'auto' (ADR 0023 D4): the dark side is the figure with its @media block taken out and recoloured by the dark table. It has
+  // its own allowed set (the dark tokens, the dark custom set, tone colours), kept apart from the light one so a light figure cannot pass
+  // with a dark colour in it (nor the other way round). A colour already reported on the light side is not reported twice.
+  if (isAuto(src)) {
+    const darkColors = new Set<string>();
+    for (const m of autoSides(src).dark.matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) darkColors.add('#' + m[1].toLowerCase());
+    const darkCustom = new Set([...(/<svg[^>]*\sdata-palette="([^"]*)"/.exec(src)?.[1] ?? '').split(' '), ...(/<svg[^>]*\sdata-tone-colors="([^"]*)"/.exec(src)?.[1] ?? '').split(' ')]);
+    const offDark = [...darkColors].filter(c => !DARK_COLORS.has(c) && !darkCustom.has(c) && !offToken.includes(c));
+    if (offDark.length) advisoryFindings.push({file: f, check: 'off-token-color', detail: `uses color(s) outside the token set on the dark side (${DARK_NOTE}): ${offDark.join(', ')}`});
   }
 
   // emoji glyphs need class="emoji" (Noto Color Emoji / Segoe UI Emoji fallback) — the CJK
@@ -229,20 +240,25 @@ if (engine === 'browser') {
 
 for (const f of files) {
   const src = fs.readFileSync(f, 'utf8');
-  let result: RenderChecks | null;
-  try { result = page ? await browserChecks(page, src) : geometryChecks(src, configFor(f).fonts); }
-  catch (e) {
-    const msg = (e as Error).message;
-    if (/^not well-formed XML/.test(msg)) { staticFindings.push({file: f, check: 'not-well-formed-xml', detail: `${msg} — an <img> would not load it, and the checks on the rendering cannot read it`}); continue; }
-    console.error(`✗ ${f}: the checks on the rendering could not run: ${msg}\n  (use \`--engine browser\` to draw it in a real browser instead)`);
-    process.exit(2);
+  // appearance: 'auto' is checked twice, as two SVG strings (ADR 0023 D4): the light side, and the dark side (the @media block taken out,
+  // then recoloured). Neither engine has to evaluate a media query, so the geometry engine (the default) sees both sides too.
+  const sides: {label: string; svg: string}[] = isAuto(src) ? [{label: f, svg: autoSides(src).light}, {label: `${f} (${DARK_NOTE})`, svg: autoSides(src).dark}] : [{label: f, svg: src}];
+  for (const side of sides) {
+    let result: RenderChecks | null;
+    try { result = page ? await browserChecks(page, side.svg) : geometryChecks(side.svg, configFor(f).fonts); }
+    catch (e) {
+      const msg = (e as Error).message;
+      if (/^not well-formed XML/.test(msg)) { staticFindings.push({file: f, check: 'not-well-formed-xml', detail: `${msg} — an <img> would not load it, and the checks on the rendering cannot read it`}); break; }
+      console.error(`✗ ${f}: the checks on the rendering could not run: ${msg}\n  (use \`--engine browser\` to draw it in a real browser instead)`);
+      process.exit(2);
+    }
+    if (!result) continue;
+    if (result.contrast.length) contrastFindings.push({file: side.label, elements: result.contrast});
+    if (result.overflow) overflowFindings.push({file: side.label, ...result.overflow});
+    if (result.textOverlap.length) textOverlapFindings.push({file: side.label, pairs: result.textOverlap});
+    if (result.containerOverflow.length) containerOverflowFindings.push({file: side.label, items: result.containerOverflow});
+    if (result.covered.length) coveredFindings.push({file: side.label, items: result.covered});
   }
-  if (!result) continue;
-  if (result.contrast.length) contrastFindings.push({file: f, elements: result.contrast});
-  if (result.overflow) overflowFindings.push({file: f, ...result.overflow});
-  if (result.textOverlap.length) textOverlapFindings.push({file: f, pairs: result.textOverlap});
-  if (result.containerOverflow.length) containerOverflowFindings.push({file: f, items: result.containerOverflow});
-  if (result.covered.length) coveredFindings.push({file: f, items: result.covered});
 }
 await browser?.close();
 

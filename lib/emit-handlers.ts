@@ -6,7 +6,8 @@ import {renderChart} from './charts-emit.ts';
 import {emojiSpan} from './emit-common.ts';
 import {renderWordArt} from './emit-wordart.ts';
 import {renderMath} from './emit-figures.ts';
-import {renderCaption, renderBox, renderGroup, renderLegend, renderBanner, renderRow, renderGrid, renderPyramid, renderPeople, renderDots, renderCurve, renderRaw, renderSwimlane} from './emit-boxes.ts';
+import {renderCaption, renderBox, renderGroup, renderLegend, renderBanner, renderRow, renderGrid, renderPyramid, renderPeople, renderDots, renderCurve, renderRaw, renderStatus, renderSwimlane} from './emit-boxes.ts';
+import {renderFta} from './emit-fta.ts';
 import {renderPlane, renderBars, renderImage, renderQuadrant, renderFlowShape, renderTimeline, renderTree, renderStates, renderCause, renderCloud, renderGantt, renderClasses, renderBpmn} from './emit-figures.ts';
 import {renderSequence, renderTable, renderPrims} from './emit-tables.ts';
 
@@ -19,6 +20,7 @@ export interface EmitHandler<B> {
 /** One emitter per band type, each checked against its own band type; a band type without one fails to compile. */
 export const EMIT_HANDLERS = {
   caption: {render: (b, day) => renderCaption(b, day), selfDimming: true},
+  status: {render: b => renderStatus(b)},
   box: {render: (b, day, roles) => renderBox(b, day, roles), selfDimming: true},
   banner: {render: (b, day, roles) => renderBanner(b, day, roles), selfDimming: true},
   group: {render: (b, day, roles) => renderGroup(b, day, roles), selfDimming: true},
@@ -55,6 +57,7 @@ export const EMIT_HANDLERS = {
   gantt: {render: (b, day) => renderGantt(b, day), selfDimming: true},
   classes: {render: (b, day) => renderClasses(b, day), selfDimming: true},
   bpmn: {render: (b, day) => renderBpmn(b, day), selfDimming: true},
+  fta: {render: (b, day) => renderFta(b, day), selfDimming: true},
 } satisfies {[T in LaidOutType]: EmitHandler<LaidOutOf<T>>};
 
 /** Band types with no emitter in EMIT_HANDLERS: must be `never`. */

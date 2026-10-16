@@ -1,6 +1,6 @@
 import {PALETTE, CONNECT_LABEL_SIZE, STRONG_STROKE, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
-import type {LaidOutGroup, LaidOutLegend, LaidOutRow, LaidOutGrid, LaidOutRaw, LaidOutConnect, RawColorTone} from './types/containers.ts';
+import type {LaidOutGroup, LaidOutLegend, LaidOutRow, LaidOutGrid, LaidOutRaw, LaidOutStatus, LaidOutConnect, RawColorTone} from './types/containers.ts';
 import type {Theme, EmphasisTone, Align, Rect, Roles} from './types/core.ts';
 import type {LaidOutPyramid, LaidOutCurve} from './types/figures.ts';
 import type {LaidOutPeople, LaidOutDots} from './types/people-dots.ts';
@@ -11,6 +11,7 @@ import {ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE
 import {visibleAt} from './reveal.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
 import {arrowPath, snap4, escapeXml, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
+import {ftaLegendSwatch} from './emit-fta.ts';
 
 // Numbered circle badge for box({step}) — solid accent fill, white number,
 // centered on the title's own baseline (same offset every hand-authored
@@ -103,7 +104,8 @@ export function renderLegend(band: LaidOutLegend, day: Theme, roles: Roles): str
   const parts: string[] = [];
   for (const it of band.items) {
     const cy = it.y + 12;
-    if (it.swatch || it.mark) { // a cause-tree entity (its role's box) or the core driver mark (a thick frame)
+    if (it.ftaEvent || it.ftaGate) parts.push(ftaLegendSwatch(it, cy));
+    else if (it.swatch || it.mark) { // a cause-tree entity (its role's box) or the core driver mark (a thick frame)
       const style = resolveBoxStyle(it.swatch?.tone ?? 'plain', day, it.swatch?.dashed), x = it.x + 4, y = cy - 8;
       if (it.swatch?.hex) {
         const pts = [[x + 6, y], [x + 22, y], [x + 28, cy], [x + 22, y + 16], [x + 6, y + 16], [x, cy]].map(([px, py]) => `${snap4(px)},${snap4(py)}`).join(' ');
@@ -250,6 +252,16 @@ export function renderCurve(band: LaidOutCurve, day: Theme): string {
   return parts.join('\n  ');
 }
 
+
+/**
+ * The status badge (diagram({status})): one accessible unit, a dashed outline (not colour alone says "draft"), bold text. Colours are
+ * tokens, so appearance: 'dark' recolours it like everything else; `danger` is not used (it means "an example not to follow").
+ */
+export function renderStatus(band: LaidOutStatus): string {
+  const p = band.pill;
+  const pill = pillSvg({x: snap4(p.x), y: snap4(p.y), w: snap4(p.w), h: p.h, fill: PALETTE.bg, stroke: PALETTE.muted, sw: 1.5, dash: '4 3', cx: p.x + p.w / 2, baseline: band.textY, text: PALETTE.text, size: band.size, labelHtml: emojiSpan(band.text)});
+  return `<g role="img" aria-label="${escapeXml(band.text).replace(/"/g, '&quot;')}" data-status="${band.status}">\n  ${pill}\n  </g>`;
+}
 
 export function renderRaw(band: LaidOutRaw, day: Theme): string {
   const ctx = {

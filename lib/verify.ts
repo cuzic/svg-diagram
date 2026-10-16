@@ -23,6 +23,7 @@
 // gaps — verify() is the fast, primary check; lint is the backstop.
 
 import {withTones} from './tokens.ts';
+import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {lintDiagram, walkBands} from './rules.ts';
 import {CHECK_PHASES, collectRects, contrastProblems, runCheckPhase, type VerifyOut} from './verify-handlers.ts';
 import {labelOf, neverTogether, rectOverlap} from './verify-base.ts';
@@ -115,6 +116,13 @@ function checkBounds(d: LaidOutDiagram, rects: CheckRect[]): string[] {
 // verifyDiagram(laidOutDiagram) -> {ok, problems: string[], warnings: string[]}
 // `problems` fail the build; `warnings` (text volume, and the rules of rules.ts) never do.
 export function verifyDiagram(d: LaidOutDiagram): Verdict {
+  if (d.appearance === 'auto') { // ADR 0023 D4: the figure is drawn light, and the dark scheme shows the same geometry in the dark colours: check both
+    const side = (appearance: 'light' | 'dark') => withTones(d.tones, () => verifyWith({...d, appearance}));
+    const light = side('light'), dark = side('dark');
+    const note = (s: string) => `${s} (${DARK_NOTE})`;
+    const problems = mergeSides(light.problems, dark.problems, s => s, note);
+    return {ok: problems.length === 0, problems, warnings: mergeSides(light.warnings, dark.warnings, s => s, note), findings: mergeSides(light.findings, dark.findings, f => `${f.rule}\0${f.message}`, f => ({...f, message: note(f.message)}))};
+  }
   return withTones(d.tones, () => verifyWith(d));
 }
 function verifyWith(d: LaidOutDiagram): Verdict {

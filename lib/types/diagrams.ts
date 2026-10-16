@@ -1,7 +1,7 @@
 // Types: tree, states, cause / cloud (TOC), classes and bpmn.
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
-import type {Anchor, Dimmed, EmphasisTone, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
+import type {Anchor, Dimmed, EmphasisTone, RcaInfo, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
 import type {BoxTone} from './text-bands.ts';
 import type {GanttText} from './timeline.ts';
 
@@ -147,6 +147,8 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
   /** Mark the core driver: the starting entity (nothing causes it) whose arrows bring about the most `ude` entities, 2 or more (a tie: all).
    *  Every starting entity gets the number it reaches under its text (`到達 UDE n`) unless `counts` is false. `role` is not changed. */
   coreDriver?: boolean;
+  /** Show where a return arrow crosses another line (ADR 0028): the return hops over it. Default off: nothing changes for a figure that does not write it. */
+  hop?: boolean;
   /** Which Theory of Constraints tree this is: 'crt' (current reality), 'frt' (future reality), 'prt' (prerequisite), 'tt' (transition), 'nbr' (negative branch).
    *  Only a figure that says it is checked (the `toc-*` rules of `check`); not written, nothing is checked. It never changes the drawing. */
   tree?: 'crt' | 'frt' | 'prt' | 'tt' | 'nbr';
@@ -181,7 +183,15 @@ export interface CauseBand extends CauseOpts {
   base?: 'down';
   /** `dir` was left out and the DSL wrote `base` into it: it counts as left out (may change), not as written. */
   dirLeftOut?: true;
+  /** The findings of a cause-analysis tree (whyWhyTree), worked out when it was built. Read by the checks only; never drawn. */
+  rca?: RcaInfo;
+  /** Layers count from the effect (ADR 0026 D3): every entity, root causes too, sits one layer from its nearest effect, so "why n" is the same layer in every branch. Set by whyWhyTree(), not by the author. */
+  layerFrom?: 'effect';
+  /** Entities that are not anchors (no connect() / spotlight / reveal can name them, and two figures may use the same ids). Set by whyWhyTree() for the entities it named itself, not by the author. */
+  unanchored?: readonly string[];
 }
+/** An answer to "なぜ?" in whyWhyTree(): what explains the node above it. `trueCause: true` marks the root cause; `measure` is what is done about it. */
+export interface WhyNode {id?: string; why: string; because?: readonly WhyNode[]; trueCause?: true; measure?: string}
 export type CloudBox = string | {text: string; id?: string; tone?: BoxTone};
 /** The arrow an assumption sits on: ab = B to A, ac = C to A, bd = D to B, cd = D' to C, dd = the conflict between D and D'. */
 export type CloudArrow = 'ab' | 'ac' | 'bd' | 'cd' | 'dd';
@@ -336,7 +346,9 @@ export interface LaidOutCause extends Rect, Dimmed {
   until?: number;
   nodes: (Rect & {tone: EmphasisTone; double?: boolean; /** the core driver: a thick frame and a badge */ core?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean; /** a dashed frame (a trim) */ dashed?: boolean})[];
   /** Orthogonal polylines from the cause's box edge to the effect's; the arrowhead is at the last point. */
-  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; /** a declared return (`back: true`): drawn bold */ back?: true; /** runs in a lane outside the figure (a return that skips two layers or more, see `returns`) */ outer?: true; /** only a cutting arrow has it */ kind?: 'blocks'}[];
+  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; /** a declared return (`back: true`): drawn bold */ back?: true; /** runs in a lane outside the figure (a return that skips two layers or more, see `returns`) */ outer?: true; /** only a cutting arrow has it */ kind?: 'blocks'; /** a return the layout turned around (`back`, an outer lane, or a cycle it cut), only with `hop` */ reversed?: true}[];
+  /** Only with `hop` (ADR 0028): where a return crosses another line, by index into `edges`; `skipped` says why that one gets no hop. */
+  crossings?: {over: number; under: number; x: number; y: number; side: {x: number; y: number}; skipped?: string}[];
   /** The arc across the arrows of an AND: a quadratic curve p0 - c - p1. */
   ands: {to: string; /** the causes it joins */ from: string[]; p0: {x: number; y: number}; c: {x: number; y: number}; p1: {x: number; y: number}}[];
   /** Effects whose AND arrows could not be joined by an arc (they do not arrive on one side of the effect). */
@@ -393,6 +405,70 @@ export interface LaidOutBpmn extends Rect, Dimmed {
   texts: GanttText[];
   /** Flow conditions: a white chip with its text baseline at (tx, ty), in `size` px; `edge` is the index of its flow in `edges`. */
   labels: (Rect & {text: string; tx: number; ty: number; size: number; edge: number})[];
+  anchors: Anchor[];
+  labelBoxes: (Rect & {label: string})[];
+}
+
+/** What a fault tree event is (ADR 0025 D2): the output of a gate (a rectangle, the default), a basic event (a circle), one left undeveloped (a diamond), a house event (a house), or the condition of an inhibit gate (an ellipse). */
+export type FtaKind = 'event' | 'basic' | 'undeveloped' | 'house' | 'condition';
+export type FtaGate = 'and' | 'or' | 'vote' | 'inhibit';
+export interface FtaEvent {
+  /** Names the event: another place can repeat it with `{ref: id}`, and connect() / spotlight / reveal can reach it. */
+  id?: string;
+  /** The text of the event (not for a `{ref}`). */
+  label?: string;
+  /** A second, muted line. */
+  sub?: string;
+  kind?: FtaKind;
+  /** The gate under the event (`kind: 'event'` needs one, with `children`). */
+  gate?: FtaGate;
+  children?: FtaEvent[];
+  /** `vote`: the event happens when `k` of the inputs do (1 <= k <= number of inputs). */
+  k?: number;
+  /** `inhibit`: the condition event (one input in `children`, one condition here). */
+  condition?: FtaEvent;
+  /** The probability of a basic / undeveloped / condition event, 0 to 1. */
+  p?: number;
+  /** A house event: true = it always happens, false = it never does. */
+  state?: boolean;
+  /** Draw the event that has this `id` again (a basic, undeveloped, house or condition event only); no other field. */
+  ref?: string;
+}
+export interface FtaOpts extends RevealOpts, ScopeOpts {
+  /** The widest an event box grows (default 200). Left out, it is narrowed (to 110) when the tree is wider than the diagram (a warning);
+   *  'auto' does the same as a note; a number is never narrowed (a tree that does not fit is an error). */
+  maxNodeW?: number | 'auto';
+  /** Mark the events that alone bring the top event about (the minimal cut sets of size 1) with a heavy outline and a badge. Throws when the tree has too many cut sets to find them. */
+  cutSets?: boolean;
+  /** Work out the probability of the top event from the `p` of the events (independent events; every basic event needs `p`) and write it under the tree. */
+  quant?: boolean;
+  /** The period `p` is over, written in the note (`quant` only): '1 年間'. */
+  quantPeriod?: string;
+  id?: string;
+}
+export interface FtaBand extends FtaOpts {
+  type: 'fta';
+  /** The top event, with the tree under it (not `top`: a band with an id has the handle `.top`). */
+  root: FtaEvent;
+}
+export interface LaidOutFta extends Rect, Dimmed {
+  type: 'fta';
+  id?: string;
+  reveal?: number;
+  until?: number;
+  fitApplied?: FitApplied[];
+  /** The box of each event drawn (a `ref` draws its event again; only the first has `id`). */
+  nodes: (Rect & {kind: FtaKind; id?: string})[];
+  /** The symbol under a basic / undeveloped / house / condition event. */
+  marks: (Rect & {kind: FtaKind; single?: true})[];
+  /** The note under the tree (opts `quant`): the probability of the top event and what it assumes. */
+  note?: string;
+  /** The label under a single point of failure (opts `cutSets`). */
+  badges: (Rect & {text: string; size: number})[];
+  gates: (Rect & {gate: FtaGate; label?: {text: string; size: number}})[];
+  /** Gate output to event, gate input to its children, inhibit gate to its condition. */
+  edges: {points: {x: number; y: number}[]}[];
+  texts: TreeNodeText[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];
 }
