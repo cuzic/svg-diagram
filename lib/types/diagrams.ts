@@ -1,7 +1,7 @@
 // Types: tree, states, cause / cloud (TOC), classes and bpmn.
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
-import type {Anchor, Dimmed, EmphasisTone, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
+import type {Anchor, Dimmed, EmphasisTone, RcaInfo, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
 import type {BoxTone} from './text-bands.ts';
 import type {GanttText} from './timeline.ts';
 
@@ -183,6 +183,8 @@ export interface CauseBand extends CauseOpts {
   base?: 'down';
   /** `dir` was left out and the DSL wrote `base` into it: it counts as left out (may change), not as written. */
   dirLeftOut?: true;
+  /** The findings of a cause-analysis tree (whyWhyTree), worked out when it was built. Read by the checks only; never drawn. */
+  rca?: RcaInfo;
 }
 export type CloudBox = string | {text: string; id?: string; tone?: BoxTone};
 /** The arrow an assumption sits on: ab = B to A, ac = C to A, bd = D to B, cd = D' to C, dd = the conflict between D and D'. */

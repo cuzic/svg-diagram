@@ -1,11 +1,12 @@
 import {controlChartOpts} from '../qc-plane.ts';
 import {ticksOf} from '../plane.ts';
 import {checkSheetParts, matrixParts} from '../qc-table.ts';
-import {fmeaParts, journeyMapParts, qfdParts, raciParts} from '../semantic-table.ts';
+import {fmeaParts, isIsNotDimLabel, isIsNotParts, isIsNotTestsParts, journeyMapParts, qfdParts, raciParts} from '../semantic-table.ts';
+import {isIsNotFindings, isIsNotTestFindings} from '../rca-rules.ts';
 import {canvasBand} from '../canvas.ts';
 import type {CanvasContent, CanvasKey, CanvasOpts, CanvasTemplate, LooseCanvasOpts} from '../canvas.ts';
 import type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from '../qc-table.ts';
-import type {FmeaOpts, FmeaRow, JourneyLane, JourneyMapOpts, JourneyStage, QfdDemand, QfdOpts, RaciAssignment, RaciOpts} from '../semantic-table.ts';
+import type {FmeaOpts, FmeaRow, IsIsNotHypothesisInput, IsIsNotInputRow, IsIsNotOpts, IsIsNotTestsOpts, JourneyLane, JourneyMapOpts, JourneyStage, QfdDemand, QfdOpts, RaciAssignment, RaciOpts} from '../semantic-table.ts';
 import type {AttributeSample, ControlChartOpts, ControlType} from '../qc-plane.ts';
 import type {GridBand} from '../types/containers.ts';
 import type {PlaneBand, PlaneOpts} from '../types/figures.ts';
@@ -79,6 +80,28 @@ export function raci(tasks: readonly string[], roles: readonly string[], assignm
 export function fmea<const Id extends string = never>(rows: readonly FmeaRow[], opts?: FmeaOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
 export function fmea(rows: readonly FmeaRow[], opts: FmeaOpts = {}): TableBand {
   const p = fmeaParts(rows, opts); return table(p.columns, p.rows, p.opts);
+}
+/**
+ * A Kepner-Tregoe IS / IS NOT table: what the problem is and, for each of what / where / when / extent, what it could be but is not. The
+ * "違い" column is what sets the two apart, "変化" what changed around that difference. A row's `dim` is 'what' | 'where' | 'when' | 'extent' or your own heading.
+ *   isIsNot([{dim: 'what', is: 'API A のタイムアウト', isNot: 'API B は正常', distinct: 'A だけ外部 DB を使う', change: '接続設定を変更'}])
+ */
+export function isIsNot<const Id extends string = never>(rows: readonly IsIsNotInputRow[], opts?: IsIsNotOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
+export function isIsNot(rows: readonly IsIsNotInputRow[], opts: IsIsNotOpts = {}): TableBand {
+  const p = isIsNotParts(rows, opts), band = table(p.columns, p.rows, p.opts);
+  band.rca = {kind: 'isisnot', findings: isIsNotFindings(rows, isIsNotDimLabel)};
+  return band;
+}
+/**
+ * The hypotheses tested against an IS / IS NOT table: for each row, can this cause explain it (yes / only if something is assumed / no)?
+ * A hypothesis that explains every row is in bold, and the one with the fewest assumptions says so; the figure does not pick the cause.
+ *   isIsNotTests(rows, [{text: '接続設定の変更', results: ['yes', 'yes', 'ifAssumed'], assumes: ['古い接続が残っていた']}])
+ */
+export function isIsNotTests<const Id extends string = never>(rows: readonly IsIsNotInputRow[], hypotheses: readonly IsIsNotHypothesisInput[], opts?: IsIsNotTestsOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
+export function isIsNotTests(rows: readonly IsIsNotInputRow[], hypotheses: readonly IsIsNotHypothesisInput[], opts: IsIsNotTestsOpts = {}): TableBand {
+  const p = isIsNotTestsParts(rows, hypotheses, opts), band = table(p.columns, p.rows, p.opts);
+  band.rca = {kind: 'isisnot', findings: isIsNotTestFindings(p.hypotheses)};
+  return band;
 }
 /** Quality function deployment: weighted customer demands against quality characteristics. */
 export function qfd<const Id extends string = never>(demands: readonly QfdDemand[], characteristics: readonly string[], relations: readonly (readonly MatrixMark[])[], opts?: QfdOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;

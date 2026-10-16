@@ -1,7 +1,7 @@
 // Types: sequence, table and swimlane.
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
-import type {Align, Arrow, Bend, Dimmed, LineStyle, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
+import type {Align, Arrow, Bend, Dimmed, LineStyle, Rect, RevealOpts, RcaInfo, ScopeOpts, TextTone} from './core.ts';
 import type {BoxBand, BoxOpts, BoxTone, LaidOutBox} from './text-bands.ts';
 
 export interface SequenceActor {
@@ -127,6 +127,8 @@ export interface TableBand {
   until?: number;
   /** Domain warnings attached by a semantic table constructor and reported by svg-diagram check. */
   semanticWarnings?: readonly string[];
+  /** The findings of a cause-analysis table (isIsNot, whyWhyTable), worked out when it was built. Read by the checks only; never drawn. */
+  rca?: RcaInfo;
   /** A small score curve drawn in the lower part of one body row (used by journeyMap's emotion lane). */
   rowCurve?: {row: number; values: readonly number[]; min: number; max: number};
 }

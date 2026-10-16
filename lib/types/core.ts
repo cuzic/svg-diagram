@@ -151,6 +151,12 @@ export type EvidenceCheck = 'info' | 'strict';
 export type TocCheck = 'info' | 'strict';
 /** diagram({rcaCheck}): the severity of the cause-analysis findings (fault tree, IS / IS NOT, why-why, bow-tie). */
 export type RcaCheck = 'info' | 'strict';
+/** Which cause-analysis figure a table or tree was built by (ADR 0026 D1). */
+export type RcaKind = 'isisnot' | 'whywhy-table' | 'whywhy-tree';
+/** One finding of a cause-analysis figure, worked out when the figure was built. `severity: 'info'` stays info under diagram({rcaCheck: 'strict'}). */
+export interface RcaFinding {rule: 'isisnot-no-isnot' | 'isisnot-no-distinct-at-all' | 'isisnot-no-hypothesis-stands'; message: string; severity?: 'info'}
+/** The `rca` field of a table or cause tree: its findings, read by rcaRules() and never by the drawing. */
+export interface RcaInfo {kind: RcaKind; findings: RcaFinding[]}
 /** diagram({layoutCheck}): the severity of the `layout-*` findings. */
 export type LayoutCheck = 'info' | 'strict';
 /** diagram({status}): the state of the whole figure. Only 'draft' for now. */
