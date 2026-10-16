@@ -1,6 +1,6 @@
 # ADR 0029: 誤読を防ぐ作図の拡張(技術書 459 枚の目視レビューから。役割の見た目・語を割らない幅・戻り矢印・チャートの軸と範囲)
 
-- 状態: 起票(Opus 3 巡のレビューで収束。P0・P1 なし。実測の節を追加)。**D1(`roleTags`)と D3 第 1 段(`keepWords`)は実装済み**(PR 本文を参照)
+- 状態: 起票(Opus 3 巡のレビューで収束。P0・P1 なし。実測の節を追加)。**D1(`roleTags`)、D3 第 1 段(`keepWords`)、D5 の `domain` と `chart-axis-mismatch` は実装済み**(PR 本文を参照)
 - 日付: 2026-10-16
 - 基点: `main`(53e029a、PR #252 まで)。**依存**: 検査 `text-mid-word-break` / `toc-injection-to-obstacle`(#256)、`loop-under` の案内(#260)は、この ADR の時点で未マージ。D2・D3 の「割れは検査が拾う」は #256 のマージが前提
 - 関連: ADR 0010(幅の自動調整)、ADR 0015(TOC 因果ツリー)、ADR 0016(経路)、ADR 0028(飛び越し線)、ADR 0007(核と殻)
@@ -65,7 +65,7 @@
 
 ### D5. チャートの軸: `domain` と検査を同じ PR で、共有はその上に
 
-1. 各チャート(waterfall / stacked / tornado / butterfly)に `domain` opt を足す(`bars` の `max` に相当)。
+1. 各チャート(waterfall / stacked(積み上げのみ)/ tornado)に `domain` opt を足す(**butterfly は値の軸を持たず、左右で最大値を共有するだけなので、この PR では対象外**)(`bars` の `max` に相当)。
 2. 検査 `chart-axis-mismatch` を**同じ PR で**入れる(`domain` が無い warn は、直す手段が `accept` しかなくなるため)。**条件を絞る**: 「**値の軸が見た目で揃う並び**」だけを warn。`row` / `grid` の子は箱だけ(`BoxBand[]`。`lib/types/containers.ts:136,170`)で、チャートは `row` / `grid` の子になれず(「兄弟」という定義だと検査は一度も出ない)、(1) 同じ `grouprow` の別々の `group` の中(子孫でもよい)にある、**値の軸が縦**のチャートどうし(横に並べると高さを比べて読む)、(2) 同じ親の中(図の直下、または同じ `group` の直下)で、間に別のチャートを挟まず縦に続く、**値の軸が横**のチャートどうし(縦に積むと長さを比べて読む)。向きは `dir` を持つチャートでは `dir`、`tornado` / `butterfly` のように `dir` が無いものでは、その kind が固定で持つ値の軸の向きで決める。どちらでも、同じ `unit` を持ち、`axisGroup: false` が付いていないもの。`unit` が無いチャートは検査しない。それ以外の組は出さない。`examples/chart-waterfall.ts`(`unit: '百万円'` の waterfall。縦に続くが `v` と `h`)は定義から自然に外れることを test で固定する。**書籍の事故の図(投資 0〜6、リターン 0〜10)の並び方が (1) と (2) のどちらで拾えるかを、書籍の実物で確かめて test の固定値にする**(実物を見ずに条件を決めると、また事故の図に届かない規則になる。順序の 3)。出口は `accept` と、意図して別軸にする `axisGroup: false`。`bars` は `max` を省くと軸の上端をデータの最大値のまま(丸めない。`lib/dsl/bars.ts:61-62`)ので、`unit` が同じ bars が兄弟にあればほぼ必ず上端がずれる。これも条件(兄弟・同じ向き・同じ unit)に含めて、`max` を書く案内を直し方にする。
 3. 共有: チャート側は `axisGroup?: string | false`、図の側は `diagram({sharedAxes: true})`(`scale` は `funnel` / `clustermap` / `boxplot` / `violin` で別の意味に使われているので使わない)。pre-layout の pass(`lib/pipeline.ts`。D4 の順序のとおり)で、`valueExtent(spec)` を各 kind に 1 つずつ置き、layout と rules と pass が**同じ関数**を呼ぶ(式を重複させない)。共有するとき、`bars` の `max` も `niceScale` で切り上げる。入力は複製した後のデータなので、作者の band は汚さない。
 4. **約束するのは「同じ domain になる」まで**。プロットの高さ・幅は layout の中で(カテゴリ名の折り返しの計測を含めて)決まる(`charts-waterfall.ts:93-98`、`layout-measure.ts:118`)ので、layout の前の pass では揃えられない。長さが揃わないときは post-layout の info(「軸は共有したが、プロットの高さが 212px と 248px で違う。`height` を揃える」)を出す。そのため `LaidOutChartPart` にプロットの範囲を残す。

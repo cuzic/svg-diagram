@@ -2,7 +2,7 @@
 // as 100% columns; mekko() (マリメッコ) makes the width of a column proportional to its total and the height of a segment its share of
 // the column, so the area of a segment is its share of the whole. Every segment prints its number; one too small for it is left out of
 // the drawing and stays in the description.
-import {Canvas, checkIds, checkText, fail, finiteNum, inkOnShade, niceScale, numText, shadeOps} from './charts-base.ts';
+import {Canvas, checkDomain, checkIds, checkText, fail, finiteNum, inkOnShade, numText, shadeOps, valueScale} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
 
 export interface StackPart {label: string; value: number}
@@ -11,9 +11,13 @@ export interface StackedOpts extends ChartOpts {
   unit?: string;
   /** 100% columns (each column's parts as shares of its total). */
   percent?: boolean;
+  /** The value axis's end points `[lo, hi]` of the stacked (not percent / mekko) columns, widened to round ticks, so that two charts can share one axis. Smaller than the data is an error. Default: from the data. */
+  domain?: readonly [number, number];
+  /** false: this chart's axis is its own on purpose (chart-axis-mismatch leaves it alone). */
+  axisGroup?: false;
 }
 export type StackMode = 'stacked' | 'percent' | 'mekko';
-export interface StackedSpec {mode: StackMode; series: string[]; columns: {label: string; values: number[]; total: number; id?: string}[]; unit: string}
+export interface StackedSpec {mode: StackMode; series: string[]; columns: {label: string; values: number[]; total: number; id?: string}[]; unit: string; domain?: [number, number]; axisGroup?: false}
 
 export function resolveStacked(who: string, columns: readonly StackColumn[], mode: StackMode, opts: StackedOpts): StackedSpec {
   if (!Array.isArray(columns) || columns.length === 0) fail(who, 'needs at least one column');
@@ -40,9 +44,17 @@ export function resolveStacked(who: string, columns: readonly StackColumn[], mod
     return {label: c.label, values, total, ...(c.id === undefined ? {} : {id: c.id})};
   });
   if (mode === 'stacked' && cols.every(c => c.total === 0)) fail(who, 'every column is 0');
-  return {mode, series, columns: cols, unit: opts.unit ?? ''};
+  if (opts.axisGroup !== undefined && opts.axisGroup !== false) fail(who, `axisGroup must be false (this chart's axis is its own) or left out (got ${JSON.stringify(opts.axisGroup)})`);
+  const domain = checkDomain(who, opts.domain);
+  if (domain && mode !== 'stacked') fail(who, 'domain is for stacked columns (percent and mekko have no value axis to share)');
+  const spec: StackedSpec = {mode, series, columns: cols, unit: opts.unit ?? '', ...(domain ? {domain} : {}), ...(opts.axisGroup === false ? {axisGroup: false as const} : {})};
+  stackedScale(spec);
+  return spec;
 }
 const pct = (v: number, total: number): string => `${numText(Math.round(v / total * 1000) / 10)}%`;
+/** The value axis of stacked columns (undefined for percent / mekko): from the largest column total, or the `domain`. */
+export const stackedScale = (s: StackedSpec): ReturnType<typeof valueScale> | undefined =>
+  s.mode === 'stacked' ? valueScale('stackedBars', 0, Math.max(...s.columns.map(c => c.total)), s.domain) : undefined;
 const segText = (s: StackedSpec, v: number, total: number): string => s.mode === 'stacked' ? `${numText(v)}${s.unit}` : pct(v, total);
 export function stackedAlt(s: StackedSpec): string {
   const name = s.mode === 'mekko' ? 'マリメッコ図' : s.mode === 'percent' ? '100%積み上げ棒グラフ' : '積み上げ棒グラフ';
@@ -57,7 +69,7 @@ export function stackedTexts(s: StackedSpec): [string, number][] {
     if (s.mode === 'mekko') out.push([`（${pct(c.total, s.columns.reduce((a, b) => a + b.total, 0))}）`, 400]);
     s.series.forEach((n, i) => { if (c.values[i] > 0) out.push([segText(s, c.values[i], c.total), 700], [`${n} ${segText(s, c.values[i], c.total)}`, 700]); });
   }
-  const top = s.mode === 'stacked' ? niceScale(0, Math.max(...s.columns.map(c => c.total))) : undefined;
+  const top = stackedScale(s);
   if (top) for (const t of top.ticks) out.push([numText(t), 400]);
   else for (const t of [0, 20, 40, 60, 80, 100]) out.push([`${t}%`, 400]);
   return out.flatMap(([t, w]) => [[t, 400], [t, 700]] as [string, number][]);
@@ -65,7 +77,7 @@ export function stackedTexts(s: StackedSpec): [string, number][] {
 
 export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
   const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), lh = c.lineH(), n = s.columns.length;
-  const scale = s.mode === 'stacked' ? niceScale(0, Math.max(...s.columns.map(k => k.total))) : undefined;
+  const scale = stackedScale(s);
   const ticks = scale ? scale.ticks.map(t => ({v: t, f: t / scale.max, s: numText(t)})) : [0, 20, 40, 60, 80, 100].map(t => ({v: t, f: t / 100, s: `${t}%`}));
   const tickW = Math.max(...ticks.map(t => c.tw(t.s)));
   const plotL = g.x + tickW + 16, plotR = g.x + g.w - 8, gap = s.mode === 'mekko' ? 3 : 14;

@@ -1,6 +1,6 @@
 // tornado(): a sensitivity chart. Each row is one input; its two bars run from the base result to the result in the low case and in the
 // high case, so the longest row is the input the result is most sensitive to and the rows fall in order of that length.
-import {Canvas, checkIds, checkText, fail, finiteNum, niceScale, numText, thinTicks} from './charts-base.ts';
+import {Canvas, checkDomain, checkIds, checkText, fail, finiteNum, numText, thinTicks, valueScale} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 
 export interface TornadoItem {
@@ -25,8 +25,18 @@ export interface TornadoOpts extends ChartOpts {
   /** Colours of the low and the high bars (default text / accent). */
   lowTone?: ChartTone;
   highTone?: ChartTone;
+  /** The value axis's end points `[lo, hi]` (widened to round ticks), so that two charts can share one axis. Smaller than the data (and the base) is an error. Default: from the data. */
+  domain?: readonly [number, number];
+  /** false: this chart's axis is its own on purpose (chart-axis-mismatch leaves it alone). */
+  axisGroup?: false;
 }
-export interface TornadoSpec {items: TornadoItem[]; base: number; unit: string; lowLabel: string; highLabel: string; baseLabel: string; lowTone: ChartTone; highTone: ChartTone}
+export interface TornadoSpec {items: TornadoItem[]; base: number; unit: string; lowLabel: string; highLabel: string; baseLabel: string; lowTone: ChartTone; highTone: ChartTone; domain?: [number, number]; axisGroup?: false}
+
+/** The value axis of a tornado: from the base and every case, or the `domain`. */
+export function tornadoScale(s: TornadoSpec): ReturnType<typeof valueScale> {
+  const all = s.items.flatMap(i => [i.low, i.high]);
+  return valueScale('tornado', Math.min(s.base, ...all), Math.max(s.base, ...all), s.domain);
+}
 
 export function resolveTornado(items: readonly TornadoItem[], opts: TornadoOpts): TornadoSpec {
   if (!Array.isArray(items) || items.length === 0) fail('tornado', 'needs at least one item');
@@ -38,7 +48,11 @@ export function resolveTornado(items: readonly TornadoItem[], opts: TornadoOpts)
   const ordered = opts.sort === false ? list : [...list].sort((a, b) => Math.abs(b.high - b.low) - Math.abs(a.high - a.low) || list.indexOf(a) - list.indexOf(b));
   const tones = ['accent', 'danger', 'muted', 'text'];
   for (const k of ['lowTone', 'highTone'] as const) if (opts[k] !== undefined && !tones.includes(opts[k] as string)) fail('tornado', `${k} must be accent, danger, muted or text`);
-  return {items: ordered, base, unit: opts.unit ?? '', lowLabel: opts.lowLabel ?? '低ケース', highLabel: opts.highLabel ?? '高ケース', baseLabel: opts.baseLabel ?? '基準', lowTone: opts.lowTone ?? 'text', highTone: opts.highTone ?? 'accent'};
+  if (opts.axisGroup !== undefined && opts.axisGroup !== false) fail('tornado', `axisGroup must be false (this chart's axis is its own) or left out (got ${JSON.stringify(opts.axisGroup)})`);
+  const domain = checkDomain('tornado', opts.domain);
+  const spec: TornadoSpec = {items: ordered, base, unit: opts.unit ?? '', lowLabel: opts.lowLabel ?? '低ケース', highLabel: opts.highLabel ?? '高ケース', baseLabel: opts.baseLabel ?? '基準', lowTone: opts.lowTone ?? 'text', highTone: opts.highTone ?? 'accent', ...(domain ? {domain} : {}), ...(opts.axisGroup === false ? {axisGroup: false as const} : {})};
+  tornadoScale(spec);
+  return spec;
 }
 export function tornadoAlt(s: TornadoSpec): string {
   return `トルネード図（${s.baseLabel} ${numText(s.base)}${s.unit}）: ${s.items.map(i => `${i.label} ${s.lowLabel} ${numText(i.low)}${s.unit}・${s.highLabel} ${numText(i.high)}${s.unit}`).join('、')}`;
@@ -47,14 +61,14 @@ export function tornadoTexts(s: TornadoSpec): [string, number][] {
   const out: [string, number][] = [[s.lowLabel, 400], [s.highLabel, 400], [`${s.baseLabel} ${numText(s.base)}${s.unit}`, 700]];
   for (const i of s.items) out.push([i.label, 400], [`${numText(i.low)}${s.unit}`, 700], [`${numText(i.high)}${s.unit}`, 700]);
   const all = s.items.flatMap(i => [i.low, i.high]);
-  for (const t of niceScale(Math.min(s.base, ...all), Math.max(s.base, ...all)).ticks) out.push([numText(t), 400]);
+  for (const t of tornadoScale(s).ticks) out.push([numText(t), 400]);
   return out;
 }
 
 export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
   const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf);
   const all = s.items.flatMap(i => [i.low, i.high]);
-  const sc = niceScale(Math.min(s.base, ...all), Math.max(s.base, ...all));
+  const sc = tornadoScale(s);
   const vText = (v: number) => `${numText(v)}${s.unit}`;
   const labelW = Math.min(Math.max(...s.items.map(i => c.tw(i.label))) + 14, g.w * 0.34);
   const valW = Math.max(...s.items.flatMap(i => [c.tw(vText(i.low), true), c.tw(vText(i.high), true)])) + 10;
