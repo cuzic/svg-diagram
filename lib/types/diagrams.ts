@@ -185,7 +185,13 @@ export interface CauseBand extends CauseOpts {
   dirLeftOut?: true;
   /** The findings of a cause-analysis tree (whyWhyTree), worked out when it was built. Read by the checks only; never drawn. */
   rca?: RcaInfo;
+  /** Layers count from the effect (ADR 0026 D3): every entity, root causes too, sits one layer from its nearest effect, so "why n" is the same layer in every branch. Set by whyWhyTree(), not by the author. */
+  layerFrom?: 'effect';
+  /** Entities that are not anchors (no connect() / spotlight / reveal can name them, and two figures may use the same ids). Set by whyWhyTree() for the entities it named itself, not by the author. */
+  unanchored?: readonly string[];
 }
+/** An answer to "なぜ?" in whyWhyTree(): what explains the node above it. `trueCause: true` marks the root cause; `measure` is what is done about it. */
+export interface WhyNode {id?: string; why: string; because?: readonly WhyNode[]; trueCause?: true; measure?: string}
 export type CloudBox = string | {text: string; id?: string; tone?: BoxTone};
 /** The arrow an assumption sits on: ab = B to A, ac = C to A, bd = D to B, cd = D' to C, dd = the conflict between D and D'. */
 export type CloudArrow = 'ab' | 'ac' | 'bd' | 'cd' | 'dd';

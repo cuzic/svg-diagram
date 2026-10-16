@@ -136,7 +136,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   // One whole attempt: the node text wrapped at maxW and the layout turned to dir. Everything that depends on either is in here.
   // ALAP (ADR 0019 D1): the entities where a cause starts stay on the first layer; the input side (preconditions, obstacles, actions) moves up to its effects
   const layerMode = band.layer ?? (band.tree === 'prt' || band.tree === 'frt' || band.tree === 'tt' || band.tree === 'nbr' ? 'alap' : 'asap');
-  const alap = layerMode === 'alap' ? {keep: band.nodes.filter(n => n.role === 'root' || n.role === 'injection' || n.role === 'start').map(n => n.id)} : undefined;
+  const alap = band.layerFrom === 'effect' ? {keep: []} : layerMode === 'alap' ? {keep: band.nodes.filter(n => n.role === 'root' || n.role === 'injection' || n.role === 'start').map(n => n.id)} : undefined;
   // the 中核 badge sits outside the frame, at the end of the axis the arrows run along: the figure keeps that room free at both ends (H7)
   const badgeRoom = band.nodes.some(n => n.core) ? CORE_BADGE_H + CORE_BADGE_GAP : 0;
   const padOf = (vertical: boolean): {x: number; y: number} => ({x: vertical ? 0 : badgeRoom, y: vertical ? badgeRoom : 0});
@@ -217,7 +217,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   for (const n of band.nodes) {
     const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
     out.nodes.push({...r, tone: n.tone ?? role.tone, ...(role.double ? {double: true} : {}), ...(role.dashed ? {dashed: true} : {}), ...(n.core ? {core: true} : {}), ...(n.role === 'obstacle' || n.role === 'risk' ? {hex: true} : {})});
-    out.anchors.push({id: n.id, ...r});
+    if (!band.unanchored?.includes(n.id)) out.anchors.push({id: n.id, ...r});
     const l = lines.get(n.id)!;
     out.texts.push(...nodeRuns({x: r.x + (r.w - l.w) / 2, y: r.y + (r.h - l.h) / 2, w: l.w}, l, roles));
     out.labelBoxes.push({label: n.label, ...r});
