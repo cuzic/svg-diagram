@@ -25,6 +25,7 @@
   },
   "scripts": {
     "test": "node --test \"test/*.test.ts\"",
+    "validate:pptx": "node test/helpers/pptx/validate.ts examples/*.ts",
     "golden:pptx": "node test/helpers/pptx/golden.ts examples/*.ts",
     "golden": "node --import ./test/helpers/strict-width.ts check-diagram.ts --drift --rebuild --svg-dir examples/out examples/*.ts",
     "typecheck": "tsc -p .",

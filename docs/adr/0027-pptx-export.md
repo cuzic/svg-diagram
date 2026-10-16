@@ -157,3 +157,4 @@ PoC で未完のもの(後続):
 - PNG のバイト列が決定的なのは、`rasterFonts` に測定と同じフォントファイルを渡したときだけ。`[]` はシステムフォントで描くので、マシンに依存する。
 - 後続: 測定に使ったフォントを `LaidOutDiagram` に持たせ(`roles` と同じ形)、`rasterFonts` の引数をなくす。`emit-html.ts` が同じ `currentFontSpecs()` を読んでいるので、両方を一緒に直す。
 - 回帰の網: `pnpm golden:pptx` が全 examples の「スライド XML + 画像バンドの SVG」の SHA-256 を `examples/out/pptx-golden.json` と比べる(PNG はマシンのフォントに依存するので対象外)。意図した出力の変更のときは `node test/helpers/pptx/golden.ts --update examples/*.ts` で更新し、差分の名前を確かめてからコミットする。
+- スキーマ検証: `pnpm validate:pptx`(初回は `--fetch` で ECMA-376 第 5 版 Part 4 の transitional XSD を `.cache/ooxml-xsd/` に取得、SHA-256 を固定)が全 examples のスライドを `pml.xsd` と `xmllint` で検査する。146 本とも合格。通るのは「スキーマに合う」ことまでで、「PowerPoint が修復を求めない」ことの保証ではない(実機待ちの項目は残る)。Open XML SDK の `OpenXmlValidator` はより厳しい(意味の検査も含む)が、dotnet がこの環境に無いので未導入。

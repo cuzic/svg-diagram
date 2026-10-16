@@ -16,6 +16,7 @@ import {renderDiagram} from '../lib/dsl/render.ts';
 import {closeMeasurer} from '../lib/measure.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
 import {unzipEntry} from './helpers/pptx/unzip.ts';
+import {hasXmllint, hasXsd, slideSchemaProblems} from './helpers/pptx/xsd.ts';
 
 register(new URL('../lib/resolve-hook.ts', import.meta.url));
 
@@ -64,6 +65,11 @@ test('the package template already declares png and svg (packageEntries adds no 
   assert.throws(() => packageEntries(template, {xml: '<x/>', cx: 1, cy: 1, pictures: [{svg: '', pngSvg: ''}]}, []), /1 pictures but 0 PNGs/);
 });
 
+test('the schema check rejects a slide with a wrong element', {skip: !(hasXmllint() && hasXsd())}, () => {
+  const slide = '<?xml version="1.0"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/><p:sp><p:nvSpPr><p:cNvPr id="2" name="x"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:prstGeom prst="notAShape"><a:avLst/></a:prstGeom></p:spPr></p:sp></p:spTree></p:cSld></p:sld>';
+  assert.ok(slideSchemaProblems(slide).length > 0);
+});
+
 test('every band type is either native (a function) or an image', () => {
   assert.equal(typeof BAND_HANDLERS.table, 'function');
   assert.equal(BAND_HANDLERS.chart, 'image');
@@ -91,6 +97,7 @@ test('example PPTX files have sound slide relationships', async t => {
     const ids = [...xml.matchAll(/<p:cNvPr id="(\d+)"/g)].map(m => m[1]!);
     assert.equal(new Set(ids).size, ids.length);
     for (const m of xml.matchAll(/<a:(?:stCxn|endCxn) id="(\d+)"/g)) assert.ok(ids.includes(m[1]!));
+    if (hasXmllint() && hasXsd()) assert.deepEqual(slideSchemaProblems(xml), []);
     try {
       execFileSync('xmllint', ['--noout', '-'], {input: xml, stdio: ['pipe', 'ignore', 'pipe']});
     } catch (error) {
