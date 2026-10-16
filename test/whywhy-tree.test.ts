@@ -1,8 +1,7 @@
 import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
-import {checkDiagram, closeMeasurer, diagram, whyWhyTree} from '../lib/dsl.ts';
-import {box as boxBand} from '../lib/dsl.ts';
+import {box as boxBand, checkDiagram, closeMeasurer, diagram, whyWhyTree} from '../lib/dsl.ts';
 import type {CauseBand} from '../lib/types/diagrams.ts';
 import type {LaidOutCause} from '../lib/types/diagrams.ts';
 

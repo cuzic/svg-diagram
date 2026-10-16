@@ -106,7 +106,7 @@ export function renderBars(b: LaidOutBars, day: Theme, stage?: number, dimFill =
 export function renderImage(b: LaidOutImage, day: Theme, stage?: number): string {
   const col = (k: ColorKey) => colorOf(k, day);
   const out: string[] = [];
-  const esc = (s: string) => escapeXml(s).replace(/"/g, '&quot;');
+  const esc = escapeAttr;
   const r4 = (r: {x: number; y: number; w: number; h: number}) => ({x: snap4(r.x), y: snap4(r.y), w: snap4(r.x + r.w) - snap4(r.x), h: snap4(r.y + r.h) - snap4(r.y)});
   const pic = r4(b);
   out.push(`<image x="${pic.x}" y="${pic.y}" width="${pic.w}" height="${pic.h}" href="${b.href}" preserveAspectRatio="none"${b.alt ? ` role="img" aria-label="${esc(b.alt)}"` : ' aria-hidden="true"'}/>`);
