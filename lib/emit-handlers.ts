@@ -6,7 +6,7 @@ import {renderChart} from './charts-emit.ts';
 import {emojiSpan} from './emit-common.ts';
 import {renderWordArt} from './emit-wordart.ts';
 import {renderMath} from './emit-figures.ts';
-import {renderCaption, renderBox, renderGroup, renderLegend, renderBanner, renderRow, renderGrid, renderPyramid, renderPeople, renderDots, renderCurve, renderRaw, renderSwimlane} from './emit-boxes.ts';
+import {renderCaption, renderBox, renderGroup, renderLegend, renderBanner, renderRow, renderGrid, renderPyramid, renderPeople, renderDots, renderCurve, renderRaw, renderStatus, renderSwimlane} from './emit-boxes.ts';
 import {renderPlane, renderBars, renderImage, renderQuadrant, renderFlowShape, renderTimeline, renderTree, renderStates, renderCause, renderCloud, renderGantt, renderClasses, renderBpmn} from './emit-figures.ts';
 import {renderSequence, renderTable, renderPrims} from './emit-tables.ts';
 
@@ -19,6 +19,7 @@ export interface EmitHandler<B> {
 /** One emitter per band type, each checked against its own band type; a band type without one fails to compile. */
 export const EMIT_HANDLERS = {
   caption: {render: (b, day) => renderCaption(b, day), selfDimming: true},
+  status: {render: b => renderStatus(b)},
   box: {render: (b, day, roles) => renderBox(b, day, roles), selfDimming: true},
   banner: {render: (b, day, roles) => renderBanner(b, day, roles), selfDimming: true},
   group: {render: (b, day, roles) => renderGroup(b, day, roles), selfDimming: true},

@@ -10,6 +10,7 @@
 // a longer description (Google developer style guide).
 
 import {qualify, scopeOf} from './anchor-scope.ts';
+import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {nestedBandsOf} from './band-children.ts';
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
@@ -38,6 +39,7 @@ import type {LintTarget} from './types/verdicts.ts';
 import type {CauseRole} from './types/diagrams.ts';
 import {describeApplied} from './fit-width.ts';
 import {tocFindings} from './toc-rules.ts';
+import {statusText} from './status.ts';
 
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
@@ -48,6 +50,7 @@ export const RULE_DOCS = {
   'bars-thin-bar': '棒が 1px 以下（値は 0 でない）。図の高さ・幅を上げるか max を見直す',
   'image-large': '埋め込んだ画像が大きい（300 KB 超）。ファイルがそのまま SVG に入り、段階表示の各ファイルにも入る。縮小・圧縮してから使う',
   'cjk-line-long': '見出し（caption の title / display / stat と banner の headline）の 1 行が、全角で数えて長すぎる（本文幅 600px に収まる字数の目安を超える、または図の幅に収まらず自動で折り返した。短くするか改行する）',
+  'draft-status': '図が下書き（diagram({status: "draft"})）のまま。公開前に外す（check --forbid-draft で warn にできる）',
   'source-wraps': '出典行（diagram({sourceLine})）が 1 行に収まらず折り返している（短くする）',
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える。凡例が要らない図は diagram({legend: false})）',
@@ -91,6 +94,8 @@ export const RULE_DOCS = {
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
   'slide-min-text': 'スライド用キャンバスの最小文字サイズ(既定 24px)より小さい文字がある',
   'font-floor-lowered': 'canvas の図が文字の下限を 14px から下げている(canvas.minText < 14。1:1 で読む前提で、投影には向かない)',
+  'stat-no-source': 'stat() の数字に出典(source)が無い。diagram({evidenceCheck: "info" | "strict"}) を書いた図だけで検査する(strict で warn)。stat({source, confidence}) で足す',
+  'stat-fit-shrunk': 'stat() の値が箱の幅に収まらないので、自動で小さい文字にした(隣の stat と大きさがそろわない。箱を広げるか、値を短くするとそろう)',
   'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
   'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）',
   'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
@@ -495,6 +500,13 @@ export const rcaSeverity = (d: Pick<DiagramData, 'rcaCheck'>): 'warn' | 'info' =
 /** The checks of the cause-analysis figures. Empty on purpose: each figure (faultTree, isIsNot, whyWhy*, bowtie) adds its own branch, reported at `f.severity ?? rcaSeverity(d)` like tocRules. */
 function rcaRules(_d: LintTarget, _out: Finding[]): void {}
 
+/** stat-no-source (ADR 0023 D10): a stat() number with no source. Runs only for a diagram that wrote diagram({evidenceCheck}). */
+function evidenceRules(d: LintTarget, out: Finding[]): void {
+  if (d.evidenceCheck === undefined) return;
+  const severity = d.evidenceCheck === 'strict' ? 'warn' : 'info';
+  for (const b of walkBands(d.bands)) if (b.type === 'box' && b.statValue !== undefined && !b.evidence) out.push({rule: 'stat-no-source', severity, message: `数字 ${b.statValue} に出典がない(stat の source を足す)`});
+}
+
 function tocRules(d: LintTarget, out: Finding[]): void {
   const severity = tocSeverity(d);
   for (const b of walkBands(d.bands)) if (b.type === 'cause') for (const f of tocFindings(b)) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
@@ -540,7 +552,20 @@ function edgeBendsRules(d: LintTarget, out: Finding[]): void {
   }
 }
 
+/** stat-fit-shrunk (ADR 0024 D5): a stat() value drawn smaller than its role's size to fit its box. Info: shrinking is the specified behaviour. */
+function statFitFindings(d: LintTarget, out: Finding[]): void {
+  const boxes: LaidOutBand[] = [];
+  for (const b of d.laidOut ?? []) { if (b.type === 'row' || b.type === 'grid') boxes.push(...b.children); else boxes.push(b); }
+  for (const b of boxes) if (b.type === 'box') for (const s of b.statShrunk ?? []) {
+    out.push({rule: 'stat-fit-shrunk', severity: 'info', message: `stat の値 "${s.value}" を ${s.from}px から ${s.to}px に縮めた(箱の幅 ${Math.round(b.w)}px に収めるため)。同じ列の stat と大きさがそろわない。箱を広げるか、値を短くすると、そろう`});
+  }
+}
+
 export function lintDiagram(d: LintTarget): Finding[] {
+  if (d.appearance === 'auto') { // ADR 0023 D4: both colour sides, the same finding once, a dark-only one marked
+    const side = (appearance: 'light' | 'dark') => lintDiagram({...d, appearance});
+    return mergeSides(side('light'), side('dark'), f => `${f.rule}\0${f.message}`, f => ({...f, message: `${f.message} (${DARK_NOTE})`}));
+  }
   const out = withTones(d.tones, () => lintAll(d));
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
   return out.map(f => (d.accept && d.accept[f.rule as RuleId] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule as RuleId]}）`} : f));
@@ -648,6 +673,8 @@ function lintAll(d: LintTarget): Finding[] {
     // no label at all is a convention (the arrows only mean "depends on" / "next"); some labelled and most not is the inconsistency to flag
     if (connects.length >= 4 && unlabeled < connects.length && unlabeled / connects.length > 0.6) out.push({rule: 'arrow-labels', severity: 'info', message: `矢印 ${connects.length} 本のうち ${unlabeled} 本にラベルがない。何が流れるか（成果物・プロトコル）を短く添える`});
   }
+  statFitFindings(d, out);
+  evidenceRules(d, out);
   if (d.canvas && d.laidOut) {
     const min = minTextSize(d);
     if (d.canvas.minText < MIN_FONT_SIZE) out.push({rule: 'font-floor-lowered', severity: 'info', message: `文字の下限を ${MIN_FONT_SIZE}px から ${d.canvas.minText}px に下げている(最小の文字 ${min}px)。キャンバスは 1:1 で読まれる前提。投影には向かない`});
@@ -662,6 +689,7 @@ function lintAll(d: LintTarget): Finding[] {
   for (const b of walkBands(d.bands)) if (b.type === 'image' && b.bytes > IMAGE_WARN_BYTES) out.push({rule: 'image-large', severity: 'warn', message: `画像（${Math.round(b.bytes / 1024)} KB）が大きい。SVG に埋め込まれ、段階表示の各ファイルにも入る。解像度を下げるか圧縮する（${IMAGE_WARN_BYTES / 1024} KB 以下が目安）`});
   for (const b of d.laidOut ?? []) if (b.type === 'bars' && b.bars.some(r => (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0))) { out.push({rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す'}); break; }
   headlineLength(d, out);
+  if (d.status !== undefined) out.push({rule: 'draft-status', severity: 'info', message: `この図は下書き(status: '${d.status}')。公開前に外す`});
   for (const b of d.laidOut ?? []) if (b.type === 'caption' && b.sourceLine && b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0) > 1) out.push({rule: 'source-wraps', severity: 'warn', message: `出典行が ${b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0)} 行に折り返している。1 行に収まる長さにする（出典の細部は本文へ）`});
   for (const b of d.laidOut ?? []) if (b.type === 'quadrant') {
     const far = b.moved.filter(m => m.px >= 16);
@@ -698,6 +726,11 @@ export function diagramTitle(d: DiagramData): string {
 
 /** `stage`: a click stage of a revealing diagram; only what is on screen then is listed (nothing is left out without it). */
 export function diagramDesc(d: DiagramData, stage?: number): string {
+  const text = descOf(d, stage);
+  // a figure with a status says so first, in the badge's own wording ("(下書き)"); one without is unchanged
+  return d.status === undefined ? text : `(${statusText(d)})${text ? ` ${text}` : ''}`;
+}
+function descOf(d: DiagramData, stage?: number): string {
   if (d.desc) return oneLine(d.desc);
   const parts: string[] = [];
   const bands = walkBands(d.bands).filter(b => visibleAt(b as {reveal?: number; until?: number}, stage));

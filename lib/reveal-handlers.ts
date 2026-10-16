@@ -153,6 +153,7 @@ const setEach = (what: string, items: (b: never) => Revealed[]) => ({
  */
 export const REVEAL_HANDLERS = {
   spacer: unrevealed,
+  status: unrevealed,
   group: nested,
   sequence: plain,
   table: plain,

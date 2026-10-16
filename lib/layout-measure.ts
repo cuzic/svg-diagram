@@ -18,6 +18,7 @@ import {treeTexts} from './tree.ts';
 import {statesTexts} from './states.ts';
 import {causeTexts, cloudTexts} from './toc.ts';
 import {ganttTexts} from './gantt.ts';
+import {statusTexts, withStatus} from './status.ts';
 import {classesTexts} from './classes.ts';
 import {bpmnTexts} from './bpmn.ts';
 import {chartTexts} from './charts.ts';
@@ -55,9 +56,12 @@ function registerRequests(requests: Requests, band: Band, roles: Roles): void {
   if ('stamp' in band && band.stamp) registerAtoms(requests, band.stamp, roles.note, 400);
   for (const run of textRuns(band, roles)) {
     const font = run.mono ? 'mono' : 'sans';
-    for (const {text, weight} of styledAtoms(run)) {
-      const key = `${text} ${run.size} ${weight} ${font}`;
-      if (!requests.has(key)) requests.set(key, {text, size: run.size, weight, font});
+    // a value that may shrink (ADR 0024) is measured at every whole size it may be drawn at: a width is only looked up, never scaled
+    for (let size = run.fit && run.nowrap ? run.fit.min : run.size; size <= run.size; size++) {
+      for (const {text, weight} of styledAtoms(run)) {
+        const key = `${text} ${size} ${weight} ${font}`;
+        if (!requests.has(key)) requests.set(key, {text, size, weight, font});
+      }
     }
   }
 }
@@ -73,6 +77,7 @@ const childrenOwn: MeasureHandler<Band> = (band, m) => { for (const child of chi
 
 export const MEASURE_HANDLERS = {
   caption: own, box: own, banner: own, spacer: own, raw: own,
+  status: fromTuples(statusTexts),
   group: (band, m) => {
     if (band.stamp) m.atoms(band.stamp, m.roles.note, 400);
     if (band.title) m.own(groupTitleBand(band));
@@ -125,7 +130,7 @@ export const MEASURE_HANDLERS = {
 
 /** Pass 1: every atom this diagram needs measured, at the font sizes of `roles`. Pure: no measuring happens here. */
 export function collectMeasures(data: DiagramData, roles: Roles): Requests {
-  const d = withSourceLine(data);
+  const d = withStatus(withSourceLine(data));
   const requests: Requests = new Map();
   const m: MeasureCtx = {
     roles,

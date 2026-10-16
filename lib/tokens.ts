@@ -56,7 +56,7 @@ export function mapOf(appearance: Appearance | undefined): Record<string, string
   return out;
 }
 function baseMapOf(appearance: Appearance | undefined): Record<string, string> | null {
-  if (appearance === undefined || appearance === 'light') return null;
+  if (appearance === undefined || appearance === 'light' || appearance === 'auto') return null; // 'auto' is drawn light; its dark side is an @media block (lib/appearance-auto.ts)
   if (appearance === 'dark') return DARK_OF;
   const key = JSON.stringify(appearance.dark);
   let m = MAPS.get(key);
@@ -273,6 +273,17 @@ export const SLIDE_CANVAS = {width: 1280, height: 720, minText: 24};
 /** The scale at which the smallest text (a role or a fixed size) becomes `minText`. */
 export function canvasFontScale(minText: number): number {
   return Math.ceil(minText / Math.min(...Object.values(ROLES), 14) * 100) / 100;
+}
+/** What a stat() value may shrink to at scale 1 (px): ADR 0024 D4 (the slide canvas's minText, about 1.7x the 14px label). */
+export const STAT_FIT_MIN = 24;
+/**
+ * The smallest size a stat() value is shrunk to when it does not fit its box (ADR 0024 D4): `round(24 x s)`, never above `size` (then it
+ * is not shrunk). `s` is the scale `roles` were made at (read from the stat role: a canvas / fill diagram scales every role by it).
+ * `minText`, when given, is a floor under that (a canvas's declared minimum; the smallest role of a canvas is already about it).
+ */
+export function statFitMin(roles: Roles, size: number, minText = 0): number {
+  const s = roles.stat / ROLES.stat;
+  return Math.min(size, Math.max(Math.round(STAT_FIT_MIN * s), minText));
 }
 /** The roles a canvas diagram is drawn with: every role and the fixed sizes (connector label, tag) scaled by `s`. */
 export function canvasRoles(s: number): Roles {

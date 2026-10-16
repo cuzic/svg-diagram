@@ -102,12 +102,12 @@ test('an unknown appearance is refused', () => {
 });
 
 // a deck's own dark set: navy page, white text, a lighter accent, a deep-blue soft fill
-const DECK = {bg: '#0b1220', text: '#ffffff', muted: '#94a3b8', accent: '#60a5fa', soft: '#1e3a8a'};
+const DECK = {bg: '#0b1220', text: '#ffffff', muted: '#94a3b8', accent: '#60a5fa', soft: '#1a3070'};
 
 test('appearance: {dark: {...}} replaces the named tokens; the rest stay the built-in dark set', async () => {
   const {svg} = await renderDiagram(make({appearance: {dark: DECK}, transparent: true}), {name: 'd.svg', budget: 'cacheOnly'});
   assert.match(svg, /data-assumed-bg="#0b1220"/);
-  assert.match(svg, /data-palette="#0b1220 #ffffff #94a3b8 #60a5fa #1e3a8a"/);
+  assert.match(svg, /data-palette="#0b1220 #ffffff #94a3b8 #60a5fa #1a3070"/);
   assert.ok(svg.includes('#60a5fa') && svg.includes('#ffffff') && svg.includes('#94a3b8'));
   assert.ok(!svg.includes(DARK_PALETTE.text) && !svg.includes(PALETTE.text));
   assert.ok(svg.includes(DARK_PALETTE.danger), 'danger was not replaced');
@@ -139,7 +139,7 @@ test('default dark danger is a saturated red that still reads as text on the pag
   assert.ok(Math.max(r, g, b) - Math.min(r, g, b) >= 150, 'not a pastel pink');
 });
 
-const WALL = {bg: '#0b1220', text: '#ffffff', muted: '#94a3b8', accent: '#60a5fa', soft: '#1e3a8a'};
+const WALL = {bg: '#0b1220', text: '#ffffff', muted: '#94a3b8', accent: '#60a5fa', soft: '#1a3070'};
 const wall = (danger: string) => diagram({theme: 'blue', title: 'wall', transparent: true, appearance: {dark: {...WALL, danger}}}).add(
   caption('必要な電力と、使える電力', {bold: true, tone: 'text'}),
   bars([{label: '使える', value: 40, series: 'a'}, {label: '必要', value: 100, tone: 'danger'}], {max: 100, unit: '%'}),

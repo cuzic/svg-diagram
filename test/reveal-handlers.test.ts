@@ -13,5 +13,5 @@ test('every band type has a reveal handler', () => {
   }
   // only the bands that carry no reveal of their own skip the stage
   const unstaged = Object.entries(REVEAL_HANDLERS).filter(([, h]) => !h.stage).map(([t]) => t).sort();
-  assert.deepEqual(unstaged, ['connect', 'legend', 'spacer']);
+  assert.deepEqual(unstaged, ['connect', 'legend', 'spacer', 'status']);
 });

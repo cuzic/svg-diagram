@@ -3,7 +3,7 @@
 // it for a 'down' diagram).
 import {layoutLayered} from './graph-layout.ts';
 import type {LayeredEdge, LayeredLayout, LayeredNode, LayeredOpts, Pt} from './graph-layout.ts';
-import {runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
+import {crossingsOf, runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
 
 export {simplify};
 
@@ -36,7 +36,7 @@ export function elbows(pts: Pt[], turn?: number, lastTurn?: number): Pt[] {
  * straightening (ADR 0016 D3): a direct arrow whose two boxes overlap across the layer axis becomes one straight line when that does not make
  * the drawing worse; `round` names the nodes that are not rectangles (a circle, a hexagon), whose arrows keep to the middle of the side.
  */
-export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false): Map<number, Pt[]> {
+export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false, aside = false): Map<number, Pt[]> {
   // ports: the edges that meet one side of a state fan out along it (ordered by where the other end is, so they do not cross)
   // lanes: direct arrows through one gap between two layers take separate vertical runs
   const portOf = new Map<string, number>(), laneOf = new Map<number, number>();
@@ -131,6 +131,8 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     });
   });
   // the routes for the ports as they stand (in the layout's own axes)
+  const shiftOf = new Map<number, number>(); // a long arrow's way points moved across the layers (ADR 0016 D12)
+  const turnAt = new Map<number, number>(); // a direct arrow's turn moved to another x in its gap (ADR 0016 D13)
   const build = (): Map<number, Pt[]> => {
     const out = new Map<number, Pt[]>();
     const longInto = new Map<string, number>(); // long arrows into one head, each with its own last turn
@@ -152,7 +154,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
       if (e.points.length === 2) {
         const lo = Math.min(layerOf(e.from), layerOf(e.to)), gl = layerRight.get(lo)!, gr = layerLeft.get(lo + 1) ?? gl + 2 * STUB, gw = gr - gl;
         const d = Math.min(STUB + (laneOf.get(i) ?? 0), Math.max(gw / 2, gw - 22)); // the last run keeps room for the arrowhead
-        turn = forward(i) ? gl + d : gr - d;
+        turn = turnAt.get(i) ?? (forward(i) ? gl + d : gr - d);
       }
       // a long arrow into a grouped head (an AND) makes its last turn a fixed distance before the head, clear of the lanes of the direct arrows
       // (which are counted from the gap's left side), so the two kinds never run side by side
@@ -161,7 +163,8 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
         const lo = layerOf(e.to) - 1, gl = layerRight.get(lo), gr = layerLeft.get(lo + 1);
         if (gl !== undefined && gr !== undefined) { const k = longInto.get(e.to) ?? 0; longInto.set(e.to, k + 1); lastTurn = laneShare && longLane.has(i) ? Math.min(gr - 26, gl + STUB + longLane.get(i)! * LANE) : Math.max(gl + STUB, gr - 26 - k * LANE); }
       }
-      out.set(i, elbows([start, ...e.points.slice(1, -1), end], turn, lastTurn));
+      const dz = shiftOf.get(i) ?? 0;
+      out.set(i, elbows([start, ...e.points.slice(1, -1).map(p => dz ? {x: p.x, y: p.y + dz} : p), end], turn, lastTurn));
     });
     return out;
   };
@@ -218,6 +221,54 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     const trial = build(), score = scoreOf([...trial.values()]);
     if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i)) { routes = trial; best = score; } else undo();
   }
+  // ADR 0016 D12 (only when asked, after the candidate is chosen; D13 for a direct arrow, below): a long arrow into a grouped head (an AND) whose run through the layers lies along another
+  // arrow's run moves its way points aside. Taken only when that leaves no more arrows beside it (any head), makes no more crossings or bends, pierces no box and stays inside the band.
+  if (aside && groupOf) {
+    const heads = new Set<string>();
+    lay.edges.forEach((e, i) => { if (!e.self && groupOf(i) !== undefined) heads.add(e.to); });
+    const segs = (pts: Pt[]) => pts.slice(1).map((q, k) => ({p: pts[k], q}));
+    /** The arrows whose runs lie along arrow `i`'s: all of them, and those into the same head as `i`. */
+    const beside = (r: Map<number, Pt[]>, i: number): {all: number; head: number} => {
+      const mine = segs(r.get(i)!); let all = 0, head = 0;
+      for (const [j, o] of r) {
+        if (j === i || !segs(o).some(y => mine.some(x => runsTogether(x, y)))) continue;
+        all++; if (lay.edges[j].to === lay.edges[i].to) head++;
+      }
+      return {all, head};
+    };
+    const pierces = (pts: Pt[], i: number): boolean => {
+      const e = lay.edges[i];
+      return segs(pts).some(({p, q}) => [...lay.nodes].some(([id, n]) => id !== e.from && id !== e.to && Math.max(p.x, q.x) > n.x + 1 && Math.min(p.x, q.x) < n.x + n.w - 1 && Math.max(p.y, q.y) > n.y + 1 && Math.min(p.y, q.y) < n.y + n.h - 1));
+    };
+    const inside = (pts: Pt[]): boolean => pts.every(p => p.y >= 0.5 && p.y <= lay.h - 0.5);
+    // ADR 0016 D13: a direct arrow's first run lies along the last run of another arrow into the same head (the other turned first): its turn moves to just
+    // before or after that arrow's last turn, so the two runs do not overlap along the layers.
+    const lastTurnOf = (r: Map<number, Pt[]>, j: number): number | undefined => { const q = r.get(j)!; return q.length >= 4 ? q[q.length - 3].x : undefined; };
+    for (const i of [...routes.keys()]) {
+      const e = lay.edges[i];
+      if (e.self || e.outer || !heads.has(e.to)) continue;
+      const now = beside(routes, i);
+      if (!now.head) continue;
+      const tries: (() => void)[] = [];
+      if (e.points.length > 2) for (const dz of [8, -8, 16, -16]) tries.push(() => shiftOf.set(i, dz));
+      else {
+        const lo = Math.min(layerOf(e.from), layerOf(e.to)), gl = layerRight.get(lo)!, gr = layerLeft.get(lo + 1) ?? gl + 2 * STUB;
+        for (const [j, o] of routes) {
+          if (j === i || lay.edges[j].to !== e.to || !segs(o).some(y => segs(routes.get(i)!).some(x => runsTogether(x, y)))) continue;
+          const at = lastTurnOf(routes, j);
+          if (at === undefined) continue;
+          // the last run keeps room for the arrowhead, on the head's side of the gap (the right for a forward arrow, the left for a return)
+          for (const x of [at - LANE, at + LANE, at - 6, at + 6]) if (forward(i) ? x > gl + 4 && x < gr - 22 : x > gl + 22 && x < gr - 4) tries.push(() => turnAt.set(i, x));
+        }
+      }
+      for (const set of tries) {
+        set();
+        const trial = build(), s = scoreOf([...trial.values()]), t = beside(trial, i);
+        if (t.head < now.head && t.all <= now.all && s.crossings <= best.crossings && s.bends <= best.bends && inside(trial.get(i)!) && !pierces(trial.get(i)!, i)) { routes = trial; best = s; break; }
+        shiftOf.delete(i); turnAt.delete(i);
+      }
+    }
+  }
   return new Map([...routes].map(([i, pts]) => [i, pts.map(place)]));
 }
 
@@ -273,6 +324,8 @@ export interface AttemptOpts {
   straighten?: boolean;
   /** The second candidate also pulls source nodes toward their targets (graph-layout.ts `tighten`). Default false: a cause tree reads its causes at the first layer. */
   tighten?: boolean;
+  /** false: no ADR 0016 D12/D13 pass (side-by-side runs moved aside) on the chosen candidate. Default true. */
+  aside?: boolean;
   /** Returns two layers or more long run in lanes outside the figure: 'all' of them, or only the 'declared' ones (`back`). Default none (through the layers). */
   returns?: 'all' | 'declared';
 }
@@ -287,6 +340,8 @@ export interface Attempt {
   /** Whether `size.w` is within `maxAcross` (true when none is given). */
   fits: boolean;
   loose: string[];
+  /** ADR 0016 D12/D13 moved side-by-side runs aside in this candidate. */
+  asided?: true;
 }
 
 /** How many arrows run through the inside of a box that is not one of their two ends (the boxes and routes are in the placed figure). */
@@ -316,14 +371,14 @@ function piercings(a: Attempt, place: (p: Pt) => Pt): number {
  * lexicographic order, or if the plain one does not fit the width and it does. Nothing else moves a figure.
  */
 export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layoutOpts: LayeredOpts & {start?: string[]; back?: readonly number[]}, o: AttemptOpts): Attempt {
-  const optsOf = new WeakMap<Attempt, typeof layoutOpts>();
-  const build = (opts: typeof layoutOpts, laneShare = false): Attempt => {
+  const optsOf = new WeakMap<Attempt, {opts: typeof layoutOpts; laneShare: boolean}>();
+  const build = (opts: typeof layoutOpts, laneShare = false, aside = false): Attempt => {
     const lay = layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: STUB, step: LANE}} : opts);
     const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
     const groupOf = o.groupOf;
-    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)), o.round, o.straighten !== false, laneShare);
+    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)), o.round, o.straighten !== false, laneShare, aside);
     const made = {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
-    optsOf.set(made, opts);
+    optsOf.set(made, {opts, laneShare});
     return made;
   };
   // ADR 0016 D11: arrows into a grouped head that run side by side. A candidate that shares the gap's lanes between the long and the direct arrows replaces the figure only
@@ -336,13 +391,29 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     for (let x = 0; x < segs.length; x++) for (let y = x + 1; y < segs.length; y++) if (segs[x].to === segs[y].to && segs[x].s.some(p => segs[y].s.some(q => runsTogether(p, q)))) n++;
     return n;
   };
+  const worse = (a: Attempt, b: Attempt): boolean => b.loose.length > a.loose.length || (a.fits && !b.fits) || better(a.score, b.score) || piercings(b, o.place(b.size)) > piercings(a, o.place(a.size));
+  // the AND-bound arrows that cross each other
+  const andCrossings = (a: Attempt): number => {
+    const heads = new Set<string>(), groupOf = o.groupOf!;
+    a.lay.edges.forEach(e => { if (!e.self && groupOf(e.index) !== undefined) heads.add(e.to); });
+    return crossingsOf([...a.routes].filter(([i]) => heads.has(a.lay.edges[i].to)).map(([, pts]) => pts));
+  };
+  // ADR 0016 D12: what is chosen then gets its remaining side-by-side runs moved aside, once; kept only when nothing else gets worse
+  const aside = (a: Attempt): Attempt => {
+    const before = parallels(a);
+    if (!before) return a;
+    const {opts, laneShare} = optsOf.get(a)!, b = build(opts, laneShare, true);
+    if (parallels(b) >= before || worse(a, b) || andCrossings(b) > andCrossings(a)) return a;
+    b.asided = true;
+    return b;
+  };
   const sharing = (a: Attempt): Attempt => {
     if (!o.groupOf) return a;
     const before = parallels(a);
     if (!before) return a;
-    const b = build(optsOf.get(a)!, true);
-    if (b.loose.length > a.loose.length || (a.fits && !b.fits) || parallels(b) >= before || better(a.score, b.score)) return a;
-    return piercings(b, o.place(b.size)) > piercings(a, o.place(a.size)) ? a : b;
+    const b = build(optsOf.get(a)!.opts, true);
+    const chosen = parallels(b) >= before || worse(a, b) ? a : b;
+    return o.aside === false ? chosen : aside(chosen);
   };
   const plain = build(layoutOpts);
   if (o.straighten === false || !edges.some(e => e.from !== e.to)) return sharing(plain);
