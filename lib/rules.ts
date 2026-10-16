@@ -9,7 +9,7 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
-import {midWordBreaksIn, missingGlyphs} from './text-rules.ts';
+import {midWordBreaksIn, missingGlyphs, sourceText} from './text-rules.ts';
 import {labelCover, hidesArrow} from './connect-rules.ts';
 import {qualify, scopeOf} from './anchor-scope.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
@@ -365,6 +365,37 @@ export function edgeStats(connects: LaidOutConnect[]): {crossings: number; overl
   return {crossings, overlaps};
 }
 
+/** The connects (by index) that cross or overlap each other, for pointing at the pair rather than only counting. */
+export function edgePairs(connects: LaidOutConnect[]): {crossings: [number, number][]; overlaps: [number, number][]} {
+  const crossings: [number, number][] = [], overlaps: [number, number][] = [];
+  for (let i = 0; i < connects.length; i++) for (let j = i + 1; j < connects.length; j++) {
+    if (crossingsOf([connects[i].points, connects[j].points], {margin: 2, tol: 0.5}) > 0) crossings.push([i, j]);
+    const pair = edgeStats([connects[i], connects[j]]);
+    if (pair.overlaps > 0) overlaps.push([i, j]);
+  }
+  return {crossings, overlaps};
+}
+
+/** What to do about two lines that run back under a row (route: 'loop-under') and cross or overlap: the fix depends on whether their spans nest. */
+function loopUnderHints(connects: LaidOutConnect[]): string[] {
+  const name = (c: LaidOutConnect): string => `${c.fromId}→${c.toId}`;
+  const span = (c: LaidOutConnect): [number, number] => [Math.min(...c.points.map(p => p.x)), Math.max(...c.points.map(p => p.x))];
+  const {crossings, overlaps} = edgePairs(connects);
+  const out: string[] = [];
+  for (const [i, j] of overlaps) {
+    const a = connects[i], b = connects[j];
+    if (a.route !== 'loop-under' && b.route !== 'loop-under') continue;
+    const [sa, sb] = [span(a), span(b)], nested = (sa[0] <= sb[0] && sb[1] <= sa[1]) || (sb[0] <= sa[0] && sa[1] <= sb[1]);
+    out.push(nested ? `戻り ${name(a)} と ${name(b)} が同じ高さで重なる。外側の戻りに dip を書く（例: dip: 56）`
+      : `戻り ${name(a)} と ${name(b)} が同じ高さで重なり、範囲が半端に重なる。dip を変えると交差になる。戻り先か戻り元を変えるか、1 本にまとめる`);
+  }
+  for (const [i, j] of crossings) {
+    const a = connects[i], b = connects[j];
+    if (a.route === 'loop-under' || b.route === 'loop-under') out.push(`戻り ${name(a)} と ${name(b)} が交差する（dip では消えない）。戻り先か戻り元を変えるか、1 本にまとめる`);
+  }
+  return out;
+}
+
 function permutations<T>(a: T[]): T[][] {
   if (a.length <= 1) return [a];
   return a.flatMap((x, i) => permutations([...a.slice(0, i), ...a.slice(i + 1)]).map(p => [x, ...p]));
@@ -675,11 +706,19 @@ function fitRules(d: LintTarget, out: Finding[]): void {
       : `${FIT_WHO[b.type]}: ${knobs} を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら ${say} と書く（info になる）。固定したいなら ${knobs} を明示する（収まらなければ試した案つきで止まる）`});
   }
 }
+/** How to fix a mid-word break depends on whether the part's boxes can be widened: a chevron / cycle / swimlane fixes the frame first. */
+const MID_WORD_FIX: Record<string, string> = {
+  chevron: "矢羽根の幅は段数で決まる。`direction: 'vertical'` にする、段を減らす、文言を短くする",
+  cycle: '円の大きさは項目数で決まる。項目を減らす、文言を短くする',
+  swimlane: "列の幅は段数で決まる。`fit: 'shrink'` を外す、列を減らす、文言を短くする",
+};
 function midWordRules(d: LintTarget, out: Finding[]): void {
-  const breaks = midWordBreaksIn(d.laidOut);
-  if (!breaks.length) return;
-  const shown = [...new Set(breaks.map(b => `「${b.before}/${b.after}」`))];
-  out.push({rule: 'text-mid-word-break', severity: 'warn', message: `語の途中で行が割れている（${shown.slice(0, 4).join('')}${shown.length > 4 ? ` ほか ${shown.length - 4} 件` : ''}）。直し方: 箱の幅を広げる、dir や maxNodeW を変える、文言を短くする、語の前後で改行する`});
+  const source = sourceText(d.bands);
+  const found = (d.laidOut ?? []).flatMap(b => midWordBreaksIn(b, source).map(br => ({type: String(b.type), ...br})));
+  if (!found.length) return;
+  const shown = [...new Set(found.map(b => `「${b.before}/${b.after}」`))];
+  const fixes = [...new Set(found.flatMap(b => MID_WORD_FIX[b.type] ? [`${b.type}: ${MID_WORD_FIX[b.type]}`] : []))];
+  out.push({rule: 'text-mid-word-break', severity: 'warn', message: `語の途中で行が割れている（${shown.slice(0, 4).join('')}${shown.length > 4 ? ` ほか ${shown.length - 4} 件` : ''}）。直し方: ${fixes.length ? fixes.join('。') : '箱の幅を広げる、dir や maxNodeW を変える、文言を短くする、語の前後で改行する'}`});
 }
 function glyphRules(d: LintTarget, out: Finding[]): void {
   const glyphs = missingGlyphs(d.laidOut);
@@ -714,7 +753,7 @@ function lintAll(d: LintTarget): Finding[] {
   const connects = d.connects ?? [];
   if (connects.length) {
     const {crossings, overlaps} = edgeStats(connects);
-    if (crossings || overlaps) out.push({rule: 'edge-crossings', severity: 'warn', message: `線の交差 ${crossings} 箇所、重なり ${overlaps} 箇所。箱や線の配置・レーンの順を見直す`});
+    if (crossings || overlaps) { const hints = loopUnderHints(connects); out.push({rule: 'edge-crossings', severity: 'warn', message: `線の交差 ${crossings} 箇所、重なり ${overlaps} 箇所。${hints.length ? hints.slice(0, 3).join('。') : '箱や線の配置・レーンの順を見直す'}`}); }
     const unlabeled = connects.filter(c => !c.label).length;
     // no label at all is a convention (the arrows only mean "depends on" / "next"); some labelled and most not is the inconsistency to flag
     if (connects.length >= 4 && unlabeled < connects.length && unlabeled / connects.length > 0.6) out.push({rule: 'arrow-labels', severity: 'info', message: `矢印 ${connects.length} 本のうち ${unlabeled} 本にラベルがない。何が流れるか（成果物・プロトコル）を短く添える`});
