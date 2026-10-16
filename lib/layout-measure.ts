@@ -22,6 +22,7 @@ import {statusTexts, withStatus} from './status.ts';
 import {classesTexts} from './classes.ts';
 import {bpmnTexts} from './bpmn.ts';
 import {ftaTexts} from './fta.ts';
+import {bowtieMeasure} from './bowtie.ts';
 import {chartTexts} from './charts.ts';
 import {collectTextRequests} from './seq-table.ts';
 import {collectTextRequests as wfTextRequests} from './wireframe.ts';
@@ -122,6 +123,7 @@ export const MEASURE_HANDLERS = {
   timeline: fromTuples(timelineTexts),
   bpmn: fromTuples(bpmnTexts),
   fta: fromTuples(ftaTexts),
+  bowtie: fromTuples(bowtieMeasure),
   classes: fromTuples(classesTexts),
   gantt: fromTuples(ganttTexts),
   cause: fromTuples(causeTexts),

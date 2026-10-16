@@ -1,7 +1,7 @@
 // Types: tree, states, cause / cloud (TOC), classes and bpmn.
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
-import type {Anchor, Dimmed, EmphasisTone, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
+import type {Anchor, Dimmed, EmphasisTone, RcaInfo, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
 import type {BoxTone} from './text-bands.ts';
 import type {GanttText} from './timeline.ts';
 
@@ -160,8 +160,10 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
   mirrors?: CauseBand;
   /** What `mirrors` leaves in the band: the ids of the current reality tree and of its undesirable effects. Set by causeTree(), not by the author. */
   mirrorOf?: {ids: string[]; udes: string[]};
-  /** With coreDriver: write `到達 UDE n` under each starting entity (default true). */
+  /** With coreDriver: write how many undesirable effects each starting entity reaches under it (default true). */
   counts?: boolean;
+  /** The wording of that line: `{n}` is the number reached, `{total}` the number of `ude` entities (default `{n}/{total} 件の現象に届く`). */
+  coreDriverLabel?: string;
   /** Where a return (an arrow back to an earlier layer) that skips two layers or more runs: 'inline' (through the figure, over dummies) or 'outer' (in a lane
    *  outside the figure, 14px apart, the longest outermost). Default: the arrows written `back: true` run outside, the others inline; `pdpc` runs all of them outside
    *  (falling back to inline when that does not fit the width). Written explicitly, 'outer' that does not fit is an error. */
@@ -183,6 +185,54 @@ export interface CauseBand extends CauseOpts {
   base?: 'down';
   /** `dir` was left out and the DSL wrote `base` into it: it counts as left out (may change), not as written. */
   dirLeftOut?: true;
+  /** The findings of a cause-analysis tree (whyWhyTree), worked out when it was built. Read by the checks only; never drawn. */
+  rca?: RcaInfo;
+  /** Layers count from the effect (ADR 0026 D3): every entity, root causes too, sits one layer from its nearest effect, so "why n" is the same layer in every branch. Set by whyWhyTree(), not by the author. */
+  layerFrom?: 'effect';
+  /** Entities that are not anchors (no connect() / spotlight / reveal can name them, and two figures may use the same ids). Set by whyWhyTree() for the entities it named itself, not by the author. */
+  unanchored?: readonly string[];
+}
+/** An answer to "なぜ?" in whyWhyTree(): what explains the node above it. `trueCause: true` marks the root cause; `measure` is what is done about it. */
+export interface WhyNode {id?: string; why: string; because?: readonly WhyNode[]; trueCause?: true; measure?: string}
+/** A threat or a consequence of a bow-tie, with the barriers between it and the top event, in the order the flow meets them. */
+export interface BowtieSide {label: string; barriers?: readonly string[]}
+export interface BowtieInput {
+  /** What is controlled whose loss the top event is (drawn above the top event). */
+  hazard?: string;
+  /** The top event: the loss of control. (The band keeps it as `event`: a band with an id has the handle `.top`.) */
+  top: string;
+  /** Left of the top event: each with its preventive barriers, in the order the threat meets them. */
+  threats: readonly BowtieSide[];
+  /** Right of the top event: each with its mitigating barriers. */
+  consequences: readonly BowtieSide[];
+}
+export interface BowtieOpts extends RevealOpts, ScopeOpts {
+  /** The widest a box grows (default 200). Left out, it is narrowed (to 110) when the figure is wider than the diagram (a warning); 'auto' does the same as a note; a number is never narrowed. */
+  maxNodeW?: number | 'auto';
+  id?: string;
+}
+export interface BowtieBand extends BowtieOpts {
+  type: 'bowtie';
+  hazard?: string;
+  event: string;
+  threats: readonly BowtieSide[];
+  consequences: readonly BowtieSide[];
+}
+export type BowtieRole = 'hazard' | 'threat' | 'barrier' | 'event' | 'consequence';
+export interface LaidOutBowtie extends Rect, Dimmed {
+  type: 'bowtie';
+  id?: string;
+  reveal?: number;
+  until?: number;
+  fitApplied?: FitApplied[];
+  nodes: (Rect & {role: BowtieRole})[];
+  /** The flow, left to right: a line, with an arrowhead where `arrow` says. */
+  edges: {points: {x: number; y: number}[]; arrow: boolean}[];
+  /** The knot above the top event's box. */
+  knot: {cx: number; cy: number; r: number};
+  texts: TreeNodeText[];
+  anchors: Anchor[];
+  labelBoxes: (Rect & {label: string})[];
 }
 export type CloudBox = string | {text: string; id?: string; tone?: BoxTone};
 /** The arrow an assumption sits on: ab = B to A, ac = C to A, bd = D to B, cd = D' to C, dd = the conflict between D and D'. */

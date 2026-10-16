@@ -5,7 +5,7 @@ import type {CauseBand} from './types/diagrams.ts';
 
 export type TocRule = 'toc-ude-count' | 'toc-parts' | 'toc-source-has-cause' | 'toc-chain-only' | 'toc-orphan' | 'toc-cycle-undeclared'
   | 'toc-nbr-parts' | 'toc-nbr-no-tipping' | 'toc-nbr-tipping-not-and' | 'toc-nbr-trim-too-late' | 'toc-tt-unit'
-  | 'toc-prt-bottom-not-action' | 'toc-prt-one-to-one' | 'toc-obstacle-phrase' | 'toc-mirror';
+  | 'toc-prt-bottom-not-action' | 'toc-prt-one-to-one' | 'toc-obstacle-phrase' | 'toc-mirror' | 'toc-injection-to-obstacle';
 export interface TocFinding {rule: TocRule; message: string; /** Fixed: this finding is always reported at this severity (`toc-obstacle-phrase`: a judgement on Japanese sentence endings, never a warning). */ severity?: 'info'}
 
 /** The range of undesirable effects a current reality tree is built from (the guidance of the method, not a measure of the examples). */
@@ -39,6 +39,10 @@ export function tocFindings(band: TocBand): TocFinding[] {
     const roots = withRole('root');
     if (roots.length) out.push({rule: 'toc-parts', message: at(`'root' は現状ツリーの根本原因の役割。未来現実ツリーの施策は 'injection' で書く: ${roots.join('、')}`)});
   }
+  // an ordinary arrow reads as "the cause makes the effect": from a measure to an obstacle it says the measure creates the obstacle
+  const roleOf = new Map(band.nodes.map(n => [n.id, n.role]));
+  const creates = causes.filter(l => roleOf.get(l.to) === 'obstacle').flatMap(l => froms(l).filter(f => roleOf.get(f) === 'injection').map(f => `${f}→${l.to}`));
+  if (creates.length) out.push({rule: 'toc-injection-to-obstacle', message: at(`施策（injection）から障害（obstacle）へ通常の矢印がある。「施策が障害を生む」と逆の因果に読まれる: ${creates.join('、')}。施策が障害を断つ・防ぐ意味なら、そのリンクに kind: 'blocks' を付ける`)});
   if (tree === 'prt') prtFindings(band, causes, withRole, at, out);
   if (tree === 'frt' && band.mirrorOf) mirrorFindings(band, band.mirrorOf, at, out);
   if (tree === 'tt') { // a unit of a transition tree: the current reality (or the result before) + a need + an action make the new reality

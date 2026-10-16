@@ -150,12 +150,16 @@ test('causeTree({coreDriver}): the root that reaches the most ude gets the core 
   assert.deepEqual(t.nodes.flatMap((n, i) => n.core ? [t.anchors[i].id] : []), ['big']);
   assert.ok(t.nodes[idx('big')].double && t.nodes[idx('small')].double, 'both stay roots (double outline)');
   assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause')), []);
-  assert.equal(t.texts.filter(x => x.text.includes('到達 UDE')).length, 2, 'every starting entity gets its number');
+  assert.equal(t.texts.filter(x => x.text.includes('件の現象に届く')).length, 2, 'every starting entity gets its number');
   const bare = await laidCause(bands({coreDriver: true, counts: false}));
-  assert.ok(!bare.t.texts.some(x => x.text.includes('到達')), 'counts: false writes no number');
+  assert.ok(!bare.t.texts.some(x => x.text.includes('届く')), 'counts: false writes no number');
   assert.equal(bare.t.nodes.filter(n => n.core).length, 1);
   const plain = await laidCause(bands({}));
-  assert.ok(!plain.t.nodes.some(n => n.core) && !plain.t.texts.some(x => x.text.includes('到達')), 'without coreDriver nothing changes');
+  assert.ok(!plain.t.nodes.some(n => n.core) && !plain.t.texts.some(x => x.text.includes('届く')), 'without coreDriver nothing changes');
+  assert.ok(t.texts.some(x => x.text.includes('2/3 件の現象に届く')), 'the default wording: reached / total');
+  const custom = await laidCause(bands({coreDriver: true, coreDriverLabel: '中核（{n}/{total} 件）'}));
+  assert.ok(custom.t.texts.some(x => x.text.includes('中核（2/3 件）')) && custom.t.texts.some(x => x.text.includes('中核（1/3 件）')), 'coreDriverLabel replaces the wording');
+  assert.throws(() => bands({coreDriver: true, coreDriverLabel: ''}), /coreDriverLabel/);
 });
 
 test('causeTree({coreDriver}): the SVG has a thick frame and a badge for the core entity only', async () => {
@@ -542,7 +546,7 @@ test("causeTree({tree: 'nbr'}): tipping is a double danger box, trim a dashed on
   assert.throws(() => causeTree([N('a', {foldsInto: 'x'})], []), /only a role: 'trim' node takes it/);
   assert.throws(() => causeTree([N('a', {role: 'trim', foldsInto: ' '})], []), /non-empty text/);
   const counted = await laidCause(causeTree(nodes, links, {tree: 'nbr', coreDriver: true}));
-  assert.ok(!counted.t.texts.some(x => x.text.includes('到達 UDE 0')), 'a trim is not counted by coreDriver');
+  assert.ok(!counted.t.texts.some(x => x.text.includes('0/')), 'a trim is not counted by coreDriver');
 });
 
 test("a trim box is drawn dashed in the SVG and in the legend", async () => {
