@@ -7,44 +7,44 @@
   </style>
   <rect x="0" y="0" width="940" height="544" fill="#ffffff"/>
 
-  <path d="M484,452 L484,436 L716,436 L716,356" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M716,344 L721,356 L711,356 z" fill="#22201b"/>
-  <path d="M672,308 L672,212" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M672,200 L677,212 L667,212 z" fill="#22201b"/>
-  <path d="M760,308 L760,212" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M760,200 L765,212 L755,212 z" fill="#22201b"/>
-  <path d="M416,452 L416,408 L164,408 L164,356" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M164,344 L169,356 L159,356 z" fill="#22201b"/>
-  <path d="M460,452 L460,420 L556,420 L556,356" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M556,344 L561,356 L551,356 z" fill="#22201b"/>
-  <path d="M440,452 L440,356" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M440,344 L445,356 L435,356 z" fill="#22201b"/>
-  <path d="M364,308 L364,212" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M364,200 L369,212 L359,212 z" fill="#22201b"/>
-  <path d="M164,308 L164,84 L248,84 L248,68" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M248,56 L253,68 L243,68 z" fill="#22201b"/>
-  <path d="M364,164 L364,148 L268,148 L268,68" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M268,56 L273,68 L263,68 z" fill="#22201b"/>
-  <path d="M292,56 L292,76 L868,76 L868,380 L720,380 Q716,392 708,380 L560,380 Q556,392 548,380 L504,380 L504,444" fill="none" stroke="#22201b" stroke-width="3"/>
-  <path d="M504,452 L499,440 L509,440 z" fill="#22201b"/>
-  <rect x="392" y="452" width="140" height="36" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="660" y="308" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="568" y="164" width="140" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="736" y="164" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="72" y="308" width="180" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="476" y="308" width="156" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="280" y="308" width="168" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="308" y="164" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="180" y="20" width="156" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <text x="460" y="474" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">着手の枠を決める</text>
-  <text x="716" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仕掛りが減る</text>
-  <text x="639" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">1 つずつ仕上げる</text>
-  <text x="792" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手直しが減る</text>
-  <text x="163" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">営業が納期を相談できる</text>
-  <text x="555" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">受注の量は変えない</text>
-  <text x="366" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">週に一度、枠を見直す</text>
-  <text x="366" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">納期を守れる</text>
-  <text x="257" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客の信頼が増える</text>
+  <path d="M516,452 L516,420 L592,420 L592,356" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M592,344 L597,356 L587,356 z" fill="#22201b"/>
+  <path d="M560,308 L560,212" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M560,200 L565,212 L555,212 z" fill="#22201b"/>
+  <path d="M644,308 L644,212" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M644,200 L649,212 L639,212 z" fill="#22201b"/>
+  <path d="M496,452 L496,356" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M496,344 L501,356 L491,356 z" fill="#22201b"/>
+  <path d="M540,452 L540,436 L752,436 L752,356" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M752,344 L757,356 L747,356 z" fill="#22201b"/>
+  <path d="M472,452 L472,408 L216,408 L216,356" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M216,344 L221,356 L211,356 z" fill="#22201b"/>
+  <path d="M216,308 L216,276 L260,276 L260,212" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M260,200 L265,212 L255,212 z" fill="#22201b"/>
+  <path d="M416,308 L416,244 L344,244 L344,84 L316,84 L316,68" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M316,56 L321,68 L311,68 z" fill="#22201b"/>
+  <path d="M292,164 L292,68" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M292,56 L297,68 L287,68 z" fill="#22201b"/>
+  <path d="M272,56 L272,76 L112,76 L112,380 L208,380 Q216,392 220,380 L452,380 L452,444" fill="none" stroke="#22201b" stroke-width="3"/>
+  <path d="M452,452 L447,440 L457,440 z" fill="#22201b"/>
+  <rect x="424" y="452" width="140" height="36" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="536" y="308" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="468" y="164" width="140" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="636" y="164" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="328" y="308" width="180" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="676" y="308" width="156" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="132" y="308" width="168" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="204" y="164" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="204" y="20" width="156" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="494" y="474" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">着手の枠を決める</text>
+  <text x="592" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仕掛りが減る</text>
+  <text x="537" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">1 つずつ仕上げる</text>
+  <text x="690" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手直しが減る</text>
+  <text x="417" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">営業が納期を相談できる</text>
+  <text x="753" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">受注の量は変えない</text>
+  <text x="214" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">週に一度、枠を見直す</text>
+  <text x="260" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">納期を守れる</text>
+  <text x="281" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客の信頼が増える</text>
 
   <text x="20" y="518" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>
