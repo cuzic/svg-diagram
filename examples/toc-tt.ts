@@ -10,6 +10,6 @@ export default function define() {
     {id: 'u3', need: '納期を守りたい', action: '仕掛りを見える化する', result: '納期を守れる', resultRole: 'goal'},
   ]);
   return diagram({theme: 'blue', legend: 'auto', tocCheck: 'strict', title: '着手の枠を入れる移行ツリー', sourceLine: '出典: 説明用の例'}).add(
-    causeTree(nodes, links, {tree: 'tt'}),
+    causeTree(nodes, links, {tree: 'tt', roleTags: true}),
   );
 }
