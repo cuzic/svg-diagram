@@ -48,7 +48,10 @@ test('chart-axis-mismatch: gone with the same domain, axisGroup: false, a differ
 });
 
 test('chart-axis-mismatch: charts side by side in the groups of one row, value axis up the page', async () => {
-  const side = (a: object, b: object) => row([group([wf(invest, {dir: 'v', ...a})] as never, {title: '投資'}), group([wf(ret, {dir: 'v', ...b})] as never, {title: 'リターン'})] as never);
+  // short labels and a short unit: each chart gets half the width, and the width of a text differs with the machine's fonts
+  const small = [{label: 'A', value: 2}, {label: 'B', value: 1}], big = [{label: 'A', value: 5}, {label: 'B', value: 3}];
+  const chart = (steps: typeof small, opts: object) => waterfall([{label: '始', value: 0}, ...steps, {label: '計', kind: 'total'}] as never, {unit: '件', dir: 'v', height: 260, ...opts});
+  const side = (a: object, b: object) => row([group([chart(small, a)] as never, {title: '前'}), group([chart(big, b)] as never, {title: '後'})] as never);
   assert.equal((await found(side({}, {}))).length, 1);
   assert.deepEqual(await found(side({domain: [0, 10]}, {domain: [0, 10]})), []);
 });
