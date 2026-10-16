@@ -2,10 +2,11 @@ import {resolveIcon} from '../icon-registry.ts';
 import {CAUSE_ROLES} from '../toc.ts';
 import {ftaIds, ftaResolve, ftaSinglePoints, ftaQuant} from '../fta.ts';
 import {coreDrivers, reachCounts} from '../toc-analysis.ts';
+import {whyWhyTreeFindings} from '../rca-rules.ts';
 import {criticalPath, exact} from '../qc.ts';
 import type {ArrowActivity} from '../qc.ts';
 import type {GroupBand, RowBand, GroupRowBand} from '../types/containers.ts';
-import type {TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, FtaBand, FtaEvent, FtaOpts, CauseLink, CauseNode, CauseRole, CauseOpts, CloudBand, CloudBox, CloudOpts, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow} from '../types/diagrams.ts';
+import type {WhyNode, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, FtaBand, FtaEvent, FtaOpts, CauseLink, CauseNode, CauseRole, CauseOpts, CloudBand, CloudBox, CloudOpts, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow} from '../types/diagrams.ts';
 import type {Band} from '../types/index.ts';
 import type {CaptionBand} from '../types/text-bands.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
@@ -183,6 +184,59 @@ function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opt
   const marked = counted ? noted.map(n => !counted.has(n.id) || n.role === 'trim' ? n : {...n, ...(core.has(n.id) ? {core: true} : {}), ...(opts.counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}到達 UDE ${counted.get(n.id)}`})}) : noted;
   const band: CauseBand = {type: 'cause', nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? (base === undefined ? {} : {dir: base, dirLeftOut: true as const}) : {dir: opts.dir}), ...(base === undefined ? {} : {base}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.tree === undefined ? {} : {tree: opts.tree}), ...(opts.mirrors === undefined ? {} : {mirrorOf: {ids: opts.mirrors.nodes.map(n => n.id), udes: opts.mirrors.nodes.filter(n => n.role === 'ude').map(n => n.id)}}), ...(opts.layer === undefined ? {} : {layer: opts.layer}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.fold === undefined || base !== undefined ? {} : {fold: opts.fold}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'causeTree()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
+}
+export interface WhyWhyTreeOpts extends Pick<CauseOpts, 'id' | 'maxNodeW' | 'reveal' | 'until' | 'scope'> {
+  /** Leave out the lines under the tree that say how to read it (default: they are there). */
+  readingNote?: boolean;
+}
+/**
+ * A why-why analysis (なぜなぜ分析) as a tree, drawn by causeTree(): the problem at the top, each "なぜ?" answer below the one it explains, the root cause
+ * (`trueCause: true`) in a double frame, and what is done about it (`measure`) as a dashed box that cuts it. Arrows run cause -> effect (up to the problem);
+ * "なぜ?" reads against them, downward. Returns the tree and two lines that say so: pass them to add(). Written as a table: whyWhyTable().
+ *   whyWhyTree('リリースが遅れた', [{why: '修正に時間がかかった', because: [
+ *     {why: '影響範囲が広かった', because: [{why: '検証が最後に集中していた', trueCause: true, measure: '結合テストを毎週回す'}]},
+ *     {why: '不具合の発見が遅かった'}]}])
+ */
+export function whyWhyTree(problem: string, whys: readonly WhyNode[], opts?: WhyWhyTreeOpts): (CauseBand | CaptionBand)[];
+export function whyWhyTree(problem: string, whys: readonly WhyNode[], opts: WhyWhyTreeOpts = {}): (CauseBand | CaptionBand)[] {
+  if (typeof problem !== 'string' || !problem.trim()) throw new Error('whyWhyTree(problem, whys) needs the problem as text');
+  if (!Array.isArray(whys) || whys.length === 0) throw new Error('whyWhyTree(problem, whys) needs at least one answer to "なぜ?"');
+  if (opts.readingNote !== undefined && typeof opts.readingNote !== 'boolean') throw new Error(`whyWhyTree(): readingNote is true or false (got ${String(opts.readingNote)})`);
+  const prefix = opts.id === undefined ? '' : `${opts.id}.`, nodes: CauseNode[] = [], links: CauseLink[] = [], seen = new Set<string>();
+  const add = (n: CauseNode): void => {
+    if (seen.has(n.id)) throw new Error(`whyWhyTree(): the id "${n.id}" is used twice`);
+    seen.add(n.id); nodes.push(n);
+  };
+  const problemId = `${prefix}problem`;
+  add({id: problemId, label: problem, role: 'effect', tone: 'danger'});
+  const walk = (n: WhyNode, path: string, effect: string): void => {
+    if (!n || typeof n.why !== 'string' || !n.why.trim()) throw new Error(`whyWhyTree(): "${path}" needs a why (the answer to "なぜ?" as text)`);
+    if (n.trueCause !== undefined && n.trueCause !== true) throw new Error(`whyWhyTree(): "${n.why}": trueCause is true (or leave it out)`);
+    if (n.measure !== undefined && (typeof n.measure !== 'string' || !n.measure.trim())) throw new Error(`whyWhyTree(): "${n.why}": measure is the text of what is done`);
+    if (n.because !== undefined && !Array.isArray(n.because)) throw new Error(`whyWhyTree(): "${n.why}": because is a list of whys`);
+    const id = n.id ?? `${prefix}w${path}`;
+    add({id, label: n.why, ...(n.trueCause ? {role: 'root' as const} : {})});
+    links.push({from: id, to: effect});
+    if (n.measure !== undefined) {
+      const m = `${id}.m`;
+      add({id: m, label: n.measure, role: 'measure'});
+      links.push({from: m, to: id, kind: 'blocks'});
+    }
+    (n.because ?? []).forEach((c, i) => walk(c, `${path}.${i + 1}`, id));
+  };
+  whys.forEach((w, i) => walk(w, String(i + 1), problemId));
+  const band = causeBand(nodes, links, {dir: 'auto', ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...revealOf(opts), ...scopeOpt(opts, 'whyWhyTree()')});
+  band.layerFrom = 'effect';
+  if (opts.id === undefined) band.unanchored = nodes.filter(n => !userIds(whys).has(n.id)).map(n => n.id);
+  band.rca = {kind: 'whywhy-tree', findings: whyWhyTreeFindings(whys)};
+  if (opts.readingNote === false) return [band];
+  const notes = [caption('矢印は原因 → 結果。「なぜ?」は矢印をさかのぼって（下へ）読む')];
+  if (nodes.some(n => n.role === 'measure')) notes.push(caption('対策（破線の棒）は真因に打つ手で、なぜの答えではない'));
+  return [band, ...notes];
+}
+function userIds(whys: readonly WhyNode[], out = new Set<string>()): Set<string> {
+  for (const w of whys) { if (w.id !== undefined) out.add(w.id); userIds(w.because ?? [], out); }
+  return out;
 }
 export interface ArrowDiagramOpts extends Omit<StatesOpts, 'initial' | 'dir'> {
   /** 'right' (default): the network runs left to right; 'down': top to bottom, for a long chain of events that does not fit the width. */
