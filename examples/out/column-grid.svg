@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="410" viewBox="0 0 940 410" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">取り込み処理の構成（例）: 6 列グリッドの 3 段</title>
   <desc id="svg-desc">要素: カメラ、LiDAR、GNSS、デコード、統合、保存、ライブ表示、再生</desc>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/column-grid.ts","sourceSha256":"dae9023448e91cd656f184b508d6580a4df2d346ce4930b857770cfa52bc562f"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/column-grid.ts","sourceSha256":"28d29a038139156c1fcf7e0ca9a656971b8b18abce75b0fcc99903aed2aa765c"}</metadata>
   <defs>
     <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>

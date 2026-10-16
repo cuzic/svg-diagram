@@ -193,3 +193,10 @@ test('rcaCheck: validated, never reaches the drawing, and rcaSeverity follows to
   const band = causeTree([N('a', 'root'), N('b', 'ude')] as never, [{from: 'a', to: 'b'}]);
   assert.equal(await render(diagram({theme: 'blue', rcaCheck: 'strict'}).add(band)), await render(diagram({theme: 'blue'}).add(band)));
 });
+
+test('toc-injection-to-obstacle: an ordinary arrow from a measure to an obstacle; kind blocks is fine', () => {
+  const nodes = [N('i', 'injection'), N('o', 'obstacle'), N('d', 'de')];
+  assert.deepEqual(rules(nodes, [{from: 'i', to: 'o'}, {from: 'i', to: 'd'}], 'frt'), ['toc-injection-to-obstacle']);
+  assert.deepEqual(rules(nodes, [{from: 'i', to: 'o', kind: 'blocks'}, {from: 'i', to: 'd'}], 'frt'), []);
+  assert.deepEqual(rules(nodes, [{from: ['i', 'd'], to: 'o'}], 'frt'), ['toc-injection-to-obstacle']);
+});
