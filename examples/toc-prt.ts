@@ -2,8 +2,9 @@ import {causeTree, diagram} from 'svg-diagram';
 
 // 前提条件ツリー(PRT): 目的に向かう中間目標(io)、その障害(obstacle)、障害を越える行動(action)。
 // `tree: 'prt'` を書くと、入力しか持たない節(障害・行動)は、行き先の 1 つ手前の層に置かれる(ALAP。ADR 0019)。
+// `roleTags: true` は、ゴールのように同じ見た目（アクセント色の二重枠）の役割を、節の下に【ゴール】と文字で書く（別の図の根本原因や施策と取り違えない）。
 export default function define() {
-  return diagram({theme: 'blue', title: '標準化を定着させる前提条件ツリー', sourceLine: '出典: 説明用の例'}).add(
+  return diagram({theme: 'blue', title: '標準化を定着させる前提条件ツリー', legend: 'auto', sourceLine: '出典: 説明用の例'}).add(
     causeTree(
       [
         {id: 'goal', label: '標準手順が全拠点で使われる', role: 'goal'},
@@ -23,7 +24,7 @@ export default function define() {
         {from: 'a3', to: 'i4'}, {from: 'i4', to: 'i3'},
         {from: 'i1', to: 'goal'}, {from: 'i2', to: 'goal'}, {from: 'i3', to: 'i2'},
       ],
-      {tree: 'prt'},
+      {tree: 'prt', roleTags: true},
     ),
   );
 }

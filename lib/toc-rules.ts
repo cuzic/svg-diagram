@@ -5,13 +5,13 @@ import type {CauseBand} from './types/diagrams.ts';
 
 export type TocRule = 'toc-ude-count' | 'toc-parts' | 'toc-source-has-cause' | 'toc-chain-only' | 'toc-orphan' | 'toc-cycle-undeclared'
   | 'toc-nbr-parts' | 'toc-nbr-no-tipping' | 'toc-nbr-tipping-not-and' | 'toc-nbr-trim-too-late' | 'toc-tt-unit'
-  | 'toc-prt-bottom-not-action' | 'toc-prt-one-to-one' | 'toc-obstacle-phrase' | 'toc-mirror' | 'toc-injection-to-obstacle';
+  | 'toc-prt-bottom-not-action' | 'toc-prt-one-to-one' | 'toc-obstacle-phrase' | 'toc-mirror' | 'toc-injection-to-obstacle' | 'toc-role-indistinct';
 export interface TocFinding {rule: TocRule; message: string; /** Fixed: this finding is always reported at this severity (`toc-obstacle-phrase`: a judgement on Japanese sentence endings, never a warning). */ severity?: 'info'}
 
 /** The range of undesirable effects a current reality tree is built from (the guidance of the method, not a measure of the examples). */
 export const UDE_RANGE = {min: 5, max: 10} as const;
 
-type TocBand = Pick<CauseBand, 'nodes' | 'links' | 'tree' | 'mirrorOf'> & {id?: string};
+type TocBand = Pick<CauseBand, 'nodes' | 'links' | 'tree' | 'mirrorOf' | 'roleTags'> & {id?: string};
 // `back` (a declared feedback arrow) and `kind: 'blocks'` are not causes: they are left out of what is counted
 type AnyLink = CauseBand['links'][number] & {back?: boolean; kind?: string};
 
@@ -39,6 +39,9 @@ export function tocFindings(band: TocBand): TocFinding[] {
     const roots = withRole('root');
     if (roots.length) out.push({rule: 'toc-parts', message: at(`'root' は現状ツリーの根本原因の役割。未来現実ツリーの施策は 'injection' で書く: ${roots.join('、')}`)});
   }
+  // root / goal / start share one look (a double accent frame): across figures (a CRT's root, an FRT's goal) they are taken for one another
+  const alike = [...new Set(band.nodes.flatMap(n => n.role === 'root' || n.role === 'goal' || n.role === 'start' ? [n.role] : []))];
+  if (alike.length && !band.roleTags) out.push({rule: 'toc-role-indistinct', severity: 'info', message: at(`${alike.join(' / ')} は同じ見た目（アクセント色の二重枠）で、白黒や凡例なしでは役割を見分けられない。causeTree({roleTags: true}) で役割を文字にする`)});
   // an ordinary arrow reads as "the cause makes the effect": from a measure to an obstacle it says the measure creates the obstacle
   const roleOf = new Map(band.nodes.map(n => [n.id, n.role]));
   const creates = causes.filter(l => roleOf.get(l.to) === 'obstacle').flatMap(l => froms(l).filter(f => roleOf.get(f) === 'injection').map(f => `${f}→${l.to}`));

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {box, causeTree, checkDiagram, closeMeasurer, cloud, connect, diagram, pdpc, renderDiagram, transitionUnits} from '../lib/dsl.ts';
 import type {LaidOutCause, LaidOutCloud} from '../lib/types/diagrams.ts';
 import {tocFindings} from '../lib/toc-rules.ts';
+import {usedNotation} from '../lib/rules.ts';
 
 test.after(() => closeMeasurer());
 
@@ -566,7 +567,7 @@ test('transitionUnits(): units become a chain of 3-input ANDs; the result of one
   const {t, verdict} = await laidCause(causeTree(nodes, links, {tree: 'tt'}));
   assert.equal(t.ands.length, 2);
   assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause')), []);
-  assert.deepEqual(tocFindings({nodes, links, tree: 'tt'}).map(f => f.rule), [], 'a clean transition tree');
+  assert.deepEqual(tocFindings({nodes, links, tree: 'tt'}).map(f => f.rule).filter(r => r !== 'toc-role-indistinct'), [], 'a clean transition tree (the roleTags advice is information)');
   assert.throws(() => transitionUnits([]), /at least one unit/);
   assert.throws(() => transitionUnits([{id: 'a', need: 'n', action: 'x', result: 'r'}]), /needs the current reality/);
   assert.throws(() => transitionUnits([{id: 'a', current: 'c', need: 'n', action: 'x', result: 'r'}, {id: 'b', current: 'c', need: 'n', action: 'x', result: 'r'}]), /leave current out/);
@@ -600,4 +601,46 @@ test('causeTree(): an AND arc spans all its arrows even when a return arrives at
       assert.ok(Math.min(at(arc.p0), at(arc.p1)) < Math.min(...tips.map(at)) && Math.max(at(arc.p0), at(arc.p1)) > Math.max(...tips.map(at)), `${dir}: the arc into ${arc.to} spans every arrow of its AND`);
     }
   }
+});
+
+test('causeTree({roleTags}): root / goal / injection / start say what they are in words, before the sub line and the counts; off by default', () => {
+  const nodes = [N('u1', {role: 'ude'}), N('m'), N('r', {role: 'root', sub: '原因の説明'}), N('g', {role: 'goal'}), N('i', {role: 'injection'}), N('s', {role: 'start'})];
+  const links = [{from: 'r', to: 'm'}, {from: 'm', to: 'u1'}, {from: 'i', to: 'g'}];
+  const sub = (b: {nodes: {id: string; sub?: string}[]}, id: string) => b.nodes.find(n => n.id === id)?.sub;
+  const off = causeTree(nodes, links, {});
+  assert.equal(sub(off, 'r'), '原因の説明');
+  assert.equal(off.roleTags, undefined);
+  const on = causeTree(nodes, links, {roleTags: true});
+  assert.equal(sub(on, 'r'), '【根本原因】　原因の説明');
+  assert.equal(sub(on, 'g'), '【ゴール】');
+  assert.equal(sub(on, 'i'), '【施策】');
+  assert.equal(sub(on, 's'), '【開始】');
+  assert.equal(sub(on, 'u1'), undefined, 'a ude is a different shape already');
+  assert.equal(sub(causeTree(nodes, links, {roleTags: {root: '真因'}}), 'r'), '【真因】　原因の説明');
+  assert.equal(sub(causeTree(nodes, links, {roleTags: {root: '真因'}}), 'g'), '【ゴール】', 'the words not replaced stay');
+  const counted = causeTree([N('u1', {role: 'ude'}), N('u2', {role: 'ude'}), N('r', {role: 'root', sub: 'x'})], [{from: 'r', to: 'u1'}, {from: 'r', to: 'u2'}], {roleTags: true, coreDriver: true});
+  assert.match(sub(counted, 'r')!, /^【根本原因】　x　2\/2 件の現象に届く$/, 'tag, then sub, then the count');
+  assert.throws(() => causeTree(nodes, links, {roleTags: {root: ''}}), /roleTags/);
+  assert.throws(() => causeTree(nodes, links, {roleTags: {boss: 'x'} as never}), /roleTags/);
+  assert.throws(() => causeTree(nodes, links, {roleTags: 'yes' as never}), /roleTags/);
+});
+
+test('toc-role-indistinct and toc-legend-suggested: information only, gone with roleTags / a legend', async () => {
+  const nodes = [N('u1', {role: 'ude'}), N('r', {role: 'root'})];
+  const links = [{from: 'r', to: 'u1'}];
+  const found = async (d: ReturnType<typeof diagram>) => (await checkDiagram(d)).verdict.findings.filter(f => f.rule.startsWith('toc-role') || f.rule === 'toc-legend-suggested').map(f => `${f.rule}:${f.severity}`).sort();
+  assert.deepEqual(await found(diagram({theme: 'blue', title: 't'}).add(causeTree(nodes, links, {tree: 'crt'}))), ['toc-legend-suggested:info', 'toc-role-indistinct:info']);
+  assert.deepEqual(await found(diagram({theme: 'blue', title: 't', legend: false}).add(causeTree(nodes, links, {tree: 'crt'}))), ['toc-role-indistinct:info'], 'legend: false still gets the roleTags advice');
+  assert.deepEqual(await found(diagram({theme: 'blue', title: 't', legend: 'auto'}).add(causeTree(nodes, links, {tree: 'crt', roleTags: true}))), []);
+  assert.deepEqual(await found(diagram({theme: 'blue', title: 't'}).add(causeTree(nodes, links, {}))), [], 'no tree: no advice');
+});
+
+test("legend: 'auto' leaves out the swatches of the roles roleTags writes in words, and keeps the others", () => {
+  const nodes = [N('u1', {role: 'ude'}), N('r', {role: 'root'}), N('o', {role: 'obstacle'})];
+  const links = [{from: 'r', to: 'u1'}, {from: 'o', to: 'u1'}];
+  const used = (opts: object) => usedNotation([causeTree(nodes, links, {tree: 'crt', ...opts}) as never], new Set(), true);
+  assert.ok(used({}).has('role:root') && used({}).has('role:obstacle'));
+  assert.ok(!used({roleTags: true}).has('role:root'), 'root is written in words on the node');
+  assert.ok(used({roleTags: true}).has('role:obstacle'), 'an obstacle has a shape of its own: it keeps its swatch');
+  assert.ok(used({roleTags: {goal: 'x'}}).has('role:root') === false, 'a map is a roleTags too: root keeps its default words');
 });

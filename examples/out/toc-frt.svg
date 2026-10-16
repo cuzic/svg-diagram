@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="576" viewBox="0 0 940 576" role="img" aria-labelledby="svg-title">
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="616" viewBox="0 0 940 616" role="img" aria-labelledby="svg-title">
   <title id="svg-title">受注の着手を絞る未来現実ツリー</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/toc-frt.ts","sourceSha256":"54fa2eab7a46d393e65715f2720e77ed887961cde7eac0fbaa8d3a7b636c181b"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/toc-frt.ts","sourceSha256":"c07fb7553ce66c98db8dc359a04d2805ec33883744384219025dca44c7046644"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
   </style>
-  <rect x="0" y="0" width="940" height="576" fill="#ffffff"/>
+  <rect x="0" y="0" width="940" height="616" fill="#ffffff"/>
 
   <path d="M316,484 L316,416" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M316,404 L321,416 L311,416 z" fill="#22201b"/>
@@ -40,5 +40,21 @@
   <text x="504" y="390" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">受注の量は変えられない</text>
   <text x="585" y="274" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">営業が納期を相談できる</text>
 
-  <text x="20" y="550" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+  <rect x="84" y="540" width="28" height="16" rx="4" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="125" y="553" font-size="14" fill="#22201b">望む結果(DE)</text>
+  <rect x="244" y="540" width="28" height="16" rx="4" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="283" y="553" font-size="14" fill="#22201b">施策</text>
+  <rect x="344" y="540" width="28" height="16" rx="4" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <text x="383" y="553" font-size="14" fill="#22201b">現状の事実</text>
+  <path d="M480,544 L508,544" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M516,544 L504,549 L504,539 z" fill="#22201b"/>
+  <path d="M480,552 L508,552" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M516,552 L504,557 L504,547 z" fill="#22201b"/>
+  <path d="M496,543 Q500,548 496,553" fill="none" stroke="#22201b" stroke-width="2"/>
+  <text x="525" y="553" font-size="14" fill="#22201b">合わせて原因(AND)</text>
+  <path d="M676,548 L704,548" fill="none" stroke="#22201b" stroke-width="3"/>
+  <path d="M712,548 L700,553 L700,543 z" fill="#22201b"/>
+  <text x="722" y="553" font-size="14" fill="#22201b">戻り(フィードバック)</text>
+
+  <text x="20" y="590" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>

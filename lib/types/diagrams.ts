@@ -136,6 +136,8 @@ export interface CauseLink {
    *  depend on the order the entities are written in, and it is drawn bold. One cause only (not with an array `from`); one per cycle. */
   back?: true;
 }
+/** The roles `roleTags` writes in words: the ones drawn with the same double accent frame. */
+export type RoleTagged = 'root' | 'goal' | 'injection' | 'start';
 export interface CauseOpts extends RevealOpts, ScopeOpts {
   /** Which way the arrows run: 'up' (default: causes at the bottom, effects at the top), 'down', 'right' or 'left'.
    *  'auto' (and leaving it out) lets the layout narrow the nodes when the figure is wider than the diagram (a warning when left out, a note for 'auto');
@@ -147,6 +149,8 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
   /** Mark the core driver: the starting entity (nothing causes it) whose arrows bring about the most `ude` entities, 2 or more (a tie: all).
    *  Every starting entity gets the number it reaches under its text (`到達 UDE n`) unless `counts` is false. `role` is not changed. */
   coreDriver?: boolean;
+  /** Write what kind of entity each starting / goal / measure entity is in words under its label (`【根本原因】`, `【ゴール】`, `【施策】`, `【開始】`), so that the entities drawn alike (a double accent frame) are told apart without colour or a legend. `true` uses these words; an object replaces some of them. Default off: nothing changes for a figure that does not write it. On the band this is the resolved map. */
+  roleTags?: true | Partial<Record<RoleTagged, string>>;
   /** Show where a return arrow crosses another line (ADR 0028): the return hops over it. Default off: nothing changes for a figure that does not write it. */
   hop?: boolean;
   /** Which Theory of Constraints tree this is: 'crt' (current reality), 'frt' (future reality), 'prt' (prerequisite), 'tt' (transition), 'nbr' (negative branch).
