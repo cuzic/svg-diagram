@@ -105,8 +105,8 @@ function place(band: BowtieBand, maxW: number, widthOf: WidthOf, roles: Roles) {
   const topRect: Placed = {x: topX, y: cy0, w: topW, h: top.lines.h, role: 'event', label: top.label, lines: top.lines};
   nodes.push(topRect);
   const yk = topRect.y + topRect.h / 2;
-  // a row within a few px of the top event's centre runs straight into it (not with a jog of 2 to 8px at the bus)
-  const entry = (cy: number): number => Math.abs(cy - yk) <= 12 ? cy : yk;
+  // a row enters the top event's box at its own height, held onto the box (a row beside it runs straight in; one above or below jogs at the bus)
+  const entry = (cy: number): number => Math.min(Math.max(cy, topRect.y + 10), topRect.y + topRect.h - 10);
   if (hazard) edges.push({points: [{x: knot.cx, y: nodes[0].y + nodes[0].h}, {x: knot.cx, y: knot.cy - KNOT_R}], arrow: false});
   edges.push({points: [{x: knot.cx, y: knot.cy + KNOT_R}, {x: knot.cx, y: topRect.y}], arrow: false});
   const dedupe = (pts: {x: number; y: number}[]) => pts.filter((q, j, a) => j === 0 || q.x !== a[j - 1].x || q.y !== a[j - 1].y);

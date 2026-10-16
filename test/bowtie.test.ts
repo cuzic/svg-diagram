@@ -104,7 +104,7 @@ test('a top event of more than three lines throws; without a hazard the knot is 
   assert.ok(t.knot.cy < top.y && t.knot.cy - t.knot.r >= t.y - 0.5);
 });
 
-test('spotlight dims the whole bow-tie; a bow-tie inside a group still gets its rule', async () => {
+test('a bow-tie with an id is laid out and reports its rule (no barrier on a side)', async () => {
   const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue', title: 'x'}).add(bowtie({top: 't', threats: [{label: 'a'}], consequences: [{label: 'b', barriers: ['m']}]}, {id: 'bt'})));
   assert.ok(laidOut.laidOut.some(b => b.type === 'bowtie'));
   assert.ok(verdict.findings.some(f => f.rule === 'bowtie-barrier-missing'));
