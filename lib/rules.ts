@@ -10,6 +10,7 @@
 // a longer description (Google developer style guide).
 
 import {midWordBreaksIn, missingGlyphs} from './text-rules.ts';
+import {labelCover, hidesArrow} from './connect-rules.ts';
 import {qualify, scopeOf} from './anchor-scope.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {nestedBandsOf} from './band-children.ts';
@@ -60,6 +61,7 @@ export const RULE_DOCS = {
   'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる',
   'text-mid-word-break': "レイアウトが、カタカナの語(「コンテキス/ト」)や英数字の語の途中で行を割っている。箱や列が最長の語より狭いときに起きる。箱の幅を広げる・向き(dir)や maxNodeW を変える・文言を短くする・語の前後で改行を書く。漢字どうしの途中の改行は対象外",
   'glyph-missing': "図の文字に、絵文字として扱われない絵記号(✅ ❌ など。EMOJI_RE の外)がある。通常の文字のフォントで描かれ、字形が無いと空白になる(resvg のプレビューで確認できる)。icon.emoji() か SVG アイコン(box({icon}))を使うか、✓ ✗ などの字に置き換える",
+  'connect-label-covers-arrow': "矢印のラベル(の下地)が、矢印の経路の 6 割より多くを覆い、見える部分が 20px に満たない。箱の間が狭く、矢じりや向きが読めなくなる。箱の間隔を広げる・ラベルを短くする・ラベルを箱の中に書く",
   'shrink-narrow-text': "fit: 'shrink' で bpmn / swimlane を詰めた結果、task / step の幅が狭すぎて本文が 2〜3 字ずつ折れる。縦向き・図の分割・文言の短縮を検討する",
   'gray-tone-collision': '使っている 2 つのトーンの塗りが、白黒（グレースケール）にすると見分けにくい（明度差 L* が 10 未満。破線などの形の手がかりがあれば除く）',
   'rowheader-tone-collides': '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある',
@@ -683,8 +685,13 @@ function glyphRules(d: LintTarget, out: Finding[]): void {
   const glyphs = missingGlyphs(d.laidOut);
   if (glyphs.length) out.push({rule: 'glyph-missing', severity: 'warn', message: `絵文字として扱われない絵記号がある（${glyphs.map(g => `「${g}」`).join('')}）。通常の文字のフォントで描かれ、字形が無いと空白になる。直し方: icon.emoji() か SVG アイコン（box({icon})）を使う、または ✓ ✗ などの字に置き換える`});
 }
+function labelCoverRules(d: LintTarget, out: Finding[]): void {
+  const hits = (d.connects ?? []).flatMap(c => { const cover = c.label ? labelCover(c) : undefined; return cover && hidesArrow(cover) ? [`「${c.label}」(${c.fromId}→${c.toId}、見える部分 ${Math.round(cover.visible)}px)`] : []; });
+  if (hits.length) out.push({rule: 'connect-label-covers-arrow', severity: 'warn', message: `矢印のラベルが矢印のほとんどを覆っていて、向きが読めない: ${hits.slice(0, 4).join('、')}${hits.length > 4 ? ` ほか ${hits.length - 4} 件` : ''}。直し方: 箱の間隔を広げる、ラベルを短くする、ラベルを箱の中に書く`});
+}
 function lintAll(d: LintTarget): Finding[] {
   const out: Finding[] = [];
+  labelCoverRules(d, out);
   midWordRules(d, out);
   glyphRules(d, out);
   layoutQualityRules(d, out);
