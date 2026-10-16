@@ -151,13 +151,15 @@ test('causeTree({coreDriver}): the root that reaches the most ude gets the core 
   assert.deepEqual(t.nodes.flatMap((n, i) => n.core ? [t.anchors[i].id] : []), ['big']);
   assert.ok(t.nodes[idx('big')].double && t.nodes[idx('small')].double, 'both stay roots (double outline)');
   assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause')), []);
-  assert.equal(t.texts.filter(x => x.text.includes('件の現象に届く')).length, 2, 'every starting entity gets its number');
+  assert.equal(t.texts.filter(x => x.text.includes('件に届く')).length, 2, 'every starting entity gets its number');
   const bare = await laidCause(bands({coreDriver: true, counts: false}));
   assert.ok(!bare.t.texts.some(x => x.text.includes('届く')), 'counts: false writes no number');
   assert.equal(bare.t.nodes.filter(n => n.core).length, 1);
   const plain = await laidCause(bands({}));
   assert.ok(!plain.t.nodes.some(n => n.core) && !plain.t.texts.some(x => x.text.includes('届く')), 'without coreDriver nothing changes');
-  assert.ok(t.texts.some(x => x.text.includes('2/3 件の現象に届く')), 'the default wording: reached / total');
+  assert.ok(t.texts.some(x => x.text.includes('2/3 件に届く')), 'the default wording: reached / total');
+  // a longer default wraps in a narrow box and makes the figure taller (`{n}/{total} 件の現象に届く` made slides3 p-crt 18% taller, past its height budget): keep it about as short as the old `到達 UDE n`
+  assert.ok(t.texts.every(x => !x.text.includes('件に届く') || x.text.length <= 10), 'the default wording stays short');
   const custom = await laidCause(bands({coreDriver: true, coreDriverLabel: '中核（{n}/{total} 件）'}));
   assert.ok(custom.t.texts.some(x => x.text.includes('中核（2/3 件）')) && custom.t.texts.some(x => x.text.includes('中核（1/3 件）')), 'coreDriverLabel replaces the wording');
   assert.throws(() => bands({coreDriver: true, coreDriverLabel: ''}), /coreDriverLabel/);
@@ -619,7 +621,7 @@ test('causeTree({roleTags}): root / goal / injection / start say what they are i
   assert.equal(sub(causeTree(nodes, links, {roleTags: {root: '真因'}}), 'r'), '【真因】　原因の説明');
   assert.equal(sub(causeTree(nodes, links, {roleTags: {root: '真因'}}), 'g'), '【ゴール】', 'the words not replaced stay');
   const counted = causeTree([N('u1', {role: 'ude'}), N('u2', {role: 'ude'}), N('r', {role: 'root', sub: 'x'})], [{from: 'r', to: 'u1'}, {from: 'r', to: 'u2'}], {roleTags: true, coreDriver: true});
-  assert.match(sub(counted, 'r')!, /^【根本原因】　x　2\/2 件の現象に届く$/, 'tag, then sub, then the count');
+  assert.match(sub(counted, 'r')!, /^【根本原因】　x　2\/2 件に届く$/, 'tag, then sub, then the count');
   assert.throws(() => causeTree(nodes, links, {roleTags: {root: ''}}), /roleTags/);
   assert.throws(() => causeTree(nodes, links, {roleTags: {boss: 'x'} as never}), /roleTags/);
   assert.throws(() => causeTree(nodes, links, {roleTags: 'yes' as never}), /roleTags/);
