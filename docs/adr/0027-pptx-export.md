@@ -156,3 +156,4 @@ PoC で未完のもの(後続):
 - 構成は FCIS(ADR 0007)に沿う。核は `planSlide` と `packageEntries`(`core-purity` の対象)、殻は `emitPptx`(雛形の読み込み、resvg、zip)。
 - PNG のバイト列が決定的なのは、`rasterFonts` に測定と同じフォントファイルを渡したときだけ。`[]` はシステムフォントで描くので、マシンに依存する。
 - 後続: 測定に使ったフォントを `LaidOutDiagram` に持たせ(`roles` と同じ形)、`rasterFonts` の引数をなくす。`emit-html.ts` が同じ `currentFontSpecs()` を読んでいるので、両方を一緒に直す。
+- 回帰の網: `pnpm golden:pptx` が全 examples の「スライド XML + 画像バンドの SVG」の SHA-256 を `examples/out/pptx-golden.json` と比べる(PNG はマシンのフォントに依存するので対象外)。意図した出力の変更のときは `node test/helpers/pptx/golden.ts --update examples/*.ts` で更新し、差分の名前を確かめてからコミットする。

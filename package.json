@@ -25,6 +25,7 @@
   },
   "scripts": {
     "test": "node --test \"test/*.test.ts\"",
+    "golden:pptx": "node test/helpers/pptx/golden.ts examples/*.ts",
     "golden": "node --import ./test/helpers/strict-width.ts check-diagram.ts --drift --rebuild --svg-dir examples/out examples/*.ts",
     "typecheck": "tsc -p .",
     "build": "tsc -p tsconfig.build.json && pnpm run build:assets",

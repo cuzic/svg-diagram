@@ -8,6 +8,13 @@ import {connectorXml, freeformXml, type Glue} from './connectors.ts';
 import {bandXml, type Ctx} from './bands.ts';
 import type {SlidePlan} from './package.ts';
 
+// The font measured by the project and written here must match (ADR 0027); BIZ UDPGothic is the PPTX default.
+const DEFAULT_FONT = 'BIZ UDPGothic';
+const DEFAULT_MONO_FONT = 'BIZ UDGothic';
+
+/** The typefaces written into the runs: `font` (if given) for everything, else the defaults. */
+export const fontsOf = (font?: string): Fonts => ({sans: font ?? DEFAULT_FONT, mono: font ?? DEFAULT_MONO_FONT});
+
 const NS = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
 
 const glueOf = (ctx: Ctx, dslId: string, p: {x: number; y: number}, label: string): Glue | undefined => {

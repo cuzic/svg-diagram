@@ -4,12 +4,8 @@ import {Resvg} from '@resvg/resvg-js';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {FontSpecs} from '../types/project.ts';
 import {zipStore} from './zip.ts';
-import {planSlide} from './slide.ts';
+import {planSlide, fontsOf} from './slide.ts';
 import {packageEntries, type Entry, type SlidePlan} from './package.ts';
-
-// The font measured by the project and written here must match (ADR 0027); BIZ UDPGothic is the PPTX default.
-const DEFAULT_FONT = 'BIZ UDPGothic';
-const DEFAULT_MONO_FONT = 'BIZ UDGothic';
 
 export interface PptxOptions {
   /** Typeface written into the runs (and used for monospace too); the measuring font is the project's, so keep them the same. */
@@ -39,7 +35,7 @@ function rasterize(svg: string, fontFiles: readonly string[], scale: number): Bu
 export function emitPptx(laidOut: LaidOutDiagram, opts: PptxOptions): Buffer {
   const {font, pngScale = 2, rasterFonts} = opts;
   if (!(Number.isFinite(pngScale) && pngScale > 0)) throw new Error(`pngScale must be a positive number (got ${String(pngScale)})`);
-  const plan = planSlide(laidOut, {sans: font ?? DEFAULT_FONT, mono: font ?? DEFAULT_MONO_FONT});
+  const plan = planSlide(laidOut, fontsOf(font));
   return packSlide(plan, plan.pictures.map(p => rasterize(p.pngSvg, rasterFonts, pngScale)));
 }
 
