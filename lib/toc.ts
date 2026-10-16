@@ -6,6 +6,7 @@
 //               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
 import {textWidth} from './atoms.ts';
 import {andClashes} from './cause-clash.ts';
+import {causeCrossings} from './cause-hop.ts';
 import {fitLayout} from './fit-width.ts';
 import {scoreOf} from './polyline-metrics.ts';
 import {gapFor, layeredAttempt} from './layered-route.ts';
@@ -62,13 +63,14 @@ type CauseDir = 'up' | 'down' | 'right' | 'left';
 const movedAside = new WeakSet<object>();
 
 /**
- * A cause tree. When the arrows into an effect with an AND cross each other, the order the entities are written in is tried again in a few fixed
- * ways (ADR 0019 D4); a figure with no such crossing is never touched. Only a cause tree (not pdpc() / relationDiagram()).
+ * A cause tree. When the arrows into an effect with an AND cross each other, or any two arrows cross, the order the entities are written in is tried again
+ * in a few fixed ways (ADR 0019 D4); a figure with no crossing is never touched. Only a cause tree (not pdpc() / relationDiagram()).
  */
 export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number, canvasBound = false): LaidOutCause {
   const first = layoutCauseBandOnce(band, x, y, w, widthOf, roles, heightBudget, canvasBound);
   // the search is for a figure whose AND arrows cross as first laid out: judged before the side-by-side runs are moved aside (ADR 0016 D12/D13), which also clears crossings
-  if (band.base !== undefined || (crossingsOf_(first) === 0 && (!movedAside.has(first) || crossingsOf_(layoutCauseBandOnce(band, x, y, w, widthOf, roles, heightBudget, canvasBound, undefined, true)) === 0))) return first;
+  // a crossing of any two arrows also starts it: the order only wins when it is strictly better in (AND crossings, AND side-by-side, crossings, bends)
+  if (band.base !== undefined || (crossingsOf_(first) === 0 && scoreOf(first.edges.map(e => e.points)).crossings === 0 && (!movedAside.has(first) || crossingsOf_(layoutCauseBandOnce(band, x, y, w, widthOf, roles, heightBudget, canvasBound, undefined, true)) === 0))) return first;
   const ids = band.nodes.map(n => n.id);
   // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
   const orders = [[...ids].reverse(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
@@ -224,7 +226,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   for (const [i, e] of lay.edges.entries()) {
     if (e.self) continue;
     drawn.set(e.index, out.edges.length);
-    out.edges.push({from: e.from, to: e.to, points: routes.get(i)!, line: arrows[e.index].line, ...(arrows[e.index].back ? {back: true as const} : {}), ...(e.outer ? {outer: true as const} : {}), ...(arrows[e.index].blocks ? {kind: 'blocks' as const} : {})});
+    out.edges.push({from: e.from, to: e.to, points: routes.get(i)!, line: arrows[e.index].line, ...(arrows[e.index].back ? {back: true as const} : {}), ...(e.outer ? {outer: true as const} : {}), ...(arrows[e.index].blocks ? {kind: 'blocks' as const} : {}), ...(band.hop && e.reversed ? {reversed: true as const} : {})});
   }
   // an AND: an arc across the last run of each of its arrows, a little before the arrowheads. It needs the arrows to arrive on
   // one side of the effect, all heading the same way, with room before the head for the arc
@@ -239,6 +241,11 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
     const lo = Math.min(...us) - reachTo(Math.min(...us), -1), hi = Math.max(...us) + reachTo(Math.max(...us), 1);
     const at = (u: number, dist: number): Pt => d.x ? {x: tip.x - d.x * dist, y: u} : {x: u, y: tip.y - d.y * dist};
     out.ands.push({to: g.to, from: g.arrows.map(k => arrows[k].from), p0: at(lo, AND_END), c: at((lo + hi) / 2, 2 * AND_PEAK - AND_END), p1: at(hi, AND_END)});
+  }
+  // ADR 0028: where a return crosses another line, and which of those get a hop (decided here, once; the renderer only draws them)
+  if (band.hop) {
+    const crossings = causeCrossings(out.edges, attempt.dir, {x: out.x, y: out.y, w: out.w, h: out.h}, out.nodes, out.ands);
+    if (crossings.length) out.crossings = crossings;
   }
   return out;
 }

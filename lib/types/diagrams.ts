@@ -147,6 +147,8 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
   /** Mark the core driver: the starting entity (nothing causes it) whose arrows bring about the most `ude` entities, 2 or more (a tie: all).
    *  Every starting entity gets the number it reaches under its text (`到達 UDE n`) unless `counts` is false. `role` is not changed. */
   coreDriver?: boolean;
+  /** Show where a return arrow crosses another line (ADR 0028): the return hops over it. Default off: nothing changes for a figure that does not write it. */
+  hop?: boolean;
   /** Which Theory of Constraints tree this is: 'crt' (current reality), 'frt' (future reality), 'prt' (prerequisite), 'tt' (transition), 'nbr' (negative branch).
    *  Only a figure that says it is checked (the `toc-*` rules of `check`); not written, nothing is checked. It never changes the drawing. */
   tree?: 'crt' | 'frt' | 'prt' | 'tt' | 'nbr';
@@ -384,7 +386,9 @@ export interface LaidOutCause extends Rect, Dimmed {
   until?: number;
   nodes: (Rect & {tone: EmphasisTone; double?: boolean; /** the core driver: a thick frame and a badge */ core?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean; /** a dashed frame (a trim) */ dashed?: boolean})[];
   /** Orthogonal polylines from the cause's box edge to the effect's; the arrowhead is at the last point. */
-  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; /** a declared return (`back: true`): drawn bold */ back?: true; /** runs in a lane outside the figure (a return that skips two layers or more, see `returns`) */ outer?: true; /** only a cutting arrow has it */ kind?: 'blocks'}[];
+  edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; /** a declared return (`back: true`): drawn bold */ back?: true; /** runs in a lane outside the figure (a return that skips two layers or more, see `returns`) */ outer?: true; /** only a cutting arrow has it */ kind?: 'blocks'; /** a return the layout turned around (`back`, an outer lane, or a cycle it cut), only with `hop` */ reversed?: true}[];
+  /** Only with `hop` (ADR 0028): where a return crosses another line, by index into `edges`; `skipped` says why that one gets no hop. */
+  crossings?: {over: number; under: number; x: number; y: number; side: {x: number; y: number}; skipped?: string}[];
   /** The arc across the arrows of an AND: a quadratic curve p0 - c - p1. */
   ands: {to: string; /** the causes it joins */ from: string[]; p0: {x: number; y: number}; c: {x: number; y: number}; p1: {x: number; y: number}}[];
   /** Effects whose AND arrows could not be joined by an arc (they do not arrive on one side of the effect). */

@@ -12,6 +12,8 @@ import {MARK_STROKE, plateStyle} from './image.ts';
 import type {LaidOutQuadrant} from './quadrant.ts';
 import type {LaidOutFlowShape} from './flow-shapes.ts';
 import {snap4, escapeXml, emojiSpan, resolveTextColor, lineAttrs, arrowPath, resolveBoxStyle} from './emit-common.ts';
+import type {PathCut} from './emit-common.ts';
+import {HOP_R} from './cause-hop.ts';
 import {renderBoxRect} from './emit-boxes.ts';
 import {CORE_BADGE_H, CORE_BADGE_GAP} from './toc.ts';
 
@@ -293,7 +295,11 @@ function coreBadge(n: LaidOutCause['nodes'][number], id: string, b: LaidOutCause
 export function renderCause(b: LaidOutCause, day: Theme): string {
   const out: string[] = [];
   const stroke = b.dim ? PALETTE.muted : PALETTE.text;
-  for (const e of b.edges) out.push(e.kind === 'blocks' ? arrowPath(e.points, stroke, e.line, 2, 'end', 'bar') : e.back ? arrowPath(e.points, stroke, e.line, 3) : arrowPath(e.points, stroke, e.line));
+  const cutsOf = (k: number): PathCut[] | undefined => {
+    const mine = (b.crossings ?? []).filter(c => !c.skipped && c.over === k);
+    return mine.length ? mine.map(c => ({x: c.x, y: c.y, side: c.side, r: HOP_R})) : undefined;
+  };
+  b.edges.forEach((e, k) => out.push(e.kind === 'blocks' ? arrowPath(e.points, stroke, e.line, 2, 'end', 'bar', cutsOf(k)) : e.back ? arrowPath(e.points, stroke, e.line, 3, 'end', 'arrow', cutsOf(k)) : arrowPath(e.points, stroke, e.line, 2, 'end', 'arrow', cutsOf(k))));
   // the AND arc: across the arrows of one effect, just before their heads
   for (const a of b.ands) out.push(`<path d="M${snap4(a.p0.x)},${snap4(a.p0.y)} Q${snap4(a.c.x)},${snap4(a.c.y)} ${snap4(a.p1.x)},${snap4(a.p1.y)}" fill="none" stroke="${stroke}" stroke-width="2"/>`);
   for (const [i, n] of b.nodes.entries()) {
