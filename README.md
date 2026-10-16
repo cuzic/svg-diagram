@@ -1170,6 +1170,8 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 
 日本語の長い文を**文節で**折るなら `diagram({wrap: 'bunsetsu'})`。ひらがなは直前の文字（漢字・カタカナ・英数字・ひらがな）に付き、折るのは「ひらがなの直後で、次がひらがな以外（漢字・カタカナ・英数字・記号）」のときと、`、` `。` の後だけ（「評価されるため / 仕掛りが」）。禁則・1 文字だけの最終行の直し・単位が 1 行より長いときの文字ごとの折り返しは `'phrase'` と同じ。`tree` / `mindmap` / `causeTree` / `stateDiagram` などの箱は、最も長い単位に合わせて広がる（`maxNodeW` の 1.5 倍まで。`maxNodeW` は語を割らない範囲での目安になる）。`wrap` は図全体の指定で、帯ごとには変えられない。既定は `'phrase'` のまま。
 
+**カタカナの語を割らない（`keepWords`）**: 箱が最長の語より狭いと、`phrase` でも「コンテキス/ト」と割れる（語が 1 行より広いと、文字単位に戻すため）。`diagram({keepWords: true})`（`.svg-diagram.json` の `"keepWords": true` で案件全体にも書ける）は、箱を**最長のカタカナの語より狭くしない**（内側の幅で 240px まで。それより長い語は割れる）。`causeTree` / `tree` / `mindmap` / `faultTree` / `stateDiagram`（円のノードを除く）/ `bpmn` の task に効く。`cloud`、枠が先に決まる `chevron` / `cycle` / `swimlane` には効かない。`maxNodeW` を書いた図にも効く。幅に収まらないときは、語を守る試行（狭める → 折る）を先に全部試し、それでも収まらなければ、語を守らない試行（従来と同じ）に戻る（割れは `text-mid-word-break` が報告する）。既定は off で、書かなければ何も変わらない。
+
 ## 共通設定（`.svg-diagram.json`）
 カレントディレクトリから上へたどって見つかる。`{"accept": {"rule-id": "理由"}, "maxWidth": 940}`。図ごとの `accept` が優先される。`maxWidth` も図ごとに `diagram({maxWidth: 1200})` で変えられる（`doc-width` の閾値だけで、図の幅は変えない。広い図にするなら `width: 1200` も書く。図の値が設定ファイルに勝つ）。`accept` のキーはルール ID（`RULE_DOCS` にある名前）で、知らない ID・空の理由はファイル名つきのエラー（綴り違いで何も許容されないのを防ぐ）。許容された指摘は info に下がり、理由が添えられる。
 

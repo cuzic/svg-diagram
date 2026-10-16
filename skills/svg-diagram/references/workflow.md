@@ -18,7 +18,7 @@
    - PNG も要るとき（Word・チャット・PNG しか貼れない所）は `--png <dir> [--scale N]` を足す。同じビルドの SVG から `<dir>/<名前>.png` を書く（既定の倍率 2。段階表示の各段の SVG も PNG になる）。`--stale` と併用すると、PNG がない・SVG より古いときは作り直す。
 3. **ルール検査**: `svg-diagram check --strict src.ts`（コントラスト、凡例、線の交差、幅、密度、題名）
    - `shrink-narrow-text`（警告）: `bpmn` / `swimlane` を `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。文言を短くする・図を 2 つに分ける・縦向きにする・`maxWidth` を広げる。
-   - `text-mid-word-break`（警告）: カタカナの語（「コンテキス/ト」）や英数字の語の途中で、レイアウトが行を割っている。箱・列が最長の語より狭いときに起きる。箱の幅を広げる・`dir` や `maxNodeW` を変える・文言を短くする。漢字どうしの途中は対象外。スペースの無い複合語の境目は誤検出になりうる（`accept` で許容）。
+   - `text-mid-word-break`（警告）: カタカナの語（「コンテキス/ト」）や英数字の語の途中で、レイアウトが行を割っている。箱・列が最長の語より狭いときに起きる。`diagram({keepWords: true})`（箱を最長のカタカナの語より狭くしない。`chevron` / `cycle` / `swimlane` / `cloud` には効かない）、箱の幅を広げる・`dir` や `maxNodeW` を変える・文言を短くする。漢字どうしの途中は対象外。スペースの無い複合語の境目は誤検出になりうる（`accept` で許容）。
    - `glyph-missing`（警告）: 図の文字に、絵文字として扱われない絵記号（✅ ❌ など。`EMOJI_RE` の外）がある。通常の文字のフォントで描かれ、字形が無いと空白になる。`icon.emoji()` か SVG アイコン（`box({icon})`）を使うか、✓ ✗ などの字にする。
    - `connect-label-covers-arrow`（警告）: 矢印のラベル（の下地）が経路の 6 割超を覆い、見える部分が 20px に満たず、向きが読めない。箱の間隔を広げる・ラベルを短くする・ラベルを箱の中に書く。
    - 案件全体で許容する rule は `.svg-diagram.json` の `"accept": {"rule-id": "理由"}`（図の `accept` が優先。知らない ID はエラー）。solid と solid-danger が白黒で同明度のときは `tones` で `solid-danger` の fill を濃くする（既定色はテーマ依存で一律には直せない）。

@@ -74,7 +74,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   const meas = new Map<string, M>();
   for (const n of band.nodes) {
     const k = kindOf.get(n.id)!;
-    if (k === 'task') { const m = measureNode(n.label!, n.sub, TASK_MAX, widthOf, roles); const h = m.h + (n.icon ? ICON_H : 0); meas.set(n.id, {w: m.w, h, lines: m, label: [], extent: h}); continue; }
+    if (k === 'task') { const m = measureNode(n.label!, n.sub, TASK_MAX, widthOf, roles, {keepWordsCap: 168 - 28}); const h = m.h + (n.icon ? ICON_H : 0); meas.set(n.id, {w: m.w, h, lines: m, label: [], extent: h}); continue; }
     const size = isEvent(k) ? EVENT : GATE;
     const label = n.label ? wrapText(n.label, {maxWidth: LABEL_MAX, atomWidth: a => widthOf(a, B, 400, 'sans')}) : [];
     meas.set(n.id, {w: size, h: size, label, extent: size + (label.length ? 4 + label.length * lineH(B) : 0)});

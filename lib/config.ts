@@ -28,6 +28,7 @@ export function readConfigFile(f: string): Config {
   checkAccept(cfg, f);
   checkTerms(cfg, f);
   checkFontFloor(cfg, f);
+  if (cfg.keepWords !== undefined && typeof cfg.keepWords !== 'boolean') throw new Error(`${f}: "keepWords" must be true or false (got ${JSON.stringify(cfg.keepWords)})`);
   if (cfg.today !== undefined) { try { checkToday(cfg.today, '"today"'); } catch (e) { throw new Error(`${f}: ${(e as Error).message}`); } }
   delete cfg._today;
   if (cfg.tones !== undefined) { try { cfg.tones = checkTones(cfg.tones, '"tones"'); } catch (e) { throw new Error(`${f}: ${(e as Error).message}`); } }
@@ -73,7 +74,7 @@ function checkFontFloor(cfg: Config, f: string): void {
 }
 
 // a diagram's own accept / maxWidth / legend / legendLabels win over the project's
-export function applyConfig<D extends Pick<DiagramData, 'today' | 'accept' | 'terms' | 'maxWidth' | 'legend' | 'legendLabels' | 'tones' | 'canvas'>>(d: D, cfg: Config): D {
+export function applyConfig<D extends Pick<DiagramData, 'today' | 'accept' | 'terms' | 'maxWidth' | 'legend' | 'legendLabels' | 'tones' | 'canvas' | 'keepWords'>>(d: D, cfg: Config): D {
   const floor = cfg.fontFloor ?? MIN_FONT_SIZE;
   if (d.canvas && d.canvas.minText < floor) throw new Error(`canvas: {minText: ${d.canvas.minText}} is below the project's fontFloor (${floor}). Lower "fontFloor" in .svg-diagram.json (10 at the lowest) or raise minText`);
   d.today ??= resolveToday(cfg._today, cfg.today); // the caller's day for today: 'auto' (ADR 0022 D1)
@@ -81,6 +82,7 @@ export function applyConfig<D extends Pick<DiagramData, 'today' | 'accept' | 'te
   if (cfg.terms) d.terms = {...cfg.terms, ...(d.terms ?? {})};
   if (cfg.maxWidth && d.maxWidth == null) d.maxWidth = cfg.maxWidth;
   if (d.legend === undefined && cfg.legend !== undefined) d.legend = cfg.legend;
+  if (d.keepWords === undefined && cfg.keepWords !== undefined) d.keepWords = cfg.keepWords;
   d.tones = mergeTones(cfg.tones, d.tones);
   if (cfg.legendLabels) d.legendLabels = {...cfg.legendLabels, ...(d.legendLabels ?? {})};
   return d;

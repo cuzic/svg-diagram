@@ -3,6 +3,7 @@
 import type {FitApplied} from './types/diagrams.ts';
 import type {LayeredLayout} from './graph-layout.ts';
 import {splitByHeight, splitWidest} from './fit-split.ts';
+import {keepWordsRequested, withKeepWords} from './wrap.ts';
 
 /** What an attempt has to give back: the part of layeredAttempt's result that fitWidth reads. */
 /** The layers a result's layout folded (a result with a `lay`), if any. */
@@ -160,30 +161,50 @@ export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPla
   const dirs: D[] = free && alt !== undefined ? [plan.start, alt] : [plan.start];
   const widths = plan.autoWidth ? AUTO_GRID : narrow && free && plan.maxNodeW === undefined ? NARROWING : [plan.maxNodeW ?? NARROWING[0]];
   const widthMode = plan.autoWidth ? 'auto' as const : plan.mode, from0 = plan.autoWidth ? NARROWING[0] : widths[0]; // what the figure would have had: the default node width
-  const attempts: FitAttempt<R>[] = [];
-  for (const mw of widths) for (const d of dirs) {
-    const applied: FitApplied[] = [];
-    if (d !== plan.start) applied.push({what: 'dir', from: plan.start, to: d, mode: plan.mode});
-    if (mw !== from0) applied.push({what: 'maxNodeW', from: from0, to: mw, mode: widthMode});
-    const note = attempts.length || plan.autoWidth ? '' : plan.explicitDir || plan.maxNodeW !== undefined ? ' (as written)' : ' (default)';
-    attempts.push({label: `${plan.noDir ? '' : `dir '${d}'`}${narrow ? `${plan.noDir ? '' : ', '}maxNodeW ${mw}` : ''}${note}`, run: () => plan.build(d, mw), applied});
-  }
+  // keepWords (ADR 0029 D3): every attempt is tried with the floor (no katakana word broken) first; only when none fits, without it. The order keeps what a figure
+  // looked like without the option: narrower with the floor, narrower without, then folded with, folded without (a fold is the last resort in both).
+  const floors = keepWordsRequested() ? [true, false] : [undefined];
+  const suffix = (floor: boolean | undefined): string => floor === false ? ', words may break' : '';
+  const run = <T>(floor: boolean | undefined, f: () => T): T => floor === undefined ? f() : withKeepWords(floor, f);
+  const narrowing = (floor: boolean | undefined): FitAttempt<R>[] => {
+    const list: FitAttempt<R>[] = [];
+    for (const mw of widths) for (const d of dirs) {
+      const applied: FitApplied[] = [];
+      if (d !== plan.start) applied.push({what: 'dir', from: plan.start, to: d, mode: plan.mode});
+      if (mw !== from0) applied.push({what: 'maxNodeW', from: from0, to: mw, mode: widthMode});
+      const note = list.length || plan.autoWidth ? '' : plan.explicitDir || plan.maxNodeW !== undefined ? ' (as written)' : ' (default)';
+      list.push({label: `${plan.noDir ? '' : `dir '${d}'`}${narrow ? `${plan.noDir ? '' : ', '}maxNodeW ${mw}` : ''}${note}${suffix(floor)}`, run: () => run(floor, () => plan.build(d, mw)), applied});
+    }
+    return list;
+  };
   // Folding (ADR 0010 D7), the last attempt: a layer wider than the figure is cut into rows, at the narrowest node width, the axis kept. `fold: true` also when `dir` is written.
   const canFold = plan.foldable === true && plan.fold !== false;
-  if (canFold && (plan.fold === true || free || plan.autoWidth)) {
-    const mw = widths[widths.length - 1], d = plan.start;
-    for (const share of FOLD_SHARES) {
-      const applied: FitApplied[] = [];
-      if (mw !== from0) applied.push({what: 'maxNodeW', from: from0, to: mw, mode: widthMode});
-      attempts.push({label: `dir '${d}', maxNodeW ${mw}, fold${share < 1 ? ` ${Math.round(share * 100)}%` : ''}`, applied, run: () => {
-        const r = plan.build(d, mw, plan.w * share + 0.5);
-        for (const f of foldedOf(r)) applied.push({what: 'fold', from: f.rows, to: f.layer + 1, mode: plan.autoWidth ? 'auto' : plan.explicitDir ? 'written' : plan.mode});
-        return r;
-      }});
+  const folding = (floor: boolean | undefined): FitAttempt<R>[] => {
+    const list: FitAttempt<R>[] = [];
+    if (canFold && (plan.fold === true || free || plan.autoWidth)) {
+      const mw = widths[widths.length - 1], d = plan.start;
+      for (const share of FOLD_SHARES) {
+        const applied: FitApplied[] = [];
+        if (mw !== from0) applied.push({what: 'maxNodeW', from: from0, to: mw, mode: widthMode});
+        list.push({label: `dir '${d}', maxNodeW ${mw}, fold${share < 1 ? ` ${Math.round(share * 100)}%` : ''}${suffix(floor)}`, applied, run: () => run(floor, () => {
+          const r = plan.build(d, mw, plan.w * share + 0.5);
+          for (const f of foldedOf(r)) applied.push({what: 'fold', from: f.rows, to: f.layer + 1, mode: plan.autoWidth ? 'auto' : plan.explicitDir ? 'written' : plan.mode});
+          return r;
+        })});
+      }
     }
+    return list;
+  };
+  // without the option there is one stage (as before); with it, four, each only when the one before found nothing that fits
+  const stages: FitAttempt<R>[][] = floors.length === 1 ? [[...narrowing(undefined), ...folding(undefined)]] : [narrowing(true), narrowing(false), folding(true), folding(false)];
+  const fitOpts = {mode: plan.best ? 'best' as const : 'first' as const, ...(plan.heightBudget === undefined ? {} : {heightBudget: plan.heightBudget}), ...(plan.widthOf ? {widthOf: plan.widthOf} : {})};
+  const allTried: Fitted<R>['tried'] = [], allResults: R[] = [];
+  for (const stage of stages.filter(s => s.length)) {
+    const got = fitWidth(plan.w, stage, fitOpts);
+    if (got.ok) return {result: got.result, applied: withWidths(got.applied, [...allTried, ...got.tried], allTried.length + got.index)};
+    allTried.push(...got.tried); allResults.push(...got.results);
   }
-  const fitted = fitWidth(plan.w, attempts, {mode: plan.best ? 'best' : 'first', ...(plan.heightBudget === undefined ? {} : {heightBudget: plan.heightBudget}), ...(plan.widthOf ? {widthOf: plan.widthOf} : {})});
-  if (fitted.ok) return {result: fitted.result, applied: withWidths(fitted.applied, fitted.tried, fitted.index)};
+  const fitted = {ok: false as const, tried: allTried, results: allResults};
   const notTried: string[] = [];
   if (plan.explicitDir) notTried.push(`${alt !== undefined ? `dir '${alt}'${narrow ? ' and ' : ''}` : ''}${narrow ? 'narrower nodes' : ''} (dir is explicit; write dir: 'auto' to let ${alt !== undefined || narrow ? 'them' : 'it'} change)`);
   else if (narrow && !plan.autoWidth && plan.maxNodeW !== undefined) notTried.push(`narrower nodes (maxNodeW is explicit: ${plan.maxNodeW})`);
