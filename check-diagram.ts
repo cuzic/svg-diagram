@@ -19,6 +19,9 @@
 //       --only GLOB (repeatable, e.g. 'docs/03-*.md') keeps just the matching pages. Whenever the pages are narrowed (a .md file or --only),
 //       the orphan-SVG check is skipped (it needs every page to know what is unreferenced) and a note says so.
 //       --map prints the figure <-> document table (Markdown) on stdout instead; the findings go to stderr.
+//   svg-diagram check --docs ... --fidelity [--base REF]
+//       The other way round: a number (two digits or more) or a Latin word in a figure's text that the page never writes (doc-fidelity-missing).
+//       --base REF also accepts what the page said at REF (so a figure drawn from the older text is not flagged for the words the rewrite dropped).
 //   svg-diagram check --covers TABLE.md|TABLE.csv [--svg-dir DIR] <source.ts|file.svg>...
 //       Does the figure that replaces a table still carry the table's cells? Each cell is looked up in the figure's <text>
 //       (width, case, spaces and punctuation ignored); a cell that is not there whole is judged by its proper-noun and number tokens,
@@ -53,14 +56,14 @@ const {explainChange} = await import('./lib/svg-diff.ts');
 const {loadConfig} = await import('./lib/config.ts');
 const {checkToday} = await import('./lib/today.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
-const {readTable, figureText, checkCovers} = await import('./lib/covers.ts');
+const {readTable, figureText, checkCovers, checkFidelity} = await import('./lib/covers.ts');
 const {formatBuildError, errorMessage} = await import('./lib/error-format.ts');
 const {readProvenance, sha256File: sha} = await import('./lib/freshness.ts');
 
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
 const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1]; };
-const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--covers', '--format', '--only', '--explain', '--baseline', '--write-baseline', '--today'];
+const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--covers', '--format', '--only', '--explain', '--baseline', '--write-baseline', '--today', '--base'];
 const vals = (n: string) => args.flatMap((a, i) => (a === n && args[i + 1] !== undefined ? [args[i + 1]] : []));
 // --docs takes the path after it, and every following .md file / directory too (`--docs A.md B.md dir`): those are documents, never sources
 const isDocArg = (a: string) => !a.startsWith('--') && (a.toLowerCase().endsWith('.md') || (fs.existsSync(a) && fs.statSync(a).isDirectory()));
@@ -81,6 +84,7 @@ const NON_DIAGRAM_RULES: Record<string, string> = {
   'doc-fig-ref-missing': '--docs: 本文の 図N-M が、実在する図を指していない',
   'doc-notes-number': '--docs: 図の下の注釈の番号が連番でない',
   'doc-alt-placeholder': '--docs: 代替テキストが仮のまま（画像・図 など）',
+  'doc-fidelity-missing': '--docs --fidelity: 図の文字にある数値（2 桁以上）・英数字の語が、その図を参照する文書（--base REF があればその版も）のどこにも書かれていない',
 };
 const explain = val('--explain');
 if (explain !== null || flag('--rules')) {
@@ -95,6 +99,9 @@ if (explain !== null || flag('--rules')) {
   if (Object.hasOwn(RULE_DOCS, explain)) console.log(`\n許容するとき（理由が要る）:\n  案件全体: .svg-diagram.json の {"accept": {"${explain}": "なぜ問題ないか"}}\n  その図だけ: diagram({accept: {'${explain}': 'なぜ問題ないか'}})\n  （許容した指摘は info に下がり、理由が添えられる）`);
   process.exit(0);
 }
+/** The page as it was at REF (undefined when it did not exist there or git cannot say). */
+const gitShow = (ref: string, file: string): string | undefined => { try { return execFileSync('git', ['-C', path.dirname(file), 'show', `${ref}:./${path.basename(file)}`], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}); } catch { return undefined; } };
+const fidelity = flag('--fidelity'), fidelityBase = val('--base');
 const strict = flag('--strict'), verbose = flag('--verbose'), drift = flag('--drift'), rebuild = flag('--rebuild'), forbidDraft = flag('--forbid-draft');
 const mapMode = flag('--map');
 if (mapMode && (!val('--docs') || (val('--format') ?? 'text') !== 'text')) { console.error('--map は --docs と一緒に、--format text で使う（表を標準出力に出す）'); process.exit(2); }
@@ -210,6 +217,11 @@ try {
         const abs = path.resolve(path.dirname(md), fig.ref), where = `${rel}:${fig.line}`, name = path.basename(fig.ref, '.svg');
         if (!fs.existsSync(abs)) { add({file: rel, line: fig.line, rule: 'doc-image-missing', severity: 'error', message: `${fig.ref} がない`}); continue; }
         referenced.add(abs);
+        if (fidelity) {
+          const older = fidelityBase ? gitShow(fidelityBase, md) : undefined;
+          const missing = checkFidelity(figureText(fs.readFileSync(abs, 'utf8')), text, ...(older ? [older] : []));
+          if (missing.length) add({file: rel, line: fig.line, rule: 'doc-fidelity-missing', severity: 'warn', message: `${name}: 図にあって文書に書かれていない数値・語 ${missing.length} 件: ${missing.slice(0, 8).map(m => `「${m}」`).join('')}${missing.length > 8 ? ` ほか ${missing.length - 8} 件` : ''}（本文に書くか、図から外す）`});
+        }
         const alt = fig.alt.trim();
         if (!alt) add({file: rel, line: fig.line, rule: 'doc-alt-empty', severity: 'warn', message: `${name}: 代替テキストが空`});
         else if ([...alt].length > 155) add({file: rel, line: fig.line, rule: 'doc-alt-long', severity: 'warn', message: `${name}: 代替テキストが ${[...alt].length} 文字（155 文字以内にして、詳しい説明は本文に）`});
