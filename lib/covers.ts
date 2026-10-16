@@ -111,3 +111,16 @@ export function checkCovers(cells: Cell[], figure: string): Uncovered[] {
   }
   return out;
 }
+
+/**
+ * The other way round (`check --docs --fidelity`): the numbers (two digits or more) and Latin words of the figure's text that none of the document texts
+ * mentions -- a figure should not carry a number or a term the page never states. The texts are the page and, with `--base`, its older version.
+ */
+export function checkFidelity(figure: string, ...docs: string[]): string[] {
+  const hay = docs.map(normalize), out: string[] = [];
+  for (const [n, raw] of rawTokens(figure)) {
+    const number = /^\d/.test(raw) && (raw.match(/\d/g) ?? []).length >= 2, word = /^[a-z]/i.test(raw) && raw.length >= 2;
+    if ((number || word) && !hay.some(h => contains(h, n))) out.push(raw);
+  }
+  return out;
+}
