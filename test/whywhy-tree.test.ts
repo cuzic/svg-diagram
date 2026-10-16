@@ -128,7 +128,7 @@ test('connect() reaches a node of a tree with opts.id (and the types allow it); 
 
 test('a wide tree is not folded (that would put one "why n" on two levels): it fits or it says why not', async () => {
   const wide = Array.from({length: 9}, (_, i) => ({why: `答え ${i} を長めに書いた文`, trueCause: true as const}));
-  await assert.rejects(() => laid({}, whyWhyTree('問題', wide, {id: 'ww'})), /causeTree\(\)/);
+  await assert.rejects(() => laid({}, whyWhyTree('問題', wide, {id: 'ww'})), (e: Error) => /whyWhyTree\(\)/.test(e.message) && !/causeTree|fold is written/.test(e.message));
 });
 
 test('the reading lines appear with the tree (reveal)', () => {
@@ -140,7 +140,7 @@ test('a node id that is one of the tree\'s own names says so', () => {
   assert.throws(() => whyWhyTree('x', [{id: 'w2', why: 'a'}, {why: 'b'}, {why: 'c'}]), /the names the tree gives/);
 });
 
-test('blocks edges end in a bar, drawn dashed', async () => {
+test('a tree with a measure draws a dashed line (the measure cuts the root cause)', async () => {
   const {svg} = await (await import('../lib/dsl.ts')).renderDiagram(diagram({theme: 'blue', title: 'x'}).add(...whyWhyTree('問題', WHYS, {id: 'ww'}) as unknown as never[]), {name: 'x.svg', budget: 'cacheOnly'});
   assert.match(svg, /stroke-dasharray="6,4"/);
 });

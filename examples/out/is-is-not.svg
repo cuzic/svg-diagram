@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="608" viewBox="0 0 940 608" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">API A のタイムアウト（IS / IS NOT）</title>
+  <desc id="svg-desc">表: 列 観点、IS（である）、IS NOT（であってもおかしくないが、ない）、違い、変化。表: 列 仮説（原因の候補）、何に（対象・欠陥）、どこで、いつ、程度（大きさ・数）、説明できない行、仮定の数</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/is-is-not.ts","sourceSha256":"43dd6ad090ca4f3e30293589aacec872efaf5fd995a9500382176df9dc2da64d"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="608" fill="#ffffff"/>
+
+  <path d="M28,20 H912 A8,8 0 0 1 920,28 V75  H20  V28 A8,8 0 0 1 28,20 Z" fill="#dce9f7"/>
+  <path d="M20,75 H920  V130  H20  V75  Z" fill="#ffffff"/>
+  <path d="M20,75 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,130 H920  V185  H20  V130  Z" fill="#ffffff"/>
+  <path d="M20,130 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,186 H920  V222  H20  V186  Z" fill="#ffffff"/>
+  <path d="M20,186 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,221 H920  V268 A8,8 0 0 1 912,276 H28 A8,8 0 0 1 20,268 V221  Z" fill="#ffffff"/>
+  <path d="M20,221 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M120,20 V276" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M320,20 V276" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M520,20 V276" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M720,20 V276" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="32" y="42" font-size="14" font-weight="700" fill="#22201b">観点</text>
+  <text x="132" y="42" font-size="14" font-weight="700" fill="#22201b">IS（である）</text>
+  <text x="332" y="42" font-size="14" font-weight="700" fill="#22201b">IS NOT（であってもおかし</text>
+  <text x="332" y="62" font-size="14" font-weight="700" fill="#22201b">くないが、ない）</text>
+  <text x="532" y="42" font-size="14" font-weight="700" fill="#22201b">違い</text>
+  <text x="732" y="42" font-size="14" font-weight="700" fill="#22201b">変化</text>
+  <text x="32" y="97" font-size="14" font-weight="700" fill="#22201b">何に（対象・</text>
+  <text x="32" y="117" font-size="14" font-weight="700" fill="#22201b">欠陥）</text>
+  <text x="132" y="97" font-size="14" font-weight="400" fill="#22201b">API A がタイムアウトする</text>
+  <text x="332" y="97" font-size="14" font-weight="400" fill="#22201b">API B は正常</text>
+  <text x="532" y="97" font-size="14" font-weight="400" fill="#22201b">A だけ外部 DB を使う</text>
+  <text x="732" y="97" font-size="14" font-weight="400" fill="#22201b">接続設定を変更した</text>
+  <text x="32" y="152" font-size="14" font-weight="700" fill="#22201b">どこで</text>
+  <text x="132" y="152" font-size="14" font-weight="400" fill="#22201b">リージョン X</text>
+  <text x="332" y="152" font-size="14" font-weight="400" fill="#22201b">リージョン Y は正常</text>
+  <text x="532" y="152" font-size="14" font-weight="400" fill="#22201b">X だけ旧い接続プールを</text>
+  <text x="532" y="172" font-size="14" font-weight="400" fill="#22201b">使う</text>
+  <text x="32" y="208" font-size="14" font-weight="700" fill="#22201b">いつ</text>
+  <text x="132" y="208" font-size="14" font-weight="400" fill="#22201b">デプロイ後から</text>
+  <text x="332" y="208" font-size="14" font-weight="400" fill="#22201b">デプロイ前は正常</text>
+  <text x="732" y="208" font-size="14" font-weight="400" fill="#22201b">先週のデプロイ</text>
+  <text x="32" y="243" font-size="14" font-weight="700" fill="#22201b">程度（大き</text>
+  <text x="32" y="263" font-size="14" font-weight="700" fill="#22201b">さ・数）</text>
+  <text x="132" y="243" font-size="14" font-weight="400" fill="#22201b">全体の 3%</text>
+  <text x="332" y="243" font-size="14" font-weight="400" fill="#22201b">それ以外のリクエスト</text>
+  <text x="532" y="243" font-size="14" font-weight="400" fill="#22201b">長いクエリだけ</text>
+  <path d="M28,20 H912 A8,8 0 0 1 920,28 V268 A8,8 0 0 1 912,276 H28 A8,8 0 0 1 20,268 V28 A8,8 0 0 1 28,20 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
+
+  <path d="M28,292 H912 A8,8 0 0 1 920,300 V347  H20  V300 A8,8 0 0 1 28,292 Z" fill="#dce9f7"/>
+  <path d="M20,347 H920  V441  H20  V347  Z" fill="#ffffff"/>
+  <path d="M20,347 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,442 H920  V478  H20  V442  Z" fill="#ffffff"/>
+  <path d="M20,442 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M20,477 H920  V544 A8,8 0 0 1 912,552 H28 A8,8 0 0 1 20,544 V477  Z" fill="#ffffff"/>
+  <path d="M20,477 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M265,292 V552" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M388,292 V552" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M511,292 V552" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M634,292 V552" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M756,292 V552" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M838,292 V552" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="32" y="314" font-size="14" font-weight="700" fill="#22201b">仮説（原因の候補）</text>
+  <text x="327" y="314" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">何に（対象・</text>
+  <text x="327" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">欠陥）</text>
+  <text x="450" y="314" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">どこで</text>
+  <text x="572" y="314" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">いつ</text>
+  <text x="695" y="314" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">程度（大きさ・</text>
+  <text x="695" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">数）</text>
+  <text x="797" y="314" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">説明でき</text>
+  <text x="797" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">ない行</text>
+  <text x="879" y="314" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仮定の数</text>
+  <text x="32" y="369" font-size="14" font-weight="700" fill="#22201b">接続設定の変更</text>
+  <text x="32" y="389" font-size="14" font-weight="700" fill="#22201b">仮定: 長いクエリだけが古い設定に</text>
+  <text x="32" y="408" font-size="14" font-weight="700" fill="#22201b">当たる</text>
+  <text x="32" y="428" font-size="14" font-weight="700" fill="#22201b">最少の仮定</text>
+  <text x="327" y="369" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">説明できる</text>
+  <text x="450" y="369" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">説明できる</text>
+  <text x="572" y="369" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">説明できる</text>
+  <text x="695" y="369" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仮定すれば</text>
+  <text x="797" y="369" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">0</text>
+  <text x="879" y="369" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">1</text>
+  <text x="32" y="464" font-size="14" font-weight="400" fill="#22201b">ネットワーク障害</text>
+  <text x="327" y="464" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">できない</text>
+  <text x="450" y="464" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">説明できる</text>
+  <text x="572" y="464" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">できない</text>
+  <text x="695" y="464" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">できない</text>
+  <text x="797" y="464" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">3</text>
+  <text x="879" y="464" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">0</text>
+  <text x="32" y="499" font-size="14" font-weight="700" fill="#22201b">DB の負荷の増加</text>
+  <text x="32" y="519" font-size="14" font-weight="700" fill="#22201b">仮定: X だけ負荷が偏る、デプロイ</text>
+  <text x="32" y="538" font-size="14" font-weight="700" fill="#22201b">と同時に負荷が増えた</text>
+  <text x="327" y="499" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">説明できる</text>
+  <text x="450" y="499" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仮定すれば</text>
+  <text x="572" y="499" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仮定すれば</text>
+  <text x="695" y="499" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">説明できる</text>
+  <text x="797" y="499" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">0</text>
+  <text x="879" y="499" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">2</text>
+  <path d="M28,292 H912 A8,8 0 0 1 920,300 V544 A8,8 0 0 1 912,552 H28 A8,8 0 0 1 20,544 V300 A8,8 0 0 1 28,292 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
+
+  <text x="20" y="582" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>
