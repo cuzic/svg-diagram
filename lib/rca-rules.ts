@@ -33,3 +33,17 @@ export function isIsNotTestFindings(hs: readonly IsIsNotHypothesis[]): RcaFindin
   if (!hs.length || standingHypotheses(hs).standing.size) return [];
   return [{rule: 'isisnot-no-hypothesis-stands', severity: 'info', message: '説明できない行が 0 の仮説が無い。原因はまだ分かっていない（新しい仮説を立てるか、スペックを見直す）'}];
 }
+
+export interface WhyChain {whys: readonly string[]; trueCause?: string; measure?: string}
+
+/** The checks of the why-why table: a row is one chain. */
+export function whyWhyTableFindings(chains: readonly WhyChain[]): RcaFinding[] {
+  const out: RcaFinding[] = [];
+  const label = (c: WhyChain, i: number): string => `行 ${i + 1}「${c.whys.at(-1) ?? ''}」`;
+  const noRoot = chains.map((c, i) => [c, i] as const).filter(([c]) => blank(c.trueCause));
+  if (noRoot.length) out.push({rule: 'whywhy-no-root', message: `真因（trueCause）の無い鎖がある: ${noRoot.map(([c, i]) => label(c, i)).join('、')}。どこまで掘ったかを真因として書く`});
+  const sym = chains.map((c, i) => [c, i] as const).filter(([c]) => blank(c.trueCause) && !blank(c.measure));
+  if (sym.length) out.push({rule: 'whywhy-measure-without-root', message: `真因が無いのに対策（measure）がある: ${sym.map(([c, i]) => label(c, i)).join('、')}。症状への対策になっていないか確かめる`});
+  if (chains.length === 1) out.push({rule: 'whywhy-single-chain', severity: 'info', message: 'なぜなぜの鎖が 1 本だけ（分岐が無い）。原因が本当に 1 つに決まるか確かめる'});
+  return out;
+}

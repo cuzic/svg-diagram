@@ -1,12 +1,12 @@
 import {controlChartOpts} from '../qc-plane.ts';
 import {ticksOf} from '../plane.ts';
 import {checkSheetParts, matrixParts} from '../qc-table.ts';
-import {fmeaParts, isIsNotDimLabel, isIsNotParts, isIsNotTestsParts, journeyMapParts, qfdParts, raciParts} from '../semantic-table.ts';
-import {isIsNotFindings, isIsNotTestFindings} from '../rca-rules.ts';
+import {fmeaParts, isIsNotDimLabel, isIsNotParts, isIsNotTestsParts, journeyMapParts, qfdParts, raciParts, whyWhyTableParts} from '../semantic-table.ts';
+import {isIsNotFindings, isIsNotTestFindings, whyWhyTableFindings} from '../rca-rules.ts';
 import {canvasBand} from '../canvas.ts';
 import type {CanvasContent, CanvasKey, CanvasOpts, CanvasTemplate, LooseCanvasOpts} from '../canvas.ts';
 import type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from '../qc-table.ts';
-import type {FmeaOpts, FmeaRow, IsIsNotHypothesisInput, IsIsNotInputRow, IsIsNotOpts, IsIsNotTestsOpts, JourneyLane, JourneyMapOpts, JourneyStage, QfdDemand, QfdOpts, RaciAssignment, RaciOpts} from '../semantic-table.ts';
+import type {FmeaOpts, FmeaRow, IsIsNotHypothesisInput, IsIsNotInputRow, IsIsNotOpts, IsIsNotTestsOpts, JourneyLane, JourneyMapOpts, JourneyStage, QfdDemand, QfdOpts, RaciAssignment, RaciOpts, WhyWhyChain, WhyWhyTableOpts} from '../semantic-table.ts';
 import type {AttributeSample, ControlChartOpts, ControlType} from '../qc-plane.ts';
 import type {GridBand} from '../types/containers.ts';
 import type {PlaneBand, PlaneOpts} from '../types/figures.ts';
@@ -101,6 +101,17 @@ export function isIsNotTests<const Id extends string = never>(rows: readonly IsI
 export function isIsNotTests(rows: readonly IsIsNotInputRow[], hypotheses: readonly IsIsNotHypothesisInput[], opts: IsIsNotTestsOpts = {}): TableBand {
   const p = isIsNotTestsParts(rows, hypotheses, opts), band = table(p.columns, p.rows, p.opts);
   band.rca = {kind: 'isisnot', findings: isIsNotTestFindings(p.hypotheses)};
+  return band;
+}
+/**
+ * A why-why analysis as a table: one row per chain of answers to "なぜ?", ending in the root cause (真因) and what is done about it (対策).
+ * A cause two chains share is written again in each row (a table has no merged cells). The tree form is whyWhyTree().
+ *   whyWhyTable('リリースが遅れた', [{whys: ['修正に時間がかかった', '影響範囲が広かった', '検証が最後に集中していた'], trueCause: '検証を早い段階でしていない', measure: '結合テストを毎週回す'}])
+ */
+export function whyWhyTable<const Id extends string = never>(problem: string, chains: readonly WhyWhyChain[], opts?: WhyWhyTableOpts & {id?: Id}): TableBand & Declares<Id> & HandleOf<Id>;
+export function whyWhyTable(problem: string, chains: readonly WhyWhyChain[], opts: WhyWhyTableOpts = {}): TableBand {
+  const p = whyWhyTableParts(problem, chains, opts), band = table(p.columns, p.rows, p.opts);
+  band.rca = {kind: 'whywhy-table', findings: whyWhyTableFindings(chains)};
   return band;
 }
 /** Quality function deployment: weighted customer demands against quality characteristics. */

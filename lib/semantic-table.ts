@@ -221,3 +221,28 @@ export function isIsNotTestsParts(rows: readonly IsIsNotInputRow[], hypotheses: 
   const {labels: _l, ...rest} = opts;
   return {columns, rows: body, opts: rest, hypotheses: [...hypotheses]};
 }
+
+// ---- why-why (ADR 0026 D3, the table) ---------------------------------------------------------------------------------------
+export interface WhyWhyChain {whys: readonly string[]; /** The root cause this chain ends in (a sentence). */ trueCause?: string; /** What is done about the root cause. */ measure?: string}
+export interface WhyWhyTableOpts extends CommonOpts {labels?: Partial<Record<'problem' | 'why' | 'trueCause' | 'measure', string>>}
+
+export function whyWhyTableParts(problem: string, chains: readonly WhyWhyChain[], opts: WhyWhyTableOpts = {}): SemanticTableParts {
+  if (typeof problem !== 'string' || !problem.trim()) throw new Error('whyWhyTable(problem, chains) needs the problem as text');
+  if (!Array.isArray(chains) || chains.length === 0) throw new Error('whyWhyTable(problem, chains) needs at least one chain');
+  chains.forEach((c, i) => {
+    if (!c || !Array.isArray(c.whys) || c.whys.length === 0) throw new Error(`whyWhyTable(): chain ${i + 1} needs whys (the answers to "なぜ?", one per step)`);
+    (c.whys as readonly unknown[]).forEach((w, j) => { if (typeof w !== 'string' || !w.trim()) throw new Error(`whyWhyTable(): chain ${i + 1}, why ${j + 1} needs text`); });
+    for (const k of ['trueCause', 'measure'] as const) if (c[k] !== undefined && typeof c[k] !== 'string') throw new Error(`whyWhyTable(): chain ${i + 1} ${k} must be text`);
+  });
+  const n = Math.max(...chains.map(c => c.whys.length));
+  const lab = {problem: '問題', why: 'なぜ', trueCause: '真因', measure: '対策', ...opts.labels};
+  const columns: TableColumn[] = [{label: lab.problem, flex: 1.5, bold: true}, ...Array.from({length: n}, (_, i) => ({label: `${lab.why} ${i + 1}`, flex: 1.5})), {label: lab.trueCause, flex: 1.5}, {label: lab.measure, flex: 1.5}];
+  const rows: TableRow[] = chains.map(c => [
+    problem,
+    ...Array.from({length: n}, (_, i) => c.whys[i] ?? ''),
+    {text: c.trueCause ?? '', bold: true, tone: 'accent'} as TableCellSpec,
+    c.measure ?? '',
+  ]);
+  const {labels: _l, ...rest} = opts;
+  return {columns, rows, opts: rest};
+}
