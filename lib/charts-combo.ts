@@ -63,7 +63,7 @@ export function resolveCombo(categories: readonly string[], series: readonly Com
     const ax = (a === 'left' ? opts.y : opts.y2) ?? {}, mine = out.filter(s => s.axis === a), v = mine.flatMap(s => s.values.flatMap(x => x === null ? [] : [x]));
     const top = opts.stack && a === 'left' ? categories.map((_k, i) => mine.reduce((acc, s) => acc + (s.type === 'bar' ? s.values[i] ?? 0 : 0), 0)) : [];
     const hasBar = a === 'left' && mine.some(s => s.type === 'bar'), name = a === 'left' ? 'y' : 'y2';
-    if (ax.max !== undefined && Math.max(...v, ...top, ...(hasBar ? [0] : [])) > ax.max) fail('combo', `${name}.max ${ax.max} is below the data (${Math.max(...v, ...top)}): raise it, or leave it out`);
+    if (ax.max !== undefined && Math.max(...v, ...top, ...(hasBar ? [0] : [])) > ax.max) fail('combo', `${name}.max ${ax.max} is below the data (${Math.max(...v, ...top, ...(hasBar ? [0] : []))}): raise it, or leave it out`);
     if (ax.min !== undefined && Math.min(...v, ...(hasBar ? [0] : [])) < ax.min) fail('combo', `${name}.min ${ax.min} is above ${hasBar && ax.min > 0 ? 'zero, where bars start' : `the data (${Math.min(...v)})`}: lower it, or leave it out`);
   }
   if (opts.stack && bars.length < 2) fail('combo', 'stack needs at least two bar series');

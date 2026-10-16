@@ -22,7 +22,7 @@ import type {BoxTone} from './types/text-bands.ts';
 const MAX_W = 200, GAP = 28, LEVEL = 64, PORT = 22; // PORT: the step between the arrows that meet one side of an entity (the arrowheads of an AND stay apart)
 /** The arc across the arrows of an AND: where its ends and its middle are, as distances from the arrowheads' tips. */
 /** The 中核 badge (ADR 0015 D4): its height and its gap to the frame; emit-figures draws it, the layout keeps the room. */
-export const CORE_BADGE_H = 22, CORE_BADGE_GAP = 2;
+export const CORE_BADGE_H = 22, CORE_BADGE_W = 44, CORE_BADGE_GAP = 2;
 const AND_END = 21, AND_PEAK = 15, AND_REACH = 10;
 
 /** What a role looks like when the node gives no tone. `double`: the box has a second outline (the finding of the figure). */
@@ -138,8 +138,9 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   const layerMode = band.layer ?? (band.tree === 'prt' || band.tree === 'frt' || band.tree === 'tt' || band.tree === 'nbr' ? 'alap' : 'asap');
   const alap = band.layerFrom === 'effect' ? {keep: []} : layerMode === 'alap' ? {keep: band.nodes.filter(n => n.role === 'root' || n.role === 'injection' || n.role === 'start').map(n => n.id)} : undefined;
   // the 中核 badge sits outside the frame, at the end of the axis the arrows run along: the figure keeps that room free at both ends (H7)
-  const badgeRoom = band.nodes.some(n => n.core) ? CORE_BADGE_H + CORE_BADGE_GAP : 0;
-  const padOf = (vertical: boolean): {x: number; y: number} => ({x: vertical ? 0 : badgeRoom, y: vertical ? badgeRoom : 0});
+  // above / below a box the badge is CORE_BADGE_H high; beside it, CORE_BADGE_W wide
+  const hasCore = band.nodes.some(n => n.core);
+  const padOf = (vertical: boolean): {x: number; y: number} => hasCore ? (vertical ? {x: 0, y: CORE_BADGE_H + CORE_BADGE_GAP} : {x: CORE_BADGE_W + CORE_BADGE_GAP, y: 0}) : {x: 0, y: 0};
   const build = (dir: CauseDir, maxW: number, fold?: number) => {
     const vertical = dir === 'up' || dir === 'down', flip = dir === 'up' || dir === 'left';
     const iw = w - 2 * padOf(vertical).x; // the width the figure itself has: the badge room at both ends of the arrows' axis is kept free
@@ -185,7 +186,8 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
       const inline = attemptWith(undefined);
       if (!attempt.fits || attempt.loose.length > inline.loose.length) attempt = inline;
     }
-    return {...attempt, dir, vertical, flip, lines};
+    // the attempt's size for the fit includes the badge room at both ends; the figure's own size is taken back out below
+    return {...attempt, size: {w: attempt.size.w + 2 * padOf(vertical).x, h: attempt.size.h + 2 * padOf(vertical).y}, dir, vertical, flip, lines};
   };
 
   // What may change to make the figure fit (ADR 0010 D1): only what the author left out (`dir`, `maxNodeW`) or gave as 'auto'. A figure
@@ -197,12 +199,13 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   const fitted = fitLayout<CauseDir, ReturnType<typeof build>>({
     who: band.layerFrom === 'effect' ? 'whyWhyTree()' : 'causeTree()', w, start, ...(band.base !== undefined ? {alt: 'right' as const} : {axisKept: `another axis (a cause tree keeps its direction: ${start})`}),
     explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined || band.maxNodeW === 'auto' ? {} : {maxNodeW: band.maxNodeW}), ...(band.maxNodeW === 'auto' ? {autoWidth: true} : {}),
-    build, layoutOf: r => ({lay: r.lay, vertical: r.vertical}), ...(band.base === undefined && band.layerFrom !== 'effect' ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget: heightBudget - 2 * badgeRoom - (band.maxNodeW === 'auto' && canvasBound ? y : 0)}), // the badge room is not in an attempt's size
+    build, layoutOf: r => ({lay: r.lay, vertical: r.vertical}), ...(band.base === undefined && band.layerFrom !== 'effect' ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget: heightBudget - (band.maxNodeW === 'auto' && canvasBound ? y : 0)}), 
     ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
   });
   const attempt = fitted.result, {lines, vertical, flip} = attempt, fitApplied = fitted.applied;
-  const {lay, routes, size: total} = attempt;
-  const pad = padOf(vertical), dx = x + pad.x + (w - 2 * pad.x - total.w) / 2, dy = y + pad.y;
+  const {lay, routes} = attempt;
+  const pad = padOf(vertical), total = {w: attempt.size.w - 2 * pad.x, h: attempt.size.h - 2 * pad.y};
+  const dx = x + pad.x + (w - 2 * pad.x - total.w) / 2, dy = y + pad.y;
   const rectOf = (id: string) => {
     const p = lay.nodes.get(id)!, q = vertical ? {x: p.y, y: p.x, w: p.h, h: p.w} : {x: p.x, y: p.y, w: p.w, h: p.h};
     if (flip) { if (vertical) q.y = total.h - (q.y + q.h); else q.x = total.w - (q.x + q.w); }
@@ -210,7 +213,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   };
 
   const out: LaidOutCause = {
-    type: 'cause', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + 2 * pad.y,
+    type: 'cause', id: band.id, reveal: band.reveal, ...(band.unanchored ? {unanchored: band.unanchored} : {}), ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + 2 * pad.y,
     nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
     ...(fitApplied.length ? {fitApplied} : {}),
   };

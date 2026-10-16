@@ -2,6 +2,7 @@ import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {checkDiagram, closeMeasurer, diagram, whyWhyTree} from '../lib/dsl.ts';
+import {box as boxBand} from '../lib/dsl.ts';
 import type {CauseBand} from '../lib/types/diagrams.ts';
 import type {LaidOutCause} from '../lib/types/diagrams.ts';
 
@@ -143,4 +144,10 @@ test('a node id that is one of the tree\'s own names says so', () => {
 test('a tree with a measure draws a dashed line (the measure cuts the root cause)', async () => {
   const {svg} = await (await import('../lib/dsl.ts')).renderDiagram(diagram({theme: 'blue', title: 'x'}).add(...whyWhyTree('問題', WHYS, {id: 'ww'}) as unknown as never[]), {name: 'x.svg', budget: 'cacheOnly'});
   assert.match(svg, /stroke-dasharray="6,4"/);
+});
+
+test('a scoped whyWhyTree without an id leaves a spotlight on the author\'s own id unambiguous (review of f5b9b24)', async () => {
+  const whys = [{why: '修正に時間がかかった', because: [{why: '検証が遅い', trueCause: true as const}]}];
+  const d = diagram({theme: 'blue', title: 't', spotlight: 'w1'}).add(boxBand({id: 'w1', title: 'mine'}), ...whyWhyTree('遅れた', whys, {scope: 'rca'}));
+  assert.equal((await checkDiagram(d)).verdict.ok, true);
 });

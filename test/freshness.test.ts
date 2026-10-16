@@ -105,6 +105,14 @@ test('freshness: any candidate that hashes as recorded makes it fresh; stale onl
   assert.equal(freshness(svg, path.join(root, 'B')).state, 'stale');
 });
 
+test('freshness: when no candidate is fresh, the one whose source hash matches is reported (deps), not another project\'s file', () => {
+  const {root, w} = project();
+  const mine = w('A/src/a.ts', 'export default 1;\n');
+  w('B/src/a.ts', 'something else\n');
+  const svg = w('A/svg/a.svg', svgWith({source: 'src/a.ts', sourceSha256: sha(mine), depsSha256: 'not-the-recorded-deps'}));
+  assert.deepEqual(freshness(svg, path.join(root, 'B')), {state: 'stale', reason: 'deps', source: mine});
+});
+
 test('freshness: a failure while reading is no claim (unknown), not an exception', () => {
   const {root, w} = project();
   const src = w('src/a.ts', 'x');

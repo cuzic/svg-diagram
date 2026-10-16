@@ -148,8 +148,8 @@ test('combo(): only lines draws on the left axis; a fixed axis that cuts the dat
 });
 
 test('bubble(): a reference line far from the points still has its tick labels measured; harvey wraps a long corner text', async () => {
-  const b = await chartOf(bubble([{label: 'A', x: 1, y: 1, size: 5}, {label: 'B', x: 3, y: 2, size: 9}], {x: {line: 100}, y: {line: 40, lineLabel: '基準'}}).valueOf()).catch((e: Error) => e);
-  if (b instanceof Error) assert.match(b.message, /^bubble\(\): /); else assert.deepEqual(b.problems, []);
+  const b = await chartOf(bubble([{label: 'A', x: 1, y: 1, size: 5}, {label: 'B', x: 3, y: 2, size: 9}], {x: {line: 100}, y: {line: 40, lineLabel: '基準'}}).valueOf());
+  assert.deepEqual(b.problems, []);
   const cols = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliet'];
   const h = await chartOf(harvey(['a'], cols, [cols.map(() => 2)], {corner: '評価基準と評価対象のとても長い見出しの文字列ですね'}));
   assert.deepEqual(h.problems, []);
@@ -205,4 +205,8 @@ test('a seeded sweep of the four charts (zeros, negatives, long labels, crowds) 
   if (process.env.DBG) console.log(named.map(n => n.slice(0, 160)).join('\n'));
   assert.deepEqual(bad, []);
   assert.ok(named.length < 60 * mult, `too many refusals (${named.length}): the charts should draw most ordinary data`);
+});
+
+test('combo(): the "below the data" message names the top the check used (bars stand on 0)', () => {
+  assert.throws(() => combo(['a', 'b'], [{label: 'x', type: 'bar' as const, values: [-10, -20]}], {y: {max: -5}}), /below the data \(0\)/);
 });

@@ -41,7 +41,7 @@ test('fitWidth best: a figure over the height budget is out', () => {
   assert.equal(tall.index, 2);
   const none = fitWidth(900, [fake('tall', 600, 900)], {mode: 'best', heightBudget: 500});
   assert.equal(none.ok, false);
-  assert.deepEqual(none.tried, [{label: 'tall', w: 600, h: 900}]);
+  assert.deepEqual(none.tried, [{label: 'tall', w: 600, h: 900, fitsWidth: true}]);
 });
 
 test('fitWidth: half a pixel of slack, and widthOf for what hangs out of the figure', () => {
@@ -55,7 +55,7 @@ test('fitWidth: half a pixel of slack, and widthOf for what hangs out of the fig
 test('fitWidth: every attempt failing gives the tried list, nothing chosen', () => {
   const r = fitWidth(900, [fake('dir up', 1460, 300), fake('dir right', 1180, 600)], {mode: 'first'});
   assert.equal(r.ok, false);
-  assert.deepEqual(r.tried, [{label: 'dir up', w: 1460, h: 300}, {label: 'dir right', w: 1180, h: 600}]);
+  assert.deepEqual(r.tried, [{label: 'dir up', w: 1460, h: 300, fitsWidth: false}, {label: 'dir right', w: 1180, h: 600, fitsWidth: false}]);
   assert.equal(widerThan(r.tried, 40), 1220);
   assert.equal(widerThan(r.tried, 41), 1240);
 });

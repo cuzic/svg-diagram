@@ -1,4 +1,4 @@
-import {escapeXml} from '../emit-common.ts';
+import {escapeXml, escapeAttr} from '../emit-common.ts';
 
 export interface Rect {x: number; y: number; w: number; h: number}
 export interface Fonts {sans: string; mono: string}
@@ -12,7 +12,7 @@ export const solidFill = (color: string): string => `<a:solidFill><a:srgbClr val
 export const roundRectAdj = (r: Rect): number => Math.min(r.w, r.h) > 0 ? Math.round((8 / Math.min(r.w, r.h)) * 100000) : 0;
 
 /** Escape for an attribute value (`escapeXml` leaves the quote alone). */
-export const attr = (s: string): string => escapeXml(s).replace(/"/g, '&quot;');
+export const attr = escapeAttr;
 
 /** The arrowheads of a line: `start` is the line's first point (`headEnd`), `end` its last (`tailEnd`). */
 export function arrowEnds(arrow: 'start' | 'end' | 'both' | 'none' | undefined, sized: boolean): string {

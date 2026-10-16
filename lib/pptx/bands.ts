@@ -2,7 +2,6 @@
 // drawn as a picture (SVG with a PNG fallback). Shape ids are handed out in the order shapes are written, which fixes the output's bytes.
 import type {LaidOutOf, LaidOutType} from '../band-table.ts';
 import type {LaidOutDiagram, LaidOutBand} from '../types/index.ts';
-import {escapeXml} from '../emit-common.ts';
 import {fitConnector, siteIndex} from './geom.ts';
 import {type Rect, type Fonts} from './xml.ts';
 import {boxXml, plainBox, groupFrameXml, groupXml, anchorXml, picXml, type TextBox} from './shapes.ts';

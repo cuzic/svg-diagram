@@ -26,8 +26,8 @@ const check = (what: string, v: unknown, ok: (v: any) => boolean, must: string):
 };
 const oneOf = (...xs: readonly string[]) => (v: unknown): boolean => xs.includes(v as string);
 const isTone = (none = false) => (v: unknown): boolean => isArtTone(v) || (none && v === 'none');
-const positive = (v: unknown): boolean => typeof v === 'number' && v > 0;
 const finite = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v);
+const positive = (v: unknown): boolean => finite(v) && (v as number) > 0;
 const list = (xs: readonly string[]): string => xs.join(' | ');
 const TONES = ART_TONE_NAMES;
 // the Role type's names (the sizes come from the diagram's roles at layout); a Role added to the type fails to compile here

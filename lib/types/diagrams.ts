@@ -385,6 +385,8 @@ export interface LaidOutStates extends Rect, Dimmed {
 }
 export interface LaidOutCause extends Rect, Dimmed {
   type: 'cause';
+  /** The ids no author name answers to (whyWhyTree's own): in `anchors`, but not in the registry or a spotlight scope. */
+  unanchored?: readonly string[];
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
   fitApplied?: FitApplied[];
   id?: string;

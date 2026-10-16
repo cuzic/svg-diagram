@@ -11,11 +11,11 @@ import {visibleAt} from './reveal.ts';
 import {MARK_STROKE, plateStyle} from './image.ts';
 import type {LaidOutQuadrant} from './quadrant.ts';
 import type {LaidOutFlowShape} from './flow-shapes.ts';
-import {snap4, escapeXml, emojiSpan, resolveTextColor, lineAttrs, arrowPath, resolveBoxStyle} from './emit-common.ts';
+import {snap4, escapeXml, escapeAttr, emojiSpan, resolveTextColor, lineAttrs, arrowPath, resolveBoxStyle} from './emit-common.ts';
 import type {PathCut} from './emit-common.ts';
 import {HOP_R} from './cause-hop.ts';
 import {renderBoxRect} from './emit-boxes.ts';
-import {CORE_BADGE_H, CORE_BADGE_GAP} from './toc.ts';
+import {CORE_BADGE_H, CORE_BADGE_W, CORE_BADGE_GAP} from './toc.ts';
 
 // plane(): axes (with arrowheads), ticks, guides, points, dimension lines with their label chips, then every text.
 export function renderPlane(b: LaidOutPlane, day: Theme, stage?: number): string {
@@ -282,7 +282,7 @@ export function renderStates(b: LaidOutStates, day: Theme): string {
 
 
 // The core driver (ADR 0015 D4): a thick frame and a small 中核 badge just outside the side of the box away from the arrows that leave it
-const CORE_STROKE = 3.5, BADGE_W = 44, BADGE_H = CORE_BADGE_H, BADGE_GAP = CORE_BADGE_GAP;
+const CORE_STROKE = 3.5, BADGE_W = CORE_BADGE_W, BADGE_H = CORE_BADGE_H, BADGE_GAP = CORE_BADGE_GAP;
 function coreBadge(n: LaidOutCause['nodes'][number], id: string, b: LaidOutCause, day: Theme): string {
   const leave = b.edges.find(e => e.from === id)?.points[0], eps = 1;
   const side = !leave ? 'top' : Math.abs(leave.y - n.y) < eps ? 'bottom' : Math.abs(leave.y - n.y - n.h) < eps ? 'top' : Math.abs(leave.x - n.x) < eps ? 'right' : 'left';
@@ -451,5 +451,5 @@ export function renderBpmn(b: LaidOutBpmn, day: Theme): string {
 export function renderMath(band: LaidOutMath): string {
   const n = (v: number) => +v.toFixed(2);
   const top = band.y + (band.h - band.drawnH) / 2;
-  return `<g data-math="" role="img" aria-label="${escapeXml(band.alt)}" transform="translate(${n(band.x)} ${n(top)}) scale(${+band.scale.toFixed(6)})" fill="${band.color}" stroke="${band.color}" stroke-width="0">${band.inner}</g><!--/math-->`;
+  return `<g data-math="" role="img" aria-label="${escapeAttr(band.alt)}" transform="translate(${n(band.x)} ${n(top)}) scale(${+band.scale.toFixed(6)})" fill="${band.color}" stroke="${band.color}" stroke-width="0">${band.inner}</g><!--/math-->`;
 }

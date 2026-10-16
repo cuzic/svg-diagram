@@ -68,13 +68,14 @@ export function freshness(svgPath: string, cwd: string = process.cwd()): Freshne
     if (!found.length) return {state: 'unknown'};
     // a same-named file of another project may sit at one candidate: any candidate that hashes as recorded makes the SVG fresh;
     // stale only when every candidate that exists differs (a false alarm is worse than a miss)
-    let first: Freshness | null = null;
+    // when none is fresh, a candidate whose source hash matches is the real one: its deps are what to report, not another file's source
+    let mismatch: Freshness | null = null, drifted: Freshness | null = null;
     for (const source of found) {
-      if (sha256File(source) !== prov.sourceSha256) { first ??= {state: 'stale', reason: 'source', source}; continue; }
-      if ((prov.depsSha256 ?? '') !== depsSha256(source)) { first ??= {state: 'stale', reason: 'deps', source}; continue; }
+      if (sha256File(source) !== prov.sourceSha256) { mismatch ??= {state: 'stale', reason: 'source', source}; continue; }
+      if ((prov.depsSha256 ?? '') !== depsSha256(source)) { drifted ??= {state: 'stale', reason: 'deps', source}; continue; }
       return {state: 'fresh', source};
     }
-    return first as Freshness;
+    return (drifted ?? mismatch) as Freshness;
   } catch { return {state: 'unknown'}; } // unreadable source, a failing import scan: no claim, and preview / show go on drawing
 }
 
