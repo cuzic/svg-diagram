@@ -12,6 +12,6 @@ const flow = (route: 'straight' | 'loop-under') => diagram({theme: 'blue', title
 
 test("a line back through a row of steps stops the build and names route: 'loop-under'; written with it, the line runs under the boxes", async () => {
   const overlap = (await checkDiagram(flow('straight'))).verdict.problems.find(p => p.includes('path overlaps'));
-  assert.ok(overlap?.includes("route: 'loop-under'"), overlap);
+  assert.ok(overlap?.includes("route: 'loop-under'") ?? false, String(overlap));
   assert.deepEqual((await checkDiagram(flow('loop-under'))).verdict.problems, []);
 });
