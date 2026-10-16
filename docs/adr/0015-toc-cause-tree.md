@@ -202,4 +202,4 @@ FRT 風の `inj → tool`、`[tool, trust] → use`、`use → result`、`result
 - `toc-ude-count` の 5〜10 の範囲と `toc-chain-only` の定義は、TOC の指針(Dettmer)に合わせた初期値。依頼者(medius-research)の図で、誤検知が無いかを確かめる。
 - `tree: 'prt'` / `'tt'` の規則(障害に中間目標が対になっているか、`tt` の 3 点セット)。依頼に無いので第 2 段階。
 - 循環の戻り辺に付ける注釈(`label`。Flying Logic のループの印 `R` / `B`)。G1 は「太く、注釈を付けられる」と言うが、`CauseLink` に `label` が無く、ラベルの置き場所(辺の脇)の設計は ADR 0011(`causalLoop` のループの印)と合わせたい。本 ADR は太さだけ(0016 D9)。
-- `coreDriver` の `到達 UDE n` の文言の差し替え(`legendLabels` のような設定)。
+- `coreDriver` の `到達 UDE n` の文言の差し替え(`legendLabels` のような設定)。→ 実装済み: `coreDriverLabel`(`{n}` と `{total}`)。既定の文言は読者に定義のない専門用語を避けて `{n}/{total} 件の現象に届く` にした。

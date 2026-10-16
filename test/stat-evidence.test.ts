@@ -45,3 +45,14 @@ test('hero({stat: {source, confidence}}) passes the evidence line through to sta
   assert.match(svg, /一次資料/);
   assert.throws(() => hero({stat: {value: 1, label: 'x', confidence: 'primary'}, flow: [box({title: 'a'})]}), /confidence needs a source/);
 });
+
+test("stat({confidenceStyle: 'text', confidenceLabels}): the word without its symbol, or the author's own wording", () => {
+  const third = (o: object) => (stat('76%', '離脱率', {source: '総務省', confidence: 'secondary', ...o}).lines![2] as unknown as Line).text;
+  assert.equal(third({confidenceStyle: 'text'}), '出典: 総務省  報道・二次資料');
+  assert.equal(third({confidenceStyle: 'symbol'}), '出典: 総務省  ○ 報道・二次資料');
+  assert.equal(third({confidenceLabels: {secondary: '二次資料（報道）'}}), '出典: 総務省  二次資料（報道）');
+  assert.equal(third({confidenceStyle: 'text', confidenceLabels: {primary: 'x'}}), '出典: 総務省  報道・二次資料'); // other confidences' labels do not leak
+  assert.throws(() => third({confidenceStyle: 'plain'}), /confidenceStyle/);
+  assert.throws(() => third({confidenceLabels: {sure: 'x'}}), /confidenceLabels/);
+  assert.throws(() => third({confidenceLabels: {primary: ''}}), /confidenceLabels/);
+});
