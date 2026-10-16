@@ -8,7 +8,8 @@ import {rcaSeverity} from '../lib/rules.ts';
 test.after(() => closeMeasurer());
 
 const N = (id: string, role?: string) => ({id, label: id, ...(role ? {role} : {})}) as {id: string; label: string; role?: never};
-const rules = (nodes: object[], links: object[], tree?: string) => tocFindings({nodes, links, ...(tree ? {tree}: {})} as never).map(f => f.rule).sort();
+// toc-role-indistinct is advice (always information, about how the figure reads next to others), not a defect of the tree: these tests are about the tree
+const rules = (nodes: object[], links: object[], tree?: string) => tocFindings({nodes, links, ...(tree ? {tree}: {})} as never).map(f => f.rule).filter(r => r !== 'toc-role-indistinct').sort();
 
 // a current reality tree that is fine: 5 ude, a root, branches and a join
 const udes = ['u1', 'u2', 'u3', 'u4', 'u5'].map(id => N(id, 'ude'));
@@ -61,7 +62,7 @@ test('toc-orphan: an entity in no link; any tree', () => {
 
 test('toc rules in check: info by default, warn with tocCheck strict, info again when accepted; the SVG does not change', async () => {
   const chain = () => causeTree([N('a', 'root'), N('b'), N('c', 'ude')] as never, [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}], {tree: 'crt'});
-  const sev = async (opts: object) => (await checkDiagram(diagram({theme: 'blue', ...opts}).add(chain()))).verdict.findings.filter(f => f.rule.startsWith('toc-'));
+  const sev = async (opts: object) => (await checkDiagram(diagram({theme: 'blue', ...opts}).add(chain()))).verdict.findings.filter(f => f.rule.startsWith('toc-') && f.rule !== 'toc-role-indistinct' && f.rule !== 'toc-legend-suggested'); // the two advice rules are always information
   const base = await sev({});
   assert.ok(base.length > 0 && base.every(f => f.severity === 'info'));
   assert.ok((await sev({tocCheck: 'strict'})).every(f => f.severity === 'warn'));
