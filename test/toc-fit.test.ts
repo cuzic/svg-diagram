@@ -4,6 +4,7 @@ import './helpers/strict-width.ts';
 import {causeTree, checkDiagram, closeMeasurer, diagram, pdpc} from '../lib/dsl.ts';
 import {layoutCauseBand, layoutCauseBandOnce} from '../lib/toc.ts';
 import {andClashes} from '../lib/cause-clash.ts';
+import {scoreOf} from '../lib/polyline-metrics.ts';
 import type {CauseBand, LaidOutCause} from '../lib/types/diagrams.ts';
 
 // ADR 0010 U1: fitting the width. Font-free: layoutCauseBand with a fixed text width, and widths measured from the figure itself.
@@ -267,4 +268,16 @@ test('causeTree(): clearing an AND crossing by moving a run aside does not keep 
   const t = place(causeTree(Array.from({length: 11}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'crt', dir: 'left'}), 1800);
   assert.ok(t.h < 230, `height ${t.h}`);
   assert.deepEqual(andClashes(t.edges, t.ands), []);
+});
+
+// ADR 0019 D4 (widened): the search is entered by any crossing, not only an AND's. An 8-node tree with no AND (so none to cross) had 2 crossings in the written order.
+test('causeTree(): a figure whose arrows cross with no AND involved is searched again too; the crossings only go down', () => {
+  const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":"n1","to":"n2"},{"from":"n1","to":"n3"},{"from":"n0","to":"n4"},{"from":"n4","to":"n5"},{"from":"n1","to":"n6"},{"from":"n2","to":"n7"},{"from":"n1","to":"n7"}]');
+  const band = (): CauseBand => causeTree(Array.from({length: 8}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'frt', dir: 'up'});
+  const crossings = (t: LaidOutCause): number => scoreOf(t.edges.map(e => e.points)).crossings;
+  const once = layoutCauseBandOnce(band(), 0, 0, 1800, fixedW as never, ROLES), now = place(band(), 1800);
+  assert.ok(crossings(once) >= 1, `the written order leaves a crossing (${crossings(once)})`);
+  assert.ok(crossings(now) < crossings(once), `the search lowers it (${crossings(once)} -> ${crossings(now)})`);
+  assert.ok(now.h <= once.h + 0.5, 'no taller');
+  assert.equal(now.loose.length, 0);
 });

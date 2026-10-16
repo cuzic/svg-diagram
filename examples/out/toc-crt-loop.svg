@@ -11,31 +11,31 @@
   <path d="M448,468 L453,480 L443,480 z" fill="#22201b"/>
   <path d="M460,412 L460,328" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M460,316 L465,328 L455,328 z" fill="#22201b"/>
-  <path d="M412,280 L412,196" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M412,188 L417,200 L407,200 z" fill="#22201b"/>
   <path d="M512,280 L512,196" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M512,188 L517,200 L507,200 z" fill="#22201b"/>
-  <path d="M348,152 L348,68" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M348,56 L353,68 L343,68 z" fill="#22201b"/>
-  <path d="M372,152 L372,132 L496,132 L496,68" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M496,56 L501,68 L491,68 z" fill="#22201b"/>
-  <path d="M560,152 L560,120 L520,120 L520,68" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M520,56 L525,68 L515,68 z" fill="#22201b"/>
-  <path d="M372,56 L372,76 L660,76 L660,528 L472,528 L472,552" fill="none" stroke="#22201b" stroke-width="3"/>
+  <path d="M412,280 L412,196" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M412,188 L417,200 L407,200 z" fill="#22201b"/>
+  <path d="M568,152 L568,68" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M568,56 L573,68 L563,68 z" fill="#22201b"/>
+  <path d="M548,152 L548,104 L444,104 L444,68" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M444,56 L449,68 L439,68 z" fill="#22201b"/>
+  <path d="M364,152 L364,132 L424,132 L424,68" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M424,56 L429,68 L419,68 z" fill="#22201b"/>
+  <path d="M592,56 L592,76 L660,76 L660,528 L472,528 L472,552" fill="none" stroke="#22201b" stroke-width="3"/>
   <path d="M472,560 L467,548 L477,548 z" fill="#22201b"/>
-  <path d="M488,76 Q508,64 528,76" fill="none" stroke="#22201b" stroke-width="2"/>
-  <rect x="292" y="20" width="112" height="36" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
-  <rect x="432" y="20" width="128" height="36" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
-  <rect x="280" y="152" width="168" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <path d="M412,76 Q436,64 456,76" fill="none" stroke="#22201b" stroke-width="2"/>
+  <rect x="516" y="20" width="112" height="36" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="360" y="20" width="128" height="36" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
   <rect x="476" y="152" width="168" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="280" y="152" width="168" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="404" y="280" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="384" y="412" width="152" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="384" y="560" width="152" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
   <rect x="388" y="564" width="144" height="28" rx="5" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <text x="350" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">納期に遅れる</text>
-  <text x="497" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">残業費が膨らむ</text>
-  <text x="362" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">作業の切り替えが多い</text>
-  <text x="558" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">急ぎの割り込みが入る</text>
+  <text x="570" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">納期に遅れる</text>
+  <text x="423" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">残業費が膨らむ</text>
+  <text x="558" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">作業の切り替えが多い</text>
+  <text x="362" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">急ぎの割り込みが入る</text>
   <text x="460" y="302" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仕掛りが多い</text>
   <text x="460" y="432" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">受注したらすぐ着手</text>
   <text x="460" y="452" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">する</text>
