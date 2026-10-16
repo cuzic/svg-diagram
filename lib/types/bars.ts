@@ -4,7 +4,11 @@ import type {Anchor, ColorKey, Dimmed, LabelRole, Rect, RevealOpts, ScopeOpts} f
 export type BarSeries = 'a' | 'b' | 'c';
 export type BarTone = 'accent' | 'danger' | 'muted';
 export interface BarDatum extends RevealOpts {
-  label: string; value: number;
+  label: string;
+  /** The bar's value: it stands on the baseline and runs to this. Exactly one of `value` and `range`. */
+  value?: number;
+  /** A floating bar from `lo` up to `hi` (a minimum and a maximum, a confidence interval): `range: [lo, hi]` with 0 <= lo < hi. Its value text reads `lo〜hi`. Not with `stack`, `cumulative`, `hideZero` or `replaces`. Exactly one of `value` and `range`. */
+  range?: readonly [lo: number, hi: number];
   /** a: accent (blue), b: dark text colour, c: muted. */
   series?: BarSeries;
   /** The bar's colour by tone (accent / danger / muted); `danger` is the red. Not together with `series`. */

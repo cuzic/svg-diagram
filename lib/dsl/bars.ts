@@ -1,6 +1,7 @@
 import {decimalsOf, exact, histogramBins, mean, niceUp, normalCount, paretoOrder, sd} from '../qc.ts';
 import {scatterOpts} from '../qc-plane.ts';
 import type {ScatterOpts, ScatterPoint} from '../qc-plane.ts';
+import {barSpan} from '../bars.ts';
 import {LABEL_ROLES} from '../tokens.ts';
 import type {BarDatum, BarsBand, BarsLine, BarsOpts} from '../types/bars.ts';
 import type {PlaneBand} from '../types/figures.ts';
@@ -25,7 +26,8 @@ function validateBarsOverlays(data: readonly BarDatum[], opts: BarsOpts, max: nu
     if (pts.some(([sx, v]) => sx < 0 || sx > data.length || v < 0 || v > max)) throw new Error(`bars(): curve.through has a point outside the bars (slot 0-${data.length}, value 0-${max})`);
   }
   if (opts.cumulative) {
-    const total = data.reduce((n, d) => n + d.value, 0);
+    if (data.some(d => d.range !== undefined)) throw new Error('bars(): cumulative does not work with range (a floating bar has no share of a total)');
+    const total = data.reduce((n, d) => n + barSpan(d).hi, 0);
     if (Math.abs(max - total) > total * 1e-9) throw new Error(`bars(): cumulative needs max to be the total (${total}), so that 100% is the top of the plot (got max ${max})`);
     if (data.some(d => d.replaces !== undefined)) throw new Error('bars(): cumulative does not work with replaces');
     const g = opts.cumulative.guide;
@@ -43,14 +45,25 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   if (!Array.isArray(data) || data.length === 0) throw new Error('bars(data) needs at least one value');
   if (opts.height !== undefined && (!(opts.height > 0) || !Number.isFinite(opts.height))) throw new Error(`bars(): height must be a finite number > 0 (got ${opts.height})`);
   for (const d of data) {
+    if ((d.value === undefined) === (d.range === undefined)) throw new Error(`bars(): "${d.label}" needs exactly one of value and range`);
+    if (d.range !== undefined) {
+      const [lo, hi] = Array.isArray(d.range) && d.range.length === 2 ? d.range : [NaN, NaN];
+      if (!Number.isFinite(lo) || !Number.isFinite(hi)) throw new Error(`bars(): range for "${d.label}" must be [lo, hi], two finite numbers (got ${JSON.stringify(d.range)})`);
+      if (lo < 0) throw new Error(`bars(): range for "${d.label}" starts below 0 (${lo}); the axis of bars() starts at 0`);
+      if (!(lo < hi)) throw new Error(`bars(): range for "${d.label}" needs lo < hi (got [${lo}, ${hi}]); a single value is a plain bar`);
+      if (d.replaces !== undefined) throw new Error(`bars(): "${d.label}" has both range and replaces; a floating bar cannot take the place of another`);
+      if (opts.stack) throw new Error(`bars(): "${d.label}" has a range, which does not stack (a floating bar has no place in a total)`);
+      if (opts.hideZero) throw new Error(`bars(): hideZero does not apply to range (a range is never 0)`);
+    } else {
     if (!Number.isFinite(d.value)) throw new Error(`bars(): value for "${d.label}" must be finite (got ${d.value})`);
-    if (d.value < 0) throw new Error(`bars(): value for "${d.label}" must be >= 0 (got ${d.value})`);
+    if (d.value! < 0) throw new Error(`bars(): value for "${d.label}" must be >= 0 (got ${d.value})`);
+    }
     if (d.series !== undefined && !['a', 'b', 'c'].includes(d.series)) throw new Error(`bars(): series for "${d.label}" must be a, b, or c (got ${d.series})`);
     if (d.tone !== undefined && !['accent', 'danger', 'muted'].includes(d.tone)) throw new Error(`bars(): tone for "${d.label}" must be accent, danger, or muted (got ${d.tone})`);
     if (d.tone !== undefined && d.series !== undefined) throw new Error(`bars(): "${d.label}" has both series and tone; use one`);
   }
   if (opts.dir !== undefined && opts.dir !== 'h' && opts.dir !== 'v') throw new Error(`bars(): dir must be 'h' or 'v' (got ${opts.dir})`);
-  if (data.every(d => d.value === 0)) throw new Error('bars(): all values are 0');
+  if (data.every(d => barSpan(d).hi === 0)) throw new Error('bars(): all values are 0');
   if (opts.labels !== undefined && !['all', 'category', 'none'].includes(opts.labels)) throw new Error(`bars(): labels must be 'all', 'category' or 'none' (got ${opts.labels})`);
   for (const k of ['axis', 'grid', 'baseline'] as const) if (opts[k] !== undefined && typeof opts[k] !== 'boolean') throw new Error(`bars(): ${k} must be true or false (got ${opts[k]})`);
   if (opts.axis === false && opts.grid === true) throw new Error('bars(): grid needs axis (axis: false removes the ticks the grid lines belong to)');
@@ -60,7 +73,7 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   const stack = !!opts.stack;
   const overlay = (['lines', 'vlines', 'curve', 'cumulative', 'edges'] as const).filter(k => opts[k] !== undefined);
   if (overlay.length && (opts.dir !== 'v' || stack)) throw new Error(`bars(): ${overlay.join(' / ')} need vertical bars that are not stacked (dir: 'v')`);
-  const extent = stack ? data.reduce((n, d) => n + d.value, 0) : Math.max(...data.map(d => d.value));
+  const extent = stack ? data.reduce((n, d) => n + barSpan(d).hi, 0) : Math.max(...data.map(d => barSpan(d).hi));
   const max = opts.max ?? extent;
   if (!(max > 0) || !Number.isFinite(max)) throw new Error(`bars(): max must be a finite number > 0 (got ${max})`);
   if (extent > max) throw new Error(`bars(): ${stack ? 'stack total' : 'a value'} (${extent}) exceeds max (${max})`);
@@ -71,6 +84,12 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height, ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'bars()'), ...revealOf(opts)};
   for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole', 'hideZero', 'lines', 'vlines', 'curve', 'cumulative', 'edges', 'valueFormat'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
   return withHandle(withAnchors(band, data.map(d => d.id)), opts.id);
+}
+/** A bar for each item from its low to its high (a minimum and a maximum, a confidence interval): `rangeBars([{label: '開発', range: [3.2, 5.8]}], {unit: '万円'})`. The same as bars() with `range` data; the value text reads `3.2〜5.8万円`. */
+export function rangeBars<const D extends readonly (Omit<BarDatum, 'value' | 'range'> & {range: readonly [lo: number, hi: number]})[], const Id extends string = never>(items: D, opts?: BarsOpts & {id?: Id}): BarsBand & Declares<Id | BarIds<D & readonly BarDatum[]>> & HandleOf<Id> & AnchorsOf<BarIds<D & readonly BarDatum[]>>;
+export function rangeBars(items: readonly (Omit<BarDatum, 'value' | 'range'> & {range: readonly [number, number]})[], opts: BarsOpts = {}): BarsBand {
+  for (const d of items ?? []) if ((d as BarDatum).value !== undefined) throw new Error(`rangeBars(): "${d.label}" has a value; every item of rangeBars() is a range (use bars() for plain values)`);
+  return bars(items as never, opts) as BarsBand;
 }
 export interface ParetoOpts extends Omit<BarsOpts, 'dir' | 'stack' | 'cumulative' | 'lines' | 'vlines' | 'curve' | 'edges' | 'max'> {
   /** Keep the largest N items and fold the rest into `other`. */
