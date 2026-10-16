@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {scanPngRefs, scanMarkdown, parseItem, compareNotes, formatNotes, formatMap, checkFigures, chapterOf, globToRegExp, matchesAny} from '../lib/docs-check.ts';
+import {checkFidelity} from '../lib/covers.ts';
 import {explainChange} from '../lib/svg-diff.ts';
 import {loadConfig, applyConfig} from '../lib/config.ts';
 import type {DiagramData} from '../lib/types/core.ts';
@@ -181,4 +182,38 @@ test('check --docs: PNG references - missing file, no matching figure, orphan PN
   assert.doesNotMatch(r.stdout, /image-missing\].*100%/, 'a stray % is read as written');
   const scoped = run(root, '--only', 'docs/page.md');
   assert.match(scoped.stdout, /PNG（doc-orphan-png）の検査は行わない/); assert.doesNotMatch(scoped.stdout, /\[doc-orphan-png\]/);
+});
+
+// ---- check --docs --fidelity: the figure carries no number or term the page never writes ----
+test('checkFidelity: numbers (two digits or more) and Latin words of the figure that no document text mentions', () => {
+  assert.deepEqual(checkFidelity('売上 1,240 件 API 5', '売上は1240件。API で取る。'), []); // 5 is one digit: not judged; 1,240 = 1240
+  assert.deepEqual(checkFidelity('売上 1,240 件 API 99%', '売上は1240件。'), ['API', '99%']);
+  assert.deepEqual(checkFidelity('30 と 300', '300 件'), ['30'], '30 is not part of 300');
+  assert.deepEqual(checkFidelity('API 99', '旧: API 99', '新: 本文'), [], 'any of the texts is enough (the older version of the page)');
+});
+
+function fidelityProject(md: string) {
+  const root = project(md);
+  fs.writeFileSync(path.join(root, 'svg', 'fig.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><text x="1" y="1">離脱率 76% OAuth</text></svg>');
+  return root;
+}
+test('check --docs --fidelity: a figure term the page never states is reported; without --fidelity nothing is checked', () => {
+  const md = '# P\n\n![離脱率の内訳を示す図](../svg/fig.svg)\n\n1. **一つ目**：本文一\n2. **二つ目**：本文二\n\n離脱率は 76% である。\n';
+  const root = fidelityProject(md);
+  assert.equal(run(root, '--strict').status, 0);
+  const r = run(root, '--fidelity', '--strict');
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stdout + r.stderr, /doc-fidelity-missing/);
+  assert.match(r.stdout + r.stderr, /「OAuth」/);
+  assert.doesNotMatch(r.stdout + r.stderr, /「76%」/);
+  assert.equal(run(fidelityProject(md.replace('である。', 'で、OAuth を使う。')), '--fidelity', '--strict').status, 0);
+});
+
+test('check --docs --fidelity --base REF: a word the page had at REF still counts', () => {
+  const root = fidelityProject('# P\n\n![離脱率の内訳を示す図](../svg/fig.svg)\n\n1. **一つ目**：本文一\n2. **二つ目**：本文二\n\n離脱率は 76% で、OAuth を使う。\n');
+  const git = (...a: string[]) => spawnSync('git', ['-C', root, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], {encoding: 'utf8'});
+  git('init', '-q'); git('add', '-A'); git('commit', '-q', '-m', 'old');
+  fs.writeFileSync(path.join(root, 'docs', 'page.md'), '# P\n\n![離脱率の内訳を示す図](../svg/fig.svg)\n\n1. **一つ目**：本文一\n2. **二つ目**：本文二\n\n離脱率は 76% である。\n');
+  assert.equal(run(root, '--fidelity', '--strict').status, 1);
+  assert.equal(run(root, '--fidelity', '--base', 'HEAD', '--strict').status, 0);
 });
