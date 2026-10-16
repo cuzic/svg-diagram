@@ -1,4 +1,4 @@
-// The minimal cut sets of a fault tree (ADR 0025 D4, U2): MOCUS, bottom-up, on a coherent tree (no NOT, no exclusive OR).
+// The minimal cut sets of a fault tree (ADR 0025 D4, U2): the sets are built bottom-up (the same result as MOCUS, which expands top-down), on a coherent tree (no NOT, no exclusive OR).
 // A pure function of the resolved tree; no layout, no fonts. A repeated event (`ref`) is the same variable as the event it repeats.
 import type {FtaNode} from './fta.ts';
 
@@ -12,7 +12,8 @@ export interface CutSets {
 }
 
 /** The variable a leaf stands for: a repeat shares the variable of the event it repeats. */
-export const ftaVar = (n: Pick<FtaNode, 'key' | 'id' | 'copyOf'>): string => n.copyOf ?? n.id ?? n.key;
+/** `id:` / `k:` keep a user's id apart from the internal key (an id like 'n2' must not meet the key of another event). */
+export const ftaVar = (n: Pick<FtaNode, 'key' | 'id' | 'copyOf'>): string => n.copyOf !== undefined ? `id:${n.copyOf}` : n.id !== undefined ? `id:${n.id}` : `k:${n.key}`;
 
 class TooMany extends Error {}
 
@@ -60,13 +61,17 @@ function setsOf(n: FtaNode): string[][] {
   if (n.gate === 'inhibit') return and([...kids, setsOf(n.cond!)]);
   const combos = choose(kids, n.k!); // vote(k, n): an AND for each way to pick k of the n inputs
   guard(combos.length);
-  return absorb(combos.flatMap(c => and(c)));
+  const all: string[][] = [];
+  for (const c of combos) { all.push(...and(c)); guard(all.length); } // counted as they come: the total, not only each AND, stays under the limit
+  return absorb(all);
 }
 
 /** The minimal cut sets of the tree. `truncated` when a step passed CUT_SET_LIMIT (then `sets` is empty: nothing is guessed). */
 export function minimalCutSets(root: FtaNode): CutSets {
   try {
-    const sets = absorb(setsOf(root)).sort((a, b) => a.length - b.length || a.join().localeCompare(b.join()));
+    const raw = setsOf(root);
+    guard(raw.length);
+    const sets = absorb(raw).sort((a, b) => a.length - b.length || a.join().localeCompare(b.join()));
     return {sets, truncated: false};
   } catch (e) {
     if (e instanceof TooMany) return {sets: [], truncated: true};

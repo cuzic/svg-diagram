@@ -131,7 +131,7 @@ test('fta rules: findings of the tree, and their severity in check', async () =>
 import {minimalCutSets, CUT_SET_LIMIT} from '../lib/fta-analysis.ts';
 
 const cuts = (top: FtaEvent) => minimalCutSets(ftaResolve(top).root);
-const names = (top: FtaEvent) => cuts(top).sets.map(s => s.join('+'));
+const names = (top: FtaEvent) => cuts(top).sets.map(s => s.map(v => v.replace(/^(id|k):/, '')).join('+'));
 const leaf = (id: string): FtaEvent => ({id, label: id, kind: 'basic'});
 
 test('minimalCutSets(): AND / OR / absorption', () => {
@@ -314,4 +314,32 @@ test('quant: true needs p on the events, names those without, and writes the not
   const noQuant = await laid(faultTree(ok));
   assert.equal(noQuant.t.note, undefined);
   assert.ok(!noQuant.t.texts.some(x => x.text.startsWith('p =')));
+});
+
+// ---- review fixes ----
+test("an event's id never meets another event's internal key (id 'n2' beside an event without an id)", () => {
+  const t: FtaEvent = {label: 't', gate: 'and', children: [{id: 'n2', label: 'a', kind: 'basic', p: 0.5}, B('b', {p: 0.5}), B('c', {p: 0.5})]};
+  assert.equal(cuts(t).sets.length, 1, 'one cut set');
+  assert.equal(cuts(t).sets[0].length, 3, 'all three events are in the one cut set');
+  near(prob(t).p, 0.125);
+});
+
+test('minimalCutSets(): a vote whose AND parts add up past the limit stops too, quickly', () => {
+  const or = (p: string): FtaEvent => ({label: p, gate: 'or', children: Array.from({length: 10}, (_, i) => leaf(`${p}${i}`))});
+  const big: FtaEvent = {label: 't', gate: 'vote', k: 2, children: Array.from({length: 30}, (_, i) => or(`o${i}_`))};
+  const t0 = Date.now();
+  assert.equal(cuts(big).truncated, true);
+  assert.ok(Date.now() - t0 < 5000, 'it gives up early instead of expanding 40 thousand sets');
+});
+
+test('p goes on the basic events: a gate or a house event with p throws; an event with a gate shows no p', async () => {
+  assert.throws(() => faultTree({label: 't', gate: 'and', p: 0.5, children: [P('a', 0.1), P('b', 0.1)]}), /has a gate.*p goes on the basic events/);
+  assert.throws(() => faultTree({label: 't', gate: 'and', children: [P('a', 0.1), {label: 'h', kind: 'house', state: true, p: 0.5}]}), /house event.*takes no p/);
+});
+
+test('fmtP(): a probability just under 1 is not written as 1', async () => {
+  const {fmtP} = await import('../lib/fta.ts');
+  assert.equal(fmtP(0.99999), '1 − 1.0e-5');
+  assert.equal(fmtP(0.5), '0.5');
+  assert.equal(fmtP(1), '1');
 });

@@ -347,7 +347,8 @@ export function mindmap(root: TreeItem, opts: MindmapOpts = {}): TreeBand {
   return band as never;
 }
 
-type FtaIds<T> = TreeIds<T> | (T extends {readonly condition: infer C} ? TreeIds<C> : never);
+/** The ids of a fault tree's events: its own, and those of every input and every inhibit condition below it. */
+type FtaIds<T> = (T extends {readonly id: infer I extends string} ? I : never) | (T extends {readonly children: readonly (infer C)[]} ? FtaIds<C> : never) | (T extends {readonly condition: infer C} ? FtaIds<C> : never);
 /**
  * A fault tree (FTA): the top event, a gate under it (and / or / vote with k / inhibit) and the events that cause it, down to basic events (circle),
  * undeveloped events (diamond) and house events. Each event's text is a rectangle with the symbol of its kind under it; `{ref: id}` draws a

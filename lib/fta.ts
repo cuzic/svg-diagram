@@ -38,10 +38,10 @@ export interface FtaNode {
 
 const STATE_TEXT = {true: '常に発生すると仮定', false: '発生しないと仮定'} as const;
 /** A probability as written on an event and in the note: 2 significant digits, in exponent form below 0.001. */
-export const fmtP = (p: number): string => p === 0 ? '0' : p === 1 ? '1' : p >= 0.001 ? String(Number(p.toPrecision(2))) : p.toExponential(1);
-const stateSub = (n: Pick<FtaNode, 'kind' | 'state' | 'sub' | 'p'>, quant = false): string | undefined => {
+export const fmtP = (p: number): string => p === 0 ? '0' : p === 1 ? '1' : p >= 0.995 ? `1 − ${(1 - p).toExponential(1)}` : p >= 0.001 ? String(Number(p.toPrecision(2))) : p.toExponential(1);
+const stateSub = (n: Pick<FtaNode, 'kind' | 'state' | 'sub' | 'p' | 'gate'>, quant = false): string | undefined => {
   const base = n.sub ?? (n.kind === 'house' && n.state !== undefined ? STATE_TEXT[`${n.state}`] : undefined);
-  if (!quant || n.p === undefined || n.kind === 'house') return base;
+  if (!quant || n.p === undefined || n.kind === 'house' || n.gate !== undefined) return base;
   return base ? `${base} (p = ${fmtP(n.p)})` : `p = ${fmtP(n.p)}`;
 };
 
@@ -108,6 +108,7 @@ export function ftaResolve(top: FtaEvent): {root: FtaNode; nodes: FtaNode[]} {
       if (e.gate === undefined || !e.children?.length) throw new Error(`faultTree(): ${name} needs a gate and children (an event that goes no further is kind: 'undeveloped' or 'basic')`);
       if (!(FTA_GATES as readonly string[]).includes(e.gate)) throw new Error(`faultTree(): ${name} has gate ${String(e.gate)} (use ${FTA_GATES.join(' | ')})`);
       if (e.state !== undefined) throw new Error(`faultTree(): ${name}: state is for a house event`);
+      if (e.p !== undefined) throw new Error(`faultTree(): ${name} has a gate: its probability is worked out from its inputs, p goes on the basic events`);
       if (e.gate === 'vote') {
         const n = e.children.length;
         if (!(typeof e.k === 'number' && Number.isInteger(e.k) && e.k >= 1 && e.k <= n)) throw new Error(`faultTree(): ${name}: a vote gate needs k, a whole number from 1 to the number of inputs (${n}); got ${String(e.k)}`);
@@ -118,7 +119,10 @@ export function ftaResolve(top: FtaEvent): {root: FtaNode; nodes: FtaNode[]} {
       } else if (e.condition !== undefined) throw new Error(`faultTree(): ${name}: condition is for an inhibit gate`);
     } else {
       for (const f of ['gate', 'children', 'condition', 'k'] as const) if (e[f] !== undefined) throw new Error(`faultTree(): ${name} is a ${kind} event: it takes no ${f}`);
-      if (kind === 'house') { if (typeof e.state !== 'boolean') throw new Error(`faultTree(): the house event ${name} needs state: true (it always happens) or false (it never does)`); }
+      if (kind === 'house') {
+        if (typeof e.state !== 'boolean') throw new Error(`faultTree(): the house event ${name} needs state: true (it always happens) or false (it never does)`);
+        if (e.p !== undefined) throw new Error(`faultTree(): the house event ${name} takes no p (its state says whether it happens)`);
+      }
       else if (e.state !== undefined) throw new Error(`faultTree(): ${name}: state is for a house event`);
     }
     return kind;
@@ -126,7 +130,7 @@ export function ftaResolve(top: FtaEvent): {root: FtaNode; nodes: FtaNode[]} {
   let counter = 0;
   const nodes: FtaNode[] = [];
   const build = (e: FtaEvent, slot: Slot): FtaNode => {
-    let src = e, copyOf: string | undefined;
+    let src = e, srcSlot = slot, copyOf: string | undefined;
     if (e.ref !== undefined) {
       const extra = Object.keys(e).filter(k => k !== 'ref');
       if (extra.length) throw new Error(`faultTree(): {ref: "${e.ref}"} takes no other field (${extra.join(', ')}): write them on the event it repeats`);
@@ -136,10 +140,11 @@ export function ftaResolve(top: FtaEvent): {root: FtaNode; nodes: FtaNode[]} {
       if (!LEAVES.includes(k)) throw new Error(`faultTree(): {ref: "${e.ref}"} repeats an event with a gate under it; only a basic, undeveloped, house or condition event can be repeated`);
       if ((k === 'condition') !== (slot === 'condition')) throw new Error(`faultTree(): {ref: "${e.ref}"} is ${k === 'condition' ? 'a condition event: it only goes in the `condition` of an inhibit gate' : 'not a condition event: the condition of an inhibit gate must be one'}`);
       src = def.ev;
+      srcSlot = def.slot;
       copyOf = e.ref;
     }
-    const kind = check(src, src === e ? slot : def_slot(src));
-        const node: FtaNode = {
+    const kind = check(src, srcSlot);
+    const node: FtaNode = {
       key: `n${counter++}`, label: src.label as string, kind, children: [],
       ...(src.sub === undefined ? {} : {sub: src.sub}), ...(copyOf !== undefined ? {copyOf} : src.id !== undefined ? {id: src.id} : {}),
       ...(src.gate === undefined ? {} : {gate: src.gate}), ...(src.k === undefined ? {} : {k: src.k}), ...(src.state === undefined ? {} : {state: src.state}), ...(src.p === undefined ? {} : {p: src.p}),
@@ -151,7 +156,6 @@ export function ftaResolve(top: FtaEvent): {root: FtaNode; nodes: FtaNode[]} {
     }
     return node;
   };
-  const def_slot = (ev: FtaEvent): Slot => [...defs.values()].find(d => d.ev === ev)?.slot ?? 'child';
   const root = build(top, 'top');
   return {root, nodes};
 }
@@ -186,7 +190,6 @@ export function ftaTexts(band: FtaBand, roles: Roles): [string, number, number, 
 const NOTE_GAP = 16;
 const BADGE_GAP = 6, BADGE_PAD_X = 10, BADGE_H = 22;
 const STEM = 10, GATE_W = 40, GATE_H = 36, MARK_W = 26, MARK_H = 26, COND_MARK_W = 40, COND_MARK_H = 24, COND_GAP = 22, GAP = 24, LEVEL_GAP = 36;
-const NODE_MAX = 200;
 
 interface Comp {
   node: FtaNode;
@@ -225,7 +228,7 @@ export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthO
           c.w = Math.max(c.w, GATE_W + 2 * (COND_GAP + cl.w)); // symmetric, so the lines to the children leave from under the event's centre
         }
         c.w = Math.max(c.w, GATE_W);
-        c.outY = c.rect.h + STEM + GATE_H;
+        c.outY = c.rect.h + STEM + (n.gate === 'or' || n.gate === 'vote' ? GATE_H * 0.83 : GATE_H); // an OR / vote gate's bottom is a curve whose middle is at 0.83 of its height
         c.h = c.rect.h + STEM + below;
       } else {
         c.w = Math.max(c.w, MARK_W);

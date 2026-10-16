@@ -86,7 +86,7 @@ README の「部品」表を参照。基盤・ネットワーク図は、`group`
 | スケジュール | `gantt(rows, {today})` | タスク `{label, start, end｜days, after?, progress?, milestone?}`（日付は `YYYY-MM-DD`、`today` は必ず書く） |
 | UML クラス図 | `classDiagram(classes, relations, {dir})` | クラス `{id, attrs?, methods?, stereotype?}` と関係 `{from, to, kind, label?, fromMult?, toMult?}` |
 | 業務フロー（BPMN 風） | `bpmn(lanes, nodes, flows, {fit})` | レーン・ノード（task / start / end / xor / and / or）・フロー（`line: 'dashed'` はメッセージ）。940px に収まらず throw するときは `fit: 'shrink'`（スイムレーン `swimlane({fit: 'shrink'})` も同様） |
-| 故障の木（FTA） | `faultTree(top, {maxNodeW, cutSets, quant, quantPeriod})` | 事象 `{label, kind?, gate?, children?, k?, condition?, ref?}`。gate: and / or / vote(k) / inhibit(condition)。kind: event / basic（円）/ undeveloped（ひし形）/ house（state）。同じ基本事象は `{ref: id}`。線に矢じりは無い。幅は 900px に収まる葉 7 個ほどまで。`cutSets: true` で単一故障点に太枠とバッジ、`quant: true` で葉の `p`（確率 0〜1）から頂上の確率を注に書く（独立を仮定。`quantPeriod` で期間）。`legend: 'auto'` で記号の凡例 |
+| 故障の木（FTA） | `faultTree(top, {maxNodeW, cutSets, quant, quantPeriod})` | 事象 `{label, kind?, gate?, children?, k?, condition?, ref?}`。gate: and / or / vote(k) / inhibit(condition)。kind: event / basic（円）/ undeveloped（ひし形）/ house（state）/ condition（楕円。inhibit の condition だけ）。同じ基本事象は `{ref: id}`。線に矢じりは無い。幅は 900px に収まる葉 7 個ほどまで。`cutSets: true` で単一故障点に太枠とバッジ、`quant: true` で葉の `p`（確率 0〜1）から頂上の確率を注に書く（独立を仮定。`quantPeriod` で期間）。`legend: 'auto'` で記号の凡例 |
 | 章の頭の 1 枚 | `hero({banner, stat, flow, caption, note})` | 大きな数字 `stat` + 流れの `box()` の列 `flow` + 一言・出典。帯は任意 |
 
 - 節に `id` を付けると、`connect()` の端点（`t.anchors.<id>` でも取れる）。図に `id` を付けると、図全体が端点・spotlight の対象になる（節の id は spotlight できない）。
