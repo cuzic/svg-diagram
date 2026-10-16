@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="224" viewBox="0 0 940 224" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">個人情報の漏えいのボウタイ図</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/bowtie.ts","sourceSha256":"05a61e3c695cc36b62ede8bd81c7860043eae1c2e76d617d49652249e887bdc3"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="224" fill="#ffffff"/>
+
+  <path d="M532,56 L532,72" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M532,100 L532,112" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M124,56 L144,56" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M156,56 L144,61 L144,51 z" fill="#22201b"/>
+  <path d="M252,56 L276,56" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M284,56 L272,61 L272,51 z" fill="#22201b"/>
+  <path d="M384,56 L412,56 L412,140 L428,140" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M440,140 L428,145 L428,135 z" fill="#22201b"/>
+  <path d="M124,132 L144,132" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M156,132 L144,137 L144,127 z" fill="#22201b"/>
+  <path d="M252,132 L412,132 L412,140 L428,140" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M440,140 L428,145 L428,135 z" fill="#22201b"/>
+  <path d="M620,140 L648,140 L648,56 L668,56" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M676,56 L664,61 L664,51 z" fill="#22201b"/>
+  <path d="M776,56 L796,56" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M808,56 L796,61 L796,51 z" fill="#22201b"/>
+  <path d="M620,140 L648,140 L648,132 L668,132" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M676,132 L664,137 L664,127 z" fill="#22201b"/>
+  <path d="M776,132 L796,132" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M808,132 L796,137 L796,127 z" fill="#22201b"/>
+  <circle cx="532" cy="84" r="14" fill="#ffffff" stroke="#b91c1c" stroke-width="3"/>
+  <rect x="468" y="20" width="124" height="36" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <rect x="440" y="112" width="180" height="56" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="36" y="28" width="88" height="56" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="156" y="40" width="96" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="284" y="28" width="100" height="56" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="36" y="112" width="88" height="36" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="156" y="104" width="96" height="56" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="676" y="28" width="100" height="56" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="808" y="28" width="96" height="56" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="676" y="104" width="100" height="56" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="808" y="112" width="96" height="36" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <text x="530" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客の個人情報</text>
+  <text x="530" y="134" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">個人情報が外部に漏えい</text>
+  <text x="530" y="154" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">する</text>
+  <text x="79" y="51" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">不正</text>
+  <text x="79" y="71" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">アクセス</text>
+  <text x="204" y="61" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">多要素認証</text>
+  <text x="334" y="51" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">アクセス権</text>
+  <text x="334" y="71" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">の最小化</text>
+  <text x="79" y="135" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">誤送信</text>
+  <text x="204" y="125" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">送信前の</text>
+  <text x="204" y="145" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">宛先確認</text>
+  <text x="726" y="51" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">速やかな</text>
+  <text x="726" y="71" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">公表と説明</text>
+  <text x="856" y="51" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客の信用</text>
+  <text x="856" y="71" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">の低下</text>
+  <text x="726" y="125" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">サイバー</text>
+  <text x="726" y="145" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">保険</text>
+  <text x="856" y="135" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">損害賠償</text>
+
+  <text x="20" y="198" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

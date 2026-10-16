@@ -1139,6 +1139,7 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
   - 故障の木: `fta-gate-one-input`（AND / OR / vote の入力が 1 つ）、`fta-vote-degenerate`（k が 1 か入力の数。OR / AND と同じ）、`fta-top-is-leaf`（頂上にゲートが無い）、`fta-undeveloped-left`（展開していない事象が残っている。常に info）、`fta-single-point`（単独で頂上を起こす事象がある。常に info）。
   - IS/IS NOT 表: `isisnot-no-isnot`（IS NOT が空の行）、`isisnot-no-distinct-at-all`（「違い」が 1 つも無い）、`isisnot-no-hypothesis-stands`（説明できない行が 0 の仮説が無い。常に info）。
   - なぜなぜ分析: `whywhy-no-root`（真因の無い鎖）、`whywhy-measure-without-root`（真因が無いのに対策がある）、`whywhy-single-chain`（鎖が 1 本だけ。常に info）、`whywhy-dig-below-root`（真因の下を掘っている。木のみ・常に info）。
+  - ボウタイ図: `bowtie-barrier-missing`（バリアが 1 つも無い脅威・結果）。
 
 ## 表記・数値の整合と差分だけの検査（`check`）
 - **表記の揺れ**（`term-variant`）: 1 つの図の中で、同じ語が `ユーザ` / `ユーザー`（末尾の長音）や `API` / `Api`（大文字・大小混在）のように揺れていると警告する。`Server` と `server` のような文頭の大文字だけの差、数字や `-` `_` を含む ID は見ない。
@@ -1272,6 +1273,7 @@ d.add(flow, connect(flow.anchors.a.right, flow.anchors.b.left));   // screens() 
 | `isIsNot(rows, opts)` / `isIsNotTests(rows, hypotheses, opts)` | KT 法の IS/IS NOT 表。`rows: {dim, is, isNot, distinct?, change?}[]`（`dim` は `'what'`〔何に〕/ `'where'` / `'when'` / `'extent'`、または自分の見出し）。**違い**（IS と IS NOT の差）と**変化**（その差に関わる最近の変更）は別の列。`isIsNotTests` は仮説ごとに、スペックの行ごとの `'yes'`（説明できる）/ `'ifAssumed'`（仮定すれば。`assumes` に仮定を書く）/ `'no'`（できない）を `results` に並べる。`no` が 0 個の仮説の行は太字、そのうち仮定が最少のものに「最少の仮定」と出る（図が原因を選ぶのではなく、手がかり。`◎○△×` は QFD の ◎ = 9 点と紛れるので使わない）。検査は `isisnot-*`（下の「`check` の規則」） |
 | `whyWhyTable(problem, chains, opts)` | なぜなぜ分析の表。`chains: {whys: string[], trueCause?, measure?}[]`（1 鎖 = 1 行）。列は 問題 | なぜ 1…N（最も長い鎖）| 真因 | 対策。同じ原因を共有する鎖は同じ文を繰り返す（表に行の結合は無い）。検査は `whywhy-*`。木で描く `whyWhyTree` は別の関数 |
 | `whyWhyTree(problem, whys, {id, maxNodeW, readingNote})` | なぜなぜ分析の木（`causeTree` で描く）。`whys: {why, because?, trueCause?: true, measure?, id?}[]`（`because` は「なぜ?」の答え）。問題を上に、答えを下へ並べ（辺は原因 → 結果で、矢印は問題へ向かう）、**なぜ n は枝が変わっても同じ段**。真因（`trueCause: true`）は二重枠（役割 `root`）、`measure` は破線の箱で真因を「断つ」辺（棒）で結ぶ。`legend: 'auto'` では「根本原因」「対策」「断つ」が出る（`legendLabels: {'role:root': '真因'}` で言い換える）。返り値は木と、読む向きの 1〜2 行（`.add()` に渡す。`readingNote: false` で外す）。`opts.id` を付けると節は `<id>.w1` / `<id>.w1.1` / `<id>.w1.m`（対策）のアンカーになる。付けない図では、自分で `id` を書いた節だけがアンカー（同じ図に 2 つ置いても衝突しない）。段が多いとスライドの高さを超えやすい（スライドなら `whyWhyTable`、または段を減らす）。例は `examples/why-why.ts` |
+| `bowtie({hazard?, top, threats, consequences}, {id, maxNodeW})` | ボウタイ図。中央が頂上事象（`top`。制御を失うこと。説明は矩形、結び目の円をその上に添える）で、上に `hazard`（何を制御しているか）。左は `threats: {label, barriers?}[]`（脅威から順に予防バリア）、右は `consequences`（頂上事象から順に低減バリア、最後が結果）。流れはすべて左から右で、矢じりは流れの先に付く。脅威と結果の行数が違うときは少ない側を縦に均等に置く。幅が足りないとき `maxNodeW` を省略すると縮めて警告（`'auto'` なら注、数値なら縮めず止まる）。劣化要因・バリアの種類の印・凡例は未実装。検査は `bowtie-barrier-missing`。例は `examples/bowtie.ts` |
 | `qfd(demands, characteristics, relations, opts)` | 要求 `{label, importance}` × 品質特性に `◎`(9) / `○`(3) / `△`(1) / `×`(0)。下段に得点（重要度 × 9 / 3 / 1 / 0 の列合計）と相対 %。単独首位の得点は太字（`highlight: false` で無効） |
 | `journeyMap(stages, lanes, opts)` | レーン `{id, label, cells}` をステージ横断で表示。`id: 'emotion'` は数値範囲（既定 -2〜+2）を検証し、行の上側に値と記号（中央より上 ◎、中央 △、下 ×）、その下に折れ線と点を描く。破線は範囲の中央。範囲は `emotionRange: [min, max]` |
 
