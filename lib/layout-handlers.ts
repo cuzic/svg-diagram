@@ -22,6 +22,7 @@ import {layoutStatus} from './status.ts';
 import {layoutClassesBand} from './classes.ts';
 import {layoutBpmn} from './bpmn.ts';
 import {layoutFta} from './fta.ts';
+import {layoutBowtie} from './bowtie.ts';
 import {layoutChart} from './charts.ts';
 import {layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {GroupBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, RawBand, SpacerBand, StatusBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow, RowArrow} from './types/containers.ts';
@@ -68,7 +69,8 @@ function placedBand<B extends Band & {id?: string}, P extends LaidOutBand & Rect
     const scope = scopeOf(band); // ADR 0012: the band's items are registered as `scope.id`; the band's own output keeps its bare ids, and says which scope they belong to
     if (scope) (placed as unknown as {scope: string}).scope = scope;
     if (band.id) ctx.register(band.id, rectOf(placed), say(what, band));
-    if (anchorWhat !== undefined) for (const a of (placed as unknown as {anchors: (Rect & {id: string})[]}).anchors) ctx.register(a.id, rectOf(a), say(anchorWhat, band), scope);
+    const unanchored = (band as {unanchored?: readonly string[]}).unanchored; // whyWhyTree(): entities the maker named itself are not names the author can use
+    if (anchorWhat !== undefined) for (const a of (placed as unknown as {anchors: (Rect & {id: string})[]}).anchors) if (!unanchored?.includes(a.id)) ctx.register(a.id, rectOf(a), say(anchorWhat, band), scope);
     ctx.laidOut.push(placed);
     ctx.y += placed.h + ctx.d.gap;
   };
@@ -563,6 +565,7 @@ function layoutCurve(band: CurveBand, ctx: LayoutCtx, padX: number, cw: number):
 
 const layoutTimelineBand = placedBand((band: BandOf<'timeline'>, x, y, w, ctx) => layoutTimeline(band, x, y, w, ctx.widthOf, ctx.roles), 'a timeline takes an id that another anchor already has');
 const layoutBpmnBand = placedBand((band: BandOf<'bpmn'>, x, y, w, ctx) => layoutBpmn(band, x, y, w, ctx.widthOf, ctx.roles), 'a bpmn diagram takes an id that another anchor already has', 'a bpmn node takes an id that another anchor already has');
+const layoutBowtieBand = placedBand((band: BandOf<'bowtie'>, x, y, w, ctx) => layoutBowtie(band, x, y, w, ctx.widthOf, ctx.roles), 'a bow-tie takes an id that another anchor already has');
 const layoutFtaBand = placedBand((band: BandOf<'fta'>, x, y, w, ctx) => layoutFta(band, x, y, w, ctx.widthOf, ctx.roles), 'a fault tree takes an id that another anchor already has', 'a fault-tree event takes an id that another anchor already has');
 const layoutClasses = placedBand((band: BandOf<'classes'>, x, y, w, ctx) => layoutClassesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a class diagram takes an id that another anchor already has', 'a class takes an id that another anchor already has');
 const layoutGanttBand = placedBand((band: BandOf<'gantt'>, x, y, w, ctx) => layoutGantt(band, x, y, w, ctx.widthOf, ctx.roles), 'a gantt takes an id that another anchor already has', 'a gantt task takes an id that another anchor already has');
@@ -598,6 +601,7 @@ export const LAYOUT_HANDLERS = {
   timeline: layoutTimelineBand,
   bpmn: layoutBpmnBand,
   fta: layoutFtaBand,
+  bowtie: layoutBowtieBand,
   classes: layoutClasses,
   gantt: layoutGanttBand,
   cause: layoutCauseOrCloud,

@@ -43,6 +43,7 @@ import {ftaResolve} from './fta.ts';
 import {describeApplied} from './fit-width.ts';
 import {tocFindings} from './toc-rules.ts';
 import {ftaFindings} from './fta-rules.ts';
+import {bowtieFindings} from './rca-rules.ts';
 import {statusText} from './status.ts';
 
 export const RULE_DOCS = {
@@ -91,6 +92,14 @@ export const RULE_DOCS = {
   'fta-vote-degenerate': '故障の木の vote ゲートの k が 1(OR と同じ)または入力の数(AND と同じ)。diagram({rcaCheck: "strict"}) で warn',
   'fta-top-is-leaf': '故障の木の頂上事象にゲートが無い(1 つの事象だけの木)。diagram({rcaCheck: "strict"}) で warn',
   'fta-undeveloped-left': '故障の木に、展開していない事象(ひし形)が残っている(常に info。意図した省略なら無視してよい)',
+  'isisnot-no-isnot': 'IS/IS NOT 表(isIsNot)に、IS NOT が空の行がある(比較対象が無い)。diagram({rcaCheck: "strict"}) で warn',
+  'isisnot-no-distinct-at-all': 'IS/IS NOT 表に「違い」が 1 つも無い(IS と IS NOT で鋭く違う点を挙げる)。diagram({rcaCheck: "strict"}) で warn',
+  'isisnot-no-hypothesis-stands': '仮説の検定表(isIsNotTests)に、説明できない行が 0 の仮説が無い(原因はまだ分かっていない。常に info)',
+  'whywhy-no-root': 'なぜなぜ分析(whyWhyTable / whyWhyTree)に、真因(trueCause)の無い鎖(葉)がある。どこまで掘ったか分からない。diagram({rcaCheck: "strict"}) で warn',
+  'whywhy-measure-without-root': 'なぜなぜ分析で、真因でない所に対策(measure)がある(症状への対策になる)。diagram({rcaCheck: "strict"}) で warn',
+  'whywhy-single-chain': 'なぜなぜ分析が 1 本の鎖だけ(分岐が無い。原因が 1 つに決まっているか確かめる。常に info)',
+  'whywhy-dig-below-root': 'なぜなぜの木で、真因(trueCause)の節の下にまだ「なぜ」がある(真因より下を掘っている。常に info)',
+  'bowtie-barrier-missing': 'ボウタイ図(bowtie)で、脅威または結果にバリアが 1 つも無い(防ぐ・和らげる手が無い道)。diagram({rcaCheck: "strict"}) で warn',
   'fta-single-point': '故障の木に、単独で頂上事象を起こす事象(大きさ 1 のカットセット)がある。カットセットが多すぎて調べられないときもこの規則の info(常に info)',
   'toc-source-has-cause': '原因を持たない役割(crt の root、frt・nbr の injection、nbr の trim、precondition)の実体に、入る矢印がある。diagram({tocCheck: "strict"}) で warn',
   'toc-chain-only': 'crt / frt が分岐も合流も AND も無い 1 本鎖(途中の原因を飛ばしている可能性)。diagram({tocCheck: "strict"}) で warn',
@@ -556,7 +565,11 @@ export const rcaSeverity = (d: Pick<DiagramData, 'rcaCheck'>): 'warn' | 'info' =
 /** The checks of the cause-analysis figures. Empty on purpose: each figure (faultTree, isIsNot, whyWhy*, bowtie) adds its own branch, reported at `f.severity ?? rcaSeverity(d)` like tocRules. */
 function rcaRules(d: LintTarget, out: Finding[]): void {
   const severity = rcaSeverity(d);
-  for (const b of walkBands(d.bands)) if (b.type === 'fta') for (const f of ftaFindings(b)) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
+  for (const b of walkBands(d.bands)) {
+    if (b.type === 'fta') for (const f of ftaFindings(b)) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
+    if (b.type === 'bowtie') for (const f of bowtieFindings(b)) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
+    if ((b.type === 'table' || b.type === 'cause') && b.rca) for (const f of b.rca.findings) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
+  }
 }
 
 /** stat-no-source (ADR 0023 D10): a stat() number with no source. Runs only for a diagram that wrote diagram({evidenceCheck}). */
@@ -694,13 +707,14 @@ function graphRules(d: LintTarget, out: Finding[]): void {
   for (const id of parent.keys()) { const r = find(id); groups.set(r, [...(groups.get(r) ?? []), id]); }
   if (groups.size > 1) out.push({rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${[...groups.values()].map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
 }
-const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()', fta: 'faultTree()'} as const;
+const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()', fta: 'faultTree()', bowtie: 'bowtie()'} as const;
 // what the layout changed on its own to make a figure fit its width (ADR 0010 D3): left out is a warning, `dir: 'auto'` is the author's own choice
 function fitRules(d: LintTarget, out: Finding[]): void {
   for (const b of d.laidOut ?? []) {
-    if ((b.type !== 'cause' && b.type !== 'states' && b.type !== 'classes' && b.type !== 'tree' && b.type !== 'fta') || !b.fitApplied?.length) continue;
+    if ((b.type !== 'cause' && b.type !== 'states' && b.type !== 'classes' && b.type !== 'tree' && b.type !== 'fta' && b.type !== 'bowtie') || !b.fitApplied?.length) continue;
     const what = b.fitApplied.map(describeApplied).join('、'), auto = b.fitApplied.every(a => a.mode === 'auto');
-    const knobs = b.type === 'fta' ? 'maxNodeW' : 'dir / maxNodeW', say = b.type === 'fta' ? "maxNodeW: 'auto'" : "dir: 'auto'"; // a fault tree has no `dir`
+    const noDir = b.type === 'fta' || b.type === 'bowtie'; // a fault tree and a bow-tie have no `dir`
+    const knobs = noDir ? 'maxNodeW' : 'dir / maxNodeW', say = noDir ? "maxNodeW: 'auto'" : "dir: 'auto'";
     out.push({rule: 'auto-fit-applied', severity: auto ? 'info' : 'warn', message: auto
       ? `${FIT_WHO[b.type]}: ${knobs} を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
       : `${FIT_WHO[b.type]}: ${knobs} を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら ${say} と書く（info になる）。固定したいなら ${knobs} を明示する（収まらなければ試した案つきで止まる）`});

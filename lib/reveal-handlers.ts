@@ -161,6 +161,7 @@ export const REVEAL_HANDLERS = {
   timeline: plain,
   bpmn: plain,
   fta: plain,
+  bowtie: plain,
   classes: plain,
   gantt: plain,
   cause: plain,
