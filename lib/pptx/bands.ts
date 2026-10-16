@@ -113,6 +113,7 @@ export const BAND_HANDLERS = {
   curve: 'image', plane: 'image', quadrant: 'image', wordart: 'image', chevron: 'image', funnel: 'image', cycle: 'image',
   venn: 'image', concentric: 'image', bars: 'image', chart: 'image', image: 'image', people: 'image', dots: 'image', math: 'image',
   timeline: 'image', tree: 'image', states: 'image', cause: 'image', cloud: 'image', gantt: 'image', classes: 'image', bpmn: 'image',
+  fta: 'image', status: 'image',
 } satisfies {[T in LaidOutType]: BandXml<LaidOutOf<T>> | 'image'};
 
 export function bandXml(band: LaidOutBand, ctx: Ctx, index: number): string {
