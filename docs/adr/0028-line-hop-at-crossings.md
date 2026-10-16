@@ -1,6 +1,6 @@
 # ADR 0028: 避けられない交差の見せ方(戻り矢印が他の線を横切る箇所の「飛び越し線」または「ギャップ」。`hop` の任意指定)
 
-- 状態: 提案(未実装)。Opus 2 回目のレビューまでを反映した版(3 回目の確認待ち)
+- 状態: 提案(未実装)。Opus 3 回目のレビュー(収束)まで反映した版
 - 日付: 2026-10-16
 - 基点: `main`(925eb17、PR #232 まで)。ADR 0019 D4 のトリガー拡張(`feat/cause-search-trigger`、96b8991)の**上に積む**(積み重ね PR。背景の数は 96b8991 の上のもの)
 - 関連: ADR 0016(経路 `layered-route.ts`、点数 (交差, 折れ)、D11〜D13 の AND の並走)、ADR 0019(D4 交差の再探索)、ADR 0015(`cause-crossing` / `cause-parallel`)、ADR 0027(PPTX 書き出し。PR #245、未マージ)
@@ -58,7 +58,7 @@
 
 **(B) ギャップ**: 下になる線(戻りでない側)を、交点の前後 G で `M` で切る(背景色の縁取りではなく、**パスを切る**)。
 - 向きの規則が要らず、AND の弧と間違えようがなく、背景色やテーマに依存せず、resvg・PPTX の `custGeom`(moveTo)でそのまま表せる。
-- **G**: 片側 `戻りの線幅/2 + 3`(戻りの線幅は 3 なので 4.5)。
+- **G**: 片側 `戻りの線幅/2 + 3`。`back: true` は幅 3 で 4.5、`back` の無い戻り(`outer` やインライン)は幅 2 で 4。
 - 切った線の `points` は変えない(描くときだけ切る)。
 - **破線・点線の相手**(`blocks` は既定で破線)との交差は、(B) では無印のまま(ギャップが見えない)。矢じりの近くでは切らない(D3 の (c))。
 - 欠点: 戻り以外の線(AND の矢印を含む)を切る。(f) が効かないと、AND の弧と矢じりの間で AND の矢印を切り、弧から矢印が離れて見える。
@@ -66,7 +66,7 @@
 U1 で、`toc/t3-frt.ts`(right)と `story/f2b-frt.ts`(up)を両方式で並べて目視し、**1 方式に決めて** ADR に書き戻す。事前の見立ては、AND の弧が密な因果ツリーでは (B) が有利。
 
 ### D3. 見せ方を付けない場合(従来どおり、線を素通しにする)。距離は 1 つの表で決める
-交点から、次のどれかまでの距離が X 未満なら、付けない(X は R の式。`X = R + 2`)。**(A)/(B) の列は、どちらの方式に効くか**:
+交点から、次のどれかまでの距離が X 未満なら、付けない。**X は方式の大きさで書く**: (A) は `X = R + 2`、(B) は `X = G + 2`(同じ区間の別の交点 (e) は、それぞれ `2R + 2` / `2G + 2`)。**(A)/(B) の列は、どちらの方式に効くか**:
 
 | 行 | 条件 | (A) | (B) |
 |---|---|---|---|
@@ -74,7 +74,7 @@ U1 で、`toc/t3-frt.ts`(right)と `story/f2b-frt.ts`(up)を両方式で並べ�
 | (b) | 相手の線の折れ・端 | ○ | ○ |
 | (c) | 相手の矢じりの**根元**(先端 − `L`。`L = 12` は `arrowPath` の局所定数なので export する) | ○ | ○ |
 | (d) | `blocks` のバーの矩形(半幅 10。点の距離では捉えられない) | ○ | ○ |
-| (e) | 同じ区間の別の交点(`2R + 2` 未満) | ○ | ○ |
+| (e) | 同じ区間の別の交点(`2X` 未満) | ○ | ○ |
 | (f) | AND の弧の外接矩形(弦の外接矩形から X) | ○ | ○ |
 | (g) | 弧の膨らみが、帯の外、または他の箱・ラベルに掛かる | ○ | — |
 | (h) | 膨らむ側で、交点 ±(R + 2) の窓の中にある、**平行な他の線・矢じり・AND の弧**までの横の距離が `R + 戻りの線幅/2 + その線の線幅/2 + 2` 未満 | ○ | — |
@@ -91,7 +91,7 @@ AND の弧(`toc.ts` の `AND_END = 21`、`AND_PEAK = 15`)の膨らみは**約 6p
 - 事実: `edge-crossings`(`rules.ts:664`)は `connect()` の線だけを数える。因果ツリーの交差の検査は、AND のある効果へ入る矢印どうしの `cause-crossing` / `cause-parallel`(`cause-clash.ts`)だけ。戻り矢印が他を横切っても、今は警告も info も出ない。また図の検査の出力 `VerifyOut`(`verify-handlers.ts`)は `{problems, warnings}` だけで、info の口が無い。
 - 飛び越し・ギャップは `points` を変えないので、`cause-crossing` / `cause-parallel` の数は変わらない。
 - `cause-hop` の info は**作らない**(図の弧そのものが知らせる)。作る価値があるのは次の 2 つで、U2 で再判断する: (a) `hop` を付けた図で、**D3 のせいで飛び越さなかった戻りの交差**の数(読み手が取り違える箇所。手を打てる)、(b) `hop` を書かない図で、戻りの交差があるとき「`hop: true` で見せ方を付けられる」と知らせる(既定 off の見つけやすさ)。
-- **判定は描画前、レイアウトで決めてデータにする**。AND の弧と同じ(`toc.ts` が `out.ands` の幾何を決め、`renderCause` は描くだけ)。`toc.ts` が AND の弧を作った後で、**方式に依らない形**の `LaidOutCause.crossings?: {over: number, under: number, x, y, side}[]`(`ands` と同じく帯に 1 つの列。`over` は戻りの辺、`under` は相手の辺の添字)を作る。`renderCause` は、(A) なら `over` の線に弧を挟み、(B) なら `under` の線を切る。将来の検査・PPTX も同じデータを読む。D3 の判定が AND の弧の定数と矢じりの長さを要るので、**点だけの層の `polyline-metrics.ts` には置かない**(描画の定数が漏れる)。
+- **判定は描画前、レイアウトで決めてデータにする**。AND の弧と同じ(`toc.ts` が `out.ands` の幾何を決め、`renderCause` は描くだけ)。`toc.ts` が AND の弧を作った後で、**方式に依らない形**の `LaidOutCause.crossings?: {over: number, under: number, x, y, side}[]`(`ands` と同じく帯に 1 つの列。`over` は戻りの辺、`under` は相手の辺の添字)を作る。`renderCause` は、(A) なら `over` の線に弧を挟み、(B) なら `under` の線を切る。将来の検査・PPTX も同じデータを読む。**D3 で見せ方を付けなかった交差も、理由つきで `crossings` に残す**(`skipped?: 'corner' | 'arrowhead' | 'bar' | 'neighbour' | 'and-arc' | 'band' | 'dashed' | …`)ので、D5 の (a)「付けなかった交差の数」は新しい判定なしで数えられる。D3 の判定が AND の弧の定数と矢じりの長さを要るので、**点だけの層の `polyline-metrics.ts` には置かない**(描画の定数が漏れる)。
 - `polyline-metrics.ts` に足すのは `crossingPoints(paths, opts)` だけ。`crossingsOf` をその個数として書き直し、交差の定義(`margin` / `tol`)を 1 つにする(今は `cause-clash.ts` の `cross` が別の定義を持つ)。**`crossingsOf` は `scoreOf` を通して経路の候補選びと ADR 0019 D4 の探索の点数に入る**ので、1 つでも数が変わると配置が変わり golden が動く。U0 で、既存の 3 つの呼び出し(`layered-route` の既定、`rules.ts` の `{margin: 2, tol: 0.5}`、`cause-clash`)の数が**書き直しの前後で同じ**であることをテストで固定し、`pnpm golden` の差分ゼロを確かめる。
 
 ### D6. PPTX 書き出し(ADR 0027)
@@ -112,7 +112,7 @@ AND の弧(`toc.ts` の `AND_END = 21`、`AND_PEAK = 15`)の膨らみは**約 6p
 ## 分割(実装)
 | 単位 | 内容 | 依存 |
 |---|---|---|
-| U0 | `crossingPoints`(`polyline-metrics.ts`)、`reversed` を `LaidOutCause.edges` に通す、層を横切る区間の判定と D3 の表(純関数)、`crossings` のデータ。`crossingsOf` の書き直し前後の数が同じことのテスト。**単体テスト**: 同じグラフを `dir: 'up'` と `'right'` で描いて、飛び越す交差の数が同じ(転置で不変)/ 膨らむ向き / 戻り×戻り(片方だけ)/ 矢じりの根元からの距離(先端から 18px は飛び越さない)/ 帯の外へ膨らまない / `hop` が off のとき `crossings` / `reversed` のキーが無い / (h) 横の余白 | — |
+| U0 | `crossingPoints`(`polyline-metrics.ts`)、`reversed` を `LaidOutCause.edges` に通す、層を横切る区間の判定と D3 の表(純関数)、`crossings` のデータ。`crossingsOf` の書き直し前後の数が同じことのテスト。**単体テスト**: 同じグラフを `dir: 'up'` と `'right'` で描いて、飛び越す交差の数が同じ(転置で不変)/ 膨らむ向き / 戻り×戻り(片方だけ)/ 矢じりの根元からの距離(先端から 18px は飛び越さない)/ 帯の外へ膨らまない / `hop` が off のとき `crossings` / `reversed` のキーが無い / (h) 横の余白 / **宣言の無いインラインの戻り**(実例の 35 本には、他の線を横切るものが無い。「流れに逆らう側へ膨らむ」の規則は `back` と `outer` でしか実測していないので、組んだ図で確かめる) | — |
 | U1 | `hop: true` の型・検証(3 図種)、`renderCause`・`arrowPath` の引数。**(A) と (B) を `toc/t3-frt.ts`・`story/f2b-frt.ts` で並べて目視**し、1 方式に決めて ADR に書き戻す。`--html` と svg-lint の幾何が誤検出しないことの確認 | U0 |
 | U2 | `cause-hop` の info の要否の再判断(D5 の (a)(b))、README / SKILL | U1 |
 
