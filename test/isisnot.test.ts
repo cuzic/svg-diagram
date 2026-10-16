@@ -26,8 +26,9 @@ test('isIsNot(): the table has the five columns, and its SVG is the same as a ha
 
 test('isIsNot(): a dim is a known heading or your own; "違い" and "変化" are separate columns', () => {
   const band = isIsNot([{dim: 'what', is: 'a', isNot: 'b'}, {dim: '誰が', is: 'c', isNot: 'd'}]);
-  assert.equal(band.rows[0][0], '何に（対象・欠陥）');
-  assert.equal(band.rows[1][0], '誰が');
+  const first = band.rows as unknown as string[][];
+  assert.equal(first[0][0], '何に（対象・欠陥）');
+  assert.equal(first[1][0], '誰が');
   assert.deepEqual(band.columns.slice(3).map(c => c.label), ['違い', '変化']);
 });
 
