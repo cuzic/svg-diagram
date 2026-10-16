@@ -37,3 +37,19 @@ test('missingGlyphs: pictographs outside EMOJI_RE; emoji the emitter handles and
   assert.deepEqual(missingGlyphs({text: '✓ ✗ → ◎ ○'}), []);
   assert.deepEqual(missingGlyphs({id: '✅'}), []); // only text-bearing fields
 });
+
+test('text-mid-word-break: a chevron whose steps break a word is told how its frame is fixed', async () => {
+  const {chevron} = await import('../lib/dsl.ts');
+  const d = diagram({theme: 'blue'}).add(chevron(['スクリーンショット取得', 'コンテキスト切替', 'リフレッシュ待機', 'シャドウトラフィック', 'ケーススタディ', '完了'].map(label => ({label}))));
+  const f = (await checkDiagram(d)).verdict.findings.find(x => x.rule === 'text-mid-word-break');
+  assert.ok(f, 'six katakana steps in a row break a word');
+  assert.match(f!.message, /chevron: 矢羽根の幅は段数で決まる。`direction: 'vertical'`/);
+});
+
+test('midWordBreaksIn: a break between two katakana letters counts only where the author wrote nothing between them', () => {
+  const t = (text: string, x: number, y: number) => ({text, tx: x, ty: y, size: 14});
+  const texts = [t('リファクタ', 10, 20), t('リング', 10, 40)];
+  assert.equal(midWordBreaksIn({texts}, 'リファクタリングする').length, 1);
+  assert.equal(midWordBreaksIn({texts: [t('テスト', 10, 20), t('バグを探す', 10, 40)]}, 'テスト バグを探す').length, 0, 'a space in the source: a boundary');
+  assert.equal(midWordBreaksIn({texts: [t('テスト', 10, 20), t('バグを探す', 10, 40)]}, 'テスト・バグを探す').length, 0, 'a middle dot too');
+});

@@ -38,33 +38,40 @@ export function midWordBreaks(lines: readonly string[], text?: string): MidWordB
   return out;
 }
 
-interface Placed {text: string; x: number; y: number; size: number}
-const isPlaced = (o: unknown): o is Placed => typeof o === 'object' && o !== null && typeof (o as Placed).text === 'string' && typeof (o as Placed).x === 'number' && typeof (o as Placed).y === 'number' && typeof (o as Placed).size === 'number';
+interface Placed {text: string; size: number; x?: number; y?: number; tx?: number; ty?: number}
+/** The anchor of a placed line: `tx` / `ty` where the band separates the text anchor from the text's box (chevron), else `x` / `y`. */
+const anchorOf = (p: Placed): {x: number; y: number} | undefined => {
+  const x = p.tx ?? p.x, y = p.ty ?? p.y;
+  return typeof x === 'number' && typeof y === 'number' ? {x, y} : undefined;
+};
+const isPlaced = (o: unknown): o is Placed => typeof o === 'object' && o !== null && typeof (o as Placed).text === 'string' && typeof (o as Placed).size === 'number' && anchorOf(o as Placed) !== undefined;
 
-/** Many bands keep a wrapped label as separate positioned lines, one entry per line: two entries in a row at the same x, one line apart, are the lines of one label. Only katakana is judged (no source text to tell a space from a break). */
-function placedBreaks(items: readonly Placed[]): MidWordBreak[] {
+/** Many bands keep a wrapped label as separate positioned lines, one entry per line: two entries in a row at the same anchor x, one line apart, are the lines of one label. Only katakana is judged (no source text to tell a space from a break). */
+function placedBreaks(items: readonly Placed[], inSource: (junction: string) => boolean): MidWordBreak[] {
   const out: MidWordBreak[] = [];
   for (let k = 0; k + 1 < items.length; k++) {
-    const a = items[k]!, b = items[k + 1]!, gap = b.y - a.y;
-    if (a.x !== b.x || a.size !== b.size || gap <= 0 || gap > a.size * 2 || !a.text || !b.text) continue;
-    if (KATAKANA.test(a.text[a.text.length - 1]!) && KATAKANA.test(b.text[0]!)) out.push({before: a.text.slice(-4), after: b.text.slice(0, 4)});
+    const a = items[k]!, b = items[k + 1]!, pa = anchorOf(a)!, pb = anchorOf(b)!, gap = pb.y - pa.y;
+    if (Math.abs(pa.x - pb.x) > 0.5 || a.size !== b.size || gap <= 0 || gap > a.size * 2 || !a.text || !b.text) continue;
+    if (KATAKANA.test(a.text[a.text.length - 1]!) && KATAKANA.test(b.text[0]!) && inSource(a.text.slice(-2) + b.text.slice(0, 2))) out.push({before: a.text.slice(-4), after: b.text.slice(0, 4)});
   }
   return out;
 }
 
 /** Every mid-word break in a laid-out tree: a `wrappedRuns` entry (lines + source text) or any plain `lines: string[]`. */
-export function midWordBreaksIn(root: unknown): MidWordBreak[] {
+export function midWordBreaksIn(root: unknown, source?: string): MidWordBreak[] {
   const out: MidWordBreak[] = [], seen = new WeakSet<object>();
+  // a break between two katakana letters is mid-word only if the author wrote them with nothing in between: with a space (or any mark) there the break fell on a boundary
+  const inSource = (junction: string): boolean => source === undefined || source.includes(junction);
   const walk = (o: unknown): void => {
     if (typeof o !== 'object' || o === null || seen.has(o)) return;
     seen.add(o);
     if (Array.isArray(o)) {
-      if (o.length > 1 && o.every(isPlaced)) out.push(...placedBreaks(o));
+      if (o.length > 1 && o.every(isPlaced)) out.push(...placedBreaks(o, inSource));
       for (const v of o) walk(v);
       return;
     }
     const rec = o as Record<string, unknown>;
-    if (Array.isArray(rec.lines) && rec.lines.every(l => typeof l === 'string')) out.push(...midWordBreaks(rec.lines as string[], typeof rec.text === 'string' ? rec.text : undefined));
+    if (Array.isArray(rec.lines) && rec.lines.every(l => typeof l === 'string')) out.push(...midWordBreaks(rec.lines as string[], typeof rec.text === 'string' ? rec.text : undefined).filter(b => typeof rec.text === 'string' || inSource(b.before.slice(-2) + b.after.slice(0, 2))));
     for (const v of Object.values(rec)) walk(v);
   };
   walk(root);
@@ -87,4 +94,17 @@ export function missingGlyphs(root: unknown): string[] {
   };
   walk(root);
   return [...found];
+}
+
+/** All the strings of the author's bands (labels, titles, bodies ...), for checking what was written without a space. */
+export function sourceText(bands: unknown): string {
+  const parts: string[] = [], seen = new WeakSet<object>();
+  const walk = (o: unknown): void => {
+    if (typeof o === 'string') { parts.push(o); return; }
+    if (typeof o !== 'object' || o === null || seen.has(o)) return;
+    seen.add(o);
+    for (const v of Array.isArray(o) ? o : Object.values(o)) walk(v);
+  };
+  walk(bands);
+  return parts.join('\n');
 }
