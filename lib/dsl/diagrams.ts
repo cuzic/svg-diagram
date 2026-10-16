@@ -238,8 +238,8 @@ export function whyWhyTree(problem: string, whys: readonly WhyNode[], opts: WhyW
   };
   whys.forEach((w, i) => walk(w, String(i + 1), problemId));
   const own = userIds(whys), unanchored = opts.id === undefined ? nodes.filter(n => !own.has(n.id)).map(n => n.id) : [];
-  const band = causeBand(nodes, links, {dir: 'auto', fold: false, ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...revealOf(opts), ...scopeOpt(opts, 'whyWhyTree()')}, undefined, unanchored);
-  band.layerFrom = 'effect'; // fold: false above: a layer cut into rows would put one "why n" on two levels
+  const band = causeBand(nodes, links, {dir: 'auto', ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...revealOf(opts), ...scopeOpt(opts, 'whyWhyTree()')}, undefined, unanchored);
+  band.layerFrom = 'effect'; // also: never folded (a layer cut into rows would put one "why n" on two levels)
   band.rca = {kind: 'whywhy-tree', findings: whyWhyTreeFindings(whys)};
   if (opts.readingNote === false) return [band];
   const notes = [caption('矢印は原因 → 結果。「なぜ?」は矢印をさかのぼって（下へ）読む', revealOf(opts))];

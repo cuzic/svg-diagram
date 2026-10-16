@@ -8,6 +8,9 @@
 |---|---|---|
 | RACI 責任分担表 | `raci(tasks, roles, assignments)` | `R/A/C/I` と `A/R`。各タスクは A が 1、R が 1 以上。例外は `allowNoA`。空の役割列は check が警告 |
 | FMEA | `fmea(rows, {sort: 'rpn'})` | S/O/D は 1〜10。RPN は自動。`after: {s,o,d}` で改善後、`threshold` / `midThreshold` で段階 |
+| KT 法の IS/IS NOT 表 | `isIsNot(rows)` | `rows: {dim, is, isNot, distinct?, change?}[]`。`dim` は `'what'`（何に）/ `'where'` / `'when'` / `'extent'` か自分の見出し。**違い**（`distinct`）と**変化**（`change`）は別の列。IS NOT は「そうであってもおかしくないのに、そうでない」比較対象 |
+| 仮説の検定（IS/IS NOT の続き） | `isIsNotTests(rows, hypotheses)` | `hypotheses: {text, results, assumes?}[]`。`results` はスペックの行ごとに `'yes'` / `'ifAssumed'`（`assumes` に仮定）/ `'no'`。説明できない行が 0 の仮説は太字、仮定が最少のものに「最少の仮定」（図は原因を選ばない）。`◎○△×` は使わない |
+| なぜなぜ分析（表） | `whyWhyTable(problem, chains)` | `chains: {whys: string[], trueCause?, measure?}[]`（1 鎖 = 1 行）。列は 問題 \| なぜ 1…N \| 真因 \| 対策。同じ原因は行ごとに繰り返す。木で描くなら `whyWhyTree`（`references/toc.md`） |
 | QFD | `qfd(demands, characteristics, relations)` | 要求の `importance` と `◎○△×` から得点（列合計）・相対 % を自動計算。単独首位は太字 |
 | ジャーニーマップ | `journeyMap(stages, lanes)` | `{id,label,cells}`。`id: 'emotion'` は既定 -2〜+2 の折れ線＋点と記号付き数値（値は行上部、曲線は下部）。別尺度は `emotionRange` |
 
