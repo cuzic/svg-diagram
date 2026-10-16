@@ -59,6 +59,8 @@
  "icon",
  "iconRow",
  "image",
+ "isIsNot",
+ "isIsNotTests",
  "jointplot",
  "journeyMap",
  "kde2d",

@@ -85,6 +85,9 @@ export const RULE_DOCS = {
   'fta-vote-degenerate': '故障の木の vote ゲートの k が 1(OR と同じ)または入力の数(AND と同じ)。diagram({rcaCheck: "strict"}) で warn',
   'fta-top-is-leaf': '故障の木の頂上事象にゲートが無い(1 つの事象だけの木)。diagram({rcaCheck: "strict"}) で warn',
   'fta-undeveloped-left': '故障の木に、展開していない事象(ひし形)が残っている(常に info。意図した省略なら無視してよい)',
+  'isisnot-no-isnot': 'IS/IS NOT 表(isIsNot)に、IS NOT が空の行がある(比較対象が無い)。diagram({rcaCheck: "strict"}) で warn',
+  'isisnot-no-distinct-at-all': 'IS/IS NOT 表に「違い」が 1 つも無い(IS と IS NOT で鋭く違う点を挙げる)。diagram({rcaCheck: "strict"}) で warn',
+  'isisnot-no-hypothesis-stands': '仮説の検定表(isIsNotTests)に、説明できない行が 0 の仮説が無い(原因はまだ分かっていない。常に info)',
   'fta-single-point': '故障の木に、単独で頂上事象を起こす事象(大きさ 1 のカットセット)がある。カットセットが多すぎて調べられないときもこの規則の info(常に info)',
   'toc-source-has-cause': '原因を持たない役割(crt の root、frt・nbr の injection、nbr の trim、precondition)の実体に、入る矢印がある。diagram({tocCheck: "strict"}) で warn',
   'toc-chain-only': 'crt / frt が分岐も合流も AND も無い 1 本鎖(途中の原因を飛ばしている可能性)。diagram({tocCheck: "strict"}) で warn',
@@ -519,7 +522,10 @@ export const rcaSeverity = (d: Pick<DiagramData, 'rcaCheck'>): 'warn' | 'info' =
 /** The checks of the cause-analysis figures. Empty on purpose: each figure (faultTree, isIsNot, whyWhy*, bowtie) adds its own branch, reported at `f.severity ?? rcaSeverity(d)` like tocRules. */
 function rcaRules(d: LintTarget, out: Finding[]): void {
   const severity = rcaSeverity(d);
-  for (const b of walkBands(d.bands)) if (b.type === 'fta') for (const f of ftaFindings(b)) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
+  for (const b of walkBands(d.bands)) {
+    if (b.type === 'fta') for (const f of ftaFindings(b)) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
+    if ((b.type === 'table' || b.type === 'cause') && b.rca) for (const f of b.rca.findings) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
+  }
 }
 
 /** stat-no-source (ADR 0023 D10): a stat() number with no source. Runs only for a diagram that wrote diagram({evidenceCheck}). */
