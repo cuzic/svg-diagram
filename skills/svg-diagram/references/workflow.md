@@ -1,0 +1,40 @@
+# 手順の詳細（ビルド・検査・目視・文書との整合・渡し方）
+（svg-diagram の入口は `../SKILL.md`）  入口には要点だけを置き、ここに各手順の細かい指定と落とし穴をまとめる。
+
+## 手順
+
+1. **ソースを書く**: `import {diagram, ...} from 'svg-diagram'` / `export default () => diagram({theme: 'blue', title: '図の題名'})...`
+   - 文書向けは `theme: 'blue' | 'teal' | 'amber'`。`title` は必須（`check` が見る）。幅は 940px 以下（文書に埋めると縮むため）。
+   - **ソースは `.ts` で書き、ビルドの前に `npx tsc -p .`（またはエディタの型エラー）を通す**。型が保証すること: `connect()` の参照先 id と `:side[@t]` の書式、swimlane の `lane` / flow の `from`・`to` / step の id の重複 / レーン 6 本まで、`stateMatrix()` の `required` と「1 行のセルの数 = 列の数」（未設計にするなら `undefined` を明示）、`box({step})` に `title`、`connect()` の `dip`・`bend`・`chip` の組み合わせ、14px 未満の `size`（下げられるのは `canvas` の `minText` だけ。下の手順 3）、`grid` の `cols`、`pyramid` / `curve` の個数。
+   - **`connect()` の id の検査を効かせるには、関係する box と `connect()` を 1 回の `d.add(...)` にまとめるか、`d.add(a).add(b)` とつなぐ**（別々の文では、前の id を型が知らず検査されない。つないだ `add()` をまたぐ前方参照は型エラーになる）。
+   - **接続点は、`const list = box({id: 'list'})` のハンドルで書く**: `connect(list.right, detail.at('top', 0.25))`（screens / swimlane は `flow.anchors.a.right`）。id を文字列で打ち直さないので、別の文にまたがっても未宣言の id や辺の綴り違いが作れない。凡例を全図で既定オフにする・文言を揃えるなら `.svg-diagram.json` に `"legend": false` / `"legendLabels": {"tone:accent": "注意"}`（図ごとの指定が優先）。`accept` のキー（ルール ID）や `legendLabels` のキー、`tone` / `line` / `route` なども閉じた文字列の型で、綴り違いは型エラーになる。
+   - 型エラーは `check` の警告より前に直す。型を通っても、重なり・コントラスト・見た目は下のビルド・検査・目視で確かめる。
+2. **ビルド**: `svg-diagram build src.ts --out out.svg`（重なり検査と lint --strict まで走る。失敗するとエラー文が出る）
+   - 複数の SVG を 1 つの HTML に貼るなら `--id-prefix <p|auto>` を付ける（`svg-title`・`dsl-arrow` などの id と参照が `<p>-<id>` になり、重ならない。ソースが複数なら `<p>-<ソース名>-<id>`。`<metadata id="svg-diagram">` はそのまま残るので `check --drift` も読める）。
+   - 出典行（`diagram({sourceLine})`）をスライドには出し、文書には出したくないとき: `--no-source-line`（ソースは変えない。`deck` も同じフラグ。`<metadata>` に `noSourceLine` が残り、`--stale` と `check --drift --rebuild` が読む）。
+   - `gantt({today: 'auto'})` の日付は呼び出し側が渡す: `SVG_DIAGRAM_TODAY=$(date +%F) svg-diagram build x.ts`（`--today YYYY-MM-DD` が優先。`build` と `check` の両方で同じ日付にする）。限界: `--stale` は日付を見ないので、日付が変わっても fresh と出る。
+   - 下書きの図は `diagram({status: 'draft', statusLabel?: '仮説'})`（最上段に 1 段、右端に破線の札。`<desc>` の先頭に「(下書き)」、`<metadata>` に status。`check` は info の `draft-status`、公開ジョブでは `check --forbid-draft` で warn にして止める）。
+   - ダーク設定に追従する 1 枚の SVG は `diagram({appearance: 'auto'})`（SVG だけ。`--html` との併用は throw。PNG・`preview` は明るい側。`check` / `lint-svg` は明暗の 2 回検査し、暗い側だけの指摘に `(暗い配色)` が付く。`<img>` では OS 設定に従い、`html.dark` には従わない）。
+   - PNG も要るとき（Word・チャット・PNG しか貼れない所）は `--png <dir> [--scale N]` を足す。同じビルドの SVG から `<dir>/<名前>.png` を書く（既定の倍率 2。段階表示の各段の SVG も PNG になる）。`--stale` と併用すると、PNG がない・SVG より古いときは作り直す。
+3. **ルール検査**: `svg-diagram check --strict src.ts`（コントラスト、凡例、線の交差、幅、密度、題名）
+   - `shrink-narrow-text`（警告）: `bpmn` / `swimlane` を `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。文言を短くする・図を 2 つに分ける・縦向きにする・`maxWidth` を広げる。
+   - `text-mid-word-break`（警告）: カタカナの語（「コンテキス/ト」）や英数字の語の途中で、レイアウトが行を割っている。箱・列が最長の語より狭いときに起きる。箱の幅を広げる・`dir` や `maxNodeW` を変える・文言を短くする。漢字どうしの途中は対象外。スペースの無い複合語の境目は誤検出になりうる（`accept` で許容）。
+   - `glyph-missing`（警告）: 図の文字に、絵文字として扱われない絵記号（✅ ❌ など。`EMOJI_RE` の外）がある。通常の文字のフォントで描かれ、字形が無いと空白になる。`icon.emoji()` か SVG アイコン（`box({icon})`）を使うか、✓ ✗ などの字にする。
+   - `connect-label-covers-arrow`（警告）: 矢印のラベル（の下地）が経路の 6 割超を覆い、見える部分が 20px に満たず、向きが読めない。箱の間隔を広げる・ラベルを短くする・ラベルを箱の中に書く。
+   - 案件全体で許容する rule は `.svg-diagram.json` の `"accept": {"rule-id": "理由"}`（図の `accept` が優先。知らない ID はエラー）。solid と solid-danger が白黒で同明度のときは `tones` で `solid-danger` の fill を濃くする（既定色はテーマ依存で一律には直せない）。
+   - `gray-tone-collision`（警告）: 使っている 2 つのトーンの塗りが白黒で見分けにくい（CIE L* の差が 10 未満。典型は plain の白と accent / new の soft）。直し方は 2 つ。(1) トーンの色を変えて明度差を付ける: `diagram({tones: {accent: {fill: '#e6d3bd'}}})`（案件全体なら `.svg-diagram.json` の `"tones"`。README「トーンの色を上書きする」）か、片方を `solid` / `muted` にする。(2) ラベル・太字・破線など色以外の手がかりを足して `accept` で許容する。破線の有無が違う組、塗りが同じ組、muted / removed、canvas() のピルで言葉にした領域は数えない。カラーでしか使わない図は `diagram({accept: {'gray-tone-collision': '理由'}})`。
+   - **文字を 14px 未満にしたいとき（稠密な `canvas` の図）**: 投影しない手元・配布用の図だけ。`diagram({canvas: {width: 2304, height: 1296, minText: 10}})`（最小 10）と、案件の `.svg-diagram.json` に `"fontFloor": 10`（10〜14、既定 14）の両方が要る。`fontFloor` がないと、`minText` が 14 未満の図は描画で throw する。`slide` / `fill` の実効 12px とは別の層で、下げた図は SVG のルートに `data-min-text` が付く。`lint-svg` はそれを床にする（`fontFloor` より低い・10 未満・数でないと `font-floor-not-permitted` のエラー。許可されていれば失敗に数えない「お知らせ」の `font-floor-lowered`）。`check` は `font-floor-lowered`（info。`accept` で許容）、`build` は標準エラーに 1 行出す。`lint-svg` の設定は SVG のあるディレクトリから探す（`--config <path>` で明示。`build` は自分が読んだ設定を渡す）。
+   - `layout-*`（情報）: 横に並ぶ枠の幅・端・間隔の数 px のずれ、枠の下の大きな空き、内容の左右の偏り、細すぎる図（`diagram({width: 'fit'})`）を測る。既定は info（`check --verbose`）。この図だけ warn にするなら `diagram({layoutCheck: 'strict'})`（文書向けの図だけ）。意図したものは `accept`。直し方は `cols` / `flex` で列の比を揃える、など所見の `fix` に書いてある。
+   - `stat()` の値が箱に収まらないと、24px（canvas / fill は `round(24 × 倍率)`）まで自動で縮め、`stat-fit-shrunk`（info）を出す（同じ列の大きさがそろわない。箱を広げる・値を短くする）。それでも収まらなければ、下限と実測の幅つきで止まる。数字の出典は `stat(v, label, {source, confidence: 'primary' | 'secondary' | 'unverified'})`（3 行目に `出典: … ◎ 一次資料` / `○ 報道・二次資料` / `△ 未確認`。`source` が必須）。`diagram({evidenceCheck: 'info' | 'strict'})` を書くと、出典のない `stat` に `stat-no-source`（`strict` で warn）。
+   - 凡例は、使った線種・トーンに必要な分だけ足す（`legend: 'auto'`）。記法が少なくて凡例が要らない図は、凡例を足さずに `diagram({legend: false})` で宣言する（`legend-missing` / `legend-incomplete` が出なくなる）。
+4. **目で見る**: `svg-diagram preview out.svg out.png 2` で PNG にし（並列で動かすときは出力名を省くと、一時ディレクトリに重ならない名前で書いてパスを表示する）、画像として読んで確認する（`svg-diagram show x.ts --png out.png` なら SVG を書かずにソースから直接 PNG にできる。`show` を `--png` なしで使うのは人が sixel 対応の端末で見るとき用で、エージェントの実行環境では端末がないためエラーになる）。**検査を通っても、レイアウトの良し悪しは目で見ないと分からない**。
+   - `preview` / `show` は、SVG が生成元のソースより古い（SVG に埋め込んだハッシュが今のソースと違う）と、stderr に警告し、PNG の上端に赤い帯を描く。**帯が出たら、その PNG は直前のソースの絵ではない**。`svg-diagram build <ソース>` で作り直してから見る。自動の手順では `--require-fresh` で古いときに exit 1 にできる（`preview` は `--no-stale-banner` で帯だけ消せる）。
+   - **`build` が失敗しても、前回の SVG は消えない**（手置きの SVG を巻き込まないため）。失敗の `✗` の行と `⚠ 前回の ... が残っている` を見落とさない。複数ファイルの `build` や `--stale` の「N 件を生成」だけを見て、直ったと思わない。`lint` で落ちて exit 1 のときは、新しい SVG は書かれている。
+   - 白黒印刷や色覚の違う読者にどう見えるかは `svg-diagram preview out.svg out.png --gray`（明度だけにして描く）。
+5. **ズレ検査**: `svg-diagram check --drift --svg-dir <SVG の置き場> src.ts`（SVG が最新のソースから生成されたものか）
+   - `--rebuild` を付けると、違いを言葉で説明する（「見た目は変わらない」ならそのまま再生成してよい）。
+   - `check` は、読み込めない・レイアウトで throw するソースがあっても、`✗ <ソース>: <メッセージ>`（スタックなし）を出して**残りのファイルを検査し続け**、最後に `N 件中 M 件が検査できなかった` を出す（exit 1。`--format json` / `github` にも `build-error` として載る）。
+   表を図に置き換えたときは `svg-diagram check --covers <表.md|csv> <ソース.ts|図.svg>` で、表の語・数値が図から落ちていないか確かめる
+6. **文書との整合**: `svg-diagram check --docs <docs> --svg-dir <SVG の置き場> --src-dir <ソースの置き場>`（参照先、代替テキスト、孤立した図、図の注釈と文書のリストの一致、キャプション `図N-M` の連番と本文中の参照）。`--docs` は .md ファイルや複数指定（`--docs A.md B.md` も可）もでき、`--only <glob>` で一章だけ検査できる（絞ると孤立 SVG の検査はしない） PNG 参照（`![alt](x.png)`）の参照切れ・対応する図のない PNG・孤児 PNG も見る（`doc-png-no-source` / `doc-orphan-png`）。見出しの 1 行が全角で長すぎると `cjk-line-long`。
+7. **まとめて目視**: `svg-diagram contact a.svg b.svg ... --out sheet.png`（多いときは `--per-page 12` か `--pages 4` で sheet-1.png, sheet-2.png … に分ける。--out の置き場は無ければ作る。1 枚に詰めると縮んで読めない。余白や釣り合いは検査では分からない）
+8. **人に見せる・渡す**: `svg-diagram deck a.ts b.svg --out deck.html` は、複数の図を、前へ・次へで見られる 1 つの自己完結 HTML にする（`.ts` と `.svg` を混ぜてよく、引数の順がスライドの順。`--title` / `--cols N`（一覧の列数）/ `--csp`）。`←` `→` `PageUp` `PageDown` `Space`（`Shift+Space` で戻る）`Home` `End`、`g` で一覧（`Esc` で閉じる）、`z` か図のクリックで等倍。URL は `#3` / `#<ファイル名>` / `#grid`。印刷は 1 枚 1 ページで、JS なしでも全部が縦に並んで読める。同じ入力から同じバイト列。`<metadata>`（ソースのパスとハッシュ）は取り除かれ、外部参照は出さない（あれば warning）。`deck` は lint を走らせないので、`build` / `check` を通した図を渡す。**1 つでも失敗したら何も書かず exit 1**（失敗は全部表示。既存の `deck.html` はそのまま残る）。使い方の誤りは exit 2。`--render html`・`--lazy`・全画面・図ごとの `@page` はまだない。図 1 枚の断片を文書に貼るなら `build --html` / `md`。

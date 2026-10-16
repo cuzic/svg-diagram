@@ -28,7 +28,7 @@ function bareNodeIds(b: Band): string[] {
     case 'chart': return b.ids;
     case 'tree': return treeItems(b.root).flatMap(n => n.id ? [n.id] : []);
     case 'states': return b.states.map(s => s.id);
-    case 'cause': return b.nodes.map(n => n.id);
+    case 'cause': return b.nodes.filter(n => !b.unanchored?.includes(n.id)).map(n => n.id);
     case 'cloud': return (['a', 'b', 'c', 'd', 'd2'] as const).flatMap(k => { const v = b[k]; return typeof v !== 'string' && v.id ? [v.id] : []; });
     case 'gantt': return b.rows.flatMap(r => 'id' in r && r.id ? [r.id] : []);
     case 'classes': return b.classes.map(c => c.id);

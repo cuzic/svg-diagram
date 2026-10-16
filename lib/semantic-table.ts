@@ -3,6 +3,7 @@
 import {markOf} from './qc-table.ts';
 import type {MatrixMark} from './qc-table.ts';
 import type {TextTone} from './types/core.ts';
+import {standingHypotheses, unexplained} from './rca-rules.ts';
 import type {TableCellSpec, TableColumn, TableOpts, TableRow} from './types/sequence-table-swimlane.ts';
 
 type CommonOpts = Pick<TableOpts, 'title' | 'width' | 'dense' | 'id' | 'reveal' | 'until'>;
@@ -164,4 +165,84 @@ export function journeyMapParts(stagesIn: readonly (string | JourneyStage)[], la
   });
   const {corner, emotionRange: _r, ...rest} = opts;
   return {columns: [{label: corner ?? 'レーン ＼ ステージ', flex: 1.6, bold: true}, ...stages.map(label => ({label, align: 'center' as const}))], rows, opts: {...rest, rowHeader: true}, ...(emotionCurve ? {emotionCurve} : {})};
+}
+
+// ---- IS / IS NOT (Kepner-Tregoe problem specification, ADR 0026 D2) ---------------------------------------------------------
+export type IsIsNotDim = 'what' | 'where' | 'when' | 'extent' | (string & {});
+export interface IsIsNotInputRow {dim: IsIsNotDim; is: string; isNot: string; /** What sets IS apart from IS NOT. */ distinct?: string; /** What changed recently, around that difference (a different question). */ change?: string}
+export interface IsIsNotOpts extends CommonOpts {labels?: Partial<Record<'dim' | 'is' | 'isNot' | 'distinct' | 'change', string>>}
+const DIM_LABELS: Record<string, string> = {what: '何に（対象・欠陥）', where: 'どこで', when: 'いつ', extent: '程度（大きさ・数）'};
+export const isIsNotDimLabel = (dim: string): string => DIM_LABELS[dim] ?? dim;
+
+function checkIsIsNotRows(rows: readonly IsIsNotInputRow[], who: string): void {
+  if (!Array.isArray(rows) || rows.length === 0) throw new Error(`${who}(rows) needs at least one row`);
+  rows.forEach((r, i) => {
+    if (!r || typeof r.dim !== 'string' || !r.dim.trim()) throw new Error(`${who}(): row ${i + 1} needs a dim ('what' | 'where' | 'when' | 'extent', or your own heading)`);
+    for (const k of ['is', 'isNot'] as const) if (typeof r[k] !== 'string') throw new Error(`${who}(): row ${i + 1} (${r.dim}) ${k} must be text`);
+    for (const k of ['distinct', 'change'] as const) if (r[k] !== undefined && typeof r[k] !== 'string') throw new Error(`${who}(): row ${i + 1} (${r.dim}) ${k} must be text`);
+  });
+}
+
+export function isIsNotParts(rows: readonly IsIsNotInputRow[], opts: IsIsNotOpts = {}): SemanticTableParts {
+  checkIsIsNotRows(rows, 'isIsNot');
+  const lab = {dim: '観点', is: 'IS（である）', isNot: 'IS NOT（であってもおかしくないが、ない）', distinct: '違い', change: '変化', ...opts.labels};
+  const {labels: _l, ...rest} = opts;
+  return {
+    columns: [{label: lab.dim, flex: 1, bold: true}, {label: lab.is, flex: 2}, {label: lab.isNot, flex: 2}, {label: lab.distinct, flex: 2}, {label: lab.change, flex: 2}],
+    rows: rows.map(r => [isIsNotDimLabel(r.dim), r.is, r.isNot, r.distinct ?? '', r.change ?? '']),
+    opts: rest,
+  };
+}
+
+export interface IsIsNotHypothesisInput {text: string; /** One per row of the specification: can this cause explain that row's IS and IS NOT? */ results: readonly ('yes' | 'ifAssumed' | 'no')[]; assumes?: readonly string[]}
+export interface IsIsNotTestsOpts extends CommonOpts {labels?: Partial<Record<'hypothesis' | 'unexplained' | 'assumptions' | 'fewest', string>>}
+const RESULT_TEXT = {yes: '説明できる', ifAssumed: '仮定すれば', no: 'できない'} as const;
+
+export function isIsNotTestsParts(rows: readonly IsIsNotInputRow[], hypotheses: readonly IsIsNotHypothesisInput[], opts: IsIsNotTestsOpts = {}): SemanticTableParts & {hypotheses: IsIsNotHypothesisInput[]} {
+  checkIsIsNotRows(rows, 'isIsNotTests');
+  if (!Array.isArray(hypotheses) || hypotheses.length === 0) throw new Error('isIsNotTests(rows, hypotheses) needs at least one hypothesis');
+  hypotheses.forEach((h, i) => {
+    if (!h || typeof h.text !== 'string' || !h.text.trim()) throw new Error(`isIsNotTests(): hypothesis ${i + 1} needs a text`);
+    const results = h.results as readonly string[] | undefined;
+    if (!Array.isArray(results) || results.length !== rows.length) throw new Error(`isIsNotTests(): hypothesis "${h.text}" has ${Array.isArray(results) ? results.length : 'no'} results for ${rows.length} rows (one per row of the specification)`);
+    results.forEach((r: string, j: number) => { if (!Object.hasOwn(RESULT_TEXT, r)) throw new Error(`isIsNotTests(): hypothesis "${h.text}", row ${j + 1}: result must be 'yes' | 'ifAssumed' | 'no' (got ${JSON.stringify(r)})`); });
+    if (h.assumes !== undefined && (!Array.isArray(h.assumes) || (h.assumes as readonly unknown[]).some(a => typeof a !== 'string' || !a.trim()))) throw new Error(`isIsNotTests(): hypothesis "${h.text}": assumes is a list of texts`);
+    if (h.results.includes('ifAssumed') && !h.assumes?.length) throw new Error(`isIsNotTests(): hypothesis "${h.text}" has 'ifAssumed' results but no assumes (what has to be assumed?)`);
+  });
+  const lab = {hypothesis: '仮説（原因の候補）', unexplained: '説明できない行', assumptions: '仮定の数', fewest: '最少の仮定', ...opts.labels};
+  const {standing, fewest} = standingHypotheses(hypotheses);
+  const columns: TableColumn[] = [{label: lab.hypothesis, flex: 3}, ...rows.map(r => ({label: isIsNotDimLabel(r.dim), align: 'center' as const, flex: 1.5})), {label: lab.unexplained, align: 'center'}, {label: lab.assumptions, align: 'center'}];
+  const body: TableRow[] = hypotheses.map((h, i) => {
+    const bold = standing.has(i); // a row that explains everything: bold and in words (the figure does not choose the cause)
+    const note = [h.assumes?.length ? `仮定: ${h.assumes.join('、')}` : '', fewest.has(i) ? lab.fewest : ''].filter(Boolean);
+    const cell = (text: string, align?: 'center'): TableCellSpec => ({text, bold, ...(align ? {align} : {})});
+    return [cell([h.text, ...note].join('\n')), ...(h.results as readonly ('yes' | 'ifAssumed' | 'no')[]).map(r => cell(RESULT_TEXT[r], 'center')), cell(String(unexplained(h)), 'center'), cell(String(h.assumes?.length ?? 0), 'center')];
+  });
+  const {labels: _l, ...rest} = opts;
+  return {columns, rows: body, opts: rest, hypotheses: [...hypotheses]};
+}
+
+// ---- why-why (ADR 0026 D3, the table) ---------------------------------------------------------------------------------------
+export interface WhyWhyChain {whys: readonly string[]; /** The root cause this chain ends in (a sentence). */ trueCause?: string; /** What is done about the root cause. */ measure?: string}
+export interface WhyWhyTableOpts extends CommonOpts {labels?: Partial<Record<'problem' | 'why' | 'trueCause' | 'measure', string>>}
+
+export function whyWhyTableParts(problem: string, chains: readonly WhyWhyChain[], opts: WhyWhyTableOpts = {}): SemanticTableParts {
+  if (typeof problem !== 'string' || !problem.trim()) throw new Error('whyWhyTable(problem, chains) needs the problem as text');
+  if (!Array.isArray(chains) || chains.length === 0) throw new Error('whyWhyTable(problem, chains) needs at least one chain');
+  chains.forEach((c, i) => {
+    if (!c || !Array.isArray(c.whys) || c.whys.length === 0) throw new Error(`whyWhyTable(): chain ${i + 1} needs whys (the answers to "なぜ?", one per step)`);
+    (c.whys as readonly unknown[]).forEach((w, j) => { if (typeof w !== 'string' || !w.trim()) throw new Error(`whyWhyTable(): chain ${i + 1}, why ${j + 1} needs text`); });
+    for (const k of ['trueCause', 'measure'] as const) if (c[k] !== undefined && typeof c[k] !== 'string') throw new Error(`whyWhyTable(): chain ${i + 1} ${k} must be text`);
+  });
+  const n = Math.max(...chains.map(c => c.whys.length));
+  const lab = {problem: '問題', why: 'なぜ', trueCause: '真因', measure: '対策', ...opts.labels};
+  const columns: TableColumn[] = [{label: lab.problem, flex: 1.5, bold: true}, ...Array.from({length: n}, (_, i) => ({label: `${lab.why} ${i + 1}`, flex: 1.5})), {label: lab.trueCause, flex: 1.5}, {label: lab.measure, flex: 1.5}];
+  const rows: TableRow[] = chains.map(c => [
+    problem,
+    ...Array.from({length: n}, (_, i) => c.whys[i] ?? ''),
+    {text: c.trueCause ?? '', bold: true, tone: 'accent'} as TableCellSpec,
+    c.measure ?? '',
+  ]);
+  const {labels: _l, ...rest} = opts;
+  return {columns, rows, opts: rest};
 }
