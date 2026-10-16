@@ -9,6 +9,7 @@
 # svg-diagram diff old.svg new.svg                       (what changed, in words)
 # svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX] [--per-page N | --pages N]   (a whole set on one picture)
 # svg-diagram deck <a.ts|a.svg>... [--out deck.html] [--title TEXT] [--cols N] [--csp]   (several figures in one self-contained HTML to look through: arrows, overview, zoom, print)
+# svg-diagram pptx <source.ts>... [--out FILE | --out-dir DIR] [--png-scale N] [--font NAME]   (one editable PowerPoint file per source)
 # svg-diagram lint  [file.svg ...] [--strict] [--fix] [--engine geometry|browser]   (default: ./svg/*.svg; geometry needs no browser)
 # svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium] [--require-fresh]   (draw it in the terminal as sixel)
 # svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray] [--no-stale-banner] [--require-fresh]   (warns when the SVG is older than its source)
@@ -29,6 +30,7 @@ case "$cmd" in
   diff)    exec node "$B/diff-svg.$X" "$@" ;;
   contact) exec node "$B/contact-sheet.$X" "$@" ;;
   deck)    exec node "$B/deck-diagram.$X" "$@" ;;
+  pptx)    exec node "$B/pptx-diagram.$X" "$@" ;;
   check)   exec node "$B/check-diagram.$X" "$@" ;;
   lint)    exec node "$B/lint-svg.$X" "$@" ;;
   preview) exec node "$B/preview-svg.$X" "$@" ;;
