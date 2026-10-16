@@ -13,6 +13,7 @@ const none = (): Band[] => [];
 
 export const CHILD_BANDS = {
   spacer: none,
+  status: none,
   group: band => band.children,
   sequence: none,
   table: none,
@@ -75,6 +76,7 @@ const noStack = (): null => null;
 
 export const STACK_WIDTH = {
   spacer: noStack,
+  status: noStack,
   group: (band, cw) => cw - 2 * (band.pad ?? 16),
   sequence: noStack,
   table: noStack,

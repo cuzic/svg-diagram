@@ -1,5 +1,5 @@
 // Types: group / legend / spacer / raw, row / grid / connect.
-import type {Align, Arrow, ArrowWeight, Bend, Dimmed, EmphasisTone, LineStyle, PlainColorKey, Point, Rect, RevealOpts, Route, TextTone, Theme} from './core.ts';
+import type {Align, Arrow, DiagramStatus, ArrowWeight, Bend, Dimmed, EmphasisTone, LineStyle, PlainColorKey, Point, Rect, RevealOpts, Route, TextTone, Theme} from './core.ts';
 import type {CauseRole} from './diagrams.ts';
 import type {Band} from './index.ts';
 import type {BoxBand, BoxTone, LaidOutBox, RichSpans, RichText} from './text-bands.ts';
@@ -93,6 +93,8 @@ export interface LegendBand {
   align: 'left' | 'center';
 }
 export interface SpacerBand {type: 'spacer'; h: number}
+/** Internal: the strip with the status badge (diagram({status})). Added by withStatus() as the first band, never by a constructor. */
+export interface StatusBand {type: 'status'; status: DiagramStatus; text: string}
 /** What draw(ctx) of raw() receives. */
 export interface RawContext extends Rect {
   day: Theme;
@@ -225,6 +227,8 @@ export interface LaidOutRow extends Rect, Dimmed {type: 'row'; id?: string; chil
 /** Grids have no `h` of their own (children carry the geometry). */
 export interface LaidOutGrid extends Dimmed {type: 'grid'; x: number; y: number; w: number; children: LaidOutBox[]}
 export interface LaidOutRaw extends RawBand, Rect {}
+/** The strip across the top: the badge (`pill`, at the right end) and its text size. */
+export interface LaidOutStatus extends StatusBand, Rect {pill: Rect; size: number; textY: number}
 /** A connect() once its endpoints are known. `from` / `to` are resolved points; the original refs live in fromLabel / toLabel. */
 export interface LaidOutConnect extends Omit<ConnectBand, 'from' | 'to'> {
   dim?: boolean;

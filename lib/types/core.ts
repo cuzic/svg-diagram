@@ -8,8 +8,8 @@ import type {WireframeDefaults} from './wireframe.ts';
 
 /** Palette keys diagram() accepts: 1 / 2 (the training deck's legacy day numbers) or a named theme. */
 export type Theme = 1 | 2 | 'blue' | 'teal' | 'amber';
-/** 'light' (default) | 'dark': which token set the diagram is drawn with (tokens.ts DARK_PALETTE). */
-export type Appearance = 'light' | 'dark' | {dark: Partial<DarkTokens>};
+/** 'light' (default) | 'dark': which token set the diagram is drawn with (tokens.ts DARK_PALETTE). 'auto': drawn light, plus a prefers-color-scheme: dark rule for each colour it uses (lib/appearance-auto.ts). */
+export type Appearance = 'light' | 'dark' | 'auto' | {dark: Partial<DarkTokens>};
 /** The dark token set, replaceable per diagram: `appearance: {dark: {bg: '#0b1220', text: '#ffffff', accent: '#60a5fa'}}`. accent / soft replace those of every theme. */
 export interface DarkTokens {bg: string; text: string; muted: string; border: string; code: string; danger: string; accent: string; soft: string}
 /** 'slide' (legacy `day:` diagrams, get slide-fit warnings) | 'doc' (`theme:` diagrams: title/desc metadata, full rule set). */
@@ -132,19 +132,29 @@ export interface DiagramOpts {
   spotlight?: SpotlightOpt;
   /** A source / citation line pinned as the last line of the figure (left-aligned, muted, one line). See README. */
   sourceLine?: string;
+  /** The state of the whole figure: 'draft' puts a "下書き" badge in a strip at the top (right end) and says so in <desc> / <metadata>. */
+  status?: DiagramStatus;
+  /** The badge's wording instead of "下書き" (e.g. "仮説", "仮置き"): one non-empty line. Only with `status`. */
+  statusLabel?: string;
   /** 'strict': this diagram's `layout-*` findings (alignment and whitespace) are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
   layoutCheck?: LayoutCheck;
   /** 'strict': the `toc-*` findings of this diagram's causeTree({tree}) figures are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
   tocCheck?: TocCheck;
   /** 'strict': the findings of the cause-analysis figures (`fta-*`, `isisnot-*`, `whywhy-*`, `bowtie-*`: ADR 0025 / 0026) are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
   rcaCheck?: RcaCheck;
+  /** Turns on the `stat-no-source` check (a stat() number with no `source`): 'info', or 'strict' for warn. Unset: the check does not run. A check setting only: it never changes the drawing. */
+  evidenceCheck?: EvidenceCheck;
 }
+/** diagram({evidenceCheck}): the severity of `stat-no-source`; leave it out to skip the check. */
+export type EvidenceCheck = 'info' | 'strict';
 /** diagram({tocCheck}): the severity of the `toc-*` findings. */
 export type TocCheck = 'info' | 'strict';
 /** diagram({rcaCheck}): the severity of the cause-analysis findings (fault tree, IS / IS NOT, why-why, bow-tie). */
 export type RcaCheck = 'info' | 'strict';
 /** diagram({layoutCheck}): the severity of the `layout-*` findings. */
 export type LayoutCheck = 'info' | 'strict';
+/** diagram({status}): the state of the whole figure. Only 'draft' for now. */
+export type DiagramStatus = 'draft';
 /**
  * What diagram({spotlight}) takes: the anchor id(s) to keep prominent, or an object with more.
  * `edges`: which connectors stay prominent ('touching': one end is a target; 'between': both are).
@@ -184,14 +194,19 @@ export interface DiagramData {
   wireframeDefaults?: WireframeDefaults;
   spotlight?: SpotlightOpt;
   sourceLine?: string;
+  status?: DiagramStatus;
+  statusLabel?: string;
   layoutCheck?: LayoutCheck;
   tocCheck?: TocCheck;
   rcaCheck?: RcaCheck;
+  evidenceCheck?: EvidenceCheck;
   bands: Band[];
   /** Set by build() from the measured slide (contentWidth). */
   usableWidth?: number;
   /** Project / diagram max width for the doc-width rule (config.ts applyConfig). */
   maxWidth?: number;
+  /** The day for gantt({today: 'auto'}), given by the caller (config.ts applyConfig); the library never reads the clock. */
+  today?: string;
   /** Provenance embedded as <metadata> (build-diagram.ts / check-diagram.ts). */
   source?: DiagramSource;
   /** Internal reveal analysis, filled before layout. */
@@ -208,6 +223,12 @@ export interface DiagramSource {
   configSha256?: string;
   /** sha256 over the local files the source imports (lib/source-deps.ts), when there are any. */
   depsSha256?: string;
+  /** The figure's status (diagram({status})); only written when it has one. */
+  status?: DiagramStatus;
+  /** The day a gantt({today: 'auto'}) was drawn with (only then): check --drift --rebuild draws again with it. */
+  today?: string;
+  /** `build --no-source-line` (ADR 0023): the SVG was drawn without diagram({sourceLine}); a rebuild (check --drift --rebuild) and --stale read it. Absent when not used. */
+  noSourceLine?: boolean;
   /** Cumulative reveal stage represented by this file. */
   reveal?: number;
   until?: number;

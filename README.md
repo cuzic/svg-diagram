@@ -76,9 +76,12 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram typecheck                                # 図のソースの型検査
     svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint] [--png DIR [--scale N]]   # 既定の出力: ./svg/<name>.svg。--png: SVG と同時に PNG も DIR に書く（既定の倍率 2）
     svg-diagram build <source.ts> --dark --transparent   # 暗い配色／背景の矩形なしで描く（図の appearance / transparent を上書き）
+    svg-diagram build <source.ts> --no-source-line       # diagram({sourceLine}) を描かない（スライド用と文書用を 1 つのソースで使い分ける。ソースは変えない。deck も同じフラグを受ける）
+    svg-diagram build|check [--today YYYY-MM-DD] <source.ts>...   # gantt({today: 'auto'}) の日付を渡す（環境変数 SVG_DIAGRAM_TODAY、.svg-diagram.json の "today" でも可。「ガントチャート」の節）
     svg-diagram build <source.ts> --html                 # <name>.html も書く（文字・箱・表・線・矢印・曲線を HTML/CSS で。docs/adr/0006）
     svg-diagram build <source.ts>... --id-prefix <p|auto>   # 複数の図を 1 つの HTML に貼るとき、SVG/HTML の内側の id（svg-title・dsl-arrow など）と参照に <p>-<id> を付ける。ソースが複数なら <p>-<ソース名>-<id>、auto は内容ハッシュ（sd<8 桁>）。<metadata id="svg-diagram"> は書き換えない（check --drift・--stale が読む）。付けなければ出力は 1 バイトも変わらない。--stale とは併用しても毎回作り直す（docs/adr/0012 D2）
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
+    svg-diagram check --forbid-draft <source.ts>...      # diagram({status: 'draft'}) の図を warn にする（公開ジョブだけが付ける。「下書きバッジ」の節）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
     svg-diagram check --changed[=REF] <source.ts>...   # 変わった図だけ検査
     svg-diagram check --rules | --explain RULE   # ルールの一覧 / 1 つの意味と許容の書き方
@@ -186,7 +189,7 @@ map・video 等は残りの高さを埋める。`overlay` / `overlayRight` で�
 
 ### 大きな数値と棒グラフ
 
-`stat(value, label, opts)` は、大きな値と補足ラベルを中央揃えにした plain の `box()` を返すため、そのまま `row()` に入れられる。`size` は `'stat'`（34px、既定）または `'display'`（56px）。`tone` は値の文字だけに付き、ラベルは muted、箱の見た目は変わらない。値は折り返さず、幅に収まらない図は検証エラーになる。
+`stat(value, label, opts)` は、大きな値と補足ラベルを中央揃えにした plain の `box()` を返すため、そのまま `row()` に入れられる。`size` は `'stat'`（34px、既定）または `'display'`（56px）。`tone` は値の文字色で、ラベルは muted。`'accent'` だけは箱も accent の塗り（`tones.accent.fill` の上書きに従う）にし、白黒でも plain の数値と見分けがつく。`'solid'` / `'solid-danger'` は箱全体を濃く塗り、文字は白。他の tone は箱の見た目を変えない。値は折り返さない。箱の幅に収まらなければ、1px 刻みで 24px（canvas / fill では `round(24 × 倍率)`。下限は `min(run.size, max(round(24 × 倍率), minText))`）まで自動で縮め、縮めたら info の `stat-fit-shrunk` を出す（同じ列の `stat` と大きさがそろわない。`accept` で許容できる。箱を広げるか値を短くするとそろう）。それでも収まらなければ検証エラーで、下限・実測の幅・箱の幅と `fix:` の行（箱を広げる / 値を短くする / 単位をラベルへ）が出る。`size` の語彙は `'stat'` / `'display'` の 2 段のまま。収まっている図の出力は変わらない。
 
 ```ts
 row([
@@ -194,6 +197,9 @@ row([
   stat('31%', '導入後', {tone: 'accent', size: 'display'}),
 ])
 ```
+
+**数字の出典と根拠の強さ**: `stat(value, label, {source, confidence})` は、箱の 3 行目に `出典: <source>  ◎ 一次資料` を足す（14px・muted・中央。`solid` / `accent` の箱では色を付けず箱の文字色）。`confidence` は `'primary'`（◎ 一次資料）/ `'secondary'`（○ 報道・二次資料）/ `'unverified'`（△ 未確認）で、記号と語で伝え、色は使わない（ラベルの差し替えは不可）。`source` は必須で、`confidence` だけを書く・`source` が空や複数行だと throw。`hero({stat: {...}})` でも同じオプションが使える。箱の高さは 3 行目のぶん増え、出典が長いと箱の中で折り返す（長い出典は本文へ）。縮小（上）の対象は値だけで、3 行目は縮めない。`source` を書かない `stat` の出力は変わらない。
+`diagram({evidenceCheck: 'info' | 'strict'})` を書いた図だけ、`source` の無い `stat`（`row` / `hero` の中も）ごとに `stat-no-source`（`数字 76% に出典がない`）を出す。`'strict'` で warn（`check --strict` で落とすならこちら）。書かなければ検査は出ない。描画は変わらない。許容する数字は `accept: {'stat-no-source': '理由'}`。`.svg-diagram.json` での既定は未実装。
 
 `bars(data, opts)` は横棒（既定）、縦棒（`dir: 'v'`）、積み上げ（`stack: true`）を描く。`series` は `a | b | c` で、それぞれ accent / text / muted。棒ごとに `tone: 'accent' | 'danger' | 'muted'` も選べる（`danger` が赤。`series` とは併用できない。`examples/spotlight-dim-fill.ts`）。`max` を省くと通常は最大値、積み上げでは合計値になる。値ラベルは必ず描かれ、`unit` は値の後ろに付く。各項目の `id` は `connect()` のアンカーとして使える。
 
@@ -527,7 +533,9 @@ gantt([
 ```
 
 - 日付だけを書く。軸は最初の開始から最後の終了まで（`from` / `to` で広げられる）。7 日あたりの幅が足りるだけ、週（月曜）の目盛り、約 20 週を超えると月の目盛り。
-- `today` は必ず書く（ビルドは時計を読まない）。軸の外だと止まる。`todayLabel` で「今日」を変えられる。
+- `today` は必ず書く（ビルドは時計を読まない）。軸の外だと止まる（文面に軸の範囲と直し方が出る）。`todayLabel` で「今日」を変えられる。
+- **今日が軸の外のとき**: `gantt(rows, {today, extendToToday: true})` は、`from` / `to` を書いていない側だけ軸を今日まで広げる（計画の開始日を今日に合わせなくてよい）。`from` / `to` を明示した側は広げず、止まる。書かない図の出力は変わらない。
+- **日付をビルドに渡す**: `today: 'auto'` と書くと、ビルドが日付を受け取る。優先順は `--today <YYYY-MM-DD>`（`build` と `check`）、環境変数 `SVG_DIAGRAM_TODAY`、`.svg-diagram.json` の `"today"`。どれも無いと、直し方つきで止まる。実在しない日付はどれも拒否する。時計は読まない（`--today now` は無い）ので、`SVG_DIAGRAM_TODAY=$(date +%F) svg-diagram build gantt.ts` のように呼び出し側が渡す。解決した日付は `<metadata>` の `today` に残り（`today: 'auto'` の図だけ。日付を直接書いた図は変わらない）、`check --drift --rebuild` はそれで作り直す（環境変数の日付が違っても誤報しない）。**限界**: `changed` / `--stale` の判定は日付を見ないので、`today: 'auto'` の図は日付が違っても fresh と出る。日付を進めたら `build` を `--stale` なしで回す。
 - `progress`（0〜1）は、バーの塗りつぶしの割合。`milestone: true` は 1 日の菱形（`end` / `days` は要らない）。`tone` は `accent`（既定）/ `danger` / `muted`。
 - `after: 'id'`（または id の配列）で、先行タスクの終わりから、このタスクの始まりへ矢印を引く。縦の線は、間の行のバーを避けた最初の空き（先行タスクの終わりのすぐ右から）を通る。そこが空いていない（後続が先に始まる、間のバーが長い）ときは、行と行のあいだの線に沿って、バーのない列まで回る（後ろ向き・上向きの依存も同じ）。軸のどこにも空きがない（間の行のバーが軸いっぱい）ときだけ、どのバーを貫くかを書いて `check` / `build` が止まる（行の並びを替えるか、`from` / `to` で軸を広げる）。`after` が自分自身や輪になると止まる。
 - 行のラベルは図の幅の 4 割までの 1 行（超えると、短くするよう書いて止まる）。`id` を付けたタスクは `connect()` の端点で、`g.anchors.<id>` でも取れる。例は `examples/gantt.ts`。
@@ -766,6 +774,12 @@ const s = steps([{title: '1回目', body: '原因は不明'}, {title: '4回目',
 
 `diagram({sourceLine: '出典: 総務省 2025'})` は、出典を**図の最後の 1 行**（左寄せ・muted・14px）に固定する。`add()` の順や他の部品に関係なく、いつも一番下にあるので、本文の部品と重ならない。キャンバスの高さに含まれる。空・複数行の文字列は throw。1 行に収まらず折り返すと `source-wraps` を warn する（出典の細部は本文へ）。文字のコントラストは、他の caption と同じ検査（`a11y-text-contrast`、verify）に通る。`sourceLine` を使わない図の出力は変わらない。例は `examples/timeline.ts`。
 
+**出典行を描かない（`build --no-source-line`）**: `svg-diagram build x.ts --no-source-line` は、`diagram({sourceLine})` を描かずに作る（スライド用と文書用を 1 つのソースで使い分ける。ソースは変えず、`sourceLine` が無い図では何も起きない）。使ったときだけ `<metadata>` に `noSourceLine: true` が残り、`check --drift --rebuild` と `build --stale` はそれを読む（`--stale` は同じフラグで繰り返し作る使い方を想定）。`deck --no-source-line` は `.ts` にだけ効き、入力に `.svg` があれば `⚠ <file>: .svg の出典行は消えない(.ts から描き直す)` を出す。`renderSource({noSourceLine: true})` も同じ。`preview` / `show` にフラグは無い（描画済みの SVG を読むだけ）ので、出典行なしを見たいときは `build --no-source-line --out-dir <別の場所>` の SVG を渡す。環境変数は無い。
+
+### 下書きバッジ（`status`）
+
+`diagram({status: 'draft'})` は、最上段に 1 段（約 28px）足し、右端に破線の札「下書き」を描く（塗りは背景色・枠は muted の破線 1.5px・文字は太字の `note`。`<g role="img" aria-label data-status>`）。`statusLabel: '仮説'` で「仮説」「仮置き」などに差し替える（単一行・非空・`status` と一緒に。`status` は `'draft'` だけで、ほかは throw）。出典行の隣の固定位置なので、本文の部品と重ならず、題にはならない。スライド（`canvas`）では 1 段ぶんの高さが予算に入る。spotlight で暗くならず、ダークでは自動で色が替わる。札が図の幅に入らないと、`statusLabel` を短くするよう書いて止まる。`--html` の出力にも札は出るが、HTML/CSS への写しは未対応（SVG のオーバーレイ）。`<desc>` の先頭に札と同じ文言の「(下書き)」（`statusLabel: '仮説'` なら「(仮説)」）が付き、`desc` を自分で書いていても足される。`<title>` は変わらない。`<metadata>` には `"status":"draft"` が残る。`check` は info の `draft-status`（図が下書きのまま。`--strict` でも失敗しない）を出し、公開ジョブで `check --forbid-draft` を付けると warn になる（`accept` で許容済みのものは info のまま）。`status` を書かない図の出力は変わらない。
+
 ### 大きい文字（ロールで選ぶ）
 
 主役の絵の文字は、px ではなく**ロール**で大きくする。入口は次の 4 つ。
@@ -953,6 +967,12 @@ svg-diagram icons list aws                       # 入った名前（aws-lambda,
 
 ### 暗い背景と透明背景（`appearance` / `transparent`）
 `diagram({theme: 'teal', appearance: 'dark'})` で、暗い配色（文字は明るく、背景は暗い）で描く。トークンは明るい版と 1 対 1 に対応し（`DARK_PALETTE`）、レイアウト・トーン・文字の大きさは変わらない。明るい版の色（`#ffffff` など）を暗い版の色に置き換えるだけなので、新しいトーンに暗い版を別に書く必要はない。`raw()` の中の色はトークンでなければそのまま。
+**ダークモードに追従する（`appearance: 'auto'`）**: 1 枚の SVG が、埋め込み先の `prefers-color-scheme` に追従する。図は明るい色で描かれ（背景の矩形も）、`<style>` の末尾に `@media (prefers-color-scheme: dark)` を 1 ブロック足して、**図が実際に使っている色だけ**を暗い版に替える（`svg[data-appearance="auto"] [fill="#ffffff" i] { fill: … }` の形。CSS 変数は使わない）。ルートは `data-appearance="auto"`。`transparent: true` なら背景の矩形が無く、埋め込み先の色に重なる。deck や `inlineSvg` に入れても、規則は自分の図に閉じる。`auto` を使わない図の出力は変わらない。
+- SVG だけ。`--html` / `html: true` との併用は throw（`'dark'` を使う）。`build --dark` は `'auto'` も `'dark'` に上書きする。
+- `<img src>` の追従は、ページの `class="dark"` ではなく OS / ブラウザの設定に従う。Slidev の `html.dark` に追従させたいときは `<object>` かインライン SVG にする（それでも判定は `prefers-color-scheme`）。
+- `preview` / `show` / PNG（resvg）は明るい側で描かれる（resvg は `@media (prefers-color-scheme)` を評価しない）。
+- **検査は明暗の 2 回**: `check`（`verifyDiagram` と `lintDiagram`）と `lint-svg`（既定の geometry でも `--engine browser` でも）は、明るい配色と暗い配色の両方で検査する。暗い側にだけ出た指摘は末尾に ` (暗い配色)` が付く（`lint-svg` は `file (暗い配色)`）。許す色も側ごとで、明側に暗い色が混ざると `off-token-color`。`transparent: true` の `auto` は、明るい側は白、暗い側は暗い版の背景の上に置かれたものとして検査する。
+
 `transparent: true` は、背景の矩形を描かない（スライドや Web ページの背景の上にそのまま置く）。`appearance` と組み合わせられる（`HTML` 出力も同じ）。
 **コントラスト検査**: `check` / `lint-svg` は、`appearance` の色（暗い図なら暗い版）で比べる。透明の図は、背景色が分からないので、**その図が想定する背景（明るい図は白、暗い図は暗い版の背景）の上に置かれたもの**として検査する（SVG のルートに `data-assumed-bg` として残る）。想定と違う背景に置くと、検査の外になる。
 CLI は `svg-diagram build x.ts --dark --transparent`（図の指定を上書きする。`--stale` は無視して再生成する）。`show` / `preview` は図の指定どおりに描く。
@@ -1134,7 +1154,7 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 
 ## 図の違いの説明（`--rebuild`、`diff`）
 `check --drift --rebuild` は、再生成した SVG が違うとき、**何が変わったか**を示す（メタデータのみ / 不可視の下地 / 文字の移動 / 図形の増減 / キャンバスの大きさ）。
-「見た目は変わらない。再生成してよい」か「見た目が変わる。再生成して、目で確かめる」かが分かる。`pnpm golden` は、`examples/out/` の SVG が、今のコードの再生成と一致するかを調べる。
+「見た目は変わらない。再生成してよい」か「見た目が変わる。再生成して、目で確かめる」かが分かる。`<metadata>` に残した `today`（`gantt` の `today: 'auto'`）と `noSourceLine`（`build --no-source-line`）も読んで、同じ条件で作り直す。`pnpm golden` は、`examples/out/` の SVG が、今のコードの再生成と一致するかを調べる。
 
 ## 日本語の折り返し（`diagram({wrap})`）
 ラベルは文節に近い単位で折り返す（既定 `wrap: 'phrase'`）。**カタカナの連続**と**漢字の連続**は 1 語として扱い、「アプリ」が「ア / プ / リ」に割れない。英数字の連続は以前から割らない。禁則（行頭に句読点・小書きかな、行末に開き括弧を置かない）はそのまま。語が 1 行より長いときだけ、その語を 1 文字ずつ折る。従来どおり 1 文字ごとに折るなら `diagram({wrap: 'char'})`。外部の分かち書きライブラリは使わず、文字種で決める簡易な方式（ひらがなの中の助詞では切らない）。`'phrase'` と `'char'` は辞書を持たず、`'bunsetsu'` も形態素解析（`Intl.Segmenter`）は使わない（ICU の版で切れ目が変わり、出力が環境で変わるため）。
@@ -1143,6 +1163,8 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 
 ## 共通設定（`.svg-diagram.json`）
 カレントディレクトリから上へたどって見つかる。`{"accept": {"rule-id": "理由"}, "maxWidth": 940}`。図ごとの `accept` が優先される。`maxWidth` も図ごとに `diagram({maxWidth: 1200})` で変えられる（`doc-width` の閾値だけで、図の幅は変えない。広い図にするなら `width: 1200` も書く。図の値が設定ファイルに勝つ）。`accept` のキーはルール ID（`RULE_DOCS` にある名前）で、知らない ID・空の理由はファイル名つきのエラー（綴り違いで何も許容されないのを防ぐ）。許容された指摘は info に下がり、理由が添えられる。
+
+**今日の日付（`today`）**: `"today": "2026-10-19"` は、`gantt({today: 'auto'})` の日付になる（`--today` と環境変数 `SVG_DIAGRAM_TODAY` が優先。実在しない日付はファイル名つきのエラー）。「ガントチャート」の節。
 
 **文字の下限（`fontFloor`）**: `"fontFloor": 10` のように、**`diagram({canvas: {minText}})` を 14 未満に下げてよい下限**を案件として許可する（10〜14 の数。既定は 14。範囲外・数でない値はファイル名つきのエラー）。`fontFloor` だけでは図は小さくならない（許可であって、文字を縮める設定ではない）。図の `minText` が `fontFloor ?? 14` 未満だと、描画の時点で throw する（`canvas` の図だけが対象。文書向けの図、`canvas: 'slide'` / `fill`、`size` の直接指定の下限 14 は変わらない）。対象は、投影しない手元・配布用の稠密な `canvas` の図で、`slide` / `fill` の実効 12px とは別の層（「スライド 1 枚のキャンバス」）。`lint-svg` も同じ設定を、SVG のあるディレクトリから探して読む。
 
@@ -1158,7 +1180,7 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 
 ## check のルール（lib/rules.ts）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える。記法が少なく凡例が要らない図は `diagram({legend: false})` で「凡例は要らない」と宣言する。凡例を足すためだけに足さない）、`quadrant-empty-cell`（`quadrant()` に項目のないマスがある。意図した空きは `allowEmpty`）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
-`a11y-no-title`、`source-wraps`（出典行が折り返している）、`cjk-line-long`（見出し＝caption の title / display / stat と banner の headline の 1 行が、全角換算で本文幅 600px に収まる字数 — title 40・banner 37・stat 17・display 10 字 — を超える。半角は 0.5 字。目安以内でも、図が狭くて見出しが自動で折り返したときも出す。改行で分けるか短くする）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、`shrink-narrow-text`（`bpmn` / `swimlane` の `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。図を縦向きにする・2 つに分ける・文言を短くする・`maxWidth` を広げる）、`gray-tone-collision`（使っている 2 つのトーンの塗りが、白黒にすると見分けにくい。塗りを CIE L* にして、差が 10 未満なら警告。10 は、紙の白黒印刷で 2 つの平らな灰色が「違う」と読めなくなるあたり。soft（L* 約 93）と plain の白（100）が当たり、solid との組は当たらない。控えめにするトーン（muted / removed）は除く。破線の有無が違う組と、塗りが同じ組（new と accent、changed と plain。色でも塗りでは見分けていない）は除く。canvas() の、ピル（重点・中心など）で言葉にした領域は数えない。`diagram({accept})` で許容できる。`preview --gray` で目でも確かめる）、
+`a11y-no-title`、`source-wraps`（出典行が折り返している）、`stat-fit-shrunk`（情報: `stat()` の値が箱に収まらず、自動で縮めた。`accept` で許容）、`draft-status`（情報: `diagram({status: 'draft'})` のまま。`check --forbid-draft` で warn。`accept` で許容）、`stat-no-source`（`diagram({evidenceCheck})` を書いた図だけ。出典のない `stat()` の数字。info、`'strict'` で warn）、`cjk-line-long`（見出し＝caption の title / display / stat と banner の headline の 1 行が、全角換算で本文幅 600px に収まる字数 — title 40・banner 37・stat 17・display 10 字 — を超える。半角は 0.5 字。目安以内でも、図が狭くて見出しが自動で折り返したときも出す。改行で分けるか短くする）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、`shrink-narrow-text`（`bpmn` / `swimlane` の `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。図を縦向きにする・2 つに分ける・文言を短くする・`maxWidth` を広げる）、`gray-tone-collision`（使っている 2 つのトーンの塗りが、白黒にすると見分けにくい。塗りを CIE L* にして、差が 10 未満なら警告。10 は、紙の白黒印刷で 2 つの平らな灰色が「違う」と読めなくなるあたり。soft（L* 約 93）と plain の白（100）が当たり、solid との組は当たらない。控えめにするトーン（muted / removed）は除く。破線の有無が違う組と、塗りが同じ組（new と accent、changed と plain。色でも塗りでは見分けていない）は除く。canvas() の、ピル（重点・中心など）で言葉にした領域は数えない。`diagram({accept})` で許容できる。`preview --gray` で目でも確かめる）、
 `image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`edge-bends`（情報: 自動配置の図の矢印が 5 回以上折れる、または帯の平均が 3 回超。下の `layoutCheck` の節の隣）、`auto-fit-applied`（`dir` を省略した自動配置の図を、幅に収めるためにレイアウトが変えた。warn。`dir: 'auto'` は info）、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`font-floor-lowered`（情報: `canvas.minText` が 14 未満の図。「文字の下限を 14px から Npx に下げている（最小の文字 Mpx）。キャンバスは 1:1 で読まれる前提。投影には向かない」。`accept` で理由つきの info のまま許容できる）、`doc-width`（940px 以下。`maxWidth` で変更。図ごとは `diagram({maxWidth})`）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
 `lint-svg`（描画後の検査: コントラスト・キャンバスのはみ出し・文字の重なり・枠からのはみ出し・図形が文字に被る）は、SVG の幾何と文字の箱（レイアウトと同じフォントファイル）から調べる。`--engine browser` は同じ検査を実ブラウザで行う（`test/svg-lint-browser.test.ts` が両方を同じ SVG に当てて比べる。丸めの境界で 1px 違うことと、回転したグループの中のコントラストの比べ方（ブラウザ版は文字と図形を別々の座標系で比べていた）だけが違う）。
 `lint-svg` の文字の下限（`font-size-too-small`）は 14px。ただし図のルートに `data-min-text="N"`（`canvas.minText` を 14 未満にした図）があれば、それが下限になる（`--fix` も N まで引き上げる）。案件の `fontFloor ?? 14` より小さい値、または 10 以上の数でない値だと、`font-floor-not-permitted`（**エラー**）。許可された図には、失敗に数えない第 3 の階層「お知らせ」に `font-floor-lowered`（`minText Npx(案件の fontFloor M)`）を 1 行出す（`--strict` でも失敗しない）。設定は、cwd ではなく**各 SVG のあるディレクトリから上へ**探し、`--config <path>` で明示できる（`fonts` の設定も同じ設定から読む）。`data-min-text` のない SVG の挙動は変わらない。

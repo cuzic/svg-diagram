@@ -82,9 +82,11 @@ export interface GanttOpts extends RevealOpts, ScopeOpts {
   /** The axis (default: the first start to the last end). 'YYYY-MM-DD'. */
   from?: string;
   to?: string;
-  /** Today, always written out (a build never reads the clock). A line through the chart. */
+  /** Today, always written out (a build never reads the clock): 'YYYY-MM-DD', or 'auto' for the day the build is given (build / check --today, SVG_DIAGRAM_TODAY, .svg-diagram.json "today"). A line through the chart. */
   today?: string;
   todayLabel?: string;
+  /** Widen the axis to include `today` when it is outside (only a side that `from` / `to` did not fix). Default false. */
+  extendToToday?: boolean;
   id?: string;
 }
 export interface GanttBand extends GanttOpts {

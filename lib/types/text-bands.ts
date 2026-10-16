@@ -116,11 +116,19 @@ export interface BoxBand extends BoxStyleOpts {
   spans?: RichSpans;
   /** Internal: stat() keeps its first line on one line and verify reports overflow. */
   statValue?: string;
+  /** Internal: stat({source, confidence}) keeps what it printed on its third line; the stat-no-source check reads it (ADR 0023 D9). */
+  evidence?: {source: string; confidence?: StatConfidence};
 }
+/** How strong the evidence for a stat() number is (ADR 0023 D7). Drawn as a symbol plus a word, never as a colour. */
+export type StatConfidence = 'primary' | 'secondary' | 'unverified';
 export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col' | 'span' | 'reveal' | 'until'> {
-  /** The value's text colour; 'solid' / 'solid-danger' instead fill the whole box (white text) as in box({tone}). */
+  /** The value's text colour; 'accent' also fills the card with the accent tone's fill; 'solid' / 'solid-danger' instead fill the whole box (white text) as in box({tone}). */
   tone?: TextTone | 'solid' | 'solid-danger';
   size?: 'stat' | 'display';
+  /** Where the number comes from (one line, plain text). Printed as a third line `出典: <source>` (ADR 0023). */
+  source?: string;
+  /** How strong the source is: 'primary' ◎ 一次資料 / 'secondary' ○ 報道・二次資料 / 'unverified' △ 未確認. Needs `source`. */
+  confidence?: StatConfidence;
 }
 export interface BannerStyleOpts extends BoxChrome {
   headlineTone?: TextTone;
@@ -147,6 +155,8 @@ export interface TextRun {
   indent?: number;
   /** A stat value is semantically atomic and must not wrap. */
   nowrap?: boolean;
+  /** A `nowrap` run that may be drawn smaller when it does not fit: down to `min` px, in whole pixels (ADR 0024). */
+  fit?: {min: number};
 }
 /** A text run after wrapping: `lines[i]` is drawn with its baseline at band.y + padY + lineYs[i]. */
 export interface WrappedRun extends TextRun {
@@ -154,6 +164,8 @@ export interface WrappedRun extends TextRun {
   lineYs: number[];
   /** Per line, the pieces of `lines[i]` (only when the run has spans). */
   lineSpans?: Span[][];
+  /** Set only when a `fit` run was drawn smaller than asked: the size it was asked for (`size` is what it is drawn at). */
+  shrunkFrom?: number;
 }
 export interface LaidOutCaption extends CaptionBand, Rect, Dimmed {
   wrappedRuns: WrappedRun[];
@@ -161,5 +173,5 @@ export interface LaidOutCaption extends CaptionBand, Rect, Dimmed {
   /** group() titles only: the rect the title's text really covers (the caption itself spans the whole frame width). */
   inkBox?: Rect;
 }
-export interface LaidOutBox extends BoxBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number; nowrapOverflow?: string[]; /** With `step` and a centred / right-aligned title: its first line's width (the badge sits just before it). */ titleW?: number}
+export interface LaidOutBox extends BoxBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number; nowrapOverflow?: {value: string; width: number; avail: number; min: number}[]; /** stat() values drawn smaller than their role's size so they fit (ADR 0024). */ statShrunk?: {value: string; from: number; to: number}[]; /** With `step` and a centred / right-aligned title: its first line's width (the badge sits just before it). */ titleW?: number}
 export interface LaidOutBanner extends BannerBand, Rect, Dimmed {wrappedRuns: WrappedRun[]; tagBox?: Rect; stampW?: number}

@@ -1,6 +1,6 @@
 # ADR 0024: `stat()` の値が幅に収まらないとき、値の文字を自動で縮める
 
-- 状態: 提案
+- 状態: 実装済み(U1〜U3: #237、U4〜U6: #240)
 - 日付: 2026-10-15
 - 基点: `origin/main`(4f70b45、PR #226 まで)
 - 関連: ADR 0002(量・強調の部品。`stat()` の出どころ)、ADR 0003(`stat` の値に spans を許さない)、ADR 0008(#7 スライド用キャンバス)、ADR 0014(byte 同一の扱い)、ADR 0016(実装計画の書き方)、ADR 0017(文字サイズの下限 `canvas.minText`)
@@ -78,7 +78,7 @@
 - `fit.min = min(run.size, max(round(24 × s), canvasMinText ?? 0))`。`s` は `scaleRoles` と同じ倍率(`canvasFontScale(minText)`、`lib/tokens.ts:274-276`。倍率 1 なら 24)。`canvasMinText` は `diagram({canvas: {minText}})` の値で、図が宣言した文字の下限を下回らないための保険(通常は `round(24 × s)` の方が大きい)。外側の `min(run.size, …)` は、縮める前の大きさが下限以下のとき縮めない(`fit.min = run.size`)ための式。
 - 理由: ADR 0017 の趣旨は「投影しない手元・配布用の稠密な canvas の図は、小さい文字を許す」。`canvas.minText: 10` の図は倍率が約 0.72 で、`stat` は 34 × 0.72 ≒ 24 で描かれる。ここで下限を絶対の 24 にすると、`stat` の通常の大きさがすでに下限で、「縮める余地が無い」うえに、他の文字より値だけが縮められない不ぞろいになる。倍率を掛ければ、稠密な図では `round(24 × 0.72)` = 17 まで縮められ、`stat` と他の文字の比(約 1.7 倍)が通常の図と同じになる。
 - 24 の根拠(倍率 1 のとき): (1) 既に使っている数(`SLIDE_CANVAS.minText = 24`、ADR 0008 #7)で、新しい定数を作らない。(2) ラベル(14px)の約 1.7 倍で、縮んでも「大きな数字」として読める。`stat` の 34px からは約 7 割まで縮められる。これを下回ると、ラベルと区別が付かない(`banner` が 16px)。下限は「ラベルとの比」なので、倍率に追従するのが自然。
-- 14px の下限との関係: 倍率 1 では 24 ≧ 14。倍率が小さい図(稠密な canvas)では、`max(…, minText)` が `font-floor-lowered`(info、`lib/rules.ts:646`)の宣言した下限を守る。`lint-svg.ts` の静的な 14px の下限は、そもそも `minText < 14` の図が通らないことが ADR 0017 の既存の問題(別の仕組み)で、本 ADR はそれを変えない(縮めた値は `minText` を下回らない、以上)。
+- 14px の下限との関係: lint の床は、図が宣言した `minText`(案件の `fontFloor` で許可したもの。`minText` が 14 未満の図は SVG に `data-min-text` が出て、`lint-svg.ts` はそれを床として読む。ADR 0017)で、縮めた値はそれを下回らない。倍率 1 では 24 ≧ 14。稠密な canvas では `max(round(24 × s), minText)` が `minText` 以上を保つ(`font-floor-lowered`(info、`lib/rules.ts`)が宣言を知らせる)。
 - 縮める前の大きさが下限以下(`fit.min = run.size`)なら縮めず、`nowrapOverflow` に回す(検査が止める)。
 
 ### D5. 縮めたことは info で知らせる(黙らない)。規則 `stat-fit-shrunk`
@@ -156,3 +156,10 @@ stat: value "3割未満" does not fit its box even at the smallest size (24px: n
 3. **`wf.stat` と `people({side})`**: 同じ縮め方を入れるか。`wf.stat` は別実装、`people()` は列の寸法の throw(別の文面)。今回は触らない。
 4. **下限 24 の妥当性**: ADR 0008 #7 の 24 を流用した。ラベルの 14 との比、`display` を使った強い見せ場(56 → 24 は 4 割)が許せるか。実物(要望者の図)で見て、不自然なら `display` だけ下限を上げる(例 34 = `stat` の既定)。
 5. **`minText` が大きいとき**: `stat` の既定の大きさ(34 × s)を超える `minText` では、縮める余地が無い(`fit.min = run.size`、D4)。その場合は縮めず検査に回す。現行の `slide-min-text` との整合を、実装時にテストで確かめる。
+
+## 実装での補足(PR #237・#240)
+
+- **`fit.min` の `canvas.minText` の項は、`statFitMin` の引数では受けるが、呼び出し側は 0 を渡す**(U1): canvas のロール倍率 s から `round(24 × s)` が、最小ロール相当の `minText` を常に上回るため、`textRuns(band, roles)` に `minText` を通す配線は足していない。倍率 s は `roles.stat / ROLES.stat` から復元する。未決事項 5(`minText` が大きいとき)は、この範囲では起きない。
+- **`nowrapOverflow` の型は `{value, width, avail, min}[]`**(U5): throw の文面は下限と実測の幅を出し、`fix:` の行が付く。先頭の `stat: value "…" does not fit` は保っている。
+- **D4 の lint の記述を書き換えた**(#240): 「lint の床は図が宣言した `minText`(案件の `fontFloor` で許可したもの)で、縮めた値はそれを下回らない」。
+- **U6 の例**: `examples/stat.ts` に細い列(`flex: 0.5` の「3割未満」、`display`)を足した。縮んで 37px になる。

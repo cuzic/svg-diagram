@@ -18,12 +18,13 @@ import {layoutTreeBand, narrowField} from './tree.ts';
 import {layoutStatesBand} from './states.ts';
 import {CAUSE_ROLES, layoutCauseBand, layoutCloudBand} from './toc.ts';
 import {layoutGantt} from './gantt.ts';
+import {layoutStatus} from './status.ts';
 import {layoutClassesBand} from './classes.ts';
 import {layoutBpmn} from './bpmn.ts';
 import {layoutFta} from './fta.ts';
 import {layoutChart} from './charts.ts';
 import {layoutWireframe, layoutScreens} from './wireframe.ts';
-import type {GroupBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, RawBand, SpacerBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow, RowArrow} from './types/containers.ts';
+import type {GroupBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, RawBand, SpacerBand, StatusBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow, RowArrow} from './types/containers.ts';
 import type {Rect} from './types/core.ts';
 import type {PyramidBand, CurveBand, LaidOutPyramidLayer} from './types/figures.ts';
 import type {ImageBand} from './types/image.ts';
@@ -74,6 +75,12 @@ function placedBand<B extends Band & {id?: string}, P extends LaidOutBand & Rect
 }
 
 function layoutSpacer(band: SpacerBand, ctx: LayoutCtx): void { ctx.y += band.h; }
+
+function layoutStatusBand(band: StatusBand, ctx: LayoutCtx, padX: number, cw: number): void {
+  const placed = layoutStatus(band, padX, snapGrid(ctx.y), cw, ctx.widthOf, ctx.roles);
+  ctx.laidOut.push(placed);
+  ctx.y += placed.h + ctx.d.gap;
+}
 
 function layoutSeqTable(band: Band & {type: 'sequence' | 'table'}, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
@@ -583,6 +590,7 @@ function layoutGridBand(band: GridBand, ctx: LayoutCtx, padX: number, cw: number
  */
 export const LAYOUT_HANDLERS = {
   spacer: layoutSpacer,
+  status: layoutStatusBand,
   group: layoutGroup,
   sequence: layoutSeqTable,
   table: layoutSeqTable,
