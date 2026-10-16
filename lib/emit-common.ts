@@ -120,11 +120,29 @@ export function trimPoints(points: Point[], arrow: Arrow): Point[] {
 
 
 // An arrow whose head is a shape, not a marker (a marker on a leftward end is not turned by every renderer). The line stops inside the head.
-export function arrowPath(points: {x: number; y: number}[], color: string, line: LineStyle | undefined, width = 2, headAt: 'end' | 'both' = 'end', end: 'arrow' | 'bar' = 'arrow'): string {
+import {ARROW_L} from './cause-hop.ts';
+/** A hop over another line: a bump of height `r` toward `side`, at a point on one of the runs (ADR 0028). */
+export interface PathCut {x: number; y: number; side: {x: number; y: number}; r: number}
+function cutPath(pts: {x: number; y: number}[], cuts: readonly PathCut[]): string {
+  const f = (n: number): string => String(snap4(n));
+  let d = `M${f(pts[0].x)},${f(pts[0].y)}`;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = pts[i], b = pts[i + 1], len = Math.hypot(b.x - a.x, b.y - a.y), ux = (b.x - a.x) / len, uy = (b.y - a.y) / len;
+    const here = cuts.filter(c => Math.abs((c.x - a.x) * uy - (c.y - a.y) * ux) < 0.5 && (c.x - a.x) * ux + (c.y - a.y) * uy > 0 && (c.x - a.x) * ux + (c.y - a.y) * uy < len)
+      .sort((p, q) => (p.x - a.x) * ux + (p.y - a.y) * uy - ((q.x - a.x) * ux + (q.y - a.y) * uy));
+    for (const c of here) {
+      d += ` L${f(c.x - ux * c.r)},${f(c.y - uy * c.r)} Q${f(c.x + c.side.x * 2 * c.r)},${f(c.y + c.side.y * 2 * c.r)} ${f(c.x + ux * c.r)},${f(c.y + uy * c.r)}`;
+    }
+    d += ` L${f(b.x)},${f(b.y)}`;
+  }
+  return d;
+}
+
+export function arrowPath(points: {x: number; y: number}[], color: string, line: LineStyle | undefined, width = 2, headAt: 'end' | 'both' = 'end', end: 'arrow' | 'bar' = 'arrow', cuts?: readonly PathCut[]): string {
   const pts = points.map(p => ({...p}));
   const heads: string[] = [];
   const head = (tip: {x: number; y: number}, from: {x: number; y: number}): {x: number; y: number} => {
-    const dx = Math.sign(tip.x - from.x), dy = Math.sign(tip.y - from.y), L = 12, W = 5, tx = snap4(tip.x), ty = snap4(tip.y); // the head hangs off the snapped tip, so it is symmetric about its line
+    const dx = Math.sign(tip.x - from.x), dy = Math.sign(tip.y - from.y), L = ARROW_L, W = 5, tx = snap4(tip.x), ty = snap4(tip.y); // the head hangs off the snapped tip, so it is symmetric about its line
     heads.push(`<path d="M${tx},${ty} L${tx - dx * L - dy * W},${ty - dy * L + dx * W} L${tx - dx * L + dy * W},${ty - dy * L - dx * W} z" fill="${color}"/>`);
     return {x: tip.x - dx * (L - 2), y: tip.y - dy * (L - 2)};
   };
@@ -138,6 +156,7 @@ export function arrowPath(points: {x: number; y: number}[], color: string, line:
   }
   pts[n - 1] = head(points[n - 1], points[n - 2]);
   if (headAt === 'both') pts[0] = head(points[0], points[1]);
+  if (cuts?.length) return `<path d="${cutPath(pts, cuts)}" fill="none" stroke="${color}" stroke-width="${width}"${lineAttrs(line === 'solid' ? undefined : line)}/>\n  ${heads.join('\n  ')}`;
   return `<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${color}" stroke-width="${width}"${lineAttrs(line === 'solid' ? undefined : line)}/>\n  ${heads.join('\n  ')}`;
 }
 
