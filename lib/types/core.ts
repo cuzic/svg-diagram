@@ -140,6 +140,8 @@ export interface DiagramOpts {
   layoutCheck?: LayoutCheck;
   /** 'strict': the `toc-*` findings of this diagram's causeTree({tree}) figures are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
   tocCheck?: TocCheck;
+  /** 'strict': the findings of the cause-analysis figures (`fta-*`, `isisnot-*`, `whywhy-*`, `bowtie-*`: ADR 0025 / 0026) are warnings, so `check --strict` fails on them. Default 'info'. A check setting only: it never changes the drawing. */
+  rcaCheck?: RcaCheck;
   /** Turns on the `stat-no-source` check (a stat() number with no `source`): 'info', or 'strict' for warn. Unset: the check does not run. A check setting only: it never changes the drawing. */
   evidenceCheck?: EvidenceCheck;
 }
@@ -147,6 +149,8 @@ export interface DiagramOpts {
 export type EvidenceCheck = 'info' | 'strict';
 /** diagram({tocCheck}): the severity of the `toc-*` findings. */
 export type TocCheck = 'info' | 'strict';
+/** diagram({rcaCheck}): the severity of the cause-analysis findings (fault tree, IS / IS NOT, why-why, bow-tie). */
+export type RcaCheck = 'info' | 'strict';
 /** diagram({layoutCheck}): the severity of the `layout-*` findings. */
 export type LayoutCheck = 'info' | 'strict';
 /** diagram({status}): the state of the whole figure. Only 'draft' for now. */
@@ -194,6 +198,7 @@ export interface DiagramData {
   statusLabel?: string;
   layoutCheck?: LayoutCheck;
   tocCheck?: TocCheck;
+  rcaCheck?: RcaCheck;
   evidenceCheck?: EvidenceCheck;
   bands: Band[];
   /** Set by build() from the measured slide (contentWidth). */
