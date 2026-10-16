@@ -1,7 +1,7 @@
 // The checks of the cause-analysis tables and trees (ADR 0026 D1): pure functions of a figure's input, run when its constructor builds it.
 // No layout and no fonts. The result goes in the band's `rca` field, which rcaRules() reads and the drawing never does.
 import type {RcaFinding} from './types/core.ts';
-import type {WhyNode} from './types/diagrams.ts';
+import type {BowtieBand, WhyNode} from './types/diagrams.ts';
 
 export interface IsIsNotRow {dim: string; is: string; isNot: string; distinct?: string; change?: string}
 export interface IsIsNotHypothesis {text: string; results: readonly ('yes' | 'ifAssumed' | 'no')[]; assumes?: readonly string[]}
@@ -68,5 +68,14 @@ export function whyWhyTreeFindings(whys: readonly WhyNode[]): RcaFinding[] {
   if (symptom.length) out.push({rule: 'whywhy-measure-without-root', message: `真因でない節に対策（measure）がある: ${symptom.join('、')}。症状への対策になっていないか確かめる`});
   if (!branches) out.push({rule: 'whywhy-single-chain', severity: 'info', message: 'なぜなぜの木が 1 本の鎖だけ（分岐が無い）。原因が本当に 1 つに決まるか確かめる'});
   if (dug.length) out.push({rule: 'whywhy-dig-below-root', severity: 'info', message: `真因の節の下にまだ「なぜ」がある: ${dug.join('、')}。真因より下を掘っている（真因の印の付け方を見直す）`});
+  return out;
+}
+
+/** bowtie-barrier-missing: a threat or a consequence with no barrier at all. */
+export function bowtieFindings(band: Pick<BowtieBand, 'threats' | 'consequences'>): RcaFinding[] {
+  const none = (list: readonly {label: string; barriers?: readonly string[]}[]): string[] => list.filter(s => !s.barriers?.length).map(s => `「${s.label}」`);
+  const t = none(band.threats), c = none(band.consequences), out: RcaFinding[] = [];
+  if (t.length) out.push({rule: 'bowtie-barrier-missing', message: `予防バリアが 1 つも無い脅威がある: ${t.join('、')}。防ぐ手を足すか、無いことを確かめる`});
+  if (c.length) out.push({rule: 'bowtie-barrier-missing', message: `低減バリアが 1 つも無い結果がある: ${c.join('、')}。和らげる手を足すか、無いことを確かめる`});
   return out;
 }

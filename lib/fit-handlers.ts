@@ -56,6 +56,7 @@ export const FIT_HANDLERS = {
   classes: textsAndLabels,
   bpmn: textsAndLabels,
   fta: texts,
+  bowtie: texts,
 } satisfies {[T in LaidOutType]: TextSizes<LaidOutOf<T>>};
 
 /** Band types with no entry in FIT_HANDLERS: must be `never`. */

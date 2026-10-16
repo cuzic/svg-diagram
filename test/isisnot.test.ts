@@ -98,3 +98,11 @@ test('check: info by default, warn under rcaCheck: strict (the stand-nowhere rul
   assert.equal(ok.verdict.problems.length, 0, ok.verdict.problems.join('\n'));
   assert.deepEqual(ok.verdict.findings.filter(f => f.severity === 'warn'), []);
 });
+
+test("isIsNotTests(): a result named like an Object method is not a result; two hypotheses with the same fewest assumptions both say so", () => {
+  assert.throws(() => isIsNotTests(ROWS, [{text: 'x', results: ['toString' as never, 'yes', 'yes', 'yes']}]), /'yes' \| 'ifAssumed' \| 'no'/);
+  const a = {text: 'A', results: ['yes', 'yes', 'yes', 'yes'] as const}, b = {text: 'B', results: ['yes', 'yes', 'yes', 'yes'] as const};
+  const rows = isIsNotTests(ROWS, [a, b]).rows as {text?: string}[][];
+  assert.match(rows[0][0].text!, /最少の仮定/);
+  assert.match(rows[1][0].text!, /最少の仮定/);
+});

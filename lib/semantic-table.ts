@@ -205,7 +205,7 @@ export function isIsNotTestsParts(rows: readonly IsIsNotInputRow[], hypotheses: 
     if (!h || typeof h.text !== 'string' || !h.text.trim()) throw new Error(`isIsNotTests(): hypothesis ${i + 1} needs a text`);
     const results = h.results as readonly string[] | undefined;
     if (!Array.isArray(results) || results.length !== rows.length) throw new Error(`isIsNotTests(): hypothesis "${h.text}" has ${Array.isArray(results) ? results.length : 'no'} results for ${rows.length} rows (one per row of the specification)`);
-    results.forEach((r: string, j: number) => { if (!(r in RESULT_TEXT)) throw new Error(`isIsNotTests(): hypothesis "${h.text}", row ${j + 1}: result must be 'yes' | 'ifAssumed' | 'no' (got ${JSON.stringify(r)})`); });
+    results.forEach((r: string, j: number) => { if (!Object.hasOwn(RESULT_TEXT, r)) throw new Error(`isIsNotTests(): hypothesis "${h.text}", row ${j + 1}: result must be 'yes' | 'ifAssumed' | 'no' (got ${JSON.stringify(r)})`); });
     if (h.assumes !== undefined && (!Array.isArray(h.assumes) || (h.assumes as readonly unknown[]).some(a => typeof a !== 'string' || !a.trim()))) throw new Error(`isIsNotTests(): hypothesis "${h.text}": assumes is a list of texts`);
     if (h.results.includes('ifAssumed') && !h.assumes?.length) throw new Error(`isIsNotTests(): hypothesis "${h.text}" has 'ifAssumed' results but no assumes (what has to be assumed?)`);
   });

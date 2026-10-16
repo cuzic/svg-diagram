@@ -81,8 +81,8 @@ test('ids: two trees without opts.id (or the same node id written twice in diffe
   const both = await laid({}, c, d);
   const ids = both.t.anchors.map(x => x.id);
   assert.ok(ids.includes('c.w1') && ids.includes('c.w1.1.1.m') && !ids.includes('d.w1'));
-  const withId = await laid({}, whyWhyTree('問題 E', [{id: 'mine', why: 'a'}]));
-  assert.deepEqual(withId.t.anchors.map(x => x.id), ['mine'], 'a node with its own id is an anchor even without opts.id');
+  const named = treeOf(whyWhyTree('問題 E', [{id: 'mine', why: 'a'}, {why: 'b'}]));
+  assert.deepEqual(named.unanchored, ['problem', 'w2'], 'a node with its own id is an anchor even without opts.id; the ones the tree named itself are not');
 });
 
 test('rca findings: no root, a measure on a non-root, a single chain, digging below the root', () => {
@@ -109,4 +109,38 @@ test('check: info by default, warn with rcaCheck: strict; the default output is 
   assert.ok(lax.length === 1 && lax[0].severity === 'info');
   const hard = (await laid({rcaCheck: 'strict'}, bad)).verdict.findings.filter(f => f.rule.startsWith('whywhy-'));
   assert.ok(hard.length === 1 && hard[0].severity === 'warn');
+});
+
+// ---- review fixes ----
+import {box, connect} from '../lib/dsl.ts';
+
+test('without opts.id the tree is still checked: every node is in the laid-out anchors (only the registry skips the unnamed ones)', async () => {
+  const {t} = await laid({}, whyWhyTree('問題', WHYS));
+  assert.equal(t.anchors.length, t.nodes.length);
+});
+
+test('connect() reaches a node of a tree with opts.id (and the types allow it); verify now sees the tree, so a line through its boxes is reported', async () => {
+  const d = diagram({theme: 'blue', title: 'x'}).add(box({title: '外', id: 'ext'})).add(...whyWhyTree('問題', WHYS, {id: 'ww'})).add(connect('ext', 'ww.w1.1.1'));
+  const {verdict} = await checkDiagram(d);
+  assert.ok(!verdict.problems.some(p => /unknown|no anchor|not found/.test(p)), 'the name resolves');
+  assert.ok(verdict.problems.some(p => /overlaps "ww\./.test(p)), 'the line crosses boxes of the tree, and verify says so (it saw nothing of an unanchored tree before)');
+});
+
+test('a wide tree is not folded (that would put one "why n" on two levels): it fits or it says why not', async () => {
+  const wide = Array.from({length: 9}, (_, i) => ({why: `答え ${i} を長めに書いた文`, trueCause: true as const}));
+  await assert.rejects(() => laid({}, whyWhyTree('問題', wide, {id: 'ww'})), /causeTree\(\)/);
+});
+
+test('the reading lines appear with the tree (reveal)', () => {
+  const bands = whyWhyTree('x', WHYS, {id: 'r', reveal: 2});
+  assert.ok(bands.every(b => (b as {reveal?: number}).reveal === 2));
+});
+
+test('a node id that is one of the tree\'s own names says so', () => {
+  assert.throws(() => whyWhyTree('x', [{id: 'w2', why: 'a'}, {why: 'b'}, {why: 'c'}]), /the names the tree gives/);
+});
+
+test('blocks edges end in a bar, drawn dashed', async () => {
+  const {svg} = await (await import('../lib/dsl.ts')).renderDiagram(diagram({theme: 'blue', title: 'x'}).add(...whyWhyTree('問題', WHYS, {id: 'ww'}) as unknown as never[]), {name: 'x.svg', budget: 'cacheOnly'});
+  assert.match(svg, /stroke-dasharray="6,4"/);
 });

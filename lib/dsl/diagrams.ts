@@ -2,11 +2,12 @@ import {resolveIcon} from '../icon-registry.ts';
 import {CAUSE_ROLES} from '../toc.ts';
 import {ftaIds, ftaResolve, ftaSinglePoints, ftaQuant} from '../fta.ts';
 import {coreDrivers, reachCounts} from '../toc-analysis.ts';
+import {bowtieCheck} from '../bowtie.ts';
 import {whyWhyTreeFindings} from '../rca-rules.ts';
 import {criticalPath, exact} from '../qc.ts';
 import type {ArrowActivity} from '../qc.ts';
 import type {GroupBand, RowBand, GroupRowBand} from '../types/containers.ts';
-import type {WhyNode, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, FtaBand, FtaEvent, FtaOpts, CauseLink, CauseNode, CauseRole, CauseOpts, CloudBand, CloudBox, CloudOpts, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow} from '../types/diagrams.ts';
+import type {BowtieBand, BowtieInput, BowtieOpts, BowtieSide, WhyNode, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, CauseBand, FtaBand, FtaEvent, FtaOpts, CauseLink, CauseNode, CauseRole, CauseOpts, CloudBand, CloudBox, CloudOpts, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow} from '../types/diagrams.ts';
 import type {Band} from '../types/index.ts';
 import type {CaptionBand} from '../types/text-bands.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
@@ -152,7 +153,7 @@ export function transitionUnits(units: readonly TransitionUnit[]): {nodes: Cause
   return {nodes, links};
 }
 /** causeTree's body; pdpc() and relationDiagram() pass `base: 'down'` (their direction when `dir` is left out, from which they may also turn to 'right' to fit). */
-function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opts: CauseOpts, base?: 'down'): CauseBand {
+function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opts: CauseOpts, base?: 'down', unanchored: readonly string[] = []): CauseBand {
   if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('causeTree(nodes, links) needs at least one node');
   if (!Array.isArray(links)) throw new Error('causeTree(nodes, links): links must be an array');
   if (opts.dir !== undefined && !['up', 'down', 'right', 'left', 'auto'].includes(opts.dir)) throw new Error(`causeTree(): dir must be 'up', 'down', 'right', 'left' or 'auto' (got ${String(opts.dir)})`);
@@ -184,7 +185,8 @@ function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opt
   const counted = opts.coreDriver ? reachCounts(nodes, links) : undefined, core = new Set(counted ? coreDrivers(counted) : []);
   const marked = counted ? noted.map(n => !counted.has(n.id) || n.role === 'trim' ? n : {...n, ...(core.has(n.id) ? {core: true} : {}), ...(opts.counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}到達 UDE ${counted.get(n.id)}`})}) : noted;
   const band: CauseBand = {type: 'cause', nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? (base === undefined ? {} : {dir: base, dirLeftOut: true as const}) : {dir: opts.dir}), ...(base === undefined ? {} : {base}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.tree === undefined ? {} : {tree: opts.tree}), ...(opts.mirrors === undefined ? {} : {mirrorOf: {ids: opts.mirrors.nodes.map(n => n.id), udes: opts.mirrors.nodes.filter(n => n.role === 'ude').map(n => n.id)}}), ...(opts.layer === undefined ? {} : {layer: opts.layer}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.hop === undefined ? {} : {hop: opts.hop}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.fold === undefined || base !== undefined ? {} : {fold: opts.fold}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'causeTree()'), ...revealOf(opts)};
-  return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
+  if (unanchored.length) band.unanchored = [...unanchored];
+  return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id).filter(id => !unanchored.includes(id)));
 }
 export interface WhyWhyTreeOpts extends Pick<CauseOpts, 'id' | 'maxNodeW' | 'reveal' | 'until' | 'scope'> {
   /** Leave out the lines under the tree that say how to read it (default: they are there). */
@@ -198,6 +200,7 @@ export interface WhyWhyTreeOpts extends Pick<CauseOpts, 'id' | 'maxNodeW' | 'rev
  *     {why: '影響範囲が広かった', because: [{why: '検証が最後に集中していた', trueCause: true, measure: '結合テストを毎週回す'}]},
  *     {why: '不具合の発見が遅かった'}]}])
  */
+export function whyWhyTree<const Id extends string>(problem: string, whys: readonly WhyNode[], opts: WhyWhyTreeOpts & {id: Id}): [CauseBand & Declares<Id | `${Id}.problem` | `${Id}.w${string}`> & HandleOf<Id>, ...CaptionBand[]];
 export function whyWhyTree(problem: string, whys: readonly WhyNode[], opts?: WhyWhyTreeOpts): (CauseBand | CaptionBand)[];
 export function whyWhyTree(problem: string, whys: readonly WhyNode[], opts: WhyWhyTreeOpts = {}): (CauseBand | CaptionBand)[] {
   if (typeof problem !== 'string' || !problem.trim()) throw new Error('whyWhyTree(problem, whys) needs the problem as text');
@@ -205,7 +208,7 @@ export function whyWhyTree(problem: string, whys: readonly WhyNode[], opts: WhyW
   if (opts.readingNote !== undefined && typeof opts.readingNote !== 'boolean') throw new Error(`whyWhyTree(): readingNote is true or false (got ${String(opts.readingNote)})`);
   const prefix = opts.id === undefined ? '' : `${opts.id}.`, nodes: CauseNode[] = [], links: CauseLink[] = [], seen = new Set<string>();
   const add = (n: CauseNode): void => {
-    if (seen.has(n.id)) throw new Error(`whyWhyTree(): the id "${n.id}" is used twice`);
+    if (seen.has(n.id)) throw new Error(`whyWhyTree(): the id "${n.id}" is used twice${/(^|\.)(problem|w\d[\d.]*(\.m)?)$/.test(n.id) ? ' (problem, w1, w1.1, w1.m ... are the names the tree gives its own entities: write another id)' : ''}`);
     seen.add(n.id); nodes.push(n);
   };
   const problemId = `${prefix}problem`;
@@ -226,18 +229,34 @@ export function whyWhyTree(problem: string, whys: readonly WhyNode[], opts: WhyW
     (n.because ?? []).forEach((c, i) => walk(c, `${path}.${i + 1}`, id));
   };
   whys.forEach((w, i) => walk(w, String(i + 1), problemId));
-  const band = causeBand(nodes, links, {dir: 'auto', ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...revealOf(opts), ...scopeOpt(opts, 'whyWhyTree()')});
-  band.layerFrom = 'effect';
-  if (opts.id === undefined) band.unanchored = nodes.filter(n => !userIds(whys).has(n.id)).map(n => n.id);
+  const own = userIds(whys), unanchored = opts.id === undefined ? nodes.filter(n => !own.has(n.id)).map(n => n.id) : [];
+  const band = causeBand(nodes, links, {dir: 'auto', fold: false, ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...revealOf(opts), ...scopeOpt(opts, 'whyWhyTree()')}, undefined, unanchored);
+  band.layerFrom = 'effect'; // fold: false above: a layer cut into rows would put one "why n" on two levels
   band.rca = {kind: 'whywhy-tree', findings: whyWhyTreeFindings(whys)};
   if (opts.readingNote === false) return [band];
-  const notes = [caption('矢印は原因 → 結果。「なぜ?」は矢印をさかのぼって（下へ）読む')];
-  if (nodes.some(n => n.role === 'measure')) notes.push(caption('対策（破線の棒）は真因に打つ手で、なぜの答えではない'));
+  const notes = [caption('矢印は原因 → 結果。「なぜ?」は矢印をさかのぼって（下へ）読む', revealOf(opts))];
+  if (nodes.some(n => n.role === 'measure')) notes.push(caption('対策（破線の棒）は真因に打つ手で、なぜの答えではない', revealOf(opts)));
   return [band, ...notes];
 }
 function userIds(whys: readonly WhyNode[], out = new Set<string>()): Set<string> {
   for (const w of whys) { if (w.id !== undefined) out.add(w.id); userIds(w.because ?? [], out); }
   return out;
+}
+/**
+ * A bow-tie diagram (ボウタイ図): the top event (the loss of control) in the middle under its hazard; threats on the left, each through the
+ * preventive barriers that stand between it and the top event; consequences on the right, each through the mitigating barriers. The flow
+ * runs left to right. `maxNodeW` as for faultTree(): left out, a figure wider than the diagram is narrowed with a warning.
+ *   bowtie({hazard: '顧客データ', top: '個人情報の漏えい',
+ *           threats: [{label: '不正アクセス', barriers: ['多要素認証', 'アクセス制限']}, {label: '誤送信', barriers: ['送信前の確認']}],
+ *           consequences: [{label: '信用の低下', barriers: ['広報対応']}, {label: '賠償', barriers: ['保険']}]})
+ */
+export function bowtie<const Id extends string = never>(input: BowtieInput, opts?: BowtieOpts & {id?: Id}): BowtieBand & Declares<Id> & HandleOf<Id>;
+export function bowtie(input: BowtieInput, opts: BowtieOpts = {}): BowtieBand {
+  bowtieCheck(input);
+  if (opts.maxNodeW !== undefined && opts.maxNodeW !== 'auto' && !(typeof opts.maxNodeW === 'number' && Number.isFinite(opts.maxNodeW) && opts.maxNodeW >= 80)) throw new Error(`bowtie(): maxNodeW must be a number >= 80 or 'auto' (got ${String(opts.maxNodeW)})`);
+  const side = (s: BowtieSide): BowtieSide => ({label: s.label, ...(s.barriers === undefined ? {} : {barriers: [...s.barriers]})});
+  const band: BowtieBand = {type: 'bowtie', ...(input.hazard === undefined ? {} : {hazard: input.hazard}), event: input.top, threats: input.threats.map(side), consequences: input.consequences.map(side), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'bowtie()'), ...revealOf(opts)};
+  return withHandle(band, opts.id);
 }
 export interface ArrowDiagramOpts extends Omit<StatesOpts, 'initial' | 'dir'> {
   /** 'right' (default): the network runs left to right; 'down': top to bottom, for a long chain of events that does not fit the width. */
