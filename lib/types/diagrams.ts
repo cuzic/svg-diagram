@@ -191,16 +191,16 @@ export interface CauseBand extends CauseOpts {
 /** An answer to "なぜ?" in whyWhyTree(): what explains the node above it. `trueCause: true` marks the root cause; `measure` is what is done about it. */
 export interface WhyNode {id?: string; why: string; because?: readonly WhyNode[]; trueCause?: true; measure?: string}
 /** A threat or a consequence of a bow-tie, with the barriers between it and the top event, in the order the flow meets them. */
-export interface BowtieSide {label: string; barriers?: string[]}
+export interface BowtieSide {label: string; barriers?: readonly string[]}
 export interface BowtieInput {
   /** What is controlled whose loss the top event is (drawn above the top event). */
   hazard?: string;
   /** The top event: the loss of control. (The band keeps it as `event`: a band with an id has the handle `.top`.) */
   top: string;
   /** Left of the top event: each with its preventive barriers, in the order the threat meets them. */
-  threats: BowtieSide[];
+  threats: readonly BowtieSide[];
   /** Right of the top event: each with its mitigating barriers. */
-  consequences: BowtieSide[];
+  consequences: readonly BowtieSide[];
 }
 export interface BowtieOpts extends RevealOpts, ScopeOpts {
   /** The widest a box grows (default 200). Left out, it is narrowed (to 110) when the figure is wider than the diagram (a warning); 'auto' does the same as a note; a number is never narrowed. */
@@ -211,8 +211,8 @@ export interface BowtieBand extends BowtieOpts {
   type: 'bowtie';
   hazard?: string;
   event: string;
-  threats: BowtieSide[];
-  consequences: BowtieSide[];
+  threats: readonly BowtieSide[];
+  consequences: readonly BowtieSide[];
 }
 export type BowtieRole = 'hazard' | 'threat' | 'barrier' | 'event' | 'consequence';
 export interface LaidOutBowtie extends Rect, Dimmed {

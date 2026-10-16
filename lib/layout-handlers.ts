@@ -69,7 +69,8 @@ function placedBand<B extends Band & {id?: string}, P extends LaidOutBand & Rect
     const scope = scopeOf(band); // ADR 0012: the band's items are registered as `scope.id`; the band's own output keeps its bare ids, and says which scope they belong to
     if (scope) (placed as unknown as {scope: string}).scope = scope;
     if (band.id) ctx.register(band.id, rectOf(placed), say(what, band));
-    if (anchorWhat !== undefined) for (const a of (placed as unknown as {anchors: (Rect & {id: string})[]}).anchors) ctx.register(a.id, rectOf(a), say(anchorWhat, band), scope);
+    const unanchored = (band as {unanchored?: readonly string[]}).unanchored; // whyWhyTree(): entities the maker named itself are not names the author can use
+    if (anchorWhat !== undefined) for (const a of (placed as unknown as {anchors: (Rect & {id: string})[]}).anchors) if (!unanchored?.includes(a.id)) ctx.register(a.id, rectOf(a), say(anchorWhat, band), scope);
     ctx.laidOut.push(placed);
     ctx.y += placed.h + ctx.d.gap;
   };

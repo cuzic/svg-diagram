@@ -215,7 +215,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   for (const n of band.nodes) {
     const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
     out.nodes.push({...r, tone: n.tone ?? role.tone, ...(role.double ? {double: true} : {}), ...(role.dashed ? {dashed: true} : {}), ...(n.core ? {core: true} : {}), ...(n.role === 'obstacle' || n.role === 'risk' ? {hex: true} : {})});
-    if (!band.unanchored?.includes(n.id)) out.anchors.push({id: n.id, ...r});
+    out.anchors.push({id: n.id, ...r}); // all of them: verify and connect() routing read this list (an unanchored entity is only left out of the registry, by placedBand)
     const l = lines.get(n.id)!;
     out.texts.push(...nodeRuns({x: r.x + (r.w - l.w) / 2, y: r.y + (r.h - l.h) / 2, w: l.w}, l, roles));
     out.labelBoxes.push({label: n.label, ...r});

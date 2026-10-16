@@ -86,3 +86,26 @@ test('rca: a threat or a consequence with no barrier; info by default, warn unde
   assert.equal(ok.verdict.problems.length, 0, ok.verdict.problems.join('\n'));
   assert.deepEqual(ok.verdict.findings.filter(x => x.severity === 'warn'), []);
 });
+
+test('rows keep their gap, a side with fewer rows is spread over the same height, consequences end at the right edge, a row near the top event runs straight into it', async () => {
+  const {t} = await laid(bowtie(INPUT, {maxNodeW: 'auto'}));
+  const cons = ['信用の低下', '賠償', '行政処分'].map(l => boxOf(t, l)), right = Math.max(...cons.map(c => c.x + c.w));
+  assert.ok(cons.every(c => Math.abs(c.x + c.w - right) < 0.5), 'every consequence ends at the same right edge');
+  const gaps = cons.slice(1).map((c, i) => c.y - (cons[i].y + cons[i].h));
+  assert.ok(Math.abs(gaps[0] - gaps[1]) < 6 && gaps.every(g => g >= 19), 'the three rows are one ROW_GAP apart (at least)');
+  const a = boxOf(t, '不正アクセス'), b = boxOf(t, '誤送信');
+  assert.ok(b.y - (a.y + a.h) > gaps[0], 'two rows are spread wider than three');
+});
+
+test('a top event of more than three lines throws; without a hazard the knot is the first thing over the top event', async () => {
+  await assert.rejects(() => laid(bowtie({...INPUT, top: 'とても長い頂上事象の説明。'.repeat(12)}, {maxNodeW: 'auto'})), /more than 3 lines/);
+  const {t} = await laid(bowtie({top: INPUT.top, threats: INPUT.threats, consequences: INPUT.consequences}, {maxNodeW: 'auto'}));
+  const top = boxOf(t, INPUT.top);
+  assert.ok(t.knot.cy < top.y && t.knot.cy - t.knot.r >= t.y - 0.5);
+});
+
+test('spotlight dims the whole bow-tie; a bow-tie inside a group still gets its rule', async () => {
+  const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue', title: 'x'}).add(bowtie({top: 't', threats: [{label: 'a'}], consequences: [{label: 'b', barriers: ['m']}]}, {id: 'bt'})));
+  assert.ok(laidOut.laidOut.some(b => b.type === 'bowtie'));
+  assert.ok(verdict.findings.some(f => f.rule === 'bowtie-barrier-missing'));
+});

@@ -27,7 +27,7 @@ export function bowtieCheck(input: BowtieInput): void {
   }
 }
 
-const sideTexts = (list: BowtieSide[]): string[] => list.flatMap(s => [s.label, ...(s.barriers ?? [])]);
+const sideTexts = (list: readonly BowtieSide[]): string[] => list.flatMap(s => [s.label, ...(s.barriers ?? [])]);
 export function bowtieTextList(band: Pick<BowtieBand, 'hazard' | 'event' | 'threats' | 'consequences'>): string[] {
   return [...(band.hazard ? [band.hazard] : []), band.event, ...sideTexts(band.threats), ...sideTexts(band.consequences)];
 }
@@ -77,38 +77,42 @@ interface Placed {x: number; y: number; w: number; h: number; role: BowtieRole; 
 function place(band: BowtieBand, maxW: number, widthOf: WidthOf, roles: Roles) {
   const measure = (label: string, role: BowtieRole, cap = maxW): Item => ({role, label, lines: measureNode(label, undefined, cap, widthOf, roles)});
   const left = band.threats.map(t => [measure(t.label, 'threat'), ...(t.barriers ?? []).map(b => measure(b, 'barrier'))]);
-  const right = band.consequences.map(c => [...(c.barriers ?? []).map(b => measure(b, 'barrier')), measure(c.label, 'consequence')]);
-  const top = measure(band.event, 'event', Math.max(maxW, TOP_MIN_W + 40));
+  const right = band.consequences.map(c => ({barriers: (c.barriers ?? []).map(b => measure(b, 'barrier')), end: measure(c.label, 'consequence')}));
+  const wide = Math.max(maxW, TOP_MIN_W + 40); // the top event and its hazard do not narrow with the barriers
+  const top = measure(band.event, 'event', wide);
   if (top.lines.label.length > TOP_MAX_LINES) throw new Error(`bowtie(): the top event "${band.event}" takes more than ${TOP_MAX_LINES} lines; shorten it`);
-  const hazard = band.hazard ? measure(band.hazard, 'hazard', Math.max(maxW, TOP_MIN_W + 40)) : undefined;
+  const hazard = band.hazard ? measure(band.hazard, 'hazard', wide) : undefined;
   const topW = Math.max(TOP_MIN_W, top.lines.w, hazard?.lines.w ?? 0);
-  // column widths: the k-th item of every row on a side shares one width, so the columns line up
+  // column widths: the k-th item of every row on a side shares one width, so the columns line up; a consequence has its own, last column
   const widths = (rows: Item[][]): number[] => Array.from({length: Math.max(...rows.map(r => r.length))}, (_, k) => Math.max(...rows.map(r => r[k]?.lines.w ?? 0)));
-  const lw = widths(left), rw = widths(right);
-  const leftW = lw.reduce((a, b) => a + b, 0) + COL_GAP * (lw.length - 1), rightW = rw.reduce((a, b) => a + b, 0) + COL_GAP * (rw.length - 1);
+  const lw = widths(left), rw = widths(right.map(r => r.barriers)), endW = Math.max(...right.map(r => r.end.lines.w));
+  const leftW = lw.reduce((a, b) => a + b, 0) + COL_GAP * (lw.length - 1);
+  const rightW = rw.reduce((a, b) => a + b + COL_GAP, 0) + endW;
   const totalW = leftW + BUS_GAP + topW + BUS_GAP + rightW;
-  const rowH = (rows: Item[][]): number => Math.max(...rows.flat().map(i => i.lines.h));
-  const slotL = rowH(left) + ROW_GAP, slotR = rowH(right) + ROW_GAP;
+  const rowH = (items: Item[]): number => Math.max(...items.map(i => i.lines.h));
+  const rowHL = Math.max(...left.map(rowH)), rowHR = Math.max(...right.map(r => rowH([...r.barriers, r.end])));
   const stackH = (hazard ? hazard.lines.h + STEM : 0) + 2 * KNOT_R + STEM + top.lines.h;
-  const H = Math.max(left.length * slotL, right.length * slotR, stackH + ROW_GAP) - ROW_GAP;
+  const sideH = (n: number, h: number): number => n * h + (n - 1) * ROW_GAP;
+  const H = Math.max(sideH(left.length, rowHL), sideH(right.length, rowHR), stackH);
+  // the centre of row i of n: the side with the most rows keeps ROW_GAP between its rows; a side with fewer is spread over the same height
+  const centre = (i: number, n: number, h: number): number => n > 1 ? h / 2 + i * (H - h) / (n - 1) : H / 2;
   const nodes: Placed[] = [], edges: {points: {x: number; y: number}[]; arrow: boolean}[] = [];
-  const topX = leftW + BUS_GAP, stackTop = (H - stackH) / 2;
-  const cursor = stackTop;
-  let cy0 = cursor;
+  const topX = leftW + BUS_GAP;
+  let cy0 = (H - stackH) / 2;
   if (hazard) { nodes.push({x: topX + (topW - hazard.lines.w) / 2, y: cy0, w: hazard.lines.w, h: hazard.lines.h, role: 'hazard', label: hazard.label, lines: hazard.lines}); cy0 += hazard.lines.h + STEM; }
   const knot = {cx: topX + topW / 2, cy: cy0 + KNOT_R};
   cy0 += 2 * KNOT_R + STEM;
-  const topRect: Placed = {x: topX + (topW - top.lines.w) / 2, y: cy0, w: Math.max(top.lines.w, topW), h: top.lines.h, role: 'event', label: top.label, lines: top.lines};
-  topRect.x = topX; topRect.w = topW;
+  const topRect: Placed = {x: topX, y: cy0, w: topW, h: top.lines.h, role: 'event', label: top.label, lines: top.lines};
   nodes.push(topRect);
   const yk = topRect.y + topRect.h / 2;
-  // the stem from the hazard to the knot, and from the knot to the box
-  const mx = knot.cx;
-  if (hazard) edges.push({points: [{x: mx, y: nodes[0].y + nodes[0].h}, {x: mx, y: knot.cy - KNOT_R}], arrow: false});
-  edges.push({points: [{x: mx, y: knot.cy + KNOT_R}, {x: mx, y: topRect.y}], arrow: false});
+  // a row within a few px of the top event's centre runs straight into it (not with a jog of 2 to 8px at the bus)
+  const entry = (cy: number): number => Math.abs(cy - yk) <= 12 ? cy : yk;
+  if (hazard) edges.push({points: [{x: knot.cx, y: nodes[0].y + nodes[0].h}, {x: knot.cx, y: knot.cy - KNOT_R}], arrow: false});
+  edges.push({points: [{x: knot.cx, y: knot.cy + KNOT_R}, {x: knot.cx, y: topRect.y}], arrow: false});
+  const dedupe = (pts: {x: number; y: number}[]) => pts.filter((q, j, a) => j === 0 || q.x !== a[j - 1].x || q.y !== a[j - 1].y);
   const busL = leftW + BUS_GAP / 2, busR = topX + topW + BUS_GAP / 2;
   left.forEach((row, i) => {
-    const cy = (H * (i + 0.5)) / left.length;
+    const cy = centre(i, left.length, rowHL);
     let px = 0, prev: Placed | undefined;
     row.forEach((it, k) => {
       const p: Placed = {x: px, y: cy - it.lines.h / 2, w: lw[k], h: it.lines.h, role: it.role, label: it.label, lines: it.lines};
@@ -116,19 +120,21 @@ function place(band: BowtieBand, maxW: number, widthOf: WidthOf, roles: Roles) {
       if (prev) edges.push({points: [{x: prev.x + prev.w, y: cy}, {x: p.x, y: cy}], arrow: true});
       prev = p; px += lw[k] + COL_GAP;
     });
-    const end = prev as Placed;
-    edges.push({points: [{x: end.x + end.w, y: cy}, {x: busL, y: cy}, {x: busL, y: yk}, {x: topX, y: yk}].filter((q, j, a) => j === 0 || q.x !== a[j - 1].x || q.y !== a[j - 1].y), arrow: true});
+    const end = prev as Placed, ye = entry(cy);
+    edges.push({points: dedupe([{x: end.x + end.w, y: cy}, {x: busL, y: cy}, {x: busL, y: ye}, {x: topX, y: ye}]), arrow: true});
   });
   right.forEach((row, i) => {
-    const cy = (H * (i + 0.5)) / right.length;
+    const cy = centre(i, right.length, rowHR);
     let px = topX + topW + BUS_GAP, prev: Placed | undefined;
-    row.forEach((it, k) => {
-      const p: Placed = {x: px, y: cy - it.lines.h / 2, w: rw[k], h: it.lines.h, role: it.role, label: it.label, lines: it.lines};
+    const put = (it: Item, w: number, x: number): Placed => {
+      const p: Placed = {x, y: cy - it.lines.h / 2, w, h: it.lines.h, role: it.role, label: it.label, lines: it.lines};
       nodes.push(p);
       if (prev) edges.push({points: [{x: prev.x + prev.w, y: cy}, {x: p.x, y: cy}], arrow: true});
-      else edges.push({points: [{x: topX + topW, y: yk}, {x: busR, y: yk}, {x: busR, y: cy}, {x: p.x, y: cy}].filter((q, j, a) => j === 0 || q.x !== a[j - 1].x || q.y !== a[j - 1].y), arrow: true});
-      prev = p; px += rw[k] + COL_GAP;
-    });
+      else { const ye = entry(cy); edges.push({points: dedupe([{x: topX + topW, y: ye}, {x: busR, y: ye}, {x: busR, y: cy}, {x: p.x, y: cy}]), arrow: true}); }
+      return p;
+    };
+    row.barriers.forEach((it, k) => { prev = put(it, rw[k], px); px += rw[k] + COL_GAP; });
+    put(row.end, endW, totalW - endW); // every consequence in the last column, at the right edge
   });
   return {w: totalW, h: H, nodes, edges, knot};
 }
