@@ -198,7 +198,7 @@ row([
 ])
 ```
 
-**数字の出典と根拠の強さ**: `stat(value, label, {source, confidence})` は、箱の 3 行目に `出典: <source>  ◎ 一次資料` を足す（14px・muted・中央。`solid` / `accent` の箱では色を付けず箱の文字色）。`confidence` は `'primary'`（◎ 一次資料）/ `'secondary'`（○ 報道・二次資料）/ `'unverified'`（△ 未確認）で、記号と語で伝え、色は使わない（ラベルの差し替えは不可）。`source` は必須で、`confidence` だけを書く・`source` が空や複数行だと throw。`hero({stat: {...}})` でも同じオプションが使える。箱の高さは 3 行目のぶん増え、出典が長いと箱の中で折り返す（長い出典は本文へ）。縮小（上）の対象は値だけで、3 行目は縮めない。`source` を書かない `stat` の出力は変わらない。
+**数字の出典と根拠の強さ**: `stat(value, label, {source, confidence})` は、箱の 3 行目に `出典: <source>  ◎ 一次資料` を足す（14px・muted・中央。`solid` / `accent` の箱では色を付けず箱の文字色）。`confidence` は `'primary'`（◎ 一次資料）/ `'secondary'`（○ 報道・二次資料）/ `'unverified'`（△ 未確認）で、記号と語で伝え、色は使わない（ラベルの差し替えは不可）。`source` は必須で、`confidence` だけを書く・`source` が空や複数行だと throw。`hero({stat: {...}})` でも同じオプションが使える。箱の高さは 3 行目のぶん増え、出典が長いと箱の中で折り返す（長い出典は本文へ）。縮小（上）の対象は値だけで、3 行目は縮めない。`source` を書かない `stat` の出力は変わらない。　記号（◎ ○ △）の意味を図に書かない運用なら、`confidenceStyle: 'text'` で記号なしの語だけ（`一次資料`）にするか、`confidenceLabels: {primary: '一次資料（公的統計）'}` で文言を差し替える。多くの `stat()` に同じ指定をするなら、`const s = (v, l, o) => stat(v, l, {confidenceStyle: 'text', ...o})` のような自作の関数に包む。
 `diagram({evidenceCheck: 'info' | 'strict'})` を書いた図だけ、`source` の無い `stat`（`row` / `hero` の中も）ごとに `stat-no-source`（`数字 76% に出典がない`）を出す。`'strict'` で warn（`check --strict` で落とすならこちら）。書かなければ検査は出ない。描画は変わらない。許容する数字は `accept: {'stat-no-source': '理由'}`。`.svg-diagram.json` での既定は未実装。
 
 `bars(data, opts)` は横棒（既定）、縦棒（`dir: 'v'`）、積み上げ（`stack: true`）を描く。`series` は `a | b | c` で、それぞれ accent / text / muted。棒ごとに `tone: 'accent' | 'danger' | 'muted'` も選べる（`danger` が赤。`series` とは併用できない。`examples/spotlight-dim-fill.ts`）。`max` を省くと通常は最大値、積み上げでは合計値になる。値ラベルは必ず描かれ、`unit` は値の後ろに付く。各項目の `id` は `connect()` のアンカーとして使える。

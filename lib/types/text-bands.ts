@@ -129,6 +129,10 @@ export interface StatOpts extends Pick<BoxChrome, 'id' | 'flex' | 'width' | 'col
   source?: string;
   /** How strong the source is: 'primary' ◎ 一次資料 / 'secondary' ○ 報道・二次資料 / 'unverified' △ 未確認. Needs `source`. */
   confidence?: StatConfidence;
+  /** How the confidence is printed: 'symbol' (default, `◎ 一次資料`) or 'text' (the word only, `一次資料`: no symbol to explain, none to be cut at a line end). */
+  confidenceStyle?: 'symbol' | 'text';
+  /** The printed text of a confidence, replacing the default for this stat (`{primary: '一次資料（公的統計）'}`); `confidenceStyle` does not apply to a text written here. */
+  confidenceLabels?: Partial<Record<StatConfidence, string>>;
 }
 export interface BannerStyleOpts extends BoxChrome {
   headlineTone?: TextTone;
