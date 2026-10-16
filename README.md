@@ -765,6 +765,8 @@ const s = steps([{title: '1回目', body: '原因は不明'}, {title: '4回目',
 
 `numbered: true` で各タイトルに番号バッジ、`highlight: n` で n 番目だけを強調（`highlightTone` は既定 `'danger'`、`'accent'` も可）。矢印は既定で付く（`arrows: false` で外す）。項目は `{title, body?, icon?, tag?, tagTone?, tone?}`（`icon` は `box({icon})` と同じ）。返るのは `row()` なので、`s.col(2).left` のように端点にできる。例は `examples/steps.ts`。
 
+**戻る線・飛ばす線**: `steps` / `chevron` / `row` の箱から**前の箱へ戻る**線（「差し戻し」「繰り返す」）は、`connect('s#4:bottom', 's#2:bottom', {route: 'loop-under', label: '差し戻し'})` と書く。線は箱の下をコの字に回るので、途中の箱を貫かない。`straight` / `elbow` のままだと、途中の箱と重なって build が止まる（`path overlaps`）。戻りを複数書くときは、`dip` で高さをずらす（同じ高さの戻りが重なっても、`4→2` と `3→1` のように交差しても、いまの検査は止めないので、仕上がりを目で確かめる）。
+
 ### 注釈のコネクタ（`bracket` / `callout`）
 
 - `bracket(a.left, b.right, {label, side: 'below' | 'above'})` は、2 つの箱（行の列でも可）の下（`above` なら上）に、左の端点の x から右の端点の x まで括弧を引き、ラベルを括弧の外に書く。下に付けるときは、括弧とラベルの分の高さを空ける。`connect(arrow: 'none', line: 'dotted')` を 2 本引く代わり。

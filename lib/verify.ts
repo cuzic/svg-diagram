@@ -67,7 +67,7 @@ function checkConnects(d: LaidOutDiagram, rects: CheckRect[]): string[] {
       }
       for (const seg of c.pathSegments) {
         const pathHit = rectOverlap(seg, r);
-        if (pathHit) problems.push(`${who} path overlaps "${r.label}" by ${Math.round(pathHit.dx)}x${Math.round(pathHit.dy)}px`);
+        if (pathHit) problems.push(`${who} path overlaps "${r.label}" by ${Math.round(pathHit.dx)}x${Math.round(pathHit.dy)}px${c.route === 'loop-under' ? '' : " (a line back to an earlier box, or past a box in a row of steps / chevrons: route: 'loop-under' runs it under the boxes)"}`);
       }
       if (c.labelBox) {
         const labelHit = rectOverlap(c.labelBox, r);
