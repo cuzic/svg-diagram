@@ -160,6 +160,7 @@ export const REVEAL_HANDLERS = {
   image: {stage: true, visit: revealImage},
   timeline: plain,
   bpmn: plain,
+  fta: plain,
   classes: plain,
   gantt: plain,
   cause: plain,

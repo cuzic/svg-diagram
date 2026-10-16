@@ -81,6 +81,10 @@ export interface LegendItem {
   edge?: 'and' | 'back' | 'blocks';
   /** A cause-tree mark sample: 'core' = the thick frame of the core driver. */
   mark?: 'core';
+  /** A fault-tree event symbol sample (circle, diamond, house, ellipse). legend: 'auto' writes these for a faultTree(). */
+  ftaEvent?: 'basic' | 'undeveloped' | 'house' | 'condition';
+  /** A fault-tree gate symbol sample. */
+  ftaGate?: 'and' | 'or' | 'vote' | 'inhibit';
 }
 export interface LegendOpts {align?: 'left' | 'center'}
 export interface LegendBand {

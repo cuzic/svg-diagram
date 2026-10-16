@@ -132,6 +132,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | gantt(rows, {from, to, today, id}) | ガントチャート。行は、タスク `{label, start, end｜days, id?, progress?, after?, tone?, milestone?}` と、見出し `{section}`。日付は `'YYYY-MM-DD'`（`end` はその日を含む。`'2026-10'` のような略記は止まる）。軸・目盛り・今日の線・依存の矢印・進捗は自動。詳細は下の「ガントチャート（`gantt`）」 |
 | classDiagram(classes, relations, {dir, id}) | UML クラス図。クラス `{id, name?, stereotype?, abstract?, attrs?, methods?, tone?}` と関係 `{from, to, kind?, label?, fromMult?, toMult?}`。親が上になる層に自動配置し、矢印の端の記号は `kind` で決まる。詳細は下の「クラス図（`classDiagram`）」 |
 | bpmn(lanes, nodes, flows, {id, fit}) | BPMN 風の業務フロー。レーン（担当）に、タスク・開始/終了イベント・ゲートウェイ（排他 `xor`・並行 `and`・包括 `or`）を置き、矢印で結ぶ。列は流れから、行はレーンから決まる。破線は、レーンをまたぐメッセージ。詳細は下の「業務フロー（`bpmn`）」 |
+| faultTree(top, {id, maxNodeW, cutSets, quant, quantPeriod}) | 故障の木（FTA）。頂上事象から、ゲート（`and` / `or` / `vote`（`k`）/ `inhibit`（`condition`））で原因をたどり、基本事象（円）・未展開（ひし形）・家（`state`）で終わる。`inhibit` の `condition` は楕円（条件事象）。事象の文は矩形、記号はその下。同じ基本事象は `{ref: id}` で描き直す（線は飛ばさない）。線に矢じりは無い（下へ読む）。幅が足りないとき `maxNodeW` を省略すると縮めて警告、`'auto'` なら注、数値なら縮めず止まる。`ref` は葉の事象だけ。`cutSets: true` は単独で頂上を起こす事象（大きさ 1 の最小カットセット）に太枠とバッジ（基本事象は「単一故障点」、未展開は「未展開・単独で頂上へ」）。カットセットが多すぎる木（途中 5000 超）は止まる。`quant: true` は各葉の `p`（0〜1、ある期間の確率。家形以外の葉はすべて必須。ゲートのある事象と家形には書けない）から頂上の確率を求め、注に書く（`quantPeriod: '1 年間'` で期間も）。独立を仮定し、`ref` で共有した事象は場合分けで厳密に、共有が 12 個を超えると min-cut upper bound の上限（概算）。頻度（/年）は扱わない。`diagram({legend: 'auto'})` は使った事象と**ゲートの記号**の凡例を足す（`legend([{ftaEvent: 'basic', label}, {ftaGate: 'and', label}])` も可）。例は `examples/fta.ts` |
 | pareto(items, {top, other, guide, highlight, unit}) | パレート図（QC 七つ道具）。項目 `{label, value}` を大きい順の棒にし、右の 0〜100% の軸に累積比率の折れ線。80% に届くまでの項目だけ色が付く。詳細は下の「QC 七つ道具と新 QC 七つ道具」 |
 | histogram(values, {bins, width, lsl, usl, target, normal}) | ヒストグラム。測定値をそのまま渡す。区間の幅は切りのよい数、棒は接し、区間の境目が下に付く。規格の上下限・平均・正規分布の曲線 |
 | scatter(points, {x, y, regression}) | 散布図。軸は点に合わせて自動。`group` で層別（色と形が変わる）、`regression: true` で回帰直線と相関係数 r（`plane` を返す） |
@@ -1134,7 +1135,9 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
   - `prt`: `toc-prt-bottom-not-action`（中間目標の鎖の底、つまり入る辺に `io` が無い `io` に、`action` がつながっていない。障害は入る辺の無い節で書くことが多いので、「入る辺が無い節」では見ない）、`toc-prt-one-to-one`（`io` が 2 つ以上で、障害と中間目標が全部 1 対 1 だけ）、`toc-obstacle-phrase`（障害のラベルが「ない」「無い」「不足」で終わる。末尾の句読点・閉じ括弧は除く。**常に info**で、`tocCheck: 'strict'` でも warn にならない。日本語の文末の判定なので偽陽性は `accept` で外す）。
   - `frt` + `mirrors`: `toc-mirror`（`mirrors` の id が UDE でない・UDE に対応する望む結果が無い・同じ UDE を複数が `mirrors` している、の 3 つを 1 つの規則で。部分図は `accept` で理由を書く）。
 
-- **原因分析の図の検査の重大度**（`diagram({rcaCheck: 'strict'})`）: 故障の木・IS/IS NOT・なぜなぜ・ボウタイの検査（ADR 0025 / 0026）を warn にする。既定は info。`tocCheck` / `layoutCheck` とは別に指定でき、絵は変わらない。検査そのものは各図の実装で足す（今は枠だけ）。
+- **原因分析の図の検査の重大度**（`diagram({rcaCheck: 'strict'})`）: 故障の木・IS/IS NOT・なぜなぜ・ボウタイの検査（ADR 0025 / 0026）を warn にする。既定は info。`tocCheck` / `layoutCheck` とは別に指定でき、絵は変わらない。検査そのものは各図の実装で足す（今は故障の木の 5 規則だけ）。
+  - 故障の木: `fta-gate-one-input`（AND / OR / vote の入力が 1 つ）、`fta-vote-degenerate`（k が 1 か入力の数。OR / AND と同じ）、`fta-top-is-leaf`（頂上にゲートが無い）、`fta-undeveloped-left`（展開していない事象が残っている。常に info）、`fta-single-point`（単独で頂上を起こす事象がある。常に info）。
+
 ## 表記・数値の整合と差分だけの検査（`check`）
 - **表記の揺れ**（`term-variant`）: 1 つの図の中で、同じ語が `ユーザ` / `ユーザー`（末尾の長音）や `API` / `Api`（大文字・大小混在）のように揺れていると警告する。`Server` と `server` のような文頭の大文字だけの差、数字や `-` `_` を含む ID は見ない。
 - **用語集**（`term-avoid`）: `.svg-diagram.json`（または `diagram({terms})`）に `"terms": {"ユーザー": ["利用者", "ユザー"]}` と書くと、右の語が図に出たとき「ユーザーに統一」と警告する（用語集が決めている揺れは `term-variant` で二重に出さない）。

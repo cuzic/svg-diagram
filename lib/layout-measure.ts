@@ -21,6 +21,7 @@ import {ganttTexts} from './gantt.ts';
 import {statusTexts, withStatus} from './status.ts';
 import {classesTexts} from './classes.ts';
 import {bpmnTexts} from './bpmn.ts';
+import {ftaTexts} from './fta.ts';
 import {chartTexts} from './charts.ts';
 import {collectTextRequests} from './seq-table.ts';
 import {collectTextRequests as wfTextRequests} from './wireframe.ts';
@@ -120,6 +121,7 @@ export const MEASURE_HANDLERS = {
   math: () => undefined,
   timeline: fromTuples(timelineTexts),
   bpmn: fromTuples(bpmnTexts),
+  fta: fromTuples(ftaTexts),
   classes: fromTuples(classesTexts),
   gantt: fromTuples(ganttTexts),
   cause: fromTuples(causeTexts),

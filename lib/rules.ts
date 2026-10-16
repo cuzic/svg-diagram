@@ -36,9 +36,11 @@ import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
 import type {Finding} from './types/verdicts.ts';
 import type {WfCallout} from './types/wireframe-nodes.ts';
 import type {LintTarget} from './types/verdicts.ts';
-import type {CauseRole} from './types/diagrams.ts';
+import type {CauseRole, FtaGate, FtaKind} from './types/diagrams.ts';
+import {ftaResolve} from './fta.ts';
 import {describeApplied} from './fit-width.ts';
 import {tocFindings} from './toc-rules.ts';
+import {ftaFindings} from './fta-rules.ts';
 import {statusText} from './status.ts';
 
 export const RULE_DOCS = {
@@ -79,6 +81,11 @@ export const RULE_DOCS = {
   'toc-prt-one-to-one': '前提条件ツリーの障害と中間目標が、全部 1 対 1 だけ(1 つの中間目標に複数の障害、または 1 つの障害が複数の中間目標を妨げる形が PRT らしい)。diagram({tocCheck: "strict"}) で warn',
   'toc-obstacle-phrase': '前提条件ツリーの障害のラベルが「ない」「無い」「不足」で終わる(障害は、無いことではなく、そこにある事実で書く指針。日本語の文末の判定なので偽陽性がある。常に info)',
   'toc-mirror': '未来現実ツリー(causeTree({tree: "frt", mirrors: crt}))の望む結果(de / goal)の mirrors が、現状ツリーの ude の id でない、ude に対応する望む結果が無い、同じ ude を複数が mirrors している(1 対 1 でない)。diagram({tocCheck: "strict"}) で warn',
+  'fta-gate-one-input': '故障の木(faultTree)の AND / OR / vote ゲートの入力が 1 つだけ。ゲートが意味を持たない。diagram({rcaCheck: "strict"}) で warn',
+  'fta-vote-degenerate': '故障の木の vote ゲートの k が 1(OR と同じ)または入力の数(AND と同じ)。diagram({rcaCheck: "strict"}) で warn',
+  'fta-top-is-leaf': '故障の木の頂上事象にゲートが無い(1 つの事象だけの木)。diagram({rcaCheck: "strict"}) で warn',
+  'fta-undeveloped-left': '故障の木に、展開していない事象(ひし形)が残っている(常に info。意図した省略なら無視してよい)',
+  'fta-single-point': '故障の木に、単独で頂上事象を起こす事象(大きさ 1 のカットセット)がある。カットセットが多すぎて調べられないときもこの規則の info(常に info)',
   'toc-source-has-cause': '原因を持たない役割(crt の root、frt・nbr の injection、nbr の trim、precondition)の実体に、入る矢印がある。diagram({tocCheck: "strict"}) で warn',
   'toc-chain-only': 'crt / frt が分岐も合流も AND も無い 1 本鎖(途中の原因を飛ばしている可能性)。diagram({tocCheck: "strict"}) で warn',
   'toc-orphan': 'causeTree({tree}) の実体のうち、どのリンクにも出てこないものがある(graph-orphan-node は connect() の線しか見ない)。diagram({tocCheck: "strict"}) で warn',
@@ -133,7 +140,10 @@ export const DEFAULT_LEGEND_LABELS = {
   'role:ude': '好ましくない現象(UDE)', 'role:root': '根本原因', 'role:de': '望む結果(DE)', 'role:injection': '施策', 'role:precondition': '現状の事実', 'role:tipping': '転換点', 'role:trim': 'トリミング(施策)', 'role:need': 'ニーズ',
   'role:goal': '目標', 'role:io': '中間目標', 'role:obstacle': '障害', 'role:action': '行動', 'role:start': '開始', 'role:risk': '懸念', 'role:measure': '対策',
   'edge:and': '合わせて原因(AND)', 'edge:back': '戻り(フィードバック)', 'edge:blocks': '断つ', 'mark:core': '中核ドライバー',
-} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}` | `role:${Exclude<CauseRole, 'effect' | 'step'>}` | 'edge:and' | 'edge:back' | 'edge:blocks' | 'mark:core', string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
+  // a faultTree() figure (ADR 0025 D6): the symbol of each kind of event and of each gate
+  'fta-event:basic': '基本事象', 'fta-event:undeveloped': '未展開の事象', 'fta-event:house': '家形事象(常に起きる/起きない)', 'fta-event:condition': '条件事象',
+  'fta-gate:and': 'AND ゲート', 'fta-gate:or': 'OR ゲート', 'fta-gate:vote': '多数決ゲート(k/n)', 'fta-gate:inhibit': '禁止ゲート',
+} satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}` | `role:${Exclude<CauseRole, 'effect' | 'step'>}` | 'edge:and' | 'edge:back' | 'edge:blocks' | 'mark:core' | `fta-event:${Exclude<FtaKind, 'event'>}` | `fta-gate:${FtaGate}`, string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
 
 // every band, including those nested in groups, rows, grids and swimlanes
 export function walkBands(bands: Band[], out: Band[] = []): Band[] {
@@ -163,6 +173,11 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause 
       if (b.links.some(l => l.back)) used.add('edge:back');
       if (b.links.some(l => l.kind === 'blocks')) used.add('edge:blocks');
       if (b.nodes.some(n => n.core)) used.add('mark:core');
+    } else if (b.type === 'fta' && withCause) { // likewise: only legend: 'auto' reads the symbols of a fault tree
+      for (const n of ftaResolve(b.root).nodes) {
+        if (n.kind !== 'event') used.add(`fta-event:${n.kind}`);
+        if (n.gate) used.add(`fta-gate:${n.gate}`);
+      }
     }
   }
   const nonSolid = [...lines].filter(l => l !== 'solid');
@@ -179,6 +194,8 @@ export function legendKeys(bands: Band[]): Set<string> {
       if (it.role) keys.add(`role:${it.role}`);
       else if (it.edge) keys.add(`edge:${it.edge}`);
       else if (it.mark) keys.add(`mark:${it.mark}`);
+      else if (it.ftaEvent) keys.add(`fta-event:${it.ftaEvent}`);
+      else if (it.ftaGate) keys.add(`fta-gate:${it.ftaGate}`);
       else if (it.tone) keys.add(`tone:${it.tone}`);
       else if (it.weight) keys.add(`weight:${it.weight}`);
       else if (it.arrow === 'both') keys.add('arrow:both');
@@ -216,6 +233,8 @@ export function applyAutoLegend(d: DiagramData): void {
     if (kind === 'role') return {role: v as CauseRole, label: labelOf(k)};
     if (kind === 'edge') return {edge: v as 'and' | 'back' | 'blocks', label: labelOf(k)};
     if (kind === 'mark') return {mark: v as 'core', label: labelOf(k)};
+    if (kind === 'fta-event') return {ftaEvent: v as 'basic', label: labelOf(k)};
+    if (kind === 'fta-gate') return {ftaGate: v as 'and', label: labelOf(k)};
     if (kind === 'arrow') return {line: 'solid', arrow: 'both', label: labelOf(k)};
     if (kind === 'weight') return {line: 'solid', weight: v as ArrowWeight, label: labelOf(k)};
     return {line: v as LineStyle, label: labelOf(k)};
@@ -498,7 +517,10 @@ export const tocSeverity = (d: Pick<DiagramData, 'tocCheck'>): 'warn' | 'info' =
 export const rcaSeverity = (d: Pick<DiagramData, 'rcaCheck'>): 'warn' | 'info' => d.rcaCheck === 'strict' ? 'warn' : 'info';
 
 /** The checks of the cause-analysis figures. Empty on purpose: each figure (faultTree, isIsNot, whyWhy*, bowtie) adds its own branch, reported at `f.severity ?? rcaSeverity(d)` like tocRules. */
-function rcaRules(_d: LintTarget, _out: Finding[]): void {}
+function rcaRules(d: LintTarget, out: Finding[]): void {
+  const severity = rcaSeverity(d);
+  for (const b of walkBands(d.bands)) if (b.type === 'fta') for (const f of ftaFindings(b)) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
+}
 
 /** stat-no-source (ADR 0023 D10): a stat() number with no source. Runs only for a diagram that wrote diagram({evidenceCheck}). */
 function evidenceRules(d: LintTarget, out: Finding[]): void {
@@ -635,15 +657,16 @@ function graphRules(d: LintTarget, out: Finding[]): void {
   for (const id of parent.keys()) { const r = find(id); groups.set(r, [...(groups.get(r) ?? []), id]); }
   if (groups.size > 1) out.push({rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${[...groups.values()].map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
 }
-const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()'} as const;
+const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()', fta: 'faultTree()'} as const;
 // what the layout changed on its own to make a figure fit its width (ADR 0010 D3): left out is a warning, `dir: 'auto'` is the author's own choice
 function fitRules(d: LintTarget, out: Finding[]): void {
   for (const b of d.laidOut ?? []) {
-    if ((b.type !== 'cause' && b.type !== 'states' && b.type !== 'classes' && b.type !== 'tree') || !b.fitApplied?.length) continue;
+    if ((b.type !== 'cause' && b.type !== 'states' && b.type !== 'classes' && b.type !== 'tree' && b.type !== 'fta') || !b.fitApplied?.length) continue;
     const what = b.fitApplied.map(describeApplied).join('、'), auto = b.fitApplied.every(a => a.mode === 'auto');
+    const knobs = b.type === 'fta' ? 'maxNodeW' : 'dir / maxNodeW', say = b.type === 'fta' ? "maxNodeW: 'auto'" : "dir: 'auto'"; // a fault tree has no `dir`
     out.push({rule: 'auto-fit-applied', severity: auto ? 'info' : 'warn', message: auto
-      ? `${FIT_WHO[b.type]}: dir / maxNodeW を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
-      : `${FIT_WHO[b.type]}: dir / maxNodeW を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら dir: 'auto' と書く（info になる）。固定したいなら dir / maxNodeW を明示する（収まらなければ試した案つきで止まる）`});
+      ? `${FIT_WHO[b.type]}: ${knobs} を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
+      : `${FIT_WHO[b.type]}: ${knobs} を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら ${say} と書く（info になる）。固定したいなら ${knobs} を明示する（収まらなければ試した案つきで止まる）`});
   }
 }
 function lintAll(d: LintTarget): Finding[] {
