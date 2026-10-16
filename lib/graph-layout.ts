@@ -164,7 +164,7 @@ export interface LayeredOpts {
    * of them or only the `declared` ones (`back`). The first lane is `gap` beyond the boxes on the far across side, the next ones `step` further out,
    * the longest return outermost. Such an edge comes out with `outer` set and four points (its two centres and two points on its lane); the router draws it.
    */
-  outer?: {which: 'all' | 'declared'; gap: number; step: number};
+  outer?: {which: 'all' | 'declared'; gap: number; step: number; /** which side of the figure a return's lane is on: 'far' (default) past the boxes on the high across side, 'near' on the side its two ends are nearer to (fewer arrows to cross on the way to the lane), 'low' all of them on the low across side */ side?: 'far' | 'near' | 'low'};
   /**
    * The most a row may take on the across axis (ADR 0010 D7). A layer whose nodes (and the dummies of the arrows passing through it) add up to more is cut,
    * in input order, into rows, and each row is a layer of its own (the later layers move down one number per row), so the corridors between layers still
@@ -540,8 +540,17 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     hi = packed - gap;
   }
 
+  // outer lanes: past the boxes on the across side the return is assigned to (far = the high side; near = the side its ends are nearer to), the shortest return nearest
+  const laneOf = new Map<LayeredEdge, number>();
+  const outers = chains.filter(c => c.outer).sort((p, q) => Math.abs(layer.get(p.e.from)! - layer.get(p.e.to)!) - Math.abs(layer.get(q.e.from)! - layer.get(q.e.to)!) || p.index - q.index);
+  const lowSide = (c: typeof outers[number]): boolean => opts.outer!.side === 'low' || (opts.outer!.side === 'near' && (cross.get(c.e.from)! + cross.get(c.e.to)!) / 2 < hi / 2);
+  const lows = outers.filter(lowSide), highs = outers.filter(c => !lowSide(c));
+  const lowShift = lows.length ? opts.outer!.gap + (lows.length - 1) * opts.outer!.step + 2 : 0; // the figure moves over by what the low lanes take
+  lows.forEach((c, k) => laneOf.set(c.e, lowShift - opts.outer!.gap - k * opts.outer!.step));
+  highs.forEach((c, k) => laneOf.set(c.e, lowShift + hi + opts.outer!.gap + k * opts.outer!.step));
+  hi = lowShift + hi + (highs.length ? opts.outer!.gap + (highs.length - 1) * opts.outer!.step + 2 : 0);
   const centre = (id: string): Pt => {
-    const s = slots.get(id)!, a = at[s.layer] + thick[s.layer] / 2, c = cross.get(id)!;
+    const s = slots.get(id)!, a = at[s.layer] + thick[s.layer] / 2, c = cross.get(id)! + lowShift;
     return dir === 'down' ? {x: c, y: a} : {x: a, y: c};
   };
   const placed = new Map<string, Placed>();
@@ -550,11 +559,6 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     placed.set(n.id, {x: p.x - n.size.w / 2, y: p.y - n.size.h / 2, ...n.size});
   }
   const edgesOut: LayeredEdgeOut[] = [];
-  // outer lanes: past the boxes on the far across side, the shortest return nearest
-  const laneOf = new Map<LayeredEdge, number>();
-  const outers = chains.filter(c => c.outer).sort((p, q) => Math.abs(layer.get(p.e.from)! - layer.get(p.e.to)!) - Math.abs(layer.get(q.e.from)! - layer.get(q.e.to)!) || p.index - q.index);
-  outers.forEach((c, k) => laneOf.set(c.e, hi + opts.outer!.gap + k * opts.outer!.step));
-  if (outers.length) hi = hi + opts.outer!.gap + (outers.length - 1) * opts.outer!.step + 2;
   edges.forEach((e, index) => { if (e.from === e.to) edgesOut.push({from: e.from, to: e.to, index, points: [centre(e.from)], reversed: false, self: true}); });
   for (const c of chains) {
     if (c.outer) {

@@ -371,14 +371,15 @@ function piercings(a: Attempt, place: (p: Pt) => Pt): number {
  * lexicographic order, or if the plain one does not fit the width and it does. Nothing else moves a figure.
  */
 export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layoutOpts: LayeredOpts & {start?: string[]; back?: readonly number[]}, o: AttemptOpts): Attempt {
-  const optsOf = new WeakMap<Attempt, {opts: typeof layoutOpts; laneShare: boolean}>();
-  const build = (opts: typeof layoutOpts, laneShare = false, aside = false): Attempt => {
-    const lay = layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: STUB, step: LANE}} : opts);
+  type Side = 'far' | 'near' | 'low';
+  const optsOf = new WeakMap<Attempt, {opts: typeof layoutOpts; laneShare: boolean; near: Side}>();
+  const build = (opts: typeof layoutOpts, laneShare = false, aside = false, near: Side = 'far'): Attempt => {
+    const lay = layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: STUB, step: LANE, ...(near === 'far' ? {} : {side: near})}} : opts);
     const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
     const groupOf = o.groupOf;
     const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)), o.round, o.straighten !== false, laneShare, aside);
     const made = {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
-    optsOf.set(made, {opts, laneShare});
+    optsOf.set(made, {opts, laneShare, near});
     return made;
   };
   // ADR 0016 D11: arrows into a grouped head that run side by side. A candidate that shares the gap's lanes between the long and the direct arrows replaces the figure only
@@ -402,7 +403,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
   const aside = (a: Attempt): Attempt => {
     const before = parallels(a);
     if (!before) return a;
-    const {opts, laneShare} = optsOf.get(a)!, b = build(opts, laneShare, true);
+    const {opts, laneShare, near} = optsOf.get(a)!, b = build(opts, laneShare, true, near);
     if (parallels(b) >= before || worse(a, b) || andCrossings(b) > andCrossings(a)) return a;
     b.asided = true;
     return b;
@@ -411,18 +412,30 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     if (!o.groupOf) return a;
     const before = parallels(a);
     if (!before) return a;
-    const b = build(optsOf.get(a)!.opts, true);
+    const b = build(optsOf.get(a)!.opts, true, false, optsOf.get(a)!.near);
     const chosen = parallels(b) >= before || worse(a, b) ? a : b;
     return o.aside === false ? chosen : aside(chosen);
   };
-  const plain = build(layoutOpts);
+  const pick = (near: Side): Attempt => {
+  const plain = build(layoutOpts, false, false, near);
   if (o.straighten === false || !edges.some(e => e.from !== e.to)) return sharing(plain);
-  const cand = build({...layoutOpts, coord: 'bk', transpose: true, ...(o.tighten ? {tighten: true} : {})});
+  const cand = build({...layoutOpts, coord: 'bk', transpose: true, ...(o.tighten ? {tighten: true} : {})}, false, false, near);
   if (cand.loose.length > plain.loose.length) return sharing(plain);
   if (piercings(cand, o.place(cand.size)) > piercings(plain, o.place(plain.size))) return sharing(plain);
   if (!plain.fits) return sharing(cand.fits || cand.size.w < plain.size.w && better(cand.score, plain.score) ? cand : plain);
   if (!cand.fits) return sharing(plain);
   return sharing(better(cand.score, plain.score) ? cand : plain);
+  };
+  // a return's lane goes to the side its ends are nearer to, only when that is strictly better in (crossings, bends) and nothing else gets worse (the far side is the way it always was)
+  const far = pick('far');
+  if (!o.returns || o.straighten === false || !far.lay.edges.some(e => e.outer)) return far; // straighten: false keeps the old coordinates, lanes included
+  // not bigger than the far one: the width and the height are the caller's budget (a taller figure may not fit the canvas), and lanes on both sides take more room than on one
+  let result = far;
+  for (const side of ['near', 'low'] as const) {
+    const c = pick(side);
+    if (c.lay.edges.some(e => e.outer) && c.lay.w <= far.lay.w + 0.01 && c.lay.h <= far.lay.h + 0.01 && !worse(result, c) && better(c.score, result.score)) result = c;
+  }
+  return result;
 }
 
 /** (crossings, bends) in lexicographic order: strictly better only. */
