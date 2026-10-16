@@ -74,6 +74,19 @@ export function niceScale(lo: number, hi: number, want = 5): {min: number; max: 
   return {min: parseFloat(min.toPrecision(12)), max: parseFloat(max.toPrecision(12)), step, ticks};
 }
 
+/** `domain: [lo, hi]` of a chart (its value axis's end points), checked: two finite numbers, lo < hi. */
+export function checkDomain(who: string, domain: readonly [number, number] | undefined): [number, number] | undefined {
+  if (domain === undefined) return undefined;
+  if (!Array.isArray(domain) || domain.length !== 2 || !domain.every(Number.isFinite) || !(domain[0] < domain[1])) fail(who, `domain must be [lo, hi] with finite numbers and lo < hi (got ${JSON.stringify(domain)})`);
+  return [domain[0], domain[1]];
+}
+/** The value axis of a chart: from the data, or from its written `domain` (widened to round ticks like any axis). A domain smaller than the data is an error: the bars would leave the plot. */
+export function valueScale(who: string, lo: number, hi: number, domain?: readonly [number, number]): ReturnType<typeof niceScale> {
+  if (domain === undefined) return niceScale(lo, hi);
+  if (lo < domain[0] - 1e-9 || hi > domain[1] + 1e-9) fail(who, `domain [${numText(domain[0])}, ${numText(domain[1])}] is smaller than the data [${numText(lo)}, ${numText(hi)}] (widen the domain)`);
+  return niceScale(domain[0], domain[1]);
+}
+
 /** Ticks thin enough for their labels: every k-th tick (counting from the one at zero, or the first) so that neighbours are `gap` apart. */
 export function thinTicks<T extends {v: number}>(ticks: T[], px: (v: number) => number, size: (t: T) => number, gap = 10): Set<T> {
   if (ticks.length < 2) return new Set(ticks);

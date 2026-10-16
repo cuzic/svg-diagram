@@ -1,7 +1,7 @@
 // waterfall(): how a start value turns into an end value, step by step. The bars float: an increase stands on the level it starts from
 // and rises, a decrease hangs from it, and thin connectors carry the running level from one bar to the next. Every bar prints its value
 // with a sign (+120 / -45), so an increase and a decrease differ by the sign and by the direction of the bar, not by colour alone.
-import {Canvas, checkIds, checkText, decimalsIn, fail, finiteNum, niceScale, numText, signedText, thinTicks} from './charts-base.ts';
+import {Canvas, checkDomain, checkIds, checkText, decimalsIn, fail, finiteNum, numText, signedText, thinTicks, valueScale} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 
 export type WaterfallKind = 'start' | 'delta' | 'subtotal' | 'total';
@@ -25,9 +25,13 @@ export interface WaterfallOpts extends ChartOpts {
   connectors?: boolean;
   /** 'v' (default): the steps left to right, the bars rise and fall. 'h': the steps top to bottom, the bars run right and left (long labels). */
   dir?: 'v' | 'h';
+  /** The value axis's end points `[lo, hi]` (widened to round ticks), so that two charts can share one axis: the bars of the same size then have the same length. Smaller than the data is an error. Default: from the data. */
+  domain?: readonly [number, number];
+  /** false: this chart's axis is its own on purpose (chart-axis-mismatch leaves it alone). */
+  axisGroup?: false;
 }
 export interface ResolvedStep {label: string; kind: WaterfallKind; value: number; from: number; to: number; id?: string; tone?: ChartTone}
-export interface WaterfallSpec {steps: ResolvedStep[]; unit: string; axis: boolean; connectors: boolean; dir: 'v' | 'h'}
+export interface WaterfallSpec {steps: ResolvedStep[]; unit: string; axis: boolean; connectors: boolean; dir: 'v' | 'h'; domain?: [number, number]; axisGroup?: false}
 
 const KINDS = ['start', 'delta', 'subtotal', 'total'];
 /** Works the running level out of the steps (and checks every subtotal / total given against it). */
@@ -57,7 +61,11 @@ export function resolveWaterfall(steps: readonly WaterfallStep[], opts: Waterfal
   });
   for (const r of out) { r.from = parseFloat(r.from.toPrecision(12)); r.to = parseFloat(r.to.toPrecision(12)); }
   if (opts.dir !== undefined && opts.dir !== 'v' && opts.dir !== 'h') fail('waterfall', `dir must be 'v' or 'h' (got ${String(opts.dir)})`);
-  return {steps: out, unit: opts.unit ?? '', axis: opts.axis !== false, connectors: opts.connectors !== false, dir: opts.dir ?? 'v'};
+  if (opts.axisGroup !== undefined && opts.axisGroup !== false) fail('waterfall', `axisGroup must be false (this chart's axis is its own) or left out (got ${JSON.stringify(opts.axisGroup)})`);
+  const domain = checkDomain('waterfall', opts.domain);
+  const spec: WaterfallSpec = {steps: out, unit: opts.unit ?? '', axis: opts.axis !== false, connectors: opts.connectors !== false, dir: opts.dir ?? 'v', ...(domain ? {domain} : {}), ...(opts.axisGroup === false ? {axisGroup: false as const} : {})};
+  waterfallScale(spec); // a domain smaller than the data fails here, where the chart is written
+  return spec;
 }
 
 const valueOf = (s: ResolvedStep, unit: string): string => `${s.kind === 'delta' ? signedText(s.value) : numText(s.value)}${unit}`;
@@ -66,11 +74,14 @@ export function waterfallAlt(spec: WaterfallSpec): string {
   return `ウォーターフォール図: ${spec.steps.map(s => `${s.label} ${valueOf(s, spec.unit)}`).join('、')}`;
 }
 
+/** The value axis a waterfall is drawn with: from its levels (and 0), or its `domain`. The one place the layout, the description and the axis check all read. */
+export const waterfallScale = (spec: WaterfallSpec): ReturnType<typeof valueScale> =>
+  valueScale('waterfall', Math.min(0, ...spec.steps.flatMap(s => [s.from, s.to])), Math.max(0, ...spec.steps.flatMap(s => [s.from, s.to])), spec.domain);
+
 export function waterfallTexts(spec: WaterfallSpec): [string, number][] {
   const out: [string, number][] = [];
   for (const s of spec.steps) { out.push([s.label, 400], [s.label, 700], [valueOf(s, spec.unit), 700]); }
-  const lo = Math.min(0, ...spec.steps.flatMap(s => [s.from, s.to])), hi = Math.max(0, ...spec.steps.flatMap(s => [s.from, s.to]));
-  if (spec.axis) for (const t of niceScale(lo, hi).ticks) out.push([numText(t), 400]);
+  if (spec.axis) for (const t of waterfallScale(spec).ticks) out.push([numText(t), 400]);
   return out;
 }
 
@@ -81,8 +92,7 @@ export function layoutWaterfall(spec: WaterfallSpec, g: ChartGeom): LaidOutChart
   if (spec.dir === 'h') return layoutWaterfallH(spec, g);
   const S = g.size, n = spec.steps.length;
   const c = new Canvas(g.x, g.y, g.w, g.height ?? 320, S, g.widthOf);
-  const lo = Math.min(0, ...spec.steps.flatMap(s => [s.from, s.to])), hi = Math.max(0, ...spec.steps.flatMap(s => [s.from, s.to]));
-  const sc = niceScale(lo, hi);
+  const lo = Math.min(0, ...spec.steps.flatMap(s => [s.from, s.to])), sc = waterfallScale(spec);
   const ticks = spec.axis ? sc.ticks.map(t => ({v: t, s: numText(t)})) : [];
   const tickW = Math.max(0, ...ticks.map(t => c.tw(t.s)));
   const plotL = g.x + (spec.axis ? tickW + 18 : 8), plotR = g.x + g.w - 8, slot = (plotR - plotL) / n;
@@ -144,8 +154,7 @@ export function layoutWaterfall(spec: WaterfallSpec, g: ChartGeom): LaidOutChart
 /** dir: 'h': the same chart turned on its side: steps down the page, the running level along it. */
 function layoutWaterfallH(spec: WaterfallSpec, g: ChartGeom): LaidOutChartPart {
   const S = g.size, n = spec.steps.length, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
-  const lo = Math.min(0, ...spec.steps.flatMap(s => [s.from, s.to])), hi = Math.max(0, ...spec.steps.flatMap(s => [s.from, s.to]));
-  const sc = niceScale(lo, hi), ticks = spec.axis ? sc.ticks.map(t => ({v: t, s: numText(t)})) : [];
+  const lo = Math.min(0, ...spec.steps.flatMap(s => [s.from, s.to])), sc = waterfallScale(spec), ticks = spec.axis ? sc.ticks.map(t => ({v: t, s: numText(t)})) : [];
   const texts = spec.steps.map(s => valueOf(s, spec.unit));
   const valW = Math.max(...texts.map(t => c.tw(t, true))) + 12;
   const labelW = Math.min(Math.max(...spec.steps.map(s => c.tw(s.label, s.kind !== 'delta'))) + 14, g.w * 0.3);
