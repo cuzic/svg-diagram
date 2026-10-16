@@ -9,7 +9,7 @@
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
-import {midWordBreaksIn} from './text-rules.ts';
+import {midWordBreaksIn, missingGlyphs} from './text-rules.ts';
 import {qualify, scopeOf} from './anchor-scope.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {nestedBandsOf} from './band-children.ts';
@@ -59,6 +59,7 @@ export const RULE_DOCS = {
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える。凡例が要らない図は diagram({legend: false})）',
   'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる',
   'text-mid-word-break': "レイアウトが、カタカナの語(「コンテキス/ト」)や英数字の語の途中で行を割っている。箱や列が最長の語より狭いときに起きる。箱の幅を広げる・向き(dir)や maxNodeW を変える・文言を短くする・語の前後で改行を書く。漢字どうしの途中の改行は対象外",
+  'glyph-missing': "図の文字に、絵文字として扱われない絵記号(✅ ❌ など。EMOJI_RE の外)がある。通常の文字のフォントで描かれ、字形が無いと空白になる(resvg のプレビューで確認できる)。icon.emoji() か SVG アイコン(box({icon}))を使うか、✓ ✗ などの字に置き換える",
   'shrink-narrow-text': "fit: 'shrink' で bpmn / swimlane を詰めた結果、task / step の幅が狭すぎて本文が 2〜3 字ずつ折れる。縦向き・図の分割・文言の短縮を検討する",
   'gray-tone-collision': '使っている 2 つのトーンの塗りが、白黒（グレースケール）にすると見分けにくい（明度差 L* が 10 未満。破線などの形の手がかりがあれば除く）',
   'rowheader-tone-collides': '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある',
@@ -678,9 +679,14 @@ function midWordRules(d: LintTarget, out: Finding[]): void {
   const shown = [...new Set(breaks.map(b => `「${b.before}/${b.after}」`))];
   out.push({rule: 'text-mid-word-break', severity: 'warn', message: `語の途中で行が割れている（${shown.slice(0, 4).join('')}${shown.length > 4 ? ` ほか ${shown.length - 4} 件` : ''}）。直し方: 箱の幅を広げる、dir や maxNodeW を変える、文言を短くする、語の前後で改行する`});
 }
+function glyphRules(d: LintTarget, out: Finding[]): void {
+  const glyphs = missingGlyphs(d.laidOut);
+  if (glyphs.length) out.push({rule: 'glyph-missing', severity: 'warn', message: `絵文字として扱われない絵記号がある（${glyphs.map(g => `「${g}」`).join('')}）。通常の文字のフォントで描かれ、字形が無いと空白になる。直し方: icon.emoji() か SVG アイコン（box({icon})）を使う、または ✓ ✗ などの字に置き換える`});
+}
 function lintAll(d: LintTarget): Finding[] {
   const out: Finding[] = [];
   midWordRules(d, out);
+  glyphRules(d, out);
   layoutQualityRules(d, out);
   edgeBendsRules(d, out);
   tocRules(d, out);

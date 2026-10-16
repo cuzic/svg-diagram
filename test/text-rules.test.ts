@@ -2,7 +2,7 @@ import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {causeTree, checkDiagram, closeMeasurer, diagram} from '../lib/dsl.ts';
-import {midWordBreaks, midWordBreaksIn} from '../lib/text-rules.ts';
+import {midWordBreaks, midWordBreaksIn, missingGlyphs} from '../lib/text-rules.ts';
 
 test.after(() => closeMeasurer());
 
@@ -29,4 +29,11 @@ test('text-mid-word-break: a causeTree narrower than its longest katakana word i
   const find = async (maxNodeW: number) => (await checkDiagram(diagram({theme: 'blue'}).add(causeTree(nodes, [{from: 'a', to: 'b'}], {maxNodeW})))).verdict.findings.filter(f => f.rule === 'text-mid-word-break');
   assert.equal((await find(80)).length, 1);
   assert.equal((await find(400)).length, 0);
+});
+
+test('missingGlyphs: pictographs outside EMOJI_RE; emoji the emitter handles and ordinary symbols are fine', () => {
+  assert.deepEqual(missingGlyphs({text: '完了 ✅ と ❌'}).sort(), ['✅', '❌']);
+  assert.deepEqual(missingGlyphs({wrappedRuns: [{lines: ['⭐ 重要', '🔑 鍵', '⚠\uFE0F 注意']}]}), []);
+  assert.deepEqual(missingGlyphs({text: '✓ ✗ → ◎ ○'}), []);
+  assert.deepEqual(missingGlyphs({id: '✅'}), []); // only text-bearing fields
 });

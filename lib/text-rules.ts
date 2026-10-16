@@ -2,6 +2,8 @@
 // A line break inside a run of katakana ("コンテキス/ト") or of Latin letters and digits reads as a typo. Kanji compounds are not judged: a break
 // between two kanji is common and often fine.
 
+import {EMOJI_RE} from './tokens.ts';
+
 const KATAKANA = /[ァ-ヺーㇰ-ㇿｦ-ﾟ]/;
 const LATIN = /[A-Za-z0-9]/;
 const sameWord = (a: string, b: string): boolean => (KATAKANA.test(a) && KATAKANA.test(b)) || (LATIN.test(a) && LATIN.test(b));
@@ -67,4 +69,22 @@ export function midWordBreaksIn(root: unknown): MidWordBreak[] {
   };
   walk(root);
   return out;
+}
+
+// Pictographs the emitter does not treat as emoji: EMOJI_RE (lib/tokens.ts) is what gets `<tspan class="emoji">` and a colour font, so a
+// pictograph outside it ("✅" U+2705, "❌", "⭐" is inside) is drawn with the ordinary text font, which usually has no glyph for it (blank in resvg).
+const PICTOGRAPH = /\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F/gu;
+
+/** The pictographs in the text of a laid-out tree that would be drawn with the text font (and may come out blank). */
+export function missingGlyphs(root: unknown): string[] {
+  const found = new Set<string>(), seen = new WeakSet<object>();
+  const scan = (s: string): void => { for (const m of s.matchAll(PICTOGRAPH)) if (!EMOJI_RE.test(m[0])) found.add(m[0]); };
+  const walk = (o: unknown, key?: string): void => {
+    if (typeof o === 'string') { if (key === 'text' || key === 'lines' || key === 'label' || key === 'title') scan(o); return; }
+    if (typeof o !== 'object' || o === null || seen.has(o)) return;
+    seen.add(o);
+    for (const [k, v] of Array.isArray(o) ? o.map(x => [key, x] as const) : Object.entries(o)) walk(v, k);
+  };
+  walk(root);
+  return [...found];
 }
