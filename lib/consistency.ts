@@ -6,7 +6,7 @@ import type {TableBand, TableCell, TableRow} from './types/sequence-table-swimla
 import type {Finding} from './types/verdicts.ts';
 
 // string fields that are text a reader sees (a connect()'s from / to and every id are not)
-const TEXT_KEYS = new Set(['title', 'body', 'label', 'text', 'caption', 'note', 'name', 'headline', 'sub', 'subtitle', 'tag', 'heading', 'lead', 'stamp', 'sourceLine', 'items', 'cells', 'rows', 'detail', 'desc']);
+const TEXT_KEYS: ReadonlySet<string> = new Set(['title', 'body', 'label', 'text', 'caption', 'note', 'name', 'headline', 'sub', 'subtitle', 'tag', 'heading', 'lead', 'stamp', 'sourceLine', 'items', 'cells', 'rows', 'detail', 'desc']);
 
 /** The strings of a diagram's bands that are meant to be read (labels, titles, bodies, table cells). */
 export function textsOf(bands: readonly Band[]): string[] {

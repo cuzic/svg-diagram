@@ -42,8 +42,8 @@ export interface LaidOutFlowShape extends Rect, Dimmed {type: FlowShapeBand['typ
 // constructors (validation)
 // ---------------------------------------------------------------------------------------------------------------------------
 
-const BOX_TONES = new Set<string>(['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger']);
-const TEXT_TONES = new Set<string>(['text', 'accent', 'muted', 'danger']);
+const BOX_TONES: ReadonlySet<string> = new Set<string>(['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger']);
+const TEXT_TONES: ReadonlySet<string> = new Set<string>(['text', 'accent', 'muted', 'danger']);
 
 function common(name: string, xs: readonly {label?: string; id?: string}[], id?: string): void {
   if (!xs.length) throw new Error(`${name}(): at least one item is required`);
@@ -54,7 +54,7 @@ function common(name: string, xs: readonly {label?: string; id?: string}[], id?:
     if (x.id) ids.add(x.id);
   }
 }
-function checkTones(name: string, xs: readonly {tone?: string}[], allowed: Set<string>): void {
+function checkTones(name: string, xs: readonly {tone?: string}[], allowed: ReadonlySet<string>): void {
   xs.forEach((x, i) => { if (x.tone && !allowed.has(x.tone)) throw new Error(`${name}(): item ${i + 1} has unknown tone "${x.tone}" (${[...allowed].join(' | ')})`); });
 }
 
