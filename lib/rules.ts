@@ -692,7 +692,7 @@ function headlineLength(d: LintTarget, out: Finding[]): void {
 // a connected diagram (3+ arrows) should read as one graph: a box with an id that no arrow touches is a forgotten link,
 // and arrows that split into separate clumps are probably two stories in one picture
 function graphRules(d: LintTarget, out: Finding[]): void {
-  const connects = d.connects ?? [];
+  const connects = (d.connects ?? []).filter(c => !c.loopBack); // the arrow back of a step row is not an edge of a graph
   if (connects.length < 3) return;
   const parent = new Map<string, string>();
   const find = (x: string): string => { let r = x; while (parent.get(r) !== r) r = parent.get(r)!; parent.set(x, r); return r; };

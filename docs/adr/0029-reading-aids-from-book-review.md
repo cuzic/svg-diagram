@@ -1,6 +1,6 @@
 # ADR 0029: 誤読を防ぐ作図の拡張(技術書 459 枚の目視レビューから。役割の見た目・語を割らない幅・戻り矢印・チャートの軸と範囲)
 
-- 状態: 起票(Opus 3 巡のレビューで収束。P0・P1 なし。実測の節を追加)。**D1(`roleTags`)、D3 第 1 段(`keepWords`)、D5 の `domain` と `chart-axis-mismatch`、D6(`range` / `rangeBars`)は実装済み**(PR 本文を参照)
+- 状態: 起票(Opus 3 巡のレビューで収束。P0・P1 なし。実測の節を追加)。**D1(`roleTags`)、D3 第 1 段(`keepWords`)、D5 の `domain` と `chart-axis-mismatch`、D6(`range` / `rangeBars`)、D4 段階 2(`loopBack`)は実装済み**(PR 本文を参照)
 - 日付: 2026-10-16
 - 基点: `main`(53e029a、PR #252 まで)。**依存**: 検査 `text-mid-word-break` / `toc-injection-to-obstacle`(#256)、`loop-under` の案内(#260)は、この ADR の時点で未マージ。D2・D3 の「割れは検査が拾う」は #256 のマージが前提
 - 関連: ADR 0010(幅の自動調整)、ADR 0015(TOC 因果ツリー)、ADR 0016(経路)、ADR 0028(飛び越し線)、ADR 0007(核と殻)

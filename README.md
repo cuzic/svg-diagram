@@ -771,6 +771,8 @@ const s = steps([{title: '1回目', body: '原因は不明'}, {title: '4回目',
 
 **戻る線・飛ばす線**: `steps` / `chevron` / `row` の箱から**前の箱へ戻る**線（「差し戻し」「繰り返す」）は、`connect('s#4:bottom', 's#2:bottom', {route: 'loop-under', label: '差し戻し'})` と書く。線は箱の下をコの字に回るので、途中の箱を貫かない。`straight` / `elbow` のままだと、途中の箱と重なって build が止まる（`path overlaps`）。戻りを複数書くときは、`dip` で高さをずらす（同じ高さの戻りが重なっても、`4→2` と `3→1` のように交差しても、いまの検査は止めないので、仕上がりを目で確かめる）。
 
+**前の箱へ戻る線（`loopBack`）**: `steps(items, {loopBack: {from: 4, to: 2, label: '差し戻し'}})` は、4 番目から 2 番目へ戻る線を、箱の下に弧（コの字）で描く（`row()` の箱の列、横向きの `chevron()` も同じ。`chevron` は番号のほか項目の `id` でも指せる）。`from` は `to` より後ろ。複数書けて、**入れ子（一方のスパンが他方の内側）なら高さが自動でずれて重ならない**。`4→2` と `3→1` のように範囲が半端に重なる 2 本は交差するので、書くとエラーになる（戻り先か戻り元を変えるか、1 本にまとめる）。`chip: true`（ラベルを線の上の札に）、`tone`、`line: 'dashed'`（例外の経路）も書ける。中身は `connect(…, {route: 'loop-under'})` なので、検査（箱を貫かない・ラベルが矢印を覆わない）も同じように効く。縦向きの `chevron` と、group を含む `row` には書けない。例は `examples/steps-loop-back.ts`。
+
 ### 注釈のコネクタ（`bracket` / `callout`）
 
 - `bracket(a.left, b.right, {label, side: 'below' | 'above'})` は、2 つの箱（行の列でも可）の下（`above` なら上）に、左の端点の x から右の端点の x まで括弧を引き、ラベルを括弧の外に書く。下に付けるときは、括弧とラベルの分の高さを空ける。`connect(arrow: 'none', line: 'dotted')` を 2 本引く代わり。
