@@ -206,3 +206,17 @@ test('the HTML form twice on a page does not repeat an id; its alt is plain text
   assert.doesNotMatch(crlf.markdown.replace(/\r\n/g, ''), /[\r\n]/);
   fs.rmSync(dir, {recursive: true});
 });
+
+// scanFigures() is the scanner without the drawing (ADR 0031 §3): what is a figure and what is code, a comment or an escape, as plain values.
+test('scanFigures: finds images outside code, comments and escapes, with their line and context', async () => {
+  const {scanFigures} = await import('../lib/markdown-scan.ts');
+  const text = ['![a](x.diagram.ts)', '```', '![b](y.diagram.ts)', '```', '    ![c](z.diagram.ts)', '`![d](w.diagram.ts)` and ![e](v.diagram.ts#html)', '<!-- ![f](u.diagram.ts) -->', '\\![g](t.diagram.ts)', '- ![h](s.diagram.ts "ttl")'].join('\n');
+  const {lines, found} = scanFigures(text);
+  assert.equal(lines.length, 9);
+  assert.deepEqual(found.map(f => [f.i, f.inList, f.hits.map(h => [h.alt, h.target, h.title, h.escaped])]), [
+    [0, false, [['a', 'x.diagram.ts', undefined, false]]],
+    [5, false, [['e', 'v.diagram.ts#html', undefined, false]]],
+    [7, false, [['g', 't.diagram.ts', undefined, true]]],
+    [8, true, [['h', 's.diagram.ts', 'ttl', false]]],
+  ]);
+});

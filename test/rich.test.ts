@@ -9,7 +9,9 @@ import {measureAll, splitAtoms} from '../lib/measure.ts';
 import {styledAtoms} from '../lib/layout-text.ts';
 import {parseXml, computeStyles, elements} from '../lib/svg-dom.ts';
 import {textBoxOf} from '../lib/svg-geom.ts';
-import {geometryChecks} from '../lib/svg-lint.ts';
+import {textBox} from '../lib/font-metrics.ts';
+const measure = (text: string, family: Parameters<typeof textBox>[1], size: number, weight: number) => textBox(text, family, size, weight);
+import {geometryChecks} from '../lib/geometry-checks.ts';
 import {resolveFontFile} from '../lib/font-metrics.ts';
 import {diagramDesc, diagramTitle} from '../lib/rules.ts';
 import {measureBudget} from '../lib/budget.ts';
@@ -244,7 +246,7 @@ test('the tspan widths are the layout widths (left / centre / right, spaces at t
     lines.forEach(({run, i}, k) => {
       if (!run.lineSpans) return;
       const layoutW = run.lineSpans[i].reduce((w, sp) => w + splitAtoms(sp.text).reduce((s, a) => s + widthOf(a, run.size, sp.bold ? 700 : run.weight, 'sans'), 0), 0);
-      const box = textBoxOf(drawn[k], styles)!;
+      const box = textBoxOf(drawn[k], styles, measure)!;
       assert.ok(Math.abs(box.w - layoutW) <= 0.5, `${align} line "${run.lines[i]}": drawn ${box.w} vs layout ${layoutW}`);
       checked++;
     });
@@ -323,6 +325,6 @@ test('a group title keeps its pieces (the caption made from the group carries th
   const svg = (await render(d)).svg;
   assert.match(svg, /記録と <tspan fill="#b91c1c">責任<\/tspan> Chrome<\/text>/);
   const root = parseXml(svg);
-  const drawn = textBoxOf(elements(root).find(e => e.tag === 'text')!, computeStyles(root))!;
+  const drawn = textBoxOf(elements(root).find(e => e.tag === 'text')!, computeStyles(root), measure)!;
   assert.ok(Math.abs(drawn.w - cap.inkBox.w) <= 0.5, `${drawn.w} vs ${cap.inkBox.w}`);
 });

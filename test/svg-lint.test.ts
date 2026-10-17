@@ -2,7 +2,7 @@
 // (test/svg-lint-browser.test.ts holds the same checks against a real Chromium.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {geometryChecks} from '../lib/svg-lint.ts';
+import {geometryChecks} from '../lib/geometry-checks.ts';
 import {textBox, resolveFontFile} from '../lib/font-metrics.ts';
 
 const skip = resolveFontFile('sans') ? false : 'no font file found';

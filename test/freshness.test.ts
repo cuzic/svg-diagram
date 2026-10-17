@@ -120,3 +120,17 @@ test('freshness: a failure while reading is no claim (unknown), not an exception
   fs.chmodSync(src, 0o000);
   try { assert.ok(['unknown', 'fresh'].includes(freshness(svg, root).state)); } finally { fs.chmodSync(src, 0o644); }
 });
+
+// judgeFreshness() is the judgement without the disk (ADR 0031 §3): the cases the file-based tests above reach, as plain values.
+test('judgeFreshness: fresh, source-stale, deps-stale, the real candidate wins over another file, nothing found is unknown', async () => {
+  const {judgeFreshness} = await import('../lib/freshness-judge.ts');
+  const prov = {sourceSha256: 'S', depsSha256: 'D'};
+  assert.deepEqual(judgeFreshness(prov, []), {state: 'unknown'});
+  assert.deepEqual(judgeFreshness(prov, [{source: 'a', sha: 'S', depsSha: 'D'}]), {state: 'fresh', source: 'a'});
+  assert.deepEqual(judgeFreshness(prov, [{source: 'a', sha: 'X', depsSha: 'D'}]), {state: 'stale', reason: 'source', source: 'a'});
+  assert.deepEqual(judgeFreshness(prov, [{source: 'a', sha: 'S', depsSha: 'X'}]), {state: 'stale', reason: 'deps', source: 'a'});
+  // another project's same-named file first, the real one second: fresh if either is, else the real one's deps are reported
+  assert.deepEqual(judgeFreshness(prov, [{source: 'other', sha: 'X', depsSha: 'D'}, {source: 'real', sha: 'S', depsSha: 'D'}]), {state: 'fresh', source: 'real'});
+  assert.deepEqual(judgeFreshness(prov, [{source: 'other', sha: 'X', depsSha: 'D'}, {source: 'real', sha: 'S', depsSha: 'X'}]), {state: 'stale', reason: 'deps', source: 'real'});
+  assert.deepEqual(judgeFreshness({sourceSha256: 'S'}, [{source: 'a', sha: 'S', depsSha: ''}]), {state: 'fresh', source: 'a'}, 'no recorded deps hash means ""');
+});
