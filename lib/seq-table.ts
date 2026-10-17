@@ -9,7 +9,7 @@
 import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapAtoms} from './wrap.ts';
 import {CELL_MARKS} from './tokens.ts';
-import type {TextRequest, WidthOf, FontFamily, TextTone, Roles} from './types/core.ts';
+import type {TextRequest, WidthOf, FontFamily, TextTone, Roles, WrapMode} from './types/core.ts';
 import type {SequenceBand, PreparedSequence, PreparedStep, TableBand, TableCell, TableColumn, TableRow, ResolvedCell, LaidOutSequence, LaidOutSeqStep, LaidOutSeqHead, LaidOutTable, LaidOutTableRow, LaidOutTableCell} from './types/sequence-table-swimlane.ts';
 import type {BoxTone} from './types/text-bands.ts';
 
@@ -51,11 +51,11 @@ export function collectTextRequests(band: SequenceBand | TableBand, roles: Roles
   return out;
 }
 
-const wrap = (text: string, size: number, weight: number, font: FontFamily, maxW: number, widthOf: WidthOf) =>
-  wrapAtoms(splitAtoms(text), {maxWidth: Math.max(20, maxW), atomWidth: (a) => widthOf(a, size, weight, font)});
+const wrap = (text: string, size: number, weight: number, font: FontFamily, maxW: number, widthOf: WidthOf, mode: WrapMode) =>
+  wrapAtoms(splitAtoms(text), {maxWidth: Math.max(20, maxW), atomWidth: (a) => widthOf(a, size, weight, font), mode});
 const textW = (text: string, size: number, weight: number, font: FontFamily, widthOf: WidthOf) => textWidth(widthOf, text, size, weight, font);
 
-export function layoutSequence(band: SequenceBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutSequence {
+export function layoutSequence(band: SequenceBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, mode: WrapMode): LaidOutSequence {
   const p = prepareSequence(band);
   const n = p.actors.length;
   const colW = w / n;
@@ -69,7 +69,7 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
   };
 
   const heads = p.actors.map((a, i): LaidOutSeqHead => {
-    const lines = wrap(a.label, roles.title, 700, 'sans', aw - 2 * SEQ.headPadX, widthOf);
+    const lines = wrap(a.label, roles.title, 700, 'sans', aw - 2 * SEQ.headPadX, widthOf, mode);
     return {id: a.id, tone: a.tone, lines, x: cx[i] - aw / 2, w: aw, cx: cx[i], y: 0, h: 0, textDy: SEQ.headPadY};
   });
   // every head is as tall as the tallest; when any head has an icon, each head's stack (icon, then label) sits in the middle of the room
@@ -94,7 +94,7 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
       // a label may run across neighbouring lifelines (as in UML); it only has to stay on the canvas
       const mid = (cx[i] + cx[j]) / 2;
       const room = Math.min(2 * (mid - x), 2 * (x + w - mid)) - 8;
-      const lines = wrap(s.text, roles.note, 400, 'sans', Math.min(room, Math.max(span - 20, 320)), widthOf);
+      const lines = wrap(s.text, roles.note, 400, 'sans', Math.min(room, Math.max(span - 20, 320)), widthOf, mode);
       const labelH = lines.length * lineH(roles.note);
       const ay = top + labelH + SEQ.labelGap;
       steps.push({kind: 'msg', x1: cx[i], x2: cx[j], y: ay, lines, labelTop: top, lx: (cx[i] + cx[j]) / 2, line: s.line ?? 'solid', arrow: s.arrow ?? 'end', tone: s.tone});
@@ -106,7 +106,7 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
       const rightRoom = x + w - (cx[i] + SEQ.selfW + 8) - 4, leftRoom = cx[i] - SEQ.selfW - 8 - x - 4;
       const side = textW(s.text, roles.note, 400, 'sans', widthOf) > rightRoom && leftRoom > rightRoom ? 'left' : 'right';
       const lx = side === 'left' ? cx[i] - SEQ.selfW - 8 : cx[i] + SEQ.selfW + 8;
-      const lines = wrap(s.text, roles.note, 400, 'sans', Math.max(40, side === 'left' ? leftRoom : rightRoom), widthOf);
+      const lines = wrap(s.text, roles.note, 400, 'sans', Math.max(40, side === 'left' ? leftRoom : rightRoom), widthOf, mode);
       const labelH = lines.length * lineH(roles.note);
       const loopH = 22;
       const rowH = Math.max(labelH, loopH + 12);
@@ -118,7 +118,7 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
       let left: number, right: number;
       if (lo === hi) { const nw = Math.min(aw + 40, 260); left = cx[lo] - nw / 2; right = cx[lo] + nw / 2; }
       else { left = Math.max(x, cx[lo] - 60); right = Math.min(x + w, cx[hi] + 60); }
-      const lines = wrap(s.text, roles.note, 400, 'sans', right - left - 24, widthOf);
+      const lines = wrap(s.text, roles.note, 400, 'sans', right - left - 24, widthOf, mode);
       const h = lines.length * lineH(roles.note) + 16;
       steps.push({kind: 'note', x: left, y: top, w: right - left, h, lines, tone: s.tone ?? 'muted'});
       cursor = top + h + SEQ.stepGap / 2;
@@ -146,7 +146,7 @@ export function cellOf(cell: TableCell, col: TableColumn = {}): ResolvedCell {
   return {text, tone: c.tone ?? mark?.tone, bold: c.bold ?? mark?.bold ?? col.bold ?? false, mono: c.mono ?? col.mono ?? false, align: c.align ?? col.align ?? 'left', vAlign: c.vAlign, ...(icon ? {icon} : {})};
 }
 
-export function layoutTable(band: TableBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutTable {
+export function layoutTable(band: TableBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, mode: WrapMode): LaidOutTable {
   const cols = band.columns;
   const tw = Math.min(w, band.width ?? w);
   const left = x + (w - tw) / 2;
@@ -159,7 +159,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
   let cy = y;
   let titleBar: LaidOutTable['titleBar'] = null;
   if (band.title) {
-    const lines = wrap(band.title, roles.title, 700, 'sans', tw - 2 * TBL.padX, widthOf);
+    const lines = wrap(band.title, roles.title, 700, 'sans', tw - 2 * TBL.padX, widthOf, mode);
     const h = lines.length * lineH(roles.title) + 2 * TBL.padY;
     titleBar = {y: cy, h, lines};
     cy += h;
@@ -170,7 +170,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
       const c: ResolvedCell = header ? {text: (cell as TableColumn).label ?? '', bold: true, mono: false, align: (cell as TableColumn).align ?? 'left'} : cellOf(cell as TableCell, cols[i]);
       if (band.rowHeader && !header && i === 0) c.bold = true;
       const size = roles.body;
-      const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', colW[i] - 2 * TBL.padX - (c.icon ? TBL.iconSize + TBL.iconGap : 0), widthOf);
+      const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', colW[i] - 2 * TBL.padX - (c.icon ? TBL.iconSize + TBL.iconGap : 0), widthOf, mode);
       // an icon beside centred / right-aligned text sits just before its first line (left-aligned: at the cell's left edge)
       const lineW = c.icon && lines.length && c.align !== 'left' ? textWidth(widthOf, lines[0], size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans') : undefined;
       return {...c, lines, x: colX[i], w: colW[i], top: 0, ...(lineW !== undefined ? {lineW} : {})};

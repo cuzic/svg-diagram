@@ -68,7 +68,7 @@ export function tornadoTexts(s: TornadoSpec): [string, number][] {
 }
 
 export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
-  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf);
+  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap);
   const all = s.items.flatMap(i => [i.low, i.high]);
   const sc = tornadoScale(s);
   const vText = (v: number) => `${numText(v)}${s.unit}`;

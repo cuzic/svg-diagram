@@ -47,12 +47,11 @@ export const LIGHT_COLORS: ReadonlySet<string> = new Set(Object.keys(DARK_OF));
 const HEX6 = /^#[0-9a-fA-F]{6}$/;
 /** The light→dark map of an appearance (null: light). An object appearance replaces the named tokens of the built-in dark set. */
 const MAPS = new Map<string, Record<string, string>>();
-export function mapOf(appearance: Appearance | undefined): Record<string, string> | null {
+export function mapOf(env: ToneEnv, appearance: Appearance | undefined): Record<string, string> | null {
   const m = baseMapOf(appearance);
-  if (!m || !activeTones || !Object.keys(activeTones.pairs).length) return m;
-  const merged = (activeTones.merged ??= new Map()); // a tone override's dark colour joins the dark set
-  let out = merged.get(m);
-  if (!out) { out = {...m, ...activeTones.pairs}; merged.set(m, out); }
+  if (!m || !Object.keys(env.pairs).length) return m;
+  let out = env.merged.get(m); // a tone override's dark colour joins the dark set
+  if (!out) { out = {...m, ...env.pairs}; env.merged.set(m, out); }
   return out;
 }
 function baseMapOf(appearance: Appearance | undefined): Record<string, string> | null {
@@ -73,18 +72,16 @@ function baseMapOf(appearance: Appearance | undefined): Record<string, string> |
 }
 /** The colours a custom dark set adds to what a lint may see (lint-svg reads them from the root's data-palette). */
 export const customColors = (appearance: Appearance | undefined): string[] => typeof appearance === 'object' ? Object.values(appearance.dark).map(h => h.toLowerCase()) : [];
-/** A light token hex in the appearance's set (anything that is not a token, such as a raw() colour, stays as it is). */
-export const darkOf = (hex: string, appearance: Appearance = 'dark'): string => mapOf(appearance)?.[hex.toLowerCase()] ?? hex;
+/** A light token hex in the appearance's built-in set (a tone override's dark pair is not in it: see mapOf; anything that is not a token, such as a raw() colour, stays as it is). */
+export const darkOf = (hex: string, appearance: Appearance = 'dark'): string => baseMapOf(appearance)?.[hex.toLowerCase()] ?? hex;
 /** The colour mapper of an appearance: dark recolours, light (or none) leaves colours alone. */
-export const paintOf = (appearance: Appearance | undefined): ((hex: string) => string) => { const m = mapOf(appearance); return m ? (h => m[h.toLowerCase()] ?? h) : (h => h); };
-/** The page colour a diagram is designed for: what a transparent diagram is checked against. */
-export const pageColorOf = (appearance: Appearance | undefined): string => paintOf(appearance)(PALETTE.bg);
+export const paintOf = (env: ToneEnv, appearance: Appearance | undefined): ((hex: string) => string) => { const m = mapOf(env, appearance); return m ? (h => m[h.toLowerCase()] ?? h) : (h => h); };
 /** Recolour the colours of emitted SVG / HTML with the appearance's token set. Only colour-bearing places are rewritten: the <style> CSS,
  *  and the fill / stroke / stop-color / flood-color / color / style / data-assumed-bg attributes of a tag. Text content, <title>, <desc>,
  *  <metadata> and other attributes (aria-label ...) can say "#ffffff" and keep it. Once only: a custom colour may equal a light token. */
-export const recolor = (text: string, appearance: Appearance | undefined): string => {
-  if (!mapOf(appearance)) return text;
-  const p = paintOf(appearance), hex = (v: string) => v.replace(/#[0-9a-fA-F]{6}\b/g, h => p(h));
+export const recolor = (env: ToneEnv, text: string, appearance: Appearance | undefined): string => {
+  if (!mapOf(env, appearance)) return text;
+  const p = paintOf(env, appearance), hex = (v: string) => v.replace(/#[0-9a-fA-F]{6}\b/g, h => p(h));
   const attrs = /(\s(?:fill|stroke|stop-color|flood-color|color|style|data-assumed-bg)=")([^"]*)"/g;
   return text.replace(/<style[\s\S]*?<\/style>|<[^>]*>/g, part => part.startsWith('<style') ? hex(part) : part.replace(attrs, (_m, pre: string, v: string) => `${pre}${hex(v)}"`));
 };
@@ -126,24 +123,31 @@ export const TONES: Record<ToneName, ToneStyle> = {
 /** Wireframe spellings of a tone: ok = accent, warn = danger, off = muted. */
 export const TONE_ALIAS: Record<string, ToneName> = {ok: 'accent', warn: 'danger', off: 'muted'};
 /** The style of a tone name (aliases resolved; an unknown or missing tone is 'plain'). */
-export function toneStyle(tone: string | undefined): ToneStyle {
+export function toneStyle(env: ToneEnv, tone: string | undefined): ToneStyle {
   const name = tone == null ? 'plain' : TONE_ALIAS[tone] ?? tone;
-  return activeTones?.styles[name as ToneName] ?? TONES[name as ToneName] ?? TONES.plain;
+  return env.styles[name as ToneName] ?? TONES[name as ToneName] ?? TONES.plain;
 }
 
 // ---- tone overrides ---------------------------------------------------------------------------------------------------
 // diagram({tones: {accent: {fill: '#e6d3bd', dark: {fill: '#4a3a28'}}}}) and .svg-diagram.json "tones" replace single colours of a
-// tone. toneStyle() is the one door every consumer (emit, rules, verify) goes through, so the overridden colours are what is drawn AND
-// what the contrast / gray-tone-collision checks see. Like the wrap mode, the active set is module state that the pipeline entry
-// points (layoutWith / emitSvg / emitHtml / lintDiagram / verifyDiagram) set with withTones() for the diagram they handle.
+// tone. toneStyle() is the one door every consumer (emit, rules, verify, pptx) goes through, so the overridden colours are what is drawn AND
+// what the contrast / gray-tone-collision checks see. The overrides of a diagram are a value, a ToneEnv (ADR 0031 §2): the pipeline entry
+// points make it once from the diagram's `tones` with toneEnv() and hand it down, so nothing depends on which diagram ran before.
 export type ToneColorKey = 'fill' | 'stroke' | 'text' | 'ink';
 const TONE_COLOR_KEYS: readonly ToneColorKey[] = ['fill', 'stroke', 'text', 'ink'];
 export type ToneColors = Partial<Record<ToneColorKey, string>>;
 /** One tone's replacement colours (#rrggbb). `dark` is what the same colour becomes under appearance 'dark' (unset: it stays as is). */
 export interface ToneOverride extends ToneColors {dark?: ToneColors}
 export type ToneOverrides = Partial<Record<ToneName, ToneOverride>>;
-interface ActiveTones {styles: Partial<Record<ToneName, ToneStyle>>; pairs: Record<string, string>; colors: string[]; merged?: Map<Record<string, string>, Record<string, string>>}
-let activeTones: ActiveTones | undefined;
+/** The tone overrides of one diagram, resolved: the styles they change, the light→dark pairs, and every colour used. `merged` caches mapOf's table per base table. */
+export interface ToneEnv {
+  readonly styles: Readonly<Partial<Record<ToneName, ToneStyle>>>;
+  readonly pairs: Readonly<Record<string, string>>;
+  readonly colors: readonly string[];
+  readonly merged: Map<Record<string, string>, Record<string, string>>;
+}
+/** No overrides: the built-in tones. */
+export const NO_TONES: ToneEnv = {styles: {}, pairs: {}, colors: [], merged: new Map()};
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const checkColors = (c: unknown, where: string): ToneColors => {
   if (typeof c !== 'object' || c === null || Array.isArray(c)) throw new Error(`${where} must be an object like {fill: '#e6d3bd'}`);
@@ -179,7 +183,7 @@ export function mergeTones(base: ToneOverrides | undefined, own: ToneOverrides |
   for (const [n, o] of Object.entries(own) as [ToneName, ToneOverride][]) out[n] = {...base[n], ...o, ...(base[n]?.dark || o.dark ? {dark: {...base[n]?.dark, ...o.dark}} : {})};
   return out;
 }
-function activate(ov: ToneOverrides): ActiveTones {
+function resolveTones(ov: ToneOverrides): ToneEnv {
   const styles: Partial<Record<ToneName, ToneStyle>> = {}, pairs: Record<string, string> = {}, colors: string[] = [];
   for (const [name, o] of Object.entries(ov) as [ToneName, ToneOverride][]) {
     const s: ToneStyle = {...TONES[name]};
@@ -195,24 +199,25 @@ function activate(ov: ToneOverrides): ActiveTones {
     }
     styles[name] = s;
   }
-  return {styles, pairs, colors};
+  return {styles, pairs, colors, merged: new Map()};
 }
-/** Run `fn` with a diagram's tone overrides in force (an empty or missing set changes nothing). */
-export function withTones<T>(ov: ToneOverrides | undefined, fn: () => T): T {
-  if (!ov || !Object.keys(ov).length) return fn();
-  const prev = activeTones;
-  activeTones = activate(ov);
-  try { return fn(); } finally { activeTones = prev; }
+const ENVS = new WeakMap<object, ToneEnv>(); // keyed by the overrides object itself: the copies a pass makes of a diagram share its `tones`
+/** The resolved tone overrides of a diagram (an empty or missing set is NO_TONES). The same object gives the same env. */
+export function toneEnv(ov: ToneOverrides | undefined): ToneEnv {
+  if (!ov || !Object.keys(ov).length) return NO_TONES;
+  let env = ENVS.get(ov);
+  if (!env) { env = resolveTones(ov); ENVS.set(ov, env); }
+  return env;
 }
-/** Every colour the active overrides use, light and dark (lint-svg reads them from the root's data-tone-colors). */
-export const toneColors = (): string[] => activeTones?.colors ?? [];
+/** Every colour the overrides use, light and dark (lint-svg reads them from the root's data-tone-colors). */
+export const toneColors = (env: ToneEnv): readonly string[] => env.colors;
 /** The colour key text in this tone uses ('text' unless the tone is one text can be set in). */
-export const textKeyOf = (tone: string | undefined): ColorKey => { const t = toneStyle(tone); return t.asText ? t.ink : 'text'; };
+export const textKeyOf = (env: ToneEnv, tone: string | undefined): ColorKey => { const t = toneStyle(env, tone); return t.asText ? t.ink : 'text'; };
 /** A filled emphasis tone: the box is an accent / danger fill, so its text is white unless a run says otherwise (it may not). */
 export const isSolidTone = (tone: string | undefined): boolean => tone === 'solid' || tone === 'solid-danger';
 /** The colour of a box's text run: `bg` (white) when the box is solid and the run has no tone of its own, else the run's tone. */
-export function runColorOf(runTone: TextTone | undefined, boxTone: string | undefined, theme: Theme): string {
-  return isSolidTone(boxTone) && runTone === undefined ? colorOf(toneStyle(boxTone).text, theme) : textColorOf(runTone, theme);
+export function runColorOf(env: ToneEnv, runTone: TextTone | undefined, boxTone: string | undefined, theme: Theme): string {
+  return isSolidTone(boxTone) && runTone === undefined ? colorOf(toneStyle(env, boxTone).text, theme) : textColorOf(env, runTone, theme);
 }
 /** A colour key resolved against a theme ('accent' and 'soft' are theme colours). */
 export function colorOf(key: ColorKey, theme: Theme): string {
@@ -220,7 +225,7 @@ export function colorOf(key: ColorKey, theme: Theme): string {
   return key === 'accent' || key === 'soft' ? PALETTE[theme][key] : PALETTE[key as PlainColorKey];
 }
 /** The colour of a TextTone (a text run, a connector line) in a theme. */
-export const textColorOf = (tone: TextTone | undefined, theme: Theme): string => colorOf(textKeyOf(tone), theme);
+export const textColorOf = (env: ToneEnv, tone: TextTone | undefined, theme: Theme): string => colorOf(textKeyOf(env, tone), theme);
 
 // Palette keys diagram() accepts: 1, 2 (legacy day numbers) or a theme name.
 // Object.keys makes them strings ('1', '2', 'blue', ...); PALETTE[key] indexes the numeric keys identically.
@@ -229,7 +234,7 @@ const THEME_KEYS = THEMES as unknown as Theme[];
 
 // Flat set of every hex value PALETTE can resolve to — this is exactly what
 // lint-svg.ts's off-token-color check validates fill/stroke against.
-export const ALLOWED_COLORS = new Set([
+export const ALLOWED_COLORS: ReadonlySet<string> = new Set([
   PALETTE.bg, PALETTE.text, PALETTE.muted, PALETTE.border, PALETTE.code, PALETTE.danger,
   ...THEME_KEYS.flatMap(k => [PALETTE[k].accent, PALETTE[k].soft]),
 ]);

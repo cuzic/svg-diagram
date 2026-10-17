@@ -3,7 +3,6 @@
 import type {FitApplied} from './types/diagrams.ts';
 import type {LayeredLayout} from './graph-layout.ts';
 import {splitByHeight, splitWidest} from './fit-split.ts';
-import {keepWordsRequested, withKeepWords} from './wrap.ts';
 
 /** What an attempt has to give back: the part of layeredAttempt's result that fitWidth reads. */
 /** The layers a result's layout folded (a result with a `lay`), if any. */
@@ -114,6 +113,8 @@ export interface LayoutPlan<D extends string, R extends FitResult> {
   w: number;
   /** The direction as laid out when nothing changes (the written one, or the default). */
   start: D;
+  /** diagram({keepWords}) (ADR 0029 D3): every attempt is tried with the katakana floor first, then without; `build` gets which as `floor`. */
+  keepWords: boolean;
   /** The other axis, tried when the author left `dir` out or wrote 'auto'. None: the axis is kept (a cause tree). */
   alt?: D;
   /** Said when `alt` is none: why. */
@@ -122,7 +123,7 @@ export interface LayoutPlan<D extends string, R extends FitResult> {
   explicitDir: boolean;
   /** How `dir` was not written: left out (a warning) or 'auto' (a note). */
   mode: 'omitted' | 'auto';
-  /** The component can fold a layer into rows (ADR 0010 D7; `build` takes the row limit as its third argument). Only a figure whose layers lie across its width. */
+  /** The component can fold a layer into rows (ADR 0010 D7; `build` takes the row limit as its fourth argument). Only a figure whose layers lie across its width. */
   foldable?: boolean;
   /** The author's `fold`: true allows folding also when `dir` is written, false forbids it. */
   fold?: boolean;
@@ -134,8 +135,8 @@ export interface LayoutPlan<D extends string, R extends FitResult> {
   narrow?: boolean;
   /** true: the figure has no `dir` (a mindmap): the labels leave it out. */
   noDir?: boolean;
-  /** The widest a node may grow by default (the first of NARROWING). */
-  build: (dir: D, maxW: number, fold?: number) => R;
+  /** One attempt. `floor`: whether this attempt keeps katakana words whole (always false when the diagram did not ask for keepWords). */
+  build: (dir: D, maxW: number, floor: boolean, fold?: number) => R;
   widthOf?: (r: R) => number;
   heightBudget?: number;
   /** The layout of a result (a layered figure's `lay`, whose layers lie along the height when `vertical`): the failure message then says where to split the figure. */
@@ -164,40 +165,39 @@ export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPla
   const widthMode = plan.autoWidth ? 'auto' as const : plan.mode, from0 = plan.autoWidth ? NARROWING[0] : widths[0]; // what the figure would have had: the default node width
   // keepWords (ADR 0029 D3): every attempt is tried with the floor (no katakana word broken) first; only when none fits, without it. The order keeps what a figure
   // looked like without the option: narrower with the floor, narrower without, then folded with, folded without (a fold is the last resort in both).
-  const floors = keepWordsRequested() ? [true, false] : [undefined];
-  const suffix = (floor: boolean | undefined): string => floor === false ? ', words may break' : '';
-  const run = <T>(floor: boolean | undefined, f: () => T): T => floor === undefined ? f() : withKeepWords(floor, f);
-  const narrowing = (floor: boolean | undefined): FitAttempt<R>[] => {
+  const floors = plan.keepWords ? [true, false] : [false];
+  const suffix = (floor: boolean): string => plan.keepWords && !floor ? ', words may break' : '';
+  const narrowing = (floor: boolean): FitAttempt<R>[] => {
     const list: FitAttempt<R>[] = [];
     for (const mw of widths) for (const d of dirs) {
       const applied: FitApplied[] = [];
       if (d !== plan.start) applied.push({what: 'dir', from: plan.start, to: d, mode: plan.mode});
       if (mw !== from0) applied.push({what: 'maxNodeW', from: from0, to: mw, mode: widthMode});
       const note = list.length || plan.autoWidth ? '' : plan.explicitDir || plan.maxNodeW !== undefined ? ' (as written)' : ' (default)';
-      list.push({label: `${plan.noDir ? '' : `dir '${d}'`}${narrow ? `${plan.noDir ? '' : ', '}maxNodeW ${mw}` : ''}${note}${suffix(floor)}`, run: () => run(floor, () => plan.build(d, mw)), applied});
+      list.push({label: `${plan.noDir ? '' : `dir '${d}'`}${narrow ? `${plan.noDir ? '' : ', '}maxNodeW ${mw}` : ''}${note}${suffix(floor)}`, run: () => plan.build(d, mw, floor), applied});
     }
     return list;
   };
   // Folding (ADR 0010 D7), the last attempt: a layer wider than the figure is cut into rows, at the narrowest node width, the axis kept. `fold: true` also when `dir` is written.
   const canFold = plan.foldable === true && plan.fold !== false;
-  const folding = (floor: boolean | undefined): FitAttempt<R>[] => {
+  const folding = (floor: boolean): FitAttempt<R>[] => {
     const list: FitAttempt<R>[] = [];
     if (canFold && (plan.fold === true || free || plan.autoWidth)) {
       const mw = widths[widths.length - 1], d = plan.start;
       for (const share of FOLD_SHARES) {
         const applied: FitApplied[] = [];
         if (mw !== from0) applied.push({what: 'maxNodeW', from: from0, to: mw, mode: widthMode});
-        list.push({label: `dir '${d}', maxNodeW ${mw}, fold${share < 1 ? ` ${Math.round(share * 100)}%` : ''}${suffix(floor)}`, applied, run: () => run(floor, () => {
-          const r = plan.build(d, mw, plan.w * share + 0.5);
+        list.push({label: `dir '${d}', maxNodeW ${mw}, fold${share < 1 ? ` ${Math.round(share * 100)}%` : ''}${suffix(floor)}`, applied, run: () => {
+          const r = plan.build(d, mw, floor, plan.w * share + 0.5);
           for (const f of foldedOf(r)) applied.push({what: 'fold', from: f.rows, to: f.layer + 1, mode: plan.autoWidth ? 'auto' : plan.explicitDir ? 'written' : plan.mode});
           return r;
-        })});
+        }});
       }
     }
     return list;
   };
   // without the option there is one stage (as before); with it, four, each only when the one before found nothing that fits
-  const stages: FitAttempt<R>[][] = floors.length === 1 ? [[...narrowing(undefined), ...folding(undefined)]] : [narrowing(true), narrowing(false), folding(true), folding(false)];
+  const stages: FitAttempt<R>[][] = floors.length === 1 ? [[...narrowing(false), ...folding(false)]] : [narrowing(true), narrowing(false), folding(true), folding(false)];
   const fitOpts = {mode: plan.best ? 'best' as const : 'first' as const, ...(plan.heightBudget === undefined ? {} : {heightBudget: plan.heightBudget}), ...(plan.widthOf ? {widthOf: plan.widthOf} : {})};
   const allTried: Fitted<R>['tried'] = [], allResults: R[] = [];
   for (const stage of stages.filter(s => s.length)) {

@@ -4,7 +4,7 @@
 // own characters: nothing in it is parsed, so '**API**', '{frame: false}' and 'lib/**/*.ts' mean what they say.
 //
 //   box({body: ['許可は ', em.danger(em.b('ユーザー')), ' が決める']})
-import {isSolidTone, textKeyOf} from './tokens.ts';
+import {isSolidTone, textKeyOf, NO_TONES} from './tokens.ts';
 import type {TextTone} from './types/core.ts';
 import type {BoxBand, BoxLine, BoxOpts, RichSpans, RichText, Span, Styled} from './types/text-bands.ts';
 
@@ -53,7 +53,8 @@ export function richOf(input: RichText, ctx: RichContext): {text: string; spans?
     if (part.bold && ctx.bold) throw new Error(`${ctx.field}: em.b() has no effect here, the text is already bold — put the words to stress in a body / note / line that is not bold`);
     if (part.tone) {
       if (tone) throw new Error(`${ctx.field}: em.${part.tone}() inside em.${tone}() — a part has one colour (em.b() may be combined with a colour)`);
-      if (textKeyOf(part.tone) === textKeyOf(ctx.tone)) throw new Error(`${ctx.field}: em.${part.tone}() is the colour this text already has, so it would show nothing`);
+      // the band is being built, before any diagram (and its tone overrides) exists: the built-in tones decide
+      if (textKeyOf(NO_TONES, part.tone) === textKeyOf(NO_TONES, ctx.tone)) throw new Error(`${ctx.field}: em.${part.tone}() is the colour this text already has, so it would show nothing`);
     }
     walk(part.of, bold || !!part.bold, part.tone ?? tone);
   };

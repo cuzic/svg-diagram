@@ -16,56 +16,34 @@
 // line start, don't strand opening punctuation at a line end.
 
 import {splitAtoms} from './atoms.ts';
-import type {WrapOptions} from './types/core.ts';
+import type {WrapMode, WrapOptions} from './types/core.ts';
 
-const CANNOT_START_LINE = new Set(
+const CANNOT_START_LINE: ReadonlySet<string> = new Set(
   '、。，．・：；！？」』）〕】〉》ゝゞーぁぃぅぇぉっゃゅょァィゥェォッャュョ'.split(''),
 );
-const CANNOT_END_LINE = new Set('「『（〔【〈《'.split(''));
+const CANNOT_END_LINE: ReadonlySet<string> = new Set('「『（〔【〈《'.split(''));
 
 const isWhitespace = (atom: string): boolean => /^\s+$/.test(atom);
 
-/** 'phrase' (default): a katakana run and a kanji run are one unit for breaking ('アプリ' is never ア/プ/リ); 'char': any CJK character may end a line;
- *  'bunsetsu': like 'phrase', and a hiragana sticks to the character before it too, so a line breaks only after a hiragana that is followed by a non-hiragana, or after 、 / 。 ("評価されるため | 仕掛りが"). */
-export type WrapMode = 'phrase' | 'char' | 'bunsetsu';
-let wrapMode: WrapMode = 'phrase';
-/** Sets the mode for the wrapping that follows (layoutWith sets it from diagram({wrap}) and restores it); returns the previous one. */
-export function setWrapMode(mode: WrapMode): WrapMode { const prev = wrapMode; wrapMode = mode; return prev; }
-export const getWrapMode = (): WrapMode => wrapMode;
-
-// `keepWords` (ADR 0029 D3): a box is never narrower than its longest katakana word. Set once at the layout's entry like the wrap mode (the layout is
-// synchronous, so nothing else runs while it is set); `withKeepWords` lets the fit try a figure with and without the floor.
-let keepWordsSetting = false, keepWordsNow = false;
-export function setKeepWords(on: boolean): boolean { const prev = keepWordsSetting; keepWordsSetting = on; keepWordsNow = on; return prev; }
-/** Whether the diagram asked for it (the fit tries both when it did). */
-export const keepWordsRequested = (): boolean => keepWordsSetting;
-/** Whether the floor applies to the node being measured now. */
-export const keepingWords = (): boolean => keepWordsNow;
-/** Run `f` with the floor on or off (a diagram that did not ask for it is never affected). */
-export function withKeepWords<T>(on: boolean, f: () => T): T {
-  if (!keepWordsSetting) return f();
-  const prev = keepWordsNow;
-  keepWordsNow = on;
-  try { return f(); } finally { keepWordsNow = prev; }
-}
+export type {WrapMode} from './types/core.ts';
 
 const isHiragana = (atom: string): boolean => { if ([...atom].length !== 1) return false; const c = atom.codePointAt(0)!; return c >= 0x3041 && c <= 0x309f; };
-const CLAUSE_END = new Set('、。，．！？'.split(''));
+const CLAUSE_END: ReadonlySet<string> = new Set('、。，．！？'.split(''));
 
 /** Per atom: does it continue the atom before it (one unit for breaking) because of the script runs ('phrase' / 'bunsetsu') or, in 'bunsetsu', a hiragana that follows a character? */
-function runGlueOf(atoms: {text: string}[]): boolean[] {
-  const phrase = wrapMode === 'phrase' || wrapMode === 'bunsetsu';
+function runGlueOf(atoms: {text: string}[], mode: WrapMode): boolean[] {
+  const phrase = mode === 'phrase' || mode === 'bunsetsu';
   return atoms.map((a, i) => {
     if (!phrase || i === 0) return false;
     const prev = atoms[i - 1].text;
     if (scriptRun(a.text) !== '' && scriptRun(a.text) === scriptRun(prev)) return true;
-    return wrapMode === 'bunsetsu' && isHiragana(a.text) && !isWhitespace(prev) && prev !== '\n' && !CLAUSE_END.has(prev);
+    return mode === 'bunsetsu' && isHiragana(a.text) && !isWhitespace(prev) && prev !== '\n' && !CLAUSE_END.has(prev);
   });
 }
 
-/** The widest unit a text can be broken into under the current mode (at least one atom), for sizing a box that should not split a word; 0 for an empty text. */
-export function longestUnitWidth(atoms: string[], atomWidth: (atom: string) => number): number {
-  const glue = runGlueOf(atoms.map(text => ({text})));
+/** The widest unit a text can be broken into under `mode` (at least one atom), for sizing a box that should not split a word; 0 for an empty text. */
+export function longestUnitWidth(atoms: string[], atomWidth: (atom: string) => number, mode: WrapMode): number {
+  const glue = runGlueOf(atoms.map(text => ({text})), mode);
   let best = 0, cur = 0;
   atoms.forEach((a, i) => {
     if (isWhitespace(a) || a === '\n') { best = Math.max(best, cur); cur = 0; return; }
@@ -83,17 +61,17 @@ function scriptRun(atom: string): 'k' | 'h' | '' {
   return '';
 }
 
-// wrapStyledAtoms(atoms, {maxWidth, atomWidth}) -> one atom list per rendered line, so whatever an atom carries (a weight, a
+// wrapStyledAtoms(atoms, {maxWidth, atomWidth, mode}) -> one atom list per rendered line, so whatever an atom carries (a weight, a
 // tone: see layout.ts styledAtoms) stays with it onto its line. An atom with `glue` belongs to the atom before it (a Latin word
 // that a bold/colour span boundary cut in two): the two are one unit for breaking, so a word is never split between lines;
 // a unit wider than a line is placed whole, as a single overlong atom already was. Trailing whitespace atoms are dropped.
-export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms: A[], {maxWidth, atomWidth}: {maxWidth: number; atomWidth: (atom: A) => number}): A[][] {
+export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms: A[], {maxWidth, atomWidth, mode}: {maxWidth: number; atomWidth: (atom: A) => number; mode: WrapMode}): A[][] {
   const lines: A[][] = [];
   let cur: A[] = [];
   let curWidth = 0;
   let hardBreakBeforeLast = false; // the last line starts after an explicit \n: its length is the author's
   // phrase mode: atom i continues atom i-1 when both sit in one katakana / kanji run (until such a unit is wider than a line: then it breaks per character)
-  const runGlue = runGlueOf(atoms);
+  const runGlue = runGlueOf(atoms, mode);
 
   for (let i = 0; i < atoms.length; i++) {
     const atom = atoms[i];
@@ -177,10 +155,10 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
   return lines;
 }
 
-// wrapAtoms(atoms, {maxWidth, atomWidth}) -> string[] (one per rendered line)
+// wrapAtoms(atoms, {maxWidth, atomWidth, mode}) -> string[] (one per rendered line)
 // atomWidth: (atomText) => number, typically from measureAtoms()'s `width`.
-export function wrapAtoms(atoms: string[], {maxWidth, atomWidth}: WrapOptions): string[] {
-  return wrapStyledAtoms(atoms.map(text => ({text})), {maxWidth, atomWidth: a => atomWidth(a.text)}).map(line => line.map(a => a.text).join('').trimEnd());
+export function wrapAtoms(atoms: string[], {maxWidth, atomWidth, mode}: WrapOptions): string[] {
+  return wrapStyledAtoms(atoms.map(text => ({text})), {maxWidth, atomWidth: a => atomWidth(a.text), mode}).map(line => line.map(a => a.text).join('').trimEnd());
 }
 
 // Convenience wrapper: wraps a plain string (splitting it into atoms first).

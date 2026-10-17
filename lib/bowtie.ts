@@ -5,7 +5,7 @@ import {fitLayout} from './fit-width.ts';
 import type {FitResult} from './fit-width.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
-import type {Roles, WidthOf} from './types/core.ts';
+import type {Roles, WidthOf, WrapEnv, WrapMode} from './types/core.ts';
 import type {BowtieBand, BowtieInput, BowtieRole, BowtieSide, LaidOutBowtie} from './types/diagrams.ts';
 
 const COL_GAP = 32, BUS_GAP = 56, ROW_GAP = 20, KNOT_R = 14, STEM = 14, TOP_MIN_W = 150, TOP_MAX_LINES = 3;
@@ -40,20 +40,21 @@ interface Attempt extends FitResult {
   maxW: number;
 }
 
-export function layoutBowtie(band: BowtieBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBowtie {
+export function layoutBowtie(band: BowtieBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv): LaidOutBowtie {
   bowtieCheck({hazard: band.hazard, top: band.event, threats: band.threats, consequences: band.consequences} as BowtieInput);
-  const attempt = (maxW: number): Attempt => {
-    const g = place(band, maxW, widthOf, roles);
+  const attempt = (maxW: number, floor: boolean): Attempt => {
+    const g = place(band, maxW, widthOf, roles, env.wrap, floor);
     return {size: {w: g.w, h: g.h}, score: {crossings: 0, bends: 0}, maxW};
   };
   const auto = band.maxNodeW === 'auto';
   const written = typeof band.maxNodeW === 'number' ? band.maxNodeW : undefined;
   const fitted = fitLayout<'right', Attempt>({
-    who: 'bowtie()', w, start: 'right', explicitDir: false, mode: auto ? 'auto' : 'omitted', noDir: true,
+    who: 'bowtie()', w, start: 'right', keepWords: env.keepWords, explicitDir: false, mode: auto ? 'auto' : 'omitted', noDir: true,
     axisKept: 'another direction (a bow-tie runs left to right)', ...(written === undefined ? {} : {maxNodeW: written}),
-    build: (_d, maxW) => attempt(maxW), fix: 'a wider figure (diagram({width})), fewer barriers in a row, or shorter texts',
+    build: (_d, maxW, floor) => attempt(maxW, floor), fix: 'a wider figure (diagram({width})), fewer barriers in a row, or shorter texts',
   });
-  const g = place(band, fitted.result.maxW, widthOf, roles); // the attempt that fitted, placed again (the last one built is not always it)
+  // the attempt that fitted, placed again (the last one built is not always it); with the diagram's keepWords, as before ADR 0031, also when the fit dropped the floor
+  const g = place(band, fitted.result.maxW, widthOf, roles, env.wrap, env.keepWords);
   const dx = x + (w - g.w) / 2, dy = y;
   const out: LaidOutBowtie = {
     type: 'bowtie', ...(band.id === undefined ? {} : {id: band.id}), ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until}),
@@ -74,8 +75,8 @@ export function layoutBowtie(band: BowtieBand, x: number, y: number, w: number, 
 
 interface Placed {x: number; y: number; w: number; h: number; role: BowtieRole; label: string; lines: NodeLines}
 
-function place(band: BowtieBand, maxW: number, widthOf: WidthOf, roles: Roles) {
-  const measure = (label: string, role: BowtieRole, cap = maxW): Item => ({role, label, lines: measureNode(label, undefined, cap, widthOf, roles)});
+function place(band: BowtieBand, maxW: number, widthOf: WidthOf, roles: Roles, mode: WrapMode, floor: boolean) {
+  const measure = (label: string, role: BowtieRole, cap = maxW): Item => ({role, label, lines: measureNode(label, undefined, cap, widthOf, roles, mode, floor)});
   const left = band.threats.map(t => [measure(t.label, 'threat'), ...(t.barriers ?? []).map(b => measure(b, 'barrier'))]);
   const right = band.consequences.map(c => ({barriers: (c.barriers ?? []).map(b => measure(b, 'barrier')), end: measure(c.label, 'consequence')}));
   const wide = Math.max(maxW, TOP_MIN_W + 40); // the top event and its hazard do not narrow with the barriers

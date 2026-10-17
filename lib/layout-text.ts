@@ -6,7 +6,7 @@ import {wrapStyledAtoms} from './wrap.ts';
 import {assertSpans} from './rich.ts';
 import {isSolidTone, statFitMin} from './tokens.ts';
 import {BOX_INNER_GAP, ICON_INDENT, LINE_HEIGHT_EM, STEP_INDENT, topIcon} from './layout-util.ts';
-import type {FontWeight, Roles, TextTone, WidthOf} from './types/core.ts';
+import type {FontWeight, Roles, TextTone, WidthOf, WrapMode} from './types/core.ts';
 import type {Band} from './types/index.ts';
 import type {Span, TextRun, WrappedRun} from './types/text-bands.ts';
 
@@ -109,13 +109,13 @@ function fittedSize(run: TextRun, avail: number, widthOf: WidthOf): number {
 
 // Wraps a box-like band's text runs at `wrapWidth` (content width, i.e.
 // already excluding BOX_PAD_X*2) and returns {wrappedRuns, textHeight}.
-export function layoutBoxContent(band: Band, wrapWidth: number, widthOf: WidthOf, roles: Roles): {wrappedRuns: WrappedRun[]; textHeight: number} {
+export function layoutBoxContent(band: Band, wrapWidth: number, widthOf: WidthOf, roles: Roles, mode: WrapMode): {wrappedRuns: WrappedRun[]; textHeight: number} {
   let relY = 0;
   const wrappedRuns = textRuns(band, roles).map((run): WrappedRun => {
     const font = run.mono ? 'mono' : 'sans';
     const indent = run.indent ?? 0;
     const size = run.fit && run.nowrap ? fittedSize(run, wrapWidth - indent, widthOf) : run.size; // the one size a stat value is drawn at
-    const atomLines = run.nowrap ? null : wrapStyledAtoms(styledAtoms(run), {maxWidth: wrapWidth - indent, atomWidth: a => widthOf(a.text, run.size, a.weight, font)});
+    const atomLines = run.nowrap ? null : wrapStyledAtoms(styledAtoms(run), {maxWidth: wrapWidth - indent, atomWidth: a => widthOf(a.text, run.size, a.weight, font), mode});
     const lines = atomLines ? atomLines.map(l => l.map(a => a.text).join('')) : [run.text];
     const lineYs = lines.map(() => {
       relY += size;

@@ -11,7 +11,7 @@ import type {CauseBand, LaidOutCause} from '../lib/types/diagrams.ts';
 const N = (id: string, extra: object = {}) => ({id, label: id, ...extra});
 const fixedW = (t: string, size: number): number => t.length * size * 0.6;
 const ROLES = {body: 14, note: 12} as never;
-const place = (band: CauseBand, w: number, heightBudget?: number): LaidOutCause => layoutCauseBand(band, 0, 0, w, fixedW as never, ROLES, heightBudget);
+const place = (band: CauseBand, w: number, heightBudget?: number): LaidOutCause => layoutCauseBand(band, 0, 0, w, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false}, heightBudget);
 const extent = (t: LaidOutCause): number => Math.max(...t.nodes.map(n => n.x + n.w)) - Math.min(...t.nodes.map(n => n.x));
 
 // root -> 3 -> 8 UDEs with long sentences: the top layer is the wide one
@@ -213,7 +213,7 @@ test('causeTree() that fits nowhere: the failure says where to split (ADR 0019 D
 const nine = () => causeTree(Array.from({length: 9}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), JSON.parse('[{"from":"n0","to":"n2"},{"from":["n0","n1"],"to":"n3"},{"from":"n1","to":"n4"},{"from":"n0","to":"n4"},{"from":"n2","to":"n5"},{"from":"n3","to":"n5"},{"from":"n0","to":"n6"},{"from":"n0","to":"n7"},{"from":"n6","to":"n7"},{"from":"n1","to":"n7"},{"from":"n1","to":"n8"}]'), {tree: 'frt'});
 const andCrossings = (t: LaidOutCause): number => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
 test('causeTree(): arrows into an AND that cross are searched again in another written order; the figure only gets better', () => {
-  const once = layoutCauseBandOnce(nine(), 0, 0, 1400, fixedW as never, ROLES), now = place(nine(), 1400);
+  const once = layoutCauseBandOnce(nine(), 0, 0, 1400, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false}), now = place(nine(), 1400);
   assert.ok(andCrossings(once) >= 1, 'the written order leaves a crossing');
   assert.equal(andCrossings(now), 0, 'the search removes it');
   assert.equal(now.loose.length, 0);
@@ -223,9 +223,9 @@ test('causeTree(): arrows into an AND that cross are searched again in another w
 
 test('causeTree(): a figure with no crossing into an AND, and a pdpc(), come out exactly as laid out once', () => {
   const fine = causeTree([N('a'), N('b'), N('c')], [{from: ['a', 'b'], to: 'c'}]);
-  assert.deepEqual(place(fine, 900), layoutCauseBandOnce(fine, 0, 0, 900, fixedW as never, ROLES));
+  assert.deepEqual(place(fine, 900), layoutCauseBandOnce(fine, 0, 0, 900, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false}));
   const plan = pdpc([{id: 's', label: 's', role: 'start'}, {id: 'g', label: 'g', role: 'goal'}], [{from: 's', to: 'g'}]);
-  assert.deepEqual(place(plan, 900), layoutCauseBandOnce(plan, 0, 0, 900, fixedW as never, ROLES));
+  assert.deepEqual(place(plan, 900), layoutCauseBandOnce(plan, 0, 0, 900, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false}));
 });
 
 // ADR 0016 D11: the long arrow into an AND and the direct one that runs side by side with it. A 12-node tree that had a `cause-parallel` before the lanes were shared.
@@ -275,7 +275,7 @@ test('causeTree(): a figure whose arrows cross with no AND involved is searched 
   const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":"n1","to":"n2"},{"from":"n1","to":"n3"},{"from":"n0","to":"n4"},{"from":"n4","to":"n5"},{"from":"n1","to":"n6"},{"from":"n2","to":"n7"},{"from":"n1","to":"n7"}]');
   const band = (): CauseBand => causeTree(Array.from({length: 8}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'frt', dir: 'up'});
   const crossings = (t: LaidOutCause): number => scoreOf(t.edges.map(e => e.points)).crossings;
-  const once = layoutCauseBandOnce(band(), 0, 0, 1800, fixedW as never, ROLES), now = place(band(), 1800);
+  const once = layoutCauseBandOnce(band(), 0, 0, 1800, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false}), now = place(band(), 1800);
   assert.ok(crossings(once) >= 1, `the written order leaves a crossing (${crossings(once)})`);
   assert.ok(crossings(now) < crossings(once), `the search lowers it (${crossings(once)} -> ${crossings(now)})`);
   assert.ok(now.h <= once.h + 0.5, 'no taller');

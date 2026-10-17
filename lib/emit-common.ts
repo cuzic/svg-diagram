@@ -1,4 +1,5 @@
 import {PALETTE, EMOJI_RE, STRONG_TRIM, colorOf, textColorOf, toneStyle, runColorOf} from './tokens.ts';
+import type {ToneEnv} from './tokens.ts';
 import type {Point, Theme, EmphasisTone, LineStyle, Arrow, Align} from './types/core.ts';
 import type {WrappedRun, Span} from './types/text-bands.ts';
 
@@ -40,8 +41,8 @@ export const resolveTextColor = textColorOf;
 
 export interface BoxStyle {fill: string; stroke: string; dashed: boolean}
 
-export function resolveBoxStyle(tone: EmphasisTone | undefined, day: Theme, dashedOverride?: boolean): BoxStyle {
-  const t = toneStyle(tone);
+export function resolveBoxStyle(tones: ToneEnv, tone: EmphasisTone | undefined, day: Theme, dashedOverride?: boolean): BoxStyle {
+  const t = toneStyle(tones, tone);
   // doc themes (string keys) use a stroke that reaches 3:1 against the page; the slide decks keep the pale border
   const stroke = typeof day === 'string' ? t.stroke : t.slideStroke ?? t.stroke;
   return {fill: colorOf(t.fill, day), stroke: colorOf(stroke ?? t.fill, day), dashed: dashedOverride ?? t.dashed};
@@ -54,9 +55,9 @@ export const resolveLineColor = textColorOf;
 // One line made of bold / coloured pieces: what has the line's own look stays plain text of the <text>, every other piece is a
 // <tspan>. No whitespace goes between the tags (it would be drawn); an emoji inside a piece nests in it, so it keeps the piece's weight.
 // A dimmed box keeps the bold but loses the colours (its text is all muted).
-export function spanTspans(spans: Span[], run: WrappedRun, color: string, day: Theme, dim?: boolean): string {
+export function spanTspans(spans: Span[], run: WrappedRun, color: string, day: Theme, tones: ToneEnv, dim?: boolean): string {
   return spans.map(sp => {
-    const fill = !dim && sp.tone ? resolveTextColor(sp.tone, day) : color;
+    const fill = !dim && sp.tone ? resolveTextColor(tones, sp.tone, day) : color;
     const attrs = `${sp.bold && run.weight !== 700 ? ' font-weight="700"' : ''}${fill !== color ? ` fill="${fill}"` : ''}`;
     return attrs ? `<tspan${attrs}>${emojiSpan(sp.text)}</tspan>` : emojiSpan(sp.text);
   }).join('');
@@ -65,12 +66,12 @@ export function spanTspans(spans: Span[], run: WrappedRun, color: string, day: T
 
 export function renderTextRuns(
   wrappedRuns: WrappedRun[],
-  {originX, originY, w, align, day, dim, boxTone}: {originX: number; originY: number; w: number; align: Align; day: Theme; dim?: boolean; boxTone?: EmphasisTone},
+  {originX, originY, w, align, day, tones, dim, boxTone}: {originX: number; originY: number; w: number; align: Align; day: Theme; tones: ToneEnv; dim?: boolean; boxTone?: EmphasisTone},
 ): string {
   const parts: string[] = [];
   for (const run of wrappedRuns) {
     // the dimmed look comes first: a solid box that is dimmed is a white box, so its (white) text would vanish
-    const color = dim ? PALETTE.muted : runColorOf(run.tone, boxTone, day);
+    const color = dim ? PALETTE.muted : runColorOf(tones, run.tone, boxTone, day);
     const cls = run.mono ? ' class="mono"' : '';
     const anchor = align === 'center' ? ' text-anchor="middle"' : align === 'right' ? ' text-anchor="end"' : '';
     // A step() badge only ever indents the title run (see layout.ts's
@@ -81,7 +82,7 @@ export function renderTextRuns(
     const lx = align === 'center' ? runOriginX + runW / 2 : align === 'right' ? runOriginX + runW : runOriginX;
     run.lines.forEach((line, i) => {
       const y = originY + run.lineYs[i];
-      const content = run.lineSpans ? spanTspans(run.lineSpans[i], run, color, day, dim) : emojiSpan(line);
+      const content = run.lineSpans ? spanTspans(run.lineSpans[i], run, color, day, tones, dim) : emojiSpan(line);
       parts.push(`<text x="${lx}" y="${y}"${anchor}${cls} font-size="${run.size}" font-weight="${run.weight}" fill="${color}">${content}</text>`);
     });
   }

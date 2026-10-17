@@ -11,7 +11,7 @@ import {assertScope} from './scope-name.ts';
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
 import {gridColumns} from './layout-util.ts';
-import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, ScopeOpts, Roles, WidthOf} from './types/core.ts';
+import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, ScopeOpts, Roles, WidthOf, WrapMode} from './types/core.ts';
 import type {BoxTone} from './types/text-bands.ts';
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -387,10 +387,10 @@ interface Unit {
 interface Spot {cx: number; cy: number; side: Side; box: Rect}
 class Grow extends Error {why: string; constructor(why: string) { super(why); this.why = why; }}
 
-export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutQuadrant {
+export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, mode: WrapMode): LaidOutQuadrant {
   const size = roles.note, tSize = roles.title, lineN = size + 4, lineT = tSize + 5;
   const tw = (s: string, sz: number, weight = 400) => textWidth(widthOf, s, sz, weight);
-  const wrap = (s: string, sz: number, weight: number, maxW: number): string[] => wrapText(s, {maxWidth: Math.max(20, maxW), atomWidth: a => widthOf(a, sz, weight, 'sans')});
+  const wrap = (s: string, sz: number, weight: number, maxW: number): string[] => wrapText(s, {maxWidth: Math.max(20, maxW), atomWidth: a => widthOf(a, sz, weight, 'sans'), mode});
   const widest = (lines: string[], sz: number, weight: number) => Math.max(0, ...lines.map(l => tw(l, sz, weight)));
   const width = Math.min(w, band.width ?? w), left = x + (w - width) / 2;
   const {cols, rows} = band;

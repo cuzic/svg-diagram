@@ -94,7 +94,7 @@ const fillOf = (s: ResolvedStep): ChartTone => s.tone ?? (s.kind === 'delta' ? (
 export function layoutWaterfall(spec: WaterfallSpec, g: ChartGeom): LaidOutChartPart {
   if (spec.dir === 'h') return layoutWaterfallH(spec, g);
   const S = g.size, n = spec.steps.length;
-  const c = new Canvas(g.x, g.y, g.w, g.height ?? 320, S, g.widthOf);
+  const c = new Canvas(g.x, g.y, g.w, g.height ?? 320, S, g.widthOf, g.wrap);
   const lo = Math.min(0, ...spec.steps.flatMap(s => [s.from, s.to])), sc = waterfallScale(spec);
   const ticks = spec.axis ? sc.ticks.map(t => ({v: t, s: numText(t)})) : [];
   const tickW = Math.max(0, ...ticks.map(t => c.tw(t.s)));
@@ -156,7 +156,7 @@ export function layoutWaterfall(spec: WaterfallSpec, g: ChartGeom): LaidOutChart
 
 /** dir: 'h': the same chart turned on its side: steps down the page, the running level along it. */
 function layoutWaterfallH(spec: WaterfallSpec, g: ChartGeom): LaidOutChartPart {
-  const S = g.size, n = spec.steps.length, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
+  const S = g.size, n = spec.steps.length, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
   const lo = Math.min(0, ...spec.steps.flatMap(s => [s.from, s.to])), sc = waterfallScale(spec), ticks = spec.axis ? sc.ticks.map(t => ({v: t, s: numText(t)})) : [];
   const texts = spec.steps.map(s => valueOf(s, spec.unit));
   const valW = Math.max(...texts.map(t => c.tw(t, true))) + 12;

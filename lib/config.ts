@@ -7,6 +7,7 @@ import type {Config} from './types/project.ts';
 import {DEFAULT_LEGEND_LABELS, RULE_DOCS} from './rules.ts';
 import {checkMinText, checkTones, MIN_FONT_SIZE, mergeTones} from './tokens.ts';
 import {checkToday, resolveToday} from './today.ts';
+import {measureSettingsOf} from './measure-settings.ts';
 
 export function loadConfig(from: string = process.cwd()): Config {
   let dir = path.resolve(from);
@@ -74,9 +75,10 @@ function checkFontFloor(cfg: Config, f: string): void {
 }
 
 // a diagram's own accept / maxWidth / legend / legendLabels win over the project's
-export function applyConfig<D extends Pick<DiagramData, 'today' | 'accept' | 'terms' | 'maxWidth' | 'legend' | 'legendLabels' | 'tones' | 'canvas' | 'keepWords'>>(d: D, cfg: Config): D {
+export function applyConfig<D extends Pick<DiagramData, 'today' | 'accept' | 'terms' | 'maxWidth' | 'legend' | 'legendLabels' | 'tones' | 'canvas' | 'keepWords' | 'measure'>>(d: D, cfg: Config): D {
   const floor = cfg.fontFloor ?? MIN_FONT_SIZE;
   if (d.canvas && d.canvas.minText < floor) throw new Error(`canvas: {minText: ${d.canvas.minText}} is below the project's fontFloor (${floor}). Lower "fontFloor" in .svg-diagram.json (10 at the lowest) or raise minText`);
+  d.measure ??= measureSettingsOf(cfg); // the diagram measures with its own project's settings, whatever else is loaded meanwhile (ADR 0031 §2)
   d.today ??= resolveToday(cfg._today, cfg.today); // the caller's day for today: 'auto' (ADR 0022 D1)
   d.accept = {...(cfg.accept ?? {}), ...(d.accept ?? {})};
   if (cfg.terms) d.terms = {...cfg.terms, ...(d.terms ?? {})};

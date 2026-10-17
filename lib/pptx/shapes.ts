@@ -1,4 +1,5 @@
 import {resolveBoxStyle} from '../emit-common.ts';
+import type {ToneEnv} from '../tokens.ts';
 import {BOX_PAD_X, BOX_PAD_Y} from '../layout-util.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutBox} from '../types/text-bands.ts';
@@ -17,13 +18,13 @@ export function plainBox(rect: Rect, text: string, o: {size: number; weight: Fon
 /** A shape's fill and outline. */
 const frameFill = (style: {fill: string; stroke: string; dashed?: boolean}): string => `${solidFill(style.fill)}<a:ln w="${emu(2.5)}">${solidFill(style.stroke)}${style.dashed ? '<a:prstDash val="dash"/>' : ''}</a:ln>`;
 
-export function boxXml(id: number, name: string, b: TextBox, day: LaidOutDiagram['day'], fonts: Fonts): string {
-  const style = resolveBoxStyle(b.tone, day, b.dashed);
+export function boxXml(id: number, name: string, b: TextBox, day: LaidOutDiagram['day'], tones: ToneEnv, fonts: Fonts): string {
+  const style = resolveBoxStyle(tones, b.tone, day, b.dashed);
   const px = b.padX ?? BOX_PAD_X, py = b.padY ?? BOX_PAD_Y;
   const frame = b.frame !== false;
   const al = b.align ?? 'left';
   const align = al === 'center' ? 'ctr' : al === 'right' ? 'r' : 'l';
-  const paras = paragraphsOf(b.wrappedRuns, b.tone, day, align, fonts);
+  const paras = paragraphsOf(b.wrappedRuns, b.tone, day, tones, align, fonts);
   // the first baseline is lineYs[0] below the content top (the svg puts text at band.y + padY + lineYs[i]); with exact line spacing the
   // baseline sits ~0.8 of the pitch below the line's top -- that factor is what S2 measures on a real PowerPoint
   const first = b.wrappedRuns[0];
@@ -34,8 +35,8 @@ export function boxXml(id: number, name: string, b: TextBox, day: LaidOutDiagram
 }
 
 /** The frame of a `group` band: an empty rounded rectangle the boxes inside sit on. */
-export function groupFrameXml(id: number, name: string, r: Rect, tone: LaidOutBox['tone'], dashed: boolean | undefined, day: LaidOutDiagram['day']): string {
-  const style = resolveBoxStyle(tone, day, dashed);
+export function groupFrameXml(id: number, name: string, r: Rect, tone: LaidOutBox['tone'], dashed: boolean | undefined, day: LaidOutDiagram['day'], tones: ToneEnv): string {
+  const style = resolveBoxStyle(tones, tone, day, dashed);
   return sp(id, name, `${xfrm(r)}<a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val ${roundRectAdj(r)}"/></a:avLst></a:prstGeom>${frameFill(style)}`, '<a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="ja-JP"/></a:p>');
 }
 
