@@ -1,6 +1,6 @@
 # ADR 0031: FCIS を全体に(殻の明示・状態の値化・純粋関数の網羅テスト)
 
-- 状態: 草案 改訂 3(Opus レビュー 2 巡反映済み、再確認待ち)
+- 状態: 草案 改訂 4(Opus レビュー収束、実装前)
 - 日付: 2026-10-17
 - 基点: `main`(7c79971、PR #272 まで)
 - 関連: ADR 0007(描画の状態を値にする・依存方向の検査)
@@ -40,7 +40,7 @@ ADR 0007 は中核(layout・emit・verify ほか)に I/O を持ち込まない�
 - 実行時コードのないファイル(型だけ)は対象外と明示する。
 - `usesEnv` を識別子としての `process`(`\bprocess\s*[.\[]`、分割代入、`globalThis.process`)に限り、文字列リテラルとコメントを潰してから当てる。`strict.ts` を殻から外す。
 - 禁止の追加(中核): `Date.now(`・引数なし `new Date()`・`Math.random(`・`performance.now(`・`crypto.random*`・`path.resolve` / `process.cwd`・ロケール引数(第 2 引数)なしの `localeCompare` / `Intl.*(undefined` / 引数なし `toLocale*()`。時計・乱数・`path` は中核 176 ファイルで当たりゼロ(実測)なので、そのまま入れる。`node:crypto` は `createHash` だけ許す(ハッシュは決定的。`randomUUID` / `randomBytes` / `getRandomValues` を禁止)。
-- 中核ファイルのトップレベルに `let` と、`ReadonlyMap` / `ReadonlySet` の型注釈のない `new Map/Set/WeakMap` を置かない。定数の検索表(`CANNOT_START_LINE` など、実測 27 個)は型注釈を足して通す(機械的な作業)。**オブジェクト・配列のリテラルは検査しない**(53 ファイル以上が当たり、正規表現で可変と定数を区別できない。書き換えは型検査と §4 の入口の凍結に任せる)。許可の一覧には、入力を完全にキーにした純粋キャッシュだけを理由つきで載せる(`tokens.ts` の `MAPS` と、`ToneEnv` の `WeakMap` に移した後の `merged`。`emit-html.ts` の `boxMemo` は段階 4 で消える。`measure.ts` は殻)。
+- 中核ファイルのトップレベルに `let` と、`ReadonlyMap` / `ReadonlySet` の型注釈のない `new Map/Set/WeakMap` を置かない。定数の検索表(`CANNOT_START_LINE` など、実測 26 個。残る 1 個の `MAPS` は下の許可一覧)は型注釈を足して通す(機械的な作業)。**オブジェクト・配列のリテラルは検査しない**(53 ファイル以上が当たり、正規表現で可変と定数を区別できない。書き換えは型検査と §4 の入口の凍結に任せる)。許可の一覧には、入力を完全にキーにした純粋キャッシュだけを理由つきで載せる(`tokens.ts` の `MAPS`、`ToneEnv` を引く `WeakMap` 自体、およびその env の中の `merged`。`emit-html.ts` の `boxMemo` は段階 4 で消える。`measure.ts` は殻)。
 - **段階 1 の既知違反の一覧** `{file, rule, removedIn}`:`wrap.ts` の `let` 2 つ → 段階 3、`tokens.ts` の `activeTones` → 段階 2、`dsl/text-bands.ts` の `boxSizeWarned` → 段階 5、`localeCompare` 2 件と `Intl.Segmenter` 1 件 → 段階 6。該当の段階で一覧から消さないと落ちる(古い項目を残さない)。
 - `lib/dsl/` の I/O の検査は反転した検査に統合する。ただし今の 4 つ目のテスト(dsl の import の循環と、ビルダーが `render.ts` / `io.ts` を import しないこと)は別物なので残す。
 
@@ -90,7 +90,7 @@ ADR 0007 が採らなかった「Measurer のインスタンス化」は、こ�
 | 3 | §2 wrap / keepWords | `setWrapMode` / `setKeepWords` が消える。golden 不変 |
 | 4 | §3 の 1(`emit-html` の `fontBox`)と、測定設定の値化(`measure: {backend, fonts}`) | `emit-html` / `pipeline` が中核。出力不変。§0(c) の並行描画の再現が、`laidOut` の箱の幅と ascent の両方で通る。別 PR に分けるなら、並行描画の受け入れ条件は測定設定の値化の PR に置く |
 | 5 | §3 の 2〜5、`dsl/text-bands.ts` の警告を `Finding` で返す、`image-file.ts` の `sourceDir` | `SHELL` の項目が減る。出力不変 |
-| 6 | §4 穴のラチェット、性質テスト、入口の凍結、ロケールの固定(`localeCompare(b, 'en')`、`Intl.Segmenter('ja')`) | ラチェットが通る。既知違反の一覧が空 |
+| 6 | §4 穴のラチェット、性質テスト、入口の凍結、ロケールの固定(`localeCompare(b, 'en')`、`Intl.Segmenter('ja')`。並びが変わって golden が動く場合は、変わった例と理由を PR に列挙し、新しい並びを決定的なもの〔コードポイント順または `'en'`〕として受け入れる) | ラチェットが通る。既知違反の一覧が空 |
 
 ## 影響
 
