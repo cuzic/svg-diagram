@@ -29,8 +29,8 @@ import type {WfScreen, WireframeBand, ScreensBand, StateMatrixCell, LaidOutWiref
 
 const S = 14, T = 15, LHF = 1.4, GAP = 12;
 const lh = (s: number): number => s * LHF;
-const VISUAL = new Set(['map', 'video', 'heat', 'pointcloud', 'chart', 'image', 'compare', 'fusion', 'region']);
-const CONTAINER = new Set(['col', 'row', 'card']);
+const VISUAL: ReadonlySet<string> = new Set(['map', 'video', 'heat', 'pointcloud', 'chart', 'image', 'compare', 'fusion', 'region']);
+const CONTAINER: ReadonlySet<string> = new Set(['col', 'row', 'card']);
 
 // ---- constructors -------------------------------------------------------------------------
 const mk = (t: string, o: object = {}) => ({t, ...o});
