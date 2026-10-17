@@ -5,6 +5,7 @@ import type {ToneOverrides} from '../tokens.ts';
 import type {Band} from './index.ts';
 import type {BoxTone} from './text-bands.ts';
 import type {WireframeDefaults} from './wireframe.ts';
+import type {FontSpecs} from './project.ts';
 
 /** Palette keys diagram() accepts: 1 / 2 (the training deck's legacy day numbers) or a named theme. */
 export type Theme = 1 | 2 | 'blue' | 'teal' | 'amber';
@@ -172,7 +173,13 @@ export type DiagramStatus = 'draft';
  */
 export type SpotlightOpt = string | {ids: string | readonly string[]; edges?: 'touching' | 'between'; dim?: 'outline' | 'fill'; mutedOk?: boolean};
 /** Everything diagram() stores, plus fields set later by build/check (usableWidth, maxWidth, source). */
+/** How text is measured for one diagram: the engine, whether the person chose it, and the font files (ADR 0031 §2). A value, set by loadDiagram, so
+ *  two diagrams loaded from different projects measure with their own settings however their renders interleave. */
+export interface MeasureSettings {backend: 'chromium' | 'font'; explicit: boolean; fonts?: FontSpecs}
+
 export interface DiagramData {
+  /** Set by loadDiagram from the project's config; a diagram built in code measures with the process default. */
+  measure?: MeasureSettings;
   /** Theme key. (Named `day` for historical reasons; it holds any Theme.) */
   day: Theme;
   medium: Medium;

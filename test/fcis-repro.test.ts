@@ -5,6 +5,7 @@ import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {box, checkDiagram, closeMeasurer, diagram, renderDiagram} from '../lib/dsl.ts';
+import {layoutDiagram} from '../lib/layout-measured.ts';
 import {emitPptx} from '../lib/pptx/emit.ts';
 import {configureMeasure, measureAll} from '../lib/measure.ts';
 import {unzipEntry} from './helpers/pptx/unzip.ts';
@@ -38,14 +39,14 @@ test('tones × appearance: the override and its dark pair reach the SVG, the aut
   assert.deepEqual(rules, (await checkDiagram(figure('auto'))).verdict.findings.map(f => f.rule).sort());
 });
 
-// (c) ADR 0031 background 2: configureMeasure writes process-wide globals that layout reads after its `await`. Two font families measure
+// (c) ADR 0031 background 2: configureMeasure wrote process-wide globals that a measurement read after its `await` (fixed in stage 4: measureAll takes the settings at its start). Two font families measure
 // the same text at different widths, so a leak shows as a different wrapped height.
 const DIR = '/home/cuzic/.local/share/fonts/';
 const REGULAR = DIR + 'BIZ-UDGothicR.ttc', BOLD = DIR + 'BIZ-UDGothicB.ttc', ARIAL = DIR + 'arial.ttf', ARIAL_BOLD = DIR + 'arialbd.ttf';
 const fontsOf = (n: 0 | 1) => ({sans: n ? {regular: `${REGULAR}#1`, bold: `${BOLD}#1`} : {regular: ARIAL, bold: ARIAL_BOLD}, mono: {regular: `${REGULAR}#0`, bold: `${BOLD}#0`}});
 // one cold text (the measure memo is keyed by the settings, so a text measured before would hide the leak)
 const req = (text: string) => new Map([['t', {text, size: 16}]]);
-test('two measurements with different settings do not mix their widths', {todo: 'ADR 0031 stage 4: configureMeasure is a process-wide global', skip: ![REGULAR, BOLD, ARIAL, ARIAL_BOLD].every(f => fs.existsSync(f))}, async () => {
+test('two measurements with different settings do not mix their widths', {skip: ![REGULAR, BOLD, ARIAL, ARIAL_BOLD].every(f => fs.existsSync(f))}, async () => {
   const text = 'Wide wide mmm WWW iii — ADR 0031 repro, a text nothing else measures';
   configureMeasure({measure: 'font', fonts: fontsOf(1)});
   const first = measureAll(req(text));
@@ -69,4 +70,23 @@ test('two renders at once with different wrap modes each break by their own mode
   assert.deepEqual(linesOf(char), linesOf(charAlone));
   assert.deepEqual(linesOf(phrase), linesOf(phraseAlone));
   assert.notDeepEqual(linesOf(char), linesOf(phrase), 'the text must break differently in the two modes, or the test shows nothing');
+});
+
+// The same through layoutDiagram: a diagram carries the settings of the project it was loaded from (DiagramData.measure), so the
+// process default changing under it — a second project loading while this one awaits its measurement — does not reach its layout.
+test('a diagram measures with its own settings while the process default changes under it', {skip: ![REGULAR, BOLD, ARIAL, ARIAL_BOLD].every(f => fs.existsSync(f))}, async () => {
+  const title = Array.from({length: 12}, () => 'Wide wide mmm WWW iii').join(' ') + ' — layoutDiagram repro';
+  const settings = (n: 0 | 1) => ({backend: 'font' as const, explicit: true, fonts: fontsOf(n)});
+  const heightOf = async (n: 0 | 1) => {
+    const d = {...diagram({theme: 'blue', width: 360}).add(box({id: 'a', title})), measure: settings(n)};
+    const b = (await layoutDiagram(d as never)).laidOut.find(x => x.type === 'box');
+    return b && 'h' in b ? b.h : NaN;
+  };
+  configureMeasure({measure: 'font', fonts: fontsOf(1)});
+  const alone1 = await heightOf(1), alone0 = await heightOf(0);
+  assert.notEqual(alone0, alone1, 'the two settings must wrap differently, or this test says nothing');
+  const first = heightOf(1);
+  configureMeasure({measure: 'font', fonts: fontsOf(0)}); // a second project is loaded while the first is still being laid out
+  const second = heightOf(0);
+  assert.deepEqual([await first, await second], [alone1, alone0]);
 });

@@ -13,6 +13,7 @@ import {applySpotlight} from './spotlight.ts';
 import {verifyDiagram} from './verify.ts';
 import {emitSvg} from './emit.ts';
 import {emitHtml} from './emit-html.ts';
+import type {FontBox} from './emit-html.ts';
 import {xmlProblems} from './xml-check.ts';
 import type {DiagramData} from './types/core.ts';
 import type {LaidOutDiagram} from './types/index.ts';
@@ -65,10 +66,11 @@ export async function runChecked(d: DiagramData, layout: (prepared: DiagramData)
 export interface Emitted {svg: string; html?: string; xml: string[]}
 
 /** Emit the final drawing (`reveal`: the last stage when the diagram has click stages) and check the SVG is well-formed XML. */
-export function emitOutputs(laidOut: LaidOutDiagram, opts: {html?: boolean; reveal?: number} = {}): Emitted {
+export function emitOutputs(laidOut: LaidOutDiagram, opts: {html?: boolean; reveal?: number; fontBox?: FontBox} = {}): Emitted {
   const emitOpts = opts.reveal ? {reveal: opts.reveal} : {};
   const svg = emitSvg(laidOut, emitOpts);
-  return {svg, ...(opts.html ? {html: emitHtml(laidOut, emitOpts)} : {}), xml: xmlProblems(svg)};
+  if (opts.html && !opts.fontBox) throw new Error('emitOutputs: html needs fontBox (the glyph boxes come from the shell: lib/font-box.ts)');
+  return {svg, ...(opts.html ? {html: emitHtml(laidOut, {...emitOpts, fontBox: opts.fontBox!})} : {}), xml: xmlProblems(svg)};
 }
 
 /** One reveal stage's SVG (stage 0 = nothing revealed yet), from the same laid-out tree as the final drawing. */
