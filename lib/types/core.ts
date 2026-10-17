@@ -5,6 +5,7 @@ import type {ToneOverrides} from '../tokens.ts';
 import type {Band} from './index.ts';
 import type {BoxTone} from './text-bands.ts';
 import type {WireframeDefaults} from './wireframe.ts';
+import type {FontSpecs} from './project.ts';
 
 /** Palette keys diagram() accepts: 1 / 2 (the training deck's legacy day numbers) or a named theme. */
 export type Theme = 1 | 2 | 'blue' | 'teal' | 'amber';
@@ -20,7 +21,7 @@ export interface ThemeColors {accent: string; soft: string}
 export type PlainColorKey = 'bg' | 'text' | 'muted' | 'border' | 'code' | 'danger';
 export type Palette = Record<PlainColorKey, string> & Record<Theme, ThemeColors>;
 /** Token key a wireframe primitive carries; emit.ts resolves it against the diagram theme ('accent' | 'soft' are theme colours). */
-export type ColorKey = PlainColorKey | 'accent' | 'soft' | `#${string}`; // a #rrggbb only comes from a tone override (tokens.ts withTones)
+export type ColorKey = PlainColorKey | 'accent' | 'soft' | `#${string}`; // a #rrggbb only comes from a tone override (tokens.ts toneEnv)
 /** font-size role (tokens.ts ROLES). */
 export type Role = 'title' | 'label' | 'body' | 'note' | 'banner' | 'stat' | 'display';
 /** The font size (px) of every role: a value, so a figure's text sizes travel with it (tokens.ts ROLES, scaleRoles). */
@@ -172,7 +173,13 @@ export type DiagramStatus = 'draft';
  */
 export type SpotlightOpt = string | {ids: string | readonly string[]; edges?: 'touching' | 'between'; dim?: 'outline' | 'fill'; mutedOk?: boolean};
 /** Everything diagram() stores, plus fields set later by build/check (usableWidth, maxWidth, source). */
+/** How text is measured for one diagram: the engine, whether the person chose it, and the font files (ADR 0031 §2). A value, set by loadDiagram, so
+ *  two diagrams loaded from different projects measure with their own settings however their renders interleave. */
+export interface MeasureSettings {backend: 'chromium' | 'font'; explicit: boolean; fonts?: FontSpecs}
+
 export interface DiagramData {
+  /** Set by loadDiagram from the project's config; a diagram built in code measures with the process default. */
+  measure?: MeasureSettings;
   /** Theme key. (Named `day` for historical reasons; it holds any Theme.) */
   day: Theme;
   medium: Medium;
@@ -267,4 +274,10 @@ export interface MeasureRequest {text: string; size: number; weight?: number; fo
 export interface Measured {w: number; h: number}
 /** [text, size, weight, font]: what collectTextRequests() reports for one string. */
 export type TextRequest = [text: string, size: number, weight: number, font: FontFamily];
-export interface WrapOptions {maxWidth: number; atomWidth: (atom: string) => number}
+/** 'phrase' (default): a katakana run and a kanji run are one unit for breaking ('アプリ' is never ア/プ/リ); 'char': any CJK character may end a line;
+ *  'bunsetsu': like 'phrase', and a hiragana sticks to the character before it too, so a line breaks only after a hiragana that is followed by a non-hiragana, or after 、 / 。 ("評価されるため | 仕掛りが"). */
+export type WrapMode = 'phrase' | 'char' | 'bunsetsu';
+/** `mode`: the diagram's wrap mode (diagram({wrap}), resolved by layoutWith). */
+/** A layout's wrap settings, resolved once by layoutWith from diagram({wrap, keepWords}) (ADR 0031 §2); LayoutCtx carries them. */
+export interface WrapEnv {readonly wrap: WrapMode; readonly keepWords: boolean}
+export interface WrapOptions {maxWidth: number; atomWidth: (atom: string) => number; mode: WrapMode}

@@ -52,7 +52,7 @@ export function clusterTexts(s: ClusterSpec): [string, number][] {
 }
 
 export function layoutCluster(s: ClusterSpec, g: ChartGeom): LaidOutChartPart {
-  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
+  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
   const nr = s.rows.length, nc = s.cols.length, ro = s.rowTree?.order ?? s.rows.map((_r, i) => i), co = s.colTree?.order ?? s.cols.map((_q, i) => i);
   const rowW = Math.min(Math.max(...s.rows.map(t => c.tw(t))) + 12, g.w * 0.22), dw = s.rowTree ? 80 : 0, dh = s.colTree ? 64 : 0;
   const left = g.x + dw + 6, right = g.x + g.w - rowW - 4, cw = (right - left) / nc;

@@ -12,7 +12,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {renderSource, type RenderSourceResult} from './render-source.ts';
 import {parseXml, parseXmlFragment, type El} from './svg-dom.ts';
-import {diagramTarget, decodeTarget, resolveSource, inlineSvg, type Render} from './markdown-target.ts';
+import {diagramTarget, decodeTarget, inlineSvg, type Render} from './markdown-target.ts';
+import {resolveSource} from './source-path.ts';
 
 export interface RemarkSvgDiagramOptions {
   /** 'svg' (default) or 'html'. A `#svg` / `#html` on an image's target wins. */

@@ -36,7 +36,7 @@ import type {DistSpec} from './charts-dist.ts';
 import type {CatSpec} from './charts-cat.ts';
 import {layoutCausal, layoutDependency, layoutPert, semnetTexts} from './semnet.ts';
 import type {CausalSpec, DependencySpec, PertSpec} from './semnet.ts';
-import type {FontFamily, Rect, Dimmed, Roles, WidthOf} from './types/core.ts';
+import type {FontFamily, Rect, Dimmed, Roles, WidthOf, WrapMode} from './types/core.ts';
 import type {RevealOpts, ScopeOpts} from './types/core.ts';
 
 export type ChartSpec = {kind: 'waterfall'; spec: WaterfallSpec} | {kind: 'tornado'; spec: TornadoSpec} | {kind: 'heatmap'; spec: HeatmapSpec} | {kind: 'stacked'; spec: StackedSpec} | {kind: 'radar'; spec: RadarSpec} | {kind: 'treemap'; spec: TreemapSpec} | {kind: 'sankey'; spec: SankeySpec} | {kind: 'catplot'; spec: CatSpec} | {kind: 'distplot'; spec: DistSpec} | {kind: 'multiplot'; spec: MultiSpec} | {kind: 'regplot'; spec: RegSpec} | {kind: 'clustermap'; spec: ClusterSpec} | {kind: 'bubble'; spec: BubbleSpec} | {kind: 'butterfly'; spec: ButterflySpec} | {kind: 'combo'; spec: ComboSpec} | {kind: 'harvey'; spec: HarveySpec} | {kind: 'pert'; spec: PertSpec} | {kind: 'causal'; spec: CausalSpec} | {kind: 'dependency'; spec: DependencySpec};
@@ -93,9 +93,9 @@ export function chartTexts(band: ChartBand, roles: Roles): [string, number, numb
   return list.map(([s, weight]) => [s, size, weight, 'sans']);
 }
 
-export function layoutChart(band: ChartBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutChart {
+export function layoutChart(band: ChartBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, wrap: WrapMode): LaidOutChart {
   const size = sizeOf(band.labelRole, roles), width = Math.min(w, band.width ?? w), left = x + (w - width) / 2;
-  const g = {x: left, y, w: width, height: band.height, size, widthOf};
+  const g = {x: left, y, w: width, height: band.height, size, widthOf, wrap};
   const part = ((): LaidOutChartPart => {
     switch (band.kind) {
       case 'waterfall': return layoutWaterfall(band.spec as WaterfallSpec, g);

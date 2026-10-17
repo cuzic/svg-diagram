@@ -63,7 +63,7 @@ test('a line that is not a return never hops, and neither does a cutting (blocks
 // the layout: a figure with `hop` keeps the crossings; one without it is exactly as before
 const links = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'b', to: 'd'}, {from: 'c', to: 'e'}, {from: 'd', to: 'f'}, {from: 'e', to: 'g'}, {from: 'f', to: 'g'}, {from: 'g', to: 'a', back: true as const}];
 const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
-const place = (band: CauseBand): LaidOutCause => layoutCauseBand(band, 0, 0, 1800, fixedW as never, ROLES);
+const place = (band: CauseBand): LaidOutCause => layoutCauseBand(band, 0, 0, 1800, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false});
 
 test('hop: true keeps the crossings of a return, and the lines are untouched; without hop nothing is added', () => {
   const plain = place(causeTree(ids.map(N), links, {dir: 'up'})), hop = place(causeTree(ids.map(N), links, {dir: 'up', hop: true}));

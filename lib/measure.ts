@@ -24,7 +24,8 @@ import {svgSize} from './raster.ts';
 import type {Raster} from './raster.ts';
 import {FONT_STACKS} from './tokens.ts';
 import {splitAtoms, textWidth} from './atoms.ts';
-import type {FontFamily, MeasureRequest, Measured, WidthOf} from './types/core.ts';
+import type {FontFamily, MeasureRequest, MeasureSettings, Measured, WidthOf} from './types/core.ts';
+import {measureSettingsOf} from './measure-settings.ts';
 import type {Config, FontSpecs} from './types/project.ts';
 import {loadConfig} from './config.ts';
 
@@ -96,52 +97,49 @@ export async function closeMeasurer(): Promise<void> {
 // returns Map<key, {w, h}>
 // Widths measured earlier in this process, so building many diagrams in one run measures each atom once.
 const memo = new Map<string, Measured>();
-const memoKey = (r: MeasureRequest) => JSON.stringify([backend, backend === 'font' ? fontSpecs ?? null : null, r.text, r.size, r.weight ?? 400, r.font ?? 'sans']);
+const memoKey = (engine: 'chromium' | 'font', fonts: FontSpecs | undefined, r: MeasureRequest) => JSON.stringify([engine, engine === 'font' ? fonts ?? null : null, r.text, r.size, r.weight ?? 400, r.font ?? 'sans']);
 
 // Which engine measures: 'font' (the font files read directly, no browser; the default) or 'chromium' (a headless browser).
-// SVG_DIAGRAM_MEASURE overrides .svg-diagram.json's `measure`. Unconfigured, the first measurement reads the config from the cwd.
+// SVG_DIAGRAM_MEASURE overrides .svg-diagram.json's `measure`. The settings are a value (MeasureSettings): measureAll takes the ones it is
+// given, else the process default below, and reads them once at its start, so a later configureMeasure() cannot change a measurement
+// that is under way. Unconfigured, the default reads the config from the cwd.
 // When `measure` is not set anywhere and no font file can be found, measuring falls back to Chromium (with a warning, once);
 // when it is set to 'font' that is an error, because the person asked for the font files.
-let backend: 'chromium' | 'font' | null = null;
-let explicit = false;
-let fontSpecs: FontSpecs | undefined;
-export function configureMeasure(cfg: Pick<Config, 'measure' | 'fonts'>): void {
-  const env = process.env.SVG_DIAGRAM_MEASURE || undefined; // empty counts as unset
-  if (env && env !== 'chromium' && env !== 'font') throw new Error(`SVG_DIAGRAM_MEASURE=${env}: expected 'chromium' or 'font'`);
-  const chosen = (env as 'chromium' | 'font' | undefined) ?? cfg.measure;
-  backend = chosen ?? 'font';
-  explicit = chosen !== undefined;
-  fontSpecs = cfg.fonts;
-}
+let defaults: MeasureSettings | null = null;
+const degraded = new Set<string>(); // settings that fell back to Chromium: later measurements with them go straight there
+const keyOf = (s: MeasureSettings): string => JSON.stringify([s.backend, s.fonts ?? null]);
+const engineOf = (s: MeasureSettings): 'chromium' | 'font' => degraded.has(keyOf(s)) ? 'chromium' : s.backend;
+/** Set the process default settings: what a measurement without settings of its own uses (the CLIs, tests). */
+export function configureMeasure(cfg: Pick<Config, 'measure' | 'fonts'>): void { defaults = measureSettingsOf(cfg); degraded.clear(); } // a new configuration starts without the old fallbacks
+/** The process default settings (read from the cwd's config the first time). */
+export function defaultMeasureSettings(): MeasureSettings { return defaults ??= measureSettingsOf(loadConfig()); }
 
-/** The font files the project names for measuring (`fonts` of .svg-diagram.json), if any. */
-export const currentFontSpecs = (): FontSpecs | undefined => fontSpecs;
-
-/** Which engine measures now, and whether the person chose it (`measure` / SVG_DIAGRAM_MEASURE) rather than it being the default. */
+/** Which engine measures by default now, and whether the person chose it (`measure` / SVG_DIAGRAM_MEASURE) rather than it being the default. */
 export function currentMeasure(): {backend: 'chromium' | 'font'; explicit: boolean} {
-  if (!backend) configureMeasure(loadConfig());
-  return {backend: backend!, explicit};
+  const s = defaultMeasureSettings();
+  return {backend: engineOf(s), explicit: s.explicit};
 }
 
-export async function measureAll(requests: Map<string, MeasureRequest>): Promise<Map<string, Measured>> {
+export async function measureAll(requests: Map<string, MeasureRequest>, settings: MeasureSettings = defaultMeasureSettings()): Promise<Map<string, Measured>> {
   if (requests.size === 0) return new Map();
-  if (!backend) configureMeasure(loadConfig());
+  let engine = engineOf(settings);
   const result = new Map<string, Measured>();
   const todo = new Map<string, MeasureRequest>();
   for (const [key, r] of requests) {
-    const hit = memo.get(memoKey(r));
+    const hit = memo.get(memoKey(engine, settings.fonts, r));
     if (hit) result.set(key, hit); else todo.set(key, r);
   }
   if (todo.size === 0) return result;
-  if (backend === 'font') {
+  if (engine === 'font') {
     const {measureWithFonts} = await import('./font-metrics.ts');
     try {
-      for (const [key, m] of measureWithFonts(todo, fontSpecs)) { memo.set(memoKey(todo.get(key)!), m); result.set(key, m); }
+      for (const [key, m] of measureWithFonts(todo, settings.fonts)) { memo.set(memoKey('font', settings.fonts, todo.get(key)!), m); result.set(key, m); }
       return result;
     } catch (e) {
-      if (explicit) throw e;
+      if (settings.explicit) throw e;
       console.warn(`svg-diagram: ${(e as Error).message.split(' Name the file')[0]} — measuring with Chromium instead (set "fonts" to measure from font files).`);
-      backend = 'chromium';
+      degraded.add(keyOf(settings));
+      engine = 'chromium';
     }
   }
   const browser = await getBrowser();
@@ -167,7 +165,7 @@ export async function measureAll(requests: Map<string, MeasureRequest>): Promise
     }, entries.length);
     entries.forEach(([key, r], i) => {
       const m = {w: dims[i][0], h: dims[i][1]};
-      memo.set(memoKey(r), m);
+      memo.set(memoKey('chromium', settings.fonts, r), m);
       result.set(key, m);
     });
     return result;

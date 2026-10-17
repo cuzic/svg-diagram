@@ -13,7 +13,7 @@ import {gapFor, layeredAttempt} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import {wrapText} from './wrap.ts';
-import type {EmphasisTone, FontFamily, Roles, WidthOf} from './types/core.ts';
+import type {EmphasisTone, FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {CauseBand, CauseRole, CloudArrow, CloudBand, CloudBox, LaidOutCause, LaidOutCloud} from './types/diagrams.ts';
 import type {BoxTone} from './types/text-bands.ts';
 
@@ -66,11 +66,11 @@ const movedAside = new WeakSet<object>();
  * A cause tree. When the arrows into an effect with an AND cross each other, or any two arrows cross, the order the entities are written in is tried again
  * in a few fixed ways (ADR 0019 D4); a figure with no crossing is never touched. Only a cause tree (not pdpc() / relationDiagram()).
  */
-export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number, canvasBound = false): LaidOutCause {
-  const first = layoutCauseBandOnce(band, x, y, w, widthOf, roles, heightBudget, canvasBound);
+export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause {
+  const first = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound);
   // the search is for a figure whose AND arrows cross as first laid out: judged before the side-by-side runs are moved aside (ADR 0016 D12/D13), which also clears crossings
   // a crossing of any two arrows also starts it: the order only wins when it is strictly better in (AND crossings, AND side-by-side, crossings, bends)
-  if (band.base !== undefined || (crossingsOf_(first) === 0 && scoreOf(first.edges.map(e => e.points)).crossings === 0 && (!movedAside.has(first) || crossingsOf_(layoutCauseBandOnce(band, x, y, w, widthOf, roles, heightBudget, canvasBound, undefined, true)) === 0))) return first;
+  if (band.base !== undefined || (crossingsOf_(first) === 0 && scoreOf(first.edges.map(e => e.points)).crossings === 0 && (!movedAside.has(first) || crossingsOf_(layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, undefined, true)) === 0))) return first;
   const ids = band.nodes.map(n => n.id);
   // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
   const orders = [[...ids].reverse(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
@@ -78,7 +78,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   let best = first, bestScore = scoreOfCause(first);
   for (const order of orders) {
     let t: LaidOutCause;
-    try { t = layoutCauseBandOnce(band, x, y, w, widthOf, roles, heightBudget, canvasBound, order); } catch { continue; }
+    try { t = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order); } catch { continue; }
     // the same layers (a different order must not change which edge of a cycle is cut, or fold the figure), the same size limits, no AND the first drew left undrawn
     if (axisOf(t).some((v, i) => Math.abs(v - axisOf(first)[i]) > 0.5) || t.h > first.h + 0.5 || t.loose.length > first.loose.length) continue;
     if (t.fitApplied?.length !== first.fitApplied?.length) continue;
@@ -93,7 +93,7 @@ const crossingsOf_ = (t: LaidOutCause): number => andClashes(t.edges, t.ands).fi
 const scoreOfCause = (t: LaidOutCause): number[] => { const s = scoreOf(t.edges.map(e => e.points)); return [crossingsOf_(t), andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses').length, s.crossings, s.bends]; };
 const lexLess = (a: number[], b: number[]): boolean => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i]; return false; };
 
-export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false): LaidOutCause {
+export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false): LaidOutCause {
   const ids = new Set<string>();
   for (const n of band.nodes) {
     if (typeof n.id !== 'string' || !n.id) throw new Error('causeTree(): every node needs an id');
@@ -141,10 +141,10 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   // above / below a box the badge is CORE_BADGE_H high; beside it, CORE_BADGE_W wide
   const hasCore = band.nodes.some(n => n.core);
   const padOf = (vertical: boolean): {x: number; y: number} => hasCore ? (vertical ? {x: 0, y: CORE_BADGE_H + CORE_BADGE_GAP} : {x: CORE_BADGE_W + CORE_BADGE_GAP, y: 0}) : {x: 0, y: 0};
-  const build = (dir: CauseDir, maxW: number, fold?: number) => {
+  const build = (dir: CauseDir, maxW: number, floor: boolean, fold?: number) => {
     const vertical = dir === 'up' || dir === 'down', flip = dir === 'up' || dir === 'left';
     const iw = w - 2 * padOf(vertical).x; // the width the figure itself has: the badge room at both ends of the arrows' axis is kept free
-    const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles)]));
+    const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles, env.wrap, floor)]));
     // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
     const order: string[] = [], put = (id: string): void => { if (!order.includes(id)) order.push(id); };
     const written = anotherOrder ? anotherOrder.map(id => band.nodes.find(n => n.id === id)!) : band.nodes; // ADR 0019 D4: another written order
@@ -197,7 +197,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   const start: CauseDir = band.dir === undefined || band.dir === 'auto' ? base : band.dir;
   // a why-why tree (layerFrom: 'effect') is never folded: one "why n" on two levels breaks how it reads
   const fitted = fitLayout<CauseDir, ReturnType<typeof build>>({
-    who: band.layerFrom === 'effect' ? 'whyWhyTree()' : 'causeTree()', w, start, ...(band.base !== undefined ? {alt: 'right' as const} : {axisKept: `another axis (a cause tree keeps its direction: ${start})`}),
+    who: band.layerFrom === 'effect' ? 'whyWhyTree()' : 'causeTree()', w, start, keepWords: env.keepWords, ...(band.base !== undefined ? {alt: 'right' as const} : {axisKept: `another axis (a cause tree keeps its direction: ${start})`}),
     explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined || band.maxNodeW === 'auto' ? {} : {maxNodeW: band.maxNodeW}), ...(band.maxNodeW === 'auto' ? {autoWidth: true} : {}),
     build, layoutOf: r => ({lay: r.lay, vertical: r.vertical}), ...(band.base === undefined && band.layerFrom !== 'effect' ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget: heightBudget - (band.maxNodeW === 'auto' && canvasBound ? y : 0)}), // an attempt's size already holds the badge room (see build)
     ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
@@ -281,7 +281,7 @@ export function cloudTexts(band: CloudBand, roles: Roles): [string, number, numb
   return out;
 }
 
-export function layoutCloudBand(band: CloudBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutCloud {
+export function layoutCloudBand(band: CloudBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv): LaidOutCloud {
   const S = roles.note, maxW = band.maxNodeW ?? CLOUD_W;
   const ids = new Set<string>();
   for (const k of KEYS) {
@@ -296,7 +296,7 @@ export function layoutCloudBand(band: CloudBand, x: number, y: number, w: number
   }
   const colW = Math.min(maxW, Math.floor((w - 2 * CLOUD_GAP_MIN) / 3));
   if (colW < 120) throw new Error(`cloud(): the figure has ${Math.round(w)}px, too narrow for five boxes and the arrows between them (needs ${3 * 120 + 2 * CLOUD_GAP_MIN}px)`);
-  const lines = Object.fromEntries(KEYS.map(k => [k, measureNode(boxText(k, band[k]), undefined, colW, widthOf, roles, {keepWords: false})])) as Record<typeof KEYS[number], ReturnType<typeof measureNode>>;
+  const lines = Object.fromEntries(KEYS.map(k => [k, measureNode(boxText(k, band[k]), undefined, colW, widthOf, roles, env.wrap, env.keepWords, {keepWords: false})])) as Record<typeof KEYS[number], ReturnType<typeof measureNode>>;
   const boxW = Math.max(...KEYS.map(k => lines[k].w)), H = Math.max(lines.b.h, lines.c.h, lines.d.h, lines.d2.h), hA = lines.a.h;
   const gap = Math.min(CLOUD_GAP_MAX, Math.floor((w - 3 * boxW) / 2)), figW = 3 * boxW + 2 * gap, rowsH = 2 * H + ROW_GAP;
   const figH = Math.max(rowsH, hA), top = (figH - rowsH) / 2; // a tall A makes the figure taller; the rows stay centred beside it
@@ -353,7 +353,7 @@ export function layoutCloudBand(band: CloudBand, x: number, y: number, w: number
   const list = band.assumptions ?? [];
   if (list.length) {
     const numW = Math.ceil(Math.max(...num.n.map(i => textWidth(widthOf, `${i}.`, S, 400)))) + NUM_GAP, inner = figW - numW, lh = Math.round(S * 1.4);
-    const wrap = (t: string): string[] => wrapText(t, {maxWidth: inner, atomWidth: a => widthOf(a, S, 400, 'sans')});
+    const wrap = (t: string): string[] => wrapText(t, {maxWidth: inner, atomWidth: a => widthOf(a, S, 400, 'sans'), mode: env.wrap});
     let ty = y + figH + LIST_GAP;
     for (const [i, a] of list.entries()) {
       out.texts.push({text: `${i + 1}.`, x: x0, y: ty + S, size: S, bold: false, muted: false, anchor: 'start'});

@@ -1,7 +1,7 @@
 // wordart(): what to measure, and where everything goes (docs/adr/0009). Pure; widths come from the measured atoms.
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
-import type {Rect, Roles, WidthOf} from './types/core.ts';
+import type {Rect, Roles, WidthOf, WrapMode} from './types/core.ts';
 import {inkReach, REFLECTION_SHARE, resolveLook, sizeOf} from './wordart-look.ts';
 import {BASELINE, COLUMN_PITCH, graphemes, tcySize, tokenizeColumn, verticalColumns} from './wordart-vertical.ts';
 import {translateItem} from './wordart-types.ts';
@@ -58,7 +58,7 @@ function arcGlyphs(text: string, size: number, arc: number, spacing: number, adv
 interface Figure {items: ArtItem[]; boxes: Rect[]; w: number; h: number; /** Where the mirror image stands: the last baseline, else the bottom. */ base: number}
 
 /** What every setter knows: the band's text, the size and the look, the width of a text, and the room the figure may take. */
-interface Setting {text: string; size: number; look: WordArtLook; opts: WordArtBand['opts']; wOf: (text: string) => number; widthOf: WidthOf; room: number}
+interface Setting {text: string; size: number; look: WordArtLook; opts: WordArtBand['opts']; wOf: (text: string) => number; widthOf: WidthOf; room: number; mode: WrapMode}
 
 function setArc(s: Setting): Figure {
   const a = arcGlyphs(s.text, s.size, s.opts.arc!, s.look.spacing, s.wOf);
@@ -88,7 +88,7 @@ function setVertical(s: Setting): Figure {
 
 function setHorizontal(s: Setting): Figure {
   const {size, look} = s, spacing = look.spacing, items: ArtItem[] = [], boxes: Rect[] = [];
-  const lines = s.text.split('\n').flatMap(p => p.trim() === '' ? [''] : wrapText(p, {maxWidth: s.room, atomWidth: a => s.wOf(a) + spacing * Array.from(a).length}));
+  const lines = s.text.split('\n').flatMap(p => p.trim() === '' ? [''] : wrapText(p, {maxWidth: s.room, atomWidth: a => s.wOf(a) + spacing * Array.from(a).length, mode: s.mode}));
   const widths = lines.map(l => s.wOf(l) + spacing * Math.max(0, Array.from(l).length - 1));
   const w = Math.max(...widths), h = lines.length * size * LINE_H, align = s.opts.align ?? 'center';
   const anchor = align === 'start' ? 'start' : align === 'end' ? 'end' : 'middle', ax = align === 'start' ? 0 : align === 'end' ? w : w / 2;
@@ -121,11 +121,11 @@ function turnedBox(w: number, h: number, deg: number): {w: number; h: number} {
 
 
 
-export function layoutWordArt(b: WordArtBand, x: number, y: number, cw: number, widthOf: WidthOf, roles: Roles): LaidOutWordArt {
+export function layoutWordArt(b: WordArtBand, x: number, y: number, cw: number, widthOf: WidthOf, roles: Roles, mode: WrapMode): LaidOutWordArt {
   const size = sizeOf(b.opts.size, roles), look = resolveLook(b.opts, size), vertical = b.opts.writing === 'vertical', label = b.text.replace(/\s+/g, ' ').trim();
   const reach = inkReach(look), platePad = look.plate ? size * PLATE_PAD : 0;
   const padL = reach.left + platePad, padR = reach.right + platePad, padT = reach.top + platePad, padB = reach.bottom + platePad;
-  const setting: Setting = {text: b.text, size, look, opts: b.opts, widthOf, wOf: t => textWidth(widthOf, t, size, look.weight, look.font), room: Math.max(size, (b.opts.limit ?? cw) - padL - padR)};
+  const setting: Setting = {text: b.text, size, look, opts: b.opts, widthOf, wOf: t => textWidth(widthOf, t, size, look.weight, look.font), room: Math.max(size, (b.opts.limit ?? cw) - padL - padR), mode};
   const fig = b.opts.arc ? setArc(setting) : vertical ? setVertical(setting) : setHorizontal(setting);
   // the mirror image goes under the letters: a gap, then the top part of the reflection
   const refH = look.reflection ? Math.min(fig.h, size) * REFLECTION_SHARE : 0, below = look.reflection ? Math.max(0, fig.base + look.reflection.gap + refH - fig.h) : 0;

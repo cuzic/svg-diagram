@@ -11,7 +11,7 @@ import type {LoopBack} from './types/containers.ts';
 import {assertScope} from './scope-name.ts';
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
-import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, ScopeOpts, Roles, TextTone, WidthOf} from './types/core.ts';
+import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, ScopeOpts, Roles, TextTone, WidthOf, WrapMode} from './types/core.ts';
 import type {BoxTone} from './types/text-bands.ts';
 
 export interface FlowStep {label: string; sub?: string; id?: string; tone?: BoxTone}
@@ -44,8 +44,8 @@ export interface LaidOutFlowShape extends Rect, Dimmed {type: FlowShapeBand['typ
 // constructors (validation)
 // ---------------------------------------------------------------------------------------------------------------------------
 
-const BOX_TONES = new Set<string>(['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger']);
-const TEXT_TONES = new Set<string>(['text', 'accent', 'muted', 'danger']);
+const BOX_TONES: ReadonlySet<string> = new Set<string>(['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger']);
+const TEXT_TONES: ReadonlySet<string> = new Set<string>(['text', 'accent', 'muted', 'danger']);
 
 function common(name: string, xs: readonly {label?: string; id?: string}[], id?: string): void {
   if (!xs.length) throw new Error(`${name}(): at least one item is required`);
@@ -56,7 +56,7 @@ function common(name: string, xs: readonly {label?: string; id?: string}[], id?:
     if (x.id) ids.add(x.id);
   }
 }
-function checkTones(name: string, xs: readonly {tone?: string}[], allowed: Set<string>): void {
+function checkTones(name: string, xs: readonly {tone?: string}[], allowed: ReadonlySet<string>): void {
   xs.forEach((x, i) => { if (x.tone && !allowed.has(x.tone)) throw new Error(`${name}(): item ${i + 1} has unknown tone "${x.tone}" (${[...allowed].join(' | ')})`); });
 }
 
@@ -147,10 +147,10 @@ type Pt = [number, number];
 const LINE = 1.35; // line step, in font sizes
 const g4 = (v: number): number => Math.round(v / 4) * 4; // circle centres and frames sit on the 4px grid (lint: coordinate-grid)
 
-export function layoutFlowShape(b: FlowShapeBand, x: number, y: number, cw: number, widthOf: WidthOf, roles: Roles): LaidOutFlowShape {
+export function layoutFlowShape(b: FlowShapeBand, x: number, y: number, cw: number, widthOf: WidthOf, roles: Roles, mode: WrapMode): LaidOutFlowShape {
   const w = Math.min(cw, b.width ?? cw), ox = x + (cw - w) / 2;
   const out: LaidOutFlowShape = {type: b.type, id: b.id, reveal: b.reveal, until: b.until, x: ox, y, w, h: 0, primitives: [], texts: [], anchors: [], labelBoxes: []};
-  const t = new Texts(out, widthOf, roles);
+  const t = new Texts(out, widthOf, roles, mode);
   const anchor = (id: string | undefined, r: Rect) => { if (id) out.anchors.push({id, ...r}); };
   switch (b.type) {
     case 'chevron': layoutChevron(b, out, t, anchor); break;
@@ -165,11 +165,11 @@ type AnchorFn = (id: string | undefined, r: Rect) => void;
 
 /** A wrapped text block: measure it first (lines, height), then place it. */
 class Texts {
-  private out: LaidOutFlowShape; private widthOf: WidthOf; private roles: Roles;
-  constructor(out: LaidOutFlowShape, widthOf: WidthOf, roles: Roles) { this.out = out; this.widthOf = widthOf; this.roles = roles; }
+  private out: LaidOutFlowShape; private widthOf: WidthOf; private roles: Roles; private mode: WrapMode;
+  constructor(out: LaidOutFlowShape, widthOf: WidthOf, roles: Roles, mode: WrapMode) { this.out = out; this.widthOf = widthOf; this.roles = roles; this.mode = mode; }
   wrap(text: string, maxW: number, weight: 400 | 700 = 700, size = this.roles.note): {text: string; lines: string[]; h: number; w: number; size: number; weight: 400 | 700} {
     const atomWidth = (a: string) => this.widthOf(a, size, weight, 'sans');
-    const lines = wrapText(text, {maxWidth: Math.max(24, maxW), atomWidth});
+    const lines = wrapText(text, {maxWidth: Math.max(24, maxW), atomWidth, mode: this.mode});
     return {text, lines, h: lines.length * size * LINE, w: Math.max(...lines.map(l => textWidth(this.widthOf, l, size, weight))), size, weight};
   }
   width(text: string, weight: 400 | 700 = 700, size = this.roles.note): number { return textWidth(this.widthOf, text, size, weight); }

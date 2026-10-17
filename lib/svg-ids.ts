@@ -6,7 +6,7 @@
 // What changes: id="…", url(#…), href="#…" / xlink:href="#…", aria-labelledby / aria-describedby (several, space-separated),
 // and the `#id` selectors of a <style>. What does not: <metadata id="svg-diagram"> — `check --drift` and `build --stale` read it by that id.
 
-const KEEP_TAGS = new Set(['metadata']);
+const KEEP_TAGS: ReadonlySet<string> = new Set(['metadata']);
 
 /** The prefix a source gets: one source `p`, several `p-<basename>`; both are made safe to sit in an id. */
 export function idPrefixFor(prefix: string, basename: string | null): string {

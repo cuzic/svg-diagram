@@ -86,7 +86,7 @@ function layoutStatusBand(band: StatusBand, ctx: LayoutCtx, padX: number, cw: nu
 
 function layoutSeqTable(band: Band & {type: 'sequence' | 'table'}, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
-  const placed = band.type === 'sequence' ? layoutSequence(band, padX, snapGrid(ctx.y), cw, widthOf, roles) : layoutTable(band, padX, snapGrid(ctx.y), cw, widthOf, roles);
+  const placed = band.type === 'sequence' ? layoutSequence(band, padX, snapGrid(ctx.y), cw, widthOf, roles, ctx.wrap) : layoutTable(band, padX, snapGrid(ctx.y), cw, widthOf, roles, ctx.wrap);
   if (band.id) ctx.register(band.id, rectOf(placed), `a ${band.type} takes an id that another anchor already has`);
   ctx.laidOut.push(placed);
   ctx.y += placed.h + d.gap;
@@ -94,7 +94,7 @@ function layoutSeqTable(band: Band & {type: 'sequence' | 'table'}, ctx: LayoutCt
 
 function layoutWireframeBand(band: Band & {type: 'wireframe' | 'screens'}, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, widthOf} = ctx;
-  const placed = band.type === 'wireframe' ? layoutWireframe(band, padX, originOf(band.type, ctx.y), cw, widthOf) : layoutScreens(band, padX, originOf(band.type, ctx.y), cw, widthOf);
+  const placed = band.type === 'wireframe' ? layoutWireframe(band, padX, originOf(band.type, ctx.y), cw, widthOf, ctx.tones, ctx.wrap) : layoutScreens(band, padX, originOf(band.type, ctx.y), cw, widthOf, ctx.tones, ctx.wrap);
   for (const a of placed.anchors) if (a.id) ctx.register(a.id, rectOf(a), `a ${band.type} takes an id that another anchor already has`);
   ctx.laidOut.push(placed);
   ctx.y += placed.h + d.gap;
@@ -109,7 +109,7 @@ function layoutRaw(band: RawBand, ctx: LayoutCtx, padX: number, cw: number): voi
 
 function layoutFlowShapeBand(band: Band & {type: 'chevron' | 'funnel' | 'cycle' | 'venn' | 'concentric'}, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
-  const placed = layoutFlowShape(band, padX, snapGrid(ctx.y), cw, widthOf, roles);
+  const placed = layoutFlowShape(band, padX, snapGrid(ctx.y), cw, widthOf, roles, ctx.wrap);
   const scope = scopeOf(band);
   if (scope) (placed as unknown as {scope: string}).scope = scope;
   if (band.id) { if (ctx.anchors.has(band.id)) ctx.claimed(band.id, `a ${band.type} takes an id that another anchor already has`); ctx.anchors.set(band.id, placed); }
@@ -118,7 +118,7 @@ function layoutFlowShapeBand(band: Band & {type: 'chevron' | 'funnel' | 'cycle' 
 }
 
 function layoutWordArtBand(band: Band & {type: 'wordart'}, ctx: LayoutCtx, padX: number, cw: number): void {
-  const placed = layoutWordArt(band, padX, originOf(band.type, ctx.y), cw, ctx.widthOf, ctx.roles);
+  const placed = layoutWordArt(band, padX, originOf(band.type, ctx.y), cw, ctx.widthOf, ctx.roles, ctx.wrap);
   if (band.id) { if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a wordart takes an id that another anchor already has'); ctx.anchors.set(band.id, placed); }
   ctx.laidOut.push(placed); ctx.y += placed.h + ctx.d.gap;
 }
@@ -256,7 +256,7 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
   const colW = colWAt();
   if (colW < 60) throw new Error(`swimlane(): ${band.cols} columns leave only ${Math.round(colW)}px each — widen the diagram, shrink labelW, or use fewer columns`);
   const top0 = ctx.y, startY = snapGrid(top0); // on the grid; the cursor moves on from where it was (no drift)
-  const wrapLines = (text: string, size: number, weight: number, maxW: number) => wrapAtoms(splitAtoms(text), {maxWidth: Math.max(20, maxW), atomWidth: (a: string) => widthOf(a, size, weight, 'sans')});
+  const wrapLines = (text: string, size: number, weight: number, maxW: number) => wrapAtoms(splitAtoms(text), {maxWidth: Math.max(20, maxW), atomWidth: (a: string) => widthOf(a, size, weight, 'sans'), mode: ctx.wrap});
   // column-group headers across the top
   let phaseH = 0;
   const phases = (band.phases ?? []).map((ph): LaidOutPhase => {
@@ -498,7 +498,7 @@ function layoutPlainGrid(band: GridBand, ctx: LayoutCtx, padX: number, cw: numbe
 
 function layoutPyramid(band: PyramidBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
-  const paint = paintOf(d.appearance);
+  const paint = paintOf(ctx.tones, d.appearance);
   const n = band.layers.length;
   const baseWidth = band.width ?? Math.min(cw, 520);
   const apexWidth = baseWidth * band.apexRatio;
@@ -525,7 +525,7 @@ function layoutPyramid(band: PyramidBand, ctx: LayoutCtx, padX: number, cw: numb
     // so the label can never spill past the trapezoid's slanted sides.
     const wrapWidth = Math.max(40, topW - 24);
     const atomW = (atom: string) => widthOf(atom, roles.title, 700, 'sans');
-    const lines = wrapAtoms(splitAtoms(band.layers[i].text), {maxWidth: wrapWidth, atomWidth: atomW});
+    const lines = wrapAtoms(splitAtoms(band.layers[i].text), {maxWidth: wrapWidth, atomWidth: atomW, mode: ctx.wrap});
     const midY = (topY + bottomY) / 2;
     const lineGap = roles.title * LINE_HEIGHT_EM;
     const textYs = lines.map((_, li) => Math.round(midY + (li - (lines.length - 1) / 2) * lineGap + roles.title * 0.35));
@@ -564,23 +564,23 @@ function layoutCurve(band: CurveBand, ctx: LayoutCtx, padX: number, cw: number):
 }
 
 const layoutTimelineBand = placedBand((band: BandOf<'timeline'>, x, y, w, ctx) => layoutTimeline(band, x, y, w, ctx.widthOf, ctx.roles), 'a timeline takes an id that another anchor already has');
-const layoutBpmnBand = placedBand((band: BandOf<'bpmn'>, x, y, w, ctx) => layoutBpmn(band, x, y, w, ctx.widthOf, ctx.roles), 'a bpmn diagram takes an id that another anchor already has', 'a bpmn node takes an id that another anchor already has');
-const layoutBowtieBand = placedBand((band: BandOf<'bowtie'>, x, y, w, ctx) => layoutBowtie(band, x, y, w, ctx.widthOf, ctx.roles), 'a bow-tie takes an id that another anchor already has');
-const layoutFtaBand = placedBand((band: BandOf<'fta'>, x, y, w, ctx) => layoutFta(band, x, y, w, ctx.widthOf, ctx.roles), 'a fault tree takes an id that another anchor already has', 'a fault-tree event takes an id that another anchor already has');
-const layoutClasses = placedBand((band: BandOf<'classes'>, x, y, w, ctx) => layoutClassesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a class diagram takes an id that another anchor already has', 'a class takes an id that another anchor already has');
+const layoutBpmnBand = placedBand((band: BandOf<'bpmn'>, x, y, w, ctx) => layoutBpmn(band, x, y, w, ctx.widthOf, ctx.roles, ctx), 'a bpmn diagram takes an id that another anchor already has', 'a bpmn node takes an id that another anchor already has');
+const layoutBowtieBand = placedBand((band: BandOf<'bowtie'>, x, y, w, ctx) => layoutBowtie(band, x, y, w, ctx.widthOf, ctx.roles, ctx), 'a bow-tie takes an id that another anchor already has');
+const layoutFtaBand = placedBand((band: BandOf<'fta'>, x, y, w, ctx) => layoutFta(band, x, y, w, ctx.widthOf, ctx.roles, ctx), 'a fault tree takes an id that another anchor already has', 'a fault-tree event takes an id that another anchor already has');
+const layoutClasses = placedBand((band: BandOf<'classes'>, x, y, w, ctx) => layoutClassesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a class diagram takes an id that another anchor already has', 'a class takes an id that another anchor already has');
 const layoutGanttBand = placedBand((band: BandOf<'gantt'>, x, y, w, ctx) => layoutGantt(band, x, y, w, ctx.widthOf, ctx.roles), 'a gantt takes an id that another anchor already has', 'a gantt task takes an id that another anchor already has');
-const layoutCauseOrCloud = placedBand((band: Band & {type: 'cause' | 'cloud'}, x, y, w, ctx) => band.type === 'cause' ? layoutCauseBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, ctx.d.canvas?.height !== undefined) : layoutCloudBand(band, x, y, w, ctx.widthOf, ctx.roles),
+const layoutCauseOrCloud = placedBand((band: Band & {type: 'cause' | 'cloud'}, x, y, w, ctx) => band.type === 'cause' ? layoutCauseBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, ctx.d.canvas?.height !== undefined) : layoutCloudBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx),
   band => `${band.type === 'cause' ? 'a cause tree' : 'a cloud'} takes an id that another anchor already has`,
   band => `${band.type === 'cause' ? 'a cause tree node' : 'a cloud box'} takes an id that another anchor already has`);
-const layoutStates = placedBand((band: BandOf<'states'>, x, y, w, ctx) => layoutStatesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a state diagram takes an id that another anchor already has', 'a state takes an id that another anchor already has');
-const layoutTree = placedBand((band: BandOf<'tree'>, x, y, w, ctx) => layoutTreeBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a tree takes an id that another anchor already has', 'a tree node takes an id that another anchor already has');
+const layoutStates = placedBand((band: BandOf<'states'>, x, y, w, ctx) => layoutStatesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a state diagram takes an id that another anchor already has', 'a state takes an id that another anchor already has');
+const layoutTree = placedBand((band: BandOf<'tree'>, x, y, w, ctx) => layoutTreeBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a tree takes an id that another anchor already has', 'a tree node takes an id that another anchor already has');
 const layoutBarsBand = placedBand((band: BandOf<'bars'>, x, y, w, ctx) => layoutBars(band, x, y, w, ctx.widthOf, ctx.roles), 'a bars band takes an id that another anchor already has', 'a bar takes an id that another anchor already has');
-const layoutChartBand = placedBand((band: BandOf<'chart'>, x, y, w, ctx) => layoutChart(band, x, y, w, ctx.widthOf, ctx.roles), 'a chart takes an id that another anchor already has', 'a chart element takes an id that another anchor already has');
+const layoutChartBand = placedBand((band: BandOf<'chart'>, x, y, w, ctx) => layoutChart(band, x, y, w, ctx.widthOf, ctx.roles, ctx.wrap), 'a chart takes an id that another anchor already has', 'a chart element takes an id that another anchor already has');
 const layoutPeopleOrDots = placedBand((band: Band & {type: 'people' | 'dots'}, x, y, w, ctx) => band.type === 'people' ? layoutPeople(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles) : layoutDots(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles),
   band => `a ${band.type} band takes an id that another anchor already has`);
-const layoutMathBand = placedBand((band: BandOf<'math'>, x, y, w, ctx) => layoutMath(band, x, y, w, ctx.roles[band.role], ctx.d.day), 'a math band takes an id that another anchor already has');
+const layoutMathBand = placedBand((band: BandOf<'math'>, x, y, w, ctx) => layoutMath(band, x, y, w, ctx.roles[band.role], ctx.d.day, ctx.tones), 'a math band takes an id that another anchor already has');
 const layoutPlaneBand = placedBand((band: BandOf<'plane'>, x, y, w, ctx) => layoutPlane(band, x, y, w, ctx.widthOf, ctx.roles), 'a plane takes an id that another anchor already has');
-const layoutQuadrantBand = placedBand((band: BandOf<'quadrant'>, x, y, w, ctx) => layoutQuadrant(band, x, y, w, ctx.widthOf, ctx.roles), 'a quadrant takes an id that another anchor already has', 'a quadrant item takes an id that another anchor already has');
+const layoutQuadrantBand = placedBand((band: BandOf<'quadrant'>, x, y, w, ctx) => layoutQuadrant(band, x, y, w, ctx.widthOf, ctx.roles, ctx.wrap), 'a quadrant takes an id that another anchor already has', 'a quadrant item takes an id that another anchor already has');
 
 function layoutGridBand(band: GridBand, ctx: LayoutCtx, padX: number, cw: number): void {
   if (band.canvas) layoutCanvasGrid(band as GridBand & {canvas: NonNullable<GridBand['canvas']>}, ctx, padX, cw);
