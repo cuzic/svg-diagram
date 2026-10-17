@@ -1,7 +1,7 @@
 // waterfall(): how a start value turns into an end value, step by step. The bars float: an increase stands on the level it starts from
 // and rises, a decrease hangs from it, and thin connectors carry the running level from one bar to the next. Every bar prints its value
 // with a sign (+120 / -45), so an increase and a decrease differ by the sign and by the direction of the bar, not by colour alone.
-import {Canvas, checkDomain, checkIds, checkText, decimalsIn, fail, finiteNum, numText, signedText, thinTicks, valueScale} from './charts-base.ts';
+import {Canvas, checkDomain, checkIds, checkInset, insetOrNeed, checkText, decimalsIn, fail, finiteNum, numText, signedText, thinTicks, valueScale} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 
 export type WaterfallKind = 'start' | 'delta' | 'subtotal' | 'total';
@@ -29,9 +29,11 @@ export interface WaterfallOpts extends ChartOpts {
   domain?: readonly [number, number];
   /** false: this chart's axis is its own on purpose (chart-axis-mismatch leaves it alone). */
   axisGroup?: false;
+  /** `dir: 'h'` only: how far the plot area starts from the chart's left edge and ends from its right edge, in px (default: what the labels need). Charts written with the same `plotInset` and the same `domain` draw the same value as the same length. Less than the labels need is an error that names the minimum. */
+  plotInset?: readonly [left: number, right: number];
 }
 export interface ResolvedStep {label: string; kind: WaterfallKind; value: number; from: number; to: number; id?: string; tone?: ChartTone}
-export interface WaterfallSpec {steps: ResolvedStep[]; unit: string; axis: boolean; connectors: boolean; dir: 'v' | 'h'; domain?: [number, number]; axisGroup?: false}
+export interface WaterfallSpec {steps: ResolvedStep[]; unit: string; axis: boolean; connectors: boolean; dir: 'v' | 'h'; domain?: [number, number]; axisGroup?: false; plotInset?: [number, number]}
 
 const KINDS = ['start', 'delta', 'subtotal', 'total'];
 /** Works the running level out of the steps (and checks every subtotal / total given against it). */
@@ -62,8 +64,9 @@ export function resolveWaterfall(steps: readonly WaterfallStep[], opts: Waterfal
   for (const r of out) { r.from = parseFloat(r.from.toPrecision(12)); r.to = parseFloat(r.to.toPrecision(12)); }
   if (opts.dir !== undefined && opts.dir !== 'v' && opts.dir !== 'h') fail('waterfall', `dir must be 'v' or 'h' (got ${String(opts.dir)})`);
   if (opts.axisGroup !== undefined && opts.axisGroup !== false) fail('waterfall', `axisGroup must be false (this chart's axis is its own) or left out (got ${JSON.stringify(opts.axisGroup)})`);
-  const domain = checkDomain('waterfall', opts.domain);
-  const spec: WaterfallSpec = {steps: out, unit: opts.unit ?? '', axis: opts.axis !== false, connectors: opts.connectors !== false, dir: opts.dir ?? 'v', ...(domain ? {domain} : {}), ...(opts.axisGroup === false ? {axisGroup: false as const} : {})};
+  const domain = checkDomain('waterfall', opts.domain), plotInset = checkInset('waterfall', opts.plotInset);
+  if (plotInset && (opts.dir ?? 'v') !== 'h') fail('waterfall', "plotInset is for dir: 'h' (a vertical waterfall has a plot height to line up, not a left and right inset)");
+  const spec: WaterfallSpec = {steps: out, unit: opts.unit ?? '', axis: opts.axis !== false, connectors: opts.connectors !== false, dir: opts.dir ?? 'v', ...(domain ? {domain} : {}), ...(plotInset ? {plotInset} : {}), ...(opts.axisGroup === false ? {axisGroup: false as const} : {})};
   waterfallScale(spec); // a domain smaller than the data fails here, where the chart is written
   return spec;
 }
@@ -159,7 +162,8 @@ function layoutWaterfallH(spec: WaterfallSpec, g: ChartGeom): LaidOutChartPart {
   const valW = Math.max(...texts.map(t => c.tw(t, true))) + 12;
   const labelW = Math.min(Math.max(...spec.steps.map(s => c.tw(s.label, s.kind !== 'delta'))) + 14, g.w * 0.3);
   const cats = spec.steps.map(s => c.wrap(s.label, labelW - 14, s.kind !== 'delta'));
-  const plotL = g.x + labelW + valW, plotR = g.x + g.w - valW - 8;
+  const [insetL, insetR] = insetOrNeed('waterfall', spec.plotInset, labelW + valW, valW + 8);
+  const plotL = g.x + insetL, plotR = g.x + g.w - insetR;
   if (plotR - plotL < 120) fail('waterfall', 'the figure is too narrow for its labels (raise width, shorten the labels / unit)');
   const barH = Math.max(24, S + 10), pitch = Math.max(barH + 14, ...cats.map(l => l.length * lh + 8));
   const axisH = spec.axis ? S + 14 : 6;

@@ -62,6 +62,10 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
     if (d.tone !== undefined && !['accent', 'danger', 'muted'].includes(d.tone)) throw new Error(`bars(): tone for "${d.label}" must be accent, danger, or muted (got ${d.tone})`);
     if (d.tone !== undefined && d.series !== undefined) throw new Error(`bars(): "${d.label}" has both series and tone; use one`);
   }
+  if (opts.plotInset !== undefined) {
+    if (!Array.isArray(opts.plotInset) || opts.plotInset.length !== 2 || !opts.plotInset.every(v => Number.isFinite(v) && v >= 0)) throw new Error(`bars(): plotInset must be [left, right], two numbers >= 0 (got ${JSON.stringify(opts.plotInset)})`);
+    if (opts.dir === 'v') throw new Error("bars(): plotInset is for horizontal bars (dir: 'h')");
+  }
   if (opts.dir !== undefined && opts.dir !== 'h' && opts.dir !== 'v') throw new Error(`bars(): dir must be 'h' or 'v' (got ${opts.dir})`);
   if (data.every(d => barSpan(d).hi === 0)) throw new Error('bars(): all values are 0');
   if (opts.labels !== undefined && !['all', 'category', 'none'].includes(opts.labels)) throw new Error(`bars(): labels must be 'all', 'category' or 'none' (got ${opts.labels})`);
@@ -82,7 +86,7 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   if (new Set(ids).size !== ids.length) throw new Error('bars(): each id must be unique');
   if (opts.id !== undefined && ids.includes(opts.id)) throw new Error(`bars(): the band's id "${opts.id}" is also a bar's id — each id must be unique`);
   const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height, ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'bars()'), ...revealOf(opts)};
-  for (const k of ['labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole', 'hideZero', 'lines', 'vlines', 'curve', 'cumulative', 'edges', 'valueFormat'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
+  for (const k of ['plotInset', 'labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole', 'hideZero', 'lines', 'vlines', 'curve', 'cumulative', 'edges', 'valueFormat'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
   return withHandle(withAnchors(band, data.map(d => d.id)), opts.id);
 }
 /** A bar for each item from its low to its high (a minimum and a maximum, a confidence interval): `rangeBars([{label: '開発', range: [3.2, 5.8]}], {unit: '万円'})`. The same as bars() with `range` data; the value text reads `3.2〜5.8万円`. */
