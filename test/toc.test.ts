@@ -158,11 +158,25 @@ test('causeTree({coreDriver}): the root that reaches the most ude gets the core 
   const plain = await laidCause(bands({}));
   assert.ok(!plain.t.nodes.some(n => n.core) && !plain.t.texts.some(x => x.text.includes('届く')), 'without coreDriver nothing changes');
   assert.ok(t.texts.some(x => x.text.includes('2/3 件に届く')), 'the default wording: reached / total');
-  // a longer default wraps in a narrow box and makes the figure taller (`{n}/{total} 件の現象に届く` made slides3 p-crt 18% taller, past its height budget): keep it about as short as the old `到達 UDE n`
-  assert.ok(t.texts.every(x => !x.text.includes('件に届く') || x.text.length <= 10), 'the default wording stays short');
   const custom = await laidCause(bands({coreDriver: true, coreDriverLabel: '中核（{n}/{total} 件）'}));
   assert.ok(custom.t.texts.some(x => x.text.includes('中核（2/3 件）')) && custom.t.texts.some(x => x.text.includes('中核（1/3 件）')), 'coreDriverLabel replaces the wording');
   assert.throws(() => bands({coreDriver: true, coreDriverLabel: ''}), /coreDriverLabel/);
+});
+
+// A longer default wording wraps in a narrow box and makes the figure taller: `{n}/{total} 件の現象に届く` added a line under each of the 5 starting entities of
+// slides3 p-crt (24px text, maxNodeW 230), 926px -> 1096px, past its 1032px budget. The default must take as many lines as the old `到達 UDE n`.
+test('causeTree({coreDriver}): the default count wording takes no more lines than the old `到達 UDE n`, in narrow boxes at the sizes slides use', async () => {
+  const ids = ['a', 'b', 'c'], nodes = [...ids.map(id => ({id, label: `根本の原因 ${id}: 成功の基準が、技術の精度で、現場の指標でない`, role: 'root' as const})), {id: 'u', label: '現場が、次の施策に協力しなくなる', role: 'ude' as const}];
+  const links = ids.map(id => ({from: id, to: 'u'}));
+  for (const [maxNodeW, minText] of [[230, 24], [170, 24], [200, 14]] as const) {
+    const height = async (label?: string): Promise<number> => {
+      const d = diagram({theme: 'blue', canvas: {width: 1920, height: 4000, minText}}).add(causeTree(nodes, links, {maxNodeW, dir: 'right', coreDriver: true, ...(label === undefined ? {} : {coreDriverLabel: label})}));
+      const {laidOut} = await checkDiagram(d);
+      const t = laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause;
+      return Math.max(...t.nodes.filter(n => n.core || t.anchors.some(a => a.id !== 'u' && a.x === n.x && a.y === n.y)).map(n => n.h));
+    };
+    assert.ok(await height() <= await height('到達 UDE {n}'), `maxNodeW ${maxNodeW}, text ${minText}px: the default wording wraps onto another line`);
+  }
 });
 
 test('causeTree({coreDriver}): the SVG has a thick frame and a badge for the core entity only', async () => {
