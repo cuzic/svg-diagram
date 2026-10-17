@@ -8,6 +8,7 @@
 // The pipeline never copies; the caller hands it a detached tree (renderDiagram / checkDiagram call detach() first).
 
 import {applyAutoLegend} from './rules.ts';
+import {expandLoopBacks} from './loop-back.ts';
 import {prepareReveal} from './reveal.ts';
 import {applySpotlight} from './spotlight.ts';
 import {verifyDiagram} from './verify.ts';
@@ -24,6 +25,9 @@ export interface PreLayoutStage {name: string; run(d: DiagramData): DiagramData}
 export interface PostLayoutStage {name: string; run(d: LaidOutDiagram): LaidOutDiagram}
 
 export const PRE_LAYOUT_STAGES: readonly PreLayoutStage[] = [
+  // `loopBack` of a steps() / row / chevron becomes ordinary connect() bands right after it (ADR 0029 D4). It must run before reveal, because a
+  // connector takes its reveal stage from the boxes it joins; and before layout, which lays the connectors out like any other.
+  {name: 'loop-back', run: d => { d.bands = expandLoopBacks(d.bands); return d; }},
   // Resolves each band's / element's reveal and until by inheritance, and sets d.maxReveal / d.revealWarnings. It must run
   // before auto-legend (so legend items added later are not given stages) and before layout (layout reads the resolved stages
   // to keep every stage's geometry in one full layout).
