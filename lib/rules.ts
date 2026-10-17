@@ -859,7 +859,7 @@ function descOf(d: DiagramData, stage?: number): string {
   for (const b of walkBands(d.bands)) if (b.type === 'image' && b.alt) parts.push(`画像: ${oneLine(b.alt)}`);
   for (const b of walkBands(d.bands)) if (b.type === 'math') parts.push(`数式: ${oneLine(b.alt)}`);
   // outside the fallback above, so boxes and hidden-value bars can share one description
-  for (const b of bands) if (b.type === 'bars' && barsValuesHidden(b)) parts.push(`値: ${b.data.filter(x => visibleAt(x, stage)).map(x => `${oneLine(x.label)} ${fmt(x.value)}${b.unit ?? ''}`).join('、')}`);
+  for (const b of bands) if (b.type === 'bars' && barsValuesHidden(b)) parts.push(`値: ${b.data.filter(x => visibleAt(x, stage)).map(x => `${oneLine(x.label)} ${x.range ? `${fmt(x.range[0])}〜${fmt(x.range[1])}` : fmt(x.value ?? 0)}${b.unit ?? ''}`).join('、')}`);
   for (const b of bands) if (b.type === 'chart') parts.push(oneLine(b.alt));
   return parts.join('。');
 }

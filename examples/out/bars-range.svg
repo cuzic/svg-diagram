@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="625" viewBox="0 0 940 625" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">工程ごとの費用見積りの幅</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/bars-range.ts","sourceSha256":"49ae1cbbbe418240da054fd8417b636ca40c2ff4ccbc96522fb31409c571c7b5"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="625" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">工程ごとの費用の見積り（最小〜最大、万円）</text>
+
+  <path d="M46,282 L912,282" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,260 L912,260" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,237 L912,237" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,214 L912,214" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,192 L912,192" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,169 L912,169" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,146 L912,146" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,123 L912,123" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,101 L912,101" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,78 L912,78" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M52,78 L52,282" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M52,282 L912,282" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M127.13,216.54 H191.13 V246.06 H127.13 Z" fill="#1d5fa8"/>
+  <path d="M342.23,78 H406.23 V146.13 H342.23 Z" fill="#1d5fa8"/>
+  <path d="M557.34,180.2 H621.34 V236.98 H557.34 Z" fill="#1d5fa8"/>
+  <path d="M772.45,242.66 H836.45 V259.69 H772.45 Z" fill="#1d5fa8"/>
+  <text x="42" y="287" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <text x="42" y="265" text-anchor="end" font-size="14" fill="#6f6659">2</text>
+  <text x="42" y="242" text-anchor="end" font-size="14" fill="#6f6659">4</text>
+  <text x="42" y="219" text-anchor="end" font-size="14" fill="#6f6659">6</text>
+  <text x="42" y="197" text-anchor="end" font-size="14" fill="#6f6659">8</text>
+  <text x="42" y="174" text-anchor="end" font-size="14" fill="#6f6659">10</text>
+  <text x="42" y="151" text-anchor="end" font-size="14" fill="#6f6659">12</text>
+  <text x="42" y="128" text-anchor="end" font-size="14" fill="#6f6659">14</text>
+  <text x="42" y="106" text-anchor="end" font-size="14" fill="#6f6659">16</text>
+  <text x="42" y="83" text-anchor="end" font-size="14" fill="#6f6659">18</text>
+  <text x="159" y="306" text-anchor="middle" font-size="14" fill="#22201b">設計</text>
+  <text x="159" y="211" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">3.2〜5.8万円</text>
+  <text x="374" y="306" text-anchor="middle" font-size="14" fill="#22201b">開発</text>
+  <text x="374" y="72" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">12〜18万円</text>
+  <text x="589" y="306" text-anchor="middle" font-size="14" fill="#22201b">テスト</text>
+  <text x="589" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">4〜9万円</text>
+  <text x="804" y="306" text-anchor="middle" font-size="14" fill="#22201b">移行</text>
+  <text x="804" y="237" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">2〜3.5万円</text>
+
+  <text x="470" y="346" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">同じ見積りを横向きで</text>
+
+  <path d="M74,368 L74,540" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M158,368 L158,540" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M241,368 L241,540" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M325,368 L325,540" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M408,368 L408,540" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M492,368 L492,540" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M575,368 L575,540" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M659,368 L659,540" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M743,368 L743,540" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M826,368 L826,540" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M74,534 L826,534" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M207.71,368 H316.34 V396 H207.71 Z" fill="#1d5fa8"/>
+  <path d="M575.39,414 H826.09 V442 H575.39 Z" fill="#1d5fa8"/>
+  <path d="M241.13,460 H450.05 V488 H241.13 Z" fill="#1d5fa8"/>
+  <path d="M157.57,506 H220.24 V534 H157.57 Z" fill="#1d5fa8"/>
+  <text x="74" y="556" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
+  <text x="158" y="556" text-anchor="middle" font-size="14" fill="#6f6659">2</text>
+  <text x="241" y="556" text-anchor="middle" font-size="14" fill="#6f6659">4</text>
+  <text x="325" y="556" text-anchor="middle" font-size="14" fill="#6f6659">6</text>
+  <text x="408" y="556" text-anchor="middle" font-size="14" fill="#6f6659">8</text>
+  <text x="492" y="556" text-anchor="middle" font-size="14" fill="#6f6659">10</text>
+  <text x="575" y="556" text-anchor="middle" font-size="14" fill="#6f6659">12</text>
+  <text x="659" y="556" text-anchor="middle" font-size="14" fill="#6f6659">14</text>
+  <text x="743" y="556" text-anchor="middle" font-size="14" fill="#6f6659">16</text>
+  <text x="826" y="556" text-anchor="middle" font-size="14" fill="#6f6659">18</text>
+  <text x="66" y="387" text-anchor="end" font-size="14" fill="#22201b">設計</text>
+  <text x="310" y="387" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">3.2〜5.8万円</text>
+  <text x="66" y="433" text-anchor="end" font-size="14" fill="#22201b">開発</text>
+  <text x="820" y="433" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">12〜18万円</text>
+  <text x="66" y="479" text-anchor="end" font-size="14" fill="#22201b">テスト</text>
+  <text x="444" y="479" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">4〜9万円</text>
+  <text x="66" y="525" text-anchor="end" font-size="14" fill="#22201b">移行</text>
+  <text x="226" y="525" font-size="14" font-weight="700" fill="#1d5fa8">2〜3.5万円</text>
+
+  <text x="20" y="598" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

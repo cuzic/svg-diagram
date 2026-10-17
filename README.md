@@ -203,6 +203,8 @@ row([
 
 `bars(data, opts)` は横棒（既定）、縦棒（`dir: 'v'`）、積み上げ（`stack: true`）を描く。`series` は `a | b | c` で、それぞれ accent / text / muted。棒ごとに `tone: 'accent' | 'danger' | 'muted'` も選べる（`danger` が赤。`series` とは併用できない。`examples/spotlight-dim-fill.ts`）。`max` を省くと通常は最大値、積み上げでは合計値になる。値ラベルは必ず描かれ、`unit` は値の後ろに付く。各項目の `id` は `connect()` のアンカーとして使える。
 
+**範囲の浮き棒（`range` / `rangeBars`）**: 見積りの幅や信頼区間のように「最小〜最大」を 1 本で描くなら、データに `value` の代わりに `range: [lo, hi]` を書く（`rangeBars([{label: '設計', range: [3.2, 5.8]}], {unit: '万円'})` も同じ。`value` と `range` はどちらか 1 つ）。棒は 0 から伸びず、`lo` から `hi` まで浮く（軸は 0 から。`max` を省くと、いちばん大きい `hi`）。値の文言は `3.2〜5.8万円`、`<desc>` も範囲で書く。`0 <= lo < hi` で、`lo` が負だと止まる。`stack` / `cumulative` / `hideZero` / `replaces` とは併用できない。範囲を読むための凡例は自動では出さない（棒の両端と文言が説明する）。例は `examples/bars-range.ts`。
+
 ```ts
 bars([
   {id: 'before', label: '導入前', value: 76, series: 'a'},

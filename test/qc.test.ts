@@ -526,7 +526,7 @@ test('histogram(): boundaries, limits and the mean are written exactly (not to 3
 
 test('histogram(): far limits do not squash the data into one class; too many classes is an error; bins and width together too', () => {
   const h = histogram([50, 51, 52, 53, 52, 51, 52, 55, 56, 49], {lsl: 40, usl: 70});
-  assert.ok(h.data.filter(d => d.value > 0).length >= 3, 'the data keeps several classes');
+  assert.ok(h.data.filter(d => (d.value ?? 0) > 0).length >= 3, 'the data keeps several classes');
   assert.throws(() => histogram([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], {width: 0.01}), /at most 60/);
   assert.throws(() => histogram([1, 2, 3], {bins: 3, width: 1}), /bins or width/);
 });

@@ -28,7 +28,14 @@ const valueNum = (v: number, f: BarsBand['valueFormat']): string => {
   const whole = Math.abs(v) >= 1 ? Math.floor(Math.log10(Math.abs(v))) + 1 : 0;
   return whole > 3 && whole <= 21 ? String(parseFloat(v.toPrecision(whole))) : fmt(v);
 };
-const valueText = (d: BarDatum, band: BarsBand) => `${valueNum(d.value, band.valueFormat)}${band.unit ?? ''}`;
+/** Where a bar starts and ends along the value axis: a range `[lo, hi]`, or 0 up to the value. Every geometry and text of a bar reads this, never `d.value` (a range datum has none). */
+export const barSpan = (d: BarDatum): {lo: number; hi: number} => d.range ? {lo: d.range[0], hi: d.range[1]} : {lo: 0, hi: d.value ?? 0};
+/** What the bar's value says: `5.8万円`, or for a range `3.2〜5.8万円`. */
+export const spanText = (d: BarDatum, format: BarsBand['valueFormat'], unit: string | undefined): string => {
+  const {lo, hi} = barSpan(d);
+  return d.range ? `${valueNum(lo, format)}〜${valueNum(hi, format)}${unit ?? ''}` : `${valueNum(hi, format)}${unit ?? ''}`;
+};
+const valueText = (d: BarDatum, band: BarsBand) => spanText(d, band.valueFormat, band.unit);
 
 /** What a bars() band shows; every default is the original look. */
 function flags(band: BarsBand) {
@@ -103,8 +110,9 @@ function verticalValues(band: BarsBand, plotL: number, plotR: number, plotT: num
     return near(sides.filter(c => c - tw / 2 >= lo + 1 && c + tw / 2 <= hi - 1)) ?? near(sides.filter(c => c - tw / 2 >= lo - tw && c + tw / 2 <= hi + tw)) ?? cx;
   };
   return band.data.map((d, i) => {
-    if (band.hideZero && d.value === 0) return undefined;
-    const bh = d.value / band.max * (plotB - plotT), bx = plotL + slots[i] * slot + (slot - bw) / 2, rY = plotB - bh;
+    const {lo, hi} = barSpan(d);
+    if (band.hideZero && hi === 0) return undefined;
+    const bh = (hi - lo) / band.max * (plotB - plotT), bx = plotL + slots[i] * slot + (slot - bw) / 2, rY = plotB - hi / band.max * (plotB - plotT);
     const tw = textWidth(widthOf, valueText(d, band), S, 700);
     const cx = dodge(bx + bw / 2, tw, bx, bx + bw), cxOut = dodge(bx + bw / 2, tw, plotL + slots[i] * slot, plotL + (slots[i] + 1) * slot);
     const cut = (at: number, base: number): boolean => cumSegs.some(sg => segHitsRect(sg, {x: at - tw / 2, y: base - S + 2, w: tw, h: S}));
@@ -137,9 +145,9 @@ export function segHitsRect(sg: {x1: number; y1: number; x2: number; y2: number}
 const CUM_TICKS = [0, 20, 40, 60, 80, 100];
 /** Cumulative share (0-100) after each bar, in the order of the data. */
 export const cumulativeOf = (data: readonly BarDatum[]): number[] => {
-  const total = data.reduce((n, d) => n + d.value, 0);
+  const total = data.reduce((n, d) => n + barSpan(d).hi, 0);
   let run = 0;
-  return data.map(d => { run += d.value; return total > 0 ? run / total * 100 : 0; });
+  return data.map(d => { run += barSpan(d).hi; return total > 0 ? run / total * 100 : 0; });
 };
 const cumText = (pct: number): string => `${Math.round(pct * 10) / 10}%`;
 const LINE_TONE: Record<NonNullable<BarsLine['tone']>, ColorKey> = {accent: 'accent', danger: 'danger', muted: 'muted', text: 'text'};
@@ -191,7 +199,7 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
   const plotL = x + labelW + tickPadL, plotR = x + w - valueW - tickPadR, plotW = plotR - plotL;
   if (plotW < (f.axis || f.labels !== 'none' ? 80 : 20)) throw new Error('bars(): the figure is too narrow for its labels');
   const segs = band.data.map(d => segmentOf(d, band, f.labels));
-  const hasOutside = band.stack && band.data.some((d, i) => segs[i] && d.value / band.max * plotW < textWidth(widthOf, segs[i], S, 700) + 12);
+  const hasOutside = band.stack && band.data.some((d, i) => segs[i] && barSpan(d).hi / band.max * plotW < textWidth(widthOf, segs[i], S, 700) + 12);
   const outsideH = hasOutside ? S + 6 : 0;
   const needH = rows * bh + Math.max(0, rows - 1) * gp + (f.axis ? tickH + 8 : 0) + outsideH;
   if (band.height !== undefined && band.height < needH) throw new Error(`bars(): height ${band.height} is too small for its content (need at least ${needH})`);
@@ -209,7 +217,7 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
   if (band.stack) {
     let at = plotL;
     band.data.forEach((d, i) => {
-      const rawW = d.value / band.max * plotW, bw = Math.max(0, rawW - (i < band.data.length - 1 ? STACK_GAP : 0));
+      const rawW = barSpan(d).hi / band.max * plotW, bw = Math.max(0, rawW - (i < band.data.length - 1 ? STACK_GAP : 0));
       const r = addBar(out, d, {x: at, y, w: bw, h: BARH});
       const bar = out.bars.length - 1;
       const text = segs[i], tw = textWidth(widthOf, text, S, 700);
@@ -218,14 +226,14 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
       at += rawW;
     });
   } else band.data.forEach((d, i) => {
-    const by = y + slots[i] * (bh + gp), bw = d.value / band.max * plotW;
-    const r = addBar(out, d, {x: plotL, y: by, w: bw, h: bh});
+    const {lo, hi} = barSpan(d), by = y + slots[i] * (bh + gp), x0 = plotL + lo / band.max * plotW, bw = (hi - lo) / band.max * plotW;
+    const r = addBar(out, d, {x: x0, y: by, w: bw, h: bh});
     const bar = out.bars.length - 1;
     if (f.showCats) putText(out, S, d.label, plotL - 8, by + bh / 2 + S * .36, 'end', 'text', widthOf, false, undefined, bar);
     if (!f.showValues) return;
     const text = valueText(d, band), tw = textWidth(widthOf, text, S, 700);
-    if (bw >= tw + 12) putText(out, S, text, plotL + bw - 6, by + bh / 2 + S * .36, 'end', 'bg', widthOf, true, r.fill, bar);
-    else putText(out, S, text, plotL + bw + 6, by + bh / 2 + S * .36, 'start', r.fill, widthOf, true, undefined, bar);
+    if (bw >= tw + 12) putText(out, S, text, x0 + bw - 6, by + bh / 2 + S * .36, 'end', 'bg', widthOf, true, r.fill, bar);
+    else putText(out, S, text, x0 + bw + 6, by + bh / 2 + S * .36, 'start', r.fill, widthOf, true, undefined, bar);
   });
   if (f.axis) out.ticks.push({x1: plotL, y1: axisY, x2: plotR, y2: axisY});
   return out;
@@ -273,7 +281,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
     const bw = Math.min(72, (plotR - plotL) * .35), bx = (plotL + plotR - bw) / 2;
     let bottom = plotB;
     band.data.forEach((d, i) => {
-      const rawH = d.value / band.max * (plotB - plotT), bh = Math.max(0, rawH - (i > 0 ? STACK_GAP : 0));
+      const rawH = barSpan(d).hi / band.max * (plotB - plotT), bh = Math.max(0, rawH - (i > 0 ? STACK_GAP : 0));
       const r = {x: bx, y: bottom - rawH, w: bw, h: bh, fill: series(d), id: d.id};
       addBar(out, d, r);
       const bar = out.bars.length - 1;
@@ -287,8 +295,8 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
   } else {
     const values = f.showValues ? verticalValues(band, plotL, plotR, plotT, plotB, S, widthOf, slots, slot, bw, yOf) : [];
     band.data.forEach((d, i) => {
-      const bh = d.value / band.max * (plotB - plotT), bx = plotL + slots[i] * slot + (slot - bw) / 2;
-      const r = addBar(out, d, {x: bx, y: plotB - bh, w: bw, h: bh});
+      const {lo, hi} = barSpan(d), bh = (hi - lo) / band.max * (plotB - plotT), bx = plotL + slots[i] * slot + (slot - bw) / 2;
+      const r = addBar(out, d, {x: bx, y: plotB - hi / band.max * (plotB - plotT), w: bw, h: bh});
       const bar = out.bars.length - 1;
       if (f.showCats && !band.edges) putText(out, S, d.label, bx + bw / 2, plotB + S + 10, 'middle', 'text', widthOf, false, undefined, bar);
       const pick = values[i];
