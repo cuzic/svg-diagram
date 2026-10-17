@@ -1177,6 +1177,8 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 
 **カタカナの語を割らない（`keepWords`）**: 箱が最長の語より狭いと、`phrase` でも「コンテキス/ト」と割れる（語が 1 行より広いと、文字単位に戻すため）。`diagram({keepWords: true})`（`.svg-diagram.json` の `"keepWords": true` で案件全体にも書ける）は、箱を**最長のカタカナの語より狭くしない**（内側の幅で 240px まで。それより長い語は割れる）。`causeTree` / `tree` / `mindmap` / `faultTree` / `stateDiagram`（円のノードを除く）/ `bpmn` の task に効く。`cloud`、枠が先に決まる `chevron` / `cycle` / `swimlane` には効かない。`maxNodeW` を書いた図にも効く。幅に収まらないときは、語を守る試行（狭める → 折る）を先に全部試し、それでも収まらなければ、語を守らない試行（従来と同じ）に戻る（割れは `text-mid-word-break` が報告する）。既定は off で、書かなければ何も変わらない。
 
+**文節で折る、収まらなければ従来に戻る（`wrap: 'bunsetsu-soft'`）**: 狭い箱で「確/かめられる」「育てら/れる」のように、ひらがなの手前で行が割れるのは、`wrap: 'bunsetsu'`（ひらがなを直前の文字に付けて、文節で折る）で防げる。ただし文節の単位は長いので、密な図は 940px に収まらず build が止まる。`'bunsetsu-soft'` は、まず `bunsetsu` で配置し、**収まらない図だけ**従来の折り方（`phrase`）で配置する（止まらない。`check` が情報 `wrap-fell-back` で、従来の折り方にしたことを知らせる。図を 2 枚に分ける・文言を短くすると文節で折れる）。`.svg-diagram.json` の `"wrap": "bunsetsu-soft"` で案件全体に効く（図の `wrap` が優先）。図の中に収まらない帯が 1 つでもあると、その図は全体が `phrase` になる。
+
 ## 共通設定（`.svg-diagram.json`）
 カレントディレクトリから上へたどって見つかる。`{"accept": {"rule-id": "理由"}, "maxWidth": 940}`。図ごとの `accept` が優先される。`maxWidth` も図ごとに `diagram({maxWidth: 1200})` で変えられる（`doc-width` の閾値だけで、図の幅は変えない。広い図にするなら `width: 1200` も書く。図の値が設定ファイルに勝つ）。`accept` のキーはルール ID（`RULE_DOCS` にある名前）で、知らない ID・空の理由はファイル名つきのエラー（綴り違いで何も許容されないのを防ぐ）。許容された指摘は info に下がり、理由が添えられる。
 
