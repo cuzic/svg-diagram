@@ -152,6 +152,15 @@ test('autoSides: light is the figure without its block; dark has the block\'s co
   assert.equal(dark, recolor(NO_TONES, light, 'dark'), 'for a figure without tone overrides the block and the table agree');
 });
 
+test('autoSides: a tone override\'s dark pair comes from the block (the svg alone carries it), and the assumed page stays the built-in dark page', async () => {
+  const svg = (await renderDiagram(diagram({theme: 'blue', appearance: 'auto', transparent: true, tones: {accent: {fill: '#b8cfe8', dark: {fill: '#2a4a70'}}}}).add(box({id: 'b', title: 'b', tone: 'accent'})), {name: 'x.svg', budget: 'cacheOnly'})).svg;
+  const {light, dark} = autoSides(svg);
+  assert.match(light, /fill="#b8cfe8"/);
+  assert.match(dark, /fill="#2a4a70"/);
+  assert.doesNotMatch(dark, /fill="#b8cfe8"/);
+  assert.match(dark, new RegExp(`data-assumed-bg="${darkOf('#ffffff')}"`), 'a pair cannot sit on a built-in colour (checkTones), so the page is never an override\'s');
+});
+
 test('transparent + auto: the dark side assumes the dark page, the light side the light page', async () => {
   const {light, dark} = autoSides(await draw('auto', {transparent: true}));
   assert.match(light, /data-assumed-bg="#ffffff"/);

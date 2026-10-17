@@ -55,7 +55,9 @@ export function autoSides(svg: string): {light: string; dark: string} {
   const r = blockRange(svg);
   const to = new Map<string, string>();
   for (const m of (r ? svg.slice(r[0], r[1]) : '').matchAll(/\[([a-z-]+)="(#[0-9a-f]{6})" i\] \{ [a-z-]+: (#[0-9a-f]{6}) \}/g)) to.set(`${m[1]}:${m[2]}`, m[3]);
-  const page = mapOf(NO_TONES, 'dark') as Record<string, string>; // the svg alone, no diagram: the built-in dark set (only the assumed page colour is looked up in it)
+  // the svg alone, no diagram (lint-svg is its only caller): the built-in dark set, in which only the assumed page colour is looked up.
+  // A tone override's dark pair is read from the block above; it cannot sit on the page colour (checkTones refuses a pair on a built-in colour).
+  const page = mapOf(NO_TONES, 'dark') as Record<string, string>;
   const dark = light.replace(/<[^!?/][^>]*>/g, tag => tag.replace(/\s(fill|stroke|stop-color|flood-color|color|data-assumed-bg)="(#[0-9a-fA-F]{6})"/g, (all, attr: string, hex: string) => {
     const h = hex.toLowerCase();
     const mapped = attr === 'data-assumed-bg' ? (to.get(`fill:${h}`) ?? page[h]) : to.get(`${attr}:${h}`);
