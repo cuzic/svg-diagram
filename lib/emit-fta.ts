@@ -2,6 +2,7 @@
 // vote = OR with k/n, inhibit = hexagon) and the symbol of each leaf event. The lines have no arrowheads: they join a gate to what it takes,
 // they are not cause-to-effect arrows.
 import {PALETTE, colorOf, toneStyle} from './tokens.ts';
+import type {ToneEnv} from './tokens.ts';
 import type {Theme} from './types/core.ts';
 import type {LaidOutFta} from './types/diagrams.ts';
 import {snap4, emojiSpan} from './emit-common.ts';
@@ -36,7 +37,7 @@ export function ftaLegendSwatch(it: {x: number; ftaEvent?: 'basic' | 'undevelope
   return `<path d="${d}" fill="${PALETTE.bg}" stroke="${PALETTE.text}" stroke-width="2"/>`;
 }
 
-export function renderFta(b: LaidOutFta, day: Theme): string {
+export function renderFta(b: LaidOutFta, day: Theme, tones: ToneEnv): string {
   const out: string[] = [];
   const ink = b.dim ? PALETTE.muted : PALETTE.text;
   for (const e of b.edges) out.push(`<path d="M${e.points.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
@@ -47,9 +48,9 @@ export function renderFta(b: LaidOutFta, day: Theme): string {
   const alert = b.dim ? PALETTE.muted : PALETTE.danger;
   for (const m of b.marks) out.push(`<path d="${markPath(m.kind, m)}" fill="${PALETTE.bg}" stroke="${m.single ? alert : ink}" stroke-width="${m.single ? 4 : 2}"/>`);
   for (const t of b.badges) out.push(pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.x + t.w) - snap4(t.x), h: t.h, fill: alert, cx: t.x + t.w / 2, baseline: t.y + t.h / 2 + t.size * 0.36, text: PALETTE.bg, size: t.size, labelHtml: emojiSpan(t.text)}));
-  for (const n of b.nodes) out.push(renderBoxRect({...n, tone: 'plain', dim: b.dim}, day, 'plain'));
+  for (const n of b.nodes) out.push(renderBoxRect({...n, tone: 'plain', dim: b.dim}, day, tones, 'plain'));
   for (const t of b.texts) {
-    const fill = b.dim ? PALETTE.muted : t.muted ? PALETTE.muted : colorOf(toneStyle('plain').text, day);
+    const fill = b.dim ? PALETTE.muted : t.muted ? PALETTE.muted : colorOf(toneStyle(tones, 'plain').text, day);
     out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}" text-anchor="middle" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${fill}">${emojiSpan(t.text)}</text>`);
   }
   return out.join('\n  ');

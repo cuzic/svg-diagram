@@ -104,7 +104,7 @@ export function multiTexts(s: MultiSpec): [string, number][] {
 
 export function layoutMulti(s: MultiSpec, g: ChartGeom): LaidOutChartPart {
   const who = s.mode === 'hist2d' ? 'hist2d' : s.mode === 'kde2d' ? 'kde2d' : s.mode === 'joint' ? 'jointplot' : 'pairplot';
-  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), r1 = (v: number) => Math.round(v * 10) / 10;
+  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap), r1 = (v: number) => Math.round(v * 10) / 10;
   const many = s.names.length > 1, tone = (i: number) => TONES[i] as 'accent';
   // legend of the groups: marker shape + dash + the name
   const legend: {x: number; row: number; i: number}[] = [];

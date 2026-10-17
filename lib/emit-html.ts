@@ -5,7 +5,8 @@
 // Same geometry as the SVG: layout.ts has already broken every text into lines and placed each baseline, so a line is one element
 // with white-space: pre — the browser never re-wraps it. A line's top is its baseline minus the font's ascent (its line-height is
 // ascent + descent), which is how the baseline lands where the <text> of the SVG puts it.
-import {PALETTE, FONT_STACKS, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle, recolor, withTones} from './tokens.ts';
+import {PALETTE, FONT_STACKS, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle, recolor, toneEnv} from './tokens.ts';
+import type {ToneEnv} from './tokens.ts';
 import {createHash} from 'node:crypto';
 import {textBox} from './font-metrics.ts';
 import {currentFontSpecs} from './measure.ts';
@@ -40,31 +41,31 @@ function metrics(size: number, weight: number, mono: boolean): {ascent: number; 
   return m;
 }
 
-function spans(sp: Span[], run: WrappedRun, color: string, day: Theme, dim?: boolean): string {
+function spans(sp: Span[], run: WrappedRun, color: string, day: Theme, tones: ToneEnv, dim?: boolean): string {
   return sp.map(s => {
-    const fill = !dim && s.tone ? runColorOf(s.tone, undefined, day) : color;
+    const fill = !dim && s.tone ? runColorOf(tones, s.tone, undefined, day) : color;
     const style = `${s.bold && run.weight !== 700 ? 'font-weight:700;' : ''}${fill !== color ? `color:${fill};` : ''}`;
     return style ? `<span style="${style}">${esc(s.text)}</span>` : esc(s.text);
   }).join('');
 }
 
-function textRuns(runs: WrappedRun[], o: {originX: number; originY: number; w: number; align: Align; day: Theme; dim?: boolean; boxTone?: EmphasisTone}): string {
+function textRuns(runs: WrappedRun[], o: {originX: number; originY: number; w: number; align: Align; day: Theme; tones: ToneEnv; dim?: boolean; boxTone?: EmphasisTone}): string {
   const out: string[] = [];
   for (const run of runs) {
-    const color = o.dim ? PALETTE.muted : runColorOf(run.tone, o.boxTone, o.day);
+    const color = o.dim ? PALETTE.muted : runColorOf(o.tones, run.tone, o.boxTone, o.day);
     const indent = run.indent ?? 0;
     const {ascent, descent} = metrics(run.size, run.weight, run.mono);
     run.lines.forEach((line, i) => {
       const top = o.originY + run.lineYs[i] - ascent;
-      const content = run.lineSpans ? spans(run.lineSpans[i], run, color, o.day, o.dim) : esc(line).trim();
+      const content = run.lineSpans ? spans(run.lineSpans[i], run, color, o.day, o.tones, o.dim) : esc(line).trim();
       out.push(`<div class="sd-t${run.mono ? ' sd-m' : ''}" style="left:${px(o.originX + indent)};top:${px(top)};width:${px(o.w - indent)};text-align:${o.align};font-size:${run.size}px;font-weight:${run.weight};line-height:${ascent + descent}px;color:${color}">${content}</div>`);
     });
   }
   return out.join('');
 }
 
-function shape(r: Rect, o: {tone?: EmphasisTone; dashed?: boolean; dim?: boolean}, day: Theme, fallbackTone: EmphasisTone): string {
-  const st = resolveBoxStyle(o.tone ?? fallbackTone, day, o.dashed);
+function shape(r: Rect, o: {tone?: EmphasisTone; dashed?: boolean; dim?: boolean}, day: Theme, tones: ToneEnv, fallbackTone: EmphasisTone): string {
+  const st = resolveBoxStyle(tones, o.tone ?? fallbackTone, day, o.dashed);
   let {fill, stroke} = st;
   let line = st.dashed ? 'dashed' : 'solid';
   if (o.dim) { fill = PALETTE.bg; stroke = PALETTE.muted; line = 'dotted'; }
@@ -74,22 +75,22 @@ function shape(r: Rect, o: {tone?: EmphasisTone; dashed?: boolean; dim?: boolean
   return `<div class="sd-b" style="left:${px(snap4(r.x) - 1.25)};top:${px(snap4(r.y) - 1.25)};width:${px(snap4(r.x + r.w) - snap4(r.x) + 2.5)};height:${px(snap4(r.h) + 2.5)};background:${fill};${outline}"></div>`;
 }
 
-function box(b: LaidOutBox, day: Theme): string {
+function box(b: LaidOutBox, day: Theme, tones: ToneEnv): string {
   const px_ = b.padX ?? BOX_PAD_X, py = b.padY ?? BOX_PAD_Y;
-  return shape(b, b, day, 'plain') + textRuns(b.wrappedRuns, {originX: b.x + px_, originY: b.y + py, w: b.w - 2 * px_, align: b.align ?? 'left', day, dim: b.dim, boxTone: b.tone});
+  return shape(b, b, day, tones, 'plain') + textRuns(b.wrappedRuns, {originX: b.x + px_, originY: b.y + py, w: b.w - 2 * px_, align: b.align ?? 'left', day, tones, dim: b.dim, boxTone: b.tone});
 }
 
-function banner(b: LaidOutBanner, day: Theme): string {
+function banner(b: LaidOutBanner, day: Theme, tones: ToneEnv): string {
   const px_ = b.padX ?? BOX_PAD_X, py = b.padY ?? BOX_PAD_Y;
-  return shape(b, b, day, 'accent') + textRuns(b.wrappedRuns, {originX: b.x + px_, originY: b.y + py, w: b.w - 2 * px_, align: b.align ?? 'center', day, dim: b.dim, boxTone: b.tone});
+  return shape(b, b, day, tones, 'accent') + textRuns(b.wrappedRuns, {originX: b.x + px_, originY: b.y + py, w: b.w - 2 * px_, align: b.align ?? 'center', day, tones, dim: b.dim, boxTone: b.tone});
 }
 
-function caption(b: LaidOutCaption, day: Theme): string {
-  return textRuns(b.wrappedRuns, {originX: b.x, originY: b.y, w: b.w, align: b.align ?? 'center', day, dim: b.dim});
+function caption(b: LaidOutCaption, day: Theme, tones: ToneEnv): string {
+  return textRuns(b.wrappedRuns, {originX: b.x, originY: b.y, w: b.w, align: b.align ?? 'center', day, tones, dim: b.dim});
 }
 
-function group(b: LaidOutGroup, day: Theme): string {
-  return b.frame === false ? '' : shape(b, b, day, 'muted');
+function group(b: LaidOutGroup, day: Theme, tones: ToneEnv): string {
+  return b.frame === false ? '' : shape(b, b, day, tones, 'muted');
 }
 
 // One line of text at an absolute spot: `baseline` is where the glyphs sit (as the SVG <text> y would be), relative to the parent.
@@ -100,13 +101,13 @@ function lineDiv(o: {left: number; baseline: number; width: number; align: Align
 
 // A real <table> (header cells are <th>, so assistive technology reads rows and columns) with fixed column widths and row heights;
 // the text of a cell is pre-broken lines placed over its box. Rounded corners come from a clipping wrapper, the outline from an overlay.
-function table(b: LaidOutTable, day: Theme, roles: Roles): string {
-  const out = tablePlain(b, day, roles);
+function table(b: LaidOutTable, day: Theme, tones: ToneEnv, roles: Roles): string {
+  const out = tablePlain(b, day, tones, roles);
   // outside the spotlight: what emit.ts does to the SVG of a table: every colour but the page's becomes muted
   return b.dim ? out.replace(/#[0-9a-fA-F]{6}/g, c => c.toLowerCase() === PALETTE.bg.toLowerCase() ? c : PALETTE.muted) : out;
 }
 
-function tablePlain(b: LaidOutTable, day: Theme, roles: Roles): string {
+function tablePlain(b: LaidOutTable, day: Theme, tones: ToneEnv, roles: Roles): string {
   const R = 8, LH = 1.4;
   const first = b.rows[0];
   const y0 = first.y, y1 = b.rows[b.rows.length - 1].y + b.rows[b.rows.length - 1].h;
@@ -114,7 +115,7 @@ function tablePlain(b: LaidOutTable, day: Theme, roles: Roles): string {
   const rule = `2px solid ${PALETTE.border}`;
   const cols = b.colW.map(w => `<col style="width:${px(w)}">`).join('');
   const rows = b.rows.map((row, i) => {
-    const bg = row.header ? PALETTE[day].soft : row.tone ? resolveBoxStyle(row.tone, day).fill : PALETTE.bg;
+    const bg = row.header ? PALETTE[day].soft : row.tone ? resolveBoxStyle(tones, row.tone, day).fill : PALETTE.bg;
     const cells = row.cells.map((c, j) => {
       const tag = row.header ? 'th' : b.rowHeader && j === 0 ? 'th' : 'td';
       const scope = tag === 'th' ? ` scope="${row.header ? 'col' : 'row'}"` : '';
@@ -124,7 +125,7 @@ function tablePlain(b: LaidOutTable, day: Theme, roles: Roles): string {
       // a collapsed border takes half its width out of the cell on each side it has: shift the text back by that much
       const edge = j === 1 && b.rowHeader && i >= firstBody && firstBody >= 0 ? 3 : j > 0 ? 2 : 0;
       const topRule = i > 0 || b.titleBar ? 2 : 0;
-      const lines = c.lines.map((l, k) => lineDiv({left: left - edge / 2, baseline: c.top - row.y - topRule / 2 + b.bodySize + k * b.bodySize * LH, width: c.w - left - right, align: c.align, size: b.bodySize, weight: c.bold ? 700 : 400, mono: c.mono, color: textColorOf(c.tone, day), html: esc(l)})).join('');
+      const lines = c.lines.map((l, k) => lineDiv({left: left - edge / 2, baseline: c.top - row.y - topRule / 2 + b.bodySize + k * b.bodySize * LH, width: c.w - left - right, align: c.align, size: b.bodySize, weight: c.bold ? 700 : 400, mono: c.mono, color: textColorOf(tones, c.tone, day), html: esc(l)})).join('');
       const style = heading ? `background:${PALETTE[day].soft};` : '';
       const borderL = edge === 3 ? `border-left:3px solid ${PALETTE.text};` : edge ? `border-left:${rule};` : '';
       return `<${tag}${scope} style="${style}${borderL}">${lines}</${tag}>`;
@@ -152,14 +153,14 @@ function native(b: LaidOutBand): boolean {
   }
 }
 
-function render(b: LaidOutBand, day: Theme, roles: Roles, stage?: number): string {
+function render(b: LaidOutBand, day: Theme, tones: ToneEnv, roles: Roles, stage?: number): string {
   switch (b.type) {
-    case 'table': return table(b, day, roles);
-    case 'row': case 'grid': return b.children.filter(c => visibleAt(c, stage)).map(c => box(c, day)).join('');
-    case 'caption': return caption(b, day);
-    case 'box': return box(b, day);
-    case 'banner': return banner(b, day);
-    case 'group': return group(b, day);
+    case 'table': return table(b, day, tones, roles);
+    case 'row': case 'grid': return b.children.filter(c => visibleAt(c, stage)).map(c => box(c, day, tones)).join('');
+    case 'caption': return caption(b, day, tones);
+    case 'box': return box(b, day, tones);
+    case 'banner': return banner(b, day, tones);
+    case 'group': return group(b, day, tones);
     default: return '';
   }
 }
@@ -209,9 +210,10 @@ const CSS = (id: string, transparent = false) => `
 
 /** A self-contained HTML fragment (a <div> and a <style>) for the diagram. `id` scopes the CSS (default: a hash of the content, so the same figure always gets the same id and two figures do not share one). */
 export function emitHtml(d: LaidOutDiagram, opts: {reveal?: number; id?: string} = {}): string {
-  return withTones(d.tones, () => emitHtmlWith(d, opts));
+  return emitHtmlWith(d, toneEnv(d.tones), opts);
 }
-function emitHtmlWith(d: LaidOutDiagram, opts: {reveal?: number; id?: string}): string {
+// the inner emitSvg calls share d.tones, so they resolve the same env (toneEnv caches it by the overrides object)
+function emitHtmlWith(d: LaidOutDiagram, tones: ToneEnv, opts: {reveal?: number; id?: string}): string {
   const {width, canvasHeight, day} = d;
   const visible = d.laidOut.filter(b => visibleAt(b, opts.reveal));
   // The SVG draws the bands in order and the connectors on top; so does this: consecutive bands of one kind (drawn as HTML, as the SVG
@@ -234,12 +236,12 @@ function emitHtmlWith(d: LaidOutDiagram, opts: {reveal?: number; id?: string}): 
     let j = i;
     while (j < visible.length && kindOf(visible[j]) === kind) j++;
     const run = visible.slice(i, j);
-    if (kind === 'html') body += run.map(b => render(b, day, d.roles, opts.reveal)).join('');
+    if (kind === 'html') body += run.map(b => render(b, day, tones, d.roles, opts.reveal)).join('');
     else if (kind === 'raw') body += strip(emitSvg({...d, laidOut: run, connects: []}, {reveal: opts.reveal, noRecolor: true}), 'sd-ov sd-raw');
     else body += overlay(run, []);
     i = j;
   }
   if (d.connects.some(c => visibleAt(c, opts.reveal))) body += overlay([], d.connects);
   const id = opts.id ?? `sd-${createHash('sha1').update(JSON.stringify([width, canvasHeight, d.transparent ?? false, d.appearance ?? null, body])).digest('hex').slice(0, 8)}`;
-  return recolor(`<style>${CSS(id, d.transparent)}\n</style>\n<div id="${id}" class="sd" style="width:${px(width)};height:${px(canvasHeight)}">${body}</div>\n`, d.appearance);
+  return recolor(tones, `<style>${CSS(id, d.transparent)}\n</style>\n<div id="${id}" class="sd" style="width:${px(width)};height:${px(canvasHeight)}">${body}</div>\n`, d.appearance);
 }

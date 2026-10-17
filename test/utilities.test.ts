@@ -74,22 +74,22 @@ test('tokens: every palette colour is allowed, the text/background pair passes A
 // ---- wrap ----------------------------------------------------------------------------------------------
 const w1 = (a: string) => [...a].length; // one unit per character
 test('wrapAtoms: breaks at the width, honours explicit \\n, drops leading whitespace', () => {
-  assert.deepEqual(wrapText('あいうえおか', {maxWidth: 3, atomWidth: w1}), ['あいう', 'えおか']);
-  assert.deepEqual(wrapText('ab\ncd', {maxWidth: 10, atomWidth: w1}), ['ab', 'cd']);
-  assert.deepEqual(wrapText('hello world foo', {maxWidth: 11, atomWidth: w1}), ['hello world', 'foo']);
-  assert.deepEqual(wrapText('', {maxWidth: 5, atomWidth: w1}), []);
-  assert.deepEqual(wrapText('a    b', {maxWidth: 3, atomWidth: w1}), ['a', 'b'], 'whitespace that does not fit is dropped, not carried to the next line');
-  assert.deepEqual(wrapAtoms(['長い単語', 'x'], {maxWidth: 2, atomWidth: w1}), ['長い単語', 'x'], 'an atom wider than the line stays whole on its own line');
+  assert.deepEqual(wrapText('あいうえおか', {maxWidth: 3, atomWidth: w1, mode: 'phrase'}), ['あいう', 'えおか']);
+  assert.deepEqual(wrapText('ab\ncd', {maxWidth: 10, atomWidth: w1, mode: 'phrase'}), ['ab', 'cd']);
+  assert.deepEqual(wrapText('hello world foo', {maxWidth: 11, atomWidth: w1, mode: 'phrase'}), ['hello world', 'foo']);
+  assert.deepEqual(wrapText('', {maxWidth: 5, atomWidth: w1, mode: 'phrase'}), []);
+  assert.deepEqual(wrapText('a    b', {maxWidth: 3, atomWidth: w1, mode: 'phrase'}), ['a', 'b'], 'whitespace that does not fit is dropped, not carried to the next line');
+  assert.deepEqual(wrapAtoms(['長い単語', 'x'], {maxWidth: 2, atomWidth: w1, mode: 'phrase'}), ['長い単語', 'x'], 'an atom wider than the line stays whole on its own line');
 });
 
 test('wrapAtoms kinsoku: closing punctuation never starts a line, opening brackets never end one', () => {
-  const lines = wrapText('あいう。えお', {maxWidth: 3, atomWidth: w1});
+  const lines = wrapText('あいう。えお', {maxWidth: 3, atomWidth: w1, mode: 'phrase'});
   assert.deepEqual(lines, ['あいう。', 'えお']);
   assert.ok(lines.every(l => !'、。」）'.includes(l[0])));
-  const open = wrapText('あい「うえ」', {maxWidth: 3, atomWidth: w1});
+  const open = wrapText('あい「うえ」', {maxWidth: 3, atomWidth: w1, mode: 'phrase'});
   assert.ok(open.every(l => !'「'.includes(l.at(-1)!)), JSON.stringify(open));
   assert.equal(open.join(''), 'あい「うえ」');
-  assert.deepEqual(wrapText('あいうーえ', {maxWidth: 3, atomWidth: w1})[1][0] !== 'ー', true, 'the long vowel mark does not start a line');
+  assert.deepEqual(wrapText('あいうーえ', {maxWidth: 3, atomWidth: w1, mode: 'phrase'})[1][0] !== 'ー', true, 'the long vowel mark does not start a line');
   assert.deepEqual(splitAtoms('ab 日本c'), ['ab', ' ', '日', '本', 'c']);
 });
 

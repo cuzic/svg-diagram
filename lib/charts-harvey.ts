@@ -64,7 +64,7 @@ export function harveyWedge(cx: number, cy: number, r: number, q: number): strin
 }
 
 export function layoutHarvey(s: HarveySpec, g: ChartGeom): LaidOutChartPart {
-  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
+  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
   const R = Math.max(12, Math.ceil(S * 0.9)), cellH = 2 * R + 16;
   const rowW = Math.min(Math.max(...s.rows.map(r => c.tw(r)), s.corner ? c.tw(s.corner) : 0) + 16, g.w * 0.38);
   const colW = (g.w - rowW) / s.cols.length;

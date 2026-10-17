@@ -107,7 +107,7 @@ export function regTexts(s: RegSpec): [string, number][] {
 
 export function layoutReg(s: RegSpec, g: ChartGeom): LaidOutChartPart {
   const who = s.resid ? 'residplot' : 'regplot';
-  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), r1 = (v: number) => Math.round(v * 10) / 10, sc = scales(s);
+  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap), r1 = (v: number) => Math.round(v * 10) / 10, sc = scales(s);
   const tone = (i: number) => TONES[i] as 'accent';
   const entries = s.groups.map((gr, i) => ({i, text: legendText(s, gr)})).filter(e => e.text && (s.groups.length > 1 || s.stats));
   const legend: {x: number; row: number; i: number; text: string}[] = [];

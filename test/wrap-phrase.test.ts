@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {splitAtoms} from '../lib/atoms.ts';
-import {setWrapMode, wrapText} from '../lib/wrap.ts';
+import {wrapText, type WrapMode} from '../lib/wrap.ts';
 import {box, row} from '../lib/dsl.ts';
 
-const opts = (maxWidth: number) => ({maxWidth, atomWidth: (a: string) => 10 * [...a].length});
+const opts = (maxWidth: number, mode: WrapMode = 'phrase') => ({maxWidth, atomWidth: (a: string) => 10 * [...a].length, mode});
 
 test('phrase wrapping keeps a katakana run whole', () => {
   assert.deepEqual(wrapText('作業アプリ', opts(40)), ['作業', 'アプリ']);
@@ -20,8 +20,7 @@ test('a run wider than a line still breaks per character', () => {
 });
 
 test("'char' mode may break inside a katakana run", () => {
-  const prev = setWrapMode('char');
-  try { assert.deepEqual(wrapText('開発アプリ', opts(40)), ['開発ア', 'プリ']); } finally { setWrapMode(prev); }
+  assert.deepEqual(wrapText('開発アプリ', opts(40, 'char')), ['開発ア', 'プリ']);
 });
 
 test('atoms are unchanged: only the breaking differs', () => {
