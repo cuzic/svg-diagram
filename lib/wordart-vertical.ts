@@ -23,7 +23,7 @@ const PUNCT: ReadonlySet<string> = new Set(Array.from('、。，．'));
 const SMALL: ReadonlySet<string> = new Set(Array.from('ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ'));
 
 /** The characters a person sees (an emoji with its modifiers, or a joined family, is one). */
-export const graphemes = (text: string): string[] => Array.from(new Intl.Segmenter(undefined, {granularity: 'grapheme'}).segment(text), x => x.segment);
+export const graphemes = (text: string): string[] => Array.from(new Intl.Segmenter('ja', {granularity: 'grapheme'}).segment(text), x => x.segment);
 
 /** A unit of a vertical column, before any width is known. */
 export type VToken =
