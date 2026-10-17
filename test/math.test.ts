@@ -141,3 +141,8 @@ test('array rules, enclose strokes and a proof tree are drawn (MathJax leaves th
   assert.match(math(String.raw`\enclose{longdiv}{12}`).drawing.inner, /stroke-width="67"/);
   math(String.raw`\begin{prooftree}\AxiomC{$A$}\AxiomC{$B$}\BinaryInfC{$A \land B$}\end{prooftree}`);
 });
+
+test('a double quote in the TeX source (the default alt) keeps the aria-label well-formed', async () => {
+  const r = await renderDiagram(diagram({theme: 'blue'}).add(math('\\text{say "hi"}')), {name: 'm.svg', budget: 'cacheOnly'});
+  assert.deepEqual(r.xml, []);
+});

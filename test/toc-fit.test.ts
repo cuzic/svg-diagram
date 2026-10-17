@@ -281,3 +281,10 @@ test('causeTree(): a figure whose arrows cross with no AND involved is searched 
   assert.ok(now.h <= once.h + 0.5, 'no taller');
   assert.equal(now.loose.length, 0);
 });
+
+test('fitFailure(): an attempt 0.3px over the width in the rounded record but inside the slack is "too tall", not "too wide"', async () => {
+  const {fitFailure} = await import('../lib/fit-width.ts');
+  const msg = fitFailure('x()', 900, [{label: 'a', w: 901, h: 400, fitsWidth: true}], 'fix', [], 300);
+  assert.match(msg, /tall/);
+  assert.doesNotMatch(fitFailure('x()', 900, [{label: 'a', w: 901, h: 400, fitsWidth: false}], 'fix', [], 300), /every attempt that fits the width is too tall/);
+});

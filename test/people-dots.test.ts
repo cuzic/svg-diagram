@@ -97,3 +97,11 @@ test('dots(): bad input is rejected', async () => {
   await assert.rejects(checkDiagram(diagram({theme: 'blue'}).add(dots(Array(30).fill(0.5), {height: 20}))), /too small for its tallest pile/);
   await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 360}).add(dots([0.5], {lowLabel: '遅いほうの端のとても長いラベル', highLabel: '速いほうの端のとても長いラベル'}))), /overlap|leaves the figure|too narrow/);
 });
+
+test('a double quote in alt stays well-formed in the aria-label (people, dots)', async () => {
+  for (const band of [people(5, 2, {alt: '5人中 "2人"'}), dots([0.1, 0.5], {alt: 'a "b" c'})]) {
+    const r = await renderDiagram(diagram({theme: 'blue'}).add(band), {name: 'q.svg', budget: 'cacheOnly'});
+    assert.deepEqual(r.xml, []);
+    assert.match(r.svg, /aria-label="[^"]*&quot;/);
+  }
+});

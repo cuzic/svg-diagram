@@ -10,7 +10,7 @@ import {iconSvg} from './icon-svg.ts';
 import {ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout-util.ts';
 import {visibleAt} from './reveal.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
-import {arrowPath, snap4, escapeXml, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
+import {arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
 import {ftaLegendSwatch} from './emit-fta.ts';
 
 // Numbered circle badge for box({step}) — solid accent fill, white number,
@@ -213,7 +213,7 @@ export function renderPeople(band: LaidOutPeople, day: Theme): string {
   const color = colorOf(toneStyle(band.tone).ink, day), color2 = colorOf(toneStyle(band.tone2).ink, day), rest = colorOf(toneStyle(band.rest).ink, day);
   const icon = (i: {x: number; y: number; on: boolean; second?: true}) => `<path d="${d}" transform="translate(${n(i.x - PERSON_BOX.from * s)} ${n(i.y - PERSON_BOX.from * s)}) scale(${n(s)})" ${i.on ? `fill="${i.second ? color2 : color}"` : `fill="none" stroke="${rest}" stroke-width="${n(1.5 / s)}"`}/>`;
   const texts = band.texts.map(t => `\n  <text x="${Math.round(t.x)}" y="${Math.round(t.y)}" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${textColorOf(t.tone, day)}">${emojiSpan(t.text)}</text>`).join('');
-  return `<g role="img" aria-label="${escapeXml(band.alt)}">\n  ${band.icons.map(icon).join('\n  ')}\n  </g>${texts}`;
+  return `<g role="img" aria-label="${escapeAttr(band.alt)}">\n  ${band.icons.map(icon).join('\n  ')}\n  </g>${texts}`;
 }
 
 
@@ -224,7 +224,7 @@ export function renderDots(band: LaidOutDots, day: Theme): string {
   for (const z of band.zones) parts.push(`<rect x="${n(z.x)}" y="${n(z.top)}" width="${n(z.w)}" height="${n(z.y - 4 - z.top)}" fill="${color(z.tone)}" fill-opacity="0.12"/>`);
   for (const z of band.zones) parts.push(`<rect x="${n(z.x)}" y="${n(z.y - 4)}" width="${n(z.w)}" height="8" fill="${color(z.tone)}"/>`);
   const dots = band.dots.map(p => `<circle cx="${n(p.x)}" cy="${n(p.y)}" r="${band.r}" fill="${color(p.tone)}"/>`).join('\n    ');
-  parts.push(`<g role="img" aria-label="${escapeXml(band.alt)}">\n    ${dots}\n  </g>`);
+  parts.push(`<g role="img" aria-label="${escapeAttr(band.alt)}">\n    ${dots}\n  </g>`);
   for (const t of band.texts) parts.push(`<text x="${n(t.x)}" y="${n(t.y)}" text-anchor="${t.anchor}" font-size="${t.size}" fill="${PALETTE.text}">${emojiSpan(t.text)}</text>`);
   return parts.join('\n  ');
 }
@@ -260,7 +260,7 @@ export function renderCurve(band: LaidOutCurve, day: Theme): string {
 export function renderStatus(band: LaidOutStatus): string {
   const p = band.pill;
   const pill = pillSvg({x: snap4(p.x), y: snap4(p.y), w: snap4(p.w), h: p.h, fill: PALETTE.bg, stroke: PALETTE.muted, sw: 1.5, dash: '4 3', cx: p.x + p.w / 2, baseline: band.textY, text: PALETTE.text, size: band.size, labelHtml: emojiSpan(band.text)});
-  return `<g role="img" aria-label="${escapeXml(band.text).replace(/"/g, '&quot;')}" data-status="${band.status}">\n  ${pill}\n  </g>`;
+  return `<g role="img" aria-label="${escapeAttr(band.text)}" data-status="${band.status}">\n  ${pill}\n  </g>`;
 }
 
 export function renderRaw(band: LaidOutRaw, day: Theme): string {

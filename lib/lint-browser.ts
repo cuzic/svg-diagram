@@ -79,7 +79,9 @@ export async function browserChecks(page: Page, src: string): Promise<RenderChec
         const tc = parseColor(fill);
         if (!tc) continue;
         const d = Math.abs(luminance(tc) - luminance(bg));
-        const rim = parseColor(getComputedStyle(t).stroke), cs = getComputedStyle(t), seen = parseFloat(cs.strokeWidth) / 2 >= Math.max(1, 0.03 * parseFloat(cs.fontSize)) && parseFloat(cs.opacity) * parseFloat(cs.strokeOpacity || '1') >= 0.9, rimReads = rim && seen && Math.abs(luminance(rim) - luminance(bg)) >= 70; // an outlined letter reads by its rim
+        let shown = parseFloat(getComputedStyle(t).strokeOpacity || '1'); // every enclosing opacity counts, and the stroke colour's own alpha
+        for (let e: Element | null = t; e && svg.contains(e); e = e.parentElement) shown *= parseFloat(getComputedStyle(e).opacity || '1');
+        const rim = parseColor(getComputedStyle(t).stroke), cs = getComputedStyle(t), seen = parseFloat(cs.strokeWidth) / 2 >= Math.max(1, 0.03 * parseFloat(cs.fontSize)) && shown * (rim?.a ?? 1) >= 0.9, rimReads = rim && seen && Math.abs(luminance(rim) - luminance(bg)) >= 70; // an outlined letter reads by its rim
         if (d < 70 && !rimReads) {
           contrast.push({txt: (parts.length > 1 ? g.trim() : txt).slice(0, 40), delta: +d.toFixed(0), fg: fill, bg: `rgb(${bg.r | 0},${bg.g | 0},${bg.b | 0})`});
         }

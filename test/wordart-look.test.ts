@@ -165,3 +165,8 @@ test('the id of a gradient follows its colours: one figure in two themes has two
   assert.ok(gradientId(art, 'blue').startsWith(art.uid));
   assert.equal(paintLayers(art, 'amber')[0].fill, `url(#${gradientId(art, 'amber')})`);
 });
+
+test('wordart(): Infinity is refused where a positive number is wanted', () => {
+  assert.throws(() => wordart('x', {limit: Infinity}), /limit/);
+  assert.throws(() => wordart('x', {glow: {tone: 'accent', radius: Infinity}} as never), /glow radius/);
+});

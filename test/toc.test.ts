@@ -197,6 +197,19 @@ test('causeTree({coreDriver}): the badge lies outside the frame and inside the f
   }
 });
 
+test('causeTree({coreDriver}): a sideways figure that fills the band keeps its badge on the page, and its height budget is not cut (review of H7)', async () => {
+  const L = (id: string, o: object = {}) => ({id, label: id + ' の説明の文がとても長くなる場合', ...o});
+  const nodes = [L('r', {role: 'root'}), L('m'), L('u1', {role: 'ude'}), L('u2', {role: 'ude'})];
+  const links = [{from: 'r', to: 'm'}, {from: 'm', to: 'u1'}, {from: 'm', to: 'u2'}, {from: 'r', to: 'u2'}];
+  for (const dir of ['left', 'right'] as const) {
+    // 760px used to draw the badge at x -20 / 740..784: the figure now refuses the width it cannot keep the badge inside of
+    await assert.rejects(() => renderDiagram(diagram({theme: 'blue', width: 760}).add(causeTree(nodes, links, {coreDriver: true, dir})), {name: 'c.svg', budget: 'cacheOnly'}), /does not fit/);
+    const svg = (await renderDiagram(diagram({theme: 'blue', width: 900}).add(causeTree(nodes, links, {coreDriver: true, dir})), {name: 'c.svg', budget: 'cacheOnly'})).svg;
+    const m = /<rect x="([\d.-]+)" y="[\d.-]+" width="44" height="22" rx="8"/.exec(svg)!;
+    assert.ok(+m[1] >= 0 && +m[1] + 44 <= 900, `${dir}: the badge lies on the page`);
+  }
+});
+
 test('causeTree(): coreDriver must be a boolean', () => {
   assert.throws(() => causeTree([N('a')], [], {coreDriver: 'yes' as never}), /coreDriver must be/);
 });

@@ -352,6 +352,9 @@ test('a white letter on a white page reads by a rim that is thick and opaque eno
   assert.equal(check(txt('stroke="#22201b" stroke-width="3" opacity="0.5"')).contrast.length, 1, 'a faint stroke');
   assert.equal(check(txt('stroke="#fafafa" stroke-width="3"')).contrast.length, 1, 'a rim as pale as the page');
   assert.equal(check(txt('')).contrast.length, 1, 'no rim at all');
+  assert.equal(check(txt('stroke="rgba(34,32,27,0.1)" stroke-width="3"')).contrast.length, 1, 'a rim whose colour is nearly transparent');
+  assert.equal(check(txt('stroke="#22201b1a" stroke-width="3"')).contrast.length, 1, 'a rim with #rrggbbaa alpha');
+  assert.equal(check(`<g opacity="0.1">${txt('stroke="#22201b" stroke-width="3"')}</g>`).contrast.length, 1, 'a rim inside a faint group');
 });
 
 test('only a data-decor text is exempt from the contrast / overlap checks; aria-hidden alone is not', { skip }, () => {

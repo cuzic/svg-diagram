@@ -62,7 +62,8 @@ function scopesOfLaidOut(d: LaidOutDiagram): ScopeTable {
     const scope = scopeOf(b);
     if (!scope) continue;
     if (b.type === 'box') { if (b.id) addScoped(table, scope, b.id); continue; } // a swimlane step
-    for (const a of (b as {anchors?: {id?: string}[]}).anchors ?? []) if (a.id) addScoped(table, scope, a.id);
+    const skip = (b as {unanchored?: readonly string[]}).unanchored;
+    for (const a of (b as {anchors?: {id?: string}[]}).anchors ?? []) if (a.id && !skip?.includes(a.id)) addScoped(table, scope, a.id);
   }
   return table;
 }
