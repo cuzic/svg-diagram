@@ -9,6 +9,7 @@
 // has no opaque shape behind it as a finding (svg-lint.ts).
 import {textWidth} from './atoms.ts';
 import {toneStyle} from './tokens.ts';
+import type {ToneEnv} from './tokens.ts';
 import type {FontFamily, LabelRole, Roles, WidthOf} from './types/core.ts';
 import type {ImageBand, ImageLabel, ImageMark, LaidOutImage} from './types/image.ts';
 
@@ -74,8 +75,8 @@ export function layoutImage(band: ImageBand, x: number, y: number, cw: number, w
 }
 
 /** What a plate in a tone looks like: fill, outline and text colour keys. */
-export const plateStyle = (tone: ImageLabel['tone'] | undefined) => {
-  const t = toneStyle(tone ?? 'plain');
+export const plateStyle = (tones: ToneEnv, tone: ImageLabel['tone'] | undefined) => {
+  const t = toneStyle(tones, tone ?? 'plain');
   return {fill: t.fill, stroke: t.stroke ?? t.fill, text: t.text, ink: t.ink};
 };
 export {MARK_STROKE};

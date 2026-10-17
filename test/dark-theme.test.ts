@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {bars, banner, box, caption, checkDiagram, closeMeasurer, diagram, renderDiagram, row, stat, table} from '../lib/dsl.ts';
-import {LIGHT_COLORS, DARK_PALETTE, PALETTE, TONES, darkOf, recolor, wcagRatio} from '../lib/tokens.ts';
+import {LIGHT_COLORS, DARK_PALETTE, PALETTE, TONES, darkOf, recolor, wcagRatio, NO_TONES} from '../lib/tokens.ts';
 import {geometryChecks} from '../lib/svg-lint.ts';
 
 process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
@@ -16,9 +16,9 @@ test('every light token has a distinct dark counterpart, and recolor is idempote
   assert.equal(new Set(mapped).size, new Set(light).size);
   for (const m of mapped) assert.ok(!LIGHT_COLORS.has(m), `${m} collides with a light token`);
   const s = `<rect fill="${PALETTE.bg}"/><path stroke="#ff00ff"/>`;
-  assert.equal(recolor(s, 'dark'), `<rect fill="${DARK_PALETTE.bg}"/><path stroke="#ff00ff"/>`);
-  assert.equal(recolor(recolor(s, 'dark'), 'dark'), recolor(s, 'dark'));
-  assert.equal(recolor(s, 'light'), s);
+  assert.equal(recolor(NO_TONES, s, 'dark'), `<rect fill="${DARK_PALETTE.bg}"/><path stroke="#ff00ff"/>`);
+  assert.equal(recolor(NO_TONES, recolor(NO_TONES, s, 'dark'), 'dark'), recolor(NO_TONES, s, 'dark'));
+  assert.equal(recolor(NO_TONES, s, 'light'), s);
 });
 
 test('dark palette: text pairs reach 4.5:1 and outlines 3:1 for every tone of every theme', () => {
@@ -176,7 +176,7 @@ test('recolor rewrites colour places only: text, <title>, <desc>, <metadata> and
 
 test('recolor: attributes and CSS only, once', () => {
   const s = `<svg data-assumed-bg="#ffffff" aria-label="#ffffff"><style>.a{fill:#ffffff}</style><text fill="#22201b" style="stroke:#e0d6c5">#ffffff</text></svg>`;
-  assert.equal(recolor(s, 'dark'), `<svg data-assumed-bg="${DARK_PALETTE.bg}" aria-label="#ffffff"><style>.a{fill:${DARK_PALETTE.bg}}</style><text fill="${DARK_PALETTE.text}" style="stroke:${DARK_PALETTE.border}">#ffffff</text></svg>`);
+  assert.equal(recolor(NO_TONES, s, 'dark'), `<svg data-assumed-bg="${DARK_PALETTE.bg}" aria-label="#ffffff"><style>.a{fill:${DARK_PALETTE.bg}}</style><text fill="${DARK_PALETTE.text}" style="stroke:${DARK_PALETTE.border}">#ffffff</text></svg>`);
 });
 
 test('lint-svg: the dark tokens pass only in a diagram that says it is dark', async () => {

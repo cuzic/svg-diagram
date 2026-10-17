@@ -1,5 +1,5 @@
 import {layoutDiagram} from '../layout-measured.ts';
-import {mapOf, checkTones} from '../tokens.ts';
+import {mapOf, checkTones, NO_TONES} from '../tokens.ts';
 import {analyzeFit} from '../fit.ts';
 import {getSlideBudget, readSlideBudgetCache} from '../slide-budget.ts';
 import {emitOutputs, runChecked} from '../pipeline.ts';
@@ -36,7 +36,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (opts.appearance !== undefined && !['light', 'dark', 'auto'].includes(opts.appearance as string) && !(typeof opts.appearance === 'object' && opts.appearance && typeof opts.appearance.dark === 'object')) throw new Error(`diagram({appearance}) must be 'light', 'dark', 'auto' or {dark: {bg, text, ...}} (got ${JSON.stringify(opts.appearance)})`);
   if (opts.keepWords !== undefined && typeof opts.keepWords !== 'boolean') throw new Error(`diagram({keepWords}) must be true or false (got ${JSON.stringify(opts.keepWords)})`);
   if (opts.wrap !== undefined && opts.wrap !== 'phrase' && opts.wrap !== 'char' && opts.wrap !== 'bunsetsu') throw new Error(`diagram({wrap}) must be 'phrase', 'char' or 'bunsetsu' (got ${JSON.stringify(opts.wrap)})`);
-  mapOf(opts.appearance); // a custom dark set is validated here
+  mapOf(NO_TONES, opts.appearance); // a custom dark set is validated here
   if (opts.sourceLine !== undefined && (typeof opts.sourceLine !== 'string' || !opts.sourceLine.trim() || /[\r\n]/.test(opts.sourceLine))) throw new Error('diagram({sourceLine}) must be a non-empty single-line string (e.g. "出典: 総務省 2025")');
   if (opts.status !== undefined && opts.status !== 'draft') throw new Error(`diagram({status}) must be 'draft' (got ${JSON.stringify(opts.status)})`);
   if (opts.statusLabel !== undefined && (opts.status === undefined || typeof opts.statusLabel !== 'string' || !opts.statusLabel.trim() || /[\r\n]/.test(opts.statusLabel))) throw new Error('diagram({statusLabel}) must be a non-empty single-line string and goes with diagram({status}) (e.g. "仮説")');

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {chevron, concentric, cycle, diagram, funnel, renderDiagram, venn} from '../lib/dsl.ts';
 import {layoutFlowShape} from '../lib/flow-shapes.ts';
 import {renderFlowShape} from '../lib/emit.ts';
-import {ROLES} from '../lib/tokens.ts';
+import {ROLES, NO_TONES} from '../lib/tokens.ts';
 import type {FlowShapeBand, LaidOutFlowShape} from '../lib/flow-shapes.ts';
 import type {Rect} from '../lib/types/core.ts';
 
@@ -66,7 +66,7 @@ test('venn of three: a pair label sits where only that pair overlaps; set labels
 });
 
 test('venn: the three outlines differ in dash pattern, not only in colour', () => {
-  const svg = renderFlowShape(figure(venn([{name: 'A'}, {name: 'B'}, {name: 'C'}])), 'blue');
+  const svg = renderFlowShape(figure(venn([{name: 'A'}, {name: 'B'}, {name: 'C'}])), 'blue', NO_TONES);
   const dashes = [...svg.matchAll(/<circle[^>]*>/g)].map(m => /stroke-dasharray="([^"]+)"/.exec(m[0])?.[1] ?? 'solid');
   assert.equal(new Set(dashes).size, 3);
 });
@@ -103,7 +103,7 @@ test('validation errors are helpful', () => {
 test('emission draws the geometry and escapes labels', () => {
   const bands = [chevron([{label: '矢羽根'}]), funnel([{label: '漏斗'}]), cycle([{label: '循環1'}, {label: '循環2'}, {label: '循環3'}]), venn([{name: '集合&A'}, {name: '集合B'}]), concentric([{label: '同心円'}])];
   for (const b of bands) {
-    const svg = renderFlowShape(figure(b), 'blue');
+    const svg = renderFlowShape(figure(b), 'blue', NO_TONES);
     assert.match(svg, /<(polygon|circle|path)/);
     assert.ok(!svg.includes('集合&A'));
   }

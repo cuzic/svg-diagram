@@ -250,14 +250,14 @@ export function installParts(h: WfHelpers): WfPartsApi {
     for (const e of n.evidence) if (!e.kind || !e.at) throw new Error(`${name}: every evidence needs {kind, at} — kind of data and its acquisition time`);
   }
   // an insight level is a chip tone and a label; the card's outline and side bar are that tone's own colours (tokens.ts TONES)
-  const levelOf = (chip: WfTone, label: string): {chip: WfTone; label: string; stroke: ColorKey; bar: ColorKey} => {
-    const t = toneStyle(chip);
-    return {chip, label, stroke: t.chipStroke ?? t.stroke ?? t.fill, bar: t.ink};
+  const LEVEL: Record<'danger' | 'warn' | 'info', {chip: WfTone; label: string}> = {
+    danger: {chip: 'solid-danger', label: '要確認'},
+    warn: {chip: 'danger', label: '注意'},
+    info: {chip: 'muted', label: '参考'},
   };
-  const LEVEL: Record<'danger' | 'warn' | 'info', {chip: WfTone; label: string; stroke: ColorKey; bar: ColorKey}> = {
-    danger: levelOf('solid-danger', '要確認'),
-    warn: levelOf('danger', '注意'),
-    info: levelOf('muted', '参考'),
+  const levelColors = (ctx: WfCtx, chip: WfTone): {stroke: ColorKey; bar: ColorKey} => {
+    const t = toneStyle(ctx.tones, chip);
+    return {stroke: t.chipStroke ?? t.stroke ?? t.fill, bar: t.ink};
   };
   function insightData(n: WfInsight, w: number, ctx: WfCtx) {
     checkInsight(n);
@@ -275,9 +275,9 @@ export function installParts(h: WfHelpers): WfPartsApi {
     return {tl, bl, rows, h: hgt, top, stacked2, chipExtra};
   }
   DRAW.insight = (n: WfInsight, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
-    const lv = LEVEL[n.level ?? 'info'] ?? LEVEL.info, d = insightData(n, w, ctx);
-    rect(ctx, x, y, w, d.h, {r: 8, fill: 'bg', stroke: lv.stroke});
-    rect(ctx, x + 1, y + 1, 6, d.h - 2, {fill: lv.bar});
+    const lv = LEVEL[n.level ?? 'info'] ?? LEVEL.info, d = insightData(n, w, ctx), {stroke, bar} = levelColors(ctx, lv.chip);
+    rect(ctx, x, y, w, d.h, {r: 8, fill: 'bg', stroke});
+    rect(ctx, x + 1, y + 1, 6, d.h - 2, {fill: bar});
     let cx = x + 18;
     const cy = y + 10 + d.top;
     part(ctx, n, 'level', x + 4, cy);

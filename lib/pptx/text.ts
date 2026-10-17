@@ -1,5 +1,6 @@
 import {escapeXml} from '../emit-common.ts';
 import {runColorOf, textColorOf} from '../tokens.ts';
+import type {ToneEnv} from '../tokens.ts';
 import {LINE_HEIGHT_EM} from '../layout-util.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutBox} from '../types/text-bands.ts';
@@ -16,15 +17,15 @@ export function runXml(text: string, size: number, bold: boolean, mono: boolean,
   return `<a:r>${rpr}<a:t>${escapeXml(text)}</a:t></a:r>`;
 }
 
-export function paragraphsOf(runs: Run[], boxTone: string | undefined, day: LaidOutDiagram['day'], align: string, fonts: Fonts): string {
+export function paragraphsOf(runs: Run[], boxTone: string | undefined, day: LaidOutDiagram['day'], tones: ToneEnv, align: string, fonts: Fonts): string {
   return runs.map((r, i) => {
     const pitch = pitchOf(r);
     const prev = i > 0 ? runs[i - 1]! : undefined;
     const before = prev ? Math.max(0, r.lineYs[0]! - prev.lineYs[prev.lineYs.length - 1]! - pitch) : 0;
-    const base = hex(runColorOf(r.tone, boxTone, day));
+    const base = hex(runColorOf(tones, r.tone, boxTone, day));
     const lines = r.lines.map((ln, k) => {
       const spans = r.lineSpans?.[k];
-      const body = spans ? spans.map(sp => runXml(sp.text, r.size, sp.bold === true || r.weight === 700, r.mono, sp.tone ? hex(textColorOf(sp.tone, day)) : base, fonts)).join('') : runXml(ln, r.size, r.weight === 700, r.mono, base, fonts);
+      const body = spans ? spans.map(sp => runXml(sp.text, r.size, sp.bold === true || r.weight === 700, r.mono, sp.tone ? hex(textColorOf(tones, sp.tone, day)) : base, fonts)).join('') : runXml(ln, r.size, r.weight === 700, r.mono, base, fonts);
       return (k ? `<a:br><a:rPr lang="ja-JP" sz="${Math.round(r.size * 75)}"/></a:br>` : '') + body;
     }).join('');
     // `indent` (room for a step badge / icon) narrows and shifts the whole run: every line of it (lib/emit-common.ts renderTextRuns)

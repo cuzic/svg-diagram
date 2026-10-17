@@ -3,7 +3,7 @@ import './helpers/strict-width.ts'; // a text the layout did not register for me
 import assert from 'node:assert/strict';
 import {wordart} from '../lib/dsl.ts';
 import {GLOW_RINGS, PRESETS, gradientId, gradientOf, gradientSteps, inkReach, legibilityProblem, minRim, paintLayers, resolveLook} from '../lib/wordart.ts';
-import {paintOf} from '../lib/tokens.ts';
+import {paintOf, NO_TONES} from '../lib/tokens.ts';
 import {place} from './helpers/wordart.ts';
 
 test('looks are values: a preset, then each option on top of it', () => {
@@ -88,7 +88,7 @@ test('hollow and gradient letters are judged like the rest', () => {
 });
 
 test('legibility is judged on the colours as drawn, along the whole gradient, and a hairline is not a rim', () => {
-  const paintDark = paintOf('dark');
+  const paintDark = paintOf(NO_TONES, 'dark');
   // amber: accent on a text-coloured plate reads in the light set (3.48) but not in the dark one (1.80)
   const sign = resolveLook({tone: 'accent', plate: 'text'}, 40);
   assert.equal(legibilityProblem(sign, 'amber'), null);

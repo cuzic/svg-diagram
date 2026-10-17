@@ -7,6 +7,7 @@ import {plateStyle} from './image.ts';
 import {segHitsRect} from './bars.ts';
 import {checkChart} from './charts-verify.ts';
 import {PALETTE, colorOf, luminance as lightLuminance, runColorOf, paintOf} from './tokens.ts';
+import type {ToneEnv} from './tokens.ts';
 import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 import {spotlightDim} from './spotlight.ts';
 import {legibilityProblem} from './wordart.ts';
@@ -30,8 +31,9 @@ export type CheckPhase = typeof CHECK_PHASES[number];
 
 export interface VerifyHandler<B> {
   rects?(band: B): CheckRect[];
-  check?: {phase: CheckPhase; run(band: B, d: LaidOutDiagram, out: VerifyOut): void};
-  contrast?(band: B, d: LaidOutDiagram): string[];
+  // `tones` comes last so a check that draws on no tone colour can leave it off
+  check?: {phase: CheckPhase; run(band: B, d: LaidOutDiagram, out: VerifyOut, tones: ToneEnv): void};
+  contrast?(band: B, d: LaidOutDiagram, tones: ToneEnv): string[];
 }
 
 // ---- rects: every checkable rect (captions with no ink box are skipped: no background, and their width is already wrap-constrained) ----
@@ -239,8 +241,8 @@ const checkFlowShape = (band: LaidOutOf<'chevron' | 'funnel' | 'cycle' | 'venn' 
 
 // wordart(): the letters must read against what is behind them (see legibilityProblem). (The ink always stays inside the band: inkReach
 // widens the rect on every side, and a shadow or a mirror image cannot be placed outside it.)
-const checkWordArt = (band: LaidOutOf<'wordart'>, d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  const why = legibilityProblem(band.look, d.day, paintOf(d.appearance));
+const checkWordArt = (band: LaidOutOf<'wordart'>, d: LaidOutDiagram, {problems}: VerifyOut, tones: ToneEnv): void => {
+  const why = legibilityProblem(band.look, d.day, paintOf(tones, d.appearance));
   if (why) problems.push(`wordart "${band.text.slice(0, 20)}": ${why}`);
 };
 
@@ -269,14 +271,14 @@ const checkPlane = (band: LaidOutOf<'plane'>, _d: LaidOutDiagram, {problems}: Ve
 // ---- contrast: computed purely from the known, closed set of (tone, day) colour combinations the DSL can ever produce ----
 // The same formula lint-svg.ts uses, evaluated on values we already know.
 
-const lum = (d: LaidOutDiagram) => { const paint = paintOf(d.appearance); return (hex: string) => lightLuminance(paint(hex)); }; // judged on the colours as drawn
+const lum = (d: LaidOutDiagram, tones: ToneEnv) => { const paint = paintOf(tones, d.appearance); return (hex: string) => lightLuminance(paint(hex)); }; // judged on the colours as drawn
 
-function contrastFor(band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: EmphasisTone | null, d: LaidOutDiagram): string[] {
-  const luminance = lum(d);
-  const boxFill = band.dim ? PALETTE.bg : boxTone ? resolveBoxStyle(boxTone, d.day).fill : PALETTE.bg;
+function contrastFor(band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: EmphasisTone | null, d: LaidOutDiagram, tones: ToneEnv): string[] {
+  const luminance = lum(d, tones);
+  const boxFill = band.dim ? PALETTE.bg : boxTone ? resolveBoxStyle(tones, boxTone, d.day).fill : PALETTE.bg;
   const found: string[] = [];
   for (const run of band.wrappedRuns ?? []) {
-    const fg = band.dim ? PALETTE.muted : runColorOf(run.tone, boxTone ?? undefined, d.day); // dim first: a dimmed solid box is white
+    const fg = band.dim ? PALETTE.muted : runColorOf(tones, run.tone, boxTone ?? undefined, d.day); // dim first: a dimmed solid box is white
     const delta = Math.abs(luminance(fg) - luminance(boxFill));
     if (delta < CONTRAST_THRESHOLD) {
       found.push(`"${run.text.slice(0, 20)}" (${fg} on ${boxFill}, in "${labelOf(band)}") has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
@@ -284,15 +286,15 @@ function contrastFor(band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone:
     // a coloured piece of the run is its own text colour on the same fill (a dimmed box paints every piece muted: the run's check covers it)
     if (!band.dim) for (const sp of run.spans ?? []) {
       if (!sp.tone) continue;
-      const spanFg = resolveTextColor(sp.tone, d.day), spanDelta = Math.abs(luminance(spanFg) - luminance(boxFill));
+      const spanFg = resolveTextColor(tones, sp.tone, d.day), spanDelta = Math.abs(luminance(spanFg) - luminance(boxFill));
       if (spanDelta < CONTRAST_THRESHOLD) found.push(`"${sp.text.slice(0, 20)}" (${spanFg} on ${boxFill}, in "${labelOf(band)}") has low contrast (delta=${spanDelta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
     }
   }
   return found;
 }
 
-function barsContrast(band: LaidOutOf<'bars'>, d: LaidOutDiagram): string[] {
-  const luminance = lum(d), problems: string[] = [];
+function barsContrast(band: LaidOutOf<'bars'>, d: LaidOutDiagram, tones: ToneEnv): string[] {
+  const luminance = lum(d, tones), problems: string[] = [];
   for (const b of band.labelBoxes) {
     if (!b.background) continue;
     const dim = b.bar !== undefined && band.bars[b.bar].dim; // a dimmed bar draws its label muted on bg (on the pale fill when spotlight dim is 'fill')
@@ -303,10 +305,10 @@ function barsContrast(band: LaidOutOf<'bars'>, d: LaidOutDiagram): string[] {
   return problems;
 }
 
-function imageContrast(band: LaidOutOf<'image'>, d: LaidOutDiagram): string[] {
-  const luminance = lum(d), problems: string[] = [];
+function imageContrast(band: LaidOutOf<'image'>, d: LaidOutDiagram, tones: ToneEnv): string[] {
+  const luminance = lum(d, tones), problems: string[] = [];
   for (const p of band.plates) {
-    const st = plateStyle(p.tone), fg = colorOf(st.text, d.day), bg = colorOf(st.fill, d.day), delta = Math.abs(luminance(fg) - luminance(bg));
+    const st = plateStyle(tones, p.tone), fg = colorOf(st.text, d.day), bg = colorOf(st.fill, d.day), delta = Math.abs(luminance(fg) - luminance(bg));
     if (!p.dim && !band.dim && delta < CONTRAST_THRESHOLD) problems.push(`image: label "${p.text}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
   }
   return problems;
@@ -315,13 +317,13 @@ function imageContrast(band: LaidOutOf<'image'>, d: LaidOutDiagram): string[] {
 const flowCheck = {phase: 'flow', run: checkFlowShape} as const;
 
 export const VERIFY_HANDLERS = {
-  caption: {rects: band => band.inkBox ? [{id: null, label: `group title "${band.text}"`, ...band.inkBox}] : [], contrast: (band, d) => contrastFor(band, null, d)},
-  box: {rects: ownRect, check: {phase: 'nowrap', run: (band, _d, out) => checkNoWrap(band, out)}, contrast: (band, d) => contrastFor(band, band.tone ?? 'plain', d)},
-  banner: {rects: ownRect, contrast: (band, d) => contrastFor(band, band.tone ?? 'accent', d)},
+  caption: {rects: band => band.inkBox ? [{id: null, label: `group title "${band.text}"`, ...band.inkBox}] : [], contrast: (band, d, tones) => contrastFor(band, null, d, tones)},
+  box: {rects: ownRect, check: {phase: 'nowrap', run: (band, _d, out) => checkNoWrap(band, out)}, contrast: (band, d, tones) => contrastFor(band, band.tone ?? 'plain', d, tones)},
+  banner: {rects: ownRect, contrast: (band, d, tones) => contrastFor(band, band.tone ?? 'accent', d, tones)},
   group: {},
   legend: {rects: ownRect},
-  row: {rects: childRects, check: {phase: 'nowrap', run: (band, _d, out) => { for (const c of band.children) checkNoWrap(c, out); }}, contrast: (band, d) => band.children.flatMap(c => contrastFor(c, c.tone ?? 'plain', d))},
-  grid: {rects: childRects, check: {phase: 'nowrap', run: (band, _d, out) => { for (const c of band.children) checkNoWrap(c, out); }}, contrast: (band, d) => band.children.flatMap(c => contrastFor(c, c.tone ?? 'plain', d))},
+  row: {rects: childRects, check: {phase: 'nowrap', run: (band, _d, out) => { for (const c of band.children) checkNoWrap(c, out); }}, contrast: (band, d, tones) => band.children.flatMap(c => contrastFor(c, c.tone ?? 'plain', d, tones))},
+  grid: {rects: childRects, check: {phase: 'nowrap', run: (band, _d, out) => { for (const c of band.children) checkNoWrap(c, out); }}, contrast: (band, d, tones) => band.children.flatMap(c => contrastFor(c, c.tone ?? 'plain', d, tones))},
   raw: {rects: ownRect},
   status: {rects: band => [{id: null, label: 'status badge', ...band.pill}]},
   pyramid: {rects: ownRect},
@@ -334,7 +336,7 @@ export const VERIFY_HANDLERS = {
   },
   chart: {
     rects: band => band.anchors.map(a => ({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...holdsFigure(band)})), // each bar / cell / node with an id is its own rect: a connector from outside must not run through one
-    check: {phase: 'chart', run: (band, d, {problems}) => { problems.push(...checkChart(band, d)); }},
+    check: {phase: 'chart', run: (band, d, {problems}, tones) => { problems.push(...checkChart(band, d, tones)); }},
   },
   image: {
     rects: band => [{id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id), ...(band.backdrop ? {backdrop: true} : {})}],
@@ -390,14 +392,14 @@ function scopedRect(band: {type: string; id?: string}, scope: string, r: CheckRe
 }
 
 /** The figure checks of one phase, over every band in order. */
-export function runCheckPhase(d: LaidOutDiagram, phase: CheckPhase, out: VerifyOut): void {
+export function runCheckPhase(d: LaidOutDiagram, tones: ToneEnv, phase: CheckPhase, out: VerifyOut): void {
   for (const band of d.laidOut) {
     const check = handlerOf(band).check;
-    if (check?.phase === phase) check.run(band, d, out);
+    if (check?.phase === phase) check.run(band, d, out, tones);
   }
 }
 
 /** The contrast problems of every band, in band order. */
-export function contrastProblems(d: LaidOutDiagram): string[] {
-  return d.laidOut.flatMap(band => handlerOf(band).contrast?.(band, d) ?? []);
+export function contrastProblems(d: LaidOutDiagram, tones: ToneEnv): string[] {
+  return d.laidOut.flatMap(band => handlerOf(band).contrast?.(band, d, tones) ?? []);
 }

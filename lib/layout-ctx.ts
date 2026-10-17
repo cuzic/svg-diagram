@@ -7,6 +7,7 @@ import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
 import type {DiagramData, Rect, Roles, WidthOf} from './types/core.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {BannerBand, BoxBand, CaptionBand, WrappedRun} from './types/text-bands.ts';
+import type {ToneEnv} from './tokens.ts';
 
 /** A band after placeBoxLike(): its own fields plus geometry, wrapped text and (maybe) the tag pill. */
 export type Placed<B> = B & Rect & {wrappedRuns: WrappedRun[]; tagBox?: Rect; inkBox?: Rect};
@@ -21,6 +22,8 @@ export interface LayoutCtx {
   readonly d: DiagramData;
   readonly roles: Roles;
   readonly widthOf: WidthOf;
+  /** The diagram's tone overrides, resolved once by layoutWith (ADR 0031 §2). */
+  readonly tones: ToneEnv;
   /** The cursor: the y the next band is placed at. */
   y: number;
   readonly laidOut: LaidOutBand[];

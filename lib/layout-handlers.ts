@@ -94,7 +94,7 @@ function layoutSeqTable(band: Band & {type: 'sequence' | 'table'}, ctx: LayoutCt
 
 function layoutWireframeBand(band: Band & {type: 'wireframe' | 'screens'}, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, widthOf} = ctx;
-  const placed = band.type === 'wireframe' ? layoutWireframe(band, padX, originOf(band.type, ctx.y), cw, widthOf) : layoutScreens(band, padX, originOf(band.type, ctx.y), cw, widthOf);
+  const placed = band.type === 'wireframe' ? layoutWireframe(band, padX, originOf(band.type, ctx.y), cw, widthOf, ctx.tones) : layoutScreens(band, padX, originOf(band.type, ctx.y), cw, widthOf, ctx.tones);
   for (const a of placed.anchors) if (a.id) ctx.register(a.id, rectOf(a), `a ${band.type} takes an id that another anchor already has`);
   ctx.laidOut.push(placed);
   ctx.y += placed.h + d.gap;
@@ -498,7 +498,7 @@ function layoutPlainGrid(band: GridBand, ctx: LayoutCtx, padX: number, cw: numbe
 
 function layoutPyramid(band: PyramidBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
-  const paint = paintOf(d.appearance);
+  const paint = paintOf(ctx.tones, d.appearance);
   const n = band.layers.length;
   const baseWidth = band.width ?? Math.min(cw, 520);
   const apexWidth = baseWidth * band.apexRatio;
@@ -578,7 +578,7 @@ const layoutBarsBand = placedBand((band: BandOf<'bars'>, x, y, w, ctx) => layout
 const layoutChartBand = placedBand((band: BandOf<'chart'>, x, y, w, ctx) => layoutChart(band, x, y, w, ctx.widthOf, ctx.roles), 'a chart takes an id that another anchor already has', 'a chart element takes an id that another anchor already has');
 const layoutPeopleOrDots = placedBand((band: Band & {type: 'people' | 'dots'}, x, y, w, ctx) => band.type === 'people' ? layoutPeople(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles) : layoutDots(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles),
   band => `a ${band.type} band takes an id that another anchor already has`);
-const layoutMathBand = placedBand((band: BandOf<'math'>, x, y, w, ctx) => layoutMath(band, x, y, w, ctx.roles[band.role], ctx.d.day), 'a math band takes an id that another anchor already has');
+const layoutMathBand = placedBand((band: BandOf<'math'>, x, y, w, ctx) => layoutMath(band, x, y, w, ctx.roles[band.role], ctx.d.day, ctx.tones), 'a math band takes an id that another anchor already has');
 const layoutPlaneBand = placedBand((band: BandOf<'plane'>, x, y, w, ctx) => layoutPlane(band, x, y, w, ctx.widthOf, ctx.roles), 'a plane takes an id that another anchor already has');
 const layoutQuadrantBand = placedBand((band: BandOf<'quadrant'>, x, y, w, ctx) => layoutQuadrant(band, x, y, w, ctx.widthOf, ctx.roles), 'a quadrant takes an id that another anchor already has', 'a quadrant item takes an id that another anchor already has');
 

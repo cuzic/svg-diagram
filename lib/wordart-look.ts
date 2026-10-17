@@ -8,7 +8,7 @@ import type {ArtTone, ExtrudeSpec, GlowSpec, GradientSpec, LaidOutWordArt, Outli
 // the look
 // ---------------------------------------------------------------------------------------------------------------------------
 
-const ART_TONES = new Set<string>(['text', 'accent', 'muted', 'danger', 'bg', 'soft']);
+const ART_TONES: ReadonlySet<string> = new Set<string>(['text', 'accent', 'muted', 'danger', 'bg', 'soft']);
 export const isArtTone = (v: unknown): boolean => ART_TONES.has(v as string);
 export const ART_TONE_NAMES: readonly string[] = Object.freeze([...ART_TONES]);
 export const WEIGHT_OF = Object.freeze({normal: 400, bold: 700} as const);
