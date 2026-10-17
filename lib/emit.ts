@@ -1,7 +1,8 @@
 // Serializes a layoutDiagram() result (see layout.ts) into an SVG string. The per-type renderers live in emit-*.ts;
 // emit-handlers.ts is the table that picks one per band type.
 
-import {PALETTE, FONT_STACKS, STRONG_HEAD, STRONG_HEAD_REF_X, recolor, MIN_FONT_SIZE, customColors, mapOf, withTones, toneColors} from './tokens.ts';
+import {PALETTE, FONT_STACKS, STRONG_HEAD, STRONG_HEAD_REF_X, recolor, MIN_FONT_SIZE, customColors, mapOf, toneEnv, toneColors} from './tokens.ts';
+import type {ToneEnv} from './tokens.ts';
 import type {LaidOutConnect, LaidOutLegendItem} from './types/containers.ts';
 import type {LaidOutDiagram, LaidOutBand} from './types/index.ts';
 import type {LaidOutBox, WrappedRun} from './types/text-bands.ts';
@@ -35,10 +36,10 @@ function bandRuns(b: LaidOutBand): (WrappedRun | LaidOutBox)[] {
 
 
 export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noRecolor?: boolean} = {}): string {
-  return withTones(laidOutDiagram.tones, () => emitSvgWith(laidOutDiagram, opts));
+  return emitSvgWith(laidOutDiagram, toneEnv(laidOutDiagram.tones), opts);
 }
 
-function emitSvgWith(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noRecolor?: boolean}): string {
+function emitSvgWith(laidOutDiagram: LaidOutDiagram, tones: ToneEnv, opts: {reveal?: number; noRecolor?: boolean}): string {
   const {width, canvasHeight, day, laidOut, connects, roles} = laidOutDiagram;
   const usesMono = laidOut.some(b => bandRuns(b).some(x => (x as WrappedRun).mono || (('wrappedRuns' in x ? x.wrappedRuns : undefined) ?? []).some(r => r.mono)))
     || laidOut.some(b => b.type === 'table' && b.rows.some(r => r.cells.some(c => c.mono && c.lines.length)));
@@ -76,8 +77,8 @@ function emitSvgWith(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noR
     .emoji { font-family: ${FONT_STACKS.emoji}; }`;
 
   const dimFill = spotlightDim(laidOutDiagram) === 'fill';
-  const body = laidOut.filter(band => visibleAt(band, opts.reveal)).map(band => renderBand(band, day, roles, opts.reveal, dimFill)).join('\n\n  ');
-  const connectSvg = connects.filter(c => visibleAt(c, opts.reveal)).map(c => renderConnect(c, day, roles)).join('\n\n  ');
+  const body = laidOut.filter(band => visibleAt(band, opts.reveal)).map(band => renderBand(band, day, tones, roles, opts.reveal, dimFill)).join('\n\n  ');
+  const connectSvg = connects.filter(c => visibleAt(c, opts.reveal)).map(c => renderConnect(c, day, tones, roles)).join('\n\n  ');
 
   // doc-medium diagrams carry an accessible name/description and (when built from a file) provenance
   let a11y = '', head = '';
@@ -93,7 +94,7 @@ function emitSvgWith(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noR
   // transparent: no page rectangle; the root says which page colour the checks assume (lint-svg reads it as the starting background)
   const bgRect = laidOutDiagram.transparent ? '' : `\n  <rect x="0" y="0" width="${width}" height="${canvasHeight}" fill="${PALETTE.bg}"/>`;
   const assumed = laidOutDiagram.transparent ? ` data-assumed-bg="${PALETTE.bg}"` : '';
-  const palette = customColors(laidOutDiagram.appearance), paletteAttr = palette.length ? ` data-palette="${[...new Set(palette)].join(' ')}"` : '', tonesAttr = toneColors().length ? ` data-tone-colors="${[...new Set(toneColors())].join(' ')}"` : '';
+  const palette = customColors(laidOutDiagram.appearance), paletteAttr = palette.length ? ` data-palette="${[...new Set(palette)].join(' ')}"` : '', tonesAttr = toneColors(tones).length ? ` data-tone-colors="${[...new Set(toneColors(tones))].join(' ')}"` : '';
   const svgText = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${canvasHeight}" viewBox="0 0 ${width} ${canvasHeight}"${assumed}${a11y}>${head}${defs}
   <style>${style}
   </style>${bgRect}
@@ -102,10 +103,10 @@ function emitSvgWith(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noR
 </svg>
 `;
   // the attribute is added after the recolouring: its values are final colours (a custom white must not be recoloured as a light token)
-  let out = opts.noRecolor ? svgText : recolor(svgText, laidOutDiagram.appearance);
+  let out = opts.noRecolor ? svgText : recolor(tones, svgText, laidOutDiagram.appearance);
   const isAuto = laidOutDiagram.appearance === 'auto';
-  if (isAuto) out = out.replace('\n  </style>', `${autoBlock(out)}\n  </style>`); // ADR 0023 D2: the dark side, for the colours this figure uses
-  const darkAttr = isAuto ? ' data-appearance="auto"' : mapOf(laidOutDiagram.appearance) ? ' data-appearance="dark"' : '';
+  if (isAuto) out = out.replace('\n  </style>', `${autoBlock(out, tones)}\n  </style>`); // ADR 0023 D2: the dark side, for the colours this figure uses
+  const darkAttr = isAuto ? ' data-appearance="auto"' : mapOf(tones, laidOutDiagram.appearance) ? ' data-appearance="dark"' : '';
   // a canvas figure that lowered its text floor below 14px says so, for lint-svg (ADR 0017); every other figure is unchanged
   const minTextAttr = laidOutDiagram.canvas && laidOutDiagram.canvas.minText < MIN_FONT_SIZE ? ` data-min-text="${laidOutDiagram.canvas.minText}"` : '';
   return paletteAttr || darkAttr || tonesAttr || minTextAttr ? out.replace('<svg ', `<svg${darkAttr}${paletteAttr}${tonesAttr}${minTextAttr} `) : out;

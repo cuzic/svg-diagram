@@ -1,4 +1,5 @@
 import {PALETTE, colorOf, textColorOf, toneStyle, isSolidTone} from './tokens.ts';
+import type {ToneEnv} from './tokens.ts';
 import type {LaidOutBars} from './types/bars.ts';
 import type {Theme, ColorKey} from './types/core.ts';
 import type {LaidOutTree, LaidOutStates, LaidOutCause, LaidOutCloud, LaidOutClasses, LaidOutBpmn} from './types/diagrams.ts';
@@ -18,8 +19,8 @@ import {renderBoxRect} from './emit-boxes.ts';
 import {CORE_BADGE_H, CORE_BADGE_W, CORE_BADGE_GAP} from './toc.ts';
 
 // plane(): axes (with arrowheads), ticks, guides, points, dimension lines with their label chips, then every text.
-export function renderPlane(b: LaidOutPlane, day: Theme, stage?: number): string {
-  const col = (t: PlaneTone) => resolveTextColor(t, day);
+export function renderPlane(b: LaidOutPlane, day: Theme, tones: ToneEnv, stage?: number): string {
+  const col = (t: PlaneTone) => resolveTextColor(tones, t, day);
   const seg = (s: {x1: number; y1: number; x2: number; y2: number}) => `M${Math.round(s.x1)},${Math.round(s.y1)} L${Math.round(s.x2)},${Math.round(s.y2)}`;
   // a filled arrowhead at (x, y) pointing along (dx, dy); drawn as a polygon so it needs no <marker>
   const head = (x: number, y: number, dx: number, dy: number, color: string): string => {
@@ -103,7 +104,7 @@ export function renderBars(b: LaidOutBars, day: Theme, stage?: number, dimFill =
 }
 
 
-export function renderImage(b: LaidOutImage, day: Theme, stage?: number): string {
+export function renderImage(b: LaidOutImage, day: Theme, tones: ToneEnv, stage?: number): string {
   const col = (k: ColorKey) => colorOf(k, day);
   const out: string[] = [];
   const esc = escapeAttr;
@@ -118,11 +119,11 @@ export function renderImage(b: LaidOutImage, day: Theme, stage?: number): string
   const marks = b.marks.filter(m => visibleAt(m, stage));
   for (const mk of marks) {
     const m = {...mk, ...r4(mk)};
-    const ink = m.dim || b.dim ? PALETTE.muted : col(toneStyle(m.tone).ink);
+    const ink = m.dim || b.dim ? PALETTE.muted : col(toneStyle(tones, m.tone).ink);
     out.push(`<rect x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}" fill="none" stroke="${ink}" stroke-width="${MARK_STROKE}"${m.dim || b.dim ? ' stroke-dasharray="2,5" stroke-linecap="round"' : ''}/>`);
   }
   for (const p of b.plates.filter(p => visibleAt(p, stage))) {
-    const st = plateStyle(p.tone), dim = p.dim || b.dim;
+    const st = plateStyle(tones, p.tone), dim = p.dim || b.dim;
     const x = snap4(p.x), y = snap4(p.y), w = snap4(p.x + p.w) - x;
     out.push(`<rect x="${x}" y="${y}" width="${w}" height="${p.h}" rx="${p.h / 2}" fill="${dim ? PALETTE.bg : col(st.fill)}" stroke="${dim ? PALETTE.muted : col(st.stroke)}" stroke-width="2"/>`);
     out.push(`<text x="${Math.round(x + w / 2)}" y="${Math.round(y + p.h / 2 + p.size * 0.36)}" text-anchor="middle" font-size="${p.size}" font-weight="700" fill="${dim ? PALETTE.muted : col(st.text)}">${emojiSpan(p.text)}</text>`);
@@ -132,11 +133,11 @@ export function renderImage(b: LaidOutImage, day: Theme, stage?: number): string
 
 
 // quadrant(): the cells, the crosshair, arrows, bubbles (a shape per group), the legend markers, then every text.
-export function renderQuadrant(b: LaidOutQuadrant, day: Theme): string {
+export function renderQuadrant(b: LaidOutQuadrant, day: Theme, tones: ToneEnv): string {
   const ink = (k: 'text' | 'muted' | 'accent' | 'danger', dim?: boolean) => dim ? PALETTE.muted : colorOf(k, day);
   const out: string[] = [];
   for (const c of b.cells) {
-    const ts = toneStyle(c.tone), fill = b.dim ? PALETTE.bg : colorOf(ts.fill, day);
+    const ts = toneStyle(tones, c.tone), fill = b.dim ? PALETTE.bg : colorOf(ts.fill, day);
     const stroke = b.dim ? PALETTE.muted : ts.stroke === null ? colorOf(ts.fill, day) : c.tone === 'plain' ? PALETTE.muted : colorOf(ts.stroke, day);
     // snap the edges, not the width: every gap between two cells comes out the same
     const x0 = snap4(c.x), y0 = snap4(c.y), x1 = snap4(c.x + c.w), y1 = snap4(c.y + c.h);
@@ -173,11 +174,11 @@ export function renderQuadrant(b: LaidOutQuadrant, day: Theme): string {
 }
 
 
-export function renderFlowShape(b: LaidOutFlowShape, day: Theme): string {
+export function renderFlowShape(b: LaidOutFlowShape, day: Theme, tones: ToneEnv): string {
   const out: string[] = [], n = (v: number) => Math.round(v * 10) / 10;
   for (const p of b.primitives) {
     if (p.k === 'polygon') {
-      const s = resolveBoxStyle(p.tone, day);
+      const s = resolveBoxStyle(tones, p.tone, day);
       out.push(`<polygon points="${p.points.map(q => `${n(q[0])},${n(q[1])}`).join(' ')}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${p.strong ? 3.5 : 2}"${s.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
     } else if (p.k === 'circle') {
       const c = colorOf(p.tone, day);
@@ -214,7 +215,7 @@ export function renderTimeline(b: LaidOutTimeline, day: Theme): string {
 }
 
 
-export function renderTree(b: LaidOutTree, day: Theme): string {
+export function renderTree(b: LaidOutTree, day: Theme, tones: ToneEnv): string {
   const out: string[] = [];
   for (const e of b.edges) {
     const [a, z] = [e.points[0], e.points[e.points.length - 1]];
@@ -226,21 +227,21 @@ export function renderTree(b: LaidOutTree, day: Theme): string {
     const s = br.side === 'right' ? 1 : -1, r = 8, x = snap4(br.x), xt = snap4(br.tipX), y1 = snap4(br.y1), y2 = snap4(br.y2), ym = snap4(br.ymid);
     out.push(`<path d="M${x + s * r},${y1} Q${x},${y1} ${x},${y1 + r} V${ym - r} Q${x},${ym} ${xt},${ym} Q${x},${ym} ${x},${ym + r} V${y2 - r} Q${x},${y2} ${x + s * r},${y2}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
   }
-  for (const n of b.nodes) out.push(renderBoxRect({...n, dim: b.dim}, day, 'plain'));
-  const tones = b.nodes;
+  for (const n of b.nodes) out.push(renderBoxRect({...n, dim: b.dim}, day, tones, 'plain'));
+  const nodes = b.nodes;
   const ink = (t: LaidOutTree['texts'][number]): string => {
     if (b.dim) return PALETTE.muted;
-    const n = tones.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
+    const n = nodes.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
     // the muted second line is 4.48:1 on a soft (accent / new) fill, under the 4.5 the text rules ask for: it takes the plain text colour there
-    if (t.muted) return n && toneStyle(n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted;
-    return colorOf(toneStyle(n?.tone).text, day);
+    if (t.muted) return n && toneStyle(tones, n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted;
+    return colorOf(toneStyle(tones, n?.tone).text, day);
   };
   for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}" text-anchor="middle" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t)}">${emojiSpan(t.text)}</text>`);
   return out.join('\n  ');
 }
 
 
-export function renderStates(b: LaidOutStates, day: Theme): string {
+export function renderStates(b: LaidOutStates, day: Theme, tones: ToneEnv): string {
   const out: string[] = [];
   const stroke = b.dim ? PALETTE.muted : PALETTE.text;
   const inkOf = (tone: 'danger' | 'accent' | 'muted' | undefined): string => b.dim ? PALETTE.muted : tone === undefined ? PALETTE.text : tone === 'muted' ? PALETTE.muted : colorOf(tone, day);
@@ -255,24 +256,24 @@ export function renderStates(b: LaidOutStates, day: Theme): string {
   if (b.initial) out.push(`<circle cx="${snap4(b.initial.x)}" cy="${snap4(b.initial.y)}" r="${b.initial.r}" fill="${stroke}"/>`);
   for (const n of b.nodes) {
     if (n.circle) { // an event: a circle in its tone's colours
-      const st = b.dim ? {fill: PALETTE.bg, stroke: PALETTE.muted, dashed: false} : resolveBoxStyle(n.tone, day);
+      const st = b.dim ? {fill: PALETTE.bg, stroke: PALETTE.muted, dashed: false} : resolveBoxStyle(tones, n.tone, day);
       out.push(`<circle cx="${snap4(n.x + n.w / 2)}" cy="${snap4(n.y + n.h / 2)}" r="${snap4(n.w / 2)}" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5"/>`);
       continue;
     }
-    out.push(renderBoxRect({...n, dim: b.dim}, day, 'plain'));
+    out.push(renderBoxRect({...n, dim: b.dim}, day, tones, 'plain'));
     // the inner outline of an end state: on a solid fill its stroke would be the fill colour, so it is drawn in the text colour (white)
-    const inner = renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, 'plain').replace('rx="8"', 'rx="5"');
-    if (n.final) out.push(!b.dim && isSolidTone(n.tone) ? inner.replace(/stroke="[^"]*"/, `stroke="${colorOf(toneStyle(n.tone).text, day)}"`) : inner);
+    const inner = renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, tones, 'plain').replace('rx="8"', 'rx="5"');
+    if (n.final) out.push(!b.dim && isSolidTone(n.tone) ? inner.replace(/stroke="[^"]*"/, `stroke="${colorOf(toneStyle(tones, n.tone).text, day)}"`) : inner);
   }
   const ink = (t: LaidOutStates['texts'][number]): string => {
     if (b.dim) return PALETTE.muted;
     const n = b.nodes.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
-    if (n && isSolidTone(n.tone)) return colorOf(toneStyle(n.tone).text, day); // white on the fill, the sub line too
-    if (t.muted) return n && toneStyle(n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted; // muted on a soft fill is 4.48:1, under 4.5
-    return colorOf(toneStyle(n?.tone).text, day);
+    if (n && isSolidTone(n.tone)) return colorOf(toneStyle(tones, n.tone).text, day); // white on the fill, the sub line too
+    if (t.muted) return n && toneStyle(tones, n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted; // muted on a soft fill is 4.48:1, under 4.5
+    return colorOf(toneStyle(tones, n?.tone).text, day);
   };
   for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}" text-anchor="middle" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t)}">${emojiSpan(t.text)}</text>`);
-  for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : colorOf(toneStyle(b.nodes[ic.node].tone).text, day), dim: b.dim, labelled: true}));
+  for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : colorOf(toneStyle(tones, b.nodes[ic.node].tone).text, day), dim: b.dim, labelled: true}));
   for (const l of b.labels) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${PALETTE.bg}"/>`);
     out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty)}" text-anchor="middle" font-size="${l.size}" fill="${stroke}">${emojiSpan(l.text)}</text>`);
@@ -292,7 +293,7 @@ function coreBadge(n: LaidOutCause['nodes'][number], id: string, b: LaidOutCause
   const fill = b.dim ? PALETTE.muted : colorOf('accent', day);
   return `<rect x="${snap4(x)}" y="${snap4(y)}" width="${BADGE_W}" height="${BADGE_H}" rx="8" fill="${fill}"/>\n  <text x="${snap4(x + BADGE_W / 2)}" y="${snap4(y + 16)}" text-anchor="middle" font-size="14" font-weight="700" fill="${PALETTE.bg}">中核</text>`;
 }
-export function renderCause(b: LaidOutCause, day: Theme): string {
+export function renderCause(b: LaidOutCause, day: Theme, tones: ToneEnv): string {
   const out: string[] = [];
   const stroke = b.dim ? PALETTE.muted : PALETTE.text;
   const cutsOf = (k: number): PathCut[] | undefined => {
@@ -304,38 +305,38 @@ export function renderCause(b: LaidOutCause, day: Theme): string {
   for (const a of b.ands) out.push(`<path d="M${snap4(a.p0.x)},${snap4(a.p0.y)} Q${snap4(a.c.x)},${snap4(a.c.y)} ${snap4(a.p1.x)},${snap4(a.p1.y)}" fill="none" stroke="${stroke}" stroke-width="2"/>`);
   for (const [i, n] of b.nodes.entries()) {
     if (n.hex) { // an obstacle: a hexagon (pointed left and right), in its tone's colours
-      const st = b.dim ? {fill: PALETTE.bg, stroke: PALETTE.muted, dashed: false} : resolveBoxStyle(n.tone, day, n.dashed), k = Math.min(16, n.h / 2), cy = n.y + n.h / 2;
+      const st = b.dim ? {fill: PALETTE.bg, stroke: PALETTE.muted, dashed: false} : resolveBoxStyle(tones, n.tone, day, n.dashed), k = Math.min(16, n.h / 2), cy = n.y + n.h / 2;
       const pts = [[n.x + k, n.y], [n.x + n.w - k, n.y], [n.x + n.w, cy], [n.x + n.w - k, n.y + n.h], [n.x + k, n.y + n.h], [n.x, cy]].map(([px, py]) => `${snap4(px)},${snap4(py)}`).join(' ');
       out.push(`<polygon points="${pts}" fill="${st.fill}" stroke="${st.stroke}" stroke-width="${n.core ? CORE_STROKE : 2}"${st.dashed ? ' stroke-dasharray="6,4"' : ''} stroke-linejoin="round"/>`);
       if (n.core) out.push(coreBadge(n, b.anchors[i].id, b, day));
       continue;
     }
-    const rect = renderBoxRect({...n, dim: b.dim}, day, 'plain');
+    const rect = renderBoxRect({...n, dim: b.dim}, day, tones, 'plain');
     out.push(n.core ? rect.replace('stroke-width="2.5"', `stroke-width="${CORE_STROKE}"`) : rect);
-    if (n.double) out.push(renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, 'plain').replace('rx="8"', 'rx="5"'));
+    if (n.double) out.push(renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, tones, 'plain').replace('rx="8"', 'rx="5"'));
     if (n.core) out.push(coreBadge(n, b.anchors[i].id, b, day));
   }
   const ink = (t: LaidOutCause['texts'][number]): string => {
     if (b.dim) return PALETTE.muted;
     const n = b.nodes.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
-    if (t.muted) return n && toneStyle(n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted;
-    return colorOf(toneStyle(n?.tone).text, day);
+    if (t.muted) return n && toneStyle(tones, n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted;
+    return colorOf(toneStyle(tones, n?.tone).text, day);
   };
   for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}" text-anchor="middle" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t)}">${emojiSpan(t.text)}</text>`);
   return out.join('\n  ');
 }
 
 
-export function renderCloud(b: LaidOutCloud, day: Theme): string {
+export function renderCloud(b: LaidOutCloud, day: Theme, tones: ToneEnv): string {
   const out: string[] = [];
   const stroke = b.dim ? PALETTE.muted : PALETTE.text, conflict = b.dim ? PALETTE.muted : colorOf('danger', day), accent = b.dim ? PALETTE.muted : colorOf('accent', day);
   for (const e of b.edges) out.push(e.arrow === 'dd' ? arrowPath(e.points, conflict, undefined, 2.5, 'both') : arrowPath(e.points, stroke, undefined));
-  for (const n of b.nodes) out.push(renderBoxRect({...n, dim: b.dim}, day, 'plain'));
+  for (const n of b.nodes) out.push(renderBoxRect({...n, dim: b.dim}, day, tones, 'plain'));
   const ink = (t: LaidOutCloud['texts'][number]): string => {
     if (b.dim) return PALETTE.muted;
     if (t.tone) return t.tone === 'danger' ? conflict : accent;
     const n = b.nodes.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
-    return n ? colorOf(toneStyle(n.tone).text, day) : PALETTE.text;
+    return n ? colorOf(toneStyle(tones, n.tone).text, day) : PALETTE.text;
   };
   for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}" text-anchor="${t.anchor ?? 'middle'}" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t)}">${emojiSpan(t.text)}</text>`);
   for (const c of b.chips) {
@@ -375,7 +376,7 @@ export function renderGantt(b: LaidOutGantt, day: Theme): string {
 }
 
 
-export function renderClasses(b: LaidOutClasses, day: Theme): string {
+export function renderClasses(b: LaidOutClasses, day: Theme, tones: ToneEnv): string {
   const out: string[] = [];
   const ink = b.dim ? PALETTE.muted : PALETTE.text, bg = PALETTE.bg;
   for (const e of b.edges) {
@@ -392,14 +393,14 @@ export function renderClasses(b: LaidOutClasses, day: Theme): string {
     else if (e.kind === 'compose') out.push(at(first, second, 20, 7, 'dia', ink));
     else if (e.kind === 'aggregate') out.push(at(first, second, 20, 7, 'dia', bg));
   }
-  const tone = (t?: string): string => colorOf(toneStyle(t).text, day);
+  const tone = (t?: string): string => colorOf(toneStyle(tones, t).text, day);
   for (const nd of b.nodes) {
-    out.push(renderBoxRect({...nd, dim: b.dim}, day, 'plain'));
-    for (const y of nd.dividers) out.push(`<path d="M${snap4(nd.x)},${snap4(y)} H${snap4(nd.x + nd.w)}" fill="none" stroke="${b.dim ? PALETTE.muted : resolveBoxStyle(nd.tone, day).stroke}" stroke-width="2"/>`);
+    out.push(renderBoxRect({...nd, dim: b.dim}, day, tones, 'plain'));
+    for (const y of nd.dividers) out.push(`<path d="M${snap4(nd.x)},${snap4(y)} H${snap4(nd.x + nd.w)}" fill="none" stroke="${b.dim ? PALETTE.muted : resolveBoxStyle(tones, nd.tone, day).stroke}" stroke-width="2"/>`);
   }
   for (const t of b.texts) {
     const n = b.nodes.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
-    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : t.muted ? (n && toneStyle(n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted) : tone(n?.tone)}">${emojiSpan(t.text)}</text>`);
+    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : t.muted ? (n && toneStyle(tones, n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted) : tone(n?.tone)}">${emojiSpan(t.text)}</text>`);
   }
   for (const l of b.labels) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${bg}"/>`);
@@ -409,11 +410,11 @@ export function renderClasses(b: LaidOutClasses, day: Theme): string {
 }
 
 
-export function renderBpmn(b: LaidOutBpmn, day: Theme): string {
+export function renderBpmn(b: LaidOutBpmn, day: Theme, tones: ToneEnv): string {
   const out: string[] = [];
   const ink = b.dim ? PALETTE.muted : PALETTE.text, bg = PALETTE.bg;
   for (const l of b.lanes) {
-    out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${snap4(l.h)}" fill="${l.tone === 'plain' ? bg : resolveBoxStyle(l.tone, day).fill}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
+    out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${snap4(l.h)}" fill="${l.tone === 'plain' ? bg : resolveBoxStyle(tones, l.tone, day).fill}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${l.labelW}" height="${snap4(l.h)}" fill="${PALETTE.code}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
   }
   for (const e of b.edges) {
@@ -423,8 +424,8 @@ export function renderBpmn(b: LaidOutBpmn, day: Theme): string {
     out.push(`<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${ink}" stroke-width="2"${e.line === 'dashed' ? ' stroke-dasharray="6,4"' : ''}/>\n  <path d="M${snap4(tip.x)},${snap4(tip.y)} L${snap4(tip.x - dx * L - dy * W)},${snap4(tip.y - dy * L + dx * W)} L${snap4(tip.x - dx * L + dy * W)},${snap4(tip.y - dy * L - dx * W)} z" fill="${ink}"/>`);
   }
   for (const nd of b.nodes) {
-    const cx = nd.x + nd.w / 2, cy = nd.y + nd.h / 2, st = b.dim ? PALETTE.muted : resolveBoxStyle(nd.tone, day).stroke, fill = b.dim ? bg : resolveBoxStyle(nd.tone, day).fill;
-    if (nd.kind === 'task') { out.push(renderBoxRect({...nd, dim: b.dim}, day, 'plain')); continue; }
+    const cx = nd.x + nd.w / 2, cy = nd.y + nd.h / 2, st = b.dim ? PALETTE.muted : resolveBoxStyle(tones, nd.tone, day).stroke, fill = b.dim ? bg : resolveBoxStyle(tones, nd.tone, day).fill;
+    if (nd.kind === 'task') { out.push(renderBoxRect({...nd, dim: b.dim}, day, tones, 'plain')); continue; }
     if (nd.kind === 'start' || nd.kind === 'end') { out.push(`<circle cx="${snap4(cx)}" cy="${snap4(cy)}" r="${nd.w / 2 - 2}" fill="${fill}" stroke="${st}" stroke-width="${nd.kind === 'end' ? 5 : 2}"/>`); continue; }
     const r = nd.w / 2;
     out.push(`<path d="M${snap4(cx)},${snap4(nd.y)} L${snap4(nd.x + nd.w)},${snap4(cy)} L${snap4(cx)},${snap4(nd.y + nd.h)} L${snap4(nd.x)},${snap4(cy)} z" fill="${fill}" stroke="${st}" stroke-width="2"/>`);
@@ -435,9 +436,9 @@ export function renderBpmn(b: LaidOutBpmn, day: Theme): string {
   }
   for (const t of b.texts) {
     const n = b.nodes.find(r => r.kind === 'task' && t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
-    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : t.anchor === 'end' ? ' text-anchor="end"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : t.muted ? (n && toneStyle(n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted) : colorOf(toneStyle(n?.tone).text, day)}">${emojiSpan(t.text)}</text>`);
+    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : t.anchor === 'end' ? ' text-anchor="end"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : t.muted ? (n && toneStyle(tones, n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted) : colorOf(toneStyle(tones, n?.tone).text, day)}">${emojiSpan(t.text)}</text>`);
   }
-  for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : ic.tone ? textColorOf(ic.tone, day) : colorOf(toneStyle(b.nodes[ic.node].tone).text, day), dim: b.dim, labelled: true}));
+  for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : ic.tone ? textColorOf(tones, ic.tone, day) : colorOf(toneStyle(tones, b.nodes[ic.node].tone).text, day), dim: b.dim, labelled: true}));
   for (const l of b.labels) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${bg}"/>`);
     out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty)}" text-anchor="middle" font-size="${l.size}" fill="${ink}">${emojiSpan(l.text)}</text>`);

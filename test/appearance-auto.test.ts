@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {bars, box, caption, checkDiagram, closeMeasurer, connect, diagram, renderDiagram, row} from '../lib/dsl.ts';
-import {DARK_COLORS, LIGHT_COLORS, darkOf, recolor, wcagRatio} from '../lib/tokens.ts';
+import {DARK_COLORS, LIGHT_COLORS, darkOf, recolor, wcagRatio, NO_TONES} from '../lib/tokens.ts';
 import {autoBlock, autoSides, stripAutoBlock} from '../lib/appearance-auto.ts';
 import {scopeRules} from '../lib/scope-style.ts';
 import {inlineSvg} from '../lib/markdown-target.ts';
@@ -46,7 +46,7 @@ test('the block holds one rule per (attribute, colour) the figure uses, in order
   const order = ['fill', 'stroke', 'stop-color', 'flood-color', 'color'];
   const keys = rules.map(m => [order.indexOf(m[1]), m[2]] as const);
   assert.deepEqual(keys, [...keys].sort((x, y) => x[0] - y[0] || (x[1] < y[1] ? -1 : x[1] > y[1] ? 1 : 0)));
-  assert.equal(autoBlock(body), autoBlock(auto), 'the same figure gives the same block');
+  assert.equal(autoBlock(body, NO_TONES), autoBlock(auto, NO_TONES), 'the same figure gives the same block');
   // a colour the figure does not use has no rule
   const unused = ['#a8632b', '#f1e3d3'].filter(c => !body.includes(c)); // the amber theme is not in a blue figure
   for (const c of unused) assert.ok(!auto.includes(`"${c}" i`));
@@ -149,7 +149,7 @@ test('autoSides: light is the figure without its block; dark has the block\'s co
   const colours = (s: string) => new Set([...s.matchAll(/\s(?:fill|stroke)="(#[0-9a-f]{6})"/g)].map(m => m[1]));
   for (const c of colours(light)) assert.ok(LIGHT_COLORS.has(c), `light side has ${c}`);
   for (const c of colours(dark)) assert.ok(DARK_COLORS.has(c), `dark side has ${c}`);
-  assert.equal(dark, recolor(light, 'dark'), 'for a figure without tone overrides the block and the table agree');
+  assert.equal(dark, recolor(NO_TONES, light, 'dark'), 'for a figure without tone overrides the block and the table agree');
 });
 
 test('transparent + auto: the dark side assumes the dark page, the light side the light page', async () => {

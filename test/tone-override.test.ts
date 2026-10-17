@@ -9,7 +9,7 @@ import {box, checkDiagram, closeMeasurer, diagram, renderDiagram} from '../lib/d
 import {applyConfig, loadConfig} from '../lib/config.ts';
 import type {ToneOverrides} from '../lib/tokens.ts';
 type Opts = {appearance?: 'light' | 'dark'; tones?: ToneOverrides};
-import {TONES, toneStyle, withTones} from '../lib/tokens.ts';
+import {NO_TONES, TONES, toneEnv, toneStyle} from '../lib/tokens.ts';
 
 test.after(() => closeMeasurer());
 
@@ -31,9 +31,13 @@ test('a darker accent fill clears gray-tone-collision and is what gets drawn', a
 
 test('the override is scoped to the diagram: toneStyle is back to the table afterwards', async () => {
   await svgOf({tones: {accent: {fill: '#b8cfe8'}}});
-  assert.equal(toneStyle('accent'), TONES.accent);
-  assert.equal(withTones({accent: {fill: '#112233'}}, () => toneStyle('accent').fill), '#112233');
-  assert.equal(withTones({accent: {fill: '#112233'}}, () => toneStyle('ok').fill), '#112233', 'aliases follow');
+  assert.equal(toneStyle(NO_TONES, 'accent'), TONES.accent);
+  assert.equal(toneStyle(toneEnv({accent: {fill: '#112233'}}), 'accent').fill, '#112233');
+  assert.equal(toneStyle(toneEnv({accent: {fill: '#112233'}}), 'ok').fill, '#112233', 'aliases follow');
+  assert.equal(toneEnv(undefined), NO_TONES, 'no overrides: the built-in tones');
+  assert.equal(toneEnv({}), NO_TONES, 'an empty set changes nothing');
+  const ov = {accent: {fill: '#112233'}};
+  assert.equal(toneEnv(ov), toneEnv(ov), 'the same overrides object resolves once');
 });
 
 test('an overridden fill is held to the text-contrast check', async () => {
@@ -88,8 +92,19 @@ test('a diagram rendered after one with overrides gets the built-in colours (no 
   assert.match(over, /#b8cfe8/);
   assert.doesNotMatch(plain, /#b8cfe8|data-tone-colors/);
   assert.equal(await svgOf(), plain);
-  assert.throws(() => withTones({accent: {fill: '#112233'}}, () => { throw new Error('boom'); }), /boom/);
-  assert.equal(toneStyle('accent'), TONES.accent);
+  // the overrides are a value handed down, not module state: resolving one set leaves the built-in table as it was
+  assert.equal(toneStyle(toneEnv({accent: {fill: '#112233'}}), 'accent').fill, '#112233');
+  assert.equal(toneStyle(NO_TONES, 'accent'), TONES.accent);
+  assert.deepEqual(NO_TONES.styles, {});
+});
+
+test('two diagrams with different overrides rendered at the same time each draw their own (ADR 0031 §2: the env is per diagram)', async () => {
+  const [a, b, plain] = await Promise.all([svgOf({tones: {accent: {fill: '#b8cfe8'}}}), svgOf({tones: {accent: {fill: '#c9b8e8'}}}), svgOf()]);
+  assert.match(a, /fill="#b8cfe8"/);
+  assert.doesNotMatch(a, /#c9b8e8/);
+  assert.match(b, /fill="#c9b8e8"/);
+  assert.doesNotMatch(b, /#b8cfe8/);
+  assert.doesNotMatch(plain, /#b8cfe8|#c9b8e8|data-tone-colors/);
 });
 
 test('solid: an overridden text colour is what the box text is drawn in and judged by', async () => {
