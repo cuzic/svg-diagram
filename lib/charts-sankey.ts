@@ -81,7 +81,7 @@ export function sankeyTexts(s: SankeySpec): [string, number][] {
 }
 
 export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
-  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
+  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
   const layer = layersOf(s), L = Math.max(...layer.values()) + 1;
   const cols: string[][] = Array.from({length: L}, () => []);
   for (const n of s.nodes) cols[layer.get(n.id)!].push(n.id);

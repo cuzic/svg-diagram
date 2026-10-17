@@ -76,7 +76,7 @@ export function stackedTexts(s: StackedSpec): [string, number][] {
 }
 
 export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
-  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), lh = c.lineH(), n = s.columns.length;
+  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap), lh = c.lineH(), n = s.columns.length;
   const scale = stackedScale(s);
   const ticks = scale ? scale.ticks.map(t => ({v: t, f: t / scale.max, s: numText(t)})) : [0, 20, 40, 60, 80, 100].map(t => ({v: t, f: t / 100, s: `${t}%`}));
   const tickW = Math.max(...ticks.map(t => c.tw(t.s)));

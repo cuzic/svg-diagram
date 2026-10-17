@@ -98,7 +98,7 @@ export function networkCanvas(g: ChartGeom, nodes: {id: string; label: string; w
   const naturalH = natural.h, scale = scaleOf(natural), ox = oxOf(natural), oy = oyOf(natural);
   const positions = new Map<string, {x: number; y: number; w: number; h: number}>();
   for (const [id, p] of lay.nodes) positions.set(id, vertical ? {x: ox + p.y * scale, y: oy + p.x * scale, w: p.h * scale, h: p.w * scale} : {x: ox + p.x * scale, y: oy + p.y * scale, w: p.w * scale, h: p.h * scale});
-  const h = Math.max(g.height ?? 0, naturalH * scale + 16 + legendH + top), c = new Canvas(g.x, g.y, g.w, h, g.size, g.widthOf);
+  const h = Math.max(g.height ?? 0, naturalH * scale + 16 + legendH + top), c = new Canvas(g.x, g.y, g.w, h, g.size, g.widthOf, g.wrap);
   for (const n of nodes) { const p = positions.get(n.id)!; c.solids.push({...p, id: n.id, label: `node "${n.label}"`}); }
   return {c, positions, paths};
 }

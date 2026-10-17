@@ -19,7 +19,6 @@ import {withStatus} from './status.ts';
 import {textWidth} from './atoms.ts';
 import {layoutHandlerFor} from './layout-handlers.ts';
 import type {LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
-import {setWrapMode, setKeepWords} from './wrap.ts';
 import {childrenOf, stackWidthOf} from './band-children.ts';
 import {layoutBoxContent, lineWidth} from './layout-text.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
@@ -29,7 +28,7 @@ import {
   anchorRect, colSlots, rowChildGeometry, snapGrid, stampChipW, topIcon, withSourceLine,
 } from './layout-util.ts';
 import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
-import type {DiagramData, Roles, WidthOf, Rect} from './types/core.ts';
+import type {DiagramData, Roles, WidthOf, Rect, WrapMode} from './types/core.ts';
 import type {LaidOutDiagram, LaidOutBand, LaidOutBox, Band} from './types/index.ts';
 import type {CaptionBand, BoxBand, BannerBand, BoxChrome} from './types/text-bands.ts';
 import {CONNECT_LABEL_SIZE, TAG_SIZE, toneEnv} from './tokens.ts';
@@ -37,11 +36,10 @@ import type {ToneEnv} from './tokens.ts';
 
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
 export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
-  const prev = setWrapMode(data.wrap ?? 'phrase'), prevKeep = setKeepWords(data.keepWords === true);
-  try { return layoutBands(data, roles, widthOf, toneEnv(data.tones)); } finally { setWrapMode(prev); setKeepWords(prevKeep); }
+  return layoutBands(data, roles, widthOf, toneEnv(data.tones), data.wrap ?? 'phrase', data.keepWords === true);
 }
 
-function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv): LaidOutDiagram {
+function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean): LaidOutDiagram {
   const d = withStatus(withSourceLine(data));
   const contentWidth = d.width - 2 * d.pad;
 
@@ -127,7 +125,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
     const y = snapGrid(y0); // the top sits on the grid, so its text (y + padY + line offset) is always the same distance below the frame the emitter draws
     const chrome = band as BoxChrome; // caption has no padX / padY / tag / id: they read as undefined (its `tone` is a TextTone, unused here)
     const wrapWidth = isBoxLike ? w - 2 * (chrome.padX ?? BOX_PAD_X) : w;
-    const content = layoutBoxContent(band, wrapWidth, widthOf, roles);
+    const content = layoutBoxContent(band, wrapWidth, widthOf, roles, wrap);
     // an icon above the text pushes every line down by its own height; a left icon only sets a minimum height
     const topShift = band.type === 'box' && topIcon(band) ? ((band as BoxBand).iconSize ?? TOP_ICON_SIZE) + TOP_ICON_GAP : 0;
     // a left icon is taller than a line or two of text: the text is centred beside it, not hung from the top with the room left below
@@ -172,7 +170,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
     if (scope) addScoped(scopes, scope, id);
   };
   const ctx: LayoutCtx = {
-    d, roles, widthOf, tones, y: d.pad, laidOut, anchors, nodeBottoms, areaIds, connects, deferred, scopes,
+    d, roles, widthOf, tones, wrap, keepWords, y: d.pad, laidOut, anchors, nodeBottoms, areaIds, connects, deferred, scopes,
     setBox, claimed, register, placeBoxLike, gapForLabels,
     stack: (bands, padX, cw) => {
       for (const band of bands) layoutHandlerFor(band.type)(band as never, ctx, padX, cw);

@@ -8,7 +8,7 @@ import type {Pt} from './graph-layout.ts';
 import {measureNode, narrowField, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
 import {wrapText} from './wrap.ts';
-import type {FontFamily, Roles, WidthOf} from './types/core.ts';
+import type {FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {BpmnBand, BpmnNodeKind, LaidOutBpmn} from './types/diagrams.ts';
 
 const LABEL_COL = 120, PAD_Y = 22, COL_GAP = 52, EVENT = 36, GATE = 44, TASK_MAX = 168, LABEL_MAX = 120, STUB = 16, CHIP_PAD = 5, ARROW = 12;
@@ -37,15 +37,15 @@ const SHRINK_STEPS: BpmnMetrics[] = [
 /** flowRoom: the extra width a column gap keeps beside the widest flow label; null keeps none (a label then sits wherever beside its flow is free). */
 interface BpmnMetrics {labelCol: number; colGap: number; taskMax: number; flowRoom: number | null}
 
-export function layoutBpmn(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBpmn {
+export function layoutBpmn(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv): LaidOutBpmn {
   const steps = band.fit === 'shrink' ? SHRINK_STEPS : SHRINK_STEPS.slice(0, 1);
-  for (const m of steps.slice(0, -1)) { const out = layoutBpmnAt(band, x, y, w, widthOf, roles, m, false); if (out) return out; }
-  return layoutBpmnAt(band, x, y, w, widthOf, roles, steps[steps.length - 1], true)!;
+  for (const m of steps.slice(0, -1)) { const out = layoutBpmnAt(band, x, y, w, widthOf, roles, env, m, false); if (out) return out; }
+  return layoutBpmnAt(band, x, y, w, widthOf, roles, env, steps[steps.length - 1], true)!;
 }
 
-function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, metrics: BpmnMetrics, final: true): LaidOutBpmn;
-function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, metrics: BpmnMetrics, final: boolean): LaidOutBpmn | null;
-function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, metrics: BpmnMetrics, final: boolean): LaidOutBpmn | null {
+function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: true): LaidOutBpmn;
+function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: boolean): LaidOutBpmn | null;
+function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: boolean): LaidOutBpmn | null {
   const {labelCol: LABEL_COL, colGap: COL_GAP, taskMax: TASK_MAX, flowRoom} = metrics;
   const B = roles.body, S = roles.note;
   const laneIdx = new Map(band.lanes.map((l, i) => [l.id, i]));
@@ -74,9 +74,9 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   const meas = new Map<string, M>();
   for (const n of band.nodes) {
     const k = kindOf.get(n.id)!;
-    if (k === 'task') { const m = measureNode(n.label!, n.sub, TASK_MAX, widthOf, roles, {keepWordsCap: 168 - 28}); const h = m.h + (n.icon ? ICON_H : 0); meas.set(n.id, {w: m.w, h, lines: m, label: [], extent: h}); continue; }
+    if (k === 'task') { const m = measureNode(n.label!, n.sub, TASK_MAX, widthOf, roles, env.wrap, env.keepWords, {keepWordsCap: 168 - 28}); const h = m.h + (n.icon ? ICON_H : 0); meas.set(n.id, {w: m.w, h, lines: m, label: [], extent: h}); continue; }
     const size = isEvent(k) ? EVENT : GATE;
-    const label = n.label ? wrapText(n.label, {maxWidth: LABEL_MAX, atomWidth: a => widthOf(a, B, 400, 'sans')}) : [];
+    const label = n.label ? wrapText(n.label, {maxWidth: LABEL_MAX, atomWidth: a => widthOf(a, B, 400, 'sans'), mode: env.wrap}) : [];
     meas.set(n.id, {w: size, h: size, label, extent: size + (label.length ? 4 + label.length * lineH(B) : 0)});
   }
   const labelWidth = (m: M): number => Math.max(m.w, ...m.label.map(l => Math.ceil(textWidth(widthOf, l, B, 400))));
@@ -104,7 +104,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   // rows: each lane is as tall as its tallest stack of nodes that share a column
   const stacks = new Map<string, string[]>();
   for (const n of band.nodes) { const k = `${laneIdx.get(n.lane)}:${lay.layers.get(n.id)}`; stacks.set(k, [...(stacks.get(k) ?? []), n.id]); }
-  const laneLines = band.lanes.map(l => wrapText(l.label, {maxWidth: LABEL_COL - 16, atomWidth: a => widthOf(a, B, 700, 'sans')}));
+  const laneLines = band.lanes.map(l => wrapText(l.label, {maxWidth: LABEL_COL - 16, atomWidth: a => widthOf(a, B, 700, 'sans'), mode: env.wrap}));
   const laneH = band.lanes.map((_, li) => {
     let h = laneLines[li].length * lineH(B) + 2 * PAD_Y; // the lane's name must fit its row
     for (const [k, list] of stacks) {

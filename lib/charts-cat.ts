@@ -110,7 +110,7 @@ export function markerPath(shape: Shape, x: number, y: number, r: number): strin
 
 export function layoutCat(s: CatSpec, g: ChartGeom): LaidOutChartPart {
   const who = s.kinds.length === 1 ? FN[s.kinds[0]] : 'catplot';
-  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), lh = c.lineH(), v = s.dir === 'v', n = s.groups.length, H = Math.max(1, s.hues.length);
+  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap), lh = c.lineH(), v = s.dir === 'v', n = s.groups.length, H = Math.max(1, s.hues.length);
   const rectKind = s.kinds.some(k => k === 'box' || k === 'violin' || k === 'bar');
   const all = s.groups.flatMap(gr => gr.series.flatMap(x => x ? [x.box.min, x.box.max, ...(x.err ?? [])] : []));
   const sc = niceScale(Math.min(...all, ...(s.kinds.includes('bar') ? [0] : [])), Math.max(...all, ...(s.kinds.includes('bar') ? [0] : [])));

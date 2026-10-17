@@ -103,7 +103,7 @@ export function comboTexts(s: ComboSpec): [string, number][] {
 }
 
 export function layoutCombo(s: ComboSpec, g: ChartGeom): LaidOutChartPart {
-  const S = g.size, n = s.categories.length, c = new Canvas(g.x, g.y, g.w, g.height ?? 380, S, g.widthOf), r1 = (v: number) => Math.round(v * 10) / 10;
+  const S = g.size, n = s.categories.length, c = new Canvas(g.x, g.y, g.w, g.height ?? 380, S, g.widthOf, g.wrap), r1 = (v: number) => Math.round(v * 10) / 10;
   const hasRight = s.series.some(x => x.axis === 'right');
   const sl = scaleOf(s, 'left'), intervals = sl.ticks.length - 1;
   // the right axis gets as many intervals as the left one, so its ticks sit on the grid; failing that, its own ticks are written without grid

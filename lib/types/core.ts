@@ -267,4 +267,10 @@ export interface MeasureRequest {text: string; size: number; weight?: number; fo
 export interface Measured {w: number; h: number}
 /** [text, size, weight, font]: what collectTextRequests() reports for one string. */
 export type TextRequest = [text: string, size: number, weight: number, font: FontFamily];
-export interface WrapOptions {maxWidth: number; atomWidth: (atom: string) => number}
+/** 'phrase' (default): a katakana run and a kanji run are one unit for breaking ('アプリ' is never ア/プ/リ); 'char': any CJK character may end a line;
+ *  'bunsetsu': like 'phrase', and a hiragana sticks to the character before it too, so a line breaks only after a hiragana that is followed by a non-hiragana, or after 、 / 。 ("評価されるため | 仕掛りが"). */
+export type WrapMode = 'phrase' | 'char' | 'bunsetsu';
+/** `mode`: the diagram's wrap mode (diagram({wrap}), resolved by layoutWith). */
+/** A layout's wrap settings, resolved once by layoutWith from diagram({wrap, keepWords}) (ADR 0031 §2); LayoutCtx carries them. */
+export interface WrapEnv {readonly wrap: WrapMode; readonly keepWords: boolean}
+export interface WrapOptions {maxWidth: number; atomWidth: (atom: string) => number; mode: WrapMode}

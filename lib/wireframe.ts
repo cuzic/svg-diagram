@@ -24,7 +24,7 @@ import {wrapAtoms} from './wrap.ts';
 import {badgeBox, BADGE_R} from './badge.ts';
 import type {BadgeBox} from './badge.ts';
 import {installParts} from './wireframe-parts.ts';
-import type {ColorKey, Anchor, Rect, TextRequest, WidthOf} from './types/core.ts';
+import type {ColorKey, Anchor, Rect, TextRequest, WidthOf, WrapMode} from './types/core.ts';
 import type {Wf, WfNode, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark, WfChipSpec, WfChildren, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfBtn, WfKvPair, WfListItemSpec, WfTableCellSpec, BadgeOpts, DrawShapeOpts, DrawTextOpts, WfAutoWFn, Prim} from './types/wireframe-nodes.ts';
 import type {WfScreen, WireframeBand, ScreensBand, StateMatrixCell, LaidOutWireframe, LaidOutScreens} from './types/wireframe.ts';
 
@@ -85,8 +85,8 @@ export function collectTextRequests(band: WireframeBand | ScreensBand): TextRequ
 }
 
 // ---- drawing context ---------------------------------------------------------------------
-function mkCtx(widthOf: WidthOf, tones: ToneEnv, skeleton?: boolean): WfCtx {
-  return {widthOf, tones, skeleton: !!skeleton, prims: [], callouts: [], all: [], used: new Set<WfMark>()};
+function mkCtx(widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, skeleton?: boolean): WfCtx {
+  return {widthOf, tones, wrap, skeleton: !!skeleton, prims: [], callouts: [], all: [], used: new Set<WfMark>()};
 }
 const tw = (ctx: WfCtx, s: string | number, size: number, weight: number): number => textWidth(ctx.widthOf, String(s), size, weight);
 // Katakana runs stay in one piece (ドラッグ must not break as ドラッ/グ); widths are summed per character.
@@ -101,7 +101,7 @@ function atomsOf(s: string | number): string[] {
   return out;
 }
 const wrapT = (ctx: WfCtx, s: string | number, size: number, weight: number, maxW: number): string[] =>
-  wrapAtoms(atomsOf(s), {maxWidth: Math.max(24, maxW), atomWidth: (a: string) => tw(ctx, a, size, weight)});
+  wrapAtoms(atomsOf(s), {maxWidth: Math.max(24, maxW), atomWidth: (a: string) => tw(ctx, a, size, weight), mode: ctx.wrap});
 
 const rect = (ctx: WfCtx, x: number, y: number, w: number, h: number, o: DrawShapeOpts = {}): void => { ctx.prims.push({k: 'rect', x, y, w, h, r: o.r ?? 0, fill: o.fill ?? null, stroke: o.stroke ?? null, sw: o.sw ?? 2, dash: o.dash, op: o.op}); };
 const circle = (ctx: WfCtx, cx: number, cy: number, r: number, o: DrawShapeOpts = {}): void => { ctx.prims.push({k: 'circle', cx, cy, r, fill: o.fill ?? null, stroke: o.stroke ?? null, sw: o.sw ?? 2, op: o.op}); };
@@ -784,8 +784,8 @@ function drawNotes(ctx: WfCtx, notes: NonNullable<WireframeBand['notes']>, x: nu
   return cy - 10 - y;
 }
 
-export function layoutWireframe(band: WireframeBand, x: number, y: number, w: number, widthOf: WidthOf, tones: ToneEnv): LaidOutWireframe {
-  const ctx = mkCtx(widthOf, tones, band.skeleton);
+export function layoutWireframe(band: WireframeBand, x: number, y: number, w: number, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode): LaidOutWireframe {
+  const ctx = mkCtx(widthOf, tones, wrap, band.skeleton);
   const hasNotes = !!band.notes?.length;
   const noteW = band.noteW ?? 264, gap = 28;
   const sw = hasNotes ? w - noteW - gap : w;
@@ -796,8 +796,8 @@ export function layoutWireframe(band: WireframeBand, x: number, y: number, w: nu
   return {type: 'wireframe', id: band.id, title: band.title, x, y, w, h: bottom - y, prims: ctx.prims, callouts: ctx.all, anchors: band.id ? [{id: band.id, ...scr.frame}] : []};
 }
 
-export function layoutScreens(band: ScreensBand, x: number, y: number, w: number, widthOf: WidthOf, tones: ToneEnv): LaidOutScreens {
-  const ctx = mkCtx(widthOf, tones, band.skeleton);
+export function layoutScreens(band: ScreensBand, x: number, y: number, w: number, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode): LaidOutScreens {
+  const ctx = mkCtx(widthOf, tones, wrap, band.skeleton);
   if (band.matrix) {
     const r = layoutMatrix(band, ctx, x, y, w);
     const bottom = r.bottom + (drawMarksLegend(ctx, band.marks, x, r.bottom + 4) ? 32 : 0);

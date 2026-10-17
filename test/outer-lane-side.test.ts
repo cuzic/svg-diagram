@@ -32,8 +32,8 @@ const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":"n1","to":"n2"},{"fro
 const band = (): CauseBand => causeTree(Array.from({length: 9}, (_, i) => ({id: `n${i}`, label: `n${i}`})), links, {dir: 'right'});
 
 test('causeTree(): a return whose lane is better on the near side crosses nothing (the far side crossed 2 arrows)', () => {
-  const t = layoutCauseBand(band(), 0, 0, 3000, fixedW as never, ROLES);
+  const t = layoutCauseBand(band(), 0, 0, 3000, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false});
   assert.equal(scoreOf(t.edges.map(e => e.points)).crossings, 0);
   assert.ok(t.edges.some(e => e.outer), 'it is still a return in an outer lane');
-  assert.deepEqual(layoutCauseBand(band(), 0, 0, 3000, fixedW as never, ROLES), t, 'deterministic');
+  assert.deepEqual(layoutCauseBand(band(), 0, 0, 3000, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false}), t, 'deterministic');
 });

@@ -57,3 +57,16 @@ test('two measurements with different settings do not mix their widths', {todo: 
   const alone1 = (await measureAll(req(text + ' ')))?.get('t')!.w;
   assert.ok(Math.abs(alone1 - a) < 8 && a !== b, `the first measurement must use its own fonts (first ${a}, second ${b}, alone ${alone1})`);
 });
+
+// (d) ADR 0031 §2 (stage 3): the wrap mode is a value of the layout, not module state, so two renders in flight at once each break
+// their labels by their own diagram({wrap}).
+const KATAKANA = '新しいアプリケーションとデータベースのモニタリング'; // at width 240: char 新しいアプリケーショ / ン…, phrase 新しい / アプリケーションと / …
+const wrapped = (wrap: 'char' | 'phrase') => renderDiagram(diagram({theme: 'blue', wrap, width: 240}).add(box({id: 'k', title: KATAKANA})), {name: 'd.svg', budget: 'cacheOnly'});
+const linesOf = (r: Awaited<ReturnType<typeof wrapped>>): string[] => (r.laidOut.laidOut[0] as {wrappedRuns: {lines: string[]}[]}).wrappedRuns.flatMap(run => run.lines);
+test('two renders at once with different wrap modes each break by their own mode', async () => {
+  const [char, phrase] = await Promise.all([wrapped('char'), wrapped('phrase')]);
+  const [charAlone, phraseAlone] = [await wrapped('char'), await wrapped('phrase')];
+  assert.deepEqual(linesOf(char), linesOf(charAlone));
+  assert.deepEqual(linesOf(phrase), linesOf(phraseAlone));
+  assert.notDeepEqual(linesOf(char), linesOf(phrase), 'the text must break differently in the two modes, or the test shows nothing');
+});

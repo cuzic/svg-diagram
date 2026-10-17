@@ -4,7 +4,7 @@
 
 import type {ScopeTable} from './anchor-scope.ts';
 import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
-import type {DiagramData, Rect, Roles, WidthOf} from './types/core.ts';
+import type {DiagramData, Rect, Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {BannerBand, BoxBand, CaptionBand, WrappedRun} from './types/text-bands.ts';
 import type {ToneEnv} from './tokens.ts';
@@ -18,7 +18,8 @@ export type AnchorSource = Rect & {type?: string; icon?: string; iconAt?: string
 /** What row / grouprow need to know about their children when sharing gaps and column slots. */
 export type RowLike = {gap: number; cols?: number; justify?: string; children: (Band & {span?: number; col?: number})[]};
 
-export interface LayoutCtx {
+/** `wrap` / `keepWords` (WrapEnv): diagram({wrap}) (default 'phrase') and diagram({keepWords}), resolved by layoutWith (ADR 0031 §2). */
+export interface LayoutCtx extends WrapEnv {
   readonly d: DiagramData;
   readonly roles: Roles;
   readonly widthOf: WidthOf;

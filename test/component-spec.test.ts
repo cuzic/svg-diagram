@@ -9,7 +9,7 @@ import type {PrimRect, PrimText, WfCol, WfInsight, WfRobotOpts, WfRow} from '../
 import type {WfNote, WfRoot, WireframeOpts} from '../lib/types/wireframe.ts';
 
 const widthOf = (atom: string, size: number) => [...atom].length * size * 0.6;
-const wfLayout = (root: WfRoot, opts: Partial<WireframeOpts> = {}, w = 900) => layoutWireframe({type: 'wireframe', root, h: 420, ...opts}, 0, 0, w, widthOf, NO_TONES);
+const wfLayout = (root: WfRoot, opts: Partial<WireframeOpts> = {}, w = 900) => layoutWireframe({type: 'wireframe', root, h: 420, ...opts}, 0, 0, w, widthOf, NO_TONES, 'phrase');
 const isText = (p: {k: string}): p is PrimText => p.k === 'text';
 const texts = (b: {prims: {k: string}[]}) => b.prims.flatMap(p => p.k === 'badge' || p.k === 'pill' ? [(p as unknown as {label: string}).label] : isText(p) ? [p.s] : []);
 const robot = (o: Partial<WfRobotOpts> = {}) => wf.robot({name: 'A', battery: 0.82, link: 3, last: '1 秒前', ...o});
@@ -80,7 +80,7 @@ test('frame: "light" and "none" drop the heavy screen border; h: "fit" hugs the 
 
 test('stateMatrix: cells are designs, "対象外" (with a reason) or "未設計"', () => {
   const band = stateMatrix(['通常', '空'], [{label: '一覧', cells: [wf.text('x', {h: 30}), 'na']}, {label: 'カード', cells: [wf.text('y', {h: 30}), undefined]}]);
-  const b = layoutScreens(band, 0, 0, 900, widthOf, NO_TONES);
+  const b = layoutScreens(band, 0, 0, 900, widthOf, NO_TONES, 'phrase');
   const t = texts(b);
   for (const s of ['通常', '空', '一覧', 'カード', '対象外', '未設計']) assert.ok(t.includes(s), s);
   assert.equal(b.anchors.length, 2, 'the two designed cells');
@@ -121,14 +121,14 @@ test('region: a named block for a coarse screen, with a reading-order number', (
 test('stateMatrix: a row shorter than the columns gets "未設計" cells (never blanks); a longer row is an error', () => {
   // @ts-expect-error too few cells is a type error; the runtime pads with 未設計 for JS callers
   const band = stateMatrix(['通常', '空', 'エラー'], [{label: 'A', cells: [wf.text('x', {h: 30})]}]);
-  const b = layoutScreens(band, 0, 0, 900, widthOf, NO_TONES);
+  const b = layoutScreens(band, 0, 0, 900, widthOf, NO_TONES, 'phrase');
   assert.equal(texts(b).filter(t => t === '未設計').length, 2);
   const d = diagram({theme: 'blue', title: 't'});
   // @ts-expect-error too few cells is a type error; the runtime pads with 未設計 for JS callers
   d.add(stateMatrix(['通常', '空', 'エラー'], [{label: 'A', cells: [wf.text('x')]}]));
   assert.match(lintDiagram({...d, laidOut: [], connects: []}).find(x => x.rule === 'wf-states-todo')!.message, /A×空.*A×エラー/);
   // @ts-expect-error too many cells is a type error; the runtime throws for JS callers
-  assert.throws(() => layoutScreens(stateMatrix(['通常'], [{label: 'A', cells: ['na', 'na']}]), 0, 0, 900, widthOf), /2 cells for 1 columns/);
+  assert.throws(() => layoutScreens(stateMatrix(['通常'], [{label: 'A', cells: ['na', 'na']}]), 0, 0, 900, widthOf, NO_TONES, 'phrase'), /2 cells for 1 columns/);
 });
 
 test('a state\'s frame name is drawn AFTER the hatching (nothing runs through it)', () => {

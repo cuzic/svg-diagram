@@ -6,7 +6,7 @@ import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapAtoms} from './wrap.ts';
 import {niceNear} from './qc.ts';
 import type {IconGlyph} from './icon-store.ts';
-import type {ColorKey, Rect, RevealOpts, ScopeOpts, Roles, WidthOf, LabelRole} from './types/core.ts';
+import type {ColorKey, Rect, RevealOpts, ScopeOpts, Roles, WidthOf, LabelRole, WrapMode} from './types/core.ts';
 
 export type ChartKind = 'waterfall' | 'radar' | 'heatmap' | 'stacked' | 'treemap' | 'sankey' | 'tornado' | 'bubble' | 'butterfly' | 'combo' | 'harvey' | 'catplot' | 'distplot' | 'multiplot' | 'regplot' | 'clustermap' | 'pert' | 'causal' | 'dependency';
 export type ChartTone = 'accent' | 'danger' | 'muted' | 'text';
@@ -48,7 +48,8 @@ export interface LaidOutChartPart {
 }
 
 /** What every chart's layout is given: the band's room, its text size and the measurer. */
-export interface ChartGeom {x: number; y: number; w: number; height?: number; size: number; widthOf: WidthOf}
+/** `wrap`: the diagram's wrap mode (diagram({wrap})), for the labels Canvas.wrap breaks. */
+export interface ChartGeom {x: number; y: number; w: number; height?: number; size: number; widthOf: WidthOf; wrap: WrapMode}
 
 export const overlaps = (a: Rect, b: Rect): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5;
 
@@ -108,8 +109,9 @@ export class Canvas {
   readonly edges: {from: string; to: string; points: {x: number; y: number}[]}[] = [];
   /** Small marks (a line chart's markers) a label placed by place() keeps off; verify does not check them (two may share a spot). */
   readonly marks: Rect[] = [];
-  readonly x: number; readonly y: number; readonly w: number; h: number; readonly size: number; readonly widthOf: WidthOf;
-  constructor(x: number, y: number, w: number, h: number, size: number, widthOf: WidthOf) { this.x = x; this.y = y; this.w = w; this.h = h; this.size = size; this.widthOf = widthOf; }
+  readonly x: number; readonly y: number; readonly w: number; h: number; readonly size: number; readonly widthOf: WidthOf; readonly mode: WrapMode;
+  /** `mode`: the diagram's wrap mode, for wrap(). */
+  constructor(x: number, y: number, w: number, h: number, size: number, widthOf: WidthOf, mode: WrapMode) { this.x = x; this.y = y; this.w = w; this.h = h; this.size = size; this.widthOf = widthOf; this.mode = mode; }
 
   tw(s: string, bold = false): number { return textWidth(this.widthOf, s, this.size, bold ? 700 : 400); }
   /** The box a label of this text occupies (the same box verify and the lint see). */
@@ -162,7 +164,7 @@ export class Canvas {
   }
   /** Wraps text into lines no wider than `maxW` (an atom wider than that stays on a line of its own). */
   wrap(s: string, maxW: number, bold = false): string[] {
-    return wrapAtoms(splitAtoms(s), {maxWidth: Math.max(20, maxW), atomWidth: a => textWidth(this.widthOf, a, this.size, bold ? 700 : 400)});
+    return wrapAtoms(splitAtoms(s), {maxWidth: Math.max(20, maxW), atomWidth: a => textWidth(this.widthOf, a, this.size, bold ? 700 : 400), mode: this.mode});
   }
   /** Several lines of one label, centred on x, the first line's baseline at `base`. */
   lines(ls: string[], x: number, base: number, anchor: 'start' | 'middle' | 'end', fill: ColorKey, o: {bold?: boolean; of?: string; plate?: boolean} = {}): void {
