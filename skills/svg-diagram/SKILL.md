@@ -86,9 +86,11 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 | QC 七つ道具・新 QC 七つ道具（パレート・ヒストグラム・散布図・管理図・親和図・連関図・PDPC・アロー・ダイヤグラム） | `references/qc.md` |
 | コンサル系のチャート（ウォーターフォール・レーダー・ヒートマップ・折れ線・積み上げ・ツリーマップ・サンキー・バブルほか） | `references/charts.md` |
 | 象限図・分類マトリクス | `references/quadrant.md` |
+| 人間関係の図（Arbinger の「箱」: 共謀・氷山・イメージの型・箱から出る流れ） | `references/relationship.md` |
 | 枠が決まったキャンバス（BMC・SWOT・リーン・VPC ほか） | `references/canvas.md` |
 | 意味付き表・意味付きネットワーク（PERT・因果ループ・依存ネットワーク） | `references/semantic.md` |
 | ワイヤーフレーム・画面遷移図・画面仕様（`wireframe` / `screens` / `stateMatrix`） | `references/wireframe.md` |
+| 免疫マップ（Immunity to Change）の面談を図にする（マップ・検証の表・自己調整のループ・蒸発雲。専用部品は無い） | `references/immunity.md` |
 | 絵記号（アイコン）を入れる | `references/icons.md` |
 | クラウド・ネットワークの構成図（`node` / `group` / VPC） | `references/cloud.md` |
 | ビルド・検査・目視・文書との整合・渡し方の細かい指定、`draft` / `appearance` / `canvas` の最小文字など | `references/workflow.md` |

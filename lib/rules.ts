@@ -122,6 +122,7 @@ export const RULE_DOCS = {
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
   'slide-min-text': 'スライド用キャンバスの最小文字サイズ(既定 24px)より小さい文字がある',
   'font-floor-lowered': 'canvas の図が文字の下限を 14px から下げている(canvas.minText < 14。1:1 で読む前提で、投影には向かない)',
+  'box-size-ignored': 'box({size}) は効果がない(レイアウトも描画も読まない)。大きい文字は役割で書く: stat() / stat({size: "display"})・caption({role: "display"})・banner({headlineRole})・bars / plane({labelRole})。次の版で throw する',
   'stat-no-source': 'stat() の数字に出典(source)が無い。diagram({evidenceCheck: "info" | "strict"}) を書いた図だけで検査する(strict で warn)。stat({source, confidence}) で足す',
   'stat-fit-shrunk': 'stat() の値が箱の幅に収まらないので、自動で小さい文字にした(隣の stat と大きさがそろわない。箱を広げるか、値を短くするとそろう)',
   'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
@@ -755,6 +756,11 @@ function axisRules(d: LintTarget, out: Finding[]): void {
   const found = axisMismatches(d.bands);
   if (found.length) out.push({rule: 'chart-axis-mismatch', severity: 'warn', message: `比べて読む 2 つのチャートの値の軸が違う: ${found.slice(0, 3).join('。')}${found.length > 3 ? ` ほか ${found.length - 3} 組` : ''}。同じ長さが別の値に見える。直し方: 両方に同じ domain を書く（bars は max）。横向きのチャートは、ラベルの列の幅が違うと同じ値が別の長さに見えるので、plotInset もそろえる。意図して別の軸なら axisGroup: false か accept`});
 }
+/** box-size-ignored: box({size}) is read by neither layout nor emit (said once per figure; the band keeps what the author wrote). */
+function boxSizeRules(d: LintTarget, out: Finding[]): void {
+  const hit = walkBands(d.bands).filter(b => b.type === 'box' && b.size !== undefined);
+  if (hit.length) out.push({rule: 'box-size-ignored', severity: 'warn', message: `box({size}) は効果がない(${hit.length} 個の箱)。大きい文字は役割を使う: stat() / stat({size: 'display'})・caption({role: 'display'})・banner({headlineRole})・bars / plane({labelRole})。次の版で throw する`});
+}
 function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const out: Finding[] = [];
   if (d.wrapFellBack) out.push({rule: 'wrap-fell-back', severity: 'info', message: "wrap: 'bunsetsu-soft': 文節で折ると図が幅に収まらなかったので、従来の折り方（phrase）で配置した。漢字・ひらがなの途中で折れる行が残る。図を 2 枚に分ける、文言を短くする、図の幅を広げると、文節で折れる"});
@@ -789,6 +795,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   }
   statFitFindings(d, out);
   evidenceRules(d, out);
+  boxSizeRules(d, out);
   if (d.canvas && d.laidOut) {
     const min = minTextSize(d);
     if (d.canvas.minText < MIN_FONT_SIZE) out.push({rule: 'font-floor-lowered', severity: 'info', message: `文字の下限を ${MIN_FONT_SIZE}px から ${d.canvas.minText}px に下げている(最小の文字 ${min}px)。キャンバスは 1:1 で読まれる前提。投影には向かない`});

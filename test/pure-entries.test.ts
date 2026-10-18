@@ -13,6 +13,8 @@ import {renderDiagram} from '../lib/dsl/render.ts';
 import {layoutDiagram} from '../lib/layout-measured.ts';
 import {runPreLayout, runPostLayout} from '../lib/pipeline.ts';
 import {verifyDiagram} from '../lib/verify.ts';
+import {resolveImages} from '../lib/image-file.ts';
+import {walkBands} from '../lib/rules.ts';
 import {emitSvg} from '../lib/emit.ts';
 import {emitHtml} from '../lib/emit-html.ts';
 import {fontBoxOf} from '../lib/font-box.ts';
@@ -46,7 +48,9 @@ function deepFreeze<T>(v: T, seen = new Set<object>()): T {
 
 test('after the pre-layout passes nothing writes into its input: layout, the post-layout passes, verify and both emitters accept frozen data', async () => {
   for (const abs of EXAMPLES) {
-    const prepared = deepFreeze(runPreLayout({...await load(abs)})); // the pre-layout passes write into their input: renderDiagram hands them a copy
+    const copy = runPreLayout({...await load(abs)}); // the pre-layout passes write into their input: renderDiagram hands them a copy
+    resolveImages(walkBands(copy.bands), copy.sourceDir ?? process.cwd()); // and reads the pictures image() left for later
+    const prepared = deepFreeze(copy);
     const laid = await layoutDiagram(prepared);
     const post = deepFreeze(runPostLayout(laid));
     const where = name(abs);

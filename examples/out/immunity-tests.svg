@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="309" viewBox="0 0 940 309" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">固定観念の検証(任せられない課長)</title>
+  <desc id="svg-desc">表「行動実験」: 列 試す固定観念、すること、集めるデータ、安全か、結果、固定観念について分かったこと</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/immunity-tests.ts","sourceSha256":"2540c38555da80974b0aff6db966de0adfe0b02c355b4be1d1a9db872751f25c"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="309" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">table: 行 = 1 つの検証。安全で小さく、すぐ実行できるものにする</text>
+
+  <path d="M78,56 H862 A8,8 0 0 1 870,64 V93  H70  V64 A8,8 0 0 1 78,56 Z" fill="#1d5fa8"/>
+  <text x="82" y="79" font-size="15" font-weight="700" fill="#ffffff">行動実験</text>
+  <path d="M70,93 H870  V140  H70  V93  Z" fill="#dce9f7"/>
+  <path d="M70,93 H870" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M70,140 H870  V207  H70  V140  Z" fill="#ffffff"/>
+  <path d="M70,140 H870" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M70,207 H870  V246 A8,8 0 0 1 862,254 H78 A8,8 0 0 1 70,246 V207  Z" fill="#ffffff"/>
+  <path d="M70,207 H870" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M220,93 V254" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M370,93 V254" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M520,93 V254" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M620,93 V254" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M720,93 V254" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="82" y="111" font-size="14" font-weight="700" fill="#22201b">試す固定観念</text>
+  <text x="232" y="111" font-size="14" font-weight="700" fill="#22201b">すること</text>
+  <text x="382" y="111" font-size="14" font-weight="700" fill="#22201b">集めるデータ</text>
+  <text x="532" y="111" font-size="14" font-weight="700" fill="#22201b">安全か</text>
+  <text x="632" y="111" font-size="14" font-weight="700" fill="#22201b">結果</text>
+  <text x="732" y="111" font-size="14" font-weight="700" fill="#22201b">固定観念について分</text>
+  <text x="732" y="131" font-size="14" font-weight="700" fill="#22201b">かったこと</text>
+  <text x="82" y="158" font-size="14" font-weight="400" fill="#22201b">任せると品質が落ち、</text>
+  <text x="82" y="178" font-size="14" font-weight="400" fill="#22201b">必ず責められる</text>
+  <text x="232" y="158" font-size="14" font-weight="400" fill="#22201b">影響の小さい</text>
+  <text x="232" y="178" font-size="14" font-weight="400" fill="#22201b">資料作成を 1 件、</text>
+  <text x="232" y="197" font-size="14" font-weight="400" fill="#22201b">部下に任せる</text>
+  <text x="382" y="158" font-size="14" font-weight="400" fill="#22201b">品質の指摘の有無、</text>
+  <text x="382" y="178" font-size="14" font-weight="400" fill="#22201b">周囲の反応</text>
+  <text x="532" y="158" font-size="14" font-weight="400" fill="#22201b">安全</text>
+  <text x="632" y="158" font-size="14" font-weight="400" fill="#22201b">(実施前)</text>
+  <text x="732" y="158" font-size="14" font-weight="400" fill="#22201b">(実施後に書く)</text>
+  <text x="82" y="225" font-size="14" font-weight="400" fill="#22201b">頼ると頼りない人だ</text>
+  <text x="82" y="245" font-size="14" font-weight="400" fill="#22201b">と思われる</text>
+  <text x="232" y="225" font-size="14" font-weight="400" fill="#22201b">上司に 1 件、判断</text>
+  <text x="232" y="245" font-size="14" font-weight="400" fill="#22201b">の相談をしてみる</text>
+  <text x="382" y="225" font-size="14" font-weight="400" fill="#22201b">相談後の上司の言葉</text>
+  <text x="382" y="245" font-size="14" font-weight="400" fill="#22201b">と態度</text>
+  <text x="532" y="225" font-size="14" font-weight="400" fill="#22201b">安全</text>
+  <text x="632" y="225" font-size="14" font-weight="400" fill="#22201b">(実施前)</text>
+  <text x="732" y="225" font-size="14" font-weight="400" fill="#22201b">(実施後に書く)</text>
+  <path d="M78,56 H862 A8,8 0 0 1 870,64 V246 A8,8 0 0 1 862,254 H78 A8,8 0 0 1 70,246 V64 A8,8 0 0 1 78,56 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
+
+  <text x="20" y="282" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

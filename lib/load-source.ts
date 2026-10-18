@@ -6,7 +6,6 @@
 // CLI entry does), because that hook has to be in place before the first source is imported.
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {withSourceDir} from './image-file.ts';
 import type {Diagram} from './types/core.ts';
 import type {Config} from './types/project.ts';
 import {applyConfig, loadConfig} from './config.ts';
@@ -28,5 +27,7 @@ export async function importDefine(abs: string, opts: {fresh?: boolean} = {}): P
 export async function loadDiagram(abs: string, config: Config = loadConfig(), opts: {fresh?: boolean} = {}): Promise<Diagram> {
   configureMeasure(config);
   const define = await importDefine(abs, opts);
-  return applyConfig(withSourceDir(path.dirname(abs), define), config); // image() reads a relative path next to the source
+  const d = applyConfig(define(), config);
+  d.sourceDir ??= path.dirname(abs); // image() reads a relative path next to the source (resolveImages)
+  return d;
 }

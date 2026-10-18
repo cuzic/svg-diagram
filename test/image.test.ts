@@ -10,7 +10,7 @@ import {box, caption, checkDiagram, closeMeasurer, connect, diagram, group, imag
 import {emitSvg} from '../lib/emit.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import {IMAGE_WARN_BYTES} from '../lib/image.ts';
-import {readImage, sniffImage, withSourceDir} from '../lib/image-file.ts';
+import {readImage, resolveImages, sniffImage} from '../lib/image-file.ts';
 import {geometryChecks} from '../lib/geometry-checks.ts';
 import {rasterize} from '../lib/raster.ts';
 import {kitchenPng, makePng} from './helpers/png.ts';
@@ -44,14 +44,14 @@ test('readImage embeds the file; a path, a file URL and a data URI give the same
   assert.match(a.href, /^data:image\/png;base64,/);
   assert.equal(a.w, 240); assert.equal(a.h, 160);
   assert.equal(a.href, b.href); assert.equal(a.href, c.href);
-  assert.equal(withSourceDir(dir, () => readImage('./kitchen.png')).href, a.href);
+  assert.equal(readImage('./kitchen.png', dir).href, a.href);
   assert.equal(crypto.createHash('sha1').update(Buffer.from(a.href.split(',')[1], 'base64')).digest('hex'), crypto.createHash('sha1').update(fs.readFileSync(kitchen)).digest('hex'));
 });
 
-test('image() refuses what it cannot embed or describe', () => {
+test('image() refuses what it cannot embed or describe (a file is judged when the diagram is drawn or checked)', async () => {
   const svgFile = path.join(dir, 'a.svg'); fs.writeFileSync(svgFile, '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>');
-  assert.throws(() => image(svgFile, {alt: 'x'}), /only PNG, JPEG, GIF and WebP/);
-  assert.throws(() => image(path.join(dir, 'missing.png'), {alt: 'x'}), /cannot read/);
+  await assert.rejects(checkDiagram(diagram({theme: 'blue'}).add(image(svgFile, {alt: 'x'}))), /only PNG, JPEG, GIF and WebP/);
+  await assert.rejects(checkDiagram(diagram({theme: 'blue'}).add(image(path.join(dir, 'missing.png'), {alt: 'x'}))), /cannot read/);
   assert.throws(() => image(kitchen, {}), /alt is required/);
   assert.throws(() => image(kitchen, {alt: 'x', decorative: true}), /contradict/);
   assert.throws(() => image(kitchen, {alt: 'x', width: 100, height: 100}), /width or height, not both/);
@@ -156,7 +156,7 @@ test('image-large warns for a big file; a small one is quiet', async () => {
   const noise = path.join(dir, 'noise.png');
   fs.writeFileSync(noise, makePng(400, 300, () => [...crypto.randomBytes(3)] as [number, number, number])); // noise does not compress
   assert.ok(fs.statSync(noise).size > IMAGE_WARN_BYTES);
-  const rules = (src: string) => { const d = diagram({theme: 'blue', title: 't'}); d.add(image(src, {alt: 'x'})); return lintDiagram({...d, laidOut: [], connects: []}).map(f => f.rule); };
+  const rules = (src: string) => { const d = diagram({theme: 'blue', title: 't'}); d.add(image(src, {alt: 'x'})); resolveImages(d.bands, dir); return lintDiagram({...d, laidOut: [], connects: []}).map(f => f.rule); };
   assert.ok(rules(noise).includes('image-large'));
   assert.ok(!rules(kitchen).includes('image-large'));
 });
@@ -283,4 +283,28 @@ test('dark appearance recolours the plates, marks and veil, and leaves the pictu
   assert.notEqual(dark.svg.replace(/href="[^"]+"/, ''), light.replace(/href="[^"]+"/, ''), 'the rest is recoloured');
   assert.deepEqual(dark.verdict.problems, []);
   assert.deepEqual(geometryChecks(dark.svg)!.contrast, [], 'plates and boxes stay legible on the dark page');
+});
+
+test('a relative path in image() is read from the diagram\'s source folder, whatever the working folder is; a figure drawn without a source reads from the working folder', async () => {
+  const d = diagram({theme: 'blue'}).add(image('./kitchen.png', {alt: 'k'}));
+  assert.equal((d.bands[0] as {unresolved?: true}).unresolved, true, 'image() has not touched the disk');
+  const r = await checkDiagram({...d, sourceDir: dir});
+  assert.equal(r.laidOut.laidOut.some(b => b.type === 'image'), true);
+  await assert.rejects(checkDiagram(diagram({theme: 'blue'}).add(image('./kitchen.png', {alt: 'k'}))), /cannot read .*kitchen\.png/); // the working folder has none
+  const bands = [image('./kitchen.png', {alt: 'k'})];
+  resolveImages(bands, dir);
+  assert.equal(bands[0].unresolved, undefined);
+  assert.equal(bands[0].naturalW, 240);
+});
+
+test('two diagrams with different source folders and the same relative path each read their own picture (concurrently)', async () => {
+  const other = fs.mkdtempSync(path.join(os.tmpdir(), 'img-other-'));
+  fs.writeFileSync(path.join(other, 'kitchen.png'), makePng(50, 50)); // same file name, a square picture
+  const ratio = async (sourceDir: string) => {
+    const d = diagram({theme: 'blue'}).add(image('./kitchen.png', {alt: 'k'}));
+    const pic = (await checkDiagram({...d, sourceDir})).laidOut.laidOut.find(b => b.type === 'image') as {w: number; h: number};
+    return pic.h / pic.w;
+  };
+  const [a, b] = await Promise.all([ratio(dir), ratio(other)]);
+  assert.ok(Math.abs(a - 160 / 240) < 0.01 && Math.abs(b - 1) < 0.01, `aspect ratios ${a} ${b}`);
 });
