@@ -229,7 +229,7 @@ const THEME_KEYS = THEMES as unknown as Theme[];
 
 // Flat set of every hex value PALETTE can resolve to — this is exactly what
 // lint-svg.ts's off-token-color check validates fill/stroke against.
-export const ALLOWED_COLORS = new Set([
+export const ALLOWED_COLORS: ReadonlySet<string> = new Set([
   PALETTE.bg, PALETTE.text, PALETTE.muted, PALETTE.border, PALETTE.code, PALETTE.danger,
   ...THEME_KEYS.flatMap(k => [PALETTE[k].accent, PALETTE[k].soft]),
 ]);

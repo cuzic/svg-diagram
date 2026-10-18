@@ -18,10 +18,10 @@
 import {splitAtoms} from './atoms.ts';
 import type {WrapOptions} from './types/core.ts';
 
-const CANNOT_START_LINE = new Set(
+const CANNOT_START_LINE: ReadonlySet<string> = new Set(
   '、。，．・：；！？」』）〕】〉》ゝゞーぁぃぅぇぉっゃゅょァィゥェォッャュョ'.split(''),
 );
-const CANNOT_END_LINE = new Set('「『（〔【〈《'.split(''));
+const CANNOT_END_LINE: ReadonlySet<string> = new Set('「『（〔【〈《'.split(''));
 
 const isWhitespace = (atom: string): boolean => /^\s+$/.test(atom);
 
@@ -50,7 +50,7 @@ export function withKeepWords<T>(on: boolean, f: () => T): T {
 }
 
 const isHiragana = (atom: string): boolean => { if ([...atom].length !== 1) return false; const c = atom.codePointAt(0)!; return c >= 0x3041 && c <= 0x309f; };
-const CLAUSE_END = new Set('、。，．！？'.split(''));
+const CLAUSE_END: ReadonlySet<string> = new Set('、。，．！？'.split(''));
 
 /** Per atom: does it continue the atom before it (one unit for breaking) because of the script runs ('phrase' / 'bunsetsu') or, in 'bunsetsu', a hiragana that follows a character? */
 function runGlueOf(atoms: {text: string}[]): boolean[] {

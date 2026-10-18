@@ -46,7 +46,7 @@ export interface IconManifest {
 export const MANIFEST_FILE = 'svg-diagram.icons.json';
 export const ICON_NAME_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
 /** Licences installed without a flag: no attribution line is needed in the figure itself. Others need --allow-license. */
-export const PERMISSIVE = new Set(['MIT', 'ISC', 'Apache-2.0', 'CC0-1.0', '0BSD', 'Unlicense', 'BSD-2-Clause', 'BSD-3-Clause']);
+export const PERMISSIVE: ReadonlySet<string> = new Set(['MIT', 'ISC', 'Apache-2.0', 'CC0-1.0', '0BSD', 'Unlicense', 'BSD-2-Clause', 'BSD-3-Clause']);
 
 export function emptyManifest(): IconManifest {
   return {version: 1, icons: {}};
@@ -76,12 +76,12 @@ export function parseManifest(text: string, where: string): IconManifest {
 /** Normalise a numeric/“24” size attribute. */
 const num = (v: string | number | undefined): number | undefined => (v === undefined || v === '' ? undefined : Number.parseFloat(String(v)));
 
-const CONTAINERS = new Set(['g', 'defs', 'linearGradient', 'radialGradient', 'clipPath']);
-const LEAVES = new Set(['path', 'circle', 'ellipse', 'rect', 'line', 'polyline', 'polygon', 'stop']);
-const ATTRS = new Set(['d', 'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'width', 'height', 'x1', 'y1', 'x2', 'y2', 'fx', 'fy', 'points', 'transform', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-dasharray', 'stroke-dashoffset', 'fill-opacity', 'stroke-opacity', 'opacity', 'fill-rule', 'clip-rule', 'clip-path', 'id', 'offset', 'stop-color', 'stop-opacity', 'gradientUnits', 'gradientTransform', 'spreadMethod', 'clipPathUnits', 'href', 'xlink:href']);
+const CONTAINERS: ReadonlySet<string> = new Set(['g', 'defs', 'linearGradient', 'radialGradient', 'clipPath']);
+const LEAVES: ReadonlySet<string> = new Set(['path', 'circle', 'ellipse', 'rect', 'line', 'polyline', 'polygon', 'stop']);
+const ATTRS: ReadonlySet<string> = new Set(['d', 'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'width', 'height', 'x1', 'y1', 'x2', 'y2', 'fx', 'fy', 'points', 'transform', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-dasharray', 'stroke-dashoffset', 'fill-opacity', 'stroke-opacity', 'opacity', 'fill-rule', 'clip-rule', 'clip-path', 'id', 'offset', 'stop-color', 'stop-opacity', 'gradientUnits', 'gradientTransform', 'spreadMethod', 'clipPathUnits', 'href', 'xlink:href']);
 /** What a vendor's .svg carries that means nothing to a drawing (editor and accessibility leftovers): dropped when reading a file, not refused. */
 const IGNORED_ATTR = /^(data-|inkscape:|sodipodi:|xml:|xmlns|aria-|role$|focusable$|version$|enable-background$|overflow$|vector-effect$|shape-rendering$)/;
-const PAINT = new Set(['fill', 'stroke', 'stop-color']);
+const PAINT: ReadonlySet<string> = new Set(['fill', 'stroke', 'stop-color']);
 const HEX = /^#[0-9a-fA-F]{3,8}$/;
 const SAFE_ID = /^[A-Za-z][\w-]*$/;
 const REF = /^url\(#([A-Za-z][\w-]*)\)$/;
