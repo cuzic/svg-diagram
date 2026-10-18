@@ -25,8 +25,7 @@ export function caption(text: RichText, opts: CaptionOpts = {}): CaptionBand {
 export function box<const Id extends string = never>(opts: BoxInput<Id>): BoxBand & Declares<Id> & HandleOf<Id>;
 export function box(opts: BoxOpts): BoxBand {
   if (opts.size !== undefined) {
-    assertFontSize(opts.size);
-    warnBoxSizeOnce();
+    assertFontSize(opts.size); // the px check stays; lint says the value has no effect (rule box-size-ignored)
   }
   // the plain text (and spans) of every rich field go over the copied options: a band never holds an array
   const band = {type: 'box', ...opts, ...richBoxFields(opts)} as BoxBand;
@@ -46,13 +45,6 @@ export function box(opts: BoxOpts): BoxBand {
 export function fillScaleLimit(bands: Band[]): number {
   const optIn = walkBands(bands).flatMap(b => b.type === 'banner' && b.headlineRole ? [ROLES[b.headlineRole]] : (b.type === 'bars' || b.type === 'plane') && b.labelRole ? [ROLES[b.labelRole]] : b.type === 'image' ? [b.labelRole, ...(b.marks ?? []).map(m => m.role), ...(b.labels ?? []).map(l => l.role)].flatMap(r => r ? [ROLES[r]] : []) : []);
   return Math.min(1.8, optIn.length ? OPT_IN_TEXT_MAX / Math.max(...optIn) : 1.8);
-}
-let boxSizeWarned = false;
-/** box({size}) is read by neither layout nor emit; said once per process, and a later version throws. */
-function warnBoxSizeOnce(): void {
-  if (boxSizeWarned) return;
-  boxSizeWarned = true;
-  console.warn('svg-diagram: box({size}) は効果がない。大きい文字は role(stat() / display)を使う(次の版で throw する)');
 }
 /** The symbol and the word printed for each stat() confidence (ADR 0023 D8): never a colour alone. */
 const CONFIDENCE_LABEL: Record<StatConfidence, string> = {primary: '◎ 一次資料', secondary: '○ 報道・二次資料', unverified: '△ 未確認'};
