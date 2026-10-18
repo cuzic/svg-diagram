@@ -201,6 +201,7 @@ export interface DiagramData {
   wrap?: 'phrase' | 'char' | 'bunsetsu' | 'bunsetsu-soft';
   /** Never break a katakana word across lines: a box is at least as wide as its longest katakana word (up to the node width the component starts with, at most 240px). Default off: nothing changes for a figure that does not write it. A figure that does not fit with the floor is tried without it (the break is then reported by text-mid-word-break). Also settable for every diagram in `.svg-diagram.json` ("keepWords": true). */
   keepWords?: boolean;
+  /** `diagram({density})` as written: 'compact' closes the gaps of the layered figures by a quarter (see `DiagramOpts.density`). */
   density?: 'normal' | 'compact';
   width: number;
   /** diagram({width: 'fit'}): renderDiagram narrows `width` to the content. */

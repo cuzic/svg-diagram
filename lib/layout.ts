@@ -45,7 +45,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
 }
 
 /** The scale of the gaps of the layered figures (`WrapEnv.space`): 'compact' closes them by a quarter. */
-export const spaceOf = (density: 'normal' | 'compact' | undefined): number => density === 'compact' ? 0.75 : 1;
+const spaceOf = (density: 'normal' | 'compact' | undefined): number => density === 'compact' ? 0.75 : 1;
 
 function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean, space = 1): LaidOutDiagram {
   const d = withStatus(withSourceLine(data));

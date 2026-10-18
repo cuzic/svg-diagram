@@ -2,7 +2,7 @@
 // node; a transition is an orthogonal arrow routed through the layers it skips; a label sits on the arrow in a white chip.
 import {textWidth} from './atoms.ts';
 import {fitLayout} from './fit-width.ts';
-import {gapFor, layeredAttempt, STUB} from './layered-route.ts';
+import {gapFor, layeredAttempt, stubOf} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
@@ -75,7 +75,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
     const run = layeredAttempt(dir === 'down' ? nodes.map(n => ({id: n.id, size: swapSize(n.size)})) : nodes, edges, {
       // a loop needs room beside its state (down) or between rows (right), so states do not crowd it
       dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : Math.round(GAP * (env.space ?? 1)),
-      levelGap: Math.max(Math.round((dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64) * (env.space ?? 1)), gapFor(degree, 0, env.space)), ...(band.initial ? {start: [INIT]} : {}),
+      levelGap: Math.max(dir === 'down' ? Math.round(72 * (env.space ?? 1)) : widest ? widest + stubOf(env.space) + ARROW + 8 : Math.round(64 * (env.space ?? 1)), gapFor(degree, 0, env.space)), ...(band.initial ? {start: [INIT]} : {}),
     }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, round: id => circles.has(id), ...(env.space === undefined || env.space === 1 ? {} : {space: env.space}), ...(band.straighten === false ? {straighten: false} : {}), ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
     const at = (id: string) => { const p = run.lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
     return {...run, dir, lines, reserve, top, at};

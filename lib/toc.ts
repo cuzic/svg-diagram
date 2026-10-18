@@ -6,6 +6,7 @@
 //               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
 import {textWidth} from './atoms.ts';
 import {andClashes} from './cause-clash.ts';
+import {routesThroughNodes} from './verify-base.ts';
 import {causeCrossings} from './cause-hop.ts';
 import {fitLayout} from './fit-width.ts';
 import {scoreOf} from './polyline-metrics.ts';
@@ -67,6 +68,17 @@ const movedAside = new WeakSet<object>();
  * in a few fixed ways (ADR 0019 D4); a figure with no crossing is never touched. Only a cause tree (not pdpc() / relationDiagram()).
  */
 export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause {
+  const out = layoutCauseBandAt(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound);
+  if (env.space === undefined || env.space === 1) return out;
+  // `density: 'compact'` must not make an arrow run through a box (the check calls that an error): the narrower gaps between the layers can do that, so this band is drawn at the normal gaps then
+  const through = (t: LaidOutCause): number => routesThroughNodes(t.edges, t.anchors, () => '').length;
+  const bad = through(out);
+  if (bad === 0) return out;
+  const normal = layoutCauseBandAt(band, x, y, w, widthOf, roles, {...env, space: 1}, heightBudget, canvasBound);
+  return through(normal) < bad ? normal : out;
+}
+
+function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause {
   const first = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound);
   // the search is for a figure whose AND arrows cross as first laid out: judged before the side-by-side runs are moved aside (ADR 0016 D12/D13), which also clears crossings
   // a crossing of any two arrows also starts it: the order only wins when it is strictly better in (AND crossings, AND side-by-side, crossings, bends)
