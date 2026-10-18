@@ -14,6 +14,8 @@ export interface Config {
   legendLabels?: Partial<Record<NotationKey, string>>;
   /** Tone colours for every diagram, e.g. {"accent": {"fill": "#e6d3bd", "dark": {"fill": "#4a3a28"}}} (a diagram's own `tones` win per colour). */
   tones?: ToneOverrides;
+  /** The default for every diagram's `wrap` (a diagram's own wins): 'phrase' | 'char' | 'bunsetsu' | 'bunsetsu-soft'. */
+  wrap?: 'phrase' | 'char' | 'bunsetsu' | 'bunsetsu-soft';
   /** The default for every diagram's `keepWords` (a diagram's own wins): never break a katakana word across lines. */
   keepWords?: boolean;
   /** How text is measured: 'font' (default) from the font files, no browser (see `fonts`); 'chromium' in a headless browser. */

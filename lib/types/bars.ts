@@ -27,6 +27,8 @@ export interface BarsOpts extends RevealOpts, ScopeOpts {
   /** How a bar's value is written. Default: whole numbers exactly (1055 stays 1055), others to 3 significant digits but keeping the whole part (1055.5 is 1056). 'exact' writes the number as given; a number is the decimals; a function formats it yourself. */
   valueFormat?: 'exact' | number | ((value: number) => string);
   dir?: 'h' | 'v';
+  /** Horizontal bars only: how far the plot area starts from the figure's left edge and ends from its right edge, in px (default: what the labels need). Bars written with the same `plotInset` and the same `max` (or a chart's `domain`) draw the same value as the same length. Less than the labels need is an error that names the minimum. */
+  plotInset?: readonly [left: number, right: number];
   stack?: boolean;
   /** Figure height. Vertical bars default to 280; horizontal bars derive it from their count. */
   height?: number;

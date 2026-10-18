@@ -36,7 +36,12 @@ import type {ToneEnv} from './tokens.ts';
 
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
 export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
-  return layoutBands(data, roles, widthOf, toneEnv(data.tones), data.wrap ?? 'phrase', data.keepWords === true);
+  const lay = (mode: WrapMode): LaidOutDiagram => layoutBands(data, roles, widthOf, toneEnv(data.tones), mode, data.keepWords === true);
+  const setting = data.wrap ?? 'phrase';
+  if (setting !== 'bunsetsu-soft') return lay(setting);
+  // 'bunsetsu-soft': break at phrase boundaries (hiragana kept with the character before it); a figure that does not fit that way is laid out as 'phrase' instead of failing.
+  // A real mistake of the author (a bad id ...) fails again in the second layout, with its own message.
+  try { return lay('bunsetsu'); } catch { return {...lay('phrase'), wrapFellBack: true}; }
 }
 
 function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean): LaidOutDiagram {
