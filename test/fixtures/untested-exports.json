@@ -217,6 +217,8 @@
   "icon-store:emptyManifest",
   "icon-svg:iconSvg",
   "icons:own",
+  "image-sniff:describeImage",
+  "image-sniff:readDataImage",
   "image:imageSize",
   "image:imageTexts",
   "image:layoutImage",

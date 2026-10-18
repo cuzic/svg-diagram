@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import {execFileSync} from 'child_process';
-import {readImage} from '../image-file.ts';
+import {readDataImage} from '../image-sniff.ts';
 import {texToSvg} from '../math-tex.ts';
 import {emitRevealStage} from '../pipeline.ts';
 import {LABEL_ROLES, ROLES} from '../tokens.ts';
@@ -17,7 +17,7 @@ import {assertNoReveal, assertTextRole, revealOf, scopeOpt, withAnchors, withHan
 type MarkIds<M extends readonly ImageMark[]> = Extract<M[number]['id'], string>;
 const IMAGE_TONES = ['plain', 'accent', 'danger', 'muted', 'new', 'changed', 'removed', 'solid', 'solid-danger'];
 /**
- * A picture (PNG / JPEG / GIF / WebP) as a part, read now and embedded as a data URI so the SVG stays one file. `marks` outline regions
+ * A picture (PNG / JPEG / GIF / WebP) as a part, embedded as a data URI (a file is read when the diagram is drawn or checked) so the SVG stays one file. `marks` outline regions
  * (spotlight and connect() can point at their ids); `labels` put words on opaque plates. Positions are fractions of the picture.
  * `src`: a path (relative: next to the diagram source), `new URL('./a.png', import.meta.url)`, or a data URI.
  */
@@ -51,9 +51,11 @@ export function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
   const ids = (opts.marks ?? []).map(m => m.id).filter((id): id is string => !!id);
   if (new Set(ids).size !== ids.length) throw new Error('image(): each mark id must be unique');
   if (opts.id !== undefined && ids.includes(opts.id)) throw new Error(`image(): the band's id "${opts.id}" is also a mark's id — each id must be unique`);
-  const file = readImage(src);
+  // a data URI is read at once; a file waits for the diagram to be drawn (its relative path means "next to the source", which only the loader knows)
+  const text = src instanceof URL ? src.href : src;
+  const file = text.startsWith('data:') ? readDataImage(text) : undefined;
   const band: ImageBand = {
-    type: 'image', href: file.href, naturalW: file.w, naturalH: file.h, bytes: file.bytes, alt: opts.alt?.trim() ?? '',
+    type: 'image', src: text, ...(file ? {} : {unresolved: true as const}), href: file?.href ?? '', naturalW: file?.w ?? 0, naturalH: file?.h ?? 0, bytes: file?.bytes ?? 0, alt: opts.alt?.trim() ?? '',
     ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'image()'), ...revealOf(opts),
     ...(opts.width === undefined ? {} : {width: opts.width}), ...(opts.height === undefined ? {} : {height: opts.height}), ...(opts.align === undefined ? {} : {align: opts.align}), ...(opts.labelRole === undefined ? {} : {labelRole: opts.labelRole}),
     ...(opts.marks?.length ? {marks: opts.marks.map(m => ({...m, rect: [...m.rect] as unknown as ImageRect}))} : {}),

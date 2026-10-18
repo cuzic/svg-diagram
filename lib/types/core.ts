@@ -180,6 +180,8 @@ export interface MeasureSettings {backend: 'chromium' | 'font'; explicit: boolea
 export interface DiagramData {
   /** Set by loadDiagram from the project's config; a diagram built in code measures with the process default. */
   measure?: MeasureSettings;
+  /** The folder of the source file loadDiagram ran: where image() looks for a relative path (the working folder when unset). */
+  sourceDir?: string;
   /** Theme key. (Named `day` for historical reasons; it holds any Theme.) */
   day: Theme;
   medium: Medium;

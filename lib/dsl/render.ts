@@ -4,6 +4,7 @@ import {analyzeFit} from '../fit.ts';
 import {getSlideBudget, readSlideBudgetCache} from '../slide-budget.ts';
 import {emitOutputs, runChecked} from '../pipeline.ts';
 import {fontBoxOf} from '../font-box.ts';
+import {resolveImages} from '../image-file.ts';
 import {SLIDE_CANVAS, checkMinText, canvasFontScale, canvasRoles, ROLES, THEMES, scaleRoles} from '../tokens.ts';
 import type {ConnectOpts} from '../types/containers.ts';
 import type {BandInput, Diagram, DiagramData, DiagramOpts, Theme, Medium} from '../types/core.ts';
@@ -170,6 +171,7 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
 /** What the passes may write into: the bands are copied, so a band shared by two diagrams (or drawn twice) is never changed by a render. */
 function detach<D extends DiagramData>(d: D): D {
   const out = {...d, bands: cloneData(d.bands)};
+  resolveImages(walkBands(out.bands), out.sourceDir ?? process.cwd()); // the pictures image() left unread, from the source's folder
   // gantt({today: 'auto'}) takes the day the caller gave (never the clock); only then does the day go in the metadata
   if (fillAutoToday(walkBands(out.bands), out.today) && out.source) out.source = {...out.source, today: out.today};
   return out;
