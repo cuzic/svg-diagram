@@ -22,7 +22,6 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm typecheck
       - run: pnpm test
-      - name: examples build and pass the rule check
-        run: |
-          for f in examples/*.ts; do node build-diagram.ts "$f" --out "/tmp/$(basename "$f" .ts).svg"; done
-          node check-diagram.ts --strict examples/*.ts
+      # building every example (and linting the SVGs strictly) is test/lint-cli.test.ts; one process per example here cost more than the rest of this job
+      - name: examples pass the rule check
+        run: node check-diagram.ts --strict examples/*.ts
