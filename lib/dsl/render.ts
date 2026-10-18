@@ -104,7 +104,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
 // `verdict` and `xml`, so build() can refuse to write while `svg-diagram show` can still draw the picture and say what is wrong.
 // (A define()/constructor/layout error still throws.) budget: 'measure' measures a slide that has no cached budget (starts the
 // dev server, writes the cache); 'cacheOnly' reads the cache and falls back to the default sizes with a note.
-export async function renderDiagram(input: Diagram, opts: {name: string; budget: 'measure' | 'cacheOnly'; html?: boolean}): Promise<RenderResult> {
+export async function renderDiagram(input: Diagram, opts: {name: string; budget: 'measure' | 'cacheOnly'; html?: boolean; /** `data-node="id"` on the outline of each author-named node (ADR 0034) */ nodeIds?: boolean}): Promise<RenderResult> {
   const d = detach(input); // the passes below write into bands (reveal, legend items) and into d (width, ...): never into the caller's
   const notes: string[] = [];
   let budget: SlideBudget | null = null;
@@ -165,7 +165,7 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
     return laidOut;
   });
   if (opts.html && d.appearance === 'auto') throw new Error("diagram({appearance: 'auto'}) is SVG only: the HTML form paints with style attributes, which a media rule cannot override (drop html / --html, or use 'dark')");
-  const emitted = emitOutputs(laidOut, {html: opts.html, reveal: d.maxReveal, ...(opts.html ? {fontBox: fontBoxOf(laidOut.measure)} : {})});
+  const emitted = emitOutputs(laidOut, {html: opts.html, nodeIds: opts.nodeIds, reveal: d.maxReveal, ...(opts.html ? {fontBox: fontBoxOf(laidOut.measure)} : {})});
   return {svg: emitted.svg, ...(emitted.html !== undefined ? {html: emitted.html} : {}), laidOut, verdict, xml: emitted.xml, notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget: budget as SlideBudget | null, budgetSource: budgetSource as RenderResult['budgetSource'], fontScale: laidOut.fontScale};
 }
 /** What the passes may write into: the bands are copied, so a band shared by two diagrams (or drawn twice) is never changed by a render. */

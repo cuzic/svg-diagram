@@ -354,7 +354,7 @@ export interface LaidOutTree extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone; id?: string})[];
+  nodes: (Rect & {tone: BoxTone; id?: string; /** ADR 0034 */ dataNode?: string})[];
   /** Parent to child, each a polyline (centre line of the box edge to the child's box edge); `curve` draws it as a smooth S, `bold` as a spine. */
   edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean}[];
   /** brace maps: a `{` over the children of one parent. */
@@ -392,7 +392,7 @@ export interface LaidOutCause extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: EmphasisTone; double?: boolean; /** the core driver: a thick frame and a badge */ core?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean; /** a dashed frame (a trim) */ dashed?: boolean})[];
+  nodes: (Rect & {tone: EmphasisTone; /** ADR 0034: the name `data-node` carries on the frame */ dataNode?: string; double?: boolean; /** the core driver: a thick frame and a badge */ core?: boolean; /** an obstacle is a hexagon, as in a prerequisite tree */ hex?: boolean; /** a dashed frame (a trim) */ dashed?: boolean})[];
   /** Orthogonal polylines from the cause's box edge to the effect's; the arrowhead is at the last point. */
   edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; /** a declared return (`back: true`): drawn bold */ back?: true; /** runs in a lane outside the figure (a return that skips two layers or more, see `returns`) */ outer?: true; /** only a cutting arrow has it */ kind?: 'blocks'; /** a return the layout turned around (`back`, an outer lane, or a cycle it cut), only with `hop` */ reversed?: true}[];
   /** Only with `hop` (ADR 0028): where a return crosses another line, by index into `edges`; `skipped` says why that one gets no hop. */
@@ -446,7 +446,7 @@ export interface LaidOutBpmn extends Rect, Dimmed {
   until?: number;
   lanes: (Rect & {labelW: number; tone: BoxTone})[];
   /** The shape of each node (a circle, a diamond or a rounded rectangle). */
-  nodes: (Rect & {kind: BpmnNodeKind; tone: BoxTone})[];
+  nodes: (Rect & {kind: BpmnNodeKind; tone: BoxTone; /** ADR 0034 */ dataNode?: string})[];
   /** The icons of the tasks that have one (20px, above the label); `node` indexes `nodes`. */
   icons: {node: number; name: string; glyph: IconGlyph; x: number; y: number; size: number; tone?: TextTone}[];
   edges: {from: string; to: string; line: 'solid' | 'dashed'; points: {x: number; y: number}[]}[];
