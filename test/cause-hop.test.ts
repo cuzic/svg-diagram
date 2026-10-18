@@ -75,5 +75,21 @@ test('hop: true keeps the crossings of a return, and the lines are untouched; wi
 });
 
 test('hop must be true or false', () => {
-  assert.throws(() => causeTree([N('a')], [], {hop: 'yes' as never}), /hop must be true or false/);
+  assert.throws(() => causeTree([N('a')], [], {hop: 'yes' as never}), /hop must be true, false or 'all'/);
+});
+
+test("hop: 'all' also lets an ordinary arrow's run across the layers hop over a line running along the flow", () => {
+  const a = line([{x: 300, y: 100}, {x: 300, y: 400}]), b = {...line([{x: 100, y: 250}, {x: 500, y: 250}]), from: 'e', to: 'f'};
+  assert.deepEqual(causeCrossings([a, b], 'right', BAND, [], []), [], 'only a return hops by default');
+  const [c] = causeCrossings([a, b], 'right', BAND, [], [], true);
+  assert.deepEqual([c.over, c.under, c.x, c.y], [0, 1, 300, 250]);
+  assert.deepEqual(c.side, {x: -1, y: 0});
+  // the line that runs along the flow never hops over the run across it
+  assert.equal(causeCrossings([a, b], 'right', BAND, [], [], true).filter(k => k.over === 1).length, 0);
+});
+
+test("hop: 'all' keeps the crossings of the ordinary arrows in a laid-out figure, and the routes do not move", () => {
+  const plain = place(causeTree(ids.map(N), links, {dir: 'up', hop: true})), all = place(causeTree(ids.map(N), links, {dir: 'up', hop: 'all'}));
+  assert.deepEqual(all.edges.map(e => e.points), plain.edges.map(e => e.points));
+  assert.ok((all.crossings ?? []).length >= (plain.crossings ?? []).length);
 });

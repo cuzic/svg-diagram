@@ -9,5 +9,5 @@
 | なぜなぜ分析（木） | `whyWhyTree(problem, whys, {id})` | `whys: {why, because?, trueCause?: true, measure?}[]`（`because` は「なぜ?」の答え）。問題が上、答えが下で、「なぜ n」は枝によらず同じ段。真因は二重枠、`measure` は破線の棒で真因を断つ。返り値は木と読む向きの注（`.add(...)` に展開して渡す）。幅が足りなければ折り返さずに止まる。表で書くなら `references/semantic.md` の `whyWhyTable` |
 | ボウタイ図 | `bowtie({hazard?, top, threats, consequences}, {id, maxNodeW})` | 中央が頂上事象（`top`）、左は脅威と予防バリア（`{label, barriers?}`）、右は低減バリアと結果。流れは左から右。箱は左右合わせて 6 個ほどまで（900px）。バリアの無い道は `bowtie-barrier-missing` |
 
-- **避けられない交差の見せ方**: `causeTree(nodes, links, {hop: true})`（`relationDiagram` / `pdpc` も同じ第 3 引数）。戻りの矢印（`back: true` など）が他の線を横切る箇所は、`hop: true` で、戻りの線が小さな弧で飛び越す表現になる（既定 off。AND の弧や矢じりの近く、破線の戻りなどには付けない。ADR 0028。例は `examples/toc-hop.ts`）。
+- **避けられない交差の見せ方**: `causeTree(nodes, links, {hop: true})`（`relationDiagram` / `pdpc` も同じ第 3 引数）。戻りの矢印（`back: true` など）が他の線を横切る箇所は、`hop: true` で、戻りの線が小さな弧で飛び越す表現になる（既定 off。AND の弧や矢じりの近く、破線の戻りなどには付けない。ADR 0028。例は `examples/toc-hop.ts`）。**`hop: 'all'`** は、戻りに限らず、層を横切る線が、流れに沿って走る線を飛び越す（全部の交差が弧になり、交差と合流を取り違えない。例は `examples/toc-hop-all.ts`）。交差が残る図は、並びを乱択も含めて最大 80 通り探し直す（同じ図は同じ結果）。
 - 幅に収まらないときの `dir: 'auto'` / `fold`、折れの少ない配置（`straighten` / `returns`）は、層状の図に共通なので `auto-layout.md` を見る。

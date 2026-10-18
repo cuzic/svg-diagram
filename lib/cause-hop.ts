@@ -14,16 +14,16 @@ const widthOf = (e: HopEdge): number => e.kind === 'blocks' ? 2 : e.back ? 3 : 2
 const STEP: Record<HopFlow, HopPt> = {up: {x: 0, y: -1}, down: {x: 0, y: 1}, right: {x: 1, y: 0}, left: {x: -1, y: 0}};
 
 /**
- * The crossings of every return's run across the layers (a run at a right angle to the flow) with another line, in the order of the returns, each marked `skipped` when
+ * The crossings of every return's run across the layers (with `everyRun`, of every arrow's run across the layers) (a run at a right angle to the flow) with another line, in the order of the returns, each marked `skipped` when
  * it gets no hop. `rooms` are the boxes of the nodes and the band; `ands` the AND arcs (p0, c, p1).
  */
-export function causeCrossings(edges: readonly HopEdge[], flow: HopFlow, band: {x: number; y: number; w: number; h: number}, boxes: readonly {x: number; y: number; w: number; h: number}[], ands: readonly {p0: HopPt; c: HopPt; p1: HopPt}[]): Crossing[] {
+export function causeCrossings(edges: readonly HopEdge[], flow: HopFlow, band: {x: number; y: number; w: number; h: number}, boxes: readonly {x: number; y: number; w: number; h: number}[], ands: readonly {p0: HopPt; c: HopPt; p1: HopPt}[], everyRun = false): Crossing[] {
   const f = STEP[flow], against: HopPt = {x: 0 - f.x || 0, y: 0 - f.y || 0};
   const alongFlow = (a: HopPt, b: HopPt): boolean => f.x !== 0 ? a.y === b.y : a.x === b.x; // a run in the flow's direction (a lane run)
   const R = HOP_R, X = R + 2;
   const out: Crossing[] = [];
   edges.forEach((over, i) => {
-    if (!over.reversed || over.kind === 'blocks') return;
+    if ((!over.reversed && !everyRun) || over.kind === 'blocks') return;
     const found: (Crossing & {si: number})[] = [];
     over.points.slice(1).forEach((q, si) => {
       const p = over.points[si];
