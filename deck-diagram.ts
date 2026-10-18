@@ -15,30 +15,11 @@ import {formatBuildError} from './lib/error-format.ts';
 import {buildDeck, externalRefs} from './lib/deck-html.ts';
 import type {DeckSlide} from './lib/deck-html.ts';
 import {viewerAssets} from './lib/deck-viewer.ts';
+import {parseDeckArgs, DECK_USAGE} from './lib/deck-args.ts';
 
-const USAGE = 'Usage: svg-diagram deck <a.ts|a.svg>... [--out deck.html] [--title TEXT] [--cols N] [--csp] [--no-source-line] [--render svg]\n  (a deck views figures that build / check have passed; it does not lint them)';
-const args = process.argv.slice(2);
-const VALUE = ['--out', '--title', '--cols', '--render'];
-const BOOL = ['--csp', '--no-source-line'];
-const usage = (msg?: string): never => { console.error(msg ? `✗ ${msg}\n${USAGE}` : USAGE); process.exit(2); };
-
-for (const [i, a] of args.entries()) {
-  if (a.startsWith('--') && ![...VALUE, ...BOOL].includes(a)) usage(`unknown option ${a}`);
-  if (VALUE.includes(a) && (args[i + 1] === undefined || args[i + 1].startsWith('--'))) usage(`${a} needs a value`);
-}
-const val = (n: string): string | undefined => { const i = args.indexOf(n); return i === -1 ? undefined : args[i + 1]; };
-const files = args.filter((a, i) => !a.startsWith('--') && !VALUE.includes(args[i - 1]));
-if (!files.length) usage();
-const bad = files.find(f => !/\.(ts|svg)$/.test(f));
-if (bad !== undefined) usage(`${bad}: a deck takes .ts sources and .svg files`);
-const out = val('--out') ?? 'deck.html';
-const colsArg = val('--cols');
-const cols = colsArg === undefined ? undefined : Number(colsArg);
-if (cols !== undefined && !(Number.isInteger(cols) && cols >= 1)) usage(`--cols needs a whole number of 1 or more (got ${colsArg})`);
-const noSourceLine = args.includes('--no-source-line');
-const render = val('--render') ?? 'svg';
-if (render === 'html') usage('--render html is not available yet (the SVG form is the one deck draws)');
-if (render !== 'svg') usage(`--render is svg (got ${render})`);
+const parsed = parseDeckArgs(process.argv.slice(2));
+if (!parsed.ok) { console.error(parsed.error ? `✗ ${parsed.error}\n${DECK_USAGE}` : DECK_USAGE); process.exit(2); }
+const {files, out, title, cols, csp, noSourceLine} = parsed.args;
 
 const base = (f: string) => path.basename(f).replace(/\.[^.]+$/, '');
 try {
@@ -73,7 +54,7 @@ try {
     process.exitCode = 1;
   } else {
     const {css, js} = viewerAssets();
-    const html = buildDeck(slides, {css, js, ...(val('--title') !== undefined ? {title: val('--title')} : {}), csp: args.includes('--csp'), ...(cols !== undefined ? {cols} : {})});
+    const html = buildDeck(slides, {css, js, ...(title !== undefined ? {title} : {}), csp, ...(cols !== undefined ? {cols} : {})});
     fs.mkdirSync(path.dirname(path.resolve(out)), {recursive: true});
     fs.writeFileSync(out, html);
     console.log(`wrote ${out} (${slides.length} slide${slides.length === 1 ? '' : 's'})`);
