@@ -13,7 +13,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
-import {diagramTarget, decodeTarget, resolveSource, inlineSvg, htmlFigure, vueHtml, escAttr, type Render} from './markdown-target.ts';
+import {diagramTarget, decodeTarget, inlineSvg, htmlFigure, vueHtml, escAttr, type Render} from './markdown-target.ts';
+import {resolveSource} from './source-path.ts';
 
 export interface SvgDiagramPluginOptions {
   /** 'svg' (default) or 'html'. A `#svg` / `#html` on an image's target wins. */

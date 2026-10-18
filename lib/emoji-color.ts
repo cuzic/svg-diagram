@@ -5,7 +5,7 @@
 // flag) to its one glyph: a PNG from the font's CBDT / sbix bitmaps (<image>), or the layers of its COLR table as filled paths. The SVG
 // that is written to disk is not touched; this is only on the way to pixels, and costs a font read and a shaping per figure that has emoji.
 import * as hb from 'harfbuzzjs';
-import {emojiFontFace} from './font-metrics.ts';
+import {emojiFontFace, textBox} from './font-metrics.ts';
 import {computeStyles, elements, parseXml, type El} from './svg-dom.ts';
 import {familyKind, placeRuns} from './svg-geom.ts';
 import type {FontSpecs} from './types/project.ts';
@@ -32,7 +32,7 @@ export function withColorEmoji(svg: string, specs?: FontSpecs): string {
   let out = '', at = 0, changed = false;
   texts.forEach((text, k) => {
     const m = spans[k];
-    const runs = placeRuns(text, styles).filter(r => familyKind(r.style.fontFamily) === 'emoji' && /\P{ASCII}/u.test(r.s));
+    const runs = placeRuns(text, styles, (t, family, size, weight) => textBox(t, family, size, weight)).filter(r => familyKind(r.style.fontFamily) === 'emoji' && /\P{ASCII}/u.test(r.s));
     const pictures: string[] = [];
     const drawn = new Set<string>();
     for (const r of runs) {

@@ -8,7 +8,7 @@ import path from 'node:path';
 import type {Page} from 'playwright-chromium';
 import {launchChromium} from '../lib/browser.ts';
 import {browserChecks} from '../lib/lint-browser.ts';
-import {geometryChecks, type RenderChecks} from '../lib/svg-lint.ts';
+import {geometryChecks, type RenderChecks} from '../lib/geometry-checks.ts';
 import {closeMeasurer} from '../lib/measure.ts';
 import {chromiumUsesOurFont} from './helpers/chromium-font.ts';
 import {scenes, STYLE} from './helpers/svg-fuzz.ts';

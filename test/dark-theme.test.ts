@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {bars, banner, box, caption, checkDiagram, closeMeasurer, diagram, renderDiagram, row, stat, table} from '../lib/dsl.ts';
 import {LIGHT_COLORS, DARK_PALETTE, PALETTE, TONES, darkOf, recolor, wcagRatio, NO_TONES} from '../lib/tokens.ts';
-import {geometryChecks} from '../lib/svg-lint.ts';
+import {geometryChecks} from '../lib/geometry-checks.ts';
 
 process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
 test.after(() => closeMeasurer());

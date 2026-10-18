@@ -30,8 +30,9 @@ const SHELL: Record<string, Shell> = {
   'image-file': {reason: 'reads images relative to the source directory'},
   'layout-measured': {reason: 'the measured layout: awaits the measurer'},
   'markdown-it': {reason: 'the markdown-it plugin: fs, child_process'},
-  'markdown-target': {reason: 'resolves a figure source on disk (realpath, cwd); stage 5 separates resolveSource'},
+  'source-path': {reason: 'resolveSource(): the working folder and symbolic links'},
   'math-tex': {reason: 'loads MathJax through node:module'},
+  'geometry-checks': {reason: 'geometryChecks(): the geometry engine with the text boxes read from the font files'},
   'font-box': {reason: 'the glyph boxes of the HTML emit, read from the font files (a function handed to emit-html)'},
   'measure-settings': {reason: 'reads SVG_DIAGRAM_MEASURE'},
   'measure': {reason: 'the measurer: the browser or the font files; the settings are a value it is given, the process default is only for callers with none'},
@@ -49,13 +50,10 @@ const SHELL: Record<string, Shell> = {
   // shells because of what they import; each leaves with the stage that cuts the dependency
   'changed': {reason: 'imports source-deps'},
   'contact': {reason: 'imports raster'},
-  'deck-html': {reason: 'imports markdown-target'},
   'dsl': {reason: 'the package entry point: re-exports dsl/io'},
   'dsl/render': {reason: 'the measured render: imports layout-measured'},
   'load-source': {reason: 'imports image-file'},
   'markdown': {reason: 'imports render-source (ADR 0031 stage 5 splits the scanner out)'},
-  'svg-geom': {reason: 'measures text through font-metrics (ADR 0031 stage 5 passes it in)'},
-  'svg-lint': {reason: 'imports svg-geom (leaves with it, stage 5)'},
   'vitepress': {reason: 'imports markdown-it'},
   // kept for the context it runs in
   'resolve-hook': {reason: 'a Node module-loader hook: runs in the loader thread', declared: true},
@@ -63,7 +61,7 @@ const SHELL: Record<string, Shell> = {
 
 /** Core files that break a rule today, and the stage of ADR 0031 that removes each. An entry that no longer matches fails the test. */
 const KNOWN: {file: string; rule: string; removedIn: number}[] = [
-  {file: 'dsl/text-bands', rule: 'top-level let', removedIn: 5},
+  {file: 'dsl/text-bands', rule: 'top-level let', removedIn: 7}, // boxSizeWarned: box({size}) warns once per process. Needs a decision (a lint rule, or the throw the message announces); not a refactor
   {file: 'fta-analysis', rule: 'localeCompare without a locale', removedIn: 6},
   {file: 'qc', rule: 'localeCompare without a locale', removedIn: 6},
   {file: 'wordart-vertical', rule: 'depends on the default locale', removedIn: 6},

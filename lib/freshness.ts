@@ -7,17 +7,17 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import type {DiagramSource} from './types/core.ts';
 import {depsSha256} from './source-deps.ts';
+import {judgeFreshness, parseProvenance, staleNoticeAt, type Freshness} from './freshness-judge.ts';
+
+export type {Freshness};
+/** The words for a stale figure (preview, show): what is out of date, and the command that fixes it. */
+export const staleNotice = (f: Freshness, svgPath: string, cwd: string = process.cwd()) => staleNoticeAt(f, svgPath, cwd);
 
 /** The provenance embedded in an SVG (what build() wrote), or null: no metadata (hand-made, other tool), unreadable, or not JSON. */
 export function readProvenance(svgPath: string): DiagramSource | null {
   let text: string;
   try { text = fs.readFileSync(svgPath, 'utf8'); } catch { return null; }
-  const m = text.match(/<metadata id="svg-diagram">([^<]*)<\/metadata>/);
-  if (!m) return null;
-  try {
-    const j = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'));
-    return j && typeof j === 'object' ? j as DiagramSource : null;
-  } catch { return null; }
+  return parseProvenance(text);
 }
 
 /** Where `source` (relative to the cwd of the build) may be: the cwd, the parent of the SVG's directory, the directory of .svg-diagram.json. */
@@ -47,35 +47,12 @@ export function locateSource(prov: DiagramSource, {svgPath, cwd = process.cwd()}
 export function sha256(data: string | Buffer): string { return crypto.createHash('sha256').update(data).digest('hex'); }
 export function sha256File(file: string): string { return sha256(fs.readFileSync(file)); }
 
-export interface Freshness {
-  state: 'fresh' | 'stale' | 'unknown';
-  /** stale only: the source itself changed, or a local file it imports. */
-  reason?: 'source' | 'deps';
-  /** The source that was found (fresh and stale). */
-  source?: string;
-}
-
-/**
- * fresh: the source and its imports hash as they did at build time. stale: they differ. unknown: no metadata or the source
- * cannot be found, so nothing is claimed (a hand-made SVG is never "stale"). The config hash and the tool version are not
- * compared: a tool upgrade must not turn every figure "stale" (`build --stale` and `check --drift --rebuild` do look at them).
- */
+/** Is the SVG still what its source would build? Reads the candidates and hashes them; the judgement is judgeFreshness(). unknown on any read failure. */
 export function freshness(svgPath: string, cwd: string = process.cwd()): Freshness {
   try {
     const prov = readProvenance(svgPath);
     if (!prov || typeof prov.sourceSha256 !== 'string') return {state: 'unknown'};
-    const found = existing(prov, svgPath, cwd);
-    if (!found.length) return {state: 'unknown'};
-    // a same-named file of another project may sit at one candidate: any candidate that hashes as recorded makes the SVG fresh;
-    // stale only when every candidate that exists differs (a false alarm is worse than a miss)
-    // when none is fresh, a candidate whose source hash matches is the real one: its deps are what to report, not another file's source
-    let mismatch: Freshness | null = null, drifted: Freshness | null = null;
-    for (const source of found) {
-      if (sha256File(source) !== prov.sourceSha256) { mismatch ??= {state: 'stale', reason: 'source', source}; continue; }
-      if ((prov.depsSha256 ?? '') !== depsSha256(source)) { drifted ??= {state: 'stale', reason: 'deps', source}; continue; }
-      return {state: 'fresh', source};
-    }
-    return (drifted ?? mismatch) as Freshness;
+    return judgeFreshness(prov, existing(prov, svgPath, cwd).map(source => ({source, sha: sha256File(source), depsSha: depsSha256(source)})));
   } catch { return {state: 'unknown'}; } // unreadable source, a failing import scan: no claim, and preview / show go on drawing
 }
 
@@ -85,15 +62,4 @@ export function ownsOutput(svgPath: string, sourcePath: string, cwd: string = pr
   if (!prov) return false;
   const want = path.resolve(cwd, sourcePath);
   return candidates(prov, svgPath, cwd).some(f => f === want);
-}
-
-/** The words for a stale figure (preview, show): what is out of date, and the command that fixes it. */
-export function staleNotice(f: Freshness, svgPath: string, cwd: string = process.cwd()): {short: string; banner: string; long: string} {
-  const src = f.source ? path.relative(cwd, f.source) || f.source : '';
-  const what = f.reason === 'deps' ? 'import しているファイルが変わっている' : 'ソースが変わっている';
-  return {
-    short: `古い: ${what}`,
-    banner: `古い: ${f.reason === 'deps' ? 'import 先が変わっています' : 'ソースが変わっています'}`,
-    long: `⚠ ${svgPath} は古い: ${what}(${src})。svg-diagram build ${src} で作り直す`,
-  };
 }

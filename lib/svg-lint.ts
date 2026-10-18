@@ -3,8 +3,7 @@
 // same font files the layout is measured with, so no browser is started. lib/lint-browser.ts is the same five checks in Chromium, kept as
 // `lint --engine browser` and as the reference this is tested against (test/svg-lint.test.ts).
 import {apply, closest, colourGroups, computeStyles, elements, IDENTITY, multiply, parseColor, parseTransform, parseXml, textOf, type El, type Matrix, type RGBA, type Style} from './svg-dom.ts';
-import {boxOf, isShape, outlineOf, sampleAlong, textBoxOf, transformBox, unionBox, type Box, type Outline} from './svg-geom.ts';
-import type {FontSpecs} from './types/project.ts';
+import {boxOf, isShape, outlineOf, sampleAlong, textBoxOf, transformBox, unionBox, type Box, type Outline, type TextBoxFn} from './svg-geom.ts';
 
 export interface RenderChecks {
   contrast: {txt: string; delta: number; fg: string; bg: string}[];
@@ -14,8 +13,8 @@ export interface RenderChecks {
   covered: {txt: string; by: string; how: 'covers' | 'crosses'}[];
 }
 
-const NOT_DRAWN = new Set(['defs', 'marker', 'clipPath', 'mask', 'pattern', 'symbol', 'linearGradient', 'radialGradient', 'filter', 'title', 'desc', 'metadata', 'style', 'script']);
-const SIZED = new Set(['rect', 'circle', 'ellipse', 'path', 'line', 'polygon', 'polyline', 'text', 'image']);
+const NOT_DRAWN: ReadonlySet<string> = new Set(['defs', 'marker', 'clipPath', 'mask', 'pattern', 'symbol', 'linearGradient', 'radialGradient', 'filter', 'title', 'desc', 'metadata', 'style', 'script']);
+const SIZED: ReadonlySet<string> = new Set(['rect', 'circle', 'ellipse', 'path', 'line', 'polygon', 'polyline', 'text', 'image']);
 
 interface Item {el: El; tag: string; style: Style; outline: Outline | null; user: Box | null; screen: Box | null; toScreen: Matrix}
 
@@ -26,7 +25,7 @@ const css = (c: RGBA) => c.a === 1 ? `rgb(${Math.round(c.r)}, ${Math.round(c.g)}
 const fixed = (n: number, d: number) => Number(n.toFixed(d));
 
 /** null when there is no <svg>; throws (with the reason) for XML it cannot read, and when a font file for the text boxes cannot be found. */
-export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | null {
+export function lintGeometry(src: string, measure: TextBoxFn): RenderChecks | null {
   let root: El;
   try { root = parseXml(src); } catch (e) { if ((e as Error).message === 'no <svg> element') return null; throw new Error(`not well-formed XML (${(e as Error).message})`); }
   const styles = computeStyles(root);
@@ -51,7 +50,7 @@ export function geometryChecks(src: string, specs?: FontSpecs): RenderChecks | n
       const style = styles.get(el)!;
       const toScreen = multiply(view, m);
       let outline: Outline | null = null, local: Box | null;
-      if (el.tag === 'text') local = textBoxOf(el, styles, specs);
+      if (el.tag === 'text') local = textBoxOf(el, styles, measure);
       else if (el.tag === 'image') { const n = (k: string) => parseFloat(el.attrs[k] ?? '0') || 0; local = n('width') && n('height') ? {x: n('x'), y: n('y'), w: n('width'), h: n('height')} : null; }
       else { outline = isShape(el) ? outlineOf(el, vp) : null; local = outline?.box ?? null; }
       // a transformed element's box is the box of its own box's corners (as a browser reports it), not of its outline's points

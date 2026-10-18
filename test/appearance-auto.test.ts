@@ -12,7 +12,7 @@ import {scopeRules} from '../lib/scope-style.ts';
 import {inlineSvg} from '../lib/markdown-target.ts';
 import {buildDeck} from '../lib/deck-html.ts';
 import {rasterize} from '../lib/raster.ts';
-import {geometryChecks} from '../lib/svg-lint.ts';
+import {geometryChecks} from '../lib/geometry-checks.ts';
 
 process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
 test.after(() => closeMeasurer());

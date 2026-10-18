@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {canvas, checkDiagram, closeMeasurer, connect, diagram, group, renderDiagram} from '../lib/dsl.ts';
 import {canvasKeys, canvasTemplates, TEMPLATES} from '../lib/canvas.ts';
 import {lintDiagram} from '../lib/rules.ts';
-import {geometryChecks} from '../lib/svg-lint.ts';
+import {geometryChecks} from '../lib/geometry-checks.ts';
 import type {LaidOutGrid} from '../lib/types/containers.ts';
 import type {LaidOutBox} from '../lib/types/text-bands.ts';
 

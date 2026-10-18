@@ -1,8 +1,6 @@
 // What the Markdown integrations (`svg-diagram md`, markdown-it, remark, VitePress) share: which image targets are diagram sources,
 // where a source may live, and how a figure is put into a page.
 //   `flow.diagram.ts`, optionally `flow.diagram.ts#html` / `#svg` to pick the output for that one figure.
-import fs from 'node:fs';
-import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {scopeRules} from './scope-style.ts';
 export type Render = 'svg' | 'html';
@@ -28,19 +26,6 @@ export const figureName = (file: string): string => file.replace(/^.*[\\/]/, '')
 export const noBlankLines = (s: string): string => s.replace(/\n\s*\n/g, '\n');
 
 export const escAttr = (s: string): string => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-
-/**
- * The absolute path of a source named in a page. The source is imported and run, so it must be inside `root` (default: the
- * working folder): `/etc/x.diagram.ts`, `//host/share/x.diagram.ts`, `C:\x.diagram.ts` and `../../x.diagram.ts` out of the root throw.
- */
-export function resolveSource(file: string, base: string, root: string = process.cwd()): string {
-  if (/^([\\/]|[a-z]:)/i.test(file)) throw new Error(`${file}: an absolute path is not allowed — write it relative to the page`);
-  const abs = path.resolve(base, file);
-  const real = (p: string) => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
-  const rel = path.relative(real(root), real(abs));
-  if (rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) throw new Error(`${file}: outside ${root} — set the root option to allow it`);
-  return abs;
-}
 
 /**
  * The figure's <svg>, ready to sit in a page: its ids (and every reference to them) get a prefix of their own, so two figures —
