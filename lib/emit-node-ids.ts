@@ -11,13 +11,13 @@ import {qualify, scopeOf} from './scope-name.ts';
 import type {LaidOutBand, LaidOutDiagram} from './types/index.ts';
 import type {LaidOutBox} from './types/text-bands.ts';
 
-const nameBox = (b: LaidOutBox, scope: string | undefined): LaidOutBox => b.id && b.frame !== false ? {...b, dataNode: qualify(scopeOf(b) ?? scope, b.id)} : b;
+const nameBox = (b: LaidOutBox): LaidOutBox => b.id && b.frame !== false ? {...b, dataNode: qualify(scopeOf(b), b.id)} : b; // a row's or a grid's boxes are registered without a scope of the row's
 
 export function withNodeIdsBand(band: LaidOutBand): LaidOutBand {
   const scope = scopeOf(band);
   switch (band.type) {
-    case 'box': return nameBox(band, undefined) as LaidOutBand;
-    case 'row': case 'grid': return {...band, children: band.children.map(c => nameBox(c, scope))} as LaidOutBand;
+    case 'box': return nameBox(band) as LaidOutBand;
+    case 'row': case 'grid': return {...band, children: band.children.map(nameBox)} as LaidOutBand;
     case 'tree': return {...band, nodes: band.nodes.map(n => n.id ? {...n, dataNode: qualify(scope, n.id)} : n)};
     case 'cause': return {...band, nodes: band.nodes.map((n, i) => { // anchors[i] is the name of nodes[i] (the layout builds both from the same list)
       const id = band.anchors[i]?.id;
