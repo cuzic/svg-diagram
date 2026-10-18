@@ -12,7 +12,6 @@ import {SHELL} from './helpers/shell.ts';
 
 /** Core files that break a rule today, and the stage of ADR 0031 that removes each. An entry that no longer matches fails the test. */
 const KNOWN: {file: string; rule: string; removedIn: number}[] = [
-  {file: 'dsl/text-bands', rule: 'top-level let', removedIn: 7}, // boxSizeWarned: box({size}) warns once per process. Needs a decision (a lint rule, or the throw the message announces); not a refactor
 ];
 
 /** State that is kept on purpose: a cache keyed by its whole input, or a marker keyed by object identity. */

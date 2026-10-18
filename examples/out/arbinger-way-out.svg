@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="227" viewBox="0 0 940 227" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">箱から出る流れ(と戻り)</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/arbinger-way-out.ts","sourceSha256":"fa6906d1633f735f8faad2c550414abeb6f7578199b8921b024ad1789252012b"}</metadata>
+  <defs>
+    <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="227" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">出口は、行動の技術より、相手の見方が変わること</text>
+
+  <polygon points="20,56 220,56 242,86 220,116 20,116" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <polygon points="246,56 446,56 468,86 446,116 246,116 268,86" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <polygon points="472,56 672,56 694,86 672,116 472,116 494,86" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <polygon points="698,56 898,56 920,86 898,116 698,116 720,86" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="131" y="91.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">箱の中(相手が物)</text>
+  <text x="357" y="91.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">気づく</text>
+  <text x="583" y="91.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">相手を人として見る</text>
+  <text x="809" y="91.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">箱の外で行動</text>
+
+  <text x="20" y="202" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+
+  <path d="M809,116 L809,148 L131,148 L131,116" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <text x="470" y="142" text-anchor="middle" font-size="14" fill="#22201b">再び箱へ</text>
+</svg>
