@@ -117,7 +117,22 @@ export interface RawBand {
 }
 export type RowArrows = 'between' | 'none';
 export type RowJustify = 'stretch' | 'center' | 'start';
+/** A line back to an earlier step, under the boxes of a `steps()` / `row()` of boxes / horizontal `chevron()` (ADR 0029 D4). */
+export interface LoopBack {
+  /** The step the loop leaves and the one it returns to: 1-based numbers (a chevron's item id also works). `from` comes after `to`. */
+  from: number | string;
+  to: number | string;
+  /** One line of text on the loop. */
+  label?: string;
+  /** The label in a bordered pill sitting on the line (default: beside it). */
+  chip?: boolean;
+  tone?: TextTone;
+  /** Default 'solid'; 'dashed' for an exceptional path. */
+  line?: 'solid' | 'dashed' | 'dotted';
+}
 export interface RowOpts {
+  /** The arrows back to earlier boxes, drawn under the row (a row of boxes only). Several loops must nest (one span inside the other). */
+  loopBack?: LoopBack | readonly LoopBack[];
   /** N: shared N-column grid (children take `span` columns, and `col` follows the previous child's span).
    *  [6, 6]: the same grid declared as one span per child (N = their sum; no `span` / `col` on the children). */
   cols?: number | number[];
@@ -131,6 +146,7 @@ export interface RowOpts {
 }
 export interface RowBand {
   type: 'row';
+  loopBack?: LoopBack | readonly LoopBack[];
   id?: string;
   cols?: number;
   children: BoxBand[];
@@ -195,6 +211,8 @@ export interface ConnectOpts extends RevealOpts {
 }
 export interface ConnectBand {
   type: 'connect';
+  /** Set by the loopBack pass: this is the arrow back of a row of steps, not an edge of a graph (graph-orphan-node / graph-disconnected leave it out). */
+  loopBack?: true;
   /** 'id', 'id:side' or 'id:side@t'. */
   from: string;
   to: string;

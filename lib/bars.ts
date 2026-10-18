@@ -1,3 +1,4 @@
+import {insetOrNeed} from './charts-base.ts';
 import {textWidth} from './atoms.ts';
 import {fmt, ticksOf} from './plane.ts';
 import type {BarDatum, BarsBand, BarsInk, BarsLine, LaidOutBars} from './types/bars.ts';
@@ -196,7 +197,8 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
   const valueW = band.stack || !f.showValues ? 0 : Math.max(...band.data.map(d => textWidth(widthOf, valueText(d, band), S, 700))) + 12;
   const tickPadL = band.stack && f.axis ? textWidth(widthOf, ticks[0].label, S, 400) / 2 : 0;
   const tickPadR = band.stack && f.axis ? textWidth(widthOf, ticks[ticks.length - 1].label, S, 400) / 2 : 0;
-  const plotL = x + labelW + tickPadL, plotR = x + w - valueW - tickPadR, plotW = plotR - plotL;
+  const [insetL, insetR] = insetOrNeed('bars()', band.plotInset, labelW + tickPadL, valueW + tickPadR);
+  const plotL = x + insetL, plotR = x + w - insetR, plotW = plotR - plotL;
   if (plotW < (f.axis || f.labels !== 'none' ? 80 : 20)) throw new Error('bars(): the figure is too narrow for its labels');
   const segs = band.data.map(d => segmentOf(d, band, f.labels));
   const hasOutside = band.stack && band.data.some((d, i) => segs[i] && barSpan(d).hi / band.max * plotW < textWidth(widthOf, segs[i], S, 700) + 12);
