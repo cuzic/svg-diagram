@@ -46,7 +46,7 @@ function deepFreeze<T>(v: T, seen = new Set<object>()): T {
 
 test('after the pre-layout passes nothing writes into its input: layout, the post-layout passes, verify and both emitters accept frozen data', async () => {
   for (const abs of EXAMPLES) {
-    const prepared = deepFreeze(runPreLayout(await load(abs)));
+    const prepared = deepFreeze(runPreLayout({...await load(abs)})); // the pre-layout passes write into their input: renderDiagram hands them a copy
     const laid = await layoutDiagram(prepared);
     const post = deepFreeze(runPostLayout(laid));
     const where = name(abs);
