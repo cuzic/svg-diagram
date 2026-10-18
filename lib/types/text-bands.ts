@@ -93,7 +93,7 @@ export interface BoxStyleOpts extends BoxChrome {
   /**
    * @deprecated Has no effect: layout and emit never read it. For big text use a role: stat() / stat({size: 'display'}),
    * caption({role: 'display'}), banner({headlineRole}), bars / plane({labelRole}). box({size}) still passes its px check
-   * (14..72) and warns; the next version throws.
+   * (14..72) and the lint rule box-size-ignored reports it; the next version throws.
    */
   size?: number;
 }
