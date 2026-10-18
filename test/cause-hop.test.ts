@@ -75,5 +75,36 @@ test('hop: true keeps the crossings of a return, and the lines are untouched; wi
 });
 
 test('hop must be true or false', () => {
-  assert.throws(() => causeTree([N('a')], [], {hop: 'yes' as never}), /hop must be true or false/);
+  assert.throws(() => causeTree([N('a')], [], {hop: 'yes' as never}), /hop must be true, false or 'all'/);
+});
+
+test("hop: 'all' also lets an ordinary arrow's run across the layers hop over a line running along the flow", () => {
+  const a = line([{x: 300, y: 100}, {x: 300, y: 400}]), b = {...line([{x: 100, y: 250}, {x: 500, y: 250}]), from: 'e', to: 'f'};
+  assert.deepEqual(causeCrossings([a, b], 'right', BAND, [], []), [], 'only a return hops by default');
+  const [c] = causeCrossings([a, b], 'right', BAND, [], [], true);
+  assert.deepEqual([c.over, c.under, c.x, c.y], [0, 1, 300, 250]);
+  assert.deepEqual(c.side, {x: -1, y: 0});
+  // the line that runs along the flow never hops over the run across it
+  assert.equal(causeCrossings([a, b], 'right', BAND, [], [], true).filter(k => k.over === 1).length, 0);
+});
+
+// a future reality tree whose ordinary arrows cross (no return at all): `hop: true` has nothing to draw, `hop: 'all'` gives each crossing a hop
+const FRT_IDS = ['inj1', 'inj2', 'inj3', 'pre1', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'de1', 'de2', 'de3'];
+const FRT_LINKS = JSON.parse('[{"from":["inj1","pre1"],"to":"n1"},{"from":"n1","to":"n2"},{"from":"inj2","to":"n3"},{"from":"inj2","to":"n5"},{"from":"n3","to":"n4"},{"from":"inj3","to":"n6"},{"from":["n6","n5"],"to":"n7"},{"from":"n2","to":"de1"},{"from":"n4","to":"de1"},{"from":"n7","to":"de1"},{"from":"n3","to":"de1"},{"from":["n2","n4"],"to":"de2"},{"from":"n7","to":"de2"},{"from":"n6","to":"de3"}]');
+test("hop: 'all' gives the crossings of ordinary arrows a hop; hop: true has none to draw there; the routes do not move", () => {
+  const frt = (hop?: boolean | 'all'): LaidOutCause => place(causeTree(FRT_IDS.map(N), FRT_LINKS, {tree: 'frt', dir: 'right', ...(hop === undefined ? {} : {hop})}));
+  const off = frt(), ret = frt(true), all = frt('all');
+  assert.equal(ret.crossings, undefined, 'no return, no crossing of a return');
+  assert.deepEqual(all.edges.map(e => e.points), off.edges.map(e => e.points), 'the routes are the same');
+  const hops = (all.crossings ?? []).filter(c => !c.skipped);
+  assert.ok(hops.length >= 3, `hops ${hops.length}`);
+  assert.ok(hops.every(c => !all.edges[c.over].reversed), 'the arrows that hop are ordinary ones');
+  assert.ok(hops.every(c => c.side.x === -1 && c.side.y === 0), 'in a figure that runs right the hop bulges against the flow');
+  assert.ok(hops.every(c => all.edges[c.over].points.some((p, k, a) => k > 0 && p.x === a[k - 1].x && p.x === c.x)), 'the arrow hops on its run across the layers');
+});
+
+test("hop: 'all' is the same figure every time", () => {
+  const a = place(causeTree(FRT_IDS.map(N), FRT_LINKS, {tree: 'frt', dir: 'right', hop: 'all'})), b = place(causeTree(FRT_IDS.map(N), FRT_LINKS, {tree: 'frt', dir: 'right', hop: 'all'}));
+  assert.deepEqual(a.edges, b.edges);
+  assert.deepEqual(a.crossings, b.crossings);
 });

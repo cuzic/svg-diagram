@@ -41,16 +41,31 @@ export function crossingsOf(paths: P[][], o: CrossOpts = {}): number {
   const m = o.margin ?? 0, tol = o.tol ?? 0;
   const level = (a: P, b: P): boolean => a.y === b.y || Math.abs(a.y - b.y) < tol;
   const plumb = (a: P, b: P): boolean => a.x === b.x || Math.abs(a.x - b.x) < tol;
-  const segs = paths.map(p => p.slice(1).map((q, i) => [p[i], q] as const));
+  // each polyline's horizontal and vertical runs, worked out once (a run that is both level and plumb is a point: it is a run of both kinds, as before)
+  type H = {y: number; lo: number; hi: number}; // a level run: its height and its span
+  type V = {x: number; lo: number; hi: number};
+  const hs: H[][] = [], vs: V[][] = [];
+  for (const p of paths) {
+    const h: H[] = [], v: V[] = [];
+    for (let i = 1; i < p.length; i++) {
+      const a = p[i - 1], b = p[i];
+      if (level(a, b)) h.push({y: a.y, lo: Math.min(a.x, b.x), hi: Math.max(a.x, b.x)});
+      if (plumb(a, b)) v.push({x: a.x, lo: Math.min(a.y, b.y), hi: Math.max(a.y, b.y)});
+    }
+    hs.push(h); vs.push(v);
+  }
   let n = 0;
-  for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) for (const s of segs[i]) for (const t of segs[j]) {
-    const sh = level(s[0], s[1]), sv = plumb(s[0], s[1]), th = level(t[0], t[1]), tv = plumb(t[0], t[1]);
-    if (!((sh && tv) || (sv && th))) continue;
-    const [h, v] = sh ? [s, t] : [t, s];
-    const x = v[0].x, y = h[0].y;
-    if (x > Math.min(h[0].x, h[1].x) + m && x < Math.max(h[0].x, h[1].x) - m && y > Math.min(v[0].y, v[1].y) + m && y < Math.max(v[0].y, v[1].y) - m) n++;
+  for (let i = 0; i < paths.length; i++) for (let j = i + 1; j < paths.length; j++) {
+    for (const [h, v] of [[hs[i], vs[j]], [hs[j], vs[i]]] as const) for (const a of h) for (const b of v) {
+      if (b.x > a.lo + m && b.x < a.hi - m && a.y > b.lo + m && a.y < b.hi - m) n++;
+    }
   }
   return n;
+}
+
+/** The crossings of one polyline with each of the others (the same count as `crossingsOf`, for a figure in which only this one changed). */
+export function crossingsWith(path: P[], others: readonly P[][], o: CrossOpts = {}): number {
+  return crossingsOf([path, ...others], o) - crossingsOf([...others], o);
 }
 
 /** The candidate score of routed arrows: crossings and bends (lower is better; compared crossings first). */

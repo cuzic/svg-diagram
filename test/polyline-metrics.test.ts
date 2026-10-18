@@ -1,7 +1,7 @@
 // node --test test/   — ADR 0016 U1: counting bends, crossings and length of polylines (pure functions of points; no font involved).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {bendsOf, crossingsOf, scoreOf, simplify, totalLength} from '../lib/polyline-metrics.ts';
+import {bendsOf, crossingsOf, scoreOf, simplify, totalLength, crossingsWith} from '../lib/polyline-metrics.ts';
 import {layoutWithLanes, routeLayered} from '../lib/layered-route.ts';
 import {edgeStats} from '../lib/rules.ts';
 import type {LaidOutConnect} from '../lib/types/containers.ts';
@@ -95,4 +95,12 @@ test('runsTogether: two runs side by side (under 4px apart, over 4px long togeth
   assert.equal(runsTogether(h(0, 100, 10), h(50, 150, 14)), false, '4px apart is enough');
   assert.equal(runsTogether(h(0, 100, 10), h(98, 150, 10)), false, 'a touch of 2px');
   assert.equal(runsTogether(h(0, 100, 10), {p: {x: 20, y: 0}, q: {x: 20, y: 50}}), false, 'one horizontal, one vertical');
+});
+
+test('crossingsWith: what one polyline adds to crossingsOf, and the same count when the figure is counted whole', () => {
+  const a = [{x: 0, y: 50}, {x: 100, y: 50}], b = [{x: 30, y: 0}, {x: 30, y: 100}], c = [{x: 70, y: 0}, {x: 70, y: 40}], d = [{x: 10, y: 90}, {x: 90, y: 90}];
+  assert.equal(crossingsWith(a, [b, c, d]), 1, 'a crosses b only (c stops short of it, d is level with it)');
+  assert.equal(crossingsWith(a, [b, c, d]), crossingsOf([a, b, c, d]) - crossingsOf([b, c, d]));
+  assert.equal(crossingsWith(b, [a, d]), 2);
+  assert.equal(crossingsWith(a, []), 0);
 });
