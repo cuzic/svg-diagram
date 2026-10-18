@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="536" viewBox="0 0 940 536" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">PERMA の自己評価（0〜10）</title>
+  <desc id="svg-desc">レーダーチャート（軸: P ポジティブ感情、E エンゲージメント、R 関係性、M 意味・意義、A 達成）。今: P ポジティブ感情 5、E エンゲージメント 7、R 関係性 4、M 意味・意義 6、A 達成 6。3 か月後の目標: P ポジティブ感情 6、E エンゲージメント 7、R 関係性 7、M 意味・意義 7、A 達成 6</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/positive-perma.ts","sourceSha256":"d4c3d2fecc52734766498d17e1f7f564f34881eae0823c971bbfbbfd70f888ff"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="536" fill="#ffffff"/>
+
+  <path d="M470,199.2 L503.1,223.2 L490.5,262.2 L449.5,262.2 L436.9,223.2 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,164.4 L536.2,212.5 L510.9,290.3 L429.1,290.3 L403.8,212.5 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,129.6 L569.3,201.7 L531.4,318.5 L408.6,318.5 L370.7,201.7 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,94.8 L602.4,191 L551.8,346.6 L388.2,346.6 L337.6,191 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,60 L635.5,180.2 L572.3,374.8 L367.7,374.8 L304.5,180.2 Z" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,234 L470,60" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,234 L635.5,180.2" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,234 L572.3,374.8" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,234 L367.7,374.8" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,234 L304.5,180.2" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,147 L585.8,196.4 L510.9,290.3 L408.6,318.5 L370.7,201.7 Z" fill="none" stroke="#1d5fa8" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M470,129.6 L585.8,196.4 L541.6,332.5 L398.4,332.5 L370.7,201.7 Z" fill="none" stroke="#22201b" stroke-width="3" stroke-linejoin="round" stroke-dasharray="8,5"/>
+  <path d="M465,147 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M580.8,196.4 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M505.9,290.3 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M403.6,318.5 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M365.7,201.7 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M465,124.6 H475 V134.6 H465 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M580.8,191.4 H590.8 V201.4 H580.8 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M536.6,327.5 H546.6 V337.5 H536.6 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M393.4,327.5 H403.4 V337.5 H393.4 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M365.7,196.7 H375.7 V206.7 H365.7 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="470" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">P ポジティブ感情</text>
+  <text x="649" y="172" font-size="14" font-weight="700" fill="#22201b">E エンゲージメント</text>
+  <text x="581" y="400" font-size="14" font-weight="700" fill="#22201b">R 関係性</text>
+  <text x="359" y="400" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">M 意味・意義</text>
+  <text x="291" y="172" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">A 達成</text>
+  <text x="479" y="65" font-size="14" fill="#6f6659">10</text>
+  <text x="479" y="100" font-size="14" fill="#6f6659">8</text>
+  <text x="479" y="125" font-size="14" fill="#6f6659">6</text>
+  <text x="479" y="169" font-size="14" fill="#6f6659">4</text>
+  <text x="479" y="204" font-size="14" fill="#6f6659">2</text>
+  <text x="470" y="113" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">5</text>
+  <text x="599" y="190" font-size="14" font-weight="700" fill="#1d5fa8">7</text>
+  <text x="519" y="314" font-size="14" font-weight="700" fill="#1d5fa8">4</text>
+  <text x="419" y="308" font-size="14" font-weight="700" fill="#1d5fa8">6</text>
+  <text x="357" y="195" text-anchor="end" font-size="14" font-weight="700" fill="#1d5fa8">6</text>
+  <text x="460" y="120" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">6</text>
+  <text x="596" y="218" font-size="14" font-weight="700" fill="#22201b">7</text>
+  <text x="550" y="356" font-size="14" font-weight="700" fill="#22201b">7</text>
+  <text x="390" y="356" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">7</text>
+  <text x="381" y="224" font-size="14" font-weight="700" fill="#22201b">6</text>
+  <path d="M361.1,462 L391.1,462" fill="none" stroke="#1d5fa8" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M371.1,462 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="399" y="467" font-size="14" fill="#22201b">今</text>
+  <path d="M441.1,462 L471.1,462" fill="none" stroke="#22201b" stroke-width="3" stroke-linejoin="round" stroke-dasharray="8,5"/>
+  <path d="M451.1,457 H461.1 V467 H451.1 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="479" y="467" font-size="14" fill="#22201b">3 か月後の目標</text>
+
+  <text x="20" y="510" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

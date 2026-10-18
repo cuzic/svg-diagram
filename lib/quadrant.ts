@@ -52,6 +52,19 @@ export interface QuadrantItem {
 export type QuadrantEnd = string | [x: number, y: number];
 /** A movement (portfolio shift): from → to. */
 export interface QuadrantArrow {from: QuadrantEnd; to: QuadrantEnd; label?: string; dashed?: boolean}
+/**
+ * A region of the plot that is not a grid cell: a polygon in value space (each point [x, y], 0..1, 1 = high, whichever way the axis is drawn),
+ * so a diagonal band (the flow channel between anxiety and boredom) can be drawn. It carries its own words; later regions are drawn over earlier ones.
+ */
+export interface QuadrantRegion {
+  title: string;
+  note?: string;
+  tone?: QuadrantTone;
+  /** At least 3 corners. */
+  points: readonly (readonly [x: number, y: number])[];
+  /** Where the caption is centred, [x, y] in value space (default: the middle of the polygon). */
+  at?: readonly [x: number, y: number];
+}
 export interface QuadrantOpts extends RevealOpts, ScopeOpts {
   /** A spotlight target and a connect() endpoint (the whole figure); each item's id is an anchor too. */
   id?: string;
@@ -71,6 +84,8 @@ export interface QuadrantOpts extends RevealOpts, ScopeOpts {
   groups?: readonly string[];
   /** No gaps between the cells: the cells read as one plot cut by a crosshair. */
   crosshair?: boolean;
+  /** Free-shaped regions (diagonal bands) drawn over the cells. They need `crosshair: true` and cells without captions: the regions carry the words. */
+  regions?: readonly QuadrantRegion[];
   /** Least height of the plot (px); the rows grow when the items need more room. */
   height?: number;
   width?: number;
@@ -95,6 +110,7 @@ export interface QuadrantBand {
   sizeUnit?: string;
   groups: string[];
   crosshair: boolean;
+  regions: QuadrantRegion[];
   height?: number;
   width?: number;
   allowEmpty?: true | [number, number][];
@@ -122,6 +138,8 @@ export interface LaidOutQuadrant extends Rect, Dimmed {
   plot: Rect;
   crosshair: boolean;
   cells: (Rect & {tone: QuadrantTone})[];
+  /** The free-shaped regions as pixel polygons, in drawing order (their captions are in `texts`). */
+  regions: {points: [number, number][]; tone: QuadrantTone}[];
   /** The lines of a crosshair (the inner cell borders). */
   lines: {x1: number; y1: number; x2: number; y2: number}[];
   texts: QuadrantText[];
@@ -296,10 +314,24 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
     if (!Array.isArray(e) || !Number.isInteger(e[0]) || !Number.isInteger(e[1]) || e[0] < 0 || e[1] < 0 || e[0] >= cols || e[1] >= rows) throw new Error(`quadrant(): allowEmpty cell ${JSON.stringify(e)} is outside the ${cols} x ${rows} grid (columns 0..${cols - 1}, rows 0..${rows - 1}, from the top-left), or use true`);
   }
   for (const [k, v] of [['height', opts.height], ['width', opts.width]] as const) if (v !== undefined && !(typeof v === 'number' && v > 0 && Number.isFinite(v))) throw new Error(`quadrant(): ${k} must be a finite number > 0 (got ${v})`);
+  const regions = (opts.regions ?? []).map((r): QuadrantRegion => ({...r, points: r?.points?.map(pt => [...pt] as [number, number])}));
+  if (regions.length) {
+    const crosshair = opts.crosshair ?? p?.crosshair ?? false;
+    if (!crosshair) throw new Error('quadrant(): regions are drawn over one continuous plot — write crosshair: true (or the preset "positioning")');
+    if (cells.some(row => row.some(cell => cell.title || cell.note))) throw new Error('quadrant(): regions carry the words of the figure, so the cells must have no title / note (a caption strip would shift the items off the regions) — use preset "positioning" or leave cells out');
+  }
+  const unit = (v: unknown): boolean => typeof v === 'number' && v >= 0 && v <= 1;
+  regions.forEach((r, i) => {
+    const what = `quadrant() region ${i + 1}${r?.title ? ` "${r.title}"` : ''}`;
+    if (!r || typeof r.title !== 'string' || !r.title) throw new Error(`${what}: needs a title (the region's name in words)`);
+    if (!Array.isArray(r.points) || r.points.length < 3 || !r.points.every(pt => Array.isArray(pt) && pt.length === 2 && pt.every(unit))) throw new Error(`${what}: points must be at least 3 corners [x, y], each from 0 to 1 (got ${JSON.stringify(r.points)})`);
+    if (r.at !== undefined && !(Array.isArray(r.at) && r.at.length === 2 && r.at.every(unit))) throw new Error(`${what}: at must be [x, y] with both from 0 to 1 (got ${JSON.stringify(r.at)})`);
+    if (r.tone !== undefined && !CELL_TONES.includes(r.tone)) throw new Error(`${what}: tone must be ${CELL_TONES.join(' / ')} (got ${JSON.stringify(r.tone)})`);
+  });
   assertScope(opts.scope, 'quadrant()');
   return {
     type: 'quadrant', ...(opts.id ? {id: opts.id} : {}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until}),
-    x, y, cols, rows, cells, items, arrows, groups, crosshair: opts.crosshair ?? p?.crosshair ?? false,
+    x, y, cols, rows, cells, items, arrows, groups, crosshair: opts.crosshair ?? p?.crosshair ?? false, regions,
     ...(opts.sizeTitle === undefined ? {} : {sizeTitle: opts.sizeTitle}), ...(opts.sizeUnit === undefined ? {} : {sizeUnit: opts.sizeUnit}),
     height: opts.height ?? p?.height, ...(opts.width === undefined ? {} : {width: opts.width}),
     ...(opts.allowEmpty === undefined ? {} : {allowEmpty: opts.allowEmpty === true ? true : opts.allowEmpty.map(([c, r]) => [c, r] as [number, number])}),
@@ -330,6 +362,7 @@ export function quadrantTexts(b: QuadrantBand, roles: Roles): [string, number, n
   const add = (s: string | undefined, size: number, weight = 400) => { if (s) out.push([s, size, weight, 'sans']); };
   for (const a of [b.x, b.y]) { add(a.title, roles.title, 700); add(a.low, roles.note); add(a.high, roles.note); }
   for (const row of b.cells) for (const cell of row) { add(cell.title, roles.title, 700); add(cell.note, roles.note); }
+  for (const r of b.regions) { add(r.title, roles.title, 700); add(r.note, roles.note); }
   for (const it of b.items) add(it.label, roles.note);
   for (const a of b.arrows) add(a.label, roles.note);
   for (const g of b.groups) add(g, roles.note);
@@ -484,6 +517,25 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
       }
     }));
 
+    // ---- free-shaped regions: pixel polygons over the plot (value space -> the plot, which is one piece here: crosshair, no caption strips) and their captions
+    const plotPx = (vx: number, vy: number): [number, number] => [plotL + (band.x.reversed ? 1 - vx : vx) * plotW, band.y.reversed ? plotT + vy * plotH : plotB - vy * plotH];
+    const regionPolys: LaidOutQuadrant['regions'] = band.regions.map(r => ({points: r.points.map(([vx, vy]) => plotPx(vx, vy)), tone: r.tone ?? 'plain'}));
+    const regionW = Math.max(90, Math.min(plotW * 0.3, 190));
+    band.regions.forEach(r => {
+      const t = wrap(r.title, tSize, 700, regionW), n = r.note ? wrap(r.note, size, 400, regionW) : [];
+      const at = r.at ?? [r.points.reduce((a, pt) => a + pt[0], 0) / r.points.length, r.points.reduce((a, pt) => a + pt[1], 0) / r.points.length] as const;
+      const [cx0, cy0] = plotPx(at[0], at[1]);
+      const wd = Math.max(widest(t, tSize, 700), widest(n, size, 400)), hh = t.length * lineT + n.length * lineN;
+      // the caption stays inside the plot
+      const cx = Math.min(plotR - MARGIN - wd / 2, Math.max(plotL + MARGIN + wd / 2, cx0)), top = Math.min(plotB - MARGIN - hh, Math.max(plotT + MARGIN, cy0 - hh / 2));
+      let ty = top;
+      for (const line of t) { texts.push({text: line, x: cx, y: ty + tSize, anchor: 'middle', size: tSize, bold: true, fill: r.tone === 'accent' ? 'accent' : r.tone === 'danger' ? 'danger' : 'text'}); ty += lineT; }
+      for (const line of n) { texts.push({text: line, x: cx, y: ty + size, anchor: 'middle', size, bold: false, fill: 'muted'}); ty += lineN; }
+      const box = {x: cx - wd / 2, y: top, w: wd, h: hh};
+      headers.push(box);
+      labelBoxes.push({...box, label: [...t, ...n].join(' '), kind: 'caption'});
+    });
+
     // ---- placing items: the bubble and its label are one unit, checked against everything placed before
     const placed: {u: Unit; spot: Spot}[] = [];
     const labelAt = (u: Unit, side: Side, cx: number, cy: number): Rect & {anchor: 'start' | 'middle' | 'end'; tx: number} => {
@@ -563,7 +615,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
         top += rowHs[fi] + 10;
       });
     }
-    return {rowH, plotT, plotB, plot, placed, moved, texts, labelBoxes, headers, cellRect, toCell, inPlot, free, labelAt};
+    return {regionPolys, rowH, plotT, plotB, plot, placed, moved, texts, labelBoxes, headers, cellRect, toCell, inPlot, free, labelAt};
   };
 
   let result: ReturnType<typeof attempt> | undefined, lastWhy = '';
@@ -574,7 +626,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     }
   }
   if (!result) throw new Error(`quadrant(): ${lastWhy}, even with the rows grown — fewer items, smaller sizes, a wider figure or a coarser grid`);
-  const {rowH, plotT, plotB, plot, placed, moved, texts, labelBoxes, cellRect, toCell} = result;
+  const {regionPolys, rowH, plotT, plotB, plot, placed, moved, texts, labelBoxes, cellRect, toCell} = result;
   placed.sort((a, b) => a.u.i - b.u.i);
 
   // ---- bubbles, anchors
@@ -694,11 +746,11 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
 
   const taken = new Set(bubbles.map(b => b.cell));
   const allowed = band.allowEmpty;
-  const emptyCells = allowed === true ? [] : band.cells.flatMap((rowCells, r) => rowCells.flatMap((cell, k) =>
+  const emptyCells = allowed === true || band.regions.length ? [] : band.cells.flatMap((rowCells, r) => rowCells.flatMap((cell, k) =>
     taken.has(r * cols + k) || allowed?.some(([c, rr]) => c === k && rr === r) ? [] : [`${cell.title ? `${cell.title} ` : ''}[${k}, ${r}]`]));
 
   return {
     type: 'quadrant', ...(band.id ? {id: band.id} : {}), x, y, w, h, ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until}),
-    plot, crosshair: band.crosshair, cells, lines, texts, bubbles, arrows, chips, marks, anchors, labelBoxes, moved, floored, emptyCells,
+    plot, crosshair: band.crosshair, cells, regions: regionPolys, lines, texts, bubbles, arrows, chips, marks, anchors, labelBoxes, moved, floored, emptyCells,
   };
 }
