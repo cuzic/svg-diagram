@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="1044" viewBox="0 0 940 1044" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">同じ 3 人、同じ場面。構えが替わると、役割の回り方が変わる</title>
   <desc id="svg-desc">表: 列 人、①、②、③</desc>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/drama-triangle.ts","sourceSha256":"06e4ca1a356b642106438a543bb55e1d90b484a8b9b005c30183c1b3d0a8eb4b"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/drama-triangle.ts","sourceSha256":"6ea077945fbadd99a0961884b8610049a8846af2187558a113dae3f6be266fdc"}</metadata>
   <defs>
     <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>

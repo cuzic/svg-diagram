@@ -1,5 +1,5 @@
 // ドラマの三角形と TED*(説明用の架空の例)。頂点(役割)は固定し、人だけが入れ替わる。変わらない土台は外枠の見出しと表で見せる。
-// 帯は作らず、既存の部品(group / row / box / connect / table)で描く(ADR 0033)。人は記号 Ⓐ Ⓑ Ⓒ で追い、役割は線とラベルでも区別する(白黒でも読める)。
+// 帯は作らず、既存の部品(group / row / box / connect / table)で描く(ADR 0034)。人は記号 Ⓐ Ⓑ Ⓒ で追い、役割は線とラベルでも区別する(白黒でも読める)。
 // TED* の三角形の向きは作図上の配置で、出典の図ではない。
 // ビルド: svg-diagram build examples/drama-triangle.ts --out examples/out/drama-triangle.svg
 import {box, connect, diagram, group, row, spacer, table} from 'svg-diagram';
