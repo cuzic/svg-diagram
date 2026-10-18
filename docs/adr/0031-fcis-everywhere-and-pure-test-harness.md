@@ -1,6 +1,6 @@
 # ADR 0031: FCIS を全体に(殻の明示・状態の値化・純粋関数の網羅テスト)
 
-- 状態: 草案 改訂 4(Opus レビュー収束、実装前)
+- 状態: 実装済み(段階 0〜6 が PR #276〜#284。改訂 5)
 - 日付: 2026-10-17
 - 基点: `main`(7c79971、PR #272 まで)
 - 関連: ADR 0007(描画の状態を値にする・依存方向の検査)
@@ -97,7 +97,27 @@ ADR 0007 が採らなかった「Measurer のインスタンス化」は、こ�
 - 出力は不変を原則とし、例外(PPTX の tones)は直る方向に限る。
 - 採らない: `lib/core/` と `lib/shell/` への物理移動(進行中の worktree との衝突)、Effect 系ライブラリ、`fast-check` の早期導入(性質テストが 10 本を超えるまで)。
 
-## 未決
+## 実装での決定(ADR 草案からの差)
 
-1. `fast-check` を入れるタイミング(10 本を超えた段階で、でよいか)。
-2. `icon-registry` を `through: 'allow'` で残すか、`explicit` を値にして本当に純粋にするか。
+実装中に変えたもの。理由は実測にある。
+
+- **§2 `ToneEnv`**:メソッドを持つオブジェクトでなく、**env を引数に取る関数**(`toneStyle(env, tone)` など)にした。env の位置は、`tokens.ts` と `resolveBoxStyle` 系では第 1 引数、emit・pptx・layout では `day` の次、verify の検査では最後(既存の 3 引数の検査を編集せずに済むため)。`toneEnv(tones)` は上書きオブジェクトを鍵にした `WeakMap` で同じ env を返す。`NO_TONES` は図を持たない場所(DSL 構築中の `rich.ts`、SVG テキストだけを読む `appearance-auto.ts` の `autoSides`、外観の検証)に限った。`NO_TONES` はどこでも型検査を通るので、渡し忘れを型が守らない点は残る(レビュー指摘。段階 6 の検査で `NO_TONES` を使ってよい場所を列挙する案は未実施)。
+- **§2 wrap / keepWords**:`WrapOptions.mode` を必須にし、`LayoutCtx` が `wrap` と `keepWords` を持つ。下限(`keepWords`)は `plan.build` の引数。
+- **§3 `emit-html`**:焼き込み(`LaidOutDiagram.fontBox`)でなく、**`FontBox` 関数を `emitHtml` の `fontBox` オプションで受ける**形にした。HTML で使う `(size, weight, mono)` の組はレイアウト後に決まり、走査して集める必要がない。`lib/font-box.ts`(殻)が作り、`dsl/render` が渡す。`emitOutputs` は `html` なのに `fontBox` が無ければ例外にする(黙った既定値を避ける)。測定設定は `LaidOutDiagram.measure` に残る。
+- **§2 測定設定**:`MeasureSettings` を `applyConfig` が図に載せ(`DiagramData.measure`)、`layoutDiagram` が `opts.measure ?? d.measure ?? 既定` を使い、`measureAll` は呼び出しの冒頭で設定を 1 度だけ読む。`configureMeasure()` は残るが、設定を持たない呼び出し(CLI、テスト)のための既定を決めるだけ。Chromium へのフォールバックは設定ごとに覚える。
+- **§3 切り出し**:`svg-geom` / `svg-lint`(`TextBoxFn`)、`markdown-target`(`resolveSource` を `source-path.ts` へ)、`freshness`(`freshness-judge.ts`)、`markdown`(`markdown-scan.ts`)。`slide-budget` は対象外のまま。
+- **§4 ハーネス**:関数単位の純粋判定はせず、モジュール単位の状態禁止(§1)に頼った。穴の判定は「他の `lib` から使われている export を、テストが名前で import しているか」。固定した穴は 402 個。入口の凍結は 153 の example で行い、`layoutMatrix` の入力破壊(`row.cells`)を見つけて直した。
+
+## 実装で見つかったもの
+
+- `charts-lines.ts:136` が target 線のラベル余白を 1 倍の `ROLES` で計算する(fill 図で少し近い)。ビルダーの許可一覧に理由つきで載せた。別件。
+- PPTX が `diagram({tones})` を無視していた不具合は、段階 2 で直った(`emphasis-tiers` の PPTX golden だけが変わった)。
+- 状態の漏れは、`tones`(PPTX のみ)と測定設定(並行描画で幅が混ざる)で実在し、`wrap` では実在しなかった(同期なので漏れず、動機は将来の `await` だけ)。
+
+## 残り
+
+- `dsl/text-bands.ts` の `box({size})` の警告(「プロセスで 1 回」)。lint ルールにするか、メッセージが予告している throw にするかは挙動の変更で、リファクタには含めなかった。core-purity の既知違反(`removedIn: 7`)として残っている。
+- `image-file.ts` の `sourceDir`(動的スコープ)。`define` に引数で渡すには公開 API の見直しが要る。
+- `fast-check` は入れていない(性質テストは 7 本で、10 本を超えていない)。
+- `icon-registry` は `through: 'allow'` の殻のまま(`icon.use()` と cwd に依存する状態)。
+- `NO_TONES` の使用場所を検査で列挙する案。
