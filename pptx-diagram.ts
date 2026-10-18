@@ -2,7 +2,7 @@
 // svg-diagram pptx <source.ts>... [--out FILE | --out-dir DIR] [--png-scale N] [--font NAME]
 import fs from 'node:fs';
 import path from 'node:path';
-import {register} from 'node:module';
+import {installResolveHook} from './lib/resolve-hook.ts';
 import {loadConfig} from './lib/config.ts';
 import {loadDiagram} from './lib/load-source.ts';
 import {renderDiagram} from './lib/dsl/render.ts';
@@ -10,7 +10,7 @@ import {closeMeasurer} from './lib/measure.ts';
 import {emitPptx, fontFilesOf} from './lib/pptx/emit.ts';
 import {formatBuildError} from './lib/error-format.ts';
 
-register(import.meta.url.endsWith('.ts') ? './lib/resolve-hook.ts' : './lib/resolve-hook.js', import.meta.url);
+installResolveHook();
 const USAGE = 'Usage: svg-diagram pptx <source.ts>... [--out FILE | --out-dir DIR] [--png-scale N] [--font NAME]';
 const args = process.argv.slice(2), values = ['--out', '--out-dir', '--png-scale', '--font'];
 const usage = (message?: string): never => { console.error(message ? `✗ ${message}\n${USAGE}` : USAGE); process.exit(2); };

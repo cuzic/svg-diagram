@@ -3,9 +3,9 @@
 // ready to paste under the figure; `check --docs` compares such a list with the figure's own notes.
 // A source with several annotated wireframes gets one list per screen, each after a <!-- 画面 N --> line.
 import path from 'node:path';
-import {register} from 'node:module';
+import {installResolveHook} from './lib/resolve-hook.ts';
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
-register(`./lib/resolve-hook.${EXT}`, import.meta.url);
+installResolveHook();
 const {notesOf, formatNotes} = await import('./lib/docs-check.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
 

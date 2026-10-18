@@ -43,10 +43,10 @@ import path from 'path';
 import {execFileSync} from 'node:child_process';
 import type {FindingData} from './lib/types/verdicts.ts';
 import type {MapRow} from './lib/docs-check.ts';
-import {register} from 'node:module';
+import {installResolveHook} from './lib/resolve-hook.ts';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
-register(`./lib/resolve-hook.${EXT}`, import.meta.url);
+installResolveHook();
 const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
 const {depsSha256} = await import('./lib/source-deps.ts');
 const {RULE_DOCS} = await import('./lib/rules.ts');
