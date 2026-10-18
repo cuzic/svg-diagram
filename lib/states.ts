@@ -2,6 +2,7 @@
 // node; a transition is an orthogonal arrow routed through the layers it skips; a label sits on the arrow in a white chip.
 import {textWidth} from './atoms.ts';
 import {fitLayout} from './fit-width.ts';
+import {statesProblems} from './verify-base.ts';
 import {gapFor, layeredAttempt, stubOf} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
@@ -34,6 +35,15 @@ function pointAt(pts: Pt[], t: number): Pt {
 }
 
 export function layoutStatesBand(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutStates {
+  const out = layoutStatesBandAt(band, x, y, w, widthOf, roles, env, heightBudget);
+  if (env.space === undefined || env.space === 1) return out;
+  // `density: 'compact'` must not make the check find more wrong in a state diagram (a label on another label or arrow, an arrow through a state): then it is drawn at the normal gaps
+  const bad = statesProblems(out).length;
+  if (bad === 0) return out;
+  try { const normal = layoutStatesBandAt(band, x, y, w, widthOf, roles, {...env, space: 1}, heightBudget); return statesProblems(normal).length < bad ? normal : out; } catch { return out; }
+}
+
+function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutStates {
   const S = roles.note;
   const ids = new Set<string>();
   for (const s of band.states) {

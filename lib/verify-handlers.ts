@@ -12,7 +12,7 @@ import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 import {spotlightDim} from './spotlight.ts';
 import {legibilityProblem} from './wordart.ts';
 import {andClashes} from './cause-clash.ts';
-import {CONTRAST_THRESHOLD, dxdy, eachOverlap, labelOf, neverTogether, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes} from './verify-base.ts';
+import {CONTRAST_THRESHOLD, dxdy, eachOverlap, labelOf, neverTogether, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes, statesProblems} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import type {EmphasisTone, Rect} from './types/core.ts';
 import type {LaidOutDiagram} from './types/index.ts';
@@ -65,18 +65,7 @@ const checkTimeline = (band: LaidOutOf<'timeline'>, _d: LaidOutDiagram, {problem
 
 // A transition must not run through a state it does not touch; its label chip must stay inside the figure and clear of states and other chips.
 const checkStates = (band: LaidOutOf<'states'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  problems.push(...routesThroughNodes(band.edges, band.anchors, (e, n) => `states: transition ${e.from} -> ${e.to} runs through state "${n.id}" (reorder the states, or change dir)`));
-  for (const [i, l] of band.labels.entries()) {
-    if (outsideX(l, band)) problems.push(`states: label "${l.text}" runs outside the figure (shorten it or widen the figure)`);
-    for (const n of band.anchors) if (rectOverlap(l, n)) problems.push(`states: label "${l.text}" overlaps state "${n.id}" (shorten the label)`);
-    band.edges.forEach((e, k) => { // the chip is white: on another arrow it would cut it
-      if (k !== l.edge && routeHits(e.points, l)) problems.push(`states: label "${l.text}" sits on the arrow ${e.from} -> ${e.to} (it belongs to another arrow)`);
-    });
-    for (let j = i + 1; j < band.labels.length; j++) {
-      const o = rectOverlap(l, band.labels[j]);
-      if (o) problems.push(`states: label "${l.text}" overlaps label "${band.labels[j].text}" by ${dxdy(o)}`);
-    }
-  }
+  problems.push(...statesProblems(band));
 };
 
 // A gantt's texts must stay inside the figure and apart (the today label against the tick labels, a long tick against the edge).
