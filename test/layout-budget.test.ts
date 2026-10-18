@@ -17,6 +17,7 @@ const BUDGET: Record<string, Record<string, number>> = {
   'facet': {'layout-sibling-size': 1},
   'hero': {'layout-unused-space': 3},
   'icons': {'layout-sibling-size': 6},
+  'immunity-map': {'layout-sibling-size': 1, 'layout-unused-space': 2},
   'math-formula': {'layout-figure-offset': 1},
   'people': {'layout-figure-narrow': 1},
   'spotlight': {'layout-sibling-size': 1},
