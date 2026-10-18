@@ -61,6 +61,8 @@ export type LaidOutBand = (
 /** layoutDiagram() output: the diagram data plus everything layout computed. */
 export interface LaidOutDiagram extends DiagramData {
   laidOut: LaidOutBand[];
+  /** wrap: 'bunsetsu-soft' did not fit the figure, so it was laid out as 'phrase' (the rule wrap-fell-back says so). */
+  wrapFellBack?: true;
   canvasHeight: number;
   /** The height the bands need, before diagram({canvas}) pads the canvas up to its fixed height. */
   contentHeight?: number;

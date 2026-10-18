@@ -65,7 +65,8 @@ export const RULE_DOCS = {
   'text-mid-word-break': "レイアウトが、カタカナの語(「コンテキス/ト」)や英数字の語の途中で行を割っている。箱や列が最長の語より狭いときに起きる。diagram({keepWords: true}) で、箱を最長のカタカナの語より狭くしない(causeTree / tree / mindmap / faultTree / states / bpmn の task。cloud・chevron・cycle・swimlane には効かない)。ほかに、箱の幅を広げる・向き(dir)や maxNodeW を変える・文言を短くする・語の前後で改行を書く。漢字どうしの途中の改行は対象外。スペースの無い複合語の境目(「キャプチャ/ステージ」)は辞書なしでは見分けられず、誤検出になりうる(accept で許容する)",
   'glyph-missing': "図の文字に、絵文字として扱われない絵記号(✅ ❌ など。EMOJI_RE の外)がある。通常の文字のフォントで描かれ、字形が無いと空白になる(resvg のプレビューで確認できる)。icon.emoji() か SVG アイコン(box({icon}))を使うか、✓ ✗ などの字に置き換える",
   'connect-label-covers-arrow': "矢印のラベル(の下地)が、矢印の経路の 6 割より多くを覆い、見える部分が 20px に満たない。箱の間が狭く、矢じりや向きが読めなくなる。箱の間隔を広げる・ラベルを短くする・ラベルを箱の中に書く",
-  'chart-axis-mismatch': "同じ単位で、横に並べる(同じ grouprow の別の group)か縦に続ける(間に別のチャートを挟まない)2 つのチャートの値の軸が違う。それぞれが自分のデータに合わせて軸を決めるので、同じ長さが別の値に見える(5.76 と 9.5 がほぼ同じ長さ)。両方に同じ domain: [0, 10] を書く(bars は max)。意図して別の量を別の軸で描くなら、axisGroup: false か accept",
+  'chart-axis-mismatch': "同じ単位で、横に並べる(同じ grouprow の別の group)か縦に続ける(間に別のチャートを挟まない)2 つのチャートの値の軸が違う。それぞれが自分のデータに合わせて軸を決めるので、同じ長さが別の値に見える(5.76 と 9.5 がほぼ同じ長さ)。両方に同じ domain: [0, 10] を書く(bars は max)。横向きのチャートは、ラベルの列の幅が違うと同じ値が別の長さに見えるので plotInset もそろえる。意図して別の量を別の軸で描くなら、axisGroup: false か accept",
+  'wrap-fell-back': "wrap: 'bunsetsu-soft' で、文節で折ると図が幅に収まらなかったので、従来の折り方(phrase)で配置した(情報。漢字・ひらがなの途中で折れる行が残る)。図を 2 枚に分ける・文言を短くする・図の幅を広げると、文節で折れる。",
   'shrink-narrow-text': "fit: 'shrink' で bpmn / swimlane を詰めた結果、task / step の幅が狭すぎて本文が 2〜3 字ずつ折れる。縦向き・図の分割・文言の短縮を検討する",
   'gray-tone-collision': '使っている 2 つのトーンの塗りが、白黒（グレースケール）にすると見分けにくい（明度差 L* が 10 未満。破線などの形の手がかりがあれば除く）',
   'rowheader-tone-collides': '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある',
@@ -693,7 +694,7 @@ function headlineLength(d: LintTarget, out: Finding[]): void {
 // a connected diagram (3+ arrows) should read as one graph: a box with an id that no arrow touches is a forgotten link,
 // and arrows that split into separate clumps are probably two stories in one picture
 function graphRules(d: LintTarget, out: Finding[]): void {
-  const connects = d.connects ?? [];
+  const connects = (d.connects ?? []).filter(c => !c.loopBack); // the arrow back of a step row is not an edge of a graph
   if (connects.length < 3) return;
   const parent = new Map<string, string>();
   const find = (x: string): string => { let r = x; while (parent.get(r) !== r) r = parent.get(r)!; parent.set(x, r); return r; };
@@ -752,10 +753,11 @@ function labelCoverRules(d: LintTarget, out: Finding[]): void {
 }
 function axisRules(d: LintTarget, out: Finding[]): void {
   const found = axisMismatches(d.bands);
-  if (found.length) out.push({rule: 'chart-axis-mismatch', severity: 'warn', message: `比べて読む 2 つのチャートの値の軸が違う: ${found.slice(0, 3).join('。')}${found.length > 3 ? ` ほか ${found.length - 3} 組` : ''}。同じ長さが別の値に見える。直し方: 両方に同じ domain を書く（bars は max）。意図して別の軸なら axisGroup: false か accept`});
+  if (found.length) out.push({rule: 'chart-axis-mismatch', severity: 'warn', message: `比べて読む 2 つのチャートの値の軸が違う: ${found.slice(0, 3).join('。')}${found.length > 3 ? ` ほか ${found.length - 3} 組` : ''}。同じ長さが別の値に見える。直し方: 両方に同じ domain を書く（bars は max）。横向きのチャートは、ラベルの列の幅が違うと同じ値が別の長さに見えるので、plotInset もそろえる。意図して別の軸なら axisGroup: false か accept`});
 }
 function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const out: Finding[] = [];
+  if (d.wrapFellBack) out.push({rule: 'wrap-fell-back', severity: 'info', message: "wrap: 'bunsetsu-soft': 文節で折ると図が幅に収まらなかったので、従来の折り方（phrase）で配置した。漢字・ひらがなの途中で折れる行が残る。図を 2 枚に分ける、文言を短くする、図の幅を広げると、文節で折れる"});
   axisRules(d, out);
   labelCoverRules(d, out);
   midWordRules(d, out);

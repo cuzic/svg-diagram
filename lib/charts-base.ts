@@ -81,6 +81,18 @@ export function checkDomain(who: string, domain: readonly [number, number] | und
   if (!Array.isArray(domain) || domain.length !== 2 || !domain.every(Number.isFinite) || !(domain[0] < domain[1])) fail(who, `domain must be [lo, hi] with finite numbers and lo < hi (got ${JSON.stringify(domain)})`);
   return [domain[0], domain[1]];
 }
+/** `plotInset: [left, right]` of a horizontal chart: how far the plot area starts from the chart's left edge and ends from its right edge (px). */
+export function checkInset(who: string, inset: readonly [number, number] | undefined): [number, number] | undefined {
+  if (inset === undefined) return undefined;
+  if (!Array.isArray(inset) || inset.length !== 2 || !inset.every(v => Number.isFinite(v) && v >= 0)) fail(who, `plotInset must be [left, right], two numbers >= 0 (got ${JSON.stringify(inset)})`);
+  return [inset[0], inset[1]];
+}
+/** The plot's left and right margins: what the labels need, or the written `plotInset` when it leaves room for them (so that charts written with the same inset have the same plot area). */
+export function insetOrNeed(who: string, inset: readonly [number, number] | undefined, needLeft: number, needRight: number): [number, number] {
+  if (inset === undefined) return [needLeft, needRight];
+  if (inset[0] < needLeft - 0.5 || inset[1] < needRight - 0.5) fail(who, `plotInset [${Math.round(inset[0])}, ${Math.round(inset[1])}] leaves too little room for the labels: this chart needs at least [${Math.ceil(needLeft)}, ${Math.ceil(needRight)}] (write the largest of the charts you want to line up)`);
+  return [inset[0], inset[1]];
+}
 /** The value axis of a chart: from the data, or from its written `domain` (widened to round ticks like any axis). A domain smaller than the data is an error: the bars would leave the plot. */
 export function valueScale(who: string, lo: number, hi: number, domain?: readonly [number, number]): ReturnType<typeof niceScale> {
   if (domain === undefined) return niceScale(lo, hi);
