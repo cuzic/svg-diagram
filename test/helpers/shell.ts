@@ -17,7 +17,7 @@ export const SHELL: Record<string, Shell> = {
   'icon-install': {reason: 'installs icon packs (fs, process)'},
   'icon-pack': {reason: 'fetches icon packs (fs, os, child_process)'},
   'icon-registry': {reason: 'resolves an installed glyph: reads svg-diagram.icons.json from process.cwd() and keeps the icon.use() setting', through: 'allow'},
-  'image-file': {reason: 'reads images relative to the source directory'},
+  'image-file': {reason: 'reads picture files (readImage / resolveImages): a path is read from a base folder it is given'},
   'layout-measured': {reason: 'the measured layout: awaits the measurer'},
   'markdown-it': {reason: 'the markdown-it plugin: fs, child_process'},
   'source-path': {reason: 'resolveSource(): the working folder and symbolic links'},
@@ -42,7 +42,7 @@ export const SHELL: Record<string, Shell> = {
   'contact': {reason: 'imports raster'},
   'dsl': {reason: 'the package entry point: re-exports dsl/io'},
   'dsl/render': {reason: 'the measured render: imports layout-measured'},
-  'load-source': {reason: 'imports image-file'},
+  'load-source': {reason: 'imports the source file and the project config (config, measure)'},
   'markdown': {reason: 'imports render-source (ADR 0031 stage 5 splits the scanner out)'},
   'vitepress': {reason: 'imports markdown-it'},
   // kept for the context it runs in

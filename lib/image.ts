@@ -25,6 +25,7 @@ const sizeOf = (band: ImageBand, roles: Roles, role?: LabelRole): number => role
 export const IMAGE_PAD = 16;
 /** The picture's drawn size in a content width `cw`: the one place it is worked out, so the width pass and the layout agree. */
 export function imageSize(band: ImageBand, cw: number): {w: number; h: number} {
+  if (band.unresolved) throw new Error(`image(${band.src}): the picture was not read — draw or check the diagram through renderDiagram() / checkDiagram() (they read it from the source's folder)`);
   const ar = band.naturalW / band.naturalH;
   let w = Math.min(band.width ?? cw, cw), h = w / ar;
   if (band.height !== undefined) { h = band.height; w = h * ar; if (w > cw) { w = cw; h = w / ar; } }

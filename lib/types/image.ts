@@ -62,7 +62,11 @@ export interface ImageOpts extends RevealOpts, ScopeOpts {
 export interface ImageBand {
   type: 'image';
   id?: string;
-  /** The file as a `data:` URI (read once, by image()). */
+  /** What image() was given, as text: a path (relative: from the diagram source), a file: URL or a `data:` URI. */
+  src: string;
+  /** Set while the picture is not read yet (a file on disk is read when the diagram is drawn or checked, from its source folder: resolveImages()). */
+  unresolved?: true;
+  /** The file as a `data:` URI (empty until read). */
   href: string;
   naturalW: number;
   naturalH: number;
