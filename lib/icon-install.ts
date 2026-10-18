@@ -72,7 +72,7 @@ function takeOver(lock: string): void {
   try { if (!lockIsStale(aside)) fs.linkSync(aside, lock); } catch { /* a new lock is there already: its maker holds it */ } finally { try { fs.unlinkSync(aside); } catch { /* gone */ } }
 }
 /** Run `fn` holding an exclusive lock (<manifest>.lock, created with O_EXCL) so that read-modify-write cycles of parallel runs do not lose each other's updates. A lock left by a dead process is taken over. */
-export function withManifestLock<T>(file: string, fn: () => T): T {
+export function withManifestLock<T>(file: string, fn: () => T, timeoutMs = LOCK_TIMEOUT_MS): T {
   const lock = `${file}.lock`;
   const start = Date.now();
   fs.mkdirSync(path.dirname(file), {recursive: true});
@@ -80,7 +80,7 @@ export function withManifestLock<T>(file: string, fn: () => T): T {
     try { const fd = fs.openSync(lock, 'wx'); try { fs.writeSync(fd, `${process.pid}\n`); } finally { fs.closeSync(fd); } break; } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
       if (lockIsStale(lock)) { takeOver(lock); continue; }
-      if (Date.now() - start > LOCK_TIMEOUT_MS) throw new Error(`${lock} is held by another svg-diagram run for over ${LOCK_TIMEOUT_MS / 1000}s — if none is running, delete that file`);
+      if (Date.now() - start > timeoutMs) throw new Error(`${lock} is held by another svg-diagram run for over ${timeoutMs / 1000}s — if none is running, delete that file`);
       sleep(20 + Math.random() * 40);
     }
   }
