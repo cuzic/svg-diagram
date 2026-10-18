@@ -108,11 +108,11 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
     const score = scoreOfCause(t);
     if (lexLess(score, bestScore)) { best = t; bestScore = score; bestOrder = order; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
   }
-  if (!bestOrder) return first;
   if (band.straighten === false) return best;
   let found: LaidOutCause | undefined;
-  try { found = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, bestOrder); } catch { found = undefined; }
-  // the best of: the first figure, the best order with the detours, the best order without them (the one the search judged); the first one wins a tie
+  if (bestOrder) try { found = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, bestOrder); } catch { found = undefined; }
+  // the best of: the first figure, the best order with the detours, the best figure without them (the one the search judged; the base itself when no order beat it): the first one wins a tie.
+  // The detours can make AND arrows cross (they are judged by the whole figure's crossings), so the figure without them must stay a candidate
   // the same frame as the figures the search compared (the plain ones: the detours may have made `first` lower than any order would be without them)
   const sameFrame = (t: LaidOutCause): boolean => axisOf(t).every((v, i) => Math.abs(v - baseAxis[i]) <= 0.5) && t.h <= base.h + 0.5 && t.loose.length <= base.loose.length && t.fitApplied?.length === base.fitApplied?.length;
   let pick = first, pickScore = scoreOfCause(first);

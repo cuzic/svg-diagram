@@ -62,12 +62,16 @@ test('a crossing on a grid line counts: the route does not run through the other
   assert.equal(crossingsOf([r, wall]), 0, JSON.stringify(r));
 });
 
-test('it keeps clear of the arrowhead of another arrow: no run across its last stretch', () => {
-  // another arrow ends at (400,150) coming along the layers: a run across it within HEAD_REACH of the tip reads as a join
-  const other = [{x: 300, y: 150}, {x: 400, y: 150}];
-  const box = {x: 400, y: 120, w: 60, h: 60}; // the head's box: its widened sides are grid lines (x = 392 is 8 before the tip)
-  const r = searchRoute({x: 100, y: 100}, {x: 500, y: 300}, [box], [other], BOUNDS)!;
-  assert.equal(headCrossings([other, r]), 0, JSON.stringify(r));
+test('it keeps clear of the arrowhead of another arrow: no run across its last stretch, even when that is the shortest way', () => {
+  // another arrow ends at (400,150) along the layers. The boxes leave only two columns to go up through y = 150: x = 304, where the route crosses two arrows (the tip's and a second one),
+  // and x = 392, 8px before the tip, where it crosses one: a run across the arrowhead reads as a join
+  const boxes = [{x: 110, y: 100, w: 10, h: 100}, {x: 130, y: 140, w: 166, h: 20}, {x: 400, y: 120, w: 200, h: 60}];
+  const tip = [{x: 300, y: 150}, {x: 400, y: 150}], along = [{x: 280, y: 200}, {x: 330, y: 200}];
+  const without = searchRoute({x: 100, y: 250}, {x: 500, y: 50}, boxes, [tip, along], BOUNDS, {head: 0})!;
+  assert.ok(headCrossings([tip, without]) > 0, 'with no cost for it the route goes through the arrowhead (the figure is a real test)');
+  const r = searchRoute({x: 100, y: 250}, {x: 500, y: 50}, boxes, [tip, along], BOUNDS)!;
+  assert.ok(r);
+  assert.equal(headCrossings([tip, r]), 0, JSON.stringify(r));
 });
 
 test('a search that would take more than its budget of steps gives up instead of running long', () => {
@@ -79,5 +83,17 @@ test('it stays inside the bounds and is the same route every time', () => {
   const boxes = [{x: 200, y: 20, w: 100, h: 360}];
   const a = searchRoute({x: 100, y: 200}, {x: 500, y: 200}, boxes, [], BOUNDS), b = searchRoute({x: 100, y: 200}, {x: 500, y: 200}, boxes, [], BOUNDS);
   assert.deepEqual(a, b);
-  assert.ok(a === undefined || a.every(p => p.x >= 0 && p.x <= 600 && p.y >= 0 && p.y <= 400));
+  assert.ok(a);
+  assert.ok(a.every(p => p.x >= 0 && p.x <= 600 && p.y >= 0 && p.y <= 400));
+});
+
+test('over its budget it returns the way it has found, not none; before any way is found it gives up', () => {
+  const boxes = [{x: 200, y: 20, w: 100, h: 360}];
+  const full = searchRoute({x: 100, y: 200}, {x: 500, y: 200}, boxes, [], BOUNDS)!;
+  assert.ok(full);
+  // a budget that runs out after the first way to the head was found still gives a way
+  let found: ReturnType<typeof searchRoute>;
+  for (const budget of [30, 60, 100, 200, 400]) { found = searchRoute({x: 100, y: 200}, {x: 500, y: 200}, boxes, [], BOUNDS, {budget}); if (found) break; }
+  assert.ok(found, 'some budget finds a way');
+  assert.equal(searchRoute({x: 100, y: 200}, {x: 500, y: 200}, boxes, [], BOUNDS, {budget: 1}), undefined);
 });

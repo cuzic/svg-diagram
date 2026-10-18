@@ -228,18 +228,31 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
   // its way points are the middle of each layer's gap, which can send it far out and back
   if (detour) {
     const rects = [...lay.nodes.values()].map(n => ({x: n.x, y: n.y, w: n.w, h: n.h})), bounds = {x: 0, y: 0, w: lay.w, h: lay.h};
+    // the arrows into a grouped head (an AND) must not cross each other more than they did (an AND arc over crossing arrows reads wrongly: ADR 0015)
+    const heads = new Set<string>();
+    lay.edges.forEach((e, i) => { if (!e.self && groupOf?.(i) !== undefined) heads.add(e.to); });
+    const andCross = (m: Map<number, Pt[]>): number => heads.size ? crossingsOf([...m].filter(([i]) => heads.has(lay.edges[i].to)).map(([, p]) => p)) : 0;
+    /** Does a run of the route lie on a box that is not one of the arrow's two ends? */
+    const touches = (i: number, r: Pt[]): boolean => [...lay.nodes].some(([id, n]) => id !== lay.edges[i].from && id !== lay.edges[i].to && r.slice(1).some((q, k) => { const p = r[k]; return Math.max(p.x, q.x) > n.x - 0.5 && Math.min(p.x, q.x) < n.x + n.w + 0.5 && Math.max(p.y, q.y) > n.y - 0.5 && Math.min(p.y, q.y) < n.y + n.h + 0.5; }));
+    let headCross = headCrossings([...routes.values()]), andNow = andCross(routes);
     for (const [i, e] of lay.edges.entries()) {
       const r = routes.get(i);
-      if (!r || e.self || e.outer || e.points.length <= 2 || groupOf?.(i) !== undefined || r.length <= 4 || r[r.length - 1].x <= r[0].x) continue; // only an arrow that bends 3 times or more can get much better
-      const found = searchRoute(r[0], r[r.length - 1], rects, [...routes].filter(([j]) => j !== i).map(([, p]) => p), bounds);
+      if (!r || e.self || e.outer || e.points.length <= 2 || groupOf?.(i) !== undefined || r[r.length - 1].x <= r[0].x) continue;
+      // only an arrow that bends 3 times or more can get much better; one that runs along a box it should clear is searched whatever it bends
+      const onBox = touches(i, r);
+      if (r.length <= 4 && !onBox) continue;
+      const rest = [...routes].filter(([j]) => j !== i).map(([, p]) => p);
+      const found = searchRoute(r[0], r[r.length - 1], rects, rest, bounds);
       if (!found) continue;
       const route = simplify(found);
       // only this arrow changed: its crossings and bends against the rest, before and after
-      const rest = [...routes].filter(([j]) => j !== i).map(([, p]) => p);
       const score = {crossings: best.crossings - crossingsWith(r, rest) + crossingsWith(route, rest), bends: best.bends - bendsOf(r) + bendsOf(route)};
+      // strictly better in (crossings, bends); or it gets the arrow off a box it ran along or through, with no more crossings (the bends may grow: a figure that draws an arrow through a box is wrong)
+      if (!(score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends) || (onBox && !touches(i, route) && score.crossings <= best.crossings))) continue;
       const trial = new Map(routes); trial.set(i, route);
-      // strictly better in (crossings, bends), and no more crossings of another arrow's head (they read as joins)
-      if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && headCrossings([...trial.values()]) <= headCrossings([...routes.values()])) { detours.set(i, route); routes = trial; best = score; }
+      // and no more crossings of another arrow's head (they read as joins), no more crossings among the arrows of an AND
+      const heads2 = headCrossings([...trial.values()]), and2 = andCross(trial);
+      if (heads2 <= headCross && and2 <= andNow) { detours.set(i, route); routes = trial; best = score; headCross = heads2; andNow = and2; }
     }
   }
   // ADR 0016 D12 (only when asked, after the candidate is chosen; D13 for a direct arrow, below): a long arrow into a grouped head (an AND) whose run through the layers lies along another

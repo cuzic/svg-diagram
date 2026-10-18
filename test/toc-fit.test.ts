@@ -300,3 +300,30 @@ test('causeTree(): the arrows of a current reality tree bend little: no arrow mo
   assert.ok(Math.max(...bends(now)) <= 2, `${bends(now)}`);
   assert.equal(now.loose.length, 0);
 });
+
+// Opus review of #293: a detour was taken when it only lowered the bends, though it made two arrows of an AND cross (2 against main's 1), and the early return of the search did not
+// compare that figure with the one drawn without the detours.
+test('causeTree(): the arrows of an AND do not cross more than they did without the detours and the wider search', () => {
+  const ids = Array.from({length: 10}, (_, i) => `n${i}`);
+  const nodes = ids.map(id => N(id, {label: `${id} ${'あ'.repeat(3 + (id.charCodeAt(1) * 7) % 11)}`}));
+  const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":"n0","to":"n2"},{"from":"n1","to":"n3"},{"from":"n1","to":"n4"},{"from":"n3","to":"n4"},{"from":"n3","to":"n5"},{"from":"n2","to":"n6"},{"from":"n0","to":"n6"},{"from":"n6","to":"n7"},{"from":"n0","to":"n7"},{"from":"n7","to":"n8"},{"from":"n4","to":"n8"},{"from":"n3","to":"n9"},{"from":["n7","n0"],"to":"n9"},{"from":["n2","n0"],"to":"n3"}]');
+  const andCross = (t: LaidOutCause): number => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
+  const old = place(causeTree(nodes, links, {dir: 'right', straighten: false}), 1800), now = place(causeTree(nodes, links, {dir: 'right'}), 1800);
+  assert.ok(andCross(now) <= andCross(old), `${andCross(old)} -> ${andCross(now)}`);
+});
+
+// Opus review of #293 (M-1): a long arrow with only two bends ran through a box and was left alone (it bends little), so `check` called the figure wrong.
+// (With the real fonts the figure reproduces it; with the fixed widths of these tests the arrow clears the box anyway, so this guards the property, not the cause.)
+test('causeTree(): no arrow runs through a box that is not one of its ends', () => {
+  const labels = ['n0 あああああああああああああ', 'n1 あああ', 'n2 あああああああ', 'n3 ああああああああああ', 'n4 あああああああああああああ', 'n5 あああああああああああああ', 'n6 あああああああああああああ', 'n7 ああああ', 'n8 あああああ', 'n9 ああああああああ'];
+  const nodes = labels.map((label, i) => N(`n${i}`, {label}));
+  const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":"n1","to":"n2"},{"from":"n1","to":"n3"},{"from":"n0","to":"n4"},{"from":"n2","to":"n4"},{"from":"n1","to":"n5"},{"from":"n4","to":"n5"},{"from":"n1","to":"n6"},{"from":"n3","to":"n6"},{"from":"n5","to":"n7"},{"from":"n4","to":"n8"},{"from":"n6","to":"n9"},{"from":"n8","to":"n9"}]');
+  const t = place(causeTree(nodes, links, {dir: 'right'}), 1800);
+  const through: string[] = [];
+  t.edges.forEach(e => t.nodes.forEach((n, i) => {
+    const id = t.anchors[i].id;
+    if (id === e.from || id === e.to) return;
+    if (e.points.slice(1).some((q, k) => { const p = e.points[k]; return Math.max(p.x, q.x) > n.x + 1 && Math.min(p.x, q.x) < n.x + n.w - 1 && Math.max(p.y, q.y) > n.y + 1 && Math.min(p.y, q.y) < n.y + n.h - 1; })) through.push(`${e.from}->${e.to} through ${id}`);
+  }));
+  assert.deepEqual(through, []);
+});

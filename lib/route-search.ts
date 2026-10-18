@@ -107,24 +107,25 @@ export function searchRoute(start: P, end: P, boxes: readonly Rect[], others: re
   dist[k0] = stepCost(start, s); push(dist[k0] + left(i0, j0), k0);
   // the last run g -> end, and the bend into it unless the search arrives along the layers: added when a state at g is popped; the search goes on until nothing cheaper is left
   const finish = stepCost(g, end);
-  let goal = -1, bestTotal = Infinity, steps = 0;
+  let goal = -1, bestTotal = Infinity, steps = 0, over = false;
   while (heap.length) {
     const [f, k] = pop();
     const d = k % 4, cell = (k - d) / 4, i = cell % nx, j = (cell - i) / nx, c = dist[k];
     if (f > c + left(i, j) + 1e-9) continue; // stale
-    if (f >= bestTotal) break;
+    if (f + finish >= bestTotal) break; // every way ends with the last run
     if (i === ig && j === jg) { const total = c + (d === 0 ? 0 : BEND) + finish; if (total < bestTotal) { bestTotal = total; goal = k; } }
     for (let nd = 0; nd < 4; nd++) {
       if (nd === (d ^ 1)) continue; // no turning back
       const ni = i + DIRS[nd][0], nj = j + DIRS[nd][1];
       if (ni < 0 || nj < 0 || ni >= nx || nj >= ny) continue;
-      if (++steps > BUDGET) return undefined;
+      if (++steps > BUDGET) { if (goal < 0) return undefined; over = true; break; } // over the budget: the way found so far (not proved the best), or none
       if (blockedPt[nj * nx + ni] || stepBlocked(i, j, nd)) continue;
       const ck = key(i, j, nd);
       if (cached[ck] < 0) cached[ck] = stepCost({x: X[i], y: Y[j]}, {x: X[ni], y: Y[nj]});
       const nc = c + cached[ck] + (nd === d ? 0 : BEND), nk = key(ni, nj, nd);
       if (nc < dist[nk]) { dist[nk] = nc; prev[nk] = k; push(nc + left(ni, nj), nk); }
     }
+    if (over) break;
   }
   if (goal < 0) return undefined;
   const pts: P[] = [];
