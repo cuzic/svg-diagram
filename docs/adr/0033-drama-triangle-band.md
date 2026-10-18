@@ -110,6 +110,29 @@ dramaTriangle({
 - 0032 は「帯を作らず、`cycle` / `causalLoop({layout: 'ring'})` + `legendLabels` + `step:` と、レシピ `skills/svg-diagram/references/relationship.md` で賄う」と決めた。**本 ADR の図とレシピの使い分け**を、U0 の後に決める: 二人の当事者の循環はレシピ、一人のクライアントの役割の遍歴と変わらない土台は本 ADR の図(U0 でレシピで足りれば、本 ADR も作らず `relationship.md` に例を足す)。
 - 概念の側の重なり: 0032 の「同じ行動、違う心の向き」(氷山)と本 ADR の「違う役割、同じ土台」は、同じ「行動の層」と「その下の構えの層」の 2 層構図を裏返したもの。構えの層の見た目(水面の線か、地の領域か)をそろえるかは、0032 の例と見比べて U0 で決める。
 
+## U0 の結果(2026-10-18)
+
+### (1) 出典の確認(Web 検索。二次資料のみ。原典は未確認)
+
+- 確認できた: TED* は Creator / Challenger / Coach の 3 役割で、Creator が Victim、Challenger が Persecutor に対応する(Coach が Rescuer に対応するのは、検索結果に明示がなく、含意にとどまる)。書名は *The Power of TED\* (The Empowerment Dynamic)*、土台の移行は「Victim Orientation から Creator Orientation へ」と書かれている(出版社の紹介文)。
+- **確認できなかった**: TED* の三角形の向き(公式の図が見つからない)。日本語の標準訳(邦題・Rescuer の訳語)。**どちらも原典か訳書に当たるまで断言しない。** 図の向きは「DDT は逆三角形が広く描かれる」止まりで、TED* は利用者が選べるようにするか、当たるまでは DDT と同じ向きにそろえる。
+
+### (2) 既存の部品での試作(`group` + `row` + `spacer` + `box` + `connect` + `table`。コミットしない `proto/dt-p3〜p5.ts`)
+
+| 観点 | 結果 |
+|---|---|
+| (1) 三角形の向きの固定 | ○ `row`(上 2 + 下 1、`justify: 'center'`、`width`)と `spacer(64〜72)` で逆三角形になる。`spacer` が小さいと、`connect` のラベルが箱と重なってビルドが止まる(72px 未満)。 |
+| (3) 対称な土台 | ○ `group` が 3 頂点を全部含む地の領域になり、`title`(`titleAlign: 'center'`)が上の中央に座る(D3 の案(a)で足りる)。 |
+| (2) 番号つきの軌跡 | △ `connect(..., {label: '①', chip: true})` で描ける。同じ頂点に出入りする矢印は `@t`(`vic:top@0.7` と `@0.3`)で手で分ける。 |
+| (5) 同じ辺の繰り返し | △ 同じ 2 頂点の間を 2 回通ると、チップが重なる(`text-overlap`)。`labelAt` と `@t` を手で散らせば通るが、矢印どうしが交差しないよう利用者が順序を知っている必要がある。 |
+| (4) 吹き出し(場面 + 発言) | ✗ `callout` は箱ごとに 1 つ。同じ頂点が複数回出ると置き場がない。**手ごとの `scene` / `says` は図の下の `table`(番号 | 場面 | 言葉)に置くと読める**(試作 p5)。 |
+| `both`(TED* の並置 + 構えが替わる矢印) | ○ `row([group, group])` と `connect('dg:right', 'tg:left', {chip: true, weight: 'heavy'})` で描ける。ただし間隔が 80px だとラベルが矢印を覆う(`connect-label-covers-arrow`)ので 160px 以上。TED* 側の箱は矢印が無く、`graph-orphan-node` / `graph-disconnected` が出る(`accept` に理由を書くか、軌跡を持たせる)。 |
+| `upTo`(手ごとの出し分け) | ✗ 手で組み直す。 |
+
+### 判定
+
+D1 の観点のうち (1)(3) と `both` は既存の部品で足りる。(2)(5) は手作業の調整が要り、(4) は表に分ける書き方で足りる。ADR 0032 の基準(「同じ配置の手書きが 3 つ以上の図で出たら帯を検討」)に照らすと、**まず例とレシピで足りる**。chart(`kind: 'drama'`)に進む場合の動機は、`@t` と `labelAt` の手調整の自動化、同じ辺の繰り返し、`upTo`、alt の自動生成の 4 つに絞られる。
+
 ## 実装の順序
 
 - **U0(先にやる)**: (1) 原典の確認: DDT・TED* の三角形の向き、役割と構えの語の標準訳(Rescuer の訳は「救援者」「救助者」「救済者」と揺れる)。(2) **既存の図で試作**(`causalLoop({layout:'ring'})` に 3 ノード + `step:`・`legendLabels`・`group`、`cycle`)して、何が足りないかを D1 の観点(向きの固定・番号つき軌跡・対称な土台・吹き出し)で数え、0032 と同じ表で判定する。足りれば作らない。(3) 足りない場合に限り、chart の試作で D3 の土台の案(a)(b)(c)、弧のずらし、吹き出しの幅、`path.slice(0,k)` の部分集合性を実測する。D1〜D3 はここで書き換える。
