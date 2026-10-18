@@ -82,7 +82,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   const rand = (n: number): number => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed % n; };
   const shuffles = Math.min(24, ids.length * 3);
   for (let k = 0; k < shuffles; k++) { const o = [...ids]; for (let i = o.length - 1; i > 0; i--) { const j = rand(i + 1); [o[i], o[j]] = [o[j], o[i]]; } queue.push(o); }
-  let tried = 0, polished = false;
+  let tried = 0, lastBetter = 0, polished = false;
   while (queue.length || !polished) {
     if (!queue.length) { // swaps of two nodes of the best order, once the shuffles are done
       polished = true;
@@ -91,20 +91,23 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
       continue;
     }
     const order = queue.shift()!;
-    if (++tried > MAX_ORDERS) break;
+    // give up when nothing has got better for a while: sooner once no AND arrows cross (what is left are crossings the graph needs)
+    if (++tried > MAX_ORDERS || tried - lastBetter > (bestScore[0] === 0 ? PATIENCE_QUIET : PATIENCE)) break;
     let t: LaidOutCause;
     try { t = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order); } catch { continue; }
     // the same layers (a different order must not change which edge of a cycle is cut, or fold the figure), the same size limits, no AND the first drew left undrawn
     if (axisOf(t).some((v, i) => Math.abs(v - axisOf(first)[i]) > 0.5) || t.h > first.h + 0.5 || t.loose.length > first.loose.length) continue;
     if (t.fitApplied?.length !== first.fitApplied?.length) continue;
     const score = scoreOfCause(t);
-    if (lexLess(score, bestScore)) { best = t; bestScore = score; bestOrder = order; if (polished) { queue.length = 0; polished = false; } }
+    if (lexLess(score, bestScore)) { best = t; bestScore = score; bestOrder = order; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
   }
   return best;
 }
 
 /** The most orders the search tries for one figure. */
 const MAX_ORDERS = 80;
+/** How many orders in a row may fail to get better before the search stops (with and without AND arrows crossing). */
+const PATIENCE = 30, PATIENCE_QUIET = 10;
 const crossingsOf_ = (t: LaidOutCause): number => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
 /** (arrows of an AND that cross, arrows of an AND that run side by side, crossings, bends): smaller is better, in this order. */
 const scoreOfCause = (t: LaidOutCause): number[] => { const s = scoreOf(t.edges.map(e => e.points)); return [crossingsOf_(t), andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses').length, s.crossings, s.bends]; };
