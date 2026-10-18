@@ -8,63 +8,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {LIB, importsOf, libFiles, resolveLocal, violations} from './helpers/purity.ts';
-
-interface Shell {reason: string; through?: 'allow'; declared?: true}
-/** Where effects live. `declared`: kept for the context it runs in (not for an effect the check can see), so it is not tested for staleness. */
-const SHELL: Record<string, Shell> = {
-  // the effects themselves
-  'browser': {reason: 'launches Chromium (playwright)'},
-  'config': {reason: 'reads .svg-diagram.json from the working directory'},
-  'deck-viewer': {reason: 'reads the viewer assets'},
-  'dsl/io': {reason: 'build() / image(): fs and child_process'},
-  'emoji-color': {reason: 'reads colour-emoji glyphs with harfbuzz'},
-  'error-format': {reason: 'reads process.stderr for colour'},
-  'export-and-check': {reason: 'the export / check CLI step: fs, child_process, os'},
-  'font-metrics': {reason: 'reads font files (fs, child_process, harfbuzz)'},
-  'font-subset': {reason: 'writes font subsets (fs)'},
-  'freshness': {reason: 'hashes the source on disk; stage 5 of ADR 0031 splits the judgement out'},
-  'icon-find': {reason: 'looks for icons from the working directory'},
-  'icon-install': {reason: 'installs icon packs (fs, process)'},
-  'icon-pack': {reason: 'fetches icon packs (fs, os, child_process)'},
-  'icon-registry': {reason: 'resolves an installed glyph: reads svg-diagram.icons.json from process.cwd() and keeps the icon.use() setting', through: 'allow'},
-  'image-file': {reason: 'reads images relative to the source directory'},
-  'layout-measured': {reason: 'the measured layout: awaits the measurer'},
-  'markdown-it': {reason: 'the markdown-it plugin: fs, child_process'},
-  'source-path': {reason: 'resolveSource(): the working folder and symbolic links'},
-  'math-tex': {reason: 'loads MathJax through node:module'},
-  'geometry-checks': {reason: 'geometryChecks(): the geometry engine with the text boxes read from the font files'},
-  'font-box': {reason: 'the glyph boxes of the HTML emit, read from the font files (a function handed to emit-html)'},
-  'measure-settings': {reason: 'reads SVG_DIAGRAM_MEASURE'},
-  'measure': {reason: 'the measurer: the browser or the font files; the settings are a value it is given, the process default is only for callers with none'},
-  'pptx/emit': {reason: 'writes the PPTX: fs and resvg'},
-  'pptx/zip': {reason: 'node:zlib'},
-  'raster': {reason: 'rasterises with resvg / a browser (fs, os)'},
-  'remark': {reason: 'the remark plugin: fs'},
-  'render-source': {reason: 'loads a source file through node:module'},
-  'render-sync-worker': {reason: 'the synchronous render worker: fs, process'},
-  'slide-budget': {reason: 'asks a Slidev dev server (fs, net, child_process)'},
-  'slide-index': {reason: 'reads slide files (fs)'},
-  'source-deps': {reason: 'scans a source for its imports on disk (fs)'},
-  'terminal': {reason: 'the terminal: tty, fs, process'},
-  'today': {reason: 'the one place that reads the clock'},
-  // shells because of what they import; each leaves with the stage that cuts the dependency
-  'changed': {reason: 'imports source-deps'},
-  'contact': {reason: 'imports raster'},
-  'dsl': {reason: 'the package entry point: re-exports dsl/io'},
-  'dsl/render': {reason: 'the measured render: imports layout-measured'},
-  'load-source': {reason: 'imports image-file'},
-  'markdown': {reason: 'imports render-source (ADR 0031 stage 5 splits the scanner out)'},
-  'vitepress': {reason: 'imports markdown-it'},
-  // kept for the context it runs in
-  'resolve-hook': {reason: 'a Node module-loader hook: runs in the loader thread', declared: true},
-};
+import {SHELL} from './helpers/shell.ts';
 
 /** Core files that break a rule today, and the stage of ADR 0031 that removes each. An entry that no longer matches fails the test. */
 const KNOWN: {file: string; rule: string; removedIn: number}[] = [
   {file: 'dsl/text-bands', rule: 'top-level let', removedIn: 7}, // boxSizeWarned: box({size}) warns once per process. Needs a decision (a lint rule, or the throw the message announces); not a refactor
-  {file: 'fta-analysis', rule: 'localeCompare without a locale', removedIn: 6},
-  {file: 'qc', rule: 'localeCompare without a locale', removedIn: 6},
-  {file: 'wordart-vertical', rule: 'depends on the default locale', removedIn: 6},
 ];
 
 /** State that is kept on purpose: a cache keyed by its whole input, or a marker keyed by object identity. */

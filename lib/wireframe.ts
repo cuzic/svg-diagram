@@ -727,8 +727,8 @@ function layoutMatrix(band: ScreensBand, ctx: WfCtx, x: number, y: number, w: nu
   cy += 32;
   for (const row of m.rows) {
     if (row.cells.length > n) throw new Error(`stateMatrix(): row "${row.label}" has ${row.cells.length} cells for ${n} columns`);
-    row.cells = Array.from({length: n}, (_, i) => row.cells[i]); // a missing cell is "未設計", never a blank
-    const nodes = row.cells.filter((c): c is WfNode => !!c && typeof c === 'object' && 't' in c && !!c.t);
+    const cells = Array.from({length: n}, (_, i) => row.cells[i]); // a missing cell is "未設計", never a blank (a copy: the band is not written to)
+    const nodes = cells.filter((c): c is WfNode => !!c && typeof c === 'object' && 't' in c && !!c.t);
     const rh = m.cellH ?? Math.max(72, ...nodes.map(nd => Math.ceil(nat(nd, cw - 6, ctx)) + 6));
     const lab = wrapT(ctx, row.label, T, 700, labelW - 8), note = row.note ? wrapT(ctx, row.note, S, 400, labelW - 8) : [];
     const th = lab.length * lh(T) + (note.length ? 2 + note.length * lh(S) : 0);
@@ -736,7 +736,7 @@ function layoutMatrix(band: ScreensBand, ctx: WfCtx, x: number, y: number, w: nu
     lab.forEach((l, k) => text(ctx, l, x, ty + T + k * lh(T), {size: T, weight: 700}));
     ty += lab.length * lh(T) + 2;
     note.forEach((l, k) => text(ctx, l, x, ty + S + k * lh(S), {fill: 'muted'}));
-    row.cells.forEach((cell, i) => {
+    cells.forEach((cell, i) => {
       const cx = x + labelW + gap + i * (cw + gap);
       const na = naOf(cell);
       if (cell === 'na' || na !== undefined) {
