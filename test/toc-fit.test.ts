@@ -317,5 +317,5 @@ test('causeTree(): with the real fonts no arrow of the figure runs through a box
   const labels = ['n0 あああああああああああああ', 'n1 あああ', 'n2 あああああああ', 'n3 ああああああああああ', 'n4 あああああああああああああ', 'n5 あああああああああああああ', 'n6 あああああああああああああ', 'n7 ああああ', 'n8 あああああ', 'n9 ああああああああ'];
   const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":"n1","to":"n2"},{"from":"n1","to":"n3"},{"from":"n0","to":"n4"},{"from":"n2","to":"n4"},{"from":"n1","to":"n5"},{"from":"n4","to":"n5"},{"from":"n1","to":"n6"},{"from":"n3","to":"n6"},{"from":"n5","to":"n7"},{"from":"n4","to":"n8"},{"from":"n6","to":"n9"},{"from":"n8","to":"n9"}]');
   const {verdict} = await checkDiagram(diagram({theme: 'blue', width: 1800}).add(causeTree(labels.map((label, i) => N(`n${i}`, {label})), links, {dir: 'right'}) as never));
-  assert.deepEqual(verdict.problems.filter(p => /runs through/.test(String(p.message ?? p))), []);
+  assert.deepEqual(verdict.problems.filter(p => /runs through/.test(p)), []);
 });
