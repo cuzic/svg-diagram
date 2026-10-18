@@ -26,10 +26,10 @@ import fs from 'fs';
 import path from 'path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {register} from 'node:module';
+import {installResolveHook} from './lib/resolve-hook.ts';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
-register(`./lib/resolve-hook.${EXT}`, import.meta.url);
+installResolveHook();
 const {build, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadConfig} = await import('./lib/config.ts');
 const {MIN_FONT_SIZE} = await import('./lib/tokens.ts');

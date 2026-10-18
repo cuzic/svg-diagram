@@ -46,5 +46,5 @@ export const SHELL: Record<string, Shell> = {
   'markdown': {reason: 'imports render-source (ADR 0031 stage 5 splits the scanner out)'},
   'vitepress': {reason: 'imports markdown-it'},
   // kept for the context it runs in
-  'resolve-hook': {reason: 'a Node module-loader hook: runs in the loader thread', declared: true},
+  'resolve-hook': {reason: 'a Node module-loader hook: installed in-thread by the CLI entries (module.registerHooks)', declared: true},
 };

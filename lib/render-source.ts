@@ -5,7 +5,7 @@
 // export, apply .svg-diagram.json, then renderDiagram(). Nothing is written to disk. A diagram that fails verification is
 // still returned (ok: false, problems) so the caller can decide whether to show it; a define()/layout error throws.
 import path from 'node:path';
-import {register} from 'node:module';
+import {installResolveHook} from './resolve-hook.ts';
 import {loadConfig} from './config.ts';
 import {loadDiagram} from './load-source.ts';
 import {depsOf} from './source-deps.ts';
@@ -16,7 +16,7 @@ import {closeMeasurer} from './measure.ts';
 let hooked = false;
 function ensureResolveHook(): void {
   if (hooked) return;
-  register(import.meta.url.endsWith('.ts') ? './resolve-hook.ts' : './resolve-hook.js', import.meta.url);
+  installResolveHook();
   hooked = true;
 }
 
