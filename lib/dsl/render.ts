@@ -3,6 +3,7 @@ import {mapOf, checkTones, NO_TONES} from '../tokens.ts';
 import {analyzeFit} from '../fit.ts';
 import {getSlideBudget, readSlideBudgetCache} from '../slide-budget.ts';
 import {emitOutputs, runChecked} from '../pipeline.ts';
+import {fontBoxOf} from '../font-box.ts';
 import {SLIDE_CANVAS, checkMinText, canvasFontScale, canvasRoles, ROLES, THEMES, scaleRoles} from '../tokens.ts';
 import type {ConnectOpts} from '../types/containers.ts';
 import type {BandInput, Diagram, DiagramData, DiagramOpts, Theme, Medium} from '../types/core.ts';
@@ -163,7 +164,7 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
     return laidOut;
   });
   if (opts.html && d.appearance === 'auto') throw new Error("diagram({appearance: 'auto'}) is SVG only: the HTML form paints with style attributes, which a media rule cannot override (drop html / --html, or use 'dark')");
-  const emitted = emitOutputs(laidOut, {html: opts.html, reveal: d.maxReveal});
+  const emitted = emitOutputs(laidOut, {html: opts.html, reveal: d.maxReveal, ...(opts.html ? {fontBox: fontBoxOf(laidOut.measure)} : {})});
   return {svg: emitted.svg, ...(emitted.html !== undefined ? {html: emitted.html} : {}), laidOut, verdict, xml: emitted.xml, notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget: budget as SlideBudget | null, budgetSource: budgetSource as RenderResult['budgetSource'], fontScale: laidOut.fontScale};
 }
 /** What the passes may write into: the bands are copied, so a band shared by two diagrams (or drawn twice) is never changed by a render. */
