@@ -1,6 +1,6 @@
 // Types: wf.* nodes and wireframe drawing primitives.
 import type {BadgeBox} from '../badge.ts';
-import type {Align, ColorKey, WidthOf} from './core.ts';
+import type {Align, ColorKey, WidthOf, WrapMode} from './core.ts';
 import type {ToneEnv} from '../tokens.ts';
 
 /** Tone of chips, alerts, stats, list items, kv rows ...; 'ok' / 'warn' / 'off' are aliases of accent / danger / muted. */
@@ -356,6 +356,8 @@ export interface WfCtx {
   widthOf: WidthOf;
   /** The diagram's tone overrides (chips, alerts and tone-coloured text are drawn in them). */
   tones: ToneEnv;
+  /** diagram({wrap}): where the labels may break. */
+  wrap: WrapMode;
   skeleton: boolean;
   /** Reassigned (not just pushed to) by hideUnder(). */
   prims: Prim[];

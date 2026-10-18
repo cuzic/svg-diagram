@@ -49,7 +49,7 @@ export function butterflyTexts(s: ButterflySpec): [string, number][] {
 }
 
 export function layoutButterfly(s: ButterflySpec, g: ChartGeom): LaidOutChartPart {
-  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), lineH = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
+  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap), lineH = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
   const vText = (v: number) => `${numText(v)}${s.unit}`;
   const valW = Math.max(...s.rows.flatMap(r => [c.tw(vText(r.left), true), c.tw(vText(r.right), true)])) + 10;
   const labelW = Math.min(Math.max(...s.rows.map(r => c.tw(r.label))) + 24, g.w * 0.3);

@@ -15,7 +15,7 @@ const spec = resolveDependency(
   [{from: 'a', to: 'b', type: 'depends'}, {from: 'b', to: 'c', type: 'depends'}],
   {},
 );
-const run = (height?: number) => layoutDependency(spec, {x: 20, y: 40, w: 900, size: 14, widthOf: rough, ...(height === undefined ? {} : {height})});
+const run = (height?: number) => layoutDependency(spec, {x: 20, y: 40, w: 900, size: 14, widthOf: rough, wrap: 'phrase', ...(height === undefined ? {} : {height})});
 const top = (p: ReturnType<typeof run>) => Math.min(...p.solids.map(s => s.y));
 const bottom = (p: ReturnType<typeof run>) => Math.max(...p.solids.map(s => s.y + s.h));
 
@@ -36,7 +36,7 @@ test('networkCanvas: no room (height at or below the content) does not move anyt
 
 test('concentric with side keys: the circle and its keys are one block in the middle of the width', () => {
   const band = concentric([{label: 'チーム'}, {label: '顧客と取引先'}, {label: '社会'}], {order: 'inner-first', labels: 'side', centre: '利用者'}) as unknown as ConcentricBand;
-  const f = layoutFlowShape(band, 24, 24, 892, rough, ROLES);
+  const f = layoutFlowShape(band, 24, 24, 892, rough, ROLES, 'phrase');
   const circles = f.primitives.filter(p => p.k === 'circle' && p.r > 10) as unknown as {cx: number; r: number}[];
   const left = Math.min(...circles.map(c => c.cx - c.r)), right = Math.max(...f.texts.map(t => t.x + t.w));
   assert.ok(Math.abs((left - 24) - (24 + 892 - right)) <= 8, `left ${left - 24} vs right ${24 + 892 - right}`);

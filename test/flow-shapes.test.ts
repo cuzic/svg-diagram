@@ -10,7 +10,7 @@ import type {Rect} from '../lib/types/core.ts';
 
 // a rough width (0.58 em per character) is enough to check the geometry without measuring fonts
 const roughWidth = (atom: string, size: number) => Array.from(atom).length * size * .58;
-const figure = (band: FlowShapeBand, width = 892): LaidOutFlowShape => layoutFlowShape(band, 24, 24, width, roughWidth, ROLES);
+const figure = (band: FlowShapeBand, width = 892): LaidOutFlowShape => layoutFlowShape(band, 24, 24, width, roughWidth, ROLES, 'phrase');
 const inside = (t: Rect, f: Rect) => t.x >= f.x - .5 && t.y >= f.y - .5 && t.x + t.w <= f.x + f.w + .5 && t.y + t.h <= f.y + f.h + .5;
 const overlaps = (a: Rect, b: Rect) => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 1 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 1;
 const textAt = (f: LaidOutFlowShape, text: string) => { const t = f.texts.find(x => x.text === text); assert.ok(t, `no text "${text}"`); return t; };

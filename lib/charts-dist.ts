@@ -122,7 +122,7 @@ export function distTexts(s: DistSpec): [string, number][] {
 
 export function layoutDist(s: DistSpec, g: ChartGeom): LaidOutChartPart {
   const who = s.kinds.length === 1 ? DIST_FN[s.kinds[0]] : 'displot';
-  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf), p = plan(s), many = s.groups.length > 1;
+  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap), p = plan(s), many = s.groups.length > 1;
   const legend: {x: number; row: number; i: number}[] = [];
   let lx = g.x, row = 0;
   if (many) s.groups.forEach((gr, i) => {

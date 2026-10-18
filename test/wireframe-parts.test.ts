@@ -9,7 +9,7 @@ import type {LaidOutWireframe, WfRoot, WireframeOpts} from '../lib/types/wirefra
 
 // a stand-in for the browser measurer: every character is 0.6em wide
 const widthOf = (atom: string, size: number) => [...atom].length * size * 0.6;
-const layout = (root: WfRoot, opts: Partial<WireframeOpts> = {}) => layoutWireframe({type: 'wireframe', root, h: 420, ...opts}, 0, 0, 900, widthOf, NO_TONES);
+const layout = (root: WfRoot, opts: Partial<WireframeOpts> = {}) => layoutWireframe({type: 'wireframe', root, h: 420, ...opts}, 0, 0, 900, widthOf, NO_TONES, 'phrase');
 const isText = (p: {k: string}): p is PrimText => p.k === 'text';
 const texts = (band: LaidOutWireframe) => band.prims.flatMap(p => p.k === 'badge' || p.k === 'pill' ? [p.label] : isText(p) ? [p.s] : []);
 
@@ -72,8 +72,8 @@ test('wireframe() still passes through its own options', () => {
 
 test('an insight evidence row that does not fit puts its time on a second line (nothing overflows the card)', () => {
   const long = wf.insight({title: '温度が高い', evidence: [{kind: '赤外線 最高 62.4℃（装置の右側）', at: '10/9 10:24:31'}]});
-  const narrow = layoutWireframe({type: 'wireframe', root: wf.col([long]), h: 420}, 0, 0, 330, widthOf, NO_TONES);
-  const wide = layoutWireframe({type: 'wireframe', root: wf.col([long]), h: 420}, 0, 0, 900, widthOf, NO_TONES);
+  const narrow = layoutWireframe({type: 'wireframe', root: wf.col([long]), h: 420}, 0, 0, 330, widthOf, NO_TONES, 'phrase');
+  const wide = layoutWireframe({type: 'wireframe', root: wf.col([long]), h: 420}, 0, 0, 900, widthOf, NO_TONES, 'phrase');
   const y = (b: LaidOutWireframe, s: string) => b.prims.find((p): p is PrimText => p.k === 'text' && p.s === s)!.y;
   assert.ok(y(narrow, '10/9 10:24:31') > y(narrow, '赤外線 最高 62.4℃（装置の右側）'), 'narrow: the time sits below');
   assert.equal(y(wide, '10/9 10:24:31'), y(wide, '赤外線 最高 62.4℃（装置の右側）'), 'wide: one line');

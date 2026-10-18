@@ -7,7 +7,7 @@ import type {LaidOutTree, TreeBand, TreeItem} from '../lib/types/diagrams.ts';
 // ADR 0010 U3: tree / mindmap fit the width. Font-free: a fixed text width, and widths taken from the figure itself.
 const fixedW = (t: string, size: number): number => t.length * size * 0.6;
 const ROLES = {body: 14, note: 12} as never;
-const laid = (b: TreeBand, w: number, h?: number): LaidOutTree => layoutTreeBand(b, 0, 0, w, fixedW as never, ROLES, h);
+const laid = (b: TreeBand, w: number, h?: number): LaidOutTree => layoutTreeBand(b, 0, 0, w, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false}, h);
 const spread = (t: LaidOutTree): number => Math.max(...t.nodes.map(n => n.x + n.w)) - Math.min(...t.nodes.map(n => n.x));
 
 // one root with nine children: wide growing down, a column growing right

@@ -94,7 +94,7 @@ test('interventions are anchors: connect() reaches their box', async () => {
 });
 
 test('a plan: boxes are pushed apart by 16px in the order of their targets, and a box over a column of nodes does not run through them', () => {
-  const c = new Canvas(0, 0, 400, 300, 14, () => 8), pos = new Map([['a', {x: 20, y: 120, w: 100, h: 48}], ['b', {x: 150, y: 120, w: 100, h: 48}], ['c', {x: 280, y: 120, w: 100, h: 48}]]);
+  const c = new Canvas(0, 0, 400, 300, 14, () => 8, 'phrase'), pos = new Map([['a', {x: 20, y: 120, w: 100, h: 48}], ['b', {x: 150, y: 120, w: 100, h: 48}], ['c', {x: 280, y: 120, w: 100, h: 48}]]);
   const item = (id: string, to: string, w = 100) => ({id, label: id, to: [to], w});
   const r = planInterventions(c, [item('y', 'b'), item('x', 'a'), item('z', 'b')], pos, () => 'top');
   assert.ok('placed' in r, JSON.stringify(r));
