@@ -319,3 +319,23 @@ test('causeTree(): with the real fonts no arrow of the figure runs through a box
   const {verdict} = await checkDiagram(diagram({theme: 'blue', width: 1800}).add(causeTree(labels.map((label, i) => N(`n${i}`, {label})), links, {dir: 'right'}) as never));
   assert.deepEqual(verdict.problems.filter(p => /runs through/.test(p)), []);
 });
+
+// diagram({density: 'compact'}): the gaps of the layered figures close by a quarter; nothing else about the figure changes
+test("diagram({density: 'compact'}): the cause tree is lower, with the same arrows; 'normal' and nothing written are the same figure", async () => {
+  const nodes = ['u1', 'u2', 'a1', 'a2', 'a3', 'b1', 'b2'].map(id => N(id, {label: `${id} の説明の文`}));
+  const links = JSON.parse('[{"from":"b1","to":"a1"},{"from":"b2","to":"a2"},{"from":"a1","to":"u1"},{"from":"a2","to":"u1"},{"from":["a1","a2"],"to":"a3"},{"from":"a3","to":"u2"}]');
+  const lay = async (density?: 'normal' | 'compact'): Promise<LaidOutCause> => {
+    const {laidOut} = await checkDiagram(diagram({theme: 'blue', width: 940, ...(density === undefined ? {} : {density})}).add(causeTree(nodes, links, {tree: 'crt'}) as never));
+    return laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause;
+  };
+  const plain = await lay(), normal = await lay('normal'), compact = await lay('compact');
+  assert.deepEqual(normal.edges, plain.edges);
+  assert.equal(normal.h, plain.h);
+  assert.ok(compact.h < plain.h * 0.95, `${plain.h} -> ${compact.h}`);
+  assert.equal(compact.edges.length, plain.edges.length);
+  assert.equal(compact.loose.length, 0);
+});
+
+test("diagram({density}) must be 'normal' or 'compact'", () => {
+  assert.throws(() => diagram({theme: 'blue', density: 'tight' as never}), /diagram\(\{density\}\) must be 'normal' or 'compact'/);
+});

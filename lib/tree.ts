@@ -104,8 +104,8 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     if (band.sides && kind !== 'radial') throw new Error(`mindmap(): sides applies to the radial layout (this is layout: '${kind}')`);
     const styled = band.edges !== undefined && band.edges !== 'elbow';
     if (styled && !['radial', 'right', 'left', 'down', 'up'].includes(kind)) throw new Error(`mindmap(): edges: '${band.edges}' applies to the radial, right, left, down and up layouts (this is layout: '${kind}')`);
-    const grown = (dir: 'down' | 'right'): TreeLayout => layoutTree(laidRoot, {dir, gap: GAP, levelGap: LEVEL_GAP});
-    const raw: TreeLayout = kind === 'radial' ? layoutBalanced(laidRoot, {gap: GAP, levelGap: LEVEL_GAP, sides})
+    const grown = (dir: 'down' | 'right'): TreeLayout => layoutTree(laidRoot, {dir, gap: Math.round(GAP * (env.space ?? 1)), levelGap: Math.round(LEVEL_GAP * (env.space ?? 1))});
+    const raw: TreeLayout = kind === 'radial' ? layoutBalanced(laidRoot, {gap: Math.round(GAP * (env.space ?? 1)), levelGap: Math.round(LEVEL_GAP * (env.space ?? 1)), sides})
       : kind === 'right' ? grown('right') : kind === 'left' ? mirror(grown('right'), 'x') : kind === 'down' ? grown('down') : kind === 'up' ? mirror(grown('down'), 'y')
       : kind === 'org' ? layoutHanging(laidRoot, {rowFirst: true}) : kind === 'list' ? layoutHanging(laidRoot)
       : kind === 'brace' ? layoutBrace(laidRoot) : kind === 'fishbone' ? layoutFishbone(laidRoot) : layoutTimelineMap(laidRoot);

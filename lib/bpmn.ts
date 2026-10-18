@@ -46,7 +46,7 @@ export function layoutBpmn(band: BpmnBand, x: number, y: number, w: number, widt
 function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: true): LaidOutBpmn;
 function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: boolean): LaidOutBpmn | null;
 function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: boolean): LaidOutBpmn | null {
-  const {labelCol: LABEL_COL, colGap: COL_GAP, taskMax: TASK_MAX, flowRoom} = metrics;
+  const {labelCol: LABEL_COL, taskMax: TASK_MAX, flowRoom} = metrics, COL_GAP = Math.round(metrics.colGap * (env.space ?? 1));
   const B = roles.body, S = roles.note;
   const laneIdx = new Map(band.lanes.map((l, i) => [l.id, i]));
   if (laneIdx.size !== band.lanes.length) throw new Error('bpmn(): duplicate lane id');

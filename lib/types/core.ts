@@ -111,6 +111,8 @@ export interface DiagramOpts {
   wrap?: 'phrase' | 'char' | 'bunsetsu' | 'bunsetsu-soft';
   /** Never break a katakana word across lines: a box is at least as wide as its longest katakana word (up to the node width the component starts with, at most 240px). Default off: nothing changes for a figure that does not write it. A figure that does not fit with the floor is tried without it (the break is then reported by text-mid-word-break). Also settable for every diagram in `.svg-diagram.json` ("keepWords": true). */
   keepWords?: boolean;
+  /** How tightly the layered figures (cause trees, state / class / tree / BPMN / fault-tree diagrams) are packed: 'compact' closes the gaps between boxes and layers and the lanes of the arrows by a quarter, so the same figure takes less room. Default 'normal': nothing changes for a figure that does not write it. */
+  density?: 'normal' | 'compact';
   /** The figure's width in px (default 940). 'fit' narrows it to what the figure shows plus the padding (text sizes do not change; a figure whose content already spans the width stays 940).
    *  For a thin figure (a concentric, a vertical chevron, a few people). It changes the figure's size in the document, so it is never the default. Not with `canvas`, `fill` or `slide`. */
   width?: number | 'fit';
@@ -199,6 +201,7 @@ export interface DiagramData {
   wrap?: 'phrase' | 'char' | 'bunsetsu' | 'bunsetsu-soft';
   /** Never break a katakana word across lines: a box is at least as wide as its longest katakana word (up to the node width the component starts with, at most 240px). Default off: nothing changes for a figure that does not write it. A figure that does not fit with the floor is tried without it (the break is then reported by text-mid-word-break). Also settable for every diagram in `.svg-diagram.json` ("keepWords": true). */
   keepWords?: boolean;
+  density?: 'normal' | 'compact';
   width: number;
   /** diagram({width: 'fit'}): renderDiagram narrows `width` to the content. */
   fitWidth?: boolean;
@@ -281,5 +284,5 @@ export type TextRequest = [text: string, size: number, weight: number, font: Fon
 export type WrapMode = 'phrase' | 'char' | 'bunsetsu';
 /** `mode`: the diagram's wrap mode (diagram({wrap}), resolved by layoutWith). */
 /** A layout's wrap settings, resolved once by layoutWith from diagram({wrap, keepWords}) (ADR 0031 §2); LayoutCtx carries them. */
-export interface WrapEnv {readonly wrap: WrapMode; readonly keepWords: boolean}
+export interface WrapEnv {readonly wrap: WrapMode; readonly keepWords: boolean; /** The scale of the gaps of the layered figures: 1 (default) or 0.75 for `density: 'compact'` (see `spaceOf`) */ readonly space?: number}
 export interface WrapOptions {maxWidth: number; atomWidth: (atom: string) => number; mode: WrapMode}

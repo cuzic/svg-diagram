@@ -74,9 +74,9 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
     const placeIn = (total: {w: number; h: number}) => (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + x + (w - total.w - reserve) / 2, y: q.y + y + top}; };
     const run = layeredAttempt(dir === 'down' ? nodes.map(n => ({id: n.id, size: swapSize(n.size)})) : nodes, edges, {
       // a loop needs room beside its state (down) or between rows (right), so states do not crowd it
-      dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : GAP,
-      levelGap: Math.max(dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, gapFor(degree)), ...(band.initial ? {start: [INIT]} : {}),
-    }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, round: id => circles.has(id), ...(band.straighten === false ? {straighten: false} : {}), ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
+      dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : Math.round(GAP * (env.space ?? 1)),
+      levelGap: Math.max(Math.round((dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64) * (env.space ?? 1)), gapFor(degree, 0, env.space)), ...(band.initial ? {start: [INIT]} : {}),
+    }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, round: id => circles.has(id), ...(env.space === undefined || env.space === 1 ? {} : {space: env.space}), ...(band.straighten === false ? {straighten: false} : {}), ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
     const at = (id: string) => { const p = run.lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
     return {...run, dir, lines, reserve, top, at};
   };

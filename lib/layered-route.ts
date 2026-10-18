@@ -11,7 +11,10 @@ export {simplify};
 export const STUB = 18;
 export const LANE = 14;
 /** The gap two layers need so that `n` direct arrows through it each get a lane (and a label chip beside them has room). */
-export const gapFor = (n: number, chip = 0): number => Math.max(2 * STUB + LANE * Math.max(0, n - 1) + 16, chip + STUB + 26);
+export const gapFor = (n: number, chip = 0, space = 1): number => Math.max(2 * stubOf(space) + laneOf_(space) * Math.max(0, n - 1) + Math.round(16 * space), chip + stubOf(space) + 26);
+/** The stub and the lane step at a scale of the gaps (`WrapEnv.space`: 1, or 0.75 for `density: 'compact'`). */
+export const stubOf = (space = 1): number => Math.round(STUB * space);
+export const laneOf_ = (space = 1): number => Math.round(LANE * space);
 /**
  * Horizontal-vertical-horizontal elbows through the points (the layer axis is x here). A direct arrow turns at `turn` (an x in the gap
  * between its two layers, from routeLayered); the others turn half-way between their points.
@@ -37,7 +40,8 @@ export function elbows(pts: Pt[], turn?: number, lastTurn?: number): Pt[] {
  * straightening (ADR 0016 D3): a direct arrow whose two boxes overlap across the layer axis becomes one straight line when that does not make
  * the drawing worse; `round` names the nodes that are not rectangles (a circle, a hexagon), whose arrows keep to the middle of the side.
  */
-export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false, aside = false, detour = false, lonePorts = detour): Map<number, Pt[]> {
+export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false, aside = false, detour = false, lonePorts = detour, space = 1): Map<number, Pt[]> {
+  const STUB = stubOf(space), LANE = laneOf_(space); // this figure's stub and lane step (they shadow the module's)
   // ports: the edges that meet one side of a state fan out along it (ordered by where the other end is, so they do not cross)
   // lanes: direct arrows through one gap between two layers take separate vertical runs
   const portOf = new Map<string, number>(), laneOf = new Map<number, number>();
@@ -330,9 +334,9 @@ export function corridorLoad(lay: LayeredLayout): number {
  * layoutLayered, with the gap between layers wide enough for the arrows that share it: laid out once to see how many arrows go
  * through each gap (layers do not depend on the gap), then again with a gap that gives each its own lane.
  */
-export function layoutWithLanes(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]}, chip = 0): LayeredLayout {
+export function layoutWithLanes(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]}, chip = 0, space = 1): LayeredLayout {
   const first = layoutLayered(nodes, edges, opts);
-  const need = gapFor(corridorLoad(first), chip);
+  const need = gapFor(corridorLoad(first), chip, space);
   return need > (opts.levelGap ?? 0) ? layoutLayered(nodes, edges, {...opts, levelGap: need}) : first;
 }
 
@@ -358,6 +362,8 @@ export interface AttemptOpts {
   straighten?: boolean;
   /** The second candidate also pulls source nodes toward their targets (graph-layout.ts `tighten`). Default false: a cause tree reads its causes at the first layer. */
   tighten?: boolean;
+  /** The scale of the gaps (`WrapEnv.space`): the stub and the lane step of the arrows shrink with it. Default 1. */
+  space?: number;
   /** A long arrow takes the way around the boxes with the fewest bends when that is strictly better (route-search.ts). Default false. */
   detour?: boolean;
   /** false: no ADR 0016 D12/D13 pass (side-by-side runs moved aside) on the chosen candidate. Default true. */
@@ -410,10 +416,10 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
   type Side = 'far' | 'near' | 'low';
   const optsOf = new WeakMap<Attempt, {opts: typeof layoutOpts; laneShare: boolean; near: Side}>();
   const build = (opts: typeof layoutOpts, laneShare = false, aside = false, near: Side = 'far'): Attempt => {
-    const lay = layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: STUB, step: LANE, ...(near === 'far' ? {} : {side: near})}} : opts);
+    const lay = layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: stubOf(o.space), step: laneOf_(o.space), ...(near === 'far' ? {} : {side: near})}} : opts, 0, o.space);
     const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
     const groupOf = o.groupOf;
-    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true && opts.coord === 'bk', o.detour === true); // the search for a way around the boxes only in the straightened candidate (it competes with the plain one on bends); a lone port is straightened in both
+    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true && opts.coord === 'bk', o.detour === true, o.space); // the search for a way around the boxes only in the straightened candidate (it competes with the plain one on bends); a lone port is straightened in both
     const made = {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
     optsOf.set(made, {opts, laneShare, near});
     return made;
