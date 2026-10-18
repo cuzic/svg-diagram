@@ -312,18 +312,10 @@ test('causeTree(): the arrows of an AND do not cross more than they did without 
   assert.ok(andCross(now) <= andCross(old), `${andCross(old)} -> ${andCross(now)}`);
 });
 
-// Opus review of #293 (M-1): a long arrow with only two bends ran through a box and was left alone (it bends little), so `check` called the figure wrong.
-// (With the real fonts the figure reproduces it; with the fixed widths of these tests the arrow clears the box anyway, so this guards the property, not the cause.)
-test('causeTree(): no arrow runs through a box that is not one of its ends', () => {
+// Opus review of #293 (M-1): a long arrow with only two bends ran along a box and was left alone (it bends little). The figure through the whole pipeline with the real fonts, where the arrow n1 -> n5 ran along the left side of n3 (a run of 2 bends, so it was not searched): `check` calls that an error
+test('causeTree(): with the real fonts no arrow of the figure runs through a box (check finds nothing wrong)', async () => {
   const labels = ['n0 あああああああああああああ', 'n1 あああ', 'n2 あああああああ', 'n3 ああああああああああ', 'n4 あああああああああああああ', 'n5 あああああああああああああ', 'n6 あああああああああああああ', 'n7 ああああ', 'n8 あああああ', 'n9 ああああああああ'];
-  const nodes = labels.map((label, i) => N(`n${i}`, {label}));
   const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":"n1","to":"n2"},{"from":"n1","to":"n3"},{"from":"n0","to":"n4"},{"from":"n2","to":"n4"},{"from":"n1","to":"n5"},{"from":"n4","to":"n5"},{"from":"n1","to":"n6"},{"from":"n3","to":"n6"},{"from":"n5","to":"n7"},{"from":"n4","to":"n8"},{"from":"n6","to":"n9"},{"from":"n8","to":"n9"}]');
-  const t = place(causeTree(nodes, links, {dir: 'right'}), 1800);
-  const through: string[] = [];
-  t.edges.forEach(e => t.nodes.forEach((n, i) => {
-    const id = t.anchors[i].id;
-    if (id === e.from || id === e.to) return;
-    if (e.points.slice(1).some((q, k) => { const p = e.points[k]; return Math.max(p.x, q.x) > n.x + 1 && Math.min(p.x, q.x) < n.x + n.w - 1 && Math.max(p.y, q.y) > n.y + 1 && Math.min(p.y, q.y) < n.y + n.h - 1; })) through.push(`${e.from}->${e.to} through ${id}`);
-  }));
-  assert.deepEqual(through, []);
+  const {verdict} = await checkDiagram(diagram({theme: 'blue', width: 1800}).add(causeTree(labels.map((label, i) => N(`n${i}`, {label})), links, {dir: 'right'}) as never));
+  assert.deepEqual(verdict.problems.filter(p => /runs through/.test(String(p.message ?? p))), []);
 });
