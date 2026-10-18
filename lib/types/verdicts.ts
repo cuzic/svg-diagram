@@ -11,6 +11,7 @@ export interface Finding {rule: string; severity: Severity; message: string; dat
 /** What the lint rules read: the diagram's bands plus (optionally) layout results. */
 export interface LintTarget extends DiagramData {
   laidOut?: LaidOutBand[];
+  wrapFellBack?: true;
   connects?: LaidOutConnect[];
   contentHeight?: number;
 }

@@ -166,7 +166,7 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
   mirrorOf?: {ids: string[]; udes: string[]};
   /** With coreDriver: write how many undesirable effects each starting entity reaches under it (default true). */
   counts?: boolean;
-  /** The wording of that line: `{n}` is the number reached, `{total}` the number of `ude` entities (default `{n}/{total} 件の現象に届く`). */
+  /** The wording of that line: `{n}` is the number reached, `{total}` the number of `ude` entities (default `{n}/{total} 件に届く`). */
   coreDriverLabel?: string;
   /** Where a return (an arrow back to an earlier layer) that skips two layers or more runs: 'inline' (through the figure, over dummies) or 'outer' (in a lane
    *  outside the figure, 14px apart, the longest outermost). Default: the arrows written `back: true` run outside, the others inline; `pdpc` runs all of them outside

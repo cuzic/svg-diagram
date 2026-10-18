@@ -1,3 +1,4 @@
+import {resolveLoopBacks} from '../loop-back.ts';
 import type {ConnectBand, GridBand, GridOpts, GroupBand, RowBand, RowOpts, SpacerBand, GroupRowBand} from '../types/containers.ts';
 import type {TextTone} from '../types/core.ts';
 import type {Band} from '../types/index.ts';
@@ -62,9 +63,11 @@ export function row(rawChildren: Band[], opts: RowOpts = {}): RowBand | GroupRow
     assertRowChildren(children);
   } else assertBoxChildren('row', children as BoxBand[]);
   const {cols, kids} = spanRow(children, opts.cols);
+  if (opts.loopBack !== undefined && hasGroup) throw new Error('row(): loopBack needs a row of boxes (a group in the row has no step anchor to loop to)');
+  const loopBack = opts.loopBack === undefined ? undefined : resolveLoopBacks('row()', opts.loopBack, kids.length);
   const band = hasGroup
     ? {type: 'grouprow' as const, id: opts.id, cols, children: kids, gap: opts.gap ?? 16, justify: opts.justify ?? 'stretch', itemWidth: opts.width}
-    : {type: 'row' as const, id: opts.id, cols, children: kids as BoxBand[], gap: opts.gap ?? 16, arrows: opts.arrows ?? 'none', justify: opts.justify ?? 'stretch', itemWidth: opts.width};
+    : {type: 'row' as const, id: opts.id, cols, children: kids as BoxBand[], gap: opts.gap ?? 16, arrows: opts.arrows ?? 'none', justify: opts.justify ?? 'stretch', itemWidth: opts.width, ...(loopBack ? {loopBack} : {})};
   if (!opts.id) return band;
   const id = opts.id;
   return Object.defineProperty(withHandle(band, id), 'col', {value: (n: number, to?: number) => {
