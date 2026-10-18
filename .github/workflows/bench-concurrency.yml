@@ -1,0 +1,31 @@
+name: bench-concurrency
+on:
+  pull_request:
+jobs:
+  bench:
+    name: conc=${{ matrix.conc }} rep=${{ matrix.rep }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        conc: [default, 2, 4, 6]
+        rep: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: test (cores=$(nproc))
+        run: |
+          nproc
+          if [ "${{ matrix.conc }}" = default ]; then C=""; else C="--test-concurrency=${{ matrix.conc }}"; fi
+          s=$(date +%s)
+          node --test $C "test/*.test.ts" || true
+          echo "BENCH conc=${{ matrix.conc }} rep=${{ matrix.rep }} secs=$(( $(date +%s) - s ))"
