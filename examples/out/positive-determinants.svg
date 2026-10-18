@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="443" viewBox="0 0 940 443" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">幸福度のばらつきを左右する要因</title>
+  <desc id="svg-desc">100%積み上げ棒グラフ: 幸福度の差（計 100）: 遺伝(設定値) 50（50%）、環境(境遇) 10（10%）、意図的な活動 40（40%）</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/positive-determinants.ts","sourceSha256":"86cc3a802e1d2dcaefd18a303667ae50905c942857a1d82f4e1f6ff56ef69002"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="443" fill="#ffffff"/>
+
+  <path d="M70.58,22 H84.58 V36 H70.58 Z" fill="#ffffff"/>
+  <path d="M70.58,22 H84.58 V36 H70.58 Z" fill="#1d5fa8" fill-opacity="0.85" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="91" y="34" font-size="14" fill="#22201b">遺伝(設定値)</text>
+  <path d="M193.4,22 H207.4 V36 H193.4 Z" fill="#ffffff"/>
+  <path d="M193.4,22 H207.4 V36 H193.4 Z" fill="#1d5fa8" fill-opacity="0.5" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="213" y="34" font-size="14" fill="#22201b">環境(境遇)</text>
+  <path d="M302.21,22 H316.21 V36 H302.21 Z" fill="#ffffff"/>
+  <path d="M302.21,22 H316.21 V36 H302.21 Z" fill="#1d5fa8" fill-opacity="0.15" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="322" y="34" font-size="14" fill="#22201b">意図的な活動</text>
+  <path d="M64.6,328 L912,328" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="333" text-anchor="end" font-size="14" fill="#6f6659">0%</text>
+  <path d="M64.6,274 L912,274" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="279" text-anchor="end" font-size="14" fill="#6f6659">20%</text>
+  <path d="M64.6,220 L912,220" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="225" text-anchor="end" font-size="14" fill="#6f6659">40%</text>
+  <path d="M64.6,166 L912,166" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="171" text-anchor="end" font-size="14" fill="#6f6659">60%</text>
+  <path d="M64.6,112 L912,112" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="117" text-anchor="end" font-size="14" fill="#6f6659">80%</text>
+  <path d="M64.6,58 L912,58" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="61" y="63" text-anchor="end" font-size="14" fill="#6f6659">100%</text>
+  <path d="M70.6,58 L70.6,328" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M443.3,195 H539.3 V328 H443.3 Z" fill="#ffffff"/>
+  <path d="M443.3,195 H539.3 V328 H443.3 Z" fill="#1d5fa8" fill-opacity="0.85"/>
+  <text x="491" y="267" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">50%</text>
+  <path d="M443.3,168 H539.3 V193 H443.3 Z" fill="#ffffff"/>
+  <path d="M443.3,168 H539.3 V193 H443.3 Z" fill="#1d5fa8" fill-opacity="0.5"/>
+  <text x="491" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">10%</text>
+  <path d="M443.3,60 H539.3 V166 H443.3 Z" fill="#ffffff"/>
+  <path d="M443.3,60 H539.3 V166 H443.3 Z" fill="#1d5fa8" fill-opacity="0.15"/>
+  <text x="491" y="118" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">40%</text>
+  <text x="491" y="353" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">幸福度の差</text>
+  <text x="491" y="371" text-anchor="middle" font-size="14" fill="#6f6659">計 100</text>
+
+  <text x="20" y="418" font-size="14" font-weight="400" fill="#6f6659">出典: Lyubomirsky ほかの整理に基づく目安(説明用に簡略化)</text>
+</svg>
