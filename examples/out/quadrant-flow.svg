@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="538" viewBox="0 0 940 538" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">フロー理論：スキルと挑戦度のバランス</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/quadrant-flow.ts","sourceSha256":"22ad46712e8c68b3a2da3dae300b03cc1c1ae2846337bc49f86661cd43e8a399"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="538" fill="#ffffff"/>
+
+  <rect x="88" y="28" width="412" height="212" rx="0" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <rect x="500" y="28" width="412" height="212" rx="0" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <rect x="88" y="240" width="412" height="208" rx="0" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <rect x="500" y="240" width="412" height="208" rx="0" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
+  <polygon points="88,344 88,28 708,28" fill="#ffffff" stroke="#1d5fa8" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="296,448 912,448 912,132" fill="#f6f8fa" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="88,448 296,448 912,132 912,28 708,28 88,344" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="88,448 268,448 88,356" fill="#ffffff" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M500,28 L500,448" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M88,240 L912,240" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M346,307 L530,201" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="530,201 524,211 519,202" fill="#22201b"/>
+  <path d="M550,191 L778,77" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="778,77 771,86 767,77" fill="#22201b"/>
+  <circle cx="336" cy="312" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="540" cy="196" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="788" cy="72" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="96" cy="496" r="7" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
+  <text x="228" y="100" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">不安</text>
+  <text x="228" y="119" text-anchor="middle" font-size="14" fill="#6f6659">挑戦がスキルを上回る</text>
+  <text x="772" y="368" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">退屈</text>
+  <text x="772" y="387" text-anchor="middle" font-size="14" fill="#6f6659">スキルが挑戦を上回る</text>
+  <text x="599" y="284" text-anchor="middle" font-size="15" font-weight="700" fill="#1d5fa8">フロー</text>
+  <text x="599" y="303" text-anchor="middle" font-size="14" fill="#6f6659">挑戦とスキルが釣り合う</text>
+  <text x="137" y="428" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">無関心</text>
+  <text x="324" y="317" text-anchor="end" font-size="14" fill="#22201b">入門</text>
+  <text x="548" y="218" font-size="14" fill="#22201b">慣れてきた</text>
+  <text x="800" y="77" font-size="14" fill="#22201b">熟達</text>
+  <text x="78" y="46" text-anchor="end" font-size="14" fill="#6f6659">難しい</text>
+  <text x="78" y="442" text-anchor="end" font-size="14" fill="#6f6659">易しい</text>
+  <text x="78" y="243" text-anchor="end" font-size="15" font-weight="700" fill="#22201b">挑戦度</text>
+  <text x="88" y="472" font-size="14" fill="#6f6659">低い</text>
+  <text x="912" y="472" text-anchor="end" font-size="14" fill="#6f6659">高い</text>
+  <text x="500" y="472" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">スキル</text>
+  <text x="110" y="500" font-size="14" fill="#22201b">学習の経過</text>
+</svg>

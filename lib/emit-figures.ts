@@ -143,6 +143,11 @@ export function renderQuadrant(b: LaidOutQuadrant, day: Theme, tones: ToneEnv): 
     const x0 = snap4(c.x), y0 = snap4(c.y), x1 = snap4(c.x + c.w), y1 = snap4(c.y + c.h);
     out.push(`<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="${b.crosshair ? 0 : 8}" fill="${fill}" stroke="${stroke}" stroke-width="2"${ts.dashed && !b.dim ? ' stroke-dasharray="6,4"' : ''}/>`);
   }
+  for (const r of b.regions) {
+    const ts = toneStyle(tones, r.tone), fill = b.dim ? PALETTE.bg : colorOf(ts.fill, day);
+    const stroke = b.dim ? PALETTE.muted : ts.stroke === null ? colorOf(ts.fill, day) : r.tone === 'plain' ? PALETTE.muted : colorOf(ts.stroke, day);
+    out.push(`<polygon points="${r.points.map(([px, py]) => `${snap4(px)},${snap4(py)}`).join(' ')}" fill="${fill}" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"${ts.dashed && !b.dim ? ' stroke-dasharray="6,4"' : ''}/>`);
+  }
   for (const l of b.lines) out.push(`<path d="M${snap4(l.x1)},${snap4(l.y1)} L${snap4(l.x2)},${snap4(l.y2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`); // on the snapped cell edges
   const head = (x: number, y: number, dx: number, dy: number, color: string): string => {
     const L = 10, W = 5, pts = [[x, y], [x - dx * L - dy * W, y - dy * L + dx * W], [x - dx * L + dy * W, y - dy * L - dx * W]];

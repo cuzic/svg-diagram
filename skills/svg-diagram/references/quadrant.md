@@ -16,6 +16,7 @@
 | 矢印 | `arrows: [{from: id, to: id｜[x, y], label?}]`（ポートフォリオの移動） |
 
 - 評価は色だけにしない。マスの見出し・説明を文字で書き、項目の種類は `tone` ではなく `group` で分ける（`quadrant-tone-only`）。
+- マスで切れない領域（斜めの帯。フロー理論の「釣り合う帯」）は `regions: [{title, note?, tone?, points: [[x, y], ...], at?}]`。`points` は値の空間（0〜1、1 が高い側）の 3 点以上の多角形で、後ろが上に描かれる。`crosshair: true` と、マスに見出しのない型（`quadrant.preset('positioning', {...})`）が条件（領域が文字を持つ）。領域があると `quadrant-empty-cell` は出ない。多角形どうしの重ね合わせ・切り取りはない。例は `examples/quadrant-flow.ts`。
 - 項目のないマスは `quadrant-empty-cell`（警告）。項目を入れるか、意図した空きなら `allowEmpty: [[col, row]]` / `true` で示す。
 - 項目は重ならず、混めば行が伸びる。座標から大きく動いた項目は `quadrant-item-moved` が知らせるので、座標か図の大きさを見直す。矢印が項目やラベルを横切るときは項目の位置を替える。
 - 座標は値の空間（BCG のように x を高い→低い向きに描いても、シェアが高ければ x は 1 に近い）。マスの境目（0.5 など）の項目は、高い側のマスに入る。

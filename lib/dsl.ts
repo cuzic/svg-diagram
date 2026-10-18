@@ -41,7 +41,7 @@ export type {VersusConnectLabels, VersusOpts, VersusPart, VersusSharedOpts} from
 export type * from './types/index.ts';
 export type * from './semantic-table.ts';
 
-export type {QuadrantOpts, QuadrantItem, QuadrantPreset, QuadrantCell, QuadrantAxis, QuadrantArrow} from './quadrant.ts';
+export type {QuadrantOpts, QuadrantItem, QuadrantPreset, QuadrantCell, QuadrantAxis, QuadrantArrow, QuadrantRegion} from './quadrant.ts';
 export type {WordArtOpts, WordArtBand, WordArtPreset, OutlineSpec, ShadowSpec, GradientSpec, GlowSpec, ExtrudeSpec, ReflectionSpec, ArtTone} from './wordart.ts';
 export type {FlowStep, ChevronOpts, FunnelStage, FunnelOpts, CycleOpts, VennSet, VennOverlap, VennOpts, ConcentricRing, ConcentricOpts} from './flow-shapes.ts';
 export {tally} from './qc-table.ts';
