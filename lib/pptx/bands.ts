@@ -4,6 +4,7 @@ import type {LaidOutOf, LaidOutType} from '../band-table.ts';
 import type {LaidOutDiagram, LaidOutBand} from '../types/index.ts';
 import {fitConnector, siteIndex} from './geom.ts';
 import {type Rect, type Fonts} from './xml.ts';
+import type {ToneEnv} from '../tokens.ts';
 import {boxXml, plainBox, groupFrameXml, groupXml, anchorXml, picXml, type TextBox} from './shapes.ts';
 import {tableXml} from './table.ts';
 import {rowArrowXml, type Glue} from './connectors.ts';
@@ -13,6 +14,8 @@ import {imageRids} from './package.ts';
 /** What the bands of one slide share: ids, the shapes connectors can glue to, and the pictures to rasterize. */
 export interface Ctx {
   ld: LaidOutDiagram;
+  /** The diagram's tone overrides (planSlide resolves them once from ld.tones). */
+  tones: ToneEnv;
   fonts: Fonts;
   next(): number;
   glue: Map<string, {id: number; rect: Rect}>;
@@ -33,10 +36,10 @@ const badgeSize = (r: Rect): number => Math.min(12, Math.max(8, r.h * 0.48));
 const boxBand = (b: BoxLike, ctx: Ctx): string => {
   const id = ctx.next();
   register(ctx, b.id, id, b);
-  const main = boxXml(id, b.id ?? `box-${id}`, b, ctx.ld.day, ctx.fonts);
+  const main = boxXml(id, b.id ?? `box-${id}`, b, ctx.ld.day, ctx.tones, ctx.fonts);
   if (!b.tag && !b.stamp && b.step === undefined && !b.icon) return main;
   const badge = (text: string, r: Rect, name: string): string =>
-    boxXml(ctx.next(), name, plainBox(r, text, {size: badgeSize(r), weight: 700, tone: b.tone, frame: true, padX: 2, padY: 1}), ctx.ld.day, ctx.fonts);
+    boxXml(ctx.next(), name, plainBox(r, text, {size: badgeSize(r), weight: 700, tone: b.tone, frame: true, padX: 2, padY: 1}), ctx.ld.day, ctx.tones, ctx.fonts);
   const extra: string[] = [];
   if (b.tag && b.tagBox) extra.push(badge(b.tag, b.tagBox, `tag-${id}`));
   if (b.stamp) extra.push(badge(b.stamp, {x: b.x + b.w - (b.stampW ?? 64) - 8, y: b.y + b.h - 22, w: b.stampW ?? 64, h: 18}, `stamp-${id}`));
@@ -50,7 +53,7 @@ const boxBand = (b: BoxLike, ctx: Ctx): string => {
 const captionBand: BandXml<LaidOutOf<'caption'>> = (band, ctx) => {
   const id = ctx.next();
   const text: TextBox = {...band, tone: undefined, frame: false, padX: 0, padY: 0, align: band.align ?? 'center'};
-  return boxXml(id, `caption-${id}`, text, ctx.ld.day, ctx.fonts);
+  return boxXml(id, `caption-${id}`, text, ctx.ld.day, ctx.tones, ctx.fonts);
 };
 
 const verticalExtent = (children: Rect[]): {y: number; h: number} => {
@@ -83,7 +86,7 @@ const gridBand: BandXml<LaidOutOf<'grid'>> = (band, ctx) => {
 const groupFrameBand: BandXml<LaidOutOf<'group'>> = (band, ctx) => {
   const id = ctx.next();
   register(ctx, band.id, id, band);
-  return groupFrameXml(id, band.id ?? 'group-' + id, band, band.tone, band.dashed, ctx.ld.day);
+  return groupFrameXml(id, band.id ?? 'group-' + id, band, band.tone, band.dashed, ctx.ld.day, ctx.tones);
 };
 
 const tableBand: BandXml<LaidOutOf<'table'>> = (band, ctx) => {

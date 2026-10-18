@@ -1,7 +1,7 @@
 // The tone table (tokens.ts TONES) is the one place a tone name becomes colours, so one test can hold every tone to the contrast rules.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {PALETTE, THEMES, TONES, TONE_ALIAS, colorOf, textKeyOf, toneStyle, wcagRatio} from '../lib/tokens.ts';
+import {PALETTE, THEMES, TONES, TONE_ALIAS, colorOf, textKeyOf, toneStyle, wcagRatio, NO_TONES} from '../lib/tokens.ts';
 import {resolveBoxStyle, resolveTextColor} from '../lib/emit.ts';
 import type {Theme} from '../lib/types/core.ts';
 
@@ -32,13 +32,13 @@ test('every outlined tone: the outline is visible against the page in the doc th
 });
 
 test('aliases, defaults and the emit helpers all read the same table', () => {
-  for (const [alias, name] of Object.entries(TONE_ALIAS)) assert.equal(toneStyle(alias), TONES[name]);
-  assert.equal(toneStyle(undefined), TONES.plain);
-  assert.equal(toneStyle('nonsense'), TONES.plain);
-  assert.equal(textKeyOf('solid'), 'text', 'a tone text cannot be set in writes in the normal colour');
-  assert.equal(textKeyOf('ok'), 'accent');
-  assert.equal(resolveTextColor('danger', 'blue'), PALETTE.danger);
-  assert.deepEqual(resolveBoxStyle('muted', 'blue'), {fill: PALETTE.code, stroke: PALETTE.muted, dashed: false});
-  assert.deepEqual(resolveBoxStyle('muted', 1), {fill: PALETTE.code, stroke: PALETTE.border, dashed: false}, 'the slide decks keep the pale border');
-  assert.deepEqual(resolveBoxStyle('accent', 'teal', true), {fill: PALETTE.teal.soft, stroke: PALETTE.teal.accent, dashed: true});
+  for (const [alias, name] of Object.entries(TONE_ALIAS)) assert.equal(toneStyle(NO_TONES, alias), TONES[name]);
+  assert.equal(toneStyle(NO_TONES, undefined), TONES.plain);
+  assert.equal(toneStyle(NO_TONES, 'nonsense'), TONES.plain);
+  assert.equal(textKeyOf(NO_TONES, 'solid'), 'text', 'a tone text cannot be set in writes in the normal colour');
+  assert.equal(textKeyOf(NO_TONES, 'ok'), 'accent');
+  assert.equal(resolveTextColor(NO_TONES, 'danger', 'blue'), PALETTE.danger);
+  assert.deepEqual(resolveBoxStyle(NO_TONES, 'muted', 'blue'), {fill: PALETTE.code, stroke: PALETTE.muted, dashed: false});
+  assert.deepEqual(resolveBoxStyle(NO_TONES, 'muted', 1), {fill: PALETTE.code, stroke: PALETTE.border, dashed: false}, 'the slide decks keep the pale border');
+  assert.deepEqual(resolveBoxStyle(NO_TONES, 'accent', 'teal', true), {fill: PALETTE.teal.soft, stroke: PALETTE.teal.accent, dashed: true});
 });

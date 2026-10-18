@@ -64,7 +64,6 @@ const SHELL: Record<string, Shell> = {
 /** Core files that break a rule today, and the stage of ADR 0031 that removes each. An entry that no longer matches fails the test. */
 const KNOWN: {file: string; rule: string; removedIn: number}[] = [
   {file: 'wrap', rule: 'top-level let', removedIn: 3}, {file: 'wrap', rule: 'top-level let', removedIn: 3},
-  {file: 'tokens', rule: 'top-level let', removedIn: 2},
   {file: 'dsl/text-bands', rule: 'top-level let', removedIn: 5},
   {file: 'fta-analysis', rule: 'localeCompare without a locale', removedIn: 6},
   {file: 'qc', rule: 'localeCompare without a locale', removedIn: 6},
@@ -73,7 +72,8 @@ const KNOWN: {file: string; rule: string; removedIn: number}[] = [
 
 /** State that is kept on purpose: a cache keyed by its whole input, or a marker keyed by object identity. */
 const CACHES: {file: string; rule: string; why: string}[] = [
-  {file: 'tokens', rule: 'top-level mutable Map', why: 'MAPS: the dark colour table per appearance, keyed by the whole appearance (moves into ToneEnv in stage 2)'},
+  {file: 'tokens', rule: 'top-level mutable Map', why: 'MAPS: the dark colour table per appearance, keyed by the whole appearance'},
+  {file: 'tokens', rule: 'top-level mutable WeakMap', why: 'ENVS: the resolved tone overrides, keyed by the overrides object'},
   {file: 'toc', rule: 'top-level mutable WeakSet', why: 'movedAside: marks route arrays already moved, keyed by identity'},
   {file: 'dsl/wireframe-numbering', rule: 'top-level mutable WeakSet', why: 'SHELLED: marks bands already numbered, keyed by identity'},
 ];

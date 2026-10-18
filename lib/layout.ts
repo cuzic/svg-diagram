@@ -33,13 +33,14 @@ import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
 import type {DiagramData, Roles, WidthOf, Rect} from './types/core.ts';
 import type {LaidOutDiagram, LaidOutBand, LaidOutBox, Band} from './types/index.ts';
 import type {CaptionBand, BoxBand, BannerBand, BoxChrome} from './types/text-bands.ts';
-import {CONNECT_LABEL_SIZE, TAG_SIZE, withTones} from './tokens.ts';
+import {CONNECT_LABEL_SIZE, TAG_SIZE, toneEnv} from './tokens.ts';
+import type {ToneEnv} from './tokens.ts';
 
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
 export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
   const lay = (mode: WrapMode): LaidOutDiagram => {
     const prev = setWrapMode(mode), prevKeep = setKeepWords(data.keepWords === true);
-    try { return withTones(data.tones, () => layoutBands(data, roles, widthOf)); } finally { setWrapMode(prev); setKeepWords(prevKeep); }
+    try { return layoutBands(data, roles, widthOf, toneEnv(data.tones)); } finally { setWrapMode(prev); setKeepWords(prevKeep); }
   };
   const setting = data.wrap ?? 'phrase';
   if (setting !== 'bunsetsu-soft') return lay(setting);
@@ -48,7 +49,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
   try { return lay('bunsetsu'); } catch { return {...lay('phrase'), wrapFellBack: true}; }
 }
 
-function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
+function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv): LaidOutDiagram {
   const d = withStatus(withSourceLine(data));
   const contentWidth = d.width - 2 * d.pad;
 
@@ -179,7 +180,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOut
     if (scope) addScoped(scopes, scope, id);
   };
   const ctx: LayoutCtx = {
-    d, roles, widthOf, y: d.pad, laidOut, anchors, nodeBottoms, areaIds, connects, deferred, scopes,
+    d, roles, widthOf, tones, y: d.pad, laidOut, anchors, nodeBottoms, areaIds, connects, deferred, scopes,
     setBox, claimed, register, placeBoxLike, gapForLabels,
     stack: (bands, padX, cw) => {
       for (const band of bands) layoutHandlerFor(band.type)(band as never, ctx, padX, cw);

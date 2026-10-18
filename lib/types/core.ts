@@ -20,7 +20,7 @@ export interface ThemeColors {accent: string; soft: string}
 export type PlainColorKey = 'bg' | 'text' | 'muted' | 'border' | 'code' | 'danger';
 export type Palette = Record<PlainColorKey, string> & Record<Theme, ThemeColors>;
 /** Token key a wireframe primitive carries; emit.ts resolves it against the diagram theme ('accent' | 'soft' are theme colours). */
-export type ColorKey = PlainColorKey | 'accent' | 'soft' | `#${string}`; // a #rrggbb only comes from a tone override (tokens.ts withTones)
+export type ColorKey = PlainColorKey | 'accent' | 'soft' | `#${string}`; // a #rrggbb only comes from a tone override (tokens.ts toneEnv)
 /** font-size role (tokens.ts ROLES). */
 export type Role = 'title' | 'label' | 'body' | 'note' | 'banner' | 'stat' | 'display';
 /** The font size (px) of every role: a value, so a figure's text sizes travel with it (tokens.ts ROLES, scaleRoles). */

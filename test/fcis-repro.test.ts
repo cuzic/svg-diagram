@@ -16,8 +16,8 @@ const TONES: ToneOverrides = {accent: {fill: '#b8cfe8', dark: {fill: '#2a4a70'}}
 const figure = (appearance?: 'light' | 'dark' | 'auto') => diagram({theme: 'blue', tones: TONES, ...(appearance ? {appearance} : {})}).add(box({id: 'a', title: 'a'}), box({id: 'b', title: 'b', tone: 'accent'}));
 const render = (appearance?: 'light' | 'dark' | 'auto') => renderDiagram(figure(appearance), {name: 'd.svg', budget: 'cacheOnly'});
 
-// (a) ADR 0031 background 1: emitPptx does not go through withTones, so a figure's tone override is drawn in the built-in colour.
-test('PPTX draws a tone override (the slide XML holds the overridden fill)', {todo: 'ADR 0031 stage 2: PPTX ignores diagram({tones})'}, async () => {
+// (a) ADR 0031 background 1: emitPptx did not go through withTones, so a figure's tone override was drawn in the built-in colour (fixed in stage 2: planSlide resolves the ToneEnv).
+test('PPTX draws a tone override (the slide XML holds the overridden fill)', async () => {
   const {laidOut} = await render();
   const xml = unzipEntry(emitPptx(laidOut, {rasterFonts: []}), 'ppt/slides/slide1.xml').toString();
   assert.match(xml, /B8CFE8/i);
