@@ -21,7 +21,19 @@ jobs:
       # the tests that compare with a real browser (lint --engine browser, --engine chromium, the Chromium measuring engine) need one
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm typecheck
-      - run: pnpm test
+      - run: node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=/tmp/junit.xml "test/*.test.ts"
+      - name: slowest tests and files
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET, collections
+          t = ET.parse('/tmp/junit.xml').getroot()
+          cases = [(float(c.get('time')), c.get('classname') or '', c.get('name')) for c in t.iter('testcase')]
+          files = collections.Counter()
+          for tm, cls, n in cases: files[cls] += tm
+          print('### slowest files (s)'); [print(f'- {v:.1f} {k}') for k, v in files.most_common(25)]
+          print('### slowest tests (s)'); [print(f'- {tm:.1f} {n}') for tm, cls, n in sorted(cases, reverse=True)[:40]]
+          PY
       # building every example (and linting the SVGs strictly) is test/lint-cli.test.ts; one process per example here cost more than the rest of this job
       - name: examples pass the rule check
         run: node check-diagram.ts --strict examples/*.ts
