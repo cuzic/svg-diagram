@@ -27,7 +27,7 @@
 import type {Browser, Page} from 'playwright-chromium';
 import {launchChromium} from './lib/browser.ts';
 import {browserChecks} from './lib/lint-browser.ts';
-import {geometryChecks, type RenderChecks} from './lib/svg-lint.ts';
+import {geometryChecks, type RenderChecks} from './lib/geometry-checks.ts';
 import {loadConfig, readConfigFile} from './lib/config.ts';
 import type {Config} from './lib/types/project.ts';
 import path from 'path';

@@ -65,7 +65,7 @@ export function layoutRing(g: ChartGeom, ns: readonly {id: string; label: string
   const need = Math.ceil(2 * ry + maxH + topPad + botPad);
   if (g.height !== undefined && g.height < need) ringFail(`height ${g.height} is too small for this ring; it needs at least ${need} (raise height, or drop it to let the figure grow)`);
   const H = Math.max(need, g.height ?? 0), cx = g.x + g.w / 2, cy = g.y + topPad + maxH / 2 + ry + (H - need) / 2;
-  const move = (p: Pt): Pt => ({x: cx + p.x, y: cy + p.y}), c = new Canvas(g.x, g.y, g.w, H, g.size, g.widthOf);
+  const move = (p: Pt): Pt => ({x: cx + p.x, y: cy + p.y}), c = new Canvas(g.x, g.y, g.w, H, g.size, g.widthOf, g.wrap);
   const positions = new Map<string, Rect>(), paths = new Map<number, Pt[]>();
   order.forEach((x, i) => { const r = bs[i]; positions.set(x.id, {x: cx + r.x, y: cy + r.y, w: r.w, h: r.h}); });
   for (const x of order) { const p = positions.get(x.id)!; c.solids.push({...p, id: x.id, label: `node "${x.label}"`}); }

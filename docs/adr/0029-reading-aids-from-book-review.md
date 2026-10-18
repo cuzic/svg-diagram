@@ -1,6 +1,6 @@
 # ADR 0029: 誤読を防ぐ作図の拡張(技術書 459 枚の目視レビューから。役割の見た目・語を割らない幅・戻り矢印・チャートの軸と範囲)
 
-- 状態: 起票(Opus 3 巡のレビューで収束。P0・P1 なし。実測の節を追加)。**D1(`roleTags`)、D3 第 1 段(`keepWords`)、D5 の `domain` と `chart-axis-mismatch`、D6(`range` / `rangeBars`)は実装済み**(PR 本文を参照)
+- 状態: 起票(Opus 3 巡のレビューで収束。P0・P1 なし。実測の節を追加)。**D1(`roleTags`)、D3 第 1 段(`keepWords`)、D5 の `domain` と `chart-axis-mismatch`、D6(`range` / `rangeBars`)、D4 段階 2(`loopBack`)は実装済み**(PR 本文を参照)
 - 日付: 2026-10-16
 - 基点: `main`(53e029a、PR #252 まで)。**依存**: 検査 `text-mid-word-break` / `toc-injection-to-obstacle`(#256)、`loop-under` の案内(#260)は、この ADR の時点で未マージ。D2・D3 の「割れは検査が拾う」は #256 のマージが前提
 - 関連: ADR 0010(幅の自動調整)、ADR 0015(TOC 因果ツリー)、ADR 0016(経路)、ADR 0028(飛び越し線)、ADR 0007(核と殻)
@@ -53,6 +53,7 @@
 - 順序(再試行と fold): ADR 0010 D1 の連続性を守る。(a) 下限ありで狭める → 下限なしで狭める(従来の結果)→ fold(下限あり)→ fold(下限なし)。下限なしの系列は、下限ありが全滅したときだけ遅延で回す(causeTree は `layoutCauseBand` が最大 8 回呼ぶので費用に注意)。`keepWords` が off のときはこの経路に入らない。`dir` や `maxNodeW` を明示した図は試行が 1 本で fold も無い(`fold: true` を除く)ので、下限ありで収まらなければ**下限なしで 1 回やり直し、それでも収まらなければ従来の throw**。
 - `describeApplied` の文言(`maxNodeW を 200→110 に縮めた` と出ても下限が効いた箱は 140px のまま)がずれる。語を守るため一部の箱が広いことを足し、test で固定する。
 - **「狭めるときは既定で語を守る」(fitLayout の再試行にだけ効く版)は入れない**。書籍の図の実測(順序の 3)の結果を見て、既定化として後で判断する。
+- **(実装での追加)** 書籍側の実測で、漢字・かなの途中改行(行がひらがなで始まる)が 15 図 87 行あり、`wrap: 'bunsetsu'` で 9 図が直る一方、4 図は 940px に収まらず build が止まると分かった。`wrap: 'bunsetsu-soft'`(まず `bunsetsu`、収まらなければ `phrase`。`.svg-diagram.json` にも書ける。情報 `wrap-fell-back`)を足した。
 - **第 2 段**(枠が先に決まる `chevron` / `cycle` / `swimlane` の step)は別に扱う。書籍の語中改行の主な事例(`chevron` の横向き 6 段で本文幅が約 110px)はこちら。`tip` を 22→14 にしても +16px でカタカナ 1 字ぶんにしかならない。効く手は (i) 縦向きに替えるよう促す、(ii) その帯の文字を一段小さくする(オプトイン)、(iii) 語が入らないとき throw して直し方を示す。golden を変えずに足せるのは (iii) とオプトインの (ii)。**第 2 段を待たずに、`text-mid-word-break` の文言に chevron 向けの直し方(縦向き、段を減らす)を足す**(安い)。
 
 ### D4. 戻り矢印: 文言の改善と、`loopBack` の糖衣
@@ -68,7 +69,8 @@
 1. 各チャート(waterfall / stacked(積み上げのみ)/ tornado)に `domain` opt を足す(**butterfly は値の軸を持たず、左右で最大値を共有するだけなので、この PR では対象外**)(`bars` の `max` に相当)。
 2. 検査 `chart-axis-mismatch` を**同じ PR で**入れる(`domain` が無い warn は、直す手段が `accept` しかなくなるため)。**条件を絞る**: 「**値の軸が見た目で揃う並び**」だけを warn。`row` / `grid` の子は箱だけ(`BoxBand[]`。`lib/types/containers.ts:136,170`)で、チャートは `row` / `grid` の子になれず(「兄弟」という定義だと検査は一度も出ない)、(1) 同じ `grouprow` の別々の `group` の中(子孫でもよい)にある、**値の軸が縦**のチャートどうし(横に並べると高さを比べて読む)、(2) 同じ親の中(図の直下、または同じ `group` の直下)で、間に別のチャートを挟まず縦に続く、**値の軸が横**のチャートどうし(縦に積むと長さを比べて読む)。向きは `dir` を持つチャートでは `dir`、`tornado` / `butterfly` のように `dir` が無いものでは、その kind が固定で持つ値の軸の向きで決める。どちらでも、同じ `unit` を持ち、`axisGroup: false` が付いていないもの。`unit` が無いチャートは検査しない。それ以外の組は出さない。`examples/chart-waterfall.ts`(`unit: '百万円'` の waterfall。縦に続くが `v` と `h`)は定義から自然に外れることを test で固定する。**書籍の事故の図(投資 0〜6、リターン 0〜10)の並び方が (1) と (2) のどちらで拾えるかを、書籍の実物で確かめて test の固定値にする**(実物を見ずに条件を決めると、また事故の図に届かない規則になる。順序の 3)。出口は `accept` と、意図して別軸にする `axisGroup: false`。`bars` は `max` を省くと軸の上端をデータの最大値のまま(丸めない。`lib/dsl/bars.ts:61-62`)ので、`unit` が同じ bars が兄弟にあればほぼ必ず上端がずれる。これも条件(兄弟・同じ向き・同じ unit)に含めて、`max` を書く案内を直し方にする。
 3. 共有: チャート側は `axisGroup?: string | false`、図の側は `diagram({sharedAxes: true})`(`scale` は `funnel` / `clustermap` / `boxplot` / `violin` で別の意味に使われているので使わない)。pre-layout の pass(`lib/pipeline.ts`。D4 の順序のとおり)で、`valueExtent(spec)` を各 kind に 1 つずつ置き、layout と rules と pass が**同じ関数**を呼ぶ(式を重複させない)。共有するとき、`bars` の `max` も `niceScale` で切り上げる。入力は複製した後のデータなので、作者の band は汚さない。
-4. **約束するのは「同じ domain になる」まで**。プロットの高さ・幅は layout の中で(カテゴリ名の折り返しの計測を含めて)決まる(`charts-waterfall.ts:93-98`、`layout-measure.ts:118`)ので、layout の前の pass では揃えられない。長さが揃わないときは post-layout の info(「軸は共有したが、プロットの高さが 212px と 248px で違う。`height` を揃える」)を出す。そのため `LaidOutChartPart` にプロットの範囲を残す。
+4. **(実装での追加)** 書籍側の試用で、`domain` を揃えても横向きのチャートはラベルの列の幅が違い、同じ値が 55% と 40% の長さに見えると分かった。横向きの `bars` / `waterfall` / `tornado` に `plotInset: [左, 右]`(プロット領域の余白、px)を足した。同じ値を書けばプロット領域が一致する。足りない値は、必要な最小値を挙げてエラーにする。`sharedAxes` を作るときは、これを自動で最大に揃える。
+5. **約束するのは「同じ domain になる」まで**。プロットの高さ・幅は layout の中で(カテゴリ名の折り返しの計測を含めて)決まる(`charts-waterfall.ts:93-98`、`layout-measure.ts:118`)ので、layout の前の pass では揃えられない。長さが揃わないときは post-layout の info(「軸は共有したが、プロットの高さが 212px と 248px で違う。`height` を揃える」)を出す。そのため `LaidOutChartPart` にプロットの範囲を残す。
 5. すべてオプトイン。既存の出力は変わらない。
 
 ### D6. 範囲の浮き棒 `range`

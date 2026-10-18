@@ -17,10 +17,11 @@ import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {nestedBandsOf} from './band-children.ts';
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
-import {PALETTE, MIN_FONT_SIZE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, withTones} from './tokens.ts';
+import {PALETTE, MIN_FONT_SIZE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv} from './tokens.ts';
+import type {ToneEnv} from './tokens.ts';
 
 // contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
-const wcagIn = (d: LintTarget) => { const p = paintOf(d.appearance); return (a: string, b: string): number => lightWcag(p(a), p(b)); };
+const wcagIn = (d: LintTarget, tones: ToneEnv) => { const p = paintOf(tones, d.appearance); return (a: string, b: string): number => lightWcag(p(a), p(b)); };
 import {resolveTextColor, resolveBoxStyle} from './emit.ts';
 import {budgetWarnings} from './budget.ts';
 import {termFindings, tableFindings} from './consistency.ts';
@@ -64,7 +65,8 @@ export const RULE_DOCS = {
   'text-mid-word-break': "レイアウトが、カタカナの語(「コンテキス/ト」)や英数字の語の途中で行を割っている。箱や列が最長の語より狭いときに起きる。diagram({keepWords: true}) で、箱を最長のカタカナの語より狭くしない(causeTree / tree / mindmap / faultTree / states / bpmn の task。cloud・chevron・cycle・swimlane には効かない)。ほかに、箱の幅を広げる・向き(dir)や maxNodeW を変える・文言を短くする・語の前後で改行を書く。漢字どうしの途中の改行は対象外。スペースの無い複合語の境目(「キャプチャ/ステージ」)は辞書なしでは見分けられず、誤検出になりうる(accept で許容する)",
   'glyph-missing': "図の文字に、絵文字として扱われない絵記号(✅ ❌ など。EMOJI_RE の外)がある。通常の文字のフォントで描かれ、字形が無いと空白になる(resvg のプレビューで確認できる)。icon.emoji() か SVG アイコン(box({icon}))を使うか、✓ ✗ などの字に置き換える",
   'connect-label-covers-arrow': "矢印のラベル(の下地)が、矢印の経路の 6 割より多くを覆い、見える部分が 20px に満たない。箱の間が狭く、矢じりや向きが読めなくなる。箱の間隔を広げる・ラベルを短くする・ラベルを箱の中に書く",
-  'chart-axis-mismatch': "同じ単位で、横に並べる(同じ grouprow の別の group)か縦に続ける(間に別のチャートを挟まない)2 つのチャートの値の軸が違う。それぞれが自分のデータに合わせて軸を決めるので、同じ長さが別の値に見える(5.76 と 9.5 がほぼ同じ長さ)。両方に同じ domain: [0, 10] を書く(bars は max)。意図して別の量を別の軸で描くなら、axisGroup: false か accept",
+  'chart-axis-mismatch': "同じ単位で、横に並べる(同じ grouprow の別の group)か縦に続ける(間に別のチャートを挟まない)2 つのチャートの値の軸が違う。それぞれが自分のデータに合わせて軸を決めるので、同じ長さが別の値に見える(5.76 と 9.5 がほぼ同じ長さ)。両方に同じ domain: [0, 10] を書く(bars は max)。横向きのチャートは、ラベルの列の幅が違うと同じ値が別の長さに見えるので plotInset もそろえる。意図して別の量を別の軸で描くなら、axisGroup: false か accept",
+  'wrap-fell-back': "wrap: 'bunsetsu-soft' で、文節で折ると図が幅に収まらなかったので、従来の折り方(phrase)で配置した(情報。漢字・ひらがなの途中で折れる行が残る)。図を 2 枚に分ける・文言を短くする・図の幅を広げると、文節で折れる。",
   'shrink-narrow-text': "fit: 'shrink' で bpmn / swimlane を詰めた結果、task / step の幅が狭すぎて本文が 2〜3 字ずつ折れる。縦向き・図の分割・文言の短縮を検討する",
   'gray-tone-collision': '使っている 2 つのトーンの塗りが、白黒（グレースケール）にすると見分けにくい（明度差 L* が 10 未満。破線などの形の手がかりがあれば除く）',
   'rowheader-tone-collides': '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある',
@@ -266,8 +268,8 @@ export function applyAutoLegend(d: DiagramData): void {
 
 function ratioText(r: number): string { return r.toFixed(1); }
 
-function textContrast(d: LintTarget, out: Finding[]): void {
-  const wcagRatio = wcagIn(d), paint = paintOf(d.appearance);
+function textContrast(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
+  const wcagRatio = wcagIn(d, tones), paint = paintOf(tones, d.appearance);
   const seen = new Set<string>();
   const check = (fg: string | undefined, bg: string | undefined, what: string): void => {
     if (!fg || !bg) return;
@@ -282,19 +284,19 @@ function textContrast(d: LintTarget, out: Finding[]): void {
   for (const b of d.laidOut ?? []) { if (b.type === 'row' || b.type === 'grid') boxes.push(...b.children); else boxes.push(b); }
   for (const b of boxes) {
     if (b.type === 'box' || b.type === 'banner') {
-      const bg = b.dim ? PALETTE.bg : resolveBoxStyle(b.tone ?? ((b.type as string) === 'banner' ? 'accent' : 'plain'), d.day) /* banner() always sets tone; the fallback is defensive */.fill;
+      const bg = b.dim ? PALETTE.bg : resolveBoxStyle(tones, b.tone ?? ((b.type as string) === 'banner' ? 'accent' : 'plain'), d.day) /* banner() always sets tone; the fallback is defensive */.fill;
       const boxTone = b.tone ?? ((b.type as string) === 'banner' ? 'accent' : 'plain');
-      for (const run of b.wrappedRuns ?? []) check(b.dim ? PALETTE.muted : runColorOf(run.tone, boxTone, d.day), bg, `「${String(run.text).slice(0, 14)}」`);
-      if (!b.dim) for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if (sp.tone) check(resolveTextColor(sp.tone, d.day), bg, `「${sp.text.slice(0, 14)}」`);
-      if (b.tag) check(PALETTE.bg, colorOf(toneStyle(b.tagTone === 'danger' || b.tagTone === 'muted' ? b.tagTone : 'accent').ink, d.day), `タグ「${b.tag}」`);
+      for (const run of b.wrappedRuns ?? []) check(b.dim ? PALETTE.muted : runColorOf(tones, run.tone, boxTone, d.day), bg, `「${String(run.text).slice(0, 14)}」`);
+      if (!b.dim) for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if (sp.tone) check(resolveTextColor(tones, sp.tone, d.day), bg, `「${sp.text.slice(0, 14)}」`);
+      if (b.tag) check(PALETTE.bg, colorOf(toneStyle(tones, b.tagTone === 'danger' || b.tagTone === 'muted' ? b.tagTone : 'accent').ink, d.day), `タグ「${b.tag}」`);
     } else if (b.type === 'caption') {
-      for (const run of b.wrappedRuns ?? []) check(resolveTextColor(run.tone, d.day), PALETTE.bg, `「${String(run.text).slice(0, 14)}」`);
-      for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if (sp.tone) check(resolveTextColor(sp.tone, d.day), PALETTE.bg, `「${sp.text.slice(0, 14)}」`);
+      for (const run of b.wrappedRuns ?? []) check(resolveTextColor(tones, run.tone, d.day), PALETTE.bg, `「${String(run.text).slice(0, 14)}」`);
+      for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if (sp.tone) check(resolveTextColor(tones, sp.tone, d.day), PALETTE.bg, `「${sp.text.slice(0, 14)}」`);
     } else if (b.type === 'table') {
       if (b.titleBar) check(PALETTE.bg, PALETTE[d.day].accent, 'テーブルの題名帯');
       for (const row of b.rows) for (const c of row.cells) {
-        const bg = row.header || (b.rowHeader && c === row.cells[0]) ? PALETTE[d.day].soft : row.tone ? resolveBoxStyle(row.tone, d.day).fill : PALETTE.bg;
-        if (c.lines.length) check(resolveTextColor(c.tone, d.day), bg, `表のセル「${c.lines[0].slice(0, 12)}」`);
+        const bg = row.header || (b.rowHeader && c === row.cells[0]) ? PALETTE[d.day].soft : row.tone ? resolveBoxStyle(tones, row.tone, d.day).fill : PALETTE.bg;
+        if (c.lines.length) check(resolveTextColor(tones, c.tone, d.day), bg, `表のセル「${c.lines[0].slice(0, 12)}」`);
       }
     }
   }
@@ -314,21 +316,21 @@ function colourOnlyEmphasis(d: LintTarget, out: Finding[]): void {
   if (words.length) out.push({rule: 'a11y-color-only-emphasis', severity: 'warn', message: `色だけで強調した語: ${words.slice(0, 6).join('')}${words.length > 6 ? ` ほか ${words.length - 6} 件` : ''}。em.b() も併用する`});
 }
 
-function nonTextContrast(d: LintTarget, out: Finding[]): void {
-  const wcagRatio = wcagIn(d);
-  const tones = new Set<EmphasisTone>();
+function nonTextContrast(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
+  const wcagRatio = wcagIn(d, tones);
+  const used = new Set<EmphasisTone>();
   const dimmed = dimmedBands(d);
-  for (const b of walkBands(d.bands)) if (b.type === 'box' && !dimmed.has(b)) tones.add(b.tone ?? 'plain');
-  for (const t of tones) {
-    const st = resolveBoxStyle(t, d.day);
+  for (const b of walkBands(d.bands)) if (b.type === 'box' && !dimmed.has(b)) used.add(b.tone ?? 'plain');
+  for (const t of used) {
+    const st = resolveBoxStyle(tones, t, d.day);
     // a tone with no border of its own (solid) is drawn with its fill as the stroke: the fill against the page is what delimits it
-    const ts = toneStyle(t), own = typeof d.day === 'string' ? ts.stroke : ts.slideStroke ?? ts.stroke;
+    const ts = toneStyle(tones, t), own = typeof d.day === 'string' ? ts.stroke : ts.slideStroke ?? ts.stroke;
     const r = own == null ? wcagRatio(st.fill, PALETTE.bg) : Math.min(wcagRatio(st.stroke, st.fill), wcagRatio(st.stroke, PALETTE.bg));
     if (r < 3) out.push({rule: 'a11y-nontext-contrast', severity: 'warn', message: `トーン「${t}」の枠線 ${st.stroke} が、背景に対して ${ratioText(r)}:1（3:1 以上が目安）。タグや文言など、色以外の手がかりを必ず併用する`});
   }
   for (const c of d.connects ?? []) {
     // connector colours are resolved the same way emit does
-    const col = c.dim ? PALETTE.muted : c.tone === 'muted' || c.tone === 'danger' || c.tone === 'accent' ? colorOf(toneStyle(c.tone).ink, d.day) : PALETTE.text;
+    const col = c.dim ? PALETTE.muted : c.tone === 'muted' || c.tone === 'danger' || c.tone === 'accent' ? colorOf(toneStyle(tones, c.tone).ink, d.day) : PALETTE.text;
     const r = wcagRatio(col, PALETTE.bg);
     if (r < 3) { out.push({rule: 'a11y-nontext-contrast', severity: 'warn', message: `矢印の色 ${col} のコントラスト比が ${ratioText(r)}:1`}); break; }
   }
@@ -416,11 +418,11 @@ function permutations<T>(a: T[]): T[][] {
 }
 
 // rowHeader: true paints the row-heading cell `soft`; a row whose own tone also fills `soft` (accent / new) loses the difference.
-function rowHeaderRules(d: LintTarget, out: Finding[]): void {
+function rowHeaderRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   for (const b of walkBands(d.bands)) if (b.type === 'table') for (const message of b.semanticWarnings ?? []) out.push({rule: 'semantic-table-warning', severity: 'warn', message});
   for (const b of d.laidOut ?? []) {
     if (b.type !== 'table' || !b.rowHeader) continue;
-    const rows = b.rows.filter(r => !r.header && toneStyle(r.tone).fill === 'soft');
+    const rows = b.rows.filter(r => !r.header && toneStyle(tones, r.tone).fill === 'soft');
     if (!rows.length) continue;
     const names = rows.slice(0, 4).map(r => `「${(r.cells[0]?.lines[0] ?? '').slice(0, 12)}」`).join('');
     out.push({rule: 'rowheader-tone-collides', severity: 'warn', message: `表の行ラベルは soft で塗るが、${names}${rows.length > 4 ? ` ほか ${rows.length - 4} 行` : ''}は行のトーン（${[...new Set(rows.map(r => r.tone))].join('・')}）も soft なので、行ラベルと本文の塗りが同じになる。muted / changed / 太字の文字などに変えるか、行のトーンを外す`});
@@ -434,20 +436,20 @@ function rowHeaderRules(d: LintTarget, out: Finding[]): void {
 export const GRAY_MIN_DL = 10;
 const lightnessOf = (hex: string): number => { const y = relativeLuminance(hex); return y > 0.008856 ? 116 * Math.cbrt(y) - 16 : 903.3 * y; };
 
-function grayToneRules(d: LintTarget, out: Finding[]): void {
+function grayToneRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   const used = new Set<string>(), all = walkBands(d.bands);
   // a canvas() region with a pill (重点 / 中心 / 結論) says its tone in words, as for the legend (usedNotation): not a grayscale matter
   const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => b.canvas!.worded[i]) : []));
   for (const b of all) if (b.type === 'box' && !worded.has(b)) used.add(b.tone ?? 'plain');
   for (const b of d.laidOut ?? []) if (b.type === 'table') for (const r of b.rows) if (!r.header && r.tone) used.add(r.tone);
-  const p = paintOf(d.appearance);
-  const tones = [...used].map(name => {
-    const t = toneStyle(name), box = resolveBoxStyle(name as EmphasisTone, d.day);
+  const p = paintOf(tones, d.appearance);
+  const fills = [...used].map(name => {
+    const t = toneStyle(tones, name), box = resolveBoxStyle(tones, name as EmphasisTone, d.day);
     return {name, fill: p(box.fill).toLowerCase(), dashed: box.dashed, l: lightnessOf(p(box.fill)), quiet: t.fill === 'code'};
   });
   const seen = new Set<string>(), hits: string[] = [];
-  for (let i = 0; i < tones.length; i++) for (let j = i + 1; j < tones.length; j++) {
-    const a = tones[i], b = tones[j];
+  for (let i = 0; i < fills.length; i++) for (let j = i + 1; j < fills.length; j++) {
+    const a = fills[i], b = fills[j];
     if (a.fill === b.fill || a.quiet || b.quiet || a.dashed !== b.dashed || Math.abs(a.l - b.l) >= GRAY_MIN_DL) continue;
     const pair = `${a.name}・${b.name}`;
     if (!seen.has(pair)) { seen.add(pair); hits.push(`${pair}（L* ${Math.round(a.l)} と ${Math.round(b.l)}）`); }
@@ -645,7 +647,7 @@ export function lintDiagram(d: LintTarget): Finding[] {
     const side = (appearance: 'light' | 'dark') => lintDiagram({...d, appearance});
     return mergeSides(side('light'), side('dark'), f => `${f.rule}\0${f.message}`, f => ({...f, message: `${f.message} (${DARK_NOTE})`}));
   }
-  const out = withTones(d.tones, () => lintAll(d));
+  const out = lintAll(d, toneEnv(d.tones));
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
   return out.map(f => (d.accept && d.accept[f.rule as RuleId] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule as RuleId]}）`} : f));
 }
@@ -692,7 +694,7 @@ function headlineLength(d: LintTarget, out: Finding[]): void {
 // a connected diagram (3+ arrows) should read as one graph: a box with an id that no arrow touches is a forgotten link,
 // and arrows that split into separate clumps are probably two stories in one picture
 function graphRules(d: LintTarget, out: Finding[]): void {
-  const connects = d.connects ?? [];
+  const connects = (d.connects ?? []).filter(c => !c.loopBack); // the arrow back of a step row is not an edge of a graph
   if (connects.length < 3) return;
   const parent = new Map<string, string>();
   const find = (x: string): string => { let r = x; while (parent.get(r) !== r) r = parent.get(r)!; parent.set(x, r); return r; };
@@ -751,10 +753,11 @@ function labelCoverRules(d: LintTarget, out: Finding[]): void {
 }
 function axisRules(d: LintTarget, out: Finding[]): void {
   const found = axisMismatches(d.bands);
-  if (found.length) out.push({rule: 'chart-axis-mismatch', severity: 'warn', message: `比べて読む 2 つのチャートの値の軸が違う: ${found.slice(0, 3).join('。')}${found.length > 3 ? ` ほか ${found.length - 3} 組` : ''}。同じ長さが別の値に見える。直し方: 両方に同じ domain を書く（bars は max）。意図して別の軸なら axisGroup: false か accept`});
+  if (found.length) out.push({rule: 'chart-axis-mismatch', severity: 'warn', message: `比べて読む 2 つのチャートの値の軸が違う: ${found.slice(0, 3).join('。')}${found.length > 3 ? ` ほか ${found.length - 3} 組` : ''}。同じ長さが別の値に見える。直し方: 両方に同じ domain を書く（bars は max）。横向きのチャートは、ラベルの列の幅が違うと同じ値が別の長さに見えるので、plotInset もそろえる。意図して別の軸なら axisGroup: false か accept`});
 }
-function lintAll(d: LintTarget): Finding[] {
+function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const out: Finding[] = [];
+  if (d.wrapFellBack) out.push({rule: 'wrap-fell-back', severity: 'info', message: "wrap: 'bunsetsu-soft': 文節で折ると図が幅に収まらなかったので、従来の折り方（phrase）で配置した。漢字・ひらがなの途中で折れる行が残る。図を 2 枚に分ける、文言を短くする、図の幅を広げると、文節で折れる"});
   axisRules(d, out);
   labelCoverRules(d, out);
   midWordRules(d, out);
@@ -764,15 +767,15 @@ function lintAll(d: LintTarget): Finding[] {
   tocRules(d, out);
   rcaRules(d, out);
   fitRules(d, out);
-  textContrast(d, out);
+  textContrast(d, tones, out);
   colourOnlyEmphasis(d, out);
-  nonTextContrast(d, out);
+  nonTextContrast(d, tones, out);
   legendRules(d, out);
   swimlaneRules(d, out);
   shrinkRules(d, out);
   wireframeRules(d, out);
-  rowHeaderRules(d, out);
-  grayToneRules(d, out);
+  rowHeaderRules(d, tones, out);
+  grayToneRules(d, tones, out);
   graphRules(d, out);
   out.push(...termFindings(d.bands, d.terms), ...tableFindings(walkBands(d.bands)));
 

@@ -1,6 +1,6 @@
 // tornado(): a sensitivity chart. Each row is one input; its two bars run from the base result to the result in the low case and in the
 // high case, so the longest row is the input the result is most sensitive to and the rows fall in order of that length.
-import {Canvas, checkDomain, checkIds, checkText, fail, finiteNum, numText, thinTicks, valueScale} from './charts-base.ts';
+import {Canvas, checkDomain, checkIds, checkInset, insetOrNeed, checkText, fail, finiteNum, numText, thinTicks, valueScale} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 
 export interface TornadoItem {
@@ -29,8 +29,10 @@ export interface TornadoOpts extends ChartOpts {
   domain?: readonly [number, number];
   /** false: this chart's axis is its own on purpose (chart-axis-mismatch leaves it alone). */
   axisGroup?: false;
+  /** How far the plot area starts from the chart's left edge and ends from its right edge, in px (default: what the labels need), to line it up with another chart's. Less than the labels need is an error that names the minimum. */
+  plotInset?: readonly [left: number, right: number];
 }
-export interface TornadoSpec {items: TornadoItem[]; base: number; unit: string; lowLabel: string; highLabel: string; baseLabel: string; lowTone: ChartTone; highTone: ChartTone; domain?: [number, number]; axisGroup?: false}
+export interface TornadoSpec {items: TornadoItem[]; base: number; unit: string; lowLabel: string; highLabel: string; baseLabel: string; lowTone: ChartTone; highTone: ChartTone; domain?: [number, number]; axisGroup?: false; plotInset?: [number, number]}
 
 /** The value axis of a tornado: from the base and every case, or the `domain`. */
 export function tornadoScale(s: TornadoSpec): ReturnType<typeof valueScale> {
@@ -49,8 +51,8 @@ export function resolveTornado(items: readonly TornadoItem[], opts: TornadoOpts)
   const tones = ['accent', 'danger', 'muted', 'text'];
   for (const k of ['lowTone', 'highTone'] as const) if (opts[k] !== undefined && !tones.includes(opts[k] as string)) fail('tornado', `${k} must be accent, danger, muted or text`);
   if (opts.axisGroup !== undefined && opts.axisGroup !== false) fail('tornado', `axisGroup must be false (this chart's axis is its own) or left out (got ${JSON.stringify(opts.axisGroup)})`);
-  const domain = checkDomain('tornado', opts.domain);
-  const spec: TornadoSpec = {items: ordered, base, unit: opts.unit ?? '', lowLabel: opts.lowLabel ?? '低ケース', highLabel: opts.highLabel ?? '高ケース', baseLabel: opts.baseLabel ?? '基準', lowTone: opts.lowTone ?? 'text', highTone: opts.highTone ?? 'accent', ...(domain ? {domain} : {}), ...(opts.axisGroup === false ? {axisGroup: false as const} : {})};
+  const domain = checkDomain('tornado', opts.domain), plotInset = checkInset('tornado', opts.plotInset);
+  const spec: TornadoSpec = {items: ordered, base, unit: opts.unit ?? '', lowLabel: opts.lowLabel ?? '低ケース', highLabel: opts.highLabel ?? '高ケース', baseLabel: opts.baseLabel ?? '基準', lowTone: opts.lowTone ?? 'text', highTone: opts.highTone ?? 'accent', ...(domain ? {domain} : {}), ...(plotInset ? {plotInset} : {}), ...(opts.axisGroup === false ? {axisGroup: false as const} : {})};
   tornadoScale(spec);
   return spec;
 }
@@ -66,13 +68,14 @@ export function tornadoTexts(s: TornadoSpec): [string, number][] {
 }
 
 export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
-  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf);
+  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap);
   const all = s.items.flatMap(i => [i.low, i.high]);
   const sc = tornadoScale(s);
   const vText = (v: number) => `${numText(v)}${s.unit}`;
   const labelW = Math.min(Math.max(...s.items.map(i => c.tw(i.label))) + 14, g.w * 0.34);
   const valW = Math.max(...s.items.flatMap(i => [c.tw(vText(i.low), true), c.tw(vText(i.high), true)])) + 10;
-  const plotL = g.x + labelW + valW + 4, plotR = g.x + g.w - valW - 8;
+  const [insetL, insetR] = insetOrNeed('tornado', s.plotInset, labelW + valW + 4, valW + 8);
+  const plotL = g.x + insetL, plotR = g.x + g.w - insetR;
   if (plotR - plotL < 120) fail('tornado', 'the figure is too narrow for its labels (raise width, or shorten the labels / unit)');
   const xOf = (v: number) => plotL + (v - sc.min) / (sc.max - sc.min) * (plotR - plotL);
   const barH = Math.max(24, S + 10), pitch = barH + 12, lineH = c.lineH();

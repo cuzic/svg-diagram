@@ -22,7 +22,8 @@
 // based render check stays as the final safety net for exactly those two
 // gaps — verify() is the fast, primary check; lint is the backstop.
 
-import {withTones} from './tokens.ts';
+import {toneEnv} from './tokens.ts';
+import type {ToneEnv} from './tokens.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {lintDiagram, walkBands} from './rules.ts';
 import {CHECK_PHASES, collectRects, contrastProblems, runCheckPhase, type VerifyOut} from './verify-handlers.ts';
@@ -117,18 +118,18 @@ function checkBounds(d: LaidOutDiagram, rects: CheckRect[]): string[] {
 // `problems` fail the build; `warnings` (text volume, and the rules of rules.ts) never do.
 export function verifyDiagram(d: LaidOutDiagram): Verdict {
   if (d.appearance === 'auto') { // ADR 0023 D4: the figure is drawn light, and the dark scheme shows the same geometry in the dark colours: check both
-    const side = (appearance: 'light' | 'dark') => withTones(d.tones, () => verifyWith({...d, appearance}));
+    const tones = toneEnv(d.tones), side = (appearance: 'light' | 'dark') => verifyWith({...d, appearance}, tones);
     const light = side('light'), dark = side('dark');
     const note = (s: string) => `${s} (${DARK_NOTE})`;
     const problems = mergeSides(light.problems, dark.problems, s => s, note);
     return {ok: problems.length === 0, problems, warnings: mergeSides(light.warnings, dark.warnings, s => s, note), findings: mergeSides(light.findings, dark.findings, f => `${f.rule}\0${f.message}`, f => ({...f, message: note(f.message)}))};
   }
-  return withTones(d.tones, () => verifyWith(d));
+  return verifyWith(d, toneEnv(d.tones));
 }
-function verifyWith(d: LaidOutDiagram): Verdict {
+function verifyWith(d: LaidOutDiagram, tones: ToneEnv): Verdict {
   const rects = collectRects(d);
   const figure: VerifyOut = {problems: [], warnings: []};
-  for (const phase of CHECK_PHASES) runCheckPhase(d, phase, figure); // per band type: see verify-handlers.ts
+  for (const phase of CHECK_PHASES) runCheckPhase(d, tones, phase, figure); // per band type: see verify-handlers.ts
   const causeWarnings = figure.warnings;
   const problems = [
     ...checkOverlaps(rects.filter(r => !r.backdrop)),
@@ -136,7 +137,7 @@ function verifyWith(d: LaidOutDiagram): Verdict {
     ...checkAnnotations(d),
     ...figure.problems,
     ...checkBounds(d, rects),
-    ...contrastProblems(d),
+    ...contrastProblems(d, tones),
   ];
   // Rule findings (WCAG contrast, legend, lane order, crossings, density ...). Doc-medium diagrams
   // get the full set; legacy slide diagrams keep their existing text-volume warning only.

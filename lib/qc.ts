@@ -170,6 +170,6 @@ export function criticalPath(input: readonly ArrowActivity[]): ArrowResult {
     if (!next.dummy) path.push(next.name!);
     at = next.to;
   }
-  const byId = (a: string, b: string) => { const x = Number(a), y = Number(b); return Number.isFinite(x) && Number.isFinite(y) ? x - y : a.localeCompare(b); };
+  const byId = (a: string, b: string) => { const x = Number(a), y = Number(b); return Number.isFinite(x) && Number.isFinite(y) ? x - y : a.localeCompare(b, 'en'); };
   return {events: ids.sort(byId).map(id => ({id, early: rounded(early.get(id)!), late: rounded(late.get(id)!)})), activities, length: rounded(length), path};
 }

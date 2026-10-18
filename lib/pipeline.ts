@@ -8,11 +8,13 @@
 // The pipeline never copies; the caller hands it a detached tree (renderDiagram / checkDiagram call detach() first).
 
 import {applyAutoLegend} from './rules.ts';
+import {expandLoopBacks} from './loop-back.ts';
 import {prepareReveal} from './reveal.ts';
 import {applySpotlight} from './spotlight.ts';
 import {verifyDiagram} from './verify.ts';
 import {emitSvg} from './emit.ts';
 import {emitHtml} from './emit-html.ts';
+import type {FontBox} from './emit-html.ts';
 import {xmlProblems} from './xml-check.ts';
 import type {DiagramData} from './types/core.ts';
 import type {LaidOutDiagram} from './types/index.ts';
@@ -24,6 +26,9 @@ export interface PreLayoutStage {name: string; run(d: DiagramData): DiagramData}
 export interface PostLayoutStage {name: string; run(d: LaidOutDiagram): LaidOutDiagram}
 
 export const PRE_LAYOUT_STAGES: readonly PreLayoutStage[] = [
+  // `loopBack` of a steps() / row / chevron becomes ordinary connect() bands right after it (ADR 0029 D4). It must run before reveal, because a
+  // connector takes its reveal stage from the boxes it joins; and before layout, which lays the connectors out like any other.
+  {name: 'loop-back', run: d => { d.bands = expandLoopBacks(d.bands); return d; }},
   // Resolves each band's / element's reveal and until by inheritance, and sets d.maxReveal / d.revealWarnings. It must run
   // before auto-legend (so legend items added later are not given stages) and before layout (layout reads the resolved stages
   // to keep every stage's geometry in one full layout).
@@ -65,10 +70,11 @@ export async function runChecked(d: DiagramData, layout: (prepared: DiagramData)
 export interface Emitted {svg: string; html?: string; xml: string[]}
 
 /** Emit the final drawing (`reveal`: the last stage when the diagram has click stages) and check the SVG is well-formed XML. */
-export function emitOutputs(laidOut: LaidOutDiagram, opts: {html?: boolean; reveal?: number} = {}): Emitted {
+export function emitOutputs(laidOut: LaidOutDiagram, opts: {html?: boolean; reveal?: number; fontBox?: FontBox} = {}): Emitted {
   const emitOpts = opts.reveal ? {reveal: opts.reveal} : {};
   const svg = emitSvg(laidOut, emitOpts);
-  return {svg, ...(opts.html ? {html: emitHtml(laidOut, emitOpts)} : {}), xml: xmlProblems(svg)};
+  if (opts.html && !opts.fontBox) throw new Error('emitOutputs: html needs fontBox (the glyph boxes come from the shell: lib/font-box.ts)');
+  return {svg, ...(opts.html ? {html: emitHtml(laidOut, {...emitOpts, fontBox: opts.fontBox!})} : {}), xml: xmlProblems(svg)};
 }
 
 /** One reveal stage's SVG (stage 0 = nothing revealed yet), from the same laid-out tree as the final drawing. */

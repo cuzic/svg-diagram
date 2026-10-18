@@ -4,6 +4,7 @@
 import {segHitsRect} from './bars.ts';
 import {overlaps} from './charts-base.ts';
 import {PALETTE, colorOf, luminance, paintOf} from './tokens.ts';
+import type {ToneEnv} from './tokens.ts';
 import type {LaidOutChart} from './charts.ts';
 import type {LaidOutDiagram} from './types/index.ts';
 
@@ -14,9 +15,9 @@ const mix = (base: string, over: string, a: number): string => {
   return `#${b.map((v, i) => Math.round(v * (1 - a) + o[i] * a).toString(16).padStart(2, '0')).join('')}`;
 };
 
-export function checkChart(band: LaidOutChart, d: LaidOutDiagram): string[] {
+export function checkChart(band: LaidOutChart, d: LaidOutDiagram, tones: ToneEnv): string[] {
   const problems: string[] = [];
-  const paint = paintOf(d.appearance);
+  const paint = paintOf(tones, d.appearance);
   const who = `${band.kind}${band.id ? ` "${band.id}"` : ''}`;
   for (const [i, b] of band.boxes.entries()) {
     if (b.x < band.x - 0.5 || b.x + b.w > band.x + band.w + 0.5 || b.y < band.y - 0.5 || b.y + b.h > band.y + band.h + 0.5) problems.push(`${who}: label "${b.label}" runs outside the figure (raise width / height, or shorten it)`);
@@ -39,6 +40,6 @@ export function checkChart(band: LaidOutChart, d: LaidOutDiagram): string[] {
   return problems;
 }
 
-export function checkCharts(d: LaidOutDiagram): string[] {
-  return d.laidOut.flatMap(band => band.type === 'chart' ? checkChart(band, d) : []);
+export function checkCharts(d: LaidOutDiagram, tones: ToneEnv): string[] {
+  return d.laidOut.flatMap(band => band.type === 'chart' ? checkChart(band, d, tones) : []);
 }

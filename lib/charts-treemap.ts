@@ -97,7 +97,7 @@ type Placed =
 
 export function layoutTreemap(s: TreemapSpec, g: ChartGeom): LaidOutChartPart {
   const S = g.size, h = g.height ?? Math.round(Math.min(480, Math.max(300, g.w * 0.5)));
-  const c = new Canvas(g.x, g.y, g.w, h, S, g.widthOf), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
+  const c = new Canvas(g.x, g.y, g.w, h, S, g.widthOf, g.wrap), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
   const headH = S + 10;
   // Where every node goes for given weights. A group's frame and header strip take room from its children, so with the values as
   // weights a leaf inside a group gets less area per unit than one outside it; the weights are corrected below until the drawn

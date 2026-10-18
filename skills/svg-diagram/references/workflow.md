@@ -18,7 +18,7 @@
    - PNG も要るとき（Word・チャット・PNG しか貼れない所）は `--png <dir> [--scale N]` を足す。同じビルドの SVG から `<dir>/<名前>.png` を書く（既定の倍率 2。段階表示の各段の SVG も PNG になる）。`--stale` と併用すると、PNG がない・SVG より古いときは作り直す。
 3. **ルール検査**: `svg-diagram check --strict src.ts`（コントラスト、凡例、線の交差、幅、密度、題名）
    - `shrink-narrow-text`（警告）: `bpmn` / `swimlane` を `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。文言を短くする・図を 2 つに分ける・縦向きにする・`maxWidth` を広げる。
-   - `text-mid-word-break`（警告）: カタカナの語（「コンテキス/ト」）や英数字の語の途中で、レイアウトが行を割っている。箱・列が最長の語より狭いときに起きる。`diagram({keepWords: true})`（箱を最長のカタカナの語より狭くしない。`chevron` / `cycle` / `swimlane` / `cloud` には効かない）、箱の幅を広げる・`dir` や `maxNodeW` を変える・文言を短くする。漢字どうしの途中は対象外。スペースの無い複合語の境目は誤検出になりうる（`accept` で許容）。
+   - `text-mid-word-break`（警告）: カタカナの語（「コンテキス/ト」）や英数字の語の途中で、レイアウトが行を割っている。箱・列が最長の語より狭いときに起きる。`diagram({wrap: 'bunsetsu-soft'})`（ひらがなの手前で割れる行を減らす。収まらない図だけ従来に戻る）、`diagram({keepWords: true})`（箱を最長のカタカナの語より狭くしない。`chevron` / `cycle` / `swimlane` / `cloud` には効かない）、箱の幅を広げる・`dir` や `maxNodeW` を変える・文言を短くする。漢字どうしの途中は対象外。スペースの無い複合語の境目は誤検出になりうる（`accept` で許容）。
    - `glyph-missing`（警告）: 図の文字に、絵文字として扱われない絵記号（✅ ❌ など。`EMOJI_RE` の外）がある。通常の文字のフォントで描かれ、字形が無いと空白になる。`icon.emoji()` か SVG アイコン（`box({icon})`）を使うか、✓ ✗ などの字にする。
    - `connect-label-covers-arrow`（警告）: 矢印のラベル（の下地）が経路の 6 割超を覆い、見える部分が 20px に満たず、向きが読めない。箱の間隔を広げる・ラベルを短くする・ラベルを箱の中に書く。
    - `chart-axis-mismatch`（警告）: 同じ単位で、横に並べる（同じ `row` の別の `group`）か縦に続ける（間に別のチャートを挟まない）`waterfall` / `stackedBars` / `tornado` / `bars` の値の軸が違い、同じ長さが別の値に見える。両方に同じ `domain: [0, 10]`（`bars` は `max`）を書く。意図して別の軸なら `axisGroup: false` か `accept`。

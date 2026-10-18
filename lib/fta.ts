@@ -11,7 +11,7 @@ import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
 import {SHARED_LIMIT, ftaVar, minimalCutSets, singlePoints, topProbability} from './fta-analysis.ts';
 import type {NodeLines} from './tree.ts';
-import type {FontFamily, Roles, WidthOf} from './types/core.ts';
+import type {FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {FtaBand, FtaEvent, FtaGate, FtaKind, LaidOutFta} from './types/diagrams.ts';
 
 export const FTA_KINDS = ['event', 'basic', 'undeveloped', 'house', 'condition'] as const;
@@ -211,18 +211,18 @@ interface Attempt extends FitResult {
   root: FtaNode;
 }
 
-export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutFta {
+export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv): LaidOutFta {
   const {root} = ftaResolve(band.root);
   const single = band.cutSets ? ftaSinglePoints(root) : new Set<string>();
-  const attempt = (maxW: number): Attempt => {
+  const attempt = (maxW: number, floor: boolean): Attempt => {
     const comps = new Map<string, Comp>();
     const measure = (n: FtaNode): Comp => {
-      const sub = stateSub(n, band.quant), lines = measureNode(n.label, sub, maxW, widthOf, roles);
+      const sub = stateSub(n, band.quant), lines = measureNode(n.label, sub, maxW, widthOf, roles, env.wrap, floor);
       const c: Comp = {node: n, lines, rect: {w: lines.w, h: lines.h}, w: lines.w, h: 0, outY: 0};
       if (n.gate !== undefined) {
         let below = GATE_H;
         if (n.cond) {
-          const cl = measureNode(n.cond.label, stateSub(n.cond, band.quant), maxW, widthOf, roles);
+          const cl = measureNode(n.cond.label, stateSub(n.cond, band.quant), maxW, widthOf, roles, env.wrap, floor);
           c.cond = {node: n.cond, lines: cl, w: cl.w, h: cl.h};
           below = Math.max(GATE_H, cl.h + STEM + COND_MARK_H);
           c.w = Math.max(c.w, GATE_W + 2 * (COND_GAP + cl.w)); // symmetric, so the lines to the children leave from under the event's centre
@@ -252,9 +252,9 @@ export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthO
   const auto = band.maxNodeW === 'auto';
   const written = typeof band.maxNodeW === 'number' ? band.maxNodeW : undefined;
   const fitted = fitLayout<'down', Attempt>({
-    who: 'faultTree()', w, start: 'down', explicitDir: false, mode: auto ? 'auto' : 'omitted', noDir: true,
+    who: 'faultTree()', w, start: 'down', keepWords: env.keepWords, explicitDir: false, mode: auto ? 'auto' : 'omitted', noDir: true,
     axisKept: 'another direction (a fault tree grows down)', ...(written === undefined ? {} : {maxNodeW: written}),
-    build: (_d, maxW) => attempt(maxW), fix: "a wider figure (diagram({width})), or a smaller tree",
+    build: (_d, maxW, floor) => attempt(maxW, floor), fix: "a wider figure (diagram({width})), or a smaller tree",
   });
   const {tree, comps} = fitted.result;
   const dx = x + (w - tree.w) / 2, dy = y;
@@ -303,7 +303,7 @@ export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthO
   }
   if (band.quant) { // the probability of the top event and what it assumes, wrapped to the band, centred under the tree
     const note = ftaQuant(root, band.quantPeriod), lh = Math.round(roles.note * 1.4);
-    const lines = wrapText(note, {maxWidth: w, atomWidth: a => widthOf(a, roles.note, 400, 'sans')});
+    const lines = wrapText(note, {maxWidth: w, atomWidth: a => widthOf(a, roles.note, 400, 'sans'), mode: env.wrap});
     out.note = note;
     lines.forEach((t, i) => out.texts.push({text: t, x: x + w / 2, y: y + tree.h + NOTE_GAP + i * lh + roles.note, size: roles.note, bold: false, muted: true}));
     out.h = tree.h + NOTE_GAP + lines.length * lh;

@@ -11,19 +11,19 @@ import type {FontFamily, WidthOf} from './types/core.ts';
 export const COLUMN_PITCH = 1.4;
 export const BASELINE = 0.36; // a glyph box centred on y has its baseline this many sizes below y
 
-const ROTATED = new Set(Array.from('ー―—‐－…‥⋯〜～（）［］｛｝「」『』【】〔〕〈〉《》〝〟'));
+const ROTATED: ReadonlySet<string> = new Set(Array.from('ー―—‐－…‥⋯〜～（）［］｛｝「」『』【】〔〕〈〉《》〝〟'));
 /** Marks that hang below a full column rather than start the next one. */
-const HANG = new Set(Array.from('、。，．'));
+const HANG: ReadonlySet<string> = new Set(Array.from('、。，．'));
 /** How many cells a run of marks that may not start a column takes along to the next column: the mark and the cell it follows (a longer run only hangs on). */
 const MAX_CARRY = 2;
 /** Characters that may not start a column: the cell before them goes with them to the next one. */
-const NO_START = new Set(Array.from('）］｝」』】〕〉》！？ー〜～…‥ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ・：；'));
-const NOT_LAST = new Set(Array.from('（［｛「『【〔〈《〝'));
-const PUNCT = new Set(Array.from('、。，．'));
-const SMALL = new Set(Array.from('ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ'));
+const NO_START: ReadonlySet<string> = new Set(Array.from('）］｝」』】〕〉》！？ー〜～…‥ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ・：；'));
+const NOT_LAST: ReadonlySet<string> = new Set(Array.from('（［｛「『【〔〈《〝'));
+const PUNCT: ReadonlySet<string> = new Set(Array.from('、。，．'));
+const SMALL: ReadonlySet<string> = new Set(Array.from('ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ'));
 
 /** The characters a person sees (an emoji with its modifiers, or a joined family, is one). */
-export const graphemes = (text: string): string[] => Array.from(new Intl.Segmenter(undefined, {granularity: 'grapheme'}).segment(text), x => x.segment);
+export const graphemes = (text: string): string[] => Array.from(new Intl.Segmenter('ja', {granularity: 'grapheme'}).segment(text), x => x.segment);
 
 /** A unit of a vertical column, before any width is known. */
 export type VToken =
