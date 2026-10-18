@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="447" viewBox="0 0 940 447" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">免疫マップ(任せられない課長)</title>
+  <desc id="svg-desc">要素: 部下に仕事を任せる、自分で直してしまう、細かく進捗を確認する、頼まずに抱え込む、不安: 任せて品質が落ち、責められる、失敗を見られないことに専心している、頼りない人だと思われないことに専心している、(未記入)</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/immunity-map.ts","sourceSha256":"ac267cd77a07a3e6d9afe92f73f93af6ca33fdfba39b7415b4ecdaba57f7ee98"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="447" fill="#ffffff"/>
+
+  <rect x="20" y="20" width="216" height="336" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+
+  <text x="36" y="51" font-size="15" font-weight="700" fill="#22201b">1 改善目標</text>
+
+  <rect x="36" y="64" width="184" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="56" y="95" font-size="15" font-weight="700" fill="#22201b">部下に仕事を任せる</text>
+
+  <rect x="252" y="20" width="212" height="336" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+
+  <text x="268" y="51" font-size="15" font-weight="700" fill="#22201b">2 阻害行動</text>
+
+  <rect x="268" y="64" width="180" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="288" y="95" font-size="15" font-weight="700" fill="#22201b">自分で直してしまう</text>
+
+  <rect x="268" y="136" width="180" height="76" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="288" y="167" font-size="15" font-weight="700" fill="#22201b">細かく進捗を確認</text>
+  <text x="288" y="188" font-size="15" font-weight="700" fill="#22201b">する</text>
+
+  <rect x="268" y="224" width="180" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="288" y="255" font-size="15" font-weight="700" fill="#22201b">頼まずに抱え込む</text>
+
+  <rect x="480" y="20" width="212" height="336" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+
+  <text x="496" y="51" font-size="15" font-weight="700" fill="#22201b">3 隠れた競合目標</text>
+
+  <rect x="496" y="64" width="180" height="76" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <text x="516" y="95" font-size="15" font-weight="700" fill="#22201b">不安: 任せて品質が</text>
+  <text x="516" y="116" font-size="15" font-weight="700" fill="#22201b">落ち、責められる</text>
+
+  <rect x="496" y="156" width="180" height="76" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="516" y="187" font-size="15" font-weight="700" fill="#22201b">失敗を見られないこ</text>
+  <text x="516" y="208" font-size="15" font-weight="700" fill="#22201b">とに専心している</text>
+
+  <rect x="496" y="244" width="180" height="96" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="516" y="275" font-size="15" font-weight="700" fill="#22201b">頼りない人だと思わ</text>
+  <text x="516" y="296" font-size="15" font-weight="700" fill="#22201b">れないことに専心し</text>
+  <text x="516" y="317" font-size="15" font-weight="700" fill="#22201b">ている</text>
+
+  <rect x="708" y="20" width="212" height="336" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="6,4"/>
+
+  <text x="724" y="51" font-size="15" font-weight="700" fill="#22201b">4 強力な固定観念</text>
+
+  <text x="744" y="95" font-size="15" font-weight="700" fill="#22201b">(未記入)</text>
+
+  <text x="470" y="386" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">第 4 欄は次の面談で聞く。欄の順に読み、矢印は引かない。</text>
+
+  <text x="20" y="422" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

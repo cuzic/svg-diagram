@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="361" viewBox="0 0 940 361" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">任せられない仕組み(自己調整のループ)</title>
+  <desc id="svg-desc">Causal loop diagram. B1: worry → guard → behavior</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/immunity-loop.ts","sourceSha256":"3505fdcfa00044884a9559c1788106c86f2800f6066f33d1df53c05d319739db"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="361" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">不安が高まるほど自分で直し、直すと不安が下がる(B ループ)</text>
+
+  <path d="M336,161.6 L412,161.6" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M412,161.6 L403,166.6 L403,156.7 Z" fill="#22201b"/>
+  <path d="M566,165.1 L642,165.1" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M642,165.1 L633,170.1 L633,160.2 Z" fill="#22201b"/>
+  <path d="M642,192.3 L565.5,192.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M565.5,192.3 L565.5,204.5" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M565.5,204.5 L412.5,204.5" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M412.5,204.5 L412.5,185.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M412.5,185.3 L336,185.3" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M336,185.3 L345,180.3 L345,190.2 Z" fill="#22201b"/>
+  <path d="M182,154.25 H336 V202.25 H182 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="259" y="183" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">任せることへの不安</text>
+  <path d="M412,128 H566 V176 H412 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="489" y="157" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">失敗を見られない力</text>
+  <path d="M642,154.25 H758 V202.25 H642 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="700" y="183" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">自分で直す</text>
+  <path d="M366.8,142 H381.2 V160 H366.8 Z" fill="#ffffff"/>
+  <text x="374" y="156" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M596.8,145 H611.2 V163 H596.8 Z" fill="#ffffff"/>
+  <text x="604" y="159" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M483.99,185 H494.01 V203 H483.99 Z" fill="#ffffff"/>
+  <text x="489" y="199" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
+  <path d="M472.02,208 H493.98 V226 H472.02 Z" fill="#ffffff"/>
+  <text x="483" y="222" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B1</text>
+
+  <text x="20" y="334" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>
