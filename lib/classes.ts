@@ -67,7 +67,7 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
     const reserve = hasLoop && dir === 'down' ? LOOP + 8 + Math.max(loopLabelW, 40) : 0;
     const top = hasLoop && dir === 'right' ? LOOP + S + 8 + 8 : 0;
     const placeIn = (size: {w: number; h: number}) => (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + x + (w - size.w - reserve) / 2, y: q.y + y + top}; };
-    const run = layeredAttempt(nodes, edges, {dir: 'right', gap: GAP + loopRows, levelGap: Math.max(dir === 'down' ? LEVEL_GAP + 16 : LEVEL_GAP, gapFor(degree, dir === 'right' ? widestLabel : 0))},
+    const run = layeredAttempt(nodes, edges, {dir: 'right', gap: GAP + loopRows, levelGap: Math.max(Math.round((dir === 'down' ? LEVEL_GAP + 16 : LEVEL_GAP) * (env.space ?? 1)), gapFor(degree, dir === 'right' ? widestLabel : 0))},
       {portStep: 22, transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, ...(band.straighten === false ? {straighten: false} : {})}); // wide steps: two hollow triangles on one side do not touch
     return {...run, dir, reserve, top};
   };

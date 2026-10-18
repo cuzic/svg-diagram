@@ -246,7 +246,7 @@ export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthO
     };
     measure(root);
     const toTree = (n: FtaNode): TreeNode => ({id: n.key, size: {w: comps.get(n.key)!.w, h: comps.get(n.key)!.h}, ...(n.children.length ? {children: n.children.map(toTree)} : {})});
-    const tree = layoutTree(toTree(root), {dir: 'down', gap: GAP, levelGap: LEVEL_GAP});
+    const tree = layoutTree(toTree(root), {dir: 'down', gap: Math.round(GAP * (env.space ?? 1)), levelGap: Math.round(LEVEL_GAP * (env.space ?? 1))});
     return {size: {w: tree.w, h: tree.h}, score: {crossings: 0, bends: 0}, comps, tree, root};
   };
   const auto = band.maxNodeW === 'auto';

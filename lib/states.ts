@@ -2,7 +2,8 @@
 // node; a transition is an orthogonal arrow routed through the layers it skips; a label sits on the arrow in a white chip.
 import {textWidth} from './atoms.ts';
 import {fitLayout} from './fit-width.ts';
-import {gapFor, layeredAttempt, STUB} from './layered-route.ts';
+import {statesProblems} from './verify-base.ts';
+import {gapFor, layeredAttempt, stubOf} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
@@ -34,6 +35,15 @@ function pointAt(pts: Pt[], t: number): Pt {
 }
 
 export function layoutStatesBand(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutStates {
+  const out = layoutStatesBandAt(band, x, y, w, widthOf, roles, env, heightBudget);
+  if (env.space === undefined || env.space === 1) return out;
+  // `density: 'compact'` must not make the check find more wrong in a state diagram (a label on another label or arrow, an arrow through a state): then it is drawn at the normal gaps
+  const bad = statesProblems(out).length;
+  if (bad === 0) return out;
+  try { const normal = layoutStatesBandAt(band, x, y, w, widthOf, roles, {...env, space: 1}, heightBudget); return statesProblems(normal).length < bad ? normal : out; } catch { return out; }
+}
+
+function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutStates {
   const S = roles.note;
   const ids = new Set<string>();
   for (const s of band.states) {
@@ -74,9 +84,9 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
     const placeIn = (total: {w: number; h: number}) => (p: Pt): Pt => { const q = dir === 'down' ? swap(p) : p; return {x: q.x + x + (w - total.w - reserve) / 2, y: q.y + y + top}; };
     const run = layeredAttempt(dir === 'down' ? nodes.map(n => ({id: n.id, size: swapSize(n.size)})) : nodes, edges, {
       // a loop needs room beside its state (down) or between rows (right), so states do not crowd it
-      dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : GAP,
-      levelGap: Math.max(dir === 'down' ? 72 : widest ? widest + STUB + ARROW + 8 : 64, gapFor(degree)), ...(band.initial ? {start: [INIT]} : {}),
-    }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, round: id => circles.has(id), ...(band.straighten === false ? {straighten: false} : {}), ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
+      dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : Math.round(GAP * (env.space ?? 1)),
+      levelGap: Math.max(dir === 'down' ? Math.round(72 * (env.space ?? 1)) : widest ? widest + stubOf(env.space) + ARROW + 8 : Math.round(64 * (env.space ?? 1)), gapFor(degree, 0, env.space)), ...(band.initial ? {start: [INIT]} : {}),
+    }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, round: id => circles.has(id), ...(env.space === undefined || env.space === 1 ? {} : {space: env.space}), ...(band.straighten === false ? {straighten: false} : {}), ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
     const at = (id: string) => { const p = run.lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
     return {...run, dir, lines, reserve, top, at};
   };
