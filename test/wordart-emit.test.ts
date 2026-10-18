@@ -2,7 +2,7 @@ import test from 'node:test';
 import './helpers/strict-width.ts'; // a text the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
 import {banner, box, diagram, renderDiagram, wordart, closeMeasurer} from '../lib/dsl.ts';
-import {geometryChecks} from '../lib/svg-lint.ts';
+import {geometryChecks} from '../lib/geometry-checks.ts';
 import {renderWordArt as renderWordArtForTest} from '../lib/emit-wordart.ts';
 import {place} from './helpers/wordart.ts';
 

@@ -11,7 +11,7 @@ import {emitSvg} from '../lib/emit.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import {IMAGE_WARN_BYTES} from '../lib/image.ts';
 import {readImage, sniffImage, withSourceDir} from '../lib/image-file.ts';
-import {geometryChecks} from '../lib/svg-lint.ts';
+import {geometryChecks} from '../lib/geometry-checks.ts';
 import {rasterize} from '../lib/raster.ts';
 import {kitchenPng, makePng} from './helpers/png.ts';
 

@@ -6,7 +6,7 @@ import {gapFor, layeredAttempt, STUB} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
-import type {FontFamily, Roles, WidthOf} from './types/core.ts';
+import type {FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {LaidOutStates, StatesBand} from './types/diagrams.ts';
 
 export const STATE_ICON = 24;
@@ -33,7 +33,7 @@ function pointAt(pts: Pt[], t: number): Pt {
   return pts[0];
 }
 
-export function layoutStatesBand(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number): LaidOutStates {
+export function layoutStatesBand(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutStates {
   const S = roles.note;
   const ids = new Set<string>();
   for (const s of band.states) {
@@ -57,10 +57,10 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   const swapSize = (s: {w: number; h: number}): {w: number; h: number} => ({w: s.h, h: s.w});
   const loopLabelH = loops.some(t => t.label) ? S + 10 : 0;
   // One whole attempt: the text wrapped at maxW, laid out running `dir`. Everything that depends on either is in here.
-  const build = (dir: 'right' | 'down', maxW: number) => {
+  const build = (dir: 'right' | 'down', maxW: number, floor: boolean) => {
     // a round node is as wide as its text needs and as tall as it is wide
     const lines = new Map<string, NodeLines>(band.states.map(s => {
-      const l = measureNode(s.label, s.sub, maxW, widthOf, roles, {keepWords: s.shape !== 'circle'}), iconH = s.icon ? ICON_H : 0;
+      const l = measureNode(s.label, s.sub, maxW, widthOf, roles, env.wrap, floor, {keepWords: s.shape !== 'circle'}), iconH = s.icon ? ICON_H : 0;
       if (s.shape !== 'circle') return [s.id, {...l, h: l.h + iconH}];
       const text = Math.max(...l.label.map(t => textWidth(widthOf, t, roles.body, 700)), ...l.sub.map(t => textWidth(widthOf, t, roles.note, 400))), inner = l.h - 16 + iconH;
       const d = Math.max(44, Math.ceil((Math.hypot(text, inner) + 10) / 8) * 8); // a multiple of 8: the radius sits on the 4px grid
@@ -84,7 +84,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   const explicitDir = band.dir !== undefined && band.dir !== 'auto';
   const start: 'right' | 'down' = band.dir === 'down' ? 'down' : 'right';
   const fitted = fitLayout({
-    who: 'stateDiagram()', w, start, alt: start === 'right' ? 'down' : 'right', explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted',
+    who: 'stateDiagram()', w, start, keepWords: env.keepWords, alt: start === 'right' ? 'down' : 'right', explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted',
     ...(band.maxNodeW === undefined ? {} : {maxNodeW: band.maxNodeW}), build, widthOf: r => r.size.w + r.reserve, best: band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget}),
     ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
   });

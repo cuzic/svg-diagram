@@ -5,7 +5,7 @@ import {textWidth} from './atoms.ts';
 import type {Pt} from './graph-layout.ts';
 import {fitLayout} from './fit-width.ts';
 import {gapFor, layeredAttempt} from './layered-route.ts';
-import type {FontFamily, Roles, WidthOf} from './types/core.ts';
+import type {FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {ClassesBand, LaidOutClasses} from './types/diagrams.ts';
 
 const PAD_X = 12, PAD_Y = 6, MIN_W = 110, GAP = 36, LEVEL_GAP = 72, LOOP = 26, CHIP_PAD = 5;
@@ -23,7 +23,7 @@ export function classesTexts(band: ClassesBand, roles: Roles): [string, number, 
   return out;
 }
 
-export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, heightBudget?: number): LaidOutClasses {
+export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutClasses {
   const B = roles.body, S = roles.note;
   const ids = new Set<string>();
   for (const c of band.classes) {
@@ -74,7 +74,7 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
   const explicitDir = band.dir !== undefined && band.dir !== 'auto';
   const start: 'down' | 'right' = band.dir === 'right' ? 'right' : 'down';
   const fitted = fitLayout({
-    who: 'classDiagram()', w, start, alt: start === 'down' ? 'right' : 'down', explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', narrow: false,
+    who: 'classDiagram()', w, start, keepWords: env.keepWords, alt: start === 'down' ? 'right' : 'down', explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', narrow: false,
     build: d => build(d), widthOf: r => r.size.w + r.reserve, best: band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget}),
   });
   const {dir, reserve, top, lay, routes, size: total} = fitted.result, fitApplied = fitted.applied;

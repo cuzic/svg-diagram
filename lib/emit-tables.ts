@@ -1,4 +1,5 @@
 import {PALETTE, colorOf, runColorOf} from './tokens.ts';
+import type {ToneEnv} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {Theme, ColorKey, Roles} from './types/core.ts';
 import type {LaidOutSequence, LaidOutTable} from './types/sequence-table-swimlane.ts';
@@ -8,30 +9,30 @@ import {TBL, lineH} from './seq-table.ts';
 import {iconSvg} from './icon-svg.ts';
 import {snap4, escapeXml, emojiSpan, resolveTextColor, resolveLineColor, strokeLine, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
 
-export function renderSequence(band: LaidOutSequence, day: Theme, roles: Roles): string {
+export function renderSequence(band: LaidOutSequence, day: Theme, tones: ToneEnv, roles: Roles): string {
   const parts: string[] = [];
   for (const h of band.heads) {
     parts.push(`<path d="M${Math.round(h.cx)},${Math.round(h.y + h.h)} L${Math.round(h.cx)},${Math.round(band.lifeBottom)}" fill="none" stroke="${PALETTE.border}" stroke-width="2" stroke-dasharray="6,6"/>`);
   }
   for (const h of band.heads) {
-    const st = resolveBoxStyle(h.tone ?? 'plain', day);
+    const st = resolveBoxStyle(tones, h.tone ?? 'plain', day);
     parts.push(`<rect x="${snap4(h.x)}" y="${snap4(h.y)}" width="${snap4(h.w)}" height="${snap4(h.h)}" rx="8" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5"${st.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
-    if (h.icon) parts.push(iconSvg({glyph: h.icon.glyph, name: h.icon.name, x: h.icon.x, y: h.icon.y, size: h.icon.size, color: runColorOf(h.icon.tone, h.tone, day), labelled: true}));
+    if (h.icon) parts.push(iconSvg({glyph: h.icon.glyph, name: h.icon.name, x: h.icon.x, y: h.icon.y, size: h.icon.size, color: runColorOf(tones, h.icon.tone, h.tone, day), labelled: true}));
     parts.push(textLines(h.lines, {x: h.cx, top: h.y + h.textDy, size: roles.title, weight: 700, anchor: 'middle', fill: PALETTE.text}));
   }
   for (const s of band.steps) {
     if (s.kind === 'msg') {
-      const color = resolveLineColor(s.tone, day);
+      const color = resolveLineColor(tones, s.tone, day);
       parts.push(strokeLine(`M${Math.round(s.x1)},${Math.round(s.y)} L${Math.round(s.x2)},${Math.round(s.y)}`, color, s.line, s.arrow));
       parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: roles.note, anchor: 'middle', fill: s.tone ? color : PALETTE.text}));
     } else if (s.kind === 'self') {
-      const color = resolveLineColor(s.tone, day);
+      const color = resolveLineColor(tones, s.tone, day);
       const dir = s.side === 'left' ? -1 : 1;
       const x0 = Math.round(s.cx), x1 = Math.round(s.cx + dir * 36), y0 = Math.round(s.y), y1 = Math.round(s.y + s.loopH);
       parts.push(strokeLine(`M${x0},${y0} L${x1},${y0} L${x1},${y1} L${x0},${y1}`, color, s.line, 'end'));
       parts.push(textLines(s.lines, {x: s.lx, top: s.labelTop, size: roles.note, anchor: s.side === 'left' ? 'end' : undefined, fill: s.tone ? color : PALETTE.text}));
     } else if (s.kind === 'note') {
-      const st = resolveBoxStyle(s.tone, day);
+      const st = resolveBoxStyle(tones, s.tone, day);
       parts.push(`<rect x="${snap4(s.x)}" y="${snap4(s.y)}" width="${snap4(s.w)}" height="${snap4(s.h)}" rx="8" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5"${st.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
       parts.push(textLines(s.lines, {x: s.x + 12, top: s.y + 8, size: roles.note, fill: PALETTE.text}));
     } else {
@@ -44,7 +45,7 @@ export function renderSequence(band: LaidOutSequence, day: Theme, roles: Roles):
 }
 
 
-export function renderTable(band: LaidOutTable, day: Theme, roles: Roles): string {
+export function renderTable(band: LaidOutTable, day: Theme, tones: ToneEnv, roles: Roles): string {
   const parts: string[] = [];
   const R = 8;
   const last = band.rows.length - 1;
@@ -57,7 +58,7 @@ export function renderTable(band: LaidOutTable, day: Theme, roles: Roles): strin
   band.rows.forEach((row, i) => {
     const top = i === 0 && !titled, bottom = i === last;
     const corners = {tl: top ? R : 0, tr: top ? R : 0, bl: bottom ? R : 0, br: bottom ? R : 0};
-    const fill = row.header ? PALETTE[day].soft : row.tone ? resolveBoxStyle(row.tone, day).fill : PALETTE.bg;
+    const fill = row.header ? PALETTE[day].soft : row.tone ? resolveBoxStyle(tones, row.tone, day).fill : PALETTE.bg;
     parts.push(`<path d="${rrPath(band.x, row.y, band.w, row.h, corners)}" fill="${fill}"/>`);
     // row-heading cell: always soft, whatever the row's tone; only the outer left corners round
     if (band.rowHeader && !row.header) parts.push(`<path d="${rrPath(band.x, row.y, band.colW[0], row.h, {tl: corners.tl, bl: corners.bl})}" fill="${PALETTE[day].soft}"/>`);
@@ -83,7 +84,7 @@ export function renderTable(band: LaidOutTable, day: Theme, roles: Roles): strin
       const left = c.x + 12 + indent, right = c.x + c.w - 12;
       const anchor = c.align === 'center' ? 'middle' : c.align === 'right' ? 'end' : 'start';
       const x = c.align === 'center' ? (left + right) / 2 : c.align === 'right' ? right : left;
-      if (c.lines.length) parts.push(textLines(c.lines, {x, top: c.top, size: roles.body, weight: c.bold ? 700 : 400, anchor, fill: resolveTextColor(c.tone, day), mono: c.mono}));
+      if (c.lines.length) parts.push(textLines(c.lines, {x, top: c.top, size: roles.body, weight: c.bold ? 700 : 400, anchor, fill: resolveTextColor(tones, c.tone, day), mono: c.mono}));
       if (c.icon) {
         // beside left-aligned text: at the cell's left edge; beside centred / right-aligned text: just before its first line; alone: where the text would stand
         const before = (tx: number) => tx - TBL.iconGap - TBL.iconSize;
@@ -91,7 +92,7 @@ export function renderTable(band: LaidOutTable, day: Theme, roles: Roles): strin
           : c.lines.length ? (c.align === 'center' ? before(x - (c.lineW ?? 0) / 2) : before(right - (c.lineW ?? 0)))
           : c.align === 'center' ? c.x + (c.w - TBL.iconSize) / 2 : right - TBL.iconSize;
         const iy = c.top + (lineH(roles.body) - TBL.iconSize) / 2;
-        parts.push(iconSvg({glyph: c.icon.glyph, name: c.icon.name, x: ix, y: iy, size: TBL.iconSize, color: resolveTextColor(c.icon.tone ?? c.tone, day), labelled: c.lines.length > 0}));
+        parts.push(iconSvg({glyph: c.icon.glyph, name: c.icon.name, x: ix, y: iy, size: TBL.iconSize, color: resolveTextColor(tones, c.icon.tone ?? c.tone, day), labelled: c.lines.length > 0}));
       }
     }
   }

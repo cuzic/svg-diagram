@@ -78,7 +78,7 @@ export function heatmapTexts(s: HeatmapSpec): [string, number][] {
 }
 
 export function layoutHeatmap(s: HeatmapSpec, g: ChartGeom): LaidOutChartPart {
-  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf);
+  const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap);
   const rowW = Math.min(Math.max(...s.rows.map(r => c.tw(r, s.rowHeader)), s.corner ? c.tw(s.corner, true) / 2 : 0) + 20, g.w * 0.3);
   const plotL = g.x + rowW, cellW = (g.x + g.w - plotL) / s.cols.length;
   const lh = c.lineH();

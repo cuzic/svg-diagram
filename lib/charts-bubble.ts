@@ -80,7 +80,7 @@ export function roundBelow(v: number): number {
 }
 
 export function layoutBubble(s: BubbleSpec, g: ChartGeom): LaidOutChartPart {
-  const S = g.size, c = new Canvas(g.x, g.y, g.w, g.height ?? 440, S, g.widthOf), r1 = (v: number) => Math.round(v * 10) / 10;
+  const S = g.size, c = new Canvas(g.x, g.y, g.w, g.height ?? 440, S, g.widthOf, g.wrap), r1 = (v: number) => Math.round(v * 10) / 10;
   const xs = axisRange(s, 'x'), ys = axisRange(s, 'y');
   let sx = niceScale(xs.lo, xs.hi), sy = niceScale(ys.lo, ys.hi);
 

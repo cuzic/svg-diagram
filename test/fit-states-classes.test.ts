@@ -8,8 +8,8 @@ import type {ClassesBand, LaidOutClasses, LaidOutStates, StatesBand} from '../li
 // ADR 0010 U2: stateDiagram / classDiagram fit the width. Font-free: a fixed text width, and widths taken from the figure itself.
 const fixedW = (t: string, size: number): number => t.length * size * 0.6;
 const ROLES = {body: 14, note: 12} as never;
-const states = (b: StatesBand, w: number, h?: number): LaidOutStates => layoutStatesBand(b, 0, 0, w, fixedW as never, ROLES, h);
-const classes = (b: ClassesBand, w: number, h?: number): LaidOutClasses => layoutClassesBand(b, 0, 0, w, fixedW as never, ROLES, h);
+const states = (b: StatesBand, w: number, h?: number): LaidOutStates => layoutStatesBand(b, 0, 0, w, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false}, h);
+const classes = (b: ClassesBand, w: number, h?: number): LaidOutClasses => layoutClassesBand(b, 0, 0, w, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false}, h);
 const spread = (t: {nodes: {x: number; w: number}[]}): number => Math.max(...t.nodes.map(n => n.x + n.w)) - Math.min(...t.nodes.map(n => n.x));
 
 // ---- stateDiagram: a long chain is wide running right, narrow running down

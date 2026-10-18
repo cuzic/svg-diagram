@@ -71,7 +71,7 @@ export function minimalCutSets(root: FtaNode): CutSets {
   try {
     const raw = setsOf(root);
     guard(raw.length);
-    const sets = absorb(raw).sort((a, b) => a.length - b.length || a.join().localeCompare(b.join()));
+    const sets = absorb(raw).sort((a, b) => a.length - b.length || a.join().localeCompare(b.join(), 'en'));
     return {sets, truncated: false};
   } catch (e) {
     if (e instanceof TooMany) return {sets: [], truncated: true};

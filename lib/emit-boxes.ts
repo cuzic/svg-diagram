@@ -1,4 +1,5 @@
 import {PALETTE, CONNECT_LABEL_SIZE, STRONG_STROKE, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
+import type {ToneEnv} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {LaidOutGroup, LaidOutLegend, LaidOutRow, LaidOutGrid, LaidOutRaw, LaidOutStatus, LaidOutConnect, RawColorTone} from './types/containers.ts';
 import type {Theme, EmphasisTone, Align, Rect, Roles} from './types/core.ts';
@@ -36,23 +37,23 @@ export function renderStepBadge(band: LaidOutBox, day: Theme): string {
 
 // box({icon}): the icon's path scaled from its source viewBox to ICON_SIZE, at the box's top-left. Its colour is a text tone
 // (a dimmed box: muted). With a title the label carries the meaning, so the icon is hidden from assistive technology.
-export function renderBoxIcon(band: LaidOutBox, day: Theme): string {
+export function renderBoxIcon(band: LaidOutBox, day: Theme, tones: ToneEnv): string {
   const top = band.iconAt === 'top', size = top ? band.iconSize ?? TOP_ICON_SIZE : ICON_SIZE;
   const x = top ? band.x + band.w / 2 - size / 2 : band.x + (band.padX ?? BOX_PAD_X), y = band.y + (band.padY ?? BOX_PAD_Y);
-  const color = band.dim ? PALETTE.muted : runColorOf(band.iconTone, band.tone, day);
+  const color = band.dim ? PALETTE.muted : runColorOf(tones, band.iconTone, band.tone, day);
   return '\n  ' + iconSvg({glyph: band.iconGlyph!, name: band.icon!, x, y, size, color, dim: band.dim, labelled: !!band.title});
 }
 
 
-export function renderCaption(band: LaidOutCaption, day: Theme): string {
-  return renderTextRuns(band.wrappedRuns, {originX: band.x, originY: band.y, w: band.w, align: band.align ?? 'center', day, dim: band.dim});
+export function renderCaption(band: LaidOutCaption, day: Theme, tones: ToneEnv): string {
+  return renderTextRuns(band.wrappedRuns, {originX: band.x, originY: band.y, w: band.w, align: band.align ?? 'center', day, tones, dim: band.dim});
 }
 
 
 export type BoxLike = Rect & {tone?: EmphasisTone; dashed?: boolean; dim?: boolean};
 
-export function renderBoxRect(band: BoxLike, day: Theme, defaultTone: EmphasisTone): string {
-  const style = resolveBoxStyle(band.tone ?? defaultTone, day, band.dashed);
+export function renderBoxRect(band: BoxLike, day: Theme, tones: ToneEnv, defaultTone: EmphasisTone): string {
+  const style = resolveBoxStyle(tones, band.tone ?? defaultTone, day, band.dashed);
   if (band.dim) { style.fill = PALETTE.bg; style.stroke = PALETTE.muted; }
   const dash = style.dashed ? ' stroke-dasharray="6,4"' : band.dim ? ' stroke-dasharray="2,5" stroke-linecap="round"' : '';
   // the right edge snaps like the left one (not the width alone), so a frame ends where a neighbouring band of the same extent ends
@@ -61,17 +62,17 @@ export function renderBoxRect(band: BoxLike, day: Theme, defaultTone: EmphasisTo
 }
 
 
-export function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, defaultAlign: Align): string {
+export function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, tones: ToneEnv, defaultAlign: Align): string {
   const align = band.align ?? defaultAlign;
   const px = band.padX ?? BOX_PAD_X, py = band.padY ?? BOX_PAD_Y;
   const originX = band.x + px;
-  return renderTextRuns(band.wrappedRuns, {originX, originY: band.y + py, w: band.w - 2 * px, align, day, dim: band.dim, boxTone: band.tone});
+  return renderTextRuns(band.wrappedRuns, {originX, originY: band.y + py, w: band.w - 2 * px, align, day, tones, dim: band.dim, boxTone: band.tone});
 }
 
 
-export function renderTag(band: LaidOutBox, day: Theme, roles: Roles): string {
+export function renderTag(band: LaidOutBox, day: Theme, tones: ToneEnv, roles: Roles): string {
   const t = band.tagBox as Rect; // caller checked tagBox
-  const fill = band.dim ? PALETTE.muted : colorOf(toneStyle(band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
+  const fill = band.dim ? PALETTE.muted : colorOf(toneStyle(tones, band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
   return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: (roles.tag ?? TAG_SIZE), labelHtml: emojiSpan(band.tag as string)});
 }
 
@@ -84,29 +85,29 @@ export function renderStamp(band: Rect & {stamp?: string; stampW?: number}, role
 }
 
 
-export function renderBox(band: LaidOutBox, day: Theme, roles: Roles): string {
+export function renderBox(band: LaidOutBox, day: Theme, tones: ToneEnv, roles: Roles): string {
   const badge = band.step != null ? `\n  ${renderStepBadge(band, day)}` : '';
-  const iconText = band.icon ? renderBoxIcon(band, day) : '';
-  const tag = band.tagBox ? `\n  ${renderTag(band, day, roles)}` : '';
-  const frame = band.frame === false ? '' : `${renderBoxRect(band, day, 'plain')}\n  `;
-  return `${frame}${renderBoxText(band, day, band.iconAt === 'top' ? 'center' : 'left')}${badge}${iconText}${tag}${renderStamp(band, roles)}`;
+  const iconText = band.icon ? renderBoxIcon(band, day, tones) : '';
+  const tag = band.tagBox ? `\n  ${renderTag(band, day, tones, roles)}` : '';
+  const frame = band.frame === false ? '' : `${renderBoxRect(band, day, tones, 'plain')}\n  `;
+  return `${frame}${renderBoxText(band, day, tones, band.iconAt === 'top' ? 'center' : 'left')}${badge}${iconText}${tag}${renderStamp(band, roles)}`;
 }
 
 
-export function renderGroup(band: LaidOutGroup, day: Theme, roles: Roles): string {
+export function renderGroup(band: LaidOutGroup, day: Theme, tones: ToneEnv, roles: Roles): string {
   if (band.frame === false) return renderStamp(band, roles);
-  return renderBoxRect(band, day, 'muted') + renderStamp(band, roles);
+  return renderBoxRect(band, day, tones, 'muted') + renderStamp(band, roles);
 }
 
 
 // A line sample (and optional arrowhead) + label per item, laid out by layout.ts.
-export function renderLegend(band: LaidOutLegend, day: Theme, roles: Roles): string {
+export function renderLegend(band: LaidOutLegend, day: Theme, tones: ToneEnv, roles: Roles): string {
   const parts: string[] = [];
   for (const it of band.items) {
     const cy = it.y + 12;
     if (it.ftaEvent || it.ftaGate) parts.push(ftaLegendSwatch(it, cy));
     else if (it.swatch || it.mark) { // a cause-tree entity (its role's box) or the core driver mark (a thick frame)
-      const style = resolveBoxStyle(it.swatch?.tone ?? 'plain', day, it.swatch?.dashed), x = it.x + 4, y = cy - 8;
+      const style = resolveBoxStyle(tones, it.swatch?.tone ?? 'plain', day, it.swatch?.dashed), x = it.x + 4, y = cy - 8;
       if (it.swatch?.hex) {
         const pts = [[x + 6, y], [x + 22, y], [x + 28, cy], [x + 22, y + 16], [x + 6, y + 16], [x, cy]].map(([px, py]) => `${snap4(px)},${snap4(py)}`).join(' ');
         parts.push(`<polygon points="${pts}" fill="${style.fill}" stroke="${style.stroke}" stroke-width="2"${style.dashed ? ' stroke-dasharray="6,4"' : ''} stroke-linejoin="round"/>`);
@@ -134,7 +135,7 @@ export function renderLegend(band: LaidOutLegend, day: Theme, roles: Roles): str
         parts.push(`<path d="${d}" fill="none" stroke="${PALETTE.text}" stroke-width="2"${lineAttrs(it.line)}${arrowMarkers(it.arrow ?? 'end')}/>`);
       }
     } else {
-      const style = resolveBoxStyle(it.tone ?? 'plain', day, it.dashed);
+      const style = resolveBoxStyle(tones, it.tone ?? 'plain', day, it.dashed);
       parts.push(`<rect x="${snap4(it.x + 4)}" y="${snap4(cy - 8)}" width="28" height="16" rx="4" fill="${style.fill}" stroke="${style.stroke}" stroke-width="2.5"${style.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
     }
     parts.push(`<text x="${Math.round(it.x + LEGEND_SWATCH_W + 8)}" y="${cy + 5}" font-size="${roles.note}" fill="${PALETTE.text}">${emojiSpan(it.label)}</text>`);
@@ -143,13 +144,13 @@ export function renderLegend(band: LaidOutLegend, day: Theme, roles: Roles): str
 }
 
 
-export function renderBanner(band: LaidOutBanner, day: Theme, roles: Roles): string {
-  return `${renderBoxRect(band, day, 'accent')}\n  ${renderBoxText(band, day, 'center')}${renderStamp(band, roles)}`;
+export function renderBanner(band: LaidOutBanner, day: Theme, tones: ToneEnv, roles: Roles): string {
+  return `${renderBoxRect(band, day, tones, 'accent')}\n  ${renderBoxText(band, day, tones, 'center')}${renderStamp(band, roles)}`;
 }
 
 
-export function renderRow(band: LaidOutRow, day: Theme, roles: Roles, stage?: number): string {
-  const boxes = band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day, roles)).join('\n\n  ');
+export function renderRow(band: LaidOutRow, day: Theme, tones: ToneEnv, roles: Roles, stage?: number): string {
+  const boxes = band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day, tones, roles)).join('\n\n  ');
   const arrows = band.arrows.filter((_, i) => visibleAt(band.children[i], stage) && visibleAt(band.children[i + 1], stage)).map(a =>
     `<path d="M${snap4(a.x1)},${Math.round(a.y1)} L${snap4(a.x2)},${Math.round(a.y2)}" fill="none" stroke="${band.dim ? PALETTE.muted : PALETTE.text}" stroke-width="2.5" marker-end="url(#${band.dim ? 'dsl-arrow-dim' : 'dsl-arrow'})"/>`,
   ).join('\n  ');
@@ -157,8 +158,8 @@ export function renderRow(band: LaidOutRow, day: Theme, roles: Roles, stage?: nu
 }
 
 
-export function renderGrid(band: LaidOutGrid, day: Theme, roles: Roles, stage?: number): string {
-  return band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day, roles)).join('\n\n  ');
+export function renderGrid(band: LaidOutGrid, day: Theme, tones: ToneEnv, roles: Roles, stage?: number): string {
+  return band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day, tones, roles)).join('\n\n  ');
 }
 
 
@@ -168,8 +169,8 @@ export function renderConnectPath(c: LaidOutConnect): string {
 }
 
 
-export function renderConnect(c: LaidOutConnect, day: Theme, roles: Roles): string {
-  const color = c.dim ? PALETTE.muted : resolveLineColor(c.tone, day);
+export function renderConnect(c: LaidOutConnect, day: Theme, tones: ToneEnv, roles: Roles): string {
+  const color = c.dim ? PALETTE.muted : resolveLineColor(tones, c.tone, day);
   const d = renderConnectPath(c);
   const strong = c.weight === 'strong';
   const markers = arrowMarkers(c.arrow, c.dim, strong);
@@ -208,18 +209,18 @@ export function renderPyramid(band: LaidOutPyramid, roles: Roles): string {
 
 
 // people(): one person icon per head, the emphasized ones filled and the rest outlines (the count reads without colour).
-export function renderPeople(band: LaidOutPeople, day: Theme): string {
+export function renderPeople(band: LaidOutPeople, day: Theme, tones: ToneEnv): string {
   const d = PERSON_PATH, s = band.size / PERSON_BOX.size, n = (v: number) => +v.toFixed(4);
-  const color = colorOf(toneStyle(band.tone).ink, day), color2 = colorOf(toneStyle(band.tone2).ink, day), rest = colorOf(toneStyle(band.rest).ink, day);
+  const color = colorOf(toneStyle(tones, band.tone).ink, day), color2 = colorOf(toneStyle(tones, band.tone2).ink, day), rest = colorOf(toneStyle(tones, band.rest).ink, day);
   const icon = (i: {x: number; y: number; on: boolean; second?: true}) => `<path d="${d}" transform="translate(${n(i.x - PERSON_BOX.from * s)} ${n(i.y - PERSON_BOX.from * s)}) scale(${n(s)})" ${i.on ? `fill="${i.second ? color2 : color}"` : `fill="none" stroke="${rest}" stroke-width="${n(1.5 / s)}"`}/>`;
-  const texts = band.texts.map(t => `\n  <text x="${Math.round(t.x)}" y="${Math.round(t.y)}" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${textColorOf(t.tone, day)}">${emojiSpan(t.text)}</text>`).join('');
+  const texts = band.texts.map(t => `\n  <text x="${Math.round(t.x)}" y="${Math.round(t.y)}" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${textColorOf(tones, t.tone, day)}">${emojiSpan(t.text)}</text>`).join('');
   return `<g role="img" aria-label="${escapeAttr(band.alt)}">\n  ${band.icons.map(icon).join('\n  ')}\n  </g>${texts}`;
 }
 
 
 // dots(): a lane (an axis line), bars on the lane for its zones, a dot per value piled above it, labels under it.
-export function renderDots(band: LaidOutDots, day: Theme): string {
-  const color = (tone: string) => colorOf(toneStyle(tone).ink, day), n = (v: number) => +v.toFixed(2);
+export function renderDots(band: LaidOutDots, day: Theme, tones: ToneEnv): string {
+  const color = (tone: string) => colorOf(toneStyle(tones, tone).ink, day), n = (v: number) => +v.toFixed(2);
   const parts = [`<line x1="${n(band.axis.x1)}" y1="${n(band.axis.y)}" x2="${n(band.axis.x2)}" y2="${n(band.axis.y)}" stroke="${PALETTE.muted}" stroke-width="2"/>`];
   for (const z of band.zones) parts.push(`<rect x="${n(z.x)}" y="${n(z.top)}" width="${n(z.w)}" height="${n(z.y - 4 - z.top)}" fill="${color(z.tone)}" fill-opacity="0.12"/>`);
   for (const z of band.zones) parts.push(`<rect x="${n(z.x)}" y="${n(z.y - 4)}" width="${n(z.w)}" height="8" fill="${color(z.tone)}"/>`);
@@ -230,12 +231,12 @@ export function renderDots(band: LaidOutDots, day: Theme): string {
 }
 
 
-export function renderCurve(band: LaidOutCurve, day: Theme): string {
+export function renderCurve(band: LaidOutCurve, day: Theme, tones: ToneEnv): string {
   const parts: string[] = [];
   parts.push(`<path d="M${Math.round(band.axisX)},${Math.round(band.axisTop)} L${Math.round(band.axisX)},${Math.round(band.axisBottom)} L${Math.round(band.axisRight)},${Math.round(band.axisBottom)}" fill="none" stroke="${PALETTE.text}" stroke-width="2"/>`);
   parts.push(`<path d="${band.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${Math.round(p.x)},${Math.round(p.y)}`).join(' ')}" fill="none" stroke="${PALETTE.text}" stroke-width="3"/>`);
 
-  const emphColor = (emphasis: string) => colorOf(toneStyle(emphasis === 'accent' || emphasis === 'danger' ? emphasis : 'muted').ink, day);
+  const emphColor = (emphasis: string) => colorOf(toneStyle(tones, emphasis === 'accent' || emphasis === 'danger' ? emphasis : 'muted').ink, day);
   band.points.forEach((p, i) => {
     const color = p.emphasis ? emphColor(p.emphasis) : (i === 0 ? PALETTE[day].accent : PALETTE.muted);
     const r = p.emphasis === 'danger' ? 8 : i === 0 ? 6 : 5;

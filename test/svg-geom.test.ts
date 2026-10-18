@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {flattenPath, outlineOf, sampleAlong, boxOf, unionBox, transformBox, corners, familyKind, textBoxOf, isShape, type Point} from '../lib/svg-geom.ts';
+const measure = (text: string, family: Parameters<typeof textBox>[1], size: number, weight: number) => textBox(text, family, size, weight);
 import {parseXml, computeStyles, elements, parseTransform, type El} from '../lib/svg-dom.ts';
 import {textBox, resolveFontFile} from '../lib/font-metrics.ts';
 
@@ -181,7 +182,7 @@ test('familyKind: the first family of the list decides', () => {
 const STYLE = `<style>text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }</style>`;
 const boxOfText = (inner: string, attrs = '') => {
   const r = root(`${STYLE}<text id="e" ${attrs}>${inner}</text>`);
-  return textBoxOf(elements(r).find(e => e.attrs.id === 'e')!, computeStyles(r));
+  return textBoxOf(elements(r).find(e => e.attrs.id === 'e')!, computeStyles(r), measure);
 };
 const sans = (text: string, size: number, weight = 400) => textBox(text, 'sans', size, weight);
 const skip = haveFont ? false : 'no font file found';

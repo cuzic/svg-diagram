@@ -3,7 +3,7 @@
 import {checkDiagram, diagram, renderDiagram} from '../../lib/dsl.ts';
 import type {CausalNode, DependencyEdge} from '../../lib/dsl.ts';
 import {loadConfig} from '../../lib/config.ts';
-import {geometryChecks} from '../../lib/svg-lint.ts';
+import {geometryChecks} from '../../lib/geometry-checks.ts';
 import type {ChartBand} from '../../lib/charts.ts';
 import type {CausalLink} from '../../lib/semnet-analysis.ts';
 

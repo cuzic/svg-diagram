@@ -74,7 +74,7 @@ export function radarTexts(s: RadarSpec): [string, number][] {
 }
 
 export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
-  const S = g.size, n = s.axes.length, c = new Canvas(g.x, g.y, g.w, g.height ?? 400, S, g.widthOf), lh = c.lineH();
+  const S = g.size, n = s.axes.length, c = new Canvas(g.x, g.y, g.w, g.height ?? 400, S, g.widthOf, g.wrap), lh = c.lineH();
   // legend rows at the bottom: a sample of the line with its marker, then the name
   const items = s.series.map((x, i) => ({x, i, w: 34 + 8 + c.tw(x.label) + 24}));
   const rows: typeof items[] = [[]];

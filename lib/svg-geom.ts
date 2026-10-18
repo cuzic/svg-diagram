@@ -1,11 +1,9 @@
 // Geometry of the elements of an SVG, in the units a browser reports them: the box of a shape is its geometry without the stroke (what
 // getBBox() and getBoundingClientRect() of an SVG element give), the box of a text is its glyph cells — from the baseline up by the font's
 // ascent and down by its descent, as wide as the advance — measured with the same font files the layout uses (lib/font-metrics.ts).
-import {textBox} from './font-metrics.ts';
 import {FONT_STACKS} from './tokens.ts';
 import {apply, elements, textOf, type El, type Matrix, type Style} from './svg-dom.ts';
 import type {FontFamily} from './types/core.ts';
-import type {FontSpecs} from './types/project.ts';
 
 export interface Box {x: number; y: number; w: number; h: number}
 export type Point = [number, number];
@@ -126,7 +124,7 @@ function curveExtrema(p: Point[]): Point[] {
 
 export interface Outline {polylines: Point[][]; box: Box | null; /** every point that bounds the shape: the polylines' and the curves' extreme points */ points: Point[]}
 
-const SHAPES = new Set(['rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'path']);
+const SHAPES: ReadonlySet<string> = new Set(['rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'path']);
 export const isShape = (e: El) => SHAPES.has(e.tag);
 
 /** A shape's outline as polylines in its own coordinates (what a point-along-the-length walk follows) and its box. `vp` resolves percentages. */
@@ -189,15 +187,18 @@ export function familyKind(fontFamily: string): FontFamily {
 
 const num1 = (v: string | undefined) => { if (v === undefined) return null; const f = parseFloat(v.trim().split(/[\s,]+/)[0]); return Number.isFinite(f) ? f : null; };
 
+/** The box of a line of text in a font: its advance and the ascent / descent of the primary font. Given by the caller (the font files are a shell's). */
+export type TextBoxFn = (text: string, family: FontFamily, size: number, weight: number) => {w: number; ascent: number; descent: number};
+
 /** One run of a <text> (the text of one tspan, or of the <text> itself) as it is laid out: where its pen starts and how big it is. */
 export interface PlacedRun {s: string; style: Style; x: number; y: number; w: number; ascent: number; descent: number}
 
 /** The runs of a <text> element (its tspans included) with the positions they are drawn at, in its own coordinates. */
-export function placeRuns(text: El, styles: Map<El, Style>, specs?: FontSpecs): PlacedRun[] {
+export function placeRuns(text: El, styles: Map<El, Style>, measure: TextBoxFn): PlacedRun[] {
   const preserve = (e: El) => { for (let p: El | null = e; p; p = p.parent) if (p.attrs['xml:space']) return p.attrs['xml:space'] === 'preserve'; return false; };
   type Run = {s: string; style: Style};
   type Chunk = {x: number; y: number; runs: Run[]};
-  const measured = (ch: Chunk) => ch.runs.filter(r => r.s).map(r => ({...textBox(r.s, familyKind(r.style.fontFamily), r.style.fontSize, r.style.fontWeight, specs)}));
+  const measured = (ch: Chunk) => ch.runs.filter(r => r.s).map(r => ({...measure(r.s, familyKind(r.style.fontFamily), r.style.fontSize, r.style.fontWeight)}));
   const widthOf = (ch: Chunk) => measured(ch).reduce((a, p) => a + p.w, 0);
   const chunks: Chunk[] = [];
   let chunk: Chunk = {x: (num1(text.attrs.x) ?? 0) + (num1(text.attrs.dx) ?? 0), y: (num1(text.attrs.y) ?? 0) + (num1(text.attrs.dy) ?? 0), runs: []};
@@ -247,8 +248,8 @@ export function placeRuns(text: El, styles: Map<El, Style>, specs?: FontSpecs): 
 }
 
 /** The box of a <text> element (its tspans included) in its own coordinates, or null when it draws nothing. */
-export function textBoxOf(text: El, styles: Map<El, Style>, specs?: FontSpecs): Box | null {
-  return unionBox(placeRuns(text, styles, specs).map(p => ({x: p.x, y: p.y - p.ascent, w: p.w, h: p.ascent + p.descent})));
+export function textBoxOf(text: El, styles: Map<El, Style>, measure: TextBoxFn): Box | null {
+  return unionBox(placeRuns(text, styles, measure).map(p => ({x: p.x, y: p.y - p.ascent, w: p.w, h: p.ascent + p.descent})));
 }
 
 export const textContent = (e: El) => textOf(e);

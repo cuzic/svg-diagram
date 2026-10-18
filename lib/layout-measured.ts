@@ -2,17 +2,19 @@
 // layout.ts itself does no I/O and reads no environment; the strict-width switch is read here.
 import {layoutWith} from './layout.ts';
 import {collectMeasures, widthOfMeasured} from './layout-measure.ts';
-import {measureAll} from './measure.ts';
+import {defaultMeasureSettings, measureAll} from './measure.ts';
 import {ROLES} from './tokens.ts';
-import type {DiagramData, Roles} from './types/core.ts';
+import type {DiagramData, MeasureSettings, Roles} from './types/core.ts';
 import type {LaidOutDiagram} from './types/index.ts';
 
 // Tests and the golden check run with SVG_DIAGRAM_STRICT_WIDTH=1 (test/helpers/strict-width.ts): an atom that was never
 // registered for measuring is then an error instead of a silent width of 0.
 const strictWidths = (): boolean => !!process.env.SVG_DIAGRAM_STRICT_WIDTH;
 
-/** Measure then lay out. `roles` (default ROLES) is baked into the result as LaidOutDiagram.roles. */
-export async function layoutDiagram(d: DiagramData, opts: {roles?: Roles} = {}): Promise<LaidOutDiagram> {
-  const roles = opts.roles ?? ROLES;
-  return layoutWith(d, roles, widthOfMeasured(await measureAll(collectMeasures(d, roles)), strictWidths()));
+/** Measure then lay out. `roles` (default ROLES) is baked into the result as LaidOutDiagram.roles; the measuring settings (`measure`, else
+ *  the diagram's own, else the process default) are baked in as LaidOutDiagram.measure, which the HTML emit measures glyph boxes with. */
+export async function layoutDiagram(d: DiagramData, opts: {roles?: Roles; measure?: MeasureSettings} = {}): Promise<LaidOutDiagram> {
+  const roles = opts.roles ?? ROLES, measure = opts.measure ?? d.measure ?? defaultMeasureSettings();
+  const laid = layoutWith(d, roles, widthOfMeasured(await measureAll(collectMeasures(d, roles), measure), strictWidths()));
+  return {...laid, measure};
 }
