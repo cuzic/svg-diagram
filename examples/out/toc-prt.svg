@@ -9,8 +9,8 @@
 
   <path d="M244,440 L244,360" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M244,348 L249,360 L239,360 z" fill="#22201b"/>
-  <path d="M244,312 L244,296 L320,296 L320,244" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M320,232 L325,244 L315,244 z" fill="#22201b"/>
+  <path d="M280,312 L280,244" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M280,232 L285,244 L275,244 z" fill="#22201b"/>
   <path d="M680,428 L680,360" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M680,348 L685,360 L675,360 z" fill="#22201b"/>
   <path d="M620,312 L620,232" fill="none" stroke="#22201b" stroke-width="2"/>

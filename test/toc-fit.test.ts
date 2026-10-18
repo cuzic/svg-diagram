@@ -273,7 +273,7 @@ test('causeTree(): clearing an AND crossing by moving a run aside does not keep 
 // ADR 0019 D4 (widened): the search is entered by any crossing, not only an AND's. An 8-node tree with no AND (so none to cross) had 2 crossings in the written order.
 test('causeTree(): a figure whose arrows cross with no AND involved is searched again too; the crossings only go down', () => {
   const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":"n1","to":"n2"},{"from":"n1","to":"n3"},{"from":"n0","to":"n4"},{"from":"n4","to":"n5"},{"from":"n1","to":"n6"},{"from":"n2","to":"n7"},{"from":"n1","to":"n7"}]');
-  const band = (): CauseBand => causeTree(Array.from({length: 8}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'frt', dir: 'up'});
+  const band = (): CauseBand => causeTree(Array.from({length: 8}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'frt', dir: 'up', straighten: false}); // the figure as it was before the long arrows searched for their way (`straighten: false`)
   const crossings = (t: LaidOutCause): number => scoreOf(t.edges.map(e => e.points)).crossings;
   const once = layoutCauseBandOnce(band(), 0, 0, 1800, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false}), now = place(band(), 1800);
   assert.ok(crossings(once) >= 1, `the written order leaves a crossing (${crossings(once)})`);
@@ -287,4 +287,16 @@ test('fitFailure(): an attempt 0.3px over the width in the rounded record but in
   const msg = fitFailure('x()', 900, [{label: 'a', w: 901, h: 400, fitsWidth: true}], 'fix', [], 300);
   assert.match(msg, /tall/);
   assert.doesNotMatch(fitFailure('x()', 900, [{label: 'a', w: 901, h: 400, fitsWidth: false}], 'fix', [], 300), /every attempt that fits the width is too tall/);
+});
+
+// A long arrow went out to the side of the boxes and back (4 bends) because it turned half-way between the way points of the layers; it now takes the way around the boxes with the fewest bends.
+test('causeTree(): the arrows of a current reality tree bend less than they did, and no arrow bends more than 4 times', () => {
+  const nodes = ['u1', 'u2', 'u3', 'a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'c1', 'c2'].map(id => N(id, {label: `${id} の説明の文`}));
+  const links = JSON.parse('[{"from":"c2","to":"b1"},{"from":"b1","to":"a1"},{"from":"a1","to":"u1"},{"from":["c1","b3"],"to":"b2"},{"from":"b2","to":"a2"},{"from":"a2","to":"u1"},{"from":"b3","to":"a3"},{"from":"a3","to":"u1"},{"from":"u1","to":"u2"},{"from":"a3","to":"u2"},{"from":"c2","to":"b5"},{"from":"b5","to":"b4"},{"from":"b4","to":"a4"},{"from":"a3","to":"a5"},{"from":"a5","to":"a4"},{"from":"a4","to":"u3"}]');
+  const bends = (t: LaidOutCause): number[] => t.edges.map(e => scoreOf([e.points]).bends);
+  const before = place(causeTree(nodes, links, {tree: 'crt', straighten: false}), 1800), now = place(causeTree(nodes, links, {tree: 'crt'}), 1800);
+  const sum = (a: number[]): number => a.reduce((x, y) => x + y, 0);
+  assert.ok(sum(bends(now)) < sum(bends(before)), `${sum(bends(before))} -> ${sum(bends(now))}`);
+  assert.ok(Math.max(...bends(now)) <= 4, `${bends(now)}`);
+  assert.equal(now.loose.length, 0);
 });
