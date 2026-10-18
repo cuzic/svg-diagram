@@ -1,6 +1,6 @@
 import {causeTree, diagram} from 'svg-diagram';
-// 交差の多い未来現実ツリー: 左から右に流し(`dir: 'right'`)、線は箱の左右につなぐ。避けられない交差は、`hop: 'all'` で全部に飛び越しの弧を付け、
-// 「交差しているだけ」と「合流」を見分けられるようにする(`hop: true` は戻りの矢印だけ)。並びの探索は、交差が残るときだけ働く。
+// 交差の多い未来現実ツリー: 左から右に流し(`dir: 'right'`)、線は箱の左右につなぐ。避けられない交差は、`hop: 'all'` で飛び越しの弧を付け、
+// 「交差しているだけ」と「合流」を見分けられるようにする(`hop: true` は戻りの矢印だけ。折れや矢じりの近くの交差には付かない)。並びの探索は、交差が残るときだけ働く。
 export default function define() {
   return diagram({theme: 'blue', title: '施策で納期遵守と残業削減を実現する未来現実ツリー', legend: 'auto', sourceLine: '出典: 説明用の例'}).add(
     causeTree(

@@ -290,13 +290,13 @@ test('fitFailure(): an attempt 0.3px over the width in the rounded record but in
 });
 
 // A long arrow went out to the side of the boxes and back (4 bends) because it turned half-way between the way points of the layers; it now takes the way around the boxes with the fewest bends.
-test('causeTree(): the arrows of a current reality tree bend less than they did, and no arrow bends more than 4 times', () => {
+test('causeTree(): the arrows of a current reality tree bend little: no arrow more than twice, and the figure well under what main drew (26 bends, up to 4 in one arrow)', () => {
   const nodes = ['u1', 'u2', 'u3', 'a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'c1', 'c2'].map(id => N(id, {label: `${id} の説明の文`}));
   const links = JSON.parse('[{"from":"c2","to":"b1"},{"from":"b1","to":"a1"},{"from":"a1","to":"u1"},{"from":["c1","b3"],"to":"b2"},{"from":"b2","to":"a2"},{"from":"a2","to":"u1"},{"from":"b3","to":"a3"},{"from":"a3","to":"u1"},{"from":"u1","to":"u2"},{"from":"a3","to":"u2"},{"from":"c2","to":"b5"},{"from":"b5","to":"b4"},{"from":"b4","to":"a4"},{"from":"a3","to":"a5"},{"from":"a5","to":"a4"},{"from":"a4","to":"u3"}]');
   const bends = (t: LaidOutCause): number[] => t.edges.map(e => scoreOf([e.points]).bends);
-  const before = place(causeTree(nodes, links, {tree: 'crt', straighten: false}), 1800), now = place(causeTree(nodes, links, {tree: 'crt'}), 1800);
+  const now = place(causeTree(nodes, links, {tree: 'crt'}), 1800);
   const sum = (a: number[]): number => a.reduce((x, y) => x + y, 0);
-  assert.ok(sum(bends(now)) < sum(bends(before)), `${sum(bends(before))} -> ${sum(bends(now))}`);
-  assert.ok(Math.max(...bends(now)) <= 4, `${bends(now)}`);
+  assert.ok(sum(bends(now)) <= 20, `${sum(bends(now))} bends: ${bends(now)}`);
+  assert.ok(Math.max(...bends(now)) <= 2, `${bends(now)}`);
   assert.equal(now.loose.length, 0);
 });

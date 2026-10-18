@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="502" viewBox="0 0 940 502" role="img" aria-labelledby="svg-title">
   <title id="svg-title">施策で納期遵守と残業削減を実現する未来現実ツリー</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/toc-hop-all.ts","sourceSha256":"79b16da1dc5037600fc934ba49b57ffe7a606ad36e6a5fa1732a58ca6aa3085a"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/toc-hop-all.ts","sourceSha256":"62d880090958e41b8059da310a1bb4b1ff015d24c0fee21701a0f2920e4c5d25"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
@@ -31,7 +31,7 @@
   <path d="M780,104 L768,109 L768,99 z" fill="#22201b"/>
   <path d="M656,276 L716,276 L716,216 Q704,212 716,204 L716,148 L768,148" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M780,148 L768,153 L768,143 z" fill="#22201b"/>
-  <path d="M408,48 L752,48 L752,84 L768,84" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M408,48 L500,48 L500,44 L752,44 L752,84 L768,84" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M780,84 L768,89 L768,79 z" fill="#22201b"/>
   <path d="M652,204 L688,204 L688,212 L784,212" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M792,212 L780,217 L780,207 z" fill="#22201b"/>

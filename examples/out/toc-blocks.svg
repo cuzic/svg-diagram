@@ -13,7 +13,7 @@
   <path d="M392,68 L397,80 L387,80 z" fill="#22201b"/>
   <path d="M480,144 L480,88" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M480,76 L485,88 L475,88 z" fill="#22201b"/>
-  <path d="M568,244 L568,104 L540,104 L540,80" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M568,244 L568,204 L520,204 L520,104 L540,104 L540,80" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
   <path d="M550,80 L530,80" fill="none" stroke="#22201b" stroke-width="3"/>
   <rect x="308" y="244" width="156" height="56" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
   <rect x="388" y="144" width="96" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>

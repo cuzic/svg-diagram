@@ -3,8 +3,8 @@
 // it for a 'down' diagram).
 import {layoutLayered} from './graph-layout.ts';
 import type {LayeredEdge, LayeredLayout, LayeredNode, LayeredOpts, Pt} from './graph-layout.ts';
-import {crossingsOf, runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
-import {searchRoute} from './route-search.ts';
+import {bendsOf, crossingsOf, crossingsWith, runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
+import {headCrossings, searchRoute} from './route-search.ts';
 
 export {simplify};
 
@@ -37,7 +37,7 @@ export function elbows(pts: Pt[], turn?: number, lastTurn?: number): Pt[] {
  * straightening (ADR 0016 D3): a direct arrow whose two boxes overlap across the layer axis becomes one straight line when that does not make
  * the drawing worse; `round` names the nodes that are not rectangles (a circle, a hexagon), whose arrows keep to the middle of the side.
  */
-export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false, aside = false, detour = false): Map<number, Pt[]> {
+export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false, aside = false, detour = false, lonePorts = detour): Map<number, Pt[]> {
   // ports: the edges that meet one side of a state fan out along it (ordered by where the other end is, so they do not cross)
   // lanes: direct arrows through one gap between two layers take separate vertical runs
   const portOf = new Map<string, number>(), laneOf = new Map<number, number>();
@@ -167,7 +167,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
       }
       const dz = shiftOf.get(i) ?? 0;
       const found = detours.get(i);
-      out.set(i, found ? [found[0] = start, ...found.slice(1, -1), found[found.length - 1] = end] : elbows([start, ...e.points.slice(1, -1).map(p => dz ? {x: p.x, y: p.y + dz} : p), end], turn, lastTurn));
+      out.set(i, found ? [start, ...found.slice(1, -1), end] : elbows([start, ...e.points.slice(1, -1).map(p => dz ? {x: p.x, y: p.y + dz} : p), end], turn, lastTurn));
     });
     return out;
   };
@@ -216,7 +216,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     return false;
   };
   let routes = build();
-  const direct = lay.edges.map((e, i) => i).filter(i => { const e = lay.edges[i]; return straighten && !e.self && !e.outer && e.points.length === 2 && groupOf?.(i) === undefined && !round?.(e.from) && !round?.(e.to) && (detour || slotOf.get(`${i}:0`)!.list.length > 1 || slotOf.get(`${i}:1`)!.list.length > 1); });
+  const direct = lay.edges.map((e, i) => i).filter(i => { const e = lay.edges[i]; return straighten && !e.self && !e.outer && e.points.length === 2 && groupOf?.(i) === undefined && !round?.(e.from) && !round?.(e.to) && (lonePorts || slotOf.get(`${i}:0`)!.list.length > 1 || slotOf.get(`${i}:1`)!.list.length > 1); });
   let best = scoreOf([...routes.values()]);
   for (const i of direct) {
     const undo = align(i);
@@ -230,13 +230,16 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     const rects = [...lay.nodes.values()].map(n => ({x: n.x, y: n.y, w: n.w, h: n.h})), bounds = {x: 0, y: 0, w: lay.w, h: lay.h};
     for (const [i, e] of lay.edges.entries()) {
       const r = routes.get(i);
-      if (!r || e.self || e.outer || e.points.length <= 2 || groupOf?.(i) !== undefined || r.length <= 3 || r[r.length - 1].x <= r[0].x) continue;
+      if (!r || e.self || e.outer || e.points.length <= 2 || groupOf?.(i) !== undefined || r.length <= 4 || r[r.length - 1].x <= r[0].x) continue; // only an arrow that bends 3 times or more can get much better
       const found = searchRoute(r[0], r[r.length - 1], rects, [...routes].filter(([j]) => j !== i).map(([, p]) => p), bounds);
       if (!found) continue;
       const route = simplify(found);
+      // only this arrow changed: its crossings and bends against the rest, before and after
+      const rest = [...routes].filter(([j]) => j !== i).map(([, p]) => p);
+      const score = {crossings: best.crossings - crossingsWith(r, rest) + crossingsWith(route, rest), bends: best.bends - bendsOf(r) + bendsOf(route)};
       const trial = new Map(routes); trial.set(i, route);
-      const score = scoreOf([...trial.values()]);
-      if (score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) { detours.set(i, route); routes = trial; best = score; }
+      // strictly better in (crossings, bends), and no more crossings of another arrow's head (they read as joins)
+      if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && headCrossings([...trial.values()]) <= headCrossings([...routes.values()])) { detours.set(i, route); routes = trial; best = score; }
     }
   }
   // ADR 0016 D12 (only when asked, after the candidate is chosen; D13 for a direct arrow, below): a long arrow into a grouped head (an AND) whose run through the layers lies along another
@@ -397,7 +400,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     const lay = layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: STUB, step: LANE, ...(near === 'far' ? {} : {side: near})}} : opts);
     const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
     const groupOf = o.groupOf;
-    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true);
+    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true && opts.coord === 'bk', o.detour === true); // the search for a way around the boxes only in the straightened candidate (it competes with the plain one on bends); a lone port is straightened in both
     const made = {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
     optsOf.set(made, {opts, laneShare, near});
     return made;
