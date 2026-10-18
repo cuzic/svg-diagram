@@ -1,9 +1,9 @@
-# ADR 0031: 免疫マップ(Immunity to Change)は、新しい部品を作らず、既存の部品と skill の手引きで支える
+# ADR 0033: 免疫マップ(Immunity to Change)は、新しい部品を作らず、既存の部品と skill の手引きで支える
 
 - 状態: 採用(実装済み: `skills/svg-diagram/references/immunity.md` と `examples/immunity-*.ts`)。当初は専用の部品(`immunityMap` ほか)を足す案で、Opus レビューを 3 回まわして収束した(第 3 回は blocker 0 / major 0)。その過程で、既存の部品だけで足りると分かり、方針を改めた
 - 日付: 2026-10-17
 - 基点: `main`(7d443ac、PR #283 まで)
-- 関連: ADR 0025 / 0026(原因分析の図)、ADR 0015 / 0020(TOC)。ADR 0030 は fukan の下書きが使っているので 0031 とした
+- 関連: ADR 0025 / 0026(原因分析の図)、ADR 0015 / 0020(TOC)。ADR 0030 は fukan の下書き、0031 は FCIS、0032 は Arbinger が使っているので 0033 とした(当初 0031 と付けて FCIS と衝突し、改めた)
 
 ## 背景
 
