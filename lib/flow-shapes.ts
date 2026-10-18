@@ -6,6 +6,8 @@
 //   * venn labels sit in their own region (a pair's label in the part only that pair shares, not in the middle),
 //   * a side key of concentric() is tied to its ring by a leader line, so the key does not depend on colour.
 // verify.ts checks that every label stays inside the figure and that no two labels overlap.
+import {resolveLoopBacks} from './loop-back.ts';
+import type {LoopBack} from './types/containers.ts';
 import {assertScope} from './scope-name.ts';
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
@@ -13,7 +15,7 @@ import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, ScopeOpts, Roles, Tex
 import type {BoxTone} from './types/text-bands.ts';
 
 export interface FlowStep {label: string; sub?: string; id?: string; tone?: BoxTone}
-export interface ChevronOpts extends RevealOpts, ScopeOpts {id?: string; direction?: 'horizontal' | 'vertical'; first?: 'pentagon' | 'chevron'; gap?: number; current?: number; highlight?: number; width?: number}
+export interface ChevronOpts extends RevealOpts, ScopeOpts {/** The arrows back to earlier steps, drawn under a horizontal chevron: `{from: 4, to: 2, label}` (1-based numbers or item ids). Several loops must nest. */ loopBack?: LoopBack | readonly LoopBack[]; id?: string; direction?: 'horizontal' | 'vertical'; first?: 'pentagon' | 'chevron'; gap?: number; current?: number; highlight?: number; width?: number}
 export interface FunnelStage {label: string; value?: number; id?: string; tone?: BoxTone}
 export interface FunnelOpts extends RevealOpts, ScopeOpts {id?: string; scale?: 'value' | 'even'; showRate?: boolean; width?: number}
 export interface CycleOpts extends RevealOpts, ScopeOpts {id?: string; centre?: string; direction?: 'cw' | 'ccw'; width?: number}
@@ -65,7 +67,9 @@ export function chevronBand(steps: readonly FlowStep[], opts: ChevronOpts = {}):
   const current = opts.current ?? opts.highlight;
   if (current !== undefined && (!Number.isInteger(current) || current < 0 || current >= steps.length)) throw new Error(`chevron(): current/highlight must be a zero-based step index (0..${steps.length - 1})`);
   if (opts.gap !== undefined && !(opts.gap >= 0)) throw new Error('chevron(): gap must be >= 0');
-  return {...opts, type: 'chevron', steps: [...steps], direction: opts.direction ?? 'horizontal', first: opts.first ?? 'pentagon', gap: opts.gap ?? 4};
+  if (opts.loopBack !== undefined && (opts.direction ?? 'horizontal') !== 'horizontal') throw new Error("chevron({direction: 'vertical'}): loopBack is for horizontal flows (a vertical chevron has no room under it)");
+  const loopBack = opts.loopBack === undefined ? undefined : resolveLoopBacks('chevron()', opts.loopBack, steps.length, steps.map(s => s.id));
+  return {...opts, ...(loopBack ? {loopBack} : {}), type: 'chevron', steps: [...steps], direction: opts.direction ?? 'horizontal', first: opts.first ?? 'pentagon', gap: opts.gap ?? 4};
 }
 export function funnelBand(stages: readonly FunnelStage[], opts: FunnelOpts = {}): FunnelBand {
   common('funnel', stages, opts.id);

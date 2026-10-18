@@ -1,6 +1,6 @@
 import {box} from './dsl/text-bands.ts';
 import {row} from './dsl/containers.ts';
-import type {RowBand} from './types/containers.ts';
+import type {LoopBack, RowBand} from './types/containers.ts';
 import type {TagTone} from './types/core.ts';
 import type {BoxBand, BoxTone} from './types/text-bands.ts';
 import type {IconName} from './icons.ts';
@@ -27,6 +27,8 @@ export interface StepsOpts {
   gap?: number;
   /** Makes the row an anchor (`id#2` is the second step), like row({id}). */
   id?: string;
+  /** The arrows back to earlier steps, drawn under the boxes: `{from: 4, to: 2, label: '差し戻し'}` (1-based step numbers). Several loops must nest. */
+  loopBack?: LoopBack | readonly LoopBack[];
 }
 
 /**
@@ -45,5 +47,5 @@ export function steps(items: StepItem[], opts: StepsOpts = {}): RowBand {
     const tone = hot ? opts.highlightTone ?? 'danger' : it.tone;
     return box({title: it.title, ...(it.body === undefined ? {} : {body: it.body}), ...(it.icon === undefined ? {} : {icon: it.icon}), ...(it.tag === undefined ? {} : {tag: it.tag, ...(it.tagTone ? {tagTone: it.tagTone} : {})}), ...(tone ? {tone} : {}), ...(opts.numbered ? {step: i + 1} : {})});
   });
-  return row(boxes, {arrows: opts.arrows === false ? 'none' : 'between', ...(opts.gap === undefined ? {} : {gap: opts.gap}), ...(opts.id === undefined ? {} : {id: opts.id})});
+  return row(boxes, {arrows: opts.arrows === false ? 'none' : 'between', ...(opts.gap === undefined ? {} : {gap: opts.gap}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.loopBack === undefined ? {} : {loopBack: opts.loopBack})});
 }

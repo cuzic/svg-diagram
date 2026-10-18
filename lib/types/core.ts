@@ -106,8 +106,8 @@ export interface DiagramOpts {
   legendLabels?: Partial<Record<NotationKey, string>>;
   /** Replace colours of tones for this diagram: `{accent: {fill: '#e6d3bd', dark: {fill: '#4a3a28'}}}`. Per tone: fill / stroke / text / ink (#rrggbb), and `dark` for the same under appearance 'dark'. Checked like the built-in colours (text-contrast, gray-tone-collision). The project's `tones` apply under it. */
   tones?: ToneOverrides;
-  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line; 'bunsetsu' also keeps a hiragana with the character before it (breaks only after a hiragana that a non-hiragana follows, or after 、。) and widens tree-like boxes to their longest unit. */
-  wrap?: 'phrase' | 'char' | 'bunsetsu';
+  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line; 'bunsetsu-soft' is 'bunsetsu', and a figure that does not fit that way is laid out as 'phrase' instead of failing (check says so: wrap-fell-back); 'bunsetsu' also keeps a hiragana with the character before it (breaks only after a hiragana that a non-hiragana follows, or after 、。) and widens tree-like boxes to their longest unit. */
+  wrap?: 'phrase' | 'char' | 'bunsetsu' | 'bunsetsu-soft';
   /** Never break a katakana word across lines: a box is at least as wide as its longest katakana word (up to the node width the component starts with, at most 240px). Default off: nothing changes for a figure that does not write it. A figure that does not fit with the floor is tried without it (the break is then reported by text-mid-word-break). Also settable for every diagram in `.svg-diagram.json` ("keepWords": true). */
   keepWords?: boolean;
   /** The figure's width in px (default 940). 'fit' narrows it to what the figure shows plus the padding (text sizes do not change; a figure whose content already spans the width stays 940).
@@ -186,8 +186,8 @@ export interface DiagramData {
   legend?: 'auto' | false;
   legendLabels?: Partial<Record<NotationKey, string>>;
   tones?: ToneOverrides;
-  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line; 'bunsetsu' also keeps a hiragana with the character before it (breaks only after a hiragana that a non-hiragana follows, or after 、。) and widens tree-like boxes to their longest unit. */
-  wrap?: 'phrase' | 'char' | 'bunsetsu';
+  /** Where a long label may break: 'phrase' (default) keeps a katakana run and a kanji run whole ('アプリ' is never ア/プ/リ); 'char' lets any CJK character end a line; 'bunsetsu-soft' is 'bunsetsu', and a figure that does not fit that way is laid out as 'phrase' instead of failing (check says so: wrap-fell-back); 'bunsetsu' also keeps a hiragana with the character before it (breaks only after a hiragana that a non-hiragana follows, or after 、。) and widens tree-like boxes to their longest unit. */
+  wrap?: 'phrase' | 'char' | 'bunsetsu' | 'bunsetsu-soft';
   /** Never break a katakana word across lines: a box is at least as wide as its longest katakana word (up to the node width the component starts with, at most 240px). Default off: nothing changes for a figure that does not write it. A figure that does not fit with the floor is tried without it (the break is then reported by text-mid-word-break). Also settable for every diagram in `.svg-diagram.json` ("keepWords": true). */
   keepWords?: boolean;
   width: number;

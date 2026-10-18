@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="512" viewBox="0 0 940 512" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">差し戻しのある手順</title>
+  <desc id="svg-desc">要素: 調べる、直す、確かめる、出す、振り返る</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/steps-loop-back.ts","sourceSha256":"465fa7c163925e2da7cb855f2ba18a01ae2c122e7c5eda6ed71fad775e9dc22e"}</metadata>
+  <defs>
+    <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="512" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">レビューで見つかったら直しに戻る</text>
+
+  <rect x="20" y="56" width="164" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="80" y="87" font-size="15" font-weight="700" fill="#22201b">調べる</text>
+  <g role="img" aria-label="手順 1" data-badge="">
+  <circle cx="56" cy="80" r="15" fill="#1d5fa8"/>
+  <text x="55" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">1</text>
+  </g>
+
+  <rect x="204" y="56" width="164" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="264" y="87" font-size="15" font-weight="700" fill="#22201b">直す</text>
+  <g role="img" aria-label="手順 2" data-badge="">
+  <circle cx="240" cy="80" r="15" fill="#1d5fa8"/>
+  <text x="239" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">2</text>
+  </g>
+
+  <rect x="388" y="56" width="164" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="448" y="87" font-size="15" font-weight="700" fill="#22201b">確かめる</text>
+  <g role="img" aria-label="手順 3" data-badge="">
+  <circle cx="424" cy="80" r="15" fill="#1d5fa8"/>
+  <text x="423" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">3</text>
+  </g>
+
+  <rect x="572" y="56" width="164" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="632" y="87" font-size="15" font-weight="700" fill="#22201b">出す</text>
+  <g role="img" aria-label="手順 4" data-badge="">
+  <circle cx="608" cy="80" r="15" fill="#1d5fa8"/>
+  <text x="607" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">4</text>
+  </g>
+
+  <rect x="756" y="56" width="164" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="816" y="87" font-size="15" font-weight="700" fill="#22201b">振り返る</text>
+  <g role="img" aria-label="手順 5" data-badge="">
+  <circle cx="792" cy="80" r="15" fill="#1d5fa8"/>
+  <text x="791" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">5</text>
+  </g>
+
+  <path d="M184,83 L204,83" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+  <path d="M368,83 L388,83" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+  <path d="M552,83 L572,83" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+  <path d="M736,83 L756,83" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>
+
+  <text x="470" y="278" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">chevron でも同じ</text>
+
+  <polygon points="20,300 220,300 242,330 220,360 20,360" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <polygon points="246,300 446,300 468,330 446,360 246,360 268,330" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <polygon points="472,300 672,300 694,330 672,360 472,360 494,330" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <polygon points="698,300 898,300 920,330 898,360 698,360 720,330" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <text x="131" y="335.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">計画</text>
+  <text x="357" y="335.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">実装</text>
+  <text x="583" y="335.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">検証</text>
+  <text x="809" y="335.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">公開</text>
+
+  <path d="M384,444 L420,444" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#dsl-arrow)"/>
+  <text x="428" y="449" font-size="14" fill="#22201b">破線</text>
+  <path d="M484,444 L520,444" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <text x="528" y="449" font-size="14" fill="#22201b">実線</text>
+
+  <text x="20" y="486" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+
+  <path d="M654,109 L654,141 L286,141 L286,109" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <text x="470" y="135" text-anchor="middle" font-size="14" fill="#22201b">差し戻し</text>
+
+  <path d="M838,109 L838,169 L102,169 L102,109" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#dsl-arrow)"/>
+  <text x="470" y="163" text-anchor="middle" font-size="14" fill="#22201b">最初から</text>
+
+  <path d="M583,360 L583,392 L131,392 L131,360" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <text x="357" y="386" text-anchor="middle" font-size="14" fill="#22201b">やり直し</text>
+</svg>

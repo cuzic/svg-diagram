@@ -151,16 +151,33 @@ test('causeTree({coreDriver}): the root that reaches the most ude gets the core 
   assert.deepEqual(t.nodes.flatMap((n, i) => n.core ? [t.anchors[i].id] : []), ['big']);
   assert.ok(t.nodes[idx('big')].double && t.nodes[idx('small')].double, 'both stay roots (double outline)');
   assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause')), []);
-  assert.equal(t.texts.filter(x => x.text.includes('件の現象に届く')).length, 2, 'every starting entity gets its number');
+  assert.equal(t.texts.filter(x => x.text.includes('件に届く')).length, 2, 'every starting entity gets its number');
   const bare = await laidCause(bands({coreDriver: true, counts: false}));
   assert.ok(!bare.t.texts.some(x => x.text.includes('届く')), 'counts: false writes no number');
   assert.equal(bare.t.nodes.filter(n => n.core).length, 1);
   const plain = await laidCause(bands({}));
   assert.ok(!plain.t.nodes.some(n => n.core) && !plain.t.texts.some(x => x.text.includes('届く')), 'without coreDriver nothing changes');
-  assert.ok(t.texts.some(x => x.text.includes('2/3 件の現象に届く')), 'the default wording: reached / total');
+  assert.ok(t.texts.some(x => x.text.includes('2/3 件に届く')), 'the default wording: reached / total');
   const custom = await laidCause(bands({coreDriver: true, coreDriverLabel: '中核（{n}/{total} 件）'}));
   assert.ok(custom.t.texts.some(x => x.text.includes('中核（2/3 件）')) && custom.t.texts.some(x => x.text.includes('中核（1/3 件）')), 'coreDriverLabel replaces the wording');
   assert.throws(() => bands({coreDriver: true, coreDriverLabel: ''}), /coreDriverLabel/);
+});
+
+// A longer default wording wraps in a narrow box and makes the figure taller: `{n}/{total} 件の現象に届く` added a line under each of the 5 starting entities of
+// slides3 p-crt (24px text, maxNodeW 230), 926px -> 1096px, past its 1032px budget. The default must take as many lines as the old `到達 UDE n`.
+test('causeTree({coreDriver}): the default count wording takes no more lines than the old `到達 UDE n`, in narrow boxes at the sizes slides use', async () => {
+  const ids = ['a', 'b', 'c'], nodes = [...ids.map(id => ({id, label: `根本の原因 ${id}: 成功の基準が、技術の精度で、現場の指標でない`, role: 'root' as const})), {id: 'u', label: '現場が、次の施策に協力しなくなる', role: 'ude' as const}];
+  const links = ids.map(id => ({from: id, to: 'u'}));
+  // not 170px at 24px: there the new wording (about 142px) is within a few px of the box's text width, and the CI font (a little wider than the local one) wraps it, as it does the old one nearly
+  for (const [maxNodeW, minText] of [[230, 24], [200, 24], [200, 14]] as const) {
+    const height = async (label?: string): Promise<number> => {
+      const d = diagram({theme: 'blue', canvas: {width: 1920, height: 4000, minText}}).add(causeTree(nodes, links, {maxNodeW, dir: 'right', coreDriver: true, ...(label === undefined ? {} : {coreDriverLabel: label})}));
+      const {laidOut} = await checkDiagram(d);
+      const t = laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause;
+      return Math.max(...t.nodes.filter(n => n.core || t.anchors.some(a => a.id !== 'u' && a.x === n.x && a.y === n.y)).map(n => n.h));
+    };
+    assert.ok(await height() <= await height('到達 UDE {n}'), `maxNodeW ${maxNodeW}, text ${minText}px: the default wording wraps onto another line`);
+  }
 });
 
 test('causeTree({coreDriver}): the SVG has a thick frame and a badge for the core entity only', async () => {
@@ -632,7 +649,7 @@ test('causeTree({roleTags}): root / goal / injection / start say what they are i
   assert.equal(sub(causeTree(nodes, links, {roleTags: {root: '真因'}}), 'r'), '【真因】　原因の説明');
   assert.equal(sub(causeTree(nodes, links, {roleTags: {root: '真因'}}), 'g'), '【ゴール】', 'the words not replaced stay');
   const counted = causeTree([N('u1', {role: 'ude'}), N('u2', {role: 'ude'}), N('r', {role: 'root', sub: 'x'})], [{from: 'r', to: 'u1'}, {from: 'r', to: 'u2'}], {roleTags: true, coreDriver: true});
-  assert.match(sub(counted, 'r')!, /^【根本原因】　x　2\/2 件の現象に届く$/, 'tag, then sub, then the count');
+  assert.match(sub(counted, 'r')!, /^【根本原因】　x　2\/2 件に届く$/, 'tag, then sub, then the count');
   assert.throws(() => causeTree(nodes, links, {roleTags: {root: ''}}), /roleTags/);
   assert.throws(() => causeTree(nodes, links, {roleTags: {boss: 'x'} as never}), /roleTags/);
   assert.throws(() => causeTree(nodes, links, {roleTags: 'yes' as never}), /roleTags/);
