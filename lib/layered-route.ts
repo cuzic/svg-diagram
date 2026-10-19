@@ -5,6 +5,7 @@ import {layoutLayered} from './graph-layout.ts';
 import type {LayeredEdge, LayeredLayout, LayeredNode, LayeredOpts, Pt} from './graph-layout.ts';
 import {bendsOf, crossingsOf, crossingsWith, runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
 import {headCrossings, searchRoute} from './route-search.ts';
+import {moveApart} from './route-apart.ts';
 
 export {simplify};
 
@@ -453,6 +454,8 @@ export interface AttemptOpts {
   space?: number;
   /** A long arrow takes the way around the boxes with the fewest bends when that is strictly better (route-search.ts). Default false. */
   detour?: boolean;
+  /** Runs of arrows with no end in common that lie along each other are moved apart, once, on the chosen candidate (route-apart.ts, ADR 0016 D14). Default false. */
+  apart?: boolean;
   /** false: no ADR 0016 D12/D13 pass (side-by-side runs moved aside) on the chosen candidate. Default true. */
   aside?: boolean;
   /** Returns two layers or more long run in lanes outside the figure: 'all' of them, or only the 'declared' ones (`back`). Default none (through the layers). */
@@ -546,7 +549,25 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     const chosen = parallels(b) >= before || worse(a, b) ? a : b;
     return o.aside === false ? chosen : aside(chosen);
   };
-  const pick = (near: Side): Attempt => {
+  // ADR 0016 D14: what is chosen gets the runs of arrows with no end in common that lie along each other moved apart, once; kept only when nothing else gets worse
+  const apartOf = (a: Attempt): Attempt => {
+    if (!o.apart) return a;
+    const place = o.place(a.size), rects = new Map<string, {x0: number; x1: number; y0: number; y1: number}>();
+    for (const [id, n] of a.lay.nodes) {
+      const p = place({x: n.x, y: n.y}), q = place({x: n.x + n.w, y: n.y + n.h});
+      rects.set(id, {x0: Math.min(p.x, q.x) + 1, x1: Math.max(p.x, q.x) - 1, y0: Math.min(p.y, q.y) + 1, y1: Math.max(p.y, q.y) - 1});
+    }
+    const routes = moveApart({routes: a.routes, edges: new Map(a.lay.edges.map((e, i) => [i, e])), rects});
+    if ([...routes].every(([i, r]) => r === a.routes.get(i))) return a;
+    const b: Attempt = {...a, routes, score: scoreOf([...routes.values()])};
+    optsOf.set(b, optsOf.get(a)!);
+    if (worse(a, b) || (o.groupOf !== undefined && andCrossings(b) > andCrossings(a))) return a;
+    // a crossing it took away is judged like D12/D13's: toc.ts decides whether to search the orders on the figure without these moves
+    if (b.score.crossings < a.score.crossings || (o.groupOf !== undefined && andCrossings(b) < andCrossings(a))) b.asided = true;
+    return b;
+  };
+  const pick = (near: Side): Attempt => apartOf(pick0(near));
+  const pick0 = (near: Side): Attempt => {
   const plain = build(layoutOpts, false, false, near);
   if (o.straighten === false || !edges.some(e => e.from !== e.to)) return sharing(plain);
   const cand = build({...layoutOpts, coord: 'bk', transpose: true, ...(o.tighten ? {tighten: true} : {})}, false, false, near);
