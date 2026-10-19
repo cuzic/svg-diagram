@@ -74,6 +74,13 @@ test('hop: true keeps the crossings of a return, and the lines are untouched; wi
   assert.deepEqual(hop.nodes, plain.nodes);
 });
 
+test("a figure that writes `tree` gets hop: 'all' unless it says otherwise (ADR 0035 D7)", () => {
+  assert.equal(causeTree([N('a')], [], {tree: 'crt'}).hop, 'all');
+  assert.equal(causeTree([N('a')], [], {tree: 'crt', hop: false}).hop, false);
+  assert.equal(causeTree([N('a')], [], {tree: 'crt', hop: true}).hop, true);
+  assert.equal(causeTree([N('a')], []).hop, undefined, 'no tree, no default');
+});
+
 test('hop must be true or false', () => {
   assert.throws(() => causeTree([N('a')], [], {hop: 'yes' as never}), /hop must be true, false or 'all'/);
 });
