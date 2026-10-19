@@ -13,8 +13,6 @@ export interface ApartIn {
   rects: ReadonlyMap<string, {x0: number; x1: number; y0: number; y1: number}>;
 }
 
-const cache = new WeakMap<Pt[], {p: Pt; q: Pt}[]>();
-const segs = (r: Pt[]): {p: Pt; q: Pt}[] => { let s = cache.get(r); if (!s) { s = r.slice(1).map((q, k) => ({p: r[k], q})); cache.set(r, s); } return s; };
 /** A moved run keeps this clear of every box that is not an end of its arrow (the pierce test then counts a run that comes nearer). */
 const CLEAR = 6;
 /** The shortest run left on either side of a moved one (a 6px jog reads as a kink); next to a port and next to an arrowhead the stub / the head's room. */
@@ -26,6 +24,8 @@ const related = (a: ApartEdge, b: ApartEdge): boolean => a.from === b.from || a.
 
 export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
   const out = new Map(routes);
+  const cache = new WeakMap<Pt[], {p: Pt; q: Pt}[]>(); // per call: the rendering core holds no module-level state
+  const segs = (r: Pt[]): {p: Pt; q: Pt}[] => { let s = cache.get(r); if (!s) { s = r.slice(1).map((q, k) => ({p: r[k], q})); cache.set(r, s); } return s; };
   const movable = (i: number): boolean => { const e = edges.get(i); return e !== undefined && !e.self && !e.outer; };
   const beside = (i: number, r: Pt[]): number[] => {
     const mine = segs(r), res: number[] = [];
