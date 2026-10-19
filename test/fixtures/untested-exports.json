@@ -260,7 +260,6 @@
   "people:layoutPeople",
   "people:peopleTexts",
   "pipeline:emitOutputs",
-  "pipeline:emitRevealStage",
   "plane:fmt",
   "pptx/bands:bandXml",
   "pptx/connectors:connectorXml",

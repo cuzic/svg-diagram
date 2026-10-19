@@ -50,7 +50,7 @@ export function renderCaption(band: LaidOutCaption, day: Theme, tones: ToneEnv):
 }
 
 
-export type BoxLike = Rect & {tone?: EmphasisTone; dashed?: boolean; dim?: boolean};
+export type BoxLike = Rect & {tone?: EmphasisTone; dashed?: boolean; dim?: boolean; /** ADR 0034: written as `data-node` on the frame */ dataNode?: string};
 
 export function renderBoxRect(band: BoxLike, day: Theme, tones: ToneEnv, defaultTone: EmphasisTone): string {
   const style = resolveBoxStyle(tones, band.tone ?? defaultTone, day, band.dashed);
@@ -58,7 +58,7 @@ export function renderBoxRect(band: BoxLike, day: Theme, tones: ToneEnv, default
   const dash = style.dashed ? ' stroke-dasharray="6,4"' : band.dim ? ' stroke-dasharray="2,5" stroke-linecap="round"' : '';
   // the right edge snaps like the left one (not the width alone), so a frame ends where a neighbouring band of the same extent ends
   const rx = snap4(band.x), ry = snap4(band.y), rw = snap4(band.x + band.w) - rx, rh = snap4(band.h);
-  return `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" rx="8" fill="${style.fill}" stroke="${style.stroke}" stroke-width="2.5"${dash}/>`;
+  return `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" rx="8" fill="${style.fill}" stroke="${style.stroke}" stroke-width="2.5"${dash}${band.dataNode ? ` data-node="${escapeAttr(band.dataNode)}"` : ''}/>`;
 }
 
 
