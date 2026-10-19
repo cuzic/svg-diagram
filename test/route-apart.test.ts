@@ -31,6 +31,28 @@ test('a run is not moved onto an arrow into the same head, nor next to a box', (
   for (const i of [0, 1]) assert.ok(out.get(i)![1].x < 158 - 6 || out.get(i)![1].x === routes.get(i)![1].x, `arrow ${i} keeps off box g and the head's other arrow`);
 });
 
+test('a box a later run already passes close by does not let a run onto its outline', () => {
+  const r = new Map(rects).set('g', {x0: 158, x1: 200, y0: 60, y1: 116});
+  const routes = new Map([
+    [0, [P(40, 20), P(150, 20), P(150, 120), P(300, 120)]],
+    [1, [P(40, 70), P(152, 70), P(152, 170), P(300, 170)]],
+  ]);
+  const edges = new Map([[0, {from: 'a', to: 'd'}], [1, {from: 'e', to: 'f'}]]);
+  const out = moveApart({routes, edges, rects: r});
+  for (const i of [0, 1]) assert.ok(!(out.get(i)![1].x > 158 - 6 && out.get(i)![1].x < 200 + 6 && out.get(i)![1].x !== routes.get(i)![1].x), `arrow ${i} not beside g`);
+});
+
+test('a run is not moved onto the separate trunk of an arrow from the same tail', () => {
+  const routes = new Map([
+    [0, [P(40, 20), P(150, 20), P(150, 120), P(300, 120)]], // a -> d
+    [1, [P(40, 70), P(152, 70), P(152, 170), P(300, 170)]], // e -> f
+    [2, [P(40, 25), P(158, 25), P(158, 110), P(300, 110)]], // a -> h: its own trunk at 158
+  ]);
+  const edges = new Map([[0, {from: 'a', to: 'd'}], [1, {from: 'e', to: 'f'}], [2, {from: 'a', to: 'h'}]]);
+  const out = moveApart({routes, edges, rects});
+  assert.ok(Math.abs(out.get(0)![1].x - 158) >= 4);
+});
+
 test('an outer return is not moved onto, either', () => {
   const routes = new Map([
     [0, [P(40, 20), P(150, 20), P(150, 120), P(300, 120)]], // a -> d

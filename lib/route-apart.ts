@@ -32,16 +32,28 @@ export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
     for (const [j, o] of out) if (j !== i && movable(j) && !related(edges.get(i)!, edges.get(j)!) && segs(o).some(y => mine.some(x => runsTogether(x, y)))) res.push(j);
     return res;
   };
-  /** How many other arrows (any: an outer return, a loop, one into the same head, an AND's; not one from the same tail, whose runs bundle on purpose) lie along this route. A move may not bring a new one beside it (swapping one for another does not count as fewer). */
+  /** How many other arrows (any: an outer return, a loop, one from the same tail or into the same head, an AND's) lie along this route. A move may not bring a new one beside it (swapping one for another does not count as fewer). */
   const near = (i: number, r: Pt[]): Set<number> => {
     const mine = segs(r), n = new Set<number>();
-    for (const [j, o] of out) if (j !== i && edges.get(j)?.from !== edges.get(i)!.from && segs(o).some(y => mine.some(x => runsTogether(x, y)))) n.add(j);
+    for (const [j, o] of out) if (j !== i  && segs(o).some(y => mine.some(x => runsTogether(x, y)))) n.add(j);
     return n;
   };
   const pierces = (i: number, r: Pt[]): number => {
     const e = edges.get(i)!; let n = 0;
     for (const [id, b] of rects) if (id !== e.from && id !== e.to && segs(r).some(({p, q}) => Math.min(p.x, q.x) < b.x1 + CLEAR && Math.max(p.x, q.x) > b.x0 - CLEAR && Math.min(p.y, q.y) < b.y1 + CLEAR && Math.max(p.y, q.y) > b.y0 - CLEAR)) n++;
     return n;
+  };
+  /** The least gap between the runs `from`..`to` of a route and the boxes that are not the arrow's ends (the moved run and its two neighbours). */
+  const gapOf = (i: number, r: Pt[], from: number, to: number): number => {
+    const e = edges.get(i)!; let g = Infinity;
+    for (const [id, b] of rects) {
+      if (id === e.from || id === e.to) continue;
+      for (let m = from; m <= to; m++) {
+        const p = r[m], q = r[m + 1];
+        g = Math.min(g, Math.hypot(Math.max(b.x0 - Math.max(p.x, q.x), Math.min(p.x, q.x) - b.x1, 0), Math.max(b.y0 - Math.max(p.y, q.y), Math.min(p.y, q.y) - b.y1, 0)));
+      }
+    }
+    return g;
   };
   const all = [...routes.values()].flat();
   const lo = {x: Math.min(...all.map(p => p.x), ...[...rects.values()].map(b => b.x0)), y: Math.min(...all.map(p => p.y), ...[...rects.values()].map(b => b.y0))};
@@ -71,6 +83,8 @@ export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
           const keeps = (m: number, min: number): boolean => { const before = r[m + 1][c] - r[m][c], after = t[m + 1][c] - t[m][c]; return before === 0 || (Math.sign(before) === Math.sign(after) && Math.abs(after) >= min); };
           if (!keeps(k - 1, JOG) || !keeps(k + 1, k + 2 === r.length - 1 ? 22 : JOG)) continue;
           if (!inside(t) || pierces(i, t) > baseP || bendsOf(t) > bendsOf(r) || [...near(i, t)].some(j => !baseN.has(j)) || crossingsWith(t, rest) > baseX) continue;
+          // the moved run and its neighbours may not come nearer to a box than CLEAR unless they were that near before (counting the boxes alone lets a run onto the outline of a box another run already passes)
+          { const was = gapOf(i, r, k - 1, k + 1), now2 = gapOf(i, t, k - 1, k + 1); if (now2 < CLEAR && now2 < was) continue; }
           if (beside(i, t).length >= now.length) continue;
           out.set(i, t); done = moved = true;
           break;
