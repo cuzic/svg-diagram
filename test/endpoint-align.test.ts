@@ -105,6 +105,7 @@ test('properties over 200 small graphs: never worse, orthogonal, in the boxes, p
         changed++;
         const e = on.lay.edges[i], A = on.lay.nodes.get(e.from)!, B = on.lay.nodes.get(e.to)!;
         assert.ok(straight(p) || JSON.stringify(heights(was)) === JSON.stringify(heights(p)), `${who}: a moved arrow ends up straight, or only its lane moved`);
+        if (!straight(p)) assert.deepEqual([p[0], p[p.length - 1]], [was[0], was[was.length - 1]], `${who}: a lane moved, not the ends`);
         if (straight(p)) assert.ok(p[0].y >= Math.max(A.y, B.y) + 6 - 1e-9 && p[0].y <= Math.min(A.y + A.h, B.y + B.h) - 6 + 1e-9, `${who}: arrow ${i} leaves the boxes`);
       }
     }

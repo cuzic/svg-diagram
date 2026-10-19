@@ -127,6 +127,7 @@ test('routeLayered: the lanes of a wide gap spread over it, up to twice the step
   const gap = (xs: number[]): number => xs[xs.length - 1] - xs[0];
   assert.ok(gap(verticals(200)) > gap(verticals(60)), 'a wide gap spaces its lanes further apart');
   assert.ok(gap(verticals(200)) <= 28, 'no further than twice the step');
+  assert.equal(gap(verticals(60)), 14, 'a gap with no room keeps the step');
 });
 
 test('layeredAttempt: two returns into one box take two places on its face; a box with a self-loop keeps them on the side', () => {
@@ -143,4 +144,20 @@ test('layeredAttempt: two returns into one box take two places on its face; a bo
   for (const r of two) assert.ok(r.end.y === r.root.y || r.end.y === r.root.y + r.root.h, 'both returns enter the face (the case is not vacuous)');
   assert.notEqual(two[0].end.x, two[1].end.x, 'the two returns end at two places');
   for (const r of run(true)) assert.ok(r.end.y !== r.root.y && r.end.y !== r.root.y + r.root.h, 'a box with a self-loop is entered on the side');
+});
+
+test('layeredAttempt: the turns of a return in an outer lane stay inside their gap and pass no box, however the lanes are spread', () => {
+  // from a random figure (review of #303): the return n8 -> n0 once turned at x = 210, inside n1 of the next layer
+  const sz: Record<string, [number, number]> = {n0: [60, 44], n1: [100, 30], n2: [80, 44], n3: [60, 44], n4: [60, 44], n5: [60, 44], n6: [80, 44], n7: [60, 44], n8: [60, 30]};
+  const nodes = Object.entries(sz).map(([id, [w, h]]) => ({id, size: {w, h}}));
+  const edges = [['n2', 'n3'], ['n7', 'n4'], ['n8', 'n0'], ['n1', 'n8'], ['n8', 'n7'], ['n2', 'n5'], ['n0', 'n3'], ['n6', 'n8'], ['n0', 'n1']].map(([from, to]) => ({from, to}));
+  const a = layeredAttempt(nodes, edges, {dir: 'right', gap: 24, levelGap: 60}, {portStep: 14, returns: 'all', place: () => p => p, detour: true});
+  for (const [i, r] of a.routes) {
+    const e = a.lay.edges[i];
+    for (const [id, n] of a.lay.nodes) {
+      if (id === e.from || id === e.to) continue;
+      const through = r.slice(1).some((q, k) => Math.max(r[k].x, q.x) > n.x + 0.1 && Math.min(r[k].x, q.x) < n.x + n.w - 0.1 && Math.max(r[k].y, q.y) > n.y + 0.1 && Math.min(r[k].y, q.y) < n.y + n.h - 0.1);
+      assert.ok(!through, `arrow ${e.from} -> ${e.to} runs through ${id}`);
+    }
+  }
 });
