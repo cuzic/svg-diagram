@@ -202,7 +202,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
       return {w: 46 + tw(ctx, batteryText(n), S, 700), h: 24};
     },
     signal: (n: WfSignal, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
-      const lv = Math.max(0, Math.min(3, n.level ?? 3));
+      const lv = sigLevel(n.level);
       [6, 11, 16].forEach((bh, i) => rect(ctx, x + i * 8, y + 20 - bh, 6, bh, {fill: i < lv ? 'accent' : 'border'}));
       if (lv === 0) { line(ctx, x - 1, y + 3, x + 23, y + 21, {stroke: 'danger', sw: 2.5}); }
       text(ctx, signalText(n), x + 30, mid(y + 12), {weight: 700, fill: lv === 0 ? 'danger' : 'text'});
@@ -218,7 +218,10 @@ export function installParts(h: WfHelpers): WfPartsApi {
   };
 
   const batteryText = (n: {level: number}) => `${pct(n.level)}${n.level < 0.2 ? ' 低下' : ''}`;
-  const signalText = (n: {level?: number; text?: string}) => n.text ?? ['途絶', '弱い', 'やや弱い', '良好'][Math.max(0, Math.min(3, n.level ?? 3))];
+  // a level is a whole 0..3; a fraction rounds and NaN reads as full (it used to index past the word list and draw "undefined")
+  const sigLevel = (level: number | undefined): number => level === undefined || !Number.isFinite(level) ? 3 : Math.max(0, Math.min(3, Math.round(level)));
+  const SIGNAL_WORDS = ['途絶', '弱い', 'やや弱い', '良好'];
+  const signalText = (n: {level?: number; text?: string}): string => n.text ?? SIGNAL_WORDS[sigLevel(n.level)] ?? '良好';
 
   // ---- robot status card -----------------------------------------------------------------
   // narrow frames (a cell in a state matrix, a side rail) stack the card's rows instead of laying them side by side
