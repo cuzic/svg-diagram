@@ -557,13 +557,15 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
       const p = place({x: n.x, y: n.y}), q = place({x: n.x + n.w, y: n.y + n.h});
       rects.set(id, {x0: Math.min(p.x, q.x) + 1, x1: Math.max(p.x, q.x) - 1, y0: Math.min(p.y, q.y) + 1, y1: Math.max(p.y, q.y) - 1});
     }
-    const routes = moveApart({routes: a.routes, edges: new Map(a.lay.edges.map((e, i) => [i, e])), rects});
+    const routes = moveApart({routes: a.routes, edges: new Map(a.lay.edges.map((e, i) => [i, {from: e.from, to: e.to, self: e.self, outer: e.outer}])), rects});
     if ([...routes].every(([i, r]) => r === a.routes.get(i))) return a;
-    const b: Attempt = {...a, routes, score: scoreOf([...routes.values()])};
+    const b: Attempt = {...a, routes, score: scoreOf([...routes.values()]), loose: o.looseOf ? o.looseOf(routes, a.lay) : []};
     optsOf.set(b, optsOf.get(a)!);
-    if (worse(a, b) || (o.groupOf !== undefined && andCrossings(b) > andCrossings(a))) return a;
-    // a crossing it took away is judged like D12/D13's: toc.ts decides whether to search the orders on the figure without these moves
-    if (b.score.crossings < a.score.crossings || (o.groupOf !== undefined && andCrossings(b) < andCrossings(a))) b.asided = true;
+    if (worse(a, b) || (o.groupOf !== undefined && (andCrossings(b) > andCrossings(a) || parallels(b) > parallels(a)))) return a;
+    // the search of the orders is entered on the first figure's crossings (toc.ts): a move that takes the last crossing away would skip it where it ran
+    if (a.score.crossings > 0 && b.score.crossings === 0) return a;
+    // an AND crossing it took away is judged like D12/D13's: toc.ts decides whether to search the orders on the figure without these moves
+    if (o.groupOf !== undefined && andCrossings(b) < andCrossings(a)) b.asided = true;
     return b;
   };
   const pick = (near: Side): Attempt => apartOf(pick0(near));

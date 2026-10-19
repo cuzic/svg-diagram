@@ -13,10 +13,15 @@ export interface ApartIn {
   rects: ReadonlyMap<string, {x0: number; x1: number; y0: number; y1: number}>;
 }
 
-const segs = (r: Pt[]): {p: Pt; q: Pt}[] => r.slice(1).map((q, k) => ({p: r[k], q}));
+const cache = new WeakMap<Pt[], {p: Pt; q: Pt}[]>();
+const segs = (r: Pt[]): {p: Pt; q: Pt}[] => { let s = cache.get(r); if (!s) { s = r.slice(1).map((q, k) => ({p: r[k], q})); cache.set(r, s); } return s; };
+/** A moved run keeps this clear of every box that is not an end of its arrow (the pierce test then counts a run that comes nearer). */
+const CLEAR = 6;
+/** The shortest run left on either side of a moved one (a 6px jog reads as a kink); next to a port and next to an arrowhead the stub / the head's room. */
+const JOG = 10;
 const STEPS = [8, -8, 16, -16, 24, -24];
 
-/** Arrows from one tail or into one head merge on purpose (the ones into an AND are D11-D13's): only arrows with no end in common are moved apart. */
+/** Arrows from one tail or into one head merge on purpose (the ones into an AND are D11-D13's): only arrows with no end in common are counted as beside. An AND's arrow may move, but never next to another arrow (`near`). */
 const related = (a: ApartEdge, b: ApartEdge): boolean => a.from === b.from || a.to === b.to;
 
 export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
@@ -27,9 +32,15 @@ export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
     for (const [j, o] of out) if (j !== i && movable(j) && !related(edges.get(i)!, edges.get(j)!) && segs(o).some(y => mine.some(x => runsTogether(x, y)))) res.push(j);
     return res;
   };
+  /** How many other arrows (any: an outer return, a loop, one into the same head, an AND's; not one from the same tail, whose runs bundle on purpose) lie along this route. A move may not bring a new one beside it (swapping one for another does not count as fewer). */
+  const near = (i: number, r: Pt[]): Set<number> => {
+    const mine = segs(r), n = new Set<number>();
+    for (const [j, o] of out) if (j !== i && edges.get(j)?.from !== edges.get(i)!.from && segs(o).some(y => mine.some(x => runsTogether(x, y)))) n.add(j);
+    return n;
+  };
   const pierces = (i: number, r: Pt[]): number => {
     const e = edges.get(i)!; let n = 0;
-    for (const [id, b] of rects) if (id !== e.from && id !== e.to && segs(r).some(({p, q}) => Math.min(p.x, q.x) < b.x1 && Math.max(p.x, q.x) > b.x0 && Math.min(p.y, q.y) < b.y1 && Math.max(p.y, q.y) > b.y0)) n++;
+    for (const [id, b] of rects) if (id !== e.from && id !== e.to && segs(r).some(({p, q}) => Math.min(p.x, q.x) < b.x1 + CLEAR && Math.max(p.x, q.x) > b.x0 - CLEAR && Math.min(p.y, q.y) < b.y1 + CLEAR && Math.max(p.y, q.y) > b.y0 - CLEAR)) n++;
     return n;
   };
   const all = [...routes.values()].flat();
@@ -44,7 +55,7 @@ export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
       if (r.length < 4) continue;
       const now = beside(i, r);
       if (!now.length) continue;
-      const rest = [...out].filter(([j]) => j !== i).map(([, p]) => p), baseX = crossingsWith(r, rest), baseP = pierces(i, r);
+      const rest = [...out].filter(([j]) => j !== i).map(([, p]) => p), baseX = crossingsWith(r, rest), baseP = pierces(i, r), baseN = near(i, r);
       let done = false;
       // an inner run only: the first and the last stay on their ports; each is tried across, the smallest step first
       for (let k = 1; k + 2 < r.length && !done; k++) {
@@ -58,8 +69,8 @@ export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
           // the runs on both sides keep their direction and a length that still shows a turn (the last one room for the arrowhead)
           const c = vertical ? 'x' : 'y';
           const keeps = (m: number, min: number): boolean => { const before = r[m + 1][c] - r[m][c], after = t[m + 1][c] - t[m][c]; return before === 0 || (Math.sign(before) === Math.sign(after) && Math.abs(after) >= min); };
-          if (!keeps(k - 1, k === 1 ? 10 : 6) || !keeps(k + 1, k + 2 === r.length - 1 ? 22 : 6)) continue;
-          if (!inside(t) || pierces(i, t) > baseP || bendsOf(t) > bendsOf(r) || crossingsWith(t, rest) > baseX) continue;
+          if (!keeps(k - 1, JOG) || !keeps(k + 1, k + 2 === r.length - 1 ? 22 : JOG)) continue;
+          if (!inside(t) || pierces(i, t) > baseP || bendsOf(t) > bendsOf(r) || [...near(i, t)].some(j => !baseN.has(j)) || crossingsWith(t, rest) > baseX) continue;
           if (beside(i, t).length >= now.length) continue;
           out.set(i, t); done = moved = true;
           break;
