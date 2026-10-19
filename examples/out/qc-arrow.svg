@@ -9,13 +9,13 @@
 
   <path d="M164,108 L308,108" fill="none" stroke="#b91c1c" stroke-width="4"/>
   <path d="M320,108 L304,112 L304,100 z" fill="#b91c1c"/>
-  <path d="M376,100 L408,100 L408,56 L520,56" fill="none" stroke="#b91c1c" stroke-width="4"/>
+  <path d="M376,100 L424,100 L424,56 L520,56" fill="none" stroke="#b91c1c" stroke-width="4"/>
   <path d="M532,56 L516,64 L516,48 z" fill="#b91c1c"/>
   <path d="M376,112 L396,112 L396,156 L524,156" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M532,156 L520,160 L520,152 z" fill="#22201b"/>
   <path d="M604,56 L624,56 L624,108 L748,108" fill="none" stroke="#b91c1c" stroke-width="4"/>
   <path d="M760,108 L744,112 L744,100 z" fill="#b91c1c"/>
-  <path d="M604,156 L636,156 L636,120 L752,120" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M604,156 L652,156 L652,120 L752,120" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M760,120 L748,124 L748,116 z" fill="#22201b"/>
   <circle cx="136" cy="108" r="28" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
   <circle cx="348" cy="108" r="28" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5"/>
@@ -34,8 +34,8 @@
   <text x="796" y="120" text-anchor="middle" font-size="14" fill="#6f6659">17/17</text>
   <rect x="208" y="80" width="52" height="22" fill="#ffffff"/>
   <text x="235" y="97" text-anchor="middle" font-size="14" fill="#22201b">設計 5</text>
-  <rect x="436" y="32" width="52" height="22" fill="#ffffff"/>
-  <text x="463" y="47" text-anchor="middle" font-size="14" fill="#22201b">試作 8</text>
+  <rect x="444" y="32" width="52" height="22" fill="#ffffff"/>
+  <text x="470" y="47" text-anchor="middle" font-size="14" fill="#22201b">試作 8</text>
   <rect x="400" y="132" width="116" height="22" fill="#ffffff"/>
   <text x="456" y="147" text-anchor="middle" font-size="14" fill="#22201b">調達 6（余裕3）</text>
   <rect x="660" y="80" width="52" height="22" fill="#ffffff"/>

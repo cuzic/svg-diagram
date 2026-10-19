@@ -116,3 +116,15 @@ test('layeredAttempt: a return in an outer lane enters its head from the lane si
   assert.equal(last.x, prev.x, 'the last run is along the lane axis');
   assert.ok(last.y === root.y || last.y === root.y + root.h, 'it ends on the top or the bottom of the root');
 });
+
+test('routeLayered: the lanes of a wide gap spread over it, up to twice the step; a tight gap keeps the step', () => {
+  // a -> b and a -> c leave one box for two others: each has a vertical run in the gap, whose width is set by levelGap
+  const nodes = ['a', 'b', 'c'].map(box), edges = [['a', 'b'], ['a', 'c']].map(([from, to]) => ({from, to}));
+  const verticals = (levelGap: number): number[] => {
+    const a = layeredAttempt(nodes, edges, {dir: 'right', gap: 24, levelGap}, {portStep: 14, straighten: false, place: () => p => p});
+    return [...a.routes.values()].flatMap(r => r.slice(1).flatMap((q, k) => q.x === r[k].x && q.y !== r[k].y ? [q.x] : [])).sort((p, q) => p - q);
+  };
+  const gap = (xs: number[]): number => xs[xs.length - 1] - xs[0];
+  assert.ok(gap(verticals(200)) > gap(verticals(60)), 'a wide gap spaces its lanes further apart');
+  assert.ok(gap(verticals(200)) <= 28, 'no further than twice the step');
+});

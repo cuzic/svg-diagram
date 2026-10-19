@@ -14,6 +14,8 @@ const route = (nodes: LayeredNode[], edges: LayeredEdge[], o: {straighten?: bool
   return {lay, routes: routeLayered(lay, p => p, 14, o.groupOf, o.round, o.straighten)};
 };
 const straight = (p: Pt[]): boolean => p.length === 2 && p[0].y === p[1].y;
+/** The heights of a route's points: what is left of a route when only its vertical runs moved sideways (the lanes spread, see routeLayered's laneIn). */
+const heights = (p: Pt[]): number[] => p.map(q => q.y);
 const metric = (r: Map<number, Pt[]>) => scoreOf([...r.values()]);
 /** Pairs of arrows whose horizontal runs lie on one line (within 3px) over more than a point: two arrows that read as one. */
 function lineUps(r: Map<number, Pt[]>): number {
@@ -66,9 +68,9 @@ test('boxes that do not overlap across the axis stay elbows; so do arrows with n
 
 test('round nodes (a circle, a hexagon) and grouped arrows (an AND) are left alone', () => {
   const base = route(fan.nodes, fan.edges, {straighten: false}).routes;
-  assert.deepEqual([...route(fan.nodes, fan.edges, {round: id => id === 'b'}).routes].filter(([i]) => i === 0), [...base].filter(([i]) => i === 0), 'the arrow to a round node keeps its elbow');
+  assert.deepEqual(heights(route(fan.nodes, fan.edges, {round: id => id === 'b'}).routes.get(0)!), heights(base.get(0)!), 'the arrow to a round node keeps its elbow (its lane may move when the other arrow becomes straight)');
   assert.ok(straight(route(fan.nodes, fan.edges, {round: id => id === 'b'}).routes.get(1)!), 'the other one may still become straight');
-  assert.deepEqual([...route(fan.nodes, fan.edges, {groupOf: () => 0}).routes], [...base], 'arrows of a group keep their ports');
+  assert.deepEqual([...route(fan.nodes, fan.edges, {groupOf: () => 0}).routes].map(([i, p]) => [i, heights(p)]), [...base].map(([i, p]) => [i, heights(p)]), 'arrows of a group keep their ports');
 });
 
 test('a port that would have to jump over its neighbour is not moved', () => {
@@ -102,8 +104,8 @@ test('properties over 200 small graphs: never worse, orthogonal, in the boxes, p
       if (JSON.stringify(was) !== JSON.stringify(p)) {
         changed++;
         const e = on.lay.edges[i], A = on.lay.nodes.get(e.from)!, B = on.lay.nodes.get(e.to)!;
-        assert.ok(straight(p), `${who}: a moved arrow ends up straight`);
-        assert.ok(p[0].y >= Math.max(A.y, B.y) + 6 - 1e-9 && p[0].y <= Math.min(A.y + A.h, B.y + B.h) - 6 + 1e-9, `${who}: arrow ${i} leaves the boxes`);
+        assert.ok(straight(p) || JSON.stringify(heights(was)) === JSON.stringify(heights(p)), `${who}: a moved arrow ends up straight, or only its lane moved`);
+        if (straight(p)) assert.ok(p[0].y >= Math.max(A.y, B.y) + 6 - 1e-9 && p[0].y <= Math.min(A.y + A.h, B.y + B.h) - 6 + 1e-9, `${who}: arrow ${i} leaves the boxes`);
       }
     }
     // the ports of one box side keep at least the step they had
