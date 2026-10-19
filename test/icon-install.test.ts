@@ -316,7 +316,7 @@ test('a lock left by a dead process is taken over; a live one makes the run wait
     fs.writeFileSync(`${file}.lock`, '2147483646\n'); // no such process
     assert.equal(withManifestLock(file, () => 'ok'), 'ok');
     assert.equal(fs.existsSync(`${file}.lock`), false);
-    assert.throws(() => withManifestLock(file, () => withManifestLock(file, () => 1)), /held by another/);
+    assert.throws(() => withManifestLock(file, () => withManifestLock(file, () => 1, 300)), /held by another/);
   } finally { fs.rmSync(dir, {recursive: true}); }
 });
 

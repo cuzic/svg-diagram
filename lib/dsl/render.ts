@@ -37,6 +37,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (typeof opts.spotlight === 'object' && opts.spotlight.dim !== undefined && !['outline', 'fill'].includes(opts.spotlight.dim)) throw new Error(`diagram({spotlight: {dim}}) must be 'outline' or 'fill' (got ${String(opts.spotlight.dim)})`);
   if (opts.appearance !== undefined && !['light', 'dark', 'auto'].includes(opts.appearance as string) && !(typeof opts.appearance === 'object' && opts.appearance && typeof opts.appearance.dark === 'object')) throw new Error(`diagram({appearance}) must be 'light', 'dark', 'auto' or {dark: {bg, text, ...}} (got ${JSON.stringify(opts.appearance)})`);
   if (opts.keepWords !== undefined && typeof opts.keepWords !== 'boolean') throw new Error(`diagram({keepWords}) must be true or false (got ${JSON.stringify(opts.keepWords)})`);
+  if (opts.density !== undefined && opts.density !== 'normal' && opts.density !== 'compact') throw new Error(`diagram({density}) must be 'normal' or 'compact' (got ${JSON.stringify(opts.density)})`);
   if (opts.wrap !== undefined && opts.wrap !== 'phrase' && opts.wrap !== 'char' && opts.wrap !== 'bunsetsu' && opts.wrap !== 'bunsetsu-soft') throw new Error(`diagram({wrap}) must be 'phrase', 'char', 'bunsetsu' or 'bunsetsu-soft' (got ${JSON.stringify(opts.wrap)})`);
   mapOf(NO_TONES, opts.appearance); // a custom dark set is validated here
   if (opts.sourceLine !== undefined && (typeof opts.sourceLine !== 'string' || !opts.sourceLine.trim() || /[\r\n]/.test(opts.sourceLine))) throw new Error('diagram({sourceLine}) must be a non-empty single-line string (e.g. "出典: 総務省 2025")');
@@ -64,6 +65,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     accept: opts.accept, // {'rule-id': 'why this finding is fine'} — shown as info instead of a warning
     wrap: opts.wrap,
     keepWords: opts.keepWords,
+    ...(opts.density === undefined ? {} : {density: opts.density}),
     tones: opts.tones === undefined ? undefined : checkTones(opts.tones, 'diagram({tones})'),
     legend: opts.legend, legendLabels: opts.legendLabels, // legend: 'auto' adds entries for every notation used but not listed
     width: opts.width === 'fit' ? 940 : opts.width ?? canvas?.width ?? 940,

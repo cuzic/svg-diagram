@@ -61,3 +61,23 @@ export const dxdy = (o: {dx: number; dy: number}): string => `${Math.round(o.dx)
 export const outsideX = (r: Rect, fig: Rect): boolean => r.x < fig.x - 0.5 || r.x + r.w > fig.x + fig.w + 0.5;
 /** Past any edge of the figure. */
 export const outsideBox = (r: Rect, fig: Rect): boolean => outsideX(r, fig) || r.y < fig.y - 0.5 || r.y + r.h > fig.y + fig.h + 0.5;
+
+/**
+ * What the check finds wrong in a laid-out state diagram: a transition through a state it does not touch, a label chip outside the figure, on a state, on another arrow or on another chip.
+ * The check (verify-handlers.ts) and the layout (states.ts: `density: 'compact'` falls back to the normal gaps when this finds more) use the same list.
+ */
+export function statesProblems(band: Rect & {edges: readonly {from: string; to: string; points: readonly Pt[]}[]; anchors: readonly (Rect & {id: string})[]; labels: readonly (Rect & {text: string; edge: number})[]}): string[] {
+  const problems = routesThroughNodes(band.edges, band.anchors, (e, n) => `states: transition ${e.from} -> ${e.to} runs through state "${n.id}" (reorder the states, or change dir)`);
+  for (const [i, l] of band.labels.entries()) {
+    if (outsideX(l, band)) problems.push(`states: label "${l.text}" runs outside the figure (shorten it or widen the figure)`);
+    for (const n of band.anchors) if (rectOverlap(l, n)) problems.push(`states: label "${l.text}" overlaps state "${n.id}" (shorten the label)`);
+    band.edges.forEach((e, k) => { // the chip is white: on another arrow it would cut it
+      if (k !== l.edge && routeHits(e.points, l)) problems.push(`states: label "${l.text}" sits on the arrow ${e.from} -> ${e.to} (it belongs to another arrow)`);
+    });
+    for (let j = i + 1; j < band.labels.length; j++) {
+      const o = rectOverlap(l, band.labels[j]);
+      if (o) problems.push(`states: label "${l.text}" overlaps label "${band.labels[j].text}" by ${dxdy(o)}`);
+    }
+  }
+  return problems;
+}

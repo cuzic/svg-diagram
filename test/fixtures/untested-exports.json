@@ -223,7 +223,6 @@
   "image:imageTexts",
   "image:layoutImage",
   "image:plateStyle",
-  "layered-route:gapFor",
   "layout-connect:parseRef",
   "layout-connect:resolveConnect",
   "layout-handlers:layoutHandlerFor",

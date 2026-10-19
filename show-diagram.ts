@@ -21,10 +21,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {register} from 'node:module';
+import {installResolveHook} from './lib/resolve-hook.ts';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
-register(`./lib/resolve-hook.${EXT}`, import.meta.url);
+installResolveHook();
 const {renderDiagram, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
 const {loadConfig} = await import('./lib/config.ts');

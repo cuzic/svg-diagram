@@ -96,12 +96,10 @@ test('a failure leaves an existing deck.html byte for byte as it was, and says s
   assert.equal(read('other.html'), '<p>mine</p>');
 });
 
-test('usage errors are exit 2 with the usage line, and write nothing: no input, an unknown option, --cols 0, a bad --render, another extension', () => {
-  const cases: string[][] = [[], ['flow.ts', '--nope'], ['flow.ts', '--cols', '0'], ['flow.ts', '--cols', '2.5'], ['flow.ts', '--cols', 'x'], ['flow.ts', '--render', 'png'], ['flow.ts', '--render', 'html'], ['notes.md'], ['flow.ts', '--out'], ['--out', 'u.html']];
-  for (const args of cases) {
-    const r = run(proj, ...args, '--out', 'usage.html');
-    assert.equal(r.status, 2, `${args.join(' ')}: ${text(r)}`);
-    assert.match(r.stderr, /Usage: svg-diagram deck/);
-  }
+// the cases of the command line are in test/deck-args.test.ts; this proves the entry prints the usage and exits 2 without writing
+test('a usage error is exit 2 with the usage line, and writes nothing', () => {
+  const r = run(proj, 'flow.ts', '--cols', '0', '--out', 'usage.html');
+  assert.equal(r.status, 2, text(r));
+  assert.match(r.stderr, /Usage: svg-diagram deck/);
   assert.equal(fs.existsSync(path.join(proj, 'usage.html')), false);
 });

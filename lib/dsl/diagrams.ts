@@ -161,7 +161,7 @@ function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opt
   if (opts.dir !== undefined && !['up', 'down', 'right', 'left', 'auto'].includes(opts.dir)) throw new Error(`causeTree(): dir must be 'up', 'down', 'right', 'left' or 'auto' (got ${String(opts.dir)})`);
   if (opts.maxNodeW !== undefined && opts.maxNodeW !== 'auto' && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`causeTree(): maxNodeW must be a number >= 80 or 'auto' (got ${String(opts.maxNodeW)})`);
   for (const l of links) if (l.line !== undefined && !['solid', 'dashed', 'dotted'].includes(l.line)) throw new Error(`causeTree(): link to ${l.to} has line ${String(l.line)}`);
-  if (opts.hop !== undefined && typeof opts.hop !== 'boolean') throw new Error(`causeTree(): hop must be true or false (got ${String(opts.hop)})`);
+  if (opts.hop !== undefined && typeof opts.hop !== 'boolean' && opts.hop !== 'all') throw new Error(`causeTree(): hop must be true, false or 'all' (got ${String(opts.hop)})`);
   if (opts.fold !== undefined && typeof opts.fold !== 'boolean') throw new Error(`causeTree(): fold must be true or false (got ${String(opts.fold)})`);
   if (opts.straighten !== undefined && typeof opts.straighten !== 'boolean') throw new Error(`causeTree(): straighten must be true or false (got ${String(opts.straighten)})`);
   if (opts.returns !== undefined && opts.returns !== 'inline' && opts.returns !== 'outer') throw new Error(`causeTree(): returns must be 'inline' or 'outer' (got ${String(opts.returns)})`);

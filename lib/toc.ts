@@ -6,6 +6,7 @@
 //               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
 import {textWidth} from './atoms.ts';
 import {andClashes} from './cause-clash.ts';
+import {routesThroughNodes} from './verify-base.ts';
 import {causeCrossings} from './cause-hop.ts';
 import {fitLayout} from './fit-width.ts';
 import {scoreOf} from './polyline-metrics.ts';
@@ -67,33 +68,84 @@ const movedAside = new WeakSet<object>();
  * in a few fixed ways (ADR 0019 D4); a figure with no crossing is never touched. Only a cause tree (not pdpc() / relationDiagram()).
  */
 export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause {
+  const out = layoutCauseBandAt(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound);
+  if (env.space === undefined || env.space === 1) return out;
+  // `density: 'compact'` must not make an arrow run through a box (the check calls that an error): the narrower gaps between the layers can do that, so this band is drawn at the normal gaps then
+  const through = (t: LaidOutCause): number => routesThroughNodes(t.edges, t.anchors, () => '').length;
+  const bad = through(out);
+  if (bad === 0) return out;
+  // the normal gaps may not fit the width or the height that the compact figure fits: the compact figure stays then (the check says what is wrong with it)
+  try { const normal = layoutCauseBandAt(band, x, y, w, widthOf, roles, {...env, space: 1}, heightBudget, canvasBound); return through(normal) < bad ? normal : out; } catch { return out; }
+}
+
+function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause {
   const first = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound);
   // the search is for a figure whose AND arrows cross as first laid out: judged before the side-by-side runs are moved aside (ADR 0016 D12/D13), which also clears crossings
   // a crossing of any two arrows also starts it: the order only wins when it is strictly better in (AND crossings, AND side-by-side, crossings, bends)
   if (band.base !== undefined || (crossingsOf_(first) === 0 && scoreOf(first.edges.map(e => e.points)).crossings === 0 && (!movedAside.has(first) || crossingsOf_(layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, undefined, true)) === 0))) return first;
   const ids = band.nodes.map(n => n.id);
+  // The search scores the figures without the detours of the long arrows (route-search.ts: slow, and the search lays a figure out up to MAX_ORDERS times); the order it
+  // finds is laid out once more with them, and replaces the first figure only if it is strictly better in the same score.
+  const base = band.straighten === false ? first : layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, undefined, false, true);
   // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
   const orders = [[...ids].reverse(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
   const axisOf = (t: LaidOutCause): number[] => t.nodes.map(n => band.dir === 'left' || band.dir === 'right' ? n.x : n.y);
-  let best = first, bestScore = scoreOfCause(first);
-  for (const order of orders) {
-    let t: LaidOutCause;
-    try { t = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order); } catch { continue; }
-    // the same layers (a different order must not change which edge of a cycle is cut, or fold the figure), the same size limits, no AND the first drew left undrawn
-    if (axisOf(t).some((v, i) => Math.abs(v - axisOf(first)[i]) > 0.5) || t.h > first.h + 0.5 || t.loose.length > first.loose.length) continue;
-    if (t.fitApplied?.length !== first.fitApplied?.length) continue;
-    const score = scoreOfCause(t);
-    if (lexLess(score, bestScore)) { best = t; bestScore = score; }
+  const baseAxis = axisOf(base);
+  let best = base, bestScore = scoreOfCause(base), bestOrder: string[] | undefined;
+  // then more orders when the fixed ones left a crossing: shuffles from a fixed seed (the same figure always gets the same answer), then swaps of two neighbours of the best order so far.
+  // `straighten: false` keeps to the fixed ones (it is the way back to the old figure)
+  const queue = [...orders], seen = new Set<string>([ids.join('\u0000'), ...orders.map(o => o.join('\u0000'))]);
+  const add = (o: string[]): void => { const k = o.join('\u0000'); if (!seen.has(k)) { seen.add(k); queue.push(o); } };
+  if (band.straighten !== false) {
+    let seed = 20260417 + ids.length;
+    const rand = (n: number): number => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed % n; };
+    for (let k = 0, n = Math.min(24, ids.length * 3); k < n; k++) { const o = [...ids]; for (let i = o.length - 1; i > 0; i--) { const j = rand(i + 1); [o[i], o[j]] = [o[j], o[i]]; } add(o); }
   }
-  return best;
+  let tried = 0, lastBetter = 0, polished = false;
+  while (queue.length || (!polished && band.straighten !== false)) {
+    if (!queue.length) { // swaps of two neighbours of the best order, once the shuffles are done
+      polished = true;
+      if (bestScore[0] === 0 && bestScore[1] === 0 && bestScore[2] === 0) break; // nothing crosses: only bends are left
+      for (let i = 0; i + 1 < (bestOrder ?? ids).length; i++) { const o = [...(bestOrder ?? ids)]; [o[i], o[i + 1]] = [o[i + 1], o[i]]; add(o); }
+      continue;
+    }
+    // give up when nothing has got better for a while (counted in the orders tried, the ones set aside too: each is a layout): sooner once no AND arrows cross
+    if (++tried > MAX_ORDERS || tried - lastBetter > (bestScore[0] === 0 ? PATIENCE_QUIET : PATIENCE)) break;
+    const order = queue.shift()!;
+    let t: LaidOutCause;
+    try { t = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, false, true); } catch { continue; }
+    // the same layers (a different order must not change which edge of a cycle is cut, or fold the figure), the same size limits, no AND the first drew left undrawn
+    if (axisOf(t).some((v, i) => Math.abs(v - baseAxis[i]) > 0.5) || t.h > base.h + 0.5 || t.loose.length > base.loose.length) continue;
+    if (t.fitApplied?.length !== base.fitApplied?.length) continue;
+    const score = scoreOfCause(t);
+    if (lexLess(score, bestScore)) { best = t; bestScore = score; bestOrder = order; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
+  }
+  if (band.straighten === false) return best;
+  let found: LaidOutCause | undefined;
+  if (bestOrder) try { found = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, bestOrder); } catch { found = undefined; }
+  // the best of: the first figure, the best order with the detours, the best figure without them (the one the search judged; the base itself when no order beat it): the first one wins a tie.
+  // The detours can make AND arrows cross (they are judged by the whole figure's crossings), so the figure without them must stay a candidate
+  // the same frame as the figures the search compared (the plain ones: the detours may have made `first` lower than any order would be without them)
+  const sameFrame = (t: LaidOutCause): boolean => axisOf(t).every((v, i) => Math.abs(v - baseAxis[i]) <= 0.5) && t.h <= base.h + 0.5 && t.loose.length <= base.loose.length && t.fitApplied?.length === base.fitApplied?.length;
+  let pick = first, pickScore = scoreOfCause(first);
+  for (const t of [found, best]) {
+    if (!t || !sameFrame(t)) continue;
+    const sc = scoreOfCause(t);
+    if (lexLess(sc, pickScore)) { pick = t; pickScore = sc; }
+  }
+  return pick;
 }
 
+/** The most orders the search tries for one figure. */
+const MAX_ORDERS = 60;
+/** How many orders in a row may fail to get better before the search stops (with and without AND arrows crossing). */
+const PATIENCE = 30, PATIENCE_QUIET = 14;
 const crossingsOf_ = (t: LaidOutCause): number => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
 /** (arrows of an AND that cross, arrows of an AND that run side by side, crossings, bends): smaller is better, in this order. */
 const scoreOfCause = (t: LaidOutCause): number[] => { const s = scoreOf(t.edges.map(e => e.points)); return [crossingsOf_(t), andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses').length, s.crossings, s.bends]; };
 const lexLess = (a: number[], b: number[]): boolean => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i]; return false; };
 
-export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false): LaidOutCause {
+export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false): LaidOutCause {
   const ids = new Set<string>();
   for (const n of band.nodes) {
     if (typeof n.id !== 'string' || !n.id) throw new Error('causeTree(): every node needs an id');
@@ -172,8 +224,8 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
     const declared = arrows.flatMap((a, k) => a.back ? [k] : []); // the returns the author named: laid out as the way back (index into `arrows`)
     // the returns that skip layers run in an outer lane: all of them when `returns: 'outer'` (or pdpc's default), the declared ones (`back`) when nothing is written
     const wanted: 'all' | 'declared' | undefined = band.returns === 'inline' ? undefined : (band.returns ?? band.returnsDefault) === 'outer' ? 'all' : declared.length ? 'declared' : undefined;
-    const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: GAP, levelGap: Math.max(LEVEL, gapFor(degree)), ...(declared.length ? {back: declared} : {}), ...(alap ? {alap} : {}), ...(fold === undefined ? {} : {fold})}, {
-      portStep: PORT, groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: iw + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}), ...(plainRoutes ? {aside: false} : {}),
+    const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: Math.round(GAP * (env.space ?? 1)), levelGap: Math.max(Math.round(LEVEL * (env.space ?? 1)), gapFor(degree, 0, env.space)), ...(declared.length ? {back: declared} : {}), ...(alap ? {alap} : {}), ...(fold === undefined ? {} : {fold})}, {
+      portStep: PORT, ...(env.space === undefined || env.space === 1 ? {} : {space: env.space}), groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: iw + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}), ...(band.straighten === false || noDetour ? {} : {detour: true}), ...(plainRoutes ? {aside: false} : {}),
       looseOf: (rts, ly) => {
         const route = new Map<number, Pt[]>();
         ly.edges.forEach((e, i) => { if (!e.self) route.set(e.index, rts.get(i)!); });
@@ -248,7 +300,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   }
   // ADR 0028: where a return crosses another line, and which of those get a hop (decided here, once; the renderer only draws them)
   if (band.hop) {
-    const crossings = causeCrossings(out.edges, attempt.dir, {x: out.x, y: out.y, w: out.w, h: out.h}, out.nodes, out.ands);
+    const crossings = causeCrossings(out.edges, attempt.dir, {x: out.x, y: out.y, w: out.w, h: out.h}, out.nodes, out.ands, band.hop === 'all');
     if (crossings.length) out.crossings = crossings;
   }
   return out;

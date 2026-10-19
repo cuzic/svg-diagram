@@ -151,8 +151,8 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
   coreDriver?: boolean;
   /** Write what kind of entity each starting / goal / measure entity is in words under its label (`【根本原因】`, `【ゴール】`, `【施策】`, `【開始】`), so that the entities drawn alike (a double accent frame) are told apart without colour or a legend. `true` uses these words; an object replaces some of them. Default off: nothing changes for a figure that does not write it. On the band this is the resolved map. */
   roleTags?: true | Partial<Record<RoleTagged, string>>;
-  /** Show where a return arrow crosses another line (ADR 0028): the return hops over it. Default off: nothing changes for a figure that does not write it. */
-  hop?: boolean;
+  /** Show where a line crosses another (ADR 0028, 0035): `true` makes a return arrow hop over the lines it crosses; `'all'` also makes any arrow's run across the layers hop over the lines that run along the flow. A crossing next to a corner, an arrowhead, an AND arc or another crossing gets no hop (so not every crossing has one). Default off: nothing changes for a figure that does not write it. */
+  hop?: boolean | 'all';
   /** Which Theory of Constraints tree this is: 'crt' (current reality), 'frt' (future reality), 'prt' (prerequisite), 'tt' (transition), 'nbr' (negative branch).
    *  Only a figure that says it is checked (the `toc-*` rules of `check`); not written, nothing is checked. It never changes the drawing. */
   tree?: 'crt' | 'frt' | 'prt' | 'tt' | 'nbr';

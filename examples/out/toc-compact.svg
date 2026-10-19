@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="672" viewBox="0 0 940 672" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">小さな部品工場の現状ツリー:納期遅れと残業増</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/toc-compact.ts","sourceSha256":"357f6d08b74b8b2d1f974612c636cbb71f9e06f58691b5221a8c577ae81e2c22"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="672" fill="#ffffff"/>
+
+  <path d="M616,560 L616,476" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M616,468 L621,480 L611,480 z" fill="#22201b"/>
+  <path d="M512,432 L512,336" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M512,328 L517,340 L507,340 z" fill="#22201b"/>
+  <path d="M420,292 L420,196" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M420,188 L425,200 L415,200 z" fill="#22201b"/>
+  <path d="M148,560 L148,524 L176,524 L176,488" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M176,476 L181,488 L171,488 z" fill="#22201b"/>
+  <path d="M320,572 L320,512 L196,512 L196,488" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M196,476 L201,488 L191,488 z" fill="#22201b"/>
+  <path d="M220,420 L220,348" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M220,336 L225,348 L215,348 z" fill="#22201b"/>
+  <path d="M300,280 L300,196" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M300,188 L305,200 L295,200 z" fill="#22201b"/>
+  <path d="M360,572 L360,476" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M360,468 L365,480 L355,480 z" fill="#22201b"/>
+  <path d="M380,432 L380,368 L384,368 L384,224 L360,224 L360,196" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M360,188 L365,200 L355,200 z" fill="#22201b"/>
+  <path d="M324,152 L324,68" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M324,56 L329,68 L319,68 z" fill="#22201b"/>
+  <path d="M356,432 L356,368 L144,368 L144,240 L244,240 L244,84 L276,84 L276,68" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M276,56 L281,68 L271,68 z" fill="#22201b"/>
+  <path d="M732,560 L732,488" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M732,476 L737,488 L727,488 z" fill="#22201b"/>
+  <path d="M800,420 L800,336" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M800,328 L805,340 L795,340 z" fill="#22201b"/>
+  <path d="M772,292 L772,208" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M772,196 L777,208 L767,208 z" fill="#22201b"/>
+  <path d="M400,432 L400,408 L636,408 L636,348" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M636,336 L641,348 L631,348 z" fill="#22201b"/>
+  <path d="M672,280 L672,208" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M672,196 L677,208 L667,208 z" fill="#22201b"/>
+  <path d="M728,140 L728,68" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M728,56 L733,68 L723,68 z" fill="#22201b"/>
+  <path d="M164,496 Q188,484 208,496" fill="none" stroke="#22201b" stroke-width="2"/>
+  <rect x="264" y="152" width="168" height="36" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="208" y="20" width="140" height="36" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="668" y="20" width="152" height="36" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="404" y="292" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="168" y="280" width="196" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="288" y="432" width="180" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="612" y="140" width="196" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="540" y="280" width="196" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="492" y="432" width="180" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="84" y="420" width="184" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="268" y="572" width="124" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="756" y="292" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="692" y="420" width="196" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="52" y="560" width="196" height="56" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="56" y="564" width="188" height="48" rx="5" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="560" y="560" width="196" height="56" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="564" y="564" width="188" height="48" rx="5" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="348" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">納期遅れが続いている</text>
+  <text x="278" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">残業が増えている</text>
+  <text x="744" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">新人が辞めてしまう</text>
+  <text x="462" y="312" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仕掛りが多い</text>
+  <text x="265" y="302" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">急ぎの割り込みで作業の切</text>
+  <text x="265" y="322" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">り替えが増える</text>
+  <text x="378" y="452" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">経験者に仕事が集中する</text>
+  <text x="709" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">新人が何をすればいいか分</text>
+  <text x="709" y="182" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">からない</text>
+  <text x="637" y="302" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">経験者に新人を教える時間</text>
+  <text x="637" y="322" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">がない</text>
+  <text x="581" y="452" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">受注するとすぐ着手する</text>
+  <text x="175" y="442" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">営業が納期を約束してし</text>
+  <text x="175" y="462" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">まう</text>
+  <text x="331" y="592" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">見積もりが甘い</text>
+  <text x="812" y="312" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手順書が古い</text>
+  <text x="791" y="442" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手順書の更新が稼働に数え</text>
+  <text x="791" y="462" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">られない</text>
+  <text x="149" y="582" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">営業が現場の状況を把握で</text>
+  <text x="149" y="602" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">きない</text>
+  <text x="660" y="582" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">現場が稼働率で評価されて</text>
+  <text x="660" y="602" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">いる</text>
+
+  <text x="20" y="646" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>

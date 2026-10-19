@@ -87,6 +87,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 | コンサル系のチャート（ウォーターフォール・レーダー・ヒートマップ・折れ線・積み上げ・ツリーマップ・サンキー・バブルほか） | `references/charts.md` |
 | 象限図・分類マトリクス | `references/quadrant.md` |
 | 人間関係の図（Arbinger の「箱」: 共謀・氷山・イメージの型・箱から出る流れ） | `references/relationship.md` |
+| ポジティブ心理学の図（PERMA・フロー・拡張–形成・幸福の決定要因） | `references/positive-psychology.md` |
 | 枠が決まったキャンバス（BMC・SWOT・リーン・VPC ほか） | `references/canvas.md` |
 | 意味付き表・意味付きネットワーク（PERT・因果ループ・依存ネットワーク） | `references/semantic.md` |
 | ワイヤーフレーム・画面遷移図・画面仕様（`wireframe` / `screens` / `stateMatrix`） | `references/wireframe.md` |

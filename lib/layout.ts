@@ -36,7 +36,7 @@ import type {ToneEnv} from './tokens.ts';
 
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
 export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
-  const lay = (mode: WrapMode): LaidOutDiagram => layoutBands(data, roles, widthOf, toneEnv(data.tones), mode, data.keepWords === true);
+  const lay = (mode: WrapMode): LaidOutDiagram => layoutBands(data, roles, widthOf, toneEnv(data.tones), mode, data.keepWords === true, spaceOf(data.density));
   const setting = data.wrap ?? 'phrase';
   if (setting !== 'bunsetsu-soft') return lay(setting);
   // 'bunsetsu-soft': break at phrase boundaries (hiragana kept with the character before it); a figure that does not fit that way is laid out as 'phrase' instead of failing.
@@ -44,7 +44,10 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
   try { return lay('bunsetsu'); } catch { return {...lay('phrase'), wrapFellBack: true}; }
 }
 
-function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean): LaidOutDiagram {
+/** The scale of the gaps of the layered figures (`WrapEnv.space`): 'compact' closes them by a quarter. */
+const spaceOf = (density: 'normal' | 'compact' | undefined): number => density === 'compact' ? 0.75 : 1;
+
+function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean, space = 1): LaidOutDiagram {
   const d = withStatus(withSourceLine(data));
   const contentWidth = d.width - 2 * d.pad;
 
@@ -175,7 +178,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
     if (scope) addScoped(scopes, scope, id);
   };
   const ctx: LayoutCtx = {
-    d, roles, widthOf, tones, wrap, keepWords, y: d.pad, laidOut, anchors, nodeBottoms, areaIds, connects, deferred, scopes,
+    d, roles, widthOf, tones, wrap, keepWords, space, y: d.pad, laidOut, anchors, nodeBottoms, areaIds, connects, deferred, scopes,
     setBox, claimed, register, placeBoxLike, gapForLabels,
     stack: (bands, padX, cw) => {
       for (const band of bands) layoutHandlerFor(band.type)(band as never, ctx, padX, cw);
