@@ -58,13 +58,26 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
   // laneHeads: a return in an outer lane ends on the face of its head that looks at the lane (the bottom or the top), not on the head's right side,
   // where it would cross the arrows that leave that side. Only where the run from the lane to the face passes no other box.
   const faceOf = new Map<number, {x: number; y: number}>();
-  if (laneHeads) lay.edges.forEach((e, i) => {
-    if (e.self || !e.outer) return;
-    const B = lay.nodes.get(e.to)!, lane = e.points[1].y, x = B.x + B.w / 2, y = lane > B.y + B.h / 2 ? B.y + B.h : B.y;
-    const lo = Math.min(lane, y), hi = Math.max(lane, y);
-    if ([...lay.nodes].some(([id, n]) => id !== e.to && x > n.x - 0.5 && x < n.x + n.w + 0.5 && hi > n.y - 0.5 && lo < n.y + n.h + 0.5)) return;
-    faceOf.set(i, {x, y});
-  });
+  if (laneHeads) {
+    // the returns into one face of one box take places along it, a step apart; a box with a self-loop keeps its returns on the side (the loop is drawn outside the routes, on that face)
+    const byFace = new Map<string, number[]>();
+    lay.edges.forEach((e, i) => {
+      if (e.self || !e.outer || lay.edges.some(l => l.self && l.from === e.to)) return;
+      const B = lay.nodes.get(e.to)!, key = `${e.to}:${e.points[1].y > B.y + B.h / 2 ? 'b' : 't'}`;
+      byFace.set(key, [...(byFace.get(key) ?? []), i]);
+    });
+    for (const list of byFace.values()) {
+      const B = lay.nodes.get(lay.edges[list[0]].to)!, lane = lay.edges[list[0]].points[1].y, y = lane > B.y + B.h / 2 ? B.y + B.h : B.y;
+      const step = list.length > 1 ? Math.min(portStep, (B.w - 12) / (list.length - 1)) : 0;
+      // the tails are on the far side of the head, so the lane nearest the head takes the place nearest them (the right): a farther lane's vertical run then never crosses a nearer lane's run
+      const order = [...list].sort((p, q) => Math.abs(lay.edges[p].points[1].y - y) - Math.abs(lay.edges[q].points[1].y - y) || p - q);
+      order.forEach((i, k) => {
+        const x = B.x + B.w / 2 + ((order.length - 1) / 2 - k) * step, lane = lay.edges[i].points[1].y, lo = Math.min(lane, y), hi = Math.max(lane, y);
+        if ([...lay.nodes].some(([id, n]) => id !== lay.edges[i].to && x > n.x - 0.5 && x < n.x + n.w + 0.5 && hi > n.y - 0.5 && lo < n.y + n.h + 0.5)) return;
+        faceOf.set(i, {x, y});
+      });
+    }
+  }
   // The step between the lanes of one gap: the lanes of a gap are counted from its sides at LANE apart, which leaves a gap wider than they need with its lanes
   // crowded at the sides. They spread over the room the gap has left, up to twice the step; a gap with no room keeps LANE. Direct arrows, the long arrows into an AND
   // and the turns of the returns in an outer lane all use the step of their gap, so their order and the way they share the gap do not change.
