@@ -59,7 +59,13 @@ export function layoutHanging(root: TreeNode, opts: {rowFirst?: boolean; gap?: n
   if (shift) { for (const [id, p] of nodes) nodes.set(id, {...p, x: p.x + shift}); for (const e of edges) e.points = e.points.map(p => ({x: p.x + shift, y: p.y})); for (const c of cols) c.x += shift; }
   nodes.set(root.id, {x: rootX + shift, y: 0, ...root.size});
   const bus = root.size.h + 22, rcx = rootX + shift + root.size.w / 2;
-  for (const c of cols) { const ccx = c.x + c.w / 2; edges.push({from: root.id, to: c.id, points: [{x: rcx, y: root.size.h}, {x: rcx, y: bus}, {x: ccx, y: bus}, {x: ccx, y: rowTop}]}); }
+  const rootL = rootX + shift + 8, rootR = rootX + shift + root.size.w - 8;
+  for (const c of cols) {
+    const ccx = c.x + c.w / 2;
+    // a child 1-4px off the root's centre would get a 1-4px step in its bus line: drop straight from the root at the child's own x instead
+    if (ccx !== rcx && Math.abs(ccx - rcx) <= 4 && ccx >= rootL && ccx <= rootR) { edges.push({from: root.id, to: c.id, points: [{x: ccx, y: root.size.h}, {x: ccx, y: rowTop}]}); continue; }
+    edges.push({from: root.id, to: c.id, points: [{x: rcx, y: root.size.h}, {x: rcx, y: bus}, {x: ccx, y: bus}, {x: ccx, y: rowTop}]});
+  }
   return {nodes, edges, w: Math.max(w + shift, rootX + shift + root.size.w), h};
 }
 

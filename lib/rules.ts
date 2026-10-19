@@ -40,7 +40,7 @@ import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
 import type {Finding} from './types/verdicts.ts';
 import type {WfCallout} from './types/wireframe-nodes.ts';
 import type {LintTarget} from './types/verdicts.ts';
-import type {CauseRole, FtaGate, FtaKind} from './types/diagrams.ts';
+import type {CauseRole, FtaGate, FtaKind, TreeItem} from './types/diagrams.ts';
 import {ftaResolve} from './fta.ts';
 import {describeApplied} from './fit-width.ts';
 import {tocFindings} from './toc-rules.ts';
@@ -176,6 +176,18 @@ export function walkBands(bands: Band[], out: Band[] = []): Band[] {
   return out;
 }
 
+// the node tones of the auto-layout bands (tree / mindmap, classDiagram, bpmn): their nodes are not box() bands, so legend: 'auto' reads them here
+function bandTones(bands: Band[]): string[] {
+  const out: string[] = [];
+  const walk = (it: TreeItem): void => { out.push(it.tone ?? 'plain'); it.children?.forEach(walk); };
+  for (const b of bands) {
+    if (b.type === 'tree') walk(b.root);
+    else if (b.type === 'classes') for (const c of b.classes) out.push(c.tone ?? 'plain');
+    else if (b.type === 'bpmn') for (const n of b.nodes) out.push(n.tone ?? 'plain');
+  }
+  return out;
+}
+
 // notation keys a diagram uses: 'line:dashed', 'arrow:both', 'weight:strong', 'tone:new', ...
 export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause = false): Set<string> {
   const all = walkBands(bands);
@@ -189,6 +201,10 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause 
       if (b.arrow === 'both') used.add('arrow:both');
       if (b.weight) used.add(`weight:${b.weight}`);
     } else if (b.type === 'box' && b.tone && b.tone !== 'plain') used.add(`tone:${b.tone}`);
+    else if (withCause && (b.type === 'tree' || b.type === 'classes' || b.type === 'bpmn')) { // only legend: 'auto' reads these (a lone accent root would make legend-missing / gray-tone noisy in the lint); bpmn also a dashed message flow
+      for (const t of bandTones([b])) if (t !== 'plain') used.add(`tone:${t}`);
+      if (b.type === 'bpmn') for (const f of b.flows) lines.add(f.line === 'dashed' ? 'dashed' : 'solid');
+    }
     else if (b.type === 'cause' && withCause) { // only legend: 'auto' reads these (the legend-* checks keep their old count)
       // a role that roleTags writes in words on the node needs no swatch: two double-frame swatches side by side would only blur it
       for (const n of b.nodes) if (n.role && n.role !== 'effect' && n.role !== 'step' && !(b.roleTags && b.roleTags[n.role as keyof typeof b.roleTags])) used.add(`role:${n.role}`);

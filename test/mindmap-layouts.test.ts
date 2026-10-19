@@ -154,3 +154,17 @@ test('mindmap fishbone: a bone leaves the middle of its category, even a wide on
   const cat = t.nodes[1], bone = t.edges.find(e => e.points.length === 2 && Math.abs(e.points[0].y - (cat.y + cat.h)) < 0.5)!;
   assert.ok(Math.abs(bone.points[0].x - (cat.x + cat.w / 2)) < 0.5, 'the bone starts at the middle of the category');
 });
+
+test('mindmap layout org: no bus line has a 1-4px step (the mid child is dropped straight from the root)', async () => {
+  const dev = {label: '開発本部', tone: 'accent' as const, children: [
+    {label: 'プラットフォーム', children: [{label: 'インフラ'}, {label: 'SRE'}, {label: 'セキュリティ'}]},
+    {label: 'プロダクト', children: [{label: 'Web'}, {label: 'モバイル'}]},
+    {label: 'データ', children: [{label: '分析基盤'}]},
+  ]};
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(mindmap(dev, {layout: 'org'})));
+  const t = laidOut.laidOut.find(b => b.type === 'tree') as LaidOutTree;
+  for (const e of t.edges) for (let k = 1; k + 2 < e.points.length; k++) {
+    const len = Math.abs(e.points[k + 1].x - e.points[k].x) + Math.abs(e.points[k + 1].y - e.points[k].y);
+    assert.ok(len === 0 || len > 4, `a ${len}px step in ${JSON.stringify(e.points)}`);
+  }
+});
