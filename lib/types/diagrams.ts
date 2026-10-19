@@ -366,6 +366,8 @@ export interface LaidOutTree extends Rect, Dimmed {
 }
 export interface LaidOutStates extends Rect, Dimmed {
   type: 'states';
+  /** `density: 'compact'` was asked for, but the compact figure had more wrong in it, so this band is drawn at the normal gaps (ADR 0036 D6). */
+  densityRestored?: boolean;
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
   fitApplied?: FitApplied[];
   id?: string;
@@ -385,6 +387,8 @@ export interface LaidOutStates extends Rect, Dimmed {
 }
 export interface LaidOutCause extends Rect, Dimmed {
   type: 'cause';
+  /** `density: 'compact'` was asked for, but the compact figure had more wrong in it, so this band is drawn at the normal gaps (ADR 0036 D6). */
+  densityRestored?: boolean;
   /** The ids no author name answers to (whyWhyTree's own): in `anchors`, but not in the registry or a spotlight scope. */
   unanchored?: readonly string[];
   /** What the layout changed on its own to fit the width (none: the figure is as written). */

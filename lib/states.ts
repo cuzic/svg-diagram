@@ -40,7 +40,7 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
   // `density: 'compact'` must not make the check find more wrong in a state diagram (a label on another label or arrow, an arrow through a state): then it is drawn at the normal gaps
   const bad = statesProblems(out).length;
   if (bad === 0) return out;
-  try { const normal = layoutStatesBandAt(band, x, y, w, widthOf, roles, {...env, space: 1}, heightBudget); return statesProblems(normal).length < bad ? normal : out; } catch { return out; }
+  try { const normal = layoutStatesBandAt(band, x, y, w, widthOf, roles, {...env, space: 1}, heightBudget); if (statesProblems(normal).length < bad) { normal.densityRestored = true; return normal; } return out; } catch { return out; }
 }
 
 function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutStates {

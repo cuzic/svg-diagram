@@ -128,6 +128,7 @@ export const RULE_DOCS = {
   'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
   'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）',
   'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
+  'density-compact-restored': "diagram({density: 'compact'}) の因果ツリー・状態遷移で、詰めた図のほうが検査の問題(箱を通る矢印・ラベルの重なり)が多いので、通常の間隔で描いた（情報）",
   'density': '文字量・箱の数が多い',
   'wf-callout-no-note': '図の番号に対応する注釈がない',
   'wf-note-no-callout': '注釈に対応する番号が図にない',
@@ -717,6 +718,11 @@ function graphRules(d: LintTarget, out: Finding[]): void {
   for (const id of parent.keys()) { const r = find(id); groups.set(r, [...(groups.get(r) ?? []), id]); }
   if (groups.size > 1) out.push({rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${[...groups.values()].map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
 }
+// `density: 'compact'` that was not applied to a band (ADR 0036 D6): the compact figure had an arrow through a box or a label on another one
+function densityRules(d: LintTarget, out: Finding[]): void {
+  const who = (d.laidOut ?? []).flatMap(b => (b.type === 'cause' || b.type === 'states') && b.densityRestored ? [b.type === 'cause' ? 'causeTree()' : 'stateDiagram()'] : []);
+  if (who.length) out.push({rule: 'density-compact-restored', severity: 'info', message: `${[...new Set(who)].join('・')}: density: 'compact' にすると箱を通る矢印・重なるラベルが増えるので、この図は通常の間隔で描いた（高さは詰まっていない）`});
+}
 const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()', fta: 'faultTree()', bowtie: 'bowtie()'} as const;
 // what the layout changed on its own to make a figure fit its width (ADR 0010 D3): left out is a warning, `dir: 'auto'` is the author's own choice
 function fitRules(d: LintTarget, out: Finding[]): void {
@@ -773,6 +779,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   tocRules(d, out);
   rcaRules(d, out);
   fitRules(d, out);
+  densityRules(d, out);
   textContrast(d, tones, out);
   colourOnlyEmphasis(d, out);
   nonTextContrast(d, tones, out);

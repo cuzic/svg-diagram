@@ -110,6 +110,17 @@ test('density compact: a state diagram that the check finds more wrong at the co
   assert.deepEqual(compact.filter(p => !normal.includes(p)), [], JSON.stringify(compact));
 });
 
+test('density compact: a band that was drawn at the normal gaps says so (info density-compact-restored); a normal figure and a kept compact figure do not', async () => {
+  const {causeTree, diagram, checkDiagram} = await import('../lib/dsl.ts');
+  const found = async (density: 'normal' | 'compact', c = C43) => (await checkDiagram(diagram({theme: 'blue', width: 1800, density}).add(causeTree(c.nodes, c.links, {dir: 'left'}) as never))).verdict.findings.filter(f => f.rule === 'density-compact-restored');
+  const restored = await found('compact');
+  assert.equal(restored.length, 1);
+  assert.equal(restored[0].severity, 'info');
+  assert.match(restored[0].message, /causeTree\(\)/);
+  assert.deepEqual(await found('normal'), []);
+  assert.deepEqual(await found('compact', C123), []); // the normal gaps do not fit there: the compact figure stays
+});
+
 test('density: only normal and compact; a number is not a density', async () => {
   const {diagram} = await import('../lib/dsl.ts');
   assert.throws(() => diagram({theme: 'blue', density: 0.6 as never}), /diagram\(\{density\}\) must be 'normal' or 'compact'/);
