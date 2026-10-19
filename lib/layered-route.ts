@@ -40,7 +40,7 @@ export function elbows(pts: Pt[], turn?: number, lastTurn?: number): Pt[] {
  * straightening (ADR 0016 D3): a direct arrow whose two boxes overlap across the layer axis becomes one straight line when that does not make
  * the drawing worse; `round` names the nodes that are not rectangles (a circle, a hexagon), whose arrows keep to the middle of the side.
  */
-export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false, aside = false, detour = false, lonePorts = detour, space = 1): Map<number, Pt[]> {
+export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false, aside = false, detour = false, lonePorts = detour, space = 1, laneHeads = false): Map<number, Pt[]> {
   const STUB = stubOf(space), LANE = laneStepOf(space); // this figure's stub and lane step (they shadow the module's)
   // ports: the edges that meet one side of a state fan out along it (ordered by where the other end is, so they do not cross)
   // lanes: direct arrows through one gap between two layers take separate vertical runs
@@ -55,13 +55,37 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
     layerRight.set(l, Math.max(layerRight.get(l) ?? -Infinity, n.x + n.w));
     layerLeft.set(l, Math.min(layerLeft.get(l) ?? Infinity, n.x));
   }
+  // laneHeads: a return in an outer lane ends on the face of its head that looks at the lane (the bottom or the top), not on the head's right side,
+  // where it would cross the arrows that leave that side. Only where the run from the lane to the face passes no other box.
+  const faceOf = new Map<number, {x: number; y: number}>();
+  if (laneHeads) {
+    // the returns into one face of one box take places along it, a step apart; a box with a self-loop keeps its returns on the side (the loop is drawn outside the routes, on that face)
+    const byFace = new Map<string, number[]>();
+    lay.edges.forEach((e, i) => {
+      if (e.self || !e.outer || lay.edges.some(l => l.self && l.from === e.to)) return;
+      const B = lay.nodes.get(e.to)!, key = `${e.to}:${e.points[1].y > B.y + B.h / 2 ? 'b' : 't'}`;
+      byFace.set(key, [...(byFace.get(key) ?? []), i]);
+    });
+    for (const list of byFace.values()) {
+      const B = lay.nodes.get(lay.edges[list[0]].to)!, lane = lay.edges[list[0]].points[1].y, y = lane > B.y + B.h / 2 ? B.y + B.h : B.y;
+      const step = list.length > 1 ? Math.min(portStep, (B.w - 12) / (list.length - 1)) : 0;
+      // the tails are on the far side of the head, so the lane nearest the head takes the place nearest them (the right): a farther lane's vertical run then never crosses a nearer lane's run
+      const order = [...list].sort((p, q) => Math.abs(lay.edges[p].points[1].y - y) - Math.abs(lay.edges[q].points[1].y - y) || p - q);
+      order.forEach((i, k) => {
+        const x = B.x + B.w / 2 + ((order.length - 1) / 2 - k) * step, lane = lay.edges[i].points[1].y, lo = Math.min(lane, y), hi = Math.max(lane, y);
+        if ([...lay.nodes].some(([id, n]) => id !== lay.edges[i].to && x > n.x - 0.5 && x < n.x + n.w + 0.5 && hi > n.y - 0.5 && lo < n.y + n.h + 0.5)) return;
+        faceOf.set(i, {x, y});
+      });
+    }
+  }
   const ends: {key: string; edge: number; end: 0 | 1; other: number}[] = [];
   const corridors = new Map<string, number[]>();
   lay.edges.forEach((e, i) => {
     if (e.self) return;
     const A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!, ca = {x: A.x + A.w / 2, y: A.y + A.h / 2}, cb = {x: B.x + B.w / 2, y: B.y + B.h / 2};
     const first = e.points[1] ?? cb, last = e.points[e.points.length - 2] ?? ca;
-    ends.push({key: `${e.from}:${first.x >= ca.x ? 'r' : 'l'}`, edge: i, end: 0, other: first.y}, {key: `${e.to}:${last.x <= cb.x ? 'l' : 'r'}`, edge: i, end: 1, other: last.y});
+    ends.push({key: `${e.from}:${first.x >= ca.x ? 'r' : 'l'}`, edge: i, end: 0, other: first.y});
+    if (!faceOf.has(i)) ends.push({key: `${e.to}:${last.x <= cb.x ? 'l' : 'r'}`, edge: i, end: 1, other: last.y});
     if (e.points.length === 2) { // direct arrows through one gap between two layers, in groups that go down / go up
       const k = `${Math.round(Math.min(ca.x, cb.x))}:${Math.round(Math.max(ca.x, cb.x))}`;
       corridors.set(k, [...(corridors.get(k) ?? []), i]);
@@ -149,8 +173,9 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
       const start = {x: first.x >= ca.x ? A.x + A.w : A.x, y: ca.y + (portOf.get(`${i}:0`) ?? 0)};
       const end = {x: last.x <= cb.x ? B.x : B.x + B.w, y: cb.y + (portOf.get(`${i}:1`) ?? 0)};
       const turns = outerTurns.get(i);
-      if (turns) { // out of the tail's left side, out to the lane, back along it, into the head's right side
-        const lane = e.points[1].y;
+      if (turns) { // out of the tail's left side, out to the lane, back along it, into the head's right side (or up into its face, see laneHeads)
+        const lane = e.points[1].y, face = faceOf.get(i);
+        if (face) { out.set(i, simplify([start, {x: turns.tail, y: start.y}, {x: turns.tail, y: lane}, {x: face.x, y: lane}, face])); return; }
         out.set(i, simplify([start, {x: turns.tail, y: start.y}, {x: turns.tail, y: lane}, {x: turns.head, y: lane}, {x: turns.head, y: end.y}, end]));
         return;
       }
@@ -414,12 +439,13 @@ function piercings(a: Attempt, place: (p: Pt) => Pt): number {
  */
 export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layoutOpts: LayeredOpts & {start?: string[]; back?: readonly number[]}, o: AttemptOpts): Attempt {
   type Side = 'far' | 'near' | 'low';
+  let laneHeads = false; // the returns end on the face of their head that looks at the lane (routeLayered's `laneHeads`); set only for the last try below
   const optsOf = new WeakMap<Attempt, {opts: typeof layoutOpts; laneShare: boolean; near: Side}>();
   const build = (opts: typeof layoutOpts, laneShare = false, aside = false, near: Side = 'far'): Attempt => {
     const lay = layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: stubOf(o.space), step: laneStepOf(o.space), ...(near === 'far' ? {} : {side: near})}} : opts, 0, o.space);
     const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
     const groupOf = o.groupOf;
-    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true && opts.coord === 'bk', o.detour === true, o.space); // the search for a way around the boxes only in the straightened candidate (it competes with the plain one on bends); a lone port is straightened in both
+    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(lay.edges[i].index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true && opts.coord === 'bk', o.detour === true, o.space, laneHeads); // the search for a way around the boxes only in the straightened candidate (it competes with the plain one on bends); a lone port is straightened in both
     const made = {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
     optsOf.set(made, {opts, laneShare, near});
     return made;
@@ -477,7 +503,11 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     const c = pick(side);
     if (c.lay.edges.some(e => e.outer) && c.lay.w <= far.lay.w + 0.01 && c.lay.h <= far.lay.h + 0.01 && !worse(result, c) && better(c.score, result.score)) result = c;
   }
-  return result;
+  // a return that enters its head's face instead of its right side, only when that takes crossings away (fewer bends alone moves nothing) and nothing else gets worse
+  laneHeads = true;
+  const c = pick(optsOf.get(result)!.near);
+  laneHeads = false;
+  return c.lay.edges.some(e => e.outer) && c.lay.w <= result.lay.w + 0.01 && c.lay.h <= result.lay.h + 0.01 && !worse(result, c) && c.score.crossings < result.score.crossings ? c : result;
 }
 
 /** (crossings, bends) in lexicographic order: strictly better only. */

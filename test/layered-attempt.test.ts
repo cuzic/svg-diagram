@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {layeredAttempt, layoutWithLanes, routeLayered} from '../lib/layered-route.ts';
-import {scoreOf} from '../lib/polyline-metrics.ts';
+import {crossingsWith, scoreOf} from '../lib/polyline-metrics.ts';
 import type {Pt} from '../lib/graph-layout.ts';
 
 // Fixed sizes: nothing here depends on a font.
@@ -101,4 +101,34 @@ test('scoreOf over routes: counts corners and right-angle crossings, not touchin
     [3, [{x: 0, y: 5}, {x: 10, y: 5}]],
   ]);
   assert.deepEqual(scoreOf([...r.values()]), {crossings: 2, bends: 1});
+});
+
+test('layeredAttempt: a return in an outer lane enters its head from the lane side when that takes a crossing away', () => {
+  // the cause tree of a feedback loop: the root's arrows leave its right side, so a return into that side crosses one of them
+  const ids = ['root', 'a1', 'a2', 'a3', 'a4', 'b1', 'b2', 'b3', 'c1', 'u1', 'u2'];
+  const nodes = ids.map(box);
+  const pairs: [string, string][] = [['root', 'a1'], ['root', 'a2'], ['root', 'a3'], ['root', 'a4'], ['a1', 'b1'], ['a2', 'b1'], ['a3', 'b2'], ['a4', 'b3'], ['b1', 'c1'], ['b2', 'c1'], ['b3', 'c1'], ['c1', 'u1'], ['c1', 'u2'], ['u2', 'root']];
+  const edges = pairs.map(([from, to]) => ({from, to}));
+  const a = layeredAttempt(nodes, edges, {...opts, back: [13]}, {portStep: 14, returns: 'all', transpose: true, place: () => p => p});
+  const back = a.routes.get(a.lay.edges.findIndex(e => e.from === 'u2' && e.to === 'root'))!;
+  const root = a.lay.nodes.get('root')!, last = back[back.length - 1], prev = back[back.length - 2];
+  assert.equal(crossingsWith(back, [...a.routes].filter(([, r]) => r !== back).map(([, r]) => r)), 0, 'the return crosses nothing');
+  assert.equal(last.x, prev.x, 'the last run is along the lane axis');
+  assert.ok(last.y === root.y || last.y === root.y + root.h, 'it ends on the top or the bottom of the root');
+});
+
+test('layeredAttempt: two returns into one box take two places on its face; a box with a self-loop keeps them on the side', () => {
+  const ids = ['root', 'a1', 'a2', 'a3', 'a4', 'b1', 'b2', 'b3', 'c1', 'u1', 'u2', 'u3'];
+  const pairs: [string, string][] = [['root', 'a1'], ['root', 'a2'], ['root', 'a3'], ['root', 'a4'], ['a1', 'b1'], ['a2', 'b1'], ['a3', 'b2'], ['a4', 'b3'], ['b1', 'c1'], ['b2', 'c1'], ['b3', 'c1'], ['c1', 'u1'], ['c1', 'u2'], ['c1', 'u3'], ['u2', 'root'], ['u3', 'root']];
+  const run = (loop: boolean) => {
+    const edges = [...pairs, ...(loop ? [['root', 'root'] as [string, string]] : [])].map(([from, to]) => ({from, to}));
+    const a = layeredAttempt(ids.map(box), edges, {...opts, back: [14, 15]}, {portStep: 14, returns: 'all', transpose: true, place: () => p => p});
+    const root = a.lay.nodes.get('root')!;
+    return [...a.lay.edges.entries()].filter(([, e]) => e.outer).map(([i]) => ({end: a.routes.get(i)![a.routes.get(i)!.length - 1], root}));
+  };
+  const two = run(false);
+  assert.equal(two.length, 2);
+  for (const r of two) assert.ok(r.end.y === r.root.y || r.end.y === r.root.y + r.root.h, 'both returns enter the face (the case is not vacuous)');
+  assert.notEqual(two[0].end.x, two[1].end.x, 'the two returns end at two places');
+  for (const r of run(true)) assert.ok(r.end.y !== r.root.y && r.end.y !== r.root.y + r.root.h, 'a box with a self-loop is entered on the side');
 });
