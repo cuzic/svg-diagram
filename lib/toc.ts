@@ -75,7 +75,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   const bad = through(out);
   if (bad === 0) return out;
   // the normal gaps may not fit the width or the height that the compact figure fits: the compact figure stays then (the check says what is wrong with it)
-  try { const normal = layoutCauseBandAt(band, x, y, w, widthOf, roles, {...env, space: 1}, heightBudget, canvasBound); return through(normal) < bad ? normal : out; } catch { return out; }
+  try { const normal = layoutCauseBandAt(band, x, y, w, widthOf, roles, {...env, space: 1}, heightBudget, canvasBound); if (through(normal) < bad) { normal.densityRestored = true; return normal; } return out; } catch { return out; }
 }
 
 function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause {
