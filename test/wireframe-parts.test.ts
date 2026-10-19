@@ -78,3 +78,11 @@ test('an insight evidence row that does not fit puts its time on a second line (
   assert.ok(y(narrow, '10/9 10:24:31') > y(narrow, '赤外線 最高 62.4℃（装置の右側）'), 'narrow: the time sits below');
   assert.equal(y(wide, '10/9 10:24:31'), y(wide, '赤外線 最高 62.4℃（装置の右側）'), 'wide: one line');
 });
+
+test('a signal level that is fractional or NaN still draws a word from the list, never undefined', () => {
+  for (const [level, word] of [[1.5, 'やや弱い'], [0.4, '途絶'], [2.4, 'やや弱い'], [Number.NaN, '良好'], [Number.POSITIVE_INFINITY, '良好'], [-2, '途絶'], [9, '良好']] as [number, string][]) {
+    const t = texts(layout(wf.col([wf.signal(level)])));
+    assert.ok(!t.some(s => s.includes('undefined')), `level ${level}`);
+    assert.ok(t.includes(word), `level ${level} -> ${word}`);
+  }
+});
