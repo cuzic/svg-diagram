@@ -140,7 +140,7 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
     roles,
     atoms: (text, size, weight, font) => registerAtoms(requests, text, size, weight, font),
     own: band => registerRequests(requests, band, roles),
-    band: band => (MEASURE_HANDLERS as unknown as Record<string, MeasureHandler<Band>>)[band.type](band, m),
+    band: band => must((MEASURE_HANDLERS as unknown as Record<string, MeasureHandler<Band>>)[band.type])(band, m),
   };
   for (const band of d.bands) m.band(band);
   return requests;

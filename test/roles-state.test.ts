@@ -54,8 +54,8 @@ test('2. the reveal stage files of a fill figure are drawn at the same font size
   assert.ok((r.fontScale ?? 1) > 1);
   const main = fs.readFileSync(out, 'utf8');
   assert.equal(r.revealPaths.length, 2);
-  assert.deepEqual(sizes(fs.readFileSync(r.revealPaths[1], 'utf8')), sizes(main));
-  assert.ok(Math.min(...sizes(fs.readFileSync(r.revealPaths[1], 'utf8'))) > 14);
+  assert.deepEqual(sizes(fs.readFileSync(r.revealPaths[1]!, 'utf8')), sizes(main));
+  assert.ok(Math.min(...sizes(fs.readFileSync(r.revealPaths[1]!, 'utf8'))) > 14);
 });
 
 const shared: Record<string, () => unknown> = {

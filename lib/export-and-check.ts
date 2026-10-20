@@ -12,10 +12,10 @@
 // Usage (CLI): prints the result for one slide index.
 //   node scripts/svg-diagram/lib/export-and-check.ts 200
 
-import { execFileSync } from 'child_process';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
+import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 // exportAndCheck(index, opts) -> { ok, suspects: string[], raw }
 // ok is true iff check-slide-overflow.ts exited 0 (no *-SUSPECT of any kind).
@@ -101,7 +101,7 @@ export async function exportAndCheck(index: number, opts: ExportAndCheckOpts = {
 // ---- CLI ----
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
 if (isMain) {
-  const index = parseInt(process.argv[2], 10);
+  const index = parseInt(process.argv[2] ?? '', 10);
   if (!Number.isFinite(index)) {
     console.error('Usage: node scripts/svg-diagram/lib/export-and-check.ts <slide-index>');
     process.exit(2);

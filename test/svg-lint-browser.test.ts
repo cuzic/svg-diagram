@@ -70,7 +70,7 @@ test('hand-made defects: both engines find the same, and between them every chec
   for (const [name, svg] of MANUAL) {
     const b = await browserChecks(page!, svg), g = geometryChecks(svg);
     assert.ok(same(comparable(b, svg), comparable(g, svg)), `${name}\n  browser : ${JSON.stringify(b)}\n  geometry: ${JSON.stringify(g)}`);
-    kinds(b).forEach((n, i) => total[i] += n);
+    kinds(b).forEach((n, i) => total[i]! += n);
   }
   assert.ok(total.every(n => n > 0), `a check was never exercised: ${total}`);
 });
@@ -83,7 +83,7 @@ for (const seed of [1, 7, 42, 2024]) {
     const total = [0, 0, 0, 0, 0];
     for (const [i, svg] of list.entries()) {
       const b = await browserChecks(page!, svg), g = geometryChecks(svg);
-      kinds(b).forEach((n, k) => total[k] += n);
+      kinds(b).forEach((n, k) => total[k]! += n);
       if (!same(comparable(b, svg), comparable(g, svg))) differ.push(`scene ${i}\n  browser : ${JSON.stringify(b)}\n  geometry: ${JSON.stringify(g)}`);
     }
     assert.ok(differ.length <= 4, `${differ.length} of ${list.length} scenes differ:\n${differ.slice(0, 3).join('\n')}`);

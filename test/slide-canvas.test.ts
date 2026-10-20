@@ -53,7 +53,7 @@ test('slide-min-text: text under the canvas minimum is a warning (with its size 
   const d = {...small(), laidOut: [{type: 'box', wrappedRuns: [{text: 'x', size: 18}]}], connects: []} as unknown as Parameters<typeof lintDiagram>[0];
   const f = lintDiagram(d).filter(x => x.rule === 'slide-min-text');
   assert.equal(f.length, 1);
-  assert.match(f[0].message, /18px.*24px/);
+  assert.match(f[0]!.message, /18px.*24px/);
 });
 
 // ADR 0017 U4: font-floor-lowered (info) for a canvas figure whose minText is below 14

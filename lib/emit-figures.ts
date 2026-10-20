@@ -18,6 +18,7 @@ import {HOP_R} from './cause-hop.ts';
 import {renderBoxRect} from './emit-boxes.ts';
 import {CORE_BADGE_H, CORE_BADGE_W, CORE_BADGE_GAP} from './toc.ts';
 
+import {must} from './must.ts';
 // plane(): axes (with arrowheads), ticks, guides, points, dimension lines with their label chips, then every text.
 export function renderPlane(b: LaidOutPlane, day: Theme, tones: ToneEnv, stage?: number): string {
   const col = (t: PlaneTone) => resolveTextColor(tones, t, day);
@@ -25,7 +26,7 @@ export function renderPlane(b: LaidOutPlane, day: Theme, tones: ToneEnv, stage?:
   // a filled arrowhead at (x, y) pointing along (dx, dy); drawn as a polygon so it needs no <marker>
   const head = (x: number, y: number, dx: number, dy: number, color: string): string => {
     const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, L = 10, W = 5;
-    const pts = [[x, y], [x - ux * L - uy * W, y - uy * L + ux * W], [x - ux * L + uy * W, y - uy * L - ux * W]];
+    const pts: [number, number][] = [[x, y], [x - ux * L - uy * W, y - uy * L + ux * W], [x - ux * L + uy * W, y - uy * L - ux * W]];
     return `<polygon points="${pts.map(([a, c]) => `${Math.round(a)},${Math.round(c)}`).join(' ')}" fill="${color}"/>`;
   };
   const out: string[] = [];
@@ -46,9 +47,9 @@ export function renderPlane(b: LaidOutPlane, day: Theme, tones: ToneEnv, stage?:
     const k = pa.segReveal && stage !== undefined ? pa.segReveal.filter(s => s <= stage).length : total;
     if (k < 1) continue;
     const full = k >= total;
-    const d = `M${r(pa.pts[0])} ` + (pa.curves.length ? pa.curves.slice(0, k).map(([c1, c2, e]) => `C${r(c1)} ${r(c2)} ${r(e)}`) : pa.pts.slice(1, k + 1).map(q => `L${r(q)}`)).join(' ');
+    const d = `M${r(must(pa.pts[0]))} ` + (pa.curves.length ? pa.curves.slice(0, k).map(([c1, c2, e]) => `C${r(must(c1))} ${r(must(c2))} ${r(must(e))}`) : pa.pts.slice(1, k + 1).map(q => `L${r(q)}`)).join(' ');
     out.push(`<path d="${d}" fill="none" stroke="${c}" stroke-width="2"${pa.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
-    if (pa.arrow && full) out.push(head(pa.pts[pa.pts.length - 1].x, pa.pts[pa.pts.length - 1].y, pa.tip.dx, pa.tip.dy, c));
+    if (pa.arrow && full) out.push(head(must(pa.pts[pa.pts.length - 1]).x, must(pa.pts[pa.pts.length - 1]).y, pa.tip.dx, pa.tip.dy, c));
   }
   for (const dm of b.dims.filter(dm => visibleAt(dm, stage))) {
     const c = col(dm.tone);
@@ -150,7 +151,7 @@ export function renderQuadrant(b: LaidOutQuadrant, day: Theme, tones: ToneEnv): 
   }
   for (const l of b.lines) out.push(`<path d="M${snap4(l.x1)},${snap4(l.y1)} L${snap4(l.x2)},${snap4(l.y2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`); // on the snapped cell edges
   const head = (x: number, y: number, dx: number, dy: number, color: string): string => {
-    const L = 10, W = 5, pts = [[x, y], [x - dx * L - dy * W, y - dy * L + dx * W], [x - dx * L + dy * W, y - dy * L - dx * W]];
+    const L = 10, W = 5, pts: [number, number][] = [[x, y], [x - dx * L - dy * W, y - dy * L + dx * W], [x - dx * L + dy * W, y - dy * L - dx * W]];
     return `<polygon points="${pts.map(([a, c]) => `${Math.round(a)},${Math.round(c)}`).join(' ')}" fill="${color}"/>`;
   };
   const shapeSvg = (shape: LaidOutQuadrant['bubbles'][number]['shape'], x: number, y: number, r: number, fill: string, stroke: string, sw: number): string => {
@@ -172,7 +173,7 @@ export function renderQuadrant(b: LaidOutQuadrant, day: Theme, tones: ToneEnv): 
   for (const q of b.bubbles) out.push(marker(q.shape, q.x, q.y, q.r, ink(q.tone, q.dim), q.hollow));
   for (const m of b.marks) out.push(m.ring ? shapeSvg(m.shape, m.x, m.y, m.r, 'none', ink(m.tone, b.dim), 2) : marker(m.shape, m.x, m.y, m.r, ink(m.tone, b.dim), m.hollow));
   for (const t of b.texts) {
-    const dim = b.dim || (t.item !== undefined && b.bubbles[t.item].dim);
+    const dim = b.dim || (t.item !== undefined && must(b.bubbles[t.item]).dim);
     out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t.fill, dim)}">${emojiSpan(t.text)}</text>`);
   }
   return out.join('\n  ');
@@ -223,7 +224,7 @@ export function renderTimeline(b: LaidOutTimeline, day: Theme): string {
 export function renderTree(b: LaidOutTree, day: Theme, tones: ToneEnv): string {
   const out: string[] = [];
   for (const e of b.edges) {
-    const [a, z] = [e.points[0], e.points[e.points.length - 1]];
+    const a = must(e.points[0]), z = must(e.points[e.points.length - 1]);
     // curve: a cubic that leaves and arrives along the axis the tree grows on (`curve`), so it reads as one smooth S
     const d = e.curve ? (e.curve === 'x' ? `M${snap4(a.x)},${snap4(a.y)} C${snap4((a.x + z.x) / 2)},${snap4(a.y)} ${snap4((a.x + z.x) / 2)},${snap4(z.y)} ${snap4(z.x)},${snap4(z.y)}` : `M${snap4(a.x)},${snap4(a.y)} C${snap4(a.x)},${snap4((a.y + z.y) / 2)} ${snap4(z.x)},${snap4((a.y + z.y) / 2)} ${snap4(z.x)},${snap4(z.y)}`) : `M${e.points.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}`;
     out.push(`<path d="${d}" fill="none" stroke="${PALETTE.muted}" stroke-width="${e.bold ? 4 : 2}"/>`);
@@ -252,7 +253,7 @@ export function renderStates(b: LaidOutStates, day: Theme, tones: ToneEnv): stri
   const inkOf = (tone: 'danger' | 'accent' | 'muted' | undefined): string => b.dim ? PALETTE.muted : tone === undefined ? PALETTE.text : tone === 'muted' ? PALETTE.muted : colorOf(tone, day);
   // arrowheads are drawn as shapes, not markers: a marker on a leftward end is not turned by every renderer (resvg leaves it pointing right)
   for (const e of b.edges) {
-    const pts = e.points.slice(), n = pts.length, tip = pts[n - 1], prev = pts[n - 2], color = inkOf(e.tone);
+    const pts = e.points.slice(), n = pts.length, tip = must(pts[n - 1]), prev = must(pts[n - 2]), color = inkOf(e.tone);
     const dx = Math.sign(tip.x - prev.x), dy = Math.sign(tip.y - prev.y), L = e.strong ? 16 : 12, W = e.strong ? 7 : 5;
     pts[n - 1] = {x: tip.x - dx * (L - 2), y: tip.y - dy * (L - 2)}; // the line stops inside the head
     const head = `M${snap4(tip.x)},${snap4(tip.y)} L${snap4(tip.x - dx * L - dy * W)},${snap4(tip.y - dy * L + dx * W)} L${snap4(tip.x - dx * L + dy * W)},${snap4(tip.y - dy * L - dx * W)} z`;
@@ -361,7 +362,7 @@ export function renderGantt(b: LaidOutGantt, day: Theme): string {
   for (const t of b.ticks) out.push(`<path d="M${snap4(t.x)},${snap4(b.plot.y1)} V${snap4(b.plot.y2)}" fill="none" stroke="${PALETTE.border}" stroke-width="1"/>`);
   out.push(`<path d="M${snap4(b.plot.x1)},${snap4(b.plot.y1)} H${snap4(b.plot.x2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
   for (const d of b.deps) {
-    const pts = d.points.slice(), n = pts.length, tip = pts[n - 1], prev = pts[n - 2], L = 8, W = 4;
+    const pts = d.points.slice(), n = pts.length, tip = must(pts[n - 1]), prev = must(pts[n - 2]), L = 8, W = 4;
     const dx = Math.sign(tip.x - prev.x), dy = Math.sign(tip.y - prev.y);
     pts[n - 1] = {x: tip.x - dx * (L - 1), y: tip.y - dy * (L - 1)};
     out.push(`<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${ink}" stroke-width="1.5"/>\n  <path d="M${snap4(tip.x)},${snap4(tip.y)} L${snap4(tip.x - dx * L - dy * W)},${snap4(tip.y - dy * L + dx * W)} L${snap4(tip.x - dx * L + dy * W)},${snap4(tip.y - dy * L - dx * W)} z" fill="${ink}"/>`);
@@ -385,7 +386,7 @@ export function renderClasses(b: LaidOutClasses, day: Theme, tones: ToneEnv): st
   const out: string[] = [];
   const ink = b.dim ? PALETTE.muted : PALETTE.text, bg = PALETTE.bg;
   for (const e of b.edges) {
-    const pts = e.points, n = pts.length, first = pts[0], second = pts[1], tip = pts[n - 1], prev = pts[n - 2];
+    const pts = e.points, n = pts.length, first = must(pts[0]), second = must(pts[1]), tip = must(pts[n - 1]), prev = must(pts[n - 2]);
     out.push(`<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${ink}" stroke-width="2"${e.line === 'dashed' ? ' stroke-dasharray="6,4"' : ''}/>`);
     const at = (p: {x: number; y: number}, q: {x: number; y: number}, L: number, W: number, shape: 'tri' | 'dia' | 'open', fill: string): string => {
       // the mark sits at p, pointing away from q (its body runs back toward q)
@@ -423,7 +424,7 @@ export function renderBpmn(b: LaidOutBpmn, day: Theme, tones: ToneEnv): string {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${l.labelW}" height="${snap4(l.h)}" fill="${PALETTE.code}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
   }
   for (const e of b.edges) {
-    const pts = e.points.slice(), n = pts.length, tip = pts[n - 1], prev = pts[n - 2];
+    const pts = e.points.slice(), n = pts.length, tip = must(pts[n - 1]), prev = must(pts[n - 2]);
     const dx = Math.sign(tip.x - prev.x), dy = Math.sign(tip.y - prev.y), L = 11, W = 4.5;
     pts[n - 1] = {x: tip.x - dx * (L - 2), y: tip.y - dy * (L - 2)};
     out.push(`<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${ink}" stroke-width="2"${e.line === 'dashed' ? ' stroke-dasharray="6,4"' : ''}/>\n  <path d="M${snap4(tip.x)},${snap4(tip.y)} L${snap4(tip.x - dx * L - dy * W)},${snap4(tip.y - dy * L + dx * W)} L${snap4(tip.x - dx * L + dy * W)},${snap4(tip.y - dy * L - dx * W)} z" fill="${ink}"/>`);

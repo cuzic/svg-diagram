@@ -5,6 +5,7 @@ import {FONT_STACKS} from './tokens.ts';
 import {apply, elements, textOf, type El, type Matrix, type Style} from './svg-dom.ts';
 import type {FontFamily} from './types/core.ts';
 
+import {must} from './must.ts';
 export interface Box {x: number; y: number; w: number; h: number}
 export type Point = [number, number];
 
@@ -19,7 +20,7 @@ export const unionBox = (boxes: (Box | null)[]): Box | null => {
   return b.length ? boxOf(b.flatMap(c => [[c.x, c.y], [c.x + c.w, c.y + c.h]] as Point[])) : null;
 };
 export const corners = (b: Box): Point[] => [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]];
-export const transformBox = (b: Box, m: Matrix): Box => boxOf(corners(b).map(([x, y]) => apply(m, x, y)))!;
+export const transformBox = (b: Box, m: Matrix): Box => must(boxOf(corners(b).map(([x, y]) => apply(m, x, y))));
 
 // ---- paths ----
 
@@ -30,25 +31,25 @@ export function flattenPath(d: string): {pts: Point[]; closed: boolean; extrema:
   const out: {pts: Point[]; closed: boolean; extrema: Point[]}[] = [];
   let i = 0, cmd = '', x = 0, y = 0, sx = 0, sy = 0, cx = 0, cy = 0, prev = '', fx = 0, fy = 0; // fx, fy: where the command being read starts
   let cur = null as {pts: Point[]; closed: boolean; extrema: Point[]} | null;
-  const ws = () => { while (i < d.length && /[\s,]/.test(d[i])) i++; };
-  const more = () => { ws(); return i < d.length && /[-+.\d]/.test(d[i]); };
+  const ws = () => { while (i < d.length && /[\s,]/.test(d.charAt(i))) i++; };
+  const more = () => { ws(); return i < d.length && /[-+.\d]/.test(d.charAt(i)); };
   const num = () => { ws(); NUM.lastIndex = i; const m = NUM.exec(d); if (!m) throw new Error(`path data: a number was expected at ${i}`); i += m[0].length; return parseFloat(m[0]); };
   const flag = () => { ws(); const c = d[i++]; if (c !== '0' && c !== '1') throw new Error(`path data: an arc flag was expected at ${i - 1}`); return c === '1'; };
   const start = (px: number, py: number) => { cur = {pts: [[px, py]], closed: false, extrema: []}; out.push(cur); };
-  const line = (px: number, py: number) => { if (!cur) start(fx, fy); cur!.pts.push([px, py]); };
+  const line = (px: number, py: number) => { if (!cur) start(fx, fy); must(cur).pts.push([px, py]); };
   const bez = (pts: Point[], n: number) => {
     if (!cur) start(fx, fy);
-    cur!.extrema.push(...curveExtrema(pts));
+    must(cur).extrema.push(...curveExtrema(pts));
     for (let k = 1; k <= n; k++) {
       const t = k / n, u = 1 - t;
-      if (pts.length === 4) line(u ** 3 * pts[0][0] + 3 * u * u * t * pts[1][0] + 3 * u * t * t * pts[2][0] + t ** 3 * pts[3][0], u ** 3 * pts[0][1] + 3 * u * u * t * pts[1][1] + 3 * u * t * t * pts[2][1] + t ** 3 * pts[3][1]);
-      else line(u * u * pts[0][0] + 2 * u * t * pts[1][0] + t * t * pts[2][0], u * u * pts[0][1] + 2 * u * t * pts[1][1] + t * t * pts[2][1]);
+      if (pts.length === 4) line(u ** 3 * must(pts[0])[0] + 3 * u * u * t * must(pts[1])[0] + 3 * u * t * t * must(pts[2])[0] + t ** 3 * must(pts[3])[0], u ** 3 * must(pts[0])[1] + 3 * u * u * t * must(pts[1])[1] + 3 * u * t * t * must(pts[2])[1] + t ** 3 * must(pts[3])[1]);
+      else line(u * u * must(pts[0])[0] + 2 * u * t * must(pts[1])[0] + t * t * must(pts[2])[0], u * u * must(pts[0])[1] + 2 * u * t * must(pts[1])[1] + t * t * must(pts[2])[1]);
     }
   };
   while (true) {
     ws();
     if (i >= d.length) break;
-    if (/[A-Za-z]/.test(d[i])) { cmd = d[i++]; if (cmd === 'Z' || cmd === 'z') { if (cur) cur.closed = true; x = sx; y = sy; cur = null; prev = 'z'; continue; } }
+    if (/[A-Za-z]/.test(d.charAt(i))) { cmd = d.charAt(i++); if (cmd === 'Z' || cmd === 'z') { if (cur) cur.closed = true; x = sx; y = sy; cur = null; prev = 'z'; continue; } }
     else if (!cmd || !more()) throw new Error(`path data: unexpected "${d[i]}" at ${i}`);
     const rel = cmd === cmd.toLowerCase(), C = cmd.toUpperCase();
     const ox = rel ? x : 0, oy = rel ? y : 0;
@@ -58,10 +59,10 @@ export function flattenPath(d: string): {pts: Point[]; closed: boolean; extrema:
       case 'L': { x = ox + num(); y = oy + num(); line(x, y); break; }
       case 'H': { x = ox + num(); line(x, y); break; }
       case 'V': { y = oy + num(); line(x, y); break; }
-      case 'C': { const p: Point[] = [[x, y], [ox + num(), oy + num()], [ox + num(), oy + num()], [ox + num(), oy + num()]]; bez(p, 24); x = p[3][0]; y = p[3][1]; cx = p[2][0]; cy = p[2][1]; break; }
-      case 'S': { const c1: Point = /[CcSs]/.test(prev) ? [2 * x - cx, 2 * y - cy] : [x, y]; const p: Point[] = [[x, y], c1, [ox + num(), oy + num()], [ox + num(), oy + num()]]; bez(p, 24); x = p[3][0]; y = p[3][1]; cx = p[2][0]; cy = p[2][1]; break; }
-      case 'Q': { const p: Point[] = [[x, y], [ox + num(), oy + num()], [ox + num(), oy + num()]]; bez(p, 16); x = p[2][0]; y = p[2][1]; cx = p[1][0]; cy = p[1][1]; break; }
-      case 'T': { const c1: Point = /[QqTt]/.test(prev) ? [2 * x - cx, 2 * y - cy] : [x, y]; const p: Point[] = [[x, y], c1, [ox + num(), oy + num()]]; bez(p, 16); x = p[2][0]; y = p[2][1]; cx = c1[0]; cy = c1[1]; break; }
+      case 'C': { const p: Point[] = [[x, y], [ox + num(), oy + num()], [ox + num(), oy + num()], [ox + num(), oy + num()]]; bez(p, 24); x = must(p[3])[0]; y = must(p[3])[1]; cx = must(p[2])[0]; cy = must(p[2])[1]; break; }
+      case 'S': { const c1: Point = /[CcSs]/.test(prev) ? [2 * x - cx, 2 * y - cy] : [x, y]; const p: Point[] = [[x, y], c1, [ox + num(), oy + num()], [ox + num(), oy + num()]]; bez(p, 24); x = must(p[3])[0]; y = must(p[3])[1]; cx = must(p[2])[0]; cy = must(p[2])[1]; break; }
+      case 'Q': { const p: Point[] = [[x, y], [ox + num(), oy + num()], [ox + num(), oy + num()]]; bez(p, 16); x = must(p[2])[0]; y = must(p[2])[1]; cx = must(p[1])[0]; cy = must(p[1])[1]; break; }
+      case 'T': { const c1: Point = /[QqTt]/.test(prev) ? [2 * x - cx, 2 * y - cy] : [x, y]; const p: Point[] = [[x, y], c1, [ox + num(), oy + num()]]; bez(p, 16); x = must(p[2])[0]; y = must(p[2])[1]; cx = c1[0]; cy = c1[1]; break; }
       case 'A': {
         let rx = Math.abs(num()), ry = Math.abs(num()); const phi = num() * Math.PI / 180, fa = flag(), fs = flag();
         const x2 = ox + num(), y2 = oy + num();
@@ -102,19 +103,19 @@ function curveExtrema(p: Point[]): Point[] {
   const at = (t: number): Point => {
     const u = 1 - t;
     return p.length === 4
-      ? [u ** 3 * p[0][0] + 3 * u * u * t * p[1][0] + 3 * u * t * t * p[2][0] + t ** 3 * p[3][0], u ** 3 * p[0][1] + 3 * u * u * t * p[1][1] + 3 * u * t * t * p[2][1] + t ** 3 * p[3][1]]
-      : [u * u * p[0][0] + 2 * u * t * p[1][0] + t * t * p[2][0], u * u * p[0][1] + 2 * u * t * p[1][1] + t * t * p[2][1]];
+      ? [u ** 3 * must(p[0])[0] + 3 * u * u * t * must(p[1])[0] + 3 * u * t * t * must(p[2])[0] + t ** 3 * must(p[3])[0], u ** 3 * must(p[0])[1] + 3 * u * u * t * must(p[1])[1] + 3 * u * t * t * must(p[2])[1] + t ** 3 * must(p[3])[1]]
+      : [u * u * must(p[0])[0] + 2 * u * t * must(p[1])[0] + t * t * must(p[2])[0], u * u * must(p[0])[1] + 2 * u * t * must(p[1])[1] + t * t * must(p[2])[1]];
   };
   const ts: number[] = [];
   for (const axis of [0, 1]) {
     const v = p.map(q => q[axis]);
     if (p.length === 4) {
-      const A = v[3] - 3 * v[2] + 3 * v[1] - v[0], B = 2 * (v[2] - 2 * v[1] + v[0]), C = v[1] - v[0];
+      const A = must(v[3]) - 3 * must(v[2]) + 3 * must(v[1]) - must(v[0]), B = 2 * (must(v[2]) - 2 * must(v[1]) + must(v[0])), C = must(v[1]) - must(v[0]);
       if (Math.abs(A) < 1e-12) { if (Math.abs(B) > 1e-12) ts.push(-C / B); }
       else { const disc = B * B - 4 * A * C; if (disc >= 0) { ts.push((-B + Math.sqrt(disc)) / (2 * A), (-B - Math.sqrt(disc)) / (2 * A)); } }
     } else {
-      const den = v[0] - 2 * v[1] + v[2];
-      if (Math.abs(den) > 1e-12) ts.push((v[0] - v[1]) / den);
+      const den = must(v[0]) - 2 * must(v[1]) + must(v[2]);
+      if (Math.abs(den) > 1e-12) ts.push((must(v[0]) - must(v[1])) / den);
     }
   }
   return ts.filter(t => t > 0 && t < 1).map(at);
@@ -133,7 +134,7 @@ export function outlineOf(el: El, vp: {w: number; h: number}): Outline {
     const v = el.attrs[name];
     if (v === undefined) return d;
     const m = /^\s*(-?[\d.]+(?:e[-+]?\d+)?)(%|px)?/.exec(v);
-    return m ? (m[2] === '%' ? parseFloat(m[1]) * ref / 100 : parseFloat(m[1])) : d;
+    return m ? (m[2] === '%' ? parseFloat(must(m[1])) * ref / 100 : parseFloat(must(m[1]))) : d;
   };
   let polylines: Point[][] = [], extra: Point[] = [];
   switch (el.tag) {
@@ -146,14 +147,14 @@ export function outlineOf(el: El, vp: {w: number; h: number}): Outline {
     }
     case 'line': polylines = [[[n('x1', vp.w), n('y1', vp.h)], [n('x2', vp.w), n('y2', vp.h)]]]; break;
     case 'polyline': case 'polygon': {
-      const nums = (el.attrs.points ?? '').split(/[\s,]+/).filter(Boolean).map(Number);
+      const nums = (el.attrs['points'] ?? '').split(/[\s,]+/).filter(Boolean).map(Number);
       const pts: Point[] = [];
-      for (let k = 0; k + 1 < nums.length; k += 2) pts.push([nums[k], nums[k + 1]]);
-      if (pts.length && el.tag === 'polygon') pts.push(pts[0]);
+      for (let k = 0; k + 1 < nums.length; k += 2) pts.push([must(nums[k]), must(nums[k + 1])]);
+      if (pts.length && el.tag === 'polygon') pts.push(must(pts[0]));
       polylines = pts.length ? [pts] : [];
       break;
     }
-    case 'path': { const sub = flattenPath(el.attrs.d ?? ''); polylines = sub.map(s => s.closed ? [...s.pts, s.pts[0]] : s.pts); extra = sub.flatMap(s => s.extrema); break; }
+    case 'path': { const sub = flattenPath(el.attrs['d'] ?? ''); polylines = sub.map(s => s.closed ? [...s.pts, ...s.pts.slice(0, 1)] : s.pts); extra = sub.flatMap(s => s.extrema); break; }
   }
   // the box of a circle/ellipse is exact (a 65-gon through the extreme points has them), of a rect/line/polygon the points', of a curve the flattened one's
   const points = [...polylines.flat(), ...extra];
@@ -162,15 +163,15 @@ export function outlineOf(el: El, vp: {w: number; h: number}): Outline {
 
 /** Points along a polyline every `step` (and its end), for asking whether it passes through a box. */
 export function sampleAlong(polyline: Point[], step: number): Point[] {
-  const out: Point[] = polyline.length ? [polyline[0]] : [];
+  const out: Point[] = polyline.slice(0, 1);
   let carry = 0;
   for (let k = 1; k < polyline.length; k++) {
-    const [ax, ay] = polyline[k - 1], [bx, by] = polyline[k];
+    const [ax, ay] = must(polyline[k - 1]), [bx, by] = must(polyline[k]);
     const len = Math.hypot(bx - ax, by - ay);
     for (let at = step - carry; at <= len; at += step) out.push([ax + (bx - ax) * at / len, ay + (by - ay) * at / len]);
     carry = (carry + len) % step;
   }
-  if (polyline.length > 1) out.push(polyline[polyline.length - 1]);
+  if (polyline.length > 1) out.push(must(polyline[polyline.length - 1]));
   return out;
 }
 
@@ -178,14 +179,14 @@ export function sampleAlong(polyline: Point[], step: number): Point[] {
 
 /** The font family kind a CSS font-family list resolves to for measuring. */
 export function familyKind(fontFamily: string): FontFamily {
-  const first = fontFamily.split(',')[0].trim().replace(/^['"]|['"]$/g, '').toLowerCase();
+  const first = must(fontFamily.split(',')[0]).trim().replace(/^['"]|['"]$/g, '').toLowerCase();
   const names = (k: FontFamily) => FONT_STACKS[k].split(',').map(s => s.trim().replace(/^['"]|['"]$/g, '').toLowerCase());
   if (names('emoji').includes(first) && first !== 'sans-serif') return 'emoji';
   if (names('mono').includes(first) || first === 'monospace') return 'mono';
   return 'sans';
 }
 
-const num1 = (v: string | undefined) => { if (v === undefined) return null; const f = parseFloat(v.trim().split(/[\s,]+/)[0]); return Number.isFinite(f) ? f : null; };
+const num1 = (v: string | undefined) => { if (v === undefined) return null; const f = parseFloat(v.trim().split(/[\s,]+/)[0] ?? ''); return Number.isFinite(f) ? f : null; };
 
 /** The box of a line of text in a font: its advance and the ascent / descent of the primary font. Given by the caller (the font files are a shell's). */
 export type TextBoxFn = (text: string, family: FontFamily, size: number, weight: number) => {w: number; ascent: number; descent: number};
@@ -201,7 +202,7 @@ export function placeRuns(text: El, styles: Map<El, Style>, measure: TextBoxFn):
   const measured = (ch: Chunk) => ch.runs.filter(r => r.s).map(r => ({...measure(r.s, familyKind(r.style.fontFamily), r.style.fontSize, r.style.fontWeight)}));
   const widthOf = (ch: Chunk) => measured(ch).reduce((a, p) => a + p.w, 0);
   const chunks: Chunk[] = [];
-  let chunk: Chunk = {x: (num1(text.attrs.x) ?? 0) + (num1(text.attrs.dx) ?? 0), y: (num1(text.attrs.y) ?? 0) + (num1(text.attrs.dy) ?? 0), runs: []};
+  let chunk: Chunk = {x: (num1(text.attrs['x']) ?? 0) + (num1(text.attrs['dx']) ?? 0), y: (num1(text.attrs['y']) ?? 0) + (num1(text.attrs['dy']) ?? 0), runs: []};
   chunks.push(chunk);
   const keep = preserve(text);
   let atStart = true; // the last character kept was a space (or none yet): collapsing drops the next leading space
@@ -214,9 +215,9 @@ export function placeRuns(text: El, styles: Map<El, Style>, measure: TextBoxFn):
   };
   const walk = (e: El) => {
     for (const c of e.children) {
-      if (typeof c === 'string') { const s = norm(c); if (s) chunk.runs.push({s, style: styles.get(e)!}); continue; }
+      if (typeof c === 'string') { const s = norm(c); if (s) chunk.runs.push({s, style: must(styles.get(e))}); continue; }
       if (c.tag !== 'tspan' && c.tag !== 'a') continue;
-      const ax = num1(c.attrs.x), ay = num1(c.attrs.y), dx = num1(c.attrs.dx) ?? 0, dy = num1(c.attrs.dy) ?? 0;
+      const ax = num1(c.attrs['x']), ay = num1(c.attrs['y']), dx = num1(c.attrs['dx']) ?? 0, dy = num1(c.attrs['dy']) ?? 0;
       if (ax !== null || ay !== null || dx || dy) {
         // an absolute position starts a new text chunk, anchored on its own; a relative shift continues from where the last one ended
         const end = chunk.x + widthOf(chunk);
@@ -228,10 +229,10 @@ export function placeRuns(text: El, styles: Map<El, Style>, measure: TextBoxFn):
   };
   walk(text);
   if (!keep) for (let k = chunks.length - 1; k >= 0; k--) { // the whole text's trailing space is dropped
-    const rs = chunks[k].runs;
+    const rs = must(chunks[k]).runs;
     if (!rs.length) continue;
-    rs[rs.length - 1].s = rs[rs.length - 1].s.replace(/ $/, '');
-    if (rs[rs.length - 1].s) break;
+    must(rs[rs.length - 1]).s = must(rs[rs.length - 1]).s.replace(/ $/, '');
+    if (must(rs[rs.length - 1]).s) break;
     rs.pop();
   }
   const placed: PlacedRun[] = [];
@@ -242,7 +243,7 @@ export function placeRuns(text: El, styles: Map<El, Style>, measure: TextBoxFn):
     if (!parts.length || total === 0) continue;
     const anchor = ch.runs[0]?.style.textAnchor ?? 'start';
     let x = ch.x - (anchor === 'middle' ? total / 2 : anchor === 'end' ? total : 0);
-    parts.forEach((p, i) => { placed.push({...runs[i], x, y: ch.y, ...p}); x += p.w; });
+    parts.forEach((p, i) => { placed.push({...must(runs[i]), x, y: ch.y, ...p}); x += p.w; });
   }
   return placed;
 }

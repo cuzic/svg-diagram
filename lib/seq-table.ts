@@ -76,11 +76,11 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
   const anyIcon = p.actors.some(a => a.icon), textH = Math.max(...heads.map(h => h.lines.length)) * lineH(roles.title);
   const headH = textH + (anyIcon ? SEQ_ICON_H : 0) + 2 * SEQ.headPadY;
   heads.forEach((h, i) => {
-    const a = p.actors[i];
+    const a = must(p.actors[i]);
     h.y = y; h.h = headH;
     const top = SEQ.headPadY + (anyIcon ? Math.round((headH - 2 * SEQ.headPadY - h.lines.length * lineH(roles.title) - (a.icon ? SEQ_ICON_H : 0)) / 2) : 0);
     h.textDy = top + (a.icon ? SEQ_ICON_H : 0);
-    if (a.icon) h.icon = {name: a.icon, glyph: a.iconGlyph!, x: h.cx - SEQ_ICON / 2, y: y + top, size: SEQ_ICON, ...(a.iconTone ? {tone: a.iconTone} : {})};
+    if (a.icon) h.icon = {name: a.icon, glyph: must(a.iconGlyph), x: h.cx - SEQ_ICON / 2, y: y + top, size: SEQ_ICON, ...(a.iconTone ? {tone: a.iconTone} : {})};
   });
 
   let cursor = y + headH;
@@ -90,27 +90,27 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
     if (s.kind === 'msg') {
       const i = at(s.from, 'from'), j = at(s.to, 'to');
       if (i === j) throw new Error(`sequence(): message "${s.label}" has from === to; use {self: id}`);
-      const span = Math.abs(cx[j] - cx[i]);
+      const span = Math.abs(must(cx[j]) - must(cx[i]));
       // a label may run across neighbouring lifelines (as in UML); it only has to stay on the canvas
-      const mid = (cx[i] + cx[j]) / 2;
+      const mid = (must(cx[i]) + must(cx[j])) / 2;
       const room = Math.min(2 * (mid - x), 2 * (x + w - mid)) - 8;
       const lines = wrap(s.text, roles.note, 400, 'sans', Math.min(room, Math.max(span - 20, 320)), widthOf, mode);
       const labelH = lines.length * lineH(roles.note);
       const ay = top + labelH + SEQ.labelGap;
-      steps.push({kind: 'msg', x1: cx[i], x2: cx[j], y: ay, lines, labelTop: top, lx: (cx[i] + cx[j]) / 2, line: s.line ?? 'solid', arrow: s.arrow ?? 'end', tone: s.tone});
+      steps.push({kind: 'msg', x1: must(cx[i]), x2: must(cx[j]), y: ay, lines, labelTop: top, lx: (must(cx[i]) + must(cx[j])) / 2, line: s.line ?? 'solid', arrow: s.arrow ?? 'end', tone: s.tone});
       cursor = ay + SEQ.stepGap;
     } else if (s.kind === 'self') {
       const i = at(s.self, 'self');
       // The loop and its label go on the right of the lifeline, unless the label does not fit there at its natural
       // width and the left side has more room (the last actor): then both mirror to the left, inside the frame.
-      const rightRoom = x + w - (cx[i] + SEQ.selfW + 8) - 4, leftRoom = cx[i] - SEQ.selfW - 8 - x - 4;
+      const rightRoom = x + w - (must(cx[i]) + SEQ.selfW + 8) - 4, leftRoom = must(cx[i]) - SEQ.selfW - 8 - x - 4;
       const side = textW(s.text, roles.note, 400, 'sans', widthOf) > rightRoom && leftRoom > rightRoom ? 'left' : 'right';
       const lx = side === 'left' ? cx[i] - SEQ.selfW - 8 : cx[i] + SEQ.selfW + 8;
       const lines = wrap(s.text, roles.note, 400, 'sans', Math.max(40, side === 'left' ? leftRoom : rightRoom), widthOf, mode);
       const labelH = lines.length * lineH(roles.note);
       const loopH = 22;
       const rowH = Math.max(labelH, loopH + 12);
-      steps.push({kind: 'self', cx: cx[i], y: top + 6, loopH, lines, lx, side, labelTop: top, line: s.line ?? 'solid', tone: s.tone});
+      steps.push({kind: 'self', cx: must(cx[i]), y: top + 6, loopH, lines, lx, side, labelTop: top, line: s.line ?? 'solid', tone: s.tone});
       cursor = top + rowH + SEQ.stepGap / 2;
     } else if (s.kind === 'note') {
       const ids = s.over.map(id => at(id, 'note.over'));
@@ -172,8 +172,8 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
       const size = roles.body;
       const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', colW[i] - 2 * TBL.padX - (c.icon ? TBL.iconSize + TBL.iconGap : 0), widthOf, mode);
       // an icon beside centred / right-aligned text sits just before its first line (left-aligned: at the cell's left edge)
-      const lineW = c.icon && lines.length && c.align !== 'left' ? textWidth(widthOf, lines[0], size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans') : undefined;
-      return {...c, lines, x: colX[i], w: colW[i], top: 0, ...(lineW !== undefined ? {lineW} : {})};
+      const lineW = c.icon && lines.length && c.align !== 'left' ? textWidth(widthOf, must(lines[0]), size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans') : undefined;
+      return {...c, lines, x: must(colX[i]), w: must(colW[i]), top: 0, ...(lineW !== undefined ? {lineW} : {})};
     });
     const nLines = Math.max(1, ...placed.map(c => c.lines.length));
     const need = nLines * lineH(roles.body) + 2 * padY;
@@ -204,9 +204,9 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
     const textBottom = Math.max(row.y, ...row.cells.slice(1).map(c => c.top + c.lines.length * lineH(roles.body)));
     const top = Math.max(row.y + row.h * 0.5, textBottom + 8), bottom = row.y + row.h - 10;
     const span = band.rowCurve.max - band.rowCurve.min;
-    const yOf = (v: number) => bottom - (v - band.rowCurve!.min) / span * (bottom - top);
+    const yOf = (v: number) => bottom - (v - must(band.rowCurve).min) / span * (bottom - top);
     rowCurve = {
-      points: band.rowCurve.values.map((v, i) => ({x: colX[i + 1] + colW[i + 1] / 2, y: yOf(v)})),
+      points: band.rowCurve.values.map((v, i) => ({x: must(colX[i + 1]) + must(colW[i + 1]) / 2, y: yOf(v)})),
       midY: yOf((band.rowCurve.min + band.rowCurve.max) / 2), top, bottom,
     };
   }

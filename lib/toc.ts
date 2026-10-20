@@ -18,6 +18,7 @@ import type {EmphasisTone, FontFamily, Roles, WidthOf, WrapEnv} from './types/co
 import type {CauseBand, CauseRole, CloudArrow, CloudBand, CloudBox, LaidOutCause, LaidOutCloud} from './types/diagrams.ts';
 import type {BoxTone} from './types/text-bands.ts';
 
+import {must} from './must.ts';
 // ---- cause tree -------------------------------------------------------------------------------------------------------------
 
 const MAX_W = 200, GAP = 28, LEVEL = 64, PORT = 22; // PORT: the step between the arrows that meet one side of an entity (the arrowheads of an AND stay apart)
@@ -259,7 +260,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   const pad = padOf(vertical), total = {w: attempt.size.w - 2 * pad.x, h: attempt.size.h - 2 * pad.y};
   const dx = x + pad.x + (w - 2 * pad.x - total.w) / 2, dy = y + pad.y;
   const rectOf = (id: string) => {
-    const p = lay.nodes.get(id)!, q = vertical ? {x: p.y, y: p.x, w: p.h, h: p.w} : {x: p.x, y: p.y, w: p.w, h: p.h};
+    const p = must(lay.nodes.get(id)), q = vertical ? {x: p.y, y: p.x, w: p.h, h: p.w} : {x: p.x, y: p.y, w: p.w, h: p.h};
     if (flip) { if (vertical) q.y = total.h - (q.y + q.h); else q.x = total.w - (q.x + q.w); }
     return {x: q.x + dx, y: q.y + dy, w: q.w, h: q.h};
   };
@@ -296,7 +297,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
     const reachTo = (u: number, sign: 1 | -1): number => Math.max(0, Math.min(AND_REACH, ...others.filter(o => (o - u) * sign > 0).map(o => Math.abs(o - u) / 2 - 5)));
     const lo = Math.min(...us) - reachTo(Math.min(...us), -1), hi = Math.max(...us) + reachTo(Math.max(...us), 1);
     const at = (u: number, dist: number): Pt => d.x ? {x: tip.x - d.x * dist, y: u} : {x: u, y: tip.y - d.y * dist};
-    out.ands.push({to: g.to, from: g.arrows.map(k => arrows[k].from), p0: at(lo, AND_END), c: at((lo + hi) / 2, 2 * AND_PEAK - AND_END), p1: at(hi, AND_END)});
+    out.ands.push({to: g.to, from: g.arrows.map(k => must(arrows[k]).from), p0: at(lo, AND_END), c: at((lo + hi) / 2, 2 * AND_PEAK - AND_END), p1: at(hi, AND_END)});
   }
   // ADR 0028: where a return crosses another line, and which of those get a hop (decided here, once; the renderer only draws them)
   if (band.hop) {

@@ -5,6 +5,7 @@ import {Canvas, overlaps, checkIds, checkText, fail, finiteNum, niceScale, numTe
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 import type {Rect} from './types/core.ts';
 
+import {must} from './must.ts';
 export interface RadarSeries {label: string; values: number[]; id?: string}
 export interface RadarOpts extends ChartOpts {
   /** The value at the centre (default 0). */
@@ -79,7 +80,7 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
   const items = s.series.map((x, i) => ({x, i, w: 34 + 8 + c.tw(x.label) + 24}));
   const rows: typeof items[] = [[]];
   let rw = 0;
-  for (const it of items) { if (rw + it.w - 24 > g.w && rows[rows.length - 1].length) { rows.push([]); rw = 0; } rows[rows.length - 1].push(it); rw += it.w; }
+  for (const it of items) { if (rw + it.w - 24 > g.w && must(rows[rows.length - 1]).length) { rows.push([]); rw = 0; } must(rows[rows.length - 1]).push(it); rw += it.w; }
   const legendH = rows.length * (lh + 6) + 8;
   const cx = g.x + g.w / 2, r1 = (v: number) => Math.round(v * 10) / 10;
   const ang = (i: number) => -Math.PI / 2 + 2 * Math.PI * i / n;
@@ -105,7 +106,7 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
     plan = {labels, R, cy}; c.h = h; break;
   }
   if (!plan) fail('radar', 'the figure is too small for its axis names (raise width / height, shorten the names, or use fewer axes)');
-  const {labels, R, cy} = plan!, areaH = c.h - legendH;
+  const {labels, R, cy} = must(plan), areaH = c.h - legendH;
   const at = (i: number, f: number) => ({x: cx + Math.cos(ang(i)) * R * f, y: cy + Math.sin(ang(i)) * R * f});
   const poly = (f: number) => `M${Array.from({length: n}, (_, i) => { const p = at(i, f); return `${r1(p.x)},${r1(p.y)}`; }).join(' L')} Z`;
   // grid: rings, then spokes
@@ -114,15 +115,15 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
   // series: the polygon (shaded for one series), its line in its own style, a marker at each vertex
   const polys = s.series.map(x => x.values.map((v, i) => at(i, (v - s.min) / (s.max - s.min))));
   s.series.forEach((x, k) => {
-    const st = SERIES_STYLES[k], pts = polys[k], d = `M${pts.map(p => `${r1(p.x)},${r1(p.y)}`).join(' L')} Z`;
+    const st = must(SERIES_STYLES[k]), pts = must(polys[k]), d = `M${pts.map(p => `${r1(p.x)},${r1(p.y)}`).join(' L')} Z`;
     if (s.fill) c.path(d, {fill: st.tone, op: 0.14, of: x.id ?? `#${k}`});
     c.path(d, {fill: 'none', stroke: st.tone, sw: 3, dash: st.dash, of: x.id ?? `#${k}`});
-    pts.forEach((p, i) => { const q = pts[(i + 1) % n]; c.segs.push({x1: p.x, y1: p.y, x2: q.x, y2: q.y}); });
+    pts.forEach((p, i) => { const q = must(pts[(i + 1) % n]); c.segs.push({x1: p.x, y1: p.y, x2: q.x, y2: q.y}); });
     if (x.id) { const xs = pts.map(p => p.x), ys = pts.map(p => p.y); c.anchors.push({id: x.id, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)}); }
   });
-  s.series.forEach((x, k) => { const st = SERIES_STYLES[k]; for (const p of polys[k]) { c.path(markerPath(st.marker, p.x, p.y), {fill: 'bg', stroke: st.tone, sw: 2.5, of: x.id ?? `#${k}`}); c.marks.push({x: p.x - 7, y: p.y - 7, w: 14, h: 14}); } });
+  s.series.forEach((x, k) => { const st = must(SERIES_STYLES[k]); for (const p of must(polys[k])) { c.path(markerPath(st.marker, p.x, p.y), {fill: 'bg', stroke: st.tone, sw: 2.5, of: x.id ?? `#${k}`}); c.marks.push({x: p.x - 7, y: p.y - 7, w: 14, h: 14}); } });
   // axis names beyond the outer ring
-  for (let i = 0; i < n; i++) { const q = nameAt(i, R, cy, labels[i]); c.lines(labels[i], q.x, q.base, q.anchor, 'text', {bold: true}); }
+  for (let i = 0; i < n; i++) { const q = nameAt(i, R, cy, must(labels[i])); c.lines(must(labels[i]), q.x, q.base, q.anchor, 'text', {bold: true}); }
   // tick values: beside one spoke (right of it, or left on the left half), each beside its ring, or just above / below that when the
   // ring's own spot is taken. The spoke that has room for the most of them (the first such) takes them; where the rings are closer than a
   // line of text (a large label size) every 2nd / 3rd ... ring is labelled, counting down from the outer one. A ring with no room anywhere
@@ -148,12 +149,12 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
   // value labels at the vertices (optional): outward first, then to the sides; one with no free place stays out of the drawing and in the description
   if (s.values) s.series.forEach((x, k) => {
     x.values.forEach((v, i) => {
-      const p = polys[k][i], text = `${numText(v)}${s.unit}`, cs = Math.cos(ang(i)), sn = Math.sin(ang(i));
+      const p = must(must(polys[k])[i]), text = `${numText(v)}${s.unit}`, cs = Math.cos(ang(i)), sn = Math.sin(ang(i));
       const cands = [14, 22, 32].flatMap(d => [
         {x: p.x + cs * d, y: p.y + sn * d + (sn > 0.3 ? S * 0.9 : sn < -0.3 ? -2 : S * 0.36), anchor: (cs > 0.3 ? 'start' : cs < -0.3 ? 'end' : 'middle') as 'start' | 'middle' | 'end'},
         {x: p.x + 10, y: p.y - 10, anchor: 'start' as const}, {x: p.x - 10, y: p.y - 10, anchor: 'end' as const}, {x: p.x + 10, y: p.y + S + 8, anchor: 'start' as const}, {x: p.x - 10, y: p.y + S + 8, anchor: 'end' as const},
       ]);
-      if (!c.place(text, cands, SERIES_STYLES[k].tone === 'muted' ? 'text' : SERIES_STYLES[k].tone, {bold: true, of: x.id ?? `#${k}`})) c.omitted.push(`${x.label} ${s.axes[i]} ${text}`);
+      if (!c.place(text, cands, must(SERIES_STYLES[k]).tone === 'muted' ? 'text' : must(SERIES_STYLES[k]).tone, {bold: true, of: x.id ?? `#${k}`})) c.omitted.push(`${x.label} ${s.axes[i]} ${text}`);
     });
   });
   // legend
@@ -161,7 +162,7 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
   for (const row of rows) {
     let lx = g.x + (g.w - row.reduce((a, b) => a + b.w, 0) + 24) / 2;
     for (const it of row) {
-      const st = SERIES_STYLES[it.i], my = ly + lh / 2 - 1;
+      const st = must(SERIES_STYLES[it.i]), my = ly + lh / 2 - 1;
       c.line(lx, my, lx + 30, my, {stroke: st.tone, sw: 3, dash: st.dash, of: it.x.id ?? `#${it.i}`});
       c.path(markerPath(st.marker, lx + 15, my), {fill: 'bg', stroke: st.tone, sw: 2.5, of: it.x.id ?? `#${it.i}`});
       c.text(it.x.label, lx + 38, c.mid(my), 'start', 'text', {of: it.x.id ?? `#${it.i}`});

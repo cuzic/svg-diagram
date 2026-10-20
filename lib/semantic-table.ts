@@ -6,6 +6,7 @@ import type {TextTone} from './types/core.ts';
 import {standingHypotheses, unexplained} from './rca-rules.ts';
 import type {TableCellSpec, TableColumn, TableOpts, TableRow} from './types/sequence-table-swimlane.ts';
 
+import {must} from './must.ts';
 type CommonOpts = Pick<TableOpts, 'title' | 'width' | 'dense' | 'id' | 'reveal' | 'until'>;
 export interface SemanticTableParts {columns: TableColumn[]; rows: TableRow[]; opts: TableOpts}
 
@@ -36,7 +37,7 @@ export function raciParts(tasks: readonly string[], roles: readonly string[], as
   const used = roles.map(() => false);
   const rows: TableRow[] = tasks.map((task, i) => {
     if (typeof task !== 'string' || !task.trim()) throw new Error(`raci(): task ${i + 1} needs a non-empty label`);
-    const row = assignments[i];
+    const row = must(assignments[i]);
     if (row.length !== roles.length) throw new Error(`raci(): task "${task}" has ${row.length} assignments for ${roles.length} roles`);
     const parsed = row.map((v, j) => raciLetters(v, task, roles[j]));
     parsed.forEach((v, j) => { if (v.length) used[j] = true; });
@@ -116,7 +117,7 @@ const qfdMark = (m: MatrixMark, where: string) => {
 export function qfdScores(demands: readonly QfdDemand[], relations: readonly (readonly MatrixMark[])[], characteristicCount: number): QfdScores {
   const normalized = relations.map((r, i) => r.map((m, j) => qfdMark(m, `the relation of "${demands[i]?.label}" x characteristic ${j + 1}`)));
   const value = {best: 9, ok: 3, mid: 1, ng: 0} as const;
-  const raw = Array.from({length: characteristicCount}, (_, j) => normalized.reduce((sum, row, i) => sum + (row[j] ? value[row[j]] : 0) * demands[i].importance, 0));
+  const raw = Array.from({length: characteristicCount}, (_, j) => normalized.reduce((sum, row, i) => sum + (row[j] ? value[row[j]] : 0) * must(demands[i]).importance, 0));
   const total = raw.reduce((a, b) => a + b, 0);
   return {raw, relative: raw.map(v => total ? v * 100 / total : 0)};
 }
@@ -125,9 +126,9 @@ export function qfdParts(demands: readonly QfdDemand[], characteristics: readonl
   if (!characteristics.length) throw new Error('qfd(demands, characteristics, relations) needs at least one characteristic');
   if (relations.length !== demands.length) throw new Error(`qfd(): relations has ${relations.length} rows for ${demands.length} demands`);
   demands.forEach((d, i) => { if (!d.label?.trim()) throw new Error(`qfd(): demand ${i + 1} needs a label`); if (!(Number.isFinite(d.importance) && d.importance >= 0)) throw new Error(`qfd(): importance of "${d.label}" must be a number >= 0`); });
-  const marks = relations.map((r, i) => { if (r.length !== characteristics.length) throw new Error(`qfd(): demand "${demands[i].label}" has ${r.length} relations for ${characteristics.length} characteristics`); return r.map((m, j) => qfdMark(m, `the relation of "${demands[i].label}" x "${characteristics[j]}"`)); });
+  const marks = relations.map((r, i) => { if (r.length !== characteristics.length) throw new Error(`qfd(): demand "${must(demands[i]).label}" has ${r.length} relations for ${characteristics.length} characteristics`); return r.map((m, j) => qfdMark(m, `the relation of "${must(demands[i]).label}" x "${characteristics[j]}"`)); });
   const scores = qfdScores(demands, relations, characteristics.length), top = Math.max(...scores.raw), unique = top > 0 && scores.raw.filter(x => x === top).length === 1;
-  const rows: TableRow[] = demands.map((d, i) => [d.label, d.importance, ...marks[i].map(m => m ? {text: '', mark: m, align: 'center' as const} : {text: '', align: 'center' as const})]);
+  const rows: TableRow[] = demands.map((d, i) => [d.label, d.importance, ...must(marks[i]).map(m => m ? {text: '', mark: m, align: 'center' as const} : {text: '', align: 'center' as const})]);
   // the top score is bold + accent, not ◎: ◎ already means a strong (9) relation in this table
   rows.push({cells: ['得点', '', ...scores.raw.map((n): TableCellSpec => unique && n === top && opts.highlight !== false ? {text: String(n), bold: true, tone: 'accent', align: 'center'} : {text: String(n), align: 'center'})], tone: 'muted'});
   rows.push({cells: ['相対 %', '', ...scores.relative.map(n => ({text: n.toFixed(1), align: 'center' as const}))], tone: 'muted'});
@@ -142,7 +143,7 @@ export interface JourneyMapOpts extends CommonOpts {corner?: string; emotionRang
 export function journeyMapParts(stagesIn: readonly (string | JourneyStage)[], lanes: readonly JourneyLane[], opts: JourneyMapOpts = {}): SemanticTableParts & {emotionCurve?: {row: number; values: number[]; min: number; max: number}} {
   if (!stagesIn.length) throw new Error('journeyMap(stages, lanes) needs at least one stage');
   if (!lanes.length) throw new Error('journeyMap(stages, lanes) needs at least one lane');
-  const stages = stagesIn.map((s, i) => typeof s === 'string' ? s : s.label);
+  const stages = stagesIn.map((s, _i) => typeof s === 'string' ? s : s.label);
   if (stages.some(s => !s?.trim())) throw new Error('journeyMap(): every stage needs a non-empty label');
   const range = opts.emotionRange ?? [-2, 2];
   if (!(range.length === 2 && Number.isFinite(range[0]) && Number.isFinite(range[1]) && range[0] < range[1])) throw new Error('journeyMap(): emotionRange must be [min, max] with min < max');

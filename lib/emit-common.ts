@@ -3,6 +3,7 @@ import type {ToneEnv} from './tokens.ts';
 import type {Point, Theme, EmphasisTone, LineStyle, Arrow, Align} from './types/core.ts';
 import type {WrappedRun, Span} from './types/text-bands.ts';
 
+import {must} from './must.ts';
 export const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
 
 
@@ -14,7 +15,7 @@ export function snap4(n: number): number {
 export const XML_ESC: Record<string, string> = {'&': '&amp;', '<': '&lt;', '>': '&gt;'};
 
 export function escapeXml(s: string): string {
-  return s.replace(/[&<>]/g, (c: string) => XML_ESC[c]);
+  return s.replace(/[&<>]/g, (c: string) => XML_ESC[c] ?? c);
 }
 
 /** For a double-quoted attribute value: escapeXml, and the quote itself. */
@@ -117,8 +118,8 @@ export function trimPoints(points: Point[], arrow: Arrow): Point[] {
     tip.x -= (tip.x - prev.x) / len * STRONG_TRIM;
     tip.y -= (tip.y - prev.y) / len * STRONG_TRIM;
   };
-  if (arrow === 'end' || arrow === 'both') pull(pts[pts.length - 1], pts[pts.length - 2]);
-  if (arrow === 'start' || arrow === 'both') pull(pts[0], pts[1]);
+  if (arrow === 'end' || arrow === 'both') pull(must(pts[pts.length - 1]), must(pts[pts.length - 2]));
+  if (arrow === 'start' || arrow === 'both') pull(must(pts[0]), must(pts[1]));
   return pts;
 }
 

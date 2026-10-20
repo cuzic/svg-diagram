@@ -73,7 +73,7 @@ test('two figures on a page keep ids, names and styles of their own; the same fi
   assert.equal(new Set(ids).size, ids.length, `ids repeat: ${ids.join(' ')}`);
   assert.match(html, /aria-label="cの説明"/);
   assert.doesNotMatch(html, /aria-labelledby="svg-title/);
-  for (const m of html.matchAll(/aria-labelledby="([^"]+)"/g)) for (const t of m[1].split(' ')) assert.ok(ids.includes(t), `${t} names an element`);
+  for (const m of html.matchAll(/aria-labelledby="([^"]+)"/g)) for (const t of m[1]!.split(' ')) assert.ok(ids.includes(t), `${t} names an element`);
   assert.match(html, /<style>\s*#sd[0-9a-f]+ text/);
   fs.rmSync(dir, {recursive: true});
 });

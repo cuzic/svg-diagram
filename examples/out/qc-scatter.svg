@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="396" viewBox="0 0 940 396" role="img" aria-labelledby="svg-title">
   <title id="svg-title">温度と不良率（散布図）</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/qc-scatter.ts","sourceSha256":"3cb82003727fe9094c037eeb7140437f154a97262c322282322f675142e4d2b0"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/qc-scatter.ts","sourceSha256":"27f3f90f2c6a180ee2e1b7e987fb5f53359a971633abe71c3e6b6f8e8d0431ab"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }

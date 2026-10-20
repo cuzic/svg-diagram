@@ -2,6 +2,7 @@ import {textWidth} from './atoms.ts';
 import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {LaidOutTimeline, NumericTimelineBand, TimelineBand, TimelineTone} from './types/timeline.ts';
 
+import {must} from './must.ts';
 const FLAG_GAP = 6, STEM_MIN = 16, DOT = 8, TICK = 6, MAX_LEVELS = 5, MS_DAY = 86400000;
 const TONE_COLOR: Record<TimelineTone, 'accent' | 'danger' | 'muted'> = {accent: 'accent', danger: 'danger', muted: 'muted'};
 
@@ -9,7 +10,7 @@ const TONE_COLOR: Record<TimelineTone, 'accent' | 'danger' | 'muted'> = {accent:
 export function timelineDay(at: string, what: string): number {
   const m = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/.exec(String(at));
   if (!m) throw new Error(`timeline(): ${what} must be 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD' (got ${JSON.stringify(at)})`);
-  const y = +m[1], mo = m[2] ? +m[2] : 1, d = m[3] ? +m[3] : 1, t = Date.UTC(y, mo - 1, d);
+  const y = +must(m[1]), mo = m[2] ? +m[2] : 1, d = m[3] ? +m[3] : 1, t = Date.UTC(y, mo - 1, d);
   const back = new Date(t);
   if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) throw new Error(`timeline(): ${what} is not a real date (${at})`);
   return t / MS_DAY;
@@ -233,7 +234,7 @@ function layoutNumeric(band: NumericTimelineBand, x: number, y: number, w: numbe
     }
     const levels = flags.length ? Math.max(...flags.map(f => f.level)) + 1 : 0;
     const dotY = top + ROW_PAD + (levels ? levels * (FLAG_H + FLAG_GAP) + STEM_MIN - FLAG_GAP : 6);
-    if (flags.length) out.guides!.push({x1: plotL, x2: plotR, y: dotY});
+    if (flags.length) must(out.guides).push({x1: plotL, x2: plotR, y: dotY});
     for (const f of flags) {
       const boxBottom = dotY - STEM_MIN - f.level * (FLAG_H + FLAG_GAP), boxTop = boxBottom - FLAG_H, cx = f.left + f.fw / 2, tone = f.e.tone ?? 'muted';
       out.stems.push({x: f.fx, y1: boxBottom, y2: dotY, tone: TONE_COLOR[tone]});
@@ -266,10 +267,10 @@ function layoutNumeric(band: NumericTimelineBand, x: number, y: number, w: numbe
         const tone = it.sp.tone ?? 'accent';
         if (it.sp.dim) {
           const ly = rowTop + DIM_ROW - 2;
-          out.dims!.push({x1: it.x1, x2: it.x2, y: ly, tone: TONE_COLOR[tone]});
+          must(out.dims).push({x1: it.x1, x2: it.x2, y: ly, tone: TONE_COLOR[tone]});
           if (it.label) text(it.label, it.lx, ly - 6, 'start', tone === 'muted' ? 'text' : tone, true);
         } else {
-          out.bars!.push({x: it.x1, y: rowTop + 4, w: it.x2 - it.x1, h: BAR_H, tone: TONE_COLOR[tone]});
+          must(out.bars).push({x: it.x1, y: rowTop + 4, w: it.x2 - it.x1, h: BAR_H, tone: TONE_COLOR[tone]});
           if (it.label) text(it.label, it.lx, rowTop + 4 + (BAR_H + S) / 2 - 2, 'start', 'text', false);
         }
       }
@@ -277,7 +278,7 @@ function layoutNumeric(band: NumericTimelineBand, x: number, y: number, w: numbe
     }
     cursor = Math.max(rowTop, dotY + 6) + ROW_PAD;
     if (name !== undefined) text(name, x + 12, (top + cursor) / 2 + S / 2 - 2, 'start', 'muted', true);
-    if (li < lanes.length - 1) out.guides!.push({x1: x, x2: x + w, y: cursor});
+    if (li < lanes.length - 1) must(out.guides).push({x1: x, x2: x + w, y: cursor});
   });
   const axisY = cursor + 4;
   out.axis.y = axisY;

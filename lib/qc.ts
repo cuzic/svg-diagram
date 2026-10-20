@@ -1,3 +1,4 @@
+import {must} from './must.ts';
 // The numbers behind the QC tools: what pareto(), histogram(), scatter() and controlChart() work out from the data they are given,
 // kept apart from drawing so that each can be tested on its own. Nothing here knows about bands or pixels.
 
@@ -81,7 +82,7 @@ export function histogramBins(values: readonly number[], opts: {bins?: number; w
   if (start + n * width <= hi - 1e-9) n++;
   const edges = Array.from({length: n + 1}, (_, i) => parseFloat((start + i * width).toPrecision(12)));
   const counts = new Array<number>(n).fill(0);
-  for (const v of values) counts[Math.min(n - 1, Math.max(0, Math.floor((v - start) / width + 1e-9)))]++;
+  for (const v of values) { const k = Math.min(n - 1, Math.max(0, Math.floor((v - start) / width + 1e-9))); counts[k] = must(counts[k]) + 1; }
   return {edges, counts, width};
 }
 
@@ -145,29 +146,29 @@ export function criticalPath(input: readonly ArrowActivity[]): ArrowResult {
   }
   const ids = [...new Set(acts.flatMap(a => [a.from, a.to]))];
   const incoming = new Map(ids.map(id => [id, acts.filter(a => a.to === id)])), outgoing = new Map(ids.map(id => [id, acts.filter(a => a.from === id)]));
-  const starts = ids.filter(id => !incoming.get(id)!.length), ends = ids.filter(id => !outgoing.get(id)!.length);
+  const starts = ids.filter(id => !must(incoming.get(id)).length), ends = ids.filter(id => !must(outgoing.get(id)).length);
   if (starts.length !== 1) throw new Error(`arrowDiagram(): there must be exactly one start event, the one nothing leads into (found ${starts.length ? starts.join(', ') : 'none: the arrows go round'})`);
   if (ends.length !== 1) throw new Error(`arrowDiagram(): there must be exactly one end event, the one nothing leaves (found ${ends.length ? ends.join(', ') : 'none'}); join the loose ends with a dummy`);
   // topological order (Kahn); a cycle leaves events behind
-  const left = new Map(ids.map(id => [id, incoming.get(id)!.length])), order: string[] = [];
+  const left = new Map(ids.map(id => [id, must(incoming.get(id)).length])), order: string[] = [];
   const queue = [starts[0]];
   while (queue.length) {
-    const id = queue.shift()!;
+    const id = must(queue.shift());
     order.push(id);
-    for (const a of outgoing.get(id)!) { left.set(a.to, left.get(a.to)! - 1); if (left.get(a.to) === 0) queue.push(a.to); }
+    for (const a of must(outgoing.get(id))) { left.set(a.to, must(left.get(a.to)) - 1); if (left.get(a.to) === 0) queue.push(a.to); }
   }
   if (order.length !== ids.length) throw new Error(`arrowDiagram(): the arrows go round in a circle (events ${ids.filter(id => !order.includes(id)).join(', ')}); an activity cannot wait for itself`);
   const early = new Map<string, number>(), late = new Map<string, number>();
-  for (const id of order) early.set(id, Math.max(0, ...incoming.get(id)!.map(a => early.get(a.from)! + a.days)));
-  const length = early.get(ends[0])!;
-  for (const id of [...order].reverse()) late.set(id, outgoing.get(id)!.length ? Math.min(...outgoing.get(id)!.map(a => late.get(a.to)! - a.days)) : length);
+  for (const id of order) early.set(id, Math.max(0, ...must(incoming.get(id)).map(a => must(early.get(a.from)) + a.days)));
+  const length = must(early.get(must(ends[0])));
+  for (const id of [...order].reverse()) late.set(id, must(outgoing.get(id)).length ? Math.min(...must(outgoing.get(id)).map(a => must(late.get(a.to)) - a.days)) : length);
   const rounded = (v: number) => Math.abs(v) < 1e-9 ? 0 : parseFloat(v.toPrecision(12));
-  const activities = acts.map(a => { const float = rounded(late.get(a.to)! - early.get(a.from)! - a.days); return {...a, float, critical: float < 1e-9}; });
+  const activities = acts.map(a => { const float = rounded(must(late.get(a.to)) - must(early.get(a.from)) - a.days); return {...a, float, critical: float < 1e-9}; });
   // one critical path: from the start, always along a critical activity
   const path: string[] = [];
   for (let at = starts[0]; at !== ends[0];) {
-    const next = activities.find(a => a.from === at && a.critical)!;
-    if (!next.dummy) path.push(next.name!);
+    const next = must(activities.find(a => a.from === at && a.critical));
+    if (!next.dummy) path.push(must(next.name));
     at = next.to;
   }
   const byId = (a: string, b: string) => { const x = Number(a), y = Number(b); return Number.isFinite(x) && Number.isFinite(y) ? x - y : a.localeCompare(b, 'en'); };

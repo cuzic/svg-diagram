@@ -5,10 +5,10 @@ import {layoutBars, barsTexts} from '../lib/bars.ts';
 import {layoutPlane, planeTexts} from '../lib/plane.ts';
 import {analyzeFit} from '../lib/fit.ts';
 import {ROLES} from '../lib/tokens.ts';
-import type {LaidOutBars, LaidOutBanner, LaidOutPlane, Role} from '../lib/dsl.ts';
+import type {LaidOutBanner, LaidOutPlane, Role} from '../lib/dsl.ts';
 
 // every atom must be registered for measuring, or layout throws instead of measuring 0 wide
-process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
+process.env['SVG_DIAGRAM_STRICT_WIDTH'] = '1';
 test.after(() => closeMeasurer());
 
 test('hero is gone from Role and ROLES', () => {
@@ -38,7 +38,7 @@ test('banner({headlineRole}) sets the headline size and grows the banner', async
   const sizeOf = async (role?: 'banner' | 'stat' | 'display') => {
     const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(banner({headline: '見出し', ...(role ? {headlineRole: role} : {})})));
     const b = laidOut.laidOut[0] as LaidOutBanner;
-    return {size: b.wrappedRuns[0].size, h: b.h};
+    return {size: b.wrappedRuns[0]!.size, h: b.h};
   };
   const base = await sizeOf(), stat = await sizeOf('stat'), display = await sizeOf('display');
   assert.equal(base.size, ROLES.banner);
@@ -56,7 +56,7 @@ test('bars / plane labelRole: measured, laid out and drawn at one size', async (
   assert.ok(laid.texts.every(t => t.size === ROLES.stat));
   assert.ok(laid.bars.every(r => r.h >= ROLES.stat + 14), 'bars are as thick as their labels');
   const plain = layoutBars(bars([{label: 'A', value: 3}], {max: 6}), 0, 0, 800, widthOf, ROLES);
-  assert.ok(plain.texts.every(t => t.size === ROLES.note) && plain.bars[0].h === 28);
+  assert.ok(plain.texts.every(t => t.size === ROLES.note) && plain.bars[0]!.h === 28);
 
   const p = plane({labelRole: 'banner', x: {label: 'X', max: 10}, y: {label: 'Y', max: 10}, height: 400, points: [{id: 'p', at: [5, 5], label: 'Point'}]});
   assert.ok(planeTexts(p, ROLES).every(([, size]) => size === ROLES.banner));
@@ -70,7 +70,7 @@ test('bars / plane labelRole: measured, laid out and drawn at one size', async (
 });
 
 test('every label of a labelRole figure is registered for measuring (STRICT_WIDTH: no miss)', async () => {
-  assert.ok(process.env.SVG_DIAGRAM_STRICT_WIDTH);
+  assert.ok(process.env['SVG_DIAGRAM_STRICT_WIDTH']);
   const d = diagram({theme: 'blue', width: 940}).add(
     banner({headline: '見出し', headlineRole: 'display', sub: '副題'}),
     bars([{label: '導入前', value: 76}, {label: '導入後', value: 31}], {max: 100, unit: '%', labelRole: 'stat'}),
@@ -107,5 +107,5 @@ test('fit counts plane and table text in the smallest size', async () => {
 
 test('caption({role: "display"}) already works', async () => {
   const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(caption('大きい', {role: 'display'})));
-  assert.equal((laidOut.laidOut[0] as {wrappedRuns: {size: number}[]}).wrappedRuns[0].size, ROLES.display);
+  assert.equal((laidOut.laidOut[0] as {wrappedRuns: {size: number}[]}).wrappedRuns[0]!.size, ROLES.display);
 });

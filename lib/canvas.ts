@@ -6,6 +6,7 @@ import type {CanvasLayout, GridBand} from './types/containers.ts';
 import type {EmphasisTone} from './types/core.ts';
 import type {BoxBand} from './types/text-bands.ts';
 
+import {must} from './must.ts';
 interface Region {
   id: string;
   title: string;
@@ -34,7 +35,7 @@ const R = <const I extends string>(id: I, title: string, col: number, row: numbe
 
 // the nine-block shape shared by the Business Model Canvas and the Lean Canvas (10 columns, so a box spans 2 and the bottom two span 5)
 const NINE = <const I extends readonly string[]>(ids: I, t: readonly string[]): (Region & {id: I[number]})[] => ([
-  R(ids[0] as I[number], t[0], 0, 0, 2, 2), R(ids[1] as I[number], t[1], 2, 0, 2), R(ids[2] as I[number], t[2], 2, 1, 2), R(ids[3] as I[number], t[3], 4, 0, 2, 2), R(ids[4] as I[number], t[4], 6, 0, 2), R(ids[5] as I[number], t[5], 6, 1, 2), R(ids[6] as I[number], t[6], 8, 0, 2, 2), R(ids[7] as I[number], t[7], 0, 2, 5), R(ids[8] as I[number], t[8], 5, 2, 5),
+  R(ids[0] as I[number], must(t[0]), 0, 0, 2, 2), R(ids[1] as I[number], must(t[1]), 2, 0, 2), R(ids[2] as I[number], must(t[2]), 2, 1, 2), R(ids[3] as I[number], must(t[3]), 4, 0, 2, 2), R(ids[4] as I[number], must(t[4]), 6, 0, 2), R(ids[5] as I[number], must(t[5]), 6, 1, 2), R(ids[6] as I[number], must(t[6]), 8, 0, 2, 2), R(ids[7] as I[number], must(t[7]), 0, 2, 5), R(ids[8] as I[number], must(t[8]), 5, 2, 5),
 ]);
 
 export const TEMPLATES = {
@@ -259,8 +260,8 @@ export function canvasBand(template: string, content: Record<string, string | re
     // as in fiveForces, the box nearest to it)
     const lastRow = Math.max(...place.map(p => p.row + p.rs));
     let i = -1;
-    place.forEach((p, k) => { if (p.row + p.rs === lastRow && (i < 0 || p.col + p.cs > place[i].col + place[i].cs)) i = k; });
-    children[i] = {...children[i], stamp: opts.stamp.trim()};
+    place.forEach((p, k) => { if (p.row + p.rs === lastRow && (i < 0 || p.col + p.cs > must(place[i]).col + must(place[i]).cs)) i = k; });
+    children[i] = {...must(children[i]), stamp: opts.stamp.trim()};
   }
   const rows = Math.max(...place.map(p => p.row + p.rs));
   const colW = [...t.cols], rowW = Array.from({length: rows}, (_, i) => t.rows[i] ?? 1);
@@ -285,13 +286,13 @@ export function canvasColumns(c: CanvasLayout, x0: number, cw: number, gap: numb
   const x: number[] = [];
   let at = x0;
   c.colW.forEach((v, i) => { x.push(i === 0 ? x0 : Math.round(at / 4) * 4); at += room * v / total + gap; });
-  const w = x.map((v, i) => (i + 1 < n ? x[i + 1] - gap : x0 + cw) - v);
+  const w = x.map((v, i) => (i + 1 < n ? must(x[i + 1]) - gap : x0 + cw) - v);
   return {x, w};
 }
 /** The left edge and width of the cell `p` covers. */
 export function canvasSpan(cols: {x: number[]; w: number[]}, p: {col: number; cs: number}): {x: number; w: number} {
   const last = p.col + p.cs - 1;
-  return {x: cols.x[p.col], w: cols.x[last] + cols.w[last] - cols.x[p.col]};
+  return {x: must(cols.x[p.col]), w: must(cols.x[last]) + must(cols.w[last]) - must(cols.x[p.col])};
 }
 
 /**
@@ -300,19 +301,19 @@ export function canvasSpan(cols: {x: number[]; w: number[]}, p: {col: number; cs
  */
 export function canvasRowHeights(c: CanvasLayout, needs: readonly number[], gap: number, minTotal: number): number[] {
   const n = c.rowW.length, rows = new Array<number>(n).fill(0);
-  const cells = c.place.map((p, i) => ({...p, need: needs[i]}));
+  const cells = c.place.map((p, i) => ({...p, need: needs[i] ?? 0}));
   for (const k of [...new Set(cells.map(p => p.rs))].sort((a, b) => a - b)) {
     for (const p of cells.filter(q => q.rs === k)) {
       const have = rows.slice(p.row, p.row + k).reduce((a, b) => a + b, 0) + gap * (k - 1);
-      if (p.need > have) for (let r = p.row; r < p.row + k; r++) rows[r] += (p.need - have) / k;
+      if (p.need > have) for (let r = p.row; r < p.row + k; r++) rows[r] = must(rows[r]) + (p.need - have) / k;
     }
   }
   const room = minTotal - gap * (n - 1), fixed = new Set<number>();
   for (let guard = 0; guard < n + 1; guard++) {
-    const free = [...rows.keys()].filter(r => !fixed.has(r)), left = room - [...fixed].reduce((a, r) => a + rows[r], 0), fw = free.reduce((a, r) => a + c.rowW[r], 0);
+    const free = [...rows.keys()].filter(r => !fixed.has(r)), left = room - [...fixed].reduce((a, r) => a + must(rows[r]), 0), fw = free.reduce((a, r) => a + must(c.rowW[r]), 0);
     if (!free.length || left <= 0) break;
-    const over = free.find(r => rows[r] > left * c.rowW[r] / fw);
-    if (over === undefined) { for (const r of free) rows[r] = Math.max(rows[r], left * c.rowW[r] / fw); break; }
+    const over = free.find(r => must(rows[r]) > left * must(c.rowW[r]) / fw);
+    if (over === undefined) { for (const r of free) rows[r] = Math.max(must(rows[r]), left * must(c.rowW[r]) / fw); break; }
     fixed.add(over);
   }
   return rows;

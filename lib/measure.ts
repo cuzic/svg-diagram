@@ -29,6 +29,7 @@ import {measureSettingsOf} from './measure-settings.ts';
 import type {Config, FontSpecs} from './types/project.ts';
 import {loadConfig} from './config.ts';
 
+import {must} from './must.ts';
 // splitAtoms / textWidth live in atoms.ts (pure); re-exported so existing imports keep working.
 export {splitAtoms, textWidth};
 
@@ -70,6 +71,7 @@ export async function rasterizeInBrowser(svg: string, {scale = 1, png = false}: 
       catch { return {error: 'the browser could not load it as an <img> (not well-formed XML?)'}; }
       const c = document.createElement('canvas');
       c.width = width; c.height = height;
+      // biome-ignore lint/style/noNonNullAssertion: runs inside the page (page.evaluate), where nothing can be imported
       const g = c.getContext('2d')!;
       g.fillStyle = '#fff'; g.fillRect(0, 0, width, height);
       g.drawImage(img, 0, 0, width, height);

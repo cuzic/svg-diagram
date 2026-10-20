@@ -106,7 +106,7 @@ const strict = flag('--strict'), verbose = flag('--verbose'), drift = flag('--dr
 const mapMode = flag('--map');
 if (mapMode && (!val('--docs') || (val('--format') ?? 'text') !== 'text')) { console.error('--map は --docs と一緒に、--format text で使う（表を標準出力に出す）'); process.exit(2); }
 const svgDir = val('--svg-dir'), srcDir = val('--src-dir'), docsDirs = args.filter((_, i) => docsArgIdx.has(i)), docsDir = docsDirs[0], coversFile = val('--covers'), only = vals('--only').map(globToRegExp), format = val('--format') ?? 'text';
-const sources = args.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1]) && !docsArgIdx.has(i));
+const sources = args.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1] ?? '') && !docsArgIdx.has(i));
 for (const s of sources) {
   const ok = coversFile && s.toLowerCase().endsWith('.svg') ? true : /\.(ts|mts|cts|js|mjs|cjs)$/i.test(s);
   if (!ok) { console.error(`✗ ${s}: 図のソース（.ts / .mjs）ではない。${/\.md$/i.test(s) ? '文書は --docs ' + s + ' で渡す' : '図のソースを指定する'}`); process.exit(2); }
@@ -292,7 +292,7 @@ try {
           complain(`✗ ${src}: 再生成した SVG が自分の検査に通らない: ${why}`);
           return;
         }
-        const pairs = [[svg, tmp], ...rebuilt.revealPaths.map((p, stage) => [path.join(path.dirname(svg), `${name}.reveal${stage}.svg`), p])];
+        const pairs: [string, string][] = [[svg, tmp], ...rebuilt.revealPaths.map((p, stage): [string, string] => [path.join(path.dirname(svg), `${name}.reveal${stage}.svg`), p])];
         const orphaned = fs.readdirSync(path.dirname(svg)).filter(f => {
           const m = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.reveal(\\d+)\\.svg$`).exec(f);
           return m && Number(m[1]) >= rebuilt.revealPaths.length;

@@ -1,8 +1,9 @@
 // Splitting text into break atoms and summing their widths: pure, no I/O. The measuring itself (fonts, Chromium) is measure.ts.
 import type {FontFamily, WidthOf} from './types/core.ts';
 
+import {must} from './must.ts';
 function isCJK(ch: string): boolean {
-  const c = ch.codePointAt(0)!;
+  const c = must(ch.codePointAt(0));
   return (c >= 0x3000 && c <= 0x30ff)   // CJK punctuation, hiragana, katakana
     || (c >= 0x3400 && c <= 0x9fff)      // CJK unified ideographs (+ ext A)
     || (c >= 0xf900 && c <= 0xfaff)      // CJK compatibility ideographs

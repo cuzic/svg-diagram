@@ -32,7 +32,7 @@ for (const dir of ['up', 'down', 'right', 'left'] as const) {
     assert.deepEqual(verdict.problems, []);
     assert.equal(t.nodes.length, 7);
     assert.equal(t.edges.length, 7); // the AND's two arrows count one each
-    for (let i = 0; i < t.nodes.length; i++) for (let j = i + 1; j < t.nodes.length; j++) assert.ok(!overlap(t.nodes[i], t.nodes[j]));
+    for (let i = 0; i < t.nodes.length; i++) for (let j = i + 1; j < t.nodes.length; j++) assert.ok(!overlap(t.nodes[i]!, t.nodes[j]!));
     const by = (id: string) => t.anchors.find(a => a.id === id)!;
     const cause = by('kpi'), effect = by('late');
     if (dir === 'up') assert.ok(effect.y + effect.h < cause.y);
@@ -40,7 +40,7 @@ for (const dir of ['up', 'down', 'right', 'left'] as const) {
     if (dir === 'right') assert.ok(effect.x > cause.x + cause.w);
     if (dir === 'left') assert.ok(effect.x + effect.w < cause.x);
     const onEdge = (p: {x: number; y: number}, r: R): boolean => p.x >= r.x - 0.5 && p.x <= r.x + r.w + 0.5 && p.y >= r.y - 0.5 && p.y <= r.y + r.h + 0.5;
-    for (const e of t.edges) assert.ok(onEdge(e.points[e.points.length - 1], by(e.to)) && onEdge(e.points[0], by(e.from)), `${e.from} -> ${e.to} runs from its cause to its effect`);
+    for (const e of t.edges) assert.ok(onEdge(e.points[e.points.length - 1]!, by(e.to)) && onEdge(e.points[0]!, by(e.from)), `${e.from} -> ${e.to} runs from its cause to its effect`);
   });
 }
 
@@ -49,13 +49,13 @@ test('causeTree(): an AND gets one arc across its arrows, before the arrowheads;
   assert.equal(t.ands.length, 1);
   assert.deepEqual(t.loose, []);
   const [arc] = t.ands, cost = t.anchors.find(a => a.id === 'cost')!;
-  assert.equal(arc.to, 'cost');
+  assert.equal(arc!.to, 'cost');
   const tips = t.edges.filter(e => e.to === 'cost').map(e => e.points[e.points.length - 1]);
   assert.equal(tips.length, 2);
   // dir up: the arrows arrive on the bottom of the effect; the arc spans their x and sits above their start of the head (below the box)
-  assert.ok(arc.p0.x < Math.min(...tips.map(p => p.x)) && arc.p1.x > Math.max(...tips.map(p => p.x)));
-  for (const p of [arc.p0, arc.c, arc.p1]) assert.ok(p.y > cost.y + cost.h, 'the arc is under the effect');
-  assert.ok(arc.c.y < arc.p0.y, 'the middle of the arc is nearer the effect than its ends');
+  assert.ok(arc!.p0.x < Math.min(...tips.map(p => p!.x)) && arc!.p1.x > Math.max(...tips.map(p => p!.x)));
+  for (const p of [arc!.p0, arc!.c, arc!.p1]) assert.ok(p.y > cost.y + cost.h, 'the arc is under the effect');
+  assert.ok(arc!.c.y < arc!.p0.y, 'the middle of the arc is nearer the effect than its ends');
 });
 
 test('causeTree(): an AND of three causes, in every direction, is joined by one arc each', async () => {
@@ -69,15 +69,15 @@ test('causeTree(): an AND of three causes, in every direction, is joined by one 
 
 test('causeTree(): roles set the tone and the double outline; a tone overrides the role', async () => {
   const roles = ['effect', 'ude', 'root', 'de', 'injection', 'goal', 'obstacle', 'io', 'action'] as const;
-  const {t} = await laidCause(causeTree(roles.map(r => N(r, {role: r})), roles.slice(1).map((r, i) => ({from: roles[i], to: r}))));
-  const tone = (id: string) => t.nodes[roles.indexOf(id as never)].tone;
+  const {t} = await laidCause(causeTree(roles.map(r => N(r, {role: r})), roles.slice(1).map((r, i) => ({from: roles[i]!, to: r}))));
+  const tone = (id: string) => t.nodes[roles.indexOf(id as never)]!.tone;
   assert.equal(tone('ude'), 'danger');
   assert.equal(tone('root'), 'accent');
   assert.equal(tone('obstacle'), 'plain');
   assert.deepEqual(t.nodes.flatMap((n, i) => n.hex ? [roles[i]] : []), ['obstacle'], 'an obstacle is a hexagon');
   assert.deepEqual(t.nodes.flatMap((n, i) => n.double ? [roles[i]] : []), ['root', 'goal']);
   const {t: o} = await laidCause(causeTree([N('a', {role: 'ude', tone: 'muted'})], []));
-  assert.equal(o.nodes[0].tone, 'muted');
+  assert.equal(o.nodes[0]!.tone, 'muted');
 });
 
 test('causeTree(): a precondition is a grey dashed box with no double outline, apart from an injection and a root', async () => {
@@ -102,7 +102,7 @@ test('causeTree(): the SVG has the boxes, double outlines, arrowheads as shapes 
 
 test('causeTree(): nodes are anchors for connect(); a connect to the whole figure may cross it', async () => {
   const ct = crt({id: 'tree'});
-  assert.equal(ct.anchors.kpi.id, 'kpi');
+  assert.equal(ct.anchors['kpi']!.id, 'kpi');
   const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(ct, box({id: 'memo', title: 'メモ'}), connect('kpi', 'memo', {route: 'elbow'}), connect('tree', 'memo')));
   assert.deepEqual(verdict.problems, []);
 });
@@ -267,15 +267,15 @@ test('cloud(): A on the left, B above C in the middle, D above D\' on the right,
   assert.equal(at('b').y, at('d').y);
   const ay = at('a').y + at('a').h / 2;
   assert.ok(at('b').y + at('b').h / 2 < ay && ay < at('c').y + at('c').h / 2, 'A is level with the middle of the two needs');
-  for (let i = 0; i < t.nodes.length; i++) for (let j = i + 1; j < t.nodes.length; j++) assert.ok(!overlap(t.nodes[i], t.nodes[j]));
+  for (let i = 0; i < t.nodes.length; i++) for (let j = i + 1; j < t.nodes.length; j++) assert.ok(!overlap(t.nodes[i]!, t.nodes[j]!));
   const edge = (k: string) => t.edges.find(e => e.arrow === k)!;
   assert.equal(t.edges.length, 5);
-  assert.equal(edge('bd').points[0].x, at('d').x, 'D -> B leaves D and ends on B');
-  assert.equal(edge('bd').points[1].x, at('b').x + at('b').w);
-  assert.equal(edge('ab').points[3].x, at('a').x + at('a').w);
+  assert.equal(edge('bd').points[0]!.x, at('d').x, 'D -> B leaves D and ends on B');
+  assert.equal(edge('bd').points[1]!.x, at('b').x + at('b').w);
+  assert.equal(edge('ab').points[3]!.x, at('a').x + at('a').w);
   const dd = edge('dd');
-  assert.equal(dd.points[0].y, at('d').y + at('d').h);
-  assert.equal(dd.points[dd.points.length - 1].y, at('d2').y);
+  assert.equal(dd.points[0]!.y, at('d').y + at('d').h);
+  assert.equal(dd.points[dd.points.length - 1]!.y, at('d2').y);
 });
 
 test('cloud(): assumptions are numbered in the order written, the numbers sit on their arrow, the list is under the figure', async () => {
@@ -337,10 +337,10 @@ for (const dir of ['up', 'down', 'right', 'left'] as const) {
     const {t, verdict} = await laidCause(causeTree([N('a'), N('b'), N('c'), N('z')], [{from: ['a', 'c'], to: 'z'}, {from: 'b', to: 'z'}], {dir}));
     assert.deepEqual(verdict.problems, [], dir);
     const along = (p: {x: number; y: number}) => dir === 'up' || dir === 'down' ? p.x : p.y;
-    const tips = tipsInto(t, 'z'), order = tips.sort((p, q) => along(p.tip) - along(q.tip)).map(x => x.from);
+    const tips = tipsInto(t, 'z'), order = tips.sort((p, q) => along(p.tip!) - along(q.tip!)).map(x => x.from);
     assert.ok(order.join('') === 'acb' || order.join('') === 'bac' || order.join('') === 'bca' || order.join('') === 'cab', `a and c are neighbours: ${order}`);
     assert.equal(t.ands.length, 1);
-    assert.deepEqual([...t.ands[0].from].sort(), ['a', 'c']);
+    assert.deepEqual([...t.ands[0]!.from].sort(), ['a', 'c']);
   });
 }
 
@@ -350,8 +350,8 @@ test('causeTree() M1: two ANDs into one effect get separate arcs that do not tou
     assert.deepEqual(verdict.problems, [], dir);
     assert.equal(t.ands.length, 2, dir);
     const span = (a: LaidOutCause['ands'][number]) => dir === 'up' ? [a.p0.x, a.p1.x].sort((p, q) => p - q) : [a.p0.y, a.p1.y].sort((p, q) => p - q);
-    const [s1, s2] = t.ands.map(span).sort((p, q) => p[0] - q[0]);
-    assert.ok(s2[0] - s1[1] >= 6, `${dir}: ${s1} ${s2}`);
+    const [s1, s2] = t.ands.map(span).sort((p, q) => p[0]! - q[0]!);
+    assert.ok(s2![0]! - s1![1]! >= 6, `${dir}: ${s1} ${s2}`);
   }
 });
 
@@ -361,8 +361,8 @@ test('causeTree() M2: an AND of six causes keeps the arrowheads apart in every d
     const {t, verdict} = await laidCause(causeTree([...causes.map(c => N(c)), N('z')], [{from: causes, to: 'z'}], {dir}));
     assert.deepEqual(verdict.problems, [], dir);
     const along = (p: {x: number; y: number}) => dir === 'up' ? p.x : p.y;
-    const us = tipsInto(t, 'z').map(x => along(x.tip)).sort((p, q) => p - q);
-    for (let i = 1; i < us.length; i++) assert.ok(us[i] - us[i - 1] >= 10, `${dir}: heads ${us}`);
+    const us = tipsInto(t, 'z').map(x => along(x.tip!)).sort((p, q) => p - q);
+    for (let i = 1; i < us.length; i++) assert.ok(us[i]! - us[i - 1]! >= 10, `${dir}: heads ${us}`);
     assert.equal(t.ands.length, 1, dir);
   }
 });
@@ -388,9 +388,9 @@ test('cloud() M4: conflictLabel is a chip left of the zigzag, checked like the o
   assert.deepEqual(verdict.problems, []);
   const dd = t.chips.filter(c => c.arrow === 'dd');
   assert.equal(dd.length, 1);
-  assert.equal(dd[0].text, '対立');
-  const zig = t.edges.find(e => e.arrow === 'dd')!.points[0].x;
-  assert.ok(dd[0].x + dd[0].w < zig);
+  assert.equal(dd[0]!.text, '対立');
+  const zig = t.edges.find(e => e.arrow === 'dd')!.points[0]!.x;
+  assert.ok(dd[0]!.x + dd[0]!.w < zig);
   const narrow = await checkDiagram(diagram({theme: 'blue', width: 640} as never).add(cloud(FIVE, {assumptions: [{on: 'dd', text: 'a'}, {on: 'dd', text: 'b'}, {on: 'dd', text: 'c'}, {on: 'dd', text: 'd'}]})));
   assert.deepEqual(narrow.verdict.problems, []);
 });
@@ -452,7 +452,7 @@ test('causeTree() fuzz: random acyclic graphs with ANDs lay out with no hard pro
     const n = 4 + Math.floor(rnd() * 5), ids = Array.from({length: n}, (_, i) => `n${i}`), links: {from: string | string[]; to: string}[] = [];
     for (let to = 1; to < n; to++) {
       const k = 1 + Math.floor(rnd() * Math.min(3, to)), pool = ids.slice(0, to).sort(() => rnd() - 0.5).slice(0, k);
-      if (k > 1 && rnd() < 0.6) links.push({from: pool, to: ids[to]}); else for (const f of pool) links.push({from: f, to: ids[to]});
+      if (k > 1 && rnd() < 0.6) links.push({from: pool, to: ids[to]!}); else for (const f of pool) links.push({from: f, to: ids[to]!});
     }
     for (const dir of ['up', 'down', 'right', 'left'] as const) {
       try {

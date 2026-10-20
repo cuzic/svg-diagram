@@ -9,6 +9,7 @@ import {longestUnitWidth, wrapText} from './wrap.ts';
 import type {FontFamily, Roles, WidthOf, WrapEnv, WrapMode} from './types/core.ts';
 import type {LaidOutTree, TreeBand, TreeItem, TreeNodeText} from './types/diagrams.ts';
 
+import {must} from './must.ts';
 const PAD_X = 14, PAD_Y = 8, MIN_W = 88, DEFAULT_MAX_W = 200, GAP = 24, LEVEL_GAP = 44;
 
 /** Every item of a tree in drawing order (a parent before its children). */
@@ -131,7 +132,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     ...(fitApplied.length ? {fitApplied} : {}),
   };
   for (const n of items) {
-    const p = tree.nodes.get(key.get(n)!)!, l = lines.get(n)!;
+    const p = must(tree.nodes.get(must(key.get(n)))), l = must(lines.get(n));
     const r = {x: p.x + dx, y: p.y + dy, w: p.w, h: p.h};
     out.nodes.push({...r, tone: n.tone ?? 'plain', ...(n.id ? {id: n.id} : {})});
     if (n.id) out.anchors.push({id: n.id, ...r});

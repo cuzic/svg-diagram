@@ -16,6 +16,7 @@ import type {FontFamily} from './types/core.ts';
 import type {FontSpecs} from './types/project.ts';
 import {xmlProblems} from './xml-check.ts';
 
+import {must} from './must.ts';
 export type RasterEngine = 'auto' | 'resvg' | 'chromium';
 
 export interface Raster {
@@ -30,9 +31,9 @@ export interface Raster {
 /** The SVG's own width and height (the root's attributes, or its viewBox). */
 export function svgSize(svg: string): {w: number; h: number} | null {
   const root = /<svg\b[^>]*>/.exec(svg)?.[0] ?? '';
-  const num = (n: string) => { const m = new RegExp(`\\s${n}="([0-9.]+)(?:px)?"`).exec(root); return m ? parseFloat(m[1]) : NaN; };
+  const num = (n: string) => { const m = new RegExp(`\\s${n}="([0-9.]+)(?:px)?"`).exec(root); return m ? parseFloat(must(m[1])) : NaN; };
   let w = num('width'), h = num('height');
-  if (!(w > 0 && h > 0)) { const vb = /viewBox="[-0-9.]+[ ,]+[-0-9.]+[ ,]+([0-9.]+)[ ,]+([0-9.]+)"/.exec(root); if (vb) { w = parseFloat(vb[1]); h = parseFloat(vb[2]); } }
+  if (!(w > 0 && h > 0)) { const vb = /viewBox="[-0-9.]+[ ,]+[-0-9.]+[ ,]+([0-9.]+)[ ,]+([0-9.]+)"/.exec(root); if (vb) { w = parseFloat(must(vb[1])); h = parseFloat(must(vb[2])); } }
   return w > 0 && h > 0 ? {w, h} : null;
 }
 
@@ -44,7 +45,7 @@ export function grayscaleSvg(svg: string): string {
   const end = svg.lastIndexOf('</svg>');
   if (!open || end === -1) return svg;
   const vb = /\sviewBox="\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*"/.exec(open[0])?.slice(1).map(Number), size = svgSize(svg);
-  const [x, y, w, h] = vb ?? (size ? [0, 0, size.w, size.h] : [0, 0, 0, 0]);
+  const [x = 0, y = 0, w = 0, h = 0] = vb ?? (size ? [0, 0, size.w, size.h] : [0, 0, 0, 0]);
   const region = w > 0 && h > 0 ? ` filterUnits="userSpaceOnUse" x="${x - w}" y="${y - h}" width="${3 * w}" height="${3 * h}"` : '';
   const filter = `<filter id="svg-diagram-gray"${region} color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/></filter>`;
   const at = open.index + open[0].length;
@@ -113,8 +114,8 @@ export function prepareResvgFonts(svg: string, specs?: FontSpecs): {options: Res
       const walk = (e: El) => {
         for (const c of e.children) {
           if (typeof c !== 'string') { if (c.tag === 'tspan' || c.tag === 'a') walk(c); continue; }
-          for (const ch of c) if (!/[\n\r\t]/.test(ch)) chars.add(ch.codePointAt(0)!); // (a newline or tab in the source is drawn as a space: the cut adds that one)
-          const st = styles.get(e)!;
+          for (const ch of c) if (!/[\n\r\t]/.test(ch)) chars.add(must(ch.codePointAt(0))); // (a newline or tab in the source is drawn as a space: the cut adds that one)
+          const st = must(styles.get(e));
           roles.add(`${familyKind(st.fontFamily)}:${st.fontWeight >= 600 ? 700 : 400}`);
         }
       };
@@ -124,12 +125,12 @@ export function prepareResvgFonts(svg: string, specs?: FontSpecs): {options: Res
   for (const cp of chars) if (EMOJI_RE.test(String.fromCodePoint(cp))) roles.add('emoji:400');
   const drawn = [...chars].some(cp => cp > 0x20); // any character to draw at all (a figure of shapes needs no font)
 
-  const resolve = (role: string) => { const [family, weight] = role.split(':'); return {role, r: resolveFontFile(family as FontFamily, +weight, specs), cov: fontCoverage(family as FontFamily, +weight, specs)}; };
+  const resolve = (role: string) => { const [family, weight] = role.split(':'); return {role, r: resolveFontFile(family as FontFamily, Number(weight), specs), cov: fontCoverage(family as FontFamily, Number(weight), specs)}; };
   const loaded = [...roles].map(resolve).filter(x => x.r);
   // a character none of the needed fonts has may be in another of the layout's fonts (a symbol only the emoji font draws): take that one too
-  const missing = (list: typeof loaded) => [...chars].filter(cp => cp > 0x20 && cp !== 0xfe0f && cp !== 0x200d && !list.some(x => x.cov!.has(cp)));
+  const missing = (list: typeof loaded) => [...chars].filter(cp => cp > 0x20 && cp !== 0xfe0f && cp !== 0x200d && !list.some(x => must(x.cov).has(cp)));
   for (const cp of missing(loaded)) {
-    const extra = ['sans:400', 'mono:400', 'emoji:400'].filter(r => !loaded.some(x => x.role === r)).map(resolve).find(x => x.r && x.cov!.has(cp));
+    const extra = ['sans:400', 'mono:400', 'emoji:400'].filter(r => !loaded.some(x => x.role === r)).map(resolve).find(x => x.r && must(x.cov).has(cp));
     if (extra) loaded.push(extra);
   }
   const needSystem = drawn && (loaded.length === 0 || missing(loaded).length > 0);
@@ -138,14 +139,14 @@ export function prepareResvgFonts(svg: string, specs?: FontSpecs): {options: Res
   const files: string[] = [], seen = new Set<string>();
   let n = 0;
   for (const {r} of loaded) {
-    const key = `${r!.file}#${r!.index}`;
+    const key = `${must(r).file}#${must(r).index}`;
     if (seen.has(key)) continue;
     seen.add(key);
     try {
       const out = path.join(dir, `${n++}.ttf`);
-      fs.writeFileSync(out, subsetFont(fs.readFileSync(r!.file), r!.index, [...chars, 0x20, 0xa0])); // a space is a glyph too: without it the gaps take another font's width
+      fs.writeFileSync(out, subsetFont(fs.readFileSync(must(r).file), must(r).index, [...chars, 0x20, 0xa0])); // a space is a glyph too: without it the gaps take another font's width
       files.push(out);
-    } catch { files.push(r!.file); } // a font HarfBuzz cannot cut: resvg gets it whole
+    } catch { files.push(must(r).file); } // a font HarfBuzz cannot cut: resvg gets it whole
   }
   const first = (family: FontFamily) => loaded.find(x => x.role.startsWith(`${family}:`))?.r?.name ?? ''; // (only fonts the figure uses are looked up at all)
   const sans = first('sans'), mono = first('mono');
@@ -169,7 +170,7 @@ export async function rasterizeWithResvg(svg: string, {scale = 1, png = false, f
   if (problems.length) throw new Error(`could not load it as an <img> (not well-formed XML): ${problems[0]}`);
   let Resvg: typeof import('@resvg/resvg-js').Resvg;
   try { ({Resvg} = await loadResvg()); } catch { throw new Error(NOT_LOADABLE); }
-  let rendered;
+  let rendered: ReturnType<InstanceType<typeof Resvg>['render']>;
   const prepared = prepareResvgFonts(svg, fonts);
   try {
     rendered = new Resvg(resvgMarkers(withColorEmoji(svg, fonts)), {
@@ -204,8 +205,8 @@ export function embedSvg(svg: string, box: {x: number; y: number; w: number; h: 
   const viewBox = /\sviewBox="([^"]*)"/.exec(open[0])?.[1] ?? `0 0 ${size.w} ${size.h}`;
   const ns = /\sxmlns="([^"]*)"/.exec(open[0])?.[1] ?? 'http://www.w3.org/2000/svg';
   const extra = [...open[0].matchAll(/\s(xmlns:[\w-]+="[^"]*")/g)].map(m => m[1]).join(' ');
-  let inner = svg.slice(open.index! + open[0].length, svg.lastIndexOf('</svg>'));
-  const ids = [...new Set([...inner.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]))];
+  let inner = svg.slice(must(open.index) + open[0].length, svg.lastIndexOf('</svg>'));
+  const ids = [...new Set([...inner.matchAll(/\sid="([^"]+)"/g)].map(m => must(m[1])))];
   for (const id of ids) {
     const re = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     inner = inner.replace(new RegExp(`(\\sid=")${re}(")`, 'g'), `$1${idPrefix}${id}$2`)

@@ -4,6 +4,7 @@ import {childrenOf, nestedBandsOf} from './band-children.ts';
 import type {DiagramData, Rect} from './types/core.ts';
 import type {Band, LaidOutBand, LaidOutDiagram} from './types/index.ts';
 
+import {must} from './must.ts';
 export function spotlightIds(d: Pick<DiagramData, 'spotlight'>): string[] {
   if (!d.spotlight) return [];
   const ids = typeof d.spotlight === 'string' ? d.spotlight : d.spotlight.ids;
@@ -49,7 +50,7 @@ export function dimmedBands(d: Pick<DiagramData, 'bands' | 'spotlight'>): Set<Ba
   for (const b of focused) if ('id' in b && b.id) focusedIds.add(b.id);
   const between = spotlightEdges(d) === 'between';
   for (const b of allBands(d.bands)) if (b.type === 'connect') {
-    const from = focusedIds.has(b.from.split(':')[0]), to = focusedIds.has(b.to.split(':')[0]);
+    const from = focusedIds.has(must(b.from.split(':')[0])), to = focusedIds.has(must(b.to.split(':')[0]));
     if (between ? from && to : from || to) focused.add(b);
   }
   return new Set(d.bands.length && targets.size ? allBands(d.bands).filter(b => !focused.has(b)) : []);
@@ -88,7 +89,8 @@ function targetRects(d: LaidOutDiagram, ids: string[]): Rect[] {
       if (b.id && ids.includes(b.id)) out.push(b);
       for (const id of ids) {
         const m = b.id && id.match(new RegExp(`^${b.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}#(\\d+)$`));
-        if (m && b.children[Number(m[1]) - 1]) out.push(b.children[Number(m[1]) - 1]);
+        const child = m ? b.children[Number(m[1]) - 1] : undefined;
+        if (child) out.push(child);
       }
       for (const c of b.children) if (c.id && ids.includes(c.id)) out.push(c);
     } else if (b.type === 'grid') {
@@ -109,7 +111,7 @@ function dimBand(b: LaidOutBand, focus: Rect[]): void {
     // the axis dims only when no bar is a target.
     if (focus.some(r => inside(b, r))) return;
     for (const x of b.bars) x.dim = !focus.some(r => inside(x, r));
-    for (const t of b.texts) if (t.bar !== undefined) t.dim = b.bars[t.bar].dim;
+    for (const t of b.texts) if (t.bar !== undefined) t.dim = must(b.bars[t.bar]).dim;
     b.dim = b.bars.every(x => x.dim);
   } else if (b.type === 'chart') {
     // the whole figure focused: nothing dims. Otherwise the elements that are targets stay lit and the others dim; none a target: the figure dims whole

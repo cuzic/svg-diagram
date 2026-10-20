@@ -14,6 +14,7 @@ import {PERSON_BOX, PERSON_PATH} from './people.ts';
 import {arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
 import {ftaLegendSwatch} from './emit-fta.ts';
 
+import {must} from './must.ts';
 // Numbered circle badge for box({step}) — solid accent fill, white number,
 // centered on the title's own baseline (same offset every hand-authored
 // "① foo" box in this deck used between the badge and its number glyph).
@@ -22,9 +23,9 @@ export const ringed = (band: LaidOutBox): boolean => !band.dim && isSolidTone(ba
 
 
 export function renderStepBadge(band: LaidOutBox, day: Theme): string {
-  const titleRun = band.wrappedRuns[0];
+  const titleRun = must(band.wrappedRuns[0]);
   // the same padding the text and the icon use (a swimlane step has its own)
-  const px = band.padX ?? BOX_PAD_X, titleBaselineY = band.y + (band.padY ?? BOX_PAD_Y) + titleRun.lineYs[0];
+  const px = band.padX ?? BOX_PAD_X, titleBaselineY = band.y + (band.padY ?? BOX_PAD_Y) + must(titleRun.lineYs[0]);
   // a centred / right-aligned title: the badge goes just before its first line (titleW, from layout); else at the left edge, after a left icon
   const indent = titleRun.indent ?? 0, left = band.x + px + indent, right = band.x + band.w - px;
   const align = band.align ?? (band.iconAt === 'top' ? 'center' : 'left');

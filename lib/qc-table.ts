@@ -2,6 +2,7 @@
 // ◎ ○ △ symbols and the scores they add up to. Both only work out the columns, rows and options of a table().
 import type {CellMark, TableCellSpec, TableColumn, TableOpts, TableRow} from './types/sequence-table-swimlane.ts';
 
+import {must} from './must.ts';
 /** The tally marks of the Japanese check sheet: 一 丅 下 止 are 1 to 4 strokes, 正 is 5 (and is written again for the next five). */
 export function tally(n: number): string {
   if (!(Number.isInteger(n) && n >= 0)) throw new Error(`tally(n): n must be a whole number >= 0 (got ${n})`);
@@ -103,7 +104,7 @@ export function matrixParts(rowLabels: readonly string[], colLabels: readonly st
   if (weights) rows.push({cells: ['重み', ...weights.map(w => ({text: String(w), align: 'center' as const, tone: 'muted' as const})), ...(withTotal ? [''] : [])], tone: 'muted'});
   rowLabels.forEach((label, i) => rows.push([
     label,
-    ...marks[i].map((m): TableCellSpec => m ? {text: '', mark: m, align: 'center'} : {text: '', align: 'center'}),
+    ...must(marks[i]).map((m): TableCellSpec => m ? {text: '', mark: m, align: 'center'} : {text: '', align: 'center'}),
     ...(withTotal ? [best && scores[i] === top && opts.highlight !== false && rowLabels.length > 1 ? {text: String(scores[i]), tone: 'accent' as const, bold: true, mark: 'best' as const, align: 'center' as const} : {text: String(scores[i]), align: 'center' as const}] : []),
   ]));
   const {corner: _c, weights: _w, values: _v, total: _t, highlight: _h, ...rest} = opts;

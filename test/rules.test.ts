@@ -66,8 +66,8 @@ test('wf-callout-order: a sidebar read first is fine; only a step back (up-and-l
   // down a row, or along the row: fine
   assert.equal(lint([{n: 1, x: 300, y: 60}, {n: 2, x: 40, y: 200}, {n: 3, x: 200, y: 200}]).length, 0);
   // 2 is higher and to the left of 1; 3 is left of 2 on the same row
-  assert.match(lint([{n: 1, x: 300, y: 300}, {n: 2, x: 100, y: 60}])[0].message, /1→2/);
-  assert.match(lint([{n: 1, x: 300, y: 60}, {n: 2, x: 100, y: 70}])[0].message, /1→2/);
+  assert.match(lint([{n: 1, x: 300, y: 300}, {n: 2, x: 100, y: 60}])[0]!.message, /1→2/);
+  assert.match(lint([{n: 1, x: 300, y: 60}, {n: 2, x: 100, y: 70}])[0]!.message, /1→2/);
 });
 
 test('arrow-labels: none labelled is a convention; some labelled and most not is flagged', () => {

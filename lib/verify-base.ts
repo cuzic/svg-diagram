@@ -28,7 +28,7 @@ type Pt = {x: number; y: number};
 /** The 1px-padded box of one straight run of a route. */
 export const segBox = (p: Pt, q: Pt): Rect => ({x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2});
 /** Does any run of the route touch `r`? */
-export const routeHits = (points: readonly Pt[], r: Rect): boolean => points.slice(1).some((q, m) => !!rectOverlap(r, segBox(points[m], q)));
+export const routeHits = (points: readonly Pt[], r: Rect): boolean => points.slice(1).some((q, m) => !!rectOverlap(r, segBox(must(points[m]), q)));
 /** For each route and each node it does not start or end at: the first run that touches the node reports once (`say`). */
 export function routesThroughNodes<E extends {from: string; to: string; points: readonly Pt[]}, N extends Rect & {id: string}>(
   edges: readonly E[], nodes: readonly N[], say: (e: E, n: N) => string,
@@ -38,7 +38,7 @@ export function routesThroughNodes<E extends {from: string; to: string; points: 
     for (const n of nodes) {
       if (n.id === e.from || n.id === e.to) continue;
       for (let i = 0; i + 1 < e.points.length; i++) {
-        if (rectOverlap(segBox(e.points[i], e.points[i + 1]), n)) {
+        if (rectOverlap(segBox(must(e.points[i]), must(e.points[i + 1])), n)) {
           problems.push(say(e, n));
           break;
         }
@@ -51,8 +51,8 @@ export function routesThroughNodes<E extends {from: string; to: string; points: 
 /** Every pair (earlier, later) of `items` that overlap: `report(a, b, overlap)`. */
 export function eachOverlap<T extends Rect>(items: readonly T[], report: (a: T, b: T, o: {dx: number; dy: number}, i: number, j: number) => void): void {
   for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
-    const o = rectOverlap(items[i], items[j]);
-    if (o) report(items[i], items[j], o, i, j);
+    const a = must(items[i]), b = must(items[j]), o = rectOverlap(a, b);
+    if (o) report(a, b, o, i, j);
   }
 }
 

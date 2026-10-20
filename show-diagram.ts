@@ -52,7 +52,7 @@ if (!Number.isInteger(colors) || colors < 2 || colors > 256) { console.error(`�
 const force = flag('--force'), passthrough = flag('--passthrough');
 if (pngOut && files.length !== 1) { console.error(`✗ --png writes one picture: give exactly one input\n${USAGE}`); process.exit(2); }
 
-const inTmux = !!process.env.TMUX;
+const inTmux = !!process.env['TMUX'];
 const tmuxQuery = (fmt: string) => { try { return execFileSync('tmux', ['display', '-p', fmt], {encoding: 'utf8', timeout: 2000}).trim(); } catch { return ''; } };
 
 // ---- what the terminal can do (not needed for --png) ----------------------------------------------------------------
@@ -129,7 +129,7 @@ try {
       const byHeight = Math.min(1, box.maxH / size.h); // the tall-picture cap alone (the width limit has its own note)
       if (!scaleOpt && !pngOut && byHeight < 1 && byHeight <= Math.min(byWidth ?? 1, widthOpt ? 1 : box.maxW / size.w)) console.error(`  ⚠ ${file}: too tall for the screen (${Math.round(size.h)}px; the cap is ${box.maxH}px), shrunk to ${Math.round(byHeight * 100)}%`);
       const ras = await rasterize(svg, {scale, png: !!pngOut, engine, fonts: config.fonts});
-      if (pngOut) { fs.writeFileSync(pngOut, ras.png!); console.log(`wrote ${pngOut} (${ras.width}x${ras.height})`); continue; }
+      if (pngOut) { fs.writeFileSync(pngOut, must(ras.png)); console.log(`wrote ${pngOut} (${ras.width}x${ras.height})`); continue; }
       let seq = image2sixel(new Uint8ClampedArray(ras.rgba), ras.width, ras.height, colors);
       if (passthrough) seq = tmuxPassthrough(seq);
       if (files.length > 1) process.stdout.write(`${file}\n`);

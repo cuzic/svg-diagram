@@ -12,7 +12,7 @@ const xs = (r: LaidOutRow) => r.children.map((c: LaidOutBox) => [Math.round(c.x)
 test('row({cols: [6, 6]}) is a 12-column row of two spans, and lines up with a hand-numbered row', async () => {
   const a = diagram({theme: 'blue'}).add(row([box({title: 'a'}), box({title: 'b'})], {cols: [6, 6]}), row([box({title: 'c', span: 6}), box({title: 'd', span: 6, col: 7})], {cols: 12}));
   const [r1, r2] = await rowsOf(a);
-  assert.deepEqual(xs(r1), xs(r2));
+  assert.deepEqual(xs(r1!), xs(r2!));
 });
 
 test('row({cols: [..]}) checks its spans', () => {
@@ -40,11 +40,11 @@ test('on a column grid the gap grows for every row of that grid, so the columns 
     return d;
   };
   const [plain1] = await rowsOf(mk(false)), [wide1, wide2] = await rowsOf(mk(true));
-  const gap = (r: LaidOutRow) => r.children[1].x - (r.children[0].x + r.children[0].w);
-  assert.equal(Math.round(gap(plain1)), 8);
-  assert.ok(gap(wide1) > 8, 'the labelled row gets the room');
-  assert.equal(Math.round(gap(wide1)), Math.round(gap(wide2)), 'and so does the other row of the same grid');
-  assert.deepEqual(xs(wide1), xs(wide2));
+  const gap = (r: LaidOutRow) => r.children[1]!.x - (r.children[0]!.x + r.children[0]!.w);
+  assert.equal(Math.round(gap(plain1!)), 8);
+  assert.ok(gap(wide1!) > 8, 'the labelled row gets the room');
+  assert.equal(Math.round(gap(wide1!)), Math.round(gap(wide2!)), 'and so does the other row of the same grid');
+  assert.deepEqual(xs(wide1!), xs(wide2!));
   assert.deepEqual((await checkDiagram(mk(true))).verdict.problems, []);
 });
 
@@ -54,7 +54,7 @@ test('a column grid keeps its gap when growing it would squeeze the boxes', asyn
     connect('c0:right', 'c1:left', {label: '長めのラベルがここに入ります', chip: true}),
   );
   const [r] = await rowsOf(d);
-  assert.equal(Math.round(r.children[1].x - (r.children[0].x + r.children[0].w)), 8);
+  assert.equal(Math.round(r!.children[1]!.x - (r!.children[0]!.x + r!.children[0]!.w)), 8);
 });
 
 test('connectDefaults fill in what a connector leaves out; what it sets wins', async () => {
@@ -70,8 +70,8 @@ test('connectDefaults reach branch() and connectors inside a group, and do not l
   const d = diagram({theme: 'blue', connectDefaults: {arrow: 'both', line: 'dashed'}});
   d.add(group([row([box({id: 'a', title: 'a'}), box({id: 'b', title: 'b'})]), connect('a:right', 'b:left', {marker: false, dashed: false})]), ...[branch('a:bottom', [{to: 'b:bottom'}])]);
   const [g1, g2] = (await checkDiagram(d)).laidOut.connects;
-  assert.deepEqual([g1.arrow, g1.line], ['none', 'solid'], 'legacy marker/dashed outrank the defaults');
-  assert.deepEqual([g2.arrow, g2.line], ['both', 'dashed']);
+  assert.deepEqual([g1!.arrow, g1!.line], ['none', 'solid'], 'legacy marker/dashed outrank the defaults');
+  assert.deepEqual([g2!.arrow, g2!.line], ['both', 'dashed']);
   const other = diagram({theme: 'blue'}).add(row([box({id: 'a', title: 'a'}), box({id: 'b', title: 'b'})]), connect('a:right', 'b:left'));
   assert.deepEqual((await checkDiagram(other)).laidOut.connects.map(c => [c.arrow, c.line]), [['end', 'solid']]);
 });
@@ -82,7 +82,7 @@ test('stateRow(): one part, a diff per state; the same cells as writing them out
   const b = stateMatrix(cols, [{label: 'カード', note: 'n', cells: [card(), card({state: 'loading'}), {na: '必ず 1 件ある'}]}]);
   assert.deepEqual(a.matrix, b.matrix);
   const c = stateMatrix(cols, [stateRow('カード', card, {通常: {}, 読み込み中: {title: 'X'}, 空: undefined}, {base: {state: 'empty'}})]);
-  assert.deepEqual(c.matrix!.rows[0].cells, [card({state: 'empty'}), card({state: 'empty', title: 'X'}), undefined]);
+  assert.deepEqual(c.matrix!.rows[0]!.cells, [card({state: 'empty'}), card({state: 'empty', title: 'X'}), undefined]);
 });
 
 test('stateRow(): a state that is not a column throws', () => {
@@ -96,7 +96,7 @@ test('table cell({mark}): a symbol in front of the text, with its tone, and the 
   assert.deepEqual(verdict.problems, []);
   const tb = laidOut.laidOut.find(b => b.type === 'table') as unknown as {rows: {cells: {text: string; tone?: string; bold: boolean}[]}[]};
   const cells = tb.rows.filter(r => r.cells[1] && !('header' in r && (r as {header?: boolean}).header)).map(r => r.cells[1]);
-  assert.deepEqual(cells.map(c => [c.text, c.tone, c.bold]), [['○ 通る', 'accent', false], ['×', 'danger', false], ['△ 条件付き', 'muted', false], ['◎ 最適', 'accent', true]]);
+  assert.deepEqual(cells.map(c => [c!.text, c!.tone, c!.bold]), [['○ 通る', 'accent', false], ['×', 'danger', false], ['△ 条件付き', 'muted', false], ['◎ 最適', 'accent', true]]);
 });
 
 test('wireframeDefaults: an app bar above every screen, the selected nav item per screen, defaults a screen can override', async () => {
@@ -108,12 +108,12 @@ test('wireframeDefaults: an app bar above every screen, the selected nav item pe
     screens([{id: 's1', title: 'A', root: wf.text('a'), shell: {active: 'ダッシュボード'}}, {id: 's2', title: 'B', root: [wf.text('b1'), wf.text('b2')]}]),
   );
   const [w1, w2, w3, sc] = d.bands as unknown as {root: {t: string; title?: string; active?: number; nav?: string[]; right?: string[]}[] | {t: string}; h?: number; frame?: string; items?: {root: unknown; h?: number}[]}[];
-  const root = (b: typeof w1) => [b.root].flat() as {t: string; title?: string; active?: number; nav?: string[]; right?: string[]}[];
+  const root = (b: typeof w1) => [b!.root].flat() as {t: string; title?: string; active?: number; nav?: string[]; right?: string[]}[];
   assert.deepEqual(root(w1).map(n => n.t), ['appbar', 'text']);
-  assert.deepEqual([root(w1)[0].title, root(w1)[0].active, root(w1)[0].nav!.length, root(w1)[0].right], ['在庫管理', 1, 3, ['田中']]);
-  assert.deepEqual([root(w2)[0].title, root(w2)[0].active, w2.h, w2.frame], ['設定画面', 2, 260, 'light'], 'the screen\'s own h wins, the default frame fills in');
-  assert.deepEqual([root(w3).map(n => n.t), w3.h], [['text'], 200], 'shell: false skips the bar but keeps the other defaults');
-  assert.deepEqual(sc.items!.map(i => [[i.root].flat().map(n => (n as {t: string}).t), i.h]), [[['appbar', 'text'], 200], [['appbar', 'text', 'text'], 200]]);
+  assert.deepEqual([root(w1)[0]!.title, root(w1)[0]!.active, root(w1)[0]!.nav!.length, root(w1)[0]!.right], ['在庫管理', 1, 3, ['田中']]);
+  assert.deepEqual([root(w2)[0]!.title, root(w2)[0]!.active, w2!.h, w2!.frame], ['設定画面', 2, 260, 'light'], 'the screen\'s own h wins, the default frame fills in');
+  assert.deepEqual([root(w3).map(n => n.t), w3!.h], [['text'], 200], 'shell: false skips the bar but keeps the other defaults');
+  assert.deepEqual(sc!.items!.map(i => [[i.root].flat().map(n => (n as {t: string}).t), i.h]), [[['appbar', 'text'], 200], [['appbar', 'text', 'text'], 200]]);
   assert.deepEqual((await checkDiagram(d)).verdict.problems, []);
   d.add(w1 as never); // adding the same band again must not wrap it twice
   assert.deepEqual(root(w1).map(n => n.t), ['appbar', 'text']);
@@ -122,7 +122,7 @@ test('wireframeDefaults: an app bar above every screen, the selected nav item pe
 test('wireframeDefaults: an unknown nav item throws; a custom shell function wraps the content', () => {
   const d = diagram({theme: 'blue', wireframeDefaults: {appbar: {title: 'X', nav: ['a', 'b']}}});
   assert.throws(() => d.add(wireframe(wf.text('t'), {shell: {active: 'c'}})), /"c" is not one of the nav items/);
-  const e = diagram({theme: 'blue', wireframeDefaults: {shell: (content, p) => wf.col([wf.text(`${p.section}`), ...content])}});
+  const e = diagram({theme: 'blue', wireframeDefaults: {shell: (content, p) => wf.col([wf.text(`${p['section']}`), ...content])}});
   const w = wireframe(wf.text('t'), {shell: {section: '設定'}});
   e.add(w);
   assert.deepEqual([(e.bands[0] as {root: {t: string}}).root.t], ['col']);
@@ -154,7 +154,7 @@ test('row({id}).col(n) on a row without cols is its n-th child; bad column numbe
   const {laidOut} = await checkDiagram(d);
   const row0 = laidOut.laidOut.find((b): b is LaidOutRow => b.type === 'row')!;
   const mid = row0.children[1];
-  assert.equal(Math.round(laidOut.connects[0].from.x), Math.round(mid.x + mid.w / 2));
+  assert.equal(Math.round(laidOut.connects[0]!.from.x), Math.round(mid!.x + mid!.w / 2));
   assert.throws(() => r.col(0), /whole numbers, 1-based/);
   assert.throws(() => r.col(3, 2), /in order/);
   const bad = diagram({theme: 'blue'}).add(r, connect('r#9:top', 'r#1:top'));
@@ -172,13 +172,13 @@ test('plane(): points and dimension lines land where their coordinates say, and 
   assert.deepEqual(verdict.problems, []);
   const p = laidOut.laidOut.find((b): b is LaidOutPlane => b.type === 'plane')!;
   const [a, b] = p.points;
-  assert.equal(Math.round((a.x - p.plotL) / (p.plotR - p.plotL) * 100), 25, 'x = 25 of 0..100');
-  assert.equal(Math.round((b.x - p.plotL) / (p.plotR - p.plotL) * 100), 75);
-  assert.equal(Math.round((p.plotB - b.y) / (p.plotB - p.plotT) * 50), 40, 'y grows upward');
-  assert.ok(p.dims[0].line.y1 > a.y, 'a dimension line on the "below" side runs below the segment');
+  assert.equal(Math.round((a!.x - p.plotL) / (p.plotR - p.plotL) * 100), 25, 'x = 25 of 0..100');
+  assert.equal(Math.round((b!.x - p.plotL) / (p.plotR - p.plotL) * 100), 75);
+  assert.equal(Math.round((p.plotB - b!.y) / (p.plotB - p.plotT) * 50), 40, 'y grows upward');
+  assert.ok(p.dims[0]!.line.y1 > a!.y, 'a dimension line on the "below" side runs below the segment');
   assert.deepEqual(p.ticks.length, 5 + 6);
   const down = (await checkDiagram(diagram({theme: 'blue'}).add(plane({x: {max: 10}, y: {max: 10}, yDown: true, points: [{at: [0, 10]}]})))).laidOut.laidOut.find((q): q is LaidOutPlane => q.type === 'plane')!;
-  assert.ok(down.points[0].y > down.axisY + 100, 'with yDown the origin is the top-left corner and y = 10 is at the bottom');
+  assert.ok(down.points[0]!.y > down.axisY + 100, 'with yDown the origin is the top-left corner and y = 10 is at the bottom');
 });
 
 test('plane(): labels that sit on each other, or leave the figure, are reported; a bad point id or axis throws', async () => {
@@ -225,7 +225,7 @@ test('connectDefaults leave swimlane() flows alone', async () => {
   const d = diagram({theme: 'blue', connectDefaults: {line: 'dashed', arrow: 'none', route: 'straight'}});
   d.add(swimlane([{id: 'a', label: 'A'}, {id: 'b', label: 'B'}], [{id: 's1', lane: 'a', title: '1'}, {id: 's2', lane: 'b', title: '2'}], {flows: [{from: 's1', to: 's2'}]}));
   const [c] = (await checkDiagram(d)).laidOut.connects;
-  assert.deepEqual([c.line, c.arrow, c.route], ['solid', 'end', 'elbow']);
+  assert.deepEqual([c!.line, c!.arrow, c!.route], ['solid', 'end', 'elbow']);
 });
 
 test('defaults never change the band the caller holds, so it can go into another diagram unchanged', async () => {
@@ -233,8 +233,8 @@ test('defaults never change the band the caller holds, so it can go into another
   const boxes = row([box({id: 'a', title: 'a'}), box({id: 'b', title: 'b'})]);
   const d1 = diagram({theme: 'blue', connectDefaults: {line: 'dashed'}, wireframeDefaults: {appbar: {title: 'T', nav: ['n']}}}).add(boxes, c, w);
   const d2 = diagram({theme: 'blue'}).add(boxes, c, w);
-  assert.equal((await checkDiagram(d1)).laidOut.connects[0].line, 'dashed');
-  assert.equal((await checkDiagram(d2)).laidOut.connects[0].line, 'solid');
+  assert.equal((await checkDiagram(d1)).laidOut.connects[0]!.line, 'dashed');
+  assert.equal((await checkDiagram(d2)).laidOut.connects[0]!.line, 'solid');
   assert.equal([(d2.bands[2] as {root: unknown}).root].flat().length, 1);
   assert.equal([(d1.bands[2] as {root: unknown}).root].flat().length, 2);
 });
@@ -242,7 +242,7 @@ test('defaults never change the band the caller holds, so it can go into another
 test('a part option called `na` next to others is an option; `{na: reason}` alone is the not-applicable marker', () => {
   const part = (o: {na?: string; x?: number} = {}) => wf.text(`${o.na ?? ''}${o.x ?? ''}`);
   const m = stateMatrix(['a', 'b'], [stateRow('r', part, {a: {na: 'p', x: 1}, b: {na: 'reason'}})]);
-  const [a, b] = m.matrix!.rows[0].cells;
+  const [a, b] = m.matrix!.rows[0]!.cells;
   assert.equal((a as {text: string}).text, 'p1');
   assert.deepEqual(b, {na: 'reason'});
 });
@@ -252,8 +252,8 @@ test('shell callouts are numbered before the content\'s (the shell is on top of 
   const w = wireframe(wf.col([wf.text('a', {n: true}), wf.text('b', {n: 5}), wf.text('c', {n: true})]));
   d.add(w);
   const root = (d.bands[0] as unknown as {root: {children: ({n?: number; children?: {n: number}[]})[]}}).root;
-  assert.equal(root.children[0].n, 6, 'the shell bar comes after the explicit 5');
-  assert.deepEqual(root.children[1].children!.map(n => n.n), [7, 5, 8], 'the content auto numbers follow it');
+  assert.equal(root.children[0]!.n, 6, 'the shell bar comes after the explicit 5');
+  assert.deepEqual(root.children[1]!.children!.map(n => n.n), [7, 5, 8], 'the content auto numbers follow it');
 });
 
 test('duplicate ids with a row or its columns are an error', async () => {

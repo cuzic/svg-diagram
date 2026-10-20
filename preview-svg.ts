@@ -9,6 +9,7 @@ import {grayscaleSvg, rasterize, staleBannerSvg} from './lib/raster.ts';
 import {freshness, staleNotice} from './lib/freshness.ts';
 import {closeMeasurer} from './lib/measure.ts';
 
+import {must} from './lib/must.ts';
 // No name given: <tmpdir>/svg-diagram-preview-<uid>/<source>-<unique>.png, created exclusively so parallel runs never overwrite each other.
 // The directory is per user and private (0700): a shared one would fail for the second user on a host, or be pre-created by someone else.
 function uniquePreview(input: string, png: Buffer): string {

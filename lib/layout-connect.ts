@@ -8,12 +8,13 @@ import {CONNECT_LABEL_SIZE} from './tokens.ts';
 import type {ConnectBand, LaidOutConnect} from './types/containers.ts';
 import type {Bend, ConnectRef, Point, Rect, Roles, WidthOf} from './types/core.ts';
 
+import {must} from './must.ts';
 // 'id', 'id:side', or 'id:side@t' — t (0..1) slides the anchor along that side
 // (default 0.5) so several connectors can leave/enter the same side in parallel.
 export function parseRef(ref: string): ConnectRef {
   const [id, sideAt] = ref.split(':');
   const [side, at] = (sideAt ?? 'center').split('@');
-  return {id, side, at: at === undefined ? 0.5 : Number(at)};
+  return {id: must(id), side: must(side), at: at === undefined ? 0.5 : Number(at)};
 }
 
 /**
@@ -69,7 +70,7 @@ function routePoints(band: ConnectBand, from: Point, to: Point, fromSide: string
   } else {
     pts = [from, to];
   }
-  return pts.filter((p, i) => i === 0 || p.x !== pts[i - 1].x || p.y !== pts[i - 1].y);
+  return pts.filter((p, i) => i === 0 || p.x !== must(pts[i - 1]).x || p.y !== must(pts[i - 1]).y);
 }
 
 // The path's ink as a list of thin segment rects rather than one bounding
@@ -77,7 +78,7 @@ function routePoints(band: ConnectBand, from: Point, to: Point, fromSide: string
 // boxes legitimately occupy.
 function pathSegments(points: Point[]): Rect[] {
   const segs: Rect[] = [];
-  for (let i = 0; i < points.length - 1; i++) segs.push(segRect(points[i].x, points[i].y, points[i + 1].x, points[i + 1].y));
+  for (let i = 0; i < points.length - 1; i++) segs.push(segRect(must(points[i]).x, must(points[i]).y, must(points[i + 1]).x, must(points[i + 1]).y));
   return segs;
 }
 
@@ -118,7 +119,7 @@ function resolveAnnotation(band: ConnectBand, anchors: Map<string, Rect>, widthO
     chipBox = {x: labelX - pw / 2, y: labelY - 17, w: pw, h: ph};
     labelBox = chipBox;
   }
-  return {...band, from: points[0], to: points[points.length - 1], fromId: fromRef.id, toId: toRef.id, fromLabel: band.from, toLabel: band.to, points, pathSegments: pathSegments(points), labelX, labelY, labelBox, chipBox};
+  return {...band, from: must(points[0]), to: must(points[points.length - 1]), fromId: fromRef.id, toId: toRef.id, fromLabel: band.from, toLabel: band.to, points, pathSegments: pathSegments(points), labelX, labelY, labelBox, chipBox};
 }
 
 export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf, roles: Roles, nodeBottoms: Map<string, number> = new Map(), scopes?: ScopeTable): LaidOutConnect {
@@ -131,8 +132,8 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
   const from = anchorPoint(fromRect, fromRef.side, fromRef.at);
   const to = anchorPoint(toRect, toRef.side, toRef.at);
   // a node: left / right / top meet its icon, but bottom is under its label
-  if (fromRef.side === 'bottom' && nodeBottoms.has(fromRef.id)) from.y = nodeBottoms.get(fromRef.id)!;
-  if (toRef.side === 'bottom' && nodeBottoms.has(toRef.id)) to.y = nodeBottoms.get(toRef.id)!;
+  if (fromRef.side === 'bottom' && nodeBottoms.has(fromRef.id)) from.y = must(nodeBottoms.get(fromRef.id));
+  if (toRef.side === 'bottom' && nodeBottoms.has(toRef.id)) to.y = must(nodeBottoms.get(toRef.id));
   if (band.plumb && (toRef.side === 'top' || toRef.side === 'bottom')) to.x = Math.min(toRect.x + toRect.w, Math.max(toRect.x, from.x));
   let points = routePoints(band, from, to, fromRef.side);
   if (band.route === 'elbow' && band.bend === 'auto') {
@@ -146,7 +147,7 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
       return ox <= 0.5 || oy <= 0.5;
     }));
     const cands = (['end', 'start', 0.5, 0.25, 0.75] as Bend[]).map(b => routePoints({...band, bend: b}, from, to, fromRef.side));
-    points = cands.find(clear) ?? cands[0];
+    points = cands.find(clear) ?? must(cands[0]);
   }
   const segments = pathSegments(points);
 
@@ -158,7 +159,7 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
       // vertical-first: label rides the middle (horizontal) leg; horizontal-
       // first: it rides the first leg, so a fan of branches from one box
       // gets labels at distinct x positions.
-      const [a, b, c2] = points;
+      const a = must(points[0]), b = must(points[1]), c2 = must(points[2]);
       const [p, q] = a.x === b.x ? [b, c2] : [a, b];
       labelX = Math.round((p.x + q.x) / 2);
       labelY = Math.round(p.y + dy);
@@ -167,7 +168,7 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
         const cw2 = labelWidth + 16;
         const legs: {p0: Point; p1: Point; len: number}[] = [];
         for (let i = 0; i < points.length - 1; i++) {
-          const p0 = points[i], p1 = points[i + 1];
+          const p0 = must(points[i]), p1 = must(points[i + 1]);
           legs.push({p0, p1, len: Math.abs(p1.x - p0.x) + Math.abs(p1.y - p0.y)});
         }
         legs.sort((x, y) => y.len - x.len);

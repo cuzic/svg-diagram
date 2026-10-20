@@ -122,7 +122,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
     hideUnder(ctx, x, y, w, hh);
     rect(ctx, x, y, w, hh, {r: 6, fill: 'bg', stroke: 'border', sw: 2});
     if (n.state === 'loading' && !visual) { // skeleton bars where the content will be
-      for (let k = 0, by = y + 42; by + 12 < y + hh - 8 && k < 5; k++, by += 22) rect(ctx, x + 12, by, (w - 24) * [0.85, 0.6, 0.75, 0.45, 0.65][k], 10, {r: 5, fill: 'border'});
+      for (let k = 0, by = y + 42; by + 12 < y + hh - 8 && k < 5; k++, by += 22) rect(ctx, x + 12, by, (w - 24) * must([0.85, 0.6, 0.75, 0.45, 0.65][k]), 10, {r: 5, fill: 'border'});
       const lab = n.stateTitle ?? st.title, cw = chipW(ctx, lab);
       drawChip(ctx, lab, x + w - 8 - Math.min(cw, w - 16), y + 8, 'muted');
       return;
@@ -178,22 +178,22 @@ export function installParts(h: WfHelpers): WfPartsApi {
     insight: (n: WfInsight, w: number, ctx: WfCtx) => insightData(n, w, ctx).h});
 
   Object.assign(DRAW, {
-    toggle: (n: WfToggle, x: number, y: number, w: number, hh: number, ctx: WfCtx) => ({w: drawToggleAt(ctx, x, y, n.on !== false, n.label), h: 28}),
-    checkbox: (n: WfCheckbox, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+    toggle: (n: WfToggle, x: number, y: number, _w: number, _hh: number, ctx: WfCtx) => ({w: drawToggleAt(ctx, x, y, n.on !== false, n.label), h: 28}),
+    checkbox: (n: WfCheckbox, x: number, y: number, _w: number, _hh: number, ctx: WfCtx) => {
       const on = n.checked !== false;
       rect(ctx, x, y + 5, 18, 18, {r: 3, fill: on ? 'accent' : 'bg', stroke: on ? null : 'text'});
       if (on) path(ctx, pts([[x + 4, y + 14], [x + 8, y + 18], [x + 14, y + 10]]), {stroke: 'bg', sw: 2.5});
       text(ctx, n.label, x + 28, mid(y + 14), {});
       return {w: 28 + tw(ctx, n.label, S, 400), h: 28};
     },
-    slider: (n: WfSlider, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+    slider: (n: WfSlider, x: number, y: number, w: number, _hh: number, ctx: WfCtx) => {
       const lw = n.label ? tw(ctx, n.label, S, 400) + 12 : 0, dw = n.display ? tw(ctx, n.display, S, 700) + 12 : 0;
       if (n.label) text(ctx, n.label, x, mid(y + 14), {});
       drawSliderAt(ctx, x + lw, y, w - lw - dw, n.value ?? 0.5);
       if (n.display) text(ctx, n.display, x + w, mid(y + 14), {weight: 700, anchor: 'end'});
       return {w, h: 32};
     },
-    battery: (n: WfBattery, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+    battery: (n: WfBattery, x: number, y: number, _w: number, _hh: number, ctx: WfCtx) => {
       const lv = Math.max(0, Math.min(1, n.level)), low = lv < 0.2;
       rect(ctx, x, y + 4, 36, 16, {r: 3, fill: 'bg', stroke: low ? 'danger' : 'text'});
       rect(ctx, x + 36, y + 9, 3, 6, {fill: low ? 'danger' : 'text'});
@@ -210,7 +210,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
     },
   });
   // radio needs the same signature as the others; defined separately to keep the Object.assign tidy
-  DRAW.radio = (n: WfRadio, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+  DRAW.radio = (n: WfRadio, x: number, y: number, _w: number, _hh: number, ctx: WfCtx) => {
     circle(ctx, x + 9, y + 14, 9, {fill: 'bg', stroke: 'text'});
     if (n.selected !== false) circle(ctx, x + 9, y + 14, 5, {fill: 'accent'});
     text(ctx, n.label, x + 28, mid(y + 14), {});
@@ -226,20 +226,20 @@ export function installParts(h: WfHelpers): WfPartsApi {
   // ---- robot status card -----------------------------------------------------------------
   // narrow frames (a cell in a state matrix, a side rail) stack the card's rows instead of laying them side by side
   const compactRobot = (n: WfRobot, w: number) => n.compact ?? w < 210;
-  DRAW.robot = (n: WfRobot, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+  DRAW.robot = (n: WfRobot, x: number, y: number, w: number, _hh: number, ctx: WfCtx) => {
     const lost = (n.link ?? 3) === 0, compact = compactRobot(n, w), H = compact ? 150 : 104;
     rect(ctx, x, y, w, H, {r: 8, fill: n.active ? 'soft' : 'bg', stroke: lost ? 'danger' : n.active ? 'accent' : 'border', sw: n.active ? 2.5 : 2, dash: lost ? '6,4' : undefined});
     let tx = x + 14;
     if (n.marker) { glyph(ctx, x + 26, y + 26, {shape: n.marker.shape, id: n.marker.id}); tx = x + 48; }
     text(ctx, n.name, tx, y + 31, {size: T, weight: 700});
-    const bat = {t: 'battery', level: n.battery ?? 0} as WfBattery, batW = AUTO_W.battery!(bat, ctx);
+    const bat = {t: 'battery', level: n.battery ?? 0} as WfBattery, batW = must(AUTO_W.battery)(bat, ctx);
     const modeW = n.mode ? chipW(ctx, n.mode) : 0, modeTone = n.modeTone ?? (lost ? 'danger' : 'accent');
     // rows: wide = [name .. mode] [battery  signal] [last];  compact = [name] [mode] [battery] [signal] [last]
     const mx = compact ? x + 14 : x + w - 12 - modeW, my = compact ? y + 44 : y + 14;
     const by = compact ? y + 76 : y + 46, sx = compact ? x + 14 : x + 14 + batW + 24, sy = compact ? y + 102 : y + 46, ly = compact ? y + 142 : y + 90;
     if (n.mode) drawChip(ctx, n.mode, mx, my, modeTone);
-    DRAW.battery!(bat, x + 14, by, w, 24, ctx);
-    DRAW.signal!({t: 'signal', level: n.link ?? 3} as WfSignal, sx, sy, w, 24, ctx);
+    must(DRAW.battery)(bat, x + 14, by, w, 24, ctx);
+    must(DRAW.signal)({t: 'signal', level: n.link ?? 3} as WfSignal, sx, sy, w, 24, ctx);
     text(ctx, n.last ? `最終受信 ${n.last}` : '最終受信 —', x + 14, ly, {fill: lost ? 'danger' : 'muted', weight: lost ? 700 : 400});
     part(ctx, n, 'marker', x + 14, y + 12); part(ctx, n, 'name', tx - 2, y + 12); part(ctx, n, 'mode', mx + (compact ? -2 : modeW), my);
     part(ctx, n, 'battery', x + 8, by); part(ctx, n, 'signal', sx - 6, sy); part(ctx, n, 'last', x + 8, ly - 12);
@@ -320,7 +320,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
   };
 
   // ---- breadcrumb ---------------------------------------------------------------------------
-  DRAW.breadcrumb = (n: WfBreadcrumb, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+  DRAW.breadcrumb = (n: WfBreadcrumb, x: number, y: number, _w: number, _hh: number, ctx: WfCtx) => {
     let cx = x;
     n.items.forEach((it, i) => {
       const last = i === n.items.length - 1, wt = last ? 700 : 400, iw = tw(ctx, it, S, wt);
@@ -355,7 +355,8 @@ export function installParts(h: WfHelpers): WfPartsApi {
   }
   function drawThermal(ctx: WfCtx, x: number, y: number, w: number, hh: number, label?: string) {
     const b = sceneBox(x, y, w, hh), hx = b.bx + b.bw * 0.55, hy = b.by + b.bh * 0.28;
-    [[0.34, 0.12], [0.22, 0.25], [0.11, 0.5]].forEach(([r, op]) => circle(ctx, hx, hy, Math.min(w, hh) * r * 0.55, {fill: 'danger', op}));
+    const halos: [number, number][] = [[0.34, 0.12], [0.22, 0.25], [0.11, 0.5]];
+    halos.forEach(([r, op]) => circle(ctx, hx, hy, Math.min(w, hh) * r * 0.55, {fill: 'danger', op}));
     line(ctx, hx - 12, hy, hx + 12, hy, {stroke: 'text', sw: 2}); line(ctx, hx, hy - 12, hx, hy + 12, {stroke: 'text', sw: 2});
     if (label) {
       const lw = tw(ctx, label, S, 700) + 12;
@@ -373,8 +374,8 @@ export function installParts(h: WfHelpers): WfPartsApi {
     let used = 0;
     for (const l of layers) {
       const lw = 44 + tw(ctx, lname(l), S, 400);
-      if (rows.at(-1)!.length && used + lw > w - 16) { rows.push([]); used = 0; }
-      rows.at(-1)!.push({l, lw}); used += lw + 16;
+      if (must(rows.at(-1)).length && used + lw > w - 16) { rows.push([]); used = 0; }
+      must(rows.at(-1)).push({l, lw}); used += lw + 16;
     }
     const withSlider = n.controls !== false && n.opacity !== false;
     const strip = n.controls === false ? 0 : 8 + rows.length * 28 + (withSlider ? 30 : 0) + 6, vh = Math.max(60, hh - strip);
@@ -409,7 +410,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
     drawCamera(ctx, x, y, w, hh);
     if (n.kind === 'map') { for (let k = 1; k < 4; k++) line(ctx, x + w * k / 4, y + 8, x + w * k / 4, y + hh - 8, {stroke: 'border', sw: 1.5}); }
     for (const d of n.diff ?? []) rect(ctx, x + w * d.x, y + hh * d.y, w * d.w, hh * d.h, {r: 4, stroke: 'danger', sw: 2.5, dash: '6,4'});
-    if (n.diff?.length) part(ctx, n, 'diff', x + w * n.diff[0].x, y + hh * n.diff[0].y);
+    if (n.diff?.length) part(ctx, n, 'diff', x + w * must(n.diff[0]).x, y + hh * must(n.diff[0]).y);
     line(ctx, sx, y, sx, y + hh, {stroke: 'text', sw: 3});
     circle(ctx, sx, y + hh / 2, 14, {fill: 'bg', stroke: 'text', sw: 2.5});
     path(ctx, pts([[sx - 3, y + hh / 2 - 6], [sx - 9, y + hh / 2], [sx - 3, y + hh / 2 + 6]]), {stroke: 'text', sw: 2});

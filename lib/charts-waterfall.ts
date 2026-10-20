@@ -4,6 +4,7 @@
 import {Canvas, checkDomain, checkIds, checkInset, insetOrNeed, checkText, decimalsIn, fail, finiteNum, numText, signedText, thinTicks, valueScale} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 
+import {must} from './must.ts';
 export type WaterfallKind = 'start' | 'delta' | 'subtotal' | 'total';
 export interface WaterfallStep {
   label: string;
@@ -71,10 +72,10 @@ export function resolveWaterfall(steps: readonly WaterfallStep[], opts: Waterfal
   return spec;
 }
 
-const valueOf = (s: ResolvedStep, unit: string): string => `${s.kind === 'delta' ? signedText(s.value) : numText(s.value)}${unit}`;
+const stepText = (s: ResolvedStep, unit: string): string => `${s.kind === 'delta' ? signedText(s.value) : numText(s.value)}${unit}`;
 export const KIND_JA: Record<WaterfallKind, string> = {start: '開始', delta: '増減', subtotal: '小計', total: '合計'};
 export function waterfallAlt(spec: WaterfallSpec): string {
-  return `ウォーターフォール図: ${spec.steps.map(s => `${s.label} ${valueOf(s, spec.unit)}`).join('、')}`;
+  return `ウォーターフォール図: ${spec.steps.map(s => `${s.label} ${stepText(s, spec.unit)}`).join('、')}`;
 }
 
 /** The value axis a waterfall is drawn with: from its levels (and 0), or its `domain`. The one place the layout, the description and the axis check all read. */
@@ -103,7 +104,7 @@ export function layoutWaterfall(spec: WaterfallSpec, g: ChartGeom): LaidOutChart
   const bw = Math.min(72, Math.floor(slot * 0.62));
   // category labels: wrapped to the slot, bold for the bars that are levels (start / subtotal / total)
   const cats = spec.steps.map(s => c.wrap(s.label, slot - 8, s.kind !== 'delta'));
-  for (const [i, ls] of cats.entries()) for (const l of ls) if (c.tw(l, spec.steps[i].kind !== 'delta') > slot - 4) fail('waterfall', `the label "${spec.steps[i].label}" is too long for a column ${Math.round(slot)}px wide (shorten it, or raise width)`);
+  for (const [i, ls] of cats.entries()) for (const l of ls) if (c.tw(l, must(spec.steps[i]).kind !== 'delta') > slot - 4) fail('waterfall', `the label "${must(spec.steps[i]).label}" is too long for a column ${Math.round(slot)}px wide (shorten it, or raise width)`);
   const catH = Math.max(...cats.map(l => l.length)) * c.lineH() + 6;
   if (g.height === undefined) c.h = 300 + catH;
   const plotT = g.y + 4, plotB = g.y + c.h - catH - 6;
@@ -135,11 +136,11 @@ export function layoutWaterfall(spec: WaterfallSpec, g: ChartGeom): LaidOutChart
   if (spec.connectors) for (const [i, b] of bars.entries()) {
     if (i === n - 1) break;
     const y = r1(yOf(b.s.to));
-    c.line(b.x + bw, y, bars[i + 1].x, y, {stroke: 'muted', dash: '4,3', avoid: true, sw: 2});
+    c.line(b.x + bw, y, must(bars[i + 1]).x, y, {stroke: 'muted', dash: '4,3', avoid: true, sw: 2});
   }
   // value labels: above a bar that rises (or a level above zero), below one that falls; inside it (in the page colour) when the outside is taken
   for (const b of bars) {
-    const text = valueOf(b.s, spec.unit), up = b.s.kind === 'delta' ? b.s.value >= 0 : b.s.value >= 0;
+    const text = stepText(b.s, spec.unit), up = b.s.kind === 'delta' ? b.s.value >= 0 : b.s.value >= 0;
     const above = {x: b.cx, y: b.top - 7, anchor: 'middle' as const}, below = {x: b.cx, y: b.top + b.h + S + 5, anchor: 'middle' as const};
     const cands = up ? [above, below] : [below, above];
     const inside = {x: b.cx, y: c.mid(b.top + b.h / 2), anchor: 'middle' as const};
@@ -149,7 +150,7 @@ export function layoutWaterfall(spec: WaterfallSpec, g: ChartGeom): LaidOutChart
     if (!out) fail('waterfall', `the value "${text}" of "${b.s.label}" has no room (raise width / height, or shorten the unit)`);
   }
   // category labels under the plot
-  for (const [i, ls] of cats.entries()) c.lines(ls, plotL + (i + 0.5) * slot, plotB + S + 8, 'middle', 'text', {bold: spec.steps[i].kind !== 'delta', of: spec.steps[i].id ?? `#${i}`});
+  for (const [i, ls] of cats.entries()) c.lines(ls, plotL + (i + 0.5) * slot, plotB + S + 8, 'middle', 'text', {bold: must(spec.steps[i]).kind !== 'delta', of: must(spec.steps[i]).id ?? `#${i}`});
   void decimalsIn;
   return c.done();
 }
@@ -177,12 +178,12 @@ function layoutWaterfallH(spec: WaterfallSpec, g: ChartGeom): LaidOutChartPart {
   const bars = spec.steps.map((s, i) => {
     const cy = y0 + (i + 0.5) * pitch, key = s.id ?? `#${i}`, x1 = xOf(Math.min(s.from, s.to)), x2 = xOf(Math.max(s.from, s.to)), w = Math.max(2, x2 - x1);
     const solid = c.rect(r1(Math.abs(x2 - x1) < 2 ? x1 - 1 : x1), r1(cy - barH / 2), r1(w), barH, {fill: fillOf(s), id: s.id, of: key, solid: s.id ?? `bar "${s.label}"`});
-    c.lines(cats[i], g.x + labelW - 10 + 0, cy - (cats[i].length - 1) * lh / 2 + S * 0.36, 'end', 'text', {bold: s.kind !== 'delta', of: key});
+    c.lines(must(cats[i]), g.x + labelW - 10 + 0, cy - (must(cats[i]).length - 1) * lh / 2 + S * 0.36, 'end', 'text', {bold: s.kind !== 'delta', of: key});
     return {s, i, cy, x1, x2, solid, key, fill: fillOf(s)};
   });
-  if (spec.connectors) for (const [i, b] of bars.entries()) { if (i === n - 1) break; const x = r1(xOf(b.s.to)); c.line(x, b.cy + barH / 2, x, bars[i + 1].cy - barH / 2, {stroke: 'muted', dash: '4,3', avoid: true}); }
+  if (spec.connectors) for (const [i, b] of bars.entries()) { if (i === n - 1) break; const x = r1(xOf(b.s.to)); c.line(x, b.cy + barH / 2, x, must(bars[i + 1]).cy - barH / 2, {stroke: 'muted', dash: '4,3', avoid: true}); }
   for (const b of bars) {
-    const text = texts[b.i], right = b.s.kind === 'delta' ? b.s.value >= 0 : b.s.value >= 0;
+    const text = must(texts[b.i]), right = b.s.kind === 'delta' ? b.s.value >= 0 : b.s.value >= 0;
     const r = {x: b.x2 + 7, y: c.mid(b.cy), anchor: 'start' as const}, l = {x: b.x1 - 7, y: c.mid(b.cy), anchor: 'end' as const};
     const fits = c.tw(text, true) <= Math.abs(b.x2 - b.x1) - 10;
     const on = {fill: b.fill};

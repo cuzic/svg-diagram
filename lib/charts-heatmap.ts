@@ -5,6 +5,7 @@ import {niceNear, niceUp} from './qc.ts';
 import {Canvas, checkText, decimalsIn, fail, finiteNum, inkOnShade, numText, shadeOps} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
 
+import {must} from './must.ts';
 export interface HeatmapOpts extends ChartOpts {
   /** Written after every number ('%', '件'). */
   unit?: string;
@@ -63,7 +64,7 @@ const rangeText = (i: number, s: HeatmapSpec): string => {
 export const heatLevel = (v: number, s: Pick<HeatmapSpec, 'min' | 'max' | 'levels'>): number => Math.max(0, Math.min(s.levels - 1, Math.floor((v - s.min) / (s.max - s.min) * s.levels + 1e-9)));
 
 export function heatmapAlt(s: HeatmapSpec): string {
-  const rows = s.rows.map((r, i) => `${r}: ${s.values[i].map(v => v === null ? '-' : cellText(v, s)).join(' / ')}`);
+  const rows = s.rows.map((r, i) => `${r}: ${must(s.values[i]).map(v => v === null ? '-' : cellText(v, s)).join(' / ')}`);
   return `ヒートマップ（列: ${s.cols.join('、')}）。${rows.join('。')}`;
 }
 export function heatmapTexts(s: HeatmapSpec): [string, number][] {
@@ -116,15 +117,15 @@ export function layoutHeatmap(s: HeatmapSpec, g: ChartGeom): LaidOutChartPart {
   heads.forEach((h, i) => c.lines(h, plotL + (i + 0.5) * cellW, g.y + headH - 8 - (h.length - 1) * lh, 'middle', 'text', {bold: true}));
   s.rows.forEach((r, i) => {
     const y = bodyT + i * cellH, cy = y + cellH / 2;
-    c.lines(rowLs[i], g.x + 4, c.mid(cy) - (rowLs[i].length - 1) * lh / 2, 'start', 'text', {bold: s.rowHeader});
-    s.values[i].forEach((v, j) => {
-      const x = plotL + j * cellW, t = texts[i][j];
+    c.lines(must(rowLs[i]), g.x + 4, c.mid(cy) - (must(rowLs[i]).length - 1) * lh / 2, 'start', 'text', {bold: s.rowHeader});
+    must(s.values[i]).forEach((v, j) => {
+      const x = plotL + j * cellW, t = must(must(texts[i])[j]);
       if (v === null) {
         const host = c.rect(r1(x + gap / 2), r1(y + gap / 2), r1(cellW - gap), r1(cellH - gap), {fill: 'none', stroke: 'border', sw: 2, dash: '3,3', solid: `cell ${r} x ${s.cols[j]}`});
         c.text(t, x + cellW / 2, c.mid(cy), 'middle', 'muted', {host});
         return;
       }
-      const op = ops[heatLevel(v, s)], ink = inkOnShade(op);
+      const op = must(ops[heatLevel(v, s)]), ink = inkOnShade(op);
       const host = c.rect(r1(x + gap / 2), r1(y + gap / 2), r1(cellW - gap), r1(cellH - gap), {fill: 'accent', op, solid: `cell ${r} x ${s.cols[j]}`});
       c.text(t, x + cellW / 2, c.mid(cy), 'middle', ink, {bold: true, host, on: {fill: 'accent', op, ink}});
     });

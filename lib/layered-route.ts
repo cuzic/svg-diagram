@@ -9,6 +9,7 @@ import {moveApart} from './route-apart.ts';
 
 export {simplify};
 
+import {must} from './must.ts';
 export const STUB = 18;
 export const LANE = 14;
 /** The gap two layers need so that `n` direct arrows through it each get a lane (and a label chip beside them has room). */
@@ -21,9 +22,9 @@ export const laneStepOf = (space = 1): number => Math.round(LANE * space);
  * between its two layers, from routeLayered); the others turn half-way between their points.
  */
 export function elbows(pts: Pt[], turn?: number, lastTurn?: number): Pt[] {
-  const out: Pt[] = [pts[0]];
+  const out: Pt[] = pts.slice(0, 1);
   for (let i = 0; i + 1 < pts.length; i++) {
-    const p = pts[i], q = pts[i + 1];
+    const p = must(pts[i]), q = must(pts[i + 1]);
     if (p.y !== q.y) {
       const mx = pts.length === 2 && turn !== undefined ? turn : i + 2 === pts.length && lastTurn !== undefined ? lastTurn : (p.x + q.x) / 2;
       out.push({x: mx, y: p.y}, {x: mx, y: q.y});
@@ -67,7 +68,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   const portOf = new Map<string, number>(), laneOf = new Map<number, number>();
   const slotOf = new Map<string, {list: {edge: number; end: 0 | 1}[]; k: number; step: number}>(); // where each arrow end sits among the ends of its box side
   // the gap between layer l and l+1 runs from the right edge of the widest box of l to the left edge of the leftmost box of l+1
-  const layerOf = (id: string): number => lay.layers.get(id)!;
+  const layerOf = (id: string): number => must(lay.layers.get(id));
   const layerRight = new Map<number, number>(), layerLeft = new Map<number, number>();
   for (const [id, n] of lay.nodes) {
     const l = layerOf(id);
@@ -123,7 +124,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   const corridors = new Map<string, number[]>();
   lay.edges.forEach((e, i) => {
     if (e.self) return;
-    const A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!, ca = {x: A.x + A.w / 2, y: A.y + A.h / 2}, cb = {x: B.x + B.w / 2, y: B.y + B.h / 2};
+    const A = must(lay.nodes.get(e.from)), B = must(lay.nodes.get(e.to)), ca = {x: A.x + A.w / 2, y: A.y + A.h / 2}, cb = {x: B.x + B.w / 2, y: B.y + B.h / 2};
     const first = e.points[1] ?? cb, last = e.points[e.points.length - 2] ?? ca;
     ends.push({key: `${e.from}:${first.x >= ca.x ? 'r' : 'l'}`, edge: i, end: 0, other: first.y});
     if (!faceOf.has(i)) ends.push({key: `${e.to}:${last.x <= cb.x ? 'l' : 'r'}`, edge: i, end: 1, other: last.y});
@@ -139,12 +140,12 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     const mean = new Map<number, number>(), count = new Map<number, number>();
     if (groupOf) {
       for (const en of list) { const g = en.end === 1 ? groupOf(en.edge) : undefined; if (g !== undefined) { mean.set(g, (mean.get(g) ?? 0) + en.other); count.set(g, (count.get(g) ?? 0) + 1); } }
-      for (const [g, n] of count) mean.set(g, mean.get(g)! / n);
+      for (const [g, n] of count) mean.set(g, must(mean.get(g)) / n);
     }
-    const key = (en: typeof list[number]): number => (en.end === 1 && groupOf && groupOf(en.edge) !== undefined ? mean.get(groupOf(en.edge)!)! : en.other);
+    const key = (en: typeof list[number]): number => (en.end === 1 && groupOf && groupOf(en.edge) !== undefined ? must(mean.get(must(groupOf(en.edge)))) : en.other);
     list.sort((p, q) => key(p) - key(q) || (p.end === 1 && groupOf ? (groupOf(p.edge) ?? -1) - (groupOf(q.edge) ?? -1) : 0) || p.other - q.other || p.edge - q.edge);
     list.forEach((en, k) => {
-      const e = lay.edges[en.edge], id = en.end === 0 ? e.from : e.to, h = lay.nodes.get(id)!.h;
+      const e = must(lay.edges[en.edge]), id = en.end === 0 ? e.from : e.to, h = must(lay.nodes.get(id)).h;
       const step = list.length > 1 ? Math.min(portStep, (h - 12) / (list.length - 1)) : 0;
       // the ports of one side keep an even step (a tail and a head on one side are never closer than a step). The ports of every box's
       // left side sit half a step lower than those of its right side: a tail port of one box and a head port of the next (same layer
@@ -158,9 +159,9 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   }
   // fan-out (one tail): the arrow that goes farthest turns first (the lane nearest the tail), so no vertical run crosses another arrow's
   // last run. fan-in (one head, several tails): the other way round, the nearest tail turns first.
-  const dy = (i: number): number => { const e = lay.edges[i], A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!; return Math.abs((B.y + B.h / 2) - (A.y + A.h / 2)); };
+  const dy = (i: number): number => { const e = must(lay.edges[i]), A = must(lay.nodes.get(e.from)), B = must(lay.nodes.get(e.to)); return Math.abs((B.y + B.h / 2) - (A.y + A.h / 2)); };
   // arrows that go down and arrows that go up through the same gap are told apart too: the up group takes the lanes after the down group's
-  const goesDown = (i: number): boolean => { const e = lay.edges[i], A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!; return B.y + B.h / 2 >= A.y + A.h / 2; };
+  const goesDown = (i: number): boolean => { const e = must(lay.edges[i]), A = must(lay.nodes.get(e.from)), B = must(lay.nodes.get(e.to)); return B.y + B.h / 2 >= A.y + A.h / 2; };
   // forward arrows (tail in the earlier layer) take lanes counted from the gap's left side, backward arrows (a return) from its right side,
   // so the two kinds never land on one lane (the gap is sized for all of them together, see gapFor)
   const forward = (i: number): boolean => layerOf(lay.edges[i].from) < layerOf(lay.edges[i].to);
@@ -403,7 +404,7 @@ export function corridorLoad(lay: LayeredLayout): number {
   const load = new Map<string, number>();
   for (const e of lay.edges) {
     if (e.self || e.points.length !== 2) continue;
-    const A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!;
+    const A = must(lay.nodes.get(e.from)), B = must(lay.nodes.get(e.to));
     const k = `${Math.round(Math.min(A.x + A.w / 2, B.x + B.w / 2))}:${Math.round(Math.max(A.x + A.w / 2, B.x + B.w / 2))}`; // the same key as routeLayered's corridors: layers by their centres
     load.set(k, (load.get(k) ?? 0) + 1);
   }

@@ -42,6 +42,7 @@ import {lineWidth} from './layout-text.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
 import {addScoped, qualify, scopeOf} from './anchor-scope.ts';
 
+import {must} from './must.ts';
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
 const rectOf = (p: Rect): Rect => ({x: p.x, y: p.y, w: p.w, h: p.h});
 
@@ -149,7 +150,7 @@ function registerRowSlots(ctx: LayoutCtx, id: string | undefined, band: RowLike,
   } else {
     const put = (key: string, r: Rect) => { if (ctx.anchors.has(key)) ctx.claimed(key, 'a row column collides with an existing id'); ctx.anchors.set(key, r); ctx.areaIds.add(key); };
     placed.forEach((r, i) => put(`${id}#${i + 1}`, {x: r.x, y: rowTop, w: r.w, h: rowHeight}));
-    for (let a = 0; a < placed.length; a++) for (let b = a + 1; b < placed.length; b++) put(`${id}#${a + 1}-${b + 1}`, {x: placed[a].x, y: rowTop, w: placed[b].x + placed[b].w - placed[a].x, h: rowHeight});
+    for (let a = 0; a < placed.length; a++) for (let b = a + 1; b < placed.length; b++) put(`${id}#${a + 1}-${b + 1}`, {x: must(placed[a]).x, y: rowTop, w: must(placed[b]).x + must(placed[b]).w - must(placed[a]).x, h: rowHeight});
   }
 }
 
@@ -247,12 +248,13 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
   const padY = 14;
   const colWAt = (): number => (cw - labelW - 2 * padX2 - (band.cols - 1) * colGap) / band.cols;
   if (band.fit === 'shrink' && colWAt() < SWIMLANE_COMFY_COL) { // free room for the columns: lane labels and gaps give way first, a step at a time
-    for (const [lw, cg, px] of [[104, 20, 12], [88, 12, 8]]) {
+    const steps: [number, number, number][] = [[104, 20, 12], [88, 12, 8]];
+    for (const [lw, cg, px] of steps) {
       labelW = Math.min(labelW, lw); colGap = Math.min(colGap, cg); padX2 = Math.min(padX2, px);
       if (colWAt() >= SWIMLANE_COMFY_COL) break;
     }
   }
-  const bodyX = padX + labelW, bodyW = cw - labelW;
+  const bodyX = padX + labelW;
   const colW = colWAt();
   if (colW < 60) throw new Error(`swimlane(): ${band.cols} columns leave only ${Math.round(colW)}px each — widen the diagram, shrink labelW, or use fewer columns`);
   const top0 = ctx.y, startY = snapGrid(top0); // on the grid; the cursor moves on from where it was (no drift)
@@ -316,10 +318,10 @@ function layoutLegend(band: LegendBand, ctx: LayoutCtx, padX: number, cw: number
   const rows: (typeof items)[] = [[]];
   let rowW = 0;
   for (const it of items) {
-    const add = (rows.at(-1)!.length ? LEGEND_ITEM_GAP : 0) + it.w;
-    if (rows.at(-1)!.length && rowW + add > cw) { rows.push([]); rowW = 0; }
-    rowW += (rows.at(-1)!.length ? LEGEND_ITEM_GAP : 0) + it.w;
-    rows.at(-1)!.push(it);
+    const add = (must(rows.at(-1)).length ? LEGEND_ITEM_GAP : 0) + it.w;
+    if (must(rows.at(-1)).length && rowW + add > cw) { rows.push([]); rowW = 0; }
+    rowW += (must(rows.at(-1)).length ? LEGEND_ITEM_GAP : 0) + it.w;
+    must(rows.at(-1)).push(it);
   }
   const placedItems: LaidOutLegendItem[] = [];
   rows.forEach((r, ri) => {
@@ -332,7 +334,7 @@ function layoutLegend(band: LegendBand, ctx: LayoutCtx, padX: number, cw: number
   ctx.y += h + d.gap;
 }
 
-function layoutConnect(band: ConnectBand, ctx: LayoutCtx, padX: number, cw: number): void {
+function layoutConnect(band: ConnectBand, ctx: LayoutCtx, _padX: number, _cw: number): void {
   const {roles, widthOf} = ctx;
   // Resolved immediately (not deferred) so a loop-under route can
   // reserve real vertical space for its dip + label — a zero-height
@@ -437,7 +439,7 @@ function layoutCanvasGrid(band: GridBand & {canvas: NonNullable<GridBand['canvas
   const cv = band.canvas, gap = band.gap, top0 = ctx.y;
   // a region's pill sits on its top edge, half above it: the rows under the first keep it clear of the box above
   // (and of the caption above the first row)
-  const tagged = (row: (r: number) => boolean): boolean => band.children.some((c, i) => c.tag && row(cv.place[i].row));
+  const tagged = (row: (r: number) => boolean): boolean => band.children.some((c, i) => c.tag && row(must(cv.place[i]).row));
   const rowGap = tagged(r => r > 0) ? Math.max(gap, TAG_H / 2 + 4) : gap;
   if (cv.title) {
     const t = ctx.placeBoxLike({type: 'caption', text: cv.title, align: 'left', role: 'title', bold: true, tone: 'text', mono: false} as CaptionBand, padX, ctx.y, cw, false);
@@ -447,7 +449,7 @@ function layoutCanvasGrid(band: GridBand & {canvas: NonNullable<GridBand['canvas
   // every edge on the 4px grid the emitter snaps shapes to, so neighbouring regions keep one straight edge and even gutters
   const top = Math.ceil(ctx.y / 4 - 1e-6) * 4, cols = canvasColumns(cv, padX, cw, gap);
   const placed = band.children.map((child, i) => {
-    const s = canvasSpan(cols, cv.place[i]);
+    const s = canvasSpan(cols, must(cv.place[i]));
     const name = child.title ?? `region ${i + 1}`;
     if (s.w < CANVAS_MIN_REGION_W) throw new Error(`canvas("${cv.template}"): region "${name}" is only ${Math.max(0, Math.round(s.w))}px wide (at least ${CANVAS_MIN_REGION_W}px): widen the figure (diagram({width})) or use a smaller gap`);
     const p = ctx.placeBoxLike(child, s.x, top, s.w, true);
@@ -466,15 +468,15 @@ function layoutCanvasGrid(band: GridBand & {canvas: NonNullable<GridBand['canvas
   const total = rows.reduce((a, b) => a + b, 0) + rowGap * (rows.length - 1);
   if (cv.h !== undefined && total > cv.h + 0.5) throw new Error(`canvas("${cv.template}"): the regions need ${Math.ceil(total)}px of height but h is ${cv.h}px (shorten the text, widen the figure, or leave h out)`);
   const rowY = [top];
-  rows.forEach((v, r) => rowY.push(rowY[r] + Math.ceil(v / 4 - 1e-6) * 4 + rowGap));
+  rows.forEach((v, r) => rowY.push(must(rowY[r]) + Math.ceil(v / 4 - 1e-6) * 4 + rowGap));
   placed.forEach((p, i) => {
-    const pl = cv.place[i], h = rowY[pl.row + pl.rs] - rowGap - rowY[pl.row];
-    p.y = rowY[pl.row]; p.h = h;
+    const pl = must(cv.place[i]), h = must(rowY[pl.row + pl.rs]) - rowGap - must(rowY[pl.row]);
+    p.y = must(rowY[pl.row]); p.h = h;
     if (p.tagBox) p.tagBox.y = p.y - p.tagBox.h / 2;
     if (p.id) ctx.setBox(p.id, p as never, h);
   });
   ctx.laidOut.push({type: 'grid', x: padX, y: top0, w: cw, children: placed});
-  ctx.y = rowY[rows.length] - rowGap + d.gap;
+  ctx.y = must(rowY[rows.length]) - rowGap + d.gap;
 }
 
 function layoutPlainGrid(band: GridBand, ctx: LayoutCtx, padX: number, cw: number): void {
@@ -514,7 +516,7 @@ function layoutPyramid(band: PyramidBand, ctx: LayoutCtx, padX: number, cw: numb
     // Opacity climbs bottom->top using SHADES (see tokens.ts) — the
     // apex (i = n-1) always gets SHADES[0] = fully opaque, matching
     // every hand-authored pyramid/funnel in this deck.
-    const opacity = SHADES[Math.min(SHADES.length - 1, n - 1 - i)];
+    const opacity = must(SHADES[Math.min(SHADES.length - 1, n - 1 - i)]);
     // bg luminance is a real alpha-blend against white, so the text
     // color choice is provably safe (see tokens.ts's bestTextColor
     // doc comment) without needing a Playwright-rendered check.

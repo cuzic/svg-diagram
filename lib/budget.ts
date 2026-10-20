@@ -15,6 +15,7 @@ import type {LaidOutDiagram} from './types/index.ts';
 import type {LaidOutBox} from './types/text-bands.ts';
 import type {BudgetLimits, BudgetMeasure} from './types/verdicts.ts';
 
+import {must} from './must.ts';
 export const BUDGET: BudgetLimits = {
   boxBody: 100,  // display-width units in one box, title excluded
   total: 380,    // all text in one diagram
@@ -23,7 +24,7 @@ export const BUDGET: BudgetLimits = {
 
 export function displayWidth(text: unknown): number {
   let w = 0;
-  for (const ch of String(text)) w += ch.codePointAt(0)! < 0x80 ? 0.5 : 1;
+  for (const ch of String(text)) w += must(ch.codePointAt(0)) < 0x80 ? 0.5 : 1;
   return w;
 }
 

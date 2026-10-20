@@ -3,6 +3,7 @@
 import {niceUp, num} from './qc.ts';
 import type {PlaneAxis, PlaneLabel, PlaneLine, PlaneOpts, PlanePath, PlanePoint, PlanePos, PlaneTone} from './types/figures.ts';
 
+import {must} from './must.ts';
 /** How wide a text is, roughly (before layout knows the fonts): full-width characters take the whole size, the others 0.6 of it. */
 const estimate = (s: string, size = 14): number => [...s].reduce((n, c) => n + (c.charCodeAt(0) > 0x2e80 ? size : size * 0.6), 0);
 /** The plot's rough size in px, to turn pixel room (a legend row, a label beside a line) into units of an axis. */
@@ -57,7 +58,7 @@ const STRATA: {tone: PlaneTone; shape: 'dot' | 'ring' | 'cross'}[] = [{tone: 'ac
 export function correlation(xs: readonly number[], ys: readonly number[]): {r: number; slope: number; intercept: number} {
   const n = xs.length, mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
   let sxx = 0, syy = 0, sxy = 0;
-  for (let i = 0; i < n; i++) { sxx += (xs[i] - mx) ** 2; syy += (ys[i] - my) ** 2; sxy += (xs[i] - mx) * (ys[i] - my); }
+  for (let i = 0; i < n; i++) { sxx += (must(xs[i]) - mx) ** 2; syy += (must(ys[i]) - my) ** 2; sxy += (must(xs[i]) - mx) * (must(ys[i]) - my); }
   const slope = sxx > 0 ? sxy / sxx : 0;
   return {r: sxx > 0 && syy > 0 ? sxy / Math.sqrt(sxx * syy) : 0, slope, intercept: my - slope * mx};
 }
@@ -90,11 +91,11 @@ export function scatterOpts(points: readonly ScatterPoint[], opts: ScatterOpts):
   const xMin = x.min ?? 0, yTop = y.max - head, rowY = (i: number) => y.max - unitsFor(18 + 22 * i, y.max - (y.min ?? 0), PLOT_H(height));
   const {labelRole, id, reveal, until, width} = opts as PlaneOpts;
   const pts: PlanePoint[] = points.map(p => {
-    const s = p.group === undefined ? STRATA[0] : STRATA[groups.indexOf(p.group)];
+    const s = must(p.group === undefined ? STRATA[0] : STRATA[groups.indexOf(p.group)]);
     return {at: [p.x, p.y] as PlanePos, ...(p.id ? {id: p.id} : {}), ...(p.label ? {label: p.label} : {}), tone: s.tone, shape: s.shape};
   });
   const lines: PlaneLine[] = [], labels: PlaneLabel[] = [];
-  if (groups.length > 1) labels.push(...legendRow(groups.map((g, i) => ({text: g, ...STRATA[i]})), xMin + (x.max - xMin) * 0.01, x.max - xMin, rowY(0)));
+  if (groups.length > 1) labels.push(...legendRow(groups.map((g, i) => ({text: g, ...must(STRATA[i])})), xMin + (x.max - xMin) * 0.01, x.max - xMin, rowY(0)));
   if (opts.regression) {
     const sgn = (v: number): string => v < 0 ? '−' : '';
     const rText = `r = ${sgn(r)}${Math.abs(Math.round(r * 100) / 100).toFixed(2)}　y = ${sgn(slope)}${num(Math.abs(slope))}x ${intercept < 0 ? '−' : '+'} ${num(Math.abs(intercept))}　n = ${points.length}`;
@@ -152,7 +153,7 @@ export function controlStats(type: ControlType, data: readonly (number | number[
   const groups = (): number[][] => {
     const g = data as number[][];
     if (!g.every(s => Array.isArray(s) && s.length >= 2 && s.every(Number.isFinite))) throw new Error(`controlChart('${type}'): each sample must be a subgroup: an array of at least two numbers`);
-    const n = g[0].length;
+    const n = must(g[0]).length;
     if (!g.every(s => s.length === n)) throw new Error(`controlChart('${type}'): every subgroup must have the same size (got ${[...new Set(g.map(s => s.length))].join(', ')})`);
     if (!(n in FACTORS)) throw new Error(`controlChart('${type}'): the subgroup size must be 2 to 10 (got ${n})`);
     return g;
@@ -171,16 +172,16 @@ export function controlStats(type: ControlType, data: readonly (number | number[
   switch (type) {
     case 'x': {
       values = flat('x');
-      const mr = values.slice(1).map((v, i) => Math.abs(v - values[i])), mrBar = sum(mr) / mr.length;
+      const mr = values.slice(1).map((v, i) => Math.abs(v - must(values[i]))), mrBar = sum(mr) / mr.length;
       cl = sum(values) / N; ({ucl, lcl} = same(cl, E2 * mrBar)); break;
     }
     case 'mr': {
       const v = flat('mr');
-      values = v.slice(1).map((x, i) => Math.abs(x - v[i])); cl = fixed.cl ?? sum(values) / values.length;
+      values = v.slice(1).map((x, i) => Math.abs(x - must(v[i]))); cl = fixed.cl ?? sum(values) / values.length;
       ucl = new Array<number>(values.length).fill(D4_MR * cl); lcl = new Array<number>(values.length).fill(0); break;
     }
     case 'xbar': case 'r': {
-      const g = groups(), n = g[0].length, f = FACTORS[n];
+      const g = groups(), n = must(g[0]).length, f = must(FACTORS[n]);
       const means = g.map(s => sum(s) / n), ranges = g.map(s => Math.max(...s) - Math.min(...s)), rBar = sum(ranges) / N;
       if (type === 'xbar') { values = means; cl = sum(means) / N; ({ucl, lcl} = same(cl, f.A2 * rBar)); }
       else { values = ranges; cl = fixed.cl ?? rBar; ucl = new Array<number>(N).fill(f.D4 * cl); lcl = new Array<number>(N).fill(f.D3 * cl); } // the limits are multiples of the centre line, a given one included
@@ -192,7 +193,7 @@ export function controlStats(type: ControlType, data: readonly (number | number[
       ({ucl, lcl} = same(cl, a.map(s => 3 * Math.sqrt(cl * (1 - cl) / s.n)), 0)); ucl = ucl.map(u => Math.min(1, u)); break;
     }
     case 'np': {
-      const a = attrs(), n = a[0].n;
+      const a = attrs(), n = must(a[0]).n;
       if (!a.every(s => s.n === n)) throw new Error("controlChart('np'): every sample must inspect the same number (use 'p' when n varies)");
       if (!a.every(s => Number.isInteger(s.d))) throw new Error("controlChart('np'): d must be a whole number (the defectives counted)");
       const p = fixed.cl !== undefined ? fixed.cl / n : sum(a.map(s => s.d)) / sum(a.map(s => s.n)); values = a.map(s => s.d); cl = n * p;
@@ -217,8 +218,8 @@ export function controlStats(type: ControlType, data: readonly (number | number[
   // a fixed centre line moves the limits that are not fixed with it (they keep their distance from it)
   // x / xbar: the spread comes from the data, so a given centre line moves the limits with it (r, mr, p, np, c, u have worked them out from it above)
   if (fixed.cl !== undefined && cl !== fixed.cl) { const d = fixed.cl - cl; ucl = ucl.map(u => u + d); lcl = lcl.map(l => Math.max(type === 'x' || type === 'xbar' ? -Infinity : 0, l + d)); cl = fixed.cl; }
-  if (fixed.ucl !== undefined) ucl = ucl.map(() => fixed.ucl!);
-  if (fixed.lcl !== undefined) lcl = lcl.map(() => fixed.lcl!);
+  if (fixed.ucl !== undefined) ucl = ucl.map(() => must(fixed.ucl));
+  if (fixed.lcl !== undefined) lcl = lcl.map(() => must(fixed.lcl));
   if (!(ucl.every(u => u > cl) && lcl.every(l => l < cl))) {
     if (fixed.cl !== undefined || fixed.ucl !== undefined || fixed.lcl !== undefined) throw new Error(`controlChart(): the limits must satisfy lcl < cl < ucl (got lcl ${num(Math.min(...lcl))}, cl ${num(cl)}, ucl ${num(Math.max(...ucl))})`);
     if (type !== 'p' && type !== 'np' && type !== 'c' && type !== 'u' && type !== 'mr' && type !== 'r') throw new Error(`controlChart('${type}'): the data does not vary (every limit would be ${cl}); there is nothing to chart`);
@@ -233,12 +234,12 @@ const RUN = 7;
 /** The indices that break a rule: [outside the limits, in a run or a trend]. */
 export function controlSignals(s: ControlStats): {outside: Set<number>; pattern: Set<number>} {
   const outside = new Set<number>(), pattern = new Set<number>(), v = s.values;
-  v.forEach((x, i) => { if (x > s.ucl[i] + 1e-12 || x < s.lcl[i] - 1e-12) outside.add(i); });
+  v.forEach((x, i) => { if (x > must(s.ucl[i]) + 1e-12 || x < must(s.lcl[i]) - 1e-12) outside.add(i); });
   const side = v.map(x => Math.sign(x - s.cl));
   for (let i = 0; i + RUN <= v.length; i++) {
     const w = side.slice(i, i + RUN);
     if (w[0] !== 0 && w.every(t => t === w[0])) for (let k = i; k < i + RUN; k++) pattern.add(k);
-    const d = v.slice(i + 1, i + RUN).map((x, k) => Math.sign(x - v[i + k]));
+    const d = v.slice(i + 1, i + RUN).map((x, k) => Math.sign(x - must(v[i + k])));
     if (d[0] !== 0 && d.every(t => t === d[0])) for (let k = i; k < i + RUN; k++) pattern.add(k);
   }
   return {outside, pattern};
@@ -247,7 +248,7 @@ export function controlSignals(s: ControlStats): {outside: Set<number>; pattern:
 export function controlChartOpts(type: ControlType, data: readonly (number | number[] | AttributeSample)[], opts: ControlChartOpts = {}): PlaneOpts {
   const s = controlStats(type, data, opts.limits), n = s.values.length;
   if (opts.at && opts.at.length !== (type === 'mr' ? data.length : n)) throw new Error(`controlChart(): at needs one label per sample (${data.length}), got ${opts.at.length}`);
-  const stepped = !(s.ucl.every(v => Math.abs(v - s.ucl[0]) < 1e-12) && s.lcl.every(v => Math.abs(v - s.lcl[0]) < 1e-12));
+  const stepped = !(s.ucl.every(v => Math.abs(v - must(s.ucl[0])) < 1e-12) && s.lcl.every(v => Math.abs(v - must(s.lcl[0])) < 1e-12));
   const offset = type === 'mr' ? 1 : 0; // a moving range belongs to the sample it ends at, so it starts at 2
   const flagged = opts.rules === false ? {outside: new Set<number>(), pattern: new Set<number>()} : controlSignals(s);
   const height = opts.height ?? 320;
@@ -264,16 +265,16 @@ export function controlChartOpts(type: ControlType, data: readonly (number | num
   // every k-th number gets its text; k grows with the count and with the width of the labels (dates), so neighbours never touch
   const widest = opts.at ? Math.max(...opts.at.map(t => estimate(t, 14))) : estimate(String(N), 14);
   const every = Math.max(N > 30 ? 5 : N > 16 ? 2 : 1, Math.ceil((widest + 12) / (PLOT_W / (N + 1 + room))));
-  const xTicks = Array.from({length: N}, (_, i) => i + 1).filter(i => (i - 1) % every === 0).map(i => opts.at ? {at: i, label: opts.at[i - 1]} : i);
+  const xTicks = Array.from({length: N}, (_, i) => i + 1).filter(i => (i - 1) % every === 0).map(i => opts.at ? {at: i, label: must(opts.at[i - 1])} : i);
   const x: PlaneAxis = {label: opts.xLabel ?? 'サンプル', min: 0, max: N + 1 + room, ticks: xTicks};
   // as many decimals as it takes to tell the limits from the centre line (about 3 digits of the spread between them)
   const spread = Math.max(...s.ucl) - Math.min(s.cl, ...s.lcl), places = opts.digits ?? (spread > 0 ? Math.max(0, 1 - Math.floor(Math.log10(spread))) : 2);
   const fmt = (v: number) => v.toFixed(places);
-  const pt = (i: number): PlanePos => [i + 1 + offset, s.values[i]];
+  const pt = (i: number): PlanePos => [i + 1 + offset, must(s.values[i])];
   const points: PlanePoint[] = s.values.map((_, i) => ({at: pt(i), tone: flagged.outside.has(i) || flagged.pattern.has(i) ? 'danger' : 'accent', shape: flagged.outside.has(i) ? 'cross' : flagged.pattern.has(i) ? 'ring' : 'dot'}));
   const edge = (arr: number[]): PlanePos[] => {
     // constant limits are one line; limits that vary with n step from sample to sample
-    if (arr.every(v => Math.abs(v - arr[0]) < 1e-12)) return [[0.5 + offset, arr[0]], [N + 0.5, arr[0]]];
+    if (arr.every(v => Math.abs(v - must(arr[0])) < 1e-12)) return [[0.5 + offset, must(arr[0])], [N + 0.5, must(arr[0])]];
     const out: PlanePos[] = [];
     arr.forEach((v, i) => { out.push([i + 0.5 + offset, v], [i + 1.5 + offset, v]); });
     return out;
@@ -284,21 +285,21 @@ export function controlChartOpts(type: ControlType, data: readonly (number | num
   const labelX = N + 0.8, gapY = unitsFor(22, y.max - (y.min ?? 0), PLOT_H(height)); // a label is about 21px tall
   // the lower limit is drawn unless it is 0 all along (a line on the axis); its number is left out where it is 0 or changes with n
   const hasLcl = s.lcl.some(v => v > 1e-12 || type === 'x' || type === 'xbar');
-  const lclLabeled = hasLcl && (type === 'x' || type === 'xbar' || s.lcl[n - 1] > 1e-12);
-  const rows: {text: string; at: number}[] = [{text: stepped ? 'UCL（n による）' : `UCL ${fmt(s.ucl[n - 1])}`, at: s.ucl[n - 1]}, {text: `CL ${fmt(s.cl)}`, at: s.cl}];
-  if (lclLabeled) rows.push({text: stepped ? 'LCL（n による）' : `LCL ${fmt(s.lcl[n - 1])}`, at: s.lcl[n - 1]});
+  const lclLabeled = hasLcl && (type === 'x' || type === 'xbar' || must(s.lcl[n - 1]) > 1e-12);
+  const rows: {text: string; at: number}[] = [{text: stepped ? 'UCL（n による）' : `UCL ${fmt(must(s.ucl[n - 1]))}`, at: must(s.ucl[n - 1])}, {text: `CL ${fmt(s.cl)}`, at: s.cl}];
+  if (lclLabeled) rows.push({text: stepped ? 'LCL（n による）' : `LCL ${fmt(must(s.lcl[n - 1]))}`, at: must(s.lcl[n - 1])});
   for (const [name, arr] of [['ucl', s.ucl], ['lcl', s.lcl]] as const) {
     if (name === 'lcl' && !hasLcl) continue;
     const e = edge(arr);
-    if (e.length === 2) lines.push({from: e[0], to: e[1], tone: 'danger', dashed: true});
+    if (e.length === 2) lines.push({from: must(e[0]), to: must(e[1]), tone: 'danger', dashed: true});
     else paths.push({through: e, tone: 'danger', dashed: true});
   }
   // labels of lines that sit closer than a text's height are pushed apart, so none of them touches another
   const placed = rows.sort((a, b) => b.at - a.at);
-  for (let i = 1; i < placed.length; i++) if (placed[i - 1].at - placed[i].at < gapY) placed[i] = {...placed[i], at: placed[i - 1].at - gapY};
+  for (let i = 1; i < placed.length; i++) if (must(placed[i - 1]).at - must(placed[i]).at < gapY) placed[i] = {...must(placed[i]), at: must(placed[i - 1]).at - gapY};
   // a label that went down to the axis is lifted off it, and the ones above it make room (the labels sit a little above their lines then)
   const floor = (y.min ?? 0) + gapY * 1.15;
-  for (let i = placed.length - 1, lowest = floor; i >= 0; i--) { if (placed[i].at < lowest) placed[i] = {...placed[i], at: lowest}; lowest = placed[i].at + gapY; }
+  for (let i = placed.length - 1, lowest = floor; i >= 0; i--) { if (must(placed[i]).at < lowest) placed[i] = {...must(placed[i]), at: lowest}; lowest = must(placed[i]).at + gapY; }
   for (const r of placed) labels.push({at: [labelX, r.at], text: r.text, anchor: 'start', tone: r.text.startsWith('CL') ? 'accent' : 'danger', bold: true});
   const flagLabels = legend.length ? legendRow(legend, 0.5, x.max, y.max - head * 0.45) : [];
   const {labelRole, id, reveal, until, width} = opts as PlaneOpts;

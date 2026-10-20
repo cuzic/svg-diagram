@@ -1,4 +1,4 @@
-import {box, connect, diagram, image, row, spacer} from 'svg-diagram';
+import {box, connect, diagram, image, row, } from 'svg-diagram';
 
 // 絵を背景にして、その上に普通の箱・矢印を重ねる（over）。重ねた部品は絵の上端から group のように積まれる。
 // 文字は不透明な箱（や板）の上にだけ置ける。素の文字（caption など）を絵の上に置くと、描画後の検査が止める。

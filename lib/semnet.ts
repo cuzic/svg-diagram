@@ -56,7 +56,7 @@ export function layoutPert(s: PertSpec, g: ChartGeom): LaidOutChartPart {
   const es = s.analysis.tasks.flatMap(t => t.predecessors.map(p => ({from: p, to: t.id}))), {c, positions, paths} = networkCanvas(g, ns, es, s.direction, 0, s.straighten);
   es.forEach((e, i) => { const critical = s.analysis.criticalEdges.some(x => x.from === e.from && x.to === e.to); arrow(c, pathOf(paths, i, e, positions), {stroke: critical ? 'danger' : 'muted', sw: critical ? 4 : 2, edge: e}); });
   for (const t of s.analysis.tasks) {
-    const p = positions.get(t.id)!, host = nodeBox(c, p, t.id, t.label, t.critical ? 'danger' : 'text', t.critical), cx = p.x + p.w / 2;
+    const p = must(positions.get(t.id)), host = nodeBox(c, p, t.id, t.label, t.critical ? 'danger' : 'text', t.critical), cx = p.x + p.w / 2;
     c.text(t.label, cx, p.y + g.size + 8, 'middle', 'text', {bold: true, host, of: t.id});
     if (s.compact) c.text(`${numText(t.duration)}${s.unit} / 余裕 ${numText(t.slack)}`, cx, p.y + p.h - 10, 'middle', t.critical ? 'danger' : 'muted', {host, of: t.id});
     else {
@@ -78,7 +78,7 @@ export function layoutDependency(s: DependencySpec, g: ChartGeom): LaidOutChartP
   for (const it of items) {
     const w = (it.kind ? 20 : 28) + textWidth(g.widthOf, it.label, g.size, 400) + 18;
     if (used + w - 18 > g.w - 8) { rows.push([]); used = 0; }
-    rows.at(-1)!.push(it); used += w;
+    must(rows.at(-1)).push(it); used += w;
   }
   const legendH = rows.length ? 34 + (rows.length - 1) * rowH : 0;
   const ns = s.nodes.map(n => ({...n, w: Math.max(116, textWidth(g.widthOf, n.label, g.size, 700) + 28), h: 52})), {c, positions, paths} = networkCanvas(g, ns, s.edges, s.direction, legendH, s.straighten);

@@ -34,7 +34,7 @@ test('every template: sample content lays out, regions stay inside the figure an
     const {laidOut, verdict, boxes, d} = await laid(canvas(name, content, {title: name, requireAll: true}));
     assert.deepEqual(verdict.problems, [], name);
     for (const b of boxes) assert.ok(b.x >= 0 && b.x + b.w <= laidOut.width + 0.5 && b.y >= 0 && b.y + b.h <= (laidOut.contentHeight ?? 1e9) + 0.5, `${name}: ${b.title} is outside the figure`);
-    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) assert.ok(!overlap(boxes[i], boxes[j]), `${name}: ${boxes[i].title} overlaps ${boxes[j].title}`);
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) assert.ok(!overlap(boxes[i]!, boxes[j]!), `${name}: ${boxes[i]!.title} overlaps ${boxes[j]!.title}`);
     const findings = lintDiagram({...d, laidOut: laidOut.laidOut, connects: laidOut.connects});
     // layout-* are measurements (info; counted by layout-budget.test.ts): a canvas's floor height leaves room under the text on purpose until it is content-driven
     assert.deepEqual(findings.filter(f => f.rule !== 'a11y-no-title' && !f.rule.startsWith('layout-')), [], `${name}: rules`);
@@ -64,14 +64,14 @@ test('bmc: the classic arrangement (partners and segments are full height, value
   const {boxes, byTitle} = await laid(canvas('bmc', SAMPLE('bmc')));
   assert.equal(boxes.length, 9);
   const [partners, activities, resources, value, rel, channels, segments, cost, revenue] = ['主要パートナー', '主要活動', '主要リソース', '提供価値', '顧客との関係', 'チャネル', '顧客セグメント', 'コスト構造', '収益の流れ'].map(byTitle);
-  for (const t of [partners, value, segments]) assert.ok(Math.abs(t.h - (activities.h + resources.h + 12)) < 1, 'a tall region spans the two rows');
-  assert.ok(partners.x < activities.x && activities.x < value.x && value.x < rel.x && rel.x < segments.x);
-  assert.equal(activities.x, resources.x);
-  assert.equal(rel.x, channels.x);
-  assert.ok(activities.y < resources.y && rel.y < channels.y);
-  assert.ok(cost.y > partners.y + partners.h && revenue.y === cost.y);
-  assert.ok(Math.abs(cost.w - revenue.w) <= 4 && Math.abs(cost.x + cost.w + 12 - revenue.x) < 1);
-  assert.ok(Math.abs(revenue.x + revenue.w - (segments.x + segments.w)) < 0.5, 'the bottom row is as wide as the canvas');
+  for (const t of [partners, value, segments]) assert.ok(Math.abs(t!.h - (activities!.h + resources!.h + 12)) < 1, 'a tall region spans the two rows');
+  assert.ok(partners!.x < activities!.x && activities!.x < value!.x && value!.x < rel!.x && rel!.x < segments!.x);
+  assert.equal(activities!.x, resources!.x);
+  assert.equal(rel!.x, channels!.x);
+  assert.ok(activities!.y < resources!.y && rel!.y < channels!.y);
+  assert.ok(cost!.y > partners!.y + partners!.h && revenue!.y === cost!.y);
+  assert.ok(Math.abs(cost!.w - revenue!.w) <= 4 && Math.abs(cost!.x + cost!.w + 12 - revenue!.x) < 1);
+  assert.ok(Math.abs(revenue!.x + revenue!.w - (segments!.x + segments!.w)) < 0.5, 'the bottom row is as wide as the canvas');
 });
 
 test('vpc: customer side on the right, value side on the left, each row lines up with its counterpart', async () => {
@@ -279,7 +279,7 @@ test('slide canvas: the canvas keeps to the slide height (its aspect does not pu
   const many = Array.from({length: 12}, (_, i) => `項目 ${i}`);
   const {laidOut} = await check(canvas('swot', {strengths: many}));
   const s = (laidOut.laidOut.find(b => b.type === 'grid') as LaidOutGrid).children[0];
-  assert.ok(s.y + s.h >= s.wrappedRuns.at(-1)!.lineYs.at(-1)!, 'the region still holds its text');
+  assert.ok(s!.y + s!.h >= s!.wrappedRuns.at(-1)!.lineYs.at(-1)!, 'the region still holds its text');
 });
 
 // ---- ids, reveal, spotlight, rules ---------------------------------------------------------------------------------------------------
@@ -314,8 +314,8 @@ test('requireAll: a missing region is a canvas-region-empty warning; optional re
   const rule = async (c: unknown) => { const {laidOut, d} = await laid(c); return lintDiagram({...d, laidOut: laidOut.laidOut, connects: []}).filter(f => f.rule === 'canvas-region-empty'); };
   const f = await rule(canvas('swot', {strengths: ['a'], weaknesses: ['b']}, {requireAll: true}));
   assert.equal(f.length, 1);
-  assert.match(f[0].message, /opportunities、threats/);
-  assert.equal(f[0].severity, 'warn');
+  assert.match(f[0]!.message, /opportunities、threats/);
+  assert.equal(f[0]!.severity, 'warn');
   assert.deepEqual(await rule(canvas('swot', {strengths: ['a']})), []);
   assert.deepEqual(await rule(canvas('swot', SAMPLE('swot'), {requireAll: true})), []);
   assert.deepEqual(await rule(canvas('empathy', {thinks: ['a'], says: ['a'], does: ['a'], feels: ['a'], pains: ['a'], gains: ['a']}, {requireAll: true})), [], 'the person box is optional');
@@ -353,7 +353,7 @@ test('slide medium: text keeps the slide minimum size', async () => {
 test('a seeded sweep over text lengths, item counts, widths and templates: no text runs out of a box or meets another, no pill sits on a neighbour; a word too long for its region is refused by name', async () => {
   let seed = 20261012;
   const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-  const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(rnd() * xs.length)];
+  const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(rnd() * xs.length)]!;
   const words = ['顧客', '価値', 'コスト', 'パートナー', 'Subscription', '定期便', '24h', '在庫', '品質管理', 'ブランド', 'API', '配送網'];
   const names = canvasTemplates() as (keyof typeof TEMPLATES)[];
   let drawn = 0, refused = 0;
@@ -378,7 +378,7 @@ test('a seeded sweep over text lengths, item counts, widths and templates: no te
     const g = geometryChecks(r.svg)!;
     assert.deepEqual([g.containerOverflow, g.textOverlap, g.covered, g.overflow], [[], [], [], null], `${name} #${i} w${width}: the drawn SVG`);
     const boxes = (r.laidOut.laidOut.find(b => b.type === 'grid') as LaidOutGrid).children;
-    for (let a = 0; a < boxes.length; a++) for (let b = a + 1; b < boxes.length; b++) assert.ok(!overlap(boxes[a], boxes[b]), `${name} #${i}: ${boxes[a].title} / ${boxes[b].title}`);
+    for (let a = 0; a < boxes.length; a++) for (let b = a + 1; b < boxes.length; b++) assert.ok(!overlap(boxes[a]!, boxes[b]!), `${name} #${i}: ${boxes[a]!.title} / ${boxes[b]!.title}`);
     for (const b of boxes) assert.ok(b.x + b.w <= r.laidOut.width + 0.5, `${name} #${i}`);
     for (const b of boxes) if (b.tagBox) for (const o of boxes) if (o !== b) assert.ok(!overlap(b.tagBox, o), `${name} #${i}: the pill of ${b.title} sits on ${o.title}`);
   }

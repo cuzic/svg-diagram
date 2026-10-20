@@ -18,6 +18,7 @@ import type {LaidOutDiagram, LaidOutBand} from './types/index.ts';
 import type {LaidOutTable} from './types/sequence-table-swimlane.ts';
 import type {LaidOutBox, LaidOutBanner, LaidOutCaption, WrappedRun, Span} from './types/text-bands.ts';
 
+import {must} from './must.ts';
 // like SVG text, runs of white space are one space (XML white space only: U+3000 and NBSP are characters, not white space)
 const collapse = (s: string): string => s.replace(/[ \t\r\n]+/g, ' ');
 const esc = (s: string): string => collapse(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c] as string);
@@ -96,8 +97,8 @@ function table(b: LaidOutTable, day: Theme, tones: ToneEnv, fb: FontBox, roles: 
 
 function tablePlain(b: LaidOutTable, day: Theme, tones: ToneEnv, fb: FontBox, roles: Roles): string {
   const R = 8, LH = 1.4;
-  const first = b.rows[0];
-  const y0 = first.y, y1 = b.rows[b.rows.length - 1].y + b.rows[b.rows.length - 1].h;
+  const first = must(b.rows[0]);
+  const y0 = first.y, y1 = must(b.rows[b.rows.length - 1]).y + must(b.rows[b.rows.length - 1]).h;
   const firstBody = b.rows.findIndex(r => !r.header);
   const rule = `2px solid ${PALETTE.border}`;
   const cols = b.colW.map(w => `<col style="width:${px(w)}">`).join('');
@@ -219,9 +220,9 @@ function emitHtmlWith(d: LaidOutDiagram, tones: ToneEnv, opts: {reveal?: number;
   const kindOf = (b: LaidOutBand) => native(b) ? 'html' : b.type === 'raw' || b.type === 'wordart' ? 'raw' : 'svg';
   let body = '';
   for (let i = 0; i < visible.length;) {
-    const kind = kindOf(visible[i]);
+    const kind = kindOf(must(visible[i]));
     let j = i;
-    while (j < visible.length && kindOf(visible[j]) === kind) j++;
+    while (j < visible.length && kindOf(must(visible[j])) === kind) j++;
     const run = visible.slice(i, j);
     if (kind === 'html') body += run.map(b => render(b, day, tones, fb, d.roles, opts.reveal)).join('');
     else if (kind === 'raw') body += strip(emitSvg({...d, laidOut: run, connects: []}, {reveal: opts.reveal, noRecolor: true}), 'sd-ov sd-raw');

@@ -49,9 +49,9 @@ test('options override a preset (axis fields, one cell), and a preset\'s caption
   const q = quadrant({preset: 'bcg', x: {title: '自社シェア'}, cells: [[{title: 'スター'}]]});
   assert.equal(q.x.title, '自社シェア');
   assert.equal(q.x.low, '低'); // the rest of the axis stays
-  assert.equal(q.cells[0][0].title, 'スター');
-  assert.equal(q.cells[0][0].tone, 'accent');
-  assert.equal(q.cells[0][1].title, '問題児');
+  assert.equal(q.cells[0]![0]!.title, 'スター');
+  assert.equal(q.cells[0]![0]!.tone, 'accent');
+  assert.equal(q.cells[0]![1]!.title, '問題児');
   const g = quadrant({preset: 'bcg', grid: [3, 2]});
   assert.deepEqual([g.cols, g.rows], [3, 2]);
   assert.equal(g.cells.flat().filter(c => c.title).length, 0);
@@ -87,14 +87,14 @@ test('sizeRefs: round reference values not above the largest size', () => {
 test('coordinates are value space: a reversed axis flips the picture but not the numbers', async () => {
   const mk = (reversed: boolean) => quadrant({x: {title: 'x', reversed}, y: {title: 'y', reversed}, items: [{label: 'P', at: [0.9, 0.9]}]});
   const a = await figure(mk(false)), b = await figure(mk(true));
-  const c = (f: LaidOutQuadrant) => ({x: f.bubbles[0].x, y: f.bubbles[0].y, mx: f.plot.x + f.plot.w / 2, my: f.plot.y + f.plot.h / 2});
+  const c = (f: LaidOutQuadrant) => ({x: f.bubbles[0]!.x, y: f.bubbles[0]!.y, mx: f.plot.x + f.plot.w / 2, my: f.plot.y + f.plot.h / 2});
   assert.ok(c(a).x > c(a).mx && c(a).y < c(a).my, 'high x is right, high y is up');
   assert.ok(c(b).x < c(b).mx && c(b).y > c(b).my, 'reversed: high x is left, high y is down');
 });
 
 test('an item stays in the cell its coordinates name, and the cell index is as drawn', async () => {
   const f = await figure(quadrant.preset('bcg', {items: [{label: 'S', at: [0.9, 0.9]}, {label: 'D', at: [0.1, 0.1]}, {label: 'Q', cell: [1, 0]}]}));
-  const inCell = (i: number) => f.cells.findIndex(c => f.bubbles[i].x >= c.x && f.bubbles[i].x <= c.x + c.w && f.bubbles[i].y >= c.y && f.bubbles[i].y <= c.y + c.h);
+  const inCell = (i: number) => f.cells.findIndex(c => f.bubbles[i]!.x >= c.x && f.bubbles[i]!.x <= c.x + c.w && f.bubbles[i]!.y >= c.y && f.bubbles[i]!.y <= c.y + c.h);
   assert.equal(inCell(0), 0, 'high share, high growth = 花形 (top-left)');
   assert.equal(inCell(1), 3, 'low share, low growth = 負け犬 (bottom-right)');
   assert.equal(inCell(2), 1);
@@ -109,12 +109,12 @@ test('a coordinate item never lies on the caption of its cell', async () => {
 test('bubble area is proportional to size', async () => {
   const f = await figure(quadrant({x: {title: 'x'}, y: {title: 'y'}, sizeTitle: '売上', sizeUnit: '億円', items: [{label: 'a', at: [0.2, 0.2], size: 100}, {label: 'b', at: [0.8, 0.8], size: 25}, {label: 'c', at: [0.8, 0.2], size: 400}]}));
   const [a, b, c] = f.bubbles;
-  near(a.r ** 2 / b.r ** 2, 4, 1e-9);
-  near(c.r ** 2 / a.r ** 2, 4, 1e-9);
+  near(a!.r ** 2 / b!.r ** 2, 4, 1e-9);
+  near(c!.r ** 2 / a!.r ** 2, 4, 1e-9);
   assert.ok(f.texts.some(t => t.text === '円の面積 = 売上'));
   assert.ok(f.texts.some(t => t.text === '200億円'), 'the legend names a round reference size');
   const ref = f.marks.find(m => m.ring)!; // the largest reference circle, drawn with the same scale
-  near(ref.r ** 2 / c.r ** 2, 200 / 400, 1e-9);
+  near(ref.r ** 2 / c!.r ** 2, 200 / 400, 1e-9);
 });
 
 test('items of a group get their own shape and colour and a legend; the shapes have equal area', async () => {
@@ -125,7 +125,7 @@ test('items of a group get their own shape and colour and a legend; the shapes h
   assert.equal(new Set(f.bubbles.map(b => `${b.shape}/${b.tone}`)).size, 4);
   for (const g of ['自社', '競合', '新規', '海外']) assert.ok(f.texts.some(t => t.text === g), `legend entry ${g}`);
   assert.equal(f.marks.filter(m => !m.ring).length, 4);
-  near(f.bubbles[0].r, f.bubbles[1].r);
+  near(f.bubbles[0]!.r, f.bubbles[1]!.r);
 });
 
 test('cell-placed items fill their cell without overlap, and the rows grow when the cell is crowded', async () => {
@@ -134,13 +134,13 @@ test('cell-placed items fill their cell without overlap, and the rows grow when 
   const big = await figure(quadrant.preset('bcg', {items, height: 300}));
   assert.ok(big.plot.h > small.plot.h, 'the plot grew to hold 14 items');
   const cell = big.cells[0];
-  for (const q of big.bubbles) assert.ok(q.x >= cell.x && q.x <= cell.x + cell.w && q.y >= cell.y && q.y <= cell.y + cell.h);
+  for (const q of big.bubbles) assert.ok(q.x >= cell!.x && q.x <= cell!.x + cell!.w && q.y >= cell!.y && q.y <= cell!.y + cell!.h);
 });
 
 test('items given the same coordinates are pushed apart, and those that moved far are reported', async () => {
   const f = await figure(quadrant({x: {title: 'x'}, y: {title: 'y'}, items: Array.from({length: 6}, (_v, i) => ({label: `P${i}`, at: [0.7, 0.7] as [number, number]}))}));
   assert.equal(f.moved.length, 5);
-  for (let i = 0; i < 6; i++) for (let j = i + 1; j < 6; j++) assert.ok(Math.hypot(f.bubbles[i].x - f.bubbles[j].x, f.bubbles[i].y - f.bubbles[j].y) >= f.bubbles[i].cr + f.bubbles[j].cr);
+  for (let i = 0; i < 6; i++) for (let j = i + 1; j < 6; j++) assert.ok(Math.hypot(f.bubbles[i]!.x - f.bubbles[j]!.x, f.bubbles[i]!.y - f.bubbles[j]!.y) >= f.bubbles[i]!.cr + f.bubbles[j]!.cr);
 });
 
 test('a label wider than its cell throws and says which', async () => {
@@ -156,9 +156,9 @@ test('arrows: between items (trimmed to the edges) and to a coordinate, with a l
   const f = await figure(quadrant({x: {title: 'x'}, y: {title: 'y'}, items: [{id: 'a', label: 'A', at: [0.2, 0.2], size: 10}, {id: 'b', label: 'B', at: [0.8, 0.8], size: 10}], arrows: [{from: 'a', to: 'b', label: '1 年後'}, {from: 'b', to: [0.8, 0.2], dashed: true}]}));
   assert.equal(f.arrows.length, 2);
   const [a, b] = f.bubbles;
-  near(Math.hypot(f.arrows[0].x1 - a.x, f.arrows[0].y1 - a.y), a.cr + 3, 1e-6);
-  near(Math.hypot(f.arrows[0].x2 - b.x, f.arrows[0].y2 - b.y), b.cr + 3, 1e-6);
-  assert.equal(f.arrows[1].dashed, true);
+  near(Math.hypot(f.arrows[0]!.x1 - a!.x, f.arrows[0]!.y1 - a!.y), a!.cr + 3, 1e-6);
+  near(Math.hypot(f.arrows[0]!.x2 - b!.x, f.arrows[0]!.y2 - b!.y), b!.cr + 3, 1e-6);
+  assert.equal(f.arrows[1]!.dashed, true);
   assert.equal(f.chips.length, 1);
   await assert.rejects(laid(quadrant({x: {title: 'x'}, y: {title: 'y'}, items: [{id: 'a', label: 'A', at: [0.2, 0.2]}], arrows: [{from: 'a', to: [0.2, 0.2]}]})), /too short/);
 });
@@ -167,7 +167,7 @@ test('an arrow that would cross an item label makes the label take another side'
   const f = await figure(quadrant({x: {title: 'x'}, y: {title: 'y'}, items: [{id: 'a', label: 'ラベルA', at: [0.2, 0.5]}, {id: 'b', label: 'ラベルB', at: [0.8, 0.5]}], arrows: [{from: 'a', to: 'b'}]}));
   const a = f.labelBoxes.find(b => b.label === 'ラベルA')!;
   const arrow = f.arrows[0];
-  assert.ok(!(arrow.y1 >= a.y - 1 && arrow.y1 <= a.y + a.h + 1 && a.x + a.w > arrow.x1 && a.x < arrow.x2), 'the label is not on the arrow');
+  assert.ok(!(arrow!.y1 >= a.y - 1 && arrow!.y1 <= a.y + a.h + 1 && a.x + a.w > arrow!.x1 && a.x < arrow!.x2), 'the label is not on the arrow');
 });
 
 // ---- the figure in a diagram ------------------------------------------------------------------------------------------------
@@ -187,7 +187,7 @@ test('the figure takes reveal like any band and its item ids come with it', asyn
   const d = diagram({theme: 'blue'}).add(caption('a'), quadrant({id: 'q', reveal: 2, x: {title: 'x'}, y: {title: 'y'}, items: [{id: 'a', label: 'A', at: [0.2, 0.2]}]}), box({id: 'n', title: 'n', reveal: 1}), connect('n:top', 'a:bottom'));
   const r = await renderDiagram(d, {name: 'q.svg', budget: 'cacheOnly'});
   assert.equal(r.laidOut.maxReveal, 2);
-  assert.equal(r.laidOut.connects[0].reveal, 2);
+  assert.equal(r.laidOut.connects[0]!.reveal, 2);
 });
 
 test('dark appearance and a narrow figure render without a problem', async () => {
@@ -254,12 +254,12 @@ test('a seeded sweep of items at random coordinates / cells with random sizes an
       const f = laidOut.laidOut.find(b => b.type === 'quadrant') as LaidOutQuadrant;
       // an independent check of the geometry (not verify's): circles and label boxes are pairwise apart
       f.bubbles.forEach((q, i) => {
-        for (let j = i + 1; j < f.bubbles.length; j++) if (Math.hypot(q.x - f.bubbles[j].x, q.y - f.bubbles[j].y) < q.cr + f.bubbles[j].cr) bad.push(`#${t}: bubbles ${i} and ${j} overlap`);
+        for (let j = i + 1; j < f.bubbles.length; j++) if (Math.hypot(q.x - f.bubbles[j]!.x, q.y - f.bubbles[j]!.y) < q.cr + f.bubbles[j]!.cr) bad.push(`#${t}: bubbles ${i} and ${j} overlap`);
       });
       const boxes = f.labelBoxes;
       for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
         const a = boxes[i], b = boxes[j];
-        if (Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5) bad.push(`#${t}: labels "${a.label}" and "${b.label}" overlap`);
+        if (Math.min(a!.x + a!.w, b!.x + b!.w) - Math.max(a!.x, b!.x) > 0.5 && Math.min(a!.y + a!.h, b!.y + b!.h) - Math.max(a!.y, b!.y) > 0.5) bad.push(`#${t}: labels "${a!.label}" and "${b!.label}" overlap`);
       }
     } catch (e) { bad.push(`#${t} ${preset ?? 'free'} ${cols}x${rows} n=${n}: ${(e as Error).message}`); }
   }
@@ -278,18 +278,18 @@ test('an item pushed aside never straddles a cell border: its mark and its label
   ];
   for (const band of cases) {
     const f = await figure(band);
-    for (const q of f.bubbles) assert.ok(insideRect({x: q.x - q.cr, y: q.y - q.cr, w: 2 * q.cr, h: 2 * q.cr}, f.cells[q.cell]), `"${q.label}" crosses its cell border`);
-    for (const b of f.labelBoxes) if (b.kind === 'item') assert.ok(insideRect(b, f.cells[f.bubbles[b.item!].cell]), `the label of "${b.label}" leaves its cell`);
+    for (const q of f.bubbles) assert.ok(insideRect({x: q.x - q.cr, y: q.y - q.cr, w: 2 * q.cr, h: 2 * q.cr}, f.cells[q.cell]!), `"${q.label}" crosses its cell border`);
+    for (const b of f.labelBoxes) if (b.kind === 'item') assert.ok(insideRect(b, f.cells[f.bubbles[b.item!]!.cell]!), `the label of "${b.label}" leaves its cell`);
   }
 });
 
 test('verify reports an item mark or label that runs out of its cell', async () => {
   const {laidOut} = await laid(quadrant({x: {title: 'x'}, y: {title: 'y'}, items: [{label: 'A', at: [0.2, 0.2]}]}));
   const f = laidOut.laidOut.find(b => b.type === 'quadrant') as LaidOutQuadrant;
-  const cell = f.cells[f.bubbles[0].cell];
-  f.bubbles[0].y = cell.y + cell.h; // the centre on the bottom edge
+  const cell = f.cells[f.bubbles[0]!.cell];
+  f.bubbles[0]!.y = cell!.y + cell!.h; // the centre on the bottom edge
   const box = f.labelBoxes.find(b => b.kind === 'item')!;
-  box.x = cell.x + cell.w - 2;
+  box.x = cell!.x + cell!.w - 2;
   const problems = verifyDiagram(laidOut).problems.join('\n');
   assert.match(problems, /item "A" crosses the border of its cell/);
   assert.match(problems, /the label of "A" runs out of its cell/);
@@ -336,8 +336,8 @@ test('a size far below the largest is drawn at the least radius and reported by 
 test('cells are drawn with equal gaps, and a crosshair lies on the cell edges', async () => {
   const gaps = (svg: string) => {
     const xs = [...svg.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)" rx="[08]"/g)].map(m => m.slice(1).map(Number));
-    const top = Math.min(...xs.map(r => r[1])), row = xs.filter(r => r[1] === top).sort((a, b) => a[0] - b[0]);
-    return {row, gaps: row.slice(1).map((r, i) => r[0] - (row[i][0] + row[i][2]))};
+    const top = Math.min(...xs.map(r => r[1]!)), row = xs.filter(r => r[1] === top).sort((a, b) => a[0]! - b[0]!);
+    return {row, gaps: row.slice(1).map((r, i) => r[0]! - (row[i]![0]! + row[i]![2]!))};
   };
   const g = await renderDiagram(diagram({theme: 'blue'}).add(quadrant({x: {title: 'x'}, y: {title: 'y'}, grid: [7, 2]})), {name: 'q.svg', budget: 'cacheOnly'});
   const {gaps: gs} = gaps(g.svg);
@@ -353,10 +353,10 @@ test('nineBox reads like the usual talent grid: performance across, potential up
   const q = quadrant.preset('nineBox');
   assert.equal(q.x.title, '業績');
   assert.equal(q.y.title, '潜在能力');
-  assert.equal(q.cells[0][2].title, 'スター');
-  assert.equal(q.cells[0][0].title, '原石'); // high potential, low performance
-  assert.equal(q.cells[2][2].title, '専門人材'); // high performance, low potential
-  assert.equal(q.cells[2][0].title, '要対応');
+  assert.equal(q.cells[0]![2]!.title, 'スター');
+  assert.equal(q.cells[0]![0]!.title, '原石'); // high potential, low performance
+  assert.equal(q.cells[2]![2]!.title, '専門人材'); // high performance, low potential
+  assert.equal(q.cells[2]![0]!.title, '要対応');
   q.cells.forEach((row, r) => row.forEach((c, k) => assert.equal(c.note, `業績 ${['低', '中', '高'][k]} × 潜在 ${['高', '中', '低'][r]}`)));
 });
 

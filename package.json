@@ -29,6 +29,7 @@
     "golden:pptx": "node test/helpers/pptx/golden.ts examples/*.ts",
     "golden": "node --import ./test/helpers/strict-width.ts check-diagram.ts --drift --rebuild --svg-dir examples/out examples/*.ts",
     "typecheck": "tsc -p .",
+    "lint": "biome lint .",
     "build": "tsc -p tsconfig.build.json && pnpm run build:assets",
     "build:assets": "mkdir -p dist/lib/deck-viewer dist/lib/pptx/template && cp lib/deck-viewer/*.js lib/deck-viewer/*.css dist/lib/deck-viewer/ && cp -R lib/pptx/template/. dist/lib/pptx/template/",
     "release": "bash scripts/release.sh",
@@ -54,6 +55,7 @@
     "node": ">=22.18"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@types/markdown-it": "^14.2.0",
     "@types/node": "^26.6.4",
     "markdown-it": "^14.3.2",

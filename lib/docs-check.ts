@@ -10,6 +10,7 @@ import type {DocImage, DocCaption, DocNoteItem} from './types/project.ts';
 import type {Finding} from './types/verdicts.ts';
 import type {WfNote} from './types/wireframe.ts';
 
+import {must} from './must.ts';
 const IMG = /!\[([^\]]*)\]\(([^)\s]+\.svg)\)/g;
 const PNG = /!\[([^\]]*)\]\(([^)\s]+\.png)\)/gi;
 // every  ![alt](...png)  in a page (local or remote): the raster copies of figures, checked against the figure sources and the files on disk
@@ -18,7 +19,7 @@ export function scanPngRefs(text: string): {line: number; alt: string; ref: stri
   let fence = false;
   text.split('\n').forEach((ln, i) => {
     if (/^\s*(```|~~~)/.test(ln)) { fence = !fence; return; }
-    if (!fence) for (const m of ln.matchAll(PNG)) out.push({line: i + 1, alt: m[1], ref: m[2]});
+    if (!fence) for (const m of ln.matchAll(PNG)) out.push({line: i + 1, alt: must(m[1]), ref: must(m[2])});
   });
   return out;
 }
@@ -26,7 +27,7 @@ const norm = (s: unknown): string => String(s ?? '').replace(/\s+/g, '').replace
 
 export function scanMarkdown(text: string): DocImage[] {
   const lines = text.split('\n'), out: DocImage[] = [];
-  lines.forEach((ln, i) => { for (const m of ln.matchAll(IMG)) out.push({line: i + 1, alt: m[1], ref: m[2], items: listAfter(lines, i), caption: captionOf(lines, i, m[1])}); });
+  lines.forEach((ln, i) => { for (const m of ln.matchAll(IMG)) out.push({line: i + 1, alt: must(m[1]), ref: must(m[2]), items: listAfter(lines, i), caption: captionOf(lines, i, must(m[1]))}); });
   return out;
 }
 
@@ -34,18 +35,18 @@ const FIG = '図\\s*(\\d+)\\s*[-－ー−‐]\\s*(\\d+)';
 // a caption is 図N-M in the alt text, or at the start of the nearest non-blank line before/after the image (a mention inside a sentence is a reference, not a caption)
 function captionOf(lines: string[], i: number, alt: string): DocCaption | undefined {
   const a = new RegExp(FIG).exec(alt);
-  if (a) return {ch: +a[1], no: +a[2], line: i + 1};
+  if (a) return {ch: +must(a[1]), no: +must(a[2]), line: i + 1};
   // 図N-M then a separator (space, colon, closing mark): "図3-1と同じく…" starts a sentence, it is not a caption
   const at = (j: number): DocCaption | undefined => {
-    const m = new RegExp(`^[\\s*_>]*${FIG}(?=$|[\\s:：.．、。*_)）\\]】」])`).exec(lines[j]);
-    return m ? {ch: +m[1], no: +m[2], line: j + 1} : undefined;
+    const m = new RegExp(`^[\\s*_>]*${FIG}(?=$|[\\s:：.．、。*_)）\\]】」])`).exec(must(lines[j]));
+    return m ? {ch: +must(m[1]), no: +must(m[2]), line: j + 1} : undefined;
   };
   const near = (from: number, dir: number): number => {
     let j = from + dir;
-    while (j >= 0 && j < lines.length && lines[j].trim() === '') j += dir;
+    while (j >= 0 && j < lines.length && must(lines[j]).trim() === '') j += dir;
     return j >= 0 && j < lines.length ? j : -1;
   };
-  const isImg = (j: number) => j >= 0 && new RegExp(IMG.source).test(lines[j]);
+  const isImg = (j: number) => j >= 0 && new RegExp(IMG.source).test(must(lines[j]));
   const after = near(i, 1), before = near(i, -1);
   const ca = after >= 0 && !isImg(after) ? at(after) : undefined, cb = before >= 0 && !isImg(before) ? at(before) : undefined;
   // captions above the figures: the line after this image sits right above the next image, so it is that image's caption
@@ -57,10 +58,10 @@ function captionOf(lines: string[], i: number, alt: string): DocCaption | undefi
 function listAfter(lines: string[], i: number): DocNoteItem[] {
   const items: DocNoteItem[] = [];
   for (let j = i + 1; j < Math.min(lines.length, i + 40); j++) {
-    const l = lines[j];
+    const l = must(lines[j]);
     if (/^#{1,6}\s/.test(l) || new RegExp(IMG.source).test(l)) break;
     const m = /^\s*(\d+)\.\s+(.*)$/.exec(l);
-    if (m) { items.push({n: +m[1], ...parseItem(m[2])}); continue; }
+    if (m) { items.push({n: +must(m[1]), ...parseItem(must(m[2]))}); continue; }
     if (!items.length) continue;                       // still looking for the list ("図中の番号に対応する注釈：")
     if (l.trim() === '') { if (!/^\s*\d+\.\s/.test(lines.slice(j + 1).find(x => x.trim()) ?? '')) break; continue; }
     if (!/^\s{2,}\S/.test(l)) break;                   // a line that is not part of the item ends the list
@@ -70,7 +71,7 @@ function listAfter(lines: string[], i: number): DocNoteItem[] {
 
 export function parseItem(raw: string): {title: string; text: string} {
   const m = /^\*\*(.+?)\*\*\s*[：:]\s*(.*)$/.exec(raw);
-  return m ? {title: m[1], text: m[2]} : {title: '', text: raw};
+  return m ? {title: must(m[1]), text: must(m[2])} : {title: '', text: raw};
 }
 
 // notes: the figure's own  [string | {title?, text, n?}]
@@ -107,7 +108,7 @@ export function formatNotes(notes: WfNote[]): string {
 // the chapter number a file name carries: "03-intro.md", "ch3.md", "chapter-03_x.md" -> 3
 export function chapterOf(file: string): number | null {
   const m = /^(?:ch(?:apter)?[-_]?)?0*(\d{1,3})(?!\d)/i.exec(file.replace(/^.*[\\/]/, ''));
-  return m ? +m[1] : null;
+  return m ? +must(m[1]) : null;
 }
 
 const PLACEHOLDER_ALT = /^(image|img|diagram|figure|fig\d*|picture|図|画像|図表|図解)$/i;
@@ -136,14 +137,14 @@ export function checkFigures(text: string, figs: DocImage[], chapter: number | n
     if (ns.length && ns.some((n, k) => n !== k + 1) && !ns.every(n => n === 1)) out.push({line: f.line, rule: 'doc-notes-number', severity: 'warn', message: `図の下の注釈の番号が 1 から順でない（${ns.join(', ')}）`});
   }
   if (caps.length) {                              // 図N-M in a sentence must name a figure that has a caption in this page (references to other chapters are not checked)
-    const have = new Set(caps.map(f => `${f.caption!.ch}-${f.caption!.no}`)), capLines = new Set(caps.map(f => f.caption!.line));
+    const have = new Set(caps.map(f => `${must(f.caption).ch}-${must(f.caption).no}`)), capLines = new Set(caps.map(f => must(f.caption).line));
     let fence = false;
     text.split('\n').forEach((ln, k) => {
       if (/^\s*(```|~~~)/.test(ln)) { fence = !fence; return; }
       if (fence || capLines.has(k + 1)) return;
       for (const m of ln.replace(/`[^`]*`/g, '').matchAll(new RegExp(FIG, 'g'))) {   // `図3-9` in inline code is an example, not a reference
-        const ch = +m[1], key = `${m[1]}-${m[2]}`;
-        if (ch === (chapter ?? caps[0].caption!.ch) && !have.has(key)) out.push({line: k + 1, rule: 'doc-fig-ref-missing', severity: 'warn', message: `本文の「図${m[1]}-${m[2]}」に対応する図がこの文書にない`});
+        const ch = +must(m[1]), key = `${m[1]}-${m[2]}`;
+        if (ch === (chapter ?? must(must(caps[0]).caption).ch) && !have.has(key)) out.push({line: k + 1, rule: 'doc-fig-ref-missing', severity: 'warn', message: `本文の「図${m[1]}-${m[2]}」に対応する図がこの文書にない`});
       }
     });
   }
@@ -154,7 +155,7 @@ export function checkFigures(text: string, figs: DocImage[], chapter: number | n
 export function globToRegExp(glob: string): RegExp {
   let re = '';
   for (let i = 0; i < glob.length; i++) {
-    const c = glob[i];
+    const c = must(glob[i]);
     if (c === '*') { if (glob[i + 1] === '*') { i++; if (glob[i + 1] === '/') { i++; re += '(?:.*/)?'; } else re += '.*'; } else re += '[^/]*'; }
     else if (c === '?') re += '[^/]';
     else re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
@@ -169,9 +170,9 @@ export function formatMap(rows: MapRow[]): string {
   const cell = (s: string) => (s ? `\`${s}\`` : '—');
   const lines = ['| 図 | 図のソース | SVG | 使っている文書 |', '|---|---|---|---|'];
   for (const svg of [...new Set(rows.map(r => r.svg))].sort()) { // by path: two figures with the same file name in different folders stay apart
-    const rs = rows.filter(r => r.svg === svg), name = rs[0].name;
+    const rs = rows.filter(r => r.svg === svg), name = must(rs[0]).name;
     const docs = rs.map(r => r.doc).filter(Boolean);
-    lines.push(`| ${name} | ${cell(rs[0].src)} | ${cell(rs[0].svg)} | ${docs.length ? docs.map(d => `\`${d}\``).join('<br>') : '（参照なし）'} |`);
+    lines.push(`| ${name} | ${cell(must(rs[0]).src)} | ${cell(must(rs[0]).svg)} | ${docs.length ? docs.map(d => `\`${d}\``).join('<br>') : '（参照なし）'} |`);
   }
   return lines.join('\n');
 }

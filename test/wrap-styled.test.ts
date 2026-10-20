@@ -27,8 +27,8 @@ function reference(atoms: string[], {maxWidth, atomWidth}: {maxWidth: number; at
   if (cur.length) lines.push(cur);
   for (let i = 0; i < lines.length - 1; i++) {
     const line = lines[i];
-    const last = line[line.length - 1]!;
-    if (line.length > 1 && CANNOT_END_LINE.has(last)) { line.pop(); lines[i + 1]!.unshift(last); }
+    const last = line![line!.length - 1]!;
+    if (line!.length > 1 && CANNOT_END_LINE.has(last)) { line!.pop(); lines[i + 1]!.unshift(last); }
   }
   return lines.map(a => a.join('').trimEnd());
 }
@@ -49,7 +49,7 @@ test('wrapAtoms is unchanged by the styled-atom wrapper (random text, several wi
     const atoms = splitAtoms(text);
     const got = wrapAtoms(atoms, {maxWidth, atomWidth: width, mode: 'char'}), ref = reference(atoms, {maxWidth, atomWidth: width});
     // the reference is the plain greedy wrap; only a lone character on the last line may differ (it takes one from the line above)
-    const orphan = ref.length >= 2 && [...ref[ref.length - 1]].length === 1;
+    const orphan = ref.length >= 2 && [...ref[ref.length - 1]!].length === 1;
     if (!orphan) assert.deepEqual(got, ref, JSON.stringify({text, maxWidth}));
     else {
       assert.equal(got.length, ref.length, JSON.stringify({text, maxWidth}));

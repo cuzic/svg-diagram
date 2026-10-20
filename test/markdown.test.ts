@@ -24,13 +24,13 @@ test('an image that targets a .diagram.ts source becomes an image of its SVG; co
   const r = await expand(md, dir);
   assert.deepEqual(r.problems, []);
   assert.equal(r.figures.length, 1);
-  assert.match(r.figures[0].name, /^flow-[0-9a-f]{8}\.svg$/);
-  assert.match(r.figures[0].svg, /^<svg\b/);
+  assert.match(r.figures[0]!.name, /^flow-[0-9a-f]{8}\.svg$/);
+  assert.match(r.figures[0]!.svg, /^<svg\b/);
   const out = r.markdown.split('\n');
-  assert.match(out[1], new RegExp(`^!\\[流れ図\\]\\(svg/${r.figures[0].name} "題名"\\)$`));
+  assert.match(out[1]!, new RegExp(`^!\\[流れ図\\]\\(svg/${r.figures[0]!.name} "題名"\\)$`));
   assert.equal(out[2], '`![x](d/flow.diagram.ts)` と ![外](https://e.com/a.diagram.ts)');
   assert.deepEqual(out.slice(3, 6), ['```md', '![y](d/flow.diagram.ts)', '```']);
-  assert.match(out[6], img('flow'));
+  assert.match(out[6]!, img('flow'));
   fs.rmSync(dir, {recursive: true});
 });
 
@@ -60,7 +60,7 @@ test('a code span in the alt, and a % in the target, do not crash; the % is a pr
   assert.match(r.markdown, /^!\[a `\]` b\]\(svg\/a-[0-9a-f]{8}\.svg\)$/);
   const pct = await expand('![](100%.diagram.ts)', dir);
   assert.equal(pct.problems.length, 1);
-  assert.match(pct.problems[0], /100%\.diagram\.ts/);
+  assert.match(pct.problems[0]!, /100%\.diagram\.ts/);
   fs.rmSync(dir, {recursive: true});
 });
 
@@ -71,7 +71,7 @@ test('same-named sources get different file names, in one page and across pages;
   assert.equal(new Set(r.figures.map(f => f.name)).size, 2);
   assert.match(r.markdown, /^!\[\]\(\.\.\/img\/f-[0-9a-f]{8}\.svg\)\n!\[\]\(\.\.\/img\/f-[0-9a-f]{8}\.svg\)$/);
   const again = await expand('![](a/f.diagram.ts)', dir);
-  assert.equal(again.figures[0].name, r.figures.find(f => f.source.includes('/a/'))!.name);
+  assert.equal(again.figures[0]!.name, r.figures.find(f => f.source.includes('/a/'))!.name);
   const inl = await expand('前\n\n![図の説明](a/f.diagram.ts)\n\n![同じ図](a/f.diagram.ts)\n\n後', dir, {mode: 'inline'});
   assert.match(inl.markdown, /<svg [^>]*aria-label="図の説明"/);
   const ids = [...inl.markdown.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]);
@@ -99,10 +99,10 @@ test('a source outside root, or an absolute path, is a problem; it is never impo
   const dir = tmp();
   fs.writeFileSync(path.join(dir, 'a.diagram.ts'), `throw new Error('ran');\n`);
   const outside = await expandMarkdown('![](a.diagram.ts)', {file: path.join(dir, 'p.md'), root: path.join(dir, 'sub')});
-  assert.match(outside.problems[0], /outside/);
+  assert.match(outside.problems[0]!, /outside/);
   for (const t of ['/etc/x.diagram.ts', '//host/share/x.diagram.ts', 'C:/x.diagram.ts']) {
     const r = await expand(`![](${t})`, dir);
-    assert.match(r.problems[0], /absolute path/, t);
+    assert.match(r.problems[0]!, /absolute path/, t);
   }
   fs.rmSync(dir, {recursive: true});
 });
@@ -111,7 +111,7 @@ test('a source that cannot load is a problem and its image stays as written', as
   const dir = tmp();
   const r = await expand('![](nope.diagram.ts)', dir);
   assert.equal(r.problems.length, 1);
-  assert.match(r.problems[0], /^nope\.diagram\.ts: /);
+  assert.match(r.problems[0]!, /^nope\.diagram\.ts: /);
   assert.equal(r.markdown, '![](nope.diagram.ts)');
   fs.rmSync(dir, {recursive: true});
 });
@@ -142,7 +142,7 @@ test('the CLI writes the Markdown and the SVGs, and writes nothing when a figure
   assert.equal(good.status, 0, good.stderr);
   const md = fs.readFileSync(path.join(dir, 'out/out.md'), 'utf8');
   const name = /\]\(img\/(flow-[0-9a-f]{8}\.svg)\)/.exec(md)![1];
-  assert.match(fs.readFileSync(path.join(dir, 'out/img', name), 'utf8'), /^<svg\b/);
+  assert.match(fs.readFileSync(path.join(dir, 'out/img', name!), 'utf8'), /^<svg\b/);
   fs.writeFileSync(path.join(dir, 'bad.md'), '![](missing.diagram.ts)\n');
   const bad = run('bad.md', '--out', 'bad-out.md');
   assert.equal(bad.status, 1);
@@ -163,7 +163,7 @@ test('two pages that share one svg folder do not overwrite each other\'s figures
   assert.equal(run('pb.md', '--out', 'out/pb.md').status, 0);
   const files = fs.readdirSync(path.join(dir, 'out/svg'));
   assert.equal(files.length, 2);
-  const target = (p: string) => /\]\((svg\/[^)]+)\)/.exec(fs.readFileSync(path.join(dir, 'out', p), 'utf8'))![1];
+  const target = (p: string) => /\]\((svg\/[^)]+)\)/.exec(fs.readFileSync(path.join(dir, 'out', p), 'utf8'))![1]!;
   assert.match(fs.readFileSync(path.join(dir, 'out', target('pa.md')), 'utf8'), /図a/);
   assert.match(fs.readFileSync(path.join(dir, 'out', target('pb.md')), 'utf8'), /図b/);
   fs.rmSync(dir, {recursive: true});
@@ -176,7 +176,7 @@ test('the same repository gives the same file names wherever it is checked out; 
     fs.mkdirSync(path.join(dir, 'd'));
     fs.writeFileSync(path.join(dir, 'd/a.diagram.ts'), ok('A'));
     const r = await expandMarkdown('![](d/a.diagram.ts)', {file: path.join(dir, 'p.md'), root: dir});
-    names.push(r.figures[0].name);
+    names.push(r.figures[0]!.name);
     fs.rmSync(dir, {recursive: true});
   }
   assert.equal(names[0], names[1]);

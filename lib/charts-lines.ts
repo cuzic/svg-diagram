@@ -7,6 +7,7 @@ import type {PlaneBand, PlaneOpts, PlanePoint, PlanePath, PlaneTone, PlaneLine, 
 import type {ChartOpts} from './charts-base.ts';
 import {ROLES} from './tokens.ts';
 
+import {must} from './must.ts';
 export interface LineSeries {
   label: string;
   /** One value per category (null: a gap), or [x, y] pairs for a numeric x axis. */
@@ -71,8 +72,8 @@ export function linesOpts(series: readonly LineSeries[], opts: LinesOpts = {}): 
       return [i, finiteNum(who, `"${s.label}" value ${i + 1}`, v)] as [number, number];
     });
   });
-  if (cats) for (const [k, p] of pts.entries()) if (p.length !== cats.length) fail(who, `series "${series[k].label}" has ${p.length} values for ${cats.length} categories (use null for a gap)`);
-  if (!cats) for (const [k, p] of pts.entries()) { const xs = p.map(q => q![0]); if (xs.some((x, i) => i > 0 && x <= xs[i - 1])) fail(who, `series "${series[k].label}": x must increase along the series`); }
+  if (cats) for (const [k, p] of pts.entries()) if (p.length !== cats.length) fail(who, `series "${must(series[k]).label}" has ${p.length} values for ${cats.length} categories (use null for a gap)`);
+  if (!cats) for (const [k, p] of pts.entries()) { const xs = p.map(q => must(q)[0]); if (xs.some((x, i) => i > 0 && x <= must(xs[i - 1]))) fail(who, `series "${must(series[k]).label}": x must increase along the series`); }
   const real = pts.flat().filter((q): q is [number, number] => q !== null);
   if (!real.length) fail(who, 'every value is null');
   // axes
@@ -94,32 +95,32 @@ export function linesOpts(series: readonly LineSeries[], opts: LinesOpts = {}): 
   const points: PlanePoint[] = [], paths: PlanePath[] = [];
   const named = opts.endLabels !== false, mark = opts.markers !== false;
   series.forEach((s, k) => {
-    const st = STYLE[series.slice(0, k).filter(o => !o.ideal).length], tone: PlaneTone = s.ideal ? 'muted' : st.tone, dashed = s.ideal ? true : st.dashed;
+    const st = STYLE[series.slice(0, k).filter(o => !o.ideal).length], tone: PlaneTone = s.ideal ? 'muted' : must(st).tone, dashed = s.ideal ? true : must(st).dashed;
     // runs of consecutive points (a gap breaks the line)
     const runs: [number, number][][] = [];
     let run: [number, number][] = [];
-    for (const q of pts[k]) { if (q) run.push(q); else { if (run.length) runs.push(run); run = []; } }
+    for (const q of must(pts[k])) { if (q) run.push(q); else { if (run.length) runs.push(run); run = []; } }
     if (run.length) runs.push(run);
     for (const r of runs) if (r.length >= 2) paths.push({through: r, tone, dashed, ...(s.smooth ? {smooth: true} : {})});
-    const lastRun = runs[runs.length - 1], end = lastRun[lastRun.length - 1];
+    const lastRun = must(runs[runs.length - 1]), end = lastRun[lastRun.length - 1];
     for (const r of runs) for (const q of r) {
       const isEnd = q === end;
       if (s.ideal && !isEnd) continue;
       if (!mark && !isEnd) continue;
-      points.push({at: q, tone, shape: s.ideal ? 'ring' : st.shape, ...(isEnd && named && !s.ideal ? {label: s.label, labelAt: cats && q[0] !== cats.length - 1 ? 'auto' as const : 'right' as const, ...(cats && q[0] !== cats.length - 1 ? {labelLeader: true} : {})} : {})});
+      points.push({at: q, tone, shape: s.ideal ? 'ring' : must(st).shape, ...(isEnd && named && !s.ideal ? {label: s.label, labelAt: cats && q[0] !== cats.length - 1 ? 'auto' as const : 'right' as const, ...(cats && q[0] !== cats.length - 1 ? {labelLeader: true} : {})} : {})});
     }
   });
   // an ideal / plan line is named beside the middle of its run (above it when it falls, below it when it climbs), where nothing else is
   const midLabels: PlaneLabel[] = [];
   if (named) series.forEach((s, k) => {
     if (!s.ideal) return;
-    const q = pts[k].filter((v): v is [number, number] => v !== null), a = q[0], b = q[q.length - 1];
+    const q = must(pts[k]).filter((v): v is [number, number] => v !== null), a = must(q[0]), b = must(q[q.length - 1]);
     midLabels.push({at: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], text: s.label, anchor: 'start', tone: 'muted', bold: true, offset: b[1] >= a[1] ? [10, 24] : [10, -12]});
   });
   const find = (name: string, index: number): [number, number] => {
     const k = labels.indexOf(name);
     if (k < 0) fail(who, `annotate: no series "${name}" (series: ${labels.join(', ')})`);
-    const q = pts[k][index];
+    const q = must(pts[k])[index];
     if (!q) fail(who, `annotate: series "${name}" has no point ${index}`);
     return q as [number, number];
   };

@@ -103,7 +103,7 @@ function iconify() {
     const u = new URL(req.url!, 'http://x');
     res.setHeader('content-type', 'application/json');
     if (u.pathname === '/collections') {
-      return void res.end(JSON.stringify(Object.fromEntries(u.searchParams.get('prefixes')!.split(',').filter(p => sets[p]).map(p => [p, {name: 'N', author: {name: 'Someone'}, license: {...sets[p].license, url: 'https://l'}, palette: !!sets[p].palette}]))));
+      return void res.end(JSON.stringify(Object.fromEntries(u.searchParams.get('prefixes')!.split(',').filter(p => sets[p]).map(p => [p, {name: 'N', author: {name: 'Someone'}, license: {...sets[p]!.license, url: 'https://l'}, palette: !!sets[p]!.palette}]))));
     }
     const s = sets[u.pathname.slice(1).replace(/\.json$/, '')];
     if (!s) { res.statusCode = 404; return void res.end('{}'); }
@@ -120,9 +120,9 @@ test('icons add / remove / notice against a stand-in Iconify: licence, aliases, 
     const r = await addIcons(['mdi:key', 'mdi:old-key=oldkey', './logo.svg'], {api: srv.api, cwd: dir});
     assert.deepEqual(r.added.sort(), ['key', 'logo', 'oldkey']);
     const m = readManifest(path.join(dir, 'svg-diagram.icons.json'));
-    assert.deepEqual(m.icons.key, {d: 'M1 1h4v4z', vb: [0, 0, 24], from: 'mdi:key', license: 'Apache-2.0', licenseUrl: 'https://l', author: 'Someone'});
-    assert.equal(m.icons.oldkey.d, 'M1 1h4v4z', 'an alias takes its parent\'s path');
-    assert.equal(m.icons.logo.license, 'local');
+    assert.deepEqual(m.icons['key'], {d: 'M1 1h4v4z', vb: [0, 0, 24], from: 'mdi:key', license: 'Apache-2.0', licenseUrl: 'https://l', author: 'Someone'});
+    assert.equal(m.icons['oldkey']!.d, 'M1 1h4v4z', 'an alias takes its parent\'s path');
+    assert.equal(m.icons['logo']!.license, 'local');
     assert.match(noticeText(m), /mdi — Someone, Apache-2\.0.*: key, oldkey\n- Drawn in this project: logo/);
 
     const before = fs.readFileSync(path.join(dir, 'svg-diagram.icons.json'), 'utf8');
@@ -136,7 +136,7 @@ test('icons add / remove / notice against a stand-in Iconify: licence, aliases, 
     assert.equal(fs.readFileSync(path.join(dir, 'svg-diagram.icons.json'), 'utf8'), before, 'a failed add writes nothing');
 
     assert.deepEqual((await addIcons(['mdi:stroke', 'mdi:flag=red', 'color:a=pal'], {api: srv.api, cwd: dir, color: true})).added.sort(), ['pal', 'red', 'stroke']);
-    assert.equal(readManifest(path.join(dir, 'svg-diagram.icons.json')).icons.red.fixed, true);
+    assert.equal(readManifest(path.join(dir, 'svg-diagram.icons.json')).icons['red']!.fixed, true);
     removeIcons(['pal', 'red', 'stroke'], dir);
     assert.deepEqual((await addIcons(['ccby:a'], {api: srv.api, cwd: dir, allowLicense: ['CC-BY-4.0']})).added, ['a']);
     assert.deepEqual((await addIcons(['mdi:rocket=key'], {api: srv.api, cwd: dir})).replaced, ['key']);
@@ -185,12 +185,12 @@ function iconifySearch() {
     res.setHeader('content-type', 'application/json');
     if (u.pathname === '/search') {
       const only = u.searchParams.get('prefixes')?.split(',');
-      const ids = ['fa:key', 'lucide:key', 'pal:key', 'lucide:keys', 'mdi:key-plus', 'mdi:key'].filter(id => !only || only.includes(id.split(':')[0]));
-      return void res.end(JSON.stringify({icons: ids, collections: Object.fromEntries([...new Set(ids.map(i => i.split(':')[0]))].map(p => [p, col(...lic[p])]))}));
+      const ids = ['fa:key', 'lucide:key', 'pal:key', 'lucide:keys', 'mdi:key-plus', 'mdi:key'].filter(id => !only || only.includes(id.split(':')[0]!));
+      return void res.end(JSON.stringify({icons: ids, collections: Object.fromEntries([...new Set(ids.map(i => i.split(':')[0]))].map(p => [p, col(...lic[p!]!)]))}));
     }
     const s = sets[u.pathname.slice(1).replace(/\.json$/, '')];
     const want = (u.searchParams.get('icons') ?? '').split(',');
-    res.end(JSON.stringify({width: 24, icons: Object.fromEntries(want.filter(n => s?.[n]).map(n => [n, {body: s[n]}]))}));
+    res.end(JSON.stringify({width: 24, icons: Object.fromEntries(want.filter(n => s?.[n]).map(n => [n, {body: s![n]}]))}));
   });
   return new Promise<{api: string; close(): void}>(ok => server.listen(0, '127.0.0.1', () => ok({api: `http://127.0.0.1:${(server.address() as {port: number}).port}`, close: () => server.close()})));
 }
@@ -199,15 +199,15 @@ test('icons find: licence- and colour-filtered, undrawable icons dropped, the ma
   const srv = await iconifySearch();
   try {
     const [r] = await findIcons(['key'], {api: srv.api, mainSet: 'mdi'});
-    assert.deepEqual(r.candidates.map(c => c.id), ['mdi:key', 'mdi:key-plus', 'lucide:key'], 'main set first, exact name before key-plus; fa (CC-BY), pal (colour) and the script icon are out');
-    assert.deepEqual(r.candidates.map(c => c.style), ['fill', 'fill', 'line']);
-    assert.deepEqual(r.skipped, ['fa (CC-BY-4.0)']);
-    assert.equal(r.candidates[0].add, 'mdi:key=key');
+    assert.deepEqual(r!.candidates.map(c => c.id), ['mdi:key', 'mdi:key-plus', 'lucide:key'], 'main set first, exact name before key-plus; fa (CC-BY), pal (colour) and the script icon are out');
+    assert.deepEqual(r!.candidates.map(c => c.style), ['fill', 'fill', 'line']);
+    assert.deepEqual(r!.skipped, ['fa (CC-BY-4.0)']);
+    assert.equal(r!.candidates[0]!.add, 'mdi:key=key');
     assert.deepEqual((await findIcons(['key'], {api: srv.api})).at(0)!.candidates.map(c => c.id), ['lucide:key', 'mdi:key', 'mdi:key-plus'], 'with no main set: exact names in search order');
-    assert.deepEqual((await findIcons(['key'], {api: srv.api, mainSet: 'mdi', style: 'line'}))[0].candidates.map(c => c.id), ['lucide:key']);
-    assert.deepEqual((await findIcons(['key'], {api: srv.api, sets: ['lucide']}))[0].candidates.map(c => c.id), ['lucide:key']);
-    assert.deepEqual((await findIcons(['key'], {api: srv.api, allowLicense: ['CC-BY-4.0'], limit: 9}))[0].candidates.map(c => c.id).includes('fa:key'), true);
-    assert.equal((await findIcons(['key'], {api: srv.api, color: true, limit: 9}))[0].candidates.find(c => c.id === 'pal:key')?.style, 'color');
+    assert.deepEqual((await findIcons(['key'], {api: srv.api, mainSet: 'mdi', style: 'line'}))[0]!.candidates.map(c => c.id), ['lucide:key']);
+    assert.deepEqual((await findIcons(['key'], {api: srv.api, sets: ['lucide']}))[0]!.candidates.map(c => c.id), ['lucide:key']);
+    assert.deepEqual((await findIcons(['key'], {api: srv.api, allowLicense: ['CC-BY-4.0'], limit: 9}))[0]!.candidates.map(c => c.id).includes('fa:key'), true);
+    assert.equal((await findIcons(['key'], {api: srv.api, color: true, limit: 9}))[0]!.candidates.find(c => c.id === 'pal:key')?.style, 'color');
     assert.deepEqual(styleOf({vb: [0, 0, 24], d: 'M0 0'}), 'fill');
     await assert.rejects(findIcons([' '], {api: srv.api}), /empty word/);
   } finally { srv.close(); }
@@ -222,14 +222,14 @@ test('the first set installed becomes the main set; another set warns; icons mai
     const file = path.join(dir, 'svg-diagram.icons.json');
     assert.equal(readManifest(file).mainSet, 'mdi');
     const other = await addIcons(['ccby:a=x'], {api: srv.api, cwd: dir, allowLicense: ['CC-BY-4.0']});
-    assert.match(other.warnings[0], /主セットは mdi。ccby/);
+    assert.match(other.warnings[0]!, /主セットは mdi。ccby/);
     assert.equal(readManifest(file).mainSet, 'mdi', 'adding from another set does not move it');
     assert.equal(setMainSet('ccby', dir).mainSet, 'ccby');
     assert.equal(readManifest(file).mainSet, 'ccby');
     setMainSet(undefined, dir);
     assert.equal(readManifest(file).mainSet, undefined);
     assert.throws(() => setMainSet('Not A Set', dir), /not an Iconify set prefix/);
-    assert.equal(readManifest(file).icons.key.from, 'mdi:key', 'the icons are kept');
+    assert.equal(readManifest(file).icons['key']!.from, 'mdi:key', 'the icons are kept');
   } finally { srv.close(); fs.rmSync(dir, {recursive: true}); }
 });
 
@@ -282,12 +282,12 @@ test('add-pack: needs the vendor terms said and accepted, installs the best size
     assert.deepEqual(r.added, ['aws-amazon-simple-storage-service', 'aws-lambda']);
     assert.deepEqual(Object.keys(r.skipped).map(k => k.slice(0, 26)), ['<style> is not supported (']);
     assert.deepEqual(Object.values(r.skipped), [['Arch_Odd/48/Arch_Styled_48.svg']]);
-    assert.match(r.collisions[0], /aws-lambda \(2 files: .*48.* kept\)/);
+    assert.match(r.collisions[0]!, /aws-lambda \(2 files: .*48.* kept\)/);
     const m = readManifest(path.join(dir, 'svg-diagram.icons.json'));
     assert.deepEqual(m.packs, {aws: {terms: 'https://aws.amazon.com/architecture/icons/', source: path.basename(src), acceptedAt: '2026-10-12'}});
     const l = m.icons['aws-lambda'];
-    assert.deepEqual([l.license, l.fixed, l.vb], ['vendor:aws', true, [0, 0, 48]]);
-    assert.ok(l.body!.includes('fill="#ED7100"') && !l.body!.includes('Icon-Architecture') && !l.body!.includes('Rectangle'), 'the Arch_ 48 px file won; ids that nothing refers to are gone');
+    assert.deepEqual([l!.license, l!.fixed, l!.vb], ['vendor:aws', true, [0, 0, 48]]);
+    assert.ok(l!.body!.includes('fill="#ED7100"') && !l!.body!.includes('Icon-Architecture') && !l!.body!.includes('Rectangle'), 'the Arch_ 48 px file won; ids that nothing refers to are gone');
     assert.match(noticeText(m), /aws — the vendor's own terms \(https:\/\/aws\.amazon\.com\/architecture\/icons\/\), accepted 2026-10-12: aws-amazon-simple-storage-service, aws-lambda/);
     assert.throws(() => parseManifest(JSON.stringify({...m, packs: {aws: {terms: ''}}}), 'f'), /bad pack/);
     const again = addPack(src, {prefix: 'aws', cwd: dir, match: /Lambda/, terms: 't', acceptTerms: true});
@@ -322,7 +322,7 @@ test('a lock left by a dead process is taken over; a live one makes the run wait
 
 test('icons sets: every curated id is an mdi icon with a usable short name, and add-set installs through addIcons', async () => {
   assert.ok(Object.keys(ICON_SETS).includes('accounting'));
-  assert.ok(Object.keys(ICON_SETS.accounting.icons).length >= 30);
+  assert.ok(Object.keys(ICON_SETS['accounting']!.icons).length >= 30);
   for (const [n, s] of Object.entries(ICON_SETS)) for (const [name, id] of Object.entries(s.icons)) {
     assert.match(id, /^mdi:[a-z0-9-]+$/, `${n}/${name}`);
     assert.match(name, ICON_NAME_RE, `${n}/${name}`);
@@ -339,10 +339,10 @@ test('icons sets: every curated id is an mdi icon with a usable short name, and 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'icons-set-'));
   try {
     const r = await addSet('accounting', {fetch: fetchFake, cwd: dir});
-    assert.equal(r.added.length, Object.keys(ICON_SETS.accounting.icons).length);
+    assert.equal(r.added.length, Object.keys(ICON_SETS['accounting']!.icons).length);
     const m = readManifest(path.join(dir, 'svg-diagram.icons.json'));
-    assert.equal(m.icons.receipt.from, 'mdi:receipt-text');
-    assert.equal(m.icons.receipt.license, 'Apache-2.0');
+    assert.equal(m.icons['receipt']!.from, 'mdi:receipt-text');
+    assert.equal(m.icons['receipt']!.license, 'Apache-2.0');
     assert.equal(m.mainSet, 'mdi');
     assert.match(noticeText(m), /mdi — P, Apache-2\.0/);
   } finally { fs.rmSync(dir, {recursive: true}); }
@@ -362,8 +362,8 @@ test('add-set keeps an icon the project already has under the same name', async 
     const r = await addSet('accounting', {fetch: fetchFake, cwd: dir});
     assert.deepEqual([r.kept, r.replaced], [['lock'], []]);
     const m = readManifest(path.join(dir, 'svg-diagram.icons.json'));
-    assert.equal(m.icons.lock.from, 'file:mine.svg');
-    assert.equal(m.icons.receipt.from, 'mdi:receipt-text');
+    assert.equal(m.icons['lock']!.from, 'file:mine.svg');
+    assert.equal(m.icons['receipt']!.from, 'mdi:receipt-text');
   } finally { fs.rmSync(dir, {recursive: true}); }
 });
 

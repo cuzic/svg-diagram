@@ -140,9 +140,9 @@ try {
       if (FIT) {
         const hits = locateSlide(path.basename(outPath));
         if (hits.length !== 1) throw new Error(`--fit: ${path.basename(outPath)} を使っているスライドが${hits.length}枚です(ちょうど1枚が必要)`);
-        if (!hits[0].isFill) throw new Error(`--fit: ${hits[0].page} の「${hits[0].heading}」の <img> に class="fill"(と frontmatter の fit-figure)がありません`);
+        if (!must(hits[0]).isFill) throw new Error(`--fit: ${must(hits[0]).page} の「${must(hits[0]).heading}」の <img> に class="fill"(と frontmatter の fit-figure)がありません`);
         d.fill = true;
-        d.slide = {page: hits[0].page, heading: hits[0].heading as string};
+        d.slide = {page: must(hits[0]).page, heading: must(hits[0]).heading as string};
       }
       const result = await build(d, outPath, {lint: false, html: HTML}); // linted together below: one Chromium for all files
       if (idPrefixArg !== null) {
@@ -178,7 +178,7 @@ if (pngDir && written.length) { // the SVG and its PNG come from one build, so t
     try {
       const r = await rasterize(fs.readFileSync(svgPath, 'utf8'), {scale: PNG_SCALE, png: true});
       const pngPath = path.join(pngDir, path.parse(svgPath).name + '.png');
-      fs.writeFileSync(pngPath, r.png!);
+      fs.writeFileSync(pngPath, must(r.png));
       console.log(`✓ ${pngPath} (${r.width}x${r.height})`);
     } catch (err) { console.error(`✗ ${svgPath}: ${(err as Error).message}`); failed = true; }
   }

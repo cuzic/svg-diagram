@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="467" viewBox="0 0 940 467" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">台所の絵の上に箱と矢印を重ねる</title>
   <desc id="svg-desc">要素: 1. 火を止める、2. 窓を開ける。画像: 台所。左にコンロと赤い鍋、右に窓がある</desc>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/image-backdrop.ts","sourceSha256":"be5b7dcc152d1536a494a074e237d76bd6783ccabd9dbd2f170e75725b816819"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/image-backdrop.ts","sourceSha256":"4234d83851a087289ce7ce9097c7a793202bb3d117771c2d01a63318100fd5bc"}</metadata>
   <defs>
     <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>

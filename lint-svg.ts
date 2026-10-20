@@ -35,6 +35,7 @@ import fs from 'fs';
 import {ALLOWED_COLORS, DARK_COLORS, EMOJI_RE, MIN_FONT_SIZE, MIN_TEXT_ABSOLUTE} from './lib/tokens.ts';
 import {stripAutoBlock, isAuto, autoSides, DARK_NOTE} from './lib/appearance-auto.ts';
 
+import {must} from './lib/must.ts';
 const strict = process.argv.includes('--strict');
 const engineIdx = process.argv.indexOf('--engine');
 const engine = engineIdx === -1 ? 'geometry' : process.argv[engineIdx + 1];
@@ -93,8 +94,8 @@ for (const f of files) {
     staticFindings.push({file: f, check: 'span-in-text', detail: '<span> inside <text> can break parsing and drop everything after it in the document — use <tspan> instead'});
   }
   for (const m of src.matchAll(/<text\b([^>]*)>/g)) {
-    if (!/\by=/.test(m[1])) {
-      staticFindings.push({file: f, check: 'text-missing-y', detail: `<text ${m[1].trim().slice(0, 60)}...> has no y= attribute — collapses to y=0`});
+    if (!/\by=/.test(must(m[1]))) {
+      staticFindings.push({file: f, check: 'text-missing-y', detail: `<text ${must(m[1]).trim().slice(0, 60)}...> has no y= attribute — collapses to y=0`});
       break;
     }
   }
@@ -103,8 +104,8 @@ for (const f of files) {
   }
   const styleBlock = /<style>([\s\S]*?)<\/style>/.exec(src);
   if (styleBlock) {
-    for (const rule of styleBlock[1].matchAll(/\.([\w-]+)\s*\{([^}]*)\}/g)) {
-      const [, name, body] = rule;
+    for (const rule of must(styleBlock[1]).matchAll(/\.([\w-]+)\s*\{([^}]*)\}/g)) {
+      const name = must(rule[1]), body = must(rule[2]);
       if (/(?<!-)color\s*:/.test(body) && !/(?<!-)fill\s*:/.test(body)) {
         staticFindings.push({file: f, check: 'css-color-not-fill', detail: `.${name} sets color: instead of fill: — has no effect on SVG text`});
       }
@@ -179,11 +180,11 @@ for (const f of files) {
   // unclassed <text>, and misses the opposite case — a bare emoji sitting
   // directly in <text> content alongside a classed <tspan> sibling.
   for (const m of src.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)) {
-    const [, textAttrs, textContent] = m;
+    const textAttrs = must(m[1]), textContent = must(m[2]);
     const textHasClass = /\bclass="emoji"/.test(textAttrs);
     let direct = textContent;
     for (const tm of textContent.matchAll(/<tspan\b([^>]*)>([\s\S]*?)<\/tspan>/g)) {
-      const [tspanFull, tspanAttrs, tspanContent] = tm;
+      const tspanFull = tm[0], tspanAttrs = must(tm[1]), tspanContent = must(tm[2]);
       direct = direct.replace(tspanFull, '');
       if (EMOJI_RE.test(tspanContent) && !textHasClass && !/\bclass="emoji"/.test(tspanAttrs)) {
         advisoryFindings.push({file: f, check: 'emoji-missing-class', detail: `<tspan> contains an emoji glyph without class="emoji" on itself or its parent <text>: "${tspanContent.trim().slice(0, 20)}"`});

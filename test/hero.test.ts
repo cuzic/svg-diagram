@@ -17,8 +17,8 @@ test('hero() expands to the banner, stat row, flow, caption and note it names', 
     banner: {headline: '待ち時間が縮んだ', tone: 'accent'}, stat: {value: '-67%', label: '待ち時間', tone: 'accent'}, flow: steps(), caption: '一言', note: '出典',
   }));
   const [m, s] = await Promise.all([manual, sugar].map(d => renderDiagram(d, {name: 'hero.svg', budget: 'cacheOnly'})));
-  assert.equal(s.svg, m.svg);
-  assert.deepEqual(s.verdict.problems, []);
+  assert.equal(s!.svg, m!.svg);
+  assert.deepEqual(s!.verdict.problems, []);
 });
 
 test('hero() stacks the number above a long flow, and its ids are connect() targets', async () => {

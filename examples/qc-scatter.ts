@@ -1,7 +1,7 @@
 import {diagram, scatter} from 'svg-diagram';
 
 // 散布図: 軸は点に合わせて自動。`group` を付けると層別（層ごとに色と形が変わる）、`regression: true` で回帰直線と相関係数 r。
-const rows = [
+const rows: [number, number][] = [
   [18, 2.1], [20, 2.6], [22, 2.9], [24, 3.6], [25, 3.4], [27, 4.2], [29, 4.4], [30, 5.1], [32, 5.3], [34, 6.0], [35, 6.2], [37, 6.9],
 ];
 export default function define() {

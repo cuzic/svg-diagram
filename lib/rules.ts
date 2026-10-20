@@ -48,6 +48,7 @@ import {ftaFindings} from './fta-rules.ts';
 import {bowtieFindings} from './rca-rules.ts';
 import {statusText} from './status.ts';
 
+import {must} from './must.ts';
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
   'a11y-color-only-emphasis': '色だけで強調した語がある（太字も併用する。色が見えない読者にも伝わるように）',
@@ -194,7 +195,7 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause 
   const all = walkBands(bands);
   const used = new Set<string>(), lines = new Set<string>();
   // a canvas() region with a pill (重点 / 中心 / ソフト) says its tone in words: that tone needs no legend entry
-  const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => b.canvas!.worded[i]) : []));
+  const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => must(b.canvas).worded[i]) : []));
   for (const b of all) {
     if (dimmed.has(b) || worded.has(b)) continue;
     if (b.type === 'connect') {
@@ -369,7 +370,7 @@ function legendRules(d: LintTarget, out: Finding[]): void {
 interface Seg {i: number; c: LaidOutConnect; a: Point; b: Point}
 function segsOf(connects: LaidOutConnect[]): Seg[] {
   const out: Seg[] = [];
-  connects.forEach((c, i) => { for (let k = 0; k < c.points.length - 1; k++) out.push({i, c, a: c.points[k], b: c.points[k + 1]}); });
+  connects.forEach((c, i) => { for (let k = 0; k < c.points.length - 1; k++) out.push({i, c, a: must(c.points[k]), b: must(c.points[k + 1])}); });
   return out;
 }
 const horiz = (s: Seg) => Math.abs(s.a.y - s.b.y) < 0.5;
@@ -384,7 +385,7 @@ export function edgeStats(connects: LaidOutConnect[]): {crossings: number; overl
   const segs = segsOf(connects);
   let overlaps = 0;
   for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
-    const s = segs[i], t = segs[j];
+    const s = must(segs[i]), t = must(segs[j]);
     if (s.i === t.i) continue;
     // two lines this close (centre to centre) look like one: the normal width gives the usual 3, a strong line widens it
     const near = (strokeOf(s.c) + strokeOf(t.c)) / 2 + 1;
@@ -457,7 +458,7 @@ const lightnessOf = (hex: string): number => { const y = relativeLuminance(hex);
 function grayToneRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   const used = new Set<string>(), all = walkBands(d.bands);
   // a canvas() region with a pill (重点 / 中心 / 結論) says its tone in words, as for the legend (usedNotation): not a grayscale matter
-  const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => b.canvas!.worded[i]) : []));
+  const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => must(b.canvas).worded[i]) : []));
   for (const b of all) if (b.type === 'box' && !worded.has(b)) used.add(b.tone ?? 'plain');
   for (const b of d.laidOut ?? []) if (b.type === 'table') for (const r of b.rows) if (!r.header && r.tone) used.add(r.tone);
   const p = paintOf(tones, d.appearance);
@@ -472,7 +473,7 @@ function grayToneRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
     const pair = `${a.name}・${b.name}`;
     if (!seen.has(pair)) { seen.add(pair); hits.push(`${pair}（L* ${Math.round(a.l)} と ${Math.round(b.l)}）`); }
   }
-  if (hits.length) out.push({rule: 'gray-tone-collision', severity: 'warn', message: `白黒にすると塗りの明度が近く、見分けにくいトーンの組: ${hits.join('、')}。直し方は 2 つ: (1) トーンの塗りの明度差を L* 10 以上にする（diagram({tones: {accent: {fill: '#…'}}}) か .svg-diagram.json の \"tones\" で色を変える。または片方を solid / muted にする）、(2) 破線・太字・ラベルなど色以外の手がかりを足し、accept: {'gray-tone-collision': '理由'} で許容する（確認は preview --gray）`});
+  if (hits.length) out.push({rule: 'gray-tone-collision', severity: 'warn', message: `白黒にすると塗りの明度が近く、見分けにくいトーンの組: ${hits.join('、')}。直し方は 2 つ: (1) トーンの塗りの明度差を L* 10 以上にする（diagram({tones: {accent: {fill: '#…'}}}) か .svg-diagram.json の "tones" で色を変える。または片方を solid / muted にする）、(2) 破線・太字・ラベルなど色以外の手がかりを足し、accept: {'gray-tone-collision': '理由'} で許容する（確認は preview --gray）`});
 }
 
 function shrinkRules(d: LintTarget, out: Finding[]): void {
@@ -499,14 +500,14 @@ function swimlaneRules(d: LintTarget, out: Finding[]): void {
     out.push({rule: 'swimlane-hand-offs', severity: 'info', message: `引き継ぎ ${handOffs} 件 / 矢印 ${flows.length} 本。レーン間の距離の合計 ${curD}`});
     if (n >= 2 && n <= 8) {
       // lanes marked {fixed: true} keep their place (e.g. a collecting 'PM' lane at the bottom)
-      const free = cur.filter(i => !sl.lanes[i].fixed);
+      const free = cur.filter(i => !must(sl.lanes[i]).fixed);
       let best = cur, bestD = curD;
       for (const p of permutations(free)) {
-        const order = cur.map(i => (sl.lanes[i].fixed ? i : p[free.indexOf(i)]));
+        const order = cur.map(i => (must(sl.lanes[i]).fixed ? i : must(p[free.indexOf(i)])));
         const x = dist(order);
         if (x < bestD) { best = order; bestD = x; }
       }
-      if (bestD < curD) out.push({rule: 'swimlane-lane-order', severity: 'warn', message: `レーンを「${best.map(i => sl.lanes[i].label.replace(/\n/g, '')).join(' → ')}」の順にすると、レーン間の距離が ${curD} → ${bestD} に減る`});
+      if (bestD < curD) out.push({rule: 'swimlane-lane-order', severity: 'warn', message: `レーンを「${best.map(i => must(sl.lanes[i]).label.replace(/\n/g, '')).join(' → ')}」の順にすると、レーン間の距離が ${curD} → ${bestD} に減る`});
     }
   }
 }
@@ -516,7 +517,7 @@ function calloutsOf(...trees: unknown[]): number[] {
   const out: number[] = [];
   const walk = (x: unknown): void => {
     if (!x || typeof x !== 'object') return;
-    if (Array.isArray(x)) return x.forEach(walk);
+    if (Array.isArray(x)) { x.forEach(walk); return; }
     // a wf node tree is walked generically (any node kind may carry n / parts / markers / children)
     const nd = x as {t?: unknown; n?: unknown; parts?: Record<string, unknown>; markers?: {n?: unknown}[]; children?: unknown};
     if (!nd.t) return;
@@ -539,7 +540,7 @@ function calloutOrder(d: LintTarget, out: Finding[]): void {
     for (const c of b.callouts) if (!first.has(c.n)) first.set(c.n, c);
     const nums = [...first.keys()].sort((x, y) => x - y), bad = [];
     for (let i = 0; i + 1 < nums.length; i++) {
-      const a = first.get(nums[i]) as WfCallout, c = first.get(nums[i + 1]) as WfCallout;
+      const a = must(first.get(must(nums[i]))), c = must(first.get(must(nums[i + 1])));
       const leftOfIt = c.x < a.x - ORDER_COL && c.y < a.y + ORDER_ROW;       // not on a later row, yet to the left
       const aboveIt = c.y < a.y - ORDER_ROW && c.x < a.x + ORDER_COL;        // higher up, and not in a column further right
       if (leftOfIt || aboveIt) bad.push(`${nums[i]}→${nums[i + 1]}`);
@@ -667,7 +668,7 @@ export function lintDiagram(d: LintTarget): Finding[] {
   }
   const out = lintAll(d, toneEnv(d.tones));
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
-  return out.map(f => (d.accept && d.accept[f.rule as RuleId] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule as RuleId]}）`} : f));
+  return out.map(f => (d.accept?.[f.rule as RuleId] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule as RuleId]}）`} : f));
 }
 
 // the width of a line in full-width characters (CJK, kana, hangul, fullwidth forms and pictographs count 1, everything else
@@ -675,7 +676,7 @@ export function lintDiagram(d: LintTarget): Finding[] {
 const WIDE: [number, number][] = [[0x1100, 0x115f], [0x2e80, 0xa4cf], [0xa960, 0xa97f], [0xac00, 0xd7af], [0xf900, 0xfaff], [0xfe30, 0xfe4f], [0xff01, 0xff60], [0xffe0, 0xffe6], [0x1f300, 0x1faff], [0x20000, 0x3fffd]];
 export function fullWidthUnits(line: string): number {
   let n = 0;
-  for (const ch of line) { const c = ch.codePointAt(0)!; n += WIDE.some(([a, b]) => c >= a && c <= b) ? 1 : 0.5; }
+  for (const ch of line) { const c = must(ch.codePointAt(0)); n += WIDE.some(([a, b]) => c >= a && c <= b) ? 1 : 0.5; }
   return n;
 }
 export const HEADLINE_BUDGET_PX = 600;
@@ -705,7 +706,7 @@ function headlineLength(d: LintTarget, out: Finding[]): void {
     const run = head != null ? (b as {wrappedRuns: {text: string; lines: string[]}[]}).wrappedRuns[0] : undefined;
     if (head == null || !run) continue;
     const given = head.split('\n');
-    if (run.lines.length > given.length && !given.some(l => seen.has(l))) flag(head, `見出しが幅に収まらず、${run.lines.length} 行に自動で折り返している: 「${quote(given[0])}」。短くするか、区切りのよいところで改行する`);
+    if (run.lines.length > given.length && !given.some(l => seen.has(l))) flag(head, `見出しが幅に収まらず、${run.lines.length} 行に自動で折り返している: 「${quote(must(given[0]))}」。短くするか、区切りのよいところで改行する`);
   }
 }
 
@@ -842,7 +843,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
     if (b.floored.length) out.push({rule: 'quadrant-size-floor', severity: 'warn', message: `quadrant() の項目 ${b.floored.map(l => `「${l}」`).join('、')} の size が最大の値に比べて小さすぎ、最小の円で描いた（面積が値より大きく見える）。値の差が大きすぎるなら、大きさではなく文字で示す`});
   }
   for (const b of walkBands(d.bands)) if (b.type === 'quadrant' && !b.groups.length && new Set(b.items.flatMap(i => i.tone ? [i.tone] : [])).size >= 2) out.push({rule: 'quadrant-tone-only', severity: 'warn', message: 'quadrant() の項目を tone（色）だけで分けている。色だけでは意味が伝わらない。group を指定する（形と凡例が付く）'});
-  for (const b of walkBands(d.bands)) if (b.type === 'funnel' && b.scale === 'value' && b.stages.some((s, i) => i > 0 && (s.value ?? 0) > (b.stages[i - 1].value ?? 0))) out.push({rule: 'funnel-values-rise', severity: 'warn', message: 'funnel() の value が下の段で増えている。漏斗の減少として読ませるなら、値または段の順を見直す'});
+  for (const b of walkBands(d.bands)) if (b.type === 'funnel' && b.scale === 'value' && b.stages.some((s, i) => i > 0 && (s.value ?? 0) > (must(b.stages[i - 1]).value ?? 0))) out.push({rule: 'funnel-values-rise', severity: 'warn', message: 'funnel() の value が下の段で増えている。漏斗の減少として読ませるなら、値または段の順を見直す'});
   for (const b of walkBands(d.bands)) if (b.type === 'grid' && b.canvas?.requireAll && b.canvas.empty.length) out.push({rule: 'canvas-region-empty', severity: 'warn', message: `canvas("${b.canvas.template}") の領域 ${b.canvas.empty.join('、')} に内容がない。書くか、requireAll を外す`});
   if (d.medium === 'doc' && !diagramTitle(d)) out.push({rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する'});
   return out;
