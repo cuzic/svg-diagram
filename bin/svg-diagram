@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint] [--html] [--id-prefix <p|auto>]   (default out: ./svg/<name>.svg)
-# svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] <source.ts>...
+# svg-diagram check [--strict] [--verbose] [--drift [--svg-dir DIR] [--rebuild [--jobs N] [--no-cache] [--cache-dir DIR]]] <source.ts>...
 # svg-diagram init [dir]                                 (package.json + tsconfig.json for a diagram project)
 # svg-diagram icons add|remove|list|search|notice ...   (the project's own icons: svg-diagram.icons.json; add mdi:key-variant=key)
 # svg-diagram typecheck                                  (the project's tsc over its tsconfig.json)
 # svg-diagram md <page.md> [--out FILE] [--svg-dir DIR] [--inline | --html] [--root DIR]   (draw the diagrams a Markdown page points at: ![alt](flow.diagram.ts))
 # svg-diagram notes <source.ts>                         (the figure's numbered notes as a Markdown list)
 # svg-diagram diff old.svg new.svg                       (what changed, in words)
+# svg-diagram diff --text old.svg new.svg [--no-added] [--strict]   (which words/numbers of old.svg are gone from new.svg)
 # svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX] [--per-page N | --pages N]   (a whole set on one picture)
 # svg-diagram deck <a.ts|a.svg>... [--out deck.html] [--title TEXT] [--cols N] [--csp]   (several figures in one self-contained HTML to look through: arrows, overview, zoom, print)
 # svg-diagram pptx <source.ts>... [--out FILE | --out-dir DIR] [--png-scale N] [--font NAME]   (one editable PowerPoint file per source)
@@ -34,5 +35,5 @@ case "$cmd" in
   check)   exec node "$B/check-diagram.$X" "$@" ;;
   lint)    exec node "$B/lint-svg.$X" "$@" ;;
   preview) exec node "$B/preview-svg.$X" "$@" ;;
-  *) sed -n 2,15p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
+  *) sed -n 2,16p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
 esac

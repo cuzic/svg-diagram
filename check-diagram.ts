@@ -12,6 +12,9 @@
 //       so an SVG that was not regenerated after its source — or a local file it imports — changed is caught. DIR defaults to ./svg.
 //       --rebuild also regenerates each SVG in memory and compares the bytes; a difference is explained
 //       (metadata only? text moved? shapes added?), so you can tell whether regenerating is safe.
+//       --rebuild is fast on a big set: sources are rebuilt in parallel (--jobs N, default: the CPU count, at most 8; --jobs 1 = serial),
+//       and a source that passed once is not rebuilt until something it depends on changes (--no-cache turns that off, --cache-dir DIR moves it
+//       from ./.svg-diagram-cache). The output is in the order of the arguments either way. See ADR 0037.
 //   svg-diagram check --docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR]
 //       Do the Markdown pages and the diagrams still agree? PATH is a directory (searched for .md) or one .md file; repeat --docs for several.
 //       Referenced SVGs exist, alt text is short and present, figure captions 図N-M are in order, 図N-M in the text names a real figure,
@@ -40,7 +43,10 @@
 
 import fs from 'fs';
 import path from 'path';
+import os from 'node:os';
 import {execFileSync} from 'node:child_process';
+import type {DriftCache} from './drift-cache-io.ts';
+import type {WorkerResult} from './drift-pool.ts';
 import type {FindingData} from './lib/types/verdicts.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import {installResolveHook} from './lib/resolve-hook.ts';
@@ -61,7 +67,7 @@ const {readProvenance, sha256File: sha} = await import('./lib/freshness.ts');
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
 const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1] ?? null; };
-const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--covers', '--format', '--only', '--explain', '--baseline', '--write-baseline', '--today', '--base'];
+const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--covers', '--format', '--only', '--explain', '--baseline', '--write-baseline', '--today', '--base', '--jobs', '--cache-dir'];
 const vals = (n: string) => args.flatMap((a, i) => { const next = args[i + 1]; return a === n && next !== undefined ? [next] : []; });
 // --docs takes the path after it, and every following .md file / directory too (`--docs A.md B.md dir`): those are documents, never sources
 const isDocArg = (a: string) => !a.startsWith('--') && (a.toLowerCase().endsWith('.md') || (fs.existsSync(a) && fs.statSync(a).isDirectory()));
@@ -110,7 +116,7 @@ for (const s of sources) {
   if (!ok) { console.error(`✗ ${s}: 図のソース（.ts / .mjs）ではない。${/\.md$/i.test(s) ? '文書は --docs ' + s + ' で渡す' : '図のソースを指定する'}`); process.exit(2); }
 }
 if (!['text', 'json', 'github', 'sarif'].includes(format)) { console.error(`--format must be text, json, github or sarif (got "${format}")`); process.exit(2); }
-if (!sources.length && !docsDir) { console.error('Usage: svg-diagram check [--strict] [--forbid-draft] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--today YYYY-MM-DD] [--docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]] [--covers TABLE.md|TABLE.csv [--svg-dir DIR]] [--format text|json|github|sarif] [--baseline FILE | --write-baseline FILE] <source.ts>...\n       svg-diagram check --rules | --explain RULE'); process.exit(2); }
+if (!sources.length && !docsDir && !flag('--worker')) { console.error('Usage: svg-diagram check [--strict] [--forbid-draft] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--today YYYY-MM-DD] [--docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]] [--covers TABLE.md|TABLE.csv [--svg-dir DIR]] [--format text|json|github|sarif] [--baseline FILE | --write-baseline FILE] <source.ts>...\n       svg-diagram check --rules | --explain RULE'); process.exit(2); }
 const config = loadConfig();
 try { const t = val('--today'); if (args.includes('--today') && (t == null || t.startsWith('--'))) throw new Error('--today needs a date (YYYY-MM-DD)'); if (t) config._today = checkToday(t, '--today'); } catch (e) { console.error(`✗ ${(e as Error).message}`); process.exit(2); } // the day for gantt({today: 'auto'}) (ADR 0022)
 let coverCells: ReturnType<typeof readTable> = [];
@@ -120,8 +126,9 @@ if (coversFile) {
   if (!coverCells.length) { console.error(`--covers: ${coversFile} に表がない（Markdown は見出し行と |---| の行が要る）`); process.exit(2); }
 }
 
-const say = (...a: unknown[]) => { if (format === 'text') (mapMode ? console.error : console.log)(...a); };
-const complain = (...a: unknown[]) => { if (format === 'text') console.error(...a); };
+const workerOut: string[] = [], workerErr: string[] = []; // --worker: the lines of the source in hand, sent back instead of printed
+const say = (...a: unknown[]) => { if (flag('--worker')) workerOut.push(a.join(' ')); else if (format === 'text') (mapMode ? console.error : console.log)(...a); };
+const complain = (...a: unknown[]) => { if (flag('--worker')) workerErr.push(a.join(' ')); else if (format === 'text') console.error(...a); };
 const changedArg = args.find(a => a === '--changed' || a.startsWith('--changed='));
 if (changedArg && !sources.length) { console.error('--changed は図のソースと一緒に使う（変わったものだけを検査する）'); process.exit(2); }
 if (changedArg) {
@@ -172,6 +179,35 @@ function walkMd(dir: string, out: string[] = []): string[] {
     if (e.isDirectory()) walkMd(f, out); else if (e.name.endsWith('.md')) out.push(f);
   }
   return out;
+}
+
+// ---- --drift --rebuild: parallel and cached (ADR 0037) ---------------------------------------------------------------------
+const jobs = val('--jobs') === null ? Math.min(os.availableParallelism(), 8) : Number(val('--jobs'));
+if (!Number.isInteger(jobs) || jobs < 1) { console.error('--jobs は 1 以上の整数（1 = 順番に処理する）'); process.exit(2); }
+const cacheDir = val('--cache-dir') ?? path.join(process.cwd(), '.svg-diagram-cache');
+let cacheOpened: Promise<DriftCache | null> | undefined;
+const driftCacheOf = (): Promise<DriftCache | null> => cacheOpened ??= flag('--no-cache') ? Promise.resolve(null) : import('./drift-cache-io.ts').then(m => m.openDriftCache(cacheDir, config));
+/** The cache key of a source whose committed SVG exists and carries provenance (null: nothing to key, or not cacheable) */
+const rebuildKeyOf = async (src: string): Promise<string | null> => {
+  const cache = await driftCacheOf();
+  const svg = path.join(svgDir ?? 'svg', `${path.parse(src).name}.svg`);
+  if (!cache || !fs.existsSync(svg)) return null;
+  const meta = readProvenance(svg);
+  return meta ? cache.keyFor(path.resolve(src), svg, JSON.stringify(meta)) : null;
+};
+/** The sources the cache does not vouch for are rebuilt by child processes (dynamic hand-out, as many as --jobs). Their answers come back by source and are replayed in order. */
+async function rebuildInParallel(): Promise<Map<string, WorkerResult>> {
+  if (jobs < 2 || flag('--worker')) return new Map();
+  const cache = await driftCacheOf(), todo: string[] = [];
+  for (const src of sources) {
+    const key = await rebuildKeyOf(src);
+    if (!(cache && key && cache.hit(path.resolve(src), key))) todo.push(src);
+  }
+  if (todo.length < 2) return new Map();
+  const {runPool} = await import('./drift-pool.ts');
+  const t = val('--today');
+  const wargs = ['--drift', '--rebuild', '--jobs', '1', ...(svgDir ? ['--svg-dir', svgDir] : []), ...(t ? ['--today', t] : []), ...(flag('--no-cache') ? ['--no-cache'] : ['--cache-dir', cacheDir])];
+  return runPool(path.resolve(import.meta.dirname, path.basename(import.meta.filename)), wargs, todo, jobs, msg => console.error(`ℹ ${msg}（その図は順番に検査し直す）`));
 }
 
 try {
@@ -276,13 +312,17 @@ try {
       if (meta.sourceSha256 !== sha(abs)) { add({file: src, rule: 'drift-stale', severity: 'error', message: `ソースが変わっているのに ${svg} が再生成されていない`}); complain(`✗ ${src}: ソースが変わっているのに ${svg} が再生成されていない`); return; }
       if ((meta.depsSha256 ?? '') !== depsSha256(abs)) { add({file: src, rule: 'drift-stale-deps', severity: 'error', message: `ソースが import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`}); complain(`✗ ${src}: import しているファイル（共通部品など）が変わっているのに ${svg} が再生成されていない`); return; }
       if (rebuild) {
-        const d = await loadDiagram(abs, config);
+        // a source that rebuilt to the committed bytes before, with nothing it depends on changed since, is not rebuilt (the key and the stored reads: lib/drift-cache.ts)
+        const cache = await driftCacheOf(), key = await rebuildKeyOf(src);
+        if (cache && key && cache.hit(abs, key)) { say(`✓ ${src}: ${svg} は最新（ツール ${meta.toolVersion}）`); return; }
+        const record = cache ? (await import('./drift-cache-io.ts')).recordReads : <T,>(f: () => Promise<T>) => f();
+        const d = await record(() => loadDiagram(abs, config));
         if (meta.noSourceLine) d.sourceLine = undefined; // ADR 0023 D13: rebuild the way the SVG was built
         d.source = meta; // same provenance → byte-comparable
         if (meta.today !== undefined) d.today = meta.today; // a today: 'auto' figure is drawn again with the day it was drawn with
         const tmp = path.join(path.dirname(svg), `.${name}.rebuild.svg`);
         let rebuilt: Awaited<ReturnType<typeof build>>;
-        try { rebuilt = await build(d, tmp, {lint: false, name: `${name}.svg`}); } // the committed SVG was linted when it was built; an identical rebuild needs no second render
+        try { rebuilt = await record(() => build(d, tmp, {lint: false, name: `${name}.svg`})); } // the committed SVG was linted when it was built; an identical rebuild needs no second render
         catch (e) { // the regenerated picture fails its own checks: report it and go on with the rest
           fs.rmSync(tmp, {force: true});
           const why = String((e as Error).message).split('\n').filter(l => l.trim() && !/^Scanned|^─/.test(l)).slice(0, 3).join(' / ');
@@ -320,6 +360,7 @@ try {
           return;
         }
         for (const [, p] of pairs) fs.rmSync(p, {force: true});
+        if (cache && key) cache.store(abs, key);
       }
       say(`✓ ${src}: ${svg} は最新（ツール ${meta.toolVersion}）`);
       return;
@@ -334,14 +375,35 @@ try {
     say(`${w ? '△' : '✓'} ${src}${w ? `（警告 ${w}）` : ''}`);
     for (const f of shown.filter(f => verbose || f.severity === 'warn')) say(`   ${f.severity === 'warn' ? '⚠' : 'ℹ'} [${f.rule}] ${f.message}`);
   };
-  for (const src of sources) {
+  const runOne = async (src: string) => {
     try { await checkOne(src); }
     catch (err) { reportBuildError(src, err); }
+  };
+  if (flag('--worker')) { // a child of the pool below: one source per line on stdin, one result line per source on stdout (drift-pool.ts)
+    const {RESULT_MARK} = await import('./drift-pool.ts');
+    const rl = (await import('node:readline')).createInterface({input: process.stdin});
+    for await (const src of rl) {
+      if (!src) continue;
+      const before = findings.length;
+      await runOne(src);
+      process.stdout.write(`${RESULT_MARK}${JSON.stringify({src, out: workerOut, err: workerErr, findings: findings.slice(before)})}\n`);
+      workerOut.length = 0; workerErr.length = 0;
+    }
+  } else {
+    const pooled = drift && rebuild ? await rebuildInParallel() : new Map<string, WorkerResult>();
+    for (const src of sources) {
+      const r = pooled.get(src);
+      if (!r) { await runOne(src); continue; }
+      for (const l of r.out) say(l);
+      for (const l of r.err) complain(l);
+      for (const f of r.findings as CheckFinding[]) { findings.push(f); if (f.severity === 'error') bad++; else if (f.severity === 'warn') warned++; if (f.rule === 'build-error') failedSources.add(path.resolve(f.file)); }
+    }
   }
   if (failedSources.size) complain(`${new Set([...sources.map(x => path.resolve(x)), ...failedSources]).size} 件中 ${failedSources.size} 件が検査できなかった`);
 } finally {
   await closeMeasurer();
 }
+if (flag('--worker')) process.exit(0); // a pool child has answered line by line; the summary belongs to the parent
 
 if (writeBaseline) {
   const warnings = findings.filter(f => f.severity === 'warn').map(({file, rule, message}) => ({file, rule, message}));

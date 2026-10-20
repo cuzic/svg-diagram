@@ -42,7 +42,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 2. **ビルド**: `svg-diagram build src.ts --out out.svg`（重なり検査と lint まで走る。失敗しても前回の SVG は消えないので、`✗` の行を見落とさない）。PNG も要るなら `--png <dir>`。
 3. **ルール検査**: `svg-diagram check --strict src.ts`（コントラスト・凡例・線の交差・幅・密度・題名。意図した指摘は `.svg-diagram.json` の `accept` に理由つきで書く）。
 4. **目で見る**: `svg-diagram preview out.svg out.png 2` で PNG にして、画像として読む（配置は検査を通っても、読みやすさは見ないと分からない）。SVG がソースより古いと赤い帯が出る。出たら作り直す。
-5. **ズレ検査**: `svg-diagram check --drift --svg-dir <SVG の置き場> src.ts`（SVG が最新のソースから生成されたものか）。
+5. **ズレ検査**: `svg-diagram check --drift --svg-dir <SVG の置き場> src.ts`（SVG が最新のソースから生成されたものか）。再生成まで比べるなら `--rebuild`（図が多いときも、並列＋成功のキャッシュで速い。毎回確かめたいなら `--no-cache`、並列の数は `--jobs N`）。手書き SVG を DSL に直したときは `svg-diagram diff --text 旧.svg 新.svg [--strict]`（旧の文字・数値が新に残っているか。折り返しや全角半角は吸収。欠けた語が出たら、図に戻すか意図して外したと確かめる）。
 6. **文書との整合**: `svg-diagram check --docs <docs> --svg-dir <SVG の置き場>`（参照先・代替テキスト・孤立した図・キャプションの連番）。表を図に置き換えたときは `check --covers`。
 7. **まとめて目視・人に渡す**: `svg-diagram contact a.svg b.svg --out sheet.png`、`svg-diagram deck a.ts b.svg --out deck.html`。
 
