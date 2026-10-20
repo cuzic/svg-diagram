@@ -83,7 +83,7 @@ export const RULE_DOCS = {
   'funnel-values-rise': 'funnel({scale: "value"}) の値が下の段で増えている（漏斗として読むなら、値と段の順を確認する）',
   'toc-ude-count': '現状ツリー(causeTree({tree: "crt"}))の UDE が 5〜10 個の範囲の外。部分図なら accept で許容する。diagram({tocCheck: "strict"}) で warn',
   'toc-no-desired-result': '未来現実ツリー(causeTree({tree: "frt"}))に望む結果(role: de、最終のゴールなら goal)が無い。strict が求めるからと本文に無い文を作らず、本文に結果の文が無い枝(副作用の枝など)は accept で理由を書いて許容する(ADR 0037)。diagram({tocCheck: "strict"}) で warn',
-  'toc-parts': 'TOC のツリーの部品が足りない・違う(crt に根本原因 root が無い、frt に施策 injection が無い、frt に root がある)。diagram({tocCheck: "strict"}) で warn',
+  'toc-parts': 'TOC のツリーの部品が足りない・違う(crt に根本原因 root が無い、frt に施策 injection が無い、frt に root がある)。frt に望む結果 de / goal が無いのは toc-no-desired-result(ここに accept を書いた図は、そちらも許容される)。diagram({tocCheck: "strict"}) で warn',
   'toc-nbr-parts': 'ネガティブブランチ(causeTree({tree: "nbr"}))に、トリミングの施策(role: trim)か、悪い結果(role: ude)が無い。diagram({tocCheck: "strict"}) で warn',
   'toc-nbr-no-tipping': 'ネガティブブランチで、転換点(role: tipping)を通らずに、原因を持たない実体から ude へ至る因果の道が残っている(転換点の無い枝)。diagram({tocCheck: "strict"}) で warn',
   'toc-nbr-tipping-not-and': 'ネガティブブランチの転換点(role: tipping)が、AND(複数の原因が揃って越える)の結果になっていない。diagram({tocCheck: "strict"}) で warn',
@@ -366,9 +366,10 @@ function legendRules(d: LintTarget, out: Finding[]): void {
   const labels = legendLabelsFor(used, d.legendLabels);
   // say WHICH element uses each missing notation (a tone: the boxes drawn in it; a line / arrow: the connectors), not just the key
   const all = walkBands(d.bands), quote = (t: string | undefined): string => { const s = (t ?? '').replace(/\s+/g, ' ').trim(); return s ? `「${[...s].length > 14 ? `${[...s].slice(0, 14).join('')}…` : s}」` : ''; };
+  const dim = dimmedBands(d);
   const where = (k: string): string => {
     if (k.startsWith('tone:')) {
-      const boxes = all.filter((b): b is BoxBand => b.type === 'box' && `tone:${b.tone}` === k && !dimmedBands(d).has(b));
+      const boxes = all.filter((b): b is BoxBand => b.type === 'box' && `tone:${b.tone}` === k && !dim.has(b));
       const ex = boxes.slice(0, 3).map(b => quote(b.title ?? b.body)).filter(Boolean).join('');
       return boxes.length ? `${k.slice(5)} の色の箱 ${boxes.length} 枚${ex ? `: ${ex}${boxes.length > 3 ? ' ほか' : ''}` : ''}` : '';
     }
@@ -865,8 +866,8 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
     const lines = b.wrappedRuns.flatMap(r => r.lines), n = lines.length;
     if (n <= 1) continue;
     // what fits is measured, not guessed: the longest of the lines that were filled (every one but the last), in full-width characters
-    const fits = Math.floor(Math.max(...lines.slice(0, -1).map(fullWidthUnits))), total = Math.ceil(lines.reduce((s, l) => s + fullWidthUnits(l), 0));
-    out.push({rule: 'source-wraps', severity: 'warn', message: `出典行が ${n} 行に折り返している（全角で約 ${total} 字分。1 行に入るのは約 ${fits} 字分なので、約 ${Math.max(1, fits - 1)} 字分以内に縮める。半角の英数字は 0.5 字分）。出典の細部は本文へ`});
+    const filled = b.wrappedRuns.flatMap(r => r.lines.slice(0, -1)), fits = Math.floor(Math.max(0, ...filled.map(fullWidthUnits))), total = Math.ceil(lines.reduce((s, l) => s + fullWidthUnits(l), 0));
+    out.push({rule: 'source-wraps', severity: 'warn', message: `出典行が ${n} 行に折り返している（全角で約 ${total} 字分${fits > 0 ? `。1 行に入るのは約 ${fits} 字分なので、約 ${Math.max(1, fits - 1)} 字分以内に縮める` : ''}。半角の英数字は 0.5 字分）。出典の細部は本文へ`});
   }
   for (const b of d.laidOut ?? []) if (b.type === 'quadrant') {
     const far = b.moved.filter(m => m.px >= 16);

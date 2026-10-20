@@ -8,12 +8,13 @@
 
 ## D1. `legend-missing` / `legend-incomplete` は「どの記法が、どこで使われているか」を言う
 
-以前は `凡例にない記法: tone:accent（例: 強調）` だけで、どの箱が原因か分からなかった。今は、トーンなら使っている箱の数と先頭 3 枚の見出し、線・矢印なら該当の本数を添え、直し方(凡例に足す、`legend: 'auto'`、凡例が要らないなら `legend: false`)を書く。キー(`tone:accent` など)は残す。
+以前は `凡例にない記法: tone:accent（例: 強調）` だけで、どの箱が原因か分からなかった。今は、トーンなら使っている `box` の数と先頭 3 枚の見出し(causeTree の節・カードなど box でない部品の色は数えない)、線・矢印なら `connect` の本数を添え、直し方(凡例に足す、`legend: 'auto'`、凡例が要らないなら `legend: false`)を書く。キー(`tone:accent` など)は残す。
 
 ## D2. どの警告にも、許容するための書き方を付ける
 
 `accept` を知らない利用者が、許容できる警告を残したまま納品した。警告の**表示**に次を付ける: `→ 許容するなら diagram({accept: {'規則名': '理由'}}) か .svg-diagram.json の …`。対象は `RULE_DOCS` にある全規則(= `accept` に書ける規則と同じ集合。`config.ts` が検査に使う表)。
-- **出し場所**: `verify.ts` の warnings(`build` が出す)と `check` の本文表示。`Finding.message` 自体は変えない(`--baseline` の指紋が message なので、変えると既存の基準が全部外れる)。
+- **出し場所**: `verify.ts` の warnings(`build` が出す)と `check` の本文表示。この→行のために `Finding.message` は変えない。
+- **`--baseline` への影響(互換性の破れ)**: 基準の指紋は file + rule + message なので、D1・D3・D5 で message を変えた規則(`legend-missing` / `legend-incomplete` / `source-wraps` / `text-mid-word-break` / `toc-ude-count`)と、規則名を変えた望む結果の欠落(`toc-parts` → `toc-no-desired-result`)は、基準にあった警告が再び警告として出る。基準を使っている案件は `--write-baseline` で作り直す。`--format json` / `sarif` で `toc-parts` を絞り込んでいる処理も、`toc-no-desired-result` を足す。
 - `check --help` に accept の節を追加。`check --explain RULE` は元からある。
 - `toc-ude-count` の message に、部分図(第 1 章だけ等)向けの具体的な書き方を入れた。`accept` が効くことはテストで確かめた(D5)。
 

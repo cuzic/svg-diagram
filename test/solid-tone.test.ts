@@ -132,8 +132,8 @@ test('legend: an item with a solid tone is accepted, and legend-missing names th
   const d = diagram({theme: 'blue', medium: 'doc', title: 't'}).add(row([box({title: 'a', tone: 'solid'}), box({title: 'b', tone: 'accent'})]));
   const {verdict} = await checkDiagram(d);
   const msg = verdict.warnings.find(w => w.includes('legend-missing'))!;
-  assert.match(msg, /tone:solid（例: 主役）/);
-  assert.match(msg, /tone:accent（例: 次点）/);
+  assert.match(msg, /tone:solid（.*凡例の例: 主役）/);
+  assert.match(msg, /tone:accent（.*凡例の例: 次点）/);
   const ok = await checkDiagram(diagram({theme: 'blue', medium: 'doc', title: 't'}).add(row([box({title: 'a', tone: 'solid'}), box({title: 'b', tone: 'accent'})]), legend([{tone: 'solid', label: '主役'}, {tone: 'accent', label: '次点'}])));
   assert.equal(ok.verdict.warnings.some(w => w.includes('legend')), false);
 });
