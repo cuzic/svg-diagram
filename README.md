@@ -82,7 +82,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram build <source.ts>... --id-prefix <p|auto>   # 複数の図を 1 つの HTML に貼るとき、SVG/HTML の内側の id（svg-title・dsl-arrow など）と参照に <p>-<id> を付ける。ソースが複数なら <p>-<ソース名>-<id>、auto は内容ハッシュ（sd<8 桁>）。<metadata id="svg-diagram"> は書き換えない（check --drift・--stale が読む）。付けなければ出力は 1 バイトも変わらない。--stale とは併用しても毎回作り直す（docs/adr/0012 D2）
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --forbid-draft <source.ts>...      # diagram({status: 'draft'}) の図を warn にする（公開ジョブだけが付ける。「下書きバッジ」の節）
-    svg-diagram check --drift [--svg-dir DIR] [--rebuild] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明）
+    svg-diagram check --drift [--svg-dir DIR] [--rebuild [--jobs N] [--no-cache] [--cache-dir DIR]] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明。並列＋成功のキャッシュ: 下の「ズレ検査を速くする」）
     svg-diagram check --changed[=REF] <source.ts>...   # 変わった図だけ検査
     svg-diagram check --rules | --explain RULE   # ルールの一覧 / 1 つの意味と許容の書き方
     svg-diagram check [--baseline FILE | --write-baseline FILE] [--format text|json|github|sarif] <source.ts>...   # 既存の警告を凍結して、新しい警告だけ見る / SARIF 出力
@@ -91,6 +91,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram md <page.md> [--out FILE] [--svg-dir DIR] [--inline | --html]   # Markdown の ![alt](flow.diagram.ts) を図に展開（SVG を書いて画像に差し替える。--inline は <svg>、--html は HTML/CSS を埋め込む）
     svg-diagram notes <source.ts>                        # 図の番号つき注釈を Markdown のリスト（1. **題名**：本文）で出す。文書に貼る
     svg-diagram diff old.svg new.svg                     # 2 つの SVG の違いを言葉で（見た目が変わるか）
+    svg-diagram diff --text old.svg new.svg [--no-added] [--strict]   # 手書き SVG を DSL に直したとき、旧の文字・数値が新に残っているか（折り返し・tspan・全角半角・CJK を吸収。--strict: 欠けたら終了コード 1）
     svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX] [--per-page N | --pages N]  # 図の集まりを 1 枚に並べて、一度に目視する（--out の置き場が無ければ作る）
     svg-diagram lint  [file.svg / file.ts / "glob" ...] [--svg-dir DIR] [--strict] [--fix] [--engine geometry|browser] [--config .svg-diagram.json]   # 描画後の検査も、既定は SVG の幾何から（ブラウザなし）。設定は SVG のあるディレクトリから探す（--config で明示）
     svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray] [--no-stale-banner] [--require-fresh]   # 既定の倍率 2。--gray: 白黒で描く。ソースより古い SVG は警告と赤い帯（--require-fresh: exit 1）。out を省くと一時ディレクトリに重ならない名前で書き、パスを表示
@@ -1168,6 +1169,12 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 - ソース（`.ts`）は、`--svg-dir`（既定 `./svg`）の生成済み SVG を読む。`.svg` を直接渡してもよい。
 
 ## 図の違いの説明（`--rebuild`、`diff`）
+### ズレ検査を速くする（`check --drift --rebuild`: 並列とキャッシュ、ADR 0038）
+
+数百枚の図でも待たないように、`--rebuild` は次の 2 つをする。出力は、どちらも使わない場合（`--jobs 1 --no-cache`）と 1 文字も変わらず、引数の順に並ぶ。
+- **並列**: 子プロセスに図を配る（`--jobs N`。指定しなければ、空いているコアの数（最大 8）で、1 つの子に 8 枚以上が回る数まで。小さい図が多いと子の起動（約 2 秒）のほうが高くつくため。足りなければ順番に処理する。`1` でも順番）。時間のほとんどは配置と経路探索（`layered-route` / `polyline-metrics` / `graph-layout` で計った時間の約半分）で、1 つの関数が支配していないので、プロセスを増やすのが効く。
+- **キャッシュ**: 再生成がコミット済みの SVG と一致した（成功した）ときだけ、`./.svg-diagram-cache/`（`--cache-dir DIR` で変更。中身は `.gitignore` で自分を除外）に残す。次の実行で、鍵と、ビルドが読んだファイルがすべて同じなら、再生成を飛ばす。**鍵**: ソースと import 先の内容、コミット済みの SVG（と reveal）の内容、`<metadata>`、ツール自身のコード（`lib/` 全体）と依存パッケージ・Node の版、解決した `.svg-diagram.json`、`fc-list` のフォント一覧と `SVG_DIAGRAM_*` 環境変数。**ビルドが読んだファイル**: 絵、アイコンの定義、フォントなど、鍵に入らないものは、読んだ内容のハッシュと「あるか」を記録し、1 つでも違えば飛ばさずに再生成する。失敗はキャッシュしない。`import()` を変数で組む図と Chromium 計測（`SVG_DIAGRAM_MEASURE=chromium`）はキャッシュしない。**飛ばしたくないとき**は `--no-cache`（CI で毎回確かめるなど）。
+
 `check --drift --rebuild` は、再生成した SVG が違うとき、**何が変わったか**を示す（メタデータのみ / 不可視の下地 / 文字の移動 / 図形の増減 / キャンバスの大きさ）。
 「見た目は変わらない。再生成してよい」か「見た目が変わる。再生成して、目で確かめる」かが分かる。`<metadata>` に残した `today`（`gantt` の `today: 'auto'`）と `noSourceLine`（`build --no-source-line`）も読んで、同じ条件で作り直す。`pnpm golden` は、`examples/out/` の SVG が、今のコードの再生成と一致するかを調べる。
 
