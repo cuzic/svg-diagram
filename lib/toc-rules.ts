@@ -4,7 +4,7 @@ import {breakCycles} from './graph-layout.ts';
 import type {CauseBand} from './types/diagrams.ts';
 import {must} from './must.ts';
 
-export type TocRule = 'toc-ude-count' | 'toc-parts' | 'toc-source-has-cause' | 'toc-chain-only' | 'toc-orphan' | 'toc-cycle-undeclared'
+export type TocRule = 'toc-ude-count' | 'toc-parts' | 'toc-no-desired-result' | 'toc-source-has-cause' | 'toc-chain-only' | 'toc-orphan' | 'toc-cycle-undeclared'
   | 'toc-nbr-parts' | 'toc-nbr-no-tipping' | 'toc-nbr-tipping-not-and' | 'toc-nbr-trim-too-late' | 'toc-tt-unit'
   | 'toc-prt-bottom-not-action' | 'toc-prt-one-to-one' | 'toc-obstacle-phrase' | 'toc-mirror' | 'toc-injection-to-obstacle' | 'toc-role-indistinct';
 export interface TocFinding {rule: TocRule; message: string; /** Fixed: this finding is always reported at this severity (`toc-obstacle-phrase`: a judgement on Japanese sentence endings, never a warning). */ severity?: 'info'}
@@ -31,12 +31,13 @@ export function tocFindings(band: TocBand): TocFinding[] {
 
   if (tree === 'crt') {
     const n = withRole('ude').length;
-    if (n < UDE_RANGE.min || n > UDE_RANGE.max) out.push({rule: 'toc-ude-count', message: at(`好ましくない現象（UDE）が ${n} 個。現状ツリーは ${UDE_RANGE.min}〜${UDE_RANGE.max} 個の UDE から根本原因へたどるのが指針（CRT の一部を抜き出した部分図なら、accept で理由を書いて許容する）`)});
+    if (n < UDE_RANGE.min || n > UDE_RANGE.max) out.push({rule: 'toc-ude-count', message: at(`好ましくない現象（UDE）が ${n} 個。現状ツリーは ${UDE_RANGE.min}〜${UDE_RANGE.max} 個の UDE から根本原因へたどるのが指針（CRT の一部を抜き出した部分図（第 1 章だけ等）なら、diagram({accept: {'toc-ude-count': '部分図のため'}}) で理由を書いて許容する）`)});
     if (!withRole('root').length) out.push({rule: 'toc-parts', message: at("根本原因（role: 'root'）が無い")});
   }
   if (tree === 'frt') {
-    const missing = [!withRole('injection').length ? "施策（role: 'injection'）" : '', !withRole('de').length && !withRole('goal').length ? "望む結果（role: 'de'。最終のゴールを 'goal' で書いてもよい）" : ''].filter(Boolean);
-    if (missing.length) out.push({rule: 'toc-parts', message: at(`${missing.join('と')}が無い`)});
+    if (!withRole('injection').length) out.push({rule: 'toc-parts', message: at("施策（role: 'injection'）が無い")});
+    // its own rule (ADR 0037): a branch that has no sentence in the body for the result must not invent one to satisfy the check; accept it with a reason
+    if (!withRole('de').length && !withRole('goal').length) out.push({rule: 'toc-no-desired-result', message: at("望む結果（role: 'de'。最終のゴールを 'goal' で書いてもよい）が無い。本文に無い文を足して満たさない: 本文に書かれた結果が無い枝（副作用の枝など）なら、accept で理由を書いて許容する")});
     const roots = withRole('root');
     if (roots.length) out.push({rule: 'toc-parts', message: at(`'root' は現状ツリーの根本原因の役割。未来現実ツリーの施策は 'injection' で書く: ${roots.join('、')}`)});
   }

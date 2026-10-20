@@ -82,7 +82,8 @@ export const RULE_DOCS = {
   'quadrant-tone-only': 'quadrant() の項目の色（tone）だけで種類を分けている（group を使うと形と凡例でも伝わる）',
   'funnel-values-rise': 'funnel({scale: "value"}) の値が下の段で増えている（漏斗として読むなら、値と段の順を確認する）',
   'toc-ude-count': '現状ツリー(causeTree({tree: "crt"}))の UDE が 5〜10 個の範囲の外。部分図なら accept で許容する。diagram({tocCheck: "strict"}) で warn',
-  'toc-parts': 'TOC のツリーの部品が足りない・違う(crt に根本原因 root が無い、frt に施策 injection か望む結果 de が無い、frt に root がある)。diagram({tocCheck: "strict"}) で warn',
+  'toc-no-desired-result': '未来現実ツリー(causeTree({tree: "frt"}))に望む結果(role: de、最終のゴールなら goal)が無い。strict が求めるからと本文に無い文を作らず、本文に結果の文が無い枝(副作用の枝など)は accept で理由を書いて許容する(ADR 0037)。diagram({tocCheck: "strict"}) で warn',
+  'toc-parts': 'TOC のツリーの部品が足りない・違う(crt に根本原因 root が無い、frt に施策 injection が無い、frt に root がある)。frt に望む結果 de / goal が無いのは toc-no-desired-result(ここに accept を書いた図は、そちらも許容される)。diagram({tocCheck: "strict"}) で warn',
   'toc-nbr-parts': 'ネガティブブランチ(causeTree({tree: "nbr"}))に、トリミングの施策(role: trim)か、悪い結果(role: ude)が無い。diagram({tocCheck: "strict"}) で warn',
   'toc-nbr-no-tipping': 'ネガティブブランチで、転換点(role: tipping)を通らずに、原因を持たない実体から ude へ至る因果の道が残っている(転換点の無い枝)。diagram({tocCheck: "strict"}) で warn',
   'toc-nbr-tipping-not-and': 'ネガティブブランチの転換点(role: tipping)が、AND(複数の原因が揃って越える)の結果になっていない。diagram({tocCheck: "strict"}) で warn',
@@ -362,8 +363,24 @@ function legendRules(d: LintTarget, out: Finding[]): void {
   const hasLegend = walkBands(d.bands).some(b => b.type === 'legend');
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return;
-  const labels = legendLabelsFor(used, d.legendLabels), names = missing.map(k => `${k}（例: ${labels[k] ?? k}）`).join('、');
-  out.push({rule: hasLegend ? 'legend-incomplete' : 'legend-missing', severity: 'warn', message: `凡例にない記法: ${names}`});
+  const labels = legendLabelsFor(used, d.legendLabels);
+  // say WHICH element uses each missing notation (a tone: the boxes drawn in it; a line / arrow: the connectors), not just the key
+  const all = walkBands(d.bands), quote = (t: string | undefined): string => { const s = (t ?? '').replace(/\s+/g, ' ').trim(); return s ? `「${[...s].length > 14 ? `${[...s].slice(0, 14).join('')}…` : s}」` : ''; };
+  const dim = dimmedBands(d);
+  const where = (k: string): string => {
+    if (k.startsWith('tone:')) {
+      const boxes = all.filter((b): b is BoxBand => b.type === 'box' && `tone:${b.tone}` === k && !dim.has(b));
+      const ex = boxes.slice(0, 3).map(b => quote(b.title ?? b.body)).filter(Boolean).join('');
+      return boxes.length ? `${k.slice(5)} の色の箱 ${boxes.length} 枚${ex ? `: ${ex}${boxes.length > 3 ? ' ほか' : ''}` : ''}` : '';
+    }
+    if (k.startsWith('line:') || k.startsWith('weight:') || k === 'arrow:both') {
+      const n = all.filter(b => b.type === 'connect' && (k === 'arrow:both' ? b.arrow === 'both' : k.startsWith('weight:') ? `weight:${b.weight}` === k : `line:${b.line ?? 'solid'}` === k)).length;
+      return n ? `該当する矢印・線 ${n} 本` : '';
+    }
+    return '';
+  };
+  const names = missing.map(k => { const w = where(k); return `${k}（${w ? `${w}。` : ''}凡例の例: ${labels[k] ?? k}）`; }).join('、');
+  out.push({rule: hasLegend ? 'legend-incomplete' : 'legend-missing', severity: 'warn', message: `凡例にない記法: ${names}。凡例に項目を足す（legend: 'auto' なら自動）か、凡例が要らない図なら legend: false`});
 }
 
 // segments of every connector, for crossing / overlap counting
@@ -662,6 +679,11 @@ function statFitFindings(d: LintTarget, out: Finding[]): void {
   }
 }
 
+/** The exact snippet that accepts a finding of `rule` (for the warning output); '' for a rule that cannot be accepted. */
+export function acceptHint(rule: string): string {
+  return Object.hasOwn(RULE_DOCS, rule) ? `許容するなら diagram({accept: {'${rule}': '理由'}}) か .svg-diagram.json の {"accept": {"${rule}": "理由"}}（詳しくは check --explain ${rule}）` : '';
+}
+
 export function lintDiagram(d: LintTarget): Finding[] {
   if (d.appearance === 'auto') { // ADR 0023 D4: both colour sides, the same finding once, a dark-only one marked
     const side = (appearance: 'light' | 'dark') => lintDiagram({...d, appearance});
@@ -669,7 +691,8 @@ export function lintDiagram(d: LintTarget): Finding[] {
   }
   const out = lintAll(d, toneEnv(d.tones));
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
-  return out.map(f => (d.accept?.[f.rule as RuleId] ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${d.accept[f.rule as RuleId]}）`} : f));
+  const reasonOf = (rule: string): string | undefined => d.accept?.[rule as RuleId] ?? (rule === 'toc-no-desired-result' ? d.accept?.['toc-parts'] : undefined); // before ADR 0037 the missing desired result was toc-parts
+  return out.map(f => { const why = reasonOf(f.rule); return why ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${why}）`} : f; });
 }
 
 // the width of a line in full-width characters (CJK, kana, hangul, fullwidth forms and pictographs count 1, everything else
@@ -765,8 +788,11 @@ function midWordRules(d: LintTarget, out: Finding[]): void {
   const found = (d.laidOut ?? []).flatMap(b => midWordBreaksIn(b, source).map(br => ({type: String(b.type), ...br})));
   if (!found.length) return;
   const shown = [...new Set(found.map(b => `「${b.before}/${b.after}」`))];
+  // the word that was cut, and how wide a line has to be for it (full-width characters): the box must be at least that wide
+  const words = [...new Map(found.filter(b => b.word).map(b => [b.word, fullWidthUnits(b.word)] as const))].sort((p, q) => q[1] - p[1]);
+  const wordNote = words.length ? ` 割れた語: ${words.slice(0, 3).map(([w, u]) => `「${w}」（全角で約 ${Math.ceil(u)} 字分）`).join('')}。その語が 1 行に入る幅（文字の大きさ × ${Math.ceil(must(words[0])[1])} 字分以上）が箱に要る。` : '';
   const fixes = [...new Set(found.flatMap(b => MID_WORD_FIX[b.type] ? [`${b.type}: ${MID_WORD_FIX[b.type]}`] : []))];
-  out.push({rule: 'text-mid-word-break', severity: 'warn', message: `語の途中で行が割れている（${shown.slice(0, 4).join('')}${shown.length > 4 ? ` ほか ${shown.length - 4} 件` : ''}）。直し方: ${fixes.length ? fixes.join('。') : 'diagram({keepWords: true}) で語を割らない、箱の幅を広げる、dir や maxNodeW を変える、文言を短くする、語の前後で改行する'}`});
+  out.push({rule: 'text-mid-word-break', severity: 'warn', message: `語の途中で行が割れている（${shown.slice(0, 4).join('')}${shown.length > 4 ? ` ほか ${shown.length - 4} 件` : ''}）。${wordNote}直し方: ${fixes.length ? fixes.join('。') : 'diagram({keepWords: true}) で語を割らない、箱の幅を広げる、dir や maxNodeW を変える、文言を短くする、語の前後で改行する'}`});
 }
 function glyphRules(d: LintTarget, out: Finding[]): void {
   const glyphs = missingGlyphs(d.laidOut);
@@ -836,7 +862,13 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   for (const b of d.laidOut ?? []) if (b.type === 'bars' && b.bars.some(r => (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0))) { out.push({rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す'}); break; }
   headlineLength(d, out);
   if (d.status !== undefined) out.push({rule: 'draft-status', severity: 'info', message: `この図は下書き(status: '${d.status}')。公開前に外す`});
-  for (const b of d.laidOut ?? []) if (b.type === 'caption' && b.sourceLine && b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0) > 1) out.push({rule: 'source-wraps', severity: 'warn', message: `出典行が ${b.wrappedRuns.reduce((n, r) => n + r.lines.length, 0)} 行に折り返している。1 行に収まる長さにする（出典の細部は本文へ）`});
+  for (const b of d.laidOut ?? []) if (b.type === 'caption' && b.sourceLine) {
+    const lines = b.wrappedRuns.flatMap(r => r.lines), n = lines.length;
+    if (n <= 1) continue;
+    // what fits is measured, not guessed: the longest of the lines that were filled (every one but the last), in full-width characters
+    const filled = b.wrappedRuns.flatMap(r => r.lines.slice(0, -1)), fits = Math.floor(Math.max(0, ...filled.map(fullWidthUnits))), total = Math.ceil(lines.reduce((s, l) => s + fullWidthUnits(l), 0));
+    out.push({rule: 'source-wraps', severity: 'warn', message: `出典行が ${n} 行に折り返している（全角で約 ${total} 字分${fits > 0 ? `。1 行に入るのは約 ${fits} 字分なので、約 ${Math.max(1, fits - 1)} 字分以内に縮める` : ''}。半角の英数字は 0.5 字分）。出典の細部は本文へ`});
+  }
   for (const b of d.laidOut ?? []) if (b.type === 'quadrant') {
     const far = b.moved.filter(m => m.px >= 16);
     if (far.length) out.push({rule: 'quadrant-item-moved', severity: 'warn', message: `quadrant() の項目 ${far.map(m => `「${m.label}」(${Math.round(m.px)}px)`).join('、')} が、他の項目やラベルを避けて座標から離れた。座標を離すか、図を大きくする`});

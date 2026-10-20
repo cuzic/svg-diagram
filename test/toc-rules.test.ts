@@ -32,7 +32,8 @@ test('toc-ude-count: a CRT outside 5..10 ude; other trees are not counted', () =
 
 test('toc-parts: a CRT needs a root; an FRT needs an injection and a de and takes no root', () => {
   assert.ok(rules(udes, [{from: 'u1', to: 'u2'}], 'crt').includes('toc-parts'));
-  assert.ok(rules([N('i', 'injection'), N('x')], [{from: 'i', to: 'x'}], 'frt').includes('toc-parts'), 'no de');
+  assert.ok(rules([N('i', 'injection'), N('x')], [{from: 'i', to: 'x'}], 'frt').includes('toc-no-desired-result'), 'no de (its own rule, ADR 0037)');
+  assert.ok(!rules([N('i', 'injection'), N('x')], [{from: 'i', to: 'x'}], 'frt').includes('toc-parts'));
   assert.ok(rules([N('d', 'de'), N('x')], [{from: 'x', to: 'd'}], 'frt').includes('toc-parts'), 'no injection');
   assert.ok(rules([N('i', 'injection'), N('d', 'de'), N('r', 'root')], [{from: 'i', to: 'd'}, {from: 'r', to: 'd'}], 'frt').includes('toc-parts'), 'a root in an FRT');
   assert.ok(!rules([N('i', 'injection'), N('g', 'goal')], [{from: 'i', to: 'g'}], 'frt').includes('toc-parts'), "a final 'goal' counts as the de (H9)");
