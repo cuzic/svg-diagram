@@ -8,7 +8,17 @@ const KATAKANA = /[ァ-ヺーㇰ-ㇿｦ-ﾟ]/;
 const LATIN = /[A-Za-z0-9]/;
 const sameWord = (a: string, b: string): boolean => (KATAKANA.test(a) && KATAKANA.test(b)) || (LATIN.test(a) && LATIN.test(b));
 
-export interface MidWordBreak {before: string; after: string}
+export interface MidWordBreak {before: string; after: string; /** The whole word the break cut (its run of katakana or of Latin letters across the break, as far as the two lines show it) */ word: string}
+
+/** The run of one script (katakana / Latin) that ends `left` and the run that starts `right`, joined. */
+function wordAround(left: string, right: string): string {
+  const cls = (c: string): RegExp => KATAKANA.test(c) ? KATAKANA : LATIN;
+  const l = [...left], r = [...right];
+  let i = l.length; const re = cls(l.at(-1) ?? '');
+  while (i > 0 && re.test(l[i - 1] ?? '')) i--;
+  let j = 0; while (j < r.length && re.test(r[j] ?? '')) j++;
+  return l.slice(i).join('') + r.slice(0, j).join('');
+}
 
 /** The word breaks of one wrapped run. With the run's source text, a break where the text has a space or a newline is the author's own; without it only katakana is judged. */
 export function midWordBreaks(lines: readonly string[], text?: string): MidWordBreak[] {
@@ -33,7 +43,7 @@ export function midWordBreaks(lines: readonly string[], text?: string): MidWordB
     if (spaced) continue;
     const a = left.slice(-1), b = right.slice(0, 1);
     const word = matched ? sameWord(a, b) : KATAKANA.test(a) && KATAKANA.test(b);
-    if (word) out.push({before: left.slice(-4), after: right.slice(0, 4)});
+    if (word) out.push({before: left.slice(-4), after: right.slice(0, 4), word: wordAround(left, right)});
   }
   return out;
 }
@@ -56,7 +66,7 @@ function placedBreaks(items: readonly Placed[], inSource: (junction: string) => 
     if (!pa || !pb) continue;
     const gap = pb.y - pa.y;
     if (Math.abs(pa.x - pb.x) > 0.5 || a.size !== b.size || gap <= 0 || gap > a.size * 2 || !a.text || !b.text) continue;
-    if (KATAKANA.test(a.text.slice(-1)) && KATAKANA.test(b.text.slice(0, 1)) && inSource(a.text.slice(-2) + b.text.slice(0, 2))) out.push({before: a.text.slice(-4), after: b.text.slice(0, 4)});
+    if (KATAKANA.test(a.text.slice(-1)) && KATAKANA.test(b.text.slice(0, 1)) && inSource(a.text.slice(-2) + b.text.slice(0, 2))) out.push({before: a.text.slice(-4), after: b.text.slice(0, 4), word: wordAround(a.text, b.text)});
   }
   return out;
 }

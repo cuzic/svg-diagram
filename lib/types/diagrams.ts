@@ -393,6 +393,8 @@ export interface LaidOutCause extends Rect, Dimmed {
   unanchored?: readonly string[];
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
   fitApplied?: FitApplied[];
+  /** A negative branch tree (`tree: 'nbr'`): whether its layers run top-bottom (false: left-right, `dir: 'right'`). Read by the crossing hint (ADR 0037). */
+  nbr?: {vertical: boolean};
   id?: string;
   reveal?: number;
   until?: number;
