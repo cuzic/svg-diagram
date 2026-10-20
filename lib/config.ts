@@ -1,5 +1,5 @@
 // Project-wide settings: .svg-diagram.json, found by walking up from the current directory.
-//   {"accept": {"rule-id": "why this is fine, for every diagram"}, "maxWidth": 940, "legend": false, "legendLabels": {"tone:accent": "注意"}, "tones": {"accent": {"fill": "#e6d3bd"}}}
+//   {"outDir": "images", "accept": {"rule-id": "why this is fine, for every diagram"}, "maxWidth": 940, "legend": false, "legendLabels": {"tone:accent": "注意"}, "tones": {"accent": {"fill": "#e6d3bd"}}}
 import fs from 'node:fs';
 import path from 'node:path';
 import type {DiagramData} from './types/core.ts';
@@ -31,6 +31,7 @@ export function readConfigFile(f: string): Config {
   checkFontFloor(cfg, f);
   if (cfg.wrap !== undefined && !['phrase', 'char', 'bunsetsu', 'bunsetsu-soft'].includes(cfg.wrap as string)) throw new Error(`${f}: "wrap" must be "phrase", "char", "bunsetsu" or "bunsetsu-soft" (got ${JSON.stringify(cfg.wrap)})`);
   if (cfg.keepWords !== undefined && typeof cfg.keepWords !== 'boolean') throw new Error(`${f}: "keepWords" must be true or false (got ${JSON.stringify(cfg.keepWords)})`);
+  if (cfg.outDir !== undefined && (typeof cfg.outDir !== 'string' || !cfg.outDir.trim())) throw new Error(`${f}: "outDir" must be a folder name like "images" (got ${JSON.stringify(cfg.outDir)})`);
   if (cfg.today !== undefined) { try { checkToday(cfg.today, '"today"'); } catch (e) { throw new Error(`${f}: ${(e as Error).message}`); } }
   delete cfg._today;
   if (cfg.tones !== undefined) { try { cfg.tones = checkTones(cfg.tones, '"tones"'); } catch (e) { throw new Error(`${f}: ${(e as Error).message}`); } }
@@ -90,4 +91,11 @@ export function applyConfig<D extends Pick<DiagramData, 'today' | 'accept' | 'te
   d.tones = mergeTones(cfg.tones, d.tones);
   if (cfg.legendLabels) d.legendLabels = {...cfg.legendLabels, ...(d.legendLabels ?? {})};
   return d;
+}
+
+/** The folder the project's SVGs live in: `outDir` of .svg-diagram.json (relative to that file), else ./svg. Relative to the working directory when it lies below it. */
+export function svgDirOf(cfg: Config, cwd: string = process.cwd()): string {
+  if (!cfg.outDir) return 'svg';
+  const abs = path.resolve(cfg._file ? path.dirname(cfg._file) : cwd, cfg.outDir);
+  return path.relative(cwd, abs) || '.';
 }

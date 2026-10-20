@@ -28,7 +28,8 @@ import type {Browser, Page} from 'playwright-chromium';
 import {launchChromium} from './lib/browser.ts';
 import {browserChecks} from './lib/lint-browser.ts';
 import {geometryChecks, type RenderChecks} from './lib/geometry-checks.ts';
-import {loadConfig, readConfigFile} from './lib/config.ts';
+import {loadConfig, readConfigFile, svgDirOf} from './lib/config.ts';
+import {resolveTargets} from './lib/target-resolve.ts';
 import type {Config} from './lib/types/project.ts';
 import path from 'path';
 import fs from 'fs';
@@ -44,7 +45,12 @@ const fix = process.argv.includes('--fix');
 const configIdx = process.argv.indexOf('--config');
 const explicitConfig = configIdx === -1 ? undefined : process.argv[configIdx + 1];
 if (configIdx !== -1 && !explicitConfig) { console.error('✗ --config needs a path to a .svg-diagram.json'); process.exit(2); }
-const given = process.argv.slice(2).filter((a, i, all) => a.endsWith('.svg') && all[i - 1] !== '--engine' && all[i - 1] !== '--config');
+// every argument that is not an option (or an option's value) is a target: an .svg, a quoted glob, or a diagram source (.ts) standing for its SVG
+const VALUE_FLAGS = ['--engine', '--config', '--svg-dir'];
+const svgDirIdx = process.argv.indexOf('--svg-dir');
+const svgDirArg = svgDirIdx === -1 ? undefined : process.argv[svgDirIdx + 1];
+if (svgDirIdx !== -1 && (!svgDirArg || svgDirArg.startsWith('--'))) { console.error('✗ --svg-dir needs a folder'); process.exit(2); }
+const given = process.argv.slice(2).filter((a, i, all) => !a.startsWith('--') && !VALUE_FLAGS.includes(all[i - 1] ?? ''));
 // the project settings that apply to one SVG: --config, else the .svg-diagram.json found walking up from the SVG's own directory (not from the cwd)
 const configCache = new Map<string, Config>();
 function configFor(file: string): Config {
@@ -57,14 +63,21 @@ function configFor(file: string): Config {
   }
   return cfg;
 }
+const projectSvgDir = svgDirOf((() => { try { return explicitConfig ? readConfigFile(explicitConfig) : loadConfig(); } catch { return {} as Config; } })());
 let files: string[];
 if (given.length) {
-  files = given; // every .svg named on the command line (it used to look at the first one only)
+  const t = resolveTargets(given, {
+    cwd: process.cwd(), svgDirs: [...(svgDirArg ? [svgDirArg] : []), projectSvgDir, 'svg'],
+    io: {isFile: f => { try { return fs.statSync(f).isFile(); } catch { return false; } }, glob: p => fs.globSync(p).map(f => path.resolve(f))},
+  });
+  for (const p of t.problems) console.error(`✗ ${p.message}`);
+  if (t.problems.length) process.exit(2);
+  files = t.files; // every target named on the command line (it used to look at the first one only)
 } else {
-  files = fs.globSync('svg/*.svg').sort();
+  files = fs.globSync(`${projectSvgDir}/*.svg`).sort();
 }
 if (files.length === 0) {
-  console.error('no SVG files matched');
+  console.error(`no SVG files matched (looked for ${projectSvgDir}/*.svg from ${process.cwd()}; name the files, or set "outDir" in .svg-diagram.json)`);
   process.exit(2);
 }
 
@@ -237,7 +250,15 @@ let browser: Browser | null = null;
 let page: Page | null = null;
 if (engine === 'browser') {
   try { browser = await launchChromium({args: ['--no-sandbox']}); page = await browser.newPage(); }
-  catch (e) { console.error(`✗ --engine browser: ${(e as Error).message}`); process.exit(2); }
+  catch (e) {
+    const m = (e as Error).message;
+    const cause = /Executable doesn't exist|not downloaded/i.test(m) ? 'the playwright browser is not downloaded (pnpm exec playwright install chromium)'
+      : /not installed/i.test(m) ? 'playwright-chromium is not installed (pnpm add -D playwright-chromium)'
+      : /shared libraries|missing dependencies|Host system/i.test(m) ? 'the browser cannot start here (system libraries are missing: pnpm exec playwright install-deps chromium)'
+      : 'the browser could not be started';
+    console.error(`✗ --engine browser: ${cause}\n  Without a browser, the same checks run on the SVG's geometry:  svg-diagram lint --engine geometry   (the default)\n\n${m}`);
+    process.exit(2);
+  }
 }
 
 for (const f of files) {

@@ -18,7 +18,7 @@ npm パッケージとして配る（コンパイル済みの `dist/`＝JS と�
     pnpm exec svg-diagram typecheck     # 図のソースを型検査（案件側の tsc を使う）
     pnpm exec svg-diagram build diagrams/*.ts
 
-**グローバルに入れて使う場合**（`~/.local/bin/svg-diagram` のように、案件に `svg-diagram` を入れない）も `svg-diagram typecheck` は動く。コンパイラは案件の `typescript`、なければ PATH 上の `tsc`（`pnpm add -g typescript`）を使い、案件に `svg-diagram` や `@types/node` がなければ、一時的な tsconfig（`.svg-diagram-tsconfig.json`、終了時に消える。案件の tsconfig を `extends` する）でこのツール自身の型定義へ向ける。手で書くなら、案件の `tsconfig.json` の `compilerOptions` に `"paths": {"svg-diagram": ["<このツールの場所>/lib/dsl.ts"]}` を足す（パッケージ版は `dist/lib/dsl.d.ts`）。
+**グローバルに入れて使う場合**（`~/.local/bin/svg-diagram` のように、案件に `svg-diagram` を入れない）も `svg-diagram typecheck` は動く。tsconfig.json がない案件でも、`svg-diagram init` が書くのと同じ既定の設定（`diagrams/**/*.ts`）で動く。コンパイラは案件の `typescript`、なければ PATH 上の `tsc`（`pnpm add -g typescript`）を使い、案件に `svg-diagram` や `@types/node` がなければ、一時的な tsconfig（`.svg-diagram-tsconfig.json`、終了時に消える。案件の tsconfig を `extends` する）でこのツール自身の型定義へ向ける。手で書くなら、案件の `tsconfig.json` の `compilerOptions` に `"paths": {"svg-diagram": ["<このツールの場所>/lib/dsl.ts"]}` を足す（パッケージ版は `dist/lib/dsl.d.ts`）。
 
 **ブラウザ（`playwright-chromium`）は要らない。** レイアウト、`build`（lint を含む）、`check`、`lint`、`show`、`preview`、`contact`、`renderSource` は、どれもブラウザなしで動く（文字幅はフォントファイルから、描画は resvg、描画後の検査は SVG の幾何から）。ブラウザが要るのは、実ブラウザで確かめたいときだけで、`pnpm add -D playwright-chromium`（pnpm 10 以降は `pnpm approve-builds` も）と `pnpm exec playwright install chromium` で足す: `lint --engine browser`、`show` / `preview` / `contact` の `--engine chromium`、`"measure": "chromium"`、`diagram({slide})` の空き寸法の実測（Slidev のテーマが実際に空ける余白を測る）。
 CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagrams/*.ts`（ソースのハッシュと SVG の埋め込み情報を比べるだけ。`--rebuild` を付けても、ブラウザは要らない）。
@@ -74,7 +74,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
     svg-diagram init [dir]                               # 案件の初期設定（package.json の type、tsconfig.json）
     svg-diagram typecheck                                # 図のソースの型検査
-    svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint] [--png DIR [--scale N]]   # 既定の出力: ./svg/<name>.svg。--png: SVG と同時に PNG も DIR に書く（既定の倍率 2）
+    svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint] [--png DIR [--scale N]]   # 既定の出力: ./svg/<name>.svg（.svg-diagram.json の "outDir" で変えられる）。--png: SVG と同時に PNG も DIR に書く（既定の倍率 2）
     svg-diagram build <source.ts> --dark --transparent   # 暗い配色／背景の矩形なしで描く（図の appearance / transparent を上書き）
     svg-diagram build <source.ts> --no-source-line       # diagram({sourceLine}) を描かない（スライド用と文書用を 1 つのソースで使い分ける。ソースは変えない。deck も同じフラグを受ける）
     svg-diagram build|check [--today YYYY-MM-DD] <source.ts>...   # gantt({today: 'auto'}) の日付を渡す（環境変数 SVG_DIAGRAM_TODAY、.svg-diagram.json の "today" でも可。「ガントチャート」の節）
@@ -93,7 +93,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
     svg-diagram diff old.svg new.svg                     # 2 つの SVG の違いを言葉で（見た目が変わるか）
     svg-diagram diff --text old.svg new.svg [--no-added] [--strict]   # 手書き SVG を DSL に直したとき、旧の文字・数値が新に残っているか（折り返し・tspan・全角半角・CJK を吸収。--strict: 欠けたら終了コード 1）
     svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX] [--per-page N | --pages N]  # 図の集まりを 1 枚に並べて、一度に目視する（--out の置き場が無ければ作る）
-    svg-diagram lint  [file.svg ...] [--strict] [--fix] [--engine geometry|browser] [--config .svg-diagram.json]   # 描画後の検査も、既定は SVG の幾何から（ブラウザなし）。設定は SVG のあるディレクトリから探す（--config で明示）
+    svg-diagram lint  [file.svg / file.ts / "glob" ...] [--svg-dir DIR] [--strict] [--fix] [--engine geometry|browser] [--config .svg-diagram.json]   # 描画後の検査も、既定は SVG の幾何から（ブラウザなし）。設定は SVG のあるディレクトリから探す（--config で明示）
     svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray] [--no-stale-banner] [--require-fresh]   # 既定の倍率 2。--gray: 白黒で描く。ソースより古い SVG は警告と赤い帯（--require-fresh: exit 1）。out を省くと一時ディレクトリに重ならない名前で書き、パスを表示
     svg-diagram deck <a.ts|a.svg>... [--out deck.html] [--title TEXT] [--cols N] [--csp]   # 複数の図を、前へ・次へで見られる 1 つの自己完結 HTML に（一覧・拡大・印刷つき）
     svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium]   # ターミナルに sixel で直接表示（.ts は SVG を書かずに作って描く）
@@ -1127,7 +1127,7 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 
 ## 文書と図の整合（`check --docs`）
 `svg-diagram check --docs docs --svg-dir docs/assets/diagrams/svg --src-dir docs/diagrams` は、Markdown の画像参照と、図のソースを突き合わせる。
-- 参照先の SVG がない（`doc-image-missing`、エラー）、代替テキストが空・155 文字超（`doc-alt-empty` / `doc-alt-long`）、どの文書からも参照されていない SVG（`doc-orphan-svg`）。`![alt](images/x.png)` の PNG 参照も見る: ファイルがない（`doc-image-missing`）、同じ名前の図のソース（`--src-dir`）も SVG（`--svg-dir`）もない（`doc-png-no-source`）、参照された PNG と同じフォルダにある、どこからも参照されていない PNG（`doc-orphan-png`。文書を絞ると行わない）。
+- 参照先の SVG がない（`doc-image-missing`、エラー）、代替テキストが空・155 文字超（`doc-alt-empty` / `doc-alt-long`）、どの文書からも参照されていない SVG（`doc-orphan-svg`）、参照されている SVG に対応する図のソースがない（`doc-svg-no-source`。ソースを消して SVG だけ残った静的な絵は `--drift` の対象にならず古くなるので、ここで見つける。ソースは `--src-dir`、なければ `./diagrams`、それと SVG の `<metadata>` に記録された生成元から探す。手描きの絵などは `.svg-diagram.json` の `accept` で許容する）。`![alt](images/x.png)` の PNG 参照も見る: ファイルがない（`doc-image-missing`）、同じ名前の図のソース（`--src-dir`）も SVG（`--svg-dir`）もない（`doc-png-no-source`）、参照された PNG と同じフォルダにある、どこからも参照されていない PNG（`doc-orphan-png`。文書を絞ると行わない）。
 - 図に `notes` があるとき、画像の直後の**番号つきリスト**（`1. **題名**：本文`）と、題名・本文が一致するか（`doc-notes-mismatch` / `doc-notes-missing`）。図と文書の**二重管理**で、片方の直し忘れを見つける。
 - **図番号と本文**（警告）: キャプション `図N-M`（代替テキスト、または画像の前後の行の**行頭**）が章内で 1 から連番か・重複や順序の入れ替えがないか・章番号がファイル名の章（`03-x.md` / `ch3.md`）と合うか（`doc-fig-number`）、本文の `図N-M` が、この文書にない図を指していないか（`doc-fig-ref-missing`。別の章への参照とコードブロックは見ない）、代替テキストが `image` / `図` / ファイル名のままでないか（`doc-alt-placeholder`。空は従来どおり `doc-alt-empty`）、図の下の注釈の番号が 1 から順か（`doc-notes-number`）。
 - **一章だけ検査する**: `--docs` は**ディレクトリでも .md ファイルでもよく、何度でも**書ける（`--docs A.md B.md dir` のように空白で並べてもよい。後ろの .md とディレクトリはすべて文書で、図のソースではない。.ts / .mjs 以外をソースに渡すと分かるエラーで終わる）。`--only 'docs/03-*.md'`（繰り返し可。`**` はフォルダをまたぎ、`*` `?` は 1 階層内。カレントからの相対パスかファイル名に合わせる）で、対象のページを絞る。**絞ったとき（.md 指定または `--only`）は、孤立 SVG（`doc-orphan-svg`）の検査をしない**（全ページを見ないと「参照されていない」とは言えないため）。その旨を 1 行出す。全体を見るときは、ディレクトリだけを指定する。
@@ -1189,6 +1189,12 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 
 ## 共通設定（`.svg-diagram.json`）
 カレントディレクトリから上へたどって見つかる。`{"accept": {"rule-id": "理由"}, "maxWidth": 940}`。図ごとの `accept` が優先される。`maxWidth` も図ごとに `diagram({maxWidth: 1200})` で変えられる（`doc-width` の閾値だけで、図の幅は変えない。広い図にするなら `width: 1200` も書く。図の値が設定ファイルに勝つ）。`accept` のキーはルール ID（`RULE_DOCS` にある名前）で、知らない ID・空の理由はファイル名つきのエラー（綴り違いで何も許容されないのを防ぐ）。許容された指摘は info に下がり、理由が添えられる。
+
+**出力先（`outDir`）**: `"outDir": "images"` は、`build` の既定の出力先（`./svg` の代わり。`.svg-diagram.json` のあるフォルダからの相対）で、`lint`（引数なし）と `check --drift` が SVG を探す先でもある。`--out` / `--out-dir` が優先される。
+
+**`lint` の引数**: `.svg`、引用符つきの glob、図のソース（`.ts`。それが作る SVG を探す）を渡せる。パスはカレントから、なければ上のフォルダから順に探す（リポジトリのルートからのパスもそのまま通る）。見つからないときは、探した場所を全部出す。ブラウザなしの `--engine geometry` が既定。`--engine browser` でブラウザがないときは、原因と `--engine geometry` への切り替えを案内する。
+
+**`check` が図として扱わないもの**: 先頭が `_` のファイル（共通部品）と、default export の関数がない `.ts` は、失敗にせず info で飛ばす。
 
 **今日の日付（`today`）**: `"today": "2026-10-19"` は、`gantt({today: 'auto'})` の日付になる（`--today` と環境変数 `SVG_DIAGRAM_TODAY` が優先。実在しない日付はファイル名つきのエラー）。「ガントチャート」の節。
 

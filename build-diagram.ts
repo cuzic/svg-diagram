@@ -17,7 +17,7 @@
 //   node scripts/svg-diagram/build-diagram.ts diagrams/*.ts
 //   node scripts/svg-diagram/build-diagram.ts diagrams/day2-11-example.ts --out /tmp/preview.svg
 //
-// Output path defaults to public/svg/<basename-without-extension>.svg.
+// Output path defaults to <outDir of .svg-diagram.json, else svg>/<basename-without-extension>.svg.
 // --out overrides it (only valid with exactly one input module).
 // Always runs lint-svg.ts --strict on the result (via dsl.ts's build()) —
 // a diagram that fails lint is reported as a failure, not written silently.
@@ -32,7 +32,7 @@ import {must} from './lib/must.ts';
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 installResolveHook();
 const {build, closeMeasurer} = await import('./lib/dsl.ts');
-const {loadConfig} = await import('./lib/config.ts');
+const {loadConfig, svgDirOf} = await import('./lib/config.ts');
 const {MIN_FONT_SIZE} = await import('./lib/tokens.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
 const {depsSha256, depsOf} = await import('./lib/source-deps.ts');
@@ -105,7 +105,7 @@ let skipped = 0;
 try {
   for (const modPath of modules) {
     const abs = path.resolve(modPath);
-    const outPath = outOverride ?? path.join(outDir ?? 'svg', path.parse(modPath).name + '.svg');
+    const outPath = outOverride ?? path.join(outDir ?? svgDirOf(config), path.parse(modPath).name + '.svg');
     // ADR 0013: a failed build never touches the old SVG, but says so when that file is this source's own output (it is now out of date)
     const failedBuild = (message: unknown) => {
       console.error(formatBuildError(modPath, message));
