@@ -19,21 +19,21 @@ test('a return run across the layers that crosses a line gets a hop on the side 
   // flow 'up': the run across the layers is horizontal; the line it crosses runs up
   const r = ret([{x: 100, y: 300}, {x: 400, y: 300}]), l = line([{x: 250, y: 500}, {x: 250, y: 100}]);
   const [c] = causeCrossings([r, l], 'up', BAND, [], []);
-  assert.deepEqual([c.over, c.under, c.x, c.y], [0, 1, 250, 300]);
-  assert.deepEqual(c.side, {x: 0, y: 1}, 'up: against the flow is down the page');
-  assert.equal(c.skipped, undefined);
+  assert.deepEqual([c!.over, c!.under, c!.x, c!.y], [0, 1, 250, 300]);
+  assert.deepEqual(c!.side, {x: 0, y: 1}, 'up: against the flow is down the page');
+  assert.equal(c!.skipped, undefined);
 });
 
 test('the same figure turned to every direction: the same crossings, the bump against the flow', () => {
   // flow 'right': the run across the layers is vertical
   const r = ret([{x: 300, y: 100}, {x: 300, y: 400}]), l = line([{x: 100, y: 250}, {x: 500, y: 250}]);
   const [c] = causeCrossings([r, l], 'right', BAND, [], []);
-  assert.deepEqual(c.side, {x: -1, y: 0});
-  assert.equal(c.skipped, undefined);
+  assert.deepEqual(c!.side, {x: -1, y: 0});
+  assert.equal(c!.skipped, undefined);
   const [d] = causeCrossings([ret([{x: 300, y: 400}, {x: 300, y: 100}]), line([{x: 500, y: 250}, {x: 100, y: 250}])], 'left', BAND, [], []);
-  assert.deepEqual(d.side, {x: 1, y: 0});
+  assert.deepEqual(d!.side, {x: 1, y: 0});
   const [e] = causeCrossings([ret([{x: 100, y: 300}, {x: 400, y: 300}]), line([{x: 250, y: 100}, {x: 250, y: 500}])], 'down', BAND, [], []);
-  assert.deepEqual(e.side, {x: 0, y: -1});
+  assert.deepEqual(e!.side, {x: 0, y: -1});
 });
 
 test('a return run along the flow (a lane run) is not hopped: the other line would be the one over', () => {
@@ -89,8 +89,8 @@ test("hop: 'all' also lets an ordinary arrow's run across the layers hop over a 
   const a = line([{x: 300, y: 100}, {x: 300, y: 400}]), b = {...line([{x: 100, y: 250}, {x: 500, y: 250}]), from: 'e', to: 'f'};
   assert.deepEqual(causeCrossings([a, b], 'right', BAND, [], []), [], 'only a return hops by default');
   const [c] = causeCrossings([a, b], 'right', BAND, [], [], true);
-  assert.deepEqual([c.over, c.under, c.x, c.y], [0, 1, 300, 250]);
-  assert.deepEqual(c.side, {x: -1, y: 0});
+  assert.deepEqual([c!.over, c!.under, c!.x, c!.y], [0, 1, 300, 250]);
+  assert.deepEqual(c!.side, {x: -1, y: 0});
   // the line that runs along the flow never hops over the run across it
   assert.equal(causeCrossings([a, b], 'right', BAND, [], [], true).filter(k => k.over === 1).length, 0);
 });
@@ -105,9 +105,9 @@ test("hop: 'all' gives the crossings of ordinary arrows a hop; hop: true has non
   assert.deepEqual(all.edges.map(e => e.points), off.edges.map(e => e.points), 'the routes are the same');
   const hops = (all.crossings ?? []).filter(c => !c.skipped);
   assert.ok(hops.length >= 3, `hops ${hops.length}`);
-  assert.ok(hops.every(c => !all.edges[c.over].reversed), 'the arrows that hop are ordinary ones');
+  assert.ok(hops.every(c => !all.edges[c.over]!.reversed), 'the arrows that hop are ordinary ones');
   assert.ok(hops.every(c => c.side.x === -1 && c.side.y === 0), 'in a figure that runs right the hop bulges against the flow');
-  assert.ok(hops.every(c => all.edges[c.over].points.some((p, k, a) => k > 0 && p.x === a[k - 1].x && p.x === c.x)), 'the arrow hops on its run across the layers');
+  assert.ok(hops.every(c => all.edges[c.over]!.points.some((p, k, a) => k > 0 && p.x === a[k - 1]!.x && p.x === c.x)), 'the arrow hops on its run across the layers');
 });
 
 test("hop: 'all' is the same figure every time", () => {

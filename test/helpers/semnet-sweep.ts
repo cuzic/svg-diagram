@@ -21,7 +21,7 @@ export function causalCase(seed: number): {nodes: CausalNode[]; links: CausalLin
 }
 /** A small random dependency network, with edge labels (weights and types). */
 export function dependencyCase(seed: number): {nodes: {id: string; label: string}[]; edges: DependencyEdge[]} {
-  const rand = rng(seed), n = 5 + Math.floor(rand() * 3), nodes = Array.from({length: n}, (_, i) => ({id: `d${i}`, label: LABELS[i]}));
+  const rand = rng(seed), n = 5 + Math.floor(rand() * 3), nodes = Array.from({length: n}, (_, i) => ({id: `d${i}`, label: LABELS[i]!}));
   const edges: DependencyEdge[] = [];
   for (let i = 1; i < n; i++) edges.push({from: `d${Math.floor(rand() * i)}`, to: `d${i}`, type: rand() < .5 ? 'depends' : 'uses', weight: 1 + Math.floor(rand() * 5)});
   for (let k = 0; k < 3; k++) { const a = Math.floor(rand() * n), b = Math.floor(rand() * n); if (a < b && !edges.some(e => e.from === `d${a}` && e.to === `d${b}`)) edges.push({from: `d${a}`, to: `d${b}`, type: 'blocks'}); }
@@ -58,9 +58,9 @@ const cut = (a: Bx, b: Bx): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max
  * (lint-svg rule 5 only sees a line drawn after a text, so a plate that hides a line or a head is invisible to it.)
  */
 export function plateDamage(svg: string): {heads: number; nodes: number} {
-  const num = '(-?[\\d.]+)', plates = boxesOf(svg, new RegExp(`<path d="M${num},${num} H${num} V${num} H${num} Z" fill="#ffffff"/>`, 'g'), m => [+m[1], +m[2], +m[3], +m[4]]);
-  const nodes = boxesOf(svg, new RegExp(`<path d="M${num},${num} H${num} V${num} H${num} Z" fill="#ffffff" stroke=`, 'g'), m => [+m[1], +m[2], +m[3], +m[4]]);
-  const heads = boxesOf(svg, new RegExp(`<path d="M${num},${num} L${num},${num} L${num},${num} Z" fill="#[0-9a-f]{6}"/>`, 'g'), m => [+m[1], +m[2], +m[3], +m[4], +m[5], +m[6]]);
+  const num = '(-?[\\d.]+)', plates = boxesOf(svg, new RegExp(`<path d="M${num},${num} H${num} V${num} H${num} Z" fill="#ffffff"/>`, 'g'), m => [+m[1]!, +m[2]!, +m[3]!, +m[4]!]);
+  const nodes = boxesOf(svg, new RegExp(`<path d="M${num},${num} H${num} V${num} H${num} Z" fill="#ffffff" stroke=`, 'g'), m => [+m[1]!, +m[2]!, +m[3]!, +m[4]!]);
+  const heads = boxesOf(svg, new RegExp(`<path d="M${num},${num} L${num},${num} L${num},${num} Z" fill="#[0-9a-f]{6}"/>`, 'g'), m => [+m[1]!, +m[2]!, +m[3]!, +m[4]!, +m[5]!, +m[6]!]);
   return {heads: heads.filter(h => h.w * h.h > 0 && plates.reduce((a, p) => a + inter(h, p), 0) >= .5 * h.w * h.h).length, nodes: plates.filter(p => nodes.some(n => cut(p, n))).length};
 }
 /** Number of drawn `<text>` elements whose content is exactly `s`. */

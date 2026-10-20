@@ -18,15 +18,16 @@
 //   {maxHeight, contentWidth, index, cached}
 // CLI: node scripts/svg-diagram/lib/slide-budget.ts <page.md> "<heading>" <svg-file> [--refresh]
 
-import fs from 'fs';
-import path from 'path';
-import net from 'net';
-import crypto from 'crypto';
-import {spawn} from 'child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import net from 'node:net';
+import crypto from 'node:crypto';
+import {spawn} from 'node:child_process';
 import {launchChromium} from './browser.ts';
 import {computeSlideIndex} from './slide-index.ts';
 import type {SlideBudget} from './types/verdicts.ts';
 
+import {must} from './must.ts';
 const SLIDE_W = 980, SLIDE_H = 552;
 // Content may extend to here; matches what check-slide-overflow.ts tolerates
 // (bottom 6% band is 519px; content boxes may end at 520 with their own margin).
@@ -36,9 +37,9 @@ const LAYOUT_FILES = ['slides.md', 'style.css', 'uno.config.ts', 'global-bottom.
 
 function slideMarkdown(pageFile: string, heading: string): string {
   const segs = fs.readFileSync(pageFile, 'utf8').split(/\n---\n/);
-  const i = segs.findIndex(s => /^# (.+)$/m.test(s) && s.match(/^# (.+)$/m)![1].includes(heading));
+  const i = segs.findIndex(s => /^# (.+)$/m.test(s) && must(must(s.match(/^# (.+)$/m))[1]).includes(heading));
   if (i < 0) throw new Error(`heading "${heading}" not found in ${pageFile}`);
-  const prev = i > 0 && !/^# /m.test(segs[i - 1]) ? segs[i - 1] : ''; // frontmatter segment
+  const prev = i > 0 && !/^# /m.test(must(segs[i - 1])) ? must(segs[i - 1]) : ''; // frontmatter segment
   return prev + '\n---\n' + segs[i];
 }
 
@@ -73,7 +74,7 @@ async function withDevServer<T>(fn: (base: string) => Promise<T>): Promise<T> {
     }
     return await fn(base);
   } finally {
-    try { process.kill(-child.pid!); } catch { /* already gone */ }
+    try { process.kill(-must(child.pid)); } catch { /* already gone */ }
   }
 }
 
@@ -98,6 +99,7 @@ async function measure(base: string, index: number, svg: string) {
     await p.waitForTimeout(800); // fonts + v-click settle
     return await p.evaluate(({sel, limit}) => {
       const img = document.querySelector(sel) as HTMLElement; // existence was checked above (exactly one match)
+      // biome-ignore lint/style/noNonNullAssertion: runs inside the page (page.evaluate), where nothing can be imported
       const layout = img.closest('.slidev-layout')!;
       const cs = getComputedStyle(img);
       const margins = (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
@@ -111,7 +113,9 @@ async function measure(base: string, index: number, svg: string) {
         bottom = Math.max(bottom, el.getBoundingClientRect().bottom);
       }
       img.style.display = prevDisplay;
+      // biome-ignore lint/style/noNonNullAssertion: runs inside the page (page.evaluate), where nothing can be imported
       const parent = img.parentElement!.getBoundingClientRect();
+      // biome-ignore lint/style/noNonNullAssertion: runs inside the page (page.evaluate), where nothing can be imported
       const pcs = getComputedStyle(img.parentElement!);
       const contentWidth = parent.width - (parseFloat(pcs.paddingLeft) || 0) - (parseFloat(pcs.paddingRight) || 0);
       return {maxHeight: Math.floor(limit - bottom - margins), contentWidth: Math.floor(contentWidth)};

@@ -4,6 +4,7 @@
 // (crossings, bends, a box pierced, leaving the figure, an arrow's neighbouring runs too short). Pure: placed routes in, placed routes out.
 import {bendsOf, crossingsWith, runsTogether} from './polyline-metrics.ts';
 import type {Pt} from './graph-layout.ts';
+import {must} from './must.ts';
 
 export interface ApartEdge {from: string; to: string; self?: boolean; outer?: boolean}
 export interface ApartIn {
@@ -25,11 +26,15 @@ const related = (a: ApartEdge, b: ApartEdge): boolean => a.from === b.from || a.
 export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
   const out = new Map(routes);
   const cache = new WeakMap<Pt[], {p: Pt; q: Pt}[]>(); // per call: the rendering core holds no module-level state
-  const segs = (r: Pt[]): {p: Pt; q: Pt}[] => { let s = cache.get(r); if (!s) { s = r.slice(1).map((q, k) => ({p: r[k], q})); cache.set(r, s); } return s; };
+  const segs = (r: Pt[]): {p: Pt; q: Pt}[] => {
+    let s = cache.get(r);
+    if (!s) { s = []; for (let k = 1; k < r.length; k++) { const p = r[k - 1], q = r[k]; if (p && q) s.push({p, q}); } cache.set(r, s); }
+    return s;
+  };
   const movable = (i: number): boolean => { const e = edges.get(i); return e !== undefined && !e.self && !e.outer; };
   const beside = (i: number, r: Pt[]): number[] => {
-    const mine = segs(r), res: number[] = [];
-    for (const [j, o] of out) if (j !== i && movable(j) && !related(edges.get(i)!, edges.get(j)!) && segs(o).some(y => mine.some(x => runsTogether(x, y)))) res.push(j);
+    const mine = segs(r), res: number[] = [], ei = edges.get(i);
+    for (const [j, o] of out) if (ei && j !== i && movable(j) && !related(ei, must(edges.get(j))) && segs(o).some(y => mine.some(x => runsTogether(x, y)))) res.push(j);
     return res;
   };
   /** How many other arrows (any: an outer return, a loop, one from the same tail or into the same head, an AND's) lie along this route. A move may not bring a new one beside it (swapping one for another does not count as fewer). */
@@ -39,16 +44,16 @@ export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
     return n;
   };
   const pierces = (i: number, r: Pt[]): number => {
-    const e = edges.get(i)!; let n = 0;
+    const e = must(edges.get(i)); let n = 0;
     for (const [id, b] of rects) if (id !== e.from && id !== e.to && segs(r).some(({p, q}) => Math.min(p.x, q.x) < b.x1 + CLEAR && Math.max(p.x, q.x) > b.x0 - CLEAR && Math.min(p.y, q.y) < b.y1 + CLEAR && Math.max(p.y, q.y) > b.y0 - CLEAR)) n++;
     return n;
   };
   /** Does a run from `from` to `to` of `t` come nearer than CLEAR to a box that is not an end of the arrow, nearer than the same runs of `r` did (box by box)? */
   const crowds = (i: number, r: Pt[], t: Pt[], from: number, to: number): boolean => {
-    const e = edges.get(i)!;
+    const e = must(edges.get(i));
     const gap = (route: Pt[], b: {x0: number; x1: number; y0: number; y1: number}): number => {
       let g = Infinity;
-      for (let m = from; m <= to; m++) { const p = route[m], q = route[m + 1]; g = Math.min(g, Math.hypot(Math.max(b.x0 - Math.max(p.x, q.x), Math.min(p.x, q.x) - b.x1, 0), Math.max(b.y0 - Math.max(p.y, q.y), Math.min(p.y, q.y) - b.y1, 0))); }
+      for (let m = from; m <= to; m++) { const p = route[m], q = route[m + 1]; if (!p || !q) continue; g = Math.min(g, Math.hypot(Math.max(b.x0 - Math.max(p.x, q.x), Math.min(p.x, q.x) - b.x1, 0), Math.max(b.y0 - Math.max(p.y, q.y), Math.min(p.y, q.y) - b.y1, 0))); }
       return g;
     };
     for (const [id, b] of rects) if (id !== e.from && id !== e.to) { const after = gap(t, b); if (after < CLEAR && after < gap(r, b)) return true; }
@@ -62,24 +67,25 @@ export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
     let moved = false;
     for (const i of [...out.keys()]) {
       if (!movable(i)) continue;
-      const r = out.get(i)!;
-      if (r.length < 4) continue;
+      const r = out.get(i);
+      if (!r || r.length < 4) continue;
       const now = beside(i, r);
       if (!now.length) continue;
       const rest = [...out].filter(([j]) => j !== i).map(([, p]) => p), baseX = crossingsWith(r, rest), baseP = pierces(i, r), baseN = near(i, r);
       let done = false;
       // an inner run only: the first and the last stay on their ports; each is tried across, the smallest step first
       for (let k = 1; k + 2 < r.length && !done; k++) {
-        const vertical = r[k].x === r[k + 1].x;
-        if (!vertical && r[k].y !== r[k + 1].y) continue;
-        const s = {p: r[k], q: r[k + 1]};
-        if (!now.some(j => segs(out.get(j)!).some(y => runsTogether(s, y)))) continue;
+        const pk = must(r[k]), qk = must(r[k + 1]); // k + 2 < r.length
+        const vertical = pk.x === qk.x;
+        if (!vertical && pk.y !== qk.y) continue;
+        const s = {p: pk, q: qk};
+        if (!now.some(j => segs(out.get(j) ?? []).some(y => runsTogether(s, y)))) continue;
         for (const d of STEPS) {
           const t = r.map(p => ({...p}));
-          for (const m of [k, k + 1]) { if (vertical) t[m].x += d; else t[m].y += d; }
+          for (const m of [k, k + 1]) { const tm = must(t[m]); if (vertical) tm.x += d; else tm.y += d; }
           // the runs on both sides keep their direction and a length that still shows a turn (the last one room for the arrowhead)
           const c = vertical ? 'x' : 'y';
-          const keeps = (m: number, min: number): boolean => { const before = r[m + 1][c] - r[m][c], after = t[m + 1][c] - t[m][c]; return before === 0 || (Math.sign(before) === Math.sign(after) && Math.abs(after) >= min); };
+          const keeps = (m: number, min: number): boolean => { const r0 = must(r[m]), r1 = must(r[m + 1]), t0 = must(t[m]), t1 = must(t[m + 1]), before = r1[c] - r0[c], after = t1[c] - t0[c]; return before === 0 || (Math.sign(before) === Math.sign(after) && Math.abs(after) >= min); };
           if (!keeps(k - 1, JOG) || !keeps(k + 1, k + 2 === r.length - 1 ? 22 : JOG)) continue;
           if (!inside(t) || pierces(i, t) > baseP || bendsOf(t) > bendsOf(r) || [...near(i, t)].some(j => !baseN.has(j)) || crossingsWith(t, rest) > baseX) continue;
           // the moved run and its neighbours may not come nearer to a box than CLEAR unless they were that near before (counting the boxes alone lets a run onto the outline of a box another run already passes)

@@ -1,3 +1,4 @@
+import {must} from './must.ts';
 // A small SVG reader for the checks on a rendering (lib/svg-lint.ts): the element tree, the cascade (presentation attributes, a
 // <style> block's simple selectors, style=""), colours and transforms. It covers what this tool emits and what a hand-written
 // diagram plausibly uses; it is not a CSS engine.
@@ -41,7 +42,7 @@ export function parseXmlFragment(src: string): El {
     if (!name) throw new Error('a "<" that starts no tag');
     const el: El = {tag: name[0], attrs: {}, children: [], parent: cur, order: order++};
     let p = lt + 1 + name[0].length;
-    for (;;) { ATTR.lastIndex = p; const a = ATTR.exec(src); if (!a) break; el.attrs[a[1]] = decode(a[2] ?? a[3]); p += a[0].length; }
+    for (;;) { ATTR.lastIndex = p; const a = ATTR.exec(src); if (!a) break; el.attrs[must(a[1])] = decode(must(a[2] ?? a[3])); p += a[0].length; }
     const tail = /\s*(\/?)>/y; tail.lastIndex = p;
     const t = tail.exec(src);
     if (!t) throw new Error(`<${name[0]}> has an attribute without a quoted value`);
@@ -64,7 +65,7 @@ export function colourGroups(text: El, styles: Map<El, Style>): {style: Style; t
   const walk = (e: El) => {
     for (const c of e.children) {
       if (typeof c !== 'string') { walk(c); continue; }
-      const style = styles.get(e)!, g = groups.get(style.fill) ?? {style, txt: ''};
+      const style = must(styles.get(e)), g = groups.get(style.fill) ?? {style, txt: ''};
       g.txt += c;
       groups.set(style.fill, g);
     }
@@ -91,15 +92,15 @@ export function parseColor(value: string, current?: string): RGBA | null {
   if (v === 'transparent') return {r: 0, g: 0, b: 0, a: 0};
   let m = /^#([0-9a-f]{3,8})$/.exec(v);
   if (m) {
-    const h = m[1];
-    if (h.length === 3 || h.length === 4) return {r: parseInt(h[0] + h[0], 16), g: parseInt(h[1] + h[1], 16), b: parseInt(h[2] + h[2], 16), a: h.length === 4 ? parseInt(h[3] + h[3], 16) / 255 : 1};
+    const h = must(m[1]);
+    if (h.length === 3 || h.length === 4) return {r: parseInt(must(h[0]) + must(h[0]), 16), g: parseInt(must(h[1]) + must(h[1]), 16), b: parseInt(must(h[2]) + must(h[2]), 16), a: h.length === 4 ? parseInt(must(h[3]) + must(h[3]), 16) / 255 : 1};
     if (h.length === 6 || h.length === 8) return {r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16), a: h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1};
     return null;
   }
   m = /^rgba?\(\s*([\d.]+%?)[\s,]+([\d.]+%?)[\s,]+([\d.]+%?)(?:[\s,/]+([\d.]+%?))?\s*\)$/.exec(v);
   if (m) {
     const ch = (s: string) => s.endsWith('%') ? parseFloat(s) * 255 / 100 : parseFloat(s);
-    return {r: ch(m[1]), g: ch(m[2]), b: ch(m[3]), a: m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4])};
+    return {r: ch(must(m[1])), g: ch(must(m[2])), b: ch(must(m[3])), a: m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4])};
   }
   const n = NAMED[v];
   return n ? {r: n[0], g: n[1], b: n[2], a: 1} : null;
@@ -120,7 +121,7 @@ export function parseTransform(value: string | undefined): Matrix {
   let m = IDENTITY;
   if (!value) return m;
   for (const t of value.matchAll(/([a-zA-Z]+)\s*\(([^)]*)\)/g)) {
-    const a = t[2].split(/[\s,]+/).filter(Boolean).map(Number);
+    const a = must(t[2]).split(/[\s,]+/).filter(Boolean).map(Number);
     const rad = (d: number) => d * Math.PI / 180;
     let n: Matrix | null = null;
     switch (t[1]) {
@@ -135,7 +136,7 @@ export function parseTransform(value: string | undefined): Matrix {
       case 'skewY': n = [1, Math.tan(rad(a[0] ?? 0)), 0, 1, 0, 0]; break;
       case 'matrix': if (a.length === 6) n = a as Matrix; break;
     }
-    if (n && n.every(Number.isFinite)) m = multiply(m, n);
+    if (n?.every(Number.isFinite)) m = multiply(m, n);
   }
   return m;
 }
@@ -158,10 +159,10 @@ function compound(sel: string): {test: (e: El) => boolean; spec: number} | null 
   const m = /^(\*|[a-zA-Z][\w-]*)?((?:[.#][\w-]+)*)$/.exec(sel);
   if (!m) return null;
   const tag = m[1] && m[1] !== '*' ? m[1] : null;
-  const parts = [...m[2].matchAll(/([.#])([\w-]+)/g)].map(x => [x[1], x[2]] as const);
+  const parts = [...must(m[2]).matchAll(/([.#])([\w-]+)/g)].map(x => [must(x[1]), must(x[2])] as const);
   return {
     spec: (tag ? 1 : 0) + parts.filter(p => p[0] === '.').length * 10 + parts.filter(p => p[0] === '#').length * 100,
-    test: e => (!tag || e.tag === tag) && parts.every(([k, v]) => k === '.' ? (e.attrs.class ?? '').split(/\s+/).includes(v) : e.attrs.id === v),
+    test: e => (!tag || e.tag === tag) && parts.every(([k, v]) => k === '.' ? (e.attrs['class'] ?? '').split(/\s+/).includes(v) : e.attrs['id'] === v),
   };
 }
 
@@ -172,15 +173,15 @@ function rulesOf(root: El): Rule[] {
     const css = textOf(st).replace(/\/\*[\s\S]*?\*\//g, '');
     for (const r of css.matchAll(/([^{}@]+)\{([^{}]*)\}/g)) {
       const decls: Record<string, string> = {};
-      for (const d of r[2].split(';')) { const i = d.indexOf(':'); if (i > 0) decls[d.slice(0, i).trim().toLowerCase()] = d.slice(i + 1).trim().replace(/\s*!important$/, ''); }
-      for (const selText of r[1].split(',')) {
+      for (const d of must(r[2]).split(';')) { const i = d.indexOf(':'); if (i > 0) decls[d.slice(0, i).trim().toLowerCase()] = d.slice(i + 1).trim().replace(/\s*!important$/, ''); }
+      for (const selText of must(r[1]).split(',')) {
         const chain = selText.trim().split(/\s+/).map(compound);
         if (!chain.length || chain.some(c => !c)) continue;
-        const last = chain[chain.length - 1]!;
+        const last = must(chain[chain.length - 1]);
         const ancestors = chain.slice(0, -1) as NonNullable<(typeof chain)[number]>[];
         rules.push({
-          specificity: chain.reduce((s, c) => s + c!.spec, 0), order: order++, decls,
-          sel: e => last.test(e) && (() => { let a = e.parent, i = ancestors.length - 1; while (a && i >= 0) { if (ancestors[i].test(a)) i--; a = a.parent; } return i < 0; })(),
+          specificity: chain.reduce((s, c) => s + must(c).spec, 0), order: order++, decls,
+          sel: e => last.test(e) && (() => { let a = e.parent, i = ancestors.length - 1; while (a && i >= 0) { if (must(ancestors[i]).test(a)) i--; a = a.parent; } return i < 0; })(),
         });
       }
     }
@@ -191,7 +192,7 @@ function rulesOf(root: El): Rule[] {
 function length(v: string, parent: number, fallback: number): number {
   const m = /^\s*(-?[\d.]+)(px|pt|em|rem|%)?\s*$/.exec(v);
   if (!m) return fallback;
-  const n = parseFloat(m[1]);
+  const n = parseFloat(must(m[1]));
   return m[2] === 'em' ? n * parent : m[2] === 'rem' ? n * 16 : m[2] === '%' ? n * parent / 100 : m[2] === 'pt' ? n * 4 / 3 : n;
 }
 
@@ -215,7 +216,7 @@ export function computeStyles(root: El): Map<El, Style> {
     const s: Style = {...parent, opacity: 1}; // opacity is not inherited
     for (const [name, value] of Object.entries(el.attrs)) setProp(s, parent, name, value);
     for (const r of rules) if (r.sel(el)) for (const [name, value] of Object.entries(r.decls)) setProp(s, parent, name, value);
-    for (const d of (el.attrs.style ?? '').split(';')) { const i = d.indexOf(':'); if (i > 0) setProp(s, parent, d.slice(0, i).trim().toLowerCase(), d.slice(i + 1).trim()); }
+    for (const d of (el.attrs['style'] ?? '').split(';')) { const i = d.indexOf(':'); if (i > 0) setProp(s, parent, d.slice(0, i).trim().toLowerCase(), d.slice(i + 1).trim()); }
     out.set(el, s);
     for (const c of el.children) if (typeof c !== 'string') walk(c, s);
   };

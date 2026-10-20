@@ -1,3 +1,4 @@
+import {must} from './must.ts';
 // A dependency-free well-formedness check for the SVG this tool emits.
 //
 // The page that loads an SVG as <img src="x.svg"> parses it as XML, where a valueless attribute
@@ -46,7 +47,7 @@ export function xmlProblems(svg: string): string[] {
       ATTRS.lastIndex = p;
       const a = ATTRS.exec(svg);
       if (!a) break;
-      const an = /\s+([^\s=]+)/.exec(a[0])![1];
+      const an = must(must(/\s+([^\s=]+)/.exec(a[0]))[1]);
       if (seen.has(an)) problems.push(`line ${line(p)}: <${name[0]}> repeats the attribute "${an}"`);
       seen.add(an);
       const val = a[0].slice(a[0].indexOf('=') + 1);

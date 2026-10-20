@@ -27,7 +27,7 @@ export interface CollectionInfo {name?: string; author?: {name?: string}; licens
 
 export async function getJson<T>(f: Fetch, url: string): Promise<T> {
   for (let attempt = 0; ; attempt++) {
-    let r;
+    let r: Awaited<ReturnType<Fetch>>;
     try { r = await f(url); } catch (e) { throw new Error(`cannot reach ${url} — ${(e as Error).message} (offline? install from a file instead: svg-diagram icons add ./name.svg)`); }
     if (r.status === 429 && attempt < 3) { await new Promise(ok => setTimeout(ok, 1500 * (attempt + 1))); continue; } // rate-limited: wait and ask again
     if (!r.ok) throw new Error(`${url} → HTTP ${r.status}`);
@@ -90,7 +90,7 @@ export function withManifestLock<T>(file: string, fn: () => T, timeoutMs = LOCK_
 /** Fetch and convert the icons for `specs`. Nothing is written; any failure throws, so one bad pick installs none. */
 export async function resolveSpecs(specs: IconSpec[], opts: InstallOpts = {}, skipped: string[] = []): Promise<Record<string, InstalledIcon>> {
   const f: Fetch = opts.fetch ?? (url => fetch(url) as never);
-  const api = (opts.api ?? process.env.SVG_DIAGRAM_ICONIFY_API ?? DEFAULT_API).replace(/\/$/, '');
+  const api = (opts.api ?? process.env['SVG_DIAGRAM_ICONIFY_API'] ?? DEFAULT_API).replace(/\/$/, '');
   const allow = new Set([...PERMISSIVE, ...(opts.allowLicense ?? [])]);
   const out: Record<string, InstalledIcon> = {};
   const missing: string[] = []; // every name the set lacks, reported together (one typo should not hide the others)
@@ -176,7 +176,7 @@ export function removeIcons(names: string[], cwd: string = process.cwd()): {file
 
 export async function searchIcons(query: string, opts: InstallOpts & {set?: string; limit?: number} = {}): Promise<string[]> {
   const f: Fetch = opts.fetch ?? (url => fetch(url) as never);
-  const api = (opts.api ?? process.env.SVG_DIAGRAM_ICONIFY_API ?? DEFAULT_API).replace(/\/$/, '');
+  const api = (opts.api ?? process.env['SVG_DIAGRAM_ICONIFY_API'] ?? DEFAULT_API).replace(/\/$/, '');
   const r = await getJson<{icons?: string[]}>(f, `${api}/search?query=${encodeURIComponent(query)}&limit=${opts.limit ?? 32}${opts.set ? `&prefix=${encodeURIComponent(opts.set)}` : ''}`);
   return r.icons ?? [];
 }

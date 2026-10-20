@@ -6,7 +6,7 @@ import {EMOJIS} from '../lib/icons.ts';
 import {icon} from '../lib/dsl.ts';
 import type {SpotlightOpt} from '../lib/types/core.ts';
 
-process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
+process.env['SVG_DIAGRAM_STRICT_WIDTH'] = '1';
 test.after(() => closeMeasurer());
 
 const render = (d: ReturnType<typeof diagram>, reveal?: number) => renderDiagram(d, {name: 't.svg', budget: 'cacheOnly'}).then(async r => reveal === undefined ? r.svg : (await import('../lib/emit.ts')).emitSvg(r.laidOut, {reveal}));

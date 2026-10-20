@@ -17,7 +17,7 @@ import {closeMeasurer} from '../../../lib/measure.ts';
 import {planSlide, fontsOf} from '../../../lib/pptx/slide.ts';
 
 register(new URL('../../../lib/resolve-hook.ts', import.meta.url));
-process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
+process.env['SVG_DIAGRAM_STRICT_WIDTH'] = '1';
 
 const MANIFEST = path.resolve('examples/out/pptx-golden.json');
 const args = process.argv.slice(2), update = args.includes('--update'), sources = args.filter(a => !a.startsWith('--'));

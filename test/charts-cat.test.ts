@@ -41,7 +41,7 @@ test('kde: a Gaussian estimate that integrates to about 1', () => {
 
 test('swarmOffsets: no two points touch, and the data order is kept; undefined when it cannot fit', () => {
   const at = [10, 10, 10, 11, 11, 30, 31, 10.5], offs = swarmOffsets(at, 8, 40)!;
-  for (let i = 0; i < at.length; i++) for (let j = i + 1; j < at.length; j++) assert.ok(Math.hypot(at[i] - at[j], offs[i] - offs[j]) >= 8 - 1e-6, `${i} and ${j} touch`);
+  for (let i = 0; i < at.length; i++) for (let j = i + 1; j < at.length; j++) assert.ok(Math.hypot(at[i]! - at[j]!, offs[i]! - offs[j]!) >= 8 - 1e-6, `${i} and ${j} touch`);
   assert.equal(offs[5], 0);
   assert.equal(swarmOffsets(Array(50).fill(5), 8, 10), undefined);
 });
@@ -101,7 +101,7 @@ test('violinplot(): the area scale makes a spread-out group flatter, the width s
       return [Math.max(...xs) - Math.min(...xs)];
     });
   };
-  const [aw, at] = await widths('area'), [ww, wt] = await widths('width');
+  const [aw, at] = (await widths('area')) as [number, number], [ww, wt] = (await widths('width')) as [number, number];
   near(ww, wt, 1); // as wide as the slot allows, both
   assert.ok(at > aw * 1.5, `area: the tight violin (${at}) is much wider than the spread one (${aw})`);
 });

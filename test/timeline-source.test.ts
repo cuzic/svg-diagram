@@ -26,7 +26,7 @@ test('timeline: now, marks and the deadline sit in date order on the axis, the s
   const {t, verdict} = await laid({...BASE, marks: [{at: '2027-04', label: '予算申請'}]});
   assert.ok(verdict.ok, verdict.problems.join('\n'));
   const xs = t.dots.map(d => d.x); // now, deadline, mark
-  assert.ok(xs[0] < xs[2] && xs[2] < xs[1]);
+  assert.ok(xs[0]! < xs[2]! && xs[2]! < xs[1]!);
   assert.equal(t.span!.x1, xs[0]);
   assert.equal(t.span!.x2, xs[1]);
   assert.equal(t.span!.tone, 'accent');
@@ -120,7 +120,7 @@ test("timeline: deadline.line 'full' draws a line through the whole figure, clea
   const marks = [{at: '2026-12', label: '予算申請'}, {at: '2027-01', label: '調査'}];
   const {t, verdict} = await laid({...BASE, deadline: {...BASE.deadline, line: 'full'}, marks});
   assert.ok(verdict.ok, verdict.problems.join('\n'));
-  assert.deepEqual([t.fullLine!.x, t.fullLine!.y1, t.fullLine!.y2], [t.dots[1].x, t.y, t.y + t.h]);
+  assert.deepEqual([t.fullLine!.x, t.fullLine!.y1, t.fullLine!.y2], [t.dots[1]!.x, t.y, t.y + t.h]);
   for (const b of t.labelBoxes) assert.ok(b.x + b.w <= t.fullLine!.x - 1 || b.x >= t.fullLine!.x + 1, b.label);
   assert.equal((await laid(BASE)).t.fullLine, undefined);
 });

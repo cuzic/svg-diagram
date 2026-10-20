@@ -7,7 +7,7 @@ import {measureAtoms, textWidth} from '../lib/measure.ts';
 import {canvasFontScale, canvasRoles, ROLES, statFitMin} from '../lib/tokens.ts';
 import type {LaidOutBox} from '../lib/dsl.ts';
 
-process.env.SVG_DIAGRAM_STRICT_WIDTH = '1'; // an unregistered size must throw, not measure 0 wide
+process.env["SVG_DIAGRAM_STRICT_WIDTH"] = '1'; // an unregistered size must throw, not measure 0 wide
 test.after(() => closeMeasurer());
 
 const PAD_X = 20; // a box's side padding: what is left for its text is w - 2 * PAD_X
@@ -36,8 +36,8 @@ const mk = () => diagram({theme: 'blue'});
 
 test('a value that fits is not shrunk (nothing new on the box)', async () => {
   const {b} = await laidBox(mk().add(stat('76%', '導入前')));
-  assert.equal(b.wrappedRuns[0].size, ROLES.stat);
-  assert.equal(b.wrappedRuns[0].shrunkFrom, undefined);
+  assert.equal(b.wrappedRuns[0]!.size, ROLES.stat);
+  assert.equal(b.wrappedRuns[0]!.shrunkFrom, undefined);
   assert.equal(b.statShrunk, undefined);
 });
 
@@ -45,13 +45,13 @@ test('a value that does not fit shrinks to the largest whole size that fits, and
   const avail = await availOf(mk), lo = statFitMin(ROLES, ROLES.stat);
   const value = await valueBetween(avail, ROLES.stat, lo);
   const {r, b} = await laidBox(mk().add(stat(value, 'ラベル')));
-  const size = b.wrappedRuns[0].size;
+  const size = b.wrappedRuns[0]!.size;
   assert.ok(size < ROLES.stat && size >= lo, `size ${size}`);
   assert.ok(await widthAt(value, size) <= avail + 0.5, 'fits at the chosen size');
   assert.ok(await widthAt(value, size + 1) > avail + 0.5, 'one px larger would not fit');
   assert.deepEqual(r.verdict.problems, []);
   assert.deepEqual(b.statShrunk, [{value, from: ROLES.stat, to: size}]);
-  assert.equal(b.wrappedRuns[0].lines.length, 1);
+  assert.equal(b.wrappedRuns[0]!.lines.length, 1);
   assert.equal(b.nowrapOverflow, undefined);
 });
 
@@ -59,7 +59,7 @@ test('display shrinks too, and the size vocabulary stays two steps', async () =>
   const avail = await availOf(mk), lo = statFitMin(ROLES, ROLES.display);
   const value = await valueBetween(avail, ROLES.display, lo);
   const {r, b} = await laidBox(mk().add(stat(value, 'ラベル', {size: 'display'})));
-  assert.ok(b.wrappedRuns[0].size < ROLES.display);
+  assert.ok(b.wrappedRuns[0]!.size < ROLES.display);
   assert.deepEqual(r.verdict.problems, []);
   assert.deepEqual(Object.keys(ROLES).sort(), ['banner', 'body', 'display', 'label', 'note', 'stat', 'title']);
 });
@@ -70,7 +70,7 @@ test('a shrunk stat makes a shorter box, and the label under it keeps its size',
   const {b} = await laidBox(mk().add(stat(value, 'ラベル')));
   const wide = (await laidBox(diagram({theme: 'blue', width: 4000}).add(stat(value, 'ラベル')))).b;
   assert.ok(b.h < wide.h);
-  assert.equal(b.wrappedRuns[1].size, ROLES.label);
+  assert.equal(b.wrappedRuns[1]!.size, ROLES.label);
 });
 
 test('below the floor it still fails, drawn at the floor', async () => {
@@ -78,7 +78,7 @@ test('below the floor it still fails, drawn at the floor', async () => {
   let value = '8';
   while (await widthAt(value, lo) <= avail) value += '8';
   const {r, b} = await laidBox(mk().add(stat(value, 'ラベル')));
-  assert.equal(b.wrappedRuns[0].size, lo);
+  assert.equal(b.wrappedRuns[0]!.size, lo);
   assert.match(r.verdict.problems.join('\n'), /stat: value .* does not fit/);
 });
 
@@ -91,7 +91,7 @@ test('a dense canvas shrinks below 24px, to round(24 x scale) at the least', asy
   const avail = await availOf(canvas);
   const value = await valueBetween(avail, 24, lo); // too wide even at 24, fits at the floor
   const {r, b} = await laidBox(canvas().add(stat(value, 'ラベル')));
-  const size = b.wrappedRuns[0].size;
+  const size = b.wrappedRuns[0]!.size;
   assert.ok(size < 24 && size >= lo, `size ${size}`);
   assert.ok(await widthAt(value, size) <= avail + 0.5 && await widthAt(value, size + 1) > avail + 0.5);
   assert.deepEqual(r.verdict.problems.filter(p => /stat:/.test(p)), []);
@@ -102,7 +102,7 @@ test('the same too-wide-at-24 value at scale 1 is not shrunk below 24px', async 
   let value = '8';
   while (await widthAt(value, 24) <= avail) value += '8';
   const {b} = await laidBox(mk().add(stat(value, 'ラベル')));
-  assert.ok(b.wrappedRuns[0].size >= 24);
+  assert.ok(b.wrappedRuns[0]!.size >= 24);
 });
 
 test('a canvas with a higher minText scales the floor with it', async () => {
@@ -113,7 +113,7 @@ test('a canvas with a higher minText scales the floor with it', async () => {
   const avail = await availOf(canvas);
   const value = await valueBetween(avail, roles.stat, lo);
   const {b} = await laidBox(canvas().add(stat(value, 'ラベル')));
-  assert.ok(b.wrappedRuns[0].size >= 36 && b.wrappedRuns[0].size < roles.stat);
+  assert.ok(b.wrappedRuns[0]!.size >= 36 && b.wrappedRuns[0]!.size < roles.stat);
 });
 
 test('the emitted SVG draws the shrunk size and stays above the 14px lint floor', async () => {
@@ -133,11 +133,11 @@ test('a shrunk stat raises the info rule stat-fit-shrunk; accept keeps it an inf
   const {r, b} = await laidBox(mk().add(stat(value, 'ラベル')));
   const f = r.verdict.findings.filter(x => x.rule === 'stat-fit-shrunk');
   assert.equal(f.length, 1);
-  assert.equal(f[0].severity, 'info');
-  assert.ok(f[0].message.includes(`${ROLES.stat}px から ${b.wrappedRuns[0].size}px`));
+  assert.equal(f[0]!.severity, 'info');
+  assert.ok(f[0]!.message.includes(`${ROLES.stat}px から ${b.wrappedRuns[0]!.size}px`));
   const accepted = (await checkDiagram(diagram({theme: 'blue', accept: {'stat-fit-shrunk': '細い列に置く'}}).add(stat(value, 'ラベル')))).verdict.findings.filter(x => x.rule === 'stat-fit-shrunk');
-  assert.equal(accepted[0].severity, 'info');
-  assert.match(accepted[0].message, /許容: 細い列に置く/);
+  assert.equal(accepted[0]!.severity, 'info');
+  assert.match(accepted[0]!.message, /許容: 細い列に置く/);
   const fits = (await checkDiagram(mk().add(stat('76%', 'x')))).verdict.findings;
   assert.deepEqual(fits.filter(x => x.rule === 'stat-fit-shrunk'), []);
 });
@@ -158,6 +158,6 @@ test('when even the floor does not fit, the message names the floor, the measure
 
 test('other text is untouched: a long box title still wraps', async () => {
   const {b} = await laidBox(mk().add(box({title: '長い題'.repeat(30)})));
-  assert.ok(b.wrappedRuns[0].lines.length > 1);
-  assert.equal(b.wrappedRuns[0].shrunkFrom, undefined);
+  assert.ok(b.wrappedRuns[0]!.lines.length > 1);
+  assert.equal(b.wrappedRuns[0]!.shrunkFrom, undefined);
 });

@@ -26,7 +26,7 @@ test('fmea validates ratings, computes/sorts RPN and adds after-action RPN', () 
     {item: '表示', mode: '消灯', effect: '見えない', cause: '断線', action: '交換', s: 3, o: 2, d: 2},
   ], {sort: 'rpn'});
   assert.deepEqual(p.computed.map(r => r.rpn), [160, 12]);
-  assert.equal(p.computed[0].afterRpn, 24);
+  assert.equal(p.computed[0]!.afterRpn, 24);
   assert.equal(p.columns.at(-1)?.label, '改善\nRPN');
   const top = (p.rows[0] as readonly ({text?: string; bold?: boolean; mark?: string} | string | number)[])[8];
   assert.deepEqual(typeof top === 'object' && [top.text, top.bold, top.mark], ['160', true, undefined], 'the worst RPN is bold, never ◎');
@@ -87,5 +87,5 @@ test('journey emotion curve stays below a wrapped value and its guide marks the 
   const emotion = table.rows.find(r => !r.header)!;
   assert.ok(emotion.cells.slice(1).some(c => c.lines.length > 1), 'the narrow columns wrap the values');
   assert.ok(table.rowCurve.top >= Math.max(...emotion.cells.slice(1).map(c => c.top + c.lines.length * table.bodySize * 1.4)));
-  assert.equal(table.rowCurve.midY, table.rowCurve.points[2].y, 'value 3 sits on the guide');
+  assert.equal(table.rowCurve.midY, table.rowCurve.points[2]!.y, 'value 3 sits on the guide');
 });

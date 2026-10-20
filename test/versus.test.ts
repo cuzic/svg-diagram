@@ -77,8 +77,8 @@ export function versusTypeCases(): void {
 test('versus() ends on the same right edge as a banner above it (snapping the right edge, not the width)', async () => {
   const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(banner({headline: '見出し'}), versus(left(), right())), {name: 'versus.svg', budget: 'cacheOnly'});
   const rects = [...svg.matchAll(/<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)" height="[\d.]+" rx="8"/g)].map(m => [Number(m[1]), Number(m[2])]);
-  const edges = rects.map(([x, w]) => x + w);
-  assert.equal(Math.max(...edges), rects[0][0] + rects[0][1], 'no frame reaches past the banner');
+  const edges = rects.map(([x, w]) => x! + w!);
+  assert.equal(Math.max(...edges), rects[0]![0]! + rects[0]![1]!, 'no frame reaches past the banner');
 });
 
 test('versus() shared connectors take route / arrow', () => {
@@ -98,7 +98,7 @@ test('versus() shared connectors drop plumb (issue #95): vertical by default, an
       const xs = c.points.map(p => p.x);
       assert.equal(new Set(xs).size, 1, `one x for every point (${JSON.stringify(c.points)})`);
       // a plain label sits beside the vertical line, not struck through by it
-      if (c.labelBox) assert.ok(c.labelBox.x > xs[0], `label right of the line (${JSON.stringify(c.labelBox)} vs x=${xs[0]})`);
+      if (c.labelBox) assert.ok(c.labelBox.x > xs[0]!, `label right of the line (${JSON.stringify(c.labelBox)} vs x=${xs[0]})`);
     }
   }
 });

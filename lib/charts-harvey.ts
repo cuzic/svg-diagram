@@ -1,6 +1,7 @@
 // harvey(): a table of Harvey balls (ハーベイボール): each cell is a circle filled by a quarter, a half, three quarters or fully, the
 // usual way a consulting slide rates options against criteria. The fill is a shape (a wedge), never just a colour, and the scale is
 // written under the table; the values are listed in the description.
+import {must} from './must.ts';
 import {Canvas, checkIds, checkText, fail, finiteNum} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
 
@@ -42,7 +43,7 @@ export function resolveHarvey(rowsIn: readonly HarveyRow[], cols: readonly strin
   return {rows, rowIds, cols: [...cols], values: grid, levels, corner: opts.corner ?? '', highlight: [...(opts.highlight ?? [])]};
 }
 export function harveyAlt(s: HarveySpec): string {
-  return `ハーベイボール（${s.levels.map((l, i) => `${i}/4 = ${l}`).join('、')}）: ${s.rows.map((r, i) => `${r}: ${s.cols.map((c, j) => `${c} ${s.values[i][j] === null ? '未評価' : s.levels[s.values[i][j] as number]}`).join('、')}`).join(' / ')}`;
+  return `ハーベイボール（${s.levels.map((l, i) => `${i}/4 = ${l}`).join('、')}）: ${s.rows.map((r, i) => `${r}: ${s.cols.map((c, j) => `${c} ${must(s.values[i])[j] === null ? '未評価' : must(s.levels[must(must(s.values[i])[j])])}`).join('、')}`).join(' / ')}`;
 }
 export function harveyTexts(s: HarveySpec): [string, number][] {
   const out: [string, number][] = [];
@@ -70,7 +71,7 @@ export function layoutHarvey(s: HarveySpec, g: ChartGeom): LaidOutChartPart {
   const colW = (g.w - rowW) / s.cols.length;
   if (colW < 2 * R + 12) fail('harvey', `${s.cols.length} columns do not fit in ${Math.round(g.w)}px (raise width, or use fewer columns)`);
   const heads = s.cols.map(k => c.wrap(k, colW - 8, s.highlight.includes(k))), rowsW = s.rows.map(r => c.wrap(r, rowW - 16));
-  for (const [i, ls] of heads.entries()) for (const l of ls) if (c.tw(l, s.highlight.includes(s.cols[i])) > colW - 4) fail('harvey', `the column name "${s.cols[i]}" is too long for ${Math.round(colW)}px (shorten it, or raise width)`);
+  for (const [i, ls] of heads.entries()) for (const l of ls) if (c.tw(l, s.highlight.includes(must(s.cols[i]))) > colW - 4) fail('harvey', `the column name "${s.cols[i]}" is too long for ${Math.round(colW)}px (shorten it, or raise width)`);
   const corner = s.corner ? c.wrap(s.corner, rowW - 8) : [];
   const headH = Math.max(corner.length, ...heads.map(l => l.length)) * lh + 12;
   const rowH = rowsW.map(l => Math.max(cellH, l.length * lh + 10));
@@ -81,20 +82,22 @@ export function layoutHarvey(s: HarveySpec, g: ChartGeom): LaidOutChartPart {
   // highlighted columns are boxed under everything else
   s.cols.forEach((k, j) => { if (s.highlight.includes(k)) c.rect(r1(left + j * colW + 2), g.y, r1(colW - 4), r1(bodyB - g.y), {fill: 'accent', op: 0.08, stroke: 'accent', sw: 2}); });
   if (corner.length) c.lines(corner, g.x + 4, g.y + headH - 8 - (corner.length - 1) * lh, 'start', 'muted');
-  s.cols.forEach((k, j) => c.lines(heads[j], left + (j + 0.5) * colW, g.y + headH - 8 - (heads[j].length - 1) * lh, 'middle', 'text', {bold: s.highlight.includes(k)}));
+  s.cols.forEach((k, j) => { const hd = must(heads[j]); c.lines(hd, left + (j + 0.5) * colW, g.y + headH - 8 - (hd.length - 1) * lh, 'middle', 'text', {bold: s.highlight.includes(k)}); });
   c.line(g.x, bodyT, g.x + g.w, bodyT, {stroke: 'text'});
   let y = bodyT;
-  s.rows.forEach((r, i) => {
-    const cy = y + rowH[i] / 2;
+  s.rows.forEach((_r, i) => {
+    const rh = must(rowH[i]), rw = must(rowsW[i]), vrow = must(s.values[i]), rid = s.rowIds[i];
+    const cy = y + rh / 2;
     const key = s.rowIds[i] ?? `#${i}`;
-    c.lines(rowsW[i], g.x + 4, cy - (rowsW[i].length - 1) * lh / 2 + S * 0.36, 'start', 'text', {bold: true, of: key});
-    if (s.rowIds[i]) c.anchors.push({id: s.rowIds[i] as string, x: g.x, y: r1(y), w: g.w, h: rowH[i]});
+    c.lines(rw, g.x + 4, cy - (rw.length - 1) * lh / 2 + S * 0.36, 'start', 'text', {bold: true, of: key});
+    if (rid) c.anchors.push({id: rid, x: g.x, y: r1(y), w: g.w, h: rh});
     s.cols.forEach((_k, j) => {
-      const cx = left + (j + 0.5) * colW, v = s.values[i][j];
+      const cx = left + (j + 0.5) * colW, v = vrow[j];
       if (v === null) { c.text('—', cx, c.mid(cy), 'middle', 'muted', {of: key}); return; }
+      if (v === undefined) return;
       ball(c, cx, cy, R, v, key);
     });
-    y += rowH[i];
+    y += rh;
     c.line(g.x, y, g.x + g.w, y, {stroke: i === s.rows.length - 1 ? 'text' : 'border'});
   });
   // legend: the five balls with their names, in a row (it fails when the width is short)

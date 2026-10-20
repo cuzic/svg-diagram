@@ -2,6 +2,7 @@
 // What each band type needs is one entry of MEASURE_HANDLERS (a typed table: a band type without one fails to compile).
 
 import {splitAtoms} from './atoms.ts';
+import {must} from './must.ts';
 import {styledAtoms, textRuns} from './layout-text.ts';
 import {TAG_SIZE, CONNECT_LABEL_SIZE} from './tokens.ts';
 import {groupTitleBand, withSourceLine} from './layout-util.ts';
@@ -140,7 +141,7 @@ export function collectMeasures(data: DiagramData, roles: Roles): Requests {
     roles,
     atoms: (text, size, weight, font) => registerAtoms(requests, text, size, weight, font),
     own: band => registerRequests(requests, band, roles),
-    band: band => (MEASURE_HANDLERS as unknown as Record<string, MeasureHandler<Band>>)[band.type](band, m),
+    band: band => must((MEASURE_HANDLERS as unknown as Record<string, MeasureHandler<Band>>)[band.type])(band, m),
   };
   for (const band of d.bands) m.band(band);
   return requests;

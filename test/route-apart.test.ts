@@ -14,9 +14,9 @@ test('two arrows with no end in common whose vertical runs lie along each other 
   const edges = new Map([[0, {from: 'a', to: 'd'}], [1, {from: 'e', to: 'f'}]]);
   const out = moveApart({routes, edges, rects});
   const [r0, r1] = [out.get(0)!, out.get(1)!];
-  assert.ok(![0, 1, 2].some(k => [0, 1, 2].some(m => runsTogether({p: r0[k], q: r0[k + 1]}, {p: r1[m], q: r1[m + 1]}))), 'no runs together now');
-  assert.equal(r0[0].y, 20);
-  assert.equal(r1[0].y, 70); // the ports stay
+  assert.ok(![0, 1, 2].some(k => [0, 1, 2].some(m => runsTogether({p: r0[k]!, q: r0[k + 1]!}, {p: r1[m]!, q: r1[m + 1]!}))), 'no runs together now');
+  assert.equal(r0[0]!.y, 20);
+  assert.equal(r1[0]!.y, 70); // the ports stay
 });
 
 test('a run is not moved onto an arrow into the same head, nor next to a box', () => {
@@ -28,7 +28,7 @@ test('a run is not moved onto an arrow into the same head, nor next to a box', (
   ]);
   const edges = new Map([[0, {from: 'a', to: 'd'}], [1, {from: 'e', to: 'f'}], [2, {from: 'b', to: 'd'}]]);
   const out = moveApart({routes, edges, rects: r});
-  for (const i of [0, 1]) assert.ok(out.get(i)![1].x < 158 - 6 || out.get(i)![1].x === routes.get(i)![1].x, `arrow ${i} keeps off box g and the head's other arrow`);
+  for (const i of [0, 1]) assert.ok(out.get(i)![1]!.x < 158 - 6 || out.get(i)![1]!.x === routes.get(i)![1]!.x, `arrow ${i} keeps off box g and the head's other arrow`);
 });
 
 test('a box a later run already passes close by does not let a run onto its outline', () => {
@@ -39,7 +39,7 @@ test('a box a later run already passes close by does not let a run onto its outl
   ]);
   const edges = new Map([[0, {from: 'a', to: 'd'}], [1, {from: 'e', to: 'f'}]]);
   const out = moveApart({routes, edges, rects: r});
-  for (const i of [0, 1]) assert.ok(!(out.get(i)![1].x > 158 - 6 && out.get(i)![1].x < 200 + 6 && out.get(i)![1].x !== routes.get(i)![1].x), `arrow ${i} not beside g`);
+  for (const i of [0, 1]) assert.ok(!(out.get(i)![1]!.x > 158 - 6 && out.get(i)![1]!.x < 200 + 6 && out.get(i)![1]!.x !== routes.get(i)![1]!.x), `arrow ${i} not beside g`);
 });
 
 test('a run is not moved onto the separate trunk of an arrow from the same tail', () => {
@@ -50,7 +50,7 @@ test('a run is not moved onto the separate trunk of an arrow from the same tail'
   ]);
   const edges = new Map([[0, {from: 'a', to: 'd'}], [1, {from: 'e', to: 'f'}], [2, {from: 'a', to: 'h'}]]);
   const out = moveApart({routes, edges, rects});
-  assert.ok(Math.abs(out.get(0)![1].x - 158) >= 4);
+  assert.ok(Math.abs(out.get(0)![1]!.x - 158) >= 4);
 });
 
 test('an outer return is not moved onto, either', () => {
@@ -61,7 +61,7 @@ test('an outer return is not moved onto, either', () => {
   ]);
   const edges = new Map([[0, {from: 'a', to: 'd'}], [1, {from: 'e', to: 'f'}], [2, {from: 'c', to: 'b', outer: true}]]);
   const out = moveApart({routes, edges, rects});
-  for (const i of [0, 1]) assert.ok(Math.abs(out.get(i)![1].x - 158) >= 4, JSON.stringify(out.get(i)) + `arrow ${i} is not on the return`);
+  for (const i of [0, 1]) assert.ok(Math.abs(out.get(i)![1]!.x - 158) >= 4, JSON.stringify(out.get(i)) + `arrow ${i} is not on the return`);
 });
 
 test('arrows from one tail keep their shared trunk', () => {

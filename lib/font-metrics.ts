@@ -21,6 +21,7 @@ import {FONT_STACKS} from './tokens.ts';
 import type {FontFamily, MeasureRequest, Measured} from './types/core.ts';
 import type {FontSpecs} from './types/project.ts';
 
+import {must} from './must.ts';
 interface Loaded {file: string; index: number; name: string; face: hb.Face; font: hb.Font; upem: number; covered: Set<number>; ascender: number; descender: number}
 
 const GENERIC = new Set(['sans-serif', 'serif', 'monospace']);
@@ -50,7 +51,7 @@ function load(file: string, index: number): Loaded {
 
 function parseSpec(spec: string): {file: string; index: number} {
   const m = /^(.*)#(\d+)$/.exec(spec);
-  return m ? {file: m[1], index: Number(m[2])} : {file: spec, index: 0};
+  return m ? {file: must(m[1]), index: Number(m[2])} : {file: spec, index: 0};
 }
 
 /** The first family of the stack that is installed, at this weight; null when there is no fontconfig or none of them is. */
@@ -62,7 +63,7 @@ function discover(family: FontFamily, weight: number): {file: string; index: num
     catch { return null; }
     const [file, index, fam] = out.split('\t');
     if (!file) continue;
-    if (GENERIC.has(name) || fam.split(',').some(f => f.trim().toLowerCase() === name.toLowerCase())) return {file, index: Number(index) & 0xffff};
+    if (GENERIC.has(name) || must(fam).split(',').some(f => f.trim().toLowerCase() === name.toLowerCase())) return {file, index: Number(index) & 0xffff};
   }
   return null;
 }
@@ -76,7 +77,7 @@ function fontFor(family: FontFamily, weight: number, specs?: FontSpecs, required
     const spec = named ? parseSpec(named) : discover(family, bold ? 700 : 400);
     resolved.set(key, spec ? load(spec.file, spec.index) : null);
   }
-  const f = resolved.get(key)!;
+  const f = resolved.get(key) ?? null; // null is a cached "no such font"
   if (!f && required) throw new Error(`measure: "font" — no ${bold ? 'bold ' : ''}${family} font file found (fontconfig's fc-match did not find any family of ${FONT_STACKS[family]}). Name the file in .svg-diagram.json: {"fonts": {"${family}": {"${bold ? 'bold' : 'regular'}": "/path/to/font.ttf"}}} (a .ttc: "/path/to/font.ttc#0"), or use "measure": "chromium".`);
   return f;
 }
@@ -104,7 +105,7 @@ function measureText(f: Loaded, family: FontFamily, text: string, size: number, 
   let w = 0, run = '';
   const flush = () => { if (run) { w += advance(f, run, size, weight); run = ''; } };
   for (const ch of text) {
-    const cp = ch.codePointAt(0)!;
+    const cp = must(ch.codePointAt(0));
     if (f.covered.has(cp)) { run += ch; continue; }
     flush();
     const fb = fallbackFonts(family, weight, specs).find(x => x.covered.has(cp));
@@ -131,7 +132,7 @@ export function fontsCover(text: string, specs?: FontSpecs): boolean {
   const fonts = (['sans', 'mono', 'emoji'] as const).flatMap(f => [400, 700].map(w => fontFor(f, w, specs, false))).filter((f): f is Loaded => f !== null);
   if (!fonts.length) return false;
   for (const ch of new Set(text)) {
-    const cp = ch.codePointAt(0)!;
+    const cp = must(ch.codePointAt(0));
     if (/\s/.test(ch) || cp < 0x20 || cp === 0x7f || cp === 0xfe0f || cp === 0x200d) continue;
     if (!fonts.some(f => f.covered.has(cp))) return false;
   }
@@ -146,7 +147,7 @@ export function resolveFontFile(family: FontFamily, weight = 400, specs?: FontSp
 
 /** The box Chromium gives a line of text at `size`: the font's ascent and descent, each rounded to a whole pixel, and the advance of `text`. */
 export function textBox(text: string, family: FontFamily, size: number, weight = 400, specs?: FontSpecs): {w: number; ascent: number; descent: number} {
-  const f = fontFor(family, weight, specs)!;
+  const f = must(fontFor(family, weight, specs));
   return {
     w: measureText(f, family, text, size, weight, specs).w,
     ascent: Math.round(f.ascender / f.upem * size),
@@ -160,10 +161,10 @@ export function measureWithFonts(requests: Map<string, MeasureRequest>, specs?: 
   for (const [key, r] of requests) {
     const weight = r.weight ?? 400;
     const family = r.font ?? 'sans';
-    const m = measureText(fontFor(family, weight, specs)!, family, r.text, r.size, weight, specs);
+    const m = measureText(must(fontFor(family, weight, specs)), family, r.text, r.size, weight, specs);
     // Chromium's text box is the primary font's ascent and descent, each rounded to a whole pixel (a fallback font's are not
     // added: tried, and a mono stack's Japanese came out 1-2px taller than Chromium's box)
-    const f = fontFor(family, weight, specs)!;
+    const f = must(fontFor(family, weight, specs));
     out.set(key, {w: m.w, h: Math.round(f.ascender / f.upem * r.size) + Math.round(-f.descender / f.upem * r.size)});
   }
   return out;

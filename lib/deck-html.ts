@@ -9,6 +9,7 @@ import {createHash} from 'node:crypto';
 import {idPrefixFor, prefixSvgIds} from './svg-ids.ts';
 import {scopeRules} from './scope-style.ts';
 import {escAttr} from './markdown-target.ts';
+import {must} from './must.ts';
 
 export interface DeckSlide {
   /** The source's basename (no extension): the URL hash name and the last resort for the slide's name. */
@@ -39,7 +40,7 @@ const sha256 = (s: string): string => `'sha256-${createHash('sha256').update(s, 
 /** The text of the figure's `<title>` (what a doc-sized figure is named by), or undefined. */
 export function svgTitle(svg: string): string | undefined {
   const m = /<title\b[^>]*>([\s\S]*?)<\/title>/.exec(svg);
-  const t = m ? unescXml(m[1]).trim() : '';
+  const t = m ? unescXml(m[1] ?? '').trim() : '';
   return t === '' ? undefined : t;
 }
 
@@ -54,9 +55,9 @@ export function slideHashName(name: string): string {
  */
 export function externalRefs(svg: string): string[] {
   const found = new Set<string>();
-  for (const m of svg.matchAll(/\s(?:xlink:)?(?:href|src)\s*=\s*"([^"]*)"/g)) if (!/^(#|data:)/i.test(m[1].trim())) found.add(m[1]);
-  for (const m of svg.matchAll(/@import\s+(?:url\(\s*)?['"]?([^'")\s;]+)/g)) found.add(m[1]);
-  for (const m of svg.matchAll(/url\(\s*['"]?([^'")]*)['"]?\s*\)/g)) if (!/^(#|data:)/i.test(m[1].trim())) found.add(m[1]);
+  for (const m of svg.matchAll(/\s(?:xlink:)?(?:href|src)\s*=\s*"([^"]*)"/g)) { const u = m[1] ?? ''; if (!/^(#|data:)/i.test(u.trim())) found.add(u); }
+  for (const m of svg.matchAll(/@import\s+(?:url\(\s*)?['"]?([^'")\s;]+)/g)) found.add(m[1] ?? '');
+  for (const m of svg.matchAll(/url\(\s*['"]?([^'")]*)['"]?\s*\)/g)) { const u = m[1] ?? ''; if (!/^(#|data:)/i.test(u.trim())) found.add(u); }
   return [...found];
 }
 
@@ -95,7 +96,7 @@ export function buildDeck(slides: readonly DeckSlide[], opts: DeckOptions): stri
   const script = opts.js;
 
   const sections = parts.map((p, i) => {
-    const slide = slides[i];
+    const slide = must(slides[i]);
     const label = `${i + 1} / ${total}: ${slide.title ?? svgTitle(slide.svg) ?? slide.name}`;
     return `  <section id="${p.id}" class="slide${p.dark ? ' slide-dark' : ''}" role="group" aria-roledescription="slide" aria-label="${escAttr(label)}" data-name="${escAttr(slideHashName(slide.name))}">\n${p.svg}\n  </section>`;
   });

@@ -10,7 +10,7 @@ const isHira = (c: string): boolean => /^[ぁ-ゟ]$/.test(c);
 const SENTENCES = ['現場が協力せず、形だけ使う', '稼働率で評価されるため仕掛りが増える', 'PoCは成功するが指標が動かない'];
 
 // A break is legal when the next line starts with a non-hiragana, or the line ends with 、/。
-const legalBreaks = (lines: string[]): boolean => lines.slice(0, -1).every((l, i) => '、。'.includes([...l].at(-1)!) || !isHira([...lines[i + 1]][0]));
+const legalBreaks = (lines: string[]): boolean => lines.slice(0, -1).every((l, i) => '、。'.includes([...l].at(-1)!) || !isHira([...lines[i + 1]!][0]!));
 // The units of the rule: cut after a hiragana that a non-hiragana follows, and after 、/。
 const unitsOf = (s: string): string[] => s.split(/(?<=[ぁ-ゟ])(?=[^ぁ-ゟ])|(?<=[、。])/);
 
@@ -37,7 +37,7 @@ test('bunsetsu: a unit wider than a line breaks per character', () => {
 test('bunsetsu: kinsoku still holds', () => {
   for (const w of [30, 40, 50, 70]) {
     const lines = wrapText('協力せず、形だけ使う。次へ進む', opts(w, 'bunsetsu'));
-    assert.ok(lines.slice(1).every(l => !'、。'.includes([...l][0])), lines.join(' / '));
+    assert.ok(lines.slice(1).every(l => !'、。'.includes([...l][0]!)), lines.join(' / '));
   }
 });
 
@@ -59,7 +59,7 @@ test('property: random strings keep their characters and respect kinsoku in buns
     const w = 30 + rnd(12) * 10;
     const lines = wrapText(s, opts(w, 'bunsetsu'));
     assert.equal(lines.join(''), s);
-    assert.ok(lines.slice(1).every(l => !'、。'.includes([...l][0])), `${s} @${w}: ${lines.join(' / ')}`);
+    assert.ok(lines.slice(1).every(l => !'、。'.includes([...l][0]!)), `${s} @${w}: ${lines.join(' / ')}`);
   }
 });
 

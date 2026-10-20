@@ -13,15 +13,15 @@ const route = (nodes: LayeredNode[], edges: LayeredEdge[], o: {straighten?: bool
   const lay = layoutWithLanes(nodes, edges, OPTS);
   return {lay, routes: routeLayered(lay, p => p, 14, o.groupOf, o.round, o.straighten)};
 };
-const straight = (p: Pt[]): boolean => p.length === 2 && p[0].y === p[1].y;
+const straight = (p: Pt[]): boolean => p.length === 2 && p[0]!.y === p[1]!.y;
 /** The heights of a route's points: what is left of a route when only its vertical runs moved sideways (the lanes spread, see routeLayered's laneIn). */
 const heights = (p: Pt[]): number[] => p.map(q => q.y);
 const metric = (r: Map<number, Pt[]>) => scoreOf([...r.values()]);
 /** Pairs of arrows whose horizontal runs lie on one line (within 3px) over more than a point: two arrows that read as one. */
 function lineUps(r: Map<number, Pt[]>): number {
-  const runs = [...r].flatMap(([i, p]) => p.slice(1).flatMap((q, k) => p[k].y === q.y ? [{i, y: q.y, lo: Math.min(p[k].x, q.x), hi: Math.max(p[k].x, q.x)}] : []));
+  const runs = [...r].flatMap(([i, p]) => p.slice(1).flatMap((q, k) => p[k]!.y === q.y ? [{i, y: q.y, lo: Math.min(p[k]!.x, q.x), hi: Math.max(p[k]!.x, q.x)}] : []));
   let n = 0;
-  for (let a = 0; a < runs.length; a++) for (let b = a + 1; b < runs.length; b++) if (runs[a].i !== runs[b].i && Math.abs(runs[a].y - runs[b].y) < 3 && Math.min(runs[a].hi, runs[b].hi) - Math.max(runs[a].lo, runs[b].lo) > 1) n++;
+  for (let a = 0; a < runs.length; a++) for (let b = a + 1; b < runs.length; b++) if (runs[a]!.i !== runs[b]!.i && Math.abs(runs[a]!.y - runs[b]!.y) < 3 && Math.min(runs[a]!.hi, runs[b]!.hi) - Math.max(runs[a]!.lo, runs[b]!.lo) > 1) n++;
   return n;
 }
 function rng(seed: number): () => number {
@@ -44,12 +44,12 @@ test('the straight arrows stay inside both boxes (6px from the edges) and keep a
   const {lay, routes} = route(fan.nodes, fan.edges);
   const ys: number[] = [];
   for (const [i, p] of routes) {
-    const e = lay.edges[i], A = lay.nodes.get(e.from)!, B = lay.nodes.get(e.to)!, y = p[0].y;
-    for (const n of [A, B]) assert.ok(y >= n.y + 6 - 1e-9 && y <= n.y + n.h - 6 + 1e-9, `${e.from}->${e.to} at ${y} is outside ${n.y}..${n.y + n.h}`);
+    const e = lay.edges[i], A = lay.nodes.get(e!.from)!, B = lay.nodes.get(e!.to)!, y = p[0]!.y;
+    for (const n of [A, B]) assert.ok(y >= n.y + 6 - 1e-9 && y <= n.y + n.h - 6 + 1e-9, `${e!.from}->${e!.to} at ${y} is outside ${n.y}..${n.y + n.h}`);
     ys.push(y);
   }
   ys.sort((a, b) => a - b);
-  assert.ok(ys[1] - ys[0] >= 14 - 1e-9, `the two ports on a's side are ${ys[1] - ys[0]}px apart`);
+  assert.ok(ys[1]! - ys[0]! >= 14 - 1e-9, `the two ports on a's side are ${ys[1]! - ys[0]!}px apart`);
 });
 
 test('boxes that do not overlap across the axis stay elbows; so do arrows with nothing to move (one port each side)', () => {
@@ -58,8 +58,8 @@ test('boxes that do not overlap across the axis stay elbows; so do arrows with n
   const off = route([box('a', 80, 40), box('b', 80, 40), box('c', 80, 40)], [{from: 'a', to: 'b'}, {from: 'a', to: 'c'}], {straighten: false});
   // whatever the layout is, an arrow that was an elbow is straight only when its ports could move to a common height
   for (const [i, p] of lone.routes) if (straight(p)) {
-    const e = lone.lay.edges[i], A = lone.lay.nodes.get(e.from)!, B = lone.lay.nodes.get(e.to)!;
-    assert.ok(Math.max(A.y, B.y) + 6 <= p[0].y && p[0].y <= Math.min(A.y + A.h, B.y + B.h) - 6);
+    const e = lone.lay.edges[i], A = lone.lay.nodes.get(e!.from)!, B = lone.lay.nodes.get(e!.to)!;
+    assert.ok(Math.max(A.y, B.y) + 6 <= p[0]!.y && p[0]!.y <= Math.min(A.y + A.h, B.y + B.h) - 6);
   }
   assert.equal(off.routes.size, lone.routes.size);
   const single = route([box('a'), box('b')], [{from: 'a', to: 'b'}]);
@@ -78,7 +78,7 @@ test('a port that would have to jump over its neighbour is not moved', () => {
   const nodes = [box('a', 80, 40), box('b', 80, 40), box('c', 80, 40), box('d', 80, 160)];
   const edges = [{from: 'a', to: 'd'}, {from: 'b', to: 'd'}, {from: 'c', to: 'd'}];
   const {lay, routes} = route(nodes, edges), base = route(nodes, edges, {straighten: false}).routes;
-  const heads = (r: Map<number, Pt[]>) => [...r].map(([i, p]) => ({from: lay.edges[i].from, y: p[p.length - 1].y})).sort((p, q) => p.from.localeCompare(q.from));
+  const heads = (r: Map<number, Pt[]>) => [...r].map(([i, p]) => ({from: lay.edges[i]!.from, y: p[p.length - 1]!.y})).sort((p, q) => p.from.localeCompare(q.from));
   const order = (r: Map<number, Pt[]>) => heads(r).sort((p, q) => p.y - q.y).map(h => h.from).join();
   assert.equal(order(routes), order(base), 'the arrows still arrive in the same order along d');
 });
@@ -99,14 +99,14 @@ test('properties over 200 small graphs: never worse, orthogonal, in the boxes, p
     assert.ok(b.crossings < a.crossings || (b.crossings === a.crossings && b.bends <= a.bends), `${who}: (${a.crossings}, ${a.bends}) -> (${b.crossings}, ${b.bends})`);
     assert.ok(lineUps(on.routes) <= lineUps(off.routes), `${who}: more arrows read as one line`);
     for (const [i, p] of on.routes) {
-      for (let k = 1; k < p.length; k++) assert.ok(p[k].x === p[k - 1].x || p[k].y === p[k - 1].y, `${who}: arrow ${i} is not orthogonal`);
+      for (let k = 1; k < p.length; k++) assert.ok(p[k]!.x === p[k - 1]!.x || p[k]!.y === p[k - 1]!.y, `${who}: arrow ${i} is not orthogonal`);
       const was = off.routes.get(i)!;
       if (JSON.stringify(was) !== JSON.stringify(p)) {
         changed++;
-        const e = on.lay.edges[i], A = on.lay.nodes.get(e.from)!, B = on.lay.nodes.get(e.to)!;
+        const e = on.lay.edges[i], A = on.lay.nodes.get(e!.from)!, B = on.lay.nodes.get(e!.to)!;
         assert.ok(straight(p) || JSON.stringify(heights(was)) === JSON.stringify(heights(p)), `${who}: a moved arrow ends up straight, or only its lane moved`);
         if (!straight(p)) assert.deepEqual([p[0], p[p.length - 1]], [was[0], was[was.length - 1]], `${who}: a lane moved, not the ends`);
-        if (straight(p)) assert.ok(p[0].y >= Math.max(A.y, B.y) + 6 - 1e-9 && p[0].y <= Math.min(A.y + A.h, B.y + B.h) - 6 + 1e-9, `${who}: arrow ${i} leaves the boxes`);
+        if (straight(p)) assert.ok(p[0]!.y >= Math.max(A.y, B.y) + 6 - 1e-9 && p[0]!.y <= Math.min(A.y + A.h, B.y + B.h) - 6 + 1e-9, `${who}: arrow ${i} leaves the boxes`);
       }
     }
     // the ports of one box side keep at least the step they had
@@ -114,9 +114,9 @@ test('properties over 200 small graphs: never worse, orthogonal, in the boxes, p
       const side = new Map<string, number[]>();
       for (const [i, p] of res.routes) {
         const e = res.lay.edges[i];
-        for (const [id, pt, left] of [[e.from, p[0], p[1].x < p[0].x], [e.to, p[p.length - 1], p[p.length - 2].x < p[p.length - 1].x]] as const) side.set(`${id}:${left ? 'l' : 'r'}`, [...(side.get(`${id}:${left ? 'l' : 'r'}`) ?? []), pt.y]);
+        for (const [id, pt, left] of [[e!.from, p[0], p[1]!.x < p[0]!.x], [e!.to, p[p.length - 1], p[p.length - 2]!.x < p[p.length - 1]!.x]] as const) side.set(`${id}:${left ? 'l' : 'r'}`, [...(side.get(`${id}:${left ? 'l' : 'r'}`) ?? []), pt!.y]);
       }
-      return new Map([...side].map(([k, ys]) => { ys.sort((x, y) => x - y); return [k, Math.min(Infinity, ...ys.slice(1).map((y, q) => y - ys[q]))] as [string, number]; }));
+      return new Map([...side].map(([k, ys]) => { ys.sort((x, y) => x - y); return [k, Math.min(Infinity, ...ys.slice(1).map((y, q) => y - ys[q]!))] as [string, number]; }));
     };
     const before = gaps(off), after = gaps(on);
     for (const [k, g] of after) assert.ok(g >= Math.min(before.get(k) ?? Infinity, 14) - 1e-9 || g === Infinity, `${who}: ports of ${k} are ${g}px apart (were ${before.get(k)})`);

@@ -8,6 +8,7 @@ import {gapFor, layeredAttempt} from './layered-route.ts';
 import type {FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {ClassesBand, LaidOutClasses} from './types/diagrams.ts';
 
+import {must} from './must.ts';
 const PAD_X = 12, PAD_Y = 6, MIN_W = 110, GAP = 36, LEVEL_GAP = 72, LOOP = 26, CHIP_PAD = 5;
 const lineH = (s: number): number => Math.round(s * 1.4);
 
@@ -61,7 +62,7 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
   const loopLabelW = Math.max(0, ...band.relations.filter(r => r.from === r.to).map(r => r.label ? labelW(r.label) : 0));
   // One whole attempt: the layout running `dir`. Everything that depends on it is in here.
   const build = (dir: 'down' | 'right') => {
-    const nodes = band.classes.map(c => ({id: c.id, size: dir === 'down' ? {w: meas.get(c.id)!.h, h: meas.get(c.id)!.w} : {w: meas.get(c.id)!.w, h: meas.get(c.id)!.h}}));
+    const nodes = band.classes.map(c => { const m = must(meas.get(c.id)); return {id: c.id, size: dir === 'down' ? {w: m.h, h: m.w} : {w: m.w, h: m.h}}; });
     const loopRows = dir === 'right' && band.relations.some(r => r.from === r.to) ? LOOP + S + 8 + 4 : 0; // a loop above a class (dir right) needs room above it, between rows too
     // a loop sits to the right of its class when the flow runs down (its arrows leave through the bottom), above it when the flow runs right
     const reserve = hasLoop && dir === 'down' ? LOOP + 8 + Math.max(loopLabelW, 40) : 0;
@@ -87,7 +88,7 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
   };
   const rects = new Map<string, {x: number; y: number; w: number; h: number}>();
   for (const c of band.classes) {
-    const p = lay.nodes.get(c.id)!, m = meas.get(c.id)!;
+    const p = must(lay.nodes.get(c.id)), m = must(meas.get(c.id));
     const r = dir === 'down' ? {x: p.y + dx, y: p.x + dy, w: m.w, h: m.h} : {x: p.x + dx, y: p.y + dy, w: m.w, h: m.h};
     rects.set(c.id, r);
     const dividers: number[] = [];
@@ -107,66 +108,67 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
   }
   const hit = (a: {x: number; y: number; w: number; h: number}, b: {x: number; y: number; w: number; h: number}): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   const at = (pts: Pt[], t: number): Pt => {
-    const len = pts.slice(1).map((p, i) => Math.abs(p.x - pts[i].x) + Math.abs(p.y - pts[i].y));
+    const len = pts.slice(1).map((p, i) => Math.abs(p.x - must(pts[i]).x) + Math.abs(p.y - must(pts[i]).y));
     let d = len.reduce((a, b) => a + b, 0) * t;
-    for (let i = 0; i < len.length; i++) { if (d <= len[i] || i === len.length - 1) { const f = len[i] ? d / len[i] : 0; return {x: pts[i].x + (pts[i + 1].x - pts[i].x) * f, y: pts[i].y + (pts[i + 1].y - pts[i].y) * f}; } d -= len[i]; }
-    return pts[0];
+    for (let i = 0; i < len.length; i++) { if (d <= must(len[i]) || i === len.length - 1) { const f = len[i] ? d / must(len[i]) : 0; return {x: must(pts[i]).x + (must(pts[i + 1]).x - must(pts[i]).x) * f, y: must(pts[i]).y + (must(pts[i + 1]).y - must(pts[i]).y) * f}; } d -= must(len[i]); }
+    return must(pts[0]);
   };
   const chip = (own: number, text: string, cands: Pt[]): void => {
     const lw = labelW(text), lh = S + 8;
     const box = (c: Pt) => ({x: c.x - lw / 2, y: c.y - lh / 2, w: lw, h: lh});
     // a chip is white: on another relation it would cut that line, so it keeps off every line but its own
     const onOther = (b: ReturnType<typeof box>): boolean => out.edges.some((e, k) => k !== own && e.points.slice(1).some((q, m) => {
-      const p = e.points[m];
+      const p = must(e.points[m]);
       return hit(b, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2});
     }));
     const free = (b: ReturnType<typeof box>): boolean => !out.labels.some(o => hit(b, o)) && !out.nodes.some(n => hit(b, n)) && !onOther(b);
-    const c = cands.find(p => free(box(p))) ?? cands[0];
+    const c = cands.find(p => free(box(p))) ?? must(cands[0]);
     const b = box(c);
     out.labels.push({text, ...b, tx: c.x, ty: b.y + S + 2, size: S, edge: own});
     out.labelBoxes.push({label: text, ...b});
   };
   /** A point `along` px from the end of a polyline (end 0: the start) and `side` px to its left of the direction of travel. */
   const near = (pts: Pt[], end: 0 | 1, along: number, side: number): Pt => {
-    const p = end === 0 ? pts[0] : pts[pts.length - 1], q = end === 0 ? pts[1] : pts[pts.length - 2];
+    const p = must(end === 0 ? pts[0] : pts[pts.length - 1]), q = must(end === 0 ? pts[1] : pts[pts.length - 2]);
     const ux = Math.sign(q.x - p.x), uy = Math.sign(q.y - p.y);
     return {x: p.x + ux * along - uy * side, y: p.y + uy * along + ux * side};
   };
   const pending: (() => void)[] = [];
   lay.edges.forEach((e, i) => {
-    const r = band.relations[e.index], kind = r.kind ?? 'assoc';
+    const r = must(band.relations[e.index]), kind = r.kind ?? 'assoc';
     const line = kind === 'implement' || kind === 'depend' ? 'dashed' : 'solid';
     if (e.self) {
-      const a = rects.get(r.from)!, cy = a.y + a.h / 2, cx = a.x + a.w / 2, lh = S + 8;
+      const a = must(rects.get(r.from)), cy = a.y + a.h / 2, cx = a.x + a.w / 2, lh = S + 8;
       if (dir === 'right') { // above the class: out of the top to the right of the middle, back in to the left of it
         const pts = [{x: cx + 12, y: a.y}, {x: cx + 12, y: a.y - LOOP}, {x: cx - 12, y: a.y - LOOP}, {x: cx - 12, y: a.y}];
         out.edges.push({from: r.from, to: r.to, kind, line, points: pts});
         const own = out.edges.length - 1;
-        if (r.label) pending.push(() => chip(own, r.label!, [{x: cx, y: a.y - LOOP - lh / 2 - 2}]));
-        if (r.fromMult) pending.push(() => chip(own, r.fromMult!, [{x: cx + 12 + 4 + labelW(r.fromMult!) / 2, y: a.y - LOOP / 2}]));
-        if (r.toMult) pending.push(() => chip(own, r.toMult!, [{x: cx - 12 - 4 - labelW(r.toMult!) / 2, y: a.y - LOOP / 2}]));
+        if (r.label) pending.push(() => chip(own, must(r.label), [{x: cx, y: a.y - LOOP - lh / 2 - 2}]));
+        if (r.fromMult) pending.push(() => chip(own, must(r.fromMult), [{x: cx + 12 + 4 + labelW(must(r.fromMult)) / 2, y: a.y - LOOP / 2}]));
+        if (r.toMult) pending.push(() => chip(own, must(r.toMult), [{x: cx - 12 - 4 - labelW(must(r.toMult)) / 2, y: a.y - LOOP / 2}]));
         return;
       }
       const pts = [{x: a.x + a.w, y: cy - 10}, {x: a.x + a.w + LOOP, y: cy - 10}, {x: a.x + a.w + LOOP, y: cy + 10}, {x: a.x + a.w, y: cy + 10}];
       out.edges.push({from: r.from, to: r.to, kind, line, points: pts});
       const own = out.edges.length - 1;
-      if (r.label) pending.push(() => chip(own, r.label!, [{x: a.x + a.w + LOOP + 4 + labelW(r.label!) / 2, y: cy}]));
+      if (r.label) pending.push(() => chip(own, must(r.label), [{x: a.x + a.w + LOOP + 4 + labelW(must(r.label)) / 2, y: cy}]));
       // the multiplicities sit above and below the little loop, at its two ends
       const lx = a.x + a.w + LOOP / 2 + 6;
-      if (r.fromMult) pending.push(() => chip(own, r.fromMult!, [{x: lx, y: cy - 10 - lh / 2 - 3}, {x: lx + 14, y: cy - 10 - lh / 2 - 3}]));
-      if (r.toMult) pending.push(() => chip(own, r.toMult!, [{x: lx, y: cy + 10 + lh / 2 + 3}, {x: lx + 14, y: cy + 10 + lh / 2 + 3}]));
+      if (r.fromMult) pending.push(() => chip(own, must(r.fromMult), [{x: lx, y: cy - 10 - lh / 2 - 3}, {x: lx + 14, y: cy - 10 - lh / 2 - 3}]));
+      if (r.toMult) pending.push(() => chip(own, must(r.toMult), [{x: lx, y: cy + 10 + lh / 2 + 3}, {x: lx + 14, y: cy + 10 + lh / 2 + 3}]));
       return;
     }
-    const raw = routes.get(i)!;
+    const raw = must(routes.get(i));
     const pts = flip(r.kind) ? [...raw].reverse() : raw; // drawn from the child to the parent
     out.edges.push({from: r.from, to: r.to, kind, line, points: pts});
     const own = out.edges.length - 1;
-    if (r.fromMult) pending.push(() => chip(own, r.fromMult!, [near(pts, 0, 28, 12), near(pts, 0, 28, -12), near(pts, 0, 40, 12), near(pts, 0, 40, -12)]));
-    if (r.toMult) pending.push(() => chip(own, r.toMult!, [near(pts, 1, 22, 12), near(pts, 1, 22, -12), near(pts, 1, 34, 12), near(pts, 1, 34, -12)]));
+    if (r.fromMult) pending.push(() => chip(own, must(r.fromMult), [near(pts, 0, 28, 12), near(pts, 0, 28, -12), near(pts, 0, 40, 12), near(pts, 0, 40, -12)]));
+    if (r.toMult) pending.push(() => chip(own, must(r.toMult), [near(pts, 1, 22, 12), near(pts, 1, 22, -12), near(pts, 1, 34, 12), near(pts, 1, 34, -12)]));
     if (r.label) pending.push(() => {
-      const lw = labelW(r.label!), along = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8].map(t => at(pts, t));
+      const lw = labelW(must(r.label)), along = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8].map(t => at(pts, t));
+      const offsets: [number, number][] = [[lw / 2 + 8, 0], [-(lw / 2 + 8), 0], [0, -22], [0, 22], [lw / 2 + 8, 22], [-(lw / 2 + 8), 22], [lw / 2 + 8, -22], [-(lw / 2 + 8), -22], [0, 44], [0, -44]];
       // on the line first; else beside it (a vertical run takes the chip to its side, a horizontal one above or below), nearest first
-      chip(own, r.label!, [...along, ...[[lw / 2 + 8, 0], [-(lw / 2 + 8), 0], [0, -22], [0, 22], [lw / 2 + 8, 22], [-(lw / 2 + 8), 22], [lw / 2 + 8, -22], [-(lw / 2 + 8), -22], [0, 44], [0, -44]].flatMap(([ox, oy]) => along.map(p => ({x: p.x + ox, y: p.y + oy})))]);
+      chip(own, must(r.label), [...along, ...offsets.flatMap(([ox, oy]) => along.map(p => ({x: p.x + ox, y: p.y + oy})))]);
     });
   });
   for (const p of pending) p(); // every relation is routed first: a chip must know where the other lines run

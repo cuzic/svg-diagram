@@ -3,6 +3,7 @@
 // description. The bars are light so a line and its numbers can run over them.
 import {Canvas, checkIds, checkText, fail, finiteNum, niceScale, numText, thinTicks} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
+import {must} from './must.ts';
 import type {ColorKey} from './types/core.ts';
 
 export interface ComboSeries {
@@ -49,7 +50,7 @@ export function resolveCombo(categories: readonly string[], series: readonly Com
     if (s.type === 'bar' && s.axis === 'right') fail('combo', `"${s.label}": a bar is always on the left axis (put the line on the right)`);
     const values = s.values.map((v, i) => v === null ? null : finiteNum('combo', `"${s.label}" value ${i + 1}`, v));
     if (values.every(v => v === null)) fail('combo', `"${s.label}" has no value`);
-    const tone = s.tone ?? (s.type === 'bar' ? BAR_TONES[b++] : LINE_TONES[l++]);
+    const tone = s.tone ?? (s.type === 'bar' ? must(BAR_TONES[b++]) : must(LINE_TONES[l++]));
     return {label: s.label, type: s.type, axis: s.type === 'bar' ? 'left' as const : s.axis ?? (bars.length ? 'right' as const : 'left' as const), values, tone, ...(s.id === undefined ? {} : {id: s.id})};
   });
   for (const a of ['y', 'y2'] as const) {
@@ -121,7 +122,7 @@ export function layoutCombo(s: ComboSpec, g: ChartGeom): LaidOutChartPart {
   const legend: {x: number; row: number; s: ComboSpec['series'][number]}[] = [];
   { let lx = plotL, row = 0;
     for (const x of s.series) { if (item(x) > g.w) fail('combo', `the series name "${x.label}" is wider than the figure (shorten it, or raise width)`); if (lx > plotL && lx + item(x) > g.x + g.w) { lx = plotL; row++; } legend.push({x: lx, row, s: x}); lx += item(x) + 22; } }
-  const legendRows = legend[legend.length - 1].row + 1, rowPitch = S + 12;
+  const legendRows = must(legend[legend.length - 1]).row + 1, rowPitch = S + 12;
   const axTitle = (ax: ComboAxis) => ax.title ?? ax.unit ?? '';
   const titleH = (axTitle(s.y) || (hasRight && axTitle(s.y2))) ? S + 10 : 0;
   const headH = legendRows * rowPitch + titleH + 4;
@@ -132,7 +133,7 @@ export function layoutCombo(s: ComboSpec, g: ChartGeom): LaidOutChartPart {
   const yR = (v: number) => yBot - (v - (sr as NonNullable<typeof sr>).min) / ((sr as NonNullable<typeof sr>).max - (sr as NonNullable<typeof sr>).min) * (yBot - yTop);
   const yOf = (x: ComboSpec['series'][number]) => (x.axis === 'left' ? yL : yR);
   const text = (x: ComboSpec['series'][number], v: number) => `${numText(v)}${unitOf(s, x.axis)}`;
-  const shape = (i: number) => (['disc', 'square', 'diamond'] as const)[i];
+  const shape = (i: number) => must((['disc', 'square', 'diamond'] as const)[i]);
   const mark = (kind: 'disc' | 'square' | 'diamond', cx: number, cy: number, r: number, tone: ColorKey, of: string) => {
     const d = kind === 'disc' ? `M${r1(cx - r)},${r1(cy)} a${r},${r} 0 1,0 ${2 * r},0 a${r},${r} 0 1,0 ${-2 * r},0 Z` : kind === 'square' ? `M${r1(cx - r)},${r1(cy - r)} h${2 * r} v${2 * r} h${-2 * r} Z` : `M${r1(cx)},${r1(cy - r - 1)} l${r + 1},${r + 1} l${-r - 1},${r + 1} l${-r - 1},${-r - 1} Z`;
     c.path(d, {fill: tone, stroke: 'bg', sw: 1, of});
@@ -160,8 +161,8 @@ export function layoutCombo(s: ComboSpec, g: ChartGeom): LaidOutChartPart {
   const barGeo = bars.map((x, bi) => x.values.map((v, i) => {
     if (v === null) return undefined;
     const cx = plotL + (i + 0.5) * slot, x0 = s.stack ? cx - bw / 2 : cx - groupW / 2 + bi * (bw + (nb > 1 ? 2 : 0)) + (groupW - nb * bw - (nb - 1) * (nb > 1 ? 2 : 0)) / 2;
-    const base = s.stack ? stackedBelow[i] : 0;
-    if (s.stack) stackedBelow[i] += v;
+    const base = s.stack ? must(stackedBelow[i]) : 0;
+    if (s.stack) stackedBelow[i] = base + v;
     const a = yL(Math.max(v, 0) + base), b = yL(Math.min(v, 0) + base), top = b - a < 2 ? a - 1 : a, h = Math.max(2, b - a), key = x.id ?? x.label;
     c.rect(r1(x0), r1(top), bw, r1(h), {fill: x.tone, op: 0.4, stroke: x.tone, sw: 1, of: key});
     return {x, v, cx: x0 + bw / 2, top, h, key};
@@ -178,7 +179,7 @@ export function layoutCombo(s: ComboSpec, g: ChartGeom): LaidOutChartPart {
     return {x, pts, key};
   });
   // anchors of the series that have an id: the bars of a series / the line's box
-  for (const [bi, x] of bars.entries()) if (x.id) { const g2 = barGeo[bi].filter((q): q is NonNullable<typeof q> => !!q); const x1 = Math.min(...g2.map(q => q.cx - bw / 2)), x2 = Math.max(...g2.map(q => q.cx + bw / 2)), y1 = Math.min(...g2.map(q => q.top)), y2 = Math.max(...g2.map(q => q.top + q.h)); c.anchors.push({id: x.id, x: r1(x1), y: r1(y1), w: r1(x2 - x1), h: r1(y2 - y1)}); }
+  for (const [bi, x] of bars.entries()) if (x.id) { const g2 = must(barGeo[bi]).filter((q): q is NonNullable<typeof q> => !!q); const x1 = Math.min(...g2.map(q => q.cx - bw / 2)), x2 = Math.max(...g2.map(q => q.cx + bw / 2)), y1 = Math.min(...g2.map(q => q.top)), y2 = Math.max(...g2.map(q => q.top + q.h)); c.anchors.push({id: x.id, x: r1(x1), y: r1(y1), w: r1(x2 - x1), h: r1(y2 - y1)}); }
   for (const L of lineGeo) if (L.x.id) { const p = L.pts.filter((q): q is NonNullable<typeof q> => !!q); const x1 = Math.min(...p.map(q => q.x)) - 5, x2 = Math.max(...p.map(q => q.x)) + 5, y1 = Math.min(...p.map(q => q.y)) - 5, y2 = Math.max(...p.map(q => q.y)) + 5; c.anchors.push({id: L.x.id, x: r1(x1), y: r1(y1), w: r1(x2 - x1), h: r1(y2 - y1)}); }
   // a value stays between the top of the plot and its floor (below it are the category names)
   const inPlot = (b: {y: number; h: number}) => b.y >= plotT - 2 && b.y + b.h <= plotB + 1;
@@ -192,10 +193,11 @@ export function layoutCombo(s: ComboSpec, g: ChartGeom): LaidOutChartPart {
         if (!fits || !c.place(t, [{x: q.cx, y: c.mid(q.top + q.h / 2), anchor: 'middle'}], 'text', {bold: true, of: q.key})) c.omitted.push(`${q.x.label} ${s.categories[Math.round((q.cx - plotL) / slot - 0.5)]} ${t}`);
         continue;
       }
-      const cands = [{x: q.cx, y: q.top - 6, anchor: 'middle' as const}, {x: q.cx, y: q.top + q.h + S + 4, anchor: 'middle' as const}];
+      const above = {x: q.cx, y: q.top - 6, anchor: 'middle' as const}, below = {x: q.cx, y: q.top + q.h + S + 4, anchor: 'middle' as const};
+      const cands = [above, below];
       const inside = {x: q.cx, y: c.mid(q.top + q.h / 2), anchor: 'middle' as const};
       const ok = (cs: typeof cands) => cs.filter(k => inPlot(c.boxOf(t, k.x, k.y, k.anchor, true)));
-      if (!c.place(t, ok(up ? [...cands, inside] : [cands[1], cands[0], inside]), 'text', {bold: true, of: q.key})) c.omitted.push(`${q.x.label} ${s.categories[Math.round((q.cx - plotL) / slot - 0.5)]} ${t}`);
+      if (!c.place(t, ok(up ? [...cands, inside] : [below, above, inside]), 'text', {bold: true, of: q.key})) c.omitted.push(`${q.x.label} ${s.categories[Math.round((q.cx - plotL) / slot - 0.5)]} ${t}`);
     }
     if (s.stack) totals(s).forEach((v, i) => {
       const t = `${numText(v)}${unitOf(s, 'left')}`, top = yL(v), cx = plotL + (i + 0.5) * slot;

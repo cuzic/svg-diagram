@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {forAll, type Rng} from './helpers/rng.ts';
 import {splitAtoms} from '../lib/atoms.ts';
 import {wrapAtoms, type WrapMode} from '../lib/wrap.ts';
-import {wcagRatio, relativeLuminance, recolor, NO_TONES, toneEnv, checkTones, mergeTones, LIGHT_COLORS, DARK_COLORS, type ToneOverrides} from '../lib/tokens.ts';
+import {wcagRatio, relativeLuminance, recolor, NO_TONES, toneEnv, checkTones, mergeTones, LIGHT_COLORS, DARK_COLORS} from '../lib/tokens.ts';
 import {boxOf, unionBox, transformBox, type Box} from '../lib/svg-geom.ts';
 import {IDENTITY, multiply} from '../lib/svg-dom.ts';
 

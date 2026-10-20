@@ -48,7 +48,7 @@ export function richOf(input: RichText, ctx: RichContext): {text: string; spans?
     else out.push({text, ...(bold ? {bold: true} : {}), ...(tone ? {tone} : {})});
   };
   const walk = (part: unknown, bold: boolean, tone: TextTone | undefined): void => {
-    if (typeof part === 'string') return push(part, bold, tone);
+    if (typeof part === 'string') { push(part, bold, tone); return; }
     if (!isStyled(part)) throw new Error(`${ctx.field}: an item of rich text must be a string or an em.* part (got ${Array.isArray(part) ? 'an array' : typeof part})`);
     if (part.bold && ctx.bold) throw new Error(`${ctx.field}: em.b() has no effect here, the text is already bold — put the words to stress in a body / note / line that is not bold`);
     if (part.tone) {

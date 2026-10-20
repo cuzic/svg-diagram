@@ -2,6 +2,7 @@
 import type {Canvas} from './charts-base.ts';
 import {segHitsRect} from './bars.ts';
 import type {Pt} from './graph-layout.ts';
+import {must} from './must.ts';
 
 type Rect = {x: number; y: number; w: number; h: number};
 /** Which edge of the figure a box sits on: LR is `top`, TB is `left`, a ring uses `top` and `bottom` (the outside of the ring). */
@@ -29,28 +30,28 @@ export function planInterventions(c: Canvas, items: readonly IvItem[], positions
     if (!group.length) continue;
     const horizontal = side !== 'left', len = (i: IvItem): number => horizontal ? i.w : BOX_H;
     const centreU = (r: Rect): number => horizontal ? r.x + r.w / 2 : r.y + r.h / 2;
-    const want = new Map(group.map(i => [i.id, i.to.reduce((a, t) => a + centreU(positions.get(t)!), 0) / i.to.length]));
-    const order = [...group].sort((a, b) => want.get(a.id)! - want.get(b.id)! || (a.id < b.id ? -1 : 1));
+    const want = new Map(group.map(i => [i.id, i.to.reduce((a, t) => a + centreU(must(positions.get(t))), 0) / i.to.length]));
+    const order = [...group].sort((a, b) => must(want.get(a.id)) - must(want.get(b.id)) || (a.id < b.id ? -1 : 1));
     const lo = (horizontal ? c.x : c.y) + MARGIN, start = new Map<string, number>();
     let prev = lo - GAP;
-    for (const i of order) { const s = Math.max(want.get(i.id)! - len(i) / 2, prev + GAP); start.set(i.id, s); prev = s + len(i); }
+    for (const i of order) { const s = Math.max(must(want.get(i.id)) - len(i) / 2, prev + GAP); start.set(i.id, s); prev = s + len(i); }
     if (horizontal) {
       const hi = c.x + c.w - MARGIN; let next = hi + GAP;
-      for (const i of [...order].reverse()) { const s = Math.min(start.get(i.id)!, next - GAP - len(i)); start.set(i.id, s); next = s; }
+      for (const i of [...order].reverse()) { const s = Math.min(must(start.get(i.id)), next - GAP - len(i)); start.set(i.id, s); next = s; }
       if (next < lo - 1e-6) return {problem: `the ${group.length} intervention boxes on the ${side} (${group.map(i => `"${i.label}"`).join(', ')}) are wider than the figure (${Math.round(c.w)}px)`};
     } else if (prev + MARGIN > c.y + c.h) c.h = prev + MARGIN - c.y; // a column of boxes may be taller than the loop; the figure grows
     for (const i of order) {
-      const s = start.get(i.id)!, r: Rect = side === 'left' ? {x: c.x + MARGIN, y: s, w: i.w, h: BOX_H} : {x: s, y: side === 'top' ? c.y + MARGIN : c.y + c.h - MARGIN - BOX_H, w: i.w, h: BOX_H};
+      const s = must(start.get(i.id)), r: Rect = side === 'left' ? {x: c.x + MARGIN, y: s, w: i.w, h: BOX_H} : {x: s, y: side === 'top' ? c.y + MARGIN : c.y + c.h - MARGIN - BOX_H, w: i.w, h: BOX_H};
       boxes.push({id: i.id, r});
     }
     // arrows, once the boxes of this side are known
     for (const [k, i] of order.entries()) {
-      const r = boxes.find(b => b.id === i.id)!.r, bt = side === 'left' ? r.w : r.h, e = MARGIN + bt, bu0 = horizontal ? r.x : r.y, bu1 = bu0 + len(i);
+      const r = must(boxes.find(b => b.id === i.id)).r, bt = side === 'left' ? r.w : r.h, e = MARGIN + bt, bu0 = horizontal ? r.x : r.y, bu1 = bu0 + len(i);
       const uv = (q: Rect) => horizontal ? {u0: q.x, u1: q.x + q.w, v0: side === 'top' ? q.y - c.y : c.y + c.h - (q.y + q.h)} : {u0: q.y, u1: q.y + q.h, v0: q.x - c.x};
       const xy = (u: number, v: number): Pt => side === 'left' ? {x: c.x + v, y: u} : side === 'top' ? {x: u, y: c.y + v} : {x: u, y: c.y + c.h - v};
       const arrows: PlacedIv['arrows'] = [];
       for (const to of i.to) {
-        const t = uv(positions.get(to)!), n = t.v0, m = e + 14 + 6 * (k % 4), tc = (t.u0 + t.u1) / 2;
+        const t = uv(must(positions.get(to))), n = t.v0, m = e + 14 + 6 * (k % 4), tc = (t.u0 + t.u1) / 2;
         if (n - e < 12 || m > n - 8) return {problem: `the arrow of intervention "${i.id}" to "${to}" has no room between its box and the node`};
         const lo2 = Math.max(bu0 + 10, t.u0 + 6), hi2 = Math.min(bu1 - 10, t.u1 - 6), cands: [number, number][][] = [];
         if (lo2 <= hi2) for (const u of new Set([clamp(tc, lo2, hi2), (lo2 + hi2) / 2, lo2, hi2])) cands.push([[u, e], [u, n]]);
@@ -59,7 +60,8 @@ export function planInterventions(c: Canvas, items: readonly IvItem[], positions
         let hitName = '';
         const ok = cands.map(cd => cd.map(([u, v]) => xy(u, v))).find(path => {
           for (let q = 1; q < path.length; q++) {
-            const sg = {x1: path[q - 1].x, y1: path[q - 1].y, x2: path[q].x, y2: path[q].y};
+            const p0 = must(path[q - 1]), p1 = must(path[q]);
+            const sg = {x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y};
             const hit = nodes.find(([id, nr]) => id !== to && segHitsRect(sg, nr))?.[0] ?? boxes.find(b => b.id !== i.id && segHitsRect(sg, b.r))?.id;
             if (hit) { hitName ||= hit; return false; }
           }

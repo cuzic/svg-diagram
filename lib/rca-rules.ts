@@ -24,8 +24,8 @@ export const unexplained = (h: Pick<IsIsNotHypothesis, 'results'>): number => h.
 export function standingHypotheses(hs: readonly IsIsNotHypothesis[]): {standing: Set<number>; fewest: Set<number>} {
   const standing = new Set<number>();
   hs.forEach((h, i) => { if (unexplained(h) === 0) standing.add(i); });
-  const least = Math.min(...[...standing].map(i => hs[i].assumes?.length ?? 0));
-  const fewest = new Set([...standing].filter(i => (hs[i].assumes?.length ?? 0) === least));
+  const least = Math.min(...[...standing].map(i => hs[i]?.assumes?.length ?? 0));
+  const fewest = new Set([...standing].filter(i => (hs[i]?.assumes?.length ?? 0) === least));
   return {standing, fewest};
 }
 

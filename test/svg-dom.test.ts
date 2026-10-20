@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {parseXml, elements, textOf, closest, parseColor, parseTransform, multiply, apply, computeStyles, IDENTITY, type El} from '../lib/svg-dom.ts';
 
 const svg = (inner: string, attrs = '') => `<svg xmlns="http://www.w3.org/2000/svg" ${attrs}>${inner}</svg>`;
-const find = (root: El, id: string) => elements(root).find(e => e.attrs.id === id)!;
+const find = (root: El, id: string) => elements(root).find(e => e.attrs['id'] === id)!;
 const close = (a: number, b: number, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} vs ${b}`);
 
 // ---- the reader ----
@@ -12,9 +12,9 @@ const close = (a: number, b: number, eps = 1e-9) => assert.ok(Math.abs(a - b) <=
 test('parseXml: the tree, attributes of either quote, self-closing tags, document order', () => {
   const root = parseXml(svg(`<g id="a" x='1' y="2"><rect id="r"/><text id="t">hi</text></g>`, 'width="10"'));
   assert.equal(root.tag, 'svg');
-  assert.equal(root.attrs.width, '10');
+  assert.equal(root.attrs['width'], '10');
   const g = find(root, 'a');
-  assert.deepEqual([g.attrs.x, g.attrs.y], ['1', '2']);
+  assert.deepEqual([g.attrs['x'], g.attrs['y']], ['1', '2']);
   assert.deepEqual(g.children.map(c => (c as El).tag), ['rect', 'text']);
   assert.equal((find(root, 'r').parent), g);
   assert.ok(find(root, 'r').order < find(root, 't').order);

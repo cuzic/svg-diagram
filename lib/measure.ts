@@ -24,11 +24,12 @@ import {svgSize} from './raster.ts';
 import type {Raster} from './raster.ts';
 import {FONT_STACKS} from './tokens.ts';
 import {splitAtoms, textWidth} from './atoms.ts';
-import type {FontFamily, MeasureRequest, MeasureSettings, Measured, WidthOf} from './types/core.ts';
+import type {FontFamily, MeasureRequest, MeasureSettings, Measured} from './types/core.ts';
 import {measureSettingsOf} from './measure-settings.ts';
 import type {Config, FontSpecs} from './types/project.ts';
 import {loadConfig} from './config.ts';
 
+import {must} from './must.ts';
 // splitAtoms / textWidth live in atoms.ts (pure); re-exported so existing imports keep working.
 export {splitAtoms, textWidth};
 
@@ -70,6 +71,7 @@ export async function rasterizeInBrowser(svg: string, {scale = 1, png = false}: 
       catch { return {error: 'the browser could not load it as an <img> (not well-formed XML?)'}; }
       const c = document.createElement('canvas');
       c.width = width; c.height = height;
+      // biome-ignore lint/style/noNonNullAssertion: runs inside the page (page.evaluate), where nothing can be imported
       const g = c.getContext('2d')!;
       g.fillStyle = '#fff'; g.fillRect(0, 0, width, height);
       g.drawImage(img, 0, 0, width, height);
@@ -133,7 +135,7 @@ export async function measureAll(requests: Map<string, MeasureRequest>, settings
   if (engine === 'font') {
     const {measureWithFonts} = await import('./font-metrics.ts');
     try {
-      for (const [key, m] of measureWithFonts(todo, settings.fonts)) { memo.set(memoKey('font', settings.fonts, todo.get(key)!), m); result.set(key, m); }
+      for (const [key, m] of measureWithFonts(todo, settings.fonts)) { memo.set(memoKey('font', settings.fonts, must(todo.get(key))), m); result.set(key, m); }
       return result;
     } catch (e) {
       if (settings.explicit) throw e;
@@ -164,7 +166,8 @@ export async function measureAll(requests: Map<string, MeasureRequest>, settings
       return out;
     }, entries.length);
     entries.forEach(([key, r], i) => {
-      const m = {w: dims[i][0], h: dims[i][1]};
+      const d = must(dims[i]); // one [w, h] per entry
+      const m = {w: d[0], h: d[1]};
       memo.set(memoKey('chromium', settings.fonts, r), m);
       result.set(key, m);
     });

@@ -17,13 +17,15 @@ import {addPack} from './lib/icon-pack.ts';
 import {findIcons} from './lib/icon-find.ts';
 import type {Candidate} from './lib/icon-find.ts';
 
+import {must} from './lib/must.ts';
 const [sub, ...rest] = process.argv.slice(2);
 const BOOLEAN = new Set(['color', 'accept-terms', 'all', 'list', 'skip-missing']);
 const flags = new Map<string, string>();
 const args: string[] = [];
 for (let i = 0; i < rest.length; i++) {
-  if (rest[i].startsWith('--')) flags.set(rest[i].slice(2), BOOLEAN.has(rest[i].slice(2)) ? '1' : rest[++i] ?? '');
-  else args.push(rest[i]);
+  const a = must(rest[i]);
+  if (a.startsWith('--')) flags.set(a.slice(2), BOOLEAN.has(a.slice(2)) ? '1' : rest[++i] ?? '');
+  else args.push(a);
 }
 const usage = () => { console.error(['usage: svg-diagram icons add <set:icon[=name] | file.svg[=name]>... [--allow-license SPDX] [--color] [--skip-missing]', '       svg-diagram icons sets                      (list the recommended sets)', '       svg-diagram icons add-set <accounting|office|infra> [--allow-license SPDX] [--color]', '       svg-diagram icons remove <name>...', '       svg-diagram icons list [regex]', '       svg-diagram icons search <word> [--set mdi] [--limit N]', '       svg-diagram icons find <word>... [--style fill|line|color] [--set mdi,lucide] [--limit N] [--color] [--png sheet.png]', '       svg-diagram icons main [set|-]', '       svg-diagram icons add-pack <dir|vendor.zip> --prefix aws --terms <url> --accept-terms [--match REGEX] [--exclude REGEX] [--all] [--list]', '       svg-diagram icons notice'].join('\n')); process.exit(2); };
 
@@ -47,7 +49,7 @@ try {
     }
     case 'add-set': {
       if (args.length !== 1) usage();
-      const r = await addSet(args[0], {allowLicense: flags.get('allow-license')?.split(',').filter(Boolean), color: flags.has('color')});
+      const r = await addSet(must(args[0]), {allowLicense: flags.get('allow-license')?.split(',').filter(Boolean), color: flags.has('color')});
       if (r.added.length) console.log(`✓ 追加 ${r.added.length} 個: ${r.added.join(', ')}`);
       if (r.kept.length) console.log(`・入っている名前はそのまま（上書きしない）: ${r.kept.join(', ')}`);
       for (const w of r.warnings) console.log(`⚠ ${w}`);
@@ -66,7 +68,7 @@ try {
       const m = readManifest(file);
       const names = Object.keys(m.icons).filter(n => !args[0] || new RegExp(args[0], 'i').test(n));
       if (!names.length) console.log(`インストール済みのアイコンは無い（${file}）。svg-diagram icons add mdi:key-variant=key`);
-      for (const n of names) console.log(`${n.padEnd(20)} ${m.icons[n].from.padEnd(34)} ${m.icons[n].license}${m.icons[n].fixed ? '  【固定色】' : ''}`);
+      for (const n of names) console.log(`${n.padEnd(20)} ${must(m.icons[n]).from.padEnd(34)} ${must(m.icons[n]).license}${must(m.icons[n]).fixed ? '  【固定色】' : ''}`);
       break;
     }
     case 'search': {
@@ -77,7 +79,7 @@ try {
     }
     case 'add-pack': {
       if (args.length !== 1 || !flags.get('prefix')) usage();
-      const r = addPack(args[0], {prefix: flags.get('prefix')!, terms: flags.get('terms'), acceptTerms: flags.has('accept-terms'), all: flags.has('all'), list: flags.has('list'), match: flags.get('match') ? new RegExp(flags.get('match')!, 'i') : undefined, exclude: flags.get('exclude') ? new RegExp(flags.get('exclude')!, 'i') : undefined});
+      const r = addPack(must(args[0]), {prefix: must(flags.get('prefix')), terms: flags.get('terms'), acceptTerms: flags.has('accept-terms'), all: flags.has('all'), list: flags.has('list'), match: flags.get('match') ? new RegExp(must(flags.get('match')), 'i') : undefined, exclude: flags.get('exclude') ? new RegExp(must(flags.get('exclude')), 'i') : undefined});
       if (r.listed) console.log(r.added.join('\n'));
       else {
         console.log(`✓ ${flags.get('prefix')}: ${r.added.length} 個を追加${r.replaced.length ? `、${r.replaced.length} 個を置き換え` : ''}`);
@@ -131,8 +133,8 @@ async function writeSheet(flat: {word: string; c: Candidate}[], file: string): P
   icon.use({version: 1, icons: Object.fromEntries(flat.map(({c}, i) => [names[i], {...c.glyph, from: c.id, license: c.license}]))});
   try {
     const rows = [];
-    for (let i = 0; i < flat.length; i += 3) rows.push(iconRow(flat.slice(i, i + 3).map(({word, c}, k) => ({icon: names[i + k], label: c.id, body: `${word} · ${c.style} · ${c.license}`, tone: c.mainSet ? 'accent' as const : undefined}))));
+    for (let i = 0; i < flat.length; i += 3) rows.push(iconRow(flat.slice(i, i + 3).map(({word, c}, k) => ({icon: must(names[i + k]), label: c.id, body: `${word} · ${c.style} · ${c.license}`, tone: c.mainSet ? 'accent' as const : undefined}))));
     const {svg} = await renderDiagram(diagram({theme: 'blue', title: '候補（accent の枠は主セット）'}).add(...rows), {name: 'find.svg', budget: 'measure'});
-    fs.writeFileSync(file, (await rasterize(svg, {png: true})).png!);
+    fs.writeFileSync(file, must((await rasterize(svg, {png: true})).png));
   } finally { icon.use(undefined); await closeMeasurer(); }
 }

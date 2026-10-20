@@ -18,7 +18,6 @@ const run = (page: ReturnType<typeof deckPage>) => {
   vm.runInNewContext(viewerAssets().js, {document: page.doc, window: page.window});
   return page;
 };
-const ev = (key: string, mods: Record<string, unknown> = {}) => ({key, ...mods});
 
 // ---- the assets and the document ----
 
@@ -75,9 +74,9 @@ test('a deck with the real viewer: ids are unique, nothing external, one style a
 test('the CSP hashes are the SHA-256 of the one style and the one script', () => {
   const html = doc(true);
   const sha = (s: string) => `'sha256-${createHash('sha256').update(s, 'utf8').digest('base64')}'`;
-  const style = /<style>([\s\S]*?)<\/style>/.exec(html)![1];
-  const script = /<script>([\s\S]*?)<\/script>/.exec(html)![1];
-  const meta = /Content-Security-Policy" content="([^"]*)"/.exec(html)![1];
+  const style = /<style>([\s\S]*?)<\/style>/.exec(html)![1]!;
+  const script = /<script>([\s\S]*?)<\/script>/.exec(html)![1]!;
+  const meta = /Content-Security-Policy" content="([^"]*)"/.exec(html)![1]!;
   assert.ok(meta.includes(`style-src ${sha(style)}`));
   assert.ok(meta.includes(`script-src ${sha(script)}`));
 });
@@ -88,7 +87,7 @@ test('on load: no-js is removed, the first slide is shown, the rest hidden; the 
   const p = run(deckPage(3));
   assert.equal(p.doc.documentElement.classList.contains('no-js'), false);
   assert.deepEqual(p.visible(), [true, false, false]);
-  assert.equal(p.slides[0].getAttribute('aria-current'), 'true');
+  assert.equal(p.slides[0]!.getAttribute('aria-current'), 'true');
   assert.equal(p.bar().children.length, 4);
   assert.equal(p.slides.every(s => s.children.some(c => c.classList.contains('deck-pick'))), true);
 
@@ -132,7 +131,7 @@ test('keys the viewer must leave alone: Ctrl/Alt/Meta, typing in a field, Space 
 
 test('the frame buttons move; the ends disable them', () => {
   const p = run(deckPage(3));
-  const [prev, , next] = p.bar().children;
+  const [prev, , next] = p.bar().children as [El, El, El];
   assert.equal(prev.hasAttribute('disabled'), true);
   next.fire('click');
   assert.deepEqual(p.visible(), [false, true, false]);
@@ -156,10 +155,10 @@ test('the overview: the same sections, no copy; one button per section is focuse
   assert.deepEqual(p.win.pushed, ['#grid'], 'the overview alone is pushed');
   // focus on the current slide's button
   const pick = (s: El) => s.children.find(c => c.classList.contains('deck-pick'))!;
-  assert.equal(p.doc.activeElement, pick(p.slides[1]));
-  assert.equal(pick(p.slides[1]).getAttribute('aria-label'), '2 / 3: two');
+  assert.equal(p.doc.activeElement, pick(p.slides[1]!));
+  assert.equal(pick(p.slides[1]!).getAttribute('aria-label'), '2 / 3: two');
   // inert: the bar's prev / next, never #deck or a section
-  const [prev, , next, gridBtn] = p.bar().children;
+  const [prev, , next, gridBtn] = p.bar().children as [El, El, El, El];
   assert.equal(prev.hasAttribute('inert') && next.hasAttribute('inert'), true);
   assert.equal(gridBtn.hasAttribute('inert'), false);
   assert.equal(p.deck.hasAttribute('inert'), false);
@@ -169,7 +168,7 @@ test('the overview: the same sections, no copy; one button per section is focuse
   // Space on the focused slide button is the button's, not "next"
   assert.equal(p.doc.key(' ').defaultPrevented, false);
   // pick: select slide 3, leave the overview, focus back on #deck, svg are exposed again
-  pick(p.slides[2]).fire('click');
+  pick(p.slides[2]!).fire('click');
   assert.equal(p.deck.classList.contains('grid'), false);
   assert.deepEqual(p.visible(), [false, false, true]);
   assert.equal(p.win.hash, '#3');
@@ -202,8 +201,8 @@ test('arrows in the overview move the current slide and keep the focus on its bu
   const p = run(deckPage(3));
   p.doc.key('g');
   p.doc.key('ArrowRight');
-  assert.equal(p.slides[1].getAttribute('aria-current'), 'true');
-  assert.equal(p.doc.activeElement, p.slides[1].children.find(c => c.classList.contains('deck-pick')));
+  assert.equal(p.slides[1]!.getAttribute('aria-current'), 'true');
+  assert.equal(p.doc.activeElement, p.slides[1]!.children.find(c => c.classList.contains('deck-pick')));
   assert.equal(p.deck.classList.contains('grid'), true);
 });
 
@@ -211,16 +210,16 @@ test('zoom: z and a click toggle it, a move resets it, and the overview has none
   const p = run(deckPage(3));
   p.doc.key('z'); assert.equal(p.deck.classList.contains('zoom'), true);
   p.doc.key('z'); assert.equal(p.deck.classList.contains('zoom'), false);
-  p.deck.fire('click', {target: p.slides[0].children[0]});
+  p.deck.fire('click', {target: p.slides[0]!.children[0]});
   assert.equal(p.deck.classList.contains('zoom'), true);
   p.doc.key('ArrowRight'); assert.equal(p.deck.classList.contains('zoom'), false);
   p.doc.key('g');
   assert.equal(p.doc.key('z').defaultPrevented, false);
-  p.deck.fire('click', {target: p.slides[0].children[0]});
+  p.deck.fire('click', {target: p.slides[0]!.children[0]});
   assert.equal(p.deck.classList.contains('zoom'), false, 'no zoom in the overview, by key or by click');
 });
 
 test('English frame labels when the page is not Japanese', () => {
   const p = run(deckPage(2, undefined, 'en'));
-  assert.equal(p.bar().children[0].getAttribute('aria-label'), 'Previous slide');
+  assert.equal(p.bar().children[0]!.getAttribute('aria-label'), 'Previous slide');
 });

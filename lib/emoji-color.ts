@@ -10,6 +10,7 @@ import {computeStyles, elements, parseXml, type El} from './svg-dom.ts';
 import {familyKind, placeRuns} from './svg-geom.ts';
 import type {FontSpecs} from './types/project.ts';
 
+import {must} from './must.ts';
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const hex = (n: number) => Math.round(n).toString(16).padStart(2, '0');
 
@@ -32,6 +33,7 @@ export function withColorEmoji(svg: string, specs?: FontSpecs): string {
   let out = '', at = 0, changed = false;
   texts.forEach((text, k) => {
     const m = spans[k];
+    if (!m) return;
     const runs = placeRuns(text, styles, (t, family, size, weight) => textBox(t, family, size, weight)).filter(r => familyKind(r.style.fontFamily) === 'emoji' && /\P{ASCII}/u.test(r.s));
     const pictures: string[] = [];
     const drawn = new Set<string>();
@@ -43,7 +45,7 @@ export function withColorEmoji(svg: string, specs?: FontSpecs): string {
     if (!pictures.length) return;
     // the emoji that are drawn here are not drawn by the text as well: their span keeps its width and loses its ink
     const hidden = m[0].replace(/<tspan class="emoji">([^<]*)<\/tspan>/g, (all, s: string) => drawn.has(s) ? `<tspan class="emoji" fill-opacity="0" stroke="none">${s}</tspan>` : all);
-    const tf = text.attrs.transform;
+    const tf = text.attrs['transform'];
     out += svg.slice(at, m.index) + hidden + (tf ? `<g transform="${tf}">${pictures.join('')}</g>` : pictures.join(''));
     at = m.index + m[0].length;
     changed = true;
@@ -64,7 +66,7 @@ function glyphPictures(ef: EmojiFont, palette: {red: number; green: number; blue
   const pictures: string[] = [];
   let all = true, pen = x;
   infos.forEach((g, i) => {
-    const adv = pos[i].xAdvance * k;
+    const adv = must(pos[i]).xAdvance * k;
     const picture = glyphPicture(ef, palette, g.codepoint, pen, y, adv, k, fill);
     if (picture) pictures.push(picture); else if (adv > 0) all = false;
     pen += adv;

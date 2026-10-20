@@ -37,7 +37,7 @@ test('legend: the core driver mark is listed when coreDriver marked an entity', 
 test('legend: a hand-written role item is not written twice; the rest are added to the same legend', async () => {
   const {items: it} = await items(frt(), legend([{role: 'injection', label: '打つ手'}]));
   assert.deepEqual(it.map(describe), ['injection', 'precondition', 'de', 'edge:and']);
-  assert.equal(it[0].label, '打つ手');
+  assert.equal(it[0]!.label, '打つ手');
 });
 
 test('legend: legendLabels overrides the label of a role', async () => {

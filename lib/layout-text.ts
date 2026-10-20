@@ -10,6 +10,7 @@ import type {FontWeight, Roles, TextTone, WidthOf, WrapMode} from './types/core.
 import type {Band} from './types/index.ts';
 import type {Span, TextRun, WrappedRun} from './types/text-bands.ts';
 
+import {must} from './must.ts';
 /** `run` with the pieces of its text attached, when it has any (a plain run stays exactly as it was). */
 export function withSpans(run: TextRun, spans: Span[] | undefined): TextRun {
   if (!spans) return run;
@@ -71,9 +72,9 @@ export function styledAtoms(run: TextRun): StyledAtom[] {
   let at = 0;
   for (const atom of atoms) {
     for (let from = 0, to = 1; from < atom.length; from = to, to = from + 1) {
-      const i = spanAt[at + from];
+      const i = must(spanAt[at + from]);
       while (to < atom.length && spanAt[at + to] === i) to++;
-      const sp = run.spans[i];
+      const sp = must(run.spans[i]);
       out.push({text: atom.slice(from, to), weight: sp.bold ? 700 : run.weight, tone: sp.tone, ...(from > 0 ? {glue: true} : {})});
     }
     at += atom.length;
@@ -96,13 +97,13 @@ function lineSpans(run: TextRun, atoms: StyledAtom[]): Span[] {
 export function lineWidth(widthOf: WidthOf, run: WrappedRun, i: number): number {
   const font = run.mono ? 'mono' : 'sans';
   return run.lineSpans
-    ? run.lineSpans[i].reduce((w, sp) => w + textWidth(widthOf, sp.text, run.size, sp.bold ? 700 : run.weight, font), 0)
-    : textWidth(widthOf, run.lines[i], run.size, run.weight, font);
+    ? must(run.lineSpans[i]).reduce((w, sp) => w + textWidth(widthOf, sp.text, run.size, sp.bold ? 700 : run.weight, font), 0)
+    : textWidth(widthOf, must(run.lines[i]), run.size, run.weight, font);
 }
 
 /** The largest whole-pixel size from `run.size` down to `run.fit.min` at which the unbroken `run` fits `avail` (the same 0.5px slack as the overflow check); `fit.min` when none does. */
 function fittedSize(run: TextRun, avail: number, widthOf: WidthOf): number {
-  const font = run.mono ? 'mono' : 'sans', min = run.fit!.min;
+  const font = run.mono ? 'mono' : 'sans', min = run.fit?.min ?? run.size;
   for (let size = run.size; size > min; size--) if (textWidth(widthOf, run.text, size, run.weight, font) <= avail + 0.5) return size;
   return Math.min(run.size, min);
 }

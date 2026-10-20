@@ -55,8 +55,8 @@ test('two measurements with different settings do not mix their widths', {skip: 
   const second = measureAll(req(text));
   const [a, b] = [(await first).get('t')!.w, (await second).get('t')!.w];
   configureMeasure({measure: 'font', fonts: fontsOf(1)});
-  const alone1 = (await measureAll(req(text + ' ')))?.get('t')!.w;
-  assert.ok(Math.abs(alone1 - a) < 8 && a !== b, `the first measurement must use its own fonts (first ${a}, second ${b}, alone ${alone1})`);
+  const alone1 = (await measureAll(req(text + ' '))).get('t')?.w;
+  assert.ok(alone1 !== undefined && Math.abs(alone1 - a) < 8 && a !== b, `the first measurement must use its own fonts (first ${a}, second ${b}, alone ${alone1})`);
 });
 
 // (d) ADR 0031 §2 (stage 3): the wrap mode is a value of the layout, not module state, so two renders in flight at once each break

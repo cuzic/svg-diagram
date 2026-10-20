@@ -64,17 +64,17 @@ test('new looks resolve from presets and options', () => {
 test('layers are a pure list, bottom to top, and only the last is the text', () => {
   const layers = (opts: object) => { const a = place('光', opts); return {a, l: paintLayers(a, 'blue')}; };
   const {l} = layers({style: 'sticker', glow: true, extrude: true, bevel: true, reflection: true});
-  assert.ok(l[0].mirror, 'the mirror image is first');
+  assert.ok(l[0]!.mirror, 'the mirror image is first');
   assert.equal(l.filter(x => !x.hidden).length, 1);
-  assert.ok(l[l.length - 1].text && !l[l.length - 1].hidden);
+  assert.ok(l[l.length - 1]!.text && !l[l.length - 1]!.hidden);
   assert.ok(l.every((x, i) => i === l.length - 1 || x.hidden));
   assert.equal(l.filter(x => x.opacity === 0.12).length, GLOW_RINGS);
   assert.deepEqual(layers({}).l.length, 1);
   const hollow = layers({tone: 'none', outline: {tone: 'accent', width: 2}}).l[0];
-  assert.equal(hollow.fill, 'none');
-  assert.equal(hollow.sw, 2, 'a hollow letter is the rim itself');
+  assert.equal(hollow!.fill, 'none');
+  assert.equal(hollow!.sw, 2, 'a hollow letter is the rim itself');
   const grad = layers({style: 'gradient'});
-  assert.match(grad.l[0].fill, /^url\(#wa/);
+  assert.match(grad.l[0]!.fill, /^url\(#wa/);
   assert.ok(gradientOf(grad.a, 'blue'));
   assert.equal(gradientOf(layers({}).a, 'blue'), undefined);
 });
@@ -121,7 +121,7 @@ test('the ink reaches every side a shadow or a depth is pushed to; odd numbers a
 test('a negative shadow is inside the band the layout makes', () => {
   const f = place('影', {shadow: {dx: -30, dy: -30}, size: 40});
   const text = f.labelBoxes[0];
-  assert.ok(text.x - 30 >= f.x - .5 && text.y - 30 >= f.y - .5, 'the shadow copy (30px up and left) is within the rect');
+  assert.ok(text!.x - 30 >= f.x - .5 && text!.y - 30 >= f.y - .5, 'the shadow copy (30px up and left) is within the rect');
 });
 
 test('the constructor refuses what would draw NaN or crash, and reads a Windows source', () => {
@@ -163,7 +163,7 @@ test('the id of a gradient follows its colours: one figure in two themes has two
   assert.notEqual(gradientId(art, 'blue'), gradientId(art, 'amber'));
   assert.equal(gradientId(art, 'blue'), gradientId(art, 'blue'));
   assert.ok(gradientId(art, 'blue').startsWith(art.uid));
-  assert.equal(paintLayers(art, 'amber')[0].fill, `url(#${gradientId(art, 'amber')})`);
+  assert.equal(paintLayers(art, 'amber')[0]!.fill, `url(#${gradientId(art, 'amber')})`);
 });
 
 test('wordart(): Infinity is refused where a positive number is wanted', () => {

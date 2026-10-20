@@ -33,7 +33,7 @@ for (const dir of ['down', 'right'] as const) {
     const {t, verdict} = await laid(model({dir}));
     assert.deepEqual(verdict.problems, []);
     assert.equal(t.nodes.length, 5);
-    for (let i = 0; i < t.nodes.length; i++) for (let j = i + 1; j < t.nodes.length; j++) assert.ok(!overlap(t.nodes[i], t.nodes[j]));
+    for (let i = 0; i < t.nodes.length; i++) for (let j = i + 1; j < t.nodes.length; j++) assert.ok(!overlap(t.nodes[i]!, t.nodes[j]!));
     const by = (id: string) => t.anchors.find(a => a.id === id)!;
     if (dir === 'down') assert.ok(by('Shape').y + by('Shape').h <= by('Circle').y && by('Shape').y < by('Rect').y);
     else assert.ok(by('Shape').x + by('Shape').w <= by('Circle').x);
@@ -42,7 +42,7 @@ for (const dir of ['down', 'right'] as const) {
 
 test('classDiagram() compartments: dividers only where there is content; stereotype and abstract are shown', async () => {
   const {t} = await laid(model());
-  const nodeOf = (id: string) => t.nodes[t.anchors.findIndex(a => a.id === id)];
+  const nodeOf = (id: string) => t.nodes[t.anchors.findIndex(a => a.id === id)]!;
   assert.equal(nodeOf('Circle').dividers.length, 2);
   assert.equal(nodeOf('Shape').dividers.length, 1);
   assert.equal(nodeOf('Style').dividers.length, 0);
@@ -54,9 +54,9 @@ test('classDiagram() inherit runs child -> parent and ends on the parent; the di
   const by = (id: string) => t.anchors.find(a => a.id === id)!;
   const on = (p: {x: number; y: number}, r: {x: number; y: number; w: number; h: number}): boolean => p.x >= r.x - 0.5 && p.x <= r.x + r.w + 0.5 && p.y >= r.y - 0.5 && p.y <= r.y + r.h + 0.5;
   const inh = t.edges.find(e => e.from === 'Circle' && e.kind === 'inherit')!;
-  assert.ok(on(inh.points[0], by('Circle')) && on(inh.points[inh.points.length - 1], by('Shape')));
+  assert.ok(on(inh.points[0]!, by('Circle')) && on(inh.points[inh.points.length - 1]!, by('Shape')));
   const agg = t.edges.find(e => e.kind === 'aggregate')!;
-  assert.ok(on(agg.points[0], by('Canvas')) && on(agg.points[agg.points.length - 1], by('Shape')));
+  assert.ok(on(agg.points[0]!, by('Canvas')) && on(agg.points[agg.points.length - 1]!, by('Shape')));
   assert.equal(t.edges.find(e => e.kind === 'depend')!.line, 'dashed');
   assert.equal(t.labels.length, 4); // 描く, 1, 0..*, 入れ子
 });
@@ -86,13 +86,13 @@ test('classDiagram() rejects bad input', async () => {
 });
 
 const sharedRun = (edges: {from: string; to: string; points: {x: number; y: number}[]}[]): string | undefined => {
-  const segs = edges.flatMap((e, k) => e.points.slice(1).map((q, m) => ({k, p: e.points[m], q})));
+  const segs = edges.flatMap((e, k) => e.points.slice(1).map((q, m) => ({k, p: e.points[m]!, q})));
   const over = (a1: number, a2: number, b1: number, b2: number): number => Math.min(Math.max(a1, a2), Math.max(b1, b2)) - Math.max(Math.min(a1, a2), Math.min(b1, b2));
   for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
-    const a = segs[i], b = segs[j];
+    const a = segs[i]!, b = segs[j]!;
     if (a.k === b.k) continue;
-    if (Math.abs(a.p.x - a.q.x) < 0.01 && Math.abs(b.p.x - b.q.x) < 0.01 && Math.abs(a.p.x - b.p.x) < 1 && over(a.p.y, a.q.y, b.p.y, b.q.y) > 1) return `${edges[a.k].from}->${edges[a.k].to} and ${edges[b.k].from}->${edges[b.k].to} share a vertical run at x=${a.p.x}`;
-    if (Math.abs(a.p.y - a.q.y) < 0.01 && Math.abs(b.p.y - b.q.y) < 0.01 && Math.abs(a.p.y - b.p.y) < 1 && over(a.p.x, a.q.x, b.p.x, b.q.x) > 1) return `${edges[a.k].from}->${edges[a.k].to} and ${edges[b.k].from}->${edges[b.k].to} share a horizontal run at y=${a.p.y}`;
+    if (Math.abs(a.p.x - a.q.x) < 0.01 && Math.abs(b.p.x - b.q.x) < 0.01 && Math.abs(a.p.x - b.p.x) < 1 && over(a.p.y, a.q.y, b.p.y, b.q.y) > 1) return `${edges[a.k]!.from}->${edges[a.k]!.to} and ${edges[b.k]!.from}->${edges[b.k]!.to} share a vertical run at x=${a.p.x}`;
+    if (Math.abs(a.p.y - a.q.y) < 0.01 && Math.abs(b.p.y - b.q.y) < 0.01 && Math.abs(a.p.y - b.p.y) < 1 && over(a.p.x, a.q.x, b.p.x, b.q.x) > 1) return `${edges[a.k]!.from}->${edges[a.k]!.to} and ${edges[b.k]!.from}->${edges[b.k]!.to} share a horizontal run at y=${a.p.y}`;
   }
   return undefined;
 };
@@ -108,7 +108,7 @@ test('classDiagram(): five subclasses of one base do not share a line; same-pair
     if (k === l.edge) return;
     for (let m = 0; m + 1 < e.points.length; m++) {
       const p = e.points[m], q = e.points[m + 1];
-      assert.ok(!overlap(l, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2}), `${l.text} sits on ${e.from} -> ${e.to}`);
+      assert.ok(!overlap(l, {x: Math.min(p!.x, q!.x) - 1, y: Math.min(p!.y, q!.y) - 1, w: Math.abs(p!.x - q!.x) + 2, h: Math.abs(p!.y - q!.y) + 2}), `${l.text} sits on ${e.from} -> ${e.to}`);
     }
   });
 });
@@ -120,13 +120,13 @@ test('classDiagram(): a self relation keeps its multiplicities and fits the figu
   for (const l of t.labels) assert.ok(l.x + l.w <= t.x + t.w);
   const slide = await checkDiagram(diagram({canvas: 'slide', theme: 'blue'}).add(classDiagram([{id: 'A'}, {id: 'B'}], [{from: 'A', to: 'B', label: '使う'}])));
   const sl = slide.laidOut.laidOut.find(b => b.type === 'classes') as LaidOutClasses;
-  assert.equal(sl.labels[0].size, slide.laidOut.roles.note);
+  assert.equal(sl.labels[0]!.size, slide.laidOut.roles.note);
 });
 
 test('classDiagram(): nodes appear with the figure (reveal); a class id cannot be spotlighted', async () => {
   const c = classDiagram([{id: 'A'}, {id: 'B'}], [{from: 'A', to: 'B'}], {reveal: 2});
   const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(c, box({id: 'ext', title: '外部', reveal: 2}), connect('B', 'ext', {route: 'elbow'})));
-  assert.equal(laidOut.connects[0].reveal, 2);
+  assert.equal(laidOut.connects[0]!.reveal, 2);
   await assert.rejects(() => checkDiagram(diagram({theme: 'blue', spotlight: 'A'}).add(classDiagram([{id: 'A'}], []))), /node inside a figure/);
 });
 
@@ -135,12 +135,12 @@ test('classDiagram(): several classes depending on one (fan-in) do not cross; a 
   const {t, verdict} = await laid(classDiagram([...tails.map(id => ({id})), {id: 'Log'}], tails.map(from => ({from, to: 'Log', kind: 'depend' as const}))));
   assert.deepEqual(verdict.problems, []);
   for (let i = 0; i < t.edges.length; i++) for (let j = i + 1; j < t.edges.length; j++) {
-    for (let a = 0; a + 1 < t.edges[i].points.length; a++) for (let b = 0; b + 1 < t.edges[j].points.length; b++) {
-      const p = t.edges[i].points[a], q = t.edges[i].points[a + 1], r = t.edges[j].points[b], s = t.edges[j].points[b + 1];
-      const iv = Math.abs(p.x - q.x) < 0.01, jv = Math.abs(r.x - s.x) < 0.01;
+    for (let a = 0; a + 1 < t.edges[i]!.points.length; a++) for (let b = 0; b + 1 < t.edges[j]!.points.length; b++) {
+      const p = t.edges[i]!.points[a], q = t.edges[i]!.points[a + 1], r = t.edges[j]!.points[b], s = t.edges[j]!.points[b + 1];
+      const iv = Math.abs(p!.x - q!.x) < 0.01, jv = Math.abs(r!.x - s!.x) < 0.01;
       if (iv === jv) continue;
       const [v1, v2, h1, h2] = iv ? [p, q, r, s] : [r, s, p, q];
-      assert.ok(!(v1.x > Math.min(h1.x, h2.x) + 0.5 && v1.x < Math.max(h1.x, h2.x) - 0.5 && h1.y > Math.min(v1.y, v2.y) + 0.5 && h1.y < Math.max(v1.y, v2.y) - 0.5), `${t.edges[i].from}->Log crosses ${t.edges[j].from}->Log`);
+      assert.ok(!(v1!.x > Math.min(h1!.x, h2!.x) + 0.5 && v1!.x < Math.max(h1!.x, h2!.x) - 0.5 && h1!.y > Math.min(v1!.y, v2!.y) + 0.5 && h1!.y < Math.max(v1!.y, v2!.y) - 0.5), `${t.edges[i]!.from}->Log crosses ${t.edges[j]!.from}->Log`);
     }
   }
   const fig = classDiagram([{id: 'A'}, {id: 'B'}, {id: 'C'}], [{from: 'A', to: 'B'}, {from: 'B', to: 'C'}], {id: 'CD'});

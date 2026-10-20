@@ -7,13 +7,14 @@ import {ticksOf, timelineDay} from './timeline.ts';
 import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {GanttBand, GanttRow, GanttTask, LaidOutGantt} from './types/timeline.ts';
 
+import {must} from './must.ts';
 const ROW_H = 32, BAR_H = 18, HEAD_H = 44, PAD = 8, LABEL_MAX = 0.4, MS_DAY = 86400000, ARROW = 8;
 
 /** Drops repeated points and the middle point of three on a line. */
 const simplifyPts = (pts: Pt[]): Pt[] => {
   const o: Pt[] = [];
-  for (const p of pts) if (!o.length || Math.abs(o[o.length - 1].x - p.x) > 0.01 || Math.abs(o[o.length - 1].y - p.y) > 0.01) o.push(p);
-  return o.filter((p, i) => i === 0 || i === o.length - 1 || !((o[i - 1].x === p.x && p.x === o[i + 1].x) || (o[i - 1].y === p.y && p.y === o[i + 1].y)));
+  for (const p of pts) if (!o.length || Math.abs(must(o[o.length - 1]).x - p.x) > 0.01 || Math.abs(must(o[o.length - 1]).y - p.y) > 0.01) o.push(p);
+  return o.filter((p, i) => i === 0 || i === o.length - 1 || !((must(o[i - 1]).x === p.x && p.x === must(o[i + 1]).x) || (must(o[i - 1]).y === p.y && p.y === must(o[i + 1]).y)));
 };
 
 const isSection = (r: GanttRow): r is {section: string} => 'section' in r;
@@ -99,7 +100,7 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
     if (done.has(t)) return;
     if (visiting.has(t)) throw new Error(`gantt(): "${t.label}" is part of a cycle of after (a task cannot wait for itself)`);
     visiting.add(t);
-    for (const a of [t.after ?? []].flat()) visit(ids.get(a)!);
+    for (const a of [t.after ?? []].flat()) visit(must(ids.get(a)));
     visiting.delete(t); done.add(t);
   };
   tasks.forEach(visit);
@@ -134,7 +135,7 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
     const every = Math.max(1, Math.ceil(widest / (7 * perDay)));
     const days = mondays(from, to);
     if (!days.length) tickDays.push({day: from, label: fmtDay(from)}); // a short axis with no Monday: at least its first day
-    for (let k = 0; k < days.length; k += every) tickDays.push({day: days[k], label: fmtDay(days[k])});
+    for (let k = 0; k < days.length; k += every) tickDays.push({day: must(days[k]), label: fmtDay(must(days[k]))});
   } else tickDays.push(...ticksOf(from, to));
   for (const t of tickDays) {
     const tx = px(t.day);
@@ -150,7 +151,7 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
       text(r.section, x + PAD, cy + S / 2 - 1, 'start', true);
       return;
     }
-    const [s, e] = spans.get(r)!;
+    const [s, e] = must(spans.get(r));
     text(r.label, x + PAD, cy + S / 2 - 1, 'start');
     if (r.milestone) {
       const mx = px(s) + perDay / 2, hh = BAR_H / 2 + 2;
@@ -162,13 +163,13 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
     out.bars.push({...rect, tone: r.tone ?? 'accent', label: r.label, ...(r.progress === undefined ? {} : {progress: r.progress})});
     if (r.id) out.anchors.push({id: r.id, ...rect});
   });
-  const rectOf = (t: GanttTask) => out.bars[tasks.indexOf(t)];
+  const rectOf = (t: GanttTask) => must(out.bars[tasks.indexOf(t)]);
   for (const t of tasks) for (const a of [t.after ?? []].flat()) {
-    const p = rectOf(ids.get(a)!), q = rectOf(t);
+    const p = rectOf(must(ids.get(a))), q = rectOf(t);
     const x1 = p.x + p.w, y1 = p.y + p.h / 2, x2 = q.x, y2 = q.y + q.h / 2;
     const between = out.bars.filter(b => b !== p && b !== q && b.y + b.h > Math.min(y1, y2) && b.y < Math.max(y1, y2));
     const free = (c: number): boolean => !between.some(b => c >= b.x - 4 && c <= b.x + b.w + 4);
-    const tailRow = band.rows.indexOf(ids.get(a)!), headRow = band.rows.indexOf(t), down = headRow > tailRow;
+    const tailRow = band.rows.indexOf(must(ids.get(a))), headRow = band.rows.indexOf(t), down = headRow > tailRow;
     let pts: Pt[] | undefined;
     // 1) straight on: out of the tail, down (or up) in the first free column before the head, into the head
     for (let c = x1 + 8; c <= x2 - ARROW - 6 && !pts; c += 6) if (free(c)) pts = [{x: x1, y: y1}, {x: c, y: y1}, {x: c, y: y2}, {x: x2, y: y2}];
@@ -179,9 +180,9 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
       const lo = out.plot.x1 + 4, hi = out.plot.x2 - 4;
       const cols = bT === bH ? [x1 + 8] : Array.from({length: Math.floor((hi - lo) / 6) + 1}, (_, k) => lo + k * 6).filter(free).sort((u, v) => Math.abs(u - (x1 + x2) / 2) - Math.abs(v - (x1 + x2) / 2));
       if (!cols.length) cols.push(x1 + 8); // nothing is free (verify will say which bar): still a route that ends on the head
-      pts = [{x: x1, y: y1}, {x: x1 + 8, y: y1}, {x: x1 + 8, y: bT}, {x: cols[0], y: bT}, {x: cols[0], y: bH}, {x: x2 - 8, y: bH}, {x: x2 - 8, y: y2}, {x: x2, y: y2}];
+      pts = [{x: x1, y: y1}, {x: x1 + 8, y: y1}, {x: x1 + 8, y: bT}, {x: must(cols[0]), y: bT}, {x: must(cols[0]), y: bH}, {x: x2 - 8, y: bH}, {x: x2 - 8, y: y2}, {x: x2, y: y2}];
     }
-    out.deps.push({from: tasks.indexOf(ids.get(a)!), to: tasks.indexOf(t), points: simplifyPts(pts)});
+    out.deps.push({from: tasks.indexOf(must(ids.get(a))), to: tasks.indexOf(t), points: simplifyPts(pts)});
   }
   if (today !== undefined) {
     const tx = px(today) + perDay / 2;

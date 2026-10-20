@@ -65,16 +65,16 @@ test('every package the shipped code imports is a dependency; playwright-chromiu
     const src = read(f);
     for (const m of src.matchAll(/^\s*(?:import|export)\s+(type\s+)?[^'"\n]*?from\s+['"]([^'"]+)['"]|\bimport\(\s*['"]([^'"]+)['"]\s*\)|\bimport\.meta\.resolve\(\s*['"]([^'"]+)['"]\s*\)/gm)) {
       const typeOnly = !!m[1], spec = m[2] ?? m[3] ?? m[4];
-      if (spec.startsWith('.') || spec.startsWith('node:') || spec === 'svg-diagram') continue;
-      const name = spec.startsWith('@') ? spec.split('/').slice(0, 2).join('/') : spec.split('/')[0];
-      if (builtinModules.includes(name)) continue;
-      seen.add(name);
+      if (spec!.startsWith('.') || spec!.startsWith('node:') || spec === 'svg-diagram') continue;
+      const name = spec!.startsWith('@') ? spec!.split('/').slice(0, 2).join('/') : spec!.split('/')[0];
+      if (builtinModules.includes(name!)) continue;
+      seen.add(name!);
       if (name === 'playwright-chromium') {
         // never a run-time import except from the one place that loads it on demand
         if (!typeOnly) assert.ok(m[3] !== undefined && f === path.join('lib', 'browser.ts'), `${f} imports playwright-chromium at run time`);
         continue;
       }
-      assert.ok(declared.has(name), `${f} imports ${spec}, but ${name} is not in dependencies`);
+      assert.ok(declared.has(name!), `${f} imports ${spec}, but ${name} is not in dependencies`);
     }
   }
   for (const d of declared) assert.ok(seen.has(d), `${d} is a dependency nothing imports`);

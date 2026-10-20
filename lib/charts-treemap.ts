@@ -5,6 +5,7 @@ import {Canvas, checkIds, checkText, fail, finiteNum, inkOnShade, numText} from 
 import type {ColorKey} from './types/core.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 
+import {must} from './must.ts';
 export interface TreemapNode {
   label: string;
   /** A leaf's value (the area). A group takes the sum of its children. */
@@ -73,14 +74,14 @@ export function squarify(items: {n: TreemapNode; v: number}[], x: number, y: num
   let i = 0, rx = x, ry = y, rw = w, rh = h;
   const worst = (row: number[], side: number): number => { const s = row.reduce((a, b) => a + b, 0), mx = Math.max(...row), mn = Math.min(...row); return Math.max(side * side * mx / (s * s), s * s / (side * side * mn)); };
   while (i < list.length) {
-    const side = Math.min(rw, rh), row: number[] = [areas[i]];
+    const side = Math.min(rw, rh), row: number[] = [must(areas[i])];
     let j = i + 1;
-    while (j < list.length && worst([...row, areas[j]], side) <= worst(row, side)) { row.push(areas[j]); j++; }
+    while (j < list.length && worst([...row, must(areas[j])], side) <= worst(row, side)) { row.push(must(areas[j])); j++; }
     const rs = row.reduce((a, b) => a + b, 0), thick = rs / side;
     let off = 0;
     for (let k = i; k < j; k++) {
-      const len = areas[k] / thick;
-      if (rw >= rh) out.push({n: list[k].n, v: list[k].v, x: rx, y: ry + off, w: thick, h: len}); else out.push({n: list[k].n, v: list[k].v, x: rx + off, y: ry, w: len, h: thick});
+      const len = must(areas[k]) / thick;
+      if (rw >= rh) out.push({n: must(list[k]).n, v: must(list[k]).v, x: rx, y: ry + off, w: thick, h: len}); else out.push({n: must(list[k]).n, v: must(list[k]).v, x: rx + off, y: ry, w: len, h: thick});
       off += len;
     }
     if (rw >= rh) { rx += thick; rw -= thick; } else { ry += thick; rh -= thick; }
@@ -124,7 +125,7 @@ export function layoutTreemap(s: TreemapSpec, g: ChartGeom): LaidOutChartPart {
       squarify(s.nodes.map(n => ({n, v: wOf(n)})), g.x, g.y, g.w, h).forEach((r, i) => lay(r.n, r, i));
       for (const n of s.nodes) if (wOf(n) === 0) out.push({k: 'gone', n});
     }
-    else lay(s.nodes[0], {x: g.x, y: g.y, w: g.w, h}, 0);
+    else lay(must(s.nodes[0]), {x: g.x, y: g.y, w: g.w, h}, 0);
     return out;
   };
   const leaves: TreemapNode[] = [];
@@ -140,7 +141,7 @@ export function layoutTreemap(s: TreemapSpec, g: ChartGeom): LaidOutChartPart {
     const area = leaves.reduce((a, n) => a + (drawn.get(n) ?? 0), 0), value = leaves.reduce((a, n) => a + (n.value as number), 0);
     if (!(area > 0)) break;
     // the area each leaf should have, at the figure's area per unit; a leaf drawn too small gets more weight (one that vanished: double)
-    for (const n of leaves) { const want = (n.value as number) * area / value, got = drawn.get(n) ?? 0; weight.set(n, weight.get(n)! * (got > 0 ? want / got : 2)); }
+    for (const n of leaves) { const want = (n.value as number) * area / value, got = drawn.get(n) ?? 0; weight.set(n, must(weight.get(n)) * (got > 0 ? want / got : 2)); }
     placed = plan(weight);
     const err = spread(placed);
     if (err < best.err - 1e-9) best = {placed, err};
@@ -148,7 +149,7 @@ export function layoutTreemap(s: TreemapSpec, g: ChartGeom): LaidOutChartPart {
   placed = best.placed;
 
   const small: string[] = [];
-  const shadeOf = (gi: number): number => [0.1, 0.2, 0.3][gi % 3];
+  const shadeOf = (gi: number): number => must([0.1, 0.2, 0.3][gi % 3]);
   const label = (cell: {n: TreemapNode; x: number; y: number; w: number; h: number}, host: number, ink: ColorKey, on: {fill: 'accent' | 'danger'; op?: number; ink: ColorKey}, id?: string): boolean => {
     const n = cell.n, val = valueText(n.value ?? 0, s), inner = {w: cell.w - 10, h: cell.h - 6};
     // name above value; the value wrapped too when the cell is narrow; both on one line; the value alone
@@ -174,7 +175,7 @@ export function layoutTreemap(s: TreemapSpec, g: ChartGeom): LaidOutChartPart {
     if (q.k === 'leaf') {
       const id = n.id, key = id ?? `#${leafNo++}`, solidTone = n.tone, op = solidTone ? undefined : shadeOf(q.gi);
       const host = c.rect(q.x, q.y, q.w, q.h, {fill: solidTone ?? 'accent', ...(op === undefined ? {} : {op}), id, of: key, solid: id ?? `cell "${n.label}"`});
-      const ink = solidTone ? 'bg' as const : inkOnShade(op!);
+      const ink = solidTone ? 'bg' as const : inkOnShade(must(op));
       if (!label(q, host, ink, {fill: solidTone ?? 'accent', ...(op === undefined ? {} : {op}), ink}, key)) small.push(`${n.label} ${valueText(n.value ?? 0, s)}`);
       continue;
     }

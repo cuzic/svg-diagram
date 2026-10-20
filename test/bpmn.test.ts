@@ -29,20 +29,20 @@ test('bpmn(): lanes stack, nodes sit in their lane, columns follow the flow, ver
   const {t, verdict} = await laid(flow());
   assert.deepEqual(verdict.problems, []);
   assert.equal(t.lanes.length, 3);
-  assert.ok(t.lanes[0].y < t.lanes[1].y && t.lanes[1].y < t.lanes[2].y);
+  assert.ok(t.lanes[0]!.y < t.lanes[1]!.y && t.lanes[1]!.y < t.lanes[2]!.y);
   const by = (id: string) => t.anchors.find(a => a.id === id)!;
   const lane = (id: string) => t.lanes.findIndex(l => by(id).y >= l.y && by(id).y + by(id).h <= l.y + l.h);
   assert.deepEqual(['s', 'chk', 'ship', 'e1'].map(lane), [0, 1, 2, 0]);
   assert.ok(by('s').x < by('chk').x && by('chk').x < by('g').x && by('g').x < by('ship').x);
-  for (let i = 0; i < t.nodes.length; i++) for (let j = i + 1; j < t.nodes.length; j++) assert.ok(!overlap(t.nodes[i], t.nodes[j]));
-  assert.equal(t.nodes.find((_, i) => t.anchors[i].id === 'g')!.kind, 'xor');
+  for (let i = 0; i < t.nodes.length; i++) for (let j = i + 1; j < t.nodes.length; j++) assert.ok(!overlap(t.nodes[i]!, t.nodes[j]!));
+  assert.equal(t.nodes.find((_, i) => t.anchors[i]!.id === 'g')!.kind, 'xor');
 });
 
 test('bpmn(): flows start at their tail, end on their head, message flows are dashed', async () => {
   const {t} = await laid(flow());
   const by = (id: string) => t.anchors.find(a => a.id === id)!;
   const on = (p: {x: number; y: number}, r: {x: number; y: number; w: number; h: number}): boolean => p.x >= r.x - 0.5 && p.x <= r.x + r.w + 0.5 && p.y >= r.y - 0.5 && p.y <= r.y + r.h + 0.5;
-  for (const e of t.edges) { assert.ok(on(e.points[0], by(e.from)), `${e.from} -> ${e.to} starts on ${e.from}`); assert.ok(on(e.points[e.points.length - 1], by(e.to)), `${e.from} -> ${e.to} ends on ${e.to}`); }
+  for (const e of t.edges) { assert.ok(on(e.points[0]!, by(e.from)), `${e.from} -> ${e.to} starts on ${e.from}`); assert.ok(on(e.points[e.points.length - 1]!, by(e.to)), `${e.from} -> ${e.to} ends on ${e.to}`); }
   assert.equal(t.edges.find(e => e.from === 'ship')!.line, 'dashed');
   assert.equal(t.edges.find(e => e.from === 's')!.line, 'solid');
   assert.deepEqual(t.labels.map(l => l.text).sort(), ['あり', 'なし']);
@@ -95,9 +95,9 @@ test('bpmn(): a long lane name fits its lane (the lane grows), inside the figure
   const name = '株式会社サンプル 東日本営業本部 第二営業部 法人営業課 担当者';
   const {t, verdict} = await laid(bpmn([{id: 'a', label: name}, {id: 'b', label: '審査'}], [{id: 's', lane: 'a', kind: 'start'}, {id: 'k', lane: 'b', label: '確認'}], [{from: 's', to: 'k'}]));
   assert.deepEqual(verdict.problems, []);
-  const lines = t.texts.filter(x => x.anchor === 'middle' && x.x < t.x + 140 && x.y < t.lanes[0].y + t.lanes[0].h + 1 && x.bold);
+  const lines = t.texts.filter(x => x.anchor === 'middle' && x.x < t.x + 140 && x.y < t.lanes[0]!.y + t.lanes[0]!.h + 1 && x.bold);
   assert.ok(lines.length >= 3);
-  for (const l of lines) assert.ok(l.y - l.size >= t.lanes[0].y - 0.5 && l.y <= t.lanes[0].y + t.lanes[0].h + 0.5, `"${l.text}" is inside lane 1`);
+  for (const l of lines) assert.ok(l.y - l.size >= t.lanes[0]!.y - 0.5 && l.y <= t.lanes[0]!.y + t.lanes[0]!.h + 0.5, `"${l.text}" is inside lane 1`);
 });
 
 test('bpmn(): a gateway label stays clear of the flows, the nodes and the lane names (left column, stacked, long label)', async () => {
@@ -111,7 +111,7 @@ test('bpmn(): a gateway label stays clear of the flows, the nodes and the lane n
     assert.deepEqual(verdict.problems, [], `case ${i}`);
     const gl = t.labelBoxes.filter(b => !t.anchors.some(a => a.x === b.x && a.y === b.y && a.w === b.w) && /妥当|条件分岐|並行/.test(b.label));
     assert.ok(gl.length, `case ${i} has a gateway label`);
-    for (const b of gl) assert.ok(b.x >= t.x + t.lanes[0].labelW, `case ${i}: "${b.label}" is right of the lane names`);
+    for (const b of gl) assert.ok(b.x >= t.x + t.lanes[0]!.labelW, `case ${i}: "${b.label}" is right of the lane names`);
   }
 });
 
@@ -130,7 +130,7 @@ test('bpmn(): a flow from a node to itself keeps its label off the node; chips u
   assert.equal(t.labels.length, 1);
   const slide = await checkDiagram(diagram({canvas: 'slide', theme: 'blue'}).add(bpmn([{id: 'a', label: '担当'}], [{id: 'x', lane: 'a', label: '作業'}, {id: 'y', lane: 'a', label: '確認'}], [{from: 'x', to: 'y', label: '済み'}])));
   const sl = slide.laidOut.laidOut.find(b => b.type === 'bpmn') as LaidOutBpmn;
-  assert.equal(sl.labels[0].size, slide.laidOut.roles.note);
+  assert.equal(sl.labels[0]!.size, slide.laidOut.roles.note);
 });
 
 test('bpmn(): a node tone is checked like a lane tone; node ids come with the figure (reveal); a node id cannot be spotlighted', async () => {
@@ -138,7 +138,7 @@ test('bpmn(): a node tone is checked like a lane tone; node ids come with the fi
   assert.throws(() => bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x', tone: 'solid' as never}], []), /solid|tone/);
   const b = bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x'}], [], {reveal: 2});
   const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(b, box({id: 'ext', title: '外部', reveal: 2}), connect('x', 'ext', {route: 'elbow'})));
-  assert.equal(laidOut.connects[0].reveal, 2);
+  assert.equal(laidOut.connects[0]!.reveal, 2);
   await assert.rejects(() => checkDiagram(diagram({theme: 'blue', spotlight: 'x'}).add(bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x'}], []))), /node inside a figure/);
 });
 
@@ -177,6 +177,6 @@ test("bpmn({fit: 'shrink'}) leaves a figure that already fits exactly as it was"
 test("bpmn(): fit other than 'shrink' throws; a flow too wide even shrunk still throws", async () => {
   assert.throws(() => bpmn([{id: 'a', label: 'a'}], [{id: 'x', lane: 'a', label: 'x'}], [], {fit: 'auto' as never}), /fit must be 'shrink'/);
   const ids = Array.from({length: 14}, (_, i) => `n${i}`);
-  const long = bpmn([{id: 'a', label: '担当'}], ids.map(id => ({id, lane: 'a', label: '長めの作業名'})), ids.slice(1).map((id, i) => ({from: ids[i], to: id})), {fit: 'shrink'});
+  const long = bpmn([{id: 'a', label: '担当'}], ids.map(id => ({id, lane: 'a', label: '長めの作業名'})), ids.slice(1).map((id, i) => ({from: ids[i]!, to: id})), {fit: 'shrink'});
   await assert.rejects(() => laid(long), /even shrunk/);
 });

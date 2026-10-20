@@ -14,6 +14,7 @@ import {PERSON_BOX, PERSON_PATH} from './people.ts';
 import {arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
 import {ftaLegendSwatch} from './emit-fta.ts';
 
+import {must} from './must.ts';
 // Numbered circle badge for box({step}) — solid accent fill, white number,
 // centered on the title's own baseline (same offset every hand-authored
 // "① foo" box in this deck used between the badge and its number glyph).
@@ -22,9 +23,9 @@ export const ringed = (band: LaidOutBox): boolean => !band.dim && isSolidTone(ba
 
 
 export function renderStepBadge(band: LaidOutBox, day: Theme): string {
-  const titleRun = band.wrappedRuns[0];
+  const titleRun = must(band.wrappedRuns[0]);
   // the same padding the text and the icon use (a swimlane step has its own)
-  const px = band.padX ?? BOX_PAD_X, titleBaselineY = band.y + (band.padY ?? BOX_PAD_Y) + titleRun.lineYs[0];
+  const px = band.padX ?? BOX_PAD_X, titleBaselineY = band.y + (band.padY ?? BOX_PAD_Y) + must(titleRun.lineYs[0]);
   // a centred / right-aligned title: the badge goes just before its first line (titleW, from layout); else at the left edge, after a left icon
   const indent = titleRun.indent ?? 0, left = band.x + px + indent, right = band.x + band.w - px;
   const align = band.align ?? (band.iconAt === 'top' ? 'center' : 'left');
@@ -41,7 +42,7 @@ export function renderBoxIcon(band: LaidOutBox, day: Theme, tones: ToneEnv): str
   const top = band.iconAt === 'top', size = top ? band.iconSize ?? TOP_ICON_SIZE : ICON_SIZE;
   const x = top ? band.x + band.w / 2 - size / 2 : band.x + (band.padX ?? BOX_PAD_X), y = band.y + (band.padY ?? BOX_PAD_Y);
   const color = band.dim ? PALETTE.muted : runColorOf(tones, band.iconTone, band.tone, day);
-  return '\n  ' + iconSvg({glyph: band.iconGlyph!, name: band.icon!, x, y, size, color, dim: band.dim, labelled: !!band.title});
+  return '\n  ' + iconSvg({glyph: must(band.iconGlyph), name: must(band.icon), x, y, size, color, dim: band.dim, labelled: !!band.title});
 }
 
 
@@ -109,7 +110,7 @@ export function renderLegend(band: LaidOutLegend, day: Theme, tones: ToneEnv, ro
     else if (it.swatch || it.mark) { // a cause-tree entity (its role's box) or the core driver mark (a thick frame)
       const style = resolveBoxStyle(tones, it.swatch?.tone ?? 'plain', day, it.swatch?.dashed), x = it.x + 4, y = cy - 8;
       if (it.swatch?.hex) {
-        const pts = [[x + 6, y], [x + 22, y], [x + 28, cy], [x + 22, y + 16], [x + 6, y + 16], [x, cy]].map(([px, py]) => `${snap4(px)},${snap4(py)}`).join(' ');
+        const pts = ([[x + 6, y], [x + 22, y], [x + 28, cy], [x + 22, y + 16], [x + 6, y + 16], [x, cy]] satisfies [number, number][]).map(([px, py]) => `${snap4(px)},${snap4(py)}`).join(' ');
         parts.push(`<polygon points="${pts}" fill="${style.fill}" stroke="${style.stroke}" stroke-width="2"${style.dashed ? ' stroke-dasharray="6,4"' : ''} stroke-linejoin="round"/>`);
       } else {
         parts.push(`<rect x="${snap4(x)}" y="${snap4(y)}" width="28" height="16" rx="4" fill="${style.fill}" stroke="${style.stroke}" stroke-width="${it.mark ? 3.5 : 2.5}"${style.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
@@ -151,7 +152,7 @@ export function renderBanner(band: LaidOutBanner, day: Theme, tones: ToneEnv, ro
 
 export function renderRow(band: LaidOutRow, day: Theme, tones: ToneEnv, roles: Roles, stage?: number): string {
   const boxes = band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day, tones, roles)).join('\n\n  ');
-  const arrows = band.arrows.filter((_, i) => visibleAt(band.children[i], stage) && visibleAt(band.children[i + 1], stage)).map(a =>
+  const arrows = band.arrows.filter((_, i) => visibleAt(must(band.children[i]), stage) && visibleAt(must(band.children[i + 1]), stage)).map(a =>
     `<path d="M${snap4(a.x1)},${Math.round(a.y1)} L${snap4(a.x2)},${Math.round(a.y2)}" fill="none" stroke="${band.dim ? PALETTE.muted : PALETTE.text}" stroke-width="2.5" marker-end="url(#${band.dim ? 'dsl-arrow-dim' : 'dsl-arrow'})"/>`,
   ).join('\n  ');
   return arrows ? `${boxes}\n\n  ${arrows}` : boxes;

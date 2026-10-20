@@ -20,7 +20,7 @@ export function people(total: number, countIn: number | readonly [number, number
   if (!(size >= 12 && size <= 96)) throw new Error(`people(): size must be from 12 to 96 px (got ${size})`);
   if (!(gap >= 0)) throw new Error(`people(): gap must be >= 0 (got ${gap})`);
   if (opts.align !== undefined && opts.align !== 'left' && opts.align !== 'center') throw new Error(`people(): align must be 'left' or 'center' (got ${opts.align})`);
-  for (const k of ['tone', 'tone2', 'rest'] as const) if (opts[k] !== undefined && !['accent', 'danger', 'muted'].includes(opts[k]!)) throw new Error(`people(): ${k} must be 'accent', 'danger' or 'muted' (got ${opts[k]})`);
+  for (const k of ['tone', 'tone2', 'rest'] as const) { const v = opts[k]; if (v !== undefined && !['accent', 'danger', 'muted'].includes(v)) throw new Error(`people(): ${k} must be 'accent', 'danger' or 'muted' (got ${v})`); }
   if (opts.side !== undefined) {
     if (typeof opts.side.value !== 'string' || !opts.side.value) throw new Error('people(): side needs a value (the text beside the grid)');
     if (opts.side.size !== undefined && opts.side.size !== 'stat' && opts.side.size !== 'display') throw new Error(`people(): side.size must be 'stat' or 'display' (got ${opts.side.size})`);
@@ -39,7 +39,7 @@ export function dots(values: readonly DotDatum[], opts: DotsOpts = {}): DotsBand
   const min = opts.min ?? 0, max = opts.max ?? 1, r = opts.r ?? 10, TONES = ['accent', 'danger', 'muted'];
   if (!Number.isFinite(min) || !Number.isFinite(max) || !(max > min)) throw new Error(`dots(): needs finite min < max (got ${min} .. ${max})`);
   if (!(r >= 2 && r <= 24)) throw new Error(`dots(): r must be from 2 to 24 px (got ${r})`);
-  for (const k of ['width', 'height'] as const) if (opts[k] !== undefined && !(opts[k]! > 0 && Number.isFinite(opts[k]))) throw new Error(`dots(): ${k} must be a finite number > 0 (got ${opts[k]})`);
+  for (const k of ['width', 'height'] as const) { const v = opts[k]; if (v !== undefined && !(v > 0 && Number.isFinite(v))) throw new Error(`dots(): ${k} must be a finite number > 0 (got ${v})`); }
   const list = values.map(v => typeof v === 'number' ? {at: v} : v);
   for (const v of list) {
     if (!Number.isFinite(v.at)) throw new Error(`dots(): a value must be a finite number (got ${v.at})`);

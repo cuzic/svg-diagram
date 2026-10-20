@@ -2,6 +2,7 @@
 // They run only for a band that says which tree it is (`causeTree(..., {tree: 'crt'})`): relationDiagram() / pdpc() are not TOC trees.
 import {breakCycles} from './graph-layout.ts';
 import type {CauseBand} from './types/diagrams.ts';
+import {must} from './must.ts';
 
 export type TocRule = 'toc-ude-count' | 'toc-parts' | 'toc-source-has-cause' | 'toc-chain-only' | 'toc-orphan' | 'toc-cycle-undeclared'
   | 'toc-nbr-parts' | 'toc-nbr-no-tipping' | 'toc-nbr-tipping-not-and' | 'toc-nbr-trim-too-late' | 'toc-tt-unit'
@@ -65,7 +66,7 @@ export function tocFindings(band: TocBand): TocFinding[] {
   }
   // a cycle the author did not declare: the arrows that stay (a declared `back` and a `blocks` arrow are not causes) still close a loop
   const arrows = causes.flatMap(l => froms(l).map(f => ({from: f, to: l.to})));
-  const returned = [...breakCycles(band.nodes, arrows)].map(i => `${arrows[i].from} -> ${arrows[i].to}`);
+  const returned = [...breakCycles(band.nodes, arrows)].map(i => `${must(arrows[i]).from} -> ${must(arrows[i]).to}`);
   if (returned.length) out.push({rule: 'toc-cycle-undeclared', message: at(`循環があるのに、戻りの矢印に back: true が付いていない。配置は次の矢印を戻りとして扱った(意味上の戻りと違うことがある): ${returned.join('、')}。悪循環の戻り(UDE から根本原因へ)のリンクに back: true を付ける`)});
   const linked = new Set(links.flatMap(l => [l.to, ...froms(l)]));
   const orphans = band.nodes.filter(n => !linked.has(n.id)).map(n => n.id);
@@ -81,7 +82,7 @@ function nbrFindings(band: TocBand, links: AnyLink[], causes: AnyLink[], withRol
   for (const l of causes) for (const f of froms(l)) { next.set(f, [...(next.get(f) ?? []), l.to]); hasIn.add(l.to); }
   const reach = (starts: string[], stop: ReadonlySet<string>): Set<string> => {
     const seen = new Set<string>(), todo = [...starts];
-    while (todo.length) { const u = todo.pop()!; if (seen.has(u) || stop.has(u)) continue; seen.add(u); todo.push(...(next.get(u) ?? [])); }
+    while (todo.length) { const u = must(todo.pop()); if (seen.has(u) || stop.has(u)) continue; seen.add(u); todo.push(...(next.get(u) ?? [])); }
     return seen;
   };
   // a branch with no tipping point: from an entity nobody causes, a cause path to an undesirable effect that does not pass one
@@ -120,10 +121,10 @@ function prtFindings(band: TocBand, causes: AnyLink[], withRole: (r: string) => 
 /** A future reality tree against the current reality tree it answers (ADR 0020 D3): one `de` / `goal` for each `ude`. */
 function mirrorFindings(band: TocBand, crt: NonNullable<TocBand['mirrorOf']>, at: (m: string) => string, out: TocFinding[]): void {
   const mirrored = band.nodes.filter(n => n.mirrors !== undefined), udes = new Set(crt.udes), msgs: string[] = [];
-  const unknown = mirrored.filter(n => !udes.has(n.mirrors!)).map(n => `${n.id}（mirrors: ${n.mirrors}）`);
+  const unknown = mirrored.filter(n => !udes.has(must(n.mirrors))).map(n => `${n.id}（mirrors: ${n.mirrors}）`);
   if (unknown.length) msgs.push(`mirrors が現状ツリーの UDE の id でない: ${unknown.join('、')}`);
   const count = new Map<string, string[]>();
-  for (const n of mirrored) if (udes.has(n.mirrors!)) count.set(n.mirrors!, [...(count.get(n.mirrors!) ?? []), n.id]);
+  for (const n of mirrored) if (udes.has(must(n.mirrors))) count.set(must(n.mirrors), [...(count.get(must(n.mirrors)) ?? []), n.id]);
   const doubled = [...count].filter(([, ids]) => ids.length > 1).map(([u, ids]) => `${u}（${ids.join('、')}）`);
   if (doubled.length) msgs.push(`同じ UDE を複数の望む結果が mirrors している（1 対 1 でない）: ${doubled.join('、')}`);
   const missing = crt.udes.filter(u => !count.has(u));

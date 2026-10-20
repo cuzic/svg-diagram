@@ -31,7 +31,7 @@ test('numText / signedText: exact, thousands separated, no float noise; niceScal
   assert.equal(signedText(0), '+0');
   const s = niceScale(-130, 870);
   assert.ok(s.min <= -130 && s.max >= 870);
-  assert.ok(s.ticks.every((t, i) => i === 0 || t > s.ticks[i - 1]));
+  assert.ok(s.ticks.every((t, i) => i === 0 || t > s.ticks[i - 1]!));
   assert.equal(s.ticks[0], s.min); assert.equal(s.ticks[s.ticks.length - 1], s.max);
   assert.ok(niceScale(5, 5).max > niceScale(5, 5).min);
 });
@@ -78,7 +78,7 @@ test("waterfall({dir: 'h'}): the same chart on its side: levels along x, steps d
   const zero = solid(chart, 'bar "期首"').x, dip = solid(chart, 'bar "赤字"');
   assert.ok(dip.x < zero && dip.x + dip.w > zero, 'the decrease crosses the zero line');
   const ys = ['期首', '赤字', '回復', '期末'].map(l => solid(chart, `bar "${l}"`).y);
-  assert.ok(ys.every((y, i) => i === 0 || y > ys[i - 1]), 'steps run down the page');
+  assert.ok(ys.every((y, i) => i === 0 || y > ys[i - 1]!), 'steps run down the page');
   assert.ok(solid(chart, 'bar "期末"').x + solid(chart, 'bar "期末"').w <= zero + 0.2, 'a negative total hangs to the left of zero');
   assert.throws(() => waterfall(WF, {dir: 'x' as never}), /dir must be/);
 });
@@ -249,7 +249,7 @@ test('stackedBars(): a crowded chart widens its columns for their numbers instea
   assert.ok(!chart.omitted.some(o => o.startsWith('国内') || o.startsWith('海外')), `left out: ${chart.omitted.slice(0, 3).join(' | ')}`);
   assert.ok(texts(chart).includes('60.2%') || texts(chart).includes('国内 60.2%'));
   const w = chart.solids.filter(s => s.label.startsWith('"国内"')).map(s => s.w);
-  assert.ok(w.every(x => Math.abs(x - w[0]) < 0.2), 'every column is as wide as the others');
+  assert.ok(w.every(x => Math.abs(x - w[0]!) < 0.2), 'every column is as wide as the others');
 });
 
 test('stackedBars(): totals too wide to stand side by side are an error that names the fix (they used to overlap each other)', async () => {
@@ -297,10 +297,10 @@ test('radar(): a vertex is as far from the centre as its value says; each series
   assert.notEqual((paths[0] as {dash?: string}).dash, (paths[1] as {dash?: string}).dash);
   const dOf = (p: unknown) => ((p as {d: string}).d.match(/-?[\d.]+,-?[\d.]+/g) ?? []).map(q => q.split(',').map(Number));
   const [first] = [dOf(paths[0])];
-  const cx = (first[0][0] + first[2][0]) / 2, cy = (first[1][1] + first[3][1]) / 2; // opposite vertices of the 5,5 axes are on a line through the centre
-  const dist = first.map(([x, y]) => Math.hypot(x - cx, y - cy));
-  near(dist[1] / dist[0], 0.5, 0.01);   // 2.5 of 5
-  near(dist[3] / dist[0], 0, 0.02);     // 0
+  const cx = (first[0]![0]! + first[2]![0]!) / 2, cy = (first[1]![1]! + first[3]![1]!) / 2; // opposite vertices of the 5,5 axes are on a line through the centre
+  const dist = first.map(([x, y]) => Math.hypot(x! - cx, y! - cy));
+  near(dist[1]! / dist[0]!, 0.5, 0.01);   // 2.5 of 5
+  near(dist[3]! / dist[0]!, 0, 0.02);     // 0
   const t = texts(chart);
   assert.ok(t.includes('一') && t.includes('二'));
   // ring values stand where they cross no series line and no marker (no plate is put over the data); a ring with no room stays unlabelled
@@ -414,7 +414,7 @@ test('lines(): a plane with a path and markers per series; each series has its o
   const shapes = new Set(p.points.map(q => q.shape));
   assert.ok(shapes.size >= 3);
   for (const n of ['甲', '乙', '丙']) assert.ok(p.texts.some(t => t.s === n), `${n} is named at the end`);
-  assert.ok(p.paths![0].dashed !== p.paths![1].dashed);
+  assert.ok(p.paths![0]!.dashed !== p.paths![1]!.dashed);
 });
 
 test('lines(): categories need one value each, numeric x needs [x, y] pairs with x rising; ranges and counts are checked', () => {
@@ -440,9 +440,9 @@ test('strategyCanvas() / burndown() / burnup(): presets on lines()', async () =>
   assert.deepEqual(sc.x.ticks, [{at: 0, label: '価格'}, {at: 1, label: '品質'}, {at: 2, label: '速さ'}]);
   const bd = burndown({total: 40, days: 5, actual: [40, 36, 30, null, null, null]});
   assert.equal(bd.paths!.length, 2);
-  assert.equal(bd.paths![0].dashed, true);                      // the ideal line first, dashed
-  assert.deepEqual(bd.paths![0].through, [[0, 40], [5, 0]]);
-  assert.equal(bd.paths![1].through.length, 3);                // the days not reached have no point
+  assert.equal(bd.paths![0]!.dashed, true);                      // the ideal line first, dashed
+  assert.deepEqual(bd.paths![0]!.through, [[0, 40], [5, 0]]);
+  assert.equal(bd.paths![1]!.through.length, 3);                // the days not reached have no point
   const bu = burnup({scope: [50, 50, 60, 60], days: 3, done: [0, 10, 25, null]});
   assert.equal(bu.paths!.length, 2);
   assert.throws(() => burndown({total: 10, days: 0, actual: []}), /whole number >= 1/);
@@ -458,7 +458,7 @@ test('lines(): endLabels spread the names apart when the lines end on the same v
   assert.equal(ends.length, 3);
   for (const b of ends) assert.ok(b.x + b.w <= p.bounds.x + p.bounds.w + 0.5);
   const ys = ends.map(b => b.y).sort((a, b) => a - b);
-  assert.ok(ys[1] - ys[0] >= 18 && ys[2] - ys[1] >= 18);
+  assert.ok(ys[1]! - ys[0]! >= 18 && ys[2]! - ys[1]! >= 18);
 });
 
 // ---- the whole: dark, svg, reveal, spotlight, connect -----------------------------------------------------------------------------
@@ -519,10 +519,10 @@ test('spotlight on an element dims the other elements, not the figure; connect()
 // ---- a seeded sweep: random data, zeros, negatives, long labels ------------------------------------------------------------------
 
 test('a seeded sweep of every chart (zeros, negatives, long labels, many items) never throws except with a named reason and never fails verify', async () => {
-  let seed = Number(process.env.SWEEP_SEED ?? 20261012);
-  const mult = Number(process.env.SWEEP_MULT ?? 1);
+  let seed = Number(process.env['SWEEP_SEED'] ?? 20261012);
+  const mult = Number(process.env['SWEEP_MULT'] ?? 1);
   const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-  const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)];
+  const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)]!;
   const word = (): string => pick(['売上', '利益', 'コスト', 'Customer', '新規顧客の獲得', 'アジア太平洋地域', 'x', '長い名前のものがここに入ります', '費用', 'EBITDA']);
   const val = (neg = false): number => Math.round((neg && rnd() < 0.4 ? -1 : 1) * (rnd() < 0.15 ? 0 : rnd() < 0.2 ? rnd() * 5 : rnd() * (rnd() < 0.3 ? 100000 : 100)) * 100) / 100;
   const bad: string[] = [], named: string[] = [];
@@ -531,7 +531,7 @@ test('a seeded sweep of every chart (zeros, negatives, long labels, many items) 
     try { band = mk(); } catch (e) { named.push(`${what}: ${(e as Error).message}`); return; }
     try {
       const {verdict} = await laid(band);
-      if (verdict.problems.length) bad.push(`${what}: ${verdict.problems[0]}${what.startsWith('lines') && process.env.DBG ? ' ' + JSON.stringify((globalThis as {dbg?: unknown}).dbg) : ''}`);
+      if (verdict.problems.length) bad.push(`${what}: ${verdict.problems[0]}${what.startsWith('lines') && process.env['DBG'] ? ' ' + JSON.stringify((globalThis as {dbg?: unknown}).dbg) : ''}`);
     } catch (e) { const m = (e as Error).message; if (/^\w+\(\): /.test(m)) named.push(`${what}: ${m}`); else bad.push(`${what}: ${m}`); }
   };
   const uniq = (n: number, f: () => string): string[] => { const s = new Set<string>(); let i = 0; while (s.size < n && i++ < 100) s.add(f()); return [...s]; };
@@ -550,13 +550,13 @@ test('a seeded sweep of every chart (zeros, negatives, long labels, many items) 
   for (let t = 0; t < 30 * mult; t++) await run(`sankey ${t}`, () => {
     const L = 2 + Math.floor(rnd() * 3), layers = Array.from({length: L}, (_, i) => Array.from({length: 1 + Math.floor(rnd() * 4)}, (_, k) => `${i}-${k}`));
     const links: {from: string; to: string; value: number}[] = [];
-    for (let i = 0; i + 1 < L; i++) for (const f of layers[i]) for (const to of layers[i + 1]) if (rnd() < 0.6) links.push({from: f, to, value: Math.max(1, Math.round(Math.abs(val())))});
-    if (!links.length) links.push({from: layers[0][0], to: layers[1][0], value: 5});
+    for (let i = 0; i + 1 < L; i++) for (const f of layers[i]!) for (const to of layers[i + 1]!) if (rnd() < 0.6) links.push({from: f, to, value: Math.max(1, Math.round(Math.abs(val())))});
+    if (!links.length) links.push({from: layers[0]![0]!, to: layers[1]![0]!, value: 5});
     return sankey(layers.flat().filter(id => links.some(l => l.from === id || l.to === id)).map(id => ({id, label: word()})), links, {unit: pick(['', '人'])});
   });
   for (let t = 0; t < 30 * mult; t++) await run(`lines ${t}`, () => { const N = 3 + Math.floor(rnd() * 8), S = 1 + Math.floor(rnd() * 4); const data = Array.from({length: S}, (_, i) => ({label: `${word()}${i}`, values: Array.from({length: N}, () => rnd() < 0.1 ? null : Math.round(rnd() * 50) / 10)})); (globalThis as {dbg?: unknown}).dbg = data; return lines(data, {x: {categories: Array.from({length: N}, (_, i) => `${i + 1}`)}, y: {min: 0, max: 5}}); });
   // the failures that are not named, or that came out of verify, are bugs; the named ones are the data being refused with a reason
-  if (process.env.DBG) console.log(named.map(n => n.slice(0, 150)).join('\n'));
+  if (process.env['DBG']) console.log(named.map(n => n.slice(0, 150)).join('\n'));
   assert.deepEqual(bad, []);
   assert.ok(named.length < 100 * mult, `too many refusals: ${named.slice(0, 5).join(' | ')}`);
 });

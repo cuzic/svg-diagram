@@ -53,7 +53,7 @@ test('slide-min-text: text under the canvas minimum is a warning (with its size 
   const d = {...small(), laidOut: [{type: 'box', wrappedRuns: [{text: 'x', size: 18}]}], connects: []} as unknown as Parameters<typeof lintDiagram>[0];
   const f = lintDiagram(d).filter(x => x.rule === 'slide-min-text');
   assert.equal(f.length, 1);
-  assert.match(f[0].message, /18px.*24px/);
+  assert.match(f[0]!.message, /18px.*24px/);
 });
 
 // ADR 0017 U4: font-floor-lowered (info) for a canvas figure whose minText is below 14
@@ -62,8 +62,8 @@ const lintLaid = (extra: object) => lintDiagram({...small(extra), laidOut: [{typ
 test('font-floor-lowered: info when canvas.minText < 14, naming the declared size; not at 14 or above', () => {
   const f = lintLaid({canvas: {minText: 10}});
   assert.equal(f.length, 1);
-  assert.equal(f[0].severity, 'info');
-  assert.match(f[0].message, /14px から 10px/);
+  assert.equal(f[0]!.severity, 'info');
+  assert.match(f[0]!.message, /14px から 10px/);
   assert.deepEqual(lintLaid({canvas: {minText: 14}}), []);
   assert.deepEqual(lintLaid({canvas: 'slide'}), []);
 });
@@ -71,6 +71,6 @@ test('font-floor-lowered: info when canvas.minText < 14, naming the declared siz
 test('font-floor-lowered: accept keeps it an info with the reason', () => {
   const f = lintLaid({canvas: {minText: 10}, accept: {'font-floor-lowered': '配布用の稠密な図'}});
   assert.equal(f.length, 1);
-  assert.equal(f[0].severity, 'info');
-  assert.match(f[0].message, /許容: 配布用の稠密な図/);
+  assert.equal(f[0]!.severity, 'info');
+  assert.match(f[0]!.message, /許容: 配布用の稠密な図/);
 });

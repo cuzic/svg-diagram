@@ -34,6 +34,7 @@ import type {CaptionBand, BoxBand, BannerBand, BoxChrome} from './types/text-ban
 import {CONNECT_LABEL_SIZE, TAG_SIZE, toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 
+import {must} from './must.ts';
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
 export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
   const lay = (mode: WrapMode): LaidOutDiagram => layoutBands(data, roles, widthOf, toneEnv(data.tones), mode, data.keepWords === true, spaceOf(data.density));
@@ -71,7 +72,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
       const f = parseRef(c.from), t = parseRef(c.to);
       const i = kids.findIndex(k => k.has(f.id)), j = kids.findIndex(k => k.has(t.id));
       if (i < 0 || j < 0 || Math.abs(i - j) !== 1 || !((i < j && f.side === 'right' && t.side === 'left') || (i > j && f.side === 'left' && t.side === 'right'))) continue;
-      if (slots) { const [a, b] = i < j ? [slots[i], slots[j]] : [slots[j], slots[i]]; if (b.col !== a.col + a.span) continue; } // empty columns between them already leave room
+      if (slots) { const [a, b] = i < j ? [must(slots[i]), must(slots[j])] : [must(slots[j]), must(slots[i])]; if (b.col !== a.col + a.span) continue; } // empty columns between them already leave room
       gap = Math.max(gap, Math.ceil(textWidth(widthOf, c.label as string, (roles.connectLabel ?? CONNECT_LABEL_SIZE), 400) + (c.chip ? 16 : 0) + 2 * LABEL_MARGIN));
     }
     return gap;
@@ -98,17 +99,17 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
           grids.set(key, g);
           if (b.type === 'grouprow') { // (nested widths use the declared gap: the shared one is not known until every row has been seen)
             const {widths} = rowChildGeometry(b, cw);
-            b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, widths[i] - 2 * (c.pad ?? 16)); });
+            b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, must(widths[i]) - 2 * (c.pad ?? 16)); });
           }
         } else if (b.type === 'grouprow') {
           const {widths} = rowChildGeometry({...b, gap: gapForLabels(b as RowLike, cw)}, cw); // the same gap the real pass will use
-          b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, widths[i] - 2 * (c.pad ?? 16)); });
+          b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, must(widths[i]) - 2 * (c.pad ?? 16)); });
         }
       }
     };
     walk(d.bands, contentWidth);
     for (const [key, g] of grids) {
-      const [cols, base] = key.split('/').map(Number);
+      const [colsN, baseN] = key.split('/').map(Number), cols = must(colsN), base = must(baseN);
       const width = (cw: number, span: number, gap: number) => span * ((cw - (cols - 1) * gap) / cols) + (span - 1) * gap;
       // growing must not squeeze a box: each child keeps >= 70% of its width (and >= 40px) or the gap stays as declared (verify reports the label)
       const fits = g.need === base || g.rows.every(r => r.spans.every(sp => width(r.cw, sp, g.need) >= Math.min(width(r.cw, sp, base), Math.max(40, 0.7 * width(r.cw, sp, base)))));
@@ -149,7 +150,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
     const placed = {...band, x, y, w, h, wrappedRuns} as unknown as Placed<B>; // spreading a generic loses the intersection
     if (stampW !== undefined) (placed as Placed<B> & {stampW?: number}).stampW = stampW;
     // a centred / right-aligned title: the step badge sits just before its first line, so emit needs that line's width
-    if (band.type === 'box' && band.step != null && band.title && (band.align ?? (topIcon(band) ? 'center' : 'left')) !== 'left') (placed as Placed<B> & {titleW?: number}).titleW = lineWidth(widthOf, wrappedRuns[0], 0);
+    if (band.type === 'box' && band.step != null && band.title && (band.align ?? (topIcon(band) ? 'center' : 'left')) !== 'left') (placed as Placed<B> & {titleW?: number}).titleW = lineWidth(widthOf, must(wrappedRuns[0]), 0);
     if (band.type === 'box') {
       const overflow: NonNullable<LaidOutBox['nowrapOverflow']> = [];
       for (const r of wrappedRuns) {
@@ -158,7 +159,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
         if (width > avail + 0.5) overflow.push({value: r.text, width, avail, min: r.size}); // r.size: a value that may shrink is drawn at its floor by now
       }
       if (overflow.length) (placed as Placed<BoxBand> & {nowrapOverflow?: typeof overflow}).nowrapOverflow = overflow;
-      const shrunk = wrappedRuns.filter(r => r.shrunkFrom !== undefined).map(r => ({value: r.text, from: r.shrunkFrom!, to: r.size}));
+      const shrunk = wrappedRuns.filter(r => r.shrunkFrom !== undefined).map(r => ({value: r.text, from: r.shrunkFrom ?? r.size, to: r.size}));
       if (shrunk.length) (placed as Placed<BoxBand> & {statShrunk?: typeof shrunk}).statShrunk = shrunk;
     }
     if (chrome.tag) {
@@ -166,8 +167,8 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
       placed.tagBox = {x: chrome.tagAt === undefined ? x + w - tw - 12 : x + w * chrome.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
     }
     const name = chrome.id ? qualify(scope, chrome.id) : undefined;
-    if (chrome.id && (areaIds.has(name!) || anchors.has(name!))) claimed(name!, 'a box takes an id that another box, group or row already has');
-    if (chrome.id) { setBox(name!, {...band, x, y, w, h} as never, h); if (scope) addScoped(scopes, scope, chrome.id); }
+    if (chrome.id && name !== undefined && (areaIds.has(name) || anchors.has(name))) claimed(name, 'a box takes an id that another box, group or row already has');
+    if (chrome.id && name !== undefined) { setBox(name, {...band, x, y, w, h} as never, h); if (scope) addScoped(scopes, scope, chrome.id); }
     return placed;
   };
 

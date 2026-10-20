@@ -8,5 +8,5 @@ export function errorMessage(err: unknown): string {
 
 export function formatBuildError(src: string, err: unknown, env: NodeJS.ProcessEnv = process.env): string {
   const head = `✗ ${src}: ${errorMessage(err)}`;
-  return env.SVG_DIAGRAM_DEBUG === '1' && err instanceof Error && err.stack ? `${head}\n${err.stack}` : head;
+  return env['SVG_DIAGRAM_DEBUG'] === '1' && err instanceof Error && err.stack ? `${head}\n${err.stack}` : head;
 }

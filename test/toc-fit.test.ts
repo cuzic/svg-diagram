@@ -34,7 +34,7 @@ test('causeTree() too wide with dir left out: nodes are narrowed, the direction 
   assert.ok(extent(t) <= w + 0.5);
   assert.ok(t.fitApplied && t.fitApplied.length > 0);
   assert.ok(t.fitApplied.every(a => a.what === 'maxNodeW' && a.mode === 'omitted' && (a.to as number) < 200));
-  assert.ok(t.fitApplied[0].wasW! > w && t.fitApplied[0].nowW! <= w);
+  assert.ok(t.fitApplied[0]!.wasW! > w && t.fitApplied[0]!.nowW! <= w);
   const by = (id: string) => t.anchors.find(a => a.id === id)!;
   assert.ok(by('u0').y + by('u0').h < by('root').y, 'effects stay above their causes');
 });

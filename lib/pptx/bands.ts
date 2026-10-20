@@ -3,7 +3,7 @@
 import type {LaidOutOf, LaidOutType} from '../band-table.ts';
 import type {LaidOutDiagram, LaidOutBand} from '../types/index.ts';
 import {fitConnector, siteIndex} from './geom.ts';
-import {type Rect, type Fonts} from './xml.ts';
+import type {Rect, Fonts} from './xml.ts';
 import type {ToneEnv} from '../tokens.ts';
 import {boxXml, plainBox, groupFrameXml, groupXml, anchorXml, picXml, type TextBox} from './shapes.ts';
 import {tableXml} from './table.ts';

@@ -10,6 +10,7 @@ import {glyphFromSvg, packIconName} from './icon-store.ts';
 import type {InstalledIcon} from './icon-store.ts';
 import {manifestPath, readManifest, withManifestLock, writeManifest} from './icon-install.ts';
 
+import {must} from './must.ts';
 export interface PackOpts {
   prefix: string;
   terms?: string;
@@ -46,7 +47,7 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 // among files that name the same icon (one per size), the 48 px one, then the larger ones
-const sizeRank = (f: string): number => { const m = /(?:^|[^\d])(16|24|32|48|64|128|256)(?:px)?(?:[^\d]|$)/.exec(f.split('/').slice(-1)[0]); const n = m ? Number(m[1]) : 0; return n === 48 ? 0 : n === 0 ? 1 : n > 48 ? 2 + n / 1000 : 3 + (48 - n) / 100; };
+const sizeRank = (f: string): number => { const m = /(?:^|[^\d])(16|24|32|48|64|128|256)(?:px)?(?:[^\d]|$)/.exec(must(f.split('/').at(-1))); const n = m ? Number(m[1]) : 0; return n === 48 ? 0 : n === 0 ? 1 : n > 48 ? 2 + n / 1000 : 3 + (48 - n) / 100; };
 
 /** The directory to read: the given one, or the contents of a .zip extracted (by the system's `unzip`) into a fresh temp directory. */
 function openSource(src: string): {dir: string; cleanup: () => void} {
@@ -65,7 +66,7 @@ export function addPack(src: string, o: PackOpts): PackResult {
   if (!o.list && (!o.terms?.trim() || !o.acceptTerms)) throw new Error(`a vendor pack comes under the vendor's own terms, not an open licence. Read them, then install with --terms <where they are (a URL)> --accept-terms — both are recorded in svg-diagram.icons.json`);
   const {dir, cleanup} = openSource(src);
   try {
-    const files = walk(dir).map(f => path.relative(dir, f).split(path.sep).join('/')).filter(f => (!o.match || o.match.test(f)) && !(o.exclude && o.exclude.test(f)));
+    const files = walk(dir).map(f => path.relative(dir, f).split(path.sep).join('/')).filter(f => (!o.match || o.match.test(f)) && !(o.exclude?.test(f)));
     if (!files.length) throw new Error(`no .svg file${o.match ? ` matches ${o.match}` : ''} in ${src}`);
     if (!o.all && !o.match && !o.list) throw new Error(`${src} has ${files.length} icons (e.g. ${files.slice(0, 3).join(', ')}). Install the ones you need with --match <regex on the path> (like --match "Lambda|EC2|S3"), or everything with --all. --list shows the names.`);
     // one icon per name: the best size wins
@@ -75,12 +76,12 @@ export function addPack(src: string, o: PackOpts): PackResult {
     const skipped: Record<string, string[]> = {};
     const got: Record<string, InstalledIcon> = {};
     for (const [name, group] of [...byName].sort(([a], [b]) => a.localeCompare(b))) {
-      const best = [...group].sort((a, b) => sizeRank(a) - sizeRank(b) || a.localeCompare(b));
-      if (group.length > 1) collisions.push(`${name} (${group.length} files: ${best[0]} kept)`);
+      const best = [...group].sort((a, b) => sizeRank(a) - sizeRank(b) || a.localeCompare(b)), kept = must(best[0]);
+      if (group.length > 1) collisions.push(`${name} (${group.length} files: ${kept} kept)`);
       try {
-        const g = glyphFromSvg(fs.readFileSync(path.join(dir, best[0]), 'utf8'), best[0], {color: true});
-        got[name] = {...g, from: `pack:${o.prefix}/${best[0]}`, license: `vendor:${o.prefix}`};
-      } catch (e) { (skipped[(e as Error).message.replace(/^[^:]*: /, '')] ??= []).push(best[0]); }
+        const g = glyphFromSvg(fs.readFileSync(path.join(dir, kept), 'utf8'), kept, {color: true});
+        got[name] = {...g, from: `pack:${o.prefix}/${kept}`, license: `vendor:${o.prefix}`};
+      } catch (e) { (skipped[(e as Error).message.replace(/^[^:]*: /, '')] ??= []).push(kept); }
     }
     const file = manifestPath(o.cwd);
     if (o.list) return {file, added: Object.keys(got), replaced: [], skipped, collisions, listed: true};
@@ -88,7 +89,7 @@ export function addPack(src: string, o: PackOpts): PackResult {
     const m = readManifest(file);
     const replaced = Object.keys(got).filter(n => n in m.icons);
     Object.assign(m.icons, got);
-    m.packs = {...(m.packs ?? {}), [o.prefix]: {terms: o.terms!.trim(), source: path.basename(path.resolve(src)), acceptedAt: o.today ?? new Date().toISOString().slice(0, 10)}};
+    m.packs = {...(m.packs ?? {}), [o.prefix]: {terms: must(o.terms).trim(), source: path.basename(path.resolve(src)), acceptedAt: o.today ?? new Date().toISOString().slice(0, 10)}};
     writeManifest(file, m);
     return {file, added: Object.keys(got).filter(n => !replaced.includes(n)), replaced, skipped, collisions, listed: false};
     });

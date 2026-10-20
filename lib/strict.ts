@@ -45,6 +45,7 @@ export type DeclaredIds<B extends readonly unknown[]> = IdsOf<B[number]>;
 // ============================================================================================
 
 /** `{[x: `a${number}`]: 1}`-style indexes make `{}` assignable; a plain literal makes a required key. */
+// biome-ignore lint/complexity/noBannedTypes: `{}` is the point: it is what an empty (pattern-less) key set is assignable to
 type IsPattern<R extends string> = {} extends {[K in R]: 1} ? true : false;
 export type SideName = 'left' | 'right' | 'top' | 'bottom' | 'center';
 type OffsetOk = '0' | '1' | `0.${number}` | `.${number}`;

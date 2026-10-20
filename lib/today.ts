@@ -11,7 +11,7 @@ export function checkToday(v: unknown, what: string): string {
 /** The day for `today: 'auto'`: the CLI's, else the environment's, else the project's (an empty variable counts as unset). */
 export function resolveToday(cli: string | undefined, cfgToday: string | undefined, env: NodeJS.ProcessEnv = process.env): string | undefined {
   if (cli !== undefined) return checkToday(cli, '--today');
-  if (env.SVG_DIAGRAM_TODAY) return checkToday(env.SVG_DIAGRAM_TODAY, 'SVG_DIAGRAM_TODAY');
+  if (env['SVG_DIAGRAM_TODAY']) return checkToday(env['SVG_DIAGRAM_TODAY'], 'SVG_DIAGRAM_TODAY');
   return cfgToday;
 }
 

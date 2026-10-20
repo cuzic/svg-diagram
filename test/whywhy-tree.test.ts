@@ -94,7 +94,7 @@ test('rca findings: no root, a measure on a non-root, a single chain, digging be
   const dug = all([{why: 'a', trueCause: true, because: [{why: 'b', trueCause: true}]}, {why: 'c', trueCause: true}]);
   assert.deepEqual(dug, ['whywhy-dig-below-root']);
   const single = treeOf(whyWhyTree('x', [{why: 'a', trueCause: true}]));
-  assert.equal(single.rca!.findings[0].severity, 'info');
+  assert.equal(single.rca!.findings[0]!.severity, 'info');
 });
 
 test('check: info by default, warn with rcaCheck: strict; the default output is clean (legend: auto included)', async () => {
@@ -106,9 +106,9 @@ test('check: info by default, warn with rcaCheck: strict; the default output is 
   assert.ok(labels.includes('根本原因') && labels.includes('対策') && labels.includes('断つ'));
   const bad = whyWhyTree('x', WHYS);
   const lax = (await laid({}, bad)).verdict.findings.filter(f => f.rule.startsWith('whywhy-'));
-  assert.ok(lax.length === 1 && lax[0].severity === 'info');
+  assert.ok(lax.length === 1 && lax[0]!.severity === 'info');
   const hard = (await laid({rcaCheck: 'strict'}, bad)).verdict.findings.filter(f => f.rule.startsWith('whywhy-'));
-  assert.ok(hard.length === 1 && hard[0].severity === 'warn');
+  assert.ok(hard.length === 1 && hard[0]!.severity === 'warn');
 });
 
 // ---- review fixes ----

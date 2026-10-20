@@ -2,6 +2,7 @@ import {decimalsOf, exact, histogramBins, mean, niceUp, normalCount, paretoOrder
 import {scatterOpts} from '../qc-plane.ts';
 import type {ScatterOpts, ScatterPoint} from '../qc-plane.ts';
 import {barSpan} from '../bars.ts';
+import {must} from '../must.ts';
 import {LABEL_ROLES} from '../tokens.ts';
 import type {BarDatum, BarsBand, BarsLine, BarsOpts} from '../types/bars.ts';
 import type {PlaneBand} from '../types/figures.ts';
@@ -55,8 +56,8 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
       if (opts.stack) throw new Error(`bars(): "${d.label}" has a range, which does not stack (a floating bar has no place in a total)`);
       if (opts.hideZero) throw new Error(`bars(): hideZero does not apply to range (a range is never 0)`);
     } else {
-    if (!Number.isFinite(d.value)) throw new Error(`bars(): value for "${d.label}" must be finite (got ${d.value})`);
-    if (d.value! < 0) throw new Error(`bars(): value for "${d.label}" must be >= 0 (got ${d.value})`);
+    if (d.value === undefined || !Number.isFinite(d.value)) throw new Error(`bars(): value for "${d.label}" must be finite (got ${d.value})`);
+    if (d.value < 0) throw new Error(`bars(): value for "${d.label}" must be >= 0 (got ${d.value})`);
     }
     if (d.series !== undefined && !['a', 'b', 'c'].includes(d.series)) throw new Error(`bars(): series for "${d.label}" must be a, b, or c (got ${d.series})`);
     if (d.tone !== undefined && !['accent', 'danger', 'muted'].includes(d.tone)) throw new Error(`bars(): tone for "${d.label}" must be accent, danger, or muted (got ${d.tone})`);
@@ -154,8 +155,8 @@ export function histogram<const Id extends string = never>(values: readonly numb
   const marks = [opts.lsl, opts.usl, opts.target].filter((v): v is number => v !== undefined);
   const {edges, counts, width} = histogramBins(values, {bins: opts.bins, width: opts.width, include: marks});
   const m = mean(values), s = sd(values), n = values.length;
-  const slot = (v: number) => parseFloat(((v - edges[0]) / width).toPrecision(12));
-  const out = (k: number) => (opts.lsl !== undefined && edges[k + 1] <= opts.lsl + 1e-9) || (opts.usl !== undefined && edges[k] >= opts.usl - 1e-9);
+  const slot = (v: number) => parseFloat(((v - must(edges[0])) / width).toPrecision(12));
+  const out = (k: number) => (opts.lsl !== undefined && must(edges[k + 1]) <= opts.lsl + 1e-9) || (opts.usl !== undefined && must(edges[k]) >= opts.usl - 1e-9);
   const peak = opts.normal ? normalCount(m, m, s, n, width) : 0;
   const max = niceMax(Math.max(...counts, peak));
   const {bins: _b, width: _w, lsl, usl, target, mean: showMean, normal, ...rest} = opts;
@@ -165,8 +166,8 @@ export function histogram<const Id extends string = never>(values: readonly numb
   if (usl !== undefined) lines.push({at: slot(usl), label: `上限 ${exact(usl)}`});
   if (showMean !== false) lines.push({at: slot(m), label: `平均 ${m.toFixed(decimalsOf(width) + 1)}`, tone: 'accent'});
   const every = labelEvery(edges.map(exact));
-  const curve = normal && s > 0 ? {through: Array.from({length: 41}, (_, i) => { const sx = i / 40 * counts.length; return [sx, normalCount(edges[0] + sx * width, m, s, n, width)] as [number, number]; }), tone: 'text' as const} : undefined;
-  return bars(counts.map((c, k) => ({label: `${exact(edges[k])}-${exact(edges[k + 1])}`, value: c, ...(out(k) ? {tone: 'danger' as const} : {})})), {...rest, dir: 'v', barRatio: 1, max, edges: edges.map((e, i) => edgeShown(i, edges.length - 1, every) ? exact(e) : ''), hideZero: true, vlines: lines.sort((a, b) => a.at - b.at), ...(curve ? {curve} : {})}) as never;
+  const curve = normal && s > 0 ? {through: Array.from({length: 41}, (_, i) => { const sx = i / 40 * counts.length; return [sx, normalCount(must(edges[0]) + sx * width, m, s, n, width)] as [number, number]; }), tone: 'text' as const} : undefined;
+  return bars(counts.map((c, k) => ({label: `${exact(must(edges[k]))}-${exact(must(edges[k + 1]))}`, value: c, ...(out(k) ? {tone: 'danger' as const} : {})})), {...rest, dir: 'v', barRatio: 1, max, edges: edges.map((e, i) => edgeShown(i, edges.length - 1, every) ? exact(e) : ''), hideZero: true, vlines: lines.sort((a, b) => a.at - b.at), ...(curve ? {curve} : {})}) as never;
 }
 /** Whether boundary i (of 0..last) is written: every k-th one, and always the last (the one before it gives way when they would be closer than k/2). */
 function edgeShown(i: number, last: number, every: number): boolean {

@@ -6,7 +6,7 @@ import type {LaidOutCause, LaidOutClasses, LaidOutStates} from '../lib/types/dia
 
 test.after(() => closeMeasurer());
 
-const bendsOf = (pts: {x: number; y: number}[]): number => pts.slice(1, -1).filter((p, i) => !((pts[i].x === p.x && p.x === pts[i + 2].x) || (pts[i].y === p.y && p.y === pts[i + 2].y))).length;
+const bendsOf = (pts: {x: number; y: number}[]): number => pts.slice(1, -1).filter((p, i) => !((pts[i]!.x === p.x && p.x === pts[i + 2]!.x) || (pts[i]!.y === p.y && p.y === pts[i + 2]!.y))).length;
 const N = (id: string) => ({id, label: id});
 
 test('straighten: a value that is not true or false is refused by every auto-laid-out figure', () => {
@@ -23,7 +23,7 @@ test('straighten: a value that is not true or false is refused by every auto-lai
 
 const relation = (opts: object) => relationDiagram(
   ['late', 'rush', 'multi', 'sw', 'plan', 'est', 'skill', 'over', 'tired'].map(N),
-  [['rush', 'multi'], ['multi', 'sw'], ['sw', 'late'], ['est', 'plan'], ['plan', 'rush'], ['est', 'over'], ['est', 'multi'], ['skill', 'sw'], ['skill', 'late'], ['over', 'tired'], ['tired', 'late'], ['tired', 'plan'], ['plan', 'late']].map(([from, to]) => ({from, to})),
+  [['rush', 'multi'], ['multi', 'sw'], ['sw', 'late'], ['est', 'plan'], ['plan', 'rush'], ['est', 'over'], ['est', 'multi'], ['skill', 'sw'], ['skill', 'late'], ['over', 'tired'], ['tired', 'late'], ['tired', 'plan'], ['plan', 'late']].map(([from, to]) => ({from: from!, to: to!})),
   {problem: 'late', maxNodeW: 150, ...opts},
 );
 

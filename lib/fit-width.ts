@@ -2,6 +2,7 @@
 // It wraps layeredAttempt (lib/layered-route.ts) and owns no placement or routing: each attempt is a function the caller supplies.
 import type {FitApplied} from './types/diagrams.ts';
 import type {LayeredLayout} from './graph-layout.ts';
+import {must} from './must.ts';
 import {splitByHeight, splitWidest} from './fit-split.ts';
 
 /** What an attempt has to give back: the part of layeredAttempt's result that fitWidth reads. */
@@ -61,7 +62,7 @@ export function fitWidth<R extends FitResult>(w: number, attempts: readonly FitA
     if (!best || lexLess(result.score, best.result.score)) best = {result, index};
   }
   if (!best) return {ok: false, tried, results};
-  return {ok: true, result: best.result, index: best.index, applied: attempts[best.index].applied ?? [], tried};
+  return {ok: true, result: best.result, index: best.index, applied: must(attempts[best.index]).applied ?? [], tried};
 }
 
 /**
@@ -98,11 +99,12 @@ export function describeApplied(a: FitApplied): string {
 
 /** What an attempt changed, with the widths filled in: the figure as first tried (`tried[0]`) against the one chosen. */
 export function withWidths(applied: readonly FitApplied[], tried: readonly Tried[], index: number): FitApplied[] {
-  return applied.map(a => ({...a, wasW: tried[0].w, nowW: tried[index].w}));
+  return applied.map(a => ({...a, wasW: must(tried[0]).w, nowW: must(tried[index]).w}));
 }
 
 /** The widths a node may grow to, widest first, when a figure has to be narrowed to fit (ADR 0010 D1). Below the last the text breaks into one or two characters a line. */
 export const NARROWING = [200, 160, 130, 110];
+const WIDEST = must(NARROWING[0]);
 /** `maxNodeW: 'auto'` (ADR 0019 D2): widest first, 10px apart. The first that fits the width and the height budget is kept: fewer lines in a node, a shorter figure. */
 export const AUTO_GRID = Array.from({length: 17}, (_, i) => 260 - i * 10);
 
@@ -161,8 +163,8 @@ export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPla
   const alt = plan.alt !== plan.start ? plan.alt : undefined;
   const free = !plan.explicitDir;
   const dirs: D[] = free && alt !== undefined ? [plan.start, alt] : [plan.start];
-  const widths = plan.autoWidth ? AUTO_GRID : narrow && free && plan.maxNodeW === undefined ? NARROWING : [plan.maxNodeW ?? NARROWING[0]];
-  const widthMode = plan.autoWidth ? 'auto' as const : plan.mode, from0 = plan.autoWidth ? NARROWING[0] : widths[0]; // what the figure would have had: the default node width
+  const widths = plan.autoWidth ? AUTO_GRID : narrow && free && plan.maxNodeW === undefined ? NARROWING : [plan.maxNodeW ?? WIDEST];
+  const widthMode = plan.autoWidth ? 'auto' as const : plan.mode, from0 = plan.autoWidth ? WIDEST : must(widths[0]); // what the figure would have had: the default node width
   // keepWords (ADR 0029 D3): every attempt is tried with the floor (no katakana word broken) first; only when none fits, without it. The order keeps what a figure
   // looked like without the option: narrower with the floor, narrower without, then folded with, folded without (a fold is the last resort in both).
   const floors = plan.keepWords ? [true, false] : [false];
@@ -183,7 +185,7 @@ export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPla
   const folding = (floor: boolean): FitAttempt<R>[] => {
     const list: FitAttempt<R>[] = [];
     if (canFold && (plan.fold === true || free || plan.autoWidth)) {
-      const mw = widths[widths.length - 1], d = plan.start;
+      const mw = must(widths[widths.length - 1]), d = plan.start;
       for (const share of FOLD_SHARES) {
         const applied: FitApplied[] = [];
         if (mw !== from0) applied.push({what: 'maxNodeW', from: from0, to: mw, mode: widthMode});
@@ -221,11 +223,12 @@ export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPla
     const results = fitted.results, lays = results.map(plan.layoutOf);
     if (tooTall) {
       const i = fitted.tried.findIndex(t => t.w <= plan.w + 0.5);
-      if (lays[i].vertical && plan.heightBudget !== undefined) split = splitByHeight(lays[i].lay, plan.heightBudget);
+      const at = must(lays[i]);
+      if (at.vertical && plan.heightBudget !== undefined) split = splitByHeight(at.lay, plan.heightBudget);
     } else {
-      const unfolded = results.map((r, i) => ({r, i})).filter(({i}) => !fitted.tried[i].label.includes('fold'));
-      const narrowest = unfolded.sort((a, b) => fitted.tried[a.i].w - fitted.tried[b.i].w)[0];
-      if (narrowest) split = splitWidest(lays[narrowest.i].lay);
+      const unfolded = results.map((r, i) => ({r, i})).filter(({i}) => !must(fitted.tried[i]).label.includes('fold'));
+      const narrowest = unfolded.sort((a, b) => must(fitted.tried[a.i]).w - must(fitted.tried[b.i]).w)[0];
+      if (narrowest) split = splitWidest(must(lays[narrowest.i]).lay);
     }
   }
   throw new Error(fitFailure(plan.who, plan.w, fitted.tried, fix, notTried, plan.heightBudget, split));

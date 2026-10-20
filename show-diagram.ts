@@ -22,8 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {installResolveHook} from './lib/resolve-hook.ts';
-// Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
-const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
+import {must} from './lib/must.ts';
 installResolveHook();
 const {renderDiagram, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
@@ -41,7 +40,7 @@ const VALUE = ['--png', '--scale', '--width', '--colors', '--engine'];
 const flag = (n: string) => args.includes(n);
 const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1] ?? null; };
 const num = (n: string) => { const v = val(n); if (v === null) return null; const x = Number(v); if (!(x > 0)) { console.error(`✗ ${n} needs a positive number (got ${v})\n${USAGE}`); process.exit(2); } return x; };
-const files = args.filter((a, i) => !a.startsWith('--') && !VALUE.includes(args[i - 1]));
+const files = args.filter((a, i) => !a.startsWith('--') && !VALUE.includes(args[i - 1] ?? ''));
 for (const a of args) if (a.startsWith('--') && ![...VALUE, '--force', '--passthrough', '--require-fresh'].includes(a)) { console.error(`✗ unknown option ${a}\n${USAGE}`); process.exit(2); }
 if (!files.length) { console.error(USAGE); process.exit(2); }
 const pngOut = val('--png'), scaleOpt = num('--scale'), widthOpt = num('--width'), colors = num('--colors') ?? 256;
@@ -52,7 +51,7 @@ if (!Number.isInteger(colors) || colors < 2 || colors > 256) { console.error(`�
 const force = flag('--force'), passthrough = flag('--passthrough');
 if (pngOut && files.length !== 1) { console.error(`✗ --png writes one picture: give exactly one input\n${USAGE}`); process.exit(2); }
 
-const inTmux = !!process.env.TMUX;
+const inTmux = !!process.env['TMUX'];
 const tmuxQuery = (fmt: string) => { try { return execFileSync('tmux', ['display', '-p', fmt], {encoding: 'utf8', timeout: 2000}).trim(); } catch { return ''; } };
 
 // ---- what the terminal can do (not needed for --png) ----------------------------------------------------------------
@@ -129,7 +128,7 @@ try {
       const byHeight = Math.min(1, box.maxH / size.h); // the tall-picture cap alone (the width limit has its own note)
       if (!scaleOpt && !pngOut && byHeight < 1 && byHeight <= Math.min(byWidth ?? 1, widthOpt ? 1 : box.maxW / size.w)) console.error(`  ⚠ ${file}: too tall for the screen (${Math.round(size.h)}px; the cap is ${box.maxH}px), shrunk to ${Math.round(byHeight * 100)}%`);
       const ras = await rasterize(svg, {scale, png: !!pngOut, engine, fonts: config.fonts});
-      if (pngOut) { fs.writeFileSync(pngOut, ras.png!); console.log(`wrote ${pngOut} (${ras.width}x${ras.height})`); continue; }
+      if (pngOut) { fs.writeFileSync(pngOut, must(ras.png)); console.log(`wrote ${pngOut} (${ras.width}x${ras.height})`); continue; }
       let seq = image2sixel(new Uint8ClampedArray(ras.rgba), ras.width, ras.height, colors);
       if (passthrough) seq = tmuxPassthrough(seq);
       if (files.length > 1) process.stdout.write(`${file}\n`);

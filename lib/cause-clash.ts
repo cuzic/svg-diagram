@@ -13,13 +13,13 @@ const cross = (a: Seg, b: Seg): boolean => {
 /** The pairs of arrows into an effect with an AND that cross or run together (each pair once, in the order the verifier reported them). A crossing elsewhere is left alone. */
 export function andClashes<E extends ClashEdge>(edges: readonly E[], ands: readonly {to: string}[]): {a: E; b: E; how: 'crosses' | 'runs together with'}[] {
   const andTo = new Set(ands.map(x => x.to));
-  const segs: Seg[] = edges.flatMap((e, k) => andTo.has(e.to) ? e.points.slice(1).map((q, m) => ({k, p: e.points[m], q})) : []);
+  const segs: Seg[] = edges.flatMap((e, k) => andTo.has(e.to) ? e.points.slice(1).flatMap((q, m) => { const p = e.points[m]; return p ? [{k, p, q}] : []; }) : []);
   const out: {a: E; b: E; how: 'crosses' | 'runs together with'}[] = [], flagged = new Set<string>();
-  for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
-    const a = edges[segs[i].k], b = edges[segs[j].k];
-    if (segs[i].k === segs[j].k || a.to !== b.to) continue;
-    const how = cross(segs[i], segs[j]) ? 'crosses' : runsTogether(segs[i], segs[j]) ? 'runs together with' : undefined;
-    const key = `${Math.min(segs[i].k, segs[j].k)}:${Math.max(segs[i].k, segs[j].k)}`;
+  for (const [i, si] of segs.entries()) for (const sj of segs.slice(i + 1)) {
+    const a = edges[si.k], b = edges[sj.k];
+    if (!a || !b || si.k === sj.k || a.to !== b.to) continue;
+    const how = cross(si, sj) ? 'crosses' : runsTogether(si, sj) ? 'runs together with' : undefined;
+    const key = `${Math.min(si.k, sj.k)}:${Math.max(si.k, sj.k)}`;
     if (!how || flagged.has(key)) continue;
     flagged.add(key);
     out.push({a, b, how});

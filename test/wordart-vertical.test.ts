@@ -21,10 +21,10 @@ test('columns: a newline starts a column; a limit breaks one, and kinsoku hold',
 
 test('a column is as long as its cells, with the spacing between them', () => {
   const [c] = verticalColumns('あいう', 20, 700, rough, {spacing: 4});
-  assert.equal(Math.round(c.len), 3 * 20 + 2 * 4);
-  assert.deepEqual(c.cells.map(x => x.top), [0, 24, 48]);
+  assert.equal(Math.round(c!.len), 3 * 20 + 2 * 4);
+  assert.deepEqual(c!.cells.map(x => x.top), [0, 24, 48]);
   const [d] = verticalColumns('AB 12', 20, 700, rough);
-  assert.ok(Math.abs(d.cells[0].len - rough('AB 12', 20)) < 1e-6); // 'AB 12' is one run set on its side: its length is its measured width
+  assert.ok(Math.abs(d!.cells[0]!.len - rough('AB 12', 20)) < 1e-6); // 'AB 12' is one run set on its side: its length is its measured width
 });
 
 test('limits hold: an opening bracket does not leave an empty column, spacing counts, a mark hangs one cell and no more', () => {
@@ -41,7 +41,7 @@ test('limits hold: an opening bracket does not leave an empty column, spacing co
   // a comma hangs below the column (one cell), the second one does not
   const hang = verticalColumns('あいう、え', 20, 700, rough, {limit: 60});
   assert.deepEqual(hang.map(c => c.cells.length), [4, 1]);
-  assert.ok(Math.round(hang[0].len) === 80, 'the comma hangs past the limit');
+  assert.ok(Math.round(hang[0]!.len) === 80, 'the comma hangs past the limit');
   assert.ok(verticalColumns('あいう、、え', 20, 700, rough, {limit: 60}).every(c => c.len <= 80.5));
 });
 

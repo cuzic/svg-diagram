@@ -1,3 +1,4 @@
+import {must} from './must.ts';
 import type {LaidOutChartPart, ChartGeom} from './charts-base.ts';
 import {checkIds, checkText, fail, finiteNum, numText} from './charts-base.ts';
 import {textWidth} from './atoms.ts';
@@ -48,7 +49,7 @@ export function semnetTexts(kind: 'pert' | 'causal' | 'dependency', spec: PertSp
   return [...s.nodes.map(n => [n.label, 700] as [string, number]), ...s.edges.map(e => [[e.label ?? s.edgeTypes[e.type] ?? e.type, e.weight === undefined ? '' : numText(e.weight)].filter(Boolean).join(' '), 400] as [string, number]), ...kinds.map(k => [s.nodeKinds[k] ?? k, 400] as [string, number]), ...types.map(t => [s.edgeTypes[t] ?? t, 400] as [string, number])];
 }
 
-const kindTone =(i: number): 'accent' | 'danger' | 'muted' | 'text' => (['accent', 'danger', 'muted', 'text'] as const)[i % 4];
+const kindTone =(i: number): 'accent' | 'danger' | 'muted' | 'text' => (['accent', 'danger', 'muted', 'text'] as const)[i % 4] ?? 'text';
 /** How an edge type is drawn; the legend uses the same style. */
 const edgeStyle = (type: string, ti: number): {stroke: 'accent' | 'danger' | 'muted' | 'text'; dash?: string} => ({stroke: type === 'blocks' ? 'danger' : kindTone(ti), dash: type === 'uses' ? '8,5' : type === 'relates' ? '2,5' : type === 'blocks' ? '10,4,2,4' : ti > 3 ? (ti % 2 ? '8,5' : '2,5') : undefined});
 export function layoutPert(s: PertSpec, g: ChartGeom): LaidOutChartPart {
@@ -56,7 +57,7 @@ export function layoutPert(s: PertSpec, g: ChartGeom): LaidOutChartPart {
   const es = s.analysis.tasks.flatMap(t => t.predecessors.map(p => ({from: p, to: t.id}))), {c, positions, paths} = networkCanvas(g, ns, es, s.direction, 0, s.straighten);
   es.forEach((e, i) => { const critical = s.analysis.criticalEdges.some(x => x.from === e.from && x.to === e.to); arrow(c, pathOf(paths, i, e, positions), {stroke: critical ? 'danger' : 'muted', sw: critical ? 4 : 2, edge: e}); });
   for (const t of s.analysis.tasks) {
-    const p = positions.get(t.id)!, host = nodeBox(c, p, t.id, t.label, t.critical ? 'danger' : 'text', t.critical), cx = p.x + p.w / 2;
+    const p = must(positions.get(t.id)), host = nodeBox(c, p, t.id, t.label, t.critical ? 'danger' : 'text', t.critical), cx = p.x + p.w / 2;
     c.text(t.label, cx, p.y + g.size + 8, 'middle', 'text', {bold: true, host, of: t.id});
     if (s.compact) c.text(`${numText(t.duration)}${s.unit} / 余裕 ${numText(t.slack)}`, cx, p.y + p.h - 10, 'middle', t.critical ? 'danger' : 'muted', {host, of: t.id});
     else {
@@ -78,7 +79,7 @@ export function layoutDependency(s: DependencySpec, g: ChartGeom): LaidOutChartP
   for (const it of items) {
     const w = (it.kind ? 20 : 28) + textWidth(g.widthOf, it.label, g.size, 400) + 18;
     if (used + w - 18 > g.w - 8) { rows.push([]); used = 0; }
-    rows.at(-1)!.push(it); used += w;
+    must(rows.at(-1)).push(it); used += w;
   }
   const legendH = rows.length ? 34 + (rows.length - 1) * rowH : 0;
   const ns = s.nodes.map(n => ({...n, w: Math.max(116, textWidth(g.widthOf, n.label, g.size, 700) + 28), h: 52})), {c, positions, paths} = networkCanvas(g, ns, s.edges, s.direction, legendH, s.straighten);
@@ -90,7 +91,7 @@ export function layoutDependency(s: DependencySpec, g: ChartGeom): LaidOutChartP
     return {e, path, head: e.type === 'relates' ? [] : [headBox(path, sw)]};
   });
   const heads = drawn.flatMap(d => d.head);
-  for (const n of s.nodes) { const p = positions.get(n.id)!, ki = n.kind ? kinds.indexOf(n.kind) : -1, tone = ki < 0 ? 'text' : kindTone(ki), host = nodeBox(c, p, n.id, n.label, tone); c.text(n.label, p.x + p.w / 2, c.mid(p.y + p.h / 2), 'middle', 'text', {bold: true, host, of: n.id}); }
+  for (const n of s.nodes) { const p = must(positions.get(n.id)), ki = n.kind ? kinds.indexOf(n.kind) : -1, tone = ki < 0 ? 'text' : kindTone(ki), host = nodeBox(c, p, n.id, n.label, tone); c.text(n.label, p.x + p.w / 2, c.mid(p.y + p.h / 2), 'middle', 'text', {bold: true, host, of: n.id}); }
   for (const {e, path} of drawn) {
     const text = [e.label ?? s.edgeTypes[e.type] ?? e.type, e.weight === undefined ? '' : numText(e.weight)].filter(Boolean).join(' ');
     // a label with no room is left out, as before (it does not change what the figure says, and stopping would break charts that draw today)

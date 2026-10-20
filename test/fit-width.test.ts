@@ -49,7 +49,7 @@ test('fitWidth: half a pixel of slack, and widthOf for what hangs out of the fig
   assert.equal(fitWidth(900, [fake('a', 900.6, 10)], {mode: 'first'}).ok, false);
   const loops = fitWidth(900, [fake('a', 880, 10)], {mode: 'first', widthOf: r => r.size.w + 40});
   assert.equal(loops.ok, false);
-  assert.equal(loops.tried[0].w, 920);
+  assert.equal(loops.tried[0]!.w, 920);
 });
 
 test('fitWidth: every attempt failing gives the tried list, nothing chosen', () => {

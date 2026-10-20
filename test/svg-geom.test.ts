@@ -10,7 +10,7 @@ const haveFont = resolveFontFile('sans') !== null;
 const near = (a: number, b: number, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} vs ${b}`);
 const nearPt = (p: Point, x: number, y: number, eps = 1e-6) => { near(p[0], x, eps); near(p[1], y, eps); };
 const root = (inner: string, attrs = '') => parseXml(`<svg xmlns="http://www.w3.org/2000/svg" ${attrs}>${inner}</svg>`);
-const el = (inner: string, id = 'e') => elements(root(inner)).find(e => e.attrs.id === id)!;
+const el = (inner: string, id = 'e') => elements(root(inner)).find(e => e.attrs['id'] === id)!;
 const VP = {w: 400, h: 200};
 
 // ---- boxes ----
@@ -35,38 +35,38 @@ test('transformBox is the box of the transformed corners', () => {
 
 test('flattenPath: lines, H, V, relative commands, close, and a new subpath', () => {
   const [a, b] = flattenPath('M10 10 L20 10 H30 V30 l-5 5 z M50 50 h10');
-  assert.deepEqual(a.pts, [[10, 10], [20, 10], [30, 10], [30, 30], [25, 35]]);
-  assert.equal(a.closed, true);
-  assert.deepEqual(b.pts, [[50, 50], [60, 50]]);
-  assert.equal(b.closed, false);
+  assert.deepEqual(a!.pts, [[10, 10], [20, 10], [30, 10], [30, 30], [25, 35]]);
+  assert.equal(a!.closed, true);
+  assert.deepEqual(b!.pts, [[50, 50], [60, 50]]);
+  assert.equal(b!.closed, false);
 });
 
 test('flattenPath: a number list after a command repeats it; after M it means L', () => {
   const [a] = flattenPath('M0 0 10 0 10 10 L 20 20 30 30');
-  assert.deepEqual(a.pts, [[0, 0], [10, 0], [10, 10], [20, 20], [30, 30]]);
+  assert.deepEqual(a!.pts, [[0, 0], [10, 0], [10, 10], [20, 20], [30, 30]]);
   const [r] = flattenPath('m1 1 2 0 0 2');
-  assert.deepEqual(r.pts, [[1, 1], [3, 1], [3, 3]]);
+  assert.deepEqual(r!.pts, [[1, 1], [3, 1], [3, 3]]);
 });
 
 test('flattenPath: compact numbers: signs and decimals as separators, exponents', () => {
-  assert.deepEqual(flattenPath('M10-5L-3.5.5')[0].pts, [[10, -5], [-3.5, 0.5]]);
-  assert.deepEqual(flattenPath('M1e1,2E0L0 0')[0].pts, [[10, 2], [0, 0]]);
+  assert.deepEqual(flattenPath('M10-5L-3.5.5')[0]!.pts, [[10, -5], [-3.5, 0.5]]);
+  assert.deepEqual(flattenPath('M1e1,2E0L0 0')[0]!.pts, [[10, 2], [0, 0]]);
 });
 
 test('flattenPath: after z the next command starts at the start of the closed subpath', () => {
   const sub = flattenPath('M10 10 L20 10 L20 20 z l5 5');
   assert.equal(sub.length, 2);
-  assert.deepEqual(sub[1].pts[0], [10, 10]);
-  assert.deepEqual(sub[1].pts[1], [15, 15]);
+  assert.deepEqual(sub[1]!.pts[0], [10, 10]);
+  assert.deepEqual(sub[1]!.pts[1], [15, 15]);
 });
 
 test('flattenPath: a cubic ends where it should and bulges where it should', () => {
   const [c] = flattenPath('M0 0 C 0 100, 100 100, 100 0');
-  assert.deepEqual(c.pts[0], [0, 0]);
-  nearPt(c.pts[c.pts.length - 1], 100, 0);
-  assert.ok(c.pts.length > 10);
-  near(Math.max(...c.pts.map(p => p[1])), 75, 0.5);
-  assert.deepEqual(c.extrema.map(p => [+p[0].toFixed(3), +p[1].toFixed(3)]).sort(), [[50, 75]]);
+  assert.deepEqual(c!.pts[0], [0, 0]);
+  nearPt(c!.pts[c!.pts.length - 1]!, 100, 0);
+  assert.ok(c!.pts.length > 10);
+  near(Math.max(...c!.pts.map(p => p[1])), 75, 0.5);
+  assert.deepEqual(c!.extrema.map(p => [+p[0].toFixed(3), +p[1].toFixed(3)]).sort(), [[50, 75]]);
 });
 
 test('flattenPath: the exact extreme of a curve is reported, so its box is not the flattening\'s', () => {
@@ -78,24 +78,24 @@ test('flattenPath: the exact extreme of a curve is reported, so its box is not t
 
 test('flattenPath: S and T reflect the previous control point; Q works', () => {
   const [s] = flattenPath('M0 0 C 10 0, 20 10, 30 10 S 50 20, 60 10');
-  nearPt(s.pts[s.pts.length - 1], 60, 10);
+  nearPt(s!.pts[s!.pts.length - 1]!, 60, 10);
   const [t] = flattenPath('M0 0 Q 10 20, 20 0 T 40 0');
-  nearPt(t.pts[t.pts.length - 1], 40, 0);
-  assert.ok(Math.min(...t.pts.map(p => p[1])) < -5, 'the T reflected the control point, bulging the other way');
-  assert.ok(Math.max(...t.pts.map(p => p[1])) > 5);
+  nearPt(t!.pts[t!.pts.length - 1]!, 40, 0);
+  assert.ok(Math.min(...t!.pts.map(p => p[1])) < -5, 'the T reflected the control point, bulging the other way');
+  assert.ok(Math.max(...t!.pts.map(p => p[1])) > 5);
 });
 
 test('flattenPath: an arc ends at its end point and stays on its circle', () => {
   const [a] = flattenPath('M0 0 A 50 50 0 0 1 100 0');
-  nearPt(a.pts[a.pts.length - 1], 100, 0);
-  for (const p of a.pts) near(Math.hypot(p[0] - 50, p[1]), 50, 1e-6);
-  assert.ok(a.pts.every(p => p[1] <= 1e-9), 'sweep 1 from left to right goes up in screen coordinates (y negative)');
+  nearPt(a!.pts[a!.pts.length - 1]!, 100, 0);
+  for (const p of a!.pts) near(Math.hypot(p[0] - 50, p[1]), 50, 1e-6);
+  assert.ok(a!.pts.every(p => p[1] <= 1e-9), 'sweep 1 from left to right goes up in screen coordinates (y negative)');
 });
 
 test('flattenPath: arc flags may be written without separators; large-arc and sweep choose among the four arcs', () => {
-  const compact = flattenPath('M0 0a50 50 0 0150 50')[0].pts;
-  nearPt(compact[compact.length - 1], 50, 50);
-  const ys = (la: number, sw: number) => flattenPath(`M0 0 A 50 50 0 ${la} ${sw} 60 0`)[0].pts.map(p => p[1]);
+  const compact = flattenPath('M0 0a50 50 0 0150 50')[0]!.pts;
+  nearPt(compact[compact.length - 1]!, 50, 50);
+  const ys = (la: number, sw: number) => flattenPath(`M0 0 A 50 50 0 ${la} ${sw} 60 0`)[0]!.pts.map(p => p[1]);
   assert.ok(Math.min(...ys(0, 1)) < -1 && Math.max(...ys(0, 1)) <= 1e-9);
   assert.ok(Math.max(...ys(0, 0)) > 1 && Math.min(...ys(0, 0)) >= -1e-9);
   assert.ok(Math.abs(Math.min(...ys(1, 1))) > Math.abs(Math.min(...ys(0, 1))));
@@ -103,8 +103,8 @@ test('flattenPath: arc flags may be written without separators; large-arc and sw
 
 test('flattenPath: an arc too small for its endpoints is scaled up; a zero radius is a line', () => {
   const [a] = flattenPath('M0 0 A 1 1 0 0 1 100 0');
-  nearPt(a.pts[a.pts.length - 1], 100, 0);
-  assert.deepEqual(flattenPath('M0 0 A 0 5 0 0 1 10 10')[0].pts, [[0, 0], [10, 10]]);
+  nearPt(a!.pts[a!.pts.length - 1]!, 100, 0);
+  assert.deepEqual(flattenPath('M0 0 A 0 5 0 0 1 10 10')[0]!.pts, [[0, 0], [10, 10]]);
 });
 
 test('flattenPath refuses malformed data, saying where', () => {
@@ -127,7 +127,7 @@ test('outlineOf: rect, with percentages of the viewport', () => {
 test('outlineOf: circle and ellipse have the exact box, and the outline closes', () => {
   const c = outlineOf(el('<circle id="e" cx="100" cy="50" r="20"/>'), VP);
   for (const [k, v] of Object.entries({x: 80, y: 30, w: 40, h: 40})) near((c.box as any)[k], v, 1e-9);
-  assert.deepEqual(c.polylines[0][0].map(v => +v.toFixed(6)), c.polylines[0][c.polylines[0].length - 1].map(v => +v.toFixed(6)));
+  assert.deepEqual(c.polylines[0]![0]!.map(v => +v.toFixed(6)), c.polylines[0]![c.polylines[0]!.length - 1]!.map(v => +v.toFixed(6)));
   const e = outlineOf(el('<ellipse id="e" cx="10" cy="10" rx="5" ry="2"/>'), VP);
   for (const [k, v] of Object.entries({x: 5, y: 8, w: 10, h: 4})) near((e.box as any)[k], v, 1e-9);
 });
@@ -137,7 +137,7 @@ test('outlineOf: line, polyline, polygon', () => {
   assert.deepEqual(outlineOf(el('<polyline id="e" points="0,0 10,5 20,0"/>'), VP).box, {x: 0, y: 0, w: 20, h: 5});
   const pg = outlineOf(el('<polygon id="e" points="0 0 10 0 10 10"/>'), VP);
   assert.deepEqual(pg.box, {x: 0, y: 0, w: 10, h: 10});
-  assert.deepEqual(pg.polylines[0][0], pg.polylines[0][pg.polylines[0].length - 1], 'a polygon closes');
+  assert.deepEqual(pg.polylines[0]![0], pg.polylines[0]![pg.polylines[0]!.length - 1], 'a polygon closes');
   assert.deepEqual(outlineOf(el('<polygon id="e" points=""/>'), VP), {polylines: [], box: null, points: []});
 });
 
@@ -182,7 +182,7 @@ test('familyKind: the first family of the list decides', () => {
 const STYLE = `<style>text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }</style>`;
 const boxOfText = (inner: string, attrs = '') => {
   const r = root(`${STYLE}<text id="e" ${attrs}>${inner}</text>`);
-  return textBoxOf(elements(r).find(e => e.attrs.id === 'e')!, computeStyles(r), measure);
+  return textBoxOf(elements(r).find(e => e.attrs['id'] === 'e')!, computeStyles(r), measure);
 };
 const sans = (text: string, size: number, weight = 400) => textBox(text, 'sans', size, weight);
 const skip = haveFont ? false : 'no font file found';

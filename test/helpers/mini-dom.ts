@@ -72,7 +72,7 @@ export function deckPage(n: number, names = ['one', 'two', 'three', 'four', 'fiv
     s.setAttribute('id', `s${i + 1}`);
     s.setAttribute('class', 'slide');
     s.setAttribute('aria-label', `${i + 1} / ${n}: ${names[i]}`);
-    s.setAttribute('data-name', names[i]);
+    s.setAttribute('data-name', names[i]!);
     s.appendChild(new El('svg', doc));
     slides.push(s);
   }

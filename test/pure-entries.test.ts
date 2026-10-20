@@ -18,7 +18,6 @@ import {walkBands} from '../lib/rules.ts';
 import {emitSvg} from '../lib/emit.ts';
 import {emitHtml} from '../lib/emit-html.ts';
 import {fontBoxOf} from '../lib/font-box.ts';
-import {xmlProblems} from '../lib/xml-check.ts';
 import {closeMeasurer} from '../lib/measure.ts';
 import type {LaidOutDiagram} from '../lib/types/index.ts';
 

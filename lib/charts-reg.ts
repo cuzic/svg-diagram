@@ -1,6 +1,7 @@
 // regplot() / residplot(): seaborn's regression plots from raw columns. regplot is a scatter with the least-squares line (or a polynomial of
 // order 2 / 3) and the 95% confidence band of the fitted mean; one fit per group (up to 4: marker shape, line style and colour all differ).
 // residplot is the scatter of the residuals around the same fit, with the zero line. Nothing is random.
+import {must} from './must.ts';
 import {Canvas, checkIds, checkText, fail, finiteNum, niceScale, numText} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 import {markerPath, SHAPES} from './charts-cat.ts';
@@ -53,12 +54,12 @@ export function resolveReg(who: string, resid: boolean, data: RegData, opts: Reg
   if (names.length > TONES.length) fail(who, `at most ${TONES.length} groups (got ${names.length}: ${names.join(', ')})`);
   if (labels !== undefined) names.forEach(n => checkText(who, 'a group label', n));
   const groups = names.map(name => {
-    const idx = x.map((_q, i) => i).filter(i => labels === undefined || labels[i] === name), gx = idx.map(i => x[i]), gy = idx.map(i => y[i]);
+    const idx = x.map((_q, i) => i).filter(i => labels === undefined || labels[i] === name), gx = idx.map(i => must(x[i])), gy = idx.map(i => must(y[i])); // idx are indexes of x, and y has as many values
     const label = name ? `"${name}"` : 'the data';
     if (gx.length < order + 2) fail(who, `${label}: a fit of order ${order} needs at least ${order + 2} points (got ${gx.length})`);
     if (new Set(gx).size < order + 1) fail(who, `${label}: the x values need at least ${order + 1} different values for a fit of order ${order}`);
     const fit = polyFit(gx, gy, order);
-    return {name, x: gx, y: gy, fit, ...(lowess ? {smooth: lowessFit(gx, resid ? gy.map((v, i) => v - fit.at(gx[i])) : gy, frac)} : {})};
+    return {name, x: gx, y: gy, fit, ...(lowess ? {smooth: lowessFit(gx, resid ? gy.map((v, i) => v - fit.at(must(gx[i]))) : gy, frac)} : {})};
   });
   const range = (k: 'xRange' | 'yRange') => { const v = opts[k]; if (v === undefined) return {}; if (!Array.isArray(v) || v.length !== 2 || !v.every(Number.isFinite) || !(v[0] < v[1])) fail(who, `${k} must be [min, max] with min < max (got ${JSON.stringify(v)})`); return {[k]: [v[0], v[1]]}; };
   return {...range('xRange'), ...range('yRange'), resid, xLabel: opts.xLabel ?? '', yLabel: opts.yLabel ?? '', order, band: opts.band ?? true, stats: !!opts.stats, lowess, groups};
@@ -69,7 +70,7 @@ const sgn = (v: number): string => `${v < 0 ? '−' : '+'} ${numText(Math.abs(pa
 function statText(s: RegSpec, fit: PolyFit, xs: number[], ys: number[]): string {
   const r2 = `R² = ${numText(parseFloat(fit.r2.toPrecision(2)))}`;
   if (s.order > 1 || s.resid) return r2;
-  const mx = meanOf(xs), my = meanOf(ys), sxx = xs.reduce((a, x) => a + (x - mx) ** 2, 0), slope = xs.reduce((a, x, i) => a + (x - mx) * (ys[i] - my), 0) / sxx, icpt = my - slope * mx;
+  const mx = meanOf(xs), my = meanOf(ys), sxx = xs.reduce((a, x) => a + (x - mx) ** 2, 0), slope = xs.reduce((a, x, i) => a + (x - mx) * (must(ys[i]) - my), 0) / sxx, icpt = my - slope * mx;
   return `y = ${numText(parseFloat(slope.toPrecision(3)))}x ${sgn(icpt)}（${r2}）`;
 }
 const legendText = (s: RegSpec, g: RegSpec['groups'][number]): string => `${g.name}${g.name && s.stats ? ' ' : ''}${s.stats ? statText(s, g.fit, g.x, g.y) : ''}`;
@@ -83,13 +84,13 @@ function curves(s: RegSpec, xs: {min: number; max: number}) {
   return s.groups.map(g => {
     const lo = Math.min(...g.x), hi = Math.max(...g.x);
     const grid = Array.from({length: 61}, (_q, i) => lo + (hi - lo) * i / 60);
-    if (g.smooth && !s.resid) { const line = grid.map(x => ({x, y: (g.smooth as (x: number) => number)(x)})); return {fit: line, up: line, dn: line, pts: g.x.map((x, i) => ({x, y: g.y[i]}))}; }
-    return {fit: grid.map(x => ({x, y: s.resid ? (g.smooth ? g.smooth(x) : 0) : g.fit.at(x)})), up: grid.map(x => ({x, y: g.fit.at(x) + (g.fit.half?.(x) ?? 0)})), dn: grid.map(x => ({x, y: g.fit.at(x) - (g.fit.half?.(x) ?? 0)})), pts: g.x.map((x, i) => ({x, y: s.resid ? g.y[i] - g.fit.at(x) : g.y[i]}))};
+    if (g.smooth && !s.resid) { const line = grid.map(x => ({x, y: (g.smooth as (x: number) => number)(x)})); return {fit: line, up: line, dn: line, pts: g.x.map((x, i) => ({x, y: must(g.y[i])}))}; }
+    return {fit: grid.map(x => ({x, y: s.resid ? (g.smooth ? g.smooth(x) : 0) : g.fit.at(x)})), up: grid.map(x => ({x, y: g.fit.at(x) + (g.fit.half?.(x) ?? 0)})), dn: grid.map(x => ({x, y: g.fit.at(x) - (g.fit.half?.(x) ?? 0)})), pts: g.x.map((x, i) => ({x, y: s.resid ? must(g.y[i]) - g.fit.at(x) : must(g.y[i])}))};
   }).map(c => ({...c, xs}));
 }
 function scales(s: RegSpec) {
   const all = s.groups.flatMap(g => g.x), xs = niceScale(Math.min(...all, s.xRange?.[0] ?? Infinity), Math.max(...all, s.xRange?.[1] ?? -Infinity)), cv = curves(s, xs);
-  const ys = s.groups.flatMap((_g, i) => [...cv[i].pts.map(p => p.y), ...(s.resid ? [0, ...(s.lowess ? cv[i].fit.map(p => p.y) : [])] : s.band ? [...cv[i].up, ...cv[i].dn].map(p => p.y) : cv[i].fit.map(p => p.y))]);
+  const ys = s.groups.flatMap((_g, i) => { const ci = must(cv[i]); return [...ci.pts.map(p => p.y), ...(s.resid ? [0, ...(s.lowess ? ci.fit.map(p => p.y) : [])] : s.band ? [...ci.up, ...ci.dn].map(p => p.y) : ci.fit.map(p => p.y))]; });
   const top = Math.max(...ys.map(Math.abs)), yscale = s.resid ? niceScale(Math.min(-top, s.yRange?.[0] ?? 0), Math.max(top, s.yRange?.[1] ?? 0)) : niceScale(Math.min(...ys, s.yRange?.[0] ?? Infinity), Math.max(...ys, s.yRange?.[1] ?? -Infinity));
   return {xs, ys: yscale, cv};
 }
@@ -124,7 +125,7 @@ export function layoutReg(s: RegSpec, g: ChartGeom): LaidOutChartPart {
   const pt = (p: Pts) => `${r1(xOf(p.x))},${r1(yOf(p.y))}`, line = (ps: Pts[]) => ps.map((p, k) => `${k ? 'L' : 'M'}${pt(p)}`).join(' ');
   legend.forEach(l => {
     const cy = g.y + l.row * (S + 12) + Math.max(9, Math.ceil(S * 0.64));
-    c.path(markerPath(SHAPES[l.i], l.x + 5, cy, 4.5), {fill: tone(l.i), op: 0.8});
+    c.path(markerPath(SHAPES[l.i] ?? 'disc', l.x + 5, cy, 4.5), {fill: tone(l.i), op: 0.8});
     c.line(l.x + 12, cy, l.x + 30, cy, {stroke: tone(l.i), sw: 2, dash: DASH[l.i] || undefined});
     c.text(l.text, l.x + 36, c.mid(cy), 'start', 'text');
   });
@@ -135,9 +136,9 @@ export function layoutReg(s: RegSpec, g: ChartGeom): LaidOutChartPart {
   if (s.xLabel) c.text(s.xLabel, (plotL + plotR) / 2, plotB + 2 * S + 26, 'middle', 'muted', {bold: true});
   const marks: Pts[] = [];
   s.groups.forEach((_gr, i) => {
-    const cv = sc.cv[i];
-    if (s.band && !s.resid && cv.up[0].y !== cv.fit[0].y) c.path(`${line(cv.up)} L${line([...cv.dn].reverse()).slice(1)} Z`, {fill: tone(i), op: 0.14});
-    for (const p of cv.pts) { c.path(markerPath(SHAPES[i], xOf(p.x), yOf(p.y), 3.5), {fill: tone(i), op: 0.75, stroke: 'bg', sw: 1}); marks.push({x: xOf(p.x), y: yOf(p.y)}); }
+    const cv = must(sc.cv[i]); // one per group
+    if (s.band && !s.resid && cv.up[0]?.y !== cv.fit[0]?.y) c.path(`${line(cv.up)} L${line([...cv.dn].reverse()).slice(1)} Z`, {fill: tone(i), op: 0.14});
+    for (const p of cv.pts) { c.path(markerPath(SHAPES[i] ?? 'disc', xOf(p.x), yOf(p.y), 3.5), {fill: tone(i), op: 0.75, stroke: 'bg', sw: 1}); marks.push({x: xOf(p.x), y: yOf(p.y)}); }
     if (!s.resid || s.lowess) c.path(line(cv.fit), {fill: 'none', stroke: tone(i), sw: 2.5, dash: DASH[i] || undefined});
   });
   for (const m of marks) c.marks.push({x: m.x - 4, y: m.y - 4, w: 8, h: 8});

@@ -11,7 +11,7 @@ import {planSlide, fontsOf} from '../../../lib/pptx/slide.ts';
 import {fetchXsd, hasXsd, hasXmllint, slideSchemaProblems} from './xsd.ts';
 
 register(new URL('../../../lib/resolve-hook.ts', import.meta.url));
-process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
+process.env["SVG_DIAGRAM_STRICT_WIDTH"] = '1';
 
 const args = process.argv.slice(2), sources = args.filter(a => !a.startsWith('--'));
 if (!sources.length) { console.error('usage: node test/helpers/pptx/validate.ts [--fetch] <source.ts>...'); process.exit(2); }

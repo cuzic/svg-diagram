@@ -13,7 +13,7 @@ const req = createRequire(path.resolve('package.json'));
 const resolves = (id: string) => { try { return req.resolve(id); } catch { return null; } };
 
 const onPath = () => {
-  for (const d of (process.env.PATH ?? '').split(path.delimiter).filter(Boolean)) {
+  for (const d of (process.env['PATH'] ?? '').split(path.delimiter).filter(Boolean)) {
     const f = path.join(d, process.platform === 'win32' ? 'tsc.cmd' : 'tsc');
     if (fs.existsSync(f)) return f;
   }
@@ -33,7 +33,7 @@ const here = import.meta.dirname;
 const root = fs.existsSync(path.join(here, 'lib', 'dsl.ts')) ? here : path.dirname(here);
 const own = (f: string) => [path.join(root, 'dist', 'lib', `${f}.d.ts`), path.join(root, 'lib', `${f}.ts`)].find(x => fs.existsSync(x));
 const paths: Record<string, string[]> = {};
-for (const [spec, f] of [['svg-diagram', 'dsl'], ['svg-diagram/render', 'render-source']]) {
+for (const [spec, f] of [['svg-diagram', 'dsl'], ['svg-diagram/render', 'render-source']] as const) {
   const file = own(f);
   if (file && !resolves(spec)) paths[spec] = [file];
 }
@@ -55,12 +55,12 @@ if (Object.keys(paths).length || typeRoots.length) {
   if (Object.keys(paths).length) {
     // the project's entries are relative to its baseUrl (else to its tsconfig): made absolute so they keep pointing at the same files
     const base = path.resolve(project.baseUrl ?? '.');
-    compilerOptions.paths = {...Object.fromEntries(Object.entries(project.paths ?? {}).map(([k, v]) => [k, v.map(p => path.resolve(base, p))])), ...paths};
+    compilerOptions['paths'] = {...Object.fromEntries(Object.entries(project.paths ?? {}).map(([k, v]) => [k, v.map(p => path.resolve(base, p))])), ...paths};
   }
   if (typeRoots.length) {
     // the project's other type packages stay visible: its own typeRoots, or the default node_modules/@types
     const mine = project.typeRoots?.map(t => path.resolve(t)) ?? [path.resolve('node_modules', '@types')].filter(t => fs.existsSync(t));
-    compilerOptions.typeRoots = [...mine, ...typeRoots];
+    compilerOptions['typeRoots'] = [...mine, ...typeRoots];
   }
   fs.writeFileSync(temp, JSON.stringify({extends: './tsconfig.json', compilerOptions}));
   config = temp;

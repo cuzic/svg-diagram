@@ -1,5 +1,6 @@
 // wordart(): the look — presets as values, the options resolved on top of them, how far the ink reaches, whether the letters read,
 // and the layers a placed wordart is painted in (docs/adr/0009). Pure.
+import {must} from './must.ts';
 import {PALETTE, colorOf, wcagRatio} from './tokens.ts';
 import type {Roles, Theme} from './types/core.ts';
 import type {ArtTone, ExtrudeSpec, GlowSpec, GradientSpec, LaidOutWordArt, OutlineSpec, ReflectionSpec, ShadowSpec, WordArtBand, WordArtLook, WordArtOpts, WordArtPreset} from './wordart-types.ts';
@@ -99,7 +100,7 @@ const hexOf = (c: number[]): string => '#' + c.map(v => Math.round(v).toString(1
 /** The colours a two-colour gradient passes through (sRGB, the SVG default), end to end. */
 export function gradientSteps(from: string, to: string, n = 10): string[] {
   const a = rgbOf(from), b = rgbOf(to);
-  return Array.from({length: n + 1}, (_v, i) => hexOf(a.map((v, k) => v + (b[k] - v) * i / n)));
+  return Array.from({length: n + 1}, (_v, i) => hexOf(a.map((v, k) => v + (must(b[k]) - v) * i / n)));
 }
 
 /**
@@ -125,7 +126,7 @@ export function legibilityProblem(look: WordArtLook, day: Theme, paint: (hex: st
   if (!inner) return `${bad} ${barely} from ${where} — pick another tone, add an outline, or put them on a plate`;
   if (thin) return `${bad} ${barely} from ${where}, and the outline (${thin.width}px) is a hairline: make it at least ${Math.ceil(minRim(look.size) * 10) / 10}px`;
   if (fills.some(f => !readsAgainst(f, c(inner.tone)))) return `${bad} ${barely} from its outline (${inner.tone}) — pick other tones`;
-  if (!readsAgainst(c(outer.tone), ground)) return `the outline (${outer.tone}) barely differs from ${where} — add an outer outline of a darker tone`;
+  if (outer && !readsAgainst(c(outer.tone), ground)) return `the outline (${outer.tone}) barely differs from ${where} — add an outer outline of a darker tone`;
   return null;
 }
 

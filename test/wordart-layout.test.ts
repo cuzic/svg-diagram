@@ -8,7 +8,7 @@ import {inside, place} from './helpers/wordart.ts';
 test('vertical layout: columns run right to left, inside the figure, and the id is an anchor', () => {
   const f = place('あいう\nえおか\nきくけ', {writing: 'vertical', size: 24, id: 'v'});
   const xs = f.labelBoxes.map(b => b.x);
-  assert.ok(xs[0] > xs[1] && xs[1] > xs[2], `right to left: ${xs}`);
+  assert.ok(xs[0]! > xs[1]! && xs[1]! > xs[2]!, `right to left: ${xs}`);
   for (const b of f.labelBoxes) assert.ok(inside(b, f));
   assert.deepEqual(f.anchors.map(a => a.id), ['v']);
   assert.ok(f.h >= 3 * 24, 'the height holds the longest column');
@@ -56,15 +56,15 @@ test('glow, depth and the bevel widen the ink; a reflection adds height; a turn 
 
 test('arcs: the letters follow the curve, and a bend that would crowd them is refused', () => {
   const f = place('虹形に曲げる', {size: 40, arc: 120});
-  const a = f.items[0];
+  const a = f.items[0]!;
   assert.equal(a.k, 'arc');
   if (a.k !== 'arc') return;
   assert.equal(a.glyphs.length, 6);
-  assert.ok(a.glyphs[0].rot < 0 && a.glyphs[5].rot > 0, 'an arch tips outward at both ends');
-  assert.ok(a.glyphs[0].y > a.glyphs[2].y, 'the ends are lower than the middle of the arch');
+  assert.ok(a.glyphs[0]!.rot < 0 && a.glyphs[5]!.rot > 0, 'an arch tips outward at both ends');
+  assert.ok(a.glyphs[0]!.y > a.glyphs[2]!.y, 'the ends are lower than the middle of the arch');
   for (const b of f.labelBoxes) assert.ok(inside(b, f));
-  const sag = place('曲げる曲げる曲げる', {size: 40, arc: -60}).items[0];
-  assert.ok(sag.k === 'arc' && sag.glyphs[0].y < sag.glyphs[4].y, 'a sag has its ends higher');
+  const sag = place('曲げる曲げる曲げる', {size: 40, arc: -60}).items[0]!;
+  assert.ok(sag.k === 'arc' && sag.glyphs[0]!.y < sag.glyphs[4]!.y, 'a sag has its ends higher');
   assert.throws(() => place('笑顔形', {size: 40, arc: -120}), /too tight/);
   assert.deepEqual(wordArtTexts(wordartBand('ab', {arc: 30}), ROLES).map(t => t[0]), ['a', 'b']);
 });

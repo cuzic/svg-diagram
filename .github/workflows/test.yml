@@ -27,6 +27,8 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm typecheck
         if: matrix.shard == 1
+      - run: pnpm lint
+        if: matrix.shard == 1
       # the test files are dealt out to three runners; every runner has the same fonts and browser, so a test that skips without one skips nowhere
       - run: node --test --test-shard=${{ matrix.shard }}/3 "test/*.test.ts"
       # building every example (and linting the SVGs strictly) is test/lint-cli.test.ts; one process per example here cost more than the rest of this job

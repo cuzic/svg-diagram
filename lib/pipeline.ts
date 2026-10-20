@@ -74,7 +74,7 @@ export function emitOutputs(laidOut: LaidOutDiagram, opts: {html?: boolean; reve
   const emitOpts = opts.reveal ? {reveal: opts.reveal} : {};
   const svg = emitSvg(laidOut, {...emitOpts, ...(opts.nodeIds ? {nodeIds: true} : {})});
   if (opts.html && !opts.fontBox) throw new Error('emitOutputs: html needs fontBox (the glyph boxes come from the shell: lib/font-box.ts)');
-  return {svg, ...(opts.html ? {html: emitHtml(laidOut, {...emitOpts, fontBox: opts.fontBox!})} : {}), xml: xmlProblems(svg)};
+  return {svg, ...(opts.html && opts.fontBox ? {html: emitHtml(laidOut, {...emitOpts, fontBox: opts.fontBox})} : {}), xml: xmlProblems(svg)};
 }
 
 /** One reveal stage's SVG (stage 0 = nothing revealed yet), from the same laid-out tree as the final drawing. */

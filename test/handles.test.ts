@@ -32,8 +32,8 @@ test('every id-carrying constructor returns a handle that produces id:side[@t] r
 test('a band without an id is not a handle', () => {
   for (const b of [box({title: 'x'}), banner({headline: 'H'}), group([]), table([{label: 'c'}], []), wireframe(wf.text('x'))]) {
     const h = b as unknown as Record<string, unknown>;
-    assert.equal(h.right, undefined);
-    assert.equal(h.at, undefined);
+    assert.equal(h['right'], undefined);
+    assert.equal(h['at'], undefined);
   }
 });
 
@@ -41,13 +41,13 @@ test('screens() and swimlane() expose one handle per item / step id under .ancho
   const flow = screens([{id: 'a', root: wf.text('x')}, {id: 'b', root: wf.text('y'), at: [1, 0]}, {title: 'anon', root: wf.text('z'), at: [2, 0]}] as never);
   const anchors = (flow as unknown as {anchors: Record<string, Hd>}).anchors;
   assert.deepEqual(Object.keys(anchors).sort(), ['a', 'b']);
-  checkHandle(anchors.a, 'a'); checkHandle(anchors.b, 'b');
-  assert.equal(anchors.a.id, 'a');
+  checkHandle(anchors['a']!, 'a'); checkHandle(anchors['b']!, 'b');
+  assert.equal(anchors['a']!.id, 'a');
 
   const lane = swimlane([{id: 'dev', label: 'D'}], [{id: 's1', lane: 'dev', title: 'T'}, {id: 's2', lane: 'dev', title: 'U'}, {lane: 'dev', title: 'no id'}]);
   const sa = (lane as unknown as {anchors: Record<string, Hd>}).anchors;
   assert.deepEqual(Object.keys(sa).sort(), ['s1', 's2']);
-  checkHandle(sa.s2, 's2');
+  checkHandle(sa['s2']!, 's2');
   // the array itself is still [swimlane block, ...flows] and anchors does not show up as an element or key
   assert.equal(Array.isArray(lane), true);
   assert.equal(lane.length, 1);
@@ -79,7 +79,7 @@ test('connect(handle refs) builds the very same ConnectBand as the equivalent st
   assert.deepEqual(viaHandle, viaString);
   assert.equal(typeof viaHandle.from, 'string');
   const [br] = branch(list.right, [{to: detail.left, label: 'y'}]);
-  assert.deepEqual([br.from, br.to], ['list:right', 'detail:left']);
+  assert.deepEqual([br!.from, br!.to], ['list:right', 'detail:left']);
 });
 
 const build = (useHandles: boolean) => {
@@ -109,7 +109,7 @@ test('stripping the handle properties (spreading every band) does not change the
   const stripped = diagram({theme: 'blue', title: 't'});
   const strip = (b: Band): Band => {
     const o = {...b} as Record<string, unknown>;
-    if (Array.isArray(o.children)) o.children = o.children.map(strip);
+    if (Array.isArray(o['children'])) o['children'] = o['children'].map(strip);
     return o as unknown as Band;
   };
   stripped.add(...withHandles.bands.map(strip));
@@ -121,11 +121,11 @@ test('handle ref with at() resolves to the offset point on that side', async () 
   const mk = async (t: number) => {
     const d = diagram({theme: 'blue'});
     d.add(row([a, b]), connect(a.at('bottom', t), b.bottom));
-    return (await checkDiagram(d)).laidOut.connects[0].points[0];
+    return (await checkDiagram(d)).laidOut.connects[0]!.points[0];
   };
   const [p0, p1] = [await mk(0), await mk(1)];
-  assert.ok(p1.x > p0.x, 'bottom@1 is to the right of bottom@0');
-  assert.equal(p0.y, p1.y);
+  assert.ok(p1!.x > p0!.x, 'bottom@1 is to the right of bottom@0');
+  assert.equal(p0!.y, p1!.y);
 });
 
 test('a connect() ref list built from handles keeps type "connect"', () => {

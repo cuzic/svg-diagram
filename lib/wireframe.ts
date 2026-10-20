@@ -16,6 +16,7 @@
 // Nodes in a col are full width; widgets in a row take their natural width (btn, chip) or share
 // the rest by flex. map / video / heat / pointcloud / chart / image grow to fill leftover height.
 
+import {must} from './must.ts';
 import {splitAtoms, textWidth} from './atoms.ts';
 import {TONE_ALIAS, textKeyOf, toneStyle} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
@@ -25,7 +26,7 @@ import {badgeBox, BADGE_R} from './badge.ts';
 import type {BadgeBox} from './badge.ts';
 import {installParts} from './wireframe-parts.ts';
 import type {ColorKey, Anchor, Rect, TextRequest, WidthOf, WrapMode} from './types/core.ts';
-import type {Wf, WfNode, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark, WfChipSpec, WfChildren, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfBtn, WfKvPair, WfListItemSpec, WfTableCellSpec, BadgeOpts, DrawShapeOpts, DrawTextOpts, WfAutoWFn, Prim} from './types/wireframe-nodes.ts';
+import type {Wf, WfNode, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark, WfChipSpec, WfChildren, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfKvPair, WfListItemSpec, WfTableCellSpec, BadgeOpts, DrawShapeOpts, DrawTextOpts, WfAutoWFn} from './types/wireframe-nodes.ts';
 import type {WfScreen, WireframeBand, ScreensBand, StateMatrixCell, LaidOutWireframe, LaidOutScreens} from './types/wireframe.ts';
 
 const S = 14, T = 15, LHF = 1.4, GAP = 12;
@@ -95,7 +96,7 @@ const KATA = /^[\u30A0-\u30FF]+$/;
 function atomsOf(s: string | number): string[] {
   const out: string[] = [];
   for (const a of splitAtoms(String(s))) {
-    if (out.length && KATA.test(a) && KATA.test(out[out.length - 1])) out[out.length - 1] += a;
+    if (out.length && KATA.test(a) && KATA.test(must(out[out.length - 1]))) out[out.length - 1] += a;
     else out.push(a);
   }
   return out;
@@ -183,7 +184,7 @@ function tableData(n: Extract<WfNode, {t: 'table'}>, w: number, ctx: WfCtx) {
   const rows = n.rows.map(r => {
     const cells = r.map((cell, i) => {
       const c: WfTableCellSpec = typeof cell === 'string' || typeof cell === 'number' ? {text: String(cell)} : cell;
-      const lines = c.badge ? [] : wrapT(ctx, c.text ?? '', S, c.bold ? 700 : 400, cw[i] - 16);
+      const lines = c.badge ? [] : wrapT(ctx, c.text ?? '', S, c.bold ? 700 : 400, must(cw[i]) - 16);
       return {...c, lines};
     });
     return {cells, h: Math.max(cells.some(c => c.badge) ? 32 : 28, Math.max(...cells.map(c => c.lines.length)) * lh(S) + 8)};
@@ -214,7 +215,7 @@ function natBase(n: WfNode, w: number, ctx: WfCtx): number {
     case 'table': { const d = tableData(n, w, ctx); return 28 + d.rows.reduce((s, r) => s + r.h, 0); }
     case 'alert': return Math.max(36, wrapT(ctx, n.text, S, 700, w - 44).length * lh(S) + 16);
     case 'col': { const p = n.pad ?? 0; return colNat(n.children, w - 2 * p, n.gap ?? GAP, ctx) + 2 * p; }
-    case 'row': { const p = n.pad ?? 0; const ws = rowWidths(n, w - 2 * p, ctx); return Math.max(0, ...n.children.map((c, i) => nat(c, ws[i], ctx))) + 2 * p; }
+    case 'row': { const p = n.pad ?? 0; const ws = rowWidths(n, w - 2 * p, ctx); return Math.max(0, ...n.children.map((c, i) => nat(c, must(ws[i]), ctx))) + 2 * p; }
     case 'card': { const p = n.pad ?? 10; return (n.title ? 28 : 0) + colNat(n.children, w - 2 * p, n.gap ?? GAP, ctx) + 2 * p; }
     default: return n.min ?? (n.t === 'chart' ? 100 : 80);
   }
@@ -245,14 +246,14 @@ function placeCol(children: WfNode[], x: number, y: number, w: number, h: number
   const extra = flexSum ? Math.max(0, h - total) : 0;
   let cy = y;
   children.forEach((c, i) => {
-    const ch = natH[i] + (flexSum ? extra * flexOf(c) / flexSum : 0);
+    const ch = must(natH[i]) + (flexSum ? extra * flexOf(c) / flexSum : 0);
     place(c, x, cy, w, ch, ctx);
     cy += ch + gap;
   });
 }
 
 const DRAW: WfDrawTable = {
-  spacer: (n, x, y, w) => ({w, h: 8}),
+  spacer: (_n, _x, _y, w) => ({w, h: 8}),
 
   col: (n, x, y, w, h, ctx) => {
     const p = n.pad ?? 0;
@@ -266,10 +267,10 @@ const DRAW: WfDrawTable = {
     let cx = x + p;
     n.children.forEach((c, i) => {
       const ch = h - 2 * p;
-      const own = nat(c, ws[i], ctx);
+      const wi = must(ws[i]), own = nat(c, wi, ctx);
       const dy = n.align === 'center' && flexOf(c) === 0 ? (ch - own) / 2 : 0;
-      place(c, cx, y + p + dy, ws[i], flexOf(c) || VISUAL.has(c.t) || CONTAINER.has(c.t) ? ch : own, ctx);
-      cx += ws[i] + gap;
+      place(c, cx, y + p + dy, wi, flexOf(c) || VISUAL.has(c.t) || CONTAINER.has(c.t) ? ch : own, ctx);
+      cx += wi + gap;
     });
     return {w, h};
   },
@@ -283,7 +284,7 @@ const DRAW: WfDrawTable = {
     return {w, h};
   },
 
-  text: (n, x, y, w, h, ctx) => {
+  text: (n, x, y, w, _h, ctx) => {
     const size = n.size === 'title' ? T : S, weight = n.bold || n.size === 'title' ? 700 : 400;
     const lines = textLines(n, w, ctx);
     const fill = toneFill(ctx, n.tone);
@@ -294,7 +295,7 @@ const DRAW: WfDrawTable = {
     return {w, h: Math.max(1, lines.length) * lh(size)};
   },
 
-  btn: (n, x, y, w, h, ctx) => {
+  btn: (n, x, y, w, _h, ctx) => {
     const bw = n.full ? w : Math.min(w, autoW(n, ctx) ?? 0);
     const primary = !!n.primary;
     rect(ctx, x, y, bw, 32, {r: 6, fill: primary ? (n.danger ? 'danger' : 'accent') : 'bg', stroke: primary ? null : (n.danger ? 'danger' : 'text')});
@@ -302,22 +303,22 @@ const DRAW: WfDrawTable = {
     return {w: bw, h: 32};
   },
 
-  chip: (n, x, y, w, h, ctx) => ({w: drawChip(ctx, n.label, x, y, n.tone), h: 24}),
+  chip: (n, x, y, _w, _h, ctx) => ({w: drawChip(ctx, n.label, x, y, n.tone), h: 24}),
 
-  input: (n, x, y, w, h, ctx) => {
+  input: (n, x, y, w, _h, ctx) => {
     rect(ctx, x, y, w, 32, {r: 6, fill: 'bg', stroke: 'muted'});
     text(ctx, n.label, x + 10, mid(y + 16), {fill: n.value ? 'text' : 'muted'});
     return {w, h: 32};
   },
 
-  select: (n, x, y, w, h, ctx) => {
+  select: (n, x, y, w, _h, ctx) => {
     rect(ctx, x, y, w, 32, {r: 6, fill: 'bg', stroke: 'muted'});
     text(ctx, n.label, x + 10, mid(y + 16), {fill: n.value ? 'text' : 'muted'});
     path(ctx, `M${Math.round(x + w - 24)},${Math.round(y + 13)} L${Math.round(x + w - 12)},${Math.round(y + 13)} L${Math.round(x + w - 18)},${Math.round(y + 20)} Z`, {fill: 'muted'});
     return {w, h: 32};
   },
 
-  tabs: (n, x, y, w, h, ctx) => {
+  tabs: (n, x, y, w, _h, ctx) => {
     const active = n.active ?? 0;
     line(ctx, x, y + 34, x + w, y + 34, {stroke: 'border'});
     let cx = x;
@@ -330,7 +331,7 @@ const DRAW: WfDrawTable = {
     return {w, h: 36};
   },
 
-  appbar: (n, x, y, w, h, ctx) => {
+  appbar: (n, x, y, w, _h, ctx) => {
     rect(ctx, x, y, w, 44, {fill: 'accent'});
     text(ctx, n.title, x + 14, mid(y + 22), {weight: 700, fill: 'bg'});
     let cx = x + 14 + tw(ctx, n.title, S, 700) + 28;
@@ -353,7 +354,7 @@ const DRAW: WfDrawTable = {
     return {w, h: 44};
   },
 
-  seek: (n, x, y, w, h, ctx) => {
+  seek: (n, x, y, w, _h, ctx) => {
     const lw = n.from ? tw(ctx, n.from, S, 400) + 8 : 0, rw = n.to ? tw(ctx, n.to, S, 400) + 8 : 0;
     const x0 = x + 28 + lw, x1 = x + w - rw - 8, cy = y + 14;
     path(ctx, pts([[x + 6, cy - 8], [x + 6, cy + 8], [x + 20, cy]]) + ' Z', {fill: 'accent'});
@@ -367,7 +368,7 @@ const DRAW: WfDrawTable = {
     return {w, h: 28};
   },
 
-  kv: (n, x, y, w, h, ctx) => {
+  kv: (n, x, y, w, _h, ctx) => {
     const {keyW, rows} = kvRows(n, w, ctx);
     let cy = y;
     for (const r of rows) {
@@ -378,7 +379,7 @@ const DRAW: WfDrawTable = {
     return {w, h: cy - y};
   },
 
-  stat: (n, x, y, w, h, ctx) => {
+  stat: (n, x, y, w, _h, ctx) => {
     const tone = toneOf(n.tone);
     rect(ctx, x, y, w, 88, {r: 8, fill: tone === 'danger' ? 'bg' : 'code', stroke: tone === 'danger' ? 'danger' : 'border'});
     text(ctx, n.value, x + w / 2, y + 52, {size: 34, weight: 700, fill: toneFill(ctx, tone), anchor: 'middle'});
@@ -386,7 +387,7 @@ const DRAW: WfDrawTable = {
     return {w, h: 88};
   },
 
-  list: (n, x, y, w, h, ctx) => {
+  list: (n, x, y, w, _h, ctx) => {
     let cy = y;
     if (n.title) {
       text(ctx, n.title, x, cy + 20, {size: T, weight: 700});
@@ -404,12 +405,12 @@ const DRAW: WfDrawTable = {
     return {w, h: cy - y};
   },
 
-  table: (n, x, y, w, h, ctx) => {
+  table: (n, x, y, w, _h, ctx) => {
     const d = tableData(n, w, ctx);
     const total = nat(n, w, ctx);
     rect(ctx, x, y, w, 28, {fill: 'soft'});
     let cx = x;
-    d.cols.forEach((c, i) => { text(ctx, c.label, cx + 8, mid(y + 14), {weight: 700}); cx += d.cw[i]; });
+    d.cols.forEach((c, i) => { text(ctx, c.label, cx + 8, mid(y + 14), {weight: 700}); cx += must(d.cw[i]); });
     let cy = y + 28;
     for (const r of d.rows) {
       line(ctx, x, cy, x + w, cy, {stroke: 'border', sw: 1.5});
@@ -418,7 +419,7 @@ const DRAW: WfDrawTable = {
         if (c.badge) drawChip(ctx, c.badge, cx + 8, cy + (r.h - 24) / 2, c.tone);
         else if (ctx.skeleton && !c.keep) bars(ctx, c.lines.map(l => tw(ctx, l, S, 400)), cx + 8, cy + (r.h - lh(S) * c.lines.length) / 2 - 6);
         else c.lines.forEach((l, k) => text(ctx, l, cx + 8, cy + (r.h - lh(S) * c.lines.length) / 2 + S + k * lh(S), {weight: c.bold ? 700 : 400, fill: toneFill(ctx, toneOf(c.tone))}));
-        cx += d.cw[i];
+        cx += must(d.cw[i]);
       });
       cy += r.h;
     }
@@ -426,7 +427,7 @@ const DRAW: WfDrawTable = {
     return {w, h: total};
   },
 
-  alert: (n, x, y, w, h, ctx) => {
+  alert: (n, x, y, w, _h, ctx) => {
     const tone = toneOf(n.tone);
     // an alert is a danger or an accent note (anything else is a neutral grey one); its text is bold, in the tone only when it is danger
     const t = toneStyle(ctx.tones, tone === 'danger' || tone === 'accent' ? tone : undefined);
@@ -461,7 +462,8 @@ const DRAW: WfDrawTable = {
     rect(ctx, x, y, w, h, {r: 6, fill: 'code', stroke: 'border'});
     const base = Math.min(w, h), hx = x + w * (n.probe?.x ?? 0.46), hy = y + h * (n.probe?.y ?? 0.5);
     circle(ctx, x + w * 0.2, y + h * 0.66, base * 0.16, {fill: 'accent', op: 0.15});
-    [[0.3, 0.12], [0.2, 0.25], [0.1, 0.5]].forEach(([r, op]) => circle(ctx, hx, hy, base * r, {fill: 'danger', op}));
+    const rings: [number, number][] = [[0.3, 0.12], [0.2, 0.25], [0.1, 0.5]];
+    rings.forEach(([r, op]) => circle(ctx, hx, hy, base * r, {fill: 'danger', op}));
     line(ctx, hx - 14, hy, hx + 14, hy, {stroke: 'text', sw: 2});
     line(ctx, hx, hy - 14, hx, hy + 14, {stroke: 'text', sw: 2});
     [0.6, 0.45, 0.3, 0.2, 0.12].forEach((op, i) => rect(ctx, x + w - 24, y + h * 0.2 + i * (h * 0.12), 12, h * 0.12, {fill: i < 2 ? 'danger' : 'accent', op}));
@@ -523,8 +525,8 @@ const DRAW: WfDrawTable = {
       vals.forEach((v, i) => circle(ctx, px(i), py(v), i === n.alertAt ? 7 : 4, {fill: i === n.alertAt ? 'danger' : 'accent'}));
     }
     if (n.xLabels) {
-      text(ctx, n.xLabels[0], x0, y + h - 10, {fill: 'muted'});
-      text(ctx, n.xLabels[n.xLabels.length - 1], x1, y + h - 10, {fill: 'muted', anchor: 'end'});
+      text(ctx, must(n.xLabels[0]), x0, y + h - 10, {fill: 'muted'});
+      text(ctx, must(n.xLabels[n.xLabels.length - 1]), x1, y + h - 10, {fill: 'muted', anchor: 'end'});
     }
     return {w, h};
   },
@@ -537,12 +539,14 @@ const DRAW: WfDrawTable = {
     const plan = n.plan ?? 'floor';
     if (plan === 'floor') {
       rect(ctx, bx, by, bw, bh, {fill: 'bg', stroke: 'muted'});
-      for (const [a, b, c, d] of [[0.38, 0, 0.38, 0.4], [0.38, 0.58, 0.38, 1], [0, 0.55, 0.38, 0.55], [0.38, 0.5, 1, 0.5]]) {
+      const walls: [number, number, number, number][] = [[0.38, 0, 0.38, 0.4], [0.38, 0.58, 0.38, 1], [0, 0.55, 0.38, 0.55], [0.38, 0.5, 1, 0.5]];
+      for (const [a, b, c, d] of walls) {
         const [p, q] = [F(a, b), F(c, d)];
         line(ctx, p[0], p[1], q[0], q[1], {stroke: 'muted'});
       }
     } else if (plan === 'site') {
-      for (const [a, b, c, d] of [[0.06, 0.14, 0.32, 0.42], [0.46, 0.08, 0.24, 0.32], [0.54, 0.5, 0.36, 0.38]]) {
+      const lots: [number, number, number, number][] = [[0.06, 0.14, 0.32, 0.42], [0.46, 0.08, 0.24, 0.32], [0.54, 0.5, 0.36, 0.38]];
+      for (const [a, b, c, d] of lots) {
         const [p] = [F(a, b)];
         rect(ctx, p[0], p[1], c * bw, d * bh, {r: 4, fill: 'bg', stroke: 'muted'});
       }
@@ -569,7 +573,7 @@ function drawMapLegend(items: WfMapLegendItem[], right: number, top: number, ctx
   });
 }
 
-function drawMarker(m: WfMapMarker, [px, py]: [number, number], minX: number, maxX: number, ctx: WfCtx): void {
+function drawMarker(m: WfMapMarker, [px, py]: [number, number], _minX: number, maxX: number, ctx: WfCtx): void {
   const kind = m.kind ?? 'robot';
   let r = m.inside != null ? 11 : 9;
   if (kind === 'robot') {
@@ -720,7 +724,7 @@ function layoutScreen(item: WfScreen, ctx: WfCtx, x: number, y: number, w: numbe
 
 // ---- state matrix: rows (parts) x columns (states); every cell is a design, "対象外" (n/a, with a reason) or "未設計" (to do)
 function layoutMatrix(band: ScreensBand, ctx: WfCtx, x: number, y: number, w: number) {
-  const m = band.matrix!, n = m.cols.length, labelW = m.labelW ?? 112, gap = m.gap ?? 12;
+  const m = must(band.matrix), n = m.cols.length, labelW = m.labelW ?? 112, gap = m.gap ?? 12;
   const cw = (w - labelW - gap * n) / n, anchors: Rect[] = [];
   let cy = y;
   m.cols.forEach((c, i) => text(ctx, c, x + labelW + gap + i * (cw + gap) + cw / 2, cy + 20, {size: T, weight: 700, anchor: 'middle'}));
@@ -791,7 +795,7 @@ export function layoutWireframe(band: WireframeBand, x: number, y: number, w: nu
   const sw = hasNotes ? w - noteW - gap : w;
   const scr = layoutScreen({title: band.title, tag: band.tag, tagTone: band.tagTone, root: band.root, overlays: band.overlays, h: band.h, frame: band.frame, skeleton: band.skeleton}, ctx, x, y, sw, 440);
   let bottom = scr.bottom;
-  if (hasNotes) bottom = Math.max(bottom, scr.frame.y + drawNotes(ctx, band.notes!, x + sw + gap, scr.frame.y, noteW));
+  if (hasNotes) bottom = Math.max(bottom, scr.frame.y + drawNotes(ctx, must(band.notes), x + sw + gap, scr.frame.y, noteW));
   bottom += drawMarksLegend(ctx, band.marks, x, bottom + 4) ? 32 : 0;
   return {type: 'wireframe', id: band.id, title: band.title, x, y, w, h: bottom - y, prims: ctx.prims, callouts: ctx.all, anchors: band.id ? [{id: band.id, ...scr.frame}] : []};
 }

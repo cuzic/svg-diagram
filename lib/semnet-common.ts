@@ -3,6 +3,7 @@ import type {Cand, ChartBox, ChartGeom, ChartOpts} from './charts-base.ts';
 import {Canvas, checkIds, checkText, fail} from './charts-base.ts';
 import {layeredAttempt} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
+import {must} from './must.ts';
 
 export type SemnetDirection = 'LR' | 'TB';
 export interface SemnetOpts extends ChartOpts {
@@ -25,17 +26,18 @@ export const validateNodes = (who: string, nodes: readonly {id: string; label: s
 const r = (n: number): number => Math.round(n * 10) / 10;
 export function arrow(c: Canvas, points: Pt[], {edge, ...o}: {stroke: 'accent' | 'danger' | 'muted' | 'text'; sw?: number; dash?: string; of?: string; /** the edge this arrow draws: recorded in the chart's `edges` (a self-loop is not) */ edge?: {from: string; to: string}}, mark = true): void {
   if (edge && edge.from !== edge.to) c.edges.push({from: edge.from, to: edge.to, points: points.map(p => ({x: p.x, y: p.y}))});
-  for (let i = 1; i < points.length; i++) c.line(points[i - 1].x, points[i - 1].y, points[i].x, points[i].y, {...o, avoid: true});
-  if (!mark || points.length < 2) return;
-  const b = points.at(-1)!, a = points.at(-2)!, dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, px = -uy, py = ux, z = 7 + (o.sw ?? 2);
+  for (const [i, q] of points.entries()) { const prev = points[i - 1]; if (prev) c.line(prev.x, prev.y, q.x, q.y, {...o, avoid: true}); }
+  const b = points.at(-1), a = points.at(-2);
+  if (!mark || !a || !b) return;
+  const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, px = -uy, py = ux, z = 7 + (o.sw ?? 2);
   c.path(`M${r(b.x)},${r(b.y)} L${r(b.x - ux * z + px * z * .55)},${r(b.y - uy * z + py * z * .55)} L${r(b.x - ux * z - px * z * .55)},${r(b.y - uy * z - py * z * .55)} Z`, {fill: o.stroke, of: o.of});
 }
 /** The box an arrow head fills (the head is drawn as a path, which the canvas does not register). */
-export const headBox = (p: Pt[], sw = 2): Rect => { const b = p.at(-1)!, z = 7 + sw + 2; return {x: b.x - z, y: b.y - z, w: 2 * z, h: 2 * z}; };
-export const edgeMid = (p: Pt[]): Pt => { const i = Math.max(0, Math.floor((p.length - 1) / 2)); return {x: (p[i].x + p[i + 1].x) / 2, y: (p[i].y + p[i + 1].y) / 2}; };
+export const headBox = (p: Pt[], sw = 2): Rect => { const b = must(p.at(-1)), z = 7 + sw + 2; return {x: b.x - z, y: b.y - z, w: 2 * z, h: 2 * z}; };
+export const edgeMid = (p: Pt[]): Pt => { const i = Math.max(0, Math.floor((p.length - 1) / 2)); const a = must(p[i]), b = must(p[i + 1]); return {x: (a.x + b.x) / 2, y: (a.y + b.y) / 2}; };
 export const pathOf = (paths: Map<number, Pt[]>, i: number, e: {from: string; to: string}, positions: Map<string, {x: number; y: number; w: number; h: number}>): Pt[] => {
   const routed = paths.get(i); if (routed) return routed;
-  const n = positions.get(e.from)!; // self loop (routeLayered deliberately leaves these to the caller)
+  const n = must(positions.get(e.from)); // self loop (routeLayered deliberately leaves these to the caller)
   return [{x: n.x + n.w, y: n.y + n.h * .7}, {x: n.x + n.w + 24, y: n.y + n.h * .7}, {x: n.x + n.w + 24, y: n.y - 18}, {x: n.x + n.w * .7, y: n.y - 18}, {x: n.x + n.w * .7, y: n.y}];
 };
 
@@ -49,12 +51,12 @@ export function placePlated(c: Canvas, text: string, cands: Cand[], fill: Fill, 
 }
 /** Points along a polyline at fractions of its length, with the segment each lies on (horizontal or not) and how far it is from that segment's ends. */
 const along = (p: Pt[], fracs: readonly number[]): {pt: Pt; horizontal: boolean; room: number}[] => {
-  const lens = p.slice(1).map((b, i) => Math.hypot(b.x - p[i].x, b.y - p[i].y)), total = lens.reduce((a, b) => a + b, 0);
+  const lens = p.slice(1).map((b, i) => { const a = must(p[i]); return Math.hypot(b.x - a.x, b.y - a.y); }), total = lens.reduce((a, b) => a + b, 0);
   return fracs.map(f => {
     let d = f * total, i = 0;
-    while (i < lens.length - 1 && d > lens[i]) d -= lens[i++];
-    const t = lens[i] ? d / lens[i] : 0;
-    return {pt: {x: p[i].x + (p[i + 1].x - p[i].x) * t, y: p[i].y + (p[i + 1].y - p[i].y) * t}, horizontal: Math.abs(p[i + 1].y - p[i].y) < Math.abs(p[i + 1].x - p[i].x), room: Math.min(d, lens[i] - d)};
+    while (i < lens.length - 1 && d > (lens[i] ?? 0)) d -= lens[i++] ?? 0;
+    const len = lens[i] ?? 0, t = len ? d / len : 0, a = must(p[i]), b = must(p[i + 1]);
+    return {pt: {x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t}, horizontal: Math.abs(b.y - a.y) < Math.abs(b.x - a.x), room: Math.min(d, len - d)};
   });
 };
 const ON_EDGE = [.5, .45, .55, .4, .6, .35, .65, .3, .7, .25, .75, .2, .8];
@@ -99,11 +101,11 @@ export function networkCanvas(g: ChartGeom, nodes: {id: string; label: string; w
   const positions = new Map<string, {x: number; y: number; w: number; h: number}>();
   for (const [id, p] of lay.nodes) positions.set(id, vertical ? {x: ox + p.y * scale, y: oy + p.x * scale, w: p.h * scale, h: p.w * scale} : {x: ox + p.x * scale, y: oy + p.y * scale, w: p.w * scale, h: p.h * scale});
   const h = Math.max(g.height ?? 0, naturalH * scale + 16 + legendH + top), c = new Canvas(g.x, g.y, g.w, h, g.size, g.widthOf, g.wrap);
-  for (const n of nodes) { const p = positions.get(n.id)!; c.solids.push({...p, id: n.id, label: `node "${n.label}"`}); }
+  for (const n of nodes) { const p = must(positions.get(n.id)); c.solids.push({...p, id: n.id, label: `node "${n.label}"`}); }
   return {c, positions, paths};
 }
 
-export function nodeBox(c: Canvas, p: {x: number; y: number; w: number; h: number}, id: string, label: string, tone: 'accent' | 'danger' | 'muted' | 'text', critical = false): number {
+export function nodeBox(c: Canvas, p: {x: number; y: number; w: number; h: number}, id: string, _label: string, tone: 'accent' | 'danger' | 'muted' | 'text', critical = false): number {
   c.rect(p.x, p.y, p.w, p.h, {fill: critical ? 'accent' : 'bg', op: critical ? .16 : undefined, stroke: tone, sw: critical ? 4 : 2, id, of: id});
   return c.solids.findIndex(s => s.id === id);
 }

@@ -11,7 +11,6 @@ import type {BandInput, Diagram, DiagramData, DiagramOpts, Theme, Medium} from '
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {RenderResult, CheckResult, SlideBudget} from '../types/verdicts.ts';
 import type {DiagramInput} from '../strict.ts';
-import {connect} from './connect.ts';
 import {applyConnectDefaults, connectBand} from './defaults.ts';
 import {fillScaleLimit} from './text-bands.ts';
 import {contentBox} from '../layout-metrics.ts';

@@ -25,7 +25,7 @@ test('stat() never wraps its value and verify rejects one that does not fit', as
   const d = diagram({theme: 'blue', width: 180}).add(stat('12345678901234567890', '長い値', {size: 'display'}));
   const {laidOut, verdict} = await checkDiagram(d);
   const b = laidOut.laidOut.find(x => x.type === 'box')!;
-  assert.equal(b.wrappedRuns[0].lines.length, 1);
+  assert.equal(b.wrappedRuns[0]!.lines.length, 1);
   assert.match(verdict.problems.join('\n'), /stat: value .* does not fit/);
 });
 
@@ -57,11 +57,11 @@ test('horizontal, vertical and stacked bars lay out labels, series colours and e
   const {laidOut, verdict} = await checkDiagram(d);
   assert.deepEqual(verdict.problems, []);
   const [h, v, s] = laidOut.laidOut.filter((b): b is LaidOutBars => b.type === 'bars');
-  assert.deepEqual([h.dir, v.dir, s.stack], ['h', 'v', true]);
-  assert.deepEqual(h.bars.map(b => b.fill), ['accent', 'text']);
-  assert.deepEqual(v.bars.map(b => b.fill), ['accent', 'muted']);
-  assert.equal(s.labelBoxes.filter(x => x.background).length, 3); // the segment labels; tick labels carry no background
-  assert.ok(Math.abs(s.bars[1].x - (s.bars[0].x + s.bars[0].w) - 2) < 1e-9);
+  assert.deepEqual([h!.dir, v!.dir, s!.stack], ['h', 'v', true]);
+  assert.deepEqual(h!.bars.map(b => b.fill), ['accent', 'text']);
+  assert.deepEqual(v!.bars.map(b => b.fill), ['accent', 'muted']);
+  assert.equal(s!.labelBoxes.filter(x => x.background).length, 3); // the segment labels; tick labels carry no background
+  assert.ok(Math.abs(s!.bars[1]!.x - (s!.bars[0]!.x + s!.bars[0]!.w) - 2) < 1e-9);
 });
 
 test('stacked horizontal outside labels use a separate row from tick labels', async () => {
@@ -80,10 +80,10 @@ test('vertical stacks keep their full extent, touch the baseline and remove gaps
     bars([{label: 'bottom', value: 40}, {label: 'top', value: 60}], {max: 100, dir: 'v', stack: true}),
   ));
   const b = laidOut.laidOut.find((x): x is LaidOutBars => x.type === 'bars')!;
-  const baseline = b.ticks[b.ticks.length - 1].y1;
-  assert.equal(b.bars[0].y + b.bars[0].h, baseline);
-  assert.equal(b.bars[1].y + b.bars[1].h, b.bars[0].y - 2);
-  assert.equal(b.bars[0].h + b.bars[1].h + 2, baseline - b.bars[1].y);
+  const baseline = b.ticks[b.ticks.length - 1]!.y1;
+  assert.equal(b.bars[0]!.y + b.bars[0]!.h, baseline);
+  assert.equal(b.bars[1]!.y + b.bars[1]!.h, b.bars[0]!.y - 2);
+  assert.equal(b.bars[0]!.h + b.bars[1]!.h + 2, baseline - b.bars[1]!.y);
 });
 
 test('vertical labels move above bars when either height or width is insufficient', async () => {
@@ -92,7 +92,7 @@ test('vertical labels move above bars when either height or width is insufficien
   ));
   const b = laidOut.laidOut.find((x): x is LaidOutBars => x.type === 'bars')!;
   const value = b.labelBoxes.find(x => x.label.includes('very-long-unit'))!;
-  assert.ok(value.y + value.h <= b.bars[0].y);
+  assert.ok(value.y + value.h <= b.bars[0]!.y);
   assert.equal(value.background, undefined);
 });
 
@@ -122,10 +122,10 @@ test('bar values use plane number formatting and stacked bars do not reserve val
     bars([{label: 'all', value: 100}], {max: 100, unit: '-long-unit', stack: true}),
   ));
   const [plain, stacked] = laidOut.laidOut.filter((x): x is LaidOutBars => x.type === 'bars');
-  assert.ok(plain.texts.some(x => x.text === '0.3'));
-  assert.ok(plain.texts.some(x => x.text === '33.3'));
-  const axis = stacked.ticks[stacked.ticks.length - 1];
-  assert.ok(axis.x2 > stacked.x + stacked.w - 30);
+  assert.ok(plain!.texts.some(x => x.text === '0.3'));
+  assert.ok(plain!.texts.some(x => x.text === '33.3'));
+  const axis = stacked!.ticks[stacked!.ticks.length - 1];
+  assert.ok(axis!.x2 > stacked!.x + stacked!.w - 30);
 });
 
 test('bar ids are connector anchors and bars do not create notation legend entries', async () => {
@@ -134,7 +134,7 @@ test('bar ids are connector anchors and bars do not create notation legend entri
   const {laidOut, verdict} = await checkDiagram(d);
   assert.deepEqual(verdict.problems, []);
   assert.equal(laidOut.laidOut.some(x => x.type === 'legend'), false);
-  assert.equal(laidOut.connects[0].fromId, 'before');
+  assert.equal(laidOut.connects[0]!.fromId, 'before');
 });
 
 test('bars SVG includes value labels and token series colours', async () => {
@@ -147,7 +147,7 @@ test('bars SVG includes value labels and token series colours', async () => {
 test('stat({tone: accent}) fills the card with the accent tone fill, honours a tones.accent.fill override; plain and solid are unchanged', async () => {
   const svgOf = async (tone?: 'accent' | 'solid', tones?: {accent: {fill: string}}) =>
     (await renderDiagram(diagram({theme: 'blue', ...(tones ? {tones} : {})}).add(stat('+12%', '完了率', tone ? {tone} : {})), {name: 's.svg', budget: 'cacheOnly'})).svg;
-  const fills = (svg: string) => [...svg.matchAll(/<rect[^>]*\sfill="(#[0-9a-fA-F]{6})"/g)].map(m => m[1].toLowerCase());
+  const fills = (svg: string) => [...svg.matchAll(/<rect[^>]*\sfill="(#[0-9a-fA-F]{6})"/g)].map(m => m[1]!.toLowerCase());
   const soft = toneStyle(NO_TONES, 'accent').fill, plain = fills(await svgOf());
   const accentFills = fills(await svgOf('accent'));
   assert.notDeepEqual(accentFills, plain, 'the accent stat is not drawn like the plain one');

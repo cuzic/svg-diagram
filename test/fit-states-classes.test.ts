@@ -14,7 +14,7 @@ const spread = (t: {nodes: {x: number; w: number}[]}): number => Math.max(...t.n
 
 // ---- stateDiagram: a long chain is wide running right, narrow running down
 const chain = Array.from({length: 9}, (_, i) => ({id: `s${i}`, label: `状態の名前が長い${i}`}));
-const flow = (opts: object = {}): StatesBand => stateDiagram(chain, chain.slice(1).map((s, i) => ({from: chain[i].id, to: s.id})), opts) as StatesBand;
+const flow = (opts: object = {}): StatesBand => stateDiagram(chain, chain.slice(1).map((s, i) => ({from: chain[i]!.id, to: s.id})), opts) as StatesBand;
 // narrower than the chain running right even with the narrowest nodes: only turning down can fit
 const tooWide = (): number => spread(states(flow({dir: 'right', maxNodeW: 110}), 9000)) - 1;
 
@@ -22,7 +22,7 @@ test('stateDiagram() too wide with dir left out: it turns down, and what changed
   const w = tooWide(), t = states(flow(), w);
   assert.ok(spread(t) <= w + 0.5);
   assert.ok(t.fitApplied?.some(a => a.what === 'dir' && a.from === 'right' && a.to === 'down' && a.mode === 'omitted'));
-  assert.ok(t.fitApplied![0].wasW! > w && t.fitApplied![0].nowW! <= w);
+  assert.ok(t.fitApplied![0]!.wasW! > w && t.fitApplied![0]!.nowW! <= w);
   const by = (id: string) => t.anchors.find(a => a.id === id)!;
   assert.ok(by('s1').y > by('s0').y, 'the flow runs down');
 });

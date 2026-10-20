@@ -7,7 +7,7 @@ test.after(() => closeMeasurer());
 
 const items = ['調べる', '直す', '確かめる', '出す', '振り返る'].map(title => ({title}));
 const svgOf = async (d: ReturnType<typeof diagram>) => (await renderDiagram(d, {name: 'a.svg', budget: 'cacheOnly'})).svg;
-const paths = (svg: string): string[] => [...svg.matchAll(/<path d="([^"]+)"/g)].map(m => m[1]);
+const paths = (svg: string): string[] => [...svg.matchAll(/<path d="([^"]+)"/g)].map(m => m[1]!);
 
 test('steps({loopBack}) draws the same loop as a hand-written loop-under connect', async () => {
   const mine = diagram({theme: 'blue', title: 't'}).add(steps(items, {loopBack: {from: 4, to: 2, label: '差し戻し'}}));
@@ -25,7 +25,7 @@ test('two loops that nest are stepped apart on their own: no overlap, no crossin
   assert.ok(!r.verdict.findings.some(f => f.rule === 'edge-crossings'), JSON.stringify(r.verdict.findings.map(f => f.message)));
   const hs = r.laidOut.connects.map(c => Math.max(...c.points.map(p => p.y)));
   assert.equal(new Set(hs.map(h => Math.round(h))).size, 2, 'the loops run at two heights');
-  assert.ok(hs[0] > hs[1] || hs[1] > hs[0]);
+  assert.ok(hs[0]! > hs[1]! || hs[1]! > hs[0]!);
 });
 
 test('loopBack is checked where it is written', () => {

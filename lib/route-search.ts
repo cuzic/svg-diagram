@@ -1,6 +1,7 @@
 // The way around the boxes with the fewest bends, for one long arrow of a layered layout (layered-route.ts). Pure geometry in the layout's own
 // axes (layers run along x): a search over the grid of lines that run beside the boxes, so a long arrow turns where there is room, not half-way
 // between the way points of the layering.
+import {must} from './must.ts';
 import type {P} from './polyline-metrics.ts';
 
 export interface Rect {x: number; y: number; w: number; h: number}
@@ -29,12 +30,12 @@ export function headCrossings(paths: readonly P[][]): number {
   for (const [i, p] of paths.entries()) {
     if (p.length < 2) continue;
     const tip = p[p.length - 1], from = p[p.length - 2];
-    if (tip.y !== from.y) continue; // an arrow comes into a box along the layers (the layout's axes)
+    if (!tip || !from || tip.y !== from.y) continue; // an arrow comes into a box along the layers (the layout's axes)
     for (const [j, q] of paths.entries()) {
       if (j === i) continue;
       for (let k = 1; k < q.length; k++) {
         const a = q[k - 1], b = q[k];
-        if (a.x !== b.x) continue; // a run across the layers
+        if (!a || !b || a.x !== b.x) continue; // a run across the layers
         if (a.x < Math.min(from.x, tip.x) - 0.5 || a.x > Math.max(from.x, tip.x) + 0.5 || Math.abs(a.x - tip.x) > HEAD_REACH) continue;
         if (tip.y > Math.min(a.y, b.y) + 0.5 && tip.y < Math.max(a.y, b.y) - 0.5) n++;
       }
@@ -66,16 +67,18 @@ export function searchRoute(start: P, end: P, boxes: readonly Rect[], others: re
   const inBox = (x: number, y: number): boolean => boxes.some(b => x > b.x - m + 0.01 && x < b.x + b.w + m - 0.01 && y > b.y - m + 0.01 && y < b.y + b.h + m - 0.01);
   const blockedPt = new Uint8Array(nx * ny), blockedRight = new Uint8Array(nx * ny), blockedDown = new Uint8Array(nx * ny);
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-    blockedPt[j * nx + i] = inBox(X[i], Y[j]) ? 1 : 0;
-    if (i + 1 < nx) blockedRight[j * nx + i] = inBox((X[i] + X[i + 1]) / 2, Y[j]) ? 1 : 0;
-    if (j + 1 < ny) blockedDown[j * nx + i] = inBox(X[i], (Y[j] + Y[j + 1]) / 2) ? 1 : 0;
+    const xv = must(X[i]), yv = must(Y[j]); // i < nx, j < ny
+    blockedPt[j * nx + i] = inBox(xv, yv) ? 1 : 0;
+    if (i + 1 < nx) blockedRight[j * nx + i] = inBox((xv + must(X[i + 1])) / 2, yv) ? 1 : 0;
+    if (j + 1 < ny) blockedDown[j * nx + i] = inBox(xv, (yv + must(Y[j + 1])) / 2) ? 1 : 0;
   }
   const stepBlocked = (i: number, j: number, nd: number): boolean => nd === 0 ? blockedRight[j * nx + i] === 1 : nd === 1 ? blockedRight[j * nx + i - 1] === 1 : nd === 2 ? blockedDown[j * nx + i] === 1 : blockedDown[(j - 1) * nx + i] === 1;
   // the other arrows' runs, by direction; the last run of each (its tip) for the arrowheads
   const hor: [P, P][] = [], ver: [P, P][] = [], tips: {x: number; y: number}[] = [];
   for (const p of others) {
-    for (let k = 1; k < p.length; k++) (p[k].y === p[k - 1].y ? hor : ver).push([p[k - 1], p[k]]);
-    if (p.length >= 2 && p[p.length - 1].y === p[p.length - 2].y) tips.push(p[p.length - 1]);
+    for (let k = 1; k < p.length; k++) { const a = p[k - 1], b = p[k]; if (a && b) (b.y === a.y ? hor : ver).push([a, b]); }
+    const tip = p[p.length - 1], before = p[p.length - 2];
+    if (tip && before && tip.y === before.y) tips.push(tip);
   }
   /** The cost of the step a -> b (one grid step, along an axis): length, and the crossings of other arrows and the runs along them. A crossing at the step's far end counts (the near end belongs to the step before). */
   const stepCost = (a: P, b: P): number => {
@@ -98,11 +101,12 @@ export function searchRoute(start: P, end: P, boxes: readonly Rect[], others: re
   // A* over (column, row, direction); a step's cost is cached (it does not depend on the direction it was reached in). The estimate is the length that is left.
   const key = (i: number, j: number, d: number): number => (j * nx + i) * 4 + d;
   const dist = new Float64Array(nx * ny * 4).fill(Infinity), prev = new Int32Array(nx * ny * 4).fill(-1), cached = new Float64Array(nx * ny * 4).fill(-1);
-  const i0 = xi.get(s.x)!, j0 = yi.get(s.y)!, ig = xi.get(g.x)!, jg = yi.get(g.y)!;
-  const left = (i: number, j: number): number => Math.abs(X[ig] - X[i]) + Math.abs(Y[jg] - Y[j]);
+  const i0 = must(xi.get(s.x)), j0 = must(yi.get(s.y)), ig = must(xi.get(g.x)), jg = must(yi.get(g.y)); // checked above
+  const xg = must(X[ig]), yg = must(Y[jg]);
+  const left = (i: number, j: number): number => Math.abs(xg - must(X[i])) + Math.abs(yg - must(Y[j]));
   const heap: [number, number][] = []; // [estimated total, key]
-  const push = (c: number, k: number): void => { heap.push([c, k]); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
-  const pop = (): [number, number] => { const top = heap[0], last = heap.pop()!; if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m2 = i; if (l < heap.length && heap[l][0] < heap[m2][0]) m2 = l; if (r < heap.length && heap[r][0] < heap[m2][0]) m2 = r; if (m2 === i) break; [heap[m2], heap[i]] = [heap[i], heap[m2]]; i = m2; } } return top; };
+  const push = (c: number, k: number): void => { heap.push([c, k]); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1, hp = must(heap[p]), hi = must(heap[i]); if (hp[0] <= hi[0]) break; heap[p] = hi; heap[i] = hp; i = p; } };
+  const pop = (): [number, number] => { const top = must(heap[0]), last = must(heap.pop()); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m2 = i; if (l < heap.length && must(heap[l])[0] < must(heap[m2])[0]) m2 = l; if (r < heap.length && must(heap[r])[0] < must(heap[m2])[0]) m2 = r; if (m2 === i) break; const hm = must(heap[m2]), hi = must(heap[i]); heap[m2] = hi; heap[i] = hm; i = m2; } } return top; };
   const k0 = key(i0, j0, 0);
   dist[k0] = stepCost(start, s); push(dist[k0] + left(i0, j0), k0);
   // the last run g -> end, and the bend into it unless the search arrives along the layers: added when a state at g is popped; the search goes on until nothing cheaper is left
@@ -110,26 +114,27 @@ export function searchRoute(start: P, end: P, boxes: readonly Rect[], others: re
   let goal = -1, bestTotal = Infinity, steps = 0, over = false;
   while (heap.length) {
     const [f, k] = pop();
-    const d = k % 4, cell = (k - d) / 4, i = cell % nx, j = (cell - i) / nx, c = dist[k];
+    const d = k % 4, cell = (k - d) / 4, i = cell % nx, j = (cell - i) / nx, c = must(dist[k]);
     if (f > c + left(i, j) + 1e-9) continue; // stale
     if (f + finish >= bestTotal) break; // every way ends with the last run
     if (i === ig && j === jg) { const total = c + (d === 0 ? 0 : BEND) + finish; if (total < bestTotal) { bestTotal = total; goal = k; } }
     for (let nd = 0; nd < 4; nd++) {
       if (nd === (d ^ 1)) continue; // no turning back
-      const ni = i + DIRS[nd][0], nj = j + DIRS[nd][1];
+      const dir = must(DIRS[nd]), ni = i + dir[0], nj = j + dir[1];
       if (ni < 0 || nj < 0 || ni >= nx || nj >= ny) continue;
       if (++steps > BUDGET) { if (goal < 0) return undefined; over = true; break; } // over the budget: the way found so far (not proved the best), or none
       if (blockedPt[nj * nx + ni] || stepBlocked(i, j, nd)) continue;
       const ck = key(i, j, nd);
-      if (cached[ck] < 0) cached[ck] = stepCost({x: X[i], y: Y[j]}, {x: X[ni], y: Y[nj]});
-      const nc = c + cached[ck] + (nd === d ? 0 : BEND), nk = key(ni, nj, nd);
-      if (nc < dist[nk]) { dist[nk] = nc; prev[nk] = k; push(nc + left(ni, nj), nk); }
+      let sc = must(cached[ck]);
+      if (sc < 0) { sc = stepCost({x: must(X[i]), y: must(Y[j])}, {x: must(X[ni]), y: must(Y[nj])}); cached[ck] = sc; }
+      const nc = c + sc + (nd === d ? 0 : BEND), nk = key(ni, nj, nd);
+      if (nc < must(dist[nk])) { dist[nk] = nc; prev[nk] = k; push(nc + left(ni, nj), nk); }
     }
     if (over) break;
   }
   if (goal < 0) return undefined;
   const pts: P[] = [];
-  for (let k = goal; k >= 0; k = prev[k]) { const cell = (k - (k % 4)) / 4, i = cell % nx; pts.push({x: X[i], y: Y[(cell - i) / nx]}); }
+  for (let k = goal; k >= 0; k = prev[k] ?? -1) { const cell = (k - (k % 4)) / 4, i = cell % nx; pts.push({x: must(X[i]), y: must(Y[(cell - i) / nx])}); }
   pts.reverse();
   return [start, ...pts, end];
 }

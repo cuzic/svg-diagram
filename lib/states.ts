@@ -10,6 +10,7 @@ import type {NodeLines} from './tree.ts';
 import type {FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {LaidOutStates, StatesBand} from './types/diagrams.ts';
 
+import {must} from './must.ts';
 export const STATE_ICON = 24;
 const ICON_H = STATE_ICON + 4; // an icon above the label: its size and a gap
 const ARROW = 14, GAP = 28, DOT = 8, LOOP = 26, LOOP_W = 12, CHIP_PAD = 6, INIT = '\u0000init';
@@ -25,13 +26,13 @@ const swap = (p: Pt): Pt => ({x: p.y, y: p.x});
 
 /** The point a fraction t of the way along a polyline's length. */
 function pointAt(pts: Pt[], t: number): Pt {
-  const len = pts.slice(1).map((p, i) => Math.abs(p.x - pts[i].x) + Math.abs(p.y - pts[i].y));
+  const len = pts.slice(1).map((p, i) => Math.abs(p.x - must(pts[i]).x) + Math.abs(p.y - must(pts[i]).y));
   let half = len.reduce((a, b) => a + b, 0) * t;
   for (let i = 0; i < len.length; i++) {
-    if (half <= len[i] || i === len.length - 1) { const t = len[i] ? half / len[i] : 0; return {x: pts[i].x + (pts[i + 1].x - pts[i].x) * t, y: pts[i].y + (pts[i + 1].y - pts[i].y) * t}; }
-    half -= len[i];
+    if (half <= must(len[i]) || i === len.length - 1) { const t = len[i] ? half / must(len[i]) : 0; return {x: must(pts[i]).x + (must(pts[i + 1]).x - must(pts[i]).x) * t, y: must(pts[i]).y + (must(pts[i + 1]).y - must(pts[i]).y) * t}; }
+    half -= must(len[i]);
   }
-  return pts[0];
+  return must(pts[0]);
 }
 
 export function layoutStatesBand(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutStates {
@@ -76,7 +77,7 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
       const d = Math.max(44, Math.ceil((Math.hypot(text, inner) + 10) / 8) * 8); // a multiple of 8: the radius sits on the 4px grid
       return [s.id, {...l, w: d, h: d}];
     }));
-    const nodes = band.states.map(s => ({id: s.id, size: {w: lines.get(s.id)!.w, h: lines.get(s.id)!.h}}));
+    const nodes = band.states.map(s => { const m = must(lines.get(s.id)); return {id: s.id, size: {w: m.w, h: m.h}}; });
     if (band.initial) nodes.unshift({id: INIT, size: {w: 2 * DOT, h: 2 * DOT}});
     // layered layout runs on a 'right' axis; a 'down' diagram is the same layout transposed
     const reserve = dir === 'down' && loops.length ? LOOP + 4 + Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0;
@@ -87,7 +88,7 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
       dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : Math.round(GAP * (env.space ?? 1)),
       levelGap: Math.max(dir === 'down' ? Math.round(72 * (env.space ?? 1)) : widest ? widest + stubOf(env.space) + ARROW + 8 : Math.round(64 * (env.space ?? 1)), gapFor(degree, 0, env.space)), ...(band.initial ? {start: [INIT]} : {}),
     }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, round: id => circles.has(id), ...(env.space === undefined || env.space === 1 ? {} : {space: env.space}), ...(band.straighten === false ? {straighten: false} : {}), ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
-    const at = (id: string) => { const p = run.lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
+    const at = (id: string) => { const p = must(run.lay.nodes.get(id)); return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
     return {...run, dir, lines, reserve, top, at};
   };
 
@@ -116,11 +117,11 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
     rects.set(s.id, r);
     out.nodes.push({...r, tone: s.tone ?? 'plain', ...(s.final ? {final: true} : {}), ...(s.shape === 'circle' ? {circle: true} : {})});
     out.anchors.push({id: s.id, ...r});
-    const nl = lines.get(s.id)!, textH = (nl.label.length * Math.round(roles.body * 1.4)) + (nl.sub.length * Math.round(roles.note * 1.4));
+    const nl = must(lines.get(s.id)), textH = (nl.label.length * Math.round(roles.body * 1.4)) + (nl.sub.length * Math.round(roles.note * 1.4));
     // the text of a round node sits in its middle; an icon is above the text
     const iconH = s.icon ? ICON_H : 0, y0 = s.shape === 'circle' ? r.y + (r.h - textH - iconH) / 2 - 8 : r.y;
     out.texts.push(...nodeRuns({x: r.x, y: y0 + iconH, w: r.w}, nl, roles));
-    if (s.icon) out.icons.push({node: out.nodes.length - 1, name: s.icon, glyph: s.iconGlyph!, x: r.x + (r.w - STATE_ICON) / 2, y: y0 + 8, size: STATE_ICON});
+    if (s.icon) out.icons.push({node: out.nodes.length - 1, name: s.icon, glyph: must(s.iconGlyph), x: r.x + (r.w - STATE_ICON) / 2, y: y0 + 8, size: STATE_ICON});
     out.labelBoxes.push({label: s.label, ...r});
   }
   if (band.initial) { const p = at(INIT); out.initial = {x: p.x + dx + DOT, y: p.y + dy + DOT, r: DOT}; }
@@ -137,17 +138,17 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
   const addLabel = (own: number, text: string, at: (t: number) => Pt, on: Pt[] = []): void => {
     const lw = labelW(text), lh = S + 8;
     const boxAt = (c: Pt) => ({x: c.x - lw / 2, y: c.y - lh / 2, w: lw, h: lh});
-    const tip = on.length ? {x: on[on.length - 1].x - ARROW, y: on[on.length - 1].y - ARROW, w: 2 * ARROW, h: 2 * ARROW} : null; // the arrowhead
+    const tip = on.length ? {x: must(on[on.length - 1]).x - ARROW, y: must(on[on.length - 1]).y - ARROW, w: 2 * ARROW, h: 2 * ARROW} : null; // the arrowhead
     // a chip is white: on another arrow it would cut that arrow, so it keeps off every arrow but its own
     const onOther = (b: ReturnType<typeof boxAt>): boolean => out.edges.some((e, k) => k !== own && e.points.slice(1).some((q, m) => {
-      const p = e.points[m];
+      const p = must(e.points[m]);
       return hit(b, {x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2});
     }));
     const free = (b: ReturnType<typeof boxAt>): boolean => !out.labels.some(o => hit(b, o)) && !out.nodes.some(n => hit(b, n)) && !(tip && hit(b, tip)) && !onOther(b);
     // first choice: beside the arrow's straight runs, last run first (above a horizontal one, to the right of a vertical one)
     const runs: Pt[] = [];
     for (let k = on.length - 2; k >= 0; k--) {
-      const p = on[k], q = on[k + 1], last = k === on.length - 2, trim = last ? ARROW : 0;
+      const p = must(on[k]), q = must(on[k + 1]), last = k === on.length - 2, trim = last ? ARROW : 0;
       if (dir === 'right' && p.y === q.y) {
         const len = Math.abs(q.x - p.x) - trim;
         if (len >= lw) runs.push({x: p.x + Math.sign(q.x - p.x) * (len / 2), y: p.y - lh / 2 - 3});
@@ -161,7 +162,7 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
     const cands: {p: Pt; cost: number}[] = runs.map(p => ({p, cost: -1}));
     for (let f = 0.05; f < 0.96; f += 0.05) for (const [ox, oy] of offs) { const q = at(f); cands.push({p: {x: q.x + ox, y: q.y + oy}, cost: Math.hypot(ox, oy) + Math.abs(f - 0.5) * 30}); }
     cands.sort((u, v) => u.cost - v.cost);
-    const c = (cands.find(k => free(boxAt(k.p))) ?? cands[0]).p;
+    const c = must(cands.find(k => free(boxAt(k.p))) ?? cands[0]).p;
     const b = boxAt(c);
     out.labels.push({text, ...b, tx: c.x, ty: b.y + S + 2, size: S, edge: own});
     out.labelBoxes.push({label: text, ...b});
@@ -171,7 +172,7 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
   for (const [i, e] of lay.edges.entries()) {
     const t = e.from === INIT ? undefined : pickTransition(e.from, e.to);
     if (e.self) {
-      const a = rects.get(e.from)!, cx = a.x + a.w / 2, cy = a.y + a.h / 2;
+      const a = must(rects.get(e.from)), cx = a.x + a.w / 2, cy = a.y + a.h / 2;
       if (dir === 'down') {
         const pts = [{x: a.x + a.w, y: cy - LOOP_W}, {x: a.x + a.w + LOOP, y: cy - LOOP_W}, {x: a.x + a.w + LOOP, y: cy + LOOP_W}, {x: a.x + a.w, y: cy + LOOP_W}];
         out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});
@@ -183,7 +184,7 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
       if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: () => ({x: cx, y: a.y - LOOP - (S + 8) / 2 - 2})});
       continue;
     }
-    const pts = routes.get(i)!;
+    const pts = must(routes.get(i));
     out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});
     if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: f => pointAt(pts, f), on: pts});
   }

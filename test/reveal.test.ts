@@ -13,7 +13,7 @@ test.after(() => closeMeasurer());
 const ROOT = path.resolve(import.meta.dirname, '..');
 const tmp = (prefix: string) => fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 const canvas = (svg: string) => svg.match(/viewBox="[^"]+"/)?.[0];
-const stage = (svg: string) => JSON.parse(svg.match(/<metadata id="svg-diagram">(.*?)<\/metadata>/)![1].replace(/&quot;/g, '"')).reveal;
+const stage = (svg: string) => JSON.parse(svg.match(/<metadata id="svg-diagram">(.*?)<\/metadata>/)![1]!.replace(/&quot;/g, '"')).reveal;
 const SOURCE = {generator: 'svg-diagram', toolVersion: 'test', source: 'x.ts', sourceSha256: 'x'};
 
 function staged() {
@@ -31,23 +31,23 @@ test('stages are cumulative and keep one layout and canvas', async () => {
   const d = staged();
   d.source = SOURCE;
   const {laidOut} = await checkDiagram(d);
-  assert.equal(laidOut.connects[0].reveal, 1);
+  assert.equal(laidOut.connects[0]!.reveal, 1);
   assert.equal(laidOut.maxReveal, 3);
   const stages = [0, 1, 2, 3].map(n => emitSvg(laidOut, {reveal: n}));
-  assert.match(stages[0], />always</);
-  assert.doesNotMatch(stages[0], />one</);
-  assert.doesNotMatch(stages[0], /dsl-arrow\)/);
-  assert.match(stages[1], />one</);
-  assert.doesNotMatch(stages[1], />two</);
-  assert.match(stages[2], />two</);
-  assert.match(stages[2], />table</);
+  assert.match(stages[0]!, />always</);
+  assert.doesNotMatch(stages[0]!, />one</);
+  assert.doesNotMatch(stages[0]!, /dsl-arrow\)/);
+  assert.match(stages[1]!, />one</);
+  assert.doesNotMatch(stages[1]!, />two</);
+  assert.match(stages[2]!, />two</);
+  assert.match(stages[2]!, />table</);
   const lens = stages.map(s => s.length);
   assert.deepEqual(lens, [...lens].sort((x, y) => x - y), 'each stage adds to the one before');
   assert.equal(new Set(stages.map(canvas)).size, 1);
   assert.deepEqual(stages.map(stage), [0, 1, 2, 3]);
   // the file without a stage is the final form
   const rendered = await renderDiagram(staged(), {name: 'x.svg', budget: 'cacheOnly'});
-  assert.equal(rendered.svg.match(/<rect/g)?.length, stages[3].match(/<rect/g)?.length);
+  assert.equal(rendered.svg.match(/<rect/g)?.length, stages[3]!.match(/<rect/g)?.length);
 });
 
 test('group children take max(parent, own); a connect to row#N follows that column; an early arrow warns', async () => {
@@ -62,10 +62,10 @@ test('group children take max(parent, own); a connect to row#N follows that colu
   const reveal = (id: string) => { const b = laidOut.laidOut.find(x => x.type === 'box' && x.id === id); return b?.type === 'box' ? b.reveal : undefined; };
   assert.equal(reveal('child'), 2);
   assert.equal(reveal('late'), 5);
-  assert.equal(laidOut.connects[0].reveal, 1);
+  assert.equal(laidOut.connects[0]!.reveal, 1);
   assert.match(verdict.warnings.join('\n'), /earlier than an endpoint.*reveal 3/);
-  assert.equal(laidOut.connects[1].reveal, 2, 'default is the max of both ends');
-  assert.equal(laidOut.laidOut.find(x => x.type === 'bars')?.bars[0].reveal, 4);
+  assert.equal(laidOut.connects[1]!.reveal, 2, 'default is the max of both ends');
+  assert.equal(laidOut.laidOut.find(x => x.type === 'bars')?.bars[0]?.reveal, 4);
 });
 
 test('reveal is a positive 1-based integer', async () => {
@@ -161,7 +161,7 @@ test('a group in a row inherits its own reveal into its boxes and the connect be
   assert.doesNotMatch(one, /RIGHTBOX|Right|CONLABEL/);
   assert.match(two, /RIGHTBOX/);
   assert.match(two, /CONLABEL/);
-  assert.equal(laidOut.connects[0].reveal, 2);
+  assert.equal(laidOut.connects[0]!.reveal, 2);
 });
 
 test('reveal reaches boxes through nested row > group > row > group', async () => {
@@ -201,7 +201,7 @@ test('until: an element vanishes at its click, a group takes its children along,
   assert.match(at(1), /inner/); assert.match(at(1), /a</);
   assert.doesNotMatch(at(2), /a</); assert.match(at(2), /inner/);
   assert.doesNotMatch(at(3), /inner/);
-  assert.equal(laid.connects[0].until, 2);
+  assert.equal(laid.connects[0]!.until, 2);
   assert.equal(canvas(at(0)), canvas(at(3)));
 });
 
@@ -219,9 +219,9 @@ test('bars replaces: the new bar takes the old one\'s row, which vanishes at its
   const laid = await layoutOf(mk());
   const band = laid.laidOut.find(b => b.type === 'bars')!;
   assert.ok(band.type === 'bars');
-  assert.equal(band.bars[0].y, band.bars[1].y);
-  assert.notEqual(band.bars[0].y, band.bars[2].y);
-  assert.equal(band.bars[0].until, 2);
+  assert.equal(band.bars[0]!.y, band.bars[1]!.y);
+  assert.notEqual(band.bars[0]!.y, band.bars[2]!.y);
+  assert.equal(band.bars[0]!.until, 2);
   assert.match(emitSvg(laid, {reveal: 1}), /order/); assert.doesNotMatch(emitSvg(laid, {reveal: 1}), /permit/);
   assert.doesNotMatch(emitSvg(laid, {reveal: 2}), /order/); assert.match(emitSvg(laid, {reveal: 2}), /permit/);
   await assert.rejects(() => layoutOf(mk({reveal: undefined})), /needs a reveal/);
@@ -242,11 +242,11 @@ test('review fixes: row#n arrows go with their cell, replaces under a band until
   const r = await layoutOf(diagram({theme: 'blue', title: 't'}).add(
     row([box({title: 'P', until: 2}), box({title: 'Q'})], {id: 'r'}), box({id: 't', title: 'T'}), connect('r#1', 't'),
   ));
-  assert.equal(r.connects[0].until, 2);
+  assert.equal(r.connects[0]!.until, 2);
   const r2 = await layoutOf(diagram({theme: 'blue', title: 't'}).add(
     row([box({title: 'P', until: 2}), box({title: 'Q'})], {id: 'r'}), box({id: 't', title: 'T'}), connect('r#2', 't'),
   ));
-  assert.equal(r2.connects[0].until, undefined);
+  assert.equal(r2.connects[0]!.until, undefined);
   // (2) a band-level until and a replaces together; two bars replacing one id throw
   const ok = await layoutOf(diagram({theme: 'blue', title: 't'}).add(bars([
     {id: 'o', label: 'o', value: 5}, {label: 'p', value: 6, reveal: 2, replaces: 'o'},
@@ -270,7 +270,7 @@ test('review fixes: row#n arrows go with their cell, replaces under a band until
   assert.ok(st.type === 'bars');
   const small = st.texts.find(t => t.text.startsWith('b'))!;
   assert.equal(small.anchor, 'start');
-  assert.ok(small.x > st.bars[1].x + st.bars[1].w);
+  assert.ok(small.x > st.bars[1]!.x + st.bars[1]!.w);
   // (5) connect until later than an end's warns
   const w = await checkDiagram(diagram({theme: 'blue', title: 't'}).add(
     box({id: 'a', title: 'a', until: 2}), box({id: 'b', title: 'b'}), connect('a', 'b', {until: 3}),

@@ -27,8 +27,8 @@ function reference(atoms: string[], {maxWidth, atomWidth}: {maxWidth: number; at
   if (cur.length) lines.push(cur);
   for (let i = 0; i < lines.length - 1; i++) {
     const line = lines[i];
-    const last = line[line.length - 1]!;
-    if (line.length > 1 && CANNOT_END_LINE.has(last)) { line.pop(); lines[i + 1]!.unshift(last); }
+    const last = line![line!.length - 1]!;
+    if (line!.length > 1 && CANNOT_END_LINE.has(last)) { line!.pop(); lines[i + 1]!.unshift(last); }
   }
   return lines.map(a => a.join('').trimEnd());
 }
@@ -49,7 +49,7 @@ test('wrapAtoms is unchanged by the styled-atom wrapper (random text, several wi
     const atoms = splitAtoms(text);
     const got = wrapAtoms(atoms, {maxWidth, atomWidth: width, mode: 'char'}), ref = reference(atoms, {maxWidth, atomWidth: width});
     // the reference is the plain greedy wrap; only a lone character on the last line may differ (it takes one from the line above)
-    const orphan = ref.length >= 2 && [...ref[ref.length - 1]].length === 1;
+    const orphan = ref.length >= 2 && [...ref[ref.length - 1]!].length === 1;
     if (!orphan) assert.deepEqual(got, ref, JSON.stringify({text, maxWidth}));
     else {
       assert.equal(got.length, ref.length, JSON.stringify({text, maxWidth}));
@@ -63,7 +63,7 @@ test('wrapStyledAtoms keeps what an atom carries on its line and drops trailing 
   const atoms = [{text: 'ab', b: true}, {text: ' ', b: true}, {text: 'cd', b: false}, {text: ' ', b: false}, {text: 'ef', b: false}];
   const lines = wrapStyledAtoms(atoms, {maxWidth: 40, atomWidth: a => width(a.text), mode: 'phrase'});
   assert.deepEqual(lines.map(l => l.map(a => a.text)), [['ab', ' ', 'cd'], ['ef']]);
-  assert.deepEqual(lines[0].map(a => a.b), [true, true, false]);
+  assert.deepEqual(lines[0]!.map(a => a.b), [true, true, false]);
   const trail = wrapStyledAtoms([{text: 'ab', b: true}, {text: ' ', b: true}], {maxWidth: 100, atomWidth: a => width(a.text), mode: 'phrase'});
   assert.deepEqual(trail.map(l => l.map(a => a.text)), [['ab']]); // no bold space left to draw
 });

@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import {must} from './must.ts';
 
 const SPEC = /(?:\bfrom\s*|\bimport\s*\(?\s*|\bimport\s+)(['"])(\.{1,2}\/[^'"\n]*|\.{1,2})\1/g;
 const EXTS = ['', '.ts', '.mts', '.js', '.mjs', '.tsx', '.json'];
@@ -14,7 +15,7 @@ function read(f: string) {
   if (!fileCache.has(f)) {
     let src: string | null = null;
     try { src = fs.readFileSync(f, 'utf8'); } catch { /* unreadable */ }
-    fileCache.set(f, src === null ? null : {src, imports: /\.json$/.test(f) ? [] : [...src.matchAll(SPEC)].map(m => m[2]), dynamic: /\bimport\s*\(\s*[^'"\s)]/.test(src)});
+    fileCache.set(f, src === null ? null : {src, imports: /\.json$/.test(f) ? [] : [...src.matchAll(SPEC)].map(m => must(m[2])), dynamic: /\bimport\s*\(\s*[^'"\s)]/.test(src)});
   }
   return fileCache.get(f) ?? null;
 }

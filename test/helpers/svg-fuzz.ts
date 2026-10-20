@@ -13,7 +13,7 @@ export function scenes(seed: number, count: number): string[] {
     const els: string[] = [];
     for (let i = 0, n = ri(6, 16); i < n; i++) {
       const k = rnd();
-      const x = ri(0, W - 20), y = ri(10, H - 10);
+      const x = ri(0, W! - 20), y = ri(10, H! - 10);
       const common = `fill="${pick(COLORS)}" stroke="${pick(['none', '#000000', '#1f5fa8'])}" stroke-width="${pick([1, 2, 4])}" fill-opacity="${pick([1, 1, 1, 0.9, 0.7, 0.3])}" opacity="${pick([1, 1, 1, 0.8])}"`;
       let el: string;
       if (k < 0.3) el = `<rect x="${x}" y="${y}" width="${ri(10, 220)}" height="${ri(8, 90)}" ${common}/>`;

@@ -17,10 +17,10 @@ test('whyWhyTable(): a row per chain; the columns are 問題, なぜ 1…N (the 
   assert.deepEqual(band.columns.map(c => c.label), ['問題', 'なぜ 1', 'なぜ 2', 'なぜ 3', '真因', '対策']);
   const rows = band.rows as unknown as (string | {text: string; bold?: boolean})[][];
   assert.equal(rows.length, 2);
-  assert.equal(rows[0][0], 'リリースが遅れた');
-  assert.equal(rows[1][1], '修正に時間がかかった', 'a shared cause is repeated');
-  assert.equal(rows[1][3], '', 'a short chain is padded');
-  assert.equal((rows[0][4] as {text: string}).text, '検証を早い段階でしていない');
+  assert.equal(rows[0]![0], 'リリースが遅れた');
+  assert.equal(rows[1]![1], '修正に時間がかかった', 'a shared cause is repeated');
+  assert.equal(rows[1]![3], '', 'a short chain is padded');
+  assert.equal((rows[0]![4] as {text: string}).text, '検証を早い段階でしていない');
   assert.equal(await svgOf(band), await svgOf(table(band.columns, band.rows, {})), 'the rca field is never drawn');
 });
 
@@ -34,22 +34,22 @@ test('whyWhyTable(): mistakes throw', () => {
 
 test('whyWhyTable(): rca findings — no root, a measure without a root, a single chain', () => {
   assert.deepEqual(rcaOf(whyWhyTable('x', CHAINS)), []);
-  assert.deepEqual(rcaOf(whyWhyTable('x', [CHAINS[0], {whys: ['a', 'b']}])), ['whywhy-no-root']);
-  assert.deepEqual(rcaOf(whyWhyTable('x', [CHAINS[0], {whys: ['a', 'b'], measure: '周知する'}])), ['whywhy-no-root', 'whywhy-measure-without-root']);
-  const one = whyWhyTable('x', [CHAINS[0]]);
+  assert.deepEqual(rcaOf(whyWhyTable('x', [CHAINS[0]!, {whys: ['a', 'b']}])), ['whywhy-no-root']);
+  assert.deepEqual(rcaOf(whyWhyTable('x', [CHAINS[0]!, {whys: ['a', 'b'], measure: '周知する'}])), ['whywhy-no-root', 'whywhy-measure-without-root']);
+  const one = whyWhyTable('x', [CHAINS[0]!]);
   assert.deepEqual(rcaOf(one), ['whywhy-single-chain']);
-  assert.equal(one.rca!.findings[0].severity, 'info');
+  assert.equal(one.rca!.findings[0]!.severity, 'info');
 });
 
 test('check: info by default, warn with rcaCheck: strict (a single chain stays info); the default output is clean', async () => {
   const chk = async (opts: object, band: unknown) => (await checkDiagram(diagram({theme: 'blue', title: 'なぜなぜ', ...opts}).add(band as never))).verdict;
-  const bad = whyWhyTable('x', [CHAINS[0], {whys: ['a', 'b'], measure: '周知する'}]);
+  const bad = whyWhyTable('x', [CHAINS[0]!, {whys: ['a', 'b'], measure: '周知する'}]);
   const f = (v: {findings: {rule: string; severity: string}[]}) => v.findings.filter(x => x.rule.startsWith('whywhy-'));
   assert.ok(f(await chk({}, bad)).every(x => x.severity === 'info'));
   const strict = f(await chk({rcaCheck: 'strict'}, bad));
   assert.ok(strict.length === 2 && strict.every(x => x.severity === 'warn'));
-  const one = f(await chk({rcaCheck: 'strict'}, whyWhyTable('x', [CHAINS[0]])));
-  assert.ok(one.length === 1 && one[0].severity === 'info');
+  const one = f(await chk({rcaCheck: 'strict'}, whyWhyTable('x', [CHAINS[0]!])));
+  assert.ok(one.length === 1 && one[0]!.severity === 'info');
   const ok = await chk({rcaCheck: 'strict'}, whyWhyTable('リリースが遅れた', CHAINS));
   assert.equal(ok.problems.length, 0, ok.problems.join('\n'));
   assert.deepEqual(ok.findings.filter(x => x.severity === 'warn'), []);

@@ -28,7 +28,7 @@ const project = () => {
   return dir;
 };
 const read = (dir: string, name: string) => fs.readFileSync(path.join(dir, 'svg', `${name}.svg`), 'utf8');
-const meta = (svg: string) => JSON.parse((/<metadata id="svg-diagram">([^<]*)<\/metadata>/.exec(svg) as RegExpExecArray)[1].replace(/&quot;/g, '"'));
+const meta = (svg: string) => JSON.parse((/<metadata id="svg-diagram">([^<]*)<\/metadata>/.exec(svg) as RegExpExecArray)[1]!.replace(/&quot;/g, '"'));
 const noMeta = (svg: string) => svg.replace(/\n?\s*<metadata id="svg-diagram">[^<]*<\/metadata>/, '');
 const heightOf = (svg: string) => Number(/<svg [^>]*height="(\d+(?:\.\d+)?)"/.exec(svg)?.[1]);
 

@@ -25,7 +25,8 @@ export function labelCover(c: Pick<LaidOutConnect, 'points' | 'labelBox' | 'chip
   if (!box) return undefined;
   let total = 0, covered = 0;
   for (let i = 0; i + 1 < c.points.length; i++) {
-    const a = c.points[i]!, b = c.points[i + 1]!;
+    const a = c.points[i], b = c.points[i + 1];
+    if (!a || !b) continue;
     total += Math.hypot(b.x - a.x, b.y - a.y);
     covered += clippedLength(a, b, box);
   }

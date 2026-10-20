@@ -6,6 +6,7 @@
 //
 // MathJax is loaded on the first math() call (createRequire), so a diagram without a formula does not pay for it. It is an optional
 // peer dependency: a project that never writes a formula does not install it.
+import {must} from './must.ts';
 import {createRequire} from 'node:module';
 import {UNITS_PER_EM} from './math.ts';
 import {xmlProblems} from './xml-check.ts';
@@ -26,7 +27,8 @@ export interface TexSvg {
  */
 const PACKAGES = ['base', 'ams', 'amscd', 'boldsymbol', 'braket', 'bussproofs', 'cancel', 'cases', 'centernot', 'empheq', 'enclose', 'extpfeil', 'gensymb', 'mathtools', 'mhchem', 'newcommand', 'verb', 'configmacros', 'textcomp', 'textmacros'];
 
-type Mj = {mathjax: any; TeX: any; SVG: any; adaptor: any}; // eslint-disable-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: MathJax is loaded without its types; these are its untyped modules
+type Mj = {mathjax: any; TeX: any; SVG: any; adaptor: any};
 let mj: Mj | undefined;
 
 function load(): Mj {
@@ -49,11 +51,12 @@ function load(): Mj {
 
 /** One conversion in its own MathJax document: a \def / \let / \label in one formula must not reach the next one (or another diagram's). */
 function convert(tex: string, display: boolean): string {
-  const doc = mj!.mathjax.document('', {
-    InputJax: new mj!.TeX({packages: PACKAGES, tags: 'none', formatError: (_: unknown, err: Error) => { throw err; }}),
-    OutputJax: new mj!.SVG({fontCache: 'none'}),
+  const m = must(mj);
+  const doc = m.mathjax.document('', {
+    InputJax: new m.TeX({packages: PACKAGES, tags: 'none', formatError: (_: unknown, err: Error) => { throw err; }}),
+    OutputJax: new m.SVG({fontCache: 'none'}),
   });
-  return mj!.adaptor.outerHTML(doc.convert(tex, {display}));
+  return m.adaptor.outerHTML(doc.convert(tex, {display}));
 }
 
 /**
@@ -80,7 +83,9 @@ function inlineCss(drawing: string): string {
 function foreign(drawing: string): string | undefined {
   if (/<a\b/.test(drawing)) return 'a link (\\href, \\ref, \\eqref)';
   for (const [, tag, attrs] of drawing.matchAll(/<(\w+)\b([^>]*)>/g)) {
+    if (tag === undefined || attrs === undefined) continue;
     for (const [, name, value] of attrs.matchAll(/\s([\w:-]+)="([^"]*)"/g)) {
+      if (name === undefined || value === undefined) continue;
       if (name === 'fill' || name === 'stroke') { if (value !== 'none' && value !== 'currentColor') return `a colour of its own (${name}="${value}"): use math()'s tone`; } else if (name === 'class') { if (value.trim() !== 'MathML-Unit') return `a class on <${tag}>`; } else if (!ATTR_OK.test(name)) return `the attribute ${name} on <${tag}> (\\style, \\mmlToken…)`;
     }
   }
@@ -100,11 +105,12 @@ export function texToSvg(tex: string, display: boolean): TexSvg {
   const body = /<g\b[^>]*\btransform="scale\(1,-1\)"[^>]*>([\s\S]*)<\/g><\/svg>/.exec(html);
   if (!vb || !body) throw new Error(`math(): MathJax gave no drawing for "${tex}" (equation numbers — \\tag, \\label — are not supported: put a caption beside the formula)`);
   // characters outside MathJax's own font come out as <text>: a font of the viewer's, whose width is a guess — so they are refused
-  if (/<text\b/.test(body[1])) throw new Error(`math(): "${tex}" has a character the formula font does not have (CJK, emoji…), which would be drawn as text in whatever font the viewer has — set that wording in a caption beside the formula`);
-  const drawing = inlineCss(body[1]);
+  const bodyHtml = body[1] ?? '';
+  if (/<text\b/.test(bodyHtml)) throw new Error(`math(): "${tex}" has a character the formula font does not have (CJK, emoji…), which would be drawn as text in whatever font the viewer has — set that wording in a caption beside the formula`);
+  const drawing = inlineCss(bodyHtml);
   const other = foreign(drawing);
   if (other) throw new Error(`math(): "${tex}" would put ${other} in the picture`);
-  const [x, y, w, h] = vb.slice(1).map(Number);
+  const [x = 0, y = 0, w = 0, h = 0] = vb.slice(1).map(Number);
   // the body is drawn y-up inside scale(1,-1); the viewBox is in the flipped (y-down) frame, so y is the box's top
   const inner = `<g transform="translate(${-x} ${-y}) scale(1 -1)">${drawing}</g>`;
   // MathJax writes some attribute values (a \href, a \unicode font) unescaped: whatever the packages let through must still load as XML

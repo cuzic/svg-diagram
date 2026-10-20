@@ -16,6 +16,7 @@ import {spawnSync} from 'node:child_process';
 import {diagramTarget, decodeTarget, inlineSvg, htmlFigure, vueHtml, escAttr, type Render} from './markdown-target.ts';
 import {resolveSource} from './source-path.ts';
 
+import {must} from './must.ts';
 export interface SvgDiagramPluginOptions {
   /** 'svg' (default) or 'html'. A `#svg` / `#html` on an image's target wins. */
   render?: Render;
@@ -55,9 +56,12 @@ function draw(src: string, html: boolean, timeout: number): Drawn {
 
 // Only what the plugin touches of markdown-it, so it needs no type import from it.
 interface Token {type: string; children: Token[] | null; content: string; attrGet(n: string): string | null; map: [number, number] | null; block: boolean; level: number}
+// biome-ignore lint/suspicious/noExplicitAny: the real markdown-it types are not imported, and its callbacks take `any`, so ours must too to accept them
 interface State {tokens: Token[]; env: any; Token: new (type: string, tag: string, nesting: number) => Token}
 interface MdLike {
+  // biome-ignore lint/suspicious/noExplicitAny: the real markdown-it types are not imported, and its callbacks take `any`, so ours must too to accept them
   renderer: {rules: {image?: (tokens: any[], idx: number, options: any, env: any, self: any) => string}};
+  // biome-ignore lint/suspicious/noExplicitAny: the real markdown-it types are not imported, and its callbacks take `any`, so ours must too to accept them
   core: {ruler: {after(after: string, name: string, fn: (state: any) => void): void}};
 }
 
@@ -69,6 +73,7 @@ export default function svgDiagram(md: MdLike, opts: SvgDiagramPluginOptions = {
   const timeout = opts.timeout ?? 120000;
 
   /** The figure for an image token, or undefined when the image is not a diagram source. `inline`: it sits in running text. */
+  // biome-ignore lint/suspicious/noExplicitAny: the real markdown-it types are not imported, and its callbacks take `any`, so ours must too to accept them
   const figure = (tok: Token, env: any, inline: boolean): string | undefined => {
     const t = diagramTarget(tok.attrGet('src') ?? '');
     if (!t) return undefined;
@@ -92,7 +97,7 @@ export default function svgDiagram(md: MdLike, opts: SvgDiagramPluginOptions = {
     if (!r.ok && strict) throw new Error(`svg-diagram: ${path.relative(base, src)}: ${r.problems.join('; ')}`);
     const alt = altOf(tok) || undefined;
     const seen: Map<string, number> = (env.__svgDiagramSeen ??= new Map());
-    const body = html ? htmlFigure(r.html!, alt, seen) : inlineSvg(r.svg, alt, seen);
+    const body = html ? htmlFigure(must(r.html), alt, seen) : inlineSvg(r.svg, alt, seen);
     return opts.vue ? vueHtml(body, inline ? 'span' : 'div') : body;
   };
 
@@ -100,11 +105,12 @@ export default function svgDiagram(md: MdLike, opts: SvgDiagramPluginOptions = {
   md.core.ruler.after('inline', 'svg_diagram_block', (state: State) => {
     const {tokens} = state;
     for (let i = 0; i + 2 < tokens.length; i++) {
-      const [open, inline, close] = [tokens[i], tokens[i + 1], tokens[i + 2]];
+      const [open, inline, close] = [must(tokens[i]), must(tokens[i + 1]), must(tokens[i + 2])];
       if (open.type !== 'paragraph_open' || inline.type !== 'inline' || close.type !== 'paragraph_close') continue;
       const kids = (inline.children ?? []).filter(c => !(c.type === 'text' && !c.content.trim()) && c.type !== 'softbreak');
-      if (kids.length !== 1 || kids[0].type !== 'image') continue;
-      const html = figure(kids[0], state.env, false);
+      const kid = kids[0];
+      if (kids.length !== 1 || !kid || kid.type !== 'image') continue;
+      const html = figure(kid, state.env, false);
       if (html === undefined) continue;
       const block = new state.Token('html_block', '', 0);
       block.content = html + '\n';

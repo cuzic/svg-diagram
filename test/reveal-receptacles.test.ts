@@ -30,7 +30,7 @@ for (const [name, make] of RECEPTACLES) {
   test(`reveal reaches laidOut: ${name}`, async () => {
     const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(make() as Band));
     const first = laidOut.laidOut[0];
-    assert.equal(first.type === 'swimlane' || 'reveal' in first ? (first as {reveal?: number}).reveal : undefined, 2);
+    assert.equal(first!.type === 'swimlane' || 'reveal' in first! ? (first as {reveal?: number}).reveal : undefined, 2);
     assert.equal(laidOut.maxReveal, 2);
   });
 }
@@ -40,29 +40,29 @@ test('a swimlane / group reveal carries to the steps and their flows', async () 
     caption('always'),
     swimlane([{id: 'l', label: 'LANE'}], [{id: 's1', lane: 'l', title: 'STEP1'}, {id: 's2', lane: 'l', title: 'STEP2'}], {reveal: 1, flows: [{from: 's1', to: 's2'}]}),
   ), 1);
-  assert.doesNotMatch(visible(svgs[0]), /STEP1|STEP2|LANE|marker-end/);
-  assert.match(svgs[1], /STEP1/);
-  assert.match(svgs[1], /LANE/);
-  assert.match(svgs[1], /marker-end/);
+  assert.doesNotMatch(visible(svgs[0]!), /STEP1|STEP2|LANE|marker-end/);
+  assert.match(svgs[1]!, /STEP1/);
+  assert.match(svgs[1]!, /LANE/);
+  assert.match(svgs[1]!, /marker-end/);
 });
 
 test('a caption in a revealed group follows the group', async () => {
   const {svgs} = await stages(diagram({theme: 'blue'}).add(group([caption('INSIDE'), box({title: 'B'})], {reveal: 1})), 1);
-  assert.doesNotMatch(visible(svgs[0]), /INSIDE/);
-  assert.match(visible(svgs[1]), /INSIDE/);
+  assert.doesNotMatch(visible(svgs[0]!), /INSIDE/);
+  assert.match(visible(svgs[1]!), /INSIDE/);
 });
 
 test('sequence: reveal hides the whole band until its stage', async () => {
   const {svgs} = await stages(diagram({theme: 'blue'}).add(sequence([{id: 'a', label: 'ALPHA'}, {id: 'b', label: 'BETA'}], [{from: 'a', to: 'b', label: 'x'}], {reveal: 1})), 1);
-  assert.doesNotMatch(visible(svgs[0]), /ALPHA|BETA/);
-  assert.match(svgs[1], /ALPHA/);
+  assert.doesNotMatch(visible(svgs[0]!), /ALPHA|BETA/);
+  assert.match(svgs[1]!, /ALPHA/);
 });
 
 test('stat in a row: reveal hides it', async () => {
   const {svgs} = await stages(diagram({theme: 'blue'}).add(row([stat('111', 'first'), stat('222', 'second', {reveal: 1})])), 1);
-  assert.match(svgs[0], />111</);
-  assert.doesNotMatch(svgs[0], />222</);
-  assert.match(svgs[1], />222</);
+  assert.match(svgs[0]!, />111</);
+  assert.doesNotMatch(svgs[0]!, />222</);
+  assert.match(svgs[1]!, />222</);
 });
 
 test('plane: points, labels, lines, dims, paths and labels appear at their stage; stage 0 holds nothing later', async () => {
@@ -80,14 +80,14 @@ test('plane: points, labels, lines, dims, paths and labels appear at their stage
   }));
   const {laidOut, svgs, verdict} = await stages(d, 3);
   const p = laidOut.laidOut[0];
-  assert.equal(p.type, 'plane');
-  if (p.type !== 'plane') return;
-  assert.deepEqual(p.points.map(x => x.reveal ?? 0), [0, 1, 3]);
-  assert.deepEqual(p.lines.map(x => x.reveal ?? 0), [0, 1, 3], 'a line takes the later end; a coordinate counts 0');
-  assert.equal(p.dims[0].reveal, 1);
-  assert.equal(p.paths?.[0].reveal, 2);
+  assert.equal(p!.type, 'plane');
+  if (p!.type !== 'plane') return;
+  assert.deepEqual(p!.points.map(x => x.reveal ?? 0), [0, 1, 3]);
+  assert.deepEqual(p!.lines.map(x => x.reveal ?? 0), [0, 1, 3], 'a line takes the later end; a coordinate counts 0');
+  assert.equal(p!.dims[0]!.reveal, 1);
+  assert.equal(p!.paths![0]!.reveal, 2);
   assert.deepEqual(verdict.warnings.filter(w => /earlier than an endpoint/.test(w)), []);
-  const s0 = visible(svgs[0]), s1 = visible(svgs[1]), s2 = visible(svgs[2]);
+  const s0 = visible(svgs[0]!), s1 = visible(svgs[1]!), s2 = visible(svgs[2]!);
   assert.match(s0, />PTA</);
   for (const later of ['PTB', 'PTC', 'DIMAB', 'NOTE']) assert.doesNotMatch(s0, new RegExp(`>${later}<`));
   assert.match(s1, />PTB</);
@@ -95,7 +95,7 @@ test('plane: points, labels, lines, dims, paths and labels appear at their stage
   assert.doesNotMatch(s1, />NOTE<|>PTC</);
   assert.match(s2, />NOTE</);
   assert.doesNotMatch(s2, />PTC</);
-  assert.match(visible(svgs[3]), />PTC</);
+  assert.match(visible(svgs[3]!), />PTC</);
   const circles = (s: string) => s.match(/<circle/g)?.length ?? 0;
   assert.deepEqual(svgs.map(circles), [1, 2, 2, 3]);
   assert.equal(new Set(svgs.map(s => s.match(/viewBox="[^"]+"/)?.[0])).size, 1);
@@ -109,9 +109,9 @@ test('plane: an element never appears before the plane; an explicit reveal earli
   }));
   const {laidOut, verdict} = await checkDiagram(d);
   const p = laidOut.laidOut[0];
-  if (p.type !== 'plane') throw new Error('plane');
-  assert.deepEqual(p.points.map(x => x.reveal), [2, 4], 'a point is not earlier than its plane');
-  assert.equal(p.lines[0].reveal, 3, 'the explicit one wins, with a warning');
+  if (p!.type !== 'plane') throw new Error('plane');
+  assert.deepEqual(p!.points.map(x => x.reveal), [2, 4], 'a point is not earlier than its plane');
+  assert.equal(p!.lines[0]!.reveal, 3, 'the explicit one wins, with a warning');
   assert.match(verdict.warnings.join('\n'), /plane\(\) line 1 \(a -> b\) reveal 3 is earlier than an endpoint \(reveal 4\)/);
 });
 
@@ -123,14 +123,14 @@ test('versus: a reveal on the right side hides its text and the arrow to the sha
   ));
   const {laidOut, svgs} = await stages(d, 3);
   assert.deepEqual(laidOut.connects.map(c => c.reveal), [3, 3]);
-  const s0 = visible(svgs[0]), s1 = visible(svgs[1]), s2 = visible(svgs[2]);
+  const s0 = visible(svgs[0]!), s1 = visible(svgs[1]!), s2 = visible(svgs[2]!);
   for (const t of ['RIGHTT', 'RIGHTBOX', 'SHAREDT', 'SHAREDBOX', 'LCON', 'RCON']) assert.doesNotMatch(s0, new RegExp(t));
   assert.match(s1, /LEFTBOX/);
   assert.doesNotMatch(s1, /RIGHTBOX/);
   assert.match(s2, /RIGHTBOX/);
   assert.doesNotMatch(s2, /SHAREDBOX|marker-end/);
-  assert.match(visible(svgs[3]), /SHAREDBOX/);
-  assert.match(svgs[3], /marker-end/);
+  assert.match(visible(svgs[3]!), /SHAREDBOX/);
+  assert.match(svgs[3]!, /marker-end/);
 });
 
 test('constructors without a reveal throw on one (a JS caller is told)', () => {
@@ -162,7 +162,7 @@ test('bars band id: a spotlight target (its bars too) and a connect endpoint; id
   assert.equal(chart?.type === 'bars' && chart.id, 'chart');
   assert.ok(!chart?.dim);
   assert.ok(chart?.type === 'bars' && chart.bars.every(r => !r.dim), 'the whole band is the spotlight');
-  assert.ok(!band.laidOut.connects[0].dim, 'an arrow touching the focused band stays');
+  assert.ok(!band.laidOut.connects[0]!.dim, 'an arrow touching the focused band stays');
   const bar = await checkDiagram(mk('b2'));
   const c2 = bar.laidOut.laidOut.find(b => b.type === 'bars');
   assert.deepEqual(c2?.type === 'bars' && c2.bars.map(r => r.dim), [true, false], 'one bar by its own id');
@@ -187,6 +187,6 @@ test('plane id: a spotlight target and a connect endpoint', async () => {
 
 test('stat reveal in a row, bars band reveal hides its axis and texts', async () => {
   const {svgs} = await stages(diagram({theme: 'blue'}).add(caption('ALWAYS'), bars([{label: 'BARLABEL', value: 1}], {reveal: 1})), 1);
-  assert.doesNotMatch(visible(svgs[0]), /BARLABEL/);
-  assert.match(svgs[1], /BARLABEL/);
+  assert.doesNotMatch(visible(svgs[0]!), /BARLABEL/);
+  assert.match(svgs[1]!, /BARLABEL/);
 });

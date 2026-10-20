@@ -27,6 +27,7 @@ import path from 'path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {installResolveHook} from './lib/resolve-hook.ts';
+import {must} from './lib/must.ts';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 installResolveHook();
@@ -60,14 +61,14 @@ function locateSlide(svgName: string) {
 
 const TOOL_VERSION = JSON.parse(fs.readFileSync(new URL(EXT === 'ts' ? './package.json' : '../package.json', import.meta.url), 'utf8')).version;
 const args = process.argv.slice(2);
-const valueOf = (flag: string) => { const i = args.indexOf(flag); return i === -1 ? null : args[i + 1]; };
-const outOverride = valueOf('--out');
-const todayArg = valueOf('--today'); // the day for gantt({today: 'auto'}); else SVG_DIAGRAM_TODAY, else "today" in .svg-diagram.json (ADR 0022)
-const outDir = valueOf('--out-dir');
-const pngDir = valueOf('--png'); // also write <name>.png (the rasters of lib/raster.ts) here
-const scaleArg = valueOf('--scale');
+const argValue = (flag: string) => { const i = args.indexOf(flag); return i === -1 ? null : args[i + 1] ?? ''; };
+const outOverride = argValue('--out');
+const todayArg = argValue('--today'); // the day for gantt({today: 'auto'}); else SVG_DIAGRAM_TODAY, else "today" in .svg-diagram.json (ADR 0022)
+const outDir = argValue('--out-dir');
+const pngDir = argValue('--png'); // also write <name>.png (the rasters of lib/raster.ts) here
+const scaleArg = argValue('--scale');
 const PNG_SCALE = scaleArg === null ? 2 : Number(scaleArg);
-const idPrefixArg = valueOf('--id-prefix'); // ADR 0012 D2: prefix every id of the written SVG / HTML (`auto`: a hash of the content)
+const idPrefixArg = argValue('--id-prefix'); // ADR 0012 D2: prefix every id of the written SVG / HTML (`auto`: a hash of the content)
 const FIT = args.includes('--fit');
 const NO_LINT = args.includes('--no-lint'); // iteration: skip the lint pass (check/CI or a final build runs it)
 const HTML = args.includes('--html'); // also write <name>.html (boxes and text as HTML/CSS, the rest as an inline SVG overlay)
@@ -75,7 +76,7 @@ const DARK = args.includes('--dark'); // draw with the dark token set (overrides
 const TRANSPARENT = args.includes('--transparent'); // no page-colour background rectangle
 const NO_SOURCE_LINE = args.includes('--no-source-line'); // ADR 0023 D11: draw without diagram({sourceLine}) (recorded in <metadata> as noSourceLine)
 const STALE = args.includes('--stale'); // skip diagrams whose SVG already matches this source, tool version and project config
-const modules = args.filter((a, i) => !['--out', '--out-dir', '--png', '--scale', '--id-prefix', '--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent', '--no-source-line', '--today'].includes(a) && !['--out', '--out-dir', '--png', '--scale', '--id-prefix', '--today'].includes(args[i - 1]));
+const modules = args.filter((a, i) => !['--out', '--out-dir', '--png', '--scale', '--id-prefix', '--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent', '--no-source-line', '--today'].includes(a) && !['--out', '--out-dir', '--png', '--scale', '--id-prefix', '--today'].includes(args[i - 1] ?? ''));
 
 if (modules.length === 0) {
   console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--png <dir> [--scale N]] [--stale] [--no-lint] [--fit] [--html] [--dark] [--transparent] [--no-source-line] [--id-prefix <p|auto>] [--today YYYY-MM-DD]');
@@ -140,9 +141,9 @@ try {
       if (FIT) {
         const hits = locateSlide(path.basename(outPath));
         if (hits.length !== 1) throw new Error(`--fit: ${path.basename(outPath)} を使っているスライドが${hits.length}枚です(ちょうど1枚が必要)`);
-        if (!hits[0].isFill) throw new Error(`--fit: ${hits[0].page} の「${hits[0].heading}」の <img> に class="fill"(と frontmatter の fit-figure)がありません`);
+        if (!must(hits[0]).isFill) throw new Error(`--fit: ${must(hits[0]).page} の「${must(hits[0]).heading}」の <img> に class="fill"(と frontmatter の fit-figure)がありません`);
         d.fill = true;
-        d.slide = {page: hits[0].page, heading: hits[0].heading as string};
+        d.slide = {page: must(hits[0]).page, heading: must(hits[0]).heading as string};
       }
       const result = await build(d, outPath, {lint: false, html: HTML}); // linted together below: one Chromium for all files
       if (idPrefixArg !== null) {
@@ -178,7 +179,7 @@ if (pngDir && written.length) { // the SVG and its PNG come from one build, so t
     try {
       const r = await rasterize(fs.readFileSync(svgPath, 'utf8'), {scale: PNG_SCALE, png: true});
       const pngPath = path.join(pngDir, path.parse(svgPath).name + '.png');
-      fs.writeFileSync(pngPath, r.png!);
+      fs.writeFileSync(pngPath, must(r.png));
       console.log(`✓ ${pngPath} (${r.width}x${r.height})`);
     } catch (err) { console.error(`✗ ${svgPath}: ${(err as Error).message}`); failed = true; }
   }

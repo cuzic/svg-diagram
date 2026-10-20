@@ -8,14 +8,15 @@ import {rasterize} from './lib/raster.ts';
 import {closeMeasurer} from './lib/measure.ts';
 import {buildSheet, paginate, pageName} from './lib/contact.ts';
 
+import {must} from './lib/must.ts';
 const args = process.argv.slice(2);
 const VALUE = ['--out', '--cols', '--width', '--engine', '--per-page', '--pages'];
-const val = (n: string, d: string) => { const i = args.indexOf(n); return i === -1 ? d : args[i + 1]; };
+const val = (n: string, d: string) => { const i = args.indexOf(n); return i === -1 ? d : args[i + 1] ?? ''; };
 const out = val('--out', 'contact-sheet.png'), cols = Number(val('--cols', '2')), width = Number(val('--width', '1400'));
 const engine = val('--engine', 'auto') as 'auto' | 'resvg' | 'chromium';
 const perPageArg = args.includes('--per-page') ? val('--per-page', '') ?? '' : undefined;
 const pagesArg = args.includes('--pages') ? val('--pages', '') ?? '' : undefined;
-const files = args.filter((a, i) => a.endsWith('.svg') && !VALUE.includes(args[i - 1]));
+const files = args.filter((a, i) => a.endsWith('.svg') && !VALUE.includes(args[i - 1] ?? ''));
 const USAGE = 'Usage: svg-diagram contact a.svg b.svg ... --out sheet.png [--cols 2] [--width 1400] [--per-page N | --pages N] [--engine resvg|chromium]';
 for (const a of args) if (a.startsWith('--') && !VALUE.includes(a)) { console.error(`✗ unknown option ${a}\n${USAGE}`); process.exit(2); }
 if ((perPageArg !== undefined && !(Number(perPageArg) >= 1)) || (pagesArg !== undefined && !(Number(pagesArg) >= 1))) { console.error(`✗ --per-page and --pages need positive numbers\n${USAGE}`); process.exit(2); }
@@ -30,7 +31,7 @@ try {
     const sheet = buildSheet(page.map(f => [f, fs.readFileSync(f, 'utf8')] as [string, string]), {cols, width});
     const file = pageName(out, i, pages.length);
     fs.mkdirSync(path.dirname(path.resolve(file)), {recursive: true});
-    fs.writeFileSync(file, (await rasterize(sheet.svg, {png: true, engine})).png!);
+    fs.writeFileSync(file, must((await rasterize(sheet.svg, {png: true, engine})).png));
     written.push(file);
     console.log(`wrote ${file} (${page.length} diagrams)`);
   }

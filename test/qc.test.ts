@@ -31,11 +31,11 @@ test('histogramBins: round class width, boundaries are multiples of it, every va
   assert.equal(h.counts.reduce((a, b) => a + b), v.length);
   const g = histogramBins(v, {bins: 4});
   assert.equal(g.width, niceNear((4.0 - 1.2) / 4));
-  assert.equal(g.edges[0] % g.width, 0);
+  assert.equal(g.edges[0]! % g.width, 0);
   assert.equal(g.counts.reduce((a, b) => a + b), v.length);
   const wide = histogramBins([5, 6], {width: 1, include: [3, 9]});
   assert.equal(wide.edges[0], 3);
-  assert.ok(wide.edges[wide.edges.length - 1] >= 9);
+  assert.ok(wide.edges[wide.edges.length - 1]! >= 9);
 });
 
 test('mean / sd / capability', () => {
@@ -60,32 +60,32 @@ test('controlStats xbar-R: centre line, A2 x R-bar limits, D4 x R-bar for the ra
   const g = [[10, 12, 11], [11, 13, 12], [9, 11, 10], [10, 12, 14]]; // n = 3
   const means = [11, 12, 10, 12], ranges = [2, 2, 2, 4], rBar = 2.5;
   const x = controlStats('xbar', g), r = controlStats('r', g);
-  near(x.cl, 11.25); near(x.ucl[0], 11.25 + 1.023 * rBar); near(x.lcl[0], 11.25 - 1.023 * rBar);
+  near(x.cl, 11.25); near(x.ucl[0]!, 11.25 + 1.023 * rBar); near(x.lcl[0]!, 11.25 - 1.023 * rBar);
   assert.deepEqual(x.values, means); assert.deepEqual(r.values, ranges);
-  near(r.cl, rBar); near(r.ucl[0], 2.575 * rBar); near(r.lcl[0], 0);
+  near(r.cl, rBar); near(r.ucl[0]!, 2.575 * rBar); near(r.lcl[0]!, 0);
 });
 
 test('controlStats individuals: 2.66 x the mean moving range; the moving range chart has one point fewer', () => {
   const v = [10, 12, 11, 13, 10];
   const mrBar = (2 + 1 + 2 + 3) / 4;
   const x = controlStats('x', v), mr = controlStats('mr', v);
-  near(x.cl, 11.2); near(x.ucl[0], 11.2 + 2.66 * mrBar); near(x.lcl[0], 11.2 - 2.66 * mrBar);
-  assert.deepEqual(mr.values, [2, 1, 2, 3]); near(mr.cl, mrBar); near(mr.ucl[0], 3.267 * mrBar);
+  near(x.cl, 11.2); near(x.ucl[0]!, 11.2 + 2.66 * mrBar); near(x.lcl[0]!, 11.2 - 2.66 * mrBar);
+  assert.deepEqual(mr.values, [2, 1, 2, 3]); near(mr.cl, mrBar); near(mr.ucl[0]!, 3.267 * mrBar);
 });
 
 test('controlStats attributes: p varies with n and never goes below 0, np / c / u', () => {
   const a = [{n: 100, d: 4}, {n: 200, d: 10}, {n: 100, d: 6}], p = 20 / 400;
   const s = controlStats('p', a);
   near(s.cl, p); assert.deepEqual(s.values, [0.04, 0.05, 0.06]);
-  near(s.ucl[0], p + 3 * Math.sqrt(p * (1 - p) / 100)); near(s.ucl[1], p + 3 * Math.sqrt(p * (1 - p) / 200));
-  assert.ok(s.ucl[0] > s.ucl[1]); assert.ok(s.lcl.every(v => v >= 0));
+  near(s.ucl[0]!, p + 3 * Math.sqrt(p * (1 - p) / 100)); near(s.ucl[1]!, p + 3 * Math.sqrt(p * (1 - p) / 200));
+  assert.ok(s.ucl[0]! > s.ucl[1]!); assert.ok(s.lcl.every(v => v >= 0));
   const np = controlStats('np', [{n: 50, d: 2}, {n: 50, d: 4}, {n: 50, d: 3}]);
-  near(np.cl, 3); near(np.ucl[0], 3 + 3 * Math.sqrt(50 * 0.06 * 0.94));
+  near(np.cl, 3); near(np.ucl[0]!, 3 + 3 * Math.sqrt(50 * 0.06 * 0.94));
   assert.throws(() => controlStats('np', a), /same number/);
   const c = controlStats('c', [4, 9, 5, 6]);
-  near(c.cl, 6); near(c.ucl[0], 6 + 3 * Math.sqrt(6)); near(c.lcl[0], Math.max(0, 6 - 3 * Math.sqrt(6)));
+  near(c.cl, 6); near(c.ucl[0]!, 6 + 3 * Math.sqrt(6)); near(c.lcl[0]!, Math.max(0, 6 - 3 * Math.sqrt(6)));
   const u = controlStats('u', [{n: 2, d: 4}, {n: 4, d: 12}]);
-  near(u.cl, 16 / 6); near(u.ucl[0], 16 / 6 + 3 * Math.sqrt(16 / 6 / 2));
+  near(u.cl, 16 / 6); near(u.ucl[0]!, 16 / 6 + 3 * Math.sqrt(16 / 6 / 2));
 });
 
 test('controlStats: fixed limits replace the worked-out ones; wrong data is named', () => {
@@ -117,13 +117,13 @@ test('pareto(): bars touch, the leading items that reach 80% keep the colour, th
   assert.deepEqual(verdict.problems, []);
   const b = laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars;
   assert.deepEqual(b.bars.map(r => r.fill), ['accent', 'accent', 'accent', 'accent', 'muted', 'muted']); // 42 + 25 + 12 + 8 = 87 of 100 passes 80 at the 4th
-  for (let i = 1; i < b.bars.length; i++) near(b.bars[i].x, b.bars[i - 1].x + b.bars[i - 1].w, 1e-6);
-  const line = b.ink!.polylines[0].pts;
+  for (let i = 1; i < b.bars.length; i++) near(b.bars[i]!.x, b.bars[i - 1]!.x + b.bars[i - 1]!.w, 1e-6);
+  const line = b.ink!.polylines[0]!.pts;
   assert.equal(line.length, items.length + 1);
-  near(line[0].y, b.bars[0].y + b.bars[0].h, 1e-6); // starts at the origin
-  near(line[1].y, b.bars[0].y, 1e-6);               // the first bar's top is the first cumulative value
-  assert.ok(line[line.length - 1].y < Math.min(...b.bars.map(r => r.y))); // 100% is the top of the plot, above the tallest bar (42%)
-  for (let i = 2; i < line.length; i++) assert.ok(line[i].y < line[i - 1].y);
+  near(line[0]!.y, b.bars[0]!.y + b.bars[0]!.h, 1e-6); // starts at the origin
+  near(line[1]!.y, b.bars[0]!.y, 1e-6);               // the first bar's top is the first cumulative value
+  assert.ok(line[line.length - 1]!.y < Math.min(...b.bars.map(r => r.y))); // 100% is the top of the plot, above the tallest bar (42%)
+  for (let i = 2; i < line.length; i++) assert.ok(line[i]!.y < line[i - 1]!.y);
   assert.ok(b.texts.some(t => t.text === '80%') && b.texts.some(t => t.text === '100%'));
   assert.ok(b.ink!.lines.some(l => l.dashed)); // the 80% guide
 });
@@ -147,16 +147,16 @@ test('histogram(): bars touch, edges are written under the boundaries, spec limi
   const {laidOut, verdict} = await laid(histogram(v, {width: 0.1, lsl: 9.7, usl: 10.4}));
   assert.deepEqual(verdict.problems, []);
   const b = laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars;
-  for (let i = 1; i < b.bars.length; i++) near(b.bars[i].x, b.bars[i - 1].x + b.bars[i - 1].w, 1e-6);
+  for (let i = 1; i < b.bars.length; i++) near(b.bars[i]!.x, b.bars[i - 1]!.x + b.bars[i - 1]!.w, 1e-6);
   const edgeTexts = b.texts.filter(t => /^\d+(\.\d+)?$/.test(t.text) && t.anchor === 'middle').map(t => t.text);
   assert.ok(edgeTexts.includes('9.6') && edgeTexts.includes('10.5'));
   assert.equal(b.bars.length, 9); // 9.6 .. 10.5: the largest value, 10.5, is in the last class
-  assert.equal(b.bars[0].fill, 'danger'); // 9.6-9.7 is below the lower limit
-  assert.equal(b.bars[b.bars.length - 1].fill, 'danger'); // 10.4-10.5 is above the upper one
-  assert.equal(b.bars[3].fill, 'accent');
+  assert.equal(b.bars[0]!.fill, 'danger'); // 9.6-9.7 is below the lower limit
+  assert.equal(b.bars[b.bars.length - 1]!.fill, 'danger'); // 10.4-10.5 is above the upper one
+  assert.equal(b.bars[3]!.fill, 'accent');
   assert.ok(b.texts.some(t => t.text === '下限 9.7') && b.texts.some(t => t.text === '上限 10.4') && b.texts.some(t => t.text.startsWith('平均')));
   const lsl = b.ink!.lines.find(l => l.x1 === l.x2)!;
-  near(lsl.x1, b.bars[1].x, 1.5); // the lower limit is the boundary between the 1st and the 2nd class
+  near(lsl.x1, b.bars[1]!.x, 1.5); // the lower limit is the boundary between the 1st and the 2nd class
 });
 
 test('histogram(): normal draws a curve, bad input is named', async () => {
@@ -165,7 +165,7 @@ test('histogram(): normal draws a curve, bad input is named', async () => {
   assert.deepEqual(verdict.problems, []);
   const b = laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars;
   assert.equal(b.ink!.polylines.length, 1);
-  assert.ok(b.ink!.polylines[0].pts.length > 20);
+  assert.ok(b.ink!.polylines[0]!.pts.length > 20);
   assert.throws(() => histogram([1]), /at least two/);
   assert.throws(() => histogram([1, NaN]), /finite/);
   assert.throws(() => histogram([1, 2, 3], {lsl: 5, usl: 4}), /below usl/);
@@ -267,8 +267,8 @@ test('controlChart(): limits and centre are lines, the points outside are red cr
   assert.deepEqual(verdict.problems, []);
   const p = laidOut.laidOut.find(x => x.type === 'plane') as LaidOutPlane;
   assert.equal(p.points.length, 20);
-  assert.equal(p.points[8].shape, 'cross'); assert.equal(p.points[8].tone, 'danger');
-  assert.equal(p.points[0].shape, 'dot');
+  assert.equal(p.points[8]!.shape, 'cross'); assert.equal(p.points[8]!.tone, 'danger');
+  assert.equal(p.points[0]!.shape, 'dot');
   assert.equal(p.lines.length, 3);
   assert.ok(p.texts.some(t => t.s.startsWith('UCL')) && p.texts.some(t => t.s.startsWith('CL ')) && p.texts.some(t => t.s.startsWith('LCL')));
 });
@@ -298,8 +298,8 @@ test('xbarR(): two figures, the fixed limits go to the X-bar chart, an id too; a
   assert.deepEqual(verdict.problems, []);
   const planes = laidOut.laidOut.filter(x => x.type === 'plane') as LaidOutPlane[];
   assert.equal(planes.length, 2);
-  assert.ok(planes[0].texts.some(t => t.s === 'UCL 10.5'));
-  assert.ok(planes[0].texts.some(t => t.s === '3日'));
+  assert.ok(planes[0]!.texts.some(t => t.s === 'UCL 10.5'));
+  assert.ok(planes[0]!.texts.some(t => t.s === '3日'));
   assert.throws(() => controlChart('x', [1, 2, 3], {at: ['a']}), /one label per sample/);
 });
 
@@ -340,7 +340,7 @@ test('checkSheet(): digits or both; an empty sheet has no totals and can have bo
   const num = cellsOf((await laid(checkSheet([{label: 'a', counts: [7]}], ['x'], {as: 'number'}))).laidOut.laidOut.find(x => x.type === 'table') as LaidOutTable);
   assert.deepEqual(num[0], ['a', '7', '7']);
   const both = cellsOf((await laid(checkSheet([{label: 'a', counts: [7]}], ['x'], {as: 'both'}))).laidOut.laidOut.find(x => x.type === 'table') as LaidOutTable);
-  assert.equal(both[0][1], '正丅 7');
+  assert.equal(both[0]![1], '正丅 7');
   const empty = cellsOf((await laid(checkSheet(['点検 A', '点検 B'], ['月', '火'], {boxes: true}))).laidOut.laidOut.find(x => x.type === 'table') as LaidOutTable);
   assert.deepEqual(empty, [['点検 A', '☐', '☐'], ['点検 B', '☐', '☐']]);
   assert.throws(() => checkSheet([], ['a']), /at least one item/);
@@ -362,16 +362,16 @@ test('matrix(): marks as symbols, a row of weights, a score per row, the best on
   const t = laidOut.laidOut.find(x => x.type === 'table') as LaidOutTable;
   const rows = cellsOf(t);
   assert.deepEqual(rows[0], ['重み', '2', '1', '']);
-  assert.ok(rows[1][1].includes('◎') && rows[1][2].includes('○'));
-  assert.equal(rows[1][3], `◎ ${9 * 2 + 3}`); // A scores 21, the best: marked
-  assert.equal(rows[2][3], String(1 * 2 + 9)); // B scores 11
+  assert.ok(rows[1]![1]!.includes('◎') && rows[1]![2]!.includes('○'));
+  assert.equal(rows[1]![3], `◎ ${9 * 2 + 3}`); // A scores 21, the best: marked
+  assert.equal(rows[2]![3], String(1 * 2 + 9)); // B scores 11
 });
 
 test('matrix(): no weights, no score unless total; bad input is named', async () => {
   const plain = cellsOf((await laid(matrix(['A'], ['x'], [['○']]))).laidOut.laidOut.find(x => x.type === 'table') as LaidOutTable);
-  assert.equal(plain[0].length, 2);
+  assert.equal(plain[0]!.length, 2);
   const summed = cellsOf((await laid(matrix(['A'], ['x', 'y'], [['○', '○']], {total: true}))).laidOut.laidOut.find(x => x.type === 'table') as LaidOutTable);
-  assert.equal(summed[0][3] ?? summed[0][2], '6');
+  assert.equal(summed[0]![3] ?? summed[0]![2], '6');
   assert.throws(() => matrix([], ['x'], []), /at least one row/);
   assert.throws(() => matrix(['A'], [], [[]]), /at least one column/);
   assert.throws(() => matrix(['A'], ['x'], []), /0 rows for 1/);
@@ -444,7 +444,7 @@ test('arrowDiagram(): summary / times options; the dummy is dashed and has no la
   assert.equal(bands.length, 1);
   const s = bands[0] as {transitions: {line?: string; label?: string; tone?: string}[]; states: {sub?: string}[]};
   assert.ok(s.states.every(x => x.sub === undefined));
-  assert.equal(s.transitions[2].line, 'dashed'); assert.equal(s.transitions[2].label, undefined);
+  assert.equal(s.transitions[2]!.line, 'dashed'); assert.equal(s.transitions[2]!.label, undefined);
   const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(...arrowDiagram(NET)), {name: 'arrow.svg', budget: 'cacheOnly'});
   assert.equal((svg.match(/<circle /g) ?? []).length, 5);
   assert.ok(svg.includes('stroke-width="4"'));
@@ -536,7 +536,7 @@ test('arrowDiagram(): big and fractional times are exact, float noise is no floa
   assert.ok(JSON.stringify(big).includes('1235/1235') && JSON.stringify(big).includes('全体で 1235日'));
   const frac = arrowDiagram([{from: 1, to: 2, name: 'A', days: 0.1}, {from: 2, to: 3, name: 'B', days: 0.2}, {from: 1, to: 3, name: 'C', days: 0.3}], {summary: false});
   const states = (frac[0] as {states: {id: string; sub?: string; tone?: string}[]}).states;
-  assert.equal(states[0].sub, '0/0');
+  assert.equal(states[0]!.sub, '0/0');
   assert.ok(states.every(s => s.tone === 'danger'));
   assert.throws(() => criticalPath([{from: 1, to: 2, name: 'A', days: 1}, {from: 1, to: 2, name: 'B', days: 2}]), /two activities run from event 1 to event 2/);
 });
@@ -564,8 +564,8 @@ test('controlChart(): a p chart whose last lower limit is 0 builds, stepped limi
 test('controlChart(): limits given in part move the others with the centre line; nonsense limits, c counts and flat data are refused', () => {
   const moved = controlStats('x', [1, 2, 3, 2, 1, 2], {cl: 10});
   assert.equal(moved.cl, 10);
-  assert.ok(moved.ucl[0] > 10 && moved.lcl[0] < 10);
-  near(moved.ucl[0] - moved.cl, controlStats('x', [1, 2, 3, 2, 1, 2]).ucl[0] - controlStats('x', [1, 2, 3, 2, 1, 2]).cl);
+  assert.ok(moved.ucl[0]! > 10 && moved.lcl[0]! < 10);
+  near(moved.ucl[0]! - moved.cl, controlStats('x', [1, 2, 3, 2, 1, 2]).ucl[0]! - controlStats('x', [1, 2, 3, 2, 1, 2]).cl);
   assert.throws(() => controlStats('x', [1, 2, 3, 2], {ucl: 0, lcl: 5}), /lcl < cl < ucl/);
   assert.throws(() => controlStats('x', [1, 2, 3, 2], {ucl: NaN}), /finite/);
   assert.throws(() => controlStats('c', [-3, 2, 4, 1]), /whole number >= 0/);
@@ -585,9 +585,9 @@ test('xbarR(): the two charts have the same left margin; limits and labels can b
   const {laidOut, verdict} = await laid(...xbarR(g, {yLabel: {xbar: '軸径 (mm)', r: '範囲 (mm)'}, limits: {xbar: {cl: 10, ucl: 10.5, lcl: 9.5}}}));
   assert.deepEqual(verdict.problems, []);
   const planes = laidOut.laidOut.filter(x => x.type === 'plane') as LaidOutPlane[];
-  near(planes[0].plotL, planes[1].plotL, 1e-6);
-  assert.ok(planes[0].texts.some(t => t.s === '軸径 (mm)') && planes[1].texts.some(t => t.s === '範囲 (mm)'));
-  assert.ok(planes[0].texts.some(t => t.s.startsWith('UCL 10.5')));
+  near(planes[0]!.plotL, planes[1]!.plotL, 1e-6);
+  assert.ok(planes[0]!.texts.some(t => t.s === '軸径 (mm)') && planes[1]!.texts.some(t => t.s === '範囲 (mm)'));
+  assert.ok(planes[0]!.texts.some(t => t.s.startsWith('UCL 10.5')));
   const [a] = xbarR(g, {yLabel: 'X'});
   assert.equal((a as {y: {label?: string}}).y.label, 'X');
 });
@@ -643,13 +643,13 @@ test('bars(): a target line near a bar\'s value does not run through its label',
 
 test('controlStats: a given centre line of an attribute chart gives limits from that centre (the standard), not a shifted copy', () => {
   const c = controlStats('c', [3, 5, 4, 6, 2, 4], {cl: 10});
-  near(c.ucl[0], 10 + 3 * Math.sqrt(10)); near(c.lcl[0], Math.max(0, 10 - 3 * Math.sqrt(10)));
+  near(c.ucl[0]!, 10 + 3 * Math.sqrt(10)); near(c.lcl[0]!, Math.max(0, 10 - 3 * Math.sqrt(10)));
   const p = controlStats('p', [{n: 100, d: 3}, {n: 200, d: 9}], {cl: 0.02});
-  near(p.ucl[0], 0.02 + 3 * Math.sqrt(0.02 * 0.98 / 100)); near(p.ucl[1], 0.02 + 3 * Math.sqrt(0.02 * 0.98 / 200));
+  near(p.ucl[0]!, 0.02 + 3 * Math.sqrt(0.02 * 0.98 / 100)); near(p.ucl[1]!, 0.02 + 3 * Math.sqrt(0.02 * 0.98 / 200));
   const np = controlStats('np', [{n: 50, d: 2}, {n: 50, d: 3}], {cl: 5});
-  near(np.ucl[0], 5 + 3 * Math.sqrt(50 * 0.1 * 0.9));
+  near(np.ucl[0]!, 5 + 3 * Math.sqrt(50 * 0.1 * 0.9));
   const u = controlStats('u', [{n: 2, d: 4}, {n: 4, d: 12}], {cl: 3});
-  near(u.ucl[1], 3 + 3 * Math.sqrt(3 / 4));
+  near(u.ucl[1]!, 3 + 3 * Math.sqrt(3 / 4));
   assert.throws(() => controlStats('p', [{n: 100, d: 3}, {n: 100, d: 4}], {cl: 1.5}), /between 0 and 1/);
   assert.throws(() => controlStats('c', [3, 4], {cl: 0}), /> 0/);
 });
@@ -684,15 +684,15 @@ test('a seeded sweep of pareto / histogram / scatter / control charts passes ver
     await run(`pareto ${t}`, () => pareto([{label: 'A', value: Math.round(first)}, ...rest.map((v, i) => ({label: `B${i}`, value: Math.round(v)}))], {unit: t % 2 ? '件' : undefined}));
   }
   for (let t = 0; t < 30; t++) {
-    const mu = [10, 250, 0.5, 1000][t % 4], sg = mu * (0.005 + rnd() * 0.03), dec = mu < 1 ? 3 : mu < 20 ? 2 : 1;
-    const v = Array.from({length: 20 + Math.floor(rnd() * 100)}, () => +(mu + gauss() * sg).toFixed(dec));
-    const opts: Record<string, unknown> = rnd() < 0.7 ? {lsl: +(mu - sg * (2 + rnd() * 2)).toFixed(dec), usl: +(mu + sg * (2 + rnd() * 2)).toFixed(dec)} : {};
-    if (rnd() < 0.4) opts.normal = true;
+    const mu = [10, 250, 0.5, 1000][t % 4], sg = mu! * (0.005 + rnd() * 0.03), dec = mu! < 1 ? 3 : mu! < 20 ? 2 : 1;
+    const v = Array.from({length: 20 + Math.floor(rnd() * 100)}, () => +(mu! + gauss() * sg).toFixed(dec));
+    const opts: Record<string, unknown> = rnd() < 0.7 ? {lsl: +(mu! - sg * (2 + rnd() * 2)).toFixed(dec), usl: +(mu! + sg * (2 + rnd() * 2)).toFixed(dec)} : {};
+    if (rnd() < 0.4) opts['normal'] = true;
     await run(`histogram ${t}`, () => histogram(v, opts));
   }
   for (let t = 0; t < 15; t++) {
     const scale = [1, 0.01, 100][t % 3], a = rnd() * 10, b = (rnd() - 0.5) * 4, groups = rnd() < 0.4 ? ['A', 'B'] : [];
-    const pts = Array.from({length: 8 + Math.floor(rnd() * 20)}, (_, i) => ({x: +(i * scale + rnd()).toFixed(2), y: +((a + b * i + gauss()) * scale).toFixed(3), ...(groups.length ? {group: groups[i % 2]} : {})}));
+    const pts = Array.from({length: 8 + Math.floor(rnd() * 20)}, (_, i) => ({x: +(i * scale! + rnd()).toFixed(2), y: +((a + b * i + gauss()) * scale!).toFixed(3), ...(groups.length ? {group: groups[i % 2]} : {})}));
     await run(`scatter ${t}`, () => scatter(pts, {x: 'x', y: 'y', regression: rnd() < 0.6}));
   }
   for (let t = 0; t < 20; t++) {
@@ -712,16 +712,16 @@ test('bars(): white text on a bar stays on the bar when a vline cuts it (it goes
   const b = laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars;
   for (const lb of b.labelBoxes.filter(x => x.background !== undefined && x.bar !== undefined)) {
     const r = b.bars[lb.bar!];
-    assert.ok(lb.x >= r.x - 0.6 && lb.x + lb.w <= r.x + r.w + 0.6, `${lb.label} is on its bar`);
+    assert.ok(lb.x >= r!.x - 0.6 && lb.x + lb.w <= r!.x + r!.w + 0.6, `${lb.label} is on its bar`);
   }
 });
 
 test('controlStats: a given centre line of an R or MR chart scales the limits (D4 x R-bar0), it does not shift them', () => {
   const g = [[10, 12, 11, 13, 10], [11, 13, 12, 14, 11], [9, 11, 10, 12, 9], [10, 12, 14, 12, 10]];
   const r = controlStats('r', g, {cl: 1});
-  near(r.ucl[0], 2.114); near(r.lcl[0], 0);
-  near(controlStats('r', g, {cl: 0.5}).ucl[0], 1.057);
-  near(controlStats('mr', [3, 5, 4, 6, 2, 4], {cl: 1}).ucl[0], 3.267);
+  near(r.ucl[0]!, 2.114); near(r.lcl[0]!, 0);
+  near(controlStats('r', g, {cl: 0.5}).ucl[0]!, 1.057);
+  near(controlStats('mr', [3, 5, 4, 6, 2, 4], {cl: 1}).ucl[0]!, 3.267);
 });
 
 test('controlChart(): narrow fixed limits keep their labels apart, with and without a legend row', async () => {

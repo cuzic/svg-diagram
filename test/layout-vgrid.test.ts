@@ -51,7 +51,7 @@ test('every drawn frame has its top and bottom on the grid, and its text keeps o
     const {rects, texts} = rectsAndTexts(r.svg);
     for (const f of rects) { assert.equal(f.y % 4, 0); assert.equal((f.y + f.h) % 4, 0); }
     // the first line of each box's title: its baseline minus the frame top that holds it
-    const dist = texts.filter(t => ['タイトル', '左', '右', '中', '中 2', 'a', 'b', 'c', 'd', '帯の見出し'].includes(t.s)).map(t => {
+    const dist = texts.filter(t => ['タイトル', '左', '右', '中', '中 2', 'a', 'b', 'c', 'd', '帯の見出し'].includes(t.s!)).map(t => {
       const frame = [...rects].reverse().find(f => f.y <= t.y && t.y <= f.y + f.h);
       assert.ok(frame, `a frame holds "${t.s}"`);
       return t.y - (frame as {y: number}).y;

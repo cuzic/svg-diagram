@@ -10,8 +10,8 @@ const TABLE_STYLE_ID = '{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}';
 /** How many grid columns a cell covers: the layout gives x/w only, so match them back against the column grid. */
 function spanOf(b: LaidOutTable, c: {x: number; w: number}): number {
   const start = b.colX.findIndex(x => Math.abs(x - c.x) < 1);
-  let span = 1, covered = start >= 0 ? b.colW[start]! : c.w;
-  while (start >= 0 && covered + 1 < c.w && start + span < b.colW.length) covered += b.colW[start + span++]!;
+  let span = 1, covered = start >= 0 ? (b.colW[start] ?? c.w) : c.w;
+  while (start >= 0 && covered + 1 < c.w && start + span < b.colW.length) covered += (b.colW[start + span++] ?? 0);
   return span;
 }
 

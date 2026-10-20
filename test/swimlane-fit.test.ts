@@ -23,7 +23,7 @@ test("swimlane({fit: 'shrink'}) narrows the label column and gaps so the columns
   const [plain, shrunk] = await Promise.all([laid({}), laid({fit: 'shrink'})]);
   assert.equal(plain.frame.labelW, 128);
   assert.ok(shrunk.frame.labelW < 128);
-  assert.ok(shrunk.boxes[0].w > plain.boxes[0].w, 'a step is wider');
+  assert.ok(shrunk.boxes[0]!.w > plain.boxes[0]!.w, 'a step is wider');
   assert.deepEqual(shrunk.verdict.problems, []);
 });
 

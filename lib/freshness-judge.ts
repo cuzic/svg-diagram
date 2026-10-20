@@ -6,7 +6,7 @@ import type {DiagramSource} from './types/core.ts';
 /** The provenance embedded in an SVG's text (what build() wrote), or null: no metadata (hand-made, other tool), or not JSON. */
 export function parseProvenance(text: string): DiagramSource | null {
   const m = text.match(/<metadata id="svg-diagram">([^<]*)<\/metadata>/);
-  if (!m) return null;
+  if (m?.[1] === undefined) return null;
   try {
     const j = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'));
     return j && typeof j === 'object' ? j as DiagramSource : null;

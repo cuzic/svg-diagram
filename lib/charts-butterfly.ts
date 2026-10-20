@@ -1,6 +1,7 @@
 // butterfly(): a two-sided bar chart. Each row is one item; its two bars grow outwards from a column of names in the middle, one to the
 // left and one to the right, on the same scale — so the eye compares the two groups item by item (us vs a rival, before vs after).
-import {Canvas, checkIds, checkText, fail, finiteNum, numText} from './charts-base.ts';
+import {must} from './must.ts';
+import {Canvas,checkIds, checkText, fail, finiteNum, numText} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 
 export interface ButterflyRow {
@@ -77,8 +78,9 @@ export function layoutButterfly(s: ButterflySpec, g: ChartGeom): LaidOutChartPar
   c.line(r1(innerR), y0, r1(innerR), bodyB, {stroke: 'border'});
   let y = y0;
   s.rows.forEach((row, k) => {
-    const cy = y + rowH[k] / 2, top = cy - barH / 2, key = row.id ?? `#${k}`;
-    c.lines(wrapped[k], (innerL + innerR) / 2, cy - (wrapped[k].length - 1) * lineH / 2 + S * 0.36, 'middle', 'text', {of: key});
+    const lns = must(wrapped[k]), rh = must(rowH[k]); // both are maps of s.rows
+    const cy = y + rh / 2, top = cy - barH / 2, key = row.id ?? `#${k}`;
+    c.lines(lns, (innerL + innerR) / 2, cy - (lns.length - 1) * lineH / 2 + S * 0.36, 'middle', 'text', {of: key});
     const sides = [
       {v: row.left, tone: s.leftTone, name: s.leftLabel, x1: innerL - row.left / max * plotW, x2: innerL, out: 'end' as const},
       {v: row.right, tone: s.rightTone, name: s.rightLabel, x1: innerR, x2: innerR + row.right / max * plotW, out: 'start' as const},
@@ -89,8 +91,9 @@ export function layoutButterfly(s: ButterflySpec, g: ChartGeom): LaidOutChartPar
       const text = vText(b.v), tx = b.out === 'end' ? b.x1 - 6 : b.x2 + 6;
       if (!c.place(text, [{x: b.out === 'end' ? (w >= 1 ? tx : innerL - 6) : (w >= 1 ? tx : innerR + 6), y: c.mid(cy), anchor: b.out}], b.tone === 'muted' ? 'text' : b.tone, {bold: true, of: key})) fail('butterfly', `the value "${text}" of "${row.label}" has no room`);
     }
-    if (row.id) c.anchors.push({id: row.id, x: r1(sides[0].x1), y: r1(top), w: r1(sides[1].x2 - sides[0].x1), h: barH});
-    y += rowH[k];
+    const [sl, sr] = sides;
+    if (row.id && sl && sr) c.anchors.push({id: row.id, x: r1(sl.x1), y: r1(top), w: r1(sr.x2 - sl.x1), h: barH});
+    y += rh;
   });
   return c.done();
 }

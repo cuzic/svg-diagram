@@ -4,7 +4,6 @@
 // A source with several annotated wireframes gets one list per screen, each after a <!-- 画面 N --> line.
 import path from 'node:path';
 import {installResolveHook} from './lib/resolve-hook.ts';
-const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 installResolveHook();
 const {notesOf, formatNotes} = await import('./lib/docs-check.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');

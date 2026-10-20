@@ -15,7 +15,7 @@ const laid = async (band: unknown, opts: object = {}) => {
   const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue', title: 'ボウタイ', ...opts}).add(band as never));
   return {t: laidOut.laidOut.find(b => b.type === 'bowtie') as LaidOutBowtie, verdict};
 };
-const boxOf = (t: LaidOutBowtie, label: string) => t.nodes[t.labelBoxes.findIndex(b => b.label === label)];
+const boxOf = (t: LaidOutBowtie, label: string) => t.nodes[t.labelBoxes.findIndex(b => b.label === label)]!;
 
 test('bowtie(): mistakes throw, naming the part', () => {
   assert.throws(() => bowtie({...INPUT, top: ''}), /top is the text/);
@@ -50,8 +50,8 @@ test('layout: the side with fewer rows is spread over the height (the 2 threats 
   const mid = (n: {y: number; h: number}) => n.y + n.h / 2;
   assert.ok(Math.abs((mid(a) + mid(b)) / 2 - (t.y + t.h / 2)) < 1, 'the two rows are centred on the three');
   for (let i = 0; i < t.nodes.length; i++) for (let j = i + 1; j < t.nodes.length; j++) {
-    const p = t.nodes[i], q = t.nodes[j];
-    assert.ok(p.x + p.w <= q.x || q.x + q.w <= p.x || p.y + p.h <= q.y || q.y + q.h <= p.y, `${t.labelBoxes[i].label} / ${t.labelBoxes[j].label} overlap`);
+    const p = t.nodes[i]!, q = t.nodes[j]!;
+    assert.ok(p.x + p.w <= q.x || q.x + q.w <= p.x || p.y + p.h <= q.y || q.y + q.h <= p.y, `${t.labelBoxes[i]!.label} / ${t.labelBoxes[j]!.label} overlap`);
   }
 });
 
@@ -68,9 +68,9 @@ test('width: a figure wider than the diagram is narrowed with a warning; maxNode
   const wide = {top: '頂上', threats: [{label: '脅威', barriers: ['バリア 1 の説明を長めに', 'バリア 2 の説明を長めに']}], consequences: [{label: '結果', barriers: ['バリア 3 の説明を長めに']}]};
   const fit = (v: {findings: {rule: string; severity: string}[]}) => v.findings.filter(f => f.rule === 'auto-fit-applied');
   const a = fit((await laid(bowtie(wide))).verdict);
-  assert.ok(a.length === 1 && a[0].severity === 'warn');
+  assert.ok(a.length === 1 && a[0]!.severity === 'warn');
   const b = fit((await laid(bowtie(wide, {maxNodeW: 'auto'}))).verdict);
-  assert.ok(b.length === 1 && b[0].severity === 'info');
+  assert.ok(b.length === 1 && b[0]!.severity === 'info');
   await assert.rejects(() => laid(bowtie(wide, {maxNodeW: 200})), /bowtie\(\)/);
 });
 
@@ -79,7 +79,7 @@ test('rca: a threat or a consequence with no barrier; info by default, warn unde
   const f = async (opts: object) => (await laid(bare, opts)).verdict.findings.filter(x => x.rule === 'bowtie-barrier-missing');
   const lax = await f({});
   assert.ok(lax.length === 2 && lax.every(x => x.severity === 'info'));
-  assert.match(lax[0].message, /脅威 A/);
+  assert.match(lax[0]!.message, /脅威 A/);
   assert.ok((await f({rcaCheck: 'strict'})).every(x => x.severity === 'warn'));
   assert.ok((await f({rcaCheck: 'strict', accept: {'bowtie-barrier-missing': '調査中'}})).every(x => x.severity === 'info'));
   const ok = await laid(bowtie(INPUT, {maxNodeW: 'auto'}), {rcaCheck: 'strict'});
@@ -91,10 +91,10 @@ test('rows keep their gap, a side with fewer rows is spread over the same height
   const {t} = await laid(bowtie(INPUT, {maxNodeW: 'auto'}));
   const cons = ['信用の低下', '賠償', '行政処分'].map(l => boxOf(t, l)), right = Math.max(...cons.map(c => c.x + c.w));
   assert.ok(cons.every(c => Math.abs(c.x + c.w - right) < 0.5), 'every consequence ends at the same right edge');
-  const gaps = cons.slice(1).map((c, i) => c.y - (cons[i].y + cons[i].h));
-  assert.ok(Math.abs(gaps[0] - gaps[1]) < 6 && gaps.every(g => g >= 19), 'the three rows are one ROW_GAP apart (at least)');
+  const gaps = cons.slice(1).map((c, i) => c.y - (cons[i]!.y + cons[i]!.h));
+  assert.ok(Math.abs(gaps[0]! - gaps[1]!) < 6 && gaps.every(g => g >= 19), 'the three rows are one ROW_GAP apart (at least)');
   const a = boxOf(t, '不正アクセス'), b = boxOf(t, '誤送信');
-  assert.ok(b.y - (a.y + a.h) > gaps[0], 'two rows are spread wider than three');
+  assert.ok(b.y - (a.y + a.h) > gaps[0]!, 'two rows are spread wider than three');
 });
 
 test('a top event of more than three lines throws; without a hazard the knot is the first thing over the top event', async () => {

@@ -134,7 +134,7 @@ test('a figure for a slide with no measured budget is drawn at the default size 
   const r = await renderSource(src);
   assert.equal(r.ok, true);
   assert.equal(r.notes.length, 1);
-  assert.match(r.notes[0], /未計測|キャッシュ/);
+  assert.match(r.notes[0]!, /未計測|キャッシュ/);
   fs.rmSync(dir, {recursive: true});
 });
 
@@ -166,7 +166,7 @@ test('several renders at once give what the same renders one after another give'
   const apart = [];
   for (const f of files) apart.push(await renderSource(f, {fresh: true}));
   assert.deepEqual(together.map(r => r.svg), apart.map(r => r.svg));
-  assert.ok(together[0].svg !== together[1].svg);
+  assert.ok(together[0]!.svg !== together[1]!.svg);
   fs.rmSync(dir, {recursive: true});
 });
 

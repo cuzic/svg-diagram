@@ -4,7 +4,7 @@ import {bars, banner, box, caption, checkDiagram, closeMeasurer, diagram, render
 import {LIGHT_COLORS, DARK_PALETTE, PALETTE, TONES, darkOf, recolor, wcagRatio, NO_TONES} from '../lib/tokens.ts';
 import {geometryChecks} from '../lib/geometry-checks.ts';
 
-process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
+process.env['SVG_DIAGRAM_STRICT_WIDTH'] = '1';
 test.after(() => closeMeasurer());
 
 const dark = (c: string) => darkOf(c);
@@ -135,7 +135,7 @@ test('a bad custom token is refused', () => {
 test('default dark danger is a saturated red that still reads as text on the page and on the code fill', () => {
   assert.ok(wcagRatio(DARK_PALETTE.danger, DARK_PALETTE.bg) >= 4.5);
   assert.ok(wcagRatio(DARK_PALETTE.danger, DARK_PALETTE.code) >= 4.5);
-  const [r, g, b] = [1, 3, 5].map(i => parseInt(DARK_PALETTE.danger.slice(i, i + 2), 16));
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(DARK_PALETTE.danger.slice(i, i + 2), 16)) as [number, number, number];
   assert.ok(Math.max(r, g, b) - Math.min(r, g, b) >= 150, 'not a pastel pink');
 });
 

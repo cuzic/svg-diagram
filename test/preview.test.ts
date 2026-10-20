@@ -108,7 +108,7 @@ test('staleBannerSvg: the band follows the drawn size (big viewBox drawn small, 
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${vbW} ${vbH}"><rect width="${vbW}" height="${vbH}" fill="#ffffff"/></svg>`;
     const r = await rasterize(staleBannerSvg(svg, '古い'), {png: true});
     let red = 0;
-    for (let y = 0; y < r.height; y++) if (r.rgba[(y * r.width + r.width - 1) * 4 + 1] < 100) red++;
+    for (let y = 0; y < r.height; y++) if (r.rgba[(y * r.width + r.width - 1) * 4 + 1]! < 100) red++;
     return {red, height: r.height};
   };
   const big = await draw(4000, 1000, 400, 100);

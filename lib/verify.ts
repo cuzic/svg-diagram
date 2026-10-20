@@ -34,15 +34,16 @@ import type {LaidOutDiagram} from './types/index.ts';
 import type {LaidOutCaption} from './types/text-bands.ts';
 import type {CheckRect, Verdict} from './types/verdicts.ts';
 
+import {must} from './must.ts';
 function checkOverlaps(rects: CheckRect[]): string[] {
   const problems: string[] = [];
   for (let i = 0; i < rects.length; i++) {
     for (let j = i + 1; j < rects.length; j++) {
-      const [a, b] = [rects[i], rects[j]];
+      const a = must(rects[i]), b = must(rects[j]);
       if (a.holds?.some(h => h.startsWith('@intentional-overlap:') && b.holds?.includes(h))) continue;
       if ((a.life || b.life) && neverTogether(a.life ?? {}, b.life ?? {})) continue;
       const o = rectOverlap(a, b);
-      if (o) problems.push(`"${rects[i].label}" overlaps "${rects[j].label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
+      if (o) problems.push(`"${a.label}" overlaps "${b.label}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px`);
     }
   }
   return problems;

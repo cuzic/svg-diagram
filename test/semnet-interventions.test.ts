@@ -17,20 +17,20 @@ const LABELS = ['品質', '満足', '受注', '負荷', '残業'], IV_LABELS = [
 const NO_ROOM = /has no room|would run through|wider than|does not fit|do not fit on a ring/;
 function loopCase(seed: number, n = 5): {nodes: CausalNode[]; links: CausalLink[]} {
   const rand = rng(seed * 7 + 1), nodes = Array.from({length: n}, (_, i) => ({id: `n${i}`, label: LABELS[i % LABELS.length] + (i >= LABELS.length ? String(i) : '')}));
-  return {nodes, links: nodes.map((x, i) => ({from: x.id, to: nodes[(i + 1) % n].id, polarity: rand() < .5 ? '+' : '-', ...(rand() < .3 ? {delay: true} : {})}))};
+  return {nodes, links: nodes.map((x, i) => ({from: x.id, to: nodes[(i + 1) % n]!.id, polarity: rand() < .5 ? '+' : '-', ...(rand() < .3 ? {delay: true} : {})}))};
 }
 function ivCase(seed: number, nodes: CausalNode[]): CausalIntervention[] {
   const rand = rng(seed * 13 + 5), count = 1 + Math.floor(rand() * 4);
   return Array.from({length: count}, (_, i) => {
     const first = Math.floor(rand() * nodes.length), two = rand() < .4, second = (first + 1 + Math.floor(rand() * (nodes.length - 1))) % nodes.length;
-    return {id: `iv${i}`, label: IV_LABELS[i], to: two ? [nodes[first].id, nodes[second].id] : nodes[first].id, polarity: rand() < .7 ? '-' : '+', ...(rand() < .3 ? {delay: true} : {})};
+    return {id: `iv${i}`, label: IV_LABELS[i]!, to: two ? [nodes[first]!.id, nodes[second]!.id] : nodes[first]!.id, polarity: rand() < .7 ? '-' : '+', ...(rand() < .3 ? {delay: true} : {})};
   });
 }
 interface Bx {x: number; y: number; w: number; h: number}
 const NUM = '(-?[\\d.]+)';
-const nodeBoxes = (svg: string): Bx[] => [...svg.matchAll(new RegExp(`<path d="M${NUM},${NUM} H${NUM} V${NUM} H[\\d.]+ Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>`, 'g'))].map(m => ({x: +m[1], y: +m[2], w: +m[3] - +m[1], h: +m[4] - +m[2]}));
-const dashedBoxes = (svg: string): Bx[] => [...svg.matchAll(new RegExp(`<path d="M${NUM},${NUM} H${NUM} V${NUM} H[\\d.]+ Z" fill="#ffffff" stroke="#[0-9a-f]{6}" stroke-width="2" stroke-dasharray="6,4"/>`, 'g'))].map(m => ({x: +m[1], y: +m[2], w: +m[3] - +m[1], h: +m[4] - +m[2]}));
-const dashedSegs = (svg: string): {x1: number; y1: number; x2: number; y2: number}[] => [...svg.matchAll(new RegExp(`<path d="M${NUM},${NUM} L${NUM},${NUM}" fill="none" stroke="#[0-9a-f]{6}" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6,4"/>`, 'g'))].map(m => ({x1: +m[1], y1: +m[2], x2: +m[3], y2: +m[4]}));
+const nodeBoxes = (svg: string): Bx[] => [...svg.matchAll(new RegExp(`<path d="M${NUM},${NUM} H${NUM} V${NUM} H[\\d.]+ Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>`, 'g'))].map(m => ({x: +m[1]!, y: +m[2]!, w: +m[3]! - +m[1]!, h: +m[4]! - +m[2]!}));
+const dashedBoxes = (svg: string): Bx[] => [...svg.matchAll(new RegExp(`<path d="M${NUM},${NUM} H${NUM} V${NUM} H[\\d.]+ Z" fill="#ffffff" stroke="#[0-9a-f]{6}" stroke-width="2" stroke-dasharray="6,4"/>`, 'g'))].map(m => ({x: +m[1]!, y: +m[2]!, w: +m[3]! - +m[1]!, h: +m[4]! - +m[2]!}));
+const dashedSegs = (svg: string): {x1: number; y1: number; x2: number; y2: number}[] => [...svg.matchAll(new RegExp(`<path d="M${NUM},${NUM} L${NUM},${NUM}" fill="none" stroke="#[0-9a-f]{6}" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6,4"/>`, 'g'))].map(m => ({x1: +m[1]!, y1: +m[2]!, x2: +m[3]!, y2: +m[4]!}));
 const arrowCount = (ivs: CausalIntervention[]): number => ivs.reduce((a, v) => a + (typeof v.to === 'string' ? 1 : v.to.length), 0);
 /** A segment ending on a node's edge touches that node; one that goes through the inside of any node's box is a hit. */
 const crossesNode = (sg: {x1: number; y1: number; x2: number; y2: number}, nodes: Bx[]): boolean => nodes.some(n => segHitsRect(sg, {x: n.x + 1.5, y: n.y + 1.5, w: n.w - 3, h: n.h - 3}));
@@ -70,11 +70,11 @@ test('the loop name, the classification and the loop are the same with and witho
 });
 
 test('height unspecified: the figure grows to take the band; TB with many boxes grows downwards', async () => {
-  const {nodes, links} = loopCase(5), ivs = ['a', 'b', 'c', 'd', 'e', 'f'].map((id, i): CausalIntervention => ({id, label: '長い介入点の名前' + i, to: nodes[i % 5].id, polarity: '-'}));
+  const {nodes, links} = loopCase(5), ivs = ['a', 'b', 'c', 'd', 'e', 'f'].map((id, i): CausalIntervention => ({id, label: '長い介入点の名前' + i, to: nodes[i % 5]!.id, polarity: '-'}));
   const plain = await drawAndCheck(causalLoop(nodes, links, {direction: 'TB'})), withIv = await drawAndCheck(causalLoop(nodes, links, {direction: 'TB', interventions: ivs}));
   assert.equal(withIv.error, undefined);
   assert.deepEqual([withIv.problems, withIv.lint], [[], []]);
-  const h = (svg: string): number => +/<svg[^>]* height="([\d.]+)"/.exec(svg)![1];
+  const h = (svg: string): number => +/<svg[^>]* height="([\d.]+)"/.exec(svg)![1]!;
   assert.ok(h(withIv.svg) >= h(plain.svg));
   const lr = await drawAndCheck(causalLoop(nodes, links, {interventions: ivs.slice(0, 2)})), lr0 = await drawAndCheck(causalLoop(nodes, links));
   assert.ok(h(lr.svg) > h(lr0.svg), 'LR: the band adds height');
@@ -99,8 +99,8 @@ test('a plan: boxes are pushed apart by 16px in the order of their targets, and 
   const r = planInterventions(c, [item('y', 'b'), item('x', 'a'), item('z', 'b')], pos, () => 'top');
   assert.ok('placed' in r, JSON.stringify(r));
   const bs = r.placed.map(p => p.box).sort((p, q) => p.x - q.x);
-  for (let i = 1; i < bs.length; i++) assert.ok(bs[i].x - (bs[i - 1].x + bs[i - 1].w) >= 16 - 1e-6, 'a gap of at least 16');
-  assert.ok(bs[0].x >= 8 && bs.at(-1)!.x + bs.at(-1)!.w <= 392, 'inside the figure');
+  for (let i = 1; i < bs.length; i++) assert.ok(bs[i]!.x - (bs[i - 1]!.x + bs[i - 1]!.w) >= 16 - 1e-6, 'a gap of at least 16');
+  assert.ok(bs[0]!.x >= 8 && bs.at(-1)!.x + bs.at(-1)!.w <= 392, 'inside the figure');
   assert.deepEqual(r.placed.map(p => p.item.id).sort(), ['x', 'y', 'z']);
   const tooMany = planInterventions(c, [item('p', 'a', 200), item('q', 'b', 200)], pos, () => 'top');
   assert.ok('problem' in tooMany && /wider than the figure/.test(tooMany.problem));
@@ -113,8 +113,8 @@ test('on a ring the nodes in the upper half are reached from above and the rest 
 });
 
 function ringCase(seed: number, n: number): {nodes: CausalNode[]; links: CausalLink[]} {
-  const rand = rng(seed * 31 + n), nodes = Array.from({length: n}, (_, i) => ({id: `n${i}`, label: ['需要', '供給と在庫の調整', '顧客満足', '業務負荷が高まる'][Math.floor(rand() * 4)] + i}));
-  return {nodes, links: nodes.map((x, i) => ({from: x.id, to: nodes[(i + 1) % n].id, polarity: rand() < .5 ? '+' : '-', ...(rand() < .3 ? {delay: true} : {})}))};
+  const rand = rng(seed * 31 + n), nodes = Array.from({length: n}, (_, i) => ({id: `n${i}`, label: ['需要', '供給と在庫の調整', '顧客満足', '業務負荷が高まる'][Math.floor(rand() * 4)]! + i}));
+  return {nodes, links: nodes.map((x, i) => ({from: x.id, to: nodes[(i + 1) % n]!.id, polarity: rand() < .5 ? '+' : '-', ...(rand() < .3 ? {delay: true} : {})}))};
 }
 
 test('a ring with interventions: they sit outside the ring (above or below), clean on checkDiagram and lint --strict, arrows keep out of the node boxes', async () => {
@@ -134,7 +134,7 @@ test('a ring with interventions: they sit outside the ring (above or below), cle
 });
 
 test('a ring with an intervention is taller than the same ring without, by the band; a ring without interventions is unchanged', async () => {
-  const {nodes, links} = ringCase(1, 4), h = (svg: string): number => +/<svg[^>]* height="([\d.]+)"/.exec(svg)![1];
+  const {nodes, links} = ringCase(1, 4), h = (svg: string): number => +/<svg[^>]* height="([\d.]+)"/.exec(svg)![1]!;
   const plain = await drawAndCheck(causalLoop(nodes, links, {layout: 'ring'})), one = await drawAndCheck(causalLoop(nodes, links, {layout: 'ring', interventions: [{id: 'fix', label: '対策', to: 'n0', polarity: '-'}]}));
   assert.equal(one.error, undefined);
   assert.ok(h(one.svg) >= h(plain.svg) + 88, 'one band of 48 + 40');

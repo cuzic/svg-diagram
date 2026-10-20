@@ -80,6 +80,9 @@ export const snapGrid = roundGrid;
  * `anyGap`: the gap may be widened by a step whatever its size (a figure's own, undeclared gutter, as the quadrant's).
  * `null` when the width is too small to give every column a grid step: the caller keeps the plain split.
  */
+// add `by` to a[i]; NaN where the index is outside the array, as `a[i] += by` on a number array was
+const bump = (a: number[], i: number, by = 1): void => { a[i] = (a[i] ?? NaN) + by; };
+
 export function gridColumns(contentWidth: number, n: number, gap: number, opts: {fixedGap?: boolean; centerGutter?: boolean; anyGap?: boolean} = {}): {x: number[]; w: number[]} | null {
   const g0 = n > 1 ? (opts.fixedGap ? gap : ceilGrid(Math.max(gap, 0))) : 0;
   const units = Math.floor((contentWidth - (n - 1) * g0) / GRID + 1e-9);
@@ -88,22 +91,22 @@ export function gridColumns(contentWidth: number, n: number, gap: number, opts: 
   let extra = units - base * n; // columns that get one more grid step
   const gutter = new Array<number>(Math.max(n - 1, 0)).fill(g0);
   const add = new Array<number>(n).fill(0);
-  if (n > 1 && extra === n - 1 && !opts.fixedGap && (opts.anyGap || GRID <= 0.25 * g0)) { for (let k = 0; k < n - 1; k++) gutter[k] += GRID; extra = 0; }
+  if (n > 1 && extra === n - 1 && !opts.fixedGap && (opts.anyGap || GRID <= 0.25 * g0)) { for (let k = 0; k < n - 1; k++) bump(gutter, k, GRID); extra = 0; }
   const odd = extra % 2 === 1;
   extra -= odd ? 1 : 0;
   // the rest in mirrored pairs, spread evenly over the left half
   const pairs = extra / 2, half = Math.floor(n / 2);
-  for (let j = 0; j < pairs; j++) { const i = Math.min(half - 1, Math.floor((j + 0.5) * half / pairs)); add[i]++; add[n - 1 - i]++; }
+  for (let j = 0; j < pairs; j++) { const i = Math.min(half - 1, Math.floor((j + 0.5) * half / pairs)); bump(add, i); bump(add, n - 1 - i); }
   if (odd) { // the odd step: the middle column, else (with centerGutter) the middle gutter, else the first column that has no step yet
     const mid = (n - 1) / 2;
-    if (n % 2 === 1 && add[mid] === 0) add[mid]++;
-    else if (n % 2 === 0 && opts.centerGutter && !opts.fixedGap && (opts.anyGap || GRID <= 0.25 * g0)) gutter[n / 2 - 1] += GRID;
-    else add[add.findIndex(v => v === 0)]++;
+    if (n % 2 === 1 && add[mid] === 0) bump(add, mid);
+    else if (n % 2 === 0 && opts.centerGutter && !opts.fixedGap && (opts.anyGap || GRID <= 0.25 * g0)) bump(gutter, n / 2 - 1, GRID);
+    else bump(add, add.findIndex(v => v === 0));
   }
   const w = add.map(v => (base + v) * GRID);
   const x: number[] = [];
   let at = 0;
-  w.forEach((v, k) => { x.push(at); at += v + (k < n - 1 ? gutter[k] : 0); });
+  w.forEach((v, k) => { x.push(at); at += v + (k < n - 1 ? gutter[k] ?? NaN : 0); });
   // (a width that is not a multiple of 4 leaves under one step unused at the right: the columns stay equal and symmetric)
   return {x, w};
 }
@@ -117,8 +120,8 @@ export function rowChildGeometry(band: Pick<RowBand, 'cols' | 'gap' | 'justify' 
     // above two boxes in columns 1 and 2 of the next row.
     const grid = gridColumns(contentWidth, band.cols, gap, {centerGutter: band.cols === 12});
     const cw = (contentWidth - (band.cols - 1) * gap) / band.cols;
-    const colX = (c: number): number => grid ? grid.x[c] : c * (cw + gap);
-    const colW = (c: number): number => grid ? grid.w[c] : cw;
+    const colX = (c: number): number => grid ? grid.x[c] ?? NaN : c * (cw + gap);
+    const colW = (c: number): number => grid ? grid.w[c] ?? NaN : cw;
     let next = 1;
     const widths: number[] = [], xOffsets: number[] = [];
     for (const c of band.children) {
@@ -133,7 +136,8 @@ export function rowChildGeometry(band: Pick<RowBand, 'cols' | 'gap' | 'justify' 
     return {widths, xOffsets};
   }
   if (band.justify === 'stretch') {
-    const equal = band.children.every(c => (c.flex ?? 1) === (band.children[0].flex ?? 1));
+    const flex0 = band.children[0]?.flex ?? 1;
+    const equal = band.children.every(c => (c.flex ?? 1) === flex0);
     if (equal && n > 0) {
       const grid = gridColumns(contentWidth, n, gap);
       if (grid) return {widths: grid.w, xOffsets: grid.x};

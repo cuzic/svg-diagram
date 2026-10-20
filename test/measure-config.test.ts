@@ -17,14 +17,14 @@ const sansFile = resolveFontFile('sans');
 const monoFile = resolveFontFile('mono');
 const needFonts = sansFile && monoFile ? false : 'no sans/mono font file found';
 
-const savedEnv = process.env.SVG_DIAGRAM_MEASURE;
+const savedEnv = process.env['SVG_DIAGRAM_MEASURE'];
 const req = (text: string, size = 16) => new Map<string, MeasureRequest>([['k', {text, size, weight: 400, font: 'sans'}]]);
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'measure-config-'));
 
-test.beforeEach(() => { delete process.env.SVG_DIAGRAM_MEASURE; });
-test.afterEach(() => { delete process.env.SVG_DIAGRAM_MEASURE; configureMeasure({}); });
+test.beforeEach(() => { delete process.env['SVG_DIAGRAM_MEASURE']; });
+test.afterEach(() => { delete process.env['SVG_DIAGRAM_MEASURE']; configureMeasure({}); });
 test.after(async () => {
-  if (savedEnv === undefined) delete process.env.SVG_DIAGRAM_MEASURE; else process.env.SVG_DIAGRAM_MEASURE = savedEnv;
+  if (savedEnv === undefined) delete process.env['SVG_DIAGRAM_MEASURE']; else process.env['SVG_DIAGRAM_MEASURE'] = savedEnv;
   await closeMeasurer();
 });
 
@@ -41,21 +41,21 @@ test('`measure` in the config is an explicit choice, either way', () => {
 });
 
 test('SVG_DIAGRAM_MEASURE wins over the config', () => {
-  process.env.SVG_DIAGRAM_MEASURE = 'chromium';
+  process.env['SVG_DIAGRAM_MEASURE'] = 'chromium';
   configureMeasure({measure: 'font'});
   assert.deepEqual(currentMeasure(), {backend: 'chromium', explicit: true});
-  process.env.SVG_DIAGRAM_MEASURE = 'font';
+  process.env['SVG_DIAGRAM_MEASURE'] = 'font';
   configureMeasure({measure: 'chromium'});
   assert.deepEqual(currentMeasure(), {backend: 'font', explicit: true});
 });
 
 test('an SVG_DIAGRAM_MEASURE that is neither engine is refused, naming the value', () => {
-  process.env.SVG_DIAGRAM_MEASURE = 'browser';
+  process.env['SVG_DIAGRAM_MEASURE'] = 'browser';
   assert.throws(() => configureMeasure({}), /SVG_DIAGRAM_MEASURE=browser.*'chromium' or 'font'/);
 });
 
 test('an empty SVG_DIAGRAM_MEASURE counts as unset', () => {
-  process.env.SVG_DIAGRAM_MEASURE = '';
+  process.env['SVG_DIAGRAM_MEASURE'] = '';
   configureMeasure({});
   assert.deepEqual(currentMeasure(), {backend: 'font', explicit: false});
 });
@@ -148,7 +148,7 @@ test('measure unset, no font file: warns once and measures in Chromium; measure 
     const second = await measureAll(req('fallback text two', 15));
     assert.ok(first.get('k')!.w > 0 && second.get('k')!.w > 0);
     assert.equal(seen.length, 1, seen.join('\n'));
-    assert.match(seen[0], /measuring with Chromium instead/);
+    assert.match(seen[0]!, /measuring with Chromium instead/);
     assert.equal(currentMeasure().backend, 'chromium');
     configureMeasure({measure: 'font', fonts: bad});
     await assert.rejects(measureAll(req('hard error', 15)), /font\.ttf/);

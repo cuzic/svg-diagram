@@ -5,7 +5,7 @@
 // Same geometry as the SVG: layout.ts has already broken every text into lines and placed each baseline, so a line is one element
 // with white-space: pre — the browser never re-wraps it. A line's top is its baseline minus the font's ascent (its line-height is
 // ascent + descent), which is how the baseline lands where the <text> of the SVG puts it.
-import {PALETTE, FONT_STACKS, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle, recolor, toneEnv} from './tokens.ts';
+import {PALETTE, FONT_STACKS, runColorOf, textColorOf, recolor, toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import {createHash} from 'node:crypto';
 import {emitSvg, resolveBoxStyle} from './emit.ts';
@@ -18,6 +18,7 @@ import type {LaidOutDiagram, LaidOutBand} from './types/index.ts';
 import type {LaidOutTable} from './types/sequence-table-swimlane.ts';
 import type {LaidOutBox, LaidOutBanner, LaidOutCaption, WrappedRun, Span} from './types/text-bands.ts';
 
+import {must} from './must.ts';
 // like SVG text, runs of white space are one space (XML white space only: U+3000 and NBSP are characters, not white space)
 const collapse = (s: string): string => s.replace(/[ \t\r\n]+/g, ' ');
 const esc = (s: string): string => collapse(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c] as string);
@@ -43,8 +44,9 @@ function textRuns(runs: WrappedRun[], o: {originX: number; originY: number; w: n
     const indent = run.indent ?? 0;
     const {ascent, descent} = o.fb(run.size, run.weight, run.mono);
     run.lines.forEach((line, i) => {
-      const top = o.originY + run.lineYs[i] - ascent;
-      const content = run.lineSpans ? spans(run.lineSpans[i], run, color, o.day, o.tones, o.dim) : esc(line).trim();
+      const top = o.originY + must(run.lineYs[i]) - ascent; // one y per line
+      const lineSpans = run.lineSpans?.[i];
+      const content = lineSpans ? spans(lineSpans, run, color, o.day, o.tones, o.dim) : esc(line).trim();
       out.push(`<div class="sd-t${run.mono ? ' sd-m' : ''}" style="left:${px(o.originX + indent)};top:${px(top)};width:${px(o.w - indent)};text-align:${o.align};font-size:${run.size}px;font-weight:${run.weight};line-height:${ascent + descent}px;color:${color}">${content}</div>`);
     });
   }
@@ -76,7 +78,7 @@ function caption(b: LaidOutCaption, day: Theme, tones: ToneEnv, fb: FontBox): st
   return textRuns(b.wrappedRuns, {originX: b.x, originY: b.y, w: b.w, align: b.align ?? 'center', day, tones, fb, dim: b.dim});
 }
 
-function group(b: LaidOutGroup, day: Theme, tones: ToneEnv, fb: FontBox): string {
+function group(b: LaidOutGroup, day: Theme, tones: ToneEnv, _fb: FontBox): string {
   return b.frame === false ? '' : shape(b, b, day, tones, 'muted');
 }
 
@@ -96,8 +98,8 @@ function table(b: LaidOutTable, day: Theme, tones: ToneEnv, fb: FontBox, roles: 
 
 function tablePlain(b: LaidOutTable, day: Theme, tones: ToneEnv, fb: FontBox, roles: Roles): string {
   const R = 8, LH = 1.4;
-  const first = b.rows[0];
-  const y0 = first.y, y1 = b.rows[b.rows.length - 1].y + b.rows[b.rows.length - 1].h;
+  const first = must(b.rows[0]);
+  const y0 = first.y, y1 = must(b.rows[b.rows.length - 1]).y + must(b.rows[b.rows.length - 1]).h;
   const firstBody = b.rows.findIndex(r => !r.header);
   const rule = `2px solid ${PALETTE.border}`;
   const cols = b.colW.map(w => `<col style="width:${px(w)}">`).join('');
@@ -219,9 +221,9 @@ function emitHtmlWith(d: LaidOutDiagram, tones: ToneEnv, opts: {reveal?: number;
   const kindOf = (b: LaidOutBand) => native(b) ? 'html' : b.type === 'raw' || b.type === 'wordart' ? 'raw' : 'svg';
   let body = '';
   for (let i = 0; i < visible.length;) {
-    const kind = kindOf(visible[i]);
+    const kind = kindOf(must(visible[i]));
     let j = i;
-    while (j < visible.length && kindOf(visible[j]) === kind) j++;
+    while (j < visible.length && kindOf(must(visible[j])) === kind) j++;
     const run = visible.slice(i, j);
     if (kind === 'html') body += run.map(b => render(b, day, tones, fb, d.roles, opts.reveal)).join('');
     else if (kind === 'raw') body += strip(emitSvg({...d, laidOut: run, connects: []}, {reveal: opts.reveal, noRecolor: true}), 'sd-ov sd-raw');

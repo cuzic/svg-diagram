@@ -30,7 +30,7 @@ for (const tone of ['solid', 'solid-danger'] as const) {
     const {svg} = await renderDiagram(make(tone), {name: 'solid.svg', budget: 'cacheOnly'});
     const fill = tone === 'solid' ? ACCENT : DANGER;
     assert.match(svg, new RegExp(`<rect [^>]*fill="${fill}"`));
-    const texts = [...svg.matchAll(/<text [^>]*fill="(#[0-9a-f]{6})"[^>]*>([^<]*)</g)].filter(m => ['主役', '説明', '注', '一行目', '二行目', '76%', '導入前', '見出し', '補足'].includes(m[2]));
+    const texts = [...svg.matchAll(/<text [^>]*fill="(#[0-9a-f]{6})"[^>]*>([^<]*)</g)].filter(m => ['主役', '説明', '注', '一行目', '二行目', '76%', '導入前', '見出し', '補足'].includes(m[2]!));
     const inBoxes = texts.filter(m => m[1] !== '#22201b'); // (the legend swatch label "主役" is page text)
     assert.equal(texts.length - inBoxes.length, tone === 'solid' ? 1 : 0, 'only the legend label (主役) is page text');
     assert.deepEqual(inBoxes.map(m => m[1]), Array(9).fill(WHITE));
@@ -69,7 +69,7 @@ test('solid: a dimmed (spotlight) solid box is white with muted text, the dim br
   assert.deepEqual(verdict.problems, []);
   assert.deepEqual(verdict.warnings, []);
   const r = laidOut.laidOut.find((b): b is LaidOutRow => b.type === 'row')!;
-  assert.equal(r.children[0].dim, true);
+  assert.equal(r.children[0]!.dim, true);
   const rects = [...svg.matchAll(/<rect [^>]*>/g)].map(m => m[0]);
   assert.ok(rects.some(x => x.includes(`fill="${WHITE}"`) && x.includes(`stroke="${MUTED}"`)), 'the dimmed box is a white box with a muted border');
   for (const text of ['主役', '説明', '注']) assert.match(svg, new RegExp(`fill="${MUTED}">${text}<`), text);
@@ -84,12 +84,12 @@ test('solid: the step badge and the tag pill get a white ring so they do not mel
   assert.deepEqual(verdict.problems, []);
   const badges = [...svg.matchAll(/data-badge[^>]*>\s*<circle [^>]*>/g)].map(m => m[0]);
   assert.equal(badges.length, 2);
-  assert.match(badges[0], new RegExp(`stroke="${WHITE}"`));
-  assert.doesNotMatch(badges[1], /stroke=/);
+  assert.match(badges[0]!, new RegExp(`stroke="${WHITE}"`));
+  assert.doesNotMatch(badges[1]!, /stroke=/);
   const pills = [...svg.matchAll(/<rect [^>]*rx="12"[^>]*>/g)].map(m => m[0]);
   assert.equal(pills.length, 2);
-  assert.match(pills[0], new RegExp(`stroke="${WHITE}"`));
-  assert.doesNotMatch(pills[1], /stroke=/);
+  assert.match(pills[0]!, new RegExp(`stroke="${WHITE}"`));
+  assert.doesNotMatch(pills[1]!, /stroke=/);
 });
 
 test('a11y-nontext-contrast: a tone with no border is judged by its fill against the page (no 1.0:1 false positive)', async () => {

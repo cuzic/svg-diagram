@@ -7,8 +7,8 @@ const make = (o: object) => diagram({theme: 'blue', ...o} as never);
 
 test("diagram({status}) takes 'draft' and keeps the label; a figure without one has no status keys", () => {
   const d = make({status: 'draft', statusLabel: '仮説'}) as unknown as Record<string, unknown>;
-  assert.equal(d.status, 'draft');
-  assert.equal(d.statusLabel, '仮説');
+  assert.equal(d['status'], 'draft');
+  assert.equal(d['statusLabel'], '仮説');
   const plain = make({}) as unknown as Record<string, unknown>;
   assert.equal('status' in plain, false);
   assert.equal('statusLabel' in plain, false);

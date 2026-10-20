@@ -13,7 +13,7 @@ const svgOf = (body: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="
 const key = svgOf('<text x="10" y="50" font-size="40" fill="#000000">a<tspan class="emoji">🔑</tspan>b</text>');
 
 /** pixels that are neither grey nor white: color */
-const colored = (r: {rgba: Buffer}) => { let n = 0; for (let i = 0; i < r.rgba.length; i += 4) if (Math.max(r.rgba[i], r.rgba[i + 1], r.rgba[i + 2]) - Math.min(r.rgba[i], r.rgba[i + 1], r.rgba[i + 2]) > 40) n++; return n; };
+const colored = (r: {rgba: Buffer}) => { let n = 0; for (let i = 0; i < r.rgba.length; i += 4) if (Math.max(r.rgba[i]!, r.rgba[i + 1]!, r.rgba[i + 2]!) - Math.min(r.rgba[i]!, r.rgba[i + 1]!, r.rgba[i + 2]!) > 40) n++; return n; };
 
 test('a figure without emoji comes back as it is', () => {
   const plain = svgOf('<text x="10" y="50" font-size="40">abc</text>');

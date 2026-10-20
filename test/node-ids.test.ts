@@ -15,7 +15,7 @@ import type {LaidOutBand} from '../lib/types/index.ts';
 register(new URL('../lib/resolve-hook.ts', import.meta.url)); // the examples import 'svg-diagram'
 test.after(() => closeMeasurer());
 
-const marks = (svg: string): string[] => [...svg.matchAll(/ data-node="([^"]*)"/g)].map(m => m[1]);
+const marks = (svg: string): string[] => [...svg.matchAll(/ data-node="([^"]*)"/g)].map(m => m[1]!);
 const strip = (svg: string): string => svg.replaceAll(/ data-node="[^"]*"/g, '');
 const draw = (d: ReturnType<typeof diagram>, nodeIds?: boolean) => renderDiagram(d, {name: 't', budget: 'cacheOnly', ...(nodeIds ? {nodeIds} : {})});
 const sorted = (a: string[]) => [...a].sort();

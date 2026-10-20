@@ -34,8 +34,8 @@ test('the source line is not shrunk and the box grows taller (ADR 0024 does not 
   const [a, b] = [await laid({}), await laid({source: '出典', confidence: 'secondary'})];
   assert.ok(b.h > a.h);
   assert.deepEqual(b.statShrunk, a.statShrunk);
-  assert.equal(b.wrappedRuns[2].size, 14);
-  assert.equal(b.wrappedRuns[0].size, a.wrappedRuns[0].size);
+  assert.equal(b.wrappedRuns[2]!.size, 14);
+  assert.equal(b.wrappedRuns[0]!.size, a.wrappedRuns[0]!.size);
 });
 
 test('hero({stat: {source, confidence}}) passes the evidence line through to stat()', async () => {

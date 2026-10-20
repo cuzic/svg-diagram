@@ -63,7 +63,7 @@ test('density compact: a state diagram keeps the width of its transition labels 
   // the arrow diagram of the review: with the label width scaled too, the label of 2 -> 4 sat on its line
   const layerGaps = (band: any): number[] => {
     const nodes: any[] = band.nodes, xs = [...new Set<number>(nodes.map(n => Math.round(n.x)))].sort((a, b) => a - b);
-    return xs.slice(1).map((x, i) => x - xs[i] - Math.max(...nodes.filter(n => Math.round(n.x) === xs[i]).map(n => n.w)));
+    return xs.slice(1).map((x, i) => x - xs[i]! - Math.max(...nodes.filter(n => Math.round(n.x) === xs[i]!).map(n => n.w)));
   };
   for (const name of ['qc-arrow', 'state-diagram']) {
     const normal = await render(name), compact = await render(name, 'compact');
@@ -82,7 +82,7 @@ test('density compact: the stub and the lane step of the arrows follow the scale
 
 // fz #43 of the review (real figure of the random cause trees; 1800px): compact alone runs the arrow n0 -> n4 through n1 (checked: that is what happens without the fall back).
 const C43 = {
-  nodes: [['n0', 'n0 ああああああああ'], ['n1', 'n1 ああああああああああああああ'], ['n2', 'n2 ああああああああああああああ'], ['n3', 'n3 ああああああああああああああ'], ['n4', 'n4 ああああああああああああああ'], ['n5', 'n5 ああああああ'], ['n6', 'n6 あああああああ'], ['n7', 'n7 あああああ']].map(([id, label]) => ({id, label})),
+  nodes: [['n0', 'n0 ああああああああ'], ['n1', 'n1 ああああああああああああああ'], ['n2', 'n2 ああああああああああああああ'], ['n3', 'n3 ああああああああああああああ'], ['n4', 'n4 ああああああああああああああ'], ['n5', 'n5 ああああああ'], ['n6', 'n6 あああああああ'], ['n7', 'n7 あああああ']].map(([id, label]) => ({id: id!, label: label!})),
   links: JSON.parse('[{"from":"n0","to":"n1"},{"from":"n1","to":"n2"},{"from":"n1","to":"n3"},{"from":"n3","to":"n4"},{"from":"n1","to":"n4"},{"from":"n1","to":"n5"},{"from":"n0","to":"n6"},{"from":"n5","to":"n7"},{"from":"n0","to":"n7"},{"from":["n0","n2"],"to":"n4"}]'),
 };
 test('density compact: a cause tree whose compact gaps would put an arrow through a box is drawn at the normal gaps (c43 of the review)', async () => {
@@ -93,7 +93,7 @@ test('density compact: a cause tree whose compact gaps would put an arrow throug
 });
 
 // c123 of the review: this figure fits 1800px only at the compact gaps (the normal gaps do not fit: "does not fit 1760px"), and one arrow runs through a box there.
-const C123 = {nodes: [['n0', 'n0 あああああああああああ'], ['n1', 'n1 ああああああああ'], ['n2', 'n2 あああああああ'], ['n3', 'n3 あああああああああ'], ['n4', 'n4 あああ'], ['n5', 'n5 あああああああ'], ['n6', 'n6 ああああああああ'], ['n7', 'n7 ああああああああああああ'], ['n8', 'n8 あああああああああ'], ['n9', 'n9 ああああ'], ['n10', 'n10 あああああああ'], ['n11', 'n11 ああああああああああああああ'], ['n12', 'n12 あああああああああ'], ['n13', 'n13 ああああああ'], ['n14', 'n14 ああああああああ'], ['n15', 'n15 ああああああ']].map(([id, label]) => ({id, label})), links: JSON.parse('[{"from":"n0","to":"n1"},{"from":"n1","to":"n2"},{"from":"n0","to":"n3"},{"from":"n1","to":"n4"},{"from":"n2","to":"n4"},{"from":"n0","to":"n5"},{"from":"n2","to":"n6"},{"from":"n4","to":"n6"},{"from":"n6","to":"n7"},{"from":"n1","to":"n7"},{"from":"n5","to":"n8"},{"from":"n8","to":"n9"},{"from":"n4","to":"n9"},{"from":"n4","to":"n10"},{"from":"n6","to":"n11"},{"from":"n1","to":"n11"},{"from":"n10","to":"n12"},{"from":"n7","to":"n13"},{"from":"n9","to":"n13"},{"from":"n6","to":"n14"},{"from":"n3","to":"n14"},{"from":"n2","to":"n15"},{"from":"n1","to":"n15"},{"from":["n0","n14"],"to":"n15"}]')};
+const C123 = {nodes: [['n0', 'n0 あああああああああああ'], ['n1', 'n1 ああああああああ'], ['n2', 'n2 あああああああ'], ['n3', 'n3 あああああああああ'], ['n4', 'n4 あああ'], ['n5', 'n5 あああああああ'], ['n6', 'n6 ああああああああ'], ['n7', 'n7 ああああああああああああ'], ['n8', 'n8 あああああああああ'], ['n9', 'n9 ああああ'], ['n10', 'n10 あああああああ'], ['n11', 'n11 ああああああああああああああ'], ['n12', 'n12 あああああああああ'], ['n13', 'n13 ああああああ'], ['n14', 'n14 ああああああああ'], ['n15', 'n15 ああああああ']].map(([id, label]) => ({id: id!, label: label!})), links: JSON.parse('[{"from":"n0","to":"n1"},{"from":"n1","to":"n2"},{"from":"n0","to":"n3"},{"from":"n1","to":"n4"},{"from":"n2","to":"n4"},{"from":"n0","to":"n5"},{"from":"n2","to":"n6"},{"from":"n4","to":"n6"},{"from":"n6","to":"n7"},{"from":"n1","to":"n7"},{"from":"n5","to":"n8"},{"from":"n8","to":"n9"},{"from":"n4","to":"n9"},{"from":"n4","to":"n10"},{"from":"n6","to":"n11"},{"from":"n1","to":"n11"},{"from":"n10","to":"n12"},{"from":"n7","to":"n13"},{"from":"n9","to":"n13"},{"from":"n6","to":"n14"},{"from":"n3","to":"n14"},{"from":"n2","to":"n15"},{"from":"n1","to":"n15"},{"from":["n0","n14"],"to":"n15"}]')};
 test('density compact: a compact figure that fits only because it is compact stays, and the check says what is wrong with it (the arrow through a box), not "does not fit"', async () => {
   const {causeTree, diagram, checkDiagram} = await import('../lib/dsl.ts');
   const {verdict} = await checkDiagram(diagram({theme: 'blue', width: 1800, density: 'compact'}).add(causeTree(C123.nodes, C123.links, {dir: 'left'}) as never));
@@ -103,7 +103,7 @@ test('density compact: a compact figure that fits only because it is compact sta
 test('density compact: a state diagram that the check finds more wrong at the compact gaps is drawn at the normal gaps (s61 of the review)', async () => {
   const {stateDiagram, diagram, checkDiagram} = await import('../lib/dsl.ts');
   // running down, with labelled transitions: the compact gaps put a label chip on another chip and on another arrow (3 of 88 random figures in the review)
-  const states = [['s0', 's0 ああああああ'], ['s1', 's1 ああああ'], ['s2', 's2 ああああ'], ['s3', 's3 ああああああ'], ['s4', 's4 あああああ'], ['s5', 's5 あああ']].map(([id, label]) => ({id, label}));
+  const states = [['s0', 's0 ああああああ'], ['s1', 's1 ああああ'], ['s2', 's2 ああああ'], ['s3', 's3 ああああああ'], ['s4', 's4 あああああ'], ['s5', 's5 あああ']].map(([id, label]) => ({id: id!, label: label!}));
   const transitions = JSON.parse('[{"from":"s0","to":"s1"},{"from":"s1","to":"s2"},{"from":"s0","to":"s3","label":"いい"},{"from":"s1","to":"s3","label":"いいいい"},{"from":"s0","to":"s4","label":"いいいいい"},{"from":"s0","to":"s5","label":"い"},{"from":"s4","to":"s5","label":"いい"},{"from":"s4","to":"s0"},{"from":"s4","to":"s3"}]');
   const run = async (density: 'normal' | 'compact') => (await checkDiagram(diagram({theme: 'blue', width: 940, density}).add(stateDiagram(states, transitions, {initial: 's0', dir: 'down'}) as never))).verdict.problems;
   const normal = await run('normal'), compact = await run('compact');
@@ -115,8 +115,8 @@ test('density compact: a band that was drawn at the normal gaps says so (info de
   const found = async (density: 'normal' | 'compact', c = C43) => (await checkDiagram(diagram({theme: 'blue', width: 1800, density}).add(causeTree(c.nodes, c.links, {dir: 'left'}) as never))).verdict.findings.filter(f => f.rule === 'density-compact-restored');
   const restored = await found('compact');
   assert.equal(restored.length, 1);
-  assert.equal(restored[0].severity, 'info');
-  assert.match(restored[0].message, /causeTree\(\)/);
+  assert.equal(restored[0]!.severity, 'info');
+  assert.match(restored[0]!.message, /causeTree\(\)/);
   assert.deepEqual(await found('normal'), []);
   assert.deepEqual(await found('compact', C123), []); // the normal gaps do not fit there: the compact figure stays
 });
@@ -132,14 +132,14 @@ test('statesProblems: a transition through a state, a chip on a state, on anothe
   const fig = {x: 0, y: 0, w: 400, h: 100};
   const anchors = [{id: 'a', x: 0, y: 0, w: 60, h: 40}, {id: 'b', x: 300, y: 0, w: 60, h: 40}, {id: 'c', x: 150, y: 0, w: 60, h: 40}];
   const edges = [{from: 'a', to: 'b', points: [{x: 60, y: 20}, {x: 300, y: 20}]}, {from: 'a', to: 'c', points: [{x: 30, y: 40}, {x: 30, y: 80}, {x: 180, y: 80}, {x: 180, y: 40}]}];
-  assert.deepEqual(statesProblems({...fig, edges: [edges[1]], anchors, labels: [{x: 80, y: 60, w: 30, h: 12, text: 'ok', edge: 0}]}), []);
+  assert.deepEqual(statesProblems({...fig, edges: [edges[1]!], anchors, labels: [{x: 80, y: 60, w: 30, h: 12, text: 'ok', edge: 0}]}), []);
   assert.match(statesProblems({...fig, edges, anchors, labels: []}).join('|'), /transition a -> b runs through state "c"/);
   const labels = [{x: 80, y: 74, w: 40, h: 12, text: 'one', edge: 1}, {x: 100, y: 76, w: 40, h: 12, text: 'two', edge: 1}, {x: 380, y: 60, w: 40, h: 12, text: 'out', edge: 1}, {x: 155, y: 10, w: 20, h: 12, text: 'on', edge: 1}];
-  const found = statesProblems({...fig, edges: [edges[1]], anchors, labels}).join('|');
+  const found = statesProblems({...fig, edges: [edges[1]!], anchors, labels}).join('|');
   assert.match(found, /label "one" overlaps label "two"/);
   assert.match(found, /label "out" runs outside the figure/);
   assert.match(found, /label "on" overlaps state "c"/);
-  assert.match(statesProblems({...fig, edges, anchors: [anchors[0], anchors[1]], labels: [{x: 100, y: 14, w: 30, h: 12, text: 'chip', edge: 1}]}).join('|'), /label "chip" sits on the arrow a -> b/);
+  assert.match(statesProblems({...fig, edges, anchors: [anchors[0]!, anchors[1]!], labels: [{x: 100, y: 14, w: 30, h: 12, text: 'chip', edge: 1}]}).join('|'), /label "chip" sits on the arrow a -> b/);
 });
 
 test.after(async () => { await closeMeasurer(); });

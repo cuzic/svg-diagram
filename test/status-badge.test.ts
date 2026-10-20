@@ -16,8 +16,8 @@ test('a draft figure carries the badge: one accessible group with the wording, a
   assert.deepEqual(r.verdict.problems, []);
   const g = /<g role="img" aria-label="下書き" data-status="draft">([\s\S]*?)<\/g>/.exec(r.svg);
   assert.ok(g, 'the badge group');
-  assert.match(g[1], /stroke-dasharray=/);
-  assert.match(g[1], />下書き<\/text>/);
+  assert.match(g[1]!, /stroke-dasharray=/);
+  assert.match(g[1]!, />下書き<\/text>/);
   const s = statusOf(r)!;
   assert.ok(s.pill.x + s.pill.w <= s.x + s.w + 0.5 && s.pill.x + s.pill.w >= s.x + s.w - 4.5, 'at the right end');
   assert.ok(r.laidOut.laidOut[0] === s, 'the first band');

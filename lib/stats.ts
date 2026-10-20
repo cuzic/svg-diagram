@@ -1,6 +1,12 @@
 // The numbers behind the seaborn-style distribution charts (boxplot, violinplot, stripplot, swarmplot, pointplot, barplot): pure functions
 // of the values they are given. Nothing here is random — a jitter or a bootstrap would make the same data draw a different figure each time.
 
+import {must} from './must.ts';
+
+// An element of a number array; NaN when out of range, which is what arithmetic on `undefined` gave before.
+const g = (a: readonly number[], i: number): number => a[i] ?? NaN;
+const cell = (m: readonly (readonly number[])[], r: number, c: number): number => m[r]?.[c] ?? NaN;
+
 export const sum = (xs: readonly number[]): number => xs.reduce((a, b) => a + b, 0);
 export const meanOf = (xs: readonly number[]): number => sum(xs) / xs.length;
 /** The sample standard deviation (n - 1); 0 for a single value. */
@@ -13,21 +19,21 @@ export const sdOf = (xs: readonly number[]): number => {
 /** The p-quantile of sorted values by linear interpolation (numpy's default, "type 7"). */
 export function quantile(sorted: readonly number[], p: number): number {
   const h = (sorted.length - 1) * p, lo = Math.floor(h), hi = Math.min(sorted.length - 1, lo + 1);
-  return sorted[lo] + (h - lo) * (sorted[hi] - sorted[lo]);
+  return g(sorted, lo) + (h - lo) * (g(sorted, hi) - g(sorted, lo));
 }
 
 export interface BoxStats {n: number; min: number; max: number; q1: number; median: number; q3: number; /** The ends of the whiskers: the most extreme values within 1.5 IQR of the box. */ lo: number; hi: number; fliers: number[]}
 export function boxStats(values: readonly number[]): BoxStats {
   const s = [...values].sort((a, b) => a - b), q1 = quantile(s, 0.25), median = quantile(s, 0.5), q3 = quantile(s, 0.75), iqr = q3 - q1;
   const inside = s.filter(v => v >= q1 - 1.5 * iqr && v <= q3 + 1.5 * iqr);
-  return {n: s.length, min: s[0], max: s[s.length - 1], q1, median, q3, lo: inside[0], hi: inside[inside.length - 1], fliers: s.filter(v => v < q1 - 1.5 * iqr || v > q3 + 1.5 * iqr)};
+  return {n: s.length, min: g(s, 0), max: g(s, s.length - 1), q1, median, q3, lo: g(inside, 0), hi: g(inside, inside.length - 1), fliers: s.filter(v => v < q1 - 1.5 * iqr || v > q3 + 1.5 * iqr)};
 }
 
 // two-sided 95% critical values of Student's t for 1..30 degrees of freedom
 const T95 = [12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262, 2.228, 2.201, 2.179, 2.16, 2.145, 2.131, 2.12, 2.11, 2.101, 2.093, 2.086, 2.08, 2.074, 2.069, 2.064, 2.06, 2.056, 2.052, 2.048, 2.045, 2.042];
 export function tCritical95(df: number): number {
   if (df < 1) return NaN;
-  if (df <= 30) return T95[df - 1];
+  if (df <= 30) return g(T95, df - 1);
   const z = 1.959964; // Cornish-Fisher expansion about the normal quantile (error < 0.001 beyond 30 degrees of freedom)
   return z + (z ** 3 + z) / (4 * df) + (5 * z ** 5 + 16 * z ** 3 + 3 * z) / (96 * df * df);
 }
@@ -56,9 +62,9 @@ export function kde(values: readonly number[], grid: readonly number[], bwScale 
  * to go further than `maxOff` from the centre.
  */
 export function swarmOffsets(at: readonly number[], d: number, maxOff: number): number[] | undefined {
-  const order = at.map((_v, i) => i).sort((a, b) => at[a] - at[b]), placed: {u: number; off: number}[] = [], out = new Array<number>(at.length).fill(0);
+  const order = at.map((_v, i) => i).sort((a, b) => g(at, a) - g(at, b)), placed: {u: number; off: number}[] = [], out = new Array<number>(at.length).fill(0);
   for (const i of order) {
-    const u = at[i], near = placed.filter(p => Math.abs(p.u - u) < d);
+    const u = g(at, i), near = placed.filter(p => Math.abs(p.u - u) < d);
     const cands = [0, ...near.flatMap(p => { const dx = Math.sqrt(d * d - (p.u - u) ** 2); return [p.off + dx, p.off - dx]; })].sort((a, b) => Math.abs(a) - Math.abs(b) || b - a);
     const off = cands.find(x => near.every(p => Math.hypot(p.u - u, p.off - x) >= d - 1e-6));
     if (off === undefined || Math.abs(off) > maxOff) return undefined;
@@ -70,15 +76,15 @@ export function swarmOffsets(at: readonly number[], d: number, maxOff: number): 
 
 /** Counts of `values` in the classes between `edges` (a value on an edge belongs to the class above it, the largest value to the last class). */
 export function binCounts(values: readonly number[], edges: readonly number[]): number[] {
-  const n = edges.length - 1, out = new Array<number>(n).fill(0), w = (edges[n] - edges[0]) / n;
-  for (const v of values) out[Math.min(n - 1, Math.max(0, Math.floor((v - edges[0]) / w + 1e-9)))]++;
+  const n = edges.length - 1, out = new Array<number>(n).fill(0), w = (g(edges, n) - g(edges, 0)) / n;
+  for (const v of values) { const k = Math.min(n - 1, Math.max(0, Math.floor((v - g(edges, 0)) / w + 1e-9))); out[k] = (out[k] ?? NaN) + 1; }
   return out;
 }
 
 /** The index of the class of `edges` that `v` falls in (the same rule as binCounts). */
 export function binIndex(v: number, edges: readonly number[]): number {
   const n = edges.length - 1;
-  return Math.min(n - 1, Math.max(0, Math.floor((v - edges[0]) / ((edges[n] - edges[0]) / n) + 1e-9)));
+  return Math.min(n - 1, Math.max(0, Math.floor((v - g(edges, 0)) / ((g(edges, n) - g(edges, 0)) / n) + 1e-9)));
 }
 
 export interface PolyFit {order: number; coef: number[]; r2: number; n: number; /** The fitted value at x. */ at: (x: number) => number; /** The half-width of the confidence band of the mean at x (undefined without degrees of freedom to spare). */ half?: (x: number) => number; rss: number}
@@ -90,24 +96,26 @@ export function polyFit(xs: readonly number[], ys: readonly number[], order: num
   const n = xs.length, p = order + 1, mx = meanOf(xs), sx = sdOf(xs) || 1;
   const row = (x: number): number[] => { const z = (x - mx) / sx; return Array.from({length: p}, (_q, k) => z ** k); };
   const X = xs.map(row);
-  const A = Array.from({length: p}, (_q, i) => Array.from({length: p}, (_r, j) => sum(X.map(r => r[i] * r[j]))));
-  const b = Array.from({length: p}, (_q, i) => sum(X.map((r, k) => r[i] * ys[k])));
+  const A = Array.from({length: p}, (_q, i) => Array.from({length: p}, (_r, j) => sum(X.map(r => g(r, i) * g(r, j)))));
+  const b = Array.from({length: p}, (_q, i) => sum(X.map((r, k) => g(r, i) * g(ys, k))));
   // Gauss-Jordan on [A | I | b]: the solution and the inverse together
-  const M = A.map((r, i) => [...r, ...Array.from({length: p}, (_q, j) => i === j ? 1 : 0), b[i]]);
+  const M = A.map((r, i) => [...r, ...Array.from({length: p}, (_q, j) => i === j ? 1 : 0), g(b, i)]);
   for (let c = 0; c < p; c++) {
     let piv = c;
-    for (let r = c + 1; r < p; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
-    [M[c], M[piv]] = [M[piv], M[c]];
-    const d = M[c][c];
+    for (let r = c + 1; r < p; r++) if (Math.abs(cell(M, r, c)) > Math.abs(cell(M, piv, c))) piv = r;
+    const rowC = must(M[c]), rowPiv = must(M[piv]);
+    M[c] = rowPiv; M[piv] = rowC;
+    const d = cell(M, c, c);
     if (Math.abs(d) < 1e-12) throw new Error('polyFit: the x values do not determine a polynomial of this order');
-    M[c] = M[c].map(v => v / d);
-    for (let r = 0; r < p; r++) if (r !== c) { const f = M[r][c]; M[r] = M[r].map((v, k) => v - f * M[c][k]); }
+    const mc = must(M[c]).map(v => v / d);
+    M[c] = mc;
+    for (let r = 0; r < p; r++) if (r !== c) { const f = cell(M, r, c); M[r] = must(M[r]).map((v, k) => v - f * g(mc, k)); }
   }
-  const beta = M.map(r => r[2 * p]), inv = M.map(r => r.slice(p, 2 * p));
-  const at = (x: number) => sum(row(x).map((v, k) => v * beta[k]));
-  const my = meanOf(ys), rss = sum(xs.map((x, i) => (ys[i] - at(x)) ** 2)), tss = sum(ys.map(y => (y - my) ** 2));
+  const beta = M.map(r => g(r, 2 * p)), inv = M.map(r => r.slice(p, 2 * p));
+  const at = (x: number) => sum(row(x).map((v, k) => v * g(beta, k)));
+  const my = meanOf(ys), rss = sum(xs.map((x, i) => (g(ys, i) - at(x)) ** 2)), tss = sum(ys.map(y => (y - my) ** 2));
   const df = n - p, s = df > 0 ? Math.sqrt(rss / df) : NaN, t = tCritical95(df);
-  const half = df > 0 ? (x: number) => { const v = row(x); return t * s * Math.sqrt(Math.max(0, sum(v.map((vi, i) => vi * sum(inv[i].map((q, j) => q * v[j])))))); } : undefined;
+  const half = df > 0 ? (x: number) => { const v = row(x); return t * s * Math.sqrt(Math.max(0, sum(v.map((vi, i) => vi * sum(must(inv[i]).map((q, j) => q * g(v, j))))))); } : undefined;
   return {order, coef: beta, r2: tss > 0 ? 1 - rss / tss : 1, n, at, rss, ...(half ? {half} : {})};
 }
 
@@ -118,7 +126,7 @@ export function polyFit(xs: readonly number[], ys: readonly number[], order: num
 export function kde2d(xs: readonly number[], ys: readonly number[], gx: readonly number[], gy: readonly number[]): {z: number[][]; bwx: number; bwy: number} {
   const n = xs.length, bwx = Math.max(sdOf(xs) * n ** (-1 / 6), 1e-12), bwy = Math.max(sdOf(ys) * n ** (-1 / 6), 1e-12), k = 1 / (n * 2 * Math.PI * bwx * bwy);
   const ex = gx.map(g => xs.map(x => Math.exp(-0.5 * ((g - x) / bwx) ** 2))), ey = gy.map(g => ys.map(y => Math.exp(-0.5 * ((g - y) / bwy) ** 2)));
-  return {bwx, bwy, z: gy.map((_q, j) => gx.map((_r, i) => k * sum(xs.map((_s, m) => ex[i][m] * ey[j][m]))))};
+  return {bwx, bwy, z: gy.map((_q, j) => gx.map((_r, i) => k * sum(xs.map((_s, m) => cell(ex, i, m) * cell(ey, j, m)))))};
 }
 
 export interface Merge {a: number; b: number; height: number; size: number}
@@ -127,17 +135,17 @@ export interface Merge {a: number; b: number; height: number; size: number}
  * makes node n + k. Ties go to the pair with the smaller indices, so the same data always gives the same tree.
  */
 export function averageLinkage(data: readonly (readonly number[])[]): Merge[] {
-  const n = data.length, dist = (a: readonly number[], b: readonly number[]) => Math.sqrt(sum(a.map((v, i) => (v - b[i]) ** 2)));
+  const n = data.length, dist = (a: readonly number[], b: readonly number[]) => Math.sqrt(sum(a.map((v, i) => (v - g(b, i)) ** 2)));
   const live = new Map<number, {size: number}>(data.map((_r, i) => [i, {size: 1}]));
   const d = new Map<string, number>(), key = (a: number, b: number) => a < b ? `${a},${b}` : `${b},${a}`;
-  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) d.set(key(i, j), dist(data[i], data[j]));
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) d.set(key(i, j), dist(must(data[i]), must(data[j])));
   const out: Merge[] = [];
   for (let step = 0; step < n - 1; step++) {
     let best: [number, number] | undefined, bd = Infinity;
     const ids = [...live.keys()].sort((x, y) => x - y);
-    for (let x = 0; x < ids.length; x++) for (let y = x + 1; y < ids.length; y++) { const v = d.get(key(ids[x], ids[y])) as number; if (v < bd - 1e-12) { bd = v; best = [ids[x], ids[y]]; } }
-    const [a, b] = best as [number, number], sa = live.get(a)!.size, sb = live.get(b)!.size, id = n + step;
-    for (const o of ids) if (o !== a && o !== b) d.set(key(id, o), (sa * (d.get(key(a, o)) as number) + sb * (d.get(key(b, o)) as number)) / (sa + sb));
+    for (let x = 0; x < ids.length; x++) for (let y = x + 1; y < ids.length; y++) { const ix = must(ids[x]), iy = must(ids[y]), v = must(d.get(key(ix, iy))); if (v < bd - 1e-12) { bd = v; best = [ix, iy]; } }
+    const [a, b] = must(best), sa = must(live.get(a)).size, sb = must(live.get(b)).size, id = n + step;
+    for (const o of ids) if (o !== a && o !== b) d.set(key(id, o), (sa * must(d.get(key(a, o))) + sb * must(d.get(key(b, o)))) / (sa + sb));
     live.delete(a); live.delete(b); live.set(id, {size: sa + sb});
     out.push({a, b, height: bd, size: sa + sb});
   }
@@ -145,14 +153,15 @@ export function averageLinkage(data: readonly (readonly number[])[]): Merge[] {
 }
 /** The leaves of a tree from averageLinkage in dendrogram order (the child holding the smaller leaf first), and where each node sits (the mean of its children's positions). */
 export function dendrogramOrder(merges: readonly Merge[], n: number): {order: number[]; pos: number[]} {
-  const leaves = (id: number): number[] => id < n ? [id] : [...leaves(merges[id - n].a), ...leaves(merges[id - n].b)];
-  const min = (id: number): number => id < n ? id : Math.min(min(merges[id - n].a), min(merges[id - n].b));
-  const kids = (id: number): [number, number] => { const m = merges[id - n]; return min(m.a) <= min(m.b) ? [m.a, m.b] : [m.b, m.a]; };
+  const node = (id: number): Merge => must(merges[id - n]);
+  const leaves = (id: number): number[] => id < n ? [id] : [...leaves(node(id).a), ...leaves(node(id).b)];
+  const min = (id: number): number => id < n ? id : Math.min(min(node(id).a), min(node(id).b));
+  const kids = (id: number): [number, number] => { const m = node(id); return min(m.a) <= min(m.b) ? [m.a, m.b] : [m.b, m.a]; };
   const seq = (id: number): number[] => id < n ? [id] : kids(id).flatMap(seq);
   const order = n === 1 ? [0] : seq(n + merges.length - 1), at = new Map(order.map((leaf, i) => [leaf, i]));
   const pos = new Array<number>(n + merges.length).fill(0);
-  for (let i = 0; i < n; i++) pos[i] = at.get(i) as number;
-  merges.forEach((m, k) => { pos[n + k] = (pos[m.a] + pos[m.b]) / 2; });
+  for (let i = 0; i < n; i++) pos[i] = must(at.get(i));
+  merges.forEach((m, k) => { pos[n + k] = (g(pos, m.a) + g(pos, m.b)) / 2; });
   void leaves;
   return {order, pos};
 }
@@ -166,13 +175,13 @@ export function lowessFit(xs: readonly number[], ys: readonly number[], frac = 2
   const n = xs.length, k = Math.max(2, Math.min(n, Math.ceil(frac * n)));
   let rw = new Array<number>(n).fill(1);
   const at = (x0: number, w: readonly number[]): number => {
-    const d = xs.map(x => Math.abs(x - x0)), h = Math.max([...d].sort((a, b) => a - b)[k - 1], 1e-12);
+    const d = xs.map(x => Math.abs(x - x0)), h = Math.max(g([...d].sort((a, b) => a - b), k - 1), 1e-12);
     let sw = 0, swx = 0, swy = 0, swxx = 0, swxy = 0;
     d.forEach((di, i) => {
       const u = di / h;
       if (u >= 1) return;
-      const wi = w[i] * (1 - u ** 3) ** 3;
-      sw += wi; swx += wi * xs[i]; swy += wi * ys[i]; swxx += wi * xs[i] ** 2; swxy += wi * xs[i] * ys[i];
+      const wi = g(w, i) * (1 - u ** 3) ** 3;
+      sw += wi; swx += wi * g(xs, i); swy += wi * g(ys, i); swxx += wi * g(xs, i) ** 2; swxy += wi * g(xs, i) * g(ys, i);
     });
     if (sw <= 0) return meanOf(ys);
     const den = sw * swxx - swx * swx;
@@ -182,7 +191,7 @@ export function lowessFit(xs: readonly number[], ys: readonly number[], frac = 2
     return (swy - slope * swx) / sw + slope * x0;
   };
   for (let it = 0; it < iterations; it++) {
-    const res = xs.map((x, i) => ys[i] - at(x, rw)), s = [...res.map(Math.abs)].sort((a, b) => a - b), mid = s.length >> 1, med = s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+    const res = xs.map((x, i) => g(ys, i) - at(x, rw)), s = [...res.map(Math.abs)].sort((a, b) => a - b), mid = s.length >> 1, med = s.length % 2 ? g(s, mid) : (g(s, mid - 1) + g(s, mid)) / 2;
     if (med < 1e-12) break;
     rw = res.map(r => { const u = Math.abs(r) / (6 * med); return u < 1 ? (1 - u * u) ** 2 : 0; });
   }

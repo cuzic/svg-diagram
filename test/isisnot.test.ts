@@ -2,7 +2,6 @@ import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {checkDiagram, closeMeasurer, diagram, isIsNot, isIsNotTests, renderDiagram, table} from '../lib/dsl.ts';
-import type {LaidOutTable} from '../lib/types/sequence-table-swimlane.ts';
 
 test.after(() => closeMeasurer());
 
@@ -27,8 +26,8 @@ test('isIsNot(): the table has the five columns, and its SVG is the same as a ha
 test('isIsNot(): a dim is a known heading or your own; "違い" and "変化" are separate columns', () => {
   const band = isIsNot([{dim: 'what', is: 'a', isNot: 'b'}, {dim: '誰が', is: 'c', isNot: 'd'}]);
   const first = band.rows as unknown as string[][];
-  assert.equal(first[0][0], '何に（対象・欠陥）');
-  assert.equal(first[1][0], '誰が');
+  assert.equal(first[0]![0], '何に（対象・欠陥）');
+  assert.equal(first[1]![0], '誰が');
   assert.deepEqual(band.columns.slice(3).map(c => c.label), ['違い', '変化']);
 });
 
@@ -42,7 +41,7 @@ test('isIsNot(): rca findings — an empty IS NOT, and no "違い" anywhere', ()
   assert.deepEqual(rcaOf(isIsNot(ROWS)), []);
   const noIsNot = isIsNot([{dim: 'what', is: 'a', isNot: '', distinct: 'x'}]);
   assert.deepEqual(rcaOf(noIsNot), ['isisnot-no-isnot']);
-  assert.match(noIsNot.rca!.findings[0].message, /何に/);
+  assert.match(noIsNot!.rca!.findings[0]!.message, /何に/);
   assert.deepEqual(rcaOf(isIsNot([{dim: 'what', is: 'a', isNot: 'b'}, {dim: 'where', is: 'c', isNot: 'd'}])), ['isisnot-no-distinct-at-all']);
 });
 
@@ -57,20 +56,20 @@ test('isIsNotTests(): a row per hypothesis, a column per row; the hypotheses tha
   assert.equal(band.rows.length, 3);
   assert.equal(band.columns.length, 1 + 4 + 2);
   const cells = band.rows as {text?: string; bold?: boolean}[][];
-  assert.ok(cells[0].every(c => c.bold) && cells[2].every(c => c.bold), 'both hypotheses with no "no" are bold');
-  assert.ok(cells[1].every(c => !c.bold));
-  assert.match(cells[2][0].text!, /最少の仮定/);
-  assert.doesNotMatch(cells[0][0].text!, /最少の仮定/);
-  assert.match(cells[0][0].text!, /仮定: 古い接続が残っていた/);
-  assert.deepEqual(cells[0].slice(1, 5).map(c => c.text), ['説明できる', '説明できる', '仮定すれば', '説明できる']);
-  assert.equal(cells[1].at(-2)!.text, '3', 'rows it cannot explain');
-  assert.equal(cells[0].at(-1)!.text, '1', 'assumptions');
+  assert.ok(cells[0]!.every(c => c.bold) && cells[2]!.every(c => c.bold), 'both hypotheses with no "no" are bold');
+  assert.ok(cells[1]!.every(c => !c.bold));
+  assert.match(cells[2]![0]!.text!, /最少の仮定/);
+  assert.doesNotMatch(cells[0]![0]!.text!, /最少の仮定/);
+  assert.match(cells[0]![0]!.text!, /仮定: 古い接続が残っていた/);
+  assert.deepEqual(cells[0]!.slice(1, 5).map(c => c.text), ['説明できる', '説明できる', '仮定すれば', '説明できる']);
+  assert.equal(cells[1]!.at(-2)!.text, '3', 'rows it cannot explain');
+  assert.equal(cells[0]!.at(-1)!.text, '1', 'assumptions');
   assert.ok(!JSON.stringify(band.rows).match(/[◎○△×]/), 'no matrix marks (◎ means 9 points in QFD)');
   assert.deepEqual(rcaOf(band), []);
 });
 
 test('isIsNotTests(): none stands → isisnot-no-hypothesis-stands (info); mistakes throw', () => {
-  assert.deepEqual(rcaOf(isIsNotTests(ROWS, [HYP[1]])), ['isisnot-no-hypothesis-stands']);
+  assert.deepEqual(rcaOf(isIsNotTests(ROWS, [HYP[1]!])), ['isisnot-no-hypothesis-stands']);
   assert.throws(() => isIsNotTests(ROWS, []), /at least one hypothesis/);
   assert.throws(() => isIsNotTests(ROWS, [{text: 'x', results: ['yes']}]), /1 results for 4 rows/);
   assert.throws(() => isIsNotTests(ROWS, [{text: '', results: ['yes', 'yes', 'yes', 'yes']}]), /needs a text/);
@@ -90,8 +89,8 @@ test('check: info by default, warn under rcaCheck: strict (the stand-nowhere rul
   assert.ok((await sev({}, bad)).findings.every(f => f.severity === 'info'));
   const strict = await sev({rcaCheck: 'strict'}, bad);
   assert.ok(strict.findings.length === 2 && strict.findings.every(f => f.severity === 'warn'));
-  const none = await sev({rcaCheck: 'strict'}, isIsNotTests(ROWS, [HYP[1]]));
-  assert.ok(none.findings.length === 1 && none.findings[0].severity === 'info');
+  const none = await sev({rcaCheck: 'strict'}, isIsNotTests(ROWS, [HYP[1]!]));
+  assert.ok(none.findings.length === 1 && none.findings[0]!.severity === 'info');
   const acc = await sev({rcaCheck: 'strict', accept: {'isisnot-no-isnot': '比較対象は後で足す', 'isisnot-no-distinct-at-all': '調査中'}}, bad);
   assert.ok(acc.findings.every(f => f.severity === 'info'));
   const ok = await checkDiagram(diagram({theme: 'blue', rcaCheck: 'strict', title: 'IS/IS NOT'}).add(isIsNot(ROWS), isIsNotTests(ROWS, HYP)));
@@ -103,6 +102,6 @@ test("isIsNotTests(): a result named like an Object method is not a result; two 
   assert.throws(() => isIsNotTests(ROWS, [{text: 'x', results: ['toString' as never, 'yes', 'yes', 'yes']}]), /'yes' \| 'ifAssumed' \| 'no'/);
   const a = {text: 'A', results: ['yes', 'yes', 'yes', 'yes'] as const}, b = {text: 'B', results: ['yes', 'yes', 'yes', 'yes'] as const};
   const rows = isIsNotTests(ROWS, [a, b]).rows as {text?: string}[][];
-  assert.match(rows[0][0].text!, /最少の仮定/);
-  assert.match(rows[1][0].text!, /最少の仮定/);
+  assert.match(rows[0]![0]!.text!, /最少の仮定/);
+  assert.match(rows[1]![0]!.text!, /最少の仮定/);
 });

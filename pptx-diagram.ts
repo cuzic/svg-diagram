@@ -16,10 +16,10 @@ const args = process.argv.slice(2), values = ['--out', '--out-dir', '--png-scale
 const usage = (message?: string): never => { console.error(message ? `✗ ${message}\n${USAGE}` : USAGE); process.exit(2); };
 for (const [i, arg] of args.entries()) {
   if (arg.startsWith('--') && !values.includes(arg)) usage(`unknown option ${arg}`);
-  if (values.includes(arg) && (args[i + 1] === undefined || args[i + 1].startsWith('--'))) usage(`${arg} needs a value`);
+  if (values.includes(arg) && (args[i + 1] === undefined || args[i + 1]?.startsWith('--'))) usage(`${arg} needs a value`);
 }
 const value = (name: string): string | undefined => { const i = args.indexOf(name); return i < 0 ? undefined : args[i + 1]; };
-const files = args.filter((arg, i) => !arg.startsWith('--') && !values.includes(args[i - 1]));
+const files = args.filter((arg, i) => !arg.startsWith('--') && !values.includes(args[i - 1] ?? ''));
 if (!files.length || files.some(f => !f.endsWith('.ts'))) usage('pptx takes one or more .ts diagram sources');
 if (value('--out') && value('--out-dir')) usage('--out and --out-dir cannot be used together');
 if (value('--out') && files.length !== 1) usage('--out can only be used with one source');

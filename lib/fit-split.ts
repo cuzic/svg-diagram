@@ -1,5 +1,6 @@
 // What to say when a layered figure fits neither the width nor the height: where to draw it as two figures (ADR 0019 D3). Text only: nothing is split.
 import type {LayeredLayout} from './graph-layout.ts';
+import {must} from './must.ts';
 
 const MAX_NAMES = 6;
 const names = (ids: readonly string[]): string => ids.slice(0, MAX_NAMES).join(', ') + (ids.length > MAX_NAMES ? ', …' : '');
@@ -10,7 +11,8 @@ const names = (ids: readonly string[]): string => ids.slice(0, MAX_NAMES).join('
  * None fits: say that three or more figures are needed.
  */
 export function splitByHeight(lay: LayeredLayout, budget: number): string | undefined {
-  const real = [...lay.nodes.entries()].map(([id, p]) => ({id, layer: lay.layers.get(id)!, from: p.x, to: p.x + p.w}));
+  const layerOf = (id: string): number => must(lay.layers.get(id)); // every node and edge end of a layered layout has a layer
+  const real = [...lay.nodes.entries()].map(([id, p]) => ({id, layer: layerOf(id), from: p.x, to: p.x + p.w}));
   const top = Math.max(...real.map(n => n.layer));
   if (top < 1) return undefined;
   const span = (ns: typeof real): number => ns.length ? Math.max(...ns.map(n => n.to)) - Math.min(...ns.map(n => n.from)) : 0;
@@ -18,7 +20,7 @@ export function splitByHeight(lay: LayeredLayout, budget: number): string | unde
   for (let k = 0; k < top; k++) {
     const up = real.filter(n => n.layer <= k), down = real.filter(n => n.layer > k);
     if (span(up) > budget || span(down) > budget) continue;
-    const across = lay.edges.filter(e => !e.self && !e.reversed && Math.min(lay.layers.get(e.from)!, lay.layers.get(e.to)!) <= k && Math.max(lay.layers.get(e.from)!, lay.layers.get(e.to)!) > k);
+    const across = lay.edges.filter(e => !e.self && !e.reversed && Math.min(layerOf(e.from), layerOf(e.to)) <= k && Math.max(layerOf(e.from), layerOf(e.to)) > k);
     const cand = {k, across: across.map(e => `${e.from}→${e.to}`), diff: Math.abs(up.length - down.length)};
     if (!best || cand.across.length < best.across.length || (cand.across.length === best.across.length && cand.diff < best.diff)) best = cand;
   }
@@ -30,7 +32,7 @@ export function splitByHeight(lay: LayeredLayout, budget: number): string | unde
 export function splitWidest(lay: LayeredLayout): string | undefined {
   const byLayer = new Map<number, {id: string; from: number; to: number}[]>();
   for (const [id, p] of lay.nodes) {
-    const l = lay.layers.get(id)!;
+    const l = must(lay.layers.get(id));
     byLayer.set(l, [...(byLayer.get(l) ?? []), {id, from: p.y, to: p.y + p.h}]);
   }
   let widest: {layer: number; ids: string[]; across: number} | undefined;

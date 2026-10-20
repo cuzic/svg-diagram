@@ -12,7 +12,7 @@ const out = process.argv[2]!;
 fs.mkdirSync(out, {recursive: true});
 const W = 120, H = 60, CELL = 500;
 // the straight xfrm is moved 150px away from where the glue points: a pass means LibreOffice followed stCxn / endCxn, not the xfrm
-const SHIFT = Number(process.env.SHIFT ?? 150);
+const SHIFT = Number(process.env['SHIFT'] ?? 150);
 const E = (v: number): number => Math.round(v * EMU);
 const site = (x: number, y: number, idx: number): Pt => [{x: x + W / 2, y}, {x, y: y + H / 2}, {x: x + W / 2, y: y + H}, {x: x + W, y: y + H / 2}][idx]!;
 interface Case {name: string; from: Pt; to: Pt; color: string}

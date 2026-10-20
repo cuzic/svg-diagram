@@ -44,9 +44,9 @@ test('every url(#…), href="#…" and aria-labelledby points at an id that exis
   const html = buildDeck(slides(), OPTS);
   const ids = new Set(idsOf(html));
   const refs: string[] = [];
-  for (const m of html.matchAll(/url\(#([^)]+)\)/g)) refs.push(m[1]);
-  for (const m of html.matchAll(/href="#([^"]+)"/g)) refs.push(m[1]);
-  for (const m of html.matchAll(/aria-(?:labelledby|describedby)="([^"]+)"/g)) refs.push(...m[1].split(/\s+/));
+  for (const m of html.matchAll(/url\(#([^)]+)\)/g)) refs.push(m[1]!);
+  for (const m of html.matchAll(/href="#([^"]+)"/g)) refs.push(m[1]!);
+  for (const m of html.matchAll(/aria-(?:labelledby|describedby)="([^"]+)"/g)) refs.push(...m[1]!.split(/\s+/));
   assert.ok(refs.length > 0);
   assert.deepEqual(refs.filter(r => !ids.has(r)), []);
   assert.ok(html.includes('aria-labelledby="s1-arrow-weight-svg-title s1-arrow-weight-svg-desc"'));
@@ -59,9 +59,9 @@ test('no <style> stays in a figure: the document has exactly one, and its figure
   const styles = blocks(html, 'style');
   assert.equal(styles.length, 1);
   const css = styles[0];
-  assert.ok(css.startsWith(CSS), 'the viewer CSS comes first, untouched');
-  const figure = css.slice(CSS.length);
-  const selectors = [...figure.matchAll(/(?:^|\})\s*([^{}@]+)\{/g)].map(m => m[1].trim());
+  assert.ok(css!.startsWith(CSS), 'the viewer CSS comes first, untouched');
+  const figure = css!.slice(CSS.length);
+  const selectors = [...figure.matchAll(/(?:^|\})\s*([^{}@]+)\{/g)].map(m => m[1]!.trim());
   assert.ok(selectors.length >= 3);
   for (const sel of selectors) for (const one of sel.split(',')) assert.match(one.trim(), /^#s[1-3] \S/, `scoped: ${one}`);
   assert.doesNotMatch(figure, /(^|\n)\s*text\s*\{/, 'no bare `text {` is left');
@@ -99,8 +99,8 @@ test('--csp: one <style>, one <script>, and the policy carries exactly their SHA
   assert.equal(blocks(html, 'script').length, 1);
   const policy = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/.exec(html)?.[1];
   assert.ok(policy);
-  assert.ok(policy.includes(`style-src ${hash(style)};`));
-  assert.ok(policy.includes(`script-src ${hash(script)};`));
+  assert.ok(policy.includes(`style-src ${hash(style!)};`));
+  assert.ok(policy.includes(`script-src ${hash(script!)};`));
   assert.match(policy, /^default-src 'none'; /);
   assert.match(policy, /img-src data:$/);
   assert.equal(buildDeck(slides(), OPTS).includes('Content-Security-Policy'), false, 'without --csp there is no policy');
@@ -112,14 +112,14 @@ test('one <section> per input, each named "N / M: …", none hidden before the s
   const sections = [...html.matchAll(/<section\b([^>]*)>/g)].map(m => m[1]);
   assert.equal(sections.length, input.length);
   sections.forEach((attrs, i) => {
-    assert.match(attrs, new RegExp(`id="s${i + 1}"`));
-    assert.match(attrs, new RegExp(`aria-label="${i + 1} / ${input.length}: [^"]+"`));
-    assert.match(attrs, /role="group" aria-roledescription="slide"/);
-    assert.doesNotMatch(attrs, /\bhidden\b/);
+    assert.match(attrs!, new RegExp(`id="s${i + 1}"`));
+    assert.match(attrs!, new RegExp(`aria-label="${i + 1} / ${input.length}: [^"]+"`));
+    assert.match(attrs!, /role="group" aria-roledescription="slide"/);
+    assert.doesNotMatch(attrs!, /\bhidden\b/);
   });
   assert.match(html, /<html lang="ja" class="no-js">/);
   assert.match(html, /<main id="deck" tabindex="0" aria-label="My deck">/);
-  assert.ok(blocks(html, 'style')[0].includes('.no-js .slide'));
+  assert.ok(blocks(html, 'style')[0]!.includes('.no-js .slide'));
   assert.equal(html.match(/<svg\b/g)!.length, input.length);
 });
 
@@ -146,11 +146,11 @@ test('a dark figure marks its slide; --cols is a custom property in the one <sty
   const dark = svgOf('bars').replace(/^<svg /, '<svg data-appearance="dark" ');
   const html = buildDeck([{name: 'bars', svg: dark}, {name: 'bpmn', svg: svgOf('bpmn')}], {...OPTS, cols: 4});
   const sections = [...html.matchAll(/<section\b([^>]*)>/g)].map(m => m[1]);
-  assert.match(sections[0], /class="slide slide-dark"/);
-  assert.match(sections[1], /class="slide"/);
+  assert.match(sections[0]!, /class="slide slide-dark"/);
+  assert.match(sections[1]!, /class="slide"/);
   const css = blocks(html, 'style')[0];
-  assert.match(css, /#deck \{ --deck-cols: 4 \}/);
-  assert.match(css, /@media print \{ @page \{ size: \d+(\.\d+)?px \d+(\.\d+)?px; margin: 0 \} \}/);
+  assert.match(css!, /#deck \{ --deck-cols: 4 \}/);
+  assert.match(css!, /@media print \{ @page \{ size: \d+(\.\d+)?px \d+(\.\d+)?px; margin: 0 \} \}/);
   assert.doesNotMatch(buildDeck(slides(), OPTS), /--deck-cols/);
 });
 

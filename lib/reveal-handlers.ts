@@ -4,6 +4,7 @@
 // (UnrevealedBandTypes), and test/reveal-handlers.test.ts checks the table at run time.
 
 import {childrenOf} from './band-children.ts';
+import {must} from './must.ts';
 import type {Band} from './types/index.ts';
 
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
@@ -84,7 +85,7 @@ function revealPlane(p: BandOf<'plane'>, n: number, _u: number | undefined, ctx:
     const lv = pa.through.map(r => typeof r === 'string' ? lvl.get(r) ?? 0 : 0);
     const explicit = own(pa, `plane() path ${i + 1}`) ?? 0;
     let run = Math.max(n, explicit, lv[0] ?? 0);
-    pa.segReveal = pa.through.slice(1).map((_r, k) => (run = Math.max(run, lv[k + 1])));
+    pa.segReveal = pa.through.slice(1).map((_r, k) => (run = Math.max(run, lv[k + 1] ?? 0)));
     if (pa.segReveal[0]) pa.reveal = pa.segReveal[0]; else delete pa.reveal;
     ctx.max = Math.max(ctx.max, ...pa.segReveal);
   }
@@ -107,10 +108,10 @@ function revealRow(b: BandOf<'row'> | BandOf<'grouprow'>, n: number, u: number |
     let next = 1;
     b.children.forEach((c, i) => {
       const span = c.span ?? 1, col = c.col ?? next;
-      for (let a = col; a < col + span; a++) cell(`${b.id}#${a}`, childLevels[i], c.until);
+      for (let a = col; a < col + span; a++) cell(`${b.id}#${a}`, must(childLevels[i]), c.until);
       next = col + span;
     });
-  } else b.children.forEach((c, i) => cell(`${b.id}#${i + 1}`, childLevels[i], c.until));
+  } else b.children.forEach((c, i) => cell(`${b.id}#${i + 1}`, must(childLevels[i]), c.until));
   for (const [key, un] of slotUntil) if (!stays.has(key)) ctx.untils.set(key, un);
 }
 

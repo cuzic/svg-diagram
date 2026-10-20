@@ -91,7 +91,7 @@ test('a plate turns and flips with the letters', () => {
   const svg = renderWordArtForTest(place('看板', {plate: 'text', tone: 'bg', rotate: 30, size: 48}), 'blue');
   const plate = /<rect [^>]*transform="(rotate\(30 [^"]+\))"/.exec(svg);
   assert.ok(plate, 'the plate carries the turn');
-  assert.ok(svg.includes(`<text `) && svg.split(plate![1]).length > 2, 'the same turn as the letters');
+  assert.ok(svg.includes(`<text `) && svg.split(plate[1]!).length > 2, 'the same turn as the letters');
   assert.doesNotMatch(renderWordArtForTest(place('看板', {plate: 'text', tone: 'bg'}), 'blue'), /<rect [^>]*transform/);
 });
 
