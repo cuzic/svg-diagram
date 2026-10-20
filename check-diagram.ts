@@ -12,7 +12,7 @@
 //       so an SVG that was not regenerated after its source — or a local file it imports — changed is caught. DIR defaults to ./svg.
 //       --rebuild also regenerates each SVG in memory and compares the bytes; a difference is explained
 //       (metadata only? text moved? shapes added?), so you can tell whether regenerating is safe.
-//       --rebuild is fast on a big set: sources are rebuilt in parallel (--jobs N, default: the CPU count, at most 8; --jobs 1 = serial),
+//       --rebuild is fast on a big set: sources are rebuilt in parallel (--jobs N; by default as many as there are idle cores, at most 8, and at least 8 sources each; --jobs 1 = serial),
 //       and a source that passed once is not rebuilt until something it depends on changes (--no-cache turns that off, --cache-dir DIR moves it
 //       from ./.svg-diagram-cache). The output is in the order of the arguments either way. See ADR 0037.
 //   svg-diagram check --docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR]
@@ -182,7 +182,7 @@ function walkMd(dir: string, out: string[] = []): string[] {
 }
 
 // ---- --drift --rebuild: parallel and cached (ADR 0037) ---------------------------------------------------------------------
-const jobs = val('--jobs') === null ? Math.min(os.availableParallelism(), 8) : Number(val('--jobs'));
+const jobs = val('--jobs') === null ? Math.min(os.availableParallelism(), 8) : Number(val('--jobs')); // without --jobs: fewer when the machine is busy or the work is small (below)
 if (!Number.isInteger(jobs) || jobs < 1) { console.error('--jobs は 1 以上の整数（1 = 順番に処理する）'); process.exit(2); }
 const cacheDir = val('--cache-dir') ?? path.join(process.cwd(), '.svg-diagram-cache');
 let cacheOpened: Promise<DriftCache | null> | undefined;
@@ -203,11 +203,13 @@ async function rebuildInParallel(): Promise<Map<string, WorkerResult>> {
     const key = await rebuildKeyOf(src);
     if (!(cache && key && cache.hit(path.resolve(src), key))) todo.push(src);
   }
-  if (todo.length < 2) return new Map();
+  // A child costs about 2 s to start, so by default: no more than the cores that are idle, and at least 8 sources each (--jobs N is taken as given)
+  const workers = val('--jobs') !== null ? jobs : Math.min(jobs, Math.round(os.availableParallelism() - (os.loadavg()[0] ?? 0)), Math.floor(todo.length / 8));
+  if (todo.length < 2 || workers < 2) return new Map();
   const {runPool} = await import('./drift-pool.ts');
   const t = val('--today');
   const wargs = ['--drift', '--rebuild', '--jobs', '1', ...(svgDir ? ['--svg-dir', svgDir] : []), ...(t ? ['--today', t] : []), ...(flag('--no-cache') ? ['--no-cache'] : ['--cache-dir', cacheDir])];
-  return runPool(path.resolve(import.meta.dirname, path.basename(import.meta.filename)), wargs, todo, jobs, msg => console.error(`ℹ ${msg}（その図は順番に検査し直す）`));
+  return runPool(path.resolve(import.meta.dirname, path.basename(import.meta.filename)), wargs, todo, workers, msg => console.error(`ℹ ${msg}（その図は順番に検査し直す）`));
 }
 
 try {
