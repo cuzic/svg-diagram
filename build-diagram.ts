@@ -61,7 +61,7 @@ function locateSlide(svgName: string) {
 
 const TOOL_VERSION = JSON.parse(fs.readFileSync(new URL(EXT === 'ts' ? './package.json' : '../package.json', import.meta.url), 'utf8')).version;
 const args = process.argv.slice(2);
-const argValue = (flag: string) => { const i = args.indexOf(flag); return i === -1 ? null : args[i + 1] ?? null; };
+const argValue = (flag: string) => { const i = args.indexOf(flag); return i === -1 ? null : args[i + 1] ?? ''; };
 const outOverride = argValue('--out');
 const todayArg = argValue('--today'); // the day for gantt({today: 'auto'}); else SVG_DIAGRAM_TODAY, else "today" in .svg-diagram.json (ADR 0022)
 const outDir = argValue('--out-dir');
