@@ -1,4 +1,4 @@
-# ADR 0037: `check --drift --rebuild` — 並列と成功のキャッシュ、`diff --text`
+# ADR 0038: `check --drift --rebuild` — 並列と成功のキャッシュ、`diff --text`
 
 - 状態: 実装済み
 - 日付: 2026-10-20

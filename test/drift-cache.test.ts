@@ -1,4 +1,4 @@
-// ADR 0037: `check --drift --rebuild` runs the sources in parallel and keeps a cache of passes. The cache may only say "no drift" when every
+// ADR 0038: `check --drift --rebuild` runs the sources in parallel and keeps a cache of passes. The cache may only say "no drift" when every
 // input of the rebuild is the same; the output is the same in any order of finishing, with or without the cache.
 // Pure parts first, then the CLI in a scratch project. Nothing here depends on a font: only on a pass / a drift, and on the order of the lines.
 import test from 'node:test';

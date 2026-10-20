@@ -1,5 +1,5 @@
 // The shell of the `check --drift --rebuild` cache (the pure half is lib/drift-cache.ts): reads the files and the environment the key covers,
-// records which files a build reads, and keeps one small JSON entry per source. See ADR 0037 (docs/adr) for the reasoning.
+// records which files a build reads, and keeps one small JSON entry per source. See ADR 0038 (docs/adr) for the reasoning.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';

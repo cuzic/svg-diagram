@@ -14,7 +14,7 @@
 //       (metadata only? text moved? shapes added?), so you can tell whether regenerating is safe.
 //       --rebuild is fast on a big set: sources are rebuilt in parallel (--jobs N; by default as many as there are idle cores, at most 8, and at least 8 sources each; --jobs 1 = serial),
 //       and a source that passed once is not rebuilt until something it depends on changes (--no-cache turns that off, --cache-dir DIR moves it
-//       from ./.svg-diagram-cache). The output is in the order of the arguments either way. See ADR 0037.
+//       from ./.svg-diagram-cache). The output is in the order of the arguments either way. See ADR 0038.
 //   svg-diagram check --docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR]
 //       Do the Markdown pages and the diagrams still agree? PATH is a directory (searched for .md) or one .md file; repeat --docs for several.
 //       Referenced SVGs exist, alt text is short and present, figure captions 図N-M are in order, 図N-M in the text names a real figure,
@@ -181,7 +181,7 @@ function walkMd(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-// ---- --drift --rebuild: parallel and cached (ADR 0037) ---------------------------------------------------------------------
+// ---- --drift --rebuild: parallel and cached (ADR 0038) ---------------------------------------------------------------------
 const jobs = val('--jobs') === null ? Math.min(os.availableParallelism(), 8) : Number(val('--jobs')); // without --jobs: fewer when the machine is busy or the work is small (below)
 if (!Number.isInteger(jobs) || jobs < 1) { console.error('--jobs は 1 以上の整数（1 = 順番に処理する）'); process.exit(2); }
 const cacheDir = val('--cache-dir') ?? path.join(process.cwd(), '.svg-diagram-cache');
