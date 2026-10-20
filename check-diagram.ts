@@ -15,7 +15,7 @@
 //   svg-diagram check --docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR]
 //       Do the Markdown pages and the diagrams still agree? PATH is a directory (searched for .md) or one .md file; repeat --docs for several.
 //       Referenced SVGs exist, alt text is short and present, figure captions 図N-M are in order, 図N-M in the text names a real figure,
-//       no SVG is left unreferenced (--svg-dir), and the numbered notes under a figure match the figure's own notes (--src-dir).
+//       no SVG is left unreferenced (--svg-dir), a referenced SVG still has its source (doc-svg-no-source: --src-dir, ./diagrams, or the source recorded in the SVG), and the numbered notes under a figure match the figure's own notes (--src-dir).
 //       --only GLOB (repeatable, e.g. 'docs/03-*.md') keeps just the matching pages. Whenever the pages are narrowed (a .md file or --only),
 //       the orphan-SVG check is skipped (it needs every page to know what is unreferenced) and a note says so.
 //       --map prints the figure <-> document table (Markdown) on stdout instead; the findings go to stderr.
@@ -30,6 +30,7 @@
 //       Only the sources that changed: the source itself, a local file it imports, its committed SVG (--drift), or .svg-diagram.json
 //       (then all of them) — in the working tree and in the commits since REF (default: the merge-base with origin/main or main, else HEAD).
 //       Nothing changed → nothing to check, exit 0. A quick check while editing, and a fast pull-request check on a big diagram set.
+//   A source starting with _ (a shared helper) or without a default export is skipped with an info message, not failed.
 //   svg-diagram check --rules | --explain RULE
 //       List every rule id, or explain one (what it means, how to accept it in .svg-diagram.json).
 //   svg-diagram check --write-baseline FILE <...>   /   --baseline FILE <...>
@@ -51,9 +52,9 @@ const {RULE_DOCS} = await import('./lib/rules.ts');
 const {selectChanged} = await import('./lib/changed.ts');
 const {scanPngRefs, scanMarkdown, compareNotes, notesOf, formatMap, checkFigures, chapterOf, globToRegExp, matchesAny} = await import('./lib/docs-check.ts');
 const {explainChange} = await import('./lib/svg-diff.ts');
-const {loadConfig} = await import('./lib/config.ts');
+const {loadConfig, svgDirOf} = await import('./lib/config.ts');
 const {checkToday} = await import('./lib/today.ts');
-const {loadDiagram} = await import('./lib/load-source.ts');
+const {loadDiagram, importDefine} = await import('./lib/load-source.ts');
 const {readTable, figureText, checkCovers, checkFidelity} = await import('./lib/covers.ts');
 const {formatBuildError, errorMessage} = await import('./lib/error-format.ts');
 const {readProvenance, sha256File: sha} = await import('./lib/freshness.ts');
@@ -132,7 +133,7 @@ if (changedArg) {
   if (!base) for (const b of ['origin/main', 'main']) { try { base = execFileSync('git', ['merge-base', b, 'HEAD'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim(); break; } catch { /* no such branch */ } }
   const lines = (o: string) => o.split('\n').filter(Boolean).map(f => path.join(top, f));
   const changed = new Set([...lines(git(['diff', '--name-only', base ?? 'HEAD', '--'])), ...lines(git(['ls-files', '--others', '--exclude-standard']))]);
-  const svgOf = (s: string) => drift ? path.join(svgDir ?? 'svg', `${path.parse(s).name}.svg`) : undefined;
+  const svgOf = (s: string) => drift ? path.join(svgDir ?? svgDirOf(config), `${path.parse(s).name}.svg`) : undefined;
   const {selected, skipped, reason} = selectChanged(sources, {changed, svgOf});
   say(`ℹ --changed（${base ? base.slice(0, 10) : 'HEAD'} から）: ${sources.length} 件中 ${selected.length} 件を検査、${skipped.length} 件は変わっていない`);
   for (const s of selected) if (verbose) say(`   ${s}: ${reason.get(s)}`);
@@ -179,7 +180,7 @@ try {
   if (docsDir) {
     const referenced = new Set<string>();
     const mapRows: MapRow[] = [];
-    const pngReferenced = new Set<string>(), pngDirs = new Set<string>();
+    const pngReferenced = new Set<string>(), pngDirs = new Set<string>(), noSourceSeen = new Set<string>();
     const pages = new Set<string>();
     let scoped = only.length > 0;
     for (const p of docsDirs) {
@@ -224,6 +225,21 @@ try {
         if (!alt) add({file: rel, line: fig.line, rule: 'doc-alt-empty', severity: 'warn', message: `${name}: 代替テキストが空`});
         else if ([...alt].length > 155) add({file: rel, line: fig.line, rule: 'doc-alt-long', severity: 'warn', message: `${name}: 代替テキストが ${[...alt].length} 文字（155 文字以内にして、詳しい説明は本文に）`});
         const srcFile = srcDir && ['.ts', '.mjs'].map(ext => path.join(srcDir, name + ext)).find(f => fs.existsSync(f));
+        // a static SVG: referenced from the page, but nothing builds it any more (--drift only looks at sources, so it is never reported there)
+        if (!noSourceSeen.has(abs)) {
+          noSourceSeen.add(abs);
+          const base = name.replace(/\.reveal\d+$/, '');
+          const dirs = srcDir ? [srcDir] : fs.existsSync('diagrams') ? ['diagrams'] : [];
+          const prov = readProvenance(abs);
+          const built = prov?.source && !path.isAbsolute(prov.source) ? path.resolve(prov.source) : null; // where the SVG says it was built from
+          const known = dirs.some(d => ['.ts', '.mjs'].some(ext => fs.existsSync(path.join(d, base + ext)))) || (built !== null && fs.existsSync(built));
+          if (!known && (dirs.length || built)) {
+            const where = built ? `${path.relative(process.cwd(), built)} と ` : '';
+            const reason = config.accept?.['doc-svg-no-source'];
+            add({file: rel, line: fig.line, rule: 'doc-svg-no-source', severity: reason ? 'info' : 'warn',
+              message: `${base}.svg に対応する図のソースがない（${where}${dirs.map(d => `${d}/${base}.ts`).join('、') || '図のソース'} を探した）。再生成されない古い絵になっていないか。ソースを戻すか、図を差し替える${reason ? `（許容: ${reason}）` : ''}`});
+          }
+        }
         mapRows.push({name, svg: path.relative(process.cwd(), abs), doc: where, src: srcFile ? path.relative(process.cwd(), srcFile) : ''});
         if (srcFile) {
           try {
@@ -259,7 +275,7 @@ try {
     const abs = path.resolve(src);
     const name = path.parse(src).name;
     if (coversFile) {
-      const svg = src.endsWith('.svg') ? src : path.join(svgDir ?? 'svg', `${name}.svg`);
+      const svg = src.endsWith('.svg') ? src : path.join(svgDir ?? svgDirOf(config), `${name}.svg`);
       if (!fs.existsSync(svg)) { add({file: src, rule: 'covers-missing-svg', severity: 'error', message: `${svg} がない（未生成）`}); complain(`✗ ${src}: ${svg} がない（未生成）`); return; }
       const cells = coverCells;
       const lost = checkCovers(cells, figureText(fs.readFileSync(svg, 'utf8')));
@@ -268,8 +284,12 @@ try {
       for (const u of lost) say(`   ⚠ ${coversFile}:${u.cell.line} [covers-missing] 「${u.cell.text}」（欠けた語: ${u.missing.join('、')}）`);
       return;
     }
+    // not a figure: a shared helper (_base.ts), or any file whose default export is not a diagram — skipped, not failed
+    if (path.basename(src).startsWith('_')) { say(`ℹ ${src}: 先頭が _ のファイルは共通部品として検査しない`); return; }
+    try { await importDefine(abs); }
+    catch (e) { if (/no default export function/.test(errorMessage(e))) { say(`ℹ ${src}: 図ではない（default export の関数がない）ので検査しない`); return; } throw e; }
     if (drift) {
-      const svg = path.join(svgDir ?? 'svg', `${name}.svg`);
+      const svg = path.join(svgDir ?? svgDirOf(config), `${name}.svg`);
       if (!fs.existsSync(svg)) { add({file: src, rule: 'drift-missing', severity: 'error', message: `${svg} がない（未生成）`}); complain(`✗ ${src}: ${svg} がない（未生成）`); return; }
       const meta = readProvenance(svg);
       if (!meta) { add({file: src, rule: 'drift-no-provenance', severity: 'error', message: `${svg} に生成元の情報がない。再生成する`}); complain(`✗ ${src}: ${svg} に生成元の情報（<metadata id="svg-diagram">）がない。再生成する`); return; }

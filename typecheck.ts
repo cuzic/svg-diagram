@@ -8,7 +8,12 @@ import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-if (!fs.existsSync('tsconfig.json')) { console.error('tsconfig.json がない。先に `svg-diagram init` を実行する'); process.exit(2); }
+// No tsconfig.json: check with the same defaults `svg-diagram init` writes (build / check work without one too). `init` makes it permanent.
+const hasConfig = fs.existsSync('tsconfig.json');
+const DEFAULT_OPTIONS = {
+  target: 'es2023', module: 'nodenext', moduleResolution: 'nodenext', allowImportingTsExtensions: true, noEmit: true,
+  erasableSyntaxOnly: true, verbatimModuleSyntax: true, strict: true, skipLibCheck: true,
+};
 const req = createRequire(path.resolve('package.json'));
 const resolves = (id: string) => { try { return req.resolve(id); } catch { return null; } };
 
@@ -45,12 +50,13 @@ if (!resolves('@types/node/package.json')) {
 
 let config = '.';
 let temp: string | null = null;
-if (Object.keys(paths).length || typeRoots.length) {
+if (!hasConfig) console.error('ℹ tsconfig.json がないので、既定の設定で型検査する（`svg-diagram init` で tsconfig.json を作ると、エディタと同じ設定になる）');
+if (!hasConfig || Object.keys(paths).length || typeRoots.length) {
   temp = path.resolve('.svg-diagram-tsconfig.json');
   // The project's own options, to keep what the temporary config would otherwise replace (`paths` and `typeRoots` replace, not merge).
   // A tsconfig with block comments or trailing commas is not read: its `paths` / `typeRoots` are then not kept.
   let project: {baseUrl?: string; paths?: Record<string, string[]>; typeRoots?: string[]} = {};
-  try { project = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8').replace(/^\s*\/\/.*$/gm, '')).compilerOptions ?? {}; } catch { /* see above */ }
+  if (hasConfig) try { project = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8').replace(/^\s*\/\/.*$/gm, '')).compilerOptions ?? {}; } catch { /* see above */ }
   const compilerOptions: Record<string, unknown> = {};
   if (Object.keys(paths).length) {
     // the project's entries are relative to its baseUrl (else to its tsconfig): made absolute so they keep pointing at the same files
@@ -62,7 +68,11 @@ if (Object.keys(paths).length || typeRoots.length) {
     const mine = project.typeRoots?.map(t => path.resolve(t)) ?? [path.resolve('node_modules', '@types')].filter(t => fs.existsSync(t));
     compilerOptions['typeRoots'] = [...mine, ...typeRoots];
   }
-  fs.writeFileSync(temp, JSON.stringify({extends: './tsconfig.json', compilerOptions}));
+  fs.writeFileSync(temp, JSON.stringify(hasConfig ? {extends: './tsconfig.json', compilerOptions} : {
+    compilerOptions: {...DEFAULT_OPTIONS, ...compilerOptions},
+    include: fs.existsSync('diagrams') ? ['diagrams/**/*.ts'] : ['**/*.ts'],
+    exclude: ['node_modules', 'dist'],
+  }));
   config = temp;
 }
 // Ctrl-C reaches tsc too; this process waits for it and still removes the temporary config instead of dying first

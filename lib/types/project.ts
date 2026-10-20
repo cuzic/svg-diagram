@@ -24,6 +24,8 @@ export interface Config {
   fonts?: FontSpecs;
   /** The lowest `canvas.minText` a diagram may declare (10 to 14, default 14). A canvas diagram below it throws; a figure still has to declare its own `minText`. */
   fontFloor?: number;
+  /** Where `build` writes the SVGs when neither --out nor --out-dir is given (default "svg"), and where `lint` / `check --drift` look for them. Relative to this file's folder. */
+  outDir?: string;
   /** The day for gantt({today: 'auto'}) when no --today / SVG_DIAGRAM_TODAY is given: 'YYYY-MM-DD'. */
   today?: string;
   /** Set by the CLIs from --today (never read from the file): wins over the environment and "today". */
