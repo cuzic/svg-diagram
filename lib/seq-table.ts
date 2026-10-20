@@ -9,8 +9,9 @@
 import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapAtoms} from './wrap.ts';
 import {CELL_MARKS} from './tokens.ts';
-import type {TextRequest, WidthOf, FontFamily, TextTone, Roles, WrapMode} from './types/core.ts';
-import type {SequenceBand, PreparedSequence, PreparedStep, TableBand, TableCell, TableColumn, TableRow, ResolvedCell, LaidOutSequence, LaidOutSeqStep, LaidOutSeqHead, LaidOutTable, LaidOutTableRow, LaidOutTableCell} from './types/sequence-table-swimlane.ts';
+import {must} from './must.ts';
+import type {TextRequest, WidthOf, FontFamily, Roles, WrapMode} from './types/core.ts';
+import type {SequenceBand, PreparedSequence, PreparedStep, TableBand, TableCell, TableColumn, ResolvedCell, LaidOutSequence, LaidOutSeqStep, LaidOutSeqHead, LaidOutTable, LaidOutTableRow, LaidOutTableCell} from './types/sequence-table-swimlane.ts';
 import type {BoxTone} from './types/text-bands.ts';
 
 const LH = 1.4;
@@ -70,7 +71,8 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
 
   const heads = p.actors.map((a, i): LaidOutSeqHead => {
     const lines = wrap(a.label, roles.title, 700, 'sans', aw - 2 * SEQ.headPadX, widthOf, mode);
-    return {id: a.id, tone: a.tone, lines, x: cx[i] - aw / 2, w: aw, cx: cx[i], y: 0, h: 0, textDy: SEQ.headPadY};
+    const ci = must(cx[i]);
+    return {id: a.id, tone: a.tone, lines, x: ci - aw / 2, w: aw, cx: ci, y: 0, h: 0, textDy: SEQ.headPadY};
   });
   // every head is as tall as the tallest; when any head has an icon, each head's stack (icon, then label) sits in the middle of the room
   const anyIcon = p.actors.some(a => a.icon), textH = Math.max(...heads.map(h => h.lines.length)) * lineH(roles.title);
@@ -103,21 +105,21 @@ export function layoutSequence(band: SequenceBand, x: number, y: number, w: numb
       const i = at(s.self, 'self');
       // The loop and its label go on the right of the lifeline, unless the label does not fit there at its natural
       // width and the left side has more room (the last actor): then both mirror to the left, inside the frame.
-      const rightRoom = x + w - (must(cx[i]) + SEQ.selfW + 8) - 4, leftRoom = must(cx[i]) - SEQ.selfW - 8 - x - 4;
+      const ci = must(cx[i]), rightRoom = x + w - (ci + SEQ.selfW + 8) - 4, leftRoom = ci - SEQ.selfW - 8 - x - 4;
       const side = textW(s.text, roles.note, 400, 'sans', widthOf) > rightRoom && leftRoom > rightRoom ? 'left' : 'right';
-      const lx = side === 'left' ? cx[i] - SEQ.selfW - 8 : cx[i] + SEQ.selfW + 8;
+      const lx = side === 'left' ? ci - SEQ.selfW - 8 : ci + SEQ.selfW + 8;
       const lines = wrap(s.text, roles.note, 400, 'sans', Math.max(40, side === 'left' ? leftRoom : rightRoom), widthOf, mode);
       const labelH = lines.length * lineH(roles.note);
       const loopH = 22;
       const rowH = Math.max(labelH, loopH + 12);
-      steps.push({kind: 'self', cx: must(cx[i]), y: top + 6, loopH, lines, lx, side, labelTop: top, line: s.line ?? 'solid', tone: s.tone});
+      steps.push({kind: 'self', cx: ci, y: top + 6, loopH, lines, lx, side, labelTop: top, line: s.line ?? 'solid', tone: s.tone});
       cursor = top + rowH + SEQ.stepGap / 2;
     } else if (s.kind === 'note') {
       const ids = s.over.map(id => at(id, 'note.over'));
       const lo = Math.min(...ids), hi = Math.max(...ids);
       let left: number, right: number;
-      if (lo === hi) { const nw = Math.min(aw + 40, 260); left = cx[lo] - nw / 2; right = cx[lo] + nw / 2; }
-      else { left = Math.max(x, cx[lo] - 60); right = Math.min(x + w, cx[hi] + 60); }
+      if (lo === hi) { const nw = Math.min(aw + 40, 260); left = must(cx[lo]) - nw / 2; right = must(cx[lo]) + nw / 2; }
+      else { left = Math.max(x, must(cx[lo]) - 60); right = Math.min(x + w, must(cx[hi]) + 60); }
       const lines = wrap(s.text, roles.note, 400, 'sans', right - left - 24, widthOf, mode);
       const h = lines.length * lineH(roles.note) + 16;
       steps.push({kind: 'note', x: left, y: top, w: right - left, h, lines, tone: s.tone ?? 'muted'});
@@ -170,7 +172,7 @@ export function layoutTable(band: TableBand, x: number, y: number, w: number, wi
       const c: ResolvedCell = header ? {text: (cell as TableColumn).label ?? '', bold: true, mono: false, align: (cell as TableColumn).align ?? 'left'} : cellOf(cell as TableCell, cols[i]);
       if (band.rowHeader && !header && i === 0) c.bold = true;
       const size = roles.body;
-      const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', colW[i] - 2 * TBL.padX - (c.icon ? TBL.iconSize + TBL.iconGap : 0), widthOf, mode);
+      const lines = c.text === '' ? [] : wrap(c.text, size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans', must(colW[i]) - 2 * TBL.padX - (c.icon ? TBL.iconSize + TBL.iconGap : 0), widthOf, mode);
       // an icon beside centred / right-aligned text sits just before its first line (left-aligned: at the cell's left edge)
       const lineW = c.icon && lines.length && c.align !== 'left' ? textWidth(widthOf, must(lines[0]), size, c.bold ? 700 : 400, c.mono ? 'mono' : 'sans') : undefined;
       return {...c, lines, x: must(colX[i]), w: must(colW[i]), top: 0, ...(lineW !== undefined ? {lineW} : {})};

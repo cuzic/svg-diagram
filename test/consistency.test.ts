@@ -45,7 +45,7 @@ test('tableFindings: a total row / column that does not add up; rounding of perc
   const round = table([{label: '区分'}, {label: '構成比'}], [['A', '33%'], ['B', '33%'], ['C', '33%']]);
   assert.deepEqual(tableFindings([round]), [], '99% is within rounding of three whole-number shares');
   const off = table([{label: '区分'}, {label: '構成比'}], [['A', '50%'], ['B', '30%']]);
-  assert.equal(tableFindings([off])[0].rule, 'table-share-not-100');
+  assert.equal(tableFindings([off])[0]!.rule, 'table-share-not-100');
   const withSub = table(cols.slice(0, 2), [['A', '10'], ['B', '5'], ['小計', '15'], ['C', '7'], ['合計', '22']]);
   assert.deepEqual(tableFindings([withSub]), []);
 });

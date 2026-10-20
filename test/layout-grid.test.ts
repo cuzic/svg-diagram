@@ -11,8 +11,8 @@ import type {Band} from '../lib/types/index.ts';
 import {groupFillPlan} from '../lib/layout-handlers.ts';
 
 const kids = (n: number) => Array.from({length: n}, () => ({}));
-const edges = (g: {x: number[]; w: number[]}) => g.x.flatMap((x, i) => [x, x + g.w[i]]);
-const gutters = (g: {x: number[]; w: number[]}) => g.x.slice(1).map((x, k) => x - g.x[k] - g.w[k]);
+const edges = (g: {x: number[]; w: number[]}) => g.x.flatMap((x, i) => [x, x + g.w[i]!]);
+const gutters = (g: {x: number[]; w: number[]}) => g.x.slice(1).map((x, k) => x - g.x[k]! - g.w[k]!);
 const geo = (children: object[], opts: {cols?: number; gap?: number} = {}, width = 900) => rowChildGeometry({cols: opts.cols, gap: opts.gap ?? 16, justify: 'stretch', children}, width);
 
 test('two equal halves of 900 with gap 16 are 440 + 20 + 440', () => {
@@ -28,11 +28,11 @@ test('cols [6, 6]: equal frames on the grid, and the group title sits on the box
   assert.deepEqual(r.verdict.findings.filter(f => f.rule.startsWith('layout-')), []);
   const rects = [...r.svg.matchAll(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="[\d.]+" rx="8" fill="(?!#fff|#ffffff)[^"]+"/g)].map(m => ({x: Number(m[1]), w: Number(m[3])}));
   assert.equal(rects.length, 2);
-  assert.equal(rects[0].w, rects[1].w);
+  assert.equal(rects[0]!.w, rects[1]!.w);
   for (const f of rects) { assert.equal(f.x % 4, 0); assert.equal((f.x + f.w) % 4, 0); }
   const title = (t: string) => Number(new RegExp(`<text x="([\\d.]+)"[^>]*>${t}</text>`).exec(r.svg)?.[1]);
   const boxX = [...r.svg.matchAll(/<rect x="([\d.]+)" y="[\d.]+" width="[\d.]+" height="[\d.]+" rx="8" fill="#(?:fff|ffffff)"/g)].map(m => Number(m[1])).filter(x => x !== 0);
-  assert.equal(title('L') - rects[0].x, title('R') - rects[1].x, 'the same inset in the left and the right group (no 494 / 496)');
+  assert.equal(title('L') - rects[0]!.x, title('R') - rects[1]!.x, 'the same inset in the left and the right group (no 494 / 496)');
   assert.ok(boxX.includes(title('L')) && boxX.includes(title('R')), 'a title starts where the box under it starts');
 });
 
@@ -49,7 +49,7 @@ test('property: edges on the grid (the emitter snap changes nothing), widths one
     const gs = gutters(g);
     assert.ok(gs.every(v => v >= gap), 'a gutter is never narrower than declared');
     assert.ok(Math.max(...gs) - Math.min(...gs) === 0, `${label}: gutters ${gs}`); // without centerGutter all gutters are equal
-    assert.ok(g.x[n - 1] + g.w[n - 1] <= width && width - (g.x[n - 1] + g.w[n - 1]) < 4 + 1e-6, `${label}: at most one step unused at the right`);
+    assert.ok(g.x[n - 1]! + g.w[n - 1]! <= width && width - (g.x[n - 1]! + g.w[n - 1]!) < 4 + 1e-6, `${label}: at most one step unused at the right`);
     assert.deepEqual(gridColumns(width, n, gap), g);
   }
 });
@@ -61,18 +61,18 @@ test('a row that already divides on the grid is unchanged', () => {
 
 test('rows with the same cols share edges: every span lands on the columns it covers (3 rows)', () => {
   const rows = [[6, 6], [3, 3, 3, 3], [4, 8], [2, 2, 2, 2, 2, 2]].map(spans => geo(spans.map(span => ({span})), {cols: 12}));
-  const left = (r: ReturnType<typeof geo>, i: number) => r.xOffsets[i], rightOf = (r: ReturnType<typeof geo>, i: number) => r.xOffsets[i] + r.widths[i];
-  assert.equal(left(rows[0], 1), left(rows[1], 2));
-  assert.equal(rightOf(rows[0], 0), rightOf(rows[1], 1));
-  assert.equal(left(rows[2], 1), left(rows[3], 2), 'a 4 | 8 split starts where the third 2-wide column starts');
-  assert.equal(rightOf(rows[0], 1), rightOf(rows[3], 5));
-  assert.equal(rows[0].widths[0], rows[0].widths[1]);
+  const left = (r: ReturnType<typeof geo>, i: number) => r.xOffsets[i], rightOf = (r: ReturnType<typeof geo>, i: number) => r.xOffsets[i]! + r.widths[i]!;
+  assert.equal(left(rows[0]!, 1), left(rows[1]!, 2));
+  assert.equal(rightOf(rows[0]!, 0), rightOf(rows[1]!, 1));
+  assert.equal(left(rows[2]!, 1), left(rows[3]!, 2), 'a 4 | 8 split starts where the third 2-wide column starts');
+  assert.equal(rightOf(rows[0]!, 1), rightOf(rows[3]!, 5));
+  assert.equal(rows[0]!.widths[0], rows[0]!.widths[1]);
 });
 
 test('unequal flex: rounding does not pile up on the last child', () => {
   for (const flex of [[3, 1, 1, 1, 1, 1, 1, 1], [1, 2, 1, 2, 1, 2, 1], [2, 1, 1, 1, 1, 1, 1, 1, 1, 1]]) {
     const r = geo(flex.map(f => ({flex: f})));
-    for (const [i, x] of r.xOffsets.entries()) { assert.equal(x % 4, 0); assert.equal((x + r.widths[i]) % 4, 0); }
+    for (const [i, x] of r.xOffsets.entries()) { assert.equal(x % 4, 0); assert.equal((x + r.widths[i]!) % 4, 0); }
     // children with the same flex differ by at most one step, whichever end they are at
     for (const f of new Set(flex)) {
       const ws = r.widths.filter((_, i) => flex[i] === f);
@@ -90,7 +90,7 @@ test('quadrant: the columns are equal (a step apart at most) and the gutters eve
   assert.ok(Math.max(...ws) - Math.min(...ws) <= 4, `${ws}`);
   for (const c of cells) assert.equal(snap4(c.x), c.x, 'a cell starts on the grid');
   const xs = [...new Set(cells.map(c => c.x))].sort((a, b) => a - b);
-  const gs = xs.slice(1).map((x, k) => x - xs[k] - cells.find(c => c.x === xs[k])!.w);
+  const gs = xs.slice(1).map((x, k) => x - xs[k]! - cells.find(c => c.x === xs[k])!.w);
   assert.equal(Math.max(...gs), Math.min(...gs));
 });
 
@@ -112,10 +112,10 @@ test('groupFillPlan: gaps grow by 16 at most (on the grid), the rest is split ab
 test('group in a row: the shorter group centres its box in the room; frames and titles line up', async () => {
   const l = await laid(pair(group([box({title: 'only', id: 'o'})], {title: 'R'})));
   const [g1, g2] = frames(l);
-  assert.equal(g1.h, g2.h);
+  assert.equal(g1!.h, g2!.h);
   const titleY = new Set(l.filter(b => b.type === 'caption').map(b => (b as unknown as {y: number}).y));
   assert.equal(titleY.size, 1, 'the two titles sit at the same y');
-  const o = boxOf(l, 'o'), top = o.y - boxOf(l, 'a').y, below = g2.y + g2.h - 16 - (o.y + o.h);
+  const o = boxOf(l, 'o'), top = o.y - boxOf(l, 'a').y, below = g2!.y + g2!.h - 16 - (o.y + o.h);
   assert.ok(top > 0, 'the box moved down from the top');
   assert.ok(Math.abs(top - below) <= 8, `room above ${top} and below ${below} are about the same`);
 });
@@ -129,7 +129,7 @@ test("group({valign: 'stretch'}): a single box fills the room", async () => {
   const l = await laid(pair(group([box({title: 'only', id: 'o'})], {title: 'R', valign: 'stretch'})));
   const [, g2] = frames(l), o = boxOf(l, 'o');
   assert.equal(o.y, boxOf(l, 'a').y);
-  assert.equal(snap4(o.y) + snap4(o.h), snap4(g2.y) + snap4(g2.h) - 16, 'the box, as drawn, ends one pad above the frame bottom (laid-out tops sit on the grid now, so compare the drawn edges)');
+  assert.equal(snap4(o.y) + snap4(o.h), snap4(g2!.y) + snap4(g2!.h) - 16, 'the box, as drawn, ends one pad above the frame bottom (laid-out tops sit on the grid now, so compare the drawn edges)');
 });
 
 test('no room (equal groups): nothing moves', async () => {
@@ -142,14 +142,14 @@ test('several boxes: the gaps open up before the rest is split, and every box st
   const [, g2] = frames(l), p = boxOf(l, 'p'), q = boxOf(l, 'q');
   const gapPQ = q.y - (p.y + p.h), gapAB = boxOf(l, 'b').y - (boxOf(l, 'a').y + boxOf(l, 'a').h);
   assert.ok(gapPQ >= gapAB && gapPQ <= gapAB + 16, `gap ${gapAB} grew to ${gapPQ}`);
-  assert.ok(p.y >= g2.y && q.y + q.h <= g2.y + g2.h);
+  assert.ok(p.y >= g2!.y && q.y + q.h <= g2!.y + g2!.h);
 });
 
 test('nested groups and a group alone in a row stay inside their frame', async () => {
   const inner = group([box({title: 'in', id: 'i'})], {title: 'inner'});
   const l = await laid(row([group([inner, box({title: 'x', id: 'x'})], {title: 'L'}), group(four.map(b => ({...b, id: `${b.id}2`})), {title: 'R'})], {cols: [6, 6]}));
   const [outer] = frames(l);
-  for (const id of ['i', 'x']) { const b = boxOf(l, id); assert.ok(b.y >= outer.y && b.y + b.h <= outer.y + outer.h, id); }
+  for (const id of ['i', 'x']) { const b = boxOf(l, id); assert.ok(b.y >= outer!.y && b.y + b.h <= outer!.y + outer!.h, id); }
   const alone = await laid(row([group([box({title: 'solo', id: 's'})], {title: 'only'})], {}));
   assert.equal(frames(alone).length, 1);
 });

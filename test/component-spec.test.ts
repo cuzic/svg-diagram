@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {wf, layoutWireframe, layoutScreens, collectTextRequests} from '../lib/wireframe.ts';
-import {wireframe, stateMatrix, screens, diagram} from '../lib/dsl.ts';
+import {wireframe, stateMatrix, diagram} from '../lib/dsl.ts';
 import {NO_TONES} from '../lib/tokens.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import type {PrimRect, PrimText, WfCol, WfInsight, WfRobotOpts, WfRow} from '../lib/types/wireframe-nodes.ts';

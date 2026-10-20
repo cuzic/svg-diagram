@@ -17,7 +17,7 @@ test('barSpan and spanText: a range is lo..hi, a value is 0..value; the text rea
 
 test('bars({range}): vertical bars float from lo to hi, on the same scale as a plain bar', async () => {
   const b = await laid(bars([{label: '値', value: 6}, {label: '幅', range: [2, 6]}], {dir: 'v', max: 10, height: 300}));
-  const [plain, range] = b.bars;
+  const plain = b.bars[0]!, range = b.bars[1]!;
   assert.ok(Math.abs(plain.y - range.y) < 0.01, 'the same top (hi = 6)');
   assert.ok(Math.abs(range.h - plain.h * 4 / 6) < 0.01, 'a height of (hi - lo) / max');
   assert.ok(range.y + range.h < plain.y + plain.h - 1, 'it floats: its bottom is above the baseline');
@@ -25,7 +25,7 @@ test('bars({range}): vertical bars float from lo to hi, on the same scale as a p
 
 test('bars({range}): horizontal bars float from lo to hi', async () => {
   const b = await laid(bars([{label: '値', value: 6}, {label: '幅', range: [2, 6]}], {dir: 'h', max: 10}));
-  const [plain, range] = b.bars;
+  const plain = b.bars[0]!, range = b.bars[1]!;
   assert.ok(Math.abs(plain.x + plain.w - (range.x + range.w)) < 0.01, 'the same right edge (hi = 6)');
   assert.ok(Math.abs(range.w - plain.w * 4 / 6) < 0.01);
   assert.ok(range.x > plain.x + 1, 'it starts at lo, not at the baseline');

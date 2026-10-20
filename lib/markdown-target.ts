@@ -2,6 +2,7 @@
 // where a source may live, and how a figure is put into a page.
 //   `flow.diagram.ts`, optionally `flow.diagram.ts#html` / `#svg` to pick the output for that one figure.
 import {createHash} from 'node:crypto';
+import {must} from './must.ts';
 import {scopeRules} from './scope-style.ts';
 export type Render = 'svg' | 'html';
 

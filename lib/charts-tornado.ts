@@ -63,14 +63,12 @@ export function tornadoAlt(s: TornadoSpec): string {
 export function tornadoTexts(s: TornadoSpec): [string, number][] {
   const out: [string, number][] = [[s.lowLabel, 400], [s.highLabel, 400], [`${s.baseLabel} ${numText(s.base)}${s.unit}`, 700]];
   for (const i of s.items) out.push([i.label, 400], [`${numText(i.low)}${s.unit}`, 700], [`${numText(i.high)}${s.unit}`, 700]);
-  const all = s.items.flatMap(i => [i.low, i.high]);
   for (const t of tornadoScale(s).ticks) out.push([numText(t), 400]);
   return out;
 }
 
 export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
   const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap);
-  const all = s.items.flatMap(i => [i.low, i.high]);
   const sc = tornadoScale(s);
   const vText = (v: number) => `${numText(v)}${s.unit}`;
   const labelW = Math.min(Math.max(...s.items.map(i => c.tw(i.label))) + 14, g.w * 0.34);

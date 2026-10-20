@@ -3,6 +3,7 @@
 // bins, the kernel density and the cumulative step are worked out here (lib/stats.ts, lib/qc.ts); nothing is random.
 import {Canvas, checkIds, checkText, fail, finiteNum, niceScale, numText} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
+import {must} from './must.ts';
 import {histogramBins} from './qc.ts';
 import {binCounts, kde} from './stats.ts';
 
@@ -81,7 +82,7 @@ const yName = (s: DistSpec): string => s.kinds.includes('ecdf') ? (ecdfStat(s) =
 const heightOf = (stat: DistStat, c: number, n: number, w: number): number => stat === 'count' ? c : stat === 'density' ? c / (n * w) : stat === 'probability' ? c / n : 100 * c / n;
 /** The factor a density becomes the statistic by, over classes of width `w`. */
 const factor = (stat: DistStat, n: number, w: number): number => stat === 'count' ? n * w : stat === 'density' ? 1 : stat === 'probability' ? w : 100 * w;
-const classW = (s: DistSpec): number => s.edges ? (s.edges[s.edges.length - 1] - s.edges[0]) / (s.edges.length - 1) : 1;
+const classW = (s: DistSpec): number => s.edges ? (must(s.edges[s.edges.length - 1]) - must(s.edges[0])) / (s.edges.length - 1) : 1;
 
 export function distAlt(s: DistSpec): string {
   const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
@@ -94,14 +95,15 @@ function plan(s: DistSpec): Plan {
   const all = s.groups.flatMap(g => g.values);
   let lo = Math.min(...all), hi = Math.max(...all);
   const bws = s.kinds.includes('kde') ? s.groups.map(g => kde(g.values, [0], s.bw).bw) : [];
-  if (s.edges) { lo = Math.min(lo, s.edges[0]); hi = Math.max(hi, s.edges[s.edges.length - 1]); }
-  if (bws.length) { lo = Math.min(lo, ...s.groups.map((g, i) => Math.min(...g.values) - 2 * bws[i])); hi = Math.max(hi, ...s.groups.map((g, i) => Math.max(...g.values) + 2 * bws[i])); }
+  if (s.edges) { lo = Math.min(lo, must(s.edges[0])); hi = Math.max(hi, must(s.edges[s.edges.length - 1])); }
+  if (bws.length) { lo = Math.min(lo, ...s.groups.map((g, i) => Math.min(...g.values) - 2 * must(bws[i]))); hi = Math.max(hi, ...s.groups.map((g, i) => Math.max(...g.values) + 2 * must(bws[i]))); }
   if (s.xRange) { lo = Math.min(lo, s.xRange[0]); hi = Math.max(hi, s.xRange[1]); }
   const xs = niceScale(lo, hi);
-  const bars = s.edges ? s.groups.map(g => binCounts(g.values, s.edges as number[]).map((c, i) => ({x0: (s.edges as number[])[i], x1: (s.edges as number[])[i + 1], y: heightOf(s.stat, c, g.values.length, classW(s))}))) : [];
+  const edges = s.edges;
+  const bars = edges ? s.groups.map(g => binCounts(g.values, edges).map((c, i) => ({x0: must(edges[i]), x1: must(edges[i + 1]), y: heightOf(s.stat, c, g.values.length, classW(s))}))) : [];
   const curves = s.kinds.includes('kde') ? s.groups.map(g => {
     const grid = Array.from({length: 121}, (_q, i) => xs.min + (xs.max - xs.min) * i / 120), f = factor(s.stat, g.values.length, classW(s));
-    return kde(g.values, grid, s.bw).density.map((d, i) => ({x: grid[i], y: d * f}));
+    return kde(g.values, grid, s.bw).density.map((d, i) => ({x: must(grid[i]), y: d * f}));
   }) : [];
   const top = s.kinds.includes('ecdf') ? (s.stat === 'count' ? Math.max(...s.groups.map(g => g.values.length)) : s.stat === 'percent' ? 100 : 1)
     : Math.max(0, ...bars.flat().map(b => b.y), ...curves.flat().map(p => p.y));
@@ -121,7 +123,7 @@ export function distTexts(s: DistSpec): [string, number][] {
 }
 
 export function layoutDist(s: DistSpec, g: ChartGeom): LaidOutChartPart {
-  const who = s.kinds.length === 1 ? DIST_FN[s.kinds[0]] : 'displot';
+  const who = s.kinds.length === 1 ? DIST_FN[must(s.kinds[0])] : 'displot';
   const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap), p = plan(s), many = s.groups.length > 1;
   const legend: {x: number; row: number; i: number}[] = [];
   let lx = g.x, row = 0;
@@ -141,13 +143,13 @@ export function layoutDist(s: DistSpec, g: ChartGeom): LaidOutChartPart {
   const xOf = (v: number) => plotL + (v - p.xs.min) / (p.xs.max - p.xs.min) * (plotR - plotL), yOf = (v: number) => plotB - (v - p.ys.min) / (p.ys.max - p.ys.min) * (plotB - plotT);
   const r1 = (v: number) => Math.round(v * 10) / 10, pt = (x: number, y: number) => `${r1(xOf(x))},${r1(yOf(y))}`;
   const stroke = (i: number) => ({stroke: TONES[i] as 'accent', dash: DASH[i] || undefined});
-  const fillOf = (i: number) => TONES[i] === 'text' ? 'text' : TONES[i];
+  const fillOf = (i: number) => must(TONES[i]);
   // legend, axis names, grid
   legend.forEach(l => {
     const cy = g.y + l.row * (S + 12) + Math.max(9, Math.ceil(S * 0.64));
     if (s.kinds.includes('hist') && s.element === 'bars') c.rect(l.x, cy - 7, 22, 14, {fill: fillOf(l.i), op: 0.25, ...stroke(l.i), sw: 2});
     else c.line(l.x, cy, l.x + 22, cy, {...stroke(l.i), sw: 2});
-    c.text(s.groups[l.i].label, l.x + 28, c.mid(cy), 'start', 'text');
+    c.text(must(s.groups[l.i]).label, l.x + 28, c.mid(cy), 'start', 'text');
   });
   c.text(yName(s), plotL - 4, g.y + legendH + S + 2, 'start', 'muted', {bold: true});
   for (const t of p.ys.ticks) { c.line(plotL - 6, yOf(t), plotR, yOf(t), {stroke: t === 0 ? 'text' : 'border'}); c.text(numText(t), plotL - 10, c.mid(yOf(t)), 'end', 'muted'); }
@@ -161,13 +163,13 @@ export function layoutDist(s: DistSpec, g: ChartGeom): LaidOutChartPart {
     if (s.kinds.includes('hist') && bars) {
       if (s.element === 'bars') bars.forEach(b => { if (b.y > 0) c.path(`M${pt(b.x0, 0)} L${pt(b.x0, b.y)} L${pt(b.x1, b.y)} L${pt(b.x1, 0)} Z`, {fill: fillOf(i), op, ...stroke(i), sw: 2, of}); });
       else {
-        const d = bars.map((b, k) => `${k ? 'L' : 'M'}${pt(b.x0, k ? bars[k - 1].y : 0)} L${pt(b.x0, b.y)} L${pt(b.x1, b.y)}`).join(' ') + ` L${pt(bars[bars.length - 1].x1, 0)}`;
+        const d = bars.map((b, k) => `${k ? 'L' : 'M'}${pt(b.x0, k ? must(bars[k - 1]).y : 0)} L${pt(b.x0, b.y)} L${pt(b.x1, b.y)}`).join(' ') + ` L${pt(must(bars[bars.length - 1]).x1, 0)}`;
         c.path(d, {fill: 'none', ...stroke(i), sw: 2, of});
       }
     }
     if (s.kinds.includes('kde')) {
-      const cv = p.curves[i], d = cv.map((q, k) => `${k ? 'L' : 'M'}${pt(q.x, q.y)}`).join(' ');
-      if (!s.kinds.includes('hist') || s.element === 'step') c.path(`${d} L${pt(cv[cv.length - 1].x, 0)} L${pt(cv[0].x, 0)} Z`, {fill: fillOf(i), op: many ? 0.12 : 0.2, of});
+      const cv = must(p.curves[i]), d = cv.map((q, k) => `${k ? 'L' : 'M'}${pt(q.x, q.y)}`).join(' ');
+      if (!s.kinds.includes('hist') || s.element === 'step') c.path(`${d} L${pt(must(cv[cv.length - 1]).x, 0)} L${pt(must(cv[0]).x, 0)} Z`, {fill: fillOf(i), op: many ? 0.12 : 0.2, of});
       c.path(d, {fill: 'none', ...stroke(i), sw: 2, of});
     }
     if (s.kinds.includes('ecdf')) {

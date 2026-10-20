@@ -51,11 +51,11 @@ test('the same id in two scoped bands is fine; a qualified name lands on the rig
   const d = diagram({theme: 'blue'}).add(plan({scope: 'plan'}), sched({scope: 'sched'}), connect('plan.p0:bottom', 'sched.p0:top'));
   const {laidOut} = await checkDiagram(d);
   const c = laidOut.connects[0];
-  assert.equal(c.fromId, 'plan.p0');
-  assert.equal(c.toId, 'sched.p0');
+  assert.equal(c!.fromId, 'plan.p0');
+  assert.equal(c!.toId, 'sched.p0');
   const from = rectOf(laidOut, 'chevron', 'p0'), to = rectOf(laidOut, 'gantt', 'p0');
-  assert.equal(c.from.y, from.y + from.h); // bottom of the chevron step
-  assert.equal(c.to.y, to.y); // top of the gantt bar
+  assert.equal(c!.from.y, from.y + from.h); // bottom of the chevron step
+  assert.equal(c!.to.y, to.y); // top of the gantt bar
   // the band's own output keeps the bare ids
   assert.ok((laidOut.laidOut.find(x => x.type === 'chevron') as unknown as {anchors: {id: string}[]}).anchors.every(a => !a.id.includes('.')));
 });
@@ -63,7 +63,7 @@ test('the same id in two scoped bands is fine; a qualified name lands on the rig
 test('a bare id that only one scoped item has still passes', async () => {
   const d = diagram({theme: 'blue'}).add(plan({scope: 'plan'}), sched({scope: 'sched'}), connect('p1:bottom', 'sched.p0:top'));
   const {laidOut} = await checkDiagram(d);
-  assert.equal(laidOut.connects[0].fromId, 'plan.p1');
+  assert.equal(laidOut.connects[0]!.fromId, 'plan.p1');
 });
 
 test('a bare id several scoped items have is an error that names them (whatever the order)', async () => {
@@ -76,8 +76,8 @@ test('a registered bare id and a scoped item with the same name are ambiguous to
   await assert.rejects(checkDiagram(diagram({theme: 'blue'}).add(box({id: 'p0', title: 'x'}), plan({scope: 'plan'}), connect('p0', 'plan.p1'))), /ambiguous anchor id "p0": p0, plan\.p0/);
   // the qualified name is exact, and a bare id nobody else answers to is itself
   const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(box({id: 'p9', title: 'x'}), plan({scope: 'plan'}), connect('plan.p0', 'p9')));
-  assert.equal(laidOut.connects[0].fromId, 'plan.p0');
-  assert.equal(laidOut.connects[0].toId, 'p9');
+  assert.equal(laidOut.connects[0]!.fromId, 'plan.p0');
+  assert.equal(laidOut.connects[0]!.toId, 'p9');
 });
 
 test('inside one scope a duplicate is still a duplicate; across scopes it is not', async () => {
@@ -117,7 +117,7 @@ test('bars, quadrant and swimlane items are scoped too', async () => {
 test('without scope the figure is what it was: same connects, same svg whatever the table', async () => {
   const mk = () => diagram({theme: 'blue'}).add(box({id: 'a', title: 'A'}), box({id: 'b', title: 'B'}), connect('a:right', 'b:left'));
   const {laidOut} = await checkDiagram(mk());
-  assert.deepEqual([laidOut.connects[0].fromId, laidOut.connects[0].toId], ['a', 'b']);
+  assert.deepEqual([laidOut.connects[0]!.fromId, laidOut.connects[0]!.toId], ['a', 'b']);
   assert.equal(emitSvg(laidOut, {}), emitSvg((await checkDiagram(mk())).laidOut, {}));
 });
 

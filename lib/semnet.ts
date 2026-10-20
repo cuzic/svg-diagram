@@ -1,3 +1,4 @@
+import {must} from './must.ts';
 import type {LaidOutChartPart, ChartGeom} from './charts-base.ts';
 import {checkIds, checkText, fail, finiteNum, numText} from './charts-base.ts';
 import {textWidth} from './atoms.ts';
@@ -48,7 +49,7 @@ export function semnetTexts(kind: 'pert' | 'causal' | 'dependency', spec: PertSp
   return [...s.nodes.map(n => [n.label, 700] as [string, number]), ...s.edges.map(e => [[e.label ?? s.edgeTypes[e.type] ?? e.type, e.weight === undefined ? '' : numText(e.weight)].filter(Boolean).join(' '), 400] as [string, number]), ...kinds.map(k => [s.nodeKinds[k] ?? k, 400] as [string, number]), ...types.map(t => [s.edgeTypes[t] ?? t, 400] as [string, number])];
 }
 
-const kindTone =(i: number): 'accent' | 'danger' | 'muted' | 'text' => (['accent', 'danger', 'muted', 'text'] as const)[i % 4];
+const kindTone =(i: number): 'accent' | 'danger' | 'muted' | 'text' => (['accent', 'danger', 'muted', 'text'] as const)[i % 4] ?? 'text';
 /** How an edge type is drawn; the legend uses the same style. */
 const edgeStyle = (type: string, ti: number): {stroke: 'accent' | 'danger' | 'muted' | 'text'; dash?: string} => ({stroke: type === 'blocks' ? 'danger' : kindTone(ti), dash: type === 'uses' ? '8,5' : type === 'relates' ? '2,5' : type === 'blocks' ? '10,4,2,4' : ti > 3 ? (ti % 2 ? '8,5' : '2,5') : undefined});
 export function layoutPert(s: PertSpec, g: ChartGeom): LaidOutChartPart {
@@ -90,7 +91,7 @@ export function layoutDependency(s: DependencySpec, g: ChartGeom): LaidOutChartP
     return {e, path, head: e.type === 'relates' ? [] : [headBox(path, sw)]};
   });
   const heads = drawn.flatMap(d => d.head);
-  for (const n of s.nodes) { const p = positions.get(n.id)!, ki = n.kind ? kinds.indexOf(n.kind) : -1, tone = ki < 0 ? 'text' : kindTone(ki), host = nodeBox(c, p, n.id, n.label, tone); c.text(n.label, p.x + p.w / 2, c.mid(p.y + p.h / 2), 'middle', 'text', {bold: true, host, of: n.id}); }
+  for (const n of s.nodes) { const p = must(positions.get(n.id)), ki = n.kind ? kinds.indexOf(n.kind) : -1, tone = ki < 0 ? 'text' : kindTone(ki), host = nodeBox(c, p, n.id, n.label, tone); c.text(n.label, p.x + p.w / 2, c.mid(p.y + p.h / 2), 'middle', 'text', {bold: true, host, of: n.id}); }
   for (const {e, path} of drawn) {
     const text = [e.label ?? s.edgeTypes[e.type] ?? e.type, e.weight === undefined ? '' : numText(e.weight)].filter(Boolean).join(' ');
     // a label with no room is left out, as before (it does not change what the figure says, and stopping would break charts that draw today)

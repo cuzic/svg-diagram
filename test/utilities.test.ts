@@ -85,11 +85,11 @@ test('wrapAtoms: breaks at the width, honours explicit \\n, drops leading whites
 test('wrapAtoms kinsoku: closing punctuation never starts a line, opening brackets never end one', () => {
   const lines = wrapText('あいう。えお', {maxWidth: 3, atomWidth: w1, mode: 'phrase'});
   assert.deepEqual(lines, ['あいう。', 'えお']);
-  assert.ok(lines.every(l => !'、。」）'.includes(l[0])));
+  assert.ok(lines.every(l => !'、。」）'.includes(l[0]!)));
   const open = wrapText('あい「うえ」', {maxWidth: 3, atomWidth: w1, mode: 'phrase'});
   assert.ok(open.every(l => !'「'.includes(l.at(-1)!)), JSON.stringify(open));
   assert.equal(open.join(''), 'あい「うえ」');
-  assert.deepEqual(wrapText('あいうーえ', {maxWidth: 3, atomWidth: w1, mode: 'phrase'})[1][0] !== 'ー', true, 'the long vowel mark does not start a line');
+  assert.deepEqual(wrapText('あいうーえ', {maxWidth: 3, atomWidth: w1, mode: 'phrase'})[1]![0] !== 'ー', true, 'the long vowel mark does not start a line');
   assert.deepEqual(splitAtoms('ab 日本c'), ['ab', ' ', '日', '本', 'c']);
 });
 

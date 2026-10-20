@@ -14,6 +14,7 @@ export function sniffImage(b: Buffer): {mime: string; w: number; h: number} | nu
     while (i + 9 < b.length) {
       if (b[i] !== 0xff) { i++; continue; }
       const m = b[i + 1];
+      if (m === undefined) break;
       if (m === 0xff) { i++; continue; }
       if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return {mime: 'image/jpeg', h: b.readUInt16BE(i + 5), w: b.readUInt16BE(i + 7)};
       if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { i += 2; continue; }
@@ -43,5 +44,5 @@ export function describeImage(buf: Buffer): ImageFile {
 export function readDataImage(src: string): ImageFile {
   const m = /^data:image\/(?:png|jpeg|gif|webp);base64,([A-Za-z0-9+/=]+)$/.exec(src);
   if (!m) throw new Error('image(): a data URI must be data:image/png|jpeg|gif|webp;base64,…');
-  return describeImage(Buffer.from(m[1], 'base64'));
+  return describeImage(Buffer.from(m[1] ?? '', 'base64'));
 }

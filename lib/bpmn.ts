@@ -41,7 +41,7 @@ interface BpmnMetrics {labelCol: number; colGap: number; taskMax: number; flowRo
 export function layoutBpmn(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv): LaidOutBpmn {
   const steps = band.fit === 'shrink' ? SHRINK_STEPS : SHRINK_STEPS.slice(0, 1);
   for (const m of steps.slice(0, -1)) { const out = layoutBpmnAt(band, x, y, w, widthOf, roles, env, m, false); if (out) return out; }
-  return layoutBpmnAt(band, x, y, w, widthOf, roles, env, steps[steps.length - 1], true)!;
+  return layoutBpmnAt(band, x, y, w, widthOf, roles, env, must(steps[steps.length - 1]), true);
 }
 
 function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: true): LaidOutBpmn;
@@ -74,8 +74,8 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   interface M {w: number; h: number; lines?: NodeLines; label: string[]; extent: number}
   const meas = new Map<string, M>();
   for (const n of band.nodes) {
-    const k = kindOf.get(n.id)!;
-    if (k === 'task') { const m = measureNode(n.label!, n.sub, TASK_MAX, widthOf, roles, env.wrap, env.keepWords, {keepWordsCap: 168 - 28}); const h = m.h + (n.icon ? ICON_H : 0); meas.set(n.id, {w: m.w, h, lines: m, label: [], extent: h}); continue; }
+    const k = must(kindOf.get(n.id)); // kindOf has every node
+    if (k === 'task') { const m = measureNode(must(n.label), n.sub, TASK_MAX, widthOf, roles, env.wrap, env.keepWords, {keepWordsCap: 168 - 28}); const h = m.h + (n.icon ? ICON_H : 0); meas.set(n.id, {w: m.w, h, lines: m, label: [], extent: h}); continue; }
     const size = isEvent(k) ? EVENT : GATE;
     const label = n.label ? wrapText(n.label, {maxWidth: LABEL_MAX, atomWidth: a => widthOf(a, B, 400, 'sans'), mode: env.wrap}) : [];
     meas.set(n.id, {w: size, h: size, label, extent: size + (label.length ? 4 + label.length * lineH(B) : 0)});

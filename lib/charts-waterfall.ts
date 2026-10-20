@@ -84,7 +84,7 @@ export const waterfallScale = (spec: WaterfallSpec): ReturnType<typeof valueScal
 
 export function waterfallTexts(spec: WaterfallSpec): [string, number][] {
   const out: [string, number][] = [];
-  for (const s of spec.steps) { out.push([s.label, 400], [s.label, 700], [valueOf(s, spec.unit), 700]); }
+  for (const s of spec.steps) { out.push([s.label, 400], [s.label, 700], [stepText(s, spec.unit), 700]); }
   if (spec.axis) for (const t of waterfallScale(spec).ticks) out.push([numText(t), 400]);
   return out;
 }
@@ -159,7 +159,7 @@ export function layoutWaterfall(spec: WaterfallSpec, g: ChartGeom): LaidOutChart
 function layoutWaterfallH(spec: WaterfallSpec, g: ChartGeom): LaidOutChartPart {
   const S = g.size, n = spec.steps.length, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap), lh = c.lineH(), r1 = (v: number) => Math.round(v * 10) / 10;
   const lo = Math.min(0, ...spec.steps.flatMap(s => [s.from, s.to])), sc = waterfallScale(spec), ticks = spec.axis ? sc.ticks.map(t => ({v: t, s: numText(t)})) : [];
-  const texts = spec.steps.map(s => valueOf(s, spec.unit));
+  const texts = spec.steps.map(s => stepText(s, spec.unit));
   const valW = Math.max(...texts.map(t => c.tw(t, true))) + 12;
   const labelW = Math.min(Math.max(...spec.steps.map(s => c.tw(s.label, s.kind !== 'delta'))) + 14, g.w * 0.3);
   const cats = spec.steps.map(s => c.wrap(s.label, labelW - 14, s.kind !== 'delta'));

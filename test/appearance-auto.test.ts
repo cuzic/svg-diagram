@@ -14,7 +14,7 @@ import {buildDeck} from '../lib/deck-html.ts';
 import {rasterize} from '../lib/raster.ts';
 import {geometryChecks} from '../lib/geometry-checks.ts';
 
-process.env.SVG_DIAGRAM_STRICT_WIDTH = '1';
+process.env['SVG_DIAGRAM_STRICT_WIDTH'] = '1';
 test.after(() => closeMeasurer());
 
 type Look = 'light' | 'dark' | 'auto' | undefined;
@@ -37,15 +37,15 @@ test('the block holds one rule per (attribute, colour) the figure uses, in order
   const rules = [...auto.matchAll(/^ {6}svg\[data-appearance="auto"\] \[(fill|stroke|stop-color|flood-color|color)="(#[0-9a-f]{6})" i\] \{ \1: (#[0-9a-f]{6}) \}$/gm)];
   const body = stripAutoBlock(auto);
   const used = new Map<string, Set<string>>();
-  for (const m of body.matchAll(/\s(fill|stroke|stop-color|flood-color|color)="(#[0-9a-f]{6})"/g)) (used.get(m[1]) ?? used.set(m[1], new Set()).get(m[1])!).add(m[2]);
+  for (const m of body.matchAll(/\s(fill|stroke|stop-color|flood-color|color)="(#[0-9a-f]{6})"/g)) (used.get(m[1]!) ?? used.set(m[1]!, new Set()).get(m[1]!)!).add(m[2]!);
   let expected = 0;
   for (const set of used.values()) for (const hex of set) if (darkOf(hex) !== hex) expected++;
   assert.ok(expected > 3);
   assert.equal(rules.length, expected);
-  for (const [, , light, dark] of rules) assert.equal(dark, darkOf(light));
+  for (const [, , light, dark] of rules) assert.equal(dark, darkOf(light!));
   const order = ['fill', 'stroke', 'stop-color', 'flood-color', 'color'];
-  const keys = rules.map(m => [order.indexOf(m[1]), m[2]] as const);
-  assert.deepEqual(keys, [...keys].sort((x, y) => x[0] - y[0] || (x[1] < y[1] ? -1 : x[1] > y[1] ? 1 : 0)));
+  const keys = rules.map(m => [order.indexOf(m[1]!), m[2]] as const);
+  assert.deepEqual(keys, [...keys].sort((x, y) => x[0] - y[0] || (x[1]! < y[1]! ? -1 : x[1]! > y[1]! ? 1 : 0)));
   assert.equal(autoBlock(body, NO_TONES), autoBlock(auto, NO_TONES), 'the same figure gives the same block');
   // a colour the figure does not use has no rule
   const unused = ['#a8632b', '#f1e3d3'].filter(c => !body.includes(c)); // the amber theme is not in a blue figure
@@ -93,11 +93,11 @@ test('inlineSvg and deck: the dark rules are confined to their own figure', asyn
   const id = /^<svg [^>]*\sid="(sd[^"]+)"/.exec(inline)![1];
   const rulesOf = (css: string) => css.split('\n').filter(l => /\[fill=|\[stroke=/.test(l));
   const inlineCss = /<style>([\s\S]*?)<\/style>/.exec(inline)![1];
-  assert.ok(rulesOf(inlineCss).length > 3);
-  for (const l of rulesOf(inlineCss)) assert.match(l, new RegExp(`^\\s*#${id} svg\\[data-appearance="auto"\\] .*, svg#${id}\\[data-appearance="auto"\\] `));
+  assert.ok(rulesOf(inlineCss!).length > 3);
+  for (const l of rulesOf(inlineCss!)) assert.match(l, new RegExp(`^\\s*#${id} svg\\[data-appearance="auto"\\] .*, svg#${id}\\[data-appearance="auto"\\] `));
   const deck = buildDeck([{name: 'a', svg: auto}, {name: 'b', svg: auto}], {css: '', js: ''});
   const sheet = deck.split('<style>').slice(1).join('').split('</style>')[0];
-  for (const l of rulesOf(sheet)) assert.match(l, /^\s*#s[12] svg\[data-appearance="auto"\] /);
+  for (const l of rulesOf(sheet!)) assert.match(l, /^\s*#s[12] svg\[data-appearance="auto"\] /);
   assert.ok(!/<section[^>]* slide-dark/.test(deck), 'an auto figure does not darken the deck frame');
 });
 
@@ -147,8 +147,8 @@ test('autoSides: light is the figure without its block; dark has the block\'s co
   assert.equal(light.replace(' data-appearance="auto"', ''), await draw('light'));
   assert.ok(!light.includes('@media'));
   const colours = (s: string) => new Set([...s.matchAll(/\s(?:fill|stroke)="(#[0-9a-f]{6})"/g)].map(m => m[1]));
-  for (const c of colours(light)) assert.ok(LIGHT_COLORS.has(c), `light side has ${c}`);
-  for (const c of colours(dark)) assert.ok(DARK_COLORS.has(c), `dark side has ${c}`);
+  for (const c of colours(light)) assert.ok(LIGHT_COLORS.has(c!), `light side has ${c}`);
+  for (const c of colours(dark)) assert.ok(DARK_COLORS.has(c!), `dark side has ${c}`);
   assert.equal(dark, recolor(NO_TONES, light, 'dark'), 'for a figure without tone overrides the block and the table agree');
 });
 

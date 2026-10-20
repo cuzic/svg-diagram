@@ -1,4 +1,5 @@
 // wordart(): what to measure, and where everything goes (docs/adr/0009). Pure; widths come from the measured atoms.
+import {must} from './must.ts';
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
 import type {Rect, Roles, WidthOf, WrapMode} from './types/core.ts';
@@ -44,11 +45,13 @@ function arcGlyphs(text: string, size: number, arc: number, spacing: number, adv
   const corners: [number, number][] = [];
   let at = -total / 2;
   chars.forEach((ch, i) => {
-    const mid = at + widths[i] / 2, phi = mid / R;
+    const wi = must(widths[i]); // one width per char
+    const mid = at + wi / 2, phi = mid / R;
     const px = R * Math.sin(phi), py = sign * R * (1 - Math.cos(phi)), rot = sign * phi, c = Math.cos(rot), s = Math.sin(rot);
-    raw.push({ch, x: px - widths[i] / 2 * c, y: py - widths[i] / 2 * s, rot: rot * 180 / Math.PI});
-    for (const [u, v] of [[-widths[i] / 2, -ASCENT * size], [widths[i] / 2, -ASCENT * size], [widths[i] / 2, DESCENT * size], [-widths[i] / 2, DESCENT * size]]) corners.push([px + u * c - v * s, py + u * s + v * c]);
-    at += widths[i] + spacing;
+    raw.push({ch, x: px - wi / 2 * c, y: py - wi / 2 * s, rot: rot * 180 / Math.PI});
+    const quad: [number, number][] = [[-wi / 2, -ASCENT * size], [wi / 2, -ASCENT * size], [wi / 2, DESCENT * size], [-wi / 2, DESCENT * size]];
+    for (const [u, v] of quad) corners.push([px + u * c - v * s, py + u * s + v * c]);
+    at += wi + spacing;
   });
   const minX = Math.min(...corners.map(p => p[0])), minY = Math.min(...corners.map(p => p[1]));
   return {glyphs: raw.map(g => ({...g, x: g.x - minX, y: g.y - minY})), w: Math.max(...corners.map(p => p[0])) - minX, h: Math.max(...corners.map(p => p[1])) - minY};
@@ -60,8 +63,8 @@ interface Figure {items: ArtItem[]; boxes: Rect[]; w: number; h: number; /** Whe
 /** What every setter knows: the band's text, the size and the look, the width of a text, and the room the figure may take. */
 interface Setting {text: string; size: number; look: WordArtLook; opts: WordArtBand['opts']; wOf: (text: string) => number; widthOf: WidthOf; room: number; mode: WrapMode}
 
-function setArc(s: Setting): Figure {
-  const a = arcGlyphs(s.text, s.size, s.opts.arc!, s.look.spacing, s.wOf);
+function setArc(s: Setting, arc: number): Figure {
+  const a = arcGlyphs(s.text, s.size, arc, s.look.spacing, s.wOf);
   return {items: [{k: 'arc', size: s.size, glyphs: a.glyphs}], boxes: [{x: 0, y: 0, w: a.w, h: a.h}], w: a.w, h: a.h, base: a.h};
 }
 
@@ -97,7 +100,8 @@ function setHorizontal(s: Setting): Figure {
     if (!line) return;
     base = i * size * LINE_H + size * ((LINE_H - 1.2) / 2 + 1);
     items.push({k: 'line', text: line, x: ax, y: base, anchor, size});
-    boxes.push({x: ax - (anchor === 'start' ? 0 : anchor === 'end' ? widths[i] : widths[i] / 2), y: i * size * LINE_H + (size * LINE_H - size * 1.2) / 2, w: widths[i], h: size * 1.2});
+    const wl = must(widths[i]); // one width per line
+    boxes.push({x: ax - (anchor === 'start' ? 0 : anchor === 'end' ? wl : wl / 2), y: i * size * LINE_H + (size * LINE_H - size * 1.2) / 2, w: wl, h: size * 1.2});
   });
   return {items, boxes, w, h, base};
 }
@@ -108,7 +112,7 @@ function setHorizontal(s: Setting): Figure {
  */
 function uidOf(text: string, look: WordArtLook, at: Rect): string {
   let h = 5381;
-  for (const ch of JSON.stringify([text, look, Math.round(at.x), Math.round(at.y), Math.round(at.w), Math.round(at.h)])) h = (Math.imul(h, 33) ^ ch.codePointAt(0)!) >>> 0;
+  for (const ch of JSON.stringify([text, look, Math.round(at.x), Math.round(at.y), Math.round(at.w), Math.round(at.h)])) h = (Math.imul(h, 33) ^ (ch.codePointAt(0) ?? 0)) >>> 0;
   return `wa${h.toString(36)}`;
 }
 
@@ -126,7 +130,7 @@ export function layoutWordArt(b: WordArtBand, x: number, y: number, cw: number, 
   const reach = inkReach(look), platePad = look.plate ? size * PLATE_PAD : 0;
   const padL = reach.left + platePad, padR = reach.right + platePad, padT = reach.top + platePad, padB = reach.bottom + platePad;
   const setting: Setting = {text: b.text, size, look, opts: b.opts, widthOf, wOf: t => textWidth(widthOf, t, size, look.weight, look.font), room: Math.max(size, (b.opts.limit ?? cw) - padL - padR), mode};
-  const fig = b.opts.arc ? setArc(setting) : vertical ? setVertical(setting) : setHorizontal(setting);
+  const fig = b.opts.arc ? setArc(setting, b.opts.arc) : vertical ? setVertical(setting) : setHorizontal(setting);
   // the mirror image goes under the letters: a gap, then the top part of the reflection
   const refH = look.reflection ? Math.min(fig.h, size) * REFLECTION_SHARE : 0, below = look.reflection ? Math.max(0, fig.base + look.reflection.gap + refH - fig.h) : 0;
   const w = fig.w + padL + padR, h = fig.h + padT + padB + below, turned = turnedBox(w, h, look.rotate), W = turned.w, H = turned.h;

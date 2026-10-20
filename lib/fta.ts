@@ -13,6 +13,7 @@ import {SHARED_LIMIT, ftaVar, minimalCutSets, singlePoints, topProbability} from
 import type {NodeLines} from './tree.ts';
 import type {FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {FtaBand, FtaEvent, FtaGate, FtaKind, LaidOutFta} from './types/diagrams.ts';
+import {must} from './must.ts';
 
 export const FTA_KINDS = ['event', 'basic', 'undeveloped', 'house', 'condition'] as const;
 export const FTA_GATES = ['and', 'or', 'vote', 'inhibit'] as const;
@@ -245,7 +246,7 @@ export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthO
       return c;
     };
     measure(root);
-    const toTree = (n: FtaNode): TreeNode => ({id: n.key, size: {w: comps.get(n.key)!.w, h: comps.get(n.key)!.h}, ...(n.children.length ? {children: n.children.map(toTree)} : {})});
+    const toTree = (n: FtaNode): TreeNode => { const sz = must(comps.get(n.key)); return {id: n.key, size: {w: sz.w, h: sz.h}, ...(n.children.length ? {children: n.children.map(toTree)} : {})}; };
     const tree = layoutTree(toTree(root), {dir: 'down', gap: Math.round(GAP * (env.space ?? 1)), levelGap: Math.round(LEVEL_GAP * (env.space ?? 1))});
     return {size: {w: tree.w, h: tree.h}, score: {crossings: 0, bends: 0}, comps, tree, root};
   };
@@ -274,7 +275,7 @@ export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthO
   const cx = (p: {x: number; w: number}): number => p.x + p.w / 2;
   const seg = (a: {x: number; y: number}, b: {x: number; y: number}) => out.edges.push({points: [a, b]});
   for (const [key, p] of tree.nodes) {
-    const c = comps.get(key)!, n = c.node, px = p.x + dx, py = p.y + dy, mid = px + p.w / 2;
+    const c = must(comps.get(key)), n = c.node, px = p.x + dx, py = p.y + dy, mid = px + p.w / 2;
     const r = place(n, px, py, p.w, c.lines, c.rect.w, c.rect.h);
     if (n.gate === undefined) {
       const m = {x: mid - MARK_W / 2, y: r.y + r.h + STEM, w: MARK_W, h: MARK_H};
@@ -297,8 +298,8 @@ export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthO
     }
   }
   for (const e of tree.edges) {
-    const from = comps.get(e.from)!, pts = e.points.map(q => ({x: q.x + dx, y: q.y + dy}));
-    pts[0] = {x: pts[0].x, y: tree.nodes.get(e.from)!.y + dy + from.outY}; // the lines leave from the bottom of the gate
+    const from = must(comps.get(e.from)), pts = e.points.map(q => ({x: q.x + dx, y: q.y + dy}));
+    pts[0] = {x: must(pts[0]).x, y: must(tree.nodes.get(e.from)).y + dy + from.outY}; // the lines leave from the bottom of the gate
     out.edges.push({points: pts});
   }
   if (band.quant) { // the probability of the top event and what it assumes, wrapped to the band, centred under the tree

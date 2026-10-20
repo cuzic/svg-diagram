@@ -28,7 +28,7 @@ export function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
   for (const [i, c] of over.entries()) if (c?.type === 'connect') throw new Error(`image(): over[${i}] is a connect() — add connectors at the top level of the diagram (they may point at ids inside the picture)`);
   if (!opts.alt?.trim() && !opts.decorative) throw new Error('image(): alt is required (what the picture shows) — or pass decorative: true when it adds nothing');
   if (opts.alt && opts.decorative) throw new Error('image(): alt and decorative: true contradict each other');
-  for (const k of ['width', 'height'] as const) if (opts[k] !== undefined && (!(opts[k]! > 0) || !Number.isFinite(opts[k]))) throw new Error(`image(): ${k} must be a finite number > 0 (got ${opts[k]})`);
+  for (const k of ['width', 'height'] as const) { const v = opts[k]; if (v !== undefined && (!(v > 0) || !Number.isFinite(v))) throw new Error(`image(): ${k} must be a finite number > 0 (got ${opts[k]})`); }
   if (opts.width !== undefined && opts.height !== undefined) throw new Error('image(): give width or height, not both (the other follows the picture\'s aspect ratio)');
   assertTextRole(opts.labelRole, LABEL_ROLES, 'image() labelRole');
   if (opts.align !== undefined && !['left', 'center', 'right'].includes(opts.align)) throw new Error(`image(): align must be 'left', 'center' or 'right' (got ${opts.align})`);

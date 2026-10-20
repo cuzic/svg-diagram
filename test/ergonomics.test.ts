@@ -138,14 +138,14 @@ test('row({id}).col(n): a column of a row is a connect() anchor (its top / botto
   const [r1, r2] = laidOut.laidOut.filter((b): b is LaidOutRow => b.type === 'row');
   const cs = laidOut.connects;
   // 900 wide, gap 16: twelve 60px columns, 76px apart, the middle gutter 20 (a grid step more, so the two halves are equal)
-  assert.equal(r1.w, 900);
+  assert.equal(r1!.w, 900);
   const colX = (a: number) => (a - 1) * 76 + (a > 6 ? 4 : 0), colEnd = (b: number) => colX(b) + 60, mid = (a: number, b = a) => (colX(a) + colEnd(b)) / 2;
-  assert.equal(Math.round(cs[0].from.x), Math.round(r1.x + mid(5)), 'the middle of the 5th column of the top row');
-  assert.equal(Math.round(cs[0].to.x), Math.round(r2.x + mid(2)), 'the middle of the 2nd column of the bottom row');
-  assert.equal(Math.round(cs[0].from.y), Math.round(r1.y + r1.h));
-  assert.equal(Math.round(cs[1].from.x), Math.round(r2.x + mid(4, 12)), 'columns 4..12 as one');
-  assert.equal(Math.round(cs[2].to.x), Math.round(r1.x + mid(7, 12)), 'a span of columns too');
-  assert.equal(Math.round(cs[2].from.x), Math.round(r1.x + mid(1, 6)));
+  assert.equal(Math.round(cs[0]!.from.x), Math.round(r1!.x + mid(5)), 'the middle of the 5th column of the top row');
+  assert.equal(Math.round(cs[0]!.to.x), Math.round(r2!.x + mid(2)), 'the middle of the 2nd column of the bottom row');
+  assert.equal(Math.round(cs[0]!.from.y), Math.round(r1!.y + r1!.h));
+  assert.equal(Math.round(cs[1]!.from.x), Math.round(r2!.x + mid(4, 12)), 'columns 4..12 as one');
+  assert.equal(Math.round(cs[2]!.to.x), Math.round(r1!.x + mid(7, 12)), 'a span of columns too');
+  assert.equal(Math.round(cs[2]!.from.x), Math.round(r1!.x + mid(1, 6)));
 });
 
 test('row({id}).col(n) on a row without cols is its n-th child; bad column numbers throw', async () => {

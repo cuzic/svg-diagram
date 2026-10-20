@@ -5,7 +5,7 @@ import type {Revealed, RevealCtx} from './reveal-handlers.ts';
 import type {DiagramData} from './types/core.ts';
 import type {Band} from './types/index.ts';
 
-const refId = (ref: string): string => ref.split(':')[0];
+const refId = (ref: string): string => ref.split(':')[0] ?? ref;
 
 /** Resolve inheritance once, before the one full layout shared by every stage. The per-band-type parts live in reveal-handlers.ts. */
 export function prepareReveal(d: DiagramData): number {

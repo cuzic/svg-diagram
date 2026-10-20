@@ -159,7 +159,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
         if (width > avail + 0.5) overflow.push({value: r.text, width, avail, min: r.size}); // r.size: a value that may shrink is drawn at its floor by now
       }
       if (overflow.length) (placed as Placed<BoxBand> & {nowrapOverflow?: typeof overflow}).nowrapOverflow = overflow;
-      const shrunk = wrappedRuns.filter(r => r.shrunkFrom !== undefined).map(r => ({value: r.text, from: r.shrunkFrom!, to: r.size}));
+      const shrunk = wrappedRuns.filter(r => r.shrunkFrom !== undefined).map(r => ({value: r.text, from: r.shrunkFrom ?? r.size, to: r.size}));
       if (shrunk.length) (placed as Placed<BoxBand> & {statShrunk?: typeof shrunk}).statShrunk = shrunk;
     }
     if (chrome.tag) {
@@ -167,8 +167,8 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
       placed.tagBox = {x: chrome.tagAt === undefined ? x + w - tw - 12 : x + w * chrome.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
     }
     const name = chrome.id ? qualify(scope, chrome.id) : undefined;
-    if (chrome.id && (areaIds.has(name!) || anchors.has(name!))) claimed(name!, 'a box takes an id that another box, group or row already has');
-    if (chrome.id) { setBox(name!, {...band, x, y, w, h} as never, h); if (scope) addScoped(scopes, scope, chrome.id); }
+    if (chrome.id && name !== undefined && (areaIds.has(name) || anchors.has(name))) claimed(name, 'a box takes an id that another box, group or row already has');
+    if (chrome.id && name !== undefined) { setBox(name, {...band, x, y, w, h} as never, h); if (scope) addScoped(scopes, scope, chrome.id); }
     return placed;
   };
 

@@ -164,7 +164,7 @@ test('mindmap layout org: no bus line has a 1-4px step (the mid child is dropped
   const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(mindmap(dev, {layout: 'org'})));
   const t = laidOut.laidOut.find(b => b.type === 'tree') as LaidOutTree;
   for (const e of t.edges) for (let k = 1; k + 2 < e.points.length; k++) {
-    const len = Math.abs(e.points[k + 1].x - e.points[k].x) + Math.abs(e.points[k + 1].y - e.points[k].y);
+    const len = Math.abs(e.points[k + 1]!.x - e.points[k]!.x) + Math.abs(e.points[k + 1]!.y - e.points[k]!.y);
     assert.ok(len === 0 || len > 4, `a ${len}px step in ${JSON.stringify(e.points)}`);
   }
 });

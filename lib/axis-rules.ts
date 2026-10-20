@@ -47,7 +47,7 @@ export function axisMismatches(bands: readonly Band[]): string[] {
       if (isChartLike(b)) { if (prev) pair(valueAxisOf(prev), valueAxisOf(b), false); prev = b; } else if (charts(b).length) prev = undefined;
       if (b.type === 'grouprow') {
         const groups = b.children.map(g => g.type === 'group' ? charts(g).map(valueAxisOf) : []);
-        for (let i = 0; i < groups.length; i++) for (let j = i + 1; j < groups.length; j++) for (const x of groups[i]) for (const y of groups[j]) pair(x, y, true);
+        for (const [i, gi] of groups.entries()) for (const gj of groups.slice(i + 1)) for (const x of gi) for (const y of gj) pair(x, y, true);
       }
       visit(nestedBandsOf(b));
     }

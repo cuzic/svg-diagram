@@ -5,7 +5,7 @@
 // Same geometry as the SVG: layout.ts has already broken every text into lines and placed each baseline, so a line is one element
 // with white-space: pre — the browser never re-wraps it. A line's top is its baseline minus the font's ascent (its line-height is
 // ascent + descent), which is how the baseline lands where the <text> of the SVG puts it.
-import {PALETTE, FONT_STACKS, runColorOf, textColorOf, isSolidTone, colorOf, toneStyle, recolor, toneEnv} from './tokens.ts';
+import {PALETTE, FONT_STACKS, runColorOf, textColorOf, recolor, toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import {createHash} from 'node:crypto';
 import {emitSvg, resolveBoxStyle} from './emit.ts';
@@ -44,8 +44,9 @@ function textRuns(runs: WrappedRun[], o: {originX: number; originY: number; w: n
     const indent = run.indent ?? 0;
     const {ascent, descent} = o.fb(run.size, run.weight, run.mono);
     run.lines.forEach((line, i) => {
-      const top = o.originY + run.lineYs[i] - ascent;
-      const content = run.lineSpans ? spans(run.lineSpans[i], run, color, o.day, o.tones, o.dim) : esc(line).trim();
+      const top = o.originY + must(run.lineYs[i]) - ascent; // one y per line
+      const lineSpans = run.lineSpans?.[i];
+      const content = lineSpans ? spans(lineSpans, run, color, o.day, o.tones, o.dim) : esc(line).trim();
       out.push(`<div class="sd-t${run.mono ? ' sd-m' : ''}" style="left:${px(o.originX + indent)};top:${px(top)};width:${px(o.w - indent)};text-align:${o.align};font-size:${run.size}px;font-weight:${run.weight};line-height:${ascent + descent}px;color:${color}">${content}</div>`);
     });
   }
@@ -77,7 +78,7 @@ function caption(b: LaidOutCaption, day: Theme, tones: ToneEnv, fb: FontBox): st
   return textRuns(b.wrappedRuns, {originX: b.x, originY: b.y, w: b.w, align: b.align ?? 'center', day, tones, fb, dim: b.dim});
 }
 
-function group(b: LaidOutGroup, day: Theme, tones: ToneEnv, fb: FontBox): string {
+function group(b: LaidOutGroup, day: Theme, tones: ToneEnv, _fb: FontBox): string {
   return b.frame === false ? '' : shape(b, b, day, tones, 'muted');
 }
 

@@ -84,8 +84,8 @@ function pathSegments(points: Point[]): Rect[] {
 
 const ANNOT_LEG = 16, ANNOT_GAP = 4, CALLOUT_LEN = 28;
 /** bracket(): ⊔ (below) / ⊓ (above) from one anchor's x to the other's, label outside it. callout(): a leader line to the target, the text in a pill at its far end. */
-function resolveAnnotation(band: ConnectBand, anchors: Map<string, Rect>, widthOf: WidthOf, roles: Roles, scopes?: ScopeTable): LaidOutConnect {
-  const {kind, side} = band.annot!, size = roles.connectLabel ?? CONNECT_LABEL_SIZE;
+function resolveAnnotation(band: ConnectBand, annot: NonNullable<ConnectBand['annot']>, anchors: Map<string, Rect>, widthOf: WidthOf, roles: Roles, scopes?: ScopeTable): LaidOutConnect {
+  const {kind, side} = annot, size = roles.connectLabel ?? CONNECT_LABEL_SIZE;
   const fromRef = resolveRef(band.from, anchors, scopes), toRef = resolveRef(band.to, anchors, scopes);
   const fromRect = anchors.get(fromRef.id), toRect = anchors.get(toRef.id);
   if (!fromRect) throw new Error(`${kind}(): unknown anchor id "${fromRef.id}" (give the box an id)${scopes ? unknownHint(scopes, fromRef.id) : ''}`);
@@ -123,7 +123,7 @@ function resolveAnnotation(band: ConnectBand, anchors: Map<string, Rect>, widthO
 }
 
 export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf, roles: Roles, nodeBottoms: Map<string, number> = new Map(), scopes?: ScopeTable): LaidOutConnect {
-  if (band.annot) return resolveAnnotation(band, anchors, widthOf, roles, scopes);
+  if (band.annot) return resolveAnnotation(band, band.annot, anchors, widthOf, roles, scopes);
   const fromRef = resolveRef(band.from, anchors, scopes), toRef = resolveRef(band.to, anchors, scopes);
   const fromRect = anchors.get(fromRef.id);
   const toRect = anchors.get(toRef.id);

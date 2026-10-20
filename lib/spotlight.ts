@@ -152,7 +152,7 @@ export function applySpotlight(d: LaidOutDiagram): void {
   const scopes = scopesOfLaidOut(d);
   const ids = scopes.byBare.size ? written.map(id => resolveAnchor(scopes, id, n => targetRects(d, [n]).length > 0) ?? id) : written;
   const found = ids.map(id => targetRects(d, [id]));
-  const missing = written.filter((_id, i) => !found[i].length);
+  const missing = written.filter((_id, i) => !found[i]?.length);
   if (missing.length) {
     // a node of a self-placing figure is an anchor for connect(), but the figure is dimmed or lit as a whole
     const figureOf = (id: string): LaidOutBand | undefined => d.laidOut.find(b => b.type !== 'bars' && b.type !== 'image' && 'anchors' in b && (b.anchors as {id: string}[]).some(a => qualify(scopeOf(b), a.id) === id));

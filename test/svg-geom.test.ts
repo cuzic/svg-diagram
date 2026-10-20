@@ -182,7 +182,7 @@ test('familyKind: the first family of the list decides', () => {
 const STYLE = `<style>text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }</style>`;
 const boxOfText = (inner: string, attrs = '') => {
   const r = root(`${STYLE}<text id="e" ${attrs}>${inner}</text>`);
-  return textBoxOf(elements(r).find(e => e.attrs.id === 'e')!, computeStyles(r), measure);
+  return textBoxOf(elements(r).find(e => e.attrs['id'] === 'e')!, computeStyles(r), measure);
 };
 const sans = (text: string, size: number, weight = 400) => textBox(text, 'sans', size, weight);
 const skip = haveFont ? false : 'no font file found';

@@ -40,8 +40,8 @@ test('a .ts and an .svg make one deck.html with two sections, in the order given
   const html = read('deck.html');
   const sections = [...html.matchAll(/<section\b[^>]*>/g)].map(m => m[0]);
   assert.equal(sections.length, 2);
-  assert.match(sections[0], /aria-label="1 \/ 2: 試験図"/);
-  assert.match(sections[1], /data-name="bars"/);
+  assert.match(sections[0]!, /aria-label="1 \/ 2: 試験図"/);
+  assert.match(sections[1]!, /data-name="bars"/);
   assert.equal(blocks(html, 'style').length, 1);
   assert.equal(blocks(html, 'script').length, 1);
   assert.doesNotMatch(html, /<metadata|\ssrc=|href="http/);

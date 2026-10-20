@@ -33,9 +33,9 @@ test('stackedBars / tornado take a domain too (stacked columns only)', () => {
 test('chart-axis-mismatch: two charts one under the other, same unit, value axis along the page, different axes -> warn (the book\'s 0-6 vs 0-10)', async () => {
   const f = await found(caption('投資コスト'), wf(invest), caption('期待リターン'), wf(ret));
   assert.equal(f.length, 1);
-  assert.match(f[0].message, /0〜6/);
-  assert.match(f[0].message, /0〜10/);
-  assert.match(f[0].message, /百万ドル/);
+  assert.match(f[0]!.message, /0〜6/);
+  assert.match(f[0]!.message, /0〜10/);
+  assert.match(f[0]!.message, /百万ドル/);
 });
 
 test('chart-axis-mismatch: gone with the same domain, axisGroup: false, a different unit, no unit, a chart in between, or a different direction', async () => {
@@ -69,11 +69,11 @@ const barsH = (o: object) => bars([{label: '投資', value: 5.76}, {label: 'リ�
 
 test('plotInset: with the same domain the plot areas still differ by their labels (the problem); with the same inset 5.76 is the same length in bars and waterfall', async () => {
   const [b0, w0] = await laidParts(barsH({}), wfH({}));
-  assert.ok(Math.abs(b0.bars![0].w - w0.solids![0].w) > 20, 'the label columns differ, so the same value is drawn at different lengths');
+  assert.ok(Math.abs(b0!.bars![0]!.w - w0!.solids![0]!.w) > 20, 'the label columns differ, so the same value is drawn at different lengths');
   const inset = {plotInset: [330, 200]};
   const [b1, w1] = await laidParts(barsH(inset), wfH(inset));
-  assert.ok(Math.abs(b1.bars![0].x - w1.solids![0].x) < 0.2, 'the plot starts at the same x');
-  assert.ok(Math.abs(b1.bars![0].w - w1.solids![0].w) < 0.2, `the same value, the same length: ${b1.bars![0].w} vs ${w1.solids![0].w}`);
+  assert.ok(Math.abs(b1!.bars![0]!.x - w1!.solids![0]!.x) < 0.2, 'the plot starts at the same x');
+  assert.ok(Math.abs(b1!.bars![0]!.w - w1!.solids![0]!.w) < 0.2, `the same value, the same length: ${b1!.bars![0]!.w} vs ${w1!.solids![0]!.w}`);
 });
 
 test('plotInset: less than the labels need names the minimum; a vertical chart or a bad inset is refused at the call', async () => {

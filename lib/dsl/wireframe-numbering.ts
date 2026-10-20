@@ -1,5 +1,4 @@
 import {wf} from '../wireframe.ts';
-import {num} from '../qc.ts';
 import type {Band} from '../types/index.ts';
 import type {WfNode, WfOverlay, WfPartKey} from '../types/wireframe-nodes.ts';
 import type {ScreensBand, WfRoot, WfScreen, WfShellProps, WireframeBand, WireframeDefaults} from '../types/wireframe.ts';
@@ -22,7 +21,7 @@ export function collectNumbering(skip: Set<object> | null, trees: NumberTrees): 
   const num = (v: unknown) => { if (typeof v === 'number') max = Math.max(max, v); };
   const walk = (nd: WfNode | WfNode[] | undefined | null): void => {
     if (!nd || typeof nd !== 'object') return;
-    if (Array.isArray(nd)) return nd.forEach(c => walk(c));
+    if (Array.isArray(nd)) { nd.forEach(c => walk(c)); return; }
     if (!nd.t || skip?.has(nd)) return;
     const node = nd;
     if (node.n === true) todo.push(v => { node.n = v; }); else num(node.n);
@@ -45,7 +44,7 @@ export function nodesOf(root: WfRoot): Set<object> {
   const out = new Set<object>();
   const walk = (nd: unknown): void => {
     if (!nd || typeof nd !== 'object') return;
-    if (Array.isArray(nd)) return nd.forEach(walk);
+    if (Array.isArray(nd)) { nd.forEach(walk); return; }
     out.add(nd);
     walk((nd as {children?: unknown}).children);
   };
@@ -78,7 +77,8 @@ export function applyWireframeDefaults(bands: Band[], defaults: WireframeDefault
       content = [wf.appbar(props.title ?? title, {nav, right, active}), ...content];
     }
     if (defaults.shell) content = [defaults.shell(content, props)].flat() as WfNode[];
-    screen.root = content.length === 1 ? content[0] : content;
+    const [only] = content;
+    screen.root = content.length === 1 && only ? only : content;
     if (numbering) {
       const shellNumbers = collectNumbering(own, [screen.root]);
       if (shellNumbers.todo.length) assignNumbers(Math.max(numbering.max, shellNumbers.max), shellNumbers.todo, numbering.todo);

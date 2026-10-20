@@ -10,7 +10,7 @@ import type {FontFamily, Roles, WidthOf, WrapEnv, WrapMode} from './types/core.t
 import type {LaidOutTree, TreeBand, TreeItem, TreeNodeText} from './types/diagrams.ts';
 
 import {must} from './must.ts';
-const PAD_X = 14, PAD_Y = 8, MIN_W = 88, DEFAULT_MAX_W = 200, GAP = 24, LEVEL_GAP = 44;
+const PAD_X = 14, PAD_Y = 8, MIN_W = 88, GAP = 24, LEVEL_GAP = 44;
 
 /** Every item of a tree in drawing order (a parent before its children). */
 export function treeItems(root: TreeItem): TreeItem[] {
@@ -92,14 +92,14 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     const build = (n: TreeItem): TreeNode => {
       const m = measureNode(n.label, n.sub, maxW, widthOf, roles, env.wrap, floor);
       lines.set(n, m);
-      return {id: key.get(n)!, size: {w: m.w, h: m.h}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
+      return {id: must(key.get(n)), size: {w: m.w, h: m.h}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
     };
     const laidRoot = build(band.root);
     const sides = Object.fromEntries(Object.entries(band.sides ?? {}).map(([id, side]) => {
       const item = items.find(n => n.id === id);
       if (!item) throw new Error(`mindmap(): sides names unknown node id "${id}"`);
       if (!band.root.children?.includes(item)) throw new Error(`mindmap(): sides can pin only a child of the root ("${id}" is deeper)`);
-      return [key.get(item)!, side];
+      return [must(key.get(item)), side];
     }));
     const kind = band.balanced ? band.layout ?? 'radial' : dirNow;
     if (band.sides && kind !== 'radial') throw new Error(`mindmap(): sides applies to the radial layout (this is layout: '${kind}')`);
@@ -112,7 +112,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
       : kind === 'brace' ? layoutBrace(laidRoot) : kind === 'fishbone' ? layoutFishbone(laidRoot) : layoutTimelineMap(laidRoot);
     // the line style: straight or smooth instead of the elbow (the first and last point of each line, the smooth one along the way the tree grows)
     const along: 'x' | 'y' = kind === 'down' || kind === 'up' ? 'y' : 'x';
-    const tree: TreeLayout = !styled ? raw : {...raw, edges: raw.edges.map(e => ({...e, points: [e.points[0], e.points[e.points.length - 1]], ...(band.edges === 'curve' ? {curve: along} : {})}))};
+    const tree: TreeLayout = !styled ? raw : {...raw, edges: raw.edges.map(e => ({...e, points: [must(e.points[0]), must(e.points[e.points.length - 1])], ...(band.edges === 'curve' ? {curve: along} : {})}))};
     return {size: {w: tree.w, h: tree.h}, score: {crossings: 0, bends: 0}, tree, lines, kind};
   };
   const explicitDir = !band.balanced && band.dir !== undefined && band.dir !== 'auto';

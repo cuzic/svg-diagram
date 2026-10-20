@@ -103,7 +103,7 @@ export function lineWidth(widthOf: WidthOf, run: WrappedRun, i: number): number 
 
 /** The largest whole-pixel size from `run.size` down to `run.fit.min` at which the unbroken `run` fits `avail` (the same 0.5px slack as the overflow check); `fit.min` when none does. */
 function fittedSize(run: TextRun, avail: number, widthOf: WidthOf): number {
-  const font = run.mono ? 'mono' : 'sans', min = run.fit!.min;
+  const font = run.mono ? 'mono' : 'sans', min = run.fit?.min ?? run.size;
   for (let size = run.size; size > min; size--) if (textWidth(widthOf, run.text, size, run.weight, font) <= avail + 0.5) return size;
   return Math.min(run.size, min);
 }

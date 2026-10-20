@@ -1,6 +1,7 @@
 // The shared ground of the consulting-style charts (waterfall, radar, heatmap, stacked bars / mekko, treemap, sankey, tornado):
 // a small canvas that collects what a chart draws (rects, paths, texts), remembers where every label is, and finds a free spot for
 // a label — so that each chart only says WHAT goes WHERE and verify.ts can check the result the same way for all of them.
+import {must} from './must.ts';
 import {segHitsRect} from './bars.ts';
 import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapAtoms} from './wrap.ts';

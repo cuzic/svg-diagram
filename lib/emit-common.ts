@@ -82,8 +82,8 @@ export function renderTextRuns(
     const runW = w - indent;
     const lx = align === 'center' ? runOriginX + runW / 2 : align === 'right' ? runOriginX + runW : runOriginX;
     run.lines.forEach((line, i) => {
-      const y = originY + run.lineYs[i];
-      const content = run.lineSpans ? spanTspans(run.lineSpans[i], run, color, day, tones, dim) : emojiSpan(line);
+      const y = originY + must(run.lineYs[i]);
+      const content = run.lineSpans ? spanTspans(must(run.lineSpans[i]), run, color, day, tones, dim) : emojiSpan(line);
       parts.push(`<text x="${lx}" y="${y}"${anchor}${cls} font-size="${run.size}" font-weight="${run.weight}" fill="${color}">${content}</text>`);
     });
   }
@@ -130,9 +130,12 @@ import {ARROW_L} from './cause-hop.ts';
 export interface PathCut {x: number; y: number; side: {x: number; y: number}; r: number}
 function cutPath(pts: {x: number; y: number}[], cuts: readonly PathCut[]): string {
   const f = (n: number): string => String(snap4(n));
-  let d = `M${f(pts[0].x)},${f(pts[0].y)}`;
+  const first = must(pts[0]);
+  let d = `M${f(first.x)},${f(first.y)}`;
   for (let i = 0; i + 1 < pts.length; i++) {
-    const a = pts[i], b = pts[i + 1], len = Math.hypot(b.x - a.x, b.y - a.y), ux = (b.x - a.x) / len, uy = (b.y - a.y) / len;
+    const a = pts[i], b = pts[i + 1];
+    if (!a || !b) continue;
+    const len = Math.hypot(b.x - a.x, b.y - a.y), ux = (b.x - a.x) / len, uy = (b.y - a.y) / len;
     const here = cuts.filter(c => Math.abs((c.x - a.x) * uy - (c.y - a.y) * ux) < 0.5 && (c.x - a.x) * ux + (c.y - a.y) * uy > 0 && (c.x - a.x) * ux + (c.y - a.y) * uy < len)
       .sort((p, q) => (p.x - a.x) * ux + (p.y - a.y) * uy - ((q.x - a.x) * ux + (q.y - a.y) * uy));
     for (const c of here) {
@@ -153,14 +156,14 @@ export function arrowPath(points: {x: number; y: number}[], color: string, line:
   };
   const n = pts.length;
   if (end === 'bar') { // a cutting arrow: no head, a bar across the end, just short of the box it cuts
-    const tip = points[n - 1], from = points[n - 2], dx = Math.sign(tip.x - from.x), dy = Math.sign(tip.y - from.y), W = 10, off = 3;
+    const tip = must(points[n - 1]), from = must(points[n - 2]), dx = Math.sign(tip.x - from.x), dy = Math.sign(tip.y - from.y), W = 10, off = 3;
     const bx = snap4(tip.x - dx * off), by = snap4(tip.y - dy * off);
     pts[n - 1] = {x: tip.x - dx * off, y: tip.y - dy * off};
     heads.push(`<path d="M${bx - dy * W},${by + dx * W} L${bx + dy * W},${by - dx * W}" fill="none" stroke="${color}" stroke-width="3"/>`);
     return `<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${color}" stroke-width="${width}"${lineAttrs(line === 'solid' ? undefined : line)}/>\n  ${heads.join('\n  ')}`;
   }
-  pts[n - 1] = head(points[n - 1], points[n - 2]);
-  if (headAt === 'both') pts[0] = head(points[0], points[1]);
+  pts[n - 1] = head(must(points[n - 1]), must(points[n - 2]));
+  if (headAt === 'both') pts[0] = head(must(points[0]), must(points[1]));
   if (cuts?.length) return `<path d="${cutPath(pts, cuts)}" fill="none" stroke="${color}" stroke-width="${width}"${lineAttrs(line === 'solid' ? undefined : line)}/>\n  ${heads.join('\n  ')}`;
   return `<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${color}" stroke-width="${width}"${lineAttrs(line === 'solid' ? undefined : line)}/>\n  ${heads.join('\n  ')}`;
 }

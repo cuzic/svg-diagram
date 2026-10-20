@@ -130,14 +130,14 @@ const checkCause = (band: LaidOutOf<'cause'>, _d: LaidOutDiagram, {problems, war
   // an AND's arc must cover only its own arrows, and must not touch another arc
   for (const [i, a] of band.ands.entries()) {
     const span = (p: {x: number; y: number}): number => Math.abs(a.p0.y - a.p1.y) < 1 ? p.x : p.y; // along the arc's length
-    const [u0, u1] = [span(a.p0), span(a.p1)].sort((p, q) => p - q);
+    const us = [span(a.p0), span(a.p1)].sort((p, q) => p - q), u0 = must(us[0]), u1 = must(us[1]);
     // an arrow that ends on another side of the box (a return) is not under the arc, whatever its coordinate along it: compare the other coordinate with the AND's tips
     const across = (p: {x: number; y: number}): number => Math.abs(a.p0.y - a.p1.y) < 1 ? p.y : p.x;
     const member = band.edges.find(m => m.to === a.to && a.from.includes(m.from));
-    const memberAt = member ? across(member.points[member.points.length - 1]) : undefined;
+    const memberAt = member ? across(must(member.points.at(-1))) : undefined;
     for (const e of band.edges) {
       if (e.to !== a.to) continue;
-      const tip = e.points[e.points.length - 1], u = span(tip);
+      const tip = must(e.points.at(-1)), u = span(tip);
       if (memberAt !== undefined && Math.abs(across(tip) - memberAt) > 1) continue;
       const inside = u > u0 + 0.5 && u < u1 - 0.5;
       if (inside && !a.from.includes(e.from)) problems.push(`cause: the AND arc into "${a.to}" also covers the arrow from "${e.from}" (it reads as part of the AND)`);

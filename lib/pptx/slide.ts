@@ -1,4 +1,5 @@
 // LaidOutDiagram -> the one slide, as a pure function (ADR 0027). I/O stays in emit.ts: the template, resvg and zip.
+import {must} from '../must.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutConnect} from '../types/containers.ts';
 import {fitConnector, siteIndex} from './geom.ts';
@@ -27,7 +28,7 @@ const glueOf = (ctx: Ctx, dslId: string, p: {x: number; y: number}, label: strin
 function connectXml(c: LaidOutConnect, ctx: Ctx): string {
   const fit = c.annot ? undefined : fitConnector(c.points);
   if (!fit?.ok) return freeformXml(ctx.next(), c, ctx.ld.day, ctx.tones);
-  return connectorXml(ctx.next(), c, fit.x, ctx.ld.day, ctx.tones, glueOf(ctx, c.fromId, c.points[0]!, c.fromLabel), glueOf(ctx, c.toId, c.points[c.points.length - 1]!, c.toLabel));
+  return connectorXml(ctx.next(), c, fit.x, ctx.ld.day, ctx.tones, glueOf(ctx, c.fromId, must(c.points[0]), c.fromLabel), glueOf(ctx, c.toId, must(c.points[c.points.length - 1]), c.toLabel));
 }
 
 /** A connector label is a text box of its own (a cxnSp cannot hold text), so it stays where it was when a box moves -- ADR 0027 known limit. */

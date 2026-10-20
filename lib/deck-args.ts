@@ -13,10 +13,10 @@ export function parseDeckArgs(args: readonly string[]): DeckArgsResult {
   const fail = (error: string): DeckArgsResult => ({ok: false, error});
   for (const [i, a] of args.entries()) {
     if (a.startsWith('--') && ![...VALUE, ...BOOL].includes(a)) return fail(`unknown option ${a}`);
-    if (VALUE.includes(a) && (args[i + 1] === undefined || args[i + 1].startsWith('--'))) return fail(`${a} needs a value`);
+    if (VALUE.includes(a) && (args[i + 1]?.startsWith('--') ?? true)) return fail(`${a} needs a value`);
   }
   const val = (n: string): string | undefined => { const i = args.indexOf(n); return i === -1 ? undefined : args[i + 1]; };
-  const files = args.filter((a, i) => !a.startsWith('--') && !VALUE.includes(args[i - 1]!));
+  const files = args.filter((a, i) => !a.startsWith('--') && !VALUE.includes(args[i - 1] ?? ''));
   if (!files.length) return fail('');
   const bad = files.find(f => !/\.(ts|svg)$/.test(f));
   if (bad !== undefined) return fail(`${bad}: a deck takes .ts sources and .svg files`);

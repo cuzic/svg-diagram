@@ -16,6 +16,7 @@
 // line start, don't strand opening punctuation at a line end.
 
 import {splitAtoms} from './atoms.ts';
+import {must} from './must.ts';
 import type {WrapMode, WrapOptions} from './types/core.ts';
 
 const CANNOT_START_LINE: ReadonlySet<string> = new Set(
@@ -27,7 +28,7 @@ const isWhitespace = (atom: string): boolean => /^\s+$/.test(atom);
 
 export type {WrapMode} from './types/core.ts';
 
-const isHiragana = (atom: string): boolean => { if ([...atom].length !== 1) return false; const c = atom.codePointAt(0)!; return c >= 0x3041 && c <= 0x309f; };
+const isHiragana = (atom: string): boolean => { if ([...atom].length !== 1) return false; const c = must(atom.codePointAt(0)); return c >= 0x3041 && c <= 0x309f; };
 const CLAUSE_END: ReadonlySet<string> = new Set('、。，．！？'.split(''));
 
 /** Per atom: does it continue the atom before it (one unit for breaking) because of the script runs ('phrase' / 'bunsetsu') or, in 'bunsetsu', a hiragana that follows a character? */
@@ -35,7 +36,7 @@ function runGlueOf(atoms: {text: string}[], mode: WrapMode): boolean[] {
   const phrase = mode === 'phrase' || mode === 'bunsetsu';
   return atoms.map((a, i) => {
     if (!phrase || i === 0) return false;
-    const prev = atoms[i - 1].text;
+    const prev = must(atoms[i - 1]).text;
     if (scriptRun(a.text) !== '' && scriptRun(a.text) === scriptRun(prev)) return true;
     return mode === 'bunsetsu' && isHiragana(a.text) && !isWhitespace(prev) && prev !== '\n' && !CLAUSE_END.has(prev);
   });

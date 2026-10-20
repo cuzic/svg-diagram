@@ -245,8 +245,8 @@ test('the tspan widths are the layout widths (left / centre / right, spaces at t
     let checked = 0;
     lines.forEach(({run, i}, k) => {
       if (!run.lineSpans) return;
-      const layoutW = run.lineSpans[i].reduce((w, sp) => w + splitAtoms(sp.text).reduce((s, a) => s + widthOf(a, run.size, sp.bold ? 700 : run.weight, 'sans'), 0), 0);
-      const box = textBoxOf(drawn[k], styles, measure)!;
+      const layoutW = run.lineSpans[i]!.reduce((w, sp) => w + splitAtoms(sp.text).reduce((s, a) => s + widthOf(a, run.size, sp.bold ? 700 : run.weight, 'sans'), 0), 0);
+      const box = textBoxOf(drawn[k]!, styles, measure)!;
       assert.ok(Math.abs(box.w - layoutW) <= 0.5, `${align} line "${run.lines[i]}": drawn ${box.w} vs layout ${layoutW}`);
       checked++;
     });

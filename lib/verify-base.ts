@@ -1,5 +1,6 @@
 // Geometry helpers the per-band-type checks of verify-handlers.ts share.
 
+import {must} from './must.ts';
 import type {Rect} from './types/core.ts';
 
 export const CONTRAST_THRESHOLD = 70; // same threshold lint-svg.ts's own contrast check uses
@@ -75,8 +76,8 @@ export function statesProblems(band: Rect & {edges: readonly {from: string; to: 
       if (k !== l.edge && routeHits(e.points, l)) problems.push(`states: label "${l.text}" sits on the arrow ${e.from} -> ${e.to} (it belongs to another arrow)`);
     });
     for (let j = i + 1; j < band.labels.length; j++) {
-      const o = rectOverlap(l, band.labels[j]);
-      if (o) problems.push(`states: label "${l.text}" overlaps label "${band.labels[j].text}" by ${dxdy(o)}`);
+      const other = must(band.labels[j]), o = rectOverlap(l, other);
+      if (o) problems.push(`states: label "${l.text}" overlaps label "${other.text}" by ${dxdy(o)}`);
     }
   }
   return problems;

@@ -15,7 +15,7 @@ type Target = Parameters<typeof lintDiagram>[0];
 /** A staircase with exactly `n` bends. */
 function stairs(n: number): Pts {
   const out = [{x: 0, y: 0}];
-  for (let i = 0; i <= n; i++) { const p = out[out.length - 1]; out.push(i % 2 === 0 ? {x: p.x + 10, y: p.y} : {x: p.x, y: p.y + 10}); }
+  for (let i = 0; i <= n; i++) { const p = out[out.length - 1]!; out.push(i % 2 === 0 ? {x: p.x + 10, y: p.y} : {x: p.x, y: p.y + 10}); }
   return out;
 }
 const withBand = (band: object, extra: object = {}): Target => ({...diagram({theme: 'blue', title: 't', ...extra}), laidOut: [band]}) as unknown as Target;
@@ -29,9 +29,9 @@ test('edge-bends: the fixtures have the bends they claim', () => {
 test('edge-bends: one edge with 5 bends is reported (info by default); 4 bends is not', () => {
   const hit = bends(withEdges('cause', [{from: 'a', to: 'b', points: stairs(5)}]));
   assert.equal(hit.length, 1);
-  assert.equal(hit[0].severity, 'info');
-  assert.match(hit[0].message, /a → b が 5 回/);
-  assert.equal(hit[0].data?.threshold, 5);
+  assert.equal(hit[0]!.severity, 'info');
+  assert.match(hit[0]!.message, /a → b が 5 回/);
+  assert.equal(hit[0]!.data?.threshold, 5);
   assert.deepEqual(bends(withEdges('cause', [{from: 'a', to: 'b', points: stairs(4)}, {from: 'a', to: 'c', points: stairs(0)}, {from: 'b', to: 'c', points: stairs(1)}])), []);
 });
 
@@ -39,8 +39,8 @@ test('edge-bends: a mean over the figure above 3 is reported; exactly 3 is not',
   const edges = (n: number, count = 3) => Array.from({length: count}, (_, i) => ({from: `a${i}`, to: `b${i}`, points: stairs(n)}));
   const hit = bends(withEdges('states', edges(4)));
   assert.equal(hit.length, 1);
-  assert.match(hit[0].message, /平均 4\.0 回/);
-  assert.equal(hit[0].data?.threshold, 3);
+  assert.match(hit[0]!.message, /平均 4\.0 回/);
+  assert.equal(hit[0]!.data?.threshold, 3);
   assert.deepEqual(bends(withEdges('states', edges(3))), []);
   assert.deepEqual(bends(withEdges('states', edges(3, 4))), []);
   assert.equal(bends(withEdges('states', [...edges(3), {from: 'x', to: 'y', points: stairs(4)}])).length, 1, 'mean 3.25');
@@ -48,9 +48,9 @@ test('edge-bends: a mean over the figure above 3 is reported; exactly 3 is not',
 
 test('edge-bends: warn only for layoutCheck: strict; accept turns it back into info', () => {
   const edges = [{from: 'a', to: 'b', points: stairs(6)}];
-  assert.equal(bends(withEdges('bpmn', edges, {layoutCheck: 'strict'}))[0].severity, 'warn');
-  assert.equal(bends(withEdges('bpmn', edges))[0].severity, 'info');
-  const accepted = bends(withEdges('classes', edges, {layoutCheck: 'strict', accept: {'edge-bends': '依存が深い'}}))[0];
+  assert.equal(bends(withEdges('bpmn', edges, {layoutCheck: 'strict'}))[0]!.severity, 'warn');
+  assert.equal(bends(withEdges('bpmn', edges))[0]!.severity, 'info');
+  const accepted = bends(withEdges('classes', edges, {layoutCheck: 'strict', accept: {'edge-bends': '依存が深い'}}))[0]!;
   assert.equal(accepted.severity, 'info');
   assert.match(accepted.message, /許容/);
 });

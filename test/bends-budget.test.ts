@@ -55,7 +55,7 @@ const measure = (c: Case, straighten = true) => {
   const a = layeredAttempt(nodes, edges, {dir: 'right', gap: GAP, levelGap: LEVEL, ...(back ? {back} : {}), ...(c.start ? {start: c.start} : {})},
     {portStep: PORT, place: () => (p: Pt) => p, straighten, tighten: !c.back, ...(c.returns ? {returns: c.returns} : {})});
   const per = [...a.routes.values()].map(r => Math.max(0, simplify(r).length - 2));
-  return {...a.score, edges: per.length, max: Math.max(0, ...per), outerMax: Math.max(0, ...[...a.routes].filter(([i]) => a.lay.edges[i].outer).map(([, r]) => simplify(r).length - 2))};
+  return {...a.score, edges: per.length, max: Math.max(0, ...per), outerMax: Math.max(0, ...[...a.routes].filter(([i]) => a.lay.edges[i]!.outer).map(([, r]) => simplify(r).length - 2))};
 };
 
 for (const [name, c] of Object.entries(cases)) {

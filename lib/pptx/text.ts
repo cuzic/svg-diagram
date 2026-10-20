@@ -1,4 +1,5 @@
 import {escapeXml} from '../emit-common.ts';
+import {must} from '../must.ts';
 import {runColorOf, textColorOf} from '../tokens.ts';
 import type {ToneEnv} from '../tokens.ts';
 import {LINE_HEIGHT_EM} from '../layout-util.ts';
@@ -9,7 +10,7 @@ import {emu, hex, attr, solidFill, type Fonts} from './xml.ts';
 type Run = LaidOutBox['wrappedRuns'][number];
 
 /** Line pitch of a run: measured when it wraps, the nominal line height otherwise. */
-export const pitchOf = (r: Run): number => r.lines.length > 1 ? r.lineYs[1]! - r.lineYs[0]! : Math.round(r.size * LINE_HEIGHT_EM);
+export const pitchOf = (r: Run): number => r.lines.length > 1 ? must(r.lineYs[1]) - must(r.lineYs[0]) : Math.round(r.size * LINE_HEIGHT_EM);
 
 export function runXml(text: string, size: number, bold: boolean, mono: boolean, color: string, fonts: Fonts): string {
   const face = mono ? fonts.mono : fonts.sans;
@@ -20,8 +21,8 @@ export function runXml(text: string, size: number, bold: boolean, mono: boolean,
 export function paragraphsOf(runs: Run[], boxTone: string | undefined, day: LaidOutDiagram['day'], tones: ToneEnv, align: string, fonts: Fonts): string {
   return runs.map((r, i) => {
     const pitch = pitchOf(r);
-    const prev = i > 0 ? runs[i - 1]! : undefined;
-    const before = prev ? Math.max(0, r.lineYs[0]! - prev.lineYs[prev.lineYs.length - 1]! - pitch) : 0;
+    const prev = i > 0 ? runs[i - 1] : undefined;
+    const before = prev ? Math.max(0, (r.lineYs[0] ?? 0) - (prev.lineYs[prev.lineYs.length - 1] ?? 0) - pitch) : 0;
     const base = hex(runColorOf(tones, r.tone, boxTone, day));
     const lines = r.lines.map((ln, k) => {
       const spans = r.lineSpans?.[k];

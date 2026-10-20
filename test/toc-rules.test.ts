@@ -83,7 +83,7 @@ test('toc-cycle-undeclared: a cycle with no back: true is named; a declared retu
   const loop = [{from: 'root', to: 'a'}, {from: 'a', to: 'late'}, {from: 'late', to: 'root'}];
   const found = tocFindings({nodes, links: loop, tree: 'crt'} as never).filter(f => f.rule === 'toc-cycle-undeclared');
   assert.equal(found.length, 1);
-  assert.match(found[0].message, /->/, 'names the arrow the layout treated as the return');
+  assert.match(found[0]!.message, /->/, 'names the arrow the layout treated as the return');
   assert.ok(!rules(nodes, [...loop.slice(0, 2), {from: 'late', to: 'root', back: true}], 'crt').includes('toc-cycle-undeclared'), 'declared');
   assert.ok(!rules(nodes, [...loop.slice(0, 2), {from: 'late', to: 'root', kind: 'blocks'}], 'crt').includes('toc-cycle-undeclared'), 'blocks is not a cause');
   assert.ok(!rules(nodes, loop.slice(0, 2), 'crt').includes('toc-cycle-undeclared'));
@@ -168,8 +168,8 @@ test('toc-obstacle-phrase: an obstacle ending in ない / 無い / 不足 (alway
   const links = [{from: 'a', to: 'i'}, {from: 'o', to: 'i'}, {from: 'p', to: 'i'}, {from: 'i', to: 'g'}];
   const found = tocFindings({nodes, links, tree: 'prt'} as never).filter(f => f.rule === 'toc-obstacle-phrase');
   assert.equal(found.length, 1);
-  assert.equal(found[0].severity, 'info');
-  assert.match(found[0].message, /: o。/);
+  assert.equal(found[0]!.severity, 'info');
+  assert.match(found[0]!.message, /: o。/);
 });
 
 test('toc-mirror: the de / goal of a future reality tree against the ude of the current one (1 to 1)', () => {

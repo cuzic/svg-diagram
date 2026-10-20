@@ -28,7 +28,7 @@ test('layout-sibling-size measures the drawn edges (the emitter snaps left and r
   // 442 + 442 with a gap of 16 draws as 20..464 and 480..920 = widths 444 and 440
   const m = layoutMetrics([frame(20, 20, 442, 100), frame(478, 20, 442, 100)], {width: 940});
   assert.equal(m.filter(x => x.rule === 'layout-sibling-size').length, 1);
-  assert.equal(m[0].data.measured, 4);
+  assert.equal(m[0]!.data.measured, 4);
 });
 
 test('layout-gutter-uneven: needs 3 neighbours; gaps 8 and 4 differ by 4', () => {

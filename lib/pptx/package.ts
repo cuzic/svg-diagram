@@ -1,5 +1,6 @@
 // The files of the .pptx package, as data: the fixed template with the one slide and its pictures added. Reading the template, drawing
 // the PNGs and zipping are the shell's (emit.ts).
+import {must} from '../must.ts';
 import type {Picture} from './image-band.ts';
 
 export interface Entry {name: string; data: Buffer}
@@ -25,7 +26,7 @@ export function packageEntries(template: readonly Entry[], plan: SlidePlan, pngs
   });
   entries.push({name: 'ppt/slides/slide1.xml', data: Buffer.from(plan.xml)});
   plan.pictures.forEach((p, i) => {
-    entries.push({name: `ppt/media/image${i + 1}.png`, data: pngs[i]!}, {name: `ppt/media/image${i + 1}.svg`, data: Buffer.from(p.svg)});
+    entries.push({name: `ppt/media/image${i + 1}.png`, data: must(pngs[i])}, {name: `ppt/media/image${i + 1}.svg`, data: Buffer.from(p.svg)});
   });
   return entries.sort((a, b) => (a.name === '[Content_Types].xml' ? -1 : b.name === '[Content_Types].xml' ? 1 : a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }

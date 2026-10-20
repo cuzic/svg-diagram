@@ -1,6 +1,7 @@
 // bowtie(): a bow-tie diagram (ADR 0026 D4). Threats on the left, each through its preventive barriers, into the top event in the middle (the
 // loss of control, under its hazard); out of it through the mitigating barriers to the consequences on the right. The flow runs left to right
 // everywhere. A fixed layout: rows are the threats / consequences, columns are the barriers' places in a row; no layered or tree layout.
+import {must} from './must.ts';
 import {fitLayout} from './fit-width.ts';
 import type {FitResult} from './fit-width.ts';
 import {measureNode, nodeRuns} from './tree.ts';
@@ -67,6 +68,7 @@ export function layoutBowtie(band: BowtieBand, x: number, y: number, w: number, 
   } as LaidOutBowtie;
   g.nodes.forEach((n, i) => {
     const r = out.nodes[i];
+    if (!r) return;
     out.labelBoxes.push({label: n.label, x: r.x, y: r.y, w: r.w, h: r.h});
     out.texts.push(...nodeRuns(r, n.lines, roles));
   });
@@ -105,21 +107,20 @@ function place(band: BowtieBand, maxW: number, widthOf: WidthOf, roles: Roles, m
   cy0 += 2 * KNOT_R + STEM;
   const topRect: Placed = {x: topX, y: cy0, w: topW, h: top.lines.h, role: 'event', label: top.label, lines: top.lines};
   nodes.push(topRect);
-  const yk = topRect.y + topRect.h / 2;
   // a row enters the top event's box at its own height, held onto the box (a row beside it runs straight in; one above or below jogs at the bus)
   const entry = (cy: number): number => Math.min(Math.max(cy, topRect.y + 10), topRect.y + topRect.h - 10);
-  if (hazard) edges.push({points: [{x: knot.cx, y: nodes[0].y + nodes[0].h}, {x: knot.cx, y: knot.cy - KNOT_R}], arrow: false});
+  if (hazard) edges.push({points: [{x: knot.cx, y: must(nodes[0]).y + must(nodes[0]).h}, {x: knot.cx, y: knot.cy - KNOT_R}], arrow: false});
   edges.push({points: [{x: knot.cx, y: knot.cy + KNOT_R}, {x: knot.cx, y: topRect.y}], arrow: false});
-  const dedupe = (pts: {x: number; y: number}[]) => pts.filter((q, j, a) => j === 0 || q.x !== a[j - 1].x || q.y !== a[j - 1].y);
+  const dedupe = (pts: {x: number; y: number}[]) => pts.filter((q, j, a) => j === 0 || q.x !== a[j - 1]?.x || q.y !== a[j - 1]?.y);
   const busL = leftW + BUS_GAP / 2, busR = topX + topW + BUS_GAP / 2;
   left.forEach((row, i) => {
     const cy = centre(i, left.length, rowHL);
     let px = 0, prev: Placed | undefined;
     row.forEach((it, k) => {
-      const p: Placed = {x: px, y: cy - it.lines.h / 2, w: lw[k], h: it.lines.h, role: it.role, label: it.label, lines: it.lines};
+      const p: Placed = {x: px, y: cy - it.lines.h / 2, w: must(lw[k]), h: it.lines.h, role: it.role, label: it.label, lines: it.lines};
       nodes.push(p);
       if (prev) edges.push({points: [{x: prev.x + prev.w, y: cy}, {x: p.x, y: cy}], arrow: true});
-      prev = p; px += lw[k] + COL_GAP;
+      prev = p; px += must(lw[k]) + COL_GAP;
     });
     const end = prev as Placed, ye = entry(cy);
     edges.push({points: dedupe([{x: end.x + end.w, y: cy}, {x: busL, y: cy}, {x: busL, y: ye}, {x: topX, y: ye}]), arrow: true});
@@ -134,7 +135,7 @@ function place(band: BowtieBand, maxW: number, widthOf: WidthOf, roles: Roles, m
       else { const ye = entry(cy); edges.push({points: dedupe([{x: topX + topW, y: ye}, {x: busR, y: ye}, {x: busR, y: cy}, {x: p.x, y: cy}]), arrow: true}); }
       return p;
     };
-    row.barriers.forEach((it, k) => { prev = put(it, rw[k], px); px += rw[k] + COL_GAP; });
+    row.barriers.forEach((it, k) => { prev = put(it, must(rw[k]), px); px += must(rw[k]) + COL_GAP; });
     put(row.end, endW, totalW - endW); // every consequence in the last column, at the right edge
   });
   return {w: totalW, h: H, nodes, edges, knot};

@@ -63,7 +63,7 @@ test('wrapStyledAtoms keeps what an atom carries on its line and drops trailing 
   const atoms = [{text: 'ab', b: true}, {text: ' ', b: true}, {text: 'cd', b: false}, {text: ' ', b: false}, {text: 'ef', b: false}];
   const lines = wrapStyledAtoms(atoms, {maxWidth: 40, atomWidth: a => width(a.text), mode: 'phrase'});
   assert.deepEqual(lines.map(l => l.map(a => a.text)), [['ab', ' ', 'cd'], ['ef']]);
-  assert.deepEqual(lines[0].map(a => a.b), [true, true, false]);
+  assert.deepEqual(lines[0]!.map(a => a.b), [true, true, false]);
   const trail = wrapStyledAtoms([{text: 'ab', b: true}, {text: ' ', b: true}], {maxWidth: 100, atomWidth: a => width(a.text), mode: 'phrase'});
   assert.deepEqual(trail.map(l => l.map(a => a.text)), [['ab']]); // no bold space left to draw
 });

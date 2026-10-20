@@ -33,9 +33,9 @@ test('auto-fit-applied: dir left out is a warning that says what changed, reache
   assert.ok(t.fitApplied?.length);
   const f = byRule(verdict.findings, 'auto-fit-applied');
   assert.equal(f.length, 1);
-  assert.equal(f[0].severity, 'warn');
-  assert.match(f[0].message, /maxNodeW を 200→\d+ に縮めた\(\d+→\d+px\)/);
-  assert.match(f[0].message, /dir: 'auto'/);
+  assert.equal(f[0]!.severity, 'warn');
+  assert.match(f[0]!.message, /maxNodeW を 200→\d+ に縮めた\(\d+→\d+px\)/);
+  assert.match(f[0]!.message, /dir: 'auto'/);
   assert.ok(verdict.warnings.some(w => w.startsWith('[auto-fit-applied]')));
 });
 
@@ -43,15 +43,15 @@ test("auto-fit-applied: dir: 'auto' is info and does not reach the warnings", as
   const {verdict} = await run({dir: 'auto'}, await tightWidth());
   const f = byRule(verdict.findings, 'auto-fit-applied');
   assert.equal(f.length, 1);
-  assert.equal(f[0].severity, 'info');
+  assert.equal(f[0]!.severity, 'info');
   assert.ok(!verdict.warnings.some(w => w.startsWith('[auto-fit-applied]')));
 });
 
 test('auto-fit-applied: accept turns the warning into info with the reason', async () => {
   const {verdict} = await run({}, await tightWidth(), {accept: {'auto-fit-applied': '自動で収めてよい'}});
   const f = byRule(verdict.findings, 'auto-fit-applied')[0];
-  assert.equal(f.severity, 'info');
-  assert.ok(f.message.endsWith('（許容: 自動で収めてよい）'));
+  assert.equal(f!.severity, 'info');
+  assert.ok(f!.message.endsWith('（許容: 自動で収めてよい）'));
 });
 
 test('auto-fit-applied is a known rule (accept in .svg-diagram.json accepts it)', () => {
@@ -68,7 +68,7 @@ test('diagram({maxWidth: 1200}) lets a width-1200 doc figure through without doc
   assert.deepEqual(await docWidth(wide({width: 1200, maxWidth: 1200})), []);
   const over = await docWidth(wide({width: 1300, maxWidth: 1200}));
   assert.equal(over.length, 1);
-  assert.match(over[0].message, /1200px 以下/);
+  assert.match(over[0]!.message, /1200px 以下/);
 });
 
 test('diagram({maxWidth}) is the doc-width threshold, not the layout width: width stays 940', () => {

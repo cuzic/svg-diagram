@@ -172,5 +172,5 @@ export function criticalPath(input: readonly ArrowActivity[]): ArrowResult {
     at = next.to;
   }
   const byId = (a: string, b: string) => { const x = Number(a), y = Number(b); return Number.isFinite(x) && Number.isFinite(y) ? x - y : a.localeCompare(b, 'en'); };
-  return {events: ids.sort(byId).map(id => ({id, early: rounded(early.get(id)!), late: rounded(late.get(id)!)})), activities, length: rounded(length), path};
+  return {events: ids.sort(byId).map(id => ({id, early: rounded(must(early.get(id))), late: rounded(must(late.get(id)))})), activities, length: rounded(length), path};
 }

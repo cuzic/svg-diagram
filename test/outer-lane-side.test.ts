@@ -17,7 +17,7 @@ const edges = [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}, {from: 'c', to: 'd'},
 test('layoutLayered outer.side: far puts the lane past the high side, low past the low side, and the figure moves over by what the low lane takes', () => {
   const lanes = (side?: 'far' | 'near' | 'low') => {
     const lay = layoutLayered(nodes, edges, {dir: 'right', outer: {which: 'all', gap: 18, step: 14, ...(side ? {side} : {})}});
-    const lane = lay.edges.find(e => e.outer)!.points[1].y, ys = [...lay.nodes.values()].flatMap(n => [n.y, n.y + n.h]);
+    const lane = lay.edges.find(e => e.outer)!.points[1]!.y, ys = [...lay.nodes.values()].flatMap(n => [n.y, n.y + n.h]);
     return {lane, lo: Math.min(...ys), hi: Math.max(...ys), h: lay.h};
   };
   const far = lanes(), low = lanes('low');

@@ -488,9 +488,10 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     const rowH = Array.from({length: rows}, (_r, r) => Math.max(plotH0 / rows * grow, must(hdr[r]) + 90, must(hdr[r]) + must(flowNeed[r])));
     const plotT = y + PAD, plotH = rowH.reduce((a, b) => a + b, 0) + gap * (rows - 1), plotB = plotT + plotH;
     const rowTop = rowH.map((_h, r) => plotT + rowH.slice(0, r).reduce((a, b) => a + b, 0) + gap * r);
-    const cellX = (k: number) => plotL + colGrid.x[k];
-    const cellRect = (k: number, r: number): Rect => ({x: cellX(k), y: rowTop[r], w: colGrid.w[k], h: rowH[r]});
-    const bodyRect = (k: number, r: number): Rect => ({x: cellX(k), y: rowTop[r] + hdr[r], w: colGrid.w[k], h: rowH[r] - hdr[r]});
+    const colW = (k: number): number => must(colGrid.w[k]);
+    const cellX = (k: number) => plotL + must(colGrid.x[k]);
+    const cellRect = (k: number, r: number): Rect => ({x: cellX(k), y: must(rowTop[r]), w: colW(k), h: must(rowH[r])});
+    const bodyRect = (k: number, r: number): Rect => ({x: cellX(k), y: must(rowTop[r]) + must(hdr[r]), w: colW(k), h: must(rowH[r]) - must(hdr[r])});
     const plot: Rect = {x: plotL, y: plotT, w: plotW, h: plotH};
 
     // value space -> pixels (a value is mapped into the body of the cell it falls in, so a caption never sits on an item)
@@ -688,7 +689,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   const cells = band.cells.flatMap((rowCells, r) => rowCells.map((cell, k) => ({...cellRect(k, r), tone: cell.tone ?? 'plain'})));
   const lines: LaidOutQuadrant['lines'] = [];
   if (band.crosshair) {
-    for (let k = 1; k < cols; k++) lines.push({x1: plotL + colGrid.x[k], y1: plotT, x2: plotL + colGrid.x[k], y2: plotB});
+    for (let k = 1; k < cols; k++) lines.push({x1: plotL + must(colGrid.x[k]), y1: plotT, x2: plotL + must(colGrid.x[k]), y2: plotB});
     let acc = plotT;
     for (let r = 0; r < rows - 1; r++) { acc += must(rowH[r]); lines.push({x1: plotL, y1: acc, x2: plotR, y2: acc}); }
   }

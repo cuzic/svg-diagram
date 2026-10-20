@@ -7,7 +7,7 @@ import {edgeStats} from '../lib/rules.ts';
 import type {LaidOutConnect} from '../lib/types/containers.ts';
 import type {Pt} from '../lib/graph-layout.ts';
 
-const P = (...xy: number[]): Pt[] => xy.flatMap((_, i) => i % 2 ? [] : [{x: xy[i], y: xy[i + 1]}]);
+const P = (...xy: number[]): Pt[] => xy.flatMap((_, i) => i % 2 ? [] : [{x: xy[i]!, y: xy[i + 1]!}]);
 
 test('bendsOf: a bend is an inner point where the line turns; repeats and points mid-run are not bends', () => {
   assert.equal(bendsOf(P(0, 0, 10, 0)), 0);

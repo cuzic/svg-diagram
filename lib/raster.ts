@@ -59,7 +59,7 @@ export function staleBannerSvg(svg: string, message: string): string {
   const end = svg.lastIndexOf('</svg>');
   if (!open || end === -1) return svg;
   const vb = /\sviewBox="\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*"/.exec(open[0])?.slice(1).map(Number), size = svgSize(svg);
-  const [x, y, w, h] = vb ?? (size ? [0, 0, size.w, size.h] : [0, 0, 0, 0]);
+  const [x = 0, y = 0, w = 0, h = 0] = vb ?? (size ? [0, 0, size.w, size.h] : []);
   if (!(w > 0 && h > 0 && size)) return svg;
   // the band is about 22 drawn pixels high, but at most a quarter of the picture: a figure with a big viewBox drawn small, or a tiny one, stays readable
   const unit = size.w / w; // drawn pixels per user unit

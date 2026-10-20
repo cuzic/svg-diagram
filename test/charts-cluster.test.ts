@@ -16,11 +16,11 @@ const table = [[9, 1, 8], [1, 9, 2], [8, 2, 9], [2, 8, 1], [9, 2, 7]];
 
 test('averageLinkage: merges the closest pair first, heights never decrease, the average of the distances is used', () => {
   const m = averageLinkage([[0], [1], [5], [6]]);
-  assert.deepEqual([m[0].a, m[0].b, m[0].height], [0, 1, 1]);
-  assert.deepEqual([m[1].a, m[1].b, m[1].height], [2, 3, 1]);
-  near(m[2].height, 5); // (|0-5| + |0-6| + |1-5| + |1-6|) / 4
-  assert.equal(m[2].size, 4);
-  assert.ok(m.every((q, i) => i === 0 || q.height >= m[i - 1].height));
+  assert.deepEqual([m[0]!.a, m[0]!.b, m[0]!.height], [0, 1, 1]);
+  assert.deepEqual([m[1]!.a, m[1]!.b, m[1]!.height], [2, 3, 1]);
+  near(m[2]!.height, 5); // (|0-5| + |0-6| + |1-5| + |1-6|) / 4
+  assert.equal(m[2]!.size, 4);
+  assert.ok(m.every((q, i) => i === 0 || q.height >= m[i - 1]!.height));
 });
 
 test('dendrogramOrder: similar rows end up next to each other; the same data gives the same order', () => {

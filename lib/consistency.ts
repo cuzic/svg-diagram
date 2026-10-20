@@ -26,7 +26,7 @@ export function textsOf(bands: readonly Band[]): string[] {
 const KATAKANA = /[ァ-ヴー]{3,}/g;
 const LATIN = /(?<![A-Za-z0-9_-])[A-Za-z]{3,}(?![A-Za-z0-9_-])/g; // words only: an id or a code with digits, - or _ (a12, aws-s3) is not a term
 // all-lowercase and Capitalised are the same class (a word at the start of a sentence); ALLCAPS and camelCase are different classes
-const caseClass = (w: string): string => w === w.toUpperCase() ? 'upper' : w === w.toLowerCase() || w === w[0].toUpperCase() + w.slice(1).toLowerCase() ? 'plain' : 'mixed';
+const caseClass = (w: string): string => w === w.toUpperCase() ? 'upper' : w === w.toLowerCase() || w === (w[0] ?? '').toUpperCase() + w.slice(1).toLowerCase() ? 'plain' : 'mixed';
 
 /** Spellings of one term that differ only by a trailing long vowel mark or by letter case class, inside one diagram. */
 export function termVariants(texts: readonly string[]): string[][] {
@@ -59,9 +59,9 @@ export interface Num {value: number; decimals: number; unit: string}
 export function parseNum(text: string): Num | null {
   const m = NUM.exec(text.trim());
   if (!m) return null;
-  const raw = m[1].replace(/,/g, '');
+  const raw = (m[1] ?? '').replace(/,/g, '');
   if (raw === '-' || raw === '') return null;
-  return {value: Number(raw), decimals: raw.includes('.') ? raw.split('.')[1].length : 0, unit: (m[2] ?? '').replace('％', '%')};
+  return {value: Number(raw), decimals: raw.includes('.') ? (raw.split('.')[1] ?? '').length : 0, unit: (m[2] ?? '').replace('％', '%')};
 }
 const cellText = (c: TableCell | undefined): string => c === undefined ? '' : typeof c === 'string' ? c : typeof c === 'number' ? String(c) : c.text ?? '';
 const cellsOf = (r: TableRow): readonly TableCell[] => Array.isArray(r) ? r : (r as {cells: readonly TableCell[]}).cells;
@@ -71,7 +71,7 @@ function mismatch(nums: Num[], total: Num): number | null {
   if (!nums.length || nums.some(n => n.unit !== total.unit)) return null;
   const d = Math.max(total.decimals, ...nums.map(n => n.decimals));
   const sum = parseFloat(nums.reduce((a, n) => a + n.value, 0).toFixed(d + 2));
-  const ulp = Math.pow(10, -d), tol = 0.5 * ulp * (total.unit === '%' ? nums.length : 1) + 1e-9;
+  const ulp = 10 ** -d, tol = 0.5 * ulp * (total.unit === '%' ? nums.length : 1) + 1e-9;
   return Math.abs(sum - total.value) > tol ? sum : null;
 }
 const show = (v: number, unit: string, d: number): string => `${parseFloat(v.toFixed(d))}${unit}`;
@@ -86,17 +86,18 @@ export function tableFindings(bands: readonly Band[]): Finding[] {
     // a 合計 row: each column's numbers above it (not past an earlier 小計 / 合計) add up to it
     grid.forEach((row, i) => {
       if (!isTotalRow[i]) return;
-      const sub = /^(小計|subtotal)$/i.test(row[0].trim());
+      const sub = /^(小計|subtotal)$/i.test((row[0] ?? '').trim());
       for (let c = 1; c < row.length; c++) {
-        const total = parseNum(row[c]);
+        const total = parseNum(row[c] ?? '');
         if (!total) continue;
         const above: Num[] = [], subs: Num[] = [];
         for (let j = i - 1; j >= 0; j--) {
-          if (isTotalRow[j]) { const n = parseNum(grid[j][c] ?? ''); if (/^(小計|subtotal)$/i.test(grid[j][0].trim()) && !sub && n) { subs.push(n); continue; } break; }
-          const n = parseNum(grid[j][c] ?? ''); if (n) above.push(n);
+          const gj = grid[j] ?? [];
+          if (isTotalRow[j]) { const n = parseNum(gj[c] ?? ''); if (/^(小計|subtotal)$/i.test((gj[0] ?? '').trim()) && !sub && n) { subs.push(n); continue; } break; }
+          const n = parseNum(gj[c] ?? ''); if (n) above.push(n);
         }
         const bad = mismatch(above, total);
-        if (bad !== null && (sub || mismatch(subs, total) !== null || !subs.length)) out.push({rule: 'table-sum-mismatch', severity: 'warn', message: `${name}の「${row[0].trim()}」行 ${c + 1} 列目が ${show(total.value, total.unit, total.decimals)} だが、上の値の和は ${show(bad, total.unit, Math.max(total.decimals, ...above.map(n => n.decimals)))}`});
+        if (bad !== null && (sub || mismatch(subs, total) !== null || !subs.length)) out.push({rule: 'table-sum-mismatch', severity: 'warn', message: `${name}の「${(row[0] ?? '').trim()}」行 ${c + 1} 列目が ${show(total.value, total.unit, total.decimals)} だが、上の値の和は ${show(bad, total.unit, Math.max(total.decimals, ...above.map(n => n.decimals)))}`});
       }
     });
     // a 合計 column: the numbers to its left in each row add up to it

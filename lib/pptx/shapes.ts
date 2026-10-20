@@ -28,7 +28,7 @@ export function boxXml(id: number, name: string, b: TextBox, day: LaidOutDiagram
   // the first baseline is lineYs[0] below the content top (the svg puts text at band.y + padY + lineYs[i]); with exact line spacing the
   // baseline sits ~0.8 of the pitch below the line's top -- that factor is what S2 measures on a real PowerPoint
   const first = b.wrappedRuns[0];
-  const topInset = first ? Math.max(0, py + first.lineYs[0]! - pitchOf(first) * 0.8) : py;
+  const topInset = first ? Math.max(0, py + (first.lineYs[0] ?? 0) - pitchOf(first) * 0.8) : py;
   const fill = frame ? frameFill(style) : '<a:noFill/><a:ln><a:noFill/></a:ln>';
   // the text area is wider than the layout's wrap width by 2px on the right (a rounding difference must not push a word to the next line)
   return sp(id, name, `${xfrm(b)}<a:prstGeom prst="${frame ? 'roundRect' : 'rect'}"><a:avLst>${frame ? `<a:gd name="adj" fmla="val ${roundRectAdj(b)}"/>` : ''}</a:avLst></a:prstGeom>${fill}`, `<a:bodyPr wrap="${b.noWrap ? 'none' : 'square'}" lIns="${emu(px)}" tIns="${emu(topInset)}" rIns="${emu(Math.max(0, px - 2))}" bIns="${emu(py)}" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paras || '<a:p><a:endParaRPr lang="ja-JP"/></a:p>'}`);

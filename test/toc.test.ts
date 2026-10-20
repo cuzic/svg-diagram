@@ -83,9 +83,9 @@ test('causeTree(): roles set the tone and the double outline; a tone overrides t
 test('causeTree(): a precondition is a grey dashed box with no double outline, apart from an injection and a root', async () => {
   const {t} = await laidCause(causeTree([N('inj', {role: 'injection'}), N('fact', {role: 'precondition'}), N('de', {role: 'de'})], [{from: ['inj', 'fact'], to: 'de'}]));
   const by = (i: number) => t.nodes[i];
-  assert.equal(by(1).tone, 'removed');
-  assert.ok(!by(1).double && !by(1).hex);
-  assert.notEqual(by(1).tone, by(0).tone);
+  assert.equal(by(1)!.tone, 'removed');
+  assert.ok(!by(1)!.double && !by(1)!.hex);
+  assert.notEqual(by(1)!.tone, by(0)!.tone);
   assert.equal(t.ands.length, 1, 'a precondition joins an AND like any cause');
 });
 
@@ -148,8 +148,8 @@ test('causeTree({coreDriver}): the root that reaches the most ude gets the core 
     [{from: 'big', to: 'm'}, {from: 'm', to: 'u1'}, {from: 'm', to: 'u2'}, {from: 'small', to: 'u3'}], opts);
   const {t, verdict} = await laidCause(bands({coreDriver: true}));
   const idx = (id: string) => t.anchors.findIndex(a => a.id === id);
-  assert.deepEqual(t.nodes.flatMap((n, i) => n.core ? [t.anchors[i].id] : []), ['big']);
-  assert.ok(t.nodes[idx('big')].double && t.nodes[idx('small')].double, 'both stay roots (double outline)');
+  assert.deepEqual(t.nodes.flatMap((n, i) => n.core ? [t.anchors[i]!.id] : []), ['big']);
+  assert.ok(t.nodes[idx('big')]!.double && t.nodes[idx('small')]!.double, 'both stay roots (double outline)');
   assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause')), []);
   assert.equal(t.texts.filter(x => x.text.includes('件に届く')).length, 2, 'every starting entity gets its number');
   const bare = await laidCause(bands({coreDriver: true, counts: false}));
@@ -192,7 +192,7 @@ test('causeTree({coreDriver}): the SVG has a thick frame and a badge for the cor
 test("causeTree({tree, layer}): prt / frt / tt put an input chain just before its target (alap); crt, no tree and layer: 'asap' keep the first layer (ADR 0019 D1)", async () => {
   const nodes = [N('g', {role: 'goal'}), N('i1', {role: 'io'}), N('i2', {role: 'io'}), N('i3', {role: 'io'}), N('o', {role: 'obstacle'}), N('a', {role: 'action'}), N('r', {role: 'root'})];
   const links = [{from: 'r', to: 'i1'}, {from: 'i1', to: 'i2'}, {from: 'i2', to: 'i3'}, {from: 'i3', to: 'g'}, {from: 'o', to: 'a'}, {from: 'a', to: 'i3'}];
-  const yOf = async (opts: object) => { const {t} = await laidCause(causeTree(nodes, links, opts)); const by = (id: string) => t.nodes[t.anchors.findIndex(a => a.id === id)]; return {o: by('o').y, a: by('a').y, r: by('r').y, i3: by('i3').y}; };
+  const yOf = async (opts: object) => { const {t} = await laidCause(causeTree(nodes, links, opts)); const by = (id: string) => t.nodes[t.anchors.findIndex(a => a.id === id)]; return {o: by('o')!.y, a: by('a')!.y, r: by('r')!.y, i3: by('i3')!.y}; };
   const asap = await yOf({}), prt = await yOf({tree: 'prt'});
   assert.equal(asap.o, asap.r, 'asap: the obstacle sits on the first layer, with the root');
   assert.ok(prt.o < prt.r && prt.a < prt.o, "alap: the obstacle and the action rise to just before i3 (the root is a cause's start and stays); up is a smaller y");
@@ -206,7 +206,7 @@ test('causeTree({coreDriver}): the badge lies outside the frame and inside the f
   for (const dir of ['up', 'down', 'left', 'right'] as const) {
     const d = diagram({theme: 'blue'}).add(causeTree([N('u1', {role: 'ude'}), N('u2', {role: 'ude'}), N('r', {role: 'root'})], [{from: 'r', to: 'u1'}, {from: 'r', to: 'u2'}], {coreDriver: true, dir}));
     const svg = (await renderDiagram(d, {name: 'c.svg', budget: 'cacheOnly'})).svg;
-    const rect = (re: RegExp) => { const m = re.exec(svg)!; return {x: +m[1], y: +m[2], w: +m[3], h: +m[4]}; };
+    const rect = (re: RegExp) => { const m = re.exec(svg)!; return {x: +m[1]!, y: +m[2]!, w: +m[3]!, h: +m[4]!}; };
     const badge = rect(/<rect x="([\d.]+)" y="([\d.]+)" width="(44)" height="(22)" rx="8"/), frame = rect(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"[^>]*stroke-width="3.5"/);
     const page = rect(/<rect x="(0)" y="(0)" width="([\d.]+)" height="([\d.]+)"/);
     assert.ok(badge.x + badge.w <= frame.x || frame.x + frame.w <= badge.x || badge.y + badge.h <= frame.y || frame.y + frame.h <= badge.y, `${dir}: the badge does not cover the frame`);
@@ -223,7 +223,7 @@ test('causeTree({coreDriver}): a sideways figure that fills the band keeps its b
     await assert.rejects(() => renderDiagram(diagram({theme: 'blue', width: 760}).add(causeTree(nodes, links, {coreDriver: true, dir})), {name: 'c.svg', budget: 'cacheOnly'}), /does not fit/);
     const svg = (await renderDiagram(diagram({theme: 'blue', width: 900}).add(causeTree(nodes, links, {coreDriver: true, dir})), {name: 'c.svg', budget: 'cacheOnly'})).svg;
     const m = /<rect x="([\d.-]+)" y="[\d.-]+" width="44" height="22" rx="8"/.exec(svg)!;
-    assert.ok(+m[1] >= 0 && +m[1] + 44 <= 900, `${dir}: the badge lies on the page`);
+    assert.ok(+m[1]! >= 0 && +m[1]! + 44 <= 900, `${dir}: the badge lies on the page`);
   }
 });
 
@@ -477,7 +477,7 @@ test('causeTree() back: a declared return keeps its layer whatever the order of 
   };
   const a = await rows(ids), b = await rows([...ids].reverse());
   assert.deepEqual(a.order, b.order);
-  assert.ok(a.order[0] > a.order[4], 'late (the UDE) lies below kpi in a figure that runs down');
+  assert.ok(a.order[0]! > a.order[4]!, 'late (the UDE) lies below kpi in a figure that runs down');
   assert.deepEqual(a.bold, ['late>kpi']);
   const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(causeTree(ids.map(id => N(id)), links, {dir: 'down'})), {name: 'b.svg', budget: 'cacheOnly'});
   assert.equal(svg.split('stroke-width="3"').length - 1, 1);
@@ -503,7 +503,7 @@ const loop = (opts: object = {}, back = true) => causeTree(
   opts,
 );
 const reach = (t: LaidOutCause) => ({right: Math.max(...t.nodes.map(n => n.x + n.w)), left: Math.min(...t.nodes.map(n => n.x))});
-const bendsOf = (pts: {x: number; y: number}[]): number => pts.slice(1, -1).filter((p, i) => !((pts[i].x === p.x && p.x === pts[i + 2].x) || (pts[i].y === p.y && p.y === pts[i + 2].y))).length;
+const bendsOf = (pts: {x: number; y: number}[]): number => pts.slice(1, -1).filter((p, i) => !((pts[i]!.x === p.x && p.x === pts[i + 2]!.x) || (pts[i]!.y === p.y && p.y === pts[i + 2]!.y))).length;
 const returnOf = (t: LaidOutCause, from: string, to: string) => t.edges.find(e => e.from === from && e.to === to)!;
 
 test('causeTree() returns: a declared return runs in a lane outside the figure, bold, in 4 bends or fewer; returns: inline keeps it in the layers', async () => {
@@ -537,8 +537,8 @@ test('causeTree() returns: pdpc runs its returns outside by default; the lanes g
   // a width that the inline figure fits and the lanes do not (a chain p0..p3 with p3 -> p1, two leaves on p2: the lanes cost 20px more than the dummies)
   const ids = ['p0', 'p1', 'p2', 'p3'];
   const ns = [...ids.map((id, i) => ({id, label: id, ...(i === 0 ? {role: 'start' as const} : {})})), {id: 'w0', label: 'w0'}, {id: 'w1', label: 'w1'}];
-  const ls = [...ids.slice(1).map((id, i) => ({from: ids[i], to: id})), {from: 'p3', to: 'p1'}, {from: 'p2', to: 'w0'}, {from: 'p2', to: 'w1'}];
-  const make = (returns?: 'inline' | 'outer') => pdpc(ns, ls, {maxNodeW: 150, ...(returns ? {returns} : {})});
+  const ls = [...ids.slice(1).map((id, i) => ({from: ids[i]!, to: id})), {from: 'p3', to: 'p1'}, {from: 'p2', to: 'w0'}, {from: 'p2', to: 'w1'}];
+  const make = (returns?: 'inline' | 'outer') => pdpc(ns, ls!, {maxNodeW: 150, ...(returns ? {returns} : {})});
   const fig = (b: unknown, width: number) => checkDiagram(diagram({theme: 'blue', width} as never).add(b as never));
   const fits = async (b: unknown, width: number): Promise<boolean> => { try { await fig(b, width); return true; } catch { return false; } };
   const narrowest = async (returns: 'inline' | 'outer'): Promise<number> => {
@@ -570,8 +570,8 @@ test("causeTree({tree: 'nbr'}): tipping is a double danger box, trim a dashed on
   const links = [{from: ['inj', 'fact'], to: 'tip'}, {from: 'tip', to: 'bad'}, {from: 'cut', to: 'tip', kind: 'blocks' as const}];
   const {t, verdict} = await laidCause(causeTree(nodes, links, {tree: 'nbr'}));
   const by = (id: string) => t.nodes[t.anchors.findIndex(a => a.id === id)];
-  assert.ok(by('tip').double && by('tip').tone === 'danger');
-  assert.ok(by('cut').dashed && !by('tip').dashed);
+  assert.ok(by('tip')!.double && by('tip')!.tone === 'danger');
+  assert.ok(by('cut')!.dashed && !by('tip')!.dashed);
   assert.ok(t.texts.some(x => x.text.includes('施策 1 に組み込む')), 'the foldsInto line is drawn');
   assert.deepEqual(verdict.problems.filter(p => p.startsWith('cause')), []);
   assert.throws(() => causeTree([N('a', {foldsInto: 'x'})], []), /only a role: 'trim' node takes it/);
@@ -625,7 +625,7 @@ test('causeTree(): an AND arc spans all its arrows even when a return arrives at
     const t = laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause;
     assert.deepEqual(t.loose, []);
     for (const arc of t.ands) {
-      const tips = t.edges.filter(e => e.to === arc.to && arc.from.includes(e.from)).map(e => e.points[e.points.length - 1]);
+      const tips = t.edges.filter(e => e.to === arc.to && arc.from.includes(e.from)).map(e => e.points[e.points.length - 1]!);
       assert.equal(tips.length, arc.from.length);
       const vertical = dir === 'up' || dir === 'down', at = (p: {x: number; y: number}) => vertical ? p.x : p.y;
       assert.ok(Math.min(at(arc.p0), at(arc.p1)) < Math.min(...tips.map(at)) && Math.max(at(arc.p0), at(arc.p1)) > Math.max(...tips.map(at)), `${dir}: the arc into ${arc.to} spans every arrow of its AND`);

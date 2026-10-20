@@ -5,6 +5,7 @@ import type {SequenceActor, SequenceBand, SequenceOpts, SequenceStep, SwimlaneBa
 import type {WfNode} from '../types/wireframe-nodes.ts';
 import type {ScreensBand, StateMatrixOpts, StateMatrixRow, PartRow, StateCellIn, StateMatrixCell} from '../types/wireframe.ts';
 import type {ActorIn, AnchorsOf, Declares, FlowCheck, FlowIn, LaneCheck, HandleOf, SeqStepIn, StateRowLoose, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn} from '../strict.ts';
+import {must} from '../must.ts';
 import {connectBand} from './defaults.ts';
 import {assertBoxTone, assertFontSize, assertNoReveal, revealOf, scopeOpt, withAnchors, withHandle} from './shared.ts';
 
@@ -98,7 +99,7 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
     let from = f.from, to = f.to, auto = false;
     if (!fside && !tside) {
       auto = true;
-      const la = laneIdx.get(a.lane)!, lb = laneIdx.get(b.lane)!;
+      const la = must(laneIdx.get(a.lane)), lb = must(laneIdx.get(b.lane)); // every step's lane was checked against `laneIdx` above
       if (b.col > a.col + a.span - 1) { from = `${fid}:right`; to = `${tid}:left`; }
       else if (a.col > b.col + b.span - 1) { from = `${fid}:left`; to = `${tid}:right`; }
       else if (lb > la || (lb === la && (b.row ?? 0) > (a.row ?? 0))) { from = `${fid}:bottom`; to = `${tid}:top`; }

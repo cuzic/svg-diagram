@@ -62,7 +62,7 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
   const loopLabelW = Math.max(0, ...band.relations.filter(r => r.from === r.to).map(r => r.label ? labelW(r.label) : 0));
   // One whole attempt: the layout running `dir`. Everything that depends on it is in here.
   const build = (dir: 'down' | 'right') => {
-    const nodes = band.classes.map(c => ({id: c.id, size: dir === 'down' ? {w: meas.get(c.id)!.h, h: meas.get(c.id)!.w} : {w: meas.get(c.id)!.w, h: meas.get(c.id)!.h}}));
+    const nodes = band.classes.map(c => { const m = must(meas.get(c.id)); return {id: c.id, size: dir === 'down' ? {w: m.h, h: m.w} : {w: m.w, h: m.h}}; });
     const loopRows = dir === 'right' && band.relations.some(r => r.from === r.to) ? LOOP + S + 8 + 4 : 0; // a loop above a class (dir right) needs room above it, between rows too
     // a loop sits to the right of its class when the flow runs down (its arrows leave through the bottom), above it when the flow runs right
     const reserve = hasLoop && dir === 'down' ? LOOP + 8 + Math.max(loopLabelW, 40) : 0;

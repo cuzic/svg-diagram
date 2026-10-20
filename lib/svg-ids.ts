@@ -22,8 +22,8 @@ export function prefixSvgIds(markup: string, prefix: string, opts: {rootId?: str
   const rename = (id: string) => id === opts.rootId ? prefix : `${prefix}-${id}`;
   const ids = new Set<string>();
   for (const m of markup.matchAll(/<([A-Za-z][\w:-]*)\b([^>]*)>/g)) {
-    if (KEEP_TAGS.has(m[1])) continue;
-    const id = /\sid="([^"]+)"/.exec(m[2])?.[1];
+    if (KEEP_TAGS.has(m[1] ?? '')) continue;
+    const id = /\sid="([^"]+)"/.exec(m[2] ?? '')?.[1];
     if (id) ids.add(id);
   }
   if (ids.size === 0) return markup;

@@ -77,7 +77,7 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
       const d = Math.max(44, Math.ceil((Math.hypot(text, inner) + 10) / 8) * 8); // a multiple of 8: the radius sits on the 4px grid
       return [s.id, {...l, w: d, h: d}];
     }));
-    const nodes = band.states.map(s => ({id: s.id, size: {w: lines.get(s.id)!.w, h: lines.get(s.id)!.h}}));
+    const nodes = band.states.map(s => { const m = must(lines.get(s.id)); return {id: s.id, size: {w: m.w, h: m.h}}; });
     if (band.initial) nodes.unshift({id: INIT, size: {w: 2 * DOT, h: 2 * DOT}});
     // layered layout runs on a 'right' axis; a 'down' diagram is the same layout transposed
     const reserve = dir === 'down' && loops.length ? LOOP + 4 + Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0;
@@ -88,7 +88,7 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
       dir: 'right', gap: loops.length ? GAP + LOOP + (dir === 'down' ? Math.max(...loops.map(t => t.label ? labelW(t.label) : 0)) : 0) : Math.round(GAP * (env.space ?? 1)),
       levelGap: Math.max(dir === 'down' ? Math.round(72 * (env.space ?? 1)) : widest ? widest + stubOf(env.space) + ARROW + 8 : Math.round(64 * (env.space ?? 1)), gapFor(degree, 0, env.space)), ...(band.initial ? {start: [INIT]} : {}),
     }, {transpose: dir === 'down', maxAcross: w + 0.5 - reserve, place: placeIn, tighten: true, round: id => circles.has(id), ...(env.space === undefined || env.space === 1 ? {} : {space: env.space}), ...(band.straighten === false ? {straighten: false} : {}), ...(band.returns === 'outer' ? {returns: 'all' as const} : {})});
-    const at = (id: string) => { const p = run.lay.nodes.get(id)!; return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
+    const at = (id: string) => { const p = must(run.lay.nodes.get(id)); return dir === 'down' ? {x: p.y, y: p.x, w: p.h, h: p.w} : p; };
     return {...run, dir, lines, reserve, top, at};
   };
 

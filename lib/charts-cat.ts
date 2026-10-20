@@ -2,8 +2,9 @@
 // bar) — one figure, one or several layers (a box with its points laid over it), vertical or horizontal, with an optional `hue` (a second category
 // drawn side by side within each group). The statistics (quartiles, a kernel density, a confidence interval, a beeswarm) are worked out here
 // from the raw values (lib/stats.ts), deterministically: the same data draws the same figure.
+import {must} from './must.ts';
 import {Canvas, checkIds, checkText, fail, finiteNum, niceScale, numText, shadeOps} from './charts-base.ts';
-import type {ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
+import type {Cand, ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
 import {boxStats, errorBar, kde, meanOf, swarmOffsets} from './stats.ts';
 import type {BoxStats, ErrorKind} from './stats.ts';
 import type {ColorKey} from './types/core.ts';
@@ -77,7 +78,7 @@ export function resolveCat(who: string, data: readonly CatGroup[] | Readonly<Rec
 
 /** `n = 16`, or `n = 16 / 15` when the group has a hue each. */
 const countText = (g: CatSpec['groups'][number]): string => `n = ${g.series.flatMap(x => x ? [x.n] : []).join(' / ')}`;
-const valueOf = (s: CatSpec, x: Series): number => s.values === 'mean' ? x.mean : x.box.median;
+const valueAt = (s: CatSpec, x: Series): number => s.values === 'mean' ? x.mean : x.box.median;
 export function catAlt(s: CatSpec): string {
   const stat = (x: Series): string => s.kinds.includes('bar') || s.kinds.includes('point')
     ? `平均 ${numText(x.mean)}${s.unit}${x.err ? `（${s.error === 'ci' ? '95%信頼区間' : s.error === 'sd' ? '±標準偏差' : s.error === 'se' ? '±標準誤差' : '範囲'} ${numText(x.err[0])}〜${numText(x.err[1])}）` : ''}`
@@ -91,7 +92,7 @@ export function catTexts(s: CatSpec): [string, number][] {
   if (s.label) out.push([s.label, 700]);
   const all = s.groups.flatMap(g => g.series.flatMap(x => x ? [x.box.min, x.box.max, ...(x.err ?? [])] : []));
   for (const t of niceScale(Math.min(...all, ...(s.kinds.includes('bar') ? [0] : [])), Math.max(...all, ...(s.kinds.includes('bar') ? [0] : []))).ticks) out.push([numText(t), 400]);
-  for (const g of s.groups) for (const x of g.series) if (x && s.values !== 'none') out.push([`${numText(valueOf(s, x))}${s.unit}`, 700]);
+  for (const g of s.groups) for (const x of g.series) if (x && s.values !== 'none') out.push([`${numText(valueAt(s, x))}${s.unit}`, 700]);
   return out;
 }
 
@@ -109,7 +110,7 @@ export function markerPath(shape: Shape, x: number, y: number, r: number): strin
 }
 
 export function layoutCat(s: CatSpec, g: ChartGeom): LaidOutChartPart {
-  const who = s.kinds.length === 1 ? FN[s.kinds[0]] : 'catplot';
+  const who = s.kinds.length === 1 ? FN[must(s.kinds[0])] : 'catplot';
   const S = g.size, c = new Canvas(g.x, g.y, g.w, 100, S, g.widthOf, g.wrap), lh = c.lineH(), v = s.dir === 'v', n = s.groups.length, H = Math.max(1, s.hues.length);
   const rectKind = s.kinds.some(k => k === 'box' || k === 'violin' || k === 'bar');
   const all = s.groups.flatMap(gr => gr.series.flatMap(x => x ? [x.box.min, x.box.max, ...(x.err ?? [])] : []));
@@ -129,7 +130,7 @@ export function layoutCat(s: CatSpec, g: ChartGeom): LaidOutChartPart {
   // plot area and the category labels
   const tickW = Math.max(...sc.ticks.map(t => c.tw(tick(t))));
   const labelW = v ? 0 : Math.min(Math.max(...s.groups.map(gr => Math.max(c.tw(gr.label, true), s.counts ? c.tw(countText(gr)) : 0))) + 14, g.w * 0.3);
-  const plotL = v ? g.x + tickW + 16 : g.x + labelW + 8, plotR = g.x + g.w - (v ? 8 : Math.ceil(c.tw(tick(sc.ticks[sc.ticks.length - 1])) / 2) + 6);
+  const plotL = v ? g.x + tickW + 16 : g.x + labelW + 8, plotR = g.x + g.w - (v ? 8 : Math.ceil(c.tw(tick(must(sc.ticks[sc.ticks.length - 1]))) / 2) + 6);
   if (plotR - plotL < 80) fail(who, 'the figure is too narrow for its labels (raise width, or shorten the group names)');
   const slotV = (plotR - plotL) / n;
   const wrapped = s.groups.map(gr => c.wrap(gr.label, v ? slotV - 8 : labelW - 14, true));
@@ -148,7 +149,8 @@ export function layoutCat(s: CatSpec, g: ChartGeom): LaidOutChartPart {
   if (bw < 8) fail(who, `the groups are too narrow (${Math.floor(bw)}px): raise width, use fewer groups / hues, or dir: 'h'`);
   const kc = (gi: number, hi: number) => catA + (gi + 0.5) * slot + (hi - (H - 1) / 2) * (bw + gap);
   const ops = shadeOps(H), fillOp = (hi: number, kind: CatKind) => H === 1 ? (kind === 'bar' ? 0.5 : 0.25) : ops[hi];
-  const of = (gi: number) => s.groups[gi].id ?? `#${gi}`;
+  const grp = (gi: number) => must(s.groups[gi]);
+  const of = (gi: number) => grp(gi).id ?? `#${gi}`;
   const rectKU = (k0: number, k1: number, u0: number, u1: number, o: Parameters<Canvas['rect']>[4]) => {
     const a = P(k0, u0), b = P(k1, u1);
     return c.rect(r1(Math.min(a.x, b.x)), r1(Math.min(a.y, b.y)), r1(Math.abs(b.x - a.x)), r1(Math.abs(b.y - a.y)), o);
@@ -159,9 +161,9 @@ export function layoutCat(s: CatSpec, g: ChartGeom): LaidOutChartPart {
   const glyphs = !rectKind;
   legend.forEach(l => {
     const cy = g.y + l.row * (S + 12) + Math.max(9, Math.ceil(S * 0.64));
-    if (glyphs) c.path(markerPath(SHAPES[l.i], l.x + 7, cy, 6), {fill: 'accent', op: 0.8});
-    else c.rect(l.x, cy - 7, 14, 14, {fill: 'accent', op: fillOp(l.i, s.kinds[0]), stroke: 'accent', sw: 2});
-    c.text(s.hues[l.i], l.x + 20, c.mid(cy), 'start', 'text');
+    if (glyphs) c.path(markerPath(SHAPES[l.i] ?? 'disc', l.x + 7, cy, 6), {fill: 'accent', op: 0.8});
+    else c.rect(l.x, cy - 7, 14, 14, {fill: 'accent', op: fillOp(l.i, s.kinds[0] ?? 'box'), stroke: 'accent', sw: 2});
+    c.text(must(s.hues[l.i]), l.x + 20, c.mid(cy), 'start', 'text');
   });
   const axisName = s.label;
   if (v && axisName) c.text(axisName, plotL - 4, g.y + legendH + S + 2, 'start', 'muted', {bold: true});
@@ -176,7 +178,7 @@ export function layoutCat(s: CatSpec, g: ChartGeom): LaidOutChartPart {
   // category labels
   s.groups.forEach((gr, gi) => {
     const cen = catA + (gi + 0.5) * slot, own = of(gi);
-    const lines = [...wrapped[gi]];
+    const lines = [...must(wrapped[gi])];
     const total = lines.length + countLine, text = countText(gr);
     if (v) {
       c.lines(lines, cen, plotB + S + 11, 'middle', 'text', {bold: true, of: own});
@@ -205,20 +207,20 @@ export function layoutCat(s: CatSpec, g: ChartGeom): LaidOutChartPart {
   for (const kind of s.kinds) {
     if (kind === 'bar') draw((x, gi, hi, k) => {
       const own = of(gi);
-      rectKU(k - bw / 2, k + bw / 2, 0, x.mean, {fill: 'accent', op: fillOp(hi, 'bar'), stroke: 'accent', sw: 2, solid: `the bar of "${s.groups[gi].label}"${x.name ? ` / "${x.name}"` : ''}`, of: own});
+      rectKU(k - bw / 2, k + bw / 2, 0, x.mean, {fill: 'accent', op: fillOp(hi, 'bar'), stroke: 'accent', sw: 2, solid: `the bar of "${grp(gi).label}"${x.name ? ` / "${x.name}"` : ''}`, of: own});
       errBar(x, k, hi, own);
     });
     if (kind === 'violin') {
       const dens = s.groups.map(gr => gr.series.map(x => { if (!x) return undefined; const grid = Array.from({length: 41}, (_q, i) => x.box.min + (x.box.max - x.box.min) * i / 40); return {grid, ...kde(x.values, grid)}; }));
       const top = Math.max(...dens.flatMap(r => r.map(d => d ? Math.max(...d.density) : 0)));
       draw((x, gi, hi, k) => {
-        const d = dens[gi][hi]!, own = of(gi), norm = s.scale === 'area' ? top : Math.max(...d.density);
+        const d = must(must(dens[gi])[hi]), own = of(gi), norm = s.scale === 'area' ? top : Math.max(...d.density);
         const half = d.density.map(q => q / norm * bw / 2);
-        const side = (sgn: number) => d.grid.map((u, i) => P(k + sgn * half[i], u));
+        const side = (sgn: number) => d.grid.map((u, i) => P(k + sgn * (half[i] ?? NaN), u));
         const left = side(-1), right = side(1).reverse(), pth = [...left, ...right].map((p, i) => `${i ? 'L' : 'M'}${r1(p.x)},${r1(p.y)}`).join(' ') + ' Z';
         c.path(pth, {fill: 'accent', op: fillOp(hi, 'violin'), stroke: 'accent', sw: 2, of: own});
         const a = P(k - bw / 2, x.box.min), b = P(k + bw / 2, x.box.max);
-        c.solids.push({x: r1(Math.min(a.x, b.x)), y: r1(Math.min(a.y, b.y)), w: r1(Math.abs(b.x - a.x)), h: r1(Math.abs(b.y - a.y)), label: `the violin of "${s.groups[gi].label}"${x.name ? ` / "${x.name}"` : ''}`});
+        c.solids.push({x: r1(Math.min(a.x, b.x)), y: r1(Math.min(a.y, b.y)), w: r1(Math.abs(b.x - a.x)), h: r1(Math.abs(b.y - a.y)), label: `the violin of "${grp(gi).label}"${x.name ? ` / "${x.name}"` : ''}`});
         lineKU(k, x.box.q1, k, x.box.q3, {stroke: 'text', sw: 5, of: own});
         const m = P(k, x.box.median);
         c.path(markerPath('disc', m.x, m.y, 2.5), {fill: 'bg', of: own});
@@ -228,36 +230,36 @@ export function layoutCat(s: CatSpec, g: ChartGeom): LaidOutChartPart {
       const own = of(gi), b = x.box, cap = bw / 4;
       lineKU(k, b.lo, k, b.q1, {stroke: 'accent', sw: 2, of: own}); lineKU(k, b.q3, k, b.hi, {stroke: 'accent', sw: 2, of: own});
       for (const u of [b.lo, b.hi]) lineKU(k - cap, u, k + cap, u, {stroke: 'accent', sw: 2, of: own});
-      rectKU(k - bw / 2, k + bw / 2, b.q1, b.q3, {fill: 'accent', op: fillOp(hi, 'box'), stroke: 'accent', sw: 2, solid: `the box of "${s.groups[gi].label}"${x.name ? ` / "${x.name}"` : ''}`, of: own});
+      rectKU(k - bw / 2, k + bw / 2, b.q1, b.q3, {fill: 'accent', op: fillOp(hi, 'box'), stroke: 'accent', sw: 2, solid: `the box of "${grp(gi).label}"${x.name ? ` / "${x.name}"` : ''}`, of: own});
       lineKU(k - bw / 2, b.median, k + bw / 2, b.median, {stroke: 'text', sw: 3, of: own});
       if (!pts) for (const u of b.fliers) dot('ring', P(k, u), 3, {fill: 'none', stroke: 'accent', sw: 2, of: own});
     });
     if (kind === 'point') {
       for (let hi = 0; hi < H; hi++) {
-        const through = s.groups.flatMap((_gr, gi) => { const x = s.groups[gi].series[hi]; return x ? [P(kc(gi, hi), x.mean)] : []; });
+        const through = s.groups.flatMap((gr, gi) => { const x = gr.series[hi]; return x ? [P(kc(gi, hi), x.mean)] : []; });
         if (through.length > 1) c.path(through.map((p, i) => `${i ? 'L' : 'M'}${r1(p.x)},${r1(p.y)}`).join(' '), {fill: 'none', stroke: 'accent', sw: 2, dash: ['', '6,4', '2,4', '10,4,2,4'][hi] || undefined, of: s.groups.map((_g, gi) => of(gi))});
       }
-      draw((x, gi, hi, k) => { const own = of(gi); errBar(x, k, hi, own); dot(SHAPES[hi], P(k, x.mean), 5.5, {fill: 'accent', stroke: 'bg', sw: 1.5, of: own}); });
+      draw((x, gi, hi, k) => { const own = of(gi); errBar(x, k, hi, own); dot(SHAPES[hi] ?? 'disc', P(k, x.mean), 5.5, {fill: 'accent', stroke: 'bg', sw: 1.5, of: own}); });
     }
     if (kind === 'strip' || kind === 'swarm') draw((x, gi, hi, k) => {
       const own = of(gi), r = 3.5, free = bw / 2 - r;
       const offs = kind === 'swarm'
         ? swarmOffsets(x.values.map(px), 2 * r + 1, free)
         : x.values.map((_q, i) => ((i * 0.6180339887) % 1 - 0.5) * 2 * free);
-      if (!offs) fail(who, `the points of "${s.groups[gi].label}"${x.name ? ` / "${x.name}"` : ''} do not fit side by side in ${Math.floor(bw)}px (raise width / height, use fewer groups, or stripplot)`);
-      x.values.forEach((u, i) => dot(SHAPES[hi], P(k + (offs as number[])[i], u), r, {fill: 'accent', op: 0.8, stroke: 'bg', sw: 1, of: own}));
+      if (!offs) return fail(who, `the points of "${grp(gi).label}"${x.name ? ` / "${x.name}"` : ''} do not fit side by side in ${Math.floor(bw)}px (raise width / height, use fewer groups, or stripplot)`);
+      x.values.forEach((u, i) => dot(SHAPES[hi] ?? 'disc', P(k + must(offs[i]), u), r, {fill: 'accent', op: 0.8, stroke: 'bg', sw: 1, of: own}));
     });
   }
   for (const m of marks) c.marks.push({x: m.x - 4, y: m.y - 4, w: 8, h: 8});
 
   // each group's median / mean, written beside it
-  if (s.values !== 'none') draw((x, gi, hi, k) => {
-    const own = of(gi), u = valueOf(s, x), text = `${numText(u)}${s.unit}`, p = P(k, u), half = bw / 2 + 6, top = P(k, x.err ? Math.max(...x.err) : x.box.hi);
-    const cands = v
+  if (s.values !== 'none') draw((x, gi, _hi, k) => {
+    const own = of(gi), u = valueAt(s, x), text = `${numText(u)}${s.unit}`, p = P(k, u), half = bw / 2 + 6, top = P(k, x.err ? Math.max(...x.err) : x.box.hi);
+    const cands: [Cand, Cand, Cand] = v
       ? [{x: p.x + half, y: c.mid(p.y), anchor: 'start' as const}, {x: p.x - half, y: c.mid(p.y), anchor: 'end' as const}, {x: top.x, y: top.y - 8, anchor: 'middle' as const}]
       : [{x: top.x + 8, y: c.mid(top.y), anchor: 'start' as const}, {x: p.x, y: p.y - bw / 2 - 5, anchor: 'middle' as const}, {x: p.x, y: p.y + bw / 2 + S + 3, anchor: 'middle' as const}];
     const above = s.kinds.includes('bar') || s.kinds.includes('point');
-    if (!c.place(text, above ? [cands[2], ...cands.slice(0, 2)] : cands, 'text', {bold: true, of: own})) c.omitted.push(`${s.groups[gi].label}${x.name ? ` ${x.name}` : ''} ${text}`);
+    if (!c.place(text, above ? [cands[2], cands[0], cands[1]] : cands, 'text', {bold: true, of: own})) c.omitted.push(`${grp(gi).label}${x.name ? ` ${x.name}` : ''} ${text}`);
   });
   return c.done();
 }

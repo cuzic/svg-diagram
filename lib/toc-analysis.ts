@@ -16,14 +16,18 @@ export function reachCounts(nodes: readonly {id: string; role?: string}[], links
   for (const l of links) {
     if (!walks(l)) continue;
     entered.add(l.to);
-    for (const f of typeof l.from === 'string' ? [l.from] : l.from) (next.get(f) ?? next.set(f, []).get(f)!).push(l.to);
+    for (const f of typeof l.from === 'string' ? [l.from] : l.from) {
+      const list = next.get(f) ?? [];
+      list.push(l.to);
+      next.set(f, list);
+    }
   }
   const ude = new Set(nodes.filter(n => n.role === 'ude').map(n => n.id)), out = new Map<string, number>();
   for (const n of nodes) {
     if (entered.has(n.id)) continue;
     const seen = new Set<string>([n.id]), stack = [n.id];
     let count = 0;
-    while (stack.length) for (const t of next.get(stack.pop()!) ?? []) if (!seen.has(t)) { seen.add(t); stack.push(t); if (ude.has(t)) count++; }
+    for (let cur = stack.pop(); cur !== undefined; cur = stack.pop()) for (const t of next.get(cur) ?? []) if (!seen.has(t)) { seen.add(t); stack.push(t); if (ude.has(t)) count++; }
     out.set(n.id, count);
   }
   return out;

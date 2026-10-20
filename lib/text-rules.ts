@@ -16,22 +16,22 @@ export function midWordBreaks(lines: readonly string[], text?: string): MidWordB
   let p = 0; // position in `text` after the previous line (when the lines can be matched back to it)
   let matched = text !== undefined;
   for (let k = 0; k + 1 < lines.length; k++) {
-    const left = lines[k]!, right = lines[k + 1]!;
+    const left = lines[k], right = lines[k + 1];
     if (!left || !right) { matched = false; continue; }
     let spaced = false;
     if (matched && text !== undefined) {
       let q = p;
-      while (q < text.length && /\s/.test(text[q]!)) q++;
+      while (q < text.length && /\s/.test(text.charAt(q))) q++;
       if (!text.startsWith(left, q)) matched = false;
       else {
         p = q + left.length;
         let r = p;
-        while (r < text.length && /\s/.test(text[r]!)) r++;
+        while (r < text.length && /\s/.test(text.charAt(r))) r++;
         spaced = r > p;
       }
     }
     if (spaced) continue;
-    const a = left[left.length - 1]!, b = right[0]!;
+    const a = left.slice(-1), b = right.slice(0, 1);
     const word = matched ? sameWord(a, b) : KATAKANA.test(a) && KATAKANA.test(b);
     if (word) out.push({before: left.slice(-4), after: right.slice(0, 4)});
   }
@@ -50,9 +50,13 @@ const isPlaced = (o: unknown): o is Placed => typeof o === 'object' && o !== nul
 function placedBreaks(items: readonly Placed[], inSource: (junction: string) => boolean): MidWordBreak[] {
   const out: MidWordBreak[] = [];
   for (let k = 0; k + 1 < items.length; k++) {
-    const a = items[k]!, b = items[k + 1]!, pa = anchorOf(a)!, pb = anchorOf(b)!, gap = pb.y - pa.y;
+    const a = items[k], b = items[k + 1];
+    if (!a || !b) continue;
+    const pa = anchorOf(a), pb = anchorOf(b);
+    if (!pa || !pb) continue;
+    const gap = pb.y - pa.y;
     if (Math.abs(pa.x - pb.x) > 0.5 || a.size !== b.size || gap <= 0 || gap > a.size * 2 || !a.text || !b.text) continue;
-    if (KATAKANA.test(a.text[a.text.length - 1]!) && KATAKANA.test(b.text[0]!) && inSource(a.text.slice(-2) + b.text.slice(0, 2))) out.push({before: a.text.slice(-4), after: b.text.slice(0, 4)});
+    if (KATAKANA.test(a.text.slice(-1)) && KATAKANA.test(b.text.slice(0, 1)) && inSource(a.text.slice(-2) + b.text.slice(0, 2))) out.push({before: a.text.slice(-4), after: b.text.slice(0, 4)});
   }
   return out;
 }
@@ -71,7 +75,8 @@ export function midWordBreaksIn(root: unknown, source?: string): MidWordBreak[] 
       return;
     }
     const rec = o as Record<string, unknown>;
-    if (Array.isArray(rec.lines) && rec.lines.every(l => typeof l === 'string')) out.push(...midWordBreaks(rec.lines as string[], typeof rec.text === 'string' ? rec.text : undefined).filter(b => typeof rec.text === 'string' || inSource(b.before.slice(-2) + b.after.slice(0, 2))));
+    const lines = rec['lines'], text = rec['text'];
+    if (Array.isArray(lines) && lines.every(l => typeof l === 'string')) out.push(...midWordBreaks(lines, typeof text === 'string' ? text : undefined).filter(b => typeof text === 'string' || inSource(b.before.slice(-2) + b.after.slice(0, 2))));
     for (const v of Object.values(rec)) walk(v);
   };
   walk(root);

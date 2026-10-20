@@ -398,12 +398,12 @@ const flowRegions = [
 test('regions: pixel polygons follow the value space (1 = high, also when the axis is reversed), and captions are written', async () => {
   const f = await figure(quadrant.preset('positioning', {x: {title: 'x'}, y: {title: 'y'}, regions: flowRegions, items: [{label: 'P', at: [0.5, 0.5]}]}));
   assert.equal(f.regions.length, 2);
-  const [px, py] = f.regions[0].points[2]; // [0.75, 1]: three quarters across, at the top of the plot
+  const [px, py] = f.regions[0]!.points[2]!; // [0.75, 1]: three quarters across, at the top of the plot
   near(px, f.plot.x + 0.75 * f.plot.w);
   near(py, f.plot.y);
   assert.ok(f.texts.some(t => t.text === 'フロー' && t.bold) && f.texts.some(t => t.text === '挑戦とスキルが釣り合う'));
   const r = await figure(quadrant.preset('positioning', {x: {title: 'x', reversed: true}, y: {title: 'y'}, regions: flowRegions}));
-  near(r.regions[0].points[2][0], r.plot.x + 0.25 * r.plot.w); // high x is on the left
+  near(r.regions[0]!.points[2]![0], r.plot.x + 0.25 * r.plot.w); // high x is on the left
   const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(quadrant.preset('positioning', {x: {title: 'x'}, y: {title: 'y'}, regions: flowRegions})), {name: 'q.svg', budget: 'cacheOnly'});
   assert.ok(svg.includes('<polygon'));
 });
@@ -412,7 +412,7 @@ test('regions: items keep clear of a region caption, and an empty cell is not re
   const f = await figure(quadrant.preset('positioning', {x: {title: 'x'}, y: {title: 'y'}, regions: flowRegions, items: [{label: '近い点', at: [0.62, 0.4]}]}));
   assert.deepEqual(f.emptyCells, []);
   const cap = f.labelBoxes.find(b => b.kind === 'caption' && b.label.includes('フロー'));
-  const dot = f.bubbles[0];
+  const dot = f.bubbles[0]!;
   assert.ok(cap && Math.hypot(dot.x - Math.max(cap.x, Math.min(dot.x, cap.x + cap.w)), dot.y - Math.max(cap.y, Math.min(dot.y, cap.y + cap.h))) >= dot.cr);
 });
 

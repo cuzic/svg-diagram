@@ -18,7 +18,6 @@ import {diagramTarget, decodeTarget, figureName, inlineSvg, htmlFigure, plainTex
 import {resolveSource} from './source-path.ts';
 import {scanFigures} from './markdown-scan.ts';
 
-import {must} from './must.ts';
 export interface ExpandOptions {
   /** The Markdown file's path — sources are resolved from its directory. */
   file: string;
@@ -106,7 +105,7 @@ export async function expandMarkdown(text: string, opts: ExpandOptions): Promise
       const render = t.render ?? opts.render ?? 'svg';
       const file = `![${alt}](${svgDir}/${f.name}${title !== undefined ? ` "${title}"` : ''})`;
       // an HTML block must start a line: not inside a list item, a quote or a table row, and nothing else on its line
-      const alone = !ln.slice(0, hi).trim() && !ln.slice(at).trim() && !/^\s*(?:[>|]|(?:[-*+]|\d+[.)])\s)/.test(ln) && !inList;
+      const alone = !ln.slice(0, h.index).trim() && !ln.slice(at).trim() && !/^\s*(?:[>|]|(?:[-*+]|\d+[.)])\s)/.test(ln) && !inList;
       if (render === 'html') {
         if (!alone) { problems.push(`${path.relative(dir, f.source)}: the HTML form needs a line of its own (not in a list, a quote or a table, and no text beside it)`); out += h.real; continue; }
         out += `\n\n${htmlFigure(f.html, label, seen)}\n\n`;

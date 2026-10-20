@@ -7,6 +7,7 @@
 // (layered diagrams, trees, mind maps) and hand-placed ones (raw, wireframe, plane) are left out: their gaps and offsets are the layout's own.
 
 import {snap4} from './emit-common.ts';
+import {must} from './must.ts';
 import type {Rect} from './types/core.ts';
 import type {LaidOutBand} from './types/index.ts';
 import type {FindingData} from './types/verdicts.ts';
@@ -116,20 +117,23 @@ function runsOf(frames: Frame[]): Frame[][] {
 
 function siblingSize(runs: Frame[][], out: LayoutMetric[]): void {
   for (const run of runs) {
+    const first = run[0];
+    if (!first) continue;
     const ws = run.map(f => f.w), lo = Math.min(...ws), hi = Math.max(...ws);
     // a run that mixes widths further apart than the grid is a flex / span design; only the 1..GRID px differences are the defect
-    if (run.some(f => f.design !== run[0].design)) continue; // flex / span / width differ: not an equal division
+    if (run.some(f => f.design !== first.design)) continue; // flex / span / width differ: not an equal division
     if (hi === lo || run.some(f => run.some(g => f.w !== g.w && !near(f.w, g.w)))) continue;
-    out.push({rule: 'layout-sibling-size', message: `横に並ぶ ${run.length} 枠（${where(run[0])}）の幅が ${ws.join(' / ')}px で、${hi - lo}px だけ揃っていない。等分したい行は cols か flex で幅の比を揃える`, data: {band: run[0].name, measured: hi - lo, threshold: GRID, fix: 'cols / flex で列の幅を揃える（列の区切りは 4px の格子に乗せる）'}});
+    out.push({rule: 'layout-sibling-size', message: `横に並ぶ ${run.length} 枠（${where(first)}）の幅が ${ws.join(' / ')}px で、${hi - lo}px だけ揃っていない。等分したい行は cols か flex で幅の比を揃える`, data: {band: first.name, measured: hi - lo, threshold: GRID, fix: 'cols / flex で列の幅を揃える（列の区切りは 4px の格子に乗せる）'}});
   }
 }
 
 function gutterUneven(runs: Frame[][], out: LayoutMetric[]): void {
   for (const run of runs) {
-    if (run.length < 3) continue;
-    const gaps = run.slice(1).map((f, i) => f.x - right(run[i])), lo = Math.min(...gaps), hi = Math.max(...gaps);
+    const first = run[0];
+    if (!first || run.length < 3) continue;
+    const gaps = run.slice(1).map((f, i) => f.x - right(must(run[i]))), lo = Math.min(...gaps), hi = Math.max(...gaps);
     if (hi - lo < GUTTER_UNEVEN_PX) continue;
-    out.push({rule: 'layout-gutter-uneven', message: `横に並ぶ ${run.length} 枠（${where(run[0])}）の間隔が ${gaps.join(' / ')}px で、${hi - lo}px の差がある`, data: {band: run[0].name, measured: hi - lo, threshold: GUTTER_UNEVEN_PX, fix: gaps.every(v => v % GRID === 0) ? '同じ cols の格子に乗せて、間隔を共有する' : '間隔（gap）を 4px の倍数にする'}});
+    out.push({rule: 'layout-gutter-uneven', message: `横に並ぶ ${run.length} 枠（${where(first)}）の間隔が ${gaps.join(' / ')}px で、${hi - lo}px の差がある`, data: {band: first.name, measured: hi - lo, threshold: GUTTER_UNEVEN_PX, fix: gaps.every(v => v % GRID === 0) ? '同じ cols の格子に乗せて、間隔を共有する' : '間隔（gap）を 4px の倍数にする'}});
   }
 }
 
@@ -153,7 +157,7 @@ function edgeMisalign(frames: Frame[], out: LayoutMetric[]): void {
 /** The bottom of a box's text: the last line's baseline plus a descender. */
 function textBottom(b: LaidOutBox): number {
   let low = 0;
-  for (const r of b.wrappedRuns ?? []) if (r.lineYs?.length) low = Math.max(low, r.lineYs[r.lineYs.length - 1] + 0.3 * r.size);
+  for (const r of b.wrappedRuns ?? []) if (r.lineYs?.length) low = Math.max(low, must(r.lineYs[r.lineYs.length - 1]) + 0.3 * r.size);
   return b.y + (b.padY ?? 16) + low;
 }
 
@@ -222,9 +226,10 @@ function figureRules(laidOut: LaidOutBand[], width: number, out: LayoutMetric[])
 
 function alignMixed(runs: Frame[][], out: LayoutMetric[]): void {
   for (const run of runs) {
+    const first = run[0];
     const boxes = run.filter(f => f.kind === 'box' && f.align !== undefined), kinds = new Set(boxes.map(f => f.align)); // only an alignment the author set: a template's default is not a choice
-    if (boxes.length < 2 || kinds.size < 2) continue;
-    out.push({rule: 'layout-align-mixed', message: `横に並ぶ ${boxes.length} 枠（${where(run[0])}）で文字の揃え（${[...kinds].join(' / ')}）が混ざっている`, data: {band: run[0].name, measured: kinds.size, threshold: 1, fix: 'align を揃える（数字は中央、説明は左、などの意図があれば accept で許容する）'}});
+    if (!first || boxes.length < 2 || kinds.size < 2) continue;
+    out.push({rule: 'layout-align-mixed', message: `横に並ぶ ${boxes.length} 枠（${where(first)}）で文字の揃え（${[...kinds].join(' / ')}）が混ざっている`, data: {band: first.name, measured: kinds.size, threshold: 1, fix: 'align を揃える（数字は中央、説明は左、などの意図があれば accept で許容する）'}});
   }
 }
 

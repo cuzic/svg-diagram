@@ -8,6 +8,7 @@ import type {LaidOutWireframe, LaidOutScreens} from './types/wireframe.ts';
 import {TBL, lineH} from './seq-table.ts';
 import {iconSvg} from './icon-svg.ts';
 import {snap4, escapeXml, emojiSpan, resolveTextColor, resolveLineColor, strokeLine, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
+import {must} from './must.ts';
 
 export function renderSequence(band: LaidOutSequence, day: Theme, tones: ToneEnv, roles: Roles): string {
   const parts: string[] = [];

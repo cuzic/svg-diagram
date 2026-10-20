@@ -8,7 +8,7 @@ import {spawnSync} from 'node:child_process';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const run = (script: string, cwd: string, args: string[], env: Record<string, string> = {}) => {
-  const base = {...process.env}; delete base.SVG_DIAGRAM_TODAY;
+  const base = {...process.env}; delete base['SVG_DIAGRAM_TODAY'];
   return spawnSync(process.execPath, [path.join(ROOT, script), ...args], {cwd, encoding: 'utf8', env: {...base, ...env}});
 };
 const build = (cwd: string, args: string[], env?: Record<string, string>) => run('build-diagram.ts', cwd, args, env);
@@ -26,7 +26,7 @@ const project = (config?: object) => {
   return dir;
 };
 const svgOf = (dir: string, name: string) => fs.readFileSync(path.join(dir, 'svg', `${name}.svg`), 'utf8');
-const meta = (svg: string) => JSON.parse(/<metadata id="svg-diagram">(.*?)<\/metadata>/s.exec(svg)![1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+const meta = (svg: string) => JSON.parse(/<metadata id="svg-diagram">(.*?)<\/metadata>/s.exec(svg)![1]!.replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
 const noMeta = (svg: string) => svg.replace(/<metadata[\s\S]*?<\/metadata>/, '');
 
 test("today: 'auto' with no date given fails and says how to give one", () => {

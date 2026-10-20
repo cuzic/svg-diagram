@@ -191,7 +191,7 @@ function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opt
   const noted = tagged.map(n => { if (n.foldsInto === undefined) return n; const {foldsInto, ...rest} = n; return {...rest, sub: `${n.sub ? `${n.sub}　` : ''}→ ${foldsInto} に組み込む`}; });
   const udeTotal = nodes.filter(n => n.role === 'ude').length, coreLabel = (n: number): string => (opts.coreDriverLabel ?? '{n}/{total} 件に届く').replaceAll('{n}', String(n)).replaceAll('{total}', String(udeTotal));
   const counted = opts.coreDriver ? reachCounts(nodes, links) : undefined, core = new Set(counted ? coreDrivers(counted) : []);
-  const marked = counted ? noted.map(n => !counted.has(n.id) || n.role === 'trim' ? n : {...n, ...(core.has(n.id) ? {core: true} : {}), ...(opts.counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}${coreLabel(counted.get(n.id)!)}`})}) : noted;
+  const marked = counted ? noted.map(n => { const reach = counted.get(n.id); return reach === undefined || n.role === 'trim' ? n : {...n, ...(core.has(n.id) ? {core: true} : {}), ...(opts.counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}${coreLabel(reach)}`})}; }) : noted;
   const band: CauseBand = {type: 'cause', nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? (base === undefined ? {} : {dir: base, dirLeftOut: true as const}) : {dir: opts.dir}), ...(base === undefined ? {} : {base}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.tree === undefined ? {} : {tree: opts.tree}), ...(tagMap === undefined ? {} : {roleTags: tagMap}), ...(opts.mirrors === undefined ? {} : {mirrorOf: {ids: opts.mirrors.nodes.map(n => n.id), udes: opts.mirrors.nodes.filter(n => n.role === 'ude').map(n => n.id)}}), ...(opts.layer === undefined ? {} : {layer: opts.layer}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.hop === undefined ? (opts.tree === undefined ? {} : {hop: 'all' as const}) : {hop: opts.hop}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.fold === undefined || base !== undefined ? {} : {fold: opts.fold}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'causeTree()'), ...revealOf(opts)};
   if (unanchored.length) band.unanchored = [...unanchored];
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id).filter(id => !unanchored.includes(id)));
@@ -385,7 +385,7 @@ export function relationDiagram(nodes: readonly RelationNode[], links: readonly 
   for (const p of problems) if (!ids.has(p)) throw new Error(`relationDiagram(): problem names unknown node "${p}"`);
   for (const l of links ?? []) if (typeof l.from !== 'string') throw new Error(`relationDiagram(): a link to "${l.to}" needs one cause as a string (use causeTree() for an AND)`);
   const out = new Map(nodes.map(n => [n.id, (links ?? []).filter(l => l.kind !== 'blocks' && l.from === n.id).length])), into = new Map(nodes.map(n => [n.id, (links ?? []).filter(l => l.kind !== 'blocks' && l.to === n.id).length]));
-  const top = Math.max(0, ...nodes.filter(n => !problems.has(n.id) && n.role === undefined).map(n => out.get(n.id)!));
+  const top = Math.max(0, ...nodes.filter(n => !problems.has(n.id) && n.role === undefined).map(n => out.get(n.id) ?? 0));
   const {problem: _p, counts, ...rest} = opts;
   return causeBand(nodes.map(n => ({
     ...n,

@@ -2,6 +2,7 @@
 // Written as options of the band; a pre-layout pass turns each into an ordinary connect() with route 'loop-under' right after the band, with the
 // lanes stepped so that no two loops cross or run at one height (hand-written loop-under connects keep the `dip` the author wrote).
 import {connectBand} from './dsl/defaults.ts';
+import {must} from './must.ts';
 import type {LoopBack} from './types/containers.ts';
 import type {Band} from './types/index.ts';
 
@@ -50,7 +51,7 @@ export function expandLoopBacks(bands: Band[]): Band[] {
     const id = b.id ?? (b.id = `__loopback${internal++}`);
     const anchor = (i: number): string => {
       if (b.type === 'row') return `${id}#${i}`;
-      const step = b.steps[i - 1];
+      const step = must(b.steps[i - 1]); // resolveLoopBacks checked 1..n
       return step.id ?? (step.id = `${id}__${i}`);
     };
     // the shorter the span, the nearer the boxes: loops inside another one sit above it, so no vertical leg crosses another loop's run

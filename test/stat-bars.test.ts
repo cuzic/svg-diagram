@@ -147,7 +147,7 @@ test('bars SVG includes value labels and token series colours', async () => {
 test('stat({tone: accent}) fills the card with the accent tone fill, honours a tones.accent.fill override; plain and solid are unchanged', async () => {
   const svgOf = async (tone?: 'accent' | 'solid', tones?: {accent: {fill: string}}) =>
     (await renderDiagram(diagram({theme: 'blue', ...(tones ? {tones} : {})}).add(stat('+12%', '完了率', tone ? {tone} : {})), {name: 's.svg', budget: 'cacheOnly'})).svg;
-  const fills = (svg: string) => [...svg.matchAll(/<rect[^>]*\sfill="(#[0-9a-fA-F]{6})"/g)].map(m => m[1].toLowerCase());
+  const fills = (svg: string) => [...svg.matchAll(/<rect[^>]*\sfill="(#[0-9a-fA-F]{6})"/g)].map(m => m[1]!.toLowerCase());
   const soft = toneStyle(NO_TONES, 'accent').fill, plain = fills(await svgOf());
   const accentFills = fills(await svgOf('accent'));
   assert.notDeepEqual(accentFills, plain, 'the accent stat is not drawn like the plain one');

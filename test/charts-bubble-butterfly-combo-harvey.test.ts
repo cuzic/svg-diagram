@@ -35,7 +35,7 @@ test('butterfly(): a zero has no bar but its number; sort orders the rows; error
   assert.deepEqual(problems, []);
   assert.ok(!chart.solids.some(s => s.label === 'a L') && texts(chart).includes('0'));
   const ys = ['b L', 'a R'].map(l => solid(chart, l).y);
-  assert.ok(ys[0] < ys[1], 'sorted by the left value, largest first');
+  assert.ok(ys[0]! < ys[1]!, 'sorted by the left value, largest first');
   assert.throws(() => butterfly([{label: 'a', left: 1, right: 1}], {} as never), /names of both groups/);
   assert.throws(() => butterfly([{label: 'a', left: -1, right: 1}], {leftLabel: 'L', rightLabel: 'R'}), />= 0/);
   assert.throws(() => butterfly([{label: 'a', left: 0, right: 0}], {leftLabel: 'L', rightLabel: 'R'}), /all values are 0/);
@@ -52,7 +52,7 @@ test('bubble(): area is proportional to size, every bubble is named, thresholds 
   assert.ok(t.some(s => s.startsWith('円の面積 = 売上')), 'the legend names what the area is');
   const circle = (d: string) => { const m = /a([\d.]+),/.exec(d); return m ? Number(m[1]) : NaN; };
   const radii = chart.items.flatMap(i => i.k === 'path' && i.fill !== 'none' && i.op === 0.3 && i.of !== undefined ? [circle(i.d)] : []);
-  assert.ok(Math.abs(radii[0] / radii[1] - 2) < 0.1, `radius ratio ${radii[0] / radii[1]} is √4`);
+  assert.ok(Math.abs(radii[0]! / radii[1]! - 2) < 0.1, `radius ratio ${radii[0]! / radii[1]!} is √4`);
   assert.ok(chart.anchors.some(a => a.id === 'a'));
 });
 
@@ -182,10 +182,10 @@ test('the four charts render in the dark appearance and on a canvas, with a desc
 // ---- a seeded sweep --------------------------------------------------------------------------------------------------------------
 
 test('a seeded sweep of the four charts (zeros, negatives, long labels, crowds) never throws except with a named reason and never fails verify', async () => {
-  let seed = Number(process.env.SWEEP_SEED ?? 20261013);
-  const mult = Number(process.env.SWEEP_MULT ?? 1);
+  let seed = Number(process.env['SWEEP_SEED'] ?? 20261013);
+  const mult = Number(process.env['SWEEP_MULT'] ?? 1);
   const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-  const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)];
+  const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)]!;
   const word = (): string => pick(['売上', '利益', 'コスト', 'Customer', '新規顧客の獲得', 'アジア太平洋地域', 'x', '長い名前のものがここに入ります', '費用', 'EBITDA']);
   const val = (neg = false): number => Math.round((neg && rnd() < 0.4 ? -1 : 1) * (rnd() < 0.15 ? 0 : rnd() < 0.2 ? rnd() * 5 : rnd() * (rnd() < 0.3 ? 100000 : 100)) * 100) / 100;
   const uniq = (n: number, f: () => string): string[] => { const s = new Set<string>(); let i = 0; while (s.size < n && i++ < 100) s.add(f()); return [...s]; };
@@ -202,7 +202,7 @@ test('a seeded sweep of the four charts (zeros, negatives, long labels, crowds) 
   for (let t = 0; t < 30 * mult; t++) await run(`bubble ${t}`, () => bubble(uniq(1 + Math.floor(rnd() * 14), word).map(label => ({label, x: val(true), y: val(true), size: Math.abs(val()) + 0.01})), {x: {title: word()}, y: {title: word(), unit: pick(['', '%'])}, sizeTitle: word(), sizeUnit: pick(['', '億円'])}));
   for (let t = 0; t < 30 * mult; t++) await run(`combo ${t}`, () => { const N = 2 + Math.floor(rnd() * 9), S = uniq(1 + Math.floor(rnd() * 4), word); const stack = rnd() < 0.3; return combo(Array.from({length: N}, (_, i) => `${word()}${i}`), S.map((label, i) => ({label, type: i % 2 === 0 ? 'bar' as const : 'line' as const, values: Array.from({length: N}, () => rnd() < 0.1 ? null : stack ? Math.abs(val()) : val(true))})).map(s => s.values.every(v => v === null) ? {...s, values: s.values.map(() => 1)} : s), {stack, y: {unit: pick(['', '億円'])}, y2: {unit: pick(['', '%'])}}); });
   for (let t = 0; t < 30 * mult; t++) await run(`harvey ${t}`, () => { const R = 1 + Math.floor(rnd() * 10), C = 1 + Math.floor(rnd() * 6); return harvey(uniq(R, word).concat(Array.from({length: R}, (_, i) => `基準${i}`)).slice(0, R), uniq(C, word).concat(Array.from({length: C}, (_, i) => `案${i}`)).slice(0, C), Array.from({length: R}, () => Array.from({length: C}, () => rnd() < 0.1 ? null : Math.floor(rnd() * 5)))); });
-  if (process.env.DBG) console.log(named.map(n => n.slice(0, 160)).join('\n'));
+  if (process.env['DBG']) console.log(named.map(n => n.slice(0, 160)).join('\n'));
   assert.deepEqual(bad, []);
   assert.ok(named.length < 60 * mult, `too many refusals (${named.length}): the charts should draw most ordinary data`);
 });

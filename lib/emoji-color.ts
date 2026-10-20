@@ -33,6 +33,7 @@ export function withColorEmoji(svg: string, specs?: FontSpecs): string {
   let out = '', at = 0, changed = false;
   texts.forEach((text, k) => {
     const m = spans[k];
+    if (!m) return;
     const runs = placeRuns(text, styles, (t, family, size, weight) => textBox(t, family, size, weight)).filter(r => familyKind(r.style.fontFamily) === 'emoji' && /\P{ASCII}/u.test(r.s));
     const pictures: string[] = [];
     const drawn = new Set<string>();

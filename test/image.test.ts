@@ -45,7 +45,7 @@ test('readImage embeds the file; a path, a file URL and a data URI give the same
   assert.equal(a.w, 240); assert.equal(a.h, 160);
   assert.equal(a.href, b.href); assert.equal(a.href, c.href);
   assert.equal(readImage('./kitchen.png', dir).href, a.href);
-  assert.equal(crypto.createHash('sha1').update(Buffer.from(a.href.split(',')[1], 'base64')).digest('hex'), crypto.createHash('sha1').update(fs.readFileSync(kitchen)).digest('hex'));
+  assert.equal(crypto.createHash('sha1').update(Buffer.from(a.href.split(',')[1]!, 'base64')).digest('hex'), crypto.createHash('sha1').update(fs.readFileSync(kitchen)).digest('hex'));
 });
 
 test('image() refuses what it cannot embed or describe (a file is judged when the diagram is drawn or checked)', async () => {
@@ -293,8 +293,8 @@ test('a relative path in image() is read from the diagram\'s source folder, what
   await assert.rejects(checkDiagram(diagram({theme: 'blue'}).add(image('./kitchen.png', {alt: 'k'}))), /cannot read .*kitchen\.png/); // the working folder has none
   const bands = [image('./kitchen.png', {alt: 'k'})];
   resolveImages(bands, dir);
-  assert.equal(bands[0].unresolved, undefined);
-  assert.equal(bands[0].naturalW, 240);
+  assert.equal(bands[0]!.unresolved, undefined);
+  assert.equal(bands[0]!.naturalW, 240);
 });
 
 test('two diagrams with different source folders and the same relative path each read their own picture (concurrently)', async () => {

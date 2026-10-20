@@ -114,7 +114,7 @@ function verticalValues(band: BarsBand, plotL: number, plotR: number, plotT: num
   return band.data.map((d, i) => {
     const {lo, hi} = barSpan(d);
     if (band.hideZero && hi === 0) return undefined;
-    const bh = (hi - lo) / band.max * (plotB - plotT), bx = plotL + slots[i] * slot + (slot - bw) / 2, rY = plotB - hi / band.max * (plotB - plotT);
+    const bh = (hi - lo) / band.max * (plotB - plotT), bx = plotL + must(slots[i]) * slot + (slot - bw) / 2, rY = plotB - hi / band.max * (plotB - plotT);
     const tw = textWidth(widthOf, valueText(d, band), S, 700);
     const cx = dodge(bx + bw / 2, tw, bx, bx + bw), cxOut = dodge(bx + bw / 2, tw, plotL + must(slots[i]) * slot, plotL + (must(slots[i]) + 1) * slot);
     const cut = (at: number, base: number): boolean => cumSegs.some(sg => segHitsRect(sg, {x: at - tw / 2, y: base - S + 2, w: tw, h: S}));
@@ -197,8 +197,8 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
   const ticks = f.axis ? ticksOf({max: band.max}, 'bars') : [];
   const labelW = band.stack || !f.showCats ? 0 : Math.max(...band.data.map(d => textWidth(widthOf, d.label, S, 400))) + 12;
   const valueW = band.stack || !f.showValues ? 0 : Math.max(...band.data.map(d => textWidth(widthOf, valueText(d, band), S, 700))) + 12;
-  const tickPadL = band.stack && f.axis ? textWidth(widthOf, ticks[0].label, S, 400) / 2 : 0;
-  const tickPadR = band.stack && f.axis ? textWidth(widthOf, ticks[ticks.length - 1].label, S, 400) / 2 : 0;
+  const tickPadL = band.stack && f.axis ? textWidth(widthOf, must(ticks[0]).label, S, 400) / 2 : 0;
+  const tickPadR = band.stack && f.axis ? textWidth(widthOf, must(ticks[ticks.length - 1]).label, S, 400) / 2 : 0;
   const [insetL, insetR] = insetOrNeed('bars()', band.plotInset, labelW + tickPadL, valueW + tickPadR);
   const plotL = x + insetL, plotR = x + w - insetR, plotW = plotR - plotL;
   if (plotW < (f.axis || f.labels !== 'none' ? 80 : 20)) throw new Error('bars(): the figure is too narrow for its labels');
@@ -230,7 +230,7 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
       at += rawW;
     });
   } else band.data.forEach((d, i) => {
-    const {lo, hi} = barSpan(d), by = y + slots[i] * (bh + gp), x0 = plotL + lo / band.max * plotW, bw = (hi - lo) / band.max * plotW;
+    const {lo, hi} = barSpan(d), by = y + must(slots[i]) * (bh + gp), x0 = plotL + lo / band.max * plotW, bw = (hi - lo) / band.max * plotW;
     const r = addBar(out, d, {x: x0, y: by, w: bw, h: bh});
     const bar = out.bars.length - 1;
     if (f.showCats) putText(out, S, d.label, plotL - 8, by + bh / 2 + S * .36, 'end', 'text', widthOf, false, undefined, bar);
@@ -299,7 +299,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
   } else {
     const values = f.showValues ? verticalValues(band, plotL, plotR, plotT, plotB, S, widthOf, slots, slot, bw, yOf) : [];
     band.data.forEach((d, i) => {
-      const {lo, hi} = barSpan(d), bh = (hi - lo) / band.max * (plotB - plotT), bx = plotL + slots[i] * slot + (slot - bw) / 2;
+      const {lo, hi} = barSpan(d), bh = (hi - lo) / band.max * (plotB - plotT), bx = plotL + must(slots[i]) * slot + (slot - bw) / 2;
       const r = addBar(out, d, {x: bx, y: plotB - hi / band.max * (plotB - plotT), w: bw, h: bh});
       const bar = out.bars.length - 1;
       if (f.showCats && !band.edges) putText(out, S, d.label, bx + bw / 2, plotB + S + 10, 'middle', 'text', widthOf, false, undefined, bar);

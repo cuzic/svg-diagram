@@ -2,6 +2,7 @@ import type {Canvas, Cand, ChartGeom, LaidOutChartPart} from './charts-base.ts';
 import {checkIds, checkText, fail} from './charts-base.ts';
 import type {Pt} from './graph-layout.ts';
 import {textWidth} from './atoms.ts';
+import {must} from './must.ts';
 import {analyzeCausalLoops} from './semnet-analysis.ts';
 import type {CausalLink, CausalLoop, CausalPolarity} from './semnet-analysis.ts';
 import {checkRing, layoutRing} from './semnet-ring.ts';
@@ -71,7 +72,7 @@ export const causalAlt = (s: CausalSpec): string => {
 export const causalTexts = (s: CausalSpec): [string, number][] => [...s.nodes.map(n => [n.label, 700] as [string, number]), ...s.links.flatMap(e => [[e.polarity === 'same' ? '+' : e.polarity === 'opposite' ? '-' : e.polarity, 700] as [string, number], ...(e.delay ? [['||', 700] as [string, number]] : []), ...(e.label ? [[e.label, 400] as [string, number]] : [])]), ...loopNames(s.loops).map(n => [n, 700] as [string, number]), ...s.interventions.flatMap(v => [[v.label, 700] as [string, number], [signText(v.polarity), 700] as [string, number], ...(v.delay ? [['||', 700] as [string, number]] : [])])];
 
 export function layoutCausal(s: CausalSpec, g: ChartGeom): LaidOutChartPart {
-  const ns = s.nodes.map(n => ({...n, w: Math.max(116, textWidth(g.widthOf, n.label, g.size, 700) + 28), h: 48})), loop = s.layout === 'ring' ? s.loops.find(l => l.nodes.length > 1)! : undefined;
+  const ns = s.nodes.map(n => ({...n, w: Math.max(116, textWidth(g.widthOf, n.label, g.size, 700) + 28), h: 48})), loop = s.layout === 'ring' ? s.loops.find(l => l.nodes.length > 1) : undefined;
   const selfs = s.links.flatMap((e, index) => e.from === e.to ? [{index, node: e.from}] : []);
   const items: IvItem[] = s.interventions.map(v => ({id: v.id, label: v.label, to: v.to, w: textWidth(g.widthOf, v.label, g.size, 700) + 28}));
   // the band is one edge: the top for LR, the left for TB, above and below a ring; the loop gets that much less room, and a thicker band when an arrow finds no way through
@@ -89,11 +90,11 @@ export function layoutCausal(s: CausalSpec, g: ChartGeom): LaidOutChartPart {
   const {c, positions, paths, centre} = laid;
   // Stage 1: every line and every box. Stage 2: the signs and names, over the finished lines (a sign placed between two edges' lines would be struck through by the later one).
   const edges = s.links.map((e, i) => { const p = pathOf(paths, i, e, positions); arrow(c, p, {stroke: 'text', dash: undefined, ...(s.layout === 'ring' ? {} : {edge: e})}); return {e, p}; });
-  for (const n of s.nodes) { const p = positions.get(n.id)!, host = nodeBox(c, p, n.id, n.label, 'text'); c.text(n.label, p.x + p.w / 2, c.mid(p.y + p.h / 2), 'middle', 'text', {bold: true, host, of: n.id}); }
+  for (const n of s.nodes) { const p = must(positions.get(n.id)), host = nodeBox(c, p, n.id, n.label, 'text'); c.text(n.label, p.x + p.w / 2, c.mid(p.y + p.h / 2), 'middle', 'text', {bold: true, host, of: n.id}); }
   // the interventions: a dashed box (an anchor, like a node) and a dashed arrow to each target
   const ivEdges: {e: CausalLink; p: Pt[]}[] = [];
   for (const {item, box, arrows} of plan && 'placed' in plan ? plan.placed : []) {
-    const v = s.interventions.find(x => x.id === item.id)!, host = c.rect(box.x, box.y, box.w, box.h, {fill: 'bg', stroke: 'accent', sw: 2, dash: '6,4', id: v.id, of: v.id, solid: `intervention "${v.label}"`});
+    const v = must(s.interventions.find(x => x.id === item.id)), host = c.rect(box.x, box.y, box.w, box.h, {fill: 'bg', stroke: 'accent', sw: 2, dash: '6,4', id: v.id, of: v.id, solid: `intervention "${v.label}"`});
     c.text(v.label, box.x + box.w / 2, c.mid(box.y + box.h / 2), 'middle', 'text', {bold: true, host, of: v.id});
     for (const a of arrows) { arrow(c, a.path, {stroke: 'accent', dash: '6,4'}); ivEdges.push({e: {from: v.id, to: a.to, polarity: v.polarity, ...(v.delay ? {delay: true} : {})}, p: a.path}); }
   }
@@ -115,7 +116,6 @@ export function layoutCausal(s: CausalSpec, g: ChartGeom): LaidOutChartPart {
 }
 
 type Rect = ReturnType<Canvas['boxOf']>;
-type Boxes = Map<string, {x: number; y: number; w: number; h: number}>;
 const signOf = (e: CausalLink): string => e.polarity === 'same' ? '+' : e.polarity === 'opposite' ? '-' : e.polarity;
 /** A polarity or a delay mark that finds no room stops the build: without it the figure says something else (R reads as B). More height or width does not help, the room is beside the edge. */
 const noRoom = (what: string, e: CausalLink): never => fail('causalLoop', `${what} of ${e.from} -> ${e.to} has no room (the figure is too dense around this link: drop a link or a node, or shorten the node labels; a larger height / width does not make room)`);
@@ -135,10 +135,11 @@ function placeLabel(c: Canvas, g: ChartGeom, text: string, p: Pt[], heads: Rect[
 function placeLoopNames(c: Canvas, g: ChartGeom, loops: readonly CausalLoop[], positions: Map<string, {x: number; y: number; w: number; h: number}>, heads: Rect[], centre?: Pt): void {
   const names = loopNames(loops);
   loops.forEach((l, i) => {
-    const ps = l.nodes.map(id => positions.get(id)!), x = ps.reduce((a, p) => a + p.x + p.w / 2, 0) / ps.length, bottom = Math.max(...ps.map(p => p.y + p.h)), top = Math.min(...ps.map(p => p.y));
+    const ps = l.nodes.map(id => must(positions.get(id))), x = ps.reduce((a, p) => a + p.x + p.w / 2, 0) / ps.length, bottom = Math.max(...ps.map(p => p.y + p.h)), top = Math.min(...ps.map(p => p.y));
     const home = {x, y: Math.min(c.y + c.h - 5, bottom + g.size + 6), anchor: 'middle' as const}, cands: Cand[] = [home, {x, y: top - 6, anchor: 'middle'}, {x, y: c.mid(ps.reduce((a, p) => a + p.y + p.h / 2, 0) / ps.length), anchor: 'middle'}];
     if (centre && l.nodes.length > 1) cands.unshift({x: centre.x, y: c.mid(centre.y), anchor: 'middle'}); // a ring: the name goes in the middle
-    for (let k = 1; k <= 12; k++) for (const [dx, dy] of [[0, k], [0, -k], [k, 0], [-k, 0]]) cands.push({...home, x: x + dx * 8, y: home.y + dy * 8});
-    placePlated(c, names[i], cands, l.kind === 'R' ? 'accent' : 'danger', {bold: true, plate: true}, b => !touchesAny(b, heads)) ?? c.text(names[i], home.x, home.y, 'middle', l.kind === 'R' ? 'accent' : 'danger', {bold: true, plate: true});
+    for (let k = 1; k <= 12; k++) { const ring: [number, number][] = [[0, k], [0, -k], [k, 0], [-k, 0]]; for (const [dx, dy] of ring) cands.push({...home, x: x + dx * 8, y: home.y + dy * 8}); }
+    const name = must(names[i]);
+    placePlated(c, name, cands, l.kind === 'R' ? 'accent' : 'danger', {bold: true, plate: true}, b => !touchesAny(b, heads)) ?? c.text(name, home.x, home.y, 'middle', l.kind === 'R' ? 'accent' : 'danger', {bold: true, plate: true});
   });
 }

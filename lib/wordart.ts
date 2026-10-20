@@ -21,7 +21,7 @@ export * from './wordart-layout.ts';
 // ---------------------------------------------------------------------------------------------------------------------------
 
 /** Throws `wordart(): <what> <must be ...> (got X)` unless `ok`; `undefined` is always fine (the option is not given). */
-const check = (what: string, v: unknown, ok: (v: any) => boolean, must: string): void => {
+const check = <T>(what: string, v: T | undefined, ok: (v: T) => boolean, must: string): void => {
   if (v !== undefined && !ok(v)) throw new Error(`wordart(): ${what} ${must} (got ${typeof v === 'object' ? JSON.stringify(v) : String(v)})`);
 };
 const oneOf = (...xs: readonly string[]) => (v: unknown): boolean => xs.includes(v as string);

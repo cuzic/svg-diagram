@@ -21,7 +21,7 @@ import type {BoxTone} from './types/text-bands.ts';
 import {must} from './must.ts';
 // ---- cause tree -------------------------------------------------------------------------------------------------------------
 
-const MAX_W = 200, GAP = 28, LEVEL = 64, PORT = 22; // PORT: the step between the arrows that meet one side of an entity (the arrowheads of an AND stay apart)
+const GAP = 28, LEVEL = 64, PORT = 22; // PORT: the step between the arrows that meet one side of an entity (the arrowheads of an AND stay apart)
 /** The arc across the arrows of an AND: where its ends and its middle are, as distances from the arrowheads' tips. */
 /** The 中核 badge (ADR 0015 D4): its height and its gap to the frame; emit-figures draws it, the layout keeps the room. */
 export const CORE_BADGE_H = 22, CORE_BADGE_W = 44, CORE_BADGE_GAP = 2;
@@ -100,23 +100,23 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
   if (band.straighten !== false) {
     let seed = 20260417 + ids.length;
     const rand = (n: number): number => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed % n; };
-    for (let k = 0, n = Math.min(24, ids.length * 3); k < n; k++) { const o = [...ids]; for (let i = o.length - 1; i > 0; i--) { const j = rand(i + 1); [o[i], o[j]] = [o[j], o[i]]; } add(o); }
+    for (let k = 0, n = Math.min(24, ids.length * 3); k < n; k++) { const o = [...ids]; for (let i = o.length - 1; i > 0; i--) { const j = rand(i + 1); const oi = must(o[i]); o[i] = must(o[j]); o[j] = oi; } add(o); }
   }
   let tried = 0, lastBetter = 0, polished = false;
   while (queue.length || (!polished && band.straighten !== false)) {
     if (!queue.length) { // swaps of two neighbours of the best order, once the shuffles are done
       polished = true;
       if (bestScore[0] === 0 && bestScore[1] === 0 && bestScore[2] === 0) break; // nothing crosses: only bends are left
-      for (let i = 0; i + 1 < (bestOrder ?? ids).length; i++) { const o = [...(bestOrder ?? ids)]; [o[i], o[i + 1]] = [o[i + 1], o[i]]; add(o); }
+      for (let i = 0; i + 1 < (bestOrder ?? ids).length; i++) { const o = [...(bestOrder ?? ids)]; const oi = must(o[i]); o[i] = must(o[i + 1]); o[i + 1] = oi; add(o); }
       continue;
     }
     // give up when nothing has got better for a while (counted in the orders tried, the ones set aside too: each is a layout): sooner once no AND arrows cross
     if (++tried > MAX_ORDERS || tried - lastBetter > (bestScore[0] === 0 ? PATIENCE_QUIET : PATIENCE)) break;
-    const order = queue.shift()!;
+    const order = must(queue.shift());
     let t: LaidOutCause;
     try { t = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, false, true); } catch { continue; }
     // the same layers (a different order must not change which edge of a cycle is cut, or fold the figure), the same size limits, no AND the first drew left undrawn
-    if (axisOf(t).some((v, i) => Math.abs(v - baseAxis[i]) > 0.5) || t.h > base.h + 0.5 || t.loose.length > base.loose.length) continue;
+    if (axisOf(t).some((v, i) => Math.abs(v - must(baseAxis[i])) > 0.5) || t.h > base.h + 0.5 || t.loose.length > base.loose.length) continue;
     if (t.fitApplied?.length !== base.fitApplied?.length) continue;
     const score = scoreOfCause(t);
     if (lexLess(score, bestScore)) { best = t; bestScore = score; bestOrder = order; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
@@ -127,7 +127,7 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
   // the best of: the first figure, the best order with the detours, the best figure without them (the one the search judged; the base itself when no order beat it): the first one wins a tie.
   // The detours can make AND arrows cross (they are judged by the whole figure's crossings), so the figure without them must stay a candidate
   // the same frame as the figures the search compared (the plain ones: the detours may have made `first` lower than any order would be without them)
-  const sameFrame = (t: LaidOutCause): boolean => axisOf(t).every((v, i) => Math.abs(v - baseAxis[i]) <= 0.5) && t.h <= base.h + 0.5 && t.loose.length <= base.loose.length && t.fitApplied?.length === base.fitApplied?.length;
+  const sameFrame = (t: LaidOutCause): boolean => axisOf(t).every((v, i) => Math.abs(v - must(baseAxis[i])) <= 0.5) && t.h <= base.h + 0.5 && t.loose.length <= base.loose.length && t.fitApplied?.length === base.fitApplied?.length;
   let pick = first, pickScore = scoreOfCause(first);
   for (const t of [found, best]) {
     if (!t || !sameFrame(t)) continue;
@@ -144,7 +144,7 @@ const PATIENCE = 30, PATIENCE_QUIET = 14;
 const crossingsOf_ = (t: LaidOutCause): number => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
 /** (arrows of an AND that cross, arrows of an AND that run side by side, crossings, bends): smaller is better, in this order. */
 const scoreOfCause = (t: LaidOutCause): number[] => { const s = scoreOf(t.edges.map(e => e.points)); return [crossingsOf_(t), andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses').length, s.crossings, s.bends]; };
-const lexLess = (a: number[], b: number[]): boolean => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i]; return false; };
+const lexLess = (a: number[], b: number[]): boolean => { for (let i = 0; i < a.length; i++) { const x = a[i], y = b[i]; if (x !== y) return x !== undefined && y !== undefined && x < y; } return false; };
 
 export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false): LaidOutCause {
   const ids = new Set<string>();
@@ -178,11 +178,12 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   // the last run of each arrow of an AND, when they can carry one arc (see below): the arrows arrive on one side, all heading the
   // same way, with room before the head for the arc
   const andEnds = (g: {arrows: number[]}, pointsOf: (k: number) => Pt[]) => {
-    const ends = g.arrows.map(pointsOf).map(p => ({tip: p[p.length - 1], prev: p[p.length - 2]}));
+    const ends = g.arrows.map(pointsOf).map(p => ({tip: must(p.at(-1)), prev: must(p.at(-2))}));
+    const first = must(ends[0]);
     const sgn = (v: number): number => Math.abs(v) < 0.5 ? 0 : Math.sign(v); // a last run a hair off the straight (float noise) is still straight
-    const d = {x: sgn(ends[0].tip.x - ends[0].prev.x), y: sgn(ends[0].tip.y - ends[0].prev.y)};
+    const d = {x: sgn(first.tip.x - first.prev.x), y: sgn(first.tip.y - first.prev.y)};
     const along = (p: Pt): number => d.x ? p.x : p.y, cross = (p: Pt): number => d.x ? p.y : p.x;
-    const aligned = ends.every(e => sgn(e.tip.x - e.prev.x) === d.x && sgn(e.tip.y - e.prev.y) === d.y && Math.abs(along(e.tip) - along(ends[0].tip)) < 1);
+    const aligned = ends.every(e => sgn(e.tip.x - e.prev.x) === d.x && sgn(e.tip.y - e.prev.y) === d.y && Math.abs(along(e.tip) - along(first.tip)) < 1);
     const room = Math.min(...ends.map(e => Math.abs(along(e.tip) - along(e.prev))));
     return {ends, d, along, cross, ok: aligned && room >= AND_END + 1};
   };
@@ -200,19 +201,19 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
     const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles, env.wrap, floor)]));
     // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
     const order: string[] = [], put = (id: string): void => { if (!order.includes(id)) order.push(id); };
-    const written = anotherOrder ? anotherOrder.map(id => band.nodes.find(n => n.id === id)!) : band.nodes; // ADR 0019 D4: another written order
-    for (const n of written) { put(n.id); for (const g of groups) if (g.arrows.some(k => arrows[k].from === n.id)) g.arrows.forEach(k => put(arrows[k].from)); }
-    const ranked = order.map(id => band.nodes.find(n => n.id === id)!);
+    const written = anotherOrder ? anotherOrder.map(id => must(band.nodes.find(n => n.id === id))) : band.nodes; // ADR 0019 D4: another written order
+    for (const n of written) { put(n.id); for (const g of groups) if (g.arrows.some(k => must(arrows[k]).from === n.id)) g.arrows.forEach(k => put(must(arrows[k]).from)); }
+    const ranked = order.map(id => must(band.nodes.find(n => n.id === id)));
     // the most arrows that meet one node (each needs its own lane in the gap beside it)
     const degreeOf = (id: string): number => Math.max(arrows.filter(a => a.from === id).length, arrows.filter(a => a.to === id).length);
     const degree = Math.max(1, ...band.nodes.map(n => degreeOf(n.id)));
     // the side the arrows meet must be long enough to keep their heads apart: a box grows (its text stays centred)
     const real = new Map(band.nodes.map(n => {
-      const l = lines.get(n.id)!, need = 12 + (degreeOf(n.id) - 1) * PORT;
+      const l = must(lines.get(n.id)), need = 12 + (degreeOf(n.id) - 1) * PORT;
       return [n.id, vertical ? {w: Math.max(l.w, need), h: l.h} : {w: l.w, h: Math.max(l.h, need)}];
     }));
     const hexIds = new Set(band.nodes.filter(n => n.role === 'obstacle' || n.role === 'risk').map(n => n.id)); // hexagons: arrows keep to the middle of their side (ADR 0016 D3)
-    const nodes = ranked.map(n => ({id: n.id, size: vertical ? {w: real.get(n.id)!.h, h: real.get(n.id)!.w} : real.get(n.id)!}));
+    const nodes = ranked.map(n => { const rl = must(real.get(n.id)); return {id: n.id, size: vertical ? {w: rl.h, h: rl.w} : rl}; });
     // layered layout runs on a 'right' axis; a vertical figure is the same layout transposed, an upward / leftward one mirrored
     const groupIndex = new Map<number, number>();
     groups.forEach((g, gi) => g.arrows.forEach(k => groupIndex.set(k, gi)));
@@ -229,8 +230,8 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
       portStep: PORT, ...(env.space === undefined || env.space === 1 ? {} : {space: env.space}), groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: iw + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}), ...(band.straighten === false || noDetour ? {} : {detour: true}), ...(plainRoutes ? {aside: false} : band.straighten === false ? {} : {apart: true}),
       looseOf: (rts, ly) => {
         const route = new Map<number, Pt[]>();
-        ly.edges.forEach((e, i) => { if (!e.self) route.set(e.index, rts.get(i)!); });
-        return groups.filter(g => !andEnds(g, k => route.get(k)!).ok).map(g => g.to);
+        ly.edges.forEach((e, i) => { if (!e.self) route.set(e.index, must(rts.get(i))); });
+        return groups.filter(g => !andEnds(g, k => must(route.get(k))).ok).map(g => g.to);
       },
     });
     let attempt = attemptWith(wanted);
@@ -275,7 +276,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
     const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
     out.nodes.push({...r, tone: n.tone ?? role.tone, ...(role.double ? {double: true} : {}), ...(role.dashed ? {dashed: true} : {}), ...(n.core ? {core: true} : {}), ...(n.role === 'obstacle' || n.role === 'risk' ? {hex: true} : {})});
     out.anchors.push({id: n.id, ...r}); // all of them: verify and connect() routing read this list (an unanchored entity is only left out of the registry, by placedBand)
-    const l = lines.get(n.id)!;
+    const l = must(lines.get(n.id));
     out.texts.push(...nodeRuns({x: r.x + (r.w - l.w) / 2, y: r.y + (r.h - l.h) / 2, w: l.w}, l, roles));
     out.labelBoxes.push({label: n.label, ...r});
   }
@@ -283,17 +284,18 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   for (const [i, e] of lay.edges.entries()) {
     if (e.self) continue;
     drawn.set(e.index, out.edges.length);
-    out.edges.push({from: e.from, to: e.to, points: routes.get(i)!, line: arrows[e.index].line, ...(arrows[e.index].back ? {back: true as const} : {}), ...(e.outer ? {outer: true as const} : {}), ...(arrows[e.index].blocks ? {kind: 'blocks' as const} : {}), ...(band.hop && e.reversed ? {reversed: true as const} : {})});
+    const ar = must(arrows[e.index]);
+    out.edges.push({from: e.from, to: e.to, points: must(routes.get(i)), line: ar.line, ...(ar.back ? {back: true as const} : {}), ...(e.outer ? {outer: true as const} : {}), ...(ar.blocks ? {kind: 'blocks' as const} : {}), ...(band.hop && e.reversed ? {reversed: true as const} : {})});
   }
   // an AND: an arc across the last run of each of its arrows, a little before the arrowheads. It needs the arrows to arrive on
   // one side of the effect, all heading the same way, with room before the head for the arc
   for (const g of groups) {
-    const {ends, d, along, cross, ok} = andEnds(g, k => out.edges[drawn.get(k)!].points);
+    const {ends, d, along, cross, ok} = andEnds(g, k => must(out.edges[must(drawn.get(k))]).points);
     if (!ok) continue;
-    const us = ends.map(e => cross(e.tip)), tip = ends[0].tip;
+    const us = ends.map(e => cross(e.tip)), tip = must(ends[0]).tip;
     // the arc ends short of the nearest other arrow into this effect (another AND's arc, or an arrow of its own), so two arcs never touch
     // only an arrow that arrives on the same side: a return on the far side of the effect (or a blocks arrow) is nowhere near the arc, and measuring against it left the arc short of its own arrows
-    const others = out.edges.filter((e, k) => e.to === g.to && !g.arrows.some(a => drawn.get(a) === k) && Math.abs(along(e.points[e.points.length - 1]) - along(tip)) < 1).map(e => cross(e.points[e.points.length - 1]));
+    const others = out.edges.filter((e, k) => e.to === g.to && !g.arrows.some(a => drawn.get(a) === k) && Math.abs(along(must(e.points.at(-1))) - along(tip)) < 1).map(e => cross(must(e.points.at(-1))));
     const reachTo = (u: number, sign: 1 | -1): number => Math.max(0, Math.min(AND_REACH, ...others.filter(o => (o - u) * sign > 0).map(o => Math.abs(o - u) / 2 - 5)));
     const lo = Math.min(...us) - reachTo(Math.min(...us), -1), hi = Math.max(...us) + reachTo(Math.max(...us), 1);
     const at = (u: number, dist: number): Pt => d.x ? {x: tip.x - d.x * dist, y: u} : {x: u, y: tip.y - d.y * dist};

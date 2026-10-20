@@ -17,9 +17,9 @@ const core = libFiles().filter(f => !SHELL[f]);
 function importedNames(src: string): Map<string, Set<string>> {
   const out = new Map<string, Set<string>>();
   const add = (spec: string, names: string[]) => { if (!spec.startsWith('.')) return; const set = out.get(spec) ?? new Set<string>(); for (const n of names) set.add(n); out.set(spec, set); };
-  const list = (body: string) => body.split(',').map(x => x.trim().replace(/^type\s+/, '')).filter(Boolean).map(x => x.split(/\s+as\s+/)[0].trim()).filter(x => /^[A-Za-z_$][\w$]*$/.test(x));
-  for (const m of src.matchAll(/(?:import|export)\s+(?!type\b)\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g)) add(m[2], list(m[1]));
-  for (const m of src.matchAll(/(?:const|let)\s*\{([^}]*)\}\s*=\s*await\s+import\(\s*['"]([^'"]+)['"]\s*\)/g)) add(m[2], list(m[1]));
+  const list = (body: string) => body.split(',').map(x => x.trim().replace(/^type\s+/, '')).filter(Boolean).map(x => x.split(/\s+as\s+/)[0]!.trim()).filter(x => /^[A-Za-z_$][\w$]*$/.test(x));
+  for (const m of src.matchAll(/(?:import|export)\s+(?!type\b)\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g)) add(m[2]!, list(m[1]!));
+  for (const m of src.matchAll(/(?:const|let)\s*\{([^}]*)\}\s*=\s*await\s+import\(\s*['"]([^'"]+)['"]\s*\)/g)) add(m[2]!, list(m[1]!));
   return out;
 }
 
@@ -53,7 +53,7 @@ test('every untested pure function is on the ratchet, and nothing on it is teste
   }
   untested.sort();
   assert.deepEqual(unreadable, [], 'a core module must load without effects');
-  if (process.env.UPDATE_FIXTURES) { fs.writeFileSync(FIXTURE, JSON.stringify(untested, null, 2) + '\n'); return; }
+  if (process.env['UPDATE_FIXTURES']) { fs.writeFileSync(FIXTURE, JSON.stringify(untested, null, 2) + '\n'); return; }
   const known = new Set<string>(JSON.parse(fs.readFileSync(FIXTURE, 'utf8')));
   const now = new Set(untested);
   assert.deepEqual(untested.filter(x => !known.has(x)), [], 'new pure functions that no test names: add a test (UPDATE_FIXTURES=1 only for ones you knowingly leave)');

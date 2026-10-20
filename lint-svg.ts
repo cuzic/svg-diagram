@@ -57,7 +57,7 @@ function configFor(file: string): Config {
   }
   return cfg;
 }
-let files;
+let files: string[];
 if (given.length) {
   files = given; // every .svg named on the command line (it used to look at the first one only)
 } else {
@@ -131,8 +131,8 @@ for (const f of files) {
     }
   }
   const smallSizes = new Set<number>();
-  for (const m of src.matchAll(/font-size="(\d+(?:\.\d+)?)"/g)) if (+m[1] < floor) smallSizes.add(+m[1]);
-  for (const m of src.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)) if (+m[1] < floor) smallSizes.add(+m[1]);
+  for (const m of src.matchAll(/font-size="(\d+(?:\.\d+)?)"/g)) if (+must(m[1]) < floor) smallSizes.add(+must(m[1]));
+  for (const m of src.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)) if (+must(m[1]) < floor) smallSizes.add(+must(m[1]));
   if (smallSizes.size) {
     if (fix) {
       src = src
@@ -146,7 +146,7 @@ for (const f of files) {
   }
 
   const usedColors = new Set<string>();
-  for (const m of stripAutoBlock(src).matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) usedColors.add('#' + m[1].toLowerCase());
+  for (const m of stripAutoBlock(src).matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) usedColors.add('#' + must(m[1]).toLowerCase());
   // a diagram that says it is dark (data-appearance) may also use the dark tokens and its own dark set (data-palette); a light one may not
   const dark = /<svg[^>]*\sdata-appearance="dark"/.test(src);
   // data-tone-colors: the colours diagram({tones}) / the config's tones put in (light or dark), allowed in either appearance
@@ -160,7 +160,7 @@ for (const f of files) {
   // with a dark colour in it (nor the other way round). A colour already reported on the light side is not reported twice.
   if (isAuto(src)) {
     const darkColors = new Set<string>();
-    for (const m of autoSides(src).dark.matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) darkColors.add('#' + m[1].toLowerCase());
+    for (const m of autoSides(src).dark.matchAll(/(?:fill|stroke)\s*[:=]\s*"?#([0-9a-fA-F]{6})/g)) darkColors.add('#' + must(m[1]).toLowerCase());
     const darkCustom = new Set([...(/<svg[^>]*\sdata-palette="([^"]*)"/.exec(src)?.[1] ?? '').split(' '), ...(/<svg[^>]*\sdata-tone-colors="([^"]*)"/.exec(src)?.[1] ?? '').split(' ')]);
     const offDark = [...darkColors].filter(c => !DARK_COLORS.has(c) && !darkCustom.has(c) && !offToken.includes(c));
     if (offDark.length) advisoryFindings.push({file: f, check: 'off-token-color', detail: `uses color(s) outside the token set on the dark side (${DARK_NOTE}): ${offDark.join(', ')}`});
@@ -210,9 +210,10 @@ for (const f of files) {
   // including them just made this check fire on nearly every file regardless of
   // real layout care (see docs/diagram-tone-and-manner.md review notes, 2026-08).
   const coords = [];
-  for (const [, attrs] of shapes.matchAll(/<(?:rect|circle|ellipse|line)\b([^>]*)>/g)) {
+  for (const sm of shapes.matchAll(/<(?:rect|circle|ellipse|line)\b([^>]*)>/g)) {
+    const attrs = must(sm[1]);
     for (const m of attrs.matchAll(/\b(?:x|y|x1|y1|x2|y2|cx|cy|width|height)="(-?[\d.]+)"/g)) {
-      coords.push(+m[1]);
+      coords.push(+must(m[1]));
     }
   }
   if (coords.length >= 8) {

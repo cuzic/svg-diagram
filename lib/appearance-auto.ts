@@ -14,12 +14,12 @@ export function autoBlock(svgText: string, tones: ToneEnv): string {
   const used = new Map<string, Set<string>>(COLOR_ATTRS.map(a => [a, new Set<string>()]));
   for (const tag of svgText.match(/<[^!?\/][^>]*>/g) ?? []) {
     for (const m of tag.matchAll(/\s(fill|stroke|stop-color|flood-color|color)="(#[0-9a-fA-F]{6})"/g)) {
-      const hex = m[2].toLowerCase();
-      if (dark[hex] !== undefined) used.get(m[1])!.add(hex);
+      const hex = (m[2] ?? '').toLowerCase();
+      if (dark[hex] !== undefined) used.get(m[1] ?? '')?.add(hex);
     }
   }
   const rules: string[] = [];
-  for (const attr of COLOR_ATTRS) for (const hex of [...used.get(attr)!].sort()) rules.push(`      ${ROOT} [${attr}="${hex}" i] { ${attr}: ${dark[hex]} }`);
+  for (const attr of COLOR_ATTRS) for (const hex of [...(used.get(attr) ?? [])].sort()) rules.push(`      ${ROOT} [${attr}="${hex}" i] { ${attr}: ${dark[hex]} }`);
   return rules.length ? `\n    ${OPEN}\n${rules.join('\n')}\n    }` : '';
 }
 
@@ -54,7 +54,7 @@ export function autoSides(svg: string): {light: string; dark: string} {
   const light = stripAutoBlock(svg);
   const r = blockRange(svg);
   const to = new Map<string, string>();
-  for (const m of (r ? svg.slice(r[0], r[1]) : '').matchAll(/\[([a-z-]+)="(#[0-9a-f]{6})" i\] \{ [a-z-]+: (#[0-9a-f]{6}) \}/g)) to.set(`${m[1]}:${m[2]}`, m[3]);
+  for (const m of (r ? svg.slice(r[0], r[1]) : '').matchAll(/\[([a-z-]+)="(#[0-9a-f]{6})" i\] \{ [a-z-]+: (#[0-9a-f]{6}) \}/g)) to.set(`${m[1]}:${m[2]}`, m[3] ?? '');
   // the svg alone, no diagram (lint-svg is its only caller): the built-in dark set, in which only the assumed page colour is looked up.
   // A tone override's dark pair is read from the block above; it cannot sit on the page colour (checkTones refuses a pair on a built-in colour).
   const page = mapOf(NO_TONES, 'dark') as Record<string, string>;

@@ -54,13 +54,13 @@ test('ftaResolve(): a repeat is a second event with no id; the first keeps the i
 test('faultTree() lays out: the top above its inputs, a gate under its event centre, every event inside the band, nothing overlaps', async () => {
   const {t, verdict} = await laid(faultTree(tree(), {id: 'f'}));
   assert.equal(verdict.problems.length, 0, verdict.problems.join('\n'));
-  const top = t.nodes.find(n => n.kind === 'event' && t.labelBoxes[t.nodes.indexOf(n)].label === 'top')!;
+  const top = t.nodes.find(n => n.kind === 'event' && t.labelBoxes[t.nodes.indexOf(n)]!.label === 'top')!;
   assert.ok(t.nodes.filter(n => n !== top).every(n => n.y > top.y + top.h), 'every other event lies below the top event');
   const topGate = t.gates.find(g => g.y > top.y)!;
   assert.ok(Math.abs(topGate.x + topGate.w / 2 - (top.x + top.w / 2)) < 1, 'the top gate sits under the centre of the top event');
   for (const n of t.nodes) assert.ok(n.x >= t.x - 0.5 && n.x + n.w <= t.x + t.w + 0.5 && n.y >= t.y - 0.5 && n.y + n.h <= t.y + t.h + 0.5, 'inside the band');
   for (let i = 0; i < t.nodes.length; i++) for (let j = i + 1; j < t.nodes.length; j++) {
-    const a = t.nodes[i], b = t.nodes[j];
+    const a = t.nodes[i]!, b = t.nodes[j]!;
     assert.ok(!(a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h), 'no two event boxes overlap');
   }
   assert.equal(t.anchors.filter(a => a.id === 'sw').length, 1, 'the repeat is not an anchor');
@@ -83,7 +83,7 @@ test('faultTree() draws gate shapes and symbols; the lines have no arrowheads; a
 test('faultTree() inhibit: the condition sits beside the gate, the input below; a house event says what it assumes', async () => {
   const {t, verdict} = await laid(faultTree({label: 'top', gate: 'inhibit', children: [B('in')], condition: {label: 'cond'}}, {id: 'g'}));
   assert.equal(verdict.problems.length, 0, verdict.problems.join('\n'));
-  const gate = t.gates[0], cond = t.nodes.find((_, i) => t.labelBoxes[i].label === 'cond')!, input = t.nodes.find((_, i) => t.labelBoxes[i].label === 'in')!;
+  const gate = t.gates[0]!, cond = t.nodes.find((_, i) => t.labelBoxes[i]!.label === 'cond')!, input = t.nodes.find((_, i) => t.labelBoxes[i]!.label === 'in')!;
   assert.ok(cond.x >= gate.x + gate.w, 'the condition is to the right of the gate');
   assert.ok(input.y > gate.y + gate.h, 'the input is below the gate');
   assert.ok(t.marks.some(m => m.kind === 'condition'));
@@ -96,11 +96,11 @@ test('faultTree() width: shrunk with a warning when left out, a note for auto, n
   const fit = async (opts: object) => (await checkDiagram(diagram({theme: 'blue'}).add(wide(opts)))).verdict.findings.filter(f => f.rule === 'auto-fit-applied');
   const left = await fit({});
   assert.equal(left.length, 1);
-  assert.equal(left[0].severity, 'warn');
-  assert.match(left[0].message, /maxNodeW: 'auto'/);
+  assert.equal(left[0]!.severity, 'warn');
+  assert.match(left[0]!.message, /maxNodeW: 'auto'/);
   const auto = await fit({maxNodeW: 'auto'});
   assert.equal(auto.length, 1);
-  assert.equal(auto[0].severity, 'info');
+  assert.equal(auto[0]!.severity, 'info');
   await assert.rejects(() => checkDiagram(diagram({theme: 'blue'}).add(wide({maxNodeW: 200}))), /does not fit/);
   const wideDiagram = (await checkDiagram(diagram({theme: 'blue', width: 1500}).add(wide({})))).verdict.findings.filter(f => f.rule === 'auto-fit-applied');
   assert.equal(wideDiagram.length, 0, 'a wide enough figure is not changed');
@@ -120,9 +120,9 @@ test('fta rules: findings of the tree, and their severity in check', async () =>
   assert.ok((await sev({}, one)).every(f => f.severity === 'info'));
   assert.ok((await sev({rcaCheck: 'strict'}, one)).every(f => f.severity === 'warn'));
   const undeveloped = await sev({rcaCheck: 'strict'}, tree());
-  assert.ok(undeveloped.length === 1 && undeveloped[0].severity === 'info', 'fta-undeveloped-left stays info under strict');
+  assert.ok(undeveloped.length === 1 && undeveloped[0]!.severity === 'info', 'fta-undeveloped-left stays info under strict');
   const single = (await checkDiagram(diagram({theme: 'blue', rcaCheck: 'strict'}).add(faultTree(one)))).verdict.findings.filter(f => f.rule === 'fta-single-point');
-  assert.ok(single.length === 1 && single[0].severity === 'info', 'fta-single-point stays info under strict');
+  assert.ok(single.length === 1 && single[0]!.severity === 'info', 'fta-single-point stays info under strict');
   const acc = await sev({rcaCheck: 'strict', accept: {'fta-gate-one-input': '1 入力の例'}}, one);
   assert.ok(acc.every(f => f.severity === 'info'));
 });
@@ -185,7 +185,7 @@ const svc: FtaEvent = {
 test('cutSets: true badges the single points, and tells an undeveloped event from a basic one', async () => {
   const {t} = await laid(faultTree(svc, {cutSets: true}));
   assert.equal(t.badges.length, 1);
-  assert.equal(t.badges[0].text, '未展開・単独で頂上へ');
+  assert.equal(t.badges[0]!.text, '未展開・単独で頂上へ');
   assert.equal(t.marks.filter(m => m.single).length, 1);
   const basic = JSON.parse(JSON.stringify(svc)) as FtaEvent;
   basic.children![1] = B('アプリ全台停止');
@@ -198,7 +198,7 @@ test('cutSets: true badges the single points, and tells an undeveloped event fro
 test('a badge sits under its event symbol, inside the band, and the check stays clean', async () => {
   const {t, verdict} = await laid(faultTree(svc, {cutSets: true}));
   assert.equal(verdict.problems.length, 0, verdict.problems.join('\n'));
-  const m = t.marks.find(x => x.single)!, b = t.badges[0];
+  const m = t.marks.find(x => x.single)!, b = t.badges[0]!;
   assert.ok(b.y >= m.y + m.h, 'under the symbol');
   assert.ok(Math.abs(b.x + b.w / 2 - (m.x + m.w / 2)) < 1, 'centred on it');
   assert.ok(b.y + b.h <= t.y + t.h + 0.5, 'inside the band');
@@ -209,8 +209,8 @@ test('a badge sits under its event symbol, inside the band, and the check stays 
 test('fta-single-point: reported (info) with or without cutSets; a tree with none says nothing', () => {
   const f = ftaFindings({root: svc}).filter(x => x.rule === 'fta-single-point');
   assert.equal(f.length, 1);
-  assert.equal(f[0].severity, 'info');
-  assert.match(f[0].message, /アプリ全台停止.*未展開/);
+  assert.equal(f[0]!.severity, 'info');
+  assert.match(f[0]!.message, /アプリ全台停止.*未展開/);
   assert.equal(ftaFindings({root: {label: 't', gate: 'and', children: [B('a'), B('b')]}}).filter(x => x.rule === 'fta-single-point').length, 0);
 });
 
@@ -320,7 +320,7 @@ test('quant: true needs p on the events, names those without, and writes the not
 test("an event's id never meets another event's internal key (id 'n2' beside an event without an id)", () => {
   const t: FtaEvent = {label: 't', gate: 'and', children: [{id: 'n2', label: 'a', kind: 'basic', p: 0.5}, B('b', {p: 0.5}), B('c', {p: 0.5})]};
   assert.equal(cuts(t).sets.length, 1, 'one cut set');
-  assert.equal(cuts(t).sets[0].length, 3, 'all three events are in the one cut set');
+  assert.equal(cuts(t).sets[0]!.length, 3, 'all three events are in the one cut set');
   near(prob(t).p, 0.125);
 });
 

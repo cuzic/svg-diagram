@@ -113,8 +113,8 @@ export function lintGeometry(src: string, measure: TextBoxFn): RenderChecks | nu
   if (all && (all.y + all.h > H + 2 || all.x + all.w > W + 2)) result.overflow = {dx: fixed(all.x + all.w - W, 0), dy: fixed(all.y + all.h - H, 0)};
 
   // 3. text over text
-  const labelled = items.filter(i => i.tag === 'text' && i.screen && i.screen.w && i.screen.h && textOf(i.el).trim() && !decorative(i.el))
-    .map(i => ({txt: textOf(i.el).trim().slice(0, 30), bb: i.screen!}));
+  const labelled = items.flatMap(i => i.tag === 'text' && i.screen && i.screen.w && i.screen.h && textOf(i.el).trim() && !decorative(i.el)
+    ? [{txt: textOf(i.el).trim().slice(0, 30), bb: i.screen}] : []);
   for (let i = 0; i < labelled.length; i++) for (let j = i + 1; j < labelled.length; j++) {
     const a = must(labelled[i]).bb, b = must(labelled[j]).bb;
     const ix = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), iy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);

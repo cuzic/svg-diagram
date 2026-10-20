@@ -54,7 +54,7 @@ export function bubbleTexts(s: BubbleSpec): [string, number][] {
   const out: [string, number][] = [];
   for (const p of s.points) out.push([p.label, 400], [p.label, 700]);
   for (const k of ['x', 'y'] as const) {
-    const a = s[k], vals = s.points.map(p => p[k]);
+    const a = s[k];
     const r = axisRange(s, k), sc = niceScale(r.lo, r.hi);
     // an axis that is not fixed may be widened by up to MAX_WIDEN ticks on each side (the bubbles at its edge need room)
     for (let i = -MAX_WIDEN; i <= Math.round((sc.max - sc.min) / sc.step) + MAX_WIDEN; i++) { const v = parseFloat((sc.min + i * sc.step).toPrecision(12)); out.push([numText(v), 400], [`${numText(v)}${a.unit ?? ''}`, 400]); }

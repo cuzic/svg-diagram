@@ -20,7 +20,7 @@ test('tree() too wide with dir left out: it turns right, and what changed is rec
   const w = tooWide(), t = laid(org(), w);
   assert.ok(spread(t) <= w + 0.5);
   assert.ok(t.fitApplied?.some(a => a.what === 'dir' && a.from === 'down' && a.to === 'right' && a.mode === 'omitted'));
-  assert.ok(t.fitApplied![0].wasW! > w && t.fitApplied![0].nowW! <= w);
+  assert.ok(t!.fitApplied![0]!.wasW! > w && t!.fitApplied![0]!.nowW! <= w);
 });
 
 test("tree() dir: 'auto' is recorded as auto; written down is not changed and says so", () => {

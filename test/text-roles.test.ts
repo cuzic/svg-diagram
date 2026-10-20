@@ -28,8 +28,8 @@ test('box({size}) is reported by the box-size-ignored rule once per figure (no c
   } finally { console.warn = orig; }
   assert.deepEqual(warned, [], 'no process-wide warning any more');
   assert.equal(findings.length, 1, 'one finding for the figure');
-  assert.equal(findings[0].severity, 'warn');
-  assert.match(findings[0].message, /2 個の箱/);
+  assert.equal(findings[0]!.severity, 'warn');
+  assert.match(findings[0]!.message, /2 個の箱/);
   assert.deepEqual((await checkDiagram(diagram({theme: 'blue'}).add(box({title: 'z'})))).verdict.findings.filter(f => f.rule === 'box-size-ignored'), []);
   assert.throws(() => box({title: 'x', size: 10 as 14}), /below the 14px floor/);
 });

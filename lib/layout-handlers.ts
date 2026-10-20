@@ -140,7 +140,7 @@ function registerRowSlots(ctx: LayoutCtx, id: string | undefined, band: RowLike,
   ctx.areaIds.add(id);
   if (band.cols) {
     const cols = band.cols, colW = (cw - (cols - 1) * gap) / cols, grid = gridColumns(cw, cols, gap, {centerGutter: cols === 12}); // the same column edges the row's children sit on
-    const left = (c: number): number => grid ? grid.x[c] : c * (colW + gap), right = (c: number): number => grid ? grid.x[c] + grid.w[c] : c * (colW + gap) + colW;
+    const left = (c: number): number => grid ? must(grid.x[c]) : c * (colW + gap), right = (c: number): number => grid ? must(grid.x[c]) + must(grid.w[c]) : c * (colW + gap) + colW;
     for (let a = 1; a <= cols; a++) for (let b = a; b <= cols; b++) {
       const key = b === a ? `${id}#${a}` : `${id}#${a}-${b}`;
       if (ctx.anchors.has(key)) ctx.claimed(key, 'a row column collides with an existing id');
@@ -273,7 +273,8 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
     const x = bodyX + padX2 + (st.col - 1) * (colW + colGap);
     const w = st.span * colW + (st.span - 1) * colGap;
     const step = ctx.placeBoxLike({...st, padX: st.padX ?? 12, padY: st.padY ?? 10}, x, 0, w, true, scopeOf(band));
-    if (scopeOf(band)) (step as unknown as {scope: string}).scope = scopeOf(band)!; // a step's id is bare in its output; the scope says what it is called in the figure
+    const stepScope = scopeOf(band);
+    if (stepScope) (step as unknown as {scope: string}).scope = stepScope; // a step's id is bare in its output; the scope says what it is called in the figure
     return step;
   });
   const laneIndex = new Map(band.lanes.map((l, i) => [l.id, i]));
@@ -292,14 +293,15 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
     return out;
   });
   const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, ...(band.fit === 'shrink' ? narrowField(stepsPlaced.flatMap(s => s.wrappedRuns.map(r => r.lines))) : {}), id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
-  if (scopeOf(band)) (frame as unknown as {scope: string}).scope = scopeOf(band)!;
+  const frameScope = scopeOf(band);
+  if (frameScope) (frame as unknown as {scope: string}).scope = frameScope;
   ctx.laidOut.push(frame); // before its steps so the lanes draw underneath
   if (band.id) {
     if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a swimlane takes an id that another anchor already has');
     ctx.anchors.set(band.id, {x: frame.x, y: frame.y, w: frame.w, h: frame.h});
   }
   for (const st of stepsPlaced) {
-    const ln = lanes[laneIndex.get(st.lane) as number]; // an unknown lane id throws here, as before
+    const ln = must(lanes[laneIndex.get(st.lane) ?? -1]); // an unknown lane id throws here, as before
     st.y = snapGrid(ln.blockTop + (st.row ?? 0) * (ln.maxStep + rowGap) + (ln.maxStep - st.h) / 2);
     if (st.id) ctx.anchors.set(qualify(scopeOf(band), st.id), {x: st.x, y: st.y, w: st.w, h: st.h}); // placeBoxLike already claimed (and checked) the id; this moves it to the lane row
     if (st.tagBox) st.tagBox.y = st.y - st.tagBox.h / 2;
@@ -372,17 +374,17 @@ function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: nu
     let rowHeight = 0;
     band.children.forEach((child, i) => {
       ctx.y = top0;
-      const x = padX + xOffsets[i];
+      const x = padX + must(xOffsets[i]), w = must(widths[i]);
       if (child.type === 'box') {
-        const c = ctx.placeBoxLike(child, x, rowTop, widths[i], true);
-        const rw: LaidOutRow = {type: 'row', x, y: rowTop, w: widths[i], h: c.h, children: [c], arrows: []};
+        const c = ctx.placeBoxLike(child, x, rowTop, w, true);
+        const rw: LaidOutRow = {type: 'row', x, y: rowTop, w, h: c.h, children: [c], arrows: []};
         ctx.laidOut.push(rw);
         natural.push(c.h);
         rowHeight = Math.max(rowHeight, c.h);
         stretch.push(h => { c.h = rw.h = h; if (c.id) ctx.setBox(c.id, c as never, h); });
       } else {
         const frame = ctx.laidOut.length, fill = fills[i];
-        if (fill) layoutGroupAt(child, ctx, x, widths[i], fill); else ctx.stack([child], x, widths[i]);
+        if (fill) layoutGroupAt(child, ctx, x, w, fill); else ctx.stack([child], x, w);
         const f = ctx.laidOut[frame] as LaidOutGroup; // ctx.stack() pushes a group's frame first
         natural.push(f.h);
         rowHeight = Math.max(rowHeight, f.h);
@@ -394,7 +396,7 @@ function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: nu
   let placed = place([]);
   const fills = band.children.map((c, i): GroupFill | undefined => {
     if (c.type !== 'group' || c.frame === false || c.valign === 'top') return undefined;
-    const slack = placed.rowHeight - placed.natural[i];
+    const slack = placed.rowHeight - must(placed.natural[i]);
     return slack >= GROUP_FILL_MIN ? {slack, valign: c.valign ?? 'center'} : undefined;
   });
   if (fills.some(Boolean)) { // start the row over: take back what the first pass registered (ids, connectors), then lay it out with the room
@@ -407,7 +409,7 @@ function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: nu
   }
   const {rowHeight, stretch} = placed;
   stretch.forEach(s => s(rowHeight));
-  registerRowSlots(ctx, band.id, band, rowTop, rowHeight, padX, cw, rowGap, widths.map((w, i) => ({x: padX + xOffsets[i], y: rowTop, w, h: rowHeight})));
+  registerRowSlots(ctx, band.id, band, rowTop, rowHeight, padX, cw, rowGap, widths.map((w, i) => ({x: padX + must(xOffsets[i]), y: rowTop, w, h: rowHeight})));
   ctx.y = top0 + rowHeight + d.gap;
 }
 
@@ -416,14 +418,14 @@ function layoutRow(band: RowBand, ctx: LayoutCtx, padX: number, cw: number): voi
   const rowGap = ctx.gapForLabels(band, cw);
   const {widths, xOffsets} = rowChildGeometry({...band, gap: rowGap}, cw);
   const placedChildren = band.children.map((child, i) =>
-    ctx.placeBoxLike(child, padX + xOffsets[i], top, widths[i], true));
+    ctx.placeBoxLike(child, padX + must(xOffsets[i]), top, must(widths[i]), true));
   const rowHeight = Math.max(...placedChildren.map(c => c.h));
   for (const c of placedChildren) { c.h = rowHeight; if (c.id) ctx.setBox(c.id, c as never, rowHeight); }
 
   const arrows: RowArrow[] = [];
   if (band.arrows === 'between') {
     for (let i = 0; i < placedChildren.length - 1; i++) {
-      const a = placedChildren[i], b = placedChildren[i + 1];
+      const a = must(placedChildren[i]), b = must(placedChildren[i + 1]);
       const y = top + rowHeight / 2;
       arrows.push({x1: a.x + a.w, y1: y, x2: b.x, y2: y});
     }
@@ -488,7 +490,7 @@ function layoutPlainGrid(band: GridBand, ctx: LayoutCtx, padX: number, cw: numbe
   for (let i = 0; i < band.children.length; i += cols) {
     const rowChildren = band.children.slice(i, i + cols);
     const placed = rowChildren.map((child, j) =>
-      ctx.placeBoxLike(child, padX + xs[j], ctx.y, ws[j], true));
+      ctx.placeBoxLike(child, padX + must(xs[j]), ctx.y, must(ws[j]), true));
     const rowHeight = Math.max(...placed.map(c => c.h));
     for (const c of placed) { c.h = rowHeight; if (c.id) ctx.setBox(c.id, c as never, rowHeight); }
     placedRows.push(...placed);
@@ -527,7 +529,7 @@ function layoutPyramid(band: PyramidBand, ctx: LayoutCtx, padX: number, cw: numb
     // so the label can never spill past the trapezoid's slanted sides.
     const wrapWidth = Math.max(40, topW - 24);
     const atomW = (atom: string) => widthOf(atom, roles.title, 700, 'sans');
-    const lines = wrapAtoms(splitAtoms(band.layers[i].text), {maxWidth: wrapWidth, atomWidth: atomW, mode: ctx.wrap});
+    const lines = wrapAtoms(splitAtoms(must(band.layers[i]).text), {maxWidth: wrapWidth, atomWidth: atomW, mode: ctx.wrap});
     const midY = (topY + bottomY) / 2;
     const lineGap = roles.title * LINE_HEIGHT_EM;
     const textYs = lines.map((_, li) => Math.round(midY + (li - (lines.length - 1) / 2) * lineGap + roles.title * 0.35));

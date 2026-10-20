@@ -14,9 +14,10 @@
 // Everything is token-coloured (bg/text/muted/border/code/danger/accent/soft), >= 14px text, and every state
 // is shown by shape, hatching or words as well as colour (WCAG 1.4.1).
 
+import {must} from './must.ts';
 import {toneStyle} from './tokens.ts';
 import type {ColorKey} from './types/core.ts';
-import type {GlyphOpts, WfAutoWTable, WfBattery, WfBreadcrumb, WfCallout, WfCheckbox, WfCompare, WfCtx, WfFusion, WfFusionLayerSpec, WfHelpers, WfInsight, WfInsightOpts, WfNode, WfPartKey, WfPartsApi, WfRadio, WfRegion, WfRobot, WfSignal, WfSlider, WfState, WfToggle, WfTone, WfType} from './types/wireframe-nodes.ts';
+import type {GlyphOpts, WfBattery, WfBreadcrumb, WfCheckbox, WfCompare, WfCtx, WfFusion, WfFusionLayerSpec, WfHelpers, WfInsight, WfInsightOpts, WfNode, WfPartKey, WfPartsApi, WfRadio, WfRegion, WfRobot, WfSignal, WfSlider, WfState, WfToggle, WfTone, WfType} from './types/wireframe-nodes.ts';
 
 interface StateInfo {title: string; tone: ColorKey}
 interface FusionLayer extends WfFusionLayerSpec {kind: 'camera' | 'cloud' | 'thermal'; bad: WfState | undefined; on: boolean}
@@ -201,7 +202,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
       text(ctx, batteryText(n), x + 46, mid(y + 12), {weight: 700, fill: low ? 'danger' : 'text'});
       return {w: 46 + tw(ctx, batteryText(n), S, 700), h: 24};
     },
-    signal: (n: WfSignal, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+    signal: (n: WfSignal, x: number, y: number, _w: number, _hh: number, ctx: WfCtx) => {
       const lv = sigLevel(n.level);
       [6, 11, 16].forEach((bh, i) => rect(ctx, x + i * 8, y + 20 - bh, 6, bh, {fill: i < lv ? 'accent' : 'border'}));
       if (lv === 0) { line(ctx, x - 1, y + 3, x + 23, y + 21, {stroke: 'danger', sw: 2.5}); }
@@ -277,7 +278,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
     const hgt = top + chipExtra + 12 + 24 + 6 + tl.length * lh(T) + (bl.length ? 4 + bl.length * lh(S) : 0) + 8 + rows.reduce((a, r) => a + (r.stacked ? 44 : 24), 0) + 12;
     return {tl, bl, rows, h: hgt, top, stacked2, chipExtra};
   }
-  DRAW.insight = (n: WfInsight, x: number, y: number, w: number, hh: number, ctx: WfCtx) => {
+  DRAW.insight = (n: WfInsight, x: number, y: number, w: number, _hh: number, ctx: WfCtx) => {
     const lv = LEVEL[n.level ?? 'info'] ?? LEVEL.info, d = insightData(n, w, ctx), {stroke, bar} = levelColors(ctx, lv.chip);
     rect(ctx, x, y, w, d.h, {r: 8, fill: 'bg', stroke});
     rect(ctx, x + 1, y + 1, 6, d.h - 2, {fill: bar});

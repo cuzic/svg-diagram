@@ -2,6 +2,7 @@
 // What each band type needs is one entry of MEASURE_HANDLERS (a typed table: a band type without one fails to compile).
 
 import {splitAtoms} from './atoms.ts';
+import {must} from './must.ts';
 import {styledAtoms, textRuns} from './layout-text.ts';
 import {TAG_SIZE, CONNECT_LABEL_SIZE} from './tokens.ts';
 import {groupTitleBand, withSourceLine} from './layout-util.ts';

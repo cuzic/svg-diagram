@@ -3,6 +3,7 @@
 // comes out in the same order.
 import {Canvas, checkIds, checkText, fail, finiteNum, inkOnShade, numText} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
+import {must} from './must.ts';
 import {averageLinkage, dendrogramOrder} from './stats.ts';
 import type {Merge} from './stats.ts';
 
@@ -23,7 +24,8 @@ export interface ClusterSpec {
   shade: number[][];
 }
 const MAX = 40;
-const transpose = (m: number[][]): number[][] => m[0].map((_q, j) => m.map(r => r[j]));
+const transpose = (m: number[][]): number[][] => must(m[0]).map((_q, j) => m.map(r => must(r[j])));
+const cell = (m: number[][], r: number, c: number): number => must(must(m[r])[c]);
 const minmax = (v: number[]) => { const lo = Math.min(...v), hi = Math.max(...v); return v.map(q => hi > lo ? (q - lo) / (hi - lo) : 0.5); };
 export function resolveCluster(rows: readonly string[], cols: readonly string[], values: readonly (readonly number[])[], opts: ClusterOpts): ClusterSpec {
   checkIds('clustermap', [], opts.id);
@@ -65,20 +67,20 @@ export function layoutCluster(s: ClusterSpec, g: ChartGeom): LaidOutChartPart {
   const lo = Math.min(...s.values.flat()), hi = Math.max(...s.values.flat());
   // cells, in the dendrogram order
   ro.forEach((ri, y) => co.forEach((ci, x) => {
-    const t = s.shade[ri][ci], op = r1(0.1 + 0.8 * t), ink = inkOnShade(op), text = `${numText(s.values[ri][ci])}${s.unit}`;
+    const t = cell(s.shade, ri, ci), op = r1(0.1 + 0.8 * t), ink = inkOnShade(op), text = `${numText(cell(s.values, ri, ci))}${s.unit}`;
     const host = c.rect(r1(left + x * cw), r1(top + y * cellH), r1(cw), r1(cellH), {fill: 'accent', op, stroke: 'bg', sw: 1, solid: `the cell (${s.rows[ri]}, ${s.cols[ci]})`});
     if (s.showValues && c.tw(text, true) + 6 <= cw && S + 2 <= cellH) c.text(text, left + (x + 0.5) * cw, c.mid(top + (y + 0.5) * cellH), 'middle', ink, {bold: true, host, on: {fill: 'accent', op, ink}});
   }));
-  ro.forEach((ri, y) => c.text(s.rows[ri], right + 8, c.mid(top + (y + 0.5) * cellH), 'start', 'text'));
+  ro.forEach((ri, y) => c.text(must(s.rows[ri]), right + 8, c.mid(top + (y + 0.5) * cellH), 'start', 'text'));
   const gridB = top + nr * cellH;
-  co.forEach((ci, x) => c.lines(colLines[ci], left + (x + 0.5) * cw, gridB + S + 6, 'middle', 'text'));
+  co.forEach((ci, x) => c.lines(must(colLines[ci]), left + (x + 0.5) * cw, gridB + S + 6, 'middle', 'text'));
   // dendrograms: the columns above, the rows to the left (heights run away from the cells)
   const tree = (t: NonNullable<ClusterSpec['rowTree']>, n: number, along: (p: number) => number, away: (h: number) => number) => {
-    const maxH = Math.max(...t.merges.map(m => m.height)) || 1, hOf = (id: number) => id < n ? 0 : t.merges[id - n].height / maxH, seg: string[] = [];
+    const maxH = Math.max(...t.merges.map(m => m.height)) || 1, hOf = (id: number) => id < n ? 0 : must(t.merges[id - n]).height / maxH, seg: string[] = [];
     t.merges.forEach((m, k) => {
       const h = hOf(n + k);
-      for (const ch of [m.a, m.b]) seg.push(`M${r1(along(t.pos[ch]))},${r1(away(hOf(ch)))} L${r1(along(t.pos[ch]))},${r1(away(h))}`);
-      seg.push(`M${r1(along(t.pos[m.a]))},${r1(away(h))} L${r1(along(t.pos[m.b]))},${r1(away(h))}`);
+      for (const ch of [m.a, m.b]) seg.push(`M${r1(along(must(t.pos[ch])))},${r1(away(hOf(ch)))} L${r1(along(must(t.pos[ch])))},${r1(away(h))}`);
+      seg.push(`M${r1(along(must(t.pos[m.a])))},${r1(away(h))} L${r1(along(must(t.pos[m.b])))},${r1(away(h))}`);
     });
     return seg;
   };

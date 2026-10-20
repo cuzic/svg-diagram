@@ -44,8 +44,6 @@ import {execFileSync} from 'node:child_process';
 import type {FindingData} from './lib/types/verdicts.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import {installResolveHook} from './lib/resolve-hook.ts';
-// Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
-const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 installResolveHook();
 const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
 const {depsSha256} = await import('./lib/source-deps.ts');
@@ -62,13 +60,13 @@ const {readProvenance, sha256File: sha} = await import('./lib/freshness.ts');
 
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
-const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1]; };
+const val = (n: string) => { const i = args.indexOf(n); return i === -1 ? null : args[i + 1] ?? null; };
 const VALUE_FLAGS = ['--svg-dir', '--src-dir', '--docs', '--covers', '--format', '--only', '--explain', '--baseline', '--write-baseline', '--today', '--base'];
-const vals = (n: string) => args.flatMap((a, i) => (a === n && args[i + 1] !== undefined ? [args[i + 1]] : []));
+const vals = (n: string) => args.flatMap((a, i) => { const next = args[i + 1]; return a === n && next !== undefined ? [next] : []; });
 // --docs takes the path after it, and every following .md file / directory too (`--docs A.md B.md dir`): those are documents, never sources
 const isDocArg = (a: string) => !a.startsWith('--') && (a.toLowerCase().endsWith('.md') || (fs.existsSync(a) && fs.statSync(a).isDirectory()));
 const docsArgIdx = new Set<number>();
-args.forEach((a, i) => { if (a === '--docs') for (let j = i + 1; j < args.length && (j === i + 1 ? args[j] !== undefined && !args[j].startsWith('--') : isDocArg(args[j])); j++) docsArgIdx.add(j); });
+args.forEach((a, i) => { if (a === '--docs') for (let j = i + 1; j < args.length && (j === i + 1 ? !(args[j] ?? '--').startsWith('--') : isDocArg(args[j] ?? '')); j++) docsArgIdx.add(j); });
 const NON_DIAGRAM_RULES: Record<string, string> = {
   'layout': '図が置けない（重なり・はみ出し・幅超過など）。メッセージに直し方がある。許容できない（accept できない）エラー',
   'drift-missing': '--drift: ソースに対応する SVG がない（未生成）',
@@ -231,7 +229,7 @@ try {
           try {
             const d = await loadDiagram(path.resolve(srcFile), config);
             const sets = notesOf(d.bands);
-            if (sets.length === 1) for (const f of compareNotes(fig.items, sets[0], name)) add({file: rel, line: fig.line, ...f});
+            if (sets.length === 1) for (const f of compareNotes(fig.items, sets[0] ?? [], name)) add({file: rel, line: fig.line, ...f});
             else if (sets.length > 1) add({file: rel, line: fig.line, rule: 'doc-notes-mismatch', severity: 'info', message: `${name}: 注釈つきのワイヤーフレームが ${sets.length} 枚あり、突き合わせない`});
           } catch (err) { // the source behind this figure does not load: say so, and go on with the other figures and pages
             reportBuildError(path.relative(process.cwd(), path.resolve(srcFile)), err);

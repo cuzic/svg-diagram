@@ -1,4 +1,5 @@
 // wordart(): vertical text (縦書き) — splits a column of text into units and sets them in columns, right to left (docs/adr/0009). Pure.
+import {must} from './must.ts';
 import {textWidth} from './atoms.ts';
 import {MIN_FONT_SIZE} from './tokens.ts';
 import type {FontFamily, WidthOf} from './types/core.ts';
@@ -47,7 +48,7 @@ export function tokenizeColumn(text: string): VToken[] {
       rest = rest.slice(m[0].length);
       continue;
     }
-    const ch = graphemes(rest)[0];
+    const ch = must(graphemes(rest)[0]); // rest is not empty
     rest = rest.slice(ch.length);
     if (ch === ' ' || ch === '\u3000') out.push({kind: 'blank'});
     else if (ROTATED.has(ch)) out.push({kind: 'glyph', ch, dx: 0, dy: 0, turn: true});
@@ -79,7 +80,7 @@ export function verticalColumns(text: string, size: number, weight: number, widt
   };
   const nameOf = (t: VToken): string => t.kind === 'glyph' ? t.ch : t.kind === 'blank' ? ' ' : t.text;
   const columns: VColumn[] = [];
-  const end = (cells: VCell[]): number => cells.length ? cells[cells.length - 1].top + cells[cells.length - 1].len : 0;
+  const end = (cells: VCell[]): number => { const last = cells[cells.length - 1]; return last ? last.top + last.len : 0; };
   const stacked = (tokens: {token: VToken; len: number}[]): VCell[] => { const cells: VCell[] = []; for (const t of tokens) cells.push({token: t.token, top: cells.length ? end(cells) + spacing : 0, len: t.len}); return cells; };
   for (const para of text.split('\n')) {
     let cells: VCell[] = [], hung = false;
@@ -95,7 +96,7 @@ export function verticalColumns(text: string, size: number, weight: number, widt
           // break before the token; cells that may not end a column (an opening bracket) or whose follower may not start one (a closing mark)
           // go with it, as many as it takes. A column that would be only opening brackets keeps them (nothing to carry them with).
           const carry: VCell[] = [];
-          while (cells.length > 1 && ((carry.length < MAX_CARRY && noStart(carry.length ? carry[0].token : token)) || isGlyph(cells[cells.length - 1].token, NOT_LAST))) carry.unshift(cells.pop()!);
+          while (cells.length > 1 && ((carry.length < MAX_CARRY && noStart(carry[0]?.token ?? token)) || isGlyph(must(cells[cells.length - 1]).token, NOT_LAST))) carry.unshift(must(cells.pop()));
           if (cells.every(c => isGlyph(c.token, NOT_LAST))) { cells.push(...carry); carry.length = 0; }
           columns.push({cells, len: end(cells)});
           cells = stacked(carry.map(c => ({token: c.token, len: c.len}))); hung = false;
@@ -105,7 +106,7 @@ export function verticalColumns(text: string, size: number, weight: number, widt
       if (!hangs && !fits(l)) {
         if (cells.length && noStart(token) && !hung) hung = true;
         else if (limit !== undefined && l <= limit + 0.5 && cells.length) { /* a carried bracket and a word that fits only alone: the column runs past the limit by the bracket */ }
-        else throw new Error(`wordart(): "${nameOf(token)}" is ${Math.round(l)}px long but a column may be ${Math.round(limit!)}px${cells.length ? ` (with what goes before it, ${Math.round(end(cells) + spacing + l)}px)` : ''}: raise limit or shorten the word`);
+        else throw new Error(`wordart(): "${nameOf(token)}" is ${Math.round(l)}px long but a column may be ${Math.round(must(limit))}px${cells.length ? ` (with what goes before it, ${Math.round(end(cells) + spacing + l)}px)` : ''}: raise limit or shorten the word`);
       }
       cells.push({token, top: cells.length ? end(cells) + spacing : 0, len: l});
     }
