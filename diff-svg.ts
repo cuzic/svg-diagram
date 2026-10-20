@@ -23,7 +23,7 @@ if (!a || !b || unknown || (!textMode && (argv.includes('--strict') || argv.incl
 }
 const read = (f: string): string => { try { return fs.readFileSync(f, 'utf8'); } catch (e) { console.error(`✗ ${f}: 読めない（${(e as NodeJS.ErrnoException).code ?? (e as Error).message}）`); process.exit(2); } };
 if (textMode) {
-  let r;
+  let r: ReturnType<typeof textCoverage>;
   try { r = textCoverage(read(a), read(b)); } catch (e) { console.error(`✗ SVG を読めない: ${(e as Error).message}`); process.exit(2); }
   for (const l of formatTextCoverage(r, !argv.includes('--missing-text') && !argv.includes('--no-added'))) console.log(l);
   process.exit(argv.includes('--strict') && r.missing.length ? 1 : 0);
