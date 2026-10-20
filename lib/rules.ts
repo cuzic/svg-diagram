@@ -154,6 +154,7 @@ export const RULE_DOCS = {
   'doc-notes-mismatch': '文書の注釈のリストが、図の注釈と違う（片方を直し忘れている）',
   'doc-png-no-source': '文書が参照している PNG に、同じ名前の図のソース（--src-dir）も SVG（--svg-dir）もない（手作りの絵か、図を消したあとの残り）',
   'doc-orphan-png': '文書が参照している PNG と同じフォルダにある、どの文書からも参照されていない PNG',
+  'doc-svg-no-source': '文書が参照している SVG に、対応する図のソースがない（ソースを消したあと SVG だけ残り、再生成されない古い絵になる。--src-dir か ./diagrams と、SVG に記録された生成元を探す）',
   'doc-orphan-svg': 'どの文書からも参照されていない SVG',
 };
 
