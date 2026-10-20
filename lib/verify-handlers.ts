@@ -153,7 +153,9 @@ const checkCause = (band: LaidOutOf<'cause'>, _d: LaidOutDiagram, {problems, war
   // (which arrow belongs to the AND would be unclear). A crossing elsewhere is left alone: many cause graphs cannot be drawn without one.
   for (const {a, b, how} of andClashes(band.edges, band.ands)) {
     // a crossing may be unavoidable (an AND's causes in different layers around an OR cause), and long arrows can share a run: warnings
-    warnings.push(`[cause-${how === 'crosses' ? 'crossing' : 'parallel'}] cause: arrow ${a.from} -> ${a.to} ${how} arrow ${b.from} -> ${b.to} (reorder the nodes, or change dir)`);
+    // a negative branch tree with many side-effect branches: the narrowed / folded top-bottom figure is what crosses (ADR 0037 D4)
+    const nbrHint = band.nbr?.vertical ? " NBR で枝が多いときは causeTree(..., {tree: 'nbr', dir: 'right'}) で解消することがある（ただし左右に長くなり、幅が広がることがある: diagram({width}) を広げるか、枝を 2 枚の図に分ける）" : '';
+    warnings.push(`[cause-${how === 'crosses' ? 'crossing' : 'parallel'}] cause: arrow ${a.from} -> ${a.to} ${how} arrow ${b.from} -> ${b.to} (reorder the nodes, or change dir)${nbrHint}`);
   }
   for (const to of band.loose) problems.push(`cause: the arrows into "${to}" do not reach it on one side, so their AND arc is not drawn (an arrow of a cycle arrives from the other side: break the cycle, or split the AND)`);
 };
