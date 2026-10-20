@@ -269,7 +269,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   const out: LaidOutCause = {
     type: 'cause', id: band.id, reveal: band.reveal, ...(band.unanchored ? {unanchored: band.unanchored} : {}), ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + 2 * pad.y,
     nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
-    ...(fitApplied.length ? {fitApplied} : {}),
+    ...(fitApplied.length ? {fitApplied} : {}), ...(band.tree === 'nbr' ? {nbr: {vertical}} : {}),
   };
   if (attempt.asided) movedAside.add(out);
   for (const n of band.nodes) {

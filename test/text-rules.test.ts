@@ -7,13 +7,13 @@ import {midWordBreaks, midWordBreaksIn, missingGlyphs} from '../lib/text-rules.t
 test.after(() => closeMeasurer());
 
 test('midWordBreaks: katakana and Latin words split across lines; a space or a newline in the source is the author\'s break', () => {
-  assert.deepEqual(midWordBreaks(['コンテキス', 'ト'], 'コンテキスト'), [{before: 'ンテキス', after: 'ト'}]);
-  assert.deepEqual(midWordBreaks(['configurat', 'ion'], 'configuration'), [{before: 'urat', after: 'ion'}]);
+  assert.deepEqual(midWordBreaks(['コンテキス', 'ト'], 'コンテキスト'), [{before: 'ンテキス', after: 'ト', word: 'コンテキスト'}]);
+  assert.deepEqual(midWordBreaks(['configurat', 'ion'], 'configuration'), [{before: 'urat', after: 'ion', word: 'configuration'}]);
   assert.deepEqual(midWordBreaks(['load', 'balancer'], 'load balancer'), []);
   assert.deepEqual(midWordBreaks(['コンテキスト', 'の切替'], 'コンテキストの切替'), []);
   assert.deepEqual(midWordBreaks(['リフレッシュ', 'ルール'], 'リフレッシュ\nルール'), []);
   assert.deepEqual(midWordBreaks(['認知', '負荷'], '認知負荷'), []); // kanji are not judged
-  assert.deepEqual(midWordBreaks(['コンテキス', 'ト']), [{before: 'ンテキス', after: 'ト'}]); // no source text: katakana only
+  assert.deepEqual(midWordBreaks(['コンテキス', 'ト']), [{before: 'ンテキス', after: 'ト', word: 'コンテキスト'}]); // no source text: katakana only
   assert.deepEqual(midWordBreaks(['abc', 'def']), []);
 });
 

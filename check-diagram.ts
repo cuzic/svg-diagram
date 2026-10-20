@@ -31,6 +31,7 @@
 //       (then all of them) — in the working tree and in the commits since REF (default: the merge-base with origin/main or main, else HEAD).
 //       Nothing changed → nothing to check, exit 0. A quick check while editing, and a fast pull-request check on a big diagram set.
 //   A source starting with _ (a shared helper) or without a default export is skipped with an info message, not failed.
+//   svg-diagram check --help        the options, and how to accept a warning (accept: {'rule': 'reason'}); every warning also prints its own accept snippet.
 //   svg-diagram check --rules | --explain RULE
 //       List every rule id, or explain one (what it means, how to accept it in .svg-diagram.json).
 //   svg-diagram check --write-baseline FILE <...>   /   --baseline FILE <...>
@@ -48,7 +49,7 @@ import {installResolveHook} from './lib/resolve-hook.ts';
 installResolveHook();
 const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
 const {depsSha256} = await import('./lib/source-deps.ts');
-const {RULE_DOCS} = await import('./lib/rules.ts');
+const {RULE_DOCS, acceptHint} = await import('./lib/rules.ts');
 const {selectChanged} = await import('./lib/changed.ts');
 const {scanPngRefs, scanMarkdown, compareNotes, notesOf, formatMap, checkFigures, chapterOf, globToRegExp, matchesAny} = await import('./lib/docs-check.ts');
 const {explainChange} = await import('./lib/svg-diff.ts');
@@ -85,6 +86,16 @@ const NON_DIAGRAM_RULES: Record<string, string> = {
   'doc-alt-placeholder': '--docs: 代替テキストが仮のまま（画像・図 など）',
   'doc-fidelity-missing': '--docs --fidelity: 図の文字にある数値（2 桁以上）・英数字の語が、その図を参照する文書（--base REF があればその版も）のどこにも書かれていない',
 };
+if (flag('--help') || flag('-h')) {
+  console.log(`svg-diagram check [--strict] [--verbose] [--format text|json|github|sarif] <source.ts>...   (modes: --drift, --docs, --covers, --changed, --rules, --explain RULE; the header of check-diagram.ts lists them)
+
+警告を許容するとき（accept）:
+  どの警告にも、許容するための書き方が → の行で出る。理由が要る。許容した指摘は info に下がり、理由が添えられる。
+    その図だけ:  diagram({accept: {'toc-ude-count': 'CRT の第 1 章分だけの部分図のため'}})
+    案件全体:    .svg-diagram.json の {"accept": {"toc-ude-count": "…"}}
+  使える規則の一覧は check --rules、ひとつの意味と書き方は check --explain RULE。`);
+  process.exit(0);
+}
 const explain = val('--explain');
 if (explain !== null || flag('--rules')) {
   const all: Record<string, string> = {...RULE_DOCS, ...NON_DIAGRAM_RULES};
@@ -352,7 +363,7 @@ try {
     for (const f of shown) add({file: src, rule: f.rule, severity: f.severity, message: f.message, ...(f.data ? {data: f.data} : {})});
     const w = shown.filter(f => f.severity === 'warn').length;
     say(`${w ? '△' : '✓'} ${src}${w ? `（警告 ${w}）` : ''}`);
-    for (const f of shown.filter(f => verbose || f.severity === 'warn')) say(`   ${f.severity === 'warn' ? '⚠' : 'ℹ'} [${f.rule}] ${f.message}`);
+    for (const f of shown.filter(f => verbose || f.severity === 'warn')) say(`   ${f.severity === 'warn' ? '⚠' : 'ℹ'} [${f.rule}] ${f.message}${f.severity === 'warn' && acceptHint(f.rule) ? `\n       → ${acceptHint(f.rule)}` : ''}`);
   };
   for (const src of sources) {
     try { await checkOne(src); }
