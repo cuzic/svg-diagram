@@ -19,6 +19,9 @@ const GLOB = /[*?[{]/;
 /** The folder names an SVG usually sits in, next to or one above its source. */
 const SIBLING_DIRS = ['svg', 'images', 'img', 'figures'];
 
+/** `p` against `base` (absolute `p` stays as is); pure, unlike path.resolve, which reads the working directory. */
+const at = (base: string, p: string): string => path.isAbsolute(p) ? path.normalize(p) : path.join(base, p);
+
 /** `svgDirs`: the folders a project names (`--svg-dir`, `outDir`), relative to cwd, tried first for a source's SVG. */
 export function resolveTargets(args: string[], o: {cwd: string; io: TargetIO; svgDirs: string[]}): Targets {
   const files: string[] = [], problems: TargetProblem[] = [];
@@ -28,7 +31,7 @@ export function resolveTargets(args: string[], o: {cwd: string; io: TargetIO; sv
   const find = (a: string, tried: string[]): string | null => {
     if (path.isAbsolute(a)) { tried.push(a); return o.io.isFile(a) ? a : null; }
     for (const base of ancestors(o.cwd)) {
-      const abs = path.resolve(base, a);
+      const abs = at(base, a);
       tried.push(rel(abs));
       if (o.io.isFile(abs)) return abs;
     }
@@ -39,7 +42,7 @@ export function resolveTargets(args: string[], o: {cwd: string; io: TargetIO; sv
   const resolveSource = (src: string): void => {
     const name = path.parse(src).name + '.svg', dir = path.dirname(src);
     const cands = [
-      ...o.svgDirs.map(d => path.resolve(o.cwd, d, name)),
+      ...o.svgDirs.map(d => at(at(o.cwd, d), name)),
       ...SIBLING_DIRS.flatMap(d => [path.join(dir, d, name), path.join(dir, '..', d, name)]),
       path.join(dir, name),
     ];
