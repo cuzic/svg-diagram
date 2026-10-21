@@ -197,14 +197,27 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
       }
     } else { // back (or into the same column): out of the bottom, along under the lane's content, into the bottom
       // under both ends, and under any node that the run passes beneath and that reaches below them (a tall task between the two)
-      let base = Math.max(A.y + A.h, Bx.y + Bx.h);
-      const lo = Math.min(ca.x, cb.x), hi = Math.max(ca.x, cb.x);
-      for (let moved = true; moved;) {
-        moved = false;
-        for (const r of rect.values()) if (r.x < hi && r.x + r.w > lo && r.y < base && r.y + r.h > base) { base = r.y + r.h; moved = true; }
-      }
-      const yb = base + 14 + (fi % 3) * 7;
-      pts = simplify([{x: ca.x, y: A.y + A.h}, {x: ca.x, y: yb}, {x: cb.x, y: yb}, {x: cb.x, y: Bx.y + Bx.h}]);
+      // the legs leave and enter at the centre of the bottom edge; when a node stands in the way (an event under the task, in the same column), they move sideways along the edge
+      const legs = (r: {x: number; w: number}, c: number): number[] => [c, r.x + r.w - 10, r.x + 10, r.x + r.w * 3 / 4, r.x + r.w / 4];
+      const build = (xa: number, xb: number): Pt[] => {
+        let base = Math.max(A.y + A.h, Bx.y + Bx.h);
+        const lo = Math.min(xa, xb), hi = Math.max(xa, xb);
+        for (let moved = true; moved;) {
+          moved = false;
+          for (const r of rect.values()) if (r.x < hi && r.x + r.w > lo && r.y < base && r.y + r.h > base) { base = r.y + r.h; moved = true; }
+        }
+        const yb = base + 14 + (fi % 3) * 7;
+        return simplify([{x: xa, y: A.y + A.h}, {x: xa, y: yb}, {x: xb, y: yb}, {x: xb, y: Bx.y + Bx.h}]);
+      };
+      const under = legs(A, ca.x).flatMap(xa => legs(Bx, cb.x).map(xb => build(xa, xb)));
+      // the other end is in another row (and neither end is a gateway, whose vertices carry its branches and its name): leave by the edge that faces it and enter by the edge that faces back (from above, down into the top), along a channel just beside the target
+      const below = Bx.y >= A.y + A.h, above = Bx.y + Bx.h <= A.y;
+      const faced: Pt[][] = (!below && !above) || isGate(must(kindOf.get(f.from))) || isGate(must(kindOf.get(f.to))) ? [] : legs(A, ca.x).flatMap(xa => legs(Bx, cb.x).flatMap(xb => {
+        const ys = below ? [Bx.y - 10, Bx.y - 20, must(laneTop[lane(f.to)]) + 6] : [Bx.y + Bx.h + 10, Bx.y + Bx.h + 20, must(laneTop[lane(f.to)]) + must(laneH[lane(f.to)]) - 6];
+        return ys.map(ych => simplify([{x: xa, y: below ? A.y + A.h : A.y}, {x: xa, y: ych}, {x: xb, y: ych}, {x: xb, y: below ? Bx.y : Bx.y + Bx.h}]));
+      }));
+      const tries = [...faced, ...under];
+      pts = tries.find(t => !through(t, [f.from, f.to])) ?? must(tries[0]);
     }
     out.edges.push({from: f.from, to: f.to, line, points: pts});
     const own = out.edges.length - 1;

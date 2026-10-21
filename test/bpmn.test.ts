@@ -55,6 +55,30 @@ test('bpmn(): a flow back to an earlier node goes under the nodes and still pass
   assert.ok(back.points.length >= 3);
 });
 
+test('bpmn(): a flow back from a task does not drop through an event under it in the same column', async () => {
+  const {t, verdict} = await laid(bpmn(
+    [{id: 'a', label: '営業'}, {id: 'b', label: '事務'}, {id: 'c', label: '経理'}],
+    [
+      {id: 's', lane: 'a', kind: 'start', label: '依頼'}, {id: 'n2', lane: 'b', label: '見積書を作成'}, {id: 'n7', lane: 'c', label: '請求・入金確認'},
+      {id: 'x2', lane: 'c', kind: 'xor', label: '可否'}, {id: 'n11', lane: 'a', label: 'お客様に入金確認'}, {id: 'done', lane: 'c', kind: 'end', label: '完了'},
+    ],
+    [
+      {from: 's', to: 'n2', line: 'dashed'}, {from: 'n2', to: 'n7', line: 'dashed'}, {from: 'n7', to: 'x2'},
+      {from: 'x2', to: 'done', label: 'あり'}, {from: 'x2', to: 'n11', line: 'dashed', label: 'なし'}, {from: 'n11', to: 'n7', line: 'dashed'},
+    ],
+    {fit: 'shrink'},
+  ));
+  assert.deepEqual(verdict.problems.filter(p => p.includes('runs through')), []);
+  const done = t.anchors.find(a => a.id === 'done')!, back = t.edges.find(e => e.from === 'n11' && e.to === 'n7')!;
+  const a11 = t.anchors.find(a => a.id === 'n11')!, a7 = t.anchors.find(a => a.id === 'n7')!;
+  assert.equal(back.points[0]!.y, a11.y + a11.h, 'leaves the bottom of the upper task');
+  assert.equal(back.points[back.points.length - 1]!.y, a7.y, 'enters the top of the lower task');
+  for (let i = 1; i < back.points.length; i++) {
+    const p = back.points[i - 1]!, q = back.points[i]!;
+    assert.ok(!(Math.min(p.x, q.x) < done.x + done.w && Math.max(p.x, q.x) > done.x && Math.min(p.y, q.y) < done.y + done.h && Math.max(p.y, q.y) > done.y), 'the back flow stays clear of the end event');
+  }
+});
+
 test('bpmn() SVG: lanes, circles (thick end), diamond with a cross, dashed message flow', async () => {
   const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(flow()), {name: 'b.svg', budget: 'cacheOnly'});
   assert.equal(svg.match(/<circle /g)?.length, 3);
