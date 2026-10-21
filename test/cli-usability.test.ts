@@ -138,11 +138,11 @@ test('typecheck: without a tsconfig.json it runs with the defaults (and says so)
   const wrap = path.join(root, 'bin');
   put(root, 'bin/tsc', `#!/bin/sh\nexec "${path.join(ROOT, 'node_modules', '.bin', 'tsc')}" "$@"\n`);
   fs.chmodSync(path.join(wrap, 'tsc'), 0o755);
-  const env = {PATH: `${wrap}${path.delimiter}${process.env['PATH']}`};
+  const env = {PATH: `${wrap}${path.delimiter}${process.env['PATH']}`, SVG_DIAGRAM_NO_OWN_TS: '1'};
   const ok = svgd(root, ['typecheck'], env);
   assert.equal(ok.status, 0, out(ok));
   assert.match(ok.stderr, /tsconfig\.json がない/);
-  assert.equal(fs.existsSync(path.join(root, '.svg-diagram-tsconfig.json')), false);
+  assert.deepEqual(fs.readdirSync(root).filter(f => f.startsWith('.svg-diagram-tsconfig')), []);
   put(root, 'diagrams/a.ts', GOOD_TS + 'const n: number = "x";\n');
   const bad = svgd(root, ['typecheck'], env);
   assert.equal(bad.status, 1, out(bad));
