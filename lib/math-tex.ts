@@ -10,6 +10,7 @@ import {must} from './must.ts';
 import {createRequire} from 'node:module';
 import {UNITS_PER_EM} from './math.ts';
 import {xmlProblems} from './xml-check.ts';
+import {mergeTextRuns} from './math-text.ts';
 
 export interface TexSvg {
   /** The drawing: path outlines in MathJax's units, y down, shifted so the formula's box starts at 0,0. */
@@ -80,13 +81,16 @@ function inlineCss(drawing: string): string {
   });
 }
 
+/** The three attributes the merged CJK <text> (math-text.ts) carries, with numeric values only. */
+const TEXT_ATTR_OK = /^(?:font-size=[\d.]+px|textLength=[\d.]+|lengthAdjust=spacing)$/;
+
 function foreign(drawing: string): string | undefined {
   if (/<a\b/.test(drawing)) return 'a link (\\href, \\ref, \\eqref)';
   for (const [, tag, attrs] of drawing.matchAll(/<(\w+)\b([^>]*)>/g)) {
     if (tag === undefined || attrs === undefined) continue;
     for (const [, name, value] of attrs.matchAll(/\s([\w:-]+)="([^"]*)"/g)) {
       if (name === undefined || value === undefined) continue;
-      if (name === 'fill' || name === 'stroke') { if (value !== 'none' && value !== 'currentColor') return `a colour of its own (${name}="${value}"): use math()'s tone`; } else if (name === 'class') { if (value.trim() !== 'MathML-Unit') return `a class on <${tag}>`; } else if (!ATTR_OK.test(name)) return `the attribute ${name} on <${tag}> (\\style, \\mmlToken…)`;
+      if (name === 'fill' || name === 'stroke') { if (value !== 'none' && value !== 'currentColor') return `a colour of its own (${name}="${value}"): use math()'s tone`; } else if (name === 'class') { if (value.trim() !== 'MathML-Unit') return `a class on <${tag}>`; } else if (tag === 'text' && TEXT_ATTR_OK.test(`${name}=${value}`)) continue; else if (!ATTR_OK.test(name)) return `the attribute ${name} on <${tag}> (\\style, \\mmlToken…)`;
     }
   }
   return undefined;
@@ -104,9 +108,10 @@ export function texToSvg(tex: string, display: boolean): TexSvg {
   const vb = new RegExp(`<svg\\b[^>]*\\bviewBox="${NUM} ${NUM} ${NUM} ${NUM}"`).exec(html);
   const body = /<g\b[^>]*\btransform="scale\(1,-1\)"[^>]*>([\s\S]*)<\/g><\/svg>/.exec(html);
   if (!vb || !body) throw new Error(`math(): MathJax gave no drawing for "${tex}" (equation numbers — \\tag, \\label — are not supported: put a caption beside the formula)`);
-  // characters outside MathJax's own font come out as <text>: a font of the viewer's, whose width is a guess — so they are refused
-  const bodyHtml = body[1] ?? '';
-  if (/<text\b/.test(bodyHtml)) throw new Error(`math(): "${tex}" has a character the formula font does not have (CJK, emoji…), which would be drawn as text in whatever font the viewer has — set that wording in a caption beside the formula`);
+  // characters outside MathJax's own font (CJK) come out as one <text> each: merged into runs, with the length pinned (math-text.ts).
+  // What is still <text> after that is something this does not know how to keep to its width: refused.
+  const bodyHtml = mergeTextRuns(body[1] ?? '');
+  if (/<text\b(?![^>]*\btextLength=)/.test(bodyHtml)) throw new Error(`math(): "${tex}" has a character the formula font does not have that cannot be drawn at a known width (emoji, or a font attribute) — set that wording in a caption beside the formula`);
   const drawing = inlineCss(bodyHtml);
   const other = foreign(drawing);
   if (other) throw new Error(`math(): "${tex}" would put ${other} in the picture`);
