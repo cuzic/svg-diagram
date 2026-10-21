@@ -25,11 +25,16 @@ const onPath = () => {
   return null;
 };
 let tsc: {cmd: string; args: string[]};
-const pkgPath = resolves('typescript/package.json'); // "typescript/bin/tsc" is not an exported path in TypeScript 7+, so find the bin through package.json
+// the project's typescript first; else this tool's own copy (present when installed from a clone, where it is a devDependency; a package install has none), so a project with nothing installed still checks
+const toolRoot = fs.existsSync(path.join(import.meta.dirname, 'lib', 'dsl.ts')) ? import.meta.dirname : path.dirname(import.meta.dirname);
+const toolReq = createRequire(path.join(toolRoot, 'package.json'));
+// SVG_DIAGRAM_NO_OWN_TS=1 skips the tool's own copy (the tests use it to reach the PATH branch)
+const ownTs = () => { if (process.env['SVG_DIAGRAM_NO_OWN_TS']) return null; try { return toolReq.resolve('typescript/package.json'); } catch { return null; } };
+const pkgPath = resolves('typescript/package.json') ?? ownTs(); // a tsc on PATH comes last: an old one does not know the options `init` writes (erasableSyntaxOnly) // "typescript/bin/tsc" is not an exported path in TypeScript 7+, so find the bin through package.json
 if (pkgPath) tsc = {cmd: process.execPath, args: [path.join(path.dirname(pkgPath), JSON.parse(fs.readFileSync(pkgPath, 'utf8')).bin.tsc)]};
 else {
   const g = onPath();
-  if (!g) { console.error('typescript が見つからない。`pnpm add -D typescript @types/node` を実行する（グローバル運用なら `pnpm add -g typescript`）'); process.exit(2); }
+  if (!g) { console.error('typescript が見つからない。`pnpm add -D typescript @types/node` を実行する（グローバル運用なら `pnpm add -g typescript`。clone 版の svg-diagram は、その clone で `pnpm install` すれば自身の typescript を使う）'); process.exit(2); }
   tsc = {cmd: g, args: []};
 }
 
@@ -52,7 +57,12 @@ let config = '.';
 let temp: string | null = null;
 if (!hasConfig) console.error('ℹ tsconfig.json がないので、既定の設定で型検査する（`svg-diagram init` で tsconfig.json を作ると、エディタと同じ設定になる）');
 if (!hasConfig || Object.keys(paths).length || typeRoots.length) {
-  temp = path.resolve('.svg-diagram-tsconfig.json');
+  // a run killed before it could clean up leaves its file behind: drop the ones untouched for an hour (a live run finishes in seconds; going by age, not pid, since a pid means nothing across containers)
+  for (const f of fs.readdirSync('.')) {
+    if (!/^\.svg-diagram-tsconfig\.[\w-]+\.json$/.test(f)) continue;
+    try { if (Date.now() - fs.statSync(f).mtimeMs > 3600_000) fs.rmSync(f, {force: true}); } catch { /* gone already */ }
+  }
+  temp = path.resolve(`.svg-diagram-tsconfig.${process.pid}-${Math.random().toString(36).slice(2, 8)}.json`); // per run (pid + random: pids repeat across containers): parallel runs in one directory must not share (or delete) each other's file
   // The project's own options, to keep what the temporary config would otherwise replace (`paths` and `typeRoots` replace, not merge).
   // A tsconfig with block comments or trailing commas is not read: its `paths` / `typeRoots` are then not kept.
   let project: {baseUrl?: string; paths?: Record<string, string[]>; typeRoots?: string[]} = {};

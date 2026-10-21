@@ -315,9 +315,13 @@ test('init makes a project that typechecks its type setting, and never overwrite
   assert.match(out(spawnSync(BIN, ['init'], {cwd: dir, encoding: 'utf8'})), /playwright-chromium/);
   assert.equal(fs.readFileSync(path.join(dir, 'pnpm-workspace.yaml'), 'utf8'), 'packages: []\n'); // left alone
   const noTsc = (process.env['PATH'] ?? '').split(path.delimiter).filter(d => !fs.existsSync(path.join(d, 'tsc'))).join(path.delimiter);
-  const t = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8', env: {...process.env, PATH: noTsc}});
-  assert.equal(t.status, 2); // no typescript in a bare temp project, none on PATH: says how to install it
+  const t = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8', env: {...process.env, PATH: noTsc, SVG_DIAGRAM_NO_OWN_TS: '1'}});
+  assert.equal(t.status, 2); // no typescript in a bare temp project, none on PATH, none of the tool's own: says how to install it
   assert.match(out(t), /typescript/);
+  // with the tool's own copy (a clone has it) tsc itself answers: here the project has no sources
+  const own = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8', env: {...process.env, PATH: noTsc}});
+  assert.doesNotMatch(out(own), /見つからない/);
+  assert.match(out(own), /TS18003/);
 });
 
 test('typecheck works with this tool run globally: a tsc on PATH, `svg-diagram` and node types resolved from the tool, not the project', () => {
@@ -330,7 +334,7 @@ test('typecheck works with this tool run globally: a tsc on PATH, `svg-diagram` 
   const wrap = path.join(dir, 'bin');
   fs.mkdirSync(wrap);
   fs.writeFileSync(path.join(wrap, 'tsc'), `#!/bin/sh\nexec "${tscBin}" "$@"\n`, {mode: 0o755});
-  const env = {...process.env, PATH: `${wrap}${path.delimiter}${process.env['PATH']}`};
+  const env = {...process.env, PATH: `${wrap}${path.delimiter}${process.env['PATH']}`, SVG_DIAGRAM_NO_OWN_TS: '1'};
   // the project's own type packages stay visible next to the tool's @types/node, and the `svg-diagram/render` entry resolves too
   fs.mkdirSync(path.join(dir, 'node_modules', '@types', 'foo'), {recursive: true});
   fs.writeFileSync(path.join(dir, 'node_modules', '@types', 'foo', 'index.d.ts'), 'declare const FOO: number;\n');
@@ -340,7 +344,7 @@ test('typecheck works with this tool run globally: a tsc on PATH, `svg-diagram` 
   fs.writeFileSync(path.join(dir, 'diagrams', 'a.ts'), src("import {renderSource} from 'svg-diagram/render';\nconsole.log(process.argv.length + FOO, typeof renderSource);\n"));
   const ok = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8', env});
   assert.equal(ok.status, 0, out(ok));
-  assert.equal(fs.existsSync(path.join(dir, '.svg-diagram-tsconfig.json')), false); // the temporary config is removed
+  assert.deepEqual(fs.readdirSync(dir).filter(f => f.startsWith('.svg-diagram-tsconfig')), []); // the temporary config is removed
   fs.writeFileSync(path.join(dir, 'diagrams', 'a.ts'), src('const n: number = "x";\n'));
   const bad = spawnSync(BIN, ['typecheck'], {cwd: dir, encoding: 'utf8', env});
   assert.equal(bad.status, 1, out(bad));

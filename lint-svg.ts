@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 // SVG diagram linter for public/svg/*.svg (this Slidev deck).
 //
-// Adapted from ~/ai-employees/scripts/lint-svg.ts (AI社員シリーズ book
-// pipeline's svg-diagram skill). Same check logic; the file-glob and color
-// token table are localized to this project. See
-// ~/ai-employees/.claude/skills/svg-diagram/SKILL.md "既知の落とし穴" for
-// the narrative version of every check below — each corresponds to a real
+// Adapted from a book project's lint script. Same check logic; the file-glob and color
+// token table are localized to this project. Each check below corresponds to a real
 // defect that was invisible to `git diff` review and only showed up once
 // actually rendered.
 //
