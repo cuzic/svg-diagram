@@ -5,7 +5,7 @@ import type {Band} from '../types/index.ts';
 import type {BoxBand, BoxTone} from '../types/text-bands.ts';
 import type {Declares, IdsOf, HandleOf, Refers, RefsOf, RowHandleOf} from '../strict.ts';
 import type {IconName} from '../icons.ts';
-import {assertNoReveal, handleFor, withHandle} from './shared.ts';
+import {assertNoReveal, assertOneOf, handleFor, withHandle} from './shared.ts';
 import {box, group} from './text-bands.ts';
 
 export function spacer(h: number, opts?: {reveal?: number}): SpacerBand {
@@ -47,6 +47,8 @@ export function row<C extends BoxBand, const Id extends string = never>(children
 export function row<C extends BoxBand | GroupBand, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): GroupRowBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & RowHandleOf<Id>;
 export function row<C extends BoxBand | GroupBand | Exclude<Band, ConnectBand | SpacerBand | RowBand | GroupRowBand | GridBand>, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): GroupRowBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & RowHandleOf<Id>;
 export function row(rawChildren: Band[], opts: RowOpts = {}): RowBand | GroupRowBand {
+  assertOneOf(opts.arrows, ['between', 'none'], 'row() arrows');
+  assertOneOf(opts.justify, ['stretch', 'center', 'start'], 'row() justify');
   assertNoReveal(opts, 'row()'); // a row is shown with its children: give each child its own reveal
   // caption / stat / banner / table ... in a row: each goes into a frameless group (the same as writing group([x], {frame: false}) by hand)
   const wrappable = (c: Band) => c?.type !== undefined && !['box', 'group', 'connect', 'spacer', 'row', 'grouprow', 'grid'].includes(c.type);
