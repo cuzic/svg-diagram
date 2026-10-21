@@ -217,3 +217,14 @@ test('check --docs --fidelity --base REF: a word the page had at REF still count
   assert.equal(run(root, '--fidelity', '--strict').status, 1);
   assert.equal(run(root, '--fidelity', '--base', 'HEAD', '--strict').status, 0);
 });
+
+test('check --docs: a PNG reference with a same-named SVG gets the replacement to write, also when the PNG is gone', () => {
+  const root = project(GOOD + '\n![まだPNG](images/fig.png)\n\n![PNGは消えた](images/gone.png)\n');
+  fs.mkdirSync(path.join(root, 'docs', 'images'));
+  fs.writeFileSync(path.join(root, 'docs', 'images', 'fig.png'), 'x');
+  fs.writeFileSync(path.join(root, 'docs', 'images', 'gone.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>'); // beside the page's images: the same folder as the missing PNG
+  const r = run(root, '--verbose');
+  assert.match(r.stdout, /\[doc-png-has-svg\].*fig\.png.*\.\.\/svg\/fig\.svg/); // in --svg-dir
+  assert.match(r.stdout, /\[doc-image-missing\].*images\/gone\.png がない。同名の SVG がある: !\[\]\(images\/gone\.svg\)/);
+  assert.doesNotMatch(run(project(GOOD)).stdout, /doc-png-has-svg/);
+});

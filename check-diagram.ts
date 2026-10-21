@@ -250,7 +250,12 @@ try {
         let ref = png.ref;
         try { ref = decodeURI(ref); } catch { /* a stray % stays as written */ }
         const abs = path.resolve(path.dirname(md), ref), name = path.basename(abs).replace(/\.png$/i, '');
-        if (!fs.existsSync(abs)) { add({file: rel, line: png.line, rule: 'doc-image-missing', severity: 'error', message: `${png.ref} がない`}); continue; }
+        // the SVG that replaced this PNG: next to it, or in --svg-dir (the reference to write is relative to the page)
+        const sibling = abs.replace(/\.png$/i, '.svg'), inSvgDir = svgDir ? path.join(svgDir, name + '.svg') : undefined;
+        const svgOf = fs.existsSync(sibling) ? sibling : inSvgDir && fs.existsSync(inSvgDir) ? path.resolve(inSvgDir) : undefined;
+        const swap = svgOf ? `。同名の SVG がある: ![](${path.relative(path.dirname(md), svgOf).split(path.sep).join('/')}) に差し替える` : '';
+        if (!fs.existsSync(abs)) { add({file: rel, line: png.line, rule: 'doc-image-missing', severity: 'error', message: `${png.ref} がない${swap}`}); continue; }
+        if (svgOf) add({file: rel, line: png.line, rule: 'doc-png-has-svg', severity: 'info', message: `${name}.png は、同名の SVG があるのに PNG のまま参照している${swap.replace(/^。同名の SVG がある: /, '。')}`});
         pngReferenced.add(abs); pngDirs.add(path.dirname(abs));
         // a raster copy of a figure has a source or an SVG of the same name; one with neither is a hand-made or stale picture
         const hasSrc = srcDir && ['.ts', '.mjs'].some(ext => fs.existsSync(path.join(srcDir, name + ext))), hasSvg = svgDir && fs.existsSync(path.join(svgDir, name + '.svg'));
