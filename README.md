@@ -1194,8 +1194,28 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 
 **文節で折る、収まらなければ従来に戻る（`wrap: 'bunsetsu-soft'`）**: 狭い箱で「確/かめられる」「育てら/れる」のように、ひらがなの手前で行が割れるのは、`wrap: 'bunsetsu'`（ひらがなを直前の文字に付けて、文節で折る）で防げる。ただし文節の単位は長いので、密な図は 940px に収まらず build が止まる。`'bunsetsu-soft'` は、まず `bunsetsu` で配置し、**収まらない図だけ**従来の折り方（`phrase`）で配置する（止まらない。`check` が情報 `wrap-fell-back` で、従来の折り方にしたことを知らせる。図を 2 枚に分ける・文言を短くすると文節で折れる）。`.svg-diagram.json` の `"wrap": "bunsetsu-soft"` で案件全体に効く（図の `wrap` が優先）。図の中に収まらない帯が 1 つでもあると、その図は全体が `phrase` になる。
 
+### 画像（PNG）を図に置き換えるとき: 原画の語が残っているか
+
+`check --covers` は表だけでなく、**1 行 1 語の CSV** も受け付ける。PNG の原画を画像が読めるエージェント（または人）が読み、見えた語を 1 行 1 語の CSV に書き出して、新しい図と突き合わせる。
+
+```
+# 原画の語（崩れた字は見えたまま書く。そのほうが差が出る）
+echo '効果額' > words.csv; echo '研修費用' >> words.csv
+svg-diagram check --covers words.csv --svg-dir svg diagrams/formula.ts
+```
+
+欠けた語は `covers-missing`（警告）で出る。原画の読み間違い（書き起こしの誤字）と、図に書き写し忘れた語は、どちらもここで見つかるので、出た語は原画で見直す。逆向き（図にだけある語）は `diff --text 旧.svg 新.svg` の「追加」で見る。数式（`math()`）の中の日本語も `<text>` なので、語として見つかる。
+
 ## 共通設定（`.svg-diagram.json`）
 カレントディレクトリから上へたどって見つかる。`{"accept": {"rule-id": "理由"}, "maxWidth": 940}`。図ごとの `accept` が優先される。`maxWidth` も図ごとに `diagram({maxWidth: 1200})` で変えられる（`doc-width` の閾値だけで、図の幅は変えない。広い図にするなら `width: 1200` も書く。図の値が設定ファイルに勝つ）。`accept` のキーはルール ID（`RULE_DOCS` にある名前）で、知らない ID・空の理由はファイル名つきのエラー（綴り違いで何も許容されないのを防ぐ）。許容された指摘は info に下がり、理由が添えられる。
+
+**並列で使うときの注意**: 複数のエージェントが同じディレクトリで動くとき。
+- `build` は**引数に書いたソースだけ**を作る（glob の展開は呼び出し側。他の人のソースまで巻き込まないよう、自分のソースだけを書く）。書いたファイルは 1 行ずつ `✓ svg/x.svg (WxH)` で出る。
+- `.svg-diagram.json` は、ソースの場所ではなく**カレントディレクトリから上へ**探す。別のディレクトリから走らせると、その図の設定（`accept`・`maxWidth`・`fonts`）が読まれず、結果が揺れる。ディレクトリごとの設定は、そのディレクトリ（または上）に `.svg-diagram.json` を置き、そこへ `cd` して走らせる。
+- `typecheck` の一時ファイル（`.svg-diagram-tsconfig.<pid>-<乱数>.json`）は実行ごとに名前が違うので、並列に走らせても互いに消さない。
+- `check --drift --rebuild` のキャッシュ（`.svg-diagram-cache/`）は共有してよい（書き込みは rename で原子的）。
+- `pkill -f svg-diagram` のような名前での強制終了は、他の人のビルドも止める。止めるなら自分の PID だけ。
+- **TOC の `toc-ude-count` / `toc-no-desired-result` は既定で info**（`diagram({tocCheck: 'strict'})` の図だけ警告）なので、章単位の部分図でも `accept` は要らない。出したくなければ、図のディレクトリの `.svg-diagram.json` に `{"accept": {"toc-ude-count": "章単位の部分図"}}` を 1 つ置く。`gray-tone-collision` や `density` を帳票の図でまとめて許容するのも同じ（案件の `.svg-diagram.json` の `accept`）。
 
 **出力先（`outDir`）**: `"outDir": "images"` は、`build` の既定の出力先（`./svg` の代わり。`.svg-diagram.json` のあるフォルダからの相対）で、`lint`（引数なし）と `check --drift` が SVG を探す先でもある。`--out` / `--out-dir` が優先される。
 
