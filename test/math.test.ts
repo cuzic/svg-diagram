@@ -79,8 +79,11 @@ test('\\boxed keeps its frame as a frame (not a solid block over the formula)', 
   assert.match(g, /<rect[^>]*fill="none"/);
 });
 
-test('CJK in \\text and equation numbers are refused with a way out', () => {
-  assert.throws(() => math(String.raw`\text{売上} = pq`), /caption beside the formula/);
+test('CJK in \\text is drawn as a run of text at a pinned width; equation numbers are refused with a way out', () => {
+  const g = math(String.raw`\frac{\text{利益}}{\text{売上高}} = pq`).drawing.inner;
+  const runs = [...g.matchAll(/<text [^>]*textLength="(\d+)"[^>]*>([^<]*)<\/text>/g)].map(m => [m[2], Number(m[1])]);
+  assert.deepEqual(runs, [['利益', 2000], ['売上高', 3000]]); // one element per word, one em per character
+  assert.doesNotMatch(g, /font-family|data-variant/);
   assert.throws(() => math(String.raw`a \tag{1}`), /caption beside the formula/);
 });
 

@@ -1122,10 +1122,11 @@ build は通常の最終形 `name.svg` に加え、段階表示を使う図だ�
 math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat', alt: 'e の -x 二乗乗を全実数で積分すると √π'})
 ```
 
+- **日本語は `\text{…}` の中に書く**: 分数の分子・分母、上付き・下付きにも使える（`String.raw`\frac{\text{効果額}-\text{研修費用}}{\text{研修費用}}\times 100``、`(1+r)^{\text{経過年数}}`）。日本語の語は輪郭でなく `<text>`（1 語 1 要素、文字の大きさは `role` のまま、`textLength` で幅を 1 字 = 1 em に固定）で描くので、フォントが違っても式の幅は変わらず、`diff --text` / `check --covers` / `--fidelity` は語として読める。書体は図の他の文字と同じ。上付きは約 70% の大きさになる（TeX の標準）。半角の英数字は MathJax の字形（輪郭）のまま。ADR 0040。
 - バックスラッシュが残るよう **`String.raw`** で書く。`\frac` `\sqrt` `\sum` `\mathbf` `\begin{pmatrix}` など MathJax の標準パッケージ一式が使える。
 - 大きさは文字の `role`（既定 `'body'`。`'banner'` `'stat'` `'display'` など）で決まり、`fill` モードでは他の文字と一緒に拡大される。段落中の式のように分数や和の添え字を小さく組むときは `inline: true`。
 - `align`（`'center'` 既定 / `'left'` / `'right'`）、`tone`（`'text'` 既定 / `'accent'` / `'muted'` / `'danger'`）、`id`（`connect` の端点にできる）。`reveal` は付けられない。
-- 使えない TeX は throw する: 読めない式（閉じていない `{`、未定義のコマンド）、MathJax のフォントにない文字（日本語など。`<text>` になり幅が当てにならない。言葉は隣の `caption()` に置く）、式番号と相互参照（`\tag` `\ref` `\eqref`。同じく caption で。`\label` は無視される）、列より幅が広い式。式は赤字で図に残らない。`fill` モードでは、列に収まる範囲までしか拡大しない（`canvas` は倍率が決まっているので、収まらなければ throw する）。
+- 使えない TeX は throw する: 読めない式（閉じていない `{`、未定義のコマンド）、絵文字など MathJax のフォントになく幅を決められない文字（日本語は `\text{…}` に書ける: 下）、式番号と相互参照（`\tag` `\ref` `\eqref`。同じく caption で。`\label` は無視される）、列より幅が広い式。式は赤字で図に残らない。`fill` モードでは、列に収まる範囲までしか拡大しない（`canvas` は倍率が決まっているので、収まらなければ throw する）。
 - 許可リスト方式のパッケージだけが使える。`\href` `\style` `\class`（属性を図に直接書き込む）、`\color` `\textcolor` `\bbox` `\mmlToken` の色（テーマ・暗色・spotlight に追従しない）、`\unicode` は使えない。出力に属性・リンク・独自の色が混じる式（`\rule` を含む）や、MathJax のフォントにない字（`\upalpha` など）は throw する。色は `tone` で付ける。
 - `\def` `\newcommand` は、その `math()` の中だけで効く（次の式にも別の図にも漏れない）。
 - MathJax は任意の peer 依存。数式を使う案件で `pnpm add mathjax-full` する（初回の変換に数秒かかる）。
