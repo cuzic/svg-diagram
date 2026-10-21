@@ -40,6 +40,8 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (opts.wrap !== undefined && opts.wrap !== 'phrase' && opts.wrap !== 'char' && opts.wrap !== 'bunsetsu' && opts.wrap !== 'bunsetsu-soft') throw new Error(`diagram({wrap}) must be 'phrase', 'char', 'bunsetsu' or 'bunsetsu-soft' (got ${JSON.stringify(opts.wrap)})`);
   mapOf(NO_TONES, opts.appearance); // a custom dark set is validated here
   if (opts.sourceLine !== undefined && (typeof opts.sourceLine !== 'string' || !opts.sourceLine.trim() || /[\r\n]/.test(opts.sourceLine))) throw new Error('diagram({sourceLine}) must be a non-empty single-line string (e.g. "出典: 総務省 2025")');
+  if (opts.showTitle !== undefined && typeof opts.showTitle !== 'boolean') throw new Error(`diagram({showTitle}) must be true or false (got ${JSON.stringify(opts.showTitle)})`);
+  if (opts.showTitle && (typeof opts.title !== 'string' || !opts.title.trim())) throw new Error('diagram({showTitle: true}) needs a title: diagram({title: "...", showTitle: true})');
   if (opts.status !== undefined && opts.status !== 'draft') throw new Error(`diagram({status}) must be 'draft' (got ${JSON.stringify(opts.status)})`);
   if (opts.statusLabel !== undefined && (opts.status === undefined || typeof opts.statusLabel !== 'string' || !opts.statusLabel.trim() || /[\r\n]/.test(opts.statusLabel))) throw new Error('diagram({statusLabel}) must be a non-empty single-line string and goes with diagram({status}) (e.g. "仮説")');
   if (opts.layoutCheck === 'strict' && (opts.medium ?? (opts.theme === undefined ? 'slide' : 'doc')) === 'slide') throw new Error("diagram({layoutCheck: 'strict'}) needs a document figure (theme: ...): slide figures (day: ...) are not given the layout-* checks, so it would never warn");
@@ -79,6 +81,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     connectDefaults: opts.connectDefaults, wireframeDefaults: opts.wireframeDefaults,
     spotlight: opts.spotlight,
     sourceLine: opts.sourceLine,
+    ...(opts.showTitle ? {showTitle: true} : {}), // a figure without it is unchanged
     ...(opts.status === undefined ? {} : {status: opts.status, ...(opts.statusLabel === undefined ? {} : {statusLabel: opts.statusLabel})}), // a figure without a status is unchanged
     layoutCheck: opts.layoutCheck, // check only: the severity of the layout-* findings; never reaches the drawing
     tocCheck: opts.tocCheck, // check only: the severity of the toc-* findings; never reaches the drawing
