@@ -783,7 +783,7 @@ function fitRules(d: LintTarget, out: Finding[]): void {
 /** How to fix a mid-word break depends on whether the part's boxes can be widened: a chevron / cycle / swimlane fixes the frame first. */
 const MID_WORD_FIX: Record<string, string> = {
   chevron: "矢羽根の幅は段数で決まる。`direction: 'vertical'` にする、段を減らす、文言を短くする",
-  cycle: '円の大きさは項目数で決まる。項目を減らす、文言を短くする',
+  cycle: '円は、カタカナの語に合わせて幅・高さの上限（幅 −8px、高さ 760px）まで広がる。それでも入らない語は、文言を短くする、項目を減らす',
   swimlane: "列の幅は段数で決まる。`fit: 'shrink'` を外す、列を減らす、文言を短くする",
 };
 function midWordRules(d: LintTarget, out: Finding[]): void {
