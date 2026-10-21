@@ -118,6 +118,8 @@ const pts = (ps: [number, number][]): string => ps.map(([x, y], i) => `${i ? 'L'
 const path = (ctx: WfCtx, d: string, o: DrawShapeOpts = {}): void => { ctx.prims.push({k: 'path', d, fill: o.fill ?? null, stroke: o.stroke ?? null, sw: o.sw ?? 2, dash: o.dash, op: o.op, cap: o.cap}); };
 const line = (ctx: WfCtx, x1: number, y1: number, x2: number, y2: number, o: DrawShapeOpts = {}): void => path(ctx, pts([[x1, y1], [x2, y2]]), {stroke: o.stroke ?? 'border', ...o});
 const mid = (cy: number, size = S): number => cy + size * 0.36; // baseline that centres text on cy
+/** y on the 4px grid, as emit draws a rect: a plate placed here, and the text centred on it, stay together. */
+const grid = (v: number): number => Math.round(v / 4) * 4;
 
 // Tone names and their colours live in tokens.ts (TONES); wireframe only picks the part it draws.
 const toneOf = (t?: WfTone): ToneName => (t != null ? TONE_ALIAS[t] : undefined) ?? (t as ToneName | undefined) ?? 'plain';
@@ -592,14 +594,15 @@ function drawMarker(m: WfMapMarker, [px, py]: [number, number], _minX: number, m
     const lw = tw(ctx, m.label, S, 700) + 8;
     const col = kind === 'alert' ? 'danger' : 'text';
     if (m.side === 'bottom' || m.side === 'top') {
-      const ly = m.side === 'bottom' ? py + r + 3 : py - r - 3 - 22;
+      const ly = grid(m.side === 'bottom' ? py + r + 3 : py - r - 3 - 22);
       rect(ctx, px - lw / 2, ly, lw, 22, {r: 4, fill: 'bg', op: 0.92});
       text(ctx, m.label, px, mid(ly + 11), {weight: 700, fill: col, anchor: 'middle'});
     } else {
       let lx = px + r + 4;
       if (m.side === 'left' || lx + lw > maxX - 16) lx = px - r - 4 - lw;
-      rect(ctx, lx, py - 11, lw, 22, {r: 4, fill: 'bg', op: 0.92});
-      text(ctx, m.label, lx + 4, mid(py), {weight: 700, fill: col});
+      const ty = grid(py - 11); // the plate is drawn on the grid: the text is placed against the plate as drawn
+      rect(ctx, lx, ty, lw, 22, {r: 4, fill: 'bg', op: 0.92});
+      text(ctx, m.label, lx + 4, mid(ty + 11), {weight: 700, fill: col});
     }
   }
   if (m.n != null) ctx.callouts.push({n: m.n as number, x: px + 14, y: py - 14}); // wireframe() has replaced `true` by a number
@@ -613,13 +616,15 @@ function frameDecor(n: WfFrameDecor & {t: WfType}, x: number, y: number, w: numb
   for (const c of [...(n.overlayRight ?? [])].reverse().map(chipSpec)) { const cw = chipW(ctx, c.text); rx -= cw; drawChip(ctx, c.text, rx, y + 8, c.tone); rx -= 6; }
   if (n.label && n.t !== 'chart') {
     const lw = tw(ctx, n.label, S, 700) + 12;
-    rect(ctx, x + 8, y + h - 30, lw, 22, {r: 4, fill: 'bg', op: 0.92});
-    text(ctx, n.label, x + 14, mid(y + h - 19), {weight: 700, fill: 'muted'});
+    const ty = grid(y + h - 30);
+    rect(ctx, x + 8, ty, lw, 22, {r: 4, fill: 'bg', op: 0.92});
+    text(ctx, n.label, x + 14, mid(ty + 11), {weight: 700, fill: 'muted'});
   }
   if (n.stamp) {
     const sw = tw(ctx, n.stamp, S, 400) + 12;
-    rect(ctx, x + w - 8 - sw, y + h - 30, sw, 22, {r: 4, fill: 'bg', op: 0.92});
-    text(ctx, n.stamp, x + w - 14, mid(y + h - 19), {fill: 'muted', anchor: 'end'});
+    const ty = grid(y + h - 30);
+    rect(ctx, x + w - 8 - sw, ty, sw, 22, {r: 4, fill: 'bg', op: 0.92});
+    text(ctx, n.stamp, x + w - 14, mid(ty + 11), {fill: 'muted', anchor: 'end'});
   }
 }
 

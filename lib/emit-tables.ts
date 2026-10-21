@@ -124,7 +124,7 @@ export function renderPrims(b: LaidOutWireframe | LaidOutScreens, day: Theme): s
       out.push(`<path d="${p.d}" ${fill(p)}${stroke(p)}${p.stroke ? ' stroke-linejoin="round"' : ''}/>`);
     } else if (p.k === 'pill') {
       const x0 = snap4(p.x), y0 = snap4(p.y), x1 = snap4(p.x + p.w), y1 = snap4(p.y + p.h);
-      out.push(pillSvg({x: x0, y: y0, w: Math.max(0, x1 - x0), h: Math.max(0, y1 - y0), fill: col(p.fill), stroke: p.stroke ? col(p.stroke) : null, cx: p.x + p.w / 2, baseline: p.base, text: col(p.text), size: p.size, labelHtml: emojiSpan(p.label)}));
+      out.push(pillSvg({x: x0, y: y0, w: Math.max(0, x1 - x0), h: Math.max(0, y1 - y0), fill: col(p.fill), stroke: p.stroke ? col(p.stroke) : null, cx: p.x + p.w / 2, baseline: p.base, rawY: p.y, text: col(p.text), size: p.size, labelHtml: emojiSpan(p.label)}));
     } else if (p.k === 'badge') {
       out.push(badgeSvg({cx: p.cx, cy: p.cy, r: p.r, w: p.w, shape: p.shape, label: p.label, aria: p.aria, size: p.size, fill: col(p.fill), stroke: PALETTE.bg, sw: 2, snap: snap4, esc: escapeXml}));
     } else if (p.k === 'text') {

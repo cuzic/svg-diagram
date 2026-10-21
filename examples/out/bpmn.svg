@@ -45,9 +45,9 @@
   <text x="773" y="172" text-anchor="middle" font-size="14" fill="#22201b">取消</text>
   <text x="471" y="236" text-anchor="end" font-size="14" fill="#22201b">在庫</text>
   <rect x="492" y="296" width="40" height="22" fill="#ffffff"/>
-  <text x="511" y="313" text-anchor="middle" font-size="14" fill="#22201b">あり</text>
+  <text x="511" y="312" text-anchor="middle" font-size="14" fill="#22201b">あり</text>
   <rect x="516" y="244" width="40" height="22" fill="#ffffff"/>
-  <text x="536" y="259" text-anchor="middle" font-size="14" fill="#22201b">なし</text>
+  <text x="536" y="260" text-anchor="middle" font-size="14" fill="#22201b">なし</text>
 
   <text x="20" y="474" font-size="14" font-weight="400" fill="#6f6659">出典: 業務フロー図(例)</text>
 </svg>
