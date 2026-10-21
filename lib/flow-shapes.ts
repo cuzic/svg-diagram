@@ -11,6 +11,7 @@ import type {LoopBack} from './types/containers.ts';
 import {assertScope} from './scope-name.ts';
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
+import {katakanaWidth} from './tree.ts';
 import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, ScopeOpts, Roles, TextTone, WidthOf, WrapMode} from './types/core.ts';
 import type {BoxTone} from './types/text-bands.ts';
 
@@ -166,7 +167,7 @@ type AnchorFn = (id: string | undefined, r: Rect) => void;
 
 /** A wrapped text block: measure it first (lines, height), then place it. */
 class Texts {
-  private out: LaidOutFlowShape; private widthOf: WidthOf; private roles: Roles; private mode: WrapMode;
+  private out: LaidOutFlowShape; readonly widthOf: WidthOf; private roles: Roles; private mode: WrapMode;
   constructor(out: LaidOutFlowShape, widthOf: WidthOf, roles: Roles, mode: WrapMode) { this.out = out; this.widthOf = widthOf; this.roles = roles; this.mode = mode; }
   wrap(text: string, maxW: number, weight: 400 | 700 = 700, size = this.roles.note): {text: string; lines: string[]; h: number; w: number; size: number; weight: 400 | 700} {
     const atomWidth = (a: string) => this.widthOf(a, size, weight, 'sans');
@@ -242,10 +243,22 @@ function layoutFunnel(b: FunnelBand, out: LaidOutFlowShape, t: Texts, anchor: An
 }
 
 function layoutCycle(b: CycleBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn, roles: Roles): void {
-  const w = out.w, n = b.steps.length, h = Math.min(520, Math.max(300, w * .62));
+  const w = out.w, n = b.steps.length, h0 = Math.min(520, Math.max(300, w * .62));
+  const sinN = Math.sin(Math.PI / n), ARROW_ROOM = 20; // the gap between adjacent circles is at least 2 * ARROW_ROOM, with room left for the arrow
+  let R = Math.min(w, h0) * .34;
+  let nr = Math.max(28, Math.min(54, R * .38, R * sinN - 14));
+  // A katakana word wider than the label area (1.5 nr) would be cut mid-word: grow the circles for it, and the ring (and the height) with them,
+  // as far as the width and a 760px height allow. Cycles whose words already fit are drawn exactly as before.
+  const word = Math.max(0, ...b.steps.map(s => Math.max(katakanaWidth(s.label, t.widthOf, roles.note, 700), s.sub ? katakanaWidth(s.sub, t.widthOf, roles.note, 400) : 0)));
+  if (word > nr * 1.5) {
+    const want = Math.ceil(word / 1.5);
+    const rMax = Math.min(w / 2 - 4 - want, (760 - 16) / 2 - want); // the ring plus a circle stays inside the width and the height cap
+    const rNeed = Math.max(R, 2 * want, (want + ARROW_ROOM) / sinN);
+    if (rMax > R) { R = Math.min(rNeed, rMax); nr = Math.max(nr, Math.min(want, R * .5, R * sinN - ARROW_ROOM)); }
+  }
+  const h = Math.max(h0, 2 * (R + nr) + 16);
   out.h = h;
-  const cx = out.x + w / 2, cy = out.y + h / 2, R = Math.min(w, h) * .34;
-  const nr = Math.max(28, Math.min(54, R * .38, R * Math.sin(Math.PI / n) - 14)); // adjacent nodes keep room for an arrow between them
+  const cx = out.x + w / 2, cy = out.y + h / 2;
   const sign = b.direction === 'cw' ? 1 : -1, angle = (i: number) => -Math.PI / 2 + sign * 2 * Math.PI * i / n;
   const at = (a: number, r = R): Pt => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
   const skip = 2 * Math.asin(Math.min(1, (nr + 8) / (2 * R))); // the angle a node (plus a gap) covers on the ring
