@@ -130,6 +130,7 @@ export const RULE_DOCS = {
   'stat-no-source': 'stat() の数字に出典(source)が無い。diagram({evidenceCheck: "info" | "strict"}) を書いた図だけで検査する(strict で warn)。stat({source, confidence}) で足す',
   'stat-fit-shrunk': 'stat() の値が箱の幅に収まらないので、自動で小さい文字にした(隣の stat と大きさがそろわない。箱を広げるか、値を短くするとそろう)',
   'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
+  'aspect-tall': '文書の図が縦に長い（高さが幅の 1.5 倍超。本の版面は縦横比が 1.5〜1.6 ほど）。部品に応じて、段組み（causeTree の fold、row の cols）か分割を検討する',
   'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）',
   'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
   'density-compact-restored': "diagram({density: 'compact'}) の因果ツリー・状態遷移で、詰めた図のほうが検査の問題(箱を通る矢印・ラベルの重なり)が多いので、通常の間隔で描いた（情報）",
@@ -291,6 +292,9 @@ export function applyAutoLegend(d: DiagramData): void {
 }
 
 function ratioText(r: number): string { return r.toFixed(1); }
+
+/** Taller than this many widths: a book page is about 1.5 to 1.6 tall for its width, so a figure past it needs a page of its own. */
+const ASPECT_TALL = 1.5;
 
 function textContrast(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   const paint = paintOf(tones, d.appearance);
@@ -856,6 +860,15 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
     if (d.canvas.minText < MIN_FONT_SIZE) out.push({rule: 'font-floor-lowered', severity: 'info', message: `文字の下限を ${MIN_FONT_SIZE}px から ${d.canvas.minText}px に下げている(最小の文字 ${min}px)。キャンバスは 1:1 で読まれる前提。投影には向かない`});
     if (min < d.canvas.minText) out.push({rule: 'slide-min-text', severity: 'warn', message: `最小の文字が ${min}px。スライド用キャンバスは ${d.canvas.minText}px 以上(その文字を大きくするか、減らす)`});
     if (d.contentHeight !== undefined && d.contentHeight > d.canvas.height) out.push({rule: 'slide-canvas-overflow', severity: 'warn', message: `内容の高さ ${d.contentHeight}px が、キャンバスの高さ ${d.canvas.height}px を超える。行・文字を減らすか、図を分ける`});
+  }
+  if (d.medium === 'doc' && !d.canvas && d.canvasHeight !== undefined && d.canvasHeight > ASPECT_TALL * d.width) {
+    const kinds = new Set(walkBands(d.bands).map(b => b.type));
+    const ways = [
+      ...(kinds.has('cause') ? ['causeTree({fold})（折って段にする）'] : []),
+      ...(kinds.has('row') || kinds.has('grid') || kinds.has('group') ? ['row({cols}) / grid で横に並べる'] : []),
+      '図を 2 つに分ける（章・段階ごと）',
+    ];
+    out.push({rule: 'aspect-tall', severity: 'info', message: `幅 ${d.width}px に対して高さ ${d.canvasHeight}px（縦横比 ${(d.canvasHeight / d.width).toFixed(2)}）。本の 1 ページに収まりにくい。${ways.join('、')}を検討する（${ASPECT_TALL} 倍までは出さない）`});
   }
   if (d.medium === 'doc' && !d.canvas && d.width > (d.maxWidth ?? 940)) out.push({rule: 'doc-width', severity: 'warn', message: `幅 ${d.width}px。本文の表示幅（約 930px）に縮められ、文字が小さくなる（${d.maxWidth ?? 940}px 以下にする）`});
   // doc diagrams are read at length on a page, so their budget is larger than the slide decks' (see budget.ts)
