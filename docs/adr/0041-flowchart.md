@@ -36,7 +36,7 @@ flowchart(
 ```
 - `kind`: `process`(角丸の箱。既定)/ `decision`(ひし形)/ `terminator`(両端が丸い箱)。`label` は必須、`sub`(2 行目)、`tone`、`icon` は `stateDiagram` の節と同じ。
 - 辺: `{from, to, label?, line?, tone?, ...}` は `stateDiagram` の遷移と同じ。ラベルは辺の上の白い chip(既存)。
-- 戻る辺・飛ばす辺・自己ループは `stateDiagram` と同じ扱い(`returns: 'outer'` も通る)。
+- 戻る辺・飛ばす辺は `stateDiagram` と同じ。**既定の `returns` は `'outer'`**(流れ図の「やり直し」はほぼ必ず判断へ戻る。`inline` だと別の節の外接矩形を通って build が止まり、`outer` なら横の頂点に入ることを実測した)。自己ループは判断・終端では throw(ひし形の頂点に付かない。流れ図では稀)。
 - ノードの `id` は `connect()` の端点(`b.anchors.<id>`、`scope` も既存)。
 
 ### D2: 実装は `StatesBand` を作る薄い入口。名前と向きは帯に持たせる
