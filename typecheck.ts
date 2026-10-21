@@ -57,13 +57,12 @@ let config = '.';
 let temp: string | null = null;
 if (!hasConfig) console.error('ℹ tsconfig.json がないので、既定の設定で型検査する（`svg-diagram init` で tsconfig.json を作ると、エディタと同じ設定になる）');
 if (!hasConfig || Object.keys(paths).length || typeRoots.length) {
-  // a run killed before it could clean up leaves its file behind: drop the ones whose process is gone
+  // a run killed before it could clean up leaves its file behind: drop the ones untouched for an hour (a live run finishes in seconds; going by age, not pid, since a pid means nothing across containers)
   for (const f of fs.readdirSync('.')) {
-    const m = /^\.svg-diagram-tsconfig\.(\d+)\.json$/.exec(f);
-    if (!m) continue;
-    try { process.kill(Number(m[1]), 0); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ESRCH') fs.rmSync(f, {force: true}); }
+    if (!/^\.svg-diagram-tsconfig\.[\w-]+\.json$/.test(f)) continue;
+    try { if (Date.now() - fs.statSync(f).mtimeMs > 3600_000) fs.rmSync(f, {force: true}); } catch { /* gone already */ }
   }
-  temp = path.resolve(`.svg-diagram-tsconfig.${process.pid}.json`); // per process: parallel runs in one directory must not share (or delete) each other's file
+  temp = path.resolve(`.svg-diagram-tsconfig.${process.pid}-${Math.random().toString(36).slice(2, 8)}.json`); // per run (pid + random: pids repeat across containers): parallel runs in one directory must not share (or delete) each other's file
   // The project's own options, to keep what the temporary config would otherwise replace (`paths` and `typeRoots` replace, not merge).
   // A tsconfig with block comments or trailing commas is not read: its `paths` / `typeRoots` are then not kept.
   let project: {baseUrl?: string; paths?: Record<string, string[]>; typeRoots?: string[]} = {};
