@@ -40,6 +40,14 @@ export function assertNoReveal(opts: object | undefined, what: string): void {
 export function assertBoxTone(tone: string | undefined, what: string): void {
   if (isSolidTone(tone)) throw new Error(`${what}: tone '${tone}' is for box() / banner() / stat() / a swimlane step / a legend item only — what sits on it would read dark on the fill; use 'accent' here`);
 }
+// A JS caller (or a typo past the editor) can pass a value the types would refuse; a band built from it draws something other than what was
+// written without a word. Same message shape as assertTextRole.
+export function assertOneOf(value: unknown, allowed: readonly string[], what: string): void {
+  if (value !== undefined && !allowed.includes(value as string)) throw new Error(`${what} must be ${allowed.map(r => `'${r}'`).join(' | ')} (got ${JSON.stringify(value)})`);
+}
+export const ALIGNS = ['left', 'center', 'right'] as const;
+export const TEXT_TONES = ['text', 'accent', 'muted', 'danger'] as const;
+export const EMPHASIS_TONES = ['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger', 'solid', 'solid-danger'] as const;
 export function assertTextRole(role: string | undefined, allowed: readonly string[], what: string): void {
   if (role !== undefined && !allowed.includes(role)) throw new Error(`${what} must be ${allowed.map(r => `'${r}'`).join(' | ')} (got ${JSON.stringify(role)})`);
 }

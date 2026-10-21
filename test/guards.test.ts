@@ -162,8 +162,8 @@ test('screens(): unrelated sanity, an item without root still reports a clear fa
   await assert.rejects(checkDiagram(d));
 });
 
-test('banner() / box() keep unknown extras instead of dropping them (JS callers)', () => {
-  assert.equal((boxJs({title: 'T', extra: 1}) as {extra: number}).extra, 1);
+test('box() refuses an unknown option instead of dropping or keeping it (JS callers); banner() keeps its defaults', () => {
+  assert.throws(() => boxJs({title: 'T', extra: 1}), /unknown option 'extra'/);
   assert.equal(banner({headline: 'H'}).tone, 'accent');
 });
 
