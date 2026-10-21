@@ -1,4 +1,4 @@
-// CLI usability (from the ai-employees book work): check --docs on a static SVG, check skipping helpers, lint path resolution,
+// CLI usability (from a large book-series work): check --docs on a static SVG, check skipping helpers, lint path resolution,
 // the browser-missing message, typecheck without a tsconfig, and build's "outDir".
 import test from 'node:test';
 import assert from 'node:assert/strict';

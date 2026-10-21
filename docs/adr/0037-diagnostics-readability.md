@@ -4,7 +4,7 @@
 - 日付: 2026-10-20
 - 基点: `main`(PR #309 まで)
 - 関連: ADR 0015(TOC の因果ツリーと `tocCheck`)、ADR 0020(NBR・PRT・mirror)、ADR 0019(`maxNodeW`・`dir: 'auto'`)、ADR 0010(幅に収める)
-- 由来: 書籍シリーズ「ai-employees」の約 1,500 図を作った 2 つのセッションの報告
+- 由来: 書籍シリーズの約 1,500 図を作った 2 つのセッションの報告
 
 ## D1. `legend-missing` / `legend-incomplete` は「どの記法が、どこで使われているか」を言う
 
