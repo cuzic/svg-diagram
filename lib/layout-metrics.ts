@@ -206,7 +206,7 @@ export function contentBox(laidOut: LaidOutBand[], tight = false): Rect | null {
 
 /** What a flow shape (chevron, funnel, cycle, venn, concentric) actually draws: its circles, rects, polygons and texts, not the band's full-width rect. undefined for any other band. */
 function drawnExtent(b: LaidOutBand): Rect | null | undefined {
-  if (b.type !== 'chevron' && b.type !== 'funnel' && b.type !== 'cycle' && b.type !== 'venn' && b.type !== 'concentric') return undefined;
+  if (b.type !== 'chevron' && b.type !== 'funnel' && b.type !== 'cycle' && b.type !== 'venn' && b.type !== 'concentric' && b.type !== 'emblem') return undefined;
   const rs: Rect[] = [...b.texts];
   for (const p of b.primitives) {
     if (p.k === 'circle') rs.push({x: p.cx - p.r, y: p.cy - p.r, w: 2 * p.r, h: 2 * p.r});

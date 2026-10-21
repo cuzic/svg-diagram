@@ -222,7 +222,7 @@ for (const f of files) {
   const coords = [];
   for (const sm of shapes.matchAll(/<(?:rect|circle|ellipse|line)\b([^>]*)>/g)) {
     const attrs = must(sm[1]);
-    for (const m of attrs.matchAll(/\b(?:x|y|x1|y1|x2|y2|cx|cy|width|height)="(-?[\d.]+)"/g)) {
+    for (const m of attrs.matchAll(/(?<![\w-])(?:x|y|x1|y1|x2|y2|cx|cy|width|height)="(-?[\d.]+)"/g)) {
       coords.push(+must(m[1]));
     }
   }

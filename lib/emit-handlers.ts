@@ -45,6 +45,7 @@ export const EMIT_HANDLERS = {
   cycle: {render: (b, day, tones) => renderFlowShape(b, day, tones)},
   venn: {render: (b, day, tones) => renderFlowShape(b, day, tones)},
   concentric: {render: (b, day, tones) => renderFlowShape(b, day, tones)},
+  emblem: {render: (b, day, tones) => renderFlowShape(b, day, tones)},
   bars: {render: (b, day, _tones, _roles, stage, dimFill) => renderBars(b, day, stage, dimFill), selfDimming: true},
   chart: {render: (b, day, _tones, _roles, stage, dimFill) => renderChart(b, day, emojiSpan, stage, dimFill), selfDimming: true},
   image: {render: (b, day, tones, _roles, stage) => renderImage(b, day, tones, stage), selfDimming: true},

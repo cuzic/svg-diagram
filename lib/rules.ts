@@ -898,6 +898,7 @@ export function diagramTitle(d: DiagramData): string {
     if (b.type === 'funnel') return oneLine(b.stages[0]?.label);
     if (b.type === 'venn') return oneLine(b.sets.map(s => s.label ?? s.name).join('・'));
     if (b.type === 'concentric') return oneLine(b.centre ?? b.rings[0]?.label);
+    if (b.type === 'emblem') return oneLine(b.items[0]?.label);
     if (b.type === 'wordart') return oneLine(b.text);
   }
   return '';

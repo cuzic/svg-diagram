@@ -41,6 +41,7 @@ export const FIT_HANDLERS = {
   cycle: texts,
   venn: texts,
   concentric: texts,
+  emblem: texts,
   bars: texts,
   chart: band => [band.size],
   image: band => sizesOf(band.plates),

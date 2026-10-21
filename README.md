@@ -161,7 +161,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
 | math(tex, {role, inline, align, tone, alt}) | TeX の数式（MathJax で輪郭にして SVG へ。Web フォント・foreignObject 不要）。下の「数式」 |
 | quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
-| chevron / funnel / cycle / venn / concentric | 流れ・絞り込み・循環・集合・階層を表す flowShapes。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 |
+| chevron / funnel / cycle / venn / concentric / emblem | 流れ・絞り込み・循環・集合・階層・図形に入れた文字を表す flowShapes。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 |
 | wordart(text, {style, writing, size, tone, gradient, outline, shadow, glow, bevel, extrude, reflection, arc, rotate, flip, font, plate, limit}) | 太字・縁取り・影・光彩・立体・反射・グラデーション・弧・回転の飾り文字と**縦書き**を band 1 つで。下の「ワードアート・縦書き」 |
 | plane({x, y, points, lines, dims, labels}) | 座標平面。軸・目盛り・点・補助線・**寸法線**・ラベルを、座標の単位のまま宣言する（地図 ↔ 画像の座標変換、位置の誤差）。`yDown: true` で画像座標。ラベルが、他のラベル・軸と矢印・目盛り・点・補助線・寸法線に重なる、または図からはみ出すと検査で止まる（寸法線の文字は、その線の上に載るのが正） 。`paths: [{through: [点の id か座標…], smooth?, dashed?, tone?, arrow?, reveal?}]` で複数点を通る線を引く（実線が既定。`smooth: true` は点を必ず通る曲線で、x が増える道筋は単調な 3 次補間（値を行き過ぎない）、そうでない道筋は centripetal Catmull-Rom。`smooth` なしは折れ線。曲線が軸の外に出る・ラベルに重なると検査で止まる。`examples/plane-paths.ts`）。`grow: true` を付けた path は、段階（`reveal`）ごとに、出ている点までの曲線を同じ形のまま伸ばす（`examples/plane-grow.ts`）。点のラベルは `labelAt` を書かなければ右に置き、線や他のラベルと重なるときは空いている側（左・上・下・斜め）へ自動で移る。`labelAt` で側を書くとそのまま、`labelOffset: [dx, dy]` で位置をずらせる。自動の置き場は寸法線（延長線を含む）・補助線・軸・目盛りも避ける。軸に `categories: ['営業', '開発', …]` を書くと、レーン名・段階名が 1, 2, 3 … の位置の目盛りになる（`max` は個数 + 1） |
 
@@ -404,6 +404,7 @@ funnel([{label: '訪問', value: 1200}, {label: '成約', value: 52}], {scale: '
 cycle([{label: 'Plan'}, {label: 'Do'}, {label: 'Check'}, {label: 'Act'}], {centre: '継続改善'})
 venn([{name: '技術'}, {name: '顧客'}], {overlaps: [{sets: ['技術', '顧客'], label: '価値'}]})
 concentric([{label: '境界'}, {label: 'アプリ'}, {label: 'データ'}], {centre: '重要情報'})
+emblem('重要', {kind: 'triangle', tone: 'danger', sub: '期限厳守', id: 'warn'})
 ```
 
 - `chevron`: 横（既定）または縦の矢羽根。`first: 'pentagon' | 'chevron'`（先頭の形）、`gap`、`current`（`highlight` も可。色に加えて太い枠で示す）。`sub` は見出しの下に小さく出る。長い文字は矢羽根の内側で折り返し、必要な高さまで伸びる。縦の幅は 360px まで（`width` を書けばその幅）。
@@ -411,8 +412,9 @@ concentric([{label: '境界'}, {label: 'アプリ'}, {label: 'データ'}], {cen
 - `cycle`: 3〜8 個の節を、円周に沿った矢印で閉じる（矢印は節の間だけを通り、節や文字に重ならない）。`direction: 'cw' | 'ccw'`、`centre`、各節の `sub`。
 - `venn`: 2 または 3 集合。色に加えて線種（実線・破線・点線）を変え、色だけに頼らない。集合の名前はその集合だけの部分に、`overlaps` の 2 集合のラベルはその 2 つだけが重なる部分に、`centre` は全集合が重なる部分に入る（`centre` と全集合の overlap を両方書くと throw）。`universe` で全体の枠（文字列ならその名前）。
 - `concentric`: 同心円。`order: 'outer-first' | 'inner-first'`（`rings` を書く順）、`centre`。`labels: 'inside'`（既定）は各層の帯の上部に、`'side'` は右の凡例に出して引き出し線で層につなぐ（円とキーは 1 つの塊として帯の幅の中央に置く）。`description` は「ラベル — 説明」で続く。
+- `emblem`: 円・三角・四角・ひし形・六角形（`kind: 'circle' | 'triangle' | 'square' | 'diamond' | 'hexagon'`）の中に、1 語〜数語の文字を入れる。他の作図ツールの「図形（Shape）」「ノード」にあたる、文字入りで単独で置く部品。`emblem('重要', {kind, sub, tone, id})` は 1 個、`emblem([{label, sub, kind, tone, id}, …], {kind})` は複数（`kind` は項目に書かなかったときの既定、既定は `circle`）。形は文字が入る大きさまで 8px ずつ広がり、同じ帯の中は同じ大きさ（`size` は最小の幅、既定 96、64〜320）。幅が足りなければ次の行へ折り返す（`gap`）。文字は、形ごとに決めた「文字が入る長方形」（三角形は下寄り、ひし形は狭い）に折り返して入れるので、輪郭に触れない。320px でも入らない文字は throw（短くするか `sub` に移すか `kind: 'square'` に）。`tone` は箱と同じ（色に加えて線種も変わる）。ワイヤーフレームの番号の印 `badge` とは別で、`badge` は短い印、`emblem` は文字を折り返して入れる大きめの図形。星形やパス指定の図形はまだない。
 - ラベルが図からはみ出す・ラベル同士が重なると検査で止まる。
-- 例: `examples/chevron-*.ts`、`funnel-*.ts`、`cycle-*.ts`、`venn-*.ts`、`concentric-*.ts`。
+- 例: `examples/chevron-*.ts`、`funnel-*.ts`、`cycle-*.ts`、`venn-*.ts`、`concentric-*.ts`、`emblem-*.ts`。
 
 ### ワードアート・縦書き（`wordart`）
 
@@ -625,7 +627,7 @@ gantt(rows, {today: '2026-04-01', scope: 'sched'})   // rows の中にも id: 'p
 connect('plan.p0:right', 'sched.p0:left')
 ```
 
-- `scope` を付けられるのは、`tree` / `mindmap` / `stateDiagram` / `causeTree`（`relationDiagram`・`pdpc` を含む）/ `cloud` / `gantt` / `classDiagram` / `bpmn` / `quadrant` / チャート（`causalLoop` / `pert` / `dependencyNetwork` を含む）/ `bars` / `image` / `swimlane` / `chevron` / `funnel` / `cycle` / `venn` / `concentric`。`group` と、トップレベルの `box` / `row` の `id` は対象外。帯自身の `id`（図全体の名前）も scope の対象外。scope の名前に空白と `:` `@` `#` `.` は使えない。
+- `scope` を付けられるのは、`tree` / `mindmap` / `stateDiagram` / `causeTree`（`relationDiagram`・`pdpc` を含む）/ `cloud` / `gantt` / `classDiagram` / `bpmn` / `quadrant` / チャート（`causalLoop` / `pert` / `dependencyNetwork` を含む）/ `bars` / `image` / `swimlane` / `chevron` / `funnel` / `cycle` / `venn` / `concentric` / `emblem`。`group` と、トップレベルの `box` / `row` の `id` は対象外。帯自身の `id`（図全体の名前）も scope の対象外。scope の名前に空白と `:` `@` `#` `.` は使えない。
 - 参照は**修飾名** `plan.p0`（常に通る）。素の `p0` は、その名前に決まるものが 1 つのときだけ通る。2 つ以上あると `ambiguous anchor id "p0": plan.p0, sched.p0 — write one of them` で止まり、未知の名前は `did you mean "plan.p0"?` の候補を添える。`connect()` / `reveal` / `until` / `diagram({spotlight: 'plan.p1'})` が修飾名を読む。scope なしの箱 `p0` と scope 付きの `plan.p0` が共存すると素の `p0` は曖昧になるので、片方を scope で書き分ける。
 - `resolveAnchor(table, id, has)`（`lib/anchor-scope.ts`。純関数）が、完全一致 → 素の名前が 1 つ → 曖昧（error）→ なし（error）の 4 段で決める。
 - ハンドル `.anchors.p0` は、scope 付きの帯では修飾名（`sched.p0:right`）を返すので、同じ素の id が複数あっても使える。型は、`.` を含む参照を形だけで通す（綴り間違いは実行時の候補つきエラーで捕まる。素の id が曖昧かどうかも実行時）。`@` を含む id は従来どおり型エラー。
@@ -1079,7 +1081,7 @@ versus(
 | `image` の印・文字・重ねた部品 | 各 `marks` / `labels` の `reveal` / `until`（絵の band の値との**遅い方**の reveal、早い方の until。絵より先には出ない） |
 | `versus` の左・右・共通部 | 各 part の `reveal`（枠と中身。共通部への矢印は両端の大きい方） |
 | `quadrant` の band | opts の `reveal` / `until`（項目・矢印は図と一緒。項目単位の reveal はない。項目の id は図の段階で `connect` に出る） |
-| `chevron` / `funnel` / `cycle` / `venn` / `concentric` の band | opts の `reveal` / `until`（各項目の id は図と同じ段階で `connect` に出る） |
+| `chevron` / `funnel` / `cycle` / `venn` / `concentric` / `emblem` の band | opts の `reveal` / `until`（各項目の id は図と同じ段階で `connect` に出る） |
 | `wordart` の band | opts の `reveal` / `until`（`id` は図と同じ段階で `connect` に出る） |
 | `plane` の `points` / `lines` / `paths` / `dims` / `labels` | 要素の `reveal`（点のラベルは点と一緒）。未指定は plane 自身と、`id` で指した点の大きい方（座標で指した端点は 0）。端点より早い明示は警告 |
 | `connect` / `branch` | `reveal`（未指定は両端の大きい方） |

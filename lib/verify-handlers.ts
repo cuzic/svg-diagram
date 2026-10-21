@@ -226,7 +226,7 @@ const checkQuadrant = (band: LaidOutOf<'quadrant'>, _d: LaidOutDiagram, {problem
   });
 };
 
-const checkFlowShape = (band: LaidOutOf<'chevron' | 'funnel' | 'cycle' | 'venn' | 'concentric'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
+const checkFlowShape = (band: LaidOutOf<'chevron' | 'funnel' | 'cycle' | 'venn' | 'concentric' | 'emblem'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
   for (const t of band.labelBoxes) if (outsideBox(t, band)) problems.push(`${band.type}: label "${t.label}" runs outside the figure`);
   eachOverlap(band.labelBoxes, (a, b, o) => { if (o.dx > 1 && o.dy > 1) problems.push(`${band.type}: label "${a.label}" overlaps label "${b.label}" by ${dxdy(o)}`); });
 };
@@ -345,6 +345,7 @@ export const VERIFY_HANDLERS = {
   cycle: {rects: figureRects, check: flowCheck},
   venn: {rects: overlappingFigureRects, check: flowCheck},
   concentric: {rects: overlappingFigureRects, check: flowCheck},
+  emblem: {rects: figureRects, check: flowCheck},
   timeline: {rects: ownRect, check: {phase: 'timeline', run: checkTimeline}},
   bowtie: {rects: band => band.nodes.map((n, i) => ({id: null, label: band.labelBoxes[i]?.label ?? 'box', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
   fta: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'event', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},

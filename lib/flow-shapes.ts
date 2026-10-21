@@ -1,5 +1,5 @@
 // flowShapes: the stock business figures drawn as one band each — chevron (process arrows), funnel (narrowing stages), cycle
-// (a closed loop of nodes), venn (2 or 3 sets) and concentric (nested rings). Everything is placed by this file:
+// (a closed loop of nodes), venn (2 or 3 sets), concentric (nested rings) and emblem (a word or two inside a circle / triangle / ...). Everything is placed by this file:
 //   * every text is wrapped to the room its shape gives it, and flowShapeTexts() registers exactly the texts / sizes / weights
 //     the layout draws (an unregistered atom would measure 0 wide),
 //   * cycle arrows run along the ring between the nodes (they never cross a node or its label),
@@ -24,6 +24,9 @@ export interface VennSet {name: string; label?: string; id?: string; tone?: Text
 export interface VennOverlap {sets: readonly string[]; label: string}
 export interface VennOpts extends RevealOpts, ScopeOpts {id?: string; overlaps?: readonly VennOverlap[]; centre?: string; universe?: string | boolean; width?: number}
 export interface ConcentricRing {label: string; description?: string; id?: string; tone?: TextTone}
+export type EmblemKind = 'circle' | 'square' | 'triangle' | 'diamond' | 'hexagon';
+export interface EmblemItem {label: string; sub?: string; kind?: EmblemKind; id?: string; tone?: BoxTone}
+export interface EmblemOpts extends RevealOpts, ScopeOpts {id?: string; /** The shape of every item that does not name its own. */ kind?: EmblemKind; gap?: number; /** The least width of a shape (the shapes grow to hold their text, all to the same size). */ size?: number; width?: number}
 export interface ConcentricOpts extends RevealOpts, ScopeOpts {id?: string; order?: 'outer-first' | 'inner-first'; labels?: 'inside' | 'side'; centre?: string; width?: number}
 
 export interface ChevronBand extends ChevronOpts {type: 'chevron'; steps: FlowStep[]; direction: 'horizontal' | 'vertical'; first: 'pentagon' | 'chevron'; gap: number}
@@ -31,12 +34,13 @@ export interface FunnelBand extends FunnelOpts {type: 'funnel'; stages: FunnelSt
 export interface CycleBand extends CycleOpts {type: 'cycle'; steps: FlowStep[]; direction: 'cw' | 'ccw'}
 export interface VennBand extends VennOpts {type: 'venn'; sets: VennSet[]; overlaps: VennOverlap[]}
 export interface ConcentricBand extends ConcentricOpts {type: 'concentric'; rings: ConcentricRing[]; order: 'outer-first' | 'inner-first'; labels: 'inside' | 'side'}
-export type FlowShapeBand = ChevronBand | FunnelBand | CycleBand | VennBand | ConcentricBand;
+export interface EmblemBand extends EmblemOpts {type: 'emblem'; items: EmblemItem[]; kind: EmblemKind; gap: number}
+export type FlowShapeBand = ChevronBand | FunnelBand | CycleBand | VennBand | ConcentricBand | EmblemBand;
 
 export interface FlowText extends Rect {text: string; tx: number; ty: number; size: number; weight: 400 | 700; anchor: 'start' | 'middle' | 'end'; tone: TextTone}
 export type FlowPrimitive =
   | ({k: 'polygon'; points: [number, number][]; tone: BoxTone; strong?: boolean} & Dimmed)
-  | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string} & Dimmed)
+  | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string; /** Drawn as a box of this tone (filled, outlined) instead of a tinted ring. */ fill?: BoxTone} & Dimmed)
   | ({k: 'rect'; x: number; y: number; w: number; h: number; tone: TextTone} & Dimmed)
   | ({k: 'path'; d: string; tone: TextTone; arrow?: boolean; thin?: boolean} & Dimmed);
 export interface LaidOutFlowShape extends Rect, Dimmed {type: FlowShapeBand['type']; id?: string; reveal?: number; until?: number; primitives: FlowPrimitive[]; texts: FlowText[]; anchors: Anchor[]; labelBoxes: (Rect & {label: string})[]}
@@ -113,8 +117,18 @@ export function concentricBand(rings: readonly ConcentricRing[], opts: Concentri
   checkTones('concentric', rings, TEXT_TONES);
   return {...opts, type: 'concentric', rings: [...rings], order: opts.order ?? 'outer-first', labels: opts.labels ?? 'inside'};
 }
+const EMBLEM_KINDS: ReadonlySet<string> = new Set<string>(['circle', 'square', 'triangle', 'diamond', 'hexagon']);
+export function emblemBand(items: readonly EmblemItem[], opts: EmblemOpts = {}): EmblemBand {
+  common('emblem', items, opts.id);
+  assertScope(opts.scope, 'emblem()');
+  checkTones('emblem', items, BOX_TONES);
+  for (const k of [opts.kind, ...items.map(i => i.kind)]) if (k !== undefined && !EMBLEM_KINDS.has(k)) throw new Error(`emblem(): unknown kind "${String(k)}" (${[...EMBLEM_KINDS].join(' | ')})`);
+  if (opts.gap !== undefined && !(opts.gap >= 0)) throw new Error('emblem(): gap must be >= 0');
+  if (opts.size !== undefined && !(opts.size >= 64 && opts.size <= EMBLEM_MAX)) throw new Error(`emblem(): size must be 64..${EMBLEM_MAX}`);
+  return {...opts, type: 'emblem', items: [...items], kind: opts.kind ?? 'circle', gap: opts.gap ?? 16};
+}
 
-export const flowShapeIds = (b: FlowShapeBand): string[] => (b.type === 'funnel' ? b.stages : b.type === 'venn' ? b.sets : b.type === 'concentric' ? b.rings : b.steps).flatMap(x => x.id ? [x.id] : []);
+export const flowShapeIds = (b: FlowShapeBand): string[] => (b.type === 'funnel' ? b.stages : b.type === 'venn' ? b.sets : b.type === 'concentric' ? b.rings : b.type === 'emblem' ? b.items : b.steps).flatMap(x => x.id ? [x.id] : []);
 
 // ---------------------------------------------------------------------------------------------------------------------------
 // texts: what the layout draws, at the size and weight it draws them (registered for measuring before layout)
@@ -134,6 +148,7 @@ function textSpecs(b: FlowShapeBand, roles: Roles): TextSpec[] {
     case 'funnel': return b.stages.flatMap((s, i) => [...bold(funnelLabel(s)), ...(b.showRate && i ? plain(funnelRate(must(b.stages[i - 1]).value, s.value)) : [])]);
     case 'venn': return [...b.sets.flatMap(s => bold(s.label ?? s.name)), ...b.overlaps.flatMap(o => bold(o.label)), ...bold(b.centre), ...plain(typeof b.universe === 'string' ? b.universe : undefined)];
     case 'concentric': return [...b.rings.flatMap(r => bold(ringLabel(r))), ...bold(b.centre)];
+    case 'emblem': return b.items.flatMap(i => [...bold(i.label), ...plain(i.sub)]);
   }
 }
 export function flowShapeTexts(b: FlowShapeBand, roles: Roles): [string, number, number, FontFamily][] {
@@ -159,6 +174,7 @@ export function layoutFlowShape(b: FlowShapeBand, x: number, y: number, cw: numb
     case 'cycle': layoutCycle(b, out, t, anchor, roles); break;
     case 'venn': layoutVenn(b, out, t, anchor); break;
     case 'concentric': layoutConcentric(b, out, t, anchor, roles); break;
+    case 'emblem': layoutEmblem(b, out, t, anchor); break;
   }
   return out;
 }
@@ -342,4 +358,46 @@ function layoutConcentric(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, an
     });
   }
   if (b.centre) { const c = t.wrap(b.centre, Math.max(60, 1.4 * radius(n - 1))); t.place(c, cx, Math.max(cy - c.h / 2, innerBottom + 4)); }
+}
+
+// emblem: a word or two inside a circle, square, triangle, diamond or hexagon. Each shape has a rectangle in it where text fits (a fraction of
+// the shape's width D): the label is wrapped to that rectangle's width and the shape grows, in 8px steps and all to the same size, until
+// every label (and its sub line) is inside its own rectangle. The text is then centred in that rectangle, so it never touches the outline.
+const EMBLEM_MAX = 320;
+interface EmblemGeom {/** height as a fraction of D */ h: number; /** the text rectangle's centre and size, as fractions of D */ text: {cx: number; cy: number; w: number; h: number}; points?: Pt[]}
+const EMBLEM: Record<EmblemKind, EmblemGeom> = {
+  circle: {h: 1, text: {cx: .5, cy: .5, w: .76, h: .56}},
+  square: {h: 1, text: {cx: .5, cy: .5, w: .84, h: .84}},
+  diamond: {h: 1, text: {cx: .5, cy: .5, w: .56, h: .34}, points: [[.5, 0], [1, .5], [.5, 1], [0, .5]]},
+  hexagon: {h: .88, text: {cx: .5, cy: .44, w: .68, h: .5}, points: [[0, .44], [.25, 0], [.75, 0], [1, .44], [.75, .88], [.25, .88]]},
+  triangle: {h: .9, text: {cx: .5, cy: .7, w: .54, h: .32}, points: [[.5, 0], [1, .9], [0, .9]]},
+};
+const SQUARE_POINTS: Pt[] = [[0, 0], [1, 0], [1, 1], [0, 1]];
+
+function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
+  const kindOf = (i: EmblemItem): EmblemKind => i.kind ?? b.kind;
+  const blocks = (d: number) => b.items.map(i => {
+    const g = EMBLEM[kindOf(i)].text, label = t.wrap(i.label, g.w * d), sub = i.sub ? t.wrap(i.sub, g.w * d, 400) : undefined;
+    const fits = Math.max(label.w, sub?.w ?? 0) <= g.w * d + .5 && label.h + (sub?.h ?? 0) <= g.h * d;
+    return {label, sub, fits};
+  });
+  let d = Math.max(64, Math.round((b.size ?? 96) / 8) * 8), plan = blocks(d);
+  while (plan.some(p => !p.fits) && d < EMBLEM_MAX) { d += 8; plan = blocks(d); }
+  const bad = plan.findIndex(p => !p.fits);
+  if (bad >= 0) { const i = must(b.items[bad]); throw new Error(`emblem(): "${i.label}" does not fit in a ${kindOf(i)} up to ${EMBLEM_MAX}px — shorten it, move words to \`sub\`, or use kind 'square'`); }
+  const perRow = Math.max(1, Math.floor((out.w + b.gap) / (d + b.gap))), rows = Math.ceil(b.items.length / perRow);
+  const rowH = Math.max(...b.items.map(i => EMBLEM[kindOf(i)].h * d));
+  out.h = Math.ceil((rows * rowH + (rows - 1) * b.gap) / 4) * 4;
+  b.items.forEach((item, n) => {
+    const row = Math.floor(n / perRow), inRow = Math.min(perRow, b.items.length - row * perRow), col = n - row * perRow;
+    const rowW = inRow * d + (inRow - 1) * b.gap, kind = kindOf(item), g = EMBLEM[kind];
+    const left = g4(out.x + (out.w - rowW) / 2 + col * (d + b.gap)), h = g.h * d, top = g4(out.y + row * (rowH + b.gap) + (rowH - h) / 2);
+    const tone = item.tone ?? 'plain';
+    if (kind === 'circle') out.primitives.push({k: 'circle', cx: left + d / 2, cy: top + d / 2, r: d / 2, tone: 'text', fill: tone});
+    else out.primitives.push({k: 'polygon', points: (g.points ?? SQUARE_POINTS).map(([px, py]): Pt => [g4(left + px * d), g4(top + py * d)]), tone}); // vertices on the 4px grid (lint: coordinate-grid)
+    anchor(item.id, {x: left, y: top, w: d, h});
+    const k = must(plan[n]), blockH = k.label.h + (k.sub?.h ?? 0), cx = left + g.text.cx * d, cy = top + g.text.cy * d;
+    t.place(k.label, cx, cy - blockH / 2);
+    if (k.sub) t.place(k.sub, cx, cy - blockH / 2 + k.label.h, 'muted');
+  });
 }
