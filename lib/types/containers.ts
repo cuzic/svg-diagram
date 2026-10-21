@@ -190,7 +190,7 @@ export interface GridBand {
 }
 export interface ConnectOpts extends RevealOpts {
   route?: Route;
-  /** loop-under: how far below the lower anchor the return path runs (default 32). */
+  /** loop-under: how far below the lower anchor the return path runs (default 32). loop-side: how far outside the two anchors' side (default 32). */
   dip?: number;
   bend?: Bend;
   /** Distance of an elbow's middle leg from the endpoint for bend 'start' | 'end'. */

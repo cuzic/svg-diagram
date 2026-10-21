@@ -55,7 +55,11 @@ function segRect(x0: number, y0: number, x1: number, y1: number): Rect {
 // (aligned endpoints) is just a straight line.
 function routePoints(band: ConnectBand, from: Point, to: Point, fromSide: string): Point[] {
   let pts: Point[];
-  if (band.route === 'loop-under') {
+  if (band.route === 'loop-side') {
+    // out past the shared side, along it, and back in: the way round a column (or row) of boxes that a straight line would cut through
+    if (fromSide === 'top') { const y = Math.min(from.y, to.y) - band.dip; pts = [from, {x: from.x, y}, {x: to.x, y}, to]; }
+    else { const x = fromSide === 'left' ? Math.min(from.x, to.x) - band.dip : Math.max(from.x, to.x) + band.dip; pts = [from, {x, y: from.y}, {x, y: to.y}, to]; }
+  } else if (band.route === 'loop-under') {
     const midY = Math.max(from.y, to.y) + band.dip;
     pts = [from, {x: from.x, y: midY}, {x: to.x, y: midY}, to];
   } else if (band.route === 'elbow') {
@@ -129,6 +133,7 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
   const toRect = anchors.get(toRef.id);
   if (!fromRect) throw new Error(`connect(): unknown anchor id "${fromRef.id}" (give the source box an id: '${fromRef.id}')${scopes ? unknownHint(scopes, fromRef.id) : ''}`);
   if (!toRect) throw new Error(`connect(): unknown anchor id "${toRef.id}" (give the target box an id: '${toRef.id}')${scopes ? unknownHint(scopes, toRef.id) : ''}`);
+  if (band.route === 'loop-side' && (fromRef.side !== toRef.side || !['left', 'right', 'top'].includes(fromRef.side))) throw new Error(`connect(${band.from} -> ${band.to}): route 'loop-side' joins two anchors on the same left / right / top side (got ${fromRef.side} and ${toRef.side}); for the bottom side use 'loop-under'`);
   const from = anchorPoint(fromRect, fromRef.side, fromRef.at);
   const to = anchorPoint(toRect, toRef.side, toRef.at);
   // a node: left / right / top meet its icon, but bottom is under its label
@@ -189,6 +194,12 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
       const t = band.labelAt ?? 0.5;
       labelX = Math.round(from.x + (to.x - from.x) * t);
       labelY = Math.round((band.route === 'loop-under' ? Math.max(from.y, to.y) + band.dip : from.y + (to.y - from.y) * t) + dy);
+      if (band.route === 'loop-side') {
+        // the label rides the outer leg: beside it (outside) for a plain label, on it for a chip; on a top loop it sits above the line
+        const outer = fromRef.side === 'top' ? undefined : must(points[1]).x;
+        if (outer === undefined) { labelX = Math.round((from.x + to.x) / 2); labelY = Math.round(must(points[1]).y + dy); }
+        else { labelX = Math.round(band.chip ? outer : outer + (fromRef.side === 'left' ? -1 : 1) * (labelWidth / 2 + 8)); labelY = Math.round((from.y + to.y) / 2 + (band.chip ? 5 : (roles.connectLabel ?? CONNECT_LABEL_SIZE) / 2 - 2)); }
+      }
       // a plain label centred on a vertical line would be struck through by it: it sits beside the line instead (a chip is meant to sit on it)
       if (!band.chip && band.route === 'straight' && Math.round(from.x) === Math.round(to.x)) {
         labelX = Math.round(from.x + labelWidth / 2 + 8);
