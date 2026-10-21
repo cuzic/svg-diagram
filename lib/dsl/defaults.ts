@@ -18,7 +18,7 @@ export function applyConnectDefaults(bands: Band[], defaults: ConnectDefaults): 
     if (!own.label) merged.chip = own.chip;                  // a chip needs a label
     const route = merged.route ?? 'straight';
     if (route !== 'elbow') { merged.bend = own.bend; merged.bendOffset = own.bendOffset; }
-    if (route !== 'loop-under') merged.dip = own.dip;
+    if (route !== 'loop-under' && route !== 'loop-side') merged.dip = own.dip;
     return connectBand(b.from, b.to, merged);
   });
 }

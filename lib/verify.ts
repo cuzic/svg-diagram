@@ -69,7 +69,7 @@ function checkConnects(d: LaidOutDiagram, rects: CheckRect[]): string[] {
       }
       for (const seg of c.pathSegments) {
         const pathHit = rectOverlap(seg, r);
-        if (pathHit) problems.push(`${who} path overlaps "${r.label}" by ${Math.round(pathHit.dx)}x${Math.round(pathHit.dy)}px${c.route === 'loop-under' ? '' : " (a line back to an earlier box, or past a box in a row of steps / chevrons: route: 'loop-under' runs it under the boxes)"}`);
+        if (pathHit) problems.push(`${who} path overlaps "${r.label}" by ${Math.round(pathHit.dx)}x${Math.round(pathHit.dy)}px${c.route === 'loop-under' || c.route === 'loop-side' ? '' : " (a line back to an earlier box, or past a box in a row of steps / chevrons: route: 'loop-under' runs it under the boxes; between two anchors on the same left / right side of a column, route: 'loop-side' runs it outside)"}`);
       }
       if (c.labelBox) {
         const labelHit = rectOverlap(c.labelBox, r);
@@ -100,6 +100,18 @@ function checkAnnotations(d: LaidOutDiagram): string[] {
         if (o) problems.push(`${who} ${what} overlaps the caption "${labelOf(cap)}" by ${Math.round(o.dx)}x${Math.round(o.dy)}px (${fix})`);
       }
     }
+  }
+  return problems;
+}
+
+// A 'loop-side' line runs out past the boxes' side, into the margin; boxes that fill the canvas width leave none, and the line is cut off.
+function checkLoopSide(d: LaidOutDiagram): string[] {
+  const problems: string[] = [];
+  for (const c of d.connects) {
+    if (c.route !== 'loop-side') continue;
+    const out = (r: Rect) => r.x < -0.5 || r.y < -0.5 || r.x + r.w > d.width + 0.5 || r.y + r.h > d.canvasHeight + 0.5;
+    if (c.pathSegments.some(out)) problems.push(`${connectName(c)} runs outside the ${d.width}x${d.canvasHeight} canvas: the boxes leave no room beside them for route: 'loop-side' (narrow them: row([box({id, width: 700})], {justify: 'center'}) per step, or give dip a smaller value)`);
+    else if (c.labelBox && out(c.labelBox)) problems.push(`${connectName(c)} label "${c.label}" runs outside the ${d.width}x${d.canvasHeight} canvas: leave more room beside the boxes, or use chip: true (the label then sits on the line)`);
   }
   return problems;
 }
@@ -136,6 +148,7 @@ function verifyWith(d: LaidOutDiagram, tones: ToneEnv): Verdict {
     ...checkOverlaps(rects.filter(r => !r.backdrop)),
     ...checkConnects(d, rects.filter(r => !r.backdrop)),
     ...checkAnnotations(d),
+    ...checkLoopSide(d),
     ...figure.problems,
     ...checkBounds(d, rects),
     ...contrastProblems(d, tones),

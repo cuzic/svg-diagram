@@ -48,7 +48,7 @@ export type LineStyle = 'solid' | 'dashed' | 'dotted' | 'double';
 export type ArrowWeight = 'strong';
 /** Arrowheads of a line: 'end' (default) | 'start' | 'both' | 'none'. */
 export type Arrow = 'end' | 'start' | 'both' | 'none';
-export type Route = 'straight' | 'elbow' | 'loop-under';
+export type Route = 'straight' | 'elbow' | 'loop-under' | 'loop-side';
 /** Where an elbow's middle leg sits: 0..1 along the way, 'start' / 'end' hug that endpoint, 'auto' = first candidate crossing no box. */
 export type Bend = number | 'start' | 'end' | 'auto';
 export type Side = 'left' | 'right' | 'top' | 'bottom' | 'center';
@@ -80,7 +80,7 @@ export interface ConnectDefaults {
   /** Elbow connectors only. */
   bend?: Bend;
   bendOffset?: number;
-  /** loop-under connectors only. */
+  /** loop-under / loop-side connectors only. */
   dip?: number;
 }
 export interface DiagramOpts {

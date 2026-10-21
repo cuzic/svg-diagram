@@ -171,11 +171,13 @@ export type BoxInput<Id extends string = string> = Omit<BoxOpts, 'size'> & {id?:
 type Straight = {route?: 'straight'; dip?: never; bend?: never; bendOffset?: never};
 type Elbow = {route: 'elbow'; bend?: Bend; bendOffset?: number; dip?: never};
 type LoopUnder = {route: 'loop-under'; dip?: number; bend?: never; bendOffset?: never};
+/** Two anchors on the same left / right / top side, joined by a line that runs out past that side (a return up a column of boxes). */
+type LoopSide = {route: 'loop-side'; dip?: number; bend?: never; bendOffset?: never};
 /** chip / labelAt only make sense with a label. */
 type LabelRule = {label?: undefined; chip?: never; labelAt?: never} | {label: string; chip?: boolean; labelAt?: number};
 interface ConnectLook {arrow?: Arrow; line?: LineStyle; weight?: ArrowWeight; tone?: TextTone; reveal?: number; until?: number; /** legacy */ marker?: boolean; /** legacy */ dashed?: boolean}
 /** connect() options. */
-export type ConnectInput = ConnectLook & (Straight | Elbow | LoopUnder) & LabelRule;
+export type ConnectInput = ConnectLook & (Straight | Elbow | LoopUnder | LoopSide) & LabelRule;
 /** branch() options / targets: the route defaults to 'elbow', so `bend` needs no `route`. */
 export type BranchInput = ConnectLook & (Omit<Elbow, 'route'> & {route?: 'elbow'} | {route: 'straight'; dip?: never; bend?: never; bendOffset?: never} | LoopUnder) & LabelRule;
 

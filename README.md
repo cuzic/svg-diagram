@@ -113,7 +113,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 | group(children, {title, tone, titleAlign, valign, flex, width, span, col}) | ラベル付きの枠。**入れ子可**（ホスト > コンテナ > プロセス）。`row([group(...), group(...)])` で横に並べると、枠の高さは一番高いものにそろい、低いほうの中身は余りの中で縦中央に寄る（余りが 16px 未満なら動かない。`valign: 'top'` で上詰め、`'stretch'` で箱 1 つが余りを埋める。`flex` / `width` / `span` / `col` は box と同じ。`arrows: 'between'` は不可）。中の box の id も、`connect()` の参照先になる |
 | versus(left, right, {shared, connectLabels}) | 左右の `group()` を 12 列の半分ずつに並べる対比。各部は `{title, children, tone, id}`。`shared` を付けると、その共通部を下に置いて左右から接続する（3 部すべてに `id` が必要）。接続ラベルは `connectLabels.left` / `.right`、接続線は各部の中央から共通部へ垂直に降りる（`connectRoute` は `'straight'` 既定 / `'elbow'`、`connectArrow: 'none'` で矢頭なし）。各部の `children` は配列（縦積み）で、`direction: 'row'` なら横並び |
 | hero({banner, stat, flow, caption, note}) | 章の頭に置く 1 枚: 帯（任意）の下に、流れの箱（`flow: [box(...), ...]`、矢印でつなぐ）とその行き着く大きな数字（`stat: {value, label, tone}`）を 1 行に並べ、その下に一言（`caption`）と出典・注（`note`）。箱が 5 つ以上なら数字を上に置く（`layout: 'stack'`）。既存の部品を並べるだけ。下の「章の頭の 1 枚」 |
-| connect / branch | 矢印。route(straight/elbow/loop-under)、arrow(end/both/start/none)、line(solid/dashed/dotted/double)、weight(strong)、chip、labelAt、アンカー `id:side@0.2` |
+| connect / branch | 矢印。route(straight/elbow/loop-under/loop-side)、arrow(end/both/start/none)、line(solid/dashed/dotted/double)、weight(strong)、chip、labelAt、アンカー `id:side@0.2` |
 | legend(items) | 線種・トーンの凡例 |
 | swimlane(lanes, steps, {flows, phases, fit}) | スイムレーン図。レーン=担当（人・チーム・システム）、列=時間。引き継ぎの矢印を自動で向きづけ。`col` で並行作業を揃える。列が狭くなるときは `fit: 'shrink'` でレーン名の列と列の間隔を詰める |
 | sequence(actors, steps) | シーケンス図。message / self / note / divider、自動番号 |
@@ -772,6 +772,8 @@ const s = steps([{title: '1回目', body: '原因は不明'}, {title: '4回目',
 `numbered: true` で各タイトルに番号バッジ、`highlight: n` で n 番目だけを強調（`highlightTone` は既定 `'danger'`、`'accent'` も可）。矢印は既定で付く（`arrows: false` で外す）。項目は `{title, body?, icon?, tag?, tagTone?, tone?}`（`icon` は `box({icon})` と同じ）。返るのは `row()` なので、`s.col(2).left` のように端点にできる。例は `examples/steps.ts`。
 
 **戻る線・飛ばす線**: `steps` / `chevron` / `row` の箱から**前の箱へ戻る**線（「差し戻し」「繰り返す」）は、`connect('s#4:bottom', 's#2:bottom', {route: 'loop-under', label: '差し戻し'})` と書く。線は箱の下をコの字に回るので、途中の箱を貫かない。`straight` / `elbow` のままだと、途中の箱と重なって build が止まる（`path overlaps`）。戻りを複数書くときは、`dip` で高さをずらす（同じ高さの戻りが重なっても、`4→2` と `3→1` のように交差しても、いまの検査は止めないので、仕上がりを目で確かめる）。
+
+**縦に積んだ箱の戻り（`route: 'loop-side'`）**: 縦の列で、最後の箱から最初の箱へ戻る線は、同じ側どうしのアンカー（`connect('s7:left', 's1:left', {route: 'loop-side'})`）を、箱の外側（`dip` px、既定 32）へ回して結ぶ。`left` / `right` / `top` の同じ側だけ（下は `loop-under`）。**箱が図の幅いっぱいだと、回る余白が無く、線が図の外へ出る**ので `build` が止まる: 各段を `row([box({id, width: 600})], {justify: 'center'})` で狭める。ラベルは線の外側に置かれる（収まらなければ同じく止まる。`chip: true` なら線の上）。
 
 **前の箱へ戻る線（`loopBack`）**: `steps(items, {loopBack: {from: 4, to: 2, label: '差し戻し'}})` は、4 番目から 2 番目へ戻る線を、箱の下に弧（コの字）で描く（`row()` の箱の列、横向きの `chevron()` も同じ。`chevron` は番号のほか項目の `id` でも指せる）。`from` は `to` より後ろ。複数書けて、**入れ子（一方のスパンが他方の内側）なら高さが自動でずれて重ならない**。`4→2` と `3→1` のように範囲が半端に重なる 2 本は交差するので、書くとエラーになる（戻り先か戻り元を変えるか、1 本にまとめる）。`chip: true`（ラベルを線の上の札に）、`tone`、`line: 'dashed'`（例外の経路）も書ける。中身は `connect(…, {route: 'loop-under'})` なので、検査（箱を貫かない・ラベルが矢印を覆わない）も同じように効く。縦向きの `chevron` と、group を含む `row` には書けない。例は `examples/steps-loop-back.ts`。
 
