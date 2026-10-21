@@ -34,6 +34,7 @@
 //       (then all of them) — in the working tree and in the commits since REF (default: the merge-base with origin/main or main, else HEAD).
 //       Nothing changed → nothing to check, exit 0. A quick check while editing, and a fast pull-request check on a big diagram set.
 //   A source starting with _ (a shared helper) or without a default export is skipped with an info message, not failed.
+//   svg-diagram check --typecheck ...   also run `svg-diagram typecheck` (tsc over the project): the build and the checks never read the types, so a wrong key or value passes them.
 //   svg-diagram check --help        the options, and how to accept a warning (accept: {'rule': 'reason'}); every warning also prints its own accept snippet.
 //   svg-diagram check --rules | --explain RULE
 //       List every rule id, or explain one (what it means, how to accept it in .svg-diagram.json).
@@ -46,7 +47,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'node:os';
-import {execFileSync} from 'node:child_process';
+import {execFileSync, spawnSync} from 'node:child_process';
 import type {DriftCache} from './drift-cache-io.ts';
 import type {WorkerResult} from './drift-pool.ts';
 import type {FindingData} from './lib/types/verdicts.ts';
@@ -470,4 +471,10 @@ if (format === 'github') {
   }
 }
 if (verbose && !drift && format === 'text') console.log('\nルール:\n' + Object.entries(RULE_DOCS).map(([k, v]) => `  ${k}: ${v}`).join('\n'));
+// --typecheck: the build and the checks above never read the types, so a wrong key or value that tsc would stop at passes them. Run the project's tsc too.
+if (flag('--typecheck') && format === 'text') {
+  const tc = spawnSync(process.execPath, [path.join(import.meta.dirname, 'typecheck.ts')], {stdio: 'inherit'});
+  if (tc.status !== 0) { console.error('✗ typecheck: 型エラーがある（上の出力）'); process.exit(1); }
+  console.log('✓ typecheck');
+}
 process.exit(bad || (strict && warned) ? 1 : 0);
