@@ -602,6 +602,7 @@ bpmn(
 - `dir` を**省略**した図が変わると、`check` の `auto-fit-applied` が **warn**（`check --strict` が落ち、`build` の警告にも載る。`dir を up から right に変えた(1460→880px)` のように何が変わったかを書く）。`dir: 'auto'` と書くと **info**（変えてよいと宣言した図）。`accept: {'auto-fit-applied': '理由'}` でも外せる。
 - `'auto'` のときは、収まる案の中で（交差, 折れ）が最良のものを選ぶ（高さが `canvas.height ?? maxDisplayHeight` を超える案は除く）。省略のときは最初に収まった案。
 - `diagram({maxWidth: 1200})` は、その図だけ `doc-width` の閾値を上げる（案件全体は `.svg-diagram.json` の `maxWidth`。図の指定が勝つ。正の有限数でなければ throw。`canvas` の図は検査しない）。**図の幅は広がらない**ので、広い図にするなら `width: 1200` も書く。
+- **縦に長い図**（情報 `aspect-tall`、`--verbose`）: 文書の図で、高さが幅の 1.5 倍を超えると出る（本の版面は縦横比が 1.5〜1.6 ほど）。使っている部品に応じた直し方を添える（`causeTree` は `fold`、`row` / `group` の積み重ねは `row({cols})` で横に並べる、どれでもなければ図を分ける）。自動では変えない（図の見え方が黙って変わるため）。
 - `diagram({width: 'fit'})` は、細い図（`concentric`、縦の `chevron`、`cycle`、`venn`、`funnel`）の幅を内容 + 左右の余白（4px の格子、下限 320px）に縮める。文字の大きさは変わらない。既定の 940 は変えない（文書での図の大きさが変わるので opt-in）。縮むのは flow-shape の帯だけで、box / banner / 表など全幅の帯を持つ図は 940 のまま。`canvas` / `fill` / `slide` とは併用できない（throw）。`layout-figure-narrow`（info）の直し方になる。例は `examples/width-fit.ts`。
 
 ### 折れの少ない配置（`straighten` / `returns` / 直線の矢印）と `edge-bends`

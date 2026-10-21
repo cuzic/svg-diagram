@@ -14,6 +14,7 @@ export interface LintTarget extends DiagramData {
   wrapFellBack?: true;
   connects?: LaidOutConnect[];
   contentHeight?: number;
+  canvasHeight?: number;
 }
 /** verifyDiagram() result: `problems` fail the build, `warnings` never do. */
 export interface Verdict {
