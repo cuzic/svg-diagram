@@ -25,7 +25,11 @@ const onPath = () => {
   return null;
 };
 let tsc: {cmd: string; args: string[]};
-const pkgPath = resolves('typescript/package.json'); // "typescript/bin/tsc" is not an exported path in TypeScript 7+, so find the bin through package.json
+// the project's typescript first; else this tool's own copy (a clone has it as a devDependency), so a project with nothing installed still checks
+const toolRoot = fs.existsSync(path.join(import.meta.dirname, 'lib', 'dsl.ts')) ? import.meta.dirname : path.dirname(import.meta.dirname);
+const toolReq = createRequire(path.join(toolRoot, 'package.json'));
+const ownTs = () => { try { return toolReq.resolve('typescript/package.json'); } catch { return null; } };
+const pkgPath = resolves('typescript/package.json') ?? (onPath() ? null : ownTs()); // "typescript/bin/tsc" is not an exported path in TypeScript 7+, so find the bin through package.json
 if (pkgPath) tsc = {cmd: process.execPath, args: [path.join(path.dirname(pkgPath), JSON.parse(fs.readFileSync(pkgPath, 'utf8')).bin.tsc)]};
 else {
   const g = onPath();
