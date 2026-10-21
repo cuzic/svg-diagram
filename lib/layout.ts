@@ -25,7 +25,7 @@ import {parseRef, resolveConnect} from './layout-connect.ts';
 import {addScoped, qualify, scopesOf} from './anchor-scope.ts';
 import {
   BOX_PAD_X, BOX_PAD_Y, ICON_H, STAMP_GAP, STAMP_H, TAG_H, TAG_PAD_X, TOP_ICON_GAP, TOP_ICON_SIZE,
-  anchorRect, colSlots, rowChildGeometry, snapGrid, stampChipW, topIcon, withSourceLine,
+  anchorRect, colSlots, rowChildGeometry, snapGrid, stampChipW, topIcon, withSourceLine, withTitleLine,
 } from './layout-util.ts';
 import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
 import type {DiagramData, Roles, WidthOf, Rect, WrapMode} from './types/core.ts';
@@ -49,7 +49,7 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
 const spaceOf = (density: 'normal' | 'compact' | undefined): number => density === 'compact' ? 0.75 : 1;
 
 function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean, space = 1): LaidOutDiagram {
-  const d = withStatus(withSourceLine(data));
+  const d = withStatus(withSourceLine(withTitleLine(data)));
   const contentWidth = d.width - 2 * d.pad;
 
   // A labelled straight connector between two side-by-side children (right side -> left side) needs room in the gap

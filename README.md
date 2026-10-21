@@ -783,6 +783,10 @@ const s = steps([{title: '1回目', body: '原因は不明'}, {title: '4回目',
 - `callout('id' または 'id:side', {text, side: 'above' | 'below' | 'left' | 'right'})` は、箱を指す矢印と、その先の吹き出し（1 行）。`side` の既定は `above`。`below` のときだけ高さを空ける（ほかは周りの箱に重ならないよう、余白を見て選ぶ）。`bracket` の `above` と `callout` の `above` / `left` / `right` が図の外にはみ出す、または caption に重なると、検査（verify）が止める。上に余白が要るなら、行の前に `spacer()` を置く。
 - どちらも `connect()` の一種で、`reveal` / `until` と `tone` が使える。`diagram({connectDefaults})` は適用されない。例は `examples/bracket-callout.ts`。
 
+### 題名を図の見出しに出す（`showTitle`）
+
+`diagram({title: '離職の流れ', showTitle: true})` は、`title`（SVG の `<title>`）を**図の最初の行**（左寄せ・太字・title の大きさ。group の題名と同じ）にも描く。既定は off（書かなければ、`title` は今までどおりメタデータだけで、SVG は変わらない）。`title` が無いと throw する。`caption(同じ文字列, {bold: true, tone: 'text'})` を先頭に置いていた図は、caption を消して `showTitle` に寄せられる（`check` が情報 `title-duplicated` で知らせる）。移行すると見た目（寄せ・太さ）が変わるので、golden の差分は大量に出る。題名も見出しなので、`cjk-line-long` の対象になる。
+
 ### 出典行（`sourceLine`）
 
 `diagram({sourceLine: '出典: 総務省 2025'})` は、出典を**図の最後の 1 行**（左寄せ・muted・14px）に固定する。`add()` の順や他の部品に関係なく、いつも一番下にあるので、本文の部品と重ならない。キャンバスの高さに含まれる。空・複数行の文字列は throw。1 行に収まらず折り返すと `source-wraps` を warn する（出典の細部は本文へ）。文字のコントラストは、他の caption と同じ検査（`a11y-text-contrast`、verify）に通る。`sourceLine` を使わない図の出力は変わらない。例は `examples/timeline.ts`。
