@@ -48,17 +48,17 @@
   <text x="551" y="588" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">BankTransfer</text>
   <text x="474" y="620" font-size="14" fill="#22201b">+ pay(amount: number)</text>
   <rect x="460" y="340" width="52" height="22" fill="#ffffff"/>
-  <text x="485" y="357" text-anchor="middle" font-size="14" fill="#22201b">支払い</text>
+  <text x="485" y="356" text-anchor="middle" font-size="14" fill="#22201b">支払い</text>
   <rect x="568" y="324" width="20" height="22" fill="#ffffff"/>
-  <text x="577" y="341" text-anchor="middle" font-size="14" fill="#22201b">1</text>
+  <text x="577" y="340" text-anchor="middle" font-size="14" fill="#22201b">1</text>
   <rect x="584" y="364" width="32" height="22" fill="#ffffff"/>
-  <text x="601" y="379" text-anchor="middle" font-size="14" fill="#22201b">1..*</text>
+  <text x="601" y="380" text-anchor="middle" font-size="14" fill="#22201b">1..*</text>
   <rect x="516" y="100" width="20" height="22" fill="#ffffff"/>
-  <text x="525" y="117" text-anchor="middle" font-size="14" fill="#22201b">1</text>
+  <text x="525" y="116" text-anchor="middle" font-size="14" fill="#22201b">1</text>
   <rect x="532" y="140" width="32" height="22" fill="#ffffff"/>
-  <text x="549" y="155" text-anchor="middle" font-size="14" fill="#22201b">0..*</text>
+  <text x="549" y="156" text-anchor="middle" font-size="14" fill="#22201b">0..*</text>
   <rect x="544" y="116" width="68" height="22" fill="#ffffff"/>
-  <text x="578" y="133" text-anchor="middle" font-size="14" fill="#22201b">注文する</text>
+  <text x="578" y="132" text-anchor="middle" font-size="14" fill="#22201b">注文する</text>
 
   <text x="20" y="662" font-size="14" font-weight="400" fill="#6f6659">出典: 注文サービスの設計メモ(例)</text>
 </svg>

@@ -47,7 +47,7 @@ export function renderFta(b: LaidOutFta, day: Theme, tones: ToneEnv): string {
   }
   const alert = b.dim ? PALETTE.muted : PALETTE.danger;
   for (const m of b.marks) out.push(`<path d="${markPath(m.kind, m)}" fill="${PALETTE.bg}" stroke="${m.single ? alert : ink}" stroke-width="${m.single ? 4 : 2}"/>`);
-  for (const t of b.badges) out.push(pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.x + t.w) - snap4(t.x), h: t.h, fill: alert, cx: t.x + t.w / 2, baseline: t.y + t.h / 2 + t.size * 0.36, text: PALETTE.bg, size: t.size, labelHtml: emojiSpan(t.text)}));
+  for (const t of b.badges) out.push(pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.x + t.w) - snap4(t.x), h: t.h, fill: alert, cx: t.x + t.w / 2, baseline: t.y + t.h / 2 + t.size * 0.36, rawY: t.y, text: PALETTE.bg, size: t.size, labelHtml: emojiSpan(t.text)}));
   for (const n of b.nodes) out.push(renderBoxRect({...n, tone: 'plain', dim: b.dim}, day, tones, 'plain'));
   for (const t of b.texts) {
     const fill = b.dim ? PALETTE.muted : t.muted ? PALETTE.muted : colorOf(toneStyle(tones, 'plain').text, day);

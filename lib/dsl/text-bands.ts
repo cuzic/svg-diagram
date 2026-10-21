@@ -35,6 +35,8 @@ export function box<const Id extends string = never>(opts: BoxInput<Id>): BoxBan
 export function box(opts: BoxOpts): BoxBand {
   assertOneOf(opts.tone, EMPHASIS_TONES, 'box() tone');
   assertOneOf(opts.align, ALIGNS, 'box() align');
+  assertOneOf(opts.tagTone, ['accent', 'muted', 'danger'], 'box() tagTone');
+  for (const k of ['titleTone', 'bodyTone', 'noteTone', 'iconTone'] as const) assertOneOf(opts[k], TEXT_TONES, `box() ${k}`);
   const unknown = Object.keys(opts).filter(k => !(k in BOX_KEYS));
   if (unknown.length) throw new Error(`box(): unknown option ${unknown.map(k => `'${k}'`).join(', ')} — the text goes in title / body / lines / note (all options: ${Object.keys(BOX_KEYS).join(', ')})`);
   if (opts.size !== undefined) {

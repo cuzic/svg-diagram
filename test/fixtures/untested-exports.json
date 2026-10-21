@@ -4,7 +4,6 @@
   "appearance-auto:mergeSides",
   "axis-rules:axisMismatches",
   "badge:badgeBox",
-  "badge:pillSvg",
   "band-ids:itemIdsOf",
   "band-ids:nodeIdsOf",
   "bars:barsValuesHidden",

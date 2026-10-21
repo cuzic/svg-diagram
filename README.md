@@ -74,6 +74,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
     svg-diagram init [dir]                               # 案件の初期設定（package.json の type、tsconfig.json）
     svg-diagram typecheck                                # 図のソースの型検査
+    svg-diagram check --typecheck <ソース.ts>...           # check に型検査も足す（build と check は型を読まないので、実行時に無視される誤った引数・キーが素通りする。tsc が約 3 秒/250 本）
     svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint] [--png DIR [--scale N]]   # 既定の出力: ./svg/<name>.svg（.svg-diagram.json の "outDir" で変えられる）。--png: SVG と同時に PNG も DIR に書く（既定の倍率 2）
     svg-diagram build <source.ts> --dark --transparent   # 暗い配色／背景の矩形なしで描く（図の appearance / transparent を上書き）
     svg-diagram build <source.ts> --no-source-line       # diagram({sourceLine}) を描かない（スライド用と文書用を 1 つのソースで使い分ける。ソースは変えない。deck も同じフラグを受ける）
@@ -602,6 +603,7 @@ bpmn(
 - `dir` を**省略**した図が変わると、`check` の `auto-fit-applied` が **warn**（`check --strict` が落ち、`build` の警告にも載る。`dir を up から right に変えた(1460→880px)` のように何が変わったかを書く）。`dir: 'auto'` と書くと **info**（変えてよいと宣言した図）。`accept: {'auto-fit-applied': '理由'}` でも外せる。
 - `'auto'` のときは、収まる案の中で（交差, 折れ）が最良のものを選ぶ（高さが `canvas.height ?? maxDisplayHeight` を超える案は除く）。省略のときは最初に収まった案。
 - `diagram({maxWidth: 1200})` は、その図だけ `doc-width` の閾値を上げる（案件全体は `.svg-diagram.json` の `maxWidth`。図の指定が勝つ。正の有限数でなければ throw。`canvas` の図は検査しない）。**図の幅は広がらない**ので、広い図にするなら `width: 1200` も書く。
+- **縦に長い図**（情報 `aspect-tall`、`--verbose`）: 文書の図で、高さが幅の 1.5 倍を超えると出る（本の版面は縦横比が 1.5〜1.6 ほど）。使っている部品に応じた直し方を添える（`causeTree` は `fold`、`row` / `group` の積み重ねは `row({cols})` で横に並べる、どれでもなければ図を分ける）。自動では変えない（図の見え方が黙って変わるため）。
 - `diagram({width: 'fit'})` は、細い図（`concentric`、縦の `chevron`、`cycle`、`venn`、`funnel`）の幅を内容 + 左右の余白（4px の格子、下限 320px）に縮める。文字の大きさは変わらない。既定の 940 は変えない（文書での図の大きさが変わるので opt-in）。縮むのは flow-shape の帯だけで、box / banner / 表など全幅の帯を持つ図は 940 のまま。`canvas` / `fill` / `slide` とは併用できない（throw）。`layout-figure-narrow`（info）の直し方になる。例は `examples/width-fit.ts`。
 
 ### 折れの少ない配置（`straighten` / `returns` / 直線の矢印）と `edge-bends`
@@ -1135,6 +1137,7 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 ## 文書と図の整合（`check --docs`）
 `svg-diagram check --docs docs --svg-dir docs/assets/diagrams/svg --src-dir docs/diagrams` は、Markdown の画像参照と、図のソースを突き合わせる。
 - 参照先の SVG がない（`doc-image-missing`、エラー）、代替テキストが空・155 文字超（`doc-alt-empty` / `doc-alt-long`）、どの文書からも参照されていない SVG（`doc-orphan-svg`）、参照されている SVG に対応する図のソースがない（`doc-svg-no-source`。ソースを消して SVG だけ残った静的な絵は `--drift` の対象にならず古くなるので、ここで見つける。ソースは `--src-dir`、なければ `./diagrams`、それと SVG の `<metadata>` に記録された生成元から探す。手描きの絵などは `.svg-diagram.json` の `accept` で許容する）。`![alt](images/x.png)` の PNG 参照も見る: ファイルがない（`doc-image-missing`）、同じ名前の図のソース（`--src-dir`）も SVG（`--svg-dir`）もない（`doc-png-no-source`）、参照された PNG と同じフォルダにある、どこからも参照されていない PNG（`doc-orphan-png`。文書を絞ると行わない）。
+- **PNG から SVG への置き換え忘れ**（情報 `doc-png-has-svg`、`--verbose`）: PNG を参照しているのに、同名の SVG（PNG の隣、または `--svg-dir`）もあるとき、書き換える参照（`![](../svg/x.svg)`）を示す。PNG が消えて `doc-image-missing` になるときも、同名の SVG があれば同じ案を添える。PNG を残す意図（EPUB 用など）なら `accept` で許容する。書き換えは手か、`sed` で。
 - 図に `notes` があるとき、画像の直後の**番号つきリスト**（`1. **題名**：本文`）と、題名・本文が一致するか（`doc-notes-mismatch` / `doc-notes-missing`）。図と文書の**二重管理**で、片方の直し忘れを見つける。
 - **図番号と本文**（警告）: キャプション `図N-M`（代替テキスト、または画像の前後の行の**行頭**）が章内で 1 から連番か・重複や順序の入れ替えがないか・章番号がファイル名の章（`03-x.md` / `ch3.md`）と合うか（`doc-fig-number`）、本文の `図N-M` が、この文書にない図を指していないか（`doc-fig-ref-missing`。別の章への参照とコードブロックは見ない）、代替テキストが `image` / `図` / ファイル名のままでないか（`doc-alt-placeholder`。空は従来どおり `doc-alt-empty`）、図の下の注釈の番号が 1 から順か（`doc-notes-number`）。
 - **一章だけ検査する**: `--docs` は**ディレクトリでも .md ファイルでもよく、何度でも**書ける（`--docs A.md B.md dir` のように空白で並べてもよい。後ろの .md とディレクトリはすべて文書で、図のソースではない。.ts / .mjs 以外をソースに渡すと分かるエラーで終わる）。`--only 'docs/03-*.md'`（繰り返し可。`**` はフォルダをまたぎ、`*` `?` は 1 階層内。カレントからの相対パスかファイル名に合わせる）で、対象のページを絞る。**絞ったとき（.md 指定または `--only`）は、孤立 SVG（`doc-orphan-svg`）の検査をしない**（全ページを見ないと「参照されていない」とは言えないため）。その旨を 1 行出す。全体を見るときは、ディレクトリだけを指定する。
@@ -1194,8 +1197,28 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 
 **文節で折る、収まらなければ従来に戻る（`wrap: 'bunsetsu-soft'`）**: 狭い箱で「確/かめられる」「育てら/れる」のように、ひらがなの手前で行が割れるのは、`wrap: 'bunsetsu'`（ひらがなを直前の文字に付けて、文節で折る）で防げる。ただし文節の単位は長いので、密な図は 940px に収まらず build が止まる。`'bunsetsu-soft'` は、まず `bunsetsu` で配置し、**収まらない図だけ**従来の折り方（`phrase`）で配置する（止まらない。`check` が情報 `wrap-fell-back` で、従来の折り方にしたことを知らせる。図を 2 枚に分ける・文言を短くすると文節で折れる）。`.svg-diagram.json` の `"wrap": "bunsetsu-soft"` で案件全体に効く（図の `wrap` が優先）。図の中に収まらない帯が 1 つでもあると、その図は全体が `phrase` になる。
 
+### 画像（PNG）を図に置き換えるとき: 原画の語が残っているか
+
+`check --covers` は表だけでなく、**1 行 1 語の CSV** も受け付ける。PNG の原画を画像が読めるエージェント（または人）が読み、見えた語を 1 行 1 語の CSV に書き出して、新しい図と突き合わせる。
+
+```
+# 原画の語（崩れた字は見えたまま書く。そのほうが差が出る）
+echo '効果額' > words.csv; echo '研修費用' >> words.csv
+svg-diagram check --covers words.csv --svg-dir svg diagrams/formula.ts
+```
+
+欠けた語は `covers-missing`（警告）で出る。原画の読み間違い（書き起こしの誤字）と、図に書き写し忘れた語は、どちらもここで見つかるので、出た語は原画で見直す。逆向き（図にだけある語）は `diff --text 旧.svg 新.svg` の「追加」で見る。数式（`math()`）の中の日本語も `<text>` なので、語として見つかる。
+
 ## 共通設定（`.svg-diagram.json`）
 カレントディレクトリから上へたどって見つかる。`{"accept": {"rule-id": "理由"}, "maxWidth": 940}`。図ごとの `accept` が優先される。`maxWidth` も図ごとに `diagram({maxWidth: 1200})` で変えられる（`doc-width` の閾値だけで、図の幅は変えない。広い図にするなら `width: 1200` も書く。図の値が設定ファイルに勝つ）。`accept` のキーはルール ID（`RULE_DOCS` にある名前）で、知らない ID・空の理由はファイル名つきのエラー（綴り違いで何も許容されないのを防ぐ）。許容された指摘は info に下がり、理由が添えられる。
+
+**並列で使うときの注意**: 複数のエージェントが同じディレクトリで動くとき。
+- `build` は**引数に書いたソースだけ**を作る（glob の展開は呼び出し側。他の人のソースまで巻き込まないよう、自分のソースだけを書く）。書いたファイルは 1 行ずつ `✓ svg/x.svg (WxH)` で出る。
+- `.svg-diagram.json` は、ソースの場所ではなく**カレントディレクトリから上へ**探す。別のディレクトリから走らせると、その図の設定（`accept`・`maxWidth`・`fonts`）が読まれず、結果が揺れる。ディレクトリごとの設定は、そのディレクトリ（または上）に `.svg-diagram.json` を置き、そこへ `cd` して走らせる。
+- `typecheck` の一時ファイル（`.svg-diagram-tsconfig.<pid>-<乱数>.json`）は実行ごとに名前が違うので、並列に走らせても互いに消さない。
+- `check --drift --rebuild` のキャッシュ（`.svg-diagram-cache/`）は共有してよい（書き込みは rename で原子的）。
+- `pkill -f svg-diagram` のような名前での強制終了は、他の人のビルドも止める。止めるなら自分の PID だけ。
+- **TOC の `toc-ude-count` / `toc-no-desired-result` は既定で info**（`diagram({tocCheck: 'strict'})` の図だけ警告）なので、章単位の部分図でも `accept` は要らない。出したくなければ、図のディレクトリの `.svg-diagram.json` に `{"accept": {"toc-ude-count": "章単位の部分図"}}` を 1 つ置く。`gray-tone-collision` や `density` を帳票の図でまとめて許容するのも同じ（案件の `.svg-diagram.json` の `accept`）。
 
 **出力先（`outDir`）**: `"outDir": "images"` は、`build` の既定の出力先（`./svg` の代わり。`.svg-diagram.json` のあるフォルダからの相対）で、`lint`（引数なし）と `check --drift` が SVG を探す先でもある。`--out` / `--out-dir` が優先される。
 
@@ -1214,7 +1237,7 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 **トーンの色を上書きする**: `diagram({tones: {accent: {fill: '#e6d3bd'}}})`、または `.svg-diagram.json` の `"tones"`（案件の図すべて。図の `tones` が色ごとに優先）。トーンごとに `fill`（塗り）・`stroke`（枠線）・`text`（その塗りの上の文字。solid / solid-danger の箱の文字、ワイヤーフレームのチップなど）・`ink`（そのトーンを色として使う所: タグ・矢印の線・「そのトーンで書いた文字」）を `#rrggbb` で替えられる。効くのはトーンで色を決める所（箱・バナー・凡例・タグ・矢印・文字・ワイヤーフレーム・画像の札）で、テーマの色をそのまま使う所（グラフ・ガント・年表・スイムレーンのレーン名・表の題名帯・手順番号）は変わらない。`appearance: 'dark'` の図で使う色は `dark: {fill: '#2a4a70'}` で書く（書かなければ明るい色のまま描かれるので、暗い背景で見えにくいときはコントラストの警告が出る。組み込みの色と同じ明るい色や、2 か所で違う暗い色を付けた明るい色はエラー）。トーン名は `plain` `accent` `danger` `muted` `new` `changed` `removed` `solid` `solid-danger`（`ok` / `warn` / `off` の別名は不可）。知らないトーン名・色のキー・`#rrggbb` でない値はエラーになる。上書きした色は、描画と同じ経路で `a11y-text-contrast` / `a11y-nontext-contrast` / `gray-tone-collision` の検査に入る。例: accent の soft（L* 約 92）が plain の白と近いと言われたとき `{"tones": {"accent": {"fill": "#d7c1a8"}}}` のように濃くして L* の差を 10 以上にする（`new` は塗りも色も別のトーンなので、そろえるなら両方書く）。
 
 **文字幅の測定**: 既定は、文字幅と高さをフォントファイルから読む（`"measure": "font"`。HarfBuzz。kerning・合字込みで、ブラウザは起動しない）。Chromium で測るなら `{"measure": "chromium"}`（または環境変数 `SVG_DIAGRAM_MEASURE=chromium`）。`measure` を書いていないのにフォントが見つからないときは、警告を出して Chromium で測る（`"font"` と書いたのに見つからないときはエラー）。
-使うフォントは、`FONT_STACKS` の先頭から見て最初に入っているファミリー（fontconfig の `fc-match` で探す）。ファイルを直接指定するなら `{"fonts": {"sans": {"regular": "/path/YuGothR.ttc#0", "bold": "/path/YuGothB.ttc#0"}}}`（`#N` は .ttc の何番目か。`mono` `emoji` も同じ）。fontconfig のない環境（macOS など）や、どのマシンでも同じ値にしたいときは指定する。
+使うフォントは、`FONT_STACKS` の先頭から見て最初に入っているファミリー（fontconfig の `fc-match` で探す）。ファイルを直接指定するなら（相対パスは、`.svg-diagram.json` のあるフォルダ基準。どこから実行しても同じ） `{"fonts": {"sans": {"regular": "/path/YuGothR.ttc#0", "bold": "/path/YuGothB.ttc#0"}}}`（`#N` は .ttc の何番目か。`mono` `emoji` も同じ）。fontconfig のない環境（macOS など）や、どのマシンでも同じ値にしたいときは指定する。
 Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Gothic）は幅 1px・高さ 1px 以内、mono（Consolas など hinting の効くフォント）は Chromium が advance を整数ピクセルに丸める（切り上げることもある）ため、1 字あたり 1px 以内。例の図 3 つは、どちらの方式でも SVG がバイト単位で同じだった。フォントに無い字は emoji → sans のフォントで測り、どれにも無ければ 1em（全角）か 0.5em。`lint-svg` と `show` と `preview` は引き続き Chromium を使う。
 
 ## check のルール（lib/rules.ts）

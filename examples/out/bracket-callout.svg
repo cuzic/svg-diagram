@@ -36,5 +36,5 @@
 
   <path d="M814,141 L814,113" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
   <rect x="744" y="140" width="144" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="814" y="158" text-anchor="middle" font-size="14" fill="#22201b">結果はメールで届く</text>
+  <text x="814" y="157" text-anchor="middle" font-size="14" fill="#22201b">結果はメールで届く</text>
 </svg>
