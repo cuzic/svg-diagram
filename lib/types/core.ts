@@ -137,6 +137,8 @@ export interface DiagramOpts {
   spotlight?: SpotlightOpt;
   /** A source / citation line pinned as the last line of the figure (left-aligned, muted, one line). See README. */
   sourceLine?: string;
+  /** true: draw `title` as the figure's heading (the first band: bold, left-aligned, title size). Needs `title`. Off by default: the title is only the SVG's <title> then. */
+  showTitle?: boolean;
   /** The state of the whole figure: 'draft' puts a "下書き" badge in a strip at the top (right end) and says so in <desc> / <metadata>. */
   status?: DiagramStatus;
   /** The badge's wording instead of "下書き" (e.g. "仮説", "仮置き"): one non-empty line. Only with `status`. */
@@ -217,6 +219,7 @@ export interface DiagramData {
   wireframeDefaults?: WireframeDefaults;
   spotlight?: SpotlightOpt;
   sourceLine?: string;
+  showTitle?: boolean;
   status?: DiagramStatus;
   statusLabel?: string;
   layoutCheck?: LayoutCheck;

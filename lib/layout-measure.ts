@@ -5,7 +5,7 @@ import {splitAtoms} from './atoms.ts';
 import {must} from './must.ts';
 import {styledAtoms, textRuns} from './layout-text.ts';
 import {TAG_SIZE, CONNECT_LABEL_SIZE} from './tokens.ts';
-import {groupTitleBand, withSourceLine} from './layout-util.ts';
+import {groupTitleBand, withSourceLine, withTitleLine} from './layout-util.ts';
 import {childrenOf} from './band-children.ts';
 import {planeTexts} from './plane.ts';
 import {imageTexts} from './image.ts';
@@ -136,7 +136,7 @@ export const MEASURE_HANDLERS = {
 
 /** Pass 1: every atom this diagram needs measured, at the font sizes of `roles`. Pure: no measuring happens here. */
 export function collectMeasures(data: DiagramData, roles: Roles): Requests {
-  const d = withStatus(withSourceLine(data));
+  const d = withStatus(withSourceLine(withTitleLine(data)));
   const requests: Requests = new Map();
   const m: MeasureCtx = {
     roles,

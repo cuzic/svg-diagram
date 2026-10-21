@@ -31,6 +31,7 @@ import {layoutMetrics} from './layout-metrics.ts';
 import {dimmedBands} from './spotlight.ts';
 import {visibleAt} from './reveal.ts';
 import type {BarsBand} from './types/bars.ts';
+import type {CaptionBand} from './types/text-bands.ts';
 import type {LaidOutConnect, LegendBand, LegendItem} from './types/containers.ts';
 import type {ArrowWeight, EmphasisTone, DiagramData, LineStyle, Point, Rect, RuleId} from './types/core.ts';
 import {bendsOf, crossingsOf} from './polyline-metrics.ts';
@@ -53,6 +54,7 @@ export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
   'a11y-color-only-emphasis': '色だけで強調した語がある（太字も併用する。色が見えない読者にも伝わるように）',
   'a11y-nontext-contrast': '意味を持つ枠線・線のコントラスト比が 3:1 未満（色以外の手がかりも併用する）',
+  'title-duplicated': '題名（diagram({title})）と、先頭の caption が同じ文字列。diagram({title, showTitle: true}) に寄せて、caption を消せる',
   'a11y-no-title': 'SVG の <title> に使える題名が見つからない（diagram({title}) を指定）',
   'bars-values-hidden': '値ラベルも目盛りも出さない bars があるのに、図の題名（SVG の <title>）がなく、値を読み上げる <desc> が届かない（doc 媒体）',
   'bars-thin-bar': '棒が 1px 以下（値は 0 でない）。図の高さ・幅を上げるか max を見直す',
@@ -781,7 +783,7 @@ function fitRules(d: LintTarget, out: Finding[]): void {
 /** How to fix a mid-word break depends on whether the part's boxes can be widened: a chevron / cycle / swimlane fixes the frame first. */
 const MID_WORD_FIX: Record<string, string> = {
   chevron: "矢羽根の幅は段数で決まる。`direction: 'vertical'` にする、段を減らす、文言を短くする",
-  cycle: '円の大きさは項目数で決まる。項目を減らす、文言を短くする',
+  cycle: '円は、カタカナの語に合わせて幅・高さの上限（幅 −8px、高さ 760px）まで広がる。それでも入らない語は、文言を短くする、項目を減らす',
   swimlane: "列の幅は段数で決まる。`fit: 'shrink'` を外す、列を減らす、文言を短くする",
 };
 function midWordRules(d: LintTarget, out: Finding[]): void {
@@ -879,6 +881,10 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   for (const b of walkBands(d.bands)) if (b.type === 'quadrant' && !b.groups.length && new Set(b.items.flatMap(i => i.tone ? [i.tone] : [])).size >= 2) out.push({rule: 'quadrant-tone-only', severity: 'warn', message: 'quadrant() の項目を tone（色）だけで分けている。色だけでは意味が伝わらない。group を指定する（形と凡例が付く）'});
   for (const b of walkBands(d.bands)) if (b.type === 'funnel' && b.scale === 'value' && b.stages.some((s, i) => i > 0 && (s.value ?? 0) > (must(b.stages[i - 1]).value ?? 0))) out.push({rule: 'funnel-values-rise', severity: 'warn', message: 'funnel() の value が下の段で増えている。漏斗の減少として読ませるなら、値または段の順を見直す'});
   for (const b of walkBands(d.bands)) if (b.type === 'grid' && b.canvas?.requireAll && b.canvas.empty.length) out.push({rule: 'canvas-region-empty', severity: 'warn', message: `canvas("${b.canvas.template}") の領域 ${b.canvas.empty.join('、')} に内容がない。書くか、requireAll を外す`});
+  if (d.medium === 'doc' && d.title && !d.showTitle) {
+    const first = walkBands(d.bands).find((b): b is CaptionBand => b.type === 'caption' && !b.sourceLine);
+    if (first && first.text.trim() === d.title.trim()) out.push({rule: 'title-duplicated', severity: 'info', message: `題名と先頭の caption が同じ文字列「${first.text.trim().slice(0, 20)}」。diagram({title, showTitle: true}) に寄せて、caption を消せる`});
+  }
   if (d.medium === 'doc' && !diagramTitle(d)) out.push({rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する'});
   return out;
 }
