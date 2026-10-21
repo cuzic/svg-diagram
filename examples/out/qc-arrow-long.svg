@@ -52,21 +52,21 @@
   <text x="470" y="1026" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">8</text>
   <text x="470" y="1046" text-anchor="middle" font-size="14" fill="#6f6659">32/32</text>
   <rect x="476" y="96" width="80" height="22" fill="#ffffff"/>
-  <text x="516" y="110" text-anchor="middle" font-size="14" fill="#22201b">要件定義 5</text>
+  <text x="516" y="112" text-anchor="middle" font-size="14" fill="#22201b">要件定義 5</text>
   <rect x="380" y="232" width="52" height="22" fill="#ffffff"/>
-  <text x="406" y="247" text-anchor="middle" font-size="14" fill="#22201b">設計 8</text>
+  <text x="406" y="248" text-anchor="middle" font-size="14" fill="#22201b">設計 8</text>
   <rect x="524" y="376" width="168" height="22" fill="#ffffff"/>
-  <text x="605" y="391" text-anchor="middle" font-size="14" fill="#22201b">契約手続き 6（余裕10）</text>
+  <text x="605" y="392" text-anchor="middle" font-size="14" fill="#22201b">契約手続き 6（余裕10）</text>
   <rect x="372" y="536" width="60" height="22" fill="#ffffff"/>
-  <text x="402" y="553" text-anchor="middle" font-size="14" fill="#22201b">開発 12</text>
+  <text x="402" y="552" text-anchor="middle" font-size="14" fill="#22201b">開発 12</text>
   <rect x="508" y="512" width="144" height="22" fill="#ffffff"/>
-  <text x="580" y="526" text-anchor="middle" font-size="14" fill="#22201b">環境準備 4（余裕8）</text>
+  <text x="580" y="528" text-anchor="middle" font-size="14" fill="#22201b">環境準備 4（余裕8）</text>
   <rect x="400" y="808" width="68" height="22" fill="#ffffff"/>
-  <text x="431" y="823" text-anchor="middle" font-size="14" fill="#22201b">テスト 6</text>
+  <text x="431" y="824" text-anchor="middle" font-size="14" fill="#22201b">テスト 6</text>
   <rect x="492" y="808" width="152" height="22" fill="#ffffff"/>
-  <text x="566" y="823" text-anchor="middle" font-size="14" fill="#22201b">教育資料 3（余裕11）</text>
+  <text x="566" y="824" text-anchor="middle" font-size="14" fill="#22201b">教育資料 3（余裕11）</text>
   <rect x="476" y="944" width="52" height="22" fill="#ffffff"/>
-  <text x="502" y="958" text-anchor="middle" font-size="14" fill="#22201b">公開 1</text>
+  <text x="502" y="960" text-anchor="middle" font-size="14" fill="#22201b">公開 1</text>
 
   <text x="20" y="1098" font-size="14" font-weight="400" fill="#6f6659">全体で 32日　クリティカルパス: 要件定義 → 設計 → 開発 → テスト → 公開</text>
 

@@ -54,9 +54,9 @@
   <text x="725" y="126" text-anchor="middle" font-size="14" fill="#22201b">入金</text>
   <text x="443" y="196" text-anchor="end" font-size="14" fill="#22201b">承認</text>
   <rect x="464" y="256" width="40" height="22" fill="#ffffff"/>
-  <text x="483" y="273" text-anchor="middle" font-size="14" fill="#22201b">承認</text>
+  <text x="483" y="272" text-anchor="middle" font-size="14" fill="#22201b">承認</text>
   <rect x="384" y="256" width="40" height="22" fill="#ffffff"/>
-  <text x="403" y="273" text-anchor="middle" font-size="14" fill="#22201b">却下</text>
+  <text x="403" y="272" text-anchor="middle" font-size="14" fill="#22201b">却下</text>
 
   <text x="20" y="466" font-size="14" font-weight="400" fill="#6f6659">出典: 業務フロー図(例)</text>
 </svg>

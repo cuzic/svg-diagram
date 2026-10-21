@@ -33,15 +33,15 @@
   <text x="796" y="100" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">5</text>
   <text x="796" y="120" text-anchor="middle" font-size="14" fill="#6f6659">17/17</text>
   <rect x="208" y="80" width="52" height="22" fill="#ffffff"/>
-  <text x="235" y="97" text-anchor="middle" font-size="14" fill="#22201b">設計 5</text>
+  <text x="235" y="96" text-anchor="middle" font-size="14" fill="#22201b">設計 5</text>
   <rect x="444" y="32" width="52" height="22" fill="#ffffff"/>
-  <text x="470" y="47" text-anchor="middle" font-size="14" fill="#22201b">試作 8</text>
+  <text x="470" y="48" text-anchor="middle" font-size="14" fill="#22201b">試作 8</text>
   <rect x="400" y="132" width="116" height="22" fill="#ffffff"/>
-  <text x="456" y="147" text-anchor="middle" font-size="14" fill="#22201b">調達 6（余裕3）</text>
+  <text x="456" y="148" text-anchor="middle" font-size="14" fill="#22201b">調達 6（余裕3）</text>
   <rect x="660" y="80" width="52" height="22" fill="#ffffff"/>
-  <text x="684" y="97" text-anchor="middle" font-size="14" fill="#22201b">評価 4</text>
+  <text x="684" y="96" text-anchor="middle" font-size="14" fill="#22201b">評価 4</text>
   <rect x="608" y="108" width="116" height="22" fill="#ffffff"/>
-  <text x="664" y="125" text-anchor="middle" font-size="14" fill="#22201b">組立 3（余裕3）</text>
+  <text x="664" y="124" text-anchor="middle" font-size="14" fill="#22201b">組立 3（余裕3）</text>
 
   <text x="20" y="222" font-size="14" font-weight="400" fill="#6f6659">全体で 17日　クリティカルパス: 設計 → 試作 → 評価</text>
 

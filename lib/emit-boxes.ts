@@ -74,7 +74,7 @@ export function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, tone
 export function renderTag(band: LaidOutBox, day: Theme, tones: ToneEnv, roles: Roles): string {
   const t = band.tagBox as Rect; // caller checked tagBox
   const fill = band.dim ? PALETTE.muted : colorOf(toneStyle(tones, band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
-  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: (roles.tag ?? TAG_SIZE), labelHtml: emojiSpan(band.tag as string)});
+  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, rawY: t.y, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: (roles.tag ?? TAG_SIZE), labelHtml: emojiSpan(band.tag as string)});
 }
 
 
@@ -190,7 +190,7 @@ export function renderConnect(c: LaidOutConnect, day: Theme, tones: ToneEnv, rol
   // keeps emit and verify looking at the same point.
   if (c.chipBox) {
     const b = c.chipBox;
-    return `${path}\n  ${pillSvg({x: snap4(b.x), y: snap4(b.y), w: snap4(b.w), h: b.h, fill: PALETTE.bg, stroke: color, cx: c.labelX as number, baseline: c.labelY as number, text: color, size: (roles.connectLabel ?? CONNECT_LABEL_SIZE), weight: 400, labelHtml: escapeXml(c.label)})}`;
+    return `${path}\n  ${pillSvg({x: snap4(b.x), y: snap4(b.y), w: snap4(b.w), h: b.h, fill: PALETTE.bg, stroke: color, cx: c.labelX as number, baseline: c.labelY as number, rawY: b.y, text: color, size: (roles.connectLabel ?? CONNECT_LABEL_SIZE), weight: 400, labelHtml: escapeXml(c.label)})}`;
   }
   return `${path}\n  <text x="${c.labelX}" y="${c.labelY}" text-anchor="middle" font-size="${(roles.connectLabel ?? CONNECT_LABEL_SIZE)}" fill="${color}">${escapeXml(c.label)}</text>`;
 }
@@ -261,7 +261,7 @@ export function renderCurve(band: LaidOutCurve, day: Theme, tones: ToneEnv): str
  */
 export function renderStatus(band: LaidOutStatus): string {
   const p = band.pill;
-  const pill = pillSvg({x: snap4(p.x), y: snap4(p.y), w: snap4(p.w), h: p.h, fill: PALETTE.bg, stroke: PALETTE.muted, sw: 1.5, dash: '4 3', cx: p.x + p.w / 2, baseline: band.textY, text: PALETTE.text, size: band.size, labelHtml: emojiSpan(band.text)});
+  const pill = pillSvg({x: snap4(p.x), y: snap4(p.y), w: snap4(p.w), h: p.h, fill: PALETTE.bg, stroke: PALETTE.muted, sw: 1.5, dash: '4 3', cx: p.x + p.w / 2, baseline: band.textY, rawY: p.y, text: PALETTE.text, size: band.size, labelHtml: emojiSpan(band.text)});
   return `<g role="img" aria-label="${escapeAttr(band.text)}" data-status="${band.status}">\n  ${pill}\n  </g>`;
 }
 

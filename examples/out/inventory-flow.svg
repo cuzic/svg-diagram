@@ -33,7 +33,7 @@
   <rect x="32" y="180" width="212" height="84" rx="6" fill="none" stroke="#e0d6c5" stroke-width="2"/>
   <text x="353" y="100" font-size="15" font-weight="700" fill="#22201b">詳細</text>
   <rect x="392" y="80" width="48" height="24" rx="12" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2"/>
-  <text x="417" y="99" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">改修</text>
+  <text x="417" y="97" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">改修</text>
   <rect x="352" y="112" width="236" height="248" rx="4" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="364" y="124" width="212" height="44" fill="#1d5fa8"/>
   <text x="378" y="150" font-size="14" font-weight="700" fill="#ffffff">品目の詳細</text>
@@ -85,13 +85,13 @@
 
   <path d="M253,221 L353,221" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
   <rect x="268" y="208" width="72" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="303" y="226" text-anchor="middle" font-size="14" fill="#22201b">行を選ぶ</text>
+  <text x="303" y="225" text-anchor="middle" font-size="14" fill="#22201b">行を選ぶ</text>
 
   <path d="M412,362 L412,402 L303,402 L303,442" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
   <rect x="336" y="392" width="44" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="358" y="407" text-anchor="middle" font-size="14" fill="#22201b">編集</text>
+  <text x="358" y="409" text-anchor="middle" font-size="14" fill="#22201b">編集</text>
 
   <path d="M528,362 L528,402 L637,402 L637,442" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
   <rect x="560" y="392" width="44" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="583" y="407" text-anchor="middle" font-size="14" fill="#22201b">発注</text>
+  <text x="583" y="409" text-anchor="middle" font-size="14" fill="#22201b">発注</text>
 </svg>

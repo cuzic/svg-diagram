@@ -20,7 +20,7 @@ export interface Config {
   keepWords?: boolean;
   /** How text is measured: 'font' (default) from the font files, no browser (see `fonts`); 'chromium' in a headless browser. */
   measure?: 'chromium' | 'font';
-  /** Font files to measure with when `measure` is 'font': per family, the regular and the bold (weight >= 600) one, as `path` or `path#faceIndex`. Unset: found with fontconfig. */
+  /** Font files to measure with when `measure` is 'font': per family, the regular and the bold (weight >= 600) one, as `path` or `path#faceIndex`; a relative path is relative to this file's folder. Unset: found with fontconfig. */
   fonts?: FontSpecs;
   /** The lowest `canvas.minText` a diagram may declare (10 to 14, default 14). A canvas diagram below it throws; a figure still has to declare its own `minText`. */
   fontFloor?: number;

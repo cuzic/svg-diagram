@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {DiagramData} from './types/core.ts';
-import type {Config} from './types/project.ts';
+import type {Config, FontSpecs} from './types/project.ts';
 import {DEFAULT_LEGEND_LABELS, RULE_DOCS} from './rules.ts';
 import {checkMinText, checkTones, MIN_FONT_SIZE, mergeTones} from './tokens.ts';
 import {checkToday, resolveToday} from './today.ts';
@@ -35,7 +35,14 @@ export function readConfigFile(f: string): Config {
   if (cfg.today !== undefined) { try { checkToday(cfg.today, '"today"'); } catch (e) { throw new Error(`${f}: ${(e as Error).message}`); } }
   delete cfg._today;
   if (cfg.tones !== undefined) { try { cfg.tones = checkTones(cfg.tones, '"tones"'); } catch (e) { throw new Error(`${f}: ${(e as Error).message}`); } }
+  if (cfg.fonts !== undefined) cfg.fonts = resolveFonts(cfg.fonts, path.dirname(path.resolve(f)));
   return cfg;
+}
+
+/** `fonts` paths are relative to the config file's folder (like `outDir`), not to where the command was run: the same file works from any directory. `path#N` keeps its face index. */
+export function resolveFonts(fonts: FontSpecs, dir: string): FontSpecs {
+  const abs = (spec: string): string => { const m = /^(.*?)(#\d+)?$/.exec(spec); return path.resolve(dir, m?.[1] ?? spec) + (m?.[2] ?? ''); };
+  return Object.fromEntries(Object.entries(fonts).map(([family, v]) => [family, v === undefined ? v : Object.fromEntries(Object.entries(v).map(([w, spec]) => [w, typeof spec === 'string' ? abs(spec) : spec]))])) as FontSpecs;
 }
 
 // JSON has no types: a typo in legend / legendLabels would otherwise be dropped without a word (a diagram's own are checked by tsc / diagram())

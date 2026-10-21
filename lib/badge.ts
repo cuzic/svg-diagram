@@ -54,7 +54,9 @@ export function badgeSvg(o: BadgeSvgOpts): string {
   } else {
     shape = `<circle cx="${snap(cx)}" cy="${snap(cy)}" r="${r}" fill="${o.fill}"${st}/>`;
   }
-  const base = o.baseline ?? cy + o.size * 0.36 + (o.shape === 'triangle' ? 4 : 0);
+  // centred on the shape as drawn (snapped), not on the unsnapped centre: the text must not slide out of a shape that moved up to 2px
+  const cyDrawn = o.shape === 'circle' && w <= 2 * r ? snap(cy) : (snap(cy - r) + snap(cy + r)) / 2;
+  const base = o.baseline ?? cyDrawn + o.size * 0.36 + (o.shape === 'triangle' ? 4 : 0);
   const fill = o.text ?? PALETTE[badgeTextKey(o.fill)];
   const text = o.label === '' ? '' : `\n  <text x="${Math.round(cx)}" y="${Math.round(base)}" text-anchor="middle" font-size="${o.size}" font-weight="${o.weight ?? 700}" fill="${fill}">${o.esc(o.label)}</text>`;
   return `<g role="img" aria-label="${o.esc(o.aria).replace(/"/g, '&quot;')}" data-badge="">\n  ${shape}${text}\n  </g>`;
@@ -71,11 +73,13 @@ export interface PillSvgOpts {
   dash?: string;
   /** Text: its centre x, baseline, colour, size / weight, and the markup (already escaped / emoji-spanned). */
   cx: number; baseline: number; text: string; size: number; weight?: number; labelHtml: string;
+  /** The pill's y before the caller snapped it. The baseline was worked out against that y, so it moves with the snapped rect: the text keeps its place in the pill. */
+  rawY?: number;
 }
 
 export function pillSvg(o: PillSvgOpts): string {
   const st = o.stroke ? ` stroke="${o.stroke}" stroke-width="${o.sw ?? 2}"${o.dash ? ` stroke-dasharray="${o.dash}"` : ''}` : '';
-  return `<rect x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" rx="${o.h / 2}" fill="${o.fill}"${st}/>\n  <text x="${Math.round(o.cx)}" y="${Math.round(o.baseline)}" text-anchor="middle" font-size="${o.size}"${(o.weight ?? 700) === 400 ? '' : ` font-weight="${o.weight ?? 700}"`} fill="${o.text}">${o.labelHtml}</text>`;
+  return `<rect x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" rx="${o.h / 2}" fill="${o.fill}"${st}/>\n  <text x="${Math.round(o.cx)}" y="${Math.round(o.baseline + (o.rawY === undefined ? 0 : o.y - o.rawY))}" text-anchor="middle" font-size="${o.size}"${(o.weight ?? 700) === 400 ? '' : ` font-weight="${o.weight ?? 700}"`} fill="${o.text}">${o.labelHtml}</text>`;
 }
 
 export type { ColorKey };

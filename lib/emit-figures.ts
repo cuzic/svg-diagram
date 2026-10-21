@@ -282,7 +282,7 @@ export function renderStates(b: LaidOutStates, day: Theme, tones: ToneEnv): stri
   for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : colorOf(toneStyle(tones, must(b.nodes[ic.node]).tone).text, day), dim: b.dim, labelled: true}));
   for (const l of b.labels) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${PALETTE.bg}"/>`);
-    out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty)}" text-anchor="middle" font-size="${l.size}" fill="${stroke}">${emojiSpan(l.text)}</text>`);
+    out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty + snap4(l.y) - l.y)}" text-anchor="middle" font-size="${l.size}" fill="${stroke}">${emojiSpan(l.text)}</text>`);
   }
   return out.join('\n  ');
 }
@@ -411,7 +411,7 @@ export function renderClasses(b: LaidOutClasses, day: Theme, tones: ToneEnv): st
   }
   for (const l of b.labels) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${bg}"/>`);
-    out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty)}" text-anchor="middle" font-size="${l.size}" fill="${ink}">${emojiSpan(l.text)}</text>`);
+    out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty + snap4(l.y) - l.y)}" text-anchor="middle" font-size="${l.size}" fill="${ink}">${emojiSpan(l.text)}</text>`);
   }
   return out.join('\n  ');
 }
@@ -448,7 +448,7 @@ export function renderBpmn(b: LaidOutBpmn, day: Theme, tones: ToneEnv): string {
   for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : ic.tone ? textColorOf(tones, ic.tone, day) : colorOf(toneStyle(tones, must(b.nodes[ic.node]).tone).text, day), dim: b.dim, labelled: true}));
   for (const l of b.labels) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${bg}"/>`);
-    out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty)}" text-anchor="middle" font-size="${l.size}" fill="${ink}">${emojiSpan(l.text)}</text>`);
+    out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty + snap4(l.y) - l.y)}" text-anchor="middle" font-size="${l.size}" fill="${ink}">${emojiSpan(l.text)}</text>`);
   }
   return out.join('\n  ');
 }
