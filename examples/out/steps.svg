@@ -20,7 +20,7 @@
   <text x="40" y="115" font-size="14" font-weight="400" fill="#22201b">原因は不明</text>
   <g role="img" aria-label="手順 1" data-badge="">
   <circle cx="56" cy="80" r="15" fill="#1d5fa8"/>
-  <text x="55" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">1</text>
+  <text x="56" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">1</text>
   </g>
 
   <rect x="204" y="56" width="164" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
@@ -28,7 +28,7 @@
   <text x="224" y="115" font-size="14" font-weight="400" fill="#22201b">手で復旧</text>
   <g role="img" aria-label="手順 2" data-badge="">
   <circle cx="240" cy="80" r="15" fill="#1d5fa8"/>
-  <text x="239" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">2</text>
+  <text x="240" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">2</text>
   </g>
 
   <rect x="388" y="56" width="164" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
@@ -36,7 +36,7 @@
   <text x="408" y="115" font-size="14" font-weight="400" fill="#22201b">手で復旧</text>
   <g role="img" aria-label="手順 3" data-badge="">
   <circle cx="424" cy="80" r="15" fill="#1d5fa8"/>
-  <text x="423" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">3</text>
+  <text x="424" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">3</text>
   </g>
 
   <rect x="572" y="56" width="164" height="80" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
@@ -44,7 +44,7 @@
   <text x="592" y="115" font-size="14" font-weight="400" fill="#22201b">同じ原因と判明</text>
   <g role="img" aria-label="手順 4" data-badge="">
   <circle cx="608" cy="80" r="15" fill="#1d5fa8"/>
-  <text x="607" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">4</text>
+  <text x="608" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">4</text>
   </g>
   <rect x="668" y="44" width="60" height="24" rx="12" fill="#1d5fa8"/>
   <text x="695" y="61" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">気づく</text>
@@ -54,7 +54,7 @@
   <text x="820" y="115" font-size="14" font-weight="400" fill="#22201b">自動で遮断</text>
   <g role="img" aria-label="手順 5" data-badge="">
   <circle cx="836" cy="80" r="15" fill="#1d5fa8"/>
-  <text x="835" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">5</text>
+  <text x="836" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">5</text>
   </g>
   <path d="M21 11c0 5.55-3.84 10.74-9 12c-5.16-1.26-9-6.45-9-12V5l9-4l9 4zm-9 10c3.75-1 7-5.46 7-9.78V6.3l-7-3.12L5 6.3v4.92C5 15.54 8.25 20 12 21" transform="translate(776 72) scale(1.3333)" fill="#22201b" aria-hidden="true" data-icon="shield"/>
 

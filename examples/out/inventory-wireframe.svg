@@ -76,15 +76,15 @@
   <text x="553" y="422" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">保存しました</text>
   <g role="img" aria-label="注釈 1" data-badge="">
   <circle cx="44" cy="112" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
-  <text x="43" y="118" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
+  <text x="44" y="117" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
   </g>
   <g role="img" aria-label="注釈 2" data-badge="">
   <circle cx="44" cy="156" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
-  <text x="43" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
+  <text x="44" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
   </g>
   <g role="img" aria-label="注釈 3" data-badge="">
   <circle cx="484" cy="416" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
-  <text x="485" y="422" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
+  <text x="484" y="421" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
   </g>
   <g role="img" aria-label="注釈 1" data-badge="">
   <circle cx="668" cy="64" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
@@ -94,14 +94,14 @@
   <text x="692" y="90" font-size="14" font-weight="400" fill="#6f6659">品名か型番で絞り込む。</text>
   <g role="img" aria-label="注釈 2" data-badge="">
   <circle cx="668" cy="120" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
-  <text x="668" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
+  <text x="668" y="125" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
   </g>
   <text x="692" y="127" font-size="14" font-weight="700" fill="#22201b">在庫表</text>
   <text x="692" y="147" font-size="14" font-weight="400" fill="#6f6659">少ない・欠品の行は強調して表示</text>
   <text x="692" y="166" font-size="14" font-weight="400" fill="#6f6659">する。</text>
   <g role="img" aria-label="注釈 3" data-badge="">
   <circle cx="668" cy="196" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
-  <text x="668" y="203" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
+  <text x="668" y="201" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
   </g>
   <text x="692" y="204" font-size="14" font-weight="700" fill="#22201b">保存の通知</text>
   <text x="692" y="224" font-size="14" font-weight="400" fill="#6f6659">操作の結果は、画面の右下に短く</text>
@@ -160,7 +160,7 @@
   <text x="357" y="749" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">キャンセル</text>
   <g role="img" aria-label="注釈 1" data-badge="">
   <circle cx="496" cy="644" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
-  <text x="496" y="647" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
+  <text x="496" y="649" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
   </g>
   <g role="img" aria-label="注釈 1" data-badge="">
   <circle cx="668" cy="512" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>

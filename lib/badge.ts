@@ -41,22 +41,26 @@ export interface BadgeSvgOpts {
 }
 
 export function badgeSvg(o: BadgeSvgOpts): string {
-  const {cx, cy, r, w, snap} = o;
+  const {r, w, snap} = o;
   const st = o.stroke ? ` stroke="${o.stroke}" stroke-width="${o.sw ?? 2}"` : '';
-  let shape: string;
-  if (o.shape === 'square') {
-    shape = `<rect x="${snap(cx - w / 2)}" y="${snap(cy - r)}" width="${snap(cx + w / 2) - snap(cx - w / 2)}" height="${snap(cy + r) - snap(cy - r)}" rx="3" fill="${o.fill}"${st}/>`;
-  } else if (o.shape === 'triangle') {
+  // The centre is decided ONCE, from the shape as it is drawn, and the label uses the same point: the shape snaps to the grid and
+  // the text used to be rounded on its own, so they disagreed by up to 2px.
+  let shape: string, cx: number, cy: number;
+  if (o.shape === 'triangle') {
     const hw = w / 2, p = (x: number, y: number) => `${Math.round(x)},${Math.round(y)}`;
+    cx = Math.round(o.cx); cy = Math.round(o.cy);
     shape = `<path d="M${p(cx, cy - r - 3)} L${p(cx + hw, cy + r)} L${p(cx - hw, cy + r)} Z" fill="${o.fill}"${st} stroke-linejoin="round"/>`;
-  } else if (w > 2 * r) { // a wide label: the circle becomes a pill
-    shape = `<rect x="${snap(cx - w / 2)}" y="${snap(cy - r)}" width="${snap(cx + w / 2) - snap(cx - w / 2)}" height="${snap(cy + r) - snap(cy - r)}" rx="${r}" fill="${o.fill}"${st}/>`;
+  } else if (o.shape === 'square' || w > 2 * r) { // a square, or a wide label: the circle becomes a pill
+    const x0 = snap(o.cx - w / 2), x1 = snap(o.cx + w / 2), y0 = snap(o.cy - r), y1 = snap(o.cy + r);
+    cx = (x0 + x1) / 2; cy = (y0 + y1) / 2;
+    shape = `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="${o.shape === 'square' ? 3 : r}" fill="${o.fill}"${st}/>`;
   } else {
-    shape = `<circle cx="${snap(cx)}" cy="${snap(cy)}" r="${r}" fill="${o.fill}"${st}/>`;
+    cx = snap(o.cx); cy = snap(o.cy);
+    shape = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${o.fill}"${st}/>`;
   }
   const base = o.baseline ?? cy + o.size * 0.36 + (o.shape === 'triangle' ? 4 : 0);
   const fill = o.text ?? PALETTE[badgeTextKey(o.fill)];
-  const text = o.label === '' ? '' : `\n  <text x="${Math.round(cx)}" y="${Math.round(base)}" text-anchor="middle" font-size="${o.size}" font-weight="${o.weight ?? 700}" fill="${fill}">${o.esc(o.label)}</text>`;
+  const text = o.label === '' ? '' : `\n  <text x="${cx}" y="${Math.round(base)}" text-anchor="middle" font-size="${o.size}" font-weight="${o.weight ?? 700}" fill="${fill}">${o.esc(o.label)}</text>`;
   return `<g role="img" aria-label="${o.esc(o.aria).replace(/"/g, '&quot;')}" data-badge="">\n  ${shape}${text}\n  </g>`;
 }
 
