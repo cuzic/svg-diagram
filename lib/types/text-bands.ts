@@ -40,6 +40,8 @@ export interface CaptionBand {
   reveal?: number;
   /** Internal: the diagram({sourceLine}) caption, which layout appends as the last band. */
   sourceLine?: boolean;
+  /** Internal: the diagram({showTitle}) caption, which layout puts first. */
+  titleLine?: boolean;
   until?: number;
 }
 /** One extra line of a box band: a plain string or a styled line (`spans`: internal, the pieces of `text`). */

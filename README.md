@@ -783,6 +783,10 @@ const s = steps([{title: '1回目', body: '原因は不明'}, {title: '4回目',
 - `callout('id' または 'id:side', {text, side: 'above' | 'below' | 'left' | 'right'})` は、箱を指す矢印と、その先の吹き出し（1 行）。`side` の既定は `above`。`below` のときだけ高さを空ける（ほかは周りの箱に重ならないよう、余白を見て選ぶ）。`bracket` の `above` と `callout` の `above` / `left` / `right` が図の外にはみ出す、または caption に重なると、検査（verify）が止める。上に余白が要るなら、行の前に `spacer()` を置く。
 - どちらも `connect()` の一種で、`reveal` / `until` と `tone` が使える。`diagram({connectDefaults})` は適用されない。例は `examples/bracket-callout.ts`。
 
+### 題名を図の見出しに出す（`showTitle`）
+
+`diagram({title: '離職の流れ', showTitle: true})` は、`title`（SVG の `<title>`）を**図の最初の行**（左寄せ・太字・title の大きさ。group の題名と同じ）にも描く。既定は off（書かなければ、`title` は今までどおりメタデータだけで、SVG は変わらない）。`title` が無いと throw する。`caption(同じ文字列, {bold: true, tone: 'text'})` を先頭に置いていた図は、caption を消して `showTitle` に寄せられる（`check` が情報 `title-duplicated` で知らせる）。移行すると見た目（寄せ・太さ）が変わるので、golden の差分は大量に出る。題名も見出しなので、`cjk-line-long` の対象になる。
+
 ### 出典行（`sourceLine`）
 
 `diagram({sourceLine: '出典: 総務省 2025'})` は、出典を**図の最後の 1 行**（左寄せ・muted・14px）に固定する。`add()` の順や他の部品に関係なく、いつも一番下にあるので、本文の部品と重ならない。キャンバスの高さに含まれる。空・複数行の文字列は throw。1 行に収まらず折り返すと `source-wraps` を warn する（出典の細部は本文へ）。文字のコントラストは、他の caption と同じ検査（`a11y-text-contrast`、verify）に通る。`sourceLine` を使わない図の出力は変わらない。例は `examples/timeline.ts`。
@@ -1118,10 +1122,11 @@ build は通常の最終形 `name.svg` に加え、段階表示を使う図だ�
 math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat', alt: 'e の -x 二乗乗を全実数で積分すると √π'})
 ```
 
+- **日本語は `\text{…}` の中に書く**: 分数の分子・分母、上付き・下付きにも使える（`String.raw`\frac{\text{効果額}-\text{研修費用}}{\text{研修費用}}\times 100``、`(1+r)^{\text{経過年数}}`）。日本語の語は輪郭でなく `<text>`（1 語 1 要素、文字の大きさは `role` のまま、`textLength` で幅を 1 字 = 1 em に固定）で描くので、フォントが違っても式の幅は変わらず、`diff --text` / `check --covers` / `--fidelity` は語として読める。書体は図の他の文字と同じ。上付きは約 70% の大きさになる（TeX の標準）。半角の英数字は MathJax の字形（輪郭）のまま。ADR 0040。
 - バックスラッシュが残るよう **`String.raw`** で書く。`\frac` `\sqrt` `\sum` `\mathbf` `\begin{pmatrix}` など MathJax の標準パッケージ一式が使える。
 - 大きさは文字の `role`（既定 `'body'`。`'banner'` `'stat'` `'display'` など）で決まり、`fill` モードでは他の文字と一緒に拡大される。段落中の式のように分数や和の添え字を小さく組むときは `inline: true`。
 - `align`（`'center'` 既定 / `'left'` / `'right'`）、`tone`（`'text'` 既定 / `'accent'` / `'muted'` / `'danger'`）、`id`（`connect` の端点にできる）。`reveal` は付けられない。
-- 使えない TeX は throw する: 読めない式（閉じていない `{`、未定義のコマンド）、MathJax のフォントにない文字（日本語など。`<text>` になり幅が当てにならない。言葉は隣の `caption()` に置く）、式番号と相互参照（`\tag` `\ref` `\eqref`。同じく caption で。`\label` は無視される）、列より幅が広い式。式は赤字で図に残らない。`fill` モードでは、列に収まる範囲までしか拡大しない（`canvas` は倍率が決まっているので、収まらなければ throw する）。
+- 使えない TeX は throw する: 読めない式（閉じていない `{`、未定義のコマンド）、絵文字など MathJax のフォントになく幅を決められない文字（日本語は `\text{…}` に書ける: 下）、式番号と相互参照（`\tag` `\ref` `\eqref`。同じく caption で。`\label` は無視される）、列より幅が広い式。式は赤字で図に残らない。`fill` モードでは、列に収まる範囲までしか拡大しない（`canvas` は倍率が決まっているので、収まらなければ throw する）。
 - 許可リスト方式のパッケージだけが使える。`\href` `\style` `\class`（属性を図に直接書き込む）、`\color` `\textcolor` `\bbox` `\mmlToken` の色（テーマ・暗色・spotlight に追従しない）、`\unicode` は使えない。出力に属性・リンク・独自の色が混じる式（`\rule` を含む）や、MathJax のフォントにない字（`\upalpha` など）は throw する。色は `tone` で付ける。
 - `\def` `\newcommand` は、その `math()` の中だけで効く（次の式にも別の図にも漏れない）。
 - MathJax は任意の peer 依存。数式を使う案件で `pnpm add mathjax-full` する（初回の変換に数秒かかる）。

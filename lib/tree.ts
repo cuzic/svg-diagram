@@ -43,7 +43,7 @@ export function narrowField(texts: string[][]): {narrow?: string[]} { const n = 
 
 /** A node's text wrapped to maxW, and the box size it needs (bold label, muted sub line). Shared with states(). */
 /** The widest katakana word of a text: a run of the characters `phrase` keeps whole (wrap.ts scriptRun: katakana with ー and ・, and half-width kana). */
-function katakanaWidth(text: string, widthOf: WidthOf, size: number, weight: 400 | 700): number {
+export function katakanaWidth(text: string, widthOf: WidthOf, size: number, weight: 400 | 700): number {
   let widest = 0;
   for (const run of text.match(/[\u30A1-\u30FF\uFF66-\uFF9F]+/g) ?? []) widest = Math.max(widest, splitAtoms(run).reduce((sum, a) => sum + widthOf(a, size, weight, 'sans'), 0));
   return widest;
