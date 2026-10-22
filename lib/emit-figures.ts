@@ -422,7 +422,9 @@ export function renderBpmn(b: LaidOutBpmn, day: Theme, tones: ToneEnv): string {
   const ink = b.dim ? PALETTE.muted : PALETTE.text, bg = PALETTE.bg;
   for (const l of b.lanes) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${snap4(l.h)}" fill="${l.tone === 'plain' ? bg : resolveBoxStyle(tones, l.tone, day).fill}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
-    out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${l.labelW}" height="${snap4(l.h)}" fill="${PALETTE.code}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
+    out.push(l.labelH === undefined
+      ? `<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${l.labelW}" height="${snap4(l.h)}" fill="${PALETTE.code}" stroke="${PALETTE.muted}" stroke-width="2"/>`
+      : `<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.labelH}" fill="${PALETTE.code}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
   }
   for (const e of b.edges) {
     const pts = e.points.slice(), n = pts.length, tip = must(pts[n - 1]), prev = must(pts[n - 2]);

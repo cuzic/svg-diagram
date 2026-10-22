@@ -2,6 +2,9 @@ import test from 'node:test';
 import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
 import {bpmn, box, checkDiagram, closeMeasurer, connect, diagram, renderDiagram} from '../lib/dsl.ts';
+import {layoutBpmnVertical} from '../lib/bpmn-vertical.ts';
+import {checkBpmnInput, isGate, lineH, measureBpmnNodes} from '../lib/bpmn.ts';
+import {ROLES} from '../lib/tokens.ts';
 import type {LaidOutBpmn} from '../lib/types/diagrams.ts';
 
 test.after(() => closeMeasurer());
@@ -77,6 +80,81 @@ test('bpmn(): a flow back from a task does not drop through an event under it in
     const p = back.points[i - 1]!, q = back.points[i]!;
     assert.ok(!(Math.min(p.x, q.x) < done.x + done.w && Math.max(p.x, q.x) > done.x && Math.min(p.y, q.y) < done.y + done.h && Math.max(p.y, q.y) > done.y), 'the back flow stays clear of the end event');
   }
+});
+
+const quote = (opts: {dir?: 'h' | 'v'} = {dir: 'v'}) => bpmn(
+  [{id: 'cust', label: 'お客様'}, {id: 'sales', label: '営業'}, {id: 'office', label: '事務'}, {id: 'acc', label: '経理'}],
+  [
+    {id: 'req', lane: 'cust', kind: 'start', label: '見積を依頼'}, {id: 'quote', lane: 'office', label: '見積書作成'}, {id: 'check', lane: 'sales', label: '内容を確認'},
+    {id: 'ok', lane: 'sales', kind: 'xor', label: '適切か'}, {id: 'reply', lane: 'sales', label: 'お客様へ返信'}, {id: 'won', lane: 'sales', kind: 'xor', label: '受注するか'},
+    {id: 'lost', lane: 'sales', kind: 'end', label: '終了'}, {id: 'ledger', lane: 'office', label: '受注台帳に入力'}, {id: 'bill', lane: 'acc', label: '請求書発送'},
+    {id: 'paid', lane: 'acc', kind: 'xor', label: '入金確認'}, {id: 'done', lane: 'acc', kind: 'end', label: '完了'}, {id: 'chase', lane: 'sales', label: '督促'},
+  ],
+  [
+    {from: 'req', to: 'quote', line: 'dashed'}, {from: 'quote', to: 'check', line: 'dashed'}, {from: 'check', to: 'ok'}, {from: 'ok', to: 'reply', label: '問題なし'},
+    {from: 'ok', to: 'quote', line: 'dashed', label: '要修正'}, {from: 'reply', to: 'won'}, {from: 'won', to: 'ledger', line: 'dashed', label: '受注'}, {from: 'won', to: 'lost', label: '失注'},
+    {from: 'ledger', to: 'bill', line: 'dashed'}, {from: 'bill', to: 'paid'}, {from: 'paid', to: 'done', label: '入金あり'}, {from: 'paid', to: 'chase', line: 'dashed', label: '入金なし'},
+    {from: 'chase', to: 'paid', line: 'dashed'},
+  ],
+  opts,
+);
+const runsOf = (pts: {x: number; y: number}[]) => pts.slice(1).map((q, i) => ({a: pts[i]!, b: q})).filter(({a, b}) => a.x !== b.x || a.y !== b.y);
+
+test("bpmn({dir: 'v'}): lanes are columns under a header, rows follow the flow, verify passes", async () => {
+  const {t, verdict} = await laid(quote());
+  assert.deepEqual(verdict.problems, []);
+  assert.equal(t.dir, 'v');
+  assert.equal(t.lanes.length, 4);
+  assert.ok(t.lanes.every((l, i) => l.labelW === 0 && l.labelH! > 0 && (i === 0 || l.x > t.lanes[i - 1]!.x)));
+  const by = (id: string) => t.anchors.find(a => a.id === id)!;
+  const lane = (id: string) => t.lanes.findIndex(l => by(id).x >= l.x && by(id).x + by(id).w <= l.x + l.w);
+  assert.deepEqual(['req', 'check', 'quote', 'paid'].map(lane), [0, 1, 2, 3]);
+  assert.ok(by('req').y < by('quote').y && by('check').y < by('ok').y && by('ok').y < by('reply').y && by('bill').y < by('paid').y);
+  for (const a of t.anchors) assert.ok(a.y >= t.lanes[0]!.y + t.lanes[0]!.labelH!, `${a.id} is below the lane header`);
+  assert.ok(t.lanes.every(l => l.x % 4 === 0 && l.w % 4 === 0), 'lane borders sit on the 4px grid');
+});
+
+test("bpmn({dir: 'v'}): no two flows share a run, a back flow enters from the side, a branch leaves its own vertex", async () => {
+  const {t} = await laid(quote());
+  const flows = t.edges.map(e => ({e, runs: runsOf(e.points)}));
+  for (let i = 0; i < flows.length; i++) for (let j = i + 1; j < flows.length; j++) for (const p of flows[i]!.runs) for (const q of flows[j]!.runs) {
+    const vertical = p.a.x === p.b.x && q.a.x === q.b.x && Math.abs(p.a.x - q.a.x) < 5 && Math.min(Math.max(p.a.y, p.b.y), Math.max(q.a.y, q.b.y)) - Math.max(Math.min(p.a.y, p.b.y), Math.min(q.a.y, q.b.y)) > 1;
+    const horizontal = p.a.y === p.b.y && q.a.y === q.b.y && Math.abs(p.a.y - q.a.y) < 5 && Math.min(Math.max(p.a.x, p.b.x), Math.max(q.a.x, q.b.x)) - Math.max(Math.min(p.a.x, p.b.x), Math.min(q.a.x, q.b.x)) > 1;
+    assert.ok(!vertical && !horizontal, `${flows[i]!.e.from} -> ${flows[i]!.e.to} and ${flows[j]!.e.from} -> ${flows[j]!.e.to} run on one line`);
+  }
+  const back = t.edges.find(e => e.from === 'chase' && e.to === 'paid')!, last = back.points.slice(-2);
+  assert.equal(last[0]!.y, last[1]!.y, 'the loop back to the gateway ends level (into a side vertex)');
+  const starts = t.edges.filter(e => e.from === 'won').map(e => `${e.points[0]!.x},${e.points[0]!.y}`);
+  assert.equal(new Set(starts).size, 2, 'the two branches of a gateway leave from two vertices');
+});
+
+test("bpmn({dir: 'v'}): the default stays horizontal; a bad dir, fit with dir 'v', or too many lanes throws", async () => {
+  const {t} = await laid(flow());
+  assert.equal(t.dir, undefined);
+  assert.throws(() => bpmn([{id: 'a', label: 'A'}], [{id: 'n', lane: 'a', label: 'N'}], [], {dir: 'x' as never}), /dir must be 'h' or 'v'/);
+  assert.throws(() => bpmn([{id: 'a', label: 'A'}], [{id: 'n', lane: 'a', label: 'N'}], [], {dir: 'v', fit: 'shrink'}), /fit: 'shrink' is for the horizontal/);
+  await assert.rejects(laid(bpmn(Array.from({length: 9}, (_, i) => ({id: `l${i}`, label: `L${i}`})), [{id: 'n', lane: 'l0', label: 'N'}], [], {dir: 'v'})), /too narrow for a task/);
+  assert.equal(typeof layoutBpmnVertical, 'function');
+});
+
+test('checkBpmnInput / measureBpmnNodes: the checks and sizes both directions share', () => {
+  const b = bpmn([{id: 'a', label: '担当'}], [{id: 's', lane: 'a', kind: 'start', label: '開始'}, {id: 'g', lane: 'a', kind: 'xor', label: '分岐'}, {id: 't', lane: 'a', label: 'タスク'}], [{from: 's', to: 't'}, {from: 't', to: 'g'}]);
+  const {laneIdx, kindOf} = checkBpmnInput(b);
+  assert.deepEqual([...laneIdx], [['a', 0]]);
+  assert.deepEqual([...kindOf.values()], ['start', 'xor', 'task']);
+  assert.throws(() => checkBpmnInput({...b, nodes: [{id: 'x', lane: 'nope', label: 'X'}]}), /unknown lane "nope"/);
+  assert.throws(() => checkBpmnInput({...b, flows: [{from: 't', to: 's'}]}), /start event takes no flow into it/);
+  const m = measureBpmnNodes(b, kindOf, 168, (a, size) => a.length * size * 0.5, ROLES, {wrap: 'bunsetsu', keepWords: false});
+  assert.deepEqual([m.get('s')!.w, m.get('g')!.w], [36, 44]);
+  assert.ok(m.get('t')!.w <= 168 && m.get('t')!.lines);
+  assert.ok(isGate('xor') && isGate('and') && isGate('or') && !isGate('task') && !isGate('end'));
+  assert.equal(lineH(14), 20);
+});
+
+test("bpmn({dir: 'v'}) SVG: the lane names are a header row; arrows keep their heads", async () => {
+  const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(quote()), {name: 'bv.svg', budget: 'cacheOnly'});
+  assert.match(svg, /<rect x="\d+" y="\d+" width="\d+" height="\d+" fill="#f6f8fa"/);
+  assert.equal((svg.match(/stroke-dasharray="6,4"/g) ?? []).length, 7);
 });
 
 test('bpmn() SVG: lanes, circles (thick end), diamond with a cross, dashed message flow', async () => {

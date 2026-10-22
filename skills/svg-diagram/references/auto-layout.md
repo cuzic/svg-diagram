@@ -14,7 +14,7 @@
 | 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?, tone?}`（`tone` は `'solid'` / `'solid-danger'` も可）と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
 | スケジュール | `gantt(rows, {today})` | タスク `{label, start, end｜days, after?, progress?, milestone?}`（日付は `YYYY-MM-DD`、`today` は必ず書く。軸の外なら `extendToToday: true`、日付をビルドが受け取るなら `today: 'auto'` + `--today` / `SVG_DIAGRAM_TODAY` / `.svg-diagram.json` の `today`。時計は読まない） |
 | UML クラス図 | `classDiagram(classes, relations, {dir})` | クラス `{id, attrs?, methods?, stereotype?}` と関係 `{from, to, kind, label?, fromMult?, toMult?}` |
-| 業務フロー（BPMN 風） | `bpmn(lanes, nodes, flows, {fit})` | レーン・ノード（task / start / end / xor / and / or）・フロー（`line: 'dashed'` はメッセージ）。940px に収まらず throw するときは `fit: 'shrink'`（スイムレーン `swimlane({fit: 'shrink'})` も同様） |
+| 業務フロー（BPMN 風） | `bpmn(lanes, nodes, flows, {fit, dir})` | レーン・ノード（task / start / end / xor / and / or）・フロー（`line: 'dashed'` はメッセージ）。940px に収まらず throw するときは `fit: 'shrink'`（スイムレーン `swimlane({fit: 'shrink'})` も同様） |
 | 章の頭の 1 枚 | `hero({banner, stat, flow, caption, note})` | 大きな数字 `stat` + 流れの `box()` の列 `flow` + 一言・出典。帯は任意 |
 
 - 節に `id` を付けると、`connect()` の端点（`t.anchors.<id>` でも取れる）。図に `id` を付けると、図全体が端点・spotlight の対象になる（節の id は spotlight できない）。

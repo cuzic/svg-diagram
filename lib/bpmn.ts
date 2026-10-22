@@ -14,9 +14,9 @@ import type {BpmnBand, BpmnNodeKind, LaidOutBpmn} from './types/diagrams.ts';
 import {must} from './must.ts';
 const LABEL_COL = 120, PAD_Y = 22, COL_GAP = 52, EVENT = 36, GATE = 44, TASK_MAX = 168, LABEL_MAX = 120, STUB = 16, CHIP_PAD = 5;
 const TASK_ICON = 20, ICON_H = TASK_ICON + 4; // an icon above a task's label: its size and the room it takes
-const lineH = (s: number): number => Math.round(s * 1.4);
-const isEvent = (k: BpmnNodeKind): boolean => k === 'start' || k === 'end';
-const isGate = (k: BpmnNodeKind): boolean => k === 'xor' || k === 'and' || k === 'or';
+export const lineH = (s: number): number => Math.round(s * 1.4);
+export const isEvent = (k: BpmnNodeKind): boolean => k === 'start' || k === 'end';
+export const isGate = (k: BpmnNodeKind): boolean => k === 'xor' || k === 'and' || k === 'or';
 export const BPMN_KINDS = ['task', 'start', 'end', 'xor', 'and', 'or'] as const;
 
 export function bpmnTexts(band: BpmnBand, roles: Roles): [string, number, number, FontFamily][] {
@@ -25,6 +25,45 @@ export function bpmnTexts(band: BpmnBand, roles: Roles): [string, number, number
   for (const n of band.nodes) out.push([n.label ?? '', roles.body, (n.kind ?? 'task') === 'task' ? 700 : 400, 'sans'], [n.sub ?? '', roles.note, 400, 'sans']);
   for (const f of band.flows) if (f.label) out.push([f.label, roles.note, 400, 'sans']);
   return out;
+}
+
+/** The checks both directions share: lane ids, node ids and kinds, flows between known nodes, no flow into a start or out of an end. */
+export function checkBpmnInput(band: BpmnBand): {laneIdx: Map<string, number>; kindOf: Map<string, BpmnNodeKind>} {
+  const laneIdx = new Map(band.lanes.map((l, i) => [l.id, i]));
+  if (laneIdx.size !== band.lanes.length) throw new Error('bpmn(): duplicate lane id');
+  const ids = new Set<string>();
+  for (const n of band.nodes) {
+    if (typeof n.id !== 'string' || !n.id) throw new Error('bpmn(): every node needs an id');
+    if (ids.has(n.id)) throw new Error(`bpmn(): duplicate node id "${n.id}"`);
+    ids.add(n.id);
+    if (!laneIdx.has(n.lane)) throw new Error(`bpmn(): node "${n.id}" uses unknown lane "${n.lane}"`);
+    const k = n.kind ?? 'task';
+    if (!(BPMN_KINDS as readonly string[]).includes(k)) throw new Error(`bpmn(): node "${n.id}" has kind ${String(k)} (use ${BPMN_KINDS.join(' | ')})`);
+    if (k === 'task' && !(n.label ?? '').trim()) throw new Error(`bpmn(): task "${n.id}" needs a label`);
+    if ((n.icon !== undefined || n.iconTone !== undefined) && k !== 'task') throw new Error(`bpmn(): node "${n.id}" is a ${k} event/gateway; only a task takes an icon`);
+    if (n.iconTone !== undefined && n.icon === undefined) throw new Error(`bpmn(): node "${n.id}" has iconTone but no icon`);
+  }
+  for (const f of band.flows) for (const e of [f.from, f.to]) if (!ids.has(e)) throw new Error(`bpmn(): flow ${f.from} -> ${f.to} names unknown node "${e}"`);
+  const kindOf = new Map(band.nodes.map(n => [n.id, n.kind ?? 'task' as BpmnNodeKind]));
+  for (const f of band.flows) {
+    if (kindOf.get(f.to) === 'start') throw new Error(`bpmn(): flow ${f.from} -> ${f.to}: a start event takes no flow into it (a message start event is not drawn; start from a task instead)`);
+    if (kindOf.get(f.from) === 'end') throw new Error(`bpmn(): flow ${f.from} -> ${f.to}: an end event has no flow out of it`);
+  }
+  return {laneIdx, kindOf};
+}
+
+/** The size of each node (the shape; an event / gateway label hangs below it, or beside it in a vertical flow: `extent` is for the horizontal layout). */
+export interface BpmnMeasure {w: number; h: number; lines?: NodeLines; label: string[]; extent: number}
+export function measureBpmnNodes(band: BpmnBand, kindOf: ReadonlyMap<string, BpmnNodeKind>, taskMax: number, widthOf: WidthOf, roles: Roles, env: WrapEnv): Map<string, BpmnMeasure> {
+  const B = roles.body, meas = new Map<string, BpmnMeasure>();
+  for (const n of band.nodes) {
+    const k = must(kindOf.get(n.id)); // kindOf has every node
+    if (k === 'task') { const m = measureNode(must(n.label), n.sub, taskMax, widthOf, roles, env.wrap, env.keepWords, {keepWordsCap: 168 - 28}); const h = m.h + (n.icon ? ICON_H : 0); meas.set(n.id, {w: m.w, h, lines: m, label: [], extent: h}); continue; }
+    const size = isEvent(k) ? EVENT : GATE;
+    const label = n.label ? wrapText(n.label, {maxWidth: LABEL_MAX, atomWidth: a => widthOf(a, B, 400, 'sans'), mode: env.wrap}) : [];
+    meas.set(n.id, {w: size, h: size, label, extent: size + (label.length ? 4 + label.length * lineH(B) : 0)});
+  }
+  return meas;
 }
 
 /** fit: 'shrink' tries these in order until the figure fits: narrower lane-name column, tighter column gaps, narrower task boxes. */
@@ -49,37 +88,9 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
 function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: boolean): LaidOutBpmn | null {
   const {labelCol: LABEL_COL, taskMax: TASK_MAX, flowRoom} = metrics, COL_GAP = Math.round(metrics.colGap * (env.space ?? 1));
   const B = roles.body, S = roles.note;
-  const laneIdx = new Map(band.lanes.map((l, i) => [l.id, i]));
-  if (laneIdx.size !== band.lanes.length) throw new Error('bpmn(): duplicate lane id');
-  const ids = new Set<string>();
-  for (const n of band.nodes) {
-    if (typeof n.id !== 'string' || !n.id) throw new Error('bpmn(): every node needs an id');
-    if (ids.has(n.id)) throw new Error(`bpmn(): duplicate node id "${n.id}"`);
-    ids.add(n.id);
-    if (!laneIdx.has(n.lane)) throw new Error(`bpmn(): node "${n.id}" uses unknown lane "${n.lane}"`);
-    const k = n.kind ?? 'task';
-    if (!(BPMN_KINDS as readonly string[]).includes(k)) throw new Error(`bpmn(): node "${n.id}" has kind ${String(k)} (use ${BPMN_KINDS.join(' | ')})`);
-    if (k === 'task' && !(n.label ?? '').trim()) throw new Error(`bpmn(): task "${n.id}" needs a label`);
-    if ((n.icon !== undefined || n.iconTone !== undefined) && k !== 'task') throw new Error(`bpmn(): node "${n.id}" is a ${k} event/gateway; only a task takes an icon`);
-    if (n.iconTone !== undefined && n.icon === undefined) throw new Error(`bpmn(): node "${n.id}" has iconTone but no icon`);
-  }
-  for (const f of band.flows) for (const e of [f.from, f.to]) if (!ids.has(e)) throw new Error(`bpmn(): flow ${f.from} -> ${f.to} names unknown node "${e}"`);
-  const kindOf = new Map(band.nodes.map(n => [n.id, n.kind ?? 'task' as BpmnNodeKind]));
-  for (const f of band.flows) {
-    if (kindOf.get(f.to) === 'start') throw new Error(`bpmn(): flow ${f.from} -> ${f.to}: a start event takes no flow into it (a message start event is not drawn; start from a task instead)`);
-    if (kindOf.get(f.from) === 'end') throw new Error(`bpmn(): flow ${f.from} -> ${f.to}: an end event has no flow out of it`);
-  }
-
-  // size of each node (the shape; an event / gateway label hangs below it)
-  interface M {w: number; h: number; lines?: NodeLines; label: string[]; extent: number}
-  const meas = new Map<string, M>();
-  for (const n of band.nodes) {
-    const k = must(kindOf.get(n.id)); // kindOf has every node
-    if (k === 'task') { const m = measureNode(must(n.label), n.sub, TASK_MAX, widthOf, roles, env.wrap, env.keepWords, {keepWordsCap: 168 - 28}); const h = m.h + (n.icon ? ICON_H : 0); meas.set(n.id, {w: m.w, h, lines: m, label: [], extent: h}); continue; }
-    const size = isEvent(k) ? EVENT : GATE;
-    const label = n.label ? wrapText(n.label, {maxWidth: LABEL_MAX, atomWidth: a => widthOf(a, B, 400, 'sans'), mode: env.wrap}) : [];
-    meas.set(n.id, {w: size, h: size, label, extent: size + (label.length ? 4 + label.length * lineH(B) : 0)});
-  }
+  const {laneIdx, kindOf} = checkBpmnInput(band);
+  const meas = measureBpmnNodes(band, kindOf, TASK_MAX, widthOf, roles, env);
+  type M = BpmnMeasure;
   const labelWidth = (m: M): number => Math.max(m.w, ...m.label.map(l => Math.ceil(textWidth(widthOf, l, B, 400))));
 
   // columns: the layer of each node along the flow (starts first)

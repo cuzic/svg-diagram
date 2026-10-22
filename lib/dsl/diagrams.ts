@@ -57,7 +57,9 @@ export function bpmn(lanes: readonly BpmnLane[], nodes: readonly BpmnNode[], flo
   const placedNodes = nodes.map(n => n.icon === undefined ? n : {...n, iconGlyph: resolveIcon(n.icon, `bpmn() task "${n.id}" icon`)});
   for (const f of flows) if (f.line !== undefined && f.line !== 'solid' && f.line !== 'dashed') throw new Error(`bpmn(): flow ${f.from} -> ${f.to} has line ${String(f.line)}`);
   if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`bpmn(): fit must be 'shrink' (got ${String(opts.fit)})`);
-  const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: placedNodes, flows: [...flows], ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.fit === undefined ? {} : {fit: opts.fit}), ...scopeOpt(opts, 'bpmn()'), ...revealOf(opts)};
+  if (opts.dir !== undefined && opts.dir !== 'h' && opts.dir !== 'v') throw new Error(`bpmn(): dir must be 'h' or 'v' (got ${String(opts.dir)})`);
+  if (opts.dir === 'v' && opts.fit !== undefined) throw new Error("bpmn(): fit: 'shrink' is for the horizontal figure; a vertical one (dir: 'v') takes its column width from the lanes");
+  const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: placedNodes, flows: [...flows], ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.fit === undefined ? {} : {fit: opts.fit}), ...(opts.dir === 'v' ? {dir: 'v' as const} : {}), ...scopeOpt(opts, 'bpmn()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
 }
 type ClassIds<C extends readonly ClassItem[]> = Extract<C[number]['id'], string>;
