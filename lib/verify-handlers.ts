@@ -44,6 +44,8 @@ type Anchored = Rect & {id?: string; anchors: (Rect & {id: string})[]};
 const anchorRects = (band: Anchored, intentional?: string): CheckRect[] =>
   band.anchors.map(a => ({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...((band.id || intentional) ? {holds: [band.id, intentional].filter((x): x is string => !!x)} : {})}));
 const figureRects = (band: Anchored): CheckRect[] => anchorRects(band);
+/** An emblem's obstacle is the bounding box of each shape, not its anchor: a triangle's anchor leaves out its lower corners. */
+const emblemRects = (band: Anchored & {bounds?: Anchored['anchors']}): CheckRect[] => anchorRects({...band, anchors: band.bounds ?? band.anchors});
 const overlappingFigureRects = (band: Anchored): CheckRect[] => anchorRects(band, `@intentional-overlap:${band.x},${band.y}`);
 const ownRect = (band: Rect & {id?: string}): CheckRect[] => [{id: band.id ?? null, label: labelOf(band), x: band.x, y: band.y, w: band.w, h: band.h}];
 const holdsFigure = (band: {id?: string}) => band.id ? {holds: [band.id]} : {};
@@ -226,7 +228,7 @@ const checkQuadrant = (band: LaidOutOf<'quadrant'>, _d: LaidOutDiagram, {problem
   });
 };
 
-const checkFlowShape = (band: LaidOutOf<'chevron' | 'funnel' | 'cycle' | 'venn' | 'concentric'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
+const checkFlowShape = (band: LaidOutOf<'chevron' | 'funnel' | 'cycle' | 'venn' | 'concentric' | 'emblem'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
   for (const t of band.labelBoxes) if (outsideBox(t, band)) problems.push(`${band.type}: label "${t.label}" runs outside the figure`);
   eachOverlap(band.labelBoxes, (a, b, o) => { if (o.dx > 1 && o.dy > 1) problems.push(`${band.type}: label "${a.label}" overlaps label "${b.label}" by ${dxdy(o)}`); });
 };
@@ -345,6 +347,7 @@ export const VERIFY_HANDLERS = {
   cycle: {rects: figureRects, check: flowCheck},
   venn: {rects: overlappingFigureRects, check: flowCheck},
   concentric: {rects: overlappingFigureRects, check: flowCheck},
+  emblem: {rects: emblemRects, check: flowCheck},
   timeline: {rects: ownRect, check: {phase: 'timeline', run: checkTimeline}},
   bowtie: {rects: band => band.nodes.map((n, i) => ({id: null, label: band.labelBoxes[i]?.label ?? 'box', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
   fta: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'event', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},

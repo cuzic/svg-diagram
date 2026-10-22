@@ -197,7 +197,6 @@
   "flow-shapes:chevronBand",
   "flow-shapes:concentricBand",
   "flow-shapes:cycleBand",
-  "flow-shapes:flowShapeIds",
   "flow-shapes:flowShapeTexts",
   "flow-shapes:funnelBand",
   "flow-shapes:vennBand",

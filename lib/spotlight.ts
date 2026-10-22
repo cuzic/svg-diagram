@@ -95,7 +95,7 @@ function targetRects(d: LaidOutDiagram, ids: string[]): Rect[] {
       for (const c of b.children) if (c.id && ids.includes(c.id)) out.push(c);
     } else if (b.type === 'grid') {
       for (const c of b.children) if (c.id && ids.includes(c.id)) out.push(c);
-    } else if (b.type === 'bars' || b.type === 'image' || b.type === 'quadrant' || b.type === 'chevron' || b.type === 'funnel' || b.type === 'cycle' || b.type === 'venn' || b.type === 'concentric') {
+    } else if (b.type === 'bars' || b.type === 'image' || b.type === 'quadrant' || b.type === 'chevron' || b.type === 'funnel' || b.type === 'cycle' || b.type === 'venn' || b.type === 'concentric' || b.type === 'emblem') {
       for (const a of b.anchors) if (item(a.id)) out.push(a);
     }
   };
@@ -136,7 +136,7 @@ function dimBand(b: LaidOutBand, focus: Rect[]): void {
     b.anchors.forEach(a => { const q = b.bubbles.find(v => v.id === a.id); if (q) q.dim = !focus.some(r => inside(a, r)); });
     for (const q of b.bubbles) if (q.dim === undefined) q.dim = true;
     b.dim = b.bubbles.every(q => q.dim);
-  } else if (b.type === 'chevron' || b.type === 'funnel' || b.type === 'cycle' || b.type === 'venn' || b.type === 'concentric') {
+  } else if (b.type === 'chevron' || b.type === 'funnel' || b.type === 'cycle' || b.type === 'venn' || b.type === 'concentric' || b.type === 'emblem') {
     b.dim = !focus.some(r => b.anchors.some(a => inside(a, r)) || inside(b, r));
   } else if (b.type === 'row' || b.type === 'grid') {
     for (const c of b.children) c.dim = !focus.some(r => inside(c, r));

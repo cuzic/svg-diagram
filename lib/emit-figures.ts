@@ -186,6 +186,9 @@ export function renderFlowShape(b: LaidOutFlowShape, day: Theme, tones: ToneEnv)
     if (p.k === 'polygon') {
       const s = resolveBoxStyle(tones, p.tone, day);
       out.push(`<polygon points="${p.points.map(q => `${n(q[0])},${n(q[1])}`).join(' ')}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${p.strong ? 3.5 : 2}"${s.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
+    } else if (p.k === 'circle' && p.fill) {
+      const st = resolveBoxStyle(tones, p.fill, day);
+      out.push(`<circle cx="${n(p.cx)}" cy="${n(p.cy)}" r="${n(p.r)}" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2"${st.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
     } else if (p.k === 'circle') {
       const c = colorOf(p.tone, day);
       out.push(`<circle cx="${n(p.cx)}" cy="${n(p.cy)}" r="${n(p.r)}" fill="${c}" fill-opacity="${p.opacity ?? .16}" stroke="${c}" stroke-width="2"${p.dash ? ` stroke-dasharray="${p.dash}"` : ''}/>`);

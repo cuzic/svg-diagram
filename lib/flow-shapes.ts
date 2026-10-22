@@ -1,5 +1,5 @@
 // flowShapes: the stock business figures drawn as one band each — chevron (process arrows), funnel (narrowing stages), cycle
-// (a closed loop of nodes), venn (2 or 3 sets) and concentric (nested rings). Everything is placed by this file:
+// (a closed loop of nodes), venn (2 or 3 sets), concentric (nested rings) and emblem (a word or two inside a circle / triangle / ...). Everything is placed by this file:
 //   * every text is wrapped to the room its shape gives it, and flowShapeTexts() registers exactly the texts / sizes / weights
 //     the layout draws (an unregistered atom would measure 0 wide),
 //   * cycle arrows run along the ring between the nodes (they never cross a node or its label),
@@ -25,6 +25,9 @@ export interface VennSet {name: string; label?: string; id?: string; tone?: Text
 export interface VennOverlap {sets: readonly string[]; label: string}
 export interface VennOpts extends RevealOpts, ScopeOpts {id?: string; overlaps?: readonly VennOverlap[]; centre?: string; universe?: string | boolean; width?: number}
 export interface ConcentricRing {label: string; description?: string; id?: string; tone?: TextTone}
+export type EmblemKind = 'circle' | 'square' | 'triangle' | 'diamond' | 'hexagon';
+export interface EmblemItem {label: string; sub?: string; kind?: EmblemKind; id?: string; tone?: BoxTone}
+export interface EmblemOpts extends RevealOpts, ScopeOpts {id?: string; /** The shape of every item that does not name its own. */ kind?: EmblemKind; gap?: number; /** The least width of a shape (the shapes grow to hold their text, all to the same size). */ size?: number; width?: number}
 export interface ConcentricOpts extends RevealOpts, ScopeOpts {id?: string; order?: 'outer-first' | 'inner-first'; labels?: 'inside' | 'side'; centre?: string; width?: number}
 
 export interface ChevronBand extends ChevronOpts {type: 'chevron'; steps: FlowStep[]; direction: 'horizontal' | 'vertical'; first: 'pentagon' | 'chevron'; gap: number}
@@ -32,15 +35,16 @@ export interface FunnelBand extends FunnelOpts {type: 'funnel'; stages: FunnelSt
 export interface CycleBand extends CycleOpts {type: 'cycle'; steps: FlowStep[]; direction: 'cw' | 'ccw'}
 export interface VennBand extends VennOpts {type: 'venn'; sets: VennSet[]; overlaps: VennOverlap[]}
 export interface ConcentricBand extends ConcentricOpts {type: 'concentric'; rings: ConcentricRing[]; order: 'outer-first' | 'inner-first'; labels: 'inside' | 'side'}
-export type FlowShapeBand = ChevronBand | FunnelBand | CycleBand | VennBand | ConcentricBand;
+export interface EmblemBand extends EmblemOpts {type: 'emblem'; items: EmblemItem[]; kind: EmblemKind; gap: number}
+export type FlowShapeBand = ChevronBand | FunnelBand | CycleBand | VennBand | ConcentricBand | EmblemBand;
 
 export interface FlowText extends Rect {text: string; tx: number; ty: number; size: number; weight: 400 | 700; anchor: 'start' | 'middle' | 'end'; tone: TextTone}
 export type FlowPrimitive =
   | ({k: 'polygon'; points: [number, number][]; tone: BoxTone; strong?: boolean} & Dimmed)
-  | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string} & Dimmed)
+  | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string; /** Drawn as a box of this tone (filled, outlined) instead of a tinted ring. */ fill?: BoxTone} & Dimmed)
   | ({k: 'rect'; x: number; y: number; w: number; h: number; tone: TextTone} & Dimmed)
   | ({k: 'path'; d: string; tone: TextTone; arrow?: boolean; thin?: boolean} & Dimmed);
-export interface LaidOutFlowShape extends Rect, Dimmed {type: FlowShapeBand['type']; id?: string; reveal?: number; until?: number; primitives: FlowPrimitive[]; texts: FlowText[]; anchors: Anchor[]; labelBoxes: (Rect & {label: string})[]}
+export interface LaidOutFlowShape extends Rect, Dimmed {type: FlowShapeBand['type']; id?: string; reveal?: number; until?: number; primitives: FlowPrimitive[]; texts: FlowText[]; anchors: Anchor[]; labelBoxes: (Rect & {label: string})[]; /** emblem: the bounding box of each shape that has an id (the checks' obstacle, which may be larger than its anchor). */ bounds?: Anchor[]}
 
 // ---------------------------------------------------------------------------------------------------------------------------
 // constructors (validation)
@@ -114,8 +118,18 @@ export function concentricBand(rings: readonly ConcentricRing[], opts: Concentri
   checkTones('concentric', rings, TEXT_TONES);
   return {...opts, type: 'concentric', rings: [...rings], order: opts.order ?? 'outer-first', labels: opts.labels ?? 'inside'};
 }
+const EMBLEM_KINDS: ReadonlySet<string> = new Set<string>(['circle', 'square', 'triangle', 'diamond', 'hexagon']);
+export function emblemBand(items: readonly EmblemItem[], opts: EmblemOpts = {}): EmblemBand {
+  common('emblem', items, opts.id);
+  assertScope(opts.scope, 'emblem()');
+  checkTones('emblem', items, BOX_TONES);
+  for (const k of [opts.kind, ...items.map(i => i.kind)]) if (k !== undefined && !EMBLEM_KINDS.has(k)) throw new Error(`emblem(): unknown kind "${String(k)}" (${[...EMBLEM_KINDS].join(' | ')})`);
+  if (opts.gap !== undefined && !(opts.gap >= 0)) throw new Error('emblem(): gap must be >= 0');
+  if (opts.size !== undefined && !(opts.size >= 64 && opts.size <= EMBLEM_MAX)) throw new Error(`emblem(): size must be 64..${EMBLEM_MAX}`);
+  return {...opts, type: 'emblem', items: [...items], kind: opts.kind ?? 'circle', gap: opts.gap ?? 16};
+}
 
-export const flowShapeIds = (b: FlowShapeBand): string[] => (b.type === 'funnel' ? b.stages : b.type === 'venn' ? b.sets : b.type === 'concentric' ? b.rings : b.steps).flatMap(x => x.id ? [x.id] : []);
+export const flowShapeIds = (b: FlowShapeBand): string[] => (b.type === 'funnel' ? b.stages : b.type === 'venn' ? b.sets : b.type === 'concentric' ? b.rings : b.type === 'emblem' ? b.items : b.steps).flatMap(x => x.id ? [x.id] : []);
 
 // ---------------------------------------------------------------------------------------------------------------------------
 // texts: what the layout draws, at the size and weight it draws them (registered for measuring before layout)
@@ -135,6 +149,7 @@ function textSpecs(b: FlowShapeBand, roles: Roles): TextSpec[] {
     case 'funnel': return b.stages.flatMap((s, i) => [...bold(funnelLabel(s)), ...(b.showRate && i ? plain(funnelRate(must(b.stages[i - 1]).value, s.value)) : [])]);
     case 'venn': return [...b.sets.flatMap(s => bold(s.label ?? s.name)), ...b.overlaps.flatMap(o => bold(o.label)), ...bold(b.centre), ...plain(typeof b.universe === 'string' ? b.universe : undefined)];
     case 'concentric': return [...b.rings.flatMap(r => bold(ringLabel(r))), ...bold(b.centre)];
+    case 'emblem': return b.items.flatMap(i => [...bold(i.label), ...plain(i.sub)]);
   }
 }
 export function flowShapeTexts(b: FlowShapeBand, roles: Roles): [string, number, number, FontFamily][] {
@@ -160,6 +175,7 @@ export function layoutFlowShape(b: FlowShapeBand, x: number, y: number, cw: numb
     case 'cycle': layoutCycle(b, out, t, anchor, roles); break;
     case 'venn': layoutVenn(b, out, t, anchor); break;
     case 'concentric': layoutConcentric(b, out, t, anchor, roles); break;
+    case 'emblem': layoutEmblem(b, out, t, anchor); break;
   }
   return out;
 }
@@ -355,4 +371,89 @@ function layoutConcentric(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, an
     });
   }
   if (b.centre) { const c = t.wrap(b.centre, Math.max(60, 1.4 * radius(n - 1))); t.place(c, cx, Math.max(cy - c.h / 2, innerBottom + 4)); }
+}
+
+// emblem: a word or two inside a circle, square, triangle, diamond or hexagon. Each shape has a rectangle in it where text fits (a fraction of
+// the shape's width D): the label is wrapped to that rectangle's width and the shape grows, in 8px steps and all to the same size, until
+// every label (and its sub line) is inside its own rectangle. The text is then centred in that rectangle, so it never touches the outline.
+const EMBLEM_MAX = 320, EMBLEM_WORD_MAX = 240;
+/** The text rectangle's width and height as fractions of D (its centre is chosen by the outline). The text boxes of real labels stay inside the outline by 2.3px at least (measured on the real fonts, 1620 cases); the rectangle's own corners touch the line at the smallest sizes (a hexagon at D=64), which no text box reaches (a line is 1.35em high, the box 1.2em). */
+const EMBLEM_TEXT: Record<EmblemKind, {w: number; h: number}> = {circle: {w: .76, h: .56}, square: {w: .84, h: .84}, diamond: {w: .56, h: .34}, hexagon: {w: .68, h: .5}, triangle: {w: .54, h: .32}};
+
+/**
+ * The outline of a shape D wide with its top-left at (left, top). Everything is on the 4px grid and symmetric about the vertical centre line
+ * (D is a multiple of 8, so the centre is on the grid too). `h` is the drawn height, `textCy` the text rectangle's centre below `top`,
+ * `anchor` the rectangle connect() ties to: the bounding box, except for a triangle, where it joins the middles of the two slanted sides so
+ * that :left / :right / :top / :bottom all land on the outline.
+ */
+function emblemOutline(kind: EmblemKind, left: number, top: number, d: number): {h: number; textCy: number; points?: Pt[]; anchor: Rect} {
+  const cx = left + d / 2, bbox = (h: number): Rect => ({x: left, y: top, w: d, h});
+  switch (kind) {
+    case 'circle': return {h: d, textCy: d / 2, anchor: bbox(d)};
+    case 'square': return {h: d, textCy: d / 2, points: [[left, top], [left + d, top], [left + d, top + d], [left, top + d]], anchor: bbox(d)};
+    case 'diamond': return {h: d, textCy: d / 2, points: [[cx, top], [left + d, top + d / 2], [cx, top + d], [left, top + d / 2]], anchor: bbox(d)};
+    case 'hexagon': {
+      const q = g4(.25 * d), m = g4(.44 * d);
+      return {h: 2 * m, textCy: m, points: [[left, top + m], [cx - q, top], [cx + q, top], [left + d, top + m], [cx + q, top + 2 * m], [cx - q, top + 2 * m]], anchor: bbox(2 * m)};
+    }
+    case 'triangle': {
+      const h = g4(.9 * d);
+      return {h, textCy: h - .2 * d, points: [[cx, top], [left + d, top + h], [left, top + h]], anchor: {x: left + d / 4, y: top, w: d / 2, h}};
+    }
+  }
+}
+const wordKind = (c: string | undefined): 'kana' | 'latin' | null => c === undefined ? null : /[ァ-ヺー-ヾｦ-ﾟ]/.test(c) ? 'kana' : /[A-Za-z0-9Ａ-Ｚａ-ｚ０-９]/.test(c) ? 'latin' : null; // katakana (full and half width, and ー), alphanumerics (half and full width); not ・ (U+30FB): it separates words
+/** Whether wrapping `text` into `lines` cuts a katakana (or alphanumeric) word: the two letters either side of a break touch in the source (no space, newline or ・ between them). */
+function splitsWord(text: string, lines: readonly string[]): boolean {
+  let at = 0, last: string | undefined;
+  for (const line of lines) {
+    const rest = text.slice(at), skipped = rest.length - rest.trimStart().length; // the source's own spaces / newlines before this line
+    const kind = wordKind(last);
+    if (last !== undefined && skipped === 0 && kind !== null && kind === wordKind(line[0])) return true;
+    at += skipped;
+    if (!text.startsWith(line, at)) return false; // the wrapper changed the text (it does not, today): say nothing rather than guess
+    at += line.length;
+    last = line.at(-1);
+  }
+  return false;
+}
+
+function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
+  const kindOf = (i: EmblemItem): EmblemKind => i.kind ?? b.kind;
+  const gap = g4(b.gap), widest = Math.min(EMBLEM_MAX, Math.floor(out.w / 8) * 8), least = Math.ceil((b.size ?? 96) / 8) * 8;
+  if (least > widest) throw new Error(`emblem(): size ${b.size ?? 96} is wider than the band (${Math.round(out.w)}px) — lower \`size\` or widen the band`);
+  const blocks = (d: number) => b.items.map(i => {
+    const g = EMBLEM_TEXT[kindOf(i)], label = t.wrap(i.label, g.w * d), sub = i.sub ? t.wrap(i.sub, g.w * d, 400) : undefined;
+    const fits = Math.max(label.w, sub?.w ?? 0) <= g.w * d + .5 && label.h + (sub?.h ?? 0) <= g.h * d;
+    return {label, sub, fits, whole: !splitsWord(i.label, label.lines) && !(sub && i.sub && splitsWord(i.sub, sub.lines))};
+  });
+  // The least D where everything fits and every katakana / alphanumeric word stays whole (up to EMBLEM_WORD_MAX); a label that cannot be kept
+  // whole even there (a very long word) is let off, so it does not spoil the others. Else the least D that fits, words cut.
+  const wholeCap = Math.min(widest, EMBLEM_WORD_MAX), plans = new Map<number, ReturnType<typeof blocks>>();
+  const planAt = (d: number) => { let p = plans.get(d); if (!p) plans.set(d, p = blocks(d)); return p; };
+  // let off only a label that is whole at NO size from `least` to `wholeCap` (whether a long word is cut can depend on where the wrap happens to fall, so it is not monotone in D)
+  const letOff = b.items.map((_i, n) => { for (let d = least; d <= wholeCap; d += 8) if (must(planAt(d)[n]).whole) return false; return true; });
+  const solve = (whole: boolean, limit: number) => { for (let d = least; d <= limit; d += 8) { const plan = planAt(d); if (plan.every((p, n) => p.fits && (!whole || p.whole || letOff[n]))) return {d, plan}; } return undefined; };
+  const found = solve(true, wholeCap) ?? solve(false, widest);
+  if (!found) {
+    const bad = must(b.items.find((_i, n) => !must(blocks(widest)[n]).fits)), kind = kindOf(bad);
+    throw new Error(`emblem(): "${bad.label}"${bad.sub ? ` / "${bad.sub}"` : ''} does not fit in a ${kind} up to ${widest}px${widest < EMBLEM_MAX ? ' (the width of the band)' : ''} — shorten it, move words to \`sub\`${kind === 'square' ? '' : ", or use kind 'square'"}${widest < EMBLEM_MAX ? ', or widen the band' : ''}`);
+  }
+  const {d, plan} = found;
+  const perRow = Math.max(1, Math.floor((out.w + gap) / (d + gap))), rows = Math.ceil(b.items.length / perRow);
+  const rowH = Math.max(...b.items.map(i => emblemOutline(kindOf(i), 0, 0, d).h));
+  out.h = rows * rowH + (rows - 1) * gap;
+  b.items.forEach((item, n) => {
+    const row = Math.floor(n / perRow), inRow = Math.min(perRow, b.items.length - row * perRow), col = n - row * perRow;
+    const rowW = inRow * d + (inRow - 1) * gap, kind = kindOf(item);
+    const left = g4(out.x + (out.w - rowW) / 2 + col * (d + gap)), h = emblemOutline(kind, 0, 0, d).h, top = g4(out.y + row * (rowH + gap) + (rowH - h) / 2);
+    const o = emblemOutline(kind, left, top, d), tone = item.tone ?? 'plain';
+    if (!o.points) out.primitives.push({k: 'circle', cx: left + d / 2, cy: top + d / 2, r: d / 2, tone: 'text', fill: tone});
+    else out.primitives.push({k: 'polygon', points: o.points, tone});
+    anchor(item.id, o.anchor);
+    if (item.id) (out.bounds ??= []).push({id: item.id, x: left, y: top, w: d, h: o.h});
+    const k = must(plan[n]), blockH = k.label.h + (k.sub?.h ?? 0), cx = left + d / 2, cy = top + o.textCy;
+    t.place(k.label, cx, cy - blockH / 2);
+    if (k.sub) t.place(k.sub, cx, cy - blockH / 2 + k.label.h, 'muted');
+  });
 }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
 import {chevron, concentric, cycle, diagram, funnel, renderDiagram, venn} from '../lib/dsl.ts';
-import {layoutFlowShape} from '../lib/flow-shapes.ts';
+import {flowShapeIds, layoutFlowShape} from '../lib/flow-shapes.ts';
 import {renderFlowShape} from '../lib/emit.ts';
 import {ROLES, NO_TONES} from '../lib/tokens.ts';
 import type {FlowShapeBand, LaidOutFlowShape} from '../lib/flow-shapes.ts';
@@ -38,7 +38,7 @@ test('every flow shape keeps its labels inside the figure and apart from each ot
 
 test('item ids become anchors; chevron, funnel and cycle anchors do not overlap', () => {
   for (const band of samples()) {
-    const f = figure(band), ids = (band.type === 'funnel' ? band.stages : band.type === 'venn' ? band.sets : band.type === 'concentric' ? band.rings : band.steps).flatMap(x => x.id ? [x.id] : []);
+    const f = figure(band), ids = flowShapeIds(band);
     assert.deepEqual(f.anchors.map(a => a.id), ids);
     if (f.type === 'venn' || f.type === 'concentric') continue; // nested / intersecting by design
     for (const [i, a] of f.anchors.entries()) for (const b of f.anchors.slice(i + 1)) assert.ok(!overlaps(a, b), `${f.type}: ${a.id} overlaps ${b.id}`);

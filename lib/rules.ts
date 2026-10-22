@@ -806,6 +806,7 @@ const MID_WORD_FIX: Record<string, string> = {
   chevron: "矢羽根の幅は段数で決まる。`direction: 'vertical'` にする、段を減らす、文言を短くする",
   cycle: '円は、カタカナの語に合わせて幅・高さの上限（幅 −8px、高さ 760px）まで広がる。それでも入らない語は、文言を短くする、項目を減らす',
   swimlane: "列の幅は段数で決まる。`fit: 'shrink'` を外す、列を減らす、文言を短くする",
+  emblem: "図形は語が割れない大きさまで 240px を上限に広がる。それでも割れる語は、`size` を上げる、`kind: 'square'` にする、文言を短くする（320px まで広がっても入らなければ throw する）",
 };
 function midWordRules(d: LintTarget, out: Finding[]): void {
   const source = sourceText(d.bands);
@@ -935,6 +936,7 @@ export function diagramTitle(d: DiagramData): string {
     if (b.type === 'funnel') return oneLine(b.stages[0]?.label);
     if (b.type === 'venn') return oneLine(b.sets.map(s => s.label ?? s.name).join('・'));
     if (b.type === 'concentric') return oneLine(b.centre ?? b.rings[0]?.label);
+    if (b.type === 'emblem') return oneLine(b.items[0]?.label);
     if (b.type === 'wordart') return oneLine(b.text);
   }
   return '';
