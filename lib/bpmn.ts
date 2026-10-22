@@ -281,11 +281,25 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
       return s.x >= x + LABEL_COL + 2 && s.x + bw <= x + width && s.y >= y && s.y + bh <= y + out.h
         && ![...rect.values()].some(q => hit(b, q)) && !out.labels.some(q => hit(b, q)) && !out.labelBoxes.some(q => hit(b, q) && !labelOfNode.has(q)) && !out.edges.some(e => e.points.slice(1).some((q2, i) => hit(b, segBox(must(e.points[i]), q2))));
     };
-    const s = spots.find(free) ?? must(spots[0]);
+    // a flow that leaves the top / bottom vertex runs up / down the line at cx: when every spot touches it, stand 5px clear of it
+    const clear = spots.map(q => ({...q, x: q.a === 'end' ? q.x - 5 : q.x + 5}));
+    // still none: beside the diamond's side vertices, then further above / below; if even those are taken, the least crowded
+    const far = [
+      {x: r.x - 6 - bw, y: r.y + r.h / 2 - bh - 2, a: 'end' as const}, {x: r.x + r.w + 6, y: r.y + r.h / 2 - bh - 2, a: 'start' as const},
+      {x: r.x - 6 - bw, y: r.y + r.h / 2 + 2, a: 'end' as const}, {x: r.x + r.w + 6, y: r.y + r.h / 2 + 2, a: 'start' as const},
+      ...[1, 2].flatMap(k => [-1, 1].flatMap(sg => clear.map(q => ({...q, y: sg < 0 ? r.y - 4 - bh - k * lh : r.y + r.h + 4 + k * lh})))),
+    ];
+    const crowd = (q: {x: number; y: number}): number => {
+      const b = {x: q.x, y: q.y, w: bw, h: bh};
+      return (q.x >= x + LABEL_COL + 2 && q.x + bw <= x + width && q.y >= y && q.y + bh <= y + out.h ? 0 : 5) + [...rect.values()].filter(o => hit(b, o)).length + out.labels.filter(o => hit(b, o)).length
+        + out.labelBoxes.filter(o => hit(b, o) && !labelOfNode.has(o)).length + out.edges.filter(e => e.points.slice(1).some((q2, i) => hit(b, segBox(must(e.points[i]), q2)))).length;
+    };
+    const more = [...spots, ...clear, ...far];
+    const s = spots.find(free) ?? clear.find(free) ?? far.find(free) ?? more.reduce((a, q) => (crowd(q) < crowd(a) ? q : a), must(more[0]));
     m.label.forEach((ln, i) => {
       const tw = Math.ceil(textWidth(widthOf, ln, B, 400)), ty = s.y + i * lh + B;
-      out.texts.push({text: ln, x: s.a === 'end' ? cx : cx, y: ty, size: B, bold: false, muted: false, anchor: s.a});
-      out.labelBoxes.push({label: ln, x: s.a === 'end' ? cx - tw : cx, y: ty - B, w: tw, h: B + 4});
+      out.texts.push({text: ln, x: s.a === 'end' ? s.x + bw : s.x, y: ty, size: B, bold: false, muted: false, anchor: s.a});
+      out.labelBoxes.push({label: ln, x: s.a === 'end' ? s.x + bw - tw : s.x, y: ty - B, w: tw, h: B + 4});
     });
   }
   return out;
