@@ -4,7 +4,7 @@
 import {caption, diagram, emblem} from 'svg-diagram';
 
 export default function define() {
-  return diagram({theme: 'blue', title: '図形に文字を入れる'}).add(
+  return diagram({theme: 'blue', title: '図形に文字を入れる', accept: {'gray-tone-collision': '色の違う図形は、形でも区別している（円・四角・三角・ひし形・六角形）'}}).add(
     caption('形ごとの見え方', {role: 'title'}),
     emblem([
       {id: 'c', label: '課題', sub: '現状の把握', shape: 'circle'},

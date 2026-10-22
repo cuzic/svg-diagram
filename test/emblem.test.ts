@@ -2,7 +2,7 @@
 import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
-import {diagram, emblem, renderDiagram, closeMeasurer, connect, row, box} from '../lib/dsl.ts';
+import {diagram, emblem, renderDiagram, checkDiagram, closeMeasurer, connect, row, box} from '../lib/dsl.ts';
 import {emblemBand, flowShapeIds, layoutFlowShape} from '../lib/flow-shapes.ts';
 import {ROLES} from '../lib/tokens.ts';
 import type {LaidOutFlowShape} from '../lib/flow-shapes.ts';
@@ -211,4 +211,25 @@ test('emblem(label, {id, scope}): the handle names the item as <scope>.<id>, as 
   assert.equal(one.bottom, 's1.p:bottom');
   const bare = emblem('上', {id: 'p'}) as unknown as {bottom: string};
   assert.equal(bare.bottom, 'p:bottom');
+});
+
+// ---- tone ----------------------------------------------------------------------------------------------------------------------------
+
+test("the label is written in the tone's own text colour, as a box does, so `accent` and `new` differ by more than a stroke", () => {
+  const f = figure(emblemBand([{label: 'A', tone: 'accent'}, {label: 'B', tone: 'new'}, {label: 'C', tone: 'danger'}, {label: 'D'}, {label: 'E', tone: 'removed'}, {label: 'F', tone: 'muted'}], {gap: 8}), 892);
+  const toneOf = (text: string) => f.texts.find(t => t.text === text)!.tone;
+  assert.deepEqual(['A', 'B', 'C', 'D', 'E', 'F'].map(toneOf), ['accent', 'text', 'danger', 'text', 'muted', 'muted']);
+});
+
+test('the sub line stays muted in every tone', () => {
+  const f = figure(emblemBand([{label: 'A', sub: 'a', tone: 'accent'}, {label: 'B', sub: 'b', tone: 'danger'}]));
+  assert.deepEqual([f.texts.find(t => t.text === 'a')!.tone, f.texts.find(t => t.text === 'b')!.tone], ['muted', 'muted']);
+});
+
+test('gray-tone-collision sees the tones of an emblem, not only those of boxes', async () => {
+  const d = diagram({theme: 'blue', tones: {accent: {fill: '#dddddd'}, changed: {fill: '#e0e0e0'}}} as never).add(emblem([{label: 'A', tone: 'accent'}, {label: 'B', tone: 'changed'}]));
+  const r = await checkDiagram(d);
+  assert.ok(r.verdict.findings.some(f => f.rule === 'gray-tone-collision'), 'two emblem tones with near-equal grey fills are reported');
+  const plain = await checkDiagram(diagram({theme: 'blue'}).add(emblem([{label: 'A', tone: 'accent'}, {label: 'B', tone: 'danger'}])));
+  assert.ok(!plain.verdict.findings.some(f => f.rule === 'gray-tone-collision'));
 });
