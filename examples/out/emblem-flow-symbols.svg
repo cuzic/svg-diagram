@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="353" viewBox="0 0 940 353" role="img" aria-labelledby="svg-title">
   <title id="svg-title">流れ図の記号</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/emblem-flow-symbols.ts","sourceSha256":"aeb86edc52914a43914ea9671c854771b795c0b3903a377f1f254085f07640f9"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/emblem-flow-symbols.ts","sourceSha256":"e8f8de0cb4280737d4174830e35ad2e1866b4624c498827fe3e9e829881c616b"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }

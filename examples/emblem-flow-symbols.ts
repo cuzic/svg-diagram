@@ -1,5 +1,5 @@
 // 流れ図で使う記号を、emblem() の shape で置く。端子（開始・終了）・処理（角丸）・判断・データ（平行四辺形）・手作業（逆台形）・
-// 準備（六角形）・書類・データベース（円柱）・他ページへの接続（五角形）。台形はピラミッドの層などにも使える。
+// 準備（六角形）・書類・データベース（円柱）・他ページへの接続（下向きの五角形）。台形はピラミッドの層などにも使える。
 // ビルド: svg-diagram build examples/emblem-flow-symbols.ts --out examples/out/emblem-flow-symbols.svg
 import {caption, diagram, emblem} from 'svg-diagram';
 
@@ -18,7 +18,7 @@ export default function define() {
     emblem([
       {label: '報告書', shape: 'document', tone: 'accent'},
       {label: '顧客DB', shape: 'cylinder', tone: 'accent'},
-      {label: 'A へ', shape: 'pentagon'},
+      {label: 'A へ', shape: 'pentagon-down'},
       {label: '土台', shape: 'trapezoid', tone: 'new'},
     ], {minSize: 112}),
   );

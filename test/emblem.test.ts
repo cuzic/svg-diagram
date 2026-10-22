@@ -75,7 +75,7 @@ test('emblem(label, opts) is one shape whose id is its anchor; the array form ta
   assert.equal(many.shape, 'hexagon');
 });
 
-const WORDS: Record<string, string> = {circle: '円', square: '四角', triangle: '三角', diamond: 'ひし形', hexagon: '六角形', trapezoid: '台形', 'inverted-trapezoid': '逆台形', parallelogram: 'データ', pentagon: '五角形', pill: '端子', rounded: '角丸', document: '書類', cylinder: '円柱'};
+const WORDS: Record<string, string> = {circle: '円', square: '四角', triangle: '三角', diamond: 'ひし形', hexagon: '六角形', trapezoid: '台形', 'inverted-trapezoid': '逆台形', parallelogram: 'データ', 'pentagon-down': '五角形', pill: '端子', rounded: '角丸', document: '書類', cylinder: '円柱'};
 
 test('a diagram with every shape builds clean and draws each one once', async () => {
   const d = diagram({theme: 'blue'}).add(emblem(SHAPES.map((shape, i) => ({id: `e${i}`, label: WORDS[shape]!, shape})), {minSize: 112}));
@@ -122,7 +122,7 @@ test("the text rectangle's own corners stay inside every shape, at every size", 
 });
 
 test('polygon shapes are symmetric about their centre line (a parallelogram about its centre), with every vertex on the 4px grid, at every size', () => {
-  for (const shape of ['hexagon', 'triangle', 'diamond', 'trapezoid', 'inverted-trapezoid', 'pentagon', 'parallelogram'] as const) for (let size = 64; size <= 320; size += 8) {
+  for (const shape of ['hexagon', 'triangle', 'diamond', 'trapezoid', 'inverted-trapezoid', 'pentagon-down', 'parallelogram'] as const) for (let size = 64; size <= 320; size += 8) {
     const f = figure(emblemBand([{label: '一'}], {shape, minSize: size}), 892), pts = (outlines(f)[0] as [number, number][]);
     const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), mx = (Math.min(...xs) + Math.max(...xs)) / 2, my = (Math.min(...ys) + Math.max(...ys)) / 2;
     for (const [x, y] of pts) {
@@ -288,8 +288,13 @@ test('a shape that is as tall as its text needs (pill, rounded, parallelogram, d
   assert.equal(withSub.bounds![0]!.w, plain.bounds![0]!.w, 'the pill keeps its width');
   assert.ok(withSub.bounds![0]!.h > plain.bounds![0]!.h, 'the pill is taller for its second line');
   const lines = figureReal(emblemBand([{id: 'p', label: '一\n二\n三\n四\n五', shape: 'pill'}]));
-  assert.ok(lines.bounds![0]!.w <= 176, `five short lines in a pill: ${lines.bounds![0]!.w}px wide, not 320`);
+  assert.ok(lines.bounds![0]!.w <= 224 && lines.bounds![0]!.h <= .75 * lines.bounds![0]!.w, `five short lines in a pill: ${lines.bounds![0]!.w}x${lines.bounds![0]!.h}, not 320 wide, and never taller than .75 of its width (so it is not a circle)`);
   const long = figureReal(emblemBand([{id: 'r', label: 'あ'.repeat(20), shape: 'rounded'}]));
   assert.equal(long.bounds![0]!.w, 96, 'a long text makes a rounded box taller, not wider');
   for (const shape of EMBLEM_FLEX) assert.equal(emblemHeight(shape, 96, 0), emblemOutline(shape, 0, 0, 96).h, `${shape}: no text needs no more than the default height`);
+});
+
+test('the way out in the error depends on the shape: a shape that grows taller is not told to use a square (which holds fewer lines)', () => {
+  assert.throws(() => figure(emblemBand([{label: 'あ'.repeat(1500), shape: 'rounded'}])), (e: Error) => /does not fit in a rounded/.test(e.message) && /shorten it/.test(e.message) && !/square/.test(e.message));
+  assert.throws(() => figure(emblemBand([{label: 'あ'.repeat(600), shape: 'triangle'}])), /shorten it, move words to `sub`, or use shape: 'square'/);
 });

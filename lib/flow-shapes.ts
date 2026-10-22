@@ -381,7 +381,7 @@ function layoutConcentric(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, an
   if (b.centre) { const c = t.wrap(b.centre, Math.max(60, 1.4 * radius(n - 1))); t.place(c, cx, Math.max(cy - c.h / 2, innerBottom + 4)); }
 }
 
-// emblem: a word or two inside a circle, square, triangle, diamond, hexagon, trapezoid, parallelogram, pentagon, pill, rounded square, document or cylinder (outlines: emblem-shapes.ts). Each shape has a rectangle in it where text fits (a fraction of
+// emblem: a word or two inside a circle, square, triangle, diamond, hexagon, trapezoid, parallelogram, pentagon-down, pill, rounded square, document or cylinder (outlines: emblem-shapes.ts). Each shape has a rectangle in it where text fits (a fraction of
 // the shape's width D): the label is wrapped to that rectangle's width and the shape grows, in 8px steps and all to the same size, until
 // every label (and its sub line) is inside its own rectangle. The text is then centred in that rectangle, so it never touches the outline.
 const EMBLEM_MAX = 320, EMBLEM_WORD_MAX = 240;
@@ -423,8 +423,10 @@ function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: An
   const solve = (whole: boolean, limit: number) => { for (let d = least; d <= limit; d += 8) { const plan = planAt(d); if (plan.every((p, n) => p.fits && (!whole || p.whole || letOff[n]))) return {d, plan}; } return undefined; };
   const found = solve(true, wholeCap) ?? solve(false, widest);
   if (!found) {
-    const bad = must(b.items.find((_i, n) => !must(blocks(widest)[n]).fits)), shape = shapeOf(bad);
-    throw new Error(`emblem(): "${bad.label}"${bad.sub ? ` / "${bad.sub}"` : ''} does not fit in a ${shape} up to ${widest}px${widest < EMBLEM_MAX ? ' (the width of the band)' : ''} — shorten it, move words to \`sub\`${shape === 'square' ? '' : ", or use shape: 'square'"}${widest < EMBLEM_MAX ? ', or widen the band' : ''}`);
+    const bad = must(b.items.find((_i, n) => !must(blocks(widest)[n]).fits)), shape = shapeOf(bad), flex = EMBLEM_FLEX.has(shape);
+    // a shape in EMBLEM_FLEX grows taller, not wider, so a square (which holds fewer lines) is no way out for it
+    const ways = flex ? 'shorten it' : `shorten it, move words to \`sub\`${shape === 'square' ? '' : ", or use shape: 'square'"}`;
+    throw new Error(`emblem(): "${bad.label}"${bad.sub ? ` / "${bad.sub}"` : ''} does not fit in a ${shape} up to ${widest}px${widest < EMBLEM_MAX ? ' (the width of the band)' : ''} — ${ways}${widest < EMBLEM_MAX ? ', or widen the band' : ''}`);
   }
   const {d, plan} = found;
   const perRow = Math.max(1, Math.floor((out.w + gap) / (d + gap))), rows = Math.ceil(b.items.length / perRow);
