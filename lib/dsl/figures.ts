@@ -111,12 +111,13 @@ export function concentric<const Id extends string = never, const I extends read
  *   emblem([{label: '課題', kind: 'hexagon'}, {label: '原因', sub: '3 件'}], {kind: 'circle'})   // several; `kind` is the default
  * Other tools call this a "shape" (PowerPoint, Visio) or a "node" (Graphviz, Mermaid). Item ids are anchors for connect() and spotlight.
  */
-export function emblem<const Id extends string = never>(label: string, opts?: Omit<EmblemItem, 'label'> & Omit<EmblemOpts, 'kind' | 'id'> & {id?: Id}): EmblemBand & Declares<Id> & HandleOf<Id>;
+export function emblem<const Id extends string = never>(label: string, opts?: Omit<EmblemItem, 'label'> & Omit<EmblemOpts, 'kind' | 'id' | 'gap'> & {id?: Id}): EmblemBand & Declares<Id> & HandleOf<Id>;
 export function emblem<const Id extends string = never, const I extends readonly EmblemItem[] = readonly EmblemItem[]>(items: I, opts?: EmblemOpts & {id?: Id}): ShapeExtra<EmblemBand, Id, I>;
 export function emblem(first: string | readonly EmblemItem[], opts: (Omit<EmblemItem, 'label'> & EmblemOpts) | undefined = undefined): EmblemBand {
   if (typeof first !== 'string') return withHandle(emblemBand(first, opts), opts?.id);
   const {sub, kind, tone, id, ...band} = opts ?? {};
-  return withHandle(emblemBand([{label: first, ...(sub !== undefined ? {sub} : {}), ...(kind ? {kind} : {}), ...(tone ? {tone} : {}), ...(id ? {id} : {})}], band), id);
+  const built = emblemBand([{label: first, ...(sub !== undefined ? {sub} : {}), ...(kind ? {kind} : {}), ...(tone ? {tone} : {}), ...(id ? {id} : {})}], band);
+  return withHandle(built, id && built.scope ? `${built.scope}.${id}` : id); // a scoped item is registered as <scope>.<id> (ADR 0012)
 }
 /**
  * Decorated headline text (ワードアート): bold, outlined (縁取り), shadowed, glowing, bent, turned ..., set horizontally or vertically

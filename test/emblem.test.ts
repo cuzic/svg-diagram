@@ -30,6 +30,7 @@ test('the shapes of a band share one size, and grow until the longest label fits
   assert.equal(long.anchors[0]!.w, long.anchors[1]!.w);
   assert.ok(long.anchors[0]!.w > short.anchors[0]!.w, 'a longer label makes the shapes bigger');
   assert.equal(short.anchors[0]!.w, 96, 'the least size by default');
+  assert.equal(figure(emblemBand([{label: '一', id: 'a'}], {size: 90})).anchors[0]!.w, 96, 'size is a least width: it rounds up to the 8px step, never down');
 });
 
 test('size is the least width; shapes wrap to the next row when the width runs out', () => {
@@ -42,6 +43,8 @@ test('size is the least width; shapes wrap to the next row when the width runs o
 
 test('a label that cannot fit up to the largest size throws, naming the label and the way out', () => {
   assert.throws(() => figure(emblemBand([{label: 'あ'.repeat(200)}], {kind: 'triangle'})), /"あああ.*does not fit in a triangle.*sub.*square/s);
+  assert.throws(() => figure(emblemBand([{label: 'あ'.repeat(600)}], {kind: 'square'})), (e: Error) => /does not fit in a square/.test(e.message) && !/use kind 'square'|or use kind/.test(e.message), 'a square is not told to use a square');
+  assert.throws(() => figure(emblemBand([{label: '短い', sub: 'あ'.repeat(800)}])), /"短い" \/ "あああ/, 'a sub that does not fit is named too');
 });
 
 test('constructor checks: kind, tone, size, gap, empty label, duplicate id', () => {
@@ -75,4 +78,77 @@ test('a diagram with emblems builds clean, draws each kind once, and connect() r
   assert.equal((r.svg.match(/<circle /g) ?? []).length, 1);
   assert.equal((r.svg.match(/<polygon /g) ?? []).length, 4);
   for (const t of ['円', '四角', '三角', 'ひし形', '六角形']) assert.match(r.svg, new RegExp(`>${t}<`));
+});
+
+// ---- review (Opus, PR #321) ----------------------------------------------------------------------------------------------------------
+
+/** The drawn outline of the i-th shape: a polygon's points, or a circle as 'c'. */
+const outlines = (f: LaidOutFlowShape) => f.primitives.map(p => p.k === 'polygon' ? p.points : p.k === 'circle' ? ({cx: p.cx, cy: p.cy, r: p.r}) : null);
+/** Signed distance of a point inside a convex polygon (clockwise or not) to its nearest side: positive = inside. */
+function insideBy(poly: [number, number][], q: [number, number]): number {
+  let area = 0; poly.forEach((p, i) => { const n = poly[(i + 1) % poly.length]!; area += p[0] * n[1] - n[0] * p[1]; });
+  const sign = Math.sign(area) || 1;
+  return Math.min(...poly.map((p, i) => { const n = poly[(i + 1) % poly.length]!, len = Math.hypot(n[0] - p[0], n[1] - p[1]); return sign * ((n[0] - p[0]) * (q[1] - p[1]) - (n[1] - p[1]) * (q[0] - p[0])) / len; }));
+}
+
+test('every corner of every text box is inside the outline it is drawn in (by the stroke), for every kind, size and sub', () => {
+  for (const kind of KINDS) for (const size of [64, 72, 96, 104, 120, 136, 200]) for (const [label, sub] of [['一', undefined], ['重要な注意', '期限厳守'], ['WWWW', 'MMMM'], ['確認する', undefined], ['あ'.repeat(6), 'い'.repeat(5)]] as const) {
+    let f: LaidOutFlowShape;
+    try { f = figure(emblemBand([{label, ...(sub ? {sub} : {})}], {kind, size})); } catch { continue; } // too long for the shape: it throws, which is tested above
+    const o = outlines(f)[0]!;
+    for (const t of f.labelBoxes) for (const q of [[t.x, t.y], [t.x + t.w, t.y], [t.x, t.y + t.h], [t.x + t.w, t.y + t.h]] as [number, number][]) {
+      const margin = Array.isArray(o) ? insideBy(o, q) : (o as {r: number}).r - Math.hypot(q[0] - (o as {cx: number}).cx, q[1] - (o as {cy: number}).cy);
+      assert.ok(margin >= 1, `${kind} size ${size} "${label}": a text corner is ${margin.toFixed(1)}px inside the outline`);
+    }
+  }
+});
+
+test('a hexagon and a triangle are symmetric about their centre line, on the 4px grid, at every size', () => {
+  for (const kind of ['hexagon', 'triangle', 'diamond'] as const) for (let size = 64; size <= 320; size += 8) {
+    const f = figure(emblemBand([{label: '一'}], {kind, size}), 892), pts = (outlines(f)[0] as [number, number][]);
+    const xs = pts.map(p => p[0]), mid = (Math.min(...xs) + Math.max(...xs)) / 2;
+    for (const [x, y] of pts) {
+      assert.equal(x % 4, 0, `${kind} ${size}: x ${x} is off the grid`); assert.equal(y % 4, 0, `${kind} ${size}: y ${y} is off the grid`);
+      assert.ok(pts.some(([x2, y2]) => y2 === y && Math.abs((x2 - mid) + (x - mid)) < 1e-9), `${kind} ${size}: (${x},${y}) has no mirror image`);
+    }
+  }
+});
+
+test('connect() meets the outline: a triangle ties to the middles of its slanted sides, a hexagon to its side vertices', () => {
+  const tri = figure(emblemBand([{id: 't', label: '注意', kind: 'triangle'}], {size: 104})), a = tri.anchors[0]!, poly = outlines(tri)[0] as [number, number][];
+  const [apex, br, bl] = poly as [[number, number], [number, number], [number, number]];
+  assert.deepEqual([a.x + a.w / 2, a.y], apex, ':top is the apex');
+  assert.deepEqual([a.x, a.y + a.h / 2], [(apex[0] + bl[0]) / 2, (apex[1] + bl[1]) / 2], ':left is the middle of the left side');
+  assert.deepEqual([a.x + a.w, a.y + a.h / 2], [(apex[0] + br[0]) / 2, (apex[1] + br[1]) / 2], ':right is the middle of the right side');
+  assert.equal(a.y + a.h, br[1], ':bottom is the base');
+  const hex = figure(emblemBand([{id: 'h', label: '実行', kind: 'hexagon'}], {size: 104})), b = hex.anchors[0]!, hp = outlines(hex)[0] as [number, number][];
+  assert.deepEqual([b.x, b.y + b.h / 2], hp[0], ':left is the left vertex');
+  assert.deepEqual([b.x + b.w, b.y + b.h / 2], hp[3], ':right is the right vertex');
+  assert.equal(b.y + b.h, hp[4]![1], ':bottom is the bottom edge');
+});
+
+test('a katakana word stays whole when the shape can grow for it (up to 240px), as keepWords does for boxes', () => {
+  const f = figure(emblemBand([{label: 'コンテキストエンジニアリング', kind: 'hexagon'}]));
+  assert.equal(f.texts.length, 1, 'one line: the word is not cut');
+  const long = figure(emblemBand([{label: 'コ'.repeat(30), kind: 'hexagon'}]));
+  assert.ok(long.texts.length > 1, 'a word too long for 240px is cut at the least size that fits, rather than throwing');
+  assert.ok(long.anchors.length === 0 && long.primitives.length === 1);
+});
+
+test('a shape wider than the band throws, naming the way out', () => {
+  assert.throws(() => figure(emblemBand([{label: '課題'}], {size: 200}), 120), /size 200 is wider than the band/);
+  assert.throws(() => figure(emblemBand([{label: 'あ'.repeat(120)}]), 160), /up to 160px \(the width of the band\).*widen the band/s);
+});
+
+test('gap is rounded to the 4px grid, so the shapes are evenly spaced', () => {
+  const f = figure(emblemBand([{id: 'a', label: '1'}, {id: 'b', label: '2'}, {id: 'c', label: '3'}], {gap: 6}));
+  const [a, b, c] = f.anchors as unknown as [Rect, Rect, Rect];
+  assert.equal(b.x - (a.x + a.w), c.x - (b.x + b.w));
+});
+
+test('emblem(label, {id, scope}): the handle names the item as <scope>.<id>, as the anchor is registered', () => {
+  const one = emblem('上', {id: 'p', scope: 's1'}) as unknown as {bottom: string};
+  assert.equal(one.bottom, 's1.p:bottom');
+  const bare = emblem('上', {id: 'p'}) as unknown as {bottom: string};
+  assert.equal(bare.bottom, 'p:bottom');
 });

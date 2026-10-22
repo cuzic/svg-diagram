@@ -376,40 +376,65 @@ function layoutConcentric(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, an
 // emblem: a word or two inside a circle, square, triangle, diamond or hexagon. Each shape has a rectangle in it where text fits (a fraction of
 // the shape's width D): the label is wrapped to that rectangle's width and the shape grows, in 8px steps and all to the same size, until
 // every label (and its sub line) is inside its own rectangle. The text is then centred in that rectangle, so it never touches the outline.
-const EMBLEM_MAX = 320;
-interface EmblemGeom {/** height as a fraction of D */ h: number; /** the text rectangle's centre and size, as fractions of D */ text: {cx: number; cy: number; w: number; h: number}; points?: Pt[]}
-const EMBLEM: Record<EmblemKind, EmblemGeom> = {
-  circle: {h: 1, text: {cx: .5, cy: .5, w: .76, h: .56}},
-  square: {h: 1, text: {cx: .5, cy: .5, w: .84, h: .84}},
-  diamond: {h: 1, text: {cx: .5, cy: .5, w: .56, h: .34}, points: [[.5, 0], [1, .5], [.5, 1], [0, .5]]},
-  hexagon: {h: .88, text: {cx: .5, cy: .44, w: .68, h: .5}, points: [[0, .44], [.25, 0], [.75, 0], [1, .44], [.75, .88], [.25, .88]]},
-  triangle: {h: .9, text: {cx: .5, cy: .7, w: .54, h: .32}, points: [[.5, 0], [1, .9], [0, .9]]},
-};
-const SQUARE_POINTS: Pt[] = [[0, 0], [1, 0], [1, 1], [0, 1]];
+const EMBLEM_MAX = 320, EMBLEM_WORD_MAX = 240;
+/** The text rectangle's width and height as fractions of D (its centre is chosen by the outline). Corners stay inside the outline, 1.8px at least (measured on the real fonts). */
+const EMBLEM_TEXT: Record<EmblemKind, {w: number; h: number}> = {circle: {w: .76, h: .56}, square: {w: .84, h: .84}, diamond: {w: .56, h: .34}, hexagon: {w: .68, h: .5}, triangle: {w: .54, h: .32}};
+
+/**
+ * The outline of a shape D wide with its top-left at (left, top). Everything is on the 4px grid and symmetric about the vertical centre line
+ * (D is a multiple of 8, so the centre is on the grid too). `h` is the drawn height, `textCy` the text rectangle's centre below `top`,
+ * `anchor` the rectangle connect() ties to: the bounding box, except for a triangle, where it joins the middles of the two slanted sides so
+ * that :left / :right / :top / :bottom all land on the outline.
+ */
+function emblemOutline(kind: EmblemKind, left: number, top: number, d: number): {h: number; textCy: number; points?: Pt[]; anchor: Rect} {
+  const cx = left + d / 2, bbox = (h: number): Rect => ({x: left, y: top, w: d, h});
+  switch (kind) {
+    case 'circle': return {h: d, textCy: d / 2, anchor: bbox(d)};
+    case 'square': return {h: d, textCy: d / 2, points: [[left, top], [left + d, top], [left + d, top + d], [left, top + d]], anchor: bbox(d)};
+    case 'diamond': return {h: d, textCy: d / 2, points: [[cx, top], [left + d, top + d / 2], [cx, top + d], [left, top + d / 2]], anchor: bbox(d)};
+    case 'hexagon': {
+      const q = g4(.25 * d), m = g4(.44 * d);
+      return {h: 2 * m, textCy: m, points: [[left, top + m], [cx - q, top], [cx + q, top], [left + d, top + m], [cx + q, top + 2 * m], [cx - q, top + 2 * m]], anchor: bbox(2 * m)};
+    }
+    case 'triangle': {
+      const h = g4(.9 * d);
+      return {h, textCy: h - .2 * d, points: [[cx, top], [left + d, top + h], [left, top + h]], anchor: {x: left + d / 4, y: top, w: d / 2, h}};
+    }
+  }
+}
+const isWordChar = (c: string | undefined): 'kana' | 'latin' | null => c === undefined ? null : /[゠-ヿ]/.test(c) ? 'kana' : /[A-Za-z0-9]/.test(c) ? 'latin' : null;
+/** Whether a wrapped block breaks a katakana (or alphanumeric) word between two lines. */
+const splitsWord = (lines: readonly string[]): boolean => lines.some((l, i) => { const a = isWordChar(l.at(-1)), z = isWordChar(lines[i + 1]?.[0]); return a !== null && a === z; });
 
 function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
   const kindOf = (i: EmblemItem): EmblemKind => i.kind ?? b.kind;
+  const gap = g4(b.gap), widest = Math.min(EMBLEM_MAX, Math.floor(out.w / 8) * 8), least = Math.ceil((b.size ?? 96) / 8) * 8;
+  if (least > widest) throw new Error(`emblem(): size ${b.size ?? 96} is wider than the band (${Math.round(out.w)}px) — lower \`size\` or widen the band`);
   const blocks = (d: number) => b.items.map(i => {
-    const g = EMBLEM[kindOf(i)].text, label = t.wrap(i.label, g.w * d), sub = i.sub ? t.wrap(i.sub, g.w * d, 400) : undefined;
+    const g = EMBLEM_TEXT[kindOf(i)], label = t.wrap(i.label, g.w * d), sub = i.sub ? t.wrap(i.sub, g.w * d, 400) : undefined;
     const fits = Math.max(label.w, sub?.w ?? 0) <= g.w * d + .5 && label.h + (sub?.h ?? 0) <= g.h * d;
-    return {label, sub, fits};
+    return {label, sub, fits, whole: !splitsWord(label.lines) && !(sub && splitsWord(sub.lines))};
   });
-  let d = Math.max(64, Math.round((b.size ?? 96) / 8) * 8), plan = blocks(d);
-  while (plan.some(p => !p.fits) && d < EMBLEM_MAX) { d += 8; plan = blocks(d); }
-  const bad = plan.findIndex(p => !p.fits);
-  if (bad >= 0) { const i = must(b.items[bad]); throw new Error(`emblem(): "${i.label}" does not fit in a ${kindOf(i)} up to ${EMBLEM_MAX}px — shorten it, move words to \`sub\`, or use kind 'square'`); }
-  const perRow = Math.max(1, Math.floor((out.w + b.gap) / (d + b.gap))), rows = Math.ceil(b.items.length / perRow);
-  const rowH = Math.max(...b.items.map(i => EMBLEM[kindOf(i)].h * d));
-  out.h = Math.ceil((rows * rowH + (rows - 1) * b.gap) / 4) * 4;
+  // the least D where everything fits; first one that also keeps every katakana / alphanumeric word whole (up to EMBLEM_WORD_MAX), else the least that fits
+  const solve = (whole: boolean, limit: number) => { for (let d = least; d <= limit; d += 8) { const plan = blocks(d); if (plan.every(p => p.fits && (!whole || p.whole))) return {d, plan}; } return undefined; };
+  const found = solve(true, Math.min(widest, EMBLEM_WORD_MAX)) ?? solve(false, widest);
+  if (!found) {
+    const bad = must(b.items.find((_i, n) => !must(blocks(widest)[n]).fits)), kind = kindOf(bad);
+    throw new Error(`emblem(): "${bad.label}"${bad.sub ? ` / "${bad.sub}"` : ''} does not fit in a ${kind} up to ${widest}px${widest < EMBLEM_MAX ? ' (the width of the band)' : ''} — shorten it, move words to \`sub\`${kind === 'square' ? '' : ", or use kind 'square'"}${widest < EMBLEM_MAX ? ', or widen the band' : ''}`);
+  }
+  const {d, plan} = found;
+  const perRow = Math.max(1, Math.floor((out.w + gap) / (d + gap))), rows = Math.ceil(b.items.length / perRow);
+  const rowH = Math.max(...b.items.map(i => emblemOutline(kindOf(i), 0, 0, d).h));
+  out.h = rows * rowH + (rows - 1) * gap;
   b.items.forEach((item, n) => {
     const row = Math.floor(n / perRow), inRow = Math.min(perRow, b.items.length - row * perRow), col = n - row * perRow;
-    const rowW = inRow * d + (inRow - 1) * b.gap, kind = kindOf(item), g = EMBLEM[kind];
-    const left = g4(out.x + (out.w - rowW) / 2 + col * (d + b.gap)), h = g.h * d, top = g4(out.y + row * (rowH + b.gap) + (rowH - h) / 2);
-    const tone = item.tone ?? 'plain';
-    if (kind === 'circle') out.primitives.push({k: 'circle', cx: left + d / 2, cy: top + d / 2, r: d / 2, tone: 'text', fill: tone});
-    else out.primitives.push({k: 'polygon', points: (g.points ?? SQUARE_POINTS).map(([px, py]): Pt => [g4(left + px * d), g4(top + py * d)]), tone}); // vertices on the 4px grid (lint: coordinate-grid)
-    anchor(item.id, {x: left, y: top, w: d, h});
-    const k = must(plan[n]), blockH = k.label.h + (k.sub?.h ?? 0), cx = left + g.text.cx * d, cy = top + g.text.cy * d;
+    const rowW = inRow * d + (inRow - 1) * gap, kind = kindOf(item);
+    const left = g4(out.x + (out.w - rowW) / 2 + col * (d + gap)), h = emblemOutline(kind, 0, 0, d).h, top = g4(out.y + row * (rowH + gap) + (rowH - h) / 2);
+    const o = emblemOutline(kind, left, top, d), tone = item.tone ?? 'plain';
+    if (!o.points) out.primitives.push({k: 'circle', cx: left + d / 2, cy: top + d / 2, r: d / 2, tone: 'text', fill: tone});
+    else out.primitives.push({k: 'polygon', points: o.points, tone});
+    anchor(item.id, o.anchor);
+    const k = must(plan[n]), blockH = k.label.h + (k.sub?.h ?? 0), cx = left + d / 2, cy = top + o.textCy;
     t.place(k.label, cx, cy - blockH / 2);
     if (k.sub) t.place(k.sub, cx, cy - blockH / 2 + k.label.h, 'muted');
   });
