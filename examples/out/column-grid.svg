@@ -50,15 +50,15 @@
 
   <path d="M70,149 L70,162 L150,162 L150,176" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
   <rect x="88" y="152" width="44" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="110" y="167" text-anchor="middle" font-size="14" fill="#22201b">RTP</text>
+  <text x="110" y="169" text-anchor="middle" font-size="14" fill="#22201b">RTP</text>
 
   <path d="M470,149 L470,162 L470,176" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
   <rect x="448" y="152" width="48" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="470" y="167" text-anchor="middle" font-size="14" fill="#22201b">UDP</text>
+  <text x="470" y="169" text-anchor="middle" font-size="14" fill="#22201b">UDP</text>
 
   <path d="M790,149 L790,162 L548,162 L548,176" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
   <rect x="640" y="152" width="56" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="669" y="167" text-anchor="middle" font-size="14" fill="#22201b">NMEA</text>
+  <text x="669" y="169" text-anchor="middle" font-size="14" fill="#22201b">NMEA</text>
 
   <path d="M280,216 L340,216" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
   <text x="310" y="210" text-anchor="middle" font-size="14" fill="#22201b">展開</text>
@@ -69,5 +69,5 @@
 
   <path d="M150,257 L150,270 L70,270 L70,284" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
   <rect x="88" y="260" width="44" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
-  <text x="110" y="275" text-anchor="middle" font-size="14" fill="#22201b">参照</text>
+  <text x="110" y="277" text-anchor="middle" font-size="14" fill="#22201b">参照</text>
 </svg>

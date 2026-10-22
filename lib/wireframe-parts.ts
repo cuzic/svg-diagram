@@ -388,7 +388,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
     let cx = x + 8;
     part(ctx, n, 'layers', x + 8, y + 8);
     for (const l of layers.filter(l => l.on || l.bad)) cx += drawChip(ctx, l.bad ? lname(l) : l.label, cx, y + 8, l.bad ? 'muted' : l.kind === 'thermal' ? 'danger' : l.kind === 'cloud' ? 'accent' : 'plain') + 6;
-    if (n.stamp) { const sw = tw(ctx, n.stamp, S, 400) + 12; rect(ctx, x + w - 8 - sw, y + vh - 30, sw, 22, {r: 4, fill: 'bg', op: 0.92}); text(ctx, n.stamp, x + w - 14, mid(y + vh - 19), {fill: 'muted', anchor: 'end'}); }
+    if (n.stamp) { const sw = tw(ctx, n.stamp, S, 400) + 12; const ty = Math.round((y + vh - 30) / 4) * 4; rect(ctx, x + w - 8 - sw, ty, sw, 22, {r: 4, fill: 'bg', op: 0.92}); text(ctx, n.stamp, x + w - 14, mid(ty + 11), {fill: 'muted', anchor: 'end'}); }
     if (strip) {
       let ty = y + vh + 8;
       part(ctx, n, 'controls', x + 6, ty + 14);

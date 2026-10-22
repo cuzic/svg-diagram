@@ -8,7 +8,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {configureMeasure, currentMeasure, measureAll, closeMeasurer} from '../lib/measure.ts';
 import {resolveFontFile} from '../lib/font-metrics.ts';
-import {loadConfig} from '../lib/config.ts';
+import {loadConfig, resolveFonts} from '../lib/config.ts';
 import {loadDiagram} from '../lib/load-source.ts';
 import type {MeasureRequest} from '../lib/types/core.ts';
 import type {FontSpecs} from '../lib/types/project.ts';
@@ -168,4 +168,14 @@ test('loadDiagram applies the config it is given to measuring', async (t) => {
   await loadDiagram(src, {measure: 'chromium'});
   assert.equal(currentMeasure().backend, 'chromium');
   fs.rmSync(dir, {recursive: true});
+});
+
+test('`fonts` paths in .svg-diagram.json are relative to the config file, from any working directory; #N and absolute paths are kept', () => {
+  const dir = tmp(), sub = path.join(dir, 'vol1');
+  fs.mkdirSync(sub);
+  fs.writeFileSync(path.join(dir, '.svg-diagram.json'), JSON.stringify({fonts: {sans: {regular: 'fonts/A.ttf', bold: 'fonts/B.ttc#2'}, mono: {regular: '/abs/M.ttf'}}}));
+  const want = {sans: {regular: path.join(dir, 'fonts/A.ttf'), bold: path.join(dir, 'fonts/B.ttc') + '#2'}, mono: {regular: '/abs/M.ttf'}};
+  assert.deepEqual(loadConfig(dir).fonts, want);
+  assert.deepEqual(loadConfig(sub).fonts, want); // found by walking up: the paths still point at the config's own folder
+  assert.deepEqual(resolveFonts({sans: {regular: '../fonts/N.ttf'}}, sub), {sans: {regular: path.join(dir, 'fonts/N.ttf')}});
 });
