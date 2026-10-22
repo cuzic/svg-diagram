@@ -216,7 +216,13 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
         const ys = below ? [Bx.y - 10, Bx.y - 20, must(laneTop[lane(f.to)]) + 6] : [Bx.y + Bx.h + 10, Bx.y + Bx.h + 20, must(laneTop[lane(f.to)]) + must(laneH[lane(f.to)]) - 6];
         return ys.map(ych => simplify([{x: xa, y: below ? A.y + A.h : A.y}, {x: xa, y: ych}, {x: xb, y: ych}, {x: xb, y: below ? Bx.y : Bx.y + Bx.h}]));
       }));
-      const tries = [...faced, ...under];
+      // last resort (a node stands right under and over the source, so no leg can leave by its top or bottom): leave by its side into the gap between columns, run along the target's edge, enter from above / below
+      const cf = colOf(f.from), gapX = [must(colX[cf]) + must(colW[cf]) + gap / 2, must(colX[cf]) - gap / 2];
+      const sided: Pt[][] = (!below && !above) || isGate(must(kindOf.get(f.from))) || isGate(must(kindOf.get(f.to))) ? [] : gapX.flatMap((gx, side) => legs(Bx, cb.x).flatMap(xb => {
+        const ys = below ? [Bx.y - 10, Bx.y - 20] : [Bx.y + Bx.h + 10, Bx.y + Bx.h + 20];
+        return ys.map(ych => simplify([{x: side ? A.x : A.x + A.w, y: ca.y}, {x: gx, y: ca.y}, {x: gx, y: ych}, {x: xb, y: ych}, {x: xb, y: below ? Bx.y : Bx.y + Bx.h}]));
+      }));
+      const tries = [...faced, ...under, ...sided];
       pts = tries.find(t => !through(t, [f.from, f.to])) ?? must(tries[0]);
     }
     out.edges.push({from: f.from, to: f.to, line, points: pts});

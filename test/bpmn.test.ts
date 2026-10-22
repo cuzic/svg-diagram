@@ -204,3 +204,18 @@ test("bpmn(): fit other than 'shrink' throws; a flow too wide even shrunk still 
   const long = bpmn([{id: 'a', label: '担当'}], ids.map(id => ({id, lane: 'a', label: '長めの作業名'})), ids.slice(1).map((id, i) => ({from: ids[i]!, to: id})), {fit: 'shrink'});
   await assert.rejects(() => laid(long), /even shrunk/);
 });
+
+test('bpmn(): a flow back from a node with another node right under it does not run through that node', async () => {
+  const {t, verdict} = await laid(bpmn(
+    [{id: 'a', label: '営業'}, {id: 'b', label: '事務'}],
+    [
+      {id: 'mk', lane: 'b', label: '作成'}, {id: 'fix', lane: 'a', label: '修正を依頼'}, {id: 'ans', lane: 'a', label: '返信'},
+    ],
+    [{from: 'mk', to: 'fix'}, {from: 'mk', to: 'ans'}, {from: 'fix', to: 'mk', line: 'dashed'}],
+  ));
+  assert.deepEqual(verdict.problems, []);
+  const back = t.edges.find(e => e.from === 'fix' && e.to === 'mk');
+  const ans = t.nodes[2];
+  assert.ok(back && ans);
+  assert.ok(!back.points.slice(1).some((q, i) => overlap({x: Math.min(back.points[i]!.x, q.x), y: Math.min(back.points[i]!.y, q.y), w: Math.abs(back.points[i]!.x - q.x) + 1, h: Math.abs(back.points[i]!.y - q.y) + 1}, ans)));
+});
