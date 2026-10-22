@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {checkDiagram, closeMeasurer, diagram, flowchart, stateDiagram} from '../lib/dsl.ts';
-import {diamondLines, diamondPoints, ontoDiamond, pillLines} from '../lib/flow-nodes.ts';
+import {diamondLines, diamondPoints, ontoDiamond, pillLines, vertexDrops} from '../lib/flow-nodes.ts';
 import {statesWords} from '../lib/states-words.ts';
 import {ROLES} from '../lib/tokens.ts';
 import type {LaidOutStates} from '../lib/types/diagrams.ts';
@@ -103,4 +103,29 @@ test('a return to an earlier decision goes round the outside by default (it does
   const {band, verdict} = await lay({}, [...EDGES, {from: 'a2', to: 'q1', label: 'やり直し', line: 'dashed'} as never]);
   assert.deepEqual(verdict.problems, []);
   assert.ok(band.edges.some(e => e.from === 'a2' && e.to === 'q1'));
+});
+
+test('the arrows that drop from a decision start at its corners, one answer each; a target not under a corner keeps the path', () => {
+  const r = {x: 100, y: 0, w: 80, h: 40}; // corners at x 100 / 140 / 180, y 20
+  const out = (cx: number, w = 60) => ({pts: [{x: cx + 5, y: 38}, {x: cx + 5, y: 100}], target: {x: cx - w / 2, y: 100, w, h: 36}});
+  const two = vertexDrops([out(110), out(170)], r, []);
+  assert.deepEqual(two, [[{x: 100, y: 20}, {x: 100, y: 100}], [{x: 180, y: 20}, {x: 180, y: 100}]]);
+  const three = vertexDrops([out(100), out(140), out(180)], r, []);
+  assert.deepEqual(three.map(p => p[0]!.x), [100, 140, 180]);
+  const one = vertexDrops([out(140)], r, []);
+  assert.deepEqual(one, [[{x: 140, y: 20}, {x: 140, y: 100}]]);
+  const far = [out(110), out(300)], kept = vertexDrops(far, r, []); // the right target is nowhere near the right corner
+  assert.deepEqual(kept, far.map(o => o.pts));
+  const blocked = vertexDrops([out(110), out(170)], r, [{x: 90, y: 50, w: 20, h: 20}]); // something stands on the left corner's way
+  assert.deepEqual(blocked[0], [{x: 115, y: 38}, {x: 115, y: 100}]);
+  const bent = vertexDrops([{pts: [{x: 110, y: 38}, {x: 110, y: 60}, {x: 200, y: 60}, {x: 200, y: 100}], target: {x: 170, y: 100, w: 60, h: 36}}, out(170)], r, []);
+  assert.equal(bent[0]!.length, 4, 'a bent path is not touched, and the others stay put with it');
+});
+
+test('in a flowchart the answers leave a decision from its corners', async () => {
+  const {band} = await lay();
+  const q1 = band.nodes[1]!, id = band.anchors[1]!.id;
+  const starts = band.edges.filter(e => e.from === id).map(e => e.points[0]!);
+  assert.deepEqual(starts.map(p => p.y), [q1.y + q1.h / 2, q1.y + q1.h / 2]);
+  assert.deepEqual(starts.map(p => p.x).sort((a, b) => a - b), [q1.x, q1.x + q1.w]);
 });

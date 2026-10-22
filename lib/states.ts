@@ -6,7 +6,7 @@ import {statesProblems} from './verify-base.ts';
 import {gapFor, layeredAttempt, stubOf} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
-import {diamondLines, ontoDiamond, pillLines} from './flow-nodes.ts';
+import {diamondLines, ontoDiamond, pillLines, vertexDrops} from './flow-nodes.ts';
 import {statesWords} from './states-words.ts';
 import type {NodeLines} from './tree.ts';
 import type {FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
@@ -183,6 +183,16 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
   };
   // every arrow is routed first, then the labels are placed (a chip must know where the other arrows run)
   const pending: {edge: number; text: string; at: (t: number) => Pt; on?: Pt[]}[] = [];
+  // the arrows that drop straight from a diamond start at its corners (one answer each) instead of at spots on its lower sides
+  const drops = new Map<number, Pt[]>();
+  for (const [id, dr] of diamonds) {
+    const idxs = lay.edges.flatMap((e, i) => e.from === id && e.to !== id && routes.get(i) && rects.get(e.to) ? [i] : []);
+    if (!idxs.length) continue;
+    const flip = dir === 'right', sw = (p: Pt): Pt => flip ? {x: p.y, y: p.x} : p, swR = (r: {x: number; y: number; w: number; h: number}) => flip ? {x: r.y, y: r.x, w: r.h, h: r.w} : r;
+    const original = idxs.map(i => must(routes.get(i)).map(sw));
+    const res = vertexDrops(idxs.map((i, k) => ({pts: must(original[k]), target: swR(must(rects.get(must(lay.edges[i]).to)))})), swR(dr), [...rects].filter(([k]) => k !== id).map(([, r]) => swR(r)));
+    idxs.forEach((i, k) => { if (res[k] !== original[k]) drops.set(i, must(res[k]).map(sw)); });
+  }
   for (const [i, e] of lay.edges.entries()) {
     const t = e.from === INIT ? undefined : pickTransition(e.from, e.to);
     if (e.self) {
@@ -198,10 +208,10 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
       if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: () => ({x: cx, y: a.y - LOOP - (S + 8) / 2 - 2})});
       continue;
     }
-    const pts = must(routes.get(i)).slice();
+    const dropped = drops.get(i), pts = (dropped ?? must(routes.get(i))).slice();
     // an end on a diamond is moved onto its outline (the arrows that share a side are spread around its middle)
     const dFrom = diamonds.get(e.from), dTo = diamonds.get(e.to);
-    if (dFrom && pts.length > 1) pts[0] = ontoDiamond(must(pts[0]), must(pts[1]), dFrom);
+    if (dFrom && !dropped && pts.length > 1) pts[0] = ontoDiamond(must(pts[0]), must(pts[1]), dFrom);
     if (dTo && pts.length > 1) pts[pts.length - 1] = ontoDiamond(must(pts[pts.length - 1]), must(pts[pts.length - 2]), dTo);
     out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});
     if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: f => pointAt(pts, f), on: pts});
