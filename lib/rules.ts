@@ -487,6 +487,7 @@ function grayToneRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   // a canvas() region with a pill (重点 / 中心 / 結論) says its tone in words, as for the legend (usedNotation): not a grayscale matter
   const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => must(b.canvas).worded[i]) : []));
   for (const b of all) if (b.type === 'box' && !worded.has(b)) used.add(b.tone ?? 'plain');
+  for (const b of all) if (b.type === 'emblem') for (const i of b.items) used.add(i.tone ?? 'plain');
   for (const b of d.laidOut ?? []) if (b.type === 'table') for (const r of b.rows) if (!r.header && r.tone) used.add(r.tone);
   const p = paintOf(tones, d.appearance);
   const fills = [...used].map(name => {
@@ -806,7 +807,7 @@ const MID_WORD_FIX: Record<string, string> = {
   chevron: "矢羽根の幅は段数で決まる。`direction: 'vertical'` にする、段を減らす、文言を短くする",
   cycle: '円は、カタカナの語に合わせて幅・高さの上限（幅 −8px、高さ 760px）まで広がる。それでも入らない語は、文言を短くする、項目を減らす',
   swimlane: "列の幅は段数で決まる。`fit: 'shrink'` を外す、列を減らす、文言を短くする",
-  emblem: "図形は語が割れない大きさまで 240px を上限に広がる。それでも割れる語は、`size` を上げる、`kind: 'square'` にする、文言を短くする（320px まで広がっても入らなければ throw する）",
+  emblem: "図形は語が割れない大きさまで 240px を上限に広がる。それでも割れる語は、`minSize` を上げる、`shape: 'square'` にする、文言を短くする（320px まで広がっても入らなければ throw する）",
 };
 function midWordRules(d: LintTarget, out: Finding[]): void {
   const source = sourceText(d.bands);
