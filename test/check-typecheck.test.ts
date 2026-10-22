@@ -25,3 +25,15 @@ test('check --typecheck runs tsc too: a key the runtime ignores but the types re
   assert.equal(ok.status, 0, ok.stdout + ok.stderr);
   assert.match(ok.stdout, /✓ typecheck/);
 });
+
+test('check --typecheck is not silently ignored with --format json: a type error still fails, and stdout stays the report', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'check-tc-json-'));
+  fs.writeFileSync(path.join(dir, 'package.json'), '{"type":"module"}\n');
+  assert.equal(spawnSync(BIN, ['init'], {cwd: dir, encoding: 'utf8'}).status, 0);
+  fs.mkdirSync(path.join(dir, 'diagrams'));
+  fs.writeFileSync(path.join(dir, 'diagrams', 'a.ts'), src(', {bogus: 1}'));
+  const typed = spawnSync(BIN, ['check', '--typecheck', '--format', 'json', 'diagrams/a.ts'], {cwd: dir, encoding: 'utf8'});
+  assert.equal(typed.status, 1);
+  assert.doesNotThrow(() => JSON.parse(typed.stdout), typed.stdout);
+  assert.match(typed.stderr, /TS2353.*bogus/);
+});

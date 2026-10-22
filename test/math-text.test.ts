@@ -14,8 +14,18 @@ test('mergeTextRuns keeps runs apart when something sits between them or the gap
   assert.equal([...mergeTextRuns(ch('利') + ch('益', 1500)).matchAll(/<text /g)].length, 2);
 });
 
-test('mergeTextRuns counts an entity as one character and leaves other text alone', () => {
-  assert.match(mergeTextRuns(ch('&amp;') + ch('益', 1000)), /textLength="2000"/);
+test('mergeTextRuns counts an entity as one character (0.6 em, like any non-CJK one) and leaves other text alone', () => {
+  assert.match(mergeTextRuns(ch('&amp;') + ch('益', 600)), /textLength="1600"/);
   const other = '<text font-size="12px">x</text>';
   assert.equal(mergeTextRuns(other), other);
+});
+
+test('mergeTextRuns pins a non-CJK character at the 0.6 em MathJax gave it, not 1 em', () => {
+  assert.match(mergeTextRuns(ch('ā')), /textLength="600"/);
+  assert.match(mergeTextRuns(ch('売') + ch('上', 1000) + ch('ā', 2000)), /textLength="2600"/);
+  assert.equal([...mergeTextRuns(ch('ā') + ch('売', 1000)).matchAll(/<text /g)].length, 2, 'a gap of 1 em after a 0.6 em character is not contiguous');
+});
+
+test('mergeTextRuns leaves an emoji unpinned, so math() refuses it', () => {
+  assert.doesNotMatch(mergeTextRuns(ch('😀')), /textLength/);
 });

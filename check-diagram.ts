@@ -203,7 +203,7 @@ const driftCacheOf = (): Promise<DriftCache | null> => cacheOpened ??= flag('--n
 /** The cache key of a source whose committed SVG exists and carries provenance (null: nothing to key, or not cacheable) */
 const rebuildKeyOf = async (src: string): Promise<string | null> => {
   const cache = await driftCacheOf();
-  const svg = path.join(svgDir ?? 'svg', `${path.parse(src).name}.svg`);
+  const svg = path.join(svgDir ?? svgDirOf(config), `${path.parse(src).name}.svg`);
   if (!cache || !fs.existsSync(svg)) return null;
   const meta = readProvenance(svg);
   return meta ? cache.keyFor(path.resolve(src), svg, JSON.stringify(meta)) : null;
@@ -341,7 +341,9 @@ try {
     }
     // not a figure: a shared helper (_base.ts), or any file whose default export is not a diagram — skipped, not failed
     if (path.basename(src).startsWith('_')) { say(`ℹ ${src}: 先頭が _ のファイルは共通部品として検査しない`); return; }
-    try { await importDefine(abs); }
+    // the module is evaluated here and only once, so a data file its top level reads is noted here (the cache's reads), not in the rebuild below
+    const noteReads = drift && rebuild && await driftCacheOf() ? (await import('./drift-cache-io.ts')).recordReads : <T,>(f: () => Promise<T>) => f();
+    try { await noteReads(() => importDefine(abs)); }
     catch (e) { if (/no default export function/.test(errorMessage(e))) { say(`ℹ ${src}: 図ではない（default export の関数がない）ので検査しない`); return; } throw e; }
     if (drift) {
       const svg = path.join(svgDir ?? svgDirOf(config), `${name}.svg`);
@@ -472,9 +474,11 @@ if (format === 'github') {
 }
 if (verbose && !drift && format === 'text') console.log('\nルール:\n' + Object.entries(RULE_DOCS).map(([k, v]) => `  ${k}: ${v}`).join('\n'));
 // --typecheck: the build and the checks above never read the types, so a wrong key or value that tsc would stop at passes them. Run the project's tsc too.
-if (flag('--typecheck') && format === 'text') {
-  const tc = spawnSync(process.execPath, [path.join(import.meta.dirname, 'typecheck.ts')], {stdio: 'inherit'});
+if (flag('--typecheck')) {
+  // next to this file with the same extension (a clone runs .ts, a package install runs dist/*.js); stdout stays the report's in json/github/sarif
+  const tc = spawnSync(process.execPath, [path.join(import.meta.dirname, `typecheck${path.extname(import.meta.filename)}`)], {stdio: format === 'text' ? 'inherit' : ['ignore', 2, 2]});
+  if (tc.status === 2) { console.error('✗ typecheck: 実行できなかった（typescript が見つからない、など。上の出力）'); process.exit(2); }
   if (tc.status !== 0) { console.error('✗ typecheck: 型エラーがある（上の出力）'); process.exit(1); }
-  console.log('✓ typecheck');
+  if (format === 'text') console.log('✓ typecheck'); else console.error('✓ typecheck');
 }
 process.exit(bad || (strict && warned) ? 1 : 0);
