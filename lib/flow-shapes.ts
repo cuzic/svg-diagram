@@ -405,13 +405,15 @@ function emblemOutline(kind: EmblemKind, left: number, top: number, d: number): 
 const wordKind = (c: string | undefined): 'kana' | 'latin' | null => c === undefined ? null : /[ァ-ヺー-ヾｦ-ﾟ]/.test(c) ? 'kana' : /[A-Za-z0-9Ａ-Ｚａ-ｚ０-９]/.test(c) ? 'latin' : null; // katakana (full and half width, and ー), alphanumerics (half and full width); not ・ (U+30FB): it separates words
 /** Whether wrapping `text` into `lines` cuts a katakana (or alphanumeric) word: the two letters either side of a break touch in the source (no space, newline or ・ between them). */
 function splitsWord(text: string, lines: readonly string[]): boolean {
-  let at = 0;
-  for (const [i, line] of lines.entries()) {
-    const skipped = /^\s*/.exec(text.slice(at))![0].length; // the source's own spaces / newlines before this line
-    if (i > 0 && skipped === 0 && wordKind(lines[i - 1]!.at(-1)) !== null && wordKind(lines[i - 1]!.at(-1)) === wordKind(line[0])) return true;
+  let at = 0, last: string | undefined;
+  for (const line of lines) {
+    const rest = text.slice(at), skipped = rest.length - rest.trimStart().length; // the source's own spaces / newlines before this line
+    const kind = wordKind(last);
+    if (last !== undefined && skipped === 0 && kind !== null && kind === wordKind(line[0])) return true;
     at += skipped;
     if (!text.startsWith(line, at)) return false; // the wrapper changed the text (it does not, today): say nothing rather than guess
     at += line.length;
+    last = line.at(-1);
   }
   return false;
 }
