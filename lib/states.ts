@@ -193,6 +193,11 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
     const res = vertexDrops(idxs.map((i, k) => ({pts: must(original[k]), target: swR(must(rects.get(must(lay.edges[i]).to)))})), swR(dr), [...rects].filter(([k]) => k !== id).map(([, r]) => swR(r)));
     idxs.forEach((i, k) => { if (res[k] !== original[k]) drops.set(i, must(res[k]).map(sw)); });
   }
+  // a corner an answer leaves from is not where an arrow coming in from that side ends too: that one comes in a little above it
+  const cornerUsed = (id: string, side: 'left' | 'right'): boolean => {
+    const r = diamonds.get(id);
+    return !!r && [...drops].some(([i, p]) => lay.edges[i]?.from === id && Math.abs(must(p[0]).x - (side === 'left' ? r.x : r.x + r.w)) < 1);
+  };
   for (const [i, e] of lay.edges.entries()) {
     const t = e.from === INIT ? undefined : pickTransition(e.from, e.to);
     if (e.self) {
@@ -212,6 +217,11 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
     // an end on a diamond is moved onto its outline (the arrows that share a side are spread around its middle)
     const dFrom = diamonds.get(e.from), dTo = diamonds.get(e.to);
     if (dFrom && !dropped && pts.length > 1) pts[0] = ontoDiamond(must(pts[0]), must(pts[1]), dFrom);
+    const last = pts[pts.length - 1], before = pts[pts.length - 2];
+    if (dTo && last && before && pts.length > 2 && last.y === before.y && ((last.x <= dTo.x + 1 && cornerUsed(e.to, 'left')) || (last.x >= dTo.x + dTo.w - 1 && cornerUsed(e.to, 'right')))) {
+      const up = -Math.min(14, dTo.h / 4);
+      pts[pts.length - 1] = {x: last.x, y: last.y + up}; pts[pts.length - 2] = {x: before.x, y: before.y + up};
+    }
     if (dTo && pts.length > 1) pts[pts.length - 1] = ontoDiamond(must(pts[pts.length - 1]), must(pts[pts.length - 2]), dTo);
     out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});
     if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: f => pointAt(pts, f), on: pts});
