@@ -347,6 +347,8 @@ export interface BpmnOpts extends RevealOpts, ScopeOpts {
   id?: string;
   /** 'shrink': when the figure is wider than the diagram, narrow the lane-name column, the column gaps and the task boxes step by step until it fits (default: throw). */
   fit?: 'shrink';
+  /** 'v': the lanes are columns and the flow runs down (default 'h': the lanes are rows and the flow runs right). A vertical figure takes its column width from the lanes, so it has no `fit`. ADR 0042 */
+  dir?: 'h' | 'v';
 }
 export interface BpmnBand extends BpmnOpts {
   type: 'bpmn';
@@ -472,7 +474,10 @@ export interface LaidOutBpmn extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  lanes: (Rect & {labelW: number; tone: BoxTone})[];
+  /** `labelW`: the lane-name column of a horizontal figure; `labelH`: the lane-name header of a vertical one (then `labelW` is 0). */
+  lanes: (Rect & {labelW: number; labelH?: number; tone: BoxTone})[];
+  /** 'v' for a vertical figure (ADR 0042). */
+  dir?: 'v';
   /** The shape of each node (a circle, a diamond or a rounded rectangle). */
   nodes: (Rect & {kind: BpmnNodeKind; tone: BoxTone; /** ADR 0034 */ dataNode?: string})[];
   /** The icons of the tasks that have one (20px, above the label); `node` indexes `nodes`. */
