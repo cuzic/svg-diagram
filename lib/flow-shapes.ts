@@ -402,7 +402,7 @@ function emblemOutline(kind: EmblemKind, left: number, top: number, d: number): 
     }
   }
 }
-const wordKind = (c: string | undefined): 'kana' | 'latin' | null => c === undefined ? null : /[ァ-ヺー-ヾ]/.test(c) || c === 'ー' ? 'kana' : /[A-Za-z0-9]/.test(c) ? 'latin' : null; // not ・ (U+30FB): it separates words
+const wordKind = (c: string | undefined): 'kana' | 'latin' | null => c === undefined ? null : /[ァ-ヺー-ヾｦ-ﾟ]/.test(c) ? 'kana' : /[A-Za-z0-9Ａ-Ｚａ-ｚ０-９]/.test(c) ? 'latin' : null; // katakana (full and half width, and ー), alphanumerics (half and full width); not ・ (U+30FB): it separates words
 /** Whether wrapping `text` into `lines` cuts a katakana (or alphanumeric) word: the two letters either side of a break touch in the source (no space, newline or ・ between them). */
 function splitsWord(text: string, lines: readonly string[]): boolean {
   let at = 0;
@@ -427,8 +427,11 @@ function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: An
   });
   // The least D where everything fits and every katakana / alphanumeric word stays whole (up to EMBLEM_WORD_MAX); a label that cannot be kept
   // whole even there (a very long word) is let off, so it does not spoil the others. Else the least D that fits, words cut.
-  const wholeCap = Math.min(widest, EMBLEM_WORD_MAX), letOff = blocks(wholeCap).map(p => !p.whole);
-  const solve = (whole: boolean, limit: number) => { for (let d = least; d <= limit; d += 8) { const plan = blocks(d); if (plan.every((p, n) => p.fits && (!whole || p.whole || letOff[n]))) return {d, plan}; } return undefined; };
+  const wholeCap = Math.min(widest, EMBLEM_WORD_MAX), plans = new Map<number, ReturnType<typeof blocks>>();
+  const planAt = (d: number) => { let p = plans.get(d); if (!p) plans.set(d, p = blocks(d)); return p; };
+  // let off only a label that is whole at NO size from `least` to `wholeCap` (whether a long word is cut can depend on where the wrap happens to fall, so it is not monotone in D)
+  const letOff = b.items.map((_i, n) => { for (let d = least; d <= wholeCap; d += 8) if (must(planAt(d)[n]).whole) return false; return true; });
+  const solve = (whole: boolean, limit: number) => { for (let d = least; d <= limit; d += 8) { const plan = planAt(d); if (plan.every((p, n) => p.fits && (!whole || p.whole || letOff[n]))) return {d, plan}; } return undefined; };
   const found = solve(true, wholeCap) ?? solve(false, widest);
   if (!found) {
     const bad = must(b.items.find((_i, n) => !must(blocks(widest)[n]).fits)), kind = kindOf(bad);

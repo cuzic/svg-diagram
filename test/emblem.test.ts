@@ -164,6 +164,20 @@ test('a label that cannot be whole is let off, so it does not spoil the others; 
   assert.ok(linesOf(g).includes('インフラストラクチャ'), 'a newline between ABC and DEF is not a cut word');
 });
 
+test('half-width katakana and full-width alphanumerics are words too (the shape grows to keep them whole)', () => {
+  const half = figureReal(emblemBand([{label: 'ｱｲｳｴｵｶｷｸｹｺ'}]));          // 10 chars = 140px
+  assert.deepEqual(linesOf(half), ['ｱｲｳｴｵｶｷｸｹｺ']);
+  const full = figureReal(emblemBand([{label: 'ＡＢＣＤＥＦＧＨ'}]));
+  assert.deepEqual(linesOf(full), ['ＡＢＣＤＥＦＧＨ']);
+});
+
+test('a label is let off only when it is whole at no size up to 240px (a cut can fall on a ・ at one size and not at the next)', () => {
+  // whole at some D in the range, though cut at the least size: the shape grows until it is whole
+  const f = figureReal(emblemBand([{label: 'コタスケカタヌネウ・クキスソク あい書いうお'}]));
+  const cut = linesOf(f).some((l, i, all) => i > 0 && /[ァ-ヺー]/.test(all[i - 1]!.at(-1)!) && /[ァ-ヺー]/.test(l[0]!) );
+  assert.equal(cut, false, `no katakana word is cut: ${linesOf(f).join(' | ')}`);
+});
+
 test('the obstacle of a triangle is its bounding box, so a line through its lower corner is stopped (its anchor leaves the corners out)', async () => {
   const d = diagram({theme: 'blue'}).add(
     row([box({id: 'a1', title: '1'}), box({id: 'a2', title: '2'}), box({id: 'a3', title: '3'}), box({id: 'a4', title: '4'})]),
