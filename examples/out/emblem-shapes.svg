@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="345" viewBox="0 0 940 345" role="img" aria-labelledby="svg-title">
   <title id="svg-title">図形に文字を入れる</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/emblem-kinds.ts","sourceSha256":"7c7d62bb56a57d89168445ec0c8729669b335b72d6b7c98797a98399077bc620"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/emblem-shapes.ts","sourceSha256":"67dd46516ea86a4a084f4275b0aa7abfb778aabec1712945ce264e5e2209fba1"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
@@ -25,7 +25,7 @@
   <text x="808" y="128.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">実行</text>
   <text x="808" y="147.1" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">担当を決める</text>
 
-  <text x="470" y="238" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">小さな円に番号（size は最小の幅）</text>
+  <text x="470" y="238" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">小さな円に番号（minSize は最小の幅）</text>
 
   <circle cx="392" cy="292" r="32" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
   <circle cx="472" cy="292" r="32" fill="#ffffff" stroke="#22201b" stroke-width="2"/>

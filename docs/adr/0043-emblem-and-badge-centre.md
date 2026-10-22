@@ -1,6 +1,6 @@
 # ADR 0043: `emblem()` — 図形の中に文字を入れる部品
 
-- 状態: 実装済み(PR #321)。Opus の読み取りレビュー 1 巡目(高 2・中 8・低 9・命名 1)までを反映した版
+- 状態: 実装済み(PR #321。オプション名の改名は続きの PR)。Opus の読み取りレビュー 3 巡で収束(1 巡目: 高 2・中 8・低 9・命名 1、2 巡目: 中 3・低 2、3 巡目: 低 4)
 - 日付: 2026-10-21
 - 基点: `main`(PR #327 = ADR 0041 flowchart まで)。番号は、0041 が flowchart、0042 が bpmn の縦向き(PR #328)に使われているので 0043
 - 関連: ADR 0031(FCIS。新しい lib は純粋な層に置く)、ADR 0012(`scope`)、ADR 0041(flowchart のひし形)、PR #320(badge の中央合わせ。下の「同時に直したこと」)
@@ -19,18 +19,18 @@
 
 ## 決定
 
-### D1: 名前は `emblem`、形の指定は `kind`
-`shape` は一般的すぎる(別の意味にも読める)という指定で避けた。`node` はこの tool が既に「図の中のノード」の意味で使っている。`medal`(円のイメージが強い)・`seal`(用途が狭い)・`token`(既存の意味と衝突)・`mark` / `figure`(既存の語と衝突)も避け、既存と衝突せず「形と文字の組み合わせ」を表す `emblem` にした。形の指定は、最初の提案でユーザーに見せた `kind` のまま。
+### D1: 名前は `emblem`、形の指定は `shape`、最小の幅は `minSize`
+関数名に `shape` は一般的すぎる(別の意味にも読める)という指定で避けた。`node` はこの tool が既に「図の中のノード」の意味で使っている。`medal`(円のイメージが強い)・`seal`(用途が狭い)・`token`(既存の意味と衝突)・`mark` / `figure`(既存の語と衝突)も避け、既存と衝突せず「形と文字の組み合わせ」を表す `emblem` にした。
 
-Opus レビュー(N1)は、`badge` の `shape: 'circle' | 'square' | 'triangle'` と `StateItem.shape` が形を `shape` で受け、`kind` は flowchart の `'process' | 'decision' | 'terminator'`・bpmn・fta のように**意味の種類**に使われている、と指摘した。`size` も「最小の幅」なので `minSize` の方が誤解がない、とも。いずれも妥当だが、公開した名前の変更なので、この PR では変えず、ユーザーに聞く(未決)。
+オプション名は、最初は `kind` と `size` だった(PR #321)。Opus レビュー(N1)が、`badge` の `shape: 'circle' | 'square' | 'triangle'` と `StateItem.shape` は形を `shape` で受け、`kind` は flowchart の `'process' | 'decision' | 'terminator'`・bpmn・fta のように**意味の種類**に使われている、と指摘した。`size` も「最小の幅」なのに、文字が長いと黙って大きくなるので、`minSize` の方が動きと合う。公開した名前なので利用者に聞き(2026-10-22)、**`kind` → `shape`、`size` → `minSize`** に改名した(型は `EmblemKind` → `EmblemShape`)。使われる前の改名なので互換の別名は置かず、旧名(`kind` / `size`)を渡すと「`kind` is now `shape`」で throw する(黙って無視すると、`kind: 'hexagon'` が円で描かれる)。
 
 ### D2: flow-shapes の 6 つ目の種類にする
 新しい帯の種類は、型の和・`CHILD_BANDS` / `LAYOUT_HANDLERS` / `MEASURE_HANDLERS` / `EMIT_HANDLERS` / `FIT_HANDLERS` / `REVEAL` / `VERIFY_HANDLERS` / PPTX の分類など、10 か所以上に配線が要る。`chevron` / `funnel` / `cycle` / `venn` / `concentric` と同じ `FlowShapeBand` に入れると、**配置・検査(ラベルが図の外に出ない・重ならない)・anchor(`id` が `connect` / spotlight の対象)・`scope`・`reveal`・`width: 'fit'`** がそのまま効き、足りない配線はコンパイラが列挙した(tsc の型の穴埋めで済んだ)。Opus レビューで、`concentric` を含む全ての表に `emblem` が入っていることを確かめた。
 
 ### D3: 書き方は 2 通り
 ```ts
-emblem('重要', {kind: 'triangle', sub: '期限厳守', tone: 'danger', id: 'warn'})   // 1 個。id は図形の anchor(scope 付きなら <scope>.<id>)
-emblem([{label: '課題', kind: 'hexagon'}, {label: '原因', sub: '3 件'}], {kind: 'circle', size: 112})   // 複数。kind は既定。id は帯の id
+emblem('重要', {shape: 'triangle', sub: '期限厳守', tone: 'danger', id: 'warn'})   // 1 個。id は図形の anchor(scope 付きなら <scope>.<id>)
+emblem([{label: '課題', shape: 'hexagon'}, {label: '原因', sub: '3 件'}], {shape: 'circle', minSize: 112})   // 複数。shape は既定。id は帯の id
 ```
 他の flow-shape は配列で書くので配列形を基本にし、1 個の場合だけ文字列形の overload を足した。文字列形の `id` は図形の id(帯の id ではない)で、`scope` があれば `<scope>.<id>` が anchor の名前になり、ハンドルもその名前を返す(レビュー M2)。
 
@@ -46,10 +46,10 @@ emblem([{label: '課題', kind: 'hexagon'}, {label: '原因', sub: '3 件'}], {k
 実フォントで、5 形 × 13 種のラベル(長い 1 語・英大文字・絵文字・改行・下に伸びる字形・長い `sub` など)× 5 つの `size` の 325 通りを測り、文字の箱の四隅は全て輪郭の内側(線の太さの半分を引いて、最小 2.3px)。テストは、近似幅で全形・複数の `size` について、四隅が輪郭の内側 1px 以上にあることを確かめる。
 
 ### D5: 形が文字に合わせて広がる。同じ帯の中は同じ大きさ
-D を `size`(最小。既定 96。8px の刻みに**切り上げる**。レビュー L1)から 8px ずつ広げ、全項目のラベル(と `sub`)が各自の長方形に入った最初の D を使う。
+D を `minSize`(最小。既定 96。8px の刻みに**切り上げる**。レビュー L1)から 8px ずつ広げ、全項目のラベル(と `sub`)が各自の長方形に入った最初の D を使う。
 
 - **カタカナ・英数字の語は割らない**(レビュー M4・R2-M1・R2-M2)。まず「語を割らずに入る」最初の D を 240px まで探し(`diagram({keepWords})` の床と同じ考え)、無ければ「入る」最初の D(語が割れる)を 320px まで探す。「語が割れた」は、行の切れ目の前後の字が原文で隣り合っている(空白・改行・「・」をはさまない)カタカナどうし・英数字どうしのときだけ(`Plan Do Check Act` や `営業・マーケティング` の折り返しは割れではなく、形はふくらまない)。割らずに入らない語がある項目(`ア` が 30 字など)は、他の項目の語を守るために割ってよい項目として扱う。240px で割らずに入るのは、全角 14px で、円が約 13 字、六角形が約 11 字、ひし形・三角形が約 9 字まで(実フォントでの見積もり。これより長い語は割れる)。`text-mid-word-break` の直し方に `emblem` の項を足した。
-- **帯の幅を超えない**(レビュー M6)。上限は `min(320, 帯の幅を 8px に切り下げた値)`。`size` が帯より広いとき、帯の幅までで入らないときは、ラベル(と `sub`)・直し方(短くする・`sub` に移す・`kind: 'square'`・帯を広げる)を書いて throw する。`kind` が既に `square` なら square を勧めない(L4)。
+- **帯の幅を超えない**(レビュー M6)。上限は `min(320, 帯の幅を 8px に切り下げた値)`。`minSize` が帯より広いとき、帯の幅までで入らないときは、ラベル(と `sub`)・直し方(短くする・`sub` に移す・`shape: 'square'`・帯を広げる)を書いて throw する。`kind` が既に `square` なら square を勧めない(L4)。
 - 幅が足りなければ次の行へ折り返す(`gap` は 4px の格子に丸める。L2)。
 
 ### D6: 描き方
@@ -69,9 +69,8 @@ D を `size`(最小。既定 96。8px の刻みに**切り上げる**。レビ�
 ADR 0041 の `flowchart()` は、判断(ひし形)・開始/終了(角丸)・処理を、状態遷移図の配置の上で描く。ひし形は W:H = 1.6:1 で、質問文に合わせて行数を探し、矢印の出口と Yes/No の札を持つ。`emblem` のひし形は正方形で、固定の割合に折り返すだけで、矢印の補正もない。**流れ図の判断は `flowchart()`、判断でない文字入りの図形を 1 個ずつ自由に置くのは `emblem()`**。ひし形の内接の計算を 1 か所にまとめる案もあるが、配置の仕組み(層状の経路 / 行の折り返し)が違うので、この PR では別のまま。
 
 ## 見送ったこと・残り
-- 星形・吹き出し・パスで渡す自由な図形(「フリー素材」のように)。`kind` を増やすか、`path` を受けるかは、最初の 5 種類の使われ方を見てから。
+- 星形・吹き出し・パスで渡す自由な図形(「フリー素材」のように)。`shape` を増やすか、`path` を受けるかは、最初の 5 種類の使われ方を見てから。
 - `box({shape: 'circle'})`(既存の `box` に形を足す案)。`row` や `connect` との相性はよいが、変更が `box` 全体に広がる。`stateDiagram` の節の `shape` を使う案(flowchart と同じ道)も、配置が層状になるので、自由な位置に置く要望には合わない。
-- `kind` → `shape`、`size` → `minSize` の改名(D1)。
 - 項目単位の spotlight、`tone` ごとの文字の色、`gray-tone-collision` の対象に `emblem` を足すこと。
 - 輪郭に沿った文字の流し込みはしない(三角形は文字の量に比べて大きくなりがち)。
 - ワイヤーフレームの `mid()`(チップなどの基線)に `0.36` が残っている(badge ではない)。
