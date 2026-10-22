@@ -200,6 +200,9 @@ export function renderFlowShape(b: LaidOutFlowShape, day: Theme, tones: ToneEnv)
       out.push(`<circle cx="${n(p.cx)}" cy="${n(p.cy)}" r="${n(p.r)}" fill="${c}" fill-opacity="${p.opacity ?? .16}" stroke="${c}" stroke-width="2"${p.dash ? ` stroke-dasharray="${p.dash}"` : ''}/>`);
     } else if (p.k === 'rect') {
       out.push(`<rect x="${n(p.x)}" y="${n(p.y)}" width="${n(p.w)}" height="${n(p.h)}" rx="8" fill="none" stroke="${ink(colorOf(p.tone, day))}" stroke-width="2"/>`);
+    } else if (p.fill) { // a filled shape drawn as a path (an emblem's pill / rounded / document / cylinder): dimmed like a polygon
+      const st = resolveBoxStyle(tones, p.fill, day);
+      out.push(`<path d="${p.d}" fill="${paper(st.fill)}" stroke="${ink(st.stroke)}" stroke-width="2"${st.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
     } else {
       out.push(`<path d="${p.d}" fill="none" stroke="${ink(colorOf(p.tone, day))}" stroke-width="${p.thin ? 1.5 : 2}"${p.arrow ? ` marker-end="url(#${b.dim ? 'dsl-arrow-dim' : 'dsl-arrow'})"` : ''}/>`);
     }

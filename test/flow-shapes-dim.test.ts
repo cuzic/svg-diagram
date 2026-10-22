@@ -27,3 +27,11 @@ test('the lit band keeps its colours; a dimmed cycle takes the dimmed arrowhead;
   const lit = await renderDiagram(diagram({theme: 'blue', spotlight: 'a'}).add(emblem([{id: 'a', label: '強調', tone: 'accent'}])), {name: 'lit.svg', budget: 'cacheOnly'});
   assert.ok(fills(lit.svg, 'circle').some(f => f !== PALETTE.bg.toLowerCase()), 'a lit emblem keeps its tone fill');
 });
+
+test('an emblem drawn as a filled path (pill / rounded / document / cylinder) dims like a polygon: white fill, muted outline and text', async () => {
+  const svg = await svgOf(emblem([{label: '開始', shape: 'pill', tone: 'accent'}, {label: '報告書', shape: 'document', tone: 'accent'}, {label: '顧客DB', shape: 'cylinder', tone: 'danger'}, {label: '処理', shape: 'rounded', tone: 'muted'}]));
+  const paths = [...svg.matchAll(/<path [^>]*?fill="(#[0-9a-fA-F]{6})"[^>]*?stroke="(#[0-9a-fA-F]{6})"/g)];
+  assert.equal(paths.length, 4, 'the four filled paths');
+  for (const m of paths) assert.deepEqual([m[1]!.toLowerCase(), m[2]!.toLowerCase()], [PALETTE.bg.toLowerCase(), PALETTE.muted.toLowerCase()], 'a dimmed filled path: white fill, muted outline');
+  assert.ok(fills(svg, 'text').filter(f => f !== PALETTE.text.toLowerCase()).every(f => f === PALETTE.muted.toLowerCase()), 'the dimmed text is muted');
+});
