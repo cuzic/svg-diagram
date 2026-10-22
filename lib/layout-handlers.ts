@@ -16,6 +16,7 @@ import {layoutWordArt} from './wordart.ts';
 import {CANVAS_MIN_ROW_H, canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
 import {layoutTreeBand, narrowField} from './tree.ts';
 import {layoutStatesBand} from './states.ts';
+import {statesWords} from './states-words.ts';
 import {CAUSE_ROLES, layoutCauseBand, layoutCloudBand} from './toc.ts';
 import {layoutGantt} from './gantt.ts';
 import {layoutStatus} from './status.ts';
@@ -576,7 +577,7 @@ const layoutGanttBand = placedBand((band: BandOf<'gantt'>, x, y, w, ctx) => layo
 const layoutCauseOrCloud = placedBand((band: Band & {type: 'cause' | 'cloud'}, x, y, w, ctx) => band.type === 'cause' ? layoutCauseBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, ctx.d.canvas?.height !== undefined) : layoutCloudBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx),
   band => `${band.type === 'cause' ? 'a cause tree' : 'a cloud'} takes an id that another anchor already has`,
   band => `${band.type === 'cause' ? 'a cause tree node' : 'a cloud box'} takes an id that another anchor already has`);
-const layoutStates = placedBand((band: BandOf<'states'>, x, y, w, ctx) => layoutStatesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a state diagram takes an id that another anchor already has', 'a state takes an id that another anchor already has');
+const layoutStates = placedBand((band: BandOf<'states'>, x, y, w, ctx) => layoutStatesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), band => `${statesWords(band.flavor).diagram} takes an id that another anchor already has`, band => `a ${statesWords(band.flavor).node} takes an id that another anchor already has`);
 const layoutTree = placedBand((band: BandOf<'tree'>, x, y, w, ctx) => layoutTreeBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a tree takes an id that another anchor already has', 'a tree node takes an id that another anchor already has');
 const layoutBarsBand = placedBand((band: BandOf<'bars'>, x, y, w, ctx) => layoutBars(band, x, y, w, ctx.widthOf, ctx.roles), 'a bars band takes an id that another anchor already has', 'a bar takes an id that another anchor already has');
 const layoutChartBand = placedBand((band: BandOf<'chart'>, x, y, w, ctx) => layoutChart(band, x, y, w, ctx.widthOf, ctx.roles, ctx.wrap), 'a chart takes an id that another anchor already has', 'a chart element takes an id that another anchor already has');

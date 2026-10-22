@@ -132,7 +132,8 @@ export const RULE_DOCS = {
   'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
   'aspect-tall': '文書の図が縦に長い（高さが幅の 1.5 倍超。本の版面は縦横比が 1.5〜1.6 ほど）。部品に応じて、段組み（causeTree の fold、row の cols）か分割を検討する',
   'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）',
-  'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
+  'flowchart-decision-edges': '判断（flowchart のひし形）から出る矢印が 2 本未満、または 3 本以上、またはラベル（Yes / No など）がない',
+  'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・flowchart・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
   'density-compact-restored': "diagram({density: 'compact'}) の因果ツリー・状態遷移で、詰めた図のほうが検査の問題(箱を通る矢印・ラベルの重なり)が多いので、通常の間隔で描いた（情報）",
   'density': '文字量・箱の数が多い',
   'wf-callout-no-note': '図の番号に対応する注釈がない',
@@ -655,7 +656,7 @@ export const EDGE_BENDS_MAX = 5, EDGE_BENDS_MEAN = 3;
 interface RoutedEdges {name: string; edges: {from: string; to: string; points: {x: number; y: number}[]}[]}
 function routedBands(bands: LaidOutBand[], out: RoutedEdges[] = []): RoutedEdges[] {
   for (const b of bands) {
-    if (b.type === 'cause' || b.type === 'states' || b.type === 'bpmn' || b.type === 'classes') out.push({name: `${b.type}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
+    if (b.type === 'cause' || b.type === 'states' || b.type === 'bpmn' || b.type === 'classes') out.push({name: `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart' : b.type}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
     else if (b.type === 'chart' && b.edges) out.push({name: `${b.kind}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
     else if (b.type === 'row' || b.type === 'grid') routedBands(b.children, out);
   }
@@ -767,9 +768,24 @@ function graphRules(d: LintTarget, out: Finding[]): void {
   for (const id of parent.keys()) { const r = find(id); groups.set(r, [...(groups.get(r) ?? []), id]); }
   if (groups.size > 1) out.push({rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${[...groups.values()].map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
 }
+// A decision (a diamond) is a fork: it needs two or more arrows out, and each says which answer it is (ADR 0041 D5)
+function flowRules(d: LintTarget, out: Finding[]): void {
+  for (const b of d.laidOut ?? []) {
+    if (b.type !== 'states' || !b.nodes) continue;
+    b.nodes.forEach((n, i) => {
+      const id = b.anchors[i]?.id;
+      if (n.shape !== 'diamond' || id === undefined) return;
+      const leaving = b.edges.flatMap((e, k) => e.from === id && e.to !== id ? [{e, k}] : []);
+      if (leaving.length < 2) out.push({rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印が ${leaving.length} 本。判断は分岐なので、2 本以上（Yes / No など）にする`});
+      else if (leaving.length > 2) out.push({rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印が ${leaving.length} 本。3 本以上の分岐は読みにくいので、2 つの判断に分ける`});
+      const bare = leaving.filter(({k}) => !b.labels.some(l => l.edge === k)).map(({e}) => `${e.from} → ${e.to}`);
+      if (bare.length && leaving.length >= 2) out.push({rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印にラベルがない（${bare.join('、')}）。どの答えの矢印か分かるよう、Yes / No などを付ける`});
+    });
+  }
+}
 // `density: 'compact'` that was not applied to a band (ADR 0036 D6): the compact figure had an arrow through a box or a label on another one
 function densityRules(d: LintTarget, out: Finding[]): void {
-  const who = (d.laidOut ?? []).flatMap(b => (b.type === 'cause' || b.type === 'states') && b.densityRestored ? [b.type === 'cause' ? 'causeTree()' : 'stateDiagram()'] : []);
+  const who = (d.laidOut ?? []).flatMap(b => (b.type === 'cause' || b.type === 'states') && b.densityRestored ? [b.type === 'cause' ? 'causeTree()' : b.flavor === 'flowchart' ? 'flowchart()' : 'stateDiagram()'] : []);
   if (who.length) out.push({rule: 'density-compact-restored', severity: 'info', message: `${[...new Set(who)].join('・')}: density: 'compact' にすると箱を通る矢印・重なるラベルが増えるので、この図は通常の間隔で描いた（高さは詰まっていない）`});
 }
 const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()', fta: 'faultTree()', bowtie: 'bowtie()'} as const;
@@ -781,8 +797,8 @@ function fitRules(d: LintTarget, out: Finding[]): void {
     const noDir = b.type === 'fta' || b.type === 'bowtie'; // a fault tree and a bow-tie have no `dir`
     const knobs = noDir ? 'maxNodeW' : 'dir / maxNodeW', say = noDir ? "maxNodeW: 'auto'" : "dir: 'auto'";
     out.push({rule: 'auto-fit-applied', severity: auto ? 'info' : 'warn', message: auto
-      ? `${FIT_WHO[b.type]}: ${knobs} を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
-      : `${FIT_WHO[b.type]}: ${knobs} を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら ${say} と書く（info になる）。固定したいなら ${knobs} を明示する（収まらなければ試した案つきで止まる）`});
+      ? `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : FIT_WHO[b.type]}: ${knobs} を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
+      : `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : FIT_WHO[b.type]}: ${knobs} を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら ${say} と書く（info になる）。固定したいなら ${knobs} を明示する（収まらなければ試した案つきで止まる）`});
   }
 }
 /** How to fix a mid-word break depends on whether the part's boxes can be widened: a chevron / cycle / swimlane fixes the frame first. */
@@ -832,6 +848,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   rcaRules(d, out);
   fitRules(d, out);
   densityRules(d, out);
+  flowRules(d, out);
   textContrast(d, tones, out);
   colourOnlyEmphasis(d, out);
   nonTextContrast(d, tones, out);

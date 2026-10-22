@@ -6,6 +6,8 @@ import {statesProblems} from './verify-base.ts';
 import {gapFor, layeredAttempt, stubOf} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
+import {diamondLines, ontoDiamond, pillLines} from './flow-nodes.ts';
+import {statesWords} from './states-words.ts';
 import type {NodeLines} from './tree.ts';
 import type {FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {LaidOutStates, StatesBand} from './types/diagrams.ts';
@@ -45,16 +47,16 @@ export function layoutStatesBand(band: StatesBand, x: number, y: number, w: numb
 }
 
 function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutStates {
-  const S = roles.note;
+  const S = roles.note, words = statesWords(band.flavor);
   const ids = new Set<string>();
   for (const s of band.states) {
-    if (typeof s.id !== 'string' || !s.id || s.id === INIT) throw new Error('stateDiagram(): every state needs an id');
-    if (typeof s.label !== 'string' || !s.label.trim()) throw new Error(`stateDiagram(): state "${s.id}" needs a label`);
-    if (ids.has(s.id)) throw new Error(`stateDiagram(): duplicate state id "${s.id}"`);
+    if (typeof s.id !== 'string' || !s.id || s.id === INIT) throw new Error(`${words.who}: every ${words.node} needs an id`);
+    if (typeof s.label !== 'string' || !s.label.trim()) throw new Error(`${words.who}: ${words.node} "${s.id}" needs a label`);
+    if (ids.has(s.id)) throw new Error(`${words.who}: duplicate ${words.node} id "${s.id}"`);
     ids.add(s.id);
   }
-  for (const t of band.transitions) for (const e of [t.from, t.to]) if (!ids.has(e)) throw new Error(`stateDiagram(): transition ${t.from} -> ${t.to} names unknown state "${e}"`);
-  if (band.initial !== undefined && !ids.has(band.initial)) throw new Error(`stateDiagram(): initial names unknown state "${band.initial}"`);
+  for (const t of band.transitions) for (const e of [t.from, t.to]) if (!ids.has(e)) throw new Error(`${words.who}: ${words.edge} ${t.from} -> ${t.to} names unknown ${words.node} "${e}"`);
+  if (band.initial !== undefined && !ids.has(band.initial)) throw new Error(`${words.who}: initial names unknown ${words.node} "${band.initial}"`);
 
 
   const circles = new Set(band.states.filter(s => s.shape === 'circle').map(s => s.id)); // round nodes: arrows keep to the middle of their side (ADR 0016 D3)
@@ -71,7 +73,10 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
   const build = (dir: 'right' | 'down', maxW: number, floor: boolean) => {
     // a round node is as wide as its text needs and as tall as it is wide
     const lines = new Map<string, NodeLines>(band.states.map(s => {
-      const l = measureNode(s.label, s.sub, maxW, widthOf, roles, env.wrap, floor, {keepWords: s.shape !== 'circle'}), iconH = s.icon ? ICON_H : 0;
+      const iconH = s.icon ? ICON_H : 0;
+      if (s.shape === 'diamond') return [s.id, diamondLines(s.label, s.sub, maxW, iconH, widthOf, roles, env.wrap, floor)];
+      const l = measureNode(s.label, s.sub, maxW, widthOf, roles, env.wrap, floor, {keepWords: s.shape !== 'circle'});
+      if (s.shape === 'pill') return [s.id, pillLines(l, iconH)];
       if (s.shape !== 'circle') return [s.id, {...l, h: l.h + iconH}];
       const text = Math.max(...l.label.map(t => textWidth(widthOf, t, roles.body, 700)), ...l.sub.map(t => textWidth(widthOf, t, roles.note, 400))), inner = l.h - 16 + iconH;
       const d = Math.max(44, Math.ceil((Math.hypot(text, inner) + 10) / 8) * 8); // a multiple of 8: the radius sits on the 4px grid
@@ -93,9 +98,9 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
   };
 
   const explicitDir = band.dir !== undefined && band.dir !== 'auto';
-  const start: 'right' | 'down' = band.dir === 'down' ? 'down' : 'right';
+  const start: 'right' | 'down' = band.dir === 'down' || (band.dir === undefined && band.defaultDir === 'down') ? 'down' : 'right';
   const fitted = fitLayout({
-    who: 'stateDiagram()', w, start, keepWords: env.keepWords, alt: start === 'right' ? 'down' : 'right', explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted',
+    who: words.who, w, start, keepWords: env.keepWords, alt: start === 'right' ? 'down' : 'right', explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted',
     ...(band.maxNodeW === undefined ? {} : {maxNodeW: band.maxNodeW}), build, widthOf: r => r.size.w + r.reserve, best: band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget}),
     ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
   });
@@ -107,19 +112,21 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
   // dir down: the loop and its label stick out to the right of the rightmost state (`reserve`)
   const dx = x + (w - total.w - reserve) / 2, dy = y + top;
   const out: LaidOutStates = {
-    type: 'states', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + top,
+    type: 'states', ...(band.flavor ? {flavor: band.flavor} : {}), id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + top,
     nodes: [], edges: [], texts: [], icons: [], labels: [], anchors: [], labelBoxes: [],
     ...(fitApplied.length ? {fitApplied} : {}),
   };
   const rects = new Map<string, {x: number; y: number; w: number; h: number}>();
+  const diamonds = new Map<string, {x: number; y: number; w: number; h: number}>(); // the diamonds' rects, filled in below
   for (const s of band.states) {
     const p = at(s.id), r = {x: p.x + dx, y: p.y + dy, w: p.w, h: p.h};
     rects.set(s.id, r);
-    out.nodes.push({...r, tone: s.tone ?? 'plain', ...(s.final ? {final: true} : {}), ...(s.shape === 'circle' ? {circle: true} : {})});
+    if (s.shape === 'diamond') diamonds.set(s.id, r);
+    out.nodes.push({...r, tone: s.tone ?? 'plain', ...(s.final ? {final: true} : {}), ...(s.shape === 'circle' ? {circle: true} : {}), ...(s.shape === 'diamond' || s.shape === 'pill' ? {shape: s.shape} : {})});
     out.anchors.push({id: s.id, ...r});
     const nl = must(lines.get(s.id)), textH = (nl.label.length * Math.round(roles.body * 1.4)) + (nl.sub.length * Math.round(roles.note * 1.4));
     // the text of a round node sits in its middle; an icon is above the text
-    const iconH = s.icon ? ICON_H : 0, y0 = s.shape === 'circle' ? r.y + (r.h - textH - iconH) / 2 - 8 : r.y;
+    const iconH = s.icon ? ICON_H : 0, y0 = s.shape === 'circle' || s.shape === 'diamond' ? r.y + (r.h - textH - iconH) / 2 - 8 : r.y;
     out.texts.push(...nodeRuns({x: r.x, y: y0 + iconH, w: r.w}, nl, roles));
     if (s.icon) out.icons.push({node: out.nodes.length - 1, name: s.icon, glyph: must(s.iconGlyph), x: r.x + (r.w - STATE_ICON) / 2, y: y0 + 8, size: STATE_ICON});
     out.labelBoxes.push({label: s.label, ...r});
@@ -157,6 +164,13 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
         if (len >= lh + 4) runs.push({x: p.x + 6 + lw / 2, y: p.y + Math.sign(q.y - p.y) * (len / 2)}, {x: p.x - 6 - lw / 2, y: p.y + Math.sign(q.y - p.y) * (len / 2)});
       }
     }
+    // an arrow that leaves a decision (Yes / No): its chip sits at the diamond, beside the first stretch of the arrow, so it reads as the answer to that question
+    const from = diamonds.get(out.edges[own]?.from ?? ''), p0 = on[0];
+    if (from && p0) {
+      const first = on[1];
+      if (dir === 'down' && first && first.x === p0.x) { const right = p0.x >= from.x + from.w / 2; runs.unshift({x: p0.x + (right ? 1 : -1) * (6 + lw / 2), y: from.y + from.h + lh / 2 + 2}); }
+      else if (dir === 'right' && first && first.y === p0.y) runs.unshift({x: from.x + from.w + 4 + lw / 2, y: p0.y + (p0.y < from.y + from.h / 2 ? -1 : 1) * (lh / 2 + 3)});
+    }
     // candidates, nearest to the arrow first: its straight runs, then points along it, then spots beside those (right / left / above / below)
     const offs: [number, number][] = [[0, 0], [lw / 2 + 8, 0], [-(lw / 2 + 8), 0], [0, lh + 2], [0, -(lh + 2)], [lw / 2 + 8, lh + 2], [-(lw / 2 + 8), lh + 2], [lw / 2 + 8, -(lh + 2)], [-(lw / 2 + 8), -(lh + 2)], [0, 2 * (lh + 2)], [0, -2 * (lh + 2)], [lw + 12, 0], [-(lw + 12), 0]];
     const cands: {p: Pt; cost: number}[] = runs.map(p => ({p, cost: -1}));
@@ -184,7 +198,11 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
       if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: () => ({x: cx, y: a.y - LOOP - (S + 8) / 2 - 2})});
       continue;
     }
-    const pts = must(routes.get(i));
+    const pts = must(routes.get(i)).slice();
+    // an end on a diamond is moved onto its outline (the arrows that share a side are spread around its middle)
+    const dFrom = diamonds.get(e.from), dTo = diamonds.get(e.to);
+    if (dFrom && pts.length > 1) pts[0] = ontoDiamond(must(pts[0]), must(pts[1]), dFrom);
+    if (dTo && pts.length > 1) pts[pts.length - 1] = ontoDiamond(must(pts[pts.length - 1]), must(pts[pts.length - 2]), dTo);
     out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});
     if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: f => pointAt(pts, f), on: pts});
   }

@@ -302,6 +302,27 @@ stateDiagram(
 - ラベルは、矢印の直線部分の脇に置く。矢印の先や、状態・ほかのラベルに重なるときは、矢印に沿って場所を探し、それでも入らなければ矢印の脇に動かす。それも無理なら `check` / `build` が、どのラベルが何に重なるかを書いて止まる。矢印が無関係の状態を貫くときも止まる。ラベルが長いと層の間隔が広がるので、図の幅を超えたら、幅と直し方（`dir: 'down'`、`maxNodeW`、ラベルを短く）を書いて止まる。
 - 矢じりはマーカーではなく図形で描く（resvg は、左向きの終端マーカーを回さないため）。状態の `id` は `connect()` の端点で、`t.anchors.<id>` でも取れる。例は `examples/state-diagram.ts`。
 
+### 判断のある流れ図（`flowchart`）
+
+```ts
+flowchart(
+  [
+    {id: 'start', kind: 'terminator', label: '新人からの相談'},
+    {id: 'q1', kind: 'decision', label: '自分で答えられる？'},
+    {id: 'a1', label: '回答する', sub: '終了'},
+    {id: 'q2', kind: 'decision', label: '調べればわかる？'},
+    {id: 'a2', label: '調べて回答する'},
+  ],
+  [{from: 'start', to: 'q1'}, {from: 'q1', to: 'a1', label: 'Yes'}, {from: 'q1', to: 'q2', label: 'No'}, {from: 'q2', to: 'a2', label: 'Yes'}, {from: 'a2', to: 'q1', label: 'まだ解決しない', line: 'dashed'}],
+)
+```
+
+- 座標は書かない。`stateDiagram` と同じ配置（層に分け、直角の矢印で結ぶ）で、**既定は上から下**（`dir: 'right'` / `'auto'` も書ける）。節の `kind`: `process`（角丸の箱。既定。`sub` で 2 行目、`tone`、`icon` も）/ `decision`（ひし形。**質問が中に入り、文字の長さに合わせて大きくなる**）/ `terminator`（開始・終了の、両端が丸い箱）。`initial` / `final` は無い（開始・終了は `terminator`）。
+- 矢印は `stateDiagram` の遷移と同じ（`label` / `line` / `tone` / `strong`）。判断から出る矢印の `label`（Yes / No など）は、ひし形のそばの矢印の脇に置かれる。ひし形に出入りする矢印の端は、ひし形の輪郭まで延びる。
+- **戻る矢印（やり直し）は、既定で図の外側を回る**（`returns: 'outer'`。判断へ戻る矢印は横の頂点に入る）。`returns: 'inline'` にもできる（別のノードを通ると build が止まる）。判断・開始終了の自己ループは書けない。
+- ひし形は同じ文でも箱の 2〜3 倍の高さになる。判断が多い流れで縦に長くなるときは、`dir: 'right'` にするか、図を分ける（`aspect-tall` が知らせる）。レーン（担当）が要る業務フローは `bpmn`。
+- 検査: 判断から出る矢印が 2 本未満・3 本以上・ラベルなし（情報 `flowchart-decision-edges`）。ほかは `stateDiagram` と同じ（`text-mid-word-break`・`edge-crossings` など）。例は `examples/flowchart.ts`、設計は ADR 0041。
+
 ### TOC の思考プロセス（`causeTree` / `cloud`）
 
 Goldratt の制約理論（TOC）の図は、箱の形より**矢印の意味**が約束事になっている。十分原因（「Xが成り立てばYが起きる」）の現状・未来現実・移行ツリーと、必要条件（「Yのためには X が必要」）の前提条件ツリー・クラウドは、同じ箱と矢印で描いても読み方が違うので、図の見出しか凡例で書く。

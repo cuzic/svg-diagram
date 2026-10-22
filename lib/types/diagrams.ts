@@ -63,7 +63,7 @@ export interface StateItem {
   /** An end state: drawn with a double outline. */
   final?: boolean;
   /** 'circle': a round node that holds a short text (an event of an arrow diagram). Default a rounded box. */
-  shape?: 'box' | 'circle';
+  shape?: 'box' | 'circle' | 'diamond' | 'pill';
   /** An installed SVG icon (see `icon`), 24px, centred above the label. */
   icon?: IconName;
   /** Internal: the installed path of `icon`, resolved by stateDiagram(). */
@@ -80,6 +80,22 @@ export interface Transition {
   /** A thick arrow. */
   strong?: boolean;
 }
+/** What a flowchart() node is: a step (rounded box, the default), a decision (a diamond that holds the question) or a start / end (a pill). */
+export type FlowKind = 'process' | 'decision' | 'terminator';
+export interface FlowNode {
+  /** Required: edges name it, and connect() can reach it. */
+  id: string;
+  label: string;
+  /** A second, muted line. */
+  sub?: string;
+  kind?: FlowKind;
+  /** Default 'plain'. */
+  tone?: EmphasisTone;
+  icon?: IconName;
+}
+/** An arrow of a flowchart: the same as a state diagram's transition (`label` is Yes / No on an arrow that leaves a decision). */
+export type FlowEdge = Transition;
+export interface FlowchartOpts extends Omit<StatesOpts, 'initial'> {}
 export interface StatesOpts extends RevealOpts, ScopeOpts {
   /** 'right' (default): the flow runs left to right. 'down': top to bottom.
    *  'auto' (and leaving it out) lets the layout narrow the states and turn to the other direction when the figure is wider than the diagram
@@ -96,6 +112,10 @@ export interface StatesOpts extends RevealOpts, ScopeOpts {
 }
 export interface StatesBand extends StatesOpts {
   type: 'states';
+  /** Internal: made by flowchart() (names in messages, the direction it starts from). */
+  flavor?: 'flowchart';
+  /** Internal: the direction a figure starts from when `dir` is left out (a flowchart runs down). Not an explicit `dir`. */
+  defaultDir?: 'down';
   states: StateItem[];
   transitions: Transition[];
 }
@@ -366,6 +386,8 @@ export interface LaidOutTree extends Rect, Dimmed {
 }
 export interface LaidOutStates extends Rect, Dimmed {
   type: 'states';
+  /** A flowchart(): its messages say flowchart / node / arrow. */
+  flavor?: 'flowchart';
   /** `density: 'compact'` was asked for, but the compact figure had more wrong in it, so this band is drawn at the normal gaps (ADR 0036 D6). */
   densityRestored?: boolean;
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
@@ -373,7 +395,7 @@ export interface LaidOutStates extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: EmphasisTone; final?: boolean; circle?: boolean})[];
+  nodes: (Rect & {tone: EmphasisTone; final?: boolean; circle?: boolean; shape?: 'diamond' | 'pill'})[];
   initial?: {x: number; y: number; r: number};
   /** Orthogonal polylines from the tail state's box edge to the head's; the arrowhead is at the last point. */
   edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; tone?: 'danger' | 'accent' | 'muted'; strong?: boolean}[];
