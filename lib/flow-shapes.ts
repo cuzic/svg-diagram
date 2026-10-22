@@ -11,7 +11,7 @@ import type {LoopBack} from './types/containers.ts';
 import {assertScope} from './scope-name.ts';
 import {textWidth} from './atoms.ts';
 import {TONES} from './tokens.ts';
-import {EMBLEM_SHAPES, EMBLEM_TEXT, emblemOutline} from './emblem-shapes.ts';
+import {EMBLEM_FLEX, EMBLEM_SHAPES, EMBLEM_TEXT, emblemHeight, emblemMaxHeight, emblemOutline} from './emblem-shapes.ts';
 import type {EmblemShape} from './emblem-shapes.ts';
 import {wrapText} from './wrap.ts';
 import {katakanaWidth} from './tree.ts';
@@ -409,9 +409,10 @@ function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: An
   const gap = g4(b.gap), widest = Math.min(EMBLEM_MAX, Math.floor(out.w / 8) * 8), least = Math.ceil((b.minSize ?? 96) / 8) * 8;
   if (least > widest) throw new Error(`emblem(): minSize ${b.minSize ?? 96} is wider than the band (${Math.round(out.w)}px) — lower \`minSize\` or widen the band`);
   const blocks = (d: number) => b.items.map(i => {
-    const g = EMBLEM_TEXT[shapeOf(i)], label = t.wrap(i.label, g.w * d), sub = i.sub ? t.wrap(i.sub, g.w * d, 400) : undefined;
-    const fits = Math.max(label.w, sub?.w ?? 0) <= g.w * d + .5 && label.h + (sub?.h ?? 0) <= g.h * d;
-    return {label, sub, fits, whole: !splitsWord(i.label, label.lines) && !(sub && i.sub && splitsWord(i.sub, sub.lines))};
+    const shape = shapeOf(i), g = EMBLEM_TEXT[shape], label = t.wrap(i.label, g.w * d), sub = i.sub ? t.wrap(i.sub, g.w * d, 400) : undefined;
+    const textH = label.h + (sub?.h ?? 0), h = emblemHeight(shape, d, textH); // a shape in EMBLEM_FLEX grows taller for its lines; the others keep their height
+    const fits = Math.max(label.w, sub?.w ?? 0) <= g.w * d + .5 && (EMBLEM_FLEX.has(shape) ? h <= emblemMaxHeight(shape, d) : textH <= g.h * d);
+    return {label, sub, fits, h, whole: !splitsWord(i.label, label.lines) && !(sub && i.sub && splitsWord(i.sub, sub.lines))};
   });
   // The least D where everything fits and every katakana / alphanumeric word stays whole (up to EMBLEM_WORD_MAX); a label that cannot be kept
   // whole even there (a very long word) is let off, so it does not spoil the others. Else the least D that fits, words cut.
@@ -427,19 +428,19 @@ function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: An
   }
   const {d, plan} = found;
   const perRow = Math.max(1, Math.floor((out.w + gap) / (d + gap))), rows = Math.ceil(b.items.length / perRow);
-  const rowH = Math.max(...b.items.map(i => emblemOutline(shapeOf(i), 0, 0, d).h));
+  const rowH = Math.max(...plan.map(p => p.h));
   out.h = rows * rowH + (rows - 1) * gap;
   b.items.forEach((item, n) => {
     const row = Math.floor(n / perRow), inRow = Math.min(perRow, b.items.length - row * perRow), col = n - row * perRow;
     const rowW = inRow * d + (inRow - 1) * gap, shape = shapeOf(item);
-    const left = g4(out.x + (out.w - rowW) / 2 + col * (d + gap)), h = emblemOutline(shape, 0, 0, d).h, top = g4(out.y + row * (rowH + gap) + (rowH - h) / 2);
-    const o = emblemOutline(shape, left, top, d), tone = item.tone ?? 'plain';
+    const k = must(plan[n]), h = k.h, left = g4(out.x + (out.w - rowW) / 2 + col * (d + gap)), top = g4(out.y + row * (rowH + gap) + (rowH - h) / 2);
+    const o = emblemOutline(shape, left, top, d, h), tone = item.tone ?? 'plain';
     if (o.points) out.primitives.push({k: 'polygon', points: o.points, tone});
     else if (o.path) out.primitives.push({k: 'path', d: o.path, tone: 'text', fill: tone, box: o.box});
     else out.primitives.push({k: 'circle', cx: left + d / 2, cy: top + d / 2, r: d / 2, tone: 'text', fill: tone});
     anchor(item.id, o.anchor);
     if (item.id) (out.bounds ??= []).push({id: item.id, x: left, y: top, w: d, h: o.h});
-    const k = must(plan[n]), blockH = k.label.h + (k.sub?.h ?? 0), cx = left + d / 2, cy = top + o.textCy;
+    const blockH = k.label.h + (k.sub?.h ?? 0), cx = left + d / 2, cy = top + o.textCy;
     t.place(k.label, cx, cy - blockH / 2, labelTone(tone));
     if (k.sub) t.place(k.sub, cx, cy - blockH / 2 + k.label.h, 'muted');
   });

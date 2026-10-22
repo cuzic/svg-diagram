@@ -4,7 +4,8 @@ import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {diagram, emblem, renderDiagram, checkDiagram, closeMeasurer, connect, row, box} from '../lib/dsl.ts';
 import {emblemBand, flowShapeIds, layoutFlowShape} from '../lib/flow-shapes.ts';
-import {EMBLEM_SHAPES, emblemClearance, emblemOutline} from '../lib/emblem-shapes.ts';
+import {EMBLEM_FLEX, EMBLEM_SHAPES, emblemClearance, emblemHeight, emblemMaxHeight, emblemOutline} from '../lib/emblem-shapes.ts';
+import {flattenPath} from '../lib/svg-geom.ts';
 import {ROLES} from '../lib/tokens.ts';
 import type {LaidOutFlowShape} from '../lib/flow-shapes.ts';
 import type {Rect} from '../lib/types/core.ts';
@@ -74,7 +75,7 @@ test('emblem(label, opts) is one shape whose id is its anchor; the array form ta
   assert.equal(many.shape, 'hexagon');
 });
 
-const WORDS: Record<string, string> = {circle: '円', square: '四角', triangle: '三角', diamond: 'ひし形', hexagon: '六角形', trapezoid: '台形', 'inverted-trapezoid': '逆台形', parallelogram: '平行四辺形', pentagon: '五角形', pill: '端子', rounded: '角丸', document: '書類', cylinder: '円柱'};
+const WORDS: Record<string, string> = {circle: '円', square: '四角', triangle: '三角', diamond: 'ひし形', hexagon: '六角形', trapezoid: '台形', 'inverted-trapezoid': '逆台形', parallelogram: 'データ', pentagon: '五角形', pill: '端子', rounded: '角丸', document: '書類', cylinder: '円柱'};
 
 test('a diagram with every shape builds clean and draws each one once', async () => {
   const d = diagram({theme: 'blue'}).add(emblem(SHAPES.map((shape, i) => ({id: `e${i}`, label: WORDS[shape]!, shape})), {minSize: 112}));
@@ -105,7 +106,7 @@ test('every corner of every text box is inside the outline it is drawn in (by th
     try { f = figure(emblemBand([{id: 'a', label, ...(sub ? {sub} : {})}], {shape, minSize: size})); } catch { continue; } // too long for the shape: it throws, which is tested above
     const b = f.bounds![0]!;
     for (const t of f.labelBoxes) for (const q of [[t.x, t.y], [t.x + t.w, t.y], [t.x, t.y + t.h], [t.x + t.w, t.y + t.h]] as [number, number][]) {
-      const margin = emblemClearance(shape, b.x, b.y, b.w, q);
+      const margin = emblemClearance(shape, b.x, b.y, b.w, q, b.h);
       assert.ok(margin >= 1, `${shape} size ${size} "${label}": a text corner is ${margin.toFixed(1)}px inside the outline`);
     }
   }
@@ -116,7 +117,7 @@ test("the text rectangle's own corners stay inside every shape, at every size", 
     const f = figure(emblemBand([{id: 'a', label: '一'}], {shape, minSize: size}), 892), a = f.bounds![0]!, d = a.w;
     // the text rectangle is EMBLEM_TEXT[shape] of D, centred on the label's centre: take the label box's centre
     const t = f.labelBoxes[0]!, cx = t.x + t.w / 2, cy = t.y + t.h / 2;
-    assert.ok(emblemClearance(shape, a.x, a.y, d, [cx, cy]) > d * .1, `${shape} ${size}: the centre of the text is deep inside`);
+    assert.ok(emblemClearance(shape, a.x, a.y, d, [cx, cy], a.h) > d * .1, `${shape} ${size}: the centre of the text is deep inside`);
   }
 });
 
@@ -136,7 +137,7 @@ test(':top / :bottom / :left / :right of every shape land on its outline (within
   for (const shape of SHAPES) for (const size of [64, 96, 120, 152, 200, 320]) {
     const f = figure(emblemBand([{id: 'a', label: '一', shape}], {minSize: size}), 892), a = f.anchors[0]!, b = f.bounds![0]!;
     const points: [string, [number, number]][] = [['top', [a.x + a.w / 2, a.y]], ['bottom', [a.x + a.w / 2, a.y + a.h]], ['left', [a.x, a.y + a.h / 2]], ['right', [a.x + a.w, a.y + a.h / 2]]];
-    for (const [name, q] of points) assert.ok(Math.abs(emblemClearance(shape, b.x, b.y, b.w, q)) <= 1, `${shape} ${size}: :${name} is ${emblemClearance(shape, b.x, b.y, b.w, q).toFixed(1)}px from the outline`);
+    for (const [name, q] of points) assert.ok(Math.abs(emblemClearance(shape, b.x, b.y, b.w, q, b.h)) <= 1, `${shape} ${size}: :${name} is ${emblemClearance(shape, b.x, b.y, b.w, q, b.h).toFixed(1)}px from the outline`);
   }
 });
 
@@ -267,4 +268,28 @@ test('emblemOutline: the drawn height is the height of the points, the box holds
     assert.ok(o.textCy > 0 && o.textCy < o.h, `${shape} ${d}: the text centre is inside the shape`);
     assert.equal([o.points, o.path].filter(Boolean).length <= 1, true, `${shape} ${d}: a polygon or a path, not both (neither: the circle)`);
   }
+});
+
+test('the drawn path of a pill / rounded / document / cylinder spans exactly its box (a document\'s wave reaches the bottom)', () => {
+  for (const shape of ['pill', 'rounded', 'document', 'cylinder'] as const) for (let d = 64; d <= 320; d += 8) for (const textH of [0, 60, 120]) {
+    const h = emblemHeight(shape, d, textH);
+    if (h > emblemMaxHeight(shape, d)) continue; // the layout grows D instead
+    const o = emblemOutline(shape, 100, 200, d, h), pts = flattenPath(o.path!).flatMap(f => [...f.pts, ...f.extrema]);
+    const ys = pts.map(p => p[1]), xs = pts.map(p => p[0]);
+    assert.ok(Math.abs(Math.min(...ys) - 200) <= .5 && Math.abs(Math.max(...ys) - (200 + h)) <= .5, `${shape} ${d} (${textH}): y spans ${Math.min(...ys)}..${Math.max(...ys)}, the box is 200..${200 + h}`);
+    assert.ok(Math.abs(Math.min(...xs) - 100) <= .5 && Math.abs(Math.max(...xs) - (100 + d)) <= .5, `${shape} ${d}: x spans the width`);
+  }
+});
+
+test('a shape that is as tall as its text needs (pill, rounded, parallelogram, document, cylinder): a line of sub does not make the whole band bigger', () => {
+  const plain = figureReal(emblemBand([{id: 'p', label: '開始', shape: 'pill'}, {id: 'c', label: '課題'}]));
+  const withSub = figureReal(emblemBand([{id: 'p', label: '開始', sub: '受付', shape: 'pill'}, {id: 'c', label: '課題'}]));
+  assert.equal(withSub.bounds![1]!.w, plain.bounds![1]!.w, 'the circle keeps its size');
+  assert.equal(withSub.bounds![0]!.w, plain.bounds![0]!.w, 'the pill keeps its width');
+  assert.ok(withSub.bounds![0]!.h > plain.bounds![0]!.h, 'the pill is taller for its second line');
+  const lines = figureReal(emblemBand([{id: 'p', label: '一\n二\n三\n四\n五', shape: 'pill'}]));
+  assert.ok(lines.bounds![0]!.w <= 176, `five short lines in a pill: ${lines.bounds![0]!.w}px wide, not 320`);
+  const long = figureReal(emblemBand([{id: 'r', label: 'あ'.repeat(20), shape: 'rounded'}]));
+  assert.equal(long.bounds![0]!.w, 96, 'a long text makes a rounded box taller, not wider');
+  for (const shape of EMBLEM_FLEX) assert.equal(emblemHeight(shape, 96, 0), emblemOutline(shape, 0, 0, 96).h, `${shape}: no text needs no more than the default height`);
 });
