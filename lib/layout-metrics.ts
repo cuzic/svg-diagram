@@ -211,6 +211,7 @@ function drawnExtent(b: LaidOutBand): Rect | null | undefined {
   for (const p of b.primitives) {
     if (p.k === 'circle') rs.push({x: p.cx - p.r, y: p.cy - p.r, w: 2 * p.r, h: 2 * p.r});
     else if (p.k === 'rect') rs.push({x: p.x, y: p.y, w: p.w, h: p.h});
+    else if (p.k === 'path' && p.box) rs.push(p.box); // a filled shape (an emblem's pill / cylinder ...); a line has no extent of its own
     else if (p.k === 'polygon' && p.points.length) { const xs = p.points.map(q => q[0]), ys = p.points.map(q => q[1]); rs.push({x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)}); }
   }
   return unionOf(rs);
