@@ -10,6 +10,7 @@ import {resolveLoopBacks} from './loop-back.ts';
 import type {LoopBack} from './types/containers.ts';
 import {assertScope} from './scope-name.ts';
 import {textWidth} from './atoms.ts';
+import {TONES} from './tokens.ts';
 import {wrapText} from './wrap.ts';
 import {katakanaWidth} from './tree.ts';
 import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, ScopeOpts, Roles, TextTone, WidthOf, WrapMode} from './types/core.ts';
@@ -423,6 +424,9 @@ function splitsWord(text: string, lines: readonly string[]): boolean {
   return false;
 }
 
+/** The label is written in the tone's own text colour, as a box does (accent / muted / danger; `new` and `changed` keep the normal text, so `accent` and `new` differ by it). */
+const labelTone = (tone: BoxTone): TextTone => { const t = TONES[tone].text; return t === 'accent' || t === 'muted' || t === 'danger' ? t : 'text'; };
+
 function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
   const shapeOf = (i: EmblemItem): EmblemShape => i.shape ?? b.shape;
   const gap = g4(b.gap), widest = Math.min(EMBLEM_MAX, Math.floor(out.w / 8) * 8), least = Math.ceil((b.minSize ?? 96) / 8) * 8;
@@ -458,7 +462,7 @@ function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: An
     anchor(item.id, o.anchor);
     if (item.id) (out.bounds ??= []).push({id: item.id, x: left, y: top, w: d, h: o.h});
     const k = must(plan[n]), blockH = k.label.h + (k.sub?.h ?? 0), cx = left + d / 2, cy = top + o.textCy;
-    t.place(k.label, cx, cy - blockH / 2);
+    t.place(k.label, cx, cy - blockH / 2, labelTone(tone));
     if (k.sub) t.place(k.sub, cx, cy - blockH / 2 + k.label.h, 'muted');
   });
 }

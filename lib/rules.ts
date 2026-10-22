@@ -487,6 +487,7 @@ function grayToneRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   // a canvas() region with a pill (重点 / 中心 / 結論) says its tone in words, as for the legend (usedNotation): not a grayscale matter
   const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => must(b.canvas).worded[i]) : []));
   for (const b of all) if (b.type === 'box' && !worded.has(b)) used.add(b.tone ?? 'plain');
+  for (const b of all) if (b.type === 'emblem') for (const i of b.items) used.add(i.tone ?? 'plain');
   for (const b of d.laidOut ?? []) if (b.type === 'table') for (const r of b.rows) if (!r.header && r.tone) used.add(r.tone);
   const p = paintOf(tones, d.appearance);
   const fills = [...used].map(name => {
