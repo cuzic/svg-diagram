@@ -414,9 +414,9 @@ function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: An
     const fits = Math.max(label.w, sub?.w ?? 0) <= g.w * d + .5 && (EMBLEM_FLEX.has(shape) ? h <= emblemMaxHeight(shape, d) : textH <= g.h * d);
     return {label, sub, fits, h, whole: !splitsWord(i.label, label.lines) && !(sub && i.sub && splitsWord(i.sub, sub.lines))};
   });
-  // The least D where everything fits and every katakana / alphanumeric word stays whole (up to EMBLEM_WORD_MAX); a label that cannot be kept
+  // The least D where everything fits and every katakana / alphanumeric word stays whole (up to EMBLEM_WORD_MAX, or 144px past a `minSize` that is already near it: the search must have room to run); a label that cannot be kept
   // whole even there (a very long word) is let off, so it does not spoil the others. Else the least D that fits, words cut.
-  const wholeCap = Math.min(widest, EMBLEM_WORD_MAX), plans = new Map<number, ReturnType<typeof blocks>>();
+  const wholeCap = Math.min(widest, Math.max(EMBLEM_WORD_MAX, least + EMBLEM_WORD_MAX - 96)), plans = new Map<number, ReturnType<typeof blocks>>();
   const planAt = (d: number) => { let p = plans.get(d); if (!p) plans.set(d, p = blocks(d)); return p; };
   // let off only a label that is whole at NO size from `least` to `wholeCap` (whether a long word is cut can depend on where the wrap happens to fall, so it is not monotone in D)
   const letOff = b.items.map((_i, n) => { for (let d = least; d <= wholeCap; d += 8) if (must(planAt(d)[n]).whole) return false; return true; });

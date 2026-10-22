@@ -194,9 +194,12 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
     idxs.forEach((i, k) => { if (res[k] !== original[k]) drops.set(i, must(res[k]).map(sw)); });
   }
   // a corner an answer leaves from is not where an arrow coming in from that side ends too: that one comes in a little above it
+  // (dir 'right': the corners are the top and bottom vertices and the return comes in vertically, so it ends a little to the left of it)
   const cornerUsed = (id: string, side: 'left' | 'right'): boolean => {
     const r = diamonds.get(id);
-    return !!r && [...drops].some(([i, p]) => lay.edges[i]?.from === id && Math.abs(must(p[0]).x - (side === 'left' ? r.x : r.x + r.w)) < 1);
+    if (!r) return false;
+    const [lo, hi] = dir === 'right' ? [r.y, r.y + r.h] : [r.x, r.x + r.w];
+    return [...drops].some(([i, p]) => lay.edges[i]?.from === id && Math.abs(must(p[0])[dir === 'right' ? 'y' : 'x'] - (side === 'left' ? lo : hi)) < 1);
   };
   for (const [i, e] of lay.edges.entries()) {
     const t = e.from === INIT ? undefined : pickTransition(e.from, e.to);
@@ -218,9 +221,12 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
     const dFrom = diamonds.get(e.from), dTo = diamonds.get(e.to);
     if (dFrom && !dropped && pts.length > 1) pts[0] = ontoDiamond(must(pts[0]), must(pts[1]), dFrom);
     const last = pts[pts.length - 1], before = pts[pts.length - 2];
-    if (dTo && last && before && pts.length > 2 && last.y === before.y && ((last.x <= dTo.x + 1 && cornerUsed(e.to, 'left')) || (last.x >= dTo.x + dTo.w - 1 && cornerUsed(e.to, 'right')))) {
+    if (dTo && last && before && pts.length > 2 && dir === 'down' && last.y === before.y && ((last.x <= dTo.x + 1 && cornerUsed(e.to, 'left')) || (last.x >= dTo.x + dTo.w - 1 && cornerUsed(e.to, 'right')))) {
       const up = -Math.min(14, dTo.h / 4);
       pts[pts.length - 1] = {x: last.x, y: last.y + up}; pts[pts.length - 2] = {x: before.x, y: before.y + up};
+    } else if (dTo && last && before && pts.length > 2 && dir === 'right' && last.x === before.x && ((last.y <= dTo.y + 1 && cornerUsed(e.to, 'left')) || (last.y >= dTo.y + dTo.h - 1 && cornerUsed(e.to, 'right')))) {
+      const left = -Math.min(14, dTo.w / 4);
+      pts[pts.length - 1] = {x: last.x + left, y: last.y}; pts[pts.length - 2] = {x: before.x + left, y: before.y};
     }
     if (dTo && pts.length > 1) pts[pts.length - 1] = ontoDiamond(must(pts[pts.length - 1]), must(pts[pts.length - 2]), dTo);
     out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});

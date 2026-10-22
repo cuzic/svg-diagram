@@ -147,3 +147,13 @@ test('a return that comes in on the side where an answer leaves from the corner 
   const back = left.band.edges.find(e => e.from === 'a2' && e.to === 'q1')!, q1 = left.band.nodes[1]!, tip = back.points[back.points.length - 1]!;
   assert.ok(tip.x > q1.x && tip.x < q1.x + q1.w, 'it ends on the outline of the diamond');
 });
+
+test('dir right: a return that comes in on a vertex where an answer leaves ends a little before it (the same rule as down, turned)', async () => {
+  const nodes = [{id: 's', kind: 'terminator', label: '開始'}, {id: 'q1', kind: 'decision', label: '自分で答えられる？'}, {id: 'a1', label: '回答する', sub: '当日中に\n丁寧に'}, {id: 'a2', label: '先輩に確認する', sub: '当日中に\n丁寧に'}, {id: 'b2', label: '調べる'}, {id: 'c2', label: '試す'}, {id: 'e', kind: 'terminator', label: '終了'}] as const;
+  const edges = [{from: 's', to: 'q1'}, {from: 'q1', to: 'a1', label: 'Yes'}, {from: 'q1', to: 'a2', label: 'No'}, {from: 'a2', to: 'b2'}, {from: 'b2', to: 'c2'}, {from: 'c2', to: 'q1', label: 'やり直し'}, {from: 'a1', to: 'e'}];
+  const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue', title: 't', width: 1400}).add(flowchart(nodes, edges, {dir: 'right'})));
+  const band = laidOut.laidOut.find((b): b is LaidOutStates => b.type === 'states')!;
+  assert.deepEqual(verdict.problems, []);
+  const id = band.anchors[1]!.id, back = band.edges.find(e => e.from === 'c2' && e.to === id)!, tip = back.points[back.points.length - 1]!;
+  for (const e of band.edges.filter(e => e.from === id)) assert.ok(Math.hypot(tip.x - e.points[0]!.x, tip.y - e.points[0]!.y) > 8, `the return ends at ${tip.x},${tip.y}, on an answer's start ${e.points[0]!.x},${e.points[0]!.y}`);
+});

@@ -298,3 +298,10 @@ test('the way out in the error depends on the shape: a shape that grows taller i
   assert.throws(() => figure(emblemBand([{label: 'あ'.repeat(1500), shape: 'rounded'}])), (e: Error) => /does not fit in a rounded/.test(e.message) && /shorten it/.test(e.message) && !/square/.test(e.message));
   assert.throws(() => figure(emblemBand([{label: 'あ'.repeat(600), shape: 'triangle'}])), /shorten it, move words to `sub`, or use shape: 'square'/);
 });
+
+test('a minSize near the 240px cap still lets a word grow to stay whole (the search has 144px of room past the least size)', () => {
+  const label = 'コ'.repeat(14); // cut at 256 (two lines), whole at 264, in a circle
+  const f = figureReal(emblemBand([{label, id: 'a', shape: 'circle'}], {minSize: 256}), 1200);
+  assert.deepEqual(linesOf(f), [label], 'one line: the word is not cut');
+  assert.ok(f.anchors[0]!.w > 256, 'the shape grew past minSize to keep it');
+});

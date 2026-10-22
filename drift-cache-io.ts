@@ -1,6 +1,7 @@
 // The shell of the `check --drift --rebuild` cache (the pure half is lib/drift-cache.ts): reads the files and the environment the key covers,
 // records which files a build reads, and keeps one small JSON entry per source. See ADR 0038 (docs/adr) for the reasoning.
 import fs from 'node:fs';
+import {syncBuiltinESMExports} from 'node:module';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
@@ -74,6 +75,7 @@ function patch(): void {
     if (f && !isScratch(f)) probes.set(f, r);
     return r;
   };
+  syncBuiltinESMExports(); // a source's `import {readFileSync} from 'node:fs'` is bound to the original until the exports are synced
 }
 /** Run `fn` and note every file it reads and every path it asks about. Notes accumulate over the process (a font read once serves every later source). */
 export async function recordReads<T>(fn: () => Promise<T>): Promise<T> {

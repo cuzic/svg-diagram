@@ -302,7 +302,7 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
     ctx.anchors.set(band.id, {x: frame.x, y: frame.y, w: frame.w, h: frame.h});
   }
   for (const st of stepsPlaced) {
-    const ln = must(lanes[laneIndex.get(st.lane) ?? -1]); // an unknown lane id throws here, as before
+    const ln = must(lanes[laneIndex.get(st.lane) ?? -1], `a lane "${st.lane}" in the swimlane (a step's lane is not one of the lanes)`); // an unknown lane id throws here, as before
     st.y = snapGrid(ln.blockTop + (st.row ?? 0) * (ln.maxStep + rowGap) + (ln.maxStep - st.h) / 2);
     if (st.id) ctx.anchors.set(qualify(scopeOf(band), st.id), {x: st.x, y: st.y, w: st.w, h: st.h}); // placeBoxLike already claimed (and checked) the id; this moves it to the lane row
     if (st.tagBox) st.tagBox.y = st.y - st.tagBox.h / 2;
