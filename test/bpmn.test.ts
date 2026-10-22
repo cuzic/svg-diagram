@@ -219,3 +219,13 @@ test('bpmn(): a flow back from a node with another node right under it does not 
   assert.ok(back && ans);
   assert.ok(!back.points.slice(1).some((q, i) => overlap({x: Math.min(back.points[i]!.x, q.x), y: Math.min(back.points[i]!.y, q.y), w: Math.abs(back.points[i]!.x - q.x) + 1, h: Math.abs(back.points[i]!.y - q.y) + 1}, ans)));
 });
+
+test('bpmn(): a flow back to a node of the same lane with a node between them stays clear of every box', async () => {
+  const {t, verdict} = await laid(bpmn(
+    [{id: 'a', label: '担当'}, {id: 'b', label: '別担当'}],
+    [{id: 's', lane: 'a', kind: 'start', label: '開始'}, {id: 'x', lane: 'a', label: '二'}, {id: 'y', lane: 'a', label: '三'}, {id: 'z', lane: 'a', label: '四'}],
+    [{from: 's', to: 'x'}, {from: 's', to: 'y'}, {from: 's', to: 'z'}, {from: 'x', to: 'z'}, {from: 'z', to: 'x'}],
+  ));
+  assert.deepEqual(verdict.problems, []);
+  assert.ok(t.edges.some(e => e.from === 'z' && e.to === 'x'));
+});

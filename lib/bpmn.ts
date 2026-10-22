@@ -4,6 +4,7 @@
 // that most flow diagrams use are here — not the whole standard.
 import {textWidth} from './atoms.ts';
 import {layoutLayered} from './graph-layout.ts';
+import {routeClear} from './orthogonal-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, narrowField, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
@@ -143,6 +144,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
       ty += m.extent + 16;
     }
   }
+  const eventLabels: {x: number; y: number; w: number; h: number}[] = []; // the names that hang below events: flows keep off them too
   const labelOfNode = new Set<object>(); // the nodes' own boxes in labelBoxes (they are checked as rects, not as labels)
   for (const n of band.nodes) {
     const r = must(rect.get(n.id)), m = must(meas.get(n.id)), k = must(kindOf.get(n.id));
@@ -158,13 +160,14 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
       const tw = Math.ceil(textWidth(widthOf, ln, B, 400)), ty = r.y + r.h + 4 + i * lineH(B) + B;
       out.texts.push({text: ln, x: r.x + r.w / 2, y: ty, size: B, bold: false, muted: false, anchor: 'middle'});
       out.labelBoxes.push({label: ln, x: r.x + r.w / 2 - tw / 2, y: ty - B, w: tw, h: B + 4});
+      eventLabels.push({x: r.x + r.w / 2 - tw / 2, y: ty - B, w: tw, h: B + 4});
     });
   }
 
   // flows
   const hit = (a: {x: number; y: number; w: number; h: number}, b: {x: number; y: number; w: number; h: number}): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   const segBox = (p: Pt, q: Pt) => ({x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2});
-  const through = (pts: Pt[], skip: string[]): boolean => pts.slice(1).some((q, i) => [...rect].some(([id, r]) => !skip.includes(id) && hit(segBox(must(pts[i]), q), r)));
+  const through = (pts: Pt[], skip: string[]): boolean => pts.slice(1).some((q, i) => [...rect].some(([id, r]) => !skip.includes(id) && hit(segBox(must(pts[i]), q), r)) || eventLabels.some(r => hit(segBox(must(pts[i]), q), r)));
   const simplify = (pts: Pt[]): Pt[] => {
     const o: Pt[] = [];
     for (const p of pts) if (!o.length || Math.abs(must(o[o.length - 1]).x - p.x) > 0.01 || Math.abs(must(o[o.length - 1]).y - p.y) > 0.01) o.push(p);
@@ -172,6 +175,16 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   };
   const lane = (id: string): number => must(laneIdx.get(must(band.nodes.find(n => n.id === id)).lane));
   const colOf = (id: string): number => must(lay.layers.get(id));
+  // when no shape on the list clears the boxes: search the free space (gaps between columns, margins of lanes) for a route
+  const search = (a: string, b: string): Pt[] | null => {
+    const r = routeClear({
+      from: must(rect.get(a)), to: must(rect.get(b)), boxes: [...rect.values(), ...eventLabels], bounds: {x: x + LABEL_COL, y, w: width - LABEL_COL, h: out.h},
+      others: out.edges.map(e => e.points),
+      xs: colX.flatMap((cx, c) => [cx - gap / 2, cx + must(colW[c]) + gap / 2]),
+      ys: laneTop.flatMap((t, li) => [t + 8, t + must(laneH[li]) - 8]),
+    });
+    return r && simplify(r);
+  };
   const colSeen = new Map<number, number>();
   const pending: (() => void)[] = [];
   band.flows.forEach((f, fi) => {
@@ -193,7 +206,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
         const channels = [must(laneTop[lane(f.to)]) + 8, must(laneTop[lane(f.to)]) + must(laneH[lane(f.to)]) - 8, must(laneTop[lane(f.from)]) + 8, must(laneTop[lane(f.from)]) + must(laneH[lane(f.from)]) - 8];
         const outs = [A.x + A.w + STUB, must(colX[cf]) + must(colW[cf]) + gap / 2], ins = [Bx.x - STUB, must(colX[ct]) - gap / 2];
         const tries = channels.flatMap(ch => outs.flatMap(xo => ins.map(xi => simplify([start, {x: xo, y: ca.y}, {x: xo, y: ch}, {x: xi, y: ch}, {x: xi, y: cb.y}, end]))));
-        pts = tries.find(t => !through(t, [f.from, f.to])) ?? must(tries[0]);
+        pts = tries.find(t => !through(t, [f.from, f.to])) ?? search(f.from, f.to) ?? must(tries[0]);
       }
     } else { // back (or into the same column): out of the bottom, along under the lane's content, into the bottom
       // under both ends, and under any node that the run passes beneath and that reaches below them (a tall task between the two)
@@ -223,7 +236,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
         return ys.map(ych => simplify([{x: side ? A.x : A.x + A.w, y: ca.y}, {x: gx, y: ca.y}, {x: gx, y: ych}, {x: xb, y: ych}, {x: xb, y: below ? Bx.y : Bx.y + Bx.h}]));
       }));
       const tries = [...faced, ...under, ...sided];
-      pts = tries.find(t => !through(t, [f.from, f.to])) ?? must(tries[0]);
+      pts = tries.find(t => !through(t, [f.from, f.to])) ?? search(f.from, f.to) ?? must(tries[0]);
     }
     out.edges.push({from: f.from, to: f.to, line, points: pts});
     const own = out.edges.length - 1;
