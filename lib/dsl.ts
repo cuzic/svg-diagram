@@ -43,7 +43,7 @@ export type * from './semantic-table.ts';
 
 export type {QuadrantOpts, QuadrantItem, QuadrantPreset, QuadrantCell, QuadrantAxis, QuadrantArrow, QuadrantRegion} from './quadrant.ts';
 export type {WordArtOpts, WordArtBand, WordArtPreset, OutlineSpec, ShadowSpec, GradientSpec, GlowSpec, ExtrudeSpec, ReflectionSpec, ArtTone} from './wordart.ts';
-export type {FlowStep, ChevronOpts, FunnelStage, FunnelOpts, CycleOpts, VennSet, VennOverlap, VennOpts, ConcentricRing, ConcentricOpts, EmblemItem, EmblemKind, EmblemOpts} from './flow-shapes.ts';
+export type {FlowStep, ChevronOpts, FunnelStage, FunnelOpts, CycleOpts, VennSet, VennOverlap, VennOpts, ConcentricRing, ConcentricOpts, EmblemItem, EmblemShape, EmblemOpts} from './flow-shapes.ts';
 export {tally} from './qc-table.ts';
 export type {CanvasContent, CanvasKey, CanvasOpts, CanvasTemplate} from './canvas.ts';
 export {closeMeasurer} from './measure.ts';
