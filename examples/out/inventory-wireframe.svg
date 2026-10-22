@@ -76,15 +76,15 @@
   <text x="553" y="422" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">保存しました</text>
   <g role="img" aria-label="注釈 1" data-badge="">
   <circle cx="44" cy="112" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
-  <text x="43" y="117" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
+  <text x="44" y="117" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
   </g>
   <g role="img" aria-label="注釈 2" data-badge="">
   <circle cx="44" cy="156" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
-  <text x="43" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
+  <text x="44" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
   </g>
   <g role="img" aria-label="注釈 3" data-badge="">
   <circle cx="484" cy="416" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
-  <text x="485" y="421" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
+  <text x="484" y="421" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
   </g>
   <g role="img" aria-label="注釈 1" data-badge="">
   <circle cx="668" cy="64" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
