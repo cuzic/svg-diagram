@@ -255,9 +255,13 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   const chip = (own: number, text: string, cands: Pt[]): void => {
     const lw = Math.ceil(textWidth(widthOf, text, S, 400)) + 2 * CHIP_PAD, lh = S + 8;
     const box = (c: Pt) => ({x: c.x - lw / 2, y: c.y - lh / 2, w: lw, h: lh});
-    const free = (b: ReturnType<typeof box>): boolean => !out.labels.some(o => hit(b, o)) && ![...rect.values()].some(r => hit(b, r)) && !out.labelBoxes.some(o => hit(b, o) && !labelOfNode.has(o))
-      && !out.edges.some((e, k) => k !== own && e.points.slice(1).some((q, m) => hit(b, segBox(must(e.points[m]), q)))) && b.x >= x + LABEL_COL && b.x + b.w <= x + width;
-    const c = must(cands.find(p => free(box(p))) ?? cands[0]), b = box(c);
+    // how much a chip at this place is in the way (0 = clear): chips, boxes, names, other flows, the edge of the figure
+    const cost = (b: ReturnType<typeof box>): number => out.labels.filter(o => hit(b, o)).length + [...rect.values()].filter(r => hit(b, r)).length + out.labelBoxes.filter(o => hit(b, o) && !labelOfNode.has(o)).length
+      + out.edges.filter((e, k) => k !== own && e.points.slice(1).some((q, m) => hit(b, segBox(must(e.points[m]), q)))).length + (b.x >= x + LABEL_COL && b.x + b.w <= x + width ? 0 : 5);
+    // the listed places first; when all are taken (a chip wider than the gap between two shapes), further above / below and beside, then the least crowded one
+    const wider = cands.flatMap(p => ([[0, -lh], [0, lh], [0, -2 * lh], [0, 2 * lh], [lw / 2 + 10, 0], [-(lw / 2 + 10), 0], [lw / 2 + 10, -lh], [-(lw / 2 + 10), lh]] as [number, number][]).map(([ox, oy]) => ({x: p.x + ox, y: p.y + oy})));
+    const all = [...cands, ...wider];
+    const c = must(all.find(p => cost(box(p)) === 0) ?? all.reduce((a, p) => (cost(box(p)) < cost(box(a)) ? p : a), must(all[0]))), b = box(c);
     out.labels.push({text, ...b, tx: c.x, ty: b.y + S + 2, size: S, edge: own});
     out.labelBoxes.push({label: text, ...b});
   };
