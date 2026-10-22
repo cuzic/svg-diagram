@@ -129,3 +129,21 @@ test('in a flowchart the answers leave a decision from its corners', async () =>
   assert.deepEqual(starts.map(p => p.y), [q1.y + q1.h / 2, q1.y + q1.h / 2]);
   assert.deepEqual(starts.map(p => p.x).sort((a, b) => a - b), [q1.x, q1.x + q1.w]);
 });
+
+test('a return that comes in on the side where an answer leaves from the corner ends a little above that corner', async () => {
+  // the lane the return takes (left or right of the figure) is the layout's choice: whichever side it comes in from, it must not meet an answer's corner
+  const answers = [...EDGES].filter(e => e.from === 'q1');
+  for (const extra of [{from: 'a1', to: 'q1', label: 'やり直し'}, {from: 'a2', to: 'q1', label: 'やり直し'}]) {
+    const {band, verdict} = await lay({}, [...EDGES, extra]);
+    assert.deepEqual(verdict.problems, []);
+    const q1 = band.nodes[1]!, cy = q1.y + q1.h / 2;
+    const back = band.edges.find(e => e.from === extra.from && e.to === 'q1')!, tip = back.points[back.points.length - 1]!;
+    for (const e of band.edges.filter(e => e.from === 'q1')) assert.ok(Math.hypot(tip.x - e.points[0]!.x, tip.y - e.points[0]!.y) > 8, `the return ends at ${tip.x},${tip.y}, on an answer's start ${e.points[0]!.x},${e.points[0]!.y}`);
+    assert.equal(answers.length, 2);
+    assert.ok(band.edges.filter(e => e.from === 'q1').every(e => e.points[0]!.y === cy), 'the answers still leave from the corners');
+  }
+  // the e.ts shape of the report: the return comes in from the left, where the Yes answer leaves
+  const left = await lay({}, [{from: 's', to: 'q1'}, {from: 'q1', to: 'a1', label: 'Yes'}, {from: 'q1', to: 'q2', label: 'No'}, {from: 'q2', to: 'a2', label: 'Yes'}, {from: 'q2', to: 'a3', label: 'No'}, {from: 'a2', to: 'q1', label: 'やり直し'}]);
+  const back = left.band.edges.find(e => e.from === 'a2' && e.to === 'q1')!, q1 = left.band.nodes[1]!, tip = back.points[back.points.length - 1]!;
+  assert.ok(tip.x > q1.x && tip.x < q1.x + q1.w, 'it ends on the outline of the diamond');
+});
