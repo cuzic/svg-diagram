@@ -1,6 +1,7 @@
 // Geometry helpers the per-band-type checks of verify-handlers.ts share.
 
 import {must} from './must.ts';
+import {statesWords} from './states-words.ts';
 import type {Rect} from './types/core.ts';
 
 export const CONTRAST_THRESHOLD = 70; // same threshold lint-svg.ts's own contrast check uses
@@ -67,17 +68,18 @@ export const outsideBox = (r: Rect, fig: Rect): boolean => outsideX(r, fig) || r
  * What the check finds wrong in a laid-out state diagram: a transition through a state it does not touch, a label chip outside the figure, on a state, on another arrow or on another chip.
  * The check (verify-handlers.ts) and the layout (states.ts: `density: 'compact'` falls back to the normal gaps when this finds more) use the same list.
  */
-export function statesProblems(band: Rect & {edges: readonly {from: string; to: string; points: readonly Pt[]}[]; anchors: readonly (Rect & {id: string})[]; labels: readonly (Rect & {text: string; edge: number})[]}): string[] {
-  const problems = routesThroughNodes(band.edges, band.anchors, (e, n) => `states: transition ${e.from} -> ${e.to} runs through state "${n.id}" (reorder the states, or change dir)`);
+export function statesProblems(band: Rect & {flavor?: 'flowchart'; edges: readonly {from: string; to: string; points: readonly Pt[]}[]; anchors: readonly (Rect & {id: string})[]; labels: readonly (Rect & {text: string; edge: number})[]}): string[] {
+  const w = statesWords(band.flavor);
+  const problems = routesThroughNodes(band.edges, band.anchors, (e, n) => `${w.prefix}: ${w.edge} ${e.from} -> ${e.to} runs through ${w.node} "${n.id}" (reorder the ${w.node}s, or change dir)`);
   for (const [i, l] of band.labels.entries()) {
-    if (outsideX(l, band)) problems.push(`states: label "${l.text}" runs outside the figure (shorten it or widen the figure)`);
-    for (const n of band.anchors) if (rectOverlap(l, n)) problems.push(`states: label "${l.text}" overlaps state "${n.id}" (shorten the label)`);
+    if (outsideX(l, band)) problems.push(`${w.prefix}: label "${l.text}" runs outside the figure (shorten it or widen the figure)`);
+    for (const n of band.anchors) if (rectOverlap(l, n)) problems.push(`${w.prefix}: label "${l.text}" overlaps ${w.node} "${n.id}" (shorten the label)`);
     band.edges.forEach((e, k) => { // the chip is white: on another arrow it would cut it
-      if (k !== l.edge && routeHits(e.points, l)) problems.push(`states: label "${l.text}" sits on the arrow ${e.from} -> ${e.to} (it belongs to another arrow)`);
+      if (k !== l.edge && routeHits(e.points, l)) problems.push(`${w.prefix}: label "${l.text}" sits on the arrow ${e.from} -> ${e.to} (it belongs to another arrow)`);
     });
     for (let j = i + 1; j < band.labels.length; j++) {
       const other = must(band.labels[j]), o = rectOverlap(l, other);
-      if (o) problems.push(`states: label "${l.text}" overlaps label "${other.text}" by ${dxdy(o)}`);
+      if (o) problems.push(`${w.prefix}: label "${l.text}" overlaps label "${other.text}" by ${dxdy(o)}`);
     }
   }
   return problems;

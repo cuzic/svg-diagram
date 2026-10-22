@@ -266,6 +266,17 @@ export function renderStates(b: LaidOutStates, day: Theme, tones: ToneEnv): stri
       out.push(`<circle cx="${snap4(n.x + n.w / 2)}" cy="${snap4(n.y + n.h / 2)}" r="${snap4(n.w / 2)}" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5"/>`);
       continue;
     }
+    if (n.shape === 'diamond') { // a decision: a diamond in its tone's colours (a path, like a gateway: a polygon does not reach the HTML output)
+      const st = resolveBoxStyle(tones, n.tone, day);
+      if (b.dim) { st.fill = PALETTE.bg; st.stroke = PALETTE.muted; }
+      const rx = snap4(n.x), ry = snap4(n.y), rw = snap4(n.x + n.w) - rx, rh = snap4(n.h), dash = st.dashed ? ' stroke-dasharray="6,4"' : b.dim ? ' stroke-dasharray="2,5" stroke-linecap="round"' : '';
+      out.push(`<path d="M${rx + rw / 2},${ry} L${rx + rw},${ry + rh / 2} L${rx + rw / 2},${ry + rh} L${rx},${ry + rh / 2} Z" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5" stroke-linejoin="round"${dash}/>`);
+      continue;
+    }
+    if (n.shape === 'pill') { // a terminator: the box's rect with the ends rounded to half the height
+      out.push(renderBoxRect({...n, dim: b.dim}, day, tones, 'plain').replace('rx="8"', `rx="${snap4(n.h) / 2}"`));
+      continue;
+    }
     out.push(renderBoxRect({...n, dim: b.dim}, day, tones, 'plain'));
     // the inner outline of an end state: on a solid fill its stroke would be the fill colour, so it is drawn in the text colour (white)
     const inner = renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, tones, 'plain').replace('rx="8"', 'rx="5"');
