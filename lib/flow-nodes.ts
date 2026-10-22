@@ -64,3 +64,30 @@ export function ontoDiamond(end: Pt, next: Pt, r: {x: number; y: number; w: numb
   }
   return end;
 }
+
+type R = {x: number; y: number; w: number; h: number};
+const overlaps = (a: R, b: R): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+/**
+ * The arrows that leave a diamond straight down (the layout puts each target under the diamond, near its corners): start them at the
+ * diamond's corners instead of at spots on its lower sides. Two arrows leave the left and right corners, a third the bottom one, so each
+ * answer has its own corner. An arrow is moved only when its target's top edge is under the corner (it drops straight onto it) and nothing
+ * stands in the way; any other arrow, and any that cannot move, keeps its path. `outs` are in the order of `paths`.
+ */
+export function vertexDrops(outs: {pts: Pt[]; target: R}[], r: R, others: R[]): Pt[][] {
+  const straight = (o: {pts: Pt[]}): boolean => o.pts.length === 2 && must(o.pts[0]).x === must(o.pts[1]).x && must(o.pts[1]).y > must(o.pts[0]).y;
+  const cx = r.x + r.w / 2, cy = r.y + r.h / 2, result = outs.map(o => o.pts);
+  const movable = outs.map((o, i) => ({o, i})).filter(({o}) => straight(o));
+  if (movable.length < 1 || movable.length > 3 || movable.length < outs.length) return result; // a mix of shapes: leave the diamond as it is
+  const corners = movable.length === 3 ? [r.x, cx, r.x + r.w] : movable.length === 2 ? [r.x, r.x + r.w] : [cx];
+  movable.sort((p, q) => p.o.target.x + p.o.target.w / 2 - (q.o.target.x + q.o.target.w / 2));
+  const next = result.slice(); // all or nothing: the answers must line up, so a failure keeps every path
+  for (const [k, {o, i}] of movable.entries()) {
+    const x = must(corners[k]), t = o.target, tip = must(o.pts[1]);
+    if (x < t.x + 10 || x > t.x + t.w - 10) return result; // the target is not under this corner: keep every path (the answers would not line up)
+    const seg: R = {x: x - 1, y: cy, w: 2, h: tip.y - cy};
+    if (others.some(b => b !== t && overlaps(seg, b))) return result;
+    next[i] = [{x, y: cy}, {x, y: tip.y}];
+  }
+  return next;
+}

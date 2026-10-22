@@ -318,7 +318,7 @@ flowchart(
 ```
 
 - 座標は書かない。`stateDiagram` と同じ配置（層に分け、直角の矢印で結ぶ）で、**既定は上から下**（`dir: 'right'` / `'auto'` も書ける）。節の `kind`: `process`（角丸の箱。既定。`sub` で 2 行目、`tone`、`icon` も）/ `decision`（ひし形。**質問が中に入り、文字の長さに合わせて大きくなる**）/ `terminator`（開始・終了の、両端が丸い箱）。`initial` / `final` は無い（開始・終了は `terminator`）。
-- 矢印は `stateDiagram` の遷移と同じ（`label` / `line` / `tone` / `strong`）。判断から出る矢印の `label`（Yes / No など）は、ひし形のそばの矢印の脇に置かれる。ひし形に出入りする矢印の端は、ひし形の輪郭まで延びる。
+- 矢印は `stateDiagram` の遷移と同じ（`label` / `line` / `tone` / `strong`）。判断から出る矢印の `label`（Yes / No など）は、ひし形のそばの矢印の脇に置かれる。判断から真下に出る矢印（2 本なら左右の角から、3 本なら左・下・右の角から）は、答えごとにひし形の角から出る（行き先が角の真下にないときは、ひし形の下の辺から。どの矢印の端も、ひし形の輪郭まで延びる）。
 - **戻る矢印（やり直し）は、既定で図の外側を回る**（`returns: 'outer'`。判断へ戻る矢印は横の頂点に入る）。`returns: 'inline'` にもできる（別のノードを通ると build が止まる）。判断・開始終了の自己ループは書けない。
 - ひし形は同じ文でも箱の 2〜3 倍の高さになる。判断が多い流れで縦に長くなるときは、`dir: 'right'` にするか、図を分ける（`aspect-tall` が知らせる）。レーン（担当）が要る業務フローは `bpmn`。
 - 検査: 判断から出る矢印が 2 本未満・3 本以上・ラベルなし（情報 `flowchart-decision-edges`）。ほかは `stateDiagram` と同じ（`text-mid-word-break`・`edge-crossings` など）。例は `examples/flowchart.ts`、設計は ADR 0041。
