@@ -17,7 +17,7 @@ test('routeClear(): goes around a box that stands between the two ends', () => {
 test('routeClear(): a straight run when nothing is in the way; null when the boxes close every way', () => {
   const from = {x: 20, y: 120, w: 60, h: 40}, to = {x: 300, y: 120, w: 60, h: 40};
   const r = routeClear({from, to, boxes: [from, to], bounds});
-  assert.ok(r && r.every(p => p.y === 140), 'one straight run');
+  assert.ok(r?.every(p => p.y === 140), 'one straight run');
   const wall = {x: 160, y: -10, w: 40, h: 320};
   assert.equal(routeClear({from, to, boxes: [from, to, wall], bounds}), null);
 });

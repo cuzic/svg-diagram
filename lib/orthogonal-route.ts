@@ -2,6 +2,7 @@
 // shapes (bpmn.ts). The search runs on the grid made by the boxes' (inflated) edges and the given hint lines, so it finds a
 // route whenever the boxes leave a channel open; it prefers few bends, short runs and not riding on other flows.
 import type {Pt} from './graph-layout.ts';
+import {must} from './must.ts';
 
 export interface RouteRect {x: number; y: number; w: number; h: number}
 export interface RouteOpts {
@@ -51,13 +52,13 @@ export function routeClear(o: RouteOpts): Pt[] | null {
   const free = Array.from({length: nx * ny}, (_, k) => !inside({x: X(k % nx), y: Y(Math.floor(k / nx))}));
   // a run between two neighbouring grid points: blocked by a box it cuts, dearer for the flows it crosses or rides on
   const step = (i: number, j: number, d: Dir): number | null => {
-    const i2 = i + DX[d]!, j2 = j + DY[d]!;
+    const i2 = i + must(DX[d]), j2 = j + must(DY[d]);
     if (i2 < 0 || j2 < 0 || i2 >= nx || j2 >= ny || !free[j2 * nx + i2]) return null;
     const x1 = Math.min(X(i), X(i2)), x2 = Math.max(X(i), X(i2)), y1 = Math.min(Y(j), Y(j2)), y2 = Math.max(Y(j), Y(j2)), horiz = d % 2 === 0;
     if (solid.some(r => horiz ? r.y < y1 && y1 < r.y + r.h && x1 < r.x + r.w && x2 > r.x : r.x < x1 && x1 < r.x + r.w && y1 < r.y + r.h && y2 > r.y)) return null;
     let cost = x2 - x1 + y2 - y1;
     for (const e of o.others ?? []) for (let k = 1; k < e.length; k++) {
-      const p = e[k - 1]!, q = e[k]!, ph = p.y === q.y, ex1 = Math.min(p.x, q.x), ex2 = Math.max(p.x, q.x), ey1 = Math.min(p.y, q.y), ey2 = Math.max(p.y, q.y);
+      const p = must(e[k - 1]), q = must(e[k]), ph = p.y === q.y, ex1 = Math.min(p.x, q.x), ex2 = Math.max(p.x, q.x), ey1 = Math.min(p.y, q.y), ey2 = Math.max(p.y, q.y);
       if (ph === horiz) { if ((horiz ? p.y === y1 : p.x === x1) && (horiz ? Math.min(x2, ex2) - Math.max(x1, ex1) : Math.min(y2, ey2) - Math.max(y1, ey1)) > 0) cost += RIDE; }
       else if (horiz ? ex1 > x1 && ex1 < x2 && y1 > ey1 && y1 < ey2 : ey1 > y1 && ey1 < y2 && x1 > ex1 && x1 < ex2) cost += CROSS;
     }
@@ -74,15 +75,15 @@ export function routeClear(o: RouteOpts): Pt[] | null {
   let best: {k: number; cost: number} | null = null;
   while (queue.length) {
     queue.sort((p, q) => q[0] - p[0]);
-    const [c, s] = queue.pop()!;
+    const [c, s] = must(queue.pop());
     if (c > (dist.get(s) ?? Infinity)) continue;
     if (best && c >= best.cost) break;
     const d = (s % 4) as Dir, cell = Math.floor(s / 4), i = cell % nx, j = Math.floor(cell / nx);
-    if (goal.has(cell)) { const side = pb[goal.get(cell)!]!; const tc = c + (d === (side.dir + 2) % 4 ? 0 : BEND); if (!best || tc < best.cost) best = {k: s, cost: tc}; }
+    if (goal.has(cell)) { const side = must(pb[must(goal.get(cell))]); const tc = c + (d === (side.dir + 2) % 4 ? 0 : BEND); if (!best || tc < best.cost) best = {k: s, cost: tc}; }
     for (let nd = 0; nd < 4; nd++) {
       if (nd === (d + 2) % 4) continue;
       const w = step(i, j, nd as Dir); if (w === null) continue;
-      const k2 = key(i + DX[nd]!, j + DY[nd]!, nd), c2 = c + w + (nd === d ? 0 : BEND);
+      const k2 = key(i + must(DX[nd]), j + must(DY[nd]), nd), c2 = c + w + (nd === d ? 0 : BEND);
       if (c2 < (dist.get(k2) ?? Infinity)) { dist.set(k2, c2); prev.set(k2, s); queue.push([c2, k2]); }
     }
   }
@@ -91,6 +92,6 @@ export function routeClear(o: RouteOpts): Pt[] | null {
   let s: number | undefined = best.k, first = s;
   for (; s !== undefined; s = prev.get(s)) { first = s; const cell = Math.floor(s / 4); path.push({x: X(cell % nx), y: Y(Math.floor(cell / nx))}); }
   path.reverse();
-  const end = pb[goal.get(Math.floor(best.k / 4))!]!, start = pa[srcPort.get(first)!]!;
+  const end = must(pb[must(goal.get(Math.floor(best.k / 4)))]), start = must(pa[must(srcPort.get(first))]);
   return [start.edge, ...path, end.edge];
 }
