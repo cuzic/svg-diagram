@@ -44,7 +44,7 @@ export type FlowPrimitive =
   | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string; /** Drawn as a box of this tone (filled, outlined) instead of a tinted ring. */ fill?: BoxTone} & Dimmed)
   | ({k: 'rect'; x: number; y: number; w: number; h: number; tone: TextTone} & Dimmed)
   | ({k: 'path'; d: string; tone: TextTone; arrow?: boolean; thin?: boolean} & Dimmed);
-export interface LaidOutFlowShape extends Rect, Dimmed {type: FlowShapeBand['type']; id?: string; reveal?: number; until?: number; primitives: FlowPrimitive[]; texts: FlowText[]; anchors: Anchor[]; labelBoxes: (Rect & {label: string})[]}
+export interface LaidOutFlowShape extends Rect, Dimmed {type: FlowShapeBand['type']; id?: string; reveal?: number; until?: number; primitives: FlowPrimitive[]; texts: FlowText[]; anchors: Anchor[]; labelBoxes: (Rect & {label: string})[]; /** emblem: the bounding box of each shape that has an id (the checks' obstacle, which may be larger than its anchor). */ bounds?: Anchor[]}
 
 // ---------------------------------------------------------------------------------------------------------------------------
 // constructors (validation)
@@ -377,7 +377,7 @@ function layoutConcentric(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, an
 // the shape's width D): the label is wrapped to that rectangle's width and the shape grows, in 8px steps and all to the same size, until
 // every label (and its sub line) is inside its own rectangle. The text is then centred in that rectangle, so it never touches the outline.
 const EMBLEM_MAX = 320, EMBLEM_WORD_MAX = 240;
-/** The text rectangle's width and height as fractions of D (its centre is chosen by the outline). Corners stay inside the outline, 1.8px at least (measured on the real fonts). */
+/** The text rectangle's width and height as fractions of D (its centre is chosen by the outline). The text boxes of real labels stay inside the outline by 2.3px at least (measured on the real fonts, 1620 cases); the rectangle's own corners touch the line at the smallest sizes (a hexagon at D=64), which no text box reaches (a line is 1.35em high, the box 1.2em). */
 const EMBLEM_TEXT: Record<EmblemKind, {w: number; h: number}> = {circle: {w: .76, h: .56}, square: {w: .84, h: .84}, diamond: {w: .56, h: .34}, hexagon: {w: .68, h: .5}, triangle: {w: .54, h: .32}};
 
 /**
@@ -402,9 +402,19 @@ function emblemOutline(kind: EmblemKind, left: number, top: number, d: number): 
     }
   }
 }
-const isWordChar = (c: string | undefined): 'kana' | 'latin' | null => c === undefined ? null : /[゠-ヿ]/.test(c) ? 'kana' : /[A-Za-z0-9]/.test(c) ? 'latin' : null;
-/** Whether a wrapped block breaks a katakana (or alphanumeric) word between two lines. */
-const splitsWord = (lines: readonly string[]): boolean => lines.some((l, i) => { const a = isWordChar(l.at(-1)), z = isWordChar(lines[i + 1]?.[0]); return a !== null && a === z; });
+const wordKind = (c: string | undefined): 'kana' | 'latin' | null => c === undefined ? null : /[ァ-ヺー-ヾ]/.test(c) || c === 'ー' ? 'kana' : /[A-Za-z0-9]/.test(c) ? 'latin' : null; // not ・ (U+30FB): it separates words
+/** Whether wrapping `text` into `lines` cuts a katakana (or alphanumeric) word: the two letters either side of a break touch in the source (no space, newline or ・ between them). */
+function splitsWord(text: string, lines: readonly string[]): boolean {
+  let at = 0;
+  for (const [i, line] of lines.entries()) {
+    const skipped = /^\s*/.exec(text.slice(at))![0].length; // the source's own spaces / newlines before this line
+    if (i > 0 && skipped === 0 && wordKind(lines[i - 1]!.at(-1)) !== null && wordKind(lines[i - 1]!.at(-1)) === wordKind(line[0])) return true;
+    at += skipped;
+    if (!text.startsWith(line, at)) return false; // the wrapper changed the text (it does not, today): say nothing rather than guess
+    at += line.length;
+  }
+  return false;
+}
 
 function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
   const kindOf = (i: EmblemItem): EmblemKind => i.kind ?? b.kind;
@@ -413,11 +423,13 @@ function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: An
   const blocks = (d: number) => b.items.map(i => {
     const g = EMBLEM_TEXT[kindOf(i)], label = t.wrap(i.label, g.w * d), sub = i.sub ? t.wrap(i.sub, g.w * d, 400) : undefined;
     const fits = Math.max(label.w, sub?.w ?? 0) <= g.w * d + .5 && label.h + (sub?.h ?? 0) <= g.h * d;
-    return {label, sub, fits, whole: !splitsWord(label.lines) && !(sub && splitsWord(sub.lines))};
+    return {label, sub, fits, whole: !splitsWord(i.label, label.lines) && !(sub && i.sub && splitsWord(i.sub, sub.lines))};
   });
-  // the least D where everything fits; first one that also keeps every katakana / alphanumeric word whole (up to EMBLEM_WORD_MAX), else the least that fits
-  const solve = (whole: boolean, limit: number) => { for (let d = least; d <= limit; d += 8) { const plan = blocks(d); if (plan.every(p => p.fits && (!whole || p.whole))) return {d, plan}; } return undefined; };
-  const found = solve(true, Math.min(widest, EMBLEM_WORD_MAX)) ?? solve(false, widest);
+  // The least D where everything fits and every katakana / alphanumeric word stays whole (up to EMBLEM_WORD_MAX); a label that cannot be kept
+  // whole even there (a very long word) is let off, so it does not spoil the others. Else the least D that fits, words cut.
+  const wholeCap = Math.min(widest, EMBLEM_WORD_MAX), letOff = blocks(wholeCap).map(p => !p.whole);
+  const solve = (whole: boolean, limit: number) => { for (let d = least; d <= limit; d += 8) { const plan = blocks(d); if (plan.every((p, n) => p.fits && (!whole || p.whole || letOff[n]))) return {d, plan}; } return undefined; };
+  const found = solve(true, wholeCap) ?? solve(false, widest);
   if (!found) {
     const bad = must(b.items.find((_i, n) => !must(blocks(widest)[n]).fits)), kind = kindOf(bad);
     throw new Error(`emblem(): "${bad.label}"${bad.sub ? ` / "${bad.sub}"` : ''} does not fit in a ${kind} up to ${widest}px${widest < EMBLEM_MAX ? ' (the width of the band)' : ''} — shorten it, move words to \`sub\`${kind === 'square' ? '' : ", or use kind 'square'"}${widest < EMBLEM_MAX ? ', or widen the band' : ''}`);
@@ -434,6 +446,7 @@ function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: An
     if (!o.points) out.primitives.push({k: 'circle', cx: left + d / 2, cy: top + d / 2, r: d / 2, tone: 'text', fill: tone});
     else out.primitives.push({k: 'polygon', points: o.points, tone});
     anchor(item.id, o.anchor);
+    if (item.id) (out.bounds ??= []).push({id: item.id, x: left, y: top, w: d, h: o.h});
     const k = must(plan[n]), blockH = k.label.h + (k.sub?.h ?? 0), cx = left + d / 2, cy = top + o.textCy;
     t.place(k.label, cx, cy - blockH / 2);
     if (k.sub) t.place(k.sub, cx, cy - blockH / 2 + k.label.h, 'muted');

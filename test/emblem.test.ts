@@ -127,12 +127,52 @@ test('connect() meets the outline: a triangle ties to the middles of its slanted
   assert.equal(b.y + b.h, hp[4]![1], ':bottom is the bottom edge');
 });
 
-test('a katakana word stays whole when the shape can grow for it (up to 240px), as keepWords does for boxes', () => {
-  const f = figure(emblemBand([{label: 'コンテキストエンジニアリング', kind: 'hexagon'}]));
-  assert.equal(f.texts.length, 1, 'one line: the word is not cut');
-  const long = figure(emblemBand([{label: 'コ'.repeat(30), kind: 'hexagon'}]));
-  assert.ok(long.texts.length > 1, 'a word too long for 240px is cut at the least size that fits, rather than throwing');
-  assert.ok(long.anchors.length === 0 && long.primitives.length === 1);
+// A width close to the real fonts': a full-width character is 1em, an ASCII one .58em (roughWidth counts every character as .58em, which
+// makes a katakana word look 40% narrower than it is).
+const realWidth = (atom: string, size: number) => [...atom].reduce((w, c) => w + (/[ -~]/.test(c) ? .58 : 1) * size, 0);
+const figureReal = (band: ReturnType<typeof emblemBand>, width = 892): LaidOutFlowShape => layoutFlowShape(band, 24, 24, width, realWidth, ROLES, 'phrase');
+const linesOf = (f: LaidOutFlowShape) => f.texts.map(t => t.text);
+
+test('a katakana word stays whole: the shape grows for it (up to 240px), as keepWords does for boxes', () => {
+  const small = figureReal(emblemBand([{label: 'エンジニア', id: 'a'}]));            // 5 chars = 70px: fits at the least size
+  assert.deepEqual(linesOf(small), ['エンジニア']);
+  const f = figureReal(emblemBand([{label: 'エンジニアリング', id: 'a'}]));            // 8 chars = 112px: needs .76 D >= 112
+  assert.deepEqual(linesOf(f), ['エンジニアリング'], 'one line, the word is not cut');
+  assert.ok(f.anchors[0]!.w > 96, 'the shape grew past the least size to keep it');
+  const cut = figureReal(emblemBand([{label: 'コ'.repeat(30), kind: 'hexagon'}]));      // 420px: .68 * 240 = 163px, cannot be whole
+  assert.ok(cut.texts.length > 1, 'a word too long for 240px is cut at the least size that fits, rather than throwing');
+});
+
+test('breaks at a space, a newline or ・ are not cut words, so they never make a shape grow', () => {
+  const plain = figureReal(emblemBand([{label: '行きつけの店を決める'}]));          // no katakana / latin: the size it always was
+  const phrase = figureReal(emblemBand([{label: 'Plan Do Check Act'}]));
+  assert.ok(phrase.anchors.length === 0 && phrase.primitives.length === 1);
+  const d = (f: LaidOutFlowShape) => (f.primitives[0] as {r: number}).r * 2;
+  assert.ok(d(phrase) <= 120, `"Plan Do Check Act" wraps at its spaces in a small circle, not one long line (D=${d(phrase)})`);
+  assert.ok(linesOf(phrase).length >= 2);
+  assert.ok(d(plain) <= 160);
+  const two = figureReal(emblemBand([{label: 'コンテキスト エンジニアリング'}]));       // two words: 6 and 8 chars
+  assert.deepEqual(linesOf(two), ['コンテキスト', 'エンジニアリング'], 'wrapped at the space, both words whole');
+  const dot = figureReal(emblemBand([{label: '営業・マーケティング'}]));
+  assert.ok(d(dot) <= 160, `a break after ・ is not a cut word (D=${d(dot)})`);
+});
+
+test('a label that cannot be whole is let off, so it does not spoil the others; an explicit newline is not a cut', () => {
+  const f = figureReal(emblemBand([{label: 'ア'.repeat(30)}, {label: 'インフラストラクチャ'}]));
+  assert.ok(linesOf(f).includes('インフラストラクチャ'), 'the other word stays whole even though the first cannot');
+  const g = figureReal(emblemBand([{label: 'ABC\nDEF'}, {label: 'インフラストラクチャ'}]));
+  assert.ok(linesOf(g).includes('インフラストラクチャ'), 'a newline between ABC and DEF is not a cut word');
+});
+
+test('the obstacle of a triangle is its bounding box, so a line through its lower corner is stopped (its anchor leaves the corners out)', async () => {
+  const d = diagram({theme: 'blue'}).add(
+    row([box({id: 'a1', title: '1'}), box({id: 'a2', title: '2'}), box({id: 'a3', title: '3'}), box({id: 'a4', title: '4'})]),
+    emblem([{label: '注意', kind: 'triangle', id: 't'}], {size: 320}),
+    row([box({id: 'b1', title: '1'}), box({id: 'b2', title: '2'}), box({id: 'b3', title: '3'}), box({id: 'b4', title: '4'})]),
+    connect('a2:bottom', 'b2:top'),
+  );
+  const r = await renderDiagram(d, {name: 'corner.svg', budget: 'cacheOnly'});
+  assert.ok(r.verdict.problems.some(p => /path overlaps "t"/.test(p)), `the line runs through the triangle's corner: ${r.verdict.problems.join(' / ')}`);
 });
 
 test('a shape wider than the band throws, naming the way out', () => {
