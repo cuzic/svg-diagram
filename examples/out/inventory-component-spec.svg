@@ -75,8 +75,8 @@
   <text x="36" y="513" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
   </g>
   <g role="img" aria-label="注釈 4" data-badge="">
-  <circle cx="192" cy="508" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
-  <text x="192" y="513" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">4</text>
+  <circle cx="200" cy="508" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
+  <text x="200" y="513" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">4</text>
   </g>
   <g role="img" aria-label="注釈 2" data-badge="">
   <circle cx="36" cy="552" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
