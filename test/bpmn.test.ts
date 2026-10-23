@@ -229,3 +229,22 @@ test('bpmn(): a flow back to a node of the same lane with a node between them st
   assert.deepEqual(verdict.problems, []);
   assert.ok(t.edges.some(e => e.from === 'z' && e.to === 'x'));
 });
+
+test('bpmn(): a gateway name stays clear of the flows that leave its top / bottom vertex and of the shapes round it', async () => {
+  const {verdict} = await laid(bpmn(
+    [{id: 'c', label: 'お客様'}, {id: 's', label: '営業'}, {id: 'j', label: '事務'}, {id: 'k', label: '経理'}],
+    [
+      {id: 'n1', lane: 'c', kind: 'start', label: '見積依頼'}, {id: 'n2', lane: 'j', label: '見積書を作成'}, {id: 'n3', lane: 's', label: '見積書を確認'},
+      {id: 'g1', lane: 's', kind: 'xor', label: '内容は適切か'}, {id: 'n3c', lane: 's', label: '修正を依頼'}, {id: 'n3d', lane: 's', label: 'お客様へ返信'},
+      {id: 'g2', lane: 's', kind: 'xor', label: '受注するか'}, {id: 'lost', lane: 's', kind: 'end', label: '失注'}, {id: 'n6', lane: 'j', label: '受注台帳に入力'},
+      {id: 'n7', lane: 'k', label: '請求・入金確認'}, {id: 'e', lane: 'k', kind: 'end', label: '完了'},
+    ],
+    [
+      {from: 'n1', to: 'n2', line: 'dashed'}, {from: 'n2', to: 'n3', line: 'dashed'}, {from: 'n3', to: 'g1'}, {from: 'g1', to: 'n3d', label: '問題なし'},
+      {from: 'g1', to: 'n3c', label: '要修正'}, {from: 'n3c', to: 'n2', line: 'dashed'}, {from: 'n3d', to: 'g2'}, {from: 'g2', to: 'lost', label: '受注せず'},
+      {from: 'g2', to: 'n6', label: '受注', line: 'dashed'}, {from: 'n6', to: 'n7', line: 'dashed'}, {from: 'n7', to: 'e'},
+    ],
+    {fit: 'shrink'},
+  ));
+  assert.deepEqual(verdict.problems, []);
+});
