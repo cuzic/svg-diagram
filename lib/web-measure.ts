@@ -32,9 +32,11 @@ export function svgMeasurer(host?: Element): ((req: Req) => Measured) & {dispose
   text.setAttribute('x', '0'); text.setAttribute('y', '100');
   svg.appendChild(text);
   const measure = ({text: t, size, weight, font}: Req): Measured => {
-    text.setAttribute('font-family', FONT_STACKS[font]);
-    text.setAttribute('font-size', String(size));
-    text.setAttribute('font-weight', String(weight));
+    // inline style, not attributes: a page rule such as `text {font-family: ...}` (a figure's own <style>, put in the page) beats a presentation attribute
+    const st = (text as unknown as SVGElement).style;
+    st.fontFamily = FONT_STACKS[font];
+    st.fontSize = `${size}px`;
+    st.fontWeight = String(weight);
     text.textContent = t;
     const b = (text as unknown as SVGGraphicsElement).getBBox();
     return {w: b.width, h: b.height};

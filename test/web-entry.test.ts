@@ -39,7 +39,7 @@ test('canvasMeasurer does not return a NaN height where the font box is missing 
 
 test('svgMeasurer sets the font on one hidden SVG <text>, reads its box, and removes the SVG on dispose', () => {
   const made: Record<string, unknown>[] = [];
-  const el = (tag: string) => { const attrs: Record<string, string> = {}; const e: Record<string, unknown> = {tag, attrs, textContent: '', setAttribute: (k: string, v: string) => { attrs[k] = v; }, setAttributeNS: (ns: string, k: string, v: string) => { attrs[`${ns}|${k}`] = v; }, appendChild: () => {}, remove: () => { e['removed'] = true; }, getBBox: () => ({width: String(e['textContent']).length * 7.5, height: 19}), }; made.push(e); return e; };
+  const el = (tag: string) => { const attrs: Record<string, string> = {}; const e: Record<string, unknown> = {tag, attrs, style: {} as Record<string, string>, textContent: '', setAttribute: (k: string, v: string) => { attrs[k] = v; }, setAttributeNS: (ns: string, k: string, v: string) => { attrs[`${ns}|${k}`] = v; }, appendChild: () => {}, remove: () => { e['removed'] = true; }, getBBox: () => ({width: String(e['textContent']).length * 7.5, height: 19}), }; made.push(e); return e; };
   const body = {appendChild: () => {}};
   void body;
   (globalThis as any).document = {body, createElementNS: (_: string, tag: string) => el(tag)};
@@ -47,8 +47,10 @@ test('svgMeasurer sets the font on one hidden SVG <text>, reads its box, and rem
     const m = svgMeasurer();
     assert.deepEqual(m({text: 'abcd', size: 21, weight: 700, font: 'mono'}), {w: 30, h: 19});
     const text = made.find(e => e['tag'] === 'text')!;
-    assert.equal((text['attrs'] as Record<string, string>)['font-size'], '21');
-    assert.equal((text['attrs'] as Record<string, string>)['font-weight'], '700');
+    const style = text['style'] as Record<string, string>;
+    assert.equal(style['fontSize'], '21px');
+    assert.equal(style['fontWeight'], '700');
+    assert.match(style['fontFamily']!, /monospace|mono/i);
     assert.equal((text['attrs'] as Record<string, string>)['http://www.w3.org/XML/1998/namespace|xml:space'], 'preserve', 'xml:space is set in the XML namespace (a plain attribute of that name is ignored)');
     m.dispose();
     assert.equal(made.find(e => e['tag'] === 'svg')!['removed'], true);
@@ -133,5 +135,7 @@ test('Chromium draws a swimlane, a CRT, an FRT, a gantt and a cloud through the 
     const st = await page.evaluate(() => (globalThis as any).styledProbe()) as {styled: number; plain: number};
     assert.equal(st.styled, st.plain, "the page's letter-spacing is not taken");
     assert.match(await page.evaluate(() => (globalThis as any).hiddenHost()) as string, /measured nothing/);
+    const rule = await page.evaluate(() => (globalThis as any).pageRuleProbe()) as {before: number; after: number};
+    assert.equal(rule.after, rule.before, "a page rule on text {} does not change the measured width");
   } finally { await browser.close(); }
 });

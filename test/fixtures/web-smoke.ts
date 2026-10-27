@@ -71,3 +71,14 @@ const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const host = document.createElement('div'); host.style.display = 'none'; document.body.appendChild(host);
   try { svgMeasurer(host); return 'no error'; } catch (e) { return (e as Error).message; } finally { host.remove(); }
 };
+/** A figure's own <style> put in the page (text {font-family}) must not change what the measurer reads for a mono run. */
+(globalThis as any).pageRuleProbe = () => {
+  const run = () => { const m = svgMeasurer(); const w = m({text: 'svg-diagram 0123', size: 14, weight: 400, font: 'mono'}).w; m.dispose(); return w; };
+  const before = run();
+  const style = document.createElement('style');
+  style.textContent = 'text { font-family: serif; font-size: 30px; font-weight: 900 }';
+  document.head.appendChild(style);
+  const after = run();
+  style.remove();
+  return {before, after};
+};
