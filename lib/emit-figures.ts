@@ -154,8 +154,8 @@ export function renderQuadrant(b: LaidOutQuadrant, day: Theme, tones: ToneEnv): 
     const L = 10, W = 5, pts: [number, number][] = [[x, y], [x - dx * L - dy * W, y - dy * L + dx * W], [x - dx * L + dy * W, y - dy * L - dx * W]];
     return `<polygon points="${pts.map(([a, c]) => `${Math.round(a)},${Math.round(c)}`).join(' ')}" fill="${color}"/>`;
   };
-  const shapeSvg = (shape: LaidOutQuadrant['bubbles'][number]['shape'], x: number, y: number, r: number, fill: string, stroke: string, sw: number): string => {
-    const f = `fill="${fill}" stroke="${stroke}" stroke-width="${sw}"`, n = (v: number) => Math.round(v * 10) / 10;
+  const shapeSvg = (shape: LaidOutQuadrant['bubbles'][number]['shape'], x: number, y: number, r: number, fill: string, stroke: string, sw: number, node?: string): string => {
+    const f = `fill="${fill}" stroke="${stroke}" stroke-width="${sw}"${node ? ` data-node="${escapeAttr(node)}"` : ''}`, n = (v: number) => Math.round(v * 10) / 10;
     if (shape === 'circle') return `<circle cx="${n(x)}" cy="${n(y)}" r="${n(r)}" ${f}/>`;
     if (shape === 'square') { const s = r * Math.sqrt(Math.PI) / 2; return `<polygon points="${n(x - s)},${n(y - s)} ${n(x + s)},${n(y - s)} ${n(x + s)},${n(y + s)} ${n(x - s)},${n(y + s)}" ${f}/>`; }
     if (shape === 'diamond') { const s = r * Math.sqrt(Math.PI) / Math.SQRT2; return `<polygon points="${n(x)},${n(y - s)} ${n(x + s)},${n(y)} ${n(x)},${n(y + s)} ${n(x - s)},${n(y)}" ${f}/>`; }
@@ -168,13 +168,13 @@ export function renderQuadrant(b: LaidOutQuadrant, day: Theme, tones: ToneEnv): 
   }
   for (const c of b.chips) out.push(`<rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="4" fill="${PALETTE.bg}"/>`);
   // a hollow marker (groups 5 to 8) is an outline drawn inside the shape's area, so it is told from the filled ones by more than colour
-  const marker = (shape: LaidOutQuadrant['bubbles'][number]['shape'], x: number, y: number, r: number, color: string, hollow: boolean | undefined): string =>
-    hollow ? shapeSvg(shape, x, y, r - 1.5, PALETTE.bg, color, 3) : shapeSvg(shape, x, y, r, color, PALETTE.bg, 1.5);
-  for (const q of b.bubbles) out.push(marker(q.shape, q.x, q.y, q.r, ink(q.tone, q.dim), q.hollow));
+  const marker = (shape: LaidOutQuadrant['bubbles'][number]['shape'], x: number, y: number, r: number, color: string, hollow: boolean | undefined, node?: string): string =>
+    hollow ? shapeSvg(shape, x, y, r - 1.5, PALETTE.bg, color, 3, node) : shapeSvg(shape, x, y, r, color, PALETTE.bg, 1.5, node);
+  for (const q of b.bubbles) out.push(marker(q.shape, q.x, q.y, q.r, ink(q.tone, q.dim), q.hollow, q.dataNode));
   for (const m of b.marks) out.push(m.ring ? shapeSvg(m.shape, m.x, m.y, m.r, 'none', ink(m.tone, b.dim), 2) : marker(m.shape, m.x, m.y, m.r, ink(m.tone, b.dim), m.hollow));
   for (const t of b.texts) {
     const dim = b.dim || (t.item !== undefined && must(b.bubbles[t.item]).dim);
-    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t.fill, dim)}">${emojiSpan(t.text)}</text>`);
+    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t.fill, dim)}"${t.dataNode ? ` data-node="${escapeAttr(t.dataNode)}"` : ''}>${emojiSpan(t.text)}</text>`);
   }
   return out.join('\n  ');
 }
@@ -187,22 +187,23 @@ export function renderQuadrant(b: LaidOutQuadrant, day: Theme, tones: ToneEnv): 
  */
 export function renderFlowShape(b: LaidOutFlowShape, day: Theme, tones: ToneEnv): string {
   const out: string[] = [], n = (v: number) => Math.round(v * 10) / 10;
+  const dn = (p: {dataNode?: string}): string => p.dataNode ? ` data-node="${escapeAttr(p.dataNode)}"` : ''; // ADR 0034, only when asked
   const ink = (c: string): string => b.dim ? PALETTE.muted : c, paper = (c: string): string => b.dim ? PALETTE.bg : c;
   for (const p of b.primitives) {
     if (p.k === 'polygon') {
       const s = resolveBoxStyle(tones, p.tone, day);
-      out.push(`<polygon points="${p.points.map(q => `${n(q[0])},${n(q[1])}`).join(' ')}" fill="${paper(s.fill)}" stroke="${ink(s.stroke)}" stroke-width="${p.strong ? 3.5 : 2}"${s.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
+      out.push(`<polygon points="${p.points.map(q => `${n(q[0])},${n(q[1])}`).join(' ')}" fill="${paper(s.fill)}" stroke="${ink(s.stroke)}" stroke-width="${p.strong ? 3.5 : 2}"${s.dashed ? ' stroke-dasharray="6,4"' : ''}${dn(p)}/>`);
     } else if (p.k === 'circle' && p.fill) {
       const st = resolveBoxStyle(tones, p.fill, day);
-      out.push(`<circle cx="${n(p.cx)}" cy="${n(p.cy)}" r="${n(p.r)}" fill="${paper(st.fill)}" stroke="${ink(st.stroke)}" stroke-width="2"${st.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
+      out.push(`<circle cx="${n(p.cx)}" cy="${n(p.cy)}" r="${n(p.r)}" fill="${paper(st.fill)}" stroke="${ink(st.stroke)}" stroke-width="2"${st.dashed ? ' stroke-dasharray="6,4"' : ''}${dn(p)}/>`);
     } else if (p.k === 'circle') {
       const c = ink(colorOf(p.tone, day)); // a tinted ring: the same translucent fill, in muted
-      out.push(`<circle cx="${n(p.cx)}" cy="${n(p.cy)}" r="${n(p.r)}" fill="${c}" fill-opacity="${p.opacity ?? .16}" stroke="${c}" stroke-width="2"${p.dash ? ` stroke-dasharray="${p.dash}"` : ''}/>`);
+      out.push(`<circle cx="${n(p.cx)}" cy="${n(p.cy)}" r="${n(p.r)}" fill="${c}" fill-opacity="${p.opacity ?? .16}" stroke="${c}" stroke-width="2"${p.dash ? ` stroke-dasharray="${p.dash}"` : ''}${dn(p)}/>`);
     } else if (p.k === 'rect') {
       out.push(`<rect x="${n(p.x)}" y="${n(p.y)}" width="${n(p.w)}" height="${n(p.h)}" rx="8" fill="none" stroke="${ink(colorOf(p.tone, day))}" stroke-width="2"/>`);
     } else if (p.fill) { // a filled shape drawn as a path (an emblem's pill / rounded / document / cylinder): dimmed like a polygon
       const st = resolveBoxStyle(tones, p.fill, day);
-      out.push(`<path d="${p.d}" fill="${paper(st.fill)}" stroke="${ink(st.stroke)}" stroke-width="2"${st.dashed ? ' stroke-dasharray="6,4"' : ''}/>`);
+      out.push(`<path d="${p.d}" fill="${paper(st.fill)}" stroke="${ink(st.stroke)}" stroke-width="2"${st.dashed ? ' stroke-dasharray="6,4"' : ''}${dn(p)}/>`);
     } else {
       out.push(`<path d="${p.d}" fill="none" stroke="${ink(colorOf(p.tone, day))}" stroke-width="${p.thin ? 1.5 : 2}"${p.arrow ? ` marker-end="url(#${b.dim ? 'dsl-arrow-dim' : 'dsl-arrow'})"` : ''}/>`);
     }

@@ -123,12 +123,12 @@ export interface QuadrantBand {
 
 export type QuadrantShape = 'circle' | 'square' | 'diamond' | 'triangle';
 export type QuadrantInk = 'text' | 'muted' | 'accent' | 'danger';
-export interface QuadrantText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; size: number; bold: boolean; fill: QuadrantInk; /** index into bubbles: dims with its bubble */ item?: number}
+export interface QuadrantText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; size: number; bold: boolean; fill: QuadrantInk; /** index into bubbles: dims with its bubble */ item?: number; /** ADR 0034: written as `data-node` (set by withNodeIds) */ dataNode?: string}
 export interface QuadrantBubble {
   x: number; y: number; /** area radius */ r: number; /** the radius of the circle that holds the shape */ cr: number; shape: QuadrantShape; tone: QuadrantInk;
   /** drawn as an outline (groups 5 to 8) */ hollow: boolean;
   /** index into cells: the cell the item belongs to (verify checks that it stays inside) */ cell: number;
-  id?: string; label: string; dim?: boolean;
+  id?: string; label: string; dim?: boolean; /** ADR 0034: written as `data-node` on the marker (set by withNodeIds) */ dataNode?: string;
 }
 export type QuadrantBoxKind = 'item' | 'arrow' | 'caption' | 'axis' | 'legend';
 export interface LaidOutQuadrant extends Rect, Dimmed {

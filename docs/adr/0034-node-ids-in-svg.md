@@ -30,10 +30,17 @@ SVG を表示する側(ブラウザのページ、Slidev の addon など)は、
 
 - **ラベルの `<text>` は、枠の `<rect>` の上に兄弟として重なる**。ラベルの上のクリックは `event.target` が `<text>` になり、`closest('[data-node]')` では枠に届かない。表示する側が、`text { pointer-events: none }` を当てるか、`elementsFromPoint` で枠を探す。この ADR は文字には付けない(文字の判定は枠の内側かどうかで、表示側のほうが簡単にできる)。
 - 付くのは SVG だけで、HTML 出力(`--html`)には付かない。click-through の段階の SVG は `emitRevealStage(laid, stage, {nodeIds: true})` で付く。
-- 対象外の帯(fta / bowtie / states / flowShape / cloud など)には付かない。必要になったら、`withNodeIdsBand` に足す。
+- 対象外の帯(fta / bowtie / states / cloud など)には付かない。必要になったら、`withNodeIdsBand` に足す。chevron / funnel / cycle / venn / concentric / emblem の各項目の図形と、quadrant の各項目の印と名前の文字には後から付けた(下の「追記」)。
 - 名前は 1 つの図の中で一意(同じ名前は配置の段階でエラーになる)。同じ id を 2 つの図で使うときは、scope を付ければ `scope.id` で区別される。
 
 ## 後回し
 
 - CLI の `build --node-ids`。
 - 対象の帯を増やす。矩形でないノード(円・菱形・六角形)の印の付け方。
+
+## 追記(2026-10-27): flow shape と quadrant
+
+ブラウザの Artifact が、図のノードをクリックして「詳しくする」を出すために、chevron と quadrant の項目に名前を付けてほしい、という要望があった。
+- **flow shape**(chevron / funnel / cycle / venn / concentric / emblem): 項目の枠の図形(`<polygon>` / `<circle>` / `<path>`)に付ける。配置は項目の id を図形に `node` として持たせ、`withNodeIds` が scope をつけて `dataNode` にする(off のときの SVG は変わらない)。項目の文字は、図形の兄弟なので付けない(上の `pointer-events` の注意のとおり)。
+- **quadrant**: 印と名前の文字の**両方**に付ける。印と名前は離れた別の要素で、名前の文字は折り返すと複数の `<text>` になる。印だけに付けると、名前の文字のクリックが落ちるため(要望)。
+- 次も後回し: `cloud`(`causeTree` と同じ頻度で使うなら)、`gantt` / `states` / `classes` / `fta`。
