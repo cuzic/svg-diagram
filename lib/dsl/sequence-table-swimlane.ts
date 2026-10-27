@@ -1,3 +1,4 @@
+import {MAX_LANES_TO_ORDER, bestLaneOrder} from '../lane-order.ts';
 import {resolveIcon} from '../icon-registry.ts';
 import {assertSolidText, richBoxFields} from '../rich.ts';
 import type {ConnectBand} from '../types/containers.ts';
@@ -64,6 +65,7 @@ export function cell(text: string | number, opts: Omit<TableCellSpec, 'text'> = 
 //                just before the target, so it never crosses a box in between), bottom<->top within a column.
 //   opts.phases: [{label, from, to}]  — column groups named across the top (a stage, a sprint)
 //   opts.labelW: width of the lane-label column (default 128)
+//   opts.laneOrder: 'auto' puts the lanes in the order that makes the hand-offs (opts.flows) shortest; `fixed: true` lanes stay put (lib/lane-order.ts)
 // Returns an array (the lane block followed by its flows); d.add() accepts it directly.
 //
 // Types: at most 6 lanes (rule swimlane-lanes); every step.lane is a declared lane id; step ids are unique; flows'
@@ -71,7 +73,8 @@ export function cell(text: string | number, opts: Omit<TableCellSpec, 'text'> = 
 export function swimlane<
   const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [], const Id extends string = never,
 >(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows' | 'id'> & {id?: Id; flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S> | Id> | ConnectBand)[] & AnchorsOf<StepIds<S> | Id>;
-export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
+export function swimlane(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
+  const lanes = opts.laneOrder === undefined ? lanesIn : orderLanes(lanesIn, steps, opts);
   for (const l of lanes) assertBoxTone(l.tone, `swimlane() lane "${l.id}"`);
   const laneIdx = new Map(lanes.map((l, i) => [l.id, i]));
   let next = 1, cols = 0;
@@ -167,4 +170,19 @@ export function stateRow<const K extends string, O extends object = Record<strin
       });
     },
   };
+}
+
+/** swimlane({laneOrder: 'auto'}): the lanes in the order with the shortest hand-offs between them, by the flows swimlane() was given. */
+function orderLanes(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts): SwimlaneLane[] {
+  if (opts.laneOrder !== 'auto') throw new Error(`swimlane(): laneOrder must be 'auto' (got ${String(opts.laneOrder)})`);
+  if (lanes.length > MAX_LANES_TO_ORDER) throw new Error(`swimlane(): laneOrder: 'auto' orders up to ${MAX_LANES_TO_ORDER} lanes (got ${lanes.length}) — split the figure, or drop laneOrder and order them by hand`);
+  const laneOf = new Map(steps.filter(st => st.id !== undefined).map((st): [string, string] => [st.id as string, st.lane]));
+  const idx = new Map(lanes.map((l, i) => [l.id, i]));
+  // a flow that names an unknown step or lane is reported by the loops below; here it just does not count
+  const pairs = (opts.flows ?? []).flatMap((f): [number, number][] => {
+    const a = idx.get(laneOf.get(String(f.from).split(':')[0] as string) as string), b = idx.get(laneOf.get(String(f.to).split(':')[0] as string) as string);
+    return a === undefined || b === undefined ? [] : [[a, b]];
+  });
+  const fixed = new Set(lanes.flatMap((l, i) => (l.fixed ? [i] : [])));
+  return bestLaneOrder(lanes.length, fixed, pairs).map(i => lanes[i] as SwimlaneLane);
 }

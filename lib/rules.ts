@@ -50,6 +50,7 @@ import {bowtieFindings} from './rca-rules.ts';
 import {statusText} from './status.ts';
 
 import {must} from './must.ts';
+import {MAX_LANES_TO_ORDER, bestLaneOrder, laneDistance} from './lane-order.ts';
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
   'a11y-color-only-emphasis': '色だけで強調した語がある（太字も併用する。色が見えない読者にも伝わるように）',
@@ -64,7 +65,7 @@ export const RULE_DOCS = {
   'source-wraps': '出典行（diagram({sourceLine})）が 1 行に収まらず折り返している（短くする）',
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える。凡例が要らない図は diagram({legend: false})）',
-  'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる',
+  'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる（swimlane の opts に laneOrder: \'auto\' を渡すと、この順に自動で並べる）',
   'text-mid-word-break': "レイアウトが、カタカナの語(「コンテキス/ト」)や英数字の語の途中で行を割っている。箱や列が最長の語より狭いときに起きる。diagram({keepWords: true}) で、箱を最長のカタカナの語より狭くしない(causeTree / tree / mindmap / faultTree / states / bpmn の task。cloud・chevron・cycle・swimlane には効かない)。ほかに、箱の幅を広げる・向き(dir)や maxNodeW を変える・文言を短くする・語の前後で改行を書く。漢字どうしの途中の改行は対象外。スペースの無い複合語の境目(「キャプチャ/ステージ」)は辞書なしでは見分けられず、誤検出になりうる(accept で許容する)",
   'glyph-missing': "図の文字に、絵文字として扱われない絵記号(✅ ❌ など。EMOJI_RE の外)がある。通常の文字のフォントで描かれ、字形が無いと空白になる(resvg のプレビューで確認できる)。icon.emoji() か SVG アイコン(box({icon}))を使うか、✓ ✗ などの字に置き換える",
   'connect-label-covers-arrow': "矢印のラベル(の下地)が、矢印の経路の 6 割より多くを覆い、見える部分が 20px に満たない。箱の間が狭く、矢じりや向きが読めなくなる。箱の間隔を広げる・ラベルを短くする・ラベルを箱の中に書く",
@@ -458,11 +459,6 @@ function loopUnderHints(connects: LaidOutConnect[]): string[] {
   return out;
 }
 
-function permutations<T>(a: T[]): T[][] {
-  if (a.length <= 1) return [a];
-  return a.flatMap((x, i) => permutations([...a.slice(0, i), ...a.slice(i + 1)]).map(p => [x, ...p]));
-}
-
 // rowHeader: true paints the row-heading cell `soft`; a row whose own tone also fills `soft` (accent / new) loses the difference.
 function rowHeaderRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   for (const b of walkBands(d.bands)) if (b.type === 'table') for (const message of b.semanticWarnings ?? []) out.push({rule: 'semantic-table-warning', severity: 'warn', message});
@@ -521,20 +517,15 @@ function swimlaneRules(d: LintTarget, out: Finding[]): void {
     const ids = new Map<string, number>(sl.steps.filter(s => s.id).map((s): [string, number] => [qualify(scopeOf(sl), s.id as string), sl.lanes.findIndex(l => l.id === s.lane)]));
     const flows = (d.connects ?? []).filter(c => ids.has(c.fromId) && ids.has(c.toId));
     if (!flows.length) continue;
-    const dist = (order: number[]) => { const pos = new Map(order.map((l, i) => [l, i])); return flows.reduce((s, c) => s + Math.abs((pos.get(ids.get(c.fromId) as number) as number) - (pos.get(ids.get(c.toId) as number) as number)), 0); };
+    const pairs = flows.map((c): [number, number] => [ids.get(c.fromId) as number, ids.get(c.toId) as number]);
     const cur = [...Array(n).keys()];
-    const curD = dist(cur);
+    const curD = laneDistance(cur, pairs);
     const handOffs = flows.filter(c => ids.get(c.fromId) !== ids.get(c.toId)).length;
     out.push({rule: 'swimlane-hand-offs', severity: 'info', message: `引き継ぎ ${handOffs} 件 / 矢印 ${flows.length} 本。レーン間の距離の合計 ${curD}`});
-    if (n >= 2 && n <= 8) {
+    if (n >= 2 && n <= MAX_LANES_TO_ORDER) {
       // lanes marked {fixed: true} keep their place (e.g. a collecting 'PM' lane at the bottom)
-      const free = cur.filter(i => !must(sl.lanes[i]).fixed);
-      let best = cur, bestD = curD;
-      for (const p of permutations(free)) {
-        const order = cur.map(i => (must(sl.lanes[i]).fixed ? i : must(p[free.indexOf(i)])));
-        const x = dist(order);
-        if (x < bestD) { best = order; bestD = x; }
-      }
+      const best = bestLaneOrder(n, new Set(cur.filter(i => must(sl.lanes[i]).fixed)), pairs);
+      const bestD = laneDistance(best, pairs);
       if (bestD < curD) out.push({rule: 'swimlane-lane-order', severity: 'warn', message: `レーンを「${best.map(i => must(sl.lanes[i]).label.replace(/\n/g, '')).join(' → ')}」の順にすると、レーン間の距離が ${curD} → ${bestD} に減る`});
     }
   }
