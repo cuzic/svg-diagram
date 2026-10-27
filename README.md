@@ -85,6 +85,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 - 使える部品は `svg-diagram` と同じ(`build()` / `renderDiagram()` / `checkDiagram()` を除く)。
 - 使えない: `math()` と `image()`(呼ぶと理由つきで投げる)、`diagram({slide, fill})`、HTML 形式。path アイコンは `icon.use(manifest)` で渡したものだけ(絵文字はそのまま)。
 - 検証の失敗と XML の不整合は例外ではなく結果で返る(`renderDiagram()` と同じ)。レイアウトや組み立ての誤りは投げる。
+- 凡例の語は `diagram({legendLabels: {'role:de': '望む結果', 'role:injection': '打ち手', 'edge:and': '合わせて必要'}})` で変えられる(設定ファイルは読まないので、図ごとに渡す。キーは `tone:` / `role:` / `edge:` などの記法)。
 - 大きさは minify で約 870KB(gzip 約 300KB)。判断の経緯は ADR 0045。
 
 ## 使い方

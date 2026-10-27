@@ -7,7 +7,7 @@ import path from 'node:path';
 import {build} from 'esbuild';
 import {detachData} from '../lib/dsl/diagram.ts';
 import {canvasMeasurer} from '../lib/web-measure.ts';
-import {cloud, diagram, image, math, renderInBrowser} from '../lib/web.ts';
+import {causeTree, cloud, diagram, image, math, renderInBrowser} from '../lib/web.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const guess = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.9, h: Math.round(size * 1.2)});
@@ -38,6 +38,17 @@ test('renderInBrowser draws a cloud with the measurer it is given, and says so f
   assert.throws(() => math('x'), /math\(\) is not available in the browser entry/);
   assert.throws(() => image('a.png'), /image\(\) is not available in the browser entry/);
   await assert.rejects(renderInBrowser(diagram({theme: 'blue', fill: true, slide: {page: '1', heading: 'x'} as never}), {measure: guess}), /measured slide/);
+});
+
+test('diagram({legendLabels}) renames the legend entries of a future-reality tree in the browser entry too', async () => {
+  const frt = (legendLabels?: Record<string, string>) => diagram({theme: 'blue', legend: 'auto', ...(legendLabels ? {legendLabels} : {})}).add(causeTree(
+    [{id: 'de', label: '納期を守れる', role: 'de'}, {id: 'focus', label: '1 つずつ仕上げる'}, {id: 'cap', label: '着手の枠を決める', role: 'injection'}, {id: 'fact', label: '受注の量は変えられない', role: 'precondition'}],
+    [{from: ['fact', 'cap'], to: 'focus'}, {from: 'focus', to: 'de'}], {tree: 'frt'}));
+  const texts = async (l?: Record<string, string>) => [...(await renderInBrowser(frt(l), {measure: guess})).svg.matchAll(/>([^<>]+)</g)].map(m => m[1]);
+  assert.ok((await texts()).includes('望む結果(DE)'));
+  const plain = await texts({'role:de': '望む結果', 'role:injection': '打ち手', 'role:precondition': '今わかっている事実', 'edge:and': '合わせて必要'});
+  for (const t of ['望む結果', '打ち手', '今わかっている事実', '合わせて必要']) assert.ok(plain.includes(t), t);
+  assert.ok(!plain.some(t => /DE\)|AND\)/.test(t!)));
 });
 
 test('lib/web.ts bundles for the browser with no alias, stub or external, and reaches no node:* module', async () => {
