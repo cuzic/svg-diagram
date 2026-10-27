@@ -72,19 +72,20 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 ## Web ページで使う(`svg-diagram/browser`)
 
-Node もサーバーも使えない場所(単一の HTML、Artifact など)で図を描く入口。`esbuild` / `vite` で、alias もスタブもなしにそのまま束ねられる。文字幅は呼び出し側が測って渡す(`canvasMeasurer()` は canvas の参考実装)。
+Node もサーバーも使えない場所(単一の HTML、Artifact など)で図を描く入口。`esbuild` / `vite` で、alias もスタブもなしにそのまま束ねられる。文字幅は呼び出し側が測って渡す。`svgMeasurer()` は隠した SVG の `<text>` の `getBBox()` で測る（ブラウザが図の文字を描く箱と一致する。こちらを使う）。`canvasMeasurer()` は DOM を使わない近似で、等幅や絵文字で箱をわずかにはみ出すことがある。
 
 ```ts
-import {canvasMeasurer, cloud, diagram, renderInBrowser} from 'svg-diagram/browser';
+import {cloud, diagram, renderInBrowser, svgMeasurer} from 'svg-diagram/browser';
 
 const d = diagram({theme: 'blue', title: '品質とスピード'}).add(cloud({a: '成功させる', b: '品質', c: '機会', d: '検証', d2: '早く出す'}));
-const {svg, verdict, xml} = await renderInBrowser(d, {measure: canvasMeasurer()});
+const {svg, verdict, xml} = await renderInBrowser(d, {measure: svgMeasurer()});
 if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 ```
 
 - 使える部品は `svg-diagram` と同じ(`build()` / `renderDiagram()` / `checkDiagram()` を除く)。
 - 使えない: `math()` と `image()`(呼ぶと理由つきで投げる)、`diagram({slide, fill})`、HTML 形式。path アイコンは `icon.use(manifest)` で渡したものだけ(絵文字はそのまま)。
-- 検証の失敗と XML の不整合は例外ではなく結果で返る(`renderDiagram()` と同じ)。レイアウトや組み立ての誤りは投げる。
+- `gantt({today: 'auto'})` の日付は `renderInBrowser(d, {measure, today: '2026-10-27'})` で渡す（ライブラリは時計を読まない）。
+- 検証の失敗と XML の不整合は例外ではなく結果で返る(`renderDiagram()` と同じ。`fit` も入る）。レイアウトや組み立ての誤りは投げる。
 - 凡例の語は `diagram({legendLabels: {'role:de': '望む結果', 'role:injection': '打ち手', 'edge:and': '合わせて必要'}})` で変えられる(設定ファイルは読まないので、図ごとに渡す。キーは `tone:` / `role:` / `edge:` などの記法)。
 - 大きさは minify で約 870KB(gzip 約 300KB)。判断の経緯は ADR 0045。
 

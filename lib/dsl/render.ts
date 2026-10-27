@@ -4,7 +4,7 @@ import {getSlideBudget, readSlideBudgetCache} from '../slide-budget.ts';
 import {emitOutputs, runChecked} from '../pipeline.ts';
 import {fontBoxOf} from '../font-box.ts';
 import {resolveImages} from '../image-file.ts';
-import {canvasFontScale, canvasRoles, ROLES, scaleRoles} from '../tokens.ts';
+import {canvasFontScale, canvasRoles, rolesAt} from '../tokens.ts';
 import type {Diagram, DiagramData} from '../types/core.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {RenderResult, CheckResult, SlideBudget} from '../types/verdicts.ts';
@@ -56,7 +56,7 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
     let fontScale = 1;
     // Every scale is its own value (scaleRoles): measured with, laid out with and drawn with the same roles, which travel in the result.
     const layoutAt = async (s: number): Promise<LaidOutDiagram> => {
-      const roles = d.canvas ? canvasRoles(s) : scaleRoles(ROLES, s);
+      const roles = rolesAt(!!d.canvas, s);
       return layoutDiagram({...d, pad: Math.round(d.pad * s), gap: Math.round(d.gap * s)}, {roles});
     };
     if (d.fill && budget) {

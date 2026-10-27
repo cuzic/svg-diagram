@@ -4,7 +4,8 @@
 - 日付: 2026-10-27
 - 基点: `main`(PR #338 まで)
 - 関連: ADR 0007(Ports。Measurer の差し替え)、ADR 0031(中核に I/O を置かない)
-- 範囲外: 凡例・用語の差し替え(`diagram({legendLabels})`。次の PR)、`swimlane({laneOrder: 'auto'})`、`math()` と `image()`、`slide` / `fill`、HTML 形式
+- 範囲外: `swimlane({laneOrder: 'auto'})`(別 PR #342)、`math()` と `image()`、`slide` / `fill`、HTML 形式
+- コードの変更が要らなかったもの: 凡例の語の差し替え。`diagram({legendLabels})` がすでにあり、ブラウザ入口でも効く(テストあり)
 
 ## 背景
 
@@ -27,7 +28,11 @@ claude.ai の Artifact のように、サーバーも Node も使えない単一
 `lib/dsl-pure.ts`(`lib/dsl.ts` から、ファイルや process に触れない部分を分けたもの。公開される名前は変えない)を再公開し、`renderInBrowser(diagram, {measure})` と `canvasMeasurer()` を足す。`lib/dsl.ts` は `dsl-pure` + `io` + `render` + `closeMeasurer` で、これまでと同じ名前を同じ形で公開する。`lib/browser.ts`(Chromium を起動する殻)と名前が重なるので、ファイルは `web.ts`。
 
 ### D2: 測定は関数で渡す(ADR 0007 の Ports)
-`WebMeasurer = (req: {text, size, weight, font}) => {w, h} | Promise<{w, h}>`。`renderInBrowser` は `collectMeasures` が求めた全部をこの関数で測り、`layoutWith` に渡す。`renderDiagram()` と同じく、検証の失敗と XML の不整合は例外にせず結果(`verdict`、`xml`)で返す。canvas 版の参考実装 `canvasMeasurer()` は、`ctx.font = "<weight> <size>px <FONT_STACKS[font]>"` の `measureText` の幅と、`fontBoundingBoxAscent` / `Descent` を各々丸めた高さを返す(`lib/font-metrics.ts` の `textBox` と同じ規則)。
+`WebMeasurer = (req: {text, size, weight, font}) => {w, h} | Promise<{w, h}>`。`renderInBrowser` は `collectMeasures` が求めた全部をこの関数で測り(同じ文字列は 1 回だけ。まとめて並べて待つ)、`layoutWith` に渡す。`renderDiagram()` と同じく、検証の失敗と XML の不整合は例外にせず結果(`verdict`、`xml`、`fit`)で返す。
+
+参考実装は 2 つある。**`svgMeasurer()` を使う**: 隠した SVG の `<text>` の `getBBox()` を返す。`lib/measure.ts` が Chromium で測るのと同じやり方で、図の `<text>` をブラウザが描く箱と一致する(`test/web-entry.test.ts` が Chromium で、同じ文字列を普通に描いた `<text>` の `getBBox()` と突き合わせる)。`canvasMeasurer()` は DOM を使わず軽いが**近似**: canvas の `fontBoundingBoxAscent/Descent` は先頭のフォントの値だけで、SVG の箱はフォールバックしたフォント(等幅 + 日本語、絵文字)の分だけ高くなる。等幅の幅も 0.3px ほど狭く出ることがある(実測、Opus レビュー)。そのため文字が箱をわずかにはみ出し得るが、verdict は同じ測定値から作られるので気づけない。Worker など DOM のない場所で使うか、近似で足りるときだけ選ぶ。
+
+同じ HarfBuzz の測定値を `renderDiagram` と `renderInBrowser` に渡すと、`examples/` 173 本のうち 169 本は SVG も verdict も一致した(残り 4 本は `image()` を含み、想定どおり投げる。Opus レビューでの確認)。
 
 ### D3: `icon-registry` は fs を import しない
 `process.getBuiltinModule('node:fs')` で必要になったときだけ取る(Node 22.3 以降。`engines` は 22.18)。Web ページには `process` がないので、path アイコンは `icon.use(manifest)` で渡したものだけが使える(絵文字は fs を使わないのでそのまま使える)。
@@ -36,14 +41,14 @@ claude.ai の Artifact のように、サーバーも Node も使えない単一
 `node:crypto` の代わりに `lib/sha1.ts`。出力の id(`sd-xxxxxxxx`)は変わらない(`test/sha1.test.ts` が `node:crypto` と突き合わせる)。
 
 ### D5: 入口に含めないものは、使われたら理由つきの例外にする
-`math()` と `image()` は、呼ぶと「ブラウザ入口にない」と言って投げる。`diagram({slide})` / `{fill}` は `renderInBrowser` が投げる(実スライドの空き寸法が要る)。
+`gantt({today: 'auto'})` の日付は `renderInBrowser(d, {measure, today})` で渡す(ライブラリは時計を読まない)。`math()` と `image()` は、呼ぶと「ブラウザ入口にない」と言って投げる。`diagram({slide})` / `{fill}` は `renderInBrowser` が投げる(実スライドの空き寸法が要る)。
 
 ### D6: 帯ごとの登録式にするかは、実測のあとに決める(この PR では入れない)
 帯の種類ごとの処理表(layout / emit / verify / fit)は、網羅性を型で縛った 1 つの表なので、`swimlane` しか使わなくても全部の帯のコードが入る。実測(minify)は次のとおり。
 
 | バンドル | サイズ |
 |---|---|
-| `lib/web.ts` 全部 | 872KB(gzip 302KB) |
+| `lib/web.ts` 全部 | 875KB(gzip 303KB) |
 | `diagram` `cloud` `renderInBrowser` `canvasMeasurer` の 4 つだけ import | 707KB |
 | 上に `"sideEffects": false` | 676KB |
 
@@ -51,4 +56,7 @@ claude.ai の Artifact のように、サーバーも Node も使えない単一
 
 ## 検証
 - `test/web-entry.test.ts`: `lib/web.ts` を `esbuild --platform=browser` で、alias・スタブ・external なしに束ねられること(`node:*` への import が 0)。Node で偽の測定関数を渡した描画。Chromium で swimlane / causeTree(CRT)/ causeTree(FRT)/ cloud を canvas で測って描き、verdict が ok で XML が整っていること(Chromium がなければ skip)。
-- `test/sha1.test.ts`、`core-purity`(新しいファイルは SHELL に入れない)。
+- `test/sha1.test.ts`、`core-purity`(新しいファイルは SHELL に入れない。`web.ts` は `ROLES` を import せず、`tokens.rolesAt()` に選ばせる。`web-measure.ts` は `document` に触るが、core-purity の検査は DOM を見ないので core のまま。DOM を使うのは呼び出された `svgMeasurer()` / `canvasMeasurer()` の中だけで、import 時には何も評価しない)。
+
+## Opus レビュー(1 巡目)で直したもの
+`today` を渡す道がなかった(M1)、canvas の測定が SVG の箱とずれる(M2。`svgMeasurer` を足し、使うほうを変えた)、`web` を SHELL に入れて検査から外していた(M3。`rolesAt` で外した)、`prepared` ではなく外側の木で配置していた・同じ文字列を測り直していた・`fit` が結果から落ちていた・`fontBoundingBox*` が無いブラウザで NaN になった・アイコンのエラーが CLI を勧めた(低)。detach の順序の違い(`today: 'auto'` の日付なしと読めない `image()` が同じ図にあるときに、先に出るエラーが変わる)は、そのままにした。

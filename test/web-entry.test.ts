@@ -6,8 +6,9 @@ import os from 'node:os';
 import path from 'node:path';
 import {build} from 'esbuild';
 import {detachData} from '../lib/dsl/diagram.ts';
-import {canvasMeasurer} from '../lib/web-measure.ts';
-import {causeTree, cloud, diagram, image, math, renderInBrowser} from '../lib/web.ts';
+import {canvasMeasurer, svgMeasurer} from '../lib/web-measure.ts';
+import {rolesAt, ROLES, canvasRoles} from '../lib/tokens.ts';
+import {causeTree, cloud, diagram, gantt, image, math, renderInBrowser} from '../lib/web.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const guess = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.9, h: Math.round(size * 1.2)});
@@ -27,6 +28,54 @@ test('canvasMeasurer reads the width from measureText and rounds the ascent and 
   const m = canvasMeasurer(ctx as never)({text: 'abc', size: 16, weight: 700, font: 'sans'});
   assert.deepEqual(m, {w: 30, h: 14});
   assert.match(seen[0]!, /^700 16px /);
+});
+
+test('canvasMeasurer does not return a NaN height where the font box is missing (Firefox before 116)', () => {
+  const ctx = {font: '', measureText: () => ({width: 20, actualBoundingBoxAscent: 11.6, actualBoundingBoxDescent: 3.2})};
+  assert.deepEqual(canvasMeasurer(ctx as never)({text: 'ab', size: 16, weight: 400, font: 'sans'}), {w: 20, h: 15});
+  const bare = {font: '', measureText: () => ({width: 20})};
+  assert.ok(Number.isFinite(canvasMeasurer(bare as never)({text: 'ab', size: 16, weight: 400, font: 'sans'}).h));
+});
+
+test('svgMeasurer sets the font on one hidden SVG <text>, reads its box, and removes the SVG on dispose', () => {
+  const made: Record<string, unknown>[] = [];
+  const el = (tag: string) => { const attrs: Record<string, string> = {}; const e: Record<string, unknown> = {tag, attrs, textContent: '', setAttribute: (k: string, v: string) => { attrs[k] = v; }, appendChild: () => {}, remove: () => { e['removed'] = true; }, getBBox: () => ({width: String(e['textContent']).length * 7.5, height: 19}), }; made.push(e); return e; };
+  const body = {appendChild: () => {}};
+  (globalThis as any).document = {body, createElementNS: (_: string, tag: string) => el(tag)};
+  try {
+    const m = svgMeasurer();
+    assert.deepEqual(m({text: 'abcd', size: 21, weight: 700, font: 'mono'}), {w: 30, h: 19});
+    const text = made.find(e => e['tag'] === 'text')!;
+    assert.equal((text['attrs'] as Record<string, string>)['font-size'], '21');
+    assert.equal((text['attrs'] as Record<string, string>)['font-weight'], '700');
+    assert.equal((text['attrs'] as Record<string, string>)['xml:space'], 'preserve');
+    m.dispose();
+    assert.equal(made.find(e => e['tag'] === 'svg')!['removed'], true);
+  } finally { delete (globalThis as any).document; }
+});
+
+test('rolesAt: a canvas figure takes the canvas roles, any other the scaled ROLES', () => {
+  assert.deepEqual(rolesAt(true, 1.5), canvasRoles(1.5));
+  assert.deepEqual(rolesAt(false, 1), ROLES);
+  assert.notDeepEqual(rolesAt(false, 2), ROLES);
+});
+
+test("renderInBrowser({today}) is the day of a gantt({today: 'auto'}); without it the figure says what is missing", async () => {
+  const g = () => diagram({theme: 'blue', title: '工程'}).add(gantt([{label: '設計', start: '2026-10-19', end: '2026-10-30'}], {today: 'auto'}));
+  assert.equal((await renderInBrowser(g(), {measure: guess, today: '2026-10-27'})).verdict.ok, true);
+  await assert.rejects(renderInBrowser(g(), {measure: guess}), /today: 'auto' needs a date/);
+  await assert.rejects(renderInBrowser(g(), {measure: guess, today: 'tomorrow'}), /renderInBrowser\(\{today\}\)/);
+});
+
+test('renderInBrowser asks the measurer once per distinct run, even when width: "fit" lays out several times', async () => {
+  const seen = new Map<string, number>();
+  const counting = (r: {text: string; size: number; weight: number; font: string}) => { const k = JSON.stringify(r); seen.set(k, (seen.get(k) ?? 0) + 1); return guess(r); };
+  const d = diagram({theme: 'blue', title: 'クラウド', width: 'fit'}).add(cloud({a: '成功させる', b: '品質を確保する', c: '機会を逃さない', d: '検証に時間をかける', d2: '早くリリースする'}));
+  const r = await renderInBrowser(d, {measure: counting});
+  assert.equal(r.verdict.ok, true, JSON.stringify(r.verdict));
+  assert.ok(seen.size > 0 && [...seen.values()].every(n => n === 1));
+  assert.equal(r.fontScale, 1);
+  assert.ok(r.fit);
 });
 
 test('renderInBrowser draws a cloud with the measurer it is given, and says so for math() / image() / slide figures', async () => {
@@ -57,7 +106,7 @@ test('lib/web.ts bundles for the browser with no alias, stub or external, and re
   assert.deepEqual(bad, []);
 });
 
-test('Chromium draws a swimlane, a CRT, an FRT and a cloud through the bundle, measured on a canvas', async t => {
+test('Chromium draws a swimlane, a CRT, an FRT, a gantt and a cloud through the bundle, measured on a canvas', async t => {
   const {chromium} = await import('playwright-chromium');
   let browser;
   try { browser = await chromium.launch(); } catch (e) { t.skip(`no Chromium: ${(e as Error).message.split('\n')[0]}`); return; }
@@ -69,7 +118,12 @@ test('Chromium draws a swimlane, a CRT, an FRT and a cloud through the bundle, m
     await page.setContent('<!doctype html><meta charset="utf-8"><body></body>');
     await page.addScriptTag({content: fs.readFileSync(out, 'utf8')});
     const got = await page.evaluate(() => (globalThis as any).drawAll()) as Record<string, {ok: boolean; xml: string[]; svg: number; verdict: unknown}>;
-    assert.deepEqual(Object.keys(got), ['swimlane', 'crt', 'frt', 'cloud']);
+    assert.deepEqual(Object.keys(got), ['swimlane', 'crt', 'frt', 'gantt', 'cloud']);
     for (const [name, r] of Object.entries(got)) { assert.equal(r.ok, true, `${name}: ${JSON.stringify(r.verdict)}`); assert.deepEqual(r.xml, [], name); assert.ok(r.svg > 1000, name); }
+    // svgMeasurer returns the box the page itself gives a <text> (canvasMeasurer is a fraction of a pixel off for mono, and short for emoji / CJK fallbacks)
+    for (const [t, size, weight, font] of [['Hello svg-diagram', 14, 400, 'mono'], ['受注する (DE) 😀', 16, 700, 'sans'], ['AV WAVE', 16, 700, 'emoji']] as const) {
+      const r = await page.evaluate(([a, b, c, d]) => (globalThis as any).bboxOf(a, b, c, d), [t, size, weight, font] as const) as {via: {w: number; h: number}; drawn: {w: number; h: number}};
+      assert.deepEqual(r.via, r.drawn, t);
+    }
   } finally { await browser.close(); }
 });
