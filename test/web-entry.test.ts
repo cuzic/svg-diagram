@@ -131,7 +131,8 @@ test('Chromium draws a swimlane, a CRT, an FRT, a gantt and a cloud through the 
     // a space is a run of its own for the layout: it must have a width, and the phrase is its words and the space
     const sp = await page.evaluate(() => (globalThis as any).spaceProbe()) as {space: number; phrase: number; parts: number};
     assert.ok(sp.space > 2, `a lone space has width (got ${sp.space})`);
-    assert.ok(Math.abs(sp.phrase - sp.parts) < 0.5, `'Hello world' ${sp.phrase} vs the parts ${sp.parts}`);
+    // kerning between a letter and the space can move the sum by a pixel (CI's fonts do); a space measured as 0 would be off by the whole space
+    assert.ok(Math.abs(sp.phrase - sp.parts) < sp.space / 2, `'Hello world' ${sp.phrase} vs the parts ${sp.parts}`);
     const st = await page.evaluate(() => (globalThis as any).styledProbe()) as {styled: number; plain: number};
     assert.equal(st.styled, st.plain, "the page's letter-spacing is not taken");
     assert.match(await page.evaluate(() => (globalThis as any).hiddenHost()) as string, /measured nothing/);
