@@ -72,7 +72,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 ## Web ページで使う(`svg-diagram/browser`)
 
-Node もサーバーも使えない場所(単一の HTML、Artifact など)で図を描く入口。`esbuild` / `vite` で、alias もスタブもなしにそのまま束ねられる。文字幅は呼び出し側が測って渡す。`svgMeasurer()` は隠した SVG の `<text>` の `getBBox()` で測る（ブラウザが図の文字を描く箱と一致する。こちらを使う）。`canvasMeasurer()` は DOM を使わない近似で、等幅や絵文字で箱をわずかにはみ出すことがある。
+Node もサーバーも使えない場所(単一の HTML、Artifact など)で図を描く入口。`esbuild` / `vite` で、alias もスタブもなしにそのまま束ねられる。文字幅は呼び出し側が測って渡す。`svgMeasurer()` は隠した SVG の `<text>` の `getBBox()` で測る（ブラウザが図の文字を描く箱と一致する。こちらを使う）。`await document.fonts.ready` のあとで測り、使い終わったら `measure.dispose()` で隠した SVG を消す。`canvasMeasurer()` は DOM を使わない近似で、等幅や絵文字で箱をわずかにはみ出すことがある。
 
 ```ts
 import {cloud, diagram, renderInBrowser, svgMeasurer} from 'svg-diagram/browser';

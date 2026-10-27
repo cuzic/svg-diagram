@@ -34,20 +34,40 @@ const figures = {
   return out;
 };
 
-/** What svgMeasurer returns for a run, and the box of the same run drawn as a visible <text> in a normal SVG (the figure's own way of showing it). */
+const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+/** What svgMeasurer returns for a run, and the box of the same run drawn as a visible <text> in a normal SVG, parsed from markup as an <img>/inline figure is. */
 (globalThis as any).bboxOf = (text: string, size: number, weight: number, font: 'sans' | 'mono' | 'emoji') => {
   const m = svgMeasurer();
   const via = m({text, size, weight, font});
   m.dispose();
-  const NS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('width', '800'); svg.setAttribute('height', '200');
-  const t = document.createElementNS(NS, 'text');
-  t.setAttribute('xml:space', 'preserve'); t.setAttribute('x', '0'); t.setAttribute('y', '100');
-  t.setAttribute('font-family', FONT_STACKS[font]); t.setAttribute('font-size', String(size)); t.setAttribute('font-weight', String(weight));
-  t.textContent = text;
-  svg.appendChild(t); document.body.appendChild(svg);
-  const b = (t as unknown as SVGGraphicsElement).getBBox();
-  svg.remove();
+  const holder = document.createElement('div');
+  holder.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200"><text xml:space="preserve" x="0" y="100" font-family="${FONT_STACKS[font]}" font-size="${size}" font-weight="${weight}">${esc(text)}</text></svg>`;
+  document.body.appendChild(holder);
+  const b = (holder.querySelector('text') as unknown as SVGGraphicsElement).getBBox();
+  holder.remove();
   return {via, drawn: {w: b.width, h: b.height}};
+};
+/** Widths of runs that split at spaces, as layout asks for them: ' ' alone, and a phrase against its words and the space. */
+(globalThis as any).spaceProbe = () => {
+  const m = svgMeasurer();
+  const w = (text: string) => m({text, size: 14, weight: 400, font: 'sans'}).w;
+  const r = {space: w(' '), phrase: w('Hello world'), parts: w('Hello') + w(' ') + w('world')};
+  m.dispose();
+  return r;
+};
+/** A page whose styling would leak into a hidden SVG: the measurer must not take it. */
+(globalThis as any).styledProbe = () => {
+  document.body.style.letterSpacing = '3px';
+  const m = svgMeasurer();
+  const styled = m({text: 'Hello', size: 14, weight: 400, font: 'sans'}).w;
+  m.dispose();
+  document.body.style.letterSpacing = '';
+  const m2 = svgMeasurer();
+  const plain = m2({text: 'Hello', size: 14, weight: 400, font: 'sans'}).w;
+  m2.dispose();
+  return {styled, plain};
+};
+(globalThis as any).hiddenHost = () => {
+  const host = document.createElement('div'); host.style.display = 'none'; document.body.appendChild(host);
+  try { svgMeasurer(host); return 'no error'; } catch (e) { return (e as Error).message; } finally { host.remove(); }
 };

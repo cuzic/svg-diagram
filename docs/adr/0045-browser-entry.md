@@ -30,7 +30,7 @@ claude.ai の Artifact のように、サーバーも Node も使えない単一
 ### D2: 測定は関数で渡す(ADR 0007 の Ports)
 `WebMeasurer = (req: {text, size, weight, font}) => {w, h} | Promise<{w, h}>`。`renderInBrowser` は `collectMeasures` が求めた全部をこの関数で測り(同じ文字列は 1 回だけ。まとめて並べて待つ)、`layoutWith` に渡す。`renderDiagram()` と同じく、検証の失敗と XML の不整合は例外にせず結果(`verdict`、`xml`、`fit`)で返す。
 
-参考実装は 2 つある。**`svgMeasurer()` を使う**: 隠した SVG の `<text>` の `getBBox()` を返す。`lib/measure.ts` が Chromium で測るのと同じやり方で、図の `<text>` をブラウザが描く箱と一致する(`test/web-entry.test.ts` が Chromium で、同じ文字列を普通に描いた `<text>` の `getBBox()` と突き合わせる)。`canvasMeasurer()` は DOM を使わず軽いが**近似**: canvas の `fontBoundingBoxAscent/Descent` は先頭のフォントの値だけで、SVG の箱はフォールバックしたフォント(等幅 + 日本語、絵文字)の分だけ高くなる。等幅の幅も 0.3px ほど狭く出ることがある(実測、Opus レビュー)。そのため文字が箱をわずかにはみ出し得るが、verdict は同じ測定値から作られるので気づけない。Worker など DOM のない場所で使うか、近似で足りるときだけ選ぶ。
+参考実装は 2 つある。**`svgMeasurer()` を使う**: 隠した SVG の `<text>` の `getBBox()` を返す。`lib/measure.ts` が Chromium で測るのと同じやり方で、図の `<text>` をブラウザが描く箱と一致する(`test/web-entry.test.ts` が Chromium で、同じ文字列をマークアップから読み込んだ `<text>` の `getBBox()` と突き合わせる)。注意が 2 つある。(1) `xml:space="preserve"` は `setAttributeNS(XML 名前空間)` で付ける。`createElementNS` した要素への `setAttribute('xml:space')` は効かず、空白だけの run が幅 0 になって、空白 1 つにつき約 4px 狭く測られる(`lib/measure.ts` が以前に直したのと同じ不具合。Opus 再確認で見つかり、テストに入れた)。(2) 隠した SVG はページの文字の指定(`letter-spacing` など)を受け継ぐので、`style` で戻している。表示されていない `host` は、全部 0 になる代わりに例外にする。`canvasMeasurer()` は DOM を使わず軽いが**近似**: canvas の `fontBoundingBoxAscent/Descent` は先頭のフォントの値だけで、SVG の箱はフォールバックしたフォント(等幅 + 日本語、絵文字)の分だけ高くなる。等幅の幅も 0.3px ほど狭く出ることがある(実測、Opus レビュー)。そのため文字が箱をわずかにはみ出し得るが、verdict は同じ測定値から作られるので気づけない。Worker など DOM のない場所で使うか、近似で足りるときだけ選ぶ。
 
 同じ HarfBuzz の測定値を `renderDiagram` と `renderInBrowser` に渡すと、`examples/` 173 本のうち 169 本は SVG も verdict も一致した(残り 4 本は `image()` を含み、想定どおり投げる。Opus レビューでの確認)。
 
@@ -55,7 +55,7 @@ claude.ai の Artifact のように、サーバーも Node も使えない単一
 つまり名前ごとの tree shaking では約 19%(sideEffects を足しても約 22%)しか減らない。残りは帯の処理表が引き込む。減らすなら `createRenderer({bands: [...]})` のような登録式にして、Node 側の入口は全部入りのままにする案がある。得るものは数百 KB、払うものは「帯を足すときの登録先が 1 か所増える」ことと、網羅性の検査を全部入り側に移すこと。Artifact の用途では 1 回読み込めば足りるので、急がない。
 
 ## 検証
-- `test/web-entry.test.ts`: `lib/web.ts` を `esbuild --platform=browser` で、alias・スタブ・external なしに束ねられること(`node:*` への import が 0)。Node で偽の測定関数を渡した描画。Chromium で swimlane / causeTree(CRT)/ causeTree(FRT)/ cloud を canvas で測って描き、verdict が ok で XML が整っていること(Chromium がなければ skip)。
+- `test/web-entry.test.ts`: `lib/web.ts` を `esbuild --platform=browser` で、alias・スタブ・external なしに束ねられること(`node:*` への import が 0)。Node で偽の測定関数を渡した描画。Chromium で swimlane / causeTree(CRT)/ causeTree(FRT)/ gantt / cloud を `svgMeasurer()` で測って描き、verdict が ok で XML が整っていること(Chromium がなければ skip)。
 - `test/sha1.test.ts`、`core-purity`(新しいファイルは SHELL に入れない。`web.ts` は `ROLES` を import せず、`tokens.rolesAt()` に選ばせる。`web-measure.ts` は `document` に触るが、core-purity の検査は DOM を見ないので core のまま。DOM を使うのは呼び出された `svgMeasurer()` / `canvasMeasurer()` の中だけで、import 時には何も評価しない)。
 
 ## Opus レビュー(1 巡目)で直したもの

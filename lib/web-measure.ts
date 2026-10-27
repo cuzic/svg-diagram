@@ -10,17 +10,25 @@ import type {Measured, MeasureRequest} from './types/core.ts';
 
 type Req = Required<MeasureRequest>;
 const SVG_NS = 'http://www.w3.org/2000/svg';
+const XML_NS = 'http://www.w3.org/XML/1998/namespace';
+// The hidden SVG sits in the page, so it would inherit the page's text styling; the figure is drawn without it (an <img>, its own element).
+const RESET = 'position:absolute;left:-9999px;top:0;visibility:hidden;letter-spacing:normal;word-spacing:normal;font-style:normal;font-variant:normal;font-stretch:normal;font-kerning:auto;font-feature-settings:normal;text-transform:none;text-indent:0;white-space:normal';
 
-/** Measures with getBBox() of a hidden SVG <text> in `host` (default: document.body). Call `.dispose()` to remove the hidden SVG. */
+/**
+ * Measures with getBBox() of a hidden SVG <text> in `host` (default: document.body, else the root element). Call `.dispose()` to remove the
+ * hidden SVG. Measure after the fonts are loaded (`await document.fonts.ready`), and put `host` where it is displayed: a `display: none`
+ * host measures everything as 0, which is reported here as an error rather than drawn.
+ */
 export function svgMeasurer(host?: Element): ((req: Req) => Measured) & {dispose(): void} {
-  const root = host ?? document.body;
+  const root = host ?? document.body ?? document.documentElement;
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('width', '0'); svg.setAttribute('height', '0');
-  svg.setAttribute('style', 'position:absolute;left:-9999px;top:0;visibility:hidden');
+  svg.setAttribute('style', RESET);
   svg.setAttribute('aria-hidden', 'true');
   root.appendChild(svg);
   const text = document.createElementNS(SVG_NS, 'text');
-  text.setAttribute('xml:space', 'preserve'); // otherwise a whitespace-only run collapses to nothing
+  // otherwise a whitespace-only run collapses to nothing. In the XML namespace: setAttribute('xml:space') on an element made by createElementNS is a plain attribute with that name, which is ignored
+  text.setAttributeNS(XML_NS, 'xml:space', 'preserve');
   text.setAttribute('x', '0'); text.setAttribute('y', '100');
   svg.appendChild(text);
   const measure = ({text: t, size, weight, font}: Req): Measured => {
@@ -31,6 +39,7 @@ export function svgMeasurer(host?: Element): ((req: Req) => Measured) & {dispose
     const b = (text as unknown as SVGGraphicsElement).getBBox();
     return {w: b.width, h: b.height};
   };
+  if (measure({text: 'Hg', size: 16, weight: 400, font: 'sans'}).w <= 0) { svg.remove(); throw new Error('svgMeasurer: the hidden SVG measured nothing — its host is not displayed (display: none) or the page has no layout yet; pass a displayed `host`'); }
   return Object.assign(measure, {dispose: () => svg.remove()});
 }
 

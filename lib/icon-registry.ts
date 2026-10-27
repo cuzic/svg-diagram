@@ -71,7 +71,6 @@ export function resolveIcon(name: string, caller: string): IconGlyph {
   if (g) return g;
   const have = installedNames();
   if (!nodeFs()) {
-    const have = installedNames();
     throw new Error(`${caller}: icon "${name}" is not in the manifest given to icon.use()${explicit ? '' : ' (none given — this runtime cannot read svg-diagram.icons.json, so pass the manifest with icon.use(manifest))'}${have.length ? `; installed: ${have.join(', ')}` : ''}`);
   }
   const where = findManifest() ?? `${MANIFEST_FILE} (none found from ${globalThis.process?.cwd?.() ?? 'here'})`;
