@@ -89,6 +89,23 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 - 凡例の語は `diagram({legendLabels: {'role:de': '望む結果', 'role:injection': '打ち手', 'edge:and': '合わせて必要'}})` で変えられる(設定ファイルは読まないので、図ごとに渡す。キーは `tone:` / `role:` / `edge:` などの記法)。
 - 大きさは minify で約 870KB(gzip 約 300KB)。判断の経緯は ADR 0045。
 
+## ノードの名前を SVG に出す（`data-node`）
+
+図を表示するページで「このノードをクリックした」を知りたいとき、`renderDiagram(d, {nodeIds: true})`（ブラウザ入口では `renderInBrowser(d, {measure, nodeIds: true})`）で、`id` を持つノードの図形に `data-node="名前"` が付く。既定は付けない（付けない SVG は 1 バイトも変わらない）。名前は `connect()` や spotlight が使うものと同じ（`scope` があれば `scope.id`）。HTML 出力（`--html`）には付かない。
+
+| 部品 | `data-node` が付く場所 |
+|---|---|
+| `box`（単独、`row` / `grid` の子、`swimlane` の作業） | 枠の `<rect>` |
+| `tree` / `mindmap` | ノードの枠 |
+| `causeTree` / `whyWhyTree` | ノードの枠（六角形は付かない）。作り手が付けた名前（`unanchored`）は付かない |
+| `bpmn` | タスクの枠（イベントとゲートは付かない） |
+| `chevron` / `funnel` / `cycle` / `venn` / `concentric` / `emblem` | 各項目の図形（矢羽根・段・丸・集合・輪・記号）。項目の文字は付かない |
+| `quadrant` | 各項目の印（円・四角・菱形・三角）**と**名前の文字（折り返した行ごと） |
+
+`id` のない項目には付かない。**付かない部品**（`id` は `connect()` で使えるが、`data-node` は出ない）: `cloud`、`gantt`、`states`、`classes`、`fta` / `bowtie`、`chart` 系、`bars`、`image` の印、`causeTree` の六角形、`bpmn` のイベントとゲート。必要になったら `lib/emit-node-ids.ts` の `withNodeIdsBand` に足す。
+
+枠の上に重なる文字（`box` や flow shape の項目名）は、`<text>` が枠の兄弟として並ぶので、クリックの `event.target` は `<text>` になる。表示する側で `text { pointer-events: none }` にすると、クリックが枠に届く（`quadrant` は文字にも `data-node` が付くので不要）。
+
 ## 使い方
 
     svg-diagram init [dir]                               # 案件の初期設定（package.json の type、tsconfig.json）

@@ -43,10 +43,10 @@ export type FlowShapeBand = ChevronBand | FunnelBand | CycleBand | VennBand | Co
 
 export interface FlowText extends Rect {text: string; tx: number; ty: number; size: number; weight: 400 | 700; anchor: 'start' | 'middle' | 'end'; tone: TextTone}
 export type FlowPrimitive =
-  | ({k: 'polygon'; points: [number, number][]; tone: BoxTone; strong?: boolean} & Dimmed)
-  | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string; /** Drawn as a box of this tone (filled, outlined) instead of a tinted ring. */ fill?: BoxTone} & Dimmed)
+  | ({k: 'polygon'; points: [number, number][]; tone: BoxTone; strong?: boolean; /** the id of the item this is the frame of (ADR 0034: withNodeIds turns it into `dataNode`) */ node?: string; dataNode?: string} & Dimmed)
+  | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string; /** Drawn as a box of this tone (filled, outlined) instead of a tinted ring. */ fill?: BoxTone; node?: string; dataNode?: string} & Dimmed)
   | ({k: 'rect'; x: number; y: number; w: number; h: number; tone: TextTone} & Dimmed)
-  | ({k: 'path'; d: string; tone: TextTone; arrow?: boolean; thin?: boolean; /** Drawn as a box of this tone (filled, outlined) instead of a line; `box` is the extent of what is drawn. */ fill?: BoxTone; box?: Rect} & Dimmed);
+  | ({k: 'path'; d: string; tone: TextTone; arrow?: boolean; thin?: boolean; /** Drawn as a box of this tone (filled, outlined) instead of a line; `box` is the extent of what is drawn. */ fill?: BoxTone; box?: Rect; node?: string; dataNode?: string} & Dimmed);
 export interface LaidOutFlowShape extends Rect, Dimmed {type: FlowShapeBand['type']; id?: string; reveal?: number; until?: number; primitives: FlowPrimitive[]; texts: FlowText[]; anchors: Anchor[]; labelBoxes: (Rect & {label: string})[]; /** emblem: the bounding box of each shape that has an id (the checks' obstacle, which may be larger than its anchor). */ bounds?: Anchor[]}
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -136,6 +136,9 @@ export function emblemBand(items: readonly EmblemItem[], opts: EmblemOpts = {}):
   if (opts.minSize !== undefined && !(opts.minSize >= 64 && opts.minSize <= EMBLEM_MAX)) throw new Error(`emblem(): minSize must be 64..${EMBLEM_MAX}`);
   return {...opts, type: 'emblem', items: [...items], shape: opts.shape ?? 'circle', gap: opts.gap ?? 16};
 }
+
+/** The item an item's frame names (ADR 0034): the id, when it has one. */
+const nodeOf = (item: {id?: string}): {node?: string} => item.id ? {node: item.id} : {};
 
 export const flowShapeIds = (b: FlowShapeBand): string[] => (b.type === 'funnel' ? b.stages : b.type === 'venn' ? b.sets : b.type === 'concentric' ? b.rings : b.type === 'emblem' ? b.items : b.steps).flatMap(x => x.id ? [x.id] : []);
 
@@ -227,7 +230,7 @@ function layoutChevron(b: ChevronBand, out: LaidOutFlowShape, t: Texts, anchor: 
     const points: Pt[] = vertical
       ? [[xx, yy], [xx + cellW, yy], [xx + cellW, yy + cellH - tip], [xx + cellW / 2, yy + cellH], [xx, yy + cellH - tip]]
       : [[xx, yy], [xx + cellW - tip, yy], [xx + cellW, yy + cellH / 2], [xx + cellW - tip, yy + cellH], [xx, yy + cellH], ...notch];
-    out.primitives.push({k: 'polygon', points, tone: current === i ? 'accent' : s.tone ?? 'plain', ...(current === i ? {strong: true} : {})});
+    out.primitives.push({k: 'polygon', points, tone: current === i ? 'accent' : s.tone ?? 'plain', ...(current === i ? {strong: true} : {}), ...nodeOf(s)});
     anchor(s.id, {x: xx, y: yy, w: cellW, h: cellH});
     const k = must(blocks[i]), top = yy + (cellH - (vertical ? tip : 0) - textH(k)) / 2;
     t.place(k.label, xx + cellW / 2, top);
@@ -254,7 +257,7 @@ function layoutFunnel(b: FunnelBand, out: LaidOutFlowShape, t: Texts, anchor: An
   out.h = n * rowH;
   b.stages.forEach((s, i) => {
     const yy = out.y + i * rowH, a = must(tops[i]), z = must(bottoms[i]), p = must(plans[i]);
-    out.primitives.push({k: 'polygon', points: [[cx - a / 2, yy], [cx + a / 2, yy], [cx + z / 2, yy + rowH - 4], [cx - z / 2, yy + rowH - 4]], tone: s.tone ?? (i % 2 ? 'muted' : 'accent')});
+    out.primitives.push({k: 'polygon', points: [[cx - a / 2, yy], [cx + a / 2, yy], [cx + z / 2, yy + rowH - 4], [cx - z / 2, yy + rowH - 4]], tone: s.tone ?? (i % 2 ? 'muted' : 'accent'), ...nodeOf(s)});
     anchor(s.id, {x: cx - Math.max(a, z) / 2, y: yy, w: Math.max(a, z), h: rowH - 4});
     const blockH = p.label.h + (p.rate && !p.rateLeft ? p.rate.h : 0), top = yy + (rowH - 4 - blockH) / 2;
     const lx = p.beside ? p.sideLeft : cx, la = p.beside ? 'start' : 'middle';
@@ -294,7 +297,7 @@ function layoutCycle(b: CycleBand, out: LaidOutFlowShape, t: Texts, anchor: Anch
   b.steps.forEach((s, i) => {
     const [ax, ay] = at(angle(i)), nx = g4(ax), ny = g4(ay);
     const tone: TextTone = s.tone === 'danger' || s.tone === 'removed' ? 'danger' : s.tone === 'muted' ? 'muted' : 'accent';
-    out.primitives.push({k: 'circle', cx: nx, cy: ny, r: nr, tone});
+    out.primitives.push({k: 'circle', cx: nx, cy: ny, r: nr, tone, ...nodeOf(s)});
     anchor(s.id, {x: nx - nr, y: ny - nr, w: 2 * nr, h: 2 * nr});
     const label = t.wrap(s.label, nr * 1.5), sub = s.sub ? t.wrap(s.sub, nr * 1.5, 400) : undefined, top = ny - (label.h + (sub?.h ?? 0)) / 2;
     t.place(label, nx, top);
@@ -321,7 +324,7 @@ function layoutVenn(b: VennBand, out: LaidOutFlowShape, t: Texts, anchor: Anchor
   const centred = (text: string, [px, py]: Pt, maxW: number) => { const k = t.wrap(text, maxW); t.place(k, px, py - k.h / 2); };
   b.sets.forEach((s, i) => {
     const [px, py] = must(pos[i]), dx = px - mid[0], dy = py - mid[1], d = Math.hypot(dx, dy) || 1, k = three ? .5 : .42;
-    out.primitives.push({k: 'circle', cx: px, cy: py, r, tone: s.tone ?? must(TONES[i]), opacity: .22, ...(DASH[i] ? {dash: DASH[i]} : {})});
+    out.primitives.push({k: 'circle', cx: px, cy: py, r, tone: s.tone ?? must(TONES[i]), opacity: .22, ...(DASH[i] ? {dash: DASH[i]} : {}), ...nodeOf(s)});
     anchor(s.id, {x: px - r, y: py - r, w: 2 * r, h: 2 * r});
     centred(s.label ?? s.name, [px + dx / d * k * r, py + dy / d * k * r], .8 * r); // in the part only this set covers
   });
@@ -351,7 +354,7 @@ function layoutConcentric(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, an
   const TONES: TextTone[] = ['accent', 'muted', 'danger', 'text'];
   ordered.forEach((ring, i) => {
     const rr = radius(i);
-    out.primitives.push({k: 'circle', cx, cy, r: rr, tone: ring.tone ?? must(TONES[i % 4]), opacity: .10 + (i % 2) * .05, ...(i % 2 ? {dash: '7,5'} : {})});
+    out.primitives.push({k: 'circle', cx, cy, r: rr, tone: ring.tone ?? must(TONES[i % 4]), opacity: .10 + (i % 2) * .05, ...(i % 2 ? {dash: '7,5'} : {}), ...nodeOf(ring)});
     anchor(ring.id, {x: cx - rr, y: cy - rr, w: 2 * rr, h: 2 * rr});
   });
   if (side) {
@@ -437,9 +440,9 @@ function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: An
     const rowW = inRow * d + (inRow - 1) * gap, shape = shapeOf(item);
     const k = must(plan[n]), h = k.h, left = g4(out.x + (out.w - rowW) / 2 + col * (d + gap)), top = g4(out.y + row * (rowH + gap) + (rowH - h) / 2);
     const o = emblemOutline(shape, left, top, d, h), tone = item.tone ?? 'plain';
-    if (o.points) out.primitives.push({k: 'polygon', points: o.points, tone});
-    else if (o.path) out.primitives.push({k: 'path', d: o.path, tone: 'text', fill: tone, box: o.box});
-    else out.primitives.push({k: 'circle', cx: left + d / 2, cy: top + d / 2, r: d / 2, tone: 'text', fill: tone});
+    if (o.points) out.primitives.push({k: 'polygon', points: o.points, tone, ...nodeOf(item)});
+    else if (o.path) out.primitives.push({k: 'path', d: o.path, tone: 'text', fill: tone, box: o.box, ...nodeOf(item)});
+    else out.primitives.push({k: 'circle', cx: left + d / 2, cy: top + d / 2, r: d / 2, tone: 'text', fill: tone, ...nodeOf(item)});
     anchor(item.id, o.anchor);
     if (item.id) (out.bounds ??= []).push({id: item.id, x: left, y: top, w: d, h: o.h});
     const blockH = k.label.h + (k.sub?.h ?? 0), cx = left + d / 2, cy = top + o.textCy;
