@@ -70,6 +70,25 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 **remark**: `import svgDiagram from 'svg-diagram/remark'`、`unified().use(remarkParse).use(svgDiagram, {render: 'svg'}).use(remarkRehype).use(rehypeStringify)`。図は生の `html` ノードではなく本物の要素（hast。`className` `strokeWidth` など hast のプロパティ名）になるので、`allowDangerousHtml` も `rehype-raw` も要らない（`rehype-sanitize` を使うなら、svg と style を許すスキーマが要る）。図だけの段落は段落ごと置き換える。HTML 版は `<div class="svg-diagram">`。MDX・Astro・Docusaurus の remark 設定にも入る（それらでの動作は未確認）。remark の変換は非同期にできるので子プロセスは使わず同じプロセスで描き、同じプロセスでソースを編集すれば描き直す。使った図のファイルは `file.data.svgDiagramDeps` に入る。
 
+## Web ページで使う(`svg-diagram/browser`)
+
+Node もサーバーも使えない場所(単一の HTML、Artifact など)で図を描く入口。`esbuild` / `vite` で、alias もスタブもなしにそのまま束ねられる。文字幅は呼び出し側が測って渡す。`svgMeasurer()` は隠した SVG の `<text>` の `getBBox()` で測る（ブラウザが図の文字を描く箱と一致する。こちらを使う）。`await document.fonts.ready` のあとで測り、使い終わったら `measure.dispose()` で隠した SVG を消す。`canvasMeasurer()` は DOM を使わない近似で、等幅や絵文字で箱をわずかにはみ出すことがある。
+
+```ts
+import {cloud, diagram, renderInBrowser, svgMeasurer} from 'svg-diagram/browser';
+
+const d = diagram({theme: 'blue', title: '品質とスピード'}).add(cloud({a: '成功させる', b: '品質', c: '機会', d: '検証', d2: '早く出す'}));
+const {svg, verdict, xml} = await renderInBrowser(d, {measure: svgMeasurer()});
+if (verdict.ok && !xml.length) document.body.innerHTML = svg;
+```
+
+- 使える部品は `svg-diagram` と同じ(`build()` / `renderDiagram()` / `checkDiagram()` を除く)。
+- 使えない: `math()` と `image()`(呼ぶと理由つきで投げる)、`diagram({slide, fill})`、HTML 形式。path アイコンは `icon.use(manifest)` で渡したものだけ(絵文字はそのまま)。
+- `gantt({today: 'auto'})` の日付は `renderInBrowser(d, {measure, today: '2026-10-27'})` で渡す（ライブラリは時計を読まない）。
+- 検証の失敗と XML の不整合は例外ではなく結果で返る(`renderDiagram()` と同じ。`fit` も入る）。レイアウトや組み立ての誤りは投げる。
+- 凡例の語は `diagram({legendLabels: {'role:de': '望む結果', 'role:injection': '打ち手', 'edge:and': '合わせて必要'}})` で変えられる(設定ファイルは読まないので、図ごとに渡す。キーは `tone:` / `role:` / `edge:` などの記法)。
+- 大きさは minify で約 870KB(gzip 約 300KB)。判断の経緯は ADR 0045。
+
 ## 使い方
 
     svg-diagram init [dir]                               # 案件の初期設定（package.json の type、tsconfig.json）

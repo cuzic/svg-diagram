@@ -7,7 +7,7 @@
 // ascent + descent), which is how the baseline lands where the <text> of the SVG puts it.
 import {PALETTE, FONT_STACKS, runColorOf, textColorOf, recolor, toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
-import {createHash} from 'node:crypto';
+import {sha1Hex} from './sha1.ts';
 import {emitSvg, resolveBoxStyle} from './emit.ts';
 import {shapesToCss} from './svg-to-css.ts';
 import {visibleAt} from './reveal.ts';
@@ -231,6 +231,6 @@ function emitHtmlWith(d: LaidOutDiagram, tones: ToneEnv, opts: {reveal?: number;
     i = j;
   }
   if (d.connects.some(c => visibleAt(c, opts.reveal))) body += overlay([], d.connects);
-  const id = opts.id ?? `sd-${createHash('sha1').update(JSON.stringify([width, canvasHeight, d.transparent ?? false, d.appearance ?? null, body])).digest('hex').slice(0, 8)}`;
+  const id = opts.id ?? `sd-${sha1Hex(JSON.stringify([width, canvasHeight, d.transparent ?? false, d.appearance ?? null, body])).slice(0, 8)}`;
   return recolor(tones, `<style>${CSS(id, d.transparent)}\n</style>\n<div id="${id}" class="sd" style="width:${px(width)};height:${px(canvasHeight)}">${body}</div>\n`, d.appearance);
 }
