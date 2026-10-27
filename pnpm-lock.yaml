@@ -27,6 +27,9 @@ importers:
       '@types/node':
         specifier: ^26.6.4
         version: 26.6.4
+      esbuild:
+        specifier: 0.21.5
+        version: 0.21.5
       markdown-it:
         specifier: ^14.3.2
         version: 14.3.2

@@ -12,8 +12,8 @@
     "sixel": "^0.16.0"
   },
   "peerDependencies": {
-    "playwright-chromium": "^1.62.1",
-    "mathjax-full": "^3.2.2"
+    "mathjax-full": "^3.2.2",
+    "playwright-chromium": "^1.62.1"
   },
   "peerDependenciesMeta": {
     "playwright-chromium": {
@@ -58,6 +58,7 @@
     "@biomejs/biome": "2.5.15",
     "@types/markdown-it": "^14.2.0",
     "@types/node": "^26.6.4",
+    "esbuild": "0.21.5",
     "markdown-it": "^14.3.2",
     "mathjax-full": "^3.2.2",
     "playwright-chromium": "1.62.1",
@@ -73,6 +74,10 @@
     ".": {
       "types": "./dist/lib/dsl.d.ts",
       "default": "./dist/lib/dsl.js"
+    },
+    "./browser": {
+      "types": "./dist/lib/web.d.ts",
+      "default": "./dist/lib/web.js"
     },
     "./markdown-it": {
       "types": "./dist/lib/markdown-it.d.ts",

@@ -1,6 +1,5 @@
 // The date a gantt({today: 'auto'}) draws. The library never reads the clock: the caller says which day it is, in this order:
 // `--today` (build / check), the SVG_DIAGRAM_TODAY environment variable, `"today"` in .svg-diagram.json (ADR 0022 D1).
-import type {Band} from './types/index.ts';
 
 /** 'YYYY-MM-DD' of a real date, else a message that names where the value came from. */
 export function checkToday(v: unknown, what: string): string {
@@ -13,14 +12,4 @@ export function resolveToday(cli: string | undefined, cfgToday: string | undefin
   if (cli !== undefined) return checkToday(cli, '--today');
   if (env['SVG_DIAGRAM_TODAY']) return checkToday(env['SVG_DIAGRAM_TODAY'], 'SVG_DIAGRAM_TODAY');
   return cfgToday;
-}
-
-/** Writes `today` into every gantt that says 'auto'. Returns whether there was one (the date then goes in the SVG's metadata). */
-export function fillAutoToday(bands: Band[], today: string | undefined): boolean {
-  let used = false;
-  for (const b of bands) if (b.type === 'gantt' && b.today === 'auto') {
-    if (today === undefined) throw new Error("gantt(): today: 'auto' needs a date: pass --today YYYY-MM-DD (build / check), set SVG_DIAGRAM_TODAY, or put \"today\" in .svg-diagram.json");
-    b.today = today; used = true;
-  }
-  return used;
 }

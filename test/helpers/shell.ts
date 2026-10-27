@@ -41,6 +41,7 @@ export const SHELL: Record<string, Shell> = {
   'changed': {reason: 'imports source-deps'},
   'contact': {reason: 'imports raster'},
   'dsl': {reason: 'the package entry point: re-exports dsl/io'},
+  'web': {reason: 'the browser entry: supplies the role table (ROLES) and the page\'s measurer to the core; reads and writes nothing itself', declared: true},
   'dsl/render': {reason: 'the measured render: imports layout-measured'},
   'load-source': {reason: 'imports the source file and the project config (config, measure)'},
   'markdown': {reason: 'imports render-source (ADR 0031 stage 5 splits the scanner out)'},
