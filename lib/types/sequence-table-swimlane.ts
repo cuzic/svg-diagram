@@ -171,6 +171,8 @@ export interface SwimlaneOpts extends RevealOpts, ScopeOpts {
   colGap?: number;
   /** 'shrink': when the columns come out narrower than ~112px, narrow the lane-label column and the column gaps (down to 88 / 12px) to give them room. Default: the sizes above, as given. */
   fit?: 'shrink';
+  /** 'auto': put the lanes in the order that makes the hand-offs shortest (the sum of the distances between the lanes each of `flows` joins). A lane with `fixed: true` keeps its place; a tie keeps the order given. Default: the order given. Up to 8 lanes. */
+  laneOrder?: 'auto';
   id?: string;
 }
 /** A step after swimlane() placed it in a column. */
