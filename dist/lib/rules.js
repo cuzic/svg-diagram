@@ -1,0 +1,1172 @@
+// Diagram rules ("svg-diagram check"): semantic checks that need the diagram model, not
+// the rendered pixels — accessibility contrast, legend completeness, lane order, edge
+// crossings, density. Each finding is {rule, severity: 'warn' | 'info', message}.
+//
+// Why these rules (web research, 2026-10): every diagram needs a legend for its notation
+// and should be understandable on its own (C4 notation guide); lane order is the cheapest
+// way to cut crossings and hand-offs across lanes are worth counting (swimlane guides);
+// edge crossings are the most harmful layout flaw (Purchase 2002); text 4.5:1 and graphic
+// objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
+// a longer description (Google developer style guide).
+import { midWordBreaksIn, missingGlyphs, sourceText } from './text-rules.js';
+import { labelCover, hidesArrow } from './connect-rules.js';
+import { axisMismatches } from './axis-rules.js';
+import { qualify, scopeOf } from './anchor-scope.js';
+import { DARK_NOTE, mergeSides } from './appearance-auto.js';
+import { nestedBandsOf } from './band-children.js';
+import { minTextSize } from './fit.js';
+import { IMAGE_WARN_BYTES } from './image.js';
+import { PALETTE, MIN_FONT_SIZE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv } from './tokens.js';
+// contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
+const wcagIn = (d, tones) => { const p = paintOf(tones, d.appearance); return (a, b) => lightWcag(p(a), p(b)); };
+import { resolveTextColor, resolveBoxStyle } from './emit.js';
+import { budgetWarnings } from './budget.js';
+import { termFindings, tableFindings } from './consistency.js';
+import { barsValuesHidden } from './bars.js';
+import { fmt } from './plane.js';
+import { layoutMetrics } from './layout-metrics.js';
+import { dimmedBands } from './spotlight.js';
+import { visibleAt } from './reveal.js';
+import { bendsOf, crossingsOf } from './polyline-metrics.js';
+import { ftaResolve } from './fta.js';
+import { describeApplied } from './fit-width.js';
+import { tocFindings } from './toc-rules.js';
+import { ftaFindings } from './fta-rules.js';
+import { bowtieFindings } from './rca-rules.js';
+import { statusText } from './status.js';
+import { must } from './must.js';
+import { MAX_LANES_TO_ORDER, bestLaneOrder, laneDistance } from './lane-order.js';
+export const RULE_DOCS = {
+    'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
+    'a11y-color-only-emphasis': '色だけで強調した語がある（太字も併用する。色が見えない読者にも伝わるように）',
+    'a11y-nontext-contrast': '意味を持つ枠線・線のコントラスト比が 3:1 未満（色以外の手がかりも併用する）',
+    'title-duplicated': '題名（diagram({title})）と、先頭の caption が同じ文字列。diagram({title, showTitle: true}) に寄せて、caption を消せる',
+    'a11y-no-title': 'SVG の <title> に使える題名が見つからない（diagram({title}) を指定）',
+    'bars-values-hidden': '値ラベルも目盛りも出さない bars があるのに、図の題名（SVG の <title>）がなく、値を読み上げる <desc> が届かない（doc 媒体）',
+    'bars-thin-bar': '棒が 1px 以下（値は 0 でない）。図の高さ・幅を上げるか max を見直す',
+    'image-large': '埋め込んだ画像が大きい（300 KB 超）。ファイルがそのまま SVG に入り、段階表示の各ファイルにも入る。縮小・圧縮してから使う',
+    'cjk-line-long': '見出し（caption の title / display / stat と banner の headline）の 1 行が、全角で数えて長すぎる（本文幅 600px に収まる字数の目安を超える、または図の幅に収まらず自動で折り返した。短くするか改行する）',
+    'draft-status': '図が下書き（diagram({status: "draft"})）のまま。公開前に外す（check --forbid-draft で warn にできる）',
+    'source-wraps': '出典行（diagram({sourceLine})）が 1 行に収まらず折り返している（短くする）',
+    'legend-missing': '使った記法（線種・トーン）の凡例がない',
+    'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える。凡例が要らない図は diagram({legend: false})）',
+    'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる（swimlane の opts に laneOrder: \'auto\' を渡すと、この順に自動で並べる）',
+    'text-mid-word-break': "レイアウトが、カタカナの語(「コンテキス/ト」)や英数字の語の途中で行を割っている。箱や列が最長の語より狭いときに起きる。diagram({keepWords: true}) で、箱を最長のカタカナの語より狭くしない(causeTree / tree / mindmap / faultTree / states / bpmn の task。cloud・chevron・cycle・swimlane には効かない)。ほかに、箱の幅を広げる・向き(dir)や maxNodeW を変える・文言を短くする・語の前後で改行を書く。漢字どうしの途中の改行は対象外。スペースの無い複合語の境目(「キャプチャ/ステージ」)は辞書なしでは見分けられず、誤検出になりうる(accept で許容する)",
+    'glyph-missing': "図の文字に、絵文字として扱われない絵記号(✅ ❌ など。EMOJI_RE の外)がある。通常の文字のフォントで描かれ、字形が無いと空白になる(resvg のプレビューで確認できる)。icon.emoji() か SVG アイコン(box({icon}))を使うか、✓ ✗ などの字に置き換える",
+    'connect-label-covers-arrow': "矢印のラベル(の下地)が、矢印の経路の 6 割より多くを覆い、見える部分が 20px に満たない。箱の間が狭く、矢じりや向きが読めなくなる。箱の間隔を広げる・ラベルを短くする・ラベルを箱の中に書く",
+    'chart-axis-mismatch': "同じ単位で、横に並べる(同じ grouprow の別の group)か縦に続ける(間に別のチャートを挟まない)2 つのチャートの値の軸が違う。それぞれが自分のデータに合わせて軸を決めるので、同じ長さが別の値に見える(5.76 と 9.5 がほぼ同じ長さ)。両方に同じ domain: [0, 10] を書く(bars は max)。横向きのチャートは、ラベルの列の幅が違うと同じ値が別の長さに見えるので plotInset もそろえる。意図して別の量を別の軸で描くなら、axisGroup: false か accept",
+    'wrap-fell-back': "wrap: 'bunsetsu-soft' で、文節で折ると図が幅に収まらなかったので、従来の折り方(phrase)で配置した(情報。漢字・ひらがなの途中で折れる行が残る)。図を 2 枚に分ける・文言を短くする・図の幅を広げると、文節で折れる。",
+    'shrink-narrow-text': "fit: 'shrink' で bpmn / swimlane を詰めた結果、task / step の幅が狭すぎて本文が 2〜3 字ずつ折れる。縦向き・図の分割・文言の短縮を検討する",
+    'gray-tone-collision': '使っている 2 つのトーンの塗りが、白黒（グレースケール）にすると見分けにくい（明度差 L* が 10 未満。破線などの形の手がかりがあれば除く）',
+    'rowheader-tone-collides': '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある',
+    'semantic-table-warning': '意味付き表の入力に注意点がある（例: RACI の空の役割列）',
+    'swimlane-lanes': 'レーンが多い（6 本まで）',
+    'swimlane-hand-offs': 'レーンをまたぐ引き継ぎの数（情報）',
+    'edge-crossings': '線どうしの交差・重なりがある',
+    'edge-bends': '自動配置の図（cause / states / bpmn / classes / semnet）で、1 本の矢印が 5 回以上折れる、または折れの合計 ÷ 矢印の数が 3 を超える。既定は情報、diagram({layoutCheck: "strict"}) で warn',
+    'quadrant-item-moved': 'quadrant() の項目が、重なりを避けるため指定した座標から 16px 以上動いた（座標は目安として読まれる）',
+    'quadrant-size-floor': 'quadrant() の項目の size が小さすぎ、最小の円で描いた（面積が値より大きく見える）',
+    'quadrant-empty-cell': 'quadrant() のマスに項目が 1 つもない（「該当なし」の空の枠が残っている。意図した空きは allowEmpty で示す）',
+    'quadrant-tone-only': 'quadrant() の項目の色（tone）だけで種類を分けている（group を使うと形と凡例でも伝わる）',
+    'funnel-values-rise': 'funnel({scale: "value"}) の値が下の段で増えている（漏斗として読むなら、値と段の順を確認する）',
+    'toc-ude-count': '現状ツリー(causeTree({tree: "crt"}))の UDE が 5〜10 個の範囲の外。部分図なら accept で許容する。diagram({tocCheck: "strict"}) で warn',
+    'toc-no-desired-result': '未来現実ツリー(causeTree({tree: "frt"}))に望む結果(role: de、最終のゴールなら goal)が無い。strict が求めるからと本文に無い文を作らず、本文に結果の文が無い枝(副作用の枝など)は accept で理由を書いて許容する(ADR 0037)。diagram({tocCheck: "strict"}) で warn',
+    'toc-parts': 'TOC のツリーの部品が足りない・違う(crt に根本原因 root が無い、frt に施策 injection が無い、frt に root がある)。frt に望む結果 de / goal が無いのは toc-no-desired-result(ここに accept を書いた図は、そちらも許容される)。diagram({tocCheck: "strict"}) で warn',
+    'toc-nbr-parts': 'ネガティブブランチ(causeTree({tree: "nbr"}))に、トリミングの施策(role: trim)か、悪い結果(role: ude)が無い。diagram({tocCheck: "strict"}) で warn',
+    'toc-nbr-no-tipping': 'ネガティブブランチで、転換点(role: tipping)を通らずに、原因を持たない実体から ude へ至る因果の道が残っている(転換点の無い枝)。diagram({tocCheck: "strict"}) で warn',
+    'toc-nbr-tipping-not-and': 'ネガティブブランチの転換点(role: tipping)が、AND(複数の原因が揃って越える)の結果になっていない。diagram({tocCheck: "strict"}) で warn',
+    'toc-nbr-trim-too-late': 'トリミングの施策(role: trim)が断つ(kind: blocks)先が、転換点より結果側(下流)にある。転換点そのもの、またはその手前を断つ。diagram({tocCheck: "strict"}) で warn',
+    'toc-tt-unit': '移行ツリー(causeTree({tree: "tt"}))の AND の結果が、ニーズ(role: need または precondition)と行動(role: action)の両方を原因に持たない(現状 + ニーズ + 行動 → 新しい現実の単位の形でない)。diagram({tocCheck: "strict"}) で warn',
+    'toc-prt-bottom-not-action': '前提条件ツリー(causeTree({tree: "prt"}))の最下部の中間目標(中間目標の鎖の底)に、行動(role: action)がつながっていない(最下部は、実行できる行動)。diagram({tocCheck: "strict"}) で warn',
+    'toc-prt-one-to-one': '前提条件ツリーの障害と中間目標が、全部 1 対 1 だけ(1 つの中間目標に複数の障害、または 1 つの障害が複数の中間目標を妨げる形が PRT らしい)。diagram({tocCheck: "strict"}) で warn',
+    'toc-obstacle-phrase': '前提条件ツリーの障害のラベルが「ない」「無い」「不足」で終わる(障害は、無いことではなく、そこにある事実で書く指針。日本語の文末の判定なので偽陽性がある。常に info)',
+    'toc-injection-to-obstacle': '未来現実ツリー(causeTree({tree: "frt"}) など)で、施策(role: injection)から障害(role: obstacle)へ通常の矢印(kind が blocks でない)が引かれている。矢印は「原因が結果を生む」と読まれるので、施策が障害を生むと逆の因果に読まれる。施策が障害を断つ・防ぐ意味なら、そのリンクに kind: "blocks" を付ける(破線と横棒の止め方になる)。diagram({tocCheck: "strict"}) で warn。',
+    'toc-role-indistinct': 'tree を書いた causeTree に root / goal / start（どれも同じアクセント色の二重枠）があるのに、roleTags が無い。別々の図で同じ見た目が別の意味を持つ（現状ツリーの根本原因と、未来現実ツリーのゴール・施策）と、白黒や凡例なしでは取り違える。causeTree({roleTags: true}) で役割を文字にする。情報（check --strict は落ちない）。文書をまたぐ版は check --docs 側の後続',
+    'toc-legend-suggested': "tree を書いた causeTree を含む図に、legend の指定がない。役割は色と枠でしか区別されない。diagram({legend: 'auto'}) を付けるか、causeTree({roleTags: true}) で役割を文字にする。情報。legend: false と書けば出ない",
+    'toc-mirror': '未来現実ツリー(causeTree({tree: "frt", mirrors: crt}))の望む結果(de / goal)の mirrors が、現状ツリーの ude の id でない、ude に対応する望む結果が無い、同じ ude を複数が mirrors している(1 対 1 でない)。diagram({tocCheck: "strict"}) で warn',
+    'fta-gate-one-input': '故障の木(faultTree)の AND / OR / vote ゲートの入力が 1 つだけ。ゲートが意味を持たない。diagram({rcaCheck: "strict"}) で warn',
+    'fta-vote-degenerate': '故障の木の vote ゲートの k が 1(OR と同じ)または入力の数(AND と同じ)。diagram({rcaCheck: "strict"}) で warn',
+    'fta-top-is-leaf': '故障の木の頂上事象にゲートが無い(1 つの事象だけの木)。diagram({rcaCheck: "strict"}) で warn',
+    'fta-undeveloped-left': '故障の木に、展開していない事象(ひし形)が残っている(常に info。意図した省略なら無視してよい)',
+    'isisnot-no-isnot': 'IS/IS NOT 表(isIsNot)に、IS NOT が空の行がある(比較対象が無い)。diagram({rcaCheck: "strict"}) で warn',
+    'isisnot-no-distinct-at-all': 'IS/IS NOT 表に「違い」が 1 つも無い(IS と IS NOT で鋭く違う点を挙げる)。diagram({rcaCheck: "strict"}) で warn',
+    'isisnot-no-hypothesis-stands': '仮説の検定表(isIsNotTests)に、説明できない行が 0 の仮説が無い(原因はまだ分かっていない。常に info)',
+    'whywhy-no-root': 'なぜなぜ分析(whyWhyTable / whyWhyTree)に、真因(trueCause)の無い鎖(葉)がある。どこまで掘ったか分からない。diagram({rcaCheck: "strict"}) で warn',
+    'whywhy-measure-without-root': 'なぜなぜ分析で、真因でない所に対策(measure)がある(症状への対策になる)。diagram({rcaCheck: "strict"}) で warn',
+    'whywhy-single-chain': 'なぜなぜ分析が 1 本の鎖だけ(分岐が無い。原因が 1 つに決まっているか確かめる。常に info)',
+    'whywhy-dig-below-root': 'なぜなぜの木で、真因(trueCause)の節の下にまだ「なぜ」がある(真因より下を掘っている。常に info)',
+    'bowtie-barrier-missing': 'ボウタイ図(bowtie)で、脅威または結果にバリアが 1 つも無い(防ぐ・和らげる手が無い道)。diagram({rcaCheck: "strict"}) で warn',
+    'fta-single-point': '故障の木に、単独で頂上事象を起こす事象(大きさ 1 のカットセット)がある。カットセットが多すぎて調べられないときもこの規則の info(常に info)',
+    'toc-source-has-cause': '原因を持たない役割(crt の root、frt・nbr の injection、nbr の trim、precondition)の実体に、入る矢印がある。diagram({tocCheck: "strict"}) で warn',
+    'toc-chain-only': 'crt / frt が分岐も合流も AND も無い 1 本鎖(途中の原因を飛ばしている可能性)。diagram({tocCheck: "strict"}) で warn',
+    'toc-orphan': 'causeTree({tree}) の実体のうち、どのリンクにも出てこないものがある(graph-orphan-node は connect() の線しか見ない)。diagram({tocCheck: "strict"}) で warn',
+    'toc-cycle-undeclared': 'causeTree({tree}) に循環があるのに、戻りの矢印に back: true が付いていない(配置が戻りとして扱った矢印を示す)。diagram({tocCheck: "strict"}) で warn',
+    'graph-orphan-node': '矢印でつないだ図の中に、どの矢印にもつながっていない箱がある（つなぎ忘れか、図に要らない箱。意図した注記なら id を付けない）',
+    'graph-disconnected': '矢印でつないだ図が、互いにつながらない 2 つ以上のかたまりに分かれている（1 図 1 話なら、つなぎ忘れか、図を分ける）',
+    'term-variant': '同じ語の表記が 1 つの図の中で揺れている（ユーザ / ユーザー、API / Api など）。1 つに揃える',
+    'term-avoid': '用語集（.svg-diagram.json の "terms"）で、別の語に統一すると決めた語が使われている',
+    'table-sum-mismatch': '表の「合計」行・列の値が、並ぶ値の和と合わない（丸めで説明できる差は除く）',
+    'table-share-not-100': '表の「構成比」「割合」の列が、合計 100% にならない',
+    'arrow-labels': '一部にだけラベルがあり、ラベルのない矢印が多い',
+    'canvas-region-empty': 'canvas() の領域に内容がない（requireAll: 全領域を埋める指定）',
+    'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
+    'slide-min-text': 'スライド用キャンバスの最小文字サイズ(既定 24px)より小さい文字がある',
+    'font-floor-lowered': 'canvas の図が文字の下限を 14px から下げている(canvas.minText < 14。1:1 で読む前提で、投影には向かない)',
+    'box-size-ignored': 'box({size}) は効果がない(レイアウトも描画も読まない)。大きい文字は役割で書く: stat() / stat({size: "display"})・caption({role: "display"})・banner({headlineRole})・bars / plane({labelRole})。次の版で throw する',
+    'stat-no-source': 'stat() の数字に出典(source)が無い。diagram({evidenceCheck: "info" | "strict"}) を書いた図だけで検査する(strict で warn)。stat({source, confidence}) で足す',
+    'stat-fit-shrunk': 'stat() の値が箱の幅に収まらないので、自動で小さい文字にした(隣の stat と大きさがそろわない。箱を広げるか、値を短くするとそろう)',
+    'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
+    'aspect-tall': '文書の図が縦に長い（高さが幅の 1.5 倍超。本の版面は縦横比が 1.5〜1.6 ほど）。部品に応じて、段組み（causeTree の fold、row の cols）か分割を検討する',
+    'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）',
+    'flowchart-decision-edges': '判断（flowchart のひし形）から出る矢印が 2 本未満、または 3 本以上、またはラベル（Yes / No など）がない',
+    'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・flowchart・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
+    'density-compact-restored': "diagram({density: 'compact'}) の因果ツリー・状態遷移で、詰めた図のほうが検査の問題(箱を通る矢印・ラベルの重なり)が多いので、通常の間隔で描いた（情報）",
+    'density': '文字量・箱の数が多い',
+    'wf-callout-no-note': '図の番号に対応する注釈がない',
+    'wf-note-no-callout': '注釈に対応する番号が図にない',
+    'wf-callout-gap': '図の番号が 1 からの連番になっていない',
+    'wf-callout-duplicate': '同じ番号が複数の場所に付いている（情報）',
+    'wf-states-todo': '状態の一覧に「未設計」の欄がある（設計するか、対象外と明示する）',
+    'wf-states-required': '状態の一覧に、必須の状態の列がない',
+    'wf-states-ragged': '状態の一覧の行に、列より多い欄がある',
+    'wf-callout-order': '図の番号が、読む順（上から下、左から右）に並んでいない（情報）',
+    'layout-sibling-size': '横に並ぶ枠の幅が 1〜4px だけ違う（等分の行で 4px の格子に丸めた結果。cols / flex で揃える）。diagram({layoutCheck: "strict"}) で warn',
+    'layout-edge-misalign': '隣り合う枠の縁（左端・右端・上端）が 1〜4px ずれている（0 は一致、5px 以上は別物として扱う）。diagram({layoutCheck: "strict"}) で warn',
+    'layout-gutter-uneven': '横に並ぶ 3 枠以上の間隔が 2px 以上不均一。diagram({layoutCheck: "strict"}) で warn',
+    'layout-unused-space': '枠の中身の下に 48px 以上かつ枠の高さの 40% 以上の空きがある（行の高さ揃え・canvas の床の結果）。diagram({layoutCheck: "strict"}) で warn',
+    'layout-figure-offset': '内容（ラベル込み、題・凡例・出典行を除く）の左右の余白が 48px 以上違う（図が片側に寄っている）。diagram({layoutCheck: "strict"}) で warn',
+    'layout-figure-narrow': '内容の幅が図の幅の 50% 未満（diagram({width}) で内容に合わせて狭められる）。diagram({layoutCheck: "strict"}) で warn',
+    'layout-align-mixed': '横に並ぶ箱で文字の揃え（左・中央）が混在している（意図なら accept で許容する）。diagram({layoutCheck: "strict"}) で warn',
+    'doc-image-missing': '文書が参照している SVG がない',
+    'doc-alt-empty': '文書の画像に代替テキストがない',
+    'doc-alt-long': '代替テキストが長い（155 文字以内にして、詳しい説明は本文に）',
+    'doc-notes-missing': '図に注釈があるのに、文書に番号つきの注釈のリストがない',
+    'doc-notes-mismatch': '文書の注釈のリストが、図の注釈と違う（片方を直し忘れている）',
+    'doc-png-has-svg': '文書が PNG を参照しているが、同名の SVG もある（SVG への差し替え忘れ。PNG を残す意図なら許容する）',
+    'doc-png-no-source': '文書が参照している PNG に、同じ名前の図のソース（--src-dir）も SVG（--svg-dir）もない（手作りの絵か、図を消したあとの残り）',
+    'doc-orphan-png': '文書が参照している PNG と同じフォルダにある、どの文書からも参照されていない PNG',
+    'doc-svg-no-source': '文書が参照している SVG に、対応する図のソースがない（ソースを消したあと SVG だけ残り、再生成されない古い絵になる。--src-dir か ./diagrams と、SVG に記録された生成元を探す）',
+    'doc-orphan-svg': 'どの文書からも参照されていない SVG',
+};
+export const DEFAULT_LEGEND_LABELS = {
+    'line:solid': '実線', 'line:dashed': '破線', 'line:dotted': '点線', 'line:double': '二重線', 'arrow:both': '双方向', 'weight:strong': '強い流れ',
+    'tone:new': '新規', 'tone:changed': '変更・改修', 'tone:removed': '対象外', 'tone:danger': '異常・注意',
+    'tone:muted': '補助・任意', 'tone:accent': '強調', 'tone:solid': '主役', 'tone:solid-danger': '異常(強)',
+    // a causeTree() figure (ADR 0015 D6): an entity role, an arrow joined by an arc, the core driver mark
+    'role:ude': '好ましくない現象(UDE)', 'role:root': '根本原因', 'role:de': '望む結果(DE)', 'role:injection': '施策', 'role:precondition': '現状の事実', 'role:tipping': '転換点', 'role:trim': 'トリミング(施策)', 'role:need': 'ニーズ',
+    'role:goal': '目標', 'role:io': '中間目標', 'role:obstacle': '障害', 'role:action': '行動', 'role:start': '開始', 'role:risk': '懸念', 'role:measure': '対策',
+    'edge:and': '合わせて原因(AND)', 'edge:back': '戻り(フィードバック)', 'edge:blocks': '断つ', 'mark:core': '中核ドライバー',
+    // a faultTree() figure (ADR 0025 D6): the symbol of each kind of event and of each gate
+    'fta-event:basic': '基本事象', 'fta-event:undeveloped': '未展開の事象', 'fta-event:house': '家形事象(常に起きる/起きない)', 'fta-event:condition': '条件事象',
+    'fta-gate:and': 'AND ゲート', 'fta-gate:or': 'OR ゲート', 'fta-gate:vote': '多数決ゲート(k/n)', 'fta-gate:inhibit': '禁止ゲート',
+}; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
+// every band, including those nested in groups, rows, grids and swimlanes
+export function walkBands(bands, out = []) {
+    for (const b of bands) {
+        out.push(b);
+        walkBands(nestedBandsOf(b), out);
+    }
+    return out;
+}
+// the node tones of the auto-layout bands (tree / mindmap, classDiagram, bpmn): their nodes are not box() bands, so legend: 'auto' reads them here
+function bandTones(bands) {
+    const out = [];
+    const walk = (it) => { out.push(it.tone ?? 'plain'); it.children?.forEach(walk); };
+    for (const b of bands) {
+        if (b.type === 'tree')
+            walk(b.root);
+        else if (b.type === 'classes')
+            for (const c of b.classes)
+                out.push(c.tone ?? 'plain');
+        else if (b.type === 'bpmn')
+            for (const n of b.nodes)
+                out.push(n.tone ?? 'plain');
+    }
+    return out;
+}
+// notation keys a diagram uses: 'line:dashed', 'arrow:both', 'weight:strong', 'tone:new', ...
+export function usedNotation(bands, dimmed = new Set(), withCause = false) {
+    const all = walkBands(bands);
+    const used = new Set(), lines = new Set();
+    // a canvas() region with a pill (重点 / 中心 / ソフト) says its tone in words: that tone needs no legend entry
+    const worded = new Set(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => must(b.canvas).worded[i]) : []));
+    for (const b of all) {
+        if (dimmed.has(b) || worded.has(b))
+            continue;
+        if (b.type === 'connect') {
+            lines.add(b.line ?? 'solid');
+            if (b.arrow === 'both')
+                used.add('arrow:both');
+            if (b.weight)
+                used.add(`weight:${b.weight}`);
+        }
+        else if (b.type === 'box' && b.tone && b.tone !== 'plain')
+            used.add(`tone:${b.tone}`);
+        else if (withCause && (b.type === 'tree' || b.type === 'classes' || b.type === 'bpmn')) { // only legend: 'auto' reads these (a lone accent root would make legend-missing / gray-tone noisy in the lint); bpmn also a dashed message flow
+            for (const t of bandTones([b]))
+                if (t !== 'plain')
+                    used.add(`tone:${t}`);
+            if (b.type === 'bpmn')
+                for (const f of b.flows)
+                    lines.add(f.line === 'dashed' ? 'dashed' : 'solid');
+        }
+        else if (b.type === 'cause' && withCause) { // only legend: 'auto' reads these (the legend-* checks keep their old count)
+            // a role that roleTags writes in words on the node needs no swatch: two double-frame swatches side by side would only blur it
+            for (const n of b.nodes)
+                if (n.role && n.role !== 'effect' && n.role !== 'step' && !b.roleTags?.[n.role])
+                    used.add(`role:${n.role}`);
+            if (b.links.some(l => typeof l.from !== 'string' && l.from.length > 1))
+                used.add('edge:and');
+            if (b.links.some(l => l.back))
+                used.add('edge:back');
+            if (b.links.some(l => l.kind === 'blocks'))
+                used.add('edge:blocks');
+            if (b.nodes.some(n => n.core))
+                used.add('mark:core');
+        }
+        else if (b.type === 'fta' && withCause) { // likewise: only legend: 'auto' reads the symbols of a fault tree
+            for (const n of ftaResolve(b.root).nodes) {
+                if (n.kind !== 'event')
+                    used.add(`fta-event:${n.kind}`);
+                if (n.gate)
+                    used.add(`fta-gate:${n.gate}`);
+            }
+        }
+    }
+    const nonSolid = [...lines].filter(l => l !== 'solid');
+    for (const l of nonSolid)
+        used.add(`line:${l}`);
+    if (nonSolid.length || used.has('arrow:both') || used.has('weight:strong'))
+        used.add('line:solid'); // the plain line needs a legend entry once others exist
+    return used;
+}
+export function legendKeys(bands) {
+    const keys = new Set();
+    for (const b of walkBands(bands)) {
+        if (b.type !== 'legend')
+            continue;
+        for (const it of b.items) {
+            if (it.role)
+                keys.add(`role:${it.role}`);
+            else if (it.edge)
+                keys.add(`edge:${it.edge}`);
+            else if (it.mark)
+                keys.add(`mark:${it.mark}`);
+            else if (it.ftaEvent)
+                keys.add(`fta-event:${it.ftaEvent}`);
+            else if (it.ftaGate)
+                keys.add(`fta-gate:${it.ftaGate}`);
+            else if (it.tone)
+                keys.add(`tone:${it.tone}`);
+            else if (it.weight)
+                keys.add(`weight:${it.weight}`);
+            else if (it.arrow === 'both')
+                keys.add('arrow:both');
+            else
+                keys.add(`line:${it.line ?? 'solid'}`);
+        }
+    }
+    return keys;
+}
+// The legend labels of a diagram: the defaults, with 'accent' read as the runner-up ('次点') once the diagram has a solid ('主役') box:
+// "主役 / 強調" would not say which is the upper step. An explicit legendLabels['tone:accent'] always wins.
+export function legendLabelsFor(used, custom) {
+    return { ...DEFAULT_LEGEND_LABELS, ...(used.has('tone:solid') ? { 'tone:accent': '次点' } : {}), ...(custom ?? {}) };
+}
+// diagram({legend: 'auto'}): add a legend entry for every notation used but not listed.
+export function applyAutoLegend(d) {
+    if (d.legend !== 'auto')
+        return;
+    const used = usedNotation(d.bands, dimmedBands(d), true), have = legendKeys(d.bands);
+    const missing = [...used].filter(k => !have.has(k));
+    if (!missing.length)
+        return;
+    const labels = legendLabelsFor(used, d.legendLabels);
+    // a tone whose boxes are ALL dashed gets a dashed swatch
+    const boxes = walkBands(d.bands).filter((b) => b.type === 'box');
+    const allDashed = (tone) => { const bs = boxes.filter(b => b.tone === tone); return bs.length > 0 && bs.every(b => b.dashed); };
+    const labelOf = (k) => {
+        const label = labels[k];
+        if (label === undefined)
+            throw new Error(`diagram({legend: 'auto'}): no legend label for "${k}" — add it to legendLabels`);
+        return label;
+    };
+    const items = missing.map((k) => {
+        const [kind, v = ''] = k.split(':');
+        // v comes from our own `tone:<tone>` / `line:<style>` keys (usedNotation), so the casts hold
+        if (kind === 'tone')
+            return allDashed(v) ? { tone: v, dashed: true, label: labelOf(k) } : { tone: v, label: labelOf(k) };
+        if (kind === 'role')
+            return { role: v, label: labelOf(k) };
+        if (kind === 'edge')
+            return { edge: v, label: labelOf(k) };
+        if (kind === 'mark')
+            return { mark: v, label: labelOf(k) };
+        if (kind === 'fta-event')
+            return { ftaEvent: v, label: labelOf(k) };
+        if (kind === 'fta-gate')
+            return { ftaGate: v, label: labelOf(k) };
+        if (kind === 'arrow')
+            return { line: 'solid', arrow: 'both', label: labelOf(k) };
+        if (kind === 'weight')
+            return { line: 'solid', weight: v, label: labelOf(k) };
+        return { line: v, label: labelOf(k) };
+    });
+    const existing = d.bands.find((b) => b.type === 'legend');
+    if (existing)
+        existing.items.push(...items);
+    else
+        d.bands.push({ type: 'legend', items, align: 'center' });
+}
+function ratioText(r) { return r.toFixed(1); }
+/** Taller than this many widths: a book page is about 1.5 to 1.6 tall for its width, so a figure past it needs a page of its own. */
+const ASPECT_TALL = 1.5;
+function textContrast(d, tones, out) {
+    const paint = paintOf(tones, d.appearance);
+    const seen = new Set();
+    const check = (fg, bg, what) => {
+        if (!fg || !bg)
+            return;
+        fg = paint(fg);
+        bg = paint(bg);
+        const need = 4.5, r = lightWcag(fg, bg), key = `${fg}|${bg}`;
+        if (r < need && !seen.has(key)) {
+            seen.add(key);
+            out.push({ rule: 'a11y-text-contrast', severity: 'warn', message: `${what} の文字 ${fg} と背景 ${bg} のコントラスト比が ${ratioText(r)}:1（4.5:1 以上が目安）` });
+        }
+    };
+    const boxes = [];
+    for (const b of d.laidOut ?? []) {
+        if (b.type === 'row' || b.type === 'grid')
+            boxes.push(...b.children);
+        else
+            boxes.push(b);
+    }
+    for (const b of boxes) {
+        if (b.type === 'box' || b.type === 'banner') {
+            const bg = b.dim ? PALETTE.bg : resolveBoxStyle(tones, b.tone ?? (b.type === 'banner' ? 'accent' : 'plain'), d.day) /* banner() always sets tone; the fallback is defensive */.fill;
+            const boxTone = b.tone ?? (b.type === 'banner' ? 'accent' : 'plain');
+            for (const run of b.wrappedRuns ?? [])
+                check(b.dim ? PALETTE.muted : runColorOf(tones, run.tone, boxTone, d.day), bg, `「${String(run.text).slice(0, 14)}」`);
+            if (!b.dim)
+                for (const run of b.wrappedRuns ?? [])
+                    for (const sp of run.spans ?? [])
+                        if (sp.tone)
+                            check(resolveTextColor(tones, sp.tone, d.day), bg, `「${sp.text.slice(0, 14)}」`);
+            if (b.tag)
+                check(PALETTE.bg, colorOf(toneStyle(tones, b.tagTone === 'danger' || b.tagTone === 'muted' ? b.tagTone : 'accent').ink, d.day), `タグ「${b.tag}」`);
+        }
+        else if (b.type === 'caption') {
+            for (const run of b.wrappedRuns ?? [])
+                check(resolveTextColor(tones, run.tone, d.day), PALETTE.bg, `「${String(run.text).slice(0, 14)}」`);
+            for (const run of b.wrappedRuns ?? [])
+                for (const sp of run.spans ?? [])
+                    if (sp.tone)
+                        check(resolveTextColor(tones, sp.tone, d.day), PALETTE.bg, `「${sp.text.slice(0, 14)}」`);
+        }
+        else if (b.type === 'table') {
+            if (b.titleBar)
+                check(PALETTE.bg, PALETTE[d.day].accent, 'テーブルの題名帯');
+            for (const row of b.rows)
+                for (const c of row.cells) {
+                    const bg = row.header || (b.rowHeader && c === row.cells[0]) ? PALETTE[d.day].soft : row.tone ? resolveBoxStyle(tones, row.tone, d.day).fill : PALETTE.bg;
+                    if (c.lines.length)
+                        check(resolveTextColor(tones, c.tone, d.day), bg, `表のセル「${must(c.lines[0]).slice(0, 12)}」`);
+                }
+        }
+    }
+}
+// em.danger() / em.accent() without em.b(): the emphasis is the colour alone (WCAG 1.4.1). em.muted() softens, so it is not one.
+function colourOnlyEmphasis(d, out) {
+    if (d.medium !== 'doc')
+        return;
+    const words = [];
+    const boxes = [];
+    for (const b of d.laidOut ?? []) {
+        if (b.type === 'row' || b.type === 'grid')
+            boxes.push(...b.children);
+        else
+            boxes.push(b);
+    }
+    for (const b of boxes) {
+        if (b.type !== 'box' && b.type !== 'banner' && b.type !== 'caption')
+            continue;
+        if (b.dim)
+            continue;
+        for (const run of b.wrappedRuns ?? [])
+            for (const sp of run.spans ?? [])
+                if ((sp.tone === 'danger' || sp.tone === 'accent') && !sp.bold)
+                    words.push(`「${sp.text.slice(0, 14)}」`);
+    }
+    if (words.length)
+        out.push({ rule: 'a11y-color-only-emphasis', severity: 'warn', message: `色だけで強調した語: ${words.slice(0, 6).join('')}${words.length > 6 ? ` ほか ${words.length - 6} 件` : ''}。em.b() も併用する` });
+}
+function nonTextContrast(d, tones, out) {
+    const wcagRatio = wcagIn(d, tones);
+    const used = new Set();
+    const dimmed = dimmedBands(d);
+    for (const b of walkBands(d.bands))
+        if (b.type === 'box' && !dimmed.has(b))
+            used.add(b.tone ?? 'plain');
+    for (const t of used) {
+        const st = resolveBoxStyle(tones, t, d.day);
+        // a tone with no border of its own (solid) is drawn with its fill as the stroke: the fill against the page is what delimits it
+        const ts = toneStyle(tones, t), own = typeof d.day === 'string' ? ts.stroke : ts.slideStroke ?? ts.stroke;
+        const r = own == null ? wcagRatio(st.fill, PALETTE.bg) : Math.min(wcagRatio(st.stroke, st.fill), wcagRatio(st.stroke, PALETTE.bg));
+        if (r < 3)
+            out.push({ rule: 'a11y-nontext-contrast', severity: 'warn', message: `トーン「${t}」の枠線 ${st.stroke} が、背景に対して ${ratioText(r)}:1（3:1 以上が目安）。タグや文言など、色以外の手がかりを必ず併用する` });
+    }
+    for (const c of d.connects ?? []) {
+        // connector colours are resolved the same way emit does
+        const col = c.dim ? PALETTE.muted : c.tone === 'muted' || c.tone === 'danger' || c.tone === 'accent' ? colorOf(toneStyle(tones, c.tone).ink, d.day) : PALETTE.text;
+        const r = wcagRatio(col, PALETTE.bg);
+        if (r < 3) {
+            out.push({ rule: 'a11y-nontext-contrast', severity: 'warn', message: `矢印の色 ${col} のコントラスト比が ${ratioText(r)}:1` });
+            break;
+        }
+    }
+}
+function legendRules(d, out) {
+    if (d.legend === false)
+        return; // the author declared that this diagram needs no legend
+    const used = usedNotation(d.bands, dimmedBands(d)), have = legendKeys(d.bands);
+    if (!used.size)
+        return;
+    const hasLegend = walkBands(d.bands).some(b => b.type === 'legend');
+    const missing = [...used].filter(k => !have.has(k));
+    if (!missing.length)
+        return;
+    const labels = legendLabelsFor(used, d.legendLabels);
+    // say WHICH element uses each missing notation (a tone: the boxes drawn in it; a line / arrow: the connectors), not just the key
+    const all = walkBands(d.bands), quote = (t) => { const s = (t ?? '').replace(/\s+/g, ' ').trim(); return s ? `「${[...s].length > 14 ? `${[...s].slice(0, 14).join('')}…` : s}」` : ''; };
+    const dim = dimmedBands(d);
+    const where = (k) => {
+        if (k.startsWith('tone:')) {
+            const boxes = all.filter((b) => b.type === 'box' && `tone:${b.tone}` === k && !dim.has(b));
+            const ex = boxes.slice(0, 3).map(b => quote(b.title ?? b.body)).filter(Boolean).join('');
+            return boxes.length ? `${k.slice(5)} の色の箱 ${boxes.length} 枚${ex ? `: ${ex}${boxes.length > 3 ? ' ほか' : ''}` : ''}` : '';
+        }
+        if (k.startsWith('line:') || k.startsWith('weight:') || k === 'arrow:both') {
+            const n = all.filter(b => b.type === 'connect' && (k === 'arrow:both' ? b.arrow === 'both' : k.startsWith('weight:') ? `weight:${b.weight}` === k : `line:${b.line ?? 'solid'}` === k)).length;
+            return n ? `該当する矢印・線 ${n} 本` : '';
+        }
+        return '';
+    };
+    const names = missing.map(k => { const w = where(k); return `${k}（${w ? `${w}。` : ''}凡例の例: ${labels[k] ?? k}）`; }).join('、');
+    out.push({ rule: hasLegend ? 'legend-incomplete' : 'legend-missing', severity: 'warn', message: `凡例にない記法: ${names}。凡例に項目を足す（legend: 'auto' なら自動）か、凡例が要らない図なら legend: false` });
+}
+function segsOf(connects) {
+    const out = [];
+    connects.forEach((c, i) => { for (let k = 0; k < c.points.length - 1; k++)
+        out.push({ i, c, a: must(c.points[k]), b: must(c.points[k + 1]) }); });
+    return out;
+}
+const horiz = (s) => Math.abs(s.a.y - s.b.y) < 0.5;
+const vert = (s) => Math.abs(s.a.x - s.b.x) < 0.5;
+const lo = (a, b) => Math.min(a, b), hi = (a, b) => Math.max(a, b);
+const strokeOf = (c) => c.weight === 'strong' ? STRONG_STROKE : 2;
+export function edgeStats(connects) {
+    // crossings: right-angle crossings inside the other line's span by 2px (polyline-metrics, shared with the layered layout's score)
+    const crossings = crossingsOf(connects.map(c => c.points), { margin: 2, tol: 0.5 });
+    const segs = segsOf(connects);
+    let overlaps = 0;
+    for (let i = 0; i < segs.length; i++)
+        for (let j = i + 1; j < segs.length; j++) {
+            const s = must(segs[i]), t = must(segs[j]);
+            if (s.i === t.i)
+                continue;
+            // two lines this close (centre to centre) look like one: the normal width gives the usual 3, a strong line widens it
+            const near = (strokeOf(s.c) + strokeOf(t.c)) / 2 + 1;
+            const share = s.c.fromId === t.c.fromId || s.c.toId === t.c.toId || s.c.fromId === t.c.toId || s.c.toId === t.c.fromId;
+            if (horiz(s) && vert(t) || vert(s) && horiz(t))
+                continue;
+            if (!share && horiz(s) && horiz(t) && Math.abs(s.a.y - t.a.y) < near) {
+                if (Math.min(hi(s.a.x, s.b.x), hi(t.a.x, t.b.x)) - Math.max(lo(s.a.x, s.b.x), lo(t.a.x, t.b.x)) > 12)
+                    overlaps++;
+            }
+            else if (!share && vert(s) && vert(t) && Math.abs(s.a.x - t.a.x) < near) {
+                if (Math.min(hi(s.a.y, s.b.y), hi(t.a.y, t.b.y)) - Math.max(lo(s.a.y, s.b.y), lo(t.a.y, t.b.y)) > 12)
+                    overlaps++;
+            }
+        }
+    return { crossings, overlaps };
+}
+/** The connects (by index) that cross or overlap each other, for pointing at the pair rather than only counting. */
+export function edgePairs(connects) {
+    const crossings = [], overlaps = [];
+    for (let i = 0; i < connects.length; i++)
+        for (let j = i + 1; j < connects.length; j++) {
+            const ci = must(connects[i]), cj = must(connects[j]);
+            if (crossingsOf([ci.points, cj.points], { margin: 2, tol: 0.5 }) > 0)
+                crossings.push([i, j]);
+            const pair = edgeStats([ci, cj]);
+            if (pair.overlaps > 0)
+                overlaps.push([i, j]);
+        }
+    return { crossings, overlaps };
+}
+/** What to do about two lines that run back under a row (route: 'loop-under') and cross or overlap: the fix depends on whether their spans nest. */
+function loopUnderHints(connects) {
+    const name = (c) => `${c.fromId}→${c.toId}`;
+    const span = (c) => [Math.min(...c.points.map(p => p.x)), Math.max(...c.points.map(p => p.x))];
+    const { crossings, overlaps } = edgePairs(connects);
+    const out = [];
+    for (const [i, j] of overlaps) {
+        const a = must(connects[i]), b = must(connects[j]);
+        if (a.route !== 'loop-under' && b.route !== 'loop-under')
+            continue;
+        const [sa, sb] = [span(a), span(b)], nested = (sa[0] <= sb[0] && sb[1] <= sa[1]) || (sb[0] <= sa[0] && sa[1] <= sb[1]);
+        out.push(nested ? `戻り ${name(a)} と ${name(b)} が同じ高さで重なる。外側の戻りに dip を書く（例: dip: 56）`
+            : `戻り ${name(a)} と ${name(b)} が同じ高さで重なり、範囲が半端に重なる。dip を変えると交差になる。戻り先か戻り元を変えるか、1 本にまとめる`);
+    }
+    for (const [i, j] of crossings) {
+        const a = must(connects[i]), b = must(connects[j]);
+        if (a.route === 'loop-under' || b.route === 'loop-under')
+            out.push(`戻り ${name(a)} と ${name(b)} が交差する（dip では消えない）。戻り先か戻り元を変えるか、1 本にまとめる`);
+    }
+    return out;
+}
+// rowHeader: true paints the row-heading cell `soft`; a row whose own tone also fills `soft` (accent / new) loses the difference.
+function rowHeaderRules(d, tones, out) {
+    for (const b of walkBands(d.bands))
+        if (b.type === 'table')
+            for (const message of b.semanticWarnings ?? [])
+                out.push({ rule: 'semantic-table-warning', severity: 'warn', message });
+    for (const b of d.laidOut ?? []) {
+        if (b.type !== 'table' || !b.rowHeader)
+            continue;
+        const rows = b.rows.filter(r => !r.header && toneStyle(tones, r.tone).fill === 'soft');
+        if (!rows.length)
+            continue;
+        const names = rows.slice(0, 4).map(r => `「${(r.cells[0]?.lines[0] ?? '').slice(0, 12)}」`).join('');
+        out.push({ rule: 'rowheader-tone-collides', severity: 'warn', message: `表の行ラベルは soft で塗るが、${names}${rows.length > 4 ? ` ほか ${rows.length - 4} 行` : ''}は行のトーン（${[...new Set(rows.map(r => r.tone))].join('・')}）も soft なので、行ラベルと本文の塗りが同じになる。muted / changed / 太字の文字などに変えるか、行のトーンを外す` });
+    }
+}
+// In grayscale (a mono print, a colour-blind reader) only lightness is left. The fill of every tone a diagram uses (boxes, table rows),
+// in the diagram's own theme and appearance, goes to CIE L* (0 black .. 100 white); two fills closer than GRAY_MIN_DL cannot be told apart.
+// 10 is about where two flat greys stop reading as "different" on paper: it flags soft (L* ~93) next to plain white (100), and passes accent-soft against solid (~50). The de-emphasis tones (muted / removed: the pale code fill, grey text) are meant to sit back and are left out. Tones that differ in their dashed outline are told apart by shape; tones
+// with the same fill (new / accent, changed / plain) are not told apart by their fill in colour either (the outline or nothing does it), so that is not this rule's matter.
+export const GRAY_MIN_DL = 10;
+const lightnessOf = (hex) => { const y = relativeLuminance(hex); return y > 0.008856 ? 116 * Math.cbrt(y) - 16 : 903.3 * y; };
+function grayToneRules(d, tones, out) {
+    const used = new Set(), all = walkBands(d.bands);
+    // a canvas() region with a pill (重点 / 中心 / 結論) says its tone in words, as for the legend (usedNotation): not a grayscale matter
+    const worded = new Set(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => must(b.canvas).worded[i]) : []));
+    for (const b of all)
+        if (b.type === 'box' && !worded.has(b))
+            used.add(b.tone ?? 'plain');
+    for (const b of all)
+        if (b.type === 'emblem')
+            for (const i of b.items)
+                used.add(i.tone ?? 'plain');
+    for (const b of d.laidOut ?? [])
+        if (b.type === 'table')
+            for (const r of b.rows)
+                if (!r.header && r.tone)
+                    used.add(r.tone);
+    const p = paintOf(tones, d.appearance);
+    const fills = [...used].map(name => {
+        const t = toneStyle(tones, name), box = resolveBoxStyle(tones, name, d.day);
+        return { name, fill: p(box.fill).toLowerCase(), dashed: box.dashed, l: lightnessOf(p(box.fill)), quiet: t.fill === 'code' };
+    });
+    const seen = new Set(), hits = [];
+    for (let i = 0; i < fills.length; i++)
+        for (let j = i + 1; j < fills.length; j++) {
+            const a = must(fills[i]), b = must(fills[j]);
+            if (a.fill === b.fill || a.quiet || b.quiet || a.dashed !== b.dashed || Math.abs(a.l - b.l) >= GRAY_MIN_DL)
+                continue;
+            const pair = `${a.name}・${b.name}`;
+            if (!seen.has(pair)) {
+                seen.add(pair);
+                hits.push(`${pair}（L* ${Math.round(a.l)} と ${Math.round(b.l)}）`);
+            }
+        }
+    if (hits.length)
+        out.push({ rule: 'gray-tone-collision', severity: 'warn', message: `白黒にすると塗りの明度が近く、見分けにくいトーンの組: ${hits.join('、')}。直し方は 2 つ: (1) トーンの塗りの明度差を L* 10 以上にする（diagram({tones: {accent: {fill: '#…'}}}) か .svg-diagram.json の "tones" で色を変える。または片方を solid / muted にする）、(2) 破線・太字・ラベルなど色以外の手がかりを足し、accept: {'gray-tone-collision': '理由'} で許容する（確認は preview --gray）` });
+}
+function shrinkRules(d, out) {
+    for (const b of d.laidOut ?? []) {
+        if ((b.type !== 'bpmn' && b.type !== 'swimlane') || !b.narrow?.length)
+            continue;
+        const what = b.type === 'bpmn' ? 'task' : 'step';
+        out.push({ rule: 'shrink-narrow-text', severity: 'warn', message: `fit: 'shrink' で詰めた結果、${what} の本文が 2〜3 字ずつ折れている（${b.narrow.slice(0, 3).map(t => `「${t}」`).join('')}${b.narrow.length > 3 ? ` ほか ${b.narrow.length - 3} 件` : ''}）。直し方: 図を縦向きにする、列の多い図を 2 つに分ける、文言を短くする、図の幅（maxWidth）を広げる` });
+    }
+}
+function swimlaneRules(d, out) {
+    const lanesBands = d.bands.filter((b) => b.type === 'swimlane');
+    if (lanesBands.length > 1)
+        out.push({ rule: 'one-story', severity: 'warn', message: `スイムレーンが ${lanesBands.length} つある。1 図 1 話にして、図を分けることを検討する` });
+    for (const sl of lanesBands) {
+        const n = sl.lanes.length;
+        if (n > 6)
+            out.push({ rule: 'swimlane-lanes', severity: 'warn', message: `レーンが ${n} 本ある（6 本までが目安）` });
+        const ids = new Map(sl.steps.filter(s => s.id).map((s) => [qualify(scopeOf(sl), s.id), sl.lanes.findIndex(l => l.id === s.lane)]));
+        const flows = (d.connects ?? []).filter(c => ids.has(c.fromId) && ids.has(c.toId));
+        if (!flows.length)
+            continue;
+        const pairs = flows.map((c) => [ids.get(c.fromId), ids.get(c.toId)]);
+        const cur = [...Array(n).keys()];
+        const curD = laneDistance(cur, pairs);
+        const handOffs = flows.filter(c => ids.get(c.fromId) !== ids.get(c.toId)).length;
+        out.push({ rule: 'swimlane-hand-offs', severity: 'info', message: `引き継ぎ ${handOffs} 件 / 矢印 ${flows.length} 本。レーン間の距離の合計 ${curD}` });
+        if (n >= 2 && n <= MAX_LANES_TO_ORDER) {
+            // lanes marked {fixed: true} keep their place (e.g. a collecting 'PM' lane at the bottom)
+            const best = bestLaneOrder(n, new Set(cur.filter(i => must(sl.lanes[i]).fixed)), pairs);
+            const bestD = laneDistance(best, pairs);
+            if (bestD < curD)
+                out.push({ rule: 'swimlane-lane-order', severity: 'warn', message: `レーンを「${best.map(i => must(sl.lanes[i]).label.replace(/\n/g, '')).join(' → ')}」の順にすると、レーン間の距離が ${curD} → ${bestD} に減る` });
+        }
+    }
+}
+// ---- wireframes: callout numbers vs notes, and the state matrix --------------------------------
+function calloutsOf(...trees) {
+    const out = [];
+    const walk = (x) => {
+        if (!x || typeof x !== 'object')
+            return;
+        if (Array.isArray(x)) {
+            x.forEach(walk);
+            return;
+        }
+        // a wf node tree is walked generically (any node kind may carry n / parts / markers / children)
+        const nd = x;
+        if (!nd.t)
+            return;
+        if (typeof nd.n === 'number')
+            out.push(nd.n);
+        for (const v of Object.values(nd.parts ?? {}))
+            if (typeof v === 'number')
+                out.push(v);
+        for (const m of nd.markers ?? [])
+            if (typeof m.n === 'number')
+                out.push(m.n);
+        walk(nd.children);
+    };
+    trees.forEach(walk);
+    return out;
+}
+// the callout numbers should grow in reading order. Rows read top to bottom, columns (a sidebar, a main area) left to right,
+// so the next number may sit lower, or clearly to the right — only a step back (up-and-left, or left on the same row) is flagged.
+const ORDER_ROW = 48, ORDER_COL = 24;
+function calloutOrder(d, out) {
+    for (const b of d.laidOut ?? []) {
+        if (b.type !== 'wireframe' || !b.callouts?.length)
+            continue;
+        const first = new Map();
+        for (const c of b.callouts)
+            if (!first.has(c.n))
+                first.set(c.n, c);
+        const nums = [...first.keys()].sort((x, y) => x - y), bad = [];
+        for (let i = 0; i + 1 < nums.length; i++) {
+            const a = must(first.get(must(nums[i]))), c = must(first.get(must(nums[i + 1])));
+            const leftOfIt = c.x < a.x - ORDER_COL && c.y < a.y + ORDER_ROW; // not on a later row, yet to the left
+            const aboveIt = c.y < a.y - ORDER_ROW && c.x < a.x + ORDER_COL; // higher up, and not in a column further right
+            if (leftOfIt || aboveIt)
+                bad.push(`${nums[i]}→${nums[i + 1]}`);
+        }
+        if (bad.length)
+            out.push({ rule: 'wf-callout-order', severity: 'info', message: `${b.title ? `「${b.title}」` : 'ワイヤーフレーム'}: 番号が読む順でない所: ${bad.join('、')}` });
+    }
+}
+function wireframeRules(d, out) {
+    calloutOrder(d, out);
+    for (const b of walkBands(d.bands)) {
+        if (b.type === 'wireframe') {
+            const calls = calloutsOf(b.root, b.overlays);
+            const noteNums = (b.notes ?? []).map((nt, i) => (typeof nt === 'object' && nt.n != null ? nt.n : i + 1));
+            const where = b.title ? `「${b.title}」` : 'ワイヤーフレーム';
+            const uniq = [...new Set(calls)].sort((x, y) => x - y);
+            const noNote = uniq.filter(c => !noteNums.includes(c));
+            if (noNote.length)
+                out.push({ rule: 'wf-callout-no-note', severity: 'warn', message: `${where}: 番号 ${noNote.join('・')} に対応する注釈がない` });
+            const noCall = noteNums.filter(nn => !calls.includes(nn));
+            if (b.notes?.length && noCall.length)
+                out.push({ rule: 'wf-note-no-callout', severity: 'warn', message: `${where}: 注釈 ${noCall.join('・')} に対応する番号が図にない` });
+            if (uniq.length && uniq.some((c, i) => c !== i + 1))
+                out.push({ rule: 'wf-callout-gap', severity: 'warn', message: `${where}: 番号が 1 からの連番でない（${uniq.join('・')}）` });
+            const dup = uniq.filter(c => calls.filter(x => x === c).length > 1);
+            if (dup.length)
+                out.push({ rule: 'wf-callout-duplicate', severity: 'info', message: `${where}: 番号 ${dup.join('・')} が複数の場所に付いている（1 つの注釈を共有）` });
+        }
+        if (b.type === 'screens' && b.matrix) {
+            const m = b.matrix;
+            const miss = (m.required ?? []).filter(c => !m.cols.includes(c));
+            if (miss.length)
+                out.push({ rule: 'wf-states-required', severity: 'warn', message: `状態の一覧に、必須の状態「${miss.join('」「')}」の列がない` });
+            const todo = [];
+            for (const row of m.rows) {
+                if (row.cells.length > m.cols.length)
+                    out.push({ rule: 'wf-states-ragged', severity: 'warn', message: `行「${row.label}」の欄が ${row.cells.length} 個で、列（${m.cols.length}）より多い` });
+                m.cols.forEach((col, i) => { const c = row.cells[i]; if (c == null || c === 'todo')
+                    todo.push(`${row.label}×${col}`); }); // a row shorter than the columns leaves "未設計" cells
+            }
+            if (todo.length)
+                out.push({ rule: 'wf-states-todo', severity: 'warn', message: `「未設計」の欄: ${todo.join('、')}` });
+        }
+    }
+}
+/** The severity of the layout-quality findings (`layout-*`, and ADR 0016's `edge-bends`): info, or warn for a diagram that asked for diagram({layoutCheck: 'strict'}). */
+export const layoutSeverity = (d) => d.layoutCheck === 'strict' ? 'warn' : 'info';
+/** The severity of the `toc-*` findings (ADR 0015 D3): info, or warn for a diagram that asked for diagram({tocCheck: 'strict'}). */
+export const tocSeverity = (d) => d.tocCheck === 'strict' ? 'warn' : 'info';
+/** The severity of the cause-analysis findings (ADR 0025 D5 / ADR 0026 D1): info, or warn for a diagram that asked for diagram({rcaCheck: 'strict'}). A finding that carries its own `severity` keeps it. */
+export const rcaSeverity = (d) => d.rcaCheck === 'strict' ? 'warn' : 'info';
+/** The checks of the cause-analysis figures. Empty on purpose: each figure (faultTree, isIsNot, whyWhy*, bowtie) adds its own branch, reported at `f.severity ?? rcaSeverity(d)` like tocRules. */
+function rcaRules(d, out) {
+    const severity = rcaSeverity(d);
+    for (const b of walkBands(d.bands)) {
+        if (b.type === 'fta')
+            for (const f of ftaFindings(b))
+                out.push({ rule: f.rule, severity: f.severity ?? severity, message: f.message });
+        if (b.type === 'bowtie')
+            for (const f of bowtieFindings(b))
+                out.push({ rule: f.rule, severity: f.severity ?? severity, message: f.message });
+        if ((b.type === 'table' || b.type === 'cause') && b.rca)
+            for (const f of b.rca.findings)
+                out.push({ rule: f.rule, severity: f.severity ?? severity, message: f.message });
+    }
+}
+/** stat-no-source (ADR 0023 D10): a stat() number with no source. Runs only for a diagram that wrote diagram({evidenceCheck}). */
+function evidenceRules(d, out) {
+    if (d.evidenceCheck === undefined)
+        return;
+    const severity = d.evidenceCheck === 'strict' ? 'warn' : 'info';
+    for (const b of walkBands(d.bands))
+        if (b.type === 'box' && b.statValue !== undefined && !b.evidence)
+            out.push({ rule: 'stat-no-source', severity, message: `数字 ${b.statValue} に出典がない(stat の source を足す)` });
+}
+function tocRules(d, out) {
+    const severity = tocSeverity(d);
+    // a TOC tree on a diagram that says nothing about its legend: the roles are told apart only by a legend (ADR 0029 D1)
+    if (d.legend === undefined && walkBands(d.bands).some(b => b.type === 'cause' && b.tree !== undefined))
+        out.push({ rule: 'toc-legend-suggested', severity: 'info', message: "TOC の図に凡例が無い。役割（根本原因・施策・障害など）は色と枠でしか区別されない。diagram({legend: 'auto'}) を付けるか、causeTree({roleTags: true}) で役割を文字にする" });
+    for (const b of walkBands(d.bands))
+        if (b.type === 'cause')
+            for (const f of tocFindings(b))
+                out.push({ rule: f.rule, severity: f.severity ?? severity, message: f.message });
+}
+// Alignment and whitespace (ADR 0014): measured on the laid-out bands (lib/layout-metrics.ts), reported at layoutSeverity(d).
+function layoutQualityRules(d, out) {
+    if (!d.laidOut)
+        return;
+    const severity = layoutSeverity(d);
+    for (const m of layoutMetrics(d.laidOut, { width: d.width, slideCanvas: !!d.canvas }))
+        out.push({ rule: m.rule, severity, message: m.message, data: m.data });
+}
+// ---- edge-bends (ADR 0016 D6) ------------------------------------------------------------------------------------------------
+// A band whose edges the layout routed: cause / states / bpmn / classes, and the network charts (pert, dependency, a causal loop that is
+// not a ring). The lines a person drew with connect() are not counted, nor are self-loops. The thresholds come from the principle, not from
+// the examples: a layered edge should turn no more than twice (one elbow) and a figure about 2 times on average, so 5 bends on one edge
+// (two layers skipped at a bend each) and an average over 3 are what a reader sees as tangled.
+export const EDGE_BENDS_MAX = 5, EDGE_BENDS_MEAN = 3;
+function routedBands(bands, out = []) {
+    for (const b of bands) {
+        if (b.type === 'cause' || b.type === 'states' || b.type === 'bpmn' || b.type === 'classes')
+            out.push({ name: `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart' : b.type}${b.id ? ` ${b.id}` : ''}`, edges: b.edges });
+        else if (b.type === 'chart' && b.edges)
+            out.push({ name: `${b.kind}${b.id ? ` ${b.id}` : ''}`, edges: b.edges });
+        else if (b.type === 'row' || b.type === 'grid')
+            routedBands(b.children, out);
+    }
+    return out;
+}
+function edgeBendsRules(d, out) {
+    if (!d.laidOut)
+        return;
+    const severity = layoutSeverity(d);
+    for (const band of routedBands(d.laidOut)) {
+        const counted = band.edges.filter(e => e.from !== e.to && e.points.length >= 2).map(e => ({ e, bends: bendsOf(e.points) }));
+        if (!counted.length)
+            continue;
+        const total = counted.reduce((n, c) => n + c.bends, 0), mean = total / counted.length;
+        const worst = counted.filter(c => c.bends >= EDGE_BENDS_MAX).sort((p, q) => q.bends - p.bends);
+        const parts = [];
+        if (worst.length)
+            parts.push(`${worst.length} 本が ${EDGE_BENDS_MAX} 回以上折れる（${worst.slice(0, 3).map(c => `${c.e.from} → ${c.e.to} が ${c.bends} 回`).join('、')}${worst.length > 3 ? ' ほか' : ''}）`);
+        if (mean > EDGE_BENDS_MEAN)
+            parts.push(`矢印 ${counted.length} 本の折れの合計 ${total}（平均 ${mean.toFixed(1)} 回、${EDGE_BENDS_MEAN} 回以下が目安）`);
+        if (!parts.length)
+            continue;
+        out.push({ rule: 'edge-bends', severity, message: `${band.name}: ${parts.join('。')}。層を飛ぶ矢印・戻る矢印を減らす（辺の向き・節の分け方を見直す）`, data: { band: band.name, measured: worst[0]?.bends ?? Math.round(mean * 10) / 10, threshold: worst.length ? EDGE_BENDS_MAX : EDGE_BENDS_MEAN, fix: '層を飛ぶ辺・戻る辺を減らす（節の分け方・辺の向きを見直す）。意図した形なら accept で許容する' } });
+    }
+}
+/** stat-fit-shrunk (ADR 0024 D5): a stat() value drawn smaller than its role's size to fit its box. Info: shrinking is the specified behaviour. */
+function statFitFindings(d, out) {
+    const boxes = [];
+    for (const b of d.laidOut ?? []) {
+        if (b.type === 'row' || b.type === 'grid')
+            boxes.push(...b.children);
+        else
+            boxes.push(b);
+    }
+    for (const b of boxes)
+        if (b.type === 'box')
+            for (const s of b.statShrunk ?? []) {
+                out.push({ rule: 'stat-fit-shrunk', severity: 'info', message: `stat の値 "${s.value}" を ${s.from}px から ${s.to}px に縮めた(箱の幅 ${Math.round(b.w)}px に収めるため)。同じ列の stat と大きさがそろわない。箱を広げるか、値を短くすると、そろう` });
+            }
+}
+/** The exact snippet that accepts a finding of `rule` (for the warning output); '' for a rule that cannot be accepted. */
+export function acceptHint(rule) {
+    return Object.hasOwn(RULE_DOCS, rule) ? `許容するなら diagram({accept: {'${rule}': '理由'}}) か .svg-diagram.json の {"accept": {"${rule}": "理由"}}（詳しくは check --explain ${rule}）` : '';
+}
+export function lintDiagram(d) {
+    if (d.appearance === 'auto') { // ADR 0023 D4: both colour sides, the same finding once, a dark-only one marked
+        const side = (appearance) => lintDiagram({ ...d, appearance });
+        return mergeSides(side('light'), side('dark'), f => `${f.rule}\0${f.message}`, f => ({ ...f, message: `${f.message} (${DARK_NOTE})` }));
+    }
+    const out = lintAll(d, toneEnv(d.tones));
+    // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
+    const reasonOf = (rule) => d.accept?.[rule] ?? (rule === 'toc-no-desired-result' ? d.accept?.['toc-parts'] : undefined); // before ADR 0037 the missing desired result was toc-parts
+    return out.map(f => { const why = reasonOf(f.rule); return why ? { ...f, severity: 'info', message: `${f.message}（許容: ${why}）` } : f; });
+}
+// the width of a line in full-width characters (CJK, kana, hangul, fullwidth forms and pictographs count 1, everything else
+// - Latin, digits, halfwidth katakana - 0.5)
+const WIDE = [[0x1100, 0x115f], [0x2e80, 0xa4cf], [0xa960, 0xa97f], [0xac00, 0xd7af], [0xf900, 0xfaff], [0xfe30, 0xfe4f], [0xff01, 0xff60], [0xffe0, 0xffe6], [0x1f300, 0x1faff], [0x20000, 0x3fffd]];
+export function fullWidthUnits(line) {
+    let n = 0;
+    for (const ch of line) {
+        const c = must(ch.codePointAt(0));
+        n += WIDE.some(([a, b]) => c >= a && c <= b) ? 1 : 0.5;
+    }
+    return n;
+}
+export const HEADLINE_BUDGET_PX = 600;
+// the role sizes (tokens ROLES; test/diagram-api.test.ts keeps them equal), kept here because the rendering core must not import that global table
+export const HEADLINE_PX = { title: 15, banner: 16, stat: 34, display: 56 };
+const isHeadlineRole = (r) => r != null && r in HEADLINE_PX;
+// a headline line over the budget (a guide in full-width characters: what fits a 600px text column), or one the layout had to wrap
+function headlineLength(d, out) {
+    const seen = new Set();
+    const flag = (line, message) => { if (!seen.has(line)) {
+        seen.add(line);
+        out.push({ rule: 'cjk-line-long', severity: 'warn', message });
+    } };
+    const quote = (line) => { const t = line.trim(); return [...t].length > 16 ? `${[...t].slice(0, 16).join('')}…` : t; };
+    const check = (text, role) => {
+        const budget = Math.floor(HEADLINE_BUDGET_PX / HEADLINE_PX[role]);
+        for (const line of text.split('\n')) {
+            const u = fullWidthUnits(line.trim());
+            if (u > budget)
+                flag(line, `見出しの 1 行が全角 ${Math.ceil(u)} 字ぶんで、${budget} 字の目安（${role}。本文幅 ${HEADLINE_BUDGET_PX}px に収まる字数）を超える: 「${quote(line)}」。短くするか、改行して分ける`);
+        }
+    };
+    for (const b of walkBands(d.bands)) {
+        if (b.type === 'caption' && !b.sourceLine && isHeadlineRole(b.role))
+            check(b.text, b.role);
+        else if (b.type === 'banner')
+            check(b.headline, b.headlineRole ?? 'banner');
+    }
+    // under the budget but still wrapped by the layout (a narrow diagram, a banner in a row): the break falls anywhere, even inside a word
+    const laid = (d.laidOut ?? []).flatMap(b => b.type === 'row' || b.type === 'grid' ? b.children : [b]);
+    for (const b of laid) {
+        const head = b.type === 'caption' && !b.sourceLine && isHeadlineRole(b.role) ? b.text : b.type === 'banner' ? b.headline : null;
+        const run = head != null ? b.wrappedRuns[0] : undefined;
+        if (head == null || !run)
+            continue;
+        const given = head.split('\n');
+        if (run.lines.length > given.length && !given.some(l => seen.has(l)))
+            flag(head, `見出しが幅に収まらず、${run.lines.length} 行に自動で折り返している: 「${quote(must(given[0]))}」。短くするか、区切りのよいところで改行する`);
+    }
+}
+// a connected diagram (3+ arrows) should read as one graph: a box with an id that no arrow touches is a forgotten link,
+// and arrows that split into separate clumps are probably two stories in one picture
+function graphRules(d, out) {
+    const connects = (d.connects ?? []).filter(c => !c.loopBack); // the arrow back of a step row is not an edge of a graph
+    if (connects.length < 3)
+        return;
+    const parent = new Map();
+    const find = (x) => { let r = x; for (let up = parent.get(r); up !== undefined && up !== r; up = parent.get(r))
+        r = up; parent.set(x, r); return r; };
+    const add = (x) => { if (!parent.has(x))
+        parent.set(x, x); };
+    // a row / column end (sources.col(1)) stands for the boxes inside it
+    const placed = (d.laidOut ?? []).flatMap(b => b.type === 'box' ? [b] : b.type === 'row' || b.type === 'grid' ? b.children : []).filter(b => !!b.id);
+    const inside = (b, a) => Math.min(b.x + b.w, a.x + a.w) - Math.max(b.x, a.x) > 0.5 && Math.min(b.y + b.h, a.y + a.h) - Math.max(b.y, a.y) > 0.5; // even partly, as layout counts it
+    const endIds = (id, area) => [id, ...(area ? placed.flatMap(b => b.id && inside(b, area) ? [b.id] : []) : [])];
+    for (const c of connects) {
+        if (!c.fromId || !c.toId)
+            continue;
+        const ids = [...endIds(c.fromId, c.fromArea), ...endIds(c.toId, c.toArea)];
+        for (const id of ids)
+            add(id);
+        for (const id of ids)
+            parent.set(find(id), find(must(ids[0])));
+    }
+    const boxes = walkBands(d.bands).filter((b) => b.type === 'box' && !!b.id && !!b.title);
+    const orphans = boxes.filter(b => !parent.has(must(b.id)));
+    if (orphans.length)
+        out.push({ rule: 'graph-orphan-node', severity: 'warn', message: `どの矢印にもつながっていない箱: ${orphans.map(b => `「${oneLine(b.title)}」(${b.id})`).join('、')}。矢印を足すか、箱を消す（注記なら id を付けない）` });
+    const groups = new Map();
+    for (const id of parent.keys()) {
+        const r = find(id);
+        groups.set(r, [...(groups.get(r) ?? []), id]);
+    }
+    if (groups.size > 1)
+        out.push({ rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${[...groups.values()].map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる` });
+}
+// A decision (a diamond) is a fork: it needs two or more arrows out, and each says which answer it is (ADR 0041 D5)
+function flowRules(d, out) {
+    for (const b of d.laidOut ?? []) {
+        if (b.type !== 'states' || !b.nodes)
+            continue;
+        b.nodes.forEach((n, i) => {
+            const id = b.anchors[i]?.id;
+            if (n.shape !== 'diamond' || id === undefined)
+                return;
+            const leaving = b.edges.flatMap((e, k) => e.from === id && e.to !== id ? [{ e, k }] : []);
+            if (leaving.length < 2)
+                out.push({ rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印が ${leaving.length} 本。判断は分岐なので、2 本以上（Yes / No など）にする` });
+            else if (leaving.length > 2)
+                out.push({ rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印が ${leaving.length} 本。3 本以上の分岐は読みにくいので、2 つの判断に分ける` });
+            const bare = leaving.filter(({ k }) => !b.labels.some(l => l.edge === k)).map(({ e }) => `${e.from} → ${e.to}`);
+            if (bare.length && leaving.length >= 2)
+                out.push({ rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印にラベルがない（${bare.join('、')}）。どの答えの矢印か分かるよう、Yes / No などを付ける` });
+        });
+    }
+}
+// `density: 'compact'` that was not applied to a band (ADR 0036 D6): the compact figure had an arrow through a box or a label on another one
+function densityRules(d, out) {
+    const who = (d.laidOut ?? []).flatMap(b => (b.type === 'cause' || b.type === 'states') && b.densityRestored ? [b.type === 'cause' ? 'causeTree()' : b.flavor === 'flowchart' ? 'flowchart()' : 'stateDiagram()'] : []);
+    if (who.length)
+        out.push({ rule: 'density-compact-restored', severity: 'info', message: `${[...new Set(who)].join('・')}: density: 'compact' にすると箱を通る矢印・重なるラベルが増えるので、この図は通常の間隔で描いた（高さは詰まっていない）` });
+}
+const FIT_WHO = { cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()', fta: 'faultTree()', bowtie: 'bowtie()' };
+// what the layout changed on its own to make a figure fit its width (ADR 0010 D3): left out is a warning, `dir: 'auto'` is the author's own choice
+function fitRules(d, out) {
+    for (const b of d.laidOut ?? []) {
+        if ((b.type !== 'cause' && b.type !== 'states' && b.type !== 'classes' && b.type !== 'tree' && b.type !== 'fta' && b.type !== 'bowtie') || !b.fitApplied?.length)
+            continue;
+        const what = b.fitApplied.map(describeApplied).join('、'), auto = b.fitApplied.every(a => a.mode === 'auto');
+        const noDir = b.type === 'fta' || b.type === 'bowtie'; // a fault tree and a bow-tie have no `dir`
+        const knobs = noDir ? 'maxNodeW' : 'dir / maxNodeW', say = noDir ? "maxNodeW: 'auto'" : "dir: 'auto'";
+        out.push({ rule: 'auto-fit-applied', severity: auto ? 'info' : 'warn', message: auto
+                ? `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : FIT_WHO[b.type]}: ${knobs} を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
+                : `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : FIT_WHO[b.type]}: ${knobs} を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら ${say} と書く（info になる）。固定したいなら ${knobs} を明示する（収まらなければ試した案つきで止まる）` });
+    }
+}
+/** How to fix a mid-word break depends on whether the part's boxes can be widened: a chevron / cycle / swimlane fixes the frame first. */
+const MID_WORD_FIX = {
+    chevron: "矢羽根の幅は段数で決まる。`direction: 'vertical'` にする、段を減らす、文言を短くする",
+    cycle: '円は、カタカナの語に合わせて幅・高さの上限（幅 −8px、高さ 760px）まで広がる。それでも入らない語は、文言を短くする、項目を減らす',
+    swimlane: "列の幅は段数で決まる。`fit: 'shrink'` を外す、列を減らす、文言を短くする",
+    emblem: "図形は語が割れない大きさまで 240px を上限に広がる。それでも割れる語は、`minSize` を上げる、`shape: 'square'` にする、文言を短くする（320px まで広がっても入らなければ throw する）",
+};
+function midWordRules(d, out) {
+    const source = sourceText(d.bands);
+    const found = (d.laidOut ?? []).flatMap(b => midWordBreaksIn(b, source).map(br => ({ type: String(b.type), ...br })));
+    if (!found.length)
+        return;
+    const shown = [...new Set(found.map(b => `「${b.before}/${b.after}」`))];
+    // the word that was cut, and how wide a line has to be for it (full-width characters): the box must be at least that wide
+    const words = [...new Map(found.filter(b => b.word).map(b => [b.word, fullWidthUnits(b.word)]))].sort((p, q) => q[1] - p[1]);
+    const wordNote = words.length ? ` 割れた語: ${words.slice(0, 3).map(([w, u]) => `「${w}」（全角で約 ${Math.ceil(u)} 字分）`).join('')}。その語が 1 行に入る幅（文字の大きさ × ${Math.ceil(must(words[0])[1])} 字分以上）が箱に要る。` : '';
+    const fixes = [...new Set(found.flatMap(b => MID_WORD_FIX[b.type] ? [`${b.type}: ${MID_WORD_FIX[b.type]}`] : []))];
+    out.push({ rule: 'text-mid-word-break', severity: 'warn', message: `語の途中で行が割れている（${shown.slice(0, 4).join('')}${shown.length > 4 ? ` ほか ${shown.length - 4} 件` : ''}）。${wordNote}直し方: ${fixes.length ? fixes.join('。') : 'diagram({keepWords: true}) で語を割らない、箱の幅を広げる、dir や maxNodeW を変える、文言を短くする、語の前後で改行する'}` });
+}
+function glyphRules(d, out) {
+    const glyphs = missingGlyphs(d.laidOut);
+    if (glyphs.length)
+        out.push({ rule: 'glyph-missing', severity: 'warn', message: `絵文字として扱われない絵記号がある（${glyphs.map(g => `「${g}」`).join('')}）。通常の文字のフォントで描かれ、字形が無いと空白になる。直し方: icon.emoji() か SVG アイコン（box({icon})）を使う、または ✓ ✗ などの字に置き換える` });
+}
+function labelCoverRules(d, out) {
+    const hits = (d.connects ?? []).flatMap(c => { const cover = c.label ? labelCover(c) : undefined; return cover && hidesArrow(cover) ? [`「${c.label}」(${c.fromId}→${c.toId}、見える部分 ${Math.round(cover.visible)}px)`] : []; });
+    if (hits.length)
+        out.push({ rule: 'connect-label-covers-arrow', severity: 'warn', message: `矢印のラベルが矢印のほとんどを覆っていて、向きが読めない: ${hits.slice(0, 4).join('、')}${hits.length > 4 ? ` ほか ${hits.length - 4} 件` : ''}。直し方: 箱の間隔を広げる、ラベルを短くする、ラベルを箱の中に書く` });
+}
+function axisRules(d, out) {
+    const found = axisMismatches(d.bands);
+    if (found.length)
+        out.push({ rule: 'chart-axis-mismatch', severity: 'warn', message: `比べて読む 2 つのチャートの値の軸が違う: ${found.slice(0, 3).join('。')}${found.length > 3 ? ` ほか ${found.length - 3} 組` : ''}。同じ長さが別の値に見える。直し方: 両方に同じ domain を書く（bars は max）。横向きのチャートは、ラベルの列の幅が違うと同じ値が別の長さに見えるので、plotInset もそろえる。意図して別の軸なら axisGroup: false か accept` });
+}
+/** box-size-ignored: box({size}) is read by neither layout nor emit (said once per figure; the band keeps what the author wrote). */
+function boxSizeRules(d, out) {
+    const hit = walkBands(d.bands).filter(b => b.type === 'box' && b.size !== undefined);
+    if (hit.length)
+        out.push({ rule: 'box-size-ignored', severity: 'warn', message: `box({size}) は効果がない(${hit.length} 個の箱)。大きい文字は役割を使う: stat() / stat({size: 'display'})・caption({role: 'display'})・banner({headlineRole})・bars / plane({labelRole})。次の版で throw する` });
+}
+function lintAll(d, tones) {
+    const out = [];
+    if (d.wrapFellBack)
+        out.push({ rule: 'wrap-fell-back', severity: 'info', message: "wrap: 'bunsetsu-soft': 文節で折ると図が幅に収まらなかったので、従来の折り方（phrase）で配置した。漢字・ひらがなの途中で折れる行が残る。図を 2 枚に分ける、文言を短くする、図の幅を広げると、文節で折れる" });
+    axisRules(d, out);
+    labelCoverRules(d, out);
+    midWordRules(d, out);
+    glyphRules(d, out);
+    layoutQualityRules(d, out);
+    edgeBendsRules(d, out);
+    tocRules(d, out);
+    rcaRules(d, out);
+    fitRules(d, out);
+    densityRules(d, out);
+    flowRules(d, out);
+    textContrast(d, tones, out);
+    colourOnlyEmphasis(d, out);
+    nonTextContrast(d, tones, out);
+    legendRules(d, out);
+    swimlaneRules(d, out);
+    shrinkRules(d, out);
+    wireframeRules(d, out);
+    rowHeaderRules(d, tones, out);
+    grayToneRules(d, tones, out);
+    graphRules(d, out);
+    out.push(...termFindings(d.bands, d.terms), ...tableFindings(walkBands(d.bands)));
+    const connects = d.connects ?? [];
+    if (connects.length) {
+        const { crossings, overlaps } = edgeStats(connects);
+        if (crossings || overlaps) {
+            const hints = loopUnderHints(connects);
+            out.push({ rule: 'edge-crossings', severity: 'warn', message: `線の交差 ${crossings} 箇所、重なり ${overlaps} 箇所。${hints.length ? hints.slice(0, 3).join('。') : '箱や線の配置・レーンの順を見直す'}` });
+        }
+        const unlabeled = connects.filter(c => !c.label).length;
+        // no label at all is a convention (the arrows only mean "depends on" / "next"); some labelled and most not is the inconsistency to flag
+        if (connects.length >= 4 && unlabeled < connects.length && unlabeled / connects.length > 0.6)
+            out.push({ rule: 'arrow-labels', severity: 'info', message: `矢印 ${connects.length} 本のうち ${unlabeled} 本にラベルがない。何が流れるか（成果物・プロトコル）を短く添える` });
+    }
+    statFitFindings(d, out);
+    evidenceRules(d, out);
+    boxSizeRules(d, out);
+    if (d.canvas && d.laidOut) {
+        const min = minTextSize(d);
+        if (d.canvas.minText < MIN_FONT_SIZE)
+            out.push({ rule: 'font-floor-lowered', severity: 'info', message: `文字の下限を ${MIN_FONT_SIZE}px から ${d.canvas.minText}px に下げている(最小の文字 ${min}px)。キャンバスは 1:1 で読まれる前提。投影には向かない` });
+        if (min < d.canvas.minText)
+            out.push({ rule: 'slide-min-text', severity: 'warn', message: `最小の文字が ${min}px。スライド用キャンバスは ${d.canvas.minText}px 以上(その文字を大きくするか、減らす)` });
+        if (d.contentHeight !== undefined && d.contentHeight > d.canvas.height)
+            out.push({ rule: 'slide-canvas-overflow', severity: 'warn', message: `内容の高さ ${d.contentHeight}px が、キャンバスの高さ ${d.canvas.height}px を超える。行・文字を減らすか、図を分ける` });
+    }
+    if (d.medium === 'doc' && !d.canvas && d.canvasHeight !== undefined && d.canvasHeight > ASPECT_TALL * d.width) {
+        const kinds = new Set(walkBands(d.bands).map(b => b.type));
+        const ways = [
+            ...(kinds.has('cause') ? ['causeTree({fold})（折って段にする）'] : []),
+            ...(kinds.has('row') || kinds.has('grid') || kinds.has('group') ? ['row({cols}) / grid で横に並べる'] : []),
+            '図を 2 つに分ける（章・段階ごと）',
+        ];
+        out.push({ rule: 'aspect-tall', severity: 'info', message: `幅 ${d.width}px に対して高さ ${d.canvasHeight}px（縦横比 ${(d.canvasHeight / d.width).toFixed(2)}）。本の 1 ページに収まりにくい。${ways.join('、')}を検討する（${ASPECT_TALL} 倍までは出さない）` });
+    }
+    if (d.medium === 'doc' && !d.canvas && d.width > (d.maxWidth ?? 940))
+        out.push({ rule: 'doc-width', severity: 'warn', message: `幅 ${d.width}px。本文の表示幅（約 930px）に縮められ、文字が小さくなる（${d.maxWidth ?? 940}px 以下にする）` });
+    // doc diagrams are read at length on a page, so their budget is larger than the slide decks' (see budget.ts)
+    for (const w of budgetWarnings({ laidOut: d.laidOut ?? [] }, d.medium === 'doc' ? { boxBody: 100, total: 700, boxes: 30 } : undefined))
+        out.push({ rule: 'density', severity: 'warn', message: w });
+    const allBars = walkBands(d.bands).filter((b) => b.type === 'bars');
+    if (d.medium === 'doc' && !diagramTitle(d) && allBars.some(barsValuesHidden))
+        out.push({ rule: 'bars-values-hidden', severity: 'warn', message: '値を隠した bars があるが、図に題名がなく <desc> も出ない。diagram({title}) を指定する（値の列は自動で <desc> に入る）' });
+    for (const b of walkBands(d.bands))
+        if (b.type === 'image' && b.bytes > IMAGE_WARN_BYTES)
+            out.push({ rule: 'image-large', severity: 'warn', message: `画像（${Math.round(b.bytes / 1024)} KB）が大きい。SVG に埋め込まれ、段階表示の各ファイルにも入る。解像度を下げるか圧縮する（${IMAGE_WARN_BYTES / 1024} KB 以下が目安）` });
+    for (const b of d.laidOut ?? [])
+        if (b.type === 'bars' && b.bars.some(r => (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0))) {
+            out.push({ rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す' });
+            break;
+        }
+    headlineLength(d, out);
+    if (d.status !== undefined)
+        out.push({ rule: 'draft-status', severity: 'info', message: `この図は下書き(status: '${d.status}')。公開前に外す` });
+    for (const b of d.laidOut ?? [])
+        if (b.type === 'caption' && b.sourceLine) {
+            const lines = b.wrappedRuns.flatMap(r => r.lines), n = lines.length;
+            if (n <= 1)
+                continue;
+            // what fits is measured, not guessed: the longest of the lines that were filled (every one but the last), in full-width characters
+            const filled = b.wrappedRuns.flatMap(r => r.lines.slice(0, -1)), fits = Math.floor(Math.max(0, ...filled.map(fullWidthUnits))), total = Math.ceil(lines.reduce((s, l) => s + fullWidthUnits(l), 0));
+            out.push({ rule: 'source-wraps', severity: 'warn', message: `出典行が ${n} 行に折り返している（全角で約 ${total} 字分${fits > 0 ? `。1 行に入るのは約 ${fits} 字分なので、約 ${Math.max(1, fits - 1)} 字分以内に縮める` : ''}。半角の英数字は 0.5 字分）。出典の細部は本文へ` });
+        }
+    for (const b of d.laidOut ?? [])
+        if (b.type === 'quadrant') {
+            const far = b.moved.filter(m => m.px >= 16);
+            if (far.length)
+                out.push({ rule: 'quadrant-item-moved', severity: 'warn', message: `quadrant() の項目 ${far.map(m => `「${m.label}」(${Math.round(m.px)}px)`).join('、')} が、他の項目やラベルを避けて座標から離れた。座標を離すか、図を大きくする` });
+            if (b.emptyCells.length)
+                out.push({ rule: 'quadrant-empty-cell', severity: 'warn', message: `quadrant() のマス ${b.emptyCells.map(l => `「${l}」`).join('、')} に項目がない（空の枠が残っている）。項目を入れるか、マスを減らす。意図した空きなら quadrant({allowEmpty: [[col, row]]}) （全部なら true）` });
+            if (b.floored.length)
+                out.push({ rule: 'quadrant-size-floor', severity: 'warn', message: `quadrant() の項目 ${b.floored.map(l => `「${l}」`).join('、')} の size が最大の値に比べて小さすぎ、最小の円で描いた（面積が値より大きく見える）。値の差が大きすぎるなら、大きさではなく文字で示す` });
+        }
+    for (const b of walkBands(d.bands))
+        if (b.type === 'quadrant' && !b.groups.length && new Set(b.items.flatMap(i => i.tone ? [i.tone] : [])).size >= 2)
+            out.push({ rule: 'quadrant-tone-only', severity: 'warn', message: 'quadrant() の項目を tone（色）だけで分けている。色だけでは意味が伝わらない。group を指定する（形と凡例が付く）' });
+    for (const b of walkBands(d.bands))
+        if (b.type === 'funnel' && b.scale === 'value' && b.stages.some((s, i) => i > 0 && (s.value ?? 0) > (must(b.stages[i - 1]).value ?? 0)))
+            out.push({ rule: 'funnel-values-rise', severity: 'warn', message: 'funnel() の value が下の段で増えている。漏斗の減少として読ませるなら、値または段の順を見直す' });
+    for (const b of walkBands(d.bands))
+        if (b.type === 'grid' && b.canvas?.requireAll && b.canvas.empty.length)
+            out.push({ rule: 'canvas-region-empty', severity: 'warn', message: `canvas("${b.canvas.template}") の領域 ${b.canvas.empty.join('、')} に内容がない。書くか、requireAll を外す` });
+    if (d.medium === 'doc' && d.title && !d.showTitle) {
+        const first = walkBands(d.bands).find((b) => b.type === 'caption' && !b.sourceLine);
+        if (first && first.text.trim() === d.title.trim())
+            out.push({ rule: 'title-duplicated', severity: 'info', message: `題名と先頭の caption が同じ文字列「${first.text.trim().slice(0, 20)}」。diagram({title, showTitle: true}) に寄せて、caption を消せる` });
+    }
+    if (d.medium === 'doc' && !diagramTitle(d))
+        out.push({ rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する' });
+    return out;
+}
+// ---- SVG accessible name / description -------------------------------------------------
+const oneLine = (t) => String(t ?? '').replace(/\s*\n\s*/g, ' ').trim();
+export function diagramTitle(d) {
+    if (d.title)
+        return oneLine(d.title);
+    for (const b of walkBands(d.bands)) {
+        if (b.type === 'caption' && b.text)
+            return oneLine(b.text);
+        if (b.type === 'banner' && b.headline)
+            return oneLine(b.headline);
+    }
+    for (const b of walkBands(d.bands))
+        if (b.type === 'group' && b.title)
+            return oneLine(b.title);
+    for (const b of walkBands(d.bands)) {
+        if (b.type === 'chevron' || b.type === 'cycle')
+            return oneLine(b.steps[0]?.label);
+        if (b.type === 'funnel')
+            return oneLine(b.stages[0]?.label);
+        if (b.type === 'venn')
+            return oneLine(b.sets.map(s => s.label ?? s.name).join('・'));
+        if (b.type === 'concentric')
+            return oneLine(b.centre ?? b.rings[0]?.label);
+        if (b.type === 'emblem')
+            return oneLine(b.items[0]?.label);
+        if (b.type === 'wordart')
+            return oneLine(b.text);
+    }
+    return '';
+}
+/** `stage`: a click stage of a revealing diagram; only what is on screen then is listed (nothing is left out without it). */
+export function diagramDesc(d, stage) {
+    const text = descOf(d, stage);
+    // a figure with a status says so first, in the badge's own wording ("(下書き)"); one without is unchanged
+    return d.status === undefined ? text : `(${statusText(d)})${text ? ` ${text}` : ''}`;
+}
+function descOf(d, stage) {
+    if (d.desc)
+        return oneLine(d.desc);
+    const parts = [];
+    const bands = walkBands(d.bands).filter(b => visibleAt(b, stage));
+    for (const b of bands) {
+        if (b.type === 'swimlane') {
+            parts.push(`レーン: ${b.lanes.map(l => oneLine(l.label)).join('、')}`);
+            parts.push(`手順: ${b.steps.filter(s => visibleAt(s, stage)).map(s => oneLine(s.title)).join('、')}`);
+        }
+        else if (b.type === 'sequence')
+            parts.push(`参加者: ${b.actors.map(a => oneLine(a.label)).join('、')}`);
+        else if (b.type === 'table')
+            parts.push(`表${b.title ? `「${oneLine(b.title)}」` : ''}: 列 ${b.columns.map(c => oneLine(c.label)).join('、')}`);
+    }
+    if (!parts.length) {
+        const titles = bands.filter((b) => b.type === 'box' && !!b.title).map(b => oneLine(b.title));
+        if (titles.length)
+            parts.push(`要素: ${titles.slice(0, 16).join('、')}${titles.length > 16 ? ' ほか' : ''}`);
+    }
+    for (const b of walkBands(d.bands))
+        if (b.type === 'image' && b.alt)
+            parts.push(`画像: ${oneLine(b.alt)}`);
+    for (const b of walkBands(d.bands))
+        if (b.type === 'math')
+            parts.push(`数式: ${oneLine(b.alt)}`);
+    // outside the fallback above, so boxes and hidden-value bars can share one description
+    for (const b of bands)
+        if (b.type === 'bars' && barsValuesHidden(b))
+            parts.push(`値: ${b.data.filter(x => visibleAt(x, stage)).map(x => `${oneLine(x.label)} ${x.range ? `${fmt(x.range[0])}〜${fmt(x.range[1])}` : fmt(x.value ?? 0)}${b.unit ?? ''}`).join('、')}`);
+    for (const b of bands)
+        if (b.type === 'chart')
+            parts.push(oneLine(b.alt));
+    return parts.join('。');
+}

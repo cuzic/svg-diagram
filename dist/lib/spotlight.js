@@ -1,0 +1,245 @@
+import { addScoped, emptyScopes, qualify, resolveAnchor, scopeOf } from './anchor-scope.js';
+import { childrenOf, nestedBandsOf } from './band-children.js';
+import { must } from './must.js';
+export function spotlightIds(d) {
+    if (!d.spotlight)
+        return [];
+    const ids = typeof d.spotlight === 'string' ? d.spotlight : d.spotlight.ids;
+    return typeof ids === 'string' ? [ids] : [...ids];
+}
+/** How a bar outside the spotlight is drawn: a dotted outline (default) or a pale fill. */
+export function spotlightDim(d) {
+    return typeof d.spotlight === 'object' ? d.spotlight.dim ?? 'outline' : 'outline';
+}
+export function spotlightEdges(d) {
+    return typeof d.spotlight === 'object' ? d.spotlight.edges ?? 'touching' : 'touching';
+}
+function descendants(b, out) {
+    out.add(b);
+    for (const child of nestedBandsOf(b))
+        descendants(child, out);
+}
+/** Input bands outside the spotlight. Used before layout so auto legends ignore their notation. */
+export function dimmedBands(d) {
+    const targets = new Set(spotlightIds(d));
+    const focused = new Set();
+    const walk = (bands) => {
+        for (const b of bands) {
+            const id = 'id' in b ? b.id : undefined;
+            if (id && targets.has(id))
+                descendants(b, focused);
+            if ((b.type === 'row' || b.type === 'grouprow') && id) {
+                for (const target of targets) {
+                    const m = target.match(new RegExp(`^${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}#(\\d+)$`));
+                    if (m) {
+                        const child = b.children[Number(m[1]) - 1];
+                        if (child)
+                            descendants(child, focused);
+                    }
+                }
+            }
+            walk(childrenOf(b));
+        }
+    };
+    walk(d.bands);
+    const focusedIds = new Set(targets);
+    for (const b of focused)
+        if ('id' in b && b.id)
+            focusedIds.add(b.id);
+    const between = spotlightEdges(d) === 'between';
+    for (const b of allBands(d.bands))
+        if (b.type === 'connect') {
+            const from = focusedIds.has(must(b.from.split(':')[0])), to = focusedIds.has(must(b.to.split(':')[0]));
+            if (between ? from && to : from || to)
+                focused.add(b);
+        }
+    return new Set(d.bands.length && targets.size ? allBands(d.bands).filter(b => !focused.has(b)) : []);
+}
+/** The scoped items of a laid-out figure, by the bare id each answers to (the same table layout built from the bands as written). */
+function scopesOfLaidOut(d) {
+    const table = emptyScopes();
+    for (const b of d.laidOut) {
+        const scope = scopeOf(b);
+        if (!scope)
+            continue;
+        if (b.type === 'box') {
+            if (b.id)
+                addScoped(table, scope, b.id);
+            continue;
+        } // a swimlane step
+        const skip = b.unanchored;
+        for (const a of b.anchors ?? [])
+            if (a.id && !skip?.includes(a.id))
+                addScoped(table, scope, a.id);
+    }
+    return table;
+}
+function allBands(bands, out = []) {
+    for (const b of bands) {
+        out.push(b);
+        if ('children' in b && Array.isArray(b.children))
+            allBands(b.children, out);
+    }
+    return out;
+}
+const inside = (b, r) => b.x >= r.x - 0.5 && b.y >= r.y - 0.5 && b.x + b.w <= r.x + r.w + 0.5 && b.y + b.h <= r.y + r.h + 0.5;
+function targetRects(d, ids) {
+    const out = [];
+    const add = (b) => {
+        const scope = scopeOf(b), item = (id) => ids.includes(qualify(scope, id)); // a scoped band's items answer to `scope.id` (its output keeps the bare ids)
+        if (b.type === 'chart')
+            for (const a of b.anchors)
+                if (item(a.id))
+                    out.push(a); // a chart's elements are targets (its own id is handled below)
+        if ('id' in b && 'h' in b && b.id && (b.type === 'box' ? item(b.id) : ids.includes(b.id)))
+            out.push(b); // a swimlane step is a box that carries its lane band's scope
+        if (b.type === 'row') {
+            if (b.id && ids.includes(b.id))
+                out.push(b);
+            for (const id of ids) {
+                const m = b.id && id.match(new RegExp(`^${b.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}#(\\d+)$`));
+                const child = m ? b.children[Number(m[1]) - 1] : undefined;
+                if (child)
+                    out.push(child);
+            }
+            for (const c of b.children)
+                if (c.id && ids.includes(c.id))
+                    out.push(c);
+        }
+        else if (b.type === 'grid') {
+            for (const c of b.children)
+                if (c.id && ids.includes(c.id))
+                    out.push(c);
+        }
+        else if (b.type === 'bars' || b.type === 'image' || b.type === 'quadrant' || b.type === 'chevron' || b.type === 'funnel' || b.type === 'cycle' || b.type === 'venn' || b.type === 'concentric' || b.type === 'emblem') {
+            for (const a of b.anchors)
+                if (item(a.id))
+                    out.push(a);
+        }
+    };
+    d.laidOut.forEach(add);
+    return out;
+}
+function dimBand(b, focus) {
+    if (b.type === 'caption' && (b.sourceLine || b.titleLine))
+        return; // the pinned source line and the title are furniture, never a spotlight subject
+    if (b.type === 'status')
+        return; // the status badge is furniture too: it is not dimmed
+    if (b.type === 'bars') {
+        // the whole band focused (e.g. inside a focused group): nothing dims. Otherwise dim bar by bar, labels with their bar;
+        // the axis dims only when no bar is a target.
+        if (focus.some(r => inside(b, r)))
+            return;
+        for (const x of b.bars)
+            x.dim = !focus.some(r => inside(x, r));
+        for (const t of b.texts)
+            if (t.bar !== undefined)
+                t.dim = must(b.bars[t.bar]).dim;
+        b.dim = b.bars.every(x => x.dim);
+    }
+    else if (b.type === 'chart') {
+        // the whole figure focused: nothing dims. Otherwise the elements that are targets stay lit and the others dim; none a target: the figure dims whole
+        if (focus.some(r => inside(b, r)))
+            return;
+        // lit: the elements that are targets, and every element drawn inside one (a treemap group's cells, keyed or not)
+        const lit = new Set(b.anchors.filter(a => focus.some(r => inside(a, r))).map(a => a.id));
+        for (const i of b.items)
+            if (i.k === 'rect' && typeof i.of === 'string' && focus.some(r => inside(i, r)))
+                lit.add(i.of);
+        // every element is keyed (its id, or a number when it has none): the ones that are not lit dim
+        if (lit.size)
+            b.dimIds = [...new Set(b.items.flatMap(i => i.of !== undefined ? [i.of].flat() : []))].filter(k => !lit.has(k));
+        else
+            b.dim = true;
+    }
+    else if (b.type === 'image') {
+        // the whole picture focused (itself, or an enclosing group): nothing dims. Otherwise a focused mark keeps its region clear of
+        // the veil and the other marks dim; with no mark focused the picture is veiled whole.
+        if (focus.some(r => inside(b, r))) {
+            b.dim = false;
+            return;
+        }
+        const lit = b.marks.map(m => focus.some(r => inside(m, r)));
+        b.marks.forEach((m, i) => { m.dim = !lit[i]; });
+        b.plates.forEach(p => { p.dim = p.mark === undefined ? true : !lit[p.mark]; });
+        const holes = b.marks.filter((_m, i) => lit[i]).map(({ x, y, w, h }) => ({ x, y, w, h }));
+        if (holes.length)
+            b.holes = holes;
+        else
+            b.dim = true;
+    }
+    else if (b.type === 'quadrant') {
+        // the whole figure focused: nothing dims. Otherwise a focused item stays lit and the rest dim (cells and axes with them, unless an item is lit)
+        if (focus.some(r => inside(b, r)))
+            return;
+        b.anchors.forEach(a => { const q = b.bubbles.find(v => v.id === a.id); if (q)
+            q.dim = !focus.some(r => inside(a, r)); });
+        for (const q of b.bubbles)
+            if (q.dim === undefined)
+                q.dim = true;
+        b.dim = b.bubbles.every(q => q.dim);
+    }
+    else if (b.type === 'chevron' || b.type === 'funnel' || b.type === 'cycle' || b.type === 'venn' || b.type === 'concentric' || b.type === 'emblem') {
+        b.dim = !focus.some(r => b.anchors.some(a => inside(a, r)) || inside(b, r));
+    }
+    else if (b.type === 'row' || b.type === 'grid') {
+        for (const c of b.children)
+            c.dim = !focus.some(r => inside(c, r));
+        b.dim = b.children.every(c => c.dim);
+    }
+    else
+        b.dim = !focus.some(r => inside(b, r));
+}
+/** Adds the internal dim flag after geometry is fixed; coordinates and existing diagrams stay untouched. */
+export function applySpotlight(d) {
+    const written = spotlightIds(d);
+    if (!written.length)
+        return;
+    // ADR 0012: a scoped band's items are `scope.id`. A bare id that only one scoped item answers to means that item (and one several answer to throws).
+    const scopes = scopesOfLaidOut(d);
+    const ids = scopes.byBare.size ? written.map(id => resolveAnchor(scopes, id, n => targetRects(d, [n]).length > 0) ?? id) : written;
+    const found = ids.map(id => targetRects(d, [id]));
+    const missing = written.filter((_id, i) => !found[i]?.length);
+    if (missing.length) {
+        // a node of a self-placing figure is an anchor for connect(), but the figure is dimmed or lit as a whole
+        const figureOf = (id) => d.laidOut.find(b => b.type !== 'bars' && b.type !== 'image' && 'anchors' in b && b.anchors.some(a => qualify(scopeOf(b), a.id) === id));
+        const inFigure = missing.find(id => figureOf(id));
+        if (inFigure)
+            throw new Error(`diagram({spotlight}): "${inFigure}" is a node inside a figure; spotlight lights a whole figure, so give the figure an {id} and spotlight that`);
+        throw new Error(`diagram({spotlight}): unknown anchor id${missing.length > 1 ? 's' : ''} "${missing.join('", "')}"`);
+    }
+    const focus = found.flat();
+    d.laidOut.forEach(b => dimBand(b, focus));
+    const findId = (id) => {
+        for (const b of d.laidOut) {
+            const scope = scopeOf(b);
+            if ('id' in b && 'h' in b && (b.type === 'box' ? qualify(scope, b.id ?? '') : b.id) === id)
+                return b;
+            if (b.type === 'chart') {
+                const a = b.anchors.find(x => qualify(scope, x.id) === id);
+                if (a)
+                    return a;
+            }
+            if (b.type === 'row' || b.type === 'grid') {
+                const c = b.children.find(x => x.id === id);
+                if (c)
+                    return c;
+            }
+            if (b.type === 'bars' || b.type === 'image' || b.type === 'quadrant') {
+                const a = b.anchors.find(x => qualify(scope, x.id) === id);
+                if (a)
+                    return a;
+            }
+        }
+        return undefined;
+    };
+    const endpointIsFocused = (id) => ids.includes(id) || focus.some(r => {
+        const hit = findId(id);
+        return !!hit && inside(hit, r);
+    });
+    const between = spotlightEdges(d) === 'between';
+    for (const c of d.connects) {
+        const from = endpointIsFocused(c.fromId), to = endpointIsFocused(c.toId);
+        c.dim = between ? !(from && to) : !(from || to);
+    }
+}

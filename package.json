@@ -32,8 +32,7 @@
     "lint": "biome lint .",
     "build": "tsc -p tsconfig.build.json && pnpm run build:assets",
     "build:assets": "mkdir -p dist/lib/deck-viewer dist/lib/pptx/template && cp lib/deck-viewer/*.js lib/deck-viewer/*.css dist/lib/deck-viewer/ && cp -R lib/pptx/template/. dist/lib/pptx/template/",
-    "release": "bash scripts/release.sh",
-    "prepack": "rm -rf dist && tsc -p tsconfig.build.json && pnpm run build:assets"
+    "release": "bash scripts/release.sh"
   },
   "license": "MIT",
   "repository": {

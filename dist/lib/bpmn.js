@@ -1,0 +1,338 @@
+// bpmn(): a business flow in lanes (pools' lanes), BPMN-style: tasks, start / end events and gateways (exclusive, parallel,
+// inclusive), joined by sequence flows (solid) and message flows (dashed). Lanes are given; the columns come from the flow
+// (graph-layout.ts layoutLayered, used for the layer of each node), the rows from the lane. Only the shapes and flow rules
+// that most flow diagrams use are here — not the whole standard.
+import { textWidth } from './atoms.js';
+import { layoutLayered } from './graph-layout.js';
+import { routeClear } from './orthogonal-route.js';
+import { measureNode, narrowField, nodeRuns } from './tree.js';
+import { wrapText } from './wrap.js';
+import { must } from './must.js';
+const LABEL_COL = 120, PAD_Y = 22, COL_GAP = 52, EVENT = 36, GATE = 44, TASK_MAX = 168, LABEL_MAX = 120, STUB = 16, CHIP_PAD = 5;
+const TASK_ICON = 20, ICON_H = TASK_ICON + 4; // an icon above a task's label: its size and the room it takes
+const lineH = (s) => Math.round(s * 1.4);
+const isEvent = (k) => k === 'start' || k === 'end';
+const isGate = (k) => k === 'xor' || k === 'and' || k === 'or';
+export const BPMN_KINDS = ['task', 'start', 'end', 'xor', 'and', 'or'];
+export function bpmnTexts(band, roles) {
+    const out = [];
+    for (const l of band.lanes)
+        out.push([l.label, roles.body, 700, 'sans']);
+    for (const n of band.nodes)
+        out.push([n.label ?? '', roles.body, (n.kind ?? 'task') === 'task' ? 700 : 400, 'sans'], [n.sub ?? '', roles.note, 400, 'sans']);
+    for (const f of band.flows)
+        if (f.label)
+            out.push([f.label, roles.note, 400, 'sans']);
+    return out;
+}
+/** fit: 'shrink' tries these in order until the figure fits: narrower lane-name column, tighter column gaps, narrower task boxes. */
+const SHRINK_STEPS = [
+    { labelCol: LABEL_COL, colGap: COL_GAP, taskMax: TASK_MAX, flowRoom: 2 * STUB },
+    { labelCol: 96, colGap: 36, taskMax: 140, flowRoom: STUB },
+    { labelCol: 80, colGap: 28, taskMax: 116, flowRoom: 0 },
+    { labelCol: 64, colGap: 22, taskMax: 96, flowRoom: null },
+    { labelCol: 64, colGap: 16, taskMax: 80, flowRoom: null },
+];
+export function layoutBpmn(band, x, y, w, widthOf, roles, env) {
+    const steps = band.fit === 'shrink' ? SHRINK_STEPS : SHRINK_STEPS.slice(0, 1);
+    for (const m of steps.slice(0, -1)) {
+        const out = layoutBpmnAt(band, x, y, w, widthOf, roles, env, m, false);
+        if (out)
+            return out;
+    }
+    return layoutBpmnAt(band, x, y, w, widthOf, roles, env, must(steps[steps.length - 1]), true);
+}
+function layoutBpmnAt(band, x, y, w, widthOf, roles, env, metrics, final) {
+    const { labelCol: LABEL_COL, taskMax: TASK_MAX, flowRoom } = metrics, COL_GAP = Math.round(metrics.colGap * (env.space ?? 1));
+    const B = roles.body, S = roles.note;
+    const laneIdx = new Map(band.lanes.map((l, i) => [l.id, i]));
+    if (laneIdx.size !== band.lanes.length)
+        throw new Error('bpmn(): duplicate lane id');
+    const ids = new Set();
+    for (const n of band.nodes) {
+        if (typeof n.id !== 'string' || !n.id)
+            throw new Error('bpmn(): every node needs an id');
+        if (ids.has(n.id))
+            throw new Error(`bpmn(): duplicate node id "${n.id}"`);
+        ids.add(n.id);
+        if (!laneIdx.has(n.lane))
+            throw new Error(`bpmn(): node "${n.id}" uses unknown lane "${n.lane}"`);
+        const k = n.kind ?? 'task';
+        if (!BPMN_KINDS.includes(k))
+            throw new Error(`bpmn(): node "${n.id}" has kind ${String(k)} (use ${BPMN_KINDS.join(' | ')})`);
+        if (k === 'task' && !(n.label ?? '').trim())
+            throw new Error(`bpmn(): task "${n.id}" needs a label`);
+        if ((n.icon !== undefined || n.iconTone !== undefined) && k !== 'task')
+            throw new Error(`bpmn(): node "${n.id}" is a ${k} event/gateway; only a task takes an icon`);
+        if (n.iconTone !== undefined && n.icon === undefined)
+            throw new Error(`bpmn(): node "${n.id}" has iconTone but no icon`);
+    }
+    for (const f of band.flows)
+        for (const e of [f.from, f.to])
+            if (!ids.has(e))
+                throw new Error(`bpmn(): flow ${f.from} -> ${f.to} names unknown node "${e}"`);
+    const kindOf = new Map(band.nodes.map(n => [n.id, n.kind ?? 'task']));
+    for (const f of band.flows) {
+        if (kindOf.get(f.to) === 'start')
+            throw new Error(`bpmn(): flow ${f.from} -> ${f.to}: a start event takes no flow into it (a message start event is not drawn; start from a task instead)`);
+        if (kindOf.get(f.from) === 'end')
+            throw new Error(`bpmn(): flow ${f.from} -> ${f.to}: an end event has no flow out of it`);
+    }
+    const meas = new Map();
+    for (const n of band.nodes) {
+        const k = must(kindOf.get(n.id)); // kindOf has every node
+        if (k === 'task') {
+            const m = measureNode(must(n.label), n.sub, TASK_MAX, widthOf, roles, env.wrap, env.keepWords, { keepWordsCap: 168 - 28 });
+            const h = m.h + (n.icon ? ICON_H : 0);
+            meas.set(n.id, { w: m.w, h, lines: m, label: [], extent: h });
+            continue;
+        }
+        const size = isEvent(k) ? EVENT : GATE;
+        const label = n.label ? wrapText(n.label, { maxWidth: LABEL_MAX, atomWidth: a => widthOf(a, B, 400, 'sans'), mode: env.wrap }) : [];
+        meas.set(n.id, { w: size, h: size, label, extent: size + (label.length ? 4 + label.length * lineH(B) : 0) });
+    }
+    const labelWidth = (m) => Math.max(m.w, ...m.label.map(l => Math.ceil(textWidth(widthOf, l, B, 400))));
+    // columns: the layer of each node along the flow (starts first)
+    const lay = layoutLayered(band.nodes.map(n => ({ id: n.id, size: { w: must(meas.get(n.id)).w, h: must(meas.get(n.id)).h } })), band.flows.map(f => ({ from: f.from, to: f.to })), { start: band.nodes.filter(n => kindOf.get(n.id) === 'start').map(n => n.id), tighten: false });
+    const nLayers = Math.max(...[...lay.layers.values()]) + 1;
+    const colW = Array.from({ length: nLayers }, () => 0);
+    for (const n of band.nodes) {
+        const c = must(lay.layers.get(n.id)), m = must(meas.get(n.id));
+        colW[c] = Math.max(must(colW[c]), labelWidth(m));
+    }
+    const widestFlow = Math.max(0, ...band.flows.map(f => f.label ? Math.ceil(textWidth(widthOf, f.label, S, 400)) + 2 * CHIP_PAD : 0));
+    const gap = flowRoom === null ? COL_GAP : Math.max(COL_GAP, widestFlow + flowRoom);
+    const colX = [];
+    colW.reduce((a, cw, i) => (colX[i] = a, a + cw + gap), x + LABEL_COL + gap / 2);
+    const total = must(colX[nLayers - 1]) + must(colW[nLayers - 1]) + gap / 2 - x;
+    if (total > w + 0.5) {
+        if (!final)
+            return null;
+        throw new Error(`bpmn(): the figure is ${Math.ceil(total)}px wide but it has ${Math.round(w)}px (${band.fit === 'shrink' ? 'even shrunk; ' : "set fit: 'shrink', "}merge steps, shorten labels, or split the flow into two figures)`);
+    }
+    const width = w;
+    // rows: each lane is as tall as its tallest stack of nodes that share a column
+    const stacks = new Map();
+    for (const n of band.nodes) {
+        const k = `${laneIdx.get(n.lane)}:${lay.layers.get(n.id)}`;
+        stacks.set(k, [...(stacks.get(k) ?? []), n.id]);
+    }
+    const laneLines = band.lanes.map(l => wrapText(l.label, { maxWidth: LABEL_COL - 16, atomWidth: a => widthOf(a, B, 700, 'sans'), mode: env.wrap }));
+    const laneH = band.lanes.map((_, li) => {
+        let h = must(laneLines[li]).length * lineH(B) + 2 * PAD_Y; // the lane's name must fit its row
+        for (const [k, list] of stacks) {
+            if (!k.startsWith(`${li}:`))
+                continue;
+            // a lone shape sits on the lane's centre line (so a flow between lone shapes is straight); its label hangs below
+            if (list.length === 1) {
+                const id = must(list[0]), m = must(meas.get(id)), block = m.extent - m.h;
+                h = Math.max(h, 2 * (m.h / 2 + block));
+            }
+            else
+                h = Math.max(h, list.reduce((s, id, i) => s + must(meas.get(id)).extent + (i ? 16 : 0), 0));
+        }
+        return Math.max(88, h + 2 * PAD_Y, must(laneLines[li]).length * lineH(B) + 2 * PAD_Y);
+    });
+    const laneTop = [];
+    laneH.reduce((a, h, i) => (laneTop[i] = a, a + h), y);
+    const out = {
+        type: 'bpmn', ...(band.fit === 'shrink' ? narrowField(band.nodes.filter(n => kindOf.get(n.id) === 'task').map(n => must(must(meas.get(n.id)).lines).label)) : {}), id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : { until: band.until }), x, y, w: width, h: laneH.reduce((a, b) => a + b, 0),
+        lanes: [], nodes: [], icons: [], edges: [], texts: [], labels: [], anchors: [], labelBoxes: [],
+    };
+    band.lanes.forEach((l, i) => {
+        out.lanes.push({ x, y: must(laneTop[i]), w: width, h: must(laneH[i]), labelW: LABEL_COL, tone: l.tone ?? 'plain' });
+        const lines = must(laneLines[i]);
+        const top = must(laneTop[i]) + must(laneH[i]) / 2 - (lines.length * lineH(B)) / 2;
+        lines.forEach((ln, k) => out.texts.push({ text: ln, x: x + LABEL_COL / 2, y: top + k * lineH(B) + B, size: B, bold: true, muted: false, anchor: 'middle' }));
+    });
+    // place nodes: column centre, stacked and centred in the lane
+    const rect = new Map();
+    for (const [k, list] of stacks) {
+        const li = Number(k.split(':')[0]), c = Number(k.split(':')[1]), first = must(list[0]), top0 = must(laneTop[li]), high = must(laneH[li]);
+        const sum = list.reduce((s, id, i) => s + must(meas.get(id)).extent + (i ? 16 : 0), 0);
+        let ty = list.length === 1 ? top0 + high / 2 - must(meas.get(first)).h / 2 : top0 + (high - sum) / 2;
+        if (list.length > 1 && isGate(must(kindOf.get(first))))
+            ty += must(meas.get(first)).extent - must(meas.get(first)).h; // a gateway's label sits above it
+        const cx = must(colX[c]) + must(colW[c]) / 2;
+        for (const id of list) {
+            const m = must(meas.get(id));
+            rect.set(id, { x: cx - m.w / 2, y: ty, w: m.w, h: m.h });
+            ty += m.extent + 16;
+        }
+    }
+    const eventLabels = []; // the names that hang below events: flows keep off them too
+    const labelOfNode = new Set(); // the nodes' own boxes in labelBoxes (they are checked as rects, not as labels)
+    for (const n of band.nodes) {
+        const r = must(rect.get(n.id)), m = must(meas.get(n.id)), k = must(kindOf.get(n.id));
+        out.nodes.push({ ...r, kind: k, tone: n.tone ?? 'plain' });
+        out.anchors.push({ id: n.id, ...r });
+        const nb = { label: n.label ?? n.id, x: r.x, y: r.y, w: r.w, h: r.h };
+        out.labelBoxes.push(nb);
+        labelOfNode.add(nb);
+        const iconH = n.icon ? ICON_H : 0;
+        if (n.icon)
+            out.icons.push({ node: out.nodes.length - 1, name: n.icon, glyph: must(n.iconGlyph), x: r.x + (r.w - TASK_ICON) / 2, y: r.y + 8, size: TASK_ICON, ...(n.iconTone ? { tone: n.iconTone } : {}) });
+        if (m.lines)
+            out.texts.push(...nodeRuns({ ...r, y: r.y + iconH }, m.lines, roles).map(t => ({ ...t, anchor: 'middle' })));
+        else if (!isGate(k))
+            m.label.forEach((ln, i) => {
+                const tw = Math.ceil(textWidth(widthOf, ln, B, 400)), ty = r.y + r.h + 4 + i * lineH(B) + B;
+                out.texts.push({ text: ln, x: r.x + r.w / 2, y: ty, size: B, bold: false, muted: false, anchor: 'middle' });
+                out.labelBoxes.push({ label: ln, x: r.x + r.w / 2 - tw / 2, y: ty - B, w: tw, h: B + 4 });
+                eventLabels.push({ x: r.x + r.w / 2 - tw / 2, y: ty - B, w: tw, h: B + 4 });
+            });
+    }
+    // flows
+    const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    const segBox = (p, q) => ({ x: Math.min(p.x, q.x) - 1, y: Math.min(p.y, q.y) - 1, w: Math.abs(p.x - q.x) + 2, h: Math.abs(p.y - q.y) + 2 });
+    const through = (pts, skip) => pts.slice(1).some((q, i) => [...rect].some(([id, r]) => !skip.includes(id) && hit(segBox(must(pts[i]), q), r)) || eventLabels.some(r => hit(segBox(must(pts[i]), q), r)));
+    const simplify = (pts) => {
+        const o = [];
+        for (const p of pts)
+            if (!o.length || Math.abs(must(o[o.length - 1]).x - p.x) > 0.01 || Math.abs(must(o[o.length - 1]).y - p.y) > 0.01)
+                o.push(p);
+        return o.filter((p, i) => i === 0 || i === o.length - 1 || !((must(o[i - 1]).x === p.x && p.x === must(o[i + 1]).x) || (must(o[i - 1]).y === p.y && p.y === must(o[i + 1]).y)));
+    };
+    const lane = (id) => must(laneIdx.get(must(band.nodes.find(n => n.id === id)).lane));
+    const colOf = (id) => must(lay.layers.get(id));
+    // when no shape on the list clears the boxes: search the free space (gaps between columns, margins of lanes) for a route
+    const search = (a, b) => {
+        const r = routeClear({
+            from: must(rect.get(a)), to: must(rect.get(b)), boxes: [...rect.values(), ...eventLabels], bounds: { x: x + LABEL_COL, y, w: width - LABEL_COL, h: out.h },
+            others: out.edges.map(e => e.points),
+            xs: colX.flatMap((cx, c) => [cx - gap / 2, cx + must(colW[c]) + gap / 2]),
+            ys: laneTop.flatMap((t, li) => [t + 8, t + must(laneH[li]) - 8]),
+        });
+        return r && simplify(r);
+    };
+    const colSeen = new Map();
+    const pending = [];
+    band.flows.forEach((f, fi) => {
+        const A = must(rect.get(f.from)), Bx = must(rect.get(f.to)), ca = { x: A.x + A.w / 2, y: A.y + A.h / 2 }, cb = { x: Bx.x + Bx.w / 2, y: Bx.y + Bx.h / 2 };
+        const line = f.line === 'dashed' ? 'dashed' : 'solid';
+        let pts;
+        if (f.from === f.to) {
+            pts = [{ x: A.x + A.w, y: ca.y - 8 }, { x: A.x + A.w + 22, y: ca.y - 8 }, { x: A.x + A.w + 22, y: ca.y + 8 }, { x: A.x + A.w, y: ca.y + 8 }];
+        }
+        else if (Bx.x > A.x + A.w - 1) { // forward: out of the right (or the top / bottom vertex of a gateway), into the left
+            const gate = isGate(must(kindOf.get(f.from))), sameRow = Math.abs(ca.y - cb.y) < 1;
+            const k = colSeen.get(colOf(f.to)) ?? 0;
+            colSeen.set(colOf(f.to), k + 1);
+            const xm = Bx.x - STUB - (k % 3) * 8, end = { x: Bx.x, y: cb.y };
+            if (sameRow)
+                pts = [{ x: A.x + A.w, y: ca.y }, end];
+            else if (gate)
+                pts = [{ x: ca.x, y: cb.y < ca.y ? A.y : A.y + A.h }, { x: ca.x, y: cb.y }, end];
+            else
+                pts = [{ x: A.x + A.w, y: ca.y }, { x: xm, y: ca.y }, { x: xm, y: cb.y }, end];
+            pts = simplify(pts);
+            if (through(pts, [f.from, f.to])) { // something stands in the way: run along a lane's edge, turning in a gap between columns
+                const cf = colOf(f.from), ct = colOf(f.to), start = { x: A.x + A.w, y: ca.y };
+                const channels = [must(laneTop[lane(f.to)]) + 8, must(laneTop[lane(f.to)]) + must(laneH[lane(f.to)]) - 8, must(laneTop[lane(f.from)]) + 8, must(laneTop[lane(f.from)]) + must(laneH[lane(f.from)]) - 8];
+                const outs = [A.x + A.w + STUB, must(colX[cf]) + must(colW[cf]) + gap / 2], ins = [Bx.x - STUB, must(colX[ct]) - gap / 2];
+                const tries = channels.flatMap(ch => outs.flatMap(xo => ins.map(xi => simplify([start, { x: xo, y: ca.y }, { x: xo, y: ch }, { x: xi, y: ch }, { x: xi, y: cb.y }, end]))));
+                pts = tries.find(t => !through(t, [f.from, f.to])) ?? search(f.from, f.to) ?? must(tries[0]);
+            }
+        }
+        else { // back (or into the same column): out of the bottom, along under the lane's content, into the bottom
+            // under both ends, and under any node that the run passes beneath and that reaches below them (a tall task between the two)
+            // the legs leave and enter at the centre of the bottom edge; when a node stands in the way (an event under the task, in the same column), they move sideways along the edge
+            const legs = (r, c) => [c, r.x + r.w - 10, r.x + 10, r.x + r.w * 3 / 4, r.x + r.w / 4];
+            const build = (xa, xb) => {
+                let base = Math.max(A.y + A.h, Bx.y + Bx.h);
+                const lo = Math.min(xa, xb), hi = Math.max(xa, xb);
+                for (let moved = true; moved;) {
+                    moved = false;
+                    for (const r of rect.values())
+                        if (r.x < hi && r.x + r.w > lo && r.y < base && r.y + r.h > base) {
+                            base = r.y + r.h;
+                            moved = true;
+                        }
+                }
+                const yb = base + 14 + (fi % 3) * 7;
+                return simplify([{ x: xa, y: A.y + A.h }, { x: xa, y: yb }, { x: xb, y: yb }, { x: xb, y: Bx.y + Bx.h }]);
+            };
+            const under = legs(A, ca.x).flatMap(xa => legs(Bx, cb.x).map(xb => build(xa, xb)));
+            // the other end is in another row (and neither end is a gateway, whose vertices carry its branches and its name): leave by the edge that faces it and enter by the edge that faces back (from above, down into the top), along a channel just beside the target
+            const below = Bx.y >= A.y + A.h, above = Bx.y + Bx.h <= A.y;
+            const faced = (!below && !above) || isGate(must(kindOf.get(f.from))) || isGate(must(kindOf.get(f.to))) ? [] : legs(A, ca.x).flatMap(xa => legs(Bx, cb.x).flatMap(xb => {
+                const ys = below ? [Bx.y - 10, Bx.y - 20, must(laneTop[lane(f.to)]) + 6] : [Bx.y + Bx.h + 10, Bx.y + Bx.h + 20, must(laneTop[lane(f.to)]) + must(laneH[lane(f.to)]) - 6];
+                return ys.map(ych => simplify([{ x: xa, y: below ? A.y + A.h : A.y }, { x: xa, y: ych }, { x: xb, y: ych }, { x: xb, y: below ? Bx.y : Bx.y + Bx.h }]));
+            }));
+            // last resort (a node stands right under and over the source, so no leg can leave by its top or bottom): leave by its side into the gap between columns, run along the target's edge, enter from above / below
+            const cf = colOf(f.from), gapX = [must(colX[cf]) + must(colW[cf]) + gap / 2, must(colX[cf]) - gap / 2];
+            const sided = (!below && !above) || isGate(must(kindOf.get(f.from))) || isGate(must(kindOf.get(f.to))) ? [] : gapX.flatMap((gx, side) => legs(Bx, cb.x).flatMap(xb => {
+                const ys = below ? [Bx.y - 10, Bx.y - 20] : [Bx.y + Bx.h + 10, Bx.y + Bx.h + 20];
+                return ys.map(ych => simplify([{ x: side ? A.x : A.x + A.w, y: ca.y }, { x: gx, y: ca.y }, { x: gx, y: ych }, { x: xb, y: ych }, { x: xb, y: below ? Bx.y : Bx.y + Bx.h }]));
+            }));
+            const tries = [...faced, ...under, ...sided];
+            pts = tries.find(t => !through(t, [f.from, f.to])) ?? search(f.from, f.to) ?? must(tries[0]);
+        }
+        out.edges.push({ from: f.from, to: f.to, line, points: pts });
+        const own = out.edges.length - 1;
+        if (f.label)
+            pending.push(() => {
+                const p0 = must(pts[0]), p1 = must(pts[1]), pn = must(pts[pts.length - 1]), lw = Math.ceil(textWidth(widthOf, must(f.label), S, 400)) + 2 * CHIP_PAD;
+                const horiz = p0.y === p1.y, self = f.from === f.to;
+                // a condition belongs at the start of the flow, beside its first run; then anywhere beside the flow, nearest first
+                const near = self ? [{ x: A.x + A.w + 26 + lw / 2, y: ca.y }, { x: A.x + A.w + 26 + lw / 2, y: ca.y - 24 }]
+                    : horiz ? [{ x: p0.x + 8 + (Math.abs(p1.x - p0.x) - 8) / 2, y: p0.y - 14 }, { x: (p0.x + pn.x) / 2, y: p0.y - 14 }, { x: p0.x + 8 + (Math.abs(p1.x - p0.x) - 8) / 2, y: p0.y + 14 }]
+                        : [{ x: p0.x + 40, y: p1.y > p0.y ? p0.y + 18 : p0.y - 18 }, { x: p0.x - 40, y: p1.y > p0.y ? p0.y + 18 : p0.y - 18 }, { x: p0.x + 30, y: (p0.y + p1.y) / 2 }];
+                const more = pts.slice(1).flatMap((q, i) => { const m = { x: (must(pts[i]).x + q.x) / 2, y: (must(pts[i]).y + q.y) / 2 }; const offs = [[0, -16], [0, 16], [lw / 2 + 8, 0], [-(lw / 2 + 8), 0], [lw / 2 + 8, -16], [-(lw / 2 + 8), 16]]; return offs.map(([ox, oy]) => ({ x: m.x + ox, y: m.y + oy })); });
+                chip(own, must(f.label), [...near, ...more]);
+            });
+    });
+    // chips are white: one on another flow would cut it, so each keeps off every flow but its own, off the nodes and the other chips
+    const chip = (own, text, cands) => {
+        const lw = Math.ceil(textWidth(widthOf, text, S, 400)) + 2 * CHIP_PAD, lh = S + 8;
+        const box = (c) => ({ x: c.x - lw / 2, y: c.y - lh / 2, w: lw, h: lh });
+        // how much a chip at this place is in the way (0 = clear): chips, boxes, names, other flows, the edge of the figure
+        const cost = (b) => out.labels.filter(o => hit(b, o)).length + [...rect.values()].filter(r => hit(b, r)).length + out.labelBoxes.filter(o => hit(b, o) && !labelOfNode.has(o)).length
+            + out.edges.filter((e, k) => k !== own && e.points.slice(1).some((q, m) => hit(b, segBox(must(e.points[m]), q)))).length + (b.x >= x + LABEL_COL && b.x + b.w <= x + width ? 0 : 5);
+        // the listed places first; when all are taken (a chip wider than the gap between two shapes), further above / below and beside, then the least crowded one
+        const wider = cands.flatMap(p => [[0, -lh], [0, lh], [0, -2 * lh], [0, 2 * lh], [lw / 2 + 10, 0], [-(lw / 2 + 10), 0], [lw / 2 + 10, -lh], [-(lw / 2 + 10), lh]].map(([ox, oy]) => ({ x: p.x + ox, y: p.y + oy })));
+        const all = [...cands, ...wider];
+        const c = must(all.find(p => cost(box(p)) === 0) ?? all.reduce((a, p) => (cost(box(p)) < cost(box(a)) ? p : a), must(all[0]))), b = box(c);
+        out.labels.push({ text, ...b, tx: c.x, ty: b.y + S + 2, size: S, edge: own });
+        out.labelBoxes.push({ label: text, ...b });
+    };
+    for (const p of pending)
+        p();
+    // a gateway's label: above or below, to the left or right of its vertex, in the first spot clear of nodes, flows, chips and the lane names
+    for (const n of band.nodes) {
+        const m = must(meas.get(n.id)), r = must(rect.get(n.id));
+        if (!isGate(must(kindOf.get(n.id))) || !m.label.length)
+            continue;
+        const lh = lineH(B), bh = m.label.length * lh, bw = Math.max(...m.label.map(l => Math.ceil(textWidth(widthOf, l, B, 400)))), cx = r.x + r.w / 2;
+        const spots = [
+            { x: cx - bw, y: r.y - 4 - bh, a: 'end' }, { x: cx, y: r.y - 4 - bh, a: 'start' },
+            { x: cx - bw, y: r.y + r.h + 4, a: 'end' }, { x: cx, y: r.y + r.h + 4, a: 'start' },
+        ];
+        const free = (s) => {
+            const b = { x: s.x, y: s.y, w: bw, h: bh };
+            return s.x >= x + LABEL_COL + 2 && s.x + bw <= x + width && s.y >= y && s.y + bh <= y + out.h
+                && ![...rect.values()].some(q => hit(b, q)) && !out.labels.some(q => hit(b, q)) && !out.labelBoxes.some(q => hit(b, q) && !labelOfNode.has(q)) && !out.edges.some(e => e.points.slice(1).some((q2, i) => hit(b, segBox(must(e.points[i]), q2))));
+        };
+        // a flow that leaves the top / bottom vertex runs up / down the line at cx: when every spot touches it, stand 5px clear of it
+        const clear = spots.map(q => ({ ...q, x: q.a === 'end' ? q.x - 5 : q.x + 5 }));
+        // still none: beside the diamond's side vertices, then further above / below; if even those are taken, the least crowded
+        const far = [
+            { x: r.x - 6 - bw, y: r.y + r.h / 2 - bh - 2, a: 'end' }, { x: r.x + r.w + 6, y: r.y + r.h / 2 - bh - 2, a: 'start' },
+            { x: r.x - 6 - bw, y: r.y + r.h / 2 + 2, a: 'end' }, { x: r.x + r.w + 6, y: r.y + r.h / 2 + 2, a: 'start' },
+            ...[1, 2].flatMap(k => [-1, 1].flatMap(sg => clear.map(q => ({ ...q, y: sg < 0 ? r.y - 4 - bh - k * lh : r.y + r.h + 4 + k * lh })))),
+        ];
+        const crowd = (q) => {
+            const b = { x: q.x, y: q.y, w: bw, h: bh };
+            return (q.x >= x + LABEL_COL + 2 && q.x + bw <= x + width && q.y >= y && q.y + bh <= y + out.h ? 0 : 5) + [...rect.values()].filter(o => hit(b, o)).length + out.labels.filter(o => hit(b, o)).length
+                + out.labelBoxes.filter(o => hit(b, o) && !labelOfNode.has(o)).length + out.edges.filter(e => e.points.slice(1).some((q2, i) => hit(b, segBox(must(e.points[i]), q2)))).length;
+        };
+        const more = [...spots, ...clear, ...far];
+        const s = spots.find(free) ?? clear.find(free) ?? far.find(free) ?? more.reduce((a, q) => (crowd(q) < crowd(a) ? q : a), must(more[0]));
+        m.label.forEach((ln, i) => {
+            const tw = Math.ceil(textWidth(widthOf, ln, B, 400)), ty = s.y + i * lh + B;
+            out.texts.push({ text: ln, x: s.a === 'end' ? s.x + bw : s.x, y: ty, size: B, bold: false, muted: false, anchor: s.a });
+            out.labelBoxes.push({ label: ln, x: s.a === 'end' ? s.x + bw - tw : s.x, y: ty - B, w: tw, h: B + 4 });
+        });
+    }
+    return out;
+}

@@ -1,0 +1,515 @@
+// The thinking processes of the Theory of Constraints (Goldratt).
+//  causeTree(): entities and cause -> effect arrows that place themselves (graph-layout.ts layoutLayered), causes at the bottom and
+//               effects at the top by default. Current / Future Reality Tree, Prerequisite Tree and Transition Tree are all this
+//               figure: an arrow across an AND arc means "together", separate arrows mean "either".
+//  cloud():     the Evaporating Cloud: five boxes in a fixed place (A the common objective, B and C the needs, D and D' the
+//               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
+import { textWidth } from './atoms.js';
+import { andClashes } from './cause-clash.js';
+import { routesThroughNodes } from './verify-base.js';
+import { causeCrossings } from './cause-hop.js';
+import { fitLayout } from './fit-width.js';
+import { scoreOf } from './polyline-metrics.js';
+import { gapFor, layeredAttempt } from './layered-route.js';
+import { measureNode, nodeRuns } from './tree.js';
+import { wrapText } from './wrap.js';
+import { must } from './must.js';
+// ---- cause tree -------------------------------------------------------------------------------------------------------------
+const GAP = 28, LEVEL = 64, PORT = 22; // PORT: the step between the arrows that meet one side of an entity (the arrowheads of an AND stay apart)
+/** The arc across the arrows of an AND: where its ends and its middle are, as distances from the arrowheads' tips. */
+/** The 中核 badge (ADR 0015 D4): its height and its gap to the frame; emit-figures draws it, the layout keeps the room. */
+export const CORE_BADGE_H = 22, CORE_BADGE_W = 44, CORE_BADGE_GAP = 2;
+const AND_END = 21, AND_PEAK = 15, AND_REACH = 10;
+/** What a role looks like when the node gives no tone. `double`: the box has a second outline (the finding of the figure). */
+export const CAUSE_ROLES = {
+    effect: { tone: 'plain' },
+    ude: { tone: 'danger' },
+    root: { tone: 'accent', double: true },
+    de: { tone: 'new' },
+    injection: { tone: 'changed' },
+    goal: { tone: 'accent', double: true },
+    obstacle: { tone: 'plain' }, // drawn as a hexagon
+    io: { tone: 'new' },
+    action: { tone: 'changed' },
+    start: { tone: 'accent', double: true },
+    step: { tone: 'plain' },
+    risk: { tone: 'danger' }, // drawn as a hexagon
+    measure: { tone: 'changed' },
+    precondition: { tone: 'removed' }, // a fact of the present nobody controls: the grey dashed box
+    tipping: { tone: 'danger', double: true }, // where a negative branch tips over (ADR 0020 D1)
+    trim: { tone: 'changed', dashed: true }, // the injection that cuts a negative branch: a dashed box
+    need: { tone: 'solid' }, // an input of a transition tree's unit (current reality + need + action): the filled box, so that it is not the pale box of an io (ADR 0020 D2)
+};
+export function causeTexts(band, roles) {
+    const out = [];
+    for (const n of band.nodes)
+        out.push([n.label, roles.body, 700, 'sans'], [n.sub ?? '', roles.note, 400, 'sans']);
+    return out;
+}
+const swap = (p) => ({ x: p.y, y: p.x });
+/** The ids a link's `from` names, as a list. */
+export const causesOf = (l) => typeof l.from === 'string' ? [l.from] : [...l.from];
+/** Figures whose side-by-side runs were moved aside (ADR 0016 D12/D13): only these can have had an AND crossing cleared that way. */
+const movedAside = new WeakSet();
+/**
+ * A cause tree. When the arrows into an effect with an AND cross each other, or any two arrows cross, the order the entities are written in is tried again
+ * in a few fixed ways (ADR 0019 D4); a figure with no crossing is never touched. Only a cause tree (not pdpc() / relationDiagram()).
+ */
+export function layoutCauseBand(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound = false) {
+    const out = layoutCauseBandAt(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound);
+    if (env.space === undefined || env.space === 1)
+        return out;
+    // `density: 'compact'` must not make an arrow run through a box (the check calls that an error): the narrower gaps between the layers can do that, so this band is drawn at the normal gaps then
+    const through = (t) => routesThroughNodes(t.edges, t.anchors, () => '').length;
+    const bad = through(out);
+    if (bad === 0)
+        return out;
+    // the normal gaps may not fit the width or the height that the compact figure fits: the compact figure stays then (the check says what is wrong with it)
+    try {
+        const normal = layoutCauseBandAt(band, x, y, w, widthOf, roles, { ...env, space: 1 }, heightBudget, canvasBound);
+        if (through(normal) < bad) {
+            normal.densityRestored = true;
+            return normal;
+        }
+        return out;
+    }
+    catch {
+        return out;
+    }
+}
+function layoutCauseBandAt(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound = false) {
+    const first = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound);
+    // the search is for a figure whose AND arrows cross as first laid out: judged before the side-by-side runs are moved aside (ADR 0016 D12/D13), which also clears crossings
+    // a crossing of any two arrows also starts it: the order only wins when it is strictly better in (AND crossings, AND side-by-side, crossings, bends)
+    if (band.base !== undefined || (crossingsOf_(first) === 0 && scoreOf(first.edges.map(e => e.points)).crossings === 0 && (!movedAside.has(first) || crossingsOf_(layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, undefined, true)) === 0)))
+        return first;
+    const ids = band.nodes.map(n => n.id);
+    // The search scores the figures without the detours of the long arrows (route-search.ts: slow, and the search lays a figure out up to MAX_ORDERS times); the order it
+    // finds is laid out once more with them, and replaces the first figure only if it is strictly better in the same score.
+    const base = band.straighten === false ? first : layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, undefined, false, true);
+    // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
+    const orders = [[...ids].reverse(), ...Array.from({ length: Math.min(ids.length - 1, 6) }, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
+    const axisOf = (t) => t.nodes.map(n => band.dir === 'left' || band.dir === 'right' ? n.x : n.y);
+    const baseAxis = axisOf(base);
+    let best = base, bestScore = scoreOfCause(base), bestOrder;
+    // then more orders when the fixed ones left a crossing: shuffles from a fixed seed (the same figure always gets the same answer), then swaps of two neighbours of the best order so far.
+    // `straighten: false` keeps to the fixed ones (it is the way back to the old figure)
+    const queue = [...orders], seen = new Set([ids.join('\u0000'), ...orders.map(o => o.join('\u0000'))]);
+    const add = (o) => { const k = o.join('\u0000'); if (!seen.has(k)) {
+        seen.add(k);
+        queue.push(o);
+    } };
+    if (band.straighten !== false) {
+        let seed = 20260417 + ids.length;
+        const rand = (n) => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed % n; };
+        for (let k = 0, n = Math.min(24, ids.length * 3); k < n; k++) {
+            const o = [...ids];
+            for (let i = o.length - 1; i > 0; i--) {
+                const j = rand(i + 1);
+                const oi = must(o[i]);
+                o[i] = must(o[j]);
+                o[j] = oi;
+            }
+            add(o);
+        }
+    }
+    let tried = 0, lastBetter = 0, polished = false;
+    while (queue.length || (!polished && band.straighten !== false)) {
+        if (!queue.length) { // swaps of two neighbours of the best order, once the shuffles are done
+            polished = true;
+            if (bestScore[0] === 0 && bestScore[1] === 0 && bestScore[2] === 0)
+                break; // nothing crosses: only bends are left
+            for (let i = 0; i + 1 < (bestOrder ?? ids).length; i++) {
+                const o = [...(bestOrder ?? ids)];
+                const oi = must(o[i]);
+                o[i] = must(o[i + 1]);
+                o[i + 1] = oi;
+                add(o);
+            }
+            continue;
+        }
+        // give up when nothing has got better for a while (counted in the orders tried, the ones set aside too: each is a layout): sooner once no AND arrows cross
+        if (++tried > MAX_ORDERS || tried - lastBetter > (bestScore[0] === 0 ? PATIENCE_QUIET : PATIENCE))
+            break;
+        const order = must(queue.shift());
+        let t;
+        try {
+            t = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, false, true);
+        }
+        catch {
+            continue;
+        }
+        // the same layers (a different order must not change which edge of a cycle is cut, or fold the figure), the same size limits, no AND the first drew left undrawn
+        if (axisOf(t).some((v, i) => Math.abs(v - must(baseAxis[i])) > 0.5) || t.h > base.h + 0.5 || t.loose.length > base.loose.length)
+            continue;
+        if (t.fitApplied?.length !== base.fitApplied?.length)
+            continue;
+        const score = scoreOfCause(t);
+        if (lexLess(score, bestScore)) {
+            best = t;
+            bestScore = score;
+            bestOrder = order;
+            lastBetter = tried;
+            if (polished) {
+                queue.length = 0;
+                polished = false;
+            }
+        }
+    }
+    if (band.straighten === false)
+        return best;
+    let found;
+    if (bestOrder)
+        try {
+            found = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, bestOrder);
+        }
+        catch {
+            found = undefined;
+        }
+    // the best of: the first figure, the best order with the detours, the best figure without them (the one the search judged; the base itself when no order beat it): the first one wins a tie.
+    // The detours can make AND arrows cross (they are judged by the whole figure's crossings), so the figure without them must stay a candidate
+    // the same frame as the figures the search compared (the plain ones: the detours may have made `first` lower than any order would be without them)
+    const sameFrame = (t) => axisOf(t).every((v, i) => Math.abs(v - must(baseAxis[i])) <= 0.5) && t.h <= base.h + 0.5 && t.loose.length <= base.loose.length && t.fitApplied?.length === base.fitApplied?.length;
+    let pick = first, pickScore = scoreOfCause(first);
+    for (const t of [found, best]) {
+        if (!t || !sameFrame(t))
+            continue;
+        const sc = scoreOfCause(t);
+        if (lexLess(sc, pickScore)) {
+            pick = t;
+            pickScore = sc;
+        }
+    }
+    return pick;
+}
+/** The most orders the search tries for one figure. */
+const MAX_ORDERS = 60;
+/** How many orders in a row may fail to get better before the search stops (with and without AND arrows crossing). */
+const PATIENCE = 30, PATIENCE_QUIET = 14;
+const crossingsOf_ = (t) => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
+/** (arrows of an AND that cross, arrows of an AND that run side by side, crossings, bends): smaller is better, in this order. */
+const scoreOfCause = (t) => { const s = scoreOf(t.edges.map(e => e.points)); return [crossingsOf_(t), andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses').length, s.crossings, s.bends]; };
+const lexLess = (a, b) => { for (let i = 0; i < a.length; i++) {
+    const x = a[i], y = b[i];
+    if (x !== y)
+        return x !== undefined && y !== undefined && x < y;
+} return false; };
+export function layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound = false, anotherOrder, plainRoutes = false, noDetour = false) {
+    const ids = new Set();
+    for (const n of band.nodes) {
+        if (typeof n.id !== 'string' || !n.id)
+            throw new Error('causeTree(): every node needs an id');
+        if (typeof n.label !== 'string' || !n.label.trim())
+            throw new Error(`causeTree(): node "${n.id}" needs a label`);
+        if (ids.has(n.id))
+            throw new Error(`causeTree(): duplicate node id "${n.id}"`);
+        ids.add(n.id);
+    }
+    // one arrow per cause of a link; an AND (several causes) is a group, remembered by its effect
+    const arrows = [];
+    const groups = [];
+    const pairs = new Set();
+    for (const l of band.links) {
+        const froms = causesOf(l);
+        if (!froms.length)
+            throw new Error(`causeTree(): a link to "${l.to}" has no cause`);
+        if (!ids.has(l.to))
+            throw new Error(`causeTree(): a link names unknown node "${l.to}"`);
+        if (l.back !== undefined && (l.back !== true || typeof l.from !== 'string'))
+            throw new Error(`causeTree(): link to "${l.to}" has back: true with ${typeof l.from === 'string' ? `back ${String(l.back)}` : 'a list of causes (an AND)'}; a return is one arrow from one cause`);
+        const group = froms.length > 1 ? { to: l.to, arrows: [] } : undefined;
+        for (const f of froms) {
+            if (!ids.has(f))
+                throw new Error(`causeTree(): link ${f} -> ${l.to} names unknown node "${f}"`);
+            if (f === l.to)
+                throw new Error(`causeTree(): "${f}" cannot be its own cause`);
+            if (pairs.has(`${f}\u0000${l.to}`))
+                throw new Error(`causeTree(): link ${f} -> ${l.to} is written twice`);
+            pairs.add(`${f}\u0000${l.to}`);
+            const k = arrows.push({ from: f, to: l.to, line: l.kind === 'blocks' ? 'dashed' : l.line ?? 'solid', ...(l.back ? { back: true } : {}), ...(l.kind === 'blocks' ? { blocks: true } : {}) }) - 1;
+            group?.arrows.push(k);
+        }
+        if (group)
+            groups.push(group);
+    }
+    // the last run of each arrow of an AND, when they can carry one arc (see below): the arrows arrive on one side, all heading the
+    // same way, with room before the head for the arc
+    const andEnds = (g, pointsOf) => {
+        const ends = g.arrows.map(pointsOf).map(p => ({ tip: must(p.at(-1)), prev: must(p.at(-2)) }));
+        const first = must(ends[0]);
+        const sgn = (v) => Math.abs(v) < 0.5 ? 0 : Math.sign(v); // a last run a hair off the straight (float noise) is still straight
+        const d = { x: sgn(first.tip.x - first.prev.x), y: sgn(first.tip.y - first.prev.y) };
+        const along = (p) => d.x ? p.x : p.y, cross = (p) => d.x ? p.y : p.x;
+        const aligned = ends.every(e => sgn(e.tip.x - e.prev.x) === d.x && sgn(e.tip.y - e.prev.y) === d.y && Math.abs(along(e.tip) - along(first.tip)) < 1);
+        const room = Math.min(...ends.map(e => Math.abs(along(e.tip) - along(e.prev))));
+        return { ends, d, along, cross, ok: aligned && room >= AND_END + 1 };
+    };
+    // One whole attempt: the node text wrapped at maxW and the layout turned to dir. Everything that depends on either is in here.
+    // ALAP (ADR 0019 D1): the entities where a cause starts stay on the first layer; the input side (preconditions, obstacles, actions) moves up to its effects
+    const layerMode = band.layer ?? (band.tree === 'prt' || band.tree === 'frt' || band.tree === 'tt' || band.tree === 'nbr' ? 'alap' : 'asap');
+    const alap = band.layerFrom === 'effect' ? { keep: [] } : layerMode === 'alap' ? { keep: band.nodes.filter(n => n.role === 'root' || n.role === 'injection' || n.role === 'start').map(n => n.id) } : undefined;
+    // the 中核 badge sits outside the frame, at the end of the axis the arrows run along: the figure keeps that room free at both ends (H7)
+    // above / below a box the badge is CORE_BADGE_H high; beside it, CORE_BADGE_W wide
+    const hasCore = band.nodes.some(n => n.core);
+    const padOf = (vertical) => hasCore ? (vertical ? { x: 0, y: CORE_BADGE_H + CORE_BADGE_GAP } : { x: CORE_BADGE_W + CORE_BADGE_GAP, y: 0 }) : { x: 0, y: 0 };
+    const build = (dir, maxW, floor, fold) => {
+        const vertical = dir === 'up' || dir === 'down', flip = dir === 'up' || dir === 'left';
+        const iw = w - 2 * padOf(vertical).x; // the width the figure itself has: the badge room at both ends of the arrows' axis is kept free
+        const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles, env.wrap, floor)]));
+        // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
+        const order = [], put = (id) => { if (!order.includes(id))
+            order.push(id); };
+        const written = anotherOrder ? anotherOrder.map(id => must(band.nodes.find(n => n.id === id))) : band.nodes; // ADR 0019 D4: another written order
+        for (const n of written) {
+            put(n.id);
+            for (const g of groups)
+                if (g.arrows.some(k => must(arrows[k]).from === n.id))
+                    g.arrows.forEach(k => put(must(arrows[k]).from));
+        }
+        const ranked = order.map(id => must(band.nodes.find(n => n.id === id)));
+        // the most arrows that meet one node (each needs its own lane in the gap beside it)
+        const degreeOf = (id) => Math.max(arrows.filter(a => a.from === id).length, arrows.filter(a => a.to === id).length);
+        const degree = Math.max(1, ...band.nodes.map(n => degreeOf(n.id)));
+        // the side the arrows meet must be long enough to keep their heads apart: a box grows (its text stays centred)
+        const real = new Map(band.nodes.map(n => {
+            const l = must(lines.get(n.id)), need = 12 + (degreeOf(n.id) - 1) * PORT;
+            return [n.id, vertical ? { w: Math.max(l.w, need), h: l.h } : { w: l.w, h: Math.max(l.h, need) }];
+        }));
+        const hexIds = new Set(band.nodes.filter(n => n.role === 'obstacle' || n.role === 'risk').map(n => n.id)); // hexagons: arrows keep to the middle of their side (ADR 0016 D3)
+        const nodes = ranked.map(n => { const rl = must(real.get(n.id)); return { id: n.id, size: vertical ? { w: rl.h, h: rl.w } : rl }; });
+        // layered layout runs on a 'right' axis; a vertical figure is the same layout transposed, an upward / leftward one mirrored
+        const groupIndex = new Map();
+        groups.forEach((g, gi) => g.arrows.forEach(k => groupIndex.set(k, gi)));
+        // the figure's own point of a layout point: set once the size is known (a figure narrower than its band is centred in it)
+        const placeIn = (total) => (p) => {
+            const q = vertical ? swap(p) : { ...p };
+            if (flip) {
+                if (vertical)
+                    q.y = total.h - q.y;
+                else
+                    q.x = total.w - q.x;
+            }
+            return { x: q.x + x + padOf(vertical).x + (iw - total.w) / 2, y: q.y + y + padOf(vertical).y };
+        };
+        const declared = arrows.flatMap((a, k) => a.back ? [k] : []); // the returns the author named: laid out as the way back (index into `arrows`)
+        // the returns that skip layers run in an outer lane: all of them when `returns: 'outer'` (or pdpc's default), the declared ones (`back`) when nothing is written
+        const wanted = band.returns === 'inline' ? undefined : (band.returns ?? band.returnsDefault) === 'outer' ? 'all' : declared.length ? 'declared' : undefined;
+        const attemptWith = (returns) => layeredAttempt(nodes, arrows.map(a => ({ from: a.from, to: a.to })), { dir: 'right', gap: Math.round(GAP * (env.space ?? 1)), levelGap: Math.max(Math.round(LEVEL * (env.space ?? 1)), gapFor(degree, 0, env.space)), ...(declared.length ? { back: declared } : {}), ...(alap ? { alap } : {}), ...(fold === undefined ? {} : { fold }) }, {
+            portStep: PORT, ...(env.space === undefined || env.space === 1 ? {} : { space: env.space }), groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: iw + 0.5, place: placeIn, ...(returns ? { returns } : {}), ...(band.straighten === false ? { straighten: false } : {}), ...(band.straighten === false || noDetour ? {} : { detour: true }), ...(plainRoutes ? { aside: false } : band.straighten === false ? {} : { apart: true }),
+            looseOf: (rts, ly) => {
+                const route = new Map();
+                ly.edges.forEach((e, i) => { if (!e.self)
+                    route.set(e.index, must(rts.get(i))); });
+                return groups.filter(g => !andEnds(g, k => must(route.get(k))).ok).map(g => g.to);
+            },
+        });
+        let attempt = attemptWith(wanted);
+        // not written: the outer lanes give way when they do not fit the width or leave an AND undrawable that the inline run draws
+        if (wanted && band.returns === undefined && attempt.lay.edges.some(e => e.outer)) {
+            const inline = attemptWith(undefined);
+            if (!attempt.fits || attempt.loose.length > inline.loose.length)
+                attempt = inline;
+        }
+        // the attempt's size for the fit includes the badge room at both ends; the figure's own size is taken back out below
+        return { ...attempt, size: { w: attempt.size.w + 2 * padOf(vertical).x, h: attempt.size.h + 2 * padOf(vertical).y }, dir, vertical, flip, lines };
+    };
+    // What may change to make the figure fit (ADR 0010 D1): only what the author left out (`dir`, `maxNodeW`) or gave as 'auto'. A figure
+    // made by pdpc() / relationDiagram() runs 'down' unless told otherwise (`base`) and may also turn to 'right'; a cause tree keeps its axis.
+    const base = band.base ?? 'up';
+    const explicitDir = band.dir !== undefined && band.dir !== 'auto' && !band.dirLeftOut;
+    const start = band.dir === undefined || band.dir === 'auto' ? base : band.dir;
+    // a why-why tree (layerFrom: 'effect') is never folded: one "why n" on two levels breaks how it reads
+    const fitted = fitLayout({
+        who: band.layerFrom === 'effect' ? 'whyWhyTree()' : 'causeTree()', w, start, keepWords: env.keepWords, ...(band.base !== undefined ? { alt: 'right' } : { axisKept: `another axis (a cause tree keeps its direction: ${start})` }),
+        explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined || band.maxNodeW === 'auto' ? {} : { maxNodeW: band.maxNodeW }), ...(band.maxNodeW === 'auto' ? { autoWidth: true } : {}),
+        build, layoutOf: r => ({ lay: r.lay, vertical: r.vertical }), ...(band.base === undefined && band.layerFrom !== 'effect' ? { foldable: true, ...(band.fold === undefined ? {} : { fold: band.fold }) } : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : { heightBudget: heightBudget - (band.maxNodeW === 'auto' && canvasBound ? y : 0) }), // an attempt's size already holds the badge room (see build)
+        ...(band.returns === 'outer' ? { notTried: ["returns: 'inline' (returns is written: 'outer')"] } : {}),
+    });
+    const attempt = fitted.result, { lines, vertical, flip } = attempt, fitApplied = fitted.applied;
+    const { lay, routes } = attempt;
+    const pad = padOf(vertical), total = { w: attempt.size.w - 2 * pad.x, h: attempt.size.h - 2 * pad.y };
+    const dx = x + pad.x + (w - 2 * pad.x - total.w) / 2, dy = y + pad.y;
+    const rectOf = (id) => {
+        const p = must(lay.nodes.get(id)), q = vertical ? { x: p.y, y: p.x, w: p.h, h: p.w } : { x: p.x, y: p.y, w: p.w, h: p.h };
+        if (flip) {
+            if (vertical)
+                q.y = total.h - (q.y + q.h);
+            else
+                q.x = total.w - (q.x + q.w);
+        }
+        return { x: q.x + dx, y: q.y + dy, w: q.w, h: q.h };
+    };
+    const out = {
+        type: 'cause', id: band.id, reveal: band.reveal, ...(band.unanchored ? { unanchored: band.unanchored } : {}), ...(band.until === undefined ? {} : { until: band.until }), x, y, w, h: total.h + 2 * pad.y,
+        nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
+        ...(fitApplied.length ? { fitApplied } : {}), ...(band.tree === 'nbr' ? { nbr: { vertical } } : {}),
+    };
+    if (attempt.asided)
+        movedAside.add(out);
+    for (const n of band.nodes) {
+        const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
+        out.nodes.push({ ...r, tone: n.tone ?? role.tone, ...(role.double ? { double: true } : {}), ...(role.dashed ? { dashed: true } : {}), ...(n.core ? { core: true } : {}), ...(n.role === 'obstacle' || n.role === 'risk' ? { hex: true } : {}) });
+        out.anchors.push({ id: n.id, ...r }); // all of them: verify and connect() routing read this list (an unanchored entity is only left out of the registry, by placedBand)
+        const l = must(lines.get(n.id));
+        out.texts.push(...nodeRuns({ x: r.x + (r.w - l.w) / 2, y: r.y + (r.h - l.h) / 2, w: l.w }, l, roles));
+        out.labelBoxes.push({ label: n.label, ...r });
+    }
+    const drawn = new Map(); // arrow index -> index in out.edges
+    for (const [i, e] of lay.edges.entries()) {
+        if (e.self)
+            continue;
+        drawn.set(e.index, out.edges.length);
+        const ar = must(arrows[e.index]);
+        out.edges.push({ from: e.from, to: e.to, points: must(routes.get(i)), line: ar.line, ...(ar.back ? { back: true } : {}), ...(e.outer ? { outer: true } : {}), ...(ar.blocks ? { kind: 'blocks' } : {}), ...(band.hop && e.reversed ? { reversed: true } : {}) });
+    }
+    // an AND: an arc across the last run of each of its arrows, a little before the arrowheads. It needs the arrows to arrive on
+    // one side of the effect, all heading the same way, with room before the head for the arc
+    for (const g of groups) {
+        const { ends, d, along, cross, ok } = andEnds(g, k => must(out.edges[must(drawn.get(k))]).points);
+        if (!ok)
+            continue;
+        const us = ends.map(e => cross(e.tip)), tip = must(ends[0]).tip;
+        // the arc ends short of the nearest other arrow into this effect (another AND's arc, or an arrow of its own), so two arcs never touch
+        // only an arrow that arrives on the same side: a return on the far side of the effect (or a blocks arrow) is nowhere near the arc, and measuring against it left the arc short of its own arrows
+        const others = out.edges.filter((e, k) => e.to === g.to && !g.arrows.some(a => drawn.get(a) === k) && Math.abs(along(must(e.points.at(-1))) - along(tip)) < 1).map(e => cross(must(e.points.at(-1))));
+        const reachTo = (u, sign) => Math.max(0, Math.min(AND_REACH, ...others.filter(o => (o - u) * sign > 0).map(o => Math.abs(o - u) / 2 - 5)));
+        const lo = Math.min(...us) - reachTo(Math.min(...us), -1), hi = Math.max(...us) + reachTo(Math.max(...us), 1);
+        const at = (u, dist) => d.x ? { x: tip.x - d.x * dist, y: u } : { x: u, y: tip.y - d.y * dist };
+        out.ands.push({ to: g.to, from: g.arrows.map(k => must(arrows[k]).from), p0: at(lo, AND_END), c: at((lo + hi) / 2, 2 * AND_PEAK - AND_END), p1: at(hi, AND_END) });
+    }
+    // ADR 0028: where a return crosses another line, and which of those get a hop (decided here, once; the renderer only draws them)
+    if (band.hop) {
+        const crossings = causeCrossings(out.edges, attempt.dir, { x: out.x, y: out.y, w: out.w, h: out.h }, out.nodes, out.ands, band.hop === 'all');
+        if (crossings.length)
+            out.crossings = crossings;
+    }
+    return out;
+}
+// ---- evaporating cloud ------------------------------------------------------------------------------------------------------
+const KEYS = ['a', 'b', 'c', 'd', 'd2'];
+const LETTER = { a: 'A', b: 'B', c: 'C', d: 'D', d2: "D'" };
+const ARROWS = ['ab', 'ac', 'bd', 'cd', 'dd'];
+const CLOUD_W = 220, CLOUD_GAP_MIN = 110, CLOUD_GAP_MAX = 170, ROW_GAP = 96, LIST_GAP = 28, NUM_GAP = 8;
+const boxText = (k, v) => `${LETTER[k]}：${typeof v === 'string' ? v : v.text}`;
+const injectionText = (t) => `→ ${t}`;
+/** The number of each assumption (in the order written) and, per arrow, the chip text that lists its numbers. */
+function numbering(band) {
+    const by = {};
+    (band.assumptions ?? []).forEach((a, i) => (by[a.on] ??= []).push(i + 1));
+    return { chip: Object.fromEntries(Object.entries(by).map(([k, v]) => [k, v.join(',')])), n: (band.assumptions ?? []).map((_, i) => i + 1) };
+}
+export function cloudTexts(band, roles) {
+    const out = [];
+    for (const k of KEYS)
+        out.push([boxText(k, band[k]), roles.body, 700, 'sans']);
+    const num = numbering(band);
+    for (const t of Object.values(num.chip))
+        out.push([t, roles.note, 400, 'sans']);
+    for (const i of num.n)
+        out.push([`${i}.`, roles.note, 400, 'sans']);
+    for (const a of band.assumptions ?? [])
+        out.push([a.text, roles.note, 400, 'sans'], ...(a.injection ? [[injectionText(a.injection), roles.note, 400, 'sans']] : []));
+    if (band.conflictLabel)
+        out.push([band.conflictLabel, roles.note, 400, 'sans']);
+    return out;
+}
+export function layoutCloudBand(band, x, y, w, widthOf, roles, env) {
+    const S = roles.note, maxW = band.maxNodeW ?? CLOUD_W;
+    const ids = new Set();
+    for (const k of KEYS) {
+        const v = band[k], text = typeof v === 'string' ? v : v?.text;
+        if (typeof text !== 'string' || !text.trim())
+            throw new Error(`cloud(): box ${LETTER[k]} needs a text`);
+        const id = typeof v === 'string' ? undefined : v.id;
+        if (id !== undefined) {
+            if (ids.has(id))
+                throw new Error(`cloud(): duplicate box id "${id}"`);
+            ids.add(id);
+        }
+    }
+    for (const a of band.assumptions ?? []) {
+        if (!ARROWS.includes(a.on))
+            throw new Error(`cloud(): an assumption sits on ${ARROWS.map(k => `'${k}'`).join(', ')} (got ${String(a.on)})`);
+        if (typeof a.text !== 'string' || !a.text.trim())
+            throw new Error('cloud(): every assumption needs a text');
+    }
+    const colW = Math.min(maxW, Math.floor((w - 2 * CLOUD_GAP_MIN) / 3));
+    if (colW < 120)
+        throw new Error(`cloud(): the figure has ${Math.round(w)}px, too narrow for five boxes and the arrows between them (needs ${3 * 120 + 2 * CLOUD_GAP_MIN}px)`);
+    const lines = Object.fromEntries(KEYS.map(k => [k, measureNode(boxText(k, band[k]), undefined, colW, widthOf, roles, env.wrap, env.keepWords, { keepWords: false })]));
+    const boxW = Math.max(...KEYS.map(k => lines[k].w)), H = Math.max(lines.b.h, lines.c.h, lines.d.h, lines.d2.h), hA = lines.a.h;
+    const gap = Math.min(CLOUD_GAP_MAX, Math.floor((w - 3 * boxW) / 2)), figW = 3 * boxW + 2 * gap, rowsH = 2 * H + ROW_GAP;
+    const figH = Math.max(rowsH, hA), top = (figH - rowsH) / 2; // a tall A makes the figure taller; the rows stay centred beside it
+    const x0 = x + (w - figW) / 2, x1 = x0 + boxW + gap, x2 = x1 + boxW + gap;
+    const at = {
+        a: { x: x0, y: y + figH / 2 - hA / 2, w: boxW, h: hA }, b: { x: x1, y: y + top, w: boxW, h: H }, c: { x: x1, y: y + top + H + ROW_GAP, w: boxW, h: H },
+        d: { x: x2, y: y + top, w: boxW, h: H }, d2: { x: x2, y: y + top + H + ROW_GAP, w: boxW, h: H },
+    };
+    const defaultTone = { a: 'accent', b: 'plain', c: 'plain', d: 'plain', d2: 'plain' };
+    const out = { type: 'cloud', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : { until: band.until }), x, y, w, h: figH, nodes: [], edges: [], chips: [], texts: [], anchors: [], labelBoxes: [] };
+    for (const k of KEYS) {
+        const v = band[k], r = at[k];
+        out.nodes.push({ ...r, key: k, tone: (typeof v === 'string' ? undefined : v.tone) ?? defaultTone[k], ...(typeof v !== 'string' && v.id ? { id: v.id } : {}) });
+        if (typeof v !== 'string' && v.id)
+            out.anchors.push({ id: v.id, ...r });
+        out.texts.push(...nodeRuns(r, lines[k], roles));
+        out.labelBoxes.push({ label: boxText(k, v), ...r });
+    }
+    // arrows: a need points at the objective, a want at its need ("in order to A we must B, in order to B we must D")
+    const cyB = at.b.y + H / 2, cyC = at.c.y + H / 2, cyA = at.a.y + hA / 2, off = Math.min(12, hA / 2 - 8), midX = at.a.x + boxW + gap / 2;
+    const edge = (arrow, points) => out.edges.push({ arrow, points });
+    edge('ab', [{ x: x1, y: cyB }, { x: midX, y: cyB }, { x: midX, y: cyA - off }, { x: x0 + boxW, y: cyA - off }]);
+    edge('ac', [{ x: x1, y: cyC }, { x: midX, y: cyC }, { x: midX, y: cyA + off }, { x: x0 + boxW, y: cyA + off }]);
+    edge('bd', [{ x: x2, y: cyB }, { x: x1 + boxW, y: cyB }]);
+    edge('cd', [{ x: x2, y: cyC }, { x: x1 + boxW, y: cyC }]);
+    const cx = x2 + boxW / 2, y0 = y + top + H;
+    edge('dd', [{ x: cx, y: y0 }, { x: cx, y: y0 + ROW_GAP * 0.3 }, { x: cx + 10, y: y0 + ROW_GAP * 0.45 }, { x: cx - 10, y: y0 + ROW_GAP * 0.55 }, { x: cx, y: y0 + ROW_GAP * 0.7 }, { x: cx, y: y0 + ROW_GAP }]);
+    // the numbers of the assumptions, in a white chip on their arrow
+    const num = numbering(band), chipH = S + 8;
+    const chipAt = {
+        ab: { x: midX, y: (cyB + cyA - off) / 2 }, ac: { x: midX, y: (cyC + cyA + off) / 2 },
+        bd: { x: (x1 + boxW + x2) / 2, y: cyB }, cd: { x: (x1 + boxW + x2) / 2, y: cyC }, dd: { x: 0, y: y0 + ROW_GAP / 2 },
+    };
+    const chip = (arrow, text, cxm, cym, conflict = false) => {
+        const cw = Math.ceil(textWidth(widthOf, text, S, 400)) + 12;
+        out.chips.push({ text, x: cxm - cw / 2, y: cym - chipH / 2, w: cw, h: chipH, tx: cxm, ty: cym - chipH / 2 + S + 2, size: S, arrow, ...(conflict ? { conflict: true } : {}) });
+    };
+    const widthOfChip = (text) => Math.ceil(textWidth(widthOf, text, S, 400)) + 12;
+    for (const arrow of ARROWS) {
+        const text = num.chip[arrow];
+        if (!text)
+            continue;
+        // beside the zigzag: to its right, or to its left when the right would leave the figure
+        if (arrow === 'dd') {
+            const cw = widthOfChip(text), right = cx + 22 + cw / 2, left = right + cw / 2 > x + w;
+            // a conflict label also sits on the left: the two chips stack (the label above, the numbers below)
+            chip(arrow, text, left ? cx - 22 - cw / 2 : right, chipAt.dd.y + (left && band.conflictLabel ? chipH / 2 + 2 : 0));
+        }
+        else
+            chip(arrow, text, chipAt[arrow].x, chipAt[arrow].y);
+    }
+    // the word on the conflict: a chip left of the zigzag, so verify keeps it clear of the boxes, the arrows and the other chips
+    if (band.conflictLabel) {
+        const cw = widthOfChip(band.conflictLabel);
+        chip('dd', band.conflictLabel, cx - 22 - cw / 2, chipAt.dd.y - (num.chip.dd && cx + 22 + widthOfChip(num.chip.dd) > x + w ? chipH / 2 + 2 : 0), true);
+    }
+    // the list: each assumption by its number, its injection under it
+    const list = band.assumptions ?? [];
+    if (list.length) {
+        const numW = Math.ceil(Math.max(...num.n.map(i => textWidth(widthOf, `${i}.`, S, 400)))) + NUM_GAP, inner = figW - numW, lh = Math.round(S * 1.4);
+        const wrap = (t) => wrapText(t, { maxWidth: inner, atomWidth: a => widthOf(a, S, 400, 'sans'), mode: env.wrap });
+        let ty = y + figH + LIST_GAP;
+        for (const [i, a] of list.entries()) {
+            out.texts.push({ text: `${i + 1}.`, x: x0, y: ty + S, size: S, bold: false, muted: false, anchor: 'start' });
+            for (const [text, tone] of [[a.text, undefined], ...(a.injection ? [[injectionText(a.injection), 'accent']] : [])]) {
+                for (const line of wrap(text)) {
+                    out.texts.push({ text: line, x: x0 + numW, y: ty + S, size: S, bold: false, muted: false, anchor: 'start', ...(tone ? { tone } : {}) });
+                    ty += lh;
+                }
+            }
+            ty += 6;
+        }
+        out.h = ty - 6 - y;
+    }
+    return out;
+}

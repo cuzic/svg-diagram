@@ -1,0 +1,110 @@
+// Which bands a band holds, as typed tables beside the layout handlers, so the walkers that follow nested bands (connect() collection,
+// id lookup, the spotlight, the rules) share one answer instead of each guessing at a `children` property. A band type without an
+// entry fails to compile (ChildBandsOf below), and test/band-registries.test.ts checks the tables at run time.
+import { IMAGE_PAD, imageSize } from './image.js';
+const none = () => [];
+export const CHILD_BANDS = {
+    spacer: none,
+    status: none,
+    group: band => band.children,
+    sequence: none,
+    table: none,
+    image: band => band.children ?? [],
+    timeline: none,
+    bpmn: none,
+    fta: none,
+    bowtie: none,
+    classes: none,
+    gantt: none,
+    cause: none,
+    cloud: none,
+    states: none,
+    tree: none,
+    bars: none,
+    chart: none,
+    people: none,
+    dots: none,
+    math: none,
+    wireframe: none,
+    screens: none,
+    swimlane: none,
+    legend: none,
+    connect: none,
+    raw: none,
+    grouprow: band => band.children,
+    row: band => band.children,
+    grid: band => band.children,
+    pyramid: none,
+    plane: none,
+    quadrant: none,
+    chevron: none,
+    wordart: none,
+    funnel: none,
+    cycle: none,
+    venn: none,
+    concentric: none,
+    emblem: none,
+    curve: none,
+    caption: none,
+    box: none,
+    banner: none,
+};
+/** The bands a band holds as children (none for most types). */
+export function childrenOf(band) {
+    return CHILD_BANDS[band.type](band);
+}
+/** Like childrenOf, plus a swimlane's steps: every band that sits inside another one. */
+export function nestedBandsOf(band) {
+    return band.type === 'swimlane' ? band.steps : childrenOf(band);
+}
+const noStack = () => null;
+export const STACK_WIDTH = {
+    spacer: noStack,
+    status: noStack,
+    group: (band, cw) => cw - 2 * (band.pad ?? 16),
+    sequence: noStack,
+    table: noStack,
+    image: (band, cw) => band.children ? imageSize(band, cw).w - 2 * (band.pad ?? IMAGE_PAD) : null,
+    timeline: noStack,
+    bpmn: noStack,
+    fta: noStack,
+    bowtie: noStack,
+    classes: noStack,
+    gantt: noStack,
+    cause: noStack,
+    cloud: noStack,
+    states: noStack,
+    tree: noStack,
+    bars: noStack,
+    chart: noStack,
+    people: noStack,
+    dots: noStack,
+    math: noStack,
+    wireframe: noStack,
+    screens: noStack,
+    swimlane: noStack,
+    legend: noStack,
+    connect: noStack,
+    raw: noStack,
+    grouprow: noStack,
+    row: noStack,
+    grid: noStack,
+    pyramid: noStack,
+    plane: noStack,
+    quadrant: noStack,
+    chevron: noStack,
+    wordart: noStack,
+    funnel: noStack,
+    cycle: noStack,
+    venn: noStack,
+    concentric: noStack,
+    emblem: noStack,
+    curve: noStack,
+    caption: noStack,
+    box: noStack,
+    banner: noStack,
+};
+/** The width the children of `band` stack at inside a `cw` wide band, or null (see StackWidthTable). */
+export function stackWidthOf(band, cw) {
+    return STACK_WIDTH[band.type](band, cw);
+}

@@ -1,0 +1,188 @@
+// Greedy line-wrapping over pre-measured break atoms (see measure.ts),
+// with basic Japanese kinsoku shori (禁則処理 — line-breaking prohibitions):
+// a line must not START with closing punctuation / small kana, and must not
+// END with opening punctuation.
+//
+// This exists because every hand-authored multi-line label in this deck so
+// far was split into <text> lines by eyeballing character counts, which at
+// least once produced a break in the middle of a word ("独自" / "の表現" —
+// day2-10-conformity-bias.svg, found during design review) instead of at a
+// legal boundary. Wrapping from measured atoms with kinsoku rules applied
+// makes that class of mistake structurally unavailable.
+//
+// Not a full Unicode line-breaking implementation (no hanging punctuation,
+// no JIS X 4051 completeness) — covers the two rules that matter for this
+// deck's short UI-label-style text: don't orphan closing punctuation at a
+// line start, don't strand opening punctuation at a line end.
+import { splitAtoms } from './atoms.js';
+import { must } from './must.js';
+const CANNOT_START_LINE = new Set('、。，．・：；！？」』）〕】〉》ゝゞーぁぃぅぇぉっゃゅょァィゥェォッャュョ'.split(''));
+const CANNOT_END_LINE = new Set('「『（〔【〈《'.split(''));
+const isWhitespace = (atom) => /^\s+$/.test(atom);
+const isHiragana = (atom) => { if ([...atom].length !== 1)
+    return false; const c = must(atom.codePointAt(0)); return c >= 0x3041 && c <= 0x309f; };
+const CLAUSE_END = new Set('、。，．！？'.split(''));
+/** Per atom: does it continue the atom before it (one unit for breaking) because of the script runs ('phrase' / 'bunsetsu') or, in 'bunsetsu', a hiragana that follows a character? */
+function runGlueOf(atoms, mode) {
+    const phrase = mode === 'phrase' || mode === 'bunsetsu';
+    return atoms.map((a, i) => {
+        if (!phrase || i === 0)
+            return false;
+        const prev = must(atoms[i - 1]).text;
+        if (scriptRun(a.text) !== '' && scriptRun(a.text) === scriptRun(prev))
+            return true;
+        return mode === 'bunsetsu' && isHiragana(a.text) && !isWhitespace(prev) && prev !== '\n' && !CLAUSE_END.has(prev);
+    });
+}
+/** The widest unit a text can be broken into under `mode` (at least one atom), for sizing a box that should not split a word; 0 for an empty text. */
+export function longestUnitWidth(atoms, atomWidth, mode) {
+    const glue = runGlueOf(atoms.map(text => ({ text })), mode);
+    let best = 0, cur = 0;
+    atoms.forEach((a, i) => {
+        if (isWhitespace(a) || a === '\n') {
+            best = Math.max(best, cur);
+            cur = 0;
+            return;
+        }
+        cur = glue[i] ? cur + atomWidth(a) : (best = Math.max(best, cur), atomWidth(a));
+    });
+    return Math.max(best, cur);
+}
+// The script run a one-character atom belongs to: 'k' katakana (with ー ・ and half-width kana), 'h' kanji; '' for anything else.
+function scriptRun(atom) {
+    if ([...atom].length !== 1)
+        return '';
+    const c = must(atom.codePointAt(0));
+    if ((c >= 0x30a1 && c <= 0x30ff) || (c >= 0xff66 && c <= 0xff9f))
+        return 'k';
+    if ((c >= 0x4e00 && c <= 0x9fff) || (c >= 0x3400 && c <= 0x4dbf) || c === 0x3005)
+        return 'h';
+    return '';
+}
+// wrapStyledAtoms(atoms, {maxWidth, atomWidth, mode}) -> one atom list per rendered line, so whatever an atom carries (a weight, a
+// tone: see layout.ts styledAtoms) stays with it onto its line. An atom with `glue` belongs to the atom before it (a Latin word
+// that a bold/colour span boundary cut in two): the two are one unit for breaking, so a word is never split between lines;
+// a unit wider than a line is placed whole, as a single overlong atom already was. Trailing whitespace atoms are dropped.
+export function wrapStyledAtoms(atoms, { maxWidth, atomWidth, mode }) {
+    const lines = [];
+    let cur = [];
+    let curWidth = 0;
+    let hardBreakBeforeLast = false; // the last line starts after an explicit \n: its length is the author's
+    let lastLineStart = 0; // index in `atoms` of the first atom of the line being built (the orphan fix needs what stood just before it)
+    // phrase mode: atom i continues atom i-1 when both sit in one katakana / kanji run (until such a unit is wider than a line: then it breaks per character)
+    const runGlue = runGlueOf(atoms, mode);
+    for (let i = 0; i < atoms.length; i++) {
+        const atom = must(atoms[i]);
+        if (atom.text === '\n') {
+            lines.push(cur);
+            cur = [];
+            curWidth = 0;
+            hardBreakBeforeLast = true;
+            continue;
+        } // explicit line break
+        if (isWhitespace(atom.text)) {
+            if (cur.length === 0)
+                continue; // don't start a line with whitespace
+            const w = atomWidth(atom);
+            if (curWidth + w <= maxWidth) {
+                cur.push(atom);
+                curWidth += w;
+            }
+            else {
+                lines.push(cur);
+                cur = [];
+                curWidth = 0;
+            }
+            continue;
+        }
+        let unit = [atom];
+        let j = i;
+        while (j + 1 < atoms.length && (must(atoms[j + 1]).glue || runGlue[j + 1]))
+            unit.push(must(atoms[++j]));
+        let w = unit.reduce((s, a) => s + atomWidth(a), 0);
+        if (w > maxWidth && j > i) {
+            // too long for any line: fall back to the characters (span-glued pieces still stay together)
+            for (let k = i + 1; k <= j; k++)
+                runGlue[k] = false;
+            j = i;
+            unit = [atom];
+            while (j + 1 < atoms.length && must(atoms[j + 1]).glue)
+                unit.push(must(atoms[++j]));
+            w = unit.reduce((s, a) => s + atomWidth(a), 0);
+        }
+        const start = i;
+        i = j;
+        if (cur.length === 0 || curWidth + w <= maxWidth) {
+            if (cur.length === 0)
+                lastLineStart = start;
+            cur.push(...unit);
+            curWidth += w;
+        }
+        else if (CANNOT_START_LINE.has(atom.text)) {
+            // would-be line-start is prohibited punctuation — keep it on the
+            // current (now slightly overflowing) line instead of breaking before it.
+            // A katakana run it opens ('・テスト') is not dragged along: the run starts afresh after it.
+            const cut = unit.findIndex((a, k) => k > 0 && !a.glue);
+            if (cut > 0) {
+                i = i - unit.length + cut; // the next iteration starts at the run's first character
+                runGlue[i + 1] = false;
+                unit = unit.slice(0, cut);
+            }
+            cur.push(...unit);
+            curWidth += unit.reduce((s, a) => s + atomWidth(a), 0);
+        }
+        else {
+            lines.push(cur);
+            cur = unit;
+            curWidth = w;
+            lastLineStart = start;
+            hardBreakBeforeLast = false;
+        }
+    }
+    if (cur.length)
+        lines.push(cur);
+    const runGlued = new Set(atoms.filter((_, k) => runGlue[k])); // still part of a whole katakana / kanji run: the orphan fix must not split it
+    // An orphan: the wrap left a single character alone on the last line ("書いて出" / "す"). Bring the last character of the
+    // line above down with it, so the last line has two. (Not after an explicit line break; not when it would put a prohibited
+    // character at a line start or end, or make the last line wider than the line.)
+    if (lines.length >= 2 && !hardBreakBeforeLast) {
+        const last = must(lines[lines.length - 1]), prev = must(lines[lines.length - 2]);
+        const solo = last.length === 1 && [...must(last[0]).text].length === 1 && !isWhitespace(must(last[0]).text) && !must(last[0]).glue;
+        if (solo) {
+            let at = prev.length - 1;
+            while (at >= 0 && isWhitespace(must(prev[at]).text))
+                at--;
+            // The orphan stood after a space in the source when the atom before it there is white space (a wrap at a space drops it): 'G' + ' ' + 'H', not 'GH'.
+            const sep = atoms[lastLineStart - 1], moved = prev[at], gap = prev.slice(at + 1);
+            const between = gap.length ? gap : (sep && isWhitespace(sep.text) ? [sep] : []);
+            if (moved && at >= 2 && !moved.glue && !prev[at + 1]?.glue && !runGlued.has(moved) && !CANNOT_END_LINE.has(must(prev[at - 1]).text) && !CANNOT_START_LINE.has(moved.text)
+                && atomWidth(moved) + between.reduce((w, a) => w + atomWidth(a), 0) + atomWidth(must(last[0])) <= maxWidth) {
+                prev.length = at; // drops the moved atom and the white space after it ...
+                last.unshift(moved, ...between); // ... which both go to the front of the last line
+            }
+        }
+    }
+    // Second pass: an opening bracket stranded at a line's end gets pulled
+    // forward onto the next line's start instead.
+    for (let i = 0; i < lines.length - 1; i++) {
+        const line = must(lines[i]);
+        const last = line.at(-1);
+        if (last && line.length > 1 && CANNOT_END_LINE.has(last.text)) {
+            line.pop();
+            must(lines[i + 1]).unshift(last);
+        }
+    }
+    for (const line of lines)
+        while (line.length && isWhitespace(must(line[line.length - 1]).text))
+            line.pop();
+    return lines;
+}
+// wrapAtoms(atoms, {maxWidth, atomWidth, mode}) -> string[] (one per rendered line)
+// atomWidth: (atomText) => number, typically from measureAtoms()'s `width`.
+export function wrapAtoms(atoms, { maxWidth, atomWidth, mode }) {
+    return wrapStyledAtoms(atoms.map(text => ({ text })), { maxWidth, atomWidth: a => atomWidth(a.text), mode }).map(line => line.map(a => a.text).join('').trimEnd());
+}
+// Convenience wrapper: wraps a plain string (splitting it into atoms first).
+export function wrapText(text, opts) {
+    return wrapAtoms(splitAtoms(text), opts);
+}

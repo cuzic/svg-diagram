@@ -1,0 +1,89 @@
+// `svg-diagram icons add-pack <dir|zip> --prefix aws --terms <url> --accept-terms` — a vendor's own icon set (AWS Architecture Icons,
+// Azure, Google Cloud, Kubernetes, ...) from files the person downloaded. These come under the vendor's terms, not an open licence:
+// nothing is fetched here, and installing needs the person to say where the terms are and that they read them; both are recorded
+// in the manifest (packs) and printed by `icons notice`.
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { glyphFromSvg, packIconName } from './icon-store.js';
+import { manifestPath, readManifest, withManifestLock, writeManifest } from './icon-install.js';
+import { must } from './must.js';
+function walk(dir, out = []) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+        if (e.name.startsWith('.') || e.name === '__MACOSX')
+            continue;
+        const f = path.join(dir, e.name);
+        if (e.isDirectory())
+            walk(f, out);
+        else if (/\.svg$/i.test(e.name))
+            out.push(f);
+    }
+    return out;
+}
+// among files that name the same icon (one per size), the 48 px one, then the larger ones
+const sizeRank = (f) => { const m = /(?:^|[^\d])(16|24|32|48|64|128|256)(?:px)?(?:[^\d]|$)/.exec(must(f.split('/').at(-1))); const n = m ? Number(m[1]) : 0; return n === 48 ? 0 : n === 0 ? 1 : n > 48 ? 2 + n / 1000 : 3 + (48 - n) / 100; };
+/** The directory to read: the given one, or the contents of a .zip extracted (by the system's `unzip`) into a fresh temp directory. */
+function openSource(src) {
+    const abs = path.resolve(src);
+    if (!fs.existsSync(abs))
+        throw new Error(`${src}: not found`);
+    if (fs.statSync(abs).isDirectory())
+        return { dir: abs, cleanup: () => { } };
+    if (!/\.zip$/i.test(abs))
+        throw new Error(`${src}: give a directory of .svg files, or the vendor's .zip`);
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'icon-pack-'));
+    const r = spawnSync('unzip', ['-q', '-o', abs, '-d', tmp], { encoding: 'utf8' });
+    if (r.error || r.status !== 0) {
+        fs.rmSync(tmp, { recursive: true, force: true });
+        throw new Error(`cannot unzip ${src} (${r.error ? 'the unzip command is not installed' : r.stderr.trim()}) — extract it yourself and give the directory`);
+    }
+    return { dir: tmp, cleanup: () => fs.rmSync(tmp, { recursive: true, force: true }) };
+}
+export function addPack(src, o) {
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(o.prefix))
+        throw new Error(`--prefix "${o.prefix}": lower-case letters, digits and - (like aws, azure, gcp)`);
+    if (!o.list && (!o.terms?.trim() || !o.acceptTerms))
+        throw new Error(`a vendor pack comes under the vendor's own terms, not an open licence. Read them, then install with --terms <where they are (a URL)> --accept-terms — both are recorded in svg-diagram.icons.json`);
+    const { dir, cleanup } = openSource(src);
+    try {
+        const files = walk(dir).map(f => path.relative(dir, f).split(path.sep).join('/')).filter(f => (!o.match || o.match.test(f)) && !(o.exclude?.test(f)));
+        if (!files.length)
+            throw new Error(`no .svg file${o.match ? ` matches ${o.match}` : ''} in ${src}`);
+        if (!o.all && !o.match && !o.list)
+            throw new Error(`${src} has ${files.length} icons (e.g. ${files.slice(0, 3).join(', ')}). Install the ones you need with --match <regex on the path> (like --match "Lambda|EC2|S3"), or everything with --all. --list shows the names.`);
+        // one icon per name: the best size wins
+        const byName = new Map();
+        for (const f of files)
+            byName.set(packIconName(f, o.prefix), [...(byName.get(packIconName(f, o.prefix)) ?? []), f]);
+        const collisions = [];
+        const skipped = {};
+        const got = {};
+        for (const [name, group] of [...byName].sort(([a], [b]) => a.localeCompare(b))) {
+            const best = [...group].sort((a, b) => sizeRank(a) - sizeRank(b) || a.localeCompare(b)), kept = must(best[0]);
+            if (group.length > 1)
+                collisions.push(`${name} (${group.length} files: ${kept} kept)`);
+            try {
+                const g = glyphFromSvg(fs.readFileSync(path.join(dir, kept), 'utf8'), kept, { color: true });
+                got[name] = { ...g, from: `pack:${o.prefix}/${kept}`, license: `vendor:${o.prefix}` };
+            }
+            catch (e) {
+                (skipped[e.message.replace(/^[^:]*: /, '')] ??= []).push(kept);
+            }
+        }
+        const file = manifestPath(o.cwd);
+        if (o.list)
+            return { file, added: Object.keys(got), replaced: [], skipped, collisions, listed: true };
+        return withManifestLock(file, () => {
+            const m = readManifest(file);
+            const replaced = Object.keys(got).filter(n => n in m.icons);
+            Object.assign(m.icons, got);
+            m.packs = { ...(m.packs ?? {}), [o.prefix]: { terms: must(o.terms).trim(), source: path.basename(path.resolve(src)), acceptedAt: o.today ?? new Date().toISOString().slice(0, 10) } };
+            writeManifest(file, m);
+            return { file, added: Object.keys(got).filter(n => !replaced.includes(n)), replaced, skipped, collisions, listed: false };
+        });
+    }
+    finally {
+        cleanup();
+    }
+}
