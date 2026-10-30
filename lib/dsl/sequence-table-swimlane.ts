@@ -64,6 +64,8 @@ export function cell(text: string | number, opts: Omit<TableCellSpec, 'text'> = 
 //                Sides are picked from the lanes/columns: right->left across columns (the vertical leg sits
 //                just before the target, so it never crosses a box in between), bottom<->top within a column.
 //   opts.phases: [{label, from, to}]  — column groups named across the top (a stage, a sprint)
+//   opts.boundaries: [{after: laneId, label?}]  — a heavy dashed line across the boundary after that lane, named in a chip on the label column
+//                (a service blueprint's line of interaction / of visibility / of internal interaction). Not with laneOrder.
 //   opts.labelW: width of the lane-label column (default 128)
 //   opts.laneOrder: 'auto' puts the lanes in the order that makes the hand-offs (opts.flows) shortest; `fixed: true` lanes stay put (lib/lane-order.ts)
 // Returns an array (the lane block followed by its flows); d.add() accepts it directly.
@@ -76,6 +78,18 @@ export function swimlane<
 export function swimlane(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
   const lanes = opts.laneOrder === undefined ? lanesIn : orderLanes(lanesIn, steps, opts);
   for (const l of lanes) assertBoxTone(l.tone, `swimlane() lane "${l.id}"`);
+  if (opts.boundaries?.length) {
+    if (opts.laneOrder !== undefined) throw new Error('swimlane(): boundaries are placed after a lane as given, so they cannot be used with laneOrder');
+    const seenB = new Set<string>();
+    for (const b of opts.boundaries) {
+      const at = lanes.findIndex(l => l.id === b.after);
+      if (at < 0) throw new Error(`swimlane(): boundaries: "${b.after}" is not a lane id`);
+      if (at === lanes.length - 1) throw new Error(`swimlane(): boundaries: "${b.after}" is the last lane, so there is no boundary after it`);
+      if (seenB.has(b.after)) throw new Error(`swimlane(): boundaries: two lines after lane "${b.after}"`);
+      if (b.label !== undefined && !b.label.trim()) throw new Error(`swimlane(): boundaries: the label after lane "${b.after}" is empty`);
+      seenB.add(b.after);
+    }
+  }
   const laneIdx = new Map(lanes.map((l, i) => [l.id, i]));
   let next = 1, cols = 0;
   const placed = steps.map(st => {
@@ -127,7 +141,7 @@ export function swimlane(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: S
     return connectBand(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone}, false);
   });
   if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`swimlane(): fit must be 'shrink' (got ${String(opts.fit)})`);
-  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
+  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, ...(opts.boundaries?.length ? {boundaries: opts.boundaries} : {}), labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
   return withAnchors([block, ...flows], placed.map(st => st.id));
 }
 // A component's states as a grid: one row per part, one column per state.

@@ -75,7 +75,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 - 接続線: `diagram({connectDefaults: {chip: true, route: 'elbow'}})` と `d.connect(from, to, {label})`。
 - ワイヤーフレームの外枠: `diagram({wireframeDefaults: {appbar: {title, nav}}})` と、画面ごとの `shell: {active: '在庫'}`。
 - 状態の一覧: `stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', 空: {na: '理由'}})`。
-- 表の記号セル: `cell('通る', {mark: 'ok' | 'mid' | 'ng' | 'best'})`。座標平面（軸・点・寸法線）は `plane()`。点ラベルは `labelAt` を省くと寸法線・補助線・他ラベルを避けて自動で置く。軸の `categories: [...]` でレーン名を目盛りにできる（`max` は個数 + 1）。Wardley Map は `plane({stages: [...]})` と点の `evolves: {to}`（`examples/wardley-map.ts`）。`raw()` で SVG を手書きする前に、これらを探す。
+- 表の記号セル: `cell('通る', {mark: 'ok' | 'mid' | 'ng' | 'best'})`。座標平面（軸・点・寸法線）は `plane()`。点ラベルは `labelAt` を省くと寸法線・補助線・他ラベルを避けて自動で置く。軸の `categories: [...]` でレーン名を目盛りにできる（`max` は個数 + 1）。Wardley Map は `plane({stages: [...]})` と点の `evolves: {to}`（`examples/wardley-map.ts`）。サービスブループリントは `swimlane` のレーン（物的証拠・顧客の行動・表の業務・裏の業務・支援システム）に `boundaries: [{after, label}]` で相互作用線・可視線・内部相互作用線を引く（`examples/service-blueprint.ts`）。`raw()` で SVG を手書きする前に、これらを探す。
 
 ## 領域別の案内（その図を作るときに開く。入口からは 1 段）
 

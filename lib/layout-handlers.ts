@@ -36,7 +36,7 @@ import type {BoxBand, CaptionBand, BannerBand} from './types/text-bands.ts';
 import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
 import {PALETTE, SHADES, blendLuminance, bestTextColor, paintOf} from './tokens.ts';
 import {
-  BOX_PAD_X, LINE_HEIGHT_EM, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL, STAMP_GAP, STAMP_H, TAG_H,
+  BOX_PAD_X, LINE_HEIGHT_EM, boundaryChipH, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL, STAMP_GAP, STAMP_H, TAG_H,
   groupTitleBand, gridChildGeometry, gridColumns, rowChildGeometry, snapGrid, stampChipW,
 } from './layout-util.ts';
 import {lineWidth} from './layout-text.ts';
@@ -288,12 +288,19 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
     const maxStep = Math.max(0, ...mine.map(s => s.h));
     const rows = 1 + Math.max(0, ...mine.map(s => s.row ?? 0));
     const blockH = rows * maxStep + (rows - 1) * rowGap;
-    const h = Math.max(blockH, labelH) + 2 * padY;
+    // a named boundary below this lane puts a chip across the lane border: the centred lane label leaves room for half of it
+    const chipHalf = boundaryChipH(roles.note) / 2 + 2, nChip = (band.boundaries ?? []).filter(b => b.label && (b.after === lane.id || band.lanes[i - 1]?.id === b.after)).length;
+    const h = Math.max(blockH, labelH + (nChip ? 2 * chipHalf : 0)) + 2 * padY;
     const out = {y, h, labelLines, labelTop: y + (h - labelH) / 2, tone: lane.tone, maxStep, blockTop: y + (h - blockH) / 2};
     y += h;
     return out;
   });
-  const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, ...(band.fit === 'shrink' ? narrowField(stepsPlaced.flatMap(s => s.wrappedRuns.map(r => r.lines))) : {}), id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
+  const boundaries = (band.boundaries ?? []).map(b => {
+    const at = must(laneIndex.get(b.after)), next = must(lanes[at + 1]);
+    if (b.label && wrapLines(b.label, roles.note, 700, labelW - 16).length > 1) throw new Error(`swimlane(): boundaries: "${b.label}" does not fit the ${labelW}px label column on one line — shorten it or widen labelW`);
+    return {y: next.y, ...(b.label ? {label: b.label} : {})};
+  });
+  const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, ...(boundaries.length ? {boundaries} : {}), ...(band.fit === 'shrink' ? narrowField(stepsPlaced.flatMap(s => s.wrappedRuns.map(r => r.lines))) : {}), id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
   const frameScope = scopeOf(band);
   if (frameScope) (frame as unknown as {scope: string}).scope = frameScope;
   ctx.laidOut.push(frame); // before its steps so the lanes draw underneath

@@ -6,6 +6,8 @@ import type {GroupBand, RowBand, GridBand} from './types/containers.ts';
 import type {DiagramData, Roles, WidthOf, Rect} from './types/core.ts';
 import type {CaptionBand} from './types/text-bands.ts';
 
+/** The chip that names a swimlane boundary: one line of `note` text, 3px above and below. */
+export const boundaryChipH = (note: number): number => Math.ceil(note * 1.4) + 6;
 export const LINE_HEIGHT_EM = 1.4;   // vertical spacing between wrapped lines within one text block
 export const BOX_PAD_X = 20;
 export const BOX_PAD_Y = 16;
