@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="482" viewBox="0 0 940 482" role="img" aria-labelledby="svg-title svg-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="461" viewBox="0 0 940 461" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">ミールキット宅配の注文（架空の例）</title>
   <desc id="svg-desc">レーン: 物的証拠、顧客の行動、表の業務（接点）、裏の業務、支援システム。手順: アプリの画面、配達の箱とチラシ、献立を選ぶ、注文を確定する、箱を受け取る、注文を受け付ける、配達員が手渡す、食材を小分けする、在庫・注文の管理</desc>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/service-blueprint.ts","sourceSha256":"16917284d4bdf1cfeab7f8bd933273465caa75cbc3be2e89252f53ccc10ac774"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/service-blueprint.ts","sourceSha256":"a1b399704c8c2588e66de3454794e12a4fa1267aae33e6d5883032bf086a2b8f"}</metadata>
   <defs>
     <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
@@ -11,85 +11,88 @@
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
   </style>
-  <rect x="0" y="0" width="940" height="482" fill="#ffffff"/>
+  <rect x="0" y="0" width="940" height="461" fill="#ffffff"/>
 
-  <path d="M148,20 H912 A8,8 0 0 1 920,28 V56  H148  V20  Z" fill="#dce9f7"/>
-  <path d="M28,20 H148  V56  H20  V28 A8,8 0 0 1 28,20 Z" fill="#f6f8fa"/>
-  <path d="M148,20 V56" stroke="#e0d6c5" stroke-width="2"/>
-  <text x="405" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">注文</text>
-  <path d="M663,20 V56" stroke="#e0d6c5" stroke-width="2"/>
-  <text x="791" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">受け取り</text>
-  <path d="M20,56 H148  V125  H20  V56  Z" fill="#f6f8fa"/>
-  <path d="M148,56 H920  V125  H148  V56  Z" fill="#ffffff"/>
+  <path d="M164,20 H912 A8,8 0 0 1 920,28 V56  H164  V20  Z" fill="#dce9f7"/>
+  <path d="M28,20 H164  V56  H20  V28 A8,8 0 0 1 28,20 Z" fill="#f6f8fa"/>
+  <path d="M164,20 V56" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="416" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">注文</text>
+  <path d="M668,20 V56" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="794" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">受け取り</text>
+  <path d="M20,56 H164  V125  H20  V56  Z" fill="#f6f8fa"/>
+  <path d="M164,56 H920  V125  H164  V56  Z" fill="#ffffff"/>
   <path d="M20,56 H920" stroke="#e0d6c5" stroke-width="2"/>
-  <text x="84" y="95" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">物的証拠</text>
-  <path d="M20,125 H148  V204  H20  V125  Z" fill="#f6f8fa"/>
-  <path d="M148,125 H920  V204  H148  V125  Z" fill="#f6f8fa"/>
+  <text x="92" y="95" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">物的証拠</text>
+  <path d="M20,125 H164  V204  H20  V125  Z" fill="#f6f8fa"/>
+  <path d="M164,125 H920  V204  H164  V125  Z" fill="#f6f8fa"/>
   <path d="M20,125 H920" stroke="#e0d6c5" stroke-width="2"/>
-  <text x="84" y="169" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">顧客の行動</text>
-  <path d="M20,204 H148  V304  H20  V204  Z" fill="#f6f8fa"/>
-  <path d="M148,204 H920  V304  H148  V204  Z" fill="#ffffff"/>
+  <text x="92" y="169" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">顧客の行動</text>
+  <path d="M20,204 H164  V283  H20  V204  Z" fill="#f6f8fa"/>
+  <path d="M164,204 H920  V283  H164  V204  Z" fill="#ffffff"/>
   <path d="M20,204 H920" stroke="#e0d6c5" stroke-width="2"/>
-  <text x="84" y="248" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">表の業務</text>
-  <text x="84" y="269" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">（接点）</text>
-  <path d="M20,304 H148  V383  H20  V304  Z" fill="#f6f8fa"/>
-  <path d="M148,304 H920  V383  H148  V304  Z" fill="#f6f8fa"/>
-  <path d="M20,304 H920" stroke="#e0d6c5" stroke-width="2"/>
-  <text x="84" y="348" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">裏の業務</text>
-  <path d="M20,383 H148  V462  H28 A8,8 0 0 1 20,454 V383  Z" fill="#f6f8fa"/>
-  <path d="M148,383 H920  V454 A8,8 0 0 1 912,462 H148  V383  Z" fill="#ffffff"/>
-  <path d="M20,383 H920" stroke="#e0d6c5" stroke-width="2"/>
-  <text x="84" y="427" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">支援システム</text>
-  <path d="M148,20 V462" stroke="#22201b" stroke-width="2"/>
+  <text x="92" y="248" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">表の業務（接点）</text>
+  <path d="M20,283 H164  V362  H20  V283  Z" fill="#f6f8fa"/>
+  <path d="M164,283 H920  V362  H164  V283  Z" fill="#f6f8fa"/>
+  <path d="M20,283 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="92" y="327" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">裏の業務</text>
+  <path d="M20,362 H164  V441  H28 A8,8 0 0 1 20,433 V362  Z" fill="#f6f8fa"/>
+  <path d="M164,362 H920  V433 A8,8 0 0 1 912,441 H164  V362  Z" fill="#ffffff"/>
+  <path d="M20,362 H920" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="92" y="406" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">支援システム</text>
+  <path d="M164,20 V441" stroke="#22201b" stroke-width="2"/>
   <path d="M20,204 H920" stroke="#22201b" stroke-width="3" stroke-dasharray="10,6"/>
-  <rect x="28" y="191" width="112" height="26" rx="13" fill="#ffffff" stroke="#22201b" stroke-width="1.5"/>
-  <text x="84" y="208" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">相互作用線</text>
-  <path d="M20,304 H920" stroke="#22201b" stroke-width="3" stroke-dasharray="10,6"/>
-  <rect x="28" y="291" width="112" height="26" rx="13" fill="#ffffff" stroke="#22201b" stroke-width="1.5"/>
-  <text x="84" y="308" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">可視線</text>
-  <path d="M20,383 H920" stroke="#22201b" stroke-width="3" stroke-dasharray="10,6"/>
-  <rect x="28" y="370" width="112" height="26" rx="13" fill="#ffffff" stroke="#22201b" stroke-width="1.5"/>
-  <text x="84" y="387" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">内部相互作用線</text>
-  <path d="M28,20 H912 A8,8 0 0 1 920,28 V454 A8,8 0 0 1 912,462 H28 A8,8 0 0 1 20,454 V28 A8,8 0 0 1 28,20 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="28" y="191" width="128" height="26" rx="13" fill="#ffffff" stroke="#22201b" stroke-width="1.5"/>
+  <text x="92" y="208" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">相互作用線</text>
+  <path d="M20,283 H920" stroke="#22201b" stroke-width="3" stroke-dasharray="10,6"/>
+  <rect x="28" y="270" width="128" height="26" rx="13" fill="#ffffff" stroke="#22201b" stroke-width="1.5"/>
+  <text x="92" y="287" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">可視線</text>
+  <path d="M20,362 H920" stroke="#22201b" stroke-width="3" stroke-dasharray="10,6"/>
+  <rect x="28" y="349" width="128" height="26" rx="13" fill="#ffffff" stroke="#22201b" stroke-width="1.5"/>
+  <text x="92" y="366" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">内部相互作用線</text>
+  <path d="M28,20 H912 A8,8 0 0 1 920,28 V433 A8,8 0 0 1 912,441 H28 A8,8 0 0 1 20,433 V28 A8,8 0 0 1 28,20 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
 
-  <rect x="164" y="68" width="228" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="174" y="93" font-size="15" font-weight="700" fill="#22201b">アプリの画面</text>
+  <rect x="180" y="68" width="224" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="190" y="93" font-size="15" font-weight="700" fill="#22201b">アプリの画面</text>
 
-  <rect x="676" y="68" width="232" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="688.6666666666667" y="93" font-size="15" font-weight="700" fill="#22201b">配達の箱とチラシ</text>
+  <rect x="684" y="68" width="224" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="694" y="93" font-size="15" font-weight="700" fill="#22201b">配達の箱とチラシ</text>
 
-  <rect x="164" y="144" width="228" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="174" y="169" font-size="15" font-weight="700" fill="#22201b">献立を選ぶ</text>
+  <rect x="180" y="144" width="224" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="190" y="169" font-size="15" font-weight="700" fill="#22201b">献立を選ぶ</text>
 
-  <rect x="420" y="144" width="228" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="431.33333333333337" y="169" font-size="15" font-weight="700" fill="#22201b">注文を確定する</text>
+  <rect x="432" y="144" width="224" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="442" y="169" font-size="15" font-weight="700" fill="#22201b">注文を確定する</text>
 
-  <rect x="676" y="144" width="232" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="688.6666666666667" y="169" font-size="15" font-weight="700" fill="#22201b">箱を受け取る</text>
+  <rect x="684" y="144" width="224" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="694" y="169" font-size="15" font-weight="700" fill="#22201b">箱を受け取る</text>
+  <rect x="852" y="132" width="44" height="24" rx="12" fill="#1d5fa8"/>
+  <text x="872" y="149" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">待ち</text>
 
-  <rect x="420" y="232" width="228" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="431.33333333333337" y="257" font-size="15" font-weight="700" fill="#22201b">注文を受け付ける</text>
+  <rect x="432" y="224" width="224" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="442" y="249" font-size="15" font-weight="700" fill="#22201b">注文を受け付ける</text>
 
-  <rect x="676" y="232" width="232" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="688.6666666666667" y="257" font-size="15" font-weight="700" fill="#22201b">配達員が手渡す</text>
+  <rect x="684" y="224" width="224" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="694" y="249" font-size="15" font-weight="700" fill="#22201b">配達員が手渡す</text>
 
-  <rect x="420" y="324" width="228" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="431.33333333333337" y="349" font-size="15" font-weight="700" fill="#22201b">食材を小分けする</text>
+  <rect x="432" y="300" width="224" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="442" y="325" font-size="15" font-weight="700" fill="#22201b">食材を小分けする</text>
+  <rect x="584" y="288" width="60" height="24" rx="12" fill="#1d5fa8"/>
+  <text x="613" y="305" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">失敗点</text>
 
-  <rect x="420" y="400" width="488" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="431.33333333333337" y="425" font-size="15" font-weight="700" fill="#22201b">在庫・注文の管理</text>
+  <rect x="432" y="380" width="476" height="40" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="442" y="405" font-size="15" font-weight="700" fill="#22201b">在庫・注文の管理</text>
 
-  <path d="M391,165 L413,165 L419,165" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M402,165 L424,165 L430,165" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
 
-  <path d="M649,165 L671,165 L677,165" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M654,165 L676,165 L682,165" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
 
-  <path d="M534,185 L534,219 L534,232" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M542,185 L542,211 L542,224" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
 
-  <path d="M534,273 L534,304 L534,324" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M542,265 L542,280 L542,300" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
 
-  <path d="M649,345 L664,345 L664,253 L677,253" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M654,321 L669,321 L669,245 L682,245" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
 
-  <path d="M791,232 L791,205 L791,185" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M794,224 L794,205 L794,185" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
 
-  <path d="M663,400 L663,371 L534,371 L534,365" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M668,380 L668,347 L542,347 L542,341" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
 </svg>
