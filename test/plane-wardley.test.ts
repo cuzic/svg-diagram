@@ -82,17 +82,23 @@ test('plane evolves: follows reveal, yDown and x.min', async () => {
 test('plane evolves: a target too near its point, on another point, or an arrow through one is reported', async () => {
   const msgs = async (points: NonNullable<PlaneOpts['points']>) => (await laid({...base, points})).r.verdict.problems.join('\n');
   assert.match(await msgs([{id: 'a', at: [1, 0.5], evolves: {to: 1.01}}]), /too short/);
-  assert.match(await msgs([{id: 'a', at: [1, 0.5], evolves: {to: 2.5}}, {id: 'b', at: [2.5, 0.5]}]), /sits on|lies on/);
-  assert.match(await msgs([{id: 'a', at: [1, 0.5], evolves: {to: 3}}, {id: 'b', at: [2, 0.5]}]), /lies on the evolution arrow/);
+  assert.match(await msgs([{id: 'a', at: [1, 0.5], evolves: {to: 2.5}}, {id: 'b', at: [2.5, 0.5]}]), /overlap —/);
+  assert.match(await msgs([{id: 'a', at: [1, 0.5], evolves: {to: 3}}, {id: 'b', at: [2, 0.5]}]), /overlap —/);
   assert.equal(await msgs([{id: 'a', at: [1, 0.5], evolves: {to: 2.5}}, {id: 'b', at: [1, 0.8], evolves: {to: 2.5}}]), '');
 });
 
 test('plane evolves: points are told apart by position in the list, not by label (no label, same label)', async () => {
-  const msgs = async (points: NonNullable<PlaneOpts['points']>) => (await laid({...base, points})).r.verdict.problems;
+  const msgs = async (points: NonNullable<PlaneOpts['points']>) => (await laid({...base, points})).r.verdict.problems.filter(m => /overlap —/.test(m));
   assert.equal((await msgs([{at: [1, 0.5], evolves: {to: 3}}, {at: [2, 0.5]}])).length, 1, 'no labels');
   assert.equal((await msgs([{at: [1, 0.5], label: 'X', evolves: {to: 3}}, {at: [2, 0.5], label: 'X'}])).length, 1, 'same label');
   assert.equal((await msgs([{at: [1, 0.5], label: 'X', evolves: {to: 3}}, {at: [3, 0.5], label: 'X'}])).length, 1, 'on the target');
   assert.equal((await msgs([{id: 'k', at: [1, 0.5], evolves: {to: 3}}, {at: [2, 0.5], label: 'k'}])).length, 1, 'label equal to an id');
-  assert.equal((await msgs([{at: [1, 0.5], label: 'A', evolves: {to: 3}}, {at: [1, 0.52], label: 'B', evolves: {to: 3}}])).length > 0, true);
-  assert.ok((await msgs([{at: [1, 0.5], label: 'A', evolves: {to: 3}}, {at: [1, 0.52], label: 'B', evolves: {to: 3}}])).length <= 4, 'each pair once');
+});
+
+test('plane evolves: a pair of points that meet is reported once, whatever parts touch and whichever way round', async () => {
+  const msgs = async (points: NonNullable<PlaneOpts['points']>) => (await laid({...base, points})).r.verdict.problems.filter(m => /overlap —/.test(m));
+  assert.equal((await msgs([{at: [1, 0.5], label: 'A', evolves: {to: 3}}, {at: [2, 0.5], label: 'B', evolves: {to: 3}}])).length, 1, 'same y, same target');
+  assert.equal((await msgs([{at: [1, 0.5], label: 'A', evolves: {to: 3}}, {at: [1.02, 0.5], label: 'B', evolves: {to: 3}}])).length, 1, 'almost the same place');
+  assert.equal((await msgs([{at: [1, 0.5], label: 'A', evolves: {to: 3}}, {at: [1.5, 0.5], label: 'B', evolves: {to: 3.5}}])).length, 1, 'two places, one line');
+  assert.equal((await msgs([{at: [1, 0.5], label: 'A', evolves: {to: 2.5}}, {at: [1, 0.8], label: 'B', evolves: {to: 2.5}}])).length, 0, 'apart');
 });

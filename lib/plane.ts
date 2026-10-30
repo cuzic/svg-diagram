@@ -246,19 +246,21 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     points.push({x: b.x, y: b.y, tone: 'muted', shape: 'ring', ...(p.reveal ? {reveal: p.reveal} : {})});
     lines.push({x1: a.x, y1: a.y, x2: stop.x, y2: stop.y, tone: p.tone ?? 'accent', dashed: true, arrow: true, ...(p.reveal ? {reveal: p.reveal} : {})});
     dots.push({...b, owner: i, target: true, name});
-    if (len < 24) clashes.push(`plane: "${name}" evolves only ${Math.round(len)}px to the right, too short to draw the arrow (move evolves.to further right or widen the figure)`);
+    if (len < 24) clashes.push(`plane: "${name}" (point ${i + 1}) evolves only ${Math.round(len)}px to the right, too short to draw the arrow (move evolves.to further right or widen the figure)`);
   });
-  // an evolution target must not sit on another point or target, nor its arrow run through one (each pair is named once)
-  for (const r of dots) if (r.target) {
-    const src = must(dots[r.owner]), x2 = r.x + 10;
-    for (const d of dots) {
-      if (d === r || d.owner === r.owner) continue;
-      const what = d.target ? `the target of "${d.name}"` : `"${d.name}"`;
-      if (Math.abs(d.y - src.y) < 12 && d.x > src.x - 4 && d.x < x2) {
-        clashes.push(d.x - src.x < 7 ? `plane: ${what} sits on "${r.name}" (the point that evolves)` : `plane: ${what} lies on the evolution arrow of "${r.name}" (move a point, or change evolves.to)`);
-      } else if (d.target ? d.owner > r.owner && Math.hypot(d.x - r.x, d.y - r.y) < 14 : Math.hypot(d.x - r.x, d.y - r.y) < 14) {
-        clashes.push(`plane: the target of "${r.name}" sits on ${what} (change evolves.to or the points' positions)`);
-      }
+  // Two points whose drawings meet (a point, its arrow, its target ring) are reported once as a pair, whichever way round and however many parts touch.
+  // At least one of the two must evolve; two plain points that overlap have never been checked.
+  const parts = (i: number) => dots.filter(d => d.owner === i), near = (a: {x: number; y: number}, b: {x: number; y: number}) => Math.hypot(a.x - b.x, a.y - b.y) < 14;
+  const onArrow = (i: number, d: {x: number; y: number}) => { // d lies on the arrow of point i: between its start and its ring, within the arrow head's reach
+    const ring = parts(i).find(q => q.target), src = parts(i).find(q => !q.target);
+    return !!ring && !!src && Math.abs(d.y - src.y) < 12 && d.x > src.x + 7 && d.x < ring.x - 7;
+  };
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+    if (!pts[i]?.evolves && !pts[j]?.evolves) continue;
+    const pi = parts(i), pj = parts(j);
+    if (pi.some(a => pj.some(b => near(a, b))) || pj.some(b => onArrow(i, b)) || pi.some(a => onArrow(j, a))) {
+      const tag = (k: number) => `"${nameOf(must(pts[k]))}" (point ${k + 1})`;
+      clashes.push(`plane: ${tag(i)} and ${tag(j)} overlap — a point, an evolution arrow or a target ring of one meets the other (move a point, or change evolves.to)`);
     }
   }
 
