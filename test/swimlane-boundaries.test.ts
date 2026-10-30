@@ -59,6 +59,23 @@ test('swimlane boundaries: `between` must name two lanes that are next to each o
   assert.doesNotThrow(make({boundaries: [{between: ['c', 'f']}], laneOrder: 'auto'}));
 });
 
+test('swimlane boundaries: without labelW the label column grows to the longest name; an explicit labelW that is too small throws', async () => {
+  const {r, f} = await laid({boundaries: [{after: 'c', label: '内部相互作用線'}]});
+  assert.deepEqual(r.verdict.problems, []);
+  assert.ok(f.labelW >= 134, `labelW ${f.labelW}`);
+  await assert.rejects(laid({boundaries: [{after: 'c', label: '内部相互作用線'}], labelW: 128}), /needs a label column of 134px/);
+  assert.equal((await laid({boundaries: [{after: 'c'}]})).f.labelW, 128);
+});
+
+test('swimlane boundaries: malformed entries throw with a clear message', () => {
+  const make = (b: unknown) => () => swimlane(lanes, steps, {boundaries: b as never});
+  assert.throws(make([null]), /each one is/);
+  assert.throws(make([{label: 'x'}]), /either `after` or `between`/);
+  assert.throws(make([{after: 'c', between: ['c', 'f']}]), /either `after` or `between`/);
+  assert.throws(make([{between: 'cf'}]), /two lane ids/);
+  assert.throws(make([{between: ['c', 'c']}]), /same lane twice/);
+});
+
 test('swimlane boundaries: mistakes throw', () => {
   const make = (opts: SwimlaneOpts) => () => swimlane(lanes, steps, opts);
   assert.throws(make({boundaries: [{after: 'zzz'}]}), /not a lane id/);
@@ -70,7 +87,7 @@ test('swimlane boundaries: mistakes throw', () => {
 });
 
 test('swimlane boundaries: a name wider than the label column allows throws, also for a word that cannot be broken', async () => {
-  await assert.rejects(laid({boundaries: [{after: 'c', label: '顧客と会社が接する所の線'}]}), /needs a label column/);
+  await assert.rejects(laid({boundaries: [{after: 'c', label: '顧客と会社が接する所の線'}], labelW: 128}), /needs a label column/);
   await assert.rejects(laid({boundaries: [{after: 'c', label: 'LineOfVisibilityXX'}], labelW: 100}), /needs a label column/);
   const ok = await laid({boundaries: [{after: 'c', label: '可視線'}], labelW: 100});
   assert.deepEqual(ok.r.verdict.problems, []);

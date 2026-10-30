@@ -3,7 +3,7 @@ import {diagram, swimlane} from 'svg-diagram';
 // サービスブループリント: 顧客の行動を縦の上から、接点・裏の業務・支援の順に並べ、レーンの境目に 3 本の線を引く。
 //   相互作用線（顧客と会社が接する所）／ 可視線（顧客から見える所と見えない所）／ 内部相互作用線（裏の業務と支援）
 // 線は swimlane の `boundaries: [{between: [上のレーンの id, 下のレーンの id], label?}]`（レーンを足すと隣り合わなくなって throw するので、線の意味が黙って変わらない）。
-// 名前の幅だけラベル列が要る（`内部相互作用線` は labelW 144）。物的証拠と顧客の行動の間には線を引かない（顧客の行動の各手順の真上に置く）。
+// 名前の幅だけラベル列が要る（labelW を書かなければ自動で広がる。`内部相互作用線` は 134px）。物的証拠と顧客の行動の間には線を引かない（顧客の行動の各手順の真上に置く）。
 // 失敗点・待ちは手順の `tag` / `stamp` で書く。顧客の感情は journeyMap()。矢印にラベルを付けると、境目の線に重なることがあるので `labelAt` で外す。
 // ビルド: svg-diagram build examples/service-blueprint.ts --out examples/out/service-blueprint.svg
 
@@ -27,8 +27,7 @@ export default function define() {
         {id: 'b1', lane: 'back', title: '食材を小分けする', col: 2, tag: '失敗点'},
         {id: 's1', lane: 'sys', title: '在庫・注文の管理', col: 2, span: 2},
       ],
-      {labelW: 144,
-       boundaries: [{between: ['cust', 'front'], label: '相互作用線'}, {between: ['front', 'back'], label: '可視線'}, {between: ['back', 'sys'], label: '内部相互作用線'}],
+      {boundaries: [{between: ['cust', 'front'], label: '相互作用線'}, {between: ['front', 'back'], label: '可視線'}, {between: ['back', 'sys'], label: '内部相互作用線'}],
        flows: [{from: 'c1', to: 'c2'}, {from: 'c2', to: 'c3'}, {from: 'c2', to: 'f1'}, {from: 'f1', to: 'b1'}, {from: 'b1', to: 'f2'}, {from: 'f2', to: 'c3'}, {from: 's1', to: 'b1'}],
        phases: [{label: '注文', from: 1, to: 2}, {label: '受け取り', from: 3, to: 3}]},
     ),
