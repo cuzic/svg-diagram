@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="500" viewBox="0 0 940 500" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">紅茶の店の Wardley Map（架空の例）</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/wardley-map.ts","sourceSha256":"25d1da379f50ac89fa75de0375a424061a74579e334d6fe7c37ad9c384987e0c"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="500" fill="#ffffff"/>
+
+  <path d="M54,440 L834,440 M54,440 L54,54" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="834,440 824,445 824,435" fill="#22201b"/>
+  <polygon points="54,54 59,64 49,64" fill="#22201b"/>
+  <path d="M152,440 L152,446 M347,440 L347,446 M542,440 L542,446 M737,440 L737,446 M54,421 L48,421 M54,73 L48,73" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M542,73 L581,139" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M581,139 L502,228" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M581,139 L737,266" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M737,266 L727,324" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M727,324 L776,401" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M502,228 L288,286" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M249,54 L249,440" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M444,54 L444,440" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M639,54 L639,440" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M288,286 L475,286" fill="none" stroke="#1d5fa8" stroke-width="2" stroke-dasharray="6,4"/>
+  <polygon points="475,286 465,291 465,281" fill="#1d5fa8"/>
+  <circle cx="540" cy="72" r="6" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <circle cx="580" cy="140" r="6" fill="#1d5fa8"/>
+  <circle cx="504" cy="228" r="6" fill="#1d5fa8"/>
+  <circle cx="736" cy="268" r="6" fill="#1d5fa8"/>
+  <circle cx="728" cy="324" r="6" fill="#1d5fa8"/>
+  <circle cx="776" cy="400" r="6" fill="#1d5fa8"/>
+  <circle cx="288" cy="284" r="6" fill="#1d5fa8"/>
+  <circle cx="484" cy="284" r="6" fill="#ffffff" stroke="#6f6659" stroke-width="2.5"/>
+  <text x="152" y="462" text-anchor="middle" font-size="14" fill="#6f6659">起源</text>
+  <text x="347" y="462" text-anchor="middle" font-size="14" fill="#6f6659">カスタム</text>
+  <text x="542" y="462" text-anchor="middle" font-size="14" fill="#6f6659">製品</text>
+  <text x="737" y="462" text-anchor="middle" font-size="14" fill="#6f6659">コモディティ</text>
+  <text x="42" y="426" text-anchor="end" font-size="14" fill="#6f6659">裏</text>
+  <text x="42" y="78" text-anchor="end" font-size="14" fill="#6f6659">表</text>
+  <text x="884" y="445" font-size="14" font-weight="700" fill="#6f6659">進化</text>
+  <text x="50" y="40" font-size="14" font-weight="700" fill="#6f6659">可視性</text>
+  <text x="554" y="78" font-size="14" font-weight="700" fill="#1d5fa8">客</text>
+  <text x="569" y="144" text-anchor="end" font-size="14" font-weight="700" fill="#1d5fa8">一杯の紅茶</text>
+  <text x="515" y="233" font-size="14" font-weight="700" fill="#1d5fa8">茶葉</text>
+  <text x="749" y="271" font-size="14" font-weight="700" fill="#1d5fa8">水</text>
+  <text x="715" y="329" text-anchor="end" font-size="14" font-weight="700" fill="#1d5fa8">湯沸かし器</text>
+  <text x="788" y="406" font-size="14" font-weight="700" fill="#1d5fa8">電力</text>
+  <text x="298" y="310" font-size="14" font-weight="700" fill="#1d5fa8">独自ブレンド</text>
+</svg>

@@ -82,6 +82,8 @@ export interface PlanePoint {
   /** The stage it (and its label) appears at; default the plane's own. */
   reveal?: number;
   until?: number;
+  /** Where it is heading along x: a faint ring at [to, y] and a dashed arrow from the point to it (a Wardley map's planned evolution). `to` is right of the point and inside the x axis. */
+  evolves?: {to: number};
 }
 /** A guide line between two positions / points (a projection onto an axis, a path). */
 /** `reveal` (here and on PlaneDim / PlaneLabel / PlanePath): default the max of the points it names (a coordinate counts 0) and the plane's own. */
@@ -129,6 +131,8 @@ export interface PlaneOpts extends RevealOpts {
   id?: string;
   x: PlaneAxis;
   y: PlaneAxis;
+  /** Names of equal-width columns across x (a Wardley map's Genesis / Custom / Product / Commodity): dashed dividers between them and each name under its column. They are the x ticks, so not with x.ticks / step / categories. */
+  stages?: string[];
   points?: PlanePoint[];
   lines?: PlaneLine[];
   paths?: PlanePath[];

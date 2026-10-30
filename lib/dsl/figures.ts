@@ -51,6 +51,7 @@ export function curve(points: CurveBand['points'], opts: CurveOpts = {}): CurveB
 // A coordinate plane: axes with ticks, points, guide lines, dimension lines and labels, all in the plane's own units.
 //   plane({x: {label: 'x', max: 100, step: 20}, y: {label: 'y', max: 60}, yDown?: true (image coordinates), grid?: true,
 //          points: [{id: 'a', at: [20, 10], label: 'A', labelAt?, tone?, shape?: 'dot' | 'ring' | 'cross'}],
+//          stages?: ['起源', 'カスタム', '製品', 'コモディティ'] (equal x columns with dividers; Wardley map), points[].evolves?: {to: x} (ring + dashed arrow),
 //          lines:  [{from: 'a', to: [20, 0], tone?, dashed? (default true), arrow?}],       // guides / projections
 //          dims:   [{from: 'a', to: 'b', label: '40 m', side?: 'above' | 'below' | 'left' | 'right', tone?}],
 //          labels: [{at: [50, 55], text: '原点', anchor?, tone?, bold?}], height?, width?})
@@ -70,6 +71,14 @@ export function plane(opts: PlaneOpts): PlaneBand {
       if (a.ticks !== undefined || a.step !== undefined) throw new Error(`plane(): axis ${k} takes categories or ticks / step, not both (the categories are its ticks)`);
       if ((a.min ?? 0) >= 1 || a.max < c.length) throw new Error(`plane(): axis ${k} puts its ${c.length} categories at 1..${c.length}, so it needs min < 1 and max >= ${c.length} (use max: ${c.length + 1})`);
     }
+  }
+  if (opts.stages !== undefined) {
+    if (!Array.isArray(opts.stages) || opts.stages.length < 2 || opts.stages.some(n => typeof n !== 'string' || !n)) throw new Error("plane(): stages must be a list of at least 2 names, e.g. ['起源', 'カスタム', '製品', 'コモディティ']");
+    if (opts.x.ticks !== undefined || opts.x.step !== undefined || opts.x.categories !== undefined) throw new Error('plane(): stages are the x axis ticks, so x takes no ticks / step / categories with them');
+  }
+  for (const p of opts.points ?? []) if (p.evolves) {
+    const to = p.evolves.to, min = opts.x.min ?? 0;
+    if (typeof to !== 'number' || !(to > p.at[0]) || to > opts.x.max || to < min) throw new Error(`plane(): a point's evolves.to must be a number right of the point (x ${p.at[0]}) and inside the x axis (got ${to})`);
   }
   return withHandle({type: 'plane', ...opts, height: opts.height ?? 300}, opts.id);
 }

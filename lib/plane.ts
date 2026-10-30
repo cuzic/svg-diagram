@@ -29,6 +29,7 @@ export function planeTexts(band: PlaneBand, roles: Roles): [string, number, numb
   const out: [string, number, number, FontFamily][] = [];
   const add = (s: string | undefined, weight = 400) => { if (s) out.push([s, sizeOf(band, roles), weight, 'sans']); };
   for (const axis of [band.x, band.y]) { add(axis.label, 700); for (const t of ticksOf(axis)) add(t.label); }
+  for (const s of band.stages ?? []) add(s);
   for (const t of band.yTickSample ?? []) add(t);
   for (const p of band.points ?? []) add(p.label, 700);
   for (const d of band.dims ?? []) add(d.label, 700);
@@ -93,8 +94,10 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   const size = sizeOf(band, roles), g = geomOf(band, roles), half = g * 5 / 14, labelH = size + 6;
   const tw = (s: string, weight = 400) => textWidth(widthOf, s, size, weight);
   const width = Math.min(w, band.width ?? w), left = x + (w - width) / 2, h = band.height;
-  const xTicks = ticksOf(band.x), yTicks = ticksOf(band.y);
   const xMin = band.x.min ?? 0, yMin = band.y.min ?? 0, xSpan = band.x.max - xMin;
+  const stages = band.stages ?? [];
+  // stages: the column names are the x ticks, each at the middle of its column
+  const xTicks = stages.length ? stages.map((label, i) => ({at: xMin + xSpan * (i + 0.5) / stages.length, label})) : ticksOf(band.x), yTicks = ticksOf(band.y);
   if (!(xSpan > 0) || !(band.y.max > yMin)) throw new Error('plane(): each axis needs max > min');
   const yDown = !!band.yDown;
 
@@ -214,6 +217,21 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     }
     return {x1: a.x, y1: a.y, x2: b.x, y2: b.y, tone: l.tone ?? 'muted', dashed: l.dashed ?? true, arrow: !!l.arrow, ...(l.reveal ? {reveal: l.reveal} : {})};
   });
+
+  // stage dividers, then each evolving point's ring and arrow (the arrow stops at the ring's edge)
+  for (let i = 1; i < stages.length; i++) {
+    const dx = px(xMin + xSpan * i / stages.length), seg = {x1: dx, y1: plotT, x2: dx, y2: plotB};
+    inkSeg('a stage divider', seg);
+    lines.push({...seg, tone: 'muted', dashed: true, arrow: false});
+  }
+  for (const p of band.points ?? []) if (p.evolves) {
+    const a = pt(p.at), b = {x: px(p.evolves.to), y: a.y}, len = b.x - a.x, stop = {x: b.x - Math.min(8, len / 2), y: b.y};
+    inkSeg('an evolution arrow', {x1: a.x, y1: a.y, x2: stop.x, y2: stop.y});
+    ink('an evolution arrow', {x: stop.x - 10, y: stop.y - 5, w: 12, h: 10});
+    ink('a point', {x: b.x - 7, y: b.y - 7, w: 14, h: 14});
+    points.push({x: b.x, y: b.y, tone: 'muted', shape: 'ring', ...(p.reveal ? {reveal: p.reveal} : {})});
+    lines.push({x1: a.x, y1: a.y, x2: stop.x, y2: stop.y, tone: p.tone ?? 'accent', dashed: true, arrow: true, ...(p.reveal ? {reveal: p.reveal} : {})});
+  }
 
   const paths: NonNullable<LaidOutPlane['paths']> = (band.paths ?? []).map(pa => {
     if (pa.through.length < 2) throw new Error('plane(): a path needs at least 2 points in `through`');
