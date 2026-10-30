@@ -109,7 +109,7 @@ function layoutRaw(band: RawBand, ctx: LayoutCtx, padX: number, cw: number): voi
   ctx.y += band.h + (band.h > 0 ? ctx.d.gap : 0);
 }
 
-function layoutFlowShapeBand(band: Band & {type: 'chevron' | 'funnel' | 'cycle' | 'venn' | 'concentric' | 'emblem'}, ctx: LayoutCtx, padX: number, cw: number): void {
+function layoutFlowShapeBand(band: Band & {type: 'chevron' | 'funnel' | 'cycle' | 'venn' | 'concentric' | 'emblem' | 'valueChain'}, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
   const placed = layoutFlowShape(band, padX, snapGrid(ctx.y), cw, widthOf, roles, ctx.wrap);
   const scope = scopeOf(band);
@@ -637,6 +637,7 @@ export const LAYOUT_HANDLERS = {
   venn: layoutFlowShapeBand,
   concentric: layoutFlowShapeBand,
   emblem: layoutFlowShapeBand,
+  valueChain: layoutFlowShapeBand,
   curve: layoutCurve,
   caption: layoutBoxLikeBand,
   box: layoutBoxLikeBand,

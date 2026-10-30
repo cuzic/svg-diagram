@@ -1,11 +1,12 @@
 import test from 'node:test';
 import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
-import {chevron, concentric, cycle, diagram, funnel, renderDiagram, venn} from '../lib/dsl.ts';
-import {flowShapeIds, layoutFlowShape} from '../lib/flow-shapes.ts';
+import {chevron, concentric, cycle, diagram, funnel, renderDiagram, valueChain, venn} from '../lib/dsl.ts';
+import {flowShapeIds, layoutFlowShape, valueChainBand} from '../lib/flow-shapes.ts';
 import {renderFlowShape} from '../lib/emit.ts';
 import {ROLES, NO_TONES} from '../lib/tokens.ts';
 import type {FlowShapeBand, LaidOutFlowShape} from '../lib/flow-shapes.ts';
+import {must} from '../lib/must.ts';
 import type {Rect} from '../lib/types/core.ts';
 
 // a rough width (0.58 em per character) is enough to check the geometry without measuring fonts
@@ -26,6 +27,8 @@ const samples = (): FlowShapeBand[] => [
   venn([{name: '顧客'}, {name: '自社'}, {name: '競合'}], {overlaps: [{sets: ['顧客', '自社'], label: '提供価値'}, {sets: ['自社', '競合'], label: '差別化'}, {sets: ['顧客', '競合'], label: '代替'}], centre: '勝ち筋'}),
   concentric([{label: '外', id: 'a', description: '入口を守る'}, {label: '中'}, {label: '内', id: 'b', description: '暗号化する'}], {centre: '重要情報'}),
   concentric([{label: 'チーム'}, {label: '顧客と取引先'}, {label: '社会'}], {order: 'inner-first', labels: 'side', centre: '利用者'}),
+  valueChain({support: [{id: 's', label: '全般管理（インフラストラクチャ）', sub: '財務・法務'}, '人事・労務管理', '技術開発', '調達活動'], primary: [{id: 'p', label: '購買物流'}, '製造', '出荷物流', {label: '販売・マーケティング', sub: '広告・営業'}, 'サービス']}),
+  valueChain({primary: ['企画', '開発', '提供']}, {margin: false, titles: false}),
 ];
 
 test('every flow shape keeps its labels inside the figure and apart from each other', () => {
@@ -107,4 +110,28 @@ test('emission draws the geometry and escapes labels', () => {
     assert.match(svg, /<(polygon|circle|path)/);
     assert.ok(!svg.includes('集合&A'));
   }
+});
+
+test('valueChain: support bars sit over the chevrons, the margin arrow spans both and stays at the right', () => {
+  const f = figure(valueChain({support: [{id: 's1', label: '人事'}, {id: 's2', label: '調達'}], primary: [{id: 'p1', label: '製造'}, {id: 'p2', label: '販売'}]}));
+  const a = (id: string) => must(f.anchors.find(x => x.id === id));
+  assert.ok(a('s1').y + a('s1').h <= a('s2').y && a('s2').y + a('s2').h <= a('p1').y, 'bars stack above the chevrons');
+  assert.equal(a('s1').w, a('s2').w);
+  assert.ok(a('p1').x + a('p1').w <= a('p2').x + 1, 'chevrons run left to right');
+  const margin = f.primitives.filter(p => p.k === 'polygon').at(-1);
+  assert.ok(margin?.k === 'polygon');
+  const xs = margin.points.map(p => p[0]), ys = margin.points.map(p => p[1]);
+  assert.ok(Math.min(...xs) >= a('p2').x + a('p2').w, 'the margin arrow is right of the chevrons');
+  assert.ok(Math.min(...ys) <= a('s1').y && Math.max(...ys) >= a('p1').y + a('p1').h, 'the margin arrow spans the whole height');
+  assert.deepEqual(flowShapeIds(valueChain({support: [{id: 'x', label: 'a'}], primary: [{id: 'y', label: 'b'}]})), ['x', 'y']);
+});
+
+test('valueChain: no margin, no titles, no support leaves just the chevrons; bad input is refused', () => {
+  const f = figure(valueChain({primary: ['企画', '開発']}, {margin: false, titles: false}));
+  assert.equal(f.primitives.length, 2);
+  assert.equal(f.texts.length, 2);
+  assert.equal(valueChainBand({primary: ['a']}).margin, 'マージン');
+  assert.throws(() => valueChainBand({primary: []}), /at least one item/);
+  assert.throws(() => valueChain({primary: [{id: 'a', label: 'x'}], support: [{id: 'a', label: 'y'}]}), /duplicate id "a"/);
+  assert.throws(() => valueChain({primary: ['x']}, {margin: ''}), /margin/);
 });

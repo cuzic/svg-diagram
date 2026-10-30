@@ -113,7 +113,7 @@ export const BAND_HANDLERS = {
   caption: captionBand, box: boxBand, banner: boxBand, group: groupFrameBand, row: rowBand, grid: gridBand, table: tableBand,
   legend: 'image', swimlane: 'image', wireframe: 'image', screens: 'image', sequence: 'image', raw: 'image', pyramid: 'image',
   curve: 'image', plane: 'image', quadrant: 'image', wordart: 'image', chevron: 'image', funnel: 'image', cycle: 'image',
-  venn: 'image', concentric: 'image', emblem: 'image', bars: 'image', chart: 'image', image: 'image', people: 'image', dots: 'image', math: 'image',
+  venn: 'image', concentric: 'image', emblem: 'image', valueChain: 'image', bars: 'image', chart: 'image', image: 'image', people: 'image', dots: 'image', math: 'image',
   timeline: 'image', tree: 'image', states: 'image', cause: 'image', cloud: 'image', gantt: 'image', classes: 'image', bpmn: 'image',
   fta: 'image', status: 'image', bowtie: 'image',
 } satisfies {[T in LaidOutType]: BandXml<LaidOutOf<T>> | 'image'};

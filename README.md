@@ -99,7 +99,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 | `tree` / `mindmap` | ノードの枠 |
 | `causeTree` / `whyWhyTree` | ノードの枠（六角形は付かない）。作り手が付けた名前（`unanchored`）は付かない |
 | `bpmn` | タスクの枠（イベントとゲートは付かない） |
-| `chevron` / `funnel` / `cycle` / `venn` / `concentric` / `emblem` | 各項目の図形（矢羽根・段・丸・集合・輪・記号）。項目の文字は付かない |
+| `chevron` / `funnel` / `cycle` / `venn` / `concentric` / `emblem` / `valueChain` | 各項目の図形（矢羽根・段・丸・集合・輪・記号・活動の帯）。項目の文字は付かない |
 | `quadrant` | 各項目の印（円・四角・菱形・三角）**と**名前の文字（折り返した行ごと） |
 
 `id` のない項目には付かない。**付かない部品**（`id` は `connect()` で使えるが、`data-node` は出ない）: `cloud`、`gantt`、`states`、`classes`、`fta` / `bowtie`、`chart` 系、`bars`、`image` の印、`causeTree` の六角形、`bpmn` のイベントとゲート。必要になったら `lib/emit-node-ids.ts` の `withNodeIdsBand` に足す。
@@ -198,7 +198,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
 | math(tex, {role, inline, align, tone, alt}) | TeX の数式（MathJax で輪郭にして SVG へ。Web フォント・foreignObject 不要）。下の「数式」 |
 | quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
-| chevron / funnel / cycle / venn / concentric / emblem | 流れ・絞り込み・循環・集合・階層・図形に入れた文字を表す flowShapes。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 |
+| chevron / funnel / cycle / venn / concentric / emblem / valueChain | 流れ・絞り込み・循環・集合・階層・図形に入れた文字・価値連鎖を表す flowShapes。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 |
 | wordart(text, {style, writing, size, tone, gradient, outline, shadow, glow, bevel, extrude, reflection, arc, rotate, flip, font, plate, limit}) | 太字・縁取り・影・光彩・立体・反射・グラデーション・弧・回転の飾り文字と**縦書き**を band 1 つで。下の「ワードアート・縦書き」 |
 | plane({x, y, points, lines, dims, labels}) | 座標平面。軸・目盛り・点・補助線・**寸法線**・ラベルを、座標の単位のまま宣言する（地図 ↔ 画像の座標変換、位置の誤差）。`yDown: true` で画像座標。ラベルが、他のラベル・軸と矢印・目盛り・点・補助線・寸法線に重なる、または図からはみ出すと検査で止まる（寸法線の文字は、その線の上に載るのが正） 。`paths: [{through: [点の id か座標…], smooth?, dashed?, tone?, arrow?, reveal?}]` で複数点を通る線を引く（実線が既定。`smooth: true` は点を必ず通る曲線で、x が増える道筋は単調な 3 次補間（値を行き過ぎない）、そうでない道筋は centripetal Catmull-Rom。`smooth` なしは折れ線。曲線が軸の外に出る・ラベルに重なると検査で止まる。`examples/plane-paths.ts`）。`grow: true` を付けた path は、段階（`reveal`）ごとに、出ている点までの曲線を同じ形のまま伸ばす（`examples/plane-grow.ts`）。点のラベルは `labelAt` を書かなければ右に置き、線や他のラベルと重なるときは空いている側（左・上・下・斜め）へ自動で移る。`labelAt` で側を書くとそのまま、`labelOffset: [dx, dy]` で位置をずらせる。自動の置き場は寸法線（延長線を含む）・補助線・軸・目盛りも避ける。軸に `categories: ['営業', '開発', …]` を書くと、レーン名・段階名が 1, 2, 3 … の位置の目盛りになる（`max` は個数 + 1） |
 
@@ -463,6 +463,7 @@ cycle([{label: 'Plan'}, {label: 'Do'}, {label: 'Check'}, {label: 'Act'}], {centr
 venn([{name: '技術'}, {name: '顧客'}], {overlaps: [{sets: ['技術', '顧客'], label: '価値'}]})
 concentric([{label: '境界'}, {label: 'アプリ'}, {label: 'データ'}], {centre: '重要情報'})
 emblem('重要', {shape: 'triangle', tone: 'danger', sub: '期限厳守', id: 'warn'})
+valueChain({support: ['全般管理', '人事・労務管理', '技術開発', '調達活動'], primary: ['購買物流', '製造', '出荷物流', '販売・マーケティング', 'サービス']})
 ```
 
 - `chevron`: 横（既定）または縦の矢羽根。`first: 'pentagon' | 'chevron'`（先頭の形）、`gap`、`current`（`highlight` も可。色に加えて太い枠で示す）。`sub` は見出しの下に小さく出る。長い文字は矢羽根の内側で折り返し、必要な高さまで伸びる。縦の幅は 360px まで（`width` を書けばその幅）。
@@ -471,8 +472,9 @@ emblem('重要', {shape: 'triangle', tone: 'danger', sub: '期限厳守', id: 'w
 - `venn`: 2 または 3 集合。色に加えて線種（実線・破線・点線）を変え、色だけに頼らない。集合の名前はその集合だけの部分に、`overlaps` の 2 集合のラベルはその 2 つだけが重なる部分に、`centre` は全集合が重なる部分に入る（`centre` と全集合の overlap を両方書くと throw）。`universe` で全体の枠（文字列ならその名前）。
 - `concentric`: 同心円。`order: 'outer-first' | 'inner-first'`（`rings` を書く順）、`centre`。`labels: 'inside'`（既定）は各層の帯の上部に、`'side'` は右の凡例に出して引き出し線で層につなぐ（円とキーは 1 つの塊として帯の幅の中央に置く）。`description` は「ラベル — 説明」で続く。
 - `emblem`: 円・三角・四角・ひし形・六角形・台形・平行四辺形・五角形・端子・角丸四角・書類・円柱（`shape: 'circle' | 'square' | 'triangle' | 'diamond' | 'hexagon' | 'trapezoid' | 'inverted-trapezoid' | 'parallelogram' | 'pentagon-down' | 'pill' | 'rounded' | 'document' | 'cylinder'`）の中に、1 語〜数語の文字を入れる。他の作図ツールの「図形（Shape）」「ノード」にあたる、文字入りで単独で置く部品。`emblem('重要', {shape, sub, tone, id})` は 1 個（`id` は図形の id）、`emblem([{label, sub, shape, tone, id}, …], {shape})` は複数（`shape` は項目に書かなかったときの既定、既定は `circle`。`id` は帯の id、項目の id は各項目に書く）。形は文字が入る大きさまで 8px ずつ広がり、同じ帯の中は同じ幅（`minSize` は最小の幅、既定 96、64〜320。8px の刻みに切り上げる）。`pill`・`rounded`・`parallelogram`・`document`・`cylinder` は、幅を揃えたまま**高さを文字の行数で伸ばす**（端子に `sub` を 1 行足しても、同じ帯の他の形は大きくならない）。幅が足りなければ次の行へ折り返す（`gap` は 4px の格子に丸める）。文字は、形ごとに決めた「文字が入る長方形」（三角形は下寄り、ひし形は狭い）に折り返して入れるので、輪郭に触れない（実フォントで 975 通りを測って、文字の箱と輪郭の余白は最小 2.3px）。カタカナ・英数字の語は、240px まで広げて割らずに入れる（割らずに入るのは、全角 14px で円が約 13 字、六角形が約 11 字、ひし形・三角形が約 9 字まで。空白・改行・「・」での折り返しは語を割ったことにならない）。240px でも割れる語がある項目は割ってよく、他の項目の語は守る（割れた語は、320px まで広げて入れる）。320px（帯が狭ければ帯の幅）でも入らない文字、帯より広い `minSize` は throw する（短くする、`sub` に移す、`shape: 'square'`、帯を広げる）。`connect()` の anchor は、`:top` / `:bottom` / `:left` / `:right` が輪郭に乗るように決める（円・四角・ひし形・六角形・五角形・端子・角丸四角・円柱は外接矩形、三角形・台形・平行四辺形は斜辺の中点、書類は波の中央まで）。辺を書かない `connect('a', 'b')` は文字の上を通るので、`connect('a:bottom', 'b:top')` のように辺を書く。同じ帯の下の行を越える線は、経路が止まることがある（`minSize` を下げて 1 行に収める、`width` を広げる）。種類（`shape`）が混ざる行は、各図形の外接矩形を行の中で縦に中央寄せにするので、三角形の文字だけ少し下にある。`tone` は箱と同じ塗り・枠で、**ラベルの文字も tone の文字色**（`accent` は accent 色、`danger` は danger 色、`muted` / `removed` は muted 色、`plain` / `new` / `changed` は通常の色。`sub` はどの tone でも muted）。線種が変わるのは `danger` / `removed`（破線）だけ。`accent` と `new` は文字の色だけ、`plain` と `changed` は枠の色だけの違いなので、意味の違いは `sub` にも書く。`gray-tone-collision`（白黒にすると見分けにくい塗りの組）は `emblem` の tone も数える。`spotlight` は帯単位（`chevron` などと同じ。1 個だけ強調したいときは `emblem` を別の帯に分ける）。他のツールの「判断のひし形」を流れ図で使うなら `flowchart()`（矢印の出口・Yes/No の札・質問文に合わせた大きさ）、判断でない文字入りの図形を 1 個ずつ置くなら `emblem()`。ワイヤーフレームの番号の印 `badge` とは別で、`badge` は短い印、`emblem` は文字を折り返して入れる大きめの図形。流れ図の記号としては、`pill` が端子（開始・終了）、`rounded` が処理、`diamond` が判断、`parallelogram` がデータ（入出力）、`inverted-trapezoid` が手作業、`hexagon` が準備、`document` が書類、`cylinder` がデータベース（ストレージ）、`pentagon-down`（下が尖った家形。正五角形ではなく、`chevron({first: 'pentagon'})` の右向きの家形とも向きが違う）が他ページへの接続。`trapezoid`（上が狭い）はピラミッドの層などにも使える。層状に並べて矢印の出口や Yes/No の札まで付けたいときは `flowchart()`（判断・端子・処理だけ。上の他の記号はまだない）。星形やパス指定の図形はまだない。
+- `valueChain`: ポーターの価値連鎖（バリューチェーン）。`support`（支援活動。横長の帯を縦に積む）と `primary`（主活動。矢羽根を横に並べる）に、文字列か `{label, sub, id, tone}` を書く。右端に全体の高さの矢印で `margin`（既定 `'マージン'`、`false` で外す）、帯の上に `titles`（既定 `['支援活動', '主活動']`、`false` で外す）。`support` は省ける。コトラーなどが示す価値連鎖も、活動の名前を変えれば同じ形で描ける。`id` は `connect()` / spotlight の対象。主活動の語が割れるときは `keepWords: true`。
 - ラベルが図からはみ出す・ラベル同士が重なると検査で止まる。
-- 例: `examples/chevron-*.ts`、`funnel-*.ts`、`cycle-*.ts`、`venn-*.ts`、`concentric-*.ts`、`emblem-*.ts`（`emblem-flow-symbols.ts` は流れ図の記号を並べた例）。
+- 例: `examples/value-chain.ts`、`examples/chevron-*.ts`、`funnel-*.ts`、`cycle-*.ts`、`venn-*.ts`、`concentric-*.ts`、`emblem-*.ts`（`emblem-flow-symbols.ts` は流れ図の記号を並べた例）。
 
 ### ワードアート・縦書き（`wordart`）
 
@@ -1144,7 +1146,7 @@ versus(
 | `image` の印・文字・重ねた部品 | 各 `marks` / `labels` の `reveal` / `until`（絵の band の値との**遅い方**の reveal、早い方の until。絵より先には出ない） |
 | `versus` の左・右・共通部 | 各 part の `reveal`（枠と中身。共通部への矢印は両端の大きい方） |
 | `quadrant` の band | opts の `reveal` / `until`（項目・矢印は図と一緒。項目単位の reveal はない。項目の id は図の段階で `connect` に出る） |
-| `chevron` / `funnel` / `cycle` / `venn` / `concentric` / `emblem` の band | opts の `reveal` / `until`（各項目の id は図と同じ段階で `connect` に出る） |
+| `chevron` / `funnel` / `cycle` / `venn` / `concentric` / `emblem` / `valueChain` の band | opts の `reveal` / `until`（各項目の id は図と同じ段階で `connect` に出る） |
 | `wordart` の band | opts の `reveal` / `until`（`id` は図と同じ段階で `connect` に出る） |
 | `plane` の `points` / `lines` / `paths` / `dims` / `labels` | 要素の `reveal`（点のラベルは点と一緒）。未指定は plane 自身と、`id` で指した点の大きい方（座標で指した端点は 0）。端点より早い明示は警告 |
 | `connect` / `branch` | `reveal`（未指定は両端の大きい方） |

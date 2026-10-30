@@ -199,6 +199,7 @@ export const REVEAL_HANDLERS = {
   venn: plain,
   concentric: plain,
   emblem: plain,
+  valueChain: plain,
   curve: plain,
   caption: plain,
   box: plain,
