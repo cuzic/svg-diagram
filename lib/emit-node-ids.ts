@@ -30,7 +30,7 @@ export function withNodeIdsBand(band: LaidOutBand): LaidOutBand {
       const id = band.anchors[i]?.id;
       return id !== undefined && n.kind === 'task' ? {...n, dataNode: qualify(scope, id)} : n;
     })};
-    case 'chevron': case 'funnel': case 'cycle': case 'venn': case 'concentric': case 'emblem':
+    case 'chevron': case 'funnel': case 'cycle': case 'venn': case 'concentric': case 'emblem': case 'valueChain':
       return {...band, primitives: band.primitives.map(p => 'node' in p && p.node !== undefined ? {...p, dataNode: qualify(scope, p.node)} : p)} as LaidOutBand;
     case 'quadrant': { // the marker and every line of the name carry it: a click on either finds the item
       const name = (i: number | undefined): string | undefined => { const id = i === undefined ? undefined : band.bubbles[i]?.id; return id === undefined ? undefined : qualify(scope, id); };

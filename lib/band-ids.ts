@@ -35,7 +35,7 @@ function bareNodeIds(b: Band): string[] {
     case 'bpmn': return b.nodes.map(n => n.id);
     case 'fta': return ftaIds(b.root);
     case 'quadrant': return quadrantIds(b);
-    case 'chevron': case 'funnel': case 'cycle': case 'venn': case 'concentric': case 'emblem': return flowShapeIds(b);
+    case 'chevron': case 'funnel': case 'cycle': case 'venn': case 'concentric': case 'emblem': case 'valueChain': return flowShapeIds(b);
     default: return [];
   }
 }

@@ -31,6 +31,7 @@ export interface ConcentricRing {label: string; description?: string; id?: strin
 export type {EmblemShape} from './emblem-shapes.ts';
 export interface EmblemItem {label: string; sub?: string; shape?: EmblemShape; id?: string; tone?: BoxTone}
 export interface EmblemOpts extends RevealOpts, ScopeOpts {id?: string; /** The shape of every item that does not name its own. */ shape?: EmblemShape; gap?: number; /** The least width of a shape (the shapes grow to hold their text, all to the same size). */ minSize?: number; width?: number}
+export interface ValueChainOpts extends RevealOpts, ScopeOpts {id?: string; /** The label of the margin arrow at the right end; `false` leaves the arrow out. Default 'マージン'. */ margin?: string | false; /** The captions over the support bars and the primary chevrons; `false` leaves them out. Default ['支援活動', '主活動']. */ titles?: readonly [support: string, primary: string] | false; width?: number}
 export interface ConcentricOpts extends RevealOpts, ScopeOpts {id?: string; order?: 'outer-first' | 'inner-first'; labels?: 'inside' | 'side'; centre?: string; width?: number}
 
 export interface ChevronBand extends ChevronOpts {type: 'chevron'; steps: FlowStep[]; direction: 'horizontal' | 'vertical'; first: 'pentagon' | 'chevron'; gap: number}
@@ -39,7 +40,8 @@ export interface CycleBand extends CycleOpts {type: 'cycle'; steps: FlowStep[]; 
 export interface VennBand extends VennOpts {type: 'venn'; sets: VennSet[]; overlaps: VennOverlap[]}
 export interface ConcentricBand extends ConcentricOpts {type: 'concentric'; rings: ConcentricRing[]; order: 'outer-first' | 'inner-first'; labels: 'inside' | 'side'}
 export interface EmblemBand extends EmblemOpts {type: 'emblem'; items: EmblemItem[]; shape: EmblemShape; gap: number}
-export type FlowShapeBand = ChevronBand | FunnelBand | CycleBand | VennBand | ConcentricBand | EmblemBand;
+export interface ValueChainBand extends ValueChainOpts {type: 'valueChain'; support: FlowStep[]; primary: FlowStep[]; margin: string | false; titles: readonly [string, string] | false}
+export type FlowShapeBand = ChevronBand | FunnelBand | CycleBand | VennBand | ConcentricBand | EmblemBand | ValueChainBand;
 
 export interface FlowText extends Rect {text: string; tx: number; ty: number; size: number; weight: 400 | 700; anchor: 'start' | 'middle' | 'end'; tone: TextTone}
 export type FlowPrimitive =
@@ -137,10 +139,24 @@ export function emblemBand(items: readonly EmblemItem[], opts: EmblemOpts = {}):
   return {...opts, type: 'emblem', items: [...items], shape: opts.shape ?? 'circle', gap: opts.gap ?? 16};
 }
 
+/** Porter's value chain (価値連鎖): support activities as bars over the primary activities as chevrons, and the margin as an arrow at the right. */
+export function valueChainBand(parts: {support?: readonly (string | FlowStep)[]; primary: readonly (string | FlowStep)[]}, opts: ValueChainOpts = {}): ValueChainBand {
+  const step = (x: string | FlowStep): FlowStep => typeof x === 'string' ? {label: x} : x;
+  const support = (parts.support ?? []).map(step), primary = parts.primary.map(step);
+  common('valueChain', primary, opts.id);
+  if (support.length) common('valueChain', support, opts.id);
+  const ids = [...support, ...primary].flatMap(s => s.id ? [s.id] : []);
+  if (new Set(ids).size !== ids.length) throw new Error(`valueChain(): duplicate id "${ids.find((x, i) => ids.indexOf(x) !== i)}"`);
+  assertScope(opts.scope, 'valueChain()');
+  checkTones('valueChain', [...support, ...primary], BOX_TONES);
+  if (opts.margin === '') throw new Error('valueChain(): margin must be a non-empty label, or false to leave the arrow out');
+  return {...opts, type: 'valueChain', support, primary, margin: opts.margin ?? 'マージン', titles: opts.titles ?? ['支援活動', '主活動']};
+}
+
 /** The item an item's frame names (ADR 0034): the id, when it has one. */
 const nodeOf = (item: {id?: string}): {node?: string} => item.id ? {node: item.id} : {};
 
-export const flowShapeIds = (b: FlowShapeBand): string[] => (b.type === 'funnel' ? b.stages : b.type === 'venn' ? b.sets : b.type === 'concentric' ? b.rings : b.type === 'emblem' ? b.items : b.steps).flatMap(x => x.id ? [x.id] : []);
+export const flowShapeIds = (b: FlowShapeBand): string[] => (b.type === 'valueChain' ? [...b.support, ...b.primary] : b.type === 'funnel' ? b.stages : b.type === 'venn' ? b.sets : b.type === 'concentric' ? b.rings : b.type === 'emblem' ? b.items : b.steps).flatMap(x => x.id ? [x.id] : []);
 
 // ---------------------------------------------------------------------------------------------------------------------------
 // texts: what the layout draws, at the size and weight it draws them (registered for measuring before layout)
@@ -161,6 +177,7 @@ function textSpecs(b: FlowShapeBand, roles: Roles): TextSpec[] {
     case 'venn': return [...b.sets.flatMap(s => bold(s.label ?? s.name)), ...b.overlaps.flatMap(o => bold(o.label)), ...bold(b.centre), ...plain(typeof b.universe === 'string' ? b.universe : undefined)];
     case 'concentric': return [...b.rings.flatMap(r => bold(ringLabel(r))), ...bold(b.centre)];
     case 'emblem': return b.items.flatMap(i => [...bold(i.label), ...plain(i.sub)]);
+    case 'valueChain': return [...b.support, ...b.primary].flatMap(s => [...bold(s.label), ...plain(s.sub)]).concat(bold(b.margin || undefined), b.titles ? bold(b.titles[0]) : [], b.titles ? bold(b.titles[1]) : []);
   }
 }
 export function flowShapeTexts(b: FlowShapeBand, roles: Roles): [string, number, number, FontFamily][] {
@@ -187,6 +204,7 @@ export function layoutFlowShape(b: FlowShapeBand, x: number, y: number, cw: numb
     case 'venn': layoutVenn(b, out, t, anchor); break;
     case 'concentric': layoutConcentric(b, out, t, anchor, roles); break;
     case 'emblem': layoutEmblem(b, out, t, anchor); break;
+    case 'valueChain': layoutValueChain(b, out, t, anchor); break;
   }
   return out;
 }
@@ -236,6 +254,58 @@ function layoutChevron(b: ChevronBand, out: LaidOutFlowShape, t: Texts, anchor: 
     t.place(k.label, xx + cellW / 2, top);
     if (k.sub) t.place(k.sub, xx + cellW / 2, top + k.label.h, 'muted');
   });
+}
+
+function layoutValueChain(b: ValueChainBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
+  const gap = 4, tipM = 20;
+  const marginW = b.margin ? Math.min(140, Math.max(76, t.width(b.margin) + tipM + 16)) : 0;
+  const mainW = out.w - (b.margin ? marginW + 8 : 0);
+  let y = out.y;
+  const title = (text: string | undefined) => {
+    if (!text) return;
+    const k = t.wrap(text, mainW);
+    t.place(k, out.x, y, 'muted', 'start');
+    y += k.h + 6;
+  };
+  const top = y;
+  // support activities: one bar each, full width
+  if (b.support.length) {
+    title(b.titles ? b.titles[0] : undefined);
+    for (const s of b.support) {
+      const label = t.wrap(s.label, mainW - 24), sub = s.sub ? t.wrap(s.sub, mainW - 24, 400) : undefined;
+      const h = Math.max(36, label.h + (sub?.h ?? 0) + 16), textTop = y + (h - label.h - (sub?.h ?? 0)) / 2;
+      out.primitives.push({k: 'polygon', points: [[out.x, y], [out.x + mainW, y], [out.x + mainW, y + h], [out.x, y + h]], tone: s.tone ?? 'muted', ...nodeOf(s)});
+      anchor(s.id, {x: out.x, y, w: mainW, h});
+      t.place(label, out.x + mainW / 2, textTop);
+      if (sub) t.place(sub, out.x + mainW / 2, textTop + label.h, 'muted');
+      y += h + gap;
+    }
+    y += 8 - gap;
+  }
+  // primary activities: chevrons, the first one a pentagon
+  title(b.titles ? b.titles[1] : undefined);
+  const n = b.primary.length, cellW = (mainW - gap * (n - 1)) / n, tip = Math.min(18, cellW / 4), textW = cellW - 2 * tip - 4;
+  const blocks = b.primary.map(s => ({label: t.wrap(s.label, textW), sub: s.sub ? t.wrap(s.sub, textW, 400) : undefined}));
+  const textH = (k: typeof blocks[number]) => k.label.h + (k.sub?.h ?? 0);
+  const cellH = Math.max(72, Math.max(...blocks.map(textH)) + 24);
+  b.primary.forEach((s, i) => {
+    const xx = out.x + i * (cellW + gap), yy = y;
+    const notch: Pt[] = i ? [[xx + tip, yy + cellH / 2]] : [];
+    out.primitives.push({k: 'polygon', points: [[xx, yy], [xx + cellW - tip, yy], [xx + cellW, yy + cellH / 2], [xx + cellW - tip, yy + cellH], [xx, yy + cellH], ...notch], tone: s.tone ?? 'plain', ...nodeOf(s)});
+    anchor(s.id, {x: xx, y: yy, w: cellW, h: cellH});
+    const k = must(blocks[i]), textTop = yy + (cellH - textH(k)) / 2;
+    t.place(k.label, xx + cellW / 2, textTop);
+    if (k.sub) t.place(k.sub, xx + cellW / 2, textTop + k.label.h, 'muted');
+  });
+  const bottom = y + cellH;
+  // the margin: a tall arrow over the whole height, pointing right
+  if (b.margin) {
+    const mx = out.x + out.w - marginW, mid = (top + bottom) / 2;
+    out.primitives.push({k: 'polygon', points: [[mx, top], [mx + marginW - tipM, top], [mx + marginW, mid], [mx + marginW - tipM, bottom], [mx, bottom]], tone: 'accent', strong: true});
+    const label = t.wrap(b.margin, marginW - tipM - 4);
+    t.place(label, mx + (marginW - tipM) / 2, mid - label.h / 2);
+  }
+  out.h = bottom - out.y;
 }
 
 function layoutFunnel(b: FunnelBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn, roles: Roles): void {

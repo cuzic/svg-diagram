@@ -117,6 +117,7 @@ export const MEASURE_HANDLERS = {
   venn: fromTuples(flowShapeTexts),
   concentric: fromTuples(flowShapeTexts),
   emblem: fromTuples(flowShapeTexts),
+  valueChain: fromTuples(flowShapeTexts),
   bars: fromTuples(barsTexts),
   chart: fromTuples(chartTexts),
   people: fromTuples(peopleTexts),

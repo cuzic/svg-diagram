@@ -1,7 +1,7 @@
 import {quadrantBand} from '../quadrant.ts';
 import type {QuadrantBand, QuadrantItem, QuadrantOpts, QuadrantPreset} from '../quadrant.ts';
-import {chevronBand, concentricBand, cycleBand, emblemBand, funnelBand, vennBand} from '../flow-shapes.ts';
-import type {ChevronBand, ChevronOpts, ConcentricBand, ConcentricOpts, ConcentricRing, CycleBand, CycleOpts, EmblemBand, EmblemItem, EmblemOpts, FlowStep, FunnelBand, FunnelOpts, FunnelStage, VennBand, VennOpts, VennSet} from '../flow-shapes.ts';
+import {chevronBand, concentricBand, cycleBand, emblemBand, funnelBand, valueChainBand, vennBand} from '../flow-shapes.ts';
+import type {ChevronBand, ChevronOpts, ConcentricBand, ConcentricOpts, ConcentricRing, CycleBand, CycleOpts, EmblemBand, EmblemItem, EmblemOpts, FlowStep, FunnelBand, FunnelOpts, FunnelStage, ValueChainBand, ValueChainOpts, VennBand, VennOpts, VennSet} from '../flow-shapes.ts';
 import {wordartBand} from '../wordart.ts';
 import type {WordArtBand, WordArtOpts} from '../wordart.ts';
 import {LABEL_ROLES} from '../tokens.ts';
@@ -100,6 +100,13 @@ export function chevron<const Id extends string = never, const I extends readonl
 export function funnel<const Id extends string = never, const I extends readonly FunnelStage[] = readonly FunnelStage[]>(stages: I, opts?: FunnelOpts & {id?: Id}): ShapeExtra<FunnelBand, Id, I> { return withHandle(funnelBand(stages, opts), opts?.id) as ShapeExtra<FunnelBand, Id, I>; }
 /** Three to eight nodes joined as a closed circular process. Node ids are anchors for connect() and spotlight. */
 export function cycle<const Id extends string = never, const I extends readonly FlowStep[] = readonly FlowStep[]>(steps: I, opts?: CycleOpts & {id?: Id}): ShapeExtra<CycleBand, Id, I> { return withHandle(cycleBand(steps, opts), opts?.id) as ShapeExtra<CycleBand, Id, I>; }
+/**
+ * Porter's value chain (価値連鎖 / バリューチェーン): support activities (支援活動) as bars over the primary activities (主活動) as chevrons, with the
+ * margin (マージン) as an arrow at the right end. Items are labels or `{label, sub, id, tone}`; ids are anchors for connect() and spotlight.
+ *   valueChain({support: ['全般管理', '人事・労務管理', '技術開発', '調達活動'], primary: ['購買物流', '製造', '出荷物流', '販売・マーケティング', 'サービス']})
+ * `margin: false` leaves the arrow out (a chain of activities only); `titles: false` leaves out the two captions.
+ */
+export function valueChain<const Id extends string = never, const S extends readonly (string | FlowStep)[] = readonly (string | FlowStep)[], const P extends readonly (string | FlowStep)[] = readonly (string | FlowStep)[]>(parts: {support?: S; primary: P}, opts?: ValueChainOpts & {id?: Id}): ValueChainBand & Declares<Id | ItemIds<Extract<S[number] | P[number], {id?: string}>[]>> & HandleOf<Id> { return withHandle(valueChainBand(parts, opts), opts?.id) as never; }
 /** A two- or three-set Venn diagram. Dashed outlines supplement translucent colours, so sets are not distinguished by colour alone. */
 export function venn<const Id extends string = never, const I extends readonly VennSet[] = readonly VennSet[]>(sets: I, opts?: VennOpts & {id?: Id}): ShapeExtra<VennBand, Id, I> { return withHandle(vennBand(sets, opts), opts?.id) as ShapeExtra<VennBand, Id, I>; }
 /** Nested rings, ordered from the outside or inside, with labels in the rings or in a side key. */
