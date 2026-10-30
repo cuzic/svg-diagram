@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="500" viewBox="0 0 940 500" role="img" aria-labelledby="svg-title">
   <title id="svg-title">紅茶の店の Wardley Map（架空の例）</title>
-  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/wardley-map.ts","sourceSha256":"25d1da379f50ac89fa75de0375a424061a74579e334d6fe7c37ad9c384987e0c"}</metadata>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/wardley-map.ts","sourceSha256":"4a6e72f04cfb1428d5dfaa9ae0315e5ac3548c77d6d3a1bd359c9366a38793b8"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
@@ -10,7 +10,7 @@
   <path d="M54,440 L834,440 M54,440 L54,54" fill="none" stroke="#22201b" stroke-width="2"/>
   <polygon points="834,440 824,445 824,435" fill="#22201b"/>
   <polygon points="54,54 59,64 49,64" fill="#22201b"/>
-  <path d="M152,440 L152,446 M347,440 L347,446 M542,440 L542,446 M737,440 L737,446 M54,421 L48,421 M54,73 L48,73" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M54,421 L48,421 M54,73 L48,73" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M542,73 L581,139" fill="none" stroke="#6f6659" stroke-width="2"/>
   <path d="M581,139 L502,228" fill="none" stroke="#6f6659" stroke-width="2"/>
   <path d="M581,139 L737,266" fill="none" stroke="#6f6659" stroke-width="2"/>
@@ -22,7 +22,7 @@
   <path d="M639,54 L639,440" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
   <path d="M288,286 L475,286" fill="none" stroke="#1d5fa8" stroke-width="2" stroke-dasharray="6,4"/>
   <polygon points="475,286 465,291 465,281" fill="#1d5fa8"/>
-  <circle cx="540" cy="72" r="6" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <path d="M542,65 L550,73 L542,81 L534,73 Z" fill="#1d5fa8"/>
   <circle cx="580" cy="140" r="6" fill="#1d5fa8"/>
   <circle cx="504" cy="228" r="6" fill="#1d5fa8"/>
   <circle cx="736" cy="268" r="6" fill="#1d5fa8"/>
