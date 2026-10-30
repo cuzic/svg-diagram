@@ -247,6 +247,7 @@ const checkPlane = (band: LaidOutOf<'plane'>, _d: LaidOutDiagram, {problems}: Ve
     if (outsideBox(b, fig)) problems.push(`plane: label "${b.label}" runs outside the figure (move its point, change labelAt / side, or enlarge the figure)`);
   }
   eachOverlap(boxes, (a, b, o) => problems.push(`plane: label "${a.label}" overlaps label "${b.label}" by ${dxdy(o)} (change labelAt / side)`));
+  problems.push(...(band.clashes ?? []));
   (band.paths ?? []).forEach((pa, i) => {
     if (pa.overshoot > 1.5) problems.push(`plane: path ${i + 1} leaves the axes by ${Math.round(pa.overshoot)}px (a curve through these points swings outside the plot; use smooth: false, add points, or widen the axis range)`);
   });

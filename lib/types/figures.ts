@@ -82,10 +82,12 @@ export interface PlanePoint {
   /** The stage it (and its label) appears at; default the plane's own. */
   reveal?: number;
   until?: number;
+  /** Where it is heading along x: a faint ring at [to, y] and a dashed arrow from the point to it (a Wardley map's planned evolution; provisional here, see ADR 0047 D3). `to` is right of the point and inside the x axis. */
+  evolves?: {to: number};
 }
 /** A guide line between two positions / points (a projection onto an axis, a path). */
 /** `reveal` (here and on PlaneDim / PlaneLabel / PlanePath): default the max of the points it names (a coordinate counts 0) and the plane's own. */
-export interface PlaneLine {from: PlaneRef; to: PlaneRef; tone?: PlaneTone; /** Default true. */ dashed?: boolean; arrow?: boolean; reveal?: number}
+export interface PlaneLine {from: PlaneRef; to: PlaneRef; tone?: PlaneTone; /** Default true (false with `stages`, so a dependency does not look like a divider). */ dashed?: boolean; arrow?: boolean; reveal?: number}
 /**
  * A line through several positions / points. `smooth: true` draws a curve through every point: monotone cubic interpolation
  * (Fritsch-Carlson, like d3's curveMonotoneX) when x only increases along the path — it never overshoots the points, so no
@@ -129,6 +131,12 @@ export interface PlaneOpts extends RevealOpts {
   id?: string;
   x: PlaneAxis;
   y: PlaneAxis;
+  /**
+   * Named columns across x (a Wardley map's Genesis / Custom / Product / Commodity): dashed dividers between them and each name under its column.
+   * Equal widths by default; `{name, to}` puts the right edge of a column at x = `to` (every column but the last then needs one, increasing, inside the axis).
+   * The names are the x ticks (without tick marks), so not with x.ticks / step / categories. With `grid`, the vertical grid lines are left out (the dividers are them).
+   */
+  stages?: readonly (string | {name: string; to?: number})[];
   points?: PlanePoint[];
   lines?: PlaneLine[];
   paths?: PlanePath[];
@@ -195,6 +203,8 @@ export interface LaidOutPlane extends Rect {
   dims: {from: Point; to: Point; line: PlaneSeg; ext: PlaneSeg[]; chip: Rect; tone: PlaneTone; reveal?: number}[];
   /** Every label placed, as a rect: verify.ts reports two that overlap, one that leaves the figure, or one on the ink below. `dim`: the dimension line it belongs to. */
   labelBoxes: (Rect & {label: string; dim?: number})[];
+  /** Problems layout found that verify reports as they are (an evolution target on another point, an arrow too short to read). */
+  clashes?: string[];
   /** The plane's ink a label must stay clear of (axes and their arrowheads, ticks, points, guide and dimension lines). `dim`: the dimension it belongs to (its own label sits on it by design). */
   obstacles: (Rect & {what: string; dim?: number})[];
 }
