@@ -134,7 +134,7 @@ export interface PlaneOpts extends RevealOpts {
   /**
    * Named columns across x (a Wardley map's Genesis / Custom / Product / Commodity): dashed dividers between them and each name under its column.
    * Equal widths by default; `{name, to}` puts the right edge of a column at x = `to` (every column but the last then needs one, increasing, inside the axis).
-   * The names are the x ticks (without tick marks), so not with x.ticks / step / categories. With `grid`, the vertical grid lines are the dividers.
+   * The names are the x ticks (without tick marks), so not with x.ticks / step / categories. With `grid`, the vertical grid lines are left out (the dividers are them).
    */
   stages?: readonly (string | {name: string; to?: number})[];
   points?: PlanePoint[];

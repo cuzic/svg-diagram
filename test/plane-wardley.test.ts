@@ -53,11 +53,11 @@ test('plane stages: {name, to} puts the column edges where they say; the last co
   assert.throws(() => plane({...base, x: {max: 1}, stages: [{name: 'a', to: 0.5}, {name: 'b', to: 1}]}), /last stage/);
 });
 
-test('plane stages: names carry no tick marks, grid lines are the dividers, dependencies are solid by default', async () => {
+test('plane stages: names carry no tick marks, grid has no vertical lines, dependencies are solid by default', async () => {
   const {p} = await laid({...base, grid: true, points: [{id: 'a', at: [1, 0.5]}, {id: 'b', at: [3, 0.5]}], lines: [{from: 'a', to: 'b'}]});
   assert.equal(p.ticks.filter(t => t.y2 !== t.y1).length, 0, 'no x tick marks');
-  const w = (p.plotR - p.plotL) / 4;
-  assert.deepEqual(p.grid.filter(g => g.x1 === g.x2).map(g => g.x1), [1, 2, 3].map(i => p.plotL + w * i));
+  assert.equal(p.grid.filter(g => g.x1 === g.x2).length, 0);
+  assert.ok(p.grid.length > 0, 'the horizontal lines stay');
   assert.equal(p.lines.find(l => l.y1 !== p.plotT)!.dashed, false);
 });
 
@@ -85,4 +85,14 @@ test('plane evolves: a target too near its point, on another point, or an arrow 
   assert.match(await msgs([{id: 'a', at: [1, 0.5], evolves: {to: 2.5}}, {id: 'b', at: [2.5, 0.5]}]), /sits on|lies on/);
   assert.match(await msgs([{id: 'a', at: [1, 0.5], evolves: {to: 3}}, {id: 'b', at: [2, 0.5]}]), /lies on the evolution arrow/);
   assert.equal(await msgs([{id: 'a', at: [1, 0.5], evolves: {to: 2.5}}, {id: 'b', at: [1, 0.8], evolves: {to: 2.5}}]), '');
+});
+
+test('plane evolves: points are told apart by position in the list, not by label (no label, same label)', async () => {
+  const msgs = async (points: NonNullable<PlaneOpts['points']>) => (await laid({...base, points})).r.verdict.problems;
+  assert.equal((await msgs([{at: [1, 0.5], evolves: {to: 3}}, {at: [2, 0.5]}])).length, 1, 'no labels');
+  assert.equal((await msgs([{at: [1, 0.5], label: 'X', evolves: {to: 3}}, {at: [2, 0.5], label: 'X'}])).length, 1, 'same label');
+  assert.equal((await msgs([{at: [1, 0.5], label: 'X', evolves: {to: 3}}, {at: [3, 0.5], label: 'X'}])).length, 1, 'on the target');
+  assert.equal((await msgs([{id: 'k', at: [1, 0.5], evolves: {to: 3}}, {at: [2, 0.5], label: 'k'}])).length, 1, 'label equal to an id');
+  assert.equal((await msgs([{at: [1, 0.5], label: 'A', evolves: {to: 3}}, {at: [1, 0.52], label: 'B', evolves: {to: 3}}])).length > 0, true);
+  assert.ok((await msgs([{at: [1, 0.5], label: 'A', evolves: {to: 3}}, {at: [1, 0.52], label: 'B', evolves: {to: 3}}])).length <= 4, 'each pair once');
 });

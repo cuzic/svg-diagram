@@ -178,7 +178,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   ink('the x axis arrow', {x: plotR - 10, y: axisY - 5, w: 12, h: 10});
   ink('the y axis arrow', yDown ? {x: axisX - 5, y: plotB - 10, w: 10, h: 12} : {x: axisX - 5, y: plotT - 2, w: 10, h: 12});
   const grid: LaidOutPlane['grid'] = band.grid ? [
-    ...(stages.length ? edges.slice(1, -1) : xTicks.map(t => t.at)).map(v => ({x1: px(v), y1: plotT, x2: px(v), y2: plotB})),
+    ...(stages.length ? [] : xTicks).map(t => ({x1: px(t.at), y1: plotT, x2: px(t.at), y2: plotB})),
     ...yTicks.map(t => ({x1: plotL, y1: py(t.at), x2: plotR, y2: py(t.at)})),
   ] : [];
   if (band.x.label) addText(band.x.label, plotR + xLabelGap, axisY + half, 'start', 'muted', true);
@@ -233,32 +233,33 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     inkSeg('a stage divider', seg);
     lines.push({...seg, tone: 'muted', dashed: true, arrow: false});
   }
-  const clashes: string[] = [], rings: {x: number; y: number; name: string}[] = [];
-  for (const p of band.points ?? []) if (p.evolves) {
-    const a = pt(p.at), b = {x: px(p.evolves.to), y: a.y}, len = b.x - a.x, stop = {x: b.x - Math.min(8, len / 2), y: b.y}, name = p.label ?? p.id ?? 'a point';
+  // Points are told apart by index, not by name: a point may have no label, or share one.
+  const clashes: string[] = [];
+  const pts = band.points ?? [], nameOf = (p: (typeof pts)[number]): string => p.label ?? p.id ?? 'a point';
+  const dots: {x: number; y: number; owner: number; target: boolean; name: string}[] = pts.map((p, i) => ({...pt(p.at), owner: i, target: false, name: nameOf(p)}));
+  pts.forEach((p, i) => {
+    if (!p.evolves) return;
+    const a = pt(p.at), b = {x: px(p.evolves.to), y: a.y}, len = b.x - a.x, stop = {x: b.x - Math.min(8, len / 2), y: b.y}, name = nameOf(p);
     inkSeg('an evolution arrow', {x1: a.x, y1: a.y, x2: stop.x, y2: stop.y});
     ink('an evolution arrow', {x: stop.x - 10, y: stop.y - 5, w: 12, h: 10});
     ink('a point', {x: b.x - 7, y: b.y - 7, w: 14, h: 14});
     points.push({x: b.x, y: b.y, tone: 'muted', shape: 'ring', ...(p.reveal ? {reveal: p.reveal} : {})});
     lines.push({x1: a.x, y1: a.y, x2: stop.x, y2: stop.y, tone: p.tone ?? 'accent', dashed: true, arrow: true, ...(p.reveal ? {reveal: p.reveal} : {})});
-    rings.push({...b, name});
+    dots.push({...b, owner: i, target: true, name});
     if (len < 24) clashes.push(`plane: "${name}" evolves only ${Math.round(len)}px to the right, too short to draw the arrow (move evolves.to further right or widen the figure)`);
-  }
-  // an evolution target must not sit on another point or target, nor its arrow run through one
-  const dots = [...(band.points ?? []).map(p => ({...pt(p.at), name: p.label ?? p.id ?? 'a point'})), ...rings.map(r => ({...r, name: `the target of "${r.name}"`}))];
-  (band.points ?? []).forEach(p => {
-    if (!p.evolves) return;
-    const a = pt(p.at), bx = px(p.evolves.to), me = p.label ?? p.id ?? 'a point';
-    for (const d of dots) {
-      if (d.name === me || d.name === `the target of "${me}"`) continue;
-      const onArrow = Math.abs(d.y - a.y) < 10 && d.x > a.x - 4 && d.x < bx + 10;
-      if (onArrow) clashes.push(`plane: ${d.name} lies on the evolution arrow of "${me}" (move a point, or change evolves.to)`);
-    }
   });
-  for (let i = 0; i < rings.length; i++) for (let j = 0; j < dots.length; j++) {
-    const r = must(rings[i]), d = must(dots[j]);
-    if (d.name === `the target of "${r.name}"` || d.name === r.name) continue;
-    if (Math.hypot(d.x - r.x, d.y - r.y) < 14) clashes.push(`plane: the target of "${r.name}" sits on ${d.name} (change evolves.to or the points' positions)`);
+  // an evolution target must not sit on another point or target, nor its arrow run through one (each pair is named once)
+  for (const r of dots) if (r.target) {
+    const src = must(dots[r.owner]), x2 = r.x + 10;
+    for (const d of dots) {
+      if (d === r || d.owner === r.owner) continue;
+      const what = d.target ? `the target of "${d.name}"` : `"${d.name}"`;
+      if (Math.abs(d.y - src.y) < 12 && d.x > src.x - 4 && d.x < x2) {
+        clashes.push(d.x - src.x < 7 ? `plane: ${what} sits on "${r.name}" (the point that evolves)` : `plane: ${what} lies on the evolution arrow of "${r.name}" (move a point, or change evolves.to)`);
+      } else if (d.target ? d.owner > r.owner && Math.hypot(d.x - r.x, d.y - r.y) < 14 : Math.hypot(d.x - r.x, d.y - r.y) < 14) {
+        clashes.push(`plane: the target of "${r.name}" sits on ${what} (change evolves.to or the points' positions)`);
+      }
+    }
   }
 
   const paths: NonNullable<LaidOutPlane['paths']> = (band.paths ?? []).map(pa => {
