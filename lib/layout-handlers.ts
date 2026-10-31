@@ -614,6 +614,7 @@ function snapBandNodes(placed: LaidOutTree, band: BandOf<'tree'>): void {
     if (!n.band || !node) return;
     const dy = originOf(n.band.type, node.y) - node.y;
     if (dy === 0) return;
+    const touches = (p: {x: number; y: number}, o: {x: number; y: number; w: number; h: number}): boolean => p.y >= o.y - 0.5 && p.y <= o.y + o.h + 0.5 && p.x >= o.x - 0.5 && p.x <= o.x + o.w + 0.5;
     const on = (p: {x: number; y: number}): boolean => p.y >= node.y - 0.5 && p.y <= node.y + node.h + 0.5 && (Math.abs(p.x - node.x) < 0.5 || Math.abs(p.x - node.x - node.w) < 0.5 || (p.x >= node.x - 0.5 && p.x <= node.x + node.w + 0.5 && (Math.abs(p.y - node.y) < 0.5 || Math.abs(p.y - node.y - node.h) < 0.5)));
     const mid = node.y + node.h / 2;
     for (const e of placed.edges) {
@@ -621,7 +622,8 @@ function snapBandNodes(placed: LaidOutTree, band: BandOf<'tree'>): void {
       for (const [k, next] of [[0, 1], [last, last - 1]] as const) {
         const p = must(pts[k]), q = pts[next];
         if (!on(p)) continue;
-        if (q && pts.length > 2 && q.y === p.y) q.y += dy; // a horizontal leg stays horizontal (a line of two points is only moved at this end)
+        // a horizontal leg stays horizontal; a line of two points keeps the end that sits on another node, but moves one that ends on a `{` or a spine
+        if (q && q.y === p.y && (pts.length > 2 || !placed.nodes.some(o => o !== node && touches(q, o)))) q.y += dy;
         p.y += dy;
       }
     }

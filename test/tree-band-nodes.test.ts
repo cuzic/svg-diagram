@@ -100,3 +100,11 @@ test('tree band nodes: a brace and a two-point line follow a node that moves to 
     assert.ok(ends.some(y => Math.abs(y - br.y1) < 3.5) && ends.some(y => Math.abs(y - br.y2) < 3.5), 'a brace end stays within a pixel or two of a line end');
   }
 });
+
+test('tree band nodes: a band that declares no id does not switch off the id check of the figure (types)', () => {
+  const t = tree({label: 'r', id: 'r', w: 300, band: box({title: 'no id'})});
+  const d = diagram({theme: 'blue', width: 940}).add(t);
+  // @ts-expect-error 'nosuch' is declared by nothing: still a type error with a band node that has no ids
+  d.connect('r', 'nosuch'); // (the figure is only laid out later: this line is checked by tsc, not at run time)
+  assert.ok(d);
+});

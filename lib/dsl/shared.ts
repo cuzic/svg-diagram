@@ -2,7 +2,7 @@ import {MIN_FONT_SIZE, isSolidTone} from '../tokens.ts';
 import {assertScope, scopeOf} from '../scope-name.ts';
 import type {Band} from '../types/index.ts';
 import type {TreeItem} from '../types/diagrams.ts';
-import type {Declares} from '../strict.ts';
+import type {IdsOf} from '../strict.ts';
 
 // `const list = box({id: 'list'})`: a band built with an id also works as a handle (`list.right`, `list.at('top', 0.25)`),
 // so connect() can name it without typing the id again. The helpers are NON-enumerable properties: spreading or
@@ -83,7 +83,7 @@ function mapTreeBands(item: TreeItem, fn: (b: Band) => Band | undefined): TreeIt
 }
 /** The ids of a tree's nodes (its own, and every descendant's). */
 export type TreeIds<T> = (T extends {readonly id: infer I extends string} ? I : never) | (T extends {readonly children: readonly (infer C)[]} ? TreeIds<C> : never)
-  | (T extends {readonly band: infer B} ? (B extends Declares<infer I> ? I : never) : never); // a band node's own ids too
+  | (T extends {readonly band: infer B} ? IdsOf<B> : never); // a band node's own ids too (IdsOf drops the `unknown` of a band that declares none)
 export function assertFontSize(size: number): void {
   if (size < MIN_FONT_SIZE) {
     throw new Error(`font-size ${size} is below the ${MIN_FONT_SIZE}px floor — this deck never uses smaller text. Reconsider the layout instead of shrinking the text.`);
