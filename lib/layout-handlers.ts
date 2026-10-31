@@ -28,7 +28,7 @@ import {layoutChart} from './charts.ts';
 import {layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {GroupBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, RawBand, SpacerBand, StatusBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow, RowArrow} from './types/containers.ts';
 import type {Rect} from './types/core.ts';
-import type {LaidOutTree} from './types/diagrams.ts';
+import type {LaidOutTree, TreeItem} from './types/diagrams.ts';
 import type {PyramidBand, CurveBand, LaidOutPyramidLayer} from './types/figures.ts';
 import type {ImageBand} from './types/image.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
@@ -653,7 +653,31 @@ const layoutTree: BandLayoutHandler<BandOf<'tree'>> = (band, ctx, padX, cw) => {
     ctx.stack([n.band], node.x, node.w);
   });
   ctx.y = after;
+  funnelEdges(placed, items, ctx);
 };
+/** A child with `from` is joined from a part inside its parent's band (known only now that the bands are placed): the two ends of that part's near side to the two ends of the child's near side. */
+function funnelEdges(placed: LaidOutTree, items: TreeItem[], ctx: LayoutCtx): void {
+  if (!items.some(n => n.from !== undefined)) return;
+  const parentOf = new Map<TreeItem, TreeItem>();
+  for (const n of items) for (const c of n.children ?? []) parentOf.set(c, n);
+  const rectOf = (n: TreeItem): Rect => must(placed.nodes[items.indexOf(n)]);
+  items.forEach((child, i) => {
+    if (child.from === undefined) return;
+    const parent = must(parentOf.get(child)), pr = rectOf(parent), cr = rectOf(child);
+    const part = ctx.anchors.get(child.from);
+    if (!part || part.x < pr.x - 0.5 || part.y < pr.y - 0.5 || part.x + part.w > pr.x + pr.w + 0.5 || part.y + part.h > pr.y + pr.h + 0.5) {
+      const inside = [...ctx.anchors].filter(([, r]) => r.x >= pr.x - 0.5 && r.y >= pr.y - 0.5 && r.x + r.w <= pr.x + pr.w + 0.5 && r.y + r.h <= pr.y + pr.h + 0.5 && r !== pr).map(([k]) => k);
+      throw new Error(`tree(): "${child.label}": from "${child.from}" is not an id inside the band of "${parent.label}"${inside.length ? ` (ids there: ${inside.join(', ')})` : ' (that band declares no ids)'}`);
+    }
+    placed.edges = placed.edges.filter(e => e.child !== i);
+    const pc = {x: part.x + part.w / 2, y: part.y + part.h / 2}, cc = {x: cr.x + cr.w / 2, y: cr.y + cr.h / 2};
+    const vertical = cr.y >= pr.y + pr.h - 0.5 || cr.y + cr.h <= pr.y + 0.5; // the child lies wholly below / above its parent's band (else beside it)
+    const pair = vertical
+      ? (cc.y > pc.y ? [[{x: part.x, y: part.y + part.h}, {x: cr.x, y: cr.y}], [{x: part.x + part.w, y: part.y + part.h}, {x: cr.x + cr.w, y: cr.y}]] : [[{x: part.x, y: part.y}, {x: cr.x, y: cr.y + cr.h}], [{x: part.x + part.w, y: part.y}, {x: cr.x + cr.w, y: cr.y + cr.h}]])
+      : (cc.x > pc.x ? [[{x: part.x + part.w, y: part.y}, {x: cr.x, y: cr.y}], [{x: part.x + part.w, y: part.y + part.h}, {x: cr.x, y: cr.y + cr.h}]] : [[{x: part.x, y: part.y}, {x: cr.x + cr.w, y: cr.y}], [{x: part.x, y: part.y + part.h}, {x: cr.x + cr.w, y: cr.y + cr.h}]]);
+    for (const points of pair) placed.edges.push({points: points as {x: number; y: number}[], child: i});
+  });
+}
 const layoutBarsBand = placedBand((band: BandOf<'bars'>, x, y, w, ctx) => layoutBars(band, x, y, w, ctx.widthOf, ctx.roles), 'a bars band takes an id that another anchor already has', 'a bar takes an id that another anchor already has');
 const layoutChartBand = placedBand((band: BandOf<'chart'>, x, y, w, ctx) => layoutChart(band, x, y, w, ctx.widthOf, ctx.roles, ctx.wrap), 'a chart takes an id that another anchor already has', 'a chart element takes an id that another anchor already has');
 const layoutPeopleOrDots = placedBand((band: Band & {type: 'people' | 'dots'}, x, y, w, ctx) => band.type === 'people' ? layoutPeople(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles) : layoutDots(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles),

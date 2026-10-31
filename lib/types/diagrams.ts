@@ -18,6 +18,8 @@ export interface TreeItem {
   band?: Band;
   /** The width of a band node (required with `band`). */
   w?: number;
+  /** On a child of a band node: the id of a part inside the parent's band (a chevron's step ...). The line to this child leaves from that part: its two ends on the near side to the two ends of this node's near side (a funnel), instead of the middle of the parent's edge to the middle of the child's. */
+  from?: string;
 }
 export interface TreeOpts extends RevealOpts, ScopeOpts {
   /** 'down' (default): levels run top to bottom. 'right': left to right, which fits more siblings in a narrow figure.
@@ -26,10 +28,12 @@ export interface TreeOpts extends RevealOpts, ScopeOpts {
   dir?: 'down' | 'right' | 'auto';
   /** The widest a node grows before its text wraps (default 200px). */
   maxNodeW?: number;
+  /** `false` draws none of the tree's own lines (the nodes are joined by connect()s the caller draws); not with a node's `from`. */
+  edges?: false;
   /** A spotlight target and a connect() endpoint (the whole figure). */
   id?: string;
 }
-export interface TreeBand extends TreeOpts {
+export interface TreeBand extends Omit<TreeOpts, 'edges'> {
   type: 'tree';
   root: TreeItem;
   /** mindmap(): the root in the middle, children split to both sides (the same band, laid out by layoutBalanced). */
@@ -39,7 +43,7 @@ export interface TreeBand extends TreeOpts {
   /** mindmap(): how the branches are laid out (default 'radial'). */
   layout?: MindmapLayout;
   /** mindmap(): how a branch's line is drawn (tree-like layouts: radial / right / left / down / up). */
-  edges?: 'elbow' | 'curve' | 'straight';
+  edges?: 'elbow' | 'curve' | 'straight' | false;
 }
 /**
  * radial: the root in the middle, branches to both sides | right / left: one side only (a logic chart) | down / up: a tree |
@@ -50,8 +54,8 @@ export type MindmapLayout = 'radial' | 'right' | 'left' | 'down' | 'up' | 'org' 
 export interface MindmapOpts extends RevealOpts, ScopeOpts {
   /** How the branches are laid out (default 'radial'): see MindmapLayout. */
   layout?: MindmapLayout;
-  /** How a branch's line is drawn: 'elbow' (default), 'curve' or 'straight'. For radial / right / left / down / up. */
-  edges?: 'elbow' | 'curve' | 'straight';
+  /** How a branch's line is drawn: 'elbow' (default), 'curve' or 'straight'. For radial / right / left / down / up. `false`: no lines. */
+  edges?: 'elbow' | 'curve' | 'straight' | false;
   /** Pin a child of the root (by its id) to a side; the others are balanced by height. */
   sides?: Record<string, 'left' | 'right'>;
   maxNodeW?: number;
@@ -381,7 +385,7 @@ export interface LaidOutTree extends Rect, Dimmed {
   until?: number;
   nodes: (Rect & {tone: BoxTone; id?: string; /** ADR 0034 */ dataNode?: string; /** A band node: the tree draws no box or text for it; the band is laid out in its rectangle. */ band?: true})[];
   /** Parent to child, each a polyline (centre line of the box edge to the child's box edge); `curve` draws it as a smooth S, `bold` as a spine. */
-  edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean}[];
+  edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean; /** The index (in treeItems order) of the child this line leads to; only in a tree that has a `from`. */ child?: number}[];
   /** brace maps: a `{` over the children of one parent. */
   braces?: {x: number; y1: number; y2: number; ymid: number; tipX: number; side: 'right' | 'left'}[];
   texts: TreeNodeText[];
