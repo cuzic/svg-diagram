@@ -1,7 +1,7 @@
 import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
-import {box, chevron, checkDiagram, closeMeasurer, connect, diagram, mindmap, tree} from '../lib/dsl.ts';
+import {box, chevron, checkDiagram, closeMeasurer, connect, diagram, group, mindmap, tree} from '../lib/dsl.ts';
 import type {LaidOutTree} from '../lib/types/diagrams.ts';
 import type {Band} from '../lib/types/index.ts';
 
@@ -9,7 +9,7 @@ test.after(() => closeMeasurer());
 
 const steps = (ids: string[]) => chevron(ids.map(id => ({label: id, id})));
 const laid = async (...bands: Band[]) => {
-  const r = await checkDiagram(diagram({theme: 'blue', width: 940}).add(...(bands as never[])));
+  const r = await checkDiagram(diagram({theme: 'blue', width: 940}).add(...(bands as [Band])));
   return {r, t: r.laidOut.laidOut.find((b): b is LaidOutTree => b.type === 'tree')!};
 };
 
@@ -34,10 +34,10 @@ test('tree band nodes: the nodes sit on the grid, with the line ends moved with 
   });
 });
 
-test('tree band nodes: inner ids are anchors of the figure, so connect() can reach them (and the trial layout leaves no duplicate behind)', async () => {
-  const bands = [tree({label: 'top', w: 800, band: steps(['a1', 'a2', 'a3']), children: [{label: 'sub', id: 'sub', w: 420, band: steps(['b1', 'b2'])}]}), connect('a2:bottom', 'b2:top')];
-  const {r} = await laid(...bands); // (the line itself may brush a neighbouring chevron: only the ids are under test here)
-  assert.equal(r.laidOut.connects.length, 1);
+test('tree band nodes: inner ids are anchors of the figure, so connect() can reach them — also for the type checker (and the trial layout leaves no duplicate behind)', async () => {
+  const t = tree({label: 'top', w: 800, band: steps(['a1', 'a2', 'a3']), children: [{label: 'sub', id: 'sub', w: 420, band: steps(['b1', 'b2'])}]});
+  const r = await checkDiagram(diagram({theme: 'blue', width: 940}).add(t).connect('a2:bottom', 'b2:top')); // typed: a2 and b2 are declared by the bands inside the nodes
+  assert.equal(r.laidOut.connects.length, 1); // (the line itself may brush a neighbouring chevron: only the ids are under test here)
   assert.deepEqual(r.verdict.problems.filter(m => /unknown|duplicate/.test(m)), []);
 });
 
@@ -66,4 +66,37 @@ test('tree band nodes: a tree with no band node is laid out exactly as before', 
   const {r, t} = await laid(tree({label: 'r', children: [{label: 'a'}, {label: 'b'}]}));
   assert.deepEqual(r.verdict.problems, []);
   assert.ok(t.nodes.every(n => n.band === undefined));
+});
+
+test('tree band nodes: reveal of the tree reaches its bands, and a band inside a node can reveal later', async () => {
+  const t = tree({label: 'top', w: 600, band: steps(['a1']), children: [{label: 'sub', w: 300, band: box({title: 'late', reveal: 3})}]}, {reveal: 2});
+  const r = await checkDiagram(diagram({theme: 'blue', width: 940}).add(t));
+  const stages = r.laidOut.laidOut.map(b => (b as {reveal?: number}).reveal);
+  assert.ok(stages.includes(2), 'the first band comes with the tree');
+  assert.ok(stages.includes(3), 'the box reveals at 3');
+  assert.equal(r.laidOut.maxReveal, 3);
+});
+
+test('diagram defaults reach a band inside a node: connectDefaults on a labelled connect in a group node, as outside a tree', async () => {
+  const make = () => group([box({title: 'x', id: 'x1'}), box({title: 'y', id: 'y1'}), connect('x1:bottom', 'y1:top', {label: 'to'})]);
+  const outside = await checkDiagram(diagram({theme: 'blue', width: 940, connectDefaults: {chip: false}}).add(make()));
+  const inside = await checkDiagram(diagram({theme: 'blue', width: 940, connectDefaults: {chip: false}}).add(tree({label: 'top', w: 500, band: make()})));
+  assert.equal(outside.laidOut.connects[0]!.chip, false);
+  assert.equal(inside.laidOut.connects[0]!.chip, outside.laidOut.connects[0]!.chip);
+});
+
+test('tree band nodes: one band object cannot be two nodes', () => {
+  const one = steps(['q']);
+  assert.throws(() => tree({label: 'r', w: 300, band: one, children: [{label: 'c', w: 300, band: one}]}), /already the band of another node/);
+  assert.throws(() => tree({label: 'r', children: [{label: 'c', w: 300, band: [steps(['z'])] as never}]}), /swimlane\(\.\.\.\)\[0\]/);
+});
+
+test('tree band nodes: a brace and a two-point line follow a node that moves to the grid', async () => {
+  const mixed = {label: 'root', sub: 'odd height', children: [{label: 'a', w: 220, band: box({title: 'one', body: 'x'})}, {label: 'b', w: 220, band: box({title: 'two'})}, {label: 'c'}]};
+  const {t} = await laid(mindmap(mixed, {layout: 'brace'}));
+  for (const n of t.nodes.filter(n => n.band)) assert.equal(n.y % 4, 0);
+  for (const br of t.braces ?? []) {
+    const ends = t.edges.flatMap(e => [e.points[0]!.y, e.points[e.points.length - 1]!.y]);
+    assert.ok(ends.some(y => Math.abs(y - br.y1) < 3.5) && ends.some(y => Math.abs(y - br.y2) < 3.5), 'a brace end stays within a pixel or two of a line end');
+  }
 });

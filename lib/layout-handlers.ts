@@ -380,7 +380,7 @@ function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: nu
   const rowGap = ctx.gapForLabels(band, cw);
   const {widths, xOffsets} = rowChildGeometry({...band, gap: rowGap}, cw);
   const top0 = ctx.y, rowTop = snapGrid(top0); // on the grid; the cursor moves on from where it was (no drift)
-  const before = {n: ctx.laidOut.length, anchors: new Map(ctx.anchors), nodeBottoms: new Map(ctx.nodeBottoms), areaIds: new Set(ctx.areaIds), connects: ctx.connects.length, deferred: ctx.deferred.length};
+  const before = snapshotCtx(ctx);
   const place = (fills: (GroupFill | undefined)[]) => {
     const stretch: ((h: number) => void)[] = [], natural: number[] = [];
     let rowHeight = 0;
@@ -412,11 +412,7 @@ function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: nu
     return slack >= GROUP_FILL_MIN ? {slack, valign: c.valign ?? 'center'} : undefined;
   });
   if (fills.some(Boolean)) { // start the row over: take back what the first pass registered (ids, connectors), then lay it out with the room
-    ctx.laidOut.length = before.n;
-    ctx.anchors.clear(); before.anchors.forEach((v, k) => ctx.anchors.set(k, v));
-    ctx.nodeBottoms.clear(); before.nodeBottoms.forEach((v, k) => ctx.nodeBottoms.set(k, v));
-    ctx.areaIds.clear(); before.areaIds.forEach(k => ctx.areaIds.add(k));
-    ctx.connects.length = before.connects; ctx.deferred.length = before.deferred;
+    restoreCtx(ctx, before);
     placed = place(fills);
   }
   const {rowHeight, stretch} = placed;
@@ -589,20 +585,27 @@ const layoutCauseOrCloud = placedBand((band: Band & {type: 'cause' | 'cloud'}, x
   band => `${band.type === 'cause' ? 'a cause tree' : 'a cloud'} takes an id that another anchor already has`,
   band => `${band.type === 'cause' ? 'a cause tree node' : 'a cloud box'} takes an id that another anchor already has`);
 const layoutStates = placedBand((band: BandOf<'states'>, x, y, w, ctx) => layoutStatesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), band => `${statesWords(band.flavor).diagram} takes an id that another anchor already has`, band => `a ${statesWords(band.flavor).node} takes an id that another anchor already has`);
-// A tree whose nodes are bands (ADR 0049): each band is measured once per width (laid out, then rolled back), the tree is placed from those sizes, and
+/** What laying bands out writes into the layout context, copied so that a layout can be taken back (ADR 0049; layoutGroupRow does the same). A new piece of state in LayoutCtx belongs here. */
+function snapshotCtx(ctx: LayoutCtx) {
+  return {n: ctx.laidOut.length, y: ctx.y, anchors: new Map(ctx.anchors), nodeBottoms: new Map(ctx.nodeBottoms), areaIds: new Set(ctx.areaIds), connects: ctx.connects.length, deferred: ctx.deferred.length, scopes: new Map([...ctx.scopes.byBare].map(([k, v]) => [k, [...v]]))};
+}
+function restoreCtx(ctx: LayoutCtx, s: ReturnType<typeof snapshotCtx>): void {
+  ctx.laidOut.length = s.n; ctx.y = s.y;
+  ctx.anchors.clear(); for (const [k, v] of s.anchors) ctx.anchors.set(k, v);
+  ctx.nodeBottoms.clear(); for (const [k, v] of s.nodeBottoms) ctx.nodeBottoms.set(k, v);
+  ctx.areaIds.clear(); for (const k of s.areaIds) ctx.areaIds.add(k);
+  ctx.connects.length = s.connects; ctx.deferred.length = s.deferred;
+  ctx.scopes.byBare.clear(); for (const [k, v] of s.scopes) ctx.scopes.byBare.set(k, v);
+}
+// A tree whose nodes are bands (ADR 0049): each band is measured once per width (laid out, then taken back), the tree is placed from those sizes, and
 // every band is laid out for real inside its node's rectangle.
 function measureBandHeight(ctx: LayoutCtx, band: Band, w: number): number {
-  const before = {laidOut: ctx.laidOut.length, y: ctx.y, anchors: new Set(ctx.anchors.keys()), bottoms: new Map(ctx.nodeBottoms), areas: new Set(ctx.areaIds), connects: ctx.connects.length, deferred: ctx.deferred.length, scopes: new Map([...ctx.scopes.byBare].map(([k, v]) => [k, [...v]]))};
-  ctx.y = 0;
-  ctx.stack([band], 0, w);
-  const h = ctx.y - ctx.d.gap; // every handler leaves the cursor one gap below what it placed
-  ctx.laidOut.length = before.laidOut; ctx.y = before.y;
-  for (const k of [...ctx.anchors.keys()]) if (!before.anchors.has(k)) ctx.anchors.delete(k);
-  ctx.nodeBottoms.clear(); for (const [k, v] of before.bottoms) ctx.nodeBottoms.set(k, v);
-  ctx.areaIds.clear(); for (const a of before.areas) ctx.areaIds.add(a);
-  ctx.connects.length = before.connects; ctx.deferred.length = before.deferred;
-  ctx.scopes.byBare.clear(); for (const [k, v] of before.scopes) ctx.scopes.byBare.set(k, v);
-  return h;
+  const before = snapshotCtx(ctx);
+  try {
+    ctx.y = 0;
+    ctx.stack([band], 0, w);
+    return Math.max(0, ctx.y - ctx.d.gap); // every handler leaves the cursor one gap below what it placed (a raw() of height 0 leaves none: clamped)
+  } finally { restoreCtx(ctx, before); }
 }
 /** A band node is laid out on the grid like any band: its rectangle (and the ends of the lines that reach it) move to where the band will really sit. */
 function snapBandNodes(placed: LaidOutTree, band: BandOf<'tree'>): void {
@@ -612,14 +615,19 @@ function snapBandNodes(placed: LaidOutTree, band: BandOf<'tree'>): void {
     const dy = originOf(n.band.type, node.y) - node.y;
     if (dy === 0) return;
     const on = (p: {x: number; y: number}): boolean => p.y >= node.y - 0.5 && p.y <= node.y + node.h + 0.5 && (Math.abs(p.x - node.x) < 0.5 || Math.abs(p.x - node.x - node.w) < 0.5 || (p.x >= node.x - 0.5 && p.x <= node.x + node.w + 0.5 && (Math.abs(p.y - node.y) < 0.5 || Math.abs(p.y - node.y - node.h) < 0.5)));
+    const mid = node.y + node.h / 2;
     for (const e of placed.edges) {
       const pts = e.points, last = pts.length - 1;
       for (const [k, next] of [[0, 1], [last, last - 1]] as const) {
         const p = must(pts[k]), q = pts[next];
         if (!on(p)) continue;
-        if (q && q.y === p.y) q.y += dy; // a horizontal leg stays horizontal
+        if (q && pts.length > 2 && q.y === p.y) q.y += dy; // a horizontal leg stays horizontal (a line of two points is only moved at this end)
         p.y += dy;
       }
+    }
+    for (const br of placed.braces ?? []) { // a `{` reaches the middle of its children's sides: its end moves with the child
+      if (Math.abs(br.y1 - mid) <= 3) br.y1 += dy;
+      if (Math.abs(br.y2 - mid) <= 3) br.y2 += dy;
     }
     node.y += dy;
     const anchor = placed.anchors.find((a: {id: string}) => a.id === n.id);
