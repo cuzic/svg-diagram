@@ -12,6 +12,7 @@ import type {BowtieBand, BowtieInput, BowtieOpts, BowtieSide, WhyNode, TreeBand,
 import type {Band} from '../types/index.ts';
 import type {CaptionBand} from '../types/text-bands.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
+import {treeItems} from '../tree.ts';
 import {grid, row} from './containers.ts';
 import {assertBoxTone, revealOf, scopeOpt, withAnchors, withHandle} from './shared.ts';
 import type {TreeIds} from './shared.ts';
@@ -29,8 +30,15 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
   if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right' && opts.dir !== 'auto') throw new Error(`tree(): dir must be 'down', 'right' or 'auto' (got ${String(opts.dir)})`);
   if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`tree(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
   const ids: (string | undefined)[] = [];
+  if (opts.edges !== undefined && opts.edges !== false) throw new Error(`tree(): edges can only be false (no lines); got ${String(opts.edges)}`);
   const usedBands = new Set<object>();
-  const walk = (n: TreeItem): void => {
+  const walk = (n: TreeItem, parent?: TreeItem): void => {
+    if (n.from !== undefined) {
+      if (typeof n.from !== 'string' || !n.from) throw new Error(`tree(): "${n.label}": from is the id of a part inside the parent's band`);
+      if (!parent) throw new Error(`tree(): the root has no parent, so "${n.label}" takes no from`);
+      if (!parent.band) throw new Error(`tree(): "${n.label}": from names a part inside the parent's band, but "${parent.label}" is not a band node`);
+      if (opts.edges === false) throw new Error(`tree(): "${n.label}": from draws a line, and edges: false draws none`);
+    }
     if (n.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(n.tone)) throw new Error(`tree(): "${n.label}" has tone ${String(n.tone)}`);
     if (n.band !== undefined) {
       if (Array.isArray(n.band)) throw new Error(`tree(): "${n.label}": band got a list: swimlane() returns the band and its flows, so write swimlane(...)[0]`);
@@ -42,10 +50,10 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
       if (n.sub !== undefined || n.tone !== undefined) throw new Error(`tree(): "${n.label}": a band node takes no sub or tone (the band draws itself)`);
     } else if (n.w !== undefined) throw new Error(`tree(): "${n.label}": w is only for a band node`);
     ids.push(n.id);
-    for (const c of n.children ?? []) walk(c);
+    for (const c of n.children ?? []) walk(c, n);
   };
   walk(root);
-  const band: TreeBand = {type: 'tree', root, ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'tree()'), ...revealOf(opts)};
+  const band: TreeBand = {type: 'tree', root, ...(opts.edges === undefined ? {} : {edges: opts.edges}), ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'tree()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), ids);
 }
 type BpmnIds<N extends readonly BpmnNode[]> = Extract<N[number]['id'], string>;
@@ -467,9 +475,10 @@ export function mindmap(root: TreeItem, opts: MindmapOpts = {}): TreeBand {
   if (opts.sides) for (const [id, side] of Object.entries(opts.sides)) if (side !== 'left' && side !== 'right') throw new Error(`mindmap(): sides.${id} must be 'left' or 'right' (got ${String(side)})`);
   const layouts = ['radial', 'right', 'left', 'down', 'up', 'org', 'list', 'brace', 'fishbone', 'timeline'];
   if (opts.layout !== undefined && !layouts.includes(opts.layout)) throw new Error(`mindmap(): layout must be ${layouts.join(' | ')} (got ${String(opts.layout)})`);
-  if (opts.edges !== undefined && !['elbow', 'curve', 'straight'].includes(opts.edges)) throw new Error(`mindmap(): edges must be elbow | curve | straight (got ${String(opts.edges)})`);
+  if (opts.edges !== undefined && opts.edges !== false && !['elbow', 'curve', 'straight'].includes(opts.edges)) throw new Error(`mindmap(): edges must be elbow | curve | straight | false (got ${String(opts.edges)})`);
   const band = tree(root, {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...revealOf(opts)});
-  Object.assign(band, {balanced: true, ...(opts.sides ? {sides: opts.sides} : {}), ...(opts.layout ? {layout: opts.layout} : {}), ...(opts.edges ? {edges: opts.edges} : {})});
+  if (opts.edges === false) for (const n of treeItems(root)) if (n.from !== undefined) throw new Error(`mindmap(): "${n.label}": from draws a line, and edges: false draws none`);
+  Object.assign(band, {balanced: true, ...(opts.sides ? {sides: opts.sides} : {}), ...(opts.layout ? {layout: opts.layout} : {}), ...(opts.edges !== undefined ? {edges: opts.edges} : {})});
   return band as never;
 }
 

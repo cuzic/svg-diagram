@@ -119,7 +119,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     }));
     const kind = band.balanced ? band.layout ?? 'radial' : dirNow;
     if (band.sides && kind !== 'radial') throw new Error(`mindmap(): sides applies to the radial layout (this is layout: '${kind}')`);
-    const styled = band.edges !== undefined && band.edges !== 'elbow';
+    const styled = band.edges !== undefined && band.edges !== 'elbow' && band.edges !== false;
     if (styled && !['radial', 'right', 'left', 'down', 'up'].includes(kind)) throw new Error(`mindmap(): edges: '${band.edges}' applies to the radial, right, left, down and up layouts (this is layout: '${kind}')`);
     const grown = (dir: 'down' | 'right'): TreeLayout => layoutTree(laidRoot, {dir, gap: Math.round(GAP * (env.space ?? 1)), levelGap: Math.round(LEVEL_GAP * (env.space ?? 1))});
     const raw: TreeLayout = kind === 'radial' ? layoutBalanced(laidRoot, {gap: Math.round(GAP * (env.space ?? 1)), levelGap: Math.round(LEVEL_GAP * (env.space ?? 1)), sides})
@@ -128,7 +128,8 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
       : kind === 'brace' ? layoutBrace(laidRoot) : kind === 'fishbone' ? layoutFishbone(laidRoot) : layoutTimelineMap(laidRoot);
     // the line style: straight or smooth instead of the elbow (the first and last point of each line, the smooth one along the way the tree grows)
     const along: 'x' | 'y' = kind === 'down' || kind === 'up' ? 'y' : 'x';
-    const tree: TreeLayout = !styled ? raw : {...raw, edges: raw.edges.map(e => ({...e, points: [must(e.points[0]), must(e.points[e.points.length - 1])], ...(band.edges === 'curve' ? {curve: along} : {})}))};
+    const {braces: _braces, ...bare} = raw;
+    const tree: TreeLayout = band.edges === false ? {...bare, edges: bare.edges.filter(e => e.bold)} : !styled ? raw : {...raw, edges: raw.edges.map(e => ({...e, points: [must(e.points[0]), must(e.points[e.points.length - 1])], ...(band.edges === 'curve' ? {curve: along} : {})}))};
     return {size: {w: tree.w, h: tree.h}, score: {crossings: 0, bends: 0}, tree, lines, kind};
   };
   const explicitDir = !band.balanced && band.dir !== undefined && band.dir !== 'auto';
@@ -156,7 +157,9 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     out.texts.push(...nodeRuns(r, l, roles));
     out.labelBoxes.push({label: n.label, ...r});
   }
-  for (const e of tree.edges) out.edges.push({points: e.points.map(p => ({x: p.x + dx, y: p.y + dy})), ...(e.curve ? {curve: e.curve} : {}), ...(e.bold ? {bold: true} : {})});
+  const indexOf = new Map(items.map((n, i) => [must(key.get(n)), i]));
+  const funnels = items.some(n => n.from !== undefined);
+  for (const e of tree.edges) out.edges.push({points: e.points.map(p => ({x: p.x + dx, y: p.y + dy})), ...(e.curve ? {curve: e.curve} : {}), ...(e.bold ? {bold: true} : {}), ...(funnels && indexOf.has(e.to) ? {child: must(indexOf.get(e.to))} : {})});
   if (tree.braces?.length) out.braces = tree.braces.map(b => ({...b, x: b.x + dx, tipX: b.tipX + dx, y1: b.y1 + dy, y2: b.y2 + dy, ymid: b.ymid + dy}));
   return out;
 }

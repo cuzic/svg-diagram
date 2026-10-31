@@ -1,6 +1,6 @@
 # ADR 0049: `tree()` / `mindmap()` のノードに任意の band を使う
 
-- 状態: 第 1 段(ノードに band を置く)は実装済み(レビュー前)。第 1b 段(`scale`)と第 2 段(漏斗の線)は設計だけで、未実装
+- 状態: 第 1 段(ノードに band を置く)は実装済み(PR #348 マージ済み)。第 2 段の一部(D6: `from` と `edges: false`)は実装済み(レビュー前)。第 1b 段(`scale`)と、子の帯を親の段の真下に寄せること(D7)は設計だけで、未実装
 - 日付: 2026-10-31
 - 基点: `main`(PR #346 まで)
 - 関連: ADR 0046(`valueChain()`)、ADR 0045(ブラウザ入口)、ADR 0017(文字サイズの下限)、Issue #347(依頼の原文)
@@ -38,12 +38,23 @@ Artifact「仕事の全体図」から、「矢羽根の帯を入れ子にして
 - **下限**: 実効の大きさ(`size × scale`)は、図が宣言した下限(`canvas.minText` と `fontFloor` の仕組み。宣言がなければ 14px)を下回ったら止める。止めたくないときは、図の側で下限を下げる宣言をする(ADR 0017 と同じ作り)。実効の大きさが 14px 未満の箇所は、情報の規則(`scaled-text-small`)で `check` に一覧を出す。静的 lint は `font-size` の数値だけを読むので、縮めた文字を見られない。この規則がその代わりをする。縮めた band の中の文字と大きさの一覧は、配置済みの `LaidOut*` からでなく、配置の前に全 band が文字を挙げる `MEASURE_HANDLERS`(`lib/layout-measure.ts`)から集める(帯ごとの追加なし)。宣言がなければ 14px で止めるので、`scale: 0.5` は、`canvas.minText` / `fontFloor` を宣言しない限りほぼ必ず throw する。エラーの文と例で「`scale` を使うなら、先に下限を宣言する」と案内する。
 - **採らなかった案**: ① 文字の役割(`roles`)を縮めて配置する。emit が `roles` を図全体のものとして読む帯(swimlane・tree・plane)があり、配置と描画で文字サイズが食い違う。② 配置済みの幾何を縮める。`LaidOut*` の型が帯ごとに違い、全部に縮める関数が要る。
 - 第 1 段では、band の中の文字は ふつうの大きさのまま。小さい文字が要る band は、いまも `size`(14 未満は `canvas.minText` / `fontFloor` で許したとき)で書ける。
-### D6: 漏斗の線 — 第 2 段の設計(未実装)
-親の矢羽根の特定の段から、子の帯の両端へ、漏斗状に線を引く。`edges: 'funnel'` と、線の始点にする親の band の中の id(`from`)を足す案。依頼元が手組みの版で確かめてから決める(第 1 段で足りるかも先に確かめる)。
-**注意(レビュー)**: 木の線は、band を本配置する前に、木の配置の時点で決まる。band の中の anchor は本配置の後でないと分からない。そこで、漏斗の線は木の線に混ぜず、**`connect()` のように、配置の後に anchor から解決する別の線**にする(木の線の一部を、そのノード対では置き換える)。
+### D6: 漏斗の線 — `from` と `edges: false`(第 2 段の一部)
+依頼元が第 1 段を試した結果(Issue #347)で、最重要は「線を、親の帯の中の、いま選んでいる段から出したい」こと(帯の下辺の中央から出ると、左端の段を選んだとき誤解を招く)。
+- **`from`**: 子のノードに `from: 親の band の中の id` を書く。その子への線は、その部品の近い辺の両端から、子のノードの近い辺の両端へ、2 本の線(漏斗)で引く。**レイアウトの種類で限る**: tree `down`(`dir` を書かないときも)、mindmap `down` / `up` / `org`。それ以外(`dir: 'right'`、radial・right・left・brace・fishbone・timeline、近すぎて漏斗にならない `list`)は、子が親の band の横や、近すぎる所に来て、「どの段から」が線で表せない(線が親の band の中をなぞる、ほぼ水平になる)ので、配置のときに throw する。向きを `auto` に任せた tree が横に組まれたときは、子が親の真下・真上にないことで throw する。
+- **端の取り方**: 部品が矢羽根のような flow shape のとき、anchor の外接の矩形でなく、**描いた多角形の近い辺の両端**を使う(矢羽根の辺は、矢じりの手前で止まる)。子の側は、子の band **自身が出した図**(最初の `laidOut`)の多角形の近い辺の両端(group の中の chevron など、中の別の band の多角形は使わない。多角形がなければ矩形の辺)。始点の高さは、**親の band の辺**(`pr.y + pr.h`、上なら `pr.y`)。swimlane の手順のように、部品が band の辺にないときも、線が親の band の中の他の部品をまたがない。x は部品の範囲のまま。
+- **配置の後に解決する**: 木の線は band の本配置の前に決まるが、band の中の anchor は本配置の後でないと分からない。そこで、`layoutTree`(シェル)が、band を置いた後(`resolveAnchor` で `ctx.anchors` を引く。scope のある band の中の id も短い名前で引ける)、その子への木の線(`LaidOutTree.edges` の `child`。`from` のある木にだけ付く)を外して、漏斗の 2 本に置き換える。他の子は、これまでの木の線のまま。
+- **段階表示**: 漏斗の 2 本は、子の band と親の band の `reveal` の遅い方で出て、`until` の早い方で消える(`edges` の `reveal` / `until`。`renderTree` が段を受け取る)。木の他の線(band のノードへの普通の線)は、これまでどおり木と同じ段で出る(残り)。
+- **検証**: `from` は、根・親が band のノードでないとき・`edges: false` と一緒のとき throw。名前が親の band の中の id でない(木のノードの id、band 自身の id、他の band の id。**id で決めるので、段が 1 つだけの band の、その段は部品になる**)ときは、配置のときに、その band の中の id の一覧つきで throw(宣言がなければそう書く)。`from` を型では絞らない(親子をたどる型が重い。打ち間違いは配置のときの throw)。
+- **`edges: false`**: 木の枝の線(と brace)を引かない。`tree()` にも `mindmap()` にも書ける。呼び出し側が `connect()` を自由に引ける。fishbone / timeline の背骨(`bold` の線)は図そのものなので残す。
+### D7: 子の帯を親の段の真下に寄せる(未実装)
+依頼元の第 2 の要望。いまは、子の帯は親ノードの中央ぞろえ(`w` 固定)。親の `from` の段の x 範囲に寄せたい。回避は、いまは呼び出し側が、子の `w` を親の段の幅に合わせて書くこと。
+- **段の位置は、測りから取れる**: `measureBandHeight` は、band を x=0・幅 `w` で試しに配置し、巻き戻す前の `ctx.anchors` に、band の中の部品の矩形(band の左上を原点とする座標)が入っている。これを `{h, parts: Map<id, Rect>}` で返せば、木の配置の前に、段の x の範囲が分かる(追加の配置は要らない。band の配置は x の平行移動で変わらない)。scope のある band は `resolveAnchor` で引く。
+- **木の配置は「親の中央に子をそろえる」純粋な規則**: 子を段の下に寄せるには、配置の後で、`from` のある子の部分木を、段の中央へ横に動かす(動かせる量は、兄弟の部分木との隙間と図の幅まで。寄せきれなければ、寄せられる所まで寄せ、漏斗の線で残りをつなぐ)。動かした後に `snapBandNodes` を走らせる順序にしないと、線の端がまたずれる。木の配置のアルゴリズムに「望む中心」を渡す案は、既存の配置を壊しやすいので採らない。
 
 ## 結果と残り
-- 例 `examples/tree-band-nodes.ts`(golden あり)。テストは `test/tree-band-nodes.test.ts`。
-- 残り: D5(`scale` と `scaled-text-small`)、D6(漏斗の線)、band のノードの `data-node`(`nodeIds`)、木の線が band の中の段(anchor)から出ること(D6)、`legend` や `status` など意味のない band の型を止めるか(いまは通る)、木の矩形が、格子に動いた最後のノードの分だけ band の下端と最大 3px ずれること。
-- Opus レビュー(1 巡目): 高 3・中 4・低 7 を受けて、`reveal` を band のノードへ、`TreeIds` に band の id、`mapBands` が木の中を辿る、`snapshotCtx` / `restoreCtx`(throw でも戻す)、brace と 2 点の線、同じ band の再利用の検査、D5・D6 の設計の追記を入れた。
+- 例 `examples/tree-band-nodes.ts` と `examples/tree-band-funnel.ts`(どちらも golden あり)。テストは `test/tree-band-nodes.test.ts`。
+- 残り: D5(`scale` と `scaled-text-small`)、D7(子の帯を親の段の真下に寄せる)、`renderInBrowser()` の `nodes`(id → 矩形)の表(別 PR)、band のノードの `data-node`(`nodeIds`)、`legend` や `status` など意味のない band の型を止めるか(いまは通る)、木の矩形が、格子に動いた最後のノードの分だけ band の下端と最大 3px ずれること。
+- Opus レビュー(#349 の 2 巡目): 中 3・低 3 を受けて、子の側は子の band 自身の図の多角形だけ、部品かどうかは id で決める(段が 1 つの band)、`until` は早い方、`from` を許すレイアウトを種類で決める(`list` は外す)を入れた。
+- Opus レビュー(#349 の 1 巡目): 高 2・中 4・低 4 を受けて、矢羽根の多角形の辺の両端、始点を親の band の辺に、横のレイアウトでは throw、漏斗の段階表示、`edges: false` は背骨を残す、scope の短い名前、from の候補の絞り込み、D7 の設計の追記を入れた。
+- Opus レビュー(#348 の 1 巡目): 高 3・中 4・低 7 を受けて、`reveal` を band のノードへ、`TreeIds` に band の id、`mapBands` が木の中を辿る、`snapshotCtx` / `restoreCtx`(throw でも戻す)、brace と 2 点の線、同じ band の再利用の検査、D5・D6 の設計の追記を入れた。
 - 罠: band の高さは配置してみて測るので、幅の探索が多い図(`dir: 'auto'`)で、band が重いと遅くなる(幅ごとに 1 回)。測りの巻き戻しは `ctx` の持ち物を全部戻す前提なので、新しい状態を `ctx` に足したら、`measureBandHeight` も直す。

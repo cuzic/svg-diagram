@@ -108,3 +108,97 @@ test('tree band nodes: a band that declares no id does not switch off the id che
   d.connect('r', 'nosuch'); // (the figure is only laid out later: this line is checked by tsc, not at run time)
   assert.ok(d);
 });
+
+test('tree from: the line to a child leaves the named part of the parent band as a funnel; the other children keep their own line', async () => {
+  const t = tree({label: 'top', w: 800, band: steps(['a1', 'a2', 'a3']), children: [
+    {label: 'sub', w: 420, from: 'a2', band: steps(['b1', 'b2'])},
+    {label: 'plain'},
+  ]});
+  const r = await checkDiagram(diagram({theme: 'blue', width: 940}).add(t));
+  const p = r.laidOut.laidOut.find((b): b is LaidOutTree => b.type === 'tree')!;
+  assert.deepEqual(r.verdict.problems, []);
+  const sub = p.nodes[1]!, funnel = p.edges.filter(e => e.child === 1), other = p.edges.filter(e => e.child === 2);
+  assert.equal(funnel.length, 2, 'two lines: the funnel');
+  assert.equal(other.length, 1, 'the other child keeps its tree line');
+  const [left, right] = funnel.map(e => [e.points[0]!, e.points[e.points.length - 1]!] as const);
+  assert.ok(Math.abs(left![1].x - sub.x) < 0.5 && Math.abs(left![1].y - sub.y) < 0.5, 'the left line ends at the child top-left corner');
+  assert.ok(right![1].x <= sub.x + sub.w - 1 && right![1].x >= sub.x + sub.w - 23 && Math.abs(right![1].y - sub.y) < 0.5, "the right line ends at the top-right corner of the child's last chevron (before its point)");
+  assert.ok(left![0].x < right![0].x && Math.abs(left![0].y - right![0].y) < 0.5 && Math.abs(left![0].y - (p.nodes[0]!.y + p.nodes[0]!.h)) < 0.5, "both start on the bottom edge of the parent's band, left then right");
+  assert.ok(right![0].x - left![0].x < sub.w, 'from one step, narrower than the child band: a funnel that opens');
+});
+
+test('tree from: mistakes throw', async () => {
+  assert.throws(() => tree({label: 'r', from: 'x', w: 300, band: steps(['x'])}), /root has no parent/);
+  assert.throws(() => tree({label: 'r', children: [{label: 'c', from: 'x'}]}), /not a band node/);
+  assert.throws(() => tree({label: 'r', w: 300, band: steps(['x']), children: [{label: 'c', from: 'x'}]}, {edges: false}), /edges: false/);
+  assert.throws(() => mindmap({label: 'r', w: 300, band: steps(['x']), children: [{label: 'c', from: 'x'}]}, {edges: false}), /edges: false/);
+  const bad = tree({label: 'r', w: 300, band: steps(['x1', 'x2']), children: [{label: 'c', from: 'nosuch', w: 200, band: steps(['y'])}]});
+  await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 940}).add(bad)), /not an id inside the band of "r" \(ids there: x1, x2\)/);
+  const none = tree({label: 'r', w: 300, band: chevron([{label: 'no id'}]), children: [{label: 'c', from: 'x', w: 200, band: steps(['y'])}]});
+  await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 940}).add(none)), /declares no ids/);
+});
+
+test('tree edges: false draws none of the tree lines (tree and mindmap)', async () => {
+  for (const make of [() => tree({label: 'r', children: [{label: 'a'}, {label: 'b'}]}, {edges: false}), () => mindmap({label: 'r', children: [{label: 'a'}, {label: 'b'}]}, {edges: false, layout: 'brace'})]) {
+    const {r, t} = await laid(make());
+    assert.deepEqual(r.verdict.problems, []);
+    assert.equal(t.edges.length, 0);
+    assert.equal(t.braces, undefined);
+    assert.equal(t.nodes.length, 3);
+  }
+});
+
+test("tree from: a line starts at the chevron's own corners (not its point), and the part's right corner is before the next step", async () => {
+  const t = tree({label: 'top', w: 800, band: steps(['a1', 'a2', 'a3']), children: [{label: 'sub', w: 420, from: 'a2', band: steps(['b1', 'b2'])}]});
+  const r = await checkDiagram(diagram({theme: 'blue', width: 940}).add(t));
+  const p = r.laidOut.laidOut.find((b): b is LaidOutTree => b.type === 'tree')!;
+  const poly = r.laidOut.laidOut.flatMap(b => 'primitives' in b ? (b.primitives as {k: string; node?: string; points?: [number, number][]}[]) : []).find(q => q.k === 'polygon' && q.node === 'a2')!;
+  const xs = poly.points!.filter(pt => Math.abs(pt[1] - Math.max(...poly.points!.map(z => z[1]))) < 0.5).map(pt => pt[0]);
+  const [l, rt] = p.edges.filter(e => e.child === 1).map(e => e.points[0]!);
+  assert.ok(Math.abs(l!.x - Math.min(...xs)) < 0.5 && Math.abs(rt!.x - Math.max(...xs)) < 0.5);
+});
+
+test('tree from: only for a child below or above the parent band; a name from a scoped band works short; the whole band or a tree node id is not a part', async () => {
+  const side = tree({label: 'r', w: 300, band: steps(['x1']), children: [{label: 'c', from: 'x1', w: 200, band: steps(['y'])}]}, {dir: 'right'});
+  await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 940}).add(side)), /grows to the right/);
+  const scoped = tree({label: 'r', w: 600, band: chevron([{label: 'p', id: 'p1'}, {label: 'q', id: 'q1'}], {scope: 'sc'}), children: [{label: 'c', from: 'q1', w: 200, band: steps(['y'])}]});
+  const ok = await checkDiagram(diagram({theme: 'blue', width: 940}).add(scoped));
+  assert.deepEqual(ok.verdict.problems, []);
+  const whole = tree({label: 'r', id: 'rnode', w: 300, band: steps(['x1', 'x2']), children: [{label: 'c', from: 'rnode', w: 200, band: steps(['y'])}]});
+  await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 940}).add(whole)), /not an id inside the band of "r" \(ids there: x1, x2\)/);
+});
+
+test("tree from: a funnel line comes with the later of the child band and the parent band", async () => {
+  const t = tree({label: 'top', w: 600, band: steps(['a1', 'a2']), children: [{label: 'sub', w: 300, from: 'a1', band: box({title: 'late', reveal: 3})}]}, {reveal: 1});
+  const r = await checkDiagram(diagram({theme: 'blue', width: 940}).add(t));
+  const p = r.laidOut.laidOut.find((b): b is LaidOutTree => b.type === 'tree')!;
+  assert.ok(p.edges.filter(e => e.child === 1).every(e => e.reveal === 3));
+});
+
+test('tree edges: false keeps the spine of a fishbone / timeline (the figure itself) and drops the branches', async () => {
+  for (const layout of ['fishbone', 'timeline'] as const) {
+    const {t} = await laid(mindmap({label: 'r', children: [{label: 'a'}, {label: 'b'}, {label: 'c'}]}, {layout, edges: false}));
+    assert.ok(t.edges.every(e => e.bold), `${layout}: only the spine stays`);
+  }
+});
+
+test("tree from: a one-step parent band works (its step is the whole band, told apart by id); a group child's top edge is the group's own", async () => {
+  const one = tree({label: 'r', w: 300, band: chevron([{label: 'only', id: 'only'}]), children: [{label: 'c', from: 'only', w: 200, band: steps(['y'])}]});
+  assert.deepEqual((await checkDiagram(diagram({theme: 'blue', width: 940}).add(one))).verdict.problems, []);
+  const g = tree({label: 'r', w: 500, band: steps(['a1', 'a2']), children: [{label: 'c', from: 'a1', w: 400, band: group([box({title: 'head'}), chevron([{label: 'inner'}])])}]});
+  const r = await checkDiagram(diagram({theme: 'blue', width: 940}).add(g));
+  const p = r.laidOut.laidOut.find((b): b is LaidOutTree => b.type === 'tree')!;
+  const child = p.nodes[1]!;
+  for (const e of p.edges.filter(e => e.child === 1)) assert.ok(Math.abs(e.points[e.points.length - 1]!.y - child.y) < 0.5, "ends on the group's own top edge, not on the chevron inside it");
+});
+
+test("tree from: the funnel goes with the earlier until of the two bands; a layout whose children are not under the parent throws by kind", async () => {
+  const t2 = tree({label: 'top', w: 500, band: steps(['a1', 'a2']), children: [{label: 'sub', w: 300, from: 'a1', band: box({title: 'c', until: 4})}]}, {reveal: 1});
+  const r = await checkDiagram(diagram({theme: 'blue', width: 940}).add(t2));
+  const p = r.laidOut.laidOut.find((b): b is LaidOutTree => b.type === 'tree')!;
+  assert.ok(p.edges.filter(e => e.child === 1).every(e => e.until === 4));
+  const fish = mindmap({label: 'r', w: 300, band: steps(['x1', 'x2']), children: [{label: 'c', from: 'x1', w: 200, band: steps(['y'])}]}, {layout: 'fishbone'});
+  await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 940}).add(fish)), /layout is 'fishbone'/);
+  const org = mindmap({label: 'r', w: 300, band: steps(['x1', 'x2']), children: [{label: 'c', from: 'x1', w: 200, band: steps(['y'])}]}, {layout: 'down'});
+  assert.deepEqual((await checkDiagram(diagram({theme: 'blue', width: 940}).add(org))).verdict.problems, []);
+});
