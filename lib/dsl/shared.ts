@@ -1,6 +1,8 @@
 import {MIN_FONT_SIZE, isSolidTone} from '../tokens.ts';
 import {assertScope, scopeOf} from '../scope-name.ts';
 import type {Band} from '../types/index.ts';
+import type {TreeItem} from '../types/diagrams.ts';
+import type {IdsOf} from '../strict.ts';
 
 // `const list = box({id: 'list'})`: a band built with an id also works as a handle (`list.right`, `list.at('top', 0.25)`),
 // so connect() can name it without typing the id again. The helpers are NON-enumerable properties: spreading or
@@ -65,11 +67,23 @@ export function mapBands(bands: Band[], fn: (b: Band) => Band | undefined): Band
       const kids = mapBands(b.children as Band[], fn);
       if (kids.some((k, i) => k !== (b.children as Band[])[i])) return Object.assign(cloneBand(b), {children: kids});
     }
+    if (b.type === 'tree') { // the bands that are nodes of a tree (ADR 0049)
+      const root = mapTreeBands(b.root, fn);
+      if (root !== b.root) return Object.assign(cloneBand(b), {root});
+    }
     return b;
   });
 }
+/** A tree item with its band nodes mapped; the same item when nothing below it changed. */
+function mapTreeBands(item: TreeItem, fn: (b: Band) => Band | undefined): TreeItem {
+  const band = item.band ? mapBands([item.band], fn)[0] : undefined;
+  const kids = item.children?.map(c => mapTreeBands(c, fn));
+  const changed = (band !== undefined && band !== item.band) || (kids?.some((k, i) => k !== item.children?.[i]) ?? false);
+  return changed ? {...item, ...(band ? {band} : {}), ...(kids ? {children: kids} : {})} : item;
+}
 /** The ids of a tree's nodes (its own, and every descendant's). */
-export type TreeIds<T> = (T extends {readonly id: infer I extends string} ? I : never) | (T extends {readonly children: readonly (infer C)[]} ? TreeIds<C> : never);
+export type TreeIds<T> = (T extends {readonly id: infer I extends string} ? I : never) | (T extends {readonly children: readonly (infer C)[]} ? TreeIds<C> : never)
+  | (T extends {readonly band: infer B} ? IdsOf<B> : never); // a band node's own ids too (IdsOf drops the `unknown` of a band that declares none)
 export function assertFontSize(size: number): void {
   if (size < MIN_FONT_SIZE) {
     throw new Error(`font-size ${size} is below the ${MIN_FONT_SIZE}px floor — this deck never uses smaller text. Reconsider the layout instead of shrinking the text.`);

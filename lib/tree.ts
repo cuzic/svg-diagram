@@ -8,6 +8,7 @@ import {fitLayout} from './fit-width.ts';
 import {longestUnitWidth, wrapText} from './wrap.ts';
 import type {FontFamily, Roles, WidthOf, WrapEnv, WrapMode} from './types/core.ts';
 import type {LaidOutTree, TreeBand, TreeItem, TreeNodeText} from './types/diagrams.ts';
+import type {Band} from './types/index.ts';
 
 import {must} from './must.ts';
 const PAD_X = 14, PAD_Y = 8, MIN_W = 88, GAP = 24, LEVEL_GAP = 44;
@@ -77,7 +78,7 @@ export function nodeRuns(r: {x: number; y: number; w: number}, l: NodeLines, rol
   return out;
 }
 
-export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutTree {
+export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, /** The height a band node takes at a width (the layout shell measures it); without it a band node throws. */ bandHeight?: (band: Band, w: number) => number): LaidOutTree {
   const items = treeItems(band.root);
   const seen = new Set<string>();
   for (const n of items) {
@@ -86,10 +87,25 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   }
   // node i of `items` is "n<i>" in the layout (ids of the band are the user's; the layout needs unique keys for all)
   const key = new Map<TreeItem, string>(items.map((n, i) => [n, `n${i}`]));
+  const heights = new Map<Band, Map<number, number>>(); // fitLayout tries several widths: a band node is measured once per width
+  const heightOf = (band: Band, w: number): number => {
+    const byW = heights.get(band) ?? heights.set(band, new Map()).get(band) as Map<number, number>;
+    const known = byW.get(w);
+    if (known !== undefined) return known;
+    const h = must(bandHeight)(band, w);
+    byW.set(w, h);
+    return h;
+  };
   // One whole attempt: the text wrapped at maxW, a plain tree growing `dirNow` (a balanced mindmap keeps its layout).
   const attemptWith = (dirNow: 'down' | 'right', maxW: number, floor: boolean) => {
     const lines = new Map<TreeItem, NodeLines>();
     const build = (n: TreeItem): TreeNode => {
+      if (n.band) { // a band node keeps the width it was given; only its height is measured
+        if (!bandHeight) throw new Error(`tree(): "${n.label}" is a band node, which this layout cannot place`);
+        const bw = must(n.w), m = {label: [], sub: [], w: bw, h: heightOf(n.band, bw)};
+        lines.set(n, m);
+        return {id: must(key.get(n)), size: {w: m.w, h: m.h}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
+      }
       const m = measureNode(n.label, n.sub, maxW, widthOf, roles, env.wrap, floor);
       lines.set(n, m);
       return {id: must(key.get(n)), size: {w: m.w, h: m.h}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
@@ -134,8 +150,9 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   for (const n of items) {
     const p = must(tree.nodes.get(must(key.get(n)))), l = must(lines.get(n));
     const r = {x: p.x + dx, y: p.y + dy, w: p.w, h: p.h};
-    out.nodes.push({...r, tone: n.tone ?? 'plain', ...(n.id ? {id: n.id} : {})});
+    out.nodes.push({...r, tone: n.tone ?? 'plain', ...(n.band ? {band: true as const} : {}), ...(n.id ? {id: n.id} : {})});
     if (n.id) out.anchors.push({id: n.id, ...r});
+    if (n.band) continue; // the band draws its own text, and is checked as a band
     out.texts.push(...nodeRuns(r, l, roles));
     out.labelBoxes.push({label: n.label, ...r});
   }

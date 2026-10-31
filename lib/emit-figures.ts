@@ -246,7 +246,7 @@ export function renderTree(b: LaidOutTree, day: Theme, tones: ToneEnv): string {
     const s = br.side === 'right' ? 1 : -1, r = 8, x = snap4(br.x), xt = snap4(br.tipX), y1 = snap4(br.y1), y2 = snap4(br.y2), ym = snap4(br.ymid);
     out.push(`<path d="M${x + s * r},${y1} Q${x},${y1} ${x},${y1 + r} V${ym - r} Q${x},${ym} ${xt},${ym} Q${x},${ym} ${x},${ym + r} V${y2 - r} Q${x},${y2} ${x + s * r},${y2}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
   }
-  for (const n of b.nodes) out.push(renderBoxRect({...n, dim: b.dim}, day, tones, 'plain'));
+  for (const n of b.nodes) if (!n.band) out.push(renderBoxRect({...n, dim: b.dim}, day, tones, 'plain')); // a band node is drawn by its own band
   const nodes = b.nodes;
   const ink = (t: LaidOutTree['texts'][number]): string => {
     if (b.dim) return PALETTE.muted;

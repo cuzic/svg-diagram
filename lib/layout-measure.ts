@@ -133,7 +133,7 @@ export const MEASURE_HANDLERS = {
   cause: fromTuples(causeTexts),
   cloud: fromTuples(cloudTexts),
   states: fromTuples(statesTexts),
-  tree: fromTuples(treeTexts),
+  tree: (band, m) => { fromTuples(treeTexts)(band, m); children(band, m); }, // the nodes' own text, then the bands that are nodes
 } satisfies MeasureHandlerTable;
 
 /** Pass 1: every atom this diagram needs measured, at the font sizes of `roles`. Pure: no measuring happens here. */

@@ -19,7 +19,8 @@ import {box, caption, group} from './text-bands.ts';
 
 /**
  * An org chart / hierarchy: the nodes place themselves (parent centred over its children, levels aligned). A node is
- * {label, sub?, id?, tone?, children?}; one with an id is an anchor for connect(), also as `t.anchors.<id>`.
+ * {label, sub?, id?, tone?, children?}; one with an id is an anchor for connect(), also as `t.anchors.<id>`. `{label, band, w, id?, children?}` makes the node any
+ * band (ADR 0049): a chevron(), a swimlane(), a table() ..., laid out at the width `w`, the tree's lines joining its edges (its own ids are anchors too).
  *   tree({label: '社長', sub: '代表取締役', children: [{label: '開発部', id: 'dev', children: [...]}, {label: '営業部'}]}, {dir: 'down'})
  */
 export function tree<const R extends TreeItem, const Id extends string = never>(root: R, opts?: TreeOpts & {id?: Id}): TreeBand & Declares<Id | TreeIds<R>> & HandleOf<Id> & AnchorsOf<TreeIds<R>>;
@@ -28,8 +29,18 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
   if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right' && opts.dir !== 'auto') throw new Error(`tree(): dir must be 'down', 'right' or 'auto' (got ${String(opts.dir)})`);
   if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`tree(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
   const ids: (string | undefined)[] = [];
+  const usedBands = new Set<object>();
   const walk = (n: TreeItem): void => {
     if (n.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(n.tone)) throw new Error(`tree(): "${n.label}" has tone ${String(n.tone)}`);
+    if (n.band !== undefined) {
+      if (Array.isArray(n.band)) throw new Error(`tree(): "${n.label}": band got a list: swimlane() returns the band and its flows, so write swimlane(...)[0]`);
+      if (typeof n.band !== 'object' || n.band === null || typeof (n.band as {type?: unknown}).type !== 'string') throw new Error(`tree(): "${n.label}": band must be a band (chevron(...), swimlane(...)[0], table(...) ...)`);
+      if (usedBands.has(n.band)) throw new Error(`tree(): "${n.label}": this band is already the band of another node — a band is laid out once; build a second one (its ids would collide too)`);
+      usedBands.add(n.band);
+      if (n.band.type === 'connect' || n.band.type === 'spacer') throw new Error(`tree(): "${n.label}": a ${n.band.type} cannot be a node`);
+      if (typeof n.w !== 'number' || !(n.w >= 40) || !Number.isFinite(n.w)) throw new Error(`tree(): "${n.label}": a band node needs its width, w: a number >= 40 (got ${String(n.w)})`);
+      if (n.sub !== undefined || n.tone !== undefined) throw new Error(`tree(): "${n.label}": a band node takes no sub or tone (the band draws itself)`);
+    } else if (n.w !== undefined) throw new Error(`tree(): "${n.label}": w is only for a band node`);
     ids.push(n.id);
     for (const c of n.children ?? []) walk(c);
   };
