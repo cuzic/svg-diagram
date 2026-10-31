@@ -160,7 +160,7 @@ test("tree from: a line starts at the chevron's own corners (not its point), and
 
 test('tree from: only for a child below or above the parent band; a name from a scoped band works short; the whole band or a tree node id is not a part', async () => {
   const side = tree({label: 'r', w: 300, band: steps(['x1']), children: [{label: 'c', from: 'x1', w: 200, band: steps(['y'])}]}, {dir: 'right'});
-  await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 940}).add(side)), /beside it/);
+  await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 940}).add(side)), /grows to the right/);
   const scoped = tree({label: 'r', w: 600, band: chevron([{label: 'p', id: 'p1'}, {label: 'q', id: 'q1'}], {scope: 'sc'}), children: [{label: 'c', from: 'q1', w: 200, band: steps(['y'])}]});
   const ok = await checkDiagram(diagram({theme: 'blue', width: 940}).add(scoped));
   assert.deepEqual(ok.verdict.problems, []);
@@ -180,4 +180,25 @@ test('tree edges: false keeps the spine of a fishbone / timeline (the figure its
     const {t} = await laid(mindmap({label: 'r', children: [{label: 'a'}, {label: 'b'}, {label: 'c'}]}, {layout, edges: false}));
     assert.ok(t.edges.every(e => e.bold), `${layout}: only the spine stays`);
   }
+});
+
+test("tree from: a one-step parent band works (its step is the whole band, told apart by id); a group child's top edge is the group's own", async () => {
+  const one = tree({label: 'r', w: 300, band: chevron([{label: 'only', id: 'only'}]), children: [{label: 'c', from: 'only', w: 200, band: steps(['y'])}]});
+  assert.deepEqual((await checkDiagram(diagram({theme: 'blue', width: 940}).add(one))).verdict.problems, []);
+  const g = tree({label: 'r', w: 500, band: steps(['a1', 'a2']), children: [{label: 'c', from: 'a1', w: 400, band: group([box({title: 'head'}), chevron([{label: 'inner'}])])}]});
+  const r = await checkDiagram(diagram({theme: 'blue', width: 940}).add(g));
+  const p = r.laidOut.laidOut.find((b): b is LaidOutTree => b.type === 'tree')!;
+  const child = p.nodes[1]!;
+  for (const e of p.edges.filter(e => e.child === 1)) assert.ok(Math.abs(e.points[e.points.length - 1]!.y - child.y) < 0.5, "ends on the group's own top edge, not on the chevron inside it");
+});
+
+test("tree from: the funnel goes with the earlier until of the two bands; a layout whose children are not under the parent throws by kind", async () => {
+  const t2 = tree({label: 'top', w: 500, band: steps(['a1', 'a2']), children: [{label: 'sub', w: 300, from: 'a1', band: box({title: 'c', until: 4})}]}, {reveal: 1});
+  const r = await checkDiagram(diagram({theme: 'blue', width: 940}).add(t2));
+  const p = r.laidOut.laidOut.find((b): b is LaidOutTree => b.type === 'tree')!;
+  assert.ok(p.edges.filter(e => e.child === 1).every(e => e.until === 4));
+  const fish = mindmap({label: 'r', w: 300, band: steps(['x1', 'x2']), children: [{label: 'c', from: 'x1', w: 200, band: steps(['y'])}]}, {layout: 'fishbone'});
+  await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 940}).add(fish)), /layout is 'fishbone'/);
+  const org = mindmap({label: 'r', w: 300, band: steps(['x1', 'x2']), children: [{label: 'c', from: 'x1', w: 200, band: steps(['y'])}]}, {layout: 'down'});
+  assert.deepEqual((await checkDiagram(diagram({theme: 'blue', width: 940}).add(org))).verdict.problems, []);
 });

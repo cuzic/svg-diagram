@@ -647,14 +647,17 @@ const layoutTree: BandLayoutHandler<BandOf<'tree'>> = (band, ctx, padX, cw) => {
   const items = treeItems(band.root);
   if (!items.some(n => n.band)) return;
   const placed = ctx.laidOut[ctx.laidOut.length - 1] as LaidOutTree, after = ctx.y;
+  const first = new Map<TreeItem, LaidOutBand | undefined>(); // what each band node put down first: its own figure (a group's frame comes before what is inside it)
   items.forEach((n, i) => {
     const node = placed.nodes[i];
     if (!n.band || !node) return;
     ctx.y = node.y;
+    const n0 = ctx.laidOut.length;
     ctx.stack([n.band], node.x, node.w);
+    first.set(n, ctx.laidOut[n0]);
   });
   ctx.y = after;
-  funnelEdges(placed, items, ctx);
+  funnelEdges(band, placed, items, first, ctx);
 };
 /** The two end points of the side of a shape that faces `dir` ('bottom' / 'top'): the corners of the drawn polygons when the shape is a flow shape (a chevron's side stops short of its point), else the rectangle's. */
 function facingEnds(rect: Rect, polygons: [number, number][][], dir: 'bottom' | 'top'): [{x: number; y: number}, {x: number; y: number}] {
@@ -663,16 +666,18 @@ function facingEnds(rect: Rect, polygons: [number, number][][], dir: 'bottom' | 
   const edge = dir === 'bottom' ? Math.max(...pts.map(p => p[1])) : Math.min(...pts.map(p => p[1])), onEdge = pts.filter(p => Math.abs(p[1] - edge) < 0.5);
   return [{x: Math.min(...onEdge.map(p => p[0])), y: edge}, {x: Math.max(...onEdge.map(p => p[0])), y: edge}];
 }
+const polygonsOf = (b: LaidOutBand | undefined): [number, number][][] => ((b as {primitives?: {k: string; points?: [number, number][]}[]} | undefined)?.primitives ?? []).flatMap(pr => pr.k === 'polygon' && pr.points ? [pr.points] : []);
 const polygonsIn = (ctx: LayoutCtx, within: (pts: [number, number][]) => boolean, node?: (id: string | undefined) => boolean): [number, number][][] =>
   ctx.laidOut.flatMap(b => ((b as {primitives?: {k: string; points?: [number, number][]; node?: string}[]}).primitives ?? []).flatMap(pr => pr.k === 'polygon' && pr.points && within(pr.points) && (!node || node(pr.node)) ? [pr.points] : []));
 /** A child with `from` is joined from a part inside its parent's band (known only now that the bands are placed): from the near side of that part (starting at the edge of the parent's band) to the near side of the child, as two lines (a funnel). */
-function funnelEdges(placed: LaidOutTree, items: TreeItem[], ctx: LayoutCtx): void {
+function funnelEdges(tree: BandOf<'tree'>, placed: LaidOutTree, items: TreeItem[], first: Map<TreeItem, LaidOutBand | undefined>, ctx: LayoutCtx): void {
   if (!items.some(n => n.from !== undefined)) return;
+  const kind = tree.balanced ? tree.layout ?? 'radial' : tree.dir === 'right' ? 'right' : 'down'; // (a tree whose direction was left to the layout is judged by where the child landed)
+  if (!['down', 'up', 'org'].includes(kind)) throw new Error(`tree(): from draws a funnel to a child under (or over) its parent's band; ${tree.balanced ? `this mindmap's layout is '${kind}'` : "this tree grows to the right"} (use dir: 'down'; a mindmap: layout 'down', 'up' or 'org')`);
   const parentOf = new Map<TreeItem, TreeItem>();
   for (const n of items) for (const c of n.children ?? []) parentOf.set(c, n);
   const rectOf = (n: TreeItem): Rect => must(placed.nodes[items.indexOf(n)]);
   const inside = (r: Rect, o: Rect): boolean => r.x >= o.x - 0.5 && r.y >= o.y - 0.5 && r.x + r.w <= o.x + o.w + 0.5 && r.y + r.h <= o.y + o.h + 0.5;
-  const same = (a: Rect, b: Rect): boolean => Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5 && Math.abs(a.w - b.w) < 0.5 && Math.abs(a.h - b.h) < 0.5;
   const treeIds = new Set(placed.anchors.map(a => a.id));
   items.forEach((child, i) => {
     if (child.from === undefined) return;
@@ -680,16 +685,17 @@ function funnelEdges(placed: LaidOutTree, items: TreeItem[], ctx: LayoutCtx): vo
     const below = cr.y >= pr.y + pr.h - 0.5, above = cr.y + cr.h <= pr.y + 0.5;
     if (!below && !above) throw new Error(`tree(): "${child.label}": from joins a child that lies below or above its parent's band, but this one is beside it (dir: 'right', a mindmap's radial / right / left / brace ...); use dir: 'down' (a mindmap: layout 'down', 'up' or 'org')`);
     const name = resolveAnchor(ctx.scopes, child.from, n => ctx.anchors.has(n)), part = name === undefined ? undefined : ctx.anchors.get(name);
-    if (!name || !part || !inside(part, pr) || same(part, pr)) {
-      const ids = [...ctx.anchors].filter(([k, r]) => !treeIds.has(k) && inside(r, pr) && !same(r, pr)).map(([k]) => k);
+    const bandId = (must(parent.band) as {id?: string}).id; // a name of the whole band (or of the tree node) is not a part of it
+    if (!name || !part || !inside(part, pr) || treeIds.has(name) || name === bandId) {
+      const ids = [...ctx.anchors].filter(([k, r]) => !treeIds.has(k) && k !== bandId && inside(r, pr)).map(([k]) => k);
       throw new Error(`tree(): "${child.label}": from "${child.from}" is not an id inside the band of "${parent.label}"${ids.length ? ` (ids there: ${ids.join(', ')})` : ' (that band declares no ids)'}`);
     }
     placed.edges = placed.edges.filter(e => e.child !== i);
     const partPolys = polygonsIn(ctx, pts => pts.every(p => p[0] >= part.x - 0.5 && p[0] <= part.x + part.w + 0.5 && p[1] >= part.y - 0.5 && p[1] <= part.y + part.h + 0.5), id => id !== undefined && (name === id || name.endsWith(`.${id}`)));
-    const childPolys = polygonsIn(ctx, pts => pts.every(p => p[0] >= cr.x - 0.5 && p[0] <= cr.x + cr.w + 0.5 && p[1] >= cr.y - 0.5 && p[1] <= cr.y + cr.h + 0.5));
+    const childPolys = polygonsOf(first.get(child)); // the child's own figure only: a chevron inside a group is not the group's edge
     const [pl, pRight] = facingEnds(part, partPolys, below ? 'bottom' : 'top'), [cl, cRight] = facingEnds(cr, childPolys, below ? 'top' : 'bottom');
     const y0 = below ? pr.y + pr.h : pr.y; // from the edge of the parent's band: a part inside it (a swimlane's step) does not draw a line across the parts below it
-    const stage = Math.max((child.band as {reveal?: number}).reveal ?? 0, (must(parent.band) as {reveal?: number}).reveal ?? 0), until = (child.band as {until?: number}).until;
+    const stage = Math.max((child.band as {reveal?: number}).reveal ?? 0, (must(parent.band) as {reveal?: number}).reveal ?? 0), untils = [(child.band as {until?: number}).until, (must(parent.band) as {until?: number}).until].filter((u): u is number => u !== undefined), until = untils.length ? Math.min(...untils) : undefined; // gone with the earlier of the two
     const own = {child: i, ...(stage > (placed.reveal ?? 0) ? {reveal: stage} : {}), ...(until === undefined ? {} : {until})};
     placed.edges.push({points: [{x: pl.x, y: y0}, cl], ...own}, {points: [{x: pRight.x, y: y0}, cRight], ...own});
   });
