@@ -129,7 +129,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     // the line style: straight or smooth instead of the elbow (the first and last point of each line, the smooth one along the way the tree grows)
     const along: 'x' | 'y' = kind === 'down' || kind === 'up' ? 'y' : 'x';
     const {braces: _braces, ...bare} = raw;
-    const tree: TreeLayout = band.edges === false ? {...bare, edges: []} : !styled ? raw : {...raw, edges: raw.edges.map(e => ({...e, points: [must(e.points[0]), must(e.points[e.points.length - 1])], ...(band.edges === 'curve' ? {curve: along} : {})}))};
+    const tree: TreeLayout = band.edges === false ? {...bare, edges: bare.edges.filter(e => e.bold)} : !styled ? raw : {...raw, edges: raw.edges.map(e => ({...e, points: [must(e.points[0]), must(e.points[e.points.length - 1])], ...(band.edges === 'curve' ? {curve: along} : {})}))};
     return {size: {w: tree.w, h: tree.h}, score: {crossings: 0, bends: 0}, tree, lines, kind};
   };
   const explicitDir = !band.balanced && band.dir !== undefined && band.dir !== 'auto';

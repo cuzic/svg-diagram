@@ -15,6 +15,7 @@ import {layoutFlowShape} from './flow-shapes.ts';
 import {layoutWordArt} from './wordart.ts';
 import {CANVAS_MIN_ROW_H, canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
 import {layoutTreeBand, narrowField, treeItems} from './tree.ts';
+import {resolveAnchor} from './anchor-scope.ts';
 import {layoutStatesBand} from './states.ts';
 import {statesWords} from './states-words.ts';
 import {CAUSE_ROLES, layoutCauseBand, layoutCloudBand} from './toc.ts';
@@ -655,27 +656,42 @@ const layoutTree: BandLayoutHandler<BandOf<'tree'>> = (band, ctx, padX, cw) => {
   ctx.y = after;
   funnelEdges(placed, items, ctx);
 };
-/** A child with `from` is joined from a part inside its parent's band (known only now that the bands are placed): the two ends of that part's near side to the two ends of the child's near side. */
+/** The two end points of the side of a shape that faces `dir` ('bottom' / 'top'): the corners of the drawn polygons when the shape is a flow shape (a chevron's side stops short of its point), else the rectangle's. */
+function facingEnds(rect: Rect, polygons: [number, number][][], dir: 'bottom' | 'top'): [{x: number; y: number}, {x: number; y: number}] {
+  const pts = polygons.flat();
+  if (!pts.length) { const y = dir === 'bottom' ? rect.y + rect.h : rect.y; return [{x: rect.x, y}, {x: rect.x + rect.w, y}]; }
+  const edge = dir === 'bottom' ? Math.max(...pts.map(p => p[1])) : Math.min(...pts.map(p => p[1])), onEdge = pts.filter(p => Math.abs(p[1] - edge) < 0.5);
+  return [{x: Math.min(...onEdge.map(p => p[0])), y: edge}, {x: Math.max(...onEdge.map(p => p[0])), y: edge}];
+}
+const polygonsIn = (ctx: LayoutCtx, within: (pts: [number, number][]) => boolean, node?: (id: string | undefined) => boolean): [number, number][][] =>
+  ctx.laidOut.flatMap(b => ((b as {primitives?: {k: string; points?: [number, number][]; node?: string}[]}).primitives ?? []).flatMap(pr => pr.k === 'polygon' && pr.points && within(pr.points) && (!node || node(pr.node)) ? [pr.points] : []));
+/** A child with `from` is joined from a part inside its parent's band (known only now that the bands are placed): from the near side of that part (starting at the edge of the parent's band) to the near side of the child, as two lines (a funnel). */
 function funnelEdges(placed: LaidOutTree, items: TreeItem[], ctx: LayoutCtx): void {
   if (!items.some(n => n.from !== undefined)) return;
   const parentOf = new Map<TreeItem, TreeItem>();
   for (const n of items) for (const c of n.children ?? []) parentOf.set(c, n);
   const rectOf = (n: TreeItem): Rect => must(placed.nodes[items.indexOf(n)]);
+  const inside = (r: Rect, o: Rect): boolean => r.x >= o.x - 0.5 && r.y >= o.y - 0.5 && r.x + r.w <= o.x + o.w + 0.5 && r.y + r.h <= o.y + o.h + 0.5;
+  const same = (a: Rect, b: Rect): boolean => Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5 && Math.abs(a.w - b.w) < 0.5 && Math.abs(a.h - b.h) < 0.5;
+  const treeIds = new Set(placed.anchors.map(a => a.id));
   items.forEach((child, i) => {
     if (child.from === undefined) return;
     const parent = must(parentOf.get(child)), pr = rectOf(parent), cr = rectOf(child);
-    const part = ctx.anchors.get(child.from);
-    if (!part || part.x < pr.x - 0.5 || part.y < pr.y - 0.5 || part.x + part.w > pr.x + pr.w + 0.5 || part.y + part.h > pr.y + pr.h + 0.5) {
-      const inside = [...ctx.anchors].filter(([, r]) => r.x >= pr.x - 0.5 && r.y >= pr.y - 0.5 && r.x + r.w <= pr.x + pr.w + 0.5 && r.y + r.h <= pr.y + pr.h + 0.5 && r !== pr).map(([k]) => k);
-      throw new Error(`tree(): "${child.label}": from "${child.from}" is not an id inside the band of "${parent.label}"${inside.length ? ` (ids there: ${inside.join(', ')})` : ' (that band declares no ids)'}`);
+    const below = cr.y >= pr.y + pr.h - 0.5, above = cr.y + cr.h <= pr.y + 0.5;
+    if (!below && !above) throw new Error(`tree(): "${child.label}": from joins a child that lies below or above its parent's band, but this one is beside it (dir: 'right', a mindmap's radial / right / left / brace ...); use dir: 'down' (a mindmap: layout 'down', 'up' or 'org')`);
+    const name = resolveAnchor(ctx.scopes, child.from, n => ctx.anchors.has(n)), part = name === undefined ? undefined : ctx.anchors.get(name);
+    if (!name || !part || !inside(part, pr) || same(part, pr)) {
+      const ids = [...ctx.anchors].filter(([k, r]) => !treeIds.has(k) && inside(r, pr) && !same(r, pr)).map(([k]) => k);
+      throw new Error(`tree(): "${child.label}": from "${child.from}" is not an id inside the band of "${parent.label}"${ids.length ? ` (ids there: ${ids.join(', ')})` : ' (that band declares no ids)'}`);
     }
     placed.edges = placed.edges.filter(e => e.child !== i);
-    const pc = {x: part.x + part.w / 2, y: part.y + part.h / 2}, cc = {x: cr.x + cr.w / 2, y: cr.y + cr.h / 2};
-    const vertical = cr.y >= pr.y + pr.h - 0.5 || cr.y + cr.h <= pr.y + 0.5; // the child lies wholly below / above its parent's band (else beside it)
-    const pair = vertical
-      ? (cc.y > pc.y ? [[{x: part.x, y: part.y + part.h}, {x: cr.x, y: cr.y}], [{x: part.x + part.w, y: part.y + part.h}, {x: cr.x + cr.w, y: cr.y}]] : [[{x: part.x, y: part.y}, {x: cr.x, y: cr.y + cr.h}], [{x: part.x + part.w, y: part.y}, {x: cr.x + cr.w, y: cr.y + cr.h}]])
-      : (cc.x > pc.x ? [[{x: part.x + part.w, y: part.y}, {x: cr.x, y: cr.y}], [{x: part.x + part.w, y: part.y + part.h}, {x: cr.x, y: cr.y + cr.h}]] : [[{x: part.x, y: part.y}, {x: cr.x + cr.w, y: cr.y}], [{x: part.x, y: part.y + part.h}, {x: cr.x + cr.w, y: cr.y + cr.h}]]);
-    for (const points of pair) placed.edges.push({points: points as {x: number; y: number}[], child: i});
+    const partPolys = polygonsIn(ctx, pts => pts.every(p => p[0] >= part.x - 0.5 && p[0] <= part.x + part.w + 0.5 && p[1] >= part.y - 0.5 && p[1] <= part.y + part.h + 0.5), id => id !== undefined && (name === id || name.endsWith(`.${id}`)));
+    const childPolys = polygonsIn(ctx, pts => pts.every(p => p[0] >= cr.x - 0.5 && p[0] <= cr.x + cr.w + 0.5 && p[1] >= cr.y - 0.5 && p[1] <= cr.y + cr.h + 0.5));
+    const [pl, pRight] = facingEnds(part, partPolys, below ? 'bottom' : 'top'), [cl, cRight] = facingEnds(cr, childPolys, below ? 'top' : 'bottom');
+    const y0 = below ? pr.y + pr.h : pr.y; // from the edge of the parent's band: a part inside it (a swimlane's step) does not draw a line across the parts below it
+    const stage = Math.max((child.band as {reveal?: number}).reveal ?? 0, (must(parent.band) as {reveal?: number}).reveal ?? 0), until = (child.band as {until?: number}).until;
+    const own = {child: i, ...(stage > (placed.reveal ?? 0) ? {reveal: stage} : {}), ...(until === undefined ? {} : {until})};
+    placed.edges.push({points: [{x: pl.x, y: y0}, cl], ...own}, {points: [{x: pRight.x, y: y0}, cRight], ...own});
   });
 }
 const layoutBarsBand = placedBand((band: BandOf<'bars'>, x, y, w, ctx) => layoutBars(band, x, y, w, ctx.widthOf, ctx.roles), 'a bars band takes an id that another anchor already has', 'a bar takes an id that another anchor already has');

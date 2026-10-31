@@ -234,9 +234,9 @@ export function renderTimeline(b: LaidOutTimeline, day: Theme): string {
 }
 
 
-export function renderTree(b: LaidOutTree, day: Theme, tones: ToneEnv): string {
+export function renderTree(b: LaidOutTree, day: Theme, tones: ToneEnv, stage?: number): string {
   const out: string[] = [];
-  for (const e of b.edges) {
+  for (const e of b.edges.filter(e => visibleAt(e, stage))) { // (only a funnel line carries its own reveal)
     const a = must(e.points[0]), z = must(e.points[e.points.length - 1]);
     // curve: a cubic that leaves and arrives along the axis the tree grows on (`curve`), so it reads as one smooth S
     const d = e.curve ? (e.curve === 'x' ? `M${snap4(a.x)},${snap4(a.y)} C${snap4((a.x + z.x) / 2)},${snap4(a.y)} ${snap4((a.x + z.x) / 2)},${snap4(z.y)} ${snap4(z.x)},${snap4(z.y)}` : `M${snap4(a.x)},${snap4(a.y)} C${snap4(a.x)},${snap4((a.y + z.y) / 2)} ${snap4(z.x)},${snap4((a.y + z.y) / 2)} ${snap4(z.x)},${snap4(z.y)}`) : `M${e.points.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}`;
