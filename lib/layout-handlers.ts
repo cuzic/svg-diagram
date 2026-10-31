@@ -36,7 +36,7 @@ import type {BoxBand, CaptionBand, BannerBand} from './types/text-bands.ts';
 import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
 import {PALETTE, SHADES, blendLuminance, bestTextColor, paintOf} from './tokens.ts';
 import {
-  BOX_PAD_X, LINE_HEIGHT_EM, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL, STAMP_GAP, STAMP_H, TAG_H,
+  BOX_PAD_X, LINE_HEIGHT_EM, boundaryChipH, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL, STAMP_GAP, STAMP_H, TAG_H,
   groupTitleBand, gridChildGeometry, gridColumns, rowChildGeometry, snapGrid, stampChipW,
 } from './layout-util.ts';
 import {lineWidth} from './layout-text.ts';
@@ -245,19 +245,23 @@ function layoutImageBand(band: ImageBand, ctx: LayoutCtx, padX: number, cw: numb
 
 function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
-  let labelW = band.labelW ?? 128, colGap = band.colGap ?? 28, padX2 = 14;
+  // a boundary's name sits in a chip across the label column: the column is never narrower than the longest name + the chip's round ends, fit: 'shrink' included
+  const chipText = Math.max(0, ...(band.boundaries ?? []).filter(b => b.label).map(b => textWidth(widthOf, b.label as string, roles.note, 700)));
+  const minLabelW = chipText ? Math.ceil(chipText) + 36 : 0;
+  let labelW = band.labelW ?? Math.max(128, minLabelW), colGap = band.colGap ?? 28, padX2 = 14; // no labelW given: wide enough for the longest line name
   const padY = 14;
   const colWAt = (): number => (cw - labelW - 2 * padX2 - (band.cols - 1) * colGap) / band.cols;
   if (band.fit === 'shrink' && colWAt() < SWIMLANE_COMFY_COL) { // free room for the columns: lane labels and gaps give way first, a step at a time
     const steps: [number, number, number][] = [[104, 20, 12], [88, 12, 8]];
     for (const [lw, cg, px] of steps) {
-      labelW = Math.min(labelW, lw); colGap = Math.min(colGap, cg); padX2 = Math.min(padX2, px);
+      labelW = Math.min(labelW, Math.max(lw, minLabelW)); colGap = Math.min(colGap, cg); padX2 = Math.min(padX2, px);
       if (colWAt() >= SWIMLANE_COMFY_COL) break;
     }
   }
+  if (minLabelW > labelW) throw new Error(`swimlane(): boundaries: the longest line name is ${Math.ceil(chipText)}px wide and needs a label column of ${minLabelW}px, but labelW is ${labelW}px — shorten the name or widen labelW`);
   const bodyX = padX + labelW;
   const colW = colWAt();
-  if (colW < 60) throw new Error(`swimlane(): ${band.cols} columns leave only ${Math.round(colW)}px each — widen the diagram, shrink labelW, or use fewer columns`);
+  if (colW < 60) throw new Error(`swimlane(): ${band.cols} columns leave only ${Math.round(colW)}px each — widen the diagram, ${minLabelW && labelW <= minLabelW ? `shorten the line names (they need a ${minLabelW}px label column)` : 'shrink labelW'}, or use fewer columns`);
   const top0 = ctx.y, startY = snapGrid(top0); // on the grid; the cursor moves on from where it was (no drift)
   const wrapLines = (text: string, size: number, weight: number, maxW: number) => wrapAtoms(splitAtoms(text), {maxWidth: Math.max(20, maxW), atomWidth: (a: string) => widthOf(a, size, weight, 'sans'), mode: ctx.wrap});
   // column-group headers across the top
@@ -288,12 +292,18 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
     const maxStep = Math.max(0, ...mine.map(s => s.h));
     const rows = 1 + Math.max(0, ...mine.map(s => s.row ?? 0));
     const blockH = rows * maxStep + (rows - 1) * rowGap;
-    const h = Math.max(blockH, labelH) + 2 * padY;
+    // a named boundary below this lane puts a chip across the lane border: the centred lane label leaves room for half of it
+    const chipHalf = boundaryChipH(roles.note) / 2 + 2, nChip = (band.boundaries ?? []).filter(b => b.label && (b.after === lane.id || band.lanes[i - 1]?.id === b.after)).length;
+    const h = Math.max(blockH, labelH + (nChip ? 2 * chipHalf : 0)) + 2 * padY;
     const out = {y, h, labelLines, labelTop: y + (h - labelH) / 2, tone: lane.tone, maxStep, blockTop: y + (h - blockH) / 2};
     y += h;
     return out;
   });
-  const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, ...(band.fit === 'shrink' ? narrowField(stepsPlaced.flatMap(s => s.wrappedRuns.map(r => r.lines))) : {}), id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
+  const boundaries = (band.boundaries ?? []).map(b => {
+    const at = must(laneIndex.get(b.after)), next = must(lanes[at + 1]);
+    return {y: next.y, ...(b.label ? {label: b.label} : {})};
+  });
+  const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, ...(boundaries.length ? {boundaries} : {}), ...(band.fit === 'shrink' ? narrowField(stepsPlaced.flatMap(s => s.wrappedRuns.map(r => r.lines))) : {}), id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
   const frameScope = scopeOf(band);
   if (frameScope) (frame as unknown as {scope: string}).scope = frameScope;
   ctx.laidOut.push(frame); // before its steps so the lanes draw underneath

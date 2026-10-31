@@ -8,7 +8,7 @@ import type {LaidOutPeople, LaidOutDots} from './types/people-dots.ts';
 import type {LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
 import type {LaidOutBox, LaidOutCaption, LaidOutBanner} from './types/text-bands.ts';
 import {iconSvg} from './icon-svg.ts';
-import {ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout-util.ts';
+import {boundaryChipH, ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout-util.ts';
 import {visibleAt} from './reveal.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
 import {arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
@@ -299,6 +299,15 @@ export function renderSwimlane(b: LaidOutSwimlane, day: Theme, roles: Roles): st
     parts.push(textLines(ln.labelLines, {x: b.x + b.labelW / 2, top: ln.labelTop, size: roles.title, weight: 700, anchor: 'middle', fill: ln.tone === 'accent' ? PALETTE[day].accent : PALETTE.text}));
   });
   parts.push(`<path d="M${Math.round(b.bodyX)},${Math.round(b.y)} V${Math.round(b.y + b.h)}" stroke="${PALETTE.text}" stroke-width="2"/>`);
+  for (const bd of b.boundaries ?? []) { // a heavy dashed line over the lane border; its name sits in a chip on the label column
+    const y = Math.round(bd.y);
+    parts.push(`<path d="M${Math.round(b.x)},${y} H${Math.round(X1)}" stroke="${PALETTE.text}" stroke-width="3" stroke-dasharray="10,6"/>`);
+    if (bd.label) {
+      const h = boundaryChipH(roles.note), w = b.labelW - 16;
+      parts.push(`<rect x="${Math.round(b.x + 8)}" y="${Math.round(y - h / 2)}" width="${w}" height="${h}" rx="${h / 2}" fill="${PALETTE.bg}" stroke="${PALETTE.text}" stroke-width="1.5"/>`);
+      parts.push(textLines([bd.label], {x: b.x + b.labelW / 2, top: y - h / 2 + 3, size: roles.note, weight: 700, anchor: 'middle', fill: PALETTE.text}));
+    }
+  }
   parts.push(`<path d="${rrPath(b.x, b.y, b.w, b.h, {tl: R, tr: R, bl: R, br: R})}" fill="none" stroke="${PALETTE.text}" stroke-width="2.5"/>`);
   return parts.join('\n  ');
 }

@@ -95,6 +95,7 @@ export const MEASURE_HANDLERS = {
   swimlane: (band, m) => {
     for (const l of band.lanes) m.atoms(l.label, m.roles.title, 700);
     for (const p of band.phases ?? []) m.atoms(p.label, m.roles.note, 700);
+    for (const b of band.boundaries ?? []) if (b.label) m.atoms(b.label, m.roles.note, 700);
     for (const st of band.steps) m.own(st);
   },
   legend: (band, m) => { for (const item of band.items) m.atoms(item.label, m.roles.note, 400); },

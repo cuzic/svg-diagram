@@ -161,11 +161,15 @@ export interface SwimlaneFlow {
   labelAt?: number;
   tone?: TextTone;
 }
+/** A heavy dashed line across the boundary after lane `after`, or between two lanes that must be next to each other (`between`: it throws when a lane was added or moved between them), optionally named in a chip on the label column (a service blueprint's line of interaction / visibility). */
+export type SwimlaneBoundary = {label?: string} & ({after: string; between?: undefined} | {between: readonly [string, string]; after?: undefined});
 /** Column group named across the top (a stage, a sprint). */
 export interface SwimlanePhase {label: string; from: number; to: number}
 export interface SwimlaneOpts extends RevealOpts, ScopeOpts {
   flows?: SwimlaneFlow[];
   phases?: SwimlanePhase[];
+  /** Lines across lane boundaries. With `laneOrder` only `between` can be used (the lanes move). */
+  boundaries?: SwimlaneBoundary[];
   /** Width of the lane-label column (default 128). */
   labelW?: number;
   colGap?: number;
@@ -189,6 +193,8 @@ export interface SwimlaneBand {
   /** Number of columns used. */
   cols: number;
   phases?: SwimlanePhase[];
+  /** As placed by swimlane(): the lane each line sits below. */
+  boundaries?: {after: string; label?: string}[];
   labelW?: number;
   colGap?: number;
   fit?: 'shrink';
@@ -214,6 +220,8 @@ export interface LaidOutSwimlane extends Rect {
   phaseH: number;
   phases: LaidOutPhase[];
   lanes: LaidOutLane[];
+  /** The lines across lane boundaries: y, and the chip's text (a line of the label column's width). */
+  boundaries?: {y: number; label?: string}[];
   /** With `fit: 'shrink'`: the steps whose text broke into lines of 2.5 characters or fewer on average (the shrink-narrow-text rule reads it). */
   narrow?: string[];
   id?: string;
