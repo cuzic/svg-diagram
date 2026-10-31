@@ -14,7 +14,7 @@ import {layoutQuadrant} from './quadrant.ts';
 import {layoutFlowShape} from './flow-shapes.ts';
 import {layoutWordArt} from './wordart.ts';
 import {CANVAS_MIN_ROW_H, canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
-import {layoutTreeBand, narrowField} from './tree.ts';
+import {layoutTreeBand, narrowField, treeItems} from './tree.ts';
 import {layoutStatesBand} from './states.ts';
 import {statesWords} from './states-words.ts';
 import {CAUSE_ROLES, layoutCauseBand, layoutCloudBand} from './toc.ts';
@@ -28,6 +28,7 @@ import {layoutChart} from './charts.ts';
 import {layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {GroupBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, RawBand, SpacerBand, StatusBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow, RowArrow} from './types/containers.ts';
 import type {Rect} from './types/core.ts';
+import type {LaidOutTree} from './types/diagrams.ts';
 import type {PyramidBand, CurveBand, LaidOutPyramidLayer} from './types/figures.ts';
 import type {ImageBand} from './types/image.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
@@ -588,7 +589,61 @@ const layoutCauseOrCloud = placedBand((band: Band & {type: 'cause' | 'cloud'}, x
   band => `${band.type === 'cause' ? 'a cause tree' : 'a cloud'} takes an id that another anchor already has`,
   band => `${band.type === 'cause' ? 'a cause tree node' : 'a cloud box'} takes an id that another anchor already has`);
 const layoutStates = placedBand((band: BandOf<'states'>, x, y, w, ctx) => layoutStatesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), band => `${statesWords(band.flavor).diagram} takes an id that another anchor already has`, band => `a ${statesWords(band.flavor).node} takes an id that another anchor already has`);
-const layoutTree = placedBand((band: BandOf<'tree'>, x, y, w, ctx) => layoutTreeBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a tree takes an id that another anchor already has', 'a tree node takes an id that another anchor already has');
+// A tree whose nodes are bands (ADR 0049): each band is measured once per width (laid out, then rolled back), the tree is placed from those sizes, and
+// every band is laid out for real inside its node's rectangle.
+function measureBandHeight(ctx: LayoutCtx, band: Band, w: number): number {
+  const before = {laidOut: ctx.laidOut.length, y: ctx.y, anchors: new Set(ctx.anchors.keys()), bottoms: new Map(ctx.nodeBottoms), areas: new Set(ctx.areaIds), connects: ctx.connects.length, deferred: ctx.deferred.length, scopes: new Map([...ctx.scopes.byBare].map(([k, v]) => [k, [...v]]))};
+  ctx.y = 0;
+  ctx.stack([band], 0, w);
+  const h = ctx.y - ctx.d.gap; // every handler leaves the cursor one gap below what it placed
+  ctx.laidOut.length = before.laidOut; ctx.y = before.y;
+  for (const k of [...ctx.anchors.keys()]) if (!before.anchors.has(k)) ctx.anchors.delete(k);
+  ctx.nodeBottoms.clear(); for (const [k, v] of before.bottoms) ctx.nodeBottoms.set(k, v);
+  ctx.areaIds.clear(); for (const a of before.areas) ctx.areaIds.add(a);
+  ctx.connects.length = before.connects; ctx.deferred.length = before.deferred;
+  ctx.scopes.byBare.clear(); for (const [k, v] of before.scopes) ctx.scopes.byBare.set(k, v);
+  return h;
+}
+/** A band node is laid out on the grid like any band: its rectangle (and the ends of the lines that reach it) move to where the band will really sit. */
+function snapBandNodes(placed: LaidOutTree, band: BandOf<'tree'>): void {
+  treeItems(band.root).forEach((n, i) => {
+    const node = placed.nodes[i];
+    if (!n.band || !node) return;
+    const dy = originOf(n.band.type, node.y) - node.y;
+    if (dy === 0) return;
+    const on = (p: {x: number; y: number}): boolean => p.y >= node.y - 0.5 && p.y <= node.y + node.h + 0.5 && (Math.abs(p.x - node.x) < 0.5 || Math.abs(p.x - node.x - node.w) < 0.5 || (p.x >= node.x - 0.5 && p.x <= node.x + node.w + 0.5 && (Math.abs(p.y - node.y) < 0.5 || Math.abs(p.y - node.y - node.h) < 0.5)));
+    for (const e of placed.edges) {
+      const pts = e.points, last = pts.length - 1;
+      for (const [k, next] of [[0, 1], [last, last - 1]] as const) {
+        const p = must(pts[k]), q = pts[next];
+        if (!on(p)) continue;
+        if (q && q.y === p.y) q.y += dy; // a horizontal leg stays horizontal
+        p.y += dy;
+      }
+    }
+    node.y += dy;
+    const anchor = placed.anchors.find((a: {id: string}) => a.id === n.id);
+    if (anchor && n.id) anchor.y += dy;
+  });
+}
+const treePlaced = placedBand((band: BandOf<'tree'>, x, y, w, ctx) => {
+  const placed = layoutTreeBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, (b, bw) => measureBandHeight(ctx, b, bw));
+  snapBandNodes(placed, band);
+  return placed;
+}, 'a tree takes an id that another anchor already has', 'a tree node takes an id that another anchor already has');
+const layoutTree: BandLayoutHandler<BandOf<'tree'>> = (band, ctx, padX, cw) => {
+  treePlaced(band, ctx, padX, cw);
+  const items = treeItems(band.root);
+  if (!items.some(n => n.band)) return;
+  const placed = ctx.laidOut[ctx.laidOut.length - 1] as LaidOutTree, after = ctx.y;
+  items.forEach((n, i) => {
+    const node = placed.nodes[i];
+    if (!n.band || !node) return;
+    ctx.y = node.y;
+    ctx.stack([n.band], node.x, node.w);
+  });
+  ctx.y = after;
+};
 const layoutBarsBand = placedBand((band: BandOf<'bars'>, x, y, w, ctx) => layoutBars(band, x, y, w, ctx.widthOf, ctx.roles), 'a bars band takes an id that another anchor already has', 'a bar takes an id that another anchor already has');
 const layoutChartBand = placedBand((band: BandOf<'chart'>, x, y, w, ctx) => layoutChart(band, x, y, w, ctx.widthOf, ctx.roles, ctx.wrap), 'a chart takes an id that another anchor already has', 'a chart element takes an id that another anchor already has');
 const layoutPeopleOrDots = placedBand((band: Band & {type: 'people' | 'dots'}, x, y, w, ctx) => band.type === 'people' ? layoutPeople(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles) : layoutDots(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles),

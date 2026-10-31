@@ -3,6 +3,7 @@ import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
 import type {Anchor, Dimmed, EmphasisTone, RcaInfo, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
 import type {BoxTone} from './text-bands.ts';
+import type {Band} from './index.ts';
 import type {GanttText} from './timeline.ts';
 
 export interface TreeItem {
@@ -13,6 +14,10 @@ export interface TreeItem {
   id?: string;
   tone?: BoxTone;
   children?: TreeItem[];
+  /** The node is this band (a chevron, a swimlane, a table ...) instead of a box with text: laid out at the width `w`, with the tree's lines to its edges. `label` is then only its name (errors, check). No `sub` or `tone`. */
+  band?: Band;
+  /** The width of a band node (required with `band`). */
+  w?: number;
 }
 export interface TreeOpts extends RevealOpts, ScopeOpts {
   /** 'down' (default): levels run top to bottom. 'right': left to right, which fits more siblings in a narrow figure.
@@ -374,7 +379,7 @@ export interface LaidOutTree extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone; id?: string; /** ADR 0034 */ dataNode?: string})[];
+  nodes: (Rect & {tone: BoxTone; id?: string; /** ADR 0034 */ dataNode?: string; /** A band node: the tree draws no box or text for it; the band is laid out in its rectangle. */ band?: true})[];
   /** Parent to child, each a polyline (centre line of the box edge to the child's box edge); `curve` draws it as a smooth S, `bold` as a spine. */
   edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean}[];
   /** brace maps: a `{` over the children of one parent. */

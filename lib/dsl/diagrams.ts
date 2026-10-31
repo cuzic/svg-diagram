@@ -19,7 +19,8 @@ import {box, caption, group} from './text-bands.ts';
 
 /**
  * An org chart / hierarchy: the nodes place themselves (parent centred over its children, levels aligned). A node is
- * {label, sub?, id?, tone?, children?}; one with an id is an anchor for connect(), also as `t.anchors.<id>`.
+ * {label, sub?, id?, tone?, children?}; one with an id is an anchor for connect(), also as `t.anchors.<id>`. `{label, band, w, id?, children?}` makes the node any
+ * band (ADR 0049): a chevron(), a swimlane(), a table() ..., laid out at the width `w`, the tree's lines joining its edges (its own ids are anchors too).
  *   tree({label: '社長', sub: '代表取締役', children: [{label: '開発部', id: 'dev', children: [...]}, {label: '営業部'}]}, {dir: 'down'})
  */
 export function tree<const R extends TreeItem, const Id extends string = never>(root: R, opts?: TreeOpts & {id?: Id}): TreeBand & Declares<Id | TreeIds<R>> & HandleOf<Id> & AnchorsOf<TreeIds<R>>;
@@ -30,6 +31,12 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
   const ids: (string | undefined)[] = [];
   const walk = (n: TreeItem): void => {
     if (n.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(n.tone)) throw new Error(`tree(): "${n.label}" has tone ${String(n.tone)}`);
+    if (n.band !== undefined) {
+      if (typeof n.band !== 'object' || n.band === null || typeof (n.band as {type?: unknown}).type !== 'string') throw new Error(`tree(): "${n.label}": band must be a band (chevron(...), swimlane(...)[0], table(...) ...)`);
+      if (n.band.type === 'connect' || n.band.type === 'spacer') throw new Error(`tree(): "${n.label}": a ${n.band.type} cannot be a node`);
+      if (typeof n.w !== 'number' || !(n.w >= 40) || !Number.isFinite(n.w)) throw new Error(`tree(): "${n.label}": a band node needs its width, w: a number >= 40 (got ${String(n.w)})`);
+      if (n.sub !== undefined || n.tone !== undefined) throw new Error(`tree(): "${n.label}": a band node takes no sub or tone (the band draws itself)`);
+    } else if (n.w !== undefined) throw new Error(`tree(): "${n.label}": w is only for a band node`);
     ids.push(n.id);
     for (const c of n.children ?? []) walk(c);
   };

@@ -353,7 +353,8 @@ export const VERIFY_HANDLERS = {
   timeline: {rects: ownRect, check: {phase: 'timeline', run: checkTimeline}},
   bowtie: {rects: band => band.nodes.map((n, i) => ({id: null, label: band.labelBoxes[i]?.label ?? 'box', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
   fta: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'event', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
-  tree: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
+  // a band node has no label box and is checked as the band it is (its own rects), so the label boxes count only the text nodes
+  tree: {rects: band => { let li = 0; return band.nodes.flatMap(n => n.band ? [] : [{id: n.id ?? null, label: band.labelBoxes[li++]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}]); }},
   states: {rects: figureRects, check: {phase: 'states', run: checkStates}},
   cause: {rects: figureRects, check: {phase: 'cause', run: checkCause}},
   cloud: {rects: band => band.nodes.map(n => ({id: n.id ?? null, label: n.id ?? `cloud box ${n.key.toUpperCase()}`, x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)})), check: {phase: 'cloud', run: checkCloud}}, // every box is its own rect (also one without an id)
