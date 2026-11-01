@@ -82,8 +82,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   return normal;
 }
 
-/** A figure that fits none of the ways ADR 0010 D1 allows: an answer of the search, not an error (`failure` says what was tried, as `fitLayout` throws it). */
-// fit-width.ts says the same with `ok: false` (planFit); here it must be told from a LaidOutCause, by `noFit`
+/** A figure that fits none of the ways ADR 0010 D1 allows: an answer of the search, not an error (`failure` says what was tried, as `fitLayout` throws it). fit-width.ts says the same with `ok: false` (planFit); here it is told from a LaidOutCause by `noFit`. */
 type NoFit = {readonly noFit: true; readonly failure: () => string};
 const isNoFit = <T extends object>(r: T | NoFit): r is NoFit => 'noFit' in r;
 const fitOrThrow = <T extends object>(r: T | NoFit): T => { if (isNoFit(r)) throw new Error(r.failure()); return r; };
