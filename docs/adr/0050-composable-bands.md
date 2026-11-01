@@ -1,6 +1,6 @@
 # ADR 0050: 部品を組み合わせる層(xmonad 風の合成)
 
-- 状態: 設計のみ(未実装、Opus 1 巡目の指摘を反映済み・再確認待ち)
+- 状態: 設計のみ(未実装、Opus 1 巡目の指摘を反映済み・2 巡目の指摘も反映済み)
 - 日付: 2026-10-31
 - 基点: `main`(PR #351 まで)
 - 関連: ADR 0031(FCIS)、ADR 0049(`tree()` のノードに band)、`lib/dsl/defaults.ts`(`connectDefaults`)、`lib/dsl/shared.ts`(`mapBands`)
@@ -30,6 +30,7 @@ xmonad との対応は次のとおり。
 - `mapBands` は、関数が変えた帯の中へは降りず、パスも渡さない。`deep` の法則が成り立たない。→ 新しい走査 `rewrite` を作る(D2)。
 - `Mod = <B>(b: B) => B` は、写して書き換えると `B` にならず(キャスト要)、`id` を変えると `Declares` とハンドルが嘘になる。→ 型を弱め、実行時に「種類と id が同じ」を検査する(D2)。
 - `build` は既存の公開名(`lib/dsl/io.ts:82`)と衝突。`part` / `at` / `and` / `or` / `not` / `mirror` も紛らわしい。`part` / `build` の層は、普通の関数で足りるので **作らない**(D4)。
+- (2 巡目)`{...b, tone}` の展開は非列挙のハンドル・`GIVEN`・`anchors` を落とし、`box()` の検査と派生(`iconGlyph`、rich text)も飛ばす → `rewrite` が返せるのは**見た目のキーだけ**(D2)。`styled` は引数の位置が帯ごとに違う → 第 1 段は options が先頭の帯だけ(D1)。`undefined` の値は既定を消さない(D1)。`inside` は wireframe の既存オプション名 → `within`。id の検査は部分木の全 id の多重集合で(D2)。
 - 範囲外だった `RowOpts` に `dir` がなく、`mirror` は対象がない → 第 1 段から外す。
 
 ## 決定
@@ -39,8 +40,9 @@ const card = styled(box, {tone: 'muted', size: 'sm'})         // box と同じ�
 const warn = styled(card, {tone: 'warn'})                     // 重ねられる(後のほうが勝つ)
 d.add(card({id: 'a', label: '…'}), warn({id: 'b', label: '…'}))
 ```
-- 戻り値は元のコンストラクタと同じ型(オーバーロードごと保つ。`Declares` / `HandleOf` も通る)。呼び出しの引数 `{...defaults, ...given}` で元を呼ぶだけなので、検査・派生・`GIVEN` の記録は元のまま。
-- `defaults` の型は元の第 1 引数のオプションの部分集合。`id` は既定にできない(全部の帯が同じ id になる)。
+- `styled<F>(c: F, defaults): F` と書き、戻り値は元の型 `F` そのもの(オーバーロード・`Declares` / `HandleOf` が保たれる)。中では `{...defaults, ...definedOnly(given)}` で元を呼ぶだけなので、検査・派生・`GIVEN` の記録は元のまま。**`given` の `undefined` の値は捨てる**(`defaults.ts` の `connect` の既定と同じ。`card({tone: props.tone})` が既定を消さない)。
+- **第 1 段の対象は、options が先頭の引数の帯**(`box`、`banner`、`node`)。`group` / `row` / `grid` / `stat` は options が最後なので、`styled` の型(`Parameters` が最後のオーバーロードしか見ない、`Id` が `string` に潰れる)を試してから、第 2 段以降で足す。
+- `defaults` の型は、第 1 引数のオプションの部分集合から `id` を除いたもの(全部の帯が同じ id になる)。
 - 合成は関数の合成そのもの(`styled` を重ねる)。法則: `styled(c, {})` は `c` と同じ呼び出し結果、`styled(styled(c, a), b)` = `styled(c, {...a, ...b})`(テストで固定)。
 - これで「`spacing(8)` や `withTone` を重ねる」ことが、帯が作られる前に済む。xmonad の `LayoutModifier` に近い。
 
@@ -48,9 +50,9 @@ d.add(card({id: 'a', label: '…'}), warn({id: 'b', label: '…'}))
 ```ts
 rewrite(bands, (b, path) => b.type === 'box' && path.some(p => p.type === 'group') ? {...b, tone: 'muted'} : undefined)
 ```
-- `fn(band, path)` は、書き換えた帯か `undefined`(そのまま)を返す。`path` は祖先の帯の列。**書き換えた帯の中にも降りる**(`mapBands` との違い)。何も変えなければ同じ object を返す(コピーしない)。
-- 実行時に検査する: 返した帯の `type` が同じ、宣言する id が同じ(違えば throw)。`cloneBand` で写すので非列挙のハンドル・`GIVEN` は保つ。`wireframe` の `SHELLED`(object の同一性で見る)は、写した帯にも印を引き継ぐ。
-- 述語の小さな道具: `isType(t)`、`inside(t)`。論理は普通の `&&` で書く(`and` / `or` / `not` は作らない)。
+- `fn(band, path)` は、書き換えた帯か `undefined`(そのまま)を返す。`path` は祖先の帯の列(`tree` のノードの band は、その `tree` を path に足して辿る)。**書き換えた帯の中にも降りる**(`mapBands` との違い)。`fn` は 1 つの節に 1 回だけ。何も変えなければ同じ object を返す(コピーしない)。
+- **返せるのは見た目のキーだけ**: `rewrite` は `fn` に「パッチ」(`{tone: …}` など)を返させ、`cloneBand` で写した帯にそのキーだけを `Object.assign` する(展開 `{...b}` は非列挙のハンドル・`GIVEN`・`anchors` を落とすので、`fn` が帯を丸ごと作って返すことは認めない)。許すキーは表で固定する(`tone`、`dashed`、`reveal` …。`title` / `icon` / `id` / `children` / `from` / `to` は派生の値と宣言に関わるので不可)。違えば throw。これで型・id・`Refers`・`GIVEN` が変わらないことが構造で守られ、実行時の id の検査は要らない。`wireframe` の `SHELLED`(同一性)は、写した帯にも印を引き継ぐ。
+- 述語の小さな道具: `isType(t)`、`within(t)`。論理は普通の `&&` で書く(`and` / `or` / `not` は作らない)。
 - 配列を返す帯(`swimlane()`、`branch()`)は、`add()` が平らにした後の個々の帯に効く。
 
 ### D3: `diagram({transform})` — 図全体の書き換え
@@ -73,5 +75,5 @@ rewrite(bands, (b, path) => b.type === 'box' && path.some(p => p.type === 'group
 
 ## 未決(レビューで聞くこと)
 1. `styled` が、オーバーロードの多い `box()` / `group()` の型を保てるか(保てなければ、対象を絞る)。
-2. `transform` が上書きであることは、利用者に分かりやすいか(`connectDefaults` は利用者優先なので逆になる)。名前を `override` にするか。
-3. `rewrite` が返す帯の「type / id が同じ」の検査で、`Refers`(connect の端点)が変わる書き換えは許すか。
+2. (決定)名前は `transform` のまま。「既定の後に走り、勝つ」と書く。`override` は「足りない所だけ埋める」と誤読される。
+3. (決定)`Refers`(connect の端点)が変わる書き換えは、第 1 版では許さない(コンパイル時の `ValidateBands` と食い違い、`GIVEN` とハンドルが古くなる)。許すなら別の ADR で。
