@@ -1,7 +1,7 @@
 // ADR 0050: styled() fixes constructor options, rewrite() / diagram({transform}) restyle bands by a condition.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {box, bracket, caption, connect, diagram, em, group, legend, row, rewrite, spacer, styled, isType, within, when, swimlane, tree} from '../lib/dsl.ts';
+import {box, bracket, stat, caption, connect, diagram, em, group, legend, row, rewrite, spacer, styled, isType, within, when, swimlane, tree} from '../lib/dsl.ts';
 import type {Band} from '../lib/types/index.ts';
 
 test('styled: defaults fill in, the call wins, undefined does not erase a default', () => {
@@ -121,4 +121,25 @@ test('rewrite: reveal on every band that takes one; undefined values trip no gua
   assert.doesNotThrow(() => rewrite([group([box({title: 'x'})], {frame: false})], () => ({tone: undefined, reveal: 1})));
   const plain = group([box({title: 'x'})], {tone: 'plain'});
   assert.equal((rewrite([plain], () => ({tone: 'accent'}))[0] as ReturnType<typeof group>).dashed, undefined);
+});
+
+test('styled({at}): the options come after the leading arguments (group, row, grid, stat)', () => {
+  const panel = styled(group, {tone: 'accent', titleTone: 'accent'}, {at: 1});
+  const g = panel([box({id: 'in', title: 'x'})], {title: 'P', id: 'p'});
+  assert.equal(g.tone, 'accent');
+  assert.equal(g.title, 'P');
+  assert.equal(g.right, 'p:right');
+  assert.equal(panel([box({title: 'y'})]).tone, 'accent', 'the options argument may be left out');
+  assert.equal(panel([box({title: 'y'})], {tone: 'danger'}).tone, 'danger');
+  const strip = styled(row, {gap: 4}, {at: 1});
+  assert.equal(strip([box({title: 'a'}), box({title: 'b'})]).gap, 4);
+  const big = styled(stat, {tone: 'accent'}, {at: 2});
+  assert.equal(big('12', '件').tone, 'accent');
+});
+test('styled({at}): the leading arguments are kept, a wrong spot is refused', () => {
+  const panel = styled(group, {tone: 'accent'}, {at: 1});
+  assert.throws(() => (panel as unknown as () => unknown)(), /takes 1 argument/);
+  assert.throws(() => panel([box({title: 'x'})], [box({title: 'y'})] as never), /must be the options object/);
+  assert.throws(() => styled(box, {tone: 'accent'}, {at: -1}), /whole number/);
+  assert.throws(() => styled(box, {tone: 'accent'}, {at: 1.5 as never}), /whole number/);
 });
