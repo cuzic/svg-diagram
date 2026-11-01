@@ -419,7 +419,9 @@ interface Unit {
   col: number; row: number; ideal?: {x: number; y: number};
 }
 interface Spot {cx: number; cy: number; side: Side; box: Rect}
-class Grow extends Error {why: string; constructor(why: string) { super(why); this.why = why; }}
+/** An attempt that found no free spot for an item: why, so that the next one has the rows grown (or the items free to move). */
+interface Grow {grow: string}
+const isGrow = <T extends object>(r: T | Grow): r is Grow => 'grow' in r;
 
 export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, mode: WrapMode): LaidOutQuadrant {
   const size = roles.note, tSize = roles.title, lineN = size + 4, lineT = tSize + 5;
@@ -593,7 +595,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     for (const u of units.filter(u => u.ideal)) {
       const ideal = u.ideal as {x: number; y: number};
       const s = settle(u, g4(ideal.x), g4(ideal.y), SIDES, bodyRect(u.col, u.row), moveLimit);
-      if (!s) throw new Grow(`"${u.item.label}" has no free spot ${moveLimit < 1e6 ? `within ${moveLimit}px of its coordinates` : 'in its cell'}`);
+      if (!s) return {grow: `"${u.item.label}" has no free spot ${moveLimit < 1e6 ? `within ${moveLimit}px of its coordinates` : 'in its cell'}`};
       placed.push({u, spot: s});
       const px = Math.hypot(s.cx - ideal.x, s.cy - ideal.y);
       if (Math.hypot(s.cx - ideal.x, s.cy - ideal.y) > 3) moved.push({id: u.item.id, label: u.item.label, px});
@@ -601,30 +603,30 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     for (const [key, flow] of flows) {
       const k = Number(key.split(',')[0]), r = Number(key.split(',')[1]), body = bodyRect(k, r);
       const {rows: flowRows, heights: rowHs, total} = flow;
-      const n = flowRows.reduce((a, fr) => a + fr.length, 0);
-      if (total > body.h - 10) throw new Grow(`the cell [${k}, ${r}] cannot hold ${n} item${n > 1 ? 's' : ''}`);
+      // the rows are made at least `flowNeed` (total + 12) high, so the flow always fits its cell: only a spot can be missing
       let top = body.y + (body.h - total) / 2;
-      flowRows.forEach((fr, fi) => {
+      for (const [fi, fr] of flowRows.entries()) {
         const rw = fr.reduce((a, u) => a + uw(u), 0) + 12 * (fr.length - 1);
         let cx0 = body.x + (body.w - rw) / 2;
         for (const u of fr) {
           const cx = g4(cx0 + uw(u) / 2), cy = g4(top + u.cr);
           cx0 += uw(u) + 12;
           const s = tryAt(u, cx, cy, ['below']) ?? settle(u, g4(body.x + body.w / 2), g4(body.y + body.h / 2), FLOW_SIDES, body, 1e9);
-          if (!s) throw new Grow(`"${u.item.label}" has no free spot in its cell`);
+          if (!s) return {grow: `"${u.item.label}" has no free spot in its cell`};
           placed.push({u, spot: s});
         }
         top += must(rowHs[fi]) + 10;
-      });
+      }
     }
     return {regionPolys, rowH, plotT, plotB, plot, placed, moved, texts, labelBoxes, headers, cellRect, toCell, inPlot, free, labelAt};
   };
 
-  let result: ReturnType<typeof attempt> | undefined, lastWhy = '';
+  let result: Exclude<ReturnType<typeof attempt>, Grow> | undefined, lastWhy = '';
   // first keep every item near its coordinates and grow the rows; as a last resort let a crowded item move anywhere in its cell (the rule quadrant-item-moved says so)
   for (const [limit, tries] of [[MAX_MOVE, 9], [1e9, 4]] as const) {
     for (let k = 0; k < tries && !result; k++) {
-      try { result = attempt(1 + k * 0.25, limit); } catch (e) { if (!(e instanceof Grow)) throw e; lastWhy = e.why; }
+      const got = attempt(1 + k * 0.25, limit);
+      if (isGrow(got)) lastWhy = got.grow; else result = got;
     }
   }
   if (!result) throw new Error(`quadrant(): ${lastWhy}, even with the rows grown — fewer items, smaller sizes, a wider figure or a coarser grid`);
