@@ -92,7 +92,7 @@ export function fmeaParts(input: readonly FmeaRow[], opts: FmeaOpts = {}): Seman
   if (!(Number.isFinite(threshold) && threshold > 0)) throw new Error('fmea(): threshold must be a number > 0');
   if (!(Number.isFinite(mid) && mid >= 0 && mid < threshold)) throw new Error('fmea(): midThreshold must be >= 0 and below threshold');
   let computed = fmeaComputed(input);
-  if (opts.sort === 'rpn') computed = [...computed].sort((a, b) => b.rpn - a.rpn);
+  if (opts.sort === 'rpn') computed = computed.toSorted((a, b) => b.rpn - a.rpn);
   const highest = Math.max(...computed.map(r => r.rpn));
   const hasAfter = computed.some(r => r.after !== undefined);
   // numeric columns are narrow (about two full-width characters with the after-action group), so their labels break by hand

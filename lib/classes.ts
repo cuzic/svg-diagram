@@ -159,7 +159,7 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
       return;
     }
     const raw = must(routes.get(i));
-    const pts = flip(r.kind) ? [...raw].reverse() : raw; // drawn from the child to the parent
+    const pts = flip(r.kind) ? raw.toReversed() : raw; // drawn from the child to the parent
     out.edges.push({from: r.from, to: r.to, kind, line, points: pts});
     const own = out.edges.length - 1;
     if (r.fromMult) pending.push(() => chip(own, must(r.fromMult), [near(pts, 0, 28, 12), near(pts, 0, 28, -12), near(pts, 0, 40, 12), near(pts, 0, 40, -12)]));

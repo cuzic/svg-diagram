@@ -347,7 +347,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
 
   // end labels: where two would touch, spread them apart (top to bottom, then back up from the bottom), keeping them on their points as near as possible
   if (endLabels.length >= 1) {
-    const sorted = [...endLabels].sort((a, b) => a.y - b.y), pitch = labelH + 2;
+    const sorted = endLabels.toSorted((a, b) => a.y - b.y), pitch = labelH + 2;
     const lo = plotT + size - 2, hi = plotB - 18; // a label's baseline stays inside the plot, off the axis
     let ys = sorted.map(e => Math.min(hi, Math.max(lo, e.y + half)));
     for (let i = 1; i < ys.length; i++) ys[i] = Math.max(must(ys[i]), must(ys[i - 1]) + pitch);

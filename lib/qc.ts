@@ -161,7 +161,7 @@ export function criticalPath(input: readonly ArrowActivity[]): ArrowResult {
   const early = new Map<string, number>(), late = new Map<string, number>();
   for (const id of order) early.set(id, Math.max(0, ...must(incoming.get(id)).map(a => must(early.get(a.from)) + a.days)));
   const length = must(early.get(must(ends[0])));
-  for (const id of [...order].reverse()) late.set(id, must(outgoing.get(id)).length ? Math.min(...must(outgoing.get(id)).map(a => must(late.get(a.to)) - a.days)) : length);
+  for (const id of order.toReversed()) late.set(id, must(outgoing.get(id)).length ? Math.min(...must(outgoing.get(id)).map(a => must(late.get(a.to)) - a.days)) : length);
   const rounded = (v: number) => Math.abs(v) < 1e-9 ? 0 : parseFloat(v.toPrecision(12));
   const activities = acts.map(a => { const float = rounded(must(late.get(a.to)) - must(early.get(a.from)) - a.days); return {...a, float, critical: float < 1e-9}; });
   // one critical path: from the start, always along a critical activity

@@ -137,7 +137,7 @@ export function layoutReg(s: RegSpec, g: ChartGeom): LaidOutChartPart {
   const marks: Pts[] = [];
   s.groups.forEach((_gr, i) => {
     const cv = must(sc.cv[i]); // one per group
-    if (s.band && !s.resid && cv.up[0]?.y !== cv.fit[0]?.y) c.path(`${line(cv.up)} L${line([...cv.dn].reverse()).slice(1)} Z`, {fill: tone(i), op: 0.14});
+    if (s.band && !s.resid && cv.up[0]?.y !== cv.fit[0]?.y) c.path(`${line(cv.up)} L${line(cv.dn.toReversed()).slice(1)} Z`, {fill: tone(i), op: 0.14});
     for (const p of cv.pts) { c.path(markerPath(SHAPES[i] ?? 'disc', xOf(p.x), yOf(p.y), 3.5), {fill: tone(i), op: 0.75, stroke: 'bg', sw: 1}); marks.push({x: xOf(p.x), y: yOf(p.y)}); }
     if (!s.resid || s.lowess) c.path(line(cv.fit), {fill: 'none', stroke: tone(i), sw: 2.5, dash: DASH[i] || undefined});
   });

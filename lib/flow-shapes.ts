@@ -412,7 +412,7 @@ function layoutVenn(b: VennBand, out: LaidOutFlowShape, t: Texts, anchor: Anchor
 
 function layoutConcentric(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn, roles: Roles): void {
   const w = out.w, side = b.labels === 'side', n = b.rings.length, lh = roles.note * LINE;
-  const ordered = b.order === 'outer-first' ? b.rings : [...b.rings].reverse(); // outermost first
+  const ordered = b.order === 'outer-first' ? b.rings : b.rings.toReversed(); // outermost first
   const R = side ? Math.min(200, w * .3) : Math.min(220, w * .42), radius = (i: number) => R * (n - i) / n;
   const keyW = w - 2 * R - 64;
   const keys = side ? ordered.map(r => t.wrap(ringLabel(r), keyW)) : [];

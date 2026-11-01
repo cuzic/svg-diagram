@@ -55,7 +55,7 @@ export function expandLoopBacks(bands: Band[]): Band[] {
       return step.id ?? (step.id = `${id}__${i}`);
     };
     // the shorter the span, the nearer the boxes: loops inside another one sit above it, so no vertical leg crosses another loop's run
-    const byLane = [...loops].sort((x, y) => ((x.from as number) - (x.to as number)) - ((y.from as number) - (y.to as number)));
+    const byLane = loops.toSorted((x, y) => ((x.from as number) - (x.to as number)) - ((y.from as number) - (y.to as number)));
     const connects = byLane.map((l, lane) => Object.assign(connectBand(`${anchor(l.from as number)}:bottom`, `${anchor(l.to as number)}:bottom`, {
       route: 'loop-under', dip: DIP + lane * LANE, ...(l.label === undefined ? {} : {label: l.label}), ...(l.chip === undefined ? {} : {chip: l.chip}), ...(l.tone === undefined ? {} : {tone: l.tone}), ...(l.line === undefined ? {} : {line: l.line}),
     }, false), {loopBack: true as const}));

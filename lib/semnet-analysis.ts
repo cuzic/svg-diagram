@@ -46,7 +46,7 @@ export function analyzeCriticalPath(input: readonly PertTask[]): PertAnalysis {
   }
   const duration = Math.max(...topo.map(id => must(ef.get(id))));
   const lf = new Map<string, number>(), ls = new Map<string, number>();
-  for (const id of [...topo].reverse()) {
+  for (const id of topo.toReversed()) {
     const finish = must(succ.get(id)).length ? Math.min(...must(succ.get(id)).map(s => must(ls.get(s)))) : duration;
     lf.set(id, finish); ls.set(id, finish - must(byId.get(id)).duration);
   }

@@ -48,7 +48,7 @@ export function resolveTornado(items: readonly TornadoItem[], opts: TornadoOpts)
   const base = finiteNum('tornado', 'base', opts.base);
   checkIds('tornado', items.map(i => i.id), opts.id);
   const list = items.map((i, k) => ({label: checkText('tornado', `item ${k + 1}'s label`, i.label), low: finiteNum('tornado', `"${i.label}" low`, i.low), high: finiteNum('tornado', `"${i.label}" high`, i.high), ...(i.id === undefined ? {} : {id: i.id})}));
-  const ordered = opts.sort === false ? list : [...list].sort((a, b) => Math.abs(b.high - b.low) - Math.abs(a.high - a.low) || list.indexOf(a) - list.indexOf(b));
+  const ordered = opts.sort === false ? list : list.toSorted((a, b) => Math.abs(b.high - b.low) - Math.abs(a.high - a.low) || list.indexOf(a) - list.indexOf(b));
   const tones = ['accent', 'danger', 'muted', 'text'];
   for (const k of ['lowTone', 'highTone'] as const) if (opts[k] !== undefined && !tones.includes(opts[k] as string)) fail('tornado', `${k} must be accent, danger, muted or text`);
   if (opts.axisGroup !== undefined && opts.axisGroup !== false) fail('tornado', `axisGroup must be false (this chart's axis is its own) or left out (got ${JSON.stringify(opts.axisGroup)})`);

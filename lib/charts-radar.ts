@@ -133,7 +133,7 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
   let bestTicks: {s: string; x: number; y: number; anchor: 'start' | 'end'}[] = [];
   for (let sp = 0; sp < n; sp++) {
     const right = Math.cos(ang(sp)) >= -1e-9, dx = right ? 9 : -9, anchor = right ? 'start' as const : 'end' as const, got: Rect[] = [], put: typeof bestTicks = [];
-    for (const t of [...tickTexts].reverse()) {
+    for (const t of tickTexts.toReversed()) {
       const p = at(sp, t.k / s.rings);
       for (const y of [c.mid(p.y), c.mid(p.y) - Math.round(S * 0.7), c.mid(p.y) + Math.round(S * 0.7)]) {
         const r = c.boxOf(t.s, Math.round(p.x + dx), y, anchor);

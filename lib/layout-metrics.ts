@@ -103,7 +103,7 @@ function runsOf(frames: Frame[]): Frame[][] {
   for (const f of frames) { const k = `${f.unit}|${f.kind}|${f.y}`; byRow.set(k, [...(byRow.get(k) ?? []), f]); }
   const runs: Frame[][] = [];
   for (const row of byRow.values()) {
-    const sorted = [...row].sort((a, b) => a.x - b.x);
+    const sorted = row.toSorted((a, b) => a.x - b.x);
     let run: Frame[] = [];
     for (const f of sorted) {
       const prev = run.at(-1);
