@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {describeApplied, fitFailure, fitLayout, fitWidth, planFit, widerThan, type FitAttempt, type FitResult} from '../lib/fit-width.ts';
+import {describeApplied, fitFailure, fitLayout, fitOrThrow, fitWidth, isNoFit, planFit, widerThan, type FitAttempt, type FitResult} from '../lib/fit-width.ts';
 import {layeredAttempt} from '../lib/layered-route.ts';
 import type {FitApplied} from '../lib/types/diagrams.ts';
 
@@ -110,4 +110,12 @@ test('planFit: too tall, with a width that fits only before it is rounded up -> 
   const got = planFit(p);
   assert.ok(!got.ok);
   assert.match(got.failure(), /tall/);
+});
+
+test('isNoFit / fitOrThrow: a layout passes through, a NoFit is told apart and thrown with its message', () => {
+  const laid = {w: 1}, none = {noFit: true as const, failure: () => 'causeTree(): the figure does not fit 500px.'};
+  assert.equal(isNoFit(laid), false);
+  assert.equal(isNoFit(none), true);
+  assert.equal(fitOrThrow(laid), laid);
+  assert.throws(() => fitOrThrow(none), {message: 'causeTree(): the figure does not fit 500px.'});
 });

@@ -167,6 +167,12 @@ export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPla
 /** What `planFit` found: the layout that fits, or why none does (the message is made when asked for: a search that drops the figure never builds it). */
 export type FitOutcome<R> = {ok: true; result: R; applied: FitApplied[]} | {ok: false; failure: () => string};
 
+/** A figure that fits none of the ways ADR 0010 D1 allows, as the layout of a band returns it to a search that sets it aside (`failure` says what was tried, as `fitLayout` throws it). Told from a layout by `noFit`. */
+export type NoFit = {readonly noFit: true; readonly failure: () => string};
+export const isNoFit = <T extends object>(r: T | NoFit): r is NoFit => 'noFit' in r;
+/** The layout, or the error `fitLayout` would have thrown: where no search is left to set the figure aside. */
+export const fitOrThrow = <T extends object>(r: T | NoFit): T => { if (isNoFit(r)) throw new Error(r.failure()); return r; };
+
 /** `fitLayout` without the throw: a figure that fits none of the ways is an answer, not an error (a search that tries several figures sets it aside). */
 export function planFit<D extends string, R extends FitResult>(plan: LayoutPlan<D, R>): FitOutcome<R> {
   const narrow = plan.narrow !== false;
