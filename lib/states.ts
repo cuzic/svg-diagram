@@ -1,7 +1,7 @@
 // stateDiagram(): states and transitions that place themselves (graph-layout.ts layoutLayered). A state is a box like a tree
 // node; a transition is an orthogonal arrow routed through the layers it skips; a label sits on the arrow in a white chip.
 import {textWidth} from './atoms.ts';
-import {fitLayout} from './fit-width.ts';
+import {fitOrThrow, isNoFit, type NoFit, planFit} from './fit-width.ts';
 import {statesProblems} from './verify-base.ts';
 import {gapFor, layeredAttempt, stubOf} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
@@ -38,15 +38,18 @@ function pointAt(pts: Pt[], t: number): Pt {
 }
 
 export function layoutStatesBand(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutStates {
-  const out = layoutStatesBandAt(band, x, y, w, widthOf, roles, env, heightBudget);
+  const out = fitOrThrow(layoutStatesBandAt(band, x, y, w, widthOf, roles, env, heightBudget));
   if (env.space === undefined || env.space === 1) return out;
   // `density: 'compact'` must not make the check find more wrong in a state diagram (a label on another label or arrow, an arrow through a state): then it is drawn at the normal gaps
   const bad = statesProblems(out).length;
   if (bad === 0) return out;
-  try { const normal = layoutStatesBandAt(band, x, y, w, widthOf, roles, {...env, space: 1}, heightBudget); if (statesProblems(normal).length < bad) { normal.densityRestored = true; return normal; } return out; } catch { return out; }
+  const normal = layoutStatesBandAt(band, x, y, w, widthOf, roles, {...env, space: 1}, heightBudget);
+  if (isNoFit(normal) || statesProblems(normal).length >= bad) return out;
+  normal.densityRestored = true;
+  return normal;
 }
 
-function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutStates {
+function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutStates | NoFit {
   const S = roles.note, words = statesWords(band.flavor);
   const ids = new Set<string>();
   for (const s of band.states) {
@@ -99,11 +102,12 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
 
   const explicitDir = band.dir !== undefined && band.dir !== 'auto';
   const start: 'right' | 'down' = band.dir === 'down' || (band.dir === undefined && band.defaultDir === 'down') ? 'down' : 'right';
-  const fitted = fitLayout({
+  const fitted = planFit({
     who: words.who, w, start, keepWords: env.keepWords, alt: start === 'right' ? 'down' : 'right', explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted',
     ...(band.maxNodeW === undefined ? {} : {maxNodeW: band.maxNodeW}), build, widthOf: r => r.size.w + r.reserve, best: band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget}),
     ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
   });
+  if (!fitted.ok) return {noFit: true, failure: fitted.failure};
   const {dir, lines, reserve, top, at, lay, routes, size: total} = fitted.result, fitApplied = fitted.applied;
 
 

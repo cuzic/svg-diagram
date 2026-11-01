@@ -8,7 +8,7 @@ import {textWidth} from './atoms.ts';
 import {andClashes} from './cause-clash.ts';
 import {routesThroughNodes} from './verify-base.ts';
 import {causeCrossings} from './cause-hop.ts';
-import {planFit} from './fit-width.ts';
+import {fitOrThrow, isNoFit, type NoFit, planFit} from './fit-width.ts';
 import {scoreOf} from './polyline-metrics.ts';
 import {gapFor, layeredAttempt} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
@@ -82,10 +82,6 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   return normal;
 }
 
-/** A figure that fits none of the ways ADR 0010 D1 allows: an answer of the search, not an error (`failure` says what was tried, as `fitLayout` throws it). fit-width.ts says the same with `ok: false` (planFit); here it is told from a LaidOutCause by `noFit`. */
-type NoFit = {readonly noFit: true; readonly failure: () => string};
-const isNoFit = <T extends object>(r: T | NoFit): r is NoFit => 'noFit' in r;
-const fitOrThrow = <T extends object>(r: T | NoFit): T => { if (isNoFit(r)) throw new Error(r.failure()); return r; };
 
 function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause | NoFit {
   const once = (order?: readonly string[], plainRoutes = false, noDetour = false) => tryLayoutCause(prep, band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, plainRoutes, noDetour);
