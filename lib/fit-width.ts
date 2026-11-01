@@ -233,7 +233,7 @@ export function planFit<D extends string, R extends FitResult>(plan: LayoutPlan<
     if (plan.layoutOf) {
       const results = fitted.results, lays = results.map(plan.layoutOf);
       if (tooTall) {
-        const i = fitted.tried.findIndex(t => t.w <= plan.w + 0.5);
+        const i = fitted.tried.findIndex(t => t.fitsWidth ?? t.w <= plan.w + 0.5); // the test `tooTall` made: the width as measured, not as rounded up
         const at = must(lays[i]);
         if (at.vertical && plan.heightBudget !== undefined) split = splitByHeight(at.lay, plan.heightBudget);
       } else {

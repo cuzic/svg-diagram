@@ -103,3 +103,11 @@ test('planFit: no width fits -> not thrown, and the failure is the message fitLa
   assert.match(got.failure(), /^causeTree\(\): the figure does not fit 500px/);
   assert.throws(() => fitLayout(p), {message: got.failure()});
 });
+
+test('planFit: too tall, with a width that fits only before it is rounded up -> the failure says so, it does not stop on a missing attempt', () => {
+  // 500.3px fits 500 (the slack is 0.5) but rounds up to 501 in `tried`
+  const p = {...plan(() => 500.3), heightBudget: 50, layoutOf: () => ({lay: {} as never, vertical: false})};
+  const got = planFit(p);
+  assert.ok(!got.ok);
+  assert.match(got.failure(), /tall/);
+});
