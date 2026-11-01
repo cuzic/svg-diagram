@@ -159,6 +159,16 @@ const FOLD_SHARES = [1, 0.85, 0.7, 0.55];
  * Throws, with what was tried and one fix, when none fits. A figure that fits as written is attempt 0 and changes nothing.
  */
 export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPlan<D, R>): {result: R; applied: FitApplied[]} {
+  const got = planFit(plan);
+  if (!got.ok) throw new Error(got.failure());
+  return {result: got.result, applied: got.applied};
+}
+
+/** What `planFit` found: the layout that fits, or why none does (the message is made when asked for: a search that drops the figure never builds it). */
+export type FitOutcome<R> = {ok: true; result: R; applied: FitApplied[]} | {ok: false; failure: () => string};
+
+/** `fitLayout` without the throw: a figure that fits none of the ways is an answer, not an error (a search that tries several figures sets it aside). */
+export function planFit<D extends string, R extends FitResult>(plan: LayoutPlan<D, R>): FitOutcome<R> {
   const narrow = plan.narrow !== false;
   const alt = plan.alt !== plan.start ? plan.alt : undefined;
   const free = !plan.explicitDir;
@@ -204,32 +214,34 @@ export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPla
   const allTried: Fitted<R>['tried'] = [], allResults: R[] = [];
   for (const stage of stages.filter(s => s.length)) {
     const got = fitWidth(plan.w, stage, fitOpts);
-    if (got.ok) return {result: got.result, applied: withWidths(got.applied, [...allTried, ...got.tried], allTried.length + got.index)};
+    if (got.ok) return {ok: true, result: got.result, applied: withWidths(got.applied, [...allTried, ...got.tried], allTried.length + got.index)};
     allTried.push(...got.tried); allResults.push(...got.results);
   }
-  const fitted = {ok: false as const, tried: allTried, results: allResults};
-  const notTried: string[] = [];
-  if (plan.explicitDir) notTried.push(`${alt !== undefined ? `dir '${alt}'${narrow ? ' and ' : ''}` : ''}${narrow ? 'narrower nodes' : ''} (dir is explicit; write dir: 'auto' to let ${alt !== undefined || narrow ? 'them' : 'it'} change)`);
-  else if (narrow && !plan.autoWidth && plan.maxNodeW !== undefined) notTried.push(`narrower nodes (maxNodeW is explicit: ${plan.maxNodeW})`);
-  if (!plan.explicitDir && alt === undefined && plan.axisKept) notTried.push(plan.axisKept);
-  if (plan.foldable && plan.fold === false) notTried.push('folding a layer into rows (fold is written: false)');
-  notTried.push(...(plan.notTried ?? []));
-  const tooTall = plan.heightBudget !== undefined && fitted.tried.some(t => t.fitsWidth ?? t.w <= plan.w + 0.5);
-  const wider = widerThan(fitted.tried, 40);
-  const fix = tooTall ? 'split the figure in two (fewer entities or fewer layers), or give the canvas more height' : plan.explicitDir ? `dir: 'auto', ${canFold && plan.fold === undefined ? 'or fold: true (a layer wider than the figure is cut into rows, the direction stays), ' : ''}or widen the figure (diagram({width: ${wider}}))` : plan.fix ?? (wider > 1400 ? 'split the figure in two (fewer entities on one level)' : `widen the figure (diagram({width: ${wider}}))`);
-  // where to split (ADR 0019 D3): a height failure by the first attempt that fits the width, a width failure by the narrowest one that did not fold
-  let split: string | undefined;
-  if (plan.layoutOf) {
-    const results = fitted.results, lays = results.map(plan.layoutOf);
-    if (tooTall) {
-      const i = fitted.tried.findIndex(t => t.w <= plan.w + 0.5);
-      const at = must(lays[i]);
-      if (at.vertical && plan.heightBudget !== undefined) split = splitByHeight(at.lay, plan.heightBudget);
-    } else {
-      const unfolded = results.map((r, i) => ({r, i})).filter(({i}) => !must(fitted.tried[i]).label.includes('fold'));
-      const narrowest = unfolded.sort((a, b) => must(fitted.tried[a.i]).w - must(fitted.tried[b.i]).w)[0];
-      if (narrowest) split = splitWidest(must(lays[narrowest.i]).lay);
+  return {ok: false, failure: () => {
+    const fitted = {ok: false as const, tried: allTried, results: allResults};
+    const notTried: string[] = [];
+    if (plan.explicitDir) notTried.push(`${alt !== undefined ? `dir '${alt}'${narrow ? ' and ' : ''}` : ''}${narrow ? 'narrower nodes' : ''} (dir is explicit; write dir: 'auto' to let ${alt !== undefined || narrow ? 'them' : 'it'} change)`);
+    else if (narrow && !plan.autoWidth && plan.maxNodeW !== undefined) notTried.push(`narrower nodes (maxNodeW is explicit: ${plan.maxNodeW})`);
+    if (!plan.explicitDir && alt === undefined && plan.axisKept) notTried.push(plan.axisKept);
+    if (plan.foldable && plan.fold === false) notTried.push('folding a layer into rows (fold is written: false)');
+    notTried.push(...(plan.notTried ?? []));
+    const tooTall = plan.heightBudget !== undefined && fitted.tried.some(t => t.fitsWidth ?? t.w <= plan.w + 0.5);
+    const wider = widerThan(fitted.tried, 40);
+    const fix = tooTall ? 'split the figure in two (fewer entities or fewer layers), or give the canvas more height' : plan.explicitDir ? `dir: 'auto', ${canFold && plan.fold === undefined ? 'or fold: true (a layer wider than the figure is cut into rows, the direction stays), ' : ''}or widen the figure (diagram({width: ${wider}}))` : plan.fix ?? (wider > 1400 ? 'split the figure in two (fewer entities on one level)' : `widen the figure (diagram({width: ${wider}}))`);
+    // where to split (ADR 0019 D3): a height failure by the first attempt that fits the width, a width failure by the narrowest one that did not fold
+    let split: string | undefined;
+    if (plan.layoutOf) {
+      const results = fitted.results, lays = results.map(plan.layoutOf);
+      if (tooTall) {
+        const i = fitted.tried.findIndex(t => t.w <= plan.w + 0.5);
+        const at = must(lays[i]);
+        if (at.vertical && plan.heightBudget !== undefined) split = splitByHeight(at.lay, plan.heightBudget);
+      } else {
+        const unfolded = results.map((r, i) => ({r, i})).filter(({i}) => !must(fitted.tried[i]).label.includes('fold'));
+        const narrowest = unfolded.sort((a, b) => must(fitted.tried[a.i]).w - must(fitted.tried[b.i]).w)[0];
+        if (narrowest) split = splitWidest(must(lays[narrowest.i]).lay);
+      }
     }
-  }
-  throw new Error(fitFailure(plan.who, plan.w, fitted.tried, fix, notTried, plan.heightBudget, split));
+    return fitFailure(plan.who, plan.w, fitted.tried, fix, notTried, plan.heightBudget, split);
+  }};
 }

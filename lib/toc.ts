@@ -8,7 +8,7 @@ import {textWidth} from './atoms.ts';
 import {andClashes} from './cause-clash.ts';
 import {routesThroughNodes} from './verify-base.ts';
 import {causeCrossings} from './cause-hop.ts';
-import {fitLayout} from './fit-width.ts';
+import {planFit} from './fit-width.ts';
 import {scoreOf} from './polyline-metrics.ts';
 import {gapFor, layeredAttempt} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
@@ -69,25 +69,43 @@ const movedAside = new WeakSet<object>();
  * in a few fixed ways (ADR 0019 D4); a figure with no crossing is never touched. Only a cause tree (not pdpc() / relationDiagram()).
  */
 export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause {
-  const out = layoutCauseBandAt(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound);
+  const out = fitOrThrow(layoutCauseBandAt(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound));
   if (env.space === undefined || env.space === 1) return out;
   // `density: 'compact'` must not make an arrow run through a box (the check calls that an error): the narrower gaps between the layers can do that, so this band is drawn at the normal gaps then
   const through = (t: LaidOutCause): number => routesThroughNodes(t.edges, t.anchors, () => '').length;
   const bad = through(out);
   if (bad === 0) return out;
   // the normal gaps may not fit the width or the height that the compact figure fits: the compact figure stays then (the check says what is wrong with it)
-  try { const normal = layoutCauseBandAt(band, x, y, w, widthOf, roles, {...env, space: 1}, heightBudget, canvasBound); if (through(normal) < bad) { normal.densityRestored = true; return normal; } return out; } catch { return out; }
+  const normal = layoutCauseBandAt(band, x, y, w, widthOf, roles, {...env, space: 1}, heightBudget, canvasBound);
+  if (isNoFit(normal) || through(normal) >= bad) return out;
+  normal.densityRestored = true;
+  return normal;
 }
 
-function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause {
-  const first = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound);
+/** A figure that fits none of the ways ADR 0010 D1 allows: an answer of the search, not an error (`failure` says what was tried, as `fitLayout` throws it). fit-width.ts says the same with `ok: false` (planFit); here it is told from a LaidOutCause by `noFit`. */
+type NoFit = {readonly noFit: true; readonly failure: () => string};
+const isNoFit = <T extends object>(r: T | NoFit): r is NoFit => 'noFit' in r;
+const fitOrThrow = <T extends object>(r: T | NoFit): T => { if (isNoFit(r)) throw new Error(r.failure()); return r; };
+
+function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause | NoFit {
+  const once = (order?: readonly string[], plainRoutes = false, noDetour = false) => tryLayoutCause(prep, band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, plainRoutes, noDetour);
+  const prep = prepareCause(band);
+  const first = once();
+  if (isNoFit(first)) return first;
   // the search is for a figure whose AND arrows cross as first laid out: judged before the side-by-side runs are moved aside (ADR 0016 D12/D13), which also clears crossings
   // a crossing of any two arrows also starts it: the order only wins when it is strictly better in (AND crossings, AND side-by-side, crossings, bends)
-  if (band.base !== undefined || (crossingsOf_(first) === 0 && scoreOf(first.edges.map(e => e.points)).crossings === 0 && (!movedAside.has(first) || crossingsOf_(layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, undefined, true)) === 0))) return first;
+  if (band.base !== undefined) return first;
+  if (crossingsOf_(first) === 0 && scoreOf(first.edges.map(e => e.points)).crossings === 0) {
+    if (!movedAside.has(first)) return first;
+    const plain = once(undefined, true);
+    if (isNoFit(plain)) return plain;
+    if (crossingsOf_(plain) === 0) return first;
+  }
   const ids = band.nodes.map(n => n.id);
   // The search scores the figures without the detours of the long arrows (route-search.ts: slow, and the search lays a figure out up to MAX_ORDERS times); the order it
   // finds is laid out once more with them, and replaces the first figure only if it is strictly better in the same score.
-  const base = band.straighten === false ? first : layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, undefined, false, true);
+  const base = band.straighten === false ? first : once(undefined, false, true);
+  if (isNoFit(base)) return base;
   // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
   const orders = [[...ids].reverse(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
   const axisOf = (t: LaidOutCause): number[] => t.nodes.map(n => band.dir === 'left' || band.dir === 'right' ? n.x : n.y);
@@ -113,8 +131,8 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
     // give up when nothing has got better for a while (counted in the orders tried, the ones set aside too: each is a layout): sooner once no AND arrows cross
     if (++tried > MAX_ORDERS || tried - lastBetter > (bestScore[0] === 0 ? PATIENCE_QUIET : PATIENCE)) break;
     const order = must(queue.shift());
-    let t: LaidOutCause;
-    try { t = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, false, true); } catch { continue; }
+    const t = once(order, false, true);
+    if (isNoFit(t)) continue; // another order widens a layer: it does not fit where the written one does
     // the same layers (a different order must not change which edge of a cycle is cut, or fold the figure), the same size limits, no AND the first drew left undrawn
     if (axisOf(t).some((v, i) => Math.abs(v - must(baseAxis[i])) > 0.5) || t.h > base.h + 0.5 || t.loose.length > base.loose.length) continue;
     if (t.fitApplied?.length !== base.fitApplied?.length) continue;
@@ -122,8 +140,8 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
     if (lexLess(score, bestScore)) { best = t; bestScore = score; bestOrder = order; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
   }
   if (band.straighten === false) return best;
-  let found: LaidOutCause | undefined;
-  if (bestOrder) try { found = layoutCauseBandOnce(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, bestOrder); } catch { found = undefined; }
+  const withDetours = bestOrder ? once(bestOrder) : undefined;
+  const found = withDetours && !isNoFit(withDetours) ? withDetours : undefined;
   // the best of: the first figure, the best order with the detours, the best figure without them (the one the search judged; the base itself when no order beat it): the first one wins a tie.
   // The detours can make AND arrows cross (they are judged by the whole figure's crossings), so the figure without them must stay a candidate
   // the same frame as the figures the search compared (the plain ones: the detours may have made `first` lower than any order would be without them)
@@ -147,6 +165,12 @@ const scoreOfCause = (t: LaidOutCause): number[] => { const s = scoreOf(t.edges.
 const lexLess = (a: number[], b: number[]): boolean => { for (let i = 0; i < a.length; i++) { const x = a[i], y = b[i]; if (x !== y) return x !== undefined && y !== undefined && x < y; } return false; };
 
 export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false): LaidOutCause {
+  return fitOrThrow(tryLayoutCause(prepareCause(band), band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, anotherOrder, plainRoutes, noDetour));
+}
+
+/** What a cause tree's links are, checked once: the same for every order and every width the search lays it out in, and where the mistakes in the entities and links are thrown (a `back` that closes no cycle is thrown by the layout, graph-layout.ts). */
+type CausePrep = {arrows: {from: string; to: string; line: 'solid' | 'dashed' | 'dotted'; back?: true; blocks?: true}[]; groups: {to: string; arrows: number[]}[]};
+function prepareCause(band: CauseBand): CausePrep {
   const ids = new Set<string>();
   for (const n of band.nodes) {
     if (typeof n.id !== 'string' || !n.id) throw new Error('causeTree(): every node needs an id');
@@ -174,7 +198,12 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
     }
     if (group) groups.push(group);
   }
+  return {arrows, groups};
+}
 
+/** One whole layout of a cause tree; the figure that fits none of the ways is returned as `NoFit`; a mistake of the author's or a broken invariant still throws. */
+function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false): LaidOutCause | NoFit {
+  const {arrows, groups} = prep;
   // the last run of each arrow of an AND, when they can carry one arc (see below): the arrows arrive on one side, all heading the
   // same way, with room before the head for the arc
   const andEnds = (g: {arrows: number[]}, pointsOf: (k: number) => Pt[]) => {
@@ -250,12 +279,13 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   const explicitDir = band.dir !== undefined && band.dir !== 'auto' && !band.dirLeftOut;
   const start: CauseDir = band.dir === undefined || band.dir === 'auto' ? base : band.dir;
   // a why-why tree (layerFrom: 'effect') is never folded: one "why n" on two levels breaks how it reads
-  const fitted = fitLayout<CauseDir, ReturnType<typeof build>>({
+  const fitted = planFit<CauseDir, ReturnType<typeof build>>({
     who: band.layerFrom === 'effect' ? 'whyWhyTree()' : 'causeTree()', w, start, keepWords: env.keepWords, ...(band.base !== undefined ? {alt: 'right' as const} : {axisKept: `another axis (a cause tree keeps its direction: ${start})`}),
     explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined || band.maxNodeW === 'auto' ? {} : {maxNodeW: band.maxNodeW}), ...(band.maxNodeW === 'auto' ? {autoWidth: true} : {}),
     build, layoutOf: r => ({lay: r.lay, vertical: r.vertical}), ...(band.base === undefined && band.layerFrom !== 'effect' ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget: heightBudget - (band.maxNodeW === 'auto' && canvasBound ? y : 0)}), // an attempt's size already holds the badge room (see build)
     ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
   });
+  if (!fitted.ok) return {noFit: true, failure: fitted.failure};
   const attempt = fitted.result, {lines, vertical, flip} = attempt, fitApplied = fitted.applied;
   const {lay, routes} = attempt;
   const pad = padOf(vertical), total = {w: attempt.size.w - 2 * pad.x, h: attempt.size.h - 2 * pad.y};

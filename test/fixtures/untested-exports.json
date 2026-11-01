@@ -192,7 +192,6 @@
   "fit-handlers:bandTextSizes",
   "fit-split:splitByHeight",
   "fit-split:splitWidest",
-  "fit-width:fitLayout",
   "fit:minTextSize",
   "flow-shapes:chevronBand",
   "flow-shapes:concentricBand",
