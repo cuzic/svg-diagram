@@ -70,6 +70,10 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 **remark**: `import svgDiagram from 'svg-diagram/remark'`、`unified().use(remarkParse).use(svgDiagram, {render: 'svg'}).use(remarkRehype).use(rehypeStringify)`。図は生の `html` ノードではなく本物の要素（hast。`className` `strokeWidth` など hast のプロパティ名）になるので、`allowDangerousHtml` も `rehype-raw` も要らない（`rehype-sanitize` を使うなら、svg と style を許すスキーマが要る）。図だけの段落は段落ごと置き換える。HTML 版は `<div class="svg-diagram">`。MDX・Astro・Docusaurus の remark 設定にも入る（それらでの動作は未確認）。remark の変換は非同期にできるので子プロセスは使わず同じプロセスで描き、同じプロセスでソースを編集すれば描き直す。使った図のファイルは `file.data.svgDiagramDeps` に入る。
 
+## npm パッケージ・tsc の無い環境で使う
+
+Node と Chromium だけの環境(ChatGPT の Code Interpreter など)では、`.ts` をそのまま `node` で動かし、Chromium は playwright を介さず直接動かし、文字幅と PNG は Chromium で測って描く。手順と環境変数は [docs/chatgpt-code-interpreter.md](docs/chatgpt-code-interpreter.md)。
+
 ## Web ページで使う(`svg-diagram/browser`)
 
 Node もサーバーも使えない場所(単一の HTML、Artifact など)で図を描く入口。`esbuild` / `vite` で、alias もスタブもなしにそのまま束ねられる。文字幅は呼び出し側が測って渡す。`svgMeasurer()` は隠した SVG の `<text>` の `getBBox()` で測る（ブラウザが図の文字を描く箱と一致する。こちらを使う）。`await document.fonts.ready` のあとで測り、使い終わったら `measure.dispose()` で隠した SVG を消す。`canvasMeasurer()` は DOM を使わない近似で、等幅や絵文字で箱をわずかにはみ出すことがある。

@@ -132,7 +132,7 @@ test('the cache does not hand a font-engine value to the Chromium engine (the br
     configureMeasure({measure: 'chromium'});
     try { await measureAll(req); console.log('ANSWERED'); } catch (e) { console.log('REFUSED ' + fromFont); }
   `);
-  const r = spawnSync(process.execPath, [script], {encoding: 'utf8', env: {...process.env, PLAYWRIGHT_BROWSERS_PATH: '/nonexistent', SVG_DIAGRAM_MEASURE: ''}});
+  const r = spawnSync(process.execPath, [script], {encoding: 'utf8', env: {...process.env, PLAYWRIGHT_BROWSERS_PATH: '/nonexistent', SVG_DIAGRAM_BROWSER: 'playwright', SVG_DIAGRAM_MEASURE: ''}});
   assert.match(r.stdout, /^REFUSED [0-9.]+/, r.stdout + r.stderr);
   fs.rmSync(dir, {recursive: true});
 });

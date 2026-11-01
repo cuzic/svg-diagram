@@ -1,6 +1,7 @@
 // The shell of the PPTX writer: reads the package template, draws the PNG fallbacks and zips. Everything between is pure (slide.ts, package.ts).
 import fs from 'node:fs';
-import {Resvg} from '@resvg/resvg-js';
+import {createRequire} from 'node:module';
+import type {Resvg as ResvgClass} from '@resvg/resvg-js';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {FontSpecs} from '../types/project.ts';
 import {zipStore} from './zip.ts';
@@ -26,7 +27,11 @@ function readTemplate(dir = TEMPLATE, prefix = ''): Entry[] {
 }
 let template: Entry[] | undefined;
 
+// resvg is loaded when a PNG is first drawn, so that the rest of svg-diagram loads on a machine without it (a browser-only one); the .pptx writer itself needs it.
 function rasterize(svg: string, fontFiles: readonly string[], scale: number): Buffer {
+  let Resvg: typeof ResvgClass;
+  try { ({Resvg} = createRequire(import.meta.url)('@resvg/resvg-js') as {Resvg: typeof ResvgClass}); }
+  catch { throw new Error('pptx: @resvg/resvg-js could not be loaded on this machine (the PNG fallbacks of the slide are drawn with it).'); }
   const font = fontFiles.length ? {loadSystemFonts: false, fontFiles: [...fontFiles]} : {loadSystemFonts: true};
   return Buffer.from(new Resvg(svg, {font, fitTo: {mode: 'zoom', value: scale}}).render().asPng());
 }

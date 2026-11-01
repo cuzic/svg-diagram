@@ -4,8 +4,7 @@
 // pictures of them, read from the same emoji font the layout measures with — through HarfBuzz, which shapes a sequence (a skin tone, a
 // flag) to its one glyph: a PNG from the font's CBDT / sbix bitmaps (<image>), or the layers of its COLR table as filled paths. The SVG
 // that is written to disk is not touched; this is only on the way to pixels, and costs a font read and a shaping per figure that has emoji.
-import * as hb from 'harfbuzzjs';
-import {emojiFontFace, textBox} from './font-metrics.ts';
+import {emojiFontFace, harfbuzz, textBox} from './font-metrics.ts';
 import {computeStyles, elements, parseXml, type El} from './svg-dom.ts';
 import {familyKind, placeRuns} from './svg-geom.ts';
 import type {FontSpecs} from './types/project.ts';
@@ -57,6 +56,7 @@ type EmojiFont = NonNullable<ReturnType<typeof emojiFontFace>>;
 
 /** The pictures of the glyphs of `s` drawn from (x, y) at `size`; `all` when every glyph of it got one. */
 function glyphPictures(ef: EmojiFont, palette: {red: number; green: number; blue: number; alpha: number}[], s: string, x: number, y: number, size: number, fill: string): {pictures: string[]; all: boolean} {
+  const hb = harfbuzz();
   const buf = new hb.Buffer();
   buf.addText(s);
   buf.guessSegmentProperties();
