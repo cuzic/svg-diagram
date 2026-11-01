@@ -1,0 +1,93 @@
+// rewrite(bands, fn): restyle bands by a condition (ADR 0050 D2), and diagram({transform}) (D3). Pure.
+import {assertSolidText} from '../rich.ts';
+import type {ConnectBand} from '../types/containers.ts';
+import type {Band} from '../types/index.ts';
+import type {TreeItem} from '../types/diagrams.ts';
+import {ALIGNS, assertBoxTone, assertOneOf, cloneBand, EMPHASIS_TONES, TEXT_TONES} from './shared.ts';
+import {SHELLED} from './wireframe-numbering.ts';
+
+/** The look of a band: the only things a rewrite may change. Not text, icon, id, children or a connector's ends. */
+export interface BandPatch {
+  tone?: string;
+  dashed?: boolean;
+  titleTone?: string; bodyTone?: string; noteTone?: string; iconTone?: string;
+  align?: string;
+  bold?: boolean; mono?: boolean;
+  line?: ConnectBand['line']; arrow?: ConnectBand['arrow']; weight?: 'strong';
+  reveal?: number; until?: number;
+}
+/** What a rule returns for a band: a patch, or undefined to leave it. `path` is the bands around it, outermost first. */
+export type RewriteFn = (band: Band, path: readonly Band[]) => BandPatch | undefined;
+export type Predicate = (band: Band, path: readonly Band[]) => boolean;
+
+const SHOWN = ['reveal', 'until'] as const;
+const KEYS: Record<string, readonly string[]> = {
+  box: ['tone', 'dashed', 'titleTone', 'bodyTone', 'noteTone', 'iconTone', 'align', ...SHOWN],
+  group: ['tone', 'dashed', 'titleTone', ...SHOWN],
+  caption: ['tone', 'bold', 'mono', 'align', ...SHOWN],
+  connect: ['line', 'arrow', 'weight', ...SHOWN],
+};
+const textTone = (k: string) => (v: unknown, what: string) => assertOneOf(v as string, TEXT_TONES, `${what} ${k}`);
+const CHECKS: Record<string, (band: Band, v: unknown, what: string) => void> = {
+  tone: (b, v, what) => { assertOneOf(v as string, b.type === 'caption' ? TEXT_TONES : EMPHASIS_TONES, `${what} tone`); if (b.type === 'group') assertBoxTone(v as string, what); },
+  titleTone: (_b, v, w) => textTone('titleTone')(v, w), bodyTone: (_b, v, w) => textTone('bodyTone')(v, w),
+  noteTone: (_b, v, w) => textTone('noteTone')(v, w), iconTone: (_b, v, w) => textTone('iconTone')(v, w),
+  align: (_b, v, w) => assertOneOf(v as string, ALIGNS, `${w} align`),
+  line: (_b, v, w) => assertOneOf(v as string, ['solid', 'dashed', 'dotted', 'double'], `${w} line`),
+  arrow: (_b, v, w) => assertOneOf(v as string, ['end', 'both', 'start', 'none'], `${w} arrow`),
+  weight: (_b, v, w) => assertOneOf(v as string, ['strong'], `${w} weight`),
+};
+
+/** The patch laid over a copy of the band (the handles and the record of what was written are kept by cloneBand). */
+function patched(b: Band, patch: BandPatch): Band {
+  const what = `rewrite(${b.type})`;
+  const allowed = KEYS[b.type] ?? SHOWN;
+  const given = Object.entries(patch).filter(([, v]) => v !== undefined);
+  if (given.length === 0) return b;
+  for (const [k, v] of given) {
+    if (!allowed.includes(k)) throw new Error(`${what}: cannot change '${k}' — a rewrite changes the look only (${allowed.join(', ')}), never the text, an id or what a connector joins`);
+    CHECKS[k]?.(b, v, what);
+  }
+  const out = Object.assign(cloneBand(b), Object.fromEntries(given));
+  if (b.type === 'box') assertSolidText(out as never, what);
+  if (SHELLED.has(b)) SHELLED.add(out);
+  if (out.type === 'connect' && out.weight && out.line === 'double') throw new Error(`${what}: weight '${out.weight}' cannot go with line 'double'`);
+  return out;
+}
+
+/**
+ * Every band, then the bands inside it (a patched band's children too), gets one call to `fn`; a band it patches is copied, the
+ * rest are the same objects (nothing is copied when nothing changes). Reaches group / row / grid children and the band nodes of
+ * a tree() (the tree is in `path`).
+ */
+export function rewrite(bands: Band[], fn: RewriteFn, path: readonly Band[] = []): Band[] {
+  const out = bands.map(b => rewriteOne(b, fn, path));
+  return out.some((b, i) => b !== bands[i]) ? out : bands;
+}
+function rewriteOne(orig: Band, fn: RewriteFn, path: readonly Band[]): Band {
+  const patch = fn(orig, path);
+  let cur = patch ? patched(orig, patch) : orig;
+  const inner = [...path, orig];
+  if ('children' in cur && Array.isArray(cur.children)) {
+    const kids = rewrite(cur.children as Band[], fn, inner);
+    if (kids !== cur.children) cur = Object.assign(cloneBand(cur), {children: kids});
+  }
+  if (cur.type === 'tree') {
+    const root = rewriteItem(cur.root, fn, inner);
+    if (root !== cur.root) cur = Object.assign(cloneBand(cur), {root});
+  }
+  return cur;
+}
+function rewriteItem(item: TreeItem, fn: RewriteFn, path: readonly Band[]): TreeItem {
+  const band = item.band ? rewrite([item.band], fn, path)[0] : undefined;
+  const kids = item.children?.map(c => rewriteItem(c, fn, path));
+  const changed = (band !== undefined && band !== item.band) || (kids?.some((k, i) => k !== item.children?.[i]) ?? false);
+  return changed ? {...item, ...(band ? {band} : {}), ...(kids ? {children: kids} : {})} : item;
+}
+
+/** A band of one of these types. */
+export const isType = (...types: Band['type'][]): Predicate => b => types.includes(b.type);
+/** A band that sits inside a band of this type (any depth). */
+export const within = (type: Band['type']): Predicate => (_b, path) => path.some(p => p.type === type);
+/** `when(isType('box'), {tone: 'muted'})`: the patch for the bands every predicate holds for. */
+export const when = (pred: Predicate | Predicate[], patch: BandPatch): RewriteFn => (b, path) => [pred].flat().every(p => p(b, path)) ? patch : undefined;

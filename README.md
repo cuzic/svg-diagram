@@ -1113,6 +1113,7 @@ versus(
 - **`cols: 12` だけで子に `span` / `col` を書かない行**は、子が 12/n 列ずつを等分する（余りは前の子から 1 列ずつ。3 個なら 4+4+4）。以前は 1 列幅ずつになり、名前が縦に折れた。列をそろえたいときは、子に `span`（`span: 1` でもよい）か `col` を書く。
 - **別の行の N 列目へ矢印をつなぐ**: `const top = row([...], {cols: 12, id: 'top'})` のあと `connect(a.bottom, top.col(5).top)`、`top.col(5, 6)` は 5〜6 列。`cols` のない行では N 番目の子。列の中の箱は、その端点の一部とみなされ、線が通っても重なりの警告にならない。
 - **接続線の既定値**: `diagram({connectDefaults: {chip: true, route: 'elbow'}})` と `d.connect(from, to, {label})`（`d.add(connect(...))` と同じ。`chip` は `label` のある線だけに効く。線ごとに指定した値が優先）。
+- **部品を組み合わせる**（ADR 0050）: `const card = styled(box, {tone: 'muted'})` は `box` の既定を決めた版（呼び出しの指定が優先、`undefined` は既定を消さない。重ねるときは先に `const` に束ねる）。`rewrite(bands, when([isType('box'), within('group')], {tone: 'accent'}))` と `diagram({transform: when(isType('connect'), {line: 'dotted'})})` は、条件に合う帯の見た目だけを書き換える（`connectDefaults` の後に走り、勝つ）。書き換えられるのは tone / dashed / 文字の色 / align / line / arrow / weight / reveal / until で、文字・id・つなぐ先は変えられない。
 - **ワイヤーフレームの外枠**: `diagram({wireframeDefaults: {appbar: {title, nav, right}, h, frame}})` で、全画面の上にナビが付く。画面ごとに `wireframe(root, {shell: {active: '在庫'}})`（`shell: false` で外枠なし）。構造が違うときは `shell: (content, props) => ...` で包み方を渡す。`screens()` の項目も同じ。
 - **状態の一覧**: `stateRow(ラベル, 部品を作る関数, {状態: 差分 | 'loading' | 'na' | {na: 理由} | undefined}, {base, note})`。状態の漏れは型エラー。
 - **表の記号セル**: `cell('通る', {mark: 'ok' | 'mid' | 'ng' | 'best'})`（○ △ × ◎ + 文字）。

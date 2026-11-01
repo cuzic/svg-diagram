@@ -1,6 +1,6 @@
 # ADR 0050: 部品を組み合わせる層(xmonad 風の合成)
 
-- 状態: 設計のみ(未実装、Opus 1 巡目の指摘を反映済み・2 巡目の指摘も反映済み)
+- 状態: 実装済み(第 1・第 2 段。PR 待ち)。Opus 2 巡目まで反映
 - 日付: 2026-10-31
 - 基点: `main`(PR #351 まで)
 - 関連: ADR 0031(FCIS)、ADR 0049(`tree()` のノードに band)、`lib/dsl/defaults.ts`(`connectDefaults`)、`lib/dsl/shared.ts`(`mapBands`)
@@ -67,6 +67,10 @@ rewrite(bands, (b, path) => b.type === 'box' && path.some(p => p.type === 'group
 
 ### D6: レイアウトを値にする案は採らない(今回)
 配置のパスは帯ごとの closed な `switch` で、開くには全帯に手を入れる。**開く条件**: D1〜D3 を使っても、「同じ子の並びを、あとから行 ↔ 列に切り替えたい」類の依頼が 2 例以上出たとき。先に実測(帯の種類ごとの分岐の数)から始める。
+
+## 実装で分かったこと
+- `styled(styled(box, a), b)` と入れ子に書くと、TypeScript が `box` の `Id` を実体化して、id のハンドルの型が失われる。`const card = styled(box, a)` と束ねてから重ねれば保たれる(README に書いた)。
+- `rewrite` に `when(pred | pred[], patch)` を足した(述語を `&&` で書く代わりの、パッチを返す定型)。
 
 ## 段取り
 1. 第 1 段: D1(`styled`)。型を保つか(オーバーロード・`Declares`)を先に小さく試す。

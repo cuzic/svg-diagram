@@ -5,6 +5,7 @@ import type {ToneOverrides} from '../tokens.ts';
 import type {Band} from './index.ts';
 import type {BoxTone} from './text-bands.ts';
 import type {WireframeDefaults} from './wireframe.ts';
+import type {RewriteFn} from '../dsl/rewrite.ts';
 import type {FontSpecs} from './project.ts';
 
 /** Palette keys diagram() accepts: 1 / 2 (the training deck's legacy day numbers) or a named theme. */
@@ -133,6 +134,8 @@ export interface DiagramOpts {
   connectDefaults?: ConnectDefaults;
   /** What every wireframe() / screens() item starts from (a common app bar, frame, height); see WireframeDefaults. */
   wireframeDefaults?: WireframeDefaults;
+  /** Rules that restyle the bands as they are added, after the defaults and winning over them (ADR 0050); see rewrite(), when(). */
+  transform?: RewriteFn | RewriteFn[];
   /** Keep these anchors prominent and render the rest with the muted spotlight treatment. */
   spotlight?: SpotlightOpt;
   /** A source / citation line pinned as the last line of the figure (left-aligned, muted, one line). See README. */
