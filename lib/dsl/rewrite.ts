@@ -22,7 +22,7 @@ export type Predicate = (band: Band, path: readonly Band[]) => boolean;
 
 const SHOWN = ['reveal', 'until'] as const;
 // The bands whose constructor calls assertNoReveal: they are shown from the start (a row's children carry their own reveal). The rest take one.
-const NO_REVEAL = new Set(['spacer', 'row', 'grouprow', 'grid', 'legend', 'raw', 'wireframe', 'screens', 'people', 'dots', 'math', 'pyramid', 'curve']);
+const NO_REVEAL: readonly string[] = ['spacer', 'row', 'grouprow', 'grid', 'legend', 'raw', 'wireframe', 'screens', 'people', 'dots', 'math', 'pyramid', 'curve'];
 const KEYS: Record<string, readonly string[]> = {
   box: ['tone', 'dashed', 'titleTone', 'bodyTone', 'noteTone', 'iconTone', 'align', ...SHOWN],
   group: ['tone', 'dashed', 'titleTone', ...SHOWN],
@@ -43,7 +43,7 @@ const CHECKS: Record<string, (band: Band, v: unknown, what: string) => void> = {
 /** The patch laid over a copy of the band (the handles and the record of what was written are kept by cloneBand). */
 function patched(b: Band, patch: BandPatch): Band {
   const what = `rewrite(${b.type})`;
-  const allowed = (KEYS[b.type] ?? (NO_REVEAL.has(b.type) ? [] : SHOWN)) as readonly string[];
+  const allowed = (KEYS[b.type] ?? (NO_REVEAL.includes(b.type) ? [] : SHOWN)) as readonly string[];
   const given = Object.entries(patch).filter(([, v]) => v !== undefined);
   if (given.length === 0) return b;
   for (const [k, v] of given) {
