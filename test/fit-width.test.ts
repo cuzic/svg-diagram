@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {describeApplied, fitFailure, fitWidth, widerThan, type FitAttempt, type FitResult} from '../lib/fit-width.ts';
+import {describeApplied, fitFailure, fitLayout, fitWidth, planFit, widerThan, type FitAttempt, type FitResult} from '../lib/fit-width.ts';
 import {layeredAttempt} from '../lib/layered-route.ts';
 import type {FitApplied} from '../lib/types/diagrams.ts';
 
@@ -82,4 +82,24 @@ test('fitWidth wraps layeredAttempt: a real layout fits by its own width, and th
   const ok = fitWidth(natural.size.w, [{label: 'x', run}], {mode: 'first'});
   assert.ok(ok.ok);
   assert.deepEqual(ok.result.lay, natural.lay);
+});
+
+// planFit: a figure that fits none of the ways is an answer (the message made on asking); fitLayout is the same, thrown.
+const plan = (width: (maxW: number) => number) => ({
+  who: 'causeTree()', w: 500, start: 'up' as const, keepWords: false, explicitDir: false, mode: 'omitted' as const, narrow: true,
+  build: (_d: 'up', maxW: number): FitResult => ({size: {w: width(maxW), h: 100}, score: {crossings: 0, bends: 0}}),
+});
+
+test('planFit: the first width that fits is returned with what was changed; fitLayout gives the same', () => {
+  const p = plan(maxW => maxW * 3), got = planFit(p);
+  assert.ok(got.ok);
+  assert.equal(got.result.size.w, 480); // maxNodeW 160 is the first of 200, 160, ... that fits 500
+  assert.deepEqual(fitLayout(p), {result: got.result, applied: got.applied});
+});
+
+test('planFit: no width fits -> not thrown, and the failure is the message fitLayout throws', () => {
+  const p = plan(maxW => maxW * 10), got = planFit(p);
+  assert.ok(!got.ok);
+  assert.match(got.failure(), /^causeTree\(\): the figure does not fit 500px/);
+  assert.throws(() => fitLayout(p), {message: got.failure()});
 });
