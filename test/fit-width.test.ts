@@ -103,3 +103,21 @@ test('planFit: no width fits -> not thrown, and the failure is the message fitLa
   assert.match(got.failure(), /^causeTree\(\): the figure does not fit 500px/);
   assert.throws(() => fitLayout(p), {message: got.failure()});
 });
+
+test('planFit keyOf: widths that give the same figure are laid out once, and the answer is the one without a key', () => {
+  let built = 0;
+  const counted = (width: (maxW: number) => number) => ({...plan(width), build: (_d: 'up', maxW: number): FitResult => { built++; return {size: {w: width(maxW), h: 100}, score: {crossings: 0, bends: 0}}; }});
+  const noFit = counted(() => 600), plain = planFit(noFit);
+  assert.equal(built, 4); // 200, 160, 130, 110
+  built = 0;
+  const keyed = planFit({...noFit, keyOf: () => 'the same text at every width'});
+  assert.equal(built, 1);
+  assert.ok(!plain.ok && !keyed.ok);
+  assert.equal(keyed.failure(), plain.failure());
+  // a key that tells the widths apart changes nothing
+  built = 0;
+  const apart = planFit({...counted(maxW => maxW * 3), keyOf: (_d, maxW) => String(maxW)});
+  assert.ok(apart.ok);
+  assert.equal(apart.result.size.w, 480);
+  assert.equal(built, 2); // 200 does not fit, 160 does
+});

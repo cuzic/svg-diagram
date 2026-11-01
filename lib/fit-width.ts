@@ -139,6 +139,11 @@ export interface LayoutPlan<D extends string, R extends FitResult> {
   noDir?: boolean;
   /** One attempt. `floor`: whether this attempt keeps katakana words whole (always false when the diagram did not ask for keepWords). */
   build: (dir: D, maxW: number, floor: boolean, fold?: number) => R;
+  /**
+   * What `build` depends on besides `dir` and `fold`, as a string (the wrapped text of every node at `maxW`): two attempts with the same key are the same figure, laid out once.
+   * Many widths of the ladder wrap every text the same way; without a key each of them is laid out and routed again. Only for a `build` that is a pure function of its arguments.
+   */
+  keyOf?: (dir: D, maxW: number, floor: boolean) => string;
   widthOf?: (r: R) => number;
   heightBudget?: number;
   /** The layout of a result (a layered figure's `lay`, whose layers lie along the height when `vertical`): the failure message then says where to split the figure. */
@@ -169,6 +174,14 @@ export type FitOutcome<R> = {ok: true; result: R; applied: FitApplied[]} | {ok: 
 
 /** `fitLayout` without the throw: a figure that fits none of the ways is an answer, not an error (a search that tries several figures sets it aside). */
 export function planFit<D extends string, R extends FitResult>(plan: LayoutPlan<D, R>): FitOutcome<R> {
+  const laid = new Map<string, R>(); // the figures by `keyOf`: the ladder meets the same one under several widths (and with / without the keepWords floor)
+  const build = (dir: D, maxW: number, floor: boolean, fold?: number): R => {
+    if (!plan.keyOf) return plan.build(dir, maxW, floor, fold);
+    const key = `${dir}|${fold ?? ''}|${plan.keyOf(dir, maxW, floor)}`;
+    let r = laid.get(key);
+    if (!r) { r = plan.build(dir, maxW, floor, fold); laid.set(key, r); }
+    return r;
+  };
   const narrow = plan.narrow !== false;
   const alt = plan.alt !== plan.start ? plan.alt : undefined;
   const free = !plan.explicitDir;
@@ -186,7 +199,7 @@ export function planFit<D extends string, R extends FitResult>(plan: LayoutPlan<
       if (d !== plan.start) applied.push({what: 'dir', from: plan.start, to: d, mode: plan.mode});
       if (mw !== from0) applied.push({what: 'maxNodeW', from: from0, to: mw, mode: widthMode});
       const note = list.length || plan.autoWidth ? '' : plan.explicitDir || plan.maxNodeW !== undefined ? ' (as written)' : ' (default)';
-      list.push({label: `${plan.noDir ? '' : `dir '${d}'`}${narrow ? `${plan.noDir ? '' : ', '}maxNodeW ${mw}` : ''}${note}${suffix(floor)}`, run: () => plan.build(d, mw, floor), applied});
+      list.push({label: `${plan.noDir ? '' : `dir '${d}'`}${narrow ? `${plan.noDir ? '' : ', '}maxNodeW ${mw}` : ''}${note}${suffix(floor)}`, run: () => build(d, mw, floor), applied});
     }
     return list;
   };
@@ -200,7 +213,7 @@ export function planFit<D extends string, R extends FitResult>(plan: LayoutPlan<
         const applied: FitApplied[] = [];
         if (mw !== from0) applied.push({what: 'maxNodeW', from: from0, to: mw, mode: widthMode});
         list.push({label: `dir '${d}', maxNodeW ${mw}, fold${share < 1 ? ` ${Math.round(share * 100)}%` : ''}${suffix(floor)}`, applied, run: () => {
-          const r = plan.build(d, mw, floor, plan.w * share + 0.5);
+          const r = build(d, mw, floor, plan.w * share + 0.5);
           for (const f of foldedOf(r)) applied.push({what: 'fold', from: f.rows, to: f.layer + 1, mode: plan.autoWidth ? 'auto' : plan.explicitDir ? 'written' : plan.mode});
           return r;
         }});

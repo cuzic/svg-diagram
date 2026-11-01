@@ -12,7 +12,7 @@ import {planFit} from './fit-width.ts';
 import {scoreOf} from './polyline-metrics.ts';
 import {gapFor, layeredAttempt} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
-import {measureNode, nodeRuns} from './tree.ts';
+import {measureNode, type NodeLines, nodeRuns} from './tree.ts';
 import {wrapText} from './wrap.ts';
 import type {EmphasisTone, FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {CauseBand, CauseRole, CloudArrow, CloudBand, CloudBox, LaidOutCause, LaidOutCloud} from './types/diagrams.ts';
@@ -224,10 +224,18 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
   // above / below a box the badge is CORE_BADGE_H high; beside it, CORE_BADGE_W wide
   const hasCore = band.nodes.some(n => n.core);
   const padOf = (vertical: boolean): {x: number; y: number} => hasCore ? (vertical ? {x: 0, y: CORE_BADGE_H + CORE_BADGE_GAP} : {x: CORE_BADGE_W + CORE_BADGE_GAP, y: 0}) : {x: 0, y: 0};
+  // the wrapped text of every node: the only thing `build` takes from `maxW` and `floor`, so also what tells two attempts apart (`keyOf`)
+  const measured = new Map<string, Map<string, NodeLines>>();
+  const linesAt = (maxW: number, floor: boolean): Map<string, NodeLines> => {
+    const k = `${maxW}|${floor}`;
+    let lines = measured.get(k);
+    if (!lines) { lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles, env.wrap, floor)])); measured.set(k, lines); }
+    return lines;
+  };
   const build = (dir: CauseDir, maxW: number, floor: boolean, fold?: number) => {
     const vertical = dir === 'up' || dir === 'down', flip = dir === 'up' || dir === 'left';
     const iw = w - 2 * padOf(vertical).x; // the width the figure itself has: the badge room at both ends of the arrows' axis is kept free
-    const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles, env.wrap, floor)]));
+    const lines = linesAt(maxW, floor);
     // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
     const order: string[] = [], put = (id: string): void => { if (!order.includes(id)) order.push(id); };
     const written = anotherOrder ? anotherOrder.map(id => must(band.nodes.find(n => n.id === id))) : band.nodes; // ADR 0019 D4: another written order
@@ -282,7 +290,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
   const fitted = planFit<CauseDir, ReturnType<typeof build>>({
     who: band.layerFrom === 'effect' ? 'whyWhyTree()' : 'causeTree()', w, start, keepWords: env.keepWords, ...(band.base !== undefined ? {alt: 'right' as const} : {axisKept: `another axis (a cause tree keeps its direction: ${start})`}),
     explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined || band.maxNodeW === 'auto' ? {} : {maxNodeW: band.maxNodeW}), ...(band.maxNodeW === 'auto' ? {autoWidth: true} : {}),
-    build, layoutOf: r => ({lay: r.lay, vertical: r.vertical}), ...(band.base === undefined && band.layerFrom !== 'effect' ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget: heightBudget - (band.maxNodeW === 'auto' && canvasBound ? y : 0)}), // an attempt's size already holds the badge room (see build)
+    build, keyOf: (_dir, maxW, floor) => JSON.stringify([...linesAt(maxW, floor).values()]), layoutOf: r => ({lay: r.lay, vertical: r.vertical}), ...(band.base === undefined && band.layerFrom !== 'effect' ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget: heightBudget - (band.maxNodeW === 'auto' && canvasBound ? y : 0)}), // an attempt's size already holds the badge room (see build)
     ...(band.returns === 'outer' ? {notTried: ["returns: 'inline' (returns is written: 'outer')"]} : {}),
   });
   if (!fitted.ok) return {noFit: true, failure: fitted.failure};
