@@ -201,6 +201,13 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
       else if (gate) pts = [{x: ca.x, y: cb.y < ca.y ? A.y : A.y + A.h}, {x: ca.x, y: cb.y}, end];
       else pts = [{x: A.x + A.w, y: ca.y}, {x: xm, y: ca.y}, {x: xm, y: cb.y}, end];
       pts = simplify(pts);
+      if (!gate && !sameRow && through(pts, [f.from, f.to])) { // an event's name hangs wider than the event: turn further left, clear of it, before detouring
+        const colLeft = must(colX[colOf(f.to)]);
+        for (let sx = xm - 4; sx > Math.max(colLeft - gap / 2, A.x + A.w) + 4; sx -= 4) {
+          const t = simplify([{x: A.x + A.w, y: ca.y}, {x: sx, y: ca.y}, {x: sx, y: cb.y}, end]);
+          if (!through(t, [f.from, f.to])) { pts = t; break; }
+        }
+      }
       if (through(pts, [f.from, f.to])) { // something stands in the way: run along a lane's edge, turning in a gap between columns
         const cf = colOf(f.from), ct = colOf(f.to), start = {x: A.x + A.w, y: ca.y};
         const channels = [must(laneTop[lane(f.to)]) + 8, must(laneTop[lane(f.to)]) + must(laneH[lane(f.to)]) - 8, must(laneTop[lane(f.from)]) + 8, must(laneTop[lane(f.from)]) + must(laneH[lane(f.from)]) - 8];
