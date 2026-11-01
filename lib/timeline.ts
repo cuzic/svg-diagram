@@ -99,7 +99,7 @@ export function layoutTimeline(band: TimelineBand | NumericTimelineBand, x: numb
   const hits = (a: Flag, b: Flag): boolean => !(a.left + a.w + 6 <= b.left || b.left + b.w + 6 <= a.left);
   const inside = (f: Flag, at: number): boolean => at >= f.left - 4 && at <= f.left + f.w + 4;
   const clampLeft = (f: Flag, left: number): number => Math.min(Math.max(left, x), x + w - f.w);
-  for (const f of [...flags].sort((p, q) => q.x - p.x)) {
+  for (const f of flags.toSorted((p, q) => q.x - p.x)) {
     const isDl = full && f.big;
     // with a full deadline line no box may sit on it: the deadline's own label starts just right of it (or ends just left of it)
     let lefts = isDl ? [clampLeft(f, f.x + 6), clampLeft(f, f.x - f.w - 6)] : [clampLeft(f, f.x - 4), f.left, clampLeft(f, f.x - f.w + 4)];
@@ -223,7 +223,7 @@ function layoutNumeric(band: NumericTimelineBand, x: number, y: number, w: numbe
     const inside = (f: F, at: number): boolean => at >= f.left - 4 && at <= f.left + f.fw + 4;
     // right to left, each flag tries starting at its stem, centred on it, ending at it (a staircase of close flags), at the lowest level that works
     const clampLeft = (f: F, left: number): number => Math.min(Math.max(left, plotL), x + w - f.fw);
-    for (const f of [...flags].sort((p, q) => q.fx - p.fx)) {
+    for (const f of flags.toSorted((p, q) => q.fx - p.fx)) {
       for (const left of [clampLeft(f, f.fx - 4), f.left, clampLeft(f, f.fx - f.fw + 4)]) {
         for (let k = 0; k < MAX_LEVELS && f.level < 0; k++) {
           f.left = left;

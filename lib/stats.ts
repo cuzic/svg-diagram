@@ -24,7 +24,7 @@ export function quantile(sorted: readonly number[], p: number): number {
 
 export interface BoxStats {n: number; min: number; max: number; q1: number; median: number; q3: number; /** The ends of the whiskers: the most extreme values within 1.5 IQR of the box. */ lo: number; hi: number; fliers: number[]}
 export function boxStats(values: readonly number[]): BoxStats {
-  const s = [...values].sort((a, b) => a - b), q1 = quantile(s, 0.25), median = quantile(s, 0.5), q3 = quantile(s, 0.75), iqr = q3 - q1;
+  const s = values.toSorted((a, b) => a - b), q1 = quantile(s, 0.25), median = quantile(s, 0.5), q3 = quantile(s, 0.75), iqr = q3 - q1;
   const inside = s.filter(v => v >= q1 - 1.5 * iqr && v <= q3 + 1.5 * iqr);
   return {n: s.length, min: g(s, 0), max: g(s, s.length - 1), q1, median, q3, lo: g(inside, 0), hi: g(inside, inside.length - 1), fliers: s.filter(v => v < q1 - 1.5 * iqr || v > q3 + 1.5 * iqr)};
 }
@@ -175,7 +175,7 @@ export function lowessFit(xs: readonly number[], ys: readonly number[], frac = 2
   const n = xs.length, k = Math.max(2, Math.min(n, Math.ceil(frac * n)));
   let rw = new Array<number>(n).fill(1);
   const at = (x0: number, w: readonly number[]): number => {
-    const d = xs.map(x => Math.abs(x - x0)), h = Math.max(g([...d].sort((a, b) => a - b), k - 1), 1e-12);
+    const d = xs.map(x => Math.abs(x - x0)), h = Math.max(g(d.toSorted((a, b) => a - b), k - 1), 1e-12);
     let sw = 0, swx = 0, swy = 0, swxx = 0, swxy = 0;
     d.forEach((di, i) => {
       const u = di / h;
@@ -191,7 +191,7 @@ export function lowessFit(xs: readonly number[], ys: readonly number[], frac = 2
     return (swy - slope * swx) / sw + slope * x0;
   };
   for (let it = 0; it < iterations; it++) {
-    const res = xs.map((x, i) => g(ys, i) - at(x, rw)), s = [...res.map(Math.abs)].sort((a, b) => a - b), mid = s.length >> 1, med = s.length % 2 ? g(s, mid) : (g(s, mid - 1) + g(s, mid)) / 2;
+    const res = xs.map((x, i) => g(ys, i) - at(x, rw)), s = res.map(Math.abs).toSorted((a, b) => a - b), mid = s.length >> 1, med = s.length % 2 ? g(s, mid) : (g(s, mid - 1) + g(s, mid)) / 2;
     if (med < 1e-12) break;
     rw = res.map(r => { const u = Math.abs(r) / (6 * med); return u < 1 ? (1 - u * u) ** 2 : 0; });
   }

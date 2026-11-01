@@ -322,7 +322,7 @@ function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: nu
   const ink: BarsInk = {lines: [], polylines: [], dots: []};
   const count = slotsOf(band.data).count, slot = (plotR - plotL) / count, xOf = (at: number) => plotL + at * slot;
   const hy: number[] = []; // where the labels of the horizontal lines already are
-  for (const l of [...band.lines ?? []].sort((a, b) => b.at - a.at)) {
+  for (const l of (band.lines ?? []).toSorted((a, b) => b.at - a.at)) {
     const ly = yOf(l.at), fill = LINE_TONE[l.tone ?? 'danger'];
     ink.lines.push({x1: plotL, y1: ly, x2: plotR, y2: ly, fill, dashed: l.dashed !== false});
     if (!l.label) continue;

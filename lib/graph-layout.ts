@@ -254,7 +254,7 @@ function brandesKoepf(rows: string[][], succ: Map<string, string[]>, pred: Map<s
     const prev = up ? succ : pred; // the neighbours in the row before, in this view
     const pos = new Map<string, number>(), rowOf = new Map<string, string[]>();
     for (const r of view) r.forEach((id, i) => { pos.set(id, i); rowOf.set(id, r); });
-    const before = (v: string): string[] => [...must(prev.get(v))].sort((a, b) => must(pos.get(a)) - must(pos.get(b)));
+    const before = (v: string): string[] => must(prev.get(v)).toSorted((a, b) => must(pos.get(a)) - must(pos.get(b)));
     // 1. a segment that crosses an inner one (dummy to dummy) never gets aligned
     const conflict = new Set<string>();
     for (let i = 0; i + 1 < view.length; i++) {
@@ -366,7 +366,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     const byLayer = [...layer.keys()].sort((p, q) => must(layer.get(p)) - must(layer.get(q)));
     for (const u of byLayer) if (!keep.has(u) && must(preds.get(u)).every(p => movers.has(p))) movers.add(u);
     // then from the last layer back, so a mover's targets (movers too) have already moved
-    for (const u of [...byLayer].reverse()) {
+    for (const u of byLayer.toReversed()) {
       const ts = must(succs.get(u));
       if (!movers.has(u) || !ts.length) continue;
       const l = Math.min(...ts.map(t => must(layer.get(t)))) - 1;
@@ -442,7 +442,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     chain.push(to);
     chains.push({e: d.e, index: d.index, ids: chain, rev: d.rev});
     // links always run from the lower layer to the higher one
-    const asc = la < lb ? chain : [...chain].reverse();
+    const asc = la < lb ? chain : chain.toReversed();
     for (let k = 0; k + 1 < asc.length; k++) link(must(asc[k]), must(asc[k + 1]));
   });
 
@@ -459,7 +459,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
   const nComp = compOfRoot.size;
   const rows: string[][] = Array.from({length: nLayers}, () => []);
   const rowAt = (l: number): string[] => must(rows[l]); // l < nLayers at every call
-  for (const sl of [...byRank].sort((p, q) => must(compIdx.get(p.id)) - must(compIdx.get(q.id)))) rowAt(sl.layer).push(sl.id); // stable: input order inside a component
+  for (const sl of byRank.toSorted((p, q) => must(compIdx.get(p.id)) - must(compIdx.get(q.id)))) rowAt(sl.layer).push(sl.id); // stable: input order inside a component
 
   // 4. barycentre sweeps, down then up, keeping the order of nodes with no neighbour
   const pos = new Map<string, number>();
@@ -577,7 +577,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
       continue;
     }
     // the chain runs in layering order; a reversed edge's real direction is the other way
-    const pts = (c.rev ? [...c.ids].reverse() : c.ids).map(centre);
+    const pts = (c.rev ? c.ids.toReversed() : c.ids).map(centre);
     edgesOut.push({from: c.e.from, to: c.e.to, index: c.index, points: pts, reversed: c.rev, self: false});
   }
   const total = must(at[nLayers - 1]) + must(thick[nLayers - 1]);

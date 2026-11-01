@@ -128,7 +128,7 @@ export function layoutBubble(s: BubbleSpec, g: ChartGeom): LaidOutChartPart {
   }
   // bubbles: the largest first, so a small one stays visible on a large one; each one's box is a mark the names keep off
   const bs = s.points.map((p, i) => ({p, i, cx: xOf(p.x), cy: yOf(p.y), r: radius(p.size), tone: p.tone ?? 'accent' as ChartTone, key: p.id ?? `#${i}`}));
-  for (const b of [...bs].sort((a, z) => z.r - a.r || a.i - z.i)) {
+  for (const b of bs.toSorted((a, z) => z.r - a.r || a.i - z.i)) {
     if (b.cx - b.r < plotL - 2 || b.cx + b.r > plotR + 2 || b.cy - b.r < plotT - 2 || b.cy + b.r > plotB + 2) fail('bubble', `the bubble "${b.p.label}" runs out of the plot (widen the axis: x / y min / max)`);
     const rr = r1(b.r), d = `M${r1(b.cx - rr)},${r1(b.cy)} a${rr},${rr} 0 1,0 ${r1(2 * rr)},0 a${rr},${rr} 0 1,0 ${r1(-2 * rr)},0 Z`;
     c.path(d, {fill: b.tone, op: 0.3, stroke: b.tone, sw: 2, of: b.key});
@@ -137,7 +137,7 @@ export function layoutBubble(s: BubbleSpec, g: ChartGeom): LaidOutChartPart {
   c.anchors.splice(0, c.anchors.length, ...c.anchors.filter(a => !a.id.startsWith('#')));
   for (const b of bs) c.marks.push({x: b.cx - b.r, y: b.cy - b.r, w: 2 * b.r, h: 2 * b.r});
   // names: inside a bubble that holds its own name (the bubble's rect is the only mark then), else beside it, above, below
-  for (const b of [...bs].sort((a, z) => z.r - a.r || a.i - z.i)) {
+  for (const b of bs.toSorted((a, z) => z.r - a.r || a.i - z.i)) {
     const label = b.p.label, w = c.tw(label, true), mine = c.marks[b.i], at = (x: number, y: number, anchor: 'start' | 'middle' | 'end') => ({x, y, anchor});
     const inside = c.boxOf(label, Math.round(b.cx), c.mid(b.cy), 'middle', true);
     const roomInside = w + 8 <= 2 * b.r * 0.82 && S + 6 <= 2 * b.r * 0.82;

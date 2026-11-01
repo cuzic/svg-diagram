@@ -103,7 +103,7 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
   const base = band.straighten === false ? first : once(undefined, false, true);
   if (isNoFit(base)) return base;
   // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
-  const orders = [[...ids].reverse(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
+  const orders = [ids.toReversed(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
   const axisOf = (t: LaidOutCause): number[] => t.nodes.map(n => band.dir === 'left' || band.dir === 'right' ? n.x : n.y);
   const baseAxis = axisOf(base);
   let best = base, bestScore = scoreOfCause(base), bestOrder: string[] | undefined;

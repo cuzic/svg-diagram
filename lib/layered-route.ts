@@ -97,7 +97,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       const B = nodeOf(edgeAt(at(list, 0)).to), lane = laneY(at(list, 0)), y = lane > B.y + B.h / 2 ? B.y + B.h : B.y;
       const step = list.length > 1 ? Math.min(portStep, (B.w - 12) / (list.length - 1)) : 0;
       // the tails are on the far side of the head, so the lane nearest the head takes the place nearest them (the right): a farther lane's vertical run then never crosses a nearer lane's run
-      const order = [...list].sort((p, q) => Math.abs(laneY(p) - y) - Math.abs(laneY(q) - y) || p - q);
+      const order = list.toSorted((p, q) => Math.abs(laneY(p) - y) - Math.abs(laneY(q) - y) || p - q);
       order.forEach((i, k) => {
         const x = B.x + B.w / 2 + ((order.length - 1) / 2 - k) * step, lane = laneY(i), lo = Math.min(lane, y), hi = Math.max(lane, y);
         if ([...lay.nodes].some(([id, n]) => id !== edgeAt(i).to && x > n.x - 0.5 && x < n.x + n.w + 0.5 && hi > n.y - 0.5 && lo < n.y + n.h + 0.5)) return;
@@ -189,7 +189,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       let k = group.length && forward(at(group, 0)) ? longIn.get(gapOf) ?? 0 : 0;
       for (const list of [group.filter(goesDown), group.filter(i => !goesDown(i))]) {
         const fanIn = new Set(list.map(i => edgeAt(i).to)).size === 1 && new Set(list.map(i => edgeAt(i).from)).size > 1;
-        for (const i of [...list].sort((p, q) => (fanIn ? dy(p) - dy(q) : dy(q) - dy(p)) || p - q)) laneOf.set(i, k++ * laneIn(gapOf));
+        for (const i of list.toSorted((p, q) => (fanIn ? dy(p) - dy(q) : dy(q) - dy(p)) || p - q)) laneOf.set(i, k++ * laneIn(gapOf));
       }
     }
   }

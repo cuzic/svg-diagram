@@ -48,6 +48,8 @@ import {addScoped, qualify, scopeOf} from './anchor-scope.ts';
 import {must} from './must.ts';
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
 const rectOf = (p: Rect): Rect => ({x: p.x, y: p.y, w: p.w, h: p.h});
+/** Writes `scope` onto a laid-out band/step whose static type has no such field (ADR 0012: scope is bolted on after layout, not part of each band's own shape). */
+const setScope = (placed: object, scope: string | undefined): void => { if (scope) (placed as unknown as {scope: string}).scope = scope; };
 
 /**
  * Band types whose insides are not on the 4px grid yet (a plot's fractional scale, the wireframe parts' own sizes): placed from the
@@ -71,7 +73,7 @@ function placedBand<B extends Band & {id?: string}, P extends LaidOutBand & Rect
   return (band, ctx, padX, cw) => {
     const placed = layout(band, padX, originOf(band.type, ctx.y), cw, ctx); // placed on the grid; the cursor stays where it was (no drift)
     const scope = scopeOf(band); // ADR 0012: the band's items are registered as `scope.id`; the band's own output keeps its bare ids, and says which scope they belong to
-    if (scope) (placed as unknown as {scope: string}).scope = scope;
+    setScope(placed, scope);
     if (band.id) ctx.register(band.id, rectOf(placed), say(what, band));
     const unanchored = (band as {unanchored?: readonly string[]}).unanchored; // whyWhyTree(): entities the maker named itself are not names the author can use
     if (anchorWhat !== undefined) for (const a of (placed as unknown as {anchors: (Rect & {id: string})[]}).anchors) if (!unanchored?.includes(a.id)) ctx.register(a.id, rectOf(a), say(anchorWhat, band), scope);
@@ -115,7 +117,7 @@ function layoutFlowShapeBand(band: Band & {type: 'chevron' | 'funnel' | 'cycle' 
   const {d, roles, widthOf} = ctx;
   const placed = layoutFlowShape(band, padX, snapGrid(ctx.y), cw, widthOf, roles, ctx.wrap);
   const scope = scopeOf(band);
-  if (scope) (placed as unknown as {scope: string}).scope = scope;
+  setScope(placed, scope);
   if (band.id) { if (ctx.anchors.has(band.id)) ctx.claimed(band.id, `a ${band.type} takes an id that another anchor already has`); ctx.anchors.set(band.id, placed); }
   for (const a of placed.anchors) { const name = qualify(scope, a.id); if (ctx.anchors.has(name)) ctx.claimed(name, `a ${band.type} item takes an id that another anchor already has`); ctx.anchors.set(name, a); if (scope) addScoped(ctx.scopes, scope, a.id); }
   ctx.laidOut.push(placed); ctx.y += placed.h + d.gap;
@@ -232,7 +234,7 @@ function layoutImageBand(band: ImageBand, ctx: LayoutCtx, padX: number, cw: numb
     ctx.anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
   }
   const scope = scopeOf(band);
-  if (scope) (placed as unknown as {scope: string}).scope = scope;
+  setScope(placed, scope);
   for (const a of placed.anchors) ctx.register(a.id, {x: a.x, y: a.y, w: a.w, h: a.h}, 'a mark takes an id that another anchor already has', scope);
   ctx.laidOut.push(placed);
   if (band.children?.length) { // the picture is a backdrop: its parts stack from the top inside it, drawn after it
@@ -281,7 +283,7 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
     const w = st.span * colW + (st.span - 1) * colGap;
     const step = ctx.placeBoxLike({...st, padX: st.padX ?? 12, padY: st.padY ?? 10}, x, 0, w, true, scopeOf(band));
     const stepScope = scopeOf(band);
-    if (stepScope) (step as unknown as {scope: string}).scope = stepScope; // a step's id is bare in its output; the scope says what it is called in the figure
+    setScope(step, stepScope); // a step's id is bare in its output; the scope says what it is called in the figure
     return step;
   });
   const laneIndex = new Map(band.lanes.map((l, i) => [l.id, i]));
@@ -307,7 +309,7 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
   });
   const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, ...(boundaries.length ? {boundaries} : {}), ...(band.fit === 'shrink' ? narrowField(stepsPlaced.flatMap(s => s.wrappedRuns.map(r => r.lines))) : {}), id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
   const frameScope = scopeOf(band);
-  if (frameScope) (frame as unknown as {scope: string}).scope = frameScope;
+  setScope(frame, frameScope);
   ctx.laidOut.push(frame); // before its steps so the lanes draw underneath
   if (band.id) {
     if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a swimlane takes an id that another anchor already has');

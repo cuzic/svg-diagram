@@ -173,7 +173,7 @@ export function layoutDist(s: DistSpec, g: ChartGeom): LaidOutChartPart {
       c.path(d, {fill: 'none', ...stroke(i), sw: 2, of});
     }
     if (s.kinds.includes('ecdf')) {
-      const sorted = [...gr.values].sort((a, b) => a - b), n = sorted.length, k = s.stat === 'count' ? 1 : s.stat === 'percent' ? 100 / n : 1 / n;
+      const sorted = gr.values.toSorted((a, b) => a - b), n = sorted.length, k = s.stat === 'count' ? 1 : s.stat === 'percent' ? 100 / n : 1 / n;
       let d = `M${pt(p.xs.min, 0)}`;
       sorted.forEach((v, j) => { d += ` L${pt(v, j * k)} L${pt(v, (j + 1) * k)}`; });
       c.path(`${d} L${pt(p.xs.max, n * k)}`, {fill: 'none', ...stroke(i), sw: 2, of});

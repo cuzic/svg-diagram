@@ -139,8 +139,8 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
   // ribbons first (under everything): out-links stack down a node's right edge in the order of their targets, in-links down its left edge
   const centre = (id: string) => must(geo.get(id)).y + must(geo.get(id)).h / 2;
   const outOff = new Map<string, number>(), inOff = new Map<string, number>(), outAt = new Map<string, number>(), inAt = new Map<string, number>();
-  for (const l of [...s.links].sort((a, b) => centre(a.to) - centre(b.to))) { outOff.set(`${l.from}>${l.to}`, outAt.get(l.from) ?? 0); outAt.set(l.from, (outAt.get(l.from) ?? 0) + l.value * sc); }
-  for (const l of [...s.links].sort((a, b) => centre(a.from) - centre(b.from))) { inOff.set(`${l.from}>${l.to}`, inAt.get(l.to) ?? 0); inAt.set(l.to, (inAt.get(l.to) ?? 0) + l.value * sc); }
+  for (const l of s.links.toSorted((a, b) => centre(a.to) - centre(b.to))) { outOff.set(`${l.from}>${l.to}`, outAt.get(l.from) ?? 0); outAt.set(l.from, (outAt.get(l.from) ?? 0) + l.value * sc); }
+  for (const l of s.links.toSorted((a, b) => centre(a.from) - centre(b.from))) { inOff.set(`${l.from}>${l.to}`, inAt.get(l.to) ?? 0); inAt.set(l.to, (inAt.get(l.to) ?? 0) + l.value * sc); }
   const ribbons = s.links.map(l => {
     const a = must(geo.get(l.from)), b = must(geo.get(l.to)), t = l.value * sc, k = `${l.from}>${l.to}`;
     const x0 = a.x + nodeW, x1 = b.x, y0 = a.y + must(outOff.get(k)), y1 = b.y + must(inOff.get(k)), xm = (x0 + x1) / 2;

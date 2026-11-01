@@ -35,7 +35,7 @@ export function resolveButterfly(rows: readonly ButterflyRow[], opts: ButterflyO
   if (list.every(r => r.left === 0 && r.right === 0)) fail('butterfly', 'all values are 0');
   const sort = opts.sort ?? 'given';
   if (!['given', 'left', 'right'].includes(sort)) fail('butterfly', `sort must be given, left or right (got ${String(sort)})`);
-  const ordered = sort === 'given' ? list : [...list].sort((a, b) => b[sort] - a[sort] || list.indexOf(a) - list.indexOf(b));
+  const ordered = sort === 'given' ? list : list.toSorted((a, b) => b[sort] - a[sort] || list.indexOf(a) - list.indexOf(b));
   const tones = ['accent', 'danger', 'muted', 'text'];
   for (const k of ['leftTone', 'rightTone'] as const) if (opts[k] !== undefined && !tones.includes(opts[k] as string)) fail('butterfly', `${k} must be accent, danger, muted or text`);
   return {rows: ordered, leftLabel: checkText('butterfly', 'leftLabel', opts.leftLabel), rightLabel: checkText('butterfly', 'rightLabel', opts.rightLabel), unit: opts.unit ?? '', leftTone: opts.leftTone ?? 'text', rightTone: opts.rightTone ?? 'accent'};
