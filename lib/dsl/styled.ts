@@ -13,5 +13,10 @@
 export function styled<F extends (opts: any) => unknown>(ctor: F, defaults: Partial<Omit<Parameters<F>[0], 'id'>>): F {
   if ('id' in defaults) throw new Error('styled(): id cannot be a default — every band built from it would share the id');
   const base = Object.fromEntries(Object.entries(defaults).filter(([, v]) => v !== undefined));
-  return ((given: object = {}) => ctor({...base, ...Object.fromEntries(Object.entries(given).filter(([, v]) => v !== undefined))})) as F;
+  return ((...args: unknown[]) => {
+    const given = args[0] ?? {};
+    // a constructor whose first argument is not the options (group(children, opts), stat(value, label, opts)) is refused, not built wrong
+    if (args.length > 1 || typeof given !== 'object' || Array.isArray(given) || typeof (given as {type?: unknown}).type === 'string') throw new Error('styled(): the constructor must take one options object (box, banner, node); for group / row / grid / stat / caption the options come last — write the options yourself');
+    return ctor({...base, ...Object.fromEntries(Object.entries(given).filter(([, v]) => v !== undefined))});
+  }) as F;
 }

@@ -21,6 +21,8 @@ export type RewriteFn = (band: Band, path: readonly Band[]) => BandPatch | undef
 export type Predicate = (band: Band, path: readonly Band[]) => boolean;
 
 const SHOWN = ['reveal', 'until'] as const;
+// The bands that take reveal / until (assertNoReveal refuses it on the others: spacer, row, grid, legend, raw, ...).
+const REVEALS = new Set(['box', 'banner', 'stat', 'caption', 'group', 'table', 'sequence', 'swimlane', 'plane', 'bars', 'connect']);
 const KEYS: Record<string, readonly string[]> = {
   box: ['tone', 'dashed', 'titleTone', 'bodyTone', 'noteTone', 'iconTone', 'align', ...SHOWN],
   group: ['tone', 'dashed', 'titleTone', ...SHOWN],
@@ -41,14 +43,19 @@ const CHECKS: Record<string, (band: Band, v: unknown, what: string) => void> = {
 /** The patch laid over a copy of the band (the handles and the record of what was written are kept by cloneBand). */
 function patched(b: Band, patch: BandPatch): Band {
   const what = `rewrite(${b.type})`;
-  const allowed = KEYS[b.type] ?? SHOWN;
+  const allowed = (KEYS[b.type] ?? (REVEALS.has(b.type) ? SHOWN : [])) as readonly string[];
   const given = Object.entries(patch).filter(([, v]) => v !== undefined);
   if (given.length === 0) return b;
   for (const [k, v] of given) {
     if (!allowed.includes(k)) throw new Error(`${what}: cannot change '${k}' — a rewrite changes the look only (${allowed.join(', ')}), never the text, an id or what a connector joins`);
+    if ((k === 'reveal' || k === 'until') && !(Number.isInteger(v) && (v as number) >= 0)) throw new Error(`${what}: ${k} must be a whole number, 0 or more (got ${JSON.stringify(v)})`);
     CHECKS[k]?.(b, v, what);
   }
+  if ('annot' in b && b.annot && ['arrow', 'line', 'weight'].some(k => k in patch)) throw new Error(`${what}: a ${b.annot.kind}() has a fixed line and arrow — only reveal and until can change`);
+  if (b.type === 'caption' && b.spans && 'bold' in patch) throw new Error(`${what}: this caption has em.* parts, which decide their own weight — bold cannot be changed`);
+  if (b.type === 'group' && b.frame === false && ('tone' in patch || 'dashed' in patch)) throw new Error(`${what}: a group({frame: false}) draws no frame, so it takes no tone or dashed`);
   const out = Object.assign(cloneBand(b), Object.fromEntries(given));
+  if (out.type === 'group' && patch.tone === 'plain' && patch.dashed === undefined && out.dashed === undefined) out.dashed = true; // group({tone: 'plain'}) is dashed unless told otherwise
   if (b.type === 'box') assertSolidText(out as never, what);
   if (SHELLED.has(b)) SHELLED.add(out);
   if (out.type === 'connect' && out.weight && out.line === 'double') throw new Error(`${what}: weight '${out.weight}' cannot go with line 'double'`);
@@ -60,27 +67,32 @@ function patched(b: Band, patch: BandPatch): Band {
  * rest are the same objects (nothing is copied when nothing changes). Reaches group / row / grid children and the band nodes of
  * a tree() (the tree is in `path`).
  */
-export function rewrite(bands: Band[], fn: RewriteFn, path: readonly Band[] = []): Band[] {
-  const out = bands.map(b => rewriteOne(b, fn, path));
+export function rewrite(bands: Band[], fn: RewriteFn, path: readonly Band[] = [], seen = new Map<Band, Band>()): Band[] {
+  // a band placed in two spots stays one band: the first visit's result is used again (and the rule is not asked twice)
+  const out = bands.map(b => { const done = seen.get(b) ?? rewriteOne(b, fn, path, seen); seen.set(b, done); return done; });
   return out.some((b, i) => b !== bands[i]) ? out : bands;
 }
-function rewriteOne(orig: Band, fn: RewriteFn, path: readonly Band[]): Band {
+function rewriteOne(orig: Band, fn: RewriteFn, path: readonly Band[], seen: Map<Band, Band>): Band {
   const patch = fn(orig, path);
   let cur = patch ? patched(orig, patch) : orig;
-  const inner = [...path, orig];
+  const inner = [...path, cur]; // the patched band: a rule that reads an ancestor sees what it now is
+  if (cur.type === 'swimlane') {
+    const steps = rewrite(cur.steps, fn, inner, seen);
+    if (steps !== cur.steps) cur = Object.assign(cloneBand(cur), {steps});
+  }
   if ('children' in cur && Array.isArray(cur.children)) {
-    const kids = rewrite(cur.children as Band[], fn, inner);
+    const kids = rewrite(cur.children as Band[], fn, inner, seen);
     if (kids !== cur.children) cur = Object.assign(cloneBand(cur), {children: kids});
   }
   if (cur.type === 'tree') {
-    const root = rewriteItem(cur.root, fn, inner);
+    const root = rewriteItem(cur.root, fn, inner, seen);
     if (root !== cur.root) cur = Object.assign(cloneBand(cur), {root});
   }
   return cur;
 }
-function rewriteItem(item: TreeItem, fn: RewriteFn, path: readonly Band[]): TreeItem {
-  const band = item.band ? rewrite([item.band], fn, path)[0] : undefined;
-  const kids = item.children?.map(c => rewriteItem(c, fn, path));
+function rewriteItem(item: TreeItem, fn: RewriteFn, path: readonly Band[], seen: Map<Band, Band>): TreeItem {
+  const band = item.band ? rewrite([item.band], fn, path, seen)[0] : undefined;
+  const kids = item.children?.map(c => rewriteItem(c, fn, path, seen));
   const changed = (band !== undefined && band !== item.band) || (kids?.some((k, i) => k !== item.children?.[i]) ?? false);
   return changed ? {...item, ...(band ? {band} : {}), ...(kids ? {children: kids} : {})} : item;
 }

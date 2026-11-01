@@ -51,7 +51,14 @@ d.add(card({id: 'a', label: '…'}), warn({id: 'b', label: '…'}))
 rewrite(bands, (b, path) => b.type === 'box' && path.some(p => p.type === 'group') ? {...b, tone: 'muted'} : undefined)
 ```
 - `fn(band, path)` は、書き換えた帯か `undefined`(そのまま)を返す。`path` は祖先の帯の列(`tree` のノードの band は、その `tree` を path に足して辿る)。**書き換えた帯の中にも降りる**(`mapBands` との違い)。`fn` は 1 つの節に 1 回だけ。何も変えなければ同じ object を返す(コピーしない)。
-- **返せるのは見た目のキーだけ**: `rewrite` は `fn` に「パッチ」(`{tone: …}` など)を返させ、`cloneBand` で写した帯にそのキーだけを `Object.assign` する(展開 `{...b}` は非列挙のハンドル・`GIVEN`・`anchors` を落とすので、`fn` が帯を丸ごと作って返すことは認めない)。許すキーは表で固定する(`tone`、`dashed`、`reveal` …。`title` / `icon` / `id` / `children` / `from` / `to` は派生の値と宣言に関わるので不可)。違えば throw。これで型・id・`Refers`・`GIVEN` が変わらないことが構造で守られ、実行時の id の検査は要らない。`wireframe` の `SHELLED`(同一性)は、写した帯にも印を引き継ぐ。
+- **返せるのは見た目のキーだけ**: `fn` は「パッチ」(`{tone: …}` など)を返す。帯を丸ごと作って返すことは認めない(展開 `{...b}` は非列挙のハンドル・`GIVEN`・`anchors` を落とす)。パッチは `cloneBand` で写した帯に `Object.assign` する。許すキーは帯の種類ごとの表で固定し、値は構築時と同じ検査にかける:
+  - `box`: tone、dashed、titleTone / bodyTone / noteTone / iconTone、align、reveal、until(`solid` は `assertSolidText` を再度通す)
+  - `group`: tone、dashed、titleTone、reveal、until(`solid` は不可。`frame: false` の group は tone / dashed 不可。`tone: 'plain'` は dashed になる)
+  - `caption`: tone、bold、mono、align、reveal、until(`em.*` を含む caption は bold 不可)
+  - `connect`: line、arrow、weight、reveal、until(`bracket()` / `callout()` は arrow / line / weight 不可)
+  - 上のうち reveal / until を受ける帯(`box`、`banner`、`stat`、`caption`、`group`、`table`、`sequence`、`swimlane`、`plane`、`bars`、`connect`)は reveal / until だけ。受けない帯(`spacer`、`row`、`legend`、`raw` …)は何も変えられない。reveal / until は 0 以上の整数。
+  `title` / `icon` / `id` / `children` / `from` / `to` は不可。違えば throw。これで型・id・`Refers`・`GIVEN` が変わらないことが構造で守られ、実行時の id の検査は要らない。`wireframe` の `SHELLED` は、写した帯にも印を引き継ぐ。
+- 辿る範囲: `children` を持つ帯、`swimlane` の steps、`tree` のノードの band。同じ band が 2 か所にあれば、1 回目の結果を使い回す(1 つの band のまま)。`path` は書き換え後の祖先。
 - 述語の小さな道具: `isType(t)`、`within(t)`。論理は普通の `&&` で書く(`and` / `or` / `not` は作らない)。
 - 配列を返す帯(`swimlane()`、`branch()`)は、`add()` が平らにした後の個々の帯に効く。
 
@@ -69,6 +76,7 @@ rewrite(bands, (b, path) => b.type === 'box' && path.some(p => p.type === 'group
 配置のパスは帯ごとの closed な `switch` で、開くには全帯に手を入れる。**開く条件**: D1〜D3 を使っても、「同じ子の並びを、あとから行 ↔ 列に切り替えたい」類の依頼が 2 例以上出たとき。先に実測(帯の種類ごとの分岐の数)から始める。
 
 ## 実装で分かったこと
+- Opus のコードレビュー(PR #352)で、パッチが構築時の規則を飛ばす穴(reveal を受けない帯、`frame: false` の group、`bracket` の矢印、`em.*` の caption)と、`styled(group, …)` が黙って壊れた帯を作ることが見つかり、上の表と `styled` の実行時の拒否で塞いだ。`swimlane` の steps にも届くようにした。
 - `styled(styled(box, a), b)` と入れ子に書くと、TypeScript が `box` の `Id` を実体化して、id のハンドルの型が失われる。`const card = styled(box, a)` と束ねてから重ねれば保たれる(README に書いた)。
 - `rewrite` に `when(pred | pred[], patch)` を足した(述語を `&&` で書く代わりの、パッチを返す定型)。
 

@@ -1,7 +1,7 @@
 // ADR 0050: styled() fixes constructor options, rewrite() / diagram({transform}) restyle bands by a condition.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {box, caption, connect, diagram, group, row, rewrite, styled, isType, within, when, tree} from '../lib/dsl.ts';
+import {box, bracket, caption, connect, diagram, em, group, legend, row, rewrite, spacer, styled, isType, within, when, swimlane, tree} from '../lib/dsl.ts';
 import type {Band} from '../lib/types/index.ts';
 
 test('styled: defaults fill in, the call wins, undefined does not erase a default', () => {
@@ -62,4 +62,43 @@ test('diagram({transform}): runs on what add() receives, after connectDefaults, 
   const kid = (e.bands[0] as ReturnType<typeof row>).children[0] as ReturnType<typeof box>;
   assert.equal(kid.tone, 'accent');
   assert.equal(kid.dashed, true);
+});
+
+test('rewrite: reveal / until only on the bands that take them, and as whole numbers', () => {
+  assert.throws(() => rewrite([spacer(10)], () => ({reveal: 1})), /cannot change 'reveal'/);
+  assert.throws(() => rewrite([legend([{tone: 'accent', label: 'x'}])], () => ({until: 2})), /cannot change 'until'/);
+  assert.throws(() => rewrite([box({title: 'x'})], () => ({reveal: 'x' as never})), /whole number/);
+  assert.equal((rewrite([box({title: 'x'})], () => ({reveal: 2}))[0] as ReturnType<typeof box>).reveal, 2);
+});
+test('rewrite: group rules follow the constructor (frameless takes no tone, plain is dashed)', () => {
+  assert.throws(() => rewrite([group([box({title: 'x'})], {frame: false})], () => ({tone: 'accent'})), /no frame/);
+  const g = rewrite([group([box({title: 'x'})])], when(isType('group'), {tone: 'plain'}))[0] as ReturnType<typeof group>;
+  assert.equal(g.dashed, true);
+});
+test('rewrite: bracket / callout keep their arrow, a caption with em.* keeps its weight', () => {
+  assert.throws(() => rewrite([bracket('a', 'b')], () => ({arrow: 'end'})), /fixed line and arrow/);
+  assert.throws(() => rewrite([caption(['a ', em.b('b')])], () => ({bold: true})), /em\.\*/);
+});
+test('rewrite: reaches swimlane steps', () => {
+  const sw = swimlane([{id: 'l', label: 'L'}], [{id: 's', lane: 'l', title: 'step'}]);
+  const out = rewrite(sw, when(isType('box'), {tone: 'accent'}));
+  const steps = (out[0] as {steps: {tone?: string}[]}).steps;
+  assert.equal(steps[0]?.tone, 'accent');
+});
+test('rewrite: a band placed in two spots stays one band; a rule sees the patched ancestor', () => {
+  const shared = box({title: 'x'});
+  const out = rewrite([group([shared]), group([shared])], when(isType('box'), {tone: 'accent'})) as ReturnType<typeof group>[];
+  assert.equal(out[0]?.children[0], out[1]?.children[0]);
+  let seenTone = '';
+  rewrite([group([box({title: 'y'})])], (b, path) => { if (b.type === 'group') return {tone: 'accent'}; seenTone = (path[0] as ReturnType<typeof group>).tone; return undefined; });
+  assert.equal(seenTone, 'accent');
+});
+test('styled: a constructor whose first argument is not the options is refused', () => {
+  const g = styled(group as unknown as (o: object, ...rest: unknown[]) => unknown, {});
+  assert.throws(() => g([box({title: 'x'})]), /options object/);
+  assert.throws(() => g(box({title: 'x'})), /options object/);
+});
+test('diagram({transform}): d.connect() goes through it too', () => {
+  const d = diagram({theme: 'teal', transform: when(isType('connect'), {line: 'dotted'})}).add(box({id: 'a', title: 'a'}), box({id: 'b', title: 'b'})).connect('a', 'b');
+  assert.equal((d.bands[2] as {line: string}).line, 'dotted');
 });
