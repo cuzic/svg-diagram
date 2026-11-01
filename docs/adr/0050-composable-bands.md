@@ -80,6 +80,9 @@ rewrite(bands, (b, path) => b.type === 'box' && path.some(p => p.type === 'group
 - `styled(styled(box, a), b)` と入れ子に書くと、TypeScript が `box` の `Id` を実体化して、id のハンドルの型が失われる。`const card = styled(box, a)` と束ねてから重ねれば保たれる(README に書いた)。
 - `rewrite` に `when(pred | pred[], patch)` を足した(述語を `&&` で書く代わりの、パッチを返す定型)。
 
+## 追記: `styled` の `{at}`(2026-11-01)
+`styled(ctor, defaults, {at: n})` で、options が n 番目(0 始まり)の引数の帯にも使える(`group`・`row`・`grid`・`table` は 1、`stat` は 2)。コンストラクタに問い合わせず、`at` は呼び出し側の指定。前の引数はそのまま渡し、options の位置に配列・帯・文字列が来たら throw(壊れた帯を黙って作らない)。型は `Parameters<F>[N]`(返す型は元の `F` なので、オーバーロード・`Declares`・ハンドルは保たれる)。
+
 ## 段取り
 1. 第 1 段: D1(`styled`)。型を保つか(オーバーロード・`Declares`)を先に小さく試す。
 2. 第 2 段: D2・D3(`rewrite` と `transform`)。テストは「入れ子の中まで届く」「書き換えた帯の中にも降りる」「何も変えなければ同じ object」「type / id を変えたら throw」「`SHELLED` を引き継ぐ」。
