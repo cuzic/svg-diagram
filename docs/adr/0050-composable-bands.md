@@ -53,12 +53,12 @@ rewrite(bands, (b, path) => b.type === 'box' && path.some(p => p.type === 'group
 - `fn(band, path)` は、書き換えた帯か `undefined`(そのまま)を返す。`path` は祖先の帯の列(`tree` のノードの band は、その `tree` を path に足して辿る)。**書き換えた帯の中にも降りる**(`mapBands` との違い)。`fn` は 1 つの節に 1 回だけ。何も変えなければ同じ object を返す(コピーしない)。
 - **返せるのは見た目のキーだけ**: `fn` は「パッチ」(`{tone: …}` など)を返す。帯を丸ごと作って返すことは認めない(展開 `{...b}` は非列挙のハンドル・`GIVEN`・`anchors` を落とす)。パッチは `cloneBand` で写した帯に `Object.assign` する。許すキーは帯の種類ごとの表で固定し、値は構築時と同じ検査にかける:
   - `box`: tone、dashed、titleTone / bodyTone / noteTone / iconTone、align、reveal、until(`solid` は `assertSolidText` を再度通す)
-  - `group`: tone、dashed、titleTone、reveal、until(`solid` は不可。`frame: false` の group は tone / dashed 不可。`tone: 'plain'` は dashed になる)
+  - `group`: tone、dashed、titleTone、reveal、until(`solid` は不可。`frame: false` の group は tone / dashed 不可。`tone: 'plain'` は dashed になり、plain から出ると導出の dashed も外れる)
   - `caption`: tone、bold、mono、align、reveal、until(`em.*` を含む caption は bold 不可)
   - `connect`: line、arrow、weight、reveal、until(`bracket()` / `callout()` は arrow / line / weight 不可)
-  - 上のうち reveal / until を受ける帯(`box`、`banner`、`stat`、`caption`、`group`、`table`、`sequence`、`swimlane`、`plane`、`bars`、`connect`)は reveal / until だけ。受けない帯(`spacer`、`row`、`legend`、`raw` …)は何も変えられない。reveal / until は 0 以上の整数。
+  - reveal / until は、構築時に `assertNoReveal` で断る帯(`spacer`、`row`、`grid`、`legend`、`raw`、`wireframe`、`screens`、`people`、`dots`、`math`、`pyramid`、`curve`)以外の全部の帯が受ける(`tree`・`gantt`・`bpmn` なども)。上の表にない帯は reveal / until だけ変えられる。値は 0 以上の整数。パッチの値が `undefined` のキーは、無いものとして扱う。
   `title` / `icon` / `id` / `children` / `from` / `to` は不可。違えば throw。これで型・id・`Refers`・`GIVEN` が変わらないことが構造で守られ、実行時の id の検査は要らない。`wireframe` の `SHELLED` は、写した帯にも印を引き継ぐ。
-- 辿る範囲: `children` を持つ帯、`swimlane` の steps、`tree` のノードの band。同じ band が 2 か所にあれば、1 回目の結果を使い回す(1 つの band のまま)。`path` は書き換え後の祖先。
+- 辿る範囲: `children` を持つ帯、`swimlane` の steps、`tree` のノードの band。同じ band が 2 か所にあれば、周りの帯の種類の並びが同じ限り 1 回目の結果を使い回す(1 つの band のまま。別の並びなら規則に聞き直す)。`path` は書き換え後の祖先。
 - 述語の小さな道具: `isType(t)`、`within(t)`。論理は普通の `&&` で書く(`and` / `or` / `not` は作らない)。
 - 配列を返す帯(`swimlane()`、`branch()`)は、`add()` が平らにした後の個々の帯に効く。
 

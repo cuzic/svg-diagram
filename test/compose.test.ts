@@ -97,8 +97,28 @@ test('styled: a constructor whose first argument is not the options is refused',
   const g = styled(group as unknown as (o: object, ...rest: unknown[]) => unknown, {});
   assert.throws(() => g([box({title: 'x'})]), /options object/);
   assert.throws(() => g(box({title: 'x'})), /options object/);
+  const card = styled(box, {tone: 'muted'});
+  assert.deepEqual([{title: 'a'}, {title: 'b'}].map(card).map(b => b.tone), ['muted', 'muted']);
 });
 test('diagram({transform}): d.connect() goes through it too', () => {
   const d = diagram({theme: 'teal', transform: when(isType('connect'), {line: 'dotted'})}).add(box({id: 'a', title: 'a'}), box({id: 'b', title: 'b'})).connect('a', 'b');
   assert.equal((d.bands[2] as {line: string}).line, 'dotted');
+});
+
+test('rewrite: the same band under another path is asked again', () => {
+  const b = box({title: 'x'});
+  const rule = when([isType('box'), within('group')], {tone: 'danger'});
+  const tones = (o: Band[]) => [(o[0] as ReturnType<typeof group>).children[0], o[1]].map(x => (x as ReturnType<typeof box>).tone);
+  assert.deepEqual(tones(rewrite([group([b]), b], rule)), ['danger', undefined]);
+  const rev = rewrite([b, group([b])], rule);
+  assert.equal((rev[0] as ReturnType<typeof box>).tone, undefined);
+  assert.equal(((rev[1] as ReturnType<typeof group>).children[0] as ReturnType<typeof box>).tone, 'danger');
+});
+test('rewrite: reveal on every band that takes one; undefined values trip no guard; leaving plain drops the derived dash', () => {
+  const t = tree({label: 'r'});
+  assert.equal((rewrite([t], () => ({reveal: 1}))[0] as {reveal?: number}).reveal, 1);
+  assert.doesNotThrow(() => rewrite([bracket('a', 'b')], () => ({arrow: undefined, reveal: 2})));
+  assert.doesNotThrow(() => rewrite([group([box({title: 'x'})], {frame: false})], () => ({tone: undefined, reveal: 1})));
+  const plain = group([box({title: 'x'})], {tone: 'plain'});
+  assert.equal((rewrite([plain], () => ({tone: 'accent'}))[0] as ReturnType<typeof group>).dashed, undefined);
 });
