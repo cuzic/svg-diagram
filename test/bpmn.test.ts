@@ -248,3 +248,16 @@ test('bpmn(): a gateway name stays clear of the flows that leave its top / botto
   ));
   assert.deepEqual(verdict.problems, []);
 });
+
+test('bpmn(): a flow up into an end event does not overshoot above it to clear the event name', async () => {
+  const {t, verdict} = await laid(bpmn(
+    [{id: 'p', label: '担当者'}, {id: 'c', label: 'Copilot'}],
+    [{id: 'st', lane: 'p', kind: 'start', label: '月次の資料作成'}, {id: 'pp', lane: 'c', label: 'Copilot in PowerPoint', sub: '朝会資料の見出し下書き'}, {id: 'end', lane: 'p', kind: 'end', label: '確認・提出'}],
+    [{from: 'st', to: 'pp'}, {from: 'pp', to: 'end'}],
+    {fit: 'shrink'},
+  ));
+  assert.deepEqual(verdict.problems, []);
+  const end = t.anchors.find(a => a.id === 'end')!, e = t.edges.find(x => x.to === 'end')!;
+  const top = Math.min(...e.points.map(p => p.y));
+  assert.ok(top >= end.y + end.h / 2 - 0.5, `the flow turns at the end event's height (top ${top}, event centre ${end.y + end.h / 2})`);
+});
