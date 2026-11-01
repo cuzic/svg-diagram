@@ -10,6 +10,7 @@ import {contentBox} from '../layout-metrics.ts';
 import {applyWireframeDefaults} from './wireframe-numbering.ts';
 import {fillAutoToday} from '../today-auto.ts';
 import {walkBands} from '../rules.ts';
+import {rewrite} from './rewrite.ts';
 
 // Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
 // that is declared neither in the same add() call (before OR after the connect) nor earlier in a chained
@@ -87,6 +88,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
       let flat = bands.flat();
       if (d.connectDefaults) flat = applyConnectDefaults(flat, d.connectDefaults);
       if (d.wireframeDefaults) flat = applyWireframeDefaults(flat, d.wireframeDefaults);
+      for (const rule of [opts.transform ?? []].flat()) flat = rewrite(flat, rule);
       d.bands.push(...flat);
       return this;
     },
