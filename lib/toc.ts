@@ -83,6 +83,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
 }
 
 /** A figure that fits none of the ways ADR 0010 D1 allows: an answer of the search, not an error (`failure` says what was tried, as `fitLayout` throws it). */
+// fit-width.ts says the same with `ok: false` (planFit); here it must be told from a LaidOutCause, by `noFit`
 type NoFit = {readonly noFit: true; readonly failure: () => string};
 const isNoFit = <T extends object>(r: T | NoFit): r is NoFit => 'noFit' in r;
 const fitOrThrow = <T extends object>(r: T | NoFit): T => { if (isNoFit(r)) throw new Error(r.failure()); return r; };
@@ -168,7 +169,7 @@ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: nu
   return fitOrThrow(tryLayoutCause(prepareCause(band), band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, anotherOrder, plainRoutes, noDetour));
 }
 
-/** What a cause tree's links are, checked once: the same for every order and every width the search lays it out in, and the only place that throws a mistake of the author's. */
+/** What a cause tree's links are, checked once: the same for every order and every width the search lays it out in, and where the mistakes in the entities and links are thrown (a `back` that closes no cycle is thrown by the layout, graph-layout.ts). */
 type CausePrep = {arrows: {from: string; to: string; line: 'solid' | 'dashed' | 'dotted'; back?: true; blocks?: true}[]; groups: {to: string; arrows: number[]}[]};
 function prepareCause(band: CauseBand): CausePrep {
   const ids = new Set<string>();
@@ -201,7 +202,7 @@ function prepareCause(band: CauseBand): CausePrep {
   return {arrows, groups};
 }
 
-/** One whole layout of a cause tree; the figure that fits none of the ways is returned as `NoFit`, a broken invariant still throws. */
+/** One whole layout of a cause tree; the figure that fits none of the ways is returned as `NoFit`; a mistake of the author's or a broken invariant still throws. */
 function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false): LaidOutCause | NoFit {
   const {arrows, groups} = prep;
   // the last run of each arrow of an AND, when they can carry one arc (see below): the arrows arrive on one side, all heading the
