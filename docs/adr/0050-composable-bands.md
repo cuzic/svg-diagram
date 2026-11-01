@@ -1,6 +1,6 @@
 # ADR 0050: 部品を組み合わせる層(xmonad 風の合成)
 
-- 状態: 設計のみ(未実装、Opus レビュー前)
+- 状態: 設計のみ(未実装、Opus 1 巡目の指摘を反映済み・再確認待ち)
 - 日付: 2026-10-31
 - 基点: `main`(PR #351 まで)
 - 関連: ADR 0031(FCIS)、ADR 0049(`tree()` のノードに band)、`lib/dsl/defaults.ts`(`connectDefaults`)、`lib/dsl/shared.ts`(`mapBands`)
@@ -20,65 +20,58 @@ xmonad との対応は次のとおり。
 | xmonad | ここ | 状態 |
 |---|---|---|
 | `Layout` を `\|\|\|` で選ぶ | 配置のパス | **範囲外**(D6) |
-| `LayoutModifier`(`smartBorders` など) | 帯 → 帯の変換 | なし → D1 |
-| `X` モナド(状態・id を持ち回る) | 部品が帯と id(ハンドル)を返す | 型はある、関数の形がない → D2 |
-| `ManageHook`(条件で振り分け) | 条件つきの変換 | なし → D3 |
-| 設定 = 値の合成(`<+>`) | `diagram({...})` の既定 | 別々 → D4 |
+| `LayoutModifier`(`smartBorders` など) | 部品の作り方を包む(オプションの既定) | なし → D1 |
+| `ManageHook`(条件で振り分け) | 条件つきの書き換え | なし(内部の `mapBands` のみ) → D2・D3 |
+| `X` モナド(状態・id を持ち回る) | 部品 = 帯と id を返す普通の関数 | 既にある(`box()` が帯・ハンドル・`Declares` を返す)。**新しい層は作らない** → D4 |
+| 設定 = 値の合成(`<+>`) | `diagram({...})` の既定 | 別々 → D3 |
+
+## Opus レビュー(1 巡目)で変えたこと
+- 完成した帯に `withOpts` で値を足す案は、コンストラクタの検査(`assertBoxTone`、`assertSolidText`)と派生の値(`iconGlyph`、rich text)を飛ばす。「書かれたオプション」の記録(`GIVEN`)も connect/branch にしかなく、`connectDefaults` の後に走らせると既定を利用者の指定と誤認する。→ **オプションの合成は、帯が作られる前(コンストラクタの側)で行う**(D1)。
+- `mapBands` は、関数が変えた帯の中へは降りず、パスも渡さない。`deep` の法則が成り立たない。→ 新しい走査 `rewrite` を作る(D2)。
+- `Mod = <B>(b: B) => B` は、写して書き換えると `B` にならず(キャスト要)、`id` を変えると `Declares` とハンドルが嘘になる。→ 型を弱め、実行時に「種類と id が同じ」を検査する(D2)。
+- `build` は既存の公開名(`lib/dsl/io.ts:82`)と衝突。`part` / `at` / `and` / `or` / `not` / `mirror` も紛らわしい。`part` / `build` の層は、普通の関数で足りるので **作らない**(D4)。
+- 範囲外だった `RowOpts` に `dir` がなく、`mirror` は対象がない → 第 1 段から外す。
 
 ## 決定
-### D1: 変換 `Mod` は帯 → 帯の純関数
+### D1: `styled(ctor, defaults)` — 部品の作り方を包む
 ```ts
-type Mod = <B extends Band>(b: B) => B;          // 種類(type)と宣言する id は変えない
-pipe(withTone('accent'), spacing(8))             // 左から右へ合成。pipe() は恒等
-at(isType('box'), withTone('muted'))             // 条件に合う帯だけ変える Mod
-deep(mod)                                        // mapBands で入れ子の中(group・row・grid・tree のノード)まで
+const card = styled(box, {tone: 'muted', size: 'sm'})         // box と同じ呼び方、既定だけ違う
+const warn = styled(card, {tone: 'warn'})                     // 重ねられる(後のほうが勝つ)
+d.add(card({id: 'a', label: '…'}), warn({id: 'b', label: '…'}))
 ```
-- **型 `B → B`**: 変換は帯の種類も、宣言する id も変えない。これで `Declares` / `Refers` が合成を通っても崩れない(`const m: Mod` が `IdsOf` を保つ)。種類を変える変換(`row` → `group` など)は Mod ではなく、普通の関数で書く。
-- **不変**: 入力を書き換えず `cloneBand` で写す(非列挙の `GIVEN` / ハンドルを保つ。`mapBands` と同じ約束)。同じ band を別の図に置いても変わらない。
-- **法則**(テストで固定する): `pipe()` は恒等、`pipe(pipe(a, b), c)` = `pipe(a, pipe(b, c))`、`deep(pipe(a, b))` = `pipe(deep(a), deep(b))`。
-- 最初に公開する Mod は少なくする: `withTone`、`withOpts(patch)`(任意の既存オプションを足す)、`mirror`(`row` の `dir` などを反転できる帯だけ。できない帯は throw ではなくそのまま返す)。ほかは使われ方を見て足す。
+- 戻り値は元のコンストラクタと同じ型(オーバーロードごと保つ。`Declares` / `HandleOf` も通る)。呼び出しの引数 `{...defaults, ...given}` で元を呼ぶだけなので、検査・派生・`GIVEN` の記録は元のまま。
+- `defaults` の型は元の第 1 引数のオプションの部分集合。`id` は既定にできない(全部の帯が同じ id になる)。
+- 合成は関数の合成そのもの(`styled` を重ねる)。法則: `styled(c, {})` は `c` と同じ呼び出し結果、`styled(styled(c, a), b)` = `styled(c, {...a, ...b})`(テストで固定)。
+- これで「`spacing(8)` や `withTone` を重ねる」ことが、帯が作られる前に済む。xmonad の `LayoutModifier` に近い。
 
-### D2: 部品は「帯 + ハンドル」を返す関数。`build` で繋ぐ
+### D2: `rewrite(bands, fn)` — 条件で帯を書き換える(ManageHook)
 ```ts
-const stage = (name: string) => part(p => { const n = p.node({id: name, ...}); return {n} })
-const f = build(p => { const a = p.use(stage('a')); const b = p.use(stage('b')); p.connect(a.n, b.n); return {a, b} })
-d.add(...f.bands)    // f.value = {a, b}。ハンドルは外の connect にも使える
+rewrite(bands, (b, path) => b.type === 'box' && path.some(p => p.type === 'group') ? {...b, tone: 'muted'} : undefined)
 ```
-- `build` は帯の列を書き出し(Writer)、部品の戻り値(ハンドル)を後続に渡す(Reader/State)。モナドの `bind` に当たる `p.use(part)` が、部品の帯を書き出しに足してその値を返す。クラスとしての Monad は作らない(TypeScript では `bind` の連鎖より、手続きの書き方のほうが型が通りやすい)。
-- 部品が宣言する id は `Declares` として `build` の戻り値の型に出す。**型の検証が要る**(「未決 1」): 配列を `Declares` の和に畳めるか。畳めなければ `build` は `Diagram.add` を直接受ける形(`build(d, p => ...)`)にする。
-- 結合法則: `use(use(a) の結果を使う b)` の順序は書き出しの順序と同じ(`build` は逐次実行、副作用は書き出しだけ)。
+- `fn(band, path)` は、書き換えた帯か `undefined`(そのまま)を返す。`path` は祖先の帯の列。**書き換えた帯の中にも降りる**(`mapBands` との違い)。何も変えなければ同じ object を返す(コピーしない)。
+- 実行時に検査する: 返した帯の `type` が同じ、宣言する id が同じ(違えば throw)。`cloneBand` で写すので非列挙のハンドル・`GIVEN` は保つ。`wireframe` の `SHELLED`(object の同一性で見る)は、写した帯にも印を引き継ぐ。
+- 述語の小さな道具: `isType(t)`、`inside(t)`。論理は普通の `&&` で書く(`and` / `or` / `not` は作らない)。
+- 配列を返す帯(`swimlane()`、`branch()`)は、`add()` が平らにした後の個々の帯に効く。
 
-### D3: `manage` — 条件で振り分ける(ManageHook)
-```ts
-diagram({theme: 'teal', manage: [
-  [isType('connect'), withOpts({weight: 'strong'})],
-  [and(isType('box'), inside('group')), withTone('muted')],
-]})
-```
-- 規則は **上から全部を順に適用**(xmonad の `<+>` と同じ。最初の一致で止める `first` も別に用意する)。
-- 述語は純関数 `(b: Band, path: Band[]) => boolean`。`isType`、`hasTone`、`inside(type)`、`and` / `or` / `not`。
-- 適用は `add()` の時点で、`connectDefaults` → `wireframeDefaults` → `manage` の順(利用者の規則が最後)。`mapBands` で入れ子の中まで届く(ADR 0049 の tree のノードも)。
-- **自分で書いたオプションを優先する** ことは、`GIVEN` と同じ作りで守る(`withOpts` は「書かれていないオプションだけ」を足す。上書きは `force: true` で明示)。
+### D3: `diagram({transform})` — 図全体の書き換え
+`diagram({transform: [fn, …]})` の各 `fn` が `rewrite` の規則。`add()` の時点で、`connectDefaults` → `wireframeDefaults` → `transform` の順に適用する(`d.connect()` も `add()` を通る)。**`transform` は上書き**(利用者の指定と既定を区別しない。区別が要るのは D1 の側)。`connectDefaults` / `wireframeDefaults` は、中身を書き直さずそのまま残す(出力は変えない。重複の整理は、使われ方を見てから別に決める)。
 
-### D4: 既存の既定を `manage` の特別な場合に寄せる(第 3 段)
-`connectDefaults` / `wireframeDefaults` の中身を、`manage` の規則へ書き直す。公開の形(`diagram({connectDefaults})`)は変えない。**出力は 1 バイトも変えない**(golden で確かめる)。ここで内部の重複が減る(ライブラリ側の利用者)。
+### D4: 部品は普通の関数。`part` / `build` は作らない
+`const stage = (n: string) => box({id: n, …})` が、帯・ハンドル・`Declares` を返す。複数の帯を返す部品は `const f = (…) => [a, b] as const` と書いて `d.add(...f)`(`IdsOf` は配列を平らにする。`lib/strict.ts:36-38`)。Writer/State の層を足しても、これ以上の型の利益がない。**開く条件**: 部品が複数の帯を返しつつ、その中の id を呼び出し側が文字列で `connect` する依頼が出たとき(型が `Band[]` に崩れる)。
 
 ### D5: 置き場所と規則
-- 純粋なコード: `lib/dsl/compose.ts`(Mod・pipe・at・述語・manage)と `lib/dsl/build.ts`(part・build)。FCIS の SHELL には入れない(`lib/` の純粋側。ratchet は増やさない)。
-- `lib/dsl-exports` と ブラウザ入口(`lib/web.ts`)の両方から出す。docs のコード例は `docs-check` を通す。
-- 描画のパス・golden は変えない(新しい API を使わない図の出力は同一)。
+- `lib/dsl/styled.ts` と `lib/dsl/rewrite.ts`(純粋。FCIS の SHELL に入れない)。公開名は `styled` と `rewrite`(`test/fixtures/dsl-exports.json` に衝突がないことを確認する)。`lib/web.ts` からも出す。
+- 新しい API を使わない図の出力は同一(golden で確かめる)。docs のコード例は `docs-check` を通す。
 
 ### D6: レイアウトを値にする案は採らない(今回)
-xmonad の核の `|||`(配置の切り替え)は、配置のパスが帯ごとの closed な `switch` なので、開くには全帯の配置に手を入れる大工事になる。D1〜D3 で「包んで調整する」「条件で振り分ける」ことができれば、利用者の依頼の大半は足りる見込み。**開く条件**: D1〜D3 を使っても、「同じ子の並びを、あとから行 ↔ 列に切り替えたい」類の依頼が 2 例以上出たとき。そのときは先に実測(配置のパスで帯の種類が何か所で分岐しているか)から始める。
+配置のパスは帯ごとの closed な `switch` で、開くには全帯に手を入れる。**開く条件**: D1〜D3 を使っても、「同じ子の並びを、あとから行 ↔ 列に切り替えたい」類の依頼が 2 例以上出たとき。先に実測(帯の種類ごとの分岐の数)から始める。
 
 ## 段取り
-1. 第 1 段: D1(Mod・pipe・at・deep・述語・`withTone` / `withOpts`)と D3(`manage`)。テストは法則と「入れ子の中まで届く」「入力を変えない」。
-2. 第 2 段: D2(`part` / `build`)。型の検証(未決 1)を先に小さく試す。
-3. 第 3 段: D4(既存の既定を書き直す。golden が不変)と、既存の帯 1 つを部品で書き直す例。
+1. 第 1 段: D1(`styled`)。型を保つか(オーバーロード・`Declares`)を先に小さく試す。
+2. 第 2 段: D2・D3(`rewrite` と `transform`)。テストは「入れ子の中まで届く」「書き換えた帯の中にも降りる」「何も変えなければ同じ object」「type / id を変えたら throw」「`SHELLED` を引き継ぐ」。
 各段を別 PR にし、段ごとに Opus のレビューを受ける。
 
 ## 未決(レビューで聞くこと)
-1. 帯の配列と `Declares` の型の畳み込みが TypeScript で成り立つか(D2)。
-2. `Mod` を `B → B` に絞ったことで、実際に欲しい変換(`spacing` など)が書けるか。種類を変える変換の居場所が要るか。
-3. `manage` の規則を `add()` の時点で適用すると、あとから足した帯(`.add().add()`)にも効くのは正しいか。`diagram()` の作成時にだけ見るべきか。
-4. 公開する名前(`pipe` / `at` / `deep` / `build` / `part`)が既存の識別子と衝突しないか(`dsl-exports` の fixture を見る)。
+1. `styled` が、オーバーロードの多い `box()` / `group()` の型を保てるか(保てなければ、対象を絞る)。
+2. `transform` が上書きであることは、利用者に分かりやすいか(`connectDefaults` は利用者優先なので逆になる)。名前を `override` にするか。
+3. `rewrite` が返す帯の「type / id が同じ」の検査で、`Refers`(connect の端点)が変わる書き換えは許すか。
