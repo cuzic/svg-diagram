@@ -19,21 +19,28 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 # Compiled dist/ when present (installed from a package); otherwise the .ts sources.
 if [ -f "$ROOT/dist/build-diagram.js" ]; then B="$ROOT/dist"; X=js; else B="$ROOT"; X=ts; fi
+# The .ts sources run as they are (no tsc): Node strips the types itself, by default from 22.18; 22.6-22.17 need a flag, older cannot.
+NODE_FLAGS=()
+if [ "$X" = ts ]; then
+  read -r maj min < <(node -p 'process.versions.node.split(".").slice(0,2).join(" ")')
+  if [ "$maj" -lt 22 ] || { [ "$maj" -eq 22 ] && [ "$min" -lt 6 ]; }; then echo "svg-diagram: Node $(node -v) cannot run the TypeScript sources (22.6 or newer does; 22.18+ without a flag)" >&2; exit 2; fi
+  if [ "$maj" -eq 22 ] && [ "$min" -lt 18 ]; then NODE_FLAGS=(--experimental-strip-types --disable-warning=ExperimentalWarning); fi
+fi
 cmd="${1:-}"; shift || true
 case "$cmd" in
-  build)   exec node "$B/build-diagram.$X" "$@" ;;
-  init)    exec node "$B/init-project.$X" "$@" ;;
-  icons)   exec node "$B/manage-icons.$X" "$@" ;;
-  typecheck) exec node "$B/typecheck.$X" "$@" ;;
-  show)    exec node "$B/show-diagram.$X" "$@" ;;
-  md)      exec node "$B/markdown-diagram.$X" "$@" ;;
-  notes)   exec node "$B/notes-diagram.$X" "$@" ;;
-  diff)    exec node "$B/diff-svg.$X" "$@" ;;
-  contact) exec node "$B/contact-sheet.$X" "$@" ;;
-  deck)    exec node "$B/deck-diagram.$X" "$@" ;;
-  pptx)    exec node "$B/pptx-diagram.$X" "$@" ;;
-  check)   exec node "$B/check-diagram.$X" "$@" ;;
-  lint)    exec node "$B/lint-svg.$X" "$@" ;;
-  preview) exec node "$B/preview-svg.$X" "$@" ;;
+  build)   exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/build-diagram.$X" "$@" ;;
+  init)    exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/init-project.$X" "$@" ;;
+  icons)   exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/manage-icons.$X" "$@" ;;
+  typecheck) exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/typecheck.$X" "$@" ;;
+  show)    exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/show-diagram.$X" "$@" ;;
+  md)      exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/markdown-diagram.$X" "$@" ;;
+  notes)   exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/notes-diagram.$X" "$@" ;;
+  diff)    exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/diff-svg.$X" "$@" ;;
+  contact) exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/contact-sheet.$X" "$@" ;;
+  deck)    exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/deck-diagram.$X" "$@" ;;
+  pptx)    exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/pptx-diagram.$X" "$@" ;;
+  check)   exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/check-diagram.$X" "$@" ;;
+  lint)    exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/lint-svg.$X" "$@" ;;
+  preview) exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/preview-svg.$X" "$@" ;;
   *) sed -n 2,16p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
 esac

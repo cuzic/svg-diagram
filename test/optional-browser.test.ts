@@ -12,7 +12,7 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const BLOCK = path.join(import.meta.dirname, 'helpers', 'block-playwright-register.ts');
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'optional-browser-'));
 // NODE_OPTIONS, not a flag: build starts lint-svg as a child of its own, and the block has to reach it too
-const node = (args: string[], cwd = ROOT) => spawnSync(process.execPath, args, {cwd, encoding: 'utf8', env: {...process.env, SVG_DIAGRAM_MEASURE: '', NODE_OPTIONS: `--import ${pathToFileURL(BLOCK).href}`}});
+const node = (args: string[], cwd = ROOT) => spawnSync(process.execPath, args, {cwd, encoding: 'utf8', env: {...process.env, SVG_DIAGRAM_MEASURE: '', SVG_DIAGRAM_BROWSER: 'playwright', NODE_OPTIONS: `--import ${pathToFileURL(BLOCK).href}`}});
 const all = (r: ReturnType<typeof node>) => `${r.stdout}\n${r.stderr}`;
 
 const CLEAN = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100"><rect x="0" y="0" width="200" height="100" fill="#ffffff"/><text x="20" y="40" font-size="16" font-family="'Hiragino Sans','Yu Gothic',sans-serif" fill="#22201b">ok</text></svg>`;
@@ -40,7 +40,7 @@ test('an error that is not "package missing" is not turned into the hint', () =>
   const script = path.join(dir, 's.ts');
   // the package is there; the executable is not: that is the other message
   fs.writeFileSync(script, `import {launchChromium} from ${JSON.stringify(path.join(ROOT, 'lib', 'browser.ts'))};\ntry { await launchChromium({executablePath: '/nonexistent/chrome'}); } catch (e) { console.log((e as Error).message.split('\\n')[0]); }\n`);
-  const r = spawnSync(process.execPath, [script], {cwd: ROOT, encoding: 'utf8'});
+  const r = spawnSync(process.execPath, [script], {cwd: ROOT, encoding: 'utf8', env: {...process.env, SVG_DIAGRAM_BROWSER: 'playwright'}});
   assert.doesNotMatch(r.stdout, /is not installed, and this needs a browser/);
   assert.match(r.stdout, /nonexistent\/chrome|Executable|browser/i);
   fs.rmSync(dir, {recursive: true});

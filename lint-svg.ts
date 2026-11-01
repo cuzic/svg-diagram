@@ -24,6 +24,7 @@
 import type {Browser, Page} from 'playwright-chromium';
 import {launchChromium} from './lib/browser.ts';
 import {browserChecks} from './lib/lint-browser.ts';
+import {hasHarfbuzz} from './lib/font-metrics.ts';
 import {geometryChecks, type RenderChecks} from './lib/geometry-checks.ts';
 import {loadConfig, readConfigFile, svgDirOf} from './lib/config.ts';
 import {resolveTargets} from './lib/target-resolve.ts';
@@ -36,7 +37,8 @@ import {stripAutoBlock, isAuto, autoSides, DARK_NOTE} from './lib/appearance-aut
 import {must} from './lib/must.ts';
 const strict = process.argv.includes('--strict');
 const engineIdx = process.argv.indexOf('--engine');
-const engine = engineIdx === -1 ? 'geometry' : process.argv[engineIdx + 1];
+// No HarfBuzz (a machine that only has a browser): the geometry checks cannot read the fonts, so the default is the browser.
+const engine = engineIdx === -1 ? (hasHarfbuzz ? 'geometry' : 'browser') : process.argv[engineIdx + 1];
 if (engine !== 'geometry' && engine !== 'browser') { console.error(`✗ --engine is geometry or browser (got ${engine ?? 'nothing'})`); process.exit(2); }
 const fix = process.argv.includes('--fix');
 const configIdx = process.argv.indexOf('--config');

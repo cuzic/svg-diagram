@@ -4,13 +4,14 @@ export interface Shell {reason: string; through?: 'allow'; declared?: true}
 export const SHELL: Record<string, Shell> = {
   // the effects themselves
   'browser': {reason: 'launches Chromium (playwright)'},
+  'cdp-browser': {reason: 'finds and drives Chromium without playwright (child_process, fs, DevTools pipe)'},
   'config': {reason: 'reads .svg-diagram.json from the working directory'},
   'deck-viewer': {reason: 'reads the viewer assets'},
   'dsl/io': {reason: 'build() / image(): fs and child_process'},
   'emoji-color': {reason: 'reads colour-emoji glyphs with harfbuzz'},
   'error-format': {reason: 'reads process.stderr for colour'},
   'export-and-check': {reason: 'the export / check CLI step: fs, child_process, os'},
-  'font-metrics': {reason: 'reads font files (fs, child_process, harfbuzz)'},
+  'font-metrics': {reason: 'reads font files (fs, child_process, harfbuzz: optional, imported once)'},
   'font-subset': {reason: 'writes font subsets (fs)'},
   'freshness': {reason: 'hashes the source on disk; stage 5 of ADR 0031 splits the judgement out'},
   'icon-find': {reason: 'looks for icons from the working directory'},
