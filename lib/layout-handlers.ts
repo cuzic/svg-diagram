@@ -30,7 +30,7 @@ import {layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {GroupBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, RawBand, SpacerBand, StatusBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow, RowArrow} from './types/containers.ts';
 import type {Rect} from './types/core.ts';
 import type {LaidOutTree, TreeItem} from './types/diagrams.ts';
-import type {PyramidBand, CurveBand, LaidOutPyramidLayer} from './types/figures.ts';
+import type {PyramidBand, LaidOutPyramidLayer} from './types/figures.ts';
 import type {ImageBand} from './types/image.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {SwimlaneBand, LaidOutLane, LaidOutPhase, LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
@@ -44,6 +44,7 @@ import {
 import {lineWidth} from './layout-text.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
 import {addScoped, qualify, scopeOf} from './anchor-scope.ts';
+import {REGISTERED_BAND_SPECS, byType} from './band-registry.ts';
 
 import {must} from './must.ts';
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
@@ -553,31 +554,6 @@ function layoutPyramid(band: PyramidBand, ctx: LayoutCtx, padX: number, cw: numb
   ctx.y += totalH + d.gap;
 }
 
-function layoutCurve(band: CurveBand, ctx: LayoutCtx, padX: number, cw: number): void {
-  const {d} = ctx;
-  const w = band.width ?? cw;
-  const h = band.height;
-  const x = padX + (cw - w) / 2;
-  const y = snapGrid(ctx.y);
-  const AXIS_LABEL_W = 44, AXIS_BOTTOM_GAP = 28, TOP_PAD = 14, RIGHT_PAD = 8;
-  const axisX = x + AXIS_LABEL_W;
-  const axisRight = x + w - RIGHT_PAD;
-  const axisTop = y + TOP_PAD;
-  const axisBottom = y + h - AXIS_BOTTOM_GAP;
-  const n = band.points.length;
-  const points = band.points.map((p, i) => ({
-    x: n === 1 ? axisX : axisX + i * (axisRight - axisX) / (n - 1),
-    y: axisBottom - Math.max(0, Math.min(1, p.y)) * (axisBottom - axisTop),
-    emphasis: p.emphasis,
-    dropLine: !!p.dropLine,
-  }));
-  ctx.laidOut.push({
-    type: 'curve', x, y, w, h, axisX, axisRight, axisTop, axisBottom, points,
-    yTopLabel: band.yTopLabel, yBottomLabel: band.yBottomLabel, xLabel: band.xLabel,
-  });
-  ctx.y += h + d.gap;
-}
-
 const layoutTimelineBand = placedBand((band: BandOf<'timeline'>, x, y, w, ctx) => layoutTimeline(band, x, y, w, ctx.widthOf, ctx.roles), 'a timeline takes an id that another anchor already has');
 const layoutBpmnBand = placedBand((band: BandOf<'bpmn'>, x, y, w, ctx) => layoutBpmn(band, x, y, w, ctx.widthOf, ctx.roles, ctx), 'a bpmn diagram takes an id that another anchor already has', 'a bpmn node takes an id that another anchor already has');
 const layoutBowtieBand = placedBand((band: BandOf<'bowtie'>, x, y, w, ctx) => layoutBowtie(band, x, y, w, ctx.widthOf, ctx.roles, ctx), 'a bow-tie takes an id that another anchor already has');
@@ -717,7 +693,8 @@ function layoutGridBand(band: GridBand, ctx: LayoutCtx, padX: number, cw: number
 
 /**
  * The handler of every band type. Typed per key, so each handler is checked against its own band type; the `satisfies` below
- * and UnhandledBandTypes make a band type without one a compile error.
+ * and UnhandledBandTypes make a band type without one a compile error. A new band can be added here directly, or (preferred)
+ * as a BandSpec in lib/band-registry.ts, merged in below via byType() — see that file for the one-object-per-band pattern.
  */
 export const LAYOUT_HANDLERS = {
   spacer: layoutSpacer,
@@ -761,10 +738,10 @@ export const LAYOUT_HANDLERS = {
   concentric: layoutFlowShapeBand,
   emblem: layoutFlowShapeBand,
   valueChain: layoutFlowShapeBand,
-  curve: layoutCurve,
   caption: layoutBoxLikeBand,
   box: layoutBoxLikeBand,
   banner: layoutBoxLikeBand,
+  ...byType(REGISTERED_BAND_SPECS, 'layout'),
 } satisfies BandLayoutHandlers;
 
 /** Band types with no handler in LAYOUT_HANDLERS: must be `never`, so adding a band type without one fails to compile. */
