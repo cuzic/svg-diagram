@@ -5,6 +5,7 @@
 
 import {childrenOf} from './band-children.ts';
 import {must} from './must.ts';
+import {REGISTERED_BAND_SPECS, byType} from './band-registry.ts';
 import type {Band} from './types/index.ts';
 
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
@@ -150,7 +151,8 @@ const setEach = (what: string, items: (b: never) => Revealed[]) => ({
 
 /**
  * The handler of every band type. Typed per key (the `satisfies` below), so each is checked against its own band type;
- * UnrevealedBandTypes makes a band type without one a compile error.
+ * UnrevealedBandTypes makes a band type without one a compile error. A new band can be added here directly, or (preferred)
+ * as a BandSpec in lib/band-registry.ts, merged in below via byType().
  */
 export const REVEAL_HANDLERS = {
   spacer: unrevealed,
@@ -200,10 +202,10 @@ export const REVEAL_HANDLERS = {
   concentric: plain,
   emblem: plain,
   valueChain: plain,
-  curve: plain,
   caption: plain,
   box: plain,
   banner: plain,
+  ...byType(REGISTERED_BAND_SPECS, 'reveal'),
 } satisfies BandRevealHandlers;
 
 /** Band types with no handler in REVEAL_HANDLERS: must be `never`, so adding a band type without one fails to compile. */

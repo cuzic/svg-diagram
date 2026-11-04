@@ -1,5 +1,6 @@
 // Pass 1 of the layout: every atom a diagram needs measured, collected into one request map for the single batched measureAll call.
-// What each band type needs is one entry of MEASURE_HANDLERS (a typed table: a band type without one fails to compile).
+// What each band type needs is one entry of MEASURE_HANDLERS (a typed table: a band type without one fails to compile). A new
+// band can be added here directly, or (preferred) as a BandSpec in lib/band-registry.ts, merged in below via byType().
 
 import {splitAtoms} from './atoms.ts';
 import {must} from './must.ts';
@@ -7,6 +8,7 @@ import {styledAtoms, textRuns} from './layout-text.ts';
 import {TAG_SIZE, CONNECT_LABEL_SIZE} from './tokens.ts';
 import {groupTitleBand, withSourceLine, withTitleLine} from './layout-util.ts';
 import {childrenOf} from './band-children.ts';
+import {REGISTERED_BAND_SPECS, byType} from './band-registry.ts';
 import {planeTexts} from './plane.ts';
 import {imageTexts} from './image.ts';
 import {barsTexts} from './bars.ts';
@@ -103,7 +105,6 @@ export const MEASURE_HANDLERS = {
   // real width is known before layoutDiagram resolves the connect, instead of guessed at draw time.
   connect: (band, m) => { if (band.label) m.atoms(band.label, (m.roles.connectLabel ?? CONNECT_LABEL_SIZE), 400); },
   pyramid: (band, m) => { for (const layer of band.layers) m.atoms(layer.text, m.roles.title, 700); },
-  curve: (band, m) => { for (const label of [band.yTopLabel, band.yBottomLabel, band.xLabel]) if (label) m.atoms(label, m.roles.note, 400); },
   image: (band, m) => { fromTuples(imageTexts)(band, m); children(band, m); },
   sequence: fromTuples(collectTextRequests),
   table: fromTuples(collectTextRequests),
@@ -134,6 +135,7 @@ export const MEASURE_HANDLERS = {
   cloud: fromTuples(cloudTexts),
   states: fromTuples(statesTexts),
   tree: (band, m) => { fromTuples(treeTexts)(band, m); children(band, m); }, // the nodes' own text, then the bands that are nodes
+  ...byType(REGISTERED_BAND_SPECS, 'measure'),
 } satisfies MeasureHandlerTable;
 
 /** Pass 1: every atom this diagram needs measured, at the font sizes of `roles`. Pure: no measuring happens here. */

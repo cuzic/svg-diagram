@@ -7,11 +7,12 @@ import {renderChart} from './charts-emit.ts';
 import {emojiSpan} from './emit-common.ts';
 import {renderWordArt} from './emit-wordart.ts';
 import {renderMath} from './emit-figures.ts';
-import {renderCaption, renderBox, renderGroup, renderLegend, renderBanner, renderRow, renderGrid, renderPyramid, renderPeople, renderDots, renderCurve, renderRaw, renderStatus, renderSwimlane} from './emit-boxes.ts';
+import {renderCaption, renderBox, renderGroup, renderLegend, renderBanner, renderRow, renderGrid, renderPyramid, renderPeople, renderDots, renderRaw, renderStatus, renderSwimlane} from './emit-boxes.ts';
 import {renderFta} from './emit-fta.ts';
 import {renderBowtie} from './emit-bowtie.ts';
 import {renderPlane, renderBars, renderImage, renderQuadrant, renderFlowShape, renderTimeline, renderTree, renderStates, renderCause, renderCloud, renderGantt, renderClasses, renderBpmn} from './emit-figures.ts';
 import {renderSequence, renderTable, renderPrims} from './emit-tables.ts';
+import {REGISTERED_BAND_SPECS, byType} from './band-registry.ts';
 
 // Per-band-type SVG emitters. `selfDimming`: the band draws its own spotlight dim state instead of having it painted over its svg.
 export interface EmitHandler<B> {
@@ -19,7 +20,10 @@ export interface EmitHandler<B> {
   selfDimming?: true;
 }
 
-/** One emitter per band type, each checked against its own band type; a band type without one fails to compile. */
+/**
+ * One emitter per band type, each checked against its own band type; a band type without one fails to compile. A new band can
+ * be added here directly, or (preferred) as a BandSpec in lib/band-registry.ts, merged in below via byType().
+ */
 export const EMIT_HANDLERS = {
   caption: {render: (b, day, tones) => renderCaption(b, day, tones), selfDimming: true},
   status: {render: b => renderStatus(b)},
@@ -36,7 +40,6 @@ export const EMIT_HANDLERS = {
   grid: {render: (b, day, tones, roles, stage) => renderGrid(b, day, tones, roles, stage), selfDimming: true},
   raw: {render: (b, day) => renderRaw(b, day)},
   pyramid: {render: (b, _day, _tones, roles) => renderPyramid(b, roles)},
-  curve: {render: (b, day, tones) => renderCurve(b, day, tones)},
   plane: {render: (b, day, tones, _roles, stage) => renderPlane(b, day, tones, stage)},
   quadrant: {render: (b, day, tones) => renderQuadrant(b, day, tones), selfDimming: true},
   wordart: {render: (b, day) => renderWordArt(b, day, !!b.dim), selfDimming: true},
@@ -63,6 +66,7 @@ export const EMIT_HANDLERS = {
   bpmn: {render: (b, day, tones) => renderBpmn(b, day, tones), selfDimming: true},
   fta: {render: (b, day, tones) => renderFta(b, day, tones), selfDimming: true},
   bowtie: {render: (b, day, tones) => renderBowtie(b, day, tones), selfDimming: true},
+  ...byType(REGISTERED_BAND_SPECS, 'emit'),
 } satisfies {[T in LaidOutType]: EmitHandler<LaidOutOf<T>>};
 
 /** Band types with no emitter in EMIT_HANDLERS: must be `never`. */
