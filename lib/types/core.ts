@@ -75,7 +75,14 @@ export interface Anchor extends Rect {id: string}
 /** Result of parsing a connect() ref 'id', 'id:side' or 'id:side@t'. */
 export interface ConnectRef {id: string; side: string; at: number}
 /** diagram({canvas}): the fixed slide canvas the diagram is drawn on. `minText` is the smallest text size (px, in the canvas's own units) the lint accepts. Below 14 (down to 10) only for a dense figure read 1:1, not projected, and only when the project's `fontFloor` allows it. */
-export interface SlideCanvas {width: number; height: number; minText: number}
+export interface SlideCanvas {
+  width: number;
+  /** The canvas height; with `fit: 'content'` it is the most the figure may take (the budget of the auto-laid-out figures and the overflow warning). */
+  height: number;
+  minText: number;
+  /** 'content': the drawn canvas is only as tall as its content (no empty band under it), up to `height`. Default: always `height`. */
+  fit?: 'content';
+}
 /** Slide the diagram will be shown on (slide-budget.ts measures its free area). */
 export interface SlideRef {page: string; heading: string}
 /** diagram({connectDefaults}): connect() options every connector of the diagram starts from (an option given on the connector wins). */

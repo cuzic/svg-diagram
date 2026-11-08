@@ -68,7 +68,7 @@ export function cell(text: string | number, opts: Omit<TableCellSpec, 'text'> = 
 //   opts.boundaries: [{after: laneId, label?} | {between: [laneId, laneId], label?}]  — a heavy dashed line across that lane boundary, named in a chip on the
 //                label column (a service blueprint's line of interaction / of visibility / of internal interaction). `between` throws when the two
 //                lanes are not next to each other, and is the form to use with laneOrder.
-//   opts.labelW: width of the lane-label column (default 128)
+//   opts.labelW: width of the lane-label column (default 128; 'fit' = the longest lane name on one line, the default on a canvas diagram)
 //   opts.laneOrder: 'auto' puts the lanes in the order that makes the hand-offs (opts.flows) shortest; `fixed: true` lanes stay put (lib/lane-order.ts)
 // Returns an array (the lane block followed by its flows); d.add() accepts it directly.
 //
@@ -104,6 +104,7 @@ export function swimlane(lanesIn: SwimlaneLane[], stepsIn: SwimlaneStep[], optsI
   return swimlaneOf(lanesIn, steps, opts);
 }
 function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts): (SwimlaneBand | ConnectBand)[] {
+  if (opts.labelW !== undefined && opts.labelW !== 'fit' && !(typeof opts.labelW === 'number' && Number.isFinite(opts.labelW) && opts.labelW > 0)) throw new Error(`swimlane(): labelW must be a positive number or 'fit' (got ${JSON.stringify(opts.labelW)})`);
   const lanes = opts.laneOrder === undefined ? lanesIn : orderLanes(lanesIn, steps, opts);
   for (const l of lanes) assertBoxTone(l.tone, `swimlane() lane "${l.id}"`);
   let boundaries: {after: string; label?: string}[] | undefined;

@@ -170,8 +170,8 @@ export interface SwimlaneOpts extends RevealOpts, ScopeOpts, FocusOpts {
   phases?: SwimlanePhase[];
   /** Lines across lane boundaries. With `laneOrder` only `between` can be used (the lanes move). */
   boundaries?: SwimlaneBoundary[];
-  /** Width of the lane-label column (default 128). */
-  labelW?: number;
+  /** Width of the lane-label column (default 128; on a `canvas` diagram 'fit'). 'fit': as wide as the longest lane name on one line, up to 30% of the width (never narrower than 128). */
+  labelW?: number | 'fit';
   colGap?: number;
   /** 'shrink': when the columns come out narrower than ~112px, narrow the lane-label column and the column gaps (down to 88 / 12px) to give them room. Default: the sizes above, as given. */
   fit?: 'shrink';
@@ -195,7 +195,7 @@ export interface SwimlaneBand {
   phases?: SwimlanePhase[];
   /** As placed by swimlane(): the lane each line sits below. */
   boundaries?: {after: string; label?: string}[];
-  labelW?: number;
+  labelW?: number | 'fit';
   colGap?: number;
   fit?: 'shrink';
   id?: string;

@@ -8,7 +8,7 @@ import type {LaidOutPeople, LaidOutDots} from './types/people-dots.ts';
 import type {LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
 import type {LaidOutBox, LaidOutCaption, LaidOutBanner} from './types/text-bands.ts';
 import {iconSvg} from './icon-svg.ts';
-import {boundaryChipH, ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout-util.ts';
+import {boundaryChipH, ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W, stepBadgeGeom} from './layout-util.ts';
 import {visibleAt} from './reveal.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
 import {tonedHead, arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
@@ -22,7 +22,8 @@ import {must} from './must.ts';
 export const ringed = (band: LaidOutBox): boolean => !band.dim && isSolidTone(band.tone);
 
 
-export function renderStepBadge(band: LaidOutBox, day: Theme): string {
+export function renderStepBadge(band: LaidOutBox, day: Theme, roles?: Roles): string {
+  const g = roles ? stepBadgeGeom(roles) : {r: STEP_BADGE_R, offset: STEP_BADGE_BASELINE_OFFSET, indent: STEP_INDENT, size: 16}, R = g.r; // a canvas diagram grows the badge with its text
   const titleRun = must(band.wrappedRuns[0]);
   // the same padding the text and the icon use (a swimlane step has its own)
   const px = band.padX ?? BOX_PAD_X, titleBaselineY = band.y + (band.padY ?? BOX_PAD_Y) + must(titleRun.lineYs[0]);
@@ -30,9 +31,9 @@ export function renderStepBadge(band: LaidOutBox, day: Theme): string {
   const indent = titleRun.indent ?? 0, left = band.x + px + indent, right = band.x + band.w - px;
   const align = band.align ?? (band.iconAt === 'top' ? 'center' : 'left');
   const textX = band.titleW === undefined || align === 'left' ? undefined : align === 'center' ? (left + right) / 2 - band.titleW / 2 : right - band.titleW;
-  const cx = textX !== undefined ? textX - STEP_INDENT + STEP_BADGE_R : band.x + px + STEP_BADGE_R + (band.icon && band.iconAt !== 'top' ? ICON_INDENT : 0);
-  const cy = titleBaselineY - STEP_BADGE_BASELINE_OFFSET;
-  return badgeSvg({cx, cy, r: STEP_BADGE_R, w: 2 * STEP_BADGE_R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: 16, fill: PALETTE[day].accent, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), baseline: titleBaselineY, snap: snap4, esc: escapeXml});
+  const cx = textX !== undefined ? textX - g.indent + R : band.x + px + R + (band.icon && band.iconAt !== 'top' ? ICON_INDENT : 0);
+  const cy = titleBaselineY - g.offset;
+  return badgeSvg({cx, cy, r: R, w: 2 * R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: g.size, fill: PALETTE[day].accent, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), baseline: titleBaselineY, snap: snap4, esc: escapeXml});
 }
 
 
@@ -87,7 +88,7 @@ export function renderStamp(band: Rect & {stamp?: string; stampW?: number}, role
 
 
 export function renderBox(band: LaidOutBox, day: Theme, tones: ToneEnv, roles: Roles): string {
-  const badge = band.step != null ? `\n  ${renderStepBadge(band, day)}` : '';
+  const badge = band.step != null ? `\n  ${renderStepBadge(band, day, roles)}` : '';
   const iconText = band.icon ? renderBoxIcon(band, day, tones) : '';
   const tag = band.tagBox ? `\n  ${renderTag(band, day, tones, roles)}` : '';
   const frame = band.frame === false ? '' : `${renderBoxRect(band, day, tones, 'plain')}\n  `;

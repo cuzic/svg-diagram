@@ -21,6 +21,19 @@ export const STEP_BADGE_R = 15;
 export const STEP_BADGE_GAP = 10;
 export const STEP_BADGE_BASELINE_OFFSET = 6;
 export const STEP_INDENT = 2 * STEP_BADGE_R + STEP_BADGE_GAP; // how far the title's first line is pushed right to clear the badge
+/** How much a canvas diagram scales the step badge with its text (the canvas sets `roles.tag`; a document figure: 1, so its output is unchanged). */
+export const stepBadgeScale = (roles: Roles): number => (roles.tag ?? STEP_TAG_BASE) / STEP_TAG_BASE;
+const STEP_TAG_BASE = 14; // TAG_SIZE (tokens.ts): the tag text a canvas scales from
+/** The step badge at the diagram's scale. A document figure keeps the fixed geometry above. A canvas grows it with the title, but no
+ *  further than its line: the box's gaps do not scale, so a badge scaled whole would reach into the body line under the title. */
+export function stepBadgeGeom(roles: Roles): {r: number; offset: number; indent: number; size: number} {
+  const k = stepBadgeScale(roles);
+  if (k === 1) return {r: STEP_BADGE_R, offset: STEP_BADGE_BASELINE_OFFSET, indent: STEP_INDENT, size: 16};
+  const r = Math.min(STEP_BADGE_R * k, 0.75 * roles.title);
+  return {r, offset: 0.35 * roles.title, indent: 2 * r + STEP_BADGE_GAP * k, size: Math.min(16 * k, 1.1 * r)};
+}
+/** The title indent that clears the badge, at the diagram's scale. */
+export const stepIndent = (roles: Roles): number => stepBadgeGeom(roles).indent;
 
 // box({icon}): an SVG icon drawn ICON_SIZE px square at the box's top-left; every text run is pushed right to clear it.
 export const ICON_SIZE = 32;

@@ -5,7 +5,7 @@ import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapStyledAtoms} from './wrap.ts';
 import {assertSpans} from './rich.ts';
 import {isSolidTone, statFitMin} from './tokens.ts';
-import {BOX_INNER_GAP, ICON_INDENT, LINE_HEIGHT_EM, STEP_INDENT, topIcon} from './layout-util.ts';
+import {BOX_INNER_GAP, ICON_INDENT, LINE_HEIGHT_EM, stepIndent, topIcon} from './layout-util.ts';
 import type {FontWeight, Roles, TextTone, WidthOf, WrapMode} from './types/core.ts';
 import type {Band} from './types/index.ts';
 import type {Span, TextRun, WrappedRun} from './types/text-bands.ts';
@@ -36,7 +36,7 @@ const bannerRuns: TextRunsOf<BandOf<'banner'>> = (band, roles) => {
 const boxRuns: TextRunsOf<BandOf<'box'>> = (band, roles) => {
   const runs: TextRun[] = [];
   const iconIndent = band.icon && !topIcon(band) ? {indent: ICON_INDENT} : {}; // (spread, so a box without an icon gets no new field)
-  if (band.title) runs.push(withSpans({text: band.title, size: roles.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: (band.step != null ? STEP_INDENT : 0) + (band.icon && !topIcon(band) ? ICON_INDENT : 0)}, band.spans?.title));
+  if (band.title) runs.push(withSpans({text: band.title, size: roles.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: (band.step != null ? stepIndent(roles) : 0) + (band.icon && !topIcon(band) ? ICON_INDENT : 0)}, band.spans?.title));
   if (band.body) runs.push(withSpans({text: band.body, size: roles.body, weight: 400, mono: !!band.bodyMono, tone: band.bodyTone, ...iconIndent}, band.spans?.body));
   if (band.lines) for (const l of band.lines) {
     const line: Exclude<typeof l, string> = typeof l === 'string' ? {text: l} : l;
