@@ -456,7 +456,8 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   const baseRow = Math.max(band.height ?? (rows === 2 ? 340 : 120 * rows + 90), 0) / rows;
   const rMax = Math.max(14, Math.min(44, Math.min(cw, baseRow - Math.max(...hdr)) * 0.2));
   // an item label wraps at 150px for 14px text; a canvas (larger text) widens it in step, so a name keeps the same number of characters a line
-  const labelW = Math.max(70, Math.min(150 * size / 14, cw * 0.55));
+  // only a canvas (it sets roles.tag) widens it: a fill: true slide scales its roles too, and its fitted layout stays as before
+  const labelW = Math.max(70, Math.min(roles.tag !== undefined ? 150 * size / 14 : 150, cw * 0.55));
   const units: Unit[] = band.items.map((item, i) => {
     const gi = groupIndex(item.group);
     const shape = gi < 0 ? 'circle' : groupStyle(gi).shape, hollow = gi >= 0 && groupStyle(gi).hollow;

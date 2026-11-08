@@ -25,7 +25,13 @@ test('step badge: a document figure keeps the fixed geometry; a canvas grows it 
   const big = {...ROLES, title: 32, tag: 30};
   const g = stepBadgeGeom(big);
   assert.ok(g.r > STEP_BADGE_R && g.r <= 0.75 * big.title, String(g.r));
-  assert.equal(g.indent, 2 * g.r + 10 * (30 / 14));
+  assert.equal(g.indent, Math.round((2 * g.r + 10 * (30 / 14)) * 10) / 10);
+  assert.equal(g.size, 30, 'the number is the canvas text floor (its tag size)');
+  // a canvas with a small minText (k < 1) or one just above 14 never draws a badge smaller than a document's
+  for (const tag of [10, 13, 15, 16]) {
+    const small = stepBadgeGeom({...ROLES, title: Math.round(15 * tag / 14), tag});
+    assert.ok(small.r >= STEP_BADGE_R && small.size >= 16 && small.indent >= STEP_INDENT, JSON.stringify({tag, small}));
+  }
   assert.equal(stepIndent(ROLES), STEP_INDENT);
   assert.equal(stepIndent(big), g.indent);
 });
@@ -47,6 +53,9 @@ test("swimlane labelW: 'fit' (the default on a canvas) keeps the longest lane na
   const fitDoc = await checkDiagram(diagram({theme: 'blue'}).add(...sw({labelW: 'fit'})));
   assert.ok((fitDoc.laidOut.laidOut.find(b => b.type === 'swimlane') as LaidOutSwimlane).labelW >= 128);
   assert.throws(() => sw({labelW: -3}), /labelW must be a positive number or 'fit'/);
+  // the canvas default gives way to the columns: a long lane name and many columns still lay out (they did with the old 128px)
+  const many = swimlane([{id: 'a', label: '情報システム部門の担当者'}], Array.from({length: 10}, (_, i) => ({id: `s${i}`, lane: 'a', title: `手順${i + 1}`, col: i + 1})));
+  await assert.doesNotReject(() => checkDiagram(diagram({theme: 'blue', canvas: {width: 1280, height: 720, minText: 24, fit: 'content'}}).add(...many)));
 });
 
 test('quadrant: on a canvas an item label wraps at a width that grows with the text (a short name stays on one line)', async () => {

@@ -29,8 +29,12 @@ const STEP_TAG_BASE = 14; // TAG_SIZE (tokens.ts): the tag text a canvas scales 
 export function stepBadgeGeom(roles: Roles): {r: number; offset: number; indent: number; size: number} {
   const k = stepBadgeScale(roles);
   if (k === 1) return {r: STEP_BADGE_R, offset: STEP_BADGE_BASELINE_OFFSET, indent: STEP_INDENT, size: 16};
-  const r = Math.min(STEP_BADGE_R * k, 0.75 * roles.title);
-  return {r, offset: 0.35 * roles.title, indent: 2 * r + STEP_BADGE_GAP * k, size: Math.min(16 * k, 1.1 * r)};
+  // never below the document badge (a canvas with a small minText keeps it, so no text drops under the floor and nothing jumps at k = 1);
+  // the number is the canvas's tag size (its text floor) when the circle holds it
+  const round1 = (v: number) => Math.round(v * 10) / 10;
+  const r = round1(Math.max(STEP_BADGE_R, Math.min(STEP_BADGE_R * k, 0.75 * roles.title)));
+  const size = round1(Math.max(16, Math.min(roles.tag ?? 16, 1.3 * r)));
+  return {r, offset: round1(Math.max(STEP_BADGE_BASELINE_OFFSET, 0.35 * roles.title)), indent: round1(Math.max(STEP_INDENT, 2 * r + STEP_BADGE_GAP * k)), size};
 }
 /** The title indent that clears the badge, at the diagram's scale. */
 export const stepIndent = (roles: Roles): number => stepBadgeGeom(roles).indent;
