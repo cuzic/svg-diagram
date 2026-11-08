@@ -295,7 +295,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
   const out: LaidOutCause = {
     type: 'cause', id: band.id, reveal: band.reveal, ...(band.unanchored ? {unanchored: band.unanchored} : {}), ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + 2 * pad.y,
     nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
-    ...(fitApplied.length ? {fitApplied} : {}), ...(band.tree === 'nbr' ? {nbr: {vertical}} : {}),
+    ...(fitApplied.length ? {fitApplied} : {}), ...(band.tree === 'nbr' ? {nbr: {vertical}} : {}), ...(band.focused ? {focused: band.focused} : {}),
   };
   if (attempt.asided) movedAside.add(out);
   for (const n of band.nodes) {

@@ -1,7 +1,7 @@
 // Types: tree, states, cause / cloud (TOC), classes and bpmn.
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
-import type {Anchor, Dimmed, EmphasisTone, RcaInfo, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
+import type {Anchor, Dimmed, EmphasisTone, FocusOpts, RcaInfo, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
 import type {BoxTone} from './text-bands.ts';
 import type {Band} from './index.ts';
 import type {GanttText} from './timeline.ts';
@@ -12,7 +12,8 @@ export interface TreeItem {
   sub?: string;
   /** Makes the node an anchor: connect() can start or end there. */
   id?: string;
-  tone?: BoxTone;
+  /** Default 'plain'. 'solid' / 'solid-danger' fill the node (white text): the one node the figure is about. */
+  tone?: EmphasisTone;
   children?: TreeItem[];
   /** The node is this band (a chevron, a swimlane, a table ...) instead of a box with text: laid out at the width `w`, with the tree's lines to its edges. `label` is then only its name (errors, check). No `sub` or `tone`. */
   band?: Band;
@@ -32,8 +33,12 @@ export interface TreeOpts extends RevealOpts, ScopeOpts {
   edges?: false;
   /** A spotlight target and a connect() endpoint (the whole figure). */
   id?: string;
+  /** "You are here" inside the figure (diagram({spotlight}) lights a whole figure, not its nodes): the node(s) with these ids
+   *  are filled ('solid'), the nodes under them and the path up to the root are 'accent', every other node is 'muted'.
+   *  It decides every node's tone: a tone written on a node is replaced. A band node keeps its own look. */
+  focus?: string | readonly string[];
 }
-export interface TreeBand extends Omit<TreeOpts, 'edges'> {
+export interface TreeBand extends Omit<TreeOpts, 'edges' | 'focus'> {
   type: 'tree';
   root: TreeItem;
   /** mindmap(): the root in the middle, children split to both sides (the same band, laid out by layoutBalanced). */
@@ -44,6 +49,8 @@ export interface TreeBand extends Omit<TreeOpts, 'edges'> {
   layout?: MindmapLayout;
   /** mindmap(): how a branch's line is drawn (tree-like layouts: radial / right / left / down / up). */
   edges?: 'elbow' | 'curve' | 'straight' | false;
+  /** Set by `focus`: the lines to the lit nodes (the focused ones, their branch, the path to the root) are drawn in the accent colour. */
+  focused?: true;
 }
 /**
  * radial: the root in the middle, branches to both sides | right / left: one side only (a logic chart) | down / up: a tree |
@@ -60,6 +67,8 @@ export interface MindmapOpts extends RevealOpts, ScopeOpts {
   sides?: Record<string, 'left' | 'right'>;
   maxNodeW?: number;
   id?: string;
+  /** "You are here": see TreeOpts.focus (the focused nodes filled, their branch and the path to the root accent, the rest muted). */
+  focus?: string | readonly string[];
 }
 export interface StateItem {
   /** Required: the state is an anchor, and transitions name it. */
@@ -105,7 +114,7 @@ export interface FlowNode {
 /** An arrow of a flowchart: the same as a state diagram's transition (`label` is Yes / No on an arrow that leaves a decision). */
 export type FlowEdge = Transition;
 export interface FlowchartOpts extends Omit<StatesOpts, 'initial'> {}
-export interface StatesOpts extends RevealOpts, ScopeOpts {
+export interface StatesOpts extends RevealOpts, ScopeOpts, FocusOpts {
   /** 'right' (default): the flow runs left to right. 'down': top to bottom.
    *  'auto' (and leaving it out) lets the layout narrow the states and turn to the other direction when the figure is wider than the diagram
    *  (a warning when left out, a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
@@ -143,8 +152,8 @@ export interface CauseNode {
    *  need = the need a transition tree's action answers (a filled box).
    *  For a PDPC (pdpc()): start, step, risk (what could go wrong: a danger hexagon), measure (what to do then), goal. */
   role?: CauseRole;
-  /** Overrides the tone the role gives. */
-  tone?: BoxTone;
+  /** Overrides the tone the role gives. 'solid' / 'solid-danger' fill the box (white text). */
+  tone?: EmphasisTone;
   /** The core driver mark: a thick frame and a 中核 badge. causeTree({coreDriver: true}) sets it; it is not a role. */
   core?: boolean;
   /** For a `trim` entity of a negative branch tree: the injection it is folded into ("施策 1"). Drawn as a line under the label (→ 施策 1 に組み込む); the injection need not be in the figure. */
@@ -167,7 +176,7 @@ export interface CauseLink {
 }
 /** The roles `roleTags` writes in words: the ones drawn with the same double accent frame. */
 export type RoleTagged = 'root' | 'goal' | 'injection' | 'start';
-export interface CauseOpts extends RevealOpts, ScopeOpts {
+export interface CauseOpts extends RevealOpts, ScopeOpts, FocusOpts {
   /** Which way the arrows run: 'up' (default: causes at the bottom, effects at the top), 'down', 'right' or 'left'.
    *  'auto' (and leaving it out) lets the layout narrow the nodes when the figure is wider than the diagram (a warning when left out, a note for 'auto');
    *  a cause tree never changes its axis. Writing a direction fixes it: the figure that does not fit is an error that lists what was tried. */
@@ -209,6 +218,8 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
   id?: string;
 }
 export interface CauseBand extends CauseOpts {
+  /** Set by `focus`: the focused items' ids. The arrows that touch one are drawn in the accent colour, the others muted. */
+  focused?: string[];
   /** What a band's maker (`pdpc()`) wants when `returns` is not written; like an explicit 'outer', but it falls back to inline when the lanes do not fit. */
   returnsDefault?: 'outer';
   type: 'cause';
@@ -298,7 +309,8 @@ export interface ClassItem {
   /** One line each: '- id: number'. */
   attrs?: string[];
   methods?: string[];
-  tone?: BoxTone;
+  /** 'solid' / 'solid-danger' fill the class (white text). */
+  tone?: EmphasisTone;
 }
 export type RelationKind = 'assoc' | 'arrow' | 'inherit' | 'implement' | 'compose' | 'aggregate' | 'depend';
 export interface ClassRelation {
@@ -312,7 +324,7 @@ export interface ClassRelation {
   fromMult?: string;
   toMult?: string;
 }
-export interface ClassesOpts extends RevealOpts, ScopeOpts {
+export interface ClassesOpts extends RevealOpts, ScopeOpts, FocusOpts {
   /** 'down' (default): parents on top. 'right': left to right.
    *  'auto' (and leaving it out) lets the layout turn to the other direction when the figure is wider than the diagram (a warning when left out,
    *  a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
@@ -322,6 +334,8 @@ export interface ClassesOpts extends RevealOpts, ScopeOpts {
   id?: string;
 }
 export interface ClassesBand extends ClassesOpts {
+  /** Set by `focus`: the focused items' ids. The arrows that touch one are drawn in the accent colour, the others muted. */
+  focused?: string[];
   type: 'classes';
   classes: ClassItem[];
   relations: ClassRelation[];
@@ -337,7 +351,8 @@ export interface BpmnNode {
   sub?: string;
   /** 'task' (default) | 'start' / 'end' event | 'xor' exclusive, 'and' parallel, 'or' inclusive gateway. */
   kind?: BpmnNodeKind;
-  tone?: BoxTone;
+  /** 'solid' / 'solid-danger' fill the node (white text). */
+  tone?: EmphasisTone;
   /** A task only: an installed SVG icon (see `icon`) above the label, 20px, in the node's text tone (or `iconTone`). The label carries the meaning, so the icon is `aria-hidden`. */
   icon?: IconName;
   iconTone?: TextTone;
@@ -352,12 +367,14 @@ export interface BpmnFlow {
   /** 'dashed': a message flow between lanes (default: a sequence flow, solid). */
   line?: 'solid' | 'dashed';
 }
-export interface BpmnOpts extends RevealOpts, ScopeOpts {
+export interface BpmnOpts extends RevealOpts, ScopeOpts, FocusOpts {
   id?: string;
   /** 'shrink': when the figure is wider than the diagram, narrow the lane-name column, the column gaps and the task boxes step by step until it fits (default: throw). */
   fit?: 'shrink';
 }
 export interface BpmnBand extends BpmnOpts {
+  /** Set by `focus`: the focused items' ids. The arrows that touch one are drawn in the accent colour, the others muted. */
+  focused?: string[];
   type: 'bpmn';
   lanes: BpmnLane[];
   nodes: BpmnNode[];
@@ -383,9 +400,9 @@ export interface LaidOutTree extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone; id?: string; /** ADR 0034 */ dataNode?: string; /** A band node: the tree draws no box or text for it; the band is laid out in its rectangle. */ band?: true})[];
+  nodes: (Rect & {tone: EmphasisTone; id?: string; /** ADR 0034 */ dataNode?: string; /** A band node: the tree draws no box or text for it; the band is laid out in its rectangle. */ band?: true})[];
   /** Parent to child, each a polyline (centre line of the box edge to the child's box edge); `curve` draws it as a smooth S, `bold` as a spine. */
-  edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean; /** The index (in treeItems order) of the child this line leads to; only in a tree that has a `from`. */ child?: number; /** A funnel line comes with the later of its child band and its parent band. */ reveal?: number; until?: number}[];
+  edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean; /** A line to a lit node of a `focus` tree: drawn in the accent colour. */ lit?: true; /** The index (in treeItems order) of the child this line leads to; only in a tree that has a `from`. */ child?: number; /** A funnel line comes with the later of its child band and its parent band. */ reveal?: number; until?: number}[];
   /** brace maps: a `{` over the children of one parent. */
   braces?: {x: number; y1: number; y2: number; ymid: number; tipX: number; side: 'right' | 'left'}[];
   texts: TreeNodeText[];
@@ -417,6 +434,8 @@ export interface LaidOutStates extends Rect, Dimmed {
   labelBoxes: (Rect & {label: string})[];
 }
 export interface LaidOutCause extends Rect, Dimmed {
+  /** From the band's `focused`: the arrows that touch one of these items are lit (accent), the others muted. */
+  focused?: string[];
   type: 'cause';
   /** `density: 'compact'` was asked for, but the compact figure had more wrong in it, so this band is drawn at the normal gaps (ADR 0036 D6). */
   densityRestored?: boolean;
@@ -458,6 +477,8 @@ export interface LaidOutCloud extends Rect, Dimmed {
   labelBoxes: (Rect & {label: string})[];
 }
 export interface LaidOutClasses extends Rect, Dimmed {
+  /** From the band's `focused`: the arrows that touch one of these items are lit (accent), the others muted. */
+  focused?: string[];
   type: 'classes';
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
   fitApplied?: FitApplied[];
@@ -465,7 +486,7 @@ export interface LaidOutClasses extends Rect, Dimmed {
   reveal?: number;
   until?: number;
   /** `dividers`: the y of the lines between name / attributes / methods. */
-  nodes: (Rect & {tone: BoxTone; dividers: number[]})[];
+  nodes: (Rect & {tone: EmphasisTone; dividers: number[]})[];
   /** Orthogonal polylines from `from`'s box to `to`'s (the end marks come from `kind`: at the end for inherit / implement / arrow / depend, at the start for compose / aggregate). */
   edges: {from: string; to: string; kind: RelationKind; line: 'solid' | 'dashed'; points: {x: number; y: number}[]}[];
   texts: GanttText[];
@@ -475,6 +496,8 @@ export interface LaidOutClasses extends Rect, Dimmed {
   labelBoxes: (Rect & {label: string})[];
 }
 export interface LaidOutBpmn extends Rect, Dimmed {
+  /** From the band's `focused`: the arrows that touch one of these items are lit (accent), the others muted. */
+  focused?: string[];
   type: 'bpmn';
   /** With `fit: 'shrink'`: the tasks whose label broke into lines of 2.5 characters or fewer on average (the shrink-narrow-text rule reads it). */
   narrow?: string[];
@@ -483,7 +506,7 @@ export interface LaidOutBpmn extends Rect, Dimmed {
   until?: number;
   lanes: (Rect & {labelW: number; tone: BoxTone})[];
   /** The shape of each node (a circle, a diamond or a rounded rectangle). */
-  nodes: (Rect & {kind: BpmnNodeKind; tone: BoxTone; /** ADR 0034 */ dataNode?: string})[];
+  nodes: (Rect & {kind: BpmnNodeKind; tone: EmphasisTone; /** ADR 0034 */ dataNode?: string})[];
   /** The icons of the tasks that have one (20px, above the label); `node` indexes `nodes`. */
   icons: {node: number; name: string; glyph: IconGlyph; x: number; y: number; size: number; tone?: TextTone}[];
   edges: {from: string; to: string; line: 'solid' | 'dashed'; points: {x: number; y: number}[]}[];

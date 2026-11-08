@@ -234,13 +234,20 @@ export function renderTimeline(b: LaidOutTimeline, day: Theme): string {
 }
 
 
+/** The colour of an arrow of a graph with `focus` (ADR 0051): lit (it touches a focused item) in the accent colour, the others muted; no focus: `plain`. */
+function focusInk(focused: readonly string[] | undefined, dim: boolean | undefined, day: Theme, plain: string): (from: string | readonly string[], to: string) => string {
+  if (!focused || dim) return () => plain;
+  const f = new Set(focused);
+  return (from, to) => (typeof from === 'string' ? [from] : from).some(x => f.has(x)) || f.has(to) ? colorOf('accent', day) : PALETTE.muted;
+}
 export function renderTree(b: LaidOutTree, day: Theme, tones: ToneEnv, stage?: number): string {
   const out: string[] = [];
-  for (const e of b.edges.filter(e => visibleAt(e, stage))) { // (only a funnel line carries its own reveal)
+  // lit lines (focus) last: siblings share the trunk of an elbow, and the lit one is drawn over it
+  for (const e of b.edges.filter(e => visibleAt(e, stage)).toSorted((p, q) => Number(p.lit ?? 0) - Number(q.lit ?? 0))) { // (only a funnel line carries its own reveal)
     const a = must(e.points[0]), z = must(e.points[e.points.length - 1]);
     // curve: a cubic that leaves and arrives along the axis the tree grows on (`curve`), so it reads as one smooth S
     const d = e.curve ? (e.curve === 'x' ? `M${snap4(a.x)},${snap4(a.y)} C${snap4((a.x + z.x) / 2)},${snap4(a.y)} ${snap4((a.x + z.x) / 2)},${snap4(z.y)} ${snap4(z.x)},${snap4(z.y)}` : `M${snap4(a.x)},${snap4(a.y)} C${snap4(a.x)},${snap4((a.y + z.y) / 2)} ${snap4(z.x)},${snap4((a.y + z.y) / 2)} ${snap4(z.x)},${snap4(z.y)}`) : `M${e.points.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}`;
-    out.push(`<path d="${d}" fill="none" stroke="${PALETTE.muted}" stroke-width="${e.bold ? 4 : 2}"/>`);
+    out.push(`<path d="${d}" fill="none" stroke="${e.lit && !b.dim ? colorOf('accent', day) : PALETTE.muted}" stroke-width="${e.bold ? 4 : 2}"/>`);
   }
   for (const br of b.braces ?? []) { // a `{`: two quarter turns in, a point toward the parent, two quarter turns out
     const s = br.side === 'right' ? 1 : -1, r = 8, x = snap4(br.x), xt = snap4(br.tipX), y1 = snap4(br.y1), y2 = snap4(br.y2), ym = snap4(br.ymid);
@@ -251,6 +258,7 @@ export function renderTree(b: LaidOutTree, day: Theme, tones: ToneEnv, stage?: n
   const ink = (t: LaidOutTree['texts'][number]): string => {
     if (b.dim) return PALETTE.muted;
     const n = nodes.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
+    if (n && isSolidTone(n.tone)) return colorOf(toneStyle(tones, n.tone).text, day); // white on the fill, the sub line too
     // the muted second line is 4.48:1 on a soft (accent / new) fill, under the 4.5 the text rules ask for: it takes the plain text colour there
     if (t.muted) return n && toneStyle(tones, n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted;
     return colorOf(toneStyle(tones, n?.tone).text, day);
@@ -330,9 +338,15 @@ export function renderCause(b: LaidOutCause, day: Theme, tones: ToneEnv): string
     const mine = (b.crossings ?? []).filter(c => !c.skipped && c.over === k);
     return mine.length ? mine.map(c => ({x: c.x, y: c.y, side: c.side, r: HOP_R})) : undefined;
   };
-  b.edges.forEach((e, k) => out.push(e.kind === 'blocks' ? arrowPath(e.points, stroke, e.line, 2, 'end', 'bar', cutsOf(k)) : e.back ? arrowPath(e.points, stroke, e.line, 3, 'end', 'arrow', cutsOf(k)) : arrowPath(e.points, stroke, e.line, 2, 'end', 'arrow', cutsOf(k))));
+  const edgeInk = focusInk(b.focused, b.dim, day, stroke);
+  // with focus, the lit arrows are drawn last (over the muted ones they cross)
+  const order = b.edges.map((_, k) => k).toSorted((p, q) => Number(edgeInk(must(b.edges[p]).from, must(b.edges[p]).to) !== PALETTE.muted) - Number(edgeInk(must(b.edges[q]).from, must(b.edges[q]).to) !== PALETTE.muted));
+  for (const k of b.focused ? order : b.edges.map((_, k) => k)) {
+    const e = must(b.edges[k]), c = edgeInk(e.from, e.to);
+    out.push(e.kind === 'blocks' ? arrowPath(e.points, c, e.line, 2, 'end', 'bar', cutsOf(k)) : e.back ? arrowPath(e.points, c, e.line, 3, 'end', 'arrow', cutsOf(k)) : arrowPath(e.points, c, e.line, 2, 'end', 'arrow', cutsOf(k)));
+  }
   // the AND arc: across the arrows of one effect, just before their heads
-  for (const a of b.ands) out.push(`<path d="M${snap4(a.p0.x)},${snap4(a.p0.y)} Q${snap4(a.c.x)},${snap4(a.c.y)} ${snap4(a.p1.x)},${snap4(a.p1.y)}" fill="none" stroke="${stroke}" stroke-width="2"/>`);
+  for (const a of b.ands) out.push(`<path d="M${snap4(a.p0.x)},${snap4(a.p0.y)} Q${snap4(a.c.x)},${snap4(a.c.y)} ${snap4(a.p1.x)},${snap4(a.p1.y)}" fill="none" stroke="${edgeInk(a.from, a.to)}" stroke-width="2"/>`);
   for (const [i, n] of b.nodes.entries()) {
     if (n.hex) { // an obstacle: a hexagon (pointed left and right), in its tone's colours
       const st = b.dim ? {fill: PALETTE.bg, stroke: PALETTE.muted, dashed: false} : resolveBoxStyle(tones, n.tone, day, n.dashed), k = Math.min(16, n.h / 2), cy = n.y + n.h / 2;
@@ -344,12 +358,17 @@ export function renderCause(b: LaidOutCause, day: Theme, tones: ToneEnv): string
     }
     const rect = renderBoxRect({...n, dim: b.dim}, day, tones, 'plain');
     out.push(n.core ? rect.replace('stroke-width="2.5"', `stroke-width="${CORE_STROKE}"`) : rect);
-    if (n.double) out.push(renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, tones, 'plain').replace('rx="8"', 'rx="5"'));
+    if (n.double) {
+      const inner = renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, tones, 'plain').replace('rx="8"', 'rx="5"');
+      // on a solid fill the inner outline would be the fill colour: drawn in the text colour (white), as a state's end outline is
+      out.push(!b.dim && isSolidTone(n.tone) ? inner.replace(/stroke="[^"]*"/, `stroke="${colorOf(toneStyle(tones, n.tone).text, day)}"`) : inner);
+    }
     if (n.core) out.push(coreBadge(n, must(b.anchors[i]).id, b, day));
   }
   const ink = (t: LaidOutCause['texts'][number]): string => {
     if (b.dim) return PALETTE.muted;
     const n = b.nodes.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
+    if (n && isSolidTone(n.tone)) return colorOf(toneStyle(tones, n.tone).text, day); // white on the fill, the sub line too
     if (t.muted) return n && toneStyle(tones, n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted;
     return colorOf(toneStyle(tones, n?.tone).text, day);
   };
@@ -409,8 +428,9 @@ export function renderGantt(b: LaidOutGantt, day: Theme): string {
 
 export function renderClasses(b: LaidOutClasses, day: Theme, tones: ToneEnv): string {
   const out: string[] = [];
-  const ink = b.dim ? PALETTE.muted : PALETTE.text, bg = PALETTE.bg;
+  const plainInk = b.dim ? PALETTE.muted : PALETTE.text, bg = PALETTE.bg, edgeInk = focusInk(b.focused, b.dim, day, plainInk);
   for (const e of b.edges) {
+    const ink = edgeInk(e.from, e.to);
     const pts = e.points, n = pts.length, first = must(pts[0]), second = must(pts[1]), tip = must(pts[n - 1]), prev = must(pts[n - 2]);
     out.push(`<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${ink}" stroke-width="2"${e.line === 'dashed' ? ' stroke-dasharray="6,4"' : ''}/>`);
     const at = (p: {x: number; y: number}, q: {x: number; y: number}, L: number, W: number, shape: 'tri' | 'dia' | 'open', fill: string): string => {
@@ -427,15 +447,15 @@ export function renderClasses(b: LaidOutClasses, day: Theme, tones: ToneEnv): st
   const tone = (t?: string): string => colorOf(toneStyle(tones, t).text, day);
   for (const nd of b.nodes) {
     out.push(renderBoxRect({...nd, dim: b.dim}, day, tones, 'plain'));
-    for (const y of nd.dividers) out.push(`<path d="M${snap4(nd.x)},${snap4(y)} H${snap4(nd.x + nd.w)}" fill="none" stroke="${b.dim ? PALETTE.muted : resolveBoxStyle(tones, nd.tone, day).stroke}" stroke-width="2"/>`);
+    for (const y of nd.dividers) out.push(`<path d="M${snap4(nd.x)},${snap4(y)} H${snap4(nd.x + nd.w)}" fill="none" stroke="${b.dim ? PALETTE.muted : isSolidTone(nd.tone) ? colorOf(toneStyle(tones, nd.tone).text, day) : resolveBoxStyle(tones, nd.tone, day).stroke}" stroke-width="2"/>`);
   }
   for (const t of b.texts) {
     const n = b.nodes.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
-    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : t.muted ? (n && toneStyle(tones, n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted) : tone(n?.tone)}">${emojiSpan(t.text)}</text>`);
+    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : n && isSolidTone(n.tone) ? tone(n.tone) : t.muted ? (n && toneStyle(tones, n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted) : tone(n?.tone)}">${emojiSpan(t.text)}</text>`);
   }
   for (const l of b.labels) {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${l.h}" fill="${bg}"/>`);
-    out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty + snap4(l.y) - l.y)}" text-anchor="middle" font-size="${l.size}" fill="${ink}">${emojiSpan(l.text)}</text>`);
+    out.push(`<text x="${Math.round(l.tx)}" y="${Math.round(l.ty + snap4(l.y) - l.y)}" text-anchor="middle" font-size="${l.size}" fill="${plainInk}">${emojiSpan(l.text)}</text>`);
   }
   return out.join('\n  ');
 }
@@ -448,7 +468,9 @@ export function renderBpmn(b: LaidOutBpmn, day: Theme, tones: ToneEnv): string {
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${snap4(l.w)}" height="${snap4(l.h)}" fill="${l.tone === 'plain' ? bg : resolveBoxStyle(tones, l.tone, day).fill}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
     out.push(`<rect x="${snap4(l.x)}" y="${snap4(l.y)}" width="${l.labelW}" height="${snap4(l.h)}" fill="${PALETTE.code}" stroke="${PALETTE.muted}" stroke-width="2"/>`);
   }
+  const edgeInk = focusInk(b.focused, b.dim, day, ink);
   for (const e of b.edges) {
+    const ink = edgeInk(e.from, e.to);
     const pts = e.points.slice(), n = pts.length, tip = must(pts[n - 1]), prev = must(pts[n - 2]);
     const dx = Math.sign(tip.x - prev.x), dy = Math.sign(tip.y - prev.y), L = 11, W = 4.5;
     pts[n - 1] = {x: tip.x - dx * (L - 2), y: tip.y - dy * (L - 2)};
@@ -460,14 +482,14 @@ export function renderBpmn(b: LaidOutBpmn, day: Theme, tones: ToneEnv): string {
     if (nd.kind === 'start' || nd.kind === 'end') { out.push(`<circle cx="${snap4(cx)}" cy="${snap4(cy)}" r="${nd.w / 2 - 2}" fill="${fill}" stroke="${st}" stroke-width="${nd.kind === 'end' ? 5 : 2}"/>`); continue; }
     const r = nd.w / 2;
     out.push(`<path d="M${snap4(cx)},${snap4(nd.y)} L${snap4(nd.x + nd.w)},${snap4(cy)} L${snap4(cx)},${snap4(nd.y + nd.h)} L${snap4(nd.x)},${snap4(cy)} z" fill="${fill}" stroke="${st}" stroke-width="2"/>`);
-    const m = r * 0.42;
-    if (nd.kind === 'xor') out.push(`<path d="M${snap4(cx - m)},${snap4(cy - m)} L${snap4(cx + m)},${snap4(cy + m)} M${snap4(cx + m)},${snap4(cy - m)} L${snap4(cx - m)},${snap4(cy + m)}" fill="none" stroke="${st}" stroke-width="3"/>`);
-    else if (nd.kind === 'and') out.push(`<path d="M${snap4(cx - m * 1.15)},${snap4(cy)} H${snap4(cx + m * 1.15)} M${snap4(cx)},${snap4(cy - m * 1.15)} V${snap4(cy + m * 1.15)}" fill="none" stroke="${st}" stroke-width="3"/>`);
-    else out.push(`<circle cx="${snap4(cx)}" cy="${snap4(cy)}" r="${snap4(m * 1.2)}" fill="none" stroke="${st}" stroke-width="3"/>`);
+    const m = r * 0.42, mark = !b.dim && isSolidTone(nd.tone) ? colorOf(toneStyle(tones, nd.tone).text, day) : st; // the gateway's mark: white on a solid fill
+    if (nd.kind === 'xor') out.push(`<path d="M${snap4(cx - m)},${snap4(cy - m)} L${snap4(cx + m)},${snap4(cy + m)} M${snap4(cx + m)},${snap4(cy - m)} L${snap4(cx - m)},${snap4(cy + m)}" fill="none" stroke="${mark}" stroke-width="3"/>`);
+    else if (nd.kind === 'and') out.push(`<path d="M${snap4(cx - m * 1.15)},${snap4(cy)} H${snap4(cx + m * 1.15)} M${snap4(cx)},${snap4(cy - m * 1.15)} V${snap4(cy + m * 1.15)}" fill="none" stroke="${mark}" stroke-width="3"/>`);
+    else out.push(`<circle cx="${snap4(cx)}" cy="${snap4(cy)}" r="${snap4(m * 1.2)}" fill="none" stroke="${mark}" stroke-width="3"/>`);
   }
   for (const t of b.texts) {
     const n = b.nodes.find(r => r.kind === 'task' && t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h);
-    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : t.anchor === 'end' ? ' text-anchor="end"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : t.muted ? (n && toneStyle(tones, n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted) : colorOf(toneStyle(tones, n?.tone).text, day)}">${emojiSpan(t.text)}</text>`);
+    out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : t.anchor === 'end' ? ' text-anchor="end"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : n && isSolidTone(n.tone) ? colorOf(toneStyle(tones, n.tone).text, day) : t.muted ? (n && toneStyle(tones, n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted) : colorOf(toneStyle(tones, n?.tone).text, day)}">${emojiSpan(t.text)}</text>`);
   }
   for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : ic.tone ? textColorOf(tones, ic.tone, day) : colorOf(toneStyle(tones, must(b.nodes[ic.node]).tone).text, day), dim: b.dim, labelled: true}));
   for (const l of b.labels) {

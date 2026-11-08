@@ -84,7 +84,7 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
   const out: LaidOutClasses = {
     type: 'classes', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + top,
     nodes: [], edges: [], texts: [], labels: [], anchors: [], labelBoxes: [],
-    ...(fitApplied.length ? {fitApplied} : {}),
+    ...(fitApplied.length ? {fitApplied} : {}), ...(band.focused ? {focused: band.focused} : {}),
   };
   const rects = new Map<string, {x: number; y: number; w: number; h: number}>();
   for (const c of band.classes) {

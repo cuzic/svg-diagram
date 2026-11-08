@@ -8,6 +8,7 @@ import type {ScreensBand, StateMatrixOpts, StateMatrixRow, PartRow, StateCellIn,
 import type {ActorIn, AnchorsOf, Declares, FlowCheck, FlowIn, LaneCheck, HandleOf, SeqStepIn, StateRowLoose, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn} from '../strict.ts';
 import {must} from '../must.ts';
 import {connectBand} from './defaults.ts';
+import {graphTones, litLink, resolveFocus} from '../focus.ts';
 import {assertBoxTone, assertFontSize, assertNoReveal, revealOf, scopeOpt, withAnchors, withHandle} from './shared.ts';
 
 // UML-style sequence diagram. actors: [{id, label, tone?}]. steps (in time order):
@@ -73,10 +74,22 @@ export function cell(text: string | number, opts: Omit<TableCellSpec, 'text'> = 
 //
 // Types: at most 6 lanes (rule swimlane-lanes); every step.lane is a declared lane id; step ids are unique; flows'
 // from / to are step ids (optionally ':side[@t]'); chip / labelAt need a label. The step ids are exposed to add().
+/** focus on a swimlane: the steps' tones (solid / accent / muted) and the flows' (lit: accent, the rest muted). A flow end may be 'id:side@t'. */
+function focusSwimlane(steps: SwimlaneStep[], opts: SwimlaneOpts): {steps: SwimlaneStep[]; opts: SwimlaneOpts} {
+  const ids = steps.map(s => s.id), hit = resolveFocus(must(opts.focus), ids, 'swimlane()');
+  const at = (end: string): number => ids.indexOf(must(end.split(':')[0]));
+  const flows = opts.flows ?? [];
+  const tones = graphTones(ids.length, flows.map(f => [at(f.from), at(f.to)] as const), hit);
+  return {
+    steps: steps.map((s, i) => ({...s, tone: must(tones[i])})),
+    opts: {...opts, flows: flows.map(f => ({...f, tone: litLink(at(f.from), at(f.to), hit) ? 'accent' as const : 'muted' as const}))},
+  };
+}
 export function swimlane<
   const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [], const Id extends string = never,
 >(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows' | 'id'> & {id?: Id; flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S> | Id> | ConnectBand)[] & AnchorsOf<StepIds<S> | Id>;
-export function swimlane(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
+export function swimlane(lanesIn: SwimlaneLane[], stepsIn: SwimlaneStep[], optsIn: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
+  const {steps, opts} = optsIn.focus === undefined ? {steps: stepsIn, opts: optsIn} : focusSwimlane(stepsIn, optsIn);
   const lanes = opts.laneOrder === undefined ? lanesIn : orderLanes(lanesIn, steps, opts);
   for (const l of lanes) assertBoxTone(l.tone, `swimlane() lane "${l.id}"`);
   let boundaries: {after: string; label?: string}[] | undefined;

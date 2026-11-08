@@ -159,7 +159,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   }
   const indexOf = new Map(items.map((n, i) => [must(key.get(n)), i]));
   const funnels = items.some(n => n.from !== undefined);
-  for (const e of tree.edges) out.edges.push({points: e.points.map(p => ({x: p.x + dx, y: p.y + dy})), ...(e.curve ? {curve: e.curve} : {}), ...(e.bold ? {bold: true} : {}), ...(funnels && indexOf.has(e.to) ? {child: must(indexOf.get(e.to))} : {})});
+  for (const e of tree.edges) out.edges.push({points: e.points.map(p => ({x: p.x + dx, y: p.y + dy})), ...(e.curve ? {curve: e.curve} : {}), ...(e.bold ? {bold: true} : {}), ...(band.focused && indexOf.has(e.to) && items[must(indexOf.get(e.to))]?.tone !== 'muted' ? {lit: true as const} : {}), ...(funnels && indexOf.has(e.to) ? {child: must(indexOf.get(e.to))} : {})});
   if (tree.braces?.length) out.braces = tree.braces.map(b => ({...b, x: b.x + dx, tipX: b.tipX + dx, y1: b.y1 + dy, y2: b.y2 + dy, ymid: b.ymid + dy}));
   return out;
 }

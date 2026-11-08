@@ -166,8 +166,8 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 | timeline({unit, from, to, lanes, events, spans}) | **数値の軸**（`unit: 'ms'`、`from: 0`、`to: 700`）の時間軸。レーン・イベント（点と名前と値）・区間（棒、`dim: true` なら寸法線で長さを自動で書く）。下の「数値の時間軸」 |
 | steps(items, {numbered, highlight, highlightTone, arrows, id}) | 日付のない「順序だけの出来事」。番号バッジ・アイコン・タグ・本文つきの箱を矢印でつなぎ、1つだけ強調する。中身は普通の `row()`（`id#n` で `connect()`・`bracket()` の端点になる）。下の「順序だけの出来事」 |
 | bracket(from, to, {label, side, tone}) / callout(target, {text, side}) | 注釈用のコネクタ。`bracket` は 2 つの箱にまたがる括弧、`callout` は箱を指す吹き出し。下の「注釈のコネクタ」 |
-| tree(root, {dir, maxNodeW, id}) | 組織図・階層図。配置は自動（親は子の中央、同じ階層は揃う）。節は `{label, sub?, id?, tone?, children?}`。`id` を付けた節は `connect()` の端点になる（`t.anchors.<id>` でも取れる）。詳細は下の「組織図（`tree`）」。**ノードに band を使う**: `{label, band: chevron([...]), w: 600, id?, children?}` で、そのノードが任意の band（矢羽根・swimlane の `[0]`・table・box など）になる。`w`（40 以上）は必須で、`sub` / `tone` は書けない。band の中の id も `connect()` の端点になる。木は band の矩形の辺をつなぐ（`examples/tree-band-nodes.ts`、ADR 0049。`mindmap()` も同じ）。子に `from: 親の band の中の id` を書くと、その部品の辺の両端から子の辺の両端へ、漏斗状に線を引く（tree の `down` と mindmap の `down` / `up` / `org` だけ。矢羽根は矢じりの手前の角から。`examples/tree-band-funnel.ts`）。`edges: false` は木の枝の線を引かない（`connect()` を自分で引くとき。fishbone / timeline の背骨は残る。`from` とは併用不可） |
-| mindmap(root, {layout, edges, sides, maxNodeW, id}) | マインドマップ。節は `tree()` と同じ。`layout` で形を選ぶ: `radial`（既定。中央から左右へ）/ `right`・`left`（片側。ロジックチャート）/ `down`・`up`（ツリー）/ `org`（組織図型）/ `list`（リスト・アウトライン型）/ `brace`（ブレース型）/ `fishbone`（特性要因図）/ `timeline`（タイムライン型）。`edges` で枝を `elbow`（既定）・`curve`・`straight` に。`sides: {枝の id: 'left'｜'right'}` は `radial` のとき、ルートの子を左右に固定する。下の「組織図（`tree`）」 |
+| tree(root, {dir, maxNodeW, id, focus}) | 組織図・階層図。配置は自動（親は子の中央、同じ階層は揃う）。節は `{label, sub?, id?, tone?, children?}`。`id` を付けた節は `connect()` の端点になる（`t.anchors.<id>` でも取れる）。詳細は下の「組織図（`tree`）」。**ノードに band を使う**: `{label, band: chevron([...]), w: 600, id?, children?}` で、そのノードが任意の band（矢羽根・swimlane の `[0]`・table・box など）になる。`w`（40 以上）は必須で、`sub` / `tone` は書けない。band の中の id も `connect()` の端点になる。木は band の矩形の辺をつなぐ（`examples/tree-band-nodes.ts`、ADR 0049。`mindmap()` も同じ）。子に `from: 親の band の中の id` を書くと、その部品の辺の両端から子の辺の両端へ、漏斗状に線を引く（tree の `down` と mindmap の `down` / `up` / `org` だけ。矢羽根は矢じりの手前の角から。`examples/tree-band-funnel.ts`）。`edges: false` は木の枝の線を引かない（`connect()` を自分で引くとき。fishbone / timeline の背骨は残る。`from` とは併用不可） |
+| mindmap(root, {layout, edges, sides, maxNodeW, id, focus}) | マインドマップ。節は `tree()` と同じ。`focus: 節の id`（配列も可）で「今ここ」を示す（下の「図の中の「今ここ」」）。`layout` で形を選ぶ: `radial`（既定。中央から左右へ）/ `right`・`left`（片側。ロジックチャート）/ `down`・`up`（ツリー）/ `org`（組織図型）/ `list`（リスト・アウトライン型）/ `brace`（ブレース型）/ `fishbone`（特性要因図）/ `timeline`（タイムライン型）。`edges` で枝を `elbow`（既定）・`curve`・`straight` に。`sides: {枝の id: 'left'｜'right'}` は `radial` のとき、ルートの子を左右に固定する。下の「組織図（`tree`）」 |
 | stateDiagram(states, transitions, {initial, dir, maxNodeW, id}) | 状態遷移図。状態 `{id, label, sub?, tone?, final?}` と遷移 `{from, to, label?, line?}` を書くだけで、層に分けて自動配置する。戻る矢印・飛ばす矢印・自己ループも、ほかの状態を避けて引く。状態は `connect()` の端点になる。詳細は下の「状態遷移図（`stateDiagram`）」 |
 | causeTree(nodes, links, {dir, maxNodeW, id}) | TOC（制約理論）の因果の図: 現状ツリー・未来現実ツリー・前提条件ツリー・移行ツリー。実体 `{id, label, role?}` と `{from, to}`（`from` を配列にすると AND）を書くだけで、下が原因・上が結果に自動配置する。詳細は下の「TOC の思考プロセス」 |
 | cloud({a, b, c, d, d2}, {assumptions, conflictLabel, id}) | TOC のクラウド（対立解消図）。共通目的 A・必要条件 B/C・対立する要望 D/D' の 5 つの箱と、前提の番号付き一覧。詳細は下の「TOC の思考プロセス」 |
@@ -939,6 +939,31 @@ diagram({theme: 'blue', spotlight: {ids: ['main', 'choices#2'], edges: 'touching
   group([box({id: 'main', title: '今回の判断'})], {id: 'scope'}),
   row([box({title: '候補 A'}), box({title: '候補 B'})], {id: 'choices'}),
 )
+```
+
+### 図の中の「今ここ」（`focus`）と塗りつぶし
+
+`spotlight` は図全体を単位にするので、図の中の 1 つの項目（マインドマップの枝、状態、手順）だけを残すことはできない。図の中は `focus` を使う（ADR 0051）。項目を持つ図はどれも同じ書き方: `focus: 項目の id`（配列も可。並びの図では 1 始まりの番号も）。
+
+- **規則は 1 つ**: `focus` の項目は塗りつぶし（`solid`、白い文字）、関係する項目は `accent`、ほかは `muted`。項目に書いた `tone` は置き換わる。渡した配列や木は書き換えない（同じデータを使い回して、章ごとに `focus` だけ変えられる）。
+- **関係する項目は図の形で決まる**:
+
+| 形 | 図 | 関係する項目と線 |
+|---|---|---|
+| 木 | `tree` / `mindmap` | focus の下の節と、ルートまでの道の節。その線を強調色で描く |
+| 網の目 | `stateDiagram` / `flowchart` / `causeTree` / `pdpc` / `classDiagram` / `bpmn` / `swimlane` | 矢印 1 本でつながる項目（向きは問わない）。focus に触れる矢印は強調色、ほかは灰色 |
+| 並び | `chevron` / `funnel` / `cycle` / `steps` / `emblem` / `valueChain` | なし（focus だけが浮く）。番号でも指せる（`valueChain` は支援活動から数える） |
+
+- 知らない id・範囲外の番号・空の配列は、指せる id の一覧を付けて止まる。`chevron` の `current` / `highlight`、`steps` の `highlight` は従来どおり使え（その項目を強調色にするだけの軽い強調）、`focus` と同時には書けない。
+- **塗りつぶしの色を直接書く**: 上の図の項目は `tone: 'solid' | 'solid-danger'` を受ける（白い文字。原因の木の二重枠・クラス図の区切り線・BPMN のゲートウェイの記号も白）。レーン・表・ベン図・同心円は対象外。
+- `connect` の線に `tone: 'accent' | 'muted' | 'danger'` を付けると、矢じりも同じ色になる（`swimlane` の focus もこれを使う）。
+- 例は `examples/mindmap-focus.ts`、`examples/focus.ts`。
+
+```ts
+const map = {label: '研修', children: [{label: '6つの条件', id: 'dq', children: [{label: '問い', id: 'q'}, {label: '選択肢', id: 'opt'}]}, /* ... */]};
+mindmap(map, {focus: 'opt'})                       // 章「選択肢」の頭（枝の道が強調色）
+stateDiagram(states, transitions, {focus: 'mgr'})  // 「課長待ち」と、その前後の状態・矢印
+chevron(steps, {focus: 2})                         // 2 番目の工程だけを塗る
 ```
 
 ### 主役・次点・その他の 3 段階（`solid`）

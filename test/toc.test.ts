@@ -236,7 +236,8 @@ test('causeTree() rejects bad input', async () => {
   assert.throws(() => causeTree([N('a')], [], {dir: 'sideways' as never}), /dir must be/);
   assert.throws(() => causeTree([N('a')], [{from: 'a', to: 'a', line: 'wavy' as never}]), /has line/);
   assert.throws(() => causeTree([N('a', {role: 'villain'})], []), /has role villain/);
-  assert.throws(() => causeTree([N('a', {tone: 'solid'})], []), /has tone solid/);
+  assert.doesNotThrow(() => causeTree([N('a', {tone: 'solid'})], [])); // ADR 0051: a node may be filled (white text)
+  assert.throws(() => causeTree([N('a', {tone: 'loud' as never})], []), /has tone loud/);
   const bad = (nodes: object[], links: object[]) => checkDiagram(diagram({theme: 'blue'}).add(causeTree(nodes as never, links as never)));
   await assert.rejects(() => bad([N('a'), N('a')], []), /duplicate node id "a"/);
   await assert.rejects(() => bad([N('a')], [{from: 'a', to: 'zz'}]), /unknown node "zz"/);

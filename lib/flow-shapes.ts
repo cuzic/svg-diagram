@@ -10,28 +10,29 @@ import {resolveLoopBacks} from './loop-back.ts';
 import type {LoopBack} from './types/containers.ts';
 import {assertScope} from './scope-name.ts';
 import {textWidth} from './atoms.ts';
-import {TONES} from './tokens.ts';
+import {TONES, isSolidTone} from './tokens.ts';
+import {resolveFocus, sequenceTones} from './focus.ts';
 import {EMBLEM_FLEX, EMBLEM_SHAPES, EMBLEM_TEXT, emblemHeight, emblemMaxHeight, emblemOutline} from './emblem-shapes.ts';
 import type {EmblemShape} from './emblem-shapes.ts';
 import {wrapText} from './wrap.ts';
 import {katakanaWidth} from './tree.ts';
-import type {Anchor, Dimmed, FontFamily, Rect, RevealOpts, ScopeOpts, Roles, TextTone, WidthOf, WrapMode} from './types/core.ts';
-import type {BoxTone} from './types/text-bands.ts';
+import type {Anchor, Dimmed, EmphasisTone, Focus, FocusOpts, FontFamily, Rect, RevealOpts, ScopeOpts, Roles, TextTone, WidthOf, WrapMode} from './types/core.ts';
 
 import {must} from './must.ts';
-export interface FlowStep {label: string; sub?: string; id?: string; tone?: BoxTone}
-export interface ChevronOpts extends RevealOpts, ScopeOpts {/** The arrows back to earlier steps, drawn under a horizontal chevron: `{from: 4, to: 2, label}` (1-based numbers or item ids). Several loops must nest. */ loopBack?: LoopBack | readonly LoopBack[]; id?: string; direction?: 'horizontal' | 'vertical'; first?: 'pentagon' | 'chevron'; gap?: number; current?: number; highlight?: number; width?: number}
-export interface FunnelStage {label: string; value?: number; id?: string; tone?: BoxTone}
-export interface FunnelOpts extends RevealOpts, ScopeOpts {id?: string; scale?: 'value' | 'even'; showRate?: boolean; width?: number}
-export interface CycleOpts extends RevealOpts, ScopeOpts {id?: string; centre?: string; direction?: 'cw' | 'ccw'; width?: number}
+/** `tone` 'solid' / 'solid-danger' fill the step (white text). */
+export interface FlowStep {label: string; sub?: string; id?: string; tone?: EmphasisTone}
+export interface ChevronOpts extends RevealOpts, ScopeOpts, FocusOpts {/** The arrows back to earlier steps, drawn under a horizontal chevron: `{from: 4, to: 2, label}` (1-based numbers or item ids). Several loops must nest. */ loopBack?: LoopBack | readonly LoopBack[]; id?: string; direction?: 'horizontal' | 'vertical'; first?: 'pentagon' | 'chevron'; gap?: number; current?: number; highlight?: number; width?: number}
+export interface FunnelStage {label: string; value?: number; id?: string; tone?: EmphasisTone}
+export interface FunnelOpts extends RevealOpts, ScopeOpts, FocusOpts {id?: string; scale?: 'value' | 'even'; showRate?: boolean; width?: number}
+export interface CycleOpts extends RevealOpts, ScopeOpts, FocusOpts {id?: string; centre?: string; direction?: 'cw' | 'ccw'; width?: number}
 export interface VennSet {name: string; label?: string; id?: string; tone?: TextTone}
 export interface VennOverlap {sets: readonly string[]; label: string}
 export interface VennOpts extends RevealOpts, ScopeOpts {id?: string; overlaps?: readonly VennOverlap[]; centre?: string; universe?: string | boolean; width?: number}
 export interface ConcentricRing {label: string; description?: string; id?: string; tone?: TextTone}
 export type {EmblemShape} from './emblem-shapes.ts';
-export interface EmblemItem {label: string; sub?: string; shape?: EmblemShape; id?: string; tone?: BoxTone}
-export interface EmblemOpts extends RevealOpts, ScopeOpts {id?: string; /** The shape of every item that does not name its own. */ shape?: EmblemShape; gap?: number; /** The least width of a shape (the shapes grow to hold their text, all to the same size). */ minSize?: number; width?: number}
-export interface ValueChainOpts extends RevealOpts, ScopeOpts {id?: string; /** The label of the margin arrow at the right end; `false` leaves the arrow out. Default 'マージン'. */ margin?: string | false; /** The captions over the support bars and the primary chevrons; `false` leaves them out. Default ['支援活動', '主活動']. */ titles?: readonly [support: string, primary: string] | false; width?: number}
+export interface EmblemItem {label: string; sub?: string; shape?: EmblemShape; id?: string; tone?: EmphasisTone}
+export interface EmblemOpts extends RevealOpts, ScopeOpts, FocusOpts {id?: string; /** The shape of every item that does not name its own. */ shape?: EmblemShape; gap?: number; /** The least width of a shape (the shapes grow to hold their text, all to the same size). */ minSize?: number; width?: number}
+export interface ValueChainOpts extends RevealOpts, ScopeOpts, FocusOpts {id?: string; /** The label of the margin arrow at the right end; `false` leaves the arrow out. Default 'マージン'. */ margin?: string | false; /** The captions over the support bars and the primary chevrons; `false` leaves them out. Default ['支援活動', '主活動']. */ titles?: readonly [support: string, primary: string] | false; width?: number}
 export interface ConcentricOpts extends RevealOpts, ScopeOpts {id?: string; order?: 'outer-first' | 'inner-first'; labels?: 'inside' | 'side'; centre?: string; width?: number}
 
 export interface ChevronBand extends ChevronOpts {type: 'chevron'; steps: FlowStep[]; direction: 'horizontal' | 'vertical'; first: 'pentagon' | 'chevron'; gap: number}
@@ -43,19 +44,21 @@ export interface EmblemBand extends EmblemOpts {type: 'emblem'; items: EmblemIte
 export interface ValueChainBand extends ValueChainOpts {type: 'valueChain'; support: FlowStep[]; primary: FlowStep[]; margin: string | false; titles: readonly [string, string] | false}
 export type FlowShapeBand = ChevronBand | FunnelBand | CycleBand | VennBand | ConcentricBand | EmblemBand | ValueChainBand;
 
-export interface FlowText extends Rect {text: string; tx: number; ty: number; size: number; weight: 400 | 700; anchor: 'start' | 'middle' | 'end'; tone: TextTone}
+/** A flow-shape text's colour: a text tone, or 'bg' (white) on a filled (solid) item. */
+export type FlowTextTone = TextTone | 'bg';
+export interface FlowText extends Rect {text: string; tx: number; ty: number; size: number; weight: 400 | 700; anchor: 'start' | 'middle' | 'end'; tone: FlowTextTone}
 export type FlowPrimitive =
-  | ({k: 'polygon'; points: [number, number][]; tone: BoxTone; strong?: boolean; /** the id of the item this is the frame of (ADR 0034: withNodeIds turns it into `dataNode`) */ node?: string; dataNode?: string} & Dimmed)
-  | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string; /** Drawn as a box of this tone (filled, outlined) instead of a tinted ring. */ fill?: BoxTone; node?: string; dataNode?: string} & Dimmed)
+  | ({k: 'polygon'; points: [number, number][]; tone: EmphasisTone; strong?: boolean; /** the id of the item this is the frame of (ADR 0034: withNodeIds turns it into `dataNode`) */ node?: string; dataNode?: string} & Dimmed)
+  | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string; /** Drawn as a box of this tone (filled, outlined) instead of a tinted ring. */ fill?: EmphasisTone; node?: string; dataNode?: string} & Dimmed)
   | ({k: 'rect'; x: number; y: number; w: number; h: number; tone: TextTone} & Dimmed)
-  | ({k: 'path'; d: string; tone: TextTone; arrow?: boolean; thin?: boolean; /** Drawn as a box of this tone (filled, outlined) instead of a line; `box` is the extent of what is drawn. */ fill?: BoxTone; box?: Rect; node?: string; dataNode?: string} & Dimmed);
+  | ({k: 'path'; d: string; tone: TextTone; arrow?: boolean; thin?: boolean; /** Drawn as a box of this tone (filled, outlined) instead of a line; `box` is the extent of what is drawn. */ fill?: EmphasisTone; box?: Rect; node?: string; dataNode?: string} & Dimmed);
 export interface LaidOutFlowShape extends Rect, Dimmed {type: FlowShapeBand['type']; id?: string; reveal?: number; until?: number; primitives: FlowPrimitive[]; texts: FlowText[]; anchors: Anchor[]; labelBoxes: (Rect & {label: string})[]; /** emblem: the bounding box of each shape that has an id (the checks' obstacle, which may be larger than its anchor). */ bounds?: Anchor[]}
 
 // ---------------------------------------------------------------------------------------------------------------------------
 // constructors (validation)
 // ---------------------------------------------------------------------------------------------------------------------------
 
-const BOX_TONES: ReadonlySet<string> = new Set<string>(['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger']);
+const BOX_TONES: ReadonlySet<string> = new Set<string>(['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger', 'solid', 'solid-danger']);
 const TEXT_TONES: ReadonlySet<string> = new Set<string>(['text', 'accent', 'muted', 'danger']);
 
 function common(name: string, xs: readonly {label?: string; id?: string}[], id?: string): void {
@@ -67,6 +70,14 @@ function common(name: string, xs: readonly {label?: string; id?: string}[], id?:
     if (x.id) ids.add(x.id);
   }
 }
+/** focus on a sequence (ADR 0051): a copy of the items, the focused ones 'solid' and the rest 'muted' (by id or 1-based number). */
+function focusItems<T extends {id?: string; tone?: string}>(name: string, items: readonly T[], focus: Focus | undefined): T[] {
+  if (focus === undefined) return [...items];
+  const tones = sequenceTones(items.length, resolveFocus(focus, items.map(x => x.id), `${name}()`, true));
+  return items.map((x, i) => ({...x, tone: must(tones[i])}));
+}
+/** The text tone on a filled (solid) item: white; otherwise the tone given. */
+const onItem = (tone: string | undefined, base: FlowTextTone): FlowTextTone => isSolidTone(tone) ? 'bg' : base;
 function checkTones(name: string, xs: readonly {tone?: string}[], allowed: ReadonlySet<string>): void {
   xs.forEach((x, i) => { if (x.tone && !allowed.has(x.tone)) throw new Error(`${name}(): item ${i + 1} has unknown tone "${x.tone}" (${[...allowed].join(' | ')})`); });
 }
@@ -76,11 +87,13 @@ export function chevronBand(steps: readonly FlowStep[], opts: ChevronOpts = {}):
   assertScope(opts.scope, 'chevron()');
   checkTones('chevron', steps, BOX_TONES);
   const current = opts.current ?? opts.highlight;
+  if (current !== undefined && opts.focus !== undefined) throw new Error('chevron(): current / highlight and focus both mark a step: keep focus (the step filled, the others muted) or current (the step in the accent colour)');
   if (current !== undefined && (!Number.isInteger(current) || current < 0 || current >= steps.length)) throw new Error(`chevron(): current/highlight must be a zero-based step index (0..${steps.length - 1})`);
   if (opts.gap !== undefined && !(opts.gap >= 0)) throw new Error('chevron(): gap must be >= 0');
   if (opts.loopBack !== undefined && (opts.direction ?? 'horizontal') !== 'horizontal') throw new Error("chevron({direction: 'vertical'}): loopBack is for horizontal flows (a vertical chevron has no room under it)");
   const loopBack = opts.loopBack === undefined ? undefined : resolveLoopBacks('chevron()', opts.loopBack, steps.length, steps.map(s => s.id));
-  return {...opts, ...(loopBack ? {loopBack} : {}), type: 'chevron', steps: [...steps], direction: opts.direction ?? 'horizontal', first: opts.first ?? 'pentagon', gap: opts.gap ?? 4};
+  const {focus, ...rest} = opts;
+  return {...rest, ...(loopBack ? {loopBack} : {}), type: 'chevron', steps: focusItems('chevron', steps, focus), direction: opts.direction ?? 'horizontal', first: opts.first ?? 'pentagon', gap: opts.gap ?? 4};
 }
 export function funnelBand(stages: readonly FunnelStage[], opts: FunnelOpts = {}): FunnelBand {
   common('funnel', stages, opts.id);
@@ -89,14 +102,16 @@ export function funnelBand(stages: readonly FunnelStage[], opts: FunnelOpts = {}
   stages.forEach((s, i) => { if (s.value !== undefined && (!Number.isFinite(s.value) || s.value < 0)) throw new Error(`funnel(): stage ${i + 1} value must be a finite number >= 0`); });
   const scale = opts.scale ?? 'even';
   if (scale === 'value' && stages.some(s => s.value === undefined)) throw new Error('funnel(): scale "value" requires a value on every stage');
-  return {...opts, type: 'funnel', stages: [...stages], scale, showRate: opts.showRate ?? false};
+  const {focus, ...rest} = opts;
+  return {...rest, type: 'funnel', stages: focusItems('funnel', stages, focus), scale, showRate: opts.showRate ?? false};
 }
 export function cycleBand(steps: readonly FlowStep[], opts: CycleOpts = {}): CycleBand {
   if (steps.length < 3 || steps.length > 8) throw new Error(`cycle(): needs 3..8 steps (got ${steps.length})`);
   common('cycle', steps, opts.id);
   assertScope(opts.scope, 'cycle()');
   checkTones('cycle', steps, BOX_TONES);
-  return {...opts, type: 'cycle', steps: [...steps], direction: opts.direction ?? 'cw'};
+  const {focus, ...rest} = opts;
+  return {...rest, type: 'cycle', steps: focusItems('cycle', steps, focus), direction: opts.direction ?? 'cw'};
 }
 export function vennBand(sets: readonly VennSet[], opts: VennOpts = {}): VennBand {
   if (sets.length < 2 || sets.length > 3) throw new Error(`venn(): needs 2 or 3 sets (got ${sets.length})`);
@@ -136,7 +151,8 @@ export function emblemBand(items: readonly EmblemItem[], opts: EmblemOpts = {}):
   for (const k of [opts.shape, ...items.map(i => i.shape)]) if (k !== undefined && !EMBLEM_SHAPE_SET.has(k)) throw new Error(`emblem(): unknown shape "${String(k)}" (${EMBLEM_SHAPES.join(' | ')})`);
   if (opts.gap !== undefined && !(opts.gap >= 0)) throw new Error('emblem(): gap must be >= 0');
   if (opts.minSize !== undefined && !(opts.minSize >= 64 && opts.minSize <= EMBLEM_MAX)) throw new Error(`emblem(): minSize must be 64..${EMBLEM_MAX}`);
-  return {...opts, type: 'emblem', items: [...items], shape: opts.shape ?? 'circle', gap: opts.gap ?? 16};
+  const {focus, ...rest} = opts;
+  return {...rest, type: 'emblem', items: focusItems('emblem', items, focus), shape: opts.shape ?? 'circle', gap: opts.gap ?? 16};
 }
 
 /** Porter's value chain (価値連鎖): support activities as bars over the primary activities as chevrons, and the margin as an arrow at the right. */
@@ -150,7 +166,9 @@ export function valueChainBand(parts: {support?: readonly (string | FlowStep)[];
   assertScope(opts.scope, 'valueChain()');
   checkTones('valueChain', [...support, ...primary], BOX_TONES);
   if (opts.margin === '') throw new Error('valueChain(): margin must be a non-empty label, or false to leave the arrow out');
-  return {...opts, type: 'valueChain', support, primary, margin: opts.margin ?? 'マージン', titles: opts.titles ?? ['支援活動', '主活動']};
+  // focus counts the support activities first, then the primary ones (as they are written)
+  const {focus, ...rest} = opts, all = focusItems('valueChain', [...support, ...primary], focus);
+  return {...rest, type: 'valueChain', support: all.slice(0, support.length), primary: all.slice(support.length), margin: opts.margin ?? 'マージン', titles: opts.titles ?? ['支援活動', '主活動']};
 }
 
 /** The item an item's frame names (ADR 0034): the id, when it has one. */
@@ -221,7 +239,7 @@ class Texts {
   }
   width(text: string, weight: 400 | 700 = 700, size = this.roles.note): number { return textWidth(this.widthOf, text, size, weight); }
   /** Places a wrapped block with its top at `top`; `x` is its centre (middle), left edge (start) or right edge (end). */
-  place(block: ReturnType<Texts['wrap']>, x: number, top: number, tone: TextTone = 'text', anchor: FlowText['anchor'] = 'middle'): void {
+  place(block: ReturnType<Texts['wrap']>, x: number, top: number, tone: FlowTextTone = 'text', anchor: FlowText['anchor'] = 'middle'): void {
     const {size, weight} = block;
     block.lines.forEach((line, i) => {
       const tw = textWidth(this.widthOf, line, size, weight), ty = top + i * size * LINE + size * ((LINE - 1.2) / 2 + 1); // the glyph box (1.2 sizes) centred in its line
@@ -251,8 +269,8 @@ function layoutChevron(b: ChevronBand, out: LaidOutFlowShape, t: Texts, anchor: 
     out.primitives.push({k: 'polygon', points, tone: current === i ? 'accent' : s.tone ?? 'plain', ...(current === i ? {strong: true} : {}), ...nodeOf(s)});
     anchor(s.id, {x: xx, y: yy, w: cellW, h: cellH});
     const k = must(blocks[i]), top = yy + (cellH - (vertical ? tip : 0) - textH(k)) / 2;
-    t.place(k.label, xx + cellW / 2, top);
-    if (k.sub) t.place(k.sub, xx + cellW / 2, top + k.label.h, 'muted');
+    t.place(k.label, xx + cellW / 2, top, onItem(s.tone, 'text'));
+    if (k.sub) t.place(k.sub, xx + cellW / 2, top + k.label.h, onItem(s.tone, 'muted'));
   });
 }
 
@@ -276,8 +294,8 @@ function layoutValueChain(b: ValueChainBand, out: LaidOutFlowShape, t: Texts, an
       const h = Math.max(36, label.h + (sub?.h ?? 0) + 16), textTop = y + (h - label.h - (sub?.h ?? 0)) / 2;
       out.primitives.push({k: 'polygon', points: [[out.x, y], [out.x + mainW, y], [out.x + mainW, y + h], [out.x, y + h]], tone: s.tone ?? 'muted', ...nodeOf(s)});
       anchor(s.id, {x: out.x, y, w: mainW, h});
-      t.place(label, out.x + mainW / 2, textTop);
-      if (sub) t.place(sub, out.x + mainW / 2, textTop + label.h, 'muted');
+      t.place(label, out.x + mainW / 2, textTop, onItem(s.tone, 'text'));
+      if (sub) t.place(sub, out.x + mainW / 2, textTop + label.h, onItem(s.tone, 'muted'));
       y += h + gap;
     }
     y += 8 - gap;
@@ -294,8 +312,8 @@ function layoutValueChain(b: ValueChainBand, out: LaidOutFlowShape, t: Texts, an
     out.primitives.push({k: 'polygon', points: [[xx, yy], [xx + cellW - tip, yy], [xx + cellW, yy + cellH / 2], [xx + cellW - tip, yy + cellH], [xx, yy + cellH], ...notch], tone: s.tone ?? 'plain', ...nodeOf(s)});
     anchor(s.id, {x: xx, y: yy, w: cellW, h: cellH});
     const k = must(blocks[i]), textTop = yy + (cellH - textH(k)) / 2;
-    t.place(k.label, xx + cellW / 2, textTop);
-    if (k.sub) t.place(k.sub, xx + cellW / 2, textTop + k.label.h, 'muted');
+    t.place(k.label, xx + cellW / 2, textTop, onItem(s.tone, 'text'));
+    if (k.sub) t.place(k.sub, xx + cellW / 2, textTop + k.label.h, onItem(s.tone, 'muted'));
   });
   const bottom = y + cellH;
   // the margin: a tall arrow over the whole height, pointing right
@@ -331,7 +349,7 @@ function layoutFunnel(b: FunnelBand, out: LaidOutFlowShape, t: Texts, anchor: An
     anchor(s.id, {x: cx - Math.max(a, z) / 2, y: yy, w: Math.max(a, z), h: rowH - 4});
     const blockH = p.label.h + (p.rate && !p.rateLeft ? p.rate.h : 0), top = yy + (rowH - 4 - blockH) / 2;
     const lx = p.beside ? p.sideLeft : cx, la = p.beside ? 'start' : 'middle';
-    t.place(p.label, lx, top, 'text', la);
+    t.place(p.label, lx, top, p.beside ? 'text' : onItem(s.tone, 'text'), la);
     if (p.rate) {
       if (p.rateLeft) t.place(p.rate, cx - Math.max(a, z) / 2 - 14, yy + (rowH - 4 - lh) / 2, 'muted', 'end');
       else t.place(p.rate, lx, top + p.label.h, 'muted', la);
@@ -367,11 +385,12 @@ function layoutCycle(b: CycleBand, out: LaidOutFlowShape, t: Texts, anchor: Anch
   b.steps.forEach((s, i) => {
     const [ax, ay] = at(angle(i)), nx = g4(ax), ny = g4(ay);
     const tone: TextTone = s.tone === 'danger' || s.tone === 'removed' ? 'danger' : s.tone === 'muted' ? 'muted' : 'accent';
-    out.primitives.push({k: 'circle', cx: nx, cy: ny, r: nr, tone, ...nodeOf(s)});
+    // a solid step is a filled circle (white text); the others keep the tinted ring
+    out.primitives.push({k: 'circle', cx: nx, cy: ny, r: nr, tone, ...(isSolidTone(s.tone) ? {fill: s.tone} : {}), ...nodeOf(s)});
     anchor(s.id, {x: nx - nr, y: ny - nr, w: 2 * nr, h: 2 * nr});
     const label = t.wrap(s.label, nr * 1.5), sub = s.sub ? t.wrap(s.sub, nr * 1.5, 400) : undefined, top = ny - (label.h + (sub?.h ?? 0)) / 2;
-    t.place(label, nx, top);
-    if (sub) t.place(sub, nx, top + label.h, 'muted');
+    t.place(label, nx, top, onItem(s.tone, 'text'));
+    if (sub) t.place(sub, nx, top + label.h, onItem(s.tone, 'muted'));
   });
   if (b.centre) { const c = t.wrap(b.centre, 1.5 * (R - nr), 700, roles.label); t.place(c, cx, cy - c.h / 2); }
 }
@@ -475,7 +494,7 @@ function splitsWord(text: string, lines: readonly string[]): boolean {
 }
 
 /** The label is written in the tone's own text colour, as a box does (accent / muted / danger; `new` and `changed` keep the normal text, so `accent` and `new` differ by it). */
-const labelTone = (tone: BoxTone): TextTone => { const t = TONES[tone].text; return t === 'accent' || t === 'muted' || t === 'danger' ? t : 'text'; };
+const labelTone = (tone: EmphasisTone): TextTone => { const t = TONES[tone].text; return t === 'accent' || t === 'muted' || t === 'danger' ? t : 'text'; };
 
 function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
   const shapeOf = (i: EmblemItem): EmblemShape => i.shape ?? b.shape;
@@ -516,7 +535,7 @@ function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: An
     anchor(item.id, o.anchor);
     if (item.id) (out.bounds ??= []).push({id: item.id, x: left, y: top, w: d, h: o.h});
     const blockH = k.label.h + (k.sub?.h ?? 0), cx = left + d / 2, cy = top + o.textCy;
-    t.place(k.label, cx, cy - blockH / 2, labelTone(tone));
-    if (k.sub) t.place(k.sub, cx, cy - blockH / 2 + k.label.h, 'muted');
+    t.place(k.label, cx, cy - blockH / 2, onItem(tone, labelTone(tone)));
+    if (k.sub) t.place(k.sub, cx, cy - blockH / 2 + k.label.h, onItem(tone, 'muted'));
   });
 }

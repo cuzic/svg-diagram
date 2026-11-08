@@ -42,6 +42,15 @@ export type TextTone = 'text' | 'accent' | 'muted' | 'danger';
  * carry dark text that would sit on the fill.
  */
 export type EmphasisTone = BoxTone | 'solid' | 'solid-danger';
+/** "You are here" inside one figure (ADR 0051): an item's id, or (in a sequence: chevron, funnel, cycle, steps, emblem, valueChain) its 1-based number; or a list of them. */
+export type Focus = string | number | readonly (string | number)[];
+/** The `focus` option of a figure that has items. */
+export interface FocusOpts {
+  /** "You are here": the focused items are filled ('solid'), the items related to them 'accent' and the rest 'muted'; the tones written on the items are replaced.
+   *  Related: in a tree / mindmap the nodes under a focused node and the path to the root; in a graph the items one arrow away (those arrows are lit);
+   *  in a sequence nothing. diagram({spotlight}) is the one for whole figures. */
+  focus?: Focus;
+}
 /** Tone of the little tag pill on a box ('accent' default). */
 export type TagTone = 'accent' | 'muted' | 'danger';
 export type LineStyle = 'solid' | 'dashed' | 'dotted' | 'double';

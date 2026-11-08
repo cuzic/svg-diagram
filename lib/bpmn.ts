@@ -122,6 +122,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   const out: LaidOutBpmn = {
     type: 'bpmn', ...(band.fit === 'shrink' ? narrowField(band.nodes.filter(n => kindOf.get(n.id) === 'task').map(n => must(must(meas.get(n.id)).lines).label)) : {}), id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w: width, h: laneH.reduce((a, b) => a + b, 0),
     lanes: [], nodes: [], icons: [], edges: [], texts: [], labels: [], anchors: [], labelBoxes: [],
+    ...(band.focused ? {focused: band.focused} : {}),
   };
   band.lanes.forEach((l, i) => {
     out.lanes.push({x, y: must(laneTop[i]), w: width, h: must(laneH[i]), labelW: LABEL_COL, tone: l.tone ?? 'plain'});

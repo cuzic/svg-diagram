@@ -13,6 +13,9 @@ import type {Band} from '../types/index.ts';
 import type {CaptionBand} from '../types/text-bands.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
 import {treeItems} from '../tree.ts';
+import {graphTones, litLink, resolveFocus} from '../focus.ts';
+import type {Focus} from '../types/core.ts';
+import {must} from '../must.ts';
 import {grid, row} from './containers.ts';
 import {assertBoxTone, revealOf, scopeOpt, withAnchors, withHandle} from './shared.ts';
 import type {TreeIds} from './shared.ts';
@@ -24,8 +27,30 @@ import {box, caption, group} from './text-bands.ts';
  * band (ADR 0049): a chevron(), a swimlane(), a table() ..., laid out at the width `w`, the tree's lines joining its edges (its own ids are anchors too).
  *   tree({label: '社長', sub: '代表取締役', children: [{label: '開発部', id: 'dev', children: [...]}, {label: '営業部'}]}, {dir: 'down'})
  */
+const TREE_TONES: readonly string[] = ['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger', 'solid', 'solid-danger'];
+/**
+ * "You are here" (TreeOpts.focus): a copy of the tree with every node's tone decided by where it stands to the focused nodes.
+ * focused: 'solid'; under a focused node, or on the path from one up to the root: 'accent'; anywhere else: 'muted'.
+ * A band node keeps its own look (it takes no tone). The input tree is not changed.
+ */
+function focusTree(root: TreeItem, focus: string | readonly string[], who: string): TreeItem {
+  const items = treeItems(root);
+  const hit = resolveFocus(focus, items.map(n => n.id), who);
+  const want = new Set([...hit].map(i => items[i]));
+  // returns the copy, and whether the subtree holds a focused node (its root then lies on a lit path)
+  const walk = (n: TreeItem, under: boolean): [TreeItem, boolean] => {
+    const self = want.has(n);
+    const kids = (n.children ?? []).map(c => walk(c, under || self));
+    const holds = self || kids.some(([, h]) => h);
+    const tone = self ? 'solid' as const : under || holds ? 'accent' as const : 'muted' as const;
+    const {tone: _written, children: _c, ...rest} = n;
+    return [{...rest, ...(n.band ? {} : {tone}), ...(n.children ? {children: kids.map(([c]) => c)} : {})}, holds];
+  };
+  return walk(root, false)[0];
+}
 export function tree<const R extends TreeItem, const Id extends string = never>(root: R, opts?: TreeOpts & {id?: Id}): TreeBand & Declares<Id | TreeIds<R>> & HandleOf<Id> & AnchorsOf<TreeIds<R>>;
 export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
+  if (opts.focus !== undefined) root = focusTree(root, opts.focus, 'tree()');
   if (!root || typeof root !== 'object' || typeof root.label !== 'string') throw new Error('tree(root) needs a root node: {label: "...", children: [...]}');
   if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right' && opts.dir !== 'auto') throw new Error(`tree(): dir must be 'down', 'right' or 'auto' (got ${String(opts.dir)})`);
   if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`tree(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
@@ -39,7 +64,7 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
       if (!parent.band) throw new Error(`tree(): "${n.label}": from names a part inside the parent's band, but "${parent.label}" is not a band node`);
       if (opts.edges === false) throw new Error(`tree(): "${n.label}": from draws a line, and edges: false draws none`);
     }
-    if (n.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(n.tone)) throw new Error(`tree(): "${n.label}" has tone ${String(n.tone)}`);
+    if (n.tone !== undefined && !TREE_TONES.includes(n.tone)) throw new Error(`tree(): "${n.label}" has tone ${String(n.tone)} (use ${TREE_TONES.join(', ')})`);
     if (n.band !== undefined) {
       if (Array.isArray(n.band)) throw new Error(`tree(): "${n.label}": band got a list: swimlane() returns the band and its flows, so write swimlane(...)[0]`);
       if (typeof n.band !== 'object' || n.band === null || typeof (n.band as {type?: unknown}).type !== 'string') throw new Error(`tree(): "${n.label}": band must be a band (chevron(...), swimlane(...)[0], table(...) ...)`);
@@ -53,7 +78,7 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
     for (const c of n.children ?? []) walk(c, n);
   };
   walk(root);
-  const band: TreeBand = {type: 'tree', root, ...(opts.edges === undefined ? {} : {edges: opts.edges}), ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'tree()'), ...revealOf(opts)};
+  const band: TreeBand = {type: 'tree', root, ...(opts.focus === undefined ? {} : {focused: true as const}), ...(opts.edges === undefined ? {} : {edges: opts.edges}), ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'tree()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), ids);
 }
 type BpmnIds<N extends readonly BpmnNode[]> = Extract<N[number]['id'], string>;
@@ -69,15 +94,17 @@ export function bpmn(lanes: readonly BpmnLane[], nodes: readonly BpmnNode[], flo
   if (!Array.isArray(lanes) || lanes.length === 0) throw new Error('bpmn(lanes, nodes, flows) needs at least one lane');
   if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('bpmn(lanes, nodes, flows) needs at least one node');
   for (const l of lanes) if (l.tone !== undefined) assertBoxTone(l.tone, `bpmn() lane "${l.id}"`);
-  for (const n of nodes) if (n.tone !== undefined) {
-    assertBoxTone(n.tone, `bpmn() node "${n.id}"`);
-    if (!['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(n.tone)) throw new Error(`bpmn(): node "${n.id}" has tone ${String(n.tone)}`);
-  }
+  for (const n of nodes) if (n.tone !== undefined && !TREE_TONES.includes(n.tone)) throw new Error(`bpmn(): node "${n.id}" has tone ${String(n.tone)} (use ${TREE_TONES.join(', ')})`);
   // an icon is resolved here (the shell) and carried on the node, so layout and emit stay free of I/O
   const placedNodes = nodes.map(n => n.icon === undefined ? n : {...n, iconGlyph: resolveIcon(n.icon, `bpmn() task "${n.id}" icon`)});
   for (const f of flows) if (f.line !== undefined && f.line !== 'solid' && f.line !== 'dashed') throw new Error(`bpmn(): flow ${f.from} -> ${f.to} has line ${String(f.line)}`);
   if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`bpmn(): fit must be 'shrink' (got ${String(opts.fit)})`);
-  const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: placedNodes, flows: [...flows], ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.fit === undefined ? {} : {fit: opts.fit}), ...scopeOpt(opts, 'bpmn()'), ...revealOf(opts)};
+  const focused = opts.focus === undefined ? undefined : resolveFocus(opts.focus, nodes.map(n => n.id), 'bpmn()');
+  const toned = focused === undefined ? placedNodes : (() => {
+    const ids = nodes.map(n => n.id), tones = graphTones(ids.length, flows.map(f => [ids.indexOf(f.from), ids.indexOf(f.to)] as const), focused);
+    return placedNodes.map((n, i) => ({...n, tone: must(tones[i])}));
+  })();
+  const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: toned, flows: [...flows], ...(focused === undefined ? {} : {focused: [...focused].map(i => must(nodes[i]).id)}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.fit === undefined ? {} : {fit: opts.fit}), ...scopeOpt(opts, 'bpmn()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
 }
 type ClassIds<C extends readonly ClassItem[]> = Extract<C[number]['id'], string>;
@@ -94,8 +121,14 @@ export function classDiagram(classes: readonly ClassItem[], relations: readonly 
   if (opts.straighten !== undefined && typeof opts.straighten !== 'boolean') throw new Error(`classDiagram(): straighten must be true or false (got ${String(opts.straighten)})`);
   if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right' && opts.dir !== 'auto') throw new Error(`classDiagram(): dir must be 'down', 'right' or 'auto' (got ${String(opts.dir)})`);
 
-  for (const c of classes) if (c.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(c.tone)) throw new Error(`classDiagram(): class "${c.id}" has tone ${String(c.tone)}`);
+  for (const c of classes) if (c.tone !== undefined && !TREE_TONES.includes(c.tone)) throw new Error(`classDiagram(): class "${c.id}" has tone ${String(c.tone)} (use ${TREE_TONES.join(', ')})`);
   const band: ClassesBand = {type: 'classes', classes: [...classes], relations: [...relations], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'classDiagram()'), ...revealOf(opts)};
+  if (opts.focus !== undefined) {
+    const ids = classes.map(c => c.id), hit = resolveFocus(opts.focus, ids, 'classDiagram()');
+    const tones = graphTones(ids.length, relations.map(r => [ids.indexOf(r.from), ids.indexOf(r.to)] as const), hit);
+    band.classes = band.classes.map((c, i) => ({...c, tone: must(tones[i])}));
+    band.focused = [...hit].map(i => must(ids[i]));
+  }
   return withAnchors(withHandle(band, opts.id), classes.map(c => c.id));
 }
 type StateIds<S extends readonly StateItem[]> = Extract<S[number]['id'], string>;
@@ -110,6 +143,15 @@ export function stateDiagram(states: readonly StateItem[], transitions: readonly
   return statesBandOf(states, transitions, opts);
 }
 /** The band of stateDiagram() and flowchart(): the same checks, with the words of the one that was called. */
+/** focus on a state diagram / flowchart: the tones of the states (solid / accent / muted) and of the arrows (lit: accent, the rest muted). */
+function focusGraph(states: readonly StateItem[], transitions: readonly Transition[], focus: Focus, who: string): {states: StateItem[]; transitions: Transition[]} {
+  const ids = states.map(x => x.id), hit = resolveFocus(focus, ids, who);
+  const tones = graphTones(states.length, transitions.map(t => [ids.indexOf(t.from), ids.indexOf(t.to)] as const), hit);
+  return {
+    states: states.map((x, i) => ({...x, tone: tones[i]})),
+    transitions: transitions.map(t => ({...t, tone: litLink(ids.indexOf(t.from), ids.indexOf(t.to), hit) ? 'accent' as const : 'muted' as const})),
+  };
+}
 function statesBandOf(states: readonly StateItem[], transitions: readonly Transition[], opts: StatesOpts, flavor?: 'flowchart'): StatesBand {
   const w = statesWords(flavor);
   // a flowchart goes back to a decision as often as forward: its return arrows take the lane outside the figure (inline they run through other nodes)
@@ -125,6 +167,7 @@ function statesBandOf(states: readonly StateItem[], transitions: readonly Transi
   for (const s of states) if ((s.shape === 'diamond' || s.shape === 'pill') && s.final) throw new Error(`${w.who}: ${w.node} "${s.id}" is a ${s.shape} and final: the double outline is a rectangle's (use a box)`);
   for (const t of transitions) { const s = states.find(x => x.id === t.from); if (t.from === t.to && (s?.shape === 'diamond' || s?.shape === 'pill')) throw new Error(`${w.who}: a ${s.shape} cannot loop to itself ("${t.from}": the loop leaves from the side of a rectangle)`); }
   for (const t of transitions) if (t.tone !== undefined && !['danger', 'accent', 'muted'].includes(t.tone)) throw new Error(`${w.who}: ${w.edge} ${t.from} -> ${t.to} has tone ${String(t.tone)} (use danger, accent or muted)`);
+  if (opts.focus !== undefined) ({states, transitions} = focusGraph(states, transitions, opts.focus, w.who));
   const band: StatesBand = {type: 'states', ...(flavor ? {flavor} : {}), states: states.map(s => s.icon === undefined ? s : {...s, iconGlyph: resolveIcon(s.icon, w.who + ' ' + w.node + ' "' + s.id + '" icon')}), transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(returns === undefined ? {} : {returns}), ...(flavor === 'flowchart' && opts.dir === undefined ? {defaultDir: 'down' as const} : {}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, w.who), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), states.map(s => s.id));
 }
@@ -226,7 +269,7 @@ function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opt
   }
   for (const n of nodes) {
     if (n.role !== undefined && !(n.role in CAUSE_ROLES)) throw new Error(`causeTree(): node "${n.id}" has role ${String(n.role)} (use ${Object.keys(CAUSE_ROLES).join(', ')})`);
-    if (n.tone !== undefined && !['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger'].includes(n.tone)) throw new Error(`causeTree(): node "${n.id}" has tone ${String(n.tone)}`);
+    if (n.tone !== undefined && !TREE_TONES.includes(n.tone)) throw new Error(`causeTree(): node "${n.id}" has tone ${String(n.tone)} (use ${TREE_TONES.join(', ')})`);
   }
   if (opts.tree !== undefined && !['crt', 'frt', 'prt', 'tt', 'nbr'].includes(opts.tree)) throw new Error(`causeTree(): tree must be 'crt', 'frt', 'prt', 'tt' or 'nbr' (got ${String(opts.tree)})`);
   if (opts.mirrors !== undefined && (opts.mirrors.type !== 'cause' || opts.mirrors.tree !== 'crt')) throw new Error("causeTree(): mirrors is the band causeTree() made for tree: 'crt' (the current reality tree this one answers)");
@@ -245,6 +288,14 @@ function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opt
   const counted = opts.coreDriver ? reachCounts(nodes, links) : undefined, core = new Set(counted ? coreDrivers(counted) : []);
   const marked = counted ? noted.map(n => { const reach = counted.get(n.id); return reach === undefined || n.role === 'trim' ? n : {...n, ...(core.has(n.id) ? {core: true} : {}), ...(opts.counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}${coreLabel(reach)}`})}; }) : noted;
   const band: CauseBand = {type: 'cause', nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? (base === undefined ? {} : {dir: base, dirLeftOut: true as const}) : {dir: opts.dir}), ...(base === undefined ? {} : {base}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.tree === undefined ? {} : {tree: opts.tree}), ...(tagMap === undefined ? {} : {roleTags: tagMap}), ...(opts.mirrors === undefined ? {} : {mirrorOf: {ids: opts.mirrors.nodes.map(n => n.id), udes: opts.mirrors.nodes.filter(n => n.role === 'ude').map(n => n.id)}}), ...(opts.layer === undefined ? {} : {layer: opts.layer}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.hop === undefined ? (opts.tree === undefined ? {} : {hop: 'all' as const}) : {hop: opts.hop}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.fold === undefined || base !== undefined ? {} : {fold: opts.fold}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'causeTree()'), ...revealOf(opts)};
+  if (unanchored.length) band.unanchored = [...unanchored];
+  if (opts.focus !== undefined) {
+    const ids = band.nodes.map(n => n.id), hit = resolveFocus(opts.focus, ids, 'causeTree()');
+    const pairs = band.links.flatMap(l => (typeof l.from === 'string' ? [l.from] : l.from).map(f => [ids.indexOf(f), ids.indexOf(l.to)] as const));
+    const tones = graphTones(ids.length, pairs, hit);
+    band.nodes = band.nodes.map((n, i) => ({...n, tone: must(tones[i])}));
+    band.focused = [...hit].map(i => must(ids[i]));
+  }
   if (unanchored.length) band.unanchored = [...unanchored];
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id).filter(id => !unanchored.includes(id)));
 }
@@ -476,9 +527,9 @@ export function mindmap(root: TreeItem, opts: MindmapOpts = {}): TreeBand {
   const layouts = ['radial', 'right', 'left', 'down', 'up', 'org', 'list', 'brace', 'fishbone', 'timeline'];
   if (opts.layout !== undefined && !layouts.includes(opts.layout)) throw new Error(`mindmap(): layout must be ${layouts.join(' | ')} (got ${String(opts.layout)})`);
   if (opts.edges !== undefined && opts.edges !== false && !['elbow', 'curve', 'straight'].includes(opts.edges)) throw new Error(`mindmap(): edges must be elbow | curve | straight | false (got ${String(opts.edges)})`);
-  const band = tree(root, {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...revealOf(opts)});
+  const band = tree(opts.focus === undefined ? root : focusTree(root, opts.focus, 'mindmap()'), {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...revealOf(opts)});
   if (opts.edges === false) for (const n of treeItems(root)) if (n.from !== undefined) throw new Error(`mindmap(): "${n.label}": from draws a line, and edges: false draws none`);
-  Object.assign(band, {balanced: true, ...(opts.sides ? {sides: opts.sides} : {}), ...(opts.layout ? {layout: opts.layout} : {}), ...(opts.edges !== undefined ? {edges: opts.edges} : {})});
+  Object.assign(band, {balanced: true, ...(opts.focus === undefined ? {} : {focused: true}), ...(opts.sides ? {sides: opts.sides} : {}), ...(opts.layout ? {layout: opts.layout} : {}), ...(opts.edges !== undefined ? {edges: opts.edges} : {})});
   return band as never;
 }
 

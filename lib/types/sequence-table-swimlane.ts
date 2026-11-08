@@ -1,7 +1,7 @@
 // Types: sequence, table and swimlane.
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
-import type {Align, Arrow, Bend, Dimmed, LineStyle, Rect, RevealOpts, RcaInfo, ScopeOpts, TextTone} from './core.ts';
+import type {Align, Arrow, Bend, Dimmed, LineStyle, Rect, RevealOpts, RcaInfo, ScopeOpts, TextTone, FocusOpts} from './core.ts';
 import type {BoxBand, BoxOpts, BoxTone, LaidOutBox} from './text-bands.ts';
 
 export interface SequenceActor {
@@ -165,7 +165,7 @@ export interface SwimlaneFlow {
 export type SwimlaneBoundary = {label?: string} & ({after: string; between?: undefined} | {between: readonly [string, string]; after?: undefined});
 /** Column group named across the top (a stage, a sprint). */
 export interface SwimlanePhase {label: string; from: number; to: number}
-export interface SwimlaneOpts extends RevealOpts, ScopeOpts {
+export interface SwimlaneOpts extends RevealOpts, ScopeOpts, FocusOpts {
   flows?: SwimlaneFlow[];
   phases?: SwimlanePhase[];
   /** Lines across lane boundaries. With `laneOrder` only `between` can be used (the lanes move). */

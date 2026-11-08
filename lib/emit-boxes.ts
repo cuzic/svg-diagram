@@ -11,7 +11,7 @@ import {iconSvg} from './icon-svg.ts';
 import {boundaryChipH, ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout-util.ts';
 import {visibleAt} from './reveal.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
-import {arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
+import {tonedHead, arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
 import {ftaLegendSwatch} from './emit-fta.ts';
 
 import {must} from './must.ts';
@@ -174,7 +174,7 @@ export function renderConnect(c: LaidOutConnect, day: Theme, tones: ToneEnv, rol
   const color = c.dim ? PALETTE.muted : resolveLineColor(tones, c.tone, day);
   const d = renderConnectPath(c);
   const strong = c.weight === 'strong';
-  const markers = arrowMarkers(c.arrow, c.dim, strong);
+  const markers = arrowMarkers(c.arrow, c.dim, strong, tonedHead(c));
   let path: string;
   if (strong) {
     path = `<path d="${d}" fill="none" stroke="${color}" stroke-width="${STRONG_STROKE}"${lineAttrs(c.line)}${markers}/>`;

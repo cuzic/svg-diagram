@@ -9,7 +9,7 @@ import type {LaidOutBox, WrappedRun} from './types/text-bands.ts';
 import {diagramTitle, diagramDesc} from './rules.ts';
 import {visibleAt} from './reveal.ts';
 import {spotlightDim} from './spotlight.ts';
-import {escapeXml} from './emit-common.ts';
+import {escapeXml, resolveLineColor, tonedHead} from './emit-common.ts';
 import {renderConnect} from './emit-boxes.ts';
 import {renderBand} from './emit-handlers.ts';
 import {withNodeIds} from './emit-node-ids.ts';
@@ -52,6 +52,8 @@ function emitSvgWith(laidOutDiagram: LaidOutDiagram, tones: ToneEnv, opts: {reve
     || b.type === 'cycle'
   ));
 
+  // a connector in a line tone of its own: a head of that colour (only the tones in use, so a figure without one is unchanged)
+  const tonedHeads = (['accent', 'muted', 'danger'] as const).filter(t => connects.some(c => tonedHead(c) === t));
   // strong arrows have markers of their own (a fixed size, so a thick line does not scale its head)
   const strongArrow = (c: LaidOutConnect) => c.weight === 'strong' && c.arrow !== 'none';
   const strongItem = (i: LaidOutLegendItem) => i.weight === 'strong' && (i.arrow ?? 'end') !== 'none';
@@ -69,7 +71,10 @@ function emitSvgWith(laidOutDiagram: LaidOutDiagram, tones: ToneEnv, opts: {reve
     </marker>${needsDimArrow ? `
     <marker id="dsl-arrow-dim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="${PALETTE.muted}"/>
-    </marker>` : ''}${needsStrongArrow ? strongMarker('dsl-arrow-strong', PALETTE.text) : ''}${needsDimStrongArrow ? strongMarker('dsl-arrow-strong-dim', PALETTE.muted) : ''}
+    </marker>` : ''}${tonedHeads.map(t => `
+    <marker id="dsl-arrow-${t}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="${resolveLineColor(tones, t, day)}"/>
+    </marker>`).join('')}${needsStrongArrow ? strongMarker('dsl-arrow-strong', PALETTE.text) : ''}${needsDimStrongArrow ? strongMarker('dsl-arrow-strong-dim', PALETTE.muted) : ''}
   </defs>` : '';
 
   const style = `

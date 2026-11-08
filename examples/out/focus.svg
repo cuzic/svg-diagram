@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="307" viewBox="0 0 940 307" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">経費精算の承認（今ここ: 課長待ち）</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/focus.ts","sourceSha256":"00c098a6802e4d9ce7b6d14aa93066c0f04a77c658db228aa3ba567d5064f81b"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="307" fill="#ffffff"/>
+
+  <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">状態遷移図: focus の状態を塗り、前後の状態と矢印を強調色に</text>
+
+  <path d="M256,128 L368,128" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M380,128 L368,132 L368,124 z" fill="#1d5fa8"/>
+  <path d="M468,104 L580,104" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M592,104 L580,108 L580,100 z" fill="#1d5fa8"/>
+  <path d="M692,84 L804,84" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M816,84 L804,88 L804,80 z" fill="#6f6659"/>
+  <path d="M468,124 L484,124 L484,156 L588,156" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M596,156 L584,160 L584,152 z" fill="#1d5fa8"/>
+  <path d="M596,172 L512,172 L512,164 L340,164 L340,148 L264,148" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M256,148 L268,140 L268,152 z" fill="#6f6659"/>
+  <path d="M44,140 L156,140" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M168,140 L156,144 L156,136 z" fill="#22201b"/>
+  <circle cx="36" cy="140" r="8" fill="#22201b"/>
+  <rect x="168" y="120" width="88" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="380" y="100" width="88" height="36" rx="8" fill="#1d5fa8" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="592" y="56" width="100" height="56" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="816" y="68" width="96" height="36" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <rect x="820" y="72" width="88" height="28" rx="5" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <rect x="596" y="140" width="88" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="211" y="144" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">申請中</text>
+  <text x="423" y="120" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">課長待ち</text>
+  <text x="641" y="78" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">部長待ち</text>
+  <text x="641" y="98" text-anchor="middle" font-size="14" fill="#22201b">10万円以上</text>
+  <text x="864" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">支払い済み</text>
+  <text x="641" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">差し戻し</text>
+  <rect x="292" y="104" width="40" height="22" fill="#ffffff"/>
+  <text x="310" y="120" text-anchor="middle" font-size="14" fill="#22201b">申請</text>
+  <rect x="480" y="80" width="84" height="22" fill="#ffffff"/>
+  <text x="522" y="96" text-anchor="middle" font-size="14" fill="#22201b">10万円以上</text>
+  <rect x="728" y="60" width="40" height="22" fill="#ffffff"/>
+  <text x="746" y="76" text-anchor="middle" font-size="14" fill="#22201b">承認</text>
+  <rect x="500" y="132" width="68" height="22" fill="#ffffff"/>
+  <text x="534" y="148" text-anchor="middle" font-size="14" fill="#22201b">差し戻す</text>
+  <rect x="404" y="136" width="40" height="22" fill="#ffffff"/>
+  <text x="425" y="152" text-anchor="middle" font-size="14" fill="#22201b">直す</text>
+
+  <text x="470" y="206" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">矢羽根: focus（番号でも指せる）だけを塗る</text>
+
+  <polygon points="20,228 220,228 242,258 220,288 20,288" fill="#f6f8fa" stroke="#6f6659" stroke-width="2"/>
+  <polygon points="246,228 446,228 468,258 446,288 246,288 268,258" fill="#1d5fa8" stroke="#1d5fa8" stroke-width="2"/>
+  <polygon points="472,228 672,228 694,258 672,288 472,288 494,258" fill="#f6f8fa" stroke="#6f6659" stroke-width="2"/>
+  <polygon points="698,228 898,228 920,258 898,288 698,288 720,258" fill="#f6f8fa" stroke="#6f6659" stroke-width="2"/>
+  <text x="131" y="263.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">申請</text>
+  <text x="357" y="263.6" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">課長承認</text>
+  <text x="583" y="263.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">部長承認</text>
+  <text x="809" y="263.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">支払い</text>
+</svg>

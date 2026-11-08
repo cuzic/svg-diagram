@@ -96,8 +96,11 @@ export function lineAttrs(line: LineStyle | undefined): string {
 }
 
 
-export function arrowMarkers(arrow: Arrow | undefined, dim = false, strong = false): string {
-  const id = `dsl-arrow${strong ? '-strong' : ''}${dim ? '-dim' : ''}`;
+/** A plain (not strong, not dimmed) connector in a line tone of its own gets a head of that colour (ADR 0051): `dsl-arrow-accent` ... */
+export const tonedHead = (c: {dim?: boolean; weight?: string; line?: string; tone?: string; arrow?: string}): 'accent' | 'muted' | 'danger' | undefined =>
+  !c.dim && c.weight !== 'strong' && c.line !== 'double' && c.arrow !== 'none' && (c.tone === 'accent' || c.tone === 'muted' || c.tone === 'danger') ? c.tone : undefined;
+export function arrowMarkers(arrow: Arrow | undefined, dim = false, strong = false, tone?: 'accent' | 'muted' | 'danger'): string {
+  const id = `dsl-arrow${tone ? `-${tone}` : ''}${strong ? '-strong' : ''}${dim ? '-dim' : ''}`;
   return `${arrow === 'start' || arrow === 'both' ? ` marker-start="url(#${id})"` : ''}${arrow === 'end' || arrow === 'both' ? ` marker-end="url(#${id})"` : ''}`;
 }
 

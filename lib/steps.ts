@@ -2,7 +2,8 @@ import {box} from './dsl/text-bands.ts';
 import {row} from './dsl/containers.ts';
 import {assertBoxTone} from './dsl/shared.ts';
 import type {LoopBack, RowBand} from './types/containers.ts';
-import type {TagTone} from './types/core.ts';
+import type {Focus, TagTone} from './types/core.ts';
+import {resolveFocus, sequenceTones} from './focus.ts';
 import type {BoxBand, BoxTone} from './types/text-bands.ts';
 import type {IconName} from './icons.ts';
 import type {Declares, RowHandleOf} from './strict.ts';
@@ -23,6 +24,8 @@ export interface StepsOpts {
   highlight?: number;
   /** The tone of the highlighted step (default 'danger'). */
   highlightTone?: 'danger' | 'accent';
+  /** "You are here" (ADR 0051): the step(s) with these 1-based numbers are filled ('solid'), the others 'muted'. Not with `highlight`. */
+  focus?: Focus;
   /** Arrows between the boxes (default true). */
   arrows?: boolean;
   gap?: number;
@@ -42,11 +45,13 @@ export function steps(items: StepItem[], opts: StepsOpts = {}): RowBand {
   if (!Array.isArray(items) || items.length < 2) throw new Error('steps(): needs at least 2 items');
   if (opts.highlight !== undefined && (!Number.isInteger(opts.highlight) || opts.highlight < 1 || opts.highlight > items.length)) throw new Error(`steps(): highlight must be a step number 1..${items.length} (got ${String(opts.highlight)})`);
   if (opts.highlightTone !== undefined && opts.highlightTone !== 'danger' && opts.highlightTone !== 'accent') throw new Error(`steps(): highlightTone must be 'danger' or 'accent' (got ${String(opts.highlightTone)})`);
+  if (opts.focus !== undefined && opts.highlight !== undefined) throw new Error('steps(): highlight and focus both mark a step: keep focus (the step filled, the others muted) or highlight (the step in its tone)');
+  const focusTones = opts.focus === undefined ? undefined : sequenceTones(items.length, resolveFocus(opts.focus, items.map(() => undefined), 'steps()', true));
   const boxes: BoxBand[] = items.map((it, i) => {
     if (typeof it?.title !== 'string' || !it.title.trim()) throw new Error(`steps(): item ${i + 1} needs a title`);
     assertBoxTone(it.tone, `steps() item ${i + 1}`); // a solid tone would put the title's dark text on a solid fill
     const hot = opts.highlight === i + 1;
-    const tone = hot ? opts.highlightTone ?? 'danger' : it.tone;
+    const tone = focusTones ? focusTones[i] : hot ? opts.highlightTone ?? 'danger' : it.tone;
     return box({title: it.title, ...(it.body === undefined ? {} : {body: it.body}), ...(it.icon === undefined ? {} : {icon: it.icon}), ...(it.tag === undefined ? {} : {tag: it.tag, ...(it.tagTone ? {tagTone: it.tagTone} : {})}), ...(tone ? {tone} : {}), ...(opts.numbered ? {step: i + 1} : {})});
   });
   return row(boxes, {arrows: opts.arrows === false ? 'none' : 'between', ...(opts.gap === undefined ? {} : {gap: opts.gap}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.loopBack === undefined ? {} : {loopBack: opts.loopBack})});
