@@ -122,3 +122,67 @@ test('focus and the older marks of one step do not mix; solid tones are taken di
   assert.doesNotThrow(() => chevron([{label: 'a', tone: 'solid'}, {label: 'b', tone: 'solid-danger'}]));
   assert.doesNotThrow(() => classDiagram([{id: 'A', tone: 'solid'}], []));
 });
+
+// ---- the review's findings (ADR 0051) ----
+import {box, connect, swimlane as swimlaneFn, tree} from '../lib/dsl.ts';
+import {usedNotation} from '../lib/rules.ts';
+
+test('funnel: the growth rate under the label of a filled stage is white', async () => {
+  const fu = funnel([{label: '全体', value: 1000}, {label: '一次', value: 400}, {label: '採用', value: 40}], {scale: 'value', showRate: true, width: 200, focus: 2});
+  const svg = await svgOf(fu);
+  assert.ok(whiteText(svg, '一次'));
+  // the rate of the filled stage: left of the shape (text-anchor end) it stays muted; under the label (inside the fill) it is white
+  const rate = svg.match(/<text[^>]*>40%<\/text>/)?.[0] ?? '';
+  assert.ok(rate.includes('text-anchor="end"') ? rate.includes(`fill="${PALETTE.muted}"`) : rate.includes(`fill="${PALETTE.bg}"`), rate);
+  const narrow = await svgOf(funnel([{label: '全体の候補者', value: 1000}, {label: '一次面接の通過者', value: 400}, {label: '採用', value: 40}], {scale: 'value', showRate: true, width: 160, focus: 2}));
+  const inside = narrow.match(/<text[^>]*>40%<\/text>/)?.[0] ?? '';
+  assert.ok(inside.includes('text-anchor="end"') ? inside.includes(`fill="${PALETTE.muted}"`) : inside.includes(`fill="${PALETTE.bg}"`), inside);
+});
+
+test('bpmn: an iconTone does not vanish on a filled task (the icon is white there)', async () => {
+  const b = bpmn([{id: 'l', label: 'L'}], [{id: 't', lane: 'l', label: '作業', icon: 'user', iconTone: 'accent'}], [], {focus: 't'});
+  const svg = await svgOf(b);
+  assert.ok(!new RegExp(`<g[^>]*fill="${accent}"[^>]*>\\s*<path`).test(svg) || svg.includes(PALETTE.bg));
+});
+
+test('swimlane: focus on a step with its own text tones fills it (white text) instead of refusing', () => {
+  const sw = swimlaneFn([{id: 'x', label: 'X'}], [{id: 'a', lane: 'x', title: 'A', titleTone: 'accent', bodyTone: 'muted', body: 'b', col: 1}, {id: 'c', lane: 'x', title: 'C', col: 2}], {flows: [{from: 'a', to: 'c'}], focus: 'a'});
+  const lane = sw.find(b => b.type === 'swimlane');
+  const step = lane && lane.type === 'swimlane' ? lane.steps[0] : undefined;
+  assert.equal(step?.tone, 'solid');
+  assert.equal(step && 'titleTone' in step ? step.titleTone : undefined, undefined);
+});
+
+test('tree: the line into a band node is lit only when the node is on the lit part', async () => {
+  const t = tree({label: 'R', id: 'r', children: [
+    {label: 'A', id: 'a', children: [{label: 'B', id: 'b'}]},
+    {label: 'C', id: 'c', children: [{label: 'chev', band: chevron([{label: '1'}, {label: '2'}]), w: 240}]},
+  ]}, {focus: 'b'});
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue', legend: false}).add(t));
+  const lo = laidOut.laidOut.find(b => b.type === 'tree');
+  assert.equal(lo?.type === 'tree' ? lo.edges.filter(e => e.lit).length : -1, 2, 'R→A and A→B only');
+  assert.throws(() => tree(null as never, {focus: 'x'}), /needs a root node/);
+});
+
+test("legend: 'auto' on a focused cause tree lists the focus tones, not the roles' colours", () => {
+  const c = causeTree([{id: 'r', label: '根', role: 'root'}, {id: 'u', label: '結果', role: 'ude'}], [{from: 'r', to: 'u'}], {focus: 'r'});
+  const used = usedNotation([c], new Set(), true);
+  assert.equal(used.has('role:ude'), false);
+  assert.equal(used.has('role:root'), false);
+  assert.equal(used.has('tone:solid'), true);
+});
+
+test('a coloured connect gets a head of its colour without focus too (the one output change outside focus)', async () => {
+  const svg = await svgOf(box({id: 'p', title: 'P'}), box({id: 'q', title: 'Q'}), connect('p', 'q', {tone: 'danger'}));
+  assert.match(svg, /<marker id="dsl-arrow-danger"/);
+  assert.match(svg, /marker-end="url\(#dsl-arrow-danger\)"/);
+  const plain = await svgOf(box({id: 'p', title: 'P'}), box({id: 'q', title: 'Q'}), connect('p', 'q'));
+  assert.doesNotMatch(plain, /dsl-arrow-(accent|muted|danger)/, 'no coloured line: no new marker');
+});
+
+test('steps: focus is a number (a step has no id); stateDiagram: the start arrow follows focus', () => {
+  assert.throws(() => steps([{title: 'a'}, {title: 'b'}], {focus: 'a'}), /a step has no id: focus names it by its number 1\.\.2/);
+  const s = stateDiagram([{id: 'a', label: 'A'}, {id: 'b', label: 'B'}], [{from: 'a', to: 'b'}], {initial: 'a', focus: 'b'});
+  assert.equal(s.initialTone, 'muted');
+  assert.equal(stateDiagram([{id: 'a', label: 'A'}], [], {initial: 'a', focus: 'a'}).initialTone, 'accent');
+});

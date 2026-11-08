@@ -211,12 +211,12 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
       const a = must(rects.get(e.from)), cx = a.x + a.w / 2, cy = a.y + a.h / 2;
       if (dir === 'down') {
         const pts = [{x: a.x + a.w, y: cy - LOOP_W}, {x: a.x + a.w + LOOP, y: cy - LOOP_W}, {x: a.x + a.w + LOOP, y: cy + LOOP_W}, {x: a.x + a.w, y: cy + LOOP_W}];
-        out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});
+        out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : e.from === INIT && band.initialTone ? {tone: band.initialTone} : {}), ...(t?.strong ? {strong: true} : {})});
         if (t?.label) { const lw = labelW(t.label); pending.push({edge: out.edges.length - 1, text: t.label, at: () => ({x: a.x + a.w + LOOP + 4 + lw / 2, y: cy})}); }
         continue;
       }
       const pts = [{x: cx + LOOP_W, y: a.y}, {x: cx + LOOP_W, y: a.y - LOOP}, {x: cx - LOOP_W, y: a.y - LOOP}, {x: cx - LOOP_W, y: a.y}];
-      out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});
+      out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : e.from === INIT && band.initialTone ? {tone: band.initialTone} : {}), ...(t?.strong ? {strong: true} : {})});
       if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: () => ({x: cx, y: a.y - LOOP - (S + 8) / 2 - 2})});
       continue;
     }
@@ -233,7 +233,7 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
       pts[pts.length - 1] = {x: last.x + left, y: last.y}; pts[pts.length - 2] = {x: before.x + left, y: before.y};
     }
     if (dTo && pts.length > 1) pts[pts.length - 1] = ontoDiamond(must(pts[pts.length - 1]), must(pts[pts.length - 2]), dTo);
-    out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : {}), ...(t?.strong ? {strong: true} : {})});
+    out.edges.push({from: e.from, to: e.to, points: pts, line: t?.line ?? 'solid', ...(t?.tone ? {tone: t.tone} : e.from === INIT && band.initialTone ? {tone: band.initialTone} : {}), ...(t?.strong ? {strong: true} : {})});
     if (t?.label) pending.push({edge: out.edges.length - 1, text: t.label, at: f => pointAt(pts, f), on: pts});
   }
   for (const p of pending) addLabel(p.edge, p.text, p.at, p.on);

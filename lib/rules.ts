@@ -217,7 +217,9 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause 
     }
     else if (b.type === 'cause' && withCause) { // only legend: 'auto' reads these (the legend-* checks keep their old count)
       // a role that roleTags writes in words on the node needs no swatch: two double-frame swatches side by side would only blur it
-      for (const n of b.nodes) if (n.role && n.role !== 'effect' && n.role !== 'step' && !b.roleTags?.[n.role as keyof typeof b.roleTags]) used.add(`role:${n.role}`);
+      // with focus the tones are focus's (solid / accent / muted), not the roles': a role swatch would show a colour no node has
+      if (b.focused) { for (const n of b.nodes) if (n.tone && n.tone !== 'plain') used.add(`tone:${n.tone}`); }
+      else for (const n of b.nodes) if (n.role && n.role !== 'effect' && n.role !== 'step' && !b.roleTags?.[n.role as keyof typeof b.roleTags]) used.add(`role:${n.role}`);
       if (b.links.some(l => typeof l.from !== 'string' && l.from.length > 1)) used.add('edge:and');
       if (b.links.some(l => l.back)) used.add('edge:back');
       if (b.links.some(l => l.kind === 'blocks')) used.add('edge:blocks');

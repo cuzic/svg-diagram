@@ -41,7 +41,7 @@
 | 形 | 図 | 関係する項目 | 線 |
 |---|---|---|---|
 | 木 | `tree` / `mindmap` | focus の下の節と、ルートまでの道の節 | その道と下への枝を強調色(上に重ねる) |
-| 網の目 | `stateDiagram` / `flowchart` / `causeTree` / `pdpc` / `classDiagram` / `bpmn` / `swimlane` | 矢印 1 本でつながる項目(向きは問わない) | focus に触れる矢印を強調色、ほかを灰色 |
+| 網の目 | `stateDiagram` / `flowchart` / `causeTree` / `pdpc` / `relationDiagram` / `classDiagram` / `bpmn` / `swimlane` | 矢印 1 本でつながる項目(向きは問わない) | focus に触れる矢印を強調色、ほかを灰色 |
 | 並び | `chevron` / `funnel` / `cycle` / `steps` / `emblem` / `valueChain` | なし | 変えない |
 
 網の目で「直接の相手まで」にしたのは、前後の流れが読めるから(ユーザーの選択)。並びは隣が自明なので、focus だけが浮くほうが「今ここ」として読みやすい。
@@ -54,6 +54,7 @@
 ### D4. 線の色に合わせた矢じり
 
 `connect` は線に `tone` を付けても矢じりが黒のままだった(マーカーが 1 色)。`accent` / `muted` / `danger` の線には同じ色の矢じり(`dsl-arrow-accent` など)を使う。強い線・二重線・暗くした線・矢じりなしは従来どおり。使われた色のマーカーだけを `<defs>` に足すので、色付きの線のない図の出力は 1 バイトも変わらない(golden は不変)。
+**focus と無関係に変わる出力**: 既存の図で `connect(..., {tone: 'accent' | 'muted' | 'danger'})` を使っているものは、矢じりがその色になる(golden の例には該当がない)。これは不具合の修正として受け入れる。
 
 ### D5. 既存の書き方は残す
 
@@ -61,7 +62,8 @@
 
 ## 確かめたこと
 
-- `test/focus.test.ts`(9 本)と `test/mindmap-focus.test.ts`(7 本): 各部品の色、線の点灯、白い文字、エラーの文面、入力を書き換えないこと。
+- `test/focus.test.ts`(16 本)と `test/mindmap-focus.test.ts`(7 本): 各部品の色、線の点灯、白い文字、エラーの文面、入力を書き換えないこと。
+- レビュー(Opus)で見つかった点を直した: 漏斗の増減率が塗りの上で読めない、BPMN の `iconTone` が塗りの上で消える、スイムレーンの focus が手順の文字色(`titleTone` など)で止まる(塗る手順ではそれらを外す)、木の band 節への線が常に点灯する(点灯は focus の走査で決める)、`legend: 'auto'` が focus した原因の木で役割の色を並べる、状態遷移図の開始の矢印が focus に従わない、`*Band` の型に `focus` が残る。
 - 既存のテストと golden は、変更前と同じ結果(環境による既存の失敗を除いて差分なし)。意図した変更は 2 件: `bpmn` と `causeTree` の節が `solid` を受けるようになった(以前は拒否を確かめていたテストを、受けることの確認に直した)。
 
 ## 範囲外

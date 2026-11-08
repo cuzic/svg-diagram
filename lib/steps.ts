@@ -46,6 +46,7 @@ export function steps(items: StepItem[], opts: StepsOpts = {}): RowBand {
   if (opts.highlight !== undefined && (!Number.isInteger(opts.highlight) || opts.highlight < 1 || opts.highlight > items.length)) throw new Error(`steps(): highlight must be a step number 1..${items.length} (got ${String(opts.highlight)})`);
   if (opts.highlightTone !== undefined && opts.highlightTone !== 'danger' && opts.highlightTone !== 'accent') throw new Error(`steps(): highlightTone must be 'danger' or 'accent' (got ${String(opts.highlightTone)})`);
   if (opts.focus !== undefined && opts.highlight !== undefined) throw new Error('steps(): highlight and focus both mark a step: keep focus (the step filled, the others muted) or highlight (the step in its tone)');
+  if (opts.focus !== undefined && (Array.isArray(opts.focus) ? opts.focus : [opts.focus]).some(f => typeof f === 'string')) throw new Error(`steps(): a step has no id: focus names it by its number 1..${items.length}`);
   const focusTones = opts.focus === undefined ? undefined : sequenceTones(items.length, resolveFocus(opts.focus, items.map(() => undefined), 'steps()', true));
   const boxes: BoxBand[] = items.map((it, i) => {
     if (typeof it?.title !== 'string' || !it.title.trim()) throw new Error(`steps(): item ${i + 1} needs a title`);

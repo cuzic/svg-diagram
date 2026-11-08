@@ -44,14 +44,14 @@ function focusTree(root: TreeItem, focus: string | readonly string[], who: strin
     const holds = self || kids.some(([, h]) => h);
     const tone = self ? 'solid' as const : under || holds ? 'accent' as const : 'muted' as const;
     const {tone: _written, children: _c, ...rest} = n;
-    return [{...rest, ...(n.band ? {} : {tone}), ...(n.children ? {children: kids.map(([c]) => c)} : {})}, holds];
+    return [{...rest, ...(n.band ? {} : {tone}), ...(self || under || holds ? {focusLit: true as const} : {}), ...(n.children ? {children: kids.map(([c]) => c)} : {})}, holds];
   };
   return walk(root, false)[0];
 }
 export function tree<const R extends TreeItem, const Id extends string = never>(root: R, opts?: TreeOpts & {id?: Id}): TreeBand & Declares<Id | TreeIds<R>> & HandleOf<Id> & AnchorsOf<TreeIds<R>>;
 export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
-  if (opts.focus !== undefined) root = focusTree(root, opts.focus, 'tree()');
   if (!root || typeof root !== 'object' || typeof root.label !== 'string') throw new Error('tree(root) needs a root node: {label: "...", children: [...]}');
+  if (opts.focus !== undefined) root = focusTree(root, opts.focus, 'tree()');
   if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right' && opts.dir !== 'auto') throw new Error(`tree(): dir must be 'down', 'right' or 'auto' (got ${String(opts.dir)})`);
   if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`tree(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
   const ids: (string | undefined)[] = [];
@@ -142,7 +142,6 @@ export function stateDiagram<const S extends readonly StateItem[], const Id exte
 export function stateDiagram(states: readonly StateItem[], transitions: readonly Transition[], opts: StatesOpts = {}): StatesBand {
   return statesBandOf(states, transitions, opts);
 }
-/** The band of stateDiagram() and flowchart(): the same checks, with the words of the one that was called. */
 /** focus on a state diagram / flowchart: the tones of the states (solid / accent / muted) and of the arrows (lit: accent, the rest muted). */
 function focusGraph(states: readonly StateItem[], transitions: readonly Transition[], focus: Focus, who: string): {states: StateItem[]; transitions: Transition[]} {
   const ids = states.map(x => x.id), hit = resolveFocus(focus, ids, who);
@@ -152,6 +151,7 @@ function focusGraph(states: readonly StateItem[], transitions: readonly Transiti
     transitions: transitions.map(t => ({...t, tone: litLink(ids.indexOf(t.from), ids.indexOf(t.to), hit) ? 'accent' as const : 'muted' as const})),
   };
 }
+/** The band of stateDiagram() and flowchart(): the same checks, with the words of the one that was called. */
 function statesBandOf(states: readonly StateItem[], transitions: readonly Transition[], opts: StatesOpts, flavor?: 'flowchart'): StatesBand {
   const w = statesWords(flavor);
   // a flowchart goes back to a decision as often as forward: its return arrows take the lane outside the figure (inline they run through other nodes)
@@ -169,6 +169,7 @@ function statesBandOf(states: readonly StateItem[], transitions: readonly Transi
   for (const t of transitions) if (t.tone !== undefined && !['danger', 'accent', 'muted'].includes(t.tone)) throw new Error(`${w.who}: ${w.edge} ${t.from} -> ${t.to} has tone ${String(t.tone)} (use danger, accent or muted)`);
   if (opts.focus !== undefined) ({states, transitions} = focusGraph(states, transitions, opts.focus, w.who));
   const band: StatesBand = {type: 'states', ...(flavor ? {flavor} : {}), states: states.map(s => s.icon === undefined ? s : {...s, iconGlyph: resolveIcon(s.icon, w.who + ' ' + w.node + ' "' + s.id + '" icon')}), transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(returns === undefined ? {} : {returns}), ...(flavor === 'flowchart' && opts.dir === undefined ? {defaultDir: 'down' as const} : {}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, w.who), ...revealOf(opts)};
+  if (opts.focus !== undefined && band.initial !== undefined) band.initialTone = resolveFocus(opts.focus, states.map(x => x.id), w.who).has(states.findIndex(x => x.id === band.initial)) ? 'accent' : 'muted';
   return withAnchors(withHandle(band, opts.id), states.map(s => s.id));
 }
 type FlowIds<N extends readonly FlowNode[]> = Extract<N[number]['id'], string>;
@@ -296,7 +297,6 @@ function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opt
     band.nodes = band.nodes.map((n, i) => ({...n, tone: must(tones[i])}));
     band.focused = [...hit].map(i => must(ids[i]));
   }
-  if (unanchored.length) band.unanchored = [...unanchored];
   return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id).filter(id => !unanchored.includes(id)));
 }
 export interface WhyWhyTreeOpts extends Pick<CauseOpts, 'id' | 'maxNodeW' | 'reveal' | 'until' | 'scope'> {

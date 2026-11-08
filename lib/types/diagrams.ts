@@ -19,6 +19,8 @@ export interface TreeItem {
   band?: Band;
   /** The width of a band node (required with `band`). */
   w?: number;
+  /** Internal, set by `focus`: the node is on the lit part of the tree (focused, under one, or on the path to the root); the line to it is lit. */
+  focusLit?: true;
   /** On a child of a band node: the id of a part inside the parent's band (a chevron's step ...). The line to this child leaves from that part: its two ends on the near side to the two ends of this node's near side (a funnel), instead of the middle of the parent's edge to the middle of the child's. */
   from?: string;
 }
@@ -128,7 +130,9 @@ export interface StatesOpts extends RevealOpts, ScopeOpts, FocusOpts {
   straighten?: boolean;
   id?: string;
 }
-export interface StatesBand extends StatesOpts {
+export interface StatesBand extends Omit<StatesOpts, 'focus'> {
+  /** Set by `focus`: the tone of the arrow from the start dot (accent when it leads to a focused state, else muted). */
+  initialTone?: 'accent' | 'muted';
   type: 'states';
   /** Internal: made by flowchart() (names in messages, the direction it starts from). */
   flavor?: 'flowchart';
@@ -217,7 +221,7 @@ export interface CauseOpts extends RevealOpts, ScopeOpts, FocusOpts {
   fold?: boolean;
   id?: string;
 }
-export interface CauseBand extends CauseOpts {
+export interface CauseBand extends Omit<CauseOpts, 'focus'> {
   /** Set by `focus`: the focused items' ids. The arrows that touch one are drawn in the accent colour, the others muted. */
   focused?: string[];
   /** What a band's maker (`pdpc()`) wants when `returns` is not written; like an explicit 'outer', but it falls back to inline when the lanes do not fit. */
@@ -333,7 +337,7 @@ export interface ClassesOpts extends RevealOpts, ScopeOpts, FocusOpts {
   straighten?: boolean;
   id?: string;
 }
-export interface ClassesBand extends ClassesOpts {
+export interface ClassesBand extends Omit<ClassesOpts, 'focus'> {
   /** Set by `focus`: the focused items' ids. The arrows that touch one are drawn in the accent colour, the others muted. */
   focused?: string[];
   type: 'classes';
@@ -372,7 +376,7 @@ export interface BpmnOpts extends RevealOpts, ScopeOpts, FocusOpts {
   /** 'shrink': when the figure is wider than the diagram, narrow the lane-name column, the column gaps and the task boxes step by step until it fits (default: throw). */
   fit?: 'shrink';
 }
-export interface BpmnBand extends BpmnOpts {
+export interface BpmnBand extends Omit<BpmnOpts, 'focus'> {
   /** Set by `focus`: the focused items' ids. The arrows that touch one are drawn in the accent colour, the others muted. */
   focused?: string[];
   type: 'bpmn';

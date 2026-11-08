@@ -81,7 +81,12 @@ function focusSwimlane(steps: SwimlaneStep[], opts: SwimlaneOpts): {steps: Swiml
   const flows = opts.flows ?? [];
   const tones = graphTones(ids.length, flows.map(f => [at(f.from), at(f.to)] as const), hit);
   return {
-    steps: steps.map((s, i) => ({...s, tone: must(tones[i])})),
+    // a focused step is filled: its own text tones would not show on the fill (and would be refused), so they give way to the white text
+    steps: steps.map((s, i) => {
+      if (tones[i] !== 'solid') return {...s, tone: must(tones[i])};
+      const {titleTone: _t, bodyTone: _b, iconTone: _i, ...rest} = s as SwimlaneStep & {titleTone?: unknown; bodyTone?: unknown; iconTone?: unknown};
+      return {...rest, tone: 'solid' as const} as SwimlaneStep;
+    }),
     opts: {...opts, flows: flows.map(f => ({...f, tone: litLink(at(f.from), at(f.to), hit) ? 'accent' as const : 'muted' as const}))},
   };
 }
@@ -90,6 +95,15 @@ export function swimlane<
 >(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows' | 'id'> & {id?: Id; flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S> | Id> | ConnectBand)[] & AnchorsOf<StepIds<S> | Id>;
 export function swimlane(lanesIn: SwimlaneLane[], stepsIn: SwimlaneStep[], optsIn: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
   const {steps, opts} = optsIn.focus === undefined ? {steps: stepsIn, opts: optsIn} : focusSwimlane(stepsIn, optsIn);
+  if (optsIn.focus !== undefined) {
+    try { return swimlaneOf(lanesIn, steps, opts); } catch (e) {
+      // what is left to refuse on a focused step is a coloured span of its text: say that focus made it solid
+      throw e instanceof Error && /tone 'solid'/.test(e.message) ? new Error(`swimlane(): focus fills the step (tone 'solid', white text): ${e.message}`) : e;
+    }
+  }
+  return swimlaneOf(lanesIn, steps, opts);
+}
+function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts): (SwimlaneBand | ConnectBand)[] {
   const lanes = opts.laneOrder === undefined ? lanesIn : orderLanes(lanesIn, steps, opts);
   for (const l of lanes) assertBoxTone(l.tone, `swimlane() lane "${l.id}"`);
   let boundaries: {after: string; label?: string}[] | undefined;

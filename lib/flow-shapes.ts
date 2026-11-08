@@ -35,13 +35,13 @@ export interface EmblemOpts extends RevealOpts, ScopeOpts, FocusOpts {id?: strin
 export interface ValueChainOpts extends RevealOpts, ScopeOpts, FocusOpts {id?: string; /** The label of the margin arrow at the right end; `false` leaves the arrow out. Default 'マージン'. */ margin?: string | false; /** The captions over the support bars and the primary chevrons; `false` leaves them out. Default ['支援活動', '主活動']. */ titles?: readonly [support: string, primary: string] | false; width?: number}
 export interface ConcentricOpts extends RevealOpts, ScopeOpts {id?: string; order?: 'outer-first' | 'inner-first'; labels?: 'inside' | 'side'; centre?: string; width?: number}
 
-export interface ChevronBand extends ChevronOpts {type: 'chevron'; steps: FlowStep[]; direction: 'horizontal' | 'vertical'; first: 'pentagon' | 'chevron'; gap: number}
-export interface FunnelBand extends FunnelOpts {type: 'funnel'; stages: FunnelStage[]; scale: 'value' | 'even'; showRate: boolean}
-export interface CycleBand extends CycleOpts {type: 'cycle'; steps: FlowStep[]; direction: 'cw' | 'ccw'}
+export interface ChevronBand extends Omit<ChevronOpts, 'focus'> {type: 'chevron'; steps: FlowStep[]; direction: 'horizontal' | 'vertical'; first: 'pentagon' | 'chevron'; gap: number}
+export interface FunnelBand extends Omit<FunnelOpts, 'focus'> {type: 'funnel'; stages: FunnelStage[]; scale: 'value' | 'even'; showRate: boolean}
+export interface CycleBand extends Omit<CycleOpts, 'focus'> {type: 'cycle'; steps: FlowStep[]; direction: 'cw' | 'ccw'}
 export interface VennBand extends VennOpts {type: 'venn'; sets: VennSet[]; overlaps: VennOverlap[]}
 export interface ConcentricBand extends ConcentricOpts {type: 'concentric'; rings: ConcentricRing[]; order: 'outer-first' | 'inner-first'; labels: 'inside' | 'side'}
-export interface EmblemBand extends EmblemOpts {type: 'emblem'; items: EmblemItem[]; shape: EmblemShape; gap: number}
-export interface ValueChainBand extends ValueChainOpts {type: 'valueChain'; support: FlowStep[]; primary: FlowStep[]; margin: string | false; titles: readonly [string, string] | false}
+export interface EmblemBand extends Omit<EmblemOpts, 'focus'> {type: 'emblem'; items: EmblemItem[]; shape: EmblemShape; gap: number}
+export interface ValueChainBand extends Omit<ValueChainOpts, 'focus'> {type: 'valueChain'; support: FlowStep[]; primary: FlowStep[]; margin: string | false; titles: readonly [string, string] | false}
 export type FlowShapeBand = ChevronBand | FunnelBand | CycleBand | VennBand | ConcentricBand | EmblemBand | ValueChainBand;
 
 /** A flow-shape text's colour: a text tone, or 'bg' (white) on a filled (solid) item. */
@@ -352,7 +352,7 @@ function layoutFunnel(b: FunnelBand, out: LaidOutFlowShape, t: Texts, anchor: An
     t.place(p.label, lx, top, p.beside ? 'text' : onItem(s.tone, 'text'), la);
     if (p.rate) {
       if (p.rateLeft) t.place(p.rate, cx - Math.max(a, z) / 2 - 14, yy + (rowH - 4 - lh) / 2, 'muted', 'end');
-      else t.place(p.rate, lx, top + p.label.h, 'muted', la);
+      else t.place(p.rate, lx, top + p.label.h, p.beside ? 'muted' : onItem(s.tone, 'muted'), la);
     }
   });
 }
