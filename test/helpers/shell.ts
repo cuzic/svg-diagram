@@ -43,6 +43,7 @@ export const SHELL: Record<string, Shell> = {
   'contact': {reason: 'imports raster'},
   'dsl': {reason: 'the package entry point: re-exports dsl/io'},
   'dsl/render': {reason: 'the measured render: imports layout-measured'},
+  'spec-render': {reason: 'draws a spec: imports dsl/render, config, measure, geometry-checks and raster'},
   'load-source': {reason: 'imports the source file and the project config (config, measure)'},
   'markdown': {reason: 'imports render-source (ADR 0031 stage 5 splits the scanner out)'},
   'vitepress': {reason: 'imports markdown-it'},

@@ -72,6 +72,8 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 ## npm パッケージ・tsc の無い環境で使う
 
+**JSON で図を渡す(`svg-diagram/spec`)**: `.ts` のソースはコードとして実行されるので、外部から図を受け取るサーバーには渡せない。`validateSpec()` / `specToDiagram()` は JSON を検査して、決まった部品(今は `flowchart` / `swimlane` / `sequence`)だけを DSL に変換する。`image()`・`math()`・`slide` / `fill`・`icon` は持たない。間違いは `parts[0].nodes[2].label` のように場所つきで返る。`partCatalog()` は部品ごとの説明・スキーマ・例を返す。Node では `svg-diagram/render` の `renderSpec(json)` が、ファイルを書かずに SVG と検査結果を返す(`lintRendering()`、`svgToPng()` も同じ入口にある)。
+
 Node と Chromium だけの環境(ChatGPT の Code Interpreter など)では、`.ts` をそのまま `node` で動かし、Chromium は playwright を介さず直接動かし、文字幅と PNG は Chromium で測って描く。手順と環境変数は [docs/chatgpt-code-interpreter.md](docs/chatgpt-code-interpreter.md)。
 
 ## Web ページで使う(`svg-diagram/browser`)

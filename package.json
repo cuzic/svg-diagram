@@ -98,6 +98,10 @@
     "./render": {
       "types": "./dist/lib/render-source.d.ts",
       "default": "./dist/lib/render-source.js"
+    },
+    "./spec": {
+      "types": "./dist/lib/spec.d.ts",
+      "default": "./dist/lib/spec.js"
     }
   },
   "files": [

@@ -16,7 +16,7 @@ export function xmlProblems(svg: string): string[] {
   const problems: string[] = [];
   const line = (i: number) => svg.slice(0, i).split('\n').length;
   const stack: string[] = [];
-  const ctl = /[\x00-\x08\x0B\x0C\x0E-\x1F]/.exec(svg);
+  const ctl = /[\x00-\x08\x0B\x0C\x0E-\x1F￾￿]/.exec(svg);
   if (ctl) problems.push(`line ${line(ctl.index)}: a control character U+${ctl[0].charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')} (XML 1.0 forbids it; a pasted label may carry one)`);
   let i = 0;
   const textCheck = (from: number, to: number) => {
