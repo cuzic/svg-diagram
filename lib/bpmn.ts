@@ -2,7 +2,7 @@
 // inclusive), joined by sequence flows (solid) and message flows (dashed). Lanes are given; the columns come from the flow
 // (graph-layout.ts layoutLayered, used for the layer of each node), the rows from the lane. Only the shapes and flow rules
 // that most flow diagrams use are here — not the whole standard.
-import {textWidth} from './atoms.ts';
+import {splitAtoms, textWidth} from './atoms.ts';
 import {layoutLayered} from './graph-layout.ts';
 import {routeClear} from './orthogonal-route.ts';
 import type {Pt} from './graph-layout.ts';
@@ -48,8 +48,10 @@ export function layoutBpmn(band: BpmnBand, x: number, y: number, w: number, widt
 function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: true): LaidOutBpmn;
 function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: boolean): LaidOutBpmn | null;
 function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: boolean): LaidOutBpmn | null {
-  const {labelCol: LABEL_COL, taskMax: TASK_MAX, flowRoom} = metrics, COL_GAP = Math.round(metrics.colGap * (env.space ?? 1));
+  const {taskMax: TASK_MAX, flowRoom} = metrics, COL_GAP = Math.round(metrics.colGap * (env.space ?? 1));
   const B = roles.body, S = roles.note;
+  // the lane-name column never gets narrower than the longest word of a lane name: a word is not broken, so it would run out of the column
+  const LABEL_COL = Math.max(metrics.labelCol, Math.ceil(Math.max(0, ...band.lanes.flatMap(l => splitAtoms(l.label).map(a => widthOf(a, B, 700, 'sans'))))) + 16);
   const laneIdx = new Map(band.lanes.map((l, i) => [l.id, i]));
   if (laneIdx.size !== band.lanes.length) throw new Error('bpmn(): duplicate lane id');
   const ids = new Set<string>();
