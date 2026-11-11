@@ -24,8 +24,12 @@ export interface HeatmapOpts extends ChartOpts {
   scale?: boolean;
   /** Row height (default from the text size). */
   cellH?: number;
+  /** The heading of the legend of the shades (default '凡例'). */
+  legendTitle?: string;
+  /** What joins the two ends of a range in the legend (default '〜'). */
+  rangeMark?: string;
 }
-export interface HeatmapSpec {rows: string[]; cols: string[]; values: (number | null)[][]; unit: string; decimals: number; min: number; max: number; levels: number; rowHeader: boolean; corner: string; scale: boolean; cellH?: number}
+export interface HeatmapSpec {rows: string[]; cols: string[]; values: (number | null)[][]; unit: string; decimals: number; min: number; max: number; levels: number; rowHeader: boolean; corner: string; scale: boolean; cellH?: number; legendTitle: string; rangeMark: string}
 
 export function resolveHeatmap(rows: readonly string[], cols: readonly string[], values: readonly (readonly (number | null)[])[], opts: HeatmapOpts): HeatmapSpec {
   if (!Array.isArray(rows) || rows.length === 0 || !Array.isArray(cols) || cols.length === 0) fail('heatmap', 'needs at least one row and one column');
@@ -53,13 +57,14 @@ export function resolveHeatmap(rows: readonly string[], cols: readonly string[],
   if (!(max > min)) fail('heatmap', `max (${max}) must be above min (${min})`);
   if (opts.decimals !== undefined && !(Number.isInteger(opts.decimals) && opts.decimals >= 0 && opts.decimals <= 6)) fail('heatmap', `decimals must be a whole number from 0 to 6 (got ${opts.decimals})`);
   const decimals = opts.decimals ?? Math.min(2, Math.max(0, ...real.map(decimalsIn)));
-  return {rows: [...rows], cols: [...cols], values: values.map(r => [...r]), unit: opts.unit ?? '', decimals, min, max, levels, rowHeader: opts.rowHeader !== false, corner: opts.corner ?? '', scale: opts.scale !== false, ...(opts.cellH === undefined ? {} : {cellH: opts.cellH})};
+  return {rows: [...rows], cols: [...cols], values: values.map(r => [...r]), unit: opts.unit ?? '', decimals, min, max, levels, rowHeader: opts.rowHeader !== false, corner: opts.corner ?? '', scale: opts.scale !== false, legendTitle: opts.legendTitle === undefined ? '凡例' : checkText('heatmap', 'legendTitle', opts.legendTitle), rangeMark: opts.rangeMark ?? '〜', ...(opts.cellH === undefined ? {} : {cellH: opts.cellH})};
 }
 const cellText = (v: number, s: HeatmapSpec): string => `${numText(Number(v.toFixed(s.decimals)))}${s.unit}`;
 const bound = (i: number, s: HeatmapSpec): number => s.min + (s.max - s.min) * i / s.levels;
 const rangeText = (i: number, s: HeatmapSpec): string => {
   const f = (v: number) => numText(parseFloat(v.toPrecision(6)));
-  return i === 0 ? `〜${f(bound(1, s))}` : i === s.levels - 1 ? `${f(bound(i, s))}〜` : `${f(bound(i, s))}〜${f(bound(i + 1, s))}`;
+  const m = s.rangeMark;
+  return i === 0 ? `${m}${f(bound(1, s))}` : i === s.levels - 1 ? `${f(bound(i, s))}${m}` : `${f(bound(i, s))}${m}${f(bound(i + 1, s))}`;
 };
 export const heatLevel = (v: number, s: Pick<HeatmapSpec, 'min' | 'max' | 'levels'>): number => Math.max(0, Math.min(s.levels - 1, Math.floor((v - s.min) / (s.max - s.min) * s.levels + 1e-9)));
 
@@ -74,7 +79,7 @@ export function heatmapTexts(s: HeatmapSpec): [string, number][] {
   if (s.corner) out.push([s.corner, 400], [s.corner, 700]);
   for (const row of s.values) for (const v of row) out.push([v === null ? '–' : cellText(v, s), 700], [v === null ? '–' : cellText(v, s), 400]);
   for (let i = 0; i < s.levels; i++) out.push([rangeText(i, s), 400]);
-  out.push(['凡例', 400]);
+  out.push([s.legendTitle, 400]);
   return out;
 }
 
@@ -102,10 +107,10 @@ export function layoutHeatmap(s: HeatmapSpec, g: ChartGeom): LaidOutChartPart {
   let legendH = 0;
   if (s.scale) {
     const sw = 22, items = Array.from({length: s.levels}, (_, i) => ({level: i, text: rangeText(i, s)}));
-    let lx = g.x + c.tw('凡例') + 14, ly = 0;
+    let lx = g.x + c.tw(s.legendTitle) + 14, ly = 0;
     for (const it of items) {
       const w = sw + 6 + c.tw(it.text) + 18;
-      if (lx + w - 18 > g.x + g.w && lx > g.x + c.tw('凡例') + 14) { lx = g.x; ly += lh + 6; }
+      if (lx + w - 18 > g.x + g.w && lx > g.x + c.tw(s.legendTitle) + 14) { lx = g.x; ly += lh + 6; }
       legend.push({x: lx, y: ly, ...it}); lx += w;
     }
     legendH = ly + S + 14 + 8;
@@ -133,7 +138,7 @@ export function layoutHeatmap(s: HeatmapSpec, g: ChartGeom): LaidOutChartPart {
   if (s.rowHeader) c.line(r1(plotL - 2), r1(bodyT), r1(plotL - 2), r1(bodyT + s.rows.length * cellH), {stroke: 'border'});
   if (s.scale) {
     const top = bodyT + s.rows.length * cellH + 14;
-    c.text('凡例', g.x, c.mid(top + 7), 'start', 'muted', {});
+    c.text(s.legendTitle, g.x, c.mid(top + 7), 'start', 'muted', {});
     for (const l of legend) {
       const y = top + l.y;
       c.rect(r1(l.x), r1(y), 22, 14, {fill: 'accent', op: ops[l.level], stroke: 'accent', sw: 2});

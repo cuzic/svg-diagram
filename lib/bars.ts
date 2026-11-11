@@ -33,11 +33,11 @@ const valueNum = (v: number, f: BarsBand['valueFormat']): string => {
 /** Where a bar starts and ends along the value axis: a range `[lo, hi]`, or 0 up to the value. Every geometry and text of a bar reads this, never `d.value` (a range datum has none). */
 export const barSpan = (d: BarDatum): {lo: number; hi: number} => d.range ? {lo: d.range[0], hi: d.range[1]} : {lo: 0, hi: d.value ?? 0};
 /** What the bar's value says: `5.8万円`, or for a range `3.2〜5.8万円`. */
-export const spanText = (d: BarDatum, format: BarsBand['valueFormat'], unit: string | undefined): string => {
+export const spanText = (d: BarDatum, format: BarsBand['valueFormat'], unit: string | undefined, mark = '〜'): string => {
   const {lo, hi} = barSpan(d);
-  return d.range ? `${valueNum(lo, format)}〜${valueNum(hi, format)}${unit ?? ''}` : `${valueNum(hi, format)}${unit ?? ''}`;
+  return d.range ? `${valueNum(lo, format)}${mark}${valueNum(hi, format)}${unit ?? ''}` : `${valueNum(hi, format)}${unit ?? ''}`;
 };
-const valueText = (d: BarDatum, band: BarsBand) => spanText(d, band.valueFormat, band.unit);
+const valueText = (d: BarDatum, band: BarsBand) => spanText(d, band.valueFormat, band.unit, band.rangeMark);
 
 /** What a bars() band shows; every default is the original look. */
 function flags(band: BarsBand) {

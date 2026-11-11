@@ -33,7 +33,7 @@ export function renderStepBadge(band: LaidOutBox, day: Theme, roles?: Roles): st
   const textX = band.titleW === undefined || align === 'left' ? undefined : align === 'center' ? (left + right) / 2 - band.titleW / 2 : right - band.titleW;
   const cx = textX !== undefined ? textX - g.indent + R : band.x + px + R + (band.icon && band.iconAt !== 'top' ? ICON_INDENT : 0);
   const cy = titleBaselineY - g.offset;
-  return badgeSvg({cx, cy, r: R, w: 2 * R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: g.size, fill: PALETTE[day].accent, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), baseline: titleBaselineY, snap: snap4, esc: escapeXml});
+  return badgeSvg({cx, cy, r: R, w: 2 * R, shape: 'circle', label: String(band.step), aria: `${band.stepWord ?? '手順'} ${band.step}`, size: g.size, fill: PALETTE[day].accent, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), baseline: titleBaselineY, snap: snap4, esc: escapeXml});
 }
 
 

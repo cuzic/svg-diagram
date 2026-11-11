@@ -29,11 +29,11 @@ const GLYPH: Record<'dot' | 'ring' | 'cross', string> = {dot: '●', ring: '○'
 export interface LegendEntry {text: string; tone: PlaneTone; shape?: 'dot' | 'ring' | 'cross'}
 
 /** One row of legend entries in the room above the data, from the left edge, each as wide as its text. */
-function legendRow(entries: LegendEntry[], x0: number, xRange: number, y: number): PlaneLabel[] {
+function legendRow(entries: LegendEntry[], x0: number, xRange: number, y: number, cross = GLYPH.cross): PlaneLabel[] {
   const out: PlaneLabel[] = [];
   let at = x0;
   for (const e of entries) {
-    const text = `${e.shape ? GLYPH[e.shape] + ' ' : ''}${e.text}`;
+    const text = `${e.shape ? (e.shape === 'cross' ? cross : GLYPH[e.shape]) + ' ' : ''}${e.text}`;
     out.push({at: [at, y], text, anchor: 'start', tone: e.tone});
     at += unitsFor(estimate(text, 14) + 28, xRange, PLOT_W);
   }
@@ -51,6 +51,10 @@ export interface ScatterOpts extends Omit<PlaneOpts, 'x' | 'y' | 'points' | 'lin
   regression?: boolean;
   /** The order of the strata (default: as they first appear in the points). Up to 4. */
   groups?: string[];
+  /** What separates r, the line and n in the regression text (default an ideographic space). */
+  statSeparator?: string;
+  /** The character the legend draws for a cross-shaped mark (default ✕; × where the font has no ✕). */
+  crossMark?: string;
 }
 /** Colour + shape of the 1st to the 4th stratum: the shape differs too, so the strata stay apart without colour. */
 const STRATA: {tone: PlaneTone; shape: 'dot' | 'ring' | 'cross'}[] = [{tone: 'accent', shape: 'dot'}, {tone: 'danger', shape: 'cross'}, {tone: 'text', shape: 'ring'}, {tone: 'muted', shape: 'dot'}];
@@ -95,10 +99,11 @@ export function scatterOpts(points: readonly ScatterPoint[], opts: ScatterOpts):
     return {at: [p.x, p.y] as PlanePos, ...(p.id ? {id: p.id} : {}), ...(p.label ? {label: p.label} : {}), tone: s.tone, shape: s.shape};
   });
   const lines: PlaneLine[] = [], labels: PlaneLabel[] = [];
-  if (groups.length > 1) labels.push(...legendRow(groups.map((g, i) => ({text: g, ...must(STRATA[i])})), xMin + (x.max - xMin) * 0.01, x.max - xMin, rowY(0)));
+  if (groups.length > 1) labels.push(...legendRow(groups.map((g, i) => ({text: g, ...must(STRATA[i])})), xMin + (x.max - xMin) * 0.01, x.max - xMin, rowY(0), opts.crossMark));
   if (opts.regression) {
     const sgn = (v: number): string => v < 0 ? '−' : '';
-    const rText = `r = ${sgn(r)}${Math.abs(Math.round(r * 100) / 100).toFixed(2)}　y = ${sgn(slope)}${num(Math.abs(slope))}x ${intercept < 0 ? '−' : '+'} ${num(Math.abs(intercept))}　n = ${points.length}`;
+    const sep = opts.statSeparator ?? '　';
+    const rText = `r = ${sgn(r)}${Math.abs(Math.round(r * 100) / 100).toFixed(2)}${sep}y = ${sgn(slope)}${num(Math.abs(slope))}x ${intercept < 0 ? '−' : '+'} ${num(Math.abs(intercept))}${sep}n = ${points.length}`;
     // the line over the data's x range, cut where it would leave the plot
     let x1 = Math.min(...xs), x2 = Math.max(...xs);
     if (slope !== 0) {
@@ -139,6 +144,10 @@ export interface ControlChartOpts extends Omit<PlaneOpts, 'x' | 'y' | 'points' |
   rules?: boolean;
   /** Decimal places of the limit labels (default: 3 significant digits). */
   digits?: number;
+  /** The language of the words the chart writes by itself (axis names, legend, limits that vary with n): 'ja' (default) or 'en'. */
+  lang?: 'ja' | 'en';
+  /** The character the legend draws for a cross-shaped mark (default ✕; × where the font has no ✕). */
+  crossMark?: string;
 }
 
 export interface ControlStats {cl: number; ucl: number[]; lcl: number[]; values: number[]}
@@ -229,7 +238,13 @@ export function controlStats(type: ControlType, data: readonly (number | number[
 }
 
 const Y_LABEL: Record<ControlType, string> = {x: '測定値 X', mr: '移動範囲 Rs', xbar: '群の平均', r: '範囲 R', p: '不良率 p', np: '不良数 np', c: '欠点数 c', u: '単位あたり欠点数 u'};
+const Y_LABEL_EN: Record<ControlType, string> = {x: 'Value X', mr: 'Moving range Rs', xbar: 'Subgroup mean', r: 'Range R', p: 'Fraction defective p', np: 'Defectives np', c: 'Defects c', u: 'Defects per unit u'};
 const RUN = 7;
+/** The words of a control chart, by language. */
+const CC_WORDS = {
+  ja: {yLabel: Y_LABEL, xLabel: 'サンプル', outside: '管理限界の外', run: `連・傾向（${RUN} 点）`, byN: '（n による）'},
+  en: {yLabel: Y_LABEL_EN, xLabel: 'Sample', outside: 'Outside the limits', run: `Run or trend (${RUN} points)`, byN: ' (varies with n)'},
+} as const;
 
 /** The indices that break a rule: [outside the limits, in a run or a trend]. */
 export function controlSignals(s: ControlStats): {outside: Set<number>; pattern: Set<number>} {
@@ -253,20 +268,22 @@ export function controlChartOpts(type: ControlType, data: readonly (number | num
   const flagged = opts.rules === false ? {outside: new Set<number>(), pattern: new Set<number>()} : controlSignals(s);
   const height = opts.height ?? 320;
   const lo = Math.min(...s.values, ...s.lcl, s.cl), hi = Math.max(...s.values, ...s.ucl, s.cl);
+  const w = CC_WORDS[opts.lang ?? 'ja'];
+  if (opts.lang !== undefined && !(opts.lang in CC_WORDS)) throw new Error(`controlChart(): lang must be 'ja' or 'en' (got ${String(opts.lang)})`);
   const legend: LegendEntry[] = [];
-  if (flagged.outside.size) legend.push({text: '管理限界の外', tone: 'danger', shape: 'cross'});
-  if ([...flagged.pattern].some(i => !flagged.outside.has(i))) legend.push({text: `連・傾向（${RUN} 点）`, tone: 'danger', shape: 'ring'});
+  if (flagged.outside.size) legend.push({text: w.outside, tone: 'danger', shape: 'cross'});
+  if ([...flagged.pattern].some(i => !flagged.outside.has(i))) legend.push({text: w.run, tone: 'danger', shape: 'ring'});
   const probe = fitAxis(lo, hi, undefined);
   const head = legend.length ? unitsFor(34, probe.max - (probe.min ?? 0), PLOT_H(height)) : 0;
-  const y = fitAxis(lo, hi, opts.yLabel ?? Y_LABEL[type], {min: type === 'x' || type === 'xbar' ? undefined : 0}, {head});
+  const y = fitAxis(lo, hi, opts.yLabel ?? w.yLabel[type], {min: type === 'x' || type === 'xbar' ? undefined : 0}, {head});
   if (type !== 'x' && type !== 'xbar' && lo >= 0) y.min = 0;
   const N = n + offset;
-  const room = Math.ceil((estimate(stepped ? 'UCL（n による）' : 'UCL 00.0', 14) + 16) / PLOT_W * (N + 1)) + 1; // the labels beside the right end of the lines
+  const room = Math.ceil((estimate(stepped ? `UCL${w.byN}` : 'UCL 00.0', 14) + 16) / PLOT_W * (N + 1)) + 1; // the labels beside the right end of the lines
   // every k-th number gets its text; k grows with the count and with the width of the labels (dates), so neighbours never touch
   const widest = opts.at ? Math.max(...opts.at.map(t => estimate(t, 14))) : estimate(String(N), 14);
   const every = Math.max(N > 30 ? 5 : N > 16 ? 2 : 1, Math.ceil((widest + 12) / (PLOT_W / (N + 1 + room))));
   const xTicks = Array.from({length: N}, (_, i) => i + 1).filter(i => (i - 1) % every === 0).map(i => opts.at ? {at: i, label: must(opts.at[i - 1])} : i);
-  const x: PlaneAxis = {label: opts.xLabel ?? 'サンプル', min: 0, max: N + 1 + room, ticks: xTicks};
+  const x: PlaneAxis = {label: opts.xLabel ?? w.xLabel, min: 0, max: N + 1 + room, ticks: xTicks};
   // as many decimals as it takes to tell the limits from the centre line (about 3 digits of the spread between them)
   const spread = Math.max(...s.ucl) - Math.min(s.cl, ...s.lcl), places = opts.digits ?? (spread > 0 ? Math.max(0, 1 - Math.floor(Math.log10(spread))) : 2);
   const fmt = (v: number) => v.toFixed(places);
@@ -286,8 +303,8 @@ export function controlChartOpts(type: ControlType, data: readonly (number | num
   // the lower limit is drawn unless it is 0 all along (a line on the axis); its number is left out where it is 0 or changes with n
   const hasLcl = s.lcl.some(v => v > 1e-12 || type === 'x' || type === 'xbar');
   const lclLabeled = hasLcl && (type === 'x' || type === 'xbar' || must(s.lcl[n - 1]) > 1e-12);
-  const rows: {text: string; at: number}[] = [{text: stepped ? 'UCL（n による）' : `UCL ${fmt(must(s.ucl[n - 1]))}`, at: must(s.ucl[n - 1])}, {text: `CL ${fmt(s.cl)}`, at: s.cl}];
-  if (lclLabeled) rows.push({text: stepped ? 'LCL（n による）' : `LCL ${fmt(must(s.lcl[n - 1]))}`, at: must(s.lcl[n - 1])});
+  const rows: {text: string; at: number}[] = [{text: stepped ? `UCL${w.byN}` : `UCL ${fmt(must(s.ucl[n - 1]))}`, at: must(s.ucl[n - 1])}, {text: `CL ${fmt(s.cl)}`, at: s.cl}];
+  if (lclLabeled) rows.push({text: stepped ? `LCL${w.byN}` : `LCL ${fmt(must(s.lcl[n - 1]))}`, at: must(s.lcl[n - 1])});
   for (const [name, arr] of [['ucl', s.ucl], ['lcl', s.lcl]] as const) {
     if (name === 'lcl' && !hasLcl) continue;
     const e = edge(arr);
@@ -301,7 +318,7 @@ export function controlChartOpts(type: ControlType, data: readonly (number | num
   const floor = (y.min ?? 0) + gapY * 1.15;
   for (let i = placed.length - 1, lowest = floor; i >= 0; i--) { if (must(placed[i]).at < lowest) placed[i] = {...must(placed[i]), at: lowest}; lowest = must(placed[i]).at + gapY; }
   for (const r of placed) labels.push({at: [labelX, r.at], text: r.text, anchor: 'start', tone: r.text.startsWith('CL') ? 'accent' : 'danger', bold: true});
-  const flagLabels = legend.length ? legendRow(legend, 0.5, x.max, y.max - head * 0.45) : [];
+  const flagLabels = legend.length ? legendRow(legend, 0.5, x.max, y.max - head * 0.45, opts.crossMark) : [];
   const {labelRole, id, reveal, until, width} = opts as PlaneOpts;
   return {...(labelRole ? {labelRole} : {}), ...(id ? {id} : {}), ...(reveal === undefined ? {} : {reveal}), ...(until === undefined ? {} : {until}), ...(width === undefined ? {} : {width}), x, y, points, paths, lines, labels: [...labels, ...flagLabels], height};
 }

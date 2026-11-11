@@ -318,7 +318,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
   };
 
   const out: LaidOutCause = {
-    type: 'cause', id: band.id, reveal: band.reveal, ...(band.unanchored ? {unanchored: band.unanchored} : {}), ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + 2 * pad.y,
+    type: 'cause', ...(band.coreBadge === undefined ? {} : {coreBadge: band.coreBadge}), id: band.id, reveal: band.reveal, ...(band.unanchored ? {unanchored: band.unanchored} : {}), ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + 2 * pad.y,
     nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
     ...(fitApplied.length ? {fitApplied} : {}), ...(band.tree === 'nbr' ? {nbr: {vertical}} : {}), ...(band.focused ? {focused: band.focused} : {}),
   };
@@ -367,7 +367,7 @@ const LETTER = {a: 'A', b: 'B', c: 'C', d: 'D', d2: "D'"} as const;
 const ARROWS: CloudArrow[] = ['ab', 'ac', 'bd', 'cd', 'dd'];
 const CLOUD_W = 220, CLOUD_GAP_MIN = 110, CLOUD_GAP_MAX = 170, ROW_GAP = 96, LIST_GAP = 28, NUM_GAP = 8;
 
-const boxText = (k: typeof KEYS[number], v: CloudBox): string => `${LETTER[k]}：${typeof v === 'string' ? v : v.text}`;
+const boxText = (k: typeof KEYS[number], v: CloudBox, sep = '：'): string => `${LETTER[k]}${sep}${typeof v === 'string' ? v : v.text}`;
 const injectionText = (t: string): string => `→ ${t}`;
 /** The number of each assumption (in the order written) and, per arrow, the chip text that lists its numbers. */
 function numbering(band: CloudBand): {chip: Partial<Record<CloudArrow, string>>; n: number[]} {
@@ -378,7 +378,7 @@ function numbering(band: CloudBand): {chip: Partial<Record<CloudArrow, string>>;
 
 export function cloudTexts(band: CloudBand, roles: Roles): [string, number, number, FontFamily][] {
   const out: [string, number, number, FontFamily][] = [];
-  for (const k of KEYS) out.push([boxText(k, band[k]), roles.body, 700, 'sans']);
+  for (const k of KEYS) out.push([boxText(k, band[k], band.separator), roles.body, 700, 'sans']);
   const num = numbering(band);
   for (const t of Object.values(num.chip)) out.push([t, roles.note, 400, 'sans']);
   for (const i of num.n) out.push([`${i}.`, roles.note, 400, 'sans']);
@@ -402,7 +402,7 @@ export function layoutCloudBand(band: CloudBand, x: number, y: number, w: number
   }
   const colW = Math.min(maxW, Math.floor((w - 2 * CLOUD_GAP_MIN) / 3));
   if (colW < 120) throw new Error(`cloud(): the figure has ${Math.round(w)}px, too narrow for five boxes and the arrows between them (needs ${3 * 120 + 2 * CLOUD_GAP_MIN}px)`);
-  const lines = Object.fromEntries(KEYS.map(k => [k, measureNode(boxText(k, band[k]), undefined, colW, widthOf, roles, env.wrap, env.keepWords, {keepWords: false})])) as Record<typeof KEYS[number], ReturnType<typeof measureNode>>;
+  const lines = Object.fromEntries(KEYS.map(k => [k, measureNode(boxText(k, band[k], band.separator), undefined, colW, widthOf, roles, env.wrap, env.keepWords, {keepWords: false})])) as Record<typeof KEYS[number], ReturnType<typeof measureNode>>;
   const boxW = Math.max(...KEYS.map(k => lines[k].w)), H = Math.max(lines.b.h, lines.c.h, lines.d.h, lines.d2.h), hA = lines.a.h;
   const gap = Math.min(CLOUD_GAP_MAX, Math.floor((w - 3 * boxW) / 2)), figW = 3 * boxW + 2 * gap, rowsH = 2 * H + ROW_GAP;
   const figH = Math.max(rowsH, hA), top = (figH - rowsH) / 2; // a tall A makes the figure taller; the rows stay centred beside it
@@ -418,7 +418,7 @@ export function layoutCloudBand(band: CloudBand, x: number, y: number, w: number
     out.nodes.push({...r, key: k, tone: (typeof v === 'string' ? undefined : v.tone) ?? defaultTone[k], ...(typeof v !== 'string' && v.id ? {id: v.id} : {})});
     if (typeof v !== 'string' && v.id) out.anchors.push({id: v.id, ...r});
     out.texts.push(...nodeRuns(r, lines[k], roles));
-    out.labelBoxes.push({label: boxText(k, v), ...r});
+    out.labelBoxes.push({label: boxText(k, v, band.separator), ...r});
   }
 
   // arrows: a need points at the objective, a want at its need ("in order to A we must B, in order to B we must D")

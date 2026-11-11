@@ -28,7 +28,7 @@ export function caption(text: RichText, opts: CaptionOpts = {}): CaptionBand {
 // Every key box() takes. `satisfies` makes tsc fail when BoxOpts gains or loses a key without this list following.
 const BOX_KEYS = {
   id: 1, tone: 1, dashed: 1, align: 1, tag: 1, tagTone: 1, tagAt: 1, stamp: 1, padX: 1, padY: 1, flex: 1, width: 1, col: 1, span: 1, reveal: 1, until: 1,
-  titleTone: 1, titleMono: 1, bodyTone: 1, bodyMono: 1, noteTone: 1, step: 1, icon: 1, iconTone: 1, iconAt: 1, iconSize: 1, frame: 1, size: 1,
+  titleTone: 1, titleMono: 1, bodyTone: 1, bodyMono: 1, noteTone: 1, step: 1, stepWord: 1, icon: 1, iconTone: 1, iconAt: 1, iconSize: 1, frame: 1, size: 1,
   title: 1, body: 1, lines: 1, note: 1,
 } as const satisfies Record<keyof BoxOpts | 'id', 1>;
 export function box<const Id extends string = never>(opts: BoxInput<Id>): BoxBand & Declares<Id> & HandleOf<Id>;
