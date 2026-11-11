@@ -102,6 +102,10 @@
     "./spec": {
       "types": "./dist/lib/spec.d.ts",
       "default": "./dist/lib/spec.js"
+    },
+    "./spec/edge": {
+      "types": "./dist/lib/spec-edge.d.ts",
+      "default": "./dist/lib/spec-edge.js"
     }
   },
   "files": [
