@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {breakCycles, layoutBalanced, layoutLayered, layoutTree} from '../lib/graph-layout.ts';
+import {breakCycles, layoutBalanced, layoutLayered, layoutTree, orderCrossings} from '../lib/graph-layout.ts';
 import type {Placed, TreeNode} from '../lib/graph-layout.ts';
 
 const n = (id: string, children?: TreeNode[], w = 80, h = 30): TreeNode => ({id, size: {w, h}, ...(children ? {children} : {})});
@@ -422,4 +422,16 @@ test('layoutLayered alap: 200 small graphs keep edge directions, the reversed ed
     }
     for (const s of [...start, names[0]]) assert.equal(alap.layers.get(s!), plain.layers.get(s!), 'a start or kept node does not move');
   }
+});
+
+// ADR 0053: the forecast a search ranks orders with
+test('orderCrossings counts the links that cross between the layers after ordering, and only that', () => {
+  const sz = {w: 10, h: 10}, nodes = ['a', 'b', 'c', 'd'].map(id => ({id, size: sz}));
+  // written crossed, but the sweeps untangle it
+  assert.equal(orderCrossings(nodes, [{from: 'a', to: 'd'}, {from: 'b', to: 'c'}]), 0);
+  // every tail to every head: one crossing is left whatever the order
+  assert.equal(orderCrossings(nodes, [{from: 'a', to: 'c'}, {from: 'a', to: 'd'}, {from: 'b', to: 'c'}, {from: 'b', to: 'd'}], {transpose: true}), 1);
+  // the same count whichever way the nodes are written
+  const k23 = [{from: 'a', to: 'c'}, {from: 'a', to: 'd'}, {from: 'b', to: 'c'}, {from: 'b', to: 'd'}];
+  assert.equal(orderCrossings([...nodes].reverse(), k23, {transpose: true}), 1);
 });

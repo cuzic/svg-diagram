@@ -4,11 +4,12 @@
 //               figure: an arrow across an AND arc means "together", separate arrows mean "either".
 //  cloud():     the Evaporating Cloud: five boxes in a fixed place (A the common objective, B and C the needs, D and D' the
 //               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
+import {orderCrossings} from './graph-layout.ts';
 import {textWidth} from './atoms.ts';
 import {andClashes} from './cause-clash.ts';
 import {routesThroughNodes} from './verify-base.ts';
 import {causeCrossings} from './cause-hop.ts';
-import {fitOrThrow, isNoFit, type NoFit, planFit} from './fit-width.ts';
+import {fitOrThrow, isNoFit, type NoFit, planFit, NARROWING} from './fit-width.ts';
 import {scoreOf} from './polyline-metrics.ts';
 import {gapFor, layeredAttempt} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
@@ -84,7 +85,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
 
 
 function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause | NoFit {
-  const once = (order?: readonly string[], plainRoutes = false, noDetour = false) => tryLayoutCause(prep, band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, plainRoutes, noDetour);
+  const once = (order?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}) => tryLayoutCause(prep, band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, plainRoutes, noDetour, sameFit);
   const prep = prepareCause(band);
   const first = once();
   if (isNoFit(first)) return first;
@@ -106,6 +107,15 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
   const orders = [ids.toReversed(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
   const axisOf = (t: LaidOutCause): number[] => t.nodes.map(n => band.dir === 'left' || band.dir === 'right' ? n.x : n.y);
   const baseAxis = axisOf(base);
+  // the orders are ranked by how many links cross between the layers before any is laid out: an order whose layers cross more than the best one's is not laid out (ADR 0053).
+  // It is a forecast: the routes, the lanes and the AND arcs come only with the whole layout, which still decides
+  const declaredBack = prep.arrows.flatMap((a, k) => a.back ? [k] : []), alapOpt = alapOf(band);
+  const proxyOf = (order: readonly string[]): number => orderCrossings(rankedIds(prep, band, order).map(id => ({id, size: {w: 1, h: 1}})), prep.arrows.map(a => ({from: a.from, to: a.to})),
+    {dir: 'right', transpose: true, coord: 'bk', ...(declaredBack.length ? {back: declaredBack} : {}), ...(alapOpt ? {alap: alapOpt} : {})});
+  let bestProxy = proxyOf(ids);
+  // the node width and folding the base fitted with: another order is laid out with the same, as any other would be set aside below (ADR 0053)
+  const baseWidth = base.fitApplied?.find(a => a.what === 'maxNodeW')?.to;
+  const sameFit = {width: typeof baseWidth === 'number' ? baseWidth : (band.maxNodeW === undefined || band.maxNodeW === 'auto' ? NARROWING[0] as number : band.maxNodeW), folded: !!base.fitApplied?.some(a => a.what === 'fold')};
   let best = base, bestScore = scoreOfCause(base), bestOrder: string[] | undefined;
   // then more orders when the fixed ones left a crossing: shuffles from a fixed seed (the same figure always gets the same answer), then swaps of two neighbours of the best order so far.
   // `straighten: false` keeps to the fixed ones (it is the way back to the old figure)
@@ -127,13 +137,16 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
     // give up when nothing has got better for a while (counted in the orders tried, the ones set aside too: each is a layout): sooner once no AND arrows cross
     if (++tried > MAX_ORDERS || tried - lastBetter > (bestScore[0] === 0 ? PATIENCE_QUIET : PATIENCE)) break;
     const order = must(queue.shift());
-    const t = once(order, false, true);
+    const proxy = proxyOf(order);
+    // the forecast does not see the arrows of an AND, which only the routes show: while some of them cross, every order is laid out
+    if (bestScore[0] === 0 && proxy > bestProxy) continue;
+    const t = once(order, false, true, sameFit);
     if (isNoFit(t)) continue; // another order widens a layer: it does not fit where the written one does
     // the same layers (a different order must not change which edge of a cycle is cut, or fold the figure), the same size limits, no AND the first drew left undrawn
     if (axisOf(t).some((v, i) => Math.abs(v - must(baseAxis[i])) > 0.5) || t.h > base.h + 0.5 || t.loose.length > base.loose.length) continue;
     if (t.fitApplied?.length !== base.fitApplied?.length) continue;
     const score = scoreOfCause(t);
-    if (lexLess(score, bestScore)) { best = t; bestScore = score; bestOrder = order; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
+    if (lexLess(score, bestScore)) { best = t; bestScore = score; bestOrder = order; lastBetter = tried; bestProxy = proxy; if (polished) { queue.length = 0; polished = false; } }
   }
   if (band.straighten === false) return best;
   const withDetours = bestOrder ? once(bestOrder) : undefined;
@@ -197,8 +210,23 @@ function prepareCause(band: CauseBand): CausePrep {
   return {arrows, groups};
 }
 
+/** The order the nodes are handed to the layout in: the written one (or `anotherOrder`), the causes of one AND next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows). */
+function rankedIds(prep: CausePrep, band: CauseBand, anotherOrder?: readonly string[]): string[] {
+  const {arrows, groups} = prep;
+  const order: string[] = [], put = (id: string): void => { if (!order.includes(id)) order.push(id); };
+  const written = anotherOrder ?? band.nodes.map(n => n.id); // ADR 0019 D4: another written order
+  for (const id of written) { put(id); for (const g of groups) if (g.arrows.some(k => must(arrows[k]).from === id)) g.arrows.forEach(k => put(must(arrows[k]).from)); }
+  return order;
+}
+
+/** ALAP (ADR 0019 D1): the entities where a cause starts stay on the first layer; the input side (preconditions, obstacles, actions) moves up to its effects. */
+function alapOf(band: CauseBand): {keep: string[]} | undefined {
+  const layerMode = band.layer ?? (band.tree === 'prt' || band.tree === 'frt' || band.tree === 'tt' || band.tree === 'nbr' ? 'alap' : 'asap');
+  return band.layerFrom === 'effect' ? {keep: []} : layerMode === 'alap' ? {keep: band.nodes.filter(n => n.role === 'root' || n.role === 'injection' || n.role === 'start').map(n => n.id)} : undefined;
+}
+
 /** One whole layout of a cause tree; the figure that fits none of the ways is returned as `NoFit`; a mistake of the author's or a broken invariant still throws. */
-function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false): LaidOutCause | NoFit {
+function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}): LaidOutCause | NoFit {
   const {arrows, groups} = prep;
   // the last run of each arrow of an AND, when they can carry one arc (see below): the arrows arrive on one side, all heading the
   // same way, with room before the head for the arc
@@ -214,8 +242,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
   };
   // One whole attempt: the node text wrapped at maxW and the layout turned to dir. Everything that depends on either is in here.
   // ALAP (ADR 0019 D1): the entities where a cause starts stay on the first layer; the input side (preconditions, obstacles, actions) moves up to its effects
-  const layerMode = band.layer ?? (band.tree === 'prt' || band.tree === 'frt' || band.tree === 'tt' || band.tree === 'nbr' ? 'alap' : 'asap');
-  const alap = band.layerFrom === 'effect' ? {keep: []} : layerMode === 'alap' ? {keep: band.nodes.filter(n => n.role === 'root' || n.role === 'injection' || n.role === 'start').map(n => n.id)} : undefined;
+  const alap = alapOf(band);
   // the 中核 badge sits outside the frame, at the end of the axis the arrows run along: the figure keeps that room free at both ends (H7)
   // above / below a box the badge is CORE_BADGE_H high; beside it, CORE_BADGE_W wide
   const hasCore = band.nodes.some(n => n.core);
@@ -225,10 +252,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
     const iw = w - 2 * padOf(vertical).x; // the width the figure itself has: the badge room at both ends of the arrows' axis is kept free
     const lines = new Map(band.nodes.map(n => [n.id, measureNode(n.label, n.sub, maxW, widthOf, roles, env.wrap, floor)]));
     // the causes of one AND are written next to each other, so that sharing a layer they stay neighbours (an OR cause between them would cross their arrows)
-    const order: string[] = [], put = (id: string): void => { if (!order.includes(id)) order.push(id); };
-    const written = anotherOrder ? anotherOrder.map(id => must(band.nodes.find(n => n.id === id))) : band.nodes; // ADR 0019 D4: another written order
-    for (const n of written) { put(n.id); for (const g of groups) if (g.arrows.some(k => must(arrows[k]).from === n.id)) g.arrows.forEach(k => put(must(arrows[k]).from)); }
-    const ranked = order.map(id => must(band.nodes.find(n => n.id === id)));
+    const ranked = rankedIds(prep, band, anotherOrder).map(id => must(band.nodes.find(n => n.id === id)));
     // the most arrows that meet one node (each needs its own lane in the gap beside it)
     const degreeOf = (id: string): number => Math.max(arrows.filter(a => a.from === id).length, arrows.filter(a => a.to === id).length);
     const degree = Math.max(1, ...band.nodes.map(n => degreeOf(n.id)));
@@ -276,6 +300,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
   const start: CauseDir = band.dir === undefined || band.dir === 'auto' ? base : band.dir;
   // a why-why tree (layerFrom: 'effect') is never folded: one "why n" on two levels breaks how it reads
   const fitted = planFit<CauseDir, ReturnType<typeof build>>({
+    ...(sameFit === undefined ? {} : {sameFit}),
     who: band.layerFrom === 'effect' ? 'whyWhyTree()' : 'causeTree()', w, start, keepWords: env.keepWords, ...(band.base !== undefined ? {alt: 'right' as const} : {axisKept: `another axis (a cause tree keeps its direction: ${start})`}),
     explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined || band.maxNodeW === 'auto' ? {} : {maxNodeW: band.maxNodeW}), ...(band.maxNodeW === 'auto' ? {autoWidth: true} : {}),
     build, layoutOf: r => ({lay: r.lay, vertical: r.vertical}), ...(band.base === undefined && band.layerFrom !== 'effect' ? {foldable: true, ...(band.fold === undefined ? {} : {fold: band.fold})} : {}), best: band.base !== undefined && band.dir === 'auto', ...(heightBudget === undefined ? {} : {heightBudget: heightBudget - (band.maxNodeW === 'auto' && canvasBound ? y : 0)}), // an attempt's size already holds the badge room (see build)
