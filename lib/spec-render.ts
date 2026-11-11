@@ -4,12 +4,14 @@ import {renderDiagram} from './dsl/render.ts';
 import {applyConfig} from './config.ts';
 import {geometryChecks, type RenderChecks} from './geometry-checks.ts';
 import {rasterizeWithResvg} from './raster.ts';
-import {SpecError, locateMessage, locateVerdict, specToDiagram, type LocatedMessage, type SpecIssue} from './spec.ts';
+import {SpecError, cappedMessages, layoutIssue, lintMessages, locateMessage, locateVerdict, specToDiagram, type RenderSpecResult, type SpecIssue} from './spec.ts';
 import type {Config, FontSpecs} from './types/project.ts';
 import type {Diagram} from './types/core.ts';
 import type {RenderResult} from './types/verdicts.ts';
 
 export type {RenderChecks};
+export {lintMessages};
+export type {RenderSpecResult};
 
 /** The tallest figure renderSpec() returns by default. */
 export const MAX_FIGURE_HEIGHT = 8000;
@@ -43,21 +45,6 @@ export async function svgToPng(svg: string, opts: {scale?: number; fonts?: FontS
   return {png: r.png as Buffer, width: r.width, height: r.height};
 }
 
-/** What the checks found, as lines a model or a person can act on: `errors` fail `svg-diagram lint`, `advisories` are heuristics it only reports. */
-export function lintMessages(c: RenderChecks): {errors: string[]; advisories: string[]} {
-  return {
-    errors: [
-      ...c.contrast.map(x => `low contrast: "${x.txt}" (${x.fg} on ${x.bg})`),
-      ...(c.overflow ? [`content runs past the canvas by ${c.overflow.dx}px horizontally and ${c.overflow.dy}px vertically`] : []),
-      ...c.textOverlap.map(x => `text over text: "${x.a}" and "${x.b}"`),
-    ],
-    advisories: [
-      ...c.containerOverflow.map(x => `text out of its box by ${x.over}px: "${x.txt}"`),
-      ...c.covered.map(x => `"${x.txt}" is ${x.how === 'covers' ? 'covered' : 'crossed'} by ${x.by}`),
-    ],
-  };
-}
-
 export interface RenderSpecOptions {
   /** Which fonts text is measured with. Default: the font lookup of this machine. */
   config?: Pick<Config, 'measure' | 'fonts'>;
@@ -65,21 +52,6 @@ export interface RenderSpecOptions {
   name?: string;
   /** A taller figure is refused (default MAX_FIGURE_HEIGHT). */
   maxHeight?: number;
-}
-
-export interface RenderSpecResult {
-  /** false when the spec is invalid, or the figure failed verification or the checks on the drawing. */
-  ok: boolean;
-  /** Null when nothing could be drawn. When only the checks failed, this is the picture that was drawn. */
-  svg: string | null;
-  width: number;
-  height: number;
-  /** The spec could not be used or laid out, or the figure is too tall; nothing was returned to draw. */
-  issues: SpecIssue[];
-  /** What failed in the drawn figure. */
-  problems: LocatedMessage[];
-  /** Advice that does not fail the figure. */
-  findings: LocatedMessage[];
 }
 
 const nothing = (issues: SpecIssue[]): RenderSpecResult => ({ok: false, svg: null, width: 0, height: 0, issues, problems: [], findings: []});
@@ -107,7 +79,7 @@ export async function renderSpec(spec: unknown, opts: RenderSpecOptions = {}): P
     r = await renderDiagram(d, {name: opts.name ?? 'diagram.svg', budget: 'cacheOnly'});
   } catch (e) {
     if (isInfrastructure(e)) throw e;
-    return nothing([{path: locateMessage(spec, messageOf(e)) ?? '', message: messageOf(e)}]);
+    return nothing([layoutIssue(spec, messageOf(e))]);
   }
   const maxHeight = opts.maxHeight ?? MAX_FIGURE_HEIGHT;
   if (r.height > maxHeight) return nothing([{path: '', message: `the figure is ${r.height}px tall; the limit is ${maxHeight}px. Use fewer steps or parts, or shorter text`}]);
@@ -126,5 +98,5 @@ export async function renderSpec(spec: unknown, opts: RenderSpecOptions = {}): P
       problems.push({path: null, message: `the drawing could not be checked: ${messageOf(e)}`, severity: 'problem', rule: 'render-check'});
     }
   }
-  return {ok: problems.length === 0, svg: r.svg, width: r.width, height: r.height, issues: [], problems, findings};
+  return {ok: problems.length === 0, svg: r.svg, width: r.width, height: r.height, issues: [], problems: cappedMessages(problems), findings: cappedMessages(findings)};
 }
