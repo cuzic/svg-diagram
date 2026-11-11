@@ -1,9 +1,11 @@
 // Which bands a band holds, as typed tables beside the layout handlers, so the walkers that follow nested bands (connect() collection,
 // id lookup, the spotlight, the rules) share one answer instead of each guessing at a `children` property. A band type without an
-// entry fails to compile (ChildBandsOf below), and test/band-registries.test.ts checks the tables at run time.
+// entry fails to compile (ChildBandsOf below), and test/band-registries.test.ts checks the tables at run time. A new band
+// can be added here directly, or (preferred) as a BandSpec in lib/band-registry.ts, merged in below via byType().
 
 import {IMAGE_PAD, imageSize} from './image.ts';
 import {treeItems} from './tree.ts';
+import {REGISTERED_BAND_SPECS, byType} from './band-registry.ts';
 import type {Band} from './types/index.ts';
 
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
@@ -54,10 +56,10 @@ export const CHILD_BANDS = {
   concentric: none,
   emblem: none,
   valueChain: none,
-  curve: none,
   caption: none,
   box: none,
   banner: none,
+  ...byType(REGISTERED_BAND_SPECS, 'childBands'),
 } satisfies ChildBandsTable;
 
 /** The bands a band holds as children (none for most types). */
@@ -120,10 +122,10 @@ export const STACK_WIDTH = {
   concentric: noStack,
   emblem: noStack,
   valueChain: noStack,
-  curve: noStack,
   caption: noStack,
   box: noStack,
   banner: noStack,
+  ...byType(REGISTERED_BAND_SPECS, 'stackWidth'),
 } satisfies StackWidthTable;
 
 /** The width the children of `band` stack at inside a `cw` wide band, or null (see StackWidthTable). */

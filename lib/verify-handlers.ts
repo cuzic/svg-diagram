@@ -1,6 +1,7 @@
 // Per-band-type structural checks of verifyDiagram(): the rects a band contributes to the overlap / connector / bounds checks
 // (`rects`), the figure-internal checks it runs (`check`, in the `phase` it belongs to) and its text-contrast check (`contrast`).
-// One entry per laid-out band type, each checked against its own band type; a band type without one fails to compile.
+// One entry per laid-out band type, each checked against its own band type; a band type without one fails to compile. A new
+// band can be added here directly, or (preferred) as a BandSpec in lib/band-registry.ts, merged in below via byType().
 
 import {qualify, scopeOf} from './anchor-scope.ts';
 import {plateStyle} from './image.ts';
@@ -20,6 +21,7 @@ import type {LaidOutBanner, LaidOutBox, LaidOutCaption} from './types/text-bands
 import type {CheckRect} from './types/verdicts.ts';
 
 import {must} from './must.ts';
+import {REGISTERED_BAND_SPECS, byType} from './band-registry.ts';
 /** Where a band's findings go: `problems` fail the build, `warnings` never do. */
 export interface VerifyOut {problems: string[]; warnings: string[]}
 
@@ -322,7 +324,6 @@ export const VERIFY_HANDLERS = {
   raw: {rects: ownRect},
   status: {rects: band => [{id: null, label: 'status badge', ...band.pill}]},
   pyramid: {rects: ownRect},
-  curve: {rects: ownRect},
   plane: {rects: ownRect, check: {phase: 'plane', run: checkPlane}},
   bars: {
     rects: band => band.bars.map((b, i) => ({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})})),
@@ -366,6 +367,7 @@ export const VERIFY_HANDLERS = {
   table: {rects: ownRect},
   wireframe: {rects: ownRect},
   screens: {rects: frameRects}, // each screen frame, not the bounding box that holds them all
+  ...byType(REGISTERED_BAND_SPECS, 'verify'),
 } satisfies {[T in LaidOutType]: VerifyHandler<LaidOutOf<T>>};
 
 /** Band types with no entry in VERIFY_HANDLERS: must be `never`. */

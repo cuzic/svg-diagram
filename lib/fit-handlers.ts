@@ -1,9 +1,11 @@
 // Per-band-type text sizes for minTextSize(): every px size a laid-out band draws its text at, beyond its own wrappedRuns.
-// One entry per band type, each checked against its own band type; a band type without one fails to compile.
+// One entry per band type, each checked against its own band type; a band type without one fails to compile. A new band can
+// be added here directly, or (preferred) as a BandSpec in lib/band-registry.ts, merged in below via byType().
 
 import type {LaidOutType, LaidOutOf} from './band-table.ts';
 import type {LaidOutBand} from './types/index.ts';
 import type {WrappedRun} from './types/text-bands.ts';
+import {REGISTERED_BAND_SPECS, byType} from './band-registry.ts';
 
 export type TextSizes<B> = (band: B) => Iterable<number>;
 
@@ -32,7 +34,6 @@ export const FIT_HANDLERS = {
   grid: childRuns,
   raw: none,
   pyramid: none,
-  curve: none,
   plane: band => [band.labelSize],
   quadrant: texts,
   chevron: texts,
@@ -59,6 +60,7 @@ export const FIT_HANDLERS = {
   bpmn: textsAndLabels,
   fta: texts,
   bowtie: texts,
+  ...byType(REGISTERED_BAND_SPECS, 'fit'),
 } satisfies {[T in LaidOutType]: TextSizes<LaidOutOf<T>>};
 
 /** Band types with no entry in FIT_HANDLERS: must be `never`. */

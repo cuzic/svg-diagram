@@ -3,7 +3,7 @@ import type {ToneEnv} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {LaidOutGroup, LaidOutLegend, LaidOutRow, LaidOutGrid, LaidOutRaw, LaidOutStatus, LaidOutConnect, RawColorTone} from './types/containers.ts';
 import type {Theme, EmphasisTone, Align, Rect, Roles} from './types/core.ts';
-import type {LaidOutPyramid, LaidOutCurve} from './types/figures.ts';
+import type {LaidOutPyramid} from './types/figures.ts';
 import type {LaidOutPeople, LaidOutDots} from './types/people-dots.ts';
 import type {LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
 import type {LaidOutBox, LaidOutCaption, LaidOutBanner} from './types/text-bands.ts';
@@ -229,29 +229,6 @@ export function renderDots(band: LaidOutDots, day: Theme, tones: ToneEnv): strin
   const dots = band.dots.map(p => `<circle cx="${n(p.x)}" cy="${n(p.y)}" r="${band.r}" fill="${color(p.tone)}"/>`).join('\n    ');
   parts.push(`<g role="img" aria-label="${escapeAttr(band.alt)}">\n    ${dots}\n  </g>`);
   for (const t of band.texts) parts.push(`<text x="${n(t.x)}" y="${n(t.y)}" text-anchor="${t.anchor}" font-size="${t.size}" fill="${PALETTE.text}">${emojiSpan(t.text)}</text>`);
-  return parts.join('\n  ');
-}
-
-
-export function renderCurve(band: LaidOutCurve, day: Theme, tones: ToneEnv): string {
-  const parts: string[] = [];
-  parts.push(`<path d="M${Math.round(band.axisX)},${Math.round(band.axisTop)} L${Math.round(band.axisX)},${Math.round(band.axisBottom)} L${Math.round(band.axisRight)},${Math.round(band.axisBottom)}" fill="none" stroke="${PALETTE.text}" stroke-width="2"/>`);
-  parts.push(`<path d="${band.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${Math.round(p.x)},${Math.round(p.y)}`).join(' ')}" fill="none" stroke="${PALETTE.text}" stroke-width="3"/>`);
-
-  const emphColor = (emphasis: string) => colorOf(toneStyle(tones, emphasis === 'accent' || emphasis === 'danger' ? emphasis : 'muted').ink, day);
-  band.points.forEach((p, i) => {
-    const color = p.emphasis ? emphColor(p.emphasis) : (i === 0 ? PALETTE[day].accent : PALETTE.muted);
-    const r = p.emphasis === 'danger' ? 8 : i === 0 ? 6 : 5;
-    if (p.dropLine) {
-      parts.push(`<path d="M${Math.round(p.x)},${Math.round(p.y)} L${Math.round(p.x)},${Math.round(band.axisBottom)}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="6,4"/>`);
-    }
-    parts.push(`<circle cx="${snap4(p.x)}" cy="${snap4(p.y)}" r="${r}" fill="${color}"/>`);
-  });
-
-  if (band.yTopLabel) parts.push(`<text x="${Math.round(band.axisX - 8)}" y="${Math.round(band.axisTop + 4)}" text-anchor="end" font-size="14" fill="${PALETTE.muted}">${escapeXml(band.yTopLabel)}</text>`);
-  if (band.yBottomLabel) parts.push(`<text x="${Math.round(band.axisX - 8)}" y="${Math.round(band.axisBottom)}" text-anchor="end" font-size="14" fill="${PALETTE.muted}">${escapeXml(band.yBottomLabel)}</text>`);
-  if (band.xLabel) parts.push(`<text x="${Math.round(band.axisX)}" y="${Math.round(band.axisBottom + 24)}" font-size="14" fill="${PALETTE.muted}">${escapeXml(band.xLabel)}</text>`);
-
   return parts.join('\n  ');
 }
 
