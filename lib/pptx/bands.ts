@@ -100,7 +100,7 @@ const groupFrameBand: BandXml<LaidOutOf<'group'>> = (band, ctx) => {
 const tableBand: BandXml<LaidOutOf<'table'>> = (band, ctx) => {
   const id = ctx.next();
   register(ctx, band.id, id, band);
-  return tableXml(id, band, ctx.ld.day, ctx.fonts);
+  return tableXml(id, band, ctx.ld, ctx.tones, ctx.fonts);
 };
 
 /** A tree as shapes (./tree.ts); a dimmed one stays a picture, as the muted look is not mapped yet. */

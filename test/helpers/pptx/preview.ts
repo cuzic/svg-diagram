@@ -112,7 +112,8 @@ function tableSvg(tbl: El, x0: number, y0: number): string {
     let ci = 0;
     for (const tc of kids(tr, 'a:tc')) {
       const span = Number(tc.attrs['gridSpan'] ?? 1);
-      if (tc.attrs['hMerge'] === '1' || tc.attrs['vMerge'] === '1') { ci += span; continue; }
+      // one a:tc per grid column: a merged one (covered by the span before it) draws nothing
+      if (tc.attrs['hMerge'] === '1' || tc.attrs['vMerge'] === '1') { ci += 1; continue; }
       const x = x0 + cols.slice(0, ci).reduce((a, b) => a + b, 0), w = cols.slice(ci, ci + span).reduce((a, b) => a + b, 0);
       const rs = Number(tc.attrs['rowSpan'] ?? 1);
       const rh = rs > 1 ? kids(tbl, 'a:tr').slice(kids(tbl, 'a:tr').indexOf(tr), kids(tbl, 'a:tr').indexOf(tr) + rs).reduce((a, t) => a + px(t.attrs['h']), 0) : h;
@@ -124,7 +125,7 @@ function tableSvg(tbl: El, x0: number, y0: number): string {
         out.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color(kid(ln, 'a:solidFill')) ?? '#000'}" stroke-width="${px(ln.attrs['w'] ?? '12700')}"/>`);
       }
       out.push(text(kid(tc, 'a:txBody'), {x, y, w, h: rh}, {l: px(pr?.attrs['marL'] ?? '91440'), t: px(pr?.attrs['marT'] ?? '45720'), r: px(pr?.attrs['marR'] ?? '91440')}));
-      ci += span;
+      ci += 1;
     }
     y += h;
   }

@@ -462,3 +462,19 @@ test('a dark figure: the slide has the dark background, and its shapes, lines an
   assert.doesNotMatch(bars, /val="22201B"|val="FFFFFF"/);
   assert.deepEqual(xmlProblems(dark), []);
 });
+
+test('a table is drawn as the svg draws it: a white title on the accent, dark frame and row-heading line, thin lines inside, each cell its colour', async () => {
+  const raci = entry((await renderPptxEdge(spec(example('raci')), realEngine(), {rasterize: () => PNG})).pptx!, 'ppt/slides/slide1.xml');
+  const cells = raci.split(/<a:tc[ >]/).slice(1);
+  // the title bar: the accent fill, white bold text, a dark frame on top
+  assert.match(cells[0] ?? '', /gridSpan="\d+"[\s\S]*b="1"[\s\S]*val="FFFFFF"[\s\S]*<a:lnT w="23813"[^>]*><a:solidFill><a:srgbClr val="22201B"\/>[\s\S]*<a:solidFill><a:srgbClr val="1D5FA8"\/><\/a:solidFill><\/a:tcPr>/);
+  assert.match(raci, /<a:tc hMerge="1">/);
+  // R in red, A in the accent: a cell's own tone
+  assert.match(raci, /val="B91C1C"\/><\/a:solidFill>(?:(?!<\/a:r>).)*<a:t>R<\/a:t>/);
+  assert.match(raci, /val="1D5FA8"\/><\/a:solidFill>(?:(?!<\/a:r>).)*<a:t>A<\/a:t>/);
+  // inside, the border colour 2px; the row heading column ends in a 3px dark line
+  assert.match(raci, /<a:lnT w="19050"[^>]*><a:solidFill><a:srgbClr val="E0D6C5"\/>/);
+  assert.match(raci, /<a:lnR w="28575"[^>]*><a:solidFill><a:srgbClr val="22201B"\/>/);
+  assert.doesNotMatch(raci, /tableStyleId/);
+  assert.deepEqual(xmlProblems(raci), []);
+});
