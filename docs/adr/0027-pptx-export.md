@@ -95,6 +95,7 @@ pptx では、図形と線の幾何は保証する(layout のまま)。文字は
   - states(2026-11-12): ネイティブにした(`lib/pptx/states.ts`)。節は文字を持つ図形で、ひし形・円・ピルは文字の領域が箱全体で接続点が上左下右の custGeom(preset の文字領域は内側に寄り、layout の行からずれるため)。遷移は両端を結んだ矢印付きコネクタ、ラベルは白い下地の上のテキストボックス、開始点も結べる円。アイコンのある状態図と dim のものは画像のまま。木の節も含め、節の文字は tone の文字色(accent なら青)にした。
   - cause・legend(2026-11-12): ネイティブにした(`lib/pptx/cause.ts`、`lib/pptx/legend.ts`)。実体は文字を持つ図形(障害は六角形の custGeom、二重枠は内枠、中核は 3.5px の枠とバッジ)、矢印は両端を結んだコネクタ、AND は二次曲線の freeform、切断の矢印は頭なし・結ばない破線と横棒。`hop` の跳び越しは描かない(線は交差するだけ)。凡例は FTA の記号と二重線を含むものだけ画像のまま。
   - 流れの図形・pyramid・timeline(2026-11-12): ネイティブにした(`lib/pptx/flow.ts`)。chevron / funnel / cycle / venn / concentric / emblem / valueChain は primitives を1つずつ図形に(多角形は freeform、円は ellipse で透過は alpha、SVG のパスは `lib/pptx/svg-path.ts` で freeform に変換し、円弧は3次曲線に)。文字は1行ずつのテキストボックス。id のある項目は透明な矩形で結べる。pyramid は透過の台形、timeline は線・矩形・円。dim のものは画像のまま。
+  - 残りの帯(2026-11-12): 専用の写し方を持たない帯は、まずその帯の SVG を図形に変換する(`lib/pptx/svg-shapes.ts`)。rect / circle / polygon / path / text だけを、決まった属性だけで読み、それ以外(transform、`<use>`、`<tspan>`、グラデーション、`<image>` など)があれば画像に戻す(部品を落としたり誤って描いたりしない)。これで swimlane・sequence・gantt・cloud・bpmn・classes・fta・bowtie・chart・bars・plane などが図形になる。グラフは図形として描くだけで、PowerPoint のグラフ(数値を編集できる)ではない。画像のまま残るのは image・math・people・wordart・wireframe・screens・dots。
 - **第 3 段**: deck(複数枚)、ノート、reveal。
 
 難所は経路の再現ではなく、グループ・id・文字・決定論・画像バンドの切り出しだった(下の結果)。

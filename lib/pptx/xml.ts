@@ -21,7 +21,7 @@ export function arrowEnds(arrow: 'start' | 'end' | 'both' | 'none' | undefined, 
 }
 
 /** A shape's name as an attribute: escaped, and without the control characters XML 1.0 cannot hold (an internal id may start with one). */
-const nameAttr = (name: string): string => attr(name.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ''));
+const nameAttr = (name: string): string => attr([...name].filter(c => { const k = c.codePointAt(0) ?? 0; return k >= 32 || k === 9 || k === 10 || k === 13; }).join(''));
 
 /** The `p:sp` / `p:cxnSp` wrappers every shape of the slide shares. */
 export const sp = (id: number, name: string, spPr: string, txBody: string): string =>

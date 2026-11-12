@@ -6,7 +6,6 @@ import {build as bundle} from 'esbuild';
 import {closeMeasurer} from '../lib/dsl.ts';
 import {partCatalog} from '../lib/spec.ts';
 import {renderPptxEdge, TextEngineError} from '../lib/pptx-edge.ts';
-import {rasterizeWithResvg} from '../lib/raster.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
 import {realEngine} from './helpers/text-engine.ts';
 import {unzipEntry} from './helpers/pptx/unzip.ts';
@@ -24,25 +23,38 @@ test('the entry reaches no node: module, directly or through what it imports', a
   assert.deepEqual(imports.filter(i => i.startsWith('node:')), []);
 });
 
-test('a table becomes a native table, a sequence diagram a picture whose text is outlines, with a PNG from the function handed in', async () => {
-  const seen: {svg: string; scale: number}[] = [];
-  const rasterize = async (svg: string, scale: number) => { seen.push({svg, scale}); return (await rasterizeWithResvg(svg, {scale, png: true})).png as Buffer; };
-  const r = await renderPptxEdge(spec(example('table'), example('sequence')), realEngine(), {rasterize});
+test('a table becomes a native table and a sequence diagram shapes drawn from its SVG: nothing is left to rasterize', async () => {
+  const seen: string[] = [];
+  const r = await renderPptxEdge(spec(example('table'), example('sequence')), realEngine(), {rasterize: svg => { seen.push(svg); return PNG; }});
   assert.deepEqual(r.issues, []);
   assert.ok(r.pptx);
-  assert.deepEqual([r.native, r.pictures], [1, 1]);
+  assert.equal(r.pictures, 0);
+  assert.deepEqual(seen, []);
   const slide = entry(r.pptx, 'ppt/slides/slide1.xml');
   assert.deepEqual(xmlProblems(slide), []);
   assert.match(slide, /<a:tbl>/);
   assert.match(slide, /typeface="BIZ UDPGothic"/);
-  assert.match(slide, /<p:pic>/);
-  const svg = entry(r.pptx, 'ppt/media/image1.svg');
-  assert.doesNotMatch(svg, /<text\b/);
-  assert.match(svg, /<use href="#sd-glyph-/);
-  assert.deepEqual([seen.length, seen[0]?.scale], [1, 2]);
-  assert.doesNotMatch(seen[0]?.svg ?? '', /<text\b/);
-  assert.deepEqual([...unzipEntry(Buffer.from(r.pptx), 'ppt/media/image1.png').subarray(0, 8)], [...PNG]);
+  assert.doesNotMatch(slide, /<p:pic>/);
+  assert.match(slide, /name="sequence-1"/);
   assert.match(entry(r.pptx, '[Content_Types].xml'), /Extension="svg"/);
+});
+
+test('svgShapesXml draws rects, circles, polygons, paths and texts, and gives up on what it does not read', async () => {
+  const {svgShapesXml} = await import('../lib/pptx/svg-shapes.ts');
+  const fonts = {sans: 'S', mono: 'M'};
+  let n = 0;
+  const next = () => ++n;
+  const wrap = (inner: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><title>t</title><style>text{}</style><defs><marker id="m"/></defs>${inner}</svg>`;
+  const ok = svgShapesXml(wrap('<rect x="1" y="2" width="30" height="20" rx="4" fill="#fff" stroke="#123456" stroke-width="2" stroke-dasharray="2,5"/><circle cx="50" cy="50" r="5" fill="#ff0000" fill-opacity="0.5"/><polygon points="0,0 10,0 5,8" fill="#00ff00"/><path d="M0,0 L10,10" fill="none" stroke="#000" marker-end="url(#m)"/><path d="M0,0 h10 v10 Z" fill="#0000ff"/><text x="10" y="20" text-anchor="middle" font-size="12" font-weight="700" fill="#222222">文字</text>'), fonts, next);
+  assert.ok(ok);
+  assert.match(ok, /prst="roundRect"[\s\S]*FFFFFF[\s\S]*<a:prstDash val="sysDot"\/>/);
+  assert.match(ok, /prst="ellipse"[\s\S]*<a:alpha val="50000"\/>/);
+  assert.match(ok, /<a:close\/>[\s\S]*00FF00/);
+  assert.match(ok, /<a:tailEnd type="triangle"/);
+  assert.match(ok, /0000FF/);
+  assert.match(ok, /algn="ctr"[\s\S]*b="1"[\s\S]*<a:t>文字<\/a:t>/);
+  for (const bad of ['<use href="#a"/>', '<g transform="scale(2)"><rect/></g>', '<text x="0" y="0">a<tspan>b</tspan></text>', '<rect transform="rotate(4)" width="1" height="1"/>', '<rect fill="url(#g)" width="1" height="1"/>', '<image href="a.png"/>']) assert.equal(svgShapesXml(wrap(bad), fonts, next), null, bad);
+  assert.equal(svgShapesXml('not xml', fonts, next), null);
 });
 
 test('the same spec gives the same bytes, and the font and PNG scale can be chosen', async () => {
@@ -204,7 +216,7 @@ test('a state diagram glues its start dot, draws an end state\'s inner frame, an
   const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
   assert.equal(slide.match(/<a:stCxn /g)?.length, 2);
   assert.match(slide, /name="end-b"/);
-  assert.doesNotMatch(slide, /[\u0000-\u0008]/);
+  assert.ok([...slide].every(c => (c.codePointAt(0) ?? 0) >= 9));
   assert.match(slide, /<a:t>完了<\/a:t>/);
   assert.deepEqual(xmlProblems(slide), []);
 });

@@ -16,6 +16,7 @@ import {statesXml} from './states.ts';
 import {causeXml} from './cause.ts';
 import {legendNative, legendXml} from './legend.ts';
 import {flowShapeXml, pyramidXml, timelineXml} from './flow.ts';
+import {svgShapesXml} from './svg-shapes.ts';
 import type {LaidOutFlowShape} from '../flow-shapes.ts';
 
 /** What the bands of one slide share: ids, the shapes connectors can glue to, and the pictures to rasterize. */
@@ -147,17 +148,25 @@ const flowBand: BandXml<LaidOutFlowShape> = (band, ctx, index) => {
 const pyramidBand: BandXml<LaidOutOf<'pyramid'>> = (band, ctx) => pyramidXml(band, ctx.ld, ctx.fonts, ctx.next);
 const timelineBand: BandXml<LaidOutOf<'timeline'>> = (band, ctx, index) => band.dim ? imageBand(band, ctx, index) : timelineXml(band, ctx.ld, ctx.fonts, ctx.next);
 
-/** A band with no native mapping: drawn alone as SVG + PNG and placed as one picture; an invisible anchor keeps its DSL id glue-able. */
+/**
+ * A band with no mapping of its own: drawn as shapes from its own SVG (./svg-shapes.ts) when that SVG uses only what the converter reads,
+ * else as one picture (SVG + PNG). Either way an invisible anchor keeps its DSL id glue-able.
+ */
 const imageBand: BandXml<DrawnBand> = (band, ctx, index) => {
   const {picture, rect} = bandPicture(ctx.ld, band, index);
-  const rids = imageRids(ctx.pictures.length);
-  ctx.pictures.push(picture);
-  const pic = picXml(ctx.next(), `${band.type}-${index}`, rect, rids.png, rids.svg);
-  if (!('id' in band && band.id)) return pic;
+  const shapes = svgShapesXml(picture.svg, ctx.fonts, ctx.next);
+  let drawn: string;
+  if (shapes !== null) drawn = groupXml(ctx.next(), `${band.type}-${index}`, rect, shapes);
+  else {
+    const rids = imageRids(ctx.pictures.length);
+    ctx.pictures.push(picture);
+    drawn = picXml(ctx.next(), `${band.type}-${index}`, rect, rids.png, rids.svg);
+  }
+  if (!('id' in band && band.id)) return drawn;
   const anchor = {x: band.x, y: band.y, w: band.w, h: band.h};
   const anchorId = ctx.next();
   register(ctx, band.id, anchorId, anchor);
-  return pic + anchorXml(anchorId, `anchor-${band.id}`, anchor);
+  return drawn + anchorXml(anchorId, `anchor-${band.id}`, anchor);
 };
 
 /** One disposition per laid-out band type; a missing band type fails compilation. */

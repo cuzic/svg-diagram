@@ -26,7 +26,8 @@ function xf(spPr: El | undefined) {
 function stroke(spPr: El | undefined): string {
   const ln = kid(spPr, 'a:ln');
   if (!ln || kid(ln, 'a:noFill')) return 'stroke="none"';
-  const dash = kid(ln, 'a:prstDash') ? ' stroke-dasharray="6,4"' : '';
+  const pd = kid(ln, 'a:prstDash')?.attrs['val'];
+  const dash = pd === 'sysDot' ? ' stroke-dasharray="2,5"' : pd ? ' stroke-dasharray="6,4"' : '';
   return `stroke="${color(kid(ln, 'a:solidFill')) ?? '#000'}" stroke-width="${px(ln.attrs['w'] ?? '12700')}"${dash}`;
 }
 const fill = (spPr: El | undefined): string => {
