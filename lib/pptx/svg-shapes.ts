@@ -31,7 +31,7 @@ function color(v: string | undefined): string | null | undefined {
 
 /** A box: what text can sit in and lines can glue to. Its geometry has the four sites top, left, bottom, right (0 to 3). */
 interface Box {kind: 'box'; id: number; rect: Rect; geom: string; paint: Paint; texts: TextLine[]}
-interface Line {kind: 'line'; id: number; pts: Pt[]; paint: Paint; start?: EndType; end?: EndType}
+interface Line {kind: 'line'; id: number; pts: Pt[]; paint: Paint; start?: EndType; end?: EndType; /** The length of the mark each end took (px). */ headPx?: {start?: number; end?: number}}
 /** A small mark at a line's end: a filled triangle, an open V (`arrow`, drawn as a 3-point line) or a filled diamond. `xml` draws it when no line takes it. */
 interface Head {kind: 'head'; id: number; type: EndType; pts: Pt[]; xml: () => string; used: boolean}
 interface Text {kind: 'text'; id: number; t: TextLine; inBox: boolean}
@@ -66,7 +66,7 @@ export function svgShapesXml(svg: string, fonts: Fonts, next: () => number): str
     const op = e.attrs['fill-opacity'];
     return {...(fill ? {fill} : {}), ...(op !== undefined ? {fillOpacity: Number(op)} : {}), ...(stroke ? {stroke, widthPx: num(e, 'stroke-width', 1)} : {}), ...dashOfSvg(e.attrs['stroke-dasharray'])};
   };
-  const lineOpts = (l: Line) => ({dashed: l.paint.dashed, dotted: l.paint.dotted, ends: {...(l.start ? {start: l.start} : {}), ...(l.end ? {end: l.end} : {})}});
+  const lineOpts = (l: Line) => ({dashed: l.paint.dashed, dotted: l.paint.dotted, ...(l.headPx ? {headPx: l.headPx} : {}), ends: {...(l.start ? {start: l.start} : {}), ...(l.end ? {end: l.end} : {})}});
   /** A filled mark whose fill is its outline's colour too (or that has none): what a line end can be drawn as. */
   const solidMark = (paint: Paint) => !!paint.fill && (!paint.stroke || paint.stroke.toLowerCase() === paint.fill.toLowerCase()) && paint.fillOpacity === undefined;
   /**
@@ -191,7 +191,11 @@ export function svgShapesXml(svg: string, fonts: Fonts, next: () => number): str
       if (!h) continue;
       h.used = true;
       it[which] = h.type;
-      it.pts[i] = h.pts.toSorted((u, v) => Math.hypot(v.x - q.x, v.y - q.y) - Math.hypot(u.x - q.x, u.y - q.y))[0] as Pt;
+      const [tip, ...rest] = h.pts.toSorted((u, v) => Math.hypot(v.x - q.x, v.y - q.y) - Math.hypot(u.x - q.x, u.y - q.y)) as [Pt, ...Pt[]];
+      it.pts[i] = tip;
+      // the mark's length, tip to the middle of the rest: PowerPoint sizes an end by the line's width, so this picks the size (xml.ts endSize)
+      const mid = {x: rest.reduce((a, p) => a + p.x, 0) / rest.length, y: rest.reduce((a, p) => a + p.y, 0) / rest.length};
+      it.headPx = {...it.headPx, [which]: Math.hypot(tip.x - mid.x, tip.y - mid.y)};
     }
   }
 

@@ -94,10 +94,10 @@ function text(txBody: El | undefined, r: {x: number; y: number; w: number; h: nu
 
 /** The arrowheads used, one per kind and colour (a head takes its line's colour, as in PowerPoint). */
 const markers = new Map<string, string>();
-function markerOf(kind: 'a' | 'v' | 'd', color: string): string {
-  const id = `${kind}-${color}`, c = `#${color}`;
+function markerOf(kind: 'a' | 'v' | 'd', color: string, size: number): string {
+  const id = `${kind}-${color}-${String(size).replace('.', '_')}`, c = `#${color}`;
   const body = kind === 'a' ? `<path d="M0,0 L10,5 L0,10 z" fill="${c}"/>` : kind === 'v' ? `<path d="M0,0 L10,5 L0,10" fill="none" stroke="${c}" stroke-width="1.5"/>` : `<path d="M0,5 L5,0 L10,5 L5,10 z" fill="${c}"/>`;
-  markers.set(id, `<marker id="${id}" viewBox="0 0 10 10" refX="${kind === 'd' ? 5 : 9}" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">${body}</marker>`);
+  markers.set(id, `<marker id="${id}" viewBox="0 0 10 10" refX="${kind === 'd' ? 5 : 9}" refY="5" markerUnits="userSpaceOnUse" markerWidth="${size}" markerHeight="${size}" orient="auto-start-reverse">${body}</marker>`);
   return id;
 }
 const markerDefs = (): string => [...markers.values()].join('');
@@ -150,7 +150,13 @@ function shapes(tree: El): string {
     } else if (e.tag === 'p:cxnSp') {
       const r = xf(spPr), prst = kid(spPr, 'a:prstGeom')?.attrs['prst'];
       const color = find(kid(kid(spPr, 'a:ln'), 'a:solidFill'), 'a:srgbClr')?.attrs['val'] ?? '000000';
-      const mark = (tag: string, attr: string) => { const t = kid(kid(spPr, 'a:ln'), tag)?.attrs['type']; return t ? ` ${attr}="url(#${markerOf(t === 'arrow' ? 'v' : t === 'diamond' ? 'd' : 'a', color)})"` : ''; };
+      // as PowerPoint sizes an end: a multiple (sm 2, med 3, lg 5) of the line's width, at least 0.7 mm (xml.ts endSize)
+      const lw = px(kid(spPr, 'a:ln')?.attrs['w'] ?? '12700');
+      const mark = (tag: string, attr: string) => {
+        const end = kid(kid(spPr, 'a:ln'), tag), t = end?.attrs['type'];
+        const size = ({sm: 2, med: 3, lg: 5} as Record<string, number>)[end?.attrs['len'] ?? 'med'] ?? 3;
+        return t ? ` ${attr}="url(#${markerOf(t === 'arrow' ? 'v' : t === 'diamond' ? 'd' : 'a', color, Math.round(size * Math.max(lw, 2.65) * 10) / 10)})"` : '';
+      };
       const tail = mark('a:tailEnd', 'marker-end') + mark('a:headEnd', 'marker-start');
       if (kid(spPr, 'a:custGeom')) { out.push(`<path d="${custPath(spPr, r)}" fill="none" ${stroke(spPr)}${tail}/>`); continue; }
       const adj = kids(kid(kid(spPr, 'a:prstGeom'), 'a:avLst') as El, 'a:gd').map(g => Number(g.attrs['fmla']?.replace('val ', '')));

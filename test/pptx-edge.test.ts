@@ -99,7 +99,10 @@ test('svgShapesXml edits as a diagram: a box takes the text inside it, a line gl
   // an open V and a kite are line ends too (a UML navigable end, a composition)
   const u = conv('<rect x="0" y="0" width="80" height="40" fill="#ffffff" stroke="#000000"/><rect x="0" y="100" width="80" height="40" fill="#ffffff" stroke="#000000"/>'
     + '<path d="M40,40 L40,100" fill="none" stroke="#000000" stroke-width="2"/><path d="M36,88 L40,100 L44,88" fill="none" stroke="#000000" stroke-width="2"/><path d="M40,40 L44,52 L40,60 L36,52 z" fill="#000000" stroke="#000000"/>');
-  assert.match(u, /<a:headEnd type="diamond" w="lg" len="lg"\/><a:tailEnd type="arrow" w="med" len="med"\/>/);
+  // each end sized from its own mark: PowerPoint draws an end a multiple of the line's width (at least 2.65px): the V, 12px, is lg (13px)
+  assert.match(u, /<a:headEnd type="diamond" w="lg" len="lg"\/><a:tailEnd type="arrow" w="lg" len="lg"\/>/);
+  const {endSize} = await import('../lib/pptx/xml.ts');
+  assert.deepEqual([endSize(2), endSize(5), endSize(3.5, 9), endSize(1, 5)], ['lg', 'med', 'med', 'sm']);
   assert.match(u, /<a:stCxn id="\d+" idx="2"\/><a:endCxn id="\d+" idx="0"\/>/);
   // a background that frames other boxes keeps none of their text; a bar drawn twice (fill and outline) still takes its label
   const c = conv('<rect x="0" y="0" width="400" height="300" fill="#ffffff"/><path d="M100,100 H160 V290 H100 Z" fill="#1d5fa8" fill-opacity="0.4"/><path d="M100,100 H160 V290 H100 Z" fill="none" stroke="#1d5fa8"/>'
