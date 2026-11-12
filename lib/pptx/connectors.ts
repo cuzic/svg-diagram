@@ -45,9 +45,13 @@ export function connectorShapeXml(id: number, name: string, x: Omit<ConnXfrm, 'p
 }
 
 /** How a band's own line is drawn: dashed or dotted, and with an arrowhead at its end. */
-/** `arrow`: a head at the end; `heads` names the ends explicitly (and wins). */
-export interface LineOpts {dashed?: boolean; dotted?: boolean; arrow?: boolean; heads?: 'start' | 'end' | 'both' | 'none'}
-const headsOf = (o: LineOpts): string => o.heads ? arrowEnds(o.heads, true) : o.arrow ? arrowEnds('end', true) : '';
+/** The shape of a line end: a filled triangle, an open V (`arrow`), or a filled diamond. */
+export type EndType = 'triangle' | 'arrow' | 'diamond';
+/** `arrow`: a triangle at the end; `heads` names the ends explicitly; `ends` names each end's shape (and wins over both). */
+export interface LineOpts {dashed?: boolean; dotted?: boolean; arrow?: boolean; heads?: 'start' | 'end' | 'both' | 'none'; ends?: {start?: EndType; end?: EndType}}
+// a diamond mark (UML composition) is drawn large: PowerPoint sizes ends by the line's width, and a medium one is half the svg's
+const endXml = (tag: 'headEnd' | 'tailEnd', t: EndType | undefined): string => t ? `<a:${tag} type="${t}" w="${t === 'diamond' ? 'lg' : 'med'}" len="${t === 'diamond' ? 'lg' : 'med'}"/>` : '';
+const headsOf = (o: LineOpts): string => o.ends ? endXml('headEnd', o.ends.start) + endXml('tailEnd', o.ends.end) : o.heads ? arrowEnds(o.heads, true) : o.arrow ? arrowEnds('end', true) : '';
 const dashOf = (o: LineOpts): string => o.dotted ? '<a:prstDash val="sysDot"/>' : o.dashed ? '<a:prstDash val="dash"/>' : '';
 
 /** One step of a freeform path: move, line, quadratic curve (control, end), cubic curve (two controls, end), or close. */

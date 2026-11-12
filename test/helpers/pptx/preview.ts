@@ -104,12 +104,12 @@ function shapes(tree: El): string {
       out.push(text(kid(e, 'p:txBody'), r));
     } else if (e.tag === 'p:cxnSp') {
       const r = xf(spPr), prst = kid(spPr, 'a:prstGeom')?.attrs['prst'];
-      const tail = kid(kid(spPr, 'a:ln'), 'a:tailEnd') ? ' marker-end="url(#a)"' : '';
+      const mark = (tag: string, attr: string) => { const t = kid(kid(spPr, 'a:ln'), tag)?.attrs['type']; return t ? ` ${attr}="url(#${t === 'arrow' ? 'v' : t === 'diamond' ? 'd' : 'a'})"` : ''; };
+      const tail = mark('a:tailEnd', 'marker-end') + mark('a:headEnd', 'marker-start');
       if (kid(spPr, 'a:custGeom')) { out.push(`<path d="${custPath(spPr, r)}" fill="none" ${stroke(spPr)}${tail}/>`); continue; }
       const adj = kids(kid(kid(spPr, 'a:prstGeom'), 'a:avLst') as El, 'a:gd').map(g => Number(g.attrs['fmla']?.replace('val ', '')));
       const c: ConnXfrm = {prst: (prst ?? 'straightConnector1').replace('curvedConnector', 'bentConnector') as ConnXfrm['prst'], offX: r.x * EMU, offY: r.y * EMU, extX: r.w * EMU, extY: r.h * EMU, rot: r.rot ? 5400000 : 0, flipH: r.flipH, flipV: r.flipV, adj};
-      const head = kid(kid(spPr, 'a:ln'), 'a:tailEnd') ? ' marker-end="url(#a)"' : '';
-      out.push(`<polyline points="${evalConnector(c).map(p => `${p.x},${p.y}`).join(' ')}" fill="none" ${stroke(spPr)}${head}${prst?.startsWith('curved') ? ' stroke-linejoin="round" opacity="0.8"' : ''}/>`);
+      out.push(`<polyline points="${evalConnector(c).map(p => `${p.x},${p.y}`).join(' ')}" fill="none" ${stroke(spPr)}${tail}${prst?.startsWith('curved') ? ' stroke-linejoin="round" opacity="0.8"' : ''}/>`);
     } else if (e.tag === 'p:pic') {
       const r = xf(spPr);
       out.push(`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#hatch)" stroke="#c00"/>`);
@@ -126,7 +126,7 @@ export function previewSvg(pptx: Buffer): string {
   const size = find(pres, 'p:sldSz');
   const w = px(size?.attrs['cx']), h = px(size?.attrs['cy']);
   const tree = find(parseXmlFragment(unzipEntry(pptx, 'ppt/slides/slide1.xml').toString()), 'p:spTree') as El;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0,8 L8,0" stroke="#c00" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="#fff"/>${shapes(tree)}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#000" stroke-width="1.5"/></marker><marker id="d" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,5 L5,0 L10,5 L5,10 z"/></marker><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0,8 L8,0" stroke="#c00" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="#fff"/>${shapes(tree)}</svg>`;
 }
 
 if (import.meta.main) {

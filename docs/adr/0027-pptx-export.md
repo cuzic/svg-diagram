@@ -96,6 +96,7 @@ pptx では、図形と線の幾何は保証する(layout のまま)。文字は
   - cause・legend(2026-11-12): ネイティブにした(`lib/pptx/cause.ts`、`lib/pptx/legend.ts`)。実体は文字を持つ図形(障害は六角形の custGeom、二重枠は内枠、中核は 3.5px の枠とバッジ)、矢印は両端を結んだコネクタ、AND は二次曲線の freeform、切断の矢印は頭なし・結ばない破線と横棒。`hop` の跳び越しは描かない(線は交差するだけ)。凡例は FTA の記号と二重線を含むものだけ画像のまま。
   - 流れの図形・pyramid・timeline(2026-11-12): ネイティブにした(`lib/pptx/flow.ts`)。chevron / funnel / cycle / venn / concentric / emblem / valueChain は primitives を1つずつ図形に(多角形は freeform、円は ellipse で透過は alpha、SVG のパスは `lib/pptx/svg-path.ts` で freeform に変換し、円弧は3次曲線に)。文字は1行ずつのテキストボックス。id のある項目は透明な矩形で結べる。pyramid は透過の台形、timeline は線・矩形・円。dim のものは画像のまま。
   - 残りの帯(2026-11-12): 専用の写し方を持たない帯は、まずその帯の SVG を図形に変換する(`lib/pptx/svg-shapes.ts`)。rect / circle / polygon / path / text だけを、決まった属性だけで読み、それ以外(transform、`<use>`、`<tspan>`、グラデーション、`<image>` など)があれば画像に戻す(部品を落としたり誤って描いたりしない)。これで swimlane・sequence・gantt・cloud・bpmn・classes・fta・bowtie・chart・bars・plane などが図形になる。グラフは図形として描くだけで、PowerPoint のグラフ(数値を編集できる)ではない。画像のまま残るのは image・math・people・wordart・wireframe・screens・dots。
+  - SVG から変換する帯を、図として編集できる形に(2026-11-12): 2段で読む。箱(rect・circle・ひし形・塗りのある閉じた輪郭)は、中にある文字の行を自分の文字として持つ(行ごとの段落、元の基線と揃え。左揃えと中央揃えの混在も、1つの文字領域に収まるなら可。他の箱を囲む背景は、文字にぴったりでない限り持たない)。線の端が箱の輪郭に乗り、3px 先で箱の外に出ていれば、その箱に結んだコネクタにする(背景の縁から始まる罫線は結ばない)。線の端にある小さな塗りの三角・ひし形(凧形)・開いた V は、その線の端の形(triangle / diamond / arrow)にして図形としては描かない。白抜きの三角(UML の汎化)は PowerPoint に無いので図形のまま。
 - **第 3 段**: deck(複数枚)、ノート、reveal。
 
 難所は経路の再現ではなく、グループ・id・文字・決定論・画像バンドの切り出しだった(下の結果)。

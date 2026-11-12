@@ -27,15 +27,60 @@ export function textLineXml(id: number, name: string, t: TextLine, fonts: Fonts)
     `<a:bodyPr wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr algn="${algn}"><a:lnSpc><a:spcPts val="${Math.round(pitch * 75)}"/></a:lnSpc></a:pPr>${runXml(t.text, t.size, t.bold, false, hex(t.color), fonts)}</a:p>`);
 }
 
+/** The prstGeom of a preset, with its first adjustment if any. */
+export const prstGeomXml = (prst: string, adj?: number): string => `<a:prstGeom prst="${prst}"><a:avLst>${adj === undefined ? '' : `<a:gd name="adj" fmla="val ${Math.round(adj)}"/>`}</a:avLst></a:prstGeom>`;
+
 /** A preset shape (rect, roundRect, ellipse, diamond, triangle, ...) with no text. `adj` is the preset's first adjustment, if any. */
 export function presetXml(id: number, name: string, prst: string, r: Rect, paint: Paint, adj?: number): string {
-  const av = adj === undefined ? '' : `<a:gd name="adj" fmla="val ${Math.round(adj)}"/>`;
-  return sp(id, name, `${xfrm(r)}<a:prstGeom prst="${prst}"><a:avLst>${av}</a:avLst></a:prstGeom>${fillOf(paint)}${lineOf(paint)}`, EMPTY_TEXT);
+  return sp(id, name, `${xfrm(r)}${prstGeomXml(prst, adj)}${fillOf(paint)}${lineOf(paint)}`, EMPTY_TEXT);
 }
 
-/** A shape of a given geometry (a custGeom from roundGeomXml) with no text. */
-export function geomShapeXml(id: number, name: string, r: Rect, geom: string, paint: Paint): string {
-  return sp(id, name, `${xfrm(r)}${geom}${fillOf(paint)}${lineOf(paint)}`, EMPTY_TEXT);
+/** A shape of a given geometry (a prstGeom, or a custGeom from roundGeomXml), holding `text` (a txBody from boxTextXml) if given. */
+export function geomShapeXml(id: number, name: string, r: Rect, geom: string, paint: Paint, text = EMPTY_TEXT): string {
+  return sp(id, name, `${xfrm(r)}${geom}${fillOf(paint)}${lineOf(paint)}`, text);
+}
+
+/**
+ * The text body of a shape whose text the layout placed as separate lines: each line a paragraph at its own baseline (exact line
+ * spacing, the space before making up the gap), aligned as anchored (left, centred, right), the insets putting each anchor where it was.
+ * The text wraps at the box, so text typed into it stays inside.
+ */
+/** The insets that put every line at its anchor, or null when the lines' anchors cannot share one text area (see boxTextXml). */
+function boxInsets(r: Rect, lines: readonly TextLine[]): {l: number; r: number} | null {
+  const xs = (a: TextLine['anchor']) => [...new Set(lines.filter(t => t.anchor === a).map(t => Math.round(t.x)))];
+  const starts = xs('start'), ends = xs('end'), mids = xs('middle');
+  const near = (v: readonly number[]) => v.length === 0 || Math.max(...v) - Math.min(...v) <= 2;
+  if (!near(starts) || !near(ends) || !near(mids)) return null;
+  const l = starts.length ? (starts[0] ?? 0) - r.x : undefined, rr = ends.length ? r.x + r.w - (ends[0] ?? 0) : undefined;
+  if (mids.length && l === undefined && rr === undefined) {
+    // centred lines only: the text area is centred on them
+    const x = mids[0] ?? 0, half = Math.max(0, Math.min(x - r.x, r.x + r.w - x));
+    return {l: x - half - r.x, r: r.x + r.w - x - half};
+  }
+  // mixed: centred lines must sit at the middle of the text area, which the two insets bound
+  const L = l ?? rr ?? 2, R = rr ?? l ?? 2;
+  if (mids.length && Math.abs((mids[0] ?? 0) - (r.x + L + (r.w - L - R) / 2)) > 2) return null;
+  if (L < -1 || R < -1 || L + R >= r.w) return null;
+  return {l: Math.max(0, L), r: Math.max(0, R)};
+}
+
+/** Whether these lines can be the text of this box (boxTextXml can place every one at its anchor). */
+export const boxTextFits = (r: Rect, lines: readonly TextLine[]): boolean => lines.length > 0 && boxInsets(r, lines) !== null;
+
+export function boxTextXml(r: Rect, lines: readonly TextLine[], fonts: Fonts): string {
+  const sorted = lines.toSorted((a, b) => a.y - b.y);
+  const first = sorted[0], ins = boxInsets(r, lines);
+  if (!first || !ins) return EMPTY_TEXT;
+  const l = ins.l, rr = ins.r;
+  const algnOf = (t: TextLine) => t.anchor === 'middle' ? 'ctr' : t.anchor === 'end' ? 'r' : 'l';
+  const pitch = (t: TextLine) => Math.round(t.size * LINE_HEIGHT_EM);
+  const top = (t: TextLine) => t.y - pitch(t) * 0.8;
+  const paras = sorted.map((t, i) => {
+    const prev = sorted[i - 1];
+    const before = prev ? Math.max(0, top(t) - top(prev) - pitch(prev)) : 0;
+    return `<a:p><a:pPr algn="${algnOf(t)}"><a:lnSpc><a:spcPts val="${Math.round(pitch(t) * 75)}"/></a:lnSpc><a:spcBef><a:spcPts val="${Math.round(before * 75)}"/></a:spcBef></a:pPr>${runXml(t.text, t.size, t.bold, false, hex(t.color), fonts)}</a:p>`;
+  }).join('');
+  return `<a:bodyPr wrap="square" lIns="${emu(Math.max(0, l))}" tIns="${emu(Math.max(0, top(first) - r.y))}" rIns="${emu(Math.max(0, rr))}" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paras}`;
 }
 
 /** A closed polygon as a freeform shape (it keeps its points when moved, and its fill). */
@@ -89,3 +134,12 @@ export const dashOfSvg = (dash: string | undefined): Pick<Paint, 'dashed' | 'dot
   const first = Number(dash.split(/[ ,]+/)[0]);
   return first <= 2 ? {dotted: true} : {dashed: true};
 };
+
+/** A closed outline (path steps) as a custGeom over its bounding box `r`, its text area the whole box and its sites the middles of the
+ *  box's top, left, bottom and right sides (0 to 3, as siteIndex counts). */
+export function outlineGeomXml(steps: readonly PathStep[], r: Rect): string {
+  const W = emu(r.w), H = emu(r.h), pos = (x: number, y: number) => `<a:pos x="${Math.round(x)}" y="${Math.round(y)}"/>`;
+  const sites = `<a:cxn ang="16200000">${pos(W / 2, 0)}</a:cxn><a:cxn ang="10800000">${pos(0, H / 2)}</a:cxn><a:cxn ang="5400000">${pos(W / 2, H)}</a:cxn><a:cxn ang="0">${pos(W, H / 2)}</a:cxn>`;
+  const path = pathXml(steps, p => `<a:pt x="${emu(p.x - r.x)}" y="${emu(p.y - r.y)}"/>`);
+  return `<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst>${sites}</a:cxnLst><a:rect l="l" t="t" r="r" b="b"/><a:pathLst><a:path w="${W}" h="${H}">${path}</a:path></a:pathLst></a:custGeom>`;
+}

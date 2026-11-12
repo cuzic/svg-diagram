@@ -44,17 +44,63 @@ test('svgShapesXml draws rects, circles, polygons, paths and texts, and gives up
   const fonts = {sans: 'S', mono: 'M'};
   let n = 0;
   const next = () => ++n;
-  const wrap = (inner: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><title>t</title><style>text{}</style><defs><marker id="m"/></defs>${inner}</svg>`;
-  const ok = svgShapesXml(wrap('<rect x="1" y="2" width="30" height="20" rx="4" fill="#fff" stroke="#123456" stroke-width="2" stroke-dasharray="2,5"/><circle cx="50" cy="50" r="5" fill="#ff0000" fill-opacity="0.5"/><polygon points="0,0 10,0 5,8" fill="#00ff00"/><path d="M0,0 L10,10" fill="none" stroke="#000" marker-end="url(#m)"/><path d="M0,0 h10 v10 Z" fill="#0000ff"/><text x="10" y="20" text-anchor="middle" font-size="12" font-weight="700" fill="#222222">文字</text>'), fonts, next);
+  const wrap = (inner: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><title>t</title><style>text{}</style><defs><marker id="m"/></defs>${inner}</svg>`;
+  const ok = svgShapesXml(wrap('<rect x="1" y="2" width="30" height="20" rx="4" fill="#fff" stroke="#123456" stroke-width="2" stroke-dasharray="2,5"/><circle cx="150" cy="150" r="5" fill="#ff0000" fill-opacity="0.5"/>'
+    + '<polygon points="200,200 260,200 230,260" fill="#00ff00"/><path d="M0,100 L90,100" fill="none" stroke="#000" marker-end="url(#m)"/><path d="M0,200 C40,160 80,240 120,200" fill="none" stroke="#000"/><text x="200" y="120" font-size="12" fill="#222222">外</text>'), fonts, next);
   assert.ok(ok);
   assert.match(ok, /prst="roundRect"[\s\S]*FFFFFF[\s\S]*<a:prstDash val="sysDot"\/>/);
-  assert.match(ok, /prst="ellipse"[\s\S]*<a:alpha val="50000"\/>/);
-  assert.match(ok, /<a:close\/>[\s\S]*00FF00/);
-  assert.match(ok, /<a:tailEnd type="triangle"/);
-  assert.match(ok, /0000FF/);
-  assert.match(ok, /algn="ctr"[\s\S]*b="1"[\s\S]*<a:t>文字<\/a:t>/);
+  assert.match(ok, /<a:arcTo [\s\S]*<a:alpha val="50000"\/>/); // a circle: an ellipse whose text area is the whole box
+  assert.match(ok, /<a:close\/>[\s\S]*00FF00/); // a large triangle is a shape, not a line end
+  assert.match(ok, /straightConnector1[\s\S]*<a:tailEnd type="triangle"/);
+  assert.match(ok, /<a:cubicBezTo>/);
+  assert.match(ok, /name="text: 外"[\s\S]*<a:bodyPr wrap="none"/);
   for (const bad of ['<use href="#a"/>', '<g transform="scale(2)"><rect/></g>', '<text x="0" y="0">a<tspan>b</tspan></text>', '<rect transform="rotate(4)" width="1" height="1"/>', '<rect fill="url(#g)" width="1" height="1"/>', '<image href="a.png"/>']) assert.equal(svgShapesXml(wrap(bad), fonts, next), null, bad);
   assert.equal(svgShapesXml('not xml', fonts, next), null);
+});
+
+test('the pieces of a box with text: a preset geometry, an outline geometry with four sites, and text placed at each anchor', async () => {
+  const {boxTextFits, boxTextXml, outlineGeomXml, prstGeomXml} = await import('../lib/pptx/prims.ts');
+  assert.equal(prstGeomXml('rect'), '<a:prstGeom prst="rect"><a:avLst></a:avLst></a:prstGeom>');
+  assert.match(prstGeomXml('roundRect', 12000), /<a:gd name="adj" fmla="val 12000"\/>/);
+  const g = outlineGeomXml([{op: 'M', pts: [{x: 10, y: 10}]}, {op: 'L', pts: [{x: 30, y: 10}]}, {op: 'L', pts: [{x: 30, y: 20}]}, {op: 'Z', pts: []}], {x: 10, y: 10, w: 20, h: 10});
+  assert.match(g, /<a:cxn ang="16200000"><a:pos x="95250" y="0"\/>[\s\S]*<a:moveTo><a:pt x="0" y="0"\/><\/a:moveTo>[\s\S]*<a:close\/>/);
+  const r = {x: 0, y: 0, w: 100, h: 50}, line = (x: number, anchor: 'start' | 'middle' | 'end', y = 20) => ({text: 'a', x, y, anchor, size: 10, bold: false, color: '#000000'});
+  assert.equal(boxTextFits(r, [line(50, 'middle'), line(10, 'start', 35)]), true);
+  assert.equal(boxTextFits(r, [line(30, 'middle'), line(10, 'start', 35)]), false); // a centred line off the middle of the text area
+  assert.equal(boxTextFits(r, [line(10, 'start'), line(20, 'start', 35)]), false); // two left edges
+  assert.equal(boxTextFits(r, []), false);
+  // a centred line at x 60: the text area is centred on it (inset 20 on the left), its baseline 20px down (top inset 20 - 0.8 * 14)
+  assert.match(boxTextXml(r, [line(60, 'middle')], {sans: 'S', mono: 'M'}), /lIns="190500" tIns="83820" rIns="0"[\s\S]*algn="ctr"/);
+});
+
+test('svgShapesXml edits as a diagram: a box takes the text inside it, a line glues to the boxes it leaves and enters, a mark is its end', async () => {
+  const {svgShapesXml} = await import('../lib/pptx/svg-shapes.ts');
+  let n = 0;
+  const conv = (inner: string) => svgShapesXml(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">${inner}</svg>`, {sans: 'S', mono: 'M'}, () => ++n) ?? '';
+  // two boxes, an orthogonal line from one to the other ending 2px inside a triangle whose tip is on the second box
+  const x = conv('<rect x="10" y="10" width="100" height="56" rx="8" fill="#ffffff" stroke="#222222" stroke-width="2"/><rect x="200" y="10" width="120" height="76" fill="#ffffff" stroke="#222222"/>'
+    + '<path d="M110,38 L150,38 L150,48 L190,48" fill="none" stroke="#222222" stroke-width="2"/><path d="M200,48 L188,52 L188,44 z" fill="#222222"/>'
+    + '<text x="60" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#222222">申請書を</text><text x="60" y="54" text-anchor="middle" font-size="14" font-weight="700" fill="#222222">出す</text>'
+    + '<text x="208" y="30" font-size="12" fill="#222222">- id: number</text><text x="260" y="50" text-anchor="middle" font-size="14" font-weight="700" fill="#222222">見出し</text>');
+  assert.match(x, /name="box: 申請書を出す"[\s\S]*?<a:p><a:pPr algn="ctr">[\s\S]*?<a:t>申請書を<\/a:t>[\s\S]*?<a:t>出す<\/a:t>/);
+  // mixed anchors share one text area: the left line at its x, the centred one at the middle (insets 8px each side)
+  assert.match(x, /lIns="76200"[^>]*rIns="76200"[\s\S]*?algn="l"[\s\S]*?- id: number[\s\S]*?algn="ctr"[\s\S]*?見出し/);
+  assert.doesNotMatch(x, /name="text: /);
+  assert.match(x, /<a:stCxn id="1" idx="3"\/><a:endCxn id="2" idx="1"\/>[\s\S]*?prst="bentConnector3"[\s\S]*?<a:tailEnd type="triangle"/);
+  assert.equal(x.match(/<p:sp>/g)?.length, 2); // the triangle is the line's end, not a shape
+  // a grid line starting on the edge of a background and running across it, or along its edge, is not glued to it
+  const g = conv('<rect x="0" y="0" width="300" height="40" fill="#f6f8fa"/><path d="M50,0 V200" fill="none" stroke="#cccccc"/><path d="M0,40 H300" fill="none" stroke="#cccccc"/>');
+  assert.doesNotMatch(g, /Cxn id=/);
+  // an open V and a kite are line ends too (a UML navigable end, a composition)
+  const u = conv('<rect x="0" y="0" width="80" height="40" fill="#ffffff" stroke="#000000"/><rect x="0" y="100" width="80" height="40" fill="#ffffff" stroke="#000000"/>'
+    + '<path d="M40,40 L40,100" fill="none" stroke="#000000" stroke-width="2"/><path d="M36,88 L40,100 L44,88" fill="none" stroke="#000000" stroke-width="2"/><path d="M40,40 L44,52 L40,60 L36,52 z" fill="#000000" stroke="#000000"/>');
+  assert.match(u, /<a:headEnd type="diamond" w="lg" len="lg"\/><a:tailEnd type="arrow" w="med" len="med"\/>/);
+  assert.match(u, /<a:stCxn id="\d+" idx="2"\/><a:endCxn id="\d+" idx="0"\/>/);
+  // a background that frames other boxes keeps none of their text; a bar drawn twice (fill and outline) still takes its label
+  const c = conv('<rect x="0" y="0" width="400" height="300" fill="#ffffff"/><path d="M100,100 H160 V290 H100 Z" fill="#1d5fa8" fill-opacity="0.4"/><path d="M100,100 H160 V290 H100 Z" fill="none" stroke="#1d5fa8"/>'
+    + '<rect x="200" y="100" width="60" height="190" fill="#1d5fa8"/><text x="130" y="200" text-anchor="middle" font-size="14" fill="#222222">82億円</text><text x="300" y="20" font-size="12" fill="#222222">凡例</text>');
+  assert.match(c, /name="box: 82億円"/);
+  assert.match(c, /name="text: 凡例"/);
 });
 
 test('the same spec gives the same bytes, and the font and PNG scale can be chosen', async () => {
