@@ -29,7 +29,12 @@ function stroke(spPr: El | undefined): string {
   const dash = kid(ln, 'a:prstDash') ? ' stroke-dasharray="6,4"' : '';
   return `stroke="${color(kid(ln, 'a:solidFill')) ?? '#000'}" stroke-width="${px(ln.attrs['w'] ?? '12700')}"${dash}`;
 }
-const fill = (spPr: El | undefined): string => kid(spPr, 'a:noFill') ? 'none' : color(kid(spPr, 'a:solidFill')) ?? 'none';
+const fill = (spPr: El | undefined): string => {
+  if (kid(spPr, 'a:noFill')) return 'none';
+  const sf = kid(spPr, 'a:solidFill'), alpha = find(sf, 'a:alpha');
+  const c = color(sf) ?? 'none';
+  return alpha ? `${c}" fill-opacity="${Number(alpha.attrs['val']) / 100000}` : c;
+};
 
 function custPath(spPr: El | undefined, r: {x: number; y: number}): string {
   const out: string[] = [];
@@ -98,7 +103,8 @@ function shapes(tree: El): string {
       out.push(text(kid(e, 'p:txBody'), r));
     } else if (e.tag === 'p:cxnSp') {
       const r = xf(spPr), prst = kid(spPr, 'a:prstGeom')?.attrs['prst'];
-      if (kid(spPr, 'a:custGeom')) { out.push(`<path d="${custPath(spPr, r)}" fill="none" ${stroke(spPr)}/>`); continue; }
+      const tail = kid(kid(spPr, 'a:ln'), 'a:tailEnd') ? ' marker-end="url(#a)"' : '';
+      if (kid(spPr, 'a:custGeom')) { out.push(`<path d="${custPath(spPr, r)}" fill="none" ${stroke(spPr)}${tail}/>`); continue; }
       const adj = kids(kid(kid(spPr, 'a:prstGeom'), 'a:avLst') as El, 'a:gd').map(g => Number(g.attrs['fmla']?.replace('val ', '')));
       const c: ConnXfrm = {prst: (prst ?? 'straightConnector1').replace('curvedConnector', 'bentConnector') as ConnXfrm['prst'], offX: r.x * EMU, offY: r.y * EMU, extX: r.w * EMU, extY: r.h * EMU, rot: r.rot ? 5400000 : 0, flipH: r.flipH, flipV: r.flipV, adj};
       const head = kid(kid(spPr, 'a:ln'), 'a:tailEnd') ? ' marker-end="url(#a)"' : '';

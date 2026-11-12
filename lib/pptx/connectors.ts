@@ -50,8 +50,8 @@ export interface LineOpts {dashed?: boolean; dotted?: boolean; arrow?: boolean; 
 const headsOf = (o: LineOpts): string => o.heads ? arrowEnds(o.heads, true) : o.arrow ? arrowEnds('end', true) : '';
 const dashOf = (o: LineOpts): string => o.dotted ? '<a:prstDash val="sysDot"/>' : o.dashed ? '<a:prstDash val="dash"/>' : '';
 
-/** One step of a freeform path: move, line, or quadratic curve (control point, end point). */
-export interface PathStep {op: 'M' | 'L' | 'Q'; pts: {x: number; y: number}[]}
+/** One step of a freeform path: move, line, quadratic curve (control, end), cubic curve (two controls, end), or close. */
+export interface PathStep {op: 'M' | 'L' | 'Q' | 'C' | 'Z'; pts: {x: number; y: number}[]}
 
 /** An open freeform path (no fill), not glued: a brace, or a line no connector preset fits. */
 export function freeformPathXml(id: number, name: string, steps: readonly PathStep[], color: string, widthPx: number, opts: LineOpts = {}): string {
@@ -59,7 +59,11 @@ export function freeformPathXml(id: number, name: string, steps: readonly PathSt
   const xs = all.map(p => p.x), ys = all.map(p => p.y);
   const x = Math.min(...xs), y = Math.min(...ys), w = Math.max(1, Math.max(...xs) - x), h = Math.max(1, Math.max(...ys) - y);
   const pt = (p: {x: number; y: number}) => `<a:pt x="${emu(p.x - x)}" y="${emu(p.y - y)}"/>`;
-  const tag = {M: 'moveTo', L: 'lnTo', Q: 'quadBezTo'} as const;
-  const path = steps.map(s => `<a:${tag[s.op]}>${s.pts.map(pt).join('')}</a:${tag[s.op]}>`).join('');
+  const path = pathXml(steps, pt);
   return cxnSp(id, name, undefined, `<a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm><a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="l" t="t" r="r" b="b"/><a:pathLst><a:path w="${emu(w)}" h="${emu(h)}" fill="none">${path}</a:path></a:pathLst></a:custGeom><a:ln w="${emu(widthPx)}">${solidFill(color)}${dashOf(opts)}${headsOf(opts)}</a:ln>`);
 }
+
+const TAG = {M: 'moveTo', L: 'lnTo', Q: 'quadBezTo', C: 'cubicBezTo'} as const;
+/** The DrawingML of a path's steps, its points mapped by `pt`. */
+export const pathXml = (steps: readonly PathStep[], pt: (p: {x: number; y: number}) => string): string =>
+  steps.map(s => s.op === 'Z' ? '<a:close/>' : `<a:${TAG[s.op]}>${s.pts.map(pt).join('')}</a:${TAG[s.op]}>`).join('');

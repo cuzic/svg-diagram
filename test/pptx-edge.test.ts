@@ -24,10 +24,10 @@ test('the entry reaches no node: module, directly or through what it imports', a
   assert.deepEqual(imports.filter(i => i.startsWith('node:')), []);
 });
 
-test('a table becomes a native table, a Venn diagram a picture whose text is outlines, with a PNG from the function handed in', async () => {
+test('a table becomes a native table, a sequence diagram a picture whose text is outlines, with a PNG from the function handed in', async () => {
   const seen: {svg: string; scale: number}[] = [];
   const rasterize = async (svg: string, scale: number) => { seen.push({svg, scale}); return (await rasterizeWithResvg(svg, {scale, png: true})).png as Buffer; };
-  const r = await renderPptxEdge(spec(example('table'), example('venn')), realEngine(), {rasterize});
+  const r = await renderPptxEdge(spec(example('table'), example('sequence')), realEngine(), {rasterize});
   assert.deepEqual(r.issues, []);
   assert.ok(r.pptx);
   assert.deepEqual([r.native, r.pictures], [1, 1]);
@@ -279,4 +279,57 @@ test('a legend with fault-tree symbols stays a picture; causeXml and legendXml r
   assert.match(c.xml, /name="a"[\s\S]*?<a:ln w="33338">/);
   assert.match(c.xml, /name="core-badge-a"[\s\S]*<a:t>中核<\/a:t>/);
   assert.match(c.xml, /name="h"[\s\S]*?(<a:lnTo>[\s\S]*?){5}<a:close\/>[\s\S]*?<a:ln w="19050">/);
+});
+
+test('chevrons, a cycle, a funnel, a pyramid, a Venn diagram and a value chain are native shapes', async () => {
+  const engine = realEngine();
+  for (const type of ['chevron', 'cycle', 'funnel', 'pyramid', 'venn', 'valueChain']) {
+    const r = await renderPptxEdge(spec(example(type)), engine, {rasterize: () => PNG});
+    assert.equal(r.pictures, 0, type);
+    assert.deepEqual(xmlProblems(entry(r.pptx!, 'ppt/slides/slide1.xml')), [], type);
+  }
+  const venn = entry((await renderPptxEdge(spec(example('venn')), engine, {rasterize: () => PNG})).pptx!, 'ppt/slides/slide1.xml');
+  assert.match(venn, /prst="ellipse"[\s\S]*<a:alpha val="\d+"\/>/);
+  const cycle = entry((await renderPptxEdge(spec(example('cycle')), engine, {rasterize: () => PNG})).pptx!, 'ppt/slides/slide1.xml');
+  assert.match(cycle, /<a:cubicBezTo>[\s\S]*<a:tailEnd type="triangle"/);
+});
+
+test('svgPathSteps: lines, curves and arcs become absolute steps; an arc ends where the svg arc ends', async () => {
+  const {svgPathSteps} = await import('../lib/pptx/svg-path.ts');
+  const r = svgPathSteps('M10,10 h20 v10 l-5,5 Q0,0 5,5 T10,10 C1,1 2,2 3,3 S5,5 6,6 Z');
+  assert.equal(r.closed, true);
+  assert.deepEqual(r.steps.map(s => s.op), ['M', 'L', 'L', 'L', 'Q', 'Q', 'C', 'C', 'Z']);
+  assert.deepEqual(r.steps[3]?.pts, [{x: 25, y: 25}]);
+  assert.deepEqual(r.steps[5]?.pts[0], {x: 10, y: 10}); // T reflects the previous control point (0,0) about (5,5)
+  assert.deepEqual(r.steps[7]?.pts[0], {x: 4, y: 4}); // S reflects (2,2) about (3,3)
+  const arc = svgPathSteps('M0,0 A10,10 0 0 1 20,0');
+  const last = arc.steps[arc.steps.length - 1]?.pts.at(-1);
+  assert.deepEqual(last, {x: 20, y: 0});
+  assert.equal(arc.steps.length, 3); // a half turn: two quarter-turn cubics
+  // the middle of a half circle above the chord
+  assert.ok(Math.abs((arc.steps[1]?.pts[2]?.y ?? 0) + 10) < 1e-9);
+  assert.throws(() => svgPathSteps('M0,0 X1,1'), /unsupported/);
+});
+
+test('pathShapeXml fills a closed outline, dashOfSvg tells dots from dashes, a tinted fill carries its alpha', async () => {
+  const {pathShapeXml, dashOfSvg, presetXml} = await import('../lib/pptx/prims.ts');
+  const {pathXml} = await import('../lib/pptx/connectors.ts');
+  assert.match(pathShapeXml(2, 'p', [{op: 'M', pts: [{x: 0, y: 0}]}, {op: 'C', pts: [{x: 5, y: 0}, {x: 10, y: 5}, {x: 10, y: 10}]}, {op: 'Z', pts: []}], {fill: '#ff0000'}), /<a:cubicBezTo>(<a:pt [^>]+\/>){3}<\/a:cubicBezTo><a:close\/>[\s\S]*FF0000/);
+  assert.equal(pathXml([{op: 'Z', pts: []}], () => ''), '<a:close/>');
+  assert.deepEqual([dashOfSvg('2,4'), dashOfSvg('7,5'), dashOfSvg(undefined)], [{dotted: true}, {dashed: true}, {}]);
+  assert.match(presetXml(3, 'e', 'ellipse', {x: 0, y: 0, w: 10, h: 10}, {fill: '#000000', fillOpacity: .22, dotted: true, stroke: '#000000'}), /<a:alpha val="22000"\/>[\s\S]*<a:prstDash val="sysDot"\/>/);
+});
+
+test('flowShapeXml, pyramidXml and timelineXml: every piece a shape, items glueable through their anchors', async () => {
+  const {flowShapeXml, pyramidXml, timelineXml} = await import('../lib/pptx/flow.ts');
+  const {NO_TONES} = await import('../lib/tokens.ts');
+  const ld = {day: 'blue', roles: {title: 20, note: 12}} as never, fonts = {sans: 'S', mono: 'M'};
+  let n = 0;
+  const f = flowShapeXml({type: 'chevron', x: 0, y: 0, w: 100, h: 40, primitives: [{k: 'polygon', points: [[0, 0], [50, 0], [60, 20], [50, 40], [0, 40]], tone: 'accent', node: 'a'}, {k: 'path', d: 'M0,0 A10,10 0 0 1 20,0', tone: 'text', arrow: true}], texts: [{text: '一', tx: 25, ty: 25, size: 14, weight: 700, anchor: 'middle', tone: 'bg', x: 0, y: 0, w: 50, h: 40}], anchors: [{id: 'a', x: 0, y: 0, w: 60, h: 40}], labelBoxes: []} as never, ld, NO_TONES, fonts, () => ++n);
+  assert.deepEqual(f.glue.map(g => g.dslId), ['a']);
+  assert.match(f.xml, /name="item-a"[\s\S]*<a:tailEnd[\s\S]*FFFFFF[\s\S]*<a:t>一<\/a:t>/);
+  assert.match(pyramidXml({type: 'pyramid', x: 0, y: 0, w: 100, h: 50, day: 'blue', layers: [{points: [[0, 50], [100, 50], [75, 0], [25, 0]], opacity: .5, textColor: '#ffffff', lines: ['頂'], textYs: [30], cx: 50}]} as never, ld, fonts, () => ++n), /<a:alpha val="50000"\/>[\s\S]*<a:t>頂<\/a:t>/);
+  const t = timelineXml({type: 'timeline', x: 0, y: 0, w: 200, h: 60, axis: {x1: 0, x2: 200, y: 30}, ticks: [{x: 50, y1: 25, y2: 35}], stems: [], dots: [{x: 100, y: 30, r: 6, tone: 'accent'}], texts: [{text: '今日', x: 100, y: 20, anchor: 'middle', size: 12, bold: true, fill: 'accent'}], labelBoxes: []} as never, ld, fonts, () => ++n);
+  assert.match(t, /prst="ellipse"[\s\S]*<a:t>今日<\/a:t>/);
+  assert.equal(t.match(/straightConnector1/g)?.length, 2);
 });

@@ -2,16 +2,17 @@
 // polygon, a straight line. A band that draws with these (quadrant, flow shapes, ...) is native: every piece can be selected and edited.
 import {LINE_HEIGHT_EM} from '../layout-util.ts';
 import {fitConnector, type Pt} from './geom.ts';
-import {connectorShapeXml, freeformPathXml, type LineOpts} from './connectors.ts';
+import {connectorShapeXml, freeformPathXml, pathXml, type LineOpts, type PathStep} from './connectors.ts';
 import {emu, hex, solidFill, sp, xfrm, type Fonts, type Rect} from './xml.ts';
 import {runXml} from './text.ts';
 
-export interface Paint {fill?: string; stroke?: string; widthPx?: number; dashed?: boolean}
+/** `fillOpacity`: 0 to 1 (a tinted area). */
+export interface Paint {fill?: string; fillOpacity?: number; stroke?: string; widthPx?: number; dashed?: boolean; dotted?: boolean}
 
 const lineOf = (p: Paint): string => p.stroke
-  ? `<a:ln w="${emu(p.widthPx ?? 2)}">${solidFill(p.stroke)}${p.dashed ? '<a:prstDash val="dash"/>' : ''}</a:ln>`
+  ? `<a:ln w="${emu(p.widthPx ?? 2)}">${solidFill(p.stroke)}${p.dotted ? '<a:prstDash val="sysDot"/>' : p.dashed ? '<a:prstDash val="dash"/>' : ''}</a:ln>`
   : '<a:ln><a:noFill/></a:ln>';
-const fillOf = (p: Paint): string => p.fill ? solidFill(p.fill) : '<a:noFill/>';
+const fillOf = (p: Paint): string => !p.fill ? '<a:noFill/>' : p.fillOpacity === undefined || p.fillOpacity >= 1 ? solidFill(p.fill) : `<a:solidFill><a:srgbClr val="${hex(p.fill)}"><a:alpha val="${Math.round(p.fillOpacity * 100000)}"/></a:srgbClr></a:solidFill>`;
 const EMPTY_TEXT = '<a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="ja-JP"/></a:p>';
 
 /** One line of text whose baseline is at (x, y), anchored as the svg anchors it. Not wrapped, so typing more makes it longer, not taller. */
@@ -72,3 +73,19 @@ export function roundGeomXml(kind: 'diamond' | 'ellipse' | 'pill' | 'hex', w: nu
   else { const r = Math.min(W, H) / 2; path = `<a:moveTo>${pt(r, 0)}</a:moveTo><a:lnTo>${pt(W - r, 0)}</a:lnTo>${arc(r, r, 16200000, 10800000)}<a:lnTo>${pt(r, H)}</a:lnTo>${arc(r, r, 5400000, 10800000)}<a:close/>`; }
   return `<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst>${sites}</a:cxnLst><a:rect l="l" t="t" r="r" b="b"/><a:pathLst><a:path w="${W}" h="${H}">${path}</a:path></a:pathLst></a:custGeom>`;
 }
+
+/** A filled shape of any outline (the steps of a path that closes), as a freeform. */
+export function pathShapeXml(id: number, name: string, steps: readonly PathStep[], paint: Paint): string {
+  const all = steps.flatMap(s => s.pts);
+  const xs = all.map(p => p.x), ys = all.map(p => p.y);
+  const x = Math.min(...xs), y = Math.min(...ys), w = Math.max(1, Math.max(...xs) - x), h = Math.max(1, Math.max(...ys) - y);
+  const path = pathXml(steps, p => `<a:pt x="${emu(p.x - x)}" y="${emu(p.y - y)}"/>`);
+  return sp(id, name, `${xfrm({x, y, w, h})}<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="l" t="t" r="r" b="b"/><a:pathLst><a:path w="${emu(w)}" h="${emu(h)}">${path}</a:path></a:pathLst></a:custGeom>${fillOf(paint)}${lineOf(paint)}`, EMPTY_TEXT);
+}
+
+/** An svg `stroke-dasharray` as a DrawingML dash: dots when the dash is no longer than the line is wide, dashes otherwise. */
+export const dashOfSvg = (dash: string | undefined): Pick<Paint, 'dashed' | 'dotted'> => {
+  if (!dash) return {};
+  const first = Number(dash.split(/[ ,]+/)[0]);
+  return first <= 2 ? {dotted: true} : {dashed: true};
+};
