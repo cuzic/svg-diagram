@@ -517,3 +517,17 @@ test('emojiParts, emojiMeasurer and emojiTextBox: an emoji the font lacks is one
   const box = emojiTextBox(t => ({w: t.length * 10, ascent: 8, descent: 2}), () => false);
   assert.deepEqual(box('😀😀', 'sans', 10, 400), {w: 2 * 10 * EMOJI_EM, ascent: 8, descent: 2});
 });
+
+test('a step badge is the svg\'s: an accent circle (stepBadgeAt) with its number in white on the title\'s baseline', async () => {
+  const {stepBadgeAt, ringed} = await import('../lib/emit-boxes.ts');
+  const {badgeTextKey} = await import('../lib/badge.ts');
+  // the number is white on the accent; a solid box rings its badge in white
+  assert.equal(badgeTextKey('#1d5fa8'), 'bg');
+  assert.deepEqual([ringed({tone: 'solid'} as never), ringed({tone: 'accent'} as never)], [true, false]);
+  const r = await renderPptxEdge(spec(example('steps')), realEngine(), {rasterize: () => PNG});
+  const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
+  assert.match(slide, /name="step-\d+"\/>(?:(?!<\/p:sp>)[\s\S])*<a:arcTo (?:(?!<\/p:sp>)[\s\S])*<a:srgbClr val="1D5FA8"\/>(?:(?!<\/p:sp>)[\s\S])*val="FFFFFF"\/>(?:(?!<\/p:sp>)[\s\S])*<a:t>1<\/a:t>/);
+  const box = {x: 0, y: 0, w: 200, h: 48, wrappedRuns: [{lineYs: [20]}]} as never;
+  const g = stepBadgeAt(box);
+  assert.ok(g.cx > 0 && g.r > 0 && g.baseline > g.cy);
+});

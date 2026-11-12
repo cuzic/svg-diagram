@@ -17,9 +17,9 @@ const glueXml = (start?: Glue, end?: Glue): string =>
 const widthPx = (c: LaidOutConnect): number => c.weight === 'strong' ? 5 : 2;
 const lineWidth = (c: LaidOutConnect): number => emu(widthPx(c));
 
-/** A straight arrow between two boxes of a `row` band. */
+/** A straight arrow between two boxes of a `row` band, 2.5px as the svg draws it. */
 export function rowArrowXml(id: number, name: string, x: ConnXfrm, start?: Glue, end?: Glue): string {
-  return cxnSp(id, name, glueXml(start, end), `${cxnXfrm(x, false)}<a:prstGeom prst="straightConnector1"><a:avLst/></a:prstGeom><a:ln w="${emu(2)}">${solidFill(PALETTE.text)}${arrowEnds('end', 2)}</a:ln>`);
+  return cxnSp(id, name, glueXml(start, end), `${cxnXfrm(x, false)}<a:prstGeom prst="straightConnector1"><a:avLst/></a:prstGeom><a:ln w="${emu(2.5)}">${solidFill(PALETTE.text)}${arrowEnds('end', 2.5)}</a:ln>`);
 }
 
 /** A `bentConnector` fitted to the routed points, glued at either end where the shape is a native one. */

@@ -5,7 +5,9 @@ import type {LaidOutDiagram, LaidOutBand} from '../types/index.ts';
 import {fitConnector, siteIndex} from './geom.ts';
 import type {Rect, Fonts} from './xml.ts';
 import {PALETTE, recolor, type ToneEnv} from '../tokens.ts';
-import {lineXml, presetXml} from './prims.ts';
+import {boxTextXml, geomShapeXml, lineXml, presetXml, roundGeomXml} from './prims.ts';
+import {ringed, stepBadgeAt} from '../emit-boxes.ts';
+import {badgeTextKey} from '../badge.ts';
 import {boxXml, plainBox, groupFrameXml, groupXml, anchorXml, picXml, type TextBox} from './shapes.ts';
 import {tableXml} from './table.ts';
 import {freeformPathXml, rowArrowXml, type Glue} from './connectors.ts';
@@ -53,7 +55,12 @@ const boxBand = (b: BoxLike, ctx: Ctx): string => {
   if (b.tag && b.tagBox) extra.push(badge(b.tag, b.tagBox, `tag-${id}`));
   if (b.stamp) extra.push(badge(b.stamp, {x: b.x + b.w - (b.stampW ?? 64) - 8, y: b.y + b.h - 22, w: b.stampW ?? 64, h: 18}, `stamp-${id}`));
   // the icon glyph is not drawn yet (ADR 0027 follow-up): an empty frame in its place would read as a real shape
-  if (b.step !== undefined) extra.push(badge(String(b.step), {x: b.x + 8 + (b.icon ? 34 : 0), y: b.y + 8, w: 24, h: 24}, `step-${id}`));
+  if (b.step !== undefined && 'wrappedRuns' in b) {
+    // as the svg draws it (emit-boxes.ts stepBadgeAt): a circle in the accent with the number in white on the title's baseline
+    const g = stepBadgeAt(b, ctx.ld.roles), r = {x: g.cx - g.r, y: g.cy - g.r, w: 2 * g.r, h: 2 * g.r}, fill = PALETTE[ctx.ld.day].accent;
+    const line = {text: String(b.step), x: g.cx, y: g.baseline, anchor: 'middle' as const, size: g.size, bold: true, color: PALETTE[badgeTextKey(fill)]};
+    extra.push(geomShapeXml(ctx.next(), `step-${id}`, r, roundGeomXml('ellipse', r.w, r.h), {fill, ...(ringed(b) ? {stroke: PALETTE.bg, widthPx: 2} : {})}, boxTextXml(r, [line], ctx.fonts)));
+  } else if (b.step !== undefined) extra.push(badge(String(b.step), {x: b.x + 8 + (b.icon ? 34 : 0), y: b.y + 8, w: 24, h: 24}, `step-${id}`));
   const minY = Math.min(b.y, b.tagBox?.y ?? b.y), maxY = Math.max(b.y + b.h, (b.tagBox?.y ?? b.y) + (b.tagBox?.h ?? 0));
   return groupXml(ctx.next(), `box-parts-${b.id ?? id}`, {x: b.x, y: minY, w: b.w, h: maxY - minY}, main + extra.join(''));
 };
