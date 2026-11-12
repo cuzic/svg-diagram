@@ -28,7 +28,7 @@ export const SHELL: Record<string, Shell> = {
   'measure-settings': {reason: 'reads SVG_DIAGRAM_MEASURE'},
   'measure': {reason: 'the measurer: the browser or the font files; the settings are a value it is given, the process default is only for callers with none'},
   'pptx/emit': {reason: 'writes the PPTX: fs and resvg'},
-  'pptx/zip': {reason: 'node:zlib'},
+  'pptx/zip-node': {reason: 'node:zlib'},
   'raster': {reason: 'rasterises with resvg / a browser (fs, os)'},
   'remark': {reason: 'the remark plugin: fs'},
   'render-source': {reason: 'loads a source file through node:module'},

@@ -4,10 +4,9 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import {build as bundle} from 'esbuild';
 import {closeMeasurer} from '../lib/dsl.ts';
-import {harfbuzz, resolveFontFile} from '../lib/font-metrics.ts';
-import fs from 'node:fs';
 import {partCatalog} from '../lib/spec.ts';
-import {TextEngineError, renderSpecEdge, type OutlineFont, type TextEngine} from '../lib/spec-edge.ts';
+import {TextEngineError, guardedEngine, renderSpecEdge, type OutlineFont} from '../lib/spec-edge.ts';
+import {realEngine} from './helpers/text-engine.ts';
 import {renderSpec, svgToPng} from '../lib/spec-render.ts';
 import {rasterizeWithResvg} from '../lib/raster.ts';
 import {outlineText} from '../lib/svg-outline.ts';
@@ -95,31 +94,6 @@ test('what outlines would not reproduce is reported, not silently lost', () => {
 });
 
 // a real engine: HarfBuzz over the fonts the layout measures with
-function realEngine(): TextEngine {
-  const hb = harfbuzz();
-  const open = (weight: number) => {
-    const r = resolveFontFile('sans', weight);
-    assert.ok(r, 'a Japanese font must be installed for this test');
-    const b = fs.readFileSync(r.file);
-    const face = new hb.Face(new hb.Blob(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)), r.index), font = new hb.Font(face), ext = font.hExtents();
-    return {face, font, upem: face.upem, asc: ext.ascender, desc: ext.descender, covered: new Set(face.collectUnicodes())};
-  };
-  const fonts = {400: open(400), 700: open(700)};
-  const of = (w: number) => w >= 600 ? fonts[700] : fonts[400];
-  const shape = (text: string, weight: number) => {
-    const f = of(weight), buf = new hb.Buffer();
-    buf.addText(text); buf.guessSegmentProperties(); hb.shape(f.font, buf);
-    const infos = buf.getGlyphInfos(), pos = buf.getGlyphPositions();
-    return {upem: f.upem, glyphs: infos.map((g, i) => ({id: g.codepoint, xAdvance: pos[i]?.xAdvance ?? 0, xOffset: pos[i]?.xOffset ?? 0, yOffset: pos[i]?.yOffset ?? 0}))};
-  };
-  const width = (text: string, size: number, weight: number) => { const s = shape(text, weight); return s.glyphs.reduce((n, g) => n + g.xAdvance, 0) / s.upem * size; };
-  return {
-    measure: ({text, size, weight}) => { const f = of(weight); return {w: width(text, size, weight), h: Math.round((f.asc - f.desc) / f.upem * size)}; },
-    textBox: (text, _family, size, weight) => { const f = of(weight); return {w: width(text, size, weight), ascent: f.asc / f.upem * size, descent: -f.desc / f.upem * size}; },
-    font: {shape: (text, _f, weight) => shape(text, weight), path: (id, _f, weight) => of(weight).font.glyphToPath(id), covers: (cp, _f, weight) => of(weight).covered.has(cp)},
-  };
-}
-
 test('every example of the catalog draws with no text element left, and at the size the Node path gives', async () => {
   const engine = realEngine();
   for (const {type, example} of partCatalog()) {
@@ -284,4 +258,12 @@ test('lang: en leaves no Japanese in what a figure writes by itself', async () =
     const words = [...(r.svg ?? '').matchAll(/aria-label="([^"]*)"|<title[^>]*>([^<]*)<|<desc[^>]*>([^<]*)</g)].map(m => m[1] ?? m[2] ?? m[3] ?? '');
     assert.deepEqual(words.filter(w => CJK.test(w)), [], part.type);
   }
+});
+
+test('guardedEngine turns a failure of any part of the engine, thrown or rejected, into a TextEngineError', async () => {
+  const boom = () => { throw new Error('boom'); };
+  const g = guardedEngine({measure: async () => { throw new Error('later'); }, textBox: boom, font: {shape: boom, path: boom, covers: boom}});
+  await assert.rejects(Promise.resolve(g.measure({text: 'a', size: 10, weight: 400, font: 'sans'})), TextEngineError);
+  assert.throws(() => g.textBox('a', 'sans', 10, 400), TextEngineError);
+  assert.throws(() => g.font.covers(65, 'sans', 400), /the text engine failed: boom/);
 });

@@ -34,7 +34,8 @@ function guarded<A extends unknown[], R>(f: (...a: A) => R): (...a: A) => R {
     } catch (e) { throw new TextEngineError(e); }
   };
 }
-function guardedEngine({measure, textBox, font}: TextEngine): TextEngine {
+/** The engine with each of its failures turned into a TextEngineError (also used by ./pptx-edge.ts). */
+export function guardedEngine({measure, textBox, font}: TextEngine): TextEngine {
   return {
     measure: guarded(measure),
     textBox: guarded(textBox),

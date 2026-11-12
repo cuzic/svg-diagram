@@ -6,7 +6,9 @@ import {execFileSync} from 'node:child_process';
 import {register} from 'node:module';
 import test from 'node:test';
 import {fitConnector, evalConnector, maxDeviation, type Pt} from '../lib/pptx/geom.ts';
-import {zipStore} from '../lib/pptx/zip.ts';
+import {zipStore} from '../lib/pptx/zip-node.ts';
+import {crc32, zipEntries} from '../lib/pptx/zip.ts';
+import {crc32 as zlibCrc32} from 'node:zlib';
 import {emitPptx, fontFilesOf} from '../lib/pptx/emit.ts';
 import {BAND_HANDLERS} from '../lib/pptx/bands.ts';
 import {groupFrameXml} from '../lib/pptx/shapes.ts';
@@ -59,11 +61,26 @@ test('a font name with a quote cannot break the run attribute', async () => {
 
 test('the package template already declares png and svg (packageEntries adds no Default)', async () => {
   const {packageEntries} = await import('../lib/pptx/package.ts');
-  const template = [{name: '[Content_Types].xml', data: fs.readFileSync(new URL('../lib/pptx/template/[Content_Types].xml', import.meta.url))}];
-  const types = packageEntries(template, {xml: '<x/>', cx: 1, cy: 1, pictures: []}, []).find(e => e.name === '[Content_Types].xml')!.data.toString();
+  const types = new TextDecoder().decode(packageEntries({xml: '<x/>', cx: 1, cy: 1, pictures: []}, []).find(e => e.name === '[Content_Types].xml')!.data);
   assert.match(types, /Extension="png"/);
   assert.match(types, /Extension="svg"/);
-  assert.throws(() => packageEntries(template, {xml: '<x/>', cx: 1, cy: 1, pictures: [{svg: '', pngSvg: ''}]}, []), /1 pictures but 0 PNGs/);
+  assert.throws(() => packageEntries({xml: '<x/>', cx: 1, cy: 1, pictures: [{svg: '', pngSvg: ''}]}, []), /1 pictures but 0 PNGs/);
+});
+
+test('lib/pptx/template.ts is the template folder as it is (run scripts/gen-pptx-template.ts after changing a file there)', async () => {
+  const {TEMPLATE} = await import('../lib/pptx/template.ts');
+  const dir = new URL('../lib/pptx/template/', import.meta.url);
+  const files = (fs.readdirSync(dir, {recursive: true, withFileTypes: true}) as fs.Dirent[]).filter(e => e.isFile()).map(e => path.relative(dir.pathname, path.join(e.parentPath, e.name))).sort();
+  assert.deepEqual(TEMPLATE.map(t => t.name), files);
+  for (const t of TEMPLATE) assert.equal(t.text, fs.readFileSync(new URL(t.name, dir), 'utf8'), t.name);
+});
+
+test('the zip writer\'s own crc32 is zlib\'s, and an entry is stored when deflating does not make it smaller', () => {
+  for (const s of ['', 'a', '<p:sld/>'.repeat(300)]) assert.equal(crc32(new TextEncoder().encode(s)), zlibCrc32(s));
+  const data = new Uint8Array([1, 2, 3]);
+  const zip = zipEntries([{name: 'x', data, deflated: new Uint8Array(10)}]);
+  assert.equal(new DataView(zip.buffer).getUint16(8, true), 0);
+  assert.deepEqual([...zip.subarray(31, 34)], [1, 2, 3]);
 });
 
 test('the schema check rejects a slide with a wrong element', {skip: !(hasXmllint() && hasXsd())}, () => {

@@ -31,7 +31,7 @@
     "typecheck": "tsc -p .",
     "lint": "biome lint .",
     "build": "tsc -p tsconfig.build.json && pnpm run build:assets",
-    "build:assets": "mkdir -p dist/lib/deck-viewer dist/lib/pptx/template && cp lib/deck-viewer/*.js lib/deck-viewer/*.css dist/lib/deck-viewer/ && cp -R lib/pptx/template/. dist/lib/pptx/template/",
+    "build:assets": "mkdir -p dist/lib/deck-viewer && cp lib/deck-viewer/*.js lib/deck-viewer/*.css dist/lib/deck-viewer/",
     "release": "bash scripts/release.sh",
     "prepack": "rm -rf dist && tsc -p tsconfig.build.json && pnpm run build:assets"
   },
@@ -106,6 +106,10 @@
     "./spec/edge": {
       "types": "./dist/lib/spec-edge.d.ts",
       "default": "./dist/lib/spec-edge.js"
+    },
+    "./pptx/edge": {
+      "types": "./dist/lib/pptx-edge.d.ts",
+      "default": "./dist/lib/pptx-edge.js"
     }
   },
   "files": [
