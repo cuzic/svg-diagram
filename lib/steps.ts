@@ -20,6 +20,8 @@ export interface StepItem {
 export interface StepsOpts {
   /** Number the steps 1, 2, 3 ... with a badge on each title (default false). */
   numbered?: boolean;
+  /** The word a screen reader hears before a step's number (default 手順). */
+  stepWord?: string;
   /** The 1-based step to emphasise (one only). */
   highlight?: number;
   /** The tone of the highlighted step (default 'danger'). */
@@ -53,7 +55,7 @@ export function steps(items: StepItem[], opts: StepsOpts = {}): RowBand {
     assertBoxTone(it.tone, `steps() item ${i + 1}`); // a solid tone would put the title's dark text on a solid fill
     const hot = opts.highlight === i + 1;
     const tone = focusTones ? focusTones[i] : hot ? opts.highlightTone ?? 'danger' : it.tone;
-    return box({title: it.title, ...(it.body === undefined ? {} : {body: it.body}), ...(it.icon === undefined ? {} : {icon: it.icon}), ...(it.tag === undefined ? {} : {tag: it.tag, ...(it.tagTone ? {tagTone: it.tagTone} : {})}), ...(tone ? {tone} : {}), ...(opts.numbered ? {step: i + 1} : {})});
+    return box({title: it.title, ...(it.body === undefined ? {} : {body: it.body}), ...(it.icon === undefined ? {} : {icon: it.icon}), ...(it.tag === undefined ? {} : {tag: it.tag, ...(it.tagTone ? {tagTone: it.tagTone} : {})}), ...(tone ? {tone} : {}), ...(opts.numbered ? {step: i + 1, ...(opts.stepWord === undefined ? {} : {stepWord: opts.stepWord})} : {})});
   });
   return row(boxes, {arrows: opts.arrows === false ? 'none' : 'between', ...(opts.gap === undefined ? {} : {gap: opts.gap}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.loopBack === undefined ? {} : {loopBack: opts.loopBack})});
 }

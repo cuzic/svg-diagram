@@ -13,19 +13,20 @@ export {causalAlt, layoutCausal, resolveCausal} from './semnet-causal.ts';
 export type {CausalSpec, CausalNode, CausalOpts, CausalIntervention} from './semnet-causal.ts';
 export type {SemnetDirection} from './semnet-common.ts';
 
-export interface PertOpts extends SemnetOpts {unit?: string; compact?: boolean}
+/** `durationLabel` / `slackLabel`: the words before a task's duration and slack (default 期間 / 余裕). */
+export interface PertOpts extends SemnetOpts {unit?: string; compact?: boolean; durationLabel?: string; slackLabel?: string}
 export interface DependencyNode {id: string; label: string; kind?: string}
 export type DependencyEdgeType = 'depends' | 'uses' | 'blocks' | 'relates' | (string & {});
 export interface DependencyEdge {from: string; to: string; type: DependencyEdgeType; weight?: number; label?: string}
 export interface DependencyOpts extends SemnetOpts {nodeKinds?: Record<string, string>; edgeTypes?: Record<string, string>}
 
-export interface PertSpec {tasks: PertTask[]; analysis: PertAnalysis; direction: SemnetDirection; unit: string; compact: boolean; straighten: boolean}
+export interface PertSpec {tasks: PertTask[]; analysis: PertAnalysis; direction: SemnetDirection; unit: string; compact: boolean; straighten: boolean; durationLabel: string; slackLabel: string}
 export interface DependencySpec {nodes: DependencyNode[]; edges: DependencyEdge[]; direction: SemnetDirection; nodeKinds: Record<string, string>; edgeTypes: Record<string, string>; straighten: boolean}
 
 export function resolvePert(tasks: readonly PertTask[], opts: PertOpts = {}): PertSpec {
   const analysis = analyzeCriticalPath(tasks);
   checkIds('pert', tasks.map(t => t.id), opts.id);
-  return {tasks: tasks.map(t => ({...t, predecessors: [...(t.predecessors ?? [])]})), analysis, direction: direction('pert', opts.direction), unit: opts.unit ?? '', compact: !!opts.compact, straighten: straightenOf('pert', opts.straighten)};
+  return {tasks: tasks.map(t => ({...t, predecessors: [...(t.predecessors ?? [])]})), analysis, direction: direction('pert', opts.direction), unit: opts.unit ?? '', compact: !!opts.compact, durationLabel: opts.durationLabel ?? '期間', slackLabel: opts.slackLabel ?? '余裕', straighten: straightenOf('pert', opts.straighten)};
 }
 export function resolveDependency(nodes: readonly DependencyNode[], edges: readonly DependencyEdge[], opts: DependencyOpts = {}): DependencySpec {
   validateNodes('dependencyNetwork', nodes, opts.id);
@@ -42,7 +43,7 @@ export const pertAlt = (s: PertSpec): string => `PERT network. Project duration 
 export const dependencyAlt = (s: DependencySpec): string => `Dependency network. ${s.edges.map(e => `${e.from} ${e.type} ${e.to}${e.weight === undefined ? '' : `, weight ${numText(e.weight)}`}`).join('; ')}`;
 
 export function semnetTexts(kind: 'pert' | 'causal' | 'dependency', spec: PertSpec | CausalSpec | DependencySpec): [string, number][] {
-  if (kind === 'pert') { const s = spec as PertSpec; return s.analysis.tasks.flatMap(t => [[t.label, 700], ...(s.compact ? [[`${numText(t.duration)}${s.unit} / 余裕 ${numText(t.slack)}`, 400]] : [[`ES ${numText(t.es)}`, 400], [`EF ${numText(t.ef)}`, 400], [`LS ${numText(t.ls)}`, 400], [`LF ${numText(t.lf)}`, 400], [`期間 ${numText(t.duration)}${s.unit} ・ 余裕 ${numText(t.slack)}`, t.critical ? 700 : 400]])] as [string, number][]); }
+  if (kind === 'pert') { const s = spec as PertSpec; return s.analysis.tasks.flatMap(t => [[t.label, 700], ...(s.compact ? [[`${numText(t.duration)}${s.unit} / ${s.slackLabel} ${numText(t.slack)}`, 400]] : [[`ES ${numText(t.es)}`, 400], [`EF ${numText(t.ef)}`, 400], [`LS ${numText(t.ls)}`, 400], [`LF ${numText(t.lf)}`, 400], [`${s.durationLabel} ${numText(t.duration)}${s.unit} ・ ${s.slackLabel} ${numText(t.slack)}`, t.critical ? 700 : 400]])] as [string, number][]); }
   if (kind === 'causal') return causalTexts(spec as CausalSpec);
   const s = spec as DependencySpec;
   const kinds = [...new Set(s.nodes.flatMap(n => n.kind ? [n.kind] : []))], types = [...new Set(s.edges.map(e => e.type))];
@@ -59,12 +60,12 @@ export function layoutPert(s: PertSpec, g: ChartGeom): LaidOutChartPart {
   for (const t of s.analysis.tasks) {
     const p = must(positions.get(t.id)), host = nodeBox(c, p, t.id, t.label, t.critical ? 'danger' : 'text', t.critical), cx = p.x + p.w / 2;
     c.text(t.label, cx, p.y + g.size + 8, 'middle', 'text', {bold: true, host, of: t.id});
-    if (s.compact) c.text(`${numText(t.duration)}${s.unit} / 余裕 ${numText(t.slack)}`, cx, p.y + p.h - 10, 'middle', t.critical ? 'danger' : 'muted', {host, of: t.id});
+    if (s.compact) c.text(`${numText(t.duration)}${s.unit} / ${s.slackLabel} ${numText(t.slack)}`, cx, p.y + p.h - 10, 'middle', t.critical ? 'danger' : 'muted', {host, of: t.id});
     else {
       const y = p.y + 2 * g.size + 14, left = p.x + 9, right = p.x + p.w - 9;
       c.text(`ES ${numText(t.es)}`, left, y, 'start', 'muted', {host, of: t.id}); c.text(`EF ${numText(t.ef)}`, right, y, 'end', 'muted', {host, of: t.id});
       c.text(`LS ${numText(t.ls)}`, left, y + c.lineH(), 'start', 'muted', {host, of: t.id}); c.text(`LF ${numText(t.lf)}`, right, y + c.lineH(), 'end', 'muted', {host, of: t.id});
-      c.text(`期間 ${numText(t.duration)}${s.unit} ・ 余裕 ${numText(t.slack)}`, cx, p.y + p.h - 8, 'middle', t.critical ? 'danger' : 'text', {bold: t.critical, host, of: t.id});
+      c.text(`${s.durationLabel} ${numText(t.duration)}${s.unit} ・ ${s.slackLabel} ${numText(t.slack)}`, cx, p.y + p.h - 8, 'middle', t.critical ? 'danger' : 'text', {bold: t.critical, host, of: t.id});
     }
   }
   return c.done();

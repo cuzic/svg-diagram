@@ -4,12 +4,21 @@ import type {LaidOutOf, LaidOutType} from '../band-table.ts';
 import type {LaidOutDiagram, LaidOutBand} from '../types/index.ts';
 import {fitConnector, siteIndex} from './geom.ts';
 import type {Rect, Fonts} from './xml.ts';
-import type {ToneEnv} from '../tokens.ts';
+import {PALETTE, recolor, type ToneEnv} from '../tokens.ts';
+import {lineXml, presetXml} from './prims.ts';
 import {boxXml, plainBox, groupFrameXml, groupXml, anchorXml, picXml, type TextBox} from './shapes.ts';
 import {tableXml} from './table.ts';
-import {rowArrowXml, type Glue} from './connectors.ts';
+import {freeformPathXml, rowArrowXml, type Glue} from './connectors.ts';
 import {bandPicture, type Picture} from './image-band.ts';
 import {imageRids} from './package.ts';
+import {treeXml} from './tree.ts';
+import {quadrantXml} from './quadrant.ts';
+import {statesXml} from './states.ts';
+import {causeXml} from './cause.ts';
+import {legendNative, legendXml} from './legend.ts';
+import {flowShapeXml, pyramidXml, timelineXml} from './flow.ts';
+import {svgShapesXml} from './svg-shapes.ts';
+import type {LaidOutFlowShape} from '../flow-shapes.ts';
 
 /** What the bands of one slide share: ids, the shapes connectors can glue to, and the pictures to rasterize. */
 export interface Ctx {
@@ -92,29 +101,93 @@ const groupFrameBand: BandXml<LaidOutOf<'group'>> = (band, ctx) => {
 const tableBand: BandXml<LaidOutOf<'table'>> = (band, ctx) => {
   const id = ctx.next();
   register(ctx, band.id, id, band);
-  return tableXml(id, band, ctx.ld.day, ctx.fonts);
+  return tableXml(id, band, ctx.ld, ctx.tones, ctx.fonts) + rowCurveXml(band, ctx);
 };
 
-/** A band with no native mapping: drawn alone as SVG + PNG and placed as one picture; an invisible anchor keeps its DSL id glue-able. */
+/** A journey map's emotion curve over its table, as the svg draws it: the neutral line dashed, the curve, a hollow dot at each point. */
+function rowCurveXml(band: LaidOutOf<'table'>, ctx: Ctx): string {
+  const c = band.rowCurve;
+  if (!c?.points.length) return '';
+  const accent = PALETTE[ctx.ld.day].accent, out: string[] = [];
+  out.push(lineXml(ctx.next(), 'emotion-neutral', {x: (band.colX[1] ?? band.x) + 8, y: c.midY}, {x: band.x + band.w - 8, y: c.midY}, PALETTE.muted, 1.5, {dashed: true}));
+  if (c.points.length > 1) { const id = ctx.next(); out.push(freeformPathXml(id, 'emotion-curve', c.points.map((p, i) => ({op: i ? 'L' as const : 'M' as const, pts: [p]})), accent, 2.5)); }
+  for (const p of c.points) out.push(presetXml(ctx.next(), 'emotion', 'ellipse', {x: p.x - 4, y: p.y - 4, w: 8, h: 8}, {fill: PALETTE.bg, stroke: accent, widthPx: 2.5}));
+  return groupXml(ctx.next(), 'emotion-curve', {x: band.x, y: c.top, w: band.w, h: c.bottom - c.top}, out.join(''));
+}
+
+/** A tree as shapes (./tree.ts); a dimmed one stays a picture, as the muted look is not mapped yet. */
+const treeBand: BandXml<LaidOutOf<'tree'>> = (band, ctx, index) => {
+  if (band.dim) return imageBand(band, ctx, index);
+  const {xml, glue} = treeXml(band, ctx.ld, ctx.tones, ctx.fonts, ctx.next);
+  for (const g of glue) register(ctx, g.dslId, g.id, g.rect);
+  return xml;
+};
+
+/** A quadrant as shapes (./quadrant.ts); a dimmed one stays a picture. */
+const quadrantBand: BandXml<LaidOutOf<'quadrant'>> = (band, ctx, index) => {
+  if (band.dim) return imageBand(band, ctx, index);
+  const {xml, glue} = quadrantXml(band, ctx.ld, ctx.tones, ctx.fonts, ctx.next);
+  for (const g of glue) register(ctx, g.dslId, g.id, g.rect);
+  return xml;
+};
+
+/** A state diagram or flowchart as shapes (./states.ts); a dimmed one, or one with icons, stays a picture. */
+const statesBand: BandXml<LaidOutOf<'states'>> = (band, ctx, index) => {
+  if (band.dim || band.icons.length) return imageBand(band, ctx, index);
+  const {xml, glue} = statesXml(band, ctx.ld, ctx.tones, ctx.fonts, ctx.next);
+  for (const g of glue) register(ctx, g.dslId, g.id, g.rect);
+  return xml;
+};
+
+/** A cause-and-effect band as shapes (./cause.ts); a dimmed one stays a picture. */
+const causeBand: BandXml<LaidOutOf<'cause'>> = (band, ctx, index) => {
+  if (band.dim) return imageBand(band, ctx, index);
+  const {xml, glue} = causeXml(band, ctx.ld, ctx.tones, ctx.fonts, ctx.next);
+  for (const g of glue) register(ctx, g.dslId, g.id, g.rect);
+  return xml;
+};
+
+/** A legend as shapes (./legend.ts), unless it has a sample not drawn as shapes yet. */
+const legendBand: BandXml<LaidOutOf<'legend'>> = (band, ctx, index) => legendNative(band) ? legendXml(band, ctx.ld, ctx.tones, ctx.fonts, ctx.next) : imageBand(band, ctx, index);
+
+/** A flow shape (chevron, funnel, cycle, Venn, concentric, emblem, value chain) as shapes (./flow.ts); a dimmed one stays a picture. */
+const flowBand: BandXml<LaidOutFlowShape> = (band, ctx, index) => {
+  if (band.dim) return imageBand(band, ctx, index);
+  const {xml, glue} = flowShapeXml(band, ctx.ld, ctx.tones, ctx.fonts, ctx.next);
+  for (const g of glue) register(ctx, g.dslId, g.id, g.rect);
+  return xml;
+};
+const pyramidBand: BandXml<LaidOutOf<'pyramid'>> = (band, ctx) => pyramidXml(band, ctx.ld, ctx.fonts, ctx.next);
+const timelineBand: BandXml<LaidOutOf<'timeline'>> = (band, ctx, index) => band.dim ? imageBand(band, ctx, index) : timelineXml(band, ctx.ld, ctx.fonts, ctx.next);
+
+/**
+ * A band with no mapping of its own: drawn as shapes from its own SVG (./svg-shapes.ts) when that SVG uses only what the converter reads,
+ * else as one picture (SVG + PNG). Either way an invisible anchor keeps its DSL id glue-able.
+ */
 const imageBand: BandXml<DrawnBand> = (band, ctx, index) => {
   const {picture, rect} = bandPicture(ctx.ld, band, index);
-  const rids = imageRids(ctx.pictures.length);
-  ctx.pictures.push(picture);
-  const pic = picXml(ctx.next(), `${band.type}-${index}`, rect, rids.png, rids.svg);
-  if (!('id' in band && band.id)) return pic;
+  const shapes = svgShapesXml(picture.svg, ctx.fonts, ctx.next);
+  let drawn: string;
+  if (shapes !== null) drawn = groupXml(ctx.next(), `${band.type}-${index}`, rect, shapes);
+  else {
+    const rids = imageRids(ctx.pictures.length);
+    ctx.pictures.push({svg: recolor(ctx.tones, picture.svg, ctx.ld.appearance), pngSvg: recolor(ctx.tones, picture.pngSvg, ctx.ld.appearance)});
+    drawn = picXml(ctx.next(), `${band.type}-${index}`, rect, rids.png, rids.svg);
+  }
+  if (!('id' in band && band.id)) return drawn;
   const anchor = {x: band.x, y: band.y, w: band.w, h: band.h};
   const anchorId = ctx.next();
   register(ctx, band.id, anchorId, anchor);
-  return pic + anchorXml(anchorId, `anchor-${band.id}`, anchor);
+  return drawn + anchorXml(anchorId, `anchor-${band.id}`, anchor);
 };
 
 /** One disposition per laid-out band type; a missing band type fails compilation. */
 export const BAND_HANDLERS = {
   caption: captionBand, box: boxBand, banner: boxBand, group: groupFrameBand, row: rowBand, grid: gridBand, table: tableBand,
-  legend: 'image', swimlane: 'image', wireframe: 'image', screens: 'image', sequence: 'image', raw: 'image', pyramid: 'image',
-  curve: 'image', plane: 'image', quadrant: 'image', wordart: 'image', chevron: 'image', funnel: 'image', cycle: 'image',
-  venn: 'image', concentric: 'image', emblem: 'image', valueChain: 'image', bars: 'image', chart: 'image', image: 'image', people: 'image', dots: 'image', math: 'image',
-  timeline: 'image', tree: 'image', states: 'image', cause: 'image', cloud: 'image', gantt: 'image', classes: 'image', bpmn: 'image',
+  legend: legendBand, swimlane: 'image', wireframe: 'image', screens: 'image', sequence: 'image', raw: 'image', pyramid: pyramidBand,
+  curve: 'image', plane: 'image', quadrant: quadrantBand, wordart: 'image', chevron: flowBand, funnel: flowBand, cycle: flowBand,
+  venn: flowBand, concentric: flowBand, emblem: flowBand, valueChain: flowBand, bars: 'image', chart: 'image', image: 'image', people: 'image', dots: 'image', math: 'image',
+  timeline: timelineBand, tree: treeBand, states: statesBand, cause: causeBand, cloud: 'image', gantt: 'image', classes: 'image', bpmn: 'image',
   fta: 'image', status: 'image', bowtie: 'image',
 } satisfies {[T in LaidOutType]: BandXml<LaidOutOf<T>> | 'image'};
 

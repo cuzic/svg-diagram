@@ -23,7 +23,8 @@ function resvgMarkers(svg: string): string {
 export function bandPicture(ld: LaidOutDiagram, band: LaidOutBand & {h: number}, index: number): {picture: Picture; rect: Rect} {
   const x = Math.max(0, band.x - INK_PAD), y = Math.max(0, band.y - INK_PAD);
   const w = Math.min(ld.width, band.x + band.w + INK_PAD) - x, bh = Math.min(ld.canvasHeight, band.y + band.h + INK_PAD) - y;
-  let svg = emitSvg({...ld, transparent: true, laidOut: [band], connects: []}, {noRecolor: false});
+  // drawn light: the slide recolours its shapes and pictures together (slide.ts), so a dark figure is not recoloured twice
+  let svg = emitSvg({...ld, transparent: true, laidOut: [band], connects: []}, {noRecolor: true});
   svg = svg.replace(/width="[^"]+" height="[^"]+" viewBox="[^"]+"/, `width="${w}" height="${bh}" viewBox="${x} ${y} ${w} ${bh}"`);
   svg = prefixSvgIds(svg, `pptx-band-${index}`);
   return {picture: {svg, pngSvg: resvgMarkers(svg)}, rect: {x, y, w, h: bh}};

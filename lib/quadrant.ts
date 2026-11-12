@@ -81,6 +81,8 @@ export interface QuadrantOpts extends RevealOpts, ScopeOpts {
   /** What the bubble area stands for ('売上'), and its unit ('億円'), for the size legend. */
   sizeTitle?: string;
   sizeUnit?: string;
+  /** The whole heading of the size legend, replacing "円の面積 = <sizeTitle>" (for a figure in another language). */
+  sizeLegend?: string;
   /** The order the groups are listed in the legend (default: first use). */
   groups?: readonly string[];
   /** No gaps between the cells: the cells read as one plot cut by a crosshair. */
@@ -108,6 +110,7 @@ export interface QuadrantBand {
   items: QuadrantItem[];
   arrows: QuadrantArrow[];
   sizeTitle?: string;
+  sizeLegend?: string;
   sizeUnit?: string;
   groups: string[];
   crosshair: boolean;
@@ -333,7 +336,7 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
   return {
     type: 'quadrant', ...(opts.id ? {id: opts.id} : {}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until}),
     x, y, cols, rows, cells, items, arrows, groups, crosshair: opts.crosshair ?? p?.crosshair ?? false, regions,
-    ...(opts.sizeTitle === undefined ? {} : {sizeTitle: opts.sizeTitle}), ...(opts.sizeUnit === undefined ? {} : {sizeUnit: opts.sizeUnit}),
+    ...(opts.sizeTitle === undefined ? {} : {sizeTitle: opts.sizeTitle}), ...(opts.sizeLegend === undefined ? {} : {sizeLegend: opts.sizeLegend}), ...(opts.sizeUnit === undefined ? {} : {sizeUnit: opts.sizeUnit}),
     height: opts.height ?? p?.height, ...(opts.width === undefined ? {} : {width: opts.width}),
     ...(opts.allowEmpty === undefined ? {} : {allowEmpty: opts.allowEmpty === true ? true : opts.allowEmpty.map(([c, r]) => [c, r] as [number, number])}),
   };
@@ -353,7 +356,7 @@ export function sizeRefs(max: number): number[] {
   const v = [5, 2, 1].map(m => m * mag).find(m => m <= max * (1 + 1e-9)) ?? mag;
   return [v, v / 10];
 }
-const sizeLegendTitle = (b: QuadrantBand): string => `円の面積 = ${b.sizeTitle ?? '大きさ'}`;
+const sizeLegendTitle = (b: QuadrantBand): string => b.sizeLegend ?? `円の面積 = ${b.sizeTitle ?? '大きさ'}`;
 const sizeRefLabel = (b: QuadrantBand, v: number): string => `${fmtNum(v)}${b.sizeUnit ?? ''}`;
 const maxSize = (b: QuadrantBand): number => Math.max(0, ...b.items.map(i => i.size ?? 0));
 

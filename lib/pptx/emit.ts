@@ -1,12 +1,12 @@
-// The shell of the PPTX writer: reads the package template, draws the PNG fallbacks and zips. Everything between is pure (slide.ts, package.ts).
-import fs from 'node:fs';
+// The Node shell of the PPTX writer: draws the PNG fallbacks with resvg and zips with node:zlib. Everything between is pure (slide.ts,
+// package.ts); ../pptx-edge.ts is the same writer for a Worker.
 import {createRequire} from 'node:module';
 import type {Resvg as ResvgClass} from '@resvg/resvg-js';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {FontSpecs} from '../types/project.ts';
-import {zipStore} from './zip.ts';
+import {zipStore} from './zip-node.ts';
 import {planSlide, fontsOf} from './slide.ts';
-import {packageEntries, type Entry, type SlidePlan} from './package.ts';
+import {packageEntries, type SlidePlan} from './package.ts';
 
 export interface PptxOptions {
   /** Typeface written into the runs (and used for monospace too); the measuring font is the project's, so keep them the same. */
@@ -20,12 +20,6 @@ export interface PptxOptions {
 /** The font files of a measuring configuration (`#n` face index stripped), for {@link PptxOptions.rasterFonts}. */
 export const fontFilesOf = (specs: FontSpecs | undefined): string[] =>
   [...new Set(Object.values(specs ?? {}).flatMap(f => [f?.regular, f?.bold]).filter((f): f is string => !!f).map(f => f.replace(/#\d+$/, '')))];
-
-const TEMPLATE = new URL('./template/', import.meta.url);
-function readTemplate(dir = TEMPLATE, prefix = ''): Entry[] {
-  return fs.readdirSync(dir, {withFileTypes: true}).flatMap(e => e.isDirectory() ? readTemplate(new URL(e.name + '/', dir), prefix + e.name + '/') : [{name: prefix + e.name, data: fs.readFileSync(new URL(e.name, dir))}]);
-}
-let template: Entry[] | undefined;
 
 // resvg is loaded when a PNG is first drawn, so that the rest of svg-diagram loads on a machine without it (a browser-only one); the .pptx writer itself needs it.
 function rasterize(svg: string, fontFiles: readonly string[], scale: number): Buffer {
@@ -45,6 +39,6 @@ export function emitPptx(laidOut: LaidOutDiagram, opts: PptxOptions): Buffer {
 }
 
 /** A slide plan and the PNGs of its pictures as the .pptx package (also how the judges wrap a hand-written slide). */
-export function packSlide(plan: SlidePlan, pngs: readonly Buffer[]): Buffer {
-  return zipStore(packageEntries(template ??= readTemplate(), plan, pngs));
+export function packSlide(plan: SlidePlan, pngs: readonly Uint8Array[]): Buffer {
+  return zipStore(packageEntries(plan, pngs));
 }

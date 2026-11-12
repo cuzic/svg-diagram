@@ -1,6 +1,6 @@
 import {burndownOpts, burnupOpts, linesOpts, strategyCanvasOpts} from '../charts-lines.ts';
 import type {BurndownSpec, BurnupSpec, LineSeries, LinesOpts, StrategyCanvasOpts} from '../charts-lines.ts';
-import {bubbleBand, butterflyBand, comboBand, harveyBand, heatmapBand, radarBand, sankeyBand, treemapBand, stackedBand, tornadoBand, waterfallBand} from '../charts-dsl.ts';
+import {bubbleBand, butterflyBand, comboBand, compareBand, harveyBand, heatmapBand, radarBand, sankeyBand, treemapBand, stackedBand, tornadoBand, waterfallBand} from '../charts-dsl.ts';
 import type {RadarOpts, RadarSeries} from '../charts-radar.ts';
 import type {SankeyLink, SankeyNode, SankeyOpts} from '../charts-sankey.ts';
 import type {TreemapNode, TreemapOpts} from '../charts-treemap.ts';
@@ -10,7 +10,8 @@ import type {TornadoItem, TornadoOpts} from '../charts-tornado.ts';
 import type {BubbleOpts, BubblePoint} from '../charts-bubble.ts';
 import type {ButterflyOpts, ButterflyRow} from '../charts-butterfly.ts';
 import type {ComboOpts, ComboSeries} from '../charts-combo.ts';
-import type {HarveyOpts, HarveyRow} from '../charts-harvey.ts';
+import type {HarveyCell, HarveyOpts, HarveyRow} from '../charts-harvey.ts';
+import type {CompareCell, CompareOpts} from '../charts-compare.ts';
 import type {ChartBand} from '../charts.ts';
 import type {WaterfallOpts, WaterfallStep} from '../charts-waterfall.ts';
 import {causalBand, dependencyBand, pertBand} from '../semnet-dsl.ts';
@@ -171,10 +172,21 @@ export function combo(categories: readonly string[], series: readonly ComboSerie
 type HarveyIds<R extends readonly HarveyRow[]> = R[number] extends infer E ? E extends {id: infer I extends string} ? I : never : never;
 /**
  * A table of Harvey balls (ハーベイボール): each cell is a circle filled 0–4 quarters (null: not rated), rows are criteria, columns are options.
+ * A cell written [quarters, note] gets its reason beside the ball, split by a dashed line.
  *   harvey(['価格', '品質'], ['A 社', 'B 社'], [[4, 2], [1, 3]], {highlight: ['A 社']})
  */
-export function harvey<const R extends readonly HarveyRow[], const Id extends string = never>(rows: R, cols: readonly string[], values: readonly (readonly (number | null)[])[], opts?: HarveyOpts & {id?: Id}): ChartBand & Declares<Id | HarveyIds<R>> & HandleOf<Id> & AnchorsOf<HarveyIds<R>>;
-export function harvey(rows: readonly HarveyRow[], cols: readonly string[], values: readonly (readonly (number | null)[])[], opts: HarveyOpts = {}): ChartBand {
+export function harvey<const R extends readonly HarveyRow[], const Id extends string = never>(rows: R, cols: readonly string[], values: readonly (readonly HarveyCell[])[], opts?: HarveyOpts & {id?: Id}): ChartBand & Declares<Id | HarveyIds<R>> & HandleOf<Id> & AnchorsOf<HarveyIds<R>>;
+export function harvey(rows: readonly HarveyRow[], cols: readonly string[], values: readonly (readonly HarveyCell[])[], opts: HarveyOpts = {}): ChartBand {
   const band = harveyBand(rows, cols, values, opts);
   return withHandle(withAnchors(band, band.ids), opts.id);
+}
+
+/**
+ * A comparison table (比較表): rows are criteria, columns are options, and each cell is a rating and its reason, split by a dashed line with the rating centred.
+ * A cell is [mark, note] (mark: ◎ ○ △ × or best / ok / mid / ng), or null when it is not rated.
+ *   compare(['コスト', '拡張性'], ['案A', '案B'], [[['○', '既存設備を流用'], ['×', '初期投資が大きい']], [['△', '一部のみ'], ['○', '自由に拡張']]], {corner: '比較軸'})
+ */
+export function compare<const Id extends string = never>(rows: readonly string[], cols: readonly string[], cells: readonly (readonly CompareCell[])[], opts?: CompareOpts & {id?: Id}): ChartBand & Declares<Id> & HandleOf<Id>;
+export function compare(rows: readonly string[], cols: readonly string[], cells: readonly (readonly CompareCell[])[], opts: CompareOpts = {}): ChartBand {
+  return withHandle(compareBand(rows, cols, cells, opts), opts.id);
 }

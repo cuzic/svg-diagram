@@ -116,6 +116,19 @@ test('harvey(): each cell is a circle with a wedge of its quarters; the scale is
   assert.ok(chart.alt.includes('価格: A 社 十分、B 社 なし') && chart.alt.includes('B 社 未評価'));
 });
 
+test('harvey(): a cell with a note gets its reason beside the ball, behind a dashed line; a table without notes has no dashed line', async () => {
+  const {chart, problems} = await chartOf(harvey(['価格', '品質'], ['A', 'B'], [[[4, '自社で製造できる'], 2], [null, [1, '実績が少ない']]], {corner: '軸'}));
+  assert.deepEqual(problems, []);
+  const dashed = chart.items.filter(i => i.k === 'path' && i.dash);
+  assert.equal(dashed.length, 3, 'one per rated cell, also for the cell without a note, so the balls stay in one line');
+  for (const s of ['自社で製造できる', '実績が少ない', 'なし', '十分']) assert.ok(texts(chart).includes(s), s);
+  assert.ok(chart.alt.includes('A 十分（自社で製造できる）'));
+  assert.equal((await chartOf(harvey(['価格'], ['A'], [[4]]))).chart.items.filter(i => i.k === 'path' && i.dash).length, 0);
+  assert.throws(() => harvey(['a'], ['x'], [[[9, 'n']]]), /must be 0, 1, 2, 3 or 4/);
+  assert.throws(() => harvey(['a'], ['x'], [[[1, '']]]), /note/);
+  assert.throws(() => harvey(['a'], ['x'], [[[null as never, '理由']]]), /not rated has no note/);
+});
+
 test('harvey(): a row with an id is an anchor over the whole row', async () => {
   const {chart, problems} = await chartOf(harvey([{label: '価格', id: 'price'}, '品質'], ['A', 'B'], [[1, 2], [3, 4]]));
   assert.deepEqual(problems, []);

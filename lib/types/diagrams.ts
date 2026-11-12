@@ -210,6 +210,8 @@ export interface CauseOpts extends RevealOpts, ScopeOpts, FocusOpts {
   counts?: boolean;
   /** The wording of that line: `{n}` is the number reached, `{total}` the number of `ude` entities (default `{n}/{total} 件に届く`). */
   coreDriverLabel?: string;
+  /** The word in the badge of a core driver (default 中核; 'Core' for English). Up to about 5 letters fit. */
+  coreBadge?: string;
   /** Where a return (an arrow back to an earlier layer) that skips two layers or more runs: 'inline' (through the figure, over dummies) or 'outer' (in a lane
    *  outside the figure, 14px apart, the longest outermost). Default: the arrows written `back: true` run outside, the others inline; `pdpc` runs all of them outside
    *  (falling back to inline when that does not fit the width). Written explicitly, 'outer' that does not fit is an error. */
@@ -295,6 +297,8 @@ export interface CloudOpts extends RevealOpts, ScopeOpts {
   assumptions?: CloudAssumption[];
   /** A word on the conflict arrow (default none). */
   conflictLabel?: string;
+  /** What joins a box's letter to its text (default '：', a full-width colon; ': ' for English). */
+  separator?: string;
   maxNodeW?: number;
   id?: string;
 }
@@ -438,6 +442,8 @@ export interface LaidOutStates extends Rect, Dimmed {
   labelBoxes: (Rect & {label: string})[];
 }
 export interface LaidOutCause extends Rect, Dimmed {
+  /** From the band's `coreBadge`. */
+  coreBadge?: string;
   /** From the band's `focused`: the arrows that touch one of these items are lit (accent), the others muted. */
   focused?: string[];
   type: 'cause';
@@ -556,7 +562,24 @@ export interface FtaOpts extends RevealOpts, ScopeOpts {
   quant?: boolean;
   /** The period `p` is over, written in the note (`quant` only): '1 年間'. */
   quantPeriod?: string;
+  /** The words the tree writes by itself (default Japanese): see FtaWords. */
+  words?: FtaWords;
   id?: string;
+}
+/** The words a fault tree writes by itself. `{p}`, `{n}` and `{period}` are filled in. */
+export interface FtaWords {
+  /** The badge under a basic event that alone causes the top event (default 単一故障点). */
+  singlePoint?: string;
+  /** The same badge under an undeveloped event (default 未展開・単独で頂上へ). */
+  undevelopedAlone?: string;
+  /** What a house event with `state` assumes, when it has no sub (default 常に発生すると仮定 / 発生しないと仮定). */
+  houseTrue?: string;
+  houseFalse?: string;
+  /** The quant note: the period (default 期間: {period}。), the probability (default 頂上事象の確率 {p}), the upper bound used when too many basic events are shared, and what it assumes (default 。基本事象は互いに独立と仮定). */
+  period?: string;
+  topP?: string;
+  topBound?: string;
+  assumption?: string;
 }
 export interface FtaBand extends FtaOpts {
   type: 'fta';
