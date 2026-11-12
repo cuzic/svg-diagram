@@ -478,3 +478,11 @@ test('a table is drawn as the svg draws it: a white title on the accent, dark fr
   assert.doesNotMatch(raci, /tableStyleId/);
   assert.deepEqual(xmlProblems(raci), []);
 });
+
+test('a journey map draws its emotion curve over the table: a dashed neutral line, the curve, a hollow dot at each point', async () => {
+  const j = entry((await renderPptxEdge(spec(example('journeyMap')), realEngine(), {rasterize: () => PNG})).pptx!, 'ppt/slides/slide1.xml');
+  assert.match(j, /<\/p:graphicFrame><p:grpSp><p:nvGrpSpPr><p:cNvPr id="\d+" name="emotion-curve"\/>/);
+  assert.match(j, /name="emotion-neutral"[\s\S]*?<a:prstDash val="dash"\/>/);
+  assert.equal(j.match(/name="emotion"/g)?.length, 4);
+  assert.deepEqual(xmlProblems(j), []);
+});
