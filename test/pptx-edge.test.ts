@@ -453,7 +453,7 @@ test('a dark figure: the slide has the dark background, and its shapes, lines an
   const r = await renderPptxEdge({...spec(flow), appearance: 'dark'}, realEngine(), {rasterize: () => PNG});
   const dark = entry(r.pptx!, 'ppt/slides/slide1.xml');
   assert.doesNotMatch(light, /<p:bg>/);
-  assert.match(dark, /<p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="1B1A17"\/>/);
+  assert.match(dark, /<p:cSld[^>]*><p:bg><p:bgPr><a:solidFill><a:srgbClr val="1B1A17"\/>/);
   // the light text colour is gone, the dark one is there; so is a dark-only band drawn from its svg (a chart)
   assert.match(light, /val="22201B"/);
   assert.doesNotMatch(dark, /val="22201B"/);
@@ -485,4 +485,12 @@ test('a journey map draws its emotion curve over the table: a dashed neutral lin
   assert.match(j, /name="emotion-neutral"[\s\S]*?<a:prstDash val="dash"\/>/);
   assert.equal(j.match(/name="emotion"/g)?.length, 4);
   assert.deepEqual(xmlProblems(j), []);
+});
+
+test('the figure\'s title and description (the svg\'s <title> and <desc>) are the slide\'s name and the file\'s title and description', async () => {
+  const r = await renderPptxEdge({...spec(example('flowchart')), title: '受注の流れ & 確認', desc: '受付から発送までの判断。'}, realEngine(), {rasterize: () => PNG});
+  assert.match(entry(r.pptx!, 'ppt/slides/slide1.xml'), /<p:cSld name="受注の流れ &amp; 確認">/);
+  const core = entry(r.pptx!, 'docProps/core.xml');
+  assert.match(core, /<dc:title>受注の流れ &amp; 確認<\/dc:title><dc:description>受付から発送までの判断。<\/dc:description>/);
+  assert.deepEqual(xmlProblems(core), []);
 });

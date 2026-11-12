@@ -3,10 +3,11 @@
 import {must} from '../must.ts';
 import type {Picture} from './image-band.ts';
 import {TEMPLATE} from './template.ts';
+import {escapeXml} from '../emit-common.ts';
 
 export interface Entry {name: string; data: Uint8Array}
 /** The one slide: its XML, its size (EMU) and the pictures it places (picture i is media/image{i+1}.png / .svg). */
-export interface SlidePlan {xml: string; cx: number; cy: number; pictures: Picture[]}
+export interface SlidePlan {xml: string; cx: number; cy: number; pictures: Picture[]; /** The figure's accessible name and description (the svg's <title> and <desc>): the file's title and description. */ title?: string; desc?: string}
 
 const IMAGE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image';
 /** Relationship ids of picture i in the slide's rels (the template uses the ids below 12). */
@@ -23,6 +24,10 @@ export function packageEntries(plan: SlidePlan, pngs: readonly Uint8Array[], tem
   const enc = new TextEncoder();
   const entries: Entry[] = template.map(({name, text}) => {
     if (name === 'ppt/presentation.xml') return {name, data: enc.encode(text.replace(/<p:sldSz[^>]*\/>/, `<p:sldSz cx="${plan.cx}" cy="${plan.cy}"/>`))};
+    if (name === 'docProps/core.xml' && plan.title) {
+      const desc = plan.desc ? `<dc:description>${escapeXml(plan.desc)}</dc:description>` : '';
+      return {name, data: enc.encode(text.replace(/<dc:title>[^<]*<\/dc:title>/, `<dc:title>${escapeXml(plan.title)}</dc:title>${desc}`))};
+    }
     if (name === 'ppt/slides/_rels/slide1.xml.rels') return {name, data: enc.encode(text.replace('</Relationships>', slideRels(plan.pictures.length) + '</Relationships>'))};
     return {name, data: enc.encode(text)};
   });
