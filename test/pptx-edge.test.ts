@@ -184,3 +184,51 @@ test('the plain pieces: a text line sits on its baseline at its anchor, presets 
   const q = quadrantXml(band as never, {day: 'blue'} as never, (await import('../lib/tokens.ts')).NO_TONES, fonts, () => ++n);
   assert.deepEqual(q.glue, [{dslId: 'a', id: 1, rect: {x: 45, y: 45, w: 10, h: 10}}]);
 });
+
+test('a flowchart is native shapes: a diamond holds its question, every arrow is glued at both ends, a label sits on a chip', async () => {
+  const r = await renderPptxEdge(spec(example('flowchart')), realEngine(), {rasterize: () => PNG});
+  assert.equal(r.pictures, 0);
+  const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
+  const arrows = slide.split('<p:cxnSp>').slice(1);
+  assert.ok(arrows.length > 0);
+  for (const a of arrows) { assert.match(a, /<a:stCxn /); assert.match(a, /<a:endCxn /); assert.match(a, /<a:tailEnd type="triangle"/); }
+  // a diamond: its own geometry, with the four sites a connector glues to, and its text inside it
+  assert.match(slide, /<a:cxnLst><a:cxn ang="16200000">[\s\S]*?<a:lnTo>[\s\S]*?<a:t>/);
+  assert.deepEqual(xmlProblems(slide), []);
+});
+
+test('a state diagram glues its start dot, draws an end state\'s inner frame, and names no shape with a control character', async () => {
+  const states = {type: 'stateDiagram', initial: 'a', states: [{id: 'a', label: '受付'}, {id: 'b', label: '完了', final: true, tone: 'accent'}], transitions: [{from: 'a', to: 'b', label: '処理'}]};
+  const r = await renderPptxEdge(spec(states), realEngine(), {rasterize: () => PNG});
+  assert.equal(r.pictures, 0);
+  const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
+  assert.equal(slide.match(/<a:stCxn /g)?.length, 2);
+  assert.match(slide, /name="end-b"/);
+  assert.doesNotMatch(slide, /[\u0000-\u0008]/);
+  assert.match(slide, /<a:t>完了<\/a:t>/);
+  assert.deepEqual(xmlProblems(slide), []);
+});
+
+test('roundGeomXml: the whole box is the text area, the sites are top, left, bottom, right; geomShapeXml paints it', async () => {
+  const {roundGeomXml, geomShapeXml} = await import('../lib/pptx/prims.ts');
+  for (const kind of ['diamond', 'ellipse', 'pill'] as const) {
+    const g = roundGeomXml(kind, 100, 40);
+    assert.match(g, /<a:rect l="l" t="t" r="r" b="b"\/>/);
+    assert.match(g, /<a:cxn ang="16200000"><a:pos x="476250" y="0"\/><\/a:cxn><a:cxn ang="10800000"><a:pos x="0" y="190500"\/><\/a:cxn><a:cxn ang="5400000"><a:pos x="476250" y="381000"\/><\/a:cxn><a:cxn ang="0"><a:pos x="952500" y="190500"\/><\/a:cxn>/);
+  }
+  assert.match(roundGeomXml('pill', 100, 40), /<a:arcTo wR="190500" hR="190500" stAng="16200000" swAng="10800000"\/>/);
+  assert.match(geomShapeXml(2, 'dot', {x: 0, y: 0, w: 10, h: 10}, roundGeomXml('ellipse', 10, 10), {fill: '#000000'}), /<a:custGeom>[\s\S]*<a:solidFill><a:srgbClr val="000000"\/><\/a:solidFill><a:ln><a:noFill\/><\/a:ln>/);
+});
+
+test('statesXml reports each node by its DSL id, and a node line takes its tone\'s text colour', async () => {
+  const {statesXml} = await import('../lib/pptx/states.ts');
+  const {nodeRunsOf} = await import('../lib/pptx/tree.ts');
+  const {NO_TONES} = await import('../lib/tokens.ts');
+  const band = {type: 'states', x: 0, y: 0, w: 200, h: 60, nodes: [{x: 0, y: 0, w: 60, h: 30, tone: 'plain'}, {x: 100, y: 0, w: 60, h: 30, tone: 'accent', shape: 'diamond'}], edges: [{from: 's', to: 't', points: [{x: 60, y: 15}, {x: 100, y: 15}], line: 'solid'}], texts: [], icons: [], labels: [], anchors: [{id: 's', x: 0, y: 0, w: 60, h: 30}, {id: 't', x: 100, y: 0, w: 60, h: 30}], labelBoxes: []};
+  let n = 0;
+  const r = statesXml(band as never, {day: 'blue'} as never, NO_TONES, {sans: 'S', mono: 'M'}, () => ++n);
+  assert.deepEqual(r.glue.map(g => [g.dslId, g.id]), [['s', 1], ['t', 2]]);
+  assert.match(r.xml, /<a:stCxn id="1" idx="3"\/><a:endCxn id="2" idx="1"\/>/);
+  const runs = nodeRunsOf({x: 0, y: 0, w: 60, h: 30, tone: 'accent'}, [{text: 'A', x: 30, y: 20, size: 14, bold: true, muted: false}], NO_TONES);
+  assert.equal(runs[0]?.tone, 'accent');
+});

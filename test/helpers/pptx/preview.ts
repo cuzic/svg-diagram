@@ -33,10 +33,22 @@ const fill = (spPr: El | undefined): string => kid(spPr, 'a:noFill') ? 'none' : 
 
 function custPath(spPr: El | undefined, r: {x: number; y: number}): string {
   const out: string[] = [];
-  for (const path of kids(kid(kid(spPr, 'a:custGeom'), 'a:pathLst') ?? {tag: '', attrs: {}, children: [], parent: null, order: 0}, 'a:path')) {
+  const path0 = kid(kid(spPr, 'a:custGeom'), 'a:pathLst');
+  let cur = {x: 0, y: 0};
+  for (const path of path0 ? kids(path0, 'a:path') : []) {
     for (const s of kids(path)) {
-      const pts = kids(s, 'a:pt').map(p => `${r.x + px(p.attrs['x'])},${r.y + px(p.attrs['y'])}`);
-      out.push({'a:moveTo': 'M', 'a:lnTo': 'L', 'a:quadBezTo': 'Q', 'a:cubicBezTo': 'C', 'a:close': 'Z'}[s.tag] + pts.join(' '));
+      const pts = kids(s, 'a:pt').map(p => ({x: r.x + px(p.attrs['x']), y: r.y + px(p.attrs['y'])}));
+      if (s.tag === 'a:arcTo') {
+        // DrawingML: an arc of the ellipse (wR, hR) from the current point, starting at angle stAng and turning swAng (60000ths of a degree)
+        const wR = px(s.attrs['wR']), hR = px(s.attrs['hR']), st = Number(s.attrs['stAng']) / 60000 * Math.PI / 180, sw = Number(s.attrs['swAng']) / 60000 * Math.PI / 180;
+        const c = {x: cur.x - wR * Math.cos(st), y: cur.y - hR * Math.sin(st)}, end = {x: c.x + wR * Math.cos(st + sw), y: c.y + hR * Math.sin(st + sw)};
+        out.push(`A${wR} ${hR} 0 ${Math.abs(sw) > Math.PI ? 1 : 0} ${sw > 0 ? 1 : 0} ${end.x},${end.y}`);
+        cur = end;
+        continue;
+      }
+      out.push(({'a:moveTo': 'M', 'a:lnTo': 'L', 'a:quadBezTo': 'Q', 'a:cubicBezTo': 'C', 'a:close': 'Z'}[s.tag] ?? '') + pts.map(p => `${p.x},${p.y}`).join(' '));
+      const last = pts[pts.length - 1];
+      if (last) cur = last;
     }
   }
   return out.join(' ');

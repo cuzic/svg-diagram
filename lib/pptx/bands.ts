@@ -12,6 +12,7 @@ import {bandPicture, type Picture} from './image-band.ts';
 import {imageRids} from './package.ts';
 import {treeXml} from './tree.ts';
 import {quadrantXml} from './quadrant.ts';
+import {statesXml} from './states.ts';
 
 /** What the bands of one slide share: ids, the shapes connectors can glue to, and the pictures to rasterize. */
 export interface Ctx {
@@ -113,6 +114,14 @@ const quadrantBand: BandXml<LaidOutOf<'quadrant'>> = (band, ctx, index) => {
   return xml;
 };
 
+/** A state diagram or flowchart as shapes (./states.ts); a dimmed one, or one with icons, stays a picture. */
+const statesBand: BandXml<LaidOutOf<'states'>> = (band, ctx, index) => {
+  if (band.dim || band.icons.length) return imageBand(band, ctx, index);
+  const {xml, glue} = statesXml(band, ctx.ld, ctx.tones, ctx.fonts, ctx.next);
+  for (const g of glue) register(ctx, g.dslId, g.id, g.rect);
+  return xml;
+};
+
 /** A band with no native mapping: drawn alone as SVG + PNG and placed as one picture; an invisible anchor keeps its DSL id glue-able. */
 const imageBand: BandXml<DrawnBand> = (band, ctx, index) => {
   const {picture, rect} = bandPicture(ctx.ld, band, index);
@@ -132,7 +141,7 @@ export const BAND_HANDLERS = {
   legend: 'image', swimlane: 'image', wireframe: 'image', screens: 'image', sequence: 'image', raw: 'image', pyramid: 'image',
   curve: 'image', plane: 'image', quadrant: quadrantBand, wordart: 'image', chevron: 'image', funnel: 'image', cycle: 'image',
   venn: 'image', concentric: 'image', emblem: 'image', valueChain: 'image', bars: 'image', chart: 'image', image: 'image', people: 'image', dots: 'image', math: 'image',
-  timeline: 'image', tree: treeBand, states: 'image', cause: 'image', cloud: 'image', gantt: 'image', classes: 'image', bpmn: 'image',
+  timeline: 'image', tree: treeBand, states: statesBand, cause: 'image', cloud: 'image', gantt: 'image', classes: 'image', bpmn: 'image',
   fta: 'image', status: 'image', bowtie: 'image',
 } satisfies {[T in LaidOutType]: BandXml<LaidOutOf<T>> | 'image'};
 

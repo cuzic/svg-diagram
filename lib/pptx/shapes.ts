@@ -18,7 +18,8 @@ export function plainBox(rect: Rect, text: string, o: {size: number; weight: Fon
 /** A shape's fill and outline. */
 const frameFill = (style: {fill: string; stroke: string; dashed?: boolean}): string => `${solidFill(style.fill)}<a:ln w="${emu(2.5)}">${solidFill(style.stroke)}${style.dashed ? '<a:prstDash val="dash"/>' : ''}</a:ln>`;
 
-export function boxXml(id: number, name: string, b: TextBox, day: LaidOutDiagram['day'], tones: ToneEnv, fonts: Fonts): string {
+/** `geom`: the shape's geometry in place of the rounded rectangle (a custGeom whose text area is the whole box, see prims.ts). */
+export function boxXml(id: number, name: string, b: TextBox, day: LaidOutDiagram['day'], tones: ToneEnv, fonts: Fonts, geom?: string): string {
   const style = resolveBoxStyle(tones, b.tone, day, b.dashed);
   const px = b.padX ?? BOX_PAD_X, py = b.padY ?? BOX_PAD_Y;
   const frame = b.frame !== false;
@@ -31,7 +32,7 @@ export function boxXml(id: number, name: string, b: TextBox, day: LaidOutDiagram
   const topInset = first ? Math.max(0, py + (first.lineYs[0] ?? 0) - pitchOf(first) * 0.8) : py;
   const fill = frame ? frameFill(style) : '<a:noFill/><a:ln><a:noFill/></a:ln>';
   // the text area is wider than the layout's wrap width by 2px on the right (a rounding difference must not push a word to the next line)
-  return sp(id, name, `${xfrm(b)}<a:prstGeom prst="${frame ? 'roundRect' : 'rect'}"><a:avLst>${frame ? `<a:gd name="adj" fmla="val ${roundRectAdj(b)}"/>` : ''}</a:avLst></a:prstGeom>${fill}`, `<a:bodyPr wrap="${b.noWrap ? 'none' : 'square'}" lIns="${emu(px)}" tIns="${emu(topInset)}" rIns="${emu(Math.max(0, px - 2))}" bIns="${emu(py)}" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paras || '<a:p><a:endParaRPr lang="ja-JP"/></a:p>'}`);
+  return sp(id, name, `${xfrm(b)}${geom ?? `<a:prstGeom prst="${frame ? 'roundRect' : 'rect'}"><a:avLst>${frame ? `<a:gd name="adj" fmla="val ${roundRectAdj(b)}"/>` : ''}</a:avLst></a:prstGeom>`}${fill}`, `<a:bodyPr wrap="${b.noWrap ? 'none' : 'square'}" lIns="${emu(px)}" tIns="${emu(topInset)}" rIns="${emu(Math.max(0, px - 2))}" bIns="${emu(py)}" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paras || '<a:p><a:endParaRPr lang="ja-JP"/></a:p>'}`);
 }
 
 /** The frame of a `group` band: an empty rounded rectangle the boxes inside sit on. */

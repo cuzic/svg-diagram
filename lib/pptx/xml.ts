@@ -20,8 +20,11 @@ export function arrowEnds(arrow: 'start' | 'end' | 'both' | 'none' | undefined, 
   return `${arrow === 'start' || arrow === 'both' ? `<a:headEnd type="triangle"${size}/>` : ''}${arrow === 'end' || arrow === 'both' ? `<a:tailEnd type="triangle"${size}/>` : ''}`;
 }
 
+/** A shape's name as an attribute: escaped, and without the control characters XML 1.0 cannot hold (an internal id may start with one). */
+const nameAttr = (name: string): string => attr(name.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ''));
+
 /** The `p:sp` / `p:cxnSp` wrappers every shape of the slide shares. */
 export const sp = (id: number, name: string, spPr: string, txBody: string): string =>
-  `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${attr(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${spPr}</p:spPr><p:txBody>${txBody}</p:txBody></p:sp>`;
+  `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${nameAttr(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${spPr}</p:spPr><p:txBody>${txBody}</p:txBody></p:sp>`;
 export const cxnSp = (id: number, name: string, glue: string | undefined, spPr: string): string =>
-  `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="${attr(name)}"/>${glue === undefined ? '<p:cNvCxnSpPr/>' : `<p:cNvCxnSpPr>${glue}</p:cNvCxnSpPr>`}<p:nvPr/></p:nvCxnSpPr><p:spPr>${spPr}</p:spPr></p:cxnSp>`;
+  `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="${nameAttr(name)}"/>${glue === undefined ? '<p:cNvCxnSpPr/>' : `<p:cNvCxnSpPr>${glue}</p:cNvCxnSpPr>`}<p:nvPr/></p:nvCxnSpPr><p:spPr>${spPr}</p:spPr></p:cxnSp>`;
