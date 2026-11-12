@@ -64,8 +64,24 @@ function boxInsets(r: Rect, lines: readonly TextLine[]): {l: number; r: number} 
   return {l: Math.max(0, L), r: Math.max(0, R)};
 }
 
+/** The lines grouped by baseline (within a pixel), top to bottom. */
+function rowsOf(lines: readonly TextLine[]): TextLine[][] {
+  const rows: TextLine[][] = [];
+  for (const t of lines.toSorted((a, b) => a.y - b.y)) {
+    const last = rows[rows.length - 1];
+    if (last && Math.abs((last[0]?.y ?? 0) - t.y) <= 1) last.push(t); else rows.push([t]);
+  }
+  return rows;
+}
+/** A row is one line, or a left and a right line on one baseline (PERT's "ES 5 ... EF 9"), which one paragraph holds with a right tab. */
+const rowFits = (row: readonly TextLine[]): boolean => {
+  if (row.length === 1) return true;
+  const [a, b] = row.toSorted((u, v) => u.x - v.x);
+  return row.length === 2 && a?.anchor === 'start' && b?.anchor === 'end';
+};
+
 /** Whether these lines can be the text of this box (boxTextXml can place every one at its anchor). */
-export const boxTextFits = (r: Rect, lines: readonly TextLine[]): boolean => lines.length > 0 && boxInsets(r, lines) !== null;
+export const boxTextFits = (r: Rect, lines: readonly TextLine[]): boolean => lines.length > 0 && boxInsets(r, lines) !== null && rowsOf(lines).every(rowFits);
 
 /** The width (px) of the text area boxTextXml gives these lines in this box (the box less its insets), or null when they cannot share one. */
 export function boxTextWidth(r: Rect, lines: readonly TextLine[]): number | null {
@@ -74,17 +90,23 @@ export function boxTextWidth(r: Rect, lines: readonly TextLine[]): number | null
 }
 
 export function boxTextXml(r: Rect, lines: readonly TextLine[], fonts: Fonts): string {
-  const sorted = lines.toSorted((a, b) => a.y - b.y);
-  const first = sorted[0], ins = boxInsets(r, lines);
-  if (!first || !ins) return EMPTY_TEXT;
+  const rows = rowsOf(lines), first = rows[0]?.[0], ins = boxInsets(r, lines);
+  if (!first || !ins || !rows.every(rowFits)) return EMPTY_TEXT;
   const l = ins.l, rr = ins.r;
   const algnOf = (t: TextLine) => t.anchor === 'middle' ? 'ctr' : t.anchor === 'end' ? 'r' : 'l';
   const pitch = (t: TextLine) => Math.round(t.size * LINE_HEIGHT_EM);
   const top = (t: TextLine) => t.y - pitch(t) * 0.8;
-  const paras = sorted.map((t, i) => {
-    const prev = sorted[i - 1];
+  const run = (t: TextLine, text = t.text) => runXml(text, t.size, t.bold, false, hex(t.color), fonts);
+  const paras = rows.map((row, i) => {
+    const t = row[0] as TextLine, prev = rows[i - 1]?.[0];
     const before = prev ? Math.max(0, top(t) - top(prev) - pitch(prev)) : 0;
-    return `<a:p><a:pPr algn="${algnOf(t)}"><a:lnSpc><a:spcPts val="${Math.round(pitch(t) * 75)}"/></a:lnSpc><a:spcBef><a:spcPts val="${Math.round(before * 75)}"/></a:spcBef></a:pPr>${runXml(t.text, t.size, t.bold, false, hex(t.color), fonts)}</a:p>`;
+    const spacing = `<a:lnSpc><a:spcPts val="${Math.round(pitch(t) * 75)}"/></a:lnSpc><a:spcBef><a:spcPts val="${Math.round(before * 75)}"/></a:spcBef>`;
+    if (row.length === 2) {
+      // a left and a right line on one baseline: one paragraph, the right one after a tab stop at the right edge of the text area
+      const [a, b] = row.toSorted((u, v) => u.x - v.x) as [TextLine, TextLine];
+      return `<a:p><a:pPr algn="l">${spacing}<a:tabLst><a:tab pos="${emu(Math.max(0, r.w - l - rr))}" algn="r"/></a:tabLst></a:pPr>${run(a)}${run(b, `\t${b.text}`)}</a:p>`;
+    }
+    return `<a:p><a:pPr algn="${algnOf(t)}">${spacing}</a:pPr>${run(t)}</a:p>`;
   }).join('');
   return `<a:bodyPr wrap="square" lIns="${emu(Math.max(0, l))}" tIns="${emu(Math.max(0, top(first) - r.y))}" rIns="${emu(Math.max(0, rr))}" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paras}`;
 }

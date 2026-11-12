@@ -69,6 +69,11 @@ test('the pieces of a box with text: a preset geometry, an outline geometry with
   assert.equal(boxTextFits(r, [line(30, 'middle'), line(10, 'start', 35)]), false); // a centred line off the middle of the text area
   assert.equal(boxTextFits(r, [line(10, 'start'), line(20, 'start', 35)]), false); // two left edges
   assert.equal(boxTextFits(r, []), false);
+  // a left and a right line on one baseline (PERT's ES and EF) are one paragraph: the right one after a right tab at the text area's edge
+  const pair = [line(50, 'middle'), {...line(10, 'start', 35)}, {...line(90, 'end', 35)}];
+  assert.equal(boxTextFits(r, pair), true);
+  assert.match(boxTextXml(r, pair, {sans: 'S', mono: 'M'}), /<a:pPr algn="l">(?:(?!<\/a:pPr>).)*<a:tabLst><a:tab pos="762000" algn="r"\/><\/a:tabLst><\/a:pPr>(?:(?!<\/a:p>).)*<a:t>\t/);
+  assert.equal(boxTextFits(r, [line(10, 'start', 35), line(50, 'middle', 35)]), false); // a left and a centred line on one baseline
   // a centred line at x 60: the text area is centred on it (inset 20 on the left), its baseline 20px down (top inset 20 - 0.8 * 14)
   assert.match(boxTextXml(r, [line(60, 'middle')], {sans: 'S', mono: 'M'}), /lIns="190500" tIns="83820" rIns="0"[\s\S]*algn="ctr"/);
 });

@@ -78,8 +78,14 @@ function text(txBody: El | undefined, r: {x: number; y: number; w: number; h: nu
       const rpr = kid(line[0] as El, 'a:rPr'), size = Number(rpr?.attrs['sz'] ?? 1800) / 75, step = pitch || size * 1.2;
       const anchor = algn === 'ctr' ? 'middle' : algn === 'r' ? 'end' : 'start';
       const x = algn === 'ctr' ? r.x + (l + marL + r.w - rr) / 2 : algn === 'r' ? r.x + r.w - rr : r.x + l + marL;
-      const spans = line.map(run => { const rp = kid(run, 'a:rPr'); return `<tspan fill="${color(kid(rp, 'a:solidFill')) ?? '#000'}"${rp?.attrs['b'] === '1' ? ' font-weight="700"' : ''}>${esc(textOf(kid(run, 'a:t') as El))}</tspan>`; }).join('');
-      out.push(`<text x="${x}" y="${y + step * 0.8}" font-size="${size}" text-anchor="${anchor}" font-family="BIZ UDPGothic, Noto Sans JP, sans-serif">${spans}</text>`);
+      const span = (run: El, t: string) => { const rp = kid(run, 'a:rPr'); return `<tspan fill="${color(kid(rp, 'a:solidFill')) ?? '#000'}"${rp?.attrs['b'] === '1' ? ' font-weight="700"' : ''}>${esc(t)}</tspan>`; };
+      const font = 'font-family="BIZ UDPGothic, Noto Sans JP, sans-serif"';
+      // a right tab stop: what follows the tab ends at the stop
+      const tab = find(kid(ppr, 'a:tabLst'), 'a:tab'), at = line.findIndex(run => textOf(kid(run, 'a:t') as El).startsWith('\t'));
+      if (tab?.attrs['algn'] === 'r' && at > 0) {
+        out.push(`<text x="${r.x + l}" y="${y + step * 0.8}" font-size="${size}" ${font}>${line.slice(0, at).map(run => span(run, textOf(kid(run, 'a:t') as El))).join('')}</text>`);
+        out.push(`<text x="${r.x + l + px(tab.attrs['pos'])}" y="${y + step * 0.8}" font-size="${size}" text-anchor="end" ${font}>${line.slice(at).map(run => span(run, textOf(kid(run, 'a:t') as El).replace('\t', ''))).join('')}</text>`);
+      } else out.push(`<text x="${x}" y="${y + step * 0.8}" font-size="${size}" text-anchor="${anchor}" ${font}>${line.map(run => span(run, textOf(kid(run, 'a:t') as El))).join('')}</text>`);
       y += step;
     }
   }
