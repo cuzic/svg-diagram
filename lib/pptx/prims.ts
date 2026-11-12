@@ -57,16 +57,17 @@ export function lineXml(id: number, name: string, a: Pt, b: Pt, color: string, w
 export const nameOf = (kind: string, id: number, text?: string): string => text ? `${kind}: ${[...text].slice(0, 40).join('')}` : `${kind}-${id}`;
 
 /**
- * A diamond, ellipse or pill as a custGeom of w x h px whose text area is the whole box (a preset's is inset, which would move the text
+ * A diamond, ellipse, pill or hexagon (pointed left and right, as an obstacle) as a custGeom of w x h px whose text area is the whole box (a preset's is inset, which would move the text
  * off the layout's lines) and whose connection sites are the middles of the top, left, bottom and right sides: 0 to 3, as siteIndex counts.
  */
-export function roundGeomXml(kind: 'diamond' | 'ellipse' | 'pill', w: number, h: number): string {
+export function roundGeomXml(kind: 'diamond' | 'ellipse' | 'pill' | 'hex', w: number, h: number): string {
   const W = emu(w), H = emu(h), pos = (x: number, y: number) => `<a:pos x="${Math.round(x)}" y="${Math.round(y)}"/>`;
   const sites = `<a:cxn ang="16200000">${pos(W / 2, 0)}</a:cxn><a:cxn ang="10800000">${pos(0, H / 2)}</a:cxn><a:cxn ang="5400000">${pos(W / 2, H)}</a:cxn><a:cxn ang="0">${pos(W, H / 2)}</a:cxn>`;
   const pt = (x: number, y: number) => `<a:pt x="${Math.round(x)}" y="${Math.round(y)}"/>`;
   const arc = (r: number, rv: number, st: number, sw: number) => `<a:arcTo wR="${Math.round(r)}" hR="${Math.round(rv)}" stAng="${st}" swAng="${sw}"/>`;
   let path: string;
   if (kind === 'diamond') path = `<a:moveTo>${pt(W / 2, 0)}</a:moveTo><a:lnTo>${pt(W, H / 2)}</a:lnTo><a:lnTo>${pt(W / 2, H)}</a:lnTo><a:lnTo>${pt(0, H / 2)}</a:lnTo><a:close/>`;
+  else if (kind === 'hex') { const k = emu(Math.min(16, h / 2)); path = `<a:moveTo>${pt(k, 0)}</a:moveTo><a:lnTo>${pt(W - k, 0)}</a:lnTo><a:lnTo>${pt(W, H / 2)}</a:lnTo><a:lnTo>${pt(W - k, H)}</a:lnTo><a:lnTo>${pt(k, H)}</a:lnTo><a:lnTo>${pt(0, H / 2)}</a:lnTo><a:close/>`; }
   else if (kind === 'ellipse') path = `<a:moveTo>${pt(0, H / 2)}</a:moveTo>${arc(W / 2, H / 2, 10800000, 10800000)}${arc(W / 2, H / 2, 0, 10800000)}<a:close/>`;
   else { const r = Math.min(W, H) / 2; path = `<a:moveTo>${pt(r, 0)}</a:moveTo><a:lnTo>${pt(W - r, 0)}</a:lnTo>${arc(r, r, 16200000, 10800000)}<a:lnTo>${pt(r, H)}</a:lnTo>${arc(r, r, 5400000, 10800000)}<a:close/>`; }
   return `<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst>${sites}</a:cxnLst><a:rect l="l" t="t" r="r" b="b"/><a:pathLst><a:path w="${W}" h="${H}">${path}</a:path></a:pathLst></a:custGeom>`;

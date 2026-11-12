@@ -41,11 +41,13 @@ export function freeformXml(id: number, c: LaidOutConnect, day: LaidOutDiagram['
 export function connectorShapeXml(id: number, name: string, x: Omit<ConnXfrm, 'prst'> & {prst: string}, color: string, widthPx: number, start?: Glue, end?: Glue, opts: LineOpts = {}): string {
   const av = x.adj.map((v, i) => `<a:gd name="adj${i + 1}" fmla="val ${v}"/>`).join('');
   const dash = dashOf(opts);
-  return cxnSp(id, name, glueXml(start, end), `${cxnXfrm(x, true)}<a:prstGeom prst="${x.prst}"><a:avLst>${av}</a:avLst></a:prstGeom><a:ln w="${emu(widthPx)}">${solidFill(color)}${dash}${opts.arrow ? arrowEnds('end', true) : ''}</a:ln>`);
+  return cxnSp(id, name, glueXml(start, end), `${cxnXfrm(x, true)}<a:prstGeom prst="${x.prst}"><a:avLst>${av}</a:avLst></a:prstGeom><a:ln w="${emu(widthPx)}">${solidFill(color)}${dash}${headsOf(opts)}</a:ln>`);
 }
 
 /** How a band's own line is drawn: dashed or dotted, and with an arrowhead at its end. */
-export interface LineOpts {dashed?: boolean; dotted?: boolean; arrow?: boolean}
+/** `arrow`: a head at the end; `heads` names the ends explicitly (and wins). */
+export interface LineOpts {dashed?: boolean; dotted?: boolean; arrow?: boolean; heads?: 'start' | 'end' | 'both' | 'none'}
+const headsOf = (o: LineOpts): string => o.heads ? arrowEnds(o.heads, true) : o.arrow ? arrowEnds('end', true) : '';
 const dashOf = (o: LineOpts): string => o.dotted ? '<a:prstDash val="sysDot"/>' : o.dashed ? '<a:prstDash val="dash"/>' : '';
 
 /** One step of a freeform path: move, line, or quadratic curve (control point, end point). */
@@ -59,5 +61,5 @@ export function freeformPathXml(id: number, name: string, steps: readonly PathSt
   const pt = (p: {x: number; y: number}) => `<a:pt x="${emu(p.x - x)}" y="${emu(p.y - y)}"/>`;
   const tag = {M: 'moveTo', L: 'lnTo', Q: 'quadBezTo'} as const;
   const path = steps.map(s => `<a:${tag[s.op]}>${s.pts.map(pt).join('')}</a:${tag[s.op]}>`).join('');
-  return cxnSp(id, name, undefined, `<a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm><a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="l" t="t" r="r" b="b"/><a:pathLst><a:path w="${emu(w)}" h="${emu(h)}" fill="none">${path}</a:path></a:pathLst></a:custGeom><a:ln w="${emu(widthPx)}">${solidFill(color)}${dashOf(opts)}${opts.arrow ? arrowEnds('end', true) : ''}</a:ln>`);
+  return cxnSp(id, name, undefined, `<a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm><a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="l" t="t" r="r" b="b"/><a:pathLst><a:path w="${emu(w)}" h="${emu(h)}" fill="none">${path}</a:path></a:pathLst></a:custGeom><a:ln w="${emu(widthPx)}">${solidFill(color)}${dashOf(opts)}${headsOf(opts)}</a:ln>`);
 }

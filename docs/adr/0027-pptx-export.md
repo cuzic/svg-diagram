@@ -93,6 +93,7 @@ pptx では、図形と線の幾何は保証する(layout のまま)。文字は
   - tree(2026-11-12): ネイティブにした(`lib/pptx/tree.ts`)。節は角丸の図形で文字を持ち、線は親と子に結んだコネクタ(曲線は curvedConnector3、斜めは straightConnector1)、`{` は freeform。帯の節(`band`)はその帯の扱いに従う。spotlight で `dim` の木は画像のまま。
   - quadrant(2026-11-12): ネイティブにした(`lib/pptx/quadrant.ts`、部品は `lib/pptx/prims.ts`)。区画は矩形、自由な領域は塗りの freeform、項目は面積を保った ellipse / rect / diamond / triangle、矢印は矢印付きコネクタ、文字は1行ずつのテキストボックス(折り返さない)。dim の四象限は画像のまま。
   - states(2026-11-12): ネイティブにした(`lib/pptx/states.ts`)。節は文字を持つ図形で、ひし形・円・ピルは文字の領域が箱全体で接続点が上左下右の custGeom(preset の文字領域は内側に寄り、layout の行からずれるため)。遷移は両端を結んだ矢印付きコネクタ、ラベルは白い下地の上のテキストボックス、開始点も結べる円。アイコンのある状態図と dim のものは画像のまま。木の節も含め、節の文字は tone の文字色(accent なら青)にした。
+  - cause・legend(2026-11-12): ネイティブにした(`lib/pptx/cause.ts`、`lib/pptx/legend.ts`)。実体は文字を持つ図形(障害は六角形の custGeom、二重枠は内枠、中核は 3.5px の枠とバッジ)、矢印は両端を結んだコネクタ、AND は二次曲線の freeform、切断の矢印は頭なし・結ばない破線と横棒。`hop` の跳び越しは描かない(線は交差するだけ)。凡例は FTA の記号と二重線を含むものだけ画像のまま。
 - **第 3 段**: deck(複数枚)、ノート、reveal。
 
 難所は経路の再現ではなく、グループ・id・文字・決定論・画像バンドの切り出しだった(下の結果)。

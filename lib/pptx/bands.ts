@@ -13,6 +13,8 @@ import {imageRids} from './package.ts';
 import {treeXml} from './tree.ts';
 import {quadrantXml} from './quadrant.ts';
 import {statesXml} from './states.ts';
+import {causeXml} from './cause.ts';
+import {legendNative, legendXml} from './legend.ts';
 
 /** What the bands of one slide share: ids, the shapes connectors can glue to, and the pictures to rasterize. */
 export interface Ctx {
@@ -122,6 +124,17 @@ const statesBand: BandXml<LaidOutOf<'states'>> = (band, ctx, index) => {
   return xml;
 };
 
+/** A cause-and-effect band as shapes (./cause.ts); a dimmed one stays a picture. */
+const causeBand: BandXml<LaidOutOf<'cause'>> = (band, ctx, index) => {
+  if (band.dim) return imageBand(band, ctx, index);
+  const {xml, glue} = causeXml(band, ctx.ld, ctx.tones, ctx.fonts, ctx.next);
+  for (const g of glue) register(ctx, g.dslId, g.id, g.rect);
+  return xml;
+};
+
+/** A legend as shapes (./legend.ts), unless it has a sample not drawn as shapes yet. */
+const legendBand: BandXml<LaidOutOf<'legend'>> = (band, ctx, index) => legendNative(band) ? legendXml(band, ctx.ld, ctx.tones, ctx.fonts, ctx.next) : imageBand(band, ctx, index);
+
 /** A band with no native mapping: drawn alone as SVG + PNG and placed as one picture; an invisible anchor keeps its DSL id glue-able. */
 const imageBand: BandXml<DrawnBand> = (band, ctx, index) => {
   const {picture, rect} = bandPicture(ctx.ld, band, index);
@@ -138,10 +151,10 @@ const imageBand: BandXml<DrawnBand> = (band, ctx, index) => {
 /** One disposition per laid-out band type; a missing band type fails compilation. */
 export const BAND_HANDLERS = {
   caption: captionBand, box: boxBand, banner: boxBand, group: groupFrameBand, row: rowBand, grid: gridBand, table: tableBand,
-  legend: 'image', swimlane: 'image', wireframe: 'image', screens: 'image', sequence: 'image', raw: 'image', pyramid: 'image',
+  legend: legendBand, swimlane: 'image', wireframe: 'image', screens: 'image', sequence: 'image', raw: 'image', pyramid: 'image',
   curve: 'image', plane: 'image', quadrant: quadrantBand, wordart: 'image', chevron: 'image', funnel: 'image', cycle: 'image',
   venn: 'image', concentric: 'image', emblem: 'image', valueChain: 'image', bars: 'image', chart: 'image', image: 'image', people: 'image', dots: 'image', math: 'image',
-  timeline: 'image', tree: treeBand, states: statesBand, cause: 'image', cloud: 'image', gantt: 'image', classes: 'image', bpmn: 'image',
+  timeline: 'image', tree: treeBand, states: statesBand, cause: causeBand, cloud: 'image', gantt: 'image', classes: 'image', bpmn: 'image',
   fta: 'image', status: 'image', bowtie: 'image',
 } satisfies {[T in LaidOutType]: BandXml<LaidOutOf<T>> | 'image'};
 

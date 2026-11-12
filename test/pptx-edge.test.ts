@@ -232,3 +232,51 @@ test('statesXml reports each node by its DSL id, and a node line takes its tone\
   const runs = nodeRunsOf({x: 0, y: 0, w: 60, h: 30, tone: 'accent'}, [{text: 'A', x: 30, y: 20, size: 14, bold: true, muted: false}], NO_TONES);
   assert.equal(runs[0]?.tone, 'accent');
 });
+
+test('a cause tree is native shapes: every arrow glued to cause and effect', async () => {
+  const r = await renderPptxEdge(spec(example('causeTree')), realEngine(), {rasterize: () => PNG});
+  assert.equal(r.pictures, 0);
+  const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
+  const arrows = slide.split('<p:cxnSp>').slice(1).filter(c => /name="arrow-/.test(c));
+  assert.ok(arrows.length > 0);
+  for (const a of arrows) { assert.match(a, /<a:stCxn /); assert.match(a, /<a:endCxn /); }
+  assert.deepEqual(xmlProblems(slide), []);
+});
+
+test('a cutting arrow has no head and is not glued to what it cuts: it ends in a bar', async () => {
+  const tree = {type: 'causeTree', tree: 'crt', coreDriver: true, nodes: [{id: 'u', label: '遅れる', role: 'ude'}, {id: 'r', label: '評価の仕組み', role: 'root'}, {id: 't', label: '枠を見直す', role: 'trim'}], links: [{from: 'r', to: 'u'}, {from: 't', to: 'u', kind: 'blocks'}]};
+  const slide = entry((await renderPptxEdge(spec(tree), realEngine(), {rasterize: () => PNG})).pptx!, 'ppt/slides/slide1.xml');
+  const cut = slide.split('<p:cxnSp>').find(c => /name="arrow-t-u"/.test(c)) ?? '';
+  assert.doesNotMatch(cut, /tailEnd|<a:endCxn/);
+  assert.match(slide, /name="bar-t-u"/);
+  assert.deepEqual(xmlProblems(slide), []);
+});
+
+test('coreBadgeRect and focusColor follow the svg: the badge away from the leaving arrow, lit arrows in the accent colour', async () => {
+  const {coreBadgeRect, focusColor} = await import('../lib/pptx/cause.ts');
+  const n = {x: 100, y: 100, w: 80, h: 40};
+  assert.deepEqual(coreBadgeRect(n, {x: 140, y: 100}), {x: 106, y: 142, w: 44, h: 22}); // leaves at the top: the badge below
+  assert.deepEqual(coreBadgeRect(n, undefined), {x: 106, y: 76, w: 44, h: 22});
+  const ink = focusColor(['a'], 'blue', '#000000');
+  assert.notEqual(ink('a', 'b'), ink('c', 'd'));
+  assert.equal(focusColor(undefined, 'blue', '#000000')('a', 'b'), '#000000');
+});
+
+test('a legend with fault-tree symbols stays a picture; causeXml and legendXml report what connect() can reach', async () => {
+  const {legendNative, legendXml} = await import('../lib/pptx/legend.ts');
+  const {causeXml} = await import('../lib/pptx/cause.ts');
+  const {NO_TONES} = await import('../lib/tokens.ts');
+  assert.equal(legendNative({type: 'legend', x: 0, y: 0, w: 1, h: 1, items: [{label: 'x', ftaEvent: 'basic', textW: 1, w: 1, x: 0, y: 0}]} as never), false);
+  assert.equal(legendNative({type: 'legend', x: 0, y: 0, w: 1, h: 1, items: [{label: 'x', edge: 'and', textW: 1, w: 1, x: 0, y: 0}]} as never), true);
+  let n = 0;
+  const ld = {day: 'blue', roles: {note: 12}} as never;
+  assert.match(legendXml({type: 'legend', x: 0, y: 0, w: 100, h: 24, items: [{label: '凡例', line: 'dashed', arrow: 'both', textW: 20, w: 60, x: 0, y: 0}]} as never, ld, NO_TONES, {sans: 'S', mono: 'M'}, () => ++n), /<a:headEnd type="triangle"[\s\S]*<a:tailEnd type="triangle"[\s\S]*<a:t>凡例<\/a:t>/);
+  const band = {type: 'cause', x: 0, y: 0, w: 200, h: 100, nodes: [{x: 0, y: 40, w: 40, h: 20, tone: 'plain', core: true}, {x: 100, y: 40, w: 60, h: 20, tone: 'plain', hex: true}], edges: [], ands: [], loose: [], texts: [], anchors: [{id: 'a', x: 0, y: 40, w: 40, h: 20}, {id: 'h', x: 100, y: 40, w: 60, h: 20}], labelBoxes: []};
+  n = 0;
+  const c = causeXml(band as never, ld, NO_TONES, {sans: 'S', mono: 'M'}, () => ++n);
+  assert.deepEqual(c.glue.map(g => g.dslId), ['a', 'h']);
+  // the core driver: a 3.5px frame and its badge; the obstacle: a hexagon (six sides) with a 2px frame
+  assert.match(c.xml, /name="a"[\s\S]*?<a:ln w="33338">/);
+  assert.match(c.xml, /name="core-badge-a"[\s\S]*<a:t>中核<\/a:t>/);
+  assert.match(c.xml, /name="h"[\s\S]*?(<a:lnTo>[\s\S]*?){5}<a:close\/>[\s\S]*?<a:ln w="19050">/);
+});
