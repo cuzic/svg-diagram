@@ -60,10 +60,10 @@ function custPath(spPr: El | undefined, r: {x: number; y: number}): string {
   return out.join(' ');
 }
 
-function text(txBody: El | undefined, r: {x: number; y: number; w: number; h: number}): string {
+function text(txBody: El | undefined, r: {x: number; y: number; w: number; h: number}, ins?: {l: number; t: number; r: number}): string {
   if (!txBody) return '';
   const body = kid(txBody, 'a:bodyPr');
-  const l = px(body?.attrs['lIns'] ?? '91440'), t = px(body?.attrs['tIns'] ?? '45720'), rr = px(body?.attrs['rIns'] ?? '91440');
+  const l = ins?.l ?? px(body?.attrs['lIns'] ?? '91440'), t = ins?.t ?? px(body?.attrs['tIns'] ?? '45720'), rr = ins?.r ?? px(body?.attrs['rIns'] ?? '91440');
   const out: string[] = [];
   let y = r.y + t;
   for (const p of kids(txBody, 'a:p')) {
@@ -86,6 +86,45 @@ function text(txBody: El | undefined, r: {x: number; y: number; w: number; h: nu
   return out.join('');
 }
 
+/** The arrowheads used, one per kind and colour (a head takes its line's colour, as in PowerPoint). */
+const markers = new Map<string, string>();
+function markerOf(kind: 'a' | 'v' | 'd', color: string): string {
+  const id = `${kind}-${color}`, c = `#${color}`;
+  const body = kind === 'a' ? `<path d="M0,0 L10,5 L0,10 z" fill="${c}"/>` : kind === 'v' ? `<path d="M0,0 L10,5 L0,10" fill="none" stroke="${c}" stroke-width="1.5"/>` : `<path d="M0,5 L5,0 L10,5 L5,10 z" fill="${c}"/>`;
+  markers.set(id, `<marker id="${id}" viewBox="0 0 10 10" refX="${kind === 'd' ? 5 : 9}" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">${body}</marker>`);
+  return id;
+}
+const markerDefs = (): string => [...markers.values()].join('');
+
+/** A DrawingML table: each cell its fill, its own borders (lnL / lnR / lnT / lnB) or the table style's thin white ones, and its text. */
+function tableSvg(tbl: El, x0: number, y0: number): string {
+  const cols = kids(kid(tbl, 'a:tblGrid') as El, 'a:gridCol').map(c => px(c.attrs['w']));
+  const out: string[] = [];
+  let y = y0;
+  for (const tr of kids(tbl, 'a:tr')) {
+    const h = px(tr.attrs['h']);
+    let ci = 0;
+    for (const tc of kids(tr, 'a:tc')) {
+      const span = Number(tc.attrs['gridSpan'] ?? 1);
+      if (tc.attrs['hMerge'] === '1' || tc.attrs['vMerge'] === '1') { ci += span; continue; }
+      const x = x0 + cols.slice(0, ci).reduce((a, b) => a + b, 0), w = cols.slice(ci, ci + span).reduce((a, b) => a + b, 0);
+      const rs = Number(tc.attrs['rowSpan'] ?? 1);
+      const rh = rs > 1 ? kids(tbl, 'a:tr').slice(kids(tbl, 'a:tr').indexOf(tr), kids(tbl, 'a:tr').indexOf(tr) + rs).reduce((a, t) => a + px(t.attrs['h']), 0) : h;
+      const pr = kid(tc, 'a:tcPr');
+      out.push(`<rect x="${x}" y="${y}" width="${w}" height="${rh}" fill="${color(kid(pr, 'a:solidFill')) ?? 'none'}" stroke="${pr && kids(pr).some(k => /^a:ln[LRTB]$/.test(k.tag)) ? 'none' : '#ffffff'}" stroke-width="1"/>`);
+      for (const [tag, x1, y1, x2, y2] of [['a:lnL', x, y, x, y + rh], ['a:lnR', x + w, y, x + w, y + rh], ['a:lnT', x, y, x + w, y], ['a:lnB', x, y + rh, x + w, y + rh]] as const) {
+        const ln = kid(pr, tag);
+        if (!ln || kid(ln, 'a:noFill')) continue;
+        out.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color(kid(ln, 'a:solidFill')) ?? '#000'}" stroke-width="${px(ln.attrs['w'] ?? '12700')}"/>`);
+      }
+      out.push(text(kid(tc, 'a:txBody'), {x, y, w, h: rh}, {l: px(pr?.attrs['marL'] ?? '91440'), t: px(pr?.attrs['marT'] ?? '45720'), r: px(pr?.attrs['marR'] ?? '91440')}));
+      ci += span;
+    }
+    y += h;
+  }
+  return out.join('');
+}
+
 function shapes(tree: El): string {
   const out: string[] = [];
   for (const e of kids(tree)) {
@@ -104,7 +143,8 @@ function shapes(tree: El): string {
       out.push(text(kid(e, 'p:txBody'), r));
     } else if (e.tag === 'p:cxnSp') {
       const r = xf(spPr), prst = kid(spPr, 'a:prstGeom')?.attrs['prst'];
-      const mark = (tag: string, attr: string) => { const t = kid(kid(spPr, 'a:ln'), tag)?.attrs['type']; return t ? ` ${attr}="url(#${t === 'arrow' ? 'v' : t === 'diamond' ? 'd' : 'a'})"` : ''; };
+      const color = find(kid(kid(spPr, 'a:ln'), 'a:solidFill'), 'a:srgbClr')?.attrs['val'] ?? '000000';
+      const mark = (tag: string, attr: string) => { const t = kid(kid(spPr, 'a:ln'), tag)?.attrs['type']; return t ? ` ${attr}="url(#${markerOf(t === 'arrow' ? 'v' : t === 'diamond' ? 'd' : 'a', color)})"` : ''; };
       const tail = mark('a:tailEnd', 'marker-end') + mark('a:headEnd', 'marker-start');
       if (kid(spPr, 'a:custGeom')) { out.push(`<path d="${custPath(spPr, r)}" fill="none" ${stroke(spPr)}${tail}/>`); continue; }
       const adj = kids(kid(kid(spPr, 'a:prstGeom'), 'a:avLst') as El, 'a:gd').map(g => Number(g.attrs['fmla']?.replace('val ', '')));
@@ -114,8 +154,9 @@ function shapes(tree: El): string {
       const r = xf(spPr);
       out.push(`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#hatch)" stroke="#c00"/>`);
     } else if (e.tag === 'p:graphicFrame') {
-      const x = kid(e, 'p:xfrm'), off = kid(x, 'a:off'), ext = kid(x, 'a:ext');
-      out.push(`<rect x="${px(off?.attrs['x'])}" y="${px(off?.attrs['y'])}" width="${px(ext?.attrs['cx'])}" height="${px(ext?.attrs['cy'])}" fill="none" stroke="#888" stroke-dasharray="2,2"/>`);
+      const x = kid(e, 'p:xfrm'), off = kid(x, 'a:off'), ext = kid(x, 'a:ext'), tbl = find(e, 'a:tbl');
+      if (!tbl) { out.push(`<rect x="${px(off?.attrs['x'])}" y="${px(off?.attrs['y'])}" width="${px(ext?.attrs['cx'])}" height="${px(ext?.attrs['cy'])}" fill="none" stroke="#888" stroke-dasharray="2,2"/>`); continue; }
+      out.push(tableSvg(tbl, px(off?.attrs['x']), px(off?.attrs['y'])));
     }
   }
   return out.join('\n');
@@ -128,7 +169,8 @@ export function previewSvg(pptx: Buffer): string {
   const slide = unzipEntry(pptx, 'ppt/slides/slide1.xml').toString();
   const tree = find(parseXmlFragment(slide), 'p:spTree') as El;
   const bg = /<p:bg><p:bgPr><a:solidFill><a:srgbClr val="([0-9A-F]{6})"/.exec(slide)?.[1] ?? 'FFFFFF';
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#000" stroke-width="1.5"/></marker><marker id="d" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,5 L5,0 L10,5 L5,10 z"/></marker><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0,8 L8,0" stroke="#c00" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="#${bg}"/>${shapes(tree)}</svg>`;
+  const drawn = shapes(tree); // first: it registers the arrowheads it uses
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs>${markerDefs()}<pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0,8 L8,0" stroke="#c00" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="#${bg}"/>${drawn}</svg>`;
 }
 
 if (import.meta.main) {
