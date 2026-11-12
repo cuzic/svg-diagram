@@ -10,6 +10,7 @@ import {tableXml} from './table.ts';
 import {rowArrowXml, type Glue} from './connectors.ts';
 import {bandPicture, type Picture} from './image-band.ts';
 import {imageRids} from './package.ts';
+import {treeXml} from './tree.ts';
 
 /** What the bands of one slide share: ids, the shapes connectors can glue to, and the pictures to rasterize. */
 export interface Ctx {
@@ -95,6 +96,14 @@ const tableBand: BandXml<LaidOutOf<'table'>> = (band, ctx) => {
   return tableXml(id, band, ctx.ld.day, ctx.fonts);
 };
 
+/** A tree as shapes (./tree.ts); a dimmed one stays a picture, as the muted look is not mapped yet. */
+const treeBand: BandXml<LaidOutOf<'tree'>> = (band, ctx, index) => {
+  if (band.dim) return imageBand(band, ctx, index);
+  const {xml, glue} = treeXml(band, ctx.ld, ctx.tones, ctx.fonts, ctx.next);
+  for (const g of glue) register(ctx, g.dslId, g.id, g.rect);
+  return xml;
+};
+
 /** A band with no native mapping: drawn alone as SVG + PNG and placed as one picture; an invisible anchor keeps its DSL id glue-able. */
 const imageBand: BandXml<DrawnBand> = (band, ctx, index) => {
   const {picture, rect} = bandPicture(ctx.ld, band, index);
@@ -114,7 +123,7 @@ export const BAND_HANDLERS = {
   legend: 'image', swimlane: 'image', wireframe: 'image', screens: 'image', sequence: 'image', raw: 'image', pyramid: 'image',
   curve: 'image', plane: 'image', quadrant: 'image', wordart: 'image', chevron: 'image', funnel: 'image', cycle: 'image',
   venn: 'image', concentric: 'image', emblem: 'image', valueChain: 'image', bars: 'image', chart: 'image', image: 'image', people: 'image', dots: 'image', math: 'image',
-  timeline: 'image', tree: 'image', states: 'image', cause: 'image', cloud: 'image', gantt: 'image', classes: 'image', bpmn: 'image',
+  timeline: 'image', tree: treeBand, states: 'image', cause: 'image', cloud: 'image', gantt: 'image', classes: 'image', bpmn: 'image',
   fta: 'image', status: 'image', bowtie: 'image',
 } satisfies {[T in LaidOutType]: BandXml<LaidOutOf<T>> | 'image'};
 

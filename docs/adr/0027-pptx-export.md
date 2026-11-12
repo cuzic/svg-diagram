@@ -90,6 +90,7 @@ pptx では、図形と線の幾何は保証する(layout のまま)。文字は
 
 - **PoC**: box / banner / caption / row / grid / group + コネクタ(接続込み)+ table。残り(chart を含む)は D3 の画像。`examples/*.ts` 全体を通し、バンド・kind ごとの「ネイティブ / 画像」の一覧を出す。
 - **第 2 段**: swimlane、sequence、tree、states、timeline、gantt、classes、bpmn。ネイティブチャート(`bars` / `stacked` / `combo` から)。group の入れ子。
+  - tree(2026-11-12): ネイティブにした(`lib/pptx/tree.ts`)。節は角丸の図形で文字を持ち、線は親と子に結んだコネクタ(曲線は curvedConnector3、斜めは straightConnector1)、`{` は freeform。帯の節(`band`)はその帯の扱いに従う。spotlight で `dim` の木は画像のまま。
 - **第 3 段**: deck(複数枚)、ノート、reveal。
 
 難所は経路の再現ではなく、グループ・id・文字・決定論・画像バンドの切り出しだった(下の結果)。

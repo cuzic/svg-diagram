@@ -24,10 +24,10 @@ test('the entry reaches no node: module, directly or through what it imports', a
   assert.deepEqual(imports.filter(i => i.startsWith('node:')), []);
 });
 
-test('a table becomes a native table, a tree a picture whose text is outlines, with a PNG from the function handed in', async () => {
+test('a table becomes a native table, a Venn diagram a picture whose text is outlines, with a PNG from the function handed in', async () => {
   const seen: {svg: string; scale: number}[] = [];
   const rasterize = async (svg: string, scale: number) => { seen.push({svg, scale}); return (await rasterizeWithResvg(svg, {scale, png: true})).png as Buffer; };
-  const r = await renderPptxEdge(spec(example('table'), example('tree')), realEngine(), {rasterize});
+  const r = await renderPptxEdge(spec(example('table'), example('venn')), realEngine(), {rasterize});
   assert.deepEqual(r.issues, []);
   assert.ok(r.pptx);
   assert.deepEqual([r.native, r.pictures], [1, 1]);
@@ -82,4 +82,62 @@ test('every example of the catalog becomes a .pptx whose slide and pictures are 
       assert.doesNotMatch(svg, /<text\b/, `${type} picture ${i}`);
     }
   }
+});
+
+test('a tree is native shapes: one rounded box per node holding its text, and every line a connector glued to parent and child', async () => {
+  const tree = {type: 'tree', root: {label: '目標', children: [{label: '施策 A', sub: '補足', children: [{label: '手順 1'}, {label: '手順 2'}]}, {label: '施策 B'}]}};
+  const r = await renderPptxEdge(spec(tree), realEngine(), {rasterize: () => PNG});
+  assert.equal(r.pictures, 0);
+  const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
+  assert.equal(slide.match(/prst="roundRect"/g)?.length, 5);
+  assert.equal(slide.match(/<p:cxnSp>/g)?.length, 4);
+  assert.equal(slide.match(/<a:stCxn /g)?.length, 4);
+  assert.equal(slide.match(/<a:endCxn /g)?.length, 4);
+  for (const label of ['目標', '施策 A', '補足', '手順 2']) assert.match(slide, new RegExp(`<a:t>${label}</a:t>`));
+  assert.deepEqual(xmlProblems(slide), []);
+});
+
+test('a mind map with curved edges draws them as curved connectors, and a fishbone is shapes too, its slanted bones straight connectors', async () => {
+  const engine = realEngine();
+  const mind = (layout: string, more: object = {}) => ({type: 'mindmap', layout, ...more, root: {label: '中心', children: [{label: '枝 1', children: [{label: '葉 1'}, {label: '葉 2'}]}, {label: '枝 2'}, {label: '枝 3'}]}});
+  const curved = entry((await renderPptxEdge(spec(mind('right', {edges: 'curve'})), engine, {rasterize: () => PNG})).pptx!, 'ppt/slides/slide1.xml');
+  assert.match(curved, /prst="curvedConnector3"/);
+  const fish = await renderPptxEdge(spec(mind('fishbone')), engine, {rasterize: () => PNG});
+  assert.equal(fish.pictures, 0);
+  const bones = entry(fish.pptx!, 'ppt/slides/slide1.xml');
+  assert.match(bones, /<a:xfrm flipV="1">(?:(?!<\/p:cxnSp>).)*prst="straightConnector1"/);
+  assert.match(bones, /<a:ln w="38100">/); // the spine
+});
+
+test('nodeRunsOf: a node\'s lines become runs at the layout\'s baselines, coloured as the svg colours them', async () => {
+  const {nodeRunsOf} = await import('../lib/pptx/tree.ts');
+  const {NO_TONES} = await import('../lib/tokens.ts');
+  const node = {x: 0, y: 0, w: 100, h: 50, tone: 'plain' as const};
+  const texts = [{text: '見出し', x: 50, y: 22, size: 14, bold: true, muted: false}, {text: '補足', x: 50, y: 40, size: 12, bold: false, muted: true}, {text: '外', x: 500, y: 40, size: 12, bold: false, muted: false}];
+  const runs = nodeRunsOf(node as never, texts, NO_TONES);
+  assert.deepEqual(runs.map(r => [r.lines, r.lineYs, r.weight, r.tone]), [[['見出し'], [14], 700, undefined], [['補足'], [32], 400, 'muted']]);
+  // white on a solid fill, the second line too
+  assert.equal(nodeRunsOf({...node, tone: 'solid'} as never, texts, NO_TONES)[1]?.tone, undefined);
+});
+
+test('the shape writers of the tree: a glued connector of a given colour and width, and an open freeform with curves', async () => {
+  const {connectorShapeXml, freeformPathXml} = await import('../lib/pptx/connectors.ts');
+  const c = connectorShapeXml(7, 'line', {prst: 'curvedConnector3', offX: 0, offY: 0, extX: 100, extY: 50, rot: 0, flipH: false, flipV: true, adj: [50000]}, '#123456', 4, {id: 2, idx: 3}, {id: 3, idx: 1});
+  assert.match(c, /<a:stCxn id="2" idx="3"\/><a:endCxn id="3" idx="1"\/>/);
+  assert.match(c, /flipV="1"[\s\S]*prst="curvedConnector3"[\s\S]*<a:ln w="38100"><a:solidFill><a:srgbClr val="123456"/);
+  const f = freeformPathXml(8, 'brace', [{op: 'M', pts: [{x: 10, y: 10}]}, {op: 'Q', pts: [{x: 20, y: 10}, {x: 20, y: 30}]}], '#000000', 2);
+  assert.match(f, /<a:off x="95250" y="95250"\/><a:ext cx="95250" cy="190500"\/>/);
+  assert.match(f, /<a:path w="95250" h="190500" fill="none"><a:moveTo><a:pt x="0" y="0"\/><\/a:moveTo><a:quadBezTo><a:pt x="95250" y="0"\/><a:pt x="95250" y="190500"\/><\/a:quadBezTo>/);
+  assert.deepEqual(xmlProblems(`<r xmlns:a="a" xmlns:p="p">${c}${f}</r>`), []);
+});
+
+test('treeXml numbers its shapes from the counter it is given and reports the nodes connect() can reach', async () => {
+  const {treeXml} = await import('../lib/pptx/tree.ts');
+  const {NO_TONES} = await import('../lib/tokens.ts');
+  const band = {type: 'tree', x: 0, y: 0, w: 200, h: 100, nodes: [{x: 0, y: 0, w: 60, h: 30, tone: 'plain', id: 'a'}, {x: 100, y: 0, w: 60, h: 30, tone: 'plain'}], edges: [{points: [{x: 60, y: 15}, {x: 100, y: 15}]}], texts: [], anchors: [], labelBoxes: []};
+  let n = 10;
+  const r = treeXml(band as never, {day: 'blue'} as never, NO_TONES, {sans: 'S', mono: 'M'}, () => ++n);
+  assert.deepEqual(r.glue, [{dslId: 'a', id: 11, rect: {x: 0, y: 0, w: 60, h: 30}}]);
+  assert.match(r.xml, /<a:stCxn id="11" idx="3"\/><a:endCxn id="12" idx="1"\/>/);
+  assert.match(r.xml, /^<p:grpSp><p:nvGrpSpPr><p:cNvPr id="14" name="tree"\/>/);
 });
