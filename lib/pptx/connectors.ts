@@ -38,9 +38,10 @@ export function freeformXml(id: number, c: LaidOutConnect, day: LaidOutDiagram['
 }
 
 /** A connector of a band's own lines (a tree's), in a colour and width of its own, with no arrowhead; glued where the ends are shapes. */
-export function connectorShapeXml(id: number, name: string, x: Omit<ConnXfrm, 'prst'> & {prst: string}, color: string, widthPx: number, start?: Glue, end?: Glue): string {
+export function connectorShapeXml(id: number, name: string, x: Omit<ConnXfrm, 'prst'> & {prst: string}, color: string, widthPx: number, start?: Glue, end?: Glue, opts: {dashed?: boolean; arrow?: boolean} = {}): string {
   const av = x.adj.map((v, i) => `<a:gd name="adj${i + 1}" fmla="val ${v}"/>`).join('');
-  return cxnSp(id, name, glueXml(start, end), `${cxnXfrm(x, true)}<a:prstGeom prst="${x.prst}"><a:avLst>${av}</a:avLst></a:prstGeom><a:ln w="${emu(widthPx)}">${solidFill(color)}</a:ln>`);
+  const dash = opts.dashed ? '<a:prstDash val="dash"/>' : '';
+  return cxnSp(id, name, glueXml(start, end), `${cxnXfrm(x, true)}<a:prstGeom prst="${x.prst}"><a:avLst>${av}</a:avLst></a:prstGeom><a:ln w="${emu(widthPx)}">${solidFill(color)}${dash}${opts.arrow ? arrowEnds('end', true) : ''}</a:ln>`);
 }
 
 /** One step of a freeform path: move, line, or quadratic curve (control point, end point). */

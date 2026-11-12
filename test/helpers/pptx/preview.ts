@@ -76,6 +76,8 @@ function shapes(tree: El): string {
     if (e.tag === 'p:sp') {
       const r = xf(spPr), geom = kid(spPr, 'a:prstGeom')?.attrs['prst'];
       if (kid(spPr, 'a:custGeom')) out.push(`<path d="${custPath(spPr, r)}" fill="${fill(spPr)}" ${stroke(spPr)}/>`);
+      else if (geom === 'diamond') out.push(`<polygon points="${r.x + r.w / 2},${r.y} ${r.x + r.w},${r.y + r.h / 2} ${r.x + r.w / 2},${r.y + r.h} ${r.x},${r.y + r.h / 2}" fill="${fill(spPr)}" ${stroke(spPr)}/>`);
+      else if (geom === 'triangle') out.push(`<polygon points="${r.x + r.w / 2},${r.y} ${r.x + r.w},${r.y + r.h} ${r.x},${r.y + r.h}" fill="${fill(spPr)}" ${stroke(spPr)}/>`);
       else if (geom === 'ellipse') out.push(`<ellipse cx="${r.x + r.w / 2}" cy="${r.y + r.h / 2}" rx="${r.w / 2}" ry="${r.h / 2}" fill="${fill(spPr)}" ${stroke(spPr)}/>`);
       else {
         const adj = Number(find(kid(spPr, 'a:prstGeom'), 'a:gd')?.attrs['fmla']?.replace('val ', '') ?? 16667) / 100000;

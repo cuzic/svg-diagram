@@ -141,3 +141,46 @@ test('treeXml numbers its shapes from the counter it is given and reports the no
   assert.match(r.xml, /<a:stCxn id="11" idx="3"\/><a:endCxn id="12" idx="1"\/>/);
   assert.match(r.xml, /^<p:grpSp><p:nvGrpSpPr><p:cNvPr id="14" name="tree"\/>/);
 });
+
+test('a quadrant is native shapes: cells, items as their markers, and every label a text box of its own', async () => {
+  const r = await renderPptxEdge(spec(example('quadrant')), realEngine(), {rasterize: () => PNG});
+  assert.equal(r.pictures, 0);
+  const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
+  assert.match(slide, /prst="ellipse"|prst="rect"|prst="diamond"|prst="triangle"/);
+  assert.match(slide, /<a:bodyPr wrap="none"/);
+  assert.deepEqual(xmlProblems(slide), []);
+});
+
+test('markerShape: each marker has the area the svg gives it, centred where the svg centres it', async () => {
+  const {markerShape} = await import('../lib/pptx/quadrant.ts');
+  const area = Math.PI * 10 * 10;
+  const circle = markerShape('circle', 50, 50, 10).rect, square = markerShape('square', 50, 50, 10).rect, diamond = markerShape('diamond', 50, 50, 10).rect;
+  assert.deepEqual(circle, {x: 40, y: 40, w: 20, h: 20});
+  assert.ok(Math.abs(square.w * square.h - area) < 1e-9);
+  assert.ok(Math.abs(diamond.w * diamond.h / 2 - area) < 1e-9);
+  const t = markerShape('triangle', 50, 50, 10);
+  assert.equal(t.prst, 'triangle');
+  assert.ok(Math.abs(t.rect.w * t.rect.h / 2 - area) < 1e-9);
+  assert.ok(Math.abs(t.rect.y + t.rect.h * 2 / 3 - 50) < 1e-9); // the centroid is at the point
+});
+
+test('the plain pieces: a text line sits on its baseline at its anchor, presets and polygons carry their paint, a line its arrow', async () => {
+  const {textLineXml, presetXml, polygonXml, lineXml, nameOf} = await import('../lib/pptx/prims.ts');
+  const {quadrantXml} = await import('../lib/pptx/quadrant.ts');
+  const fonts = {sans: 'S', mono: 'M'};
+  const t = textLineXml(2, 'n', {text: 'ab', x: 100, y: 50, anchor: 'end', size: 10, bold: true, color: '#112233'}, fonts);
+  // 14px pitch, the baseline at 0.8 of it: the box's top is 50 - 11.2; its right edge is at the anchor
+  assert.match(t, /<a:off x="(\d+)" y="369570"\/><a:ext cx="(\d+)" cy="133350"\/>/);
+  const [, ox, cx] = /<a:off x="(\d+)"[^>]*\/><a:ext cx="(\d+)"/.exec(t) ?? [];
+  assert.equal(Number(ox) + Number(cx), 952500);
+  assert.match(t, /algn="r"[\s\S]*b="1"[\s\S]*<a:srgbClr val="112233"\/>[\s\S]*<a:t>ab<\/a:t>/);
+  assert.match(presetXml(3, 'p', 'roundRect', {x: 0, y: 0, w: 10, h: 10}, {fill: '#ffffff', stroke: '#000000', dashed: true}, 8000), /prst="roundRect"><a:avLst><a:gd name="adj" fmla="val 8000"\/>[\s\S]*FFFFFF[\s\S]*<a:prstDash val="dash"\/>/);
+  assert.match(polygonXml(4, 'g', [{x: 0, y: 0}, {x: 10, y: 0}, {x: 5, y: 8}], {fill: '#ff0000'}), /<a:close\/><\/a:path>[\s\S]*FF0000[\s\S]*<a:ln><a:noFill\/><\/a:ln>/);
+  assert.match(lineXml(5, 'l', {x: 0, y: 0}, {x: 30, y: 40}, '#000000', 2, {arrow: true, dashed: true}), /straightConnector1[\s\S]*<a:prstDash val="dash"\/><a:tailEnd type="triangle"/);
+  assert.equal(nameOf('item', 7, 'クラウド'), 'item: クラウド');
+  assert.equal(nameOf('cell', 7), 'cell-7');
+  const band = {type: 'quadrant', x: 0, y: 0, w: 100, h: 100, plot: {x: 0, y: 0, w: 100, h: 100}, crosshair: true, cells: [], regions: [], lines: [], texts: [], bubbles: [{x: 50, y: 50, r: 5, cr: 5, shape: 'circle', tone: 'accent', hollow: false, cell: 0, id: 'a', label: 'A'}], arrows: [], chips: [], marks: [], anchors: [], labelBoxes: [], moved: [], floored: [], emptyCells: []};
+  let n = 0;
+  const q = quadrantXml(band as never, {day: 'blue'} as never, (await import('../lib/tokens.ts')).NO_TONES, fonts, () => ++n);
+  assert.deepEqual(q.glue, [{dslId: 'a', id: 1, rect: {x: 45, y: 45, w: 10, h: 10}}]);
+});
