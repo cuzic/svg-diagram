@@ -4,7 +4,7 @@ import type {LaidOutOf, LaidOutType} from '../band-table.ts';
 import type {LaidOutDiagram, LaidOutBand} from '../types/index.ts';
 import {fitConnector, siteIndex} from './geom.ts';
 import type {Rect, Fonts} from './xml.ts';
-import type {ToneEnv} from '../tokens.ts';
+import {recolor, type ToneEnv} from '../tokens.ts';
 import {boxXml, plainBox, groupFrameXml, groupXml, anchorXml, picXml, type TextBox} from './shapes.ts';
 import {tableXml} from './table.ts';
 import {rowArrowXml, type Glue} from './connectors.ts';
@@ -159,7 +159,7 @@ const imageBand: BandXml<DrawnBand> = (band, ctx, index) => {
   if (shapes !== null) drawn = groupXml(ctx.next(), `${band.type}-${index}`, rect, shapes);
   else {
     const rids = imageRids(ctx.pictures.length);
-    ctx.pictures.push(picture);
+    ctx.pictures.push({svg: recolor(ctx.tones, picture.svg, ctx.ld.appearance), pngSvg: recolor(ctx.tones, picture.pngSvg, ctx.ld.appearance)});
     drawn = picXml(ctx.next(), `${band.type}-${index}`, rect, rids.png, rids.svg);
   }
   if (!('id' in band && band.id)) return drawn;

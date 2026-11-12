@@ -125,8 +125,10 @@ export function previewSvg(pptx: Buffer): string {
   const pres = parseXmlFragment(unzipEntry(pptx, 'ppt/presentation.xml').toString());
   const size = find(pres, 'p:sldSz');
   const w = px(size?.attrs['cx']), h = px(size?.attrs['cy']);
-  const tree = find(parseXmlFragment(unzipEntry(pptx, 'ppt/slides/slide1.xml').toString()), 'p:spTree') as El;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#000" stroke-width="1.5"/></marker><marker id="d" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,5 L5,0 L10,5 L5,10 z"/></marker><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0,8 L8,0" stroke="#c00" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="#fff"/>${shapes(tree)}</svg>`;
+  const slide = unzipEntry(pptx, 'ppt/slides/slide1.xml').toString();
+  const tree = find(parseXmlFragment(slide), 'p:spTree') as El;
+  const bg = /<p:bg><p:bgPr><a:solidFill><a:srgbClr val="([0-9A-F]{6})"/.exec(slide)?.[1] ?? 'FFFFFF';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#000" stroke-width="1.5"/></marker><marker id="d" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,5 L5,0 L10,5 L5,10 z"/></marker><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0,8 L8,0" stroke="#c00" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="#${bg}"/>${shapes(tree)}</svg>`;
 }
 
 if (import.meta.main) {

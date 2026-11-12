@@ -438,3 +438,19 @@ test('flowShapeXml, pyramidXml and timelineXml: every piece a shape, items gluea
   assert.match(t, /prst="ellipse"[\s\S]*<a:t>今日<\/a:t>/);
   assert.equal(t.match(/straightConnector1/g)?.length, 2);
 });
+
+test('a dark figure: the slide has the dark background, and its shapes, lines and texts the dark colours the svg has', async () => {
+  const flow = {type: 'flowchart', nodes: [{id: 'a', label: '開始', tone: 'accent'}, {id: 'b', label: '確認'}], edges: [{from: 'a', to: 'b'}]};
+  const light = entry((await renderPptxEdge(spec(flow), realEngine(), {rasterize: () => PNG})).pptx!, 'ppt/slides/slide1.xml');
+  const r = await renderPptxEdge({...spec(flow), appearance: 'dark'}, realEngine(), {rasterize: () => PNG});
+  const dark = entry(r.pptx!, 'ppt/slides/slide1.xml');
+  assert.doesNotMatch(light, /<p:bg>/);
+  assert.match(dark, /<p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="1B1A17"\/>/);
+  // the light text colour is gone, the dark one is there; so is a dark-only band drawn from its svg (a chart)
+  assert.match(light, /val="22201B"/);
+  assert.doesNotMatch(dark, /val="22201B"/);
+  assert.match(dark, /val="ECE6DA"/);
+  const bars = entry((await renderPptxEdge({...spec(example('bars')), appearance: 'dark'}, realEngine(), {rasterize: () => PNG})).pptx!, 'ppt/slides/slide1.xml');
+  assert.doesNotMatch(bars, /val="22201B"|val="FFFFFF"/);
+  assert.deepEqual(xmlProblems(dark), []);
+});

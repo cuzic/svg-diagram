@@ -3,12 +3,12 @@ import {must} from '../must.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutConnect} from '../types/containers.ts';
 import {fitConnector, siteIndex} from './geom.ts';
-import {emu, type Fonts} from './xml.ts';
+import {emu, hex, type Fonts} from './xml.ts';
 import {boxXml, plainBox} from './shapes.ts';
 import {connectorXml, freeformXml, type Glue} from './connectors.ts';
 import {bandXml, type Ctx} from './bands.ts';
 import type {SlidePlan} from './package.ts';
-import {toneEnv} from '../tokens.ts';
+import {PALETTE, mapOf, paintOf, toneEnv} from '../tokens.ts';
 
 // The font measured by the project and written here must match (ADR 0027); BIZ UDPGothic is the PPTX default.
 const DEFAULT_FONT = 'BIZ UDPGothic';
@@ -46,6 +46,11 @@ export function planSlide(ld: LaidOutDiagram, fonts: Fonts): SlidePlan {
   const shapes = ld.laidOut.map((band, i) => bandXml(band, ctx, i));
   const lines = ld.connects.map(c => connectXml(c, ctx)); // after the shapes, so they sit on top as in the svg
   const labels = ld.connects.map(c => labelXml(c, ctx));
-  const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sld ${NS}><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${[...shapes, ...lines, ...labels].join('')}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
+  // a dark figure: every colour the shapes were given is a light token, recoloured here as the svg is (tokens.ts recolor), on a dark background
+  const dark = mapOf(ctx.tones, ld.appearance) !== null, paint = paintOf(ctx.tones, ld.appearance);
+  let body = [...shapes, ...lines, ...labels].join('');
+  if (dark) body = body.replace(/<a:srgbClr val="([0-9A-Fa-f]{6})"/g, (_m, h: string) => `<a:srgbClr val="${hex(paint(`#${h.toLowerCase()}`))}"`);
+  const bg = dark ? `<p:bg><p:bgPr><a:solidFill><a:srgbClr val="${hex(paint(PALETTE.bg))}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>` : '';
+  const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sld ${NS}><p:cSld>${bg}<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${body}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
   return {xml, cx: emu(Math.max(96, ld.width)), cy: emu(Math.max(96, ld.canvasHeight)), pictures: ctx.pictures};
 }
