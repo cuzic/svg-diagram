@@ -4,7 +4,7 @@ import {renderInBrowser, type WebMeasurer, type WebRender} from './web.ts';
 import {lintGeometry} from './svg-lint.ts';
 import type {TextBoxFn} from './svg-geom.ts';
 import {outlineText, type OutlineFont} from './svg-outline.ts';
-import {EMOJI_RE} from './tokens.ts';
+import {emojiMeasurer, emojiTextBox} from './emoji-edge.ts';
 import {SpecError, capped, cappedMessages, fieldsHolding, layoutIssue, lintMessages, locateMessage, locateVerdict, specToDiagram, type RenderSpecResult, type SpecIssue} from './spec.ts';
 
 import type {Diagram} from './types/core.ts';
@@ -36,18 +36,19 @@ function guarded<A extends unknown[], R>(f: (...a: A) => R): (...a: A) => R {
 }
 /** The engine with each of its failures turned into a TextEngineError (also used by ./pptx-edge.ts). */
 export function guardedEngine({measure, textBox, font}: TextEngine): TextEngine {
+  // an emoji is measured as the viewer's emoji font draws it (./emoji-edge.ts): the engine's font has none
   return {
-    measure: guarded(measure),
-    textBox: guarded(textBox),
+    measure: emojiMeasurer(guarded(measure), guarded(font.covers.bind(font))),
+    textBox: emojiTextBox(guarded(textBox), guarded(font.covers.bind(font))),
     font: {shape: guarded(font.shape.bind(font)), path: guarded(font.path.bind(font)), covers: guarded(font.covers.bind(font))},
   };
 }
 
-function missingIssues(spec: unknown, missing: readonly {char: string}[]): SpecIssue[] {
+export function missingIssues(spec: unknown, missing: readonly {char: string}[]): SpecIssue[] {
   const issues: SpecIssue[] = [];
   for (const char of new Set(missing.map(m => m.char))) {
     const code = (char.codePointAt(0) as number).toString(16).toUpperCase().padStart(4, '0');
-    const message = `"${char}" (U+${code}) cannot be drawn: ${EMOJI_RE.test(char) ? 'emoji are not supported yet' : 'the font has no glyph for it. Use Japanese or Latin text'}`;
+    const message = `"${char}" (U+${code}) cannot be drawn: the font has no glyph for it. Use Japanese or Latin text (emoji are fine)`;
     const fields = fieldsHolding(spec, char);
     for (const path of fields.length ? fields : ['']) issues.push({path, message});
   }
@@ -85,7 +86,7 @@ export async function renderSpecEdge(spec: unknown, givenEngine: TextEngine, opt
       for (const message of errors) problems.push({path: locateMessage(spec, message), message, severity: 'problem', rule: 'render-check'});
       for (const message of advisories) findings.push({path: locateMessage(spec, message), message, severity: 'warn', rule: 'render-check'});
     }
-    const outlined = outlineText(r.svg, engine.font, engine.textBox);
+    const outlined = outlineText(r.svg, engine.font, engine.textBox, {liveEmoji: true});
     if (outlined.missing.length) return nothing(missingIssues(spec, outlined.missing));
     if (outlined.unsupported.length) problems.push({path: null, message: `the figure uses text features that outlines do not reproduce: ${outlined.unsupported.join(', ')}`, severity: 'problem', rule: 'outline'});
     svg = outlined.svg;

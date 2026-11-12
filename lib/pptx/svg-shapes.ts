@@ -5,7 +5,7 @@
 //   - a line whose end touches a box is a connector glued to that box (a bent connector where the route is orthogonal), so it follows;
 //   - a small filled triangle at the end of a line is that line's arrowhead, not a shape of its own.
 // Everything else is a shape of its own: a path that closes or is filled a freeform, an open one a line, a text a text box at its baseline.
-// Anything outside the small set of elements and attributes read here (a transform, a <use>, a <tspan>, a gradient, ...) returns null, and
+// Anything outside the small set of elements and attributes read here (a transform, a <use>, a <tspan> other than an emoji's, a gradient, ...) returns null, and
 // the band is placed as a picture instead: a piece is never dropped or drawn wrong.
 import {parseXml, type El} from '../svg-dom.ts';
 import {fitConnector, inOutline, siteIndex, type Pt} from './geom.ts';
@@ -138,8 +138,11 @@ export function svgShapesXml(svg: string, fonts: Fonts, next: () => number): str
     return freeformPathXml(it.id, `line-${it.id}`, it.pts.map((p, i) => ({op: i ? 'L' as const : 'M' as const, pts: [p]})), color, w, lineOpts(it));
   };
   const readText = (e: El): Item | null | undefined => {
-    if (e.children.some(c => typeof c !== 'string')) return null; // a <tspan>: rich text is not read here
-    const content = e.children.join('');
+    // an emoji's <tspan class="emoji"> only picks its font: its text is the line's (PowerPoint draws it in the system's emoji font); any other
+    // <tspan> is rich text, not read here
+    const plain = (c: El | string): c is string | El => typeof c === 'string' || (c.tag === 'tspan' && Object.keys(c.attrs).every(k => k === 'class') && c.attrs['class'] === 'emoji' && c.children.every(x => typeof x === 'string'));
+    if (!e.children.every(plain)) return null;
+    const content = e.children.map(c => typeof c === 'string' ? c : c.children.join('')).join('');
     if (!content.trim()) return undefined;
     const fill = color(e.attrs['fill'] ?? '#000000');
     if (!fill) return null;

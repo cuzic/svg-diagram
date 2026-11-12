@@ -179,22 +179,25 @@ test('outlined figures are ordinary SVG for svgToPng too', async () => {
   assert.equal((await svgToPng(r.svg as string)).width, r.width);
 });
 
-test('an emoji is refused at its field, naming the character', async () => {
-  const r = await renderSpecEdge(spec({type: 'flowchart', nodes: [{id: 'a', label: '開始😀'}, {id: 'b', label: '終了'}], edges: [{from: 'a', to: 'b'}]}), realEngine());
-  assert.equal(r.svg, null);
-  assert.equal(r.issues[0]?.path, 'parts[0].nodes[0].label');
-  assert.match(r.issues[0]?.message ?? '', /😀.*U\+1F600.*emoji/s);
+test('an emoji is drawn as text in the viewer\'s emoji font, the rest as outlines, and the layout leaves it EMOJI_EM of its size', async () => {
+  const {EMOJI_EM} = await import('../lib/emoji-edge.ts');
+  const r = await renderSpecEdge(spec({type: 'flowchart', nodes: [{id: 'a', label: '開始😀'}, {id: 'b', label: '確認👍🏽✅'}], edges: [{from: 'a', to: 'b'}]}), realEngine());
+  assert.equal(r.ok, true, JSON.stringify([r.issues, r.problems]));
+  const live = [...(r.svg ?? '').matchAll(/<text x="([\d.]+)" y="[\d.]+" font-size="([\d.]+)" font-family="Apple Color Emoji[^"]*">([^<]*)<\/text>/g)];
+  assert.deepEqual(live.map(m => m[3]), ['😀', '👍🏽', '✅']); // a skin tone stays with its hand
+  // the ✅ follows the 👍🏽 by one emoji's width
+  assert.ok(Math.abs(Number(live[2]?.[1]) - Number(live[1]?.[1]) - Number(live[1]?.[2]) * EMOJI_EM) < 0.02);
+  assert.doesNotMatch((r.svg ?? '').replace(/<text[^>]*font-family="Apple Color Emoji[^"]*">[^<]*<\/text>/g, ''), /<text/); // nothing else is text
 });
 
 test('a character that cannot be drawn is reported at every field that holds it, once, wherever it is', async () => {
-  const r = await renderSpecEdge({version: 1, title: '例', sourceLine: '出典😀', parts: [{type: 'flowchart', nodes: [{id: 'a', label: 'A😀', sub: '補足⭐'}, {id: 'b', label: 'B😀'}], edges: [{from: 'a', to: 'b'}]}]}, realEngine());
+  const r = await renderSpecEdge({version: 1, title: '例', sourceLine: '出典한', parts: [{type: 'flowchart', nodes: [{id: 'a', label: 'A한', sub: '補足한'}, {id: 'b', label: 'B한'}], edges: [{from: 'a', to: 'b'}]}]}, realEngine());
   assert.deepEqual(r.issues.map(i => i.path).sort(), ['parts[0].nodes[0].label', 'parts[0].nodes[0].sub', 'parts[0].nodes[1].label', 'sourceLine']);
 });
 
-test('a character the font lacks that is not an emoji is not blamed on emoji, and repeats are reported once', async () => {
+test('a character the font lacks (not an emoji) is reported, once, saying what to write instead', async () => {
   const r = await renderSpecEdge(spec({type: 'flowchart', nodes: [{id: 'a', label: '\uE000'.repeat(25) + '\uE001'}, {id: 'b', label: '안녕'}], edges: [{from: 'a', to: 'b'}]}), realEngine());
   assert.deepEqual(r.issues.map(i => /U\+([0-9A-F]+)/.exec(i.message)?.[1]), ['E000', 'E001', 'C548', 'B155']);
-  assert.doesNotMatch(r.issues[0]?.message ?? '', /emoji/i);
   assert.match(r.issues[0]?.message ?? '', /Japanese or Latin/);
 });
 

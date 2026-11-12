@@ -3,6 +3,7 @@
 import {computeStyles, elements, parseXml, textOf, type El, type Style} from './svg-dom.ts';
 import {familyKind, placeRuns, type TextBoxFn} from './svg-geom.ts';
 import type {FontFamily} from './types/core.ts';
+import {EMOJI_EM, emojiParts} from './emoji-edge.ts';
 
 export interface ShapedGlyph {id: number; xAdvance: number; xOffset: number; yOffset: number}
 /** The font the outlines come from. `shape` and `path` are in font units; the path is SVG path data with y up, as a font has it. */
@@ -39,8 +40,14 @@ function groupOpen(el: El, style: Style, label: string): string {
 /** What `css` asks for that outlines do not reproduce. */
 const unsupportedIn = (css: string): string[] => [...css.matchAll(NOT_REPRODUCED_CSS)].map(m => m[1] as string);
 
-/** `svg` with every <text> replaced by outlines of its glyphs. A glyph used twice is defined once. */
-export function outlineText(svg: string, font: OutlineFont, measure: TextBoxFn): Outlined {
+/** The fonts a live emoji is drawn with: the viewer's own. */
+const EMOJI_FONTS = 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif';
+
+/**
+ * `svg` with every <text> replaced by outlines of its glyphs. A glyph used twice is defined once. `liveEmoji`: an emoji the font has no
+ * glyph for stays text (in the viewer's emoji font, EMOJI_EM of its size wide: measure with emojiTextBox), and is not missing.
+ */
+export function outlineText(svg: string, font: OutlineFont, measure: TextBoxFn, opts: {liveEmoji?: boolean} = {}): Outlined {
   const root = parseXml(svg);
   const styles = computeStyles(root);
   const texts = elements(root).filter(e => e.tag === 'text');
@@ -61,21 +68,29 @@ export function outlineText(svg: string, font: OutlineFont, measure: TextBoxFn):
     const own = styles.get(text) as Style;
     for (const run of placeRuns(text, styles, measure)) {
       const family = familyKind(run.style.fontFamily), weight = run.style.fontWeight;
-      for (const ch of run.s) {
-        if (!INVISIBLE.test(ch) && !font.covers(ch.codePointAt(0) as number, family, weight)) missing.push({text: run.s, char: ch});
-      }
-      const {upem, glyphs} = font.shape(run.s, family, weight);
-      const k = run.style.fontSize / upem;
       let x = run.x;
       label += run.s;
       // a tspan in its own colour keeps it; the others take the colour of the group
       const recoloured = run.style.fill !== own.fill || run.style.fillOpacity !== own.fillOpacity;
       if (recoloured) uses += `<g fill="${attr(run.style.fill)}"${run.style.fillOpacity < 1 ? ` fill-opacity="${run.style.fillOpacity}"` : ''}>`;
-      for (const g of glyphs) {
-        const key = `${family[0]}${weight >= 600 ? 'b' : 'r'}${g.id}`;
-        if (!defs.has(key)) defs.set(key, font.path(g.id, family, weight));
-        if (defs.get(key)) uses += `<use href="#${GLYPH_PREFIX}${key}" transform="translate(${n(x + g.xOffset * k)} ${n(run.y - g.yOffset * k)}) scale(${scaleOf(k)} ${scaleOf(-k)})"/>`;
-        x += g.xAdvance * k;
+      for (const part of opts.liveEmoji ? emojiParts(run.s, cp => font.covers(cp, family, weight)) : [{s: run.s, emoji: false}]) {
+        if (part.emoji) {
+          // the viewer's emoji font draws it, at the width it was measured with
+          uses += `<text x="${n(x)}" y="${n(run.y)}" font-size="${n(run.style.fontSize)}" font-family="${EMOJI_FONTS}">${attr(part.s)}</text>`;
+          x += run.style.fontSize * EMOJI_EM;
+          continue;
+        }
+        for (const ch of part.s) {
+          if (!INVISIBLE.test(ch) && !font.covers(ch.codePointAt(0) as number, family, weight)) missing.push({text: run.s, char: ch});
+        }
+        const {upem, glyphs} = font.shape(part.s, family, weight);
+        const k = run.style.fontSize / upem;
+        for (const g of glyphs) {
+          const key = `${family[0]}${weight >= 600 ? 'b' : 'r'}${g.id}`;
+          if (!defs.has(key)) defs.set(key, font.path(g.id, family, weight));
+          if (defs.get(key)) uses += `<use href="#${GLYPH_PREFIX}${key}" transform="translate(${n(x + g.xOffset * k)} ${n(run.y - g.yOffset * k)}) scale(${scaleOf(k)} ${scaleOf(-k)})"/>`;
+          x += g.xAdvance * k;
+        }
       }
       if (recoloured) uses += '</g>';
     }

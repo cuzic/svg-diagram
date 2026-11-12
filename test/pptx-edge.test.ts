@@ -494,3 +494,26 @@ test('the figure\'s title and description (the svg\'s <title> and <desc>) are th
   assert.match(core, /<dc:title>受注の流れ &amp; 確認<\/dc:title><dc:description>受付から発送までの判断。<\/dc:description>/);
   assert.deepEqual(xmlProblems(core), []);
 });
+
+test('emoji: a native shape and a converted chart keep them as text (PowerPoint draws them in the system emoji font); a character the font lacks is an issue', async () => {
+  const s = {...spec({type: 'flowchart', nodes: [{id: 'a', label: '🚀 開始'}, {id: 'b', label: '確認 👍🏽'}], edges: [{from: 'a', to: 'b'}]}, {type: 'bars', dir: 'v', data: [{label: '🍎 りんご', value: 3}, {label: '🍊', value: 5}]})};
+  const r = await renderPptxEdge(s, realEngine(), {rasterize: () => PNG});
+  assert.equal(r.pictures, 0); // the chart's emoji <tspan> does not stop it being converted
+  const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
+  for (const t of ['🚀 開始', '確認 👍🏽', '🍎 りんご', '🍊']) assert.ok(slide.includes(`<a:t>${t}</a:t>`), t);
+  // a character no font of the engine has, in a picture's text, comes back as the spec's issue at its field (as drawing reports it)
+  const {missingIssues} = await import('../lib/spec-edge.ts');
+  const issues = missingIssues({parts: [{label: '안녕'}]}, [{char: '안'}]);
+  assert.deepEqual(issues.map(i => i.path), ['parts[0].label']);
+  assert.match(issues[0]?.message ?? '', /U\+C548.*Japanese or Latin/);
+});
+
+test('emojiParts, emojiMeasurer and emojiTextBox: an emoji the font lacks is one part, EMOJI_EM of the size wide', async () => {
+  const {emojiParts, emojiMeasurer, emojiTextBox, EMOJI_EM} = await import('../lib/emoji-edge.ts');
+  assert.deepEqual(emojiParts('a👍🏽b👨‍👩‍👧c🇯🇵'), [{s: 'a', emoji: false}, {s: '👍🏽', emoji: true}, {s: 'b', emoji: false}, {s: '👨‍👩‍👧', emoji: true}, {s: 'c', emoji: false}, {s: '🇯🇵', emoji: true}]);
+  assert.deepEqual(emojiParts('★✓', () => true), [{s: '★✓', emoji: false}]); // pictographs the font has are text
+  const m = emojiMeasurer(req => ({w: req.text.length * 10, h: 20}), () => false);
+  assert.deepEqual(await m({text: 'ab😀', size: 16, weight: 400, font: 'sans'}), {w: 20 + 16 * EMOJI_EM, h: 20});
+  const box = emojiTextBox(t => ({w: t.length * 10, ascent: 8, descent: 2}), () => false);
+  assert.deepEqual(box('😀😀', 'sans', 10, 400), {w: 2 * 10 * EMOJI_EM, ascent: 8, descent: 2});
+});

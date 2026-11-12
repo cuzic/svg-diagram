@@ -6,7 +6,7 @@
 import {renderInBrowser, type WebRender} from './web.ts';
 import {outlineText} from './svg-outline.ts';
 import {SpecError, layoutIssue, specToDiagram, type SpecIssue} from './spec.ts';
-import {MAX_EDGE_HEIGHT, TextEngineError, guardedEngine, type TextEngine} from './spec-edge.ts';
+import {MAX_EDGE_HEIGHT, TextEngineError, guardedEngine, missingIssues, type TextEngine} from './spec-edge.ts';
 import {planSlide, fontsOf} from './pptx/slide.ts';
 import {packageEntries} from './pptx/package.ts';
 import {zipEntries, type ZipEntry} from './pptx/zip.ts';
@@ -68,12 +68,11 @@ export async function renderPptxEdge(spec: unknown, givenEngine: TextEngine, opt
   const maxHeight = opts.maxHeight ?? MAX_EDGE_HEIGHT;
   if (r.height > maxHeight) return none([{path: '', message: `the figure is ${r.height}px tall; the limit is ${maxHeight}px`}]);
   const plan = planSlide(r.laidOut, fontsOf(opts.font));
-  const outline = (svg: string): string => {
-    const o = outlineText(svg, engine.font, engine.textBox);
-    if (o.missing.length) throw new Error(`pptx: a picture has characters the font cannot draw: ${[...new Set(o.missing.map(m => m.char))].join(' ')}`);
-    return o.svg;
-  };
+  // a picture's text as outlines, an emoji as text the viewer's emoji font draws; a character the font lacks is the spec's to fix, as in drawing
+  const missing: {text: string; char: string}[] = [];
+  const outline = (svg: string): string => { const o = outlineText(svg, engine.font, engine.textBox, {liveEmoji: true}); missing.push(...o.missing); return o.svg; };
   plan.pictures = plan.pictures.map(p => ({svg: outline(p.svg), pngSvg: outline(p.pngSvg)}));
+  if (missing.length) return none(missingIssues(spec, missing));
   const pngs: Uint8Array[] = [];
   for (const p of plan.pictures) pngs.push(await opts.rasterize(p.pngSvg, pngScale));
   const entries: ZipEntry[] = [];
