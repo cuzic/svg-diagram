@@ -67,6 +67,12 @@ function boxInsets(r: Rect, lines: readonly TextLine[]): {l: number; r: number} 
 /** Whether these lines can be the text of this box (boxTextXml can place every one at its anchor). */
 export const boxTextFits = (r: Rect, lines: readonly TextLine[]): boolean => lines.length > 0 && boxInsets(r, lines) !== null;
 
+/** The width (px) of the text area boxTextXml gives these lines in this box (the box less its insets), or null when they cannot share one. */
+export function boxTextWidth(r: Rect, lines: readonly TextLine[]): number | null {
+  const ins = lines.length ? boxInsets(r, lines) : null;
+  return ins && r.w - ins.l - ins.r;
+}
+
 export function boxTextXml(r: Rect, lines: readonly TextLine[], fonts: Fonts): string {
   const sorted = lines.toSorted((a, b) => a.y - b.y);
   const first = sorted[0], ins = boxInsets(r, lines);

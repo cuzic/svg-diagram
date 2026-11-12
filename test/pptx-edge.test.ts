@@ -241,6 +241,47 @@ test('the plain pieces: a text line sits on its baseline at its anchor, presets 
   let n = 0;
   const q = quadrantXml(band as never, {day: 'blue'} as never, (await import('../lib/tokens.ts')).NO_TONES, fonts, () => ++n);
   assert.deepEqual(q.glue, [{dslId: 'a', id: 1, rect: {x: 45, y: 45, w: 10, h: 10}}]);
+  // a cell's caption is the cell's text; an item's label, though it lies in the cell, stays a text box beside its marker
+  const caption = {...band, cells: [{x: 0, y: 0, w: 100, h: 100, tone: 'plain'}], texts: [{text: '強み', x: 10, y: 20, anchor: 'start', size: 12, bold: true, fill: 'text'}, {text: 'A', x: 60, y: 55, anchor: 'start', size: 12, bold: false, fill: 'text', item: 0}]};
+  const c = quadrantXml(caption as never, {day: 'blue'} as never, (await import('../lib/tokens.ts')).NO_TONES, fonts, () => ++n).xml;
+  assert.match(c, /name="cell: 強み"(?:(?!<\/p:sp>)[\s\S])*<a:t>強み<\/a:t>/);
+  // the item's marker and label are one group, so they move together
+  assert.match(c, /<p:grpSp><p:nvGrpSpPr><p:cNvPr id="\d+" name="item: A"\/>(?:(?!<\/p:grpSp>)[\s\S])*prst="ellipse"(?:(?!<\/p:grpSp>)[\s\S])*name="text: A"/);
+});
+
+test('fillHolders: a text goes into the smallest shape holding it, unless that shape is not inside the others holding it or the text is too wide', async () => {
+  const {fillHolders, inPolygon, estimatedWidth, polygonHolder, geomHolder, outlineHolder, drawAll, joined, bboxOf} = await import('../lib/pptx/fill.ts');
+  const {boxTextWidth, prstGeomXml} = await import('../lib/pptx/prims.ts');
+  const {inOutline} = await import('../lib/pptx/geom.ts');
+  const line = (text: string, x: number, y: number, anchor: 'start' | 'middle' | 'end' = 'middle') => ({text, x, y, anchor, size: 10, bold: false, color: '#000000'});
+  // a notched chevron is not convex: even-odd still finds its inside, the convex test only its edge
+  const notched = [{x: 0, y: 0}, {x: 40, y: 0}, {x: 50, y: 10}, {x: 40, y: 20}, {x: 0, y: 20}, {x: 10, y: 10}];
+  assert.equal(inPolygon({x: 20, y: 10}, notched), true);
+  assert.equal(inPolygon({x: 5, y: 10}, notched), false);
+  assert.equal(inOutline({x: 5, y: 10}, notched, 0), false);
+  assert.equal(estimatedWidth(line('あa', 0, 0)), 15.5);
+  assert.equal(boxTextWidth({x: 0, y: 0, w: 100, h: 20}, [line('a', 30, 10)]), 60);
+  assert.equal(boxTextWidth({x: 0, y: 0, w: 100, h: 20}, []), null);
+  assert.deepEqual(bboxOf([{x: 1, y: 2}, {x: 5, y: 2}]), {x: 1, y: 2, w: 4, h: 1});
+  let n = 0;
+  const big = geomHolder(++n, t => `big:${joined(t)}`, {x: 0, y: 0, w: 200, h: 100}, prstGeomXml('rect'), {fill: '#ffffff'});
+  const small = polygonHolder(++n, t => `small:${joined(t)}`, [{x: 10, y: 10}, {x: 90, y: 10}, {x: 90, y: 50}, {x: 10, y: 50}], {fill: '#eeeeee'});
+  const left = outlineHolder(++n, () => 'left', [{op: 'M', pts: [{x: 100, y: 60}]}, {op: 'L', pts: [{x: 160, y: 60}]}, {op: 'L', pts: [{x: 160, y: 95}]}, {op: 'L', pts: [{x: 100, y: 95}]}, {op: 'Z', pts: []}], [{x: 100, y: 60}, {x: 160, y: 60}, {x: 160, y: 95}, {x: 100, y: 95}], {fill: '#dddddd'});
+  const right = geomHolder(++n, () => 'right', {x: 130, y: 60, w: 60, h: 35}, prstGeomXml('rect'), {fill: '#cccccc'});
+  const texts = [line('中', 50, 30), line('とても長い見出しの文字列', 50, 45), line('重', 145, 80), line('外', 50, 80)];
+  const rest = fillHolders([big, small, left, right], texts.map(t => ({t})));
+  // 中 into the small box (inside the big one), 外 into the big one; the long line (120px centred at 50) lies wholly in no box; 重 is in
+  // two shapes, neither inside the other
+  assert.deepEqual(small.texts.map(t => t.text), ['中']);
+  assert.deepEqual(big.texts.map(t => t.text), ['外']);
+  assert.deepEqual(rest.map(t => t.text), ['とても長い見出しの文字列', '重']);
+  // a box keeps its texts only if they fit its text area: a line from x 10 in a 100px box gets 10px on both sides, 80px, too narrow for 85
+  const narrow = geomHolder(++n, () => 'narrow', {x: 0, y: 0, w: 100, h: 20}, prstGeomXml('rect'), {});
+  assert.deepEqual(fillHolders([narrow], [{t: line('あいうえおかきく', 10, 15, 'start'), w: 85}]).map(t => t.text), ['あいうえおかきく']);
+  assert.deepEqual(narrow.texts, []);
+  const one = polygonHolder(++n, t => `one:${joined(t)}`, [{x: 10, y: 10}, {x: 90, y: 10}, {x: 90, y: 50}, {x: 10, y: 50}], {fill: '#eeeeee'});
+  const xml = drawAll(['<pre/>', one], [{t: line('中', 50, 30)}, {t: line('外', 150, 80)}], {sans: 'S', mono: 'M'}, () => ++n);
+  assert.match(xml, /^<pre\/><p:sp><p:nvSpPr><p:cNvPr id="\d+" name="one:中"\/>(?:(?!<\/p:sp>)[\s\S])*<a:t>中<\/a:t>[\s\S]*name="text: 外"/);
 });
 
 test('a flowchart is native shapes: a diamond holds its question, every arrow is glued at both ends, a label sits on a chip', async () => {
@@ -347,7 +388,12 @@ test('chevrons, a cycle, a funnel, a pyramid, a Venn diagram and a value chain a
     assert.deepEqual(xmlProblems(entry(r.pptx!, 'ppt/slides/slide1.xml')), [], type);
   }
   const venn = entry((await renderPptxEdge(spec(example('venn')), engine, {rasterize: () => PNG})).pptx!, 'ppt/slides/slide1.xml');
-  assert.match(venn, /prst="ellipse"[\s\S]*<a:alpha val="\d+"\/>/);
+  // a set's name is the text of its circle; the overlap's label belongs to neither circle, so it stays a text box
+  assert.match(venn, /name="circle: 技術"(?:(?!<\/p:sp>)[\s\S])*<a:arcTo (?:(?!<\/p:sp>)[\s\S])*<a:alpha val="\d+"\/>(?:(?!<\/p:sp>)[\s\S])*<a:t>技術<\/a:t>/);
+  assert.match(venn, /name="text: 価値"/);
+  // every step's label is the text of its chevron
+  const chevron = entry((await renderPptxEdge(spec(example('chevron')), engine, {rasterize: () => PNG})).pptx!, 'ppt/slides/slide1.xml');
+  assert.doesNotMatch(chevron, /name="text: /);
   const cycle = entry((await renderPptxEdge(spec(example('cycle')), engine, {rasterize: () => PNG})).pptx!, 'ppt/slides/slide1.xml');
   assert.match(cycle, /<a:cubicBezTo>[\s\S]*<a:tailEnd type="triangle"/);
 });
@@ -385,8 +431,9 @@ test('flowShapeXml, pyramidXml and timelineXml: every piece a shape, items gluea
   let n = 0;
   const f = flowShapeXml({type: 'chevron', x: 0, y: 0, w: 100, h: 40, primitives: [{k: 'polygon', points: [[0, 0], [50, 0], [60, 20], [50, 40], [0, 40]], tone: 'accent', node: 'a'}, {k: 'path', d: 'M0,0 A10,10 0 0 1 20,0', tone: 'text', arrow: true}], texts: [{text: '一', tx: 25, ty: 25, size: 14, weight: 700, anchor: 'middle', tone: 'bg', x: 0, y: 0, w: 50, h: 40}], anchors: [{id: 'a', x: 0, y: 0, w: 60, h: 40}], labelBoxes: []} as never, ld, NO_TONES, fonts, () => ++n);
   assert.deepEqual(f.glue.map(g => g.dslId), ['a']);
-  assert.match(f.xml, /name="item-a"[\s\S]*<a:tailEnd[\s\S]*FFFFFF[\s\S]*<a:t>一<\/a:t>/);
-  assert.match(pyramidXml({type: 'pyramid', x: 0, y: 0, w: 100, h: 50, day: 'blue', layers: [{points: [[0, 50], [100, 50], [75, 0], [25, 0]], opacity: .5, textColor: '#ffffff', lines: ['頂'], textYs: [30], cx: 50}]} as never, ld, fonts, () => ++n), /<a:alpha val="50000"\/>[\s\S]*<a:t>頂<\/a:t>/);
+  // the label is the chevron's own text, in the colour the layout gave it
+  assert.match(f.xml, /name="item-a"(?:(?!<\/p:sp>)[\s\S])*FFFFFF(?:(?!<\/p:sp>)[\s\S])*<a:t>一<\/a:t>[\s\S]*<a:tailEnd/);
+  assert.match(pyramidXml({type: 'pyramid', x: 0, y: 0, w: 100, h: 50, day: 'blue', layers: [{points: [[0, 50], [100, 50], [75, 0], [25, 0]], opacity: .5, textColor: '#ffffff', lines: ['頂'], textYs: [30], cx: 50}]} as never, ld, fonts, () => ++n), /name="layer: 頂"(?:(?!<\/p:sp>)[\s\S])*<a:alpha val="50000"\/>(?:(?!<\/p:sp>)[\s\S])*<a:t>頂<\/a:t>/);
   const t = timelineXml({type: 'timeline', x: 0, y: 0, w: 200, h: 60, axis: {x1: 0, x2: 200, y: 30}, ticks: [{x: 50, y1: 25, y2: 35}], stems: [], dots: [{x: 100, y: 30, r: 6, tone: 'accent'}], texts: [{text: '今日', x: 100, y: 20, anchor: 'middle', size: 12, bold: true, fill: 'accent'}], labelBoxes: []} as never, ld, fonts, () => ++n);
   assert.match(t, /prst="ellipse"[\s\S]*<a:t>今日<\/a:t>/);
   assert.equal(t.match(/straightConnector1/g)?.length, 2);

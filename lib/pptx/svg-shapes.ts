@@ -8,7 +8,7 @@
 // Anything outside the small set of elements and attributes read here (a transform, a <use>, a <tspan>, a gradient, ...) returns null, and
 // the band is placed as a picture instead: a piece is never dropped or drawn wrong.
 import {parseXml, type El} from '../svg-dom.ts';
-import {fitConnector, siteIndex, type Pt} from './geom.ts';
+import {fitConnector, inOutline, siteIndex, type Pt} from './geom.ts';
 import {connectorShapeXml, freeformPathXml, type EndType, type Glue, type PathStep} from './connectors.ts';
 import {boxTextFits, boxTextXml, dashOfSvg, geomShapeXml, nameOf, outlineGeomXml, pathShapeXml, polygonXml, prstGeomXml, roundGeomXml, textLineXml, type Paint, type TextLine} from './prims.ts';
 import {svgPathSteps} from './svg-path.ts';
@@ -43,14 +43,6 @@ const TOUCH = 2.5;
 /** A triangle at most this large (px^2) is an arrowhead when a line ends in it. */
 const HEAD_AREA = 400;
 
-/** Whether p is inside the convex outline, or within `pad` px of it. */
-function inOutline(p: Pt, pts: readonly Pt[], pad: number): boolean {
-  const n = pts.length, at = (i: number) => pts[i % n] as Pt;
-  const sides = pts.map((_, i) => { const u = at(i), v = at(i + 1); return (p.x - v.x) * (u.y - v.y) - (u.x - v.x) * (p.y - v.y); });
-  if (n >= 3 && (sides.every(d => d >= 0) || sides.every(d => d <= 0))) return true;
-  const seg = (u: Pt, v: Pt) => { const L = (v.x - u.x) ** 2 + (v.y - u.y) ** 2, t = L ? Math.max(0, Math.min(1, ((p.x - u.x) * (v.x - u.x) + (p.y - u.y) * (v.y - u.y)) / L)) : 0; return Math.hypot(p.x - u.x - t * (v.x - u.x), p.y - u.y - t * (v.y - u.y)); };
-  return Math.min(...pts.map((u, i) => seg(u, at(i + 1)))) <= pad;
-}
 /** The area of a closed outline (shoelace). */
 const areaOf = (pts: readonly Pt[]): number => Math.abs(pts.reduce((s, p, i) => { const q = pts[(i + 1) % pts.length] as Pt; return s + p.x * q.y - q.x * p.y; }, 0)) / 2;
 const bboxOf = (pts: readonly Pt[]): Rect => { const xs = pts.map(p => p.x), ys = pts.map(p => p.y), x = Math.min(...xs), y = Math.min(...ys); return {x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y}; };
