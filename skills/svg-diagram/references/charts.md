@@ -23,7 +23,8 @@
 | バブル | `bubble(points, {x, y, sizeTitle, sizeUnit})` | `{label, x, y, size}`。円の**面積**が `size`。`x.line` / `y.line` は境目の破線。軸は円がはみ出さないよう自動で広がる |
 | バタフライ | `butterfly(rows, {leftLabel, rightLabel, unit})` | `{label, left, right}`。中央の名前をはさんで左右に同じ目盛りの棒 |
 | コンボ（棒 + 折れ線） | `combo(categories, series, {y, y2})` | `{label, type: 'bar'｜'line', values}`。折れ線は既定で右軸（`y2`）。`null` は欠測 |
-| ハーベイボール | `harvey(rows, cols, values, {highlight})` | 値は 0〜4（四分円の数）、`null` は未評価。扇の形で示す |
+| 比較表（○△× と理由） | `compare(rows, cols, cells, {corner})` | セルは `[マーク, 理由]`（マークは ◎ ○ △ × か best / ok / mid / ng）、`null` は未評価。マークはセル左の中央に置き、理由との間を破線で区切る |
+| ハーベイボール | `harvey(rows, cols, values, {highlight})` | 値は 0〜4（四分円の数）、`null` は未評価。`[3, '理由']` で理由を併記できる。扇の形で示す |
 
 - どれも `id`（図全体）と、要素の `id` が `connect()` / `spotlight` の端点になり、`labelRole` で文字を大きくできる。`lines` 系は `plane` を返す。
 - 入らない値のラベル（狭い列・小さなセル）はエラーに直し方が書いてある。幅・高さを上げるか、小さいものを「その他」にまとめる。

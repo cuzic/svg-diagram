@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="208" viewBox="0 0 940 208" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">導入案の比較</title>
+  <desc id="svg-desc">比較表: コスト: 案A ○ 既存設備を流用できる、案B △ 追加ライセンスが必要、案C × 初期投資が大きい / 導入期間: 案A △ 設定に時間がかかる、案B ○ すぐに導入できる、案C × 個別開発が必要 / 拡張性: 案A × カスタマイズ不可、案B △ 一部のみ変更可能、案C ○ 自由に拡張できる</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chart-compare.ts","sourceSha256":"fc39e16457c7033152ea33a839eb69d019e484acfd986b333e66511dd015e726"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="208" fill="#ffffff"/>
+
+  <path d="M20,20 H920 V50 H20 Z" fill="#ffffff"/>
+  <path d="M20,20 H920 V50 H20 Z" fill="#1d5fa8" fill-opacity="0.1"/>
+  <text x="28" y="40" font-size="14" fill="#6f6659">比較軸</text>
+  <text x="230" y="40" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">案A</text>
+  <text x="506" y="40" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">案B</text>
+  <text x="782" y="40" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">案C</text>
+  <path d="M20,50 L920,50" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="28" y="72" font-size="14" font-weight="700" fill="#22201b">コスト</text>
+  <text x="111" y="72" text-anchor="middle" font-size="14" fill="#1d5fa8">○</text>
+  <path d="M129,56 L129,78" fill="none" stroke="#6f6659" stroke-width="1" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <text x="137" y="72" font-size="14" fill="#22201b">既存設備を流用できる</text>
+  <text x="387" y="72" text-anchor="middle" font-size="14" fill="#22201b">△</text>
+  <path d="M405,56 L405,78" fill="none" stroke="#6f6659" stroke-width="1" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <text x="413" y="72" font-size="14" fill="#22201b">追加ライセンスが必要</text>
+  <text x="663" y="72" text-anchor="middle" font-size="14" fill="#b91c1c">×</text>
+  <path d="M681,56 L681,78" fill="none" stroke="#6f6659" stroke-width="1" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <text x="689" y="72" font-size="14" fill="#22201b">初期投資が大きい</text>
+  <path d="M20,84 L920,84" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="28" y="106" font-size="14" font-weight="700" fill="#22201b">導入期間</text>
+  <text x="111" y="106" text-anchor="middle" font-size="14" fill="#22201b">△</text>
+  <path d="M129,90 L129,112" fill="none" stroke="#6f6659" stroke-width="1" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <text x="137" y="106" font-size="14" fill="#22201b">設定に時間がかかる</text>
+  <text x="387" y="106" text-anchor="middle" font-size="14" fill="#1d5fa8">○</text>
+  <path d="M405,90 L405,112" fill="none" stroke="#6f6659" stroke-width="1" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <text x="413" y="106" font-size="14" fill="#22201b">すぐに導入できる</text>
+  <text x="663" y="106" text-anchor="middle" font-size="14" fill="#b91c1c">×</text>
+  <path d="M681,90 L681,112" fill="none" stroke="#6f6659" stroke-width="1" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <text x="689" y="106" font-size="14" fill="#22201b">個別開発が必要</text>
+  <path d="M20,118 L920,118" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="28" y="140" font-size="14" font-weight="700" fill="#22201b">拡張性</text>
+  <text x="111" y="140" text-anchor="middle" font-size="14" fill="#b91c1c">×</text>
+  <path d="M129,124 L129,146" fill="none" stroke="#6f6659" stroke-width="1" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <text x="137" y="140" font-size="14" fill="#22201b">カスタマイズ不可</text>
+  <text x="387" y="140" text-anchor="middle" font-size="14" fill="#22201b">△</text>
+  <path d="M405,124 L405,146" fill="none" stroke="#6f6659" stroke-width="1" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <text x="413" y="140" font-size="14" fill="#22201b">一部のみ変更可能</text>
+  <text x="663" y="140" text-anchor="middle" font-size="14" fill="#1d5fa8">○</text>
+  <path d="M681,124 L681,146" fill="none" stroke="#6f6659" stroke-width="1" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <text x="689" y="140" font-size="14" fill="#22201b">自由に拡張できる</text>
+  <path d="M20,152 L920,152" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M92,20 L92,152" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M368,20 L368,152" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M644,20 L644,152" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+
+  <text x="20" y="182" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+</svg>
