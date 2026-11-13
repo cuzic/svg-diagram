@@ -64,6 +64,8 @@ export function crosses(g: Geo, h: Geo): boolean {
 }
 
 const kindOf = (step: string): string => step.slice(0, step.indexOf(':'));
+/** Kinds whose parts never change places with one another (D3's exception is for parts of data: series, rows, classes). */
+const ORDERED_KINDS: ReadonlySet<string> = new Set(['axis', 'axes']);
 
 /** The name of a part's group: its kind and label, and its DSL id when it has one (`class: 注文 [u1]`). */
 export function partName(step: string): string {
@@ -94,7 +96,8 @@ export function assembleParts(pieces: readonly Piece[], next: () => number, dept
     // cross is how a chart draws its series (one after another), so only the shapes of no such part keep their order against this one
     // (a text, or a shape holding one, keeps its order against every part: a label's plate is meant to cover the other series' lines)
     const kind = kindOf(k), mine = new Set(members), others = pieces.filter(p => !mine.has(p));
-    const keeps = (p: Piece, q: Piece): boolean => q.part[depth] === undefined || kindOf(q.part[depth]) !== kind || !!p.text || !!q.text;
+    // (axes are not data: a chart's x and y axes cross, and which is on top shows, so they keep their order against each other)
+    const keeps = (p: Piece, q: Piece): boolean => q.part[depth] === undefined || kindOf(q.part[depth]) !== kind || ORDERED_KINDS.has(kind) || !!p.text || !!q.text;
     const clash = (anchor: number): Piece[] => members.filter(p => p.order !== anchor && others.some(q =>
       q.order > Math.min(p.order, anchor) && q.order < Math.max(p.order, anchor) && keeps(p, q) && crosses(p.geo, q.geo)));
     const orders = members.map(p => p.order), candidates = [orders[orders.length - 1] as number, orders[0] as number, ...orders.slice(1, -1)];

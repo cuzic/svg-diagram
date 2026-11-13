@@ -1,6 +1,7 @@
 // heatmap(): a table of numbers whose cells are shaded by size (a cohort table, a retention table, a score matrix). The number is always
 // printed in its cell; the shade is the accent at one of a few steps (a quantised ramp), so a printout in grey still reads, and the legend
 // says which range each step stands for.
+import {partStep} from './parts.ts';
 import {LEGEND} from './parts.ts';
 import {niceNear, niceUp} from './qc.ts';
 import {Canvas, checkText, decimalsIn, fail, finiteNum, inkOnShade, numText, shadeOps} from './charts-base.ts';
@@ -119,9 +120,12 @@ export function layoutHeatmap(s: HeatmapSpec, g: ChartGeom): LaidOutChartPart {
   c.h = g.height ?? headH + s.rows.length * cellH + (s.scale ? legendH + 6 : 0) + 4;
   if (g.height !== undefined && g.height < headH + s.rows.length * cellH + legendH) fail('heatmap', `height ${g.height} is too small for ${s.rows.length} rows (need at least ${headH + s.rows.length * cellH + legendH})`);
   const r1 = (v: number) => Math.round(v * 10) / 10;
-  if (s.corner) c.lines(c.wrap(s.corner, rowW - 12, true), g.x + 4, g.y + headH - 8 - (c.wrap(s.corner, rowW - 12, true).length - 1) * lh, 'start', 'muted', {bold: true});
-  heads.forEach((h, i) => c.lines(h, plotL + (i + 0.5) * cellW, g.y + headH - 8 - (h.length - 1) * lh, 'middle', 'text', {bold: true}));
-  s.rows.forEach((r, i) => {
+  // ADR 0054: the column heads (with the corner) are a part, a row (its name and its cells) another
+  c.withPart(partStep('columns', 0, ''), () => {
+    if (s.corner) c.lines(c.wrap(s.corner, rowW - 12, true), g.x + 4, g.y + headH - 8 - (c.wrap(s.corner, rowW - 12, true).length - 1) * lh, 'start', 'muted', {bold: true});
+    heads.forEach((h, i) => c.lines(h, plotL + (i + 0.5) * cellW, g.y + headH - 8 - (h.length - 1) * lh, 'middle', 'text', {bold: true}));
+  });
+  s.rows.forEach((r, i) => c.withPart(partStep('row', i, r), () => {
     const y = bodyT + i * cellH, cy = y + cellH / 2;
     c.lines(must(rowLs[i]), g.x + 4, c.mid(cy) - (must(rowLs[i]).length - 1) * lh / 2, 'start', 'text', {bold: s.rowHeader});
     must(s.values[i]).forEach((v, j) => {
@@ -135,7 +139,7 @@ export function layoutHeatmap(s: HeatmapSpec, g: ChartGeom): LaidOutChartPart {
       const host = c.rect(r1(x + gap / 2), r1(y + gap / 2), r1(cellW - gap), r1(cellH - gap), {fill: 'accent', op, solid: `cell ${r} x ${s.cols[j]}`});
       c.text(t, x + cellW / 2, c.mid(cy), 'middle', ink, {bold: true, host, on: {fill: 'accent', op, ink}});
     });
-  });
+  }));
   if (s.rowHeader) c.line(r1(plotL - 2), r1(bodyT), r1(plotL - 2), r1(bodyT + s.rows.length * cellH), {stroke: 'border'});
   if (s.scale) {
     const top = bodyT + s.rows.length * cellH + 14;
