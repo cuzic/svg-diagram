@@ -7,7 +7,8 @@ import {renderPptxEdge} from '../lib/pptx-edge.ts';
 import {axisPart, marked, parsePart, partAttr, partStep, partsOn, withParts} from '../lib/parts.ts';
 import {assembleParts, crosses, partName, type Piece} from '../lib/pptx/parts-group.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
-import {realEngine} from './helpers/text-engine.ts';
+import {JA_FONTS, realEngine} from './helpers/text-engine.ts';
+import {renderSpec} from '../lib/spec-render.ts';
 import {unzipEntry} from './helpers/pptx/unzip.ts';
 
 test.after(() => closeMeasurer());
@@ -203,6 +204,28 @@ test('assembleParts: when a shape left out of a part would be passed by a moving
   assert.doesNotMatch(xml, /<p:grpSp>/);
   assert.deepEqual([...xml.matchAll(/id="(\d+)"/g)].map(m => Number(m[1])), [0, 1, 2, 3, 4]);
   assert.equal(left.length, 3);
+});
+
+test('an ordinary SVG carries no data-part: the parts are written only for the PowerPoint export (ADR 0054 D8)', async () => {
+  for (const {type, example} of partCatalog()) {
+    const r = await renderSpec({version: 1, title: '例', parts: [example]}, {config: {measure: 'font', fonts: JA_FONTS}});
+    assert.ok(r.svg, type);
+    assert.doesNotMatch(r.svg, /data-part/, type);
+  }
+});
+
+test('assembleParts: two parts that move past each other do not swap two shapes that cross', () => {
+  let id = 100;
+  const A = partStep('x', 'a', 'A'), B = partStep('y', 'b', 'B');
+  const r = (order: number, x: number, part: string[]): Piece => ({order, xml: `<p:sp><p:nvSpPr><p:cNvPr id="${order}" name="s${order}"/></p:nvSpPr></p:sp>`, part, geo: {kind: 'rect', r: {x, y: x % 100, w: 10, h: 10}}});
+  // 0 (A) is under 3 (B) where they cross; 1 (B) is under 2 (A) where they cross. Each part alone finds a place (A at 2, B at 1), but
+  // together they would draw 3 before 0
+  const left: Piece[] = [];
+  const xml = assembleParts([r(0, 0, [A]), r(1, 100, [B]), r(2, 105, [A]), r(3, 5, [B])], () => id++, 0, left);
+  const ids = [...xml.matchAll(/cNvPr id="(\d+)"/g)].map(m => Number(m[1]));
+  assert.ok(ids.indexOf(0) < ids.indexOf(3), xml);
+  assert.ok(ids.indexOf(1) < ids.indexOf(2), xml);
+  assert.equal(left.length, 1);
 });
 
 test('linesText joins wrapped lines, with a space only between two Latin words or numbers', async () => {

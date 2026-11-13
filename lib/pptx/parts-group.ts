@@ -113,6 +113,26 @@ export function assembleParts(pieces: readonly Piece[], next: () => number, dept
     at.set(k, best.a);
     for (const p of lost) { out.add(p); left.push(p); }
   }
+  // each part chose its place looking only at the shapes drawn between its own; two parts that move past each other (one written earlier,
+  // one later) can still swap two shapes that cross. So the places are checked together: where two crossing shapes come out in the other
+  // order, and D3 does not allow it, the one that moved farther is left out, and the level is assembled again
+  if (!out.size) {
+    const placed = (p: Piece): number => { const k = p.part[depth]; return k !== undefined && at.has(k) ? at.get(k) as number : p.order; };
+    const before = (p: Piece, q: Piece): boolean => { const a = placed(p), b = placed(q); return a !== b ? a < b : p.order < q.order; };
+    const swaps = (p: Piece, q: Piece): boolean => {
+      const a = p.part[depth], b = q.part[depth];
+      return !!a && !!b && kindOf(a) === kindOf(b) && !ORDERED_KINDS.has(kindOf(a)) && !p.text && !q.text;
+    };
+    const moved = pieces.filter(p => placed(p) !== p.order);
+    for (const p of moved) {
+      for (const q of pieces) {
+        if (q === p || p.part[depth] === q.part[depth] || out.has(p) || out.has(q)) continue;
+        if ((p.order < q.order) === before(p, q) || swaps(p, q) || !crosses(p.geo, q.geo)) continue;
+        const l = Math.abs(placed(q) - q.order) > Math.abs(placed(p) - p.order) ? q : p;
+        out.add(l); left.push(l);
+      }
+    }
+  }
   // the pieces left out of a part are gathered again by their inner parts: a part that cannot be one group keeps the groups inside it
   // (ADR 0054 D9.1); the step left out is dropped from their path, and the level is assembled again (each round drops a step, so it ends)
   // (the inner step keeps the dropped step as a hidden scope, so the pieces of two outer parts never merge under one inner key)
