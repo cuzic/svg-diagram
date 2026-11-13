@@ -15,7 +15,7 @@ import {bboxOf, drawAll, drawParts, geomHolder, joined, outlineHolder, polygonHo
 import {TIMELINE_AXIS} from '../parts.ts';
 import type {Geo} from './parts-group.ts';
 import {anchorXml, groupXml} from './shapes.ts';
-import {dashOfSvg, lineXml, nameOf, presetXml, prstGeomXml, roundGeomXml, type Paint, type TextLine} from './prims.ts';
+import {dashOfSvg, lineXml, namedAs, nameOf, presetXml, prstGeomXml, roundGeomXml, type Paint, type TextLine} from './prims.ts';
 import {svgPathSteps} from './svg-path.ts';
 import type {Fonts, Rect} from './xml.ts';
 
@@ -53,7 +53,7 @@ export function flowShapeXml(b: LaidOutFlowShape, ld: LaidOutDiagram, tones: Ton
   const texts = b.texts.map((t): Placed => ({t: {text: t.text, x: t.tx, y: t.ty, anchor: t.anchor, size: t.size, bold: t.weight === 700, color: t.tone === 'bg' ? PALETTE.bg : colorOf(t.tone, day)}, w: t.w, ...(t.part ? {part: t.part} : {})}));
   const body = drawParts(drawn, texts, fonts, next);
   const anchors = anchorsXml(b.anchors, next);
-  return {xml: groupXml(next(), b.id ? `${b.type}-${b.id}` : b.type, b, body + anchors.xml), glue: anchors.glue};
+  return {xml: groupXml(next(), namedAs(b.type, '', b.id), b, body + anchors.xml), glue: anchors.glue};
 }
 
 /** A pyramid: each layer a trapezoid in the accent colour at its opacity, holding its lines. */
@@ -89,5 +89,5 @@ export function timelineXml(b: LaidOutTimeline, ld: LaidOutDiagram, fonts: Fonts
     out.push({d: freeformPathXml(next(), 'bracket', pts.map((q, i) => ({op: i ? 'L' as const : 'M' as const, pts: [q]})), col(tone), 2), geo: {kind: 'poly', pts, w: 2}, ...(part ? {part} : {})});
   }
   const texts = b.texts.map((t): Placed => ({t: {text: t.text, x: t.x, y: t.y, anchor: t.anchor, size: t.size, bold: !!t.bold, color: col(t.fill)}, ...(t.part ? {part: t.part} : {})}));
-  return groupXml(next(), b.id ? `timeline-${b.id}` : 'timeline', b, drawParts(out, texts, fonts, next));
+  return groupXml(next(), namedAs('timeline', '', b.id), b, drawParts(out, texts, fonts, next));
 }

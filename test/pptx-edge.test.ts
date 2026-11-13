@@ -35,7 +35,7 @@ test('a table becomes a native table and a sequence diagram shapes drawn from it
   assert.match(slide, /<a:tbl>/);
   assert.match(slide, /typeface="BIZ UDPGothic"/);
   assert.doesNotMatch(slide, /<p:pic>/);
-  assert.match(slide, /name="sequence-1"/);
+  assert.match(slide, /name="sequence"/); // a band's group is named by its type (ADR 0054 D7)
   assert.match(entry(r.pptx, '[Content_Types].xml'), /Extension="svg"/);
 });
 
@@ -531,7 +531,7 @@ test('a step badge is the svg\'s: an accent circle (stepBadgeAt) with its number
   assert.deepEqual([ringed({tone: 'solid'} as never), ringed({tone: 'accent'} as never)], [true, false]);
   const r = await renderPptxEdge(spec(example('steps')), realEngine(), {rasterize: () => PNG});
   const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
-  assert.match(slide, /name="step-\d+"\/>(?:(?!<\/p:sp>)[\s\S])*<a:arcTo (?:(?!<\/p:sp>)[\s\S])*<a:srgbClr val="1D5FA8"\/>(?:(?!<\/p:sp>)[\s\S])*val="FFFFFF"\/>(?:(?!<\/p:sp>)[\s\S])*<a:t>1<\/a:t>/);
+  assert.match(slide, /name="step: \d+"\/>(?:(?!<\/p:sp>)[\s\S])*<a:arcTo (?:(?!<\/p:sp>)[\s\S])*<a:srgbClr val="1D5FA8"\/>(?:(?!<\/p:sp>)[\s\S])*val="FFFFFF"\/>(?:(?!<\/p:sp>)[\s\S])*<a:t>1<\/a:t>/);
   const box = {x: 0, y: 0, w: 200, h: 48, wrappedRuns: [{lineYs: [20]}]} as never;
   const g = stepBadgeAt(box);
   assert.ok(g.cx > 0 && g.r > 0 && g.baseline > g.cy);

@@ -1,4 +1,5 @@
 // LaidOutDiagram -> the one slide, as a pure function (ADR 0027). I/O stays in emit.ts: the template, resvg and zip.
+import {namedAs} from './prims.ts';
 import {must} from '../must.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutConnect} from '../types/containers.ts';
@@ -39,7 +40,7 @@ function labelXml(c: LaidOutConnect, ctx: Ctx): string {
   const r = c.labelBox ?? (c.labelX !== undefined && c.labelY !== undefined ? {x: c.labelX - 60, y: c.labelY - 12, w: 120, h: 24} : undefined);
   if (!c.label || !r) return '';
   const size = ctx.ld.roles.label;
-  return boxXml(ctx.next(), `label-${c.fromId}-${c.toId}`, plainBox(r, c.label, {size, weight: 400, tone: undefined, frame: false, padX: 0, padY: 0}), ctx.ld.day, ctx.tones, ctx.fonts);
+  return boxXml(ctx.next(), namedAs('label', c.label), plainBox(r, c.label, {size, weight: 400, tone: undefined, frame: false, padX: 0, padY: 0}), ctx.ld.day, ctx.tones, ctx.fonts);
 }
 
 /**
@@ -64,7 +65,7 @@ function bandsXml(ld: LaidOutDiagram, ctx: Ctx, from: number, to: number): strin
 export function planSlide(ld: LaidOutDiagram, fonts: Fonts): SlidePlan {
   let last = 1;
   // the tone overrides are resolved here, from the diagram itself: the native shapes draw them as the svg does (ADR 0031 §2)
-  const ctx: Ctx = {ld, tones: toneEnv(ld.tones), fonts, next: () => ++last, glue: new Map(), pictures: []};
+  const ctx: Ctx = {ld, tones: toneEnv(ld.tones), fonts, next: () => ++last, glue: new Map(), pictures: [], count: new Map()};
   const shapes = bandsXml(ld, ctx, 0, ld.laidOut.length);
   const lines = ld.connects.map(c => connectXml(c, ctx)); // after the shapes, so they sit on top as in the svg
   const labels = ld.connects.map(c => labelXml(c, ctx));

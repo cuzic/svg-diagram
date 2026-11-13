@@ -514,9 +514,9 @@ export interface LaidOutBpmn extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  lanes: (Rect & {labelW: number; tone: BoxTone})[];
+  lanes: (Rect & {labelW: number; tone: BoxTone; /** ADR 0054: the lane's part (its band, header and name) */ part?: string})[];
   /** The shape of each node (a circle, a diamond or a rounded rectangle). */
-  nodes: (Rect & {kind: BpmnNodeKind; tone: EmphasisTone; /** ADR 0034 */ dataNode?: string})[];
+  nodes: (Rect & {kind: BpmnNodeKind; tone: EmphasisTone; /** ADR 0034 */ dataNode?: string; /** ADR 0054: the node's part (a gateway's diamond, mark and question; an event's circle and name) */ part?: string})[];
   /** The icons of the tasks that have one (20px, above the label); `node` indexes `nodes`. */
   icons: {node: number; name: string; glyph: IconGlyph; x: number; y: number; size: number; tone?: TextTone}[];
   edges: {from: string; to: string; line: 'solid' | 'dashed'; points: {x: number; y: number}[]}[];

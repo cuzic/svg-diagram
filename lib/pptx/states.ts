@@ -68,5 +68,5 @@ export function statesXml(b: LaidOutStates, ld: LaidOutDiagram, tones: ToneEnv, 
   // a label: its white chip holds its text, one shape (ADR 0054)
   for (const l of b.labels) out.push(geomShapeXml(next(), namedAs('label', l.text), l, prstGeomXml('rect'), {fill: PALETTE.bg}, boxTextXml(l, [{text: l.text, x: l.tx, y: l.ty, anchor: 'middle', size: l.size, bold: false, color: PALETTE.text}], fonts)));
   const glue = nodes.flatMap(({dslId, id, rect}) => dslId ? [{dslId, id, rect}] : []);
-  return {xml: groupXml(next(), b.id ? `states-${b.id}` : b.flavor === 'flowchart' ? 'flowchart' : 'states', b, out.join('')), glue};
+  return {xml: groupXml(next(), namedAs(b.flavor === 'flowchart' ? 'flowchart' : 'states', '', b.id), b, out.join('')), glue};
 }

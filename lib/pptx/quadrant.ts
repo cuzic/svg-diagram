@@ -8,7 +8,7 @@ import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutQuadrant, QuadrantShape} from '../quadrant.ts';
 import {groupXml} from './shapes.ts';
 import {drawAll, estimatedWidth, geomHolder, joined, polygonHolder, type Drawn} from './fill.ts';
-import {lineXml, nameOf, presetXml, prstGeomXml, textLineXml, type Paint, type TextLine} from './prims.ts';
+import {lineXml, namedAs, nameOf, presetXml, prstGeomXml, textLineXml, type Paint, type TextLine} from './prims.ts';
 import {roundRectAdj, type Fonts, type Rect} from './xml.ts';
 
 /** The colours the svg gives a cell or region of this tone. */
@@ -70,5 +70,5 @@ export function quadrantXml(b: LaidOutQuadrant, ld: LaidOutDiagram, tones: ToneE
     const texts = lines.map(t => { const id = next(); return textLineXml(id, nameOf('text', id, t.text), t, fonts); }).join('');
     return groupXml(next(), nameOf('item', m.id, b.bubbles[i]?.label), rect, m.xml + texts);
   });
-  return {xml: groupXml(next(), b.id ? `quadrant-${b.id}` : 'quadrant', b, body + labelled.join('')), glue};
+  return {xml: groupXml(next(), namedAs('quadrant', '', b.id), b, body + labelled.join('')), glue};
 }

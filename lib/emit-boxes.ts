@@ -1,4 +1,5 @@
 import {PALETTE, CONNECT_LABEL_SIZE, STRONG_STROKE, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
+import {marked, partAttr, partStep, partsOn} from './parts.ts';
 import type {ToneEnv} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {LaidOutGroup, LaidOutLegend, LaidOutRow, LaidOutGrid, LaidOutRaw, LaidOutStatus, LaidOutConnect, RawColorTone} from './types/containers.ts';
@@ -284,18 +285,23 @@ export function renderRaw(band: LaidOutRaw, day: Theme): string {
 
 
 export function renderSwimlane(b: LaidOutSwimlane, day: Theme, roles: Roles): string {
-  const parts: string[] = [];
+  // ADR 0054: a lane (its label cell, body, border and name) and a phase (its divider and name) are parts
+  const on = partsOn(b), all: string[] = [];
+  let mark = '';
+  const parts = {push: (...xs: string[]) => all.push(...xs.map(x => marked(x, mark)))};
   const R = 8, n = b.lanes.length, hasPh = b.phaseH > 0;
   const X1 = b.x + b.w;
   if (hasPh) {
     parts.push(`<path d="${rrPath(b.bodyX, b.y, X1 - b.bodyX, b.phaseH, {tr: R})}" fill="${PALETTE[day].soft}"/>`);
     parts.push(`<path d="${rrPath(b.x, b.y, b.labelW, b.phaseH, {tl: R})}" fill="${PALETTE.code}"/>`);
-    for (const ph of b.phases) {
+    for (const [i, ph] of b.phases.entries()) {
+      mark = partAttr(on, partStep('phase', i, ph.lines.join('')));
       parts.push(`<path d="M${Math.round(ph.x)},${Math.round(b.y)} V${Math.round(b.y + b.phaseH)}" stroke="${PALETTE.border}" stroke-width="2"/>`);
       parts.push(textLines(ph.lines, {x: ph.x + ph.w / 2, top: b.y + 8, size: roles.note, weight: 700, anchor: 'middle', fill: PALETTE[day].accent}));
     }
   }
   b.lanes.forEach((ln, i) => {
+    mark = partAttr(on, partStep('lane', i, ln.labelLines.join('')));
     const first = i === 0 && !hasPh, last = i === n - 1;
     const bodyFill = i % 2 === 0 ? PALETTE.bg : PALETTE.code;
     const labelFill = ln.tone === 'accent' ? PALETTE[day].soft : PALETTE.code;
@@ -304,6 +310,7 @@ export function renderSwimlane(b: LaidOutSwimlane, day: Theme, roles: Roles): st
     if (i > 0 || hasPh) parts.push(`<path d="M${Math.round(b.x)},${Math.round(ln.y)} H${Math.round(X1)}" stroke="${PALETTE.border}" stroke-width="2"/>`);
     parts.push(textLines(ln.labelLines, {x: b.x + b.labelW / 2, top: ln.labelTop, size: roles.title, weight: 700, anchor: 'middle', fill: ln.tone === 'accent' ? PALETTE[day].accent : PALETTE.text}));
   });
+  mark = '';
   parts.push(`<path d="M${Math.round(b.bodyX)},${Math.round(b.y)} V${Math.round(b.y + b.h)}" stroke="${PALETTE.text}" stroke-width="2"/>`);
   for (const bd of b.boundaries ?? []) { // a heavy dashed line over the lane border; its name sits in a chip on the label column
     const y = Math.round(bd.y);
@@ -315,6 +322,6 @@ export function renderSwimlane(b: LaidOutSwimlane, day: Theme, roles: Roles): st
     }
   }
   parts.push(`<path d="${rrPath(b.x, b.y, b.w, b.h, {tl: R, tr: R, bl: R, br: R})}" fill="none" stroke="${PALETTE.text}" stroke-width="2.5"/>`);
-  return parts.join('\n  ');
+  return all.join('\n  ');
 }
 

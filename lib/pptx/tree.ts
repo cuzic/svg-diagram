@@ -1,6 +1,7 @@
 // A tree band (tree, mind map, org chart, KPI tree, roadmap, fishbone) as native shapes: each node a rounded rectangle holding its own
 // text, each line a connector glued to the parent and the child (a curved line is a curvedConnector3, an elbow a bentConnector), and a
 // brace a freeform. Moving a node in PowerPoint drags its lines along. A dimmed tree (spotlight) stays a picture.
+import {namedAs} from './prims.ts';
 import {PALETTE, colorOf, isSolidTone, toneStyle} from '../tokens.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutTree, TreeNodeText} from '../types/diagrams.ts';
@@ -72,21 +73,21 @@ export function treeXml(b: LaidOutTree, ld: LaidOutDiagram, tones: ToneEnv, font
     const id = next();
     if (fit.ok) {
       const x = e.curve ? {...fit.x, prst: fit.x.prst.replace('bentConnector', 'curvedConnector')} : fit.x;
-      out.push(connectorShapeXml(id, `tree-line-${id}`, x, color, width, start, end));
-    } else out.push(freeformPathXml(id, `tree-line-${id}`, e.points.map((p, i) => ({op: i ? 'L' : 'M', pts: [p]})), color, width));
+      out.push(connectorShapeXml(id, 'line', x, color, width, start, end));
+    } else out.push(freeformPathXml(id, 'line', e.points.map((p, i) => ({op: i ? 'L' : 'M', pts: [p]})), color, width));
   }
   for (const br of b.braces ?? []) {
     const s = br.side === 'right' ? 1 : -1, r = 8, {x, tipX: xt, y1, y2, ymid: ym} = br;
     const id = next();
-    out.push(freeformPathXml(id, `tree-brace-${id}`, [
+    out.push(freeformPathXml(id, 'brace', [
       {op: 'M', pts: [{x: x + s * r, y: y1}]}, {op: 'Q', pts: [{x, y: y1}, {x, y: y1 + r}]}, {op: 'L', pts: [{x, y: ym - r}]},
       {op: 'Q', pts: [{x, y: ym}, {x: xt, y: ym}]}, {op: 'Q', pts: [{x, y: ym}, {x, y: ym + r}]}, {op: 'L', pts: [{x, y: y2 - r}]},
       {op: 'Q', pts: [{x, y: y2}, {x: x + s * r, y: y2}]},
     ], PALETTE.muted, 2));
   }
   for (const {n, id, rect} of nodes) {
-    const box: TextBox = {...rect, tone: n.tone, padX: PAD_X, padY: PAD_Y, align: 'center', wrappedRuns: nodeRunsOf(n, b.texts, tones)};
-    out.push(boxXml(id, n.id ?? `tree-node-${id}`, box, ld.day, tones, fonts));
+    const runs = nodeRunsOf(n, b.texts, tones), box: TextBox = {...rect, tone: n.tone, padX: PAD_X, padY: PAD_Y, align: 'center', wrappedRuns: runs};
+    out.push(boxXml(id, namedAs('box', runs.flatMap(r => r.lines).join(''), n.id), box, ld.day, tones, fonts));
   }
-  return {xml: groupXml(next(), b.id ? `tree-${b.id}` : 'tree', b, out.join('')), glue};
+  return {xml: groupXml(next(), namedAs('tree', '', b.id), b, out.join('')), glue};
 }

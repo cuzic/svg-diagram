@@ -106,7 +106,7 @@ export function causeXml(b: LaidOutCause, ld: LaidOutDiagram, tones: ToneEnv, fo
     out.push(parts.length > 1 ? groupXml(next(), named('node', text, dslId), extent, parts.join('')) : parts.join(''));
   }
   const glue = nodes.flatMap(({dslId, id, rect}) => dslId ? [{dslId, id, rect}] : []);
-  return {xml: groupXml(next(), b.id ? `cause-${b.id}` : 'cause', b, out.join('')), glue};
+  return {xml: groupXml(next(), namedAs('cause', '', b.id), b, out.join('')), glue};
 }
 
 /** The inner outline of a double frame: in the text colour (white) on a solid fill, as the svg draws it. */
