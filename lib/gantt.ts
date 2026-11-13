@@ -1,6 +1,7 @@
 // gantt(): a schedule. Rows are tasks (bars on a date axis), milestones (diamonds) and section headings; the axis, the
 // ticks, today's line and the dependency arrows are computed. Dates are 'YYYY-MM-DD' (an end is inclusive); `today` is
 // always written out, never read from the clock.
+import {GANTT_AXIS, partStep} from './parts.ts';
 import {textWidth} from './atoms.ts';
 import type {Pt} from './graph-layout.ts';
 import {ticksOf, timelineDay} from './timeline.ts';
@@ -121,8 +122,8 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
     type: 'gantt', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: height,
     plot: {x1: plotL, x2: plotR, y1: top, y2: y + height - PAD}, ticks: [], sections: [], bars: [], deps: [], texts: [], anchors: [], labelBoxes: [],
   };
-  const text = (s: string, tx: number, ty: number, anchor: 'start' | 'middle', bold = false, muted = false, tone?: 'danger'): void => {
-    out.texts.push({text: s, x: tx, y: ty, size: S, bold, muted, anchor, ...(tone ? {tone} : {})});
+  const text = (s: string, tx: number, ty: number, anchor: 'start' | 'middle', bold = false, muted = false, tone?: 'danger', part?: string): void => {
+    out.texts.push({text: s, x: tx, y: ty, size: S, bold, muted, anchor, ...(tone ? {tone} : {}), ...(part ? {part} : {})});
     const tw = textWidth(widthOf, s, S, bold ? 700 : 400);
     out.labelBoxes.push({label: s, x: anchor === 'middle' ? tx - tw / 2 : tx, y: ty - S, w: tw, h: S + 4});
   };
@@ -141,26 +142,27 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
     const tx = px(t.day);
     out.ticks.push({x: tx});
     const tw = textWidth(widthOf, t.label, S, 400);
-    if (tx + tw / 2 <= x + w) text(t.label, Math.max(tx, plotL), y + S + 2, 'middle', false, true);
+    if (tx + tw / 2 <= x + w) text(t.label, Math.max(tx, plotL), y + S + 2, 'middle', false, true, undefined, GANTT_AXIS);
   }
 
   band.rows.forEach((r, i) => {
     const ry = top + i * ROW_H, cy = ry + ROW_H / 2;
     if (isSection(r)) {
-      out.sections.push({x, y: ry, w, h: ROW_H});
-      text(r.section, x + PAD, cy + S / 2 - 1, 'start', true);
+      const part = partStep('section', i, r.section);
+      out.sections.push({x, y: ry, w, h: ROW_H, part});
+      text(r.section, x + PAD, cy + S / 2 - 1, 'start', true, false, undefined, part);
       return;
     }
-    const [s, e] = must(spans.get(r));
-    text(r.label, x + PAD, cy + S / 2 - 1, 'start');
+    const [s, e] = must(spans.get(r)), part = partStep('task', r.id ?? i, r.label);
+    text(r.label, x + PAD, cy + S / 2 - 1, 'start', false, false, undefined, part);
     if (r.milestone) {
       const mx = px(s) + perDay / 2, hh = BAR_H / 2 + 2;
-      out.bars.push({x: mx - hh, y: cy - hh, w: 2 * hh, h: 2 * hh, tone: r.tone ?? 'accent', milestone: true, label: r.label});
+      out.bars.push({x: mx - hh, y: cy - hh, w: 2 * hh, h: 2 * hh, tone: r.tone ?? 'accent', milestone: true, label: r.label, part});
       if (r.id) out.anchors.push({id: r.id, x: mx - hh, y: cy - hh, w: 2 * hh, h: 2 * hh});
       return;
     }
     const bx = px(s), bw = Math.max(4, px(e) - px(s)), rect = {x: bx, y: cy - BAR_H / 2, w: bw, h: BAR_H};
-    out.bars.push({...rect, tone: r.tone ?? 'accent', label: r.label, ...(r.progress === undefined ? {} : {progress: r.progress})});
+    out.bars.push({...rect, tone: r.tone ?? 'accent', label: r.label, ...(r.progress === undefined ? {} : {progress: r.progress}), part});
     if (r.id) out.anchors.push({id: r.id, ...rect});
   });
   const rectOf = (t: GanttTask) => must(out.bars[tasks.indexOf(t)]);
@@ -186,9 +188,9 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
   }
   if (today !== undefined) {
     const tx = px(today) + perDay / 2;
-    out.today = {x: tx, y1: top, y2: out.plot.y2};
-    const tl = band.todayLabel ?? '今日', tw = textWidth(widthOf, tl, S, 700);
-    text(tl, Math.min(Math.max(tx, x + tw / 2), x + w - tw / 2), y + HEAD_H - 4, 'middle', true, false, 'danger');
+    const tl = band.todayLabel ?? '今日', tw = textWidth(widthOf, tl, S, 700), part = partStep('today', 0, tl);
+    out.today = {x: tx, y1: top, y2: out.plot.y2, part};
+    text(tl, Math.min(Math.max(tx, x + tw / 2), x + w - tw / 2), y + HEAD_H - 4, 'middle', true, false, 'danger', part);
   }
   return out;
 }

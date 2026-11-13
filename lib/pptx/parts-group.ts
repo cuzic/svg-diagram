@@ -4,7 +4,8 @@
 // The shapes of a part need not be drawn one after another (most figures draw all lines, then all boxes, then all texts). A group is written
 // in one place, so gathering its shapes changes what is drawn over what. The place is chosen so that this never shows: at the part's last
 // shape, else its first, else one between, wherever no moved shape crosses a shape outside the part that is drawn between its own place and
-// the group's. When there is no such place, the shapes that cross are left out of the group, drawn where they were.
+// the group's. When there is no such place, the shapes that cross are left out of the group, drawn where they were. Parts of one kind
+// (two series, two classes) may change places with each other: that is how a chart draws its series, one after another.
 import type {Pt} from './geom.ts';
 import {groupXml} from './shapes.ts';
 import {parsePart} from '../parts.ts';
@@ -58,6 +59,8 @@ export function crosses(g: Geo, h: Geo): boolean {
   return segsOf(line).some(([p, q]) => segNearRect(p, q, area.r, line.w / 2 - SLACK));
 }
 
+const kindOf = (step: string): string => step.slice(0, step.indexOf(':'));
+
 /** The name of a part's group: its kind and label, and its DSL id when it has one (`class: 注文 [u1]`). */
 export function partName(step: string): string {
   const s = parsePart(step)[0];
@@ -83,7 +86,9 @@ export function assembleParts(pieces: readonly Piece[], next: () => number, dept
   const at = new Map<string, number>(), out = new Set<Piece>();
   for (const [k, members] of groups) {
     if (members.length < 2) continue;
-    const mine = new Set(members), others = pieces.filter(p => !mine.has(p));
+    // a part of the same kind (another series, another class) may change places with this one: one series drawn over another where they
+    // cross is how a chart draws its series (one after another), so only the shapes of no such part keep their order against this one
+    const kind = kindOf(k), mine = new Set(members), others = pieces.filter(p => !mine.has(p) && (p.part[depth] === undefined || kindOf(p.part[depth]) !== kind));
     const clash = (anchor: number): Piece[] => members.filter(p => p.order !== anchor && others.some(q =>
       q.order > Math.min(p.order, anchor) && q.order < Math.max(p.order, anchor) && crosses(p.geo, q.geo)));
     const orders = members.map(p => p.order), candidates = [orders[orders.length - 1] as number, orders[0] as number, ...orders.slice(1, -1)];
