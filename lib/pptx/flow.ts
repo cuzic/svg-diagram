@@ -51,9 +51,10 @@ export function flowShapeXml(b: LaidOutFlowShape, ld: LaidOutDiagram, tones: Ton
     }
   }
   const texts = b.texts.map((t): Placed => ({t: {text: t.text, x: t.tx, y: t.ty, anchor: t.anchor, size: t.size, bold: t.weight === 700, color: t.tone === 'bg' ? PALETTE.bg : colorOf(t.tone, day)}, w: t.w, ...(t.part ? {part: t.part} : {})}));
-  const body = drawParts(drawn, texts, fonts, next);
+  // the anchors last (over everything, as before), each in its item's part: a connector glued to it follows the item's group (ADR 0054)
   const anchors = anchorsXml(b.anchors, next);
-  return {xml: groupXml(next(), namedAs(b.type, '', b.id), b, body + anchors.xml), glue: anchors.glue};
+  anchors.glue.forEach((g, i) => { const a = b.anchors[i]; drawn.push({d: anchorXml(g.id, `anchor-${g.dslId}`, g.rect), geo: {kind: 'rect', r: g.rect}, ...(a?.part ? {part: a.part} : {})}); });
+  return {xml: groupXml(next(), namedAs(b.type, '', b.id), b, drawParts(drawn, texts, fonts, next)), glue: anchors.glue};
 }
 
 /** A pyramid: each layer a trapezoid in the accent colour at its opacity, holding its lines. */
