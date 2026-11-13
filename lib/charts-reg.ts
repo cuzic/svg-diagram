@@ -123,12 +123,12 @@ export function layoutReg(s: RegSpec, g: ChartGeom): LaidOutChartPart {
   if (plotB - plotT < 100) fail(who, 'the figure is too short; raise height');
   const xOf = (v: number) => plotL + (v - sc.xs.min) / (sc.xs.max - sc.xs.min) * (plotR - plotL), yOf = (v: number) => plotB - (v - sc.ys.min) / (sc.ys.max - sc.ys.min) * (plotB - plotT);
   const pt = (p: Pts) => `${r1(xOf(p.x))},${r1(yOf(p.y))}`, line = (ps: Pts[]) => ps.map((p, k) => `${k ? 'L' : 'M'}${pt(p)}`).join(' ');
-  legend.forEach(l => {
+  legend.forEach(l => c.legendEntry(l.i, l.text, () => {
     const cy = g.y + l.row * (S + 12) + Math.max(9, Math.ceil(S * 0.64));
     c.path(markerPath(SHAPES[l.i] ?? 'disc', l.x + 5, cy, 4.5), {fill: tone(l.i), op: 0.8});
     c.line(l.x + 12, cy, l.x + 30, cy, {stroke: tone(l.i), sw: 2, dash: DASH[l.i] || undefined});
     c.text(l.text, l.x + 36, c.mid(cy), 'start', 'text');
-  });
+  }));
   if (yName) c.text(yName, plotL - 4, g.y + legendH + S + 2, 'start', 'muted', {bold: true});
   for (const t of sc.ys.ticks) { c.line(plotL - 6, yOf(t), plotR, yOf(t), {stroke: t === 0 && s.resid ? 'text' : 'border'}); c.text(numText(t), plotL - 10, c.mid(yOf(t)), 'end', 'muted'); }
   for (const t of sc.xs.ticks) { c.line(xOf(t), plotB, xOf(t), plotB + 6, {stroke: 'border'}); c.text(numText(t), xOf(t), plotB + S + 14, 'middle', 'muted'); }

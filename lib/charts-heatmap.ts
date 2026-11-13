@@ -1,6 +1,7 @@
 // heatmap(): a table of numbers whose cells are shaded by size (a cohort table, a retention table, a score matrix). The number is always
 // printed in its cell; the shade is the accent at one of a few steps (a quantised ramp), so a printout in grey still reads, and the legend
 // says which range each step stands for.
+import {LEGEND} from './parts.ts';
 import {niceNear, niceUp} from './qc.ts';
 import {Canvas, checkText, decimalsIn, fail, finiteNum, inkOnShade, numText, shadeOps} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
@@ -138,12 +139,12 @@ export function layoutHeatmap(s: HeatmapSpec, g: ChartGeom): LaidOutChartPart {
   if (s.rowHeader) c.line(r1(plotL - 2), r1(bodyT), r1(plotL - 2), r1(bodyT + s.rows.length * cellH), {stroke: 'border'});
   if (s.scale) {
     const top = bodyT + s.rows.length * cellH + 14;
-    c.text(s.legendTitle, g.x, c.mid(top + 7), 'start', 'muted', {});
-    for (const l of legend) {
+    c.withPart(LEGEND, () => c.text(s.legendTitle, g.x, c.mid(top + 7), 'start', 'muted', {}));
+    for (const [i, l] of legend.entries()) c.legendEntry(i, l.text, () => {
       const y = top + l.y;
       c.rect(r1(l.x), r1(y), 22, 14, {fill: 'accent', op: ops[l.level], stroke: 'accent', sw: 2});
       c.text(l.text, l.x + 28, c.mid(y + 7), 'start', 'text');
-    }
+    });
   }
   void Canvas;
   return c.done();

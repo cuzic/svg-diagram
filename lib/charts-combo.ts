@@ -140,12 +140,12 @@ export function layoutCombo(s: ComboSpec, g: ChartGeom): LaidOutChartPart {
     c.marks.push({x: cx - r - 1, y: cy - r - 1, w: 2 * r + 2, h: 2 * r + 2});
   };
   // legend
-  for (const L of legend) {
+  for (const [i, L] of legend.entries()) c.legendEntry(i, L.s.label, () => {
     const cy = g.y + L.row * rowPitch + Math.max(4 + sw / 2, Math.ceil(S * 0.64)), key = L.s.id ?? L.s.label;
     if (L.s.type === 'bar') c.rect(L.x, cy - sw / 2, sw, sw, {fill: L.s.tone, op: 0.4, stroke: L.s.tone, sw: 1});
     else { c.line(L.x, cy, L.x + sw + 10, cy, {stroke: L.s.tone, sw: 3, dash: lines.indexOf(L.s as never) === 1 ? '6,4' : undefined}); mark(shape(lines.indexOf(L.s as never)), L.x + (sw + 10) / 2, cy, 4, L.s.tone, key); }
     c.text(L.s.label, L.x + (L.s.type === 'bar' ? sw : sw + 10) + 6, c.mid(cy), 'start', 'text');
-  }
+  });
   c.marks.length = 0;
   // axes: the grid from the left ticks; the right ticks are written beside it
   const tk = sl.ticks.map(v => ({v})), shown = thinTicks(tk, yL, () => S + 2, 2);

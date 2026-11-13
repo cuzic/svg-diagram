@@ -94,12 +94,12 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
   if (g.height !== undefined && g.height < headH + rowH.reduce((a, b) => a + b, 0) + axisH) fail('tornado', `height ${g.height} is too small for ${s.items.length} rows (need at least ${headH + rowH.reduce((a, b) => a + b, 0) + axisH})`);
   const bodyB = y0 + rowH.reduce((a, b) => a + b, 0);
   const r1 = (v: number) => Math.round(v * 10) / 10;
-  ([[s.lowTone, s.lowLabel], [s.highTone, s.highLabel]] as const).forEach(([tone, text], i) => {
+  ([[s.lowTone, s.lowLabel], [s.highTone, s.highLabel]] as const).forEach(([tone, text], i) => c.legendEntry(i, text, () => {
     const {x: lx, row} = must(legendAt[i]);
     const cy = g.y + row * (S + 12) + Math.max(4 + sw / 2, Math.ceil(S * 0.64)); // the text's top stays in the figure at a large label size (a canvas)
     c.rect(lx, cy - sw / 2, sw, sw, {fill: tone});
     c.text(text, lx + sw + 6, c.mid(cy), 'start', 'text');
-  });
+  }));
   // grid and axis
   const tk = sc.ticks.map(v => ({v})), shown = thinTicks(tk, xOf, t => c.tw(numText(t.v)), 12);
   for (const t of tk) { c.line(xOf(t.v), y0, xOf(t.v), bodyB, {stroke: 'border'}); if (shown.has(t)) c.text(numText(t.v), xOf(t.v), bodyB + S + 8, 'middle', 'muted'); }

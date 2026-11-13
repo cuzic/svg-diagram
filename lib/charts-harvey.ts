@@ -86,7 +86,7 @@ export function layoutHarvey(s: HarveySpec, g: ChartGeom): LaidOutChartPart {
       const lr = Math.round(R * 0.62), item = (t: string) => 2 * lr + 6 + c.tw(t), gap = 20, ly = tableBottom + 8 + lr + 4;
       let lx = g.x + 4;
       if (s.levels.reduce((a, t) => a + item(t) + gap, -gap) > g.w) fail('harvey', 'the legend does not fit (shorten the level names, or raise width)');
-      s.levels.forEach((t, q) => { ball(c, lx + lr, ly, lr, q); c.text(t, lx + 2 * lr + 6, c.mid(ly), 'start', 'text'); lx += item(t) + gap; });
+      s.levels.forEach((t, q) => { c.legendEntry(q, t, () => { ball(c, lx + lr, ly, lr, q); c.text(t, lx + 2 * lr + 6, c.mid(ly), 'start', 'text'); }); lx += item(t) + gap; });
     }},
   }, g);
 }

@@ -159,12 +159,12 @@ export function layoutCat(s: CatSpec, g: ChartGeom): LaidOutChartPart {
 
   // legend, axis name
   const glyphs = !rectKind;
-  legend.forEach(l => {
+  legend.forEach(l => c.legendEntry(l.i, must(s.hues[l.i]), () => {
     const cy = g.y + l.row * (S + 12) + Math.max(9, Math.ceil(S * 0.64));
     if (glyphs) c.path(markerPath(SHAPES[l.i] ?? 'disc', l.x + 7, cy, 6), {fill: 'accent', op: 0.8});
     else c.rect(l.x, cy - 7, 14, 14, {fill: 'accent', op: fillOp(l.i, s.kinds[0] ?? 'box'), stroke: 'accent', sw: 2});
     c.text(must(s.hues[l.i]), l.x + 20, c.mid(cy), 'start', 'text');
-  });
+  }));
   const axisName = s.label;
   if (v && axisName) c.text(axisName, plotL - 4, g.y + legendH + S + 2, 'start', 'muted', {bold: true});
   // grid, ticks, baseline
